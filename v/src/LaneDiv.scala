@@ -3,13 +3,12 @@ package v
 import chisel3._
 import chisel3.util._
 
-case class LaneDivParameter(dataWidth: Int, maskWidth: Int)
-
-class LaneDiv(param: LaneDivParameter) extends Module {
-  val srcVec: DecoupledIO[Vec[UInt]] = IO(Decoupled(Vec(2, UInt(param.dataWidth.W))))
+class LaneDiv(param: DataPathParam) extends Module {
+  val srcVec: DecoupledIO[Vec[UInt]] = IO(Flipped(Decoupled(Vec(2, UInt(param.dataWidth.W)))))
   val sign: Bool = IO(Input(Bool()))
+  val div: Bool = IO(Input(Bool()))
   // mask for sew
-  val mask: UInt = IO(Input(UInt(param.maskWidth.W)))
+  val mask: UInt = IO(Input(UInt(param.dataWidth.W)))
   val resp: ValidIO[UInt] = IO(Valid(UInt(param.dataWidth.W)))
 
   val sign1h: UInt = mask & (~mask >> 1).asUInt
