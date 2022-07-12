@@ -3,17 +3,15 @@ package v
 import chisel3._
 import chisel3.util._
 
-case class LaneDataProcessingParameter(dataWidth: Int, maskWidth: Int, shifterSizeBit: Int, roundSizeBit: Int)
-
-class LaneDPReq(param: LaneDataProcessingParameter) extends Bundle {
+class LaneDPReq(param: DataPathParam) extends Bundle {
   val src:   UInt = UInt(param.dataWidth.W)
   val sign:  Bool = Bool()
-  val mask:  UInt = UInt(param.maskWidth.W)
+  val mask:  UInt = UInt(param.dataBits.W)
   val rm:    UInt = UInt(2.W)
-  val rSize: ValidIO[UInt] = Valid(UInt(param.roundSizeBit.W))
+  val rSize: ValidIO[UInt] = Valid(UInt(param.dataBits.W))
 }
 
-class LaneDataProcessing(param: LaneDataProcessingParameter) extends Module {
+class LaneDataProcessing(param: DataPathParam) extends Module {
   val in:   LaneDPReq = IO(Input(new LaneDPReq(param)))
   val resp: UInt = IO(Output(UInt(param.dataWidth.W)))
   val clipCheckFail: Bool = IO(Output(Bool()))
