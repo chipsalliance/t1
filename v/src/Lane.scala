@@ -6,6 +6,7 @@ import chisel3.util._
 class LaneReq(param: LaneParameters) extends Bundle {
   val index: UInt = UInt(param.idBits.W)
   val uop: UInt = UInt(4.W)
+  // todo
   val w: Bool = Bool()
   val n: Bool =  Bool()
   val sew: UInt = UInt(2.W)

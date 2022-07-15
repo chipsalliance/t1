@@ -159,9 +159,9 @@ find first one, 也用通用的, 根据控制信号返回不同的结果.
 | w               | I    | 1          | 是不是wide类型的操作                                         |
 | n               | I    | 1          | 是不是narrow类型的操作                                       |
 | sew             | I    | 2          | 操作数的宽度(8, 16, 32, 64)                                  |
-| src             | I    | 3 * ElEN   | 三个源操作数                                                 |
+| src             | I    | 3 * ELEN   | 三个源操作数                                                 |
 | groupIndex      | I    | 5          | 一个指令会被分成多组执行, 这是组的序号                       |
-| sign            | I    | 1          | 这是不是一个有符号操作                                       |
+| rm              | I    | 2          | rounding mode                                                |
 | mask -> maskOP2 | I    | 1          | 第三个操作数是否作为mask格式操作的mask (有点让自己误解,换个名字) |
 | maskDestination | I    | 1          | 目标寄存器是否作为mask格式的                                 |
 
