@@ -3,44 +3,119 @@ package v
 import chisel3._
 import chisel3.util._
 
+/** The request from the controller to the lane (execution unit) */
 class LaneReq(param: LaneParameters) extends Bundle {
+  /** The index of lane */
   val index: UInt = UInt(param.idBits.W)
+
+  /** The uop, to be re-encoded in lane */
   val uop: UInt = UInt(4.W)
-  // todo
+
+  // TODO: 
+  /** Whether operation is widen */
   val w: Bool = Bool()
+
+  /** Whether operation is narrowing */
   val n: Bool =  Bool()
+
+  /** SEW encoded in 2 bits, corresponding to 8, 16, 32, 64 */
   val sew: UInt = UInt(2.W)
+
+  /** Three source operands, TODO: wtf is the third operand
+   */
   val src: Vec[UInt] = Vec(3, UInt(param.ELEN.W))
+
+  /** Since lane requests are sent group by group, groupIndex is the index of it */
   val groupIndex: UInt = UInt(param.groupSizeBits.W)
+
+  /** Whether the operation is signed */
   val sign: Bool = Bool()
+
+  /** Whether operand2 is the mask */
   val maskOP2: Bool = Bool()
+
+  /** Whether the output register is in mask format */
   val maskDestination: Bool = Bool()
+
+  /** Rounding mode */
   val rm: UInt = UInt(2.W)
 }
 
+/** The response returned from the lane */
 class LaneResp(param: LaneParameters) extends Bundle {
   val res: UInt = UInt(param.ELEN.W)
+
+  /** For widen operations, this is the upper part of the result */
   val carry: UInt = UInt(param.ELEN.W)
 }
 
+/** The decoding result of vector instructions.  
+ *  8 bits onehot encoding of uop, indicating to type of operation
+ *  3 bits encoding of subUop, indicating to some operation together with uop
+ */
 class LaneDecodeResult extends Bundle {
-  // sub unit
+  /** Corresponding subUop
+   *  0 => and
+   *  1 => nand
+   *  2 => andn
+   *  3 => or
+   *  4 => orn
+   *  5 => xor
+   *  6 => xnor
+   *  7 => andn
+   */
   val logic: Bool = Bool()
+  
+  /** Corresponding subUop
+   *  0 => add
+   *  1 => sub
+   *  2 => adc
+   *  3 => madc
+   *  4 => sbc
+   *  5 => msbc
+   *  6 => slt,sle,sgt,sge
+   *  7 => max,min
+   */
   val arithmetic: Bool = Bool()
-  val shift: Bool = Bool()
+
+  /** Corresponding subUop
+   *  0 => mul
+   *  4 => wmul
+   *  7 => ma
+   */
   val mul: Bool = Bool()
+
+  /** Corresponding subUop
+   *  0 => div
+   */
   val div: Bool = Bool()
+
+  /** Corresponding subUop
+   *  0 => popcount
+   */
   val popCount: Bool = Bool()
+
+  /** Corresponding subUop
+   *  0 => ffo
+   */
   val ffo: Bool = Bool()
+
+  /** Corresponding subUop
+   *  0 => getIndex
+   */
   val getIndex: Bool = Bool()
+
   val dataProcessing: Bool = Bool()
-  // operand
-  // operand 0 is signed
+
+  /** Whether operand 0 is signed */
   val s0: Bool = Bool()
+
+  /** Whether operand 1 is signed */
   val s1: Bool = Bool()
 
-  // - operand1?
+  /** Whether subtraction applied on operand1 */ 
   val sub1: Bool = Bool()
+  /** Whether subtraction applied on operand2 */ 
   val sub2: Bool = Bool()
 
   val subUop: UInt = UInt(3.W)
@@ -50,8 +125,13 @@ class LaneSrcResult(param: LaneParameters) extends Bundle {
   val src0: UInt = UInt(param.ELEN.W)
   val src1: UInt = UInt(param.ELEN.W)
   val src2: UInt = UInt(param.ELEN.W)
+  
+  /** The additional operand required in adc, sbc and ma operations */
   val src3: UInt = UInt(2.W)
+
   val mask: UInt = UInt(param.ELEN.W)
+  
+  /** Destination mask, may differ from `mask` in widen/narrowing operation */
   val desMask: UInt = UInt(param.ELEN.W)
 }
 
@@ -59,11 +139,9 @@ class Lane(param: LaneParameters) extends Module {
   val req: DecoupledIO[LaneReq] = IO(Flipped(Decoupled(new LaneReq(param))))
   val resp: ValidIO[LaneResp] = IO(Valid(new LaneResp(param)))
 
+  // TODO: decode req
   val decodeRes: LaneDecodeResult = WireInit(0.U.asTypeOf(new LaneDecodeResult))
 
-  // sew
-  /*val sewByteMask: UInt = (1.U << req.bits.sew).asUInt - 1.U
-  val sewBitMask: UInt = FillInterleaved(8, sewByteMask)*/
   val LaneSrcVec: Vec[LaneSrcResult] = VecInit(Seq.tabulate(4) { sew =>
     val res = WireDefault(0.U.asTypeOf(new LaneSrcResult(param)))
     val significantBit = 1 << (sew + 3)
@@ -71,33 +149,32 @@ class Lane(param: LaneParameters) extends Module {
 
     // handle sign bit
     val sign0 = req.bits.src(0)(significantBit - 1) && decodeRes.s0
+    val sign1 = req.bits.src(1)(significantBit - 1) && decodeRes.s1
+
     // operand sign correction
     val osc0 = Fill(remainder, sign0) ## req.bits.src(0)(significantBit - 1, 0)
-    val sign1 = req.bits.src(1)(significantBit - 1) && decodeRes.s1
     val osc1 = Fill(remainder, sign1) ## req.bits.src(1)(significantBit - 1, 0)
-    /*val sign2 = req.bits.src(2)(significantBit - 1)
-    val osc2 = Fill(remainder, sign2) ## req.bits.src(2)(significantBit - 1, 0)*/
 
-    // op0 - op1 (- op2)
+    // To output op0 +(-) op1 +(-) op2, when subtraction is applied instead of addition,
+    // first invert all bits then plus an additional one (negativeCompensation)
     val SubtractionOperand1: UInt = osc1 ^ Fill(64, decodeRes.sub1)
     val SubtractionOperand2: UInt = req.bits.src(2) ^ Fill(64, decodeRes.sub2)
-
-    // - op1 = ~op1 + 1
     val negativeCompensation: UInt = (!req.bits.maskOP2 & decodeRes.sub1 & decodeRes.sub2) ##
       ((req.bits.maskOP2 && req.bits.src(2)(0)) || (!req.bits.maskOP2 & (decodeRes.sub1 ^ decodeRes.sub2)))
+
     res.src0 := osc0
     res.src1 := SubtractionOperand1
     res.src2 := SubtractionOperand2
     res.src3 := negativeCompensation
     res.mask := ((1 << sew) - 1).U(param.ELEN.W)
-    // todo handle w n
+    // TODO: handle w n
     res.desMask := ((1 << sew) - 1).U(param.ELEN.W)
     res
   })
 
   val srcSelect: LaneSrcResult = Mux1H(UIntToOH(req.bits.sew), LaneSrcVec)
 
-  // alu
+  // make ALU units
   val logicUnit: LaneLogic = Module(new LaneLogic(param.datePathParam))
   val adder: LaneAdder = Module(new LaneAdder(param.datePathParam))
   val shifter: LaneShifter = Module(new LaneShifter(param.shifterParameter))
@@ -110,6 +187,9 @@ class Lane(param: LaneParameters) extends Module {
 
   val resultVec: Vec[UInt] = Wire(Vec(8, UInt(param.mulRespWidth.W)))
   val carryRes: UInt = Wire(UInt(param.mulRespWidth.W))
+
+  // Notice that both the input and the output of each functional unit is mux-ed, 
+  // to reduce power consumption.
 
   // logicUnit connect
   val logicInput: LaneSrcResult = Mux(decodeRes.logic, srcSelect, 0.U.asTypeOf(srcSelect))
@@ -137,7 +217,7 @@ class Lane(param: LaneParameters) extends Module {
   resultVec(3) := Mux(decodeRes.logic, mul.resp.head, 0.U)
   carryRes := mul.resp.last
 
-  // div
+  // div connect
   val divInput: LaneSrcResult = Mux(decodeRes.div, srcSelect, 0.U.asTypeOf(srcSelect))
   div.srcVec.bits := VecInit(Seq(divInput.src0, divInput.src1))
   div.mask := divInput.mask
@@ -150,13 +230,13 @@ class Lane(param: LaneParameters) extends Module {
   popCount.src := popCountInput.src0
   resultVec(5) := Mux(decodeRes.popCount, popCount.resp, 0.U)
 
-  // find first one
+  // ffo (find first one) connect
   val ffoInput: LaneSrcResult = Mux(decodeRes.ffo, srcSelect, 0.U.asTypeOf(srcSelect))
   ffo.src := ffoInput.src0
   ffo.resultSelect := decodeRes.subUop
   resultVec(6) := Mux(decodeRes.ffo, ffo.resp.bits, 0.U)
 
-  // index
+  // getIndex connect
   getID.groupIndex := req.bits.groupIndex
   getID.laneIndex := req.bits.index
   resultVec(7) := Mux(decodeRes.getIndex, getID.resp, 0.U)
@@ -166,6 +246,7 @@ class Lane(param: LaneParameters) extends Module {
   dp.in.mask := srcSelect.desMask
   dp.in.rm := req.bits.rm
   dp.in.rSize.valid := decodeRes.dataProcessing
+  // TODO: subUop(2) is not working now
   dp.in.rSize.bits := Mux(decodeRes.subUop(2), req.bits.src(1), 1.U)
 
   req.ready := (!decodeRes.div) || div.srcVec.ready

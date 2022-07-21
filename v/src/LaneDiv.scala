@@ -34,5 +34,6 @@ class LaneDiv(param: DataPathParam) extends Module {
   srcVec.ready := count === 0.U
   resp.valid := count.andR
 
+  // TODO: div
   resp.bits := srcExtend.head / srcExtend.last
 }

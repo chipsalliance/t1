@@ -9,7 +9,7 @@ class LaneShifter(param: LaneShifterParameter) extends Module {
   val src: UInt = IO(Input(UInt(param.dataWidth.W)))
   val sign: Bool = IO(Input(Bool()))
   val direction: Bool = IO(Input(Bool()))
-  // todo: need cut for difference sew
+  // Todo: need cut for difference sew
   val shifterSize: UInt = IO(Input(UInt(param.shifterSizeBit.W)))
   // mask for sew
   val mask: UInt = IO(Input(UInt(param.dataWidth.W)))

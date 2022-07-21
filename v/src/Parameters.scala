@@ -7,16 +7,16 @@ case class DataPathParam(dataWidth: Int) {
 }
 
 /**
-  * @param ELEN 执行单元数据的位宽
-  * @param VLEN 向量寄存器的宽度
-  * @param lane lane的个数
+  * @param ELEN data width of functional unit
+  * @param VLEN length of vector register
+  * @param lane num of lanes
   */
 case class LaneParameters(ELEN: Int = 64, VLEN: Int = 128, lane: Int = 4) {
   // lane param
   val addRespWidth: Int = ELEN + 1
   val mulRespWidth: Int = ELEN * 2
   val elenBits: Int = log2Ceil(ELEN)
-  // VLEN * lMulMax / sewMin
+  // VLEN * max LMUL / min SEW
   val VLMax: Int = VLEN
   val groupSize: Int = VLMax / lane
   val groupSizeBits: Int = log2Ceil(groupSize)
