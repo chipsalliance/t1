@@ -174,10 +174,10 @@ find first one, 也用通用的, 根据控制信号返回不同的结果.
 | andn     |          | 2            |                                                              |
 | or       |          | 3            |                                                              |
 | nor      |          | 4            |                                                              |
-| orn      |          | 5            |                                                              |
+| orn      |          | 5            | b                                                            |
 | xor      |          | 6            |                                                              |
 | xnor     |          | 7            | +8                                                           |
-| add      | 1        | 0            |                                                              |
+| add      | 1        | 0            | (+-需要添加Averaging的四种编码)                              |
 | sub      |          | 1            | src2取反, src3为1                                            |
 | adc      |          | 2            | src3是carry                                                  |
 | madc     |          | 3            | 同上,结果要c                                                 |
