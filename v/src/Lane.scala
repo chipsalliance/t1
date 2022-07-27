@@ -65,7 +65,7 @@ class LaneDecodeResult extends Bundle {
    *  7 => andn
    */
   val logic: Bool = Bool()
-  
+  val shift: Bool = Bool()
   /** Corresponding subUop
    *  0 => add
    *  1 => sub
@@ -119,6 +119,8 @@ class LaneDecodeResult extends Bundle {
   val sub2: Bool = Bool()
 
   val subUop: UInt = UInt(3.W)
+  /** Whether it is Averaging add/sub ? */
+  val averaging: Bool = Bool()
 }
 
 class LaneSrcResult(param: LaneParameters) extends Bundle {
@@ -142,7 +144,7 @@ class Lane(param: LaneParameters) extends Module {
   // TODO: decode req
   val decodeRes: LaneDecodeResult = WireInit(0.U.asTypeOf(new LaneDecodeResult))
 
-  val LaneSrcVec: Vec[LaneSrcResult] = VecInit(Seq.tabulate(4) { sew =>
+  val LaneSrcVec: Vec[LaneSrcResult] = VecInit(Seq.tabulate(param.maxVSew) { sew =>
     val res = WireDefault(0.U.asTypeOf(new LaneSrcResult(param)))
     val significantBit = 1 << (sew + 3)
     val remainder = param.ELEN - significantBit + 1
@@ -172,7 +174,7 @@ class Lane(param: LaneParameters) extends Module {
     res
   })
 
-  val srcSelect: LaneSrcResult = Mux1H(UIntToOH(req.bits.sew), LaneSrcVec)
+  val srcSelect: LaneSrcResult = Mux1H(UIntToOH(req.bits.sew)(param.maxVSew, 0), LaneSrcVec)
 
   // make ALU units
   val logicUnit: LaneLogic = Module(new LaneLogic(param.datePathParam))
@@ -246,8 +248,7 @@ class Lane(param: LaneParameters) extends Module {
   dp.in.mask := srcSelect.desMask
   dp.in.rm := req.bits.rm
   dp.in.rSize.valid := decodeRes.dataProcessing
-  // TODO: subUop(2) is not working now
-  dp.in.rSize.bits := Mux(decodeRes.subUop(2), req.bits.src(1), 1.U)
+  dp.in.rSize.bits := Mux(decodeRes.averaging, req.bits.src(1), 1.U)
 
   req.ready := (!decodeRes.div) || div.srcVec.ready
   resp.valid := (!decodeRes.div) || div.resp.valid
