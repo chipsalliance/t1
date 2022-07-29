@@ -1,6 +1,7 @@
 package v
 
 import chisel3.util._
+import chisel3.util.experimental.decode.TruthTable
 
 import scala.language.postfixOps
 
@@ -157,5 +158,18 @@ object TableGenerator extends App {
     case object ffID extends FFO with LaneUop
     case object getID extends GetIndex with LaneUop
   }
-  LaneDecodeTable
+
+  object BankEnableTable {
+    val maskList: Seq[Int] = Seq(1,3,15)
+    val maskSizeList: Seq[Int] = Seq(1,2,4)
+    var table: List[(BitPat, BitPat)] = List.empty
+    for (eew <- 0 to 2; vs <- 0 to 3; groupId <- 0 to 3; v <- Seq(true, false)) {
+      var mask = if (v) maskList(eew) else 0
+      val maskSize = maskSizeList(eew)
+      val index = (maskSize * (vs + groupId)) % 4
+      mask <<= index
+      table :+= BitPat(v) ## BitPat(toBinary(eew, 2)) ## BitPat(toBinary(vs, 2)) ## BitPat(toBinary(groupId, 2)) -> BitPat(toBinary(index, 2)) ## BitPat(toBinary(mask, 4))
+    }
+    val res: TruthTable = TruthTable(table, BitPat.dontCare(4))
+  }
 }
