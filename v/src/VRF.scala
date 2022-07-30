@@ -37,20 +37,24 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val vs:        UInt = UInt(param.regSizeBits.W)
 }
 
-class ChanningRecord(param: VRFParam) extends VRFWriteReport(param) {
+class ChanningRecord(param: VRFParam) extends Bundle {
   val groupIndex: UInt = UInt(param.groupSizeBits.W)
+  val instIndex: UInt = UInt(param.instIndexSize.W)
 }
 
 class VRF(param: VRFParam) extends Module {
   val read:            Vec[DecoupledIO[VRFReadRequest]] = IO(Vec(param.vrfReadPort, Flipped(Decoupled(new VRFReadRequest(param)))))
-  val readResult:      Vec[UInt] = IO(Vec(param.vrfReadPort, UInt(param.ELEN.W)))
+  val readResult:      Vec[UInt] = IO(Output(Vec(param.vrfReadPort, UInt(param.ELEN.W))))
   val write:           DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(param))))
   val instWriteReport: ValidIO[VRFWriteReport] = IO(Flipped(Valid(new VRFWriteReport(param))))
+  val flush: Bool = IO(Input(Bool()))
+
+  val channingRecord: Vec[ValidIO[ChanningRecord]] = RegInit(VecInit(Seq.fill(31)(0.U.asTypeOf(Valid(new ChanningRecord(param))))))
+  val recordCheckVec: IndexedSeq[ValidIO[ChanningRecord]] = WireInit(0.U.asTypeOf(Valid(new ChanningRecord(param)))) +: channingRecord
 
   val readIndex:      Vec[UInt] = Wire(Vec(param.vrfReadPort, UInt(param.rfAddBits.W)))
   val readBankSelect: Vec[UInt] = Wire(Vec(param.vrfReadPort, UInt(param.rfBankSize.W)))
   val readValid: Vec[Bool] = Wire(Vec(param.vrfReadPort, Bool()))
-  val readFire: Vec[Bool] = Wire(Vec(param.vrfReadPort, Bool()))
   val bankReady: Vec[Vec[Bool]] = Wire(Vec(param.vrfReadPort, Vec(param.rfBankSize, Bool())))
   // first read
   val bankReadF: Vec[Vec[Bool]] = Wire(Vec(param.vrfReadPort, Vec(param.rfBankSize, Bool())))
@@ -83,13 +87,16 @@ class VRF(param: VRFParam) extends Module {
     // connect writePort
     rf.writePort.valid := writeBe(bank)
     rf.writePort.bits.addr := writeIndex
-    rf.writePort.bits := writeData(bank)
+    rf.writePort.bits.data := writeData(bank)
     rf
   }
 
   read.zipWithIndex.foreach {
     case (rPort, i) =>
       val decodeRes = bankSelect(rPort.bits.vs, rPort.bits.eew, rPort.bits.groupIndex, readValid(i))
+      val channingCheckRecord = Mux1H(UIntToOH(rPort.bits.vs), recordCheckVec)
+      val checkResult = instIndexGE(rPort.bits.instIndex, channingCheckRecord.bits.instIndex) ||
+        rPort.bits.instIndex <= channingCheckRecord.bits.groupIndex || !channingCheckRecord.valid
       readIndex(i) := rPort.bits.vs ## (rPort.bits.groupIndex >> (param.maxVSew.U - rPort.bits.eew)).asUInt(1, 0)
       readBankSelect(i) := decodeRes(3, 0)
       // read result
@@ -100,8 +107,8 @@ class VRF(param: VRFParam) extends Module {
 
       //control
       read(i).ready := (bankReadF(i).asUInt | bankReadF(i).asUInt) === readBankSelect(i)
-      // TODO: Channing check
-      readValid(i) := read(i).valid
+      readValid(i) := read(i).valid & checkResult
+
   }
 
   // write
@@ -113,5 +120,17 @@ class VRF(param: VRFParam) extends Module {
   // TODO: second write
   writeQueue.ready := true.B
 
+  val initRecord: ValidIO[ChanningRecord] = WireDefault(0.U.asTypeOf(Valid(new ChanningRecord(param))))
+  initRecord.valid := true.B
+  initRecord.bits.instIndex := instWriteReport.bits.instIndex
 
+  channingRecord.zipWithIndex.foreach {case (record, i) =>
+    when(flush) {
+      record.valid := false.B
+    }.elsewhen(instWriteReport.valid && instWriteReport.bits.vs === (i + 1).U) {
+      record := initRecord
+    }.elsewhen(writeQueue.valid && writeQueue.bits.vs === (i + 1).U) {
+      record.bits.groupIndex := writeQueue.bits.groupIndex
+    }
+  }
 }

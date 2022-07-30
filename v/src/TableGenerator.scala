@@ -170,6 +170,6 @@ object TableGenerator extends App {
       mask <<= index
       table :+= BitPat(v) ## BitPat(toBinary(eew, 2)) ## BitPat(toBinary(vs, 2)) ## BitPat(toBinary(groupId, 2)) -> BitPat(toBinary(index, 2)) ## BitPat(toBinary(mask, 4))
     }
-    val res: TruthTable = TruthTable(table, BitPat.dontCare(4))
+    val res: TruthTable = TruthTable(table, BitPat.dontCare(6))
   }
 }
