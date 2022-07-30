@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Definition, Instance}
 import chisel3.util._
 
-case class VRFParam(groupSizeBits: Int, ELEN: Int, vrfReadPort: Int = 6, channingSize: Int = 4) {
+case class VRFParam(groupSizeBits: Int, ELEN: Int, vrfReadPort: Int = 6, channingSize: Int = 4, writeQueueSize: Int = 4) {
   val regSize:     Int = 32
   val regSizeBits: Int = log2Ceil(regSize)
   // One more bit for sorting
@@ -37,6 +37,10 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val vs:        UInt = UInt(param.regSizeBits.W)
 }
 
+class ChanningRecord(param: VRFParam) extends VRFWriteReport(param) {
+  val groupIndex: UInt = UInt(param.groupSizeBits.W)
+}
+
 class VRF(param: VRFParam) extends Module {
   val read:            Vec[DecoupledIO[VRFReadRequest]] = IO(Vec(param.vrfReadPort, Flipped(Decoupled(new VRFReadRequest(param)))))
   val readResult:      Vec[UInt] = IO(Vec(param.vrfReadPort, UInt(param.ELEN.W)))
@@ -55,6 +59,9 @@ class VRF(param: VRFParam) extends Module {
 
   val readResultF: Vec[UInt] = Wire(Vec(param.rfBankSize, UInt(8.W)))
   val readResultS: Vec[UInt] = Wire(Vec(param.rfBankSize, UInt(8.W)))
+  val writeData: Vec[UInt] = Wire(Vec(param.rfBankSize, UInt(8.W)))
+  val writeBe: Vec[Bool] = Wire(Vec(param.rfBankSize, Bool()))
+  val writeIndex: UInt = Wire(UInt(param.rfAddBits.W))
 
   val rfVec: Seq[RegFile] = Seq.tabulate(param.rfBankSize) { bank =>
     // rf instant
@@ -73,6 +80,10 @@ class VRF(param: VRFParam) extends Module {
     rf.readPorts.last.addr := Mux1H(bankReadS.map(_(bank)), readIndex)
     readResultF(bank) := rf.readPorts.head.data
     readResultS(bank) := rf.readPorts.last.data
+    // connect writePort
+    rf.writePort.valid := writeBe(bank)
+    rf.writePort.bits.addr := writeIndex
+    rf.writePort.bits := writeData(bank)
     rf
   }
 
@@ -92,6 +103,15 @@ class VRF(param: VRFParam) extends Module {
       // TODO: Channing check
       readValid(i) := read(i).valid
   }
+
+  // write
+  val writeQueue: DecoupledIO[VRFWriteRequest] = Queue(write, param.writeQueueSize)
+  writeIndex := writeQueue.bits.vs ## (writeQueue.bits.groupIndex >> (param.maxVSew.U - writeQueue.bits.eew)).asUInt(1, 0)
+  val writeDecodeRes: UInt = bankSelect(writeQueue.bits.vs, writeQueue.bits.eew, writeQueue.bits.groupIndex, true.B)
+  writeData := (writeQueue.bits.data << (writeDecodeRes(5, 4) ## 0.U(3.W))).asUInt.asTypeOf(writeData)
+  writeBe := writeDecodeRes(3,0).asTypeOf(writeBe)
+  // TODO: second write
+  writeQueue.ready := true.B
 
 
 }
