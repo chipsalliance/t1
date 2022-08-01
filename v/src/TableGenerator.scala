@@ -160,6 +160,7 @@ object TableGenerator extends App {
   }
 
   object BankEnableTable {
+    // TODO
     val maskList: Seq[Int] = Seq(1,3,15)
     val maskSizeList: Seq[Int] = Seq(1,2,4)
     var table: List[(BitPat, BitPat)] = List.empty

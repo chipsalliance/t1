@@ -17,6 +17,7 @@ class RegFileWritePort(param: RFParam) extends Bundle {
 }
 
 class RegFile(param: RFParam) extends Module {
+  // TODO: add read enable?
   val readPorts: Vec[RegFileReadPort] = IO(Vec(param.readPort, new RegFileReadPort(param)))
   val writePort: ValidIO[RegFileWritePort] = IO(Flipped(Valid(new RegFileWritePort(param))))
 
