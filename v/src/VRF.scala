@@ -25,7 +25,7 @@ class VRFReadRequest(param: VRFParam) extends Bundle {
 }
 
 class VRFWriteRequest(param: VRFParam) extends Bundle {
-  val vs:         UInt = UInt(param.regSizeBits.W)
+  val vd:         UInt = UInt(param.regSizeBits.W)
   val groupIndex: UInt = UInt(param.groupSizeBits.W)
   val eew:        UInt = UInt(2.W)
   val data:       UInt = UInt(param.ELEN.W)
@@ -34,7 +34,7 @@ class VRFWriteRequest(param: VRFParam) extends Bundle {
 
 class VRFWriteReport(param: VRFParam) extends Bundle {
   val instIndex: UInt = UInt(param.instIndexSize.W)
-  val vs:        UInt = UInt(param.regSizeBits.W)
+  val vd:        UInt = UInt(param.regSizeBits.W)
 }
 
 class ChanningRecord(param: VRFParam) extends Bundle {
@@ -72,7 +72,9 @@ class VRF(param: VRFParam) extends Module {
     val rf = Module(new RegFile(param.rfParam))
 
     val BankReadValid: IndexedSeq[Bool] = readBankSelect.map(_(bank))
+    // o 已经有一个了, t 有两个了, v这次要, i -> index
     BankReadValid.zipWithIndex.foldLeft((false.B, false.B)) {case ((o, t), (v, i)) =>
+      // TODO: 加信号名
       bankReady(i)(bank) := v & !t
       bankReadF(i)(bank) := v & !o
       bankReadS(i)(bank) := v & !t & o
@@ -96,7 +98,7 @@ class VRF(param: VRFParam) extends Module {
       val decodeRes = bankSelect(rPort.bits.vs, rPort.bits.eew, rPort.bits.groupIndex, readValid(i))
       val channingCheckRecord = Mux1H(UIntToOH(rPort.bits.vs), recordCheckVec)
       val checkResult = instIndexGE(rPort.bits.instIndex, channingCheckRecord.bits.instIndex) ||
-        rPort.bits.instIndex <= channingCheckRecord.bits.groupIndex || !channingCheckRecord.valid
+        rPort.bits.groupIndex <= channingCheckRecord.bits.groupIndex || !channingCheckRecord.valid
       readIndex(i) := rPort.bits.vs ## (rPort.bits.groupIndex >> (param.maxVSew.U - rPort.bits.eew)).asUInt(1, 0)
       readBankSelect(i) := decodeRes(3, 0)
       // read result
@@ -106,15 +108,15 @@ class VRF(param: VRFParam) extends Module {
         (decodeRes(5, 4) ## 0.U(3.W))).asUInt
 
       //control
-      read(i).ready := (bankReadF(i).asUInt | bankReadF(i).asUInt) === readBankSelect(i)
+      read(i).ready := (bankReadF(i).asUInt | bankReadS(i).asUInt) === readBankSelect(i)
       readValid(i) := read(i).valid & checkResult
 
   }
 
   // write
   val writeQueue: DecoupledIO[VRFWriteRequest] = Queue(write, param.writeQueueSize)
-  writeIndex := writeQueue.bits.vs ## (writeQueue.bits.groupIndex >> (param.maxVSew.U - writeQueue.bits.eew)).asUInt(1, 0)
-  val writeDecodeRes: UInt = bankSelect(writeQueue.bits.vs, writeQueue.bits.eew, writeQueue.bits.groupIndex, true.B)
+  writeIndex := writeQueue.bits.vd ## (writeQueue.bits.groupIndex >> (param.maxVSew.U - writeQueue.bits.eew)).asUInt(1, 0)
+  val writeDecodeRes: UInt = bankSelect(writeQueue.bits.vd, writeQueue.bits.eew, writeQueue.bits.groupIndex, true.B)
   writeData := (writeQueue.bits.data << (writeDecodeRes(5, 4) ## 0.U(3.W))).asUInt.asTypeOf(writeData)
   writeBe := writeDecodeRes(3,0).asTypeOf(writeBe)
   // TODO: second write
@@ -127,10 +129,13 @@ class VRF(param: VRFParam) extends Module {
   channingRecord.zipWithIndex.foreach {case (record, i) =>
     when(flush) {
       record.valid := false.B
-    }.elsewhen(instWriteReport.valid && instWriteReport.bits.vs === (i + 1).U) {
+    }.elsewhen(instWriteReport.valid && instWriteReport.bits.vd === (i + 1).U) {
       record := initRecord
-    }.elsewhen(writeQueue.valid && writeQueue.bits.vs === (i + 1).U) {
+    }.elsewhen(writeQueue.valid && writeQueue.bits.vd === (i + 1).U) {
       record.bits.groupIndex := writeQueue.bits.groupIndex
+      when(writeQueue.bits.last) {
+        record.valid := false.B
+      }
     }
   }
 }
