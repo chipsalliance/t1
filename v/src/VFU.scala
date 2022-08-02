@@ -4,14 +4,14 @@ import chisel3._
 import chisel3.util._
 
 /** The request from the controller to the lane (execution unit) */
-class LaneReq(param: LaneParameters) extends Bundle {
+class VFUReq(param: LaneParameters) extends Bundle {
   /** The index of lane */
   val index: UInt = UInt(param.idBits.W)
 
   /** The uop, to be re-encoded in lane */
   val uop: UInt = UInt(4.W)
 
-  // TODO: 
+  // TODO:
   /** Whether operation is widen */
   val w: Bool = Bool()
 
@@ -42,14 +42,14 @@ class LaneReq(param: LaneParameters) extends Bundle {
 }
 
 /** The response returned from the lane */
-class LaneResp(param: LaneParameters) extends Bundle {
+class VFUResp(param: LaneParameters) extends Bundle {
   val res: UInt = UInt(param.ELEN.W)
 
   /** For widen operations, this is the upper part of the result */
   val carry: UInt = UInt(param.ELEN.W)
 }
 
-/** The decoding result of vector instructions.  
+/** The decoding result of vector instructions.
  *  8 bits onehot encoding of uop, indicating to type of operation
  *  3 bits encoding of subUop, indicating to some operation together with uop
  */
@@ -113,9 +113,9 @@ class LaneDecodeResult extends Bundle {
   /** Whether operand 1 is signed */
   val s1: Bool = Bool()
 
-  /** Whether subtraction applied on operand1 */ 
+  /** Whether subtraction applied on operand1 */
   val sub1: Bool = Bool()
-  /** Whether subtraction applied on operand2 */ 
+  /** Whether subtraction applied on operand2 */
   val sub2: Bool = Bool()
 
   val subUop: UInt = UInt(3.W)
@@ -127,19 +127,19 @@ class LaneSrcResult(param: LaneParameters) extends Bundle {
   val src0: UInt = UInt(param.ELEN.W)
   val src1: UInt = UInt(param.ELEN.W)
   val src2: UInt = UInt(param.ELEN.W)
-  
+
   /** The additional operand required in adc, sbc and ma operations */
   val src3: UInt = UInt(2.W)
 
   val mask: UInt = UInt(param.ELEN.W)
-  
+
   /** Destination mask, may differ from `mask` in widen/narrowing operation */
   val desMask: UInt = UInt(param.ELEN.W)
 }
 
-class Lane(param: LaneParameters) extends Module {
-  val req: DecoupledIO[LaneReq] = IO(Flipped(Decoupled(new LaneReq(param))))
-  val resp: ValidIO[LaneResp] = IO(Valid(new LaneResp(param)))
+class VFU(param: LaneParameters) extends Module {
+  val req: DecoupledIO[VFUReq] = IO(Flipped(Decoupled(new VFUReq(param))))
+  val resp: ValidIO[VFUResp] = IO(Valid(new VFUResp(param)))
 
   // TODO: decode req
   val decodeRes: LaneDecodeResult = WireInit(0.U.asTypeOf(new LaneDecodeResult))
