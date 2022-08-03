@@ -111,7 +111,7 @@ class VRF(param: VRFParam) extends Module {
       val chainingCheckRecord = Mux1H(UIntToOH(rPort.bits.vs), recordCheckVec)
       val checkResult = instIndexGE(rPort.bits.instIndex, chainingCheckRecord.bits.instIndex) ||
         rPort.bits.groupIndex <= chainingCheckRecord.bits.groupIndex || !chainingCheckRecord.valid
-      readIndex(i) := rPort.bits.vs ## (rPort.bits.groupIndex >> (param.maxVSew.U - rPort.bits.eew)).asUInt(1, 0)
+      readIndex(i) := rPort.bits.vs ## 0.U(2.W) + (rPort.bits.groupIndex >> (param.maxVSew.U - rPort.bits.eew)).asUInt
       readBankSelect(i) := decodeRes(3, 0)
       // read result
       // TODO: Shift optimization
