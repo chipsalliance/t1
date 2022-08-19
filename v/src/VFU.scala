@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 
 /** The request from the controller to the lane (execution unit) */
-class VFUReq(param: LaneParameters) extends Bundle {
+class VFUReq(param: VFUParameters) extends Bundle {
   /** The index of lane */
   val index: UInt = UInt(param.idBits.W)
 
@@ -42,7 +42,7 @@ class VFUReq(param: LaneParameters) extends Bundle {
 }
 
 /** The response returned from the lane */
-class VFUResp(param: LaneParameters) extends Bundle {
+class VFUResp(param: VFUParameters) extends Bundle {
   val res: UInt = UInt(param.ELEN.W)
 
   /** For widen operations, this is the upper part of the result */
@@ -123,7 +123,7 @@ class LaneDecodeResult extends Bundle {
   val averaging: Bool = Bool()
 }
 
-class LaneSrcResult(param: LaneParameters) extends Bundle {
+class LaneSrcResult(param: VFUParameters) extends Bundle {
   val src0: UInt = UInt(param.ELEN.W)
   val src1: UInt = UInt(param.ELEN.W)
   val src2: UInt = UInt(param.ELEN.W)
@@ -137,7 +137,7 @@ class LaneSrcResult(param: LaneParameters) extends Bundle {
   val desMask: UInt = UInt(param.ELEN.W)
 }
 
-class VFU(param: LaneParameters) extends Module {
+class VFU(param: VFUParameters) extends Module {
   val req: DecoupledIO[VFUReq] = IO(Flipped(Decoupled(new VFUReq(param))))
   val resp: ValidIO[VFUResp] = IO(Valid(new VFUResp(param)))
 
