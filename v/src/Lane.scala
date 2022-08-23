@@ -12,6 +12,7 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
   val HLEN:           Int = ELEN / 2
   val executeUnitNum: Int = 6
   val laneIndexBits:  Int = log2Ceil(lane)
+  val writeQueueSize = 8
 
   def vrfParam: VRFParam = VRFParam(VLEN, lane, groupSize, ELEN)
 }
@@ -136,9 +137,9 @@ class Lane(param: LaneParameters) extends Module {
   val laneReq:         DecoupledIO[LaneReq] = IO(Flipped(Decoupled(new LaneReq(param))))
   val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param)))
   val dataToScheduler: LaneDataResponse = IO(Flipped(new LaneDataResponse(param)))
-  val laneIndex: UInt = IO(Input(UInt(param.laneIndexBits.W)))
-  val readBusPort: RingPort = IO(new RingPort(param))
-  val writeBusPort: RingPort = IO(new RingPort(param))
+  val laneIndex:       UInt = IO(Input(UInt(param.laneIndexBits.W)))
+  val readBusPort:     RingPort = IO(new RingPort(param))
+  val writeBusPort:    RingPort = IO(new RingPort(param))
 
   // reg
   val controlValid: Vec[Bool] = RegInit(VecInit(Seq.fill(param.controlNum)(false.B)))
@@ -170,7 +171,7 @@ class Lane(param: LaneParameters) extends Module {
   val controlCanShift: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
   val executeValid:    Vec[Vec[Bool]] = Wire(Vec(param.controlNum, Vec(param.executeUnitNum, Bool())))
   // 读的环index与这个lane匹配上了, 会出环
-  val readBusMatch: Bool = Wire(Bool())
+  val readBusMatch:  Bool = Wire(Bool())
   val writeBusMatch: Bool = Wire(Bool())
 
   // 以6个执行单元为视角的控制信号
@@ -178,10 +179,16 @@ class Lane(param: LaneParameters) extends Module {
   val executeDeqFire: Vec[Bool] = Wire(Vec(param.executeUnitNum, Bool()))
 
   // 作为最老的坑的控制信号
-  val tryToSendHead: Bool = Wire(Bool())
-  val tryToSendTail: Bool = Wire(Bool())
-  val sendReady: Bool = Wire(Bool())
-  val sendData: RingBusData = Wire(new RingBusData(param))
+  val tryToSendHead:  Bool = Wire(Bool())
+  val tryToSendTail:  Bool = Wire(Bool())
+  val sendReady:      Bool = Wire(Bool())
+  val sendReadData:   RingBusData = Wire(new RingBusData(param))
+  val sendWriteData:  Vec[RingBusData] = Wire(Vec(2, new RingBusData(param)))
+  val sendWriteValid: Vec[Bool] = Wire(Vec(2, Bool()))
+  val sendWriteReady: Bool = Wire(Bool())
+
+  // 跨lane写rf需要一个queue
+  val crossWriteQueue: Queue[RingBusData] = Module(new Queue(new RingBusData(param), param.writeQueueSize))
 
   control.zipWithIndex.foreach {
     case (record, index) =>
@@ -246,10 +253,10 @@ class Lane(param: LaneParameters) extends Module {
       if (index == 0) {
         tryToSendHead := record.state.sRead2 && !record.state.sSendResult0
         tryToSendTail := record.state.sReadVD && !record.state.sSendResult1
-        sendData.target := tryToSendTail ## laneIndex(param.laneIndexBits - 1, 1)
-        sendData.tail := laneIndex(0)
-        sendData.instIndex := record.originalInformation.instIndex
-        sendData.data := Mux(tryToSendHead, crossReadHeadTX(0), crossReadTailTX(0))
+        sendReadData.target := tryToSendTail ## laneIndex(param.laneIndexBits - 1, 1)
+        sendReadData.tail := laneIndex(0)
+        sendReadData.instIndex := record.originalInformation.instIndex
+        sendReadData.data := Mux(tryToSendHead, crossReadHeadTX(0), crossReadTailTX(0))
       }
   }
 
@@ -273,13 +280,37 @@ class Lane(param: LaneParameters) extends Module {
 
     // 试图进环
     readBusPort.deq.valid := readBusDataReg.valid || tryToSendHead || tryToSendTail
-    readBusPort.deq.bits := Mux(readBusDataReg.valid, readBusDataReg.bits, sendData)
+    readBusPort.deq.bits := Mux(readBusDataReg.valid, readBusDataReg.bits, sendReadData)
     sendReady := !readBusDataReg.valid
   }
-  
+
   // 处理写环
   {
     val writeBusDataReg: ValidIO[RingBusData] = RegInit(0.U.asTypeOf(Valid(new RingBusData(param))))
+    // 策略依然是环上的优先,如果queue满了继续转
+    val writeBusIndexMatch = readBusPort.enq.bits.target === laneIndex && crossWriteQueue.io.enq.ready
+    writeBusPort.enq.ready := true.B
+    writeBusDataReg.valid := false.B
+    crossWriteQueue.io.enq.bits := writeBusPort.enq.bits
+    crossWriteQueue.io.enq.valid := false.B
+
+    when(writeBusPort.enq.valid) {
+      when(writeBusIndexMatch) {
+
+      }.otherwise {
+        writeBusDataReg.valid := true.B
+        writeBusDataReg.bits := readBusPort.enq.bits
+      }
+    }
+
+    // 进写环
+    writeBusPort.deq.valid := writeBusDataReg.valid || sendWriteValid.asUInt.orR
+    writeBusPort.deq.bits := Mux(
+      sendWriteValid.head,
+      sendWriteData.head,
+      Mux(sendWriteValid.last, sendWriteData.last, writeBusDataReg.bits)
+    )
+    sendWriteReady := !writeBusDataReg.valid
   }
 
 }
