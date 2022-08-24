@@ -195,22 +195,19 @@ class VFU(param: VFUParameters) extends Module {
 
   // logicUnit connect
   val logicInput: LaneSrcResult = Mux(decodeRes.logic, srcSelect, 0.U.asTypeOf(srcSelect))
-  logicUnit.src :=  VecInit(Seq(logicInput.src0, logicInput.src1))
-  logicUnit.opcode :=  decodeRes.subUop
+  logicUnit.req.src :=  VecInit(Seq(logicInput.src0, logicInput.src1))
+  logicUnit.req.opcode :=  decodeRes.subUop
   resultVec.head := Mux(decodeRes.logic, logicUnit.resp, 0.U)
 
   // adder connect
   val addInput: LaneSrcResult = Mux(decodeRes.arithmetic, srcSelect, 0.U.asTypeOf(srcSelect))
-  adder.src :=  VecInit(Seq(addInput.src0, addInput.src1, addInput.src3))
+  adder.req := DontCare
+  adder.req.src :=  VecInit(Seq(addInput.src0, addInput.src1, addInput.src3))
   resultVec(1) := Mux(decodeRes.logic, adder.resp, 0.U)
 
   // shifter connect
   val shiftInput: LaneSrcResult = Mux(decodeRes.shift, srcSelect, 0.U.asTypeOf(srcSelect))
-  shifter.src := shiftInput.src0
-  shifter.sign := decodeRes.subUop(0)
-  shifter.direction := decodeRes.subUop(1)
-  shifter.shifterSize := shiftInput.src2
-  shifter.mask := shiftInput.mask
+  shifter.req := DontCare
   resultVec(2) := Mux(decodeRes.logic, shifter.resp, 0.U)
 
   // mul connect
