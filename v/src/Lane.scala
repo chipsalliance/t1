@@ -15,6 +15,7 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
   val writeQueueSize = 8
 
   def vrfParam: VRFParam = VRFParam(VLEN, lane, groupSize, ELEN)
+  def datePathParam: DataPathParam = DataPathParam(ELEN)
 }
 
 class InstructionDecodeResult extends Bundle {
@@ -86,7 +87,8 @@ class InstGroupState(param: LaneParameters) extends Bundle {
   val wRead2:       Bool = Bool()
   val wScheduler:   Bool = Bool()
   val sExecute:     Bool = Bool()
-  val sCrossWrite:  Bool = Bool()
+  val sCrossWrite0:  Bool = Bool()
+  val sCrossWrite1:  Bool = Bool()
   val sSendResult0: Bool = Bool()
   val sSendResult1: Bool = Bool()
 }
@@ -144,13 +146,13 @@ class Lane(param: LaneParameters) extends Module {
   // reg
   val controlValid: Vec[Bool] = RegInit(VecInit(Seq.fill(param.controlNum)(false.B)))
   // read from vs1
-  val source1: Vec[Bool] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
+  val source1: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // read from vs2
-  val source2: Vec[Bool] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
+  val source2: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // read from vd
-  val source3: Vec[Bool] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
+  val source3: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // execute result
-  val result: Vec[Bool] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
+  val result: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // 跨lane操作的寄存器实际上只有最后一个坑有，但是先全声明了，没用到的让它自己优化去
   // 从rf里面读出来的， 下一个周期试图上环
   val crossReadHeadTX: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.HLEN.W))))
@@ -177,15 +179,15 @@ class Lane(param: LaneParameters) extends Module {
   // 以6个执行单元为视角的控制信号
   val executeEnqFire: Vec[Bool] = Wire(Vec(param.executeUnitNum, Bool()))
   val executeDeqFire: Vec[Bool] = Wire(Vec(param.executeUnitNum, Bool()))
+  // 往执行单元的请求
+  val logicRequests: Vec[LaneLogicRequest] = Wire(Vec(param.controlNum, new LaneLogicRequest(param.datePathParam)))
+  val adderRequests: Vec[LaneAdderReq] = Wire(Vec(param.controlNum, new LaneAdderReq(param.datePathParam)))
 
   // 作为最老的坑的控制信号
-  val tryToSendHead:  Bool = Wire(Bool())
-  val tryToSendTail:  Bool = Wire(Bool())
   val sendReady:      Bool = Wire(Bool())
-  val sendReadData:   RingBusData = Wire(new RingBusData(param))
-  val sendWriteData:  Vec[RingBusData] = Wire(Vec(2, new RingBusData(param)))
-  val sendWriteValid: Vec[Bool] = Wire(Vec(2, Bool()))
   val sendWriteReady: Bool = Wire(Bool())
+  val sendReadData: ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
+  val sendWriteData: ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
 
   // 跨lane写rf需要一个queue
   val crossWriteQueue: Queue[RingBusData] = Module(new Queue(new RingBusData(param), param.writeQueueSize))
@@ -250,14 +252,45 @@ class Lane(param: LaneParameters) extends Module {
           source3(index) := vrfReadResult(index)(2)
         }
       }
+      // 处理上环的数据
       if (index == 0) {
-        tryToSendHead := record.state.sRead2 && !record.state.sSendResult0
-        tryToSendTail := record.state.sReadVD && !record.state.sSendResult1
-        sendReadData.target := tryToSendTail ## laneIndex(param.laneIndexBits - 1, 1)
-        sendReadData.tail := laneIndex(0)
-        sendReadData.instIndex := record.originalInformation.instIndex
-        sendReadData.data := Mux(tryToSendHead, crossReadHeadTX(0), crossReadTailTX(0))
+        val tryToSendHead = record.state.sRead2 && !record.state.sSendResult0
+        val tryToSendTail = record.state.sReadVD && !record.state.sSendResult1
+        sendReadData.bits.target := tryToSendTail ## laneIndex(param.laneIndexBits - 1, 1)
+        sendReadData.bits.tail := laneIndex(0)
+        sendReadData.bits.instIndex := record.originalInformation.instIndex
+        sendReadData.bits.data := Mux(tryToSendHead, crossReadHeadTX(0), crossReadTailTX(0))
+        sendReadData.valid := tryToSendHead || tryToSendTail
+
+        // 跨lane的写
+        val sendWriteHead = record.state.sExecute && !record.state.sCrossWrite0
+        val sendWriteTail = record.state.sExecute && !record.state.sCrossWrite1
+        sendWriteData.bits.target := laneIndex(param.laneIndexBits - 2, 0) ## sendWriteTail
+        sendWriteData.bits.tail := laneIndex(param.laneIndexBits - 1)
+        sendWriteData.bits.instIndex := record.originalInformation.instIndex
+        sendWriteData.bits.data := Mux(tryToSendHead, result(index), result(index) >> (csrInterface.vSew ## 0.U(3.W)))
+        sendWriteData.valid := sendWriteHead || sendWriteTail
       }
+      // 发起执行单元的请求
+      // 可能需要做符号位扩展 & 选择来源
+      val finalSource1 = source1(index)
+      val finalSource2 = source2(index)
+      val finalSource3 = source3(index)
+      // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
+      val logicRequest = Wire(new LaneLogicRequest(param.datePathParam))
+      logicRequest.src.head := finalSource2
+      logicRequest.src.last := finalSource1
+      logicRequest.opcode := decodeResFormat.uop
+      // 在手动做Mux1H
+      logicRequests(index) := Mux(decodeResFormat.logicUnit && !decodeResFormat.otherUnit, logicRequest, 0.U)
+
+      // adder 的
+      val adderRequest = Wire(new LaneAdderReq(param.datePathParam))
+      adderRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
+      adderRequest.opcode := decodeResFormat.uop
+      adderRequest.reverse := decodeResFormat.reverse
+      adderRequest.average := decodeResFormat.average
+      adderRequests(index) := Mux(decodeResFormat.adderUnit && !decodeResFormat.otherUnit, adderRequest, 0.U)
   }
 
   // 处理读环的
@@ -279,8 +312,8 @@ class Lane(param: LaneParameters) extends Module {
     }
 
     // 试图进环
-    readBusPort.deq.valid := readBusDataReg.valid || tryToSendHead || tryToSendTail
-    readBusPort.deq.bits := Mux(readBusDataReg.valid, readBusDataReg.bits, sendReadData)
+    readBusPort.deq.valid := readBusDataReg.valid || sendReadData.valid
+    readBusPort.deq.bits := Mux(readBusDataReg.valid, readBusDataReg.bits, sendReadData.bits)
     sendReady := !readBusDataReg.valid
   }
 
@@ -304,12 +337,8 @@ class Lane(param: LaneParameters) extends Module {
     }
 
     // 进写环
-    writeBusPort.deq.valid := writeBusDataReg.valid || sendWriteValid.asUInt.orR
-    writeBusPort.deq.bits := Mux(
-      sendWriteValid.head,
-      sendWriteData.head,
-      Mux(sendWriteValid.last, sendWriteData.last, writeBusDataReg.bits)
-    )
+    writeBusPort.deq.valid := writeBusDataReg.valid || sendWriteData.valid
+    writeBusPort.deq.bits := Mux(writeBusDataReg.valid, writeBusDataReg.bits, sendWriteData.bits)
     sendWriteReady := !writeBusDataReg.valid
   }
 
