@@ -212,16 +212,16 @@ class VFU(param: VFUParameters) extends Module {
 
   // mul connect
   val mulInput: LaneSrcResult = Mux(decodeRes.mul, srcSelect, 0.U.asTypeOf(srcSelect))
-  mul.src :=  VecInit(Seq(addInput.src0, addInput.src1, addInput.src2))
+  mul.req.src :=  VecInit(Seq(addInput.src0, addInput.src1, addInput.src2))
   resultVec(3) := Mux(decodeRes.logic, mul.resp.head, 0.U)
   carryRes := mul.resp.last
 
   // div connect
   val divInput: LaneSrcResult = Mux(decodeRes.div, srcSelect, 0.U.asTypeOf(srcSelect))
-  div.srcVec.bits := VecInit(Seq(divInput.src0, divInput.src1))
+  div.req.bits.src := VecInit(Seq(divInput.src0, divInput.src1))
   div.mask := divInput.mask
-  div.sign := decodeRes.subUop(0)
-  div.div := decodeRes.subUop(1)
+  div.req.bits.sign := decodeRes.subUop(0)
+  div.req.bits.rem := decodeRes.subUop(1)
   resultVec(4) := Mux(decodeRes.div, div.resp.bits, 0.U)
 
   // pop count
@@ -247,9 +247,9 @@ class VFU(param: VFUParameters) extends Module {
   dp.in.rSize.valid := decodeRes.dataProcessing
   dp.in.rSize.bits := Mux(decodeRes.averaging, req.bits.src(1), 1.U)
 
-  req.ready := (!decodeRes.div) || div.srcVec.ready
+  req.ready := (!decodeRes.div) || div.req.ready
   resp.valid := (!decodeRes.div) || div.resp.valid
   resp.bits.res := dp.resp
   resp.bits.carry := carryRes
-  div.srcVec.valid := req.valid & decodeRes.div
+  div.req.valid := req.valid & decodeRes.div
 }
