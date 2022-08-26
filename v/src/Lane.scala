@@ -12,10 +12,17 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
   val HLEN:           Int = ELEN / 2
   val executeUnitNum: Int = 6
   val laneIndexBits:  Int = log2Ceil(lane)
-  val writeQueueSize = 8
+  val writeQueueSize: Int = 8
+  val elenBits:       Int = log2Ceil(ELEN)
+  val groupSizeBits:  Int = log2Ceil(groupSize)
+  val idBits:         Int = log2Ceil(lane)
 
-  def vrfParam: VRFParam = VRFParam(VLEN, lane, groupSize, ELEN)
-  def datePathParam: DataPathParam = DataPathParam(ELEN)
+  def vrfParam:              VRFParam = VRFParam(VLEN, lane, groupSize, ELEN)
+  def datePathParam:         DataPathParam = DataPathParam(ELEN)
+  def lanePopCountParameter: LanePopCountParameter = LanePopCountParameter(ELEN, elenBits)
+  def shifterParameter:      LaneShifterParameter = LaneShifterParameter(ELEN, elenBits)
+  def mulParam:              LaneMulParam = LaneMulParam(ELEN)
+  def indexParam:            LaneIndexCalculatorParameter = LaneIndexCalculatorParameter(groupSizeBits, idBits)
 }
 
 class InstructionDecodeResult extends Bundle {
@@ -62,6 +69,14 @@ class ExtendInstructionDecodeResult extends Bundle {
   val uop:       UInt = UInt(3.W)
 }
 
+class ExtendInstructionType extends Bundle {
+  val vExtend:  Bool = Bool()
+  val mv:       Bool = Bool()
+  val ffo:      Bool = Bool()
+  val popCount: Bool = Bool()
+  val viota:    Bool = Bool()
+}
+
 class LaneReq(param: LaneParameters) extends Bundle {
   val instIndex:    UInt = UInt(param.instIndexSize.W)
   val decodeResult: UInt = UInt(25.W)
@@ -87,10 +102,12 @@ class InstGroupState(param: LaneParameters) extends Bundle {
   val wRead2:       Bool = Bool()
   val wScheduler:   Bool = Bool()
   val sExecute:     Bool = Bool()
-  val sCrossWrite0:  Bool = Bool()
-  val sCrossWrite1:  Bool = Bool()
+  val sCrossWrite0: Bool = Bool()
+  val sCrossWrite1: Bool = Bool()
   val sSendResult0: Bool = Bool()
   val sSendResult1: Bool = Bool()
+  val wExecuteRes:  Bool = Bool()
+  val sWrite:       Bool = Bool()
 }
 
 class InstControlRecord(param: LaneParameters) extends Bundle {
@@ -132,6 +149,11 @@ class RingPort(param: LaneParameters) extends Bundle {
   val deq: DecoupledIO[RingBusData] = Decoupled(new RingBusData(param))
 }
 
+class SchedulerFeedback(param: LaneParameters) extends Bundle {
+  val instIndex: UInt = UInt(param.instIndexSize.W)
+  val complete:  Bool = Bool()
+}
+
 /**
   * ring & inst control & vrf & vfu
   */
@@ -142,6 +164,7 @@ class Lane(param: LaneParameters) extends Module {
   val laneIndex:       UInt = IO(Input(UInt(param.laneIndexBits.W)))
   val readBusPort:     RingPort = IO(new RingPort(param))
   val writeBusPort:    RingPort = IO(new RingPort(param))
+  val feedback:        ValidIO[SchedulerFeedback] = IO(Flipped(Valid(new SchedulerFeedback(param))))
 
   // reg
   val controlValid: Vec[Bool] = RegInit(VecInit(Seq.fill(param.controlNum)(false.B)))
@@ -153,13 +176,15 @@ class Lane(param: LaneParameters) extends Module {
   val source3: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // execute result
   val result: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
-  // 跨lane操作的寄存器实际上只有最后一个坑有，但是先全声明了，没用到的让它自己优化去
+  val rfWriteValid: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
+  val rfWriteFire: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
+  // 跨lane操作的寄存器
   // 从rf里面读出来的， 下一个周期试图上环
-  val crossReadHeadTX: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.HLEN.W))))
-  val crossReadTailTX: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.HLEN.W))))
+  val crossReadHeadTX: UInt = RegInit(0.U(param.HLEN.W))
+  val crossReadTailTX: UInt = RegInit(0.U(param.HLEN.W))
   // 从环过来的， 两个都好会拼成source2
-  val crossReadHeadRX: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.HLEN.W))))
-  val crossReadTailRX: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.HLEN.W))))
+  val crossReadHeadRX: UInt = RegInit(0.U(param.HLEN.W))
+  val crossReadTailRX: UInt = RegInit(0.U(param.HLEN.W))
   val control: Vec[InstControlRecord] = RegInit(
     VecInit(Seq.fill(param.controlNum)(0.U.asTypeOf(new InstControlRecord(param))))
   )
@@ -173,21 +198,26 @@ class Lane(param: LaneParameters) extends Module {
   val controlCanShift: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
   val executeValid:    Vec[Vec[Bool]] = Wire(Vec(param.controlNum, Vec(param.executeUnitNum, Bool())))
   // 读的环index与这个lane匹配上了, 会出环
-  val readBusMatch:  Bool = Wire(Bool())
+  val readBusDeq:    ValidIO[RingBusData] = Wire(Valid(new RingBusData(param: LaneParameters)))
   val writeBusMatch: Bool = Wire(Bool())
 
   // 以6个执行单元为视角的控制信号
-  val executeEnqFire: Vec[Bool] = Wire(Vec(param.executeUnitNum, Bool()))
-  val executeDeqFire: Vec[Bool] = Wire(Vec(param.executeUnitNum, Bool()))
+  val executeEnqFire: UInt = Wire(UInt(param.executeUnitNum.W))
+  val executeDeqFire: UInt = Wire(UInt(param.executeUnitNum.W))
+  val instTypeVec:    Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.executeUnitNum.W)))
   // 往执行单元的请求
   val logicRequests: Vec[LaneLogicRequest] = Wire(Vec(param.controlNum, new LaneLogicRequest(param.datePathParam)))
   val adderRequests: Vec[LaneAdderReq] = Wire(Vec(param.controlNum, new LaneAdderReq(param.datePathParam)))
+  val shiftRequests: Vec[LaneShifterReq] = Wire(Vec(param.controlNum, new LaneShifterReq(param.shifterParameter)))
+  val mulRequests:   Vec[LaneMulReq] = Wire(Vec(param.controlNum, new LaneMulReq(param.mulParam)))
+  val divRequests:   Vec[LaneDivRequest] = Wire(Vec(param.controlNum, new LaneDivRequest(param.datePathParam)))
+  val otherRequests: Vec[OtherUnitReq] = Wire(Vec(param.controlNum, new OtherUnitReq(param.datePathParam)))
 
   // 作为最老的坑的控制信号
   val sendReady:      Bool = Wire(Bool())
   val sendWriteReady: Bool = Wire(Bool())
-  val sendReadData: ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
-  val sendWriteData: ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
+  val sendReadData:   ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
+  val sendWriteData:  ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
 
   // 跨lane写rf需要一个queue
   val crossWriteQueue: Queue[RingBusData] = Module(new Queue(new RingBusData(param), param.writeQueueSize))
@@ -270,6 +300,34 @@ class Lane(param: LaneParameters) extends Module {
         sendWriteData.bits.instIndex := record.originalInformation.instIndex
         sendWriteData.bits.data := Mux(tryToSendHead, result(index), result(index) >> (csrInterface.vSew ## 0.U(3.W)))
         sendWriteData.valid := sendWriteHead || sendWriteTail
+
+        // 跨lane读写的数据接收
+        when(readBusDeq.valid) {
+          assert(readBusDeq.bits.instIndex === record.originalInformation.instIndex)
+          when(readBusDeq.bits.tail) {
+            record.state.wRead2 := true.B
+            crossReadTailRX := readBusDeq.bits.data
+          }.otherwise {
+            record.state.wRead1 := true.B
+            crossReadHeadRX := readBusDeq.bits.data
+          }
+        }
+
+        // 读环发送的状态变化
+        // todo: 处理发给自己的, 可以在使用的时候直接用读的寄存器, init state的时候自己纠正回来
+        when(sendReady) {
+          record.state.sSendResult0 := true.B
+          when(record.state.sSendResult0) {
+            record.state.sSendResult1 := true.B
+          }
+        }
+        // 写环发送的状态变化
+        when(sendWriteReady) {
+          record.state.sCrossWrite0 := true.B
+          when(record.state.sCrossWrite0) {
+            record.state.sCrossWrite1 := true.B
+          }
+        }
       }
       // 发起执行单元的请求
       // 可能需要做符号位扩展 & 选择来源
@@ -291,21 +349,78 @@ class Lane(param: LaneParameters) extends Module {
       adderRequest.reverse := decodeResFormat.reverse
       adderRequest.average := decodeResFormat.average
       adderRequests(index) := Mux(decodeResFormat.adderUnit && !decodeResFormat.otherUnit, adderRequest, 0.U)
+
+      // shift 的
+      val shiftRequest = Wire(new LaneShifterReq(param.shifterParameter))
+      shiftRequest.src := finalSource2
+      shiftRequest.shifterSize := Mux1H(
+        UIntToOH(csrInterface.vSew)(2, 1),
+        Seq(false.B ## finalSource1(3), finalSource1(4, 3))
+      ) ## finalSource1(2, 0)
+      shiftRequest.opcode := decodeResFormat.uop
+      shiftRequests(index) := Mux(decodeResFormat.shiftUnit && !decodeResFormat.otherUnit, shiftRequest, 0.U)
+
+      // mul
+      val mulRequest: LaneMulReq = Wire(new LaneMulReq(param.mulParam))
+      mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
+      mulRequest.opcode := decodeResFormat.uop
+      mulRequests(index) := Mux(decodeResFormat.mulUnit && !decodeResFormat.otherUnit, mulRequest, 0.U)
+
+      // div
+      val divRequest = Wire(new LaneDivRequest(param.datePathParam))
+      divRequest.src := VecInit(Seq(finalSource1, finalSource2))
+      divRequest.rem := decodeResFormat.uop(0)
+      divRequest.sign := decodeResFormat.unSigned0
+      divRequests(index) := Mux(decodeResFormat.divUnit && !decodeResFormat.otherUnit, divRequest, 0.U)
+
+      // other
+      val otherRequest: OtherUnitReq = Wire(new OtherUnitReq(param.datePathParam))
+      otherRequest.src := VecInit(Seq(finalSource1, finalSource2))
+      otherRequest.opcode := decodeResFormat.uop(2, 0)
+      otherRequest.extendType.valid := decodeResFormat.uop(3)
+      otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResFormatExt.elements(s) }
+      otherRequests(index) := Mux(decodeResFormat.otherUnit, otherRequest, 0.U)
+
+      when(feedback.valid && feedback.bits.instIndex === record.originalInformation.instIndex) {
+        record.state.wScheduler := true.B
+      }
+      val instType = VecInit(
+        Seq(
+          decodeResFormat.logicUnit,
+          decodeResFormat.adderUnit,
+          decodeResFormat.shiftUnit,
+          decodeResFormat.mulUnit,
+          decodeResFormat.divUnit,
+          decodeResFormat.logicUnit
+        )
+      ).asUInt
+      instTypeVec(index) := Mux(decodeResFormat.logicUnit, 32.U, instType)
+      when((instTypeVec(index) & executeEnqFire).orR) {
+        record.state.sExecute := true.B
+      }
+
+      when((instTypeVec(index) & executeDeqFire).orR) {
+        record.state.wExecuteRes := true.B
+        // todo: save result
+      }
+      // todo: write rf arbiter
+      when(rfWriteFire(index)) {
+        record.state.sWrite := true.B
+      }
   }
 
   // 处理读环的
   {
     val readBusDataReg: ValidIO[RingBusData] = RegInit(0.U.asTypeOf(Valid(new RingBusData(param))))
     val readBusIndexMatch = readBusPort.enq.bits.target === laneIndex
-    readBusMatch := readBusIndexMatch && readBusPort.enq.valid
+    readBusDeq.valid := readBusIndexMatch && readBusPort.enq.valid
+    readBusDeq.bits := readBusPort.enq.bits
     // 暂时优先级策略是环上的优先
     readBusPort.enq.ready := true.B
     readBusDataReg.valid := false.B
 
     when(readBusPort.enq.valid) {
-      when(readBusIndexMatch) {
-        // todo
-      }.otherwise {
+      when(!readBusIndexMatch) {
         readBusDataReg.valid := true.B
         readBusDataReg.bits := readBusPort.enq.bits
       }
@@ -329,7 +444,7 @@ class Lane(param: LaneParameters) extends Module {
 
     when(writeBusPort.enq.valid) {
       when(writeBusIndexMatch) {
-
+        crossWriteQueue.io.enq.valid := true.B
       }.otherwise {
         writeBusDataReg.valid := true.B
         writeBusDataReg.bits := readBusPort.enq.bits
