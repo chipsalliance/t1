@@ -166,6 +166,7 @@ class Lane(param: LaneParameters) extends Module {
   val writeBusPort:    RingPort = IO(new RingPort(param))
   val feedback:        ValidIO[SchedulerFeedback] = IO(Flipped(Valid(new SchedulerFeedback(param))))
 
+  val vrf: VRF = Module(new VRF(param.vrfParam))
   // reg
   val controlValid: Vec[Bool] = RegInit(VecInit(Seq.fill(param.controlNum)(false.B)))
   // read from vs1
@@ -176,8 +177,11 @@ class Lane(param: LaneParameters) extends Module {
   val source3: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // execute result
   val result: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
-  val rfWriteValid: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
-  val rfWriteFire: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
+  // 额外两个给 lsu 和
+  val rfWriteVec: Vec[ValidIO[VRFWriteRequest]] = Wire(
+    Vec(param.controlNum + 2, Valid(new VRFWriteRequest(param.vrfParam)))
+  )
+  val rfWriteFire: UInt = Wire(UInt((param.controlNum + 2).W))
   // 跨lane操作的寄存器
   // 从rf里面读出来的， 下一个周期试图上环
   val crossReadHeadTX: UInt = RegInit(0.U(param.HLEN.W))
@@ -204,6 +208,7 @@ class Lane(param: LaneParameters) extends Module {
   // 以6个执行单元为视角的控制信号
   val executeEnqFire: UInt = Wire(UInt(param.executeUnitNum.W))
   val executeDeqFire: UInt = Wire(UInt(param.executeUnitNum.W))
+  val executeDeqData: Vec[UInt] = Wire(Vec(param.executeUnitNum, UInt(param.ELEN.W)))
   val instTypeVec:    Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.executeUnitNum.W)))
   // 往执行单元的请求
   val logicRequests: Vec[LaneLogicRequest] = Wire(Vec(param.controlNum, new LaneLogicRequest(param.datePathParam)))
@@ -221,6 +226,7 @@ class Lane(param: LaneParameters) extends Module {
 
   // 跨lane写rf需要一个queue
   val crossWriteQueue: Queue[RingBusData] = Module(new Queue(new RingBusData(param), param.writeQueueSize))
+  val rfCrossWriteBits: VRFWriteRequest = Wire(new VRFWriteRequest(param.vrfParam))
 
   control.zipWithIndex.foreach {
     case (record, index) =>
@@ -457,4 +463,55 @@ class Lane(param: LaneParameters) extends Module {
     sendWriteReady := !writeBusDataReg.valid
   }
 
+  // 执行单元
+  {
+    val logicUnit: LaneLogic = Module(new LaneLogic(param.datePathParam))
+    val adder:     LaneAdder = Module(new LaneAdder(param.datePathParam))
+    val shifter:   LaneShifter = Module(new LaneShifter(param.shifterParameter))
+    val mul:       LaneMul = Module(new LaneMul(param.mulParam))
+    val div:       LaneDiv = Module(new LaneDiv(param.datePathParam))
+    val otherUnit: OtherUnit = Module(new OtherUnit(param.datePathParam))
+
+    // 连接执行单元的请求
+    logicUnit.req := VecInit(logicRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneLogicRequest(param.datePathParam))
+    adder.req := VecInit(adderRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneAdderReq(param.datePathParam))
+    shifter.req := VecInit(shiftRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneShifterReq(param.shifterParameter))
+    mul.req := VecInit(mulRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneMulReq(param.mulParam))
+    div.req := VecInit(divRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneDivRequest(param.datePathParam))
+    otherUnit.req := VecInit(otherRequests.map(_.asUInt)).asUInt.asTypeOf(new OtherUnitReq(param.datePathParam))
+    // 执行单元的其他连接
+    adder.csr.vSew := csrInterface.vSew
+    adder.csr.vxrm := csrInterface.vxrm
+
+    // 连接执行结果
+    executeDeqData := VecInit(Seq(logicUnit.resp, adder.resp, shifter.resp, mul.resp, div.resp.bits, otherUnit.resp))
+    executeDeqFire := executeEnqFire | (div.resp.valid ## 0.U(4.W))
+  }
+
+  // 处理 rf
+  {
+    // 连接读口
+    val readArbiter = new Arbiter(vrfReadWire.head.head, 7)
+    (vrfReadWire(1).last +: (vrfReadWire(2) ++ vrfReadWire(3))).zip(readArbiter.io.in).foreach { case (source, sink) =>
+      sink <> source
+    }
+    (vrfReadWire.head ++ vrfReadWire(1).init :+ readArbiter.io.out).zip(vrf.read).foreach { case (source, sink) =>
+      sink <> source
+    }
+
+    // 读的结果
+    vrfReadResult.foreach(a => a.foreach(_ := vrf.readResult.last))
+    (vrfReadResult.head ++ vrfReadResult(1).init).zip(vrf.readResult.init).foreach{ case (sink, source) =>
+      sink := source
+    }
+
+    // 写 rf
+    val normalWrite = VecInit(rfWriteVec.map(_.valid)).asUInt.orR
+    val writeSelect = !normalWrite ## ffo(VecInit(rfWriteVec.map(_.valid)).asUInt)
+    val writeEnqBits = Mux1H(writeSelect, rfCrossWriteBits +: rfWriteVec.map(_.bits))
+    vrf.write.valid := normalWrite || crossWriteQueue.io.deq.valid
+    vrf.write.bits := writeEnqBits
+    crossWriteQueue.io.deq.ready := !normalWrite && vrf.write.ready
+    rfWriteFire := Mux(vrf.write.ready, writeSelect, 0.U)
+  }
 }

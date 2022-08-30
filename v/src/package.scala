@@ -1,5 +1,6 @@
 import chisel3.{Bool, UInt}
 import chisel3.util.experimental.decode.decoder
+import chisel3.util.scanLeftOr
 
 package object v {
   def csa32(s: UInt, c: UInt, a: UInt): (UInt, UInt) = {
@@ -20,5 +21,9 @@ package object v {
   def instIndexGE(a: UInt, b: UInt): Bool = {
     require(a.getWidth == b.getWidth)
     a === b || ((a(a.getWidth - 2, 0) > b(b.getWidth - 2, 0)) ^ a(a.getWidth -1) ^ b(b.getWidth - 1))
+  }
+
+  def ffo(input: UInt): UInt = {
+    (~(scanLeftOr(input) << 1)).asUInt & input
   }
 }
