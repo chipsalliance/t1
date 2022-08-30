@@ -92,6 +92,26 @@ class LaneReq(param: LaneParameters) extends Bundle {
 
   /** data of rs1 */
   val readFromScala: UInt = UInt(param.ELEN.W)
+
+  def initState: InstGroupState = {
+    val res: InstGroupState = Wire(new InstGroupState(param))
+    val decodeResFormat:    InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
+    val decodeResFormatExt: ExtendInstructionDecodeResult = decodeResult.asTypeOf(new ExtendInstructionDecodeResult)
+    res.sRead1 := !decodeResFormat.vType
+    res.sRead2 := false.B
+    res.sReadVD := !(decodeResFormat.firstWiden || (decodeResFormat.mulUnit && decodeResFormat.uop(1, 0).orR))
+    res.wRead1 := !decodeResFormat.firstWiden
+    res.wRead2 := !decodeResFormat.firstWiden
+    res.wScheduler := !decodeResFormat.otherUnit
+    res.sExecute := false.B
+    res.wExecuteRes := false.B
+    res.sWrite := decodeResFormat.otherUnit && decodeResFormatExt.targetRD
+    res.sCrossWrite0 := !decodeResFormat.Widen
+    res.sCrossWrite1 := !decodeResFormat.Widen
+    res.sSendResult0 := !decodeResFormat.firstWiden
+    res.sSendResult1 := !decodeResFormat.firstWiden
+    res
+  }
 }
 
 class InstGroupState(param: LaneParameters) extends Bundle {
@@ -102,8 +122,10 @@ class InstGroupState(param: LaneParameters) extends Bundle {
   val wRead2:       Bool = Bool()
   val wScheduler:   Bool = Bool()
   val sExecute:     Bool = Bool()
+  // 发送写的
   val sCrossWrite0: Bool = Bool()
   val sCrossWrite1: Bool = Bool()
+  // 发送读的
   val sSendResult0: Bool = Bool()
   val sSendResult1: Bool = Bool()
   val wExecuteRes:  Bool = Bool()
@@ -113,6 +135,7 @@ class InstGroupState(param: LaneParameters) extends Bundle {
 class InstControlRecord(param: LaneParameters) extends Bundle {
   val originalInformation: LaneReq = new LaneReq(param)
   val state:               InstGroupState = new InstGroupState(param)
+  val initState:               InstGroupState = new InstGroupState(param)
   val counter:             UInt = UInt(param.VLMaxBits.W)
 }
 
@@ -194,6 +217,8 @@ class Lane(param: LaneParameters) extends Module {
   )
 
   // wire
+  val entranceState: InstGroupState = Wire(new InstGroupState(param))
+  val nextState: Vec[InstGroupState] = Wire(Vec(param.controlNum, new InstGroupState(param)))
   val vrfReadWire: Vec[Vec[DecoupledIO[VRFReadRequest]]] = Wire(
     Vec(param.controlNum, Vec(3, Decoupled(new VRFReadRequest(param.vrfParam))))
   )
@@ -210,6 +235,7 @@ class Lane(param: LaneParameters) extends Module {
   val executeDeqFire: UInt = Wire(UInt(param.executeUnitNum.W))
   val executeDeqData: Vec[UInt] = Wire(Vec(param.executeUnitNum, UInt(param.ELEN.W)))
   val instTypeVec:    Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.executeUnitNum.W)))
+  val instWillComplete: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
   // 往执行单元的请求
   val logicRequests: Vec[LaneLogicRequest] = Wire(Vec(param.controlNum, new LaneLogicRequest(param.datePathParam)))
   val adderRequests: Vec[LaneAdderReq] = Wire(Vec(param.controlNum, new LaneAdderReq(param.datePathParam)))
@@ -412,6 +438,16 @@ class Lane(param: LaneParameters) extends Module {
       when(rfWriteFire(index)) {
         record.state.sWrite := true.B
       }
+      val nextCounter = record.counter + 1.U
+      instWillComplete(index) := (nextCounter ## laneIndex) > csrInterface.vl
+      when(record.state.asUInt.andR) {
+        when(instWillComplete(index)) {
+          controlValid(index) := true.B
+        }.otherwise {
+          record.state := record.initState
+          record.counter := nextCounter
+        }
+      }
   }
 
   // 处理读环的
@@ -448,8 +484,7 @@ class Lane(param: LaneParameters) extends Module {
     crossWriteQueue.io.enq.bits.groupIndex := control.head.originalInformation.instIndex ## writeBusPort.enq.bits.tail
     crossWriteQueue.io.enq.bits.eew := csrInterface.vSew
     crossWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
-    // todo: handle vl % laneSize > 0
-    crossWriteQueue.io.enq.bits.last := (control.head.counter >> 3).asUInt === (csrInterface.vl >> 3).asUInt
+    crossWriteQueue.io.enq.bits.last := instWillComplete.head && writeBusPort.enq.bits.tail
       //writeBusPort.enq.bits
     crossWriteQueue.io.enq.valid := false.B
 
