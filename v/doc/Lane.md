@@ -18,6 +18,7 @@ lane的主题需要处理的事项：
 * 吐结果给scheduler，可能会有等待scheduler的反馈
 * scheduler的reduce结果写入
 * 处理与lsu的接口
+* 操作数的处理
 
 ### lane 控制逻辑的状态机
 
