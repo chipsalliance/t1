@@ -94,7 +94,7 @@ class LaneReq(param: LaneParameters) extends Bundle {
   val readFromScala: UInt = UInt(param.ELEN.W)
 
   def initState: InstGroupState = {
-    val res: InstGroupState = Wire(new InstGroupState(param))
+    val res:                InstGroupState = Wire(new InstGroupState(param))
     val decodeResFormat:    InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
     val decodeResFormatExt: ExtendInstructionDecodeResult = decodeResult.asTypeOf(new ExtendInstructionDecodeResult)
     res.sRead1 := !decodeResFormat.vType
@@ -115,13 +115,13 @@ class LaneReq(param: LaneParameters) extends Bundle {
 }
 
 class InstGroupState(param: LaneParameters) extends Bundle {
-  val sRead1:       Bool = Bool()
-  val sRead2:       Bool = Bool()
-  val sReadVD:      Bool = Bool()
-  val wRead1:       Bool = Bool()
-  val wRead2:       Bool = Bool()
-  val wScheduler:   Bool = Bool()
-  val sExecute:     Bool = Bool()
+  val sRead1:     Bool = Bool()
+  val sRead2:     Bool = Bool()
+  val sReadVD:    Bool = Bool()
+  val wRead1:     Bool = Bool()
+  val wRead2:     Bool = Bool()
+  val wScheduler: Bool = Bool()
+  val sExecute:   Bool = Bool()
   // 发送写的
   val sCrossWrite0: Bool = Bool()
   val sCrossWrite1: Bool = Bool()
@@ -135,7 +135,7 @@ class InstGroupState(param: LaneParameters) extends Bundle {
 class InstControlRecord(param: LaneParameters) extends Bundle {
   val originalInformation: LaneReq = new LaneReq(param)
   val state:               InstGroupState = new InstGroupState(param)
-  val initState:               InstGroupState = new InstGroupState(param)
+  val initState:           InstGroupState = new InstGroupState(param)
   val counter:             UInt = UInt(param.VLMaxBits.W)
 }
 
@@ -217,8 +217,6 @@ class Lane(param: LaneParameters) extends Module {
   )
 
   // wire
-  val entranceState: InstGroupState = Wire(new InstGroupState(param))
-  val nextState: Vec[InstGroupState] = Wire(Vec(param.controlNum, new InstGroupState(param)))
   val vrfReadWire: Vec[Vec[DecoupledIO[VRFReadRequest]]] = Wire(
     Vec(param.controlNum, Vec(3, Decoupled(new VRFReadRequest(param.vrfParam))))
   )
@@ -231,10 +229,10 @@ class Lane(param: LaneParameters) extends Module {
   val writeBusMatch: Bool = Wire(Bool())
 
   // 以6个执行单元为视角的控制信号
-  val executeEnqFire: UInt = Wire(UInt(param.executeUnitNum.W))
-  val executeDeqFire: UInt = Wire(UInt(param.executeUnitNum.W))
-  val executeDeqData: Vec[UInt] = Wire(Vec(param.executeUnitNum, UInt(param.ELEN.W)))
-  val instTypeVec:    Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.executeUnitNum.W)))
+  val executeEnqFire:   UInt = Wire(UInt(param.executeUnitNum.W))
+  val executeDeqFire:   UInt = Wire(UInt(param.executeUnitNum.W))
+  val executeDeqData:   Vec[UInt] = Wire(Vec(param.executeUnitNum, UInt(param.ELEN.W)))
+  val instTypeVec:      Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.executeUnitNum.W)))
   val instWillComplete: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
   // 往执行单元的请求
   val logicRequests: Vec[LaneLogicRequest] = Wire(Vec(param.controlNum, new LaneLogicRequest(param.datePathParam)))
@@ -251,7 +249,9 @@ class Lane(param: LaneParameters) extends Module {
   val sendWriteData:  ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
 
   // 跨lane写rf需要一个queue
-  val crossWriteQueue: Queue[VRFWriteRequest] = Module(new Queue(new VRFWriteRequest(param.vrfParam), param.writeQueueSize))
+  val crossWriteQueue: Queue[VRFWriteRequest] = Module(
+    new Queue(new VRFWriteRequest(param.vrfParam), param.writeQueueSize)
+  )
 
   control.zipWithIndex.foreach {
     case (record, index) =>
@@ -485,7 +485,7 @@ class Lane(param: LaneParameters) extends Module {
     crossWriteQueue.io.enq.bits.eew := csrInterface.vSew
     crossWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
     crossWriteQueue.io.enq.bits.last := instWillComplete.head && writeBusPort.enq.bits.tail
-      //writeBusPort.enq.bits
+    //writeBusPort.enq.bits
     crossWriteQueue.io.enq.valid := false.B
 
     when(writeBusPort.enq.valid) {
@@ -532,17 +532,20 @@ class Lane(param: LaneParameters) extends Module {
   {
     // 连接读口
     val readArbiter = new Arbiter(vrfReadWire.head.head, 7)
-    (vrfReadWire(1).last +: (vrfReadWire(2) ++ vrfReadWire(3))).zip(readArbiter.io.in).foreach { case (source, sink) =>
-      sink <> source
+    (vrfReadWire(1).last +: (vrfReadWire(2) ++ vrfReadWire(3))).zip(readArbiter.io.in).foreach {
+      case (source, sink) =>
+        sink <> source
     }
-    (vrfReadWire.head ++ vrfReadWire(1).init :+ readArbiter.io.out).zip(vrf.read).foreach { case (source, sink) =>
-      sink <> source
+    (vrfReadWire.head ++ vrfReadWire(1).init :+ readArbiter.io.out).zip(vrf.read).foreach {
+      case (source, sink) =>
+        sink <> source
     }
 
     // 读的结果
     vrfReadResult.foreach(a => a.foreach(_ := vrf.readResult.last))
-    (vrfReadResult.head ++ vrfReadResult(1).init).zip(vrf.readResult.init).foreach{ case (sink, source) =>
-      sink := source
+    (vrfReadResult.head ++ vrfReadResult(1).init).zip(vrf.readResult.init).foreach {
+      case (sink, source) =>
+        sink := source
     }
 
     // 写 rf
@@ -553,5 +556,21 @@ class Lane(param: LaneParameters) extends Module {
     vrf.write.bits := writeEnqBits
     crossWriteQueue.io.deq.ready := !normalWrite && vrf.write.ready
     rfWriteFire := Mux(vrf.write.ready, writeSelect, 0.U)
+  }
+
+  // 控制逻辑的移动
+  val entranceControl: InstControlRecord = Wire(new InstControlRecord(param))
+  laneReq.ready := !controlValid.head
+  val entranceFormat: InstructionDecodeResult = laneReq.bits.decodeResult.asTypeOf(new InstructionDecodeResult)
+  entranceControl.originalInformation := laneReq.bits
+  entranceControl.state := laneReq.bits.initState
+  entranceControl.initState := laneReq.bits.initState
+  entranceControl.counter := (csrInterface.vStart >> 3).asUInt
+  val vs1entrance: UInt =
+    Mux(entranceFormat.vType, 0.U, Mux(entranceFormat.xType, laneReq.bits.readFromScala, laneReq.bits.vs1))
+  when(!controlValid.head && (controlValid.asUInt.orR || laneReq.valid)) {
+    controlValid := VecInit(controlValid.tail :+ laneReq.valid)
+    source1 := VecInit(source1.tail :+ vs1entrance)
+    control := VecInit(control.tail :+ entranceControl)
   }
 }
