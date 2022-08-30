@@ -225,8 +225,7 @@ class Lane(param: LaneParameters) extends Module {
   val sendWriteData:  ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
 
   // 跨lane写rf需要一个queue
-  val crossWriteQueue: Queue[RingBusData] = Module(new Queue(new RingBusData(param), param.writeQueueSize))
-  val rfCrossWriteBits: VRFWriteRequest = Wire(new VRFWriteRequest(param.vrfParam))
+  val crossWriteQueue: Queue[VRFWriteRequest] = Module(new Queue(new VRFWriteRequest(param.vrfParam), param.writeQueueSize))
 
   control.zipWithIndex.foreach {
     case (record, index) =>
@@ -442,10 +441,16 @@ class Lane(param: LaneParameters) extends Module {
   {
     val writeBusDataReg: ValidIO[RingBusData] = RegInit(0.U.asTypeOf(Valid(new RingBusData(param))))
     // 策略依然是环上的优先,如果queue满了继续转
-    val writeBusIndexMatch = readBusPort.enq.bits.target === laneIndex && crossWriteQueue.io.enq.ready
+    val writeBusIndexMatch = writeBusPort.enq.bits.target === laneIndex && crossWriteQueue.io.enq.ready
     writeBusPort.enq.ready := true.B
     writeBusDataReg.valid := false.B
-    crossWriteQueue.io.enq.bits := writeBusPort.enq.bits
+    crossWriteQueue.io.enq.bits.vd := control.head.originalInformation.vd
+    crossWriteQueue.io.enq.bits.groupIndex := control.head.originalInformation.instIndex ## writeBusPort.enq.bits.tail
+    crossWriteQueue.io.enq.bits.eew := csrInterface.vSew
+    crossWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
+    // todo: handle vl % laneSize > 0
+    crossWriteQueue.io.enq.bits.last := (control.head.counter >> 3).asUInt === (csrInterface.vl >> 3).asUInt
+      //writeBusPort.enq.bits
     crossWriteQueue.io.enq.valid := false.B
 
     when(writeBusPort.enq.valid) {
@@ -508,7 +513,7 @@ class Lane(param: LaneParameters) extends Module {
     // 写 rf
     val normalWrite = VecInit(rfWriteVec.map(_.valid)).asUInt.orR
     val writeSelect = !normalWrite ## ffo(VecInit(rfWriteVec.map(_.valid)).asUInt)
-    val writeEnqBits = Mux1H(writeSelect, rfCrossWriteBits +: rfWriteVec.map(_.bits))
+    val writeEnqBits = Mux1H(writeSelect, crossWriteQueue.io.deq.bits +: rfWriteVec.map(_.bits))
     vrf.write.valid := normalWrite || crossWriteQueue.io.deq.valid
     vrf.write.bits := writeEnqBits
     crossWriteQueue.io.deq.ready := !normalWrite && vrf.write.ready
