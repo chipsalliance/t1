@@ -213,8 +213,8 @@ class VFU(param: VFUParameters) extends Module {
   // mul connect
   val mulInput: LaneSrcResult = Mux(decodeRes.mul, srcSelect, 0.U.asTypeOf(srcSelect))
   mul.req.src :=  VecInit(Seq(addInput.src0, addInput.src1, addInput.src2))
-  resultVec(3) := Mux(decodeRes.logic, mul.resp.head, 0.U)
-  carryRes := mul.resp.last
+  resultVec(3) := Mux(decodeRes.logic, mul.resp, 0.U)
+  carryRes := DontCare
 
   // div connect
   val divInput: LaneSrcResult = Mux(decodeRes.div, srcSelect, 0.U.asTypeOf(srcSelect))

@@ -13,10 +13,9 @@ class LaneMulReq(param: LaneMulParam) extends Bundle {
 
 class LaneMul(param: LaneMulParam) extends Module {
   val req: LaneMulReq = IO(Input(new LaneMulReq(param)))
-  val resp: Vec[UInt] = IO(Output(Vec(2, UInt(param.respWidth.W))))
+  val resp: UInt = IO(Output(UInt(param.respWidth.W)))
 
   // TODO: mul
   // todo: resp c&s
-  resp.head := req.src.head * req.src(1) + req.src.last
-  resp.last := 0.U
+  resp := req.src.head * req.src(1) + req.src.last
 }
