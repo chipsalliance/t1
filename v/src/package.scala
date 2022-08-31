@@ -1,4 +1,4 @@
-import chisel3.{Bool, UInt}
+import chisel3._
 import chisel3.util.experimental.decode.decoder
 import chisel3.util.scanLeftOr
 
@@ -25,5 +25,9 @@ package object v {
 
   def ffo(input: UInt): UInt = {
     (~(scanLeftOr(input) << 1)).asUInt & input
+  }
+
+  def maskAnd(mask: Bool, data: Data): Data = {
+    Mux(mask, data, 0.U.asTypeOf(data))
   }
 }

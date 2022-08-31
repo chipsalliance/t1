@@ -63,6 +63,7 @@ class VRF(param: VRFParam) extends Module {
   val recordCheckVec: IndexedSeq[ValidIO[ChainingRecord]] =
     WireInit(0.U.asTypeOf(Valid(new ChainingRecord(param)))) +: chainingRecord
 
+  // todo: 改sew需要交换数据,csr可配
   val readIndex:      Vec[UInt] = Wire(Vec(param.vrfReadPort, UInt(param.rfAddBits.W)))
   val readBankSelect: Vec[UInt] = Wire(Vec(param.vrfReadPort, UInt(param.rfBankNum.W)))
   val readValid:      Vec[Bool] = Wire(Vec(param.vrfReadPort, Bool()))
