@@ -112,6 +112,20 @@ class LaneReq(param: LaneParameters) extends Bundle {
     res.sSendResult1 := !decodeResFormat.firstWiden
     res
   }
+
+  def instType: UInt = {
+    val decodeResFormat: InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
+    VecInit(
+      Seq(
+        decodeResFormat.logicUnit && !decodeResFormat.otherUnit,
+        decodeResFormat.adderUnit && !decodeResFormat.otherUnit,
+        decodeResFormat.shiftUnit && !decodeResFormat.otherUnit,
+        decodeResFormat.mulUnit && !decodeResFormat.otherUnit,
+        decodeResFormat.divUnit && !decodeResFormat.otherUnit,
+        decodeResFormat.otherUnit
+      )
+    ).asUInt
+  }
 }
 
 class InstGroupState(param: LaneParameters) extends Bundle {
@@ -223,7 +237,6 @@ class Lane(param: LaneParameters) extends Module {
   val vrfReadResult:   Vec[Vec[UInt]] = Wire(Vec(param.controlNum, Vec(3, UInt(param.ELEN.W))))
   val controlActive:   Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
   val controlCanShift: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
-  val executeValid:    Vec[Vec[Bool]] = Wire(Vec(param.controlNum, Vec(param.executeUnitNum, Bool())))
   // 读的环index与这个lane匹配上了, 会出环
   val readBusDeq:    ValidIO[RingBusData] = Wire(Valid(new RingBusData(param: LaneParameters)))
   val writeBusMatch: Bool = Wire(Bool())
@@ -240,7 +253,7 @@ class Lane(param: LaneParameters) extends Module {
   val shiftRequests: Vec[LaneShifterReq] = Wire(Vec(param.controlNum, new LaneShifterReq(param.shifterParameter)))
   val mulRequests:   Vec[LaneMulReq] = Wire(Vec(param.controlNum, new LaneMulReq(param.mulParam)))
   val divRequests:   Vec[LaneDivRequest] = Wire(Vec(param.controlNum, new LaneDivRequest(param.datePathParam)))
-  val otherRequests: Vec[OtherUnitReq] = Wire(Vec(param.controlNum, new OtherUnitReq(param.datePathParam)))
+  val otherRequests: Vec[OtherUnitReq] = Wire(Vec(param.controlNum, Output(new OtherUnitReq(param.datePathParam))))
 
   // 作为最老的坑的控制信号
   val sendReady:      Bool = Wire(Bool())
@@ -266,7 +279,8 @@ class Lane(param: LaneParameters) extends Module {
         assert(csrInterface.vSew != 2.U)
       }
       // 跨lane读写的指令我们只有到最老才开始做
-      controlActive(index) := controlValid.head && ((index == 0).B || !(needCrossRead || needCrossWrite))
+      controlActive(index) := controlValid(index) && controlValid.head && ((index == 0).B || !(needCrossRead || needCrossWrite))
+      // todo: 能不能移动还需要纠结纠结
       controlCanShift(index) := !record.state.sExecute
       // vs1 read
       vrfReadWire(index)(0).valid := !record.state.sRead1 && controlActive(index)
@@ -289,29 +303,21 @@ class Lane(param: LaneParameters) extends Module {
 
       val readFinish =
         record.state.sReadVD && record.state.sRead1 && record.state.sRead2 && record.state.wRead1 && record.state.wRead2
-      executeValid(index) := VecInit(Mux(readFinish, decodeRes(24, 19), 0.U).asBools)
 
       // 处理读出来的结果
       when(vrfReadWire(index)(0).fire) {
         record.state.sRead1 := true.B
+        // todo: Mux
         source1(index) := vrfReadResult(index)(0)
       }
       when(vrfReadWire(index)(1).fire) {
         record.state.sRead2 := true.B
-        when(decodeResFormat.firstWiden) {
-          crossReadHeadTX(index) := vrfReadResult(index)(1)
-        }.otherwise {
-          source2(index) := vrfReadResult(index)(1)
-        }
+        source2(index) := vrfReadResult(index)(1)
       }
 
       when(vrfReadWire(index)(2).fire) {
         record.state.sReadVD := true.B
-        when(decodeResFormat.firstWiden) {
-          crossReadTailTX(index) := vrfReadResult(index)(2)
-        }.otherwise {
-          source3(index) := vrfReadResult(index)(2)
-        }
+        source3(index) := vrfReadResult(index)(2)
       }
       // 处理上环的数据
       if (index == 0) {
@@ -359,6 +365,14 @@ class Lane(param: LaneParameters) extends Module {
             record.state.sCrossWrite1 := true.B
           }
         }
+
+        // 跨lane的读记录
+        when(vrfReadWire(index)(1).fire && decodeResFormat.firstWiden) {
+          crossReadHeadTX := vrfReadResult(index)(1)
+        }
+        when(vrfReadWire(index)(2).fire && decodeResFormat.firstWiden) {
+          crossReadTailTX := vrfReadResult(index)(2)
+        }
       }
       // 发起执行单元的请求
       // 可能需要做符号位扩展 & 选择来源
@@ -371,7 +385,7 @@ class Lane(param: LaneParameters) extends Module {
       logicRequest.src.last := finalSource1
       logicRequest.opcode := decodeResFormat.uop
       // 在手动做Mux1H
-      logicRequests(index) := Mux(decodeResFormat.logicUnit && !decodeResFormat.otherUnit, logicRequest, 0.U)
+      logicRequests(index) := maskAnd(decodeResFormat.logicUnit && !decodeResFormat.otherUnit, logicRequest)
 
       // adder 的
       val adderRequest = Wire(new LaneAdderReq(param.datePathParam))
@@ -379,7 +393,7 @@ class Lane(param: LaneParameters) extends Module {
       adderRequest.opcode := decodeResFormat.uop
       adderRequest.reverse := decodeResFormat.reverse
       adderRequest.average := decodeResFormat.average
-      adderRequests(index) := Mux(decodeResFormat.adderUnit && !decodeResFormat.otherUnit, adderRequest, 0.U)
+      adderRequests(index) := maskAnd(decodeResFormat.adderUnit && !decodeResFormat.otherUnit, adderRequest)
 
       // shift 的
       val shiftRequest = Wire(new LaneShifterReq(param.shifterParameter))
@@ -389,43 +403,33 @@ class Lane(param: LaneParameters) extends Module {
         Seq(false.B ## finalSource1(3), finalSource1(4, 3))
       ) ## finalSource1(2, 0)
       shiftRequest.opcode := decodeResFormat.uop
-      shiftRequests(index) := Mux(decodeResFormat.shiftUnit && !decodeResFormat.otherUnit, shiftRequest, 0.U)
+      shiftRequests(index) := maskAnd(decodeResFormat.shiftUnit && !decodeResFormat.otherUnit, shiftRequest)
 
       // mul
       val mulRequest: LaneMulReq = Wire(new LaneMulReq(param.mulParam))
       mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
       mulRequest.opcode := decodeResFormat.uop
-      mulRequests(index) := Mux(decodeResFormat.mulUnit && !decodeResFormat.otherUnit, mulRequest, 0.U)
+      mulRequests(index) := maskAnd(decodeResFormat.mulUnit && !decodeResFormat.otherUnit, mulRequest)
 
       // div
       val divRequest = Wire(new LaneDivRequest(param.datePathParam))
       divRequest.src := VecInit(Seq(finalSource1, finalSource2))
       divRequest.rem := decodeResFormat.uop(0)
       divRequest.sign := decodeResFormat.unSigned0
-      divRequests(index) := Mux(decodeResFormat.divUnit && !decodeResFormat.otherUnit, divRequest, 0.U)
+      divRequests(index) := maskAnd(decodeResFormat.divUnit && !decodeResFormat.otherUnit, divRequest)
 
       // other
-      val otherRequest: OtherUnitReq = Wire(new OtherUnitReq(param.datePathParam))
+      val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(param.datePathParam)))
       otherRequest.src := VecInit(Seq(finalSource1, finalSource2))
       otherRequest.opcode := decodeResFormat.uop(2, 0)
       otherRequest.extendType.valid := decodeResFormat.uop(3)
       otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResFormatExt.elements(s) }
-      otherRequests(index) := Mux(decodeResFormat.otherUnit, otherRequest, 0.U)
+      otherRequests(index) := maskAnd(decodeResFormat.otherUnit, otherRequest)
 
       when(feedback.valid && feedback.bits.instIndex === record.originalInformation.instIndex) {
         record.state.wScheduler := true.B
       }
-      val instType = VecInit(
-        Seq(
-          decodeResFormat.logicUnit,
-          decodeResFormat.adderUnit,
-          decodeResFormat.shiftUnit,
-          decodeResFormat.mulUnit,
-          decodeResFormat.divUnit,
-          decodeResFormat.logicUnit
-        )
-      ).asUInt
-      instTypeVec(index) := Mux(decodeResFormat.logicUnit, 32.U, instType)
+      instTypeVec(index) := record.originalInformation.instType
       when((instTypeVec(index) & executeEnqFire).orR) {
         record.state.sExecute := true.B
       }
@@ -442,7 +446,7 @@ class Lane(param: LaneParameters) extends Module {
       instWillComplete(index) := (nextCounter ## laneIndex) > csrInterface.vl
       when(record.state.asUInt.andR) {
         when(instWillComplete(index)) {
-          controlValid(index) := true.B
+          controlValid(index) := false.B
         }.otherwise {
           record.state := record.initState
           record.counter := nextCounter
@@ -513,25 +517,25 @@ class Lane(param: LaneParameters) extends Module {
     val otherUnit: OtherUnit = Module(new OtherUnit(param.datePathParam))
 
     // 连接执行单元的请求
-    logicUnit.req := VecInit(logicRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneLogicRequest(param.datePathParam))
-    adder.req := VecInit(adderRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneAdderReq(param.datePathParam))
-    shifter.req := VecInit(shiftRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneShifterReq(param.shifterParameter))
-    mul.req := VecInit(mulRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneMulReq(param.mulParam))
-    div.req := VecInit(divRequests.map(_.asUInt)).asUInt.asTypeOf(new LaneDivRequest(param.datePathParam))
-    otherUnit.req := VecInit(otherRequests.map(_.asUInt)).asUInt.asTypeOf(new OtherUnitReq(param.datePathParam))
+    logicUnit.req := VecInit(logicRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneLogicRequest(param.datePathParam))
+    adder.req := VecInit(adderRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneAdderReq(param.datePathParam))
+    shifter.req := VecInit(shiftRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneShifterReq(param.shifterParameter))
+    mul.req := VecInit(mulRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneMulReq(param.mulParam))
+    div.req.bits := VecInit(divRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneDivRequest(param.datePathParam))
+    otherUnit.req := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(param.datePathParam)))
     // 执行单元的其他连接
     adder.csr.vSew := csrInterface.vSew
     adder.csr.vxrm := csrInterface.vxrm
 
     // 连接执行结果
-    executeDeqData := VecInit(Seq(logicUnit.resp, adder.resp, shifter.resp, mul.resp, div.resp.bits, otherUnit.resp))
-    executeDeqFire := executeEnqFire | (div.resp.valid ## 0.U(4.W))
+    executeDeqData := VecInit(Seq(logicUnit.resp, adder.resp, shifter.resp, mul.resp, div.resp.bits, otherUnit.resp.data))
+    executeDeqFire := executeEnqFire(5) ## div.resp.valid ## executeEnqFire(3, 0)
   }
 
   // 处理 rf
   {
     // 连接读口
-    val readArbiter = new Arbiter(vrfReadWire.head.head, 7)
+    val readArbiter = Module(new Arbiter(new VRFReadRequest(param.vrfParam), 7))
     (vrfReadWire(1).last +: (vrfReadWire(2) ++ vrfReadWire(3))).zip(readArbiter.io.in).foreach {
       case (source, sink) =>
         sink <> source
@@ -560,16 +564,20 @@ class Lane(param: LaneParameters) extends Module {
 
   // 控制逻辑的移动
   val entranceControl: InstControlRecord = Wire(new InstControlRecord(param))
-  laneReq.ready := !controlValid.head
   val entranceFormat: InstructionDecodeResult = laneReq.bits.decodeResult.asTypeOf(new InstructionDecodeResult)
   entranceControl.originalInformation := laneReq.bits
   entranceControl.state := laneReq.bits.initState
   entranceControl.initState := laneReq.bits.initState
+  // todo: vStart(2,0) > lane index
   entranceControl.counter := (csrInterface.vStart >> 3).asUInt
   val vs1entrance: UInt =
     Mux(entranceFormat.vType, 0.U, Mux(entranceFormat.xType, laneReq.bits.readFromScala, laneReq.bits.vs1))
-  when(!controlValid.head && (controlValid.asUInt.orR || laneReq.valid)) {
-    controlValid := VecInit(controlValid.tail :+ laneReq.valid)
+  val entranceInstType: UInt = laneReq.bits.instType
+  val typeReady: Bool = VecInit(instTypeVec.zip(controlValid).map {case (t, v) => (t =/= entranceInstType) || !v}).asUInt.andR
+  val validRegulate: Bool = laneReq.valid && typeReady
+  laneReq.ready := !controlValid.head && typeReady
+  when(!controlValid.head && (controlValid.asUInt.orR || validRegulate)) {
+    controlValid := VecInit(controlValid.tail :+ validRegulate)
     source1 := VecInit(source1.tail :+ vs1entrance)
     control := VecInit(control.tail :+ entranceControl)
   }
