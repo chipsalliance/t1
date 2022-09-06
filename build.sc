@@ -8,6 +8,7 @@ import $file.dependencies.chisel3.build
 import $file.dependencies.firrtl.build
 import $file.dependencies.treadle.build
 import $file.dependencies.chiseltest.build
+import $file.dependencies.arithmetic.common
 import $file.common
 
 object v {
@@ -16,6 +17,12 @@ object v {
   val chisel3Plugin = ivy"edu.berkeley.cs::chisel3-plugin:3.6-SNAPSHOT"
   val chiseltest = ivy"edu.berkeley.cs::chiseltest:3.6-SNAPSHOT"
   val utest = ivy"com.lihaoyi::utest:latest.integration"
+  // for arithmetic
+  val upickle = ivy"com.lihaoyi::upickle:latest.integration"
+  val osLib = ivy"com.lihaoyi::os-lib:latest.integration"
+  val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
+  val spire = ivy"org.typelevel::spire:latest.integration"
+  val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
 }
 
 object myfirrtl extends dependencies.firrtl.build.firrtlCrossModule(v.scala) {
@@ -40,12 +47,26 @@ object mychiseltest extends dependencies.chiseltest.build.chiseltestCrossModule(
   def chisel3Module: Option[PublishModule] = Some(mychisel3)
   def treadleModule: Option[PublishModule] = Some(mytreadle)
 }
+object myarithmetic extends dependencies.arithmetic.common.ArithmeticModule {
+  override def millSourcePath = os.pwd /  "dependencies" / "arithmetic" / "arithmetic"
+  def scalaVersion = T { v.scala }
+  def chisel3Module: Option[PublishModule] = Some(mychisel3)
+  def chisel3PluginJar = T { Some(mychisel3.plugin.jar()) }
+  def chiseltestModule = Some(mychiseltest)
+  def upickle: T[Dep] = v.upickle
+  def osLib: T[Dep] = v.osLib
+  def spire: T[Dep] = v.spire
+  def evilplot: T[Dep] = v.evilplot
+  def bc: T[Dep] = v.bc
+  def utest: T[Dep] = v.utest
+}
 object vector extends common.VectorModule with ScalafmtModule { m =>
   def millSourcePath = os.pwd / "v"
   def scalaVersion = T { v.scala }
   def chisel3Module = Some(mychisel3)
   def chisel3PluginJar = T { Some(mychisel3.plugin.jar()) }
   def chiseltestModule = Some(mychiseltest)
+  def arithmeticModule = Some(myarithmetic)
   def utest: T[Dep] = v.utest
 
   object tests extends Tests with Utest with ScalafmtModule {
@@ -58,5 +79,4 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
         chiseltestIvyDep()
     }
   }
-
 }
