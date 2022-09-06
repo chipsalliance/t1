@@ -21,5 +21,6 @@ class LaneFFO(param: DataPathParam) extends Module {
   val index: UInt = OH1ToUInt(OH)
 
   resp.valid := notZero
-  resp.bits := Mux1H(UIntToOH(resultSelect), Seq(ro, inc, OH, index))
+  // "vfirst" -> first set, "vmsbf" -> before, "vmsof" -> oh, "vmsif" -> include
+  resp.bits := Mux1H(UIntToOH(resultSelect), Seq(index, ro, OH, inc))
 }

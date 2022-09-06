@@ -182,7 +182,7 @@ class VFU(param: VFUParameters) extends Module {
   val shifter: LaneShifter = Module(new LaneShifter(param.shifterParameter))
   val mul: LaneMul = Module(new LaneMul(param.mulParam))
   val div: LaneDiv = Module(new LaneDiv(param.datePathParam))
-  val popCount: LanePopCount = Module(new LanePopCount(param.lanePopCountParameter))
+  val popCount: LanePopCount = Module(new LanePopCount(param.datePathParam))
   val ffo: LaneFFO = Module(new LaneFFO(param.datePathParam))
   val getID: LaneIndexCalculator = Module(new LaneIndexCalculator(param.indexParam))
   val dp: LaneDataProcessing = Module(new LaneDataProcessing(param.datePathParam))
