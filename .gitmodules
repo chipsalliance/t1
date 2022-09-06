@@ -10,3 +10,6 @@
 [submodule "dependencies/chiseltest"]
 	path = dependencies/chiseltest
 	url = git@github.com:ucb-bar/chiseltest.git
+[submodule "dependencies/arithmetic"]
+	path = dependencies/arithmetic
+	url = git@github.com:sequencer/arithmetic.git

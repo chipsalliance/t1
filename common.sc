@@ -13,6 +13,7 @@ trait VectorModule extends ScalaModule with PublishModule {
     MavenRepository("https://oss.sonatype.org/content/repositories/releases")
   ) }
 
+
   // override to build from source, see the usage of chipsalliance/playground
   def chisel3Module: Option[PublishModule] = None
 
@@ -24,6 +25,9 @@ trait VectorModule extends ScalaModule with PublishModule {
   // override to build from source, see the usage of chipsalliance/playground
   def chiseltestModule: Option[PublishModule] = None
 
+  // override to build from source, see the usage of chipsalliance/playground
+  def arithmeticModule: Option[PublishModule] = None
+
   // Use SNAPSHOT chisel by default, downstream users should override this for their own project versions.
   def chisel3IvyDep: T[Option[Dep]] = None
 
@@ -31,7 +35,7 @@ trait VectorModule extends ScalaModule with PublishModule {
 
   def chiseltestIvyDep: T[Option[Dep]] = None
 
-  override def moduleDeps = Seq() ++ chisel3Module ++ chiseltestModule
+  override def moduleDeps = Seq() ++ chisel3Module ++ chiseltestModule ++ arithmeticModule
 
   override def scalacPluginClasspath = T {
     super.scalacPluginClasspath() ++ chisel3PluginJar()
