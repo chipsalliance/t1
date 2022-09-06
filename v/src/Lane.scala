@@ -19,7 +19,6 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
 
   def vrfParam:              VRFParam = VRFParam(VLEN, lane, groupSize, ELEN)
   def datePathParam:         DataPathParam = DataPathParam(ELEN)
-  def lanePopCountParameter: LanePopCountParameter = LanePopCountParameter(ELEN, elenBits)
   def shifterParameter:      LaneShifterParameter = LaneShifterParameter(ELEN, elenBits)
   def mulParam:              LaneMulParam = LaneMulParam(ELEN)
   def indexParam:            LaneIndexCalculatorParameter = LaneIndexCalculatorParameter(groupSizeBits, idBits)
@@ -256,7 +255,7 @@ class Lane(param: LaneParameters) extends Module {
   val shiftRequests: Vec[LaneShifterReq] = Wire(Vec(param.controlNum, new LaneShifterReq(param.shifterParameter)))
   val mulRequests:   Vec[LaneMulReq] = Wire(Vec(param.controlNum, new LaneMulReq(param.mulParam)))
   val divRequests:   Vec[LaneDivRequest] = Wire(Vec(param.controlNum, new LaneDivRequest(param.datePathParam)))
-  val otherRequests: Vec[OtherUnitReq] = Wire(Vec(param.controlNum, Output(new OtherUnitReq(param.datePathParam))))
+  val otherRequests: Vec[OtherUnitReq] = Wire(Vec(param.controlNum, Output(new OtherUnitReq(param))))
 
   // 作为最老的坑的控制信号
   val sendReady:      Bool = Wire(Bool())
@@ -425,12 +424,16 @@ class Lane(param: LaneParameters) extends Module {
       divRequests(index) := maskAnd(decodeResFormat.divUnit && !decodeResFormat.otherUnit, divRequest)
 
       // other
-      val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(param.datePathParam)))
+      val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(param)))
       otherRequest.src := VecInit(Seq(finalSource1, finalSource2))
       otherRequest.opcode := decodeResFormat.uop(2, 0)
       otherRequest.imm := record.originalInformation.vs1
       otherRequest.extendType.valid := decodeResFormat.uop(3)
       otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResFormatExt.elements(s) }
+      otherRequest.mask := DontCare // todo
+      otherRequest.laneIndex := laneIndex
+      otherRequest.groupIndex := record.counter
+      otherRequest.sign := !decodeResFormat.unSigned0
       otherRequests(index) := maskAnd(decodeResFormat.otherUnit, otherRequest)
 
       when(feedback.valid && feedback.bits.instIndex === record.originalInformation.instIndex) {
@@ -528,7 +531,7 @@ class Lane(param: LaneParameters) extends Module {
     val shifter:   LaneShifter = Module(new LaneShifter(param.shifterParameter))
     val mul:       LaneMul = Module(new LaneMul(param.mulParam))
     val div:       LaneDiv = Module(new LaneDiv(param.datePathParam))
-    val otherUnit: OtherUnit = Module(new OtherUnit(param.datePathParam))
+    val otherUnit: OtherUnit = Module(new OtherUnit(param))
 
     // 连接执行单元的请求
     logicUnit.req := VecInit(logicRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneLogicRequest(param.datePathParam))
@@ -536,18 +539,21 @@ class Lane(param: LaneParameters) extends Module {
     shifter.req := VecInit(shiftRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneShifterReq(param.shifterParameter))
     mul.req := VecInit(mulRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneMulReq(param.mulParam))
     div.req.bits := VecInit(divRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneDivRequest(param.datePathParam))
-    otherUnit.req := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(param.datePathParam)))
+    otherUnit.req := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(param)))
     // 执行单元的其他连接
     adder.csr.vSew := csrInterface.vSew
     adder.csr.vxrm := csrInterface.vxrm
+    otherUnit.csr.vSew := csrInterface.vSew
+    otherUnit.csr.vxrm := csrInterface.vxrm
     div.mask := DontCare
+    div.vSew := csrInterface.vSew
 
     // 连接执行结果
     executeDeqData := VecInit(Seq(logicUnit.resp, adder.resp, shifter.resp, mul.resp, div.resp.bits, otherUnit.resp.data))
     executeDeqFire := executeEnqFire(5) ## div.resp.valid ## executeEnqFire(3, 0)
     // 执行单元入口握手
     val tryToUseExecuteUnit = VecInit(executeEnqValid.map(_.asBools).transpose.map(VecInit(_).asUInt.orR)).asUInt
-    executeEnqFire := tryToUseExecuteUnit & (div.req.ready ## 15.U(4.W))
+    executeEnqFire := tryToUseExecuteUnit & (true.B ## div.req.ready ## 15.U(4.W))
     div.req.valid := tryToUseExecuteUnit(4)
   }
 

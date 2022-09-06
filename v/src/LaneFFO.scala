@@ -24,5 +24,6 @@ class LaneFFO(param: DataPathParam) extends Module {
   private def OH1ToOH(x: UInt): UInt = ((x << 1: UInt) | 1.U) & ~Cat(0.U(1.W), x)
   private def OH1ToUInt(x: UInt): UInt = OHToUInt(OH1ToOH(x))
   resp.valid := notZero
-  resp.bits := Mux1H(UIntToOH(resultSelect), Seq(ro, inc, OH, index))
+  // "vfirst" -> first set, "vmsbf" -> before, "vmsof" -> oh, "vmsif" -> include
+  resp.bits := Mux1H(UIntToOH(resultSelect), Seq(index, ro, OH, inc))
 }

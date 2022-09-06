@@ -1,6 +1,7 @@
 package v
 
 import chisel3._
+import chisel3.util._
 
 class LaneAdderReq(param: DataPathParam) extends Bundle {
   val src:  Vec[UInt] = Vec(3, UInt(param.dataWidth.W))
@@ -21,5 +22,10 @@ class LaneAdder(param: DataPathParam) extends Module {
   val csr: LaneAdderCsr = IO(Input(new LaneAdderCsr()))
   // TODO: adder
   val (s, c) = csa32(req.src.head, req.src(1), req.src.last)
-  resp := s + (c ## false.B)
+  val addResult: UInt = s +& (c ## false.B)
+  val averageResult: UInt = (addResult >> 1).asUInt + Mux1H(
+    UIntToOH(csr.vxrm),
+    Seq(addResult(0), addResult(0) && addResult(1), false.B, addResult(0) && !addResult(1))
+  )
+  resp := Mux(req.average, averageResult, addResult)
 }

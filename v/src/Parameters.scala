@@ -24,7 +24,6 @@ case class VFUParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8) {
   val idBits: Int = log2Ceil(lane)
 
   def datePathParam: DataPathParam = DataPathParam(ELEN)
-  def lanePopCountParameter: LanePopCountParameter = LanePopCountParameter(ELEN, elenBits)
   def shifterParameter: LaneShifterParameter = LaneShifterParameter(ELEN, elenBits)
   def mulParam: LaneMulParam = LaneMulParam(ELEN)
   def indexParam: LaneIndexCalculatorParameter = LaneIndexCalculatorParameter(groupSizeBits, idBits)

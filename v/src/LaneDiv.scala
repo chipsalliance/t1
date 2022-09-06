@@ -2,6 +2,7 @@ package v
 
 import chisel3._
 import chisel3.util._
+import division.srt.SRT
 
 class LaneDivRequest(param: DataPathParam) extends Bundle {
   val src: Vec[UInt] = Vec(2, UInt(param.dataWidth.W))
@@ -11,6 +12,7 @@ class LaneDivRequest(param: DataPathParam) extends Bundle {
 
 class LaneDiv(param: DataPathParam) extends Module {
   val req: DecoupledIO[LaneDivRequest] = IO(Flipped(Decoupled(new LaneDivRequest(param))))
+  val vSew: UInt = IO(Input(UInt(2.W)))
   // mask for sew
   val mask: UInt = IO(Input(UInt(param.dataWidth.W)))
   val resp: ValidIO[UInt] = IO(Valid(UInt(param.dataWidth.W)))
@@ -23,21 +25,11 @@ class LaneDiv(param: DataPathParam) extends Module {
     (src & mask) | (signExtend & (~mask).asUInt)
   }
 
-  val count: UInt = RegInit(0.U(3.W))
-  val busy: Bool = RegInit(false.B)
-  when(resp.valid) {
-    busy := false.B
-  }
-  when(req.fire) {
-    busy := true.B
-  }
-  when(busy || req.fire) {
-    count := count + 1.U
-  }
-  // todo: srt.req.ready
-  req.ready := count === 0.U
-  resp.valid := count.andR
+  val div: SRT = Module(new SRT(32, 32, 32))
+  div.input.bits.divider := srcExtend.head
+  div.input.bits.dividend := srcExtend.head
+  div.input.bits.counter := 8.U
 
-  // TODO: div
-  resp.bits := srcExtend.head / srcExtend.last
+  resp.valid := div.output.valid
+  resp.bits := div.output.bits
 }
