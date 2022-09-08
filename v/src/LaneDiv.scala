@@ -29,7 +29,11 @@ class LaneDiv(param: DataPathParam) extends Module {
   div.input.bits.divider := srcExtend.head
   div.input.bits.dividend := srcExtend.head
   div.input.bits.counter := 8.U
+  div.input.valid := req.valid
+  req.ready := div.input.ready
+
+  val remReg: Bool = RegEnable(req.bits.rem, false.B, req.fire)
 
   resp.valid := div.output.valid
-  resp.bits := div.output.bits
+  resp.bits := Mux(remReg, div.output.bits.reminder, div.output.bits.quotient)
 }
