@@ -152,9 +152,9 @@ class InstControlRecord(param: LaneParameters) extends Bundle {
   val counter:             UInt = UInt(param.VLMaxBits.W)
 }
 
-class LaneCsrInterface(param: LaneParameters) extends Bundle {
-  val vl:     UInt = UInt(param.VLMaxBits.W)
-  val vStart: UInt = UInt(param.VLMaxBits.W)
+class LaneCsrInterface(vlWidth: Int) extends Bundle {
+  val vl:     UInt = UInt(vlWidth.W)
+  val vStart: UInt = UInt(vlWidth.W)
   val vlmul:  UInt = UInt(3.W)
   val vSew:   UInt = UInt(2.W)
 
@@ -195,7 +195,7 @@ class SchedulerFeedback(param: LaneParameters) extends Bundle {
   */
 class Lane(param: LaneParameters) extends Module {
   val laneReq:         DecoupledIO[LaneReq] = IO(Flipped(Decoupled(new LaneReq(param))))
-  val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param)))
+  val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
   val dataToScheduler: LaneDataResponse = IO(Flipped(new LaneDataResponse(param)))
   val laneIndex:       UInt = IO(Input(UInt(param.laneIndexBits.W)))
   val readBusPort:     RingPort = IO(new RingPort(param))
