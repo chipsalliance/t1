@@ -1,6 +1,6 @@
 import chisel3._
 import chisel3.util.experimental.decode.decoder
-import freechips.rocketchip.util.leftOR
+import chisel3.util.scanLeftOr
 
 package object v {
   def csa32(s: UInt, c: UInt, a: UInt): (UInt, UInt) = {
@@ -24,7 +24,7 @@ package object v {
   }
 
   def ffo(input: UInt): UInt = {
-    (~(leftOR(input) << 1)).asUInt & input
+    (~(scanLeftOr(input) << 1)).asUInt & input
   }
 
   def maskAnd(mask: Bool, data: Data): Data = {
