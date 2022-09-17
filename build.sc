@@ -9,6 +9,7 @@ import $file.dependencies.firrtl.build
 import $file.dependencies.treadle.build
 import $file.dependencies.chiseltest.build
 import $file.dependencies.arithmetic.common
+import $file.dependencies.tilelink.common
 import $file.common
 
 object v {
@@ -60,6 +61,12 @@ object myarithmetic extends dependencies.arithmetic.common.ArithmeticModule {
   def bc: T[Dep] = v.bc
   def utest: T[Dep] = v.utest
 }
+object mytilelink extends dependencies.tilelink.common.TileLinkModule {
+  override def millSourcePath = os.pwd /  "dependencies" / "tilelink" / "tilelink"
+  def scalaVersion = T { v.scala }
+  def chisel3Module: Option[PublishModule] = Some(mychisel3)
+  def chisel3PluginJar = T { Some(mychisel3.plugin.jar()) }
+}
 object vector extends common.VectorModule with ScalafmtModule { m =>
   def millSourcePath = os.pwd / "v"
   def scalaVersion = T { v.scala }
@@ -67,6 +74,7 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
   def chisel3PluginJar = T { Some(mychisel3.plugin.jar()) }
   def chiseltestModule = Some(mychiseltest)
   def arithmeticModule = Some(myarithmetic)
+  def tilelinkModule = Some(mytilelink)
   def utest: T[Dep] = v.utest
 
   object tests extends Tests with Utest with ScalafmtModule {
