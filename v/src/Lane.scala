@@ -166,6 +166,9 @@ class LaneCsrInterface(vlWidth: Int) extends Bundle {
 
   /** mask agnostic */
   val vma: Bool = Bool()
+
+  /** 如果不忽视异常, fault only first 类型的指令需要等第一个回应 */
+  val ignoreException: Bool = Bool()
 }
 
 class LaneDataResponse(param: LaneParameters) extends Bundle {
