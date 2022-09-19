@@ -4,8 +4,8 @@ import chisel3._
 import chisel3.util._
 import tilelink.{TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
 
-case class LSUParam(dataWidth: Int, ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
-  val dataBits:          Int = log2Ceil(dataWidth)
+case class LSUParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
+  val dataBits:          Int = log2Ceil(ELEN)
   val mshrSize:          Int = 3
   val maskGroupWidth:    Int = 32
   val maskGroupSize:     Int = VLEN / 32
@@ -54,12 +54,13 @@ class LSUInstInformation(param: LSUParam) extends Bundle {
   val eew: UInt = UInt(3.W)
   val vs3: UInt = UInt(5.W)
   val st:  Bool = Bool()
+  def fof: Bool = mop === 0.U && vs2(4) && !st
 }
 
 class LSUReq(param: LSUParam) extends Bundle {
   val instInf:   LSUInstInformation = new LSUInstInformation(param)
-  val rs1Data:   UInt = UInt(param.dataWidth.W)
-  val rs2Data:   UInt = UInt(param.dataWidth.W)
+  val rs1Data:   UInt = UInt(param.ELEN.W)
+  val rs2Data:   UInt = UInt(param.ELEN.W)
   val instIndex: UInt = UInt(3.W)
 }
 
