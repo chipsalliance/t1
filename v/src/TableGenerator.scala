@@ -161,15 +161,22 @@ object TableGenerator extends App {
 
   object BankEnableTable {
     // TODO
-    val maskList: Seq[Int] = Seq(1,3,15)
-    val maskSizeList: Seq[Int] = Seq(1,2,4)
-    var table: List[(BitPat, BitPat)] = List.empty
-    for (eew <- 0 to 2; vs <- 0 to 3; groupId <- 0 to 3; v <- Seq(true, false)) {
+    val maskList:     Seq[Int] = Seq(1, 3, 15)
+    val maskSizeList: Seq[Int] = Seq(1, 2, 4)
+    var table:        List[(BitPat, BitPat)] = List.empty
+    for {
+      eew <- 0 to 2
+      vs <- 0 to 3
+      groupId <- 0 to 3
+      v <- Seq(true, false)
+    } {
       var mask = if (v) maskList(eew) else 0
       val maskSize = maskSizeList(eew)
       val index = (maskSize * (vs + groupId)) % 4
       mask <<= index
-      table :+= BitPat(v) ## BitPat(toBinary(eew, 2)) ## BitPat(toBinary(vs, 2)) ## BitPat(toBinary(groupId, 2)) -> BitPat(toBinary(index, 2)) ## BitPat(toBinary(mask, 4))
+      table :+= BitPat(v) ## BitPat(toBinary(eew, 2)) ## BitPat(toBinary(vs, 2)) ## BitPat(
+        toBinary(groupId, 2)
+      ) -> BitPat(toBinary(index, 2)) ## BitPat(toBinary(mask, 4))
     }
     val res: TruthTable = TruthTable(table, BitPat.dontCare(6))
   }

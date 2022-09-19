@@ -5,6 +5,7 @@ import chisel3.util._
 
 /** The request from the controller to the lane (execution unit) */
 class VFUReq(param: VFUParameters) extends Bundle {
+
   /** The index of lane */
   val index: UInt = UInt(param.idBits.W)
 
@@ -16,13 +17,13 @@ class VFUReq(param: VFUParameters) extends Bundle {
   val w: Bool = Bool()
 
   /** Whether operation is narrowing */
-  val n: Bool =  Bool()
+  val n: Bool = Bool()
 
   /** SEW encoded in 2 bits, corresponding to 8, 16, 32, 64 */
   val sew: UInt = UInt(2.W)
 
   /** Three source operands, TODO: wtf is the third operand
-   */
+    */
   val src: Vec[UInt] = Vec(3, UInt(param.ELEN.W))
 
   /** Since lane requests are sent group by group, groupIndex is the index of it */
@@ -50,59 +51,61 @@ class VFUResp(param: VFUParameters) extends Bundle {
 }
 
 /** The decoding result of vector instructions.
- *  8 bits onehot encoding of uop, indicating to type of operation
- *  3 bits encoding of subUop, indicating to some operation together with uop
- */
+  *  8 bits onehot encoding of uop, indicating to type of operation
+  *  3 bits encoding of subUop, indicating to some operation together with uop
+  */
 class LaneDecodeResult extends Bundle {
+
   /** Corresponding subUop
-   *  0 => and
-   *  1 => nand
-   *  2 => andn
-   *  3 => or
-   *  4 => orn
-   *  5 => xor
-   *  6 => xnor
-   *  7 => andn
-   */
+    *  0 => and
+    *  1 => nand
+    *  2 => andn
+    *  3 => or
+    *  4 => orn
+    *  5 => xor
+    *  6 => xnor
+    *  7 => andn
+    */
   val logic: Bool = Bool()
   val shift: Bool = Bool()
+
   /** Corresponding subUop
-   *  0 => add
-   *  1 => sub
-   *  2 => adc
-   *  3 => madc
-   *  4 => sbc
-   *  5 => msbc
-   *  6 => slt,sle,sgt,sge
-   *  7 => max,min
-   */
+    *  0 => add
+    *  1 => sub
+    *  2 => adc
+    *  3 => madc
+    *  4 => sbc
+    *  5 => msbc
+    *  6 => slt,sle,sgt,sge
+    *  7 => max,min
+    */
   val arithmetic: Bool = Bool()
 
   /** Corresponding subUop
-   *  0 => mul
-   *  4 => wmul
-   *  7 => ma
-   */
+    *  0 => mul
+    *  4 => wmul
+    *  7 => ma
+    */
   val mul: Bool = Bool()
 
   /** Corresponding subUop
-   *  0 => div
-   */
+    *  0 => div
+    */
   val div: Bool = Bool()
 
   /** Corresponding subUop
-   *  0 => popcount
-   */
+    *  0 => popcount
+    */
   val popCount: Bool = Bool()
 
   /** Corresponding subUop
-   *  0 => ffo
-   */
+    *  0 => ffo
+    */
   val ffo: Bool = Bool()
 
   /** Corresponding subUop
-   *  0 => getIndex
-   */
+    *  0 => getIndex
+    */
   val getIndex: Bool = Bool()
 
   val dataProcessing: Bool = Bool()
@@ -115,10 +118,12 @@ class LaneDecodeResult extends Bundle {
 
   /** Whether subtraction applied on operand1 */
   val sub1: Bool = Bool()
+
   /** Whether subtraction applied on operand2 */
   val sub2: Bool = Bool()
 
   val subUop: UInt = UInt(3.W)
+
   /** Whether it is Averaging add/sub ? */
   val averaging: Bool = Bool()
 }
@@ -138,7 +143,7 @@ class LaneSrcResult(param: VFUParameters) extends Bundle {
 }
 
 class VFU(param: VFUParameters) extends Module {
-  val req: DecoupledIO[VFUReq] = IO(Flipped(Decoupled(new VFUReq(param))))
+  val req:  DecoupledIO[VFUReq] = IO(Flipped(Decoupled(new VFUReq(param))))
   val resp: ValidIO[VFUResp] = IO(Valid(new VFUResp(param)))
 
   // TODO: decode req
@@ -178,31 +183,31 @@ class VFU(param: VFUParameters) extends Module {
 
   // make ALU units
   val logicUnit: LaneLogic = Module(new LaneLogic(param.datePathParam))
-  val adder: LaneAdder = Module(new LaneAdder(param.datePathParam))
-  val shifter: LaneShifter = Module(new LaneShifter(param.shifterParameter))
-  val mul: LaneMul = Module(new LaneMul(param.mulParam))
-  val div: LaneDiv = Module(new LaneDiv(param.datePathParam))
-  val popCount: LanePopCount = Module(new LanePopCount(param.datePathParam))
-  val ffo: LaneFFO = Module(new LaneFFO(param.datePathParam))
-  val getID: LaneIndexCalculator = Module(new LaneIndexCalculator(param.indexParam))
-  val dp: LaneDataProcessing = Module(new LaneDataProcessing(param.datePathParam))
+  val adder:     LaneAdder = Module(new LaneAdder(param.datePathParam))
+  val shifter:   LaneShifter = Module(new LaneShifter(param.shifterParameter))
+  val mul:       LaneMul = Module(new LaneMul(param.mulParam))
+  val div:       LaneDiv = Module(new LaneDiv(param.datePathParam))
+  val popCount:  LanePopCount = Module(new LanePopCount(param.datePathParam))
+  val ffo:       LaneFFO = Module(new LaneFFO(param.datePathParam))
+  val getID:     LaneIndexCalculator = Module(new LaneIndexCalculator(param.indexParam))
+  val dp:        LaneDataProcessing = Module(new LaneDataProcessing(param.datePathParam))
 
   val resultVec: Vec[UInt] = Wire(Vec(8, UInt(param.mulRespWidth.W)))
-  val carryRes: UInt = Wire(UInt(param.mulRespWidth.W))
+  val carryRes:  UInt = Wire(UInt(param.mulRespWidth.W))
 
-  // Notice that both the input and the output of each functional unit is mux-ed, 
+  // Notice that both the input and the output of each functional unit is mux-ed,
   // to reduce power consumption.
 
   // logicUnit connect
   val logicInput: LaneSrcResult = Mux(decodeRes.logic, srcSelect, 0.U.asTypeOf(srcSelect))
-  logicUnit.req.src :=  VecInit(Seq(logicInput.src0, logicInput.src1))
-  logicUnit.req.opcode :=  decodeRes.subUop
+  logicUnit.req.src := VecInit(Seq(logicInput.src0, logicInput.src1))
+  logicUnit.req.opcode := decodeRes.subUop
   resultVec.head := Mux(decodeRes.logic, logicUnit.resp, 0.U)
 
   // adder connect
   val addInput: LaneSrcResult = Mux(decodeRes.arithmetic, srcSelect, 0.U.asTypeOf(srcSelect))
   adder.req := DontCare
-  adder.req.src :=  VecInit(Seq(addInput.src0, addInput.src1, addInput.src3))
+  adder.req.src := VecInit(Seq(addInput.src0, addInput.src1, addInput.src3))
   resultVec(1) := Mux(decodeRes.logic, adder.resp, 0.U)
 
   // shifter connect
@@ -212,7 +217,7 @@ class VFU(param: VFUParameters) extends Module {
 
   // mul connect
   val mulInput: LaneSrcResult = Mux(decodeRes.mul, srcSelect, 0.U.asTypeOf(srcSelect))
-  mul.req.src :=  VecInit(Seq(addInput.src0, addInput.src1, addInput.src2))
+  mul.req.src := VecInit(Seq(addInput.src0, addInput.src1, addInput.src2))
   resultVec(3) := Mux(decodeRes.logic, mul.resp, 0.U)
   carryRes := DontCare
 

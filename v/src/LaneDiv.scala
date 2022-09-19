@@ -5,13 +5,13 @@ import chisel3.util._
 import division.srt.SRT
 
 class LaneDivRequest(param: DataPathParam) extends Bundle {
-  val src: Vec[UInt] = Vec(2, UInt(param.dataWidth.W))
-  val rem: Bool = Bool()
+  val src:  Vec[UInt] = Vec(2, UInt(param.dataWidth.W))
+  val rem:  Bool = Bool()
   val sign: Bool = Bool()
 }
 
 class LaneDiv(param: DataPathParam) extends Module {
-  val req: DecoupledIO[LaneDivRequest] = IO(Flipped(Decoupled(new LaneDivRequest(param))))
+  val req:  DecoupledIO[LaneDivRequest] = IO(Flipped(Decoupled(new LaneDivRequest(param))))
   val vSew: UInt = IO(Input(UInt(2.W)))
   // mask for sew
   val mask: UInt = IO(Input(UInt(param.dataWidth.W)))
@@ -20,7 +20,7 @@ class LaneDiv(param: DataPathParam) extends Module {
   val sign1h: UInt = mask & (~mask >> 1).asUInt
 
   val srcExtend: IndexedSeq[UInt] = req.bits.src.map { src =>
-    val signValue: Bool = (sign1h & src).orR
+    val signValue:  Bool = (sign1h & src).orR
     val signExtend: UInt = Fill(param.dataWidth, signValue)
     (src & mask) | (signExtend & (~mask).asUInt)
   }
