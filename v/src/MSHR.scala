@@ -16,7 +16,7 @@ class MSHR(param: LSUParam) extends Module {
   val readResult:       UInt = IO(Input(UInt(param.ELEN.W)))
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.lane, Flipped(Valid(UInt(param.ELEN.W)))))
   val maskRegInput:     UInt = IO(Input(UInt(param.maskGroupWidth.W)))
-  val maskSelect:       DecoupledIO[UInt] = IO(Decoupled(UInt(param.maskGroupSizeBits.W)))
+  val maskSelect:       ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
   val tlPort:           TLBundle = IO(param.tlParam.bundle())
   val vrfWritePort:     ValidIO[VRFWriteRequest] = IO(Valid(new VRFWriteRequest(param.vrfParam)))
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
@@ -53,7 +53,7 @@ class MSHR(param: LSUParam) extends Module {
   val respDone:   UInt = RegInit(0.U(param.lsuGroupSize.W))
   val respFinish: Bool = respDone === 0.U
 
-  val idle :: sRequest :: wResp :: Nil = Enum(3)
+  val idle :: sRequest :: wMask :: wResp :: Nil = Enum(4)
   val state: UInt = RegInit(idle)
   val initStateWire = WireInit(VecInit(Seq(!requestReg.instInf.st, false.B)))
 
@@ -71,13 +71,14 @@ class MSHR(param: LSUParam) extends Module {
   val reqNext:      UInt = Wire(UInt(param.lsuGroupLength.W))
   val reqNextIndex: UInt = OHToUInt(reqNext)
   val segExhausted: Bool = tlPort.a.fire && (!segType || segEnd)
-  when(segExhausted || req.valid) {
+  val newGroup:     Bool = WireDefault(false.B)
+  when(segExhausted || newGroup) {
     // todo: 应该由 vstart 决定初始值, 但是现在暂时不考虑异常
-    reqDone := Mux(req.valid, 0.U, scanRightOr(reqNext))
+    reqDone := Mux(newGroup, 0.U, scanRightOr(reqNext))
   }
 
   // 连a通道
-  val dataEEW:       UInt = Mux(indexType, csrInterface.vSew, requestReg.instInf.eew)
+  val dataEEW:       UInt = Mux(indexType, csrInterface.vSew, Mux(maskType, 0.U, requestReg.instInf.eew))
   val dataEEWOH:     UInt = UIntToOH(dataEEW)
   val reqSize:       UInt = dataEEW
   val segmentIndex:  UInt = OHToUInt(segNext)
@@ -107,18 +108,16 @@ class MSHR(param: LSUParam) extends Module {
 
   // 选出 reqNext
   val reqFilter:   UInt = (~reqDone).asUInt
-  val maskFilter:  UInt = maskReg & reqFilter
+  val maskFilter:  UInt = Wire(UInt(param.maskGroupWidth.W))
   val maskReq:     Bool = maskFilter === 0.U && maskType
   val maskNext:    UInt = ffo(maskFilter)
   val reqDoneNext: UInt = (reqDone ## true.B) & reqFilter
+  maskFilter := maskReg & reqFilter
   reqNext := Mux(maskType, maskNext, reqDoneNext)
   maskSelect.valid := maskReq
 
   // 选出 offset
-  /**
-    * mask 类型的 eew 恒定是 8
-    */
-  val offsetEEW: UInt = Mux(maskType, 0.U, requestReg.instInf.eew)
+  val offsetEEW: UInt = requestReg.instInf.eew
   val bytIndex:  UInt = (reqNextIndex << offsetEEW).asUInt
   val indexOffsetNext: UInt =
     (VecInit(indexOffset.map(_.bits)).asUInt >> (bytIndex ## 0.U(3.W))).asUInt(param.ELEN - 1, 0)
@@ -137,18 +136,20 @@ class MSHR(param: LSUParam) extends Module {
   status.groupEnd := indexLaneMask(7) && indexExhausted && tlPort.a.fire && indexOffset.last.valid
   indexOffset.zipWithIndex.foreach {
     case (d, i) =>
-      when(segExhausted && indexLaneMask(i) && indexExhausted) {
-        assert(!req.valid)
-        d.valid := false.B
-      }
+      offsetUsed(i) := segExhausted && indexLaneMask(i) && indexExhausted
   }
 
   // 处理 tile link source id 的冲突
   val sourceFree: Bool = !(reqSource1H & respDone).orR
 
   // stall 判断
-  reqValid := (state === sRequest) && (!maskType || !maskReq) && (!indexType || offsetValidCheck) &&
-    sourceFree && (firstReq || !waitFirstResp)
+  val stateCheck: Bool = state === sRequest
+  val maskCheck:  Bool = !maskType || !maskReq
+  val indexCheck: Bool = !indexType || offsetValidCheck
+  val fofCheck:   Bool = firstReq || !waitFirstResp
+  val dataReady:  Bool = !requestReg.instInf.st || readDataPort.ready
+  val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck && sourceFree
+  reqValid := stateReady && dataReady
 
   // 处理回应
   val last:       Bool = WireDefault(false.B)
@@ -178,6 +179,7 @@ class MSHR(param: LSUParam) extends Module {
         state := idle
       }.otherwise {
         groupIndex := nextGroupIndex
+        newGroup := true.B
       }
     }.otherwise {
       state := wResp
@@ -190,14 +192,22 @@ class MSHR(param: LSUParam) extends Module {
     }.otherwise {
       state := sRequest
       groupIndex := nextGroupIndex
+      newGroup := true.B
     }
   }
   when(req.valid) {
     state := sRequest
     groupIndex := nextGroupIndex
+    newGroup := true.B
   }
   status.instIndex := requestReg.instIndex
   status.idle := state === idle
-  // todo: add state wMask && read store data
-  maskSelect := DontCare
+  maskSelect.bits := groupIndex
+  putData := readResult
+  readDataPort.valid := stateReady
+  readDataPort.bits.groupIndex := vrfWritePort.bits.groupIndex
+  readDataPort.bits.vs := vrfWritePort.bits.vd
+  readDataPort.bits.eew := vrfWritePort.bits.eew
+  readDataPort.bits.instIndex := requestReg.instIndex
+  // todo: maskSelect, last
 }
