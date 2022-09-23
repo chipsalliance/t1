@@ -10,7 +10,7 @@ object elaborate extends App {
     Seq(
       TargetDirAnnotation("./builds/"),
       //EmitAllModulesAnnotation(classOf[VerilogEmitter]),
-      ChiselGeneratorAnnotation(() => new MSHR(LSUParam())),
+      ChiselGeneratorAnnotation(() => new LSU(LSUParam())),
       RunFirrtlTransformAnnotation(new VerilogEmitter)
     )
   )
