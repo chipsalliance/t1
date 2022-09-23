@@ -2,16 +2,41 @@ package v
 
 import chisel3._
 import chisel3.util._
-import tilelink.TLBundle
+import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
 
-class MSHRStatus extends Bundle {
-  val instIndex: UInt = UInt(3.W)
-  val idle:      Bool = Bool()
-  val groupEnd:  Bool = Bool()
+case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
+  val dataBits:          Int = log2Ceil(ELEN)
+  val mshrSize:          Int = 3
+  val maskGroupWidth:    Int = 32
+  val maskGroupSize:     Int = VLEN / 32
+  val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
+  val VLMaxBits:         Int = log2Ceil(VLEN)
+  val laneGroupSize:     Int = VLEN / lane
+  // 一次完全的offset读会最多分成多少个offset
+  val lsuGroupLength:   Int = ELEN * lane / 8
+  val lsuGroupSize:     Int = VLEN / lane
+  val lsuGroupSizeBits: Int = log2Ceil(lsuGroupSize)
+  val sourceWidth = 8
+  val tlParam: TLBundleParameter = TLBundleParameter(
+    a = TLChannelAParameter(vaWidth, sourceWidth, ELEN, 2, 4),
+    b = None,
+    c = None,
+    d = TLChannelDParameter(sourceWidth, sourceWidth, ELEN, 2),
+    e = None
+  )
+  def vrfParam: VRFParam = VRFParam(VLEN, lane, laneGroupSize, ELEN)
 }
 
-class MSHR(param: LSUParam) extends Module {
-  val req:              ValidIO[LSUReq] = IO(Flipped(Valid(new LSUReq(param))))
+class MSHRStatus(lane: Int) extends Bundle {
+  val instIndex:  UInt = UInt(3.W)
+  val idle:       Bool = Bool()
+  val groupEnd:   Bool = Bool()
+  val targetLane: UInt = UInt(8.W)
+  val waitFSResp: Bool = Bool()
+}
+
+class MSHR(param: MSHRParam) extends Module {
+  val req:              ValidIO[LSUReq] = IO(Flipped(Valid(new LSUReq(param.ELEN))))
   val readDataPort:     DecoupledIO[VRFReadRequest] = IO(Decoupled(new VRFReadRequest(param.vrfParam)))
   val readResult:       UInt = IO(Input(UInt(param.ELEN.W)))
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.lane, Flipped(Valid(UInt(param.ELEN.W)))))
@@ -20,7 +45,7 @@ class MSHR(param: LSUParam) extends Module {
   val tlPort:           TLBundle = IO(param.tlParam.bundle())
   val vrfWritePort:     ValidIO[VRFWriteRequest] = IO(Valid(new VRFWriteRequest(param.vrfParam)))
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
-  val status:           MSHRStatus = IO(Output(new MSHRStatus))
+  val status:           MSHRStatus = IO(Output(new MSHRStatus(param.lane)))
 
   //  val addressBaseVec: UInt = RegInit(0.U(param.dataWidth.W))
   val indexOffset: Vec[ValidIO[UInt]] = RegInit(
@@ -202,6 +227,8 @@ class MSHR(param: LSUParam) extends Module {
   }
   status.instIndex := requestReg.instIndex
   status.idle := state === idle
+  status.targetLane := 1.U
+  status.waitFSResp := waitFirstResp
   maskSelect.bits := groupIndex
   putData := readResult
   readDataPort.valid := stateReady
@@ -209,5 +236,5 @@ class MSHR(param: LSUParam) extends Module {
   readDataPort.bits.vs := vrfWritePort.bits.vd
   readDataPort.bits.eew := vrfWritePort.bits.eew
   readDataPort.bits.instIndex := requestReg.instIndex
-  // todo: maskSelect, last
+  // todo: maskSelect, last, targetLane
 }
