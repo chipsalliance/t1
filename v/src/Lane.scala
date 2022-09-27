@@ -92,6 +92,9 @@ class LaneReq(param: LaneParameters) extends Bundle {
   /** data of rs1 */
   val readFromScala: UInt = UInt(param.ELEN.W)
 
+  val ld: Bool = Bool()
+  val st: Bool = Bool()
+
   def initState: InstGroupState = {
     val res:                InstGroupState = Wire(new InstGroupState(param))
     val decodeResFormat:    InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
@@ -173,7 +176,9 @@ class LaneCsrInterface(vlWidth: Int) extends Bundle {
 
 class LaneDataResponse(param: LaneParameters) extends Bundle {
   val data:      UInt = UInt(param.ELEN.W)
-  val maskInput: Bool = Bool()
+  val toLSU:     Bool = Bool()
+  val instIndex: UInt = UInt(param.instIndexSize.W)
+  val last:      Bool = Bool()
 }
 
 class RingBusData(param: LaneParameters) extends Bundle {
@@ -199,11 +204,14 @@ class SchedulerFeedback(param: LaneParameters) extends Bundle {
 class Lane(param: LaneParameters) extends Module {
   val laneReq:         DecoupledIO[LaneReq] = IO(Flipped(Decoupled(new LaneReq(param))))
   val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
-  val dataToScheduler: LaneDataResponse = IO(Flipped(new LaneDataResponse(param)))
+  val dataToScheduler: ValidIO[LaneDataResponse] = IO(Valid(new LaneDataResponse(param)))
   val laneIndex:       UInt = IO(Input(UInt(param.laneIndexBits.W)))
   val readBusPort:     RingPort = IO(new RingPort(param))
   val writeBusPort:    RingPort = IO(new RingPort(param))
   val feedback:        ValidIO[SchedulerFeedback] = IO(Flipped(Valid(new SchedulerFeedback(param))))
+  val readDataPort:    DecoupledIO[VRFReadRequest] = IO(Flipped(Decoupled(new VRFReadRequest(param.vrfParam))))
+  val readResult:      UInt = IO(Output(UInt(param.ELEN.W)))
+  val vrfWritePort:    ValidIO[VRFWriteRequest] = IO(Flipped(Valid(new VRFWriteRequest(param.vrfParam))))
 
   val vrf: VRF = Module(new VRF(param.vrfParam))
   // reg
