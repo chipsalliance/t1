@@ -24,7 +24,7 @@ package object v {
   }
 
   def ffo(input: UInt): UInt = {
-    (~(scanLeftOr(input) << 1)).asUInt & input
+    ((~(scanLeftOr(input) << 1)).asUInt & input)(input.getWidth - 1, 0)
   }
 
   def maskAnd(mask: Bool, data: Data): Data = {
