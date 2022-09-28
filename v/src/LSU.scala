@@ -80,7 +80,8 @@ class LSU(param: LSUParam) extends Module {
   val reqEnq:          Vec[Bool] = Wire(Vec(param.mshrSize, Bool()))
   val tryToReadData:   Vec[UInt] = Wire(Vec(param.mshrSize, UInt(param.lane.W)))
   val readDataArbiter: Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.lane, Bool())))
-  val getReadPort:     IndexedSeq[Bool] = readDataArbiter.map(_.asUInt.orR)
+  val readDataFire:    Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.lane, Bool())))
+  val getReadPort:     IndexedSeq[Bool] = readDataFire.map(_.asUInt.orR)
 
   val tryToAGet:        Vec[UInt] = Wire(Vec(param.mshrSize, UInt(param.tlBank.W)))
   val getArbiter:       Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.tlBank, Bool())))
@@ -154,7 +155,8 @@ class LSU(param: LSUParam) extends Module {
     // 处理读请求的仲裁
     tryToReadData.map(_(laneID)).zipWithIndex.foldLeft(false.B) {
       case (occupied, (tryToUse, i)) =>
-        readDataArbiter(i)(laneID) := tryToUse && !occupied && readDataPort(laneID).ready
+        readDataArbiter(i)(laneID) := tryToUse && !occupied
+        readDataFire(i)(laneID) := tryToUse && !occupied && readDataPort(laneID).ready
         occupied || tryToUse
     }
     // 连接读请求

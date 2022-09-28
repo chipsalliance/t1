@@ -82,7 +82,7 @@ class V(param: VParam) extends Module {
 
   // 对进来的指令decode
   val decodeResult: UInt =
-    decoder.qmc((req.bits.inst >> 12).asUInt, TruthTable(InstructionDecodeTable.table, BitPat.dontCare(25)))
+    decoder.espresso((req.bits.inst >> 12).asUInt, TruthTable(InstructionDecodeTable.table, BitPat.dontCare(25)))
   val decodeResFormat:    InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
   val decodeResFormatExt: ExtendInstructionDecodeResult = decodeResult.asTypeOf(new ExtendInstructionDecodeResult)
 
@@ -93,7 +93,7 @@ class V(param: VParam) extends Module {
 
   val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(param.maskGroupSize)(0.U(param.maskGroupWidth.W))))
 
-  val instEnq:      Vec[Bool] = Wire(Vec(param.chainingSize, Bool()))
+  val instEnq:      UInt = Wire(UInt(param.chainingSize.W))
   val completion:   Vec[Bool] = Wire(Vec(param.lane, Bool()))
   val next:         Vec[Bool] = Wire(Vec(param.lane, Bool()))
   val synchronize:  Bool = Wire(Bool())
@@ -105,6 +105,8 @@ class V(param: VParam) extends Module {
   nextInstType.viota := decodeResFormat.otherUnit && decodeResFormat.uop(3) && decodeResFormatExt.viota
   nextInstType.red := !decodeResFormat.otherUnit && decodeResFormat.red
   nextInstType.other := DontCare
+  // 是否在lane与schedule之间有数据交换
+  val specialInst: Bool = nextInstType.asUInt.orR
 
   // 指令的状态维护
   val instStateVec: Seq[InstControl] = Seq.tabulate(param.chainingSize) { index =>
@@ -130,7 +132,7 @@ class V(param: VParam) extends Module {
     if (index == 3) {
       val feedBack: UInt = RegInit(0.U(param.lane.W))
       when(req.fire && instEnq(index)) {
-        control.state.sExecute := !nextInstType.asUInt.orR
+        control.state.sExecute := !specialInst
         instType := nextInstType
       }
       when(next.asUInt.orR) {
@@ -146,11 +148,13 @@ class V(param: VParam) extends Module {
     }
     control
   }
+  // todo
+  completion := DontCare
 
   // 处理数据
-  val data:      Vec[ValidIO[UInt]] = RegInit(VecInit(Seq.fill(param.lane)(0.U.asTypeOf(Valid(UInt(param.lane.W))))))
-  val useData:   Vec[Bool] = Wire(Vec(param.lane, Bool()))
-  val resultRes: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(param.lane.W))))
+  val data: Vec[ValidIO[UInt]] = RegInit(VecInit(Seq.fill(param.lane)(0.U.asTypeOf(Valid(UInt(param.lane.W))))))
+//  val useData:   Vec[Bool] = Wire(Vec(param.lane, Bool()))
+  val resultRes: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(param.ELEN.W))))
   // todo: viota & compress & reduce
 
   val scheduleReady: Bool = VecInit(instStateVec.map(_.state.idle)).asUInt.orR
@@ -171,8 +175,8 @@ class V(param: VParam) extends Module {
     lane.laneReq.bits.vs2 := req.bits.inst(24, 20)
     lane.laneReq.bits.vd := req.bits.inst(11, 7)
     lane.laneReq.bits.readFromScala := req.bits.src1Data
-    lane.laneReq.bits.ld := isLD
-    lane.laneReq.bits.st := isST
+    lane.laneReq.bits.ls := isLSType
+//    lane.laneReq.bits.st := isST
     laneReady(index) := lane.laneReq.ready
 
     lane.csrInterface := csrInterface
@@ -192,6 +196,7 @@ class V(param: VParam) extends Module {
 
     lane
   }
+  laneVec.map(_.dataToScheduler).zip(next).foreach { case (source, sink) => sink := source.valid && !source.bits.toLSU }
 
   // 连lsu
   lsu.req.valid := scheduleReady && req.valid && isLSType
@@ -220,5 +225,35 @@ class V(param: VParam) extends Module {
     case (previous, current) =>
       current.enq <> previous.deq
       current
+  }
+
+  // 连 tile link
+  tlPort.zip(lsu.tlPort).foreach { case (source, sink) => sink <> source }
+  // 暂时直接连lsu的写,后续需要处理scheduler的写
+  vrfWrite.zip(lsu.vrfWritePort).foreach { case (sink, source) => sink <> source }
+
+  // 处理 enq
+  {
+    val free = VecInit(instStateVec.map(_.state.idle)).asUInt
+    val freeOR = free.orR
+    val free1H = ffo(free)
+    // 类型信息：isLSType noReadLD specialInst
+    val tryToEnq = Mux(specialInst, true.B ## 0.U((param.chainingSize - 1).W), free1H)
+    // 有一个空闲而本地坑
+    val localReady = Mux(specialInst, instStateVec.map(_.state.idle).last, freeOR)
+    // 远程坑就绪
+    val executionReady = (!isLSType || lsu.req.ready) && (!noReadLD || allLaneReady)
+    req.ready := executionReady && localReady
+    instEnq := Mux(req.ready, tryToEnq, 0.U)
+  }
+
+  // 处理deq
+  {
+    val deq: Vec[Bool] = VecInit(instStateVec.map { inst =>
+      inst.state.sExecute && inst.state.wLast && !inst.state.sCommit && inst.record.instIndex === nextRespCount
+    })
+    resp.valid := deq.asUInt.orR
+    respValid := deq.last
+    resp.bits.data := resultRes.bits
   }
 }

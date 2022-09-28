@@ -84,7 +84,7 @@ class OtherUnit(param: LaneParameters) extends Module {
       req.extendType.valid && req.extendType.bits.vExtend,
       req.extendType.valid && req.extendType.bits.ffo,
       req.extendType.valid && req.extendType.bits.popCount,
-      req.extendType.valid && req.extendType.bits.viota,
+      req.extendType.valid && req.extendType.bits.vid,
       !req.extendType.valid && opcodeOH(2) && !req.mask,
       !req.extendType.valid && opcodeOH(4),
       (req.extendType.valid && req.extendType.bits.mv) || (!req.extendType.valid && ((opcodeOH(2) && !req.mask) || r0))

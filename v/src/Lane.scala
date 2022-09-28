@@ -58,6 +58,7 @@ class ExtendInstructionDecodeResult extends Bundle {
   val ffo:      Bool = Bool()
   val popCount: Bool = Bool()
   val viota:    Bool = Bool()
+  val vid:      Bool = Bool()
   val vSrc:     Bool = Bool()
 
   /** type of vs1 */
@@ -73,7 +74,7 @@ class ExtendInstructionType extends Bundle {
   val mv:       Bool = Bool()
   val ffo:      Bool = Bool()
   val popCount: Bool = Bool()
-  val viota:    Bool = Bool()
+  val vid:      Bool = Bool()
 }
 
 class LaneReq(param: LaneParameters) extends Bundle {
@@ -92,8 +93,7 @@ class LaneReq(param: LaneParameters) extends Bundle {
   /** data of rs1 */
   val readFromScala: UInt = UInt(param.ELEN.W)
 
-  val ld: Bool = Bool()
-  val st: Bool = Bool()
+  val ls: Bool = Bool()
 
   def initState: InstGroupState = {
     val res:                InstGroupState = Wire(new InstGroupState(param))
@@ -226,11 +226,9 @@ class Lane(param: LaneParameters) extends Module {
   val result: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // 额外两个给 lsu 和
   val rfWriteVec: Vec[ValidIO[VRFWriteRequest]] = Wire(
-    Vec(param.controlNum + 2, Valid(new VRFWriteRequest(param.vrfParam)))
+    Vec(param.controlNum + 1, Valid(new VRFWriteRequest(param.vrfParam)))
   )
-  // todo: lsu 和 scheduler 的
-  rfWriteVec(4) := DontCare
-  rfWriteVec(5) := DontCare
+  rfWriteVec(4) <> vrfWritePort
   val rfWriteFire: UInt = Wire(UInt((param.controlNum + 2).W))
   // 跨lane操作的寄存器
   // 从rf里面读出来的， 下一个周期试图上环
@@ -260,6 +258,7 @@ class Lane(param: LaneParameters) extends Module {
   val executeDeqData:   Vec[UInt] = Wire(Vec(param.executeUnitNum, UInt(param.ELEN.W)))
   val instTypeVec:      Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.executeUnitNum.W)))
   val instWillComplete: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
+  val maskReqValid:     Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
   // 往执行单元的请求
   val logicRequests: Vec[LaneLogicRequest] = Wire(Vec(param.controlNum, new LaneLogicRequest(param.datePathParam)))
   val adderRequests: Vec[LaneAdderReq] = Wire(Vec(param.controlNum, new LaneAdderReq(param.datePathParam)))
@@ -267,6 +266,7 @@ class Lane(param: LaneParameters) extends Module {
   val mulRequests:   Vec[LaneMulReq] = Wire(Vec(param.controlNum, new LaneMulReq(param.mulParam)))
   val divRequests:   Vec[LaneDivRequest] = Wire(Vec(param.controlNum, new LaneDivRequest(param.datePathParam)))
   val otherRequests: Vec[OtherUnitReq] = Wire(Vec(param.controlNum, Output(new OtherUnitReq(param))))
+  val maskRequests:  Vec[LaneDataResponse] = Wire(Vec(param.controlNum, Output(new LaneDataResponse(param))))
 
   // 作为最老的坑的控制信号
   val sendReady:      Bool = Wire(Bool())
@@ -449,6 +449,18 @@ class Lane(param: LaneParameters) extends Module {
       otherRequest.sign := !decodeResFormat.unSigned0
       otherRequests(index) := maskAnd(decodeResFormat.otherUnit, otherRequest)
 
+      // 往scheduler的执行任务compress viota
+      val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(param)))
+      // todo: 往外发的数据满读
+      val maskValid: Bool = (decodeResFormat.otherUnit && ((decodeResFormat.uop(3) &&
+        decodeResFormatExt.viota) || (decodeResFormat.uop === 5.U))) || record.originalInformation.ls
+      maskRequest.data := finalSource2
+      maskRequest.toLSU := record.originalInformation.ls
+      maskRequest.instIndex := record.originalInformation.instIndex
+      maskRequest.last := instWillComplete(index)
+      maskRequests(index) := maskAnd(maskValid, maskRequest)
+      maskReqValid(index) := maskValid
+
       when(feedback.valid && feedback.bits.instIndex === record.originalInformation.instIndex) {
         record.state.wScheduler := true.B
       }
@@ -557,6 +569,10 @@ class Lane(param: LaneParameters) extends Module {
     mul.req := VecInit(mulRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneMulReq(param.mulParam))
     div.req.bits := VecInit(divRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneDivRequest(param.datePathParam))
     otherUnit.req := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(param)))
+    dataToScheduler.bits := VecInit(maskRequests.map(_.asUInt))
+      .reduce(_ | _)
+      .asTypeOf(Output(new LaneDataResponse(param)))
+    dataToScheduler.valid := maskReqValid.asUInt.orR
     // 执行单元的其他连接
     adder.csr.vSew := csrInterface.vSew
     adder.csr.vxrm := csrInterface.vxrm
@@ -579,8 +595,9 @@ class Lane(param: LaneParameters) extends Module {
   // 处理 rf
   {
     // 连接读口
-    val readArbiter = Module(new Arbiter(new VRFReadRequest(param.vrfParam), 7))
-    (vrfReadWire(1).last +: (vrfReadWire(2) ++ vrfReadWire(3))).zip(readArbiter.io.in).foreach {
+    val readArbiter = Module(new Arbiter(new VRFReadRequest(param.vrfParam), 8))
+    // 暂时把lsu的读放在了最低优先级,有问题再改
+    (vrfReadWire(1).last +: (vrfReadWire(2) ++ vrfReadWire(3)) :+ readDataPort).zip(readArbiter.io.in).foreach {
       case (source, sink) =>
         sink <> source
     }
@@ -595,6 +612,7 @@ class Lane(param: LaneParameters) extends Module {
       case (sink, source) =>
         sink := source
     }
+    readResult := vrf.readResult.last
 
     // 写 rf
     val normalWrite = VecInit(rfWriteVec.map(_.valid)).asUInt.orR
