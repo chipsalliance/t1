@@ -28,11 +28,11 @@ case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: I
 }
 
 class MSHRStatus(lane: Int) extends Bundle {
-  val instIndex:  UInt = UInt(3.W)
-  val idle:       Bool = Bool()
-  val groupEnd:   Bool = Bool()
-  val targetLane: UInt = UInt(8.W)
-  val waitFSResp: Bool = Bool()
+  val instIndex:     UInt = UInt(3.W)
+  val idle:          Bool = Bool()
+  val groupEnd:      Bool = Bool()
+  val targetLane:    UInt = UInt(8.W)
+  val waitFirstResp: Bool = Bool()
 }
 
 class MSHR(param: MSHRParam) extends Module {
@@ -69,16 +69,17 @@ class MSHR(param: MSHRParam) extends Module {
   // data 存储, 暂时不 bypass 给 tile link
   val dataReg: UInt = RegEnable(readResult, 0.U, readDataPort.fire)
 
-  // 缓存 mask
+  // 缓存 mask, todo
   val maskReg: UInt = RegEnable(maskRegInput, 0.U, maskSelect.fire || req.valid)
 
   // 标志哪些做完了
-  val reqDone:    UInt = RegInit(0.U(param.lsuGroupLength.W))
-  val segMask:    UInt = RegInit(0.U(8.W))
+  val reqDone: UInt = RegInit(0.U(param.lsuGroupLength.W))
+  val segMask: UInt = RegInit(0.U(8.W))
+  // 还没有d通道回应的请求
   val respDone:   UInt = RegInit(0.U(param.lsuGroupSize.W))
   val respFinish: Bool = respDone === 0.U
 
-  val idle :: sRequest :: wMask :: wResp :: Nil = Enum(4)
+  val idle :: sRequest :: wResp :: Nil = Enum(3)
   val state: UInt = RegInit(idle)
   val initStateWire = WireInit(VecInit(Seq(!requestReg.instInf.st, false.B)))
 
@@ -228,7 +229,7 @@ class MSHR(param: MSHRParam) extends Module {
   status.instIndex := requestReg.instIndex
   status.idle := state === idle
   status.targetLane := 1.U
-  status.waitFSResp := waitFirstResp
+  status.waitFirstResp := waitFirstResp
   maskSelect.bits := groupIndex
   putData := readResult
   readDataPort.valid := stateReady
