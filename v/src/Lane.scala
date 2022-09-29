@@ -6,7 +6,7 @@ import chisel3.util._
 case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chainingSize: Int = 4) {
   val instIndexSize:  Int = log2Ceil(chainingSize) + 1
   val VLMax:          Int = VLEN
-  val VLMaxBits:      Int = log2Ceil(VLMax)
+  val VLMaxWidth:     Int = log2Ceil(VLMax)
   val groupSize:      Int = VLMax / lane
   val controlNum:     Int = 4
   val HLEN:           Int = ELEN / 2
@@ -91,7 +91,7 @@ class LaneReq(param: LaneParameters) extends Bundle {
   val vd: UInt = UInt(5.W)
 
   /** data of rs1 */
-  val readFromScala: UInt = UInt(param.ELEN.W)
+  val readFromScalar: UInt = UInt(param.ELEN.W)
 
   val ls: Bool = Bool()
 
@@ -152,7 +152,7 @@ class InstControlRecord(param: LaneParameters) extends Bundle {
   val originalInformation: LaneReq = new LaneReq(param)
   val state:               InstGroupState = new InstGroupState(param)
   val initState:           InstGroupState = new InstGroupState(param)
-  val counter:             UInt = UInt(param.VLMaxBits.W)
+  val counter:             UInt = UInt(param.VLMaxWidth.W)
 }
 
 class LaneCsrInterface(vlWidth: Int) extends Bundle {
@@ -203,7 +203,7 @@ class SchedulerFeedback(param: LaneParameters) extends Bundle {
   */
 class Lane(param: LaneParameters) extends Module {
   val laneReq:         DecoupledIO[LaneReq] = IO(Flipped(Decoupled(new LaneReq(param))))
-  val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
+  val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxWidth)))
   val dataToScheduler: ValidIO[LaneDataResponse] = IO(Valid(new LaneDataResponse(param)))
   val laneIndex:       UInt = IO(Input(UInt(param.laneIndexBits.W)))
   val readBusPort:     RingPort = IO(new RingPort(param))
@@ -633,7 +633,7 @@ class Lane(param: LaneParameters) extends Module {
   // todo: vStart(2,0) > lane index
   entranceControl.counter := (csrInterface.vStart >> 3).asUInt
   val vs1entrance: UInt =
-    Mux(entranceFormat.vType, 0.U, Mux(entranceFormat.xType, laneReq.bits.readFromScala, laneReq.bits.vs1))
+    Mux(entranceFormat.vType, 0.U, Mux(entranceFormat.xType, laneReq.bits.readFromScalar, laneReq.bits.vs1))
   val entranceInstType: UInt = laneReq.bits.instType
   val typeReady: Bool = VecInit(
     instTypeVec.zip(controlValid).map { case (t, v) => (t =/= entranceInstType) || !v }

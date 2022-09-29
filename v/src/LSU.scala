@@ -53,6 +53,7 @@ class LSUInstInformation extends Bundle {
   val eew: UInt = UInt(3.W)
   val vs3: UInt = UInt(5.W)
   val st:  Bool = Bool()
+  // fault only first
   def fof: Bool = mop === 0.U && vs2(4) && !st
 }
 
@@ -68,10 +69,10 @@ class LSU(param: LSUParam) extends Module {
   val maskRegInput: Vec[UInt] = IO(Input(Vec(param.mshrSize, UInt(param.maskGroupWidth.W))))
   val maskSelect:   Vec[UInt] = IO(Output(Vec(param.mshrSize, UInt(param.maskGroupSizeBits.W))))
   val tlPort:       Vec[TLBundle] = IO(Vec(param.tlBank, param.tlParam.bundle()))
-  val readDataPort: Vec[DecoupledIO[VRFReadRequest]] = IO(
+  val readDataPorts: Vec[DecoupledIO[VRFReadRequest]] = IO(
     Vec(param.lane, Decoupled(new VRFReadRequest(param.vrfParam)))
   )
-  val readResult:       Vec[UInt] = IO(Input(Vec(param.lane, UInt(param.ELEN.W))))
+  val readResults:      Vec[UInt] = IO(Input(Vec(param.lane, UInt(param.ELEN.W))))
   val vrfWritePort:     Vec[ValidIO[VRFWriteRequest]] = IO(Vec(param.lane, Valid(new VRFWriteRequest(param.vrfParam))))
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.lane, Flipped(Valid(UInt(param.ELEN.W)))))
@@ -105,7 +106,7 @@ class LSU(param: LSUParam) extends Module {
 
     tryToReadData(index) := Mux(mshr.readDataPort.valid, mshr.status.targetLane, 0.U)
     mshr.readDataPort.ready := getReadPort(index)
-    mshr.readResult := Mux1H(mshr.status.targetLane, readResult)
+    mshr.readResult := Mux1H(mshr.status.targetLane, readResults)
 
     // offset
     Seq.tabulate(param.lane) { laneID =>
@@ -132,7 +133,7 @@ class LSU(param: LSUParam) extends Module {
     val selectResp: TLChannelD = Mux(ackArbiter.head(index), tlPort.head.d.bits, tlPort.last.d.bits)
     mshr.tlPort.d.valid := VecInit(
       ackArbiter.map(_(index))
-    ).asUInt.orR && (selectResp.opcode =/= 0.U || mshr.status.waitFSResp)
+    ).asUInt.orR && (selectResp.opcode =/= 0.U || mshr.status.waitFirstResp)
     mshr.tlPort.d.bits := selectResp
     mshr.tlPort.d.bits.sink := (selectResp.sink >> 2).asUInt
 
@@ -156,12 +157,12 @@ class LSU(param: LSUParam) extends Module {
     tryToReadData.map(_(laneID)).zipWithIndex.foldLeft(false.B) {
       case (occupied, (tryToUse, i)) =>
         readDataArbiter(i)(laneID) := tryToUse && !occupied
-        readDataFire(i)(laneID) := tryToUse && !occupied && readDataPort(laneID).ready
+        readDataFire(i)(laneID) := tryToUse && !occupied && readDataPorts(laneID).ready
         occupied || tryToUse
     }
     // 连接读请求
-    readDataPort(laneID).valid := VecInit(readDataArbiter.map(_(laneID))).asUInt.orR
-    readDataPort(laneID).bits := Mux1H(readDataArbiter.map(_(laneID)), mshrVec.map(_.readDataPort.bits))
+    readDataPorts(laneID).valid := VecInit(readDataArbiter.map(_(laneID))).asUInt.orR
+    readDataPorts(laneID).bits := Mux1H(readDataArbiter.map(_(laneID)), mshrVec.map(_.readDataPort.bits))
 
     // 处理写请求的仲裁
     tryToWriteData.map(_(laneID)).zipWithIndex.foldLeft(false.B) {
