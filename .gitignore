@@ -4,3 +4,4 @@ test_run_dir/
 .idea/
 .metals/
 .vscode/
+cmake-build-*

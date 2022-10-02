@@ -81,10 +81,125 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
     override def scalacPluginIvyDeps = T { m.scalacPluginIvyDeps() }
     override def scalacOptions = T { m.scalacOptions() }
     override def moduleDeps = super.moduleDeps ++ chiseltestModule
+    override def resources = T.sources {
+      os.proc("make", s"DESTDIR=${T.ctx.dest}", "install").call(spike.compile().path)
+      // dirty fix for spike
+      os.copy.over(spike.millSourcePath / "riscv" / "disasm.h", T.ctx.dest / "usr" / "include" / "riscv" / "disasm.h")
+      // install test cases
+      os.copy.over(cases.smoketest.compile().path, T.ctx.dest / "smoketest")
+      super.resources() :+ PathRef(T.ctx.dest)
+    }
     override def ivyDeps = T {
       super.ivyDeps() ++
         Agg(utest()) ++
         chiseltestIvyDep()
     }
+  }
+}
+
+object compilerrt extends Module {
+  override def millSourcePath = os.pwd / "dependencies" / "llvm-project" / "compiler-rt"
+  // ask make to cache file.
+  def compile = T.persistent {
+    os.proc("cmake", "-S", millSourcePath,
+      "-DCOMPILER_RT_BUILD_LIBFUZZER=OFF",
+      "-DCOMPILER_RT_BUILD_SANITIZERS=OFF",
+      "-DCOMPILER_RT_BUILD_PROFILE=OFF",
+      "-DCOMPILER_RT_BUILD_MEMPROF=OFF",
+      "-DCOMPILER_RT_BUILD_ORC=OFF",
+      "-DCOMPILER_RT_BUILD_BUILTINS=ON",
+      "-DCOMPILER_RT_BAREMETAL_BUILD=ON",
+      "-DCOMPILER_RT_INCLUDE_TESTS=OFF",
+      "-DCOMPILER_RT_HAS_FPIC_FLAG=OFF",
+      "-DCOMPILER_RT_DEFAULT_TARGET_ONLY=On",
+      "-DCOMPILER_RT_OS_DIR=riscv32",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DCMAKE_SYSTEM_NAME=Generic",
+      "-DCMAKE_SYSTEM_PROCESSOR=riscv32",
+      "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY",
+      "-DCMAKE_SIZEOF_VOID_P=8",
+      "-DCMAKE_ASM_COMPILER_TARGET=riscv32-none-elf",
+      "-DCMAKE_C_COMPILER_TARGET=riscv32-none-elf",
+      "-DCMAKE_C_COMPILER_WORKS=ON",
+      "-DCMAKE_CXX_COMPILER_WORKS=ON",
+      "-DCMAKE_C_COMPILER=clang",
+      "-DCMAKE_CXX_COMPILER=clang++",
+      "-DCMAKE_C_FLAGS=-nodefaultlibs -fno-exceptions -mno-relax -Wno-macro-redefined -fPIC",
+      "-DCMAKE_INSTALL_PREFIX=/usr",
+      "-Wno-dev",
+    ).call(T.ctx.dest)
+    os.proc("make", "-j", Runtime.getRuntime().availableProcessors()).call(T.ctx.dest)
+    PathRef(T.ctx.dest)
+  }
+}
+
+object musl extends Module {
+  override def millSourcePath = os.pwd / "dependencies" / "musl"
+  // ask make to cache file.
+  def libraryResources = T.persistent {
+    os.proc("make", s"DESTDIR=${T.ctx.dest}", "install").call(compilerrt.compile().path)
+    PathRef(T.ctx.dest)
+  }
+  def compile = T.persistent {
+    val p = libraryResources().path
+    os.proc(millSourcePath / "configure", "--target=riscv32-none-elf", "--prefix=/usr").call(
+      T.ctx.dest,
+      Map (
+        "CC" -> "clang",
+        "CXX" -> "clang++",
+        "AR" -> "llvm-ar",
+        "RANLIB" -> "llvm-ranlib",
+        "LD" -> "lld",
+        "LIBCC" -> "-lclang_rt.builtins-riscv32",
+        "CFLAGS" -> "--target=riscv32 -mno-relax -nostdinc",
+        "LDFLAGS" -> s"-fuse-ld=lld --target=riscv32 -nostdlib -L${p}/usr/lib/riscv32",
+      )
+    )
+    os.proc("make", "-j", Runtime.getRuntime().availableProcessors()).call(T.ctx.dest)
+    PathRef(T.ctx.dest)
+  }
+}
+
+object spike extends Module {
+  override def millSourcePath = os.pwd / "dependencies" / "riscv-isa-sim"
+  // ask make to cache file.
+  def compile = T.persistent {
+    os.proc(millSourcePath / "configure", "--prefix", "/usr", "--without-boost", "--without-boost-asio", "--without-boost-regex").call(
+      T.ctx.dest, Map(
+        "CC" -> "clang",
+        "CXX" -> "clang++",
+        "AR" -> "llvm-ar",
+        "RANLIB" -> "llvm-ranlib",
+        "LD" -> "lld",
+      )
+    )
+    os.proc("make", "-j", Runtime.getRuntime().availableProcessors()).call(T.ctx.dest)
+  PathRef(T.ctx.dest)
+  }
+}
+
+object cases extends Module {
+  trait Case extends Module {
+    def name: T[String]
+    def sources: T[Seq[PathRef]]
+    def linkScript: T[PathRef] = T {
+      os.write(T.ctx.dest / "linker.ld", s"""
+                                         |SECTIONS
+                                         |{
+                                         |  . = 0x1000;
+                                         |  .text.start : { *(.text.start) }
+                                         |}
+                                         |""".stripMargin)
+      PathRef(T.ctx.dest / "linker.ld")
+    }
+    def compile: T[PathRef] = T.persistent {
+      os.proc(Seq("clang", "-o", name() + ".elf" ,"--target=riscv32", "-march=rv32gcv", s"-L${musl.compile().path}/lib", s"-L${compilerrt.compile().path}/lib/riscv32", "-mno-relax", s"-T${linkScript().path}") ++ sources().map(_.path.toString)).call(T.ctx.dest)
+      os.proc(Seq("llvm-objcopy", "-O", "binary", "--only-section=.text", name() + ".elf", name())).call(T.ctx.dest)
+      PathRef(T.ctx.dest / name())
+    }
+  }
+  object smoketest extends Case {
+    def name = "smoketest"
+    def sources = T { Seq(millSourcePath / "smoke.S").map(PathRef(_)) }
   }
 }
