@@ -2,7 +2,7 @@
 #include <glog/logging.h>
 
 #include "VV.h"
-#include "verilated_vcd_c.h"
+#include "verilated_fst_c.h"
 #include "verilated.h"
 
 #include "mmu.h"
@@ -50,17 +50,18 @@ public:
 
   VerilatedContext ctx;
   VV top;
-  VerilatedVcdC tfp;
+  VerilatedFstC tfp;
 
   explicit VBridgeImpl(processor_t &proc, simple_sim &sim) : proc(proc), sim(sim) {};
 
-  void setup(const std::string &bin, const std::string &vcd, uint64_t reset_vector);
+  void setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles);
 
   [[noreturn]] [[noreturn]] void loop();
 
 private:
   void reset(int cycles);
   insn_fetch_t fetch_proc_insn();
+  uint64_t _cycles;
 
   TLBank banks[numTL];
 
@@ -83,18 +84,18 @@ void VBridgeImpl::reset(int cycles) {
     top.clock = !top.clock;
     top.eval();
     ctx.timeInc(1);
+    _cycles -= 1;
     tfp.dump(ctx.time());
   }
   top.reset = 0;
 }
 
-void VBridgeImpl::setup(const std::string &bin, const std::string &vcd, uint64_t reset_vector) {
+void VBridgeImpl::setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles) {
   Verilated::traceEverOn(true);
   top.trace(&tfp, 99);
-  // TODO: use VPD
-  tfp.open(vcd.c_str());
+  tfp.open(wave.c_str());
   sim.load(bin, reset_vector);
-
+  _cycles = cycles;
   proc.get_state()->dcsr->halt = false;
   proc.get_state()->pc = reset_vector;
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
@@ -122,8 +123,7 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
   insn_t unsent_insn;
   enum {FREE, INSN_NOT_SENT, FULL_OF_INSN} v_state = FREE;
 
-  while (true) {
-
+  while (unlikely(_cycles != 0)) {
     // run until vector insn
     if (v_state == FREE) {
       while (true) {
@@ -185,9 +185,10 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
       }
     }
 
-    // step vector unit and dump vcd
+    // step vector unit and dump wave
     top.eval();
     ctx.timeInc(1);
+    _cycles -= 1;
     tfp.dump(ctx.time());
 
     if (v_state == INSN_NOT_SENT && top.req_ready) {
@@ -228,10 +229,12 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
       v_state = FREE;  // TODO: now we process instructions one by one, to be optimized later
     }
   }
+  tfp.close();
+  exit(0);
 }
 
-void VBridge::setup(const std::string &bin, const std::string &vcd, uint64_t reset_vector) const {
-  impl->setup(bin, vcd, reset_vector);
+void VBridge::setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles) const {
+  impl->setup(bin, wave, reset_vector, cycles);
 }
 
 VBridge::VBridge(processor_t &proc, simple_sim &sim) : impl(new VBridgeImpl(proc, sim)) {}

@@ -38,7 +38,7 @@ object Cosim extends TestSuite {
             "--output-split 20000",
             "--output-split-cfuncs 20000",
             "--max-num-width 1048576",
-            "--trace"
+            "--trace-fst"
             // format: on
           ).mkString(" ")
           val csrcs = Seq("vbridge.cc")
@@ -97,7 +97,7 @@ object Cosim extends TestSuite {
             // format: on
           ).call(outputDirectory)
           test("run smoketest") {
-            os.proc(cosim, "--bin", resource("smoketest"), "--vcd", os.pwd / "smoketest.vcd").call(outputDirectory)
+            os.proc(cosim, "--bin", resource("smoketest"), "--wave", os.pwd / "smoketest", "--cycles", 10).call(outputDirectory)
           }
         }
       }
