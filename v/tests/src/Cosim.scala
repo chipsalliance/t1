@@ -54,6 +54,10 @@ object Cosim extends TestSuite {
                |include_directories(${resource("usr/include/fesvr")})
                |include_directories(${resource("usr/include/softfloat")})
                |link_directories(${resource("usr/lib")})
+               |include(FetchContent)
+               |FetchContent_Declare(args GIT_REPOSITORY https://github.com/Taywee/args GIT_TAG 6.4.0)
+               |FetchContent_MakeAvailable(args)
+               |
                |find_package(verilator)
                |set(CMAKE_C_COMPILER "clang")
                |set(CMAKE_CXX_COMPILER "clang++")
@@ -64,7 +68,7 @@ object Cosim extends TestSuite {
                |  ${resource("vbridge.cc")}
                |)
                |target_link_libraries(cosim PRIVATE $${CMAKE_THREAD_LIBS_INIT})
-               |target_link_libraries(cosim PRIVATE riscv fmt glog)
+               |target_link_libraries(cosim PRIVATE riscv fmt glog args)
                |
                |verilate(cosim
                |  SOURCES $vsrcs
@@ -91,7 +95,7 @@ object Cosim extends TestSuite {
             // format: on
           ).call(outputDirectory)
           test("run smoketest") {
-            os.proc(cosim, resource("smoketest")).call(outputDirectory)
+            os.proc(cosim, "--bin", resource("smoketest"), "--vcd", os.pwd / "smoketest.vcd").call(outputDirectory)
           }
         }
       }
