@@ -38,7 +38,7 @@ struct TLBank {
     return op == opType::Nil;
   }
 
-  void reset() {
+  void clear() {
     op = opType::Nil;
   }
 };
@@ -123,24 +123,24 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
 #define TL(i, name) (get_tl_##name((i)))
   auto state = proc.get_state();
 
-  insn_t cur_insn;
-  bool insn_consumed = true;
+  insn_t unsent_insn;
+  enum {FREE, INSN_NOT_SENT, FULL_OF_INSN} v_state = FREE;
 
   while (true) {
 
     // run until vector insn
-    if (insn_consumed) {
+    if (v_state == FREE) {
       while (true) {
         auto f = fetch_proc_insn();
         auto as = proc.get_disassembler()->disassemble(f.insn);
-        LOG(INFO) << fmt::format("exec insn pc={}, insn={:X} ({})", state->pc, f.insn.bits(), as);
         if (is_vector_instr(f.insn.bits())) {
-          cur_insn = f.insn;
-          insn_consumed = false;
+          unsent_insn = f.insn;
+          v_state = INSN_NOT_SENT;
 
-          LOG(INFO) << fmt::format("vec insn pc={}, insn={:X} ({})", state->pc, f.insn.bits(), as);
+          LOG(INFO) << fmt::format("[{}] new vector insn at pc={:X}, insn={:X} ({})", ctx.time(), state->pc, f.insn.bits(), as);
           break;
         } else {
+          LOG(INFO) << fmt::format("[{}] new scalar insn at pc={:X}, insn={:X} ({})", ctx.time(), state->pc, f.insn.bits(), as);
           auto new_pc = f.func(&proc, f.insn, state->pc);
           state->pc = new_pc;
         }
@@ -160,12 +160,14 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
     // tick clock
     top.clock = !top.clock;
 
-    // send insn requests and reg values
     auto &xr = proc.get_state()->XPR;
-    top.req_bits_inst = (uint32_t) cur_insn.bits();
-    top.req_bits_src1Data = (uint32_t) xr[cur_insn.rs1()];
-    top.req_bits_src2Data = (uint32_t) xr[cur_insn.rs2()];
-    top.req_valid = true;
+    // send insn requests and reg values
+    if (v_state == INSN_NOT_SENT) {
+      top.req_bits_inst = (uint32_t) unsent_insn.bits();
+      top.req_bits_src1Data = (uint32_t) xr[unsent_insn.rs1()];
+      top.req_bits_src2Data = (uint32_t) xr[unsent_insn.rs2()];
+      top.req_valid = true;
+    }
 
     for (auto &t: banks) t.step();
 
@@ -178,10 +180,11 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
             : TLOpCode::AccessAck;
         TL(i, d_valid) = true;
         TL(i, d_bits_data) = banks[i].data;
-        banks[i].reset();
+        banks[i].clear();
+        LOG(INFO) << fmt::format("[{}] send vector TL response (bank={}, op={}, data={:X})", ctx.time(), i, (int)banks[i].op, banks[i].data);
       }
       // pull up ready signal
-      if (banks[0].ready()) {
+      if (banks[i].ready()) {
         TL(i, a_ready) = true;  // accept new mem requests
       }
     }
@@ -191,9 +194,9 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
     ctx.timeInc(1);
     tfp.dump(ctx.time());
 
-    insn_consumed |= top.req_ready;
-    if (!insn_consumed && top.req_ready) {
-      LOG(INFO) << fmt::format("insn consumed");
+    if (v_state == INSN_NOT_SENT && top.req_ready) {
+      v_state = FULL_OF_INSN;
+      LOG(INFO) << fmt::format("[{}] succeed to send insn to vector unit", ctx.time());
     }
 
     // receive mem requests
@@ -206,6 +209,7 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
           assert(TL(i, a_bits_size) == acceptedSize); // TODO: sure to write 32bits each time?
           banks[i].data = proc.get_mmu()->load_uint32(addr);
           banks[i].remainingCycles = memCycles;  // TODO: more sophisticated model
+          LOG(INFO) << fmt::format("[{}] receive TL Get(addr={:X})", ctx.time(), addr);
 
         } else if (TL(i, a_bits_opcode) == TLOpCode::PutFullData) {  // PutFullData
           uint32_t data = TL(i, a_bits_data);
@@ -213,6 +217,7 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
           assert(TL(i, a_bits_size) == acceptedSize); // TODO: sure to write 32bits each time?
           proc.get_mmu()->store_uint32(addr, data);
           banks[i].remainingCycles = memCycles;  // TODO: more sophisticated model
+          LOG(INFO) << fmt::format("[{}] receive TL PutFullData(addr={:X}, data={:X})", ctx.time(), addr, data);
 
         } else {
           assert(false && "not supported tl opType");
@@ -222,9 +227,9 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
 
     if (top.resp_valid) {
       // TODO: check whether we should write rd
-      xr.write(cur_insn.rd(), top.resp_bits_data);
-      LOG(INFO) << fmt::format("insn {:X} consumed", cur_insn.bits());
-      insn_consumed = true;  // TODO: now we process instructions one by one, to be optimized later
+      xr.write(unsent_insn.rd(), top.resp_bits_data);
+      LOG(INFO) << fmt::format("[{}] insn {:X} consumed", ctx.time(), unsent_insn.bits());
+      v_state = FREE;  // TODO: now we process instructions one by one, to be optimized later
     }
   }
 }
