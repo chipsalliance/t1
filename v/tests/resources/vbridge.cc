@@ -79,8 +79,7 @@ type &get_tl_##name(int i) {      \
 
 void VBridgeImpl::reset(int cycles) {
   top.reset = 1;
-  const int resetCycles = 3;
-  for (int i = 0; i < resetCycles; i++) {
+  for (int i = 0; i < cycles; i++) {
     top.clock = !top.clock;
     top.eval();
     ctx.timeInc(1);
