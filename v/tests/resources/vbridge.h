@@ -7,6 +7,7 @@
 #include "processor.h"
 #include "simple_sim.h"
 
+class VerilatedContext;
 struct VBridgeImpl;
 
 struct VBridge {
@@ -16,9 +17,11 @@ struct VBridge {
 
   ~VBridge();
 
-  void setup(int argc, char **argv) const;
+  void setup(const std::string &bin, const std::string &vcd, uint64_t reset_vector) const;
 
   void loop() const;
+
+  VerilatedContext &get_verilator_ctx() const;
 };
 
 #endif

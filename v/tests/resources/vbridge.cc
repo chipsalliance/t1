@@ -54,7 +54,7 @@ public:
 
   explicit VBridgeImpl(processor_t &proc, simple_sim &sim) : proc(proc), sim(sim) {};
 
-  void setup(int argc, char **argv);
+  void setup(const std::string &bin, const std::string &vcd, uint64_t reset_vector);
 
   [[noreturn]] [[noreturn]] void loop();
 
@@ -88,15 +88,12 @@ void VBridgeImpl::reset(int cycles) {
   top.reset = 0;
 }
 
-void VBridgeImpl::setup(int argc, char **argv) {
-  ctx.commandArgs(argc, argv);
-
+void VBridgeImpl::setup(const std::string &bin, const std::string &vcd, uint64_t reset_vector) {
   Verilated::traceEverOn(true);
   top.trace(&tfp, 99);
-  tfp.open("/tmp/trace.log");
-
-  size_t reset_vector = 0x1000;
-  sim.load(argv[1], reset_vector);
+  // TODO: use VPD
+  tfp.open(vcd.c_str());
+  sim.load(bin, reset_vector);
 
   proc.get_state()->dcsr->halt = false;
   proc.get_state()->pc = reset_vector;
@@ -233,8 +230,8 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
   }
 }
 
-void VBridge::setup(int argc, char **argv) const {
-  impl->setup(argc, argv);
+void VBridge::setup(const std::string &bin, const std::string &vcd, uint64_t reset_vector) const {
+  impl->setup(bin, vcd, reset_vector);
 }
 
 VBridge::VBridge(processor_t &proc, simple_sim &sim) : impl(new VBridgeImpl(proc, sim)) {}
@@ -245,4 +242,8 @@ VBridge::~VBridge() {
 
 void VBridge::loop() const {
   impl->loop();
+}
+
+VerilatedContext &VBridge::get_verilator_ctx() const {
+  return impl->ctx;
 }
