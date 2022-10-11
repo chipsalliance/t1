@@ -1,9 +1,9 @@
 package v.tests
 
 import chisel3.stage.ChiselGeneratorAnnotation
-import firrtl.{AnnotationSeq, VerilogEmitter}
+import circt.stage.{CIRCTHandover, CIRCTTarget, CIRCTTargetAnnotation, ChiselStage}
 import firrtl.options.TargetDirAnnotation
-import firrtl.stage.{OutputFileAnnotation, RunFirrtlTransformAnnotation}
+import firrtl.{AnnotationSeq, EmittedVerilogCircuit, EmittedVerilogCircuitAnnotation}
 import os.Path
 import utest._
 
@@ -16,15 +16,17 @@ object Cosim extends TestSuite {
       val cosim: Path = outputDirectory / "cosim"
 
       test("emit verilog") {
-        val annotations = Seq(new chisel3.stage.ChiselStage).foldLeft(
+        val annotations = Seq(new ChiselStage).foldLeft(
           Seq(
             TargetDirAnnotation(outputDirectory.toString()),
             ChiselGeneratorAnnotation(generator),
-            RunFirrtlTransformAnnotation(new VerilogEmitter)
+            CIRCTTargetAnnotation(CIRCTTarget.SystemVerilog),
+            CIRCTHandover(CIRCTHandover.CHIRRTL)
           ): AnnotationSeq
         ) { case (annos, stage) => stage.transform(annos) }
         duts = annotations.collect {
-          case OutputFileAnnotation(file) => outputDirectory / s"$file.v"
+          case EmittedVerilogCircuitAnnotation(EmittedVerilogCircuit(outputFileName, _, outputSuffix)) =>
+              Path(s"$outputFileName$outputSuffix")
         }
 
         test("cosim compile") {
