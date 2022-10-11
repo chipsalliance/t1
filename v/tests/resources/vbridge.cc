@@ -59,6 +59,7 @@ public:
   [[noreturn]] [[noreturn]] void loop();
 
 private:
+  void reset(int cycles);
   insn_fetch_t fetch_proc_insn();
 
   TLBank banks[numTL];
@@ -76,6 +77,18 @@ type &get_tl_##name(int i) {      \
 #include "tl_interface.inc.h"
 };
 
+void VBridgeImpl::reset(int cycles) {
+  top.reset = 1;
+  const int resetCycles = 3;
+  for (int i = 0; i < resetCycles; i++) {
+    top.clock = !top.clock;
+    top.eval();
+    ctx.timeInc(1);
+    tfp.dump(ctx.time());
+  }
+  top.reset = 0;
+}
+
 void VBridgeImpl::setup(int argc, char **argv) {
   ctx.commandArgs(argc, argv);
 
@@ -91,6 +104,8 @@ void VBridgeImpl::setup(int argc, char **argv) {
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
   proc.VU.vill = false;
   proc.VU.vsew = 8;
+
+  reset(4);
 }
 
 insn_fetch_t VBridgeImpl::fetch_proc_insn() {
