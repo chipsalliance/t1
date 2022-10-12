@@ -74,6 +74,7 @@ class LSU(param: LSUParam) extends Module {
   )
   val readResults:      Vec[UInt] = IO(Input(Vec(param.lane, UInt(param.ELEN.W))))
   val vrfWritePort:     Vec[ValidIO[VRFWriteRequest]] = IO(Vec(param.lane, Valid(new VRFWriteRequest(param.vrfParam))))
+  val vrfWriteHeadInstIndex: UInt = IO(Output(UInt(3.W)))
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.lane, Flipped(Valid(UInt(param.ELEN.W)))))
   val offsetReadTag:    Vec[UInt] = IO(Input(Vec(param.lane, UInt(3.W))))
@@ -96,8 +97,8 @@ class LSU(param: LSUParam) extends Module {
   val writeDataArbiter: Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.lane, Bool())))
   val getWritePort:     IndexedSeq[Bool] = writeDataArbiter.map(_.asUInt.orR)
 
-  val writeQueueVec: Seq[Queue[VRFWriteRequest]] =
-    Seq.fill(param.mshrSize)(Module(new Queue(new VRFWriteRequest(param.vrfParam), param.writeQueueSize)))
+  val writeQueueVec: Seq[Queue[WriteQueueBundle]] =
+    Seq.fill(param.mshrSize)(Module(new Queue(new WriteQueueBundle(param.vrfParam), param.writeQueueSize)))
   val mshrVec: Seq[MSHR] = Seq.tabulate(param.mshrSize) { index =>
     val mshr: MSHR = Module(new MSHR(param.mshrParam))
 
@@ -139,7 +140,8 @@ class LSU(param: LSUParam) extends Module {
 
     // 处理写寄存器的,由于mshr出来没有反,压需要一个队列
     writeQueueVec(index).io.enq.valid := mshr.vrfWritePort.valid
-    writeQueueVec(index).io.enq.bits := mshr.vrfWritePort.bits
+    writeQueueVec(index).io.enq.bits.data := mshr.vrfWritePort.bits
+    writeQueueVec(index).io.enq.bits.index := mshr.status.instIndex
     tryToWriteData(index) := Mux(writeQueueVec(index).io.deq.valid, mshr.status.targetLane, 0.U)
     writeQueueVec(index).io.deq.ready := getWritePort(index)
 
@@ -172,7 +174,8 @@ class LSU(param: LSUParam) extends Module {
     }
     // 连接写请求
     vrfWritePort(laneID).valid := VecInit(writeDataArbiter.map(_(laneID))).asUInt.orR
-    vrfWritePort(laneID).bits := Mux1H(writeDataArbiter.map(_(laneID)), writeQueueVec.map(_.io.deq.bits))
+    vrfWritePort(laneID).bits := Mux1H(writeDataArbiter.map(_(laneID)), writeQueueVec.map(_.io.deq.bits.data))
+    vrfWriteHeadInstIndex := Mux1H(writeDataArbiter.map(_(laneID)), writeQueueVec.map(_.io.deq.bits.index))
   }
 
   val tlDSink:   IndexedSeq[UInt] = tlPort.map(_.d.bits.sink(1, 0))

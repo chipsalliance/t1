@@ -68,6 +68,7 @@ class specialInstructionType extends Bundle {
 class InstControl(param: VParam) extends Bundle {
   val record: InstRecord = new InstRecord(param)
   val state:  InstState = new InstState
+  val endTag: Vec[Bool] = Vec(param.lane + 1, Bool())
 }
 
 class V(param: VParam) extends Module {
@@ -105,7 +106,6 @@ class V(param: VParam) extends Module {
   val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(param.maskGroupSize)(0.U(param.maskGroupWidth.W))))
 
   val instEnq:    UInt = Wire(UInt(param.chainingSize.W))
-  val completion: Vec[Bool] = Wire(Vec(param.lane, Bool()))
   // 最后一个位置的指令，是否来了一组反馈
   val next:        Vec[Bool] = Wire(Vec(param.lane, Bool()))
   val synchronize: Bool = Wire(Bool())
@@ -113,6 +113,7 @@ class V(param: VParam) extends Module {
   val respValid:    Bool = Wire(Bool()) // resp to rc
   val instType:     specialInstructionType = RegInit(0.U.asTypeOf(new specialInstructionType))
   val nextInstType: specialInstructionType = Wire(new specialInstructionType)
+  val lastVec:      Vec[Vec[Bool]] = Wire(Vec(param.lane, Vec(param.chainingSize, Bool())))
 
   nextInstType.compress := decodeResFormat.otherUnit && decodeResFormat.uop === 5.U
   nextInstType.viota := decodeResFormat.otherUnit && decodeResFormat.uop(3) && decodeResFormatExt.viota
@@ -123,19 +124,23 @@ class V(param: VParam) extends Module {
 
   // 指令的状态维护
   val instStateVec: Seq[InstControl] = Seq.tabulate(param.chainingSize) { index =>
-    val control = RegInit((-1).S(10.W).asTypeOf(new InstControl(param)))
+    val control = RegInit((-1).S(new InstControl(param).getWidth.W).asTypeOf(new InstControl(param)))
     // 指令进来
     when(req.fire && instEnq(index)) {
-      control.record.instIndex := nextInstCount
+      control.record.instIndex := instCount
       control.record.ls := isLSType
       control.state.idle := false.B
       control.state.wLast := false.B
       control.state.sCommit := false.B
-    }.elsewhen(completion(index)) {
+      control.endTag := VecInit(Seq.fill(param.lane)(noReadLD) :+ !isLSType)
+    }
+    when(control.endTag.asUInt.andR) {
       control.state.wLast := true.B
-    }.elsewhen(nextRespCount === control.record.instIndex && resp.fire) {
+    }
+    when(respCount === control.record.instIndex && resp.fire) {
       control.state.sCommit := true.B
-    }.elsewhen(control.state.sCommit && control.state.sExecute) {
+    }
+    when(control.state.sCommit && control.state.sExecute) {
       control.state.idle := true.B
     }
     // 把有数据交换的指令放在特定的位置,因为会ffo填充,所以放最后面
@@ -154,10 +159,13 @@ class V(param: VParam) extends Module {
       }
       synchronize := feedBack.andR
     }
+    val lsuLast: Bool = lsu.vrfWritePort.head.valid && lsu.vrfWritePort.head.bits.last &&
+      lsu.vrfWriteHeadInstIndex === control.record.instIndex
+    control.endTag.zip(lastVec.map(_(index)) :+ lsuLast).foreach {
+      case (d, c) => d := d || c
+    }
     control
   }
-  // todo
-  completion := DontCare
 
   // 处理数据
   val data: Vec[ValidIO[UInt]] = RegInit(VecInit(Seq.fill(param.lane)(0.U.asTypeOf(Valid(UInt(param.lane.W))))))
@@ -177,7 +185,7 @@ class V(param: VParam) extends Module {
     val lane: Lane = Module(new Lane(param.laneParam))
     // 请求,
     lane.laneReq.valid := scheduleReady && req.valid && !noReadLD && allLaneReady
-    lane.laneReq.bits.instIndex := nextInstCount
+    lane.laneReq.bits.instIndex := instCount
     lane.laneReq.bits.decodeResult := decodeResult
     lane.laneReq.bits.vs1 := req.bits.inst(19, 15)
     lane.laneReq.bits.vs2 := req.bits.inst(24, 20)
@@ -202,13 +210,18 @@ class V(param: VParam) extends Module {
     lsu.offsetReadResult(index).bits := lane.dataToScheduler.bits.data
     lsu.offsetReadTag(index) := lane.dataToScheduler.bits.instIndex
 
+    lastVec(index).zip(instStateVec.map(_.record.instIndex)).foreach {
+      case (d, f) => d := lane.dataToScheduler.valid && lane.dataToScheduler.bits.last &&
+        f === lane.dataToScheduler.bits.instIndex
+    }
+
     lane
   }
   laneVec.map(_.dataToScheduler).zip(next).foreach { case (source, sink) => sink := source.valid && !source.bits.toLSU }
 
   // 连lsu
   lsu.req.valid := scheduleReady && req.valid && isLSType
-  lsu.req.bits.instIndex := nextInstCount
+  lsu.req.bits.instIndex := instCount
   lsu.req.bits.rs1Data := req.bits.src1Data
   lsu.req.bits.rs2Data := req.bits.src2Data
   lsu.req.bits.instInf.nf := req.bits.inst(31, 29)
@@ -250,7 +263,7 @@ class V(param: VParam) extends Module {
     // 有一个空闲的本地坑
     val localReady = Mux(specialInst, instStateVec.map(_.state.idle).last, freeOR)
     // 远程坑就绪
-    val executionReady = (!isLSType || lsu.req.ready) && (!noReadLD || allLaneReady)
+    val executionReady = (!isLSType || lsu.req.ready) && (noReadLD || allLaneReady)
     req.ready := executionReady && localReady
     instEnq := Mux(req.ready, tryToEnq, 0.U)
   }
