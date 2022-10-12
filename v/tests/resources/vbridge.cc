@@ -162,6 +162,11 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
       top.req_bits_inst = (uint32_t) unsent_insn.bits();
       top.req_bits_src1Data = (uint32_t) xr[unsent_insn.rs1()];
       top.req_bits_src2Data = (uint32_t) xr[unsent_insn.rs2()];
+      top.csrInterface_vl = (uint16_t) proc.VU.vl->read();
+      top.csrInterface_vStart = (uint16_t) proc.VU.vstart->read();
+      top.csrInterface_vSew = (uint8_t) proc.VU.vsew;
+      // TODO: not so sure here.
+      // top.csrInterface_vlmul = (uint8_t) proc.VU.vflmul;
       top.req_valid = true;
     }
 
