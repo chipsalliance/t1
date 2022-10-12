@@ -1,7 +1,7 @@
 package v.tests
 
 import chisel3.stage.ChiselGeneratorAnnotation
-import circt.stage.{CIRCTHandover, CIRCTTarget, CIRCTTargetAnnotation, ChiselStage}
+import circt.stage.{CIRCTHandover, CIRCTTarget, CIRCTTargetAnnotation, ChiselStage, FirtoolOption}
 import firrtl.options.TargetDirAnnotation
 import firrtl.{AnnotationSeq, EmittedVerilogCircuit, EmittedVerilogCircuitAnnotation}
 import os.Path
@@ -21,6 +21,7 @@ object Cosim extends TestSuite {
             TargetDirAnnotation(outputDirectory.toString()),
             ChiselGeneratorAnnotation(generator),
             CIRCTTargetAnnotation(CIRCTTarget.SystemVerilog),
+            FirtoolOption("-O=debug"),
             CIRCTHandover(CIRCTHandover.CHIRRTL)
           ): AnnotationSeq
         ) { case (annos, stage) => stage.transform(annos) }
