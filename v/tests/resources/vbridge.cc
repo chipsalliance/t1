@@ -193,6 +193,8 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
 
     if (v_state == INSN_NOT_SENT && top.req_ready) {
       v_state = FULL_OF_INSN;
+      auto f = fetch_proc_insn();
+      state->pc = f.func(&proc, f.insn, state->pc);
       LOG(INFO) << fmt::format("[{}] succeed to send insn to vector unit", ctx.time());
     }
 
