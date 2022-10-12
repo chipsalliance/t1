@@ -15,13 +15,12 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
   val writeQueueSize: Int = 8
   val elenBits:       Int = log2Ceil(ELEN)
   val groupSizeBits:  Int = log2Ceil(groupSize)
-  val idBits:         Int = log2Ceil(lane)
 
   def vrfParam:         VRFParam = VRFParam(VLEN, lane, groupSize, ELEN)
   def datePathParam:    DataPathParam = DataPathParam(ELEN)
   def shifterParameter: LaneShifterParameter = LaneShifterParameter(ELEN, elenBits)
   def mulParam:         LaneMulParam = LaneMulParam(ELEN)
-  def indexParam:       LaneIndexCalculatorParameter = LaneIndexCalculatorParameter(groupSizeBits, idBits)
+  def indexParam:       LaneIndexCalculatorParameter = LaneIndexCalculatorParameter(groupSizeBits, laneIndexBits)
 }
 
 class InstructionDecodeResult extends Bundle {
@@ -452,8 +451,9 @@ class Lane(param: LaneParameters) extends Module {
       // 往scheduler的执行任务compress viota
       val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(param)))
       // todo: 往外发的数据满读
-      val maskValid: Bool = (decodeResFormat.otherUnit && ((decodeResFormat.uop(3) &&
-        decodeResFormatExt.viota) || (decodeResFormat.uop === 5.U))) || record.originalInformation.ls
+      // viota & compress & ls 需要给外边数据, 结束的时候无条件通知一次
+      val maskValid: Bool = (decodeResFormat.otherUnit && ((decodeResFormat.uop(3) && decodeResFormatExt.viota)
+        || (decodeResFormat.uop === 5.U))) || record.originalInformation.ls || instWillComplete(index)
       maskRequest.data := finalSource2
       maskRequest.toLSU := record.originalInformation.ls
       maskRequest.instIndex := record.originalInformation.instIndex
@@ -539,7 +539,7 @@ class Lane(param: LaneParameters) extends Module {
         crossWriteQueue.io.enq.valid := true.B
       }.otherwise {
         writeBusDataReg.valid := true.B
-        writeBusDataReg.bits := readBusPort.enq.bits
+        writeBusDataReg.bits := writeBusPort.enq.bits
       }
     }
 

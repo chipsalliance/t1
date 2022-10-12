@@ -40,6 +40,11 @@ class VRFWriteRequest(param: VRFParam) extends Bundle {
   val last:       Bool = Bool()
 }
 
+class WriteQueueBundle(param: VRFParam) extends Bundle {
+  val data: VRFWriteRequest = new VRFWriteRequest(param)
+  val index: UInt = UInt(3.W)
+}
+
 class VRFWriteReport(param: VRFParam) extends Bundle {
   val instIndex: UInt = UInt(param.instIndexSize.W)
   val vd:        UInt = UInt(param.regNumBits.W)
