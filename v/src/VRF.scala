@@ -7,7 +7,7 @@ import chisel3.util._
 case class VRFParam(
   VLEN:           Int,
   lane:           Int,
-  groupSizeBits:  Int,
+  groupSize:      Int,
   ELEN:           Int,
   vrfReadPort:    Int = 6,
   chainingSize:   Int = 4,
@@ -18,6 +18,7 @@ case class VRFParam(
   val instIndexSize: Int = log2Ceil(chainingSize) + 1
   val rfDepth:       Int = VLEN * regNum / ELEN / lane
   val rfAddBits:     Int = log2Ceil(rfDepth)
+  val groupSizeBits: Int = log2Ceil(groupSize)
   // TODO: make rfBankSize configurable (possibly *2)
   val rfBankNum: Int = ELEN / 8
   val maxVSew:   Int = log2Ceil(ELEN / 8)

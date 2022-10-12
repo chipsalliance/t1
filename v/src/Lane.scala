@@ -475,7 +475,7 @@ class Lane(param: LaneParameters) extends Module {
         // todo: save result
       }
       // 写rf
-      rfWriteVec(index).valid := record.state.wExecuteRes && !record.state.sWrite
+      rfWriteVec(index).valid := record.state.wExecuteRes && !record.state.sWrite && controlActive(index)
       rfWriteVec(index).bits.vd := record.originalInformation.vd
       rfWriteVec(index).bits.groupIndex := record.counter
       rfWriteVec(index).bits.eew := csrInterface.vSew
