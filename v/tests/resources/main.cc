@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
   args::ValueFlag<std::string> bin(parser, "bin", "test case path.", {"bin"});
   args::ValueFlag<std::string> wave(parser, "wave", "wave output path(in fst).", {"wave"});
   args::ValueFlag<uint64_t> reset_vector(parser, "reset_vector", "set reset vector", {"reset-vector"}, 0x1000);
-  args::ValueFlag<uint64_t> cycles(parser, "cycles", "set simulation cycles", {"cycles"}, 0xffffffff);
+  args::ValueFlag<uint64_t> cycles(parser, "cycles", "set simulation cycles", {"cycles"}, 0x7fffffff);
   parser.ParseCLI(argc, argv);
   isa_parser_t isa("rv32gcv", DEFAULT_PRIV);
   simple_sim sim(1 << 30);
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
                    /*sout*/ std::cerr);
 
   VBridge vb(proc, sim);
-  vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get());
+  vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get() * 2);
   auto &ctx = vb.get_verilator_ctx();
   ctx.commandArgs(argc, argv);
   vb.loop();
