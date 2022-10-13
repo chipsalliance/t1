@@ -153,11 +153,15 @@ class InstControlRecord(param: LaneParameters) extends Bundle {
   val initState:           InstGroupState = new InstGroupState(param)
   val counter:             UInt = UInt(param.VLMaxWidth.W)
 }
-
+/** Interface between Lane and V Top */
 class LaneCsrInterface(vlWidth: Int) extends Bundle {
+  /** end point for V reg block */
   val vl:     UInt = UInt(vlWidth.W)
+  /** start point for V reg block */
   val vStart: UInt = UInt(vlWidth.W)
+  /** vl mutipiler: how many regs is manipulated by the instruction */
   val vlmul:  UInt = UInt(3.W)
+  /** V Reg block granularity : legal value is 8,16,32 */
   val vSew:   UInt = UInt(2.W)
 
   /** Rounding mode register */
