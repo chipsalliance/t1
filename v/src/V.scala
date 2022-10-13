@@ -160,7 +160,7 @@ class V(param: VParam) extends Module {
       synchronize := feedBack.andR
     }
     val lsuLast: Bool = lsu.vrfWritePort.head.valid && lsu.vrfWritePort.head.bits.last &&
-      lsu.vrfWriteHeadInstIndex === control.record.instIndex
+      lsu.vrfWritePort.head.bits.instIndex === control.record.instIndex
     control.endTag.zip(lastVec.map(_(index)) :+ lsuLast).foreach {
       case (d, c) => d := d || c
     }
