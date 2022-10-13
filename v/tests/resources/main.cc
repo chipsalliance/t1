@@ -28,9 +28,9 @@ int main(int argc, char **argv) {
                    /*sout*/ std::cerr);
 
   VBridge vb(proc, sim);
-  vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get() * 2);
   auto &ctx = vb.get_verilator_ctx();
   ctx.commandArgs(argc, argv);
+  vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get());
   vb.loop();
 
   assert(proc.get_mmu() != nullptr);

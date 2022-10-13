@@ -59,7 +59,11 @@ public:
   [[noreturn]] [[noreturn]] void loop();
 
 private:
-  void reset(int cycles);
+  inline void reset();
+  inline void stop(int code);
+  inline void rtl_tick();
+  inline uint64_t rtl_cycle();
+
   insn_fetch_t fetch_proc_insn();
   uint64_t _cycles;
 
@@ -78,16 +82,33 @@ type &get_tl_##name(int i) {      \
 #include "tl_interface.inc.h"
 };
 
-void VBridgeImpl::reset(int cycles) {
+void VBridgeImpl::reset() {
   top.reset = 1;
-  for (int i = 0; i < cycles; i++) {
-    top.clock = !top.clock;
-    top.eval();
-    ctx.timeInc(1);
-    _cycles -= 1;
-    tfp.dump(ctx.time());
-  }
+  rtl_tick();
+  rtl_tick();
   top.reset = 0;
+}
+
+void VBridgeImpl::stop(int code) {
+  tfp.close();
+  top.final();
+  exit(code);
+}
+
+void VBridgeImpl::rtl_tick() {
+  top.clock = !top.clock;
+  top.eval();
+  tfp.dump(ctx.time());
+  ctx.timeInc(1);
+
+  top.clock = !top.clock;
+  top.eval();
+  tfp.dump(ctx.time());
+  ctx.timeInc(1);
+}
+
+uint64_t VBridgeImpl::rtl_cycle() {
+  return ctx.time() / 2;
 }
 
 void VBridgeImpl::setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles) {
@@ -101,8 +122,7 @@ void VBridgeImpl::setup(const std::string &bin, const std::string &wave, uint64_
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
   proc.VU.vill = false;
   proc.VU.vsew = 8;
-
-  reset(4);
+  reset();
 }
 
 insn_fetch_t VBridgeImpl::fetch_proc_insn() {
@@ -123,7 +143,7 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
   insn_t unsent_insn;
   enum {FREE, INSN_NOT_SENT, FULL_OF_INSN} v_state = FREE;
 
-  while (unlikely(_cycles != 0)) {
+  while (unlikely(rtl_cycle() <= _cycles)) {
     // run until vector insn
     if (v_state == FREE) {
       while (true) {
@@ -152,9 +172,6 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
      *              (create mem req)
      *        <----(A)-----
      */
-
-    // tick clock
-    top.clock = !top.clock;
 
     auto &xr = proc.get_state()->XPR;
     // send insn requests and reg values
@@ -191,10 +208,8 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
     }
 
     // step vector unit and dump wave
-    top.eval();
-    ctx.timeInc(1);
-    _cycles -= 1;
-    tfp.dump(ctx.time());
+    // tick clock
+    rtl_tick();
 
     if (v_state == INSN_NOT_SENT && top.req_ready) {
       v_state = FULL_OF_INSN;
@@ -236,8 +251,7 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
       v_state = FREE;  // TODO: now we process instructions one by one, to be optimized later
     }
   }
-  tfp.close();
-  exit(0);
+  stop(0);
 }
 
 void VBridge::setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles) const {
