@@ -1,5 +1,6 @@
 import mill._
 import mill.scalalib._
+import mill.define.{TaskModule, Command}
 import mill.scalalib.publish._
 import mill.scalalib.scalafmt._
 import mill.scalalib.TestModule.Utest
@@ -77,26 +78,6 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
   def arithmeticModule = Some(myarithmetic)
   def tilelinkModule = Some(mytilelink)
   def utest: T[Dep] = v.utest
-
-  object tests extends Tests with Utest with ScalafmtModule {
-    override def scalacPluginIvyDeps = T { m.scalacPluginIvyDeps() }
-    override def scalacOptions = T { m.scalacOptions() }
-    override def moduleDeps = super.moduleDeps ++ chiseltestModule
-    override def resources = T.sources {
-      os.proc("make", s"DESTDIR=${T.ctx.dest}", "install").call(spike.compile().path)
-      // dirty fix for spike
-      os.copy.over(spike.millSourcePath / "riscv" / "disasm.h", T.ctx.dest / "usr" / "include" / "riscv" / "disasm.h")
-      // install test cases
-      os.copy.over(cases.smoketest.compile().path, T.ctx.dest / "smoketest")
-      super.resources() :+ PathRef(T.ctx.dest)
-    }
-    override def ivyDeps = T {
-      super.ivyDeps() ++
-        Agg(utest()) ++
-        chiseltestIvyDep()
-    }
-  }
-
   object elaborate extends ScalaModule {
     override def defaultCommandName() = "default"
     override def scalaVersion = v.scala
@@ -104,7 +85,7 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
     override def ivyDeps = T{ Seq(
       v.mainargs
     ) }
-    def default = T.sources {
+    def rtls = T {
       mill.modules.Jvm.runSubprocess(
         finalMainClass(),
         runClasspath().map(_.path),
@@ -113,7 +94,79 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
         Seq("--dir", T.dest.toString),
         workingDir = forkWorkingDir(),
       )
-      os.walk(T.dest).map(PathRef(_))
+      val artifacts = os.walk(T.dest)
+      T.log.info(s"RTL generated:\n${artifacts.mkString("\n")}")
+      artifacts.map(PathRef(_))
+    }
+    def csources = T.sources { millSourcePath / "csrcs" }
+    def allCSourceFiles = T { Lib.findSourceFiles(csources(), Seq("S", "s", "c", "cpp", "cc")).map(PathRef(_)) }
+    def verilated = T {
+      val cmakefilelist = T.dest / "CMakeLists.txt"
+      val verilatorArgs = Seq(
+        // format: off
+        "-Wno-UNOPTTHREADS", "-Wno-STMTDLY", "-Wno-LATCH",
+        "--x-assign unique",
+        "--output-split 20000",
+        "--output-split-cfuncs 20000",
+        "--max-num-width 1048576",
+        "--trace-fst"
+        // format: on
+      ).mkString(" ")
+      val topName = rtls().collectFirst {
+        case f if f.path.ext == "fir" => f.path.baseName
+      }
+      val cmakefilelistString =
+      // format: off
+        s"""cmake_minimum_required(VERSION 3.20)
+           |project(${topName.get})
+           |include_directories(${(spike.millSourcePath / "riscv").toString})
+           |include_directories(${(spike.millSourcePath / "fesvr").toString})
+           |include_directories(${(spike.millSourcePath / "softfloat").toString})
+           |include_directories(${spike.compile().path.toString})
+           |link_directories(${spike.compile().path.toString})
+           |include(FetchContent)
+           |FetchContent_Declare(args GIT_REPOSITORY https://github.com/Taywee/args GIT_TAG 6.4.0)
+           |FetchContent_MakeAvailable(args)
+           |
+           |find_package(verilator)
+           |set(CMAKE_C_COMPILER "clang")
+           |set(CMAKE_CXX_COMPILER "clang++")
+           |find_package(Threads)
+           |set(THREADS_PREFER_PTHREAD_FLAG ON)
+           |add_executable(${topName.get}
+           |  ${allCSourceFiles().map(_.path).map(_.toString).mkString("\n")}
+           |)
+           |target_link_libraries(${topName.get} PRIVATE $${CMAKE_THREAD_LIBS_INIT})
+           |target_link_libraries(${topName.get} PRIVATE riscv fmt glog args)
+           |
+           |verilate(${topName.get}
+           |  SOURCES ${rtls().filter(f => f.path.ext == "v" || f.path.ext == "sv").map(_.path.toString).mkString(" ")}
+           |  VERILATOR_ARGS $verilatorArgs
+           |)
+           |""".stripMargin
+      // format: on
+      os.write.over(
+        cmakefilelist,
+        cmakefilelistString
+      )
+      // format: off
+      T.log.info(s"CMake project generated in $cmakefilelist,\nverilating...")
+      os.proc(
+        // format: off
+        "cmake",
+        "-G", "Ninja",
+        T.dest.toString
+        // format: on
+      ).call(T.dest)
+      T.log.info("compile rtl to emulator...")
+      os.proc(
+        // format: off
+        "ninja"
+        // format: on
+      ).call(T.dest)
+      val elf = T.dest / topName.get
+      T.log.info(s"verilated exe generated: ${elf.toString}")
+      PathRef(elf)
     }
   }
 }
@@ -221,4 +274,23 @@ object cases extends Module {
     }
   }
   object smoketest extends Case
+}
+
+object tests extends Module {
+  trait Case extends TaskModule {
+    override def defaultCommandName() = "run"
+
+    def bin: cases.Case
+
+    def run(args: String*) = T.command {
+      val proc = os.proc(Seq(vector.elaborate.verilated().path.toString, "--bin", bin.compile().path.toString, "--wave", (T.dest / "wave").toString) ++ args)
+      T.log.info(s"run test: ${bin.name} with:\n ${proc.command.map(_.value.mkString(" ")).mkString(" ")}")
+      proc.call()
+      PathRef(T.dest)
+    }
+  }
+
+  object smoketest extends Case {
+    def bin = cases.smoketest
+  }
 }
