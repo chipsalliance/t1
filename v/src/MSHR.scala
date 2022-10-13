@@ -191,6 +191,7 @@ class MSHR(param: MSHRParam) extends Module {
   vrfWritePort.bits.eew := dataEEW
   vrfWritePort.bits.data := tlPort.d.bits.data
   vrfWritePort.bits.last := last
+  vrfWritePort.bits.instIndex := requestReg.instIndex
 
   // 更新 respDone
   when(tlPort.d.fire && tlPort.a.fire && !requestReg.instInf.st) {

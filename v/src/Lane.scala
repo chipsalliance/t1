@@ -481,6 +481,7 @@ class Lane(param: LaneParameters) extends Module {
       rfWriteVec(index).bits.eew := csrInterface.vSew
       rfWriteVec(index).bits.data := result(index)
       rfWriteVec(index).bits.last := instWillComplete(index)
+      rfWriteVec(index).bits.instIndex := record.originalInformation.instIndex
       when(rfWriteFire(index)) {
         record.state.sWrite := true.B
       }
@@ -531,6 +532,7 @@ class Lane(param: LaneParameters) extends Module {
     crossWriteQueue.io.enq.bits.eew := csrInterface.vSew
     crossWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
     crossWriteQueue.io.enq.bits.last := instWillComplete.head && writeBusPort.enq.bits.tail
+    crossWriteQueue.io.enq.bits.instIndex := control.head.originalInformation.instIndex
     //writeBusPort.enq.bits
     crossWriteQueue.io.enq.valid := false.B
 

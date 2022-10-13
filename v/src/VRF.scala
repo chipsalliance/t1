@@ -39,6 +39,7 @@ class VRFWriteRequest(param: VRFParam) extends Bundle {
   val eew:        UInt = UInt(2.W)
   val data:       UInt = UInt(param.ELEN.W)
   val last:       Bool = Bool()
+  val instIndex: UInt = UInt(param.instIndexSize.W)
 }
 
 class WriteQueueBundle(param: VRFParam) extends Bundle {
@@ -62,6 +63,8 @@ class VRF(param: VRFParam) extends Module {
   val write:           DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(param))))
   val instWriteReport: ValidIO[VRFWriteReport] = IO(Flipped(Valid(new VRFWriteReport(param))))
   val flush:           Bool = IO(Input(Bool()))
+  // todo: delete
+  dontTouch(write.bits.instIndex)
 
   val chainingRecord: Vec[ValidIO[ChainingRecord]] = RegInit(
     VecInit(Seq.fill(31)(0.U.asTypeOf(Valid(new ChainingRecord(param)))))
