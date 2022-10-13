@@ -472,7 +472,7 @@ class Lane(param: LaneParameters) extends Module {
 
       when((instTypeVec(index) & executeDeqFire).orR) {
         record.state.wExecuteRes := true.B
-        // todo: save result
+        result(index) := Mux1H(instTypeVec(index), executeDeqData)
       }
       // 写rf
       rfWriteVec(index).valid := record.state.wExecuteRes && !record.state.sWrite && controlActive(index)
@@ -617,7 +617,7 @@ class Lane(param: LaneParameters) extends Module {
     // 写 rf
     val normalWrite = VecInit(rfWriteVec.map(_.valid)).asUInt.orR
     val writeSelect = !normalWrite ## ffo(VecInit(rfWriteVec.map(_.valid)).asUInt)
-    val writeEnqBits = Mux1H(writeSelect, crossWriteQueue.io.deq.bits +: rfWriteVec.map(_.bits))
+    val writeEnqBits = Mux1H(writeSelect, rfWriteVec.map(_.bits) :+ crossWriteQueue.io.deq.bits)
     vrf.write.valid := normalWrite || crossWriteQueue.io.deq.valid
     vrf.write.bits := writeEnqBits
     crossWriteQueue.io.deq.ready := !normalWrite && vrf.write.ready
