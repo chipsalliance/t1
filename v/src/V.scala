@@ -50,6 +50,27 @@ class InstRecord(param: VParam) extends Bundle {
   val ls: Bool = Bool()
 }
 
+/** Instruction state for process control
+  *
+  * A typical flow: wLast(sExecute)->sCommit->idle
+  *
+  * For a load instruction:
+  * At first:
+  * sExecute keeps high(MU not required),
+  * wLast=1(need LSU in MU),
+  * idle goes high from low (a slot becomes busy),
+  * sCommit goes low(hasn't been commit)
+  *
+  * Then,
+  * MU process finished, wLast goes high,
+  * the after instruction commit, sCommit goes high,
+  * the instruction is done, free the slot, idle goes high, waiting for next instruction.
+  *
+  * @param wLast Execution Unit available bit: true for EU process is done or is not required; false for EU is required and the MU process is not finished
+  * @param idle Slot available bit： after commit, an instruction is done,the slot will be free, and will wait for next instruction.true for slot available；false is for slot unavailable
+  * @param sExecute Mask Unit available bit：true for MU process is done or is not required;false for MU is required and the MU process is not finished
+  * @param sCommit insturuction commit status: true-instruction has been committed；false-has't been committed yet
+  */
 class InstState extends Bundle {
   val wLast:    Bool = Bool()
   val idle:     Bool = Bool()
@@ -70,7 +91,26 @@ class InstControl(param: VParam) extends Bundle {
   val state:  InstState = new InstState
   val endTag: Vec[Bool] = Vec(param.lane + 1, Bool())
 }
-
+/** Vector architecture
+  *
+  * V is able to contain 4 instructions at the same time.
+  * When an instruction comes in,
+  * V will allocate a slot for it.This slot will get an index.
+  *
+  * ==Instruction and Slot==
+  * There are 4 slots for instruction in V top, while each instruction falls in a certain type.
+  * For a certain fixed type of instruction, there is only one instruction in slot.
+  * The second instruction of this type need to wait for the first one to complete.
+  *
+  * ==Lane==
+  * Lane: 8 lanes
+  * Lane working: An instruction use up to 8 lanes in parallel.
+  * ===Lane Structure===
+  * {{{
+  * - Execution Unit(EU)= adder, multiplier, shifter, divider, other, Load Store Unit(LSU)
+  * - Mask Unit(MU)
+  * }}}
+  */
 class V(param: VParam) extends Module {
   val req:              DecoupledIO[VReq] = IO(Flipped(Decoupled(new VReq(param))))
   val resp:             ValidIO[VResp] = IO(Valid(new VResp(param)))
