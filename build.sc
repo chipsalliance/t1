@@ -18,6 +18,7 @@ object v {
   val chisel3Plugin = ivy"edu.berkeley.cs::chisel3-plugin:3.6-SNAPSHOT"
   val chiseltest = ivy"edu.berkeley.cs::chiseltest:3.6-SNAPSHOT"
   val utest = ivy"com.lihaoyi::utest:latest.integration"
+  val mainargs = ivy"com.lihaoyi::mainargs:0.3.0"
   // for arithmetic
   val upickle = ivy"com.lihaoyi::upickle:latest.integration"
   val osLib = ivy"com.lihaoyi::os-lib:latest.integration"
@@ -93,6 +94,26 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
       super.ivyDeps() ++
         Agg(utest()) ++
         chiseltestIvyDep()
+    }
+  }
+
+  object elaborate extends ScalaModule {
+    override def defaultCommandName() = "default"
+    override def scalaVersion = v.scala
+    override def moduleDeps = Seq(vector)
+    override def ivyDeps = T{ Seq(
+      v.mainargs
+    ) }
+    def default = T.sources {
+      mill.modules.Jvm.runSubprocess(
+        finalMainClass(),
+        runClasspath().map(_.path),
+        forkArgs(),
+        forkEnv(),
+        Seq("--dir", T.dest.toString),
+        workingDir = forkWorkingDir(),
+      )
+      os.walk(T.dest).map(PathRef(_))
     }
   }
 }
