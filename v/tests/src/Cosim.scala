@@ -119,7 +119,9 @@ object Cosim extends TestSuite {
             // format: on
           ).call(outputDirectory)
           test("run smoketest") {
-            os.proc(cosim, "--bin", resource("smoketest"), "--wave", os.pwd / "smoketest", "--cycles", 10).call(outputDirectory)
+            val proc = os.proc(cosim, "--bin", resource("smoketest"), "--wave", os.pwd / "smoketest", "--cycles", 1000)
+            println(s"running ${proc.command.map(_.value.mkString(" ")).mkString(" ")}")
+            proc.call(outputDirectory)
           }
         }
       }
