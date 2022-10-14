@@ -1,13 +1,6 @@
 #include "vbridge.h"
 
-#include "mmu.h"
-#include "processor.h"
-#include "isa_parser.h"
-#include "simif.h"
 #include <args.hxx>
-#include <verilated.h>
-
-#include "simple_sim.h"
 
 int main(int argc, char **argv) {
   args::ArgumentParser parser("Vector");
