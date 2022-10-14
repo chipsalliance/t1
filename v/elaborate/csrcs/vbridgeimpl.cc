@@ -121,6 +121,11 @@ void VBridgeImpl::loop() {
 
     // send mem responses
     for (int i = 0; i < numTL; i++) {
+      // pull down valid signal
+      if (!banks[i].done()) {
+        TL(i, d_valid) = false;
+      }
+
       if (TL(i, d_ready) && banks[i].done()) {  // when vector accepts mem response
         TL(i, d_bits_opcode) =
             banks[i].op == TLBank::opType::Get
@@ -156,15 +161,15 @@ void VBridgeImpl::loop() {
         uint32_t addr = TL(i, a_bits_address);
         uint32_t size = TL(i, a_bits_size);
         if (TL(i, a_bits_opcode) == TLOpCode::Get) {  // Get
+          banks[i].op = TLBank::opType::Get;
           banks[i].data = mem_load(addr, size);
           banks[i].remainingCycles = memCycles;  // TODO: more sophisticated model
           LOG(INFO) << fmt::format("[{}] receive TL Get(addr={:X})", ctx.time(), addr);
-
         } else if (TL(i, a_bits_opcode) == TLOpCode::PutFullData) {  // PutFullData
           mem_store(addr, size, data);
+          banks[i].op = TLBank::opType::PutFullData;
           banks[i].remainingCycles = memCycles;  // TODO: more sophisticated model
           LOG(INFO) << fmt::format("[{}] receive TL PutFullData(addr={:X}, data={:X})", ctx.time(), addr, data);
-
         } else {
           assert(false && "not supported tl opType");
         }
