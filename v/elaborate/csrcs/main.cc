@@ -17,8 +17,12 @@ int main(int argc, char **argv) {
   args::ValueFlag<uint64_t> cycles(parser, "cycles", "set simulation cycles", {"cycles"}, 0x7fffffff);
   parser.ParseCLI(argc, argv);
 
-  VBridge vb;
-  vb.configure_simulator(argc, argv);
-  vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get());
-  vb.loop();
+  try {
+    VBridge vb;
+    vb.configure_simulator(argc, argv);
+    vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get());
+    vb.loop();
+  } catch (...) {
+    exit(-1);
+  }
 }
