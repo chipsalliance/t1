@@ -8,6 +8,15 @@
 #include "tl.h"
 #include "util.h"
 
+void TLBank::step() {
+  if (remainingCycles > 0) remainingCycles--;
+}
+[[nodiscard]] bool TLBank::done() const {
+  return op != opType::Nil && remainingCycles == 0;
+}
+
+
+
 void VBridgeImpl::reset() {
   top.reset = 1;
   rtl_tick();

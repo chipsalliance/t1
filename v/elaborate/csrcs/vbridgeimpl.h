@@ -19,13 +19,9 @@ struct TLBank {
       op = opType::Nil;
     }
 
-    void step() {
-      if (remainingCycles > 0) remainingCycles--;
-    }
+    void step();
 
-    [[nodiscard]] bool done() const {
-      return op != opType::Nil && remainingCycles == 0;
-    }
+    [[nodiscard]] bool done() const;
 
     [[nodiscard]] bool ready() const {
       return op == opType::Nil;
