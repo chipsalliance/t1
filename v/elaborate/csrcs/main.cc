@@ -16,22 +16,10 @@ int main(int argc, char **argv) {
   args::ValueFlag<uint64_t> reset_vector(parser, "reset_vector", "set reset vector", {"reset-vector"}, 0x1000);
   args::ValueFlag<uint64_t> cycles(parser, "cycles", "set simulation cycles", {"cycles"}, 0x7fffffff);
   parser.ParseCLI(argc, argv);
-  isa_parser_t isa("rv32gcv", DEFAULT_PRIV);
-  simple_sim sim(1 << 30);
 
-  processor_t proc(/*isa*/ &isa,
-                   /*varch*/ "vlen:128,elen:32",
-                   /*sim*/ &sim,
-                   /*id*/ 0,
-                   /*halt on reset*/ true,
-                   /*log_file_t*/ nullptr,
-                   /*sout*/ std::cerr);
-
-  VBridge vb(proc, sim);
+  VBridge vb;
   auto &ctx = vb.get_verilator_ctx();
   ctx.commandArgs(argc, argv);
   vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get());
   vb.loop();
-
-  assert(proc.get_mmu() != nullptr);
 }

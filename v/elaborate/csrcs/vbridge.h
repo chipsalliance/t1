@@ -45,7 +45,7 @@ struct VBridgeImpl;
 struct VBridge {
   VBridgeImpl *impl;
 
-  VBridge(processor_t &proc, simple_sim &sim);
+  VBridge();
 
   ~VBridge();
 

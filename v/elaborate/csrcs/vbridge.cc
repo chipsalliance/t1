@@ -45,14 +45,11 @@ struct TLBank {
 
 class VBridgeImpl {
 public:
-  processor_t &proc;
-  simple_sim &sim;
-
   VerilatedContext ctx;
   VV top;
   VerilatedFstC tfp;
 
-  explicit VBridgeImpl(processor_t &proc, simple_sim &sim) : proc(proc), sim(sim) {};
+  explicit VBridgeImpl();
 
   void setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles);
 
@@ -63,6 +60,9 @@ private:
   inline void stop(int code);
   inline void rtl_tick();
   inline uint64_t rtl_cycle();
+  simple_sim sim;
+  isa_parser_t isa;
+  processor_t proc;
 
   insn_fetch_t fetch_proc_insn();
   uint64_t _cycles;
@@ -254,11 +254,23 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
   stop(0);
 }
 
+VBridgeImpl::VBridgeImpl() :
+    sim(1 << 30),
+    isa("rv32gcv", "M"),
+    proc(
+        /*isa*/ &isa,
+        /*varch*/ "vlen:128,elen:32",
+        /*sim*/ &sim,
+        /*id*/ 0,
+        /*halt on reset*/ true,
+        /*log_file_t*/ nullptr,
+        /*sout*/ std::cerr) {}
+
 void VBridge::setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles) const {
   impl->setup(bin, wave, reset_vector, cycles);
 }
 
-VBridge::VBridge(processor_t &proc, simple_sim &sim) : impl(new VBridgeImpl(proc, sim)) {}
+VBridge::VBridge() : impl(new VBridgeImpl) {}
 
 VBridge::~VBridge() {
   delete impl;
