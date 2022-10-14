@@ -18,8 +18,7 @@ int main(int argc, char **argv) {
   parser.ParseCLI(argc, argv);
 
   VBridge vb;
-  auto &ctx = vb.get_verilator_ctx();
-  ctx.commandArgs(argc, argv);
+  vb.configure_simulator(argc, argv);
   vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get());
   vb.loop();
 }

@@ -50,14 +50,15 @@ public:
   VerilatedFstC tfp;
 
   explicit VBridgeImpl();
+  ~VBridgeImpl();
 
   void setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles);
+  void configure_simulator(int argc, char** argv);
 
   [[noreturn]] [[noreturn]] void loop();
 
 private:
   inline void reset();
-  inline void stop(int code);
   inline void rtl_tick();
   inline uint64_t rtl_cycle();
   simple_sim sim;
@@ -87,12 +88,6 @@ void VBridgeImpl::reset() {
   rtl_tick();
   rtl_tick();
   top.reset = 0;
-}
-
-void VBridgeImpl::stop(int code) {
-  tfp.close();
-  top.final();
-  exit(code);
 }
 
 void VBridgeImpl::rtl_tick() {
@@ -251,7 +246,7 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
       v_state = FREE;  // TODO: now we process instructions one by one, to be optimized later
     }
   }
-  stop(0);
+  exit(0);
 }
 
 VBridgeImpl::VBridgeImpl() :
@@ -265,6 +260,15 @@ VBridgeImpl::VBridgeImpl() :
         /*halt on reset*/ true,
         /*log_file_t*/ nullptr,
         /*sout*/ std::cerr) {}
+
+VBridgeImpl::~VBridgeImpl() {
+  tfp.close();
+  top.final();
+}
+
+void VBridgeImpl::configure_simulator(int argc, char **argv) {
+  ctx.commandArgs(argc, argv);
+}
 
 void VBridge::setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles) const {
   impl->setup(bin, wave, reset_vector, cycles);
@@ -280,6 +284,6 @@ void VBridge::loop() const {
   impl->loop();
 }
 
-VerilatedContext &VBridge::get_verilator_ctx() const {
-  return impl->ctx;
+void VBridge::configure_simulator(int argc, char** argv) const {
+  impl->configure_simulator(argc, argv);
 }

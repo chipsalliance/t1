@@ -53,7 +53,7 @@ struct VBridge {
 
   void loop() const;
 
-  VerilatedContext &get_verilator_ctx() const;
+  void configure_simulator(int argc, char** argv) const;
 };
 
 #endif
