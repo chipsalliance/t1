@@ -98,8 +98,8 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
       T.log.info(s"RTL generated:\n${artifacts.mkString("\n")}")
       artifacts.map(PathRef(_))
     }
-    def csources = T.sources { millSourcePath / "csrcs" }
-    def allCSourceFiles = T { Lib.findSourceFiles(csources(), Seq("S", "s", "c", "cpp", "cc")).map(PathRef(_)) }
+    def csources = T.source { millSourcePath / "csrcs" }
+    def allCSourceFiles = T { Lib.findSourceFiles(Seq(csources()), Seq("S", "s", "c", "cpp", "cc")).map(PathRef(_)) }
     def verilated = T {
       val cmakefilelist = T.dest / "CMakeLists.txt"
       val verilatorArgs = Seq(
@@ -122,6 +122,8 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
            |include_directories(${(spike.millSourcePath / "riscv").toString})
            |include_directories(${(spike.millSourcePath / "fesvr").toString})
            |include_directories(${(spike.millSourcePath / "softfloat").toString})
+           |# Make CLion happy to see header files here
+           |include_directories(${csources().path.toString})
            |include_directories(${spike.compile().path.toString})
            |link_directories(${spike.compile().path.toString})
            |include(FetchContent)
