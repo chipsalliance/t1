@@ -2,12 +2,8 @@
 #define _RISCV_VBRIDGE_H
 
 #include <cstddef>
+#include <string>
 
-#include "decode.h"
-#include "processor.h"
-#include "simple_sim.h"
-
-class VerilatedContext;
 struct VBridgeImpl;
 
 // Vector Instruction Buffer:
@@ -42,18 +38,15 @@ struct VBridgeImpl;
 //   // do difftest
 // }
 
-struct VBridge {
-  VBridgeImpl *impl;
-
+class VBridge {
+public:
   VBridge();
-
   ~VBridge();
-
   void setup(const std::string &bin, const std::string &vcd, uint64_t reset_vector, uint64_t cycles) const;
-
   void loop() const;
-
   void configure_simulator(int argc, char** argv) const;
+private:
+    VBridgeImpl *impl;
 };
 
 #endif

@@ -1,7 +1,3 @@
-//
-// Created by sequencer on 10/14/22.
-//
-
 #ifndef V_VBRIDGEIMPL_H
 #define V_VBRIDGEIMPL_H
 
