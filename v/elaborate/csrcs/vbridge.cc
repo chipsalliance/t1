@@ -45,10 +45,6 @@ struct TLBank {
 
 class VBridgeImpl {
 public:
-  VerilatedContext ctx;
-  VV top;
-  VerilatedFstC tfp;
-
   explicit VBridgeImpl();
   ~VBridgeImpl();
 
@@ -58,6 +54,10 @@ public:
   [[noreturn]] [[noreturn]] void loop();
 
 private:
+  VerilatedContext ctx;
+  VV top;
+  VerilatedFstC tfp;
+
   inline void reset();
   inline void rtl_tick();
   inline uint64_t rtl_cycle();
