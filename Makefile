@@ -33,4 +33,4 @@ checkformat:
 	mill -i __.checkFormat
 
 test:
-	mill -i vector.tests
+	mill -i tests.smoketest.run --cycles 100
