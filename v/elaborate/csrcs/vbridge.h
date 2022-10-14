@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <string>
+#include <memory>
 
 struct VBridgeImpl;
 
@@ -46,7 +47,7 @@ public:
   void loop() const;
   void configure_simulator(int argc, char** argv) const;
 private:
-    VBridgeImpl *impl;
+    std::unique_ptr<VBridgeImpl> impl;
 };
 
 #endif

@@ -63,7 +63,7 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
   insn_t unsent_insn;
   enum {FREE, INSN_NOT_SENT, FULL_OF_INSN} v_state = FREE;
 
-  while (unlikely(rtl_cycle() <= _cycles)) {
+  while (rtl_cycle() <= _cycles) {
     // run until vector insn
     if (v_state == FREE) {
       while (true) {
@@ -169,7 +169,6 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
       v_state = FREE;  // TODO: now we process instructions one by one, to be optimized later
     }
   }
-  exit(0);
 }
 
 VBridgeImpl::VBridgeImpl() :

@@ -5,10 +5,9 @@ void VBridge::setup(const std::string &bin, const std::string &wave, uint64_t re
   impl->setup(bin, wave, reset_vector, cycles);
 }
 
-VBridge::VBridge() : impl(new VBridgeImpl) {}
+VBridge::VBridge() : impl(std::make_unique<VBridgeImpl>()) {}
 
 VBridge::~VBridge() {
-  delete impl;
 }
 
 void VBridge::loop() const {

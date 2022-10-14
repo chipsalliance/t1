@@ -1,6 +1,7 @@
 #include "vbridge.h"
 
 #include <args.hxx>
+#include <glog/logging.h>
 
 int main(int argc, char **argv) {
   args::ArgumentParser parser("Vector");
@@ -16,6 +17,6 @@ int main(int argc, char **argv) {
     vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get());
     vb.loop();
   } catch (...) {
-    exit(-1);
+    LOG(FATAL) << "unknown exception";
   }
 }
