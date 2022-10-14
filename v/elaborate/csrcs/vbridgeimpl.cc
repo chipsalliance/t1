@@ -64,7 +64,7 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
   return fetch;
 }
 
-[[noreturn]] void VBridgeImpl::loop() {
+void VBridgeImpl::loop() {
   // TODO: check state correctness
 
 #define TL(i, name) (get_tl_##name((i)))

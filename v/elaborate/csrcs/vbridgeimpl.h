@@ -40,7 +40,7 @@ public:
     void setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles);
     void configure_simulator(int argc, char** argv);
 
-    [[noreturn]] void loop();
+    void loop();
 
 private:
     VerilatedContext ctx;
