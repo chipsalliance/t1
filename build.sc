@@ -131,6 +131,7 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
            |find_package(verilator)
            |set(CMAKE_C_COMPILER "clang")
            |set(CMAKE_CXX_COMPILER "clang++")
+           |set(CMAKE_BUILD_TYPE "Debug")
            |find_package(Threads)
            |set(THREADS_PREFER_PTHREAD_FLAG ON)
            |add_executable(${topName.get}
