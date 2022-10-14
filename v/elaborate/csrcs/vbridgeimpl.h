@@ -60,6 +60,8 @@ private:
     inline void rtl_tick();
     inline uint64_t rtl_cycle();
     insn_fetch_t fetch_proc_insn();
+    uint64_t mem_load(uint64_t addr, uint32_t size);
+    void mem_store(uint64_t addr, uint32_t size, uint64_t data);
 
 // the following macro helps us to access tl interface by dynamic index
 #define TL_INTERFACE(type, name) \

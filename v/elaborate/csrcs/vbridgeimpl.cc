@@ -16,6 +16,7 @@ void VBridgeImpl::reset() {
 }
 
 void VBridgeImpl::rtl_tick() {
+  // TODO: should dump ctx.time() / 2 (or ???)
   top.clock = !top.clock;
   top.eval();
   tfp.dump(ctx.time());
@@ -139,20 +140,19 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
     }
 
     // receive mem requests
-    constexpr uint8_t acceptedSize = 2;
-    constexpr int memCycles = 100;
+    constexpr int memCycles = 1;
     for (int i = 0; i < numTL; i++) {
       if (TL(i, a_ready) && TL(i, a_valid)) {
+        uint32_t data = TL(i, a_bits_data);
+        uint32_t addr = TL(i, a_bits_address);
+        uint32_t size = TL(i, a_bits_size);
         if (TL(i, a_bits_opcode) == TLOpCode::Get) {  // Get
-          uint32_t addr = TL(i, a_bits_address);
-          banks[i].data = proc.get_mmu()->load_uint32(addr);
+          banks[i].data = mem_load(addr, size);
           banks[i].remainingCycles = memCycles;  // TODO: more sophisticated model
           LOG(INFO) << fmt::format("[{}] receive TL Get(addr={:X})", ctx.time(), addr);
 
         } else if (TL(i, a_bits_opcode) == TLOpCode::PutFullData) {  // PutFullData
-          uint32_t data = TL(i, a_bits_data);
-          uint32_t addr = TL(i, a_bits_address);
-          proc.get_mmu()->store_uint32(addr, data);
+          mem_store(addr, size, data);
           banks[i].remainingCycles = memCycles;  // TODO: more sophisticated model
           LOG(INFO) << fmt::format("[{}] receive TL PutFullData(addr={:X}, data={:X})", ctx.time(), addr, data);
 
@@ -185,9 +185,39 @@ VBridgeImpl::VBridgeImpl() :
 
 VBridgeImpl::~VBridgeImpl() {
   tfp.close();
+  LOG(INFO) << "tfp is closed";
   top.final();
 }
 
 void VBridgeImpl::configure_simulator(int argc, char **argv) {
   ctx.commandArgs(argc, argv);
+}
+
+uint64_t VBridgeImpl::mem_load(uint64_t addr, uint32_t size) {
+  switch (size) {
+    case 0:
+      return proc.get_mmu()->load_uint8(addr);
+    case 1:
+      return proc.get_mmu()->load_uint16(addr);
+    case 2:
+      return proc.get_mmu()->load_uint32(addr);
+    default:
+      LOG(FATAL) << fmt::format("unknown load size {}", size);
+  }
+}
+
+void VBridgeImpl::mem_store(uint64_t addr, uint32_t size, uint64_t data) {
+  switch (size) {
+    case 0:
+      proc.get_mmu()->store_uint8(addr, data);
+      break;
+    case 1:
+      proc.get_mmu()->store_uint16(addr, data);
+      break;
+    case 2:
+      proc.get_mmu()->store_uint32(addr, data);
+      break;
+    default:
+      LOG(FATAL) << fmt::format("unknown store size {}", size);
+  }
 }
