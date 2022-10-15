@@ -7,6 +7,7 @@
 #include "vbridge.h"
 #include "tl.h"
 #include "util.h"
+#include "exceptions.h"
 
 void TLBank::step() {
   if (remainingCycles > 0) remainingCycles--;
@@ -50,17 +51,10 @@ uint64_t VBridgeImpl::rtl_cycle() {
 }
 
 void VBridgeImpl::setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles) {
-  Verilated::traceEverOn(true);
-  top.trace(&tfp, 99);
-  tfp.open(wave.c_str());
-  sim.load(bin, reset_vector);
-  _cycles = cycles;
-  proc.get_state()->dcsr->halt = false;
-  proc.get_state()->pc = reset_vector;
-  proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
-  proc.VU.vill = false;
-  proc.VU.vsew = 8;
-  reset();
+  this->bin = bin;
+  this->wave = wave;
+  this->reset_vector = reset_vector;
+  this->timeout = cycles;
 }
 
 insn_fetch_t VBridgeImpl::fetch_proc_insn() {
@@ -209,9 +203,7 @@ VBridgeImpl::VBridgeImpl() :
         /*sout*/ std::cerr) {}
 
 VBridgeImpl::~VBridgeImpl() {
-  tfp.close();
-  LOG(INFO) << "tfp is closed";
-  top.final();
+  terminate_simulator();
 }
 
 void VBridgeImpl::configure_simulator(int argc, char **argv) {
@@ -244,5 +236,199 @@ void VBridgeImpl::mem_store(uint64_t addr, uint32_t size, uint64_t data) {
       break;
     default:
       LOG(FATAL) << fmt::format("unknown store size {}", size);
+  }
+}
+
+void VBridgeImpl::init_spike() {
+  // reset spike CPU
+  proc.reset();
+  // TODO: figure out how to set sstatus correctly.
+  proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
+  // load binary to reset_vector
+  sim.load(bin, reset_vector);
+}
+
+void VBridgeImpl::init_simulator() {
+  Verilated::traceEverOn(true);
+  top.trace(&tfp, 99);
+  tfp.open(wave.c_str());
+  _cycles = timeout;
+  // TODO: I don't think we should trigger here, this should be managed by driver.
+  reset();
+}
+
+void VBridgeImpl::terminate_simulator() {
+  tfp.close();
+  top.final();
+}
+
+uint64_t VBridgeImpl::get_simulator_cycle() {
+  return ctx.time() / 2;
+}
+
+std::optional<SpikeEvent> VBridgeImpl::spike_step() {
+  auto state = proc.get_state();
+  auto fetch = proc.get_mmu()->load_insn(state->pc);
+  auto event = create_spike_event(state, fetch);
+  state->pc = fetch.func(&proc, fetch.insn, state->pc);
+  return event;
+}
+
+std::optional<RTLEvent> VBridgeImpl::rtl_step() {
+  // pick signals
+  auto event = create_rtl_event();
+  // tick clock
+  rtl_tick();
+  return event;
+}
+
+std::optional<RTLEvent> VBridgeImpl::create_rtl_event() {
+  top.resp_bits_data;
+  top.resp_valid;
+  top.req_ready;
+
+  top.tlPort_0_a_bits_source;
+  top.tlPort_0_a_bits_address;
+  top.tlPort_0_a_bits_data;
+  top.tlPort_0_a_bits_corrupt;
+  top.tlPort_0_a_bits_mask;
+  top.tlPort_0_a_bits_opcode;
+  top.tlPort_0_a_bits_param;
+  top.tlPort_0_a_bits_size;
+  top.tlPort_0_a_valid;
+  top.tlPort_0_d_ready;
+
+  top.tlPort_1_a_bits_source;
+  top.tlPort_1_a_bits_address;
+  top.tlPort_1_a_bits_data;
+  top.tlPort_1_a_bits_corrupt;
+  top.tlPort_1_a_bits_mask;
+  top.tlPort_1_a_bits_opcode;
+  top.tlPort_1_a_bits_param;
+  top.tlPort_1_a_bits_size;
+  top.tlPort_1_a_valid;
+  top.tlPort_1_d_ready;
+
+  top.verilator_debug_laneVec_0_vrf___05Fdebug_bits_data;
+  top.verilator_debug_laneVec_1_vrf___05Fdebug_bits_data;
+  top.verilator_debug_laneVec_2_vrf___05Fdebug_bits_data;
+  top.verilator_debug_laneVec_3_vrf___05Fdebug_bits_data;
+  top.verilator_debug_laneVec_4_vrf___05Fdebug_bits_data;
+  top.verilator_debug_laneVec_5_vrf___05Fdebug_bits_data;
+  top.verilator_debug_laneVec_6_vrf___05Fdebug_bits_data;
+  top.verilator_debug_laneVec_7_vrf___05Fdebug_bits_data;
+  top.verilator_debug_laneVec_0_vrf___05Fdebug_bits_eew;
+  top.verilator_debug_laneVec_0_vrf___05Fdebug_bits_groupIndex;
+  top.verilator_debug_laneVec_0_vrf___05Fdebug_bits_instIndex;
+  top.verilator_debug_laneVec_0_vrf___05Fdebug_bits_last;
+  top.verilator_debug_laneVec_0_vrf___05Fdebug_bits_vd;
+  top.verilator_debug_laneVec_0_vrf___05Fdebug_valid;
+  top.verilator_debug_laneVec_1_vrf___05Fdebug_bits_eew;
+  top.verilator_debug_laneVec_1_vrf___05Fdebug_bits_groupIndex;
+  top.verilator_debug_laneVec_1_vrf___05Fdebug_bits_instIndex;
+  top.verilator_debug_laneVec_1_vrf___05Fdebug_bits_last;
+  top.verilator_debug_laneVec_1_vrf___05Fdebug_bits_vd;
+  top.verilator_debug_laneVec_1_vrf___05Fdebug_valid;
+  top.verilator_debug_laneVec_2_vrf___05Fdebug_bits_eew;
+  top.verilator_debug_laneVec_2_vrf___05Fdebug_bits_groupIndex;
+  top.verilator_debug_laneVec_2_vrf___05Fdebug_bits_instIndex;
+  top.verilator_debug_laneVec_2_vrf___05Fdebug_bits_last;
+  top.verilator_debug_laneVec_2_vrf___05Fdebug_bits_vd;
+  top.verilator_debug_laneVec_2_vrf___05Fdebug_valid;
+  top.verilator_debug_laneVec_3_vrf___05Fdebug_bits_eew;
+  top.verilator_debug_laneVec_3_vrf___05Fdebug_bits_groupIndex;
+  top.verilator_debug_laneVec_3_vrf___05Fdebug_bits_instIndex;
+  top.verilator_debug_laneVec_3_vrf___05Fdebug_bits_last;
+  top.verilator_debug_laneVec_3_vrf___05Fdebug_bits_vd;
+  top.verilator_debug_laneVec_3_vrf___05Fdebug_valid;
+  top.verilator_debug_laneVec_4_vrf___05Fdebug_bits_eew;
+  top.verilator_debug_laneVec_4_vrf___05Fdebug_bits_groupIndex;
+  top.verilator_debug_laneVec_4_vrf___05Fdebug_bits_instIndex;
+  top.verilator_debug_laneVec_4_vrf___05Fdebug_bits_last;
+  top.verilator_debug_laneVec_4_vrf___05Fdebug_bits_vd;
+  top.verilator_debug_laneVec_4_vrf___05Fdebug_valid;
+  top.verilator_debug_laneVec_5_vrf___05Fdebug_bits_eew;
+  top.verilator_debug_laneVec_5_vrf___05Fdebug_bits_groupIndex;
+  top.verilator_debug_laneVec_5_vrf___05Fdebug_bits_instIndex;
+  top.verilator_debug_laneVec_5_vrf___05Fdebug_bits_last;
+  top.verilator_debug_laneVec_5_vrf___05Fdebug_bits_vd;
+  top.verilator_debug_laneVec_5_vrf___05Fdebug_valid;
+  top.verilator_debug_laneVec_6_vrf___05Fdebug_bits_eew;
+  top.verilator_debug_laneVec_6_vrf___05Fdebug_bits_groupIndex;
+  top.verilator_debug_laneVec_6_vrf___05Fdebug_bits_instIndex;
+  top.verilator_debug_laneVec_6_vrf___05Fdebug_bits_last;
+  top.verilator_debug_laneVec_6_vrf___05Fdebug_bits_vd;
+  top.verilator_debug_laneVec_6_vrf___05Fdebug_valid;
+  top.verilator_debug_laneVec_7_vrf___05Fdebug_bits_eew;
+  top.verilator_debug_laneVec_7_vrf___05Fdebug_bits_groupIndex;
+  top.verilator_debug_laneVec_7_vrf___05Fdebug_bits_instIndex;
+  top.verilator_debug_laneVec_7_vrf___05Fdebug_bits_last;
+  top.verilator_debug_laneVec_7_vrf___05Fdebug_bits_vd;
+  top.verilator_debug_laneVec_7_vrf___05Fdebug_valid;
+}
+
+std::optional<SpikeEvent> VBridgeImpl::create_spike_event(state_t *state, insn_fetch_t fetch) {
+  uint32_t opcode = clip(fetch.insn.bits(), 0, 6);
+  uint32_t width = clip(fetch.insn.bits(), 12, 14);
+
+  auto load_type = opcode == 0b111;
+  auto store_type = opcode == 0b100111;
+  auto v_type = opcode == 0b1010111 && width != 0b111;
+  if (load_type || store_type || v_type) {
+    return SpikeEvent();
+  } else {
+    return {};
+  }
+}
+
+void VBridgeImpl::run() {
+  init_spike();
+  init_simulator();
+  // start loop
+  while (true) {
+    while (to_rtl_queue.size() < to_rtl_queue_size) {
+      try {
+        if(auto spike_event = spike_step()) {
+          auto event = *spike_event;
+          LOG(INFO) << fmt::format("enqueue spike event");
+          to_rtl_queue.push(event);
+        }
+      } catch (trap_t& trap) {
+        LOG(FATAL) << fmt::format("spike trapped with {}", trap.name());
+      }
+    }
+    LOG(INFO) << fmt::format("to_rtl_queue is full now, start to simulate.");
+    while (!to_rtl_queue.empty()) {
+      // TODO: maintain a state machine here based on to_rtl_queue
+      enum {
+          FREE,
+          SEND_MEMORY_RESPONSE,
+      } state = FREE;
+
+      // in the RTL thread, for each RTL cycle, valid signals should be checked, generate events, let testbench be able
+      // to check the correctness of RTL behavior, benchmark performance signals.
+      if(auto rtl_event = rtl_step()) {
+        if (get_simulator_cycle() <= timeout)
+          throw TimeoutException();
+        auto event = *rtl_event;
+        if (event.resp_valid) {
+          LOG(INFO) << fmt::format("instruction committed.");
+          to_rtl_queue.pop();
+        }
+        if (event.load_valid) {
+          LOG(INFO) << fmt::format("load from memory.");
+        }
+        if (event.store_valid) {
+          LOG(INFO) << fmt::format("store to memory");
+          // TODO: difftest here
+        }
+        if (event.vrf_write_valid) {
+          LOG(INFO) << fmt::format("write to vrf");
+          // TODO: difftest here
+        }
+        // TODO: maintain the state here.
+      }
+    }
+    LOG(INFO) << fmt::format("to_rtl_queue is empty now.");
   }
 }

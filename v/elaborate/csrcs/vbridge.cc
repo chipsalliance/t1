@@ -11,7 +11,7 @@ VBridge::~VBridge() {
 }
 
 void VBridge::loop() const {
-  impl->loop();
+  impl->run();
 }
 
 void VBridge::configure_simulator(int argc, char** argv) const {
