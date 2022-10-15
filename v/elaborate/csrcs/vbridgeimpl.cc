@@ -15,7 +15,15 @@ void TLBank::step() {
   return op != opType::Nil && remainingCycles == 0;
 }
 
-
+[[nodiscard]] bool TLBank::ready() const {
+  return op == opType::Nil;
+}
+void TLBank::clear() {
+  op = opType::Nil;
+}
+TLBank::TLBank() {
+  op = opType::Nil;
+}
 
 void VBridgeImpl::reset() {
   top.reset = 1;

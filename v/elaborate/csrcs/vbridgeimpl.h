@@ -16,21 +16,15 @@ struct TLBank {
     } op;
     int remainingCycles;
 
-    TLBank() {
-      op = opType::Nil;
-    }
+    TLBank();
 
     void step();
 
     [[nodiscard]] bool done() const;
 
-    [[nodiscard]] bool ready() const {
-      return op == opType::Nil;
-    }
+    [[nodiscard]] bool ready() const;
 
-    void clear() {
-      op = opType::Nil;
-    }
+    void clear();
 };
 
 class VBridgeImpl {
