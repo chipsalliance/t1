@@ -131,6 +131,7 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
            |FetchContent_MakeAvailable(args)
            |
            |find_package(verilator)
+           |set(CMAKE_CXX_STANDARD 17)
            |set(CMAKE_C_COMPILER "clang")
            |set(CMAKE_CXX_COMPILER "clang++")
            |set(CMAKE_BUILD_TYPE "Debug")
@@ -241,7 +242,7 @@ object spike extends Module {
   override def millSourcePath = os.pwd / "dependencies" / "riscv-isa-sim"
   // ask make to cache file.
   def compile = T.persistent {
-    os.proc(millSourcePath / "configure", "--prefix", "/usr", "--without-boost", "--without-boost-asio", "--without-boost-regex").call(
+    os.proc(millSourcePath / "configure", "--prefix", "/usr", "--without-boost", "--without-boost-asio", "--without-boost-regex", "--enable-commitlog").call(
       T.ctx.dest, Map(
         "CC" -> "clang",
         "CXX" -> "clang++",

@@ -1,4 +1,5 @@
 #include "vbridge.h"
+#include "exceptions.h"
 
 #include <args.hxx>
 #include <glog/logging.h>
@@ -16,7 +17,7 @@ int main(int argc, char **argv) {
     vb.configure_simulator(argc, argv);
     vb.setup(bin.Get(), wave.Get() + ".fst", reset_vector.Get(), cycles.Get());
     vb.loop();
-  } catch (...) {
-    LOG(FATAL) << "unknown exception";
+  } catch (TimeoutException &e) {
+    return 0;
   }
 }

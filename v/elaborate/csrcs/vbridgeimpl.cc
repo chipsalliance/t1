@@ -8,6 +8,7 @@
 #include "tl.h"
 #include "util.h"
 #include "exceptions.h"
+#include "RTLEvent.h"
 
 void TLBank::step() {
   if (remainingCycles > 0) remainingCycles--;
@@ -34,7 +35,6 @@ void VBridgeImpl::reset() {
 }
 
 void VBridgeImpl::rtl_tick() {
-  // TODO: should dump ctx.time() / 2 (or ???)
   top.clock = !top.clock;
   top.eval();
   tfp.dump(ctx.time());
@@ -242,7 +242,7 @@ void VBridgeImpl::mem_store(uint64_t addr, uint32_t size, uint64_t data) {
 void VBridgeImpl::init_spike() {
   // reset spike CPU
   proc.reset();
-  // TODO: figure out how to set sstatus correctly.
+  // TODO: remove this line, and use CSR write in the test code to enable this the VS field.
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
   // load binary to reset_vector
   sim.load(bin, reset_vector);
@@ -263,23 +263,34 @@ void VBridgeImpl::terminate_simulator() {
 }
 
 uint64_t VBridgeImpl::get_simulator_cycle() {
-  return ctx.time() / 2;
+  return ctx.time();
 }
 
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
   auto fetch = proc.get_mmu()->load_insn(state->pc);
-  auto event = create_spike_event(state, fetch);
-  state->pc = fetch.func(&proc, fetch.insn, state->pc);
+  auto event = create_spike_event(proc, fetch);
+  if (event) {
+    auto &se = event.value();
+    se.log_reset();
+    se.assign_instruction(fetch.insn.bits());
+    se.get_mask();
+    state->pc = fetch.func(&proc, fetch.insn, state->pc);
+    se.log();
+  } else {
+    state->pc = fetch.func(&proc, fetch.insn, state->pc);
+  }
+
   return event;
 }
 
 std::optional<RTLEvent> VBridgeImpl::rtl_step() {
-  // pick signals
-  auto event = create_rtl_event();
   // tick clock
   rtl_tick();
-  return event;
+  if (get_simulator_cycle() >= timeout)
+    throw TimeoutException();
+  // pick signals
+  return create_rtl_event();
 }
 
 std::optional<RTLEvent> VBridgeImpl::create_rtl_event() {
@@ -365,20 +376,48 @@ std::optional<RTLEvent> VBridgeImpl::create_rtl_event() {
   top.verilator_debug_laneVec_7_vrf___05Fdebug_bits_last;
   top.verilator_debug_laneVec_7_vrf___05Fdebug_bits_vd;
   top.verilator_debug_laneVec_7_vrf___05Fdebug_valid;
+  auto re = RTLEvent();
+  re.request_ready(top.req_ready);
+  re.commit_ready(top.resp_valid);
+  if(re.request() || re.commit() ) {
+    return re;
+  }
+  return {};
 }
 
-std::optional<SpikeEvent> VBridgeImpl::create_spike_event(state_t *state, insn_fetch_t fetch) {
+std::optional<SpikeEvent> VBridgeImpl::create_spike_event(processor_t &proc, insn_fetch_t fetch) {
+  // create SpikeEvent
   uint32_t opcode = clip(fetch.insn.bits(), 0, 6);
   uint32_t width = clip(fetch.insn.bits(), 12, 14);
-
   auto load_type = opcode == 0b111;
   auto store_type = opcode == 0b100111;
   auto v_type = opcode == 0b1010111 && width != 0b111;
   if (load_type || store_type || v_type) {
-    return SpikeEvent();
+    return SpikeEvent(proc);
   } else {
     return {};
   }
+}
+
+void VBridgeImpl::poke_instruction(SpikeEvent se) {
+  top.req_valid = true;
+  top.req_bits_inst = se.instruction();
+}
+
+void VBridgeImpl::poke_csr_control(SpikeEvent se) {
+  top.csrInterface_vSew = se.vsew();
+  top.csrInterface_vlmul = se.vlmul();
+  top.csrInterface_vma = se.vma();
+  top.csrInterface_vta = se.vta();
+  top.csrInterface_vl = se.vl();
+  top.csrInterface_vStart = se.vstart();
+  top.csrInterface_vxrm = se.vxrm();
+  // TODO control this.
+  top.csrInterface_ignoreException = false;
+  // give event, making this false for some cycles.
+  top.storeBufferClear = true;
+  // poke valid signals to false
+  top.req_bits_inst = false;
 }
 
 void VBridgeImpl::run() {
@@ -389,43 +428,55 @@ void VBridgeImpl::run() {
     while (to_rtl_queue.size() < to_rtl_queue_size) {
       try {
         if(auto spike_event = spike_step()) {
-          auto event = *spike_event;
-          LOG(INFO) << fmt::format("enqueue spike event");
-          to_rtl_queue.push(event);
+          auto se = spike_event.value();
+          LOG(INFO) << fmt::format("enqueue Spike Event: {}", se.disam());
+          to_rtl_queue.push_front(se);
         }
       } catch (trap_t& trap) {
         LOG(FATAL) << fmt::format("spike trapped with {}", trap.name());
       }
     }
     LOG(INFO) << fmt::format("to_rtl_queue is full now, start to simulate.");
-    while (!to_rtl_queue.empty()) {
-      // TODO: maintain a state machine here based on to_rtl_queue
-      enum {
-          FREE,
-          SEND_MEMORY_RESPONSE,
-      } state = FREE;
-
+    while (!to_rtl_queue.front().is_issued()) {
       // in the RTL thread, for each RTL cycle, valid signals should be checked, generate events, let testbench be able
       // to check the correctness of RTL behavior, benchmark performance signals.
       if(auto rtl_event = rtl_step()) {
-        if (get_simulator_cycle() <= timeout)
-          throw TimeoutException();
-        auto event = *rtl_event;
-        if (event.resp_valid) {
-          LOG(INFO) << fmt::format("instruction committed.");
-          to_rtl_queue.pop();
+        RTLEvent re = *rtl_event;
+        // TODO: if CSR is changed, we need to wait for vector flush.
+        poke_csr_control(to_rtl_queue.back());
+        if (re.commit()) {
+          LOG(INFO) << fmt::format("SpikeEvent {} committed.", to_rtl_queue.back().disam());
+          to_rtl_queue.back().commit();
+          to_rtl_queue.pop_back();
         }
-        if (event.load_valid) {
-          LOG(INFO) << fmt::format("load from memory.");
+        if (re.request()) {
+           for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
+             if (!iter->is_issued()) {
+               iter->issue();
+               poke_instruction(*iter);
+               break;
+             }
+           }
         }
-        if (event.store_valid) {
-          LOG(INFO) << fmt::format("store to memory");
-          // TODO: difftest here
-        }
-        if (event.vrf_write_valid) {
-          LOG(INFO) << fmt::format("write to vrf");
-          // TODO: difftest here
-        }
+//        if (re.load_valid) {
+//          // TODO: based on the RTL event, change se load field:
+//          //       1. based on the load address and srcid, send load data cycle by cycle to RTL with srcid and data
+//          //       2. set corresponding field to ture to avoid multiple load request.
+//          //       3. drive load
+//          LOG(INFO) << fmt::format("load from memory.");
+//        }
+//        if (re.store_valid) {
+//          // TODO: based on the RTL event, change se store field:
+//          //       1. based on the load address and srcid, reply ready and corresponding srcid to master.
+//          //       2. set corresponding field to ture to avoid multiple store request.
+//          //       3. drive store
+//          LOG(INFO) << fmt::format("store to memory");
+//        }
+//        if (re.vrf_write_valid) {
+//          // TODO: based on the RTL event, change se rf field:
+//          //       1. based on the mask and write element, set corresponding element in vrf to written.
+//          LOG(INFO) << fmt::format("write to vrf");
+//        }
         // TODO: maintain the state here.
       }
     }

@@ -6,49 +6,12 @@
 
 #include "VV.h"
 #include "verilated_fst_c.h"
+#include "spikeevent.h"
 #include "mmu.h"
 #include "simple_sim.h"
+#include "RTLEvent.h"
 
 constexpr int numTL = 2;
-
-struct SpikeEvent {
-  uint32_t inst;
-  uint32_t src1;
-  uint32_t src2;
-  uint8_t vlmul;
-  uint8_t vsew;
-  uint8_t vxrm;
-  uint16_t vl;
-  uint16_t vStart;
-  bool vta;
-  bool vma;
-  bool custom_ignore_exception;
-  bool store_buffer_clear;
-  uint64_t load_base_address;
-  std::vector<uint32_t> load_data;
-};
-
-struct RTLEvent {
-  // ready to accept new instructions
-  bool req_ready;
-
-  // Vector to Scalar register write back
-  bool resp_valid;
-  uint32_t resp_data;
-
-  // Memroy load request
-  bool load_valid;
-  uint64_t load_base_address;
-
-  // Memory store request(used for difftest)
-  bool store_valid;
-  uint64_t store_base_address;
-  std::vector<uint32_t> store_data;
-
-  // VRF store event(used for difftest, TODO finish them)
-  bool vrf_write_valid;
-
-};
 
 struct TLBank {
     uint32_t data;
@@ -79,6 +42,8 @@ public:
     void configure_simulator(int argc, char** argv);
     void loop();
     void run();
+    void poke_instruction(SpikeEvent se);
+    void poke_csr_control(SpikeEvent se);
 
 private:
     VerilatedContext ctx;
@@ -95,7 +60,7 @@ private:
     /// record the behavior of this instruction, and send to str_stack.
     /// in the RTL thread, the RTL driver will consume from this queue, drive signal based on the queue.
     /// size of this queue should be as big as enough to make rtl free to run, reducing the context switch overhead.
-    std::queue<SpikeEvent> to_rtl_queue;
+    std::list<SpikeEvent> to_rtl_queue;
 
     const size_t to_rtl_queue_size = 10;
 
@@ -116,7 +81,7 @@ private:
     uint64_t mem_load(uint64_t addr, uint32_t size);
     void mem_store(uint64_t addr, uint32_t size, uint64_t data);
 
-    std::optional<SpikeEvent> create_spike_event(state_t *state, insn_fetch_t fetch);
+    std::optional<SpikeEvent> create_spike_event(processor_t &proc, insn_fetch_t fetch);
     void init_spike();
     void init_simulator();
     void terminate_simulator();
