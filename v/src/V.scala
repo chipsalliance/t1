@@ -249,7 +249,11 @@ class V(param: VParam) extends Module {
   }
 
   // 连 tile link
-  tlPort.zip(lsu.tlPort).foreach { case (source, sink) => sink <> source }
+  tlPort.zip(lsu.tlPort).foreach { case (source, sink) =>
+    val dBuffer = Queue(source.d, 1, flow = true)
+    sink <> source
+    sink.d <> dBuffer
+  }
   // 暂时直接连lsu的写,后续需要处理scheduler的写
   vrfWrite.zip(lsu.vrfWritePort).foreach { case (sink, source) => sink <> source }
 
