@@ -133,6 +133,7 @@ void VBridgeImpl::loop() {
             : TLOpCode::AccessAck;
         TL(i, d_valid) = true;
         TL(i, d_bits_data) = banks[i].data;
+        TL(i, d_bits_sink) = banks[i].source;
         banks[i].clear();
         LOG(INFO) << fmt::format("[{}] send vector TL response (bank={}, op={}, data={:X})", ctx.time(), i, (int)banks[i].op, banks[i].data);
       }
@@ -160,10 +161,12 @@ void VBridgeImpl::loop() {
         uint32_t data = TL(i, a_bits_data);
         uint32_t addr = TL(i, a_bits_address);
         uint32_t size = TL(i, a_bits_size);
+        uint32_t source = TL(i, a_bits_source);
         if (TL(i, a_bits_opcode) == TLOpCode::Get) {  // Get
           banks[i].op = TLBank::opType::Get;
           banks[i].data = mem_load(addr, size);
           banks[i].remainingCycles = memCycles;  // TODO: more sophisticated model
+          banks[i].source = source;
           LOG(INFO) << fmt::format("[{}] receive TL Get(addr={:X})", ctx.time(), addr);
         } else if (TL(i, a_bits_opcode) == TLOpCode::PutFullData) {  // PutFullData
           mem_store(addr, size, data);

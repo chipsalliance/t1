@@ -10,6 +10,7 @@ constexpr int numTL = 2;
 
 struct TLBank {
     uint32_t data;
+    uint16_t source;
     enum class opType {
         Nil, Get, PutFullData
     } op;
