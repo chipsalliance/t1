@@ -76,7 +76,7 @@ class MSHR(param: MSHRParam) extends Module {
   val reqDone: UInt = RegInit(0.U(param.lsuGroupLength.W))
   val segMask: UInt = RegInit(0.U(8.W))
   // 还没有d通道回应的请求
-  val respDone:   UInt = RegInit(0.U(param.lsuGroupSize.W))
+  val respDone:   UInt = RegInit(0.U(param.lsuGroupLength.W))
   val respFinish: Bool = respDone === 0.U
 
   val idle :: sRequest :: wResp :: Nil = Enum(3)
@@ -193,9 +193,11 @@ class MSHR(param: MSHRParam) extends Module {
   vrfWritePort.bits.last := last
   vrfWritePort.bits.instIndex := requestReg.instIndex
 
+  val sourceUpdate: UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.lsuGroupLength.W))
+  val sinkUpdate: UInt = Mux(tlPort.d.fire, respSinkOH, 0.U(param.lsuGroupLength.W))
   // 更新 respDone
-  when(tlPort.d.fire && tlPort.a.fire && !requestReg.instInf.st) {
-    respDone := (respDone | reqSource1H) & (~respSinkOH).asUInt
+  when((tlPort.d.fire || tlPort.a.fire) && !requestReg.instInf.st) {
+    respDone := (respDone | sourceUpdate) & (~sinkUpdate).asUInt
   }
 
   // state 更新
