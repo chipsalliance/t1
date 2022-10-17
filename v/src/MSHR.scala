@@ -144,7 +144,7 @@ class MSHR(param: MSHRParam) extends Module {
 
   // 选出 offset
   val offsetEEW: UInt = requestReg.instInf.eew
-  val bytIndex:  UInt = (reqNextIndex << offsetEEW).asUInt
+  val bytIndex:  UInt = (reqNextIndex << offsetEEW).asUInt(reqNextIndex.getWidth - 1, 0)
   val indexOffsetNext: UInt =
     (VecInit(indexOffset.map(_.bits)).asUInt >> (bytIndex ## 0.U(3.W))).asUInt(param.ELEN - 1, 0)
   val offsetValidCheck: Bool = (VecInit(indexOffset.map(_.valid)).asUInt >> (bytIndex >> 2).asUInt).asUInt(0)
