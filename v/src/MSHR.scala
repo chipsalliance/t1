@@ -178,7 +178,7 @@ class MSHR(param: MSHRParam) extends Module {
   reqValid := stateReady && dataReady
 
   // 处理回应
-  val last:       Bool = WireDefault(false.B)
+  val last:       Bool = (groupIndex ## bytIndex) >= csrInterface.vl
   val respSinkOH: UInt = UIntToOH(tlPort.d.bits.sink(4, 0))
   vrfWritePort.valid := tlPort.d.valid
   tlPort.d.ready := true.B
@@ -202,16 +202,24 @@ class MSHR(param: MSHRParam) extends Module {
 
   // state 更新
   val nextGroupIndex: UInt = Mux(req.valid, 0.U, groupIndex + 1.U) //todo: vstart
-  when(state === sRequest && status.groupEnd) {
-    when(respFinish) {
-      when(last) {
+  when(state === sRequest) {
+    when(last) {
+      when(respFinish) {
         state := idle
       }.otherwise {
-        groupIndex := nextGroupIndex
-        newGroup := true.B
+        state := wResp
       }
-    }.otherwise {
-      state := wResp
+    }.elsewhen(status.groupEnd) {
+      when(respFinish) {
+        when(last) {
+          state := idle
+        }.otherwise {
+          groupIndex := nextGroupIndex
+          newGroup := true.B
+        }
+      }.otherwise {
+        state := wResp
+      }
     }
   }
 
