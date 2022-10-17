@@ -89,8 +89,9 @@ class LSU(param: LSUParam) extends Module {
   val tileChannelReady: IndexedSeq[Bool] = getArbiter.map(_.asUInt.orR)
 
   val tryToAckData: Vec[UInt] = Wire(Vec(param.tlBank, UInt(param.mshrSize.W)))
+  val readyArbiter:   Vec[Vec[Bool]] = Wire(Vec(param.tlBank, Vec(param.mshrSize, Bool())))
   val ackArbiter:   Vec[Vec[Bool]] = Wire(Vec(param.tlBank, Vec(param.mshrSize, Bool())))
-  val ackReady:     IndexedSeq[Bool] = ackArbiter.map(_.asUInt.orR)
+  val ackReady:     IndexedSeq[Bool] = readyArbiter.map(_.asUInt.orR)
 
   val tryToWriteData:   Vec[UInt] = Wire(Vec(param.mshrSize, UInt(param.lane.W)))
   val writeDataArbiter: Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.lane, Bool())))
@@ -126,8 +127,9 @@ class LSU(param: LSUParam) extends Module {
     // d
     tryToAckData.map(_(index)).zipWithIndex.foldLeft(false.B) {
       case (occupied, (tryToUse, i)) =>
-        ackArbiter(i)(index) := tryToUse && !occupied
-        occupied || tryToUse
+        ackArbiter(i)(index) := tryToUse && !occupied && tlPort(i).d.valid
+        readyArbiter(i)(index) := !occupied
+        occupied || (tryToUse && tlPort(i).d.valid)
     }
 
     val selectResp: TLChannelD = Mux(ackArbiter.head(index), tlPort.head.d.bits, tlPort.last.d.bits)
@@ -193,7 +195,7 @@ class LSU(param: LSUParam) extends Module {
       mshrVec.map(_.tlPort.a.bits.source)
     ) ## sourceExtend
     // d 试图回应
-    tryToAckData(bankID) := Mux(tlPort(bankID).d.valid, tlDSinkOH(bankID), 0.U)
+    tryToAckData(bankID) := tlDSinkOH(bankID)
     tlPort(bankID).d.ready := ackReady(bankID) || tlPort(bankID).d.bits.opcode === 0.U
   }
 }
