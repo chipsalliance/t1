@@ -104,21 +104,17 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
       val cmakefilelist = T.dest / "CMakeLists.txt"
       val verilatorArgs = Seq(
         // format: off
-        "-Wno-UNOPTTHREADS", "-Wno-STMTDLY", "-Wno-LATCH",
         "--x-assign unique",
         "--output-split 20000",
         "--output-split-cfuncs 20000",
         "--max-num-width 1048576",
-        "--trace-fst"
         // format: on
       ).mkString(" ")
-      val topName = rtls().collectFirst {
-        case f if f.path.ext == "fir" => f.path.baseName
-      }
+      val topName = "V"
       val cmakefilelistString =
       // format: off
         s"""cmake_minimum_required(VERSION 3.20)
-           |project(${topName.get})
+           |project(${topName})
            |include_directories(${(spike.millSourcePath / "riscv").toString})
            |include_directories(${(spike.millSourcePath / "fesvr").toString})
            |include_directories(${(spike.millSourcePath / "softfloat").toString})
@@ -132,19 +128,27 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
            |
            |find_package(verilator)
            |set(CMAKE_CXX_STANDARD 17)
+           |set(CMAKE_CXX_COMPILER_ID "clang")
            |set(CMAKE_C_COMPILER "clang")
            |set(CMAKE_CXX_COMPILER "clang++")
            |set(CMAKE_BUILD_TYPE "Debug")
            |find_package(Threads)
            |set(THREADS_PREFER_PTHREAD_FLAG ON)
-           |add_executable(${topName.get}
-           |  ${allCSourceFiles().map(_.path).map(_.toString).mkString("\n")}
+           |add_executable(${topName}
+           |${allCSourceFiles().map(_.path).map(_.toString).mkString("\n")}
            |)
-           |target_link_libraries(${topName.get} PRIVATE $${CMAKE_THREAD_LIBS_INIT})
-           |target_link_libraries(${topName.get} PRIVATE riscv fmt glog args)
+           |target_link_libraries(${topName} PRIVATE $${CMAKE_THREAD_LIBS_INIT})
+           |target_link_libraries(${topName} PRIVATE riscv fmt glog args)
            |
-           |verilate(${topName.get}
-           |  SOURCES ${rtls().filter(f => f.path.ext == "v" || f.path.ext == "sv").map(_.path.toString).mkString(" ")}
+           |set(VSOURCES
+           |${rtls().filter(f => f.path.ext == "v" || f.path.ext == "sv").map(_.path.toString).mkString("\n")}
+           |)
+           |verilate(${topName}
+           |  SOURCES $$VSOURCES}
+           |  TRACE_FST
+           |  TOP_MODULE ${topName}
+           |  OPT_FAST
+           |  THREADS 16
            |  VERILATOR_ARGS $verilatorArgs
            |)
            |""".stripMargin
@@ -168,7 +172,7 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
         "ninja"
         // format: on
       ).call(T.dest)
-      val elf = T.dest / topName.get
+      val elf = T.dest / topName
       T.log.info(s"verilated exe generated: ${elf.toString}")
       PathRef(elf)
     }

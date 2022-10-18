@@ -1,27 +1,25 @@
 package v.elaborate
 
-import mainargs._
-
-import chisel3._
 import chisel3.aop.Select
 import chisel3.aop.injecting.InjectingAspect
-import chisel3.experimental.{ChiselAnnotation, annotate}
 import chisel3.stage.ChiselGeneratorAnnotation
-import firrtl.annotations.Annotation
+import circt.stage.{CIRCTHandover, CIRCTTarget, CIRCTTargetAnnotation, ChiselStage, FirtoolOption}
+import firrtl.{AnnotationSeq, ChirrtlEmitter, EmitAllModulesAnnotation}
 import firrtl.options.TargetDirAnnotation
-import firrtl.stage.{OutputFileAnnotation, RunFirrtlTransformAnnotation}
-import firrtl.transforms.TopWiring.TopWiringTransform
-import firrtl.{AnnotationSeq, VerilogEmitter}
-import os.Path
+import logger.{LogLevel, LogLevelAnnotation}
+import mainargs._
 import v.{V, VRF}
 
 object Main {
   @main def elaborate(@arg(name="dir") dir: String) = {
-    val annotations = Seq(new chisel3.stage.ChiselStage).foldLeft(
+    val annotations = Seq(new ChiselStage).foldLeft(
       Seq(
         TargetDirAnnotation(dir),
+        EmitAllModulesAnnotation(classOf[ChirrtlEmitter]),
+        CIRCTTargetAnnotation(CIRCTTarget.SystemVerilog),
+        FirtoolOption(s"""-O=debug"""),
+        CIRCTHandover(CIRCTHandover.CHIRRTL),
         ChiselGeneratorAnnotation(() => new v.V(v.VParam())),
-        RunFirrtlTransformAnnotation(new TopWiringTransform),
         InjectingAspect(
           { dut: V =>
             Select.collectDeep(dut) {
@@ -29,16 +27,10 @@ object Main {
             }
           },
           { vrf: VRF => {
-            val debug = Wire(chiselTypeOf(vrf.write)).suggestName("_debug")
-            debug := vrf.write
-            annotate(new ChiselAnnotation {
-              override def toFirrtl: Annotation =
-                firrtl.transforms.TopWiring.TopWiringAnnotation(debug.toTarget, "verilator_debug_")
-            })
+            chisel3.experimental.Trace.traceName(vrf.write)
           }
           }
         ),
-        RunFirrtlTransformAnnotation(new VerilogEmitter)
       ): AnnotationSeq
     ) { case (annos, stage) => stage.transform(annos) }
   }
