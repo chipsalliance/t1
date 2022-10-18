@@ -104,9 +104,7 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
       val cmakefilelist = T.dest / "CMakeLists.txt"
       val verilatorArgs = Seq(
         // format: off
-        "--x-assign unique",
-        "--output-split 20000",
-        "--output-split-cfuncs 20000",
+        "--output-split 100000",
         "--max-num-width 1048576",
         // format: on
       ).mkString(" ")
@@ -140,15 +138,15 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
            |target_link_libraries(${topName} PRIVATE $${CMAKE_THREAD_LIBS_INIT})
            |target_link_libraries(${topName} PRIVATE riscv fmt glog args)
            |
-           |set(VSOURCES
-           |${rtls().filter(f => f.path.ext == "v" || f.path.ext == "sv").map(_.path.toString).mkString("\n")}
-           |)
+
            |verilate(${topName}
-           |  SOURCES $$VSOURCES}
+           |  SOURCES
+           |${rtls().filter(f => f.path.ext == "v" || f.path.ext == "sv").map(_.path.toString).mkString("\n")}
            |  TRACE_FST
            |  TOP_MODULE ${topName}
+           |  PREFIX V${topName}
            |  OPT_FAST
-           |  THREADS 16
+           |  THREADS 8
            |  VERILATOR_ARGS $verilatorArgs
            |)
            |""".stripMargin
