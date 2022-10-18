@@ -273,10 +273,9 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto &xr = proc.get_state()->XPR;
   if (event) {
     auto &se = event.value();
+    // collect info to drive RTL
     se.log_reset();
     se.assign_instruction(fetch.insn.bits());
-    se.get_mask();
-    state->pc = fetch.func(&proc, fetch.insn, state->pc);
     se.set_src1(xr[fetch.insn.rs1()]);
     se.set_src2(xr[fetch.insn.rs2()]);
     se.set_vlmul((uint8_t) proc.VU.vflmul);
@@ -285,11 +284,16 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
     se.set_vma(proc.VU.vma);
     se.set_vl((uint16_t) proc.VU.vl->read());
     se.set_vstart((uint16_t) proc.VU.vstart->read());
+    se.get_mask();
+    // step spike
+    state->pc = fetch.func(&proc, fetch.insn, state->pc);
+    // todo: collect info for difftest
+
     se.log();
   } else {
     // LOG(INFO) << fmt::format("before vl print: {}, pc: {}, ins:{}, src1:{}, getvlen:{}", (uint16_t) proc.VU.vl->read(),state->pc,fetch.insn.bits(),xr[fetch.insn.rs1()],proc.VU.get_vlen());
     // LOG(INFO) << fmt::format("PC: {}, ASM: {:032b}, DISASM: {}", state->pc, fetch.insn.bits() , proc.get_disassembler()->disassemble(fetch.insn.bits()));
-    // change pc
+    // step spike
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
     // LOG(INFO) << fmt::format("the vl print: {}", (uint16_t) proc.VU.vl->read());
   }
@@ -297,6 +301,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   return event;
 }
 
+// return solid RTLEvent only when instruction is issued or  is committed
 std::optional<RTLEvent> VBridgeImpl::rtl_step() {
   // tick clock
   rtl_tick();
@@ -392,6 +397,32 @@ std::optional<RTLEvent> VBridgeImpl::create_rtl_event() {
   auto re = RTLEvent();
   re.request_ready(top.req_ready);
   re.commit_ready(top.resp_valid);
+  //set load_valid
+//  if (top.tlPort_0_a_valid ){//tlport enable
+//    if(top.tlPort_0_a_bits_opcode == 4){
+//      re.set_load_valid(true);
+//      re.set_load_base_address(top.tlPort_0_a_bits_address);
+//    }
+//    else if(top.tlPort_0_a_bits_opcode == 0){
+//      re.set_store_valid(top.tlPort_0_a_valid);
+//      re.set_store_base_address(top.tlPort_0_a_bits_address);
+//      re.set_store_data(top.tlPort_0_a_bits_data);
+//    }
+//  }
+//
+//  if (top.tlPort_1_a_valid ){//tlport enable
+//    if(top.tlPort_1_a_bits_opcode == 4){
+//      re.set_load_valid(true);
+//      re.set_load_base_address(top.tlPort_1_a_bits_address);
+//    }
+//    else if(top.tlPort_1_a_bits_opcode == 0){
+//      re.set_store_valid(top.tlPort_1_a_valid);
+//      re.set_store_base_address(top.tlPort_1_a_bits_address);
+//      re.set_store_data(top.tlPort_1_a_bits_data);
+//    }
+//  }
+
+
   if(re.request() || re.commit() ) {
     return re;
   }
@@ -431,6 +462,7 @@ void VBridgeImpl::poke_csr_control(SpikeEvent se) {
   top.storeBufferClear = true;
   // poke valid signals to false
   top.req_bits_inst = false;
+  top.req_valid = false;
 }
 
 void VBridgeImpl::run() {
@@ -451,19 +483,24 @@ void VBridgeImpl::run() {
       }
     }
     LOG(INFO) << fmt::format("to_rtl_queue is full now, start to simulate.");
+    // loop when the head of the list is unissued
     while (!to_rtl_queue.front().get_issued()) {
       // in the RTL thread, for each RTL cycle, valid signals should be checked, generate events, let testbench be able
       // to check the correctness of RTL behavior, benchmark performance signals.
+
+      //
       if(auto rtl_event = rtl_step()) {
         RTLEvent re = *rtl_event;
         // TODO: if CSR is changed, we need to wait for vector flush.
+        // drive RTL csr from se
         poke_csr_control(to_rtl_queue.back());
+        // if this RTLEvent is commit, pop the se in back
         if (re.commit()) {
           LOG(INFO) << fmt::format("SpikeEvent {} committed.", to_rtl_queue.back().disam());
           to_rtl_queue.back().commit();
           to_rtl_queue.pop_back();
         }
-        // rtl is ready for Queue
+        // if rtl is ready for Queue, poke instruction to RTL and set se as issued
         if (re.request()) {
            for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
              if (!iter->get_issued()) {
