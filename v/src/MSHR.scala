@@ -30,7 +30,7 @@ case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: I
 class MSHRStatus(lane: Int) extends Bundle {
   val instIndex:     UInt = UInt(3.W)
   val idle:          Bool = Bool()
-  val groupEnd:      Bool = Bool()
+  val indexGroupEnd: Bool = Bool()
   val targetLane:    UInt = UInt(8.W)
   val waitFirstResp: Bool = Bool()
   val last:          Bool = Bool()
@@ -160,7 +160,10 @@ class MSHR(param: MSHRParam) extends Module {
   // 拉回 indexOffset valid
   val indexLaneMask:  UInt = UIntToOH(bytIndex(4, 2))
   val indexExhausted: Bool = Mux1H(UIntToOH(offsetEEW)(2, 0), Seq(bytIndex(1, 0).andR, bytIndex(1), true.B))
-  status.groupEnd := indexLaneMask(7) && indexExhausted && tlPort.a.fire && indexOffset.last.valid
+  // 正常的需要在bytIndex.andR的时候切换状态去等待回应
+  val groupEnd:       Bool = bytIndex.andR && tlPort.a.fire
+  // index 类型的需要在最后一份index被耗尽的时候就跳状态, 以通知lane读下一组index过来.
+  status.indexGroupEnd := indexLaneMask(7) && indexExhausted && tlPort.a.fire && indexOffset.last.valid
   indexOffset.zipWithIndex.foreach {
     case (d, i) =>
       offsetUsed(i) := segExhausted && indexLaneMask(i) && indexExhausted
@@ -213,7 +216,7 @@ class MSHR(param: MSHRParam) extends Module {
       }.otherwise {
         state := wResp
       }
-    }.elsewhen(status.groupEnd) {
+    }.elsewhen(groupEnd) {
       when(respFinish) {
         when(lastReq) {
           state := idle
