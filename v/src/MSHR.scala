@@ -56,6 +56,7 @@ class MSHR(param: MSHRParam) extends Module {
   // 进请求
   val requestReg:    LSUReq = RegEnable(req.bits, 0.U.asTypeOf(req.bits), req.valid)
   val groupIndex:    UInt = RegInit(0.U(param.lsuGroupSizeBits.W))
+  val nextGroupIndex:UInt = Mux(req.valid, 0.U, groupIndex + 1.U) //todo: vstart
   val firstReq:      Bool = RegEnable(req.valid, false.B, req.valid || tlPort.a.fire)
   val waitFirstResp: Bool = RegEnable(req.valid && req.bits.instInf.fof, false.B, req.valid || tlPort.d.fire)
 
@@ -174,16 +175,17 @@ class MSHR(param: MSHRParam) extends Module {
 
   // stall 判断
   val stateCheck: Bool = state === sRequest
+  // 如果状态是wResp,为了让回应能寻址会暂时不更新groupIndex，但是属于groupIndex的请求已经发完了
+  val elementID:  UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## bytIndex
+  val last:       Bool = elementID >= csrInterface.vl
   val maskCheck:  Bool = !maskType || !maskReq
   val indexCheck: Bool = !indexType || offsetValidCheck
   val fofCheck:   Bool = firstReq || !waitFirstResp
   val dataReady:  Bool = !requestReg.instInf.st || readDataPort.ready
-  val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck && sourceFree
+  val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck && sourceFree && !last
   reqValid := stateReady && dataReady
 
   // 处理回应
-  val last:       Bool = (groupIndex ## bytIndex) >= csrInterface.vl
-  val lastReq:    Bool = last && tlPort.a.fire
   // todo: 这里能工作，但是时间点不那么准确
   val lastResp:   Bool = last && tlPort.d.fire// && (respDone & (~respSinkOH).asUInt) === 0.U
   val respSinkOH: UInt = UIntToOH(tlPort.d.bits.sink(4, 0))
@@ -197,7 +199,7 @@ class MSHR(param: MSHRParam) extends Module {
   )
   vrfWritePort.bits.eew := dataEEW
   vrfWritePort.bits.data := tlPort.d.bits.data
-  vrfWritePort.bits.last := lastReq
+  vrfWritePort.bits.last := last
   vrfWritePort.bits.instIndex := requestReg.instIndex
 
   val sourceUpdate: UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.lsuGroupLength.W))
@@ -208,9 +210,8 @@ class MSHR(param: MSHRParam) extends Module {
   }
 
   // state 更新
-  val nextGroupIndex: UInt = Mux(req.valid, 0.U, groupIndex + 1.U) //todo: vstart
   when(state === sRequest) {
-    when(lastReq) {
+    when(last) {
       when(respFinish) {
         state := idle
       }.otherwise {
@@ -218,12 +219,8 @@ class MSHR(param: MSHRParam) extends Module {
       }
     }.elsewhen(groupEnd) {
       when(respFinish) {
-        when(lastReq) {
-          state := idle
-        }.otherwise {
-          groupIndex := nextGroupIndex
-          newGroup := true.B
-        }
+        groupIndex := nextGroupIndex
+        newGroup := true.B
       }.otherwise {
         state := wResp
       }
@@ -231,7 +228,7 @@ class MSHR(param: MSHRParam) extends Module {
   }
 
   when(state === wResp && respFinish) {
-    when(lastReq) {
+    when(last) {
       state := idle
     }.otherwise {
       state := sRequest
