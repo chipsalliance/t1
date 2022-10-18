@@ -101,11 +101,33 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
     def csources = T.source { millSourcePath / "csrcs" }
     def allCSourceFiles = T { Lib.findSourceFiles(Seq(csources()), Seq("S", "s", "c", "cpp", "cc")).map(PathRef(_)) }
     def verilated = T {
+      val f = ujson.read(os.read(rtls().collectFirst{
+        case f if (f.path.ext == "json") => f.path
+      }.get))
+      val targets = f.arr.flatMap {
+        case anno if anno("class").str == "chisel3.experimental.Trace$TraceAnnotation" =>
+          Some(anno("target").str)
+        case _ => None
+      }.toSet
+      //public_flat_ro [-module "<modulename>"] [-task/-function "<taskname>"]  -var "<signame>" "@(edge)"
+      val configs = targets.map { t =>
+        val s = t.split("/").last
+        val M = s.split(">").head.split(":").last
+        val S = s.split(">").last
+        s"""public_flat_rd -module "$M" -var "$S""""
+      }
+      val verilatorConfig = T.dest / "verilator.vlt"
+      os.write(verilatorConfig,
+        s"""`verilator_config
+           |${configs.mkString("\n")}
+           |""".stripMargin)
+
       val cmakefilelist = T.dest / "CMakeLists.txt"
       val verilatorArgs = Seq(
         // format: off
         "--output-split 100000",
         "--max-num-width 1048576",
+        "--vpi"
         // format: on
       ).mkString(" ")
       val topName = "V"
@@ -142,6 +164,7 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
            |verilate(${topName}
            |  SOURCES
            |${rtls().filter(f => f.path.ext == "v" || f.path.ext == "sv").map(_.path.toString).mkString("\n")}
+           |${verilatorConfig}
            |  TRACE_FST
            |  TOP_MODULE ${topName}
            |  PREFIX V${topName}

@@ -1,0 +1,30 @@
+diff --git a/src/main/scala/circt/stage/phases/MaybeSFC.scala b/src/main/scala/circt/stage/phases/MaybeSFC.scala
+index e6de9fa4de..c023043c46 100644
+--- a/src/main/scala/circt/stage/phases/MaybeSFC.scala
++++ b/src/main/scala/circt/stage/phases/MaybeSFC.scala
+@@ -4,6 +4,7 @@ package circt.stage.phases
+ 
+ import circt.stage.{CIRCTHandover, CIRCTOptions}
+ 
++import chisel3.aop.injecting.InjectingTransform
+ import firrtl.AnnotationSeq
+ import firrtl.options.{Dependency, Phase}
+ import firrtl.options.Viewer.view
+@@ -18,7 +19,16 @@ class MaybeSFC extends Phase {
+ 
+   override def transform(annotations: AnnotationSeq) = {
+     val sfcAnnotations: Option[AnnotationSeq] = view[CIRCTOptions](annotations).handover.get match {
+-      case CIRCTHandover.CHIRRTL      => None
++      case CIRCTHandover.CHIRRTL      => if (annotations.exists {
++        // TODO[jiuyang]: This is a hotfix to ask SFC to resolve AOP.
++        //                Eventually, I think AOP should be moved to an early stage which out a custom firrl transform
++        //                [[chisel3.aop.injecting.InjectingTransform]]
++        case _: chisel3.aop.injecting.InjectStatement => true
++        case _ => false
++      }) Some(Seq(
++        RunFirrtlTransformAnnotation(new firrtl.ChirrtlEmitter),
++        RunFirrtlTransformAnnotation(new InjectingTransform)
++      )) else None
+       case CIRCTHandover.HighFIRRTL   => Some(Seq(RunFirrtlTransformAnnotation(new firrtl.HighFirrtlEmitter)))
+       case CIRCTHandover.MiddleFIRRTL => Some(Seq(RunFirrtlTransformAnnotation(new firrtl.MiddleFirrtlEmitter)))
+       case CIRCTHandover.LowFIRRTL    => Some(Seq(RunFirrtlTransformAnnotation(new firrtl.LowFirrtlEmitter)))

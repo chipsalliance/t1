@@ -44,7 +44,6 @@ public:
     void run();
     void poke_instruction(SpikeEvent se);
     void poke_csr_control(SpikeEvent se);
-
 private:
     VerilatedContext ctx;
     VV top;

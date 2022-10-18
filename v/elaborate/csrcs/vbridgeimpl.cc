@@ -9,6 +9,7 @@
 #include "util.h"
 #include "exceptions.h"
 #include "RTLEvent.h"
+#include "verilated_vpi.h"
 
 void TLBank::step() {
   if (remainingCycles > 0) remainingCycles--;
@@ -343,6 +344,8 @@ std::optional<RTLEvent> VBridgeImpl::create_rtl_event() {
   auto re = RTLEvent();
   re.request_ready(top.req_ready);
   re.commit_ready(top.resp_valid);
+  auto vpi_handler = vpi_handle_by_name((PLI_BYTE8*)"TOP.V.laneVec_7.vrf.write_valid", NULL);
+  assert(vpi_handler);
   //set load_valid
 //  if (top.tlPort_0_a_valid ){//tlport enable
 //    if(top.tlPort_0_a_bits_opcode == 4){
