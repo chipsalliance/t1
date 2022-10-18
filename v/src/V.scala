@@ -125,8 +125,8 @@ class V(param: VParam) extends Module {
   // 指令的状态维护
   val instStateVec: Seq[InstControl] = Seq.tabulate(param.chainingSize) { index =>
     val control = RegInit((-1).S(new InstControl(param).getWidth.W).asTypeOf(new InstControl(param)))
-    val lsuLast: Bool = lsu.vrfWritePort.head.valid && lsu.vrfWritePort.head.bits.last &&
-      lsu.vrfWritePort.head.bits.instIndex === control.record.instIndex
+    val lsuLast: Bool = lsu.lastReport.valid &&
+      lsu.lastReport.bits === control.record.instIndex
     // 指令进来
     when(req.fire && instEnq(index)) {
       control.record.instIndex := instCount

@@ -33,6 +33,7 @@ class MSHRStatus(lane: Int) extends Bundle {
   val groupEnd:      Bool = Bool()
   val targetLane:    UInt = UInt(8.W)
   val waitFirstResp: Bool = Bool()
+  val last:          Bool = Bool()
 }
 
 class MSHR(param: MSHRParam) extends Module {
@@ -179,6 +180,9 @@ class MSHR(param: MSHRParam) extends Module {
 
   // 处理回应
   val last:       Bool = (groupIndex ## bytIndex) >= csrInterface.vl
+  val lastReq:    Bool = last && tlPort.a.fire
+  // todo: 这里能工作，但是时间点不那么准确
+  val lastResp:   Bool = last && tlPort.d.fire// && (respDone & (~respSinkOH).asUInt) === 0.U
   val respSinkOH: UInt = UIntToOH(tlPort.d.bits.sink(4, 0))
   vrfWritePort.valid := tlPort.d.valid
   tlPort.d.ready := true.B
@@ -190,7 +194,7 @@ class MSHR(param: MSHRParam) extends Module {
   )
   vrfWritePort.bits.eew := dataEEW
   vrfWritePort.bits.data := tlPort.d.bits.data
-  vrfWritePort.bits.last := last
+  vrfWritePort.bits.last := lastReq
   vrfWritePort.bits.instIndex := requestReg.instIndex
 
   val sourceUpdate: UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.lsuGroupLength.W))
@@ -203,7 +207,7 @@ class MSHR(param: MSHRParam) extends Module {
   // state 更新
   val nextGroupIndex: UInt = Mux(req.valid, 0.U, groupIndex + 1.U) //todo: vstart
   when(state === sRequest) {
-    when(last) {
+    when(lastReq) {
       when(respFinish) {
         state := idle
       }.otherwise {
@@ -211,7 +215,7 @@ class MSHR(param: MSHRParam) extends Module {
       }
     }.elsewhen(status.groupEnd) {
       when(respFinish) {
-        when(last) {
+        when(lastReq) {
           state := idle
         }.otherwise {
           groupIndex := nextGroupIndex
@@ -224,7 +228,7 @@ class MSHR(param: MSHRParam) extends Module {
   }
 
   when(state === wResp && respFinish) {
-    when(last) {
+    when(lastReq) {
       state := idle
     }.otherwise {
       state := sRequest
@@ -239,6 +243,7 @@ class MSHR(param: MSHRParam) extends Module {
   }
   status.instIndex := requestReg.instIndex
   status.idle := state === idle
+  status.last := lastResp
   status.targetLane := 1.U
   status.waitFirstResp := waitFirstResp
   maskSelect.bits := groupIndex
