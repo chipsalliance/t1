@@ -195,7 +195,7 @@ VBridgeImpl::VBridgeImpl() :
     isa("rv32gcv", "M"),
     proc(
         /*isa*/ &isa,
-        /*varch*/ "vlen:128,elen:32",
+        /*varch*/ "vlen:1024,elen:32",
         /*sim*/ &sim,
         /*id*/ 0,
         /*halt on reset*/ true,
@@ -270,15 +270,28 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
   auto fetch = proc.get_mmu()->load_insn(state->pc);
   auto event = create_spike_event(proc, fetch);
+  auto &xr = proc.get_state()->XPR;
   if (event) {
     auto &se = event.value();
     se.log_reset();
     se.assign_instruction(fetch.insn.bits());
     se.get_mask();
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
+    se.set_src1(xr[fetch.insn.rs1()]);
+    se.set_src2(xr[fetch.insn.rs2()]);
+    se.set_vlmul((uint8_t) proc.VU.vflmul);
+    se.set_vsew((uint8_t) proc.VU.vsew);
+    se.set_vta(proc.VU.vta);
+    se.set_vma(proc.VU.vma);
+    se.set_vl((uint16_t) proc.VU.vl->read());
+    se.set_vstart((uint16_t) proc.VU.vstart->read());
     se.log();
   } else {
+    // LOG(INFO) << fmt::format("before vl print: {}, pc: {}, ins:{}, src1:{}, getvlen:{}", (uint16_t) proc.VU.vl->read(),state->pc,fetch.insn.bits(),xr[fetch.insn.rs1()],proc.VU.get_vlen());
+    // LOG(INFO) << fmt::format("PC: {}, ASM: {:032b}, DISASM: {}", state->pc, fetch.insn.bits() , proc.get_disassembler()->disassemble(fetch.insn.bits()));
+    // change pc
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
+    // LOG(INFO) << fmt::format("the vl print: {}", (uint16_t) proc.VU.vl->read());
   }
 
   return event;
@@ -425,6 +438,7 @@ void VBridgeImpl::run() {
   init_simulator();
   // start loop
   while (true) {
+    // when queue is not full
     while (to_rtl_queue.size() < to_rtl_queue_size) {
       try {
         if(auto spike_event = spike_step()) {
@@ -437,7 +451,7 @@ void VBridgeImpl::run() {
       }
     }
     LOG(INFO) << fmt::format("to_rtl_queue is full now, start to simulate.");
-    while (!to_rtl_queue.front().is_issued()) {
+    while (!to_rtl_queue.front().get_issued()) {
       // in the RTL thread, for each RTL cycle, valid signals should be checked, generate events, let testbench be able
       // to check the correctness of RTL behavior, benchmark performance signals.
       if(auto rtl_event = rtl_step()) {
@@ -449,9 +463,10 @@ void VBridgeImpl::run() {
           to_rtl_queue.back().commit();
           to_rtl_queue.pop_back();
         }
+        // rtl is ready for Queue
         if (re.request()) {
            for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
-             if (!iter->is_issued()) {
+             if (!iter->get_issued()) {
                iter->issue();
                poke_instruction(*iter);
                break;

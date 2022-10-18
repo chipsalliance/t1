@@ -14,7 +14,7 @@ public:
   SpikeEvent(processor_t &proc): _proc(proc) {};
   void log_reset();
   /// return true if this instruction has been issued.(may not be commited)
-  bool is_issued();
+  bool get_issued();
   /// issue this instruction.
   void issue();
   /// difftest, check all works has been done.
@@ -42,9 +42,24 @@ public:
   void assign_instruction(uint32_t instruction);
   void get_mask();
   void log();
+
+  void set_inst(uint32_t instruction);
+  void set_src1(uint32_t src1);
+  void set_src2(uint32_t src2);
+  void set_vsew(uint8_t vsew);
+  void set_vlmul(uint8_t vlmul);
+  void set_vma(bool vma);
+  void set_vta(bool vta);
+  /// todo: void set_vill(uint32_t vsew);
+  void set_vl(uint32_t vl);
+  void set_vstart(uint16_t vstart);
+  void set_vxrm(uint8_t vxrm);
+
 private:
   processor_t &_proc;
   // set when req_ready
+  // false: not issued ready
+  // true : has been issued
   bool _issue;
   // instruction(used for driver, this field is always vaild)
   uint64_t _pc;

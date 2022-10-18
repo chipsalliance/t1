@@ -5,7 +5,7 @@
 #include "disasm.h"
 
 
-bool SpikeEvent::is_issued() {
+bool SpikeEvent::get_issued() {
   return !_issue;
 }
 
@@ -14,7 +14,7 @@ void SpikeEvent::commit() {
 }
 
 void SpikeEvent::issue() {
-  assert(!is_issued());
+  assert(!get_issued());
   _issue = true;
 }
 uint32_t SpikeEvent::instruction() {
@@ -53,6 +53,37 @@ bool SpikeEvent::vxsat() {
   return _vxsat;
 }
 
+void SpikeEvent::set_inst(uint32_t instruction){
+  _inst = instruction;
+}
+void SpikeEvent::set_src1(uint32_t src1){
+  _src1 = src1;
+}
+void SpikeEvent::set_src2(uint32_t src2){
+  _src2 = src2;
+}
+
+void SpikeEvent::set_vsew(uint8_t vsew){
+  _vsew = vsew;
+}
+void SpikeEvent::set_vlmul(uint8_t vlmul){
+  _vlmul = vlmul;
+}
+void SpikeEvent::set_vma(bool vma){
+  _vma = vma;
+}
+void SpikeEvent::set_vta(bool vta){
+  _vta = vta;
+}
+void SpikeEvent::set_vl(uint32_t vl){
+  _vl = vl;
+}
+void SpikeEvent::set_vxrm(uint8_t vxrm){
+  _vxrm = vxrm;
+}
+void SpikeEvent::set_vstart(uint16_t vstart) {
+  _vstart = vstart;
+}
 
 std::string SpikeEvent::disam() {
   return fmt::format("PC: {}, ASM: {:032b}, DISASM: {}", _pc, _inst, _proc.get_disassembler()->disassemble(_inst));
