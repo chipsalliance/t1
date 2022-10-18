@@ -125,6 +125,8 @@ class V(param: VParam) extends Module {
   // 指令的状态维护
   val instStateVec: Seq[InstControl] = Seq.tabulate(param.chainingSize) { index =>
     val control = RegInit((-1).S(new InstControl(param).getWidth.W).asTypeOf(new InstControl(param)))
+    val lsuLast: Bool = lsu.vrfWritePort.head.valid && lsu.vrfWritePort.head.bits.last &&
+      lsu.vrfWritePort.head.bits.instIndex === control.record.instIndex
     // 指令进来
     when(req.fire && instEnq(index)) {
       control.record.instIndex := instCount
@@ -133,15 +135,19 @@ class V(param: VParam) extends Module {
       control.state.wLast := false.B
       control.state.sCommit := false.B
       control.endTag := VecInit(Seq.fill(param.lane)(noReadLD) :+ !isLSType)
-    }
-    when(control.endTag.asUInt.andR) {
-      control.state.wLast := true.B
-    }
-    when(respCount === control.record.instIndex && resp.fire) {
-      control.state.sCommit := true.B
-    }
-    when(control.state.sCommit && control.state.sExecute) {
-      control.state.idle := true.B
+    }.otherwise {
+      when(control.endTag.asUInt.andR) {
+        control.state.wLast := true.B
+      }
+      when(respCount === control.record.instIndex && resp.fire) {
+        control.state.sCommit := true.B
+      }
+      when(control.state.sCommit && control.state.sExecute) {
+        control.state.idle := true.B
+      }
+      control.endTag.zip(lastVec.map(_ (index)) :+ lsuLast).foreach {
+        case (d, c) => d := d || c
+      }
     }
     // 把有数据交换的指令放在特定的位置,因为会ffo填充,所以放最后面
     if (index == (param.chainingSize - 1)) {
@@ -158,11 +164,6 @@ class V(param: VParam) extends Module {
         feedBack := 0.U
       }
       synchronize := feedBack.andR
-    }
-    val lsuLast: Bool = lsu.vrfWritePort.head.valid && lsu.vrfWritePort.head.bits.last &&
-      lsu.vrfWritePort.head.bits.instIndex === control.record.instIndex
-    control.endTag.zip(lastVec.map(_(index)) :+ lsuLast).foreach {
-      case (d, c) => d := d || c
     }
     control
   }
@@ -275,7 +276,7 @@ class V(param: VParam) extends Module {
   // 处理deq
   {
     val deq: Vec[Bool] = VecInit(instStateVec.map { inst =>
-      inst.state.sExecute && inst.state.wLast && !inst.state.sCommit && inst.record.instIndex === nextRespCount
+      inst.state.sExecute && inst.state.wLast && !inst.state.sCommit && inst.record.instIndex === respCount
     })
     resp.valid := deq.asUInt.orR
     respValid := deq.last
