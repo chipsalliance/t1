@@ -11,6 +11,12 @@
 
 class RTLEvent {
 public:
+  // couple with input bits
+  void request_ready();
+
+
+
+  // deprecate
   void request_ready(bool signal);
   void commit_ready(bool signal);
   bool request();

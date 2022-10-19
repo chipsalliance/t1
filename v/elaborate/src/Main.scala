@@ -8,7 +8,7 @@ import firrtl.{AnnotationSeq, ChirrtlEmitter, EmitAllModulesAnnotation}
 import firrtl.options.TargetDirAnnotation
 import logger.{LogLevel, LogLevelAnnotation}
 import mainargs._
-import v.{V, VRF}
+import v.{LSU, V, VRF}
 
 object Main {
   @main def elaborate(@arg(name="dir") dir: String) = {
@@ -16,7 +16,7 @@ object Main {
       Seq(
         TargetDirAnnotation(dir),
         EmitAllModulesAnnotation(classOf[ChirrtlEmitter]),
-        CIRCTTargetAnnotation(CIRCTTarget.SystemVerilog),
+        CIRCTTargetAnnotation(CIRCTTarget.Verilog),
         FirtoolOption(s"""-O=debug"""),
         CIRCTHandover(CIRCTHandover.CHIRRTL),
         ChiselGeneratorAnnotation(() => new v.V(v.VParam())),
@@ -26,10 +26,15 @@ object Main {
               case vrf: VRF => vrf
             }
           },
-          { vrf: VRF => {
-            chisel3.experimental.Trace.traceName(vrf.write)
-          }
-          }
+          { vrf: VRF =>chisel3.experimental.Trace.traceName(vrf.write.valid) }
+        ),
+        InjectingAspect(
+          { dut: V =>
+            Select.collectDeep(dut) {
+              case lsu: LSU => lsu
+            }
+          },
+          { lsu: LSU => chisel3.experimental.Trace.traceName(lsu.reqEnq) }
         ),
       ): AnnotationSeq
     ) { case (annos, stage) => stage.transform(annos) }

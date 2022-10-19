@@ -95,7 +95,7 @@ void SpikeEvent::set_vstart(uint16_t vstart) {
 }
 
 std::string SpikeEvent::disam() {
-  return fmt::format("PC: {}, ASM: {:032b}, DISASM: {}", _pc, _inst, _proc.get_disassembler()->disassemble(_inst));
+  return fmt::format("PC: {:X}, ASM: {:08X}, DISASM: {}", _pc, _inst, _proc.get_disassembler()->disassemble(_inst));
 }
 
 void SpikeEvent::log_reset() {

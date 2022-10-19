@@ -125,6 +125,7 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
       val cmakefilelist = T.dest / "CMakeLists.txt"
       val verilatorArgs = Seq(
         // format: off
+        "--x-initial unique",
         "--output-split 100000",
         "--max-num-width 1048576",
         "--vpi"
