@@ -18,7 +18,9 @@ public:
   /// issue this instruction.
   void issue();
   /// difftest, check all works has been done.
+  void reset_issue();
   void commit();
+  void reset_commit();
   /// PC
   uint64_t pc();
   /// instruction disam
@@ -61,6 +63,7 @@ private:
   // false: not issued ready
   // true : has been issued
   bool _issue;
+  bool _commit;
   // instruction(used for driver, this field is always vaild)
   uint64_t _pc;
   uint64_t _mask;

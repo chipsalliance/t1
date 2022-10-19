@@ -285,6 +285,8 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
     se.set_vl((uint16_t) proc.VU.vl->read());
     se.set_vstart((uint16_t) proc.VU.vstart->read());
     se.get_mask();
+    se.reset_issue();
+    se.reset_commit();
     // step spike
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
     // todo: collect info for difftest
@@ -476,6 +478,7 @@ void VBridgeImpl::run() {
         if(auto spike_event = spike_step()) {
           auto se = spike_event.value();
           LOG(INFO) << fmt::format("enqueue Spike Event: {}", se.disam());
+          //LOG(INFO) << fmt::format("issue: {}", se.get_issued());
           to_rtl_queue.push_front(se);
         }
       } catch (trap_t& trap) {
@@ -494,22 +497,29 @@ void VBridgeImpl::run() {
         // TODO: if CSR is changed, we need to wait for vector flush.
         // drive RTL csr from se
         poke_csr_control(to_rtl_queue.back());
-        // if this RTLEvent is commit, pop the se in back
+        // if we find top.resp.valid is 1, pop the se in back
         if (re.commit()) {
           LOG(INFO) << fmt::format("SpikeEvent {} committed.", to_rtl_queue.back().disam());
           to_rtl_queue.back().commit();
           to_rtl_queue.pop_back();
         }
         // if rtl is ready for Queue, poke instruction to RTL and set se as issued
-        if (re.request()) {
-           for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
-             if (!iter->get_issued()) {
-               iter->issue();
-               poke_instruction(*iter);
-               break;
-             }
-           }
+        LOG(INFO) << fmt::format("1111");
+        for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
+
+          if (!iter->get_issued()) {
+            LOG(INFO) << fmt::format("when we find a un-issued se ,pc: {}", iter->pc());
+            // try to issue
+            poke_instruction(*iter);
+            // issue success
+            if (re.request()) {
+              iter->issue();
+              LOG(INFO) << fmt::format("issue se ,pc: {}",  iter->pc());
+            }
+            break;
+          }
         }
+
 //        if (re.load_valid) {
 //          // TODO: based on the RTL event, change se load field:
 //          //       1. based on the load address and srcid, send load data cycle by cycle to RTL with srcid and data

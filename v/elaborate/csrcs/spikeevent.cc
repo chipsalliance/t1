@@ -5,18 +5,27 @@
 #include "disasm.h"
 
 
+// return false: not issued
+//        true: has been issued
 bool SpikeEvent::get_issued() {
-  return !_issue;
+  return _issue;
+}
+void SpikeEvent::issue() {
+  assert(_issue == false);
+  _issue = true;
+}
+void SpikeEvent::reset_issue() {
+  _issue =  false;
 }
 
 void SpikeEvent::commit() {
   // TODO: check this event is finished.
 }
-
-void SpikeEvent::issue() {
-  assert(!get_issued());
-  _issue = true;
+void SpikeEvent::reset_commit(){
+  _commit = false;
 }
+
+
 uint32_t SpikeEvent::instruction() {
   return _inst;
 }
