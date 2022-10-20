@@ -99,8 +99,9 @@ class V(param: VParam) extends Module {
   val isLSType: Bool = !req.bits.inst(6)
   val isST:     Bool = !req.bits.inst(6) && req.bits.inst(5)
   val isLD:     Bool = !req.bits.inst(6) && !req.bits.inst(5)
-  // todo：noReadST
-  val noReadLD: Bool = isLD && (!req.bits.inst(26))
+
+  val noReadST: Bool = isLSType && (!req.bits.inst(26))
+  val indexTypeLS: Bool = isLSType && req.bits.inst(26)
 
   // todo: 是否广播给所有单元
   val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(param.maskGroupSize)(0.U(param.maskGroupWidth.W))))
@@ -119,8 +120,9 @@ class V(param: VParam) extends Module {
   nextInstType.viota := decodeResFormat.otherUnit && decodeResFormat.uop(3) && decodeResFormatExt.viota
   nextInstType.red := !decodeResFormat.otherUnit && decodeResFormat.red
   nextInstType.other := DontCare
-  // 是否在lane与schedule之间有数据交换,todo: decode
-  val specialInst: Bool = nextInstType.asUInt.orR
+  val maskType: Bool = nextInstType.asUInt.orR
+  // 是否在lane与schedule/lsu之间有数据交换,todo: decode
+  val specialInst: Bool = maskType || indexTypeLS
 
   // 指令的状态维护
   val instStateVec: Seq[InstControl] = Seq.tabulate(param.chainingSize) { index =>
@@ -134,7 +136,8 @@ class V(param: VParam) extends Module {
       control.state.idle := false.B
       control.state.wLast := false.B
       control.state.sCommit := false.B
-      control.endTag := VecInit(Seq.fill(param.lane)(noReadLD) :+ !isLSType)
+      // lsu index 类的指令做然会进lane,但是lane不好计算是否结束(index 有eew),所以是lsu来通知结束的
+      control.endTag := VecInit(Seq.fill(param.lane)(isLSType) :+ !isLSType)
     }.otherwise {
       when(control.endTag.asUInt.andR) {
         control.state.wLast := true.B
@@ -153,7 +156,7 @@ class V(param: VParam) extends Module {
     if (index == (param.chainingSize - 1)) {
       val feedBack: UInt = RegInit(0.U(param.lane.W))
       when(req.fire && instEnq(index)) {
-        control.state.sExecute := !specialInst
+        control.state.sExecute := !maskType
         instType := nextInstType
       }.elsewhen(respValid && control.state.wLast) {
         control.state.sExecute := true.B
@@ -178,6 +181,10 @@ class V(param: VParam) extends Module {
   val laneReady:     Vec[Bool] = Wire(Vec(param.lane, Bool()))
   //  需要等待所有的的准备好,免得先ready的会塞进去多个一样的指令
   val allLaneReady: Bool = laneReady.asUInt.andR
+  // todo: 把scheduler的反馈也加上,lsu有更高的优先级
+  val laneFeedBackValid: Bool = lsu.lsuOffsetReq
+  // todo:同样要加上scheduler的
+  val laneComplete: Bool = lsu.lastReport.valid && lsu.lastReport.bits === instStateVec.last.record.instIndex
 
   // lsu的写有限级更高
   val vrfWrite: Vec[ValidIO[VRFWriteRequest]] = Wire(Vec(param.lane, Valid(new VRFWriteRequest(param.vrfParam))))
@@ -185,7 +192,7 @@ class V(param: VParam) extends Module {
   val laneVec: Seq[Lane] = Seq.tabulate(param.lane) { index =>
     val lane: Lane = Module(new Lane(param.laneParam))
     // 请求,
-    lane.laneReq.valid := scheduleReady && req.valid && !noReadLD && allLaneReady
+    lane.laneReq.valid := req.fire && !noReadST && allLaneReady
     lane.laneReq.bits.instIndex := instCount
     lane.laneReq.bits.decodeResult := decodeResult
     lane.laneReq.bits.vs1 := req.bits.inst(19, 15)
@@ -193,14 +200,15 @@ class V(param: VParam) extends Module {
     lane.laneReq.bits.vd := req.bits.inst(11, 7)
     lane.laneReq.bits.readFromScalar := req.bits.src1Data
     lane.laneReq.bits.ls := isLSType
+    lane.laneReq.bits.sp := specialInst
 //    lane.laneReq.bits.st := isST
     laneReady(index) := lane.laneReq.ready
 
     lane.csrInterface := csrInterface
     lane.laneIndex := index.U
 
-    lane.feedback.valid := DontCare //todo
-    lane.feedback.bits.complete := DontCare //todo
+    lane.feedback.valid := laneFeedBackValid
+    lane.feedback.bits.complete := laneComplete
     lane.feedback.bits.instIndex := instStateVec.last.record.instIndex
 
     lane.readDataPort <> lsu.readDataPorts(index)
@@ -221,7 +229,7 @@ class V(param: VParam) extends Module {
   laneVec.map(_.dataToScheduler).zip(next).foreach { case (source, sink) => sink := source.valid && !source.bits.toLSU }
 
   // 连lsu
-  lsu.req.valid := scheduleReady && req.valid && isLSType
+  lsu.req.valid := req.fire && isLSType
   lsu.req.bits.instIndex := instCount
   lsu.req.bits.rs1Data := req.bits.src1Data
   lsu.req.bits.rs2Data := req.bits.src2Data
@@ -268,7 +276,7 @@ class V(param: VParam) extends Module {
     // 有一个空闲的本地坑
     val localReady = Mux(specialInst, instStateVec.map(_.state.idle).last, freeOR)
     // 远程坑就绪
-    val executionReady = (!isLSType || lsu.req.ready) && (noReadLD || allLaneReady)
+    val executionReady = (!isLSType || lsu.req.ready) && (noReadST || allLaneReady)
     req.ready := executionReady && localReady
     instEnq := Mux(req.ready, tryToEnq, 0.U)
   }

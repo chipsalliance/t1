@@ -93,6 +93,7 @@ class LaneReq(param: LaneParameters) extends Bundle {
   val readFromScalar: UInt = UInt(param.ELEN.W)
 
   val ls: Bool = Bool()
+  val sp: Bool = Bool()
 
   def initState: InstGroupState = {
     val res:                InstGroupState = Wire(new InstGroupState(param))
@@ -103,9 +104,10 @@ class LaneReq(param: LaneParameters) extends Bundle {
     res.sReadVD := !(decodeResFormat.firstWiden || (decodeResFormat.mulUnit && decodeResFormat.uop(1, 0).orR))
     res.wRead1 := !decodeResFormat.firstWiden
     res.wRead2 := !decodeResFormat.firstWiden
-    res.wScheduler := !decodeResFormat.otherUnit
+    res.wScheduler := !sp
     res.sExecute := false.B
-    res.wExecuteRes := false.B
+    //todo: red
+    res.wExecuteRes := sp
     res.sWrite := decodeResFormat.otherUnit && decodeResFormatExt.targetRD
     res.sCrossWrite0 := !decodeResFormat.Widen
     res.sCrossWrite1 := !decodeResFormat.Widen
@@ -152,6 +154,7 @@ class InstControlRecord(param: LaneParameters) extends Bundle {
   val state:               InstGroupState = new InstGroupState(param)
   val initState:           InstGroupState = new InstGroupState(param)
   val counter:             UInt = UInt(param.VLMaxWidth.W)
+  val schedulerComplete:   Bool = Bool()
 }
 
 class LaneCsrInterface(vlWidth: Int) extends Bundle {
@@ -451,9 +454,11 @@ class Lane(param: LaneParameters) extends Module {
       // 往scheduler的执行任务compress viota
       val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(param)))
       // todo: 往外发的数据满读
+
       // viota & compress & ls 需要给外边数据, 结束的时候无条件通知一次
-      val maskValid: Bool = (decodeResFormat.otherUnit && ((decodeResFormat.uop(3) && decodeResFormatExt.viota)
-        || (decodeResFormat.uop === 5.U))) || record.originalInformation.ls || instWillComplete(index)
+      val maskType: Bool = (record.originalInformation.sp || record.originalInformation.ls || instWillComplete(index)) &&
+        controlActive(index)
+      val maskValid = maskType && record.state.sRead2 && !record.state.sExecute
       maskRequest.data := finalSource2
       maskRequest.toLSU := record.originalInformation.ls
       maskRequest.instIndex := record.originalInformation.instIndex
@@ -466,7 +471,7 @@ class Lane(param: LaneParameters) extends Module {
       }
       instTypeVec(index) := record.originalInformation.instType
       executeEnqValid(index) := maskAnd(readFinish, instTypeVec(index))
-      when((instTypeVec(index) & executeEnqFire).orR) {
+      when((instTypeVec(index) & executeEnqFire).orR || maskValid) {
         record.state.sExecute := true.B
       }
 
@@ -493,6 +498,13 @@ class Lane(param: LaneParameters) extends Module {
         }.otherwise {
           record.state := record.initState
           record.counter := nextCounter
+        }
+      }
+      when(feedback.bits.complete && feedback.bits.instIndex === record.originalInformation.instIndex) {
+        // 例如:别的lane找到了第一个1
+        record.schedulerComplete := true.B
+        when(record.originalInformation.sp) {
+          controlValid(index) := false.B
         }
       }
   }
@@ -632,6 +644,7 @@ class Lane(param: LaneParameters) extends Module {
   entranceControl.originalInformation := laneReq.bits
   entranceControl.state := laneReq.bits.initState
   entranceControl.initState := laneReq.bits.initState
+  entranceControl.schedulerComplete := false.B
   // todo: vStart(2,0) > lane index
   entranceControl.counter := (csrInterface.vStart >> 3).asUInt
   val vs1entrance: UInt =

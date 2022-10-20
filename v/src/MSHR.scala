@@ -164,7 +164,8 @@ class MSHR(param: MSHRParam) extends Module {
   // 正常的需要在bytIndex.andR的时候切换状态去等待回应
   val groupEnd:       Bool = bytIndex.andR && tlPort.a.fire
   // index 类型的需要在最后一份index被耗尽的时候就跳状态, 以通知lane读下一组index过来.
-  status.indexGroupEnd := indexLaneMask(7) && indexExhausted && tlPort.a.fire && indexOffset.last.valid
+  status.indexGroupEnd := indexType && indexLaneMask(7) && indexExhausted &&
+    tlPort.a.fire && indexOffset.last.valid
   indexOffset.zipWithIndex.foreach {
     case (d, i) =>
       offsetUsed(i) := segExhausted && indexLaneMask(i) && indexExhausted
