@@ -91,6 +91,7 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
   return fetch;
 }
 
+
 void VBridgeImpl::loop() {
   // TODO: check state correctness
 
@@ -374,14 +375,65 @@ void VBridgeImpl::run() {
       top.eval();
       tfp.dump(ctx.time());
       ctx.timeInc(1);
+      // assign index for the corresponding se; then clear need_index
 
+      auto lsu_req_enq_slot0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_0", NULL);
+      s_vpi_value lsu_req_enq_slot0_value;
+      lsu_req_enq_slot0_value.format = vpiIntVal;
+      vpi_get_value(lsu_req_enq_slot0, &lsu_req_enq_slot0_value);
+      auto lsu_req_enq_slot1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_1", NULL);
+      s_vpi_value lsu_req_enq_slot1_value;
+      lsu_req_enq_slot1_value.format = vpiIntVal;
+      vpi_get_value(lsu_req_enq_slot1, &lsu_req_enq_slot1_value);
+      auto lsu_req_enq_slot2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_2", NULL);
+      s_vpi_value lsu_req_enq_slot2_value;
+      lsu_req_enq_slot2_value.format = vpiIntVal;
+      vpi_get_value(lsu_req_enq_slot2, &lsu_req_enq_slot2_value);
+
+
+
+        // find the first se  with need_lsu_index
+        for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
+          if (iter->need_lsu_index()) {
+            // TODO: decode top.reqEnq to get index
+            uint8_t index = 0;
+            if(lsu_req_enq_slot0_value.value.integer == 1){
+              index = 1;
+            } else if(lsu_req_enq_slot1_value.value.integer == 1){
+              index = 2;
+            }else if(lsu_req_enq_slot2_value.value.integer == 1){
+              index = 3;
+            }
+
+            //set index in se
+            iter->set_lsu_index(index);
+            // clear need_lsu_index bit
+            iter->clr_need_lsu_index();
+            LOG(INFO) << fmt::format("slot {} is occupied by DSAM: {}", index,iter->disam());
+
+            break;
+          }
+        }
+
+
+      // poke instruction to RTL
+      // recognize load-store instruction, set need_index and assign slot index later
       for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
         if (!iter->get_issued()) {
           // try to issue
           top.req_bits_inst = iter->instruction();
+          // if it's a load-store; set need_lsu_index in SpikeEvent
+          uint32_t opcode = clip(iter->instruction(), 0, 6);
+          auto load_type = opcode == 0b111;
+          auto store_type = opcode == 0b100111;
+          if(load_type || store_type){
+            iter->set_need_lsu_index();
+            LOG(INFO) << fmt::format(" need lsu index in {}",iter->disam());
+          }
           break;
         }
       }
+      // drive CSR
       top.csrInterface_vSew = se.vsew();
       top.csrInterface_vlmul = se.vlmul();
       top.csrInterface_vma = se.vma();
@@ -419,18 +471,11 @@ void VBridgeImpl::run() {
         }
       }
 
-      auto lsu_req_enq_slot0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_0", NULL);
-      s_vpi_value lsu_req_enq_slot0_value;
-      lsu_req_enq_slot0_value.format = vpiIntVal;
-      vpi_get_value(lsu_req_enq_slot0, &lsu_req_enq_slot0_value);
-      auto lsu_req_enq_slot1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_1", NULL);
-      s_vpi_value lsu_req_enq_slot1_value;
-      lsu_req_enq_slot1_value.format = vpiIntVal;
-      vpi_get_value(lsu_req_enq_slot1, &lsu_req_enq_slot1_value);
-      auto lsu_req_enq_slot2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_2", NULL);
-      s_vpi_value lsu_req_enq_slot2_value;
-      lsu_req_enq_slot2_value.format = vpiIntVal;
-      vpi_get_value(lsu_req_enq_slot2, &lsu_req_enq_slot2_value);
+
+
+
+
+
 
       if (top.resp_valid) {
         LOG(INFO) << fmt::format("Commit {:X}", to_rtl_queue.back().pc());
@@ -449,6 +494,7 @@ void VBridgeImpl::run() {
         //       2. set corresponding field to ture to avoid multiple load request.
         //       3. drive load
         LOG(INFO) << fmt::format("load from memory.");
+
       }
       if (put) {
         // TODO: based on the RTL event, change se store field:
@@ -457,6 +503,41 @@ void VBridgeImpl::run() {
         //       3. drive store
         LOG(INFO) << fmt::format("store to memory");
       }
+
+      bool p0_store = top.tlPort_0_a_valid && (top.tlPort_0_a_bits_opcode == 0);
+      bool p1_store = top.tlPort_1_a_valid && (top.tlPort_1_a_bits_opcode == 0);
+      bool p0_load = top.tlPort_0_a_valid && (top.tlPort_0_a_bits_opcode == 4);
+      bool p1_load = top.tlPort_1_a_valid && (top.tlPort_1_a_bits_opcode == 4);
+      //todo: ensure there aren't load and store in one port
+
+      if(p0_load){
+        LOG(INFO) << fmt::format("Find a port 0 load ins");
+        for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
+          if (iter->lsu_index() == 2) {
+            LOG(INFO) << fmt::format("SUCCESS ");
+            for(auto item: iter->log_mem_queue){
+              uint64_t addr = std::get<0>(item);
+              uint64_t value = mem_load(std::get<0>(item),std::get<2>(item)-1);
+              uint8_t size =  std::get<2>(item);
+              LOG(INFO) << fmt::format(" load addr, load back value, size = {:X}, {}, {}", addr,value,size);
+            }
+
+            
+            break;
+          }
+        }
+      }
+      if(p0_store){
+        LOG(INFO) << fmt::format("Find a port 0 store ins");
+      }
+      if(p1_load){
+        LOG(INFO) << fmt::format("Find a port 1 load ins");
+      }
+      if(p1_store){
+        LOG(INFO) << fmt::format("Find a port 1 store ins");
+      }
+
+
 
       auto csr_write0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_0.vrf.write_valid", NULL);
       s_vpi_value csr_write_valid_vpi_value0;

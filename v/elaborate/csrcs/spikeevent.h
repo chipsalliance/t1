@@ -9,6 +9,8 @@
 #include "mmu.h"
 #include "simple_sim.h"
 
+typedef std::vector<std::tuple<reg_t, uint64_t, uint8_t>> commit_log_mem_t;
+
 class SpikeEvent {
 public:
   SpikeEvent(processor_t &proc): _proc(proc) {};
@@ -38,6 +40,9 @@ public:
   uint8_t vxrm();
   bool vxsat();
 
+  bool need_lsu_index();
+  uint8_t lsu_index();
+
 
 
 
@@ -57,7 +62,19 @@ public:
   void set_vstart(uint16_t vstart);
   void set_vxrm(uint8_t vxrm);
 
+  void set_lsu_index(uint8_t index);
+  void set_need_lsu_index();
+  void clr_need_lsu_index();
+
+  commit_log_mem_t mem_read_info;
+
+  uint64_t mem_load(uint64_t addr, uint32_t size);
+
+  std::vector<std::tuple<uint64_t, uint64_t, uint8_t>> log_mem_queue;
+
 private:
+  bool _need_lsu_index;
+  uint8_t _index;
   processor_t &_proc;
   // set when req_ready
   // false: not issued ready
