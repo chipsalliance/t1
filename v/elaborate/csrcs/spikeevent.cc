@@ -104,8 +104,20 @@ void SpikeEvent::set_vstart(uint16_t vstart) {
 }
 
 void SpikeEvent::assign_instruction(uint32_t instruction) {
+  auto clip = [&](uint32_t inst, int a, int b){
+    return (inst>> a) & ((1 << (b - a + 1)) - 1);
+  };
   _pc = _proc.get_state()->pc;
   _inst = instruction;
+  uint32_t opcode = clip(_inst, 0, 6);
+  _load = opcode == 0b111;
+  _store = opcode == 0b100111;
+}
+bool SpikeEvent::is_load() {
+  return _load;
+}
+bool SpikeEvent::is_store() {
+  return _store;
 }
 
 void SpikeEvent::set_lsu_index(uint8_t value) {

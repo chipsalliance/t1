@@ -34,45 +34,25 @@ TLBank::TLBank() {
 void VBridgeImpl::reset() {
   top.clock = 0;
   top.reset = 1;
-  ctx.time(0);
   top.eval();
-  tfp.dump(ctx.time());
-  ctx.timeInc(1);
+  tfp.dump(0);
 
   // posedge
-  top.clock = !top.clock;
+  top.clock = 1;
   top.eval();
-  tfp.dump(ctx.time());
-  ctx.timeInc(1);
+  tfp.dump(1);
 
   // negedge
-  top.clock = !top.clock;
-  top.eval();
-  tfp.dump(ctx.time());
-  ctx.timeInc(1);
-
-  // posedge
-  top.clock = !top.clock;
   top.reset = 0;
+  top.clock = 0;
   top.eval();
-  tfp.dump(ctx.time());
-  ctx.timeInc(1);
-}
-
-void VBridgeImpl::rtl_tick() {
-  top.clock = !top.clock;
+  tfp.dump(2);
+  // posedge
+  top.reset = 0;
+  top.clock = 1;
   top.eval();
-  tfp.dump(ctx.time());
-  ctx.timeInc(1);
-
-  top.clock = !top.clock;
-  top.eval();
-  tfp.dump(ctx.time());
-  ctx.timeInc(1);
-}
-
-uint64_t VBridgeImpl::rtl_cycle() {
-  return ctx.time() / 2;
+  tfp.dump(3);
+  ctx.time(2);
 }
 
 void VBridgeImpl::setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles) {
@@ -89,137 +69,6 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
   auto fetch = ic_entry->data;
   assert(ic_entry->tag == state->pc);
   return fetch;
-}
-
-
-void VBridgeImpl::loop() {
-  // TODO: check state correctness
-
-#define TL(i, name) (get_tl_##name((i)))
-  auto state = proc.get_state();
-
-  insn_t unsent_insn;
-  enum {
-    FREE, INSN_NOT_SENT, FULL_OF_INSN
-  } v_state = FREE;
-
-  while (rtl_cycle() <= _cycles) {
-    // run until vector insn
-    if (v_state == FREE) {
-      while (true) {
-        auto f = fetch_proc_insn();
-        auto as = proc.get_disassembler()->disassemble(f.insn);
-        if (is_vector_instr(f.insn.bits())) {
-          unsent_insn = f.insn;
-          v_state = INSN_NOT_SENT;
-
-          LOG(INFO)
-            << fmt::format("[{}] new vector insn at pc={:X}, insn={:X} ({})", ctx.time(), state->pc, f.insn.bits(), as);
-          break;
-        } else {
-          LOG(INFO)
-            << fmt::format("[{}] new scalar insn at pc={:X}, insn={:X} ({})", ctx.time(), state->pc, f.insn.bits(), as);
-          auto new_pc = f.func(&proc, f.insn, state->pc);
-          state->pc = new_pc;
-        }
-      }
-    }
-
-    /* Spike                Vector
-     *        -----rs----->
-     *        ----insn---->
-     * (return mem result)
-     *        -----(D)---->
-     *              (process vector)
-     *              (create mem req)
-     *        <----(A)-----
-     */
-
-    auto &xr = proc.get_state()->XPR;
-    // send insn requests and reg values
-    if (v_state == INSN_NOT_SENT) {
-      top.req_bits_inst = (uint32_t) unsent_insn.bits();
-      top.req_bits_src1Data = (uint32_t) xr[unsent_insn.rs1()];
-      top.req_bits_src2Data = (uint32_t) xr[unsent_insn.rs2()];
-      top.csrInterface_vl = (uint16_t) proc.VU.vl->read();
-      top.csrInterface_vStart = (uint16_t) proc.VU.vstart->read();
-      top.csrInterface_vSew = (uint8_t) proc.VU.vsew;
-      // TODO: not so sure here.
-      // top.csrInterface_vlmul = (uint8_t) proc.VU.vflmul;
-      top.req_valid = true;
-    }
-
-    for (auto &t: banks) t.step();
-
-    // send mem responses
-    for (int i = 0; i < numTL; i++) {
-      // pull down valid signal
-      if (!banks[i].done()) {
-        TL(i, d_valid) = false;
-      }
-
-      if (TL(i, d_ready) && banks[i].done()) {  // when vector accepts mem response
-        TL(i, d_bits_opcode) =
-          banks[i].op == TLBank::opType::Get
-          ? TLOpCode::AccessAckData
-          : TLOpCode::AccessAck;
-        TL(i, d_valid) = true;
-        TL(i, d_bits_data) = banks[i].data;
-        TL(i, d_bits_sink) = banks[i].source;
-        banks[i].clear();
-        LOG(INFO)
-          << fmt::format("[{}] send vector TL response (bank={}, op={}, data={:X})", ctx.time(), i, (int) banks[i].op,
-                         banks[i].data);
-      }
-      // pull up ready signal
-      if (banks[i].ready()) {
-        TL(i, a_ready) = true;  // accept new mem requests
-      }
-    }
-
-    // step vector unit and dump wave
-    // tick clock
-    rtl_tick();
-
-    if (v_state == INSN_NOT_SENT && top.req_ready) {
-      v_state = FULL_OF_INSN;
-      auto f = fetch_proc_insn();
-      state->pc = f.func(&proc, f.insn, state->pc);
-      LOG(INFO) << fmt::format("[{}] succeed to send insn to vector unit", ctx.time());
-    }
-
-    // receive mem requests
-    constexpr int memCycles = 1;
-    for (int i = 0; i < numTL; i++) {
-      if (TL(i, a_ready) && TL(i, a_valid)) {
-        uint32_t data = TL(i, a_bits_data);
-        uint32_t addr = TL(i, a_bits_address);
-        uint32_t size = TL(i, a_bits_size);
-        uint32_t source = TL(i, a_bits_source);
-        if (TL(i, a_bits_opcode) == TLOpCode::Get) {  // Get
-          banks[i].op = TLBank::opType::Get;
-          banks[i].data = mem_load(addr, size);
-          banks[i].remainingCycles = memCycles;  // TODO: more sophisticated model
-          banks[i].source = source;
-          LOG(INFO) << fmt::format("[{}] receive TL Get(addr={:X})", ctx.time(), addr);
-        } else if (TL(i, a_bits_opcode) == TLOpCode::PutFullData) {  // PutFullData
-          mem_store(addr, size, data);
-          banks[i].op = TLBank::opType::PutFullData;
-          banks[i].remainingCycles = memCycles;  // TODO: more sophisticated model
-          LOG(INFO) << fmt::format("[{}] receive TL PutFullData(addr={:X}, data={:X})", ctx.time(), addr, data);
-        } else {
-          assert(false && "not supported tl opType");
-        }
-      }
-    }
-
-    if (top.resp_valid) {
-      // TODO: check whether we should write rd
-      xr.write(unsent_insn.rd(), top.resp_bits_data);
-      LOG(INFO) << fmt::format("[{}] insn {:X} consumed", ctx.time(), unsent_insn.bits());
-      v_state = FREE;  // TODO: now we process instructions one by one, to be optimized later
-    }
-  }
 }
 
 VBridgeImpl::VBridgeImpl() :
@@ -368,161 +217,59 @@ void VBridgeImpl::run() {
     while (!to_rtl_queue.front().get_issued()) {
       // in the RTL thread, for each RTL cycle, valid signals should be checked, generate events, let testbench be able
       // to check the correctness of RTL behavior, benchmark performance signals.
-      auto se = to_rtl_queue.back();
-      // permute Clock
-      // negedge
-      top.clock = !top.clock;
-      top.eval();
-      tfp.dump(ctx.time());
-      ctx.timeInc(1);
-      // assign index for the corresponding se; then clear need_index
-
-      auto lsu_req_enq_slot0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_0", NULL);
-      s_vpi_value lsu_req_enq_slot0_value;
-      lsu_req_enq_slot0_value.format = vpiIntVal;
-      vpi_get_value(lsu_req_enq_slot0, &lsu_req_enq_slot0_value);
-      auto lsu_req_enq_slot1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_1", NULL);
-      s_vpi_value lsu_req_enq_slot1_value;
-      lsu_req_enq_slot1_value.format = vpiIntVal;
-      vpi_get_value(lsu_req_enq_slot1, &lsu_req_enq_slot1_value);
-      auto lsu_req_enq_slot2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_2", NULL);
-      s_vpi_value lsu_req_enq_slot2_value;
-      lsu_req_enq_slot2_value.format = vpiIntVal;
-      vpi_get_value(lsu_req_enq_slot2, &lsu_req_enq_slot2_value);
-
-
-
-        // find the first se  with need_lsu_index
-        for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
-          if (iter->need_lsu_index()) {
-            // TODO: decode top.reqEnq to get index
-            uint8_t index = 0;
-            if(lsu_req_enq_slot0_value.value.integer == 1){
-              index = 1;
-            } else if(lsu_req_enq_slot1_value.value.integer == 1){
-              index = 2;
-            }else if(lsu_req_enq_slot2_value.value.integer == 1){
-              index = 3;
-            }
-
-            //set index in se
-            iter->set_lsu_index(index);
-            // clear need_lsu_index bit
-            iter->clr_need_lsu_index();
-            LOG(INFO) << fmt::format("slot {} is occupied by DSAM: {}", index,iter->disam());
-
-            break;
-          }
-        }
-
-
-      // poke instruction to RTL
-      // recognize load-store instruction, set need_index and assign slot index later
+      SpikeEvent *se = nullptr;
       for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
         if (!iter->get_issued()) {
-          // try to issue
-          top.req_bits_inst = iter->instruction();
-          // if it's a load-store; set need_lsu_index in SpikeEvent
-          uint32_t opcode = clip(iter->instruction(), 0, 6);
-          auto load_type = opcode == 0b111;
-          auto store_type = opcode == 0b100111;
-          if(load_type || store_type){
-            iter->set_need_lsu_index();
-            LOG(INFO) << fmt::format(" need lsu index in {}",iter->disam());
-          }
+          se = &(*iter);
           break;
         }
       }
-      // drive CSR
-      top.csrInterface_vSew = se.vsew();
-      top.csrInterface_vlmul = se.vlmul();
-      top.csrInterface_vma = se.vma();
-      top.csrInterface_vta = se.vta();
-      top.csrInterface_vl = se.vl();
-      top.csrInterface_vStart = se.vstart();
-      top.csrInterface_vxrm = se.vxrm();
+
+      // Stable Poke
+      top.req_valid = true;
+      top.req_bits_inst = se->instruction();
+      top.csrInterface_vSew = se->vsew();
+      top.csrInterface_vlmul = se->vlmul();
+      top.csrInterface_vma = se->vma();
+      top.csrInterface_vta = se->vta();
+      top.csrInterface_vl = se->vl();
+      top.csrInterface_vStart = se->vstart();
+      top.csrInterface_vxrm = se->vxrm();
       top.csrInterface_ignoreException = false;
-      // give event, making this false for some cycles.
       top.storeBufferClear = true;
+
+      // drive instruction
       top.tlPort_0_a_ready = true;
       top.tlPort_1_a_ready = true;
 
-      // posedge, update all registers
-      top.clock = !top.clock;
+      // Make sure any combinatorial logic depending upon inputs that may have changed before we called tick() has settled before the rising edge of the clock.
+      top.clock = 1;
       top.eval();
-      tfp.dump(ctx.time());
-      ctx.timeInc(1);
 
-      // based on the result of this cycle, poke signals for next cycle
-      for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
-        if (!iter->get_issued()) {
-          top.req_valid = true;
-          break;
-        }
+      // Instruction issued, top.req_ready deps on top.req_bits_inst
+      if (top.req_ready) {
+        se->issue();
+        LOG(INFO) << fmt::format("Issue {:X}", se->pc());
       }
 
-      for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
-        if (!iter->get_issued()) {
-          if (top.req_ready) {
-            LOG(INFO) << fmt::format("Issue {:X}", iter->pc());
-            iter->issue();
-          }
-          break;
-        }
-      }
-
-
-
-
-
-
-
-      if (top.resp_valid) {
-        LOG(INFO) << fmt::format("Commit {:X}", to_rtl_queue.back().pc());
-        to_rtl_queue.back().commit();
-        to_rtl_queue.pop_back();
-      }
-
-      auto put = (top.tlPort_0_a_valid && (top.tlPort_0_a_bits_opcode == 0)) ||
-                  (top.tlPort_1_a_valid && (top.tlPort_1_a_bits_opcode == 0));
-      auto get = (top.tlPort_0_a_valid && (top.tlPort_0_a_bits_opcode == 4)) ||
-                   (top.tlPort_1_a_valid && (top.tlPort_1_a_bits_opcode == 4));
-
-      if (get) {
-        // TODO: based on the RTL event, change se load field:
-        //       1. based on the load address and srcid, send load data cycle by cycle to RTL with srcid and data
-        //       2. set corresponding field to ture to avoid multiple load request.
-        //       3. drive load
-        LOG(INFO) << fmt::format("load from memory.");
-
-      }
-      if (put) {
-        // TODO: based on the RTL event, change se store field:
-        //       1. based on the load address and srcid, reply ready and corresponding srcid to master.
-        //       2. set corresponding field to ture to avoid multiple store request.
-        //       3. drive store
-        LOG(INFO) << fmt::format("store to memory");
-      }
-
+      // top.tlPort_0_a_valid deps on top.tlPort_0_a_ready
+      // top.tlPort_1_a_valid deps on top.tlPort_1_a_ready
       bool p0_store = top.tlPort_0_a_valid && (top.tlPort_0_a_bits_opcode == 0);
       bool p1_store = top.tlPort_1_a_valid && (top.tlPort_1_a_bits_opcode == 0);
       bool p0_load = top.tlPort_0_a_valid && (top.tlPort_0_a_bits_opcode == 4);
       bool p1_load = top.tlPort_1_a_valid && (top.tlPort_1_a_bits_opcode == 4);
-      //todo: ensure there aren't load and store in one port
 
       if(p0_load){
-        LOG(INFO) << fmt::format("Find a port 0 load ins");
+        auto lsu_index = top.tlPort_0_a_bits_source & 3;
+        LOG(INFO) << fmt::format("Find a port 0 load from slot {}", lsu_index);
         for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
-          if (iter->lsu_index() == 2) {
-            LOG(INFO) << fmt::format("SUCCESS ");
+          if (iter->lsu_index() == lsu_index) {
             for(auto item: iter->log_mem_queue){
               uint64_t addr = std::get<0>(item);
               uint64_t value = mem_load(std::get<0>(item),std::get<2>(item)-1);
               uint8_t size =  std::get<2>(item);
               LOG(INFO) << fmt::format(" load addr, load back value, size = {:X}, {}, {}", addr,value,size);
             }
-
-            
             break;
           }
         }
@@ -537,56 +284,111 @@ void VBridgeImpl::run() {
         LOG(INFO) << fmt::format("Find a port 1 store ins");
       }
 
-
-
-      auto csr_write0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_0.vrf.write_valid", NULL);
-      s_vpi_value csr_write_valid_vpi_value0;
-      csr_write_valid_vpi_value0.format = vpiIntVal;
-      vpi_get_value(csr_write0, &csr_write_valid_vpi_value0);
-      auto csr_write1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_1.vrf.write_valid", NULL);
-      s_vpi_value csr_write_valid_vpi_value1;
-      csr_write_valid_vpi_value1.format = vpiIntVal;
-      vpi_get_value(csr_write1, &csr_write_valid_vpi_value1);
-      auto csr_write2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_2.vrf.write_valid", NULL);
-      s_vpi_value csr_write_valid_vpi_value2;
-      csr_write_valid_vpi_value2.format = vpiIntVal;
-      vpi_get_value(csr_write2, &csr_write_valid_vpi_value2);
-      auto csr_write3 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_3.vrf.write_valid", NULL);
-      s_vpi_value csr_write_valid_vpi_value3;
-      csr_write_valid_vpi_value3.format = vpiIntVal;
-      vpi_get_value(csr_write3, &csr_write_valid_vpi_value3);
-      auto csr_write4 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_4.vrf.write_valid", NULL);
-      s_vpi_value csr_write_valid_vpi_value4;
-      csr_write_valid_vpi_value4.format = vpiIntVal;
-      vpi_get_value(csr_write4, &csr_write_valid_vpi_value4);
-      auto csr_write5 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_5.vrf.write_valid", NULL);
-      s_vpi_value csr_write_valid_vpi_value5;
-      csr_write_valid_vpi_value5.format = vpiIntVal;
-      vpi_get_value(csr_write5, &csr_write_valid_vpi_value5);
-      auto csr_write6 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_6.vrf.write_valid", NULL);
-      s_vpi_value csr_write_valid_vpi_value6;
-      csr_write_valid_vpi_value6.format = vpiIntVal;
-      vpi_get_value(csr_write6, &csr_write_valid_vpi_value6);
-      auto csr_write7 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_7.vrf.write_valid", NULL);
-      s_vpi_value csr_write_valid_vpi_value7;
-      csr_write_valid_vpi_value7.format = vpiIntVal;
-      vpi_get_value(csr_write7, &csr_write_valid_vpi_value7);
-      auto csr_write_valid =
-        csr_write_valid_vpi_value0.value.integer
-        || csr_write_valid_vpi_value1.value.integer
-        || csr_write_valid_vpi_value2.value.integer
-        || csr_write_valid_vpi_value3.value.integer
-        || csr_write_valid_vpi_value4.value.integer
-        || csr_write_valid_vpi_value5.value.integer
-        || csr_write_valid_vpi_value6.value.integer
-        || csr_write_valid_vpi_value7.value.integer;
-
-      if (csr_write_valid) {
-        // TODO: based on the RTL event, change se rf field:
-        //       1. based on the mask and write element, set corresponding element in vrf to written.
-        LOG(INFO) << fmt::format("write to vrf");
+      // negedge
+      top.clock = 0;
+      top.eval();
+      tfp.dump(2 * ctx.time());
+      ctx.timeInc(1);
+      // posedge
+      // update registers
+      top.clock = 1;
+      top.eval();
+      tfp.dump(2 * ctx.time() - 1);
+      // peek
+      // VPI Peek VRF Write Event
+      {
+        auto csr_write0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_0.vrf.write_valid", NULL);
+        s_vpi_value csr_write_valid_vpi_value0;
+        csr_write_valid_vpi_value0.format = vpiIntVal;
+        vpi_get_value(csr_write0, &csr_write_valid_vpi_value0);
+        auto csr_write1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_1.vrf.write_valid", NULL);
+        s_vpi_value csr_write_valid_vpi_value1;
+        csr_write_valid_vpi_value1.format = vpiIntVal;
+        vpi_get_value(csr_write1, &csr_write_valid_vpi_value1);
+        auto csr_write2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_2.vrf.write_valid", NULL);
+        s_vpi_value csr_write_valid_vpi_value2;
+        csr_write_valid_vpi_value2.format = vpiIntVal;
+        vpi_get_value(csr_write2, &csr_write_valid_vpi_value2);
+        auto csr_write3 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_3.vrf.write_valid", NULL);
+        s_vpi_value csr_write_valid_vpi_value3;
+        csr_write_valid_vpi_value3.format = vpiIntVal;
+        vpi_get_value(csr_write3, &csr_write_valid_vpi_value3);
+        auto csr_write4 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_4.vrf.write_valid", NULL);
+        s_vpi_value csr_write_valid_vpi_value4;
+        csr_write_valid_vpi_value4.format = vpiIntVal;
+        vpi_get_value(csr_write4, &csr_write_valid_vpi_value4);
+        auto csr_write5 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_5.vrf.write_valid", NULL);
+        s_vpi_value csr_write_valid_vpi_value5;
+        csr_write_valid_vpi_value5.format = vpiIntVal;
+        vpi_get_value(csr_write5, &csr_write_valid_vpi_value5);
+        auto csr_write6 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_6.vrf.write_valid", NULL);
+        s_vpi_value csr_write_valid_vpi_value6;
+        csr_write_valid_vpi_value6.format = vpiIntVal;
+        vpi_get_value(csr_write6, &csr_write_valid_vpi_value6);
+        auto csr_write7 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_7.vrf.write_valid", NULL);
+        s_vpi_value csr_write_valid_vpi_value7;
+        csr_write_valid_vpi_value7.format = vpiIntVal;
+        vpi_get_value(csr_write7, &csr_write_valid_vpi_value7);
+        auto csr_write_valid =
+          csr_write_valid_vpi_value0.value.integer
+          || csr_write_valid_vpi_value1.value.integer
+          || csr_write_valid_vpi_value2.value.integer
+          || csr_write_valid_vpi_value3.value.integer
+          || csr_write_valid_vpi_value4.value.integer
+          || csr_write_valid_vpi_value5.value.integer
+          || csr_write_valid_vpi_value6.value.integer
+          || csr_write_valid_vpi_value7.value.integer;
+        if (csr_write_valid) {
+          // TODO: based on the RTL event, change se rf field:
+          //       1. based on the mask and write element, set corresponding element in vrf to written.
+          LOG(INFO) << fmt::format("write to vrf");
+        }
       }
-      // TODO: maintain the state here.
+
+      // VPI Peek Memory Read Allocate Event, allocate at this cycle.
+      {
+        auto lsu_req_enq_slot0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_0", NULL);
+        s_vpi_value lsu_req_enq_slot0_value;
+        lsu_req_enq_slot0_value.format = vpiIntVal;
+        vpi_get_value(lsu_req_enq_slot0, &lsu_req_enq_slot0_value);
+        auto lsu_req_enq_slot1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_1", NULL);
+        s_vpi_value lsu_req_enq_slot1_value;
+        lsu_req_enq_slot1_value.format = vpiIntVal;
+        vpi_get_value(lsu_req_enq_slot1, &lsu_req_enq_slot1_value);
+        auto lsu_req_enq_slot2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_2", NULL);
+        s_vpi_value lsu_req_enq_slot2_value;
+        lsu_req_enq_slot2_value.format = vpiIntVal;
+        vpi_get_value(lsu_req_enq_slot2, &lsu_req_enq_slot2_value);
+
+        for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
+          if (iter->get_issued() && (iter->is_load() || iter->is_store()) && (iter->lsu_index() == 255)) {
+            uint8_t index = 255;
+            if (lsu_req_enq_slot0_value.value.integer == 1) {
+              index = 0;
+            } else if (lsu_req_enq_slot1_value.value.integer == 1) {
+              index = 1;
+            } else if (lsu_req_enq_slot2_value.value.integer == 1) {
+              index = 2;
+            } else {
+              LOG(FATAL) << fmt::format("time: {}, load store issued but not no slot allocated.", ctx.time());
+            }
+            se->set_lsu_index(index);
+            LOG(INFO) << fmt::format("slot {} is occupied by DSAM: {}", index, se->disam());
+            break;
+          }
+        }
+
+
+
+      }
+
+      // Commit Event
+      if (top.resp_valid) {
+        LOG(INFO) << fmt::format("Commit {:X}", to_rtl_queue.back().pc());
+        to_rtl_queue.back().commit();
+        to_rtl_queue.pop_back();
+      }
+
 
       if (get_simulator_cycle() >= timeout)
         throw TimeoutException();

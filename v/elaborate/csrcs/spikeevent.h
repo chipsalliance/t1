@@ -39,6 +39,8 @@ public:
   uint16_t vstart();
   uint8_t vxrm();
   bool vxsat();
+  bool is_load();
+  bool is_store();
 
   bool need_lsu_index();
   uint8_t lsu_index();
@@ -74,13 +76,15 @@ public:
 
 private:
   bool _need_lsu_index;
-  uint8_t _index;
+  uint8_t _index = 255;
   processor_t &_proc;
   // set when req_ready
   // false: not issued ready
   // true : has been issued
   bool _issue;
   bool _commit;
+  bool _load;
+  bool _store;
   // instruction(used for driver, this field is always vaild)
   uint64_t _pc;
   uint64_t _mask;

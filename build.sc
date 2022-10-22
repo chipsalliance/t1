@@ -111,10 +111,10 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
       }.toSet
       //public_flat_ro [-module "<modulename>"] [-task/-function "<taskname>"]  -var "<signame>" "@(edge)"
       val configs = targets.map { t =>
-        val s = t.split("/").last
+        val s = t.split('|').last.split("/").last
         val M = s.split(">").head.split(":").last
         val S = s.split(">").last
-        s"""public_flat_rd -module "$M" -var "$S""""
+        s"""//$t\npublic_flat_rd -module "$M" -var "$S""""
       }
       val verilatorConfig = T.dest / "verilator.vlt"
       os.write(verilatorConfig,

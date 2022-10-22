@@ -1,5 +1,6 @@
 package v.elaborate
 
+import chisel3.RegNext
 import chisel3.aop.Select
 import chisel3.aop.injecting.InjectingAspect
 import chisel3.stage.ChiselGeneratorAnnotation
@@ -34,7 +35,10 @@ object Main {
               case lsu: LSU => lsu
             }
           },
-          { lsu: LSU => chisel3.experimental.Trace.traceName(lsu.reqEnq) }
+          { lsu: LSU =>
+            val reqEnqDBG = RegNext(lsu.reqEnq).suggestName("reqEnq_debug")
+            chisel3.dontTouch(reqEnqDBG)
+            chisel3.experimental.Trace.traceName(reqEnqDBG) }
         ),
       ): AnnotationSeq
     ) { case (annos, stage) => stage.transform(annos) }
