@@ -208,7 +208,7 @@ void SpikeEvent::log() {
       uint64_t value = mem_load(std::get<0>(item), std::get<2>(item) - 1);
       uint8_t size = std::get<2>(item);
       LOG(INFO) << fmt::format(" load addr, load back value, size = {:X}, {}, {}", addr, value, size);
-      log_mem_queue.emplace_back(addr, value, size);
+      log_mem_queue.push_back({addr, value, size});
     }
   }
   if (!state->log_mem_write.empty()) {

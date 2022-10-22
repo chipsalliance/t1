@@ -102,7 +102,12 @@ public:
 
   uint64_t mem_load(uint64_t addr, uint32_t size);
 
-  std::vector<std::tuple<uint64_t, uint64_t, uint8_t>> log_mem_queue;
+  struct mem_log {
+    uint64_t addr;
+    uint64_t value;
+    uint8_t size;
+  };
+  std::vector<mem_log> log_mem_queue;
 
 private:
   bool _need_lsu_index;

@@ -264,9 +264,9 @@ void VBridgeImpl::run() {
         for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
           if (iter->lsu_index() == lsu_index) {
             for (auto item: iter->log_mem_queue) {
-              uint64_t addr = std::get<0>(item);
-              uint64_t value = mem_load(std::get<0>(item), std::get<2>(item) - 1);
-              uint8_t size = std::get<2>(item);
+              uint64_t addr = item.addr;
+              uint64_t value = mem_load(item.addr, item.size - 1);
+              uint8_t size = item.size;
               LOG(INFO) << fmt::format(" load addr, load back value, size = {:X}, {}, {}", addr, value, size);
             }
             break;
