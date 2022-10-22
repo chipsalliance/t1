@@ -1,5 +1,4 @@
-#ifndef V_SPIKEEVENT_H
-#define V_SPIKEEVENT_H
+#pragma once
 
 #include <queue>
 #include <optional>
@@ -13,59 +12,90 @@ typedef std::vector<std::tuple<reg_t, uint64_t, uint8_t>> commit_log_mem_t;
 
 class SpikeEvent {
 public:
-  SpikeEvent(processor_t &proc): _proc(proc) {};
+  SpikeEvent(processor_t &proc) : _proc(proc) {};
+
   void log_reset();
+
   /// return true if this instruction has been issued.(may not be commited)
-  bool get_issued();
+  bool get_issued() const;
+
   /// issue this instruction.
   void issue();
+
   /// difftest, check all works has been done.
   void reset_issue();
+
   void commit();
+
   void reset_commit();
+
   /// PC
-  uint64_t pc();
+  uint64_t pc() const;
+
   /// instruction disam
   std::string disam();
 
   // API poke to simulator for each cycle.
-  uint32_t instruction();
-  uint8_t vsew();
-  uint8_t vlmul();
-  bool vma();
-  bool vta();
-  bool vill();
-  uint32_t vl();
-  uint16_t vstart();
-  uint8_t vxrm();
-  bool vxsat();
-  bool is_load();
-  bool is_store();
+  uint32_t instruction() const;
 
-  bool need_lsu_index();
-  uint8_t lsu_index();
+  uint8_t vsew() const;
 
+  uint8_t vlmul() const;
 
+  bool vma() const;
+
+  bool vta() const;
+
+  bool vill() const;
+
+  uint32_t vl() const;
+
+  uint16_t vstart() const;
+
+  uint8_t vxrm() const;
+
+  bool vxsat() const;
+
+  bool is_load() const;
+
+  bool is_store() const;
+
+  bool need_lsu_index() const;
+
+  uint8_t lsu_index() const;
 
 
   void assign_instruction(uint32_t instruction);
+
   void get_mask();
+
   void log();
 
   void set_inst(uint32_t instruction);
+
   void set_src1(uint32_t src1);
+
   void set_src2(uint32_t src2);
+
   void set_vsew(uint8_t vsew);
+
   void set_vlmul(uint8_t vlmul);
+
   void set_vma(bool vma);
+
   void set_vta(bool vta);
+
   /// todo: void set_vill(uint32_t vsew);
   void set_vl(uint32_t vl);
+
   void set_vstart(uint16_t vstart);
+
   void set_vxrm(uint8_t vxrm);
 
   void set_lsu_index(uint8_t index);
+
   void set_need_lsu_index();
+
   void clr_need_lsu_index();
 
   commit_log_mem_t mem_read_info;
@@ -136,18 +166,20 @@ private:
   // load interface, use bool to maintain the state to ganrantee: vector consume load data for exactly one time.
   // if true, this data need to be consumed by RTL, and check the VRF writing event.
   uint64_t _load_base_address;
-  std::vector<std::pair<bool,uint32_t>> _load_data;
+  std::vector<std::pair<bool, uint32_t>> _load_data;
 
   // store interface, use bool to maintain the state to ganrantee: vector generate store data for exactly one time.
   // if true, check the memory write event.
   uint64_t _store_base_address;
-  std::vector<std::pair<bool,uint32_t>> _store_data;
+  std::vector<std::pair<bool, uint32_t>> _store_data;
 
   void vrf_read(uint8_t index, uint32_t mask);
+
   void vrf_write(uint8_t index, uint32_t mask);
+
   void set_csr_signals();
+
   void memory_store(std::map<uint64_t, uint8_t>);
+
   void memory_load(std::map<uint64_t, uint8_t>);
 };
-
-#endif // V_SPIKEEVENT_H

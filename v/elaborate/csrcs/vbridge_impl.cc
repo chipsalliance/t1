@@ -1,14 +1,13 @@
 #include <fmt/core.h>
 #include <glog/logging.h>
 
-#include "vbridgeimpl.h"
+#include "vbridge_impl.h"
 #include "verilated.h"
 #include "disasm.h"
 #include "vbridge.h"
-#include "tl.h"
 #include "util.h"
 #include "exceptions.h"
-#include "RTLEvent.h"
+#include "rtl_event.h"
 #include "verilated_vpi.h"
 
 void TLBank::step() {
@@ -55,10 +54,10 @@ void VBridgeImpl::reset() {
   ctx.time(2);
 }
 
-void VBridgeImpl::setup(const std::string &bin, const std::string &wave, uint64_t reset_vector, uint64_t cycles) {
-  this->bin = bin;
-  this->wave = wave;
-  this->reset_vector = reset_vector;
+void VBridgeImpl::setup(const std::string &_bin, const std::string &_wave, uint64_t _reset_vector, uint64_t cycles) {
+  this->bin = _bin;
+  this->wave = _wave;
+  this->reset_vector = _reset_vector;
   this->timeout = cycles;
 }
 
@@ -72,16 +71,16 @@ insn_fetch_t VBridgeImpl::fetch_proc_insn() {
 }
 
 VBridgeImpl::VBridgeImpl() :
-  sim(1 << 30),
-  isa("rv32gcv", "M"),
-  proc(
-    /*isa*/ &isa,
-    /*varch*/ "vlen:1024,elen:32",
-    /*sim*/ &sim,
-    /*id*/ 0,
-    /*halt on reset*/ true,
-    /*log_file_t*/ nullptr,
-    /*sout*/ std::cerr) {}
+    sim(1 << 30),
+    isa("rv32gcv", "M"),
+    proc(
+        /*isa*/ &isa,
+        /*varch*/ "vlen:1024,elen:32",
+        /*sim*/ &sim,
+        /*id*/ 0,
+        /*halt on reset*/ true,
+        /*log_file_t*/ nullptr,
+        /*sout*/ std::cerr) {}
 
 VBridgeImpl::~VBridgeImpl() {
   terminate_simulator();
@@ -148,7 +147,7 @@ uint64_t VBridgeImpl::get_simulator_cycle() {
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
   auto fetch = proc.get_mmu()->load_insn(state->pc);
-  auto event = create_spike_event(proc, fetch);
+  auto event = create_spike_event(fetch);
   auto &xr = proc.get_state()->XPR;
   if (event) {
     auto &se = event.value();
@@ -177,7 +176,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   return event;
 }
 
-std::optional<SpikeEvent> VBridgeImpl::create_spike_event(processor_t &proc, insn_fetch_t fetch) {
+std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
   // create SpikeEvent
   uint32_t opcode = clip(fetch.insn.bits(), 0, 6);
   uint32_t width = clip(fetch.insn.bits(), 12, 14);
@@ -190,8 +189,6 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(processor_t &proc, ins
     return {};
   }
 }
-
-
 
 void VBridgeImpl::run() {
   init_spike();
@@ -213,6 +210,7 @@ void VBridgeImpl::run() {
       }
     }
     LOG(INFO) << fmt::format("to_rtl_queue is full now, start to simulate.");
+
     // loop when the head of the list is unissued
     while (!to_rtl_queue.front().get_issued()) {
       // in the RTL thread, for each RTL cycle, valid signals should be checked, generate events, let testbench be able
@@ -224,6 +222,7 @@ void VBridgeImpl::run() {
           break;
         }
       }
+      LOG_ASSERT(se) << fmt::format("all event in to_rtl_queue is issued");
 
       // Stable Poke
       top.req_valid = true;
@@ -259,28 +258,28 @@ void VBridgeImpl::run() {
       bool p0_load = top.tlPort_0_a_valid && (top.tlPort_0_a_bits_opcode == 4);
       bool p1_load = top.tlPort_1_a_valid && (top.tlPort_1_a_bits_opcode == 4);
 
-      if(p0_load){
-        auto lsu_index = top.tlPort_0_a_bits_source & 3;
+      if (p0_load) {
+        uint32_t lsu_index = top.tlPort_0_a_bits_source & 3;
         LOG(INFO) << fmt::format("Find a port 0 load from slot {}", lsu_index);
         for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
           if (iter->lsu_index() == lsu_index) {
-            for(auto item: iter->log_mem_queue){
+            for (auto item: iter->log_mem_queue) {
               uint64_t addr = std::get<0>(item);
-              uint64_t value = mem_load(std::get<0>(item),std::get<2>(item)-1);
-              uint8_t size =  std::get<2>(item);
-              LOG(INFO) << fmt::format(" load addr, load back value, size = {:X}, {}, {}", addr,value,size);
+              uint64_t value = mem_load(std::get<0>(item), std::get<2>(item) - 1);
+              uint8_t size = std::get<2>(item);
+              LOG(INFO) << fmt::format(" load addr, load back value, size = {:X}, {}, {}", addr, value, size);
             }
             break;
           }
         }
       }
-      if(p0_store){
+      if (p0_store) {
         LOG(INFO) << fmt::format("Find a port 0 store ins");
       }
-      if(p1_load){
+      if (p1_load) {
         LOG(INFO) << fmt::format("Find a port 1 load ins");
       }
-      if(p1_store){
+      if (p1_store) {
         LOG(INFO) << fmt::format("Find a port 1 store ins");
       }
 
@@ -297,47 +296,47 @@ void VBridgeImpl::run() {
       // peek
       // VPI Peek VRF Write Event
       {
-        auto csr_write0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_0.vrf.write_valid", NULL);
+        vpiHandle csr_write0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_0.vrf.write_valid", nullptr);
         s_vpi_value csr_write_valid_vpi_value0;
         csr_write_valid_vpi_value0.format = vpiIntVal;
         vpi_get_value(csr_write0, &csr_write_valid_vpi_value0);
-        auto csr_write1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_1.vrf.write_valid", NULL);
+        vpiHandle csr_write1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_1.vrf.write_valid", nullptr);
         s_vpi_value csr_write_valid_vpi_value1;
         csr_write_valid_vpi_value1.format = vpiIntVal;
         vpi_get_value(csr_write1, &csr_write_valid_vpi_value1);
-        auto csr_write2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_2.vrf.write_valid", NULL);
+        vpiHandle csr_write2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_2.vrf.write_valid", nullptr);
         s_vpi_value csr_write_valid_vpi_value2;
         csr_write_valid_vpi_value2.format = vpiIntVal;
         vpi_get_value(csr_write2, &csr_write_valid_vpi_value2);
-        auto csr_write3 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_3.vrf.write_valid", NULL);
+        vpiHandle csr_write3 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_3.vrf.write_valid", nullptr);
         s_vpi_value csr_write_valid_vpi_value3;
         csr_write_valid_vpi_value3.format = vpiIntVal;
         vpi_get_value(csr_write3, &csr_write_valid_vpi_value3);
-        auto csr_write4 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_4.vrf.write_valid", NULL);
+        vpiHandle csr_write4 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_4.vrf.write_valid", nullptr);
         s_vpi_value csr_write_valid_vpi_value4;
         csr_write_valid_vpi_value4.format = vpiIntVal;
         vpi_get_value(csr_write4, &csr_write_valid_vpi_value4);
-        auto csr_write5 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_5.vrf.write_valid", NULL);
+        vpiHandle csr_write5 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_5.vrf.write_valid", nullptr);
         s_vpi_value csr_write_valid_vpi_value5;
         csr_write_valid_vpi_value5.format = vpiIntVal;
         vpi_get_value(csr_write5, &csr_write_valid_vpi_value5);
-        auto csr_write6 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_6.vrf.write_valid", NULL);
+        vpiHandle csr_write6 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_6.vrf.write_valid", nullptr);
         s_vpi_value csr_write_valid_vpi_value6;
         csr_write_valid_vpi_value6.format = vpiIntVal;
         vpi_get_value(csr_write6, &csr_write_valid_vpi_value6);
-        auto csr_write7 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_7.vrf.write_valid", NULL);
+        vpiHandle csr_write7 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_7.vrf.write_valid", nullptr);
         s_vpi_value csr_write_valid_vpi_value7;
         csr_write_valid_vpi_value7.format = vpiIntVal;
         vpi_get_value(csr_write7, &csr_write_valid_vpi_value7);
-        auto csr_write_valid =
-          csr_write_valid_vpi_value0.value.integer
-          || csr_write_valid_vpi_value1.value.integer
-          || csr_write_valid_vpi_value2.value.integer
-          || csr_write_valid_vpi_value3.value.integer
-          || csr_write_valid_vpi_value4.value.integer
-          || csr_write_valid_vpi_value5.value.integer
-          || csr_write_valid_vpi_value6.value.integer
-          || csr_write_valid_vpi_value7.value.integer;
+        bool csr_write_valid =
+            csr_write_valid_vpi_value0.value.integer
+            || csr_write_valid_vpi_value1.value.integer
+            || csr_write_valid_vpi_value2.value.integer
+            || csr_write_valid_vpi_value3.value.integer
+            || csr_write_valid_vpi_value4.value.integer
+            || csr_write_valid_vpi_value5.value.integer
+            || csr_write_valid_vpi_value6.value.integer
+            || csr_write_valid_vpi_value7.value.integer;
         if (csr_write_valid) {
           // TODO: based on the RTL event, change se rf field:
           //       1. based on the mask and write element, set corresponding element in vrf to written.
@@ -347,15 +346,15 @@ void VBridgeImpl::run() {
 
       // VPI Peek Memory Read Allocate Event, allocate at this cycle.
       {
-        auto lsu_req_enq_slot0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_0", NULL);
+        vpiHandle lsu_req_enq_slot0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_0", nullptr);
         s_vpi_value lsu_req_enq_slot0_value;
         lsu_req_enq_slot0_value.format = vpiIntVal;
         vpi_get_value(lsu_req_enq_slot0, &lsu_req_enq_slot0_value);
-        auto lsu_req_enq_slot1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_1", NULL);
+        vpiHandle lsu_req_enq_slot1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_1", nullptr);
         s_vpi_value lsu_req_enq_slot1_value;
         lsu_req_enq_slot1_value.format = vpiIntVal;
         vpi_get_value(lsu_req_enq_slot1, &lsu_req_enq_slot1_value);
-        auto lsu_req_enq_slot2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_2", NULL);
+        vpiHandle lsu_req_enq_slot2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_2", nullptr);
         s_vpi_value lsu_req_enq_slot2_value;
         lsu_req_enq_slot2_value.format = vpiIntVal;
         vpi_get_value(lsu_req_enq_slot2, &lsu_req_enq_slot2_value);
@@ -377,9 +376,6 @@ void VBridgeImpl::run() {
             break;
           }
         }
-
-
-
       }
 
       // Commit Event
@@ -388,7 +384,6 @@ void VBridgeImpl::run() {
         to_rtl_queue.back().commit();
         to_rtl_queue.pop_back();
       }
-
 
       if (get_simulator_cycle() >= timeout)
         throw TimeoutException();

@@ -1,5 +1,4 @@
-#ifndef V_RTLEVENT_H
-#define V_RTLEVENT_H
+#pragma once
 
 #include <queue>
 #include <optional>
@@ -14,21 +13,29 @@ public:
   // couple with input bits
   void request_ready();
 
-
-
   // deprecate
   void request_ready(bool signal);
+
   void commit_ready(bool signal);
-  bool request();
-  bool commit();
+
+  bool request() const;
+
+  bool commit() const;
+
   // mem load methods
-  bool load_valid();
+  bool load_valid() const;
+
   void set_load_valid(bool valid);
+
   void set_load_base_address(uint64_t address);
+
   // mem store methods
   void set_store_valid(bool valid);
+
   void set_store_base_address(uint64_t address);
+
   void set_store_data(uint32_t data);
+
 private:
   // ready to accept new instructions
   bool _req_ready;
@@ -50,6 +57,3 @@ private:
   bool _vrf_write_valid;
 
 };
-
-
-#endif //V_RTLEVENT_H

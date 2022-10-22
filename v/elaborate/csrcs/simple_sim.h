@@ -1,7 +1,8 @@
 #pragma once
 
 #include <fstream>
-#include <cassert>
+
+#include <glog/logging.h>
 
 #include "simif.h"
 
@@ -14,7 +15,7 @@ public:
     mem = new char[mem_size];
   }
 
-  ~simple_sim() {
+  ~simple_sim() override {
     delete[] mem;
   }
 
@@ -48,8 +49,6 @@ public:
   }
 
   const char *get_symbol(uint64_t addr) override {
-    assert(false && "not implemented");
+    LOG(FATAL) << "not implemented";
   }
 };
-
-

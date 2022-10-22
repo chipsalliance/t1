@@ -2,7 +2,6 @@
 #include "exceptions.h"
 
 #include <args.hxx>
-#include <glog/logging.h>
 
 int main(int argc, char **argv) {
   args::ArgumentParser parser("Vector");
