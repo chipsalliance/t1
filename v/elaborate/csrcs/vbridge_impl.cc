@@ -9,6 +9,7 @@
 #include "exceptions.h"
 #include "rtl_event.h"
 #include "verilated_vpi.h"
+#include "vpi.h"
 
 void TLBank::step() {
   if (remainingCycles > 0) remainingCycles--;
@@ -296,47 +297,10 @@ void VBridgeImpl::run() {
       // peek
       // VPI Peek VRF Write Event
       {
-        vpiHandle csr_write0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_0.vrf.write_valid", nullptr);
-        s_vpi_value csr_write_valid_vpi_value0;
-        csr_write_valid_vpi_value0.format = vpiIntVal;
-        vpi_get_value(csr_write0, &csr_write_valid_vpi_value0);
-        vpiHandle csr_write1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_1.vrf.write_valid", nullptr);
-        s_vpi_value csr_write_valid_vpi_value1;
-        csr_write_valid_vpi_value1.format = vpiIntVal;
-        vpi_get_value(csr_write1, &csr_write_valid_vpi_value1);
-        vpiHandle csr_write2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_2.vrf.write_valid", nullptr);
-        s_vpi_value csr_write_valid_vpi_value2;
-        csr_write_valid_vpi_value2.format = vpiIntVal;
-        vpi_get_value(csr_write2, &csr_write_valid_vpi_value2);
-        vpiHandle csr_write3 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_3.vrf.write_valid", nullptr);
-        s_vpi_value csr_write_valid_vpi_value3;
-        csr_write_valid_vpi_value3.format = vpiIntVal;
-        vpi_get_value(csr_write3, &csr_write_valid_vpi_value3);
-        vpiHandle csr_write4 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_4.vrf.write_valid", nullptr);
-        s_vpi_value csr_write_valid_vpi_value4;
-        csr_write_valid_vpi_value4.format = vpiIntVal;
-        vpi_get_value(csr_write4, &csr_write_valid_vpi_value4);
-        vpiHandle csr_write5 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_5.vrf.write_valid", nullptr);
-        s_vpi_value csr_write_valid_vpi_value5;
-        csr_write_valid_vpi_value5.format = vpiIntVal;
-        vpi_get_value(csr_write5, &csr_write_valid_vpi_value5);
-        vpiHandle csr_write6 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_6.vrf.write_valid", nullptr);
-        s_vpi_value csr_write_valid_vpi_value6;
-        csr_write_valid_vpi_value6.format = vpiIntVal;
-        vpi_get_value(csr_write6, &csr_write_valid_vpi_value6);
-        vpiHandle csr_write7 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.laneVec_7.vrf.write_valid", nullptr);
-        s_vpi_value csr_write_valid_vpi_value7;
-        csr_write_valid_vpi_value7.format = vpiIntVal;
-        vpi_get_value(csr_write7, &csr_write_valid_vpi_value7);
-        bool csr_write_valid =
-            csr_write_valid_vpi_value0.value.integer
-            || csr_write_valid_vpi_value1.value.integer
-            || csr_write_valid_vpi_value2.value.integer
-            || csr_write_valid_vpi_value3.value.integer
-            || csr_write_valid_vpi_value4.value.integer
-            || csr_write_valid_vpi_value5.value.integer
-            || csr_write_valid_vpi_value6.value.integer
-            || csr_write_valid_vpi_value7.value.integer;
+        bool csr_write_valid = false;
+        for (int i = 0; i < 8; i++) {
+          csr_write_valid |= vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_valid", i).c_str());
+        }
         if (csr_write_valid) {
           // TODO: based on the RTL event, change se rf field:
           //       1. based on the mask and write element, set corresponding element in vrf to written.
@@ -346,27 +310,18 @@ void VBridgeImpl::run() {
 
       // VPI Peek Memory Read Allocate Event, allocate at this cycle.
       {
-        vpiHandle lsu_req_enq_slot0 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_0", nullptr);
-        s_vpi_value lsu_req_enq_slot0_value;
-        lsu_req_enq_slot0_value.format = vpiIntVal;
-        vpi_get_value(lsu_req_enq_slot0, &lsu_req_enq_slot0_value);
-        vpiHandle lsu_req_enq_slot1 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_1", nullptr);
-        s_vpi_value lsu_req_enq_slot1_value;
-        lsu_req_enq_slot1_value.format = vpiIntVal;
-        vpi_get_value(lsu_req_enq_slot1, &lsu_req_enq_slot1_value);
-        vpiHandle lsu_req_enq_slot2 = vpi_handle_by_name((PLI_BYTE8 *) "TOP.V.lsu.reqEnq_debug_2", nullptr);
-        s_vpi_value lsu_req_enq_slot2_value;
-        lsu_req_enq_slot2_value.format = vpiIntVal;
-        vpi_get_value(lsu_req_enq_slot2, &lsu_req_enq_slot2_value);
-
+        uint32_t lsuReqs[3];
+        for (int i = 0; i < 3; i++) {
+          lsuReqs[i] = vpi_get_integer(fmt::format("TOP.V.lsu.reqEnq_debug_{}", i).c_str());
+        }
         for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
           if (iter->get_issued() && (iter->is_load() || iter->is_store()) && (iter->lsu_index() == 255)) {
             uint8_t index = 255;
-            if (lsu_req_enq_slot0_value.value.integer == 1) {
+            if (lsuReqs[0] == 1) {
               index = 0;
-            } else if (lsu_req_enq_slot1_value.value.integer == 1) {
+            } else if (lsuReqs[1] == 1) {
               index = 1;
-            } else if (lsu_req_enq_slot2_value.value.integer == 1) {
+            } else if (lsuReqs[2] == 1) {
               index = 2;
             } else {
               LOG(FATAL) << fmt::format("time: {}, load store issued but not no slot allocated.", ctx.time());
