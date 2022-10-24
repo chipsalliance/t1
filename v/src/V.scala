@@ -12,7 +12,8 @@ case class VParam(XLEN: Int = 32, dataPathWidth: Int = 32, VLEN: Int = 1024, lan
   val maskGroupSize:  Int = VLEN / 32
   val chainingSize:   Int = 4
   val instIndexSize:  Int = log2Ceil(chainingSize) + 1
-  val laneGroupSize:  Int = VLEN / lane
+  // 变更了分组的方式,现在一组会处理32bit的数据
+  val laneGroupSize:  Int = VLEN * 8 / dataPathWidth / lane
   val tlParam: TLBundleParameter = TLBundleParameter(
     a = TLChannelAParameter(vaWidth, sourceWidth, dataPathWidth, 2, 4),
     b = None,
@@ -22,7 +23,7 @@ case class VParam(XLEN: Int = 32, dataPathWidth: Int = 32, VLEN: Int = 1024, lan
   )
   def laneParam: LaneParameters = LaneParameters(dataPathWidth)
   def lsuParma:  LSUParam = LSUParam(dataPathWidth)
-  def vrfParam:  VRFParam = VRFParam(VLEN, lane, laneGroupSize, dataPathWidth)
+  def vrfParam:  VRFParam = VRFParam(VLEN, lane, dataPathWidth)
   require(XLEN == dataPathWidth)
 }
 

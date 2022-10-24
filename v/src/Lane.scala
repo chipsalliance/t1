@@ -16,7 +16,7 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
   val elenBits:       Int = log2Ceil(ELEN)
   val groupSizeBits:  Int = log2Ceil(groupSize)
 
-  def vrfParam:         VRFParam = VRFParam(VLEN, lane, groupSize, ELEN)
+  def vrfParam:         VRFParam = VRFParam(VLEN, lane, ELEN)
   def datePathParam:    DataPathParam = DataPathParam(ELEN)
   def shifterParameter: LaneShifterParameter = LaneShifterParameter(ELEN, elenBits)
   def mulParam:         LaneMulParam = LaneMulParam(ELEN)
@@ -301,24 +301,21 @@ class Lane(param: LaneParameters) extends Module {
       controlCanShift(index) := !record.state.sExecute
       // vs1 read
       vrfReadWire(index)(0).valid := !record.state.sRead1 && controlActive(index)
-      vrfReadWire(index)(0).bits.groupIndex := record.counter
+      vrfReadWire(index)(0).bits.offset := record.counter
       vrfReadWire(index)(0).bits.vs := record.originalInformation.vs1
-      vrfReadWire(index)(0).bits.eew := csrInterface.vSew
       vrfReadWire(index)(0).bits.instIndex := record.originalInformation.instIndex
       // Mux(decodeResFormat.eew16, 1.U, csrInterface.vSew)
 
       // vs2 read
       vrfReadWire(index)(1).valid := !record.state.sRead2 && controlActive(index)
-      vrfReadWire(index)(1).bits.groupIndex := Mux(needCrossRead, record.counter ## false.B, record.counter)
+      vrfReadWire(index)(1).bits.offset := Mux(needCrossRead, record.counter ## false.B, record.counter)
       vrfReadWire(index)(1).bits.vs := record.originalInformation.vs2
-      vrfReadWire(index)(1).bits.eew := csrInterface.vSew
       vrfReadWire(index)(1).bits.instIndex := record.originalInformation.instIndex
 
       // vd read
       vrfReadWire(index)(2).valid := !record.state.sReadVD && controlActive(index)
-      vrfReadWire(index)(2).bits.groupIndex := Mux(needCrossRead, record.counter ## true.B, record.counter)
+      vrfReadWire(index)(2).bits.offset := Mux(needCrossRead, record.counter ## true.B, record.counter)
       vrfReadWire(index)(2).bits.vs := record.originalInformation.vd
-      vrfReadWire(index)(2).bits.eew := csrInterface.vSew
       vrfReadWire(index)(2).bits.instIndex := record.originalInformation.instIndex
 
       val readFinish =
@@ -482,11 +479,11 @@ class Lane(param: LaneParameters) extends Module {
       // 写rf
       rfWriteVec(index).valid := record.state.wExecuteRes && !record.state.sWrite && controlActive(index)
       rfWriteVec(index).bits.vd := record.originalInformation.vd
-      rfWriteVec(index).bits.groupIndex := record.counter
-      rfWriteVec(index).bits.eew := csrInterface.vSew
+      rfWriteVec(index).bits.offset := record.counter
       rfWriteVec(index).bits.data := result(index)
       rfWriteVec(index).bits.last := instWillComplete(index)
       rfWriteVec(index).bits.instIndex := record.originalInformation.instIndex
+      rfWriteVec(index).bits.mask := 15.U//todo
       when(rfWriteFire(index)) {
         record.state.sWrite := true.B
       }
@@ -540,11 +537,11 @@ class Lane(param: LaneParameters) extends Module {
     writeBusPort.enq.ready := true.B
     writeBusDataReg.valid := false.B
     crossWriteQueue.io.enq.bits.vd := control.head.originalInformation.vd
-    crossWriteQueue.io.enq.bits.groupIndex := control.head.originalInformation.instIndex ## writeBusPort.enq.bits.tail
-    crossWriteQueue.io.enq.bits.eew := csrInterface.vSew
+    crossWriteQueue.io.enq.bits.offset := control.head.originalInformation.instIndex ## writeBusPort.enq.bits.tail
     crossWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
     crossWriteQueue.io.enq.bits.last := instWillComplete.head && writeBusPort.enq.bits.tail
     crossWriteQueue.io.enq.bits.instIndex := control.head.originalInformation.instIndex
+    crossWriteQueue.io.enq.bits.mask := 15.U//todo
     //writeBusPort.enq.bits
     crossWriteQueue.io.enq.valid := false.B
 
@@ -664,5 +661,6 @@ class Lane(param: LaneParameters) extends Module {
   }
   vrf.flush := DontCare
   vrf.instWriteReport.bits.instIndex := laneReq.bits.instIndex
+  vrf.instWriteReport.bits.offset := 0.U//todo
   vrf.instWriteReport.bits.vd := laneReq.bits.vd
 }

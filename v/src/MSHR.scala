@@ -24,7 +24,7 @@ case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: I
     d = TLChannelDParameter(sourceWidth, sourceWidth, ELEN, 2),
     e = None
   )
-  def vrfParam: VRFParam = VRFParam(VLEN, lane, laneGroupSize, ELEN)
+  def vrfParam: VRFParam = VRFParam(VLEN, lane, ELEN)
 }
 
 class MSHRStatus(lane: Int) extends Bundle {
@@ -193,15 +193,15 @@ class MSHR(param: MSHRParam) extends Module {
   vrfWritePort.valid := tlPort.d.valid
   tlPort.d.ready := true.B
   vrfWritePort.bits.vd := requestReg.instInf.vs3 + Mux(segType, tlPort.d.bits.sink(2, 0), 0.U)
-  vrfWritePort.bits.groupIndex := Mux(
+  vrfWritePort.bits.offset := Mux(
     segType,
     groupIndex ## (tlPort.d.bits.sink >> 3).asUInt,
     groupIndex ## tlPort.d.bits.sink
   )
-  vrfWritePort.bits.eew := dataEEW
   vrfWritePort.bits.data := tlPort.d.bits.data
   vrfWritePort.bits.last := last
   vrfWritePort.bits.instIndex := requestReg.instIndex
+  vrfWritePort.bits.mask := 15.U//todo
 
   val sourceUpdate: UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.lsuGroupLength.W))
   val sinkUpdate: UInt = Mux(tlPort.d.fire, respSinkOH, 0.U(param.lsuGroupLength.W))
@@ -250,9 +250,8 @@ class MSHR(param: MSHRParam) extends Module {
   maskSelect.bits := groupIndex
   putData := readResult
   readDataPort.valid := stateReady
-  readDataPort.bits.groupIndex := vrfWritePort.bits.groupIndex
+  readDataPort.bits.offset := vrfWritePort.bits.offset
   readDataPort.bits.vs := vrfWritePort.bits.vd
-  readDataPort.bits.eew := vrfWritePort.bits.eew
   readDataPort.bits.instIndex := requestReg.instIndex
   // todo: maskSelect, last, targetLane
 }
