@@ -7,7 +7,8 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
   val instIndexSize:  Int = log2Ceil(chainingSize) + 1
   val VLMax:          Int = VLEN
   val VLMaxWidth:     Int = log2Ceil(VLMax)
-  val groupSize:      Int = VLMax / lane
+  // vlmul = 8时会有多少组,其中每一组长度是 ELEN
+  val groupSize:      Int = VLEN * 8 / lane / ELEN
   val controlNum:     Int = 4
   val HLEN:           Int = ELEN / 2
   val executeUnitNum: Int = 6
@@ -15,6 +16,16 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
   val writeQueueSize: Int = 8
   val elenBits:       Int = log2Ceil(ELEN)
   val groupSizeBits:  Int = log2Ceil(groupSize)
+  // 每一组会会包含32bit,在 vSew < 2时,需要有一个控制寄存器来管理,寄存器的长度
+  val groupControlSize: Int = ELEN / 8
+  // 单个寄存器在每个lane里能分成多少组, 每次只访问32bit
+  val singleGroupSize: Int = VLEN / ELEN / lane
+  val offsetBits:Int = log2Ceil(singleGroupSize)
+
+  // mask 分组
+  val maskGroupWidth: Int = ELEN
+  val maskGroupSize: Int = VLEN / ELEN
+  val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
 
   def vrfParam:         VRFParam = VRFParam(VLEN, lane, ELEN)
   def datePathParam:    DataPathParam = DataPathParam(ELEN)
@@ -153,8 +164,10 @@ class InstControlRecord(param: LaneParameters) extends Bundle {
   val originalInformation: LaneReq = new LaneReq(param)
   val state:               InstGroupState = new InstGroupState(param)
   val initState:           InstGroupState = new InstGroupState(param)
-  val counter:             UInt = UInt(param.VLMaxWidth.W)
+  val counter:             UInt = UInt(param.groupSizeBits.W)
   val schedulerComplete:   Bool = Bool()
+  // 这次执行从32bit的哪个位置开始执行
+  val executeIndex: UInt = UInt(2.W)
 }
 
 class LaneCsrInterface(vlWidth: Int) extends Bundle {
@@ -301,21 +314,22 @@ class Lane(param: LaneParameters) extends Module {
       controlCanShift(index) := !record.state.sExecute
       // vs1 read
       vrfReadWire(index)(0).valid := !record.state.sRead1 && controlActive(index)
-      vrfReadWire(index)(0).bits.offset := record.counter
-      vrfReadWire(index)(0).bits.vs := record.originalInformation.vs1
+      vrfReadWire(index)(0).bits.offset := record.counter(param.offsetBits - 1, 0)
+      // todo: 在 vlmul > 0 的时候需要做的是cat而不是+,因为寄存器是对齐的
+      vrfReadWire(index)(0).bits.vs := record.originalInformation.vs1 + record.counter(param.groupSizeBits - 1, param.offsetBits)
       vrfReadWire(index)(0).bits.instIndex := record.originalInformation.instIndex
       // Mux(decodeResFormat.eew16, 1.U, csrInterface.vSew)
 
       // vs2 read
       vrfReadWire(index)(1).valid := !record.state.sRead2 && controlActive(index)
-      vrfReadWire(index)(1).bits.offset := Mux(needCrossRead, record.counter ## false.B, record.counter)
-      vrfReadWire(index)(1).bits.vs := record.originalInformation.vs2
+      vrfReadWire(index)(1).bits.offset := Mux(needCrossRead, record.counter(param.offsetBits - 2, 0) ## false.B, record.counter(param.offsetBits - 1, 0))
+      vrfReadWire(index)(1).bits.vs := record.originalInformation.vs2 + Mux(needCrossRead, record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## false.B, record.counter(param.groupSizeBits - 1, param.offsetBits - 1))
       vrfReadWire(index)(1).bits.instIndex := record.originalInformation.instIndex
 
       // vd read
       vrfReadWire(index)(2).valid := !record.state.sReadVD && controlActive(index)
-      vrfReadWire(index)(2).bits.offset := Mux(needCrossRead, record.counter ## true.B, record.counter)
-      vrfReadWire(index)(2).bits.vs := record.originalInformation.vd
+      vrfReadWire(index)(2).bits.offset := Mux(needCrossRead, record.counter(param.offsetBits - 2, 0) ## true.B, record.counter(param.offsetBits - 1, 0))
+      vrfReadWire(index)(2).bits.vs := record.originalInformation.vd + Mux(needCrossRead, record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## true.B, record.counter(param.groupSizeBits - 1, param.offsetBits - 1))
       vrfReadWire(index)(2).bits.instIndex := record.originalInformation.instIndex
 
       val readFinish =
@@ -392,10 +406,39 @@ class Lane(param: LaneParameters) extends Module {
         }
       }
       // 发起执行单元的请求
-      // 可能需要做符号位扩展 & 选择来源
-      val finalSource1 = source1(index)
-      val finalSource2 = source2(index)
-      val finalSource3 = source3(index)
+      val vSewOrR: Bool = csrInterface.vSew.orR
+      /**
+        * 根据 vSew 算 mask
+        * 00 -> 0001
+        * 01 -> 0011
+        * 10 -> 1111
+      */
+      val dataMask = Seq(true.B, vSewOrR, csrInterface.vSew(1), csrInterface.vSew(1))
+      /** 计算原数据需要需要的偏移: (executeIndex << vSew) * 8 */
+      val dataOffset: UInt = (record.executeIndex << csrInterface.vSew) ## 0.U(3.W)
+      /** 每次 result 需要往里面移位 */
+      val resultOffset: UInt = csrInterface.vSew(1) ## csrInterface.vSew(0) ## !vSewOrR ## 0.U(3.W)
+      /** 符号的mask,外面好像不用处理符号*/
+      val signMask = Seq(!vSewOrR, csrInterface.vSew(0))
+      /** 不同 vSew 结束时候的index
+        * 00 -> 11
+        * 01 -> 01
+        * 10 -> 00
+        * */
+      val endIndex: UInt = !vSewOrR ## !csrInterface.vSew(1)
+      /** 虽然没有计算完一组,但是这一组剩余的都被mask去掉了 todo */
+      val maskFilterEnd = false.B
+      /** 这一组计算全完成了 */
+      val groupEnd = record.executeIndex === endIndex || maskFilterEnd
+      // 处理操作数
+      /**
+        * src1： src1有 IXV 三种类型,只有V类型的需要移位
+        * */
+      val finalSource1 = (source1(index) >> Mux(decodeResFormat.vType, dataOffset, 0.U)).asUInt
+      /** source2 一定是V类型的 */
+      val finalSource2 = (source2(index) >> dataOffset).asUInt
+      /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
+      val finalSource3 = Mux(decodeResFormat.adderUnit, 0.U, (source3(index) >> dataOffset).asUInt)
       // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
       val logicRequest = Wire(new LaneLogicRequest(param.datePathParam))
       logicRequest.src.head := finalSource2
@@ -450,13 +493,13 @@ class Lane(param: LaneParameters) extends Module {
 
       // 往scheduler的执行任务compress viota
       val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(param)))
-      // todo: 往外发的数据满读
 
       // viota & compress & ls 需要给外边数据, 结束的时候无条件通知一次
       val maskType: Bool = (record.originalInformation.sp || record.originalInformation.ls || instWillComplete(index)) &&
         controlActive(index)
       val maskValid = maskType && record.state.sRead2 && !record.state.sExecute
-      maskRequest.data := finalSource2
+      // 往外边发的是原始的数据
+      maskRequest.data := source2(index)
       maskRequest.toLSU := record.originalInformation.ls
       maskRequest.instIndex := record.originalInformation.instIndex
       maskRequest.last := instWillComplete(index)
@@ -469,12 +512,20 @@ class Lane(param: LaneParameters) extends Module {
       instTypeVec(index) := record.originalInformation.instType
       executeEnqValid(index) := maskAnd(readFinish, instTypeVec(index))
       when((instTypeVec(index) & executeEnqFire).orR || maskValid) {
-        record.state.sExecute := true.B
+        when(groupEnd || maskValid) {
+          record.state.sExecute := true.B
+        }.otherwise {
+          record.executeIndex := record.executeIndex + 1.U
+        }
       }
 
+      // todo: 暂时先这样把,处理mask的时候需要修
+      val resultUpdate: UInt = ((Mux1H(instTypeVec(index), executeDeqData) ## result(index)) >> resultOffset).asUInt(param.ELEN - 1, 0)
       when((instTypeVec(index) & executeDeqFire).orR) {
-        record.state.wExecuteRes := true.B
-        result(index) := Mux1H(instTypeVec(index), executeDeqData)
+        when(groupEnd) {
+          record.state.wExecuteRes := true.B
+        }
+        result(index) := resultUpdate
       }
       // 写rf
       rfWriteVec(index).valid := record.state.wExecuteRes && !record.state.sWrite && controlActive(index)
@@ -495,6 +546,7 @@ class Lane(param: LaneParameters) extends Module {
         }.otherwise {
           record.state := record.initState
           record.counter := nextCounter
+          record.executeIndex := 0.U
         }
       }
       when(feedback.bits.complete && feedback.bits.instIndex === record.originalInformation.instIndex) {
@@ -641,12 +693,16 @@ class Lane(param: LaneParameters) extends Module {
   entranceControl.originalInformation := laneReq.bits
   entranceControl.state := laneReq.bits.initState
   entranceControl.initState := laneReq.bits.initState
+  entranceControl.executeIndex := 0.U
   entranceControl.schedulerComplete := false.B
   // todo: vStart(2,0) > lane index
   entranceControl.counter := (csrInterface.vStart >> 3).asUInt
+  // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
   val vs1entrance: UInt =
-    Mux(entranceFormat.vType, 0.U, Mux(entranceFormat.xType, laneReq.bits.readFromScalar, laneReq.bits.vs1))
+    Mux(entranceFormat.vType, 0.U, Mux(entranceFormat.xType, laneReq.bits.readFromScalar,
+      VecInit(Seq.fill(param.ELEN - 5)(laneReq.bits.vs1(4))).asUInt ## laneReq.bits.vs1))
   val entranceInstType: UInt = laneReq.bits.instType
+  // todo: 修改v0的和使用v0作为mask的指令需要产生冲突
   val typeReady: Bool = VecInit(
     instTypeVec.zip(controlValid).map { case (t, v) => (t =/= entranceInstType) || !v }
   ).asUInt.andR
