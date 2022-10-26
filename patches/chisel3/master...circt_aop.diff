@@ -1,30 +1,271 @@
-diff --git a/src/main/scala/circt/stage/phases/MaybeSFC.scala b/src/main/scala/circt/stage/phases/MaybeSFC.scala
-index e6de9fa4de..c023043c46 100644
---- a/src/main/scala/circt/stage/phases/MaybeSFC.scala
-+++ b/src/main/scala/circt/stage/phases/MaybeSFC.scala
-@@ -4,6 +4,7 @@ package circt.stage.phases
+diff --git a/src/main/scala/chisel3/aop/injecting/InjectStatement.scala b/src/main/scala/chisel3/aop/injecting/InjectStatement.scala
+index dbe1fd7b69..1cedea51af 100644
+--- a/src/main/scala/chisel3/aop/injecting/InjectStatement.scala
++++ b/src/main/scala/chisel3/aop/injecting/InjectStatement.scala
+@@ -8,7 +8,7 @@ import firrtl.annotations.{Annotation, ModuleTarget, NoTargetAnnotation, SingleT
+ /** Contains all information needed to inject statements into a module
+   *
+   * Generated when a [[InjectingAspect]] is consumed by a [[AspectPhase]]
+-  * Consumed by [[InjectingTransform]]
++  * Consumed by [[InjectingPhase]]
+   *
+   * @param module Module to inject code into at the end of the module
+   * @param s Statements to inject
+diff --git a/src/main/scala/chisel3/aop/injecting/InjectingAspect.scala b/src/main/scala/chisel3/aop/injecting/InjectingAspect.scala
+index eec3bed3e7..bf45b04bc9 100644
+--- a/src/main/scala/chisel3/aop/injecting/InjectingAspect.scala
++++ b/src/main/scala/chisel3/aop/injecting/InjectingAspect.scala
+@@ -56,7 +56,7 @@ abstract class InjectorAspect[T <: RawModule, M <: RawModule](
+     * @return
+     */
+   final def toAnnotation(modules: Iterable[M], circuit: String, moduleNames: Seq[String]): AnnotationSeq = {
+-    RunFirrtlTransformAnnotation(new InjectingTransform) +: modules.map { module =>
++    modules.map { module =>
+       val chiselOptions = view[ChiselOptions](annotationsInAspect)
+       val dynamicContext =
+         new DynamicContext(annotationsInAspect, chiselOptions.throwOnFirstError, chiselOptions.warningsAsErrors)
+diff --git a/src/main/scala/chisel3/aop/injecting/InjectingPhase.scala b/src/main/scala/chisel3/aop/injecting/InjectingPhase.scala
+new file mode 100644
+index 0000000000..b4f3eb0791
+--- /dev/null
++++ b/src/main/scala/chisel3/aop/injecting/InjectingPhase.scala
+@@ -0,0 +1,49 @@
++// SPDX-License-Identifier: Apache-2.0
++
++package chisel3.aop.injecting
++
++import chisel3.aop.Aspect
++import firrtl.options.Phase
++import firrtl.stage.FirrtlCircuitAnnotation
++import firrtl.{ir, AnnotationSeq}
++
++import scala.collection.mutable
++
++/** Phase that consumes all Aspects and calls their toAnnotationSeq methods.
++  *
++  * Consumes the [[chisel3.stage.DesignAnnotation]] and converts every [[Aspect]] into their annotations prior to executing FIRRTL
++  */
++class InjectingPhase extends Phase {
++  def transform(annotations: AnnotationSeq): AnnotationSeq = {
++    val addStmtMap = mutable.HashMap[String, Seq[ir.Statement]]()
++    val addModules = mutable.ArrayBuffer[ir.DefModule]()
++    val newAnnotations = annotations.flatMap {
++      case InjectStatement(mt, s, addedModules, annotations) =>
++        addModules ++= addedModules
++        addStmtMap(mt.module) = addStmtMap.getOrElse(mt.module, Nil) :+ s
++        annotations
++      case _ => Seq.empty
++    }
++    logger.debug(s"new annotation added: \n${newAnnotations.map(_.serialize).mkString("=n")}")
++    // Append all statements to end of corresponding modules
++    annotations.filter {
++      case _: InjectStatement => false
++      case _ => true
++    }.map {
++      case f @ FirrtlCircuitAnnotation(c) =>
++        val newModules = c.modules.map { m: ir.DefModule =>
++          m match {
++            case m: ir.Module if addStmtMap.contains(m.name) =>
++              logger.debug(s"Injecting to ${m.name} with statement: \n${ir.Block(addStmtMap(m.name)).serialize}")
++              m.copy(body = ir.Block(m.body +: addStmtMap(m.name)))
++            case m: _root_.firrtl.ir.ExtModule if addStmtMap.contains(m.name) =>
++              logger.debug(s"Injecting to ${m.name} with statement: \n${ir.Block(addStmtMap(m.name)).serialize}")
++              ir.Module(m.info, m.name, m.ports, ir.Block(addStmtMap(m.name)))
++            case other: ir.DefModule => other
++          }
++        }
++        f.copy(c.copy(modules = newModules ++ addModules))
++      case a => a
++    } ++ newAnnotations
++  }
++}
+diff --git a/src/main/scala/chisel3/aop/injecting/InjectingTransform.scala b/src/main/scala/chisel3/aop/injecting/InjectingTransform.scala
+deleted file mode 100644
+index 8a0b6ecb25..0000000000
+--- a/src/main/scala/chisel3/aop/injecting/InjectingTransform.scala
++++ /dev/null
+@@ -1,46 +0,0 @@
+-// SPDX-License-Identifier: Apache-2.0
+-
+-package chisel3.aop.injecting
+-
+-import firrtl.{ir, ChirrtlForm, CircuitForm, CircuitState, Transform}
+-
+-import scala.collection.mutable
+-
+-/** Appends statements contained in [[InjectStatement]] annotations to the end of their corresponding modules
+-  *
+-  * Implemented with Chisel Aspects and the [[chisel3.aop.injecting]] library
+-  */
+-class InjectingTransform extends Transform {
+-  override def inputForm:  CircuitForm = ChirrtlForm
+-  override def outputForm: CircuitForm = ChirrtlForm
+-
+-  override def execute(state: CircuitState): CircuitState = {
+-
+-    val addStmtMap = mutable.HashMap[String, Seq[ir.Statement]]()
+-    val addModules = mutable.ArrayBuffer[ir.DefModule]()
+-
+-    // Populate addStmtMap and addModules, return annotations in InjectStatements, and omit InjectStatement annotation
+-    val newAnnotations = state.annotations.flatMap {
+-      case InjectStatement(mt, s, addedModules, annotations) =>
+-        addModules ++= addedModules
+-        addStmtMap(mt.module) = s +: addStmtMap.getOrElse(mt.module, Nil)
+-        annotations
+-      case other => Seq(other)
+-    }
+-
+-    // Append all statements to end of corresponding modules
+-    val newModules = state.circuit.modules.map { m: ir.DefModule =>
+-      m match {
+-        case m: ir.Module if addStmtMap.contains(m.name) =>
+-          m.copy(body = ir.Block(m.body +: addStmtMap(m.name)))
+-        case m: _root_.firrtl.ir.ExtModule if addStmtMap.contains(m.name) =>
+-          ir.Module(m.info, m.name, m.ports, ir.Block(addStmtMap(m.name)))
+-        case other: ir.DefModule => other
+-      }
+-    }
+-
+-    // Return updated circuit and annotations
+-    val newCircuit = state.circuit.copy(modules = newModules ++ addModules)
+-    state.copy(annotations = newAnnotations, circuit = newCircuit)
+-  }
+-}
+diff --git a/src/main/scala/chisel3/stage/ChiselPhase.scala b/src/main/scala/chisel3/stage/ChiselPhase.scala
+index 6c7affbc2e..6571fef247 100644
+--- a/src/main/scala/chisel3/stage/ChiselPhase.scala
++++ b/src/main/scala/chisel3/stage/ChiselPhase.scala
+@@ -21,6 +21,7 @@ private[chisel3] object ChiselPhase {
+       Dependency[chisel3.stage.phases.MaybeAspectPhase],
+       Dependency[chisel3.stage.phases.AddSerializationAnnotations],
+       Dependency[chisel3.stage.phases.Convert],
++      Dependency[chisel3.stage.phases.MaybeInjectingPhase],
+       Dependency[chisel3.stage.phases.MaybeFirrtlStage]
+     )
  
- import circt.stage.{CIRCTHandover, CIRCTOptions}
+diff --git a/src/main/scala/chisel3/stage/ChiselStage.scala b/src/main/scala/chisel3/stage/ChiselStage.scala
+index 1224a8f114..3454735d7c 100644
+--- a/src/main/scala/chisel3/stage/ChiselStage.scala
++++ b/src/main/scala/chisel3/stage/ChiselStage.scala
+@@ -159,7 +159,8 @@ object ChiselStage {
+         Dependency[chisel3.stage.phases.AddImplicitOutputFile],
+         Dependency[chisel3.stage.phases.AddImplicitOutputAnnotationFile],
+         Dependency[chisel3.stage.phases.MaybeAspectPhase],
+-        Dependency[chisel3.stage.phases.Convert]
++        Dependency[chisel3.stage.phases.Convert],
++        Dependency[chisel3.stage.phases.MaybeInjectingPhase]
+       )
+     }
  
-+import chisel3.aop.injecting.InjectingTransform
+diff --git a/src/main/scala/chisel3/stage/phases/Convert.scala b/src/main/scala/chisel3/stage/phases/Convert.scala
+index 014ed3f29f..5e4ed94781 100644
+--- a/src/main/scala/chisel3/stage/phases/Convert.scala
++++ b/src/main/scala/chisel3/stage/phases/Convert.scala
+@@ -18,7 +18,7 @@ class Convert extends Phase {
+ 
+   override def prerequisites = Seq(Dependency[Elaborate])
+   override def optionalPrerequisites = Seq.empty
+-  override def optionalPrerequisiteOf = Seq.empty
++  override def optionalPrerequisiteOf = Seq(Dependency[MaybeInjectingPhase])
+   override def invalidates(a: Phase) = false
+ 
+   def transform(annotations: AnnotationSeq): AnnotationSeq = annotations.flatMap {
+diff --git a/src/main/scala/chisel3/stage/phases/MaybeInjectingPhase.scala b/src/main/scala/chisel3/stage/phases/MaybeInjectingPhase.scala
+new file mode 100644
+index 0000000000..007bf4f79b
+--- /dev/null
++++ b/src/main/scala/chisel3/stage/phases/MaybeInjectingPhase.scala
+@@ -0,0 +1,19 @@
++// SPDX-License-Identifier: Apache-2.0
++
++package chisel3.stage.phases
++
++import chisel3.aop.injecting.{InjectStatement, InjectingPhase}
++import firrtl.AnnotationSeq
++import firrtl.options.Phase
++
++/** Run [[InjectingPhase]] if a [[InjectStatement]] is present.
++  */
++class MaybeInjectingPhase extends Phase {
++  override def prerequisites = Seq.empty
++  override def optionalPrerequisites = Seq.empty
++  override def optionalPrerequisiteOf = Seq.empty
++  override def invalidates(a: Phase) = false
++  def transform(annotations:  AnnotationSeq): AnnotationSeq = annotations.collectFirst {
++    case _: InjectStatement => new InjectingPhase().transform(annotations)
++  }.getOrElse(annotations)
++}
+diff --git a/src/main/scala/chisel3/testers/TesterDriver.scala b/src/main/scala/chisel3/testers/TesterDriver.scala
+index 6bc0e5d65d..ddfbaef5a8 100644
+--- a/src/main/scala/chisel3/testers/TesterDriver.scala
++++ b/src/main/scala/chisel3/testers/TesterDriver.scala
+@@ -3,9 +3,8 @@
+ package chisel3.testers
+ 
+ import java.io._
+-
+ import chisel3._
+-import chisel3.stage.phases.{Convert, Elaborate, Emitter}
++import chisel3.stage.phases.{Convert, Elaborate, Emitter, MaybeInjectingPhase}
+ import chisel3.stage.{ChiselCircuitAnnotation, ChiselGeneratorAnnotation, ChiselStage, NoRunFirrtlCompilerAnnotation}
  import firrtl.AnnotationSeq
- import firrtl.options.{Dependency, Phase}
- import firrtl.options.Viewer.view
-@@ -18,7 +19,16 @@ class MaybeSFC extends Phase {
+ import firrtl.annotations.NoTargetAnnotation
+@@ -39,7 +38,12 @@ object TesterDriver extends BackendCompilationUtilities {
+       processLogger:        ProcessLogger = loggingProcessLogger
+     ): Boolean = {
+       val pm = new PhaseManager(
+-        targets = Seq(Dependency[AddImplicitTesterDirectory], Dependency[Emitter], Dependency[Convert])
++        targets = Seq(
++          Dependency[AddImplicitTesterDirectory],
++          Dependency[Emitter],
++          Dependency[Convert],
++          Dependency[MaybeInjectingPhase]
++        )
+       )
  
-   override def transform(annotations: AnnotationSeq) = {
-     val sfcAnnotations: Option[AnnotationSeq] = view[CIRCTOptions](annotations).handover.get match {
--      case CIRCTHandover.CHIRRTL      => None
-+      case CIRCTHandover.CHIRRTL      => if (annotations.exists {
-+        // TODO[jiuyang]: This is a hotfix to ask SFC to resolve AOP.
-+        //                Eventually, I think AOP should be moved to an early stage which out a custom firrl transform
-+        //                [[chisel3.aop.injecting.InjectingTransform]]
-+        case _: chisel3.aop.injecting.InjectStatement => true
-+        case _ => false
-+      }) Some(Seq(
-+        RunFirrtlTransformAnnotation(new firrtl.ChirrtlEmitter),
-+        RunFirrtlTransformAnnotation(new InjectingTransform)
-+      )) else None
-       case CIRCTHandover.HighFIRRTL   => Some(Seq(RunFirrtlTransformAnnotation(new firrtl.HighFirrtlEmitter)))
-       case CIRCTHandover.MiddleFIRRTL => Some(Seq(RunFirrtlTransformAnnotation(new firrtl.MiddleFirrtlEmitter)))
-       case CIRCTHandover.LowFIRRTL    => Some(Seq(RunFirrtlTransformAnnotation(new firrtl.LowFirrtlEmitter)))
+       val annotationsx = pm.transform(ChiselGeneratorAnnotation(finishWrapper(t)) +: annotations)
+diff --git a/src/test/scala/circtTests/stage/ChiselStageSpec.scala b/src/test/scala/circtTests/stage/ChiselStageSpec.scala
+index 37ca2c40b9..e770c939cf 100644
+--- a/src/test/scala/circtTests/stage/ChiselStageSpec.scala
++++ b/src/test/scala/circtTests/stage/ChiselStageSpec.scala
+@@ -522,6 +522,40 @@ class ChiselStageSpec extends AnyFunSpec with Matchers {
+ 
+   }
+ 
++  describe("ChiselStage AOP support") {
++    it("should be able to use Inject statement with AOP") {
++      import chisel3._
++      import chisel3.aop.Select
++      import chisel3.aop.injecting.InjectingAspect
++
++      val targetDir = new File("test_run_dir/ChiselStageSpec")
++      val args: Array[String] = Array(
++        "--target",
++        "systemverilog",
++        "--target-dir",
++        targetDir.toString
++      )
++
++      val verilog = (new ChiselStage)
++        .execute(
++          args,
++          Seq(
++            ChiselGeneratorAnnotation(() => new ChiselStageSpec.Foo),
++            InjectingAspect(
++              { dut: ChiselStageSpec.Foo => Select.collectDeep(dut) { case dut: ChiselStageSpec.Foo => dut } },
++              { dut: ChiselStageSpec.Foo => dut.b.a := false.B }
++            )
++          )
++        )
++        .collectFirst {
++          case EmittedVerilogCircuitAnnotation(a) => a
++        }
++        .get
++        .value
++      verilog should include("assign b_a = 1'h0;")
++    }
++  }
++
+   describe("ChiselStage dedup behavior") {
+ 
+     it("should be on by default and work") {
