@@ -289,6 +289,25 @@ class Lane(param: LaneParameters) extends Module {
   val sendReadData:   ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
   val sendWriteData:  ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
 
+  val vSewOrR: Bool = csrInterface.vSew.orR
+  /**
+    * 根据 vSew 算 mask
+    * 00 -> 0001
+    * 01 -> 0011
+    * 10 -> 1111
+    */
+  val dataMask = Seq(true.B, vSewOrR, csrInterface.vSew(1), csrInterface.vSew(1))
+  /** 每次 result 需要往里面移位 */
+  val resultOffset: UInt = csrInterface.vSew(1) ## csrInterface.vSew(0) ## !vSewOrR ## 0.U(3.W)
+  /** 符号的mask,外面好像不用处理符号 */
+  val signMask = Seq(!vSewOrR, csrInterface.vSew(0))
+  /** 不同 vSew 结束时候的index
+    * 00 -> 11
+    * 01 -> 01
+    * 10 -> 00
+    * */
+  val endIndex: UInt = !vSewOrR ## !csrInterface.vSew(1)
+
   // 跨lane写rf需要一个queue
   val crossWriteQueue: Queue[VRFWriteRequest] = Module(
     new Queue(new VRFWriteRequest(param.vrfParam), param.writeQueueSize)
@@ -406,26 +425,8 @@ class Lane(param: LaneParameters) extends Module {
         }
       }
       // 发起执行单元的请求
-      val vSewOrR: Bool = csrInterface.vSew.orR
-      /**
-        * 根据 vSew 算 mask
-        * 00 -> 0001
-        * 01 -> 0011
-        * 10 -> 1111
-      */
-      val dataMask = Seq(true.B, vSewOrR, csrInterface.vSew(1), csrInterface.vSew(1))
       /** 计算原数据需要需要的偏移: (executeIndex << vSew) * 8 */
       val dataOffset: UInt = (record.executeIndex << csrInterface.vSew) ## 0.U(3.W)
-      /** 每次 result 需要往里面移位 */
-      val resultOffset: UInt = csrInterface.vSew(1) ## csrInterface.vSew(0) ## !vSewOrR ## 0.U(3.W)
-      /** 符号的mask,外面好像不用处理符号*/
-      val signMask = Seq(!vSewOrR, csrInterface.vSew(0))
-      /** 不同 vSew 结束时候的index
-        * 00 -> 11
-        * 01 -> 01
-        * 10 -> 00
-        * */
-      val endIndex: UInt = !vSewOrR ## !csrInterface.vSew(1)
       /** 虽然没有计算完一组,但是这一组剩余的都被mask去掉了 todo */
       val maskFilterEnd = false.B
       /** 这一组计算全完成了 */
