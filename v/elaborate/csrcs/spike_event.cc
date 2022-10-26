@@ -23,37 +23,10 @@ uint64_t SpikeEvent::mem_load(uint64_t addr, uint32_t size) {
   }
 }
 
-// 记录的数据会不会是之前多条指令的结果
 void SpikeEvent::log() {
   state_t *state = proc.get_state();
-  commit_log_reg_t &regs = state->log_reg_write;
-  commit_log_mem_t &loads = state->log_mem_read;
-  commit_log_mem_t &stores = state->log_mem_write;
-  mem_read_info = loads;
-  size_t load_size = loads.size();
-  size_t store_size = stores.size();
-  if (!state->log_mem_read.empty()) {
-    //std::vector <std::tuple<int,int>> ve = {std::make_tuple(1,1),std::make_tuple(2,2)};
-    //LOG(INFO) << fmt::format(" test = {}", ve);
-    LOG(INFO) << fmt::format(" load times = {}", load_size);
-    //LOG(INFO) << fmt::format(" front reg = {}", std::get<0>(loads.front()));
-    //LOG(INFO) << fmt::format(" front address = {}", std::get<1>(loads.front()));
-    //LOG(INFO) << fmt::format(" front size = {}", std::get<2>(loads.front()));
-    for (const auto item: loads) {
-      //std::get<1> (item) = 1;
-      //LOG(INFO) << fmt::format(" load addr, value, size = {}, {}, {}", std::get<0>(item),std::get<1>(item),std::get<2>(item));
-      uint64_t addr = std::get<0>(item);
-      uint64_t value = mem_load(std::get<0>(item), std::get<2>(item));
-      uint8_t size = std::get<2>(item);
-      LOG(INFO) << fmt::format(" load addr, load back value, size = {:X}, {}, {}", addr, value, size);
-      log_mem_queue.push_back({addr, value, size});
-    }
-  }
-  if (!state->log_mem_write.empty()) {
-    LOG(INFO) << fmt::format(" store size = {}", store_size);
-  }
 
-  for (auto reg: regs) {
+  for (auto reg: state->log_reg_write) {
     // in spike, log_reg_write is arrange:
     // xx0000 <- x
     // xx0001 <- f
@@ -61,15 +34,30 @@ void SpikeEvent::log() {
     // xx0011 <- vec
     // xx0100 <- csr
     if ((reg.first & 0xf) == 2) {
-      // TODO: based on VLMUL, SEW, set _vrf
+      auto idx = (reg.first >> 4);
+      if (idx > 31) {
+        LOG(FATAL) << fmt::format("SPIKE is crazy");
+      }
+      LOG(INFO) << fmt::format("Reg Access: {}, TODO: access contents", idx);
       continue;
+    } else if (false) {
+      // TODO: write scalar register.
     }
   }
   for (auto mem_write: state->log_mem_write) {
-
+    uint64_t address = std::get<0>(mem_write);
+    uint64_t value = std::get<1>(mem_write);
+    // Byte size
+    uint8_t size = std::get<2>(mem_write);
+    LOG(INFO) << fmt::format("Memory Store {:X} to {:X} with size = {} ", value, address, size);
   }
-  for (auto mem_read: state->log_mem_write) {
-
+  for (auto mem_read: state->log_mem_read) {
+    uint64_t address = std::get<0>(mem_read);
+    uint8_t size = std::get<2>(mem_read);
+    for (int i = 0; i < size; ++i) {
+      uint8_t value = impl->load(address + i);
+      LOG(INFO) << fmt::format("Memory Load(size: {}) from 0x{:X}, offset {}, value accessed: {:X}", size, address, i, value);
+    }
   }
 }
 

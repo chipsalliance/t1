@@ -9,9 +9,10 @@
 #include "verilated_fst_c.h"
 
 #include "simple_sim.h"
+#include "vbridge_impl.h"
 
 struct SpikeEvent {
-  explicit SpikeEvent(processor_t &proc, insn_fetch_t &fetch);
+  SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl);
 
   [[nodiscard]] std::string get_insn_disasm() const;
 
@@ -33,6 +34,7 @@ struct SpikeEvent {
 
   uint8_t lsu_idx = 255;
   processor_t &proc;
+  VBridgeImpl *impl;
 
   bool is_issued;
   bool is_committed;

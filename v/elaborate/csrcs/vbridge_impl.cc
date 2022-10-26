@@ -175,10 +175,14 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
   bool store_type = opcode == 0b100111;
   bool v_type = opcode == 0b1010111 && width != 0b111;
   if (load_type || store_type || v_type) {
-    return SpikeEvent(proc, fetch);
+    return std::make_optional<SpikeEvent>(proc, fetch, this);
   } else {
     return {};
   }
+}
+
+uint8_t VBridgeImpl::load(uint64_t address){
+  return *sim.addr_to_mem(address);
 }
 
 void VBridgeImpl::run() {

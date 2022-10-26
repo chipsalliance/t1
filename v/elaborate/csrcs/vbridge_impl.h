@@ -42,13 +42,9 @@ public:
   // todo remove this.
   void configure_simulator(int argc, char **argv);
 
-  void loop();
-
   void run();
 
-  void poke_instruction(SpikeEvent se);
-
-  void poke_csr_control(SpikeEvent se);
+  uint8_t load(uint64_t address);
 
 private:
   VerilatedContext ctx;

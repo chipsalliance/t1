@@ -9,7 +9,7 @@ import firrtl.{AnnotationSeq, ChirrtlEmitter, EmitAllModulesAnnotation}
 import firrtl.options.TargetDirAnnotation
 import logger.{LogLevel, LogLevelAnnotation}
 import mainargs._
-import v.{LSU, V, VRF}
+import v.{LSU, RegFile, V, VRF}
 
 object Main {
   @main def elaborate(@arg(name="dir") dir: String) = {
@@ -39,6 +39,10 @@ object Main {
             val reqEnqDBG = RegNext(lsu.reqEnq).suggestName("reqEnq_debug")
             chisel3.dontTouch(reqEnqDBG)
             chisel3.experimental.Trace.traceName(reqEnqDBG) }
+        ),
+        InjectingAspect(
+          { dut: V => Select.collectDeep(dut) { case regFile: RegFile => regFile } },
+          { regFile: RegFile => chisel3.experimental.Trace.traceName(regFile.writePort) }
         ),
       ): AnnotationSeq
     ) { case (annos, stage) => stage.transform(annos) }
