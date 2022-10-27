@@ -87,9 +87,9 @@ private:
 
   insn_fetch_t fetch_proc_insn();
 
-  uint64_t mem_load(uint64_t addr, uint32_t size);
+  uint64_t spike_mem_load(uint64_t addr, uint32_t size);
 
-  void mem_store(uint64_t addr, uint32_t size, uint64_t data);
+  void spike_mem_store(uint64_t addr, uint32_t size, uint64_t data);
 
   std::optional<SpikeEvent> create_spike_event(insn_fetch_t fetch);
 
@@ -107,16 +107,5 @@ private:
 
   std::optional<RTLEvent> create_rtl_event();
 
-
-// the following macro helps us to access tl interface by dynamic index
-#define TL_INTERFACE(type, name) \
-type &get_tl_##name(int i) {      \
-  switch (i) {                   \
-  case 0: return top.tlPort_0_##name;                     \
-  case 1: return top.tlPort_1_##name;                     \
-  default: assert(false && "unknown tl port index");                                 \
-  }\
-}
-
-#include "tl_interface.inc.h"
+  void receive_tl_req();
 };
