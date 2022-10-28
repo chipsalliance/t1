@@ -11,6 +11,10 @@
 #include "simple_sim.h"
 #include "vbridge_impl.h"
 
+constexpr int lsuIdxDefault = 255;
+
+class VBridgeImpl;
+
 struct SpikeEvent {
   SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl);
 
@@ -19,7 +23,7 @@ struct SpikeEvent {
   void drive_rtl_req(VV &top) const;
   void drive_rtl_csr(VV &top) const;
 
-  void log();
+  void log_arch_changes();
 
   commit_log_mem_t mem_read_info;
 

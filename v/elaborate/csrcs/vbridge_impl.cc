@@ -159,7 +159,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
     // step spike
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
     // todo: collect info for difftest
-    se.log();
+    se.log_arch_changes();
   } else {
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
   }
@@ -175,7 +175,7 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
   bool store_type = opcode == 0b100111;
   bool v_type = opcode == 0b1010111 && width != 0b111;
   if (load_type || store_type || v_type) {
-    return std::make_optional<SpikeEvent>(proc, fetch, this);
+    return SpikeEvent{proc, fetch, this};
   } else {
     return {};
   }
@@ -194,34 +194,13 @@ void VBridgeImpl::run() {
   // start loop
   while (true) {
     // spike =======> to_rtl_queue =======> rtl
-    // when queue is not full
-    while (to_rtl_queue.size() < to_rtl_queue_size) {
-      try {
-        if (auto spike_event = spike_step()) {
-          auto se = spike_event.value();
-          LOG(INFO) << fmt::format("enqueue Spike Event: {}", se.get_insn_disasm());
-          //LOG(INFO) << fmt::format("issue: {}", se.get_issued());
-          to_rtl_queue.push_front(se);
-        }
-      } catch (trap_t &trap) {
-        LOG(FATAL) << fmt::format("spike trapped with {}", trap.name());
-      }
-    }
-    LOG(INFO) << fmt::format("to_rtl_queue is full now, start to simulate.");
+    loop_until_se_queue_full();
 
     // loop while there exists unissued insn in queue
     while (!to_rtl_queue.front().is_issued) {
       // in the RTL thread, for each RTL cycle, valid signals should be checked, generate events, let testbench be able
       // to check the correctness of RTL behavior, benchmark performance signals.
-      SpikeEvent *se_to_issue = nullptr;
-      for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
-        if (!iter->is_issued) {
-          se_to_issue = &(*iter);
-          break;
-        }
-      }
-      LOG_ASSERT(se_to_issue) << fmt::format("all events in to_rtl_queue are is_issued");  // TODO: handle this
-
+      SpikeEvent *se_to_issue = find_se_to_issue();
       se_to_issue->drive_rtl_req(top);
       se_to_issue->drive_rtl_csr(top);
 
@@ -246,53 +225,20 @@ void VBridgeImpl::run() {
       top.eval();
       tfp.dump(2 * ctx.time());
       ctx.timeInc(1);
-      // posedge
-      // update registers
+      // posedge, update registers
       top.clock = 1;
       top.eval();
       tfp.dump(2 * ctx.time() - 1);
 
       // TODO: record rf access
-      {
-        bool vrf_write_valid = false;
-        for (int i = 0; i < 8; i++) {
-          vrf_write_valid |= vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_valid", i).c_str());
-        }
-        if (vrf_write_valid) {
-          // TODO: based on the RTL event, change se_to_issue rf field:
-          //       1. based on the mask and write element, set corresponding element in vrf to written.
-          LOG(INFO) << fmt::format("write to vrf");
-        }
-      }
+      record_rf_accesses();
 
       // TODO: record mem access
-      {
-        uint32_t lsuReqs[3];
-        for (int i = 0; i < 3; i++) {
-          lsuReqs[i] = vpi_get_integer(fmt::format("TOP.V.lsu.reqEnq_debug_{}", i).c_str());
-        }
-        for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
-          if (iter->is_issued && (iter->is_load || iter->is_store) && (iter->lsu_idx == 255)) {
-            uint8_t index = 255;
-            if (lsuReqs[0] == 1) {
-              index = 0;
-            } else if (lsuReqs[1] == 1) {
-              index = 1;
-            } else if (lsuReqs[2] == 1) {
-              index = 2;
-            } else {
-              LOG(FATAL) << fmt::format("time: {}, load store is_issued but not no slot allocated.", ctx.time());
-            }
-            se_to_issue->lsu_idx = index;
-            LOG(INFO) << fmt::format("slot {} is occupied by DSAM: {}", index, se_to_issue->get_insn_disasm());
-            break;
-          }
-        }
-      }
+      update_lsu_idx();
 
-      // TODO: check when commit
       if (top.resp_valid) {
         LOG(INFO) << fmt::format("Commit {:X}", to_rtl_queue.back().pc);
+        // TODO: check when commit
         to_rtl_queue.pop_back();
       }
 
@@ -323,11 +269,77 @@ void VBridgeImpl::receive_tl_req() {
     switch (opcode) {
     case TlOpcode::Get:
       // TODO: handle get
+      break;
     case TlOpcode::PutFullData:
-      // TODO: handle put
+      // TODO: handle put, record request
+      break;
     default:
       LOG(FATAL) << fmt::format("unknown tl opcode {}", opcode);
     }
   }
 #undef TL
+}
+
+void VBridgeImpl::update_lsu_idx() {
+  uint32_t lsuReqs[numMSHR];
+  for (int i = 0; i < numMSHR; i++) {
+    lsuReqs[i] = vpi_get_integer(fmt::format("TOP.V.lsu.reqEnq_debug_{}", i).c_str());
+  }
+  for (auto se = to_rtl_queue.rbegin(); se != to_rtl_queue.rend(); se++) {
+    if (se->is_issued && (se->is_load || se->is_store) && (se->lsu_idx == lsuIdxDefault)) {
+      uint8_t index = lsuIdxDefault;
+      for (int i = 0; i < numMSHR; i++) {
+        if (lsuReqs[i] == 1) {
+          index = i;
+          break;
+        }
+      }
+      LOG_ASSERT(index != lsuIdxDefault)
+        << fmt::format(": [{}] load store issued but not no slot allocated.", ctx.time());
+      se->lsu_idx = index;
+      LOG(INFO) << fmt::format("insn ({}) is allocated lsu_idx={}", se->get_insn_disasm(), index);
+      break;
+    }
+  }
+}
+
+void VBridgeImpl::loop_until_se_queue_full() {
+  while (to_rtl_queue.size() < to_rtl_queue_size) {
+    try {
+      if (auto spike_event = spike_step()) {
+        auto se = spike_event.value();
+        LOG(INFO) << fmt::format("enqueue Spike Event: {}", se.get_insn_disasm());
+        //LOG(INFO) << fmt::format("issue: {}", se.get_issued());
+        to_rtl_queue.push_front(se);
+      }
+    } catch (trap_t &trap) {
+      LOG(FATAL) << fmt::format("spike trapped with {}", trap.name());
+    }
+  }
+  LOG(INFO) << fmt::format("to_rtl_queue is full now, start to simulate.");
+
+}
+
+SpikeEvent *VBridgeImpl::find_se_to_issue() {
+  SpikeEvent *se_to_issue = nullptr;
+  for (auto iter = to_rtl_queue.rbegin(); iter != to_rtl_queue.rend(); iter++) {
+    if (!iter->is_issued) {
+      se_to_issue = &(*iter);
+      break;
+    }
+  }
+  LOG_ASSERT(se_to_issue) << fmt::format("all events in to_rtl_queue are is_issued");  // TODO: handle this
+  return se_to_issue;
+}
+
+void VBridgeImpl::record_rf_accesses() {
+  bool vrf_write_valid = false;
+  for (int i = 0; i < 8; i++) {
+    vrf_write_valid |= vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_valid", i).c_str());
+  }
+  if (vrf_write_valid) {
+    // TODO: based on the RTL event, change se_to_issue rf field:
+    //       1. based on the mask and write element, set corresponding element in vrf to written.
+    LOG(INFO) << fmt::format("write to vrf");
+  }
 }

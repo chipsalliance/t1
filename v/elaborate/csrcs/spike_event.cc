@@ -23,7 +23,7 @@ uint64_t SpikeEvent::mem_load(uint64_t addr, uint32_t size) {
   }
 }
 
-void SpikeEvent::log() {
+void SpikeEvent::log_arch_changes() {
   state_t *state = proc.get_state();
 
   for (auto reg: state->log_reg_write) {
@@ -61,7 +61,7 @@ void SpikeEvent::log() {
   }
 }
 
-SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch): proc(proc) {
+SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl): proc(proc), impl(impl) {
   auto &xr = proc.get_state()->XPR;
   rs1_bits = xr[fetch.insn.rs1()];
   rs2_bits = xr[fetch.insn.rs2()];
@@ -89,7 +89,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch): proc(proc) {
   is_issued = false;
   is_committed = false;
 
-  lsu_idx = 255;  // default lsu_idx
+  lsu_idx = lsuIdxDefault;  // default lsu_idx
 }
 
 void SpikeEvent::drive_rtl_req(VV &top) const {

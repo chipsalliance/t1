@@ -11,6 +11,9 @@
 #include "rtl_event.h"
 
 constexpr int numTL = 2;
+constexpr int numMSHR = 3;
+
+class SpikeEvent;
 
 struct TLBank {
   uint32_t data;
@@ -99,9 +102,10 @@ private:
 
   std::optional<SpikeEvent> spike_step();
 
-  std::optional<RTLEvent> rtl_step();
-
-  std::optional<RTLEvent> create_rtl_event();
+  void update_lsu_idx();
+  void loop_until_se_queue_full();
+  SpikeEvent *find_se_to_issue();
+  void record_rf_accesses();
 
   void receive_tl_req();
 };
