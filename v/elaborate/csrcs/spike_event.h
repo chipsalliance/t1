@@ -18,7 +18,7 @@ class VBridgeImpl;
 struct SpikeEvent {
   SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl);
 
-  [[nodiscard]] std::string get_insn_disasm() const;
+  [[nodiscard]] std::string describe_insn() const;
 
   void drive_rtl_req(VV &top) const;
   void drive_rtl_csr(VV &top) const;
@@ -54,7 +54,6 @@ struct SpikeEvent {
   uint32_t rs1_bits;
   uint32_t rs2_bits;
   uint32_t rd_idx;
-  uint32_t rd_bits;
 
   // vtype
   uint32_t vsew: 3;
@@ -80,4 +79,25 @@ struct SpikeEvent {
   struct vd_write_record_t {
     std::unique_ptr<uint8_t[]> vd_bytes;
   } vd_write_record;
+
+  bool is_rd_written;
+  uint32_t rd_bits;
+
+  struct {
+    struct single_mem_write {
+      uint32_t size_by_byte;
+      reg_t val;
+      bool executed; // set to true when rtl execute this mem access
+    };
+    struct single_mem_read {
+      uint16_t size_by_byte;
+      reg_t val;
+      bool executed; // set to true when rtl execute this mem access
+    };
+    std::map<uint32_t, single_mem_write> all_writes;
+    std::map<uint32_t, single_mem_read> all_reads;
+  } mem_access_record;
+
+  void record_rd_write(VV &top);
+  void check_is_ready_for_commit();
 };

@@ -6,8 +6,8 @@
 #include "util.h"
 #include "tl_interface.h"
 
-std::string SpikeEvent::get_insn_disasm() const {
-  return fmt::format("PC: {:X}, ASM: {:08X}, DISASM: {}", pc, inst_bits, proc.get_disassembler()->disassemble(inst_bits));
+std::string SpikeEvent::describe_insn() const {
+  return fmt::format("pc={:08X}, bits={:08X}, disasm='{}'", pc, inst_bits, proc.get_disassembler()->disassemble(inst_bits));
 }
 
 uint64_t SpikeEvent::mem_load(uint64_t addr, uint32_t size) {
@@ -30,8 +30,6 @@ void SpikeEvent::pre_log_arch_changes() {
   uint32_t len = consts::vlen_in_bits << vlmul / 8;
   vd_write_record.vd_bytes = std::make_unique<uint8_t[]>(len);
   std::memcpy(vd_write_record.vd_bytes.get(), vd_bits_start, len);
-
-  rd_bits = proc.get_state()->XPR[rd_idx];
 }
 
 void SpikeEvent::log_arch_changes() {
@@ -61,6 +59,8 @@ void SpikeEvent::log_arch_changes() {
     } else if ((write_idx & 0xf) == 0b0000) {  // scalar rf
       uint32_t new_rd_bits = proc.get_state()->XPR[rd_idx];
       if (new_rd_bits != rd_bits) {
+        rd_bits = new_rd_bits;
+        is_rd_written = true;
         LOG(INFO) << fmt::format("spike detect scalar rf change: x[{}] from {} to {}", rd_idx, rd_bits, new_rd_bits);
       }
     } else {
@@ -72,8 +72,18 @@ void SpikeEvent::log_arch_changes() {
     uint64_t address = std::get<0>(mem_write);
     uint64_t value = std::get<1>(mem_write);
     // Byte size_bytes
-    uint8_t size_bytes = std::get<2>(mem_write);
-    LOG(INFO) << fmt::format("spike detect mem write {:08X} on {:08X} with size={}byte", value, address, size_bytes);
+    uint8_t size_by_byte = std::get<2>(mem_write);
+    LOG(INFO) << fmt::format("spike detect mem write {:08X} on {:08X} with size={}byte", value, address, size_by_byte);
+    mem_access_record.all_writes[address] = { .size_by_byte = size_by_byte, .val = value };
+  }
+
+  for (auto mem_read: state->log_mem_read) {
+    uint64_t address = std::get<0>(mem_read);
+    uint64_t value = std::get<1>(mem_read);
+    // Byte size_bytes
+    uint8_t size_by_byte = std::get<2>(mem_read);
+    LOG(INFO) << fmt::format("spike detect mem read {:08X} on {:08X} with size={}byte", value, address, size_by_byte);
+    mem_access_record.all_reads[address] = { .size_by_byte = size_by_byte, .val = value };
   }
 
   state->log_reg_write.clear();
@@ -86,6 +96,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   rs1_bits = xr[fetch.insn.rs1()];
   rs2_bits = xr[fetch.insn.rs2()];
   rd_idx = fetch.insn.rd();
+  rd_bits = proc.get_state()->XPR[rd_idx];
 
   uint64_t vtype = proc.VU.vtype->read();
   vlmul = clip(vtype, 0, 2);
@@ -130,4 +141,27 @@ void SpikeEvent::drive_rtl_csr(VV &top) const {
   top.csrInterface_vStart = vstart;
   top.csrInterface_vxrm = vxrm;
   top.csrInterface_ignoreException = false;
+}
+
+void SpikeEvent::check_is_ready_for_commit() {
+  for (auto &[addr, mem_write]: mem_access_record.all_writes) {
+    if (!mem_write.executed) {
+      LOG(FATAL) << fmt::format("expect to read {:08X}, not executed when commit (pc={:08X}, insn='{}'",
+                                addr, pc, describe_insn());
+    }
+  }
+  for (auto &[addr, mem_read]: mem_access_record.all_reads) {
+    if (!mem_read.executed) {
+      LOG(FATAL) << fmt::format("expect to read {:08X}, not executed when commit (pc={:08X}, insn='{}'",
+                                addr, pc, describe_insn());
+    }
+  }
+}
+
+void SpikeEvent::record_rd_write(VV &top) {
+  // TODO: rtl should indicate whether resp_bits_data is valid
+  if (is_rd_written) {
+    LOG_ASSERT(top.resp_bits_data == rd_bits) << fmt::format("expect to write rd[] = {}, actual {}",
+                                                             top.resp_bits_data, rd_bits);
+  }
 }

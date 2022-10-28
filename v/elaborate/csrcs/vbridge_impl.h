@@ -15,23 +15,19 @@
 
 class SpikeEvent;
 
-struct TLBank {
-  uint32_t data;
+struct TLReqRecord {
+  uint64_t data;
+  uint32_t size_by_byte;
   uint16_t source;
+
+  /// when opType set to nil, it means this record is already sent back
   enum class opType {
     Nil, Get, PutFullData
   } op;
-  int remainingCycles;
+  int remaining_cycles;
 
-  TLBank();
-
-  void step();
-
-  [[nodiscard]] bool done() const;
-
-  [[nodiscard]] bool ready() const;
-
-  void clear();
+  TLReqRecord(uint64_t data, uint32_t size_by_byte, uint16_t source, opType op, int cycles) :
+      data(data), size_by_byte(size_by_byte), source(source), op(op), remaining_cycles(cycles) {};
 };
 
 class VBridgeImpl {
@@ -56,8 +52,8 @@ private:
   simple_sim sim;
   isa_parser_t isa;
   processor_t proc;
-  uint64_t _cycles{};
-  TLBank banks[consts::numTL];
+  uint64_t _cycles;
+  std::map<reg_t, TLReqRecord> tl_banks[consts::numTL];
 
   /// to rtl stack
   /// in the spike thread, spike should detech if this queue is full, if not full, execute until a vector instruction,
@@ -82,26 +78,24 @@ private:
 
   insn_fetch_t fetch_proc_insn();
 
-  uint64_t spike_mem_load(uint64_t addr, uint32_t size);
-
-  void spike_mem_store(uint64_t addr, uint32_t size, uint64_t data);
-
   std::optional<SpikeEvent> create_spike_event(insn_fetch_t fetch);
 
   void init_spike();
-
   void init_simulator();
-
   void terminate_simulator();
-
-  uint64_t get_simulator_cycle();
+  uint64_t get_t();
 
   std::optional<SpikeEvent> spike_step();
 
   void update_lsu_idx();
   void loop_until_se_queue_full();
   SpikeEvent *find_se_to_issue();
-  void record_rf_accesses();
 
+  void record_rf_accesses();
+  void return_tl_response();
   void receive_tl_req();
+
+  int get_mem_req_cycles() {
+    return 1;
+  };
 };

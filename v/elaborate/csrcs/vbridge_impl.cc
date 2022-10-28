@@ -12,24 +12,9 @@
 #include "vpi.h"
 #include "tl_interface.h"
 
-void TLBank::step() {
-  if (remainingCycles > 0) remainingCycles--;
-}
-
-[[nodiscard]] bool TLBank::done() const {
-  return op != opType::Nil && remainingCycles == 0;
-}
-
-[[nodiscard]] bool TLBank::ready() const {
-  return op == opType::Nil;
-}
-
-void TLBank::clear() {
-  op = opType::Nil;
-}
-
-TLBank::TLBank() {
-  op = opType::Nil;
+/// convert TL style size to size_by_bytes
+inline uint32_t decode_size(uint32_t encoded_size) {
+  return 1 << encoded_size;
 }
 
 void VBridgeImpl::reset() {
@@ -92,35 +77,6 @@ void VBridgeImpl::configure_simulator(int argc, char **argv) {
   ctx.commandArgs(argc, argv);
 }
 
-uint64_t VBridgeImpl::spike_mem_load(uint64_t addr, uint32_t size) {
-  switch (size) {
-    case 0:
-      return proc.get_mmu()->load_uint8(addr);
-    case 1:
-      return proc.get_mmu()->load_uint16(addr);
-    case 2:
-      return proc.get_mmu()->load_uint32(addr);
-    default:
-      LOG(FATAL) << fmt::format("unknown load size {}", size);
-  }
-}
-
-void VBridgeImpl::spike_mem_store(uint64_t addr, uint32_t size, uint64_t data) {
-  switch (size) {
-    case 0:
-      proc.get_mmu()->store_uint8(addr, data);
-      break;
-    case 1:
-      proc.get_mmu()->store_uint16(addr, data);
-      break;
-    case 2:
-      proc.get_mmu()->store_uint32(addr, data);
-      break;
-    default:
-      LOG(FATAL) << fmt::format("unknown store size {}", size);
-  }
-}
-
 void VBridgeImpl::init_spike() {
   // reset spike CPU
   proc.reset();
@@ -142,7 +98,7 @@ void VBridgeImpl::terminate_simulator() {
   top.final();
 }
 
-uint64_t VBridgeImpl::get_simulator_cycle() {
+uint64_t VBridgeImpl::get_t() {
   return ctx.time();
 }
 
@@ -153,8 +109,8 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto &xr = proc.get_state()->XPR;
   if (event) {
     auto &se = event.value();
-    LOG(INFO) << fmt::format("spike start exec insn ({}) (pc={:08X}, vl={}, sew={}, lmul={})",
-                             se.get_insn_disasm(), se.pc, se.vl, (int) se.vsew, (int) se.vlmul);
+    LOG(INFO) << fmt::format("spike start exec insn ({}) (vl={}, sew={}, lmul={})",
+                             se.describe_insn(), se.vl, (int) se.vsew, (int) se.vlmul);
     se.pre_log_arch_changes();
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
     se.log_arch_changes();
@@ -202,9 +158,7 @@ void VBridgeImpl::run() {
       se_to_issue->drive_rtl_req(top);
       se_to_issue->drive_rtl_csr(top);
 
-      // drive instruction
-      top.tlPort_0_a_ready = true;
-      top.tlPort_1_a_ready = true;
+      return_tl_response();
 
       // Make sure any combinatorial logic depending upon inputs that may have changed before we called tick() has settled before the rising edge of the clock.
       top.clock = 1;
@@ -213,7 +167,7 @@ void VBridgeImpl::run() {
       // Instruction is_issued, top.req_ready deps on top.req_bits_inst
       if (top.req_ready) {
         se_to_issue->is_issued = true;
-        LOG(INFO) << fmt::format("Issue {:X} ({})", se_to_issue->pc, se_to_issue->get_insn_disasm());
+        LOG(INFO) << fmt::format("[{}] issue to rtl ({})", get_t(), se_to_issue->describe_insn());
       }
 
       receive_tl_req();
@@ -228,20 +182,21 @@ void VBridgeImpl::run() {
       top.eval();
       tfp.dump(2 * ctx.time() - 1);
 
-      // TODO: record rf access
       record_rf_accesses();
 
-      // TODO: record mem access
       update_lsu_idx();
 
       if (top.resp_valid) {
         LOG(INFO) << fmt::format("Commit {:X}", to_rtl_queue.back().pc);
-        // TODO: check when commit
+        SpikeEvent &se = to_rtl_queue.back();
+        se.record_rd_write(top);
+        se.check_is_ready_for_commit();
         to_rtl_queue.pop_back();
       }
 
-      if (get_simulator_cycle() >= timeout)
+      if (get_t() >= timeout) {
         throw TimeoutException();
+      }
     }
     LOG(INFO) << fmt::format("all insn in to_rtl_queue is issued, restarting spike");
   }
@@ -251,9 +206,9 @@ void VBridgeImpl::receive_tl_req() {
 #define TL(i, name) (get_tl_##name(top, (i)))
   for (int tlIdx = 0; tlIdx < 2; tlIdx++) {
     if (!TL(tlIdx, a_valid)) continue;
+
     uint8_t opcode = TL(tlIdx, a_bits_opcode);
     uint32_t addr = TL(tlIdx, a_bits_address);
-    uint32_t data = TL(tlIdx, a_bits_data);
     uint8_t size = TL(tlIdx, a_bits_size);
     uint8_t src = TL(tlIdx, a_bits_source);   // MSHR id, TODO: be returned in D channel
     uint32_t lsu_index = TL(tlIdx, a_bits_source) & 3;
@@ -263,17 +218,83 @@ void VBridgeImpl::receive_tl_req() {
         se = &(*se_iter);
       }
     }
-    LOG_ASSERT(se) << fmt::format("cannot find SpikeEvent with lsu_idx={}", lsu_index);
+    LOG_ASSERT(se) << fmt::format("[{]] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
+
     switch (opcode) {
-    case TlOpcode::Get:
-      // TODO: handle get
+
+    case TlOpcode::Get: {
+      LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={}, size={}byte)", addr, decode_size(size));
+      auto mem_read = se->mem_access_record.all_reads.find(addr);
+      LOG_ASSERT(mem_read != se->mem_access_record.all_reads.end())
+        << fmt::format("[{}] cannot find mem read of addr {:08X}", get_t(), addr);
+      LOG_ASSERT(mem_read->second.size_by_byte == decode_size(size)) << fmt::format(
+          "[{}] expect mem read of size {}, actual size {} (addr={:08X}, {})",
+          get_t(), mem_read->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
+
+      uint64_t data = mem_read->second.val;
+      tl_banks[tlIdx].emplace(std::make_pair(addr, TLReqRecord{
+          data, 1u << size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
+      }));
+      mem_read->second.executed = true;
       break;
-    case TlOpcode::PutFullData:
-      // TODO: handle put, record request
+    }
+
+    case TlOpcode::PutFullData: {
+      uint32_t data = TL(tlIdx, a_bits_data);
+      LOG(INFO) << fmt::format("[{}] receive rtl mem put req (addr={:08X}, size={}byte, data={})",
+                               addr, decode_size(size), data);
+      auto mem_write = se->mem_access_record.all_writes.find(addr);
+
+      LOG_ASSERT(mem_write != se->mem_access_record.all_writes.end())
+              << fmt::format("[{}] cannot find mem write of addr={:08X}", get_t(), addr);
+      LOG_ASSERT(mem_write->second.size_by_byte == decode_size(size)) << fmt::format(
+          "[{}] expect mem write of size {}, actual size {} (addr={:08X}, insn='{}')",
+          get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
+      LOG_ASSERT(mem_write->second.val == data) << fmt::format(
+          "[{}] expect mem write of data {}, actual data {} (addr={:08X}, insn='{}')",
+          get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
+
+      tl_banks[tlIdx].emplace(std::make_pair(addr, TLReqRecord{
+          data, 1u << size, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
+      }));
+      mem_write->second.executed = true;
       break;
-    default:
+    }
+    default: {
       LOG(FATAL) << fmt::format("unknown tl opcode {}", opcode);
     }
+    }
+  }
+#undef TL
+}
+
+void VBridgeImpl::return_tl_response() {
+#define TL(i, name) (get_tl_##name(top, (i)))
+  for (int i = 0; i < consts::numTL; i++) {
+    // update remaining_cycles
+    for (auto &[addr, record]: tl_banks[i]) {
+      if (record.remaining_cycles > 0) record.remaining_cycles--;
+    }
+
+    // find a finished request and return
+    for (auto &[addr, record]: tl_banks[i]) {
+      if (record.remaining_cycles == 0) {
+        TL(i, d_bits_opcode) = record.op == TLReqRecord::opType::Get ? TlOpcode::AccessAckData : TlOpcode::AccessAck;
+        TL(i, d_valid) = true;
+        TL(i, d_bits_data) = record.data;
+        TL(i, d_bits_source) = record.source;
+        record.op = TLReqRecord::opType::Nil;
+        break;
+      }
+    }
+
+    // collect garbage
+    erase_if(tl_banks[i], [](const auto &record) {
+      return record.second.op == TLReqRecord::opType::Nil;
+    });
+
+    // welcome new requests all the time
+    TL(i, a_ready) = true;
   }
 #undef TL
 }
@@ -293,9 +314,9 @@ void VBridgeImpl::update_lsu_idx() {
         }
       }
       LOG_ASSERT(index != consts::lsuIdxDefault)
-        << fmt::format(": [{}] load store issued but not no slot allocated.", ctx.time());
+        << fmt::format(": [{}] load store issued but not no slot allocated.", get_t());
       se->lsu_idx = index;
-      LOG(INFO) << fmt::format("insn ({}) is allocated lsu_idx={}", se->get_insn_disasm(), index);
+      LOG(INFO) << fmt::format("[{}] insn ({}) is allocated lsu_idx={}", get_t(), se->describe_insn(), index);
       break;
     }
   }
@@ -324,7 +345,7 @@ SpikeEvent *VBridgeImpl::find_se_to_issue() {
       break;
     }
   }
-  LOG_ASSERT(se_to_issue) << fmt::format("all events in to_rtl_queue are is_issued");  // TODO: handle this
+  LOG_ASSERT(se_to_issue) << fmt::format("[{}] all events in to_rtl_queue are is_issued", get_t());  // TODO: handle this
   return se_to_issue;
 }
 
@@ -336,6 +357,6 @@ void VBridgeImpl::record_rf_accesses() {
   if (vrf_write_valid) {
     // TODO: based on the RTL event, change se_to_issue rf field:
     //       1. based on the mask and write element, set corresponding element in vrf to written.
-    LOG(INFO) << fmt::format("write to vrf");
+    LOG(INFO) << fmt::format("[{}] rtl write to vrf", get_t());
   }
 }
