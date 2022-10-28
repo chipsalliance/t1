@@ -53,6 +53,7 @@ class LSUInstInformation extends Bundle {
   val eew: UInt = UInt(3.W)
   val vs3: UInt = UInt(5.W)
   val st:  Bool = Bool()
+  val mask:Bool = Bool()
   // fault only first
   def fof: Bool = mop === 0.U && vs2(4) && !st
 }

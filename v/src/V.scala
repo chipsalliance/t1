@@ -99,7 +99,7 @@ class V(param: VParam) extends Module {
 
   val isLSType: Bool = !req.bits.inst(6)
   val isST:     Bool = !req.bits.inst(6) && req.bits.inst(5)
-  val isLD:     Bool = !req.bits.inst(6) && !req.bits.inst(5)
+  val maskType: Bool = !req.bits.inst(25)
 
   val noReadST: Bool = isLSType && (!req.bits.inst(26))
   val indexTypeLS: Bool = isLSType && req.bits.inst(26)
@@ -121,9 +121,9 @@ class V(param: VParam) extends Module {
   nextInstType.viota := decodeResFormat.otherUnit && decodeResFormat.uop(3) && decodeResFormatExt.viota
   nextInstType.red := !decodeResFormat.otherUnit && decodeResFormat.red
   nextInstType.other := DontCare
-  val maskType: Bool = nextInstType.asUInt.orR
+  val maskUnitType: Bool = nextInstType.asUInt.orR
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
-  val specialInst: Bool = maskType || indexTypeLS
+  val specialInst: Bool = maskUnitType || indexTypeLS
 
   // 指令的状态维护
   val instStateVec: Seq[InstControl] = Seq.tabulate(param.chainingSize) { index =>
@@ -242,6 +242,7 @@ class V(param: VParam) extends Module {
   lsu.req.bits.instInf.vs3 := req.bits.inst(11, 7)
   lsu.req.bits.instInf.eew := req.bits.inst(14, 12)
   lsu.req.bits.instInf.st := isST
+  lsu.req.bits.instInf.mask := maskType
 
   lsu.maskRegInput.zip(lsu.maskSelect).foreach { case (data, index) => data := v0(index) }
   lsu.csrInterface := csrInterface
