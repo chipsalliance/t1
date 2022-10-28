@@ -218,17 +218,17 @@ void VBridgeImpl::receive_tl_req() {
         se = &(*se_iter);
       }
     }
-    LOG_ASSERT(se) << fmt::format("[{]] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
+    LOG_ASSERT(se) << fmt::format(": [{]] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
 
     switch (opcode) {
 
     case TlOpcode::Get: {
-      LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={}, size={}byte)", addr, decode_size(size));
+      LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={}, size={}byte)", get_t(), addr, decode_size(size));
       auto mem_read = se->mem_access_record.all_reads.find(addr);
       LOG_ASSERT(mem_read != se->mem_access_record.all_reads.end())
-        << fmt::format("[{}] cannot find mem read of addr {:08X}", get_t(), addr);
+        << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
       LOG_ASSERT(mem_read->second.size_by_byte == decode_size(size)) << fmt::format(
-          "[{}] expect mem read of size {}, actual size {} (addr={:08X}, {})",
+          ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, {})",
           get_t(), mem_read->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
 
       uint64_t data = mem_read->second.val;
@@ -246,12 +246,12 @@ void VBridgeImpl::receive_tl_req() {
       auto mem_write = se->mem_access_record.all_writes.find(addr);
 
       LOG_ASSERT(mem_write != se->mem_access_record.all_writes.end())
-              << fmt::format("[{}] cannot find mem write of addr={:08X}", get_t(), addr);
+              << fmt::format(": [{}] cannot find mem write of addr={:08X}", get_t(), addr);
       LOG_ASSERT(mem_write->second.size_by_byte == decode_size(size)) << fmt::format(
-          "[{}] expect mem write of size {}, actual size {} (addr={:08X}, insn='{}')",
+          ": [{}] expect mem write of size {}, actual size {} (addr={:08X}, insn='{}')",
           get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
       LOG_ASSERT(mem_write->second.val == data) << fmt::format(
-          "[{}] expect mem write of data {}, actual data {} (addr={:08X}, insn='{}')",
+          ": [{}] expect mem write of data {}, actual data {} (addr={:08X}, insn='{}')",
           get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
 
       tl_banks[tlIdx].emplace(std::make_pair(addr, TLReqRecord{
