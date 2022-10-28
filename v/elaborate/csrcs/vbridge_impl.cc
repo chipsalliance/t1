@@ -4,11 +4,9 @@
 #include "disasm.h"
 
 #include "verilated.h"
-#include "verilated_vpi.h"
 
 #include "exceptions.h"
 #include "vbridge_impl.h"
-#include "vbridge.h"
 #include "util.h"
 #include "rtl_event.h"
 #include "vpi.h"
@@ -79,7 +77,7 @@ VBridgeImpl::VBridgeImpl() :
     isa("rv32gcv", "M"),
     proc(
         /*isa*/ &isa,
-        /*varch*/ "vlen:1024,elen:32",
+        /*varch*/ fmt::format("vlen:{},elen:{}", consts::vlen_in_bits, consts::elen).c_str(),
         /*sim*/ &sim,
         /*id*/ 0,
         /*halt on reset*/ true,
@@ -151,14 +149,14 @@ uint64_t VBridgeImpl::get_simulator_cycle() {
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
   auto fetch = proc.get_mmu()->load_insn(state->pc);
-  auto event = create_spike_event(fetch);
+  auto event = create_spike_event(fetch);  // event not empty iff fetch is v inst
   auto &xr = proc.get_state()->XPR;
   if (event) {
     auto &se = event.value();
-    // collect info to drive RTL
-    // step spike
+    LOG(INFO) << fmt::format("spike start exec insn ({}) (pc={:08X}, vl={}, sew={}, lmul={})",
+                             se.get_insn_disasm(), se.pc, se.vl, (int) se.vsew, (int) se.vlmul);
+    se.pre_log_arch_changes();
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
-    // todo: collect info for difftest
     se.log_arch_changes();
   } else {
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
@@ -171,10 +169,10 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
   // create SpikeEvent
   uint32_t opcode = clip(fetch.insn.bits(), 0, 6);
   uint32_t width = clip(fetch.insn.bits(), 12, 14);
-  bool load_type = opcode == 0b111;
-  bool store_type = opcode == 0b100111;
+  bool is_load_type  = opcode == 0b0000111;
+  bool is_store_type = opcode == 0b0100111;
   bool v_type = opcode == 0b1010111 && width != 0b111;
-  if (load_type || store_type || v_type) {
+  if (is_load_type || is_store_type || v_type) {
     return SpikeEvent{proc, fetch, this};
   } else {
     return {};
@@ -281,20 +279,20 @@ void VBridgeImpl::receive_tl_req() {
 }
 
 void VBridgeImpl::update_lsu_idx() {
-  uint32_t lsuReqs[numMSHR];
-  for (int i = 0; i < numMSHR; i++) {
+  uint32_t lsuReqs[consts::numMSHR];
+  for (int i = 0; i < consts::numMSHR; i++) {
     lsuReqs[i] = vpi_get_integer(fmt::format("TOP.V.lsu.reqEnq_debug_{}", i).c_str());
   }
   for (auto se = to_rtl_queue.rbegin(); se != to_rtl_queue.rend(); se++) {
-    if (se->is_issued && (se->is_load || se->is_store) && (se->lsu_idx == lsuIdxDefault)) {
-      uint8_t index = lsuIdxDefault;
-      for (int i = 0; i < numMSHR; i++) {
+    if (se->is_issued && (se->is_load || se->is_store) && (se->lsu_idx == consts::lsuIdxDefault)) {
+      uint8_t index = consts::lsuIdxDefault;
+      for (int i = 0; i < consts::numMSHR; i++) {
         if (lsuReqs[i] == 1) {
           index = i;
           break;
         }
       }
-      LOG_ASSERT(index != lsuIdxDefault)
+      LOG_ASSERT(index != consts::lsuIdxDefault)
         << fmt::format(": [{}] load store issued but not no slot allocated.", ctx.time());
       se->lsu_idx = index;
       LOG(INFO) << fmt::format("insn ({}) is allocated lsu_idx={}", se->get_insn_disasm(), index);
@@ -307,10 +305,8 @@ void VBridgeImpl::loop_until_se_queue_full() {
   while (to_rtl_queue.size() < to_rtl_queue_size) {
     try {
       if (auto spike_event = spike_step()) {
-        auto se = spike_event.value();
-        LOG(INFO) << fmt::format("enqueue Spike Event: {}", se.get_insn_disasm());
-        //LOG(INFO) << fmt::format("issue: {}", se.get_issued());
-        to_rtl_queue.push_front(se);
+        SpikeEvent &se = spike_event.value();
+        to_rtl_queue.push_front(std::move(se));
       }
     } catch (trap_t &trap) {
       LOG(FATAL) << fmt::format("spike trapped with {}", trap.name());

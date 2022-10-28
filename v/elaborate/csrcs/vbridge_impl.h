@@ -3,15 +3,15 @@
 #include <queue>
 #include <optional>
 
+#include "mmu.h"
+
 #include "VV.h"
 #include "verilated_fst_c.h"
+
 #include "spike_event.h"
-#include "mmu.h"
 #include "simple_sim.h"
 #include "rtl_event.h"
-
-constexpr int numTL = 2;
-constexpr int numMSHR = 3;
+#include "vbridge_config.h"
 
 class SpikeEvent;
 
@@ -57,7 +57,7 @@ private:
   isa_parser_t isa;
   processor_t proc;
   uint64_t _cycles{};
-  TLBank banks[numTL];
+  TLBank banks[consts::numTL];
 
   /// to rtl stack
   /// in the spike thread, spike should detech if this queue is full, if not full, execute until a vector instruction,
@@ -79,10 +79,6 @@ private:
   uint64_t timeout{};
 
   inline void reset();
-
-  inline void rtl_tick();
-
-  inline uint64_t rtl_cycle();
 
   insn_fetch_t fetch_proc_insn();
 

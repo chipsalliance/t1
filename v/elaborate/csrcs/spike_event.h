@@ -3,6 +3,7 @@
 #include <queue>
 #include <optional>
 
+#include "processor.h"
 #include "mmu.h"
 
 #include "VV.h"
@@ -10,8 +11,7 @@
 
 #include "simple_sim.h"
 #include "vbridge_impl.h"
-
-constexpr int lsuIdxDefault = 255;
+#include "vbridge_config.h"
 
 class VBridgeImpl;
 
@@ -23,6 +23,7 @@ struct SpikeEvent {
   void drive_rtl_req(VV &top) const;
   void drive_rtl_csr(VV &top) const;
 
+  void pre_log_arch_changes();
   void log_arch_changes();
 
   commit_log_mem_t mem_read_info;
@@ -52,6 +53,8 @@ struct SpikeEvent {
   // scalar to vector interface(used for driver)
   uint32_t rs1_bits;
   uint32_t rs2_bits;
+  uint32_t rd_idx;
+  uint32_t rd_bits;
 
   // vtype
   uint32_t vsew: 3;
@@ -73,4 +76,8 @@ struct SpikeEvent {
   /// pipeline control signal with core
   bool _ignore_exception = false;  // TODO: give it correct value
   bool _store_buffer_clear = false;  // TODO: give it correct value
+
+  struct vd_write_record_t {
+    std::unique_ptr<uint8_t[]> vd_bytes;
+  } vd_write_record;
 };

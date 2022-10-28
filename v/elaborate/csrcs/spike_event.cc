@@ -23,48 +23,69 @@ uint64_t SpikeEvent::mem_load(uint64_t addr, uint32_t size) {
   }
 }
 
+void SpikeEvent::pre_log_arch_changes() {
+  // TODO: support vl/vstart
+  uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
+  LOG_ASSERT(vlmul < 4) << "fractional vlmul not supported yet";  // TODO: support fractional vlmul
+  uint32_t len = consts::vlen_in_bits << vlmul / 8;
+  vd_write_record.vd_bytes = std::make_unique<uint8_t[]>(len);
+  std::memcpy(vd_write_record.vd_bytes.get(), vd_bits_start, len);
+
+  rd_bits = proc.get_state()->XPR[rd_idx];
+}
+
 void SpikeEvent::log_arch_changes() {
   state_t *state = proc.get_state();
 
-  for (auto reg: state->log_reg_write) {
+  for (auto [write_idx, data]: state->log_reg_write) {
     // in spike, log_reg_write is arrange:
     // xx0000 <- x
     // xx0001 <- f
     // xx0010 <- vreg
     // xx0011 <- vec
     // xx0100 <- csr
-    if ((reg.first & 0xf) == 2) {
-      auto idx = (reg.first >> 4);
-      if (idx > 31) {
-        LOG(FATAL) << fmt::format("SPIKE is crazy");
+    if ((write_idx & 0xf) == 0b0010) {  // vreg
+      auto idx = (write_idx >> 4);
+      LOG_ASSERT(idx == rd_idx) << fmt::format(": expect to write vrf[{}], detect writing vrf[{}]", rd_idx, idx);
+      LOG_ASSERT(idx < 32) << fmt::format(": log_reg_write idx ({}) out of bound", idx);
+
+      uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
+      uint32_t len = consts::vlen_in_bits << vlmul / 8;
+      for (int i = 0; i < len; i++) {
+        uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vd_bits_start[i];
+        if (origin_byte != cur_byte) {
+          LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {}", idx, i, (int) origin_byte, (int) cur_byte);
+        }
       }
-      LOG(INFO) << fmt::format("Reg Access: {}, TODO: access contents", idx);
-      continue;
-    } else if (false) {
-      // TODO: write scalar register.
+
+    } else if ((write_idx & 0xf) == 0b0000) {  // scalar rf
+      uint32_t new_rd_bits = proc.get_state()->XPR[rd_idx];
+      if (new_rd_bits != rd_bits) {
+        LOG(INFO) << fmt::format("spike detect scalar rf change: x[{}] from {} to {}", rd_idx, rd_bits, new_rd_bits);
+      }
+    } else {
+      LOG(INFO) << fmt::format("spike detect unknown reg change (idx = {:08X})", write_idx);
     }
   }
+
   for (auto mem_write: state->log_mem_write) {
     uint64_t address = std::get<0>(mem_write);
     uint64_t value = std::get<1>(mem_write);
-    // Byte size
-    uint8_t size = std::get<2>(mem_write);
-    LOG(INFO) << fmt::format("Memory Store {:X} to {:X} with size = {} ", value, address, size);
+    // Byte size_bytes
+    uint8_t size_bytes = std::get<2>(mem_write);
+    LOG(INFO) << fmt::format("spike detect mem write {:08X} on {:08X} with size={}byte", value, address, size_bytes);
   }
-  for (auto mem_read: state->log_mem_read) {
-    uint64_t address = std::get<0>(mem_read);
-    uint8_t size = std::get<2>(mem_read);
-    for (int i = 0; i < size; ++i) {
-      uint8_t value = impl->load(address + i);
-      LOG(INFO) << fmt::format("Memory Load(size: {}) from 0x{:X}, offset {}, value accessed: {:X}", size, address, i, value);
-    }
-  }
+
+  state->log_reg_write.clear();
+  state->log_mem_read.clear();
+  state->log_mem_write.clear();
 }
 
 SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl): proc(proc), impl(impl) {
   auto &xr = proc.get_state()->XPR;
   rs1_bits = xr[fetch.insn.rs1()];
   rs2_bits = xr[fetch.insn.rs2()];
+  rd_idx = fetch.insn.rd();
 
   uint64_t vtype = proc.VU.vtype->read();
   vlmul = clip(vtype, 0, 2);
@@ -89,7 +110,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   is_issued = false;
   is_committed = false;
 
-  lsu_idx = lsuIdxDefault;  // default lsu_idx
+  lsu_idx = consts::lsuIdxDefault;  // default lsu_idx
 }
 
 void SpikeEvent::drive_rtl_req(VV &top) const {
