@@ -359,6 +359,20 @@ void VBridgeImpl::record_rf_accesses() {
       int offset = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_offset", i).c_str());
       int mask = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_mask", i).c_str());
       int data = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_data", i).c_str());
+
+      SpikeEvent *se /* TODO: find out which se */;
+      // TODO: find the correct base calculation
+      uint32_t record_idx_base = vd * consts::vlen_in_bytes + consts::vlen_in_bytes / consts::numLanes * i + offset;
+      for (int j = 0; j < 32 / 8; j++) {  // 32bit / 1byte
+        if (mask & (1 << j)) {
+          uint8_t written_byte = (data >> (8 * j)) & 255;
+          auto &record = se->vrf_access_record.all_writes[record_idx_base + j];
+          CHECK_EQ(record.byte, written_byte) << fmt::format(
+              "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b})",
+              j, i, vd, offset, mask);
+          record.executed = true;
+        }
+      }
       LOG(INFO) << fmt::format("[{}] rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X})",
                                get_t(), i, vd, offset, mask, data);
     }

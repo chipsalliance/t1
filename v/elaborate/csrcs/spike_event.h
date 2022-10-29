@@ -87,16 +87,25 @@ struct SpikeEvent {
     struct single_mem_write {
       uint32_t size_by_byte;
       reg_t val;
-      bool executed; // set to true when rtl execute this mem access
+      bool executed = false; // set to true when rtl execute this mem access
     };
     struct single_mem_read {
       uint16_t size_by_byte;
       reg_t val;
-      bool executed; // set to true when rtl execute this mem access
+      bool executed = false; // set to true when rtl execute this mem access
     };
     std::map<uint32_t, single_mem_write> all_writes;
     std::map<uint32_t, single_mem_read> all_reads;
   } mem_access_record;
+
+  struct {
+    struct single_vrf_write {
+      uint8_t byte;
+      bool executed = false; // set to true when rtl execute this mem access
+    };
+    // maps (vlen * bytes_per_vrf + byte_offset) to single_vrf_write
+    std::map<uint32_t, single_vrf_write> all_writes;
+  } vrf_access_record;
 
   void record_rd_write(VV &top);
   void check_is_ready_for_commit();

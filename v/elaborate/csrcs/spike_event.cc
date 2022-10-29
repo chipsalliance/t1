@@ -53,6 +53,7 @@ void SpikeEvent::log_arch_changes() {
       for (int i = 0; i < len; i++) {
         uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vd_bits_start[i];
         if (origin_byte != cur_byte) {
+          vrf_access_record.all_writes[idx * consts::vlen_in_bytes + i] = {.byte = cur_byte };
           LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {}", idx, i, (int) origin_byte, (int) cur_byte);
         }
       }
@@ -148,14 +149,20 @@ void SpikeEvent::drive_rtl_csr(VV &top) const {
 void SpikeEvent::check_is_ready_for_commit() {
   for (auto &[addr, mem_write]: mem_access_record.all_writes) {
     if (!mem_write.executed) {
-      LOG(FATAL) << fmt::format("expect to read {:08X}, not executed when commit (pc={:08X}, insn='{}'",
+      LOG(FATAL) << fmt::format("expect to write mem {:08X}, not executed when commit ({})",
                                 addr, pc, describe_insn());
     }
   }
   for (auto &[addr, mem_read]: mem_access_record.all_reads) {
     if (!mem_read.executed) {
-      LOG(FATAL) << fmt::format("expect to read {:08X}, not executed when commit (pc={:08X}, insn='{}'",
-                                addr, pc, describe_insn());
+      LOG(FATAL) << fmt::format("expect to read mem {:08X}, not executed when commit ({})",
+                                addr, describe_insn());
+    }
+  }
+  for (auto &[idx, vrf_write]: vrf_access_record.all_writes) {
+    if (!vrf_write.executed) {
+      LOG(FATAL) << fmt::format("expect to write vrf {:08X}, not executed when commit ({})",
+                                idx, describe_insn());
     }
   }
 }

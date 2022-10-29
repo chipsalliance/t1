@@ -4,6 +4,7 @@ namespace consts {
 
 // simulation arch config
 constexpr int vlen_in_bits = 1024;
+constexpr int vlen_in_bytes = vlen_in_bits / 8;
 constexpr int elen = 32;
 
 // const as default value
