@@ -12,5 +12,6 @@ constexpr int lsuIdxDefault = 255;
 // rtl parameters
 constexpr int numTL = 2;
 constexpr int numMSHR = 3;
+constexpr int numLanes = 8;
 
 }

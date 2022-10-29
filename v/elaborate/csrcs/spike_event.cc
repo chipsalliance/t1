@@ -25,6 +25,7 @@ uint64_t SpikeEvent::mem_load(uint64_t addr, uint32_t size) {
 
 void SpikeEvent::pre_log_arch_changes() {
   // TODO: support vl/vstart
+  rd_bits = proc.get_state()->XPR[rd_idx];
   uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
   LOG_ASSERT(vlmul < 4) << ": fractional vlmul not supported yet";  // TODO: support fractional vlmul
   uint32_t len = consts::vlen_in_bits << vlmul / 8;
@@ -96,7 +97,8 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   rs1_bits = xr[fetch.insn.rs1()];
   rs2_bits = xr[fetch.insn.rs2()];
   rd_idx = fetch.insn.rd();
-  rd_bits = proc.get_state()->XPR[rd_idx];
+
+  is_rd_written = false;
 
   uint64_t vtype = proc.VU.vtype->read();
   vlmul = clip(vtype, 0, 2);

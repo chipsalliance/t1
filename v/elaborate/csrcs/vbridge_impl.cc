@@ -351,12 +351,15 @@ SpikeEvent *VBridgeImpl::find_se_to_issue() {
 
 void VBridgeImpl::record_rf_accesses() {
   bool vrf_write_valid = false;
-  for (int i = 0; i < 8; i++) {
-    vrf_write_valid |= vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_valid", i).c_str());
-  }
-  if (vrf_write_valid) {
-    // TODO: based on the RTL event, change se_to_issue rf field:
-    //       1. based on the mask and write element, set corresponding element in vrf to written.
-    LOG(INFO) << fmt::format("[{}] rtl write to vrf", get_t());
+  for (int i = 0; i < consts::numLanes; i++) {
+    int valid = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_valid", i).c_str());
+    int vd = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_vd", i).c_str());
+    int offset = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_offset", i).c_str());
+    int mask = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_mask", i).c_str());
+    int data = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_data", i).c_str());
+    if (valid) {
+      LOG(INFO) << fmt::format("rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={})",
+                               i, vd, offset, mask, data);
+    }
   }
 }

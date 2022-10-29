@@ -27,7 +27,7 @@ object Main {
               case vrf: VRF => vrf
             }
           },
-          { vrf: VRF =>chisel3.experimental.Trace.traceName(vrf.write.valid) }
+          { vrf: VRF =>chisel3.experimental.Trace.traceName(vrf.write) }
         ),
         InjectingAspect(
           { dut: V =>
