@@ -190,8 +190,8 @@ void VBridgeImpl::run() {
         SpikeEvent &se = to_rtl_queue.back();
         se.record_rd_write(top);
         se.check_is_ready_for_commit();
-        to_rtl_queue.pop_back();
         LOG(INFO) << fmt::format("[{}] rtl commit insn ({})", get_t(), to_rtl_queue.back().describe_insn());
+        to_rtl_queue.pop_back();
       }
 
       if (get_t() >= timeout) {
@@ -277,16 +277,18 @@ void VBridgeImpl::return_tl_response() {
     }
 
     // find a finished request and return
+    bool d_valid = false;
     for (auto &[addr, record]: tl_banks[i]) {
       if (record.remaining_cycles == 0) {
         TL(i, d_bits_opcode) = record.op == TLReqRecord::opType::Get ? TlOpcode::AccessAckData : TlOpcode::AccessAck;
-        TL(i, d_valid) = true;
         TL(i, d_bits_data) = record.data;
         TL(i, d_bits_source) = record.source;
+        d_valid = true;
         record.op = TLReqRecord::opType::Nil;
         break;
       }
     }
+    TL(i, d_valid) = d_valid;
 
     // collect garbage
     erase_if(tl_banks[i], [](const auto &record) {
