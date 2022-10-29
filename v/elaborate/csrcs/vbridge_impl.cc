@@ -187,18 +187,18 @@ void VBridgeImpl::run() {
       update_lsu_idx();
 
       if (top.resp_valid) {
-        LOG(INFO) << fmt::format("Commit {:X}", to_rtl_queue.back().pc);
         SpikeEvent &se = to_rtl_queue.back();
         se.record_rd_write(top);
         se.check_is_ready_for_commit();
         to_rtl_queue.pop_back();
+        LOG(INFO) << fmt::format("[{}] rtl commit insn ({})", get_t(), to_rtl_queue.back().describe_insn());
       }
 
       if (get_t() >= timeout) {
         throw TimeoutException();
       }
     }
-    LOG(INFO) << fmt::format("all insn in to_rtl_queue is issued, restarting spike");
+    LOG(INFO) << fmt::format("[{}] all insn in to_rtl_queue is issued, restarting spike", get_t());
   }
 }
 
@@ -350,16 +350,15 @@ SpikeEvent *VBridgeImpl::find_se_to_issue() {
 }
 
 void VBridgeImpl::record_rf_accesses() {
-  bool vrf_write_valid = false;
   for (int i = 0; i < consts::numLanes; i++) {
     int valid = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_valid", i).c_str());
-    int vd = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_vd", i).c_str());
-    int offset = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_offset", i).c_str());
-    int mask = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_mask", i).c_str());
-    int data = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_data", i).c_str());
     if (valid) {
-      LOG(INFO) << fmt::format("rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={})",
-                               i, vd, offset, mask, data);
+      int vd = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_vd", i).c_str());
+      int offset = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_offset", i).c_str());
+      int mask = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_mask", i).c_str());
+      int data = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_data", i).c_str());
+      LOG(INFO) << fmt::format("[{}] rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X})",
+                               get_t(), i, vd, offset, mask, data);
     }
   }
 }
