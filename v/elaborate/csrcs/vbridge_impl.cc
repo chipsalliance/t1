@@ -218,16 +218,16 @@ void VBridgeImpl::receive_tl_req() {
         se = &(*se_iter);
       }
     }
-    LOG_ASSERT(se) << fmt::format(": [{]] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
+    CHECK(se) << fmt::format(": [{]] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
 
     switch (opcode) {
 
     case TlOpcode::Get: {
       LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={}, size={}byte)", get_t(), addr, decode_size(size));
       auto mem_read = se->mem_access_record.all_reads.find(addr);
-      LOG_ASSERT(mem_read != se->mem_access_record.all_reads.end())
+      CHECK(mem_read != se->mem_access_record.all_reads.end())
         << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
-      LOG_ASSERT(mem_read->second.size_by_byte == decode_size(size)) << fmt::format(
+      CHECK_EQ(mem_read->second.size_by_byte, decode_size(size)) << fmt::format(
           ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, {})",
           get_t(), mem_read->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
 
@@ -245,12 +245,12 @@ void VBridgeImpl::receive_tl_req() {
                                addr, decode_size(size), data);
       auto mem_write = se->mem_access_record.all_writes.find(addr);
 
-      LOG_ASSERT(mem_write != se->mem_access_record.all_writes.end())
+      CHECK(mem_write != se->mem_access_record.all_writes.end())
               << fmt::format(": [{}] cannot find mem write of addr={:08X}", get_t(), addr);
-      LOG_ASSERT(mem_write->second.size_by_byte == decode_size(size)) << fmt::format(
+      CHECK_EQ(mem_write->second.size_by_byte, decode_size(size)) << fmt::format(
           ": [{}] expect mem write of size {}, actual size {} (addr={:08X}, insn='{}')",
           get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
-      LOG_ASSERT(mem_write->second.val == data) << fmt::format(
+      CHECK_EQ(mem_write->second.val, data) << fmt::format(
           ": [{}] expect mem write of data {}, actual data {} (addr={:08X}, insn='{}')",
           get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
 
@@ -313,7 +313,7 @@ void VBridgeImpl::update_lsu_idx() {
           break;
         }
       }
-      LOG_ASSERT(index != consts::lsuIdxDefault)
+      CHECK_NE(index, consts::lsuIdxDefault)
         << fmt::format(": [{}] load store issued but not no slot allocated.", get_t());
       se->lsu_idx = index;
       LOG(INFO) << fmt::format("[{}] insn ({}) is allocated lsu_idx={}", get_t(), se->describe_insn(), index);
@@ -345,7 +345,7 @@ SpikeEvent *VBridgeImpl::find_se_to_issue() {
       break;
     }
   }
-  LOG_ASSERT(se_to_issue) << fmt::format("[{}] all events in to_rtl_queue are is_issued", get_t());  // TODO: handle this
+  CHECK(se_to_issue) << fmt::format("[{}] all events in to_rtl_queue are is_issued", get_t());  // TODO: handle this
   return se_to_issue;
 }
 

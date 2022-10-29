@@ -27,7 +27,7 @@ void SpikeEvent::pre_log_arch_changes() {
   // TODO: support vl/vstart
   rd_bits = proc.get_state()->XPR[rd_idx];
   uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
-  LOG_ASSERT(vlmul < 4) << ": fractional vlmul not supported yet";  // TODO: support fractional vlmul
+  CHECK_LT(vlmul, 4) << ": fractional vlmul not supported yet";  // TODO: support fractional vlmul
   uint32_t len = consts::vlen_in_bits << vlmul / 8;
   vd_write_record.vd_bytes = std::make_unique<uint8_t[]>(len);
   std::memcpy(vd_write_record.vd_bytes.get(), vd_bits_start, len);
@@ -45,8 +45,8 @@ void SpikeEvent::log_arch_changes() {
     // xx0100 <- csr
     if ((write_idx & 0xf) == 0b0010) {  // vreg
       auto idx = (write_idx >> 4);
-      LOG_ASSERT(idx == rd_idx) << fmt::format(": expect to write vrf[{}], detect writing vrf[{}]", rd_idx, idx);
-      LOG_ASSERT(idx < 32) << fmt::format(": log_reg_write idx ({}) out of bound", idx);
+      CHECK_EQ(idx, rd_idx) << fmt::format("expect to write vrf[{}], detect writing vrf[{}]", rd_idx, idx);
+      CHECK_LT(idx, 32) << fmt::format("log_reg_write idx ({}) out of bound", idx);
 
       uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
       uint32_t len = consts::vlen_in_bits << vlmul / 8;
@@ -163,7 +163,7 @@ void SpikeEvent::check_is_ready_for_commit() {
 void SpikeEvent::record_rd_write(VV &top) {
   // TODO: rtl should indicate whether resp_bits_data is valid
   if (is_rd_written) {
-    LOG_ASSERT(top.resp_bits_data == rd_bits) << fmt::format(": expect to write rd[{}] = {}, actual {}",
+    CHECK_EQ(top.resp_bits_data, rd_bits) << fmt::format(": expect to write rd[{}] = {}, actual {}",
                                                              rd_idx, rd_bits, top.resp_bits_data);
   }
 }

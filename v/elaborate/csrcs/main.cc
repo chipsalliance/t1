@@ -1,9 +1,13 @@
+#include <args.hxx>
+#include <glog/logging.h>
+
 #include "vbridge.h"
 #include "exceptions.h"
 
-#include <args.hxx>
-
 int main(int argc, char **argv) {
+  google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
+
   args::ArgumentParser parser("Vector");
   args::ValueFlag<std::string> bin(parser, "bin", "test case path.", {"bin"});
   args::ValueFlag<std::string> wave(parser, "wave", "wave output path(in fst).", {"wave"});
