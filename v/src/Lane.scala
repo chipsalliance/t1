@@ -227,6 +227,8 @@ class Lane(param: LaneParameters) extends Module {
   val readDataPort:    DecoupledIO[VRFReadRequest] = IO(Flipped(Decoupled(new VRFReadRequest(param.vrfParam))))
   val readResult:      UInt = IO(Output(UInt(param.ELEN.W)))
   val vrfWritePort:    ValidIO[VRFWriteRequest] = IO(Flipped(Valid(new VRFWriteRequest(param.vrfParam))))
+  /** 本来结束的通知放在[[dataToScheduler]],但是存在有多指令同时结束的情况,所以单独给出来 */
+  val endNotice: UInt = IO(Output(UInt(param.controlNum.W)))
 
   val vrf: VRF = Module(new VRF(param.vrfParam))
   // reg
@@ -282,6 +284,7 @@ class Lane(param: LaneParameters) extends Module {
   val divRequests:   Vec[LaneDivRequest] = Wire(Vec(param.controlNum, new LaneDivRequest(param.datePathParam)))
   val otherRequests: Vec[OtherUnitReq] = Wire(Vec(param.controlNum, Output(new OtherUnitReq(param))))
   val maskRequests:  Vec[LaneDataResponse] = Wire(Vec(param.controlNum, Output(new LaneDataResponse(param))))
+  val endNoticeVec: Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.controlNum.W)))
 
   // 作为最老的坑的控制信号
   val sendReady:      Bool = Wire(Bool())
@@ -495,9 +498,8 @@ class Lane(param: LaneParameters) extends Module {
       // 往scheduler的执行任务compress viota
       val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(param)))
 
-      // viota & compress & ls 需要给外边数据, 结束的时候无条件通知一次
-      val maskType: Bool = (record.originalInformation.sp || record.originalInformation.ls || instWillComplete(index)) &&
-        controlActive(index)
+      // viota & compress & ls 需要给外边数据
+      val maskType: Bool = (record.originalInformation.sp || record.originalInformation.ls) && controlActive(index)
       val maskValid = maskType && record.state.sRead2 && !record.state.sExecute
       // 往外边发的是原始的数据
       maskRequest.data := source2(index)
@@ -541,9 +543,13 @@ class Lane(param: LaneParameters) extends Module {
       }
       val nextCounter = record.counter + 1.U
       instWillComplete(index) := (nextCounter ## laneIndex) > csrInterface.vl
+      endNoticeVec(index) := 0.U(param.controlNum.W)
       when(record.state.asUInt.andR) {
         when(instWillComplete(index)) {
           controlValid(index) := false.B
+          when(controlValid(index)) {
+            endNoticeVec(index) := UIntToOH(record.originalInformation.instIndex(param.instIndexSize - 2, 0))
+          }
         }.otherwise {
           record.state := record.initState
           record.counter := nextCounter
@@ -720,4 +726,5 @@ class Lane(param: LaneParameters) extends Module {
   vrf.instWriteReport.bits.instIndex := laneReq.bits.instIndex
   vrf.instWriteReport.bits.offset := 0.U//todo
   vrf.instWriteReport.bits.vd := laneReq.bits.vd
+  endNotice := endNoticeVec.reduce(_ | _)
 }

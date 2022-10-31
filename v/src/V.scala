@@ -221,8 +221,7 @@ class V(param: VParam) extends Module {
     lsu.offsetReadTag(index) := lane.dataToScheduler.bits.instIndex
 
     lastVec(index).zip(instStateVec.map(_.record.instIndex)).foreach {
-      case (d, f) => d := lane.dataToScheduler.valid && lane.dataToScheduler.bits.last &&
-        f === lane.dataToScheduler.bits.instIndex
+      case (d, f) => d := (UIntToOH(f(param.instIndexSize - 2, 0)) & lane.endNotice).orR
     }
 
     lane
