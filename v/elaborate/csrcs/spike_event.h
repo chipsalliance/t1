@@ -38,6 +38,7 @@ struct SpikeEvent {
   std::vector<mem_log> log_mem_queue;
 
   uint8_t lsu_idx = 255;
+  uint8_t issue_idx = 255;
   processor_t &proc;
   VBridgeImpl *impl;
 

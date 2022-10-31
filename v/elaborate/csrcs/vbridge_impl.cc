@@ -167,7 +167,8 @@ void VBridgeImpl::run() {
       // Instruction is_issued, top.req_ready deps on top.req_bits_inst
       if (top.req_ready) {
         se_to_issue->is_issued = true;
-        LOG(INFO) << fmt::format("[{}] issue to rtl ({})", get_t(), se_to_issue->describe_insn());
+        se_to_issue->issue_idx = vpi_get_integer("TOP.V.instCount");
+        LOG(INFO) << fmt::format("[{}] issue to rtl ({}), , issue index={}", get_t(), se_to_issue->describe_insn(), se_to_issue->issue_idx);
       }
 
       receive_tl_req();
@@ -359,18 +360,25 @@ void VBridgeImpl::record_rf_accesses() {
       int offset = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_offset", i).c_str());
       int mask = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_mask", i).c_str());
       int data = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_data", i).c_str());
-
-      SpikeEvent *se /* TODO: find out which se */;
+      int idx = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_instIndex", i).c_str());
+      LOG(INFO) << fmt::format("[{}] issue index: {} lane {} write vd {} with data {} (offset={}, mask={})", get_t(), idx, i, vd, data, offset, mask);
+      SpikeEvent *se_vrf_write;
+      for (auto se = to_rtl_queue.rbegin(); se != to_rtl_queue.rend(); se++) {
+        if (se->issue_idx == idx) {
+          se_vrf_write = &(*se);
+        }
+      }
       // TODO: find the correct base calculation
       uint32_t record_idx_base = vd * consts::vlen_in_bytes + consts::vlen_in_bytes / consts::numLanes * i + offset;
       for (int j = 0; j < 32 / 8; j++) {  // 32bit / 1byte
         if (mask & (1 << j)) {
           uint8_t written_byte = (data >> (8 * j)) & 255;
-          auto &record = se->vrf_access_record.all_writes[record_idx_base + j];
-          CHECK_EQ(record.byte, written_byte) << fmt::format(
-              "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b})",
-              j, i, vd, offset, mask);
-          record.executed = true;
+          LOG(INFO) << fmt::format("[{}] vrf write: idx={}, byte={}, data={}", get_t(), record_idx_base + j, written_byte, data);
+//          auto &record = se_vrf_write->vrf_access_record.all_writes[record_idx_base + j];
+//          CHECK_EQ(record.byte, written_byte) << fmt::format(
+//              "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b})",
+//              j, i, vd, offset, mask);
+//          record.executed = true;
         }
       }
       LOG(INFO) << fmt::format("[{}] rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X})",

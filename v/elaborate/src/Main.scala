@@ -1,6 +1,6 @@
 package v.elaborate
 
-import chisel3.RegNext
+import chisel3._
 import chisel3.aop.Select
 import chisel3.aop.injecting.InjectingAspect
 import chisel3.stage.ChiselGeneratorAnnotation
@@ -24,10 +24,18 @@ object Main {
         InjectingAspect(
           { dut: V =>
             Select.collectDeep(dut) {
+              case v: V => v
+            }
+          },
+          { v: V => chisel3.experimental.Trace.traceName(v.instCount) }
+        ),
+        InjectingAspect(
+          { dut: V =>
+            Select.collectDeep(dut) {
               case vrf: VRF => vrf
             }
           },
-          { vrf: VRF =>chisel3.experimental.Trace.traceName(vrf.write) }
+          { vrf: VRF => chisel3.experimental.Trace.traceName(vrf.write) }
         ),
         InjectingAspect(
           { dut: V =>
