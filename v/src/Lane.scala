@@ -550,7 +550,21 @@ class Lane(param: LaneParameters) extends Module {
       rfWriteVec(index).bits.data := result(index)
       rfWriteVec(index).bits.last := instWillComplete(index)
       rfWriteVec(index).bits.instIndex := record.originalInformation.instIndex
-      rfWriteVec(index).bits.mask := 15.U//todo
+      /** sew = 2 -> mask = 1111
+        * sew = 1 -> mask = 1111 or 0011
+        * sew = 0 -> mask = 1111 或者由[[record.executeIndex]]决定
+        * todo: mask decode?
+        */
+      val writeMask: UInt = Mux1H(
+        UIntToOH(csrInterface.vSew)(2, 0),
+        Seq(
+          // 结算的时候已经更新过寄存器了,所以有一个错位
+          Mux1H(UIntToOH(record.executeIndex), Seq(15.U(4.W), 1.U(4.W), 3.U(4.W), 7.U(4.W))),
+          Mux(record.executeIndex(0), 3.U(2.W), 0.U(2.W)) ## 3.U(2.W),
+          15.U(4.W)
+        )
+      )
+      rfWriteVec(index).bits.mask := writeMask
       when(rfWriteFire(index)) {
         record.state.sWrite := true.B
       }
