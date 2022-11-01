@@ -550,17 +550,26 @@ class Lane(param: LaneParameters) extends Module {
       rfWriteVec(index).bits.data := result(index)
       rfWriteVec(index).bits.last := instWillComplete(index)
       rfWriteVec(index).bits.instIndex := record.originalInformation.instIndex
+      val notLastWrite = !instWillComplete(index)
+      // 判断这一个lane是否在body与tail的分界线上,只有分界线上的才需要特别计算mask
+      val dividingLine: Bool = (csrInterface.vl << csrInterface.vSew).asUInt(4, 2) === laneIndex
+      val useOriginalMask: Bool = notLastWrite || !dividingLine
       /** sew = 2 -> mask = 1111
-        * sew = 1 -> mask = 1111 or 0011
-        * sew = 0 -> mask = 1111 或者由[[record.executeIndex]]决定
+        * sew = 1 -> mask = 1111 或者由vl决定
+        * sew = 0 -> mask = 1111 或者由vl决定
         * todo: mask decode?
         */
       val writeMask: UInt = Mux1H(
         UIntToOH(csrInterface.vSew)(2, 0),
         Seq(
-          // 结算的时候已经更新过寄存器了,所以有一个错位
-          Mux1H(UIntToOH(record.executeIndex), Seq(15.U(4.W), 1.U(4.W), 3.U(4.W), 7.U(4.W))),
-          Mux(record.executeIndex(0), 3.U(2.W), 0.U(2.W)) ## 3.U(2.W),
+          /** vSew = 0; vl(1,0) -> mask
+            * 00 -> ????,0不会在分界限上
+            * 01 -> 0001
+            * 10 -> 0011
+            * 11 -> 0111
+            * */
+          useOriginalMask ## (csrInterface.vl(1, 0).andR || useOriginalMask) ## (csrInterface.vl(1) || useOriginalMask) ## true.B,
+          Mux(csrInterface.vl(0) || useOriginalMask, 3.U(2.W), 0.U(2.W)) ## 3.U(2.W),
           15.U(4.W)
         )
       )
