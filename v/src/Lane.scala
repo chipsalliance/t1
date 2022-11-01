@@ -449,7 +449,7 @@ class Lane(param: LaneParameters) extends Module {
       logicRequest.src.last := finalSource1
       logicRequest.opcode := decodeResFormat.uop
       // 在手动做Mux1H
-      logicRequests(index) := maskAnd(decodeResFormat.logicUnit && !decodeResFormat.otherUnit, logicRequest)
+      logicRequests(index) := maskAnd(controlValid(index) && decodeResFormat.logicUnit && !decodeResFormat.otherUnit, logicRequest)
 
       // adder 的
       val adderRequest = Wire(new LaneAdderReq(param.datePathParam))
@@ -457,7 +457,7 @@ class Lane(param: LaneParameters) extends Module {
       adderRequest.opcode := decodeResFormat.uop
       adderRequest.reverse := decodeResFormat.reverse
       adderRequest.average := decodeResFormat.average
-      adderRequests(index) := maskAnd(decodeResFormat.adderUnit && !decodeResFormat.otherUnit, adderRequest)
+      adderRequests(index) := maskAnd(controlValid(index) && decodeResFormat.adderUnit && !decodeResFormat.otherUnit, adderRequest)
 
       // shift 的
       val shiftRequest = Wire(new LaneShifterReq(param.shifterParameter))
@@ -467,20 +467,20 @@ class Lane(param: LaneParameters) extends Module {
         Seq(false.B ## finalSource1(3), finalSource1(4, 3))
       ) ## finalSource1(2, 0)
       shiftRequest.opcode := decodeResFormat.uop
-      shiftRequests(index) := maskAnd(decodeResFormat.shiftUnit && !decodeResFormat.otherUnit, shiftRequest)
+      shiftRequests(index) := maskAnd(controlValid(index) && decodeResFormat.shiftUnit && !decodeResFormat.otherUnit, shiftRequest)
 
       // mul
       val mulRequest: LaneMulReq = Wire(new LaneMulReq(param.mulParam))
       mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
       mulRequest.opcode := decodeResFormat.uop
-      mulRequests(index) := maskAnd(decodeResFormat.mulUnit && !decodeResFormat.otherUnit, mulRequest)
+      mulRequests(index) := maskAnd(controlValid(index) && decodeResFormat.mulUnit && !decodeResFormat.otherUnit, mulRequest)
 
       // div
       val divRequest = Wire(new LaneDivRequest(param.datePathParam))
       divRequest.src := VecInit(Seq(finalSource1, finalSource2))
       divRequest.rem := decodeResFormat.uop(0)
       divRequest.sign := decodeResFormat.unSigned0
-      divRequests(index) := maskAnd(decodeResFormat.divUnit && !decodeResFormat.otherUnit, divRequest)
+      divRequests(index) := maskAnd(controlValid(index) && decodeResFormat.divUnit && !decodeResFormat.otherUnit, divRequest)
 
       // other
       val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(param)))
@@ -493,7 +493,7 @@ class Lane(param: LaneParameters) extends Module {
       otherRequest.laneIndex := laneIndex
       otherRequest.groupIndex := record.counter
       otherRequest.sign := !decodeResFormat.unSigned0
-      otherRequests(index) := maskAnd(decodeResFormat.otherUnit, otherRequest)
+      otherRequests(index) := maskAnd(controlValid(index) && decodeResFormat.otherUnit, otherRequest)
 
       // 往scheduler的执行任务compress viota
       val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(param)))
@@ -506,7 +506,7 @@ class Lane(param: LaneParameters) extends Module {
       maskRequest.toLSU := record.originalInformation.ls
       maskRequest.instIndex := record.originalInformation.instIndex
       maskRequest.last := instWillComplete(index)
-      maskRequests(index) := maskAnd(maskValid, maskRequest)
+      maskRequests(index) := maskAnd(controlValid(index) && maskValid, maskRequest)
       maskReqValid(index) := maskValid
 
       when(feedback.valid && feedback.bits.instIndex === record.originalInformation.instIndex) {
