@@ -113,7 +113,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   vill = proc.VU.vill;
   vxsat = proc.VU.vxsat->read();
   vl = proc.VU.vl->read();
-  vstart = proc.VU.vl->read();
+  vstart = proc.VU.vstart->read();
 
   pc = proc.get_state()->pc;
   inst_bits = fetch.insn.bits();
