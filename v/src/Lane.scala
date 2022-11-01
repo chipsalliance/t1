@@ -168,6 +168,8 @@ class InstControlRecord(param: LaneParameters) extends Bundle {
   val schedulerComplete:   Bool = Bool()
   // 这次执行从32bit的哪个位置开始执行
   val executeIndex: UInt = UInt(2.W)
+  /** 应对vl很小的时候,不会用到这条lane */
+  val instCompleted: Bool = Bool()
 }
 
 class LaneCsrInterface(vlWidth: Int) extends Bundle {
@@ -553,8 +555,8 @@ class Lane(param: LaneParameters) extends Module {
         record.state.sWrite := true.B
       }
       endNoticeVec(index) := 0.U(param.controlNum.W)
-      when(record.state.asUInt.andR) {
-        when(instWillComplete(index)) {
+      when(record.state.asUInt.andR || record.instCompleted) {
+        when(instWillComplete(index) || record.instCompleted) {
           controlValid(index) := false.B
           when(controlValid(index)) {
             endNoticeVec(index) := UIntToOH(record.originalInformation.instIndex(param.instIndexSize - 2, 0))
@@ -711,6 +713,7 @@ class Lane(param: LaneParameters) extends Module {
   entranceControl.initState := laneReq.bits.initState
   entranceControl.executeIndex := 0.U
   entranceControl.schedulerComplete := false.B
+  entranceControl.instCompleted := ((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl
   // todo: vStart(2,0) > lane index
   entranceControl.counter := (csrInterface.vStart >> 3).asUInt
   // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
