@@ -432,8 +432,10 @@ class Lane(param: LaneParameters) extends Module {
       val dataOffset: UInt = (record.executeIndex << csrInterface.vSew) ## 0.U(3.W)
       /** 虽然没有计算完一组,但是这一组剩余的都被mask去掉了 todo */
       val maskFilterEnd = false.B
+      /** 需要一个除vl导致的end来决定下一个的 element index 是什么 */
+      val dataDepletion = record.executeIndex === endIndex || maskFilterEnd
       /** 这一组计算全完成了 */
-      val groupEnd = record.executeIndex === endIndex || maskFilterEnd || instWillComplete(index)
+      val groupEnd = dataDepletion || instWillComplete(index)
       // 处理操作数
       /**
         * src1： src1有 IXV 三种类型,只有V类型的需要移位
@@ -448,12 +450,15 @@ class Lane(param: LaneParameters) extends Module {
       logicRequest.src.head := finalSource2
       logicRequest.src.last := finalSource1
       logicRequest.opcode := decodeResFormat.uop
+      val nextGroupCount = record.counter + 1.U
+      val nextExecuteIndex: UInt = record.executeIndex + 1.U
       /** 因为寄存器的摆放在在32bit上是连续的,所以在计算element index 的时候需要根据sew选
         * sew = 0 -> record.counter ## laneIndex ## record.executeIndex
         * sew = 1 -> record.counter ## laneIndex ## record.executeIndex(0)
         * sew = 2 -> record.counter ## laneIndex
         * * */
-      instWillComplete(index) := ((record.counter ## laneIndex ## record.executeIndex) >> csrInterface.vSew).asUInt >= csrInterface.vl
+      val nextElementIndex = Mux(dataDepletion, nextGroupCount, record.counter) ## laneIndex ## Mux(dataDepletion, 0.U(2.W), record.executeIndex)
+      instWillComplete(index) := (nextElementIndex >> csrInterface.vSew).asUInt >= csrInterface.vl
       // 在手动做Mux1H
       logicRequests(index) := maskAnd(controlValid(index) && decodeResFormat.logicUnit && !decodeResFormat.otherUnit, logicRequest)
 
@@ -524,7 +529,7 @@ class Lane(param: LaneParameters) extends Module {
         when(groupEnd || maskValid) {
           record.state.sExecute := true.B
         }.otherwise {
-          record.executeIndex := record.executeIndex + 1.U
+          record.executeIndex := nextExecuteIndex
         }
       }
 
@@ -556,7 +561,7 @@ class Lane(param: LaneParameters) extends Module {
           }
         }.otherwise {
           record.state := record.initState
-          record.counter := record.counter + 1.U
+          record.counter := nextGroupCount
           record.executeIndex := 0.U
         }
       }
