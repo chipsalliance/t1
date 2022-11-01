@@ -163,7 +163,7 @@ void SpikeEvent::check_is_ready_for_commit() {
     }
   }
   for (auto &[idx, vrf_write]: vrf_access_record.all_writes) {
-    CHECK_S(vrf_write.executed) << fmt::format("expect to write vrf {:08X}, not executed when commit ({})",
+    CHECK_S(vrf_write.executed) << fmt::format("expect to write vrf {}, not executed when commit ({})",
                               idx, describe_insn());
   }
 }

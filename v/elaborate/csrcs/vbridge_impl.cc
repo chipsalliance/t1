@@ -372,15 +372,24 @@ void VBridgeImpl::record_rf_accesses() {
       }
       LOG(INFO) << fmt::format("[{}] rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X})",
                                get_t(), lane_idx, vd, offset, mask, data);
-      uint32_t record_idx_base = vd * consts::vlen_in_bytes + (lane_idx + offset) * 4;
+      uint32_t record_idx_base = vd * consts::vlen_in_bytes + (lane_idx + consts::numLanes * offset) * 4;
+      auto &all_writes = se_vrf_write->vrf_access_record.all_writes;
       for (int j = 0; j < 32 / 8; j++) {  // 32bit / 1byte
-        if (mask & (1 << j)) {
+        if ((mask >> j) & 1) {
           uint8_t written_byte = (data >> (8 * j)) & 255;
-          auto &record = se_vrf_write->vrf_access_record.all_writes[record_idx_base + j];
-          CHECK_EQ_S(record.byte, written_byte) << fmt::format(
-                "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b}) [{}]",
-                j, lane_idx, vd, offset, mask, record_idx_base + j);
-          record.executed = true;
+          auto record_iter = all_writes.find(record_idx_base + j);
+          if (record_iter != all_writes.end()) {
+            auto &record = record_iter->second;
+            CHECK_EQ_S(record.byte, written_byte) << fmt::format(
+                  "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b}) [{}]",
+                  j, lane_idx, vd, offset, mask, record_idx_base + j);
+            record.executed = true;
+          } else {
+            LOG(WARNING) << fmt::format("vrf writes byte {} (lane={}, vd={}, offset={}, mask={:04b}, data={}), "
+                                        "but not recorded by spike [{}]",
+                                        j, lane_idx, vd, offset, mask, written_byte, record_idx_base + j);
+            // TODO: check the case when the write not present in all_writes (require trace VRF data)
+          }
         }
       }
     }
