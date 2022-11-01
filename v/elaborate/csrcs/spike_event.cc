@@ -46,17 +46,18 @@ void SpikeEvent::log_arch_changes() {
     // xx0011 <- vec
     // xx0100 <- csr
     if ((write_idx & 0xf) == 0b0010) {  // vreg
-      auto idx = (write_idx >> 4);
-      CHECK_EQ_S(idx, rd_idx) << fmt::format("expect to write vrf[{}], detect writing vrf[{}]", rd_idx, idx);
-      CHECK_LT_S(idx, 32) << fmt::format("log_reg_write idx ({}) out of bound", idx);
+      auto vd = (write_idx >> 4);
+      CHECK_EQ_S(vd, rd_idx) << fmt::format("expect to write vrf[{}], detect writing vrf[{}]", rd_idx, vd);
+      CHECK_LT_S(vd, 32) << fmt::format("log_reg_write vd ({}) out of bound", vd);
 
       uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
       uint32_t len = consts::vlen_in_bits << vlmul / 8;
       for (int i = 0; i < len; i++) {
         uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vd_bits_start[i];
         if (origin_byte != cur_byte) {
-          vrf_access_record.all_writes[idx * consts::vlen_in_bytes + i] = {.byte = cur_byte };
-          LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {}", idx, i, (int) origin_byte, (int) cur_byte);
+          vrf_access_record.all_writes[vd * consts::vlen_in_bytes + i] = {.byte = cur_byte };
+          LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {} [{}]",
+                                   vd, i, (int) origin_byte, (int) cur_byte, vd * consts::vlen_in_bytes + i);
         }
       }
 
