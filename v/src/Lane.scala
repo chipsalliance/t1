@@ -433,7 +433,7 @@ class Lane(param: LaneParameters) extends Module {
       /** 虽然没有计算完一组,但是这一组剩余的都被mask去掉了 todo */
       val maskFilterEnd = false.B
       /** 这一组计算全完成了 */
-      val groupEnd = record.executeIndex === endIndex || maskFilterEnd
+      val groupEnd = record.executeIndex === endIndex || maskFilterEnd || instWillComplete(index)
       // 处理操作数
       /**
         * src1： src1有 IXV 三种类型,只有V类型的需要移位
@@ -448,6 +448,12 @@ class Lane(param: LaneParameters) extends Module {
       logicRequest.src.head := finalSource2
       logicRequest.src.last := finalSource1
       logicRequest.opcode := decodeResFormat.uop
+      /** 因为寄存器的摆放在在32bit上是连续的,所以在计算element index 的时候需要根据sew选
+        * sew = 0 -> record.counter ## laneIndex ## record.executeIndex
+        * sew = 1 -> record.counter ## laneIndex ## record.executeIndex(0)
+        * sew = 2 -> record.counter ## laneIndex
+        * * */
+      instWillComplete(index) := ((record.counter ## laneIndex ## record.executeIndex) >> csrInterface.vSew).asUInt >= csrInterface.vl
       // 在手动做Mux1H
       logicRequests(index) := maskAnd(controlValid(index) && decodeResFormat.logicUnit && !decodeResFormat.otherUnit, logicRequest)
 
@@ -541,8 +547,6 @@ class Lane(param: LaneParameters) extends Module {
       when(rfWriteFire(index)) {
         record.state.sWrite := true.B
       }
-      val nextCounter = record.counter + 1.U
-      instWillComplete(index) := (nextCounter ## laneIndex) > csrInterface.vl
       endNoticeVec(index) := 0.U(param.controlNum.W)
       when(record.state.asUInt.andR) {
         when(instWillComplete(index)) {
@@ -552,7 +556,7 @@ class Lane(param: LaneParameters) extends Module {
           }
         }.otherwise {
           record.state := record.initState
-          record.counter := nextCounter
+          record.counter := record.counter + 1.U
           record.executeIndex := 0.U
         }
       }
