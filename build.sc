@@ -99,7 +99,6 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
       artifacts.map(PathRef(_))
     }
     def csources = T.source { millSourcePath / "csrcs" }
-    def allCSourceFiles = T { Lib.findSourceFiles(Seq(csources()), Seq("S", "s", "c", "cpp", "cc")).map(PathRef(_)) }
     def verilated = T {
       val f = ujson.read(os.read(rtls().collectFirst{
         case f if (f.path.ext == "json") => f.path
@@ -136,32 +135,38 @@ object vector extends common.VectorModule with ScalafmtModule { m =>
       // format: off
         s"""cmake_minimum_required(VERSION 3.20)
            |project(${topName})
-           |include_directories(${(spike.millSourcePath / "riscv").toString})
-           |include_directories(${(spike.millSourcePath / "fesvr").toString})
-           |include_directories(${(spike.millSourcePath / "softfloat").toString})
-           |# Make CLion happy to see header files here
-           |include_directories(${csources().path.toString})
-           |include_directories(${spike.compile().path.toString})
-           |link_directories(${spike.compile().path.toString})
            |include(FetchContent)
            |FetchContent_Declare(args GIT_REPOSITORY https://github.com/Taywee/args GIT_TAG 6.4.0)
-           |FetchContent_MakeAvailable(args)
+           |FetchContent_Declare(glog GIT_REPOSITORY https://github.com/google/glog GIT_TAG v0.6.0)
+           |FetchContent_Declare(fmt GIT_REPOSITORY https://github.com/fmtlib/fmt GIT_TAG 9.1.0)
+           |FetchContent_MakeAvailable(args glog fmt)
            |
            |find_package(verilator)
            |set(CMAKE_CXX_STANDARD 17)
            |set(CMAKE_CXX_COMPILER_ID "clang")
            |set(CMAKE_C_COMPILER "clang")
            |set(CMAKE_CXX_COMPILER "clang++")
-           |set(CMAKE_BUILD_TYPE "Debug")
+           |
            |find_package(Threads)
            |set(THREADS_PREFER_PTHREAD_FLAG ON)
            |add_executable(${topName}
-           |${allCSourceFiles().map(_.path).map(_.toString).mkString("\n")}
+           | "${csources().path.toString}/main.cc"
+           | "${csources().path.toString}/vbridge.cc"
+           | "${csources().path.toString}/rtl_event.cc"
+           | "${csources().path.toString}/spike_event.cc"
+           | "${csources().path.toString}/vbridge_impl.cc"
            |)
-           |target_link_libraries(${topName} PRIVATE $${CMAKE_THREAD_LIBS_INIT})
-           |target_link_libraries(${topName} PRIVATE riscv fmt glog args)
+           |target_include_directories(${topName} PRIVATE ${(spike.millSourcePath / "riscv").toString})
+           |target_include_directories(${topName} PRIVATE ${(spike.millSourcePath / "fesvr").toString})
+           |target_include_directories(${topName} PRIVATE ${(spike.millSourcePath / "softfloat").toString})
+           |target_include_directories(${topName} PRIVATE ${spike.compile().path.toString})
            |
-
+           |target_include_directories(${topName} PUBLIC ${csources().path.toString})
+           |
+           |target_link_directories(${topName} PRIVATE ${spike.compile().path.toString})
+           |target_link_libraries(${topName} PUBLIC $${CMAKE_THREAD_LIBS_INIT})
+           |target_link_libraries(${topName} PUBLIC riscv fmt glog args)
+           |
            |verilate(${topName}
            |  SOURCES
            |${rtls().filter(f => f.path.ext == "v" || f.path.ext == "sv").map(_.path.toString).mkString("\n")}

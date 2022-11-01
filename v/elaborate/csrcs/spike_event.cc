@@ -5,6 +5,8 @@
 #include "disasm.h"
 #include "util.h"
 #include "tl_interface.h"
+#include "exceptions.h"
+#include "glog_exception_safe.h"
 
 std::string SpikeEvent::describe_insn() const {
   return fmt::format("pc={:08X}, bits={:08X}, disasm='{}'", pc, inst_bits, proc.get_disassembler()->disassemble(inst_bits));
@@ -27,7 +29,7 @@ void SpikeEvent::pre_log_arch_changes() {
   // TODO: support vl/vstart
   rd_bits = proc.get_state()->XPR[rd_idx];
   uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
-  CHECK_LT(vlmul, 4) << ": fractional vlmul not supported yet";  // TODO: support fractional vlmul
+  CHECK_LT_S(vlmul, 4) << ": fractional vlmul not supported yet";  // TODO: support fractional vlmul
   uint32_t len = consts::vlen_in_bits << vlmul / 8;
   vd_write_record.vd_bytes = std::make_unique<uint8_t[]>(len);
   std::memcpy(vd_write_record.vd_bytes.get(), vd_bits_start, len);
@@ -45,8 +47,8 @@ void SpikeEvent::log_arch_changes() {
     // xx0100 <- csr
     if ((write_idx & 0xf) == 0b0010) {  // vreg
       auto idx = (write_idx >> 4);
-      CHECK_EQ(idx, rd_idx) << fmt::format("expect to write vrf[{}], detect writing vrf[{}]", rd_idx, idx);
-      CHECK_LT(idx, 32) << fmt::format("log_reg_write idx ({}) out of bound", idx);
+      CHECK_EQ_S(idx, rd_idx) << fmt::format("expect to write vrf[{}], detect writing vrf[{}]", rd_idx, idx);
+      CHECK_LT_S(idx, 32) << fmt::format("log_reg_write idx ({}) out of bound", idx);
 
       uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
       uint32_t len = consts::vlen_in_bits << vlmul / 8;
@@ -160,17 +162,15 @@ void SpikeEvent::check_is_ready_for_commit() {
     }
   }
   for (auto &[idx, vrf_write]: vrf_access_record.all_writes) {
-    if (!vrf_write.executed) {
-      LOG(FATAL) << fmt::format("expect to write vrf {:08X}, not executed when commit ({})",
-                                idx, describe_insn());
-    }
+    CHECK_S(vrf_write.executed) << fmt::format("expect to write vrf {:08X}, not executed when commit ({})",
+                              idx, describe_insn());
   }
 }
 
 void SpikeEvent::record_rd_write(VV &top) {
   // TODO: rtl should indicate whether resp_bits_data is valid
   if (is_rd_written) {
-    CHECK_EQ(top.resp_bits_data, rd_bits) << fmt::format(": expect to write rd[{}] = {}, actual {}",
+    CHECK_EQ_S(top.resp_bits_data, rd_bits) << fmt::format(": expect to write rd[{}] = {}, actual {}",
                                                              rd_idx, rd_bits, top.resp_bits_data);
   }
 }

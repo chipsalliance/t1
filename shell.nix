@@ -78,7 +78,6 @@ in pkgs.mkShellNoCC {
       circt
 
       git cacert # make cmake fetchContent happy
-      fmt glog
     ];
     shellHook = ''
       export NIX_CC=" "

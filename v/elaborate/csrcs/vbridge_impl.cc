@@ -11,6 +11,7 @@
 #include "rtl_event.h"
 #include "vpi.h"
 #include "tl_interface.h"
+#include "glog_exception_safe.h"
 
 /// convert TL style size to size_by_bytes
 inline uint32_t decode_size(uint32_t encoded_size) {
@@ -94,7 +95,9 @@ void VBridgeImpl::init_simulator() {
 }
 
 void VBridgeImpl::terminate_simulator() {
-  tfp.close();
+  if (tfp.isOpen()) {
+    tfp.close();
+  }
   top.final();
 }
 
@@ -219,16 +222,16 @@ void VBridgeImpl::receive_tl_req() {
         se = &(*se_iter);
       }
     }
-    CHECK(se) << fmt::format(": [{]] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
+    CHECK_S(se) << fmt::format(": [{]] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
 
     switch (opcode) {
 
     case TlOpcode::Get: {
       LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={}, size={}byte)", get_t(), addr, decode_size(size));
       auto mem_read = se->mem_access_record.all_reads.find(addr);
-      CHECK(mem_read != se->mem_access_record.all_reads.end())
+      CHECK_S(mem_read != se->mem_access_record.all_reads.end())
         << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
-      CHECK_EQ(mem_read->second.size_by_byte, decode_size(size)) << fmt::format(
+      CHECK_EQ_S(mem_read->second.size_by_byte, decode_size(size)) << fmt::format(
           ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, {})",
           get_t(), mem_read->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
 
@@ -246,12 +249,12 @@ void VBridgeImpl::receive_tl_req() {
                                addr, decode_size(size), data);
       auto mem_write = se->mem_access_record.all_writes.find(addr);
 
-      CHECK(mem_write != se->mem_access_record.all_writes.end())
+      CHECK_S(mem_write != se->mem_access_record.all_writes.end())
               << fmt::format(": [{}] cannot find mem write of addr={:08X}", get_t(), addr);
-      CHECK_EQ(mem_write->second.size_by_byte, decode_size(size)) << fmt::format(
+      CHECK_EQ_S(mem_write->second.size_by_byte, decode_size(size)) << fmt::format(
           ": [{}] expect mem write of size {}, actual size {} (addr={:08X}, insn='{}')",
           get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
-      CHECK_EQ(mem_write->second.val, data) << fmt::format(
+      CHECK_EQ_S(mem_write->second.val, data) << fmt::format(
           ": [{}] expect mem write of data {}, actual data {} (addr={:08X}, insn='{}')",
           get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
 
@@ -316,7 +319,7 @@ void VBridgeImpl::update_lsu_idx() {
           break;
         }
       }
-      CHECK_NE(index, consts::lsuIdxDefault)
+      CHECK_NE_S(index, consts::lsuIdxDefault)
         << fmt::format(": [{}] load store issued but not no slot allocated.", get_t());
       se->lsu_idx = index;
       LOG(INFO) << fmt::format("[{}] insn ({}) is allocated lsu_idx={}", get_t(), se->describe_insn(), index);
@@ -353,15 +356,15 @@ SpikeEvent *VBridgeImpl::find_se_to_issue() {
 }
 
 void VBridgeImpl::record_rf_accesses() {
-  for (int i = 0; i < consts::numLanes; i++) {
-    int valid = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_valid", i).c_str());
+  for (int lane_idx = 0; lane_idx < consts::numLanes; lane_idx++) {
+    int valid = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_valid", lane_idx).c_str());
     if (valid) {
-      int vd = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_vd", i).c_str());
-      int offset = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_offset", i).c_str());
-      int mask = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_mask", i).c_str());
-      int data = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_data", i).c_str());
-      int idx = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_instIndex", i).c_str());
-      LOG(INFO) << fmt::format("[{}] issue index: {} lane {} write vd {} with data {} (offset={}, mask={})", get_t(), idx, i, vd, data, offset, mask);
+      int vd = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_vd", lane_idx).c_str());
+      int offset = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_offset", lane_idx).c_str());
+      int mask = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_mask", lane_idx).c_str());
+      int data = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_data", lane_idx).c_str());
+      int idx = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_instIndex", lane_idx).c_str());
+      LOG(INFO) << fmt::format("[{}] issue_index={} lane={} write vd={} with data={:08X} (offset={}, mask={})", get_t(), idx, lane_idx, vd, data, offset, mask);
       SpikeEvent *se_vrf_write;
       for (auto se = to_rtl_queue.rbegin(); se != to_rtl_queue.rend(); se++) {
         if (se->issue_idx == idx) {
@@ -369,20 +372,21 @@ void VBridgeImpl::record_rf_accesses() {
         }
       }
       // TODO: find the correct base calculation
-      uint32_t record_idx_base = vd * consts::vlen_in_bytes + consts::vlen_in_bytes / consts::numLanes * i + offset;
+      uint32_t record_idx_base = vd * consts::vlen_in_bytes + consts::vlen_in_bytes / consts::numLanes * lane_idx + offset * 32 / 8;
       for (int j = 0; j < 32 / 8; j++) {  // 32bit / 1byte
         if (mask & (1 << j)) {
           uint8_t written_byte = (data >> (8 * j)) & 255;
-          LOG(INFO) << fmt::format("[{}] vrf write: idx={}, byte={}, data={}", get_t(), record_idx_base + j, written_byte, data);
-//          auto &record = se_vrf_write->vrf_access_record.all_writes[record_idx_base + j];
-//          CHECK_EQ(record.byte, written_byte) << fmt::format(
-//              "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b})",
-//              j, i, vd, offset, mask);
-//          record.executed = true;
+          LOG(INFO) << fmt::format("[{}] vrf write: insn_idx = {}, idx={}, byte={}, data={}",
+                                   get_t(), se_vrf_write->issue_idx, record_idx_base + j, written_byte, data);
+          auto &record = se_vrf_write->vrf_access_record.all_writes[record_idx_base + j];
+          CHECK_EQ_S(record.byte, written_byte) << fmt::format(
+                "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b})",
+                j, lane_idx, vd, offset, mask);
+          record.executed = true;
         }
       }
       LOG(INFO) << fmt::format("[{}] rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X})",
-                               get_t(), i, vd, offset, mask, data);
+                               get_t(), lane_idx, vd, offset, mask, data);
     }
   }
 }
