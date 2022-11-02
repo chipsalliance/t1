@@ -569,7 +569,8 @@ class Lane(param: LaneParameters) extends Module {
             * 11 -> 0111
             * */
           useOriginalMask ## (csrInterface.vl(1, 0).andR || useOriginalMask) ## (csrInterface.vl(1) || useOriginalMask) ## true.B,
-          Mux(csrInterface.vl(0) || useOriginalMask, 3.U(2.W), 0.U(2.W)) ## 3.U(2.W),
+          /** 只要包含了分界线就一定是 0b0011 */
+          Mux(useOriginalMask, 3.U(2.W), 0.U(2.W)) ## 3.U(2.W),
           15.U(4.W)
         )
       )
