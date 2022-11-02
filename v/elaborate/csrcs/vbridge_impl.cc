@@ -286,7 +286,7 @@ void VBridgeImpl::return_tl_response() {
       if (record.remaining_cycles == 0) {
         TL(i, d_bits_opcode) = record.op == TLReqRecord::opType::Get ? TlOpcode::AccessAckData : TlOpcode::AccessAck;
         TL(i, d_bits_data) = record.data;
-        TL(i, d_bits_source) = record.source;
+        TL(i, d_bits_sink) = record.source;
         d_valid = true;
         record.op = TLReqRecord::opType::Nil;
         break;
