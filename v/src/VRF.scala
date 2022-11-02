@@ -72,15 +72,14 @@ class VRF(param: VRFParam) extends Module {
   val instWriteReport: ValidIO[VRFWriteReport] = IO(Flipped(Valid(new VRFWriteReport(param))))
   val flush:           Bool = IO(Input(Bool()))
   // todo: delete
-  dontTouch(write.bits.instIndex)
+  dontTouch(write)
+  write.ready := true.B
 
   val chainingRecord: Vec[ValidIO[ChainingRecord]] = RegInit(
     VecInit(Seq.fill(31)(0.U.asTypeOf(Valid(new ChainingRecord(param)))))
   )
   val recordCheckVec: IndexedSeq[ValidIO[ChainingRecord]] =
     WireInit(0.U.asTypeOf(Valid(new ChainingRecord(param)))) +: chainingRecord
-  val writeQueue: DecoupledIO[VRFWriteRequest] = Queue(write, param.writeQueueSize)
-  writeQueue.ready := true.B
 
   // todo: 根据 portFactor 变形
   // first read
@@ -92,11 +91,11 @@ class VRF(param: VRFParam) extends Module {
   read.zipWithIndex.foldLeft((false.B, false.B)) {
     case ((o, t), (v, i)) =>
       val chainingCheckRecord = Mux1H(UIntToOH(v.bits.vs), recordCheckVec)
-      val checkResult: Bool = instIndexGE(v.bits.instIndex, chainingCheckRecord.bits.instIndex) ||
+      val checkResult: Bool = instIndexLE(v.bits.instIndex, chainingCheckRecord.bits.instIndex) ||
         v.bits.offset <= chainingCheckRecord.bits.offset || !chainingCheckRecord.valid
       val validCorrect: Bool = v.valid && checkResult
       // TODO: 加信号名
-      v.ready := !t
+      v.ready := !t && checkResult
       bankReadF(i) := validCorrect & !o
       bankReadS(i) := validCorrect & !t & o
       readResult(i) := Mux(o, readResultS.asUInt, readResultF.asUInt)
@@ -112,9 +111,9 @@ class VRF(param: VRFParam) extends Module {
     readResultF(bank) := rf.readPorts.head.data
     readResultS(bank) := rf.readPorts.last.data
     // connect writePort
-    rf.writePort.valid := writeQueue.valid & writeQueue.bits.mask(bank)
-    rf.writePort.bits.addr := writeQueue.bits.vd ## writeQueue.bits.offset
-    rf.writePort.bits.data := writeQueue.bits.data(8 * bank + 7, 8 * bank)
+    rf.writePort.valid := write.valid & write.bits.mask(bank)
+    rf.writePort.bits.addr := write.bits.vd ## write.bits.offset
+    rf.writePort.bits.data := write.bits.data(8 * bank + 7, 8 * bank)
     rf
   }
 
@@ -129,9 +128,9 @@ class VRF(param: VRFParam) extends Module {
         record.valid := false.B
       }.elsewhen(instWriteReport.valid && instWriteReport.bits.vd === (i + 1).U) {
         record := initRecord
-      }.elsewhen(writeQueue.valid && writeQueue.bits.vd === (i + 1).U) {
-        record.bits.offset := writeQueue.bits.offset
-        when(writeQueue.bits.last) {
+      }.elsewhen(write.valid && write.bits.vd === (i + 1).U) {
+        record.bits.offset := write.bits.offset
+        when(write.bits.last) {
           record.valid := false.B
         }
       }

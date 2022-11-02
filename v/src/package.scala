@@ -18,9 +18,9 @@ package object v {
     decoder.qmc(readValid ## eew(1, 0) ## vs(1, 0) ## groupIndex(1, 0), TableGenerator.BankEnableTable.res)
   }
 
-  def instIndexGE(a: UInt, b: UInt): Bool = {
+  def instIndexLE(a: UInt, b: UInt): Bool = {
     require(a.getWidth == b.getWidth)
-    a === b || ((a(a.getWidth - 2, 0) > b(b.getWidth - 2, 0)) ^ a(a.getWidth - 1) ^ b(b.getWidth - 1))
+    a === b || ((a(a.getWidth - 2, 0) < b(b.getWidth - 2, 0)) ^ a(a.getWidth - 1) ^ b(b.getWidth - 1))
   }
 
   def ffo(input: UInt): UInt = {
