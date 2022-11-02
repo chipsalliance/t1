@@ -11,7 +11,7 @@ case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: I
   val laneGroupSize:     Int = VLEN / lane
   // 一次完全的offset读会最多分成多少个offset
   val lsuGroupLength:   Int = ELEN * lane / 8
-  val lsuGroupSize:     Int = VLEN / lane
+  val lsuGroupSize:     Int = VLEN / ELEN
   val lsuGroupSizeBits: Int = log2Ceil(lsuGroupSize)
   val sourceWidth = 8
 
@@ -94,7 +94,7 @@ class MSHR(param: MSHRParam) extends Module {
   // 所有的mask类型
   val maskType:  Bool = extendMaskType || requestReg.instInf.mask
   val indexType: Bool = requestReg.instInf.mop(0)
-  val segNext:   UInt = (segMask ## true.B) & (~segMask).asUInt
+  val segNext:   UInt = ((segMask ## true.B) & (~segMask).asUInt)(7, 0)
   val segEnd:    Bool = OHToUInt(segNext) === requestReg.instInf.nf
 
   // 更新 segMask
@@ -218,18 +218,36 @@ class MSHR(param: MSHRParam) extends Module {
   // todo: 这里能工作，但是时间点不那么准确
   val lastResp:   Bool = last && tlPort.d.fire// && (respDone & (~respSinkOH).asUInt) === 0.U
   val respSinkOH: UInt = UIntToOH(tlPort.d.bits.sink(4, 0))
-  vrfWritePort.valid := tlPort.d.valid
-  tlPort.d.ready := true.B
-  vrfWritePort.bits.vd := requestReg.instInf.vs3 + Mux(segType, tlPort.d.bits.sink(2, 0), 0.U)
-  vrfWritePort.bits.offset := Mux(
+  /** 首先我们根据sink来计算 [[elementIndex]]
+    * 然后我们左移 eew,得到修改的起始是第几个byte: [[baseByteOffset]]
+    * XXX XXXXXXXXXX XX
+    * XXX: vd的增量
+    *     |        |: 在一个寄存器中位于哪一个32bit
+    *                XX：起始位置在32bit中的偏移
+    *            XXX： 由于寄存器的实体按32bit为粒度分散在lane中,所以这是目标lane的index
+    *     XXXXXXX： 这里代表[[vrfWritePort.bits.offset]]
+    */
+  val elementIndex: UInt = Mux(
     segType,
     groupIndex ## (tlPort.d.bits.sink >> 3).asUInt,
     groupIndex ## tlPort.d.bits.sink
   )
+  val baseByteOffset: UInt = (elementIndex << dataEEW).asUInt(14, 0)
+  vrfWritePort.valid := tlPort.d.valid
+  tlPort.d.ready := true.B
+  vrfWritePort.bits.vd := requestReg.instInf.vs3 + Mux(segType, tlPort.d.bits.sink(2, 0), baseByteOffset(14, 12))
+  vrfWritePort.bits.offset := elementIndex(11, 5)
   vrfWritePort.bits.data := tlPort.d.bits.data
   vrfWritePort.bits.last := last
   vrfWritePort.bits.instIndex := requestReg.instIndex
-  vrfWritePort.bits.mask := 15.U//todo
+  vrfWritePort.bits.mask := Mux1H(
+    UIntToOH(dataEEW)(2, 0),
+    Seq(
+      UIntToOH(baseByteOffset(1, 0)),
+      baseByteOffset(1) ## baseByteOffset(1) ## !baseByteOffset(1) ## !baseByteOffset(1),
+      15.U(4.W)
+    )
+  )
 
   val sourceUpdate: UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.lsuGroupLength.W))
   val sinkUpdate: UInt = Mux(tlPort.d.fire, respSinkOH, 0.U(param.lsuGroupLength.W))
@@ -273,7 +291,7 @@ class MSHR(param: MSHRParam) extends Module {
   status.instIndex := requestReg.instIndex
   status.idle := state === idle
   status.last := lastResp
-  status.targetLane := 1.U
+  status.targetLane := baseByteOffset(4, 2)
   status.waitFirstResp := waitFirstResp
   maskSelect.bits := groupIndex
   putData := readResult

@@ -32,7 +32,7 @@ case class VRFParam(
 class VRFReadRequest(param: VRFParam) extends Bundle {
   // 为了方便处理seg类型的ld st, vs需要是明确的地址, 而不是一个base
   val vs:         UInt = UInt(param.regNumBits.W)
-  // 访问寄存器的 offset
+  // 访问寄存器的 offset, 代表第几个32bit
   val offset:     UInt = UInt(param.offsetBits.W)
   // 用来阻塞 raw
   val instIndex:  UInt = UInt(param.instIndexSize.W)
