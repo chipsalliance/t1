@@ -188,7 +188,7 @@ class V(param: VParam) extends Module {
   val laneComplete: Bool = lsu.lastReport.valid && lsu.lastReport.bits === instStateVec.last.record.instIndex
 
   // lsu的写有限级更高
-  val vrfWrite: Vec[ValidIO[VRFWriteRequest]] = Wire(Vec(param.lane, Valid(new VRFWriteRequest(param.vrfParam))))
+  val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(Vec(param.lane, Decoupled(new VRFWriteRequest(param.vrfParam))))
   // 以lane的角度去连线
   val laneVec: Seq[Lane] = Seq.tabulate(param.lane) { index =>
     val lane: Lane = Module(new Lane(param.laneParam))

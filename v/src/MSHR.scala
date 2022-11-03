@@ -32,7 +32,7 @@ class MSHRStatus(lane: Int) extends Bundle {
   val instIndex:     UInt = UInt(3.W)
   val idle:          Bool = Bool()
   val indexGroupEnd: Bool = Bool()
-  val targetLane:    UInt = UInt(8.W)
+  val targetLane:    UInt = UInt(lane.W)
   val waitFirstResp: Bool = Bool()
   val last:          Bool = Bool()
 }
@@ -45,7 +45,7 @@ class MSHR(param: MSHRParam) extends Module {
   val maskRegInput:     UInt = IO(Input(UInt(param.maskGroupWidth.W)))
   val maskSelect:       ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
   val tlPort:           TLBundle = IO(param.tlParam.bundle())
-  val vrfWritePort:     ValidIO[VRFWriteRequest] = IO(Valid(new VRFWriteRequest(param.vrfParam)))
+  val vrfWritePort:     DecoupledIO[VRFWriteRequest] = IO(Decoupled(new VRFWriteRequest(param.vrfParam)))
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
   val status:           MSHRStatus = IO(Output(new MSHRStatus(param.lane)))
 
@@ -234,7 +234,7 @@ class MSHR(param: MSHRParam) extends Module {
   )
   val baseByteOffset: UInt = (elementIndex << dataEEW).asUInt(14, 0)
   vrfWritePort.valid := tlPort.d.valid
-  tlPort.d.ready := true.B
+  tlPort.d.ready := vrfWritePort.ready
   vrfWritePort.bits.vd := requestReg.instInf.vs3 + Mux(segType, tlPort.d.bits.sink(2, 0), baseByteOffset(14, 12))
   vrfWritePort.bits.offset := elementIndex(11, 5)
   vrfWritePort.bits.data := tlPort.d.bits.data
@@ -291,7 +291,7 @@ class MSHR(param: MSHRParam) extends Module {
   status.instIndex := requestReg.instIndex
   status.idle := state === idle
   status.last := lastResp
-  status.targetLane := baseByteOffset(4, 2)
+  status.targetLane := UIntToOH(baseByteOffset(4, 2))
   status.waitFirstResp := waitFirstResp
   maskSelect.bits := groupIndex
   putData := readResult

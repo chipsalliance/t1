@@ -228,7 +228,7 @@ class Lane(param: LaneParameters) extends Module {
   val feedback:        ValidIO[SchedulerFeedback] = IO(Flipped(Valid(new SchedulerFeedback(param))))
   val readDataPort:    DecoupledIO[VRFReadRequest] = IO(Flipped(Decoupled(new VRFReadRequest(param.vrfParam))))
   val readResult:      UInt = IO(Output(UInt(param.ELEN.W)))
-  val vrfWritePort:    ValidIO[VRFWriteRequest] = IO(Flipped(Valid(new VRFWriteRequest(param.vrfParam))))
+  val vrfWritePort:    DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(param.vrfParam))))
   /** 本来结束的通知放在[[dataToScheduler]],但是存在有多指令同时结束的情况,所以单独给出来 */
   val endNotice: UInt = IO(Output(UInt(param.controlNum.W)))
 
@@ -243,12 +243,14 @@ class Lane(param: LaneParameters) extends Module {
   val source3: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // execute result
   val result: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
-  // 额外两个给 lsu 和
+  // 额外给 lsu 和 mask unit
   val rfWriteVec: Vec[ValidIO[VRFWriteRequest]] = Wire(
     Vec(param.controlNum + 1, Valid(new VRFWriteRequest(param.vrfParam)))
   )
-  rfWriteVec(4) <> vrfWritePort
+  rfWriteVec(4).valid := vrfWritePort.valid
+  rfWriteVec(4).bits := vrfWritePort.bits
   val rfWriteFire: UInt = Wire(UInt((param.controlNum + 2).W))
+  vrfWritePort.ready := rfWriteFire(4)
   // 跨lane操作的寄存器
   // 从rf里面读出来的， 下一个周期试图上环
   val crossReadHeadTX: UInt = RegInit(0.U(param.HLEN.W))
