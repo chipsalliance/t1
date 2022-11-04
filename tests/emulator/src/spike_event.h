@@ -28,8 +28,6 @@ struct SpikeEvent {
 
   commit_log_mem_t mem_read_info;
 
-  uint64_t mem_load(uint64_t addr, uint32_t size);
-
   struct mem_log {
     uint64_t addr;
     uint64_t value;

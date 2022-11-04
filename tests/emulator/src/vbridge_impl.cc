@@ -67,6 +67,7 @@ VBridgeImpl::VBridgeImpl() :
         /*sim*/ &sim,
         /*id*/ 0,
         /*halt on reset*/ true,
+        /* endianness*/ memif_endianness_little,
         /*log_file_t*/ nullptr,
         /*sout*/ std::cerr),
     vrf_shadow(std::make_unique<uint8_t[]>(consts::vlen_in_bytes * consts::numVRF)){
