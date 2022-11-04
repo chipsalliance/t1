@@ -68,7 +68,9 @@ VBridgeImpl::VBridgeImpl() :
         /*id*/ 0,
         /*halt on reset*/ true,
         /*log_file_t*/ nullptr,
-        /*sout*/ std::cerr) {}
+        /*sout*/ std::cerr),
+    vrf_shadow(std::make_unique<uint8_t[]>(consts::vlen_in_bytes * consts::numVRF)){
+}
 
 VBridgeImpl::~VBridgeImpl() {
   terminate_simulator();
@@ -227,7 +229,6 @@ void VBridgeImpl::receive_tl_req() {
     switch (opcode) {
 
     case TlOpcode::Get: {
-      LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={}, size={}byte)", get_t(), addr, decode_size(size));
       auto mem_read = se->mem_access_record.all_reads.find(addr);
       CHECK_S(mem_read != se->mem_access_record.all_reads.end())
         << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
@@ -236,6 +237,8 @@ void VBridgeImpl::receive_tl_req() {
           get_t(), mem_read->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
 
       uint64_t data = mem_read->second.val;
+      LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={}, size={}byte), should return data {}",
+                               get_t(), addr, decode_size(size), data);
       tl_banks[tlIdx].emplace(std::make_pair(addr, TLReqRecord{
           data, 1u << size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
       }));
@@ -370,28 +373,36 @@ void VBridgeImpl::record_rf_accesses() {
           se_vrf_write = &(*se);
         }
       }
-      LOG(INFO) << fmt::format("[{}] rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X})",
-                               get_t(), lane_idx, vd, offset, mask, data);
+      LOG(INFO) << fmt::format("[{}] rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X}, idx={})",
+                               get_t(), lane_idx, vd, offset, mask, data, idx);
       uint32_t record_idx_base = vd * consts::vlen_in_bytes + (lane_idx + consts::numLanes * offset) * 4;
       auto &all_writes = se_vrf_write->vrf_access_record.all_writes;
+
       for (int j = 0; j < 32 / 8; j++) {  // 32bit / 1byte
         if ((mask >> j) & 1) {
           uint8_t written_byte = (data >> (8 * j)) & 255;
           auto record_iter = all_writes.find(record_idx_base + j);
-          if (record_iter != all_writes.end()) {
+
+          if (record_iter != all_writes.end()) { // if find a spike write record
             auto &record = record_iter->second;
-            CHECK_EQ_S(record.byte, written_byte) << fmt::format(
+            CHECK_EQ_S((int) record.byte, (int) written_byte) << fmt::format(  // convert to int to avoid stupid printing
                   "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b}) [{}]",
                   j, lane_idx, vd, offset, mask, record_idx_base + j);
             record.executed = true;
-          } else {
-            LOG(WARNING) << fmt::format("vrf writes byte {} (lane={}, vd={}, offset={}, mask={:04b}, data={}), "
-                                        "but not recorded by spike [{}]",
-                                        j, lane_idx, vd, offset, mask, written_byte, record_idx_base + j);
+
+          } else if (uint8_t original_byte = vrf_shadow[record_idx_base + j]; original_byte != written_byte) {
+            CHECK_S(false) << fmt::format("vrf writes byte {} (lane={}, vd={}, offset={}, mask={:04b}, data={}, original_data={}), "
+                                          "but not recorded by spike [{}]",
+                                          j, lane_idx, vd, offset, mask, written_byte,
+                                          original_byte, record_idx_base + j);
             // TODO: check the case when the write not present in all_writes (require trace VRF data)
+          } else {
+            // no spike record and rtl written byte is identical as the byte before write, safe
           }
-        }
-      }
-    }
-  }
+
+          vrf_shadow[record_idx_base + j] = written_byte;
+        }  // end if mask
+      }  // end for j
+    }  // end if(valid)
+  }  // end for lane_idx
 }

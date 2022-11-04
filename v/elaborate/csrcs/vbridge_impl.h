@@ -62,6 +62,9 @@ private:
   /// size of this queue should be as big as enough to make rtl free to run, reducing the context switch overhead.
   std::list<SpikeEvent> to_rtl_queue;
 
+  // in vrf_shadow we keep a duplicate of vrf in rtl, in order to detect unexpected vrf write
+  std::unique_ptr<uint8_t[]> vrf_shadow;
+
   const size_t to_rtl_queue_size = 10;
 
   /// file path of executeable binary file, which will be executed.
