@@ -12,19 +12,6 @@ std::string SpikeEvent::describe_insn() const {
   return fmt::format("pc={:08X}, bits={:08X}, disasm='{}'", pc, inst_bits, proc.get_disassembler()->disassemble(inst_bits));
 }
 
-uint64_t SpikeEvent::mem_load(uint64_t addr, uint32_t size) {
-  switch (size) {
-    case 0:
-      return proc.get_mmu()->load_uint8(addr);
-    case 1:
-      return proc.get_mmu()->load_uint16(addr);
-    case 2:
-      return proc.get_mmu()->load_uint32(addr);
-    default:
-      LOG(FATAL) << fmt::format("unknown load size {}", size);
-  }
-}
-
 void SpikeEvent::pre_log_arch_changes() {
   // TODO: support vl/vstart
   rd_bits = proc.get_state()->XPR[rd_idx];
