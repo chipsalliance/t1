@@ -758,6 +758,7 @@ class Lane(param: LaneParameters) extends Module {
     controlValid := VecInit(controlValid.tail :+ validRegulate)
     source1 := VecInit(source1.tail :+ vs1entrance)
     control := VecInit(control.tail :+ entranceControl)
+    result := VecInit(result.tail :+ 0.U(param.ELEN.W))
     vrf.instWriteReport.valid := true.B
   }
   vrf.flush := DontCare
