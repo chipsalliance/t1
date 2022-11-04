@@ -152,7 +152,7 @@ class LSU(param: LSUParam) extends Module {
     writeQueueVec(index).io.enq.bits.data := mshr.vrfWritePort.bits
     writeQueueVec(index).io.enq.bits.targetLane := mshr.status.targetLane
     mshr.vrfWritePort.ready := writeQueueVec(index).io.enq.ready
-    tryToWriteData(index) := Mux(writeQueueVec(index).io.deq.valid, writeQueueVec(index).io.enq.bits.targetLane, 0.U)
+    tryToWriteData(index) := Mux(writeQueueVec(index).io.deq.valid, writeQueueVec(index).io.deq.bits.targetLane, 0.U)
     writeQueueVec(index).io.deq.ready := getWritePort(index)
 
     mshr.csrInterface := csrInterface
