@@ -104,7 +104,11 @@ class LaneReq(param: LaneParameters) extends Bundle {
   val readFromScalar: UInt = UInt(param.ELEN.W)
 
   val ls: Bool = Bool()
+  val st: Bool = Bool()
   val sp: Bool = Bool()
+  val seg: UInt = UInt(3.W)
+  val eew: UInt = UInt(2.W)
+  def ma: Bool = decodeResult(21) && decodeResult(1, 0).orR
 
   def initState: InstGroupState = {
     val res:                InstGroupState = Wire(new InstGroupState(param))
@@ -112,7 +116,7 @@ class LaneReq(param: LaneParameters) extends Bundle {
     val decodeResFormatExt: ExtendInstructionDecodeResult = decodeResult.asTypeOf(new ExtendInstructionDecodeResult)
     res.sRead1 := !decodeResFormat.vType
     res.sRead2 := false.B
-    res.sReadVD := !(decodeResFormat.firstWiden || (decodeResFormat.mulUnit && decodeResFormat.uop(1, 0).orR))
+    res.sReadVD := !(decodeResFormat.firstWiden || ma)
     res.wRead1 := !decodeResFormat.firstWiden
     res.wRead2 := !decodeResFormat.firstWiden
     res.wScheduler := !sp
@@ -752,18 +756,34 @@ class Lane(param: LaneParameters) extends Module {
     instTypeVec.zip(controlValid).map { case (t, v) => (t =/= entranceInstType) || !v }
   ).asUInt.andR
   val validRegulate: Bool = laneReq.valid && typeReady
-  laneReq.ready := !controlValid.head && typeReady
-  vrf.instWriteReport.valid := false.B
+  laneReq.ready := !controlValid.head && typeReady && vrf.instWriteReport.ready
+  vrf.instWriteReport.valid := laneReq.fire
   when(!controlValid.head && (controlValid.asUInt.orR || validRegulate)) {
     controlValid := VecInit(controlValid.tail :+ validRegulate)
     source1 := VecInit(source1.tail :+ vs1entrance)
     control := VecInit(control.tail :+ entranceControl)
     result := VecInit(result.tail :+ 0.U(param.ELEN.W))
-    vrf.instWriteReport.valid := true.B
   }
+  // 试图让vrf记录这一条指令的信息,拒绝了说明有还没解决的冲突
   vrf.flush := DontCare
   vrf.instWriteReport.bits.instIndex := laneReq.bits.instIndex
-  vrf.instWriteReport.bits.offset := 0.U//todo
-  vrf.instWriteReport.bits.vd := laneReq.bits.vd
+  vrf.instWriteReport.bits.offset := 0.U //todo
+  vrf.instWriteReport.bits.vdOffset := 0.U
+  vrf.instWriteReport.bits.vd.bits := laneReq.bits.vd
+  vrf.instWriteReport.bits.vd.valid := !(laneReq.bits.initState.sWrite || laneReq.bits.st)
+  vrf.instWriteReport.bits.vs2 := laneReq.bits.vs2
+  vrf.instWriteReport.bits.vs1.bits := laneReq.bits.vs1
+  vrf.instWriteReport.bits.vs1.valid := entranceFormat.vType
+  vrf.instWriteReport.bits.ma := laneReq.bits.ma
+  // 暂时认为ld都是无序写寄存器的
+  vrf.instWriteReport.bits.unOrderWrite := (laneReq.bits.ls && !laneReq.bits.st) || entranceFormat.otherUnit
+  vrf.instWriteReport.bits.seg.valid := laneReq.bits.ls && laneReq.bits.seg.orR
+  vrf.instWriteReport.bits.seg.bits := laneReq.bits.seg
+  vrf.instWriteReport.bits.eew := laneReq.bits.eew
+  vrf.instWriteReport.bits.ls := laneReq.bits.ls
+  vrf.instWriteReport.bits.st := laneReq.bits.st
+  vrf.instWriteReport.bits.narrow := entranceFormat.narrow
+  vrf.instWriteReport.bits.widen := entranceFormat.Widen
+  vrf.csrInterface := csrInterface
   endNotice := endNoticeVec.reduce(_ | _)
 }
