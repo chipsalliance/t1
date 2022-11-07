@@ -63,25 +63,21 @@ let
     chmod -R +w "$out"
     sed -i 's/--gcc-toolchain=[^[:space:]]*//' "$out/nix-support/cc-cflags"
     sed -i 's|${cc}|${placeholder "out"}|g' "$out"/bin/* "$out"/nix-support/*
+    cat >> $out/nix-support/setup-hook <<-EOF
+      export NIX_LDFLAGS_FOR_TARGET="$NIX_LDFLAGS_FOR_TARGET -L${pkgs.gccForLibs.lib}/lib"
+    EOF
   '';
 
-in pkgs.mkShellNoCC {
-    name = "vector";
-    buildInputs = with pkgs; [
-      myLLVM.llvm
-      myLLVM.bintools
-      my-cc-wrapper
+in
+with pkgs; [
+  myLLVM.llvm
+  myLLVM.bintools
+  my-cc-wrapper
 
-      jdk mill python3
-      parallel protobuf ninja verilator antlr4 numactl dtc glibc_multi cmake
-      espresso
-      circt
+  jdk mill python3
+  parallel protobuf ninja verilator antlr4 numactl dtc glibc_multi cmake
+  espresso
+  circt
 
-      git cacert # make cmake fetchContent happy
-    ];
-    shellHook = ''
-      export NIX_CC=" "
-      # because we removed --gcc-toolchain from cc-wrapper, we need to add gcc lib path back
-      export NIX_LDFLAGS_FOR_TARGET="$NIX_LDFLAGS_FOR_TARGET -L${pkgs.gccForLibs.lib}/lib"
-    '';
-  }
+  git cacert # make cmake fetchContent happy
+]
