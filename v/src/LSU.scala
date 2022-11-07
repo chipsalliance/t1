@@ -98,7 +98,7 @@ class LSU(param: LSUParam) extends Module {
   val tryToAckData: Vec[UInt] = Wire(Vec(param.tlBank, UInt(param.mshrSize.W)))
   val readyArbiter:   Vec[Vec[Bool]] = Wire(Vec(param.tlBank, Vec(param.mshrSize, Bool())))
   val ackArbiter:   Vec[Vec[Bool]] = Wire(Vec(param.tlBank, Vec(param.mshrSize, Bool())))
-  val ackReady:     IndexedSeq[Bool] = readyArbiter.map(_.asUInt.orR)
+  val ackReady:     IndexedSeq[Bool] = ackArbiter.map(_.asUInt.orR)
 
   val tryToWriteData:   Vec[UInt] = Wire(Vec(param.mshrSize, UInt(param.lane.W)))
   val writeDataArbiter: Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.lane, Bool())))

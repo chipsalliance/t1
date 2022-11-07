@@ -216,8 +216,8 @@ class MSHR(param: MSHRParam) extends Module {
 
   // 处理回应
   // todo: 这里能工作，但是时间点不那么准确
-  val lastResp:   Bool = last && tlPort.d.fire// && (respDone & (~respSinkOH).asUInt) === 0.U
   val respSinkOH: UInt = UIntToOH(tlPort.d.bits.sink(4, 0))
+  val lastResp:   Bool = last && tlPort.d.fire && (respDone & (~respSinkOH).asUInt) === 0.U
   /** 首先我们根据sink来计算 [[elementIndex]]
     * 然后我们左移 eew,得到修改的起始是第几个byte: [[baseByteOffset]]
     * XXX XXXXXXXXXX XX
