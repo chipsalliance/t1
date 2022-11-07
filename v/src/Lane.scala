@@ -763,6 +763,8 @@ class Lane(param: LaneParameters) extends Module {
     source1 := VecInit(source1.tail :+ vs1entrance)
     control := VecInit(control.tail :+ entranceControl)
     result := VecInit(result.tail :+ 0.U(param.ELEN.W))
+    source2 := VecInit(source2.tail :+ 0.U(param.ELEN.W))
+    source3 := VecInit(source3.tail :+ 0.U(param.ELEN.W))
   }
   // 试图让vrf记录这一条指令的信息,拒绝了说明有还没解决的冲突
   vrf.flush := DontCare
