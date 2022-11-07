@@ -288,7 +288,7 @@ object tests extends Module {
       // format: on
     }
 
-    def cmakefileLists = T.persistent {
+    def cmakefileLists = T {
       val path = T.dest / "CMakeLists.txt"
       os.write.over(path, CMakeListsString())
       PathRef(T.dest)
