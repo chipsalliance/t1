@@ -201,7 +201,10 @@ class V(param: VParam) extends Module {
     lane.laneReq.bits.vd := req.bits.inst(11, 7)
     lane.laneReq.bits.readFromScalar := req.bits.src1Data
     lane.laneReq.bits.ls := isLSType
+    lane.laneReq.bits.st := isST
     lane.laneReq.bits.sp := specialInst
+    lane.laneReq.bits.seg := req.bits.inst(31, 29)
+    lane.laneReq.bits.eew := req.bits.inst(13, 12)
 //    lane.laneReq.bits.st := isST
     laneReady(index) := lane.laneReq.ready
 
