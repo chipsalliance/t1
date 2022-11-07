@@ -6,6 +6,8 @@ patch:
 
 depatch:
 	git submodule update
+	git submodule foreach git restore -S -W .
+	git submodule foreach git clean -xdf
 
 compile:
 	mill -i vector.compile
