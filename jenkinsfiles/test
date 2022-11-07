@@ -1,0 +1,21 @@
+pipeline {
+  agent any
+  options {
+    skipDefaultCheckout(true)
+  }
+  stages {
+    stage('Prepare') {
+      steps {
+        cleanWs()
+        checkout scm
+        sh 'make init'
+        sh 'make patch'
+      }
+    }
+    stage('generate emulator') {
+      steps {
+        sh 'mill tests.emulator.elf'
+      }
+    }
+  }
+}
