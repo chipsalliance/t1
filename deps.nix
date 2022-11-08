@@ -57,7 +57,7 @@ let
   # our custom libc and compilerrt, clang will only search these libs in --gcc-toolchain 
   # folder. To avoid this wierd behavior of clang, we need to remove --gcc-toolchain options
   # from cc-wrapper
-  my-cc-wrapper = let cc = myLLVM.clang; in pkgs.runCommand "cc" {} ''
+  my-cc-wrapper = let cc = myLLVM.clang; in pkgs.runCommand "my-cc-wrapper" {} ''
     mkdir -p "$out"
     cp -rT "${cc}" "$out"
     chmod -R +w "$out"
@@ -70,11 +70,12 @@ let
 
 in
 with pkgs; [
+  my-cc-wrapper  # note: this should be put before bintools, otherwise clang may found incorrect ld
   myLLVM.llvm
   myLLVM.bintools
-  my-cc-wrapper
 
   jdk mill python3
+  gnused coreutils gnumake gnugrep which
   parallel protobuf ninja verilator antlr4 numactl dtc glibc_multi cmake
   espresso
   circt
