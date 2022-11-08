@@ -292,7 +292,9 @@ void VBridgeImpl::return_tl_response() {
         TL(i, d_bits_data) = record.data;
         TL(i, d_bits_sink) = record.source;
         d_valid = true;
-        record.op = TLReqRecord::opType::Nil;
+        if (TL(i, d_ready)) {
+          record.op = TLReqRecord::opType::Nil;
+        }
         break;
       }
     }
