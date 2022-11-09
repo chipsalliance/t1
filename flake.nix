@@ -18,6 +18,8 @@
             buildInputs = deps;
             shellHook = ''
               # waiting for https://github.com/NixOS/nixpkgs/pull/192943
+              export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.lib.makeLibraryPath [pkgs.systemd]}
+
               export NIX_CC=" "
             '';
           };
