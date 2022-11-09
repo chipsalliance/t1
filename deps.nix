@@ -68,13 +68,15 @@ let
     EOF
   '';
 
+  mill = pkgs.mill.override { jre = pkgs.openjdk18; };
+
 in
 with pkgs; [
   my-cc-wrapper  # note: this should be put before bintools, otherwise clang may found incorrect ld
   myLLVM.llvm
   myLLVM.bintools
 
-  jdk mill python3
+  mill python3
   gnused coreutils gnumake gnugrep which
   parallel protobuf ninja verilator antlr4 numactl dtc glibc_multi cmake
   espresso
