@@ -15,11 +15,10 @@ std::string SpikeEvent::describe_insn() const {
 void SpikeEvent::pre_log_arch_changes() {
   // TODO: support vl/vstart
   rd_bits = proc.get_state()->XPR[rd_idx];
-  uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
-  CHECK_LT_S(vlmul, 4) << ": fractional vlmul not supported yet";  // TODO: support fractional vlmul
-  uint32_t len = consts::vlen_in_bits << vlmul / 8;
+  uint8_t *vreg_bits_start = &proc.VU.elt<uint8_t>(0, 0);
+  auto [start, len] = get_vrf_write_range();
   vd_write_record.vd_bytes = std::make_unique<uint8_t[]>(len);
-  std::memcpy(vd_write_record.vd_bytes.get(), vd_bits_start, len);
+  std::memcpy(vd_write_record.vd_bytes.get(), vreg_bits_start + start, len);
 }
 
 void SpikeEvent::log_arch_changes() {
@@ -33,16 +32,17 @@ void SpikeEvent::log_arch_changes() {
     // xx0011 <- vec
     // xx0100 <- csr
     if ((write_idx & 0xf) == 0b0010) {  // vreg
-      auto vd = (write_idx >> 4);
-
-      uint8_t *vd_bits_start = &proc.VU.elt<uint8_t>(rd_idx, 0);
-      uint32_t len = consts::vlen_in_bits << vlmul / 8;
+      // note that we do not need write_idx to compare vrf, we just decode the insn and compute the range
+      uint8_t *vreg_bits_start = &proc.VU.elt<uint8_t>(0, 0);
+      auto [start, len] = get_vrf_write_range();
       for (int i = 0; i < len; i++) {
-        uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vd_bits_start[i];
+        uint32_t offset = start + i;
+        uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vreg_bits_start[offset];
         if (origin_byte != cur_byte) {
-          vrf_access_record.all_writes[vd * consts::vlen_in_bytes + i] = {.byte = cur_byte };
-          LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {} [{}]",
-                                   vd, i, (int) origin_byte, (int) cur_byte, vd * consts::vlen_in_bytes + i);
+          vrf_access_record.all_writes[offset] = { .byte = cur_byte };
+          LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {}",
+                                   offset / consts::vlen_in_bytes, offset % consts::vlen_in_bytes,
+                                   (int) origin_byte, (int) cur_byte);
         }
       }
 
@@ -109,8 +109,8 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   pc = proc.get_state()->pc;
   inst_bits = fetch.insn.bits();
   uint32_t opcode = clip(inst_bits, 0, 6);
-  is_load = opcode == 0b111;
-  is_store = opcode == 0b100111;
+  is_load = opcode == 0b0000111;
+  is_store = opcode == 0b0100111;
 
   is_issued = false;
   is_committed = false;
@@ -161,5 +161,23 @@ void SpikeEvent::record_rd_write(VV &top) {
   if (is_rd_written) {
     CHECK_EQ_S(top.resp_bits_data, rd_bits) << fmt::format(": expect to write rd[{}] = {}, actual {}",
                                                              rd_idx, rd_bits, top.resp_bits_data);
+  }
+}
+
+std::pair<uint32_t, uint32_t> SpikeEvent::get_vrf_write_range() const {
+  if (is_store) {
+    return {0, 0};  // store will not write vrf
+  } else if (is_load) {
+    uint32_t vd_bits_start = rd_idx * consts::vlen_in_bytes;
+    uint32_t len = vlmul & 0x100
+        ? consts::vlen_in_bytes * (1 + vnf) >> (8 - vlmul)
+        : consts::vlen_in_bytes * (1 + vnf) << vlmul;
+    return {vd_bits_start, len};
+  } else {
+    uint32_t vd_bits_start = rd_idx * consts::vlen_in_bytes;
+    uint32_t len = vlmul & 0x100
+                   ? consts::vlen_in_bytes >> (8 - vlmul)
+                   : consts::vlen_in_bytes << vlmul;
+    return {vd_bits_start, len};
   }
 }
