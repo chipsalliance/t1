@@ -16,4 +16,6 @@ constexpr int numTL = 2;
 constexpr int numMSHR = 3;
 constexpr int numLanes = 8;
 
+constexpr uint64_t check_threshold_after_commit = 1028;
+
 }

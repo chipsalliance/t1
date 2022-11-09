@@ -152,10 +152,6 @@ void SpikeEvent::check_is_ready_for_commit() {
                                 addr, describe_insn());
     }
   }
-  for (auto &[idx, vrf_write]: vrf_access_record.all_writes) {
-    CHECK_S(vrf_write.executed) << fmt::format("expect to write vrf {}, not executed when commit ({})",
-                              idx, describe_insn());
-  }
 }
 
 void SpikeEvent::record_rd_write(VV &top) {
@@ -164,4 +160,8 @@ void SpikeEvent::record_rd_write(VV &top) {
     CHECK_EQ_S(top.resp_bits_data, rd_bits) << fmt::format(": expect to write rd[{}] = {}, actual {}",
                                                              rd_idx, rd_bits, top.resp_bits_data);
   }
+}
+
+bool SpikeEvent::is_vrf_write_done() {
+  return vrf_access_record.executed_writes == vrf_access_record.all_writes.size();
 }

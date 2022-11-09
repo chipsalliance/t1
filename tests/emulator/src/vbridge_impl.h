@@ -60,7 +60,7 @@ private:
   /// record the behavior of this instruction, and send to str_stack.
   /// in the RTL thread, the RTL driver will consume from this queue, drive signal based on the queue.
   /// size of this queue should be as big as enough to make rtl free to run, reducing the context switch overhead.
-  std::list<SpikeEvent> to_rtl_queue;
+  std::deque<SpikeEvent> to_rtl_queue;
 
   // in vrf_shadow we keep a duplicate of vrf in rtl, in order to detect unexpected vrf write
   std::unique_ptr<uint8_t[]> vrf_shadow;
@@ -97,6 +97,7 @@ private:
   void record_rf_accesses();
   void return_tl_response();
   void receive_tl_req();
+  void check_se_post_commit();
 
   int get_mem_req_cycles() {
     return 1;

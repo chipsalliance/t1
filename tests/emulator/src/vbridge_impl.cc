@@ -196,11 +196,13 @@ void VBridgeImpl::run() {
       if (top.resp_valid) {
         SpikeEvent &se = to_rtl_queue.back();
         se.record_rd_write(top);
+        se.is_committed = true;
+        se.commit_time_point = ctx.time();
         se.check_is_ready_for_commit();
         LOG(INFO) << fmt::format("[{}] rtl commit insn ({})", get_t(), to_rtl_queue.back().describe_insn());
-        to_rtl_queue.pop_back();
       }
 
+      check_se_post_commit();
       if (get_t() >= timeout) {
         throw TimeoutException();
       }
@@ -390,6 +392,7 @@ void VBridgeImpl::record_rf_accesses() {
                   "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b}) [{}]",
                   j, lane_idx, vd, offset, mask, record_idx_base + j);
             record.executed = true;
+            se_vrf_write->vrf_access_record.executed_writes++;
 
           } else if (uint8_t original_byte = vrf_shadow[record_idx_base + j]; original_byte != written_byte) {
             CHECK_S(false) << fmt::format("vrf writes byte {} (lane={}, vd={}, offset={}, mask={:04b}, data={}, original_data={}), "
@@ -406,4 +409,24 @@ void VBridgeImpl::record_rf_accesses() {
       }  // end for j
     }  // end if(valid)
   }  // end for lane_idx
+}
+
+void VBridgeImpl::check_se_post_commit() {
+  // remove all se that has vrf write done
+  while (!to_rtl_queue.empty()) {
+    SpikeEvent &se = to_rtl_queue.back();
+    if (se.is_committed) {
+      if (se.is_vrf_write_done()) {
+        to_rtl_queue.pop_back();
+      }
+    } else {
+      break;  // since uncommitted insn is always after committed
+    }
+  }
+  if (!to_rtl_queue.empty() && to_rtl_queue.back().is_committed) {
+    SpikeEvent &se = to_rtl_queue.back();
+    uint64_t time_after_commit = ctx.time() - to_rtl_queue.back().commit_time_point;
+    CHECK_LE_S(time_after_commit, consts::check_threshold_after_commit)
+      << fmt::format("[] failed to write all vrf after committed for a while");
+  }
 }

@@ -41,7 +41,6 @@ struct SpikeEvent {
   VBridgeImpl *impl;
 
   bool is_issued;
-  bool is_committed;
 
   bool is_load;
   bool is_store;
@@ -75,6 +74,11 @@ struct SpikeEvent {
   bool _ignore_exception = false;  // TODO: give it correct value
   bool _store_buffer_clear = false;  // TODO: give it correct value
 
+  /// since rtl may continue write vrf even after it is committed, we need keeping recording vrf write
+  /// after committing, and check if all vrf is written when cycles_after_commit hits a given threshold
+  bool is_committed;
+  uint64_t commit_time_point;
+
   struct vd_write_record_t {
     std::unique_ptr<uint8_t[]> vd_bytes;
   } vd_write_record;
@@ -104,8 +108,10 @@ struct SpikeEvent {
     };
     // maps (vlen * bytes_per_vrf + byte_offset) to single_vrf_write
     std::map<uint32_t, single_vrf_write> all_writes;
+    int executed_writes = 0;
   } vrf_access_record;
 
   void record_rd_write(VV &top);
   void check_is_ready_for_commit();
+  bool is_vrf_write_done();
 };
