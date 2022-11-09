@@ -49,15 +49,6 @@ void VBridgeImpl::setup(const std::string &_bin, const std::string &_wave, uint6
   this->timeout = cycles;
 }
 
-insn_fetch_t VBridgeImpl::fetch_proc_insn() {
-  auto state = proc.get_state();
-  mmu_t *_mmu = proc.get_mmu();
-  auto ic_entry = _mmu->access_icache(state->pc);
-  auto fetch = ic_entry->data;
-  assert(ic_entry->tag == state->pc);
-  return fetch;
-}
-
 VBridgeImpl::VBridgeImpl() :
     sim(1 << 30),
     isa("rv32gcv", "M"),

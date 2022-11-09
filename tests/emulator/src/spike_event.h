@@ -60,6 +60,7 @@ struct SpikeEvent {
   bool vma: 1;
   bool vta: 1;
   uint32_t vxrm: 2;
+  uint32_t vnf: 3;
 
   // other CSR
   bool vill: 1;
@@ -81,6 +82,9 @@ struct SpikeEvent {
 
   bool is_rd_written;
   uint32_t rd_bits;
+
+  // returns {a, b} if the instruction may write vrf of index in range [a, a + b)
+  std::pair<uint32_t, uint32_t> get_vrf_write_range() const;
 
   struct {
     struct single_mem_write {
