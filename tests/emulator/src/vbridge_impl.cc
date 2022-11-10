@@ -208,7 +208,7 @@ void VBridgeImpl::receive_tl_req() {
     uint8_t opcode = TL(tlIdx, a_bits_opcode);
     uint32_t addr = TL(tlIdx, a_bits_address);
     uint8_t size = TL(tlIdx, a_bits_size);
-    uint8_t src = TL(tlIdx, a_bits_source);   // MSHR id, TODO: be returned in D channel
+    uint16_t src = TL(tlIdx, a_bits_source);   // MSHR id, TODO: be returned in D channel
     uint32_t lsu_index = TL(tlIdx, a_bits_source) & 3;
     SpikeEvent *se;
     for (auto se_iter = to_rtl_queue.rbegin(); se_iter != to_rtl_queue.rend(); se_iter++) {
