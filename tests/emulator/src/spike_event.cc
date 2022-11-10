@@ -24,6 +24,21 @@ void SpikeEvent::pre_log_arch_changes() {
 void SpikeEvent::log_arch_changes() {
   state_t *state = proc.get_state();
 
+  // record vrf writes
+  // note that we do not need log_reg_write to find records, we just decode the insn and compare bytes
+  uint8_t *vreg_bits_start = &proc.VU.elt<uint8_t>(0, 0);
+  auto [start, len] = get_vrf_write_range();
+  for (int i = 0; i < len; i++) {
+    uint32_t offset = start + i;
+    uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vreg_bits_start[offset];
+    if (origin_byte != cur_byte) {
+      vrf_access_record.all_writes[offset] = { .byte = cur_byte };
+      LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {}",
+                               offset / consts::vlen_in_bytes, offset % consts::vlen_in_bytes,
+                               (int) origin_byte, (int) cur_byte);
+    }
+  }
+
   for (auto [write_idx, data]: state->log_reg_write) {
     // in spike, log_reg_write is arrange:
     // xx0000 <- x
@@ -31,22 +46,7 @@ void SpikeEvent::log_arch_changes() {
     // xx0010 <- vreg
     // xx0011 <- vec
     // xx0100 <- csr
-    if ((write_idx & 0xf) == 0b0010) {  // vreg
-      // note that we do not need write_idx to compare vrf, we just decode the insn and compute the range
-      uint8_t *vreg_bits_start = &proc.VU.elt<uint8_t>(0, 0);
-      auto [start, len] = get_vrf_write_range();
-      for (int i = 0; i < len; i++) {
-        uint32_t offset = start + i;
-        uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vreg_bits_start[offset];
-        if (origin_byte != cur_byte) {
-          vrf_access_record.all_writes[offset] = { .byte = cur_byte };
-          LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {}",
-                                   offset / consts::vlen_in_bytes, offset % consts::vlen_in_bytes,
-                                   (int) origin_byte, (int) cur_byte);
-        }
-      }
-
-    } else if ((write_idx & 0xf) == 0b0000) {  // scalar rf
+    if ((write_idx & 0xf) == 0b0000) {  // scalar rf
       uint32_t new_rd_bits = proc.get_state()->XPR[rd_idx];
       if (new_rd_bits != rd_bits) {
         rd_bits = new_rd_bits;
