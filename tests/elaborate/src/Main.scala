@@ -9,7 +9,7 @@ import firrtl.{AnnotationSeq, ChirrtlEmitter, EmitAllModulesAnnotation}
 import firrtl.options.TargetDirAnnotation
 import logger.{LogLevel, LogLevelAnnotation}
 import mainargs._
-import v.{LSU, RegFile, V, VRF}
+import v.{LSU, LSUWriteQueueBundle, RegFile, V, VRF}
 
 object Main {
   @main def elaborate(@arg(name="dir") dir: String) = {
@@ -36,6 +36,16 @@ object Main {
             }
           },
           { vrf: VRF => chisel3.experimental.Trace.traceName(vrf.write) }
+        ),
+        InjectingAspect(
+          { dut: V =>
+            Select.collectDeep(dut) {
+              case lsu: LSU => lsu
+            }
+          },
+          { lsu: LSU =>
+            lsu.writeQueueVec.map(queue => chisel3.experimental.Trace.traceName(queue.io.enq))
+          }
         ),
         InjectingAspect(
           { dut: V =>

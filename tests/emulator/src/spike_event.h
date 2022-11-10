@@ -110,6 +110,8 @@ struct SpikeEvent {
     std::map<uint32_t, single_vrf_write> all_writes;
   } vrf_access_record;
 
+  void add_rtl_write(int lane, int vd, int offset, int mask, int data, int idx);
+
   void record_rd_write(VV &top);
   void check_is_ready_for_commit();
 };
