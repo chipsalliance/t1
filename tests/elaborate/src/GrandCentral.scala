@@ -3,30 +3,10 @@ package sifive {
     package grandcentral {
 
       import firrtl.annotations._
-      import firrtl.RenameMap
 
       case class ReferenceDataTapKey(source: ReferenceTarget, sink: ReferenceTarget)
 
       case class DataTapsAnnotation(keys: Seq[ReferenceDataTapKey]) extends NoTargetAnnotation with HasSerializationHints {
-        override def serialize: String = super.serialize
-        override def update(renames: RenameMap): Seq[DataTapsAnnotation] = Seq(this.copy(keys = keys.flatMap { case ReferenceDataTapKey(source, portName) =>
-          (renames.get(source), renames.get(portName)) match {
-            // both renamed
-            case (Some(Seq(source: ReferenceTarget)), Some(Seq(portName: ReferenceTarget))) =>
-              Seq(ReferenceDataTapKey(source, portName))
-            // source renamed
-            case (None, Some(Seq(portName: ReferenceTarget))) =>
-              Seq(ReferenceDataTapKey(source, portName))
-            // portName renamed
-            case (Some(Seq(source: ReferenceTarget)), None) =>
-              Seq(ReferenceDataTapKey(source, portName))
-            // both not renamed
-            case (None, None) =>
-              Seq(ReferenceDataTapKey(source, portName))
-            // got multiple renames
-            case (_, _) => throw new Exception("WTF, I really don't how to deal with this")
-          }
-        }))
         override def typeHints: Seq[Class[_]] = Seq(classOf[ReferenceDataTapKey])
       }
     }
