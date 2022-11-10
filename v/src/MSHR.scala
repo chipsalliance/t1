@@ -126,8 +126,8 @@ class MSHR(param: MSHRParam) extends Module {
   val reqOffset:   UInt = Wire(UInt(param.ELEN.W))
   val reqValid:    Bool = Wire(Bool())
   val putData:     UInt = Wire(UInt(param.ELEN.W))
-  // AGU: segmentOffset 只有 6 bit, 这里需要特别处理
-  val reqAddress: UInt = requestReg.rs1Data + reqOffset + segmentOffset
+  val segAddressMul: UInt = (requestReg.instInf.nf + 1.U) * (1.U << dataEEW).asUInt(2, 0)
+  val reqAddress: UInt = requestReg.rs1Data + reqOffset * segAddressMul  + segmentOffset
   val reqMask:    UInt = dataEEWOH(2) ## dataEEWOH(2) ## (dataEEWOH(2) || dataEEWOH(1)) ## true.B
 
   tlPort.a.bits.opcode := !requestReg.instInf.st ## 0.U(2.W)
