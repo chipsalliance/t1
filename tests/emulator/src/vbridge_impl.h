@@ -94,7 +94,11 @@ private:
   void loop_until_se_queue_full();
   SpikeEvent *find_se_to_issue();
 
+  // for load instructions, rtl would commit after vrf write requests enters the write queue (but not actually written),
+  // hence for these instructions, we should record vrf write on queue, and ignore them on vrf.write
+  void record_rf_queue_accesses();
   void record_rf_accesses();
+  void add_rtl_write(SpikeEvent *se, int lane_idx, int vd, int offset, int mask, int data, int idx);
   void return_tl_response();
   void receive_tl_req();
 
