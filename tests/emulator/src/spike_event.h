@@ -39,6 +39,7 @@ struct SpikeEvent {
   uint8_t issue_idx = 255;
   processor_t &proc;
   VBridgeImpl *impl;
+  std::string disasm;
 
   bool is_issued;
   bool is_committed;
