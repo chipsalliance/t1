@@ -175,15 +175,16 @@ void VBridgeImpl::run() {
       top.eval();
       tfp.dump(2 * ctx.time());
       ctx.timeInc(1);
+
+      record_rf_queue_accesses();
+
       // posedge, update registers
       top.clock = 1;
       top.eval();
       tfp.dump(2 * ctx.time() - 1);
 
-      record_rf_queue_accesses();
-      record_rf_accesses();
-
       update_lsu_idx();
+      record_rf_accesses();
 
       if (top.resp_valid) {
         SpikeEvent &se = to_rtl_queue.back();
@@ -357,20 +358,22 @@ void VBridgeImpl::record_rf_accesses() {
   for (int lane_idx = 0; lane_idx < consts::numLanes; lane_idx++) {
     int valid = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_valid", lane_idx).c_str());
     if (valid) {
-      int vd = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_vd", lane_idx).c_str());
-      int offset = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_offset", lane_idx).c_str());
-      int mask = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_mask", lane_idx).c_str());
-      int data = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_data", lane_idx).c_str());
-      int idx = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_instIndex", lane_idx).c_str());
-      SpikeEvent *se_vrf_write;
+      uint32_t vd = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_vd", lane_idx).c_str());
+      uint32_t offset = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_offset", lane_idx).c_str());
+      uint32_t mask = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_mask", lane_idx).c_str());
+      uint32_t data = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_data", lane_idx).c_str());
+      uint32_t idx = vpi_get_integer(fmt::format("TOP.V.laneVec_{}.vrf.write_bits_instIndex", lane_idx).c_str());
+      SpikeEvent *se_vrf_write = nullptr;
       for (auto se = to_rtl_queue.rbegin(); se != to_rtl_queue.rend(); se++) {
         if (se->issue_idx == idx) {
           se_vrf_write = &(*se);
         }
       }
-      if (!se_vrf_write->is_load) {
+      if (se_vrf_write == nullptr) {
+        LOG(INFO) << fmt::format("[{}] rtl detect vrf write which cannot find se, maybe from committed load insn", get_t());
+      } else if (!se_vrf_write->is_load) {
         add_rtl_write(se_vrf_write, lane_idx, vd, offset, mask, data, idx);
-        LOG(INFO) << fmt::format("[{}] rtl detect vrf load write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X}, insn idx={})",
+        LOG(INFO) << fmt::format("[{}] rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X}, insn idx={})",
                                  get_t(), lane_idx, vd, offset, mask, data, idx);
       }
     }  // end if(valid)
@@ -381,19 +384,20 @@ void VBridgeImpl::record_rf_queue_accesses() {
   for (int queueIdx = 0; queueIdx < consts::numMSHR; queueIdx++) {
     bool valid = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_valid", queueIdx).c_str());
     if (valid) {
-      int vd = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_vd", queueIdx).c_str());
-      int offset = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_offset", queueIdx).c_str());
-      int mask = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_mask", queueIdx).c_str());
-      int data = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_data", queueIdx).c_str());
-      int idx = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_instIndex", queueIdx).c_str());
+      uint32_t vd = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_vd", queueIdx).c_str());
+      uint32_t offset = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_offset", queueIdx).c_str());
+      uint32_t mask = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_mask", queueIdx).c_str());
+      uint32_t data = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_data", queueIdx).c_str());
+      uint32_t idx = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_data_instIndex", queueIdx).c_str());
       uint32_t targetLane = vpi_get_integer(fmt::format("TOP.V.lsu.writeQueueVec_{}.io_enq_bits_targetLane", queueIdx).c_str());
       int lane_idx = __builtin_ctz(targetLane);
-      SpikeEvent *se_vrf_write;
+      SpikeEvent *se_vrf_write = nullptr;
       for (auto se = to_rtl_queue.rbegin(); se != to_rtl_queue.rend(); se++) {
         if (se->issue_idx == idx) {
           se_vrf_write = &(*se);
         }
       }
+      CHECK_S(se_vrf_write != nullptr);
       LOG(INFO) << fmt::format("[{}] rtl detect vrf queue write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X}, insn idx={})",
                                get_t(), lane_idx, vd, offset, mask, data, idx);
       add_rtl_write(se_vrf_write, lane_idx, vd, offset, mask, data, idx);
@@ -401,7 +405,7 @@ void VBridgeImpl::record_rf_queue_accesses() {
   }
 }
 
-void VBridgeImpl::add_rtl_write(SpikeEvent *se, int lane_idx, int vd, int offset, int mask, int data, int idx) {
+void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd, uint32_t offset, uint32_t mask, uint32_t data, uint32_t idx) {
   uint32_t record_idx_base = vd * consts::vlen_in_bytes + (lane_idx + consts::numLanes * offset) * 4;
   auto &all_writes = se->vrf_access_record.all_writes;
 
