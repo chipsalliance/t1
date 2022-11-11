@@ -7,6 +7,17 @@ import v.V
 
 class VerificationModule(dut: V, dutFlattenIO: Seq[(String, Data)]) extends TapModule {
   override val desiredName = "VerificationModule"
+  val dpiFire = Module(new ExtModule with HasExtModuleInline {
+    override val desiredName = "dpiFire"
+    val cond = IO(Input(Bool()))
+    setInline("dpiFire.sv",
+      """module dpiFire(input cond);
+        |import "DPI-C" function void dpiFire();
+        |always @ (posedge cond) dpiFire();
+        |endmodule
+        |""".stripMargin
+    )
+  })
   val clock = IO(Output(Clock()))
   val reset = IO(Output(Bool()))
   val xmrFlattenIO = dutFlattenIO.map({ case (name, port) =>
@@ -32,26 +43,27 @@ class VerificationModule(dut: V, dutFlattenIO: Seq[(String, Data)]) extends TapM
         |);
         |reg _clock = 1'b0;
         |always #(0.5) _clock = ~_clock;
-        |
         |reg _reset = 1'b1;
         |initial #(10.1) _reset = 0;
-        |
         |assign clock = _clock;
         |assign reset = _reset;
+        |
+        |import "DPI-C" function void dpiInitCosim();
+        |initial dpiInitCosim();
+        |
+        |endmodule
         |""".stripMargin)
   })
   clock := verbatim.clock
   reset := verbatim.reset
 
   // XMR
-  withClockAndReset(clock, reset) {
-    tap(dut.instCount)
-    dut.laneVec.map(_.vrf.write.ready).map(tap)
-    dut.laneVec.map(_.vrf.write.valid).map(tap)
-    dut.laneVec.map(_.vrf.write.bits).map(tap)
-    val reqEnqDbg = RegNext(tap(dut.lsu.reqEnq))
-    dontTouch(reqEnqDbg)
+  val instCount = tap(dut.instCount)
+  val laneWriteReadySeq = dut.laneVec.map(_.vrf.write.ready).map(tap)
+  val laneWriteValidSeq = dut.laneVec.map(_.vrf.write.valid).map(tap)
+  val laneWriteBitsSeq = dut.laneVec.map(_.vrf.write.bits).map(tap)
+  val lsuReqEnqDbg = withClockAndReset(clock, reset)(RegNext(tap(dut.lsu.reqEnq)))
 
-  }
+  dpiFire.cond := tap(dut.req.valid) && tap(dut.req.ready)
   done()
 }

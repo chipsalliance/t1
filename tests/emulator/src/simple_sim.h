@@ -5,6 +5,7 @@
 #include <glog/logging.h>
 
 #include "simif.h"
+#include <assert.h>
 
 class simple_sim : public simif_t {
 private:
