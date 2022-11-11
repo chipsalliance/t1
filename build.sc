@@ -245,11 +245,9 @@ object tests extends Module {
       // format: off
       s"""cmake_minimum_required(VERSION 3.20)
          |project(emulator)
-         |include(FetchContent)
-         |FetchContent_Declare(args GIT_REPOSITORY https://github.com/Taywee/args GIT_TAG 6.4.0)
-         |FetchContent_Declare(glog GIT_REPOSITORY https://github.com/google/glog GIT_TAG v0.6.0)
-         |FetchContent_Declare(fmt GIT_REPOSITORY https://github.com/fmtlib/fmt GIT_TAG 9.1.0)
-         |FetchContent_MakeAvailable(args glog fmt)
+         |find_package(args REQUIRED)
+         |find_package(glog REQUIRED)
+         |find_package(fmt REQUIRED)
          |
          |find_package(verilator)
          |set(CMAKE_CXX_STANDARD 17)
@@ -271,7 +269,7 @@ object tests extends Module {
          |
          |target_link_directories(emulator PRIVATE ${spike.compile().path.toString})
          |target_link_libraries(emulator PUBLIC $${CMAKE_THREAD_LIBS_INIT})
-         |target_link_libraries(emulator PUBLIC riscv fmt glog args)
+         |target_link_libraries(emulator PUBLIC riscv fmt glog)  # note that libargs is header only, nothing to link
          |
          |verilate(emulator
          |  SOURCES
