@@ -99,7 +99,7 @@ private:
   // hence for these instructions, we should record vrf write on queue, and ignore them on vrf.write
   void record_rf_queue_accesses();
   void record_rf_accesses();
-  void add_rtl_write(SpikeEvent *se, int lane_idx, int vd, int offset, int mask, int data, int idx);
+  void add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd, uint32_t offset, uint32_t mask, uint32_t data, uint32_t idx);
   void return_tl_response();
   void receive_tl_req();
 
