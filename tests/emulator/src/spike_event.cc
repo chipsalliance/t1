@@ -9,7 +9,7 @@
 #include "glog_exception_safe.h"
 
 std::string SpikeEvent::describe_insn() const {
-  return fmt::format("pc={:08X}, bits={:08X}, disasm='{}'", pc, inst_bits, proc.get_disassembler()->disassemble(inst_bits));
+  return fmt::format("pc={:08X}, bits={:08X}, disasm='{}'", pc, inst_bits, disasm);
 }
 
 void SpikeEvent::pre_log_arch_changes() {
@@ -105,6 +105,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   vxsat = proc.VU.vxsat->read();
   vl = proc.VU.vl->read();
   vstart = proc.VU.vstart->read();
+  disasm = proc.get_disassembler()->disassemble(fetch.insn);
 
   pc = proc.get_state()->pc;
   inst_bits = fetch.insn.bits();
