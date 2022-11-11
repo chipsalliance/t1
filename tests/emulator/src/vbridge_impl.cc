@@ -165,7 +165,7 @@ void VBridgeImpl::run() {
       if (top.req_ready) {
         se_to_issue->is_issued = true;
         se_to_issue->issue_idx = vpi_get_integer("TOP.V.instCount");
-        LOG(INFO) << fmt::format("[{}] issue to rtl ({}), , issue index={}", get_t(), se_to_issue->describe_insn(), se_to_issue->issue_idx);
+        LOG(INFO) << fmt::format("[{}] issue to rtl ({}), issue index={}", get_t(), se_to_issue->describe_insn(), se_to_issue->issue_idx);
       }
 
       receive_tl_req();
@@ -197,7 +197,7 @@ void VBridgeImpl::run() {
         throw TimeoutException();
       }
     }
-    LOG(INFO) << fmt::format("[{}] all insn in to_rtl_queue is issued, restarting spike", get_t());
+    LOG(INFO) << fmt::format("[{}] all insn in to_rtl_queue are issued, restarting spike", get_t());
   }
 }
 
@@ -370,7 +370,7 @@ void VBridgeImpl::record_rf_accesses() {
       }
       if (!se_vrf_write->is_load) {
         add_rtl_write(se_vrf_write, lane_idx, vd, offset, mask, data, idx);
-        LOG(INFO) << fmt::format("[{}] rtl detect vrf load write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X}, idx={})",
+        LOG(INFO) << fmt::format("[{}] rtl detect vrf load write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X}, insn idx={})",
                                  get_t(), lane_idx, vd, offset, mask, data, idx);
       }
     }  // end if(valid)
@@ -394,7 +394,7 @@ void VBridgeImpl::record_rf_queue_accesses() {
           se_vrf_write = &(*se);
         }
       }
-      LOG(INFO) << fmt::format("[{}] rtl detect vrf queue write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X}, idx={})",
+      LOG(INFO) << fmt::format("[{}] rtl detect vrf queue write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X}, insn idx={})",
                                get_t(), lane_idx, vd, offset, mask, data, idx);
       add_rtl_write(se_vrf_write, lane_idx, vd, offset, mask, data, idx);
     }
@@ -413,14 +413,14 @@ void VBridgeImpl::add_rtl_write(SpikeEvent *se, int lane_idx, int vd, int offset
       if (record_iter != all_writes.end()) { // if find a spike write record
         auto &record = record_iter->second;
         CHECK_EQ_S((int) record.byte, (int) written_byte) << fmt::format(  // convert to int to avoid stupid printing
-              "byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b}) [{}]",
-              j, lane_idx, vd, offset, mask, record_idx_base + j);
+              ": [{}] byte {} incorrect for vrf write (lane={}, vd={}, offset={}, mask={:04b}) [{}]",
+              get_t(), j, lane_idx, vd, offset, mask, record_idx_base + j);
         record.executed = true;
 
       } else if (uint8_t original_byte = vrf_shadow[record_idx_base + j]; original_byte != written_byte) {
-        CHECK_S(false) << fmt::format("vrf writes byte {} (lane={}, vd={}, offset={}, mask={:04b}, data={}, original_data={}), "
+        CHECK_S(false) << fmt::format(": [{}] vrf writes byte {} (lane={}, vd={}, offset={}, mask={:04b}, data={}, original_data={}), "
                                       "but not recorded by spike [{}]",
-                                      j, lane_idx, vd, offset, mask, written_byte,
+                                      get_t(), j, lane_idx, vd, offset, mask, written_byte,
                                       original_byte, record_idx_base + j);
         // TODO: check the case when the write not present in all_writes (require trace VRF data)
       } else {
