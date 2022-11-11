@@ -7,5 +7,6 @@ inline auto vpi_get_integer(const char *name) {
   s_vpi_value val;
   val.format = vpiIntVal;
   vpi_get_value(handle, &val);
+  vpi_free_object(handle);
   return val.value.integer;
 }
