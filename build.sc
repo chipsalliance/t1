@@ -128,7 +128,9 @@ object vector extends common.VectorModule with ScalafmtModule {
 
 object tests extends Module {
   object elaborate extends ScalaModule {
-    override def scalacPluginClasspath = T{Agg(mychisel3.plugin.jar())}
+    override def scalacPluginClasspath = T {
+      Agg(mychisel3.plugin.jar())
+    }
 
     override def scalacOptions = T {
       super.scalacOptions() ++ Some(mychisel3.plugin.jar()).map(path => s"-Xplugin:${path.path}")
@@ -158,19 +160,47 @@ object tests extends Module {
       PathRef(T.dest)
     }
 
+    def chiselAnno = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("anno.json") => p }.map(PathRef(_)).get
+    }
+
+    def chirrtl = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("fir") => p }.map(PathRef(_)).get
+    }
+
+    def topName = T {
+      chirrtl().path.last.split('.').head
+    }
+  }
+
+  object mfccompile extends Module {
+    def compile = T {
+      os.proc("firtool",
+        elaborate.chirrtl().path,
+        s"--annotation-file=${elaborate.chiselAnno().path}",
+        "-disable-infer-rw",
+        "-dedup",
+        "-O=debug",
+        "--split-verilog",
+        "--preserve-values=named",
+        "--output-annotation-file=anno.json",
+        s"-o=${T.dest}"
+      ).call(T.dest)
+      PathRef(T.dest)
+    }
+
     def rtls = T {
-      os.read(elaborate().path / "filelist.f").split("\n").map(str =>
+      os.read(compile().path / "filelist.f").split("\n").map(str =>
         try {
           os.Path(str)
         } catch {
           case e: IllegalArgumentException if e.getMessage.contains("is not an absolute path") =>
-            elaborate().path / str
+            compile().path / str.stripPrefix("./")
         }
       ).filter(p => p.ext == "v" || p.ext == "sv").map(PathRef(_)).toSeq
     }
-
-    def annotations = T {
-      os.walk(elaborate().path).filter(p => p.last.endsWith("anno.json")).map(PathRef(_))
+    def annos = T {
+      PathRef(compile().path / "anno.json")
     }
   }
 
@@ -199,33 +229,10 @@ object tests extends Module {
       PathRef(millSourcePath / "src")
     }
 
-    def allCSourceFiles = T {
+    def allCSourceFiles = T.sources {
       Seq(
-        "main.cc",
-        "vbridge.cc",
-        "rtl_event.cc",
-        "spike_event.cc",
-        "vbridge_impl.cc",
+        "dpi.cc"
       ).map(f => PathRef(csrcDir().path / f))
-    }
-
-    def verilatorConfig = T {
-      val traceConfigPath = T.dest / "verilator.vlt"
-      os.write(
-        traceConfigPath,
-        "`verilator_config\n" +
-          ujson.read(elaborate.annotations().collectFirst(f => os.read(f.path)).get).arr.flatMap {
-            case anno if anno("class").str == "chisel3.experimental.Trace$TraceAnnotation" =>
-              Some(anno("target").str)
-            case _ => None
-          }.toSet.map { t: String =>
-            val s = t.split('|').last.split("/").last
-            val M = s.split(">").head.split(":").last
-            val S = s.split(">").last
-            s"""//$t\npublic_flat_rd -module "$M" -var "$S""""
-          }.mkString("\n")
-      )
-      PathRef(traceConfigPath)
     }
 
     def verilatorArgs = T {
@@ -234,13 +241,10 @@ object tests extends Module {
         "--x-initial unique",
         "--output-split 100000",
         "--max-num-width 1048576",
-        "--vpi"
+        "--main",
+        "--timing",
         // format: on
       )
-    }
-
-    def topName = T {
-      "V"
     }
 
     def verilatorThreads = T {
@@ -251,15 +255,11 @@ object tests extends Module {
       // format: off
       s"""cmake_minimum_required(VERSION 3.20)
          |project(emulator)
-         |find_package(args REQUIRED)
          |find_package(glog REQUIRED)
          |find_package(fmt REQUIRED)
          |
          |find_package(verilator)
          |set(CMAKE_CXX_STANDARD 17)
-         |set(CMAKE_CXX_COMPILER_ID "clang")
-         |set(CMAKE_C_COMPILER "clang")
-         |set(CMAKE_CXX_COMPILER "clang++")
          |
          |find_package(Threads)
          |set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -275,15 +275,14 @@ object tests extends Module {
          |
          |target_link_directories(emulator PRIVATE ${spike.compile().path.toString})
          |target_link_libraries(emulator PUBLIC $${CMAKE_THREAD_LIBS_INIT})
-         |target_link_libraries(emulator PUBLIC riscv fmt glog)  # note that libargs is header only, nothing to link
+         |target_link_libraries(emulator PUBLIC riscv fmt glog)
          |
          |verilate(emulator
          |  SOURCES
-         |  ${elaborate.rtls().map(_.path.toString).mkString("\n")}
-         |  ${verilatorConfig().path.toString}
+         |${mfccompile.rtls().map(_.path).mkString("\n")}
          |  TRACE_FST
-         |  TOP_MODULE ${topName()}
-         |  PREFIX V${topName()}
+         |  TOP_MODULE ${elaborate.topName()}
+         |  PREFIX V${elaborate.topName()}
          |  OPT_FAST
          |  THREADS ${verilatorThreads()}
          |  VERILATOR_ARGS ${verilatorArgs().mkString(" ")}
@@ -299,7 +298,13 @@ object tests extends Module {
     }
 
     def elf = T {
-      mill.modules.Jvm.runSubprocess(Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", T.dest.toString).map(_.toString), Map[String, String](), T.dest)
+      mill.modules.Jvm.runSubprocess(Seq("cmake",
+        "-G", "Ninja",
+        "-S", cmakefileLists().path,
+        "-B", T.dest.toString,
+        "-DCMAKE_C_COMPILER=clang",
+        "-DCMAKE_CXX_COMPILER=clang++",
+      ).map(_.toString), Map[String, String](), T.dest)
       mill.modules.Jvm.runSubprocess(Seq("ninja", "-C", T.dest).map(_.toString), Map[String, String](), T.dest)
       PathRef(T.dest / "emulator")
     }
@@ -411,9 +416,15 @@ object tests extends Module {
     def bin: cases.Case
 
     def run(args: String*) = T.command {
-      val proc = os.proc(Seq(tests.emulator.elf().path.toString, "--bin", bin.compile().path.toString, "--wave", (T.dest / "wave").toString) ++ args)
+      val proc = os.proc(Seq(tests.emulator.elf().path.toString,
+        "--bin", bin.compile().path.toString, "--wave", (T.dest / "wave").toString
+      ) ++ args)
       T.log.info(s"run test: ${bin.name} with:\n ${proc.command.map(_.value.mkString(" ")).mkString(" ")}")
-      proc.call()
+      proc.call(env = Map(
+        "COSIM_bin" -> bin.compile().path.toString,
+        "COSIM_wave" -> (T.dest / "wave").toString,
+        "COSIM_resetvector" -> "0x1000",
+      ))
       PathRef(T.dest)
     }
   }
