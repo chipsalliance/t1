@@ -45,6 +45,8 @@ public:
 
   uint8_t load(uint64_t address);
 
+  uint64_t get_t();
+
 private:
   VerilatedContext ctx;
   VV top;
@@ -86,7 +88,6 @@ private:
   void init_spike();
   void init_simulator();
   void terminate_simulator();
-  uint64_t get_t();
 
   std::optional<SpikeEvent> spike_step();
 

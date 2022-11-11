@@ -140,27 +140,27 @@ void SpikeEvent::drive_rtl_csr(VV &top) const {
 void SpikeEvent::check_is_ready_for_commit() {
   for (auto &[addr, mem_write]: mem_access_record.all_writes) {
     if (!mem_write.executed) {
-      LOG(FATAL) << fmt::format("expect to write mem {:08X}, not executed when commit ({})",
-                                addr, pc, describe_insn());
+      LOG(FATAL) << fmt::format(": [{}] expect to write mem {:08X}, not executed when commit ({})",
+                                impl->get_t(), addr, pc, describe_insn());
     }
   }
   for (auto &[addr, mem_read]: mem_access_record.all_reads) {
     if (!mem_read.executed) {
-      LOG(FATAL) << fmt::format("expect to read mem {:08X}, not executed when commit ({})",
-                                addr, describe_insn());
+      LOG(FATAL) << fmt::format(": [{}] expect to read mem {:08X}, not executed when commit ({})",
+                                impl->get_t(), addr, describe_insn());
     }
   }
   for (auto &[idx, vrf_write]: vrf_access_record.all_writes) {
-    CHECK_S(vrf_write.executed) << fmt::format("expect to write vrf {}, not executed when commit ({})",
-                              idx, describe_insn());
+    CHECK_S(vrf_write.executed) << fmt::format(": [{}] expect to write vrf [{}][{}], not executed when commit ({})",
+                              impl->get_t(), idx / consts::vlen_in_bytes, idx % consts::vlen_in_bytes, describe_insn());
   }
 }
 
 void SpikeEvent::record_rd_write(VV &top) {
   // TODO: rtl should indicate whether resp_bits_data is valid
   if (is_rd_written) {
-    CHECK_EQ_S(top.resp_bits_data, rd_bits) << fmt::format(": expect to write rd[{}] = {}, actual {}",
-                                                             rd_idx, rd_bits, top.resp_bits_data);
+    CHECK_EQ_S(top.resp_bits_data, rd_bits) << fmt::format(": [{}] expect to write rd[{}] = {}, actual {}",
+                                                             impl->get_t(), rd_idx, rd_bits, top.resp_bits_data);
   }
 }
 
