@@ -76,6 +76,8 @@ with pkgs; [
   myLLVM.llvm
   myLLVM.bintools
 
+  libargs glog fmt
+
   mill python3
   gnused coreutils gnumake gnugrep which
   parallel protobuf ninja verilator antlr4 numactl dtc glibc_multi cmake
