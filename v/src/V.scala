@@ -72,7 +72,7 @@ class InstControl(param: VParam) extends Bundle {
   val endTag: Vec[Bool] = Vec(param.lane + 1, Bool())
 }
 
-class V(param: VParam) extends Module {
+class V(val param: VParam) extends Module {
   val req:              DecoupledIO[VReq] = IO(Flipped(Decoupled(new VReq(param))))
   val resp:             ValidIO[VResp] = IO(Valid(new VResp(param)))
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.laneParam.VLMaxWidth)))

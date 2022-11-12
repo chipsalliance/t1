@@ -231,7 +231,9 @@ object tests extends Module {
 
     def allCSourceFiles = T.sources {
       Seq(
-        "dpi.cc"
+        "dpi.cc",
+        "SimulationContext.cc",
+        "SpikeEvent.cc"
       ).map(f => PathRef(csrcDir().path / f))
     }
 
@@ -423,7 +425,11 @@ object tests extends Module {
       proc.call(env = Map(
         "COSIM_bin" -> bin.compile().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
-        "COSIM_resetvector" -> "0x1000",
+        "COSIM_reset_vector" -> "1000",
+        "COSIM_timeout" -> "1000",
+        "COSIM_spike_event_queue_size" -> "10",
+        "GLOG_v" -> "3",
+        "GLOG_logtostderr" -> "1",
       ))
       PathRef(T.dest)
     }

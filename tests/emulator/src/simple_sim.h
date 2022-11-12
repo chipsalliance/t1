@@ -20,7 +20,7 @@ public:
     delete[] mem;
   }
 
-  void load(const std::string &fname, size_t reset_vector) {
+  void store(const std::string &fname, size_t reset_vector) {
     std::ifstream fs(fname, std::ifstream::binary);
     assert(fs.is_open());
 

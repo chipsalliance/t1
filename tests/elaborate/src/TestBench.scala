@@ -9,16 +9,12 @@ class TestBench extends RawModule {
   val dut = withClockAndReset(clock, reset) {
     Module(new V(VParam()))
   }
-  val dutFlattenIO = chisel3.experimental.DataMirror.fullModulePorts(dut).filterNot(_._2.isInstanceOf[Aggregate]).filterNot(d => d._1 == "clock" || d._1 == "reset")
-  val verificationModule = Module(new VerificationModule(dut, dutFlattenIO))
-  dutFlattenIO zip verificationModule.xmrFlattenIO foreach { case ((_, dutPort), xmrPort) =>
-    chisel3.experimental.DataMirror.directionOf(dutPort) match {
-      case ActualDirection.Output =>
-        xmrPort := dutPort
-      case ActualDirection.Input =>
-        dutPort := xmrPort
-    }
-  }
+  val verificationModule = Module(new VerificationModule(dut))
+  dut.req <> verificationModule.req
+  dut.resp <> verificationModule.resp
+  dut.csrInterface <> verificationModule.csrInterface
+  dut.storeBufferClear <> verificationModule.storeBufferClear
+  dut.tlPort <> verificationModule.tlPort
   clock := verificationModule.clock
   reset := verificationModule.reset
 }

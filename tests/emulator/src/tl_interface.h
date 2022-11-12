@@ -1,4 +1,4 @@
-#include <VV.h>
+#include <verilated_dpi.h>
 
 namespace TlOpcode {
   constexpr int

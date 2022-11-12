@@ -5,26 +5,17 @@
 
 #include "processor.h"
 #include "mmu.h"
-
-#include "VV.h"
-#include "verilated_fst_c.h"
-
 #include "simple_sim.h"
-#include "vbridge_impl.h"
-#include "vbridge_config.h"
-
-class VBridgeImpl;
 
 struct SpikeEvent {
-  SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl);
+  SpikeEvent(processor_t &proc, insn_fetch_t &fetch);
 
   [[nodiscard]] std::string describe_insn() const;
 
-  void drive_rtl_req(VV &top) const;
-  void drive_rtl_csr(VV &top) const;
-
   void pre_log_arch_changes();
   void log_arch_changes();
+  // returns {a, b} if the instruction may write vrf of index in range [a, a + b)
+  std::pair<uint32_t, uint32_t> get_vrf_write_range() const;
 
   commit_log_mem_t mem_read_info;
 
@@ -38,7 +29,6 @@ struct SpikeEvent {
   uint8_t lsu_idx = 255;
   uint8_t issue_idx = 255;
   processor_t &proc;
-  VBridgeImpl *impl;
   std::string disasm;
 
   bool is_issued;
@@ -68,7 +58,7 @@ struct SpikeEvent {
   bool vxsat: 1;
 
   /// range [XLEN-1:0].
-  /// updated with vset{i}vl{i} and fault-only-first vector load instruction variants
+  /// updated with vset{i}vl{i} and fault-only-first vector store instruction variants
   /// currently, we don't implement MMU, thus, no fault-only-first will be executed.
   uint32_t vl;
   uint16_t vstart;
@@ -83,9 +73,6 @@ struct SpikeEvent {
 
   bool is_rd_written;
   uint32_t rd_bits;
-
-  // returns {a, b} if the instruction may write vrf of index in range [a, a + b)
-  std::pair<uint32_t, uint32_t> get_vrf_write_range() const;
 
   struct {
     struct single_mem_write {
@@ -113,6 +100,6 @@ struct SpikeEvent {
 
   void add_rtl_write(int lane, int vd, int offset, int mask, int data, int idx);
 
-  void record_rd_write(VV &top);
+  void record_rd_write();
   void check_is_ready_for_commit();
 };
