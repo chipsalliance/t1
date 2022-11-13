@@ -14,10 +14,7 @@ import $file.dependencies.tilelink.common
 import $file.common
 
 object v {
-  val scala = "2.12.16"
-  val chisel3 = ivy"edu.berkeley.cs::chisel3:3.6-SNAPSHOT"
-  val chisel3Plugin = ivy"edu.berkeley.cs::chisel3-plugin:3.6-SNAPSHOT"
-  val chiseltest = ivy"edu.berkeley.cs::chiseltest:3.6-SNAPSHOT"
+  val scala = "2.13.6"
   val utest = ivy"com.lihaoyi::utest:latest.integration"
   val mainargs = ivy"com.lihaoyi::mainargs:0.3.0"
   // for arithmetic
@@ -133,7 +130,7 @@ object tests extends Module {
     }
 
     override def scalacOptions = T {
-      super.scalacOptions() ++ Some(mychisel3.plugin.jar()).map(path => s"-Xplugin:${path.path}")
+      super.scalacOptions() ++ Some(mychisel3.plugin.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq("-Ymacro-annotations")
     }
 
     override def scalaVersion = v.scala
@@ -274,6 +271,7 @@ object tests extends Module {
          |target_include_directories(emulator PRIVATE ${spike.compile().path.toString})
          |
          |target_include_directories(emulator PUBLIC ${csrcDir().path.toString})
+         |target_compile_definitions(emulator PRIVATE COSIM_VERILATOR)
          |
          |target_link_directories(emulator PRIVATE ${spike.compile().path.toString})
          |target_link_libraries(emulator PUBLIC $${CMAKE_THREAD_LIBS_INIT})

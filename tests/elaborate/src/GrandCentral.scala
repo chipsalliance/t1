@@ -32,7 +32,7 @@ package tests {
       // wait for https://github.com/chipsalliance/chisel3/pull/1943
       def done(): Unit = {
         chisel3.experimental.annotate(new ChiselAnnotation {
-            override def toFirrtl = DataTapsAnnotation(dataTapKeys.map({ case (source, sink) =>
+            override def toFirrtl = DataTapsAnnotation(dataTapKeys.toSeq.map({ case (source, sink) =>
             ReferenceDataTapKey(source.toTarget, sink.toTarget)
           }))
         })

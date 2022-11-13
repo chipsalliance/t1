@@ -5,7 +5,6 @@
 #include <glog/logging.h>
 
 #include "simif.h"
-#include <assert.h>
 
 class simple_sim : public simif_t {
 private:
@@ -22,7 +21,7 @@ public:
 
   void store(const std::string &fname, size_t reset_vector) {
     std::ifstream fs(fname, std::ifstream::binary);
-    assert(fs.is_open());
+    LOG(FATAL) << fmt::format("binary failed to open in {}", fname);
 
     size_t offset = reset_vector;
     while (!fs.eof()) {

@@ -6,7 +6,7 @@ SimulationContext &SimulationContext::getInstance() {
   return singleton;
 }
 
-SimulationContext::SimulationContext() : isa("rv32gcv", "M"), sim(1<<30), proc(
+SimulationContext::SimulationContext() : isa("rv32gcv", "M"), sim(1 << 30), proc(
   /*isa*/ &isa,
   /*varch*/ fmt::format("vlen:{},elen:{}", consts::vlen_in_bits, consts::elen).c_str(),
   /*sim*/  (simif_t *) &sim,
@@ -23,7 +23,7 @@ SimulationContext::SimulationContext() : isa("rv32gcv", "M"), sim(1<<30), proc(
 }
 
 void SimulationContext::pokeInstruction(svBitVecVal *inst, svBitVecVal *s1, svBitVecVal *s2, svBit *valid) {
-  VLOG(4) << fmt::format("[{}] pokeInstruction", get_t());
+  VLOG(4) << fmt::format("[{}] pokeInstruction", getCycle());
   loop_until_se_queue_full();
   auto se = find_se_to_issue();
   *inst = se->inst_bits;
@@ -32,30 +32,32 @@ void SimulationContext::pokeInstruction(svBitVecVal *inst, svBitVecVal *s1, svBi
   *valid = true;
 }
 
-void SimulationContext::instructionFire(const svBitVecVal* index) {
-  VLOG(4) << fmt::format("[{}] instructionFire", get_t());
+void SimulationContext::instructionFire(const svBitVecVal *index) {
+  VLOG(4) << fmt::format("[{}] instructionFire", getCycle());
   auto se = find_se_to_issue();
   se->is_issued = true;
   se->issue_idx = *index;
-  LOG(INFO) << fmt::format("[{}] issue to rtl ({}), issue index={}", get_t(), se->describe_insn(), se->issue_idx);
+  LOG(INFO) << fmt::format("[{}] issue to rtl ({}), issue index={}", getCycle(), se->describe_insn(), se->issue_idx);
 }
 
 void SimulationContext::initCosim() {
-  VLOG(4) << fmt::format("[{}] initCosim", get_t());
+  VLOG(4) << fmt::format("[{}] initCosim", getCycle());
   proc.reset();
   // TODO: remove this line, and use CSR write in the test code to enable this the VS field.
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
   sim.store(bin, reset_vector);
-  VLOG(0) << fmt::format("Simulation Environment Initialized: bin={}, wave={}, reset_vector={:#x}, timeout={}", bin, wave, reset_vector, timeout);
+  VLOG(0)
+      << fmt::format("Simulation Environment Initialized: bin={}, wave={}, reset_vector={:#x}, timeout={}", bin, wave,
+                     reset_vector, timeout);
 }
 
 void SimulationContext::peekResponse(const svBitVecVal *bits) {
-  VLOG(4) << fmt::format("[{}] peekResponse", get_t());
+  VLOG(4) << fmt::format("[{}] peekResponse", getCycle());
 }
 
 void SimulationContext::pokeCSR(svBitVecVal *vl, svBitVecVal *vStart, svBitVecVal *vlmul, svBitVecVal *vSew,
                                 svBitVecVal *vxrm, svBit *vta, svBit *vma, svBit *ignoreException) {
-  VLOG(4) << fmt::format("[{}] pokeCSR", get_t());
+  VLOG(4) << fmt::format("[{}] pokeCSR", getCycle());
 }
 
 
@@ -100,7 +102,7 @@ std::optional<SpikeEvent> SimulationContext::create_spike_event(insn_fetch_t fet
   // create SpikeEvent
   uint32_t opcode = clip(fetch.insn.bits(), 0, 6);
   uint32_t width = clip(fetch.insn.bits(), 12, 14);
-  bool is_load_type  = opcode == 0b0000111;
+  bool is_load_type = opcode == 0b0000111;
   bool is_store_type = opcode == 0b0100111;
   bool v_type = opcode == 0b1010111 && width != 0b111;
   if (is_load_type || is_store_type || v_type) {
@@ -120,12 +122,25 @@ SpikeEvent *SimulationContext::find_se_to_issue() {
       break;
     }
   }
-  CHECK(se_to_issue) << fmt::format("[{}] all events in to_rtl_queue are is_issued", get_t());  // TODO: handle this
+  CHECK(se_to_issue) << fmt::format("[{}] all events in to_rtl_queue are is_issued", getCycle());  // TODO: handle this
   return se_to_issue;
 }
 
 void SimulationContext::timeoutCheck() {
-  if (get_t() > timeout) {
-    LOG(FATAL) << fmt::format("Simulation timeout, t={}", get_t());
+  if (getCycle() > timeout) {
+    LOG(FATAL) << fmt::format("Simulation timeout, t={}", getCycle());
   }
+}
+
+void SimulationContext::dpiPeekTL(int channel_id, const svBitVecVal *a_opcode, const svBitVecVal *a_param,
+                                  const svBitVecVal *a_size, const svBitVecVal *a_source, const svBitVecVal *a_address,
+                                  const svBitVecVal *a_mask, const svBitVecVal *a_data, svBit a_corrupt, svBit a_valid,
+                                  svBit d_ready) {
+
+}
+
+void SimulationContext::dpiPokeTL(int channel_id, svBitVecVal *d_opcode, svBitVecVal *d_param, svBitVecVal *d_size,
+                                  svBitVecVal *d_source, svBitVecVal *d_sink, svBitVecVal *d_denied,
+                                  svBitVecVal *d_data, svBit *d_corrupt, svBit *d_valid, svBit *a_ready) {
+
 }
