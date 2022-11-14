@@ -229,6 +229,10 @@ object tests extends Module {
       PathRef(millSourcePath / "src")
     }
 
+    def allCHeaderFiles = T.sources {
+      os.walk(csrcDir().path).filter(_.ext == "h").map(PathRef(_))
+    }
+
     def allCSourceFiles = T.sources {
       Seq(
         "main.cc",
@@ -340,6 +344,7 @@ object tests extends Module {
       // either rtl or testbench change should trigger elf rebuild
       mfccompile.rtls()
       allCSourceFiles()
+      allCHeaderFiles()
       config()
       mill.modules.Jvm.runSubprocess(Seq("ninja", "-C", buildDir().path).map(_.toString), Map[String, String](), buildDir().path)
       PathRef(buildDir().path / "emulator")
