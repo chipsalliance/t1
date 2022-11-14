@@ -125,6 +125,14 @@ object vector extends common.VectorModule with ScalafmtModule {
 
 object tests extends Module {
   object elaborate extends ScalaModule {
+    override def scalacPluginClasspath = T {
+      Agg(mychisel3.plugin.jar())
+    }
+
+    override def scalacOptions = T {
+      super.scalacOptions() ++ Some(mychisel3.plugin.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq("-Ymacro-annotations")
+    }
+
     override def scalaVersion = v.scala
 
     override def moduleDeps = Seq(vector)
