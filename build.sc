@@ -297,9 +297,20 @@ object tests extends Module {
       PathRef(T.dest)
     }
 
+    def buildDir = T {
+      PathRef(T.dest)
+    }
+
+    def config = T {
+      mill.modules.Jvm.runSubprocess(Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", buildDir().path).map(_.toString), Map[String, String](), T.dest)
+    }
+
     def elf = T {
-      mill.modules.Jvm.runSubprocess(Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", T.dest.toString).map(_.toString), Map[String, String](), T.dest)
-      mill.modules.Jvm.runSubprocess(Seq("ninja", "-C", T.dest).map(_.toString), Map[String, String](), T.dest)
+      // either rtl or testbench change should trigger elf rebuild
+      elaborate.rtls()
+      allCSourceFiles()
+      config()
+      mill.modules.Jvm.runSubprocess(Seq("ninja", "-C", buildDir().path).map(_.toString), Map[String, String](), T.dest)
       PathRef(T.dest / "emulator")
     }
   }
