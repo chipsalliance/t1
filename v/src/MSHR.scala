@@ -206,7 +206,7 @@ class MSHR(param: MSHRParam) extends Module {
   // 如果状态是wResp,为了让回应能寻址会暂时不更新groupIndex，但是属于groupIndex的请求已经发完了
   val elementID:  UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
   // todo: evl: unit stride -> whole register load | mask load, EEW=8
-  val last:       Bool = (elementID >= csrInterface.vl) && segEnd
+  val last:       Bool = (elementID >= csrInterface.vl) && segNext(0)
   val maskCheck:  Bool = !maskType || !maskReq
   val indexCheck: Bool = !indexType || (offsetValidCheck && offsetGroupCheck)
   val fofCheck:   Bool = firstReq || !waitFirstResp
