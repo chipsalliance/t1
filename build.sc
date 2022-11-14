@@ -14,10 +14,7 @@ import $file.dependencies.tilelink.common
 import $file.common
 
 object v {
-  val scala = "2.12.16"
-  val chisel3 = ivy"edu.berkeley.cs::chisel3:3.6-SNAPSHOT"
-  val chisel3Plugin = ivy"edu.berkeley.cs::chisel3-plugin:3.6-SNAPSHOT"
-  val chiseltest = ivy"edu.berkeley.cs::chiseltest:3.6-SNAPSHOT"
+  val scala = "2.13.6"
   val utest = ivy"com.lihaoyi::utest:latest.integration"
   val mainargs = ivy"com.lihaoyi::mainargs:0.3.0"
   // for arithmetic
