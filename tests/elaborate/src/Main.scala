@@ -4,22 +4,16 @@ import chisel3._
 import chisel3.aop.Select
 import chisel3.aop.injecting.InjectingAspect
 import chisel3.stage.ChiselGeneratorAnnotation
-import circt.stage.{CIRCTHandover, CIRCTTarget, CIRCTTargetAnnotation, ChiselStage, FirtoolOption}
-import firrtl.{AnnotationSeq, ChirrtlEmitter, EmitAllModulesAnnotation}
+import firrtl.AnnotationSeq
 import firrtl.options.TargetDirAnnotation
-import logger.{LogLevel, LogLevelAnnotation}
 import mainargs._
-import v.{LSU, LSUWriteQueueBundle, RegFile, V, VRF}
+import v.{LSU, RegFile, V, VRF}
 
 object Main {
   @main def elaborate(@arg(name="dir") dir: String) = {
-    val annotations = Seq(new ChiselStage).foldLeft(
+    val annotations = Seq(new chisel3.stage.ChiselStage).foldLeft(
       Seq(
         TargetDirAnnotation(dir),
-        EmitAllModulesAnnotation(classOf[ChirrtlEmitter]),
-        CIRCTTargetAnnotation(CIRCTTarget.Verilog),
-        FirtoolOption(s"""-O=debug"""),
-        CIRCTHandover(CIRCTHandover.CHIRRTL),
         ChiselGeneratorAnnotation(() => new v.V(v.VParam())),
         InjectingAspect(
           { dut: V =>

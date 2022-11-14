@@ -157,19 +157,50 @@ object tests extends Module {
       PathRef(T.dest)
     }
 
+    def chiselAnno = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("anno.json") => p }.map(PathRef(_)).get
+    }
+
+    def chirrtl = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("fir") => p }.map(PathRef(_)).get
+    }
+
+    def topName = T {
+      chirrtl().path.last.split('.').head
+    }
+
+  }
+
+  object mfccompile extends Module {
+
+    def compile = T {
+      os.proc("firtool",
+        elaborate.chirrtl().path,
+        s"--annotation-file=${elaborate.chiselAnno().path}",
+        "-disable-infer-rw",
+        "-dedup",
+        "-O=debug",
+        "--split-verilog",
+        "--preserve-values=named",
+        "--output-annotation-file=mfc.anno.json",
+        s"-o=${T.dest}"
+      ).call(T.dest)
+      PathRef(T.dest)
+    }
+
     def rtls = T {
-      os.read(elaborate().path / "filelist.f").split("\n").map(str =>
+      os.read(compile().path / "filelist.f").split("\n").map(str =>
         try {
           os.Path(str)
         } catch {
           case e: IllegalArgumentException if e.getMessage.contains("is not an absolute path") =>
-            elaborate().path / str
+            compile().path / str.stripPrefix("./")
         }
       ).filter(p => p.ext == "v" || p.ext == "sv").map(PathRef(_)).toSeq
     }
 
     def annotations = T {
-      os.walk(elaborate().path).filter(p => p.last.endsWith("anno.json")).map(PathRef(_))
+      os.walk(compile().path).filter(p => p.last.endsWith("mfc.anno.json")).map(PathRef(_))
     }
   }
 
@@ -213,7 +244,7 @@ object tests extends Module {
       os.write(
         traceConfigPath,
         "`verilator_config\n" +
-          ujson.read(elaborate.annotations().collectFirst(f => os.read(f.path)).get).arr.flatMap {
+          ujson.read(mfccompile.annotations().collectFirst(f => os.read(f.path)).get).arr.flatMap {
             case anno if anno("class").str == "chisel3.experimental.Trace$TraceAnnotation" =>
               Some(anno("target").str)
             case _ => None
@@ -278,7 +309,7 @@ object tests extends Module {
          |
          |verilate(emulator
          |  SOURCES
-         |  ${elaborate.rtls().map(_.path.toString).mkString("\n")}
+         |  ${mfccompile.rtls().map(_.path.toString).mkString("\n")}
          |  ${verilatorConfig().path.toString}
          |  TRACE_FST
          |  TOP_MODULE ${topName()}
@@ -307,11 +338,11 @@ object tests extends Module {
 
     def elf = T {
       // either rtl or testbench change should trigger elf rebuild
-      elaborate.rtls()
+      mfccompile.rtls()
       allCSourceFiles()
       config()
-      mill.modules.Jvm.runSubprocess(Seq("ninja", "-C", buildDir().path).map(_.toString), Map[String, String](), T.dest)
-      PathRef(T.dest / "emulator")
+      mill.modules.Jvm.runSubprocess(Seq("ninja", "-C", buildDir().path).map(_.toString), Map[String, String](), buildDir().path)
+      PathRef(buildDir().path / "emulator")
     }
   }
 
