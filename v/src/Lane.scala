@@ -532,7 +532,7 @@ class Lane(param: LaneParameters) extends Module {
         record.state.wScheduler := true.B
       }
       instTypeVec(index) := record.originalInformation.instType
-      executeEnqValid(index) := maskAnd(readFinish, instTypeVec(index))
+      executeEnqValid(index) := maskAnd(readFinish && !record.state.sExecute, instTypeVec(index))
       when((instTypeVec(index) & executeEnqFire).orR || maskValid) {
         when(groupEnd || maskValid) {
           record.state.sExecute := true.B
