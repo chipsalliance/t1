@@ -147,12 +147,12 @@ object tests extends Module {
       mill.modules.Jvm.runSubprocess(
         finalMainClass(),
         runClasspath().map(_.path),
-        forkArgs(),
-        forkEnv(),
+        Seq.empty,
+        Map.empty,
         Seq(
           "--dir", T.dest.toString,
         ),
-        workingDir = forkWorkingDir()
+        workingDir = T.dest
       )
       PathRef(T.dest)
     }
