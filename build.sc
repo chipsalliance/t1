@@ -194,11 +194,11 @@ object tests extends Module {
       }
     }
 
-    def csrcDir = T {
+    def csrcDir = T.source {
       PathRef(millSourcePath / "src")
     }
 
-    def allCSourceFiles = T {
+    def allCSourceFiles = T.sources {
       Seq(
         "main.cc",
         "vbridge.cc",
