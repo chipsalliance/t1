@@ -206,25 +206,6 @@ object tests extends Module {
 
   object emulator extends Module {
 
-    object spike extends Module {
-      override def millSourcePath = os.pwd / "dependencies" / "riscv-isa-sim"
-
-      // ask make to cache file.
-      def compile = T.persistent {
-        os.proc(millSourcePath / "configure", "--prefix", "/usr", "--without-boost", "--without-boost-asio", "--without-boost-regex", "--enable-commitlog").call(
-          T.ctx.dest, Map(
-            "CC" -> "clang",
-            "CXX" -> "clang++",
-            "AR" -> "llvm-ar",
-            "RANLIB" -> "llvm-ranlib",
-            "LD" -> "lld",
-          )
-        )
-        os.proc("make", "-j", Runtime.getRuntime().availableProcessors()).call(T.ctx.dest)
-        PathRef(T.ctx.dest)
-      }
-    }
-
     def csrcDir = T.source {
       PathRef(millSourcePath / "src")
     }
@@ -288,28 +269,21 @@ object tests extends Module {
          |find_package(args REQUIRED)
          |find_package(glog REQUIRED)
          |find_package(fmt REQUIRED)
+         |find_package(libspike REQUIRED)
          |
          |find_package(verilator)
          |set(CMAKE_CXX_STANDARD 17)
-         |set(CMAKE_CXX_COMPILER_ID "clang")
-         |set(CMAKE_C_COMPILER "clang")
-         |set(CMAKE_CXX_COMPILER "clang++")
          |
          |find_package(Threads)
          |set(THREADS_PREFER_PTHREAD_FLAG ON)
          |add_executable(emulator
          |${allCSourceFiles().map(_.path).mkString("\n")}
          |)
-         |target_include_directories(emulator PRIVATE ${(spike.millSourcePath / "riscv").toString})
-         |target_include_directories(emulator PRIVATE ${(spike.millSourcePath / "fesvr").toString})
-         |target_include_directories(emulator PRIVATE ${(spike.millSourcePath / "softfloat").toString})
-         |target_include_directories(emulator PRIVATE ${spike.compile().path.toString})
          |
          |target_include_directories(emulator PUBLIC ${csrcDir().path.toString})
          |
-         |target_link_directories(emulator PRIVATE ${spike.compile().path.toString})
          |target_link_libraries(emulator PUBLIC $${CMAKE_THREAD_LIBS_INIT})
-         |target_link_libraries(emulator PUBLIC riscv fmt glog)  # note that libargs is header only, nothing to link
+         |target_link_libraries(emulator PUBLIC libspike fmt glog)  # note that libargs is header only, nothing to link
          |
          |verilate(emulator
          |  SOURCES

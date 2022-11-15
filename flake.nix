@@ -21,7 +21,7 @@
           myLLVM.llvm
           myLLVM.bintools
 
-          libargs glog fmt
+          libargs glog fmt libspike
 
           mill python3
           gnused coreutils gnumake gnugrep which
@@ -40,6 +40,7 @@
               export NIX_CC=" "
               export RT="${pkgs.rv32-compilerrt}"
               export MUSL="${pkgs.rv32-musl}"
+              export SPIKE="${pkgs.libspike}"
             '';
           };
         }
