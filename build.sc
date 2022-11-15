@@ -266,16 +266,16 @@ object tests extends Module {
       // format: off
       s"""cmake_minimum_required(VERSION 3.20)
          |project(emulator)
+         |set(CMAKE_CXX_STANDARD 17)
+         |
          |find_package(args REQUIRED)
          |find_package(glog REQUIRED)
          |find_package(fmt REQUIRED)
          |find_package(libspike REQUIRED)
-         |
-         |find_package(verilator)
-         |set(CMAKE_CXX_STANDARD 17)
-         |
-         |find_package(Threads)
+         |find_package(verilator REQUIRED)
+         |find_package(Threads REQUIRED)
          |set(THREADS_PREFER_PTHREAD_FLAG ON)
+         |
          |add_executable(emulator
          |${allCSourceFiles().map(_.path).mkString("\n")}
          |)

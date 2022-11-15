@@ -66,10 +66,6 @@ let
       LIBCC = "-lclang_rt.builtins-riscv32";
       CFLAGS = "--target=riscv32 -mno-relax -nostdinc";
       LDFLAGS = "-fuse-ld=lld --target=riscv32 -nostdlib -L${rv32-compilerrt}/lib/riscv32";
-      preInstall = ''
-        mkdir -p $out/src
-        cp -r * $out/src
-      '';
       dontDisableStatic = true;
       dontAddStaticConfigureFlags = true;
       NIX_DONT_SET_RPATH = true;
@@ -91,7 +87,7 @@ let
   '';
 
   rv32-clang = final.writeShellScriptBin "clang-rv32" ''
-    ${my-cc-wrapper}/bin/clang --target=riscv32 -fuse-ld=lld -L${rv32-compilerrt}/lib/riscv32 -L${rv32-musl}/lib $@
+    ${my-cc-wrapper}/bin/clang --target=riscv32 -fuse-ld=lld -L${rv32-compilerrt}/lib/riscv32 -L${rv32-musl}/lib "$@"
   '';
 
   libspike = let
