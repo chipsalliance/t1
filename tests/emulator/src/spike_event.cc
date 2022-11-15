@@ -100,6 +100,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   vlmul = clip(vtype, 0, 2);
   vill = clip(vtype, 31, 31);
   vxrm = proc.VU.vxrm->read();
+  vnf = fetch.insn.v_nf();
 
   vill = proc.VU.vill;
   vxsat = proc.VU.vxsat->read();
