@@ -219,6 +219,13 @@ class SchedulerFeedback(param: LaneParameters) extends Bundle {
   val complete:  Bool = Bool()
 }
 
+class V0Update(param: LaneParameters) extends Bundle {
+  val data: UInt = UInt(param.ELEN.W)
+  val offset: UInt = UInt(param.offsetBits.W)
+  // mask/ld类型的有可能不会写完整的32bit
+  val mask: UInt = UInt(4.W)
+}
+
 /**
   * ring & inst control & vrf & vfu
   */
@@ -235,6 +242,7 @@ class Lane(param: LaneParameters) extends Module {
   val vrfWritePort:    DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(param.vrfParam))))
   /** 本来结束的通知放在[[dataToScheduler]],但是存在有多指令同时结束的情况,所以单独给出来 */
   val endNotice: UInt = IO(Output(UInt(param.controlNum.W)))
+  val v0Update: ValidIO[V0Update] = IO(Valid(new V0Update(param)))
 
   val vrf: VRF = Module(new VRF(param.vrfParam))
   // reg
@@ -733,6 +741,12 @@ class Lane(param: LaneParameters) extends Module {
     vrf.write.bits := writeEnqBits
     crossWriteQueue.io.deq.ready := !normalWrite && vrf.write.ready
     rfWriteFire := Mux(vrf.write.ready, writeSelect, 0.U)
+
+    //更新v0
+    v0Update.valid := vrf.write.valid && writeEnqBits.vd === 0.U
+    v0Update.bits.data := writeEnqBits.data
+    v0Update.bits.offset := writeEnqBits.offset
+    v0Update.bits.mask := writeEnqBits.mask
   }
 
   // 控制逻辑的移动

@@ -294,4 +294,18 @@ class V(param: VParam) extends Module {
     respValid := deq.last
     resp.bits.data := resultRes.bits
   }
+
+  // 写v0
+  v0.zipWithIndex.foreach {case (data, index) =>
+    // 属于哪个lane
+    val laneIndex: Int = index % param.lane
+    // 取出写的端口
+    val v0Write = laneVec(laneIndex).v0Update
+    // offset
+    val offset: Int = index / param.lane
+    val maskExt = FillInterleaved(8, v0Write.bits.mask)
+    when(v0Write.valid && v0Write.bits.offset === offset.U) {
+      data := (data & (~maskExt).asUInt) | (maskExt & v0Write.bits.data)
+    }
+  }
 }
