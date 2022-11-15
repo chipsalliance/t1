@@ -38,9 +38,6 @@
             shellHook = ''
               # waiting for https://github.com/NixOS/nixpkgs/pull/192943
               export NIX_CC=" "
-              export RT="${pkgs.rv32-compilerrt}"
-              export MUSL="${pkgs.rv32-musl}"
-              export SPIKE="${pkgs.libspike}"
             '';
           };
         }
