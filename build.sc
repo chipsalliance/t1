@@ -352,71 +352,6 @@ object tests extends Module {
   }
 
   object cases extends Module {
-    object compilerrt extends Module {
-      override def millSourcePath = os.pwd / "dependencies" / "llvm-project" / "compiler-rt"
-
-      // ask make to cache file.
-      def compile = T.persistent {
-        os.proc("cmake", "-S", millSourcePath,
-          "-DCOMPILER_RT_BUILD_LIBFUZZER=OFF",
-          "-DCOMPILER_RT_BUILD_SANITIZERS=OFF",
-          "-DCOMPILER_RT_BUILD_PROFILE=OFF",
-          "-DCOMPILER_RT_BUILD_MEMPROF=OFF",
-          "-DCOMPILER_RT_BUILD_ORC=OFF",
-          "-DCOMPILER_RT_BUILD_BUILTINS=ON",
-          "-DCOMPILER_RT_BAREMETAL_BUILD=ON",
-          "-DCOMPILER_RT_INCLUDE_TESTS=OFF",
-          "-DCOMPILER_RT_HAS_FPIC_FLAG=OFF",
-          "-DCOMPILER_RT_DEFAULT_TARGET_ONLY=On",
-          "-DCOMPILER_RT_OS_DIR=riscv32",
-          "-DCMAKE_BUILD_TYPE=Release",
-          "-DCMAKE_SYSTEM_NAME=Generic",
-          "-DCMAKE_SYSTEM_PROCESSOR=riscv32",
-          "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY",
-          "-DCMAKE_SIZEOF_VOID_P=8",
-          "-DCMAKE_ASM_COMPILER_TARGET=riscv32-none-elf",
-          "-DCMAKE_C_COMPILER_TARGET=riscv32-none-elf",
-          "-DCMAKE_C_COMPILER_WORKS=ON",
-          "-DCMAKE_CXX_COMPILER_WORKS=ON",
-          "-DCMAKE_C_COMPILER=clang",
-          "-DCMAKE_CXX_COMPILER=clang++",
-          "-DCMAKE_C_FLAGS=-nodefaultlibs -fno-exceptions -mno-relax -Wno-macro-redefined -fPIC",
-          "-DCMAKE_INSTALL_PREFIX=/usr",
-          "-Wno-dev",
-        ).call(T.ctx.dest)
-        os.proc("make", "-j", Runtime.getRuntime().availableProcessors()).call(T.ctx.dest)
-        PathRef(T.ctx.dest)
-      }
-    }
-
-    object musl extends Module {
-      override def millSourcePath = os.pwd / "dependencies" / "musl"
-
-      // ask make to cache file.
-      def libraryResources = T.persistent {
-        os.proc("make", s"DESTDIR=${T.ctx.dest}", "install").call(compilerrt.compile().path)
-        PathRef(T.ctx.dest)
-      }
-
-      def compile = T.persistent {
-        val p = libraryResources().path
-        os.proc(millSourcePath / "configure", "--target=riscv32-none-elf", "--prefix=/usr").call(
-          T.ctx.dest,
-          Map(
-            "CC" -> "clang",
-            "CXX" -> "clang++",
-            "AR" -> "llvm-ar",
-            "RANLIB" -> "llvm-ranlib",
-            "LD" -> "lld",
-            "LIBCC" -> "-lclang_rt.builtins-riscv32",
-            "CFLAGS" -> "--target=riscv32 -mno-relax -nostdinc",
-            "LDFLAGS" -> s"-fuse-ld=lld --target=riscv32 -nostdlib -L${p}/usr/lib/riscv32",
-          )
-        )
-        os.proc("make", "-j", Runtime.getRuntime().availableProcessors()).call(T.ctx.dest)
-        PathRef(T.ctx.dest)
-      }
-    }
 
     trait Case extends Module {
       def name: T[String] = millSourcePath.last
@@ -442,7 +377,7 @@ object tests extends Module {
       }
 
       def compile: T[PathRef] = T {
-        os.proc(Seq("clang", "-o", name() + ".elf", "--target=riscv32", "-march=rv32gcv", s"-L${musl.compile().path}/lib", s"-L${compilerrt.compile().path}/lib/riscv32", "-mno-relax", s"-T${linkScript().path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
+        os.proc(Seq("clang-rv32", "-o", name() + ".elf", "-march=rv32gcv", s"-T${linkScript().path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
         os.proc(Seq("llvm-objcopy", "-O", "binary", "--only-section=.text", name() + ".elf", name())).call(T.ctx.dest)
         PathRef(T.ctx.dest / name())
       }
