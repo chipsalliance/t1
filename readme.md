@@ -49,5 +49,4 @@ The simulator use spike to emulate the RISC-V core, which means this vector gene
 
 ## Patches
 <!-- BEGIN-PATCH -->
-chisel3 https://github.com/chipsalliance/chisel3/compare/master...circt_aop.diff
 <!-- END-PATCH -->
