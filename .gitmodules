@@ -16,12 +16,6 @@
 [submodule "dependencies/tilelink"]
 	path = dependencies/tilelink
 	url = git@github.com:sequencer/tilelink.git
-[submodule "dependencies/llvm-project"]
-	path = dependencies/llvm-project
-	url = git@github.com:llvm/llvm-project.git
-[submodule "dependencies/musl"]
-	path = dependencies/musl
-	url = git@github.com:bminor/musl.git
 [submodule "dependencies/riscv-isa-sim"]
 	path = dependencies/riscv-isa-sim
 	url = git@github.com:riscv/riscv-isa-sim.git
