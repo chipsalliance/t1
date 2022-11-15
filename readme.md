@@ -23,7 +23,7 @@ echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
 
 Enable nix-daemon systemd service (if your package manager has not enabled it automatically):
 ```shell
-systemd start nix-daemon.service
+sysyemctl start nix-daemon.service
 ```
 
 After nix is installed, run `nix develop` to enter the development shell, all environment variables and dependencies is included. If you want a pure environment without system packages, use `env -i nix develop` instead.
@@ -33,12 +33,12 @@ If you are using dynamic user, you may experience bash or other programs complai
 
 As a workaround, you can start `nscd` or `nsncd` outside nix environment, such as:
 ```shell
-systemd start nscd.service
+systemctl start nscd.service
 ```
 or use `nsncd` in Arch Linux instead
 ```shell
 paru -S nsncd-git
-systemd start nsncd.service
+systemctl start nsncd.service
 ```
 
 ## Test
