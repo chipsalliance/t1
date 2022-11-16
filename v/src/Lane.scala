@@ -382,8 +382,8 @@ class Lane(param: LaneParameters) extends Module {
       }
       // 处理上环的数据
       if (index == 0) {
-        val tryToSendHead = record.state.sRead2 && !record.state.sSendResult0
-        val tryToSendTail = record.state.sReadVD && !record.state.sSendResult1
+        val tryToSendHead = record.state.sRead2 && !record.state.sSendResult0 && controlValid.head
+        val tryToSendTail = record.state.sReadVD && !record.state.sSendResult1 && controlValid.head
         sendReadData.bits.target := tryToSendTail ## laneIndex(param.laneIndexBits - 1, 1)
         sendReadData.bits.tail := laneIndex(0)
         sendReadData.bits.instIndex := record.originalInformation.instIndex
@@ -391,8 +391,8 @@ class Lane(param: LaneParameters) extends Module {
         sendReadData.valid := tryToSendHead || tryToSendTail
 
         // 跨lane的写
-        val sendWriteHead = record.state.sExecute && !record.state.sCrossWrite0
-        val sendWriteTail = record.state.sExecute && !record.state.sCrossWrite1
+        val sendWriteHead = record.state.sExecute && !record.state.sCrossWrite0 && controlValid.head
+        val sendWriteTail = record.state.sExecute && !record.state.sCrossWrite1 && controlValid.head
         sendWriteData.bits.target := laneIndex(param.laneIndexBits - 2, 0) ## sendWriteTail
         sendWriteData.bits.tail := laneIndex(param.laneIndexBits - 1)
         sendWriteData.bits.instIndex := record.originalInformation.instIndex
