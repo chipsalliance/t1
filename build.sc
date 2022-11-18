@@ -351,13 +351,14 @@ object tests extends Module {
       }
 
       def compile: T[PathRef] = T {
-        os.proc(Seq("clang-rv32", "-o", name() + ".elf", "-march=rv32gcv", s"-T${linkScript().path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
+        os.proc(Seq("clang-rv32", "-o", name() + ".elf", "-mno-relax", "-march=rv32gcv", s"-T${linkScript().path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
         os.proc(Seq("llvm-objcopy", "-O", "binary", "--only-section=.text", name() + ".elf", name())).call(T.ctx.dest)
         PathRef(T.ctx.dest / name())
       }
     }
 
     object smoketest extends Case
+    object mmm extends Case
   }
 
   trait Case extends TaskModule {
@@ -375,5 +376,9 @@ object tests extends Module {
 
   object smoketest extends Case {
     def bin = cases.smoketest
+  }
+
+  object mmm extends Case {
+    def bin = cases.mmm
   }
 }
