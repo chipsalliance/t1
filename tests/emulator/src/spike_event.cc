@@ -113,6 +113,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   uint32_t opcode = clip(inst_bits, 0, 6);
   is_load = opcode == 0b0000111;
   is_store = opcode == 0b0100111;
+  is_exit_insn = opcode == 0b1110011;
 
   is_issued = false;
   is_committed = false;

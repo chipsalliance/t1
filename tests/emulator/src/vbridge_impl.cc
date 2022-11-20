@@ -12,6 +12,7 @@
 #include "vpi.h"
 #include "tl_interface.h"
 #include "glog_exception_safe.h"
+#include "encoding.h"
 
 /// convert TL style size to size_by_bytes
 inline uint32_t decode_size(uint32_t encoded_size) {
@@ -62,6 +63,9 @@ VBridgeImpl::VBridgeImpl() :
         /*log_file_t*/ nullptr,
         /*sout*/ std::cerr),
     vrf_shadow(std::make_unique<uint8_t[]>(consts::vlen_in_bytes * consts::numVRF)){
+
+  auto& csrmap = proc.get_state()->csrmap;
+  csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 0);
 }
 
 VBridgeImpl::~VBridgeImpl() {
@@ -102,23 +106,25 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto fetch = proc.get_mmu()->load_insn(state->pc);
   auto event = create_spike_event(fetch);  // event not empty iff fetch is v inst
   auto &xr = proc.get_state()->XPR;
+
+  reg_t pc;
   if (event) {
     auto &se = event.value();
     LOG(INFO) << fmt::format("spike start exec insn ({}) (vl={}, sew={}, lmul={})",
                              se.describe_insn(), se.vl, (int) se.vsew, (int) se.vlmul);
     se.pre_log_arch_changes();
-    state->pc = fetch.func(&proc, fetch.insn, state->pc);
+    pc = fetch.func(&proc, fetch.insn, state->pc);
     se.log_arch_changes();
   } else {
-    reg_t pc = fetch.func(&proc, fetch.insn, state->pc);
+    pc = fetch.func(&proc, fetch.insn, state->pc);
+  }
 
-    // Bypass CSR insns commitlog stuff.
-    if (!invalid_pc(pc)) {
-      state->pc = pc;
-    } else if (pc == PC_SERIALIZE_BEFORE) {
-      // CSRs are in a well-defined state.
-      state->serialized = true;
-    }
+  // Bypass CSR insns commitlog stuff.
+  if (!invalid_pc(pc)) {
+    state->pc = pc;
+  } else if (pc == PC_SERIALIZE_BEFORE) {
+    // CSRs are in a well-defined state.
+    state->serialized = true;
   }
 
   return event;
@@ -128,12 +134,20 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
   // create SpikeEvent
   uint32_t opcode = clip(fetch.insn.bits(), 0, 6);
   uint32_t width = clip(fetch.insn.bits(), 12, 14);
+  uint32_t rs1 = clip(fetch.insn.bits(), 15, 19);
+  uint32_t csr = clip(fetch.insn.bits(), 20, 31);
+
   // for load/store instr, the opcode is shared with fp load/store. They can be only distinguished by func3 (i.e. width)
   // the func3 values for vector load/store are 000, 101, 110, 111, we can filter them out by ((width - 1) & 0b100)
   bool is_load_type  = opcode == 0b0000111 && ((width - 1) & 0b100);
   bool is_store_type = opcode == 0b0100111 && ((width - 1) & 0b100);
   bool v_type = opcode == 0b1010111 && width != 0b111;
-  if (is_load_type || is_store_type || v_type) {
+
+  bool is_csr_type = opcode == 0b1110011 && (width & 0b011);
+  bool is_csr_write = is_csr_type && ((width & 0b100) | rs1);
+
+  if (is_load_type || is_store_type || v_type || (
+      is_csr_write && csr == CSR_MSIMEND)) {
     return SpikeEvent{proc, fetch, this};
   } else {
     return {};
@@ -160,6 +174,12 @@ void VBridgeImpl::run() {
       // in the RTL thread, for each RTL cycle, valid signals should be checked, generate events, let testbench be able
       // to check the correctness of RTL behavior, benchmark performance signals.
       SpikeEvent *se_to_issue = find_se_to_issue();
+      if (se_to_issue->is_exit_insn) {
+        // The exit insn is always the last one to handle, we return from here to end simulation.
+        LOG(INFO) << fmt::format("[{}] all insn in to_rtl_queue are issued, exiting", get_t());
+        return;
+      }
+
       se_to_issue->drive_rtl_req(top);
       se_to_issue->drive_rtl_csr(top);
 
@@ -206,6 +226,7 @@ void VBridgeImpl::run() {
         throw TimeoutException();
       }
     }
+
     LOG(INFO) << fmt::format("[{}] all insn in to_rtl_queue are issued, restarting spike", get_t());
   }
 }
@@ -341,6 +362,8 @@ void VBridgeImpl::loop_until_se_queue_full() {
       if (auto spike_event = spike_step()) {
         SpikeEvent &se = spike_event.value();
         to_rtl_queue.push_front(std::move(se));
+
+        if (se.is_exit_insn) break;
       }
     } catch (trap_t &trap) {
       LOG(FATAL) << fmt::format("spike trapped with {}", trap.name());

@@ -35,4 +35,4 @@ checkformat:
 	mill -i __.checkFormat
 
 test:
-	mill -i tests.smoketest.run --cycles 100
+	mill -i tests.smoketest.run

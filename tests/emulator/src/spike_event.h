@@ -46,6 +46,7 @@ struct SpikeEvent {
 
   bool is_load;
   bool is_store;
+  bool is_exit_insn;
 
   uint64_t pc;
   uint32_t inst_bits;
