@@ -21,5 +21,10 @@ chaining_test:
 
 ld_test:
     vle8.v v4, (x30)
-    j _start
 
+exit:
+    # Write msimend to exit simulation.
+    csrwi 0x7cc, 0
+
+will_not_be_executed:
+    vadd.vv v2, v1, v1
