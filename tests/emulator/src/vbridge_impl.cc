@@ -122,8 +122,10 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
   // create SpikeEvent
   uint32_t opcode = clip(fetch.insn.bits(), 0, 6);
   uint32_t width = clip(fetch.insn.bits(), 12, 14);
-  bool is_load_type  = opcode == 0b0000111;
-  bool is_store_type = opcode == 0b0100111;
+  // for load/store instr, the opcode is shared with fp load/store. They can be only distinguished by func3 (i.e. width)
+  // the func3 values for vector load/store are 000, 101, 110, 111, we can filter them out by ((width - 1) & 0b100)
+  bool is_load_type  = opcode == 0b0000111 && ((width - 1) & 0b100);
+  bool is_store_type = opcode == 0b0100111 && ((width - 1) & 0b100);
   bool v_type = opcode == 0b1010111 && width != 0b111;
   if (is_load_type || is_store_type || v_type) {
     return SpikeEvent{proc, fetch, this};
