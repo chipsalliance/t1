@@ -23,7 +23,7 @@ echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
 
 Enable nix-daemon systemd service (if your package manager has not enabled it automatically):
 ```shell
-sysyemctl start nix-daemon.service
+systemctl start nix-daemon.service
 ```
 
 After nix is installed, run `nix develop` to enter the development shell, all environment variables and dependencies is included. If you want a pure environment without system packages, use `env -i nix develop` instead.
@@ -45,7 +45,7 @@ systemctl start nsncd.service
 We use [spike](https://github.com/riscv/riscv-isa-sim) for reference model.
 In nix development shell, run with `mill -i tests.smoketest.run` for a single test.
 The simulator record events of vector register file and memory load store to perform online difftest.
-The simulator use spike to emulate the RISC-V core, which means this vector generator doesn't provide a hart implmentation.
+The simulator use spike to emulate the RISC-V core, which means this vector generator doesn't provide a hart implementation.
 
 ## Patches
 <!-- BEGIN-PATCH -->
