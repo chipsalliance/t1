@@ -75,8 +75,6 @@ void VBridgeImpl::configure_simulator(int argc, char **argv) {
 void VBridgeImpl::init_spike() {
   // reset spike CPU
   proc.reset();
-  // TODO: remove this line, and use CSR write in the test code to enable this the VS field.
-  proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
   // load binary to reset_vector
   sim.load(bin, reset_vector);
 }
@@ -112,7 +110,15 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
     state->pc = fetch.func(&proc, fetch.insn, state->pc);
     se.log_arch_changes();
   } else {
-    state->pc = fetch.func(&proc, fetch.insn, state->pc);
+    reg_t pc = fetch.func(&proc, fetch.insn, state->pc);
+
+    // Bypass CSR insns commitlog stuff.
+    if (!invalid_pc(pc)) {
+      state->pc = pc;
+    } else if (pc == PC_SERIALIZE_BEFORE) {
+      // CSRs are in a well-defined state.
+      state->serialized = true;
+    }
   }
 
   return event;

@@ -1,5 +1,9 @@
 .global _start
 _start:
+    li a0, 0x200 # MSTATUS_VS & (MSTATUS_VS >> 1)
+    csrs mstatus, a0
+    csrwi vcsr, 0
+
     addi x1, x1, 1
     vsetivli x0, 16, e8, m1, ta, ma
     lui x30, 1
