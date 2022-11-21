@@ -16,3 +16,6 @@
 [submodule "dependencies/tilelink"]
 	path = dependencies/tilelink
 	url = git@github.com:sequencer/tilelink.git
+[submodule "dependencies/riscv-vector-tests"]
+	path = dependencies/riscv-vector-tests
+	url = git@github.com:ksco/riscv-vector-tests.git

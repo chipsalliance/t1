@@ -325,10 +325,55 @@ object tests extends Module {
     }
   }
 
-  object cases extends Module {
+  object cases extends Module { c =>
+    object unittest extends Module { u =>
+      override def millSourcePath = os.pwd / "dependencies" / "riscv-vector-tests"
+
+      def allGoSources = T.sources {
+        os.walk(millSourcePath).filter(f => f.ext == "go" || f.last == "go.mod").map(PathRef(_))
+      }
+
+      def asmGenerator = T {
+        // depends on GO
+        allGoSources()
+        val elf = T.dest / "generator"
+        os.proc("go", "build", "-o", elf, "single/single.go").call(cwd = millSourcePath, env = Map("GOCACHE" -> s"${T.dest / "cache"}"))
+        PathRef(elf)
+      }
+
+      trait Case extends c.Case {
+        override def includeDir = T {
+          Seq(
+            u.millSourcePath / "env" / "sequencer-vector",
+            u.millSourcePath / "macros" / "sequencer-vector"
+          ).map(PathRef(_))
+        }
+
+        def linkScript: T[PathRef] = T.source {
+          PathRef(u.millSourcePath / "env" / "sequencer-vector" / "link.ld")
+        }
+
+        override def allSourceFiles: T[Seq[PathRef]] = T {
+          val f = T.dest / s"${name().replace('_', '.')}.S"
+          os.proc(
+            asmGenerator().path,
+            "-VLEN", 1024,
+            "-XLEN", 32,
+            "-outputfile", f,
+            "-configfile",  u.millSourcePath / "configs" / s"${name().replace('_', '.')}.toml"
+          ).call(T.dest)
+          Seq(PathRef(f))
+        }
+
+        override def bin: T[PathRef] = T {
+          os.proc(Seq("llvm-objcopy", "-O", "binary", elf().path.toString, name())).call(T.ctx.dest)
+          PathRef(T.ctx.dest / name())
+        }
+      }
+   }
 
     trait Case extends Module {
-      def name: T[String] = millSourcePath.last
+      def name: T[String] = millOuterCtx.segment.pathSegments.last
 
       def sources = T.sources {
         millSourcePath
@@ -336,6 +381,10 @@ object tests extends Module {
 
       def allSourceFiles = T {
         Lib.findSourceFiles(sources(), Seq("S", "s", "c", "cpp")).map(PathRef(_))
+      }
+
+      def includeDir = T {
+        Seq[PathRef]()
       }
 
       def linkScript: T[PathRef] = T {
@@ -350,15 +399,22 @@ object tests extends Module {
         PathRef(T.ctx.dest / "linker.ld")
       }
 
-      def compile: T[PathRef] = T {
-        os.proc(Seq("clang-rv32", "-o", name() + ".elf", "-mno-relax", "-march=rv32gcv", s"-T${linkScript().path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
-        os.proc(Seq("llvm-objcopy", "-O", "binary", "--only-section=.text", name() + ".elf", name())).call(T.ctx.dest)
+      def elf: T[PathRef] = T {
+        os.proc(Seq("clang-rv32", "-o", name() + ".elf", "-mno-relax", "-march=rv32gcv", s"-T${linkScript().path}") ++ includeDir().map(p => s"-I${p.path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
+        PathRef(T.ctx.dest / (name() + ".elf"))
+      }
+
+      def bin: T[PathRef] = T {
+        os.proc(Seq("llvm-objcopy", "-O", "binary", "--only-section=.text", elf().path.toString, name())).call(T.ctx.dest)
         PathRef(T.ctx.dest / name())
       }
     }
 
     object smoketest extends Case
+
     object mmm extends Case
+
+    object vaaddu_vv extends unittest.Case
   }
 
   trait Case extends TaskModule {
@@ -367,7 +423,7 @@ object tests extends Module {
     def bin: cases.Case
 
     def run(args: String*) = T.command {
-      val proc = os.proc(Seq(tests.emulator.elf().path.toString, "--bin", bin.compile().path.toString, "--wave", (T.dest / "wave").toString) ++ args)
+      val proc = os.proc(Seq(tests.emulator.elf().path.toString, "--bin", bin.bin().path.toString, "--wave", (T.dest / "wave").toString) ++ args)
       T.log.info(s"run test: ${bin.name} with:\n ${proc.command.map(_.value.mkString(" ")).mkString(" ")}")
       proc.call()
       PathRef(T.dest)
@@ -380,5 +436,9 @@ object tests extends Module {
 
   object mmm extends Case {
     def bin = cases.mmm
+  }
+
+  object vaaddu_vv extends Case {
+    def bin = cases.vaaddu_vv
   }
 }
