@@ -144,15 +144,15 @@ object tests extends Module {
     }
 
     def elaborate = T {
-      mill.modules.Jvm.runSubprocess(
+      // class path for `moduleDeps` is only a directory, not a jar, which breaks the cache.
+      // so we need to manually add the class files of `moduleDeps` here.
+      upstreamCompileOutput()
+      mill.modules.Jvm.runLocal(
         finalMainClass(),
         runClasspath().map(_.path),
-        Seq.empty,
-        Map.empty,
         Seq(
           "--dir", T.dest.toString,
         ),
-        workingDir = T.dest
       )
       PathRef(T.dest)
     }
