@@ -104,8 +104,16 @@ class V(param: VParam) extends Module {
   val noReadST: Bool = isLSType && (!req.bits.inst(26))
   val indexTypeLS: Bool = isLSType && req.bits.inst(26)
 
-  // todo: 是否广播给所有单元
   val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(param.maskGroupSize)(0.U(param.maskGroupWidth.W))))
+  val sew1H: UInt = UIntToOH(csrInterface.vSew)
+  val regroupV0: Seq[Vec[UInt]] = Seq(4, 2, 1).map{ groupSize =>
+    v0.map { element =>
+      element.asBools.grouped(groupSize).toSeq.map(VecInit(_).asUInt)
+        .grouped(param.lane).toSeq.transpose.map(seq => VecInit(seq).asUInt)
+    }.transpose.map(VecInit(_).asUInt)
+  }.transpose.map(Mux1H(sew1H(2, 0), _)).map {v0ForLane =>
+    VecInit(v0ForLane.asBools.grouped(8).toSeq.map(VecInit(_).asUInt))
+  }
 
   val instEnq:    UInt = Wire(UInt(param.chainingSize.W))
   // 最后一个位置的指令，是否来了一组反馈
@@ -205,6 +213,7 @@ class V(param: VParam) extends Module {
     lane.laneReq.bits.sp := specialInst
     lane.laneReq.bits.seg := req.bits.inst(31, 29)
     lane.laneReq.bits.eew := req.bits.inst(13, 12)
+    lane.laneReq.bits.mask := maskType
 //    lane.laneReq.bits.st := isST
     laneReady(index) := lane.laneReq.ready
 
@@ -226,6 +235,7 @@ class V(param: VParam) extends Module {
     lastVec(index).zip(instStateVec.map(_.record.instIndex)).foreach {
       case (d, f) => d := (UIntToOH(f(param.instIndexSize - 2, 0)) & lane.endNotice).orR
     }
+    lane.maskRegInput := regroupV0(index)(lane.maskSelect)
 
     lane
   }
