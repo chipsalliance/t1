@@ -216,9 +216,9 @@ class MSHR(param: MSHRParam) extends Module {
 
   // 处理回应
   // todo: 这里能工作，但是时间点不那么准确
-  val respSinkOH: UInt = UIntToOH(tlPort.d.bits.sink(4, 0))
-  val lastResp:   Bool = last && tlPort.d.fire && (respDone & (~respSinkOH).asUInt) === 0.U
-  /** 首先我们根据sink来计算 [[elementIndex]]
+  val respSourceOH: UInt = UIntToOH(tlPort.d.bits.source(4, 0))
+  val lastResp:   Bool = last && tlPort.d.fire && (respDone & (~respSourceOH).asUInt) === 0.U
+  /** 首先我们根据source来计算 [[elementIndex]]
     * 然后我们左移 eew,得到修改的起始是第几个byte: [[baseByteOffset]]
     * XXX XXXXXXXXXX XX
     * XXX: vd的增量
@@ -229,13 +229,13 @@ class MSHR(param: MSHRParam) extends Module {
     */
   val elementIndex: UInt = Mux(
     segType,
-    groupIndex ## (tlPort.d.bits.sink >> 3).asUInt,
-    groupIndex ## tlPort.d.bits.sink
+    groupIndex ## (tlPort.d.bits.source >> 3).asUInt,
+    groupIndex ## tlPort.d.bits.source
   )
   val baseByteOffset: UInt = (elementIndex << dataEEW).asUInt(14, 0)
   vrfWritePort.valid := tlPort.d.valid
   tlPort.d.ready := vrfWritePort.ready
-  vrfWritePort.bits.vd := requestReg.instInf.vs3 + Mux(segType, tlPort.d.bits.sink(2, 0), baseByteOffset(14, 12))
+  vrfWritePort.bits.vd := requestReg.instInf.vs3 + Mux(segType, tlPort.d.bits.source(2, 0), baseByteOffset(14, 12))
   vrfWritePort.bits.offset := elementIndex(11, 5)
   vrfWritePort.bits.data := (tlPort.d.bits.data << (baseByteOffset(1, 0) ## 0.U(3.W))).asUInt
   vrfWritePort.bits.last := last
@@ -250,10 +250,10 @@ class MSHR(param: MSHRParam) extends Module {
   )
 
   val sourceUpdate: UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.lsuGroupLength.W))
-  val sinkUpdate: UInt = Mux(tlPort.d.fire, respSinkOH, 0.U(param.lsuGroupLength.W))
+  val respSourceUpdate: UInt = Mux(tlPort.d.fire, respSourceOH, 0.U(param.lsuGroupLength.W))
   // 更新 respDone
   when((tlPort.d.fire || tlPort.a.fire) && !requestReg.instInf.st) {
-    respDone := (respDone | sourceUpdate) & (~sinkUpdate).asUInt
+    respDone := (respDone | sourceUpdate) & (~respSourceUpdate).asUInt
   }
 
   // state 更新

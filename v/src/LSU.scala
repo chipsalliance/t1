@@ -145,7 +145,7 @@ class LSU(param: LSUParam) extends Module {
       ackArbiter.map(_(index))
     ).asUInt.orR && (selectResp.opcode =/= 0.U || mshr.status.waitFirstResp)
     mshr.tlPort.d.bits := selectResp
-    mshr.tlPort.d.bits.sink := (selectResp.sink >> 2).asUInt
+    mshr.tlPort.d.bits.source := (selectResp.source >> 2).asUInt
 
     // 处理写寄存器的,由于mshr出来没有反,压需要一个队列
     writeQueueVec(index).io.enq.valid := mshr.vrfWritePort.valid
@@ -188,8 +188,8 @@ class LSU(param: LSUParam) extends Module {
     vrfWritePort(laneID).bits := Mux1H(writeDataArbiter.map(_(laneID)), writeQueueVec.map(_.io.deq.bits.data))
   }
 
-  val tlDSink:   IndexedSeq[UInt] = tlPort.map(_.d.bits.sink(1, 0))
-  val tlDSinkOH: IndexedSeq[UInt] = tlDSink.map(UIntToOH(_))
+  val tlDSource:   IndexedSeq[UInt] = tlPort.map(_.d.bits.source(1, 0))
+  val tlDSourceOH: IndexedSeq[UInt] = tlDSource.map(UIntToOH(_))
 
   Seq.tabulate(param.tlBank) { bankID =>
     tryToAGet.map(_(bankID)).zipWithIndex.foldLeft(false.B) {
@@ -206,7 +206,7 @@ class LSU(param: LSUParam) extends Module {
       mshrVec.map(_.tlPort.a.bits.source)
     ) ## sourceExtend
     // d 试图回应
-    tryToAckData(bankID) := tlDSinkOH(bankID)
+    tryToAckData(bankID) := tlDSourceOH(bankID)
     tlPort(bankID).d.ready := ackReady(bankID) || tlPort(bankID).d.bits.opcode === 0.U
   }
   // 处理last
