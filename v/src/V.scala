@@ -252,7 +252,8 @@ class V(param: VParam) extends Module {
   lsu.req.bits.instInf.vs1 := req.bits.inst(19, 15)
   lsu.req.bits.instInf.vs2 := req.bits.inst(24, 20)
   lsu.req.bits.instInf.vs3 := req.bits.inst(11, 7)
-  lsu.req.bits.instInf.eew := req.bits.inst(14, 12)
+  // (0b000 0b101 0b110 0b111) -> (8, 16, 32, 64)忽略最高位
+  lsu.req.bits.instInf.eew := req.bits.inst(13, 12)
   lsu.req.bits.instInf.st := isST
   lsu.req.bits.instInf.mask := maskType
 
