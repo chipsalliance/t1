@@ -54,7 +54,7 @@ class LSUInstInformation extends Bundle {
     * size(0) -> 16
     * size(1) -> 32
     */
-  val eew: UInt = UInt(3.W)
+  val eew: UInt = UInt(2.W)
   val vs3: UInt = UInt(5.W)
   val st:  Bool = Bool()
   val mask:Bool = Bool()
