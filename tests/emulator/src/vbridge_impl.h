@@ -55,7 +55,7 @@ private:
   isa_parser_t isa;
   processor_t proc;
   uint64_t _cycles;
-  std::map<reg_t, TLReqRecord> tl_banks[consts::numTL];
+  std::multimap<reg_t, TLReqRecord> tl_banks[consts::numTL];
 
   /// to rtl stack
   /// in the spike thread, spike should detech if this queue is full, if not full, execute until a vector instruction,

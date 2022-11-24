@@ -15,6 +15,13 @@
 
 class VBridgeImpl;
 
+inline void clear_state(processor_t &proc) {
+  auto *state = proc.get_state();
+  state->log_reg_write.clear();
+  state->log_mem_read.clear();
+  state->log_mem_write.clear();
+}
+
 struct SpikeEvent {
   SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl);
 
