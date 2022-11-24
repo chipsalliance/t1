@@ -1,8 +1,9 @@
 #include <fmt/core.h>
 #include <glog/logging.h>
 
-#include "spike_event.h"
 #include "disasm.h"
+
+#include "spike_event.h"
 #include "util.h"
 #include "tl_interface.h"
 #include "exceptions.h"
@@ -78,10 +79,6 @@ void SpikeEvent::log_arch_changes() {
     LOG(INFO) << fmt::format("spike detect mem read {:08X} on {:08X} with size={}byte", value, address, size_by_byte);
     mem_access_record.all_reads[address] = { .size_by_byte = size_by_byte, .val = value };
   }
-
-  state->log_reg_write.clear();
-  state->log_mem_read.clear();
-  state->log_mem_write.clear();
 }
 
 SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl): proc(proc), impl(impl) {

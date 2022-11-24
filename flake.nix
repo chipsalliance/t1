@@ -29,6 +29,7 @@
         ];
       in
         {
+          legacyPackages = pkgs;
           devShell = pkgs.mkShell.override { stdenv = pkgs.myLLVM.stdenv; } {
             buildInputs = deps;
           };

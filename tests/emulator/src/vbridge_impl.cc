@@ -108,6 +108,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto &xr = proc.get_state()->XPR;
 
   reg_t pc;
+  clear_state(proc);
   if (event) {
     auto &se = event.value();
     LOG(INFO) << fmt::format("spike start exec insn ({}) (vl={}, sew={}, lmul={})",
@@ -260,8 +261,8 @@ void VBridgeImpl::receive_tl_req() {
           get_t(), mem_read->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
 
       uint64_t data = mem_read->second.val;
-      LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={}, size={}byte), should return data {}",
-                               get_t(), addr, decode_size(size), data);
+      LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {}",
+                               get_t(), addr, decode_size(size), src, data);
       tl_banks[tlIdx].emplace(std::make_pair(addr, TLReqRecord{
           data, 1u << size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
       }));
@@ -271,8 +272,8 @@ void VBridgeImpl::receive_tl_req() {
 
     case TlOpcode::PutFullData: {
       uint32_t data = TL(tlIdx, a_bits_data);
-      LOG(INFO) << fmt::format("[{}] receive rtl mem put req (addr={:08X}, size={}byte, data={})",
-                               addr, decode_size(size), data);
+      LOG(INFO) << fmt::format("[{}] receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={})",
+                               get_t(), addr, decode_size(size), src, data);
       auto mem_write = se->mem_access_record.all_writes.find(addr);
 
       CHECK_S(mem_write != se->mem_access_record.all_writes.end())
@@ -310,6 +311,8 @@ void VBridgeImpl::return_tl_response() {
     bool d_valid = false;
     for (auto &[addr, record]: tl_banks[i]) {
       if (record.remaining_cycles == 0) {
+        LOG(INFO) << fmt::format("[{}] return rtl mem get resp (addr={:08X}, size={}byte, src={:04X}), should return data {}",
+                               get_t(), addr, record.size_by_byte, record.source, record.data);
         TL(i, d_bits_opcode) = record.op == TLReqRecord::opType::Get ? TlOpcode::AccessAckData : TlOpcode::AccessAck;
         TL(i, d_bits_data) = record.data;
         TL(i, d_bits_source) = record.source;
@@ -361,16 +364,16 @@ void VBridgeImpl::loop_until_se_queue_full() {
     try {
       if (auto spike_event = spike_step()) {
         SpikeEvent &se = spike_event.value();
+        bool is_exit_insn = se.is_exit_insn;
         to_rtl_queue.push_front(std::move(se));
 
-        if (se.is_exit_insn) break;
+        if (is_exit_insn) break;
       }
     } catch (trap_t &trap) {
       LOG(FATAL) << fmt::format("spike trapped with {}", trap.name());
     }
   }
   LOG(INFO) << fmt::format("to_rtl_queue is full now, start to simulate.");
-
 }
 
 SpikeEvent *VBridgeImpl::find_se_to_issue() {
