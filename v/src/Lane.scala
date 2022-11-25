@@ -545,7 +545,15 @@ class Lane(param: LaneParameters) extends Module {
       logicRequest.src.head := finalSource2
       logicRequest.src.last := finalSource1
       logicRequest.opcode := decodeResFormat.uop
-      instWillComplete(index) := (indexInLane(indexInLane.getWidth - 1, 2) ## laneIndex ## indexInLane(1, 0)) >= csrInterface.vl
+      val nextElementIndex = Mux1H(
+        sew1H,
+        Seq(
+          indexInLane(indexInLane.getWidth - 1, 2) ## laneIndex ## indexInLane(1, 0),
+          indexInLane(indexInLane.getWidth - 1, 1) ## laneIndex ## indexInLane(0),
+          indexInLane ## laneIndex
+        )
+      )
+      instWillComplete(index) := nextElementIndex >= csrInterface.vl
       // 在手动做Mux1H
       logicRequests(index) := maskAnd(controlValid(index) && decodeResFormat.logicUnit && !decodeResFormat.otherUnit, logicRequest)
 
