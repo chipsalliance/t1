@@ -3,14 +3,14 @@
 #include <queue>
 #include <optional>
 
-#include "processor.h"
-#include "mmu.h"
+#include <processor.h>
+#include <mmu.h>
 
-#include "VV.h"
-#include "verilated_fst_c.h"
+#include <verilated_fst_c.h>
 
 #include "simple_sim.h"
 #include "vbridge_impl.h"
+#include "encoding.h"
 #include "vbridge_config.h"
 
 class VBridgeImpl;
@@ -27,8 +27,8 @@ struct SpikeEvent {
 
   [[nodiscard]] std::string describe_insn() const;
 
-  void drive_rtl_req(VV &top) const;
-  void drive_rtl_csr(VV &top) const;
+  void drive_rtl_req(const VInstrInterfacePoke &vinst) const;
+  void drive_rtl_csr(const VCsrInterfacePoke &v_csr) const;
 
   void pre_log_arch_changes();
   void log_arch_changes();
@@ -93,7 +93,7 @@ struct SpikeEvent {
   uint32_t rd_bits;
 
   // returns {a, b} if the instruction may write vrf of index in range [a, a + b)
-  std::pair<uint32_t, uint32_t> get_vrf_write_range() const;
+  [[nodiscard]] std::pair<uint32_t, uint32_t> get_vrf_write_range() const;
 
   struct {
     struct single_mem_write {
@@ -119,8 +119,6 @@ struct SpikeEvent {
     std::map<uint32_t, single_vrf_write> all_writes;
   } vrf_access_record;
 
-  void add_rtl_write(int lane, int vd, int offset, int mask, int data, int idx);
-
-  void record_rd_write(VV &top);
+  void record_rd_write(const VRespInterface &v_resp);
   void check_is_ready_for_commit();
 };

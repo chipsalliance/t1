@@ -5,7 +5,6 @@
 
 #include "spike_event.h"
 #include "util.h"
-#include "tl_interface.h"
 #include "exceptions.h"
 #include "glog_exception_safe.h"
 
@@ -34,9 +33,9 @@ void SpikeEvent::log_arch_changes() {
     uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vreg_bits_start[offset];
     if (origin_byte != cur_byte) {
       vrf_access_record.all_writes[offset] = { .byte = cur_byte };
-      LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {}",
+      VLOG(1) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {} [{}]",
                                offset / consts::vlen_in_bytes, offset % consts::vlen_in_bytes,
-                               (int) origin_byte, (int) cur_byte);
+                               (int) origin_byte, (int) cur_byte, offset);
     }
   }
 
@@ -55,7 +54,7 @@ void SpikeEvent::log_arch_changes() {
         LOG(INFO) << fmt::format("spike detect scalar rf change: x[{}] from {} to {}", rd_idx, rd_bits, new_rd_bits);
       }
     } else {
-      LOG(INFO) << fmt::format("spike detect unknown reg change (idx = {:08X})", write_idx);
+      VLOG(1) << fmt::format("spike detect unknown reg change (idx = {:08X})", write_idx);
     }
   }
 
@@ -119,35 +118,35 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   lsu_idx = consts::lsuIdxDefault;  // default lsu_idx
 }
 
-void SpikeEvent::drive_rtl_req(VV &top) const {
-  top.req_valid = !this->is_vfence_insn && !this->is_exit_insn;
-  top.req_bits_inst = inst_bits;
-  top.req_bits_src1Data = rs1_bits;
-  top.req_bits_src2Data = rs2_bits;
-  top.storeBufferClear = true;
+void SpikeEvent::drive_rtl_req(const VInstrInterfacePoke &v_inst) const {
+  *v_inst.valid = true;
+  *v_inst.inst = inst_bits;
+  *v_inst.src1Data = rs1_bits;
+  *v_inst.src2Data = rs2_bits;
+//  v_inst.storeBufferClear = true;  // TODO: why no buffer clear
 }
 
-void SpikeEvent::drive_rtl_csr(VV &top) const {
-  top.csrInterface_vSew = vsew;
-  top.csrInterface_vlmul = vlmul;
-  top.csrInterface_vma = vma;
-  top.csrInterface_vta = vta;
-  top.csrInterface_vl = vl;
-  top.csrInterface_vStart = vstart;
-  top.csrInterface_vxrm = vxrm;
-  top.csrInterface_ignoreException = false;
+void SpikeEvent::drive_rtl_csr(const VCsrInterfacePoke &v_csr) const {
+  *v_csr.vSew = vsew;
+  *v_csr.vlmul = vlmul;
+  *v_csr.vma = vma;
+  *v_csr.vta = vta;
+  *v_csr.vl = vl;
+  *v_csr.vStart = vstart;
+  *v_csr.vxrm = vxrm;
+  *v_csr.ignoreException = false;
 }
 
 void SpikeEvent::check_is_ready_for_commit() {
   for (auto &[addr, mem_write]: mem_access_record.all_writes) {
     if (!mem_write.executed) {
-      LOG(FATAL) << fmt::format(": [{}] expect to write mem {:08X}, not executed when commit ({})",
+      LOG(FATAL_S) << fmt::format(": [{}] expect to write mem {:08X}, not executed when commit ({})",
                                 impl->get_t(), addr, pc, describe_insn());
     }
   }
   for (auto &[addr, mem_read]: mem_access_record.all_reads) {
     if (!mem_read.executed) {
-      LOG(FATAL) << fmt::format(": [{}] expect to read mem {:08X}, not executed when commit ({})",
+      LOG(FATAL_S) << fmt::format(": [{}] expect to read mem {:08X}, not executed when commit ({})",
                                 impl->get_t(), addr, describe_insn());
     }
   }
@@ -157,11 +156,11 @@ void SpikeEvent::check_is_ready_for_commit() {
   }
 }
 
-void SpikeEvent::record_rd_write(VV &top) {
+void SpikeEvent::record_rd_write(const VRespInterface &v_resp) {
   // TODO: rtl should indicate whether resp_bits_data is valid
   if (is_rd_written) {
-    CHECK_EQ_S(top.resp_bits_data, rd_bits) << fmt::format(": [{}] expect to write rd[{}] = {}, actual {}",
-                                                             impl->get_t(), rd_idx, rd_bits, top.resp_bits_data);
+    CHECK_EQ_S(v_resp.bits, rd_bits) << fmt::format(": [{}] expect to write rd[{}] = {}, actual {}",
+                                                             impl->get_t(), rd_idx, rd_bits, v_resp.bits);
   }
 }
 

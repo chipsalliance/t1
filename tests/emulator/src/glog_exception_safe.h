@@ -15,12 +15,16 @@ public:
   LogMessageFatal_S(const char* file, int line, const CheckOpString& result): LogMessage(file, line, GLOG_ERROR) {
     stream() << "Check failed: " << (*result.str_) << " ";
   };
-  ~LogMessageFatal_S() noexcept(false) {
+  [[noreturn]] ~LogMessageFatal_S() noexcept(false) {
     Flush();
     throw CheckFailedException();
   };
 };
 }
+
+#define CHECK_S(condition)  \
+      LOG_IF(FATAL_S, GOOGLE_PREDICT_BRANCH_NOT_TAKEN(!(condition))) \
+             << "Check failed: " #condition " "
 
 #define CHECK_OP_S(name, op, val1, val2) \
   CHECK_OP_LOG(name, op, val1, val2, google::LogMessageFatal_S)

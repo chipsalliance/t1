@@ -216,31 +216,10 @@ object tests extends Module {
 
     def allCSourceFiles = T.sources {
       Seq(
-        "main.cc",
-        "vbridge.cc",
-        "rtl_event.cc",
         "spike_event.cc",
         "vbridge_impl.cc",
+        "dpi.cc",
       ).map(f => PathRef(csrcDir().path / f))
-    }
-
-    def verilatorConfig = T {
-      val traceConfigPath = T.dest / "verilator.vlt"
-      os.write(
-        traceConfigPath,
-        "`verilator_config\n" +
-          ujson.read(mfccompile.annotations().collectFirst(f => os.read(f.path)).get).arr.flatMap {
-            case anno if anno("class").str == "chisel3.experimental.Trace$TraceAnnotation" =>
-              Some(anno("target").str)
-            case _ => None
-          }.toSet.map { t: String =>
-            val s = t.split('|').last.split("/").last
-            val M = s.split(">").head.split(":").last
-            val S = s.split(">").last
-            s"""//$t\npublic_flat_rd -module "$M" -var "$S""""
-          }.mkString("\n")
-      )
-      PathRef(traceConfigPath)
     }
 
     def verilatorArgs = T {
@@ -249,7 +228,8 @@ object tests extends Module {
         "--x-initial unique",
         "--output-split 100000",
         "--max-num-width 1048576",
-        "--vpi"
+        "--main",
+        "--timing",
         // format: on
       )
     }
@@ -284,14 +264,14 @@ object tests extends Module {
          |
          |target_link_libraries(emulator PUBLIC $${CMAKE_THREAD_LIBS_INIT})
          |target_link_libraries(emulator PUBLIC libspike fmt glog)  # note that libargs is header only, nothing to link
+         |target_compile_definitions(emulator PRIVATE COSIM_VERILATOR)
          |
          |verilate(emulator
          |  SOURCES
          |  ${mfccompile.rtls().map(_.path.toString).mkString("\n")}
-         |  ${verilatorConfig().path.toString}
          |  TRACE_FST
-         |  TOP_MODULE ${topName()}
-         |  PREFIX V${topName()}
+         |  TOP_MODULE ${elaborate.topName()}
+         |  PREFIX V${elaborate.topName()}
          |  OPT_FAST
          |  THREADS ${verilatorThreads()}
          |  VERILATOR_ARGS ${verilatorArgs().mkString(" ")}
@@ -311,7 +291,11 @@ object tests extends Module {
     }
 
     def config = T {
-      mill.modules.Jvm.runSubprocess(Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", buildDir().path).map(_.toString), Map[String, String](), T.dest)
+      mill.modules.Jvm.runSubprocess(Seq("cmake",
+        "-G", "Ninja",
+        "-S", cmakefileLists().path,
+        "-B", buildDir().path
+      ).map(_.toString), Map[String, String](), T.dest)
     }
 
     def elf = T {
@@ -635,9 +619,17 @@ object tests extends Module {
     def bin: cases.Case
 
     def run(args: String*) = T.command {
-      val proc = os.proc(Seq(tests.emulator.elf().path.toString, "--bin", bin.bin().path.toString, "--wave", (T.dest / "wave").toString) ++ args)
-      T.log.info(s"run test: ${bin.name} with:\n ${proc.command.map(_.value.mkString(" ")).mkString(" ")}")
-      proc.call()
+      val runEnv = Map(
+        "COSIM_bin" -> bin.bin().path.toString,
+        "COSIM_wave" -> (T.dest / "wave").toString,
+        "COSIM_reset_vector" -> "1000",
+        "COSIM_timeout" -> "1000",
+        "COSIM_spike_event_queue_size" -> "10",
+        "GLOG_v" -> "3",
+        "GLOG_logtostderr" -> "1",
+      )
+      T.log.info(s"run test: ${bin.name} with:\n ${runEnv.map{case (k, v) => s"$k=$v"}.mkString(" ")} ${tests.emulator.elf().path.toString}")
+      os.proc(tests.emulator.elf().path.toString).call(env = runEnv)
       PathRef(T.dest)
     }
   }
