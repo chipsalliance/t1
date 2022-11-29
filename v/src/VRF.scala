@@ -135,7 +135,7 @@ class VRF(param: VRFParam) extends Module {
       * 老的会乱序写 & raw: record.bits.unOrderWrite && raw
       * todo: ld 需要更大粒度的channing更新或检测,然后除开segment的ld就能chaining起来了
       */
-    !((enq.unOrderWrite && (war || waw)) || (record.bits.unOrderWrite && raw))
+    (!((enq.unOrderWrite && (war || waw)) || (record.bits.unOrderWrite && raw))) || !record.valid
   }
 
   // todo: 根据 portFactor 变形
