@@ -312,7 +312,7 @@ def inst_parse():
                         n = logic_list.index(opcode)
                         if opcode == "xnor":
                             n = 2
-                        m_not = True
+                            m_not = True
                         uop = b2s(nx) + b2s(m_not) + "{0:02b}".format(n)
                     if shift_unit:
                         n = shift_list.index(opcode)
