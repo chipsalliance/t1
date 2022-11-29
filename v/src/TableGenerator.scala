@@ -30,29 +30,16 @@ object TableGenerator extends App {
     case object and extends BinaryOperand with LogicOpcode {
       override def op(op0: Boolean, op1: Boolean): Boolean = op0 && op1
     }
-    case object nand extends BinaryOperand with LogicOpcode {
-      override def op(op0: Boolean, op1: Boolean): Boolean = !(op0 && op1)
-    }
-    case object andn extends BinaryOperand with LogicOpcode {
-      override def op(op0: Boolean, op1: Boolean): Boolean = op0 && !op1
-    }
+
     case object or extends BinaryOperand with LogicOpcode {
       override def op(op0: Boolean, op1: Boolean): Boolean = op0 || op1
     }
-    case object nor extends BinaryOperand with LogicOpcode {
-      override def op(op0: Boolean, op1: Boolean): Boolean = !(op0 || op1)
-    }
-    case object orn extends BinaryOperand with LogicOpcode {
-      override def op(op0: Boolean, op1: Boolean): Boolean = op0 || !op1
-    }
+
     case object xor extends BinaryOperand with LogicOpcode {
       override def op(op0: Boolean, op1: Boolean): Boolean = op0 != op1
     }
-    case object xnor extends BinaryOperand with LogicOpcode {
-      override def op(op0: Boolean, op1: Boolean): Boolean = op0 == op1
-    }
 
-    val opList:   Seq[BinaryOperand with LogicOpcode] = Seq(and, nand, andn, or, nor, orn, xor, xnor)
+    val opList:   Seq[BinaryOperand with LogicOpcode] = Seq(and, or, xor)
     val bitValue: Seq[Boolean] = Seq(true, false)
 
     val table: List[(BitPat, BitPat)] = bitValue
