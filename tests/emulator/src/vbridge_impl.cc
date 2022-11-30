@@ -104,7 +104,7 @@ uint64_t VBridgeImpl::get_t() {
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
   auto fetch = proc.get_mmu()->load_insn(state->pc);
-  auto event = create_spike_event(fetch);  // event not empty iff fetch is v inst
+  auto event = create_spike_event(fetch);
   auto &xr = proc.get_state()->XPR;
 
   reg_t pc;
@@ -142,7 +142,7 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
   // the func3 values for vector load/store are 000, 101, 110, 111, we can filter them out by ((width - 1) & 0b100)
   bool is_load_type  = opcode == 0b0000111 && ((width - 1) & 0b100);
   bool is_store_type = opcode == 0b0100111 && ((width - 1) & 0b100);
-  bool v_type = opcode == 0b1010111 && width != 0b111;
+  bool v_type = opcode == 0b1010111;
 
   bool is_csr_type = opcode == 0b1110011 && (width & 0b011);
   bool is_csr_write = is_csr_type && ((width & 0b100) | rs1);
@@ -175,11 +175,6 @@ void VBridgeImpl::run() {
       // in the RTL thread, for each RTL cycle, valid signals should be checked, generate events, let testbench be able
       // to check the correctness of RTL behavior, benchmark performance signals.
       SpikeEvent *se_to_issue = find_se_to_issue();
-      if (se_to_issue->is_exit_insn) {
-        // The exit insn is always the last one to handle, we return from here to end simulation.
-        LOG(INFO) << fmt::format("[{}] all insn in to_rtl_queue are issued, exiting", get_t());
-        return;
-      }
 
       se_to_issue->drive_rtl_req(top);
       se_to_issue->drive_rtl_csr(top);
@@ -190,8 +185,15 @@ void VBridgeImpl::run() {
       top.clock = 1;
       top.eval();
 
-      // Instruction is_issued, top.req_ready deps on top.req_bits_inst
-      if (top.req_ready) {
+      if (se_to_issue->is_vfence_insn || se_to_issue->is_exit_insn) {
+        // wait for all v insns committed.
+        if (to_rtl_queue.size() == 1) {
+          if (se_to_issue->is_exit_insn) return;
+          to_rtl_queue.pop_back();
+          break;
+        }
+      // insn is issued, top.req_ready deps on top.req_bits_inst
+      } else if (top.req_ready) {
         se_to_issue->is_issued = true;
         se_to_issue->issue_idx = vpi_get_integer("TOP.V.instCount");
         LOG(INFO) << fmt::format("[{}] issue to rtl ({}), issue index={}", get_t(), se_to_issue->describe_insn(), se_to_issue->issue_idx);
@@ -364,10 +366,11 @@ void VBridgeImpl::loop_until_se_queue_full() {
     try {
       if (auto spike_event = spike_step()) {
         SpikeEvent &se = spike_event.value();
-        bool is_exit_insn = se.is_exit_insn;
+        bool return_to_simulate = se.is_exit_insn || se.is_vfence_insn;
+
         to_rtl_queue.push_front(std::move(se));
 
-        if (is_exit_insn) break;
+        if (return_to_simulate) break;
       }
     } catch (trap_t &trap) {
       LOG(FATAL) << fmt::format("spike trapped with {}", trap.name());

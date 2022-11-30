@@ -49,11 +49,11 @@ struct SpikeEvent {
   std::string disasm;
 
   bool is_issued;
-  bool is_committed;
 
   bool is_load;
   bool is_store;
   bool is_exit_insn;
+  bool is_vfence_insn;
 
   uint64_t pc;
   uint32_t inst_bits;
