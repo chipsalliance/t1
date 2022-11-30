@@ -3,15 +3,11 @@ _start:
     li a0, 0x200 # MSTATUS_VS & (MSTATUS_VS >> 1)
     csrs mstatus, a0
     csrwi vcsr, 0
-    li x16, 3
 
-_loop:
     addi x1, x1, 1
     vsetivli x0, 16, e8, m1, ta, ma
     lui x30, 1
     auipc x31, 0
-    addi x16, x16, -1
-    beqz x16, exit
 
 add_test:
     vadd.vi v0, v1, 10
@@ -26,7 +22,6 @@ chaining_test:
 
 ld_test:
     vle8.v v4, (x30)
-    j _loop
 
 exit:
     # Write msimend to exit simulation.
