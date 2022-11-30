@@ -11,6 +11,33 @@
 # we only support LMUL = 1 for now
 # P, A, B, AB should have 32 elements
 _start:
+
+# a0: uint32_t result, a1: uint32_t *a, a2: uint32_t *b, a3: uint32_t *p
+    li a0, 0x1000000
+    li a1, 0x1001000
+    li a2, 0x1002000
+    li a3, 0x1003000
+
+# for (int i = 0; i < 16; i++) a[i] = b[i] = p[i] = i;
+    li      a4, 0
+    li      a5, 16
+.LBB0_1:
+    sw      a4, 0(a3)
+    sw      a4, 0(a2)
+    sw      a4, 0(a1)
+    addi    a4, a4, 1
+    addi    a1, a1, 4
+    addi    a2, a2, 4
+    addi    a3, a3, 4
+    bne     a4, a5, .LBB0_1
+
+    li a0, 0x1000000
+    li a1, 0x1001000
+    li a2, 0x1002000
+    li a3, 0x1003000
+
+# begin mmm main program
+
     # quite SIMD
     li  t0, 16 # in case way > 31
     vsetvli zero, t0, e32, m1, ta, ma
