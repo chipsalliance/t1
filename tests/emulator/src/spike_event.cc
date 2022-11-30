@@ -108,18 +108,19 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   pc = proc.get_state()->pc;
   inst_bits = fetch.insn.bits();
   uint32_t opcode = clip(inst_bits, 0, 6);
+  uint32_t width = clip(inst_bits, 12, 14);
   is_load = opcode == 0b0000111;
   is_store = opcode == 0b0100111;
   is_exit_insn = opcode == 0b1110011;
+  is_vfence_insn = opcode == 0b1010111 && width == 0b111;
 
   is_issued = false;
-  is_committed = false;
 
   lsu_idx = consts::lsuIdxDefault;  // default lsu_idx
 }
 
 void SpikeEvent::drive_rtl_req(VV &top) const {
-  top.req_valid = true;
+  top.req_valid = !this->is_vfence_insn && !this->is_exit_insn;
   top.req_bits_inst = inst_bits;
   top.req_bits_src1Data = rs1_bits;
   top.req_bits_src2Data = rs2_bits;
