@@ -595,7 +595,6 @@ class Lane(param: LaneParameters) extends Module {
       otherRequest.imm := record.originalInformation.vs1
       otherRequest.extendType.valid := decodeResFormat.uop(3)
       otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResFormatExt.elements(s) }
-      otherRequest.mask := DontCare // todo
       otherRequest.laneIndex := laneIndex
       otherRequest.groupIndex := record.counter
       otherRequest.sign := !decodeResFormat.unSigned0
