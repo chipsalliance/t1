@@ -11,6 +11,7 @@ case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: I
   val laneGroupSize:     Int = VLEN / lane
   // 一次完全的offset读会最多分成多少个offset
   val lsuGroupLength:   Int = ELEN * lane / 8
+  val offsetCountSize:  Int = log2Ceil(lsuGroupLength)
   val lsuGroupSize:     Int = VLEN / ELEN
   val lsuGroupSizeBits: Int = log2Ceil(lsuGroupSize)
   val sourceWidth = 8
@@ -220,23 +221,23 @@ class MSHR(param: MSHRParam) extends Module {
   val lastResp:   Bool = last && tlPort.d.fire && (respDone & (~respSourceOH).asUInt) === 0.U
   /** 首先我们根据source来计算 [[elementIndex]]
     * 然后我们左移 eew,得到修改的起始是第几个byte: [[baseByteOffset]]
-    * XXX XXXXXXXXXX XX
-    * XXX: vd的增量
-    *     |        |: 在一个寄存器中位于哪一个32bit
-    *                XX：起始位置在32bit中的偏移
-    *            XXX： 由于寄存器的实体按32bit为粒度分散在lane中,所以这是目标lane的index
-    *     XXXXXXX： 这里代表[[vrfWritePort.bits.offset]]
+    * XXX XXXXXXXX XX
+    *     XXX: vd的增量
+    *     |      |: 在一个寄存器中位于哪一个32bit
+    *              XX：起始位置在32bit中的偏移
+    *          XXX： 由于寄存器的实体按32bit为粒度分散在lane中,所以这是目标lane的index
+    *        XX： 这里代表[[vrfWritePort.bits.offset]]
     */
-  val elementIndex: UInt = Mux(
+  val elementIndex: UInt = groupIndex ## Mux(
     segType,
-    groupIndex ## (tlPort.d.bits.source >> 3).asUInt,
-    groupIndex ## tlPort.d.bits.source
-  )
-  val baseByteOffset: UInt = (elementIndex << dataEEW).asUInt(14, 0)
+    (tlPort.d.bits.source >> 3).asUInt,
+    tlPort.d.bits.source
+  )(param.offsetCountSize - 1, 0)
+  val baseByteOffset: UInt = (elementIndex << dataEEW).asUInt(9, 0)
   vrfWritePort.valid := tlPort.d.valid
   tlPort.d.ready := vrfWritePort.ready
-  vrfWritePort.bits.vd := requestReg.instInf.vs3 + Mux(segType, tlPort.d.bits.source(2, 0), baseByteOffset(14, 12))
-  vrfWritePort.bits.offset := baseByteOffset(11, 5)
+  vrfWritePort.bits.vd := requestReg.instInf.vs3 + Mux(segType, tlPort.d.bits.source(2, 0), baseByteOffset(9, 7))
+  vrfWritePort.bits.offset := baseByteOffset(6, 5)
   vrfWritePort.bits.data := (tlPort.d.bits.data << (baseByteOffset(1, 0) ## 0.U(3.W))).asUInt
   vrfWritePort.bits.last := last
   vrfWritePort.bits.instIndex := requestReg.instIndex
