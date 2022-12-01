@@ -169,16 +169,16 @@ std::pair<uint32_t, uint32_t> SpikeEvent::get_vrf_write_range() const {
   if (is_store) {
     return {0, 0};  // store will not write vrf
   } else if (is_load) {
-    uint32_t vd_bits_start = rd_idx * consts::vlen_in_bytes;
-    uint32_t len = vlmul & 0x100
+    uint32_t vd_bytes_start = rd_idx * consts::vlen_in_bytes;
+    uint32_t len = vlmul & 0b100
         ? consts::vlen_in_bytes * (1 + vnf) >> (8 - vlmul)
         : consts::vlen_in_bytes * (1 + vnf) << vlmul;
-    return {vd_bits_start, len};
+    return {vd_bytes_start, len};
   } else {
-    uint32_t vd_bits_start = rd_idx * consts::vlen_in_bytes;
-    uint32_t len = vlmul & 0x100
+    uint32_t vd_bytes_start = rd_idx * consts::vlen_in_bytes;
+    uint32_t len = vlmul & 0b100
                    ? consts::vlen_in_bytes >> (8 - vlmul)
                    : consts::vlen_in_bytes << vlmul;
-    return {vd_bits_start, len};
+    return {vd_bytes_start, len};
   }
 }
