@@ -852,7 +852,7 @@ class Lane(param: LaneParameters) extends Module {
   ).asUInt.andR
   val validRegulate: Bool = laneReq.valid && typeReady
   laneReq.ready := !controlValid.head && typeReady && vrf.instWriteReport.ready
-  vrf.instWriteReport.valid := laneReq.fire
+  vrf.instWriteReport.valid := laneReq.fire && !entranceControl.instCompleted
   when(!controlValid.head && (controlValid.asUInt.orR || validRegulate)) {
     controlValid := VecInit(controlValid.tail :+ validRegulate)
     source1 := VecInit(source1.tail :+ vs1entrance)
