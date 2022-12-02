@@ -16,10 +16,10 @@ std::string SpikeEvent::describe_insn() const {
 void SpikeEvent::pre_log_arch_changes() {
   // TODO: support vl/vstart
   rd_bits = proc.get_state()->XPR[rd_idx];
-  uint8_t *vreg_bits_start = &proc.VU.elt<uint8_t>(0, 0);
+  uint8_t *vreg_bytes_start = &proc.VU.elt<uint8_t>(0, 0);
   auto [start, len] = get_vrf_write_range();
   vd_write_record.vd_bytes = std::make_unique<uint8_t[]>(len);
-  std::memcpy(vd_write_record.vd_bytes.get(), vreg_bits_start + start, len);
+  std::memcpy(vd_write_record.vd_bytes.get(), vreg_bytes_start + start, len);
 }
 
 void SpikeEvent::log_arch_changes() {
@@ -27,11 +27,11 @@ void SpikeEvent::log_arch_changes() {
 
   // record vrf writes
   // note that we do not need log_reg_write to find records, we just decode the insn and compare bytes
-  uint8_t *vreg_bits_start = &proc.VU.elt<uint8_t>(0, 0);
+  uint8_t *vreg_bytes_start = &proc.VU.elt<uint8_t>(0, 0);
   auto [start, len] = get_vrf_write_range();
   for (int i = 0; i < len; i++) {
     uint32_t offset = start + i;
-    uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vreg_bits_start[offset];
+    uint8_t origin_byte = vd_write_record.vd_bytes[i], cur_byte = vreg_bytes_start[offset];
     if (origin_byte != cur_byte) {
       vrf_access_record.all_writes[offset] = { .byte = cur_byte };
       LOG(INFO) << fmt::format("spike detect vrf change: vrf[{}, {}] from {} to {}",
