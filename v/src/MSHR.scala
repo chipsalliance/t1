@@ -302,7 +302,7 @@ class MSHR(param: MSHRParam) extends Module {
   status.waitFirstResp := waitFirstResp
   maskSelect.bits := groupIndex
   putData := readResult
-  readDataPort.valid := stateReady
+  readDataPort.valid := stateReady && requestReg.instInf.st
   readDataPort.bits.offset := vrfWritePort.bits.offset
   readDataPort.bits.vs := vrfWritePort.bits.vd
   readDataPort.bits.instIndex := requestReg.instIndex
