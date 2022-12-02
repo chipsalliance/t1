@@ -47,6 +47,12 @@ class VerificationModule(dut: V) extends TapModule {
         | import "DPI-C" function void dpiTimeoutCheck();
         | always #(${2 * clockRate + 1}) dpiTimeoutCheck();
         |
+        | export "DPI-C" function dpiDumpWave;
+        | function dpiDumpWave(input string file);
+        |  $$dumpfile(file);
+        |  $$dumpvars(2, $$root.dut);
+        | endfunction;
+        |
         |endmodule
         |""".stripMargin)
   })

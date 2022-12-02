@@ -32,6 +32,7 @@ void VBridgeImpl::dpiInitCosim() {
   init_spike();
   LOG(INFO) << fmt::format("Simulation Environment Initialized: bin={}, wave={}, reset_vector={:#x}, timeout={}",
                            bin, wave, reset_vector, timeout);
+  dpiDumpWave();
 }
 
 /* cosim                          rtl

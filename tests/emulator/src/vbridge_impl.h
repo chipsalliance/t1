@@ -40,6 +40,8 @@ class VBridgeImpl {
 public:
   VBridgeImpl();
 
+  void dpiDumpWave();
+
   void dpiInitCosim();
 
   void timeoutCheck();

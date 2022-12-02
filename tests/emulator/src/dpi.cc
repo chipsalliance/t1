@@ -10,6 +10,11 @@
 #include "vbridge_impl.h"
 #include "exceptions.h"
 
+void VBridgeImpl::dpiDumpWave() {
+  svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.verbatim"));
+  ::dpiDumpWave((wave + ".fst").c_str());
+}
+
 [[maybe_unused]] void dpiInitCosim() {
   vbridge_impl_instance.dpiInitCosim();
 }
