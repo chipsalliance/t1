@@ -129,7 +129,7 @@ class MSHR(param: MSHRParam) extends Module {
   val putData:     UInt = Wire(UInt(param.ELEN.W))
   val segAddressMul: UInt = (requestReg.instInf.nf + 1.U) * (1.U << dataEEW).asUInt(2, 0)
   val reqAddress: UInt = requestReg.rs1Data + reqOffset * segAddressMul  + segmentOffset
-  val reqMask:    UInt = dataEEWOH(2) ## dataEEWOH(2) ## (dataEEWOH(2) || dataEEWOH(1)) ## true.B
+  val reqMask:    UInt = Wire(UInt(param.dataBits.W))
 
   tlPort.a.bits.opcode := !requestReg.instInf.st ## 0.U(2.W)
   tlPort.a.bits.param := 0.U
@@ -255,6 +255,7 @@ class MSHR(param: MSHRParam) extends Module {
       15.U(4.W)
     )
   )
+  reqMask := vrfWritePort.bits.mask
 
   val sourceUpdate: UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.lsuGroupLength.W))
   val respSourceUpdate: UInt = Mux(tlPort.d.fire, respSourceOH, 0.U(param.lsuGroupLength.W))
