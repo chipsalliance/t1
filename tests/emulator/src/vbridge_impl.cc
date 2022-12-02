@@ -274,6 +274,8 @@ void VBridgeImpl::receive_tl_req() {
 
     case TlOpcode::PutFullData: {
       uint32_t data = TL(tlIdx, a_bits_data);
+      int offset_by_bits = addr % 4 * 8; // TODO: replace 4 with XLEN.
+      data = clip(data, offset_by_bits, offset_by_bits + decode_size(size)*8 - 1);
       LOG(INFO) << fmt::format("[{}] receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={})",
                                get_t(), addr, decode_size(size), src, data);
       auto mem_write = se->mem_access_record.all_writes.find(addr);
@@ -285,7 +287,7 @@ void VBridgeImpl::receive_tl_req() {
           get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
       CHECK_EQ_S(mem_write->second.val, data) << fmt::format(
           ": [{}] expect mem write of data {}, actual data {} (addr={:08X}, insn='{}')",
-          get_t(), mem_write->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
+          get_t(), mem_write->second.val, data, addr, se->describe_insn());
 
       tl_banks[tlIdx].emplace(std::make_pair(addr, TLReqRecord{
           data, 1u << size, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
