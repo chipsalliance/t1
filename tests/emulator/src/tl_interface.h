@@ -6,7 +6,7 @@ namespace TlOpcode {
   AccessAckData = 1,
   PutFullData = 0,
   PutPartialData = 1,
-  AccessAck = 4;
+  AccessAck = 0;
 }
 
 // the following macro helps us to access tl interface by dynamic index
