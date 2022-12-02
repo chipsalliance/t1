@@ -219,6 +219,15 @@ class MSHR(param: MSHRParam) extends Module {
   // todo: 这里能工作，但是时间点不那么准确
   val respSourceOH: UInt = UIntToOH(tlPort.d.bits.source(4, 0))
   val lastResp:   Bool = last && tlPort.d.fire && (respDone & (~respSourceOH).asUInt) === 0.U
+  val accessElementIndex: UInt = Mux(
+    requestReg.instInf.st,
+    reqNextIndex,
+    Mux(
+      segType,
+      (tlPort.d.bits.source >> 3).asUInt,
+      tlPort.d.bits.source
+    )(param.offsetCountSize - 1, 0)
+  )
   /** 首先我们根据source来计算 [[elementIndex]]
     * 然后我们左移 eew,得到修改的起始是第几个byte: [[baseByteOffset]]
     * XXX XXXXXXXX XX
@@ -228,15 +237,12 @@ class MSHR(param: MSHRParam) extends Module {
     *          XXX： 由于寄存器的实体按32bit为粒度分散在lane中,所以这是目标lane的index
     *        XX： 这里代表[[vrfWritePort.bits.offset]]
     */
-  val elementIndex: UInt = groupIndex ## Mux(
-    segType,
-    (tlPort.d.bits.source >> 3).asUInt,
-    tlPort.d.bits.source
-  )(param.offsetCountSize - 1, 0)
+  val elementIndex: UInt = groupIndex ## accessElementIndex
   val baseByteOffset: UInt = (elementIndex << dataEEW).asUInt(9, 0)
   vrfWritePort.valid := tlPort.d.valid
   tlPort.d.ready := vrfWritePort.ready
-  vrfWritePort.bits.vd := requestReg.instInf.vs3 + Mux(segType, tlPort.d.bits.source(2, 0), baseByteOffset(9, 7))
+  vrfWritePort.bits.vd := requestReg.instInf.vs3 +
+    Mux(segType, Mux(requestReg.instInf.st, segmentIndex, tlPort.d.bits.source(2, 0)), baseByteOffset(9, 7))
   vrfWritePort.bits.offset := baseByteOffset(6, 5)
   vrfWritePort.bits.data := (tlPort.d.bits.data << (baseByteOffset(1, 0) ## 0.U(3.W))).asUInt
   vrfWritePort.bits.last := last
