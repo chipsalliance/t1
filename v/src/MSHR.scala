@@ -219,6 +219,7 @@ class MSHR(param: MSHRParam) extends Module {
   // todo: 这里能工作，但是时间点不那么准确
   val respSourceOH: UInt = UIntToOH(tlPort.d.bits.source(4, 0))
   val lastResp:   Bool = last && tlPort.d.fire && (respDone & (~respSourceOH).asUInt) === 0.U
+  val lastReq: Bool = last && RegNext(tlPort.a.fire)
   val accessElementIndex: UInt = Mux(
     requestReg.instInf.st,
     reqNextIndex,
@@ -298,7 +299,7 @@ class MSHR(param: MSHRParam) extends Module {
   }
   status.instIndex := requestReg.instIndex
   status.idle := state === idle
-  status.last := lastResp
+  status.last := Mux(requestReg.instInf.st, lastReq, lastResp)
   status.targetLane := UIntToOH(baseByteOffset(4, 2))
   status.waitFirstResp := waitFirstResp
   maskSelect.bits := groupIndex
