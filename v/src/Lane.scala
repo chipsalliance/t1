@@ -519,14 +519,18 @@ class Lane(param: LaneParameters) extends Module {
         )
       )
       val executeBitEnable: UInt = FillInterleaved(8, executeByteEnable)
-      def CollapseOperand(data: UInt, enable: Bool = true.B): UInt = {
+      def CollapseOperand(data: UInt, enable: Bool = true.B, sign: Bool=false.B): UInt = {
         val dataMasked: UInt = data & executeBitEnable
         val select: UInt = Mux(enable, sew1H(2,0), 4.U(3.W))
+        // when sew = 0
+        val collapse0 = Seq.tabulate(4)(i => dataMasked(8 * i + 7, 8 * i)).reduce(_ | _)
+        // when sew = 1
+        val collapse1 = Seq.tabulate(2)(i => dataMasked(16 * i + 15, 16 * i)).reduce(_ | _)
         Mux1H(
           select,
           Seq(
-            0.U(24.W) ## Seq.tabulate(4)(i => dataMasked(8 * i + 7, 8 * i)).reduce(_ | _),
-            0.U(16.W) ## Seq.tabulate(2)(i => dataMasked(16 * i + 15, 16 * i)).reduce(_ | _),
+            Fill(24, sign && collapse0(7)) ## collapse0,
+            Fill(16, sign && collapse1(15)) ## collapse1,
             data
           )
         )
@@ -535,9 +539,9 @@ class Lane(param: LaneParameters) extends Module {
       /**
         * src1： src1有 IXV 三种类型,只有V类型的需要移位
         * */
-      val finalSource1 = CollapseOperand(source1(index), decodeResFormat.vType)
+      val finalSource1 = CollapseOperand(source1(index), decodeResFormat.vType, !decodeResFormat.unSigned0)
       /** source2 一定是V类型的 */
-      val finalSource2 = CollapseOperand(source2(index))
+      val finalSource2 = CollapseOperand(source2(index), true.B, !decodeResFormat.unSigned1)
       /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
       val finalSource3 = CollapseOperand(source3(index))
       // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
