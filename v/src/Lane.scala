@@ -668,7 +668,7 @@ class Lane(param: LaneParameters) extends Module {
         }.otherwise {
           record.state := record.initState
           record.counter := nextGroupCount
-          record.executeIndex := 0.U
+          record.executeIndex := nextExecuteIndex
           record.vrfWriteMask := 0.U
         }
       }
