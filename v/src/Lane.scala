@@ -368,13 +368,13 @@ class Lane(param: LaneParameters) extends Module {
       // vs2 read
       vrfReadWire(index)(1).valid := !record.state.sRead2 && controlActive(index)
       vrfReadWire(index)(1).bits.offset := Mux(needCrossRead, record.counter(param.offsetBits - 2, 0) ## false.B, record.counter(param.offsetBits - 1, 0))
-      vrfReadWire(index)(1).bits.vs := record.originalInformation.vs2 + Mux(needCrossRead, record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## false.B, record.counter(param.groupSizeBits - 1, param.offsetBits - 1))
+      vrfReadWire(index)(1).bits.vs := record.originalInformation.vs2 + Mux(needCrossRead, record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## false.B, record.counter(param.groupSizeBits - 1, param.offsetBits))
       vrfReadWire(index)(1).bits.instIndex := record.originalInformation.instIndex
 
       // vd read
       vrfReadWire(index)(2).valid := !record.state.sReadVD && controlActive(index)
       vrfReadWire(index)(2).bits.offset := Mux(needCrossRead, record.counter(param.offsetBits - 2, 0) ## true.B, record.counter(param.offsetBits - 1, 0))
-      vrfReadWire(index)(2).bits.vs := record.originalInformation.vd + Mux(needCrossRead, record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## true.B, record.counter(param.groupSizeBits - 1, param.offsetBits - 1))
+      vrfReadWire(index)(2).bits.vs := record.originalInformation.vd + Mux(needCrossRead, record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## true.B, record.counter(param.groupSizeBits - 1, param.offsetBits))
       vrfReadWire(index)(2).bits.instIndex := record.originalInformation.instIndex
 
       val readFinish =
