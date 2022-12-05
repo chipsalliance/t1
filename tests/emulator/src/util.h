@@ -2,8 +2,16 @@
 
 #include <cstdint>
 
+#include "exceptions.h"
+#include "glog_exception_safe.h"
+
 /// @return: binary[a, b]
-inline uint32_t clip(uint32_t binary, int a, int b) { return (binary >> a) & ((1 << (b - a + 1)) - 1); }
+inline uint32_t clip(uint32_t binary, int a, int b) {
+  CHECK_S(a <= b);
+  int nbits = b - a + 1;
+  uint32_t mask = nbits >= 32 ? (uint32_t)-1 : (1 << nbits) - 1;
+  return (binary >> a) & mask;
+}
 
 inline bool is_vector_instr(uint64_t f) {
   uint32_t opcode = clip(f, 0, 6);
