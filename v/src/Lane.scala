@@ -543,7 +543,10 @@ class Lane(param: LaneParameters) extends Module {
       /** source2 一定是V类型的 */
       val finalSource2 = CollapseOperand(source2(index), true.B, !decodeResFormat.unSigned1)
       /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
-      val finalSource3 = CollapseOperand(source3(index))
+      val adcOrSbc: Bool = decodeResFormat.uop(3)
+      // TODO: Currently mask value is always 1.
+      val maskValue: UInt = 1.U
+      val finalSource3 = Mux(adcOrSbc, maskValue, CollapseOperand(source3(index)))
       // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
       val logicRequest = Wire(new LaneLogicRequest(param.datePathParam))
       logicRequest.src.head := finalSource2
