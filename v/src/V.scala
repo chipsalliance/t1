@@ -112,7 +112,7 @@ class V(param: VParam) extends Module {
         .grouped(param.lane).toSeq.transpose.map(seq => VecInit(seq).asUInt)
     }.transpose.map(VecInit(_).asUInt)
   }.transpose.map(Mux1H(sew1H(2, 0), _)).map {v0ForLane =>
-    VecInit(v0ForLane.asBools.grouped(8).toSeq.map(VecInit(_).asUInt))
+    VecInit(v0ForLane.asBools.grouped(32).toSeq.map(VecInit(_).asUInt))
   }
 
   val instEnq:    UInt = Wire(UInt(param.chainingSize.W))
