@@ -327,10 +327,10 @@ class Lane(param: LaneParameters) extends Module {
   val signMask = Seq(!vSewOrR, csrInterface.vSew(0))
   /** 不同 vSew 结束时候的index
     * 00 -> 11
-    * 01 -> 01
+    * 01 -> 10
     * 10 -> 00
     * */
-  val endIndex: UInt = !vSewOrR ## !csrInterface.vSew(1)
+  val endIndex: UInt = !csrInterface.vSew(1) ## !vSewOrR
 
   // 跨lane写rf需要一个queue
   val crossWriteQueue: Queue[VRFWriteRequest] = Module(
@@ -451,12 +451,12 @@ class Lane(param: LaneParameters) extends Module {
         }
       }
       // 发起执行单元的请求
-      /** 计算结果需要偏移的: (executeIndex << vSew) * 8 */
-      val dataOffset: UInt = (record.executeIndex << csrInterface.vSew) ## 0.U(3.W)
+      /** 计算结果需要偏移的: executeIndex * 8 */
+      val dataOffset: UInt = record.executeIndex ## 0.U(3.W)
       /** 正在算的是这个lane的第多少个 element */
       val elementIndex: UInt = Mux1H(sew1H(2,0), Seq(
         (record.counter ## record.executeIndex)(4, 0),
-        (record.counter ## record.executeIndex(0))(4, 0),
+        (record.counter ## record.executeIndex(1))(4, 0),
         record.counter,
       ))
       /** 我们默认被更新的 [[record.counter]] & [[record.executeIndex]] 对应的 element 是没有被 mask 掉的
@@ -514,7 +514,7 @@ class Lane(param: LaneParameters) extends Module {
         sew1H(2,0),
         Seq(
           UIntToOH(record.executeIndex),
-          record.executeIndex(0) ## record.executeIndex(0) ## !record.executeIndex(0) ## !record.executeIndex(0),
+          record.executeIndex(1) ## record.executeIndex(1) ## !record.executeIndex(1) ## !record.executeIndex(1),
           15.U(4.W)
         )
       )
