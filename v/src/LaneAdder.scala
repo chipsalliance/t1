@@ -20,7 +20,17 @@ class LaneAdder(param: DataPathParam) extends Module {
   val resp: UInt = IO(Output(UInt((param.dataWidth + 1).W)))
   val csr:  LaneAdderCsr = IO(Input(new LaneAdderCsr()))
   // TODO: adder
-  val (s, c) = csa32(req.src.head, req.src(1), req.src.last)
+  val sub: Bool = req.opcode(0)
+
+  val vs2: UInt = req.src.head
+  val vs1: UInt = req.src(1)
+  val op1: UInt = Mux(req.reverse, vs1, vs2)
+  val op2: UInt = Mux(req.reverse, vs2, vs1)
+  val (s, c) = csa32(
+    Mux(sub, (~op1).asUInt, op1),
+    op2,
+    Mux(sub, 1.U, req.src.last),
+  )
   val addResult: UInt = s +& (c ## false.B)
   val averageResult: UInt = (addResult >> 1).asUInt + Mux1H(
     UIntToOH(csr.vxrm),
