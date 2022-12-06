@@ -6,7 +6,7 @@ import chisel3.util._
 case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chainingSize: Int = 4) {
   val instIndexSize:  Int = log2Ceil(chainingSize) + 1
   val VLMax:          Int = VLEN
-  val VLMaxWidth:     Int = log2Ceil(VLMax)
+  val VLMaxWidth:     Int = log2Ceil(VLMax) + 1
   // vlmul = 8时会有多少组,其中每一组长度是 ELEN
   val groupSize:      Int = VLEN * 8 / lane / ELEN
   val controlNum:     Int = 4
@@ -15,7 +15,7 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
   val laneIndexBits:  Int = log2Ceil(lane)
   val writeQueueSize: Int = 8
   val elenBits:       Int = log2Ceil(ELEN)
-  val groupSizeBits:  Int = log2Ceil(groupSize)
+  val groupSizeBits:  Int = log2Ceil(groupSize) + 1
   // 每一组会会包含32bit,在 vSew < 2时,需要有一个控制寄存器来管理,寄存器的长度
   val groupControlSize: Int = ELEN / 8
   // 单个寄存器在每个lane里能分成多少组, 每次只访问32bit
@@ -479,8 +479,8 @@ class Lane(param: LaneParameters) extends Module {
       val nextGroupCountMSB: UInt = Mux1H(
         sew1H(1, 0),
         Seq(
-          record.counter(param.groupSizeBits - 1, param.groupSizeBits - 2),
-          false.B ## record.counter(param.groupSizeBits - 1)
+          record.counter(param.groupSizeBits - 1, param.groupSizeBits - 3),
+          false.B ## record.counter(param.groupSizeBits - 1, param.groupSizeBits - 2)
         )
       ) + maskNeedUpdate
       val indexInLane = nextGroupCountMSB ## nextIndex

@@ -25,7 +25,7 @@ case class VRFParam(
   val offsetBits:Int = log2Ceil(singleGroupSize)
   val rfBankNum: Int = rowWidth / 8
   val maxVSew:   Int = log2Ceil(ELEN / 8)
-  val VLMaxWidth:     Int = log2Ceil(VLEN)
+  val VLMaxWidth:     Int = log2Ceil(VLEN) + 1
 
   def rfParam: RFParam = RFParam(rfDepth)
 }

@@ -8,7 +8,7 @@ case class LSUParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: In
   val maskGroupWidth:    Int = 32
   val maskGroupSize:     Int = VLEN / 32
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
-  val VLMaxBits:         Int = log2Ceil(VLEN)
+  val VLMaxBits:         Int = log2Ceil(VLEN) + 1
   val sourceWidth:       Int = 10
   val tlBank:            Int = 2
   val bankPosition:      Int = 6
