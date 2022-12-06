@@ -543,10 +543,7 @@ class Lane(param: LaneParameters) extends Module {
       /** source2 一定是V类型的 */
       val finalSource2 = CollapseOperand(source2(index), true.B, !decodeResFormat.unSigned1)
       /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
-      val adcOrSbc: Bool = decodeResFormat.uop(3)
-      // TODO: Currently mask value is always 1.
-      val maskValue: UInt = 1.U
-      val finalSource3 = Mux(adcOrSbc, maskValue, CollapseOperand(source3(index)))
+      val finalSource3 = CollapseOperand(source3(index))
       // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
       val logicRequest = Wire(new LaneLogicRequest(param.datePathParam))
       logicRequest.src.head := finalSource2
@@ -566,7 +563,9 @@ class Lane(param: LaneParameters) extends Module {
 
       // adder 的
       val adderRequest = Wire(new LaneAdderReq(param.datePathParam))
-      adderRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
+      val adcOrSbc: Bool = decodeResFormat.uop(3)
+      val maskValue: UInt = record.mask.bits(record.executeIndex)
+      adderRequest.src := VecInit(Seq(finalSource1, finalSource2, Mux(adcOrSbc, maskValue, finalSource3)))
       adderRequest.opcode := decodeResFormat.uop
       adderRequest.reverse := decodeResFormat.reverse
       adderRequest.average := decodeResFormat.average
