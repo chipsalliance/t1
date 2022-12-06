@@ -7,13 +7,13 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDPar
 case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
   val dataBits:          Int = log2Ceil(ELEN)
   val mshrSize:          Int = 3
-  val VLMaxBits:         Int = log2Ceil(VLEN)
+  val VLMaxBits:         Int = log2Ceil(VLEN) + 1
   val laneGroupSize:     Int = VLEN / lane
   // 一次完全的offset读会最多分成多少个offset
   val lsuGroupLength:   Int = ELEN * lane / 8
   val offsetCountSize:  Int = log2Ceil(lsuGroupLength)
   val lsuGroupSize:     Int = VLEN / ELEN
-  val lsuGroupSizeBits: Int = log2Ceil(lsuGroupSize)
+  val lsuGroupSizeBits: Int = log2Ceil(lsuGroupSize) + 1
   val sourceWidth = 8
 
   val maskGroupWidth: Int = lsuGroupLength
