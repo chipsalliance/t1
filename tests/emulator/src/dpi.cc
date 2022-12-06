@@ -10,17 +10,38 @@
 #include "vbridge_impl.h"
 #include "exceptions.h"
 
+bool terminated = false;
+
+#define TRY(action) \
+  try {             \
+    if (!terminated) {action}          \
+  } catch (ReturnException &e) { \
+    terminated = true;                \
+    LOG(INFO) << fmt::format("detect returning instruction, gracefully quit simulation");                  \
+    dpiFinish();                  \
+  } catch (std::runtime_error &e) { \
+    terminated = true;                \
+    LOG(ERROR) << fmt::format("detect exception ({}), gracefully abort simulation", e.what());                 \
+    dpiError(e.what());  \
+  }
+
 void VBridgeImpl::dpiDumpWave() {
-  svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.verbatim"));
-  ::dpiDumpWave((wave + ".fst").c_str());
+  TRY({
+    svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.verbatim"));
+    ::dpiDumpWave((wave + ".fst").c_str());
+  })
 }
 
 [[maybe_unused]] void dpiInitCosim() {
-  vbridge_impl_instance.dpiInitCosim();
+  TRY({
+    vbridge_impl_instance.dpiInitCosim();
+  })
 }
 
 [[maybe_unused]] void dpiPeekIssue(svBit ready, const svBitVecVal *issueIdx) {
-  vbridge_impl_instance.dpiPeekIssue(ready, *issueIdx);
+  TRY({
+    vbridge_impl_instance.dpiPeekIssue(ready, *issueIdx);
+  })
 }
 
 [[maybe_unused]] void dpiPokeInst(
@@ -41,11 +62,13 @@ void VBridgeImpl::dpiDumpWave() {
     svBit respValid,
     const svBitVecVal *response_data
 ) {
-  vbridge_impl_instance.dpiPokeInst(
-      VInstrInterfacePoke{request_inst, request_src1Data, request_src2Data, instValid},
-      VCsrInterfacePoke{vl, vStart, vlmul, vSew, vxrm, vta, vma, ignoreException},
-      VRespInterface{respValid, *response_data}
-  );
+  TRY({
+    vbridge_impl_instance.dpiPokeInst(
+        VInstrInterfacePoke{request_inst, request_src1Data, request_src2Data, instValid},
+        VCsrInterfacePoke{vl, vStart, vlmul, vSew, vxrm, vta, vma, ignoreException},
+        VRespInterface{respValid, *response_data}
+    );
+  })
 }
 
 [[maybe_unused]] void dpiPeekTL(
@@ -61,9 +84,11 @@ void VBridgeImpl::dpiDumpWave() {
     svBit a_valid,
     svBit d_ready
 ) {
-  vbridge_impl_instance.dpiPeekTL(
-      VTlInterface{channel_id, *a_opcode, *a_param, *a_size, *a_source, *a_address, *a_mask, *a_data,
-                   a_corrupt, a_valid, d_ready});
+  TRY({
+    vbridge_impl_instance.dpiPeekTL(
+        VTlInterface{channel_id, *a_opcode, *a_param, *a_size, *a_source, *a_address, *a_mask, *a_data,
+                     a_corrupt, a_valid, d_ready});
+  })
 }
 
 [[maybe_unused]] void dpiPokeTL(
@@ -80,13 +105,17 @@ void VBridgeImpl::dpiDumpWave() {
     svBit *a_ready,
     svBit d_ready
 ) {
-  vbridge_impl_instance.dpiPokeTL(
-      VTlInterfacePoke{channel_id, d_opcode, d_param, d_size, d_source, d_sink, d_denied, d_data,
-                       d_corrupt, d_valid, a_ready, d_ready});
+  TRY({
+    vbridge_impl_instance.dpiPokeTL(
+        VTlInterfacePoke{channel_id, d_opcode, d_param, d_size, d_source, d_sink, d_denied, d_data,
+                         d_corrupt, d_valid, a_ready, d_ready});
+  })
 }
 
 [[maybe_unused]] void dpiPeekLsuEnq(const svBitVecVal *enq) {
-  vbridge_impl_instance.dpiPeekLsuEnq(VLsuReqEnqPeek{*enq});
+  TRY({
+    vbridge_impl_instance.dpiPeekLsuEnq(VLsuReqEnqPeek{*enq});
+  })
 }
 
 [[maybe_unused]] void dpiPeekWriteQueue(
@@ -99,10 +128,12 @@ void VBridgeImpl::dpiDumpWave() {
     const svBitVecVal *request_data_instIndex,
     const svBitVecVal *request_targetLane
 ) {
-  vbridge_impl_instance.dpiPeekWriteQueue(
-      VLsuWriteQueuePeek{mshr_index, write_valid, *request_data_vd, *request_data_offset,
-                         *request_data_mask, *request_data_data, *request_data_instIndex,
-                         *request_targetLane});
+  TRY({
+    vbridge_impl_instance.dpiPeekWriteQueue(
+        VLsuWriteQueuePeek{mshr_index, write_valid, *request_data_vd, *request_data_offset,
+                           *request_data_mask, *request_data_data, *request_data_instIndex,
+                           *request_targetLane});
+  })
 }
 
 [[maybe_unused]] void dpiPeekVrfWrite(
@@ -114,10 +145,14 @@ void VBridgeImpl::dpiDumpWave() {
     const svBitVecVal *request_data,
     const svBitVecVal *request_instIndex
 ) {
-  vbridge_impl_instance.dpiPeekVrfWrite(VrfWritePeek{lane_idx, valid, *request_vd, *request_offset,
-                                                     *request_mask, *request_data, *request_instIndex});
+  TRY({
+    vbridge_impl_instance.dpiPeekVrfWrite(VrfWritePeek{lane_idx, valid, *request_vd, *request_offset,
+                                                       *request_mask, *request_data, *request_instIndex});
+  })
 }
 
 [[maybe_unused]] void dpiTimeoutCheck() {
-  vbridge_impl_instance.timeoutCheck();
+  TRY({
+    vbridge_impl_instance.timeoutCheck();
+  })
 }

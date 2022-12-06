@@ -90,10 +90,10 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr, const VCsrInte
 
   if (se_to_issue->is_vfence_insn || se_to_issue->is_exit_insn) {
     // it is ensured there are some other instruction not committed, thus se_to_issue should not be issued
-    LOG_ASSERT(to_rtl_queue.size() > 1);
+    CHECK_S(to_rtl_queue.size() > 1);
     if (se_to_issue->is_exit_insn) {
       LOG(INFO) << fmt::format("[{}] reaching exit instruction ({})", get_t(), se_to_issue->describe_insn());
-      std::exit(0);  // TODO: change to exception exit
+      throw ReturnException();
     }
     LOG(INFO) << "waiting for fence";
     *v_instr.valid = false;

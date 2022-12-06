@@ -53,6 +53,16 @@ class VerificationModule(dut: V) extends TapModule {
         |  $$dumpvars(2, $$root.dut);
         | endfunction;
         |
+        | export "DPI-C" function dpiFinish;
+        | function dpiFinish();
+        |  $$finish;
+        | endfunction;
+        |
+        | export "DPI-C" function dpiError;
+        | function dpiError(input string what);
+        |  $$error(what);
+        | endfunction;
+        |
         |endmodule
         |""".stripMargin)
   })
