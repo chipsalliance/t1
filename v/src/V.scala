@@ -236,6 +236,8 @@ class V(param: VParam) extends Module {
       case (d, f) => d := (UIntToOH(f(param.instIndexSize - 2, 0)) & lane.endNotice).orR
     }
     lane.maskRegInput := regroupV0(index)(lane.maskSelect)
+    lane.lsuLastReport := lsu.lastReport
+    lane.bufferClear := !lsu.vrfWritePort(index).valid
 
     lane
   }
