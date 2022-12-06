@@ -91,6 +91,7 @@ class VRF(param: VRFParam) extends Module {
     val mul = csrInterface.vlmul(1, 0)
     mul.andR ## mul(1) ## mul.orR
   }
+  val vsBaseMask: UInt = 3.U(2.W) ## (~vsOffsetMask).asUInt
   def rawCheck(before: VRFWriteReport, after: VRFWriteReport): Bool = {
     before.vd.valid &&
       ((before.vd.bits === after.vs1.bits && after.vs1.valid) ||
@@ -113,7 +114,7 @@ class VRF(param: VRFParam) extends Module {
     val sameInst = read.instIndex === record.bits.instIndex
 
     // todo: 处理双倍的
-    val vs: UInt = read.vs & (~vsOffsetMask).asUInt
+    val vs: UInt = read.vs & vsBaseMask
     val vsOffset: UInt = read.vs & vsOffsetMask
     val vd = readRecord.vd.bits
 
