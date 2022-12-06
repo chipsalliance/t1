@@ -645,7 +645,7 @@ class Lane(param: LaneParameters) extends Module {
       }
       // 写rf
       rfWriteVec(index).valid := record.state.wExecuteRes && !record.state.sWrite && controlActive(index)
-      rfWriteVec(index).bits.vd := record.originalInformation.vd
+      rfWriteVec(index).bits.vd := record.originalInformation.vd  + record.counter(param.groupSizeBits - 1, param.offsetBits)
       rfWriteVec(index).bits.offset := record.counter
       rfWriteVec(index).bits.data := result(index)
       rfWriteVec(index).bits.last := instWillComplete(index)
