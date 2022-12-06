@@ -659,7 +659,8 @@ class Lane(param: LaneParameters) extends Module {
         record.state.sWrite := true.B
       }
       endNoticeVec(index) := 0.U(param.controlNum.W)
-      when(record.state.asUInt.andR || record.instCompleted) {
+      val maskUnhindered = maskRequestFire(index) || !maskNeedUpdate
+      when((record.state.asUInt.andR && maskUnhindered) || record.instCompleted) {
         when(instWillComplete(index) || record.instCompleted) {
           controlValid(index) := false.B
           when(controlValid(index)) {
@@ -670,6 +671,11 @@ class Lane(param: LaneParameters) extends Module {
           record.counter := nextGroupCount
           record.executeIndex := nextExecuteIndex
           record.vrfWriteMask := 0.U
+          when(maskRequestFire(index)) {
+            record.mask.valid := true.B
+            record.mask.bits := maskRegInput
+            record.maskGroupedOrR := maskGroupedOrR
+          }
         }
       }
       when(feedback.bits.complete && feedback.bits.instIndex === record.originalInformation.instIndex) {
@@ -682,11 +688,6 @@ class Lane(param: LaneParameters) extends Module {
       // mask 更换
       maskRequestVec(index).valid := maskNeedUpdate
       maskRequestVec(index).bits := nextGroupCountMSB
-      when(maskRequestFire(index)) {
-        record.mask.valid := true.B
-        record.mask.bits := maskRegInput
-        record.maskGroupedOrR := maskGroupedOrR
-      }
   }
 
   // 处理读环的
