@@ -253,6 +253,8 @@ class Lane(param: LaneParameters) extends Module {
   val v0Update: ValidIO[V0Update] = IO(Valid(new V0Update(param)))
   val maskRegInput: UInt = IO(Input(UInt(param.maskGroupWidth.W)))
   val maskSelect: UInt = IO(Output(UInt(param.maskGroupSizeBits.W)))
+  val lsuLastReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(param.instIndexSize.W))))
+  val bufferClear: Bool = IO(Input(Bool()))
 
   val maskGroupedOrR: UInt = VecInit(maskRegInput.asBools.grouped(4).toSeq.map(VecInit(_).asUInt.orR)).asUInt
   val vrf: VRF = Module(new VRF(param.vrfParam))
@@ -857,7 +859,7 @@ class Lane(param: LaneParameters) extends Module {
   ).asUInt.andR
   val validRegulate: Bool = laneReq.valid && typeReady
   laneReq.ready := !controlValid.head && typeReady && vrf.instWriteReport.ready
-  vrf.instWriteReport.valid := laneReq.fire && !entranceControl.instCompleted
+  vrf.instWriteReport.valid := (laneReq.fire || (!laneReq.bits.st && laneReq.bits.ls)) && !entranceControl.instCompleted
   when(!controlValid.head && (controlValid.asUInt.orR || validRegulate)) {
     controlValid := VecInit(controlValid.tail :+ validRegulate)
     source1 := VecInit(source1.tail :+ vs1entrance)
@@ -886,6 +888,9 @@ class Lane(param: LaneParameters) extends Module {
   vrf.instWriteReport.bits.st := laneReq.bits.st
   vrf.instWriteReport.bits.narrow := entranceFormat.narrow
   vrf.instWriteReport.bits.widen := entranceFormat.Widen
+  vrf.instWriteReport.bits.stFinish := false.B
   vrf.csrInterface := csrInterface
+  vrf.lsuLastReport := lsuLastReport
+  vrf.bufferClear := bufferClear
   endNotice := endNoticeVec.reduce(_ | _)
 }

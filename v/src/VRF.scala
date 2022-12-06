@@ -62,6 +62,7 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val st: Bool = Bool()
   val narrow: Bool = Bool()
   val widen: Bool = Bool()
+  val stFinish: Bool = Bool()
   // 乘加
   val ma: Bool = Bool()
   val unOrderWrite: Bool = Bool()
@@ -74,6 +75,9 @@ class VRF(param: VRFParam) extends Module {
   val instWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(param))))
   val flush:           Bool = IO(Input(Bool()))
   val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxWidth)))
+  val lsuLastReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(param.instIndexSize.W))))
+  // write queue empty
+  val bufferClear: Bool = IO(Input(Bool()))
   // todo: delete
   dontTouch(write)
   write.ready := true.B
@@ -196,6 +200,12 @@ class VRF(param: VRFParam) extends Module {
         }
       }
       when(flush) {
+        record.valid := false.B
+      }
+      when(lsuLastReport.valid && lsuLastReport.bits === record.bits.instIndex) {
+        record.bits.stFinish := true.B
+      }
+      when(record.bits.stFinish && bufferClear && record.valid) {
         record.valid := false.B
       }
   }
