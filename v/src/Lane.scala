@@ -464,7 +464,7 @@ class Lane(param: LaneParameters) extends Module {
         * 等到更新完选完 mask 组再去更新 [[record.counter]] & [[record.executeIndex]] 感觉不是科学的做法
         * 所以特别处理一下这种情况
         * */
-      val firstMasked: Bool = record.mask.valid && (elementIndex(4, 0) === 0.U) && !record.mask.bits(0)
+      val firstMasked: Bool = record.originalInformation.mask && record.mask.valid && (elementIndex(4, 0) === 0.U) && !record.mask.bits(0)
       // 选出下一个element的index
       val maskCorrection: UInt = Mux1H(
         Seq(record.originalInformation.mask && record.mask.valid, !record.originalInformation.mask),
