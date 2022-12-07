@@ -4,17 +4,13 @@ pipeline {
     skipDefaultCheckout(true)
   }
   stages {
-    stage('Prepare') {
+    stage('Tests') {
       steps {
         cleanWs()
         checkout scm
         sh 'make init'
         sh 'make patch'
-      }
-    }
-    stage('generate emulator') {
-      steps {
-        sh 'mill tests.emulator.elf'
+        sh 'make test'
       }
     }
   }
