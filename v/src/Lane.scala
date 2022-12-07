@@ -567,6 +567,7 @@ class Lane(param: LaneParameters) extends Module {
       val adderRequest = Wire(new LaneAdderReq(param.datePathParam))
       adderRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
       adderRequest.opcode := decodeResFormat.uop
+      adderRequest.sign := !decodeResFormat.unSigned1
       adderRequest.reverse := decodeResFormat.reverse
       adderRequest.average := decodeResFormat.average
       adderRequests(index) := maskAnd(controlValid(index) && decodeResFormat.adderUnit && !decodeResFormat.otherUnit, adderRequest)
