@@ -35,4 +35,4 @@ checkformat:
 	mill -i __.checkFormat
 
 test:
-	mill -i tests.smoketest.run
+	env -i nix develop -c mill -k -j $$(expr $$(nproc) / 8) tests.run $$(sed ':a;N;$$!ba;s/\n/ /g' tests/passed.txt)

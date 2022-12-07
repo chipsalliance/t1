@@ -325,8 +325,10 @@ object tests extends Module {
     }
   }
 
-  object cases extends Module { c =>
-    object unittest extends Module { u =>
+  object cases extends Module {
+    c =>
+    object unittest extends Module {
+      u =>
       override def millSourcePath = os.pwd / "dependencies" / "riscv-vector-tests"
 
       def allGoSources = T.sources {
@@ -364,7 +366,7 @@ object tests extends Module {
             "-VLEN", 1024,
             "-XLEN", 32,
             "-outputfile", f,
-            "-configfile",  u.millSourcePath / "configs" / s"${name().replace('_', '.')}.toml"
+            "-configfile", u.millSourcePath / "configs" / s"${name().replace('_', '.')}.toml"
           ).call(T.dest)
           Seq(PathRef(f))
         }
@@ -374,7 +376,7 @@ object tests extends Module {
           PathRef(T.ctx.dest / name())
         }
       }
-   }
+    }
 
     trait Case extends Module {
       def name: T[String] = millOuterCtx.segment.pathSegments.last
@@ -418,10 +420,218 @@ object tests extends Module {
       }
     }
 
+    val testCases = Map(
+      "smoketest" -> smoketest,
+      "mmm" -> mmm,
+      "vaadd_vv" -> vaadd_vv,
+      "vaadd_vx" -> vaadd_vx,
+      "vaaddu_vv" -> vaaddu_vv,
+      "vaaddu_vx" -> vaaddu_vx,
+      "vadc_vim" -> vadc_vim,
+      "vadc_vvm" -> vadc_vvm,
+      "vadc_vxm" -> vadc_vxm,
+      "vadd_vi" -> vadd_vi,
+      "vadd_vv" -> vadd_vv,
+      "vadd_vx" -> vadd_vx,
+      "vand_vi" -> vand_vi,
+      "vand_vv" -> vand_vv,
+      "vand_vx" -> vand_vx,
+      "vasub_vv" -> vasub_vv,
+      "vasub_vx" -> vasub_vx,
+      "vasubu_vv" -> vasubu_vv,
+      "vasubu_vx" -> vasubu_vx,
+      "vcompress_vm" -> vcompress_vm,
+      "vcpop_m" -> vcpop_m,
+      "vdiv_vv" -> vdiv_vv,
+      "vdiv_vx" -> vdiv_vx,
+      "vdivu_vv" -> vdivu_vv,
+      "vdivu_vx" -> vdivu_vx,
+      "vid_v" -> vid_v,
+      "viota_m" -> viota_m,
+      "vle16_v" -> vle16_v,
+      "vle32_v" -> vle32_v,
+      "vle64_v" -> vle64_v,
+      "vle8_v" -> vle8_v,
+      "vlm_v" -> vlm_v,
+      "vlse16_v" -> vlse16_v,
+      "vlse32_v" -> vlse32_v,
+      "vlse64_v" -> vlse64_v,
+      "vlse8_v" -> vlse8_v,
+      "vmacc_vv" -> vmacc_vv,
+      "vmacc_vx" -> vmacc_vx,
+      "vmadc_vim" -> vmadc_vim,
+      "vmadc_vvm" -> vmadc_vvm,
+      "vmadd_vv" -> vmadd_vv,
+      "vmadd_vx" -> vmadd_vx,
+      "vmand_mm" -> vmand_mm,
+      "vmandn_mm" -> vmandn_mm,
+      "vmax_vv" -> vmax_vv,
+      "vmax_vx" -> vmax_vx,
+      "vmaxu_vv" -> vmaxu_vv,
+      "vmaxu_vx" -> vmaxu_vx,
+      "vmerge_vim" -> vmerge_vim,
+      "vmerge_vvm" -> vmerge_vvm,
+      "vmin_vv" -> vmin_vv,
+      "vmin_vx" -> vmin_vx,
+      "vminu_vv" -> vminu_vv,
+      "vminu_vx" -> vminu_vx,
+      "vmnand_mm" -> vmnand_mm,
+      "vmnor_mm" -> vmnor_mm,
+      "vmor_mm" -> vmor_mm,
+      "vmorn_mm" -> vmorn_mm,
+      "vmsbc_vvm" -> vmsbc_vvm,
+      "vmsbf_m" -> vmsbf_m,
+      "vmseq_vv" -> vmseq_vv,
+      "vmseq_vx" -> vmseq_vx,
+      "vmsgt_vv" -> vmsgt_vv,
+      "vmsgt_vx" -> vmsgt_vx,
+      "vmsgtu_vv" -> vmsgtu_vv,
+      "vmsgtu_vx" -> vmsgtu_vx,
+      "vmsif_m" -> vmsif_m,
+      "vmsle_vv" -> vmsle_vv,
+      "vmsle_vx" -> vmsle_vx,
+      "vmsleu_vv" -> vmsleu_vv,
+      "vmsleu_vx" -> vmsleu_vx,
+      "vmslt_vv" -> vmslt_vv,
+      "vmslt_vx" -> vmslt_vx,
+      "vmsltu_vv" -> vmsltu_vv,
+      "vmsltu_vx" -> vmsltu_vx,
+      "vmsne_vv" -> vmsne_vv,
+      "vmsne_vx" -> vmsne_vx,
+      "vmsof_m" -> vmsof_m,
+      "vmul_vv" -> vmul_vv,
+      "vmul_vx" -> vmul_vx,
+      "vmulh_vv" -> vmulh_vv,
+      "vmulh_vx" -> vmulh_vx,
+      "vmulhsu_vv" -> vmulhsu_vv,
+      "vmulhsu_vx" -> vmulhsu_vx,
+      "vmulhu_vv" -> vmulhu_vv,
+      "vmulhu_vx" -> vmulhu_vx,
+      "vmv_s_x" -> vmv_s_x,
+      "vmv_v_i" -> vmv_v_i,
+      "vmv_v_v" -> vmv_v_v,
+      "vmv_v_x" -> vmv_v_x,
+      "vmv_x_s" -> vmv_x_s,
+      "vmv1r_v" -> vmv1r_v,
+      "vmv2r_v" -> vmv2r_v,
+      "vmv4r_v" -> vmv4r_v,
+      "vmv8r_v" -> vmv8r_v,
+      "vmxnor_mm" -> vmxnor_mm,
+      "vmxor_mm" -> vmxor_mm,
+      "vnclip_wv" -> vnclip_wv,
+      "vnclipu_wv" -> vnclipu_wv,
+      "vnclipu_wx" -> vnclipu_wx,
+      "vnmsac_vv" -> vnmsac_vv,
+      "vnmsac_vx" -> vnmsac_vx,
+      "vnmsub_vv" -> vnmsub_vv,
+      "vnmsub_vx" -> vnmsub_vx,
+      "vnsra_wv" -> vnsra_wv,
+      "vnsra_wx" -> vnsra_wx,
+      "vnsrl_wv" -> vnsrl_wv,
+      "vnsrl_wx" -> vnsrl_wx,
+      "vor_vi" -> vor_vi,
+      "vor_vv" -> vor_vv,
+      "vor_vx" -> vor_vx,
+      "vredand_vs" -> vredand_vs,
+      "vredmax_vs" -> vredmax_vs,
+      "vredmaxu_vs" -> vredmaxu_vs,
+      "vredmin_vs" -> vredmin_vs,
+      "vredminu_vs" -> vredminu_vs,
+      "vredor_vs" -> vredor_vs,
+      "vredsum_vs" -> vredsum_vs,
+      "vredxor_vs" -> vredxor_vs,
+      "vrem_vv" -> vrem_vv,
+      "vrem_vx" -> vrem_vx,
+      "vremu_vv" -> vremu_vv,
+      "vremu_vx" -> vremu_vx,
+      "vrgather_vv" -> vrgather_vv,
+      "vrgather_vx" -> vrgather_vx,
+      "vrsub_vi" -> vrsub_vi,
+      "vrsub_vx" -> vrsub_vx,
+      "vsadd_vv" -> vsadd_vv,
+      "vsadd_vx" -> vsadd_vx,
+      "vsaddu_vv" -> vsaddu_vv,
+      "vsaddu_vx" -> vsaddu_vx,
+      "vsbc_vvm" -> vsbc_vvm,
+      "vsbc_vxm" -> vsbc_vxm,
+      "vse16_v" -> vse16_v,
+      "vse32_v" -> vse32_v,
+      "vse64_v" -> vse64_v,
+      "vse8_v" -> vse8_v,
+      "vsext_vf2" -> vsext_vf2,
+      "vsext_vf4" -> vsext_vf4,
+      "vsext_vf8" -> vsext_vf8,
+      "vslide1down_vx" -> vslide1down_vx,
+      "vslide1up_vx" -> vslide1up_vx,
+      "vslidedown_vx" -> vslidedown_vx,
+      "vslideup_vx" -> vslideup_vx,
+      "vsll_vi" -> vsll_vi,
+      "vsll_vv" -> vsll_vv,
+      "vsll_vx" -> vsll_vx,
+      "vsm_v" -> vsm_v,
+      "vsmul_vv" -> vsmul_vv,
+      "vsmul_vx" -> vsmul_vx,
+      "vsra_vi" -> vsra_vi,
+      "vsra_vv" -> vsra_vv,
+      "vsra_vx" -> vsra_vx,
+      "vsrl_vi" -> vsrl_vi,
+      "vsrl_vv" -> vsrl_vv,
+      "vsrl_vx" -> vsrl_vx,
+      "vsse16_v" -> vsse16_v,
+      "vsse32_v" -> vsse32_v,
+      "vsse64_v" -> vsse64_v,
+      "vsse8_v" -> vsse8_v,
+      "vssra_vv" -> vssra_vv,
+      "vssra_vx" -> vssra_vx,
+      "vssrl_vv" -> vssrl_vv,
+      "vssrl_vx" -> vssrl_vx,
+      "vssub_vv" -> vssub_vv,
+      "vssub_vx" -> vssub_vx,
+      "vssubu_vv" -> vssubu_vv,
+      "vssubu_vx" -> vssubu_vx,
+      "vsub_vv" -> vsub_vv,
+      "vsub_vx" -> vsub_vx,
+      "vwadd_vv" -> vwadd_vv,
+      "vwadd_vx" -> vwadd_vx,
+      "vwadd_wv" -> vwadd_wv,
+      "vwadd_wx" -> vwadd_wx,
+      "vwaddu_vv" -> vwaddu_vv,
+      "vwaddu_vx" -> vwaddu_vx,
+      "vwaddu_wv" -> vwaddu_wv,
+      "vwaddu_wx" -> vwaddu_wx,
+      "vwmacc_vv" -> vwmacc_vv,
+      "vwmacc_vx" -> vwmacc_vx,
+      "vwmaccsu_vv" -> vwmaccsu_vv,
+      "vwmaccsu_vx" -> vwmaccsu_vx,
+      "vwmaccu_vv" -> vwmaccu_vv,
+      "vwmaccu_vx" -> vwmaccu_vx,
+      "vwmaccus_vx" -> vwmaccus_vx,
+      "vwmul_vv" -> vwmul_vv,
+      "vwmul_vx" -> vwmul_vx,
+      "vwmulsu_vv" -> vwmulsu_vv,
+      "vwmulsu_vx" -> vwmulsu_vx,
+      "vwmulu_vv" -> vwmulu_vv,
+      "vwmulu_vx" -> vwmulu_vx,
+      "vwredsum_vs" -> vwredsum_vs,
+      "vwredsumu_vs" -> vwredsumu_vs,
+      "vwsub_vv" -> vwsub_vv,
+      "vwsub_vx" -> vwsub_vx,
+      "vwsub_wv" -> vwsub_wv,
+      "vwsub_wx" -> vwsub_wx,
+      "vwsubu_vv" -> vwsubu_vv,
+      "vwsubu_vx" -> vwsubu_vx,
+      "vwsubu_wv" -> vwsubu_wv,
+      "vwsubu_wx" -> vwsubu_wx,
+      "vxor_vi" -> vxor_vi,
+      "vxor_vv" -> vxor_vv,
+      "vxor_vx" -> vxor_vx,
+      "vzext_vf2" -> vzext_vf2,
+      "vzext_vf4" -> vzext_vf4,
+      "vzext_vf8" -> vzext_vf8,
+    )
+
     object smoketest extends Case
-
     object mmm extends Case
-
     object vaadd_vv extends unittest.Case
     object vaadd_vx extends unittest.Case
     object vaaddu_vv extends unittest.Case
@@ -629,844 +839,14 @@ object tests extends Module {
     object vzext_vf8 extends unittest.Case
   }
 
-  trait Case extends TaskModule {
-    override def defaultCommandName() = "run"
-
-    def bin: cases.Case
-
-    def run(args: String*) = T.command {
-      val proc = os.proc(Seq(tests.emulator.elf().path.toString, "--bin", bin.bin().path.toString, "--wave", (T.dest / "wave").toString) ++ args)
-      T.log.info(s"run test: ${bin.name} with:\n ${proc.command.map(_.value.mkString(" ")).mkString(" ")}")
-      proc.call()
-      PathRef(T.dest)
-    }
-  }
-
-  object smoketest extends Case {
-    def bin = cases.smoketest
-  }
-
-  object mmm extends Case {
-    def bin = cases.mmm
-  }
-
-  object vaadd_vv extends Case {
-    def bin = cases.vaadd_vv
-  }
-
-  object vaadd_vx extends Case {
-    def bin = cases.vaadd_vx
-  }
-
-  object vaaddu_vv extends Case {
-    def bin = cases.vaaddu_vv
-  }
-
-  object vaaddu_vx extends Case {
-    def bin = cases.vaaddu_vx
-  }
-
-  object vadc_vim extends Case {
-    def bin = cases.vadc_vim
-  }
-
-  object vadc_vvm extends Case {
-    def bin = cases.vadc_vvm
-  }
-
-  object vadc_vxm extends Case {
-    def bin = cases.vadc_vxm
-  }
-
-  object vadd_vi extends Case {
-    def bin = cases.vadd_vi
-  }
-
-  object vadd_vv extends Case {
-    def bin = cases.vadd_vv
-  }
-
-  object vadd_vx extends Case {
-    def bin = cases.vadd_vx
-  }
-
-  object vand_vi extends Case {
-    def bin = cases.vand_vi
-  }
-
-  object vand_vv extends Case {
-    def bin = cases.vand_vv
-  }
-
-  object vand_vx extends Case {
-    def bin = cases.vand_vx
-  }
-
-  object vasub_vv extends Case {
-    def bin = cases.vasub_vv
-  }
-
-  object vasub_vx extends Case {
-    def bin = cases.vasub_vx
-  }
-
-  object vasubu_vv extends Case {
-    def bin = cases.vasubu_vv
-  }
-
-  object vasubu_vx extends Case {
-    def bin = cases.vasubu_vx
-  }
-
-  object vcompress_vm extends Case {
-    def bin = cases.vcompress_vm
-  }
-
-  object vcpop_m extends Case {
-    def bin = cases.vcpop_m
-  }
-
-  object vdiv_vv extends Case {
-    def bin = cases.vdiv_vv
-  }
-
-  object vdiv_vx extends Case {
-    def bin = cases.vdiv_vx
-  }
-
-  object vdivu_vv extends Case {
-    def bin = cases.vdivu_vv
-  }
-
-  object vdivu_vx extends Case {
-    def bin = cases.vdivu_vx
-  }
-
-  object vid_v extends Case {
-    def bin = cases.vid_v
-  }
-
-  object viota_m extends Case {
-    def bin = cases.viota_m
-  }
-
-  object vle16_v extends Case {
-    def bin = cases.vle16_v
-  }
-
-  object vle32_v extends Case {
-    def bin = cases.vle32_v
-  }
-
-  object vle64_v extends Case {
-    def bin = cases.vle64_v
-  }
-
-  object vle8_v extends Case {
-    def bin = cases.vle8_v
-  }
-
-  object vlm_v extends Case {
-    def bin = cases.vlm_v
-  }
-
-  object vlse16_v extends Case {
-    def bin = cases.vlse16_v
-  }
-
-  object vlse32_v extends Case {
-    def bin = cases.vlse32_v
-  }
-
-  object vlse64_v extends Case {
-    def bin = cases.vlse64_v
-  }
-
-  object vlse8_v extends Case {
-    def bin = cases.vlse8_v
-  }
-
-  object vmacc_vv extends Case {
-    def bin = cases.vmacc_vv
-  }
-
-  object vmacc_vx extends Case {
-    def bin = cases.vmacc_vx
-  }
-
-  object vmadc_vim extends Case {
-    def bin = cases.vmadc_vim
-  }
-
-  object vmadc_vvm extends Case {
-    def bin = cases.vmadc_vvm
-  }
-
-  object vmadd_vv extends Case {
-    def bin = cases.vmadd_vv
-  }
-
-  object vmadd_vx extends Case {
-    def bin = cases.vmadd_vx
-  }
-
-  object vmand_mm extends Case {
-    def bin = cases.vmand_mm
-  }
-
-  object vmandn_mm extends Case {
-    def bin = cases.vmandn_mm
-  }
-
-  object vmax_vv extends Case {
-    def bin = cases.vmax_vv
-  }
-
-  object vmax_vx extends Case {
-    def bin = cases.vmax_vx
-  }
-
-  object vmaxu_vv extends Case {
-    def bin = cases.vmaxu_vv
-  }
-
-  object vmaxu_vx extends Case {
-    def bin = cases.vmaxu_vx
-  }
-
-  object vmerge_vim extends Case {
-    def bin = cases.vmerge_vim
-  }
-
-  object vmerge_vvm extends Case {
-    def bin = cases.vmerge_vvm
-  }
-
-  object vmin_vv extends Case {
-    def bin = cases.vmin_vv
-  }
-
-  object vmin_vx extends Case {
-    def bin = cases.vmin_vx
-  }
-
-  object vminu_vv extends Case {
-    def bin = cases.vminu_vv
-  }
-
-  object vminu_vx extends Case {
-    def bin = cases.vminu_vx
-  }
-
-  object vmnand_mm extends Case {
-    def bin = cases.vmnand_mm
-  }
-
-  object vmnor_mm extends Case {
-    def bin = cases.vmnor_mm
-  }
-
-  object vmor_mm extends Case {
-    def bin = cases.vmor_mm
-  }
-
-  object vmorn_mm extends Case {
-    def bin = cases.vmorn_mm
-  }
-
-  object vmsbc_vvm extends Case {
-    def bin = cases.vmsbc_vvm
-  }
-
-  object vmsbf_m extends Case {
-    def bin = cases.vmsbf_m
-  }
-
-  object vmseq_vv extends Case {
-    def bin = cases.vmseq_vv
-  }
-
-  object vmseq_vx extends Case {
-    def bin = cases.vmseq_vx
-  }
-
-  object vmsgt_vv extends Case {
-    def bin = cases.vmsgt_vv
-  }
-
-  object vmsgt_vx extends Case {
-    def bin = cases.vmsgt_vx
-  }
-
-  object vmsgtu_vv extends Case {
-    def bin = cases.vmsgtu_vv
-  }
-
-  object vmsgtu_vx extends Case {
-    def bin = cases.vmsgtu_vx
-  }
-
-  object vmsif_m extends Case {
-    def bin = cases.vmsif_m
-  }
-
-  object vmsle_vv extends Case {
-    def bin = cases.vmsle_vv
-  }
-
-  object vmsle_vx extends Case {
-    def bin = cases.vmsle_vx
-  }
-
-  object vmsleu_vv extends Case {
-    def bin = cases.vmsleu_vv
-  }
-
-  object vmsleu_vx extends Case {
-    def bin = cases.vmsleu_vx
-  }
-
-  object vmslt_vv extends Case {
-    def bin = cases.vmslt_vv
-  }
-
-  object vmslt_vx extends Case {
-    def bin = cases.vmslt_vx
-  }
-
-  object vmsltu_vv extends Case {
-    def bin = cases.vmsltu_vv
-  }
-
-  object vmsltu_vx extends Case {
-    def bin = cases.vmsltu_vx
-  }
-
-  object vmsne_vv extends Case {
-    def bin = cases.vmsne_vv
-  }
-
-  object vmsne_vx extends Case {
-    def bin = cases.vmsne_vx
-  }
-
-  object vmsof_m extends Case {
-    def bin = cases.vmsof_m
-  }
-
-  object vmul_vv extends Case {
-    def bin = cases.vmul_vv
-  }
-
-  object vmul_vx extends Case {
-    def bin = cases.vmul_vx
-  }
-
-  object vmulh_vv extends Case {
-    def bin = cases.vmulh_vv
-  }
-
-  object vmulh_vx extends Case {
-    def bin = cases.vmulh_vx
-  }
-
-  object vmulhsu_vv extends Case {
-    def bin = cases.vmulhsu_vv
-  }
-
-  object vmulhsu_vx extends Case {
-    def bin = cases.vmulhsu_vx
-  }
-
-  object vmulhu_vv extends Case {
-    def bin = cases.vmulhu_vv
-  }
-
-  object vmulhu_vx extends Case {
-    def bin = cases.vmulhu_vx
-  }
-
-  object vmv_s_x extends Case {
-    def bin = cases.vmv_s_x
-  }
-
-  object vmv_v_i extends Case {
-    def bin = cases.vmv_v_i
-  }
-
-  object vmv_v_v extends Case {
-    def bin = cases.vmv_v_v
-  }
-
-  object vmv_v_x extends Case {
-    def bin = cases.vmv_v_x
-  }
-
-  object vmv_x_s extends Case {
-    def bin = cases.vmv_x_s
-  }
-
-  object vmv1r_v extends Case {
-    def bin = cases.vmv1r_v
-  }
-
-  object vmv2r_v extends Case {
-    def bin = cases.vmv2r_v
-  }
-
-  object vmv4r_v extends Case {
-    def bin = cases.vmv4r_v
-  }
-
-  object vmv8r_v extends Case {
-    def bin = cases.vmv8r_v
-  }
-
-  object vmxnor_mm extends Case {
-    def bin = cases.vmxnor_mm
-  }
-
-  object vmxor_mm extends Case {
-    def bin = cases.vmxor_mm
-  }
-
-  object vnclip_wv extends Case {
-    def bin = cases.vnclip_wv
-  }
-
-  object vnclipu_wv extends Case {
-    def bin = cases.vnclipu_wv
-  }
-
-  object vnclipu_wx extends Case {
-    def bin = cases.vnclipu_wx
-  }
-
-  object vnmsac_vv extends Case {
-    def bin = cases.vnmsac_vv
-  }
-
-  object vnmsac_vx extends Case {
-    def bin = cases.vnmsac_vx
-  }
-
-  object vnmsub_vv extends Case {
-    def bin = cases.vnmsub_vv
-  }
-
-  object vnmsub_vx extends Case {
-    def bin = cases.vnmsub_vx
-  }
-
-  object vnsra_wv extends Case {
-    def bin = cases.vnsra_wv
-  }
-
-  object vnsra_wx extends Case {
-    def bin = cases.vnsra_wx
-  }
-
-  object vnsrl_wv extends Case {
-    def bin = cases.vnsrl_wv
-  }
-
-  object vnsrl_wx extends Case {
-    def bin = cases.vnsrl_wx
-  }
-
-  object vor_vi extends Case {
-    def bin = cases.vor_vi
-  }
-
-  object vor_vv extends Case {
-    def bin = cases.vor_vv
-  }
-
-  object vor_vx extends Case {
-    def bin = cases.vor_vx
-  }
-
-  object vredand_vs extends Case {
-    def bin = cases.vredand_vs
-  }
-
-  object vredmax_vs extends Case {
-    def bin = cases.vredmax_vs
-  }
-
-  object vredmaxu_vs extends Case {
-    def bin = cases.vredmaxu_vs
-  }
-
-  object vredmin_vs extends Case {
-    def bin = cases.vredmin_vs
-  }
-
-  object vredminu_vs extends Case {
-    def bin = cases.vredminu_vs
-  }
-
-  object vredor_vs extends Case {
-    def bin = cases.vredor_vs
-  }
-
-  object vredsum_vs extends Case {
-    def bin = cases.vredsum_vs
-  }
-
-  object vredxor_vs extends Case {
-    def bin = cases.vredxor_vs
-  }
-
-  object vrem_vv extends Case {
-    def bin = cases.vrem_vv
-  }
-
-  object vrem_vx extends Case {
-    def bin = cases.vrem_vx
-  }
-
-  object vremu_vv extends Case {
-    def bin = cases.vremu_vv
-  }
-
-  object vremu_vx extends Case {
-    def bin = cases.vremu_vx
-  }
-
-  object vrgather_vv extends Case {
-    def bin = cases.vrgather_vv
-  }
-
-  object vrgather_vx extends Case {
-    def bin = cases.vrgather_vx
-  }
-
-  object vrsub_vi extends Case {
-    def bin = cases.vrsub_vi
-  }
-
-  object vrsub_vx extends Case {
-    def bin = cases.vrsub_vx
-  }
-
-  object vsadd_vv extends Case {
-    def bin = cases.vsadd_vv
-  }
-
-  object vsadd_vx extends Case {
-    def bin = cases.vsadd_vx
-  }
-
-  object vsaddu_vv extends Case {
-    def bin = cases.vsaddu_vv
-  }
-
-  object vsaddu_vx extends Case {
-    def bin = cases.vsaddu_vx
-  }
-
-  object vsbc_vvm extends Case {
-    def bin = cases.vsbc_vvm
-  }
-
-  object vsbc_vxm extends Case {
-    def bin = cases.vsbc_vxm
-  }
-
-  object vse16_v extends Case {
-    def bin = cases.vse16_v
-  }
-
-  object vse32_v extends Case {
-    def bin = cases.vse32_v
-  }
-
-  object vse64_v extends Case {
-    def bin = cases.vse64_v
-  }
-
-  object vse8_v extends Case {
-    def bin = cases.vse8_v
-  }
-
-  object vsext_vf2 extends Case {
-    def bin = cases.vsext_vf2
-  }
-
-  object vsext_vf4 extends Case {
-    def bin = cases.vsext_vf4
-  }
-
-  object vsext_vf8 extends Case {
-    def bin = cases.vsext_vf8
-  }
-
-  object vslide1down_vx extends Case {
-    def bin = cases.vslide1down_vx
-  }
-
-  object vslide1up_vx extends Case {
-    def bin = cases.vslide1up_vx
-  }
-
-  object vslidedown_vx extends Case {
-    def bin = cases.vslidedown_vx
-  }
-
-  object vslideup_vx extends Case {
-    def bin = cases.vslideup_vx
-  }
-
-  object vsll_vi extends Case {
-    def bin = cases.vsll_vi
-  }
-
-  object vsll_vv extends Case {
-    def bin = cases.vsll_vv
-  }
-
-  object vsll_vx extends Case {
-    def bin = cases.vsll_vx
-  }
-
-  object vsm_v extends Case {
-    def bin = cases.vsm_v
-  }
-
-  object vsmul_vv extends Case {
-    def bin = cases.vsmul_vv
-  }
-
-  object vsmul_vx extends Case {
-    def bin = cases.vsmul_vx
-  }
-
-  object vsra_vi extends Case {
-    def bin = cases.vsra_vi
-  }
-
-  object vsra_vv extends Case {
-    def bin = cases.vsra_vv
-  }
-
-  object vsra_vx extends Case {
-    def bin = cases.vsra_vx
-  }
-
-  object vsrl_vi extends Case {
-    def bin = cases.vsrl_vi
-  }
-
-  object vsrl_vv extends Case {
-    def bin = cases.vsrl_vv
-  }
-
-  object vsrl_vx extends Case {
-    def bin = cases.vsrl_vx
-  }
-
-  object vsse16_v extends Case {
-    def bin = cases.vsse16_v
-  }
-
-  object vsse32_v extends Case {
-    def bin = cases.vsse32_v
-  }
-
-  object vsse64_v extends Case {
-    def bin = cases.vsse64_v
-  }
-
-  object vsse8_v extends Case {
-    def bin = cases.vsse8_v
-  }
-
-  object vssra_vv extends Case {
-    def bin = cases.vssra_vv
-  }
-
-  object vssra_vx extends Case {
-    def bin = cases.vssra_vx
-  }
-
-  object vssrl_vv extends Case {
-    def bin = cases.vssrl_vv
-  }
-
-  object vssrl_vx extends Case {
-    def bin = cases.vssrl_vx
-  }
-
-  object vssub_vv extends Case {
-    def bin = cases.vssub_vv
-  }
-
-  object vssub_vx extends Case {
-    def bin = cases.vssub_vx
-  }
-
-  object vssubu_vv extends Case {
-    def bin = cases.vssubu_vv
-  }
-
-  object vssubu_vx extends Case {
-    def bin = cases.vssubu_vx
-  }
-
-  object vsub_vv extends Case {
-    def bin = cases.vsub_vv
-  }
-
-  object vsub_vx extends Case {
-    def bin = cases.vsub_vx
-  }
-
-  object vwadd_vv extends Case {
-    def bin = cases.vwadd_vv
-  }
-
-  object vwadd_vx extends Case {
-    def bin = cases.vwadd_vx
-  }
-
-  object vwadd_wv extends Case {
-    def bin = cases.vwadd_wv
-  }
-
-  object vwadd_wx extends Case {
-    def bin = cases.vwadd_wx
-  }
-
-  object vwaddu_vv extends Case {
-    def bin = cases.vwaddu_vv
-  }
-
-  object vwaddu_vx extends Case {
-    def bin = cases.vwaddu_vx
-  }
-
-  object vwaddu_wv extends Case {
-    def bin = cases.vwaddu_wv
-  }
-
-  object vwaddu_wx extends Case {
-    def bin = cases.vwaddu_wx
-  }
-
-  object vwmacc_vv extends Case {
-    def bin = cases.vwmacc_vv
-  }
-
-  object vwmacc_vx extends Case {
-    def bin = cases.vwmacc_vx
-  }
-
-  object vwmaccsu_vv extends Case {
-    def bin = cases.vwmaccsu_vv
-  }
-
-  object vwmaccsu_vx extends Case {
-    def bin = cases.vwmaccsu_vx
-  }
-
-  object vwmaccu_vv extends Case {
-    def bin = cases.vwmaccu_vv
-  }
-
-  object vwmaccu_vx extends Case {
-    def bin = cases.vwmaccu_vx
-  }
-
-  object vwmaccus_vx extends Case {
-    def bin = cases.vwmaccus_vx
-  }
-
-  object vwmul_vv extends Case {
-    def bin = cases.vwmul_vv
-  }
-
-  object vwmul_vx extends Case {
-    def bin = cases.vwmul_vx
-  }
-
-  object vwmulsu_vv extends Case {
-    def bin = cases.vwmulsu_vv
-  }
-
-  object vwmulsu_vx extends Case {
-    def bin = cases.vwmulsu_vx
-  }
-
-  object vwmulu_vv extends Case {
-    def bin = cases.vwmulu_vv
-  }
-
-  object vwmulu_vx extends Case {
-    def bin = cases.vwmulu_vx
-  }
-
-  object vwredsum_vs extends Case {
-    def bin = cases.vwredsum_vs
-  }
-
-  object vwredsumu_vs extends Case {
-    def bin = cases.vwredsumu_vs
-  }
-
-  object vwsub_vv extends Case {
-    def bin = cases.vwsub_vv
-  }
-
-  object vwsub_vx extends Case {
-    def bin = cases.vwsub_vx
-  }
-
-  object vwsub_wv extends Case {
-    def bin = cases.vwsub_wv
-  }
-
-  object vwsub_wx extends Case {
-    def bin = cases.vwsub_wx
-  }
-
-  object vwsubu_vv extends Case {
-    def bin = cases.vwsubu_vv
-  }
-
-  object vwsubu_vx extends Case {
-    def bin = cases.vwsubu_vx
-  }
-
-  object vwsubu_wv extends Case {
-    def bin = cases.vwsubu_wv
-  }
-
-  object vwsubu_wx extends Case {
-    def bin = cases.vwsubu_wx
-  }
-
-  object vxor_vi extends Case {
-    def bin = cases.vxor_vi
-  }
-
-  object vxor_vv extends Case {
-    def bin = cases.vxor_vv
-  }
-
-  object vxor_vx extends Case {
-    def bin = cases.vxor_vx
-  }
-
-  object vzext_vf2 extends Case {
-    def bin = cases.vzext_vf2
-  }
-
-  object vzext_vf4 extends Case {
-    def bin = cases.vzext_vf4
-  }
-
-  object vzext_vf8 extends Case {
-    def bin = cases.vzext_vf8
+  def runCase(testCase: cases.Case) = T.task {
+    val proc = os.proc(Seq(tests.emulator.elf().path.toString, "--bin", testCase.bin().path.toString, "--wave", (T.dest / "wave").toString))
+    T.log.info(s"run test: ${testCase.name()} with:\n ${proc.command.map(_.value.mkString(" ")).mkString(" ")}")
+    proc.call()
+    PathRef(T.dest)
+  }
+
+  def run(args: String*) = T.command {
+    T.sequence(args.map(c => runCase(cases.testCases(c))))()
   }
 }
