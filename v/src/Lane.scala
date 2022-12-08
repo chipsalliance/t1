@@ -210,16 +210,25 @@ class LaneDataResponse(param: LaneParameters) extends Bundle {
   val last:      Bool = Bool()
 }
 
-class RingBusData(param: LaneParameters) extends Bundle {
+class ReadBusData(param: LaneParameters) extends Bundle {
   val data:      UInt = UInt(param.HLEN.W)
   val tail:      Bool = Bool()
   val target:    UInt = UInt(param.laneIndexBits.W)
   val instIndex: UInt = UInt(param.instIndexSize.W)
 }
 
-class RingPort(param: LaneParameters) extends Bundle {
-  val enq: DecoupledIO[RingBusData] = Flipped(Decoupled(new RingBusData(param)))
-  val deq: DecoupledIO[RingBusData] = Decoupled(new RingBusData(param))
+class WriteBusData(param: LaneParameters) extends Bundle {
+  val data:      UInt = UInt(param.ELEN.W)
+  val tail:      Bool = Bool()
+  // 正常的跨lane写可能会有mask类型的指令
+  val mask:      UInt = UInt(2.W)
+  val target:    UInt = UInt(param.laneIndexBits.W)
+  val instIndex: UInt = UInt(param.instIndexSize.W)
+}
+
+class RingPort[T <: Data](gen: T) extends Bundle {
+  val enq: DecoupledIO[T] = Flipped(Decoupled(gen))
+  val deq: DecoupledIO[T] = Decoupled(gen)
 }
 
 class SchedulerFeedback(param: LaneParameters) extends Bundle {
@@ -242,8 +251,8 @@ class Lane(param: LaneParameters) extends Module {
   val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxWidth)))
   val dataToScheduler: ValidIO[LaneDataResponse] = IO(Valid(new LaneDataResponse(param)))
   val laneIndex:       UInt = IO(Input(UInt(param.laneIndexBits.W)))
-  val readBusPort:     RingPort = IO(new RingPort(param))
-  val writeBusPort:    RingPort = IO(new RingPort(param))
+  val readBusPort:     RingPort[ReadBusData] = IO(new RingPort(new ReadBusData(param)))
+  val writeBusPort:    RingPort[WriteBusData] = IO(new RingPort(new WriteBusData(param)))
   val feedback:        ValidIO[SchedulerFeedback] = IO(Flipped(Valid(new SchedulerFeedback(param))))
   val readDataPort:    DecoupledIO[VRFReadRequest] = IO(Flipped(Decoupled(new VRFReadRequest(param.vrfParam))))
   val readResult:      UInt = IO(Output(UInt(param.ELEN.W)))
@@ -302,7 +311,7 @@ class Lane(param: LaneParameters) extends Module {
   val controlActive:   Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
   val controlCanShift: Vec[Bool] = Wire(Vec(param.controlNum, Bool()))
   // 读的环index与这个lane匹配上了, 会出环
-  val readBusDeq: ValidIO[RingBusData] = Wire(Valid(new RingBusData(param: LaneParameters)))
+  val readBusDeq: ValidIO[ReadBusData] = Wire(Valid(new ReadBusData(param: LaneParameters)))
 
   // 以6个执行单元为视角的控制信号
   val executeEnqValid:  Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.executeUnitNum.W)))
@@ -325,8 +334,8 @@ class Lane(param: LaneParameters) extends Module {
   // 作为最老的坑的控制信号
   val sendReady:      Bool = Wire(Bool())
   val sendWriteReady: Bool = Wire(Bool())
-  val sendReadData:   ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
-  val sendWriteData:  ValidIO[RingBusData] = Wire(Valid(new RingBusData(param)))
+  val sendReadData:   ValidIO[ReadBusData] = Wire(Valid(new ReadBusData(param)))
+  val sendWriteData:  ValidIO[WriteBusData] = Wire(Valid(new WriteBusData(param)))
 
   val vSewOrR: Bool = csrInterface.vSew.orR
   val sew1H: UInt = UIntToOH(csrInterface.vSew)
@@ -421,6 +430,7 @@ class Lane(param: LaneParameters) extends Module {
         sendWriteData.bits.tail := laneIndex(param.laneIndexBits - 1)
         sendWriteData.bits.instIndex := record.originalInformation.instIndex
         sendWriteData.bits.data := Mux(tryToSendHead, crossWriteResultHead, crossWriteResultTail)
+        sendWriteData.bits.mask := Mux(tryToSendHead, crossWriteMaskHead, crossWriteMaskTail)
         sendWriteData.valid := sendWriteHead || sendWriteTail
 
         // 跨lane读写的数据接收
@@ -760,7 +770,7 @@ class Lane(param: LaneParameters) extends Module {
 
   // 处理读环的
   {
-    val readBusDataReg: ValidIO[RingBusData] = RegInit(0.U.asTypeOf(Valid(new RingBusData(param))))
+    val readBusDataReg: ValidIO[ReadBusData] = RegInit(0.U.asTypeOf(Valid(new ReadBusData(param))))
     val readBusIndexMatch = readBusPort.enq.bits.target === laneIndex
     readBusDeq.valid := readBusIndexMatch && readBusPort.enq.valid
     readBusDeq.bits := readBusPort.enq.bits
@@ -783,7 +793,7 @@ class Lane(param: LaneParameters) extends Module {
 
   // 处理写环
   {
-    val writeBusDataReg: ValidIO[RingBusData] = RegInit(0.U.asTypeOf(Valid(new RingBusData(param))))
+    val writeBusDataReg: ValidIO[WriteBusData] = RegInit(0.U.asTypeOf(Valid(new WriteBusData(param))))
     // 策略依然是环上的优先,如果queue满了继续转
     val writeBusIndexMatch = writeBusPort.enq.bits.target === laneIndex && crossWriteQueue.io.enq.ready
     writeBusPort.enq.ready := true.B
@@ -793,7 +803,7 @@ class Lane(param: LaneParameters) extends Module {
     crossWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
     crossWriteQueue.io.enq.bits.last := instWillComplete.head && writeBusPort.enq.bits.tail
     crossWriteQueue.io.enq.bits.instIndex := control.head.originalInformation.instIndex
-    crossWriteQueue.io.enq.bits.mask := 15.U//todo
+    crossWriteQueue.io.enq.bits.mask := FillInterleaved(2, writeBusPort.enq.bits.mask)
     //writeBusPort.enq.bits
     crossWriteQueue.io.enq.valid := false.B
 
