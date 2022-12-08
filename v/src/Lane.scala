@@ -125,7 +125,7 @@ class LaneReq(param: LaneParameters) extends Bundle {
     res.sExecute := false.B
     //todo: red
     res.wExecuteRes := sp
-    res.sWrite := decodeResFormat.otherUnit && decodeResFormatExt.targetRD
+    res.sWrite := (decodeResFormat.otherUnit && decodeResFormatExt.targetRD) || decodeResFormat.Widen
     res.sCrossWrite0 := !decodeResFormat.Widen
     res.sCrossWrite1 := !decodeResFormat.Widen
     res.sSendResult0 := !decodeResFormat.firstWiden
@@ -268,6 +268,11 @@ class Lane(param: LaneParameters) extends Module {
   val source3: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // execute result
   val result: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
+  // 跨lane写的额外用寄存器存储执行的结果和mask
+  val crossWriteResultHead: UInt = RegInit(0.U(param.ELEN.W))
+  val crossWriteMaskHead: UInt = RegInit(0.U(2.W))
+  val crossWriteResultTail: UInt = RegInit(0.U(param.ELEN.W))
+  val crossWriteMaskTail: UInt = RegInit(0.U(2.W))
   // 额外给 lsu 和 mask unit
   val rfWriteVec: Vec[ValidIO[VRFWriteRequest]] = Wire(
     Vec(param.controlNum + 1, Valid(new VRFWriteRequest(param.vrfParam)))
@@ -348,6 +353,8 @@ class Lane(param: LaneParameters) extends Module {
       val extendInst = decodeRes(19) && decodeRes(1, 0).orR
       val needCrossRead = !extendInst && decodeResFormat.firstWiden
       val needCrossWrite = !extendInst && decodeResFormat.Widen
+      val dataDeq: UInt = Mux1H(instTypeVec(index), executeDeqData)
+      val dataDeqFire: Bool = (instTypeVec(index) & executeDeqFire).orR
       when(needCrossRead) {
         assert(csrInterface.vSew != 2.U)
       }
@@ -413,7 +420,7 @@ class Lane(param: LaneParameters) extends Module {
         sendWriteData.bits.target := laneIndex(param.laneIndexBits - 2, 0) ## sendWriteTail
         sendWriteData.bits.tail := laneIndex(param.laneIndexBits - 1)
         sendWriteData.bits.instIndex := record.originalInformation.instIndex
-        sendWriteData.bits.data := Mux(tryToSendHead, result(index), result(index) >> (csrInterface.vSew ## 0.U(3.W)))
+        sendWriteData.bits.data := Mux(tryToSendHead, crossWriteResultHead, crossWriteResultTail)
         sendWriteData.valid := sendWriteHead || sendWriteTail
 
         // 跨lane读写的数据接收
@@ -437,7 +444,7 @@ class Lane(param: LaneParameters) extends Module {
           }
         }
         // 写环发送的状态变化
-        when(sendWriteReady) {
+        when(sendWriteReady && sendWriteData.valid) {
           record.state.sCrossWrite0 := true.B
           when(record.state.sCrossWrite0) {
             record.state.sCrossWrite1 := true.B
@@ -450,6 +457,64 @@ class Lane(param: LaneParameters) extends Module {
         }
         when(vrfReadWire(index)(2).fire && decodeResFormat.firstWiden) {
           crossReadTailTX := vrfReadResult(index)(2)
+        }
+
+        /** 记录跨lane的写
+          * sew = 2的时候不会有双倍的写,所以只需要处理sew=0和sew=1
+          * sew:
+          *   0:
+          *     executeIndex:
+          *       0: mask = 0011, head
+          *       1: mask = 1100, head
+          *       2: mask = 0011, tail
+          *       3: mask = 1100, tail
+          *   1:
+          *     executeIndex:
+          *       0: mask = 1111, head
+          *       2: mask = 1111, tail
+          * */
+        // dataDeq
+        when(dataDeqFire) {
+          when(record.executeIndex(1)) {
+            // update tail
+            crossWriteResultTail :=
+              Mux(
+                csrInterface.vSew(0),
+                dataDeq(param.ELEN - 1, param.HLEN),
+                Mux(
+                  record.executeIndex(0),
+                  dataDeq(param.HLEN - 1, 0),
+                  crossWriteResultTail(param.ELEN - 1, param.HLEN)
+                )
+              ) ## Mux(
+                !record.executeIndex(0) || csrInterface.vSew(0),
+                dataDeq(param.HLEN - 1, 0),
+                crossWriteResultTail(param.HLEN - 1, 0)
+              )
+            crossWriteMaskTail :=
+              (record.executeIndex(0) || csrInterface.vSew(0) || crossWriteMaskTail(1)) ##
+                (!record.executeIndex(0) || csrInterface.vSew(0) || crossWriteMaskTail(0))
+          }.otherwise {
+            // update head
+            crossWriteResultHead :=
+              Mux(
+                csrInterface.vSew(0),
+                dataDeq(param.ELEN - 1, param.HLEN),
+                Mux(
+                  record.executeIndex(0),
+                  dataDeq(param.HLEN - 1, 0),
+                  crossWriteResultHead(param.ELEN - 1, param.HLEN)
+                )
+              ) ## Mux(
+                !record.executeIndex(0) || csrInterface.vSew(0),
+                dataDeq(param.HLEN - 1, 0),
+                crossWriteResultHead(param.HLEN - 1, 0)
+              )
+            crossWriteMaskHead :=
+              (record.executeIndex(0) || csrInterface.vSew(0) || crossWriteMaskHead(1)) ##
+                (!record.executeIndex(0) || csrInterface.vSew(0) || crossWriteMaskHead(0))
+          }
+
         }
       }
       // 发起执行单元的请求
@@ -635,9 +700,9 @@ class Lane(param: LaneParameters) extends Module {
       }
 
       // todo: 暂时先这样把,处理mask的时候需要修
-      val executeResult = (Mux1H(instTypeVec(index), executeDeqData) << dataOffset).asUInt(param.ELEN - 1, 0)
+      val executeResult = (dataDeq << dataOffset).asUInt(param.ELEN - 1, 0)
       val resultUpdate: UInt = (executeResult & executeBitEnable) | (result(index) & (~executeBitEnable).asUInt)
-      when((instTypeVec(index) & executeDeqFire).orR) {
+      when(dataDeqFire) {
         when(groupEnd) {
           record.state.wExecuteRes := true.B
         }
@@ -868,6 +933,8 @@ class Lane(param: LaneParameters) extends Module {
     result := VecInit(result.tail :+ 0.U(param.ELEN.W))
     source2 := VecInit(source2.tail :+ 0.U(param.ELEN.W))
     source3 := VecInit(source3.tail :+ 0.U(param.ELEN.W))
+    crossWriteMaskHead := 0.U
+    crossWriteMaskTail := 0.U
   }
   // 试图让vrf记录这一条指令的信息,拒绝了说明有还没解决的冲突
   vrf.flush := DontCare
