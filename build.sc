@@ -339,7 +339,12 @@ object tests extends Module {
         // depends on GO
         allGoSources()
         val elf = T.dest / "generator"
-        os.proc("go", "build", "-o", elf, "single/single.go").call(cwd = millSourcePath, env = Map("GOCACHE" -> s"${T.dest / "cache"}"))
+        os.proc("go", "build", "-o", elf, "single/single.go").call(cwd = millSourcePath, env = Map(
+          "GOCACHE" -> s"${T.dest / "GOCACHE"}",
+          "GOENV" -> s"${T.dest / "GOENV"}",
+          "GOMODCACHE" -> s"${T.dest / "GOMODCACHE"}",
+          "GOPATH" -> s"${T.dest / "GOPATH"}"
+        ))
         PathRef(elf)
       }
 
