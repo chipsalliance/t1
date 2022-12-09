@@ -109,8 +109,10 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   inst_bits = fetch.insn.bits();
   uint32_t opcode = clip(inst_bits, 0, 6);
   uint32_t width = clip(inst_bits, 12, 14);
+  uint32_t funct6 = clip(inst_bits, 26, 31);
   is_load = opcode == 0b0000111;
   is_store = opcode == 0b0100111;
+  is_widening = opcode == 0b1010111 && (funct6 >> 4) == 0b11;
   is_exit_insn = opcode == 0b1110011;
   is_vfence_insn = opcode == 0b1010111 && width == 0b111;
 
@@ -179,6 +181,7 @@ std::pair<uint32_t, uint32_t> SpikeEvent::get_vrf_write_range() const {
     uint32_t len = vlmul & 0b100
                    ? consts::vlen_in_bytes >> (8 - vlmul)
                    : consts::vlen_in_bytes << vlmul;
-    return {vd_bytes_start, len};
+
+    return {vd_bytes_start, is_widening ? len*2 : len};
   }
 }
