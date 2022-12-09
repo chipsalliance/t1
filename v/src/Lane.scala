@@ -223,6 +223,8 @@ class WriteBusData(param: LaneParameters) extends Bundle {
   // 正常的跨lane写可能会有mask类型的指令
   val mask:      UInt = UInt(2.W)
   val target:    UInt = UInt(param.laneIndexBits.W)
+  // todo: for debug
+  val from:    UInt = UInt(param.laneIndexBits.W)
   val instIndex: UInt = UInt(param.instIndexSize.W)
 }
 
@@ -265,6 +267,7 @@ class Lane(param: LaneParameters) extends Module {
   val lsuLastReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(param.instIndexSize.W))))
   val bufferClear: Bool = IO(Input(Bool()))
 
+  dontTouch(writeBusPort)
   val maskGroupedOrR: UInt = VecInit(maskRegInput.asBools.grouped(4).toSeq.map(VecInit(_).asUInt.orR)).asUInt
   val vrf: VRF = Module(new VRF(param.vrfParam))
   // reg
@@ -426,11 +429,12 @@ class Lane(param: LaneParameters) extends Module {
         // 跨lane的写
         val sendWriteHead = record.state.sExecute && !record.state.sCrossWrite0 && controlValid.head
         val sendWriteTail = record.state.sExecute && !record.state.sCrossWrite1 && controlValid.head
-        sendWriteData.bits.target := laneIndex(param.laneIndexBits - 2, 0) ## sendWriteTail
+        sendWriteData.bits.target := laneIndex(param.laneIndexBits - 2, 0) ## (!sendWriteHead)
+        sendWriteData.bits.from := laneIndex
         sendWriteData.bits.tail := laneIndex(param.laneIndexBits - 1)
         sendWriteData.bits.instIndex := record.originalInformation.instIndex
-        sendWriteData.bits.data := Mux(tryToSendHead, crossWriteResultHead, crossWriteResultTail)
-        sendWriteData.bits.mask := Mux(tryToSendHead, crossWriteMaskHead, crossWriteMaskTail)
+        sendWriteData.bits.data := Mux(sendWriteHead, crossWriteResultHead, crossWriteResultTail)
+        sendWriteData.bits.mask := Mux(sendWriteHead, crossWriteMaskHead, crossWriteMaskTail)
         sendWriteData.valid := sendWriteHead || sendWriteTail
 
         // 跨lane读写的数据接收
