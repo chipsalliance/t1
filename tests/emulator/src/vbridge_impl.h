@@ -84,17 +84,17 @@ private:
   std::unique_ptr<uint8_t[]> vrf_shadow;
 
   /// file path of executable binary file, which will be executed.
-  const std::string bin = std::getenv("COSIM_bin");
+  const std::string bin = getenv("COSIM_bin");
 
   /// generated waveform path.
-  const std::string wave = std::getenv("COSIM_wave");
+  const std::string wave = getenv("COSIM_wave");
 
   /// reset vector of
-  const uint64_t reset_vector = std::stoul(std::getenv("COSIM_reset_vector"), nullptr, 16);
+  const uint64_t reset_vector = std::stoul(getenv("COSIM_reset_vector"), nullptr, 16);
 
   /// RTL timeout cycles
   /// note: this is not the real system cycles, scalar instructions is evaulated via spike, which is not recorded.
-  const uint64_t timeout = std::stoul(std::getenv("COSIM_timeout"));
+  const uint64_t timeout = std::stoul(getenv("COSIM_timeout"));
 
   std::optional<SpikeEvent> create_spike_event(insn_fetch_t fetch);
 
@@ -105,7 +105,6 @@ private:
   // for load instructions, rtl would commit after vrf write requests enters the write queue (but not actually written),
   // hence for these instructions, we should record vrf write on queue, and ignore them on vrf.write
   void record_rf_queue_accesses(const VLsuWriteQueuePeek &lsu_queues);
-  void record_issue_index(SpikeEvent *se, const VInstrFire &fire);
   void record_rf_accesses(const VrfWritePeek &rf_writs);
   void return_tl_response(const VTlInterfacePoke &tl_poke);
   void receive_tl_req(const VTlInterface &tl);
@@ -122,6 +121,8 @@ private:
   int get_mem_req_cycles() {
     return 1;
   };
+
+  uint64_t last_commit_time = 0;
 };
 
 extern VBridgeImpl vbridge_impl_instance;
