@@ -59,3 +59,9 @@ erase_if( std::multimap<Key,T,Compare,Alloc>& c, Pred pred ) {
   }
   return old_size - c.size();
 };
+
+inline char *getenv(char *name) {
+  char *val = std::getenv(name);
+  CHECK_S(val != nullptr) << fmt::format("cannot find environment of name '{}'", name);
+  return val;
+}

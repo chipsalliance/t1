@@ -35,5 +35,5 @@ checkformat:
 	mill -i __.checkFormat
 
 test:
-	env -i COSIM_timeout=5000000 nix develop -c mill -k -j $$(expr $$(nproc) / 8) tests.run $$(sed ':a;N;$$!ba;s/\n/ /g' tests/passed.txt)
+	env -i COSIM_timeout=1000000 nix develop -c mill -i -k -j $$(expr $$(nproc) / 8) tests.run $$(sed ':a;N;$$!ba;s/\n/ /g' tests/passed.txt)
 

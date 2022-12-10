@@ -16,8 +16,8 @@ inline uint32_t decode_size(uint32_t encoded_size) {
 }
 
 void VBridgeImpl::timeoutCheck() {
-  if (getCycle() > timeout) {
-    LOG(FATAL_S) << fmt::format("Simulation timeout, t={}", getCycle());
+  if (get_t() > timeout + last_commit_time) {
+    LOG(FATAL_S) << fmt::format("Simulation timeout, t={}, last_commit={}", get_t(), last_commit_time);
   }
 }
 
@@ -70,7 +70,7 @@ void VBridgeImpl::dpiPeekVrfWrite(const VrfWritePeek &vrf_write) {
 void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr, const VCsrInterfacePoke &v_csr, const VRespInterface &v_resp) {
   VLOG(3) << fmt::format("[{}] dpiPokeInst", get_t());
   for (auto &se:to_rtl_queue) {
-    VLOG(1) << fmt::format(" - se={}, issued={}, issue_idx={}", se.describe_insn(), se.is_issued, se.issue_idx);
+    VLOG(2) << fmt::format(" - se={}, issued={}, issue_idx={}", se.describe_insn(), se.is_issued, se.issue_idx);
   }
 
   if (v_resp.valid) {
@@ -79,6 +79,7 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr, const VCsrInte
     se.record_rd_write(v_resp);
     se.check_is_ready_for_commit();
     LOG(INFO) << fmt::format("[{}] rtl commit insn ({})", get_t(), to_rtl_queue.back().describe_insn());
+    last_commit_time = get_t();
     to_rtl_queue.pop_back();
   }
 
@@ -106,11 +107,6 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr, const VCsrInte
     se_to_issue->drive_rtl_req(v_instr);
   }
   se_to_issue->drive_rtl_csr(v_csr);
-
-  if (get_t() >= timeout) {
-    LOG(INFO) << "timeout";
-    throw TimeoutException();
-  }
 }
 
 //==================
