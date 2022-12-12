@@ -367,6 +367,7 @@ class Lane(param: LaneParameters) extends Module {
       val needCrossWrite = !extendInst && decodeResFormat.Widen
       val dataDeq: UInt = Mux1H(instTypeVec(index), executeDeqData)
       val dataDeqFire: Bool = (instTypeVec(index) & executeDeqFire).orR
+      val firstMasked: Bool = Wire(Bool())
       when(needCrossRead) {
         assert(csrInterface.vSew != 2.U)
       }
@@ -488,7 +489,7 @@ class Lane(param: LaneParameters) extends Module {
           *       2: mask = 1111, tail
           * */
         // dataDeq
-        when(dataDeqFire) {
+        when(dataDeqFire && !firstMasked) {
           when(record.executeIndex(1)) {
             // update tail
             crossWriteResultTail :=
@@ -545,7 +546,7 @@ class Lane(param: LaneParameters) extends Module {
         * 等到更新完选完 mask 组再去更新 [[record.counter]] & [[record.executeIndex]] 感觉不是科学的做法
         * 所以特别处理一下这种情况
         * */
-      val firstMasked: Bool = record.originalInformation.mask && record.mask.valid && (elementIndex(4, 0) === 0.U) && !record.mask.bits(0)
+      firstMasked := record.originalInformation.mask && record.mask.valid && (elementIndex(4, 0) === 0.U) && !record.mask.bits(0)
       // 选出下一个element的index
       val maskCorrection: UInt = Mux1H(
         Seq(record.originalInformation.mask && record.mask.valid, !record.originalInformation.mask),
