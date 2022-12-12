@@ -132,6 +132,7 @@ class V(val param: VParam) extends Module {
   val maskUnitType: Bool = nextInstType.asUInt.orR
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
   val specialInst: Bool = maskUnitType || indexTypeLS
+  val busClear: Bool = Wire(Bool())
 
   // 指令的状态维护
   val instStateVec: Seq[InstControl] = Seq.tabulate(param.chainingSize) { index =>
@@ -149,7 +150,7 @@ class V(val param: VParam) extends Module {
       control.endTag := VecInit(Seq.fill(param.lane)(isLSType) :+ !isLSType)
     }.otherwise {
       when(control.endTag.asUInt.andR) {
-        control.state.wLast := true.B
+        control.state.wLast := !control.record.w || busClear
       }
       when(respCount === control.record.instIndex && resp.fire) {
         control.state.sCommit := true.B
@@ -241,6 +242,7 @@ class V(val param: VParam) extends Module {
 
     lane
   }
+  busClear := !VecInit(laneVec.map(_.writeBusPort.deq.valid)).asUInt.orR
   laneVec.map(_.dataToScheduler).zip(next).foreach { case (source, sink) => sink := source.valid && !source.bits.toLSU }
 
   // 连lsu
