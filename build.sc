@@ -824,13 +824,15 @@ object tests extends Module {
   }
 
   def runCase(testCase: cases.Case) = T.task {
+    def envDefault(name: String, default: String) = {
+      name -> sys.env.getOrElse(name, default)
+    }
     val runEnv = Map(
       "COSIM_bin" -> testCase.bin().path.toString,
       "COSIM_wave" -> (T.dest / "wave").toString,
       "COSIM_reset_vector" -> "1000",
-      // TODO: timeout logic should be cycle count after last issue
-      // "COSIM_timeout" -> "100000",
-      // "GLOG_logtostderr" -> "1",
+      envDefault("COSIM_timeout", "1000000"),
+      envDefault("GLOG_logtostderr", "1"),
     )
     T.log.info(s"run test: ${testCase.name()} with:\n ${runEnv.map{case (k, v) => s"$k=$v"}.mkString(" ")} ${tests.emulator.elf().path.toString}")
     os.proc(Seq(tests.emulator.elf().path.toString)).call(env = runEnv)
