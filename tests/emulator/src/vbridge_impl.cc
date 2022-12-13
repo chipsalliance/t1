@@ -87,6 +87,11 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr, const VCsrInte
     se_to_issue = find_se_to_issue();
     if ((se_to_issue->is_vfence_insn || se_to_issue->is_exit_insn) && to_rtl_queue.size() == 1) {
       to_rtl_queue.pop_back();
+
+      if (se_to_issue->is_exit_insn) {
+        LOG(INFO) << fmt::format("[{}] reaching exit instruction ({})", get_t(), se_to_issue->describe_insn());
+        throw ReturnException();
+      }
     } else {
       break;
     }
@@ -96,10 +101,10 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr, const VCsrInte
     // it is ensured there are some other instruction not committed, thus se_to_issue should not be issued
     CHECK_S(to_rtl_queue.size() > 1);
     if (se_to_issue->is_exit_insn) {
-      LOG(INFO) << fmt::format("[{}] reaching exit instruction ({})", get_t(), se_to_issue->describe_insn());
-      throw ReturnException();
+      LOG(INFO) << fmt::format("[{}] exit waiting for fence", get_t());
+    } else {
+      LOG(INFO) << fmt::format("[{}] waiting for fence, no issuing new instruction", get_t());
     }
-    LOG(INFO) << fmt::format("[{}] waiting for fence, no issuing new instruction", get_t());
     *v_instr.valid = false;
   } else {
     LOG(INFO) << fmt::format("[{}] poke instruction ({})",
