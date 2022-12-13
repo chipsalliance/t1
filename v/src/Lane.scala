@@ -226,6 +226,7 @@ class WriteBusData(param: LaneParameters) extends Bundle {
   // todo: for debug
   val from:    UInt = UInt(param.laneIndexBits.W)
   val instIndex: UInt = UInt(param.instIndexSize.W)
+  val counter: UInt = UInt(param.groupSizeBits.W)
 }
 
 class RingPort[T <: Data](gen: T) extends Bundle {
@@ -434,6 +435,7 @@ class Lane(param: LaneParameters) extends Module {
         sendWriteData.bits.from := laneIndex
         sendWriteData.bits.tail := laneIndex(param.laneIndexBits - 1)
         sendWriteData.bits.instIndex := record.originalInformation.instIndex
+        sendWriteData.bits.counter := record.counter
         sendWriteData.bits.data := Mux(sendWriteHead, crossWriteResultHead, crossWriteResultTail)
         sendWriteData.bits.mask := Mux(sendWriteHead, crossWriteMaskHead, crossWriteMaskTail)
         sendWriteData.valid := sendWriteHead || sendWriteTail
@@ -804,7 +806,7 @@ class Lane(param: LaneParameters) extends Module {
     writeBusPort.enq.ready := true.B
     writeBusDataReg.valid := false.B
     crossWriteQueue.io.enq.bits.vd := control.head.originalInformation.vd
-    crossWriteQueue.io.enq.bits.offset := control.head.originalInformation.instIndex ## writeBusPort.enq.bits.tail
+    crossWriteQueue.io.enq.bits.offset := writeBusPort.enq.bits.counter ## writeBusPort.enq.bits.tail
     crossWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
     crossWriteQueue.io.enq.bits.last := instWillComplete.head && writeBusPort.enq.bits.tail
     crossWriteQueue.io.enq.bits.instIndex := control.head.originalInformation.instIndex
