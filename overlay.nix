@@ -146,10 +146,7 @@ in
     };
   };
 
-  circt = final.stdenv.mkDerivation {
-    pname = "circt";
-    version = "r4396.ce85204ca";
-    nativeBuildInputs = with final; [ cmake ninja python3 git ];
+  circt = let
     src = final.fetchFromGitHub {
       owner = "llvm";
       repo = "circt";
@@ -157,8 +154,13 @@ in
       sha256 = "sha256-Lpu8J9izWvtYqibJQV0xEldk406PJobUM9WvTmNS3g4=";
       fetchSubmodules = true;
     };
+  in final.stdenv.mkDerivation {
+    pname = "circt";
+    version = "r4396.ce85204ca";
+    nativeBuildInputs = with final; [ cmake ninja python3 git ];
+    dontUnpack = true;
     cmakeFlags = [
-      "-S/build/source/llvm/llvm"
+      "-S${src}/llvm/llvm"
       "-DLLVM_ENABLE_PROJECTS=mlir"
       "-DBUILD_SHARED_LIBS=OFF"
       "-DLLVM_STATIC_LINK_CXX_STDLIB=ON"
@@ -168,7 +170,7 @@ in
       "-DLLVM_ENABLE_OCAMLDOC=OFF"
       "-DLLVM_OPTIMIZED_TABLEGEN=ON"
       "-DLLVM_EXTERNAL_PROJECTS=circt"
-      "-DLLVM_EXTERNAL_CIRCT_SOURCE_DIR=/build/source"
+      "-DLLVM_EXTERNAL_CIRCT_SOURCE_DIR=${src}"
       "-DLLVM_BUILD_TOOLS=ON"
     ];
     installPhase = ''
