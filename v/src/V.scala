@@ -97,7 +97,7 @@ class V(val param: VParam) extends Module {
   val decodeResFormat:    InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
   val decodeResFormatExt: ExtendInstructionDecodeResult = decodeResult.asTypeOf(new ExtendInstructionDecodeResult)
 
-  val isLSType: Bool = !req.bits.inst(6)
+  val isLSType: Bool = !req.bits.inst(6) && req.valid
   val isST:     Bool = !req.bits.inst(6) && req.bits.inst(5)
   val maskType: Bool = !req.bits.inst(25)
 
