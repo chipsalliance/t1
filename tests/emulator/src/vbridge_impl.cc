@@ -86,12 +86,12 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr, const VCsrInte
   while (true) {
     se_to_issue = find_se_to_issue();
     if ((se_to_issue->is_vfence_insn || se_to_issue->is_exit_insn) && to_rtl_queue.size() == 1) {
-      to_rtl_queue.pop_back();
-
       if (se_to_issue->is_exit_insn) {
         LOG(INFO) << fmt::format("[{}] reaching exit instruction ({})", get_t(), se_to_issue->describe_insn());
         throw ReturnException();
       }
+
+      to_rtl_queue.pop_back();
     } else {
       break;
     }
