@@ -15,12 +15,16 @@ public:
   LogMessageFatal_S(const char* file, int line, const CheckOpString& result): LogMessage(file, line, GLOG_ERROR) {
     stream() << "Check failed: " << (*result.str_) << " ";
   };
-  ~LogMessageFatal_S() noexcept(false) {
+  [[noreturn]] ~LogMessageFatal_S() noexcept(false) {
     Flush();
     throw CheckFailedException();
   };
 };
 }
+
+#define CHECK_S(condition)  \
+      LOG_IF(FATAL_S, GOOGLE_PREDICT_BRANCH_NOT_TAKEN(!(condition))) \
+             << "Check failed: " #condition " "
 
 #define CHECK_OP_S(name, op, val1, val2) \
   CHECK_OP_LOG(name, op, val1, val2, google::LogMessageFatal_S)
@@ -33,3 +37,13 @@ public:
 #define CHECK_LT_S(val1, val2) CHECK_OP_S(_LT, < , val1, val2)
 #define CHECK_GE_S(val1, val2) CHECK_OP_S(_GE, >=, val1, val2)
 #define CHECK_GT_S(val1, val2) CHECK_OP_S(_GT, > , val1, val2)
+
+// prevent using these non-exception-safe macros
+#undef COMPACT_GOOGLE_LOG_FATAL
+#undef CHECK
+#undef CHECK_EQ
+#undef CHECK_NE
+#undef CHECK_LE
+#undef CHECK_LT
+#undef CHECK_GE
+#undef CHECK_GT
