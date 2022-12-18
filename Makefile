@@ -35,5 +35,5 @@ checkformat:
 	mill -i __.checkFormat
 
 test:
-	GLOG_minLoglevel=2 GLOG_logtostderr=0 nix develop -c mill -i -k -j $$(expr $$(nproc) / 8) tests.run $$(sed ':a;N;$$!ba;s/\n/ /g' tests/passed.txt)
+	GLOG_minloglevel=2 GLOG_logtostderr=0 nix develop -c mill -i -k -j $$(expr $$(nproc) / 8) tests.run $$(sed ':a;N;$$!ba;s/\n/ /g' tests/passed.txt)
 
