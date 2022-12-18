@@ -22,7 +22,7 @@ case class VParam(XLEN: Int = 32, dataPathWidth: Int = 32, VLEN: Int = 1024, lan
     e = None
   )
   def laneParam: LaneParameters = LaneParameters(dataPathWidth)
-  def lsuParma:  LSUParam = LSUParam(dataPathWidth)
+  def lsuParam:  LSUParam = LSUParam(dataPathWidth)
   def vrfParam:  VRFParam = VRFParam(VLEN, lane, dataPathWidth)
   require(XLEN == dataPathWidth)
 }
@@ -72,14 +72,14 @@ class InstControl(param: VParam) extends Bundle {
   val endTag: Vec[Bool] = Vec(param.lane + 1, Bool())
 }
 
-class V(param: VParam) extends Module {
+class V(val param: VParam) extends Module {
   val req:              DecoupledIO[VReq] = IO(Flipped(Decoupled(new VReq(param))))
   val resp:             ValidIO[VResp] = IO(Valid(new VResp(param)))
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.laneParam.VLMaxWidth)))
   val storeBufferClear: Bool = IO(Input(Bool()))
   val tlPort:           Vec[TLBundle] = IO(Vec(param.tlBank, param.tlParam.bundle()))
 
-  val lsu: LSU = Module(new LSU(param.lsuParma))
+  val lsu: LSU = Module(new LSU(param.lsuParam))
   // 给指令打一个tag用来分新老
   val instCount:     UInt = RegInit(0.U(param.instIndexSize.W))
   val nextInstCount: UInt = instCount + 1.U
