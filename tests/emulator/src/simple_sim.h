@@ -4,6 +4,7 @@
 
 #include <glog/logging.h>
 
+#include "glog_exception_safe.h"
 #include "simif.h"
 
 class simple_sim : public simif_t {
@@ -21,7 +22,7 @@ public:
 
   void load(const std::string &fname, size_t reset_vector) {
     std::ifstream fs(fname, std::ifstream::binary);
-    assert(fs.is_open());
+    CHECK_S(fs.is_open());
 
     size_t offset = reset_vector;
     while (!fs.eof()) {
@@ -36,11 +37,11 @@ public:
   }
 
   bool mmio_load(reg_t addr, size_t len, uint8_t *bytes) override {
-    assert(false && "not implemented");
+    CHECK_S(false && "not implemented");
   }
 
   bool mmio_store(reg_t addr, size_t len, const uint8_t *bytes) override {
-    assert(false && "not implemented");
+    CHECK_S(false && "not implemented");
   }
 
   // Callback for processors to let the simulation know they were reset.
@@ -49,6 +50,6 @@ public:
   }
 
   const char *get_symbol(uint64_t addr) override {
-    LOG(FATAL) << "not implemented";
+    LOG(FATAL_S) << "not implemented";
   }
 };
