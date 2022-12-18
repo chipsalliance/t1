@@ -181,8 +181,8 @@ in
     src = final.fetchFromGitHub {
       owner = "verilator";
       repo = "verilator";
-      rev = "2e4f5c863ffa6ab1afca883559ee5a6ca989e9d7";
-      sha256 = "sha256-jANlrumSGISeNB7MDrXqY2G6jMgrPApzk/1SoO92N2Y=";
+      rev = "4452a9b10f02052cf230d115e4a6fd874eec0b2f";
+      sha256 = "sha256-GzWljZnGVLqIQ7wX8v6iNYqGsIvY9fsDLcQsB9qm7vY=";
     };
   });
 
