@@ -809,7 +809,7 @@ class Lane(param: LaneParameters) extends Module {
     val writeBusIndexMatch = writeBusPort.enq.bits.target === laneIndex && crossWriteQueue.io.enq.ready
     writeBusPort.enq.ready := true.B
     writeBusDataReg.valid := false.B
-    crossWriteQueue.io.enq.bits.vd := control.head.originalInformation.vd
+    crossWriteQueue.io.enq.bits.vd := control.head.originalInformation.vd + writeBusPort.enq.bits.counter(3, 1)
     crossWriteQueue.io.enq.bits.offset := writeBusPort.enq.bits.counter ## writeBusPort.enq.bits.tail
     crossWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
     crossWriteQueue.io.enq.bits.last := instWillComplete.head && writeBusPort.enq.bits.tail
