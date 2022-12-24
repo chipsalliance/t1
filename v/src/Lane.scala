@@ -533,6 +533,10 @@ class Lane(param: LaneParameters) extends Module {
           }
 
         }
+        when(record.state.asUInt.andR) {
+          crossWriteMaskHead := 0.U
+          crossWriteMaskTail := 0.U
+        }
       }
       // 发起执行单元的请求
       /** 计算结果需要偏移的: executeIndex * 8 */
