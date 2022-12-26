@@ -34,6 +34,8 @@ reformat:
 checkformat:
 	mill -i __.checkFormat
 
-test:
-	GLOG_minloglevel=2 GLOG_logtostderr=0 nix develop -c mill -i -k -j $$(expr $$(nproc) / 8) tests.run $$(sed ':a;N;$$!ba;s/\n/ /g' tests/passed.txt)
+ci:
+	awk '{ print("nix develop -c mill -i -k -j $$(expr $$(nproc) / 8) tests.run[" $$0 "] GLOG_logtostderr=0") }' tests/passed.txt | sh
 
+testall:
+	nix develop -c mill -k -i -j $$(expr $$(nproc) / 8) 'tests.run[__].run' GLOG_logtostderr=0

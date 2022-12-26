@@ -10,7 +10,7 @@ pipeline {
         checkout scm
         sh 'make init'
         sh 'make patch'
-        sh 'make test'
+        sh 'make ci'
       }
     }
   }
