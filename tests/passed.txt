@@ -19,7 +19,12 @@ vor.vx
 vsll.vi
 vsll.vv
 vsll.vx
+vwadd.vv
+vwaddu.vv
+vwaddu.vx
+vwmul.vv
+vwmulu.vv
+vwmulu.vx
 vxor.vi
 vxor.vv
 vxor.vx
-vwadd.vv
