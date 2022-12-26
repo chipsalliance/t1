@@ -2,6 +2,8 @@
 #include <VTestBench__Dpi.h>
 #endif
 
+#include <csignal>
+
 #include <glog/logging.h>
 #include <fmt/core.h>
 
@@ -11,6 +13,11 @@
 #include "exceptions.h"
 
 static bool terminated = false;
+
+void sigint_handler(int s) {
+  terminated = true;
+  dpiFinish();
+}
 
 #define TRY(action) \
   try {             \
@@ -33,6 +40,7 @@ void VBridgeImpl::dpiDumpWave() {
 }
 
 [[maybe_unused]] void dpiInitCosim() {
+  std::signal(SIGINT, sigint_handler);
   TRY({
     vbridge_impl_instance.dpiInitCosim();
   })
