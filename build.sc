@@ -311,59 +311,8 @@ object tests extends Module {
 
   object cases extends Module {
     c =>
-    object unittest extends Module {
-      u =>
-      override def millSourcePath = os.pwd / "dependencies" / "riscv-vector-tests"
-
-      def allGoSources = T.sources {
-        os.walk(millSourcePath).filter(f => f.ext == "go" || f.last == "go.mod").map(PathRef(_))
-      }
-
-      def asmGenerator = T {
-        // depends on GO
-        allGoSources()
-        val elf = T.dest / "generator"
-        os.proc("go", "build", "-o", elf, "single/single.go").call(cwd = millSourcePath)
-        PathRef(elf)
-      }
-
-      trait Case extends c.Case {
-        override def includeDir = T {
-          Seq(
-            u.millSourcePath / "env" / "sequencer-vector",
-            u.millSourcePath / "macros" / "sequencer-vector"
-          ).map(PathRef(_))
-        }
-
-        override def linkOpts = T {
-          Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib")
-        }
-
-        override def linkScript: T[PathRef] = T.source {
-          PathRef(u.millSourcePath / "env" / "sequencer-vector" / "link.ld")
-        }
-
-        override def allSourceFiles: T[Seq[PathRef]] = T {
-          val f = T.dest / s"${name().replace('_', '.')}.S"
-          os.proc(
-            asmGenerator().path,
-            "-VLEN", 1024,
-            "-XLEN", 32,
-            "-outputfile", f,
-            "-configfile", u.millSourcePath / "configs" / s"${name().replace('_', '.')}.toml"
-          ).call(T.dest)
-          Seq(PathRef(f))
-        }
-
-        override def bin: T[PathRef] = T {
-          os.proc(Seq("llvm-objcopy", "-O", "binary", elf().path.toString, name())).call(T.ctx.dest)
-          PathRef(T.ctx.dest / name())
-        }
-      }
-    }
-
     trait Case extends Module {
-      def name: T[String] = millOuterCtx.segment.pathSegments.last
+      def name: String = millOuterCtx.segment.pathSegments.last
 
       def sources = T.sources {
         millSourcePath
@@ -394,452 +343,106 @@ object tests extends Module {
       }
 
       def elf: T[PathRef] = T {
-        os.proc(Seq("clang-rv32", "-o", name() + ".elf", "-mabi=ilp32f", "-march=rv32gcv", s"-T${linkScript().path}") ++ linkOpts() ++ includeDir().map(p => s"-I${p.path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
-        PathRef(T.ctx.dest / (name() + ".elf"))
+        os.proc(Seq("clang-rv32", "-o", name + ".elf", "-mabi=ilp32f", "-march=rv32gcv", s"-T${linkScript().path}") ++ linkOpts() ++ includeDir().map(p => s"-I${p.path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
+        PathRef(T.ctx.dest / (name + ".elf"))
       }
 
       def bin: T[PathRef] = T {
-        os.proc(Seq("llvm-objcopy", "-O", "binary", "--only-section=.text", elf().path.toString, name())).call(T.ctx.dest)
-        PathRef(T.ctx.dest / name())
+        os.proc(Seq("llvm-objcopy", "-O", "binary", "--only-section=.text", elf().path.toString, name)).call(T.ctx.dest)
+        PathRef(T.ctx.dest / name)
       }
     }
 
-    val testCases = Map(
-      "smoketest" -> smoketest,
-      "mmm" -> mmm,
-      "vaadd_vv" -> vaadd_vv,
-      "vaadd_vx" -> vaadd_vx,
-      "vaaddu_vv" -> vaaddu_vv,
-      "vaaddu_vx" -> vaaddu_vx,
-      "vadc_vim" -> vadc_vim,
-      "vadc_vvm" -> vadc_vvm,
-      "vadc_vxm" -> vadc_vxm,
-      "vadd_vi" -> vadd_vi,
-      "vadd_vv" -> vadd_vv,
-      "vadd_vx" -> vadd_vx,
-      "vand_vi" -> vand_vi,
-      "vand_vv" -> vand_vv,
-      "vand_vx" -> vand_vx,
-      "vasub_vv" -> vasub_vv,
-      "vasub_vx" -> vasub_vx,
-      "vasubu_vv" -> vasubu_vv,
-      "vasubu_vx" -> vasubu_vx,
-      "vcompress_vm" -> vcompress_vm,
-      "vcpop_m" -> vcpop_m,
-      "vdiv_vv" -> vdiv_vv,
-      "vdiv_vx" -> vdiv_vx,
-      "vdivu_vv" -> vdivu_vv,
-      "vdivu_vx" -> vdivu_vx,
-      "vid_v" -> vid_v,
-      "viota_m" -> viota_m,
-      "vle16_v" -> vle16_v,
-      "vle32_v" -> vle32_v,
-      "vle64_v" -> vle64_v,
-      "vle8_v" -> vle8_v,
-      "vlm_v" -> vlm_v,
-      "vlse16_v" -> vlse16_v,
-      "vlse32_v" -> vlse32_v,
-      "vlse64_v" -> vlse64_v,
-      "vlse8_v" -> vlse8_v,
-      "vmacc_vv" -> vmacc_vv,
-      "vmacc_vx" -> vmacc_vx,
-      "vmadc_vim" -> vmadc_vim,
-      "vmadc_vvm" -> vmadc_vvm,
-      "vmadd_vv" -> vmadd_vv,
-      "vmadd_vx" -> vmadd_vx,
-      "vmand_mm" -> vmand_mm,
-      "vmandn_mm" -> vmandn_mm,
-      "vmax_vv" -> vmax_vv,
-      "vmax_vx" -> vmax_vx,
-      "vmaxu_vv" -> vmaxu_vv,
-      "vmaxu_vx" -> vmaxu_vx,
-      "vmerge_vim" -> vmerge_vim,
-      "vmerge_vvm" -> vmerge_vvm,
-      "vmin_vv" -> vmin_vv,
-      "vmin_vx" -> vmin_vx,
-      "vminu_vv" -> vminu_vv,
-      "vminu_vx" -> vminu_vx,
-      "vmnand_mm" -> vmnand_mm,
-      "vmnor_mm" -> vmnor_mm,
-      "vmor_mm" -> vmor_mm,
-      "vmorn_mm" -> vmorn_mm,
-      "vmsbc_vvm" -> vmsbc_vvm,
-      "vmsbf_m" -> vmsbf_m,
-      "vmseq_vv" -> vmseq_vv,
-      "vmseq_vx" -> vmseq_vx,
-      "vmsgt_vv" -> vmsgt_vv,
-      "vmsgt_vx" -> vmsgt_vx,
-      "vmsgtu_vv" -> vmsgtu_vv,
-      "vmsgtu_vx" -> vmsgtu_vx,
-      "vmsif_m" -> vmsif_m,
-      "vmsle_vv" -> vmsle_vv,
-      "vmsle_vx" -> vmsle_vx,
-      "vmsleu_vv" -> vmsleu_vv,
-      "vmsleu_vx" -> vmsleu_vx,
-      "vmslt_vv" -> vmslt_vv,
-      "vmslt_vx" -> vmslt_vx,
-      "vmsltu_vv" -> vmsltu_vv,
-      "vmsltu_vx" -> vmsltu_vx,
-      "vmsne_vv" -> vmsne_vv,
-      "vmsne_vx" -> vmsne_vx,
-      "vmsof_m" -> vmsof_m,
-      "vmul_vv" -> vmul_vv,
-      "vmul_vx" -> vmul_vx,
-      "vmulh_vv" -> vmulh_vv,
-      "vmulh_vx" -> vmulh_vx,
-      "vmulhsu_vv" -> vmulhsu_vv,
-      "vmulhsu_vx" -> vmulhsu_vx,
-      "vmulhu_vv" -> vmulhu_vv,
-      "vmulhu_vx" -> vmulhu_vx,
-      "vmv_s_x" -> vmv_s_x,
-      "vmv_v_i" -> vmv_v_i,
-      "vmv_v_v" -> vmv_v_v,
-      "vmv_v_x" -> vmv_v_x,
-      "vmv_x_s" -> vmv_x_s,
-      "vmv1r_v" -> vmv1r_v,
-      "vmv2r_v" -> vmv2r_v,
-      "vmv4r_v" -> vmv4r_v,
-      "vmv8r_v" -> vmv8r_v,
-      "vmxnor_mm" -> vmxnor_mm,
-      "vmxor_mm" -> vmxor_mm,
-      "vnclip_wv" -> vnclip_wv,
-      "vnclipu_wv" -> vnclipu_wv,
-      "vnclipu_wx" -> vnclipu_wx,
-      "vnmsac_vv" -> vnmsac_vv,
-      "vnmsac_vx" -> vnmsac_vx,
-      "vnmsub_vv" -> vnmsub_vv,
-      "vnmsub_vx" -> vnmsub_vx,
-      "vnsra_wv" -> vnsra_wv,
-      "vnsra_wx" -> vnsra_wx,
-      "vnsrl_wv" -> vnsrl_wv,
-      "vnsrl_wx" -> vnsrl_wx,
-      "vor_vi" -> vor_vi,
-      "vor_vv" -> vor_vv,
-      "vor_vx" -> vor_vx,
-      "vredand_vs" -> vredand_vs,
-      "vredmax_vs" -> vredmax_vs,
-      "vredmaxu_vs" -> vredmaxu_vs,
-      "vredmin_vs" -> vredmin_vs,
-      "vredminu_vs" -> vredminu_vs,
-      "vredor_vs" -> vredor_vs,
-      "vredsum_vs" -> vredsum_vs,
-      "vredxor_vs" -> vredxor_vs,
-      "vrem_vv" -> vrem_vv,
-      "vrem_vx" -> vrem_vx,
-      "vremu_vv" -> vremu_vv,
-      "vremu_vx" -> vremu_vx,
-      "vrgather_vv" -> vrgather_vv,
-      "vrgather_vx" -> vrgather_vx,
-      "vrsub_vi" -> vrsub_vi,
-      "vrsub_vx" -> vrsub_vx,
-      "vsadd_vv" -> vsadd_vv,
-      "vsadd_vx" -> vsadd_vx,
-      "vsaddu_vv" -> vsaddu_vv,
-      "vsaddu_vx" -> vsaddu_vx,
-      "vsbc_vvm" -> vsbc_vvm,
-      "vsbc_vxm" -> vsbc_vxm,
-      "vse16_v" -> vse16_v,
-      "vse32_v" -> vse32_v,
-      "vse64_v" -> vse64_v,
-      "vse8_v" -> vse8_v,
-      "vsext_vf2" -> vsext_vf2,
-      "vsext_vf4" -> vsext_vf4,
-      "vsext_vf8" -> vsext_vf8,
-      "vslide1down_vx" -> vslide1down_vx,
-      "vslide1up_vx" -> vslide1up_vx,
-      "vslidedown_vx" -> vslidedown_vx,
-      "vslideup_vx" -> vslideup_vx,
-      "vsll_vi" -> vsll_vi,
-      "vsll_vv" -> vsll_vv,
-      "vsll_vx" -> vsll_vx,
-      "vsm_v" -> vsm_v,
-      "vsmul_vv" -> vsmul_vv,
-      "vsmul_vx" -> vsmul_vx,
-      "vsra_vi" -> vsra_vi,
-      "vsra_vv" -> vsra_vv,
-      "vsra_vx" -> vsra_vx,
-      "vsrl_vi" -> vsrl_vi,
-      "vsrl_vv" -> vsrl_vv,
-      "vsrl_vx" -> vsrl_vx,
-      "vsse16_v" -> vsse16_v,
-      "vsse32_v" -> vsse32_v,
-      "vsse64_v" -> vsse64_v,
-      "vsse8_v" -> vsse8_v,
-      "vssra_vv" -> vssra_vv,
-      "vssra_vx" -> vssra_vx,
-      "vssrl_vv" -> vssrl_vv,
-      "vssrl_vx" -> vssrl_vx,
-      "vssub_vv" -> vssub_vv,
-      "vssub_vx" -> vssub_vx,
-      "vssubu_vv" -> vssubu_vv,
-      "vssubu_vx" -> vssubu_vx,
-      "vsub_vv" -> vsub_vv,
-      "vsub_vx" -> vsub_vx,
-      "vwadd_vv" -> vwadd_vv,
-      "vwadd_vx" -> vwadd_vx,
-      "vwadd_wv" -> vwadd_wv,
-      "vwadd_wx" -> vwadd_wx,
-      "vwaddu_vv" -> vwaddu_vv,
-      "vwaddu_vx" -> vwaddu_vx,
-      "vwaddu_wv" -> vwaddu_wv,
-      "vwaddu_wx" -> vwaddu_wx,
-      "vwmacc_vv" -> vwmacc_vv,
-      "vwmacc_vx" -> vwmacc_vx,
-      "vwmaccsu_vv" -> vwmaccsu_vv,
-      "vwmaccsu_vx" -> vwmaccsu_vx,
-      "vwmaccu_vv" -> vwmaccu_vv,
-      "vwmaccu_vx" -> vwmaccu_vx,
-      "vwmaccus_vx" -> vwmaccus_vx,
-      "vwmul_vv" -> vwmul_vv,
-      "vwmul_vx" -> vwmul_vx,
-      "vwmulsu_vv" -> vwmulsu_vv,
-      "vwmulsu_vx" -> vwmulsu_vx,
-      "vwmulu_vv" -> vwmulu_vv,
-      "vwmulu_vx" -> vwmulu_vx,
-      "vwredsum_vs" -> vwredsum_vs,
-      "vwredsumu_vs" -> vwredsumu_vs,
-      "vwsub_vv" -> vwsub_vv,
-      "vwsub_vx" -> vwsub_vx,
-      "vwsub_wv" -> vwsub_wv,
-      "vwsub_wx" -> vwsub_wx,
-      "vwsubu_vv" -> vwsubu_vv,
-      "vwsubu_vx" -> vwsubu_vx,
-      "vwsubu_wv" -> vwsubu_wv,
-      "vwsubu_wx" -> vwsubu_wx,
-      "vxor_vi" -> vxor_vi,
-      "vxor_vv" -> vxor_vv,
-      "vxor_vx" -> vxor_vx,
-      "vzext_vf2" -> vzext_vf2,
-      "vzext_vf4" -> vzext_vf4,
-      "vzext_vf8" -> vzext_vf8,
-    )
+    object `riscv-vector-tests` extends Module {
+      u =>
+      override def millSourcePath = os.pwd / "dependencies" / "riscv-vector-tests"
+
+      def allTests = os.walk(millSourcePath / "configs").filter(_.ext == "toml").map(_.last.replace(".toml", ""))
+
+      def allGoSources = T.sources {
+        os.walk(millSourcePath).filter(f => f.ext == "go" || f.last == "go.mod").map(PathRef(_))
+      }
+
+      def asmGenerator = T {
+        // depends on GO
+        allGoSources()
+        val elf = T.dest / "generator"
+        os.proc("go", "build", "-o", elf, "single/single.go").call(cwd = millSourcePath)
+        PathRef(elf)
+      }
+
+      object ut extends mill.Cross[ut](allTests: _*)
+
+      class ut(caseName: String) extends c.Case {
+        override def name = caseName
+
+        override def includeDir = T {
+          Seq(
+            u.millSourcePath / "env" / "sequencer-vector",
+            u.millSourcePath / "macros" / "sequencer-vector"
+          ).map(PathRef(_))
+        }
+
+        override def linkOpts = T {
+          Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib")
+        }
+
+        override def linkScript: T[PathRef] = T.source {
+          PathRef(u.millSourcePath / "env" / "sequencer-vector" / "link.ld")
+        }
+
+        override def allSourceFiles: T[Seq[PathRef]] = T {
+          val f = T.dest / s"${name.replace('_', '.')}.S"
+          os.proc(
+            asmGenerator().path,
+            "-VLEN", 1024,
+            "-XLEN", 32,
+            "-outputfile", f,
+            "-configfile", u.millSourcePath / "configs" / s"${name.replace('_', '.')}.toml"
+          ).call(T.dest)
+          Seq(PathRef(f))
+        }
+
+        override def bin: T[PathRef] = T {
+          os.proc(Seq("llvm-objcopy", "-O", "binary", elf().path.toString, name)).call(T.ctx.dest)
+          PathRef(T.ctx.dest / name)
+        }
+      }
+    }
 
     object smoketest extends Case
+
     object mmm extends Case
-    object vaadd_vv extends unittest.Case
-    object vaadd_vx extends unittest.Case
-    object vaaddu_vv extends unittest.Case
-    object vaaddu_vx extends unittest.Case
-    object vadc_vim extends unittest.Case
-    object vadc_vvm extends unittest.Case
-    object vadc_vxm extends unittest.Case
-    object vadd_vi extends unittest.Case
-    object vadd_vv extends unittest.Case
-    object vadd_vx extends unittest.Case
-    object vand_vi extends unittest.Case
-    object vand_vv extends unittest.Case
-    object vand_vx extends unittest.Case
-    object vasub_vv extends unittest.Case
-    object vasub_vx extends unittest.Case
-    object vasubu_vv extends unittest.Case
-    object vasubu_vx extends unittest.Case
-    object vcompress_vm extends unittest.Case
-    object vcpop_m extends unittest.Case
-    object vdiv_vv extends unittest.Case
-    object vdiv_vx extends unittest.Case
-    object vdivu_vv extends unittest.Case
-    object vdivu_vx extends unittest.Case
-    object vid_v extends unittest.Case
-    object viota_m extends unittest.Case
-    object vle16_v extends unittest.Case
-    object vle32_v extends unittest.Case
-    object vle64_v extends unittest.Case
-    object vle8_v extends unittest.Case
-    object vlm_v extends unittest.Case
-    object vlse16_v extends unittest.Case
-    object vlse32_v extends unittest.Case
-    object vlse64_v extends unittest.Case
-    object vlse8_v extends unittest.Case
-    object vmacc_vv extends unittest.Case
-    object vmacc_vx extends unittest.Case
-    object vmadc_vim extends unittest.Case
-    object vmadc_vvm extends unittest.Case
-    object vmadd_vv extends unittest.Case
-    object vmadd_vx extends unittest.Case
-    object vmand_mm extends unittest.Case
-    object vmandn_mm extends unittest.Case
-    object vmax_vv extends unittest.Case
-    object vmax_vx extends unittest.Case
-    object vmaxu_vv extends unittest.Case
-    object vmaxu_vx extends unittest.Case
-    object vmerge_vim extends unittest.Case
-    object vmerge_vvm extends unittest.Case
-    object vmin_vv extends unittest.Case
-    object vmin_vx extends unittest.Case
-    object vminu_vv extends unittest.Case
-    object vminu_vx extends unittest.Case
-    object vmnand_mm extends unittest.Case
-    object vmnor_mm extends unittest.Case
-    object vmor_mm extends unittest.Case
-    object vmorn_mm extends unittest.Case
-    object vmsbc_vvm extends unittest.Case
-    object vmsbf_m extends unittest.Case
-    object vmseq_vv extends unittest.Case
-    object vmseq_vx extends unittest.Case
-    object vmsgt_vv extends unittest.Case
-    object vmsgt_vx extends unittest.Case
-    object vmsgtu_vv extends unittest.Case
-    object vmsgtu_vx extends unittest.Case
-    object vmsif_m extends unittest.Case
-    object vmsle_vv extends unittest.Case
-    object vmsle_vx extends unittest.Case
-    object vmsleu_vv extends unittest.Case
-    object vmsleu_vx extends unittest.Case
-    object vmslt_vv extends unittest.Case
-    object vmslt_vx extends unittest.Case
-    object vmsltu_vv extends unittest.Case
-    object vmsltu_vx extends unittest.Case
-    object vmsne_vv extends unittest.Case
-    object vmsne_vx extends unittest.Case
-    object vmsof_m extends unittest.Case
-    object vmul_vv extends unittest.Case
-    object vmul_vx extends unittest.Case
-    object vmulh_vv extends unittest.Case
-    object vmulh_vx extends unittest.Case
-    object vmulhsu_vv extends unittest.Case
-    object vmulhsu_vx extends unittest.Case
-    object vmulhu_vv extends unittest.Case
-    object vmulhu_vx extends unittest.Case
-    object vmv_s_x extends unittest.Case
-    object vmv_v_i extends unittest.Case
-    object vmv_v_v extends unittest.Case
-    object vmv_v_x extends unittest.Case
-    object vmv_x_s extends unittest.Case
-    object vmv1r_v extends unittest.Case
-    object vmv2r_v extends unittest.Case
-    object vmv4r_v extends unittest.Case
-    object vmv8r_v extends unittest.Case
-    object vmxnor_mm extends unittest.Case
-    object vmxor_mm extends unittest.Case
-    object vnclip_wv extends unittest.Case
-    object vnclipu_wv extends unittest.Case
-    object vnclipu_wx extends unittest.Case
-    object vnmsac_vv extends unittest.Case
-    object vnmsac_vx extends unittest.Case
-    object vnmsub_vv extends unittest.Case
-    object vnmsub_vx extends unittest.Case
-    object vnsra_wv extends unittest.Case
-    object vnsra_wx extends unittest.Case
-    object vnsrl_wv extends unittest.Case
-    object vnsrl_wx extends unittest.Case
-    object vor_vi extends unittest.Case
-    object vor_vv extends unittest.Case
-    object vor_vx extends unittest.Case
-    object vredand_vs extends unittest.Case
-    object vredmax_vs extends unittest.Case
-    object vredmaxu_vs extends unittest.Case
-    object vredmin_vs extends unittest.Case
-    object vredminu_vs extends unittest.Case
-    object vredor_vs extends unittest.Case
-    object vredsum_vs extends unittest.Case
-    object vredxor_vs extends unittest.Case
-    object vrem_vv extends unittest.Case
-    object vrem_vx extends unittest.Case
-    object vremu_vv extends unittest.Case
-    object vremu_vx extends unittest.Case
-    object vrgather_vv extends unittest.Case
-    object vrgather_vx extends unittest.Case
-    object vrsub_vi extends unittest.Case
-    object vrsub_vx extends unittest.Case
-    object vsadd_vv extends unittest.Case
-    object vsadd_vx extends unittest.Case
-    object vsaddu_vv extends unittest.Case
-    object vsaddu_vx extends unittest.Case
-    object vsbc_vvm extends unittest.Case
-    object vsbc_vxm extends unittest.Case
-    object vse16_v extends unittest.Case
-    object vse32_v extends unittest.Case
-    object vse64_v extends unittest.Case
-    object vse8_v extends unittest.Case
-    object vsext_vf2 extends unittest.Case
-    object vsext_vf4 extends unittest.Case
-    object vsext_vf8 extends unittest.Case
-    object vslide1down_vx extends unittest.Case
-    object vslide1up_vx extends unittest.Case
-    object vslidedown_vx extends unittest.Case
-    object vslideup_vx extends unittest.Case
-    object vsll_vi extends unittest.Case
-    object vsll_vv extends unittest.Case
-    object vsll_vx extends unittest.Case
-    object vsm_v extends unittest.Case
-    object vsmul_vv extends unittest.Case
-    object vsmul_vx extends unittest.Case
-    object vsra_vi extends unittest.Case
-    object vsra_vv extends unittest.Case
-    object vsra_vx extends unittest.Case
-    object vsrl_vi extends unittest.Case
-    object vsrl_vv extends unittest.Case
-    object vsrl_vx extends unittest.Case
-    object vsse16_v extends unittest.Case
-    object vsse32_v extends unittest.Case
-    object vsse64_v extends unittest.Case
-    object vsse8_v extends unittest.Case
-    object vssra_vv extends unittest.Case
-    object vssra_vx extends unittest.Case
-    object vssrl_vv extends unittest.Case
-    object vssrl_vx extends unittest.Case
-    object vssub_vv extends unittest.Case
-    object vssub_vx extends unittest.Case
-    object vssubu_vv extends unittest.Case
-    object vssubu_vx extends unittest.Case
-    object vsub_vv extends unittest.Case
-    object vsub_vx extends unittest.Case
-    object vwadd_vv extends unittest.Case
-    object vwadd_vx extends unittest.Case
-    object vwadd_wv extends unittest.Case
-    object vwadd_wx extends unittest.Case
-    object vwaddu_vv extends unittest.Case
-    object vwaddu_vx extends unittest.Case
-    object vwaddu_wv extends unittest.Case
-    object vwaddu_wx extends unittest.Case
-    object vwmacc_vv extends unittest.Case
-    object vwmacc_vx extends unittest.Case
-    object vwmaccsu_vv extends unittest.Case
-    object vwmaccsu_vx extends unittest.Case
-    object vwmaccu_vv extends unittest.Case
-    object vwmaccu_vx extends unittest.Case
-    object vwmaccus_vx extends unittest.Case
-    object vwmul_vv extends unittest.Case
-    object vwmul_vx extends unittest.Case
-    object vwmulsu_vv extends unittest.Case
-    object vwmulsu_vx extends unittest.Case
-    object vwmulu_vv extends unittest.Case
-    object vwmulu_vx extends unittest.Case
-    object vwredsum_vs extends unittest.Case
-    object vwredsumu_vs extends unittest.Case
-    object vwsub_vv extends unittest.Case
-    object vwsub_vx extends unittest.Case
-    object vwsub_wv extends unittest.Case
-    object vwsub_wx extends unittest.Case
-    object vwsubu_vv extends unittest.Case
-    object vwsubu_vx extends unittest.Case
-    object vwsubu_wv extends unittest.Case
-    object vwsubu_wx extends unittest.Case
-    object vxor_vi extends unittest.Case
-    object vxor_vv extends unittest.Case
-    object vxor_vx extends unittest.Case
-    object vzext_vf2 extends unittest.Case
-    object vzext_vf4 extends unittest.Case
-    object vzext_vf8 extends unittest.Case
   }
 
-  def runCase(testCase: cases.Case) = T.task {
-    def envDefault(name: String, default: String) = {
-      name -> sys.env.getOrElse(name, default)
+  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ Seq(cases.smoketest, cases.mmm).map(_.name)): _*)
+
+  class run(name: String) extends Module with TaskModule {
+    override def defaultCommandName() = "run"
+
+    def caseToRun = name match {
+      case "smoketest" => cases.smoketest
+      case "mmm" => cases.mmm
+      case _ => cases.`riscv-vector-tests`.ut(name)
     }
-    val runEnv = Map(
-      "COSIM_bin" -> testCase.bin().path.toString,
-      "COSIM_wave" -> (T.dest / "wave").toString,
-      "COSIM_reset_vector" -> "1000",
-      envDefault("COSIM_timeout", "1000000"),
-      envDefault("GLOG_logtostderr", "1"),
-    )
-    T.log.info(s"run test: ${testCase.name()} with:\n ${runEnv.map{case (k, v) => s"$k=$v"}.mkString(" ")} ${tests.emulator.elf().path.toString}")
-    os.proc(Seq(tests.emulator.elf().path.toString)).call(env = runEnv)
-    PathRef(T.dest)
-  }
 
-  def run(args: String*) = T.command {
-    T.sequence(args.map(c => runCase(cases.testCases(c))))()
+    def run(args: String*) = T.command {
+      def envDefault(name: String, default: String) = {
+        name -> args.map(_.split("=")).collectFirst {
+          case arg if arg.head == name => arg.last
+        }.getOrElse(default)
+      }
+
+      val runEnv = Map(
+        "COSIM_bin" -> caseToRun.bin().path.toString,
+        "COSIM_wave" -> (T.dest / "wave").toString,
+        "COSIM_reset_vector" -> "1000",
+        envDefault("COSIM_timeout", "1000000"),
+        envDefault("GLOG_logtostderr", "1"),
+      )
+      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator.elf().path.toString}")
+      os.proc(Seq(tests.emulator.elf().path.toString)).call(env = runEnv)
+      PathRef(T.dest)
+    }
   }
 }
