@@ -1,7 +1,12 @@
 package v
 
 import chisel3._
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
+
+object VRFParam {
+  implicit val rwP: upickle.default.ReadWriter[VRFParam] = upickle.default.macroRW
+}
 
 case class VRFParam(
   VLEN:           Int,
@@ -9,7 +14,7 @@ case class VRFParam(
   ELEN:           Int,
   vrfReadPort:    Int = 6,
   chainingSize:   Int = 4,
-  writeQueueSize: Int = 4) {
+  writeQueueSize: Int = 4) extends SerializableModuleParameter {
   val regNum:     Int = 32
   val regNumBits: Int = log2Ceil(regNum)
   // One more bit for sorting
@@ -68,14 +73,14 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val unOrderWrite: Bool = Bool()
 }
 
-class VRF(param: VRFParam) extends Module {
-  val read:            Vec[DecoupledIO[VRFReadRequest]] = IO(Vec(param.vrfReadPort, Flipped(Decoupled(new VRFReadRequest(param)))))
-  val readResult:      Vec[UInt] = IO(Output(Vec(param.vrfReadPort, UInt(param.ELEN.W))))
-  val write:           DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(param))))
-  val instWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(param))))
+class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFParam] {
+  val read:            Vec[DecoupledIO[VRFReadRequest]] = IO(Vec(parameter.vrfReadPort, Flipped(Decoupled(new VRFReadRequest(parameter)))))
+  val readResult:      Vec[UInt] = IO(Output(Vec(parameter.vrfReadPort, UInt(parameter.ELEN.W))))
+  val write:           DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(parameter))))
+  val instWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
   val flush:           Bool = IO(Input(Bool()))
-  val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxWidth)))
-  val lsuLastReport:   ValidIO[UInt] = IO(Flipped(Valid(UInt(param.instIndexSize.W))))
+  val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.VLMaxWidth)))
+  val lsuLastReport:   ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instIndexSize.W))))
   // write queue empty
   val bufferClear: Bool = IO(Input(Bool()))
   // todo: delete
@@ -83,7 +88,7 @@ class VRF(param: VRFParam) extends Module {
   write.ready := true.B
 
   val chainingRecord: Vec[ValidIO[VRFWriteReport]] = RegInit(
-    VecInit(Seq.fill(param.chainingSize)(0.U.asTypeOf(Valid(new VRFWriteReport(param)))))
+    VecInit(Seq.fill(parameter.chainingSize)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
   )
 
   val vsOffsetMask: UInt = {
@@ -145,10 +150,10 @@ class VRF(param: VRFParam) extends Module {
 
   // todo: 根据 portFactor 变形
   // first read
-  val bankReadF:   Vec[Bool] = Wire(Vec(param.vrfReadPort, Bool()))
-  val bankReadS:   Vec[Bool] = Wire(Vec(param.vrfReadPort, Bool()))
-  val readResultF: Vec[UInt] = Wire(Vec(param.rfBankNum, UInt(8.W)))
-  val readResultS: Vec[UInt] = Wire(Vec(param.rfBankNum, UInt(8.W)))
+  val bankReadF:   Vec[Bool] = Wire(Vec(parameter.vrfReadPort, Bool()))
+  val bankReadS:   Vec[Bool] = Wire(Vec(parameter.vrfReadPort, Bool()))
+  val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(8.W)))
+  val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(8.W)))
   // portFactor = 1 的可以直接握手
   read.zipWithIndex.foldLeft((false.B, false.B)) {
     case ((o, t), (v, i)) =>
@@ -164,9 +169,9 @@ class VRF(param: VRFParam) extends Module {
       (o || validCorrect, (validCorrect && o) || t)
   }
 
-  val rfVec: Seq[RegFile] = Seq.tabulate(param.rfBankNum) { bank =>
+  val rfVec: Seq[RegFile] = Seq.tabulate(parameter.rfBankNum) { bank =>
     // rf instant
-    val rf = Module(new RegFile(param.rfParam))
+    val rf = Module(new RegFile(parameter.rfParam))
     // connect readPorts
     rf.readPorts.head.addr := Mux1H(bankReadF, read.map(r => r.bits.vs ## r.bits.offset))
     rf.readPorts.last.addr := Mux1H(bankReadS, read.map(r => r.bits.vs ## r.bits.offset))
@@ -179,14 +184,14 @@ class VRF(param: VRFParam) extends Module {
     rf
   }
 
-  val initRecord: ValidIO[VRFWriteReport] = WireDefault(0.U.asTypeOf(Valid(new VRFWriteReport(param))))
+  val initRecord: ValidIO[VRFWriteReport] = WireDefault(0.U.asTypeOf(Valid(new VRFWriteReport(parameter))))
   initRecord.valid := true.B
   initRecord.bits := instWriteReport.bits
   val freeRecord: UInt = VecInit(chainingRecord.map(!_.valid)).asUInt
   val recordFFO:  UInt = ffo(freeRecord)
-  val recordEnq:  UInt = Wire(UInt(param.chainingSize.W))
+  val recordEnq:  UInt = Wire(UInt(parameter.chainingSize.W))
   instWriteReport.ready := chainingRecord.map(r => enqCheck(instWriteReport.bits, r)).reduce(_ && _)
-  recordEnq := Mux(instWriteReport.fire, recordFFO, 0.U(param.chainingSize.W))
+  recordEnq := Mux(instWriteReport.fire, recordFFO, 0.U(parameter.chainingSize.W))
 
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
