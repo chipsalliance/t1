@@ -278,3 +278,41 @@ class V0Update(param: LaneParameter) extends Bundle {
   // mask/ld类型的有可能不会写完整的32bit
   val mask: UInt = UInt(4.W)
 }
+
+class VRFReadRequest(param: VRFParam) extends Bundle {
+  // 为了方便处理seg类型的ld st, vs需要是明确的地址, 而不是一个base
+  val vs: UInt = UInt(param.regNumBits.W)
+  // 访问寄存器的 offset, 代表第几个32bit
+  val offset: UInt = UInt(param.offsetBits.W)
+  // 用来阻塞 raw
+  val instIndex: UInt = UInt(param.instIndexSize.W)
+}
+
+class VRFWriteRequest(param: VRFParam) extends Bundle {
+  val vd:     UInt = UInt(param.regNumBits.W)
+  val offset: UInt = UInt(param.offsetBits.W)
+  // mask/ld类型的有可能不会写完整的32bit
+  val mask:             UInt = UInt(4.W)
+  val data:             UInt = UInt(param.ELEN.W)
+  val last:             Bool = Bool()
+  val instructionIndex: UInt = UInt(param.instIndexSize.W)
+}
+
+class VRFWriteReport(param: VRFParam) extends Bundle {
+  val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs2:       UInt = UInt(param.regNumBits.W)
+  val instIndex: UInt = UInt(param.instIndexSize.W)
+  val vdOffset:  UInt = UInt(3.W)
+  val offset:    UInt = UInt(param.offsetBits.W)
+  val seg:       ValidIO[UInt] = Valid(UInt(3.W))
+  val eew:       UInt = UInt(2.W)
+  val ls:        Bool = Bool()
+  val st:        Bool = Bool()
+  val narrow:    Bool = Bool()
+  val widen:     Bool = Bool()
+  val stFinish:  Bool = Bool()
+  // 乘加
+  val ma:           Bool = Bool()
+  val unOrderWrite: Bool = Bool()
+}
