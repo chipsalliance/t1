@@ -1,11 +1,15 @@
 package v
 
 import chisel3._
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode.{decoder, TruthTable}
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
-
-case class VParam(XLEN: Int = 32, dataPathWidth: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
+object VParam {
+  implicit val rwP: upickle.default.ReadWriter[VParam] = upickle.default.macroRW
+}
+case class VParam(XLEN: Int = 32, dataPathWidth: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32)
+    extends SerializableModuleParameter {
   val tlBank:         Int = 2
   val sourceWidth:    Int = 10
   val maskGroupWidth: Int = 32
@@ -72,21 +76,21 @@ class InstControl(param: VParam) extends Bundle {
   val endTag: Vec[Bool] = Vec(param.lane + 1, Bool())
 }
 
-class V(val param: VParam) extends Module {
-  val req:              DecoupledIO[VReq] = IO(Flipped(Decoupled(new VReq(param))))
-  val resp:             ValidIO[VResp] = IO(Valid(new VResp(param)))
-  val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.laneParam.VLMaxWidth)))
+class V(val parameter: VParam) extends Module with SerializableModule[VParam] {
+  val req:              DecoupledIO[VReq] = IO(Flipped(Decoupled(new VReq(parameter))))
+  val resp:             ValidIO[VResp] = IO(Valid(new VResp(parameter)))
+  val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.laneParam.VLMaxWidth)))
   val storeBufferClear: Bool = IO(Input(Bool()))
-  val tlPort:           Vec[TLBundle] = IO(Vec(param.tlBank, param.tlParam.bundle()))
+  val tlPort:           Vec[TLBundle] = IO(Vec(parameter.tlBank, parameter.tlParam.bundle()))
 
-  val lsu: LSU = Module(new LSU(param.lsuParam))
+  val lsu: LSU = Module(new LSU(parameter.lsuParam))
   // 给指令打一个tag用来分新老
-  val instCount:     UInt = RegInit(0.U(param.instIndexSize.W))
+  val instCount:     UInt = RegInit(0.U(parameter.instIndexSize.W))
   val nextInstCount: UInt = instCount + 1.U
   when(req.fire) { instCount := nextInstCount }
   // 提交需要按顺序
   // todo: 处理 waw
-  val respCount:     UInt = RegInit(0.U(param.instIndexSize.W))
+  val respCount:     UInt = RegInit(0.U(parameter.instIndexSize.W))
   val nextRespCount: UInt = respCount + 1.U
   when(resp.fire) { respCount := nextRespCount }
 
@@ -104,7 +108,7 @@ class V(val param: VParam) extends Module {
   val noReadST:    Bool = isLSType && (!req.bits.inst(26))
   val indexTypeLS: Bool = isLSType && req.bits.inst(26)
 
-  val v0:    Vec[UInt] = RegInit(VecInit(Seq.fill(param.maskGroupSize)(0.U(param.maskGroupWidth.W))))
+  val v0:    Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.maskGroupSize)(0.U(parameter.maskGroupWidth.W))))
   val sew1H: UInt = UIntToOH(csrInterface.vSew)
   val regroupV0: Seq[Vec[UInt]] = Seq(4, 2, 1).map { groupSize =>
     v0.map { element =>
@@ -112,7 +116,7 @@ class V(val param: VParam) extends Module {
         .grouped(groupSize)
         .toSeq
         .map(VecInit(_).asUInt)
-        .grouped(param.lane)
+        .grouped(parameter.lane)
         .toSeq
         .transpose
         .map(seq => VecInit(seq).asUInt)
@@ -121,15 +125,15 @@ class V(val param: VParam) extends Module {
     VecInit(v0ForLane.asBools.grouped(32).toSeq.map(VecInit(_).asUInt))
   }
 
-  val instEnq: UInt = Wire(UInt(param.chainingSize.W))
+  val instEnq: UInt = Wire(UInt(parameter.chainingSize.W))
   // 最后一个位置的指令，是否来了一组反馈
-  val next:        Vec[Bool] = Wire(Vec(param.lane, Bool()))
+  val next:        Vec[Bool] = Wire(Vec(parameter.lane, Bool()))
   val synchronize: Bool = Wire(Bool())
   // todo
   val respValid:    Bool = Wire(Bool()) // resp to rc
   val instType:     specialInstructionType = RegInit(0.U.asTypeOf(new specialInstructionType))
   val nextInstType: specialInstructionType = Wire(new specialInstructionType)
-  val lastVec:      Vec[Vec[Bool]] = Wire(Vec(param.lane, Vec(param.chainingSize, Bool())))
+  val lastVec:      Vec[Vec[Bool]] = Wire(Vec(parameter.lane, Vec(parameter.chainingSize, Bool())))
 
   nextInstType.compress := decodeResFormat.otherUnit && decodeResFormat.uop === 5.U
   nextInstType.viota := decodeResFormat.otherUnit && decodeResFormat.uop(3) && decodeResFormatExt.viota
@@ -141,8 +145,8 @@ class V(val param: VParam) extends Module {
   val busClear:    Bool = Wire(Bool())
 
   // 指令的状态维护
-  val instStateVec: Seq[InstControl] = Seq.tabulate(param.chainingSize) { index =>
-    val control = RegInit((-1).S(new InstControl(param).getWidth.W).asTypeOf(new InstControl(param)))
+  val instStateVec: Seq[InstControl] = Seq.tabulate(parameter.chainingSize) { index =>
+    val control = RegInit((-1).S(new InstControl(parameter).getWidth.W).asTypeOf(new InstControl(parameter)))
     val lsuLast: Bool = lsu.lastReport.valid &&
       lsu.lastReport.bits === control.record.instIndex
     // 指令进来
@@ -153,7 +157,7 @@ class V(val param: VParam) extends Module {
       control.state.wLast := false.B
       control.state.sCommit := false.B
       // lsu index 类的指令做然会进lane,但是lane不好计算是否结束(index 有eew),所以是lsu来通知结束的
-      control.endTag := VecInit(Seq.fill(param.lane)(isLSType) :+ !isLSType)
+      control.endTag := VecInit(Seq.fill(parameter.lane)(isLSType) :+ !isLSType)
     }.otherwise {
       when(control.endTag.asUInt.andR) {
         control.state.wLast := !control.record.w || busClear
@@ -169,8 +173,8 @@ class V(val param: VParam) extends Module {
       }
     }
     // 把有数据交换的指令放在特定的位置,因为会ffo填充,所以放最后面
-    if (index == (param.chainingSize - 1)) {
-      val feedBack: UInt = RegInit(0.U(param.lane.W))
+    if (index == (parameter.chainingSize - 1)) {
+      val feedBack: UInt = RegInit(0.U(parameter.lane.W))
       when(req.fire && instEnq(index)) {
         control.state.sExecute := !maskType
         instType := nextInstType
@@ -188,13 +192,13 @@ class V(val param: VParam) extends Module {
   }
 
   // 处理数据
-  val data: Vec[ValidIO[UInt]] = RegInit(VecInit(Seq.fill(param.lane)(0.U.asTypeOf(Valid(UInt(param.lane.W))))))
+  val data: Vec[ValidIO[UInt]] = RegInit(VecInit(Seq.fill(parameter.lane)(0.U.asTypeOf(Valid(UInt(parameter.lane.W))))))
 //  val useData:   Vec[Bool] = Wire(Vec(param.lane, Bool()))
-  val resultRes: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(param.dataPathWidth.W))))
+  val resultRes: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W))))
   // todo: viota & compress & reduce
 
   val scheduleReady: Bool = VecInit(instStateVec.map(_.state.idle)).asUInt.orR
-  val laneReady:     Vec[Bool] = Wire(Vec(param.lane, Bool()))
+  val laneReady:     Vec[Bool] = Wire(Vec(parameter.lane, Bool()))
   //  需要等待所有的的准备好,免得先ready的会塞进去多个一样的指令
   val allLaneReady: Bool = laneReady.asUInt.andR
   // todo: 把scheduler的反馈也加上,lsu有更高的优先级
@@ -204,11 +208,11 @@ class V(val param: VParam) extends Module {
 
   // lsu的写有限级更高
   val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
-    Vec(param.lane, Decoupled(new VRFWriteRequest(param.vrfParam)))
+    Vec(parameter.lane, Decoupled(new VRFWriteRequest(parameter.vrfParam)))
   )
   // 以lane的角度去连线
-  val laneVec: Seq[Lane] = Seq.tabulate(param.lane) { index =>
-    val lane: Lane = Module(new Lane(param.laneParam))
+  val laneVec: Seq[Lane] = Seq.tabulate(parameter.lane) { index =>
+    val lane: Lane = Module(new Lane(parameter.laneParam))
     // 请求,
     lane.laneReq.valid := req.fire && !noReadST && allLaneReady
     lane.laneReq.bits.instIndex := instCount
@@ -242,7 +246,7 @@ class V(val param: VParam) extends Module {
     lsu.offsetReadTag(index) := lane.dataToScheduler.bits.instIndex
 
     lastVec(index).zip(instStateVec.map(_.record.instIndex)).foreach {
-      case (d, f) => d := (UIntToOH(f(param.instIndexSize - 2, 0)) & lane.endNotice).orR
+      case (d, f) => d := (UIntToOH(f(parameter.instIndexSize - 2, 0)) & lane.endNotice).orR
     }
     lane.maskRegInput := regroupV0(index)(lane.maskSelect)
     lane.lsuLastReport := lsu.lastReport
@@ -300,7 +304,7 @@ class V(val param: VParam) extends Module {
     val freeOR = free.orR
     val free1H = ffo(free)
     // 类型信息：isLSType noReadLD specialInst
-    val tryToEnq = Mux(specialInst, true.B ## 0.U((param.chainingSize - 1).W), free1H)
+    val tryToEnq = Mux(specialInst, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
     // 有一个空闲的本地坑
     val localReady = Mux(specialInst, instStateVec.map(_.state.idle).last, freeOR)
     // 远程坑就绪
@@ -323,11 +327,11 @@ class V(val param: VParam) extends Module {
   v0.zipWithIndex.foreach {
     case (data, index) =>
       // 属于哪个lane
-      val laneIndex: Int = index % param.lane
+      val laneIndex: Int = index % parameter.lane
       // 取出写的端口
       val v0Write = laneVec(laneIndex).v0Update
       // offset
-      val offset: Int = index / param.lane
+      val offset: Int = index / parameter.lane
       val maskExt = FillInterleaved(8, v0Write.bits.mask)
       when(v0Write.valid && v0Write.bits.offset === offset.U) {
         data := (data & (~maskExt).asUInt) | (maskExt & v0Write.bits.data)
