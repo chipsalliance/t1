@@ -43,10 +43,10 @@ class VRFWriteRequest(param: VRFParam) extends Bundle {
   val vd:     UInt = UInt(param.regNumBits.W)
   val offset: UInt = UInt(param.offsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
-  val mask:      UInt = UInt(4.W)
-  val data:      UInt = UInt(param.ELEN.W)
-  val last:      Bool = Bool()
-  val instIndex: UInt = UInt(param.instIndexSize.W)
+  val mask:             UInt = UInt(4.W)
+  val data:             UInt = UInt(param.ELEN.W)
+  val last:             Bool = Bool()
+  val instructionIndex: UInt = UInt(param.instIndexSize.W)
 }
 
 class VRFWriteReport(param: VRFParam) extends Bundle {
@@ -193,7 +193,9 @@ class VRF(param: VRFParam) extends Module {
       when(recordEnq(i)) {
         record := initRecord
       }
-      when(write.valid && write.bits.instIndex === record.bits.instIndex && (write.bits.last || write.bits.mask(3))) {
+      when(
+        write.valid && write.bits.instructionIndex === record.bits.instIndex && (write.bits.last || write.bits.mask(3))
+      ) {
         record.bits.offset := write.bits.offset
         record.bits.vdOffset := vsOffsetMask & write.bits.vd
         when(write.bits.last) {
