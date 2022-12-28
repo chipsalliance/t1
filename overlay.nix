@@ -181,10 +181,10 @@ in
 
   verilator = prev.verilator.overrideAttrs (old: {
     src = final.fetchFromGitHub {
-      owner = "verilator";
+      owner = "CircuitCoder";
       repo = "verilator";
-      rev = "4452a9b10f02052cf230d115e4a6fd874eec0b2f";
-      sha256 = "sha256-GzWljZnGVLqIQ7wX8v6iNYqGsIvY9fsDLcQsB9qm7vY=";
+      rev = "f6d37205011f0cecaeb3b91452099d68a3cb53bc";
+      sha256 = "sha256-CEBMW0w46OQdQDhkxa3VVQImLHCfV6XR+fBL6xzD04Y=";
     };
   });
 
