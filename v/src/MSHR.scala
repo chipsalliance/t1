@@ -311,6 +311,6 @@ class MSHR(param: MSHRParam) extends Module {
   readDataPort.valid := stateReady && requestReg.instInf.st
   readDataPort.bits.offset := vrfWritePort.bits.offset
   readDataPort.bits.vs := vrfWritePort.bits.vd
-  readDataPort.bits.instIndex := requestReg.instIndex
+  readDataPort.bits.instructionIndex := requestReg.instIndex
   // todo: maskSelect, last, targetLane
 }

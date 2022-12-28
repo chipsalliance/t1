@@ -12,13 +12,14 @@ case class VRFParam(
   VLEN:           Int,
   lane:           Int,
   ELEN:           Int,
-  vrfReadPort:    Int = 6,
-  chainingSize:   Int = 4,
-  writeQueueSize: Int = 4) extends SerializableModuleParameter {
-  val regNum:     Int = 32
-  val regNumBits: Int = log2Ceil(regNum)
+  chainingSize:   Int,
+  writeQueueSize: Int)
+    extends SerializableModuleParameter {
+  val vrfReadPort: Int = 6
+  val regNum:      Int = 32
+  val regNumBits:  Int = log2Ceil(regNum)
   // One more bit for sorting
-  val instIndexSize: Int = log2Ceil(chainingSize) + 1
+  val instructionIndexSize: Int = log2Ceil(chainingSize) + 1
   // 需要可配一行的宽度
   val portFactor: Int = 1
   val rowWidth:   Int = ELEN * portFactor
@@ -36,13 +37,15 @@ case class VRFParam(
 }
 
 class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFParam] {
-  val read:            Vec[DecoupledIO[VRFReadRequest]] = IO(Vec(parameter.vrfReadPort, Flipped(Decoupled(new VRFReadRequest(parameter)))))
+  val read: Vec[DecoupledIO[VRFReadRequest]] = IO(
+    Vec(parameter.vrfReadPort, Flipped(Decoupled(new VRFReadRequest(parameter))))
+  )
   val readResult:      Vec[UInt] = IO(Output(Vec(parameter.vrfReadPort, UInt(parameter.ELEN.W))))
   val write:           DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(parameter))))
   val instWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
   val flush:           Bool = IO(Input(Bool()))
   val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.VLMaxWidth)))
-  val lsuLastReport:   ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instIndexSize.W))))
+  val lsuLastReport:   ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexSize.W))))
   // write queue empty
   val bufferClear: Bool = IO(Input(Bool()))
   // todo: delete
@@ -77,8 +80,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     */
   def chainingCheck(read: VRFReadRequest, readRecord: VRFWriteReport, record: ValidIO[VRFWriteReport]): Bool = {
     // 先看新老
-    val older = instIndexL(read.instIndex, record.bits.instIndex)
-    val sameInst = read.instIndex === record.bits.instIndex
+    val older = instIndexL(read.instructionIndex, record.bits.instIndex)
+    val sameInst = read.instructionIndex === record.bits.instIndex
 
     // todo: 处理双倍的
     val vs:       UInt = read.vs & vsBaseMask
@@ -120,7 +123,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   read.zipWithIndex.foldLeft((false.B, false.B)) {
     case ((o, t), (v, i)) =>
       // 先找到自的record
-      val readRecord = Mux1H(chainingRecord.map(_.bits.instIndex === v.bits.instIndex), chainingRecord.map(_.bits))
+      val readRecord =
+        Mux1H(chainingRecord.map(_.bits.instIndex === v.bits.instructionIndex), chainingRecord.map(_.bits))
       val checkResult:  Bool = chainingRecord.map(r => chainingCheck(v.bits, readRecord, r)).reduce(_ && _)
       val validCorrect: Bool = v.valid && checkResult
       // TODO: 加信号名
