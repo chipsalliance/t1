@@ -207,7 +207,7 @@ class InstControlRecord(param: LaneParameter) extends Bundle {
   val mask: ValidIO[UInt] = Valid(UInt(param.datapathWidth.W))
 
   /** 把mask按每四个分一个组,然后看orR */
-  val maskGroupedOrR: UInt = UInt((param.datapathWidth / 4).W)
+  val maskGroupedOrR: UInt = UInt((param.datapathWidth / param.sewMin).W)
 
   /** 这一组写vrf的mask */
   val vrfWriteMask: UInt = UInt(4.W)
@@ -285,7 +285,7 @@ class VRFReadRequest(param: VRFParam) extends Bundle {
   // 访问寄存器的 offset, 代表第几个32bit
   val offset: UInt = UInt(param.offsetBits.W)
   // 用来阻塞 raw
-  val instIndex: UInt = UInt(param.instIndexSize.W)
+  val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
 }
 
 class VRFWriteRequest(param: VRFParam) extends Bundle {
@@ -295,14 +295,14 @@ class VRFWriteRequest(param: VRFParam) extends Bundle {
   val mask:             UInt = UInt(4.W)
   val data:             UInt = UInt(param.ELEN.W)
   val last:             Bool = Bool()
-  val instructionIndex: UInt = UInt(param.instIndexSize.W)
+  val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
 }
 
 class VRFWriteReport(param: VRFParam) extends Bundle {
   val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
   val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
   val vs2:       UInt = UInt(param.regNumBits.W)
-  val instIndex: UInt = UInt(param.instIndexSize.W)
+  val instIndex: UInt = UInt(param.instructionIndexSize.W)
   val vdOffset:  UInt = UInt(3.W)
   val offset:    UInt = UInt(param.offsetBits.W)
   val seg:       ValidIO[UInt] = Valid(UInt(3.W))
