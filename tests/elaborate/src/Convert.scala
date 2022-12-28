@@ -17,8 +17,8 @@ import firrtl.stage.{FirrtlCircuitAnnotation, RunFirrtlTransformAnnotation}
 class Convert extends Phase {
   def transform(annotations: AnnotationSeq): AnnotationSeq = annotations.flatMap {
     case a: ChiselCircuitAnnotation =>
-        /* Convert this Chisel Circuit to a FIRRTL Circuit */
-        Some(FirrtlCircuitAnnotation(Converter.convertLazily(a.circuit))) ++
+      /* Convert this Chisel Circuit to a FIRRTL Circuit */
+      Some(FirrtlCircuitAnnotation(Converter.convertLazily(a.circuit))) ++
         /* Convert all Chisel Annotations to FIRRTL Annotations */
         a.circuit.firrtlAnnotations
     case a => Some(a)

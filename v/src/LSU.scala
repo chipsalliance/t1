@@ -26,8 +26,8 @@ case class LSUParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: In
   def mshrParam: MSHRParam = MSHRParam()
 }
 
-class LSUWriteQueueBundle(param:LSUParam) extends Bundle {
-  val data: VRFWriteRequest = new VRFWriteRequest(param.vrfParam)
+class LSUWriteQueueBundle(param: LSUParam) extends Bundle {
+  val data:       VRFWriteRequest = new VRFWriteRequest(param.vrfParam)
   val targetLane: UInt = UInt(param.lane.W)
 }
 class LSUInstInformation extends Bundle {
@@ -54,10 +54,10 @@ class LSUInstInformation extends Bundle {
     * size(0) -> 16
     * size(1) -> 32
     */
-  val eew: UInt = UInt(2.W)
-  val vs3: UInt = UInt(5.W)
-  val st:  Bool = Bool()
-  val mask:Bool = Bool()
+  val eew:  UInt = UInt(2.W)
+  val vs3:  UInt = UInt(5.W)
+  val st:   Bool = Bool()
+  val mask: Bool = Bool()
   // fault only first
   def fof: Bool = mop === 0.U && vs2(4) && !st
 }
@@ -77,8 +77,10 @@ class LSU(param: LSUParam) extends Module {
   val readDataPorts: Vec[DecoupledIO[VRFReadRequest]] = IO(
     Vec(param.lane, Decoupled(new VRFReadRequest(param.vrfParam)))
   )
-  val readResults:      Vec[UInt] = IO(Input(Vec(param.lane, UInt(param.ELEN.W))))
-  val vrfWritePort:     Vec[DecoupledIO[VRFWriteRequest]] = IO(Vec(param.lane, Decoupled(new VRFWriteRequest(param.vrfParam))))
+  val readResults: Vec[UInt] = IO(Input(Vec(param.lane, UInt(param.ELEN.W))))
+  val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(
+    Vec(param.lane, Decoupled(new VRFWriteRequest(param.vrfParam)))
+  )
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.lane, Flipped(Valid(UInt(param.ELEN.W)))))
   val offsetReadTag:    Vec[UInt] = IO(Input(Vec(param.lane, UInt(3.W))))
@@ -96,7 +98,7 @@ class LSU(param: LSUParam) extends Module {
   val tileChannelReady: IndexedSeq[Bool] = getArbiter.map(_.asUInt.orR)
 
   val tryToAckData: Vec[UInt] = Wire(Vec(param.tlBank, UInt(param.mshrSize.W)))
-  val readyArbiter:   Vec[Vec[Bool]] = Wire(Vec(param.tlBank, Vec(param.mshrSize, Bool())))
+  val readyArbiter: Vec[Vec[Bool]] = Wire(Vec(param.tlBank, Vec(param.mshrSize, Bool())))
   val ackArbiter:   Vec[Vec[Bool]] = Wire(Vec(param.tlBank, Vec(param.mshrSize, Bool())))
   val ackReady:     IndexedSeq[Bool] = ackArbiter.map(_.asUInt.orR)
 

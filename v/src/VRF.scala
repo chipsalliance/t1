@@ -15,56 +15,56 @@ case class VRFParam(
   // One more bit for sorting
   val instIndexSize: Int = log2Ceil(chainingSize) + 1
   // 需要可配一行的宽度
-  val portFactor:    Int = 1
-  val rowWidth:      Int = ELEN * portFactor
-  val rfDepth:       Int = VLEN * regNum / rowWidth / lane
-  val rfAddBits:     Int = log2Ceil(rfDepth)
+  val portFactor: Int = 1
+  val rowWidth:   Int = ELEN * portFactor
+  val rfDepth:    Int = VLEN * regNum / rowWidth / lane
+  val rfAddBits:  Int = log2Ceil(rfDepth)
   // 单个寄存器能分成多少组, 每次只访问32bit
   val singleGroupSize: Int = VLEN / ELEN / lane
   // 记录一个寄存器的offset需要多长
-  val offsetBits:Int = log2Ceil(singleGroupSize)
-  val rfBankNum: Int = rowWidth / 8
-  val maxVSew:   Int = log2Ceil(ELEN / 8)
-  val VLMaxWidth:     Int = log2Ceil(VLEN) + 1
+  val offsetBits: Int = log2Ceil(singleGroupSize)
+  val rfBankNum:  Int = rowWidth / 8
+  val maxVSew:    Int = log2Ceil(ELEN / 8)
+  val VLMaxWidth: Int = log2Ceil(VLEN) + 1
 
   def rfParam: RFParam = RFParam(rfDepth)
 }
 
 class VRFReadRequest(param: VRFParam) extends Bundle {
   // 为了方便处理seg类型的ld st, vs需要是明确的地址, 而不是一个base
-  val vs:         UInt = UInt(param.regNumBits.W)
+  val vs: UInt = UInt(param.regNumBits.W)
   // 访问寄存器的 offset, 代表第几个32bit
-  val offset:     UInt = UInt(param.offsetBits.W)
+  val offset: UInt = UInt(param.offsetBits.W)
   // 用来阻塞 raw
-  val instIndex:  UInt = UInt(param.instIndexSize.W)
+  val instIndex: UInt = UInt(param.instIndexSize.W)
 }
 
 class VRFWriteRequest(param: VRFParam) extends Bundle {
-  val vd:         UInt = UInt(param.regNumBits.W)
-  val offset:     UInt = UInt(param.offsetBits.W)
+  val vd:     UInt = UInt(param.regNumBits.W)
+  val offset: UInt = UInt(param.offsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
-  val mask:       UInt = UInt(4.W)
-  val data:       UInt = UInt(param.ELEN.W)
-  val last:       Bool = Bool()
+  val mask:      UInt = UInt(4.W)
+  val data:      UInt = UInt(param.ELEN.W)
+  val last:      Bool = Bool()
   val instIndex: UInt = UInt(param.instIndexSize.W)
 }
 
 class VRFWriteReport(param: VRFParam) extends Bundle {
-  val vd: ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
-  val vs1: ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
-  val vs2: UInt = UInt(param.regNumBits.W)
+  val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs2:       UInt = UInt(param.regNumBits.W)
   val instIndex: UInt = UInt(param.instIndexSize.W)
   val vdOffset:  UInt = UInt(3.W)
   val offset:    UInt = UInt(param.offsetBits.W)
-  val seg: ValidIO[UInt] = Valid(UInt(3.W))
-  val eew: UInt = UInt(2.W)
-  val ls: Bool = Bool()
-  val st: Bool = Bool()
-  val narrow: Bool = Bool()
-  val widen: Bool = Bool()
-  val stFinish: Bool = Bool()
+  val seg:       ValidIO[UInt] = Valid(UInt(3.W))
+  val eew:       UInt = UInt(2.W)
+  val ls:        Bool = Bool()
+  val st:        Bool = Bool()
+  val narrow:    Bool = Bool()
+  val widen:     Bool = Bool()
+  val stFinish:  Bool = Bool()
   // 乘加
-  val ma: Bool = Bool()
+  val ma:           Bool = Bool()
   val unOrderWrite: Bool = Bool()
 }
 
@@ -75,7 +75,7 @@ class VRF(param: VRFParam) extends Module {
   val instWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(param))))
   val flush:           Bool = IO(Input(Bool()))
   val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxWidth)))
-  val lsuLastReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(param.instIndexSize.W))))
+  val lsuLastReport:   ValidIO[UInt] = IO(Flipped(Valid(UInt(param.instIndexSize.W))))
   // write queue empty
   val bufferClear: Bool = IO(Input(Bool()))
   // todo: delete
@@ -94,9 +94,9 @@ class VRF(param: VRFParam) extends Module {
   val vsBaseMask: UInt = 3.U(2.W) ## (~vsOffsetMask).asUInt
   def rawCheck(before: VRFWriteReport, after: VRFWriteReport): Bool = {
     before.vd.valid &&
-      ((before.vd.bits === after.vs1.bits && after.vs1.valid) ||
-        (before.vd.bits === after.vs2) ||
-        (before.vd.bits === after.vd.bits && after.ma))
+    ((before.vd.bits === after.vs1.bits && after.vs1.valid) ||
+    (before.vd.bits === after.vs2) ||
+    (before.vd.bits === after.vd.bits && after.ma))
   }
 
   def regOffsetCheck(beforeVsOffset: UInt, beforeOffset: UInt, afterVsOffset: UInt, afterOffset: UInt): Bool = {
@@ -107,14 +107,14 @@ class VRF(param: VRFParam) extends Module {
     * @param readRecord : 发起读请求的指令的记录\
     * @param record : 要做比对的指令的记录
     * todo: 维护冲突表,免得每次都要算一次
-    * */
+    */
   def chainingCheck(read: VRFReadRequest, readRecord: VRFWriteReport, record: ValidIO[VRFWriteReport]): Bool = {
     // 先看新老
     val older = instIndexL(read.instIndex, record.bits.instIndex)
     val sameInst = read.instIndex === record.bits.instIndex
 
     // todo: 处理双倍的
-    val vs: UInt = read.vs & vsBaseMask
+    val vs:       UInt = read.vs & vsBaseMask
     val vsOffset: UInt = read.vs & vsOffsetMask
     val vd = readRecord.vd.bits
 
@@ -125,7 +125,7 @@ class VRF(param: VRFParam) extends Module {
     val offsetCheckFail: Bool = !regOffsetCheck(record.bits.vdOffset, record.bits.offset, vsOffset, read.offset)
     val war: Bool = readRecord.vd.valid &&
       (((vd === record.bits.vs1.bits) && record.bits.vs1.valid) || (vd === record.bits.vs2) ||
-      ((vd === record.bits.vd.bits) && record.bits.ma)) && offsetCheckFail
+        ((vd === record.bits.vd.bits) && record.bits.ma)) && offsetCheckFail
     !((!older && (waw || raw || war)) && !sameInst && record.valid)
   }
 
@@ -145,8 +145,8 @@ class VRF(param: VRFParam) extends Module {
 
   // todo: 根据 portFactor 变形
   // first read
-  val bankReadF: Vec[Bool] = Wire(Vec(param.vrfReadPort, Bool()))
-  val bankReadS: Vec[Bool] = Wire(Vec(param.vrfReadPort, Bool()))
+  val bankReadF:   Vec[Bool] = Wire(Vec(param.vrfReadPort, Bool()))
+  val bankReadS:   Vec[Bool] = Wire(Vec(param.vrfReadPort, Bool()))
   val readResultF: Vec[UInt] = Wire(Vec(param.rfBankNum, UInt(8.W)))
   val readResultS: Vec[UInt] = Wire(Vec(param.rfBankNum, UInt(8.W)))
   // portFactor = 1 的可以直接握手
@@ -154,7 +154,7 @@ class VRF(param: VRFParam) extends Module {
     case ((o, t), (v, i)) =>
       // 先找到自的record
       val readRecord = Mux1H(chainingRecord.map(_.bits.instIndex === v.bits.instIndex), chainingRecord.map(_.bits))
-      val checkResult: Bool = chainingRecord.map(r => chainingCheck(v.bits, readRecord, r)).reduce(_ && _)
+      val checkResult:  Bool = chainingRecord.map(r => chainingCheck(v.bits, readRecord, r)).reduce(_ && _)
       val validCorrect: Bool = v.valid && checkResult
       // TODO: 加信号名
       v.ready := !t && checkResult
@@ -183,8 +183,8 @@ class VRF(param: VRFParam) extends Module {
   initRecord.valid := true.B
   initRecord.bits := instWriteReport.bits
   val freeRecord: UInt = VecInit(chainingRecord.map(!_.valid)).asUInt
-  val recordFFO: UInt = ffo(freeRecord)
-  val recordEnq: UInt = Wire(UInt(param.chainingSize.W))
+  val recordFFO:  UInt = ffo(freeRecord)
+  val recordEnq:  UInt = Wire(UInt(param.chainingSize.W))
   instWriteReport.ready := chainingRecord.map(r => enqCheck(instWriteReport.bits, r)).reduce(_ && _)
   recordEnq := Mux(instWriteReport.fire, recordFFO, 0.U(param.chainingSize.W))
 
