@@ -75,23 +75,26 @@ class OtherUnit(param: LaneParameters) extends Module {
   // todo
   val extendRes: UInt = Mux(vSewOH(2), req.src.head(31, 16), Fill(16, extendSign)) ##
     Mux(vSewOH(1), Fill(8, extendSign), req.src.head(15, 8)) ## req.src.head(7, 0)
+
   /**
     * 需要特别注意 vmerge/vmv 类型的指令的编码方式是一样的,
     * 区别在于vmerge是mask类型的
     * 我们不需要纠结相应的mask_bit的值,因为执行意味着它一定是1
     * 然而mask是1的情况下vmerge与vmv的行为都是一样的:都是选vs1/rs1/imm
-    * */
+    */
   // extend: vExtend mv ffo popCount viota
   // slide, rgather, merge, mv, clip, compress
   val r0: Bool = (opcodeOH(3, 0) ## opcodeOH(5)).orR
-  val resultSelect: UInt = VecInit(Seq(
-    req.extendType.valid && req.extendType.bits.vExtend,
-    req.extendType.valid && req.extendType.bits.ffo,
-    req.extendType.valid && req.extendType.bits.popCount,
-    req.extendType.valid && req.extendType.bits.vid,
-    !req.extendType.valid && opcodeOH(4),
-    (req.extendType.valid && req.extendType.bits.mv) || (!req.extendType.valid && r0)
-  )).asUInt
+  val resultSelect: UInt = VecInit(
+    Seq(
+      req.extendType.valid && req.extendType.bits.vExtend,
+      req.extendType.valid && req.extendType.bits.ffo,
+      req.extendType.valid && req.extendType.bits.popCount,
+      req.extendType.valid && req.extendType.bits.vid,
+      !req.extendType.valid && opcodeOH(4),
+      (req.extendType.valid && req.extendType.bits.mv) || (!req.extendType.valid && r0)
+    )
+  ).asUInt
   val result: UInt = Mux1H(
     resultSelect,
     Seq(extendRes, ffo.resp.bits, popCount.resp, indexRes, roundResult, req.src.head)

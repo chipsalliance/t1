@@ -3,8 +3,9 @@ package v
 import chisel3._
 
 class LaneLogicRequest(param: DataPathParam) extends Bundle {
-  val src:    Vec[UInt] = Vec(2, UInt(param.dataWidth.W))
-  /** n_op ## op_n ## op*/
+  val src: Vec[UInt] = Vec(2, UInt(param.dataWidth.W))
+
+  /** n_op ## op_n ## op */
   val opcode: UInt = UInt(4.W)
 }
 

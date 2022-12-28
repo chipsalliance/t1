@@ -13,7 +13,7 @@ case class VParam(XLEN: Int = 32, dataPathWidth: Int = 32, VLEN: Int = 1024, lan
   val chainingSize:   Int = 4
   val instIndexSize:  Int = log2Ceil(chainingSize) + 1
   // 变更了分组的方式,现在一组会处理32bit的数据
-  val laneGroupSize:  Int = VLEN * 8 / dataPathWidth / lane
+  val laneGroupSize: Int = VLEN * 8 / dataPathWidth / lane
   val tlParam: TLBundleParameter = TLBundleParameter(
     a = TLChannelAParameter(vaWidth, sourceWidth, dataPathWidth, 2, 4),
     b = None,
@@ -101,21 +101,27 @@ class V(val param: VParam) extends Module {
   val isST:     Bool = !req.bits.inst(6) && req.bits.inst(5)
   val maskType: Bool = !req.bits.inst(25)
 
-  val noReadST: Bool = isLSType && (!req.bits.inst(26))
+  val noReadST:    Bool = isLSType && (!req.bits.inst(26))
   val indexTypeLS: Bool = isLSType && req.bits.inst(26)
 
-  val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(param.maskGroupSize)(0.U(param.maskGroupWidth.W))))
+  val v0:    Vec[UInt] = RegInit(VecInit(Seq.fill(param.maskGroupSize)(0.U(param.maskGroupWidth.W))))
   val sew1H: UInt = UIntToOH(csrInterface.vSew)
-  val regroupV0: Seq[Vec[UInt]] = Seq(4, 2, 1).map{ groupSize =>
+  val regroupV0: Seq[Vec[UInt]] = Seq(4, 2, 1).map { groupSize =>
     v0.map { element =>
-      element.asBools.grouped(groupSize).toSeq.map(VecInit(_).asUInt)
-        .grouped(param.lane).toSeq.transpose.map(seq => VecInit(seq).asUInt)
+      element.asBools
+        .grouped(groupSize)
+        .toSeq
+        .map(VecInit(_).asUInt)
+        .grouped(param.lane)
+        .toSeq
+        .transpose
+        .map(seq => VecInit(seq).asUInt)
     }.transpose.map(VecInit(_).asUInt)
-  }.transpose.map(Mux1H(sew1H(2, 0), _)).map {v0ForLane =>
+  }.transpose.map(Mux1H(sew1H(2, 0), _)).map { v0ForLane =>
     VecInit(v0ForLane.asBools.grouped(32).toSeq.map(VecInit(_).asUInt))
   }
 
-  val instEnq:    UInt = Wire(UInt(param.chainingSize.W))
+  val instEnq: UInt = Wire(UInt(param.chainingSize.W))
   // 最后一个位置的指令，是否来了一组反馈
   val next:        Vec[Bool] = Wire(Vec(param.lane, Bool()))
   val synchronize: Bool = Wire(Bool())
@@ -132,7 +138,7 @@ class V(val param: VParam) extends Module {
   val maskUnitType: Bool = nextInstType.asUInt.orR
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
   val specialInst: Bool = maskUnitType || indexTypeLS
-  val busClear: Bool = Wire(Bool())
+  val busClear:    Bool = Wire(Bool())
 
   // 指令的状态维护
   val instStateVec: Seq[InstControl] = Seq.tabulate(param.chainingSize) { index =>
@@ -158,7 +164,7 @@ class V(val param: VParam) extends Module {
       when(control.state.sCommit && control.state.sExecute) {
         control.state.idle := true.B
       }
-      control.endTag.zip(lastVec.map(_ (index)) :+ lsuLast).foreach {
+      control.endTag.zip(lastVec.map(_(index)) :+ lsuLast).foreach {
         case (d, c) => d := d || c
       }
     }
@@ -197,7 +203,9 @@ class V(val param: VParam) extends Module {
   val laneComplete: Bool = lsu.lastReport.valid && lsu.lastReport.bits === instStateVec.last.record.instIndex
 
   // lsu的写有限级更高
-  val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(Vec(param.lane, Decoupled(new VRFWriteRequest(param.vrfParam))))
+  val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
+    Vec(param.lane, Decoupled(new VRFWriteRequest(param.vrfParam)))
+  )
   // 以lane的角度去连线
   val laneVec: Seq[Lane] = Seq.tabulate(param.lane) { index =>
     val lane: Lane = Module(new Lane(param.laneParam))
@@ -277,10 +285,11 @@ class V(val param: VParam) extends Module {
   }
 
   // 连 tile link
-  tlPort.zip(lsu.tlPort).foreach { case (source, sink) =>
-    val dBuffer = Queue(source.d, 1, flow = true)
-    sink <> source
-    sink.d <> dBuffer
+  tlPort.zip(lsu.tlPort).foreach {
+    case (source, sink) =>
+      val dBuffer = Queue(source.d, 1, flow = true)
+      sink <> source
+      sink.d <> dBuffer
   }
   // 暂时直接连lsu的写,后续需要处理scheduler的写
   vrfWrite.zip(lsu.vrfWritePort).foreach { case (sink, source) => sink <> source }
@@ -311,16 +320,17 @@ class V(val param: VParam) extends Module {
   }
 
   // 写v0
-  v0.zipWithIndex.foreach {case (data, index) =>
-    // 属于哪个lane
-    val laneIndex: Int = index % param.lane
-    // 取出写的端口
-    val v0Write = laneVec(laneIndex).v0Update
-    // offset
-    val offset: Int = index / param.lane
-    val maskExt = FillInterleaved(8, v0Write.bits.mask)
-    when(v0Write.valid && v0Write.bits.offset === offset.U) {
-      data := (data & (~maskExt).asUInt) | (maskExt & v0Write.bits.data)
-    }
+  v0.zipWithIndex.foreach {
+    case (data, index) =>
+      // 属于哪个lane
+      val laneIndex: Int = index % param.lane
+      // 取出写的端口
+      val v0Write = laneVec(laneIndex).v0Update
+      // offset
+      val offset: Int = index / param.lane
+      val maskExt = FillInterleaved(8, v0Write.bits.mask)
+      when(v0Write.valid && v0Write.bits.offset === offset.U) {
+        data := (data & (~maskExt).asUInt) | (maskExt & v0Write.bits.data)
+      }
   }
 }

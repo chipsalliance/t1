@@ -124,7 +124,7 @@ object vector extends common.VectorModule with ScalafmtModule {
 }
 
 object tests extends Module {
-  object elaborate extends ScalaModule {
+  object elaborate extends ScalaModule with ScalafmtModule {
     override def scalacPluginClasspath = T {
       Agg(mychisel3.plugin.jar())
     }

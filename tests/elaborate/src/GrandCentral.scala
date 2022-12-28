@@ -6,7 +6,9 @@ package sifive {
 
       case class ReferenceDataTapKey(source: ReferenceTarget, sink: ReferenceTarget)
 
-      case class DataTapsAnnotation(keys: Seq[ReferenceDataTapKey]) extends NoTargetAnnotation with HasSerializationHints {
+      case class DataTapsAnnotation(keys: Seq[ReferenceDataTapKey])
+          extends NoTargetAnnotation
+          with HasSerializationHints {
         override def typeHints: Seq[Class[_]] = Seq(classOf[ReferenceDataTapKey])
       }
     }
@@ -32,8 +34,9 @@ package tests {
       // wait for https://github.com/chipsalliance/chisel3/pull/1943
       def done(): Unit = {
         chisel3.experimental.annotate(new ChiselAnnotation {
-          override def toFirrtl = DataTapsAnnotation(dataTapKeys.toSeq.map({ case (source, sink) =>
-            ReferenceDataTapKey(source.toTarget, sink.toTarget)
+          override def toFirrtl = DataTapsAnnotation(dataTapKeys.toSeq.map({
+            case (source, sink) =>
+              ReferenceDataTapKey(source.toTarget, sink.toTarget)
           }))
         })
       }

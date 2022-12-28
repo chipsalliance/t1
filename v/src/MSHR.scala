@@ -5,10 +5,10 @@ import chisel3.util._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
 
 case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
-  val dataBits:          Int = log2Ceil(ELEN)
-  val mshrSize:          Int = 3
-  val VLMaxBits:         Int = log2Ceil(VLEN) + 1
-  val laneGroupSize:     Int = VLEN / lane
+  val dataBits:      Int = log2Ceil(ELEN)
+  val mshrSize:      Int = 3
+  val VLMaxBits:     Int = log2Ceil(VLEN) + 1
+  val laneGroupSize: Int = VLEN / lane
   // 一次完全的offset读会最多分成多少个offset
   val lsuGroupLength:   Int = ELEN * lane / 8
   val offsetCountSize:  Int = log2Ceil(lsuGroupLength)
@@ -16,8 +16,8 @@ case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: I
   val lsuGroupSizeBits: Int = log2Ceil(lsuGroupSize) + 1
   val sourceWidth = 8
 
-  val maskGroupWidth: Int = lsuGroupLength
-  val maskGroupSize: Int = VLEN / maskGroupWidth
+  val maskGroupWidth:    Int = lsuGroupLength
+  val maskGroupSize:     Int = VLEN / maskGroupWidth
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
   val tlParam: TLBundleParameter = TLBundleParameter(
     a = TLChannelAParameter(vaWidth, sourceWidth, ELEN, 2, 4),
@@ -56,15 +56,15 @@ class MSHR(param: MSHRParam) extends Module {
   )
 
   // 进请求
-  val requestReg:    LSUReq = RegEnable(req.bits, 0.U.asTypeOf(req.bits), req.valid)
-  val groupIndex:    UInt = RegInit(0.U(param.lsuGroupSizeBits.W))
-  val nextGroupIndex:UInt = Mux(req.valid, 0.U, groupIndex + 1.U) //todo: vstart
-  val firstReq:      Bool = RegEnable(req.valid, false.B, req.valid || tlPort.a.fire)
-  val waitFirstResp: Bool = RegEnable(req.valid && req.bits.instInf.fof, false.B, req.valid || tlPort.d.fire)
+  val requestReg:     LSUReq = RegEnable(req.bits, 0.U.asTypeOf(req.bits), req.valid)
+  val groupIndex:     UInt = RegInit(0.U(param.lsuGroupSizeBits.W))
+  val nextGroupIndex: UInt = Mux(req.valid, 0.U, groupIndex + 1.U) //todo: vstart
+  val firstReq:       Bool = RegEnable(req.valid, false.B, req.valid || tlPort.a.fire)
+  val waitFirstResp:  Bool = RegEnable(req.valid && req.bits.instInf.fof, false.B, req.valid || tlPort.d.fire)
 
   // 处理offset的寄存器
   val offsetGroupIndexNext: UInt = Wire(UInt(2.W))
-  val offsetGroupIndex: UInt = RegEnable(offsetGroupIndexNext, req.valid || offsetReadResult.head.valid)
+  val offsetGroupIndex:     UInt = RegEnable(offsetGroupIndexNext, req.valid || offsetReadResult.head.valid)
   offsetGroupIndexNext := Mux(req.valid, 3.U(2.W), offsetGroupIndex + 1.U)
   val offsetUsed: Vec[Bool] = Wire(Vec(param.lane, Bool()))
   indexOffsetVec.zipWithIndex.foreach {
@@ -89,7 +89,7 @@ class MSHR(param: MSHRParam) extends Module {
   val idle :: sRequest :: wResp :: Nil = Enum(3)
   val state: UInt = RegInit(idle)
 
-  val segType:   Bool = requestReg.instInf.nf.orR
+  val segType: Bool = requestReg.instInf.nf.orR
   // unit stride 里面有额外的 mask 类型的补充
   val extendMaskType: Bool = requestReg.instInf.mop === 0.U && requestReg.instInf.vs2(0)
   // 所有的mask类型
@@ -122,14 +122,14 @@ class MSHR(param: MSHRParam) extends Module {
   /** offset index + segment index
     * log(32)-> 5    log(8) -> 3
     */
-  val reqSource:   UInt = Mux(segType, reqNextIndex ## segmentIndex, reqNextIndex)
-  val reqSource1H: UInt = UIntToOH(reqSource(4, 0))
-  val reqOffset:   UInt = Wire(UInt(param.ELEN.W))
-  val reqValid:    Bool = Wire(Bool())
-  val putData:     UInt = Wire(UInt(param.ELEN.W))
+  val reqSource:     UInt = Mux(segType, reqNextIndex ## segmentIndex, reqNextIndex)
+  val reqSource1H:   UInt = UIntToOH(reqSource(4, 0))
+  val reqOffset:     UInt = Wire(UInt(param.ELEN.W))
+  val reqValid:      Bool = Wire(Bool())
+  val putData:       UInt = Wire(UInt(param.ELEN.W))
   val segAddressMul: UInt = (requestReg.instInf.nf + 1.U) * (1.U << dataEEW).asUInt(2, 0)
-  val reqAddress: UInt = requestReg.rs1Data + reqOffset * segAddressMul  + segmentOffset
-  val reqMask:    UInt = Wire(UInt(param.dataBits.W))
+  val reqAddress:    UInt = requestReg.rs1Data + reqOffset * segAddressMul + segmentOffset
+  val reqMask:       UInt = Wire(UInt(param.dataBits.W))
 
   tlPort.a.bits.opcode := !requestReg.instInf.st ## 0.U(2.W)
   tlPort.a.bits.param := 0.U
@@ -149,7 +149,7 @@ class MSHR(param: MSHRParam) extends Module {
   maskFilter := maskReg & reqFilter
   reqNext := Mux(maskType, maskNext, reqDoneNext)
 
-  val maskReq:     Bool = maskFilter === 0.U && maskType
+  val maskReq: Bool = maskFilter === 0.U && maskType
   maskSelect.valid := maskReq
 
   /** 处理 offset
@@ -162,14 +162,15 @@ class MSHR(param: MSHRParam) extends Module {
     * [[indexOffsetByteIndex]]表示这一次使用的index位于[[indexOffsetVec]]中的起始byte
     * [[indexOffsetNext]] 是通过 [[indexOffsetVec]] 移位得到我们想要的 index
     */
-  val offsetEEW: UInt = requestReg.instInf.eew
-  val indexOffset: UInt = (reqNextIndex << offsetEEW).asUInt(reqNextIndex.getWidth + 1, 0)
+  val offsetEEW:              UInt = requestReg.instInf.eew
+  val indexOffset:            UInt = (reqNextIndex << offsetEEW).asUInt(reqNextIndex.getWidth + 1, 0)
   val indexOffsetTargetGroup: UInt = indexOffset(reqNextIndex.getWidth + 1, reqNextIndex.getWidth)
-  val indexOffsetByteIndex: UInt = indexOffset(reqNextIndex.getWidth - 1, 0)
+  val indexOffsetByteIndex:   UInt = indexOffset(reqNextIndex.getWidth - 1, 0)
   val indexOffsetNext: UInt =
     (VecInit(indexOffsetVec.map(_.bits)).asUInt >> (indexOffsetByteIndex ## 0.U(3.W))).asUInt(param.ELEN - 1, 0)
-  val offsetValidCheck: Bool = (VecInit(indexOffsetVec.map(_.valid)).asUInt >> (indexOffsetByteIndex >> 2).asUInt).asUInt(0)
-  val groupMatch: UInt = indexOffsetTargetGroup ^ offsetGroupIndex
+  val offsetValidCheck: Bool =
+    (VecInit(indexOffsetVec.map(_.valid)).asUInt >> (indexOffsetByteIndex >> 2).asUInt).asUInt(0)
+  val groupMatch:       UInt = indexOffsetTargetGroup ^ offsetGroupIndex
   val offsetGroupCheck: Bool = (!offsetEEW(0) || !groupMatch(0)) && (!offsetEEW(1) || groupMatch === 0.U)
   val unitOffsetNext:   UInt = groupIndex ## reqNextIndex
   val strideOffsetNext: UInt = (groupIndex ## reqNextIndex) * requestReg.rs2Data
@@ -180,8 +181,10 @@ class MSHR(param: MSHRParam) extends Module {
   )
 
   // 拉回 indexOffset valid
-  val indexLaneMask:  UInt = UIntToOH(indexOffsetByteIndex(4, 2))
-  val indexExhausted: Bool = Mux1H(UIntToOH(offsetEEW)(2, 0), Seq(indexOffsetByteIndex(1, 0).andR, indexOffsetByteIndex(1), true.B))
+  val indexLaneMask: UInt = UIntToOH(indexOffsetByteIndex(4, 2))
+  val indexExhausted: Bool =
+    Mux1H(UIntToOH(offsetEEW)(2, 0), Seq(indexOffsetByteIndex(1, 0).andR, indexOffsetByteIndex(1), true.B))
+
   /**
     * 各个类型的换组的标志:
     * 1. 如果是seg的类型,那么需要执行完完整的一组才算是结算的时间点:[[segEnd]]
@@ -189,8 +192,8 @@ class MSHR(param: MSHRParam) extends Module {
     * 3. 如果是index类型的,那么在index耗尽的时候需要更换index,只有在index的粒度8的时候index和mask才同时耗尽.
     * 4. 如果index与mask不匹配,index在mask中的偏移由[[offsetGroupIndex]]记录.
     * 5. unit stride 和 stride 类型的在没有mask的前提下 [[reqNext]] 最高位拉高才换组.
-    * */
-  val nextIndexReq:       Bool = indexType && indexLaneMask(7) && indexExhausted
+    */
+  val nextIndexReq: Bool = indexType && indexLaneMask(7) && indexExhausted
   // index 类型的需要在最后一份index被耗尽的时候通知lane读下一组index过来.
   status.indexGroupEnd := nextIndexReq && tlPort.a.fire && indexOffsetVec.last.valid
   indexOffsetVec.zipWithIndex.foreach {
@@ -205,7 +208,7 @@ class MSHR(param: MSHRParam) extends Module {
   // stall 判断
   val stateCheck: Bool = state === sRequest
   // 如果状态是wResp,为了让回应能寻址会暂时不更新groupIndex，但是属于groupIndex的请求已经发完了
-  val elementID:  UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
+  val elementID: UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
   // todo: evl: unit stride -> whole register load | mask load, EEW=8
   val last:       Bool = (elementID >= csrInterface.vl) && segNext(0)
   val maskCheck:  Bool = !maskType || !maskReq
@@ -218,8 +221,8 @@ class MSHR(param: MSHRParam) extends Module {
   // 处理回应
   // todo: 这里能工作，但是时间点不那么准确
   val respSourceOH: UInt = UIntToOH(tlPort.d.bits.source(4, 0))
-  val lastResp:   Bool = last && tlPort.d.fire && (respDone & (~respSourceOH).asUInt) === 0.U
-  val lastReq: Bool = last && RegNext(tlPort.a.fire)
+  val lastResp:     Bool = last && tlPort.d.fire && (respDone & (~respSourceOH).asUInt) === 0.U
+  val lastReq:      Bool = last && RegNext(tlPort.a.fire)
   val accessElementIndex: UInt = Mux(
     requestReg.instInf.st,
     reqNextIndex,
@@ -229,6 +232,7 @@ class MSHR(param: MSHRParam) extends Module {
       tlPort.d.bits.source
     )(param.offsetCountSize - 1, 0)
   )
+
   /** 首先我们根据source来计算 [[elementIndex]]
     * 然后我们左移 eew,得到修改的起始是第几个byte: [[baseByteOffset]]
     * XXX XXXXXXXX XX
@@ -238,7 +242,7 @@ class MSHR(param: MSHRParam) extends Module {
     *          XXX： 由于寄存器的实体按32bit为粒度分散在lane中,所以这是目标lane的index
     *        XX： 这里代表[[vrfWritePort.bits.offset]]
     */
-  val elementIndex: UInt = groupIndex ## accessElementIndex
+  val elementIndex:   UInt = groupIndex ## accessElementIndex
   val baseByteOffset: UInt = (elementIndex << dataEEW).asUInt(9, 0)
   vrfWritePort.valid := tlPort.d.valid
   tlPort.d.ready := vrfWritePort.ready
@@ -258,7 +262,7 @@ class MSHR(param: MSHRParam) extends Module {
   )
   reqMask := vrfWritePort.bits.mask
 
-  val sourceUpdate: UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.lsuGroupLength.W))
+  val sourceUpdate:     UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.lsuGroupLength.W))
   val respSourceUpdate: UInt = Mux(tlPort.d.fire, respSourceOH, 0.U(param.lsuGroupLength.W))
   // 更新 respDone
   when((tlPort.d.fire || tlPort.a.fire) && !requestReg.instInf.st) {

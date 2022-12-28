@@ -4,9 +4,9 @@ import chisel3._
 import chisel3.util._
 
 case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chainingSize: Int = 4) {
-  val instIndexSize:  Int = log2Ceil(chainingSize) + 1
-  val VLMax:          Int = VLEN
-  val VLMaxWidth:     Int = log2Ceil(VLMax) + 1
+  val instIndexSize: Int = log2Ceil(chainingSize) + 1
+  val VLMax:         Int = VLEN
+  val VLMaxWidth:    Int = log2Ceil(VLMax) + 1
   // vlmul = 8时会有多少组,其中每一组长度是 ELEN
   val groupSize:      Int = VLEN * 8 / lane / ELEN
   val controlNum:     Int = 4
@@ -20,11 +20,11 @@ case class LaneParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, chain
   val groupControlSize: Int = ELEN / 8
   // 单个寄存器在每个lane里能分成多少组, 每次只访问32bit
   val singleGroupSize: Int = VLEN / ELEN / lane
-  val offsetBits:Int = log2Ceil(singleGroupSize)
+  val offsetBits:      Int = log2Ceil(singleGroupSize)
 
   // mask 分组
-  val maskGroupWidth: Int = ELEN
-  val maskGroupSize: Int = VLEN / ELEN
+  val maskGroupWidth:    Int = ELEN
+  val maskGroupSize:     Int = VLEN / ELEN
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
 
   def vrfParam:         VRFParam = VRFParam(VLEN, lane, ELEN)
@@ -102,15 +102,16 @@ class LaneReq(param: LaneParameters) extends Bundle {
 
   /** data of rs1 */
   val readFromScalar: UInt = UInt(param.ELEN.W)
+
   /** mask type ? */
   val mask: Bool = Bool()
 
-  val ls: Bool = Bool()
-  val st: Bool = Bool()
-  val sp: Bool = Bool()
+  val ls:  Bool = Bool()
+  val st:  Bool = Bool()
+  val sp:  Bool = Bool()
   val seg: UInt = UInt(3.W)
   val eew: UInt = UInt(2.W)
-  def ma: Bool = decodeResult(21) && decodeResult(1, 0).orR
+  def ma:  Bool = decodeResult(21) && decodeResult(1, 0).orR
 
   def initState: InstGroupState = {
     val res:                InstGroupState = Wire(new InstGroupState(param))
@@ -174,12 +175,16 @@ class InstControlRecord(param: LaneParameters) extends Bundle {
   val schedulerComplete:   Bool = Bool()
   // 这次执行从32bit的哪个位置开始执行
   val executeIndex: UInt = UInt(2.W)
+
   /** 应对vl很小的时候,不会用到这条lane */
   val instCompleted: Bool = Bool()
+
   /** 存 mask */
   val mask: ValidIO[UInt] = Valid(UInt(param.ELEN.W))
+
   /** 把mask按每四个分一个组,然后看orR */
-  val maskGroupedOrR: UInt = UInt((param.ELEN/4).W)
+  val maskGroupedOrR: UInt = UInt((param.ELEN / 4).W)
+
   /** 这一组写vrf的mask */
   val vrfWriteMask: UInt = UInt(4.W)
 }
@@ -218,15 +223,15 @@ class ReadBusData(param: LaneParameters) extends Bundle {
 }
 
 class WriteBusData(param: LaneParameters) extends Bundle {
-  val data:      UInt = UInt(param.ELEN.W)
-  val tail:      Bool = Bool()
+  val data: UInt = UInt(param.ELEN.W)
+  val tail: Bool = Bool()
   // 正常的跨lane写可能会有mask类型的指令
-  val mask:      UInt = UInt(2.W)
-  val target:    UInt = UInt(param.laneIndexBits.W)
+  val mask:   UInt = UInt(2.W)
+  val target: UInt = UInt(param.laneIndexBits.W)
   // todo: for debug
-  val from:    UInt = UInt(param.laneIndexBits.W)
+  val from:      UInt = UInt(param.laneIndexBits.W)
   val instIndex: UInt = UInt(param.instIndexSize.W)
-  val counter: UInt = UInt(param.groupSizeBits.W)
+  val counter:   UInt = UInt(param.groupSizeBits.W)
 }
 
 class RingPort[T <: Data](gen: T) extends Bundle {
@@ -240,7 +245,7 @@ class SchedulerFeedback(param: LaneParameters) extends Bundle {
 }
 
 class V0Update(param: LaneParameters) extends Bundle {
-  val data: UInt = UInt(param.ELEN.W)
+  val data:   UInt = UInt(param.ELEN.W)
   val offset: UInt = UInt(param.offsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
   val mask: UInt = UInt(4.W)
@@ -260,17 +265,18 @@ class Lane(param: LaneParameters) extends Module {
   val readDataPort:    DecoupledIO[VRFReadRequest] = IO(Flipped(Decoupled(new VRFReadRequest(param.vrfParam))))
   val readResult:      UInt = IO(Output(UInt(param.ELEN.W)))
   val vrfWritePort:    DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(param.vrfParam))))
+
   /** 本来结束的通知放在[[dataToScheduler]],但是存在有多指令同时结束的情况,所以单独给出来 */
-  val endNotice: UInt = IO(Output(UInt(param.controlNum.W)))
-  val v0Update: ValidIO[V0Update] = IO(Valid(new V0Update(param)))
-  val maskRegInput: UInt = IO(Input(UInt(param.maskGroupWidth.W)))
-  val maskSelect: UInt = IO(Output(UInt(param.maskGroupSizeBits.W)))
+  val endNotice:     UInt = IO(Output(UInt(param.controlNum.W)))
+  val v0Update:      ValidIO[V0Update] = IO(Valid(new V0Update(param)))
+  val maskRegInput:  UInt = IO(Input(UInt(param.maskGroupWidth.W)))
+  val maskSelect:    UInt = IO(Output(UInt(param.maskGroupSizeBits.W)))
   val lsuLastReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(param.instIndexSize.W))))
-  val bufferClear: Bool = IO(Input(Bool()))
+  val bufferClear:   Bool = IO(Input(Bool()))
 
   dontTouch(writeBusPort)
   val maskGroupedOrR: UInt = VecInit(maskRegInput.asBools.grouped(4).toSeq.map(VecInit(_).asUInt.orR)).asUInt
-  val vrf: VRF = Module(new VRF(param.vrfParam))
+  val vrf:            VRF = Module(new VRF(param.vrfParam))
   // reg
   val controlValid: Vec[Bool] = RegInit(VecInit(Seq.fill(param.controlNum)(false.B)))
   // read from vs1
@@ -283,9 +289,9 @@ class Lane(param: LaneParameters) extends Module {
   val result: Vec[UInt] = RegInit(VecInit(Seq.fill(param.controlNum)(0.U(param.ELEN.W))))
   // 跨lane写的额外用寄存器存储执行的结果和mask
   val crossWriteResultHead: UInt = RegInit(0.U(param.ELEN.W))
-  val crossWriteMaskHead: UInt = RegInit(0.U(2.W))
+  val crossWriteMaskHead:   UInt = RegInit(0.U(2.W))
   val crossWriteResultTail: UInt = RegInit(0.U(param.ELEN.W))
-  val crossWriteMaskTail: UInt = RegInit(0.U(2.W))
+  val crossWriteMaskTail:   UInt = RegInit(0.U(2.W))
   // 额外给 lsu 和 mask unit
   val rfWriteVec: Vec[ValidIO[VRFWriteRequest]] = Wire(
     Vec(param.controlNum + 1, Valid(new VRFWriteRequest(param.vrfParam)))
@@ -294,7 +300,7 @@ class Lane(param: LaneParameters) extends Module {
   rfWriteVec(4).bits := vrfWritePort.bits
   val rfWriteFire: UInt = Wire(UInt((param.controlNum + 2).W))
   vrfWritePort.ready := rfWriteFire(4)
-  val maskRequestVec: Vec[ValidIO[UInt]] = Wire(Vec(param.controlNum, Valid(UInt(param.maskGroupSizeBits.W))))
+  val maskRequestVec:  Vec[ValidIO[UInt]] = Wire(Vec(param.controlNum, Valid(UInt(param.maskGroupSizeBits.W))))
   val maskRequestFire: UInt = Wire(UInt(param.controlNum.W))
   // 跨lane操作的寄存器
   // 从rf里面读出来的， 下一个周期试图上环
@@ -333,7 +339,7 @@ class Lane(param: LaneParameters) extends Module {
   val divRequests:   Vec[LaneDivRequest] = Wire(Vec(param.controlNum, new LaneDivRequest(param.datePathParam)))
   val otherRequests: Vec[OtherUnitReq] = Wire(Vec(param.controlNum, Output(new OtherUnitReq(param))))
   val maskRequests:  Vec[LaneDataResponse] = Wire(Vec(param.controlNum, Output(new LaneDataResponse(param))))
-  val endNoticeVec: Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.controlNum.W)))
+  val endNoticeVec:  Vec[UInt] = Wire(Vec(param.controlNum, UInt(param.controlNum.W)))
 
   // 作为最老的坑的控制信号
   val sendReady:      Bool = Wire(Bool())
@@ -342,14 +348,16 @@ class Lane(param: LaneParameters) extends Module {
   val sendWriteData:  ValidIO[WriteBusData] = Wire(Valid(new WriteBusData(param)))
 
   val vSewOrR: Bool = csrInterface.vSew.orR
-  val sew1H: UInt = UIntToOH(csrInterface.vSew)
+  val sew1H:   UInt = UIntToOH(csrInterface.vSew)
+
   /** 符号的mask,外面好像不用处理符号 */
   val signMask = Seq(!vSewOrR, csrInterface.vSew(0))
+
   /** 不同 vSew 结束时候的index
     * 00 -> 11
     * 01 -> 10
     * 10 -> 00
-    * */
+    */
   val endIndex: UInt = !csrInterface.vSew(1) ## !vSewOrR
 
   // 跨lane写rf需要一个queue
@@ -366,7 +374,7 @@ class Lane(param: LaneParameters) extends Module {
       val extendInst = decodeRes(19) && decodeRes(1, 0).orR
       val needCrossRead = !extendInst && decodeResFormat.firstWiden
       val needCrossWrite = !extendInst && decodeResFormat.Widen
-      val dataDeq: UInt = Mux1H(instTypeVec(index), executeDeqData)
+      val dataDeq:     UInt = Mux1H(instTypeVec(index), executeDeqData)
       val dataDeqFire: Bool = (instTypeVec(index) & executeDeqFire).orR
       val firstMasked: Bool = Wire(Bool())
       when(needCrossRead) {
@@ -384,20 +392,39 @@ class Lane(param: LaneParameters) extends Module {
       vrfReadWire(index)(0).valid := !record.state.sRead1 && controlActive(index)
       vrfReadWire(index)(0).bits.offset := record.counter(param.offsetBits - 1, 0)
       // todo: 在 vlmul > 0 的时候需要做的是cat而不是+,因为寄存器是对齐的
-      vrfReadWire(index)(0).bits.vs := record.originalInformation.vs1 + record.counter(param.groupSizeBits - 1, param.offsetBits)
+      vrfReadWire(index)(0).bits.vs := record.originalInformation.vs1 + record.counter(
+        param.groupSizeBits - 1,
+        param.offsetBits
+      )
       vrfReadWire(index)(0).bits.instIndex := record.originalInformation.instIndex
       // Mux(decodeResFormat.eew16, 1.U, csrInterface.vSew)
 
       // vs2 read
       vrfReadWire(index)(1).valid := !record.state.sRead2 && controlActive(index)
-      vrfReadWire(index)(1).bits.offset := Mux(needCrossRead, record.counter(param.offsetBits - 2, 0) ## false.B, record.counter(param.offsetBits - 1, 0))
-      vrfReadWire(index)(1).bits.vs := record.originalInformation.vs2 + Mux(needCrossRead, record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## false.B, record.counter(param.groupSizeBits - 1, param.offsetBits))
+      vrfReadWire(index)(1).bits.offset := Mux(
+        needCrossRead,
+        record.counter(param.offsetBits - 2, 0) ## false.B,
+        record.counter(param.offsetBits - 1, 0)
+      )
+      vrfReadWire(index)(1).bits.vs := record.originalInformation.vs2 + Mux(
+        needCrossRead,
+        record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## false.B,
+        record.counter(param.groupSizeBits - 1, param.offsetBits)
+      )
       vrfReadWire(index)(1).bits.instIndex := record.originalInformation.instIndex
 
       // vd read
       vrfReadWire(index)(2).valid := !record.state.sReadVD && controlActive(index)
-      vrfReadWire(index)(2).bits.offset := Mux(needCrossRead, record.counter(param.offsetBits - 2, 0) ## true.B, record.counter(param.offsetBits - 1, 0))
-      vrfReadWire(index)(2).bits.vs := record.originalInformation.vd + Mux(needCrossRead, record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## true.B, record.counter(param.groupSizeBits - 1, param.offsetBits))
+      vrfReadWire(index)(2).bits.offset := Mux(
+        needCrossRead,
+        record.counter(param.offsetBits - 2, 0) ## true.B,
+        record.counter(param.offsetBits - 1, 0)
+      )
+      vrfReadWire(index)(2).bits.vs := record.originalInformation.vd + Mux(
+        needCrossRead,
+        record.counter(param.groupSizeBits - 1, param.offsetBits - 1) ## true.B,
+        record.counter(param.groupSizeBits - 1, param.offsetBits)
+      )
       vrfReadWire(index)(2).bits.instIndex := record.originalInformation.instIndex
 
       val readFinish =
@@ -489,7 +516,7 @@ class Lane(param: LaneParameters) extends Module {
           *     executeIndex:
           *       0: mask = 1111, head
           *       2: mask = 1111, tail
-          * */
+          */
         // dataDeq
         when(dataDeqFire && !firstMasked) {
           when(record.executeIndex(1)) {
@@ -541,18 +568,26 @@ class Lane(param: LaneParameters) extends Module {
       // 发起执行单元的请求
       /** 计算结果需要偏移的: executeIndex * 8 */
       val dataOffset: UInt = record.executeIndex ## 0.U(3.W)
+
       /** 正在算的是这个lane的第多少个 element */
-      val elementIndex: UInt = Mux1H(sew1H(2,0), Seq(
-        (record.counter ## record.executeIndex)(4, 0),
-        (record.counter ## record.executeIndex(1))(4, 0),
-        record.counter,
-      ))
+      val elementIndex: UInt = Mux1H(
+        sew1H(2, 0),
+        Seq(
+          (record.counter ## record.executeIndex)(4, 0),
+          (record.counter ## record.executeIndex(1))(4, 0),
+          record.counter
+        )
+      )
+
       /** 我们默认被更新的 [[record.counter]] & [[record.executeIndex]] 对应的 element 是没有被 mask 掉的
         * 但是这会有一个意外：在更新mask的时候会导致第一个被 mask 掉了但是会试图执行
         * 等到更新完选完 mask 组再去更新 [[record.counter]] & [[record.executeIndex]] 感觉不是科学的做法
         * 所以特别处理一下这种情况
-        * */
-      firstMasked := record.originalInformation.mask && record.mask.valid && (elementIndex(4, 0) === 0.U) && !record.mask.bits(0)
+        */
+      firstMasked := record.originalInformation.mask && record.mask.valid && (elementIndex(
+        4,
+        0
+      ) === 0.U) && !record.mask.bits(0)
       // 选出下一个element的index
       val maskCorrection: UInt = Mux1H(
         Seq(record.originalInformation.mask && record.mask.valid, !record.originalInformation.mask),
@@ -562,6 +597,7 @@ class Lane(param: LaneParameters) extends Module {
       val nextOrR: Bool = next1H.orR
       // nextIndex.getWidth = 5
       val nextIndex: UInt = OHToUInt(next1H)
+
       /** 这一组的mask已经没有剩余了 */
       val maskNeedUpdate = !nextOrR
       val nextGroupCountMSB: UInt = Mux1H(
@@ -576,12 +612,16 @@ class Lane(param: LaneParameters) extends Module {
       val nextIntermediateVolume = (indexInLane << csrInterface.vSew).asUInt
       val nextGroupCount = nextIntermediateVolume(param.groupSizeBits + 1, 2)
       val nextExecuteIndex = nextIntermediateVolume(1, 0)
+
       /** 虽然没有计算完一组,但是这一组剩余的都被mask去掉了 */
       val maskFilterEnd = record.originalInformation.mask && (nextGroupCount =/= record.counter)
+
       /** 需要一个除vl导致的end来决定下一个的 element index 是什么 */
       val dataDepletion = record.executeIndex === endIndex || maskFilterEnd
+
       /** 这一组计算全完成了 */
       val groupEnd = dataDepletion || instWillComplete(index)
+
       /** 计算当前这一组的 vrf mask
         * 已知：mask mask1H executeIndex
         * sew match:
@@ -597,9 +637,9 @@ class Lane(param: LaneParameters) extends Module {
         *       1: 1100
         *   2:
         *     1111
-        * */
+        */
       val executeByteEnable = Mux1H(
-        sew1H(2,0),
+        sew1H(2, 0),
         Seq(
           UIntToOH(record.executeIndex),
           record.executeIndex(1) ## record.executeIndex(1) ## !record.executeIndex(1) ## !record.executeIndex(1),
@@ -607,9 +647,9 @@ class Lane(param: LaneParameters) extends Module {
         )
       )
       val executeBitEnable: UInt = FillInterleaved(8, executeByteEnable)
-      def CollapseOperand(data: UInt, enable: Bool = true.B, sign: Bool=false.B): UInt = {
+      def CollapseOperand(data: UInt, enable: Bool = true.B, sign: Bool = false.B): UInt = {
         val dataMasked: UInt = data & executeBitEnable
-        val select: UInt = Mux(enable, sew1H(2,0), 4.U(3.W))
+        val select:     UInt = Mux(enable, sew1H(2, 0), 4.U(3.W))
         // when sew = 0
         val collapse0 = Seq.tabulate(4)(i => dataMasked(8 * i + 7, 8 * i)).reduce(_ | _)
         // when sew = 1
@@ -626,10 +666,12 @@ class Lane(param: LaneParameters) extends Module {
       // 处理操作数
       /**
         * src1： src1有 IXV 三种类型,只有V类型的需要移位
-        * */
+        */
       val finalSource1 = CollapseOperand(source1(index), decodeResFormat.vType, !decodeResFormat.unSigned0)
+
       /** source2 一定是V类型的 */
       val finalSource2 = CollapseOperand(source2(index), true.B, !decodeResFormat.unSigned1)
+
       /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
       val finalSource3 = CollapseOperand(source3(index))
       // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
@@ -647,7 +689,10 @@ class Lane(param: LaneParameters) extends Module {
       )
       instWillComplete(index) := nextElementIndex >= csrInterface.vl
       // 在手动做Mux1H
-      logicRequests(index) := maskAnd(controlValid(index) && decodeResFormat.logicUnit && !decodeResFormat.otherUnit, logicRequest)
+      logicRequests(index) := maskAnd(
+        controlValid(index) && decodeResFormat.logicUnit && !decodeResFormat.otherUnit,
+        logicRequest
+      )
 
       // adder 的
       val adderRequest = Wire(new LaneAdderReq(param.datePathParam))
@@ -656,7 +701,10 @@ class Lane(param: LaneParameters) extends Module {
       adderRequest.sign := !decodeResFormat.unSigned1
       adderRequest.reverse := decodeResFormat.reverse
       adderRequest.average := decodeResFormat.average
-      adderRequests(index) := maskAnd(controlValid(index) && decodeResFormat.adderUnit && !decodeResFormat.otherUnit, adderRequest)
+      adderRequests(index) := maskAnd(
+        controlValid(index) && decodeResFormat.adderUnit && !decodeResFormat.otherUnit,
+        adderRequest
+      )
 
       // shift 的
       val shiftRequest = Wire(new LaneShifterReq(param.shifterParameter))
@@ -666,20 +714,29 @@ class Lane(param: LaneParameters) extends Module {
         Seq(false.B ## finalSource1(3), finalSource1(4, 3))
       ) ## finalSource1(2, 0)
       shiftRequest.opcode := decodeResFormat.uop
-      shiftRequests(index) := maskAnd(controlValid(index) && decodeResFormat.shiftUnit && !decodeResFormat.otherUnit, shiftRequest)
+      shiftRequests(index) := maskAnd(
+        controlValid(index) && decodeResFormat.shiftUnit && !decodeResFormat.otherUnit,
+        shiftRequest
+      )
 
       // mul
       val mulRequest: LaneMulReq = Wire(new LaneMulReq(param.mulParam))
       mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
       mulRequest.opcode := decodeResFormat.uop
-      mulRequests(index) := maskAnd(controlValid(index) && decodeResFormat.mulUnit && !decodeResFormat.otherUnit, mulRequest)
+      mulRequests(index) := maskAnd(
+        controlValid(index) && decodeResFormat.mulUnit && !decodeResFormat.otherUnit,
+        mulRequest
+      )
 
       // div
       val divRequest = Wire(new LaneDivRequest(param.datePathParam))
       divRequest.src := VecInit(Seq(finalSource1, finalSource2))
       divRequest.rem := decodeResFormat.uop(0)
       divRequest.sign := decodeResFormat.unSigned0
-      divRequests(index) := maskAnd(controlValid(index) && decodeResFormat.divUnit && !decodeResFormat.otherUnit, divRequest)
+      divRequests(index) := maskAnd(
+        controlValid(index) && decodeResFormat.divUnit && !decodeResFormat.otherUnit,
+        divRequest
+      )
 
       // other
       val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(param)))
@@ -734,14 +791,17 @@ class Lane(param: LaneParameters) extends Module {
       }
       // 写rf
       rfWriteVec(index).valid := record.state.wExecuteRes && !record.state.sWrite && controlActive(index)
-      rfWriteVec(index).bits.vd := record.originalInformation.vd  + record.counter(param.groupSizeBits - 1, param.offsetBits)
+      rfWriteVec(index).bits.vd := record.originalInformation.vd + record.counter(
+        param.groupSizeBits - 1,
+        param.offsetBits
+      )
       rfWriteVec(index).bits.offset := record.counter
       rfWriteVec(index).bits.data := result(index)
       rfWriteVec(index).bits.last := instWillComplete(index)
       rfWriteVec(index).bits.instIndex := record.originalInformation.instIndex
       val notLastWrite = !instWillComplete(index)
       // 判断这一个lane是否在body与tail的分界线上,只有分界线上的才需要特别计算mask
-      val dividingLine: Bool = (csrInterface.vl << csrInterface.vSew).asUInt(4, 2) === laneIndex
+      val dividingLine:    Bool = (csrInterface.vl << csrInterface.vSew).asUInt(4, 2) === laneIndex
       val useOriginalMask: Bool = notLastWrite || !dividingLine
       rfWriteVec(index).bits.mask := record.vrfWriteMask
       when(rfWriteFire(index)) {
@@ -937,8 +997,15 @@ class Lane(param: LaneParameters) extends Module {
   entranceControl.counter := (csrInterface.vStart >> 3).asUInt
   // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
   val vs1entrance: UInt =
-    Mux(entranceFormat.vType, 0.U, Mux(entranceFormat.xType, laneReq.bits.readFromScalar,
-      VecInit(Seq.fill(param.ELEN - 5)(laneReq.bits.vs1(4))).asUInt ## laneReq.bits.vs1))
+    Mux(
+      entranceFormat.vType,
+      0.U,
+      Mux(
+        entranceFormat.xType,
+        laneReq.bits.readFromScalar,
+        VecInit(Seq.fill(param.ELEN - 5)(laneReq.bits.vs1(4))).asUInt ## laneReq.bits.vs1
+      )
+    )
   val entranceInstType: UInt = laneReq.bits.instType
   // todo: 修改v0的和使用v0作为mask的指令需要产生冲突
   val typeReady: Bool = VecInit(
