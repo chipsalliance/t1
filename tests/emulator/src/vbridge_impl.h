@@ -10,13 +10,14 @@
 #include <mmu.h>
 
 #ifdef COSIM_VERILATOR
-#include <verilated.h>
+  #include <verilated.h>
+  #include <verilated_cov.h>
 
-#if VM_TRACE
-#include <verilated_fst_c.h>
-#endif
+  #if VM_TRACE
+    #include <verilated_fst_c.h>
+  #endif
 
-#include <svdpi.h>
+  #include <svdpi.h>
 #endif
 
 #include "spike_event.h"
@@ -62,8 +63,8 @@ public:
   uint64_t getCycle() {
     return ctx->time();
   }
-  VerilatedCovContext* getCoverage() {
-    return ctx->coveragep();
+  VerilatedCovView getCoverage() {
+    return ctx->coveragep()->view();
   }
 #endif
 
