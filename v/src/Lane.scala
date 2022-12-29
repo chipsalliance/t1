@@ -158,11 +158,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val maskRequestFire: UInt = Wire(UInt(parameter.chainingSize.W))
   // 跨lane操作的寄存器
   // 从rf里面读出来的， 下一个周期试图上环
-  val crossReadHeadTX: UInt = RegInit(0.U(parameter.HLEN.W))
-  val crossReadTailTX: UInt = RegInit(0.U(parameter.HLEN.W))
+  val crossReadHeadTX: UInt = RegInit(0.U(parameter.datapathWidth.W))
+  val crossReadTailTX: UInt = RegInit(0.U(parameter.datapathWidth.W))
   // 从环过来的， 两个都好会拼成source2
-  val crossReadHeadRX: UInt = RegInit(0.U(parameter.HLEN.W))
-  val crossReadTailRX: UInt = RegInit(0.U(parameter.HLEN.W))
+  val crossReadHeadRX: UInt = RegInit(0.U(parameter.datapathWidth.W))
+  val crossReadTailRX: UInt = RegInit(0.U(parameter.datapathWidth.W))
   val control: Vec[InstControlRecord] = RegInit(
     VecInit(Seq.fill(parameter.chainingSize)(0.U.asTypeOf(new InstControlRecord(parameter))))
   )
@@ -310,7 +310,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         sendReadData.bits.target := tryToSendTail ## laneIndex(parameter.laneNumberWidth - 1, 1)
         sendReadData.bits.tail := laneIndex(0)
         sendReadData.bits.instIndex := record.originalInformation.instructionIndex
-        sendReadData.bits.data := Mux(tryToSendHead, crossReadHeadTX(0), crossReadTailTX(0))
+        sendReadData.bits.data := Mux(tryToSendHead, crossReadHeadTX, crossReadTailTX)
         sendReadData.valid := tryToSendHead || tryToSendTail
 
         // 跨lane的写
@@ -339,7 +339,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // 读环发送的状态变化
         // todo: 处理发给自己的, 可以在使用的时候直接用读的寄存器, init state的时候自己纠正回来
-        when(sendReady) {
+        when(sendReady && sendReadData.valid) {
           record.state.sSendResult0 := true.B
           when(record.state.sSendResult0) {
             record.state.sSendResult1 := true.B
@@ -354,10 +354,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         }
 
         // 跨lane的读记录
-        when(vrfReadWire(index)(1).fire && decodeResFormat.firstWiden) {
+        when(vrfReadWire(index)(1).fire && needCrossRead) {
           crossReadHeadTX := vrfReadResult(index)(1)
         }
-        when(vrfReadWire(index)(2).fire && decodeResFormat.firstWiden) {
+        when(vrfReadWire(index)(2).fire && needCrossRead) {
           crossReadTailTX := vrfReadResult(index)(2)
         }
 
