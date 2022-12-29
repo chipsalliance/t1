@@ -266,7 +266,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       )
       vrfReadWire(index)(1).bits.vs := record.originalInformation.vs2 + Mux(
         needCrossRead,
-        record.counter(parameter.groupNumberWidth - 1, parameter.vrfOffsetWidth - 1) ## false.B,
+        record.counter(parameter.groupNumberWidth - 2, parameter.vrfOffsetWidth - 1),
         record.counter(parameter.groupNumberWidth - 1, parameter.vrfOffsetWidth)
       )
       vrfReadWire(index)(1).bits.instIndex := record.originalInformation.instructionIndex
@@ -278,11 +278,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         record.counter(parameter.vrfOffsetWidth - 2, 0) ## true.B,
         record.counter(parameter.vrfOffsetWidth - 1, 0)
       )
-      vrfReadWire(index)(2).bits.vs := record.originalInformation.vd + Mux(
+      vrfReadWire(index)(2).bits.vs := Mux(
         needCrossRead,
-        record.counter(parameter.groupNumberWidth - 1, parameter.vrfOffsetWidth - 1) ## true.B,
-        record.counter(parameter.groupNumberWidth - 1, parameter.vrfOffsetWidth)
-      )
+        record.originalInformation.vs2,
+        record.originalInformation.vd
+      ) +
+        Mux(
+          needCrossRead,
+          record.counter(parameter.groupNumberWidth - 2, parameter.vrfOffsetWidth - 1),
+          record.counter(parameter.groupNumberWidth - 1, parameter.vrfOffsetWidth)
+        )
       vrfReadWire(index)(2).bits.instIndex := record.originalInformation.instructionIndex
 
       val readFinish =
@@ -307,8 +312,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       if (index == 0) {
         val tryToSendHead = record.state.sRead2 && !record.state.sSendResult0 && controlValid.head
         val tryToSendTail = record.state.sReadVD && !record.state.sSendResult1 && controlValid.head
-        sendReadData.bits.target := tryToSendTail ## laneIndex(parameter.laneNumberWidth - 1, 1)
+        sendReadData.bits.target := (!tryToSendHead) ## laneIndex(parameter.laneNumberWidth - 1, 1)
         sendReadData.bits.tail := laneIndex(0)
+        sendReadData.bits.from := laneIndex
         sendReadData.bits.instIndex := record.originalInformation.instructionIndex
         sendReadData.bits.data := Mux(tryToSendHead, crossReadHeadTX, crossReadTailTX)
         sendReadData.valid := tryToSendHead || tryToSendTail
@@ -522,6 +528,23 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           )
         )
       }
+      // 有2 * sew 的操作数需要折叠
+      def CollapseDoubleOperand(sign: Bool = false.B): UInt = {
+        val doubleBitEnable = FillInterleaved(16, executeByteEnable)
+        val doubleDataMasked: UInt = (crossReadTailRX ## crossReadHeadRX) & doubleBitEnable
+        val select:           UInt = sew1H(1, 0)
+        // when sew = 0
+        val collapse0 = Seq.tabulate(4)(i => doubleDataMasked(16 * i + 15, 16 * i)).reduce(_ | _)
+        // when sew = 1
+        val collapse1 = Seq.tabulate(2)(i => doubleDataMasked(32 * i + 31, 32 * i)).reduce(_ | _)
+        Mux1H(
+          select,
+          Seq(
+            Fill(16, sign && collapse0(15)) ## collapse0,
+            collapse1
+          )
+        )
+      }
       // 处理操作数
       /**
         * src1： src1有 IXV 三种类型,只有V类型的需要移位
@@ -529,7 +552,18 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val finalSource1 = CollapseOperand(source1(index), decodeResFormat.vType, !decodeResFormat.unSigned0)
 
       /** source2 一定是V类型的 */
-      val finalSource2 = CollapseOperand(source2(index), true.B, !decodeResFormat.unSigned1)
+      val finalSource2 = if (index == 0) {
+        val doubleCollapse = CollapseDoubleOperand(!decodeResFormat.unSigned1)
+        dontTouch(doubleCollapse)
+        Mux(
+          needCrossRead,
+          doubleCollapse,
+          CollapseOperand(source2(index), true.B, !decodeResFormat.unSigned1)
+        )
+
+      } else {
+        CollapseOperand(source2(index), true.B, !decodeResFormat.unSigned1)
+      }
 
       /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
       val finalSource3 = CollapseOperand(source3(index))
@@ -568,8 +602,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       // shift 的
       val shiftRequest = Wire(new LaneShifterReq(parameter.shifterParameter))
       shiftRequest.src := finalSource2
+      // 2 * sew 有额外1bit的
       shiftRequest.shifterSize := Mux1H(
-        sew1H(2, 1),
+        Mux(needCrossRead, sew1H(1, 0), sew1H(2, 1)),
         Seq(false.B ## finalSource1(3), finalSource1(4, 3))
       ) ## finalSource1(2, 0)
       shiftRequest.opcode := decodeResFormat.uop

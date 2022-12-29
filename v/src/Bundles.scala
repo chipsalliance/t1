@@ -240,8 +240,10 @@ class LaneDataResponse(param: LaneParameter) extends Bundle {
 }
 
 class ReadBusData(param: LaneParameter) extends Bundle {
-  val data:      UInt = UInt(param.HLEN.W)
-  val tail:      Bool = Bool()
+  val data: UInt = UInt(param.datapathWidth.W)
+  val tail: Bool = Bool()
+  // todo: for debug
+  val from:      UInt = UInt(param.laneNumberWidth.W)
   val target:    UInt = UInt(param.laneNumberWidth.W)
   val instIndex: UInt = UInt(param.instructionIndexSize.W)
 }
