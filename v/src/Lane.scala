@@ -230,7 +230,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val decodeResFormat:    InstructionDecodeResult = decodeRes.asTypeOf(new InstructionDecodeResult)
       val decodeResFormatExt: ExtendInstructionDecodeResult = decodeRes.asTypeOf(new ExtendInstructionDecodeResult)
       val extendInst = decodeRes(19) && decodeRes(1, 0).orR
-      val needCrossRead = !extendInst && decodeResFormat.firstWiden
+      val needCrossRead = !extendInst && (decodeResFormat.firstWiden || decodeResFormat.narrow)
       val needCrossWrite = !extendInst && decodeResFormat.Widen
       val dataDeq:     UInt = Mux1H(instTypeVec(index), executeDeqData)
       val dataDeqFire: Bool = (instTypeVec(index) & executeDeqFire).orR

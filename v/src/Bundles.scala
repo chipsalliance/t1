@@ -139,11 +139,12 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     val res:                InstGroupState = Wire(new InstGroupState(param))
     val decodeResFormat:    InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
     val decodeResFormatExt: ExtendInstructionDecodeResult = decodeResult.asTypeOf(new ExtendInstructionDecodeResult)
+    val crossRead = decodeResFormat.firstWiden || decodeResFormat.narrow
     res.sRead1 := !decodeResFormat.vType
     res.sRead2 := false.B
-    res.sReadVD := !(decodeResFormat.firstWiden || ma)
-    res.wRead1 := !decodeResFormat.firstWiden
-    res.wRead2 := !decodeResFormat.firstWiden
+    res.sReadVD := !(crossRead || ma)
+    res.wRead1 := !crossRead
+    res.wRead2 := !crossRead
     res.wScheduler := !special
     res.sExecute := false.B
     //todo: red
@@ -151,8 +152,8 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sWrite := (decodeResFormat.otherUnit && decodeResFormatExt.targetRD) || decodeResFormat.Widen
     res.sCrossWrite0 := !decodeResFormat.Widen
     res.sCrossWrite1 := !decodeResFormat.Widen
-    res.sSendResult0 := !decodeResFormat.firstWiden
-    res.sSendResult1 := !decodeResFormat.firstWiden
+    res.sSendResult0 := !crossRead
+    res.sSendResult1 := !crossRead
     res
   }
 
