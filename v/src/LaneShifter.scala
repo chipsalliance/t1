@@ -16,7 +16,7 @@ class LaneShifter(param: LaneShifterParameter) extends Module {
   val resp: UInt = IO(Output(UInt(param.dataWidth.W)))
 
   // arithmetic
-  val extend:     UInt = Fill(param.dataWidth, req.opcode(1))
+  val extend:     UInt = Fill(param.dataWidth, req.opcode(1) && req.src(param.dataWidth - 1))
   val extendData: UInt = extend ## req.src
 
   resp := Mux(req.opcode(0), extendData << req.shifterSize, extendData >> req.shifterSize)
