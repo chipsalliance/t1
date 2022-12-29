@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelD, TLChannelDParameter}
 
-case class LSUParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
+case class LSUParam(ELEN: Int, chainingSize: Int, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
   val maskGroupWidth:    Int = 32
   val maskGroupSize:     Int = VLEN / 32
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
@@ -22,12 +22,16 @@ case class LSUParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: In
     d = TLChannelDParameter(sourceWidth, sourceWidth, ELEN, 2),
     e = None
   )
-  def vrfParam:  VRFParam = VRFParam(VLEN, lane, ELEN)
-  def mshrParam: MSHRParam = MSHRParam()
+  def mshrParam:            MSHRParam = MSHRParam(chainingSize)
+  val regNumBits:           Int = log2Ceil(32)
+  val instructionIndexSize: Int = log2Ceil(chainingSize) + 1
+  val singleGroupSize:      Int = VLEN / ELEN / lane
+  val offsetBits:           Int = log2Ceil(singleGroupSize)
 }
 
 class LSUWriteQueueBundle(param: LSUParam) extends Bundle {
-  val data:       VRFWriteRequest = new VRFWriteRequest(param.vrfParam)
+  val data: VRFWriteRequest =
+    new VRFWriteRequest(param.regNumBits, param.offsetBits, param.instructionIndexSize, param.ELEN)
   val targetLane: UInt = UInt(param.lane.W)
 }
 class LSUInstInformation extends Bundle {
@@ -75,11 +79,14 @@ class LSU(param: LSUParam) extends Module {
   val maskSelect:   Vec[UInt] = IO(Output(Vec(param.mshrSize, UInt(param.maskGroupSizeBits.W))))
   val tlPort:       Vec[TLBundle] = IO(Vec(param.tlBank, param.tlParam.bundle()))
   val readDataPorts: Vec[DecoupledIO[VRFReadRequest]] = IO(
-    Vec(param.lane, Decoupled(new VRFReadRequest(param.vrfParam)))
+    Vec(param.lane, Decoupled(new VRFReadRequest(param.regNumBits, param.offsetBits, param.instructionIndexSize)))
   )
   val readResults: Vec[UInt] = IO(Input(Vec(param.lane, UInt(param.ELEN.W))))
   val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(
-    Vec(param.lane, Decoupled(new VRFWriteRequest(param.vrfParam)))
+    Vec(
+      param.lane,
+      Decoupled(new VRFWriteRequest(param.regNumBits, param.offsetBits, param.instructionIndexSize, param.ELEN))
+    )
   )
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.lane, Flipped(Valid(UInt(param.ELEN.W)))))

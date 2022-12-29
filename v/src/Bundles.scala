@@ -279,23 +279,23 @@ class V0Update(param: LaneParameter) extends Bundle {
   val mask: UInt = UInt(4.W)
 }
 
-class VRFReadRequest(param: VRFParam) extends Bundle {
+class VRFReadRequest(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int) extends Bundle {
   // 为了方便处理seg类型的ld st, vs需要是明确的地址, 而不是一个base
-  val vs: UInt = UInt(param.regNumBits.W)
+  val vs: UInt = UInt(regNumBits.W)
   // 访问寄存器的 offset, 代表第几个32bit
-  val offset: UInt = UInt(param.offsetBits.W)
+  val offset: UInt = UInt(offsetBits.W)
   // 用来阻塞 raw
-  val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
+  val instructionIndex: UInt = UInt(instructionIndexSize.W)
 }
 
-class VRFWriteRequest(param: VRFParam) extends Bundle {
-  val vd:     UInt = UInt(param.regNumBits.W)
-  val offset: UInt = UInt(param.offsetBits.W)
+class VRFWriteRequest(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {
+  val vd:     UInt = UInt(regNumBits.W)
+  val offset: UInt = UInt(offsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
   val mask:             UInt = UInt(4.W)
-  val data:             UInt = UInt(param.ELEN.W)
+  val data:             UInt = UInt(dataPathWidth.W)
   val last:             Bool = Bool()
-  val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
+  val instructionIndex: UInt = UInt(instructionIndexSize.W)
 }
 
 class VRFWriteReport(param: VRFParam) extends Bundle {

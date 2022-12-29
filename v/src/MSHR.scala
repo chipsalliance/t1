@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
 
-case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
+case class MSHRParam(chainingSize: Int, ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
   val dataBits:      Int = log2Ceil(ELEN)
   val mshrSize:      Int = 3
   val VLMaxBits:     Int = log2Ceil(VLEN) + 1
@@ -26,7 +26,10 @@ case class MSHRParam(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: I
     d = TLChannelDParameter(sourceWidth, sourceWidth, ELEN, 2),
     e = None
   )
-  def vrfParam: VRFParam = VRFParam(VLEN, lane, ELEN)
+  val regNumBits:           Int = log2Ceil(32)
+  val instructionIndexSize: Int = log2Ceil(chainingSize) + 1
+  val singleGroupSize:      Int = VLEN / ELEN / lane
+  val offsetBits:           Int = log2Ceil(singleGroupSize)
 }
 
 class MSHRStatus(lane: Int) extends Bundle {
@@ -39,16 +42,20 @@ class MSHRStatus(lane: Int) extends Bundle {
 }
 
 class MSHR(param: MSHRParam) extends Module {
-  val req:              ValidIO[LSUReq] = IO(Flipped(Valid(new LSUReq(param.ELEN))))
-  val readDataPort:     DecoupledIO[VRFReadRequest] = IO(Decoupled(new VRFReadRequest(param.vrfParam)))
+  val req: ValidIO[LSUReq] = IO(Flipped(Valid(new LSUReq(param.ELEN))))
+  val readDataPort: DecoupledIO[VRFReadRequest] = IO(
+    Decoupled(new VRFReadRequest(param.regNumBits, param.offsetBits, param.instructionIndexSize))
+  )
   val readResult:       UInt = IO(Input(UInt(param.ELEN.W)))
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.lane, Flipped(Valid(UInt(param.ELEN.W)))))
   val maskRegInput:     UInt = IO(Input(UInt(param.maskGroupWidth.W)))
   val maskSelect:       ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
   val tlPort:           TLBundle = IO(param.tlParam.bundle())
-  val vrfWritePort:     DecoupledIO[VRFWriteRequest] = IO(Decoupled(new VRFWriteRequest(param.vrfParam)))
-  val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
-  val status:           MSHRStatus = IO(Output(new MSHRStatus(param.lane)))
+  val vrfWritePort: DecoupledIO[VRFWriteRequest] = IO(
+    Decoupled(new VRFWriteRequest(param.regNumBits, param.offsetBits, param.instructionIndexSize, param.ELEN))
+  )
+  val csrInterface: LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
+  val status:       MSHRStatus = IO(Output(new MSHRStatus(param.lane)))
 
   //  val addressBaseVec: UInt = RegInit(0.U(param.dataWidth.W))
   val indexOffsetVec: Vec[ValidIO[UInt]] = RegInit(

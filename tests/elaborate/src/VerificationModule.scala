@@ -114,7 +114,7 @@ class VerificationModule(dut: V) extends TapModule {
       val peekWriteQueue = Module(new ExtModule with HasExtModuleInline {
         override val desiredName = "dpiPeekWriteQueue"
         val clock = IO(Input(Clock()))
-        val data = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam)))
+        val data = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.offsetBits, dut.parameter.vrfParam.instructionIndexSize, dut.parameter.vrfParam.ELEN)))
         val writeValid = IO(Input(Bool()))
         val targetLane = IO(Input(UInt(dut.parameter.laneNumer.W)))
         val mshrIdx = IO(Input(UInt(32.W)))
@@ -170,7 +170,7 @@ class VerificationModule(dut: V) extends TapModule {
         val clock = IO(Input(Clock()))
         val valid = IO(Input(Bool()))
         val landIdx = IO(Input(UInt(32.W)))
-        val request = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam)))
+        val request = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.offsetBits, dut.parameter.vrfParam.instructionIndexSize, dut.parameter.vrfParam.ELEN)))
         setInline(
           s"$desiredName.sv",
           s"""module $desiredName(

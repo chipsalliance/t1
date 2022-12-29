@@ -76,8 +76,8 @@ case class VParameter(
       chainingSize = chainingSize,
       vrfWriteQueueSize = vrfWriteQueueSize
     )
-  def lsuParam: LSUParam = LSUParam(dataPathWidth)
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumer, dataPathWidth)
+  def lsuParam: LSUParam = LSUParam(dataPathWidth, chainingSize)
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumer, dataPathWidth, chainingSize, vrfWriteQueueSize)
 
   require(xLen == dataPathWidth)
 }
@@ -273,7 +273,17 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val laneComplete: Bool = lsu.lastReport.valid && lsu.lastReport.bits === instStateVec.last.record.instructionIndex
 
   val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
-    Vec(parameter.laneNumer, Decoupled(new VRFWriteRequest(parameter.vrfParam)))
+    Vec(
+      parameter.laneNumer,
+      Decoupled(
+        new VRFWriteRequest(
+          parameter.vrfParam.regNumBits,
+          parameter.vrfParam.offsetBits,
+          parameter.instructionIndexWidth,
+          parameter.dataPathWidth
+        )
+      )
+    )
   )
 
   /** instantiate lanes.
