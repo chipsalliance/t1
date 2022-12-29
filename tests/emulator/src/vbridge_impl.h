@@ -11,6 +11,7 @@
 #ifdef COSIM_VERILATOR
 #include <verilated.h>
 #include <verilated_fst_c.h>
+#include <verilated_cov.h>
 #include <svdpi.h>
 #endif
 
@@ -55,8 +56,8 @@ public:
   uint64_t getCycle() {
     return ctx->time();
   }
-  VerilatedCovContext* getCoverage() {
-    return ctx->coveragep();
+  VerilatedCovView getCoverage() {
+    return ctx->coveragep()->view();
   }
 #endif
 

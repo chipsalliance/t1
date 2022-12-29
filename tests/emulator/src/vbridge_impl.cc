@@ -16,6 +16,7 @@ inline uint32_t decode_size(uint32_t encoded_size) {
 }
 
 void VBridgeImpl::timeoutCheck() {
+  VerilatedCovView cov = getCoverage();
   if (get_t() > timeout + last_commit_time) {
     LOG(FATAL_S) << fmt::format("Simulation timeout, t={}, last_commit={}", get_t(), last_commit_time);
   }
