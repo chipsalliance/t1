@@ -102,11 +102,25 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // for LSU and V accessing lane, this is not a part of ring, but a direct connection.
   // TODO: learn AXI channel, reuse [[vrfReadAddressChannel]] and [[vrfWriteChannel]].
   val vrfReadAddressChannel: DecoupledIO[VRFReadRequest] = IO(
-    Flipped(Decoupled(new VRFReadRequest(parameter.vrfParam)))
+    Flipped(
+      Decoupled(
+        new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetWidth, parameter.instructionIndexSize)
+      )
+    )
   )
   val vrfReadDataChannel: UInt = IO(Output(UInt(parameter.datapathWidth.W)))
-  val vrfWriteChannel:    DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(parameter.vrfParam))))
-  vrfWriteChannel.ready := vrfWriteFire(parameter.chainingSize)
+  val vrfWriteChannel: DecoupledIO[VRFWriteRequest] = IO(
+    Flipped(
+      Decoupled(
+        new VRFWriteRequest(
+          parameter.vrfParam.regNumBits,
+          parameter.vrfOffsetWidth,
+          parameter.instructionIndexSize,
+          parameter.datapathWidth
+        )
+      )
+    )
+  )
 
   /** for each instruction in the slot, response to top when instruction is finished in this lane. */
   val instructionFinished: UInt = IO(Output(UInt(parameter.chainingSize.W)))
@@ -174,7 +188,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * 1 for [[vrfWriteChannel]]
     */
   val vrfWriteArbiter: Vec[ValidIO[VRFWriteRequest]] = Wire(
-    Vec(parameter.chainingSize + 1, Valid(new VRFWriteRequest(parameter.vrfParam)))
+    Vec(
+      parameter.chainingSize + 1,
+      Valid(
+        new VRFWriteRequest(
+          parameter.vrfParam.regNumBits,
+          parameter.vrfOffsetWidth,
+          parameter.instructionIndexSize,
+          parameter.datapathWidth
+        )
+      )
+    )
   )
   vrfWriteArbiter(parameter.chainingSize).valid := vrfWriteChannel.valid
   vrfWriteArbiter(parameter.chainingSize).bits := vrfWriteChannel.bits
@@ -184,6 +208,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * 1 for [[crossLaneWriteQueue]]
     */
   val vrfWriteFire: UInt = Wire(UInt((parameter.chainingSize + 2).W))
+  vrfWriteChannel.ready := vrfWriteFire(parameter.chainingSize)
 
   /** for each slot, assert when it is asking [[V]] to change mask */
   val slotMaskRequestVec: Vec[ValidIO[UInt]] = Wire(
@@ -222,7 +247,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val vrfReadRequest: Vec[Vec[DecoupledIO[VRFReadRequest]]] = Wire(
     Vec(
       parameter.chainingSize,
-      Vec(3, Decoupled(new VRFReadRequest(parameter.vrfParam)))
+      Vec(
+        3,
+        Decoupled(
+          new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetWidth, parameter.instructionIndexSize)
+        )
+      )
     )
   )
 
@@ -306,7 +336,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val maskRequests: Vec[LaneDataResponse] = Wire(Vec(parameter.chainingSize, Output(new LaneDataResponse(parameter))))
 
   /** assert when a instruction is finished in the slot. */
-  val instructionFinished: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
+  val instructionFinishedVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
 
   /** ready signal for enqueuing [[readBusPort]] */
   val crossLaneReadReady: Bool = Wire(Bool())
@@ -338,7 +368,15 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** queue for cross lane writing. */
   val crossLaneWriteQueue: Queue[VRFWriteRequest] = Module(
-    new Queue(new VRFWriteRequest(parameter.vrfParam), parameter.vrfWriteQueueSize)
+    new Queue(
+      new VRFWriteRequest(
+        parameter.vrfParam.regNumBits,
+        parameter.vrfOffsetWidth,
+        parameter.instructionIndexSize,
+        parameter.datapathWidth
+      ),
+      parameter.vrfWriteQueueSize
+    )
   )
 
   slotControl.zipWithIndex.foreach {
@@ -821,13 +859,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       when(vrfWriteFire(index)) {
         record.state.sWrite := true.B
       }
-      instructionFinished(index) := 0.U(parameter.chainingSize.W)
+      instructionFinishedVec(index) := 0.U(parameter.chainingSize.W)
       val maskUnhindered = maskRequestFireOH(index) || !maskNeedUpdate
       when((record.state.asUInt.andR && maskUnhindered) || record.instCompleted) {
         when(instructionWillComplete(index) || record.instCompleted) {
           slotOccupied(index) := false.B
           when(slotOccupied(index)) {
-            instructionFinished(index) := UIntToOH(
+            instructionFinishedVec(index) := UIntToOH(
               record.originalInformation.instructionIndex(parameter.instructionIndexSize - 2, 0)
             )
           }
@@ -959,7 +997,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // 处理 rf
   {
     // 连接读口
-    val readArbiter = Module(new Arbiter(new VRFReadRequest(parameter.vrfParam), 8))
+    val readArbiter = Module(
+      new Arbiter(
+        new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetWidth, parameter.instructionIndexSize),
+        8
+      )
+    )
     // 暂时把lsu的读放在了最低优先级,有问题再改
     (vrfReadRequest(1).last +: (vrfReadRequest(2) ++ vrfReadRequest(3)) :+ vrfReadAddressChannel)
       .zip(readArbiter.io.in)
@@ -1076,5 +1119,5 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.csrInterface := csrInterface
   vrf.lsuLastReport := lsuLastReport
   vrf.bufferClear := lsuVRFWriteBufferClear
-  instructionFinished := instructionFinished.reduce(_ | _)
+  instructionFinished := instructionFinishedVec.reduce(_ | _)
 }

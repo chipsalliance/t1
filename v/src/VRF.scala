@@ -38,10 +38,19 @@ case class VRFParam(
 
 class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFParam] {
   val read: Vec[DecoupledIO[VRFReadRequest]] = IO(
-    Vec(parameter.vrfReadPort, Flipped(Decoupled(new VRFReadRequest(parameter))))
+    Vec(
+      parameter.vrfReadPort,
+      Flipped(Decoupled(new VRFReadRequest(parameter.regNumBits, parameter.offsetBits, parameter.instructionIndexSize)))
+    )
   )
-  val readResult:      Vec[UInt] = IO(Output(Vec(parameter.vrfReadPort, UInt(parameter.ELEN.W))))
-  val write:           DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(new VRFWriteRequest(parameter))))
+  val readResult: Vec[UInt] = IO(Output(Vec(parameter.vrfReadPort, UInt(parameter.ELEN.W))))
+  val write: DecoupledIO[VRFWriteRequest] = IO(
+    Flipped(
+      Decoupled(
+        new VRFWriteRequest(parameter.regNumBits, parameter.offsetBits, parameter.instructionIndexSize, parameter.ELEN)
+      )
+    )
+  )
   val instWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
   val flush:           Bool = IO(Input(Bool()))
   val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.VLMaxWidth)))
