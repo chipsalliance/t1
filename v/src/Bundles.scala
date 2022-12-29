@@ -1,7 +1,7 @@
 package v
 
 import chisel3._
-import chisel3.util.{Decoupled, DecoupledIO, Valid, ValidIO}
+import chisel3.util.{log2Ceil, Decoupled, DecoupledIO, Valid, ValidIO}
 class VRequest(xLen: Int) extends Bundle {
   val instruction: UInt = UInt(32.W)
   val src1Data:    UInt = UInt(xLen.W)
@@ -174,6 +174,12 @@ class LaneRequest(param: LaneParameter) extends Bundle {
 }
 
 class InstGroupState(param: LaneParameter) extends Bundle {
+  // s for scheduler
+  //   0 is for need to do but not do for now
+  //   1 is done or don't need to do
+  // w for wait
+  //   0 is for need to wait and still waiting for finishing
+  //   1 is for don't need to wait or already finished
   val sRead1:     Bool = Bool()
   val sRead2:     Bool = Bool()
   val sReadVD:    Bool = Bool()
@@ -195,10 +201,20 @@ class InstControlRecord(param: LaneParameter) extends Bundle {
   val originalInformation: LaneRequest = new LaneRequest(param)
   val state:               InstGroupState = new InstGroupState(param)
   val initState:           InstGroupState = new InstGroupState(param)
-  val counter:             UInt = UInt(param.groupNumberWidth.W)
-  val schedulerComplete:   Bool = Bool()
-  // 这次执行从32bit的哪个位置开始执行
-  val executeIndex: UInt = UInt(2.W)
+
+  /** which group in the slot is executing. */
+  val groupCounter:      UInt = UInt(param.groupNumberWidth.W)
+  val schedulerComplete: Bool = Bool()
+
+  /** the execution index in group
+    * use byte as granularity,
+    * SEW
+    * 0 -> 00 01 10 11
+    * 1 -> 00    10
+    * 2 -> 00
+    * TODO: 3(64 only)
+    */
+  val executeIndex: UInt = UInt(log2Ceil(param.dataPathByteWidth).W)
 
   /** 应对vl很小的时候,不会用到这条lane */
   val instCompleted: Bool = Bool()
