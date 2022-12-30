@@ -87,10 +87,10 @@ class OtherUnit(param: LaneParameter) extends Module {
   val r0: Bool = (opcodeOH(3, 0) ## opcodeOH(5)).orR
   val resultSelect: UInt = VecInit(
     Seq(
-      req.extendType.valid && req.extendType.bits.vExtend,
+      req.extendType.valid && req.extendType.bits.extend,
       req.extendType.valid && req.extendType.bits.ffo,
       req.extendType.valid && req.extendType.bits.popCount,
-      req.extendType.valid && req.extendType.bits.vid,
+      req.extendType.valid && req.extendType.bits.id,
       !req.extendType.valid && opcodeOH(4),
       (req.extendType.valid && req.extendType.bits.mv) || (!req.extendType.valid && r0)
     )

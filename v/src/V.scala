@@ -120,15 +120,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val nextResponseCounter: UInt = responseCounter + 1.U
   when(response.fire) { responseCounter := nextResponseCounter }
 
-  // 对进来的指令decode
-  val decodeResult: UInt =
-    decoder.espresso(
-      (request.bits.instruction >> 12).asUInt,
-      TruthTable(InstructionDecodeTable.table, BitPat.dontCare(25))
-    )
-  // TODO: split into two decoders
-  val decodeResFormat:    InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
-  val decodeResFormatExt: ExtendInstructionDecodeResult = decodeResult.asTypeOf(new ExtendInstructionDecodeResult)
+  val decodeResult: DecodeBundle =
+    decoder.espresso((request.bits.instruction >> 12).asUInt, DecodeTable.table).asTypeOf(DecodeTable.bundle)
 
   // TODO: these should be decoding results
   // TODO: no valid here
@@ -180,9 +173,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val instructionFinished: Vec[Vec[Bool]] = Wire(Vec(parameter.laneNumer, Vec(parameter.chainingSize, Bool())))
 
   // todo: no magic number, should be returned from decoder
-  nextInstructionType.compress := decodeResFormat.otherUnit && decodeResFormat.uop === 5.U
-  nextInstructionType.viota := decodeResFormat.otherUnit && decodeResFormat.uop(3) && decodeResFormatExt.viota
-  nextInstructionType.red := !decodeResFormat.otherUnit && decodeResFormat.red
+  nextInstructionType.compress := decodeResult(DecodeTable.other) && decodeResult(DecodeTable.uop) === 5.U
+  nextInstructionType.viota := decodeResult(DecodeTable.other) && decodeResult(DecodeTable.uop)(3) && decodeResult(
+    DecodeTable.iota
+  )
+  nextInstructionType.red := !decodeResult(DecodeTable.other) && decodeResult(DecodeTable.red)
   // TODO: dont care?
   nextInstructionType.other := DontCare
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
