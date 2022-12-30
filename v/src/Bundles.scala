@@ -49,64 +49,18 @@ class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
   val endTag: Vec[Bool] = Vec(laneSize + 1, Bool())
 }
 
-class InstructionDecodeResult extends Bundle {
-  val logicUnit:  Bool = Bool()
-  val adderUnit:  Bool = Bool()
-  val shiftUnit:  Bool = Bool()
-  val mulUnit:    Bool = Bool()
-  val divUnit:    Bool = Bool()
-  val otherUnit:  Bool = Bool()
-  val firstWiden: Bool = Bool()
-  val eew16:      Bool = Bool()
-  val nr:         Bool = Bool()
-  val red:        Bool = Bool()
-  val maskB:      Bool = Bool()
-  val reverse:    Bool = Bool()
-  val narrow:     Bool = Bool()
-  val Widen:      Bool = Bool()
-  val saturate:   Bool = Bool()
-  val average:    Bool = Bool()
-  val unSigned0:  Bool = Bool()
-  val unSigned1:  Bool = Bool()
-
-  /** type of vs1 */
-  val vType: Bool = Bool()
-  val xType: Bool = Bool()
-  val iType: Bool = Bool()
-  // TODO: no magic number
-  val uop: UInt = UInt(4.W)
-}
-
-class ExtendInstructionDecodeResult extends Bundle {
-  val targetRD: Bool = Bool()
-  val vExtend:  Bool = Bool()
-  val mv:       Bool = Bool()
-  val ffo:      Bool = Bool()
-  val popCount: Bool = Bool()
-  val viota:    Bool = Bool()
-  val vid:      Bool = Bool()
-  val vSrc:     Bool = Bool()
-
-  /** type of vs1 */
-  val vType:     Bool = Bool()
-  val xType:     Bool = Bool()
-  val iType:     Bool = Bool()
-  val pointless: Bool = Bool()
-  val uop:       UInt = UInt(3.W)
-}
-
 class ExtendInstructionType extends Bundle {
-  val vExtend:  Bool = Bool()
+  val extend:   Bool = Bool()
   val mv:       Bool = Bool()
   val ffo:      Bool = Bool()
   val popCount: Bool = Bool()
-  val vid:      Bool = Bool()
+  val id:       Bool = Bool()
 }
 
 class LaneRequest(param: LaneParameter) extends Bundle {
   val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
   // decode
-  val decodeResult: UInt = UInt(25.W)
+  val decodeResult: DecodeBundle = DecodeTable.bundle
   val loadStore:    Bool = Bool()
   val store:        Bool = Bool()
   val special:      Bool = Bool()
@@ -132,15 +86,13 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   val readFromScalar: UInt = UInt(param.datapathWidth.W)
 
   // TODO: move to [[V]]
-  def ma: Bool = decodeResult(21) && decodeResult(1, 0).orR
+  def ma: Bool = decodeResult(DecodeTable.multiplier) && decodeResult(DecodeTable.uop)(1, 0).orR
 
   // TODO: move to Module
   def initState: InstGroupState = {
-    val res:                InstGroupState = Wire(new InstGroupState(param))
-    val decodeResFormat:    InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
-    val decodeResFormatExt: ExtendInstructionDecodeResult = decodeResult.asTypeOf(new ExtendInstructionDecodeResult)
-    val crossRead = decodeResFormat.firstWiden || decodeResFormat.narrow
-    res.sRead1 := !decodeResFormat.vType
+    val res: InstGroupState = Wire(new InstGroupState(param))
+    val crossRead = decodeResult(DecodeTable.firstWiden) || decodeResult(DecodeTable.narrow)
+    res.sRead1 := !decodeResult(DecodeTable.vtype)
     res.sRead2 := false.B
     res.sReadVD := !(crossRead || ma)
     res.wRead1 := !crossRead
@@ -149,9 +101,11 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sExecute := false.B
     //todo: red
     res.wExecuteRes := special
-    res.sWrite := (decodeResFormat.otherUnit && decodeResFormatExt.targetRD) || decodeResFormat.Widen
-    res.sCrossWrite0 := !decodeResFormat.Widen
-    res.sCrossWrite1 := !decodeResFormat.Widen
+    res.sWrite := (decodeResult(DecodeTable.other) && decodeResult(DecodeTable.targetRd)) || decodeResult(
+      DecodeTable.widen
+    )
+    res.sCrossWrite0 := !decodeResult(DecodeTable.widen)
+    res.sCrossWrite1 := !decodeResult(DecodeTable.widen)
     res.sSendResult0 := !crossRead
     res.sSendResult1 := !crossRead
     res
@@ -159,15 +113,14 @@ class LaneRequest(param: LaneParameter) extends Bundle {
 
   // TODO: move to Module
   def instType: UInt = {
-    val decodeResFormat: InstructionDecodeResult = decodeResult.asTypeOf(new InstructionDecodeResult)
     VecInit(
       Seq(
-        decodeResFormat.logicUnit && !decodeResFormat.otherUnit,
-        decodeResFormat.adderUnit && !decodeResFormat.otherUnit,
-        decodeResFormat.shiftUnit && !decodeResFormat.otherUnit,
-        decodeResFormat.mulUnit && !decodeResFormat.otherUnit,
-        decodeResFormat.divUnit && !decodeResFormat.otherUnit,
-        decodeResFormat.otherUnit
+        decodeResult(DecodeTable.logic) && !decodeResult(DecodeTable.other),
+        decodeResult(DecodeTable.adder) && !decodeResult(DecodeTable.other),
+        decodeResult(DecodeTable.shift) && !decodeResult(DecodeTable.other),
+        decodeResult(DecodeTable.multiplier) && !decodeResult(DecodeTable.other),
+        decodeResult(DecodeTable.divider) && !decodeResult(DecodeTable.other),
+        decodeResult(DecodeTable.other)
       )
     ).asUInt
   }
