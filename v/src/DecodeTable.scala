@@ -7,8 +7,8 @@ import chisel3.util.experimental.decode.TruthTable
 import scala.collection.immutable.SeqMap
 import scala.util.matching.Regex
 
+// TODO: refactor String to detail type.
 case class RawOp(tpe: String, funct6: String, funct3s: Seq[String], name: String)
-
 case class SpecialAux(name: String, vs: Int, value: String)
 case class Op(tpe: String, funct6: String, funct3: String, name: String, special: Option[SpecialAux]) {
   val funct3Map: Map[String, String] = Map(
@@ -25,7 +25,7 @@ case class Op(tpe: String, funct6: String, funct3: String, name: String, special
     "b" +
       // funct6
       funct6 +
-      // always '?', but why?
+      // TODO[0]: ? for vm
       "?" +
       // vs2
       (if (special.isEmpty || special.get.vs == 1) "?????" else special.get.value) +
@@ -36,7 +36,8 @@ case class Op(tpe: String, funct6: String, funct3: String, name: String, special
   )
 }
 
-object Decoder {
+/** Parser for inst-table.adoc. */
+object SpecInstTableParser {
   val instTable:    Array[String] = os.read(os.resource() / "inst-table.adoc").split("<<<")
   val normalTable:  String = instTable.head
   val specialTable: String = instTable.last
@@ -97,26 +98,6 @@ object Decoder {
           Array.empty[Op]
       }
     }
-}
-
-trait Field {
-  def width: Int
-  def genTable(op: Op): BitPat
-  def dc: BitPat = BitPat.dontCare(width)
-
-  override def toString: String = this.getClass.getSimpleName.replace("$", "")
-}
-
-trait BoolField extends Field {
-  def width: Int = 1
-  def y:     BitPat = BitPat.Y(1)
-  def n:     BitPat = BitPat.N(1)
-}
-
-class DecodeBundle(fields: Seq[Field]) extends Record with chisel3.experimental.AutoCloneType {
-  val elements: SeqMap[String, UInt] = fields.map(k => k.toString -> UInt(k.width.W)).to(SeqMap)
-  def apply(field: BoolField): Bool = elements(field.toString).asBool
-  def apply(field: Field):     UInt = elements(field.toString)
 }
 
 object DecodeTable {
@@ -285,6 +266,7 @@ object DecodeTable {
     def genTable(op: Op): BitPat = if (op.special.isEmpty) dc else if (op.name == "vid") y else n
   }
 
+  // TODO[2]: uop should be well documented
   object uop extends Field {
     def width: Int = 4
 
@@ -395,10 +377,11 @@ object DecodeTable {
     specialUop
   )
 
+  // TODO: (Seq(op), Seq(control)) -> (DecodeBundle, TruthTable)?
   def bundle: DecodeBundle = new DecodeBundle(all)
 
   def table: TruthTable = {
-    val result = Decoder.ops
+    val result = SpecInstTableParser.ops
       .filter(_.tpe != "F")
       .map { op =>
         op.bitPat -> all.reverse.map(_.genTable(op)).reduce(_ ## _)
@@ -406,4 +389,25 @@ object DecodeTable {
       .to(SeqMap)
     TruthTable(result, BitPat.dontCare(result.head._2.getWidth))
   }
+}
+
+trait Field {
+  def width: Int
+  def genTable(op: Op): BitPat
+  def dc: BitPat = BitPat.dontCare(width)
+
+  // TODO: def name = this.getClass.getSimpleName.replace("$", "")
+  override def toString: String = this.getClass.getSimpleName.replace("$", "")
+}
+
+trait BoolField extends Field {
+  def width: Int = 1
+  def y:     BitPat = BitPat.Y(1)
+  def n:     BitPat = BitPat.N(1)
+}
+
+class DecodeBundle(fields: Seq[Field]) extends Record with chisel3.experimental.AutoCloneType {
+  val elements: SeqMap[String, UInt] = fields.map(k => k.toString -> UInt(k.width.W)).to(SeqMap)
+  def apply(field: BoolField): Bool = elements(field.toString).asBool
+  def apply(field: Field):     UInt = elements(field.toString)
 }
