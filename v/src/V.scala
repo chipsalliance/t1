@@ -120,15 +120,17 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val nextResponseCounter: UInt = responseCounter + 1.U
   when(response.fire) { responseCounter := nextResponseCounter }
 
+  // TODO[0]: use [[chisel3.util.experimental.decode.DecodeTable]] to construct decoder.
   val decodeResult: DecodeBundle =
     decoder.espresso((request.bits.instruction >> 12).asUInt, DecodeTable.table).asTypeOf(DecodeTable.bundle)
 
-  // TODO: these should be decoding results
   // TODO: no valid here
+  // TODO: these should be decoding results
   val isLoadStoreType: Bool = !request.bits.instruction(6) && request.valid
   val isStoreType:     Bool = !request.bits.instruction(6) && request.bits.instruction(5)
   val maskType:        Bool = !request.bits.instruction(25)
 
+  // TODO: these should be decoding results
   val noReadST:    Bool = isLoadStoreType && (!request.bits.instruction(26))
   val indexTypeLS: Bool = isLoadStoreType && request.bits.instruction(26)
 
@@ -172,7 +174,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     */
   val instructionFinished: Vec[Vec[Bool]] = Wire(Vec(parameter.laneNumer, Vec(parameter.chainingSize, Bool())))
 
-  // todo: no magic number, should be returned from decoder
+  // TODO[0]: remove these signals
   nextInstructionType.compress := decodeResult(DecodeTable.other) && decodeResult(DecodeTable.uop) === 5.U
   nextInstructionType.viota := decodeResult(DecodeTable.other) && decodeResult(DecodeTable.uop)(3) && decodeResult(
     DecodeTable.iota
@@ -180,8 +182,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   nextInstructionType.red := !decodeResult(DecodeTable.other) && decodeResult(DecodeTable.red)
   // TODO: dont care?
   nextInstructionType.other := DontCare
+  // TODO: from decode
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
+  // TODO[1]: from decode
   val specialInst: Bool = maskUnitType || indexTypeLS
   val busClear:    Bool = Wire(Bool())
 

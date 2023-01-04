@@ -33,6 +33,7 @@ class InstructionState extends Bundle {
   val sCommit:  Bool = Bool()
 }
 
+// TODO: rename
 class SpecialInstructionType extends Bundle {
   val red:      Bool = Bool()
   val compress: Bool = Bool()
