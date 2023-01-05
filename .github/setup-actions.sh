@@ -10,8 +10,6 @@ if ! command -v nix; then
   exit 0
 fi
 
-echo "Signing paths" $OUT_PATHS | tee -a /tmp/nix-post-build-hook.log
-nix store sign --key-file /etc/nix/cache-key.pem $OUT_PATHS | tee -a /tmp/nix-post-build-hook.log
 echo "Uploading paths" $OUT_PATHS | tee -a /tmp/nix-post-build-hook.log
 nix copy --to 's3://nix?profile=nix-upload&scheme=https&endpoint=minio.inner.fi.c-3.moe&secret-key=/etc/nix/cache-key.pem' $OUT_PATHS | tee -a /tmp/nix-post-build-hook.log
 EOF
