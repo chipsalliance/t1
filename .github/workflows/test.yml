@@ -17,7 +17,7 @@ jobs:
         with:
           extra_nix_config: |
             post-build-hook = /etc/nix/upload-to-cache.sh
-            trusted-public-keys = trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://minio.inner.fi.c-3.moe/nix
       - run: make init
       - run: make patch

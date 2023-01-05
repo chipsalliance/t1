@@ -8,7 +8,7 @@ export IFS=' '
 >&2 echo "[Post Build Hook] Signing paths" $OUT_PATHS
 nix store sign --key-file /etc/nix/cache-key.pem $OUT_PATHS
 >&2 echo "[Post Build Hook] Uploading paths" $OUT_PATHS
-exec nix copy --to 's3://nix?profile=nix-upload&scheme=https&endpoint=minio.inner.fi.c-3.moe&secret-key=/etc/nix/cache-key.pem' $OUT_PATHS
+nix copy --to 's3://nix?profile=nix-upload&scheme=https&endpoint=minio.inner.fi.c-3.moe&secret-key=/etc/nix/cache-key.pem' $OUT_PATHS
 EOF
 
 mkdir -p ~/.aws
