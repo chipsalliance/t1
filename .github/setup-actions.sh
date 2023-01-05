@@ -5,7 +5,7 @@ set -eu
 set -f # disable globbing
 export IFS=' '
 
-if ! command -v nix &> /dev/null; then
+if ! command -v nix; then
   echo "Nix installing. Exit"
   exit 0
 fi
