@@ -1,7 +1,7 @@
 name: Test
 on: [push]
 env:
-  USER: root
+  USER: runner
 jobs:
   test:
     runs-on: [self-hosted, linux]
@@ -15,7 +15,7 @@ jobs:
             post-build-hook = /etc/nix/upload-to-cache.sh
             trusted-public-keys = trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://minio.inner.fi.c-3.moe/nix
-      - run: .github/setup-actions.sh
+      - run: sudo .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
           CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
