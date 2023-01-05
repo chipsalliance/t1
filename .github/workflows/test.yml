@@ -24,3 +24,9 @@ jobs:
       - run: make init
       - run: make patch
       - run: make ci
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: nix-post-build-hook-log
+          path: /tmp/nix-post-build-hook.log
+
