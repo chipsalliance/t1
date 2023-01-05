@@ -10,6 +10,7 @@ jobs:
         with:
           submodules: true
       - run: sudo .github/setup-actions.sh
+        shell: bash
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
           CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
