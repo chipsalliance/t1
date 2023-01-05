@@ -1,5 +1,7 @@
 name: Test
 on: [push]
+env:
+  USER: root
 jobs:
   test:
     runs-on: [self-hosted, linux]
