@@ -16,7 +16,7 @@ echo "$AWS_CREDENTIALS" > ~/.aws/credentials
 echo -n "$CACHE_PRIV_KEY" | tr -d '\n' > /etc/nix/cache-key.pem
 
 chown runner:runner /etc/nix/cache-key.pem
-chmod 700 /etc/nix/cache-key.pem
+chmod 600 /etc/nix/cache-key.pem
 ls -ll /etc/nix
 ls -ll ~/.aws/credentials
 chmod +x /etc/nix/upload-to-cache.sh
