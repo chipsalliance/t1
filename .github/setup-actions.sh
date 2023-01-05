@@ -1,5 +1,5 @@
 mkdir -p /etc/nix
-cat > /etc/nix/upload-to-cache.sh << EOF
+cat << EOF | tee /etc/nix/upload-to-cache.sh 
 #!/bin/sh
 set -eu
 set -f # disable globbing
@@ -10,8 +10,8 @@ if ! command -v nix; then
   exit 0
 fi
 
-echo "Uploading paths" $OUT_PATHS | tee -a /tmp/nix-post-build-hook.log
-nix copy --to 's3://nix?profile=nix-upload&scheme=https&endpoint=minio.inner.fi.c-3.moe&secret-key=/etc/nix/cache-key.pem' $OUT_PATHS | tee -a /tmp/nix-post-build-hook.log
+echo "Uploading paths" \$OUT_PATHS | tee -a /tmp/nix-post-build-hook.log
+nix copy --to 's3://nix?profile=nix-upload&scheme=https&endpoint=minio.inner.fi.c-3.moe&secret-key=/etc/nix/cache-key.pem' \$OUT_PATHS | tee -a /tmp/nix-post-build-hook.log
 EOF
 
 mkdir -p ~/.aws
