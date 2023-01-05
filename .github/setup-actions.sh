@@ -12,8 +12,8 @@ exec nix copy --to 's3://nix?profile=nix-upload&scheme=https&endpoint=minio.inne
 EOF
 
 mkdir -p ~/.aws
-echo $AWS_CREDENTIALS > ~/.aws/credentials
-echo -n $CACHE_PRIV_KEY | tr -d '\n' > /etc/nix/cache-key.pem
+echo "$AWS_CREDENTIALS" > ~/.aws/credentials
+echo -n "$CACHE_PRIV_KEY" | tr -d '\n' > /etc/nix/cache-key.pem
 
 chown runner:runner /etc/nix/cache-key.pem
 chmod 700 /etc/nix/cache-key.pem
