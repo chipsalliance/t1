@@ -5,6 +5,11 @@ set -eu
 set -f # disable globbing
 export IFS=' '
 
+if ! command -v nix &> /dev/null; then
+  echo "Nix installing. Exit"
+  exit 0
+fi
+
 echo "Signing paths" $OUT_PATHS
 nix store sign --key-file /etc/nix/cache-key.pem $OUT_PATHS
 echo "Uploading paths" $OUT_PATHS
