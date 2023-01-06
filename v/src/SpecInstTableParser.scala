@@ -1,13 +1,15 @@
 package v
 
 import chisel3.util.BitPat
+import chisel3.util.experimental.decode._
 
 import scala.util.matching.Regex
 
 // TODO: refactor String to detail type.
 case class RawOp(tpe: String, funct6: String, funct3s: Seq[String], name: String)
 case class SpecialAux(name: String, vs: Int, value: String)
-case class Op(tpe: String, funct6: String, funct3: String, name: String, special: Option[SpecialAux]) {
+case class Op(tpe: String, funct6: String, funct3: String,
+              name: String, special: Option[SpecialAux]) extends Instruction {
   val funct3Map: Map[String, String] = Map(
     "IV" -> "000",
     "IX" -> "100",
@@ -79,7 +81,7 @@ object SpecInstTableParser {
   }
 
   val ops: Array[Op] =
-    expandedOps.filter(!_.name.startsWith("V")) ++ specialTable.split(raw"\n\.").drop(1).flatMap { str =>
+    (expandedOps.filter(!_.name.startsWith("V")) ++ specialTable.split(raw"\n\.").drop(1).flatMap { str =>
       val namePattern = raw"(\w+) encoding space".r
       val vsPattern = raw"\| *vs(\d) *\|.*".r
       val opPattern = raw"\| *(\d{5}) *\| *(.*)".r
@@ -94,5 +96,6 @@ object SpecInstTableParser {
         } else
           Array.empty[Op]
       }
-    }
+      // filter out F instructions, for now.
+    }).filter(_.tpe != "F")
 }

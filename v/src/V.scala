@@ -3,7 +3,7 @@ package v
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
-import chisel3.util.experimental.decode.{decoder, TruthTable}
+import chisel3.util.experimental.decode._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
 
 object VParameter {
@@ -120,9 +120,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val nextResponseCounter: UInt = responseCounter + 1.U
   when(response.fire) { responseCounter := nextResponseCounter }
 
-  // TODO[0]: use [[chisel3.util.experimental.decode.DecodeTable]] to construct decoder.
-  val decodeResult: DecodeBundle =
-    decoder.espresso((request.bits.instruction >> 12).asUInt, DecodeTable.table).asTypeOf(DecodeTable.bundle)
+  val decodeResult: DecodeBundle = Decoder.decode((request.bits.instruction >> 12).asUInt)
 
   // TODO: no valid here
   // TODO: these should be decoding results
@@ -175,11 +173,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val instructionFinished: Vec[Vec[Bool]] = Wire(Vec(parameter.laneNumer, Vec(parameter.chainingSize, Bool())))
 
   // TODO[0]: remove these signals
-  nextInstructionType.compress := decodeResult(DecodeTable.other) && decodeResult(DecodeTable.uop) === 5.U
-  nextInstructionType.viota := decodeResult(DecodeTable.other) && decodeResult(DecodeTable.uop)(3) && decodeResult(
-    DecodeTable.iota
+  nextInstructionType.compress := decodeResult(Decoder.other) && decodeResult(Decoder.uop) === 5.U
+  nextInstructionType.viota := decodeResult(Decoder.other) && decodeResult(Decoder.uop)(3) && decodeResult(
+    Decoder.iota
   )
-  nextInstructionType.red := !decodeResult(DecodeTable.other) && decodeResult(DecodeTable.red)
+  nextInstructionType.red := !decodeResult(Decoder.other) && decodeResult(Decoder.red)
   // TODO: dont care?
   nextInstructionType.other := DontCare
   // TODO: from decode
