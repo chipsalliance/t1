@@ -24,7 +24,7 @@ trait DecodeField[T <: Instruction, D <: Data] {
 }
 
 trait BoolDecodeField[T <: Instruction] extends DecodeField[T, Bool] {
-  def genTable(op: T): BitPat
+  def chiselType: Bool = Bool()
 
   def y: BitPat = BitPat.Y(1)
 
@@ -35,7 +35,7 @@ class DecodeBundle(fields: Seq[DecodeField[_, _]]) extends Record with chisel3.e
   require(fields.map(_.name).distinct.size == fields.size, "Field names must be unique")
   val elements: SeqMap[String, Data] = fields.map(k => k.name -> UInt(k.width.W)).to(SeqMap)
 
-  def apply[D <: Data](field: DecodeField[_, D]): D = elements(field.toString).asTypeOf(field.chiselType)
+  def apply[D <: Data](field: DecodeField[_, D]): D = elements(field.name).asTypeOf(field.chiselType)
 }
 
 class DecodeTable[I <: Instruction](instructions: Seq[I], fields: Seq[DecodeField[I, _]]) {
@@ -46,7 +46,7 @@ class DecodeTable[I <: Instruction](instructions: Seq[I], fields: Seq[DecodeFiel
   private val _table: SeqMap[BitPat, BitPat] = instructions.map { op =>
     op.bitPat -> fields.reverse.map(field => field.genTable(op)).reduce(_ ## _)
   }.to(SeqMap)
-  val table = TruthTable(_table, BitPat.dontCare(_table.head._2.getWidth))
+  val table: TruthTable = TruthTable(_table, BitPat.dontCare(_table.head._2.getWidth))
 
   def decode(instruction: UInt): DecodeBundle = chisel3.util.experimental.decode.decoder(instruction, table).asTypeOf(bundle)
 }

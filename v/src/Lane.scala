@@ -3,6 +3,7 @@ package v
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
+import chisel3.util.experimental.decode.DecodeBundle
 
 object LaneParameter {
   implicit def rwP: upickle.default.ReadWriter[LaneParameter] = upickle.default.macroRW
@@ -389,9 +390,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       // TODO: use decode
       // val extendInst = decodeResult(19) && decodeResult(1, 0).orR
       // TODO: use decode
-      val needCrossRead = decodeResult(DecodeTable.firstWiden) || decodeResult(DecodeTable.narrow)
+      val needCrossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
       // TODO: use decode
-      val needCrossWrite = decodeResult(DecodeTable.widen)
+      val needCrossWrite = decodeResult(Decoder.widen)
 
       /** select from VFU, send to [[result]], [[crossWriteResultLSBHalf]], [[crossWriteResultMSBHalf]]. */
       val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
@@ -752,20 +753,20 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         * src1： src1有 IXV 三种类型,只有V类型的需要移位
         */
       val finalSource1 =
-        CollapseOperand(source1(index), decodeResult(DecodeTable.vtype), !decodeResult(DecodeTable.unsigned0))
+        CollapseOperand(source1(index), decodeResult(Decoder.vtype), !decodeResult(Decoder.unsigned0))
 
       /** source2 一定是V类型的 */
       val finalSource2 = if (index == 0) {
-        val doubleCollapse = CollapseDoubleOperand(!decodeResult(DecodeTable.unsigned1))
+        val doubleCollapse = CollapseDoubleOperand(!decodeResult(Decoder.unsigned1))
         dontTouch(doubleCollapse)
         Mux(
           needCrossRead,
           doubleCollapse,
-          CollapseOperand(source2(index), true.B, !decodeResult(DecodeTable.unsigned1))
+          CollapseOperand(source2(index), true.B, !decodeResult(Decoder.unsigned1))
         )
 
       } else {
-        CollapseOperand(source2(index), true.B, !decodeResult(DecodeTable.unsigned1))
+        CollapseOperand(source2(index), true.B, !decodeResult(Decoder.unsigned1))
       }
 
       /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
@@ -774,7 +775,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val logicRequest = Wire(new LaneLogicRequest(parameter.datePathParam))
       logicRequest.src.head := finalSource2
       logicRequest.src.last := finalSource1
-      logicRequest.opcode := decodeResult(DecodeTable.uop)
+      logicRequest.opcode := decodeResult(Decoder.uop)
       val nextElementIndex = Mux1H(
         vSew1H,
         Seq(
@@ -786,19 +787,19 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       instructionWillComplete(index) := nextElementIndex >= csrInterface.vl
       // 在手动做Mux1H
       logicRequests(index) := maskAnd(
-        slotOccupied(index) && decodeResult(DecodeTable.logic) && !decodeResult(DecodeTable.other),
+        slotOccupied(index) && decodeResult(Decoder.logic) && !decodeResult(Decoder.other),
         logicRequest
       )
 
       // adder 的
       val adderRequest = Wire(new LaneAdderReq(parameter.datePathParam))
       adderRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
-      adderRequest.opcode := decodeResult(DecodeTable.uop)
-      adderRequest.sign := !decodeResult(DecodeTable.unsigned1)
-      adderRequest.reverse := decodeResult(DecodeTable.reverse)
-      adderRequest.average := decodeResult(DecodeTable.average)
+      adderRequest.opcode := decodeResult(Decoder.uop)
+      adderRequest.sign := !decodeResult(Decoder.unsigned1)
+      adderRequest.reverse := decodeResult(Decoder.reverse)
+      adderRequest.average := decodeResult(Decoder.average)
       adderRequests(index) := maskAnd(
-        slotOccupied(index) && decodeResult(DecodeTable.adder) && !decodeResult(DecodeTable.other),
+        slotOccupied(index) && decodeResult(Decoder.adder) && !decodeResult(Decoder.other),
         adderRequest
       )
 
@@ -810,42 +811,42 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         Mux(needCrossRead, vSew1H(1, 0), vSew1H(2, 1)),
         Seq(false.B ## finalSource1(3), finalSource1(4, 3))
       ) ## finalSource1(2, 0)
-      shiftRequest.opcode := decodeResult(DecodeTable.uop)
+      shiftRequest.opcode := decodeResult(Decoder.uop)
       shiftRequests(index) := maskAnd(
-        slotOccupied(index) && decodeResult(DecodeTable.shift) && !decodeResult(DecodeTable.other),
+        slotOccupied(index) && decodeResult(Decoder.shift) && !decodeResult(Decoder.other),
         shiftRequest
       )
 
       // mul
       val mulRequest: LaneMulReq = Wire(new LaneMulReq(parameter.mulParam))
       mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
-      mulRequest.opcode := decodeResult(DecodeTable.uop)
+      mulRequest.opcode := decodeResult(Decoder.uop)
       multiplerRequests(index) := maskAnd(
-        slotOccupied(index) && decodeResult(DecodeTable.multiplier) && !decodeResult(DecodeTable.other),
+        slotOccupied(index) && decodeResult(Decoder.multiplier) && !decodeResult(Decoder.other),
         mulRequest
       )
 
       // div
       val divRequest = Wire(new LaneDivRequest(parameter.datePathParam))
       divRequest.src := VecInit(Seq(finalSource1, finalSource2))
-      divRequest.rem := decodeResult(DecodeTable.uop)(0)
-      divRequest.sign := decodeResult(DecodeTable.unsigned0)
+      divRequest.rem := decodeResult(Decoder.uop)(0)
+      divRequest.sign := decodeResult(Decoder.unsigned0)
       dividerRequests(index) := maskAnd(
-        slotOccupied(index) && decodeResult(DecodeTable.divider) && !decodeResult(DecodeTable.other),
+        slotOccupied(index) && decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
         divRequest
       )
 
       // other
       val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
       otherRequest.src := VecInit(Seq(finalSource1, finalSource2))
-      otherRequest.opcode := decodeResult(DecodeTable.uop)(2, 0)
+      otherRequest.opcode := decodeResult(Decoder.uop)(2, 0)
       otherRequest.imm := record.originalInformation.vs1
-      otherRequest.extendType.valid := decodeResult(DecodeTable.uop)(3)
+      otherRequest.extendType.valid := decodeResult(Decoder.uop)(3)
       otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResult.elements(s) }
       otherRequest.laneIndex := laneIndex
       otherRequest.groupIndex := record.groupCounter
-      otherRequest.sign := !decodeResult(DecodeTable.unsigned0)
-      otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(DecodeTable.other), otherRequest)
+      otherRequest.sign := !decodeResult(Decoder.unsigned0)
+      otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
       // 往scheduler的执行任务compress viota
       val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(parameter)))
@@ -1115,10 +1116,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
   val vs1entrance: UInt =
     Mux(
-      laneRequest.bits.decodeResult(DecodeTable.vtype),
+      laneRequest.bits.decodeResult(Decoder.vtype),
       0.U,
       Mux(
-        laneRequest.bits.decodeResult(DecodeTable.xtype),
+        laneRequest.bits.decodeResult(Decoder.xtype),
         laneRequest.bits.readFromScalar,
         VecInit(Seq.fill(parameter.datapathWidth - 5)(laneRequest.bits.vs1(4))).asUInt ## laneRequest.bits.vs1
       )
@@ -1150,19 +1151,19 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instWriteReport.bits.vd.valid := !(laneRequest.bits.initState.sWrite || laneRequest.bits.store)
   vrf.instWriteReport.bits.vs2 := laneRequest.bits.vs2
   vrf.instWriteReport.bits.vs1.bits := laneRequest.bits.vs1
-  vrf.instWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(DecodeTable.vtype)
+  vrf.instWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)
   // TODO: move ma to [[V]]
   vrf.instWriteReport.bits.ma := laneRequest.bits.ma
   // 暂时认为ld都是无序写寄存器的
   vrf.instWriteReport.bits.unOrderWrite := (laneRequest.bits.loadStore && !laneRequest.bits.store) || laneRequest.bits
-    .decodeResult(DecodeTable.other)
+    .decodeResult(Decoder.other)
   vrf.instWriteReport.bits.seg.valid := laneRequest.bits.loadStore && laneRequest.bits.segment.orR
   vrf.instWriteReport.bits.seg.bits := laneRequest.bits.segment
   vrf.instWriteReport.bits.eew := laneRequest.bits.loadStoreEEW
   vrf.instWriteReport.bits.ls := laneRequest.bits.loadStore
   vrf.instWriteReport.bits.st := laneRequest.bits.store
-  vrf.instWriteReport.bits.narrow := laneRequest.bits.decodeResult(DecodeTable.narrow)
-  vrf.instWriteReport.bits.widen := laneRequest.bits.decodeResult(DecodeTable.widen)
+  vrf.instWriteReport.bits.narrow := laneRequest.bits.decodeResult(Decoder.narrow)
+  vrf.instWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.widen)
   vrf.instWriteReport.bits.stFinish := false.B
   vrf.csrInterface := csrInterface
   vrf.lsuLastReport := lsuLastReport

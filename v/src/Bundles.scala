@@ -1,7 +1,8 @@
 package v
 
 import chisel3._
-import chisel3.util.{log2Ceil, Decoupled, DecoupledIO, Valid, ValidIO}
+import chisel3.util.experimental.decode.DecodeBundle
+import chisel3.util.{Decoupled, DecoupledIO, Valid, ValidIO, log2Ceil}
 class VRequest(xLen: Int) extends Bundle {
   val instruction: UInt = UInt(32.W)
   val src1Data:    UInt = UInt(xLen.W)
@@ -61,7 +62,7 @@ class ExtendInstructionType extends Bundle {
 class LaneRequest(param: LaneParameter) extends Bundle {
   val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
   // decode
-  val decodeResult: DecodeBundle = DecodeTable.bundle
+  val decodeResult: DecodeBundle = Decoder.bundle
   val loadStore:    Bool = Bool()
   val store:        Bool = Bool()
   val special:      Bool = Bool()
@@ -87,13 +88,13 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   val readFromScalar: UInt = UInt(param.datapathWidth.W)
 
   // TODO: move to [[V]]
-  def ma: Bool = decodeResult(DecodeTable.multiplier) && decodeResult(DecodeTable.uop)(1, 0).orR
+  def ma: Bool = decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).orR
 
   // TODO: move to Module
   def initState: InstGroupState = {
     val res: InstGroupState = Wire(new InstGroupState(param))
-    val crossRead = decodeResult(DecodeTable.firstWiden) || decodeResult(DecodeTable.narrow)
-    res.sRead1 := !decodeResult(DecodeTable.vtype)
+    val crossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
+    res.sRead1 := !decodeResult(Decoder.vtype)
     res.sRead2 := false.B
     res.sReadVD := !(crossRead || ma)
     res.wRead1 := !crossRead
@@ -102,11 +103,11 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sExecute := false.B
     //todo: red
     res.wExecuteRes := special
-    res.sWrite := (decodeResult(DecodeTable.other) && decodeResult(DecodeTable.targetRd)) || decodeResult(
-      DecodeTable.widen
+    res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) || decodeResult(
+      Decoder.widen
     )
-    res.sCrossWrite0 := !decodeResult(DecodeTable.widen)
-    res.sCrossWrite1 := !decodeResult(DecodeTable.widen)
+    res.sCrossWrite0 := !decodeResult(Decoder.widen)
+    res.sCrossWrite1 := !decodeResult(Decoder.widen)
     res.sSendResult0 := !crossRead
     res.sSendResult1 := !crossRead
     res
@@ -116,12 +117,12 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   def instType: UInt = {
     VecInit(
       Seq(
-        decodeResult(DecodeTable.logic) && !decodeResult(DecodeTable.other),
-        decodeResult(DecodeTable.adder) && !decodeResult(DecodeTable.other),
-        decodeResult(DecodeTable.shift) && !decodeResult(DecodeTable.other),
-        decodeResult(DecodeTable.multiplier) && !decodeResult(DecodeTable.other),
-        decodeResult(DecodeTable.divider) && !decodeResult(DecodeTable.other),
-        decodeResult(DecodeTable.other)
+        decodeResult(Decoder.logic) && !decodeResult(Decoder.other),
+        decodeResult(Decoder.adder) && !decodeResult(Decoder.other),
+        decodeResult(Decoder.shift) && !decodeResult(Decoder.other),
+        decodeResult(Decoder.multiplier) && !decodeResult(Decoder.other),
+        decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
+        decodeResult(Decoder.other)
       )
     ).asUInt
   }

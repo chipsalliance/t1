@@ -2,12 +2,19 @@ package v
 
 import chisel3._
 import chisel3.util.BitPat
-import chisel3.util.experimental.decode.TruthTable
+import chisel3.util.experimental.decode._
 
-import scala.collection.immutable.SeqMap
+trait FieldName {
+  def name: String = this.getClass.getSimpleName.replace("$", "")
+}
 
+trait UopField extends DecodeField[Op, UInt] with FieldName {
+  def chiselType: UInt = UInt(4.W)
+}
 
-object DecodeTable {
+trait BoolField extends BoolDecodeField[Op] with FieldName
+
+object Decoder {
   object logic extends BoolField {
     val subs: Seq[String] = Seq("and", "or")
     def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (subs.exists(op.name.contains)) y else n
@@ -174,9 +181,7 @@ object DecodeTable {
   }
 
   // TODO[2]: uop should be well documented
-  object uop extends Field {
-    def width: Int = 4
-
+  object uop extends UopField {
     val mul: Seq[String] = Seq(
       "mul",
       "ma",
@@ -231,9 +236,7 @@ object DecodeTable {
     }
   }
 
-  object specialUop extends Field {
-    def width: Int = 4
-
+  object specialUop extends UopField {
     def y: BitPat = BitPat.Y(1)
     def genTable(op: Op): BitPat = {
       val b2s = (b: Boolean) => if (b) "1" else "0"
@@ -255,7 +258,7 @@ object DecodeTable {
     }
   }
 
-  val all: Seq[Field] = Seq(
+  val all: Seq[DecodeField[Op, _ >: Bool <: UInt]] = Seq(
     logic,
     adder,
     shift,
@@ -284,38 +287,7 @@ object DecodeTable {
     specialUop
   )
 
-  // TODO: (Seq(op), Seq(control)) -> (DecodeBundle, TruthTable)?
-  def bundle: DecodeBundle = new DecodeBundle(all)
-
-  def table: TruthTable = {
-    val result = SpecInstTableParser.ops
-      .filter(_.tpe != "F")
-      .map { op =>
-        op.bitPat -> all.reverse.map(_.genTable(op)).reduce(_ ## _)
-      }
-      .to(SeqMap)
-    TruthTable(result, BitPat.dontCare(result.head._2.getWidth))
-  }
-}
-
-// TODO: remove
-trait Field {
-  def width: Int
-  def genTable(op: Op): BitPat
-  def dc: BitPat = BitPat.dontCare(width)
-
-  // TODO: def name = this.getClass.getSimpleName.replace("$", "")
-  override def toString: String = this.getClass.getSimpleName.replace("$", "")
-}
-
-trait BoolField extends Field {
-  def width: Int = 1
-  def y:     BitPat = BitPat.Y(1)
-  def n:     BitPat = BitPat.N(1)
-}
-
-class DecodeBundle(fields: Seq[Field]) extends Record with chisel3.experimental.AutoCloneType {
-  val elements: SeqMap[String, UInt] = fields.map(k => k.toString -> UInt(k.width.W)).to(SeqMap)
-  def apply(field: BoolField): Bool = elements(field.toString).asBool
-  def apply(field: Field):     UInt = elements(field.toString)
+  private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)
+  def decode: UInt => DecodeBundle = decodeTable.decode
+  def bundle: DecodeBundle = decodeTable.bundle
 }
