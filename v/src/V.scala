@@ -132,6 +132,17 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val noReadST:    Bool = isLoadStoreType && (!request.bits.instruction(26))
   val indexTypeLS: Bool = isLoadStoreType && request.bits.instruction(26)
 
+  val source1Extend: UInt = Mux1H(
+    UIntToOH(csrInterface.vSew)(2, 0),
+    Seq(
+      Fill(parameter.dataPathWidth - 8, request.bits.src1Data(7) && !decodeResult(Decoder.unsigned0))
+        ## request.bits.src1Data(7, 0),
+      Fill(parameter.dataPathWidth - 16, request.bits.src1Data(15) && !decodeResult(Decoder.unsigned0))
+        ## request.bits.src1Data(15, 0),
+      request.bits.src1Data(31, 0)
+    )
+  )
+
   /** duplicate v0 for mask */
   val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.maskGroupSize)(0.U(parameter.maskGroupWidth.W))))
   // TODO: if elen=32, vSew should be 2?
@@ -295,7 +306,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.laneRequest.bits.vs1 := request.bits.instruction(19, 15)
     lane.laneRequest.bits.vs2 := request.bits.instruction(24, 20)
     lane.laneRequest.bits.vd := request.bits.instruction(11, 7)
-    lane.laneRequest.bits.readFromScalar := request.bits.src1Data
+    lane.laneRequest.bits.readFromScalar := source1Extend
     lane.laneRequest.bits.loadStore := isLoadStoreType
     lane.laneRequest.bits.store := isStoreType
     lane.laneRequest.bits.special := specialInst
