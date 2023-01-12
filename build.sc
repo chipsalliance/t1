@@ -356,8 +356,9 @@ object tests extends Module {
     object `riscv-vector-tests` extends Module {
       u =>
       override def millSourcePath = os.pwd / "dependencies" / "riscv-vector-tests"
-
-      def allTests = os.walk(millSourcePath / "configs").filter(_.ext == "toml").map(_.last.replace(".toml", ""))
+      def allTests = os.walk(millSourcePath / "configs").filter(_.ext == "toml").filter{ p =>
+        os.read(p).contains("Zve32x")
+      }.map(_.last.replace(".toml", ""))
 
       def allGoSources = T.sources {
         os.walk(millSourcePath).filter(f => f.ext == "go" || f.last == "go.mod").map(PathRef(_))
