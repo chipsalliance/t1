@@ -34,8 +34,14 @@ reformat:
 checkformat:
 	mill -i __.checkFormat
 
-ci:
-	awk '{ print("nix develop -c mill -i -k -j $$(expr $$(nproc) / 8) tests.run[" $$0 "] ") }' tests/passed.txt | GLOG_minloglevel=2 sh -x
+ci-run:
+	mill -i -k -j $$(expr $$(nproc) / 8) tests.run[$(NAME)] GLOG_logtostderr=0
 
-testall:
-	nix develop -c mill -k -i -j $$(expr $$(nproc) / 8) 'tests.run[__].run' GLOG_logtostderr=0
+ci-passed-tests:
+	echo -n matrix= >> $$GITHUB_OUTPUT
+	jq -c --raw-input '{"name": split("\n") | map(select(. != "")) | .[0]}' .github/passed.txt | jq --slurp -c '{"include": .}' >> $$GITHUB_OUTPUT
+
+ci-all-tests:
+	echo -n matrix= >> $$GITHUB_OUTPUT
+	mill resolve 'tests.run[__]' | awk -F/ ' match($$0, /\[(.*)\]/, arr) {print(arr[1])}' | jq -c --raw-input '{"name": split("\n") | map(select(. != "")) | .[0]}' | jq --slurp -c '{"include": .}' >> $$GITHUB_OUTPUT
+
