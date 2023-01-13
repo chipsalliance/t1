@@ -623,9 +623,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           Mux1H(
             select,
             Seq(
-              Fill(24, sign && collapse0(7)) ## collapse0,
-              Fill(16, sign && collapse1(15)) ## collapse1,
-              data
+              Fill(25, sign && collapse0(7)) ## collapse0,
+              Fill(17, sign && collapse1(15)) ## collapse1,
+              (sign && data(31)) ## data
             )
           )
         }
@@ -665,7 +665,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // adder 的
         val adderRequest = Wire(new LaneAdderReq(parameter.datePathParam))
-        adderRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
+        adderRequest.src := VecInit(Seq(finalSource1, finalSource2))
+        adderRequest.mask := DontCare
         adderRequest.opcode := decodeResult(Decoder.uop)
         adderRequest.sign := !decodeResult(Decoder.unsigned1)
         adderRequest.reverse := decodeResult(Decoder.reverse)
@@ -1192,9 +1193,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           Mux1H(
             select,
             Seq(
-              Fill(24, sign && collapse0(7)) ## collapse0,
-              Fill(16, sign && collapse1(15)) ## collapse1,
-              data
+              Fill(25, sign && collapse0(7)) ## collapse0,
+              Fill(17, sign && collapse1(15)) ## collapse1,
+              (sign && data(31)) ## data
             )
           )
         }
@@ -1249,7 +1250,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // adder 的
         val adderRequest = Wire(new LaneAdderReq(parameter.datePathParam))
-        adderRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
+        adderRequest.src := VecInit(Seq(finalSource1, finalSource2))
+        adderRequest.mask := DontCare
         adderRequest.opcode := decodeResult(Decoder.uop)
         adderRequest.sign := !decodeResult(Decoder.unsigned1)
         adderRequest.reverse := decodeResult(Decoder.reverse)
