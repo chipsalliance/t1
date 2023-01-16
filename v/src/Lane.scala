@@ -671,6 +671,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         adderRequest.sign := !decodeResult(Decoder.unsigned1)
         adderRequest.reverse := decodeResult(Decoder.reverse)
         adderRequest.average := decodeResult(Decoder.average)
+        adderRequest.saturat := decodeResult(Decoder.saturate)
+        adderRequest.maskOp := decodeResult(Decoder.maskOp)
         adderRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.adder) && !decodeResult(Decoder.other),
           adderRequest
@@ -1256,6 +1258,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         adderRequest.sign := !decodeResult(Decoder.unsigned1)
         adderRequest.reverse := decodeResult(Decoder.reverse)
         adderRequest.average := decodeResult(Decoder.average)
+        adderRequest.saturat := decodeResult(Decoder.saturate)
+        adderRequest.maskOp := decodeResult(Decoder.maskOp)
         adderRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.adder) && !decodeResult(Decoder.other),
           adderRequest
@@ -1497,7 +1501,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
     // 连接执行结果
     executeDequeueData := VecInit(
-      Seq(logicUnit.resp, adder.resp, shifter.resp, mul.resp, div.resp.bits, otherUnit.resp.data)
+      Seq(logicUnit.resp, adder.resp.data, shifter.resp, mul.resp, div.resp.bits, otherUnit.resp.data)
     )
     executeDequeueFire := executeEnqueueFire(5) ## div.resp.valid ## executeEnqueueFire(3, 0)
     // 执行单元入口握手

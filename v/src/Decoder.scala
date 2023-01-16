@@ -298,7 +298,9 @@ object Decoder {
     popCount,
     iota,
     id,
-    specialUop
+    specialUop,
+    maskOp,
+    saturate
   )
 
   private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)
