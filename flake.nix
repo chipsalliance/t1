@@ -21,7 +21,7 @@
           cmake
           libargs glog fmt libspike zlib
 
-          mill python3 go
+          mill python3 go ammonite
           gnused coreutils gnumake gnugrep which
           parallel protobuf ninja verilator antlr4 numactl dtc
           espresso

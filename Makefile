@@ -35,13 +35,14 @@ checkformat:
 	mill -i __.checkFormat
 
 ci-run:
-	mill -i -k -j $$(expr $$(nproc) / 8) tests.run[$(NAME)] GLOG_logtostderr=0
+	amm .github/scripts/ci.sc runTest . $(NAME) ./result.json
 
 ci-passed-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
-	jq -c --raw-input '{"name": split("\n") | map(select(. != "")) | .[0]}' .github/passed.txt | jq --slurp -c '{"include": .}' >> $$GITHUB_OUTPUT
+	amm .github/scripts/ci.sc passedJson $(RUNNERS) .github/passed.txt ./passed.json
+	cat ./passed.json >> $$GITHUB_OUTPUT
 
 ci-all-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
-	mill resolve 'tests.run[__]' | awk -F/ ' match($$0, /\[(.*)\]/, arr) {print(arr[1])}' | jq -c --raw-input '{"name": split("\n") | map(select(. != "")) | .[0]}' | jq --slurp -c '{"include": .}' >> $$GITHUB_OUTPUT
-
+	amm .github/scripts/ci.sc allJson $(RUNNERS) . ./all.json
+	cat ./all.json >> $$GITHUB_OUTPUT
