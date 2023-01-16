@@ -427,6 +427,18 @@ object tests extends Module {
       case _ => cases.`riscv-vector-tests`.ut(name)
     }
 
+    def ciRun = T {
+      val runEnv = Map(
+        "COSIM_bin" -> caseToRun.bin().path.toString,
+        "COSIM_wave" -> (T.dest / "wave").toString,
+        "COSIM_reset_vector" -> "1000",
+        "COSIM_timeout" -> "10000",
+        "GLOG_logtostderr" -> "0"
+      )
+      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator.elf().path.toString}")
+      os.proc(Seq(tests.emulator.elf().path.toString)).call(env = runEnv, check = false).exitCode
+    }
+
     def run(args: String*) = T.command {
       def envDefault(name: String, default: String) = {
         name -> args.map(_.split("=")).collectFirst {
@@ -438,7 +450,7 @@ object tests extends Module {
         "COSIM_bin" -> caseToRun.bin().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
-        envDefault("COSIM_timeout", "1000000"),
+        envDefault("COSIM_timeout", "10000"),
         envDefault("GLOG_logtostderr", "1"),
       )
       T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator.elf().path.toString}")

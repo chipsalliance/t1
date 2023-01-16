@@ -1,5 +1,5 @@
-name: Test
-on: [push]
+name: CI
+on: [pull_request]
 env:
   USER: runner
 
@@ -7,8 +7,9 @@ jobs:
   gen-matrix:
     name: Generate test matrix
     runs-on: [self-hosted, linux]
+    env: 
+      RUNNERS: 8
     outputs:
-      all-tests: ${{ steps.all-tests.outputs.matrix }}
       ci-tests: ${{ steps.ci-tests.outputs.matrix }}
     steps:
       - uses: actions/checkout@v3
@@ -22,14 +23,8 @@ jobs:
       - uses: cachix/install-nix-action@v18
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-          extra_nix_config: |
-            post-build-hook = /etc/nix/upload-to-cache.sh
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
-            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
       - id: ci-tests
-        run: nix-shell -p gawk --run 'make ci-passed-tests'
-      - id: all-tests
-        run: nix-shell -p mill protobuf antlr4 --run 'make ci-all-tests'
+        run: nix-shell -p ammonite --run 'make ci-passed-tests'
 
   ci:
     name: "CI"
@@ -38,6 +33,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
     runs-on: [self-hosted, linux]
+    outputs:
+      result: ${{ steps.ci-run.outputs.result }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -54,7 +51,8 @@ jobs:
             post-build-hook = /etc/nix/upload-to-cache.sh
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-      - run: nix develop -c make ci-run NAME=${{ matrix.name }}
+      - id: ci-run
+        run: nix develop -c make ci-run NAME=${{ matrix.name }}
       - uses: actions/upload-artifact@v3
         if: always()
         with:
