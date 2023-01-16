@@ -39,7 +39,7 @@ object Decoder {
     def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc
     else if (
       subs.exists(op.name.contains) &&
-        !(op.tpe == "M" && Seq("vm", "vnm").exists(op.name.startsWith))
+      !(op.tpe == "M" && Seq("vm", "vnm").exists(op.name.startsWith))
     ) y
     else n
   }
@@ -96,6 +96,15 @@ object Decoder {
     def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name.contains("red")) y else n
   }
 
+  object maskOp extends BoolField {
+    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc
+    else if (
+      op.name.startsWith("vm") && ((adder.genTable(op) == y && !Seq("min", "max").exists(op.name.contains)) || logic
+        .genTable(op) == y)
+    ) y
+    else n
+  }
+
   object reverse extends BoolField {
     def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name == "vrsub") y else n
   }
@@ -111,6 +120,11 @@ object Decoder {
 
   object widen extends BoolField {
     def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name.startsWith("vw")) y else n
+  }
+
+  object saturate extends BoolField {
+    def genTable(op: Op): BitPat =
+      if (op.special.nonEmpty) dc else if (Seq("vsa", "vss", "vsm").exists(op.name.startsWith)) y else n
   }
 
   object average extends BoolField {
@@ -253,7 +267,7 @@ object Decoder {
                 (("00" + log2(op.name.last.toString.toInt).toBinaryString).takeRight(2))
             } else
               "?" * 3
-            )
+          )
       BitPat("b" + table)
     }
   }
@@ -288,6 +302,6 @@ object Decoder {
   )
 
   private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)
-  def decode: UInt => DecodeBundle = decodeTable.decode
-  def bundle: DecodeBundle = decodeTable.bundle
+  def decode:              UInt => DecodeBundle = decodeTable.decode
+  def bundle:              DecodeBundle = decodeTable.bundle
 }
