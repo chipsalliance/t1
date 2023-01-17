@@ -133,8 +133,8 @@ class LaneAdder(param: DataPathParam) extends Module {
   resp.data := Mux1H(
     Seq(
       !req.maskOp && (uopOH(1, 0) ## uopOH(11, 10)).orR && !overflow,
-      uopOH(6) && !less,
-      uopOH(7) && less,
+      (uopOH(6) && !less) || (uopOH(7) && less),
+      (uopOH(6) && less) || (uopOH(7) && !less),
       upperOverflow && req.saturat,
       lowerOverflow && req.saturat
     ),
