@@ -1580,7 +1580,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.vrfWriteMask := 0.U
   // todo: vStart(2,0) > lane index
   entranceControl.groupCounter := (csrInterface.vStart >> 3).asUInt
+  val src1IsSInt: Bool = !laneRequest.bits.decodeResult(Decoder.unsigned0)
   // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
+  val immSignExtend: UInt = Fill(16, laneRequest.bits.vs1(4) && (vSew1H(2) || src1IsSInt)) ##
+    Fill(8, laneRequest.bits.vs1(4) && (vSew1H(1) || vSew1H(2) || src1IsSInt)) ##
+    Fill(3, laneRequest.bits.vs1(4)) ## laneRequest.bits.vs1
   val vs1entrance: UInt =
     Mux(
       laneRequest.bits.decodeResult(Decoder.vtype),
@@ -1588,7 +1592,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       Mux(
         laneRequest.bits.decodeResult(Decoder.xtype),
         laneRequest.bits.readFromScalar,
-        VecInit(Seq.fill(parameter.datapathWidth - 5)(laneRequest.bits.vs1(4))).asUInt ## laneRequest.bits.vs1
+        immSignExtend
       )
     )
   val entranceInstType: UInt = laneRequest.bits.instType
