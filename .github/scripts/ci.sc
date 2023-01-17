@@ -12,5 +12,10 @@ def allJson(bucketSize: Int, root: os.Path, outputFile: os.Path) = writeJson(buc
 @main
 def runTest(root: os.Path, jobs: String, outputFile: os.Path) = {
   jobs.split(",").foreach(job => os.proc("mill", job).call(root))
-  os.write(outputFile, ujson.write(ujson.Arr(os.walk(os.pwd).filter(_.last == "ciRun.json").map(f => f.segments.toSeq.dropRight(1).last -> ujson.Bool(ujson.read(os.read(f))("value").num.toInt == 0)))))
+  val allJson = os.walk(os.pwd).filter(_.last == "ciRun.json")
+  val exitCode = allJson.map(f => ujson.read(os.read(f))("value").num.toInt).reduce(_ max _)
+  allJson.map(f => s"|${f.segments.toSeq.dropRight(1).last}|${ujson.Bool(ujson.read(os.read(f))("value").num.toInt == 0)}|\n").foreach(os.write.append(outputFile, _))
+  if (exitCode != 0) {
+    throw new Exception(s"runTest failed with exit code ${exitCode}")
+  }
 }

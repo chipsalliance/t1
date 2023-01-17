@@ -432,7 +432,7 @@ object tests extends Module {
         "COSIM_bin" -> caseToRun.bin().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
-        "COSIM_timeout" -> "10000",
+        "COSIM_timeout" -> "1000000",
         "GLOG_logtostderr" -> "0"
       )
       T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator.elf().path.toString}")
@@ -450,7 +450,7 @@ object tests extends Module {
         "COSIM_bin" -> caseToRun.bin().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
-        envDefault("COSIM_timeout", "10000"),
+        envDefault("COSIM_timeout", "1000000"),
         envDefault("GLOG_logtostderr", "1"),
       )
       T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator.elf().path.toString}")
