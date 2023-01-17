@@ -49,7 +49,7 @@ class LaneAdder(param: DataPathParam) extends Module {
   // sub + 1 || carry || borrow
   val operation2: UInt = isSub ^ req.mask
   val vSewOrR: Bool = csr.vSew.orR
-  val maskForSew: UInt = Fill(16, csr.vSew(1)) ## Fill(8, vSewOrR) ## 0.U(8.W)
+  val maskForSew: UInt = Fill(16, csr.vSew(1)) ## Fill(8, vSewOrR) ## Fill(8, true.B)
   val signForSew: UInt = csr.vSew(1) ## 0.U(15.W) ## csr.vSew(0) ## 0.U(7.W) ## !vSewOrR ## 0.U(7.W)
   // 计算最近值
   /** 往下溢出的值
@@ -86,19 +86,29 @@ class LaneAdder(param: DataPathParam) extends Module {
   // TODO: adder
   val (s, c) = csa32(subOperation0, subOperation1, roundingBits ## operation2)
   val addResult: UInt = s + (c ## false.B)
+  val addResultSignBit: Bool = Mux1H(
+    Seq(!vSewOrR, csr.vSew(0), csr.vSew(1)),
+    Seq(addResult(7), addResult(15), addResult(31))
+  )
+  val overflowBit: Bool = Mux1H(
+    Seq(!vSewOrR, csr.vSew(0), csr.vSew(1)),
+    Seq(addResult(8), addResult(16), addResult(32))
+  )
   // 计算溢出的条件
   /** 下溢条件:
     *   1. 两操作数都是负的,结果符号位变成0了   eg: 0x80000000 + 0xffffffff
     *   1. isSub & U, 结果符号位是1         eg: 1 - 3
     */
   val lowerOverflow: Bool =
-    (subOperation0(param.dataWidth) && subOperation1(param.dataWidth) && !addResult(param.dataWidth)) ||
-      (isSub && !req.sign && addResult(param.dataWidth))
+    (subOperation0(param.dataWidth) && subOperation1(param.dataWidth) && !addResultSignBit) ||
+      (isSub && !req.sign && addResultSignBit)
   /** 上溢条件：
-    *   1. 两正的加出了符号位
+    *   1. S: 两正的加出了符号位
+    *   1. U: 溢出位有值
     */
   val upperOverflow: Bool =
-    !subOperation0(param.dataWidth) && !subOperation1(param.dataWidth) && addResult(param.dataWidth)
+    !subOperation0(param.dataWidth) && !subOperation1(param.dataWidth) && addResultSignBit ||
+      (!req.sign && overflowBit)
 
   // 开始比较
   val equal: Bool = addResult(param.dataWidth - 1, 0) === 0.U
