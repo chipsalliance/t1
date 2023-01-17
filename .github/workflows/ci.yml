@@ -7,7 +7,7 @@ jobs:
   gen-matrix:
     name: Generate test matrix
     runs-on: [self-hosted, linux]
-    env: 
+    env:
       RUNNERS: 8
     outputs:
       ci-tests: ${{ steps.ci-tests.outputs.matrix }}
@@ -53,9 +53,30 @@ jobs:
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
       - id: ci-run
         run: nix develop -c make ci-run NAME=${{ matrix.name }}
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: results
+          path: result-*.md
+
       - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: nix-post-build-hook-log
           path: /tmp/nix-post-build-hook.log
 
+  report:
+    name: "Report CI result"
+    needs: [ci]
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: actions/download-artifact@v3
+        with:
+          name: results
+      - run: cat result-*.md > result.md
+      - uses: thollander/actions-comment-pull-request@v2
+        with:
+          filePath: result.md
