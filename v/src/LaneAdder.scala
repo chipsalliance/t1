@@ -106,9 +106,11 @@ class LaneAdder(param: DataPathParam) extends Module {
     *   1. S: 两正的加出了符号位
     *   1. U: 溢出位有值
     */
-  val upperOverflow: Bool =
-    !subOperation0(param.dataWidth) && !subOperation1(param.dataWidth) && addResultSignBit ||
-      (!req.sign && overflowBit)
+  val upperOverflow: Bool = Mux(
+    req.sign,
+    !subOperation0(param.dataWidth) && !subOperation1(param.dataWidth) && addResultSignBit,
+    overflowBit
+  )
 
   // 开始比较
   val equal: Bool = addResult(param.dataWidth - 1, 0) === 0.U
