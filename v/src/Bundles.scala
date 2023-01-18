@@ -89,6 +89,14 @@ class LaneRequest(param: LaneParameter) extends Bundle {
 
   // TODO: move to [[V]]
   def ma: Bool = decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).orR
+  // TODO: decode eg: vmslt
+  def maskDestination = decodeResult(Decoder.maskOp) && (
+    decodeResult(Decoder.adder) && decodeResult(Decoder.uop) === 2.U
+  )
+  // TODO: decode eg: adc
+  def maskSource = decodeResult(Decoder.maskOp) && (
+    decodeResult(Decoder.adder) && decodeResult(Decoder.uop) === 10.U
+  )
 
   // TODO: move to Module
   def initState: InstGroupState = {
@@ -100,12 +108,13 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.wRead1 := !crossRead
     res.wRead2 := !crossRead
     res.wScheduler := !special
+    // todo
+    res.sScheduler := !maskDestination
     res.sExecute := false.B
     //todo: red
     res.wExecuteRes := special
-    res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) || decodeResult(
-      Decoder.widen
-    )
+    res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) ||
+      decodeResult(Decoder.widen) || maskDestination
     res.sCrossWrite0 := !decodeResult(Decoder.widen)
     res.sCrossWrite1 := !decodeResult(Decoder.widen)
     res.sSendResult0 := !crossRead
@@ -141,6 +150,7 @@ class InstGroupState(param: LaneParameter) extends Bundle {
   val wRead1:     Bool = Bool()
   val wRead2:     Bool = Bool()
   val wScheduler: Bool = Bool()
+  val sScheduler: Bool = Bool()
   val sExecute:   Bool = Bool()
   // 发送写的
   val sCrossWrite0: Bool = Bool()
