@@ -5,7 +5,6 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 
-import scala.annotation.unused
 
 object LaneParameter {
   implicit def rwP: upickle.default.ReadWriter[LaneParameter] = upickle.default.macroRW
@@ -187,6 +186,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val crossWriteResultMSBHalf: UInt = RegInit(0.U(parameter.datapathWidth.W))
   val crossWriteMaskMSBHalf:   UInt = RegInit(0.U((parameter.dataPathByteWidth / 2).W))
 
+  val maskFormatResult: UInt = RegInit(0.U(parameter.datapathWidth.W))
   /** arbiter for VRF write
     * 1 for [[vrfWriteChannel]]
     */
@@ -304,6 +304,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** execution result for each VFU. */
   val executeDequeueData: Vec[UInt] = Wire(Vec(parameter.executeUnitNum, UInt(parameter.datapathWidth.W)))
+
+  /** mask format result out put in adder. */
+  val adderMaskResp: Bool = Wire(Bool())
+
+  /** vxsat for saturate. */
+  val vxsat: Bool = Wire(Bool())
 
   /** for each slot, it occupies which VFU. */
   val instructionTypeVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.executeUnitNum.W)))
@@ -472,7 +478,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             // head should alive, if not, the slot should shift to make head alive
             slotOccupied.head &&
             // cross lane instruction should execute in the first slot
-            !(needCrossRead || needCrossWrite) &&
+            !(needCrossRead || needCrossWrite || record.originalInformation.decodeResult(Decoder.maskOp)) &&
             // mask should ready for masked instruction
             maskReady
 
@@ -728,7 +734,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // viota & compress & ls 需要给外边数据
         val maskType: Bool =
           (record.originalInformation.special || record.originalInformation.loadStore) && slotActive(index)
-        val maskValid = maskType && readFinish && !record.state.sExecute
+        val maskValid = maskType && readFinish && record.state.sExecute && !record.state.sScheduler
         // 往外边发的是原始的数据
         maskRequest.data := source2(index)
         maskRequest.toLSU := record.originalInformation.loadStore
@@ -741,10 +747,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         ) {
           record.state.wScheduler := true.B
         }
+        when(maskValid){
+          record.state.sScheduler := true.B
+        }
         instructionTypeVec(index) := record.originalInformation.instType
         executeEnqueueValid(index) := maskAnd(readFinish && !record.state.sExecute, instructionTypeVec(index))
-        when((instructionTypeVec(index) & executeEnqueueFire).orR || maskValid) {
-          when(groupEnd || maskValid) {
+        when((instructionTypeVec(index) & executeEnqueueFire).orR) {
+          when(groupEnd) {
             record.state.sExecute := true.B
           }.otherwise {
             record.executeIndex := nextExecuteIndex
@@ -1313,12 +1322,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // 往scheduler的执行任务compress viota
         val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(parameter)))
 
+        val maskTypeDestinationWriteValid = record.originalInformation.maskDestination &&
+          (lastGroupForMask || instructionExecuteFinished(index))
         // viota & compress & ls 需要给外边数据
-        val maskType: Bool =
-          (record.originalInformation.special || record.originalInformation.loadStore) && slotActive(index)
-        val maskValid = maskType && readFinish && !record.state.sExecute
+        val maskType: Bool = (record.originalInformation.special || record.originalInformation.loadStore ||
+          maskTypeDestinationWriteValid) && slotActive(index)
+        val maskValid = maskType && readFinish && record.state.sExecute && !record.state.sScheduler
         // 往外边发的是原始的数据
-        maskRequest.data := source2(index)
+        maskRequest.data := Mux(
+          record.originalInformation.maskDestination,
+          maskFormatResult,
+          Mux(
+            record.originalInformation.decodeResult(Decoder.red),
+            result(index),
+            source2(index)
+          )
+        )
         maskRequest.toLSU := record.originalInformation.loadStore
         maskRequest.instructionIndex := record.originalInformation.instructionIndex
         maskRequests(index) := maskAnd(slotOccupied(index) && maskValid, maskRequest)
@@ -1328,6 +1347,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           laneResponseFeedback.valid && laneResponseFeedback.bits.instructionIndex === record.originalInformation.instructionIndex
         ) {
           record.state.wScheduler := true.B
+        }
+        when(maskValid) {
+          record.state.sScheduler := true.B
         }
         instructionTypeVec(index) := record.originalInformation.instType
         executeEnqueueValid(index) := maskAnd(readFinish && !record.state.sExecute, instructionTypeVec(index))
@@ -1352,6 +1374,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
           }
         }
+
+        // 更新mask类型的结果
+        val elementMaskFormatResult: UInt = Mux(adderMaskResp , current1H, 0.U)
+        val maskFormatResultUpdate: UInt = maskFormatResult | Mux(masked, 0.U, elementMaskFormatResult)
+        when(dataDequeueFire) {
+          maskFormatResult := maskFormatResultUpdate
+        }
+
         // 写rf
         vrfWriteArbiter(index).valid := record.state.wExecuteRes && !record.state.sWrite && slotActive(index)
         vrfWriteArbiter(index).bits.vd := record.originalInformation.vd + record.groupCounter(
@@ -1378,6 +1408,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         when(stateCheck || record.instCompleted) {
           when((instructionExecuteFinished(index) && crossReadReady) || record.instCompleted) {
             slotOccupied(index) := false.B
+            maskFormatResult := 0.U
             when(slotOccupied(index)) {
               instructionFinishedVec(index) := UIntToOH(
                 record.originalInformation.instructionIndex(parameter.instructionIndexSize - 2, 0)
@@ -1509,6 +1540,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val tryToUseExecuteUnit = VecInit(executeEnqueueValid.map(_.asBools).transpose.map(VecInit(_).asUInt.orR)).asUInt
     executeEnqueueFire := tryToUseExecuteUnit & (true.B ## div.req.ready ## 15.U(4.W))
     div.req.valid := tryToUseExecuteUnit(4)
+    adderMaskResp := adder.resp.singleResult
+    // todo: vssra
+    vxsat := adder.resp.vxsat
   }
 
   // 处理 rf
