@@ -1331,8 +1331,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         }
         instructionTypeVec(index) := record.originalInformation.instType
         executeEnqueueValid(index) := maskAnd(readFinish && !record.state.sExecute, instructionTypeVec(index))
-        when((instructionTypeVec(index) & executeEnqueueFire).orR || maskValid) {
-          when(groupEnd || maskValid) {
+        // todo: 不用在lane执行的maskUnit的指令不要把sExecute初始值设0
+        when((instructionTypeVec(index) & executeEnqueueFire).orR) {
+          when(groupEnd) {
             record.state.sExecute := true.B
           }.otherwise {
             record.executeIndex := nextExecuteIndex
