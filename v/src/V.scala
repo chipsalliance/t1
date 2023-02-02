@@ -233,6 +233,22 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val data: Vec[ValidIO[UInt]] = RegInit(
     VecInit(Seq.fill(parameter.laneNumer)(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W)))))
   )
+  // 按指定的sew拼成 {laneNumer * dataPathWidth} bit, 然后根据sew选择出来
+  val sortedData: UInt = Mux1H(sew1H(2, 0), Seq(4, 2, 1).map { groupSize =>
+    VecInit(data.map { element =>
+      element.bits.asBools                      //[x] * 32 eg: sew = 1
+        .grouped(groupSize)                     //[x, x] * 16
+        .toSeq
+        .map(VecInit(_).asUInt)                 //[xx] * 16
+    }.transpose.map(VecInit(_).asUInt)).asUInt  //[x*16] * 16 -> x * 256
+  })
+  // 把已经排过序的数据重新分给各个lane
+  val regroupData: Vec[UInt] = VecInit(Seq.tabulate(parameter.laneNumer) { laneIndex =>
+    sortedData(
+      laneIndex * parameter.dataPathWidth + parameter.dataPathWidth - 1,
+      laneIndex * parameter.dataPathWidth
+    )
+  })
   val dataResult: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W))))
   // todo: viota & compress & reduce
 
@@ -309,19 +325,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       }
       // 执行
       // mask destination write
-      // 32 * 8 变成另一种 32 * 8
-      val regroupData = VecInit(Seq(4, 2, 1).map { groupSize =>
-        data.map { element =>
-          element.bits.asBools
-            .grouped(groupSize)
-            .toSeq
-            .map(VecInit(_).asUInt)
-            .grouped(parameter.laneNumer)
-            .toSeq
-            .transpose
-            .map(seq => VecInit(seq).asUInt)
-        }.transpose.map(VecInit(_).asUInt)
-      }.transpose.map(Mux1H(sew1H(2, 0), _)))
       /** 对于mask destination 类型的指令需要特别注意两种不对齐
         *   第一种是我们以 32(dataPatWidth) * 8(laneNumber) 为一个组, 但是我们vl可能不对齐一整个组
         *   第二种是 32(dataPatWidth) 的时候对不齐
