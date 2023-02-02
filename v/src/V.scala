@@ -392,7 +392,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           !control.state.sExecute
       ) {
         when(needWAR && !WARRedResult.valid) {
-          maskUnitRead.valid := false.B
+          maskUnitRead.valid := true.B
           when(maskUnitRead.ready) {
             WARRedResult.bits := readResultSelectResult
             WARRedResult.valid := true.B
