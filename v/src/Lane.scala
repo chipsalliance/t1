@@ -442,6 +442,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   slotControl.zipWithIndex.foreach {
     case (record, index) =>
+      val executeFinish =
+        record.state.sExecute &&
+          record.state.wExecuteRes &&
+          record.state.sWrite
+      val crossWriteFinish: Bool = record.state.sCrossWrite0 && record.state.sCrossWrite1
+      val crossReadFinish: Bool = record.state.sSendResult0 && record.state.sSendResult1
+      val schedulerFinish: Bool = record.state.wScheduler && record.state.sScheduler
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
@@ -928,6 +935,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             // wait for cross lane read result
             record.state.wRead1 &&
             record.state.wRead2
+        // lane 里面正常的一次状态转换,不包含与scheduler的交流
+        val internalEnd: Bool = readFinish && executeFinish && crossReadFinish && crossWriteFinish
+        val stateEnd: Bool = internalEnd && schedulerFinish
 
         // state machine control
         when(vrfReadRequest(index)(0).fire) {
@@ -1321,12 +1331,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // 往scheduler的执行任务compress viota
         val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(parameter)))
-
-        val maskTypeDestinationWriteValid = record.originalInformation.maskDestination &&
-          (lastGroupForMask || instructionExecuteFinished(index))
+        val needUpdateMaskDestination: Bool = lastGroupForMask || instructionExecuteFinished(index)
+        val maskTypeDestinationWriteValid = record.originalInformation.maskDestination && needUpdateMaskDestination
         // viota & compress & ls 需要给外边数据
-        val maskType: Bool = (record.originalInformation.special || record.originalInformation.loadStore ||
+        val maskType: Bool = (record.originalInformation.loadStore ||
           maskTypeDestinationWriteValid) && slotActive(index)
+        /** mask类型的指令并不是每一轮的状态机都会需要与scheduler交流
+          * 只有mask destination 类型的才会有scheduler与状态机不对齐的情况
+          *   我们用[[maskTypeDestinationWriteValid]]区分这种
+          * 有每轮需要交换和只需要交换一次的区别(compress & red)
+          */
         val maskValid = maskType && readFinish && record.state.sExecute && !record.state.sScheduler
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
@@ -1402,7 +1416,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val stateCheck = Mux(
           waitCrossRead,
           readFinish,
-          record.state.asUInt.andR && maskUnhindered
+          Mux(
+            record.originalInformation.maskDestination,
+            internalEnd && (!needUpdateMaskDestination || schedulerFinish),
+            stateEnd && maskUnhindered
+          )
         )
         val crossReadReady: Bool = !needCrossRead || instructionCrossReadFinished
         when(stateCheck || record.instCompleted) {
