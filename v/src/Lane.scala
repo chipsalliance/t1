@@ -1392,8 +1392,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // 更新mask类型的结果
         val elementMaskFormatResult: UInt = Mux(adderMaskResp , current1H, 0.U)
         val maskFormatResultUpdate: UInt = maskFormatResult | Mux(masked, 0.U, elementMaskFormatResult)
-        when(dataDequeueFire) {
-          maskFormatResult := maskFormatResultUpdate
+        when(dataDequeueFire || maskValid) {
+          maskFormatResult := Mux(maskValid, 0.U, maskFormatResultUpdate)
         }
 
         // 写rf
