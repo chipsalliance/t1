@@ -449,6 +449,53 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val crossWriteFinish: Bool = record.state.sCrossWrite0 && record.state.sCrossWrite1
       val crossReadFinish: Bool = record.state.sSendResult0 && record.state.sSendResult1
       val schedulerFinish: Bool = record.state.wScheduler && record.state.sScheduler
+      val needMaskSource: Bool = record.originalInformation.mask || record.originalInformation.maskSource
+      // 由于mask会作为adc的输入,关于mask的计算是所有slot都需要的
+      /** for non-masked instruction, always ready,
+        * for masked instruction, need to wait for mask
+        */
+      val maskReady: Bool = record.mask.valid || !needMaskSource
+
+      /** 正在算的是这个lane的第多少个 element */
+      val elementIndex: UInt = Mux1H(
+        vSew1H(2, 0),
+        Seq(
+          (record.groupCounter ## record.executeIndex)(4, 0),
+          (record.groupCounter ## record.executeIndex(1))(4, 0),
+          record.groupCounter
+        )
+      )
+      /** 这一组element对应的mask的值 */
+      val maskBits = record.mask.bits(elementIndex(parameter.datapathWidthWidth - 1, 0))
+      /** !vm的时候表示这个element被mask了 */
+      val masked = record.originalInformation.mask && !maskBits
+
+      // 选出下一个element的index
+      val maskCorrection: UInt = Mux1H(
+        Seq(record.originalInformation.mask && record.mask.valid, !record.originalInformation.mask),
+        Seq(record.mask.bits, (-1.S(parameter.datapathWidth.W)).asUInt)
+      )
+      val current1H = UIntToOH(elementIndex(4, 0))
+      val next1H =
+        ffo((scanLeftOr(current1H) ## false.B) & maskCorrection)(parameter.datapathWidth - 1, 0)
+      /** 计算结果需要偏移的: executeIndex * 8 */
+      val dataOffset: UInt = record.executeIndex ## 0.U(3.W)
+      val nextOrR: Bool = next1H.orR
+      // nextIndex.getWidth = 5
+      val nextIndex: UInt = OHToUInt(next1H)
+
+      /**
+        * 一组mask有 [[parameter.maskGroupWidth]] 个bit
+        * 每0组数据执行 4, 2, 1 个 element
+        * */
+      val lastGroupForMask = Mux1H(
+        vSew1H(2, 0),
+        Seq(
+          record.groupCounter(log2Ceil(parameter.maskGroupWidth / 4) - 1, 0).andR,
+          record.groupCounter(log2Ceil(parameter.maskGroupWidth / 2) - 1, 0).andR,
+          record.groupCounter(log2Ceil(parameter.maskGroupWidth) - 1, 0).andR,
+        )
+      )
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
@@ -469,16 +516,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           * but this element might be masked.
           * So firstMasked is used to take care of this.
           */
-        val firstMasked: Bool = Wire(Bool())
+        /*val firstMasked: Bool = Wire(Bool())*/
         // TODO: move this to verification module
         when(needCrossRead) {
           assert(csrInterface.vSew != 2.U)
         }
-
-        /** for non-masked instruction, always ready,
-          * for masked instruction, need to wait for mask
-          */
-        val maskReady: Bool = record.mask.valid || !record.originalInformation.mask
         slotActive(index) :=
           // slot should alive
           slotOccupied(index) &&
@@ -541,40 +583,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           record.state.sReadVD := true.B
           source3(index) := vrfReadResult(index)(2)
         }
-
-        // 发起执行单元的请求
-        /** 计算结果需要偏移的: executeIndex * 8 */
-        val dataOffset: UInt = record.executeIndex ## 0.U(3.W)
-
-        /** 正在算的是这个lane的第多少个 element */
-        val elementIndex: UInt = Mux1H(
-          vSew1H(2, 0),
-          Seq(
-            (record.groupCounter ## record.executeIndex)(4, 0),
-            (record.groupCounter ## record.executeIndex(1))(4, 0),
-            record.groupCounter
-          )
-        )
-
-        firstMasked :=
-          // is mask type
-          record.originalInformation.mask &&
-            // mask is valid
-            record.mask.valid &&
-            // is executing first element in mask group
-            (elementIndex(4, 0) === 0.U) &&
-            // this element is masked
-            !record.mask.bits(0)
-        // 选出下一个element的index
-        val maskCorrection: UInt = Mux1H(
-          Seq(record.originalInformation.mask && record.mask.valid, !record.originalInformation.mask),
-          Seq(record.mask.bits, (-1.S(parameter.datapathWidth.W)).asUInt)
-        )
-        val next1H =
-          ffo((scanLeftOr(UIntToOH(elementIndex(4, 0))) ## false.B) & maskCorrection)(parameter.datapathWidth - 1, 0)
-        val nextOrR: Bool = next1H.orR
-        // nextIndex.getWidth = 5
-        val nextIndex: UInt = OHToUInt(next1H)
 
         /** 这一组的mask已经没有剩余了 */
         val maskNeedUpdate = !nextOrR
@@ -775,7 +783,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             record.state.wExecuteRes := true.B
           }
           result(index) := resultUpdate
-          when(!firstMasked) {
+          when(!masked) {
             record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
           }
         }
@@ -847,17 +855,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         /** fire of [[dataDequeue]] */
         val dataDequeueFire: Bool = (instructionTypeVec(index) & executeDequeueFire).orR
 
-        /** 直接表示这个element被mask了 */
-        val masked: Bool = Wire(Bool())
         // TODO: move this to verification module
         when(needCrossRead) {
           assert(csrInterface.vSew != 2.U)
         }
-
-        /** for non-masked instruction, always ready,
-          * for masked instruction, need to wait for mask
-          */
-        val maskReady: Bool = record.mask.valid || !record.originalInformation.mask
         slotActive(index) :=
           // slot should alive
           slotOccupied(index) &&
@@ -1074,62 +1075,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           crossWriteMaskLSBHalf := 0.U
           crossWriteMaskMSBHalf := 0.U
         }
-        // 发起执行单元的请求
-        /** 计算结果需要偏移的: executeIndex * 8 */
-        val dataOffset: UInt = record.executeIndex ## 0.U(3.W)
-
-        /** 正在算的是这个lane的第多少个 element */
-        val elementIndex: UInt = Mux1H(
-          vSew1H(2, 0),
-          Seq(
-            (record.groupCounter ## record.executeIndex)(4, 0),
-            (record.groupCounter ## record.executeIndex(1))(4, 0),
-            record.groupCounter
-          )
-        )
-
-        masked :=
-          // is mask type
-          record.originalInformation.mask &&
-            // mask is valid
-            record.mask.valid &&
-            !record.mask.bits(elementIndex(parameter.datapathWidthWidth - 1, 0))
-        // 选出下一个element的index
-        val maskCorrection: UInt = Mux1H(
-          Seq(record.originalInformation.mask && record.mask.valid, !record.originalInformation.mask),
-          Seq(record.mask.bits, (-1.S(parameter.datapathWidth.W)).asUInt)
-        )
-        val current1H = UIntToOH(elementIndex(4, 0))
-        val next1H =
-          ffo((scanLeftOr(current1H) ## false.B) & maskCorrection)(parameter.datapathWidth - 1, 0)
-        val differentDataGroup: Bool = Mux1H(
-          vSew1H(1, 0),
-          Seq(4, 2).map { elementNumberPerGroup =>
-            Seq(current1H, next1H).map { elementPosition =>
-              VecInit(
-                elementPosition.asBools
-                  .grouped(elementNumberPerGroup)
-                  .toSeq
-                  .map(VecInit(_).asUInt.orR)
-              ).asUInt
-            }.reduce(_ & _).orR
-          }
-        ) || vSew1H(2)
-        val nextOrR: Bool = next1H.orR
-        // nextIndex.getWidth = 5
-        val nextIndex: UInt = OHToUInt(next1H)
-        /**
-          * 一组mask有 [[parameter.maskGroupWidth]] 个bit
-          * 每0组数据执行 4, 2, 1 个 element
-          * */
-        val lastGroupForMask = Mux1H(
-          vSew1H(2, 0),
-          Seq(
-            record.groupCounter(log2Ceil(parameter.maskGroupWidth / 4) - 1, 0).andR,
-            record.groupCounter(log2Ceil(parameter.maskGroupWidth / 2) - 1, 0).andR,
-            record.groupCounter(log2Ceil(parameter.maskGroupWidth) - 1, 0).andR,
-          )
-        )
 
         /** 这一组的mask已经没有剩余了 */
         val maskNeedUpdate = !nextOrR && (!alwaysNextGroup || lastGroupForMask)
@@ -1611,7 +1556,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   {
     // 处理mask的请求
     val maskSelectArbitrator = ffo(
-      VecInit(slotMaskRequestVec.map(_.valid)).asUInt ## (laneRequest.valid && laneRequest.bits.mask)
+      VecInit(slotMaskRequestVec.map(_.valid)).asUInt ##
+        (laneRequest.valid && (laneRequest.bits.mask || laneRequest.bits.maskSource))
     )
     maskRequestFireOH := maskSelectArbitrator(parameter.chainingSize, 1)
     maskSelect := Mux1H(
