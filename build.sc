@@ -436,7 +436,10 @@ object tests extends Module {
         "GLOG_logtostderr" -> "0"
       )
       T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator.elf().path.toString}")
-      os.proc(Seq(tests.emulator.elf().path.toString)).call(env = runEnv, check = false).exitCode
+      val exitCode = os.proc(Seq(tests.emulator.elf().path.toString)).call(env = runEnv, check = false).exitCode
+      if (exitCode != 0) {
+        throw new Exception(s"CI failed with exit code ${exitCode}")
+      }
     }
 
     def run(args: String*) = T.command {
