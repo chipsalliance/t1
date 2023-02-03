@@ -55,6 +55,7 @@ jobs:
         run: nix develop -c make ci-run NAME=${{ matrix.name }}
 
       - uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: results
           path: result-*.md
@@ -81,3 +82,5 @@ jobs:
       - uses: thollander/actions-comment-pull-request@v2
         with:
           filePath: result.md
+          comment_tag: ci-report
+          mode: recreate
