@@ -42,7 +42,7 @@ class LaneAdder(param: DataPathParam) extends Module {
   // todo: decode
   // ["add", "sub", "slt", "sle", "sgt", "sge", "max", "min", "seq", "sne", "adc", "sbc"]
   val uopOH: UInt = UIntToOH(req.opcode)(11, 0)
-  val isSub: Bool = !(uopOH(0) || uopOH(11))
+  val isSub: Bool = !(uopOH(0) || uopOH(10))
   // sub -> src(1) - src(0)
   val subOperation0: UInt = Mux(isSub && !req.reverse, (~req.src.head).asUInt, req.src.head)
   val subOperation1: UInt = Mux(isSub && req.reverse, (~req.src.last).asUInt, req.src.last)
