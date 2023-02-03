@@ -449,7 +449,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val crossWriteFinish: Bool = record.state.sCrossWrite0 && record.state.sCrossWrite1
       val crossReadFinish: Bool = record.state.sSendResult0 && record.state.sSendResult1
       val schedulerFinish: Bool = record.state.wScheduler && record.state.sScheduler
-      val needMaskSource: Bool = record.originalInformation.mask || record.originalInformation.maskSource
+      val needMaskSource: Bool = record.originalInformation.mask
       // 由于mask会作为adc的输入,关于mask的计算是所有slot都需要的
       /** for non-masked instruction, always ready,
         * for masked instruction, need to wait for mask
@@ -466,13 +466,18 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         )
       )
       /** 这一组element对应的mask的值 */
-      val maskBits = record.mask.bits(elementIndex(parameter.datapathWidthWidth - 1, 0))
+      val maskBits: Bool = record.mask.bits(elementIndex(parameter.datapathWidthWidth - 1, 0))
+      val maskAsInput: Bool = maskBits && record.originalInformation.maskSource
+      /** 会跳element的mask */
+      val skipEnable: Bool = record.originalInformation.mask &&
+        // adc: vm = 0; madc: vm = 0 -> s0 + s1 + c, vm = 1 -> s0 + s1
+        !record.originalInformation.maskSource
       /** !vm的时候表示这个element被mask了 */
-      val masked = record.originalInformation.mask && !maskBits
+      val masked: Bool = skipEnable && !maskBits
 
       // 选出下一个element的index
       val maskCorrection: UInt = Mux1H(
-        Seq(record.originalInformation.mask && record.mask.valid, !record.originalInformation.mask),
+        Seq(skipEnable && record.mask.valid, !skipEnable),
         Seq(record.mask.bits, (-1.S(parameter.datapathWidth.W)).asUInt)
       )
       val current1H = UIntToOH(elementIndex(4, 0))
@@ -600,7 +605,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val nextExecuteIndex = nextIntermediateVolume(1, 0)
 
         /** 虽然没有计算完一组,但是这一组剩余的都被mask去掉了 */
-        val maskFilterEnd = record.originalInformation.mask && (nextGroupCount =/= record.groupCounter)
+        val maskFilterEnd = skipEnable && (nextGroupCount =/= record.groupCounter)
 
         /** 需要一个除vl导致的end来决定下一个的 element index 是什么 */
         val dataDepletion = record.executeIndex === slotGroupFinishedIndex || maskFilterEnd
@@ -687,7 +692,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // adder 的
         val adderRequest = Wire(new LaneAdderReq(parameter.datePathParam))
         adderRequest.src := VecInit(Seq(finalSource1, finalSource2))
-        adderRequest.mask := DontCare
+        adderRequest.mask := maskAsInput
         adderRequest.opcode := decodeResult(Decoder.uop)
         adderRequest.sign := !decodeResult(Decoder.unsigned1)
         adderRequest.reverse := decodeResult(Decoder.reverse)
@@ -1098,7 +1103,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         )
 
         /** 虽然没有计算完一组,但是这一组剩余的都被mask去掉了 */
-        val maskFilterEnd = record.originalInformation.mask && (nextGroupMasked =/= record.groupCounter)
+        val maskFilterEnd = skipEnable && (nextGroupMasked =/= record.groupCounter)
 
         /** 这是会执行的最后一组 */
         val lastExecuteGroup: Bool = lastGroupForLane === record.groupCounter
@@ -1217,7 +1222,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // adder 的
         val adderRequest = Wire(new LaneAdderReq(parameter.datePathParam))
         adderRequest.src := VecInit(Seq(finalSource1, finalSource2))
-        adderRequest.mask := DontCare
+        adderRequest.mask := maskAsInput
         adderRequest.opcode := decodeResult(Decoder.uop)
         adderRequest.sign := !decodeResult(Decoder.unsigned1)
         adderRequest.reverse := decodeResult(Decoder.reverse)

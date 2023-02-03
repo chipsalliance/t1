@@ -94,9 +94,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     decodeResult(Decoder.adder) && decodeResult(Decoder.uop) === 2.U
   )
   // TODO: decode eg: adc
-  def maskSource = decodeResult(Decoder.maskOp) && (
-    decodeResult(Decoder.adder) && decodeResult(Decoder.uop) === 10.U
-  )
+  def maskSource = decodeResult(Decoder.adder) && decodeResult(Decoder.uop) === 10.U
 
   // TODO: move to Module
   def initState: InstGroupState = {
