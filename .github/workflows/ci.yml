@@ -68,6 +68,7 @@ jobs:
   report:
     name: "Report CI result"
     needs: [ci]
+    if: always()
     runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v3
