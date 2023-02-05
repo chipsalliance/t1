@@ -35,12 +35,17 @@ checkformat:
 	mill -i __.checkFormat
 
 ci-run:
-	amm .github/scripts/ci.sc runTest . $(NAME) ./result-$(NAME).md
+	amm .github/scripts/ci.sc runTest . $(NAME) ./result-$(NAME:0:30).md
 
 ci-passed-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
 	amm .github/scripts/ci.sc passedJson $(RUNNERS) .github/passed.txt ./passed.json
 	cat ./passed.json >> $$GITHUB_OUTPUT
+
+ci-unpassed-tests:
+	echo -n matrix= >> $$GITHUB_OUTPUT
+	amm .github/scripts/ci.sc unpassedJson $(RUNNERS) . .github/passed.txt ./unpassed.json
+	cat ./unpassed.json >> $$GITHUB_OUTPUT
 
 ci-all-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
