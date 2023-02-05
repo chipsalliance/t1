@@ -74,7 +74,6 @@ jobs:
     name: "Report CI result"
     if: github.event.pull_request.merged == true
     needs: [ci]
-    if: always()
     runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v3
