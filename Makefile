@@ -44,7 +44,7 @@ ci-passed-tests:
 
 ci-unpassed-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
-	amm .github/scripts/ci.sc unpassedJson $(RUNNERS) . ./unpassed.json
+	amm .github/scripts/ci.sc unpassedJson $(RUNNERS) . .github/passed.txt ./unpassed.json
 	cat ./unpassed.json >> $$GITHUB_OUTPUT
 
 ci-all-tests:
