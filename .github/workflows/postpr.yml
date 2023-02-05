@@ -27,7 +27,7 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - id: ci-tests
-        run: nix-shell -p ammonite mill protoc antlr --run 'make ci-unpassed-tests'
+        run: nix-shell -p ammonite mill protobuf antlr4 --run 'make ci-unpassed-tests'
 
   ci:
     name: "CI"
