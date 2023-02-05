@@ -78,7 +78,7 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: results
-      - run: printf "## CI result:\n| Test | result |\n| ---- | ---- |\n" > result.md; cat result-*.md >> result.md
+      - run: printf "## CI result:\n| Test | result |\n| ---- | ---- |\n" > result.md; cat result-*.md | sort >> result.md
       - uses: thollander/actions-comment-pull-request@v2
         with:
           filePath: result.md
