@@ -72,7 +72,7 @@ jobs:
 
   report:
     name: "Report CI result"
-    if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true && always()
     needs: [ci]
     runs-on: [self-hosted, linux]
     steps:
