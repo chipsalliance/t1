@@ -8,7 +8,7 @@ env:
 jobs:
   gen-matrix:
     name: Generate test matrix
-    if: github.event.pull_request.merged == true
+    # if: github.event.pull_request.merged == true
     runs-on: [self-hosted, linux]
     env:
       RUNNERS: 8
@@ -31,7 +31,7 @@ jobs:
 
   ci:
     name: "CI"
-    if: github.event.pull_request.merged == true
+    # if: github.event.pull_request.merged == true
     needs: [gen-matrix]
     strategy:
       fail-fast: false
@@ -72,7 +72,7 @@ jobs:
 
   report:
     name: "Report CI result"
-    if: github.event.pull_request.merged == true
+    # if: github.event.pull_request.merged == true
     needs: [ci]
     if: always()
     runs-on: [self-hosted, linux]
