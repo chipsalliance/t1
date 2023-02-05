@@ -35,7 +35,7 @@ checkformat:
 	mill -i __.checkFormat
 
 ci-run:
-	amm .github/scripts/ci.sc runTest . $(NAME) ./result-$(NAME).md
+	amm .github/scripts/ci.sc runTest . $(NAME) ./result-$(NAME:0:30).md
 
 ci-passed-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
