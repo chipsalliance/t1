@@ -1,11 +1,14 @@
-name: CI
-on: [pull_request]
+name: Post PR
+on:
+  pull_request:
+    types: [closed]
 env:
   USER: runner
 
 jobs:
   gen-matrix:
     name: Generate test matrix
+    # if: github.event.pull_request.merged == true
     runs-on: [self-hosted, linux]
     env:
       RUNNERS: 8
@@ -24,10 +27,11 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - id: ci-tests
-        run: nix-shell -p ammonite --run 'make ci-passed-tests'
+        run: nix-shell -p ammonite --run 'make ci-unpassed-tests'
 
   ci:
     name: "CI"
+    # if: github.event.pull_request.merged == true
     needs: [gen-matrix]
     strategy:
       fail-fast: false
@@ -68,6 +72,7 @@ jobs:
 
   report:
     name: "Report CI result"
+    # if: github.event.pull_request.merged == true
     needs: [ci]
     if: always()
     runs-on: [self-hosted, linux]
@@ -78,7 +83,7 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: results
-      - run: printf "## CI result:\n| Test | result |\n| ---- | ---- |\n" > result.md; cat result-*.md >> result.md
+      - run: printf "## Newly passed tests after this PR:\n| Test | result |\n| ---- | ---- |\n" > result.md; cat result-*.md | grep true >> result.md
       - uses: thollander/actions-comment-pull-request@v2
         with:
           filePath: result.md
