@@ -1,0 +1,91 @@
+name: CI
+on:
+  pull_request:
+    types: [closed]
+env:
+  USER: runner
+
+jobs:
+  gen-matrix:
+    name: Generate test matrix
+    # if: github.event.pull_request.merged == true
+    runs-on: [self-hosted, linux]
+    env:
+      RUNNERS: 8
+    outputs:
+      ci-tests: ${{ steps.ci-tests.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - run: sudo -E .github/setup-actions.sh
+        env:
+          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
+          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
+          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
+      - uses: cachix/install-nix-action@v18
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - id: ci-tests
+        run: nix-shell -p ammonite --run 'make ci-unpassed-tests'
+
+  ci:
+    name: "CI"
+    # if: github.event.pull_request.merged == true
+    needs: [gen-matrix]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
+    runs-on: [self-hosted, linux]
+    outputs:
+      result: ${{ steps.ci-run.outputs.result }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - run: sudo -E .github/setup-actions.sh
+        env:
+          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
+          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
+          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
+      - uses: cachix/install-nix-action@v18
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            post-build-hook = /etc/nix/upload-to-cache.sh
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
+            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
+      - id: ci-run
+        run: nix develop -c make ci-run NAME=${{ matrix.name }}
+
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: results
+          path: result-*.md
+
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: nix-post-build-hook-log
+          path: /tmp/nix-post-build-hook.log
+
+  report:
+    name: "Report CI result"
+    # if: github.event.pull_request.merged == true
+    needs: [ci]
+    if: always()
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: actions/download-artifact@v3
+        with:
+          name: results
+      - run: printf "## Newly passed tests after this PR:\n| Test | result |\n| ---- | ---- |\n" > result.md; cat result-*.md | grep true >> result.md
+      - uses: thollander/actions-comment-pull-request@v2
+        with:
+          filePath: result.md
+          comment_tag: ci-report
+          mode: recreate
