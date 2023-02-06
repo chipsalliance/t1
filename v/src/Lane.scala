@@ -187,6 +187,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val crossWriteMaskMSBHalf:   UInt = RegInit(0.U((parameter.dataPathByteWidth / 2).W))
 
   val maskFormatResult: UInt = RegInit(0.U(parameter.datapathWidth.W))
+  val reduceResult: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(parameter.datapathWidth.W))))
   /** arbiter for VRF write
     * 1 for [[vrfWriteChannel]]
     */
@@ -501,6 +502,20 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           record.groupCounter(log2Ceil(parameter.maskGroupWidth) - 1, 0).andR,
         )
       )
+
+      /** mask unit 的需要往上层传数据的控制
+        * 有三种类型：
+        *   1. mask destination: 这种在使用完一组mask的时候传给上层
+        *   1. mask unit: 这种在每次读完数据的时候将数据传给上层
+        *   1. reduce: 这种只在结束的时候给上层
+        * */
+      val needUpdateMaskDestination: Bool = WireDefault(false.B)
+      val maskTypeDestinationWriteValid = record.originalInformation.maskDestination && needUpdateMaskDestination
+      // reduce 类型的
+      val reduceValid = record.originalInformation.decodeResult(Decoder.red) && instructionExecuteFinished(index)
+      // viota & compress & ls 需要给外边数据
+      val needResponse: Bool = (record.originalInformation.loadStore || reduceValid ||
+        maskTypeDestinationWriteValid) && slotActive(index)
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
@@ -661,7 +676,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           * src1： src1有 IXV 三种类型,只有V类型的需要移位
           */
         val finalSource1 =
-          CollapseOperand(source1(index), decodeResult(Decoder.vtype), !decodeResult(Decoder.unsigned0))
+          Mux(
+            record.originalInformation.decodeResult(Decoder.red),
+            reduceResult(index),
+            CollapseOperand(source1(index), decodeResult(Decoder.vtype), !decodeResult(Decoder.unsigned0))
+          )
 
         /** source2 一定是V类型的 */
         val finalSource2 = CollapseOperand(source2(index), true.B, !decodeResult(Decoder.unsigned1))
@@ -750,13 +769,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // 往scheduler的执行任务compress viota
         val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(parameter)))
-
-        // viota & compress & ls 需要给外边数据
-        val maskType: Bool =
-          (record.originalInformation.special || record.originalInformation.loadStore) && slotActive(index)
-        val maskValid = maskType && readFinish && record.state.sExecute && !record.state.sScheduler
+        val maskValid = needResponse && readFinish && record.state.sExecute && !record.state.sScheduler
         // 往外边发的是原始的数据
-        maskRequest.data := source2(index)
+        maskRequest.data := Mux(
+          record.originalInformation.maskDestination,
+          maskFormatResult,
+          Mux(
+            record.originalInformation.decodeResult(Decoder.red),
+            reduceResult(index),
+            source2(index)
+          )
+        )
         maskRequest.toLSU := record.originalInformation.loadStore
         maskRequest.instructionIndex := record.originalInformation.instructionIndex
         maskRequests(index) := maskAnd(slotOccupied(index) && maskValid, maskRequest)
@@ -790,6 +813,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           result(index) := resultUpdate
           when(!masked) {
             record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
+            when(record.originalInformation.decodeResult(Decoder.red)) {
+              reduceResult(index) := dataDequeue
+            }
           }
         }
         // 写rf
@@ -1193,7 +1219,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           * src1： src1有 IXV 三种类型,只有V类型的需要移位
           */
         val finalSource1 =
-          CollapseOperand(source1(index), decodeResult(Decoder.vtype), !decodeResult(Decoder.unsigned0))
+          Mux(
+            record.originalInformation.decodeResult(Decoder.red),
+            reduceResult(index),
+            CollapseOperand(source1(index), decodeResult(Decoder.vtype), !decodeResult(Decoder.unsigned0))
+          )
 
         /** source2 一定是V类型的 */
         val doubleCollapse = CollapseDoubleOperand(!decodeResult(Decoder.unsigned1))
@@ -1281,24 +1311,20 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // 往scheduler的执行任务compress viota
         val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(parameter)))
-        val needUpdateMaskDestination: Bool = lastGroupForMask || instructionExecuteFinished(index)
-        val maskTypeDestinationWriteValid = record.originalInformation.maskDestination && needUpdateMaskDestination
-        // viota & compress & ls 需要给外边数据
-        val maskType: Bool = (record.originalInformation.loadStore ||
-          maskTypeDestinationWriteValid) && slotActive(index)
+        needUpdateMaskDestination := lastGroupForMask || instructionExecuteFinished(index)
         /** mask类型的指令并不是每一轮的状态机都会需要与scheduler交流
           * 只有mask destination 类型的才会有scheduler与状态机不对齐的情况
           *   我们用[[maskTypeDestinationWriteValid]]区分这种
           * 有每轮需要交换和只需要交换一次的区别(compress & red)
           */
-        val maskValid = maskType && readFinish && record.state.sExecute && !record.state.sScheduler
+        val maskValid = needResponse && readFinish && record.state.sExecute && !record.state.sScheduler
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
           record.originalInformation.maskDestination,
           maskFormatResult,
           Mux(
             record.originalInformation.decodeResult(Decoder.red),
-            result(index),
+            reduceResult(index),
             source2(index)
           )
         )
@@ -1336,6 +1362,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           result(index) := resultUpdate
           when(!masked) {
             record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
+            when(record.originalInformation.decodeResult(Decoder.red)) {
+              reduceResult(index) := dataDequeue
+            }
           }
         }
 
@@ -1366,11 +1395,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val stateCheck = Mux(
           waitCrossRead,
           readFinish,
-          Mux(
-            record.originalInformation.maskDestination,
-            internalEnd && (!needUpdateMaskDestination || schedulerFinish),
-            stateEnd && maskUnhindered
-          )
+          internalEnd && (!needResponse || schedulerFinish) && maskUnhindered
         )
         val crossReadReady: Bool = !needCrossRead || instructionCrossReadFinished
         when(stateCheck || record.instCompleted) {
@@ -1612,6 +1637,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     source1 := VecInit(source1.tail :+ vs1entrance)
     slotControl := VecInit(slotControl.tail :+ entranceControl)
     result := VecInit(result.tail :+ 0.U(parameter.datapathWidth.W))
+    reduceResult := VecInit(reduceResult.tail :+ 0.U(parameter.datapathWidth.W))
     source2 := VecInit(source2.tail :+ 0.U(parameter.datapathWidth.W))
     source3 := VecInit(source3.tail :+ 0.U(parameter.datapathWidth.W))
     crossWriteMaskLSBHalf := 0.U
