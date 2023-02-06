@@ -263,7 +263,7 @@ object tests extends Module {
          |target_include_directories(emulator PUBLIC ${csrcDir().path.toString})
          |
          |target_link_libraries(emulator PUBLIC $${CMAKE_THREAD_LIBS_INIT})
-         |target_link_libraries(emulator PUBLIC libspike fmt glog)  # note that libargs is header only, nothing to link
+         |target_link_libraries(emulator PUBLIC libspike fmt::fmt glog::glog)  # note that libargs is header only, nothing to link
          |target_compile_definitions(emulator PRIVATE COSIM_VERILATOR)
          |
          |verilate(emulator
