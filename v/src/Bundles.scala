@@ -107,12 +107,12 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.wRead2 := !crossRead
     res.wScheduler := !special
     // todo
-    res.sScheduler := !maskDestination
+    res.sScheduler := !(maskDestination || decodeResult(Decoder.red))
     res.sExecute := false.B
     //todo: red
     res.wExecuteRes := special
     res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) ||
-      decodeResult(Decoder.widen) || maskDestination
+      decodeResult(Decoder.widen) || maskDestination || decodeResult(Decoder.red)
     res.sCrossWrite0 := !decodeResult(Decoder.widen)
     res.sCrossWrite1 := !decodeResult(Decoder.widen)
     res.sSendResult0 := !crossRead
