@@ -146,47 +146,6 @@ in
     };
   };
 
-  circt = let
-    src = final.fetchFromGitHub {
-      owner = "llvm";
-      repo = "circt";
-      rev = "6937e9b8b5e2a525f043ab89eb16812f92b42c62";
-      sha256 = "sha256-Lpu8J9izWvtYqibJQV0xEldk406PJobUM9WvTmNS3g4=";
-      fetchSubmodules = true;
-    };
-  in final.stdenv.mkDerivation {
-    pname = "circt";
-    version = "r4396.ce85204ca";
-    nativeBuildInputs = with final; [ cmake ninja python3 git ];
-    dontUnpack = true;
-    cmakeFlags = [
-      "-S${src}/llvm/llvm"
-      "-DCMAKE_BUILD_TYPE=Release"
-      "-DLLVM_ENABLE_PROJECTS=mlir"
-      "-DLLVM_TARGETS_TO_BUILD=X86"
-      "-DLLVM_ENABLE_ASSERTIONS=OFF"
-      "-DLLVM_BUILD_EXAMPLES=OFF"
-      "-DLLVM_INCLUDE_EXAMPLES=OFF"
-      "-DLLVM_INCLUDE_TESTS=OFF"
-      "-DLLVM_INSTALL_UTILS=OFF"
-      "-DLLVM_ENABLE_OCAMLDOC=OFF"
-      "-DLLVM_ENABLE_BINDINGS=OFF"
-      "-DLLVM_CCACHE_BUILD=OFF"
-      "-DLLVM_OPTIMIZED_TABLEGEN=ON"
-      "-DLLVM_USE_SPLIT_DWARF=ON"
-      "-DLLVM_BUILD_LLVM_DYLIB=OFF"
-      "-DLLVM_LINK_LLVM_DYLIB=OFF"
-      "-DLLVM_EXTERNAL_PROJECTS=circt"
-      "-DLLVM_BUILD_TOOLS=ON"
-      "-DBUILD_SHARED_LIBS=OFF"
-      "-DLLVM_EXTERNAL_CIRCT_SOURCE_DIR=${src}"
-    ];
-    installPhase = ''
-      mkdir -p $out/bin
-      mv bin/firtool $out/bin/firtool
-    '';
-  };
-
   verilator = prev.verilator.overrideAttrs (old: {
     src = final.fetchFromGitHub {
       owner = "verilator";
@@ -196,5 +155,5 @@ in
     };
   });
 
-  mill = prev.mill.override { jre = final.openjdk18; };
+  mill = prev.mill.override { jre = final.openjdk19; };
 }
