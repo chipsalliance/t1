@@ -387,10 +387,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val sew1HCorrect = Mux(decodeResultReg(Decoder.widen), sew1H ## false.B, sew1H)
       // 写的data
       val writeData = (WARRedResult.bits & (~maskCorrect).asUInt) | (regroupData(writeBackCounter) & maskCorrect)
+      val writeMask = Mux(sew1HCorrect(2) || !reduce, 15.U, Mux(sew1HCorrect(1), 3.U, 1.U))
       maskUnitWrite.valid := false.B
       maskUnitWrite.bits.vd := vd
       maskUnitWrite.bits.offset := groupCounter
-      maskUnitWrite.bits.mask := Mux(sew1HCorrect(2) || !reduce, 15.U, Mux(sew1HCorrect(1), 3.U, 1.U))
+      maskUnitWrite.bits.mask := writeMask
       maskUnitWrite.bits.data := Mux(reduce, dataResult.bits, writeData)
       maskUnitWrite.bits.last := control.state.wLast || reduce
       maskUnitWrite.bits.instructionIndex := control.record.instructionIndex
@@ -400,7 +401,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         executeCounter === 0.U,
         Mux(
           needWAR,
-          WARRedResult.bits,
+          WARRedResult.bits & FillInterleaved(8, writeMask),
           0.U
         ),
         dataResult.bits
@@ -410,9 +411,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val adder:     LaneAdder = Module(new LaneAdder(parameter.datePathParam))
       val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datePathParam))
 
-      adder.req.src := VecInit(Seq(aluInput1, aluInput2))
+      val sign = !decodeResultReg(Decoder.unsigned1)
+      adder.req.src := VecInit(Seq(
+        (aluInput1(parameter.dataPathWidth - 1) && sign) ## aluInput1,
+        (aluInput2(parameter.dataPathWidth - 1) && sign) ## aluInput2
+      ))
       adder.req.opcode := decodeResultReg(Decoder.uop)
-      adder.req.sign := !decodeResultReg(Decoder.unsigned1)
+      adder.req.sign := sign
       adder.req.mask := false.B
       adder.req.reverse := false.B
       adder.req.average := false.B
