@@ -512,6 +512,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val needUpdateMaskDestination: Bool = WireDefault(false.B)
       val maskTypeDestinationWriteValid = record.originalInformation.maskDestination && needUpdateMaskDestination
       // reduce 类型的
+      val reduceType: Bool = record.originalInformation.decodeResult(Decoder.red)
       val reduceValid = record.originalInformation.decodeResult(Decoder.red) && instructionExecuteFinished(index)
       // viota & compress & ls 需要给外边数据
       val needResponse: Bool = (record.originalInformation.loadStore || reduceValid ||
@@ -675,12 +676,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         /**
           * src1： src1有 IXV 三种类型,只有V类型的需要移位
           */
-        val finalSource1 =
-          Mux(
-            record.originalInformation.decodeResult(Decoder.red),
-            reduceResult(index),
-            CollapseOperand(source1(index), decodeResult(Decoder.vtype), !decodeResult(Decoder.unsigned0))
-          )
+        val finalSource1 = CollapseOperand(
+          Mux(reduceType, reduceResult(index), source1(index)),
+          decodeResult(Decoder.vtype) && !reduceType,
+          !decodeResult(Decoder.unsigned0)
+        )
 
         /** source2 一定是V类型的 */
         val finalSource2 = CollapseOperand(source2(index), true.B, !decodeResult(Decoder.unsigned1))
@@ -1218,12 +1218,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         /**
           * src1： src1有 IXV 三种类型,只有V类型的需要移位
           */
-        val finalSource1 =
-          Mux(
-            record.originalInformation.decodeResult(Decoder.red),
-            reduceResult(index),
-            CollapseOperand(source1(index), decodeResult(Decoder.vtype), !decodeResult(Decoder.unsigned0))
-          )
+        val finalSource1 = CollapseOperand(
+          Mux(reduceType, reduceResult(index), source1(index)),
+          decodeResult(Decoder.vtype) && !reduceType,
+          !decodeResult(Decoder.unsigned0)
+        )
 
         /** source2 一定是V类型的 */
         val doubleCollapse = CollapseDoubleOperand(!decodeResult(Decoder.unsigned1))
