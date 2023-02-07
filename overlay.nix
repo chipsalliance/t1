@@ -146,14 +146,5 @@ in
     };
   };
 
-  verilator = prev.verilator.overrideAttrs (old: {
-    src = final.fetchFromGitHub {
-      owner = "verilator";
-      repo = "verilator";
-      rev = "4452a9b10f02052cf230d115e4a6fd874eec0b2f";
-      sha256 = "sha256-GzWljZnGVLqIQ7wX8v6iNYqGsIvY9fsDLcQsB9qm7vY=";
-    };
-  });
-
   mill = prev.mill.override { jre = final.openjdk19; };
 }
