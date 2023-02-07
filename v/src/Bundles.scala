@@ -2,7 +2,7 @@ package v
 
 import chisel3._
 import chisel3.util.experimental.decode.DecodeBundle
-import chisel3.util.{Decoupled, DecoupledIO, Valid, ValidIO, log2Ceil}
+import chisel3.util.{log2Ceil, Decoupled, DecoupledIO, Valid, ValidIO}
 class VRequest(xLen: Int) extends Bundle {
   val instruction: UInt = UInt(32.W)
   val src1Data:    UInt = UInt(xLen.W)
@@ -89,12 +89,6 @@ class LaneRequest(param: LaneParameter) extends Bundle {
 
   // TODO: move to [[V]]
   def ma: Bool = decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).orR
-  // TODO: decode eg: vmslt
-  def maskDestination = decodeResult(Decoder.maskOp) && (
-    decodeResult(Decoder.adder) && decodeResult(Decoder.uop) === 2.U
-  )
-  // TODO: decode eg: adc
-  def maskSource = decodeResult(Decoder.adder) && decodeResult(Decoder.uop) === 10.U
 
   // TODO: move to Module
   def initState: InstGroupState = {
@@ -102,17 +96,17 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     val crossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
     res.sRead1 := !decodeResult(Decoder.vtype)
     res.sRead2 := false.B
-    res.sReadVD := !(crossRead || ma)
+    res.sReadVD := !(crossRead || ma || decodeResult(Decoder.maskLogic))
     res.wRead1 := !crossRead
     res.wRead2 := !crossRead
     res.wScheduler := !special
     // todo
-    res.sScheduler := !(maskDestination || decodeResult(Decoder.red))
+    res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red))
     res.sExecute := false.B
     //todo: red
     res.wExecuteRes := special
     res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) ||
-      decodeResult(Decoder.widen) || maskDestination || decodeResult(Decoder.red)
+      decodeResult(Decoder.widen) || decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red)
     res.sCrossWrite0 := !decodeResult(Decoder.widen)
     res.sCrossWrite1 := !decodeResult(Decoder.widen)
     res.sSendResult0 := !crossRead

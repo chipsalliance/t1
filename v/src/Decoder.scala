@@ -96,6 +96,7 @@ object Decoder {
     def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name.contains("red")) y else n
   }
 
+  // TODO: remove this.
   object maskOp extends BoolField {
     def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc
     else if (
@@ -119,7 +120,12 @@ object Decoder {
   }
 
   object widen extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name.startsWith("vw")) y else n
+    def genTable(op: Op): BitPat =
+      if (op.special.nonEmpty) dc else if (op.name.startsWith("vw") && !op.name.startsWith("vwred")) y else n
+  }
+
+  object widenReduce extends BoolField {
+    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name.startsWith("vwred")) y else n
   }
 
   object saturate extends BoolField {
@@ -160,7 +166,7 @@ object Decoder {
   }
 
   object targetRd extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) dc else if (op.special.get.name == "VWXUNARY0") y else n
+    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.special.get.name == "VWXUNARY0") y else n
   }
 
   object extend extends BoolField {
@@ -272,6 +278,20 @@ object Decoder {
     }
   }
 
+  object maskLogic extends BoolField {
+    def genTable(op: Op): BitPat =
+      if (op.special.nonEmpty) dc else if (op.name.startsWith("vm") && logic.genTable(op) == y) y else n
+  }
+
+  object maskDestination extends BoolField {
+    def genTable(op: Op): BitPat =
+      if (op.name.startsWith("vm") && adder.genTable(op) == y && !Seq("min", "max").exists(op.name.contains)) y else n
+  }
+
+  object maskSource extends BoolField {
+    def genTable(op: Op): BitPat = if (Seq("vadc", "vsbc", "vmadc", "vmsbc").exists(op.name.startsWith)) y else n
+  }
+
   val all: Seq[DecodeField[Op, _ >: Bool <: UInt]] = Seq(
     logic,
     adder,
@@ -285,6 +305,7 @@ object Decoder {
     reverse,
     narrow,
     widen,
+    widenReduce,
     average,
     unsigned0,
     unsigned1,
@@ -300,7 +321,10 @@ object Decoder {
     id,
     specialUop,
     maskOp,
-    saturate
+    saturate,
+    maskLogic,
+    maskDestination,
+    maskSource
   )
 
   private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)
