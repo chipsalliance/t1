@@ -468,11 +468,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       )
       /** 这一组element对应的mask的值 */
       val maskBits: Bool = record.mask.bits(elementIndex(parameter.datapathWidthWidth - 1, 0))
-      val maskAsInput: Bool = maskBits && record.originalInformation.maskSource
+      val maskAsInput: Bool = maskBits && record.originalInformation.decodeResult(Decoder.maskSource)
       /** 会跳element的mask */
       val skipEnable: Bool = record.originalInformation.mask &&
         // adc: vm = 0; madc: vm = 0 -> s0 + s1 + c, vm = 1 -> s0 + s1
-        !record.originalInformation.maskSource
+        !record.originalInformation.decodeResult(Decoder.maskSource)
       /** !vm的时候表示这个element被mask了 */
       val masked: Bool = skipEnable && !maskBits
 
@@ -510,7 +510,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         *   1. reduce: 这种只在结束的时候给上层
         * */
       val needUpdateMaskDestination: Bool = WireDefault(false.B)
-      val maskTypeDestinationWriteValid = record.originalInformation.maskDestination && needUpdateMaskDestination
+      val maskTypeDestinationWriteValid = record.originalInformation.decodeResult(Decoder.maskDestination) && needUpdateMaskDestination
       // reduce 类型的
       val reduceType: Bool = record.originalInformation.decodeResult(Decoder.red)
       val reduceValid = record.originalInformation.decodeResult(Decoder.red) && instructionExecuteFinished(index)
@@ -772,7 +772,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val maskValid = needResponse && readFinish && record.state.sExecute && !record.state.sScheduler
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
-          record.originalInformation.maskDestination,
+          record.originalInformation.decodeResult(Decoder.maskDestination),
           maskFormatResult,
           Mux(
             record.originalInformation.decodeResult(Decoder.red),
@@ -1319,7 +1319,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val maskValid = needResponse && readFinish && record.state.sExecute && !record.state.sScheduler
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
-          record.originalInformation.maskDestination,
+          record.originalInformation.decodeResult(Decoder.maskDestination),
           maskFormatResult,
           Mux(
             record.originalInformation.decodeResult(Decoder.red),
@@ -1586,7 +1586,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     // 处理mask的请求
     val maskSelectArbitrator = ffo(
       VecInit(slotMaskRequestVec.map(_.valid)).asUInt ##
-        (laneRequest.valid && (laneRequest.bits.mask || laneRequest.bits.maskSource))
+        (laneRequest.valid && (laneRequest.bits.mask || laneRequest.bits.decodeResult(Decoder.maskSource)))
     )
     maskRequestFireOH := maskSelectArbitrator(parameter.chainingSize, 1)
     maskSelect := Mux1H(
