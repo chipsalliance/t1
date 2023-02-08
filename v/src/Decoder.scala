@@ -236,7 +236,7 @@ object Decoder {
         val n = if (isXnor || isXor) 2 else firstIndexContains(logic.subs, op.name)
         require(n < 4)
         b2s(op.name.startsWith("vmn")) +
-          b2s(isXnor || op.name.contains("not")) +
+          b2s(isXnor || op.name.endsWith("n")) +
           (("00" + n.toBinaryString).takeRight(2))
       } else if (shift.genTable(op) == y) {
         val n = firstIndexContains(shift.subs, op.name)
