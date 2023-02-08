@@ -193,8 +193,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     Decoder.iota
   )
   nextInstructionType.red := !decodeResult(Decoder.other) && decodeResult(Decoder.red)
-  // TODO: eg: mask type destination
-  nextInstructionType.other := decodeResult(Decoder.maskOp)
+  nextInstructionType.other := decodeResult(Decoder.maskDestination)
   // TODO: from decode
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
   // TODO: decode eg: vmslt
