@@ -161,6 +161,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       )
   ).asUInt
 
+  // mask logic 因为是1bit作为element,所以需要有mask destination一样的处理
+  /** xxx   xxx     xxxxx
+    * head  body    tail
+    */
+  val vlTail: UInt = csrInterface.vl(parameter.datapathWidthWidth - 1, 0)
+  val vlBody: UInt = csrInterface.vl(parameter.datapathWidthWidth + parameter.laneNumberWidth - 1 , parameter.datapathWidthWidth)
+  val vlHead: UInt = csrInterface.vl(parameter.vlWidth - 1 , parameter.datapathWidthWidth + parameter.laneNumberWidth)
+  val lastGroupMask: UInt = scanRightOr(UIntToOH(vlTail))
+  val dataPathMisaligned = vlTail.orR
+  val maskeDataGroup = (vlHead ## vlBody) - !dataPathMisaligned
+  val lastLaneIndexForMaskLogic: UInt = maskeDataGroup(parameter.laneNumberWidth - 1, 0)
+  val isLastLaneForMaskLogic: Bool = lastLaneIndexForMaskLogic === laneIndex
+  val lastGroupCountForMaskLogic: UInt = maskeDataGroup >> parameter.laneNumberWidth
+
+  val fullMask: UInt = (-1.S(parameter.datapathWidth.W)).asUInt
+
   /** the slot is occupied by instruction */
   val slotOccupied: Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(false.B)))
 
@@ -325,8 +341,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val maskRequestValids: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
   /** request for logic instruction type. */
-  val logicRequests: Vec[LaneLogicRequest] = Wire(
-    Vec(parameter.chainingSize, new LaneLogicRequest(parameter.datePathParam))
+  val logicRequests: Vec[MaskedLogicRequest] = Wire(
+    Vec(parameter.chainingSize, new MaskedLogicRequest(parameter.datePathParam))
   )
 
   /** request for adder instruction type. */
@@ -422,11 +438,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * TODO: 64bit
     */
   val slotGroupFinishedIndex: UInt = !csrInterface.vSew(1) ## !vSewOrR
-  val lastGroupSlotGroupFinishedIndex: UInt = Mux(
-    isEndLane,
-    lastElementExecuteIndex,
-    slotGroupFinishedIndex
-  )
 
   /** queue for cross lane writing. */
   val crossLaneWriteQueue: Queue[VRFWriteRequest] = Module(
@@ -472,7 +483,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       /** 会跳element的mask */
       val skipEnable: Bool = record.originalInformation.mask &&
         // adc: vm = 0; madc: vm = 0 -> s0 + s1 + c, vm = 1 -> s0 + s1
-        !record.originalInformation.decodeResult(Decoder.maskSource)
+        !record.originalInformation.decodeResult(Decoder.maskSource) &&
+        !record.originalInformation.decodeResult(Decoder.maskLogic)
       /** !vm的时候表示这个element被mask了 */
       val masked: Bool = skipEnable && !maskBits
 
@@ -517,6 +529,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       // viota & compress & ls 需要给外边数据
       val needResponse: Bool = (record.originalInformation.loadStore || reduceValid ||
         maskTypeDestinationWriteValid) && slotActive(index)
+
+      // mask logic 的控制
+      val lastGroupForMaskLogic: Bool = lastGroupCountForMaskLogic === record.groupCounter
+      val maskLogicWillCompleted = lastGroupForMaskLogic && record.originalInformation.decodeResult(Decoder.maskLogic)
+      val bordersForMaskLogic = lastGroupForMaskLogic && isLastLaneForMaskLogic &&
+        dataPathMisaligned && record.originalInformation.decodeResult(Decoder.maskLogic)
+      val maskCorrect: UInt = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
@@ -696,11 +715,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             indexInLane ## laneIndex
           )
         )
-        instructionExecuteFinished(index) := nextElementIndex >= csrInterface.vl
+        instructionExecuteFinished(index) := nextElementIndex >= csrInterface.vl || maskLogicWillCompleted
         // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
-        val logicRequest = Wire(new LaneLogicRequest(parameter.datePathParam))
+        val logicRequest = Wire(new MaskedLogicRequest(parameter.datePathParam))
         logicRequest.src.head := finalSource2
-        logicRequest.src.last := finalSource1
+        logicRequest.src(1) := finalSource1
+        logicRequest.src(2) := maskCorrect
+        logicRequest.src(3) := finalSource3
         logicRequest.opcode := decodeResult(Decoder.uop)
         // 在手动做Mux1H
         logicRequests(index) := maskAnd(
@@ -1139,8 +1160,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           * 在vl没对齐的情况下，最后一组的结束的时候的 [[record.executeIndex]] 需要修正
           */
         val groupEnd = record.executeIndex === Mux(
-          lastExecuteGroup,
-          lastGroupSlotGroupFinishedIndex,
+          lastExecuteGroup && isEndLane && !record.originalInformation.decodeResult(Decoder.maskLogic),
+          lastElementExecuteIndex,
           slotGroupFinishedIndex
         ) || maskFilterEnd
 
@@ -1232,15 +1253,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           CollapseOperand(source2(index), true.B, !decodeResult(Decoder.unsigned1))
         )
         instructionExecuteFinished(index) := waitCrossRead ||
-          (lastExecuteGroup && groupEnd)
+          (lastExecuteGroup && groupEnd) || maskLogicWillCompleted
         instructionCrossReadFinished := waitCrossRead && readFinish
 
         /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
         val finalSource3 = CollapseOperand(source3(index))
         // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
-        val logicRequest = Wire(new LaneLogicRequest(parameter.datePathParam))
+        val logicRequest = Wire(new MaskedLogicRequest(parameter.datePathParam))
         logicRequest.src.head := finalSource2
-        logicRequest.src.last := finalSource1
+        logicRequest.src(1) := finalSource1
+        logicRequest.src(2) := maskCorrect
+        logicRequest.src(3) := finalSource3
         logicRequest.opcode := decodeResult(Decoder.uop)
         // 在手动做Mux1H
         logicRequests(index) := maskAnd(
@@ -1491,7 +1514,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // VFU
   // TODO: reuse logic, adder, multiplier datapath
   {
-    val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datePathParam))
+    val logicUnit: MaskedLogic = Module(new MaskedLogic(parameter.datePathParam))
     val adder:     LaneAdder = Module(new LaneAdder(parameter.datePathParam))
     val shifter:   LaneShifter = Module(new LaneShifter(parameter.shifterParameter))
     val mul:       LaneMul = Module(new LaneMul(parameter.mulParam))
@@ -1501,7 +1524,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     // 连接执行单元的请求
     logicUnit.req := VecInit(logicRequests.map(_.asUInt))
       .reduce(_ | _)
-      .asTypeOf(new LaneLogicRequest(parameter.datePathParam))
+      .asTypeOf(new MaskedLogicRequest(parameter.datePathParam))
     adder.req := VecInit(adderRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneAdderReq(parameter.datePathParam))
     shifter.req := VecInit(shiftRequests.map(_.asUInt))
       .reduce(_ | _)
@@ -1596,12 +1619,15 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   }
   // 控制逻辑的移动
   val entranceControl: InstControlRecord = Wire(new InstControlRecord(parameter))
+  val maskLogicCompleted: Bool = laneRequest.bits.decodeResult(Decoder.maskLogic) &&
+    (laneIndex ## 0.U(parameter.datapathWidthWidth.W) >= csrInterface.vl)
   entranceControl.originalInformation := laneRequest.bits
   entranceControl.state := laneRequest.bits.initState
   entranceControl.initState := laneRequest.bits.initState
   entranceControl.executeIndex := 0.U
   entranceControl.schedulerComplete := false.B
-  entranceControl.instCompleted := ((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl
+  entranceControl.instCompleted := ((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl ||
+    maskLogicCompleted
   entranceControl.mask.valid := laneRequest.bits.mask
   entranceControl.mask.bits := maskInput
   entranceControl.maskGroupedOrR := maskGroupedOrR
