@@ -101,7 +101,7 @@ class LaneAdder(param: DataPathParam) extends Module {
     */
   val lowerOverflow: Bool =
     (subOperation0(param.dataWidth) && subOperation1(param.dataWidth) && !addResultSignBit) ||
-      (isSub && !req.sign && addResultSignBit)
+      (isSub && !req.sign && addResult(param.dataWidth))
   /** 上溢条件：
     *   1. S: 两正的加出了符号位
     *   1. U: 溢出位有值
