@@ -320,7 +320,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         // todo: decode need execute
         control.state.sExecute := !maskUnitType
         instructionType := nextInstructionType
-        maskTypeInstruction := maskType
+        maskTypeInstruction := maskType && !decodeResult(Decoder.maskSource)
       }.elsewhen(control.state.wLast) {
         control.state.sExecute := true.B
       }
