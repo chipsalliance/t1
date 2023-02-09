@@ -28,7 +28,10 @@ vmin.vv
 vmin.vx
 vminu.vv
 vminu.vx
+vmnand.mm
+vmnor.mm
 vmor.mm
+vmorn.mm
 vmseq.vi
 vmseq.vv
 vmseq.vx
@@ -56,6 +59,7 @@ vmul.vx
 vmv.v.i
 vmv.v.v
 vmv.v.x
+vmxnor.mm
 vmxor.mm
 vnsra.wv
 vnsra.wx
