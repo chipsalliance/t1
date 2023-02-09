@@ -168,7 +168,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val vlTail: UInt = csrInterface.vl(parameter.datapathWidthWidth - 1, 0)
   val vlBody: UInt = csrInterface.vl(parameter.datapathWidthWidth + parameter.laneNumberWidth - 1 , parameter.datapathWidthWidth)
   val vlHead: UInt = csrInterface.vl(parameter.vlWidth - 1 , parameter.datapathWidthWidth + parameter.laneNumberWidth)
-  val lastGroupMask: UInt = scanRightOr(UIntToOH(vlTail))
+  val lastGroupMask = scanRightOr(UIntToOH(vlTail)) >> 1
   val dataPathMisaligned = vlTail.orR
   val maskeDataGroup = (vlHead ## vlBody) - !dataPathMisaligned
   val lastLaneIndexForMaskLogic: UInt = maskeDataGroup(parameter.laneNumberWidth - 1, 0)
@@ -535,7 +535,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val maskLogicWillCompleted = lastGroupForMaskLogic && record.originalInformation.decodeResult(Decoder.maskLogic)
       val bordersForMaskLogic = lastGroupForMaskLogic && isLastLaneForMaskLogic &&
         dataPathMisaligned && record.originalInformation.decodeResult(Decoder.maskLogic)
-      val maskCorrect: UInt = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
+      val maskCorrect = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
