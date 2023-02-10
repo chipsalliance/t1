@@ -69,7 +69,7 @@ case class LaneParameter(vLen: Int, datapathWidth: Int, laneNumber: Int, chainin
   def vrfParam:         VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfWriteQueueSize)
   def datePathParam:    DataPathParam = DataPathParam(datapathWidth)
   def shifterParameter: LaneShifterParameter = LaneShifterParameter(datapathWidth, datapathWidthWidth)
-  def mulParam:         LaneMulParam = LaneMulParam(datapathWidth)
+  def mulParam:         LaneMulParam = LaneMulParam(datapathWidth, vLen)
   def indexParam:       LaneIndexCalculatorParameter = LaneIndexCalculatorParameter(groupNumberWidth, laneNumberWidth)
 }
 
@@ -761,6 +761,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val mulRequest: LaneMulReq = Wire(new LaneMulReq(parameter.mulParam))
         mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
         mulRequest.opcode := decodeResult(Decoder.uop)
+        mulRequest.saturate := decodeResult(Decoder.saturate)
         multiplerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.multiplier) && !decodeResult(Decoder.other),
           mulRequest
@@ -1304,6 +1305,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val mulRequest: LaneMulReq = Wire(new LaneMulReq(parameter.mulParam))
         mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
         mulRequest.opcode := decodeResult(Decoder.uop)
+        mulRequest.saturate := decodeResult(Decoder.saturate)
         multiplerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.multiplier) && !decodeResult(Decoder.other),
           mulRequest
@@ -1545,6 +1547,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     otherUnit.csr.vxrm := csrInterface.vxrm
     div.mask := DontCare
     div.vSew := csrInterface.vSew
+    mul.csrInterface := csrInterface
 
     // 连接执行结果
     executeDequeueData := VecInit(
