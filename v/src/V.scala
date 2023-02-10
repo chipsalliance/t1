@@ -383,7 +383,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val maskCorrect: UInt = Mux(maskTypeInstruction, maskSelect, fullMask) &
         Mux(border, lastGroupMask, fullMask)
       // mask
-      val sew1HCorrect = Mux(decodeResultReg(Decoder.widen), sew1H ## false.B, sew1H)
+      val sew1HCorrect = Mux(decodeResultReg(Decoder.widenReduce), sew1H ## false.B, sew1H)
       // 写的data
       val writeData = (WARRedResult.bits & (~maskCorrect).asUInt) | (regroupData(writeBackCounter) & maskCorrect)
       val writeMask = Mux(sew1HCorrect(2) || !reduce, 15.U, Mux(sew1HCorrect(1), 3.U, 1.U))
