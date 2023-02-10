@@ -24,6 +24,6 @@ case class VFUParameters(ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8) {
 
   def datePathParam:    DataPathParam = DataPathParam(ELEN)
   def shifterParameter: LaneShifterParameter = LaneShifterParameter(ELEN, elenBits)
-  def mulParam:         LaneMulParam = LaneMulParam(ELEN)
+  def mulParam:         LaneMulParam = LaneMulParam(ELEN, VLEN)
   def indexParam:       LaneIndexCalculatorParameter = LaneIndexCalculatorParameter(groupSizeBits, idBits)
 }
