@@ -20,6 +20,7 @@ class LaneMul(parameter: LaneMulParam) extends Module {
   val csrInterface: LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.vlWidth)))
 
   val sew1H: UInt = UIntToOH(csrInterface.vSew)(2, 0)
+  val vSewOrR = csrInterface.vSew.orR
   val vxrm1H: UInt = UIntToOH(csrInterface.vxrm)
   // ["mul", "ma", "ms", "mh"]
   val opcode1H: UInt = UIntToOH(req.opcode(1,0))
@@ -33,8 +34,8 @@ class LaneMul(parameter: LaneMulParam) extends Module {
   val mul1: UInt = Mux(asAddend || !ma, req.src(1), req.src.last)
   // 加数
   val addend: UInt = Mux(asAddend, req.src.last, req.src(1))
-  // 乘的结果
-  val mulResult: UInt = mul0 * mul1
+  // 乘的结果 todo: csa & delete SInt
+  val mulResult: UInt = (mul0.asSInt * mul1.asSInt).asUInt
   // 处理 saturate
   /** clip(roundoff_signed(vs2[i]*vs1[i], SEW-1))
     * v[d-1]
@@ -54,7 +55,20 @@ class LaneMul(parameter: LaneMulParam) extends Module {
   val shift1 = Mux(sew1H(1), shift0 >> 15, shift0)
   val shift2 = Mux(sew1H(2), shift1 >> 31, shift1).asUInt
   val highResult = (shift2 >> 1).asUInt
-  val saturateResult = shift2 + roundBits
+  val saturateResult = (shift2 + roundBits)(parameter.inputWidth, 0)
+  /** lower: 下溢出近值
+    * upper: 上溢出近值
+    *
+    * */
+  val lower: UInt = csrInterface.vSew(1) ## 0.U(15.W) ## csrInterface.vSew(0) ## 0.U(7.W) ## !vSewOrR ## 0.U(7.W)
+  val upper: UInt = Fill(16, csrInterface.vSew(1)) ## Fill(8, vSewOrR) ## Fill(7, true.B)
+  val sign0 = Mux1H(sew1H, Seq(req.src.head(7), req.src.head(15), req.src.head(31)))
+  val sign1 = Mux1H(sew1H, Seq(req.src(1)(7), req.src(1)(15), req.src(1)(31)))
+  val sign2 = Mux1H(sew1H, Seq(saturateResult(7), saturateResult(15), saturateResult(31)))
+  val notZero = Mux1H(sew1H, Seq(saturateResult(7, 0).orR, saturateResult(15, 0).orR, saturateResult(31, 0).orR))
+  val expectedSig = sign0 ^ sign1
+  val overflow = (expectedSig ^ sign2) && notZero
+  val overflowSelection = Mux(expectedSig, lower, upper)
   // 反的乘结果
   val negativeResult: UInt = (~mulResult).asUInt
   // 选乘的结果
@@ -63,8 +77,8 @@ class LaneMul(parameter: LaneMulParam) extends Module {
   val maResult: UInt = adderInput0 + addend + negative
   // 选最终的结果 todo: decode
   resp := Mux1H(
-    Seq(opcode1H(0) && !req.saturate, opcode1H(3), ma, req.saturate),
-    Seq(mulResult, highResult, maResult, saturateResult)
+    Seq(opcode1H(0) && !req.saturate, opcode1H(3), ma, req.saturate && !overflow, req.saturate && overflow),
+    Seq(mulResult, highResult, maResult, saturateResult, overflowSelection)
   )
   // todo
   vxsat := DontCare
