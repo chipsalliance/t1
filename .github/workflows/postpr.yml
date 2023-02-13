@@ -75,6 +75,8 @@ jobs:
     if: github.event.pull_request.merged == true && always()
     needs: [ci]
     runs-on: [self-hosted, linux]
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
         with:
