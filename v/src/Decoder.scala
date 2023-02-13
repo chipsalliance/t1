@@ -172,11 +172,11 @@ object Decoder {
   }
 
   object extend extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) dc else if (op.special.get.name == "VXUNARY0") y else n
+    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.special.get.name == "VXUNARY0") y else n
   }
 
   object mv extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) dc else if (op.name.startsWith("vmv")) y else n
+    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name.startsWith("vmv")) y else n
   }
 
   object ffo extends BoolField {
@@ -187,19 +187,19 @@ object Decoder {
       "vmsif"
     )
 
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) dc else if (subs.exists(op.name.contains)) y else n
+    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (subs.exists(op.name.contains)) y else n
   }
 
   object popCount extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) dc else if (op.name == "vcpop") y else n
+    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name == "vcpop") y else n
   }
 
   object iota extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) dc else if (op.name == "viota") y else n
+    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name == "viota") y else n
   }
 
   object id extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) dc else if (op.name == "vid") y else n
+    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name == "vid") y else n
   }
 
   // TODO[2]: uop should be well documented
@@ -291,7 +291,7 @@ object Decoder {
   }
 
   object maskSource extends BoolField {
-    def genTable(op: Op): BitPat = if (Seq("vadc", "vsbc", "vmadc", "vmsbc").exists(op.name.startsWith)) y else n
+    def genTable(op: Op): BitPat = if (Seq("vadc", "vsbc", "vmadc", "vmsbc", "vmerge").exists(op.name.startsWith)) y else n
   }
 
   val all: Seq[DecodeField[Op, _ >: Bool <: UInt]] = Seq(
