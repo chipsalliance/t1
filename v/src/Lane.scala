@@ -787,7 +787,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequest.laneIndex := laneIndex
         otherRequest.groupIndex := record.groupCounter
         otherRequest.sign := !decodeResult(Decoder.unsigned0)
-        otherRequest.mask := maskAsInput
+        otherRequest.mask := maskAsInput || !record.originalInformation.mask
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
@@ -1332,7 +1332,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequest.laneIndex := laneIndex
         otherRequest.groupIndex := record.groupCounter
         otherRequest.sign := !decodeResult(Decoder.unsigned0)
-        otherRequest.mask := maskAsInput
+        // todo: vmv.v.* decode to mv instead of merge or delete mv
+        otherRequest.mask := maskAsInput || !record.originalInformation.mask
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
