@@ -2,7 +2,7 @@ package v
 
 import chisel3._
 import chisel3.util._
-import division.srt.SRT
+import division.srt.{SRT, SRTOutput}
 
 class LaneDivRequest(param: DataPathParam) extends Bundle {
   val src:  Vec[UInt] = Vec(2, UInt(param.dataWidth.W))
@@ -25,14 +25,11 @@ class LaneDiv(param: DataPathParam) extends Module {
     (src & mask) | (signExtend & (~mask).asUInt)
   }
 
-  val div: SRT = Module(new SRT(32, 32, 32))
-  val wrapper = Module(new SRTWrapper)
-  wrapper.io.dividendIn := req.bits.src.last
-  wrapper.io.divisorIn := req.bits.src.head
-  div.input.bits.divider := wrapper.io.divisorOut
-  div.input.bits.dividend := wrapper.io.dividendOut
-  div.input.bits.counter := wrapper.io.counter
+  val div = Module(new SRTWrapper)
+  div.input.bits.dividend := req.bits.src.last
+  div.input.bits.divisor := req.bits.src.head
   div.input.valid := req.valid
+
   req.ready := div.input.ready
 
   val remReg: Bool = RegEnable(req.bits.rem, false.B, req.fire)
@@ -41,18 +38,22 @@ class LaneDiv(param: DataPathParam) extends Module {
   resp.bits := Mux(remReg, div.output.bits.reminder, div.output.bits.quotient)
 }
 
+class SRTIn extends Bundle {
+  val dividend = UInt(32.W)
+  val divisor = UInt(32.W)
+}
 class SRTWrapper extends Module{
-  val io = IO(new Bundle{
-    val dividendIn  = Input(UInt(32.W))
-    val divisorIn   = Input(UInt(32.W))
-    val dividendOut = Output(UInt(32.W))
-    val divisorOut  = Output(UInt(32.W))
-    val counter     = Output(UInt(5.W))
-  })
+
+  val input = IO(Flipped(DecoupledIO(new SRTIn)))
+  val output = IO(ValidIO(new SRTOutput(32, 32)))
+
   val LZC0 = Module(new LZC32)
   val LZC1 = Module(new LZC32)
-  LZC0.io.a := io.dividendIn
-  LZC1.io.a := io.divisorIn
+  LZC0.io.a := input.bits.dividend
+  LZC1.io.a := input.bits.divisor
+  val div: SRT = Module(new SRT(32, 32, 32))
+
+  // pre-process
 
   // 6-bits , above zero
   // add one bit for calculate complement
@@ -60,18 +61,14 @@ class SRTWrapper extends Module{
   val zeroHeadDivisor = Wire(UInt(6.W))
   zeroHeadDividend := ~LZC0.io.z
   zeroHeadDivisor := ~LZC1.io.z
-
   // sub = zeroHeadDivider - zeroHeadDividend
   val sub = Wire(UInt(6.W))
   sub := addition.prefixadder.koggeStone(-zeroHeadDividend, zeroHeadDivisor, false.B)
-
   // needComputerWidth: Int = zeroHeadDivider - zeroHeadDividend + 2
   val needComputerWidth = Wire(UInt(7.W))
   needComputerWidth := addition.prefixadder.koggeStone(sub, 2.U, false.B)
-
   // noguard: Boolean = needComputerWidth % radixLog2 == 0
   val noguard = !needComputerWidth(0)
-
   // counter: Int = (needComputerWidth + 1) / 2
   val counter = (addition.prefixadder.koggeStone(needComputerWidth, 1.U, false.B) >> 1).asUInt
   // leftShiftWidthDividend: Int = zeroHeadDividend - (if (noguard) 0 else 1)
@@ -80,9 +77,23 @@ class SRTWrapper extends Module{
   leftShiftWidthDividend := Mux(noguard,zeroHeadDividend(4,0),
     addition.prefixadder.koggeStone(zeroHeadDividend(4,0), "b111111".asUInt, false.B))
   leftShiftWidthDivisor := zeroHeadDivisor(4,0)
-  io.divisorOut := io.divisorIn << leftShiftWidthDivisor
-  io.dividendOut := io.dividendIn << leftShiftWidthDividend
-  io.counter := counter
+
+  // do SRT
+  div.input.bits.divider := input.bits.divisor << leftShiftWidthDivisor
+  div.input.bits.dividend := input.bits.dividend << leftShiftWidthDividend
+  div.input.bits.counter := counter
+  div.input.valid := input.valid && !(input.bits.divisor === 0.U)
+  input.ready := div.input.ready
+
+  // logic
+  val divideZero = Wire(Bool())
+  divideZero := (input.bits.divisor === 0.U) && input.fire
+
+  // post-process
+  output.valid := div.output.valid | divideZero
+  output.bits.quotient := Mux(divideZero,"hffffffff".U(32.W),div.output.bits.quotient)
+  output.bits.reminder := div.output.bits.reminder
+
 }
 
 class LZC8 extends Module{
