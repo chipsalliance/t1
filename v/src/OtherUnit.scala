@@ -11,6 +11,7 @@ class OtherUnitReq(param: LaneParameter) extends Bundle {
   val groupIndex: UInt = UInt(param.groupNumberWidth.W)
   val laneIndex:  UInt = UInt(param.laneNumberWidth.W)
   val sign:       Bool = Bool()
+  val mask:       Bool = Bool()
 }
 
 class OtherUnitCsr extends Bundle {
@@ -85,6 +86,13 @@ class OtherUnit(param: LaneParameter) extends Module {
   // extend: vExtend mv ffo popCount viota
   // slide, rgather, merge, mv, clip, compress
   val r0: Bool = (opcodeOH(3, 0) ## opcodeOH(5)).orR
+  // 处理merge & mask
+  // 排除 extend 的影响
+  val originalOpcodeOH: UInt = Mux(req.extendType.valid, 0.U, opcodeOH)
+  // 选source1的情况
+  val selectSource1: Bool = (originalOpcodeOH(2) && req.mask) || originalOpcodeOH(3)
+  val selectSource2: Bool = originalOpcodeOH(0) || originalOpcodeOH(1) || (originalOpcodeOH(2) && !req.mask) ||
+    originalOpcodeOH(5)
   val resultSelect: UInt = VecInit(
     Seq(
       req.extendType.valid && req.extendType.bits.extend,
@@ -92,12 +100,13 @@ class OtherUnit(param: LaneParameter) extends Module {
       req.extendType.valid && req.extendType.bits.popCount,
       req.extendType.valid && req.extendType.bits.id,
       !req.extendType.valid && opcodeOH(4),
-      (req.extendType.valid && req.extendType.bits.mv) || (!req.extendType.valid && r0)
+      (req.extendType.valid && req.extendType.bits.mv) || selectSource1,
+      selectSource2
     )
   ).asUInt
   val result: UInt = Mux1H(
     resultSelect,
-    Seq(extendRes, ffo.resp.bits, popCount.resp, indexRes, roundResult, req.src.head)
+    Seq(extendRes, ffo.resp.bits, popCount.resp, indexRes, roundResult, req.src.head, req.src.last)
   )
   resp.data := result
   resp.ffoSuccess := ffo.resp.valid
