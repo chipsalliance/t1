@@ -12,6 +12,7 @@ class OtherUnitReq(param: LaneParameter) extends Bundle {
   val laneIndex:  UInt = UInt(param.laneNumberWidth.W)
   val sign:       Bool = Bool()
   val mask:       Bool = Bool()
+  val complete:   Bool = Bool()
 }
 
 class OtherUnitCsr extends Bundle {

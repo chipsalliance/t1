@@ -161,7 +161,10 @@ class InstControlRecord(param: LaneParameter) extends Bundle {
 
   /** which group in the slot is executing. */
   val groupCounter:      UInt = UInt(param.groupNumberWidth.W)
+  // mask 类型的被别的lane完成了, 然后scheduler会通知 eg：sbf
   val schedulerComplete: Bool = Bool()
+  // mask 类型的被这一组数据完成了 eg：sbf
+  val selfCompleted: Bool = Bool()
 
   /** the execution index in group
     * use byte as granularity,

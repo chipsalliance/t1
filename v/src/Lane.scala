@@ -364,6 +364,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** request for other instruction type. */
   val otherRequests: Vec[OtherUnitReq] = Wire(Vec(parameter.chainingSize, Output(new OtherUnitReq(parameter))))
 
+  val otherResponse: OtherUnitResp = Wire(Output(new OtherUnitResp(parameter.datePathParam)))
+
   /** request for mask instruction type. */
   val maskRequests: Vec[LaneDataResponse] = Wire(Vec(parameter.chainingSize, Output(new LaneDataResponse(parameter))))
 
@@ -788,6 +790,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequest.groupIndex := record.groupCounter
         otherRequest.sign := !decodeResult(Decoder.unsigned0)
         otherRequest.mask := maskAsInput || !record.originalInformation.mask
+        otherRequest.complete := record.schedulerComplete || record.selfCompleted
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
@@ -834,6 +837,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             record.state.wExecuteRes := true.B
           }
           result(index) := resultUpdate
+          record.selfCompleted := otherResponse.ffoSuccess
           when(!masked) {
             record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
             when(record.originalInformation.decodeResult(Decoder.red)) {
@@ -1334,6 +1338,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequest.sign := !decodeResult(Decoder.unsigned0)
         // todo: vmv.v.* decode to mv instead of merge or delete mv
         otherRequest.mask := maskAsInput || !record.originalInformation.mask
+        otherRequest.complete := record.schedulerComplete || record.selfCompleted
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
@@ -1387,6 +1392,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             record.state.wExecuteRes := true.B
           }
           result(index) := resultUpdate
+          record.selfCompleted := otherResponse.ffoSuccess
           when(!masked) {
             record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
             when(record.originalInformation.decodeResult(Decoder.red)) {
@@ -1551,6 +1557,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     div.mask := DontCare
     div.vSew := csrInterface.vSew
     mul.csrInterface := csrInterface
+    otherResponse := otherUnit.resp
 
     // 连接执行结果
     executeDequeueData := VecInit(
@@ -1632,6 +1639,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.initState := laneRequest.bits.initState
   entranceControl.executeIndex := 0.U
   entranceControl.schedulerComplete := false.B
+  entranceControl.selfCompleted := false.B
   entranceControl.instCompleted := ((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl ||
     maskLogicCompleted
   entranceControl.mask.valid := laneRequest.bits.mask
