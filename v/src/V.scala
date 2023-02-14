@@ -193,16 +193,14 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     Decoder.iota
   )
   nextInstructionType.red := !decodeResult(Decoder.other) && decodeResult(Decoder.red)
+  nextInstructionType.ffo := decodeResult(Decoder.ffo)
   nextInstructionType.other := decodeResult(Decoder.maskDestination)
   // TODO: from decode
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
-  // TODO: decode eg: vmslt
-  val maskDestination = decodeResult(Decoder.maskOp) && (
-    decodeResult(Decoder.adder) && decodeResult(Decoder.uop) === 2.U
-    )
+  val maskDestination = decodeResult(Decoder.maskDestination)
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
   // TODO[1]: from decode
-  val specialInst: Bool = maskUnitType || indexTypeLS || maskDestination
+  val specialInst: Bool = maskUnitType || indexTypeLS || maskDestination || maskUnitType
   val busClear:    Bool = Wire(Bool())
 
   // mask Unit 与lane交换数据

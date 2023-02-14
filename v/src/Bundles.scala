@@ -39,6 +39,7 @@ class SpecialInstructionType extends Bundle {
   val red:      Bool = Bool()
   val compress: Bool = Bool()
   val viota:    Bool = Bool()
+  val ffo:      Bool = Bool()
   // 其他的需要对齐的指令
   val other: Bool = Bool()
 }
@@ -101,7 +102,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.wRead2 := !crossRead
     res.wScheduler := !special
     // todo
-    res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red))
+    res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red) || decodeResult(Decoder.ffo))
     res.sExecute := false.B
     //todo: red
     res.wExecuteRes := special
