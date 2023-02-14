@@ -39,8 +39,9 @@ class OtherUnit(param: LaneParameter) extends Module {
   // ["slide", "rgather", "merge", "mv", "clip", "compress"]
   val opcodeOH: UInt = UIntToOH(req.opcode)(5, 0)
 
-  ffo.src := req.src.head
+  ffo.src := req.src.last
   ffo.resultSelect := req.opcode
+  ffo.complete := req.complete
   popCount.src := req.src.head
 
   val signValue:  Bool = req.src.head(param.datapathWidth - 1) && req.sign
