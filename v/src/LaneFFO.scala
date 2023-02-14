@@ -7,6 +7,7 @@ class LaneFFO(param: DataPathParam) extends Module {
   val src:          UInt = IO(Input(UInt(param.dataWidth.W)))
   val resultSelect: UInt = IO(Input(UInt(2.W)))
   val resp:         ValidIO[UInt] = IO(Output(Valid(UInt(param.dataWidth.W))))
+  val complete:     Bool = IO(Input(Bool()))
   // todo: add mask
   val notZero: Bool = src.orR
   val lo:      UInt = scanLeftOr(src)
@@ -20,9 +21,38 @@ class LaneFFO(param: DataPathParam) extends Module {
 
   // copy&paste from rocket-chip: src/main/scala/util/package.scala
   // todo: upstream this to chisel3
-  private def OH1ToOH(x:   UInt): UInt = ((x << 1: UInt) | 1.U) & ~Cat(0.U(1.W), x)
+  private def OH1ToOH(x:   UInt): UInt = (((x << 1): UInt) | 1.U) & ~Cat(0.U(1.W), x)
   private def OH1ToUInt(x: UInt): UInt = OHToUInt(OH1ToOH(x))
   resp.valid := notZero
-  // "vfirst" -> first set, "vmsbf" -> before, "vmsof" -> oh, "vmsif" -> include
-  resp.bits := Mux1H(UIntToOH(resultSelect), Seq(index, ro, OH, inc))
+  //
+  val selectOH = UIntToOH(resultSelect)
+  // find-first-set
+  val first: Bool = selectOH(0)
+  // set-before-first
+  val sbf: Bool = selectOH(1)
+  // set-only-first
+  val sof: Bool = selectOH(2)
+  // set-including-first
+  val sif: Bool = selectOH(3)
+
+  /** first:
+    *   complete ? 0 : index
+    * sbf:
+    *   complete ? 0 : notZero ? ro : -1
+    * sof:
+    *   complete ? 0 : OH
+    * sif:
+    *   complete ? 0 : notZero ? inc : -1
+    */
+  resp.bits := Mux1H(
+    Seq(
+      complete,
+      !complete && first,
+      !complete && notZero && sbf,
+      !complete && sof,
+      !complete && notZero && sif,
+      !complete && !notZero && resultSelect(0)
+    ),
+    Seq(0.U, index, ro, OH, inc, -1.S.asUInt)
+  )
 }
