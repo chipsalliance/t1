@@ -217,7 +217,7 @@ object Decoder {
         xs.map(s.indexOf).zipWithIndex.filter(_._1 != -1).head._2
 
       val table = if (op.special.nonEmpty) {
-        "????"
+        "1???"
       } else if (multiplier.genTable(op) == y) {
         val high = op.name.contains("mulh")
         val n = if (high) 3 else firstIndexContains(mul, op.name)
@@ -281,8 +281,12 @@ object Decoder {
   }
 
   object maskLogic extends BoolField {
-    def genTable(op: Op): BitPat =
-      if (op.special.nonEmpty) dc else if (op.name.startsWith("vm") && logic.genTable(op) == y) y else n
+    def genTable(op: Op): BitPat = {
+      // todo: raname maskLogic -> maskOperation
+      val otherMaskOperation = Seq("sbf", "sif", "sof", "first", "cpop", "viota").exists(op.name.contains)
+      val logicMaskOperation = op.name.startsWith("vm") && logic.genTable(op) == y
+      if (logicMaskOperation || otherMaskOperation) y else n
+    }
   }
 
   object maskDestination extends BoolField {
