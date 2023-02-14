@@ -530,7 +530,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val reduceValid = record.originalInformation.decodeResult(Decoder.red) && instructionExecuteFinished(index)
       // viota & compress & ls 需要给外边数据
       val needResponse: Bool = (record.originalInformation.loadStore || reduceValid ||
-        maskTypeDestinationWriteValid) && slotActive(index)
+        maskTypeDestinationWriteValid || record.originalInformation.decodeResult(Decoder.ffo)) && slotActive(index)
 
       // mask logic 的控制
       val lastGroupForMaskLogic: Bool = lastGroupCountForMaskLogic === record.groupCounter
@@ -796,6 +796,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // 往scheduler的执行任务compress viota
         val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(parameter)))
         val maskValid = needResponse && readFinish && record.state.sExecute && !record.state.sScheduler
+        val noNeedWaitScheduler: Bool = !maskValid || schedulerFinish
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
           record.originalInformation.decodeResult(Decoder.maskDestination),
@@ -846,7 +847,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           }
         }
         // 写rf
-        vrfWriteArbiter(index).valid := record.state.wExecuteRes && !record.state.sWrite && slotActive(index)
+        vrfWriteArbiter(index).valid := record.state.wExecuteRes && !record.state.sWrite &&
+          slotActive(index) && noNeedWaitScheduler
         vrfWriteArbiter(index).bits.vd := record.originalInformation.vd + record.groupCounter(
           parameter.groupNumberWidth - 1,
           parameter.vrfOffsetWidth
@@ -1350,6 +1352,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           * 有每轮需要交换和只需要交换一次的区别(compress & red)
           */
         val maskValid = needResponse && readFinish && record.state.sExecute && !record.state.sScheduler
+        val noNeedWaitScheduler: Bool = !maskValid || schedulerFinish
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
           record.originalInformation.decodeResult(Decoder.maskDestination),
@@ -1409,7 +1412,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         }
 
         // 写rf
-        vrfWriteArbiter(index).valid := record.state.wExecuteRes && !record.state.sWrite && slotActive(index)
+        vrfWriteArbiter(index).valid := record.state.wExecuteRes && !record.state.sWrite &&
+          slotActive(index) && noNeedWaitScheduler
         vrfWriteArbiter(index).bits.vd := record.originalInformation.vd + record.groupCounter(
           parameter.groupNumberWidth - 1,
           parameter.vrfOffsetWidth
