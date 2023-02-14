@@ -25,17 +25,17 @@ class LaneDiv(param: DataPathParam) extends Module {
     (src & mask) | (signExtend & (~mask).asUInt)
   }
 
-  val div = Module(new SRTWrapper)
-  div.input.bits.dividend := req.bits.src.last
-  div.input.bits.divisor := req.bits.src.head
-  div.input.valid := req.valid
+  val wrapper = Module(new SRTWrapper)
+  wrapper.input.bits.dividend := req.bits.src.last
+  wrapper.input.bits.divisor := req.bits.src.head
+  wrapper.input.valid := req.valid
 
-  req.ready := div.input.ready
+  req.ready := wrapper.input.ready
 
   val remReg: Bool = RegEnable(req.bits.rem, false.B, req.fire)
 
-  resp.valid := div.output.valid
-  resp.bits := Mux(remReg, div.output.bits.reminder, div.output.bits.quotient)
+  resp.valid := wrapper.output.valid
+  resp.bits := Mux(remReg, wrapper.output.bits.reminder, wrapper.output.bits.quotient)
 }
 
 class SRTIn extends Bundle {
@@ -51,7 +51,7 @@ class SRTWrapper extends Module{
   val LZC1 = Module(new LZC32)
   LZC0.io.a := input.bits.dividend
   LZC1.io.a := input.bits.divisor
-  val div: SRT = Module(new SRT(32, 32, 32))
+  val srt: SRT = Module(new SRT(32, 32, 32))
 
   // pre-process
 
@@ -79,20 +79,20 @@ class SRTWrapper extends Module{
   leftShiftWidthDivisor := zeroHeadDivisor(4,0)
 
   // do SRT
-  div.input.bits.divider := input.bits.divisor << leftShiftWidthDivisor
-  div.input.bits.dividend := input.bits.dividend << leftShiftWidthDividend
-  div.input.bits.counter := counter
-  div.input.valid := input.valid && !(input.bits.divisor === 0.U)
-  input.ready := div.input.ready
+  srt.input.bits.divider := input.bits.divisor << leftShiftWidthDivisor
+  srt.input.bits.dividend := input.bits.dividend << leftShiftWidthDividend
+  srt.input.bits.counter := counter
+  srt.input.valid := input.valid && !(input.bits.divisor === 0.U)
+  input.ready := srt.input.ready
 
   // logic
   val divideZero = Wire(Bool())
   divideZero := (input.bits.divisor === 0.U) && input.fire
 
   // post-process
-  output.valid := div.output.valid | divideZero
-  output.bits.quotient := Mux(divideZero,"hffffffff".U(32.W),div.output.bits.quotient)
-  output.bits.reminder := div.output.bits.reminder
+  output.valid := srt.output.valid | divideZero
+  output.bits.quotient := Mux(divideZero,"hffffffff".U(32.W), srt.output.bits.quotient)
+  output.bits.reminder := srt.output.bits.reminder
 
 }
 
