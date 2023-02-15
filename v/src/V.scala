@@ -230,6 +230,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val data: Vec[ValidIO[UInt]] = RegInit(
     VecInit(Seq.fill(parameter.laneNumer)(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W)))))
   )
+  val completedVec: Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.laneNumer)(false.B)))
+  val completedLeftOr: UInt = (scanLeftOr(completedVec.asUInt) << 1).asUInt(parameter.laneNumer - 1, 0)
   // 按指定的sew拼成 {laneNumer * dataPathWidth} bit, 然后根据sew选择出来
   val sortedData: UInt = Mux1H(sew1H(2, 0), Seq(4, 2, 1).map { groupSize =>
     VecInit(data.map { element =>
@@ -319,6 +321,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         control.state.sExecute := !maskUnitType
         instructionType := nextInstructionType
         maskTypeInstruction := maskType && !decodeResult(Decoder.maskSource)
+        completedVec.foreach(_ := false.B)
       }.elsewhen(control.state.wLast) {
         control.state.sExecute := true.B
       }
@@ -430,10 +433,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val reduceResult = Mux(decodeResultReg(Decoder.adder), adder.resp.data, logicUnit.resp)
       val aluOutPut = Mux(reduce, reduceResult, 0.U)
       // alu end
-
+      val maskOperation = decodeResultReg(Decoder.maskLogic)
+      val lastGroupDataWaitMask = scanRightOr(UIntToOH(lastExecuteCounter))
+      val dataMask = Mux(maskOperation && lastGroup, lastGroupDataWaitMask, -1.S(parameter.laneNumer.W).asUInt)
+      val dataReady = ((~dataMask).asUInt | VecInit(data.map(_.valid)).asUInt).andR
       when(
         // data ready
-        VecInit(data.map(_.valid)).asUInt.andR &&
+        dataReady &&
           // state check
           !control.state.sExecute
       ) {
@@ -452,13 +458,16 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           dataResult.bits := aluOutPut
         }
         val executeFinish: Bool = executeCounter(log2Ceil(parameter.laneNumer)) || !reduce
+        val schedulerWrite = decodeResultReg(Decoder.maskDestination) || reduce
+        // todo: decode
+        val groupSync = decodeResultReg(Decoder.ffo)
         // 写回
         when(readFinish && executeFinish) {
-          maskUnitWrite.valid := true.B
-          when(maskUnitWrite.ready) {
+          maskUnitWrite.valid := schedulerWrite
+          when(maskUnitWrite.ready || !schedulerWrite) {
             WARRedResult.valid := false.B
-            writeBackCounter := writeBackCounter + 1.U
-            when(lastExecuteForGroup || lastExecute || reduce) {
+            writeBackCounter := writeBackCounter + schedulerWrite
+            when(lastExecuteForGroup || lastExecute || reduce || groupSync) {
               synchronized := true.B
               data.foreach(_.valid := false.B)
               when(lastExecuteForGroup) {
@@ -482,7 +491,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // TODO: review later
   // todo: 把scheduler的反馈也加上,lsu有更高的优先级
   val laneFeedBackValid: Bool = lsu.lsuOffsetReq || synchronized
-  // todo:同样要加上scheduler的
   val laneComplete: Bool = lsu.lastReport.valid && lsu.lastReport.bits === instStateVec.last.record.instructionIndex
 
   val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
@@ -525,7 +533,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.laneIndex := index.U
 
     lane.laneResponseFeedback.valid := laneFeedBackValid
-    lane.laneResponseFeedback.bits.complete := laneComplete
+    lane.laneResponseFeedback.bits.complete := laneComplete || completedLeftOr(index)
     lane.laneResponseFeedback.bits.instructionIndex := instStateVec.last.record.instructionIndex
 
     // 读 lane
@@ -563,6 +571,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     when(laneSynchronize(index)) {
       data(index).valid := true.B
       data(index).bits := lane.laneResponse.bits.data
+      completedVec(index) := lane.laneResponse.bits.ffoSuccess
     }
     lane
   }

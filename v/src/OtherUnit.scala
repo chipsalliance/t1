@@ -13,6 +13,8 @@ class OtherUnitReq(param: LaneParameter) extends Bundle {
   val sign:       Bool = Bool()
   val mask:       Bool = Bool()
   val complete:   Bool = Bool()
+  // eg: ffo
+  val specialOpcode: UInt = UInt(4.W)
 }
 
 class OtherUnitCsr extends Bundle {
@@ -40,7 +42,7 @@ class OtherUnit(param: LaneParameter) extends Module {
   val opcodeOH: UInt = UIntToOH(req.opcode)(5, 0)
 
   ffo.src := req.src.last
-  ffo.resultSelect := req.opcode
+  ffo.resultSelect := req.specialOpcode
   ffo.complete := req.complete
   popCount.src := req.src.head
 
