@@ -781,7 +781,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // other
         val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
-        otherRequest.src := VecInit(Seq(finalSource1, finalSource2))
+        otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
         otherRequest.opcode := decodeResult(Decoder.uop)(2, 0)
         otherRequest.specialOpcode := decodeResult(Decoder.specialUop)
         otherRequest.imm := record.originalInformation.vs1
@@ -792,6 +792,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequest.sign := !decodeResult(Decoder.unsigned0)
         otherRequest.mask := maskAsInput || !record.originalInformation.mask
         otherRequest.complete := record.schedulerComplete || record.selfCompleted
+        otherRequest.maskType := record.originalInformation.mask
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
@@ -936,10 +937,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // vs1 read
         vrfReadRequest(index)(0).valid := !record.state.sRead1 && slotActive(index)
         vrfReadRequest(index)(0).bits.offset := record.groupCounter(parameter.vrfOffsetWidth - 1, 0)
-        // todo: when vlmul > 0 use ## rather than +
-        vrfReadRequest(index)(0).bits.vs := record.originalInformation.vs1 + record.groupCounter(
-          parameter.groupNumberWidth - 1,
-          parameter.vrfOffsetWidth
+        vrfReadRequest(index)(0).bits.vs := Mux(
+          record.originalInformation.decodeResult(Decoder.maskLogic) &&
+            !record.originalInformation.decodeResult(Decoder.logic),
+          // read v0 for (15. Vector Mask Instructions)
+          0.U,
+          // todo: when vlmul > 0 use ## rather than +
+          record.originalInformation.vs1 + record.groupCounter(
+            parameter.groupNumberWidth - 1,
+            parameter.vrfOffsetWidth
+          )
         )
         // used for hazard detection
         vrfReadRequest(index)(0).bits.instructionIndex := record.originalInformation.instructionIndex
@@ -1333,7 +1340,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // other
         val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
-        otherRequest.src := VecInit(Seq(finalSource1, finalSource2))
+        otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
         otherRequest.opcode := decodeResult(Decoder.uop)(2, 0)
         otherRequest.specialOpcode := decodeResult(Decoder.specialUop)
         otherRequest.imm := record.originalInformation.vs1
@@ -1345,6 +1352,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // todo: vmv.v.* decode to mv instead of merge or delete mv
         otherRequest.mask := maskAsInput || !record.originalInformation.mask
         otherRequest.complete := record.schedulerComplete || record.selfCompleted
+        otherRequest.maskType := record.originalInformation.mask
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
@@ -1418,6 +1426,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         }
 
         // 写rf
+        val completeWrite = Mux(record.originalInformation.mask, (~source1(index)).asUInt & source3(index), 0.U)
         vrfWriteArbiter(index).valid := record.state.wExecuteRes && !record.state.sWrite &&
           slotActive(index) && noNeedWaitScheduler
         vrfWriteArbiter(index).bits.vd := record.originalInformation.vd + record.groupCounter(
@@ -1425,7 +1434,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           parameter.vrfOffsetWidth
         )
         vrfWriteArbiter(index).bits.offset := record.groupCounter
-        vrfWriteArbiter(index).bits.data := Mux(record.schedulerComplete, 0.U, result(index))
+        vrfWriteArbiter(index).bits.data := Mux(record.schedulerComplete, completeWrite, result(index))
         // todo: 是否条件有多余
         vrfWriteArbiter(index).bits.last := instructionExecuteFinished(index) || lastVRFWrite
         vrfWriteArbiter(index).bits.instructionIndex := record.originalInformation.instructionIndex

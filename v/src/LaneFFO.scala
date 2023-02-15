@@ -4,13 +4,17 @@ import chisel3._
 import chisel3.util._
 
 class LaneFFO(param: DataPathParam) extends Module {
-  val src:          UInt = IO(Input(UInt(param.dataWidth.W)))
+  // Seq(mask, data, destination)
+  val src:          Vec[UInt] = IO(Input(Vec(3, UInt(param.dataWidth.W))))
   val resultSelect: UInt = IO(Input(UInt(2.W)))
   val resp:         ValidIO[UInt] = IO(Output(Valid(UInt(param.dataWidth.W))))
   val complete:     Bool = IO(Input(Bool()))
-  // todo: add mask
-  val notZero: Bool = src.orR
-  val lo:      UInt = scanLeftOr(src)
+  val maskType:     Bool = IO(Input(Bool()))
+
+  val truthMask: UInt = Mux(maskType, src.head, -1.S(param.dataWidth.W).asUInt)
+  val srcData: UInt = truthMask & src(1)
+  val notZero: Bool = srcData.orR
+  val lo:      UInt = scanLeftOr(srcData)
   // set before(right or)
   val ro: UInt = (~lo).asUInt
   // set including
@@ -44,7 +48,7 @@ class LaneFFO(param: DataPathParam) extends Module {
     * sif:
     *   complete ? 0 : notZero ? inc : -1
     */
-  resp.bits := Mux1H(
+  val ffoResult: UInt = Mux1H(
     Seq(
       complete,
       !complete && first,
@@ -55,4 +59,5 @@ class LaneFFO(param: DataPathParam) extends Module {
     ),
     Seq(0.U, index, ro, OH, inc, -1.S.asUInt)
   )
+  resp.bits := (ffoResult & truthMask) | (src.last & (~truthMask).asUInt)
 }
