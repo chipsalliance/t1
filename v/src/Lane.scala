@@ -783,6 +783,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
         otherRequest.src := VecInit(Seq(finalSource1, finalSource2))
         otherRequest.opcode := decodeResult(Decoder.uop)(2, 0)
+        otherRequest.specialOpcode := decodeResult(Decoder.specialUop)
         otherRequest.imm := record.originalInformation.vs1
         otherRequest.extendType.valid := decodeResult(Decoder.uop)(3)
         otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResult.elements(s) }
@@ -795,8 +796,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // 往scheduler的执行任务compress viota
         val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(parameter)))
-        val maskValid = needResponse && readFinish && record.state.sExecute && !record.state.sScheduler
-        val noNeedWaitScheduler: Bool = !maskValid || schedulerFinish
+        val canSendMaskRequest = needResponse && readFinish && record.state.sExecute
+        val maskValid = canSendMaskRequest && !record.state.sScheduler
+        val noNeedWaitScheduler: Bool = !(canSendMaskRequest && !record.initState.sScheduler) || schedulerFinish
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
           record.originalInformation.decodeResult(Decoder.maskDestination),
@@ -809,6 +811,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         )
         maskRequest.toLSU := record.originalInformation.loadStore
         maskRequest.instructionIndex := record.originalInformation.instructionIndex
+        maskRequest.ffoSuccess := record.selfCompleted
         maskRequests(index) := maskAnd(slotOccupied(index) && maskValid, maskRequest)
         maskRequestValids(index) := maskValid
 
@@ -854,7 +857,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           parameter.vrfOffsetWidth
         )
         vrfWriteArbiter(index).bits.offset := record.groupCounter
-        vrfWriteArbiter(index).bits.data := result(index)
+        vrfWriteArbiter(index).bits.data := Mux(record.schedulerComplete, 0.U, result(index))
         vrfWriteArbiter(index).bits.last := instructionExecuteFinished(index)
         vrfWriteArbiter(index).bits.instructionIndex := record.originalInformation.instructionIndex
         vrfWriteArbiter(index).bits.mask := record.vrfWriteMask
@@ -1332,6 +1335,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
         otherRequest.src := VecInit(Seq(finalSource1, finalSource2))
         otherRequest.opcode := decodeResult(Decoder.uop)(2, 0)
+        otherRequest.specialOpcode := decodeResult(Decoder.specialUop)
         otherRequest.imm := record.originalInformation.vs1
         otherRequest.extendType.valid := decodeResult(Decoder.uop)(3)
         otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResult.elements(s) }
@@ -1351,8 +1355,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           *   我们用[[maskTypeDestinationWriteValid]]区分这种
           * 有每轮需要交换和只需要交换一次的区别(compress & red)
           */
-        val maskValid = needResponse && readFinish && record.state.sExecute && !record.state.sScheduler
-        val noNeedWaitScheduler: Bool = !maskValid || schedulerFinish
+        val canSendMaskRequest = needResponse && readFinish && record.state.sExecute
+        val maskValid = canSendMaskRequest && !record.state.sScheduler
+        val noNeedWaitScheduler: Bool = !(canSendMaskRequest && !record.initState.sScheduler) || schedulerFinish
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
           record.originalInformation.decodeResult(Decoder.maskDestination),
@@ -1365,6 +1370,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         )
         maskRequest.toLSU := record.originalInformation.loadStore
         maskRequest.instructionIndex := record.originalInformation.instructionIndex
+        maskRequest.ffoSuccess := record.selfCompleted
         maskRequests(index) := maskAnd(slotOccupied(index) && maskValid, maskRequest)
         maskRequestValids(index) := maskValid
 
@@ -1419,7 +1425,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           parameter.vrfOffsetWidth
         )
         vrfWriteArbiter(index).bits.offset := record.groupCounter
-        vrfWriteArbiter(index).bits.data := result(index)
+        vrfWriteArbiter(index).bits.data := Mux(record.schedulerComplete, 0.U, result(index))
         // todo: 是否条件有多余
         vrfWriteArbiter(index).bits.last := instructionExecuteFinished(index) || lastVRFWrite
         vrfWriteArbiter(index).bits.instructionIndex := record.originalInformation.instructionIndex
@@ -1461,7 +1467,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         ) {
           // 例如:别的lane找到了第一个1
           record.schedulerComplete := true.B
-          when(record.originalInformation.special) {
+          when(record.initState.wExecuteRes) {
             slotOccupied(index) := false.B
           }
         }

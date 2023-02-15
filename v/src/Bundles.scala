@@ -105,7 +105,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red) || decodeResult(Decoder.ffo))
     res.sExecute := false.B
     //todo: red
-    res.wExecuteRes := special
+    res.wExecuteRes := special && !decodeResult(Decoder.ffo)
     res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) ||
       decodeResult(Decoder.widen) || decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red)
     res.sCrossWrite0 := !decodeResult(Decoder.widen)
@@ -213,6 +213,7 @@ class LaneDataResponse(param: LaneParameter) extends Bundle {
   val data: UInt = UInt(param.datapathWidth.W)
   // TODO: move to top?
   val toLSU:            Bool = Bool()
+  val ffoSuccess:       Bool = Bool()
   val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
 }
 
