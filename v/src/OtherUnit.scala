@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util.{Fill, Mux1H, UIntToOH, Valid}
 
 class OtherUnitReq(param: LaneParameter) extends Bundle {
-  val src:        Vec[UInt] = Vec(2, UInt(param.datapathWidth.W))
+  val src:        Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
   val opcode:     UInt = UInt(3.W)
   val extendType: Valid[ExtendInstructionType] = Valid(new ExtendInstructionType)
   val imm:        UInt = UInt(3.W)
@@ -15,6 +15,8 @@ class OtherUnitReq(param: LaneParameter) extends Bundle {
   val complete:   Bool = Bool()
   // eg: ffo
   val specialOpcode: UInt = UInt(4.W)
+  // vm = 0
+  val maskType: Bool = Bool()
 }
 
 class OtherUnitCsr extends Bundle {
@@ -41,9 +43,10 @@ class OtherUnit(param: LaneParameter) extends Module {
   // ["slide", "rgather", "merge", "mv", "clip", "compress"]
   val opcodeOH: UInt = UIntToOH(req.opcode)(5, 0)
 
-  ffo.src := req.src.last
+  ffo.src := req.src
   ffo.resultSelect := req.specialOpcode
   ffo.complete := req.complete
+  ffo.maskType := req.maskType
   popCount.src := req.src.head
 
   val signValue:  Bool = req.src.head(param.datapathWidth - 1) && req.sign
