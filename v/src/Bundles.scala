@@ -12,6 +12,7 @@ class VRequest(xLen: Int) extends Bundle {
 class VResponse(xLen: Int) extends Bundle {
   // todo: vector解出来是否需要写rd？
   val data: UInt = UInt(xLen.W)
+  val vxsat: Bool = Bool()
 }
 
 class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
