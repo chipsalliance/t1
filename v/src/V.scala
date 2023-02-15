@@ -640,6 +640,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     })
     response.valid := slotCommit.asUInt.orR
     response.bits.data := dataResult.bits
+    response.bits.vxsat := DontCare
     lastSlotCommit := slotCommit.last
   }
 
