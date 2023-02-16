@@ -131,6 +131,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val isLoadStoreType: Bool = !request.bits.instruction(6) && request.valid
   val isStoreType:     Bool = !request.bits.instruction(6) && request.bits.instruction(5)
   val maskType:        Bool = !request.bits.instruction(25)
+  // slid 指令
+  val slid: Bool = decodeResult(Decoder.other) && (decodeResult(Decoder.uop) === 0.U)
+  // 只进mask unit的指令
+  val maskUnitInstruction: Bool = slid
+  val skipLastFromLane = isLoadStoreType || maskUnitInstruction
 
   // TODO: these should be decoding results
   val noReadST:    Bool = isLoadStoreType && (!request.bits.instruction(26))
@@ -194,13 +199,14 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   )
   nextInstructionType.red := !decodeResult(Decoder.other) && decodeResult(Decoder.red)
   nextInstructionType.ffo := decodeResult(Decoder.ffo)
+  nextInstructionType.slid := slid
   nextInstructionType.other := decodeResult(Decoder.maskDestination)
   // TODO: from decode
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
   val maskDestination = decodeResult(Decoder.maskDestination)
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
   // TODO[1]: from decode
-  val specialInst: Bool = maskUnitType || indexTypeLS || maskDestination || maskUnitType
+  val specialInst: Bool = maskUnitType || indexTypeLS || maskDestination || maskUnitType || maskUnitInstruction
   val busClear:    Bool = Wire(Bool())
 
   // mask Unit 与lane交换数据
@@ -277,7 +283,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // two different initial states for endTag:
       // for load/store instruction, use the last bit to indicate whether it is the last instruction
       // for other instructions, use MSB to indicate whether it is the last instruction
-      control.endTag := VecInit(Seq.fill(parameter.laneNumer)(isLoadStoreType) :+ !isLoadStoreType)
+      control.endTag := VecInit(Seq.fill(parameter.laneNumer)(skipLastFromLane) :+ !isLoadStoreType)
     }.otherwise {
       // TODO: remove wLast. last = control.endTag.asUInt.andR
       when(laneAndLSUFinish) {
@@ -513,7 +519,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val laneVec: Seq[Lane] = Seq.tabulate(parameter.laneNumer) { index =>
     val lane: Lane = Module(new Lane(parameter.laneParam))
     // 请求,
-    lane.laneRequest.valid := request.fire && !noReadST && allLaneReady
+    lane.laneRequest.valid := request.fire && !noReadST && allLaneReady && !maskUnitInstruction
     lane.laneRequest.bits.instructionIndex := instructionCounter
     lane.laneRequest.bits.decodeResult := decodeResult
     lane.laneRequest.bits.vs1 := request.bits.instruction(19, 15)
