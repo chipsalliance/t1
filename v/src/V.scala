@@ -210,24 +210,31 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val busClear:    Bool = Wire(Bool())
 
   // mask Unit 与lane交换数据
-  val maskUnitWrite: DecoupledIO[VRFWriteRequest] = Wire(
-    Decoupled(
-      new VRFWriteRequest(
-        parameter.vrfParam.regNumBits,
-        parameter.vrfParam.offsetBits,
-        parameter.instructionIndexWidth,
-        parameter.dataPathWidth
-      )))
+  val writeType: VRFWriteRequest = new VRFWriteRequest(
+    parameter.vrfParam.regNumBits,
+    parameter.vrfParam.offsetBits,
+    parameter.instructionIndexWidth,
+    parameter.dataPathWidth
+  )
+  val maskUnitWrite: ValidIO[VRFWriteRequest] = Wire(Valid(writeType))
+  val maskUnitWriteVec: Vec[ValidIO[VRFWriteRequest]] = Wire(Vec(2, Valid(writeType)))
+  maskUnitWriteVec.foreach(_ := DontCare)
+  maskUnitWrite := maskUnitWriteVec.head
   val writeSelectMaskUnit: Vec[Bool] = Wire(Vec(parameter.laneNumer, Bool()))
-  maskUnitWrite.ready := writeSelectMaskUnit.asUInt.orR
-  val maskUnitRead: DecoupledIO[VRFReadRequest] = Wire(
-    Decoupled(new VRFReadRequest(
-      parameter.vrfParam.regNumBits,
-      parameter.vrfParam.offsetBits,
-      parameter.instructionIndexWidth
-    )))
+  val maskUnitWriteReady: Bool = writeSelectMaskUnit.asUInt.orR
+
+  // read
+  val readType: VRFReadRequest = new VRFReadRequest(
+    parameter.vrfParam.regNumBits,
+    parameter.vrfParam.offsetBits,
+    parameter.instructionIndexWidth
+  )
+  val maskUnitRead: ValidIO[VRFReadRequest] = Wire(Valid(readType))
+  val maskUnitReadVec: Vec[ValidIO[VRFReadRequest]] = Wire(Vec(2, Valid(readType)))
+  maskUnitReadVec.foreach(_ := DontCare)
+  maskUnitRead := maskUnitReadVec.head
   val readSelectMaskUnit: Vec[Bool] = Wire(Vec(parameter.laneNumer, Bool()))
-  maskUnitRead.ready := readSelectMaskUnit.asUInt.orR
+  val maskUnitReadReady = readSelectMaskUnit.asUInt.orR
   val laneReadResult: Vec[UInt] = Wire(Vec(parameter.laneNumer, UInt(parameter.dataPathWidth.W)))
   val maskUnitAccessSelect: UInt = Wire(UInt(parameter.laneNumer.W))
 
@@ -377,8 +384,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       maskUnitRead.bits.offset := groupCounter
       maskUnitRead.bits.instructionIndex := control.record.instructionIndex
       val readResultSelectResult = Mux1H(maskUnitAccessSelect, laneReadResult)
-      // 写
-      maskUnitWrite.valid := false.B
       // 把mask选出来
       val maskSelect = v0(groupCounter ## writeBackCounter)
       val fullMask: UInt = (-1.S(parameter.dataPathWidth.W)).asUInt
@@ -394,13 +399,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // 写的data
       val writeData = (WARRedResult.bits & (~maskCorrect).asUInt) | (regroupData(writeBackCounter) & maskCorrect)
       val writeMask = Mux(sew1HCorrect(2) || !reduce, 15.U, Mux(sew1HCorrect(1), 3.U, 1.U))
-      maskUnitWrite.valid := false.B
-      maskUnitWrite.bits.vd := vd
-      maskUnitWrite.bits.offset := groupCounter
-      maskUnitWrite.bits.mask := writeMask
-      maskUnitWrite.bits.data := Mux(reduce, dataResult.bits, writeData)
-      maskUnitWrite.bits.last := control.state.wLast || reduce
-      maskUnitWrite.bits.instructionIndex := control.record.instructionIndex
+      maskUnitWriteVec.head.valid := false.B
+      maskUnitWriteVec.head.bits.vd := vd
+      maskUnitWriteVec.head.bits.offset := groupCounter
+      maskUnitWriteVec.head.bits.mask := writeMask
+      maskUnitWriteVec.head.bits.data := Mux(reduce, dataResult.bits, writeData)
+      maskUnitWriteVec.head.bits.last := control.state.wLast || reduce
+      maskUnitWriteVec.head.bits.instructionIndex := control.record.instructionIndex
 
       // alu start
       val aluInput1 = Mux(
@@ -452,7 +457,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         // 读
         when(needWAR && !WARRedResult.valid) {
           maskUnitRead.valid := true.B
-          when(maskUnitRead.ready) {
+          when(maskUnitReadReady) {
             WARRedResult.bits := readResultSelectResult
             WARRedResult.valid := true.B
           }
@@ -469,8 +474,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         val groupSync = decodeResultReg(Decoder.ffo)
         // 写回
         when(readFinish && executeFinish) {
-          maskUnitWrite.valid := schedulerWrite
-          when(maskUnitWrite.ready || !schedulerWrite) {
+          maskUnitWriteVec.head.valid := schedulerWrite
+          when(maskUnitWriteReady || !schedulerWrite) {
             WARRedResult.valid := false.B
             writeBackCounter := writeBackCounter + schedulerWrite
             when(lastExecuteForGroup || lastExecute || reduce || groupSync) {
