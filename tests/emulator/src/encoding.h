@@ -62,7 +62,8 @@ struct VInstrInterfacePoke {
 
 struct VRespInterface {
   svBit valid;
-  svBitVecVal bits;
+  svBitVecVal data;
+  svBit vxsat;
 };
 
 struct VInstrFire {
