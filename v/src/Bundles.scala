@@ -41,6 +41,7 @@ class SpecialInstructionType extends Bundle {
   val compress: Bool = Bool()
   val viota:    Bool = Bool()
   val ffo:      Bool = Bool()
+  val slid:      Bool = Bool()
   // 其他的需要对齐的指令
   val other: Bool = Bool()
 }
