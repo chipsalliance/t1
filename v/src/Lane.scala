@@ -774,6 +774,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         divRequest.src := VecInit(Seq(finalSource1, finalSource2))
         divRequest.rem := decodeResult(Decoder.uop)(0)
         divRequest.sign := decodeResult(Decoder.unsigned0)
+        divRequest.index := DontCare
         dividerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
           divRequest
@@ -1333,6 +1334,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         divRequest.src := VecInit(Seq(finalSource1, finalSource2))
         divRequest.rem := decodeResult(Decoder.uop)(0)
         divRequest.sign := decodeResult(Decoder.unsigned0)
+        divRequest.index := DontCare
         dividerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
           divRequest

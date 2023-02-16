@@ -8,6 +8,7 @@ class LaneDivRequest(param: DataPathParam) extends Bundle {
   val src:  Vec[UInt] = Vec(2, UInt(param.dataWidth.W))
   val rem:  Bool = Bool()
   val sign: Bool = Bool()
+  val index = UInt(2.W)// log2Ceil(param.dataPathByteWidth).W
 }
 
 class LaneDiv(param: DataPathParam) extends Module {
@@ -16,6 +17,7 @@ class LaneDiv(param: DataPathParam) extends Module {
   // mask for sew
   val mask: UInt = IO(Input(UInt(param.dataWidth.W)))
   val resp: ValidIO[UInt] = IO(Valid(UInt(param.dataWidth.W)))
+  val index = IO(Output(UInt(2.W)))
 
   val sign1h: UInt = mask & (~mask >> 1).asUInt
 
@@ -30,13 +32,11 @@ class LaneDiv(param: DataPathParam) extends Module {
   wrapper.input.bits.divisor := req.bits.src.head.asSInt
   wrapper.input.bits.signIn := req.bits.sign
   wrapper.input.valid := req.valid
-  // todo
-  wrapper.input.bits.index := 0.U
-
-  req.ready := wrapper.input.ready
 
   val remReg: Bool = RegEnable(req.bits.rem, false.B, req.fire)
 
+  index := req.bits.index
+  req.ready := wrapper.input.ready
   resp.valid := wrapper.output.valid
   resp.bits := Mux(remReg, wrapper.output.bits.reminder.asUInt, wrapper.output.bits.quotient.asUInt)
 }
@@ -45,14 +45,11 @@ class SRTIn extends Bundle {
   val dividend = SInt(32.W)
   val divisor = SInt(32.W)
   val signIn = Bool()
-  //index =  UInt(log2Ceil(param.dataPathByteWidth).W)
-  val index = UInt(2.W)
 }
 
 class SRTOut extends Bundle {
   val reminder = SInt(32.W)
   val quotient = SInt(32.W)
-  val index = UInt(2.W)
 }
 /** 32-bits Divider for signed and unsigned division based on SRT4
   *
@@ -141,7 +138,6 @@ class SRTWrapper extends Module{
   quotientAbs := srt.output.bits.quotient
   remainderAbs := srt.output.bits.reminder >> zeroHeadDivisor
 
-  output.bits.index := input.bits.index
   output.valid := srt.output.valid | bypassSRT
   // the quotient of division by zero has all bits set, and the remainder of division by zero equals the dividend.
   output.bits.quotient := Mux(divideZero,"hffffffff".U(32.W),
