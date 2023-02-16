@@ -232,7 +232,8 @@ class VerificationModule(dut: V) extends TapModule {
          |  output bit csrInterface_ignoreException,
          |
          |  input respValid,
-         |  input bit[${response.getWidth - 1}:0] response_data
+         |  input bit[${response.data.getWidth - 1}:0] response_data,
+         |  input bit response_vxsat
          |);
          |import "DPI-C" function void $desiredName(
          |  output bit[31:0] request_instruction,
@@ -250,7 +251,8 @@ class VerificationModule(dut: V) extends TapModule {
          |  output bit ignoreException,
          |
          |  input respValid,
-         |  input bit[${response.getWidth - 1}:0] response_data
+         |  input bit[${response.data.getWidth - 1}:0] response_data,
+         |  input bit response_vxsat
          |);
          |always @ (posedge clock) #($latPokeInst) $desiredName(
          |  request_instruction,
@@ -268,7 +270,8 @@ class VerificationModule(dut: V) extends TapModule {
          |  csrInterface_ignoreException,
          |
          |  respValid,
-         |  response_data
+         |  response_data,
+         |  response_vxsat
          |);
          |endmodule
          |""".stripMargin

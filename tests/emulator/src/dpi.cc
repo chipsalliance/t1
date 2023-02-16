@@ -68,13 +68,14 @@ void VBridgeImpl::dpiDumpWave() {
     svBit *ignoreException,
 
     svBit respValid,
-    const svBitVecVal *response_data
+    const svBitVecVal *response_data,
+    svBit response_vxsat
 ) {
   TRY({
     vbridge_impl_instance.dpiPokeInst(
         VInstrInterfacePoke{request_inst, request_src1Data, request_src2Data, instValid},
         VCsrInterfacePoke{vl, vStart, vlmul, vSew, vxrm, vta, vma, ignoreException},
-        VRespInterface{respValid, *response_data}
+        VRespInterface{respValid, *response_data, response_vxsat}
     );
   })
 }

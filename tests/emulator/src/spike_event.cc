@@ -162,8 +162,8 @@ void SpikeEvent::check_is_ready_for_commit() {
 void SpikeEvent::record_rd_write(const VRespInterface &v_resp) {
   // TODO: rtl should indicate whether resp_bits_data is valid
   if (is_rd_written) {
-    CHECK_EQ_S(v_resp.bits, rd_bits) << fmt::format(": [{}] expect to write rd[{}] = {}, actual {}",
-                                                             impl->get_t(), rd_idx, rd_bits, v_resp.bits);
+    CHECK_EQ_S(v_resp.data, rd_bits) << fmt::format(": [{}] expect to write rd[{}] = {}, actual {}",
+                                                             impl->get_t(), rd_idx, rd_bits, v_resp.data);
   }
 }
 
