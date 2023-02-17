@@ -199,7 +199,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   )
   nextInstructionType.red := !decodeResult(Decoder.other) && decodeResult(Decoder.red)
   nextInstructionType.ffo := decodeResult(Decoder.ffo)
-  nextInstructionType.slid := slid
+  nextInstructionType.slid := decodeResult(Decoder.slid)
   nextInstructionType.other := decodeResult(Decoder.maskDestination)
   // TODO: from decode
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
