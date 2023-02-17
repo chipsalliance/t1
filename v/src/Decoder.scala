@@ -190,6 +190,10 @@ object Decoder {
     def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (subs.exists(op.name.contains)) y else n
   }
 
+  object slid extends BoolField {
+    def genTable(op: Op): BitPat = if (op.name.contains("slid")) y else n
+  }
+
   object popCount extends BoolField {
     def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name == "vcpop") y else n
   }
@@ -245,7 +249,13 @@ object Decoder {
         require(n < 4)
         "?" * 2 + (("00" + n.toBinaryString).takeRight(2))
       } else if (other.genTable(op) == y) {
-        val n = firstIndexContains(other.subs, op.name)
+        val n = if (slid.genTable(op) == y) {
+          val up = if (op.name.contains("up")) 2 else 0
+          val slid1 = if (op.name.contains("slide1")) 1 else 0
+          up + slid1
+        } else {
+          firstIndexContains(other.subs, op.name)
+        }
         require(n < 8)
         "0" + (("000" + n.toBinaryString).takeRight(3))
       } else {
@@ -330,7 +340,8 @@ object Decoder {
     saturate,
     maskLogic,
     maskDestination,
-    maskSource
+    maskSource,
+    slid
   )
 
   private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)
