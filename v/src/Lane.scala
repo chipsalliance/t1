@@ -360,6 +360,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val dividerRequests: Vec[LaneDivRequest] = Wire(
     Vec(parameter.chainingSize, new LaneDivRequest(parameter.datePathParam))
   )
+  val dividerResponseIndex: UInt = Wire(UInt(log2Ceil(parameter.dataPathByteWidth).W))
 
   /** request for other instruction type. */
   val otherRequests: Vec[OtherUnitReq] = Wire(Vec(parameter.chainingSize, Output(new OtherUnitReq(parameter))))
@@ -498,8 +499,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val current1H = UIntToOH(elementIndex(4, 0))
       val next1H =
         ffo((scanLeftOr(current1H) ## false.B) & maskCorrection)(parameter.datapathWidth - 1, 0)
+      val writeIndex = Mux(
+        record.originalInformation.decodeResult(Decoder.divider),
+        dividerResponseIndex,
+        record.executeIndex
+      )
+      val writeByteEnable = Mux1H(
+        vSew1H(2, 0),
+        Seq(
+          UIntToOH(writeIndex),
+          writeIndex(1) ## writeIndex(1) ## !writeIndex(1) ## !writeIndex(1),
+          15.U(4.W)
+        )
+      )
+      val writeBitEnable: UInt = FillInterleaved(8, writeByteEnable)
       /** 计算结果需要偏移的: executeIndex * 8 */
-      val dataOffset: UInt = record.executeIndex ## 0.U(3.W)
+      val dataOffset: UInt = writeIndex ## 0.U(3.W)
       val nextOrR: Bool = next1H.orR
       // nextIndex.getWidth = 5
       val nextIndex: UInt = OHToUInt(next1H)
@@ -774,7 +789,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         divRequest.src := VecInit(Seq(finalSource1, finalSource2))
         divRequest.rem := decodeResult(Decoder.uop)(0)
         divRequest.sign := decodeResult(Decoder.unsigned0)
-        divRequest.index := DontCare
+        divRequest.index := record.executeIndex
         dividerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
           divRequest
@@ -837,7 +852,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // todo: 暂时先这样,处理mask的时候需要修
         val executeResult = (dataDequeue << dataOffset).asUInt(parameter.datapathWidth - 1, 0)
-        val resultUpdate: UInt = (executeResult & executeBitEnable) | (result(index) & (~executeBitEnable).asUInt)
+        val resultUpdate: UInt = (executeResult & writeBitEnable) | (result(index) & (~writeBitEnable).asUInt)
         when(dataDequeueFire) {
           when(groupEnd) {
             record.state.wExecuteRes := true.B
@@ -1334,7 +1349,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         divRequest.src := VecInit(Seq(finalSource1, finalSource2))
         divRequest.rem := decodeResult(Decoder.uop)(0)
         divRequest.sign := decodeResult(Decoder.unsigned0)
-        divRequest.index := DontCare
+        divRequest.index := record.executeIndex
         dividerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
           divRequest
@@ -1405,7 +1420,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // todo: 暂时先这样,处理mask的时候需要修
         val executeResult = (dataDequeue << dataOffset).asUInt(parameter.datapathWidth - 1, 0)
-        val resultUpdate: UInt = (executeResult & executeBitEnable) | (result(index) & (~executeBitEnable).asUInt)
+        val resultUpdate: UInt = (executeResult & writeBitEnable) | (result(index) & (~writeBitEnable).asUInt)
         when(dataDequeueFire) {
           when(groupEnd) {
             record.state.wExecuteRes := true.B
@@ -1579,6 +1594,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     div.vSew := csrInterface.vSew
     mul.csrInterface := csrInterface
     otherResponse := otherUnit.resp
+    dividerResponseIndex := div.index
 
     // 连接执行结果
     executeDequeueData := VecInit(
