@@ -34,8 +34,9 @@ class LaneDiv(param: DataPathParam) extends Module {
   wrapper.input.valid := req.valid
 
   val remReg: Bool = RegEnable(req.bits.rem, false.B, req.fire)
+  val indexReg: UInt = RegEnable(req.bits.index, 0.U, req.fire)
 
-  index := req.bits.index
+  index := indexReg
   req.ready := wrapper.input.ready
   resp.valid := wrapper.output.valid
   resp.bits := Mux(remReg, wrapper.output.bits.reminder.asUInt, wrapper.output.bits.quotient.asUInt)
