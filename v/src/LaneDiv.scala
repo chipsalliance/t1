@@ -74,7 +74,7 @@ class SRTWrapper extends Module{
   abs.io.aIn := input.bits.dividend
   abs.io.bIn := input.bits.divisor
   abs.io.signIn := input.bits.signIn
-  val negative = abs.io.aSign ^ abs.io.bSign
+  val negative = abs.io.aSign ^ abs.io.bSign && input.fire
 
   //LZC
   val LZC0 = Module(new LZC32)
@@ -124,6 +124,18 @@ class SRTWrapper extends Module{
     addition.prefixadder.koggeStone(zeroHeadDividend(4,0), "b111111".U, false.B))
   leftShiftWidthDivisor := zeroHeadDivisor(4,0)
 
+  // keep mutiple cycles for SRT
+  val negativeSRT = RegEnable(negative, srt.input.fire)
+  val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, srt.input.fire)
+  val dividendSignSRT = RegEnable(abs.io.aSign, srt.input.fire)
+
+  // keep for one cycle
+  val divideZeroReg = RegNext(divideZero, false.B)
+  val biggerdivisorReg = RegNext(biggerdivisor, false.B)
+  val bypassSRTReg = RegNext(bypassSRT, false.B)
+  val dividendReg = RegNext(dividend, 0.U)
+  val dividendSignReg = RegNext(abs.io.aSign, false.B)
+
   // do SRT
   srt.input.bits.dividend := abs.io.aOut << leftShiftWidthDividend
   srt.input.bits.divider := abs.io.bOut << leftShiftWidthDivisor
@@ -137,16 +149,16 @@ class SRTWrapper extends Module{
   val quotientAbs = Wire(UInt(32.W))
   val remainderAbs = Wire(UInt(32.W))
   quotientAbs := srt.output.bits.quotient
-  remainderAbs := srt.output.bits.reminder >> zeroHeadDivisor
+  remainderAbs := srt.output.bits.reminder >> zeroHeadDivisorSRT
 
-  output.valid := srt.output.valid | bypassSRT
+  output.valid := srt.output.valid | bypassSRTReg
   // the quotient of division by zero has all bits set, and the remainder of division by zero equals the dividend.
-  output.bits.quotient := Mux(divideZero,"hffffffff".U(32.W),
-    Mux(biggerdivisor, 0.U,
-      Mux(negative, -quotientAbs, quotientAbs))).asSInt
-  output.bits.reminder := Mux(divideZero, dividend(31,0),
-    Mux(biggerdivisor, Mux(abs.io.aSign, -dividend(31,0), dividend(31,0)),
-      Mux(abs.io.aSign, -remainderAbs, remainderAbs))).asSInt
+  output.bits.quotient := Mux(divideZeroReg,"hffffffff".U(32.W),
+    Mux(biggerdivisorReg, 0.U,
+      Mux(negativeSRT, -quotientAbs, quotientAbs))).asSInt
+  output.bits.reminder := Mux(divideZero, dividendReg(31,0),
+    Mux(biggerdivisor, Mux(dividendSignSRT, -dividendReg(31,0), dividendReg(31,0)),
+      Mux(dividendSignReg, -remainderAbs, remainderAbs))).asSInt
 }
 
 class Abs(n: Int) extends Module {
