@@ -788,7 +788,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val divRequest = Wire(new LaneDivRequest(parameter.datePathParam))
         divRequest.src := VecInit(Seq(finalSource1, finalSource2))
         divRequest.rem := decodeResult(Decoder.uop)(0)
-        divRequest.sign := decodeResult(Decoder.unsigned0)
+        divRequest.sign := !decodeResult(Decoder.unsigned0)
         divRequest.index := record.executeIndex
         dividerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
@@ -1348,7 +1348,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val divRequest = Wire(new LaneDivRequest(parameter.datePathParam))
         divRequest.src := VecInit(Seq(finalSource1, finalSource2))
         divRequest.rem := decodeResult(Decoder.uop)(0)
-        divRequest.sign := decodeResult(Decoder.unsigned0)
+        divRequest.sign := !decodeResult(Decoder.unsigned0)
         divRequest.index := record.executeIndex
         dividerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
