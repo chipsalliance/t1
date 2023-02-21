@@ -660,7 +660,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val maskFilterEnd = skipEnable && (nextGroupCount =/= record.groupCounter)
 
         /** 需要一个除vl导致的end来决定下一个的 element index 是什么 */
-        val dataDepletion = record.executeIndex === slotGroupFinishedIndex || maskFilterEnd
+        val dataDepletion = writeIndex === slotGroupFinishedIndex || maskFilterEnd
 
         /** 这一组计算全完成了 */
         val groupEnd = dataDepletion || instructionExecuteFinished(index)
@@ -1193,7 +1193,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           * 需要一个除vl导致的end来决定下一个的 element index 是什么
           * 在vl没对齐的情况下，最后一组的结束的时候的 [[record.executeIndex]] 需要修正
           */
-        val groupEnd = record.executeIndex === Mux(
+        val groupEnd = writeIndex === Mux(
           lastExecuteGroup && isEndLane && !record.originalInformation.decodeResult(Decoder.maskLogic),
           lastElementExecuteIndex,
           slotGroupFinishedIndex
