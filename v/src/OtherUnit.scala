@@ -96,9 +96,9 @@ class OtherUnit(param: LaneParameter) extends Module {
   // 处理merge & mask
   // 排除 extend 的影响
   val originalOpcodeOH: UInt = Mux(req.extendType.valid, 0.U, opcodeOH)
-  // 选source1的情况
-  val selectSource1: Bool = (originalOpcodeOH(2) && req.mask) || originalOpcodeOH(3)
-  val selectSource2: Bool = originalOpcodeOH(0) || originalOpcodeOH(1) || (originalOpcodeOH(2) && !req.mask) ||
+  // 选source1的情况 todo: 需要执行的 gather 可以视为merge, 前提不读vs2
+  val selectSource1: Bool = ((originalOpcodeOH(2) || originalOpcodeOH(1)) && req.mask) || originalOpcodeOH(3)
+  val selectSource2: Bool = originalOpcodeOH(0) || (originalOpcodeOH(2) && !req.mask) ||
     originalOpcodeOH(5)
   val resultSelect: UInt = VecInit(
     Seq(
