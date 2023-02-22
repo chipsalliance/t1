@@ -209,7 +209,7 @@ object tests extends Module {
   class emulator(trace: Boolean) extends Module {
 
     def csrcDir = T.source {
-      PathRef(millSourcePath / "src")
+      PathRef(millSourcePath / os.up / "src")
     }
 
     def allCHeaderFiles = T.sources {
