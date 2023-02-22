@@ -74,7 +74,7 @@ class SRTWrapper extends Module{
   abs.io.aIn := input.bits.dividend
   abs.io.bIn := input.bits.divisor
   abs.io.signIn := input.bits.signIn
-  val negative = abs.io.aSign ^ abs.io.bSign && input.fire
+  val negative = abs.io.aSign ^ abs.io.bSign
 
   //LZC
   val LZC0 = Module(new LZC32)
@@ -85,8 +85,7 @@ class SRTWrapper extends Module{
   val srt: SRT = Module(new SRT(32, 32, 32))
 
   /** divided by zero detection */
-  val divideZero = Wire(Bool())
-  divideZero := (input.bits.divisor === 0.S) && input.fire
+  val divideZero = (input.bits.divisor === 0.S)
 
   /** bigger divisor detection */
   val dividend = Wire(UInt(33.W))
@@ -96,10 +95,10 @@ class SRTWrapper extends Module{
   dividend := abs.io.aOut
   divisor := abs.io.bOut
   gap := addition.prefixadder.koggeStone(divisor, -dividend, false.B)
-  biggerdivisor := gap(33) && !(gap(32,0).orR === false.B) && input.fire
+  biggerdivisor := gap(33) && !(gap(32,0).orR === false.B)
 
   // bypass
-  val bypassSRT = divideZero || biggerdivisor
+  val bypassSRT = (divideZero || biggerdivisor) && input.fire
 
   /** Leading Zero component*/
   // extend one bit for calculation
@@ -130,11 +129,11 @@ class SRTWrapper extends Module{
   val dividendSignSRT = RegEnable(abs.io.aSign, srt.input.fire)
 
   // keep for one cycle
-  val divideZeroReg = RegNext(divideZero, false.B)
-  val biggerdivisorReg = RegNext(biggerdivisor, false.B)
+  val divideZeroReg = RegEnable(divideZero, false.B, input.fire)
+  val biggerdivisorReg = RegEnable(biggerdivisor, false.B, input.fire)
   val bypassSRTReg = RegNext(bypassSRT, false.B)
-  val dividendReg = RegNext(dividend, 0.U)
-  val dividendSignReg = RegNext(abs.io.aSign, false.B)
+  val dividendReg = RegEnable(dividend, 0.U, input.fire)
+  val dividendSignReg = RegEnable(abs.io.aSign, false.B, input.fire)
 
   // do SRT
   srt.input.bits.dividend := abs.io.aOut << leftShiftWidthDividend
