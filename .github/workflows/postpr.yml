@@ -75,7 +75,6 @@ jobs:
     if: github.event.pull_request.merged == true && always()
     needs: [ci]
     runs-on: [self-hosted, linux]
-    permissions: write-all
     steps:
       - uses: actions/checkout@v3
         with:
@@ -83,10 +82,5 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: results
-      - run: printf "## Newly passed tests:\n| Test | result |\n| ---- | ---- |\n" > result.md; cat result-*.md | grep true | sort >> result.md
-      - run: printf "\n\n## Still failing tests:\n| Test | result |\n| ---- | ---- |\n" >> result.md; cat result-*.md | grep false | sort >> result.md
-      - uses: thollander/actions-comment-pull-request@v2
-        with:
-          filePath: result.md
-          comment_tag: ci-post-report
-          mode: recreate
+      - run: printf "## Newly passed tests:\n| Test | result |\n| ---- | ---- |\n" >> $GITHUB_STEP_SUMMARY; cat result-*.md | grep true | sort >> $GITHUB_STEP_SUMMARY
+      - run: printf "\n\n## Still failing tests:\n| Test | result |\n| ---- | ---- |\n" >> $GITHUB_STEP_SUMMARY; cat result-*.md | grep false | sort >> $GITHUB_STEP_SUMMARY
