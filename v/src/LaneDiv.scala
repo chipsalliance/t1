@@ -155,9 +155,9 @@ class SRTWrapper extends Module{
   output.bits.quotient := Mux(divideZeroReg,"hffffffff".U(32.W),
     Mux(biggerdivisorReg, 0.U,
       Mux(negativeSRT, -quotientAbs, quotientAbs))).asSInt
-  output.bits.reminder := Mux(divideZero, dividendReg(31,0),
-    Mux(biggerdivisor, Mux(dividendSignSRT, -dividendReg(31,0), dividendReg(31,0)),
-      Mux(dividendSignReg, -remainderAbs, remainderAbs))).asSInt
+  output.bits.reminder := Mux(divideZeroReg, dividendReg(31,0),
+    Mux(biggerdivisorReg, Mux(dividendSignReg, -dividendReg(31,0), dividendReg(31,0)),
+      Mux(dividendSignSRT, -remainderAbs, remainderAbs))).asSInt
 }
 
 class Abs(n: Int) extends Module {
