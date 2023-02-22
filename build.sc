@@ -204,7 +204,9 @@ object tests extends Module {
     }
   }
 
-  object emulator extends Module {
+  object emulator extends mill.Cross[emulator](true, false)
+
+  class emulator(trace: Boolean) extends Module {
 
     def csrcDir = T.source {
       PathRef(millSourcePath / "src")
@@ -269,7 +271,7 @@ object tests extends Module {
          |verilate(emulator
          |  SOURCES
          |  ${mfccompile.rtls().map(_.path.toString).mkString("\n")}
-         |  TRACE_FST
+         |  ${if (trace) "TRACE_FST" else ""}
          |  TOP_MODULE ${elaborate.topName()}
          |  PREFIX V${elaborate.topName()}
          |  OPT_FAST
@@ -435,8 +437,8 @@ object tests extends Module {
         "COSIM_timeout" -> "1000000",
         "GLOG_logtostderr" -> "0"
       )
-      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator.elf().path.toString}")
-      os.proc(Seq(tests.emulator.elf().path.toString)).call(env = runEnv, check = false).exitCode
+      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator(false).elf().path.toString}")
+      os.proc(Seq(tests.emulator(false).elf().path.toString)).call(env = runEnv, check = false).exitCode
     }
 
     def run(args: String*) = T.command {
@@ -453,8 +455,8 @@ object tests extends Module {
         envDefault("COSIM_timeout", "1000000"),
         envDefault("GLOG_logtostderr", "1"),
       )
-      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator.elf().path.toString}")
-      os.proc(Seq(tests.emulator.elf().path.toString)).call(env = runEnv)
+      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator(true).elf().path.toString}")
+      os.proc(Seq(tests.emulator(true).elf().path.toString)).call(env = runEnv)
       PathRef(T.dest)
     }
   }
