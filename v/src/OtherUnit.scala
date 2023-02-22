@@ -113,7 +113,7 @@ class OtherUnit(param: LaneParameter) extends Module {
   ).asUInt
   val result: UInt = Mux1H(
     resultSelect,
-    Seq(extendRes, ffo.resp.bits, popCount.resp, indexRes, roundResult, req.src.head, req.src.last)
+    Seq(extendRes, ffo.resp.bits, popCount.resp, indexRes, roundResult, req.src.head, req.src(1))
   )
   resp.data := result
   resp.ffoSuccess := ffo.resp.valid
