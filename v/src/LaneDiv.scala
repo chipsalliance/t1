@@ -149,14 +149,16 @@ class SRTWrapper extends Module{
   val remainderAbs = Wire(UInt(32.W))
   quotientAbs := srt.output.bits.quotient
   remainderAbs := srt.output.bits.reminder >> zeroHeadDivisorSRT
+  val dividendRestore = Wire(UInt(32.W))
+  dividendRestore := Mux(dividendSignReg, -dividendReg(31,0), dividendReg(31,0))
 
   output.valid := srt.output.valid | bypassSRTReg
   // the quotient of division by zero has all bits set, and the remainder of division by zero equals the dividend.
   output.bits.quotient := Mux(divideZeroReg,"hffffffff".U(32.W),
     Mux(biggerdivisorReg, 0.U,
       Mux(negativeSRT, -quotientAbs, quotientAbs))).asSInt
-  output.bits.reminder := Mux(divideZeroReg, dividendReg(31,0),
-    Mux(biggerdivisorReg, Mux(dividendSignReg, -dividendReg(31,0), dividendReg(31,0)),
+  output.bits.reminder := Mux(divideZeroReg, dividendRestore,
+    Mux(biggerdivisorReg, dividendRestore,
       Mux(dividendSignSRT, -remainderAbs, remainderAbs))).asSInt
 }
 
