@@ -125,4 +125,7 @@ _start:
     bne   t1,t0,1b
 
     vsseg2e32.v v20, (a0)
-    ret
+
+exit:
+    # Write msimend to exit simulation.
+    csrwi 0x7cc, 0
