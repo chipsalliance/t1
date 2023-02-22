@@ -5,12 +5,17 @@
 #include <mutex>
 #include <thread>
 #include <condition_variable>
+#include <list>
 
 #include <mmu.h>
 
 #ifdef COSIM_VERILATOR
 #include <verilated.h>
+
+#if VM_TRACE
 #include <verilated_fst_c.h>
+#endif
+
 #include <svdpi.h>
 #endif
 
@@ -40,7 +45,9 @@ class VBridgeImpl {
 public:
   VBridgeImpl();
 
+#if VM_TRACE
   void dpiDumpWave();
+#endif
 
   void dpiInitCosim();
 
@@ -115,7 +122,11 @@ private:
   // simulator context
 #ifdef COSIM_VERILATOR
   VerilatedContext *ctx;
+
+#if VM_TRACE
   VerilatedFstC tfp;
+#endif
+
 #endif
 
   int get_mem_req_cycles() {

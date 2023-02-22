@@ -32,15 +32,17 @@ void sigint_handler(int s) {
     dpiError(e.what());  \
   }
 
+#if VM_TRACE
 void VBridgeImpl::dpiDumpWave() {
   TRY({
-    svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.verbatim"));
     ::dpiDumpWave((wave + ".fst").c_str());
   })
 }
+#endif
 
 [[maybe_unused]] void dpiInitCosim() {
   std::signal(SIGINT, sigint_handler);
+  svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.verbatim"));
   TRY({
     vbridge_impl_instance.dpiInitCosim();
   })
