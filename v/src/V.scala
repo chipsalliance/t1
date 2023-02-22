@@ -244,6 +244,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val maskUnitReadReady = readSelectMaskUnit.asUInt.orR
   val laneReadResult: Vec[UInt] = Wire(Vec(parameter.laneNumer, UInt(parameter.dataPathWidth.W)))
 
+  // gather read state
+  val gatherOverlap = Wire(Bool())
+  val gatherNeedRead: Bool = request.valid && decodeResult(Decoder.gather) &&
+    !decodeResult(Decoder.vtype) && !gatherOverlap
+  val gatherReadFinish: Bool = RegInit(false.B)
 
   /** data that need to be compute at top. */
   val data: Vec[ValidIO[UInt]] = RegInit(
@@ -360,6 +365,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val compareWire = rs1
       val compareAdvance: Bool = (rs1 >> log2Ceil(parameter.vLen)).asUInt.orR
       val compareResult: Bool = largeThanVLMax(compareWire, compareAdvance)
+      // 算req上面的分开吧
+      val gatherWire = Mux(decodeResult(Decoder.xtype), request.bits.src1Data, request.bits.instruction(19, 15))
+      val gatherAdvance = (gatherWire >> log2Ceil(parameter.vLen)).asUInt.orR
+      gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance)
       when(request.fire && instructionToSlotOH(index)) {
         writeBackCounter := 0.U
         groupCounter := 0.U
@@ -806,7 +815,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     val localReady = Mux(specialInst, instStateVec.map(_.state.idle).last, freeOR)
     // 远程坑就绪
     val executionReady = (!isLoadStoreType || lsu.req.ready) && (noReadST || allLaneReady)
-    request.ready := executionReady && localReady
+    request.ready := executionReady && localReady && (!gatherNeedRead || gatherReadFinish)
     instructionToSlotOH := Mux(request.ready, tryToEnq, 0.U)
   }
 
