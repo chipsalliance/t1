@@ -36,6 +36,8 @@ case class VParameter(
     */
   val maskGroupWidth: Int = dataPathWidth
 
+  val vlenb: Int = vLen / 8
+
   val dataPathWidthCounterBits: Int = log2Ceil(dataPathWidth)
 
   /** how many groups will be divided into for mask(v0). */
@@ -333,6 +335,31 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val maskUnitIdle: Bool = RegInit(true.B)
       val reduce = decodeResultReg(Decoder.red)
       val WARRedResult: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W))))
+      /** vlmax = vLen * (2**lmul) / (2 ** sew * 8)
+        * = (vLen / 8) * 2 ** (lmul - sew)
+        * = vlb * 2 ** (lmul - sew)
+        * lmul <- (-3, -2, -1, 0 ,1, 2, 3)
+        * sew <- (0, 1, 2)
+        * lmul - sew <- [-5, 3]
+        * 选择信号 +5 -> lmul - sew + 5 <- [0, 8]
+        * */
+      def largeThanVLMax(source: UInt, advance: Bool = false.B): Bool = {
+        val vlenLog2 = log2Ceil(parameter.vLen) // 10
+        val cut = if (source.getWidth >= vlenLog2) source(vlenLog2 - 1, vlenLog2 - 9)
+          else (0.U(vlenLog2.W) ## source)(vlenLog2 - 1, vlenLog2 - 9)
+        // 9: lmul - sew 的可能值的个数
+        val largeList: Vec[Bool] = Wire(Vec(9, Bool()))
+        cut.asBools.reverse.zipWithIndex.foldLeft(advance) { case (a, (b, i)) =>
+          largeList(i) := a
+          a || b
+        }
+        val extendVlmul = csrInterface.vlmul(2) ## csrInterface.vlmul
+        val selectWire = UIntToOH(5.U(4.W) + extendVlmul - csrInterface.vSew)(8, 0).asBools.reverse
+        Mux1H(selectWire, largeList)
+      }
+      val compareWire = rs1
+      val compareAdvance: Bool = (rs1 >> log2Ceil(parameter.vLen)).asUInt.orR
+      val compareResult: Bool = largeThanVLMax(compareWire, compareAdvance)
       when(request.fire && instructionToSlotOH(index)) {
         writeBackCounter := 0.U
         groupCounter := 0.U
@@ -512,15 +539,18 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         val reallyGrowth = accessRegGrowth(2, 0)
         (accessMask, dataOffset, accessLane, offset, reallyGrowth, overlap)
       }
+      val srcOverlap: Bool = decodeResultReg(Decoder.xtype) && (rs1 >= csrInterface.vl)
+      // rs1 >= vlMax
+      val srcOversize = decodeResultReg(Decoder.xtype) && compareResult
       val signBit = Mux1H(
         sew1H,
         readIndex(parameter.laneParam.vlWidth - 1, parameter.laneParam.vlWidth - 3).asBools.reverse
       )
       // 对于up来说小于offset的element是不变得的
-      val slideUpUnderflow = slideUp && !slide1 && signBit
+      val slideUpUnderflow = slideUp && !slide1 && (signBit || srcOverlap)
       val active = (v0.asUInt(elementIndexCount) || vm) && !slideUpUnderflow
       // index >= vlMax 是写0
-      val overlapVlMax: Bool = !slideUp && signBit
+      val overlapVlMax: Bool = !slideUp && (signBit || srcOversize)
       // slid read
       val (_, readDataOffset, readLane, readOffset, readGrowth, lmulOverlap) = indexAnalysis(readIndex)
       val readOverlap = lmulOverlap || overlapVlMax
