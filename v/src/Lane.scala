@@ -482,7 +482,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       )
       /** 这一组element对应的mask的值 */
       val maskBits: Bool = record.mask.bits(elementIndex(parameter.datapathWidthWidth - 1, 0))
-      val maskAsInput: Bool = maskBits && record.originalInformation.decodeResult(Decoder.maskSource)
+      val maskAsInput: Bool = maskBits && (record.originalInformation.decodeResult(Decoder.maskSource) ||
+        record.originalInformation.decodeResult(Decoder.gather))
       /** 会跳element的mask */
       val skipEnable: Bool = record.originalInformation.mask &&
         // adc: vm = 0; madc: vm = 0 -> s0 + s1 + c, vm = 1 -> s0 + s1
@@ -1695,7 +1696,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneRequest.bits.decodeResult(Decoder.vtype),
       0.U,
       Mux(
-        laneRequest.bits.decodeResult(Decoder.xtype),
+        laneRequest.bits.decodeResult(Decoder.xtype) || laneRequest.bits.decodeResult(Decoder.gather),
         laneRequest.bits.readFromScalar,
         immSignExtend
       )

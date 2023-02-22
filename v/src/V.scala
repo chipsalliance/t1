@@ -243,12 +243,15 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val readSelectMaskUnit: Vec[Bool] = Wire(Vec(parameter.laneNumer, Bool()))
   val maskUnitReadReady = readSelectMaskUnit.asUInt.orR
   val laneReadResult: Vec[UInt] = Wire(Vec(parameter.laneNumer, UInt(parameter.dataPathWidth.W)))
+  val WARRedResult: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W))))
 
   // gather read state
-  val gatherOverlap = Wire(Bool())
+  val gatherOverlap: Bool = Wire(Bool())
   val gatherNeedRead: Bool = request.valid && decodeResult(Decoder.gather) &&
     !decodeResult(Decoder.vtype) && !gatherOverlap
-  val gatherReadFinish: Bool = RegInit(false.B)
+  val gatherReadFinish: Bool = RegEnable(!request.fire, false.B, (maskUnitReadReady && gatherNeedRead) || request.fire)
+  val gatherReadDataOffset: UInt = Wire(UInt(5.W))
+  val gatherData: UInt = Mux(gatherOverlap, 0.U, (WARRedResult.bits >> gatherReadDataOffset).asUInt)
 
   /** data that need to be compute at top. */
   val data: Vec[ValidIO[UInt]] = RegInit(
@@ -339,7 +342,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val elementIndexCount = RegInit(0.U(parameter.laneParam.vlWidth.W))
       val maskUnitIdle: Bool = RegInit(true.B)
       val reduce = decodeResultReg(Decoder.red)
-      val WARRedResult: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W))))
       /** vlmax = vLen * (2**lmul) / (2 ** sew * 8)
         * = (vLen / 8) * 2 ** (lmul - sew)
         * = vlb * 2 ** (lmul - sew)
@@ -386,6 +388,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         instructionType := nextInstructionType
         maskTypeInstruction := maskType && !decodeResult(Decoder.maskSource)
         completedVec.foreach(_ := false.B)
+        WARRedResult.valid := false.B
       }.elsewhen(control.state.wLast && maskUnitIdle) {
         // 如果真需要执行的lane会wScheduler,不会提前发出last确认
         control.state.sExecute := true.B
@@ -506,6 +509,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // slid 先用状态机
       val idle :: sRead :: sWrite :: Nil = Enum(3)
       val slideState = RegInit(idle)
+      val readState = slideState === sRead
 
       // slid 的立即数是0扩展的
       val slidSize = Mux(slide1, 1.U, Mux(decodeResultReg(Decoder.xtype), rs1, vs1))
@@ -514,7 +518,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // down +
       // up -
       val directionSelection = Mux(slideUp, (~slidSizeLSB).asUInt, slidSizeLSB)
-      val readIndex: UInt = elementIndexCount + directionSelection + slideUp
+      val slideReadIndex = elementIndexCount + directionSelection + slideUp
+      val readIndex: UInt = Mux(readState, slideReadIndex, gatherWire)
       val nextElementIndex: UInt = elementIndexCount + 1.U
       val firstElement = elementIndexCount === 0.U
       val lastElement: Bool = nextElementIndex === csrInterface.vl
@@ -562,11 +567,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val overlapVlMax: Bool = !slideUp && (signBit || srcOversize)
       // slid read
       val (_, readDataOffset, readLane, readOffset, readGrowth, lmulOverlap) = indexAnalysis(readIndex)
+      gatherReadDataOffset := readDataOffset
       val readOverlap = lmulOverlap || overlapVlMax
-      val readState = slideState === sRead
       val skipRead = readOverlap
-      maskUnitReadVec.last.valid := readState
-      maskUnitReadVec.last.bits.vs := vs2 + readGrowth
+      maskUnitReadVec.last.valid := readState || gatherNeedRead
+      maskUnitReadVec.last.bits.vs := Mux(readState, vs2, request.bits.instruction(24, 20)) + readGrowth
       maskUnitReadVec.last.bits.offset := readOffset
       maskReadLaneSelect.last := UIntToOH(readLane)
       // slid write
@@ -705,7 +710,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.laneRequest.bits.vs1 := request.bits.instruction(19, 15)
     lane.laneRequest.bits.vs2 := request.bits.instruction(24, 20)
     lane.laneRequest.bits.vd := request.bits.instruction(11, 7)
-    lane.laneRequest.bits.readFromScalar := source1Extend
+    lane.laneRequest.bits.readFromScalar := Mux(decodeResult(Decoder.gather), gatherData, source1Extend)
     lane.laneRequest.bits.loadStore := isLoadStoreType
     lane.laneRequest.bits.store := isStoreType
     lane.laneRequest.bits.special := specialInst
