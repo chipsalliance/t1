@@ -543,9 +543,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val maskTypeDestinationWriteValid = record.originalInformation.decodeResult(Decoder.maskDestination) && needUpdateMaskDestination
       // reduce 类型的
       val reduceType: Bool = record.originalInformation.decodeResult(Decoder.red)
+      val vGather: Bool = record.originalInformation.decodeResult(Decoder.gather) &&
+        record.originalInformation.decodeResult(Decoder.vtype)
       val reduceValid = record.originalInformation.decodeResult(Decoder.red) && instructionExecuteFinished(index)
       // viota & compress & ls 需要给外边数据
-      val needResponse: Bool = (record.originalInformation.loadStore || reduceValid ||
+      val needResponse: Bool = (record.originalInformation.loadStore || reduceValid || vGather ||
         maskTypeDestinationWriteValid || record.originalInformation.decodeResult(Decoder.ffo)) && slotActive(index)
 
       // mask logic 的控制
