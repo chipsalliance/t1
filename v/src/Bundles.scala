@@ -44,6 +44,8 @@ class SpecialInstructionType extends Bundle {
   val slid:      Bool = Bool()
   // 其他的需要对齐的指令
   val other: Bool = Bool()
+  // 只有v类型的gather指令需要在top执行
+  val vGather: Bool = Bool()
 }
 
 class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
@@ -99,7 +101,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     val crossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
     val vGather = decodeResult(Decoder.gather) && decodeResult(Decoder.vtype)
     // decode的时候需要注意有些bit操作的指令虽然不需要读vs1,但是需要读v0
-    res.sRead1 := !decodeResult(Decoder.vtype) || decodeResult(Decoder.gather)
+    res.sRead1 := !decodeResult(Decoder.vtype) || (decodeResult(Decoder.gather) && !decodeResult(Decoder.vtype))
     res.sRead2 := false.B
     res.sReadVD := !(crossRead || ma || decodeResult(Decoder.maskLogic))
     res.wRead1 := !crossRead

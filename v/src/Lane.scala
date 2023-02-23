@@ -556,6 +556,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val bordersForMaskLogic = lastGroupForMaskLogic && isLastLaneForMaskLogic &&
         dataPathMisaligned && record.originalInformation.decodeResult(Decoder.maskLogic)
       val maskCorrect = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
+      val notWaitFeedBack: Bool = !(vGather || record.originalInformation.loadStore)
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
@@ -887,7 +888,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         instructionFinishedVec(index) := 0.U(parameter.chainingSize.W)
         val maskUnhindered = maskRequestFireOH(index) || !maskNeedUpdate
         when((record.state.asUInt.andR && maskUnhindered) || record.instCompleted) {
-          when(instructionExecuteFinished(index) || record.instCompleted) {
+          when((instructionExecuteFinished(index) && notWaitFeedBack) || record.instCompleted) {
             slotOccupied(index) := false.B
             when(slotOccupied(index)) {
               instructionFinishedVec(index) := UIntToOH(
@@ -911,7 +912,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         ) {
           // 例如:别的lane找到了第一个1
           record.schedulerComplete := true.B
-          when(record.originalInformation.special) {
+          when(record.initState.wExecuteRes) {
             slotOccupied(index) := false.B
           }
         }
@@ -1203,7 +1204,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         ) || maskFilterEnd
 
         /** 只会发生在跨lane读 */
-        val waitCrossRead = lastGroupForLane < record.groupCounter
+        val waitCrossRead = lastGroupForLane < record.groupCounter && notWaitFeedBack
         val lastVRFWrite: Bool = lastGroupForLane < nextGroupCount
 
         val nextExecuteIndex = Mux(
@@ -1393,7 +1394,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           Mux(
             record.originalInformation.decodeResult(Decoder.red),
             reduceResult(index),
-            source2(index)
+            Mux(
+              record.originalInformation.decodeResult(Decoder.gather),
+              source1(index),
+              source2(index)
+            )
+
           )
         )
         maskRequest.toLSU := record.originalInformation.loadStore
@@ -1471,7 +1477,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         )
         val crossReadReady: Bool = !needCrossRead || instructionCrossReadFinished
         when(stateCheck || record.instCompleted) {
-          when((instructionExecuteFinished(index) && crossReadReady) || record.instCompleted) {
+          when((instructionExecuteFinished(index) && crossReadReady && notWaitFeedBack) || record.instCompleted) {
             slotOccupied(index) := false.B
             maskFormatResult := 0.U
             when(slotOccupied(index)) {
