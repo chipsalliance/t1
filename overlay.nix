@@ -146,5 +146,7 @@ in
     };
   };
 
+  buddy-mlir = final.callPackage ./nix/buddy-mlir.nix {};
+
   mill = prev.mill.override { jre = final.openjdk19; };
 }
