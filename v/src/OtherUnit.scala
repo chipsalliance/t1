@@ -1,7 +1,7 @@
 package v
 
 import chisel3._
-import chisel3.util.{Fill, Mux1H, UIntToOH, Valid}
+import chisel3.util._
 
 class OtherUnitReq(param: LaneParameter) extends Bundle {
   val src:        Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
@@ -26,8 +26,6 @@ class OtherUnitCsr extends Bundle {
 
 class OtherUnitResp(param: DataPathParam) extends Bundle {
   val data: UInt = UInt(param.dataWidth.W)
-  // true -> gather && vs1 <= vl max
-  val gatherCheck: Bool = Bool()
   val clipFail:    Bool = Bool()
   val ffoSuccess:  Bool = Bool()
 }
@@ -49,33 +47,32 @@ class OtherUnit(param: LaneParameter) extends Module {
   ffo.maskType := req.maskType
   popCount.src := req.src.head
 
-  val signValue:  Bool = req.src.head(param.datapathWidth - 1) && req.sign
+  val signValue:  Bool = req.src(1)(param.datapathWidth - 1) && req.sign
   val signExtend: UInt = Fill(param.datapathWidth, signValue)
 
   // clip 2sew -> sew
   // vSew 0 -> sew = 8 => log2(sew) = 4
-  val clipSize: UInt = Mux1H(vSewOH(2, 1), Seq(false.B ## req.src.last(4), req.src.last(5, 4))) ## req.src.last(3, 0)
-  //                   Mux1H(vSewOH, Seq(req.src.last(3, 0), req.src.last(4, 0), req.src.last(5, 0)))
+  val clipSize: UInt = Mux1H(vSewOH(2, 1), Seq(false.B ## req.src.head(4), req.src.head(5, 4))) ## req.src.head(3, 0)
+  val clipMask: UInt = FillInterleaved(8, vSewOH(2) ## vSewOH(2) ## vSewOH(2, 1).orR ## true.B)
+  val largestClipResult: UInt = (clipMask >> req.sign).asUInt
+  val clipMaskRemainder: UInt = FillInterleaved(8, !vSewOH(2) ## !vSewOH(2) ## vSewOH(0) ## false.B)
   val roundTail: UInt = (1.U << clipSize).asUInt
   val lostMSB:   UInt = (roundTail >> 1).asUInt
   val roundMask: UInt = roundTail - 1.U
 
   // v[d - 1]
-  val vds1: Bool = (lostMSB & req.src.head).orR
+  val vds1: Bool = (lostMSB & req.src(1)).orR
   // v[d -2 : 0]
-  val vLostLSB: Bool = (roundMask & req.src.head).orR // TODO: is this WithoutMSB
+  val vLostLSB: Bool = (roundMask & req.src(1)).orR // TODO: is this WithoutMSB
   // v[d]
-  val vd: Bool = (roundTail & req.src.head).orR
+  val vd: Bool = (roundTail & req.src(1)).orR
   // r
   val roundR:      Bool = Mux1H(UIntToOH(csr.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB)))
-  val roundResult: UInt = (((signExtend ## req.src.head) >> clipSize).asUInt + roundR)(param.datapathWidth - 1, 0)
-
-  // gather: vSew = 0 -> vlMax = VLEN
-  val gatherCheck: Bool = Mux1H(
-    vSewOH,
-    Seq(req.src.head <= param.vLen.U, req.src.head <= (param.vLen / 2).U, req.src.head <= (param.vLen / 4).U)
-  )
-  resp.gatherCheck := gatherCheck && opcodeOH(1)
+  val roundResult: UInt = (((signExtend ## req.src(1)) >> clipSize).asUInt + roundR)(param.datapathWidth - 1, 0)
+  val roundRemainder = roundResult & clipMaskRemainder
+  val roundSignBits = Mux1H(vSewOH(2, 0), Seq(roundResult(7), roundResult(15), roundResult(31)))
+  val roundResultOverlap: Bool = roundRemainder.orR && !(req.sign && (roundRemainder | clipMask).andR && roundSignBits)
+  val clipResult = Mux(roundResultOverlap, largestClipResult, roundResult)
 
   val indexRes: UInt = req.groupIndex ## req.laneIndex
 
@@ -113,7 +110,7 @@ class OtherUnit(param: LaneParameter) extends Module {
   ).asUInt
   val result: UInt = Mux1H(
     resultSelect,
-    Seq(extendRes, ffo.resp.bits, popCount.resp, indexRes, roundResult, req.src.head, req.src(1))
+    Seq(extendRes, ffo.resp.bits, popCount.resp, indexRes, clipResult, req.src.head, req.src(1))
   )
   resp.data := result
   resp.ffoSuccess := ffo.resp.valid
