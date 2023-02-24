@@ -178,7 +178,11 @@ object Decoder {
   }
 
   object mv extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name.startsWith("vmv")) y else n
+    def genTable(op: Op): BitPat = {
+      val isMv: Boolean = op.name.startsWith("vmv")
+      val notMoveAllRegister: Boolean = !op.name.contains("nr")
+      if (isMv && notMoveAllRegister) y else n
+    }
   }
 
   object ffo extends BoolField {

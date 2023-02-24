@@ -46,6 +46,7 @@ class SpecialInstructionType extends Bundle {
   val other: Bool = Bool()
   // 只有v类型的gather指令需要在top执行
   val vGather: Bool = Bool()
+  val mv: Bool = Bool()
 }
 
 class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
