@@ -14,6 +14,8 @@ trait UopField extends DecodeField[Op, UInt] with FieldName {
 
 trait BoolField extends BoolDecodeField[Op] with FieldName
 
+
+
 object Decoder {
   object logic extends BoolField {
     val subs: Seq[String] = Seq("and", "or")
@@ -202,6 +204,20 @@ object Decoder {
     def genTable(op: Op): BitPat = if (op.name.contains("rgatherei16")) y else n
   }
 
+  object compress extends BoolField {
+    def genTable(op: Op): BitPat = if (op.name.contains("compress")) y else n
+  }
+
+  object readOnly extends BoolField {
+    def genTable(op: Op): BitPat = {
+      val vGather: Boolean = op.name.contains("gather") && vtype.genTable(op) == y
+      val compress: Boolean = op.name.contains("compress")
+      val iota: Boolean = op.name.contains("iota")
+      val readOnly: Boolean = vGather || compress || iota
+      if (readOnly) y else n
+    }
+  }
+
   object popCount extends BoolField {
     def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name == "vcpop") y else n
   }
@@ -352,6 +368,8 @@ object Decoder {
     slid,
     gather,
     gather16,
+    readOnly,
+    compress,
   )
 
   private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)

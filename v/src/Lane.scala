@@ -143,6 +143,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** for RaW, VRF should wait for buffer to be empty. */
   val lsuVRFWriteBufferClear: Bool = IO(Input(Bool()))
+  val maskUnitFlushVrf: Bool = IO(Input(Bool()))
 
   // TODO: remove
   dontTouch(writeBusPort)
@@ -543,11 +544,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val maskTypeDestinationWriteValid = record.originalInformation.decodeResult(Decoder.maskDestination) && needUpdateMaskDestination
       // reduce 类型的
       val reduceType: Bool = record.originalInformation.decodeResult(Decoder.red)
-      val vGather: Bool = record.originalInformation.decodeResult(Decoder.gather) &&
-        record.originalInformation.decodeResult(Decoder.vtype)
+      val readOnly: Bool = record.originalInformation.decodeResult(Decoder.readOnly)
       val reduceValid = record.originalInformation.decodeResult(Decoder.red) && instructionExecuteFinished(index)
       // viota & compress & ls 需要给外边数据
-      val needResponse: Bool = (record.originalInformation.loadStore || reduceValid || vGather ||
+      val needResponse: Bool = (record.originalInformation.loadStore || reduceValid || readOnly ||
         maskTypeDestinationWriteValid || record.originalInformation.decodeResult(Decoder.ffo)) && slotActive(index)
 
       // mask logic 的控制
@@ -556,7 +556,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val bordersForMaskLogic = lastGroupForMaskLogic && isLastLaneForMaskLogic &&
         dataPathMisaligned && record.originalInformation.decodeResult(Decoder.maskLogic)
       val maskCorrect = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
-      val notWaitFeedBack: Bool = !(vGather || record.originalInformation.loadStore)
+      val notWaitFeedBack: Bool = !(readOnly || record.originalInformation.loadStore)
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
@@ -1729,7 +1729,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     crossWriteMaskMSBHalf := 0.U
   }
   // 试图让vrf记录这一条指令的信息,拒绝了说明有还没解决的冲突
-  vrf.flush := DontCare
+  vrf.flush := maskUnitFlushVrf
   vrf.instWriteReport.bits.instIndex := laneRequest.bits.instructionIndex
   vrf.instWriteReport.bits.offset := 0.U //todo
   vrf.instWriteReport.bits.vdOffset := 0.U
