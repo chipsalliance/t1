@@ -99,21 +99,21 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   def initState: InstGroupState = {
     val res: InstGroupState = Wire(new InstGroupState(param))
     val crossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
-    val vGather = decodeResult(Decoder.gather) && decodeResult(Decoder.vtype)
+    val readdOnly = decodeResult(Decoder.readOnly)
     // decode的时候需要注意有些bit操作的指令虽然不需要读vs1,但是需要读v0
     res.sRead1 := !decodeResult(Decoder.vtype) || (decodeResult(Decoder.gather) && !decodeResult(Decoder.vtype))
     res.sRead2 := false.B
     res.sReadVD := !(crossRead || ma || decodeResult(Decoder.maskLogic))
     res.wRead1 := !crossRead
     res.wRead2 := !crossRead
-    res.wScheduler := !(special || vGather)
+    res.wScheduler := !(special || readdOnly)
     // todo
-    res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red) || vGather
+    res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red) || readdOnly
       || decodeResult(Decoder.ffo))
-    res.sExecute := vGather
+    res.sExecute := readdOnly
     //todo: red
-    res.wExecuteRes := (special && !decodeResult(Decoder.ffo)) || vGather
-    res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) || vGather ||
+    res.wExecuteRes := (special && !decodeResult(Decoder.ffo)) || readdOnly
+    res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) || readdOnly ||
       decodeResult(Decoder.widen) || decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red)
     res.sCrossWrite0 := !decodeResult(Decoder.widen)
     res.sCrossWrite1 := !decodeResult(Decoder.widen)
