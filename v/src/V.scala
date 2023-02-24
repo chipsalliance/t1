@@ -136,7 +136,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // lane 只读不执行的指令
   val readOnlyInstruction:  Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
-  val maskUnitInstruction: Bool = decodeResult(Decoder.slid)
+  val maskUnitInstruction: Bool = decodeResult(Decoder.slid) || decodeResult(Decoder.mv)
   val skipLastFromLane: Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
   val instructionValid: Bool = csrInterface.vl > csrInterface.vStart
   val intLMUL: UInt = (1.U << csrInterface.vlmul(1, 0)).asUInt
@@ -200,14 +200,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   // TODO[0]: remove these signals
   nextInstructionType.compress := decodeResult(Decoder.compress)
-  nextInstructionType.viota := decodeResult(Decoder.other) && decodeResult(Decoder.uop)(3) && decodeResult(
-    Decoder.iota
-  )
+  nextInstructionType.viota := decodeResult(Decoder.iota)
   nextInstructionType.red := !decodeResult(Decoder.other) && decodeResult(Decoder.red)
   nextInstructionType.ffo := decodeResult(Decoder.ffo)
   nextInstructionType.slid := decodeResult(Decoder.slid)
   nextInstructionType.other := decodeResult(Decoder.maskDestination)
-  nextInstructionType.vGather :=decodeResult(Decoder.gather) && decodeResult(Decoder.vtype)
+  nextInstructionType.vGather := decodeResult(Decoder.gather) && decodeResult(Decoder.vtype)
+  nextInstructionType.mv := decodeResult(Decoder.mv) && request.bits.instruction(6)
   // TODO: from decode
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
   val maskDestination = decodeResult(Decoder.maskDestination)
@@ -347,6 +346,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val vs2 = RegInit(0.U(5.W))
       val rs1 = RegInit(0.U(parameter.xLen.W))
       val vm = RegInit(false.B)
+      val instructionBit6 = RegInit(false.B)
       val decodeResultReg = RegInit(0.U.asTypeOf(decodeResult))
       val gather: Bool = decodeResultReg(Decoder.gather)
       // for slid
@@ -396,6 +396,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         elementIndexCount := 0.U
         compressWriteCount := 0.U
         iotaCount := 0.U
+        instructionBit6 := request.bits.instruction(6)
         slidUnitIdle := !((decodeResult(Decoder.slid) || nextInstructionType.vGather) && instructionValid)
         iotaUnitIdle := !((decodeResult(Decoder.compress) || decodeResult(Decoder.iota)) && instructionValid)
         vd := request.bits.instruction(11, 7)
@@ -452,12 +453,17 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val endOH = UIntToOH(csrInterface.vl(parameter.dataPathWidthCounterBits - 1, 0))
       val border = lastExecute && dataPathMisaligned
       val lastGroupMask = scanRightOr(endOH(parameter.dataPathWidth - 1, 1))
+      // todo: 有store被解析成mv了
+      val mvType = decodeResultReg(Decoder.mv) && instructionBit6
+      val readMv = mvType && decodeResultReg(Decoder.targetRd)
+      val writeMv = mvType && !decodeResultReg(Decoder.targetRd) && instructionValid
       // 读后写中的读
-      val needWAR = maskTypeInstruction || border || reduce
+      val needWAR = maskTypeInstruction || border || reduce || readMv
+      val skipLaneData: Bool = decodeResultReg(Decoder.mv)
       maskReadLaneSelect.head := UIntToOH(writeBackCounter)
       maskWriteLaneSelect.head := maskReadLaneSelect.head
       maskUnitReadVec.head.valid := false.B
-      maskUnitReadVec.head.bits.vs := Mux(reduce, vs1, vd)
+      maskUnitReadVec.head.bits.vs := Mux(readMv, vs2, Mux(reduce, vs1, vd))
       maskUnitReadVec.head.bits.offset := groupCounter
       maskUnitRead.bits.instructionIndex := control.record.instructionIndex
       val readResultSelectResult = Mux1H(maskUnitReadSelect, laneReadResult)
@@ -479,8 +485,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       maskUnitWriteVec.head.valid := false.B
       maskUnitWriteVec.head.bits.vd := vd
       maskUnitWriteVec.head.bits.offset := groupCounter
-      maskUnitWriteVec.head.bits.mask := writeMask
-      maskUnitWriteVec.head.bits.data := Mux(reduce, dataResult.bits, writeData)
+      maskUnitWriteVec.head.bits.data := Mux(writeMv, rs1, Mux(reduce, dataResult.bits, writeData))
       maskUnitWriteVec.head.bits.last := control.state.wLast || reduce
       maskUnitWriteVec.head.bits.instructionIndex := control.record.instructionIndex
 
@@ -533,6 +538,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val maskUnitEEW1H: UInt = UIntToOH(maskUnitEEW)
       val maskUnitByteEnable = maskUnitEEW1H(2) ## maskUnitEEW1H(2) ## maskUnitEEW1H(2, 1).orR ## true.B
       val maskUnitBitEnable = FillInterleaved(8, maskUnitByteEnable)
+      maskUnitWriteVec.head.bits.mask := Mux(writeMv, maskUnitByteEnable, writeMask)
       // log2(dataWidth * laneNumber / 8)
       val maskUnitDataOffset = (elementIndexCount << maskUnitEEW).asUInt(4, 0) ## 0.U(3.W)
       val maskUnitData = ((VecInit(data.map(_.bits)).asUInt >> maskUnitDataOffset).asUInt & maskUnitBitEnable)(
@@ -778,7 +784,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val maskOperation = decodeResultReg(Decoder.maskLogic)
       val lastGroupDataWaitMask = scanRightOr(UIntToOH(lastExecuteCounter))
       val dataMask = Mux(maskOperation && lastGroup, lastGroupDataWaitMask, -1.S(parameter.laneNumer.W).asUInt)
-      val dataReady = ((~dataMask).asUInt | VecInit(data.map(_.valid)).asUInt).andR
+      val dataReady = ((~dataMask).asUInt | VecInit(data.map(_.valid)).asUInt).andR || skipLaneData
       when(
         // data ready
         dataReady &&
@@ -791,28 +797,38 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         }
         // 可能有的计算
         val readFinish = WARRedResult.valid || !needWAR
+        val readDataSign = Mux1H(sew1H(2, 0), Seq(WARRedResult.bits(7), WARRedResult.bits(15), WARRedResult.bits(31)))
         when(readFinish) {
-          executeCounter := executeCounter + 1.U
-          dataResult.bits := aluOutPut
+          when(readMv) {
+            control.state.sExecute := true.B
+            // signExtend for vmv.x.s
+            dataResult.bits := Mux(sew1H(2), WARRedResult.bits(31, 16), Fill(16, readDataSign)) ##
+              Mux(sew1H(0), Fill(8, readDataSign), WARRedResult.bits(15, 8)) ##
+              WARRedResult.bits(7, 0)
+
+          }.otherwise {
+            executeCounter := executeCounter + 1.U
+            dataResult.bits := aluOutPut
+          }
         }
         val executeFinish: Bool = (executeCounter(log2Ceil(parameter.laneNumer)) || !reduce) && maskUnitIdle
-        val schedulerWrite = decodeResultReg(Decoder.maskDestination) || reduce
+        val schedulerWrite = decodeResultReg(Decoder.maskDestination) || reduce || writeMv
         // todo: decode
         val groupSync = decodeResultReg(Decoder.ffo)
         // 写回
-        when(readFinish && executeFinish) {
+        when(readFinish && (executeFinish || writeMv)) {
           maskUnitWriteVec.head.valid := schedulerWrite
           when(maskUnitWriteReady || !schedulerWrite) {
             WARRedResult.valid := false.B
             writeBackCounter := writeBackCounter + schedulerWrite
-            when(lastExecuteForGroup || lastExecute || reduce || groupSync) {
+            when(lastExecuteForGroup || lastExecute || reduce || groupSync || writeMv) {
               synchronized := true.B
               dataClear := true.B
               when(lastExecuteForGroup) {
                 executeForLastLaneFire := true.B
                 groupCounter := groupCounter + 1.U
               }
-              when(lastExecute || reduce) {
+              when(lastExecute || reduce || writeMv) {
                 control.state.sExecute := true.B
               }
             }
