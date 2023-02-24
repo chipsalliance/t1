@@ -73,7 +73,7 @@ let
 
   # nix cc-wrapper will add --gcc-toolchain to clang flags. However, when we want to use
   # our custom libc and compilerrt, clang will only search these libs in --gcc-toolchain 
-  # folder. To avoid this wierd behavior of clang, we need to remove --gcc-toolchain options
+  # folder. To avoid this weird behavior of clang, we need to remove --gcc-toolchain options
   # from cc-wrapper
   my-cc-wrapper = let cc = myLLVM.clang; in final.runCommand "my-cc-wrapper" {} ''
     mkdir -p "$out"
