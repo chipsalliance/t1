@@ -8,7 +8,7 @@ class LaneDivRequest(param: DataPathParam) extends Bundle {
   val src:  Vec[UInt] = Vec(2, UInt(param.dataWidth.W))
   val rem:  Bool = Bool()
   val sign: Bool = Bool()
-  val index = UInt(2.W)// log2Ceil(param.dataPathByteWidth).W
+  val index = UInt(2.W)
 }
 
 class LaneDiv(param: DataPathParam) extends Module {
@@ -59,24 +59,24 @@ class SRTOut extends Bundle {
   * sign: true for signed input
   *
   * Component:
+  * {{{
   * divided by zero detection
   * bigger divisor detection
   * leading zero process
   * sign process
+  * }}}
+  *
   */
 class SRTWrapper extends Module{
-
   val input = IO(Flipped(DecoupledIO(new SRTIn)))
   val output = IO(ValidIO(new SRTOut))
 
-  //abs
   val abs = Module(new Abs(32))
   abs.io.aIn := input.bits.dividend
   abs.io.bIn := input.bits.divisor
   abs.io.signIn := input.bits.signIn
   val negative = abs.io.aSign ^ abs.io.bSign
 
-  //LZC
   val LZC0 = Module(new LZC32)
   val LZC1 = Module(new LZC32)
   LZC0.io.a := abs.io.aOut
@@ -94,7 +94,7 @@ class SRTWrapper extends Module{
   val biggerdivisor = Wire(Bool())
   dividend := abs.io.aOut
   divisor := abs.io.bOut
-  gap := addition.prefixadder.koggeStone(divisor, -dividend, false.B)
+  gap := divisor +& (-dividend)
   biggerdivisor := gap(33) && !(gap(32,0).orR === false.B)
 
   // bypass
@@ -108,19 +108,18 @@ class SRTWrapper extends Module{
   zeroHeadDivisor := ~LZC1.io.z
   // sub = zeroHeadDivider - zeroHeadDividend
   val sub = Wire(UInt(6.W))
-  sub := addition.prefixadder.koggeStone(-zeroHeadDividend, zeroHeadDivisor, false.B)
+  sub := (-zeroHeadDividend) +& zeroHeadDivisor
   // needComputerWidth: Int = zeroHeadDivider - zeroHeadDividend + 2
   val needComputerWidth = Wire(UInt(7.W))
-  needComputerWidth := addition.prefixadder.koggeStone(sub, 2.U, false.B)
+  needComputerWidth := sub +& 2.U
   // noguard: Boolean = needComputerWidth % radixLog2 == 0
   val noguard = !needComputerWidth(0)
   // counter: Int = (needComputerWidth + 1) / 2
-  val counter = (addition.prefixadder.koggeStone(needComputerWidth, 1.U, false.B) >> 1).asUInt
+  val counter = ((needComputerWidth +& 1.U) >> 1).asUInt
   // leftShiftWidthDividend: Int = zeroHeadDividend - (if (noguard) 0 else 1)
   val leftShiftWidthDividend = Wire(UInt(6.W))
   val leftShiftWidthDivisor = Wire(UInt(6.W))
-  leftShiftWidthDividend := Mux(noguard,zeroHeadDividend(4,0),
-    addition.prefixadder.koggeStone(zeroHeadDividend(4,0), "b111111".U, false.B))
+  leftShiftWidthDividend := Mux(noguard,zeroHeadDividend(4,0), zeroHeadDividend(4,0) +& "b111111".U)
   leftShiftWidthDivisor := zeroHeadDivisor(4,0)
 
   // keep mutiple cycles for SRT
@@ -171,7 +170,6 @@ class Abs(n: Int) extends Module {
     val bOut = Output(UInt(n.W))
     val aSign = Output(Bool())
     val bSign = Output(Bool())
-    //debug
   })
   val a = Wire(SInt(n.W))
   val b = Wire(SInt(n.W))
