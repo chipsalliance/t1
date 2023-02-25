@@ -544,8 +544,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val maskTypeDestinationWriteValid = record.originalInformation.decodeResult(Decoder.maskDestination) && needUpdateMaskDestination
       // reduce 类型的
       val reduceType: Bool = record.originalInformation.decodeResult(Decoder.red)
+      val updateReduce = record.originalInformation.decodeResult(Decoder.red) ||
+        record.originalInformation.decodeResult(Decoder.popCount)
       val readOnly: Bool = record.originalInformation.decodeResult(Decoder.readOnly)
-      val reduceValid = record.originalInformation.decodeResult(Decoder.red) && instructionExecuteFinished(index)
+      val reduceValid = updateReduce && instructionExecuteFinished(index)
       // viota & compress & ls 需要给外边数据
       val needResponse: Bool = (record.originalInformation.loadStore || reduceValid || readOnly ||
         maskTypeDestinationWriteValid || record.originalInformation.decodeResult(Decoder.ffo)) && slotActive(index)
@@ -802,6 +804,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // other
         val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
         otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
+        otherRequest.popInit := reduceResult(index)
         otherRequest.opcode := decodeResult(Decoder.uop)(2, 0)
         otherRequest.specialOpcode := decodeResult(Decoder.specialUop)
         otherRequest.imm := record.originalInformation.vs1
@@ -825,7 +828,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           record.originalInformation.decodeResult(Decoder.maskDestination),
           maskFormatResult,
           Mux(
-            record.originalInformation.decodeResult(Decoder.red),
+            updateReduce,
             reduceResult(index),
             source2(index)
           )
@@ -865,7 +868,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           record.selfCompleted := otherResponse.ffoSuccess
           when(!masked) {
             record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
-            when(record.originalInformation.decodeResult(Decoder.red)) {
+            when(updateReduce) {
               reduceResult(index) := dataDequeue
             }
           }
@@ -1362,6 +1365,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // other
         val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
         otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
+        otherRequest.popInit := reduceResult(index)
         otherRequest.opcode := decodeResult(Decoder.uop)(2, 0)
         otherRequest.specialOpcode := decodeResult(Decoder.specialUop)
         otherRequest.imm := record.originalInformation.vs1
@@ -1392,7 +1396,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           record.originalInformation.decodeResult(Decoder.maskDestination),
           maskFormatResult,
           Mux(
-            record.originalInformation.decodeResult(Decoder.red),
+            updateReduce,
             reduceResult(index),
             Mux(
               record.originalInformation.decodeResult(Decoder.gather),
@@ -1438,7 +1442,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           record.selfCompleted := otherResponse.ffoSuccess
           when(!masked) {
             record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
-            when(record.originalInformation.decodeResult(Decoder.red)) {
+            when(updateReduce) {
               reduceResult(index) := dataDequeue
             }
           }
@@ -1498,7 +1502,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           }
         }
         when(
-          laneResponseFeedback.bits.complete && laneResponseFeedback.bits.instructionIndex === record.originalInformation.instructionIndex
+          laneResponseFeedback.bits.complete && laneResponseFeedback.valid &&
+            laneResponseFeedback.bits.instructionIndex === record.originalInformation.instructionIndex
         ) {
           // 例如:别的lane找到了第一个1
           record.schedulerComplete := true.B

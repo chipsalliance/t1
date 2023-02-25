@@ -5,6 +5,7 @@ import chisel3.util._
 
 class OtherUnitReq(param: LaneParameter) extends Bundle {
   val src:        Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
+  val popInit:    UInt = UInt(param.vlWidth.W)
   val opcode:     UInt = UInt(3.W)
   val extendType: Valid[ExtendInstructionType] = Valid(new ExtendInstructionType)
   val imm:        UInt = UInt(3.W)
@@ -45,7 +46,7 @@ class OtherUnit(param: LaneParameter) extends Module {
   ffo.resultSelect := req.specialOpcode
   ffo.complete := req.complete
   ffo.maskType := req.maskType
-  popCount.src := req.src.head
+  popCount.src := req.src(1) & Mux(req.maskType, req.src.head, -1.S(param.datapathWidth.W).asUInt)
 
   val signValue:  Bool = req.src(1)(param.datapathWidth - 1) && req.sign
   val signExtend: UInt = Fill(param.datapathWidth, signValue)
@@ -108,11 +109,12 @@ class OtherUnit(param: LaneParameter) extends Module {
       selectSource2
     )
   ).asUInt
+  val popCountResult = popCount.resp + req.popInit(7, 0)
   val result: UInt = Mux1H(
     resultSelect,
-    Seq(extendRes, ffo.resp.bits, popCount.resp, indexRes, clipResult, req.src.head, req.src(1))
+    Seq(extendRes, ffo.resp.bits, popCountResult, indexRes, clipResult, req.src.head, req.src(1))
   )
   resp.data := result
-  resp.ffoSuccess := ffo.resp.valid
+  resp.ffoSuccess := ffo.resp.valid && resultSelect(1)
   resp.clipFail := DontCare
 }

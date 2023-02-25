@@ -207,6 +207,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   nextInstructionType.other := decodeResult(Decoder.maskDestination)
   nextInstructionType.vGather := decodeResult(Decoder.gather) && decodeResult(Decoder.vtype)
   nextInstructionType.mv := decodeResult(Decoder.mv) && request.bits.instruction(6)
+  nextInstructionType.popCount := decodeResult(Decoder.popCount)
   // TODO: from decode
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
   val maskDestination = decodeResult(Decoder.maskDestination)
@@ -363,6 +364,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val iotaUnitIdle: Bool = RegInit(true.B)
       val maskUnitIdle = slidUnitIdle && iotaUnitIdle
       val reduce = decodeResultReg(Decoder.red)
+      val popCount = decodeResultReg(Decoder.popCount)
       /** vlmax = vLen * (2**lmul) / (2 ** sew * 8)
         * = (vLen / 8) * 2 ** (lmul - sew)
         * = vlb * 2 ** (lmul - sew)
@@ -503,7 +505,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         ),
         dataResult.bits
       )
-      val aluInput2 = Mux1H(UIntToOH(executeCounter), data.map(_.bits))
+      val aluInput2 = Mux1H(UIntToOH(executeCounter), data.map(d => Mux(d.valid, d.bits, 0.U)))
       // red alu instance
       val adder:     LaneAdder = Module(new LaneAdder(parameter.datePathParam))
       val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datePathParam))
@@ -513,7 +515,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         (aluInput1(parameter.dataPathWidth - 1) && sign) ## aluInput1,
         (aluInput2(parameter.dataPathWidth - 1) && sign) ## aluInput2
       ))
-      adder.req.opcode := decodeResultReg(Decoder.uop)
+      // popCount 在top视为reduce add
+      adder.req.opcode := Mux(popCount, 0.U, decodeResultReg(Decoder.uop))
       adder.req.sign := sign
       adder.req.mask := false.B
       adder.req.reverse := false.B
@@ -527,8 +530,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       logicUnit.req.opcode := decodeResultReg(Decoder.uop)
 
       // reduce resultSelect
-      val reduceResult = Mux(decodeResultReg(Decoder.adder), adder.resp.data, logicUnit.resp)
-      val aluOutPut = Mux(reduce, reduceResult, 0.U)
+      val reduceResult = Mux(decodeResultReg(Decoder.adder) || popCount, adder.resp.data, logicUnit.resp)
+      val aluOutPut = Mux(reduce || popCount, reduceResult, 0.U)
       // slid & gather unit
       val slideUp = decodeResultReg(Decoder.uop)(1)
       val slide1 = decodeResultReg(Decoder.uop)(0) && decodeResultReg(Decoder.slid)
@@ -811,7 +814,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             dataResult.bits := aluOutPut
           }
         }
-        val executeFinish: Bool = (executeCounter(log2Ceil(parameter.laneNumer)) || !reduce) && maskUnitIdle
+        val executeFinish: Bool = (executeCounter(log2Ceil(parameter.laneNumer)) || !(reduce || popCount)) && maskUnitIdle
         val schedulerWrite = decodeResultReg(Decoder.maskDestination) || reduce || writeMv
         // todo: decode
         val groupSync = decodeResultReg(Decoder.ffo)
@@ -821,14 +824,14 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           when(maskUnitWriteReady || !schedulerWrite) {
             WARRedResult.valid := false.B
             writeBackCounter := writeBackCounter + schedulerWrite
-            when(lastExecuteForGroup || lastExecute || reduce || groupSync || writeMv) {
+            when(lastExecuteForGroup || lastExecute || reduce || groupSync || writeMv || popCount) {
               synchronized := true.B
               dataClear := true.B
               when(lastExecuteForGroup) {
                 executeForLastLaneFire := true.B
                 groupCounter := groupCounter + 1.U
               }
-              when(lastExecute || reduce || writeMv) {
+              when(lastExecute || reduce || writeMv || popCount) {
                 control.state.sExecute := true.B
               }
             }
