@@ -38,7 +38,7 @@ object Decoder {
       "sbc",
       "sum"
     )
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc
+    def genTable(op: Op): BitPat = if (op.special.nonEmpty) n
     else if (
       subs.exists(op.name.contains) &&
       !(op.tpe == "M" && Seq("vm", "vnm").exists(op.name.startsWith))
@@ -147,7 +147,7 @@ object Decoder {
     def genTable(op: Op): BitPat = {
       val nameWoW = op.name.replace(".w", "")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
-      if (op.special.nonEmpty) dc
+      if (op.special.nonEmpty) y
       else if (nameWoW.endsWith("us") || (nameWoW.endsWith("u") && !nameWoW.endsWith("su")) || madc) y
       else n
     }
@@ -157,7 +157,7 @@ object Decoder {
     def genTable(op: Op): BitPat = {
       val nameWoW = op.name.replace(".w", "")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
-      if (op.special.nonEmpty) dc else if (nameWoW.endsWith("u") || madc) y else n
+      if (op.special.nonEmpty) y else if (nameWoW.endsWith("u") || madc) y else n
     }
   }
 

@@ -47,6 +47,7 @@ class SpecialInstructionType extends Bundle {
   // 只有v类型的gather指令需要在top执行
   val vGather: Bool = Bool()
   val mv: Bool = Bool()
+  val popCount: Bool = Bool()
 }
 
 class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
@@ -107,15 +108,16 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sReadVD := !(crossRead || ma || decodeResult(Decoder.maskLogic))
     res.wRead1 := !crossRead
     res.wRead2 := !crossRead
-    res.wScheduler := !(special || readdOnly)
+    res.wScheduler := !(special || readdOnly || decodeResult(Decoder.popCount))
     // todo
     res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red) || readdOnly
-      || decodeResult(Decoder.ffo))
+      || decodeResult(Decoder.ffo) || decodeResult(Decoder.popCount))
     res.sExecute := readdOnly
     //todo: red
     res.wExecuteRes := (special && !decodeResult(Decoder.ffo)) || readdOnly
     res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) || readdOnly ||
-      decodeResult(Decoder.widen) || decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red)
+      decodeResult(Decoder.widen) || decodeResult(Decoder.maskDestination) ||
+      decodeResult(Decoder.red) || decodeResult(Decoder.popCount)
     res.sCrossWrite0 := !decodeResult(Decoder.widen)
     res.sCrossWrite1 := !decodeResult(Decoder.widen)
     res.sSendResult0 := !crossRead
