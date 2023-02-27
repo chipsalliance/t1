@@ -81,14 +81,17 @@ vmv.v.x
 vmv.x.s
 vmxnor.mm
 vmxor.mm
+vnclip.wi
 vnclip.wv
 vnclip.wx
+vnclipu.wi
 vnclipu.wv
 vnclipu.wx
 vnmsac.vv
 vnmsac.vx
 vnmsub.vv
 vnmsub.vx
+vnsra.wi
 vnsra.wv
 vnsra.wx
 vor.vi
