@@ -204,6 +204,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val crossWriteMaskMSBHalf:   UInt = RegInit(0.U((parameter.dataPathByteWidth / 2).W))
 
   val maskFormatResult: UInt = RegInit(0.U(parameter.datapathWidth.W))
+  val ffoIndexReg: UInt = RegInit(0.U(log2Ceil(parameter.vLen / 8).W))
   val reduceResult: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(parameter.datapathWidth.W))))
   /** arbiter for VRF write
     * 1 for [[vrfWriteChannel]]
@@ -812,6 +813,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResult.elements(s) }
         otherRequest.laneIndex := laneIndex
         otherRequest.groupIndex := record.groupCounter
+        otherRequest.executeIndex := record.executeIndex
         otherRequest.sign := !decodeResult(Decoder.unsigned0)
         otherRequest.mask := maskAsInput || !record.originalInformation.mask
         otherRequest.complete := record.schedulerComplete || record.selfCompleted
@@ -1373,6 +1375,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResult.elements(s) }
         otherRequest.laneIndex := laneIndex
         otherRequest.groupIndex := record.groupCounter
+        otherRequest.executeIndex := record.executeIndex
         otherRequest.sign := !decodeResult(Decoder.unsigned0)
         // todo: vmv.v.* decode to mv instead of merge or delete mv
         otherRequest.mask := maskAsInput || !record.originalInformation.mask
@@ -1401,7 +1404,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             Mux(
               record.originalInformation.decodeResult(Decoder.gather),
               source1(index),
-              source2(index)
+              Mux(record.originalInformation.decodeResult(Decoder.ffo), ffoIndexReg, source2(index))
             )
 
           )
@@ -1440,6 +1443,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           }
           result(index) := resultUpdate
           record.selfCompleted := otherResponse.ffoSuccess
+          when(otherResponse.ffoSuccess && !record.selfCompleted) {
+            ffoIndexReg := record.groupCounter ## Mux1H(
+              vSew1H,
+              Seq(
+                record.executeIndex ## otherResponse.data(2, 0),
+                record.executeIndex(1) ## otherResponse.data(3, 0),
+                otherResponse.data(4, 0),
+              )
+            )
+          }
           when(!masked) {
             record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
             when(updateReduce) {

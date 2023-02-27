@@ -11,6 +11,8 @@ class OtherUnitReq(param: LaneParameter) extends Bundle {
   val imm:        UInt = UInt(3.W)
   val groupIndex: UInt = UInt(param.groupNumberWidth.W)
   val laneIndex:  UInt = UInt(param.laneNumberWidth.W)
+  // 给vid计算index用的
+  val executeIndex: UInt = UInt(log2Ceil(param.dataPathByteWidth).W)
   val sign:       Bool = Bool()
   val mask:       Bool = Bool()
   val complete:   Bool = Bool()
@@ -75,7 +77,7 @@ class OtherUnit(param: LaneParameter) extends Module {
   val roundResultOverlap: Bool = roundRemainder.orR && !(req.sign && (roundRemainder | clipMask).andR && roundSignBits)
   val clipResult = Mux(roundResultOverlap, largestClipResult, roundResult)
 
-  val indexRes: UInt = req.groupIndex ## req.laneIndex
+  val indexRes: UInt = ((req.groupIndex ## req.laneIndex ## req.executeIndex) >> csr.vSew).asUInt
 
   val extendSign: Bool = req.sign && Mux1H(vSewOH, Seq(req.src.head(7), req.src.head(15), req.src.head(31)))
   // todo

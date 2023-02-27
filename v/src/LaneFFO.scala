@@ -21,7 +21,7 @@ class LaneFFO(param: DataPathParam) extends Module {
   val inc: UInt = ro ## notZero
   // 1H
   val OH:    UInt = lo & inc
-  val index: UInt = OH1ToUInt(OH)
+  val index: UInt = OHToUInt(OH)
 
   // copy&paste from rocket-chip: src/main/scala/util/package.scala
   // todo: upstream this to chisel3
@@ -59,5 +59,6 @@ class LaneFFO(param: DataPathParam) extends Module {
     ),
     Seq(0.U, index, ro, OH, inc, -1.S.asUInt)
   )
-  resp.bits := (ffoResult & truthMask) | (src.last & (~truthMask).asUInt)
+  val resultMask: UInt = Mux(maskType && !first, src.head, -1.S(param.dataWidth.W).asUInt)
+  resp.bits := (ffoResult & resultMask) | (src.last & (~resultMask).asUInt)
 }
