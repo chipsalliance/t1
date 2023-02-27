@@ -16,6 +16,9 @@ vasub.vv
 vasub.vx
 vasubu.vv
 vasubu.vx
+vcompress.vm
+vcpop.m
+viota.m
 vmacc.vv
 vmacc.vx
 vmadc.vim
@@ -71,11 +74,17 @@ vmul.vv
 vmul.vx
 vmulh.vv
 vmulh.vx
+vmv.s.x
 vmv.v.i
 vmv.v.v
 vmv.v.x
+vmv.x.s
 vmxnor.mm
 vmxor.mm
+vnclip.wv
+vnclip.wx
+vnclipu.wv
+vnclipu.wx
 vnmsac.vv
 vnmsac.vx
 vnmsub.vv
