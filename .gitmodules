@@ -19,3 +19,4 @@
 [submodule "dependencies/riscv-vector-tests"]
 	path = dependencies/riscv-vector-tests
 	url = git@github.com:ksco/riscv-vector-tests.git
+	branch = main
