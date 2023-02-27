@@ -59,7 +59,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val bufferClear: Bool = IO(Input(Bool()))
   // todo: delete
   dontTouch(write)
-  write.ready := true.B
 
   val chainingRecord: Vec[ValidIO[VRFWriteReport]] = RegInit(
     VecInit(Seq.fill(parameter.chainingSize)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
@@ -129,7 +128,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(8.W)))
   val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(8.W)))
   // portFactor = 1 的可以直接握手
-  read.zipWithIndex.foldLeft((false.B, false.B)) {
+  val (_, secondOccupied) = read.zipWithIndex.foldLeft((false.B, false.B)) {
     case ((o, t), (v, i)) =>
       // 先找到自的record
       val readRecord =
@@ -143,6 +142,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       readResult(i) := Mux(o, readResultS.asUInt, readResultF.asUInt)
       (o || validCorrect, (validCorrect && o) || t)
   }
+  write.ready := !secondOccupied
 
   val rfVec: Seq[RegFile] = Seq.tabulate(parameter.rfBankNum) { bank =>
     // rf instant
@@ -153,7 +153,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     readResultF(bank) := rf.readPorts.head.data
     readResultS(bank) := rf.readPorts.last.data
     // connect writePort
-    rf.writePort.valid := write.valid & write.bits.mask(bank)
+    rf.writePort.valid := write.fire && write.bits.mask(bank)
     rf.writePort.bits.addr := write.bits.vd ## write.bits.offset
     rf.writePort.bits.data := write.bits.data(8 * bank + 7, 8 * bank)
     rf
