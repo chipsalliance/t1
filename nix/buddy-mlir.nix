@@ -35,7 +35,7 @@ let
       cp include/llvm/Config/config.h $out/include/llvm/Config
     '';
   };
-  mlir_dir = runCommand "mlir_dir" {} ''
+  mlir_dir = runCommand "mlir_dir" { } ''
     mkdir -p $out
     ln -s ${llvm.src}/* $out
     cp -r ${llvm} $out/build
