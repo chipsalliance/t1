@@ -267,6 +267,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val maskDataForCompress: UInt = RegInit(0.U(parameter.dataPathWidth.W))
   val dataClear: Bool = WireDefault(false.B)
   val completedVec: Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.laneNumer)(false.B)))
+  val selectffoIndex: ValidIO[UInt] = Wire(Valid(UInt(parameter.xLen.W)))
   val completedLeftOr: UInt = (scanLeftOr(completedVec.asUInt) << 1).asUInt(parameter.laneNumer - 1, 0)
   // 按指定的sew拼成 {laneNumer * dataPathWidth} bit, 然后根据sew选择出来
   val sortedData: UInt = Mux1H(sew1H(2, 0), Seq(4, 2, 1).map { groupSize =>
@@ -365,6 +366,15 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val maskUnitIdle = slidUnitIdle && iotaUnitIdle
       val reduce = decodeResultReg(Decoder.red)
       val popCount = decodeResultReg(Decoder.popCount)
+      // first type instruction
+      val firstLane = ffo(completedVec.asUInt)
+      val firstLaneIndex: UInt = OHToUInt(firstLane)(2, 0)
+      selectffoIndex.valid := decodeResultReg(Decoder.ffo)
+      selectffoIndex.bits := Mux(!completedVec.asUInt.orR, -1.S(parameter.xLen.W).asUInt, Mux1H(
+        firstLane,
+        // 3: firstLaneIndex.width
+        data.map(i => i.bits(parameter.xLen - 1 - 3, 5) ## firstLaneIndex ## i.bits(4, 0))
+      ))
       /** vlmax = vLen * (2**lmul) / (2 ** sew * 8)
         * = (vLen / 8) * 2 ** (lmul - sew)
         * = vlb * 2 ** (lmul - sew)
@@ -997,7 +1007,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       inst.state.sExecute && inst.state.wLast && !inst.state.sCommit && inst.record.instructionIndex === responseCounter
     })
     response.valid := slotCommit.asUInt.orR
-    response.bits.data := dataResult.bits
+    response.bits.data := Mux(selectffoIndex.valid, selectffoIndex.bits, dataResult.bits)
     response.bits.vxsat := DontCare
     lastSlotCommit := slotCommit.last
   }
