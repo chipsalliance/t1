@@ -208,6 +208,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   nextInstructionType.vGather := decodeResult(Decoder.gather) && decodeResult(Decoder.vtype)
   nextInstructionType.mv := decodeResult(Decoder.mv) && request.bits.instruction(6)
   nextInstructionType.popCount := decodeResult(Decoder.popCount)
+  nextInstructionType.extend := decodeResult(Decoder.extend)
   // TODO: from decode
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
   val maskDestination = decodeResult(Decoder.maskDestination)
@@ -359,13 +360,14 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val lastElement: Bool = nextElementIndex === csrInterface.vl
       val updateMaskIndex = WireDefault(false.B)
       when(updateMaskIndex) { elementIndexCount := nextElementIndex}
-      // slid & gather
+      // slid & gather & extend
       val slidUnitIdle: Bool = RegInit(true.B)
       // compress & iota
       val iotaUnitIdle: Bool = RegInit(true.B)
       val maskUnitIdle = slidUnitIdle && iotaUnitIdle
       val reduce = decodeResultReg(Decoder.red)
       val popCount = decodeResultReg(Decoder.popCount)
+      val extend = decodeResultReg(Decoder.extend)
       // first type instruction
       val firstLane = ffo(completedVec.asUInt)
       val firstLaneIndex: UInt = OHToUInt(firstLane)(2, 0)
@@ -409,7 +411,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         compressWriteCount := 0.U
         iotaCount := 0.U
         instructionBit6 := request.bits.instruction(6)
-        slidUnitIdle := !((decodeResult(Decoder.slid) || nextInstructionType.vGather) && instructionValid)
+        slidUnitIdle := !((decodeResult(Decoder.slid) || nextInstructionType.vGather || decodeResult(Decoder.extend)) && instructionValid)
         iotaUnitIdle := !((decodeResult(Decoder.compress) || decodeResult(Decoder.iota)) && instructionValid)
         vd := request.bits.instruction(11, 7)
         vs1 := request.bits.instruction(19, 15)
@@ -545,9 +547,15 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // slid & gather unit
       val slideUp = decodeResultReg(Decoder.uop)(1)
       val slide1 = decodeResultReg(Decoder.uop)(0) && decodeResultReg(Decoder.slid)
+      /** special uop 里面编码了extend的信息：
+        * specialUop(1,0): 倍率
+        * specialUop(2)：是否是符号
+        * */
+      val extendSourceSew: Bool = (csrInterface.vSew >> decodeResultReg(Decoder.specialUop)(1, 0))(0)
+      val extendSign: Bool = decodeResultReg(Decoder.specialUop)(2)
       // gather 相关的控制
       val gather16: Bool = decodeResultReg(Decoder.gather16)
-      val maskUnitEEW = Mux(gather16, 1.U, csrInterface.vSew)
+      val maskUnitEEW = Mux(gather16, 1.U, Mux(extend, extendSourceSew, csrInterface.vSew))
       val maskUnitEEW1H: UInt = UIntToOH(maskUnitEEW)
       val maskUnitByteEnable = maskUnitEEW1H(2) ## maskUnitEEW1H(2) ## maskUnitEEW1H(2, 1).orR ## true.B
       val maskUnitBitEnable = FillInterleaved(8, maskUnitByteEnable)
@@ -566,7 +574,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val lastElementForData = gatherDataSelect.asBools.last && maskUnitDataOffset(4, 3) === dataTail
       val maskUnitDataReady: Bool = (gatherDataSelect & VecInit(data.map(_.valid)).asUInt).orR
       // 正在被gather使用的数据是否就绪了
-      val gatherDataReady: Bool = maskUnitDataReady || !gather
+      val slidUnitDataReady: Bool = maskUnitDataReady || !(gather || extend)
       val compressDataReady = maskUnitDataReady || !(decodeResultReg(Decoder.compress) || decodeResultReg(Decoder.iota))
       // slid 先用状态机
       val idle :: sRead :: sWrite :: Nil = Enum(3)
@@ -637,7 +645,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val (_, readDataOffset, readLane, readOffset, readGrowth, lmulOverlap) = indexAnalysis(readIndex)
       gatherReadDataOffset := readDataOffset
       val readOverlap = lmulOverlap || overlapVlMax
-      val skipRead = readOverlap || (gather && compareResult)
+      val skipRead = readOverlap || (gather && compareResult) || extend
       maskUnitReadVec(1).valid := readState || gatherNeedRead
       maskUnitReadVec(1).bits.vs := Mux(readState, vs2, request.bits.instruction(24, 20)) + readGrowth
       maskUnitReadVec(1).bits.offset := readOffset
@@ -649,15 +657,22 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val slidReadData: UInt = ((WARRedResult.bits >> readDataOffset) << vlDataOffset)
         .asUInt(parameter.dataPathWidth - 1, 0)
       val selectRS1 = slide1 && ((slideUp && firstElement) || (!slideUp && lastElement))
+      // extend 类型的扩展和移位
+      val extendData: UInt = (Mux(
+        extendSourceSew,
+        Fill(parameter.dataPathWidth - 16, extendSign && maskUnitData(15)) ## maskUnitData(15, 0),
+        Fill(parameter.dataPathWidth - 8, extendSign && maskUnitData(7)) ## maskUnitData(7, 0),
+      ) << vlDataOffset).asUInt(parameter.xLen - 1, 0)
       /**
-        * vd 的值有3种：
+        * vd 的值有4种：
         *   1. 用readIndex读出来的vs2的值
         *   1. 0
-        *      3. slide1时插进来的rs1
+        *   1. slide1 时插进来的rs1
+        *   1. extend 的值
         */
       val slidWriteData = Mux1H(
-        Seq((!(readOverlap || selectRS1)) || (gather && !compareResult), selectRS1),
-        Seq(slidReadData, (rs1 << vlDataOffset).asUInt)
+        Seq((!(readOverlap || selectRS1 || extend)) || (gather && !compareResult), selectRS1, extend),
+        Seq(slidReadData, (rs1 << vlDataOffset).asUInt(parameter.xLen - 1, 0), extendData)
       )
       maskUnitWriteVec(1).valid := writeState && slidActive
       maskUnitWriteVec(1).bits.vd := vd + vlGrowth
@@ -669,7 +684,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       maskWriteLaneSelect(1) := UIntToOH(vlLane)
       // slid 跳状态机
       when(slideState === idle) {
-        when((!slidUnitIdle) && gatherDataReady) {
+        when((!slidUnitIdle) && slidUnitDataReady) {
           when(skipRead) {
             slideState := sWrite
           }.otherwise {
@@ -688,13 +703,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           when(lastElement) {
             slideState := idle
             slidUnitIdle := true.B
-            when(gather) {
+            when(gather || extend) {
               synchronized := true.B
               dataClear := true.B
               readOnlyFinish := true.B
             }
           }.otherwise {
-            when(lastElementForData && gather) {
+            when(lastElementForData && (gather || extend)) {
               synchronized := true.B
               dataClear := true.B
               slideState := idle

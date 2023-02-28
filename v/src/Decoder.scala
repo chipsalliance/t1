@@ -217,7 +217,8 @@ object Decoder {
       val vGather: Boolean = op.name.contains("gather") && vtype.genTable(op) == y
       val compress: Boolean = op.name.contains("compress")
       val iota: Boolean = op.name.contains("iota")
-      val readOnly: Boolean = vGather || compress || iota
+      val extend: Boolean = op.name.contains("ext.vf")
+      val readOnly: Boolean = vGather || compress || iota || extend
       if (readOnly) y else n
     }
   }
