@@ -44,12 +44,12 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "buddy-mlir";
-  version = "a357ed2665686651ce3d85be598a29cb0530f877";
+  version = "beeaea95f2266419252662a525bee4252e9798cf";
   src = fetchFromGitHub {
     owner = "buddy-compiler";
     repo = pname;
     rev = version;
-    hash = "sha256-bX6eI23Qa1XdahsJbgX+orVhONRwa9n0BUO5B7ZYoXk=";
+    hash = "sha256-djSQwKWD/NSLr6um0u/HIf3PntLrxtsmVT82SwnXJ9Y=";
   };
 
   requiredSystemFeatures = [ "big-parallel" ];
