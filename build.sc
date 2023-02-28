@@ -416,9 +416,73 @@ object tests extends Module {
     object smoketest extends Case
 
     object mmm extends Case
+
+    object buddy extends Case {
+      def mlirSourceFile = T {
+        Lib.findSourceFiles(sources(), Seq("mlir")).map(PathRef(_)).head
+      }
+
+      override def linkOpts = T {
+        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start")
+      }
+
+      override def linkScript: T[PathRef] = T {
+        os.write(T.ctx.dest / "linker.ld",
+          s"""
+             |SECTIONS
+             |{
+             |  . = 0x1000;
+             |  .text.init : { *(.text.init) }
+             |  . = ALIGN(0x1000);
+             |  .text : { *(.text) }
+             |  . = ALIGN(0x1000);
+             |  .data : { *(.data) }
+             |  .bss : { *(.bss) }
+             |  .eh_frame : { *(.eh_frame) }
+             |}
+             |""".stripMargin)
+        PathRef(T.ctx.dest / "linker.ld")
+      }
+
+      override def allSourceFiles: T[Seq[PathRef]] = T {
+        val buddy = T.dest / s"${name}.buddy"
+        val llvmir = T.dest / s"${name}.llvmir"
+        val asm = T.dest / s"${name}.S"
+        os.proc(
+          "buddy-opt",
+          mlirSourceFile().path.toString,
+          "--convert-scf-to-cf",
+          "--lower-rvv",
+          "--convert-vector-to-llvm",
+          "--convert-memref-to-llvm",
+          "--convert-arith-to-llvm",
+          "--convert-func-to-llvm",
+          "--reconcile-unrealized-casts"
+        ).call(T.dest, stdout = buddy)
+        os.proc(
+          "buddy-translate", "--buddy-to-llvmir"
+        ).call(T.dest, stdin = buddy, stdout = llvmir)
+        os.proc(
+          "buddy-llc",
+          "-mtriple", "riscv32",
+          "-target-abi", "ilp32",
+          "-mattr=+m,+d,+v",
+          "-riscv-v-vector-bits-min=1024",
+          "--filetype=asm",
+          "--frame-pointer=all",
+          "-o", asm
+        ).call(T.dest, stdin = llvmir)
+        super.allSourceFiles() ++ Seq(PathRef(asm))
+      }
+
+      override def bin: T[PathRef] = T {
+        os.proc(Seq("llvm-objcopy", "-O", "binary", elf().path.toString, name)).call(T.ctx.dest)
+        PathRef(T.ctx.dest / name)
+      }
+    }
   }
 
-  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ Seq(cases.smoketest, cases.mmm).map(_.name)): _*)
+  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ Seq(cases.smoketest, cases.mmm, cases.buddy).map(_.name)): _*)
 
   class run(name: String) extends Module with TaskModule {
     override def defaultCommandName() = "run"
@@ -426,6 +490,7 @@ object tests extends Module {
     def caseToRun = name match {
       case "smoketest" => cases.smoketest
       case "mmm" => cases.mmm
+      case "buddy" => cases.buddy
       case _ => cases.`riscv-vector-tests`.ut(name)
     }
 
