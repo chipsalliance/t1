@@ -1,3 +1,4 @@
+buddy
 smoketest
 vaadd.vv
 vaadd.vx
