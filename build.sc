@@ -467,9 +467,8 @@ object tests extends Module {
           "-mtriple", "riscv32",
           "-target-abi", "ilp32",
           "-mattr=+m,+d,+v",
-          "-riscv-v-vector-bits-min=1024",
+          "-riscv-v-vector-bits-min=128",
           "--filetype=asm",
-          "--frame-pointer=all",
           "-o", asm
         ).call(T.dest, stdin = llvmir)
         super.allSourceFiles() ++ Seq(PathRef(asm))
