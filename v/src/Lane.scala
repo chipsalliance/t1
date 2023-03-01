@@ -1620,6 +1620,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     div.mask := DontCare
     div.vSew := csrInterface.vSew
     mul.csrInterface := csrInterface
+    shifter.vxrm := csrInterface.vxrm
     otherResponse := otherUnit.resp
     dividerResponseIndex := div.index
 
