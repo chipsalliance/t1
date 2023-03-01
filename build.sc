@@ -413,14 +413,10 @@ object tests extends Module {
       }
     }
 
-    object smoketest extends Case
+    class BuddyMLIRCase(mlirSourceFile: String) extends Case {
+      override def name: String = mlirSourceFile
 
-    object mmm extends Case
-
-    object buddy extends Case {
-      def mlirSourceFile = T {
-        Lib.findSourceFiles(sources(), Seq("mlir")).map(PathRef(_)).head
-      }
+      override def millSourcePath = super.millSourcePath / os.up
 
       override def linkOpts = T {
         Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start")
@@ -450,7 +446,7 @@ object tests extends Module {
         val asm = T.dest / s"${name}.S"
         os.proc(
           "buddy-opt",
-          mlirSourceFile().path.toString,
+          millSourcePath / mlirSourceFile,
           "--convert-scf-to-cf",
           "--lower-rvv",
           "--convert-vector-to-llvm",
@@ -479,9 +475,15 @@ object tests extends Module {
         PathRef(T.ctx.dest / name)
       }
     }
+
+    object smoketest extends Case
+
+    object mmm extends Case
+
+    object buddy extends Cross[BuddyMLIRCase]("hello.mlir")
   }
 
-  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ Seq(cases.smoketest, cases.mmm, cases.buddy).map(_.name)): _*)
+  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ Seq(cases.smoketest, cases.mmm, cases.buddy("hello.mlir")).map(_.name)): _*)
 
   class run(name: String) extends Module with TaskModule {
     override def defaultCommandName() = "run"
@@ -489,7 +491,7 @@ object tests extends Module {
     def caseToRun = name match {
       case "smoketest" => cases.smoketest
       case "mmm" => cases.mmm
-      case "buddy" => cases.buddy
+      case "hello.mlir" => cases.buddy("hello.mlir")
       case _ => cases.`riscv-vector-tests`.ut(name)
     }
 

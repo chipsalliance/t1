@@ -1,4 +1,4 @@
-buddy
+hello.mlir
 smoketest
 vaadd.vv
 vaadd.vx
