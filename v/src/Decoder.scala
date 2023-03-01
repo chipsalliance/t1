@@ -278,7 +278,8 @@ object Decoder {
       } else if (shift.genTable(op) == y) {
         val n = firstIndexContains(shift.subs, op.name)
         require(n < 4)
-        "?" * 2 + (("00" + n.toBinaryString).takeRight(2))
+        val ssr = op.name.contains("ssr")
+        "?" * 1 + b2s(ssr) + ("00" + n.toBinaryString).takeRight(2)
       } else if (other.genTable(op) == y) {
         val n = if (slid.genTable(op) == y) {
           val up = if (op.name.contains("up")) 2 else 0
