@@ -480,18 +480,23 @@ object tests extends Module {
 
     object mmm extends Case
 
-    object buddy extends Cross[BuddyMLIRCase]("hello.mlir")
+    def mlirTests = os.walk(millSourcePath / "buddy").filter(_.ext == "mlir").map(_.last.toString)
+
+    object buddy extends Cross[BuddyMLIRCase](mlirTests: _*) {
+      def allTests = mlirTests
+    }
   }
 
-  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ Seq(cases.smoketest, cases.mmm, cases.buddy("hello.mlir")).map(_.name)): _*)
+  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ cases.buddy.allTests ++ Seq(cases.smoketest, cases.mmm).map(_.name)): _*)
 
   class run(name: String) extends Module with TaskModule {
     override def defaultCommandName() = "run"
 
+    val mlirTestPattern = raw"(.+\.mlir)$$".r
     def caseToRun = name match {
       case "smoketest" => cases.smoketest
       case "mmm" => cases.mmm
-      case "hello.mlir" => cases.buddy("hello.mlir")
+      case mlirTestPattern(testName) => cases.buddy(testName)
       case _ => cases.`riscv-vector-tests`.ut(name)
     }
 
