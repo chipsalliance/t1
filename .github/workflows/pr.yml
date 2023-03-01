@@ -20,8 +20,9 @@ jobs:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
           CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-      - uses: cachix/install-nix-action@v18
+      - uses: cachix/install-nix-action@v19
         with:
+          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
           nix_path: nixpkgs=channel:nixos-unstable
       - id: ci-tests
         run: nix-shell -p ammonite --run 'make ci-passed-tests'
@@ -44,8 +45,9 @@ jobs:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
           CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-      - uses: cachix/install-nix-action@v18
+      - uses: cachix/install-nix-action@v19
         with:
+          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
           nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             post-build-hook = /etc/nix/upload-to-cache.sh
