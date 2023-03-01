@@ -145,9 +145,10 @@ object Decoder {
 
   object unsigned0 extends BoolField {
     def genTable(op: Op): BitPat = {
+      val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
       val nameWoW = op.name.replace(".w", "")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
-      if (op.special.nonEmpty) y
+      if (op.special.nonEmpty || logicShift) y
       else if (nameWoW.endsWith("us") || (nameWoW.endsWith("u") && !nameWoW.endsWith("su")) || madc) y
       else n
     }
@@ -155,9 +156,10 @@ object Decoder {
 
   object unsigned1 extends BoolField {
     def genTable(op: Op): BitPat = {
+      val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
       val nameWoW = op.name.replace(".w", "")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
-      if (op.special.nonEmpty) y else if (nameWoW.endsWith("u") || madc) y else n
+      if (op.special.nonEmpty || logicShift) y else if (nameWoW.endsWith("u") || madc) y else n
     }
   }
 
