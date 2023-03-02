@@ -87,7 +87,7 @@ object Decoder {
   }
 
   object firstWiden extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name.endsWith(".w")) y else n
+    def genTable(op: Op): BitPat = if (op.name.endsWith(".w") || vwmacc.genTable(op) == y) y else n
   }
 
   object nr extends BoolField {
@@ -145,21 +145,23 @@ object Decoder {
 
   object unsigned0 extends BoolField {
     def genTable(op: Op): BitPat = {
-      val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
       val nameWoW = op.name.replace(".w", "")
+      val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
+      val UIntOperation = nameWoW.endsWith("u") && !nameWoW.endsWith("su")
+      val mul = op.name.contains("mulhsu") || op.name.contains("wmulsu") || op.name.contains("vwmaccus")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
-      if (op.special.nonEmpty || logicShift) y
-      else if (nameWoW.endsWith("us") || (nameWoW.endsWith("u") && !nameWoW.endsWith("su")) || madc) y
-      else n
+      if (op.special.nonEmpty || logicShift || UIntOperation || mul || madc) y else n
     }
   }
 
   object unsigned1 extends BoolField {
     def genTable(op: Op): BitPat = {
-      val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
       val nameWoW = op.name.replace(".w", "")
+      val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
+      val UIntOperation = nameWoW.endsWith("u") && !nameWoW.endsWith("su")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
-      if (op.special.nonEmpty || logicShift) y else if (nameWoW.endsWith("u") || madc) y else n
+      val vwmaccsu = op.name.contains("vwmaccsu")
+      if (op.special.nonEmpty || logicShift || UIntOperation || madc || vwmaccsu) y else n
     }
   }
 
@@ -235,6 +237,10 @@ object Decoder {
 
   object id extends BoolField {
     def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name == "vid") y else n
+  }
+
+  object vwmacc extends BoolField {
+    def genTable(op: Op): BitPat = if (op.name.contains("vwmacc")) y else n
   }
 
   // TODO[2]: uop should be well documented
@@ -378,6 +384,7 @@ object Decoder {
     gather16,
     readOnly,
     compress,
+    vwmacc,
   )
 
   private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)
