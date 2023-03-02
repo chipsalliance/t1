@@ -95,8 +95,8 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   /** data of rs1 */
   val readFromScalar: UInt = UInt(param.datapathWidth.W)
 
-  // TODO: move to [[V]]
-  def ma: Bool = decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).orR
+  // vmacc 的vd需要跨lane读 TODO: move to [[V]]
+  def ma: Bool = decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).xorR && !decodeResult(Decoder.vwmacc)
 
   // TODO: move to Module
   def initState: InstGroupState = {
@@ -106,7 +106,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     // decode的时候需要注意有些bit操作的指令虽然不需要读vs1,但是需要读v0
     res.sRead1 := !decodeResult(Decoder.vtype) || (decodeResult(Decoder.gather) && !decodeResult(Decoder.vtype))
     res.sRead2 := false.B
-    res.sReadVD := !(crossRead || ma || decodeResult(Decoder.maskLogic))
+    res.sReadVD := !(ma || decodeResult(Decoder.maskLogic))
     res.wRead1 := !crossRead
     res.wRead2 := !crossRead
     res.wScheduler := !(special || readOnly || decodeResult(Decoder.popCount))
@@ -123,6 +123,8 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sCrossWrite1 := !decodeResult(Decoder.widen)
     res.sSendResult0 := !crossRead
     res.sSendResult1 := !crossRead
+    res.sCrossRead0 := !crossRead
+    res.sCrossRead1 := !crossRead
     res
   }
 
@@ -159,6 +161,9 @@ class InstGroupState(param: LaneParameter) extends Bundle {
   // 发送写的
   val sCrossWrite0: Bool = Bool()
   val sCrossWrite1: Bool = Bool()
+  // 读跨lane的
+  val sCrossRead0: Bool = Bool()
+  val sCrossRead1: Bool = Bool()
   // 发送读的
   val sSendResult0: Bool = Bool()
   val sSendResult1: Bool = Bool()
