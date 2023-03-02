@@ -19,6 +19,8 @@ vasubu.vv
 vasubu.vx
 vcompress.vm
 vcpop.m
+vfirst.m
+vid.v
 viota.m
 vmacc.vv
 vmacc.vx
@@ -95,6 +97,9 @@ vnmsub.vx
 vnsra.wi
 vnsra.wv
 vnsra.wx
+vnsrl.wi
+vnsrl.wv
+vnsrl.wx
 vor.vi
 vor.vv
 vor.vx
@@ -123,6 +128,8 @@ vsbc.vxm
 vsetivli
 vsetvl
 vsetvli
+vsext.vf2
+vsext.vf4
 vslide1up.vx
 vslidedown.vi
 vslidedown.vx
@@ -136,6 +143,15 @@ vsmul.vx
 vsra.vi
 vsra.vv
 vsra.vx
+vsrl.vi
+vsrl.vv
+vsrl.vx
+vssra.vi
+vssra.vv
+vssra.vx
+vssrl.vi
+vssrl.vv
+vssrl.vx
 vssub.vv
 vssub.vx
 vsub.vv
@@ -165,3 +181,5 @@ vwsubu.wx
 vxor.vi
 vxor.vv
 vxor.vx
+vzext.vf2
+vzext.vf4
