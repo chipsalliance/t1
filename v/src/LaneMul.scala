@@ -5,10 +5,11 @@ import chisel3.util._
 
 case class LaneMulParam(inputWidth: Int, vlWidth: Int) {
   val respWidth: Int = inputWidth
+  val sourceWidth: Int = inputWidth + 1
 }
 
 class LaneMulReq(parameter: LaneMulParam) extends Bundle {
-  val src:    Vec[UInt] = Vec(3, UInt(parameter.inputWidth.W))
+  val src:    Vec[UInt] = Vec(3, UInt(parameter.sourceWidth.W))
   val opcode: UInt = UInt(4.W)
   val saturate: Bool = Bool()
 }

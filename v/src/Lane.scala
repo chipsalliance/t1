@@ -929,6 +929,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
         // TODO: use decode
         val needCrossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
+        val crossReadVS2: Bool = needCrossRead && !decodeResult(Decoder.vwmacc)
 
         /** Each group needs a state machine,
           * so we will ignore the effect of mask to jump to the next group at the end of this group
@@ -985,37 +986,41 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // 24 ->  12  |   25 ->  12  |   26 ->  13  |   27 ->  13  |   28 ->  14  |   29 ->  14  |   30 ->  15  |   31 ->  15
 
         // vs2 read
-        vrfReadRequest(index)(1).valid := !record.state.sRead2 && slotActive(index)
+        vrfReadRequest(index)(1).valid := !(record.state.sRead2 && record.state.sCrossRead0) && slotActive(index)
         vrfReadRequest(index)(1).bits.offset := Mux(
-          needCrossRead,
+          record.state.sRead2,
           record.groupCounter(parameter.vrfOffsetWidth - 2, 0) ## false.B,
           record.groupCounter(parameter.vrfOffsetWidth - 1, 0)
         )
         // todo: when vlmul > 0 use ## rather than +
         // TODO: pull Mux to standalone signal
-        vrfReadRequest(index)(1).bits.vs := record.originalInformation.vs2 + Mux(
-          needCrossRead,
+        vrfReadRequest(index)(1).bits.vs := Mux(
+          record.originalInformation.decodeResult(Decoder.vwmacc) && record.state.sRead2,
+          record.originalInformation.vd,
+          record.originalInformation.vs2
+        ) + Mux(
+          record.state.sRead2,
           record.groupCounter(parameter.groupNumberWidth - 2, parameter.vrfOffsetWidth - 1),
           record.groupCounter(parameter.groupNumberWidth - 1, parameter.vrfOffsetWidth)
         )
         vrfReadRequest(index)(1).bits.instructionIndex := record.originalInformation.instructionIndex
 
         // vd read
-        vrfReadRequest(index)(2).valid := !record.state.sReadVD && slotActive(index)
+        vrfReadRequest(index)(2).valid := !(record.state.sReadVD && record.state.sCrossRead1) && slotActive(index)
         vrfReadRequest(index)(2).bits.offset := Mux(
-          needCrossRead,
+          record.state.sReadVD,
           record.groupCounter(parameter.vrfOffsetWidth - 2, 0) ## true.B,
           record.groupCounter(parameter.vrfOffsetWidth - 1, 0)
         )
         vrfReadRequest(index)(2).bits.vs := Mux(
-          needCrossRead,
+          record.state.sReadVD && !record.originalInformation.decodeResult(Decoder.vwmacc),
           // cross lane access use vs2
           record.originalInformation.vs2,
           // for MAC use vd
           record.originalInformation.vd
         ) +
           Mux(
-            needCrossRead,
+            record.state.sReadVD,
             record.groupCounter(parameter.groupNumberWidth - 2, parameter.vrfOffsetWidth - 1),
             record.groupCounter(parameter.groupNumberWidth - 1, parameter.vrfOffsetWidth)
           )
@@ -1030,7 +1035,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             record.state.sRead2 &&
             // wait for cross lane read result
             record.state.wRead1 &&
-            record.state.wRead2
+            record.state.wRead2 &&
+            record.state.sCrossRead0 &&
+            record.state.sCrossRead1
         // lane 里面正常的一次状态转换,不包含与scheduler的交流
         val internalEnd: Bool = readFinish && executeFinish && crossReadFinish && crossWriteFinish
         val stateEnd: Bool = internalEnd && schedulerFinish
@@ -1043,16 +1050,26 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         }
         when(vrfReadRequest(index)(1).fire) {
           record.state.sRead2 := true.B
-          source2(index) := vrfReadResult(index)(1)
+          when(record.state.sRead2) {
+            record.state.sCrossRead0 := true.B
+            crossReadLSBOut := vrfReadResult(index)(1)
+          }.otherwise {
+            source2(index) := vrfReadResult(index)(1)
+          }
         }
         when(vrfReadRequest(index)(2).fire) {
           record.state.sReadVD := true.B
-          source3(index) := vrfReadResult(index)(2)
+          when(record.state.sReadVD) {
+            record.state.sCrossRead1 := true.B
+            crossReadMSBOut := vrfReadResult(index)(2)
+          }.otherwise {
+            source3(index) := vrfReadResult(index)(2)
+          }
         }
 
         // cross lane read
-        val tryToSendHead = record.state.sRead2 && !record.state.sSendResult0 && slotOccupied.head
-        val tryToSendTail = record.state.sReadVD && !record.state.sSendResult1 && slotOccupied.head
+        val tryToSendHead = record.state.sCrossRead0 && !record.state.sSendResult0 && slotOccupied.head
+        val tryToSendTail = record.state.sCrossRead1 && !record.state.sSendResult1 && slotOccupied.head
         crossLaneRead.bits.target := (!tryToSendHead) ## laneIndex(parameter.laneNumberWidth - 1, 1)
         crossLaneRead.bits.tail := laneIndex(0)
         crossLaneRead.bits.from := laneIndex
@@ -1088,8 +1105,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // 读环发送的状态变化
         // todo: 处理发给自己的, 可以在使用的时候直接用读的寄存器, init state的时候自己纠正回来
         when(crossLaneReadReady && crossLaneRead.valid) {
-          record.state.sSendResult0 := true.B
-          when(record.state.sSendResult0) {
+          when(tryToSendHead) {
+            record.state.sSendResult0 := true.B
+          }.otherwise {
             record.state.sSendResult1 := true.B
           }
         }
@@ -1099,14 +1117,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           when(record.state.sCrossWrite0) {
             record.state.sCrossWrite1 := true.B
           }
-        }
-
-        // 跨lane的读记录
-        when(vrfReadRequest(index)(1).fire && needCrossRead) {
-          crossReadLSBOut := vrfReadResult(index)(1)
-        }
-        when(vrfReadRequest(index)(2).fire && needCrossRead) {
-          crossReadMSBOut := vrfReadResult(index)(2)
         }
 
         /** 记录跨lane的写
@@ -1291,16 +1301,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         /** source2 一定是V类型的 */
         val doubleCollapse = CollapseDoubleOperand(!decodeResult(Decoder.unsigned1))
         val finalSource2 = Mux(
-          needCrossRead,
+          crossReadVS2,
           doubleCollapse,
           CollapseOperand(source2(index), true.B, !decodeResult(Decoder.unsigned1))
         )
         instructionExecuteFinished(index) := waitCrossRead ||
           (lastExecuteGroup && groupEnd) || maskLogicWillCompleted
-        instructionCrossReadFinished := waitCrossRead && readFinish
+        instructionCrossReadFinished := waitCrossRead || readFinish
 
         /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
-        val finalSource3 = CollapseOperand(source3(index))
+        val finalSource3 = Mux(decodeResult(Decoder.vwmacc), doubleCollapse, CollapseOperand(source3(index)))
         // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
         val logicRequest = Wire(new MaskedLogicRequest(parameter.datePathParam))
         logicRequest.src.head := finalSource2
