@@ -560,6 +560,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         dataPathMisaligned && record.originalInformation.decodeResult(Decoder.maskLogic)
       val maskCorrect = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
       val notWaitFeedBack: Bool = !(readOnly || record.originalInformation.loadStore)
+      val nr = record.originalInformation.decodeResult(Decoder.nr)
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
@@ -937,7 +938,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           * [[record.originalInformation.special]]: We need to synchronize with [[V]] every group
           */
         val alwaysNextGroup: Bool = needCrossRead ||
-          record.originalInformation.special
+          record.originalInformation.special || nr
 
         /** select from VFU, send to [[result]], [[crossWriteResultLSBHalf]], [[crossWriteResultMSBHalf]]. */
         val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
@@ -1305,8 +1306,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           doubleCollapse,
           CollapseOperand(source2(index), true.B, !decodeResult(Decoder.unsigned1))
         )
-        instructionExecuteFinished(index) := waitCrossRead ||
-          (lastExecuteGroup && groupEnd) || maskLogicWillCompleted
+        val nrEnd: Bool = record.groupCounter === (record.originalInformation.vs1) ## 3.U(2.W)
+        instructionExecuteFinished(index) := Mux(
+          nr,nrEnd,
+          waitCrossRead || (lastExecuteGroup && groupEnd) || maskLogicWillCompleted
+        )
         instructionCrossReadFinished := waitCrossRead || readFinish
 
         /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
@@ -1480,18 +1484,19 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // 写rf
         val completeWrite = Mux(record.originalInformation.mask, (~source1(index)).asUInt & source3(index), 0.U)
-        vrfWriteArbiter(index).valid := record.state.wExecuteRes && !record.state.sWrite &&
+        vrfWriteArbiter(index).valid := record.state.wExecuteRes && !record.state.sWrite && readFinish &&
           slotActive(index) && noNeedWaitScheduler
         vrfWriteArbiter(index).bits.vd := record.originalInformation.vd + record.groupCounter(
           parameter.groupNumberWidth - 1,
           parameter.vrfOffsetWidth
         )
         vrfWriteArbiter(index).bits.offset := record.groupCounter
-        vrfWriteArbiter(index).bits.data := Mux(record.schedulerComplete, completeWrite, result(index))
+        vrfWriteArbiter(index).bits.data := Mux(record.schedulerComplete, completeWrite,
+          Mux(nr, source2(index), result(index)))
         // todo: 是否条件有多余
         vrfWriteArbiter(index).bits.last := instructionExecuteFinished(index) || lastVRFWrite
         vrfWriteArbiter(index).bits.instructionIndex := record.originalInformation.instructionIndex
-        vrfWriteArbiter(index).bits.mask := record.vrfWriteMask
+        vrfWriteArbiter(index).bits.mask := record.vrfWriteMask | Fill(4, nr)
         when(vrfWriteFire(index)) {
           record.state.sWrite := true.B
         }
@@ -1715,8 +1720,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.executeIndex := 0.U
   entranceControl.schedulerComplete := false.B
   entranceControl.selfCompleted := false.B
-  entranceControl.instCompleted := ((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl ||
-    maskLogicCompleted
+  entranceControl.instCompleted := (((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl ||
+    maskLogicCompleted) && !laneRequest.bits.decodeResult(Decoder.nr)
   entranceControl.mask.valid := laneRequest.bits.mask
   entranceControl.mask.bits := maskInput
   entranceControl.maskGroupedOrR := maskGroupedOrR

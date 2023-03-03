@@ -91,7 +91,7 @@ object Decoder {
   }
 
   object nr extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name.contains("<nr>")) y else n
+    def genTable(op: Op): BitPat = if (op.special.nonEmpty) n else if (op.name.contains("<nr>")) y else n
   }
 
   object red extends BoolField {
