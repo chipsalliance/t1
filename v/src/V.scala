@@ -630,7 +630,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       }
       val srcOverlap: Bool = decodeResultReg(Decoder.xtype) && (rs1 >= csrInterface.vl)
       // rs1 >= vlMax
-      val srcOversize = decodeResultReg(Decoder.xtype) && compareResult
+      val srcOversize = decodeResultReg(Decoder.xtype) && !slide1 && compareResult
       val signBit = Mux1H(
         sew1H,
         readIndex(parameter.laneParam.vlWidth - 1, parameter.laneParam.vlWidth - 3).asBools.reverse
