@@ -24,6 +24,7 @@
 #include "simple_sim.h"
 #include "encoding.h"
 #include "vbridge_config.h"
+#include "util.h"
 
 class SpikeEvent;
 
@@ -63,8 +64,8 @@ public:
   uint64_t getCycle() {
     return ctx->time();
   }
-  VerilatedCovView getCoverage() {
-    return ctx->coveragep()->view();
+  void getCoverage() {
+    return ctx->coveragep()->write();
   }
 #endif
 
@@ -95,17 +96,17 @@ private:
   std::unique_ptr<uint8_t[]> vrf_shadow;
 
   /// file path of executable binary file, which will be executed.
-  const std::string bin = getenv("COSIM_bin");
+  const std::string bin = get_env_arg("COSIM_bin");
 
   /// generated waveform path.
-  const std::string wave = getenv("COSIM_wave");
+  const std::string wave = get_env_arg("COSIM_wave");
 
   /// reset vector of
-  const uint64_t reset_vector = std::stoul(getenv("COSIM_reset_vector"), nullptr, 16);
+  const uint64_t reset_vector = std::stoul(get_env_arg("COSIM_reset_vector"), nullptr, 16);
 
   /// RTL timeout cycles
   /// note: this is not the real system cycles, scalar instructions is evaulated via spike, which is not recorded.
-  const uint64_t timeout = std::stoul(getenv("COSIM_timeout"));
+  const uint64_t timeout = std::stoul(get_env_arg("COSIM_timeout"));
 
   std::optional<SpikeEvent> create_spike_event(insn_fetch_t fetch);
 

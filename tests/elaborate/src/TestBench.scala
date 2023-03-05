@@ -26,8 +26,11 @@ class TestBench extends RawModule {
   }
   withClockAndReset(clock, reset) {
     val coverModule = Module(new CoverModule(dut))
+    val monitor = Module(new Monitor(dut))
+
+    monitor.clock := clock
+    monitor.reset := reset
   }
-  val monitor = Module(new Monitor(dut))
 
   val verificationModule = Module(new VerificationModule(dut))
   dut.request <> verificationModule.req

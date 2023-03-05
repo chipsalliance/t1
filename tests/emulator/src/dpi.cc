@@ -11,13 +11,20 @@
 #include "svdpi.h"
 #include "vbridge_impl.h"
 #include "exceptions.h"
+#include "perf.h"
 
 static bool terminated = false;
+
+VRFPerf vrf_perf;
+ALUPerf alu_perf;
+LSUPerf lsu_perfs[consts::numTL];
 
 void sigint_handler(int s) {
   terminated = true;
   dpiFinish();
 }
+
+void print_perf_summary();
 
 #define TRY(action) \
   try {             \
@@ -25,7 +32,8 @@ void sigint_handler(int s) {
   } catch (ReturnException &e) { \
     terminated = true;                \
     LOG(INFO) << fmt::format("detect returning instruction, gracefully quit simulation");                  \
-    dpiFinish();                  \
+    print_perf_summary();   \
+    dpiFinish();    \
   } catch (std::runtime_error &e) { \
     terminated = true;                \
     LOG(ERROR) << fmt::format("detect exception ({}), gracefully abort simulation", e.what());                 \
@@ -99,6 +107,7 @@ void VBridgeImpl::dpiDumpWave() {
     vbridge_impl_instance.dpiPeekTL(
         VTlInterface{channel_id, *a_opcode, *a_param, *a_size, *a_source, *a_address, *a_mask, *a_data,
                      a_corrupt, a_valid, d_ready});
+    lsu_perfs[channel_id].peek_tl(a_valid);
   })
 }
 
@@ -120,6 +129,8 @@ void VBridgeImpl::dpiDumpWave() {
     vbridge_impl_instance.dpiPokeTL(
         VTlInterfacePoke{channel_id, d_opcode, d_param, d_size, d_source, d_sink, d_denied, d_data,
                          d_corrupt, d_valid, a_ready, d_ready});
+    lsu_perfs[channel_id].poke_tl(d_ready, *d_valid, *a_ready);
+    lsu_perfs[channel_id].step();
   })
 }
 
@@ -166,4 +177,36 @@ void VBridgeImpl::dpiDumpWave() {
   TRY({
     vbridge_impl_instance.timeoutCheck();
   })
+}
+
+
+[[maybe_unused]] void dpiVRFMonitor(
+    int lane_idx,
+    svBit valid
+) TRY({
+  vrf_perf.step(lane_idx, valid);
+})
+
+[[maybe_unused]] void dpiALUMonitor(int lane_idx,
+                                    svBit is_adder_occupied, svBit is_shifter_occupied,
+                                    svBit is_multiplier_occupied, svBit is_divider_occupied) TRY({
+  alu_perf.step(lane_idx, is_adder_occupied, is_shifter_occupied, is_multiplier_occupied, is_divider_occupied);
+})
+
+void print_perf_summary() {
+  auto output_file_path = get_env_arg_default("PERF_output_file", nullptr);
+  if (output_file_path != nullptr) {
+    std::ofstream os(output_file_path);
+
+    // each top cycle is 10 cycles for rtl
+    os << fmt::format("total_cycles: {}\n", Verilated::threadContextp()->time() / 10);
+
+    vrf_perf.print_summary(os);
+    alu_perf.print_summary(os);
+    for (int i = 0; i < consts::numTL; i++) {
+      lsu_perfs[i].print_summary(os, i);
+    }
+
+    LOG(INFO) << fmt::format("perf result saved in '{}'", output_file_path);
+  }
 }
