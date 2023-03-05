@@ -510,7 +510,8 @@ object tests extends Module {
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
         "COSIM_timeout" -> "1000000",
-        "GLOG_logtostderr" -> "0"
+        "GLOG_logtostderr" -> "0",
+        "PERF_output_file" -> (T.dest / "perf.txt").toString,
       )
       T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator(false).elf().path.toString}")
       os.proc(Seq(tests.emulator(false).elf().path.toString)).call(env = runEnv, check = false).exitCode
@@ -529,6 +530,7 @@ object tests extends Module {
         "COSIM_reset_vector" -> "1000",
         envDefault("COSIM_timeout", "1000000"),
         envDefault("GLOG_logtostderr", "1"),
+        "PERF_output_file" -> (T.dest / "perf.txt").toString,
       )
       T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator(true).elf().path.toString}")
       os.proc(Seq(tests.emulator(true).elf().path.toString)).call(env = runEnv)

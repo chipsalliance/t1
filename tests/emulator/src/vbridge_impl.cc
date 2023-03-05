@@ -16,7 +16,7 @@ inline uint32_t decode_size(uint32_t encoded_size) {
 }
 
 void VBridgeImpl::timeoutCheck() {
-  VerilatedCovView cov = getCoverage();
+  getCoverage();
   if (get_t() > timeout + last_commit_time) {
     LOG(FATAL_S) << fmt::format("Simulation timeout, t={}, last_commit={}", get_t(), last_commit_time);
   }
@@ -276,9 +276,9 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     uint64_t data = mem_read->second.val;
     LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
                              get_t(), addr, decode_size(size), src, data);
-    tl_banks[tlIdx].emplace(std::make_pair(addr, TLReqRecord{
+    tl_banks[tlIdx].emplace(addr, TLReqRecord{
         data, 1u << size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
-    }));
+    });
     mem_read->second.executed = true;
     break;
   }
@@ -300,9 +300,9 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         ": [{}] expect mem write of data {:08X}, actual data {:08X} (addr={:08X}, insn='{}')",
         get_t(), mem_write->second.val, data, addr, se->describe_insn());
 
-    tl_banks[tlIdx].emplace(std::make_pair(addr, TLReqRecord{
+    tl_banks[tlIdx].emplace(addr, TLReqRecord{
         data, 1u << size, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
-    }));
+    });
     mem_write->second.executed = true;
     break;
   }
