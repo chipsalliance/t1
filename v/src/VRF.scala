@@ -139,7 +139,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       v.ready := !t && checkResult
       bankReadF(i) := validCorrect & !o
       bankReadS(i) := validCorrect & !t & o
-      readResult(i) := Mux(o, readResultS.asUInt, readResultF.asUInt)
+      readResult(i) := Mux(RegNext(o), readResultS.asUInt, readResultF.asUInt)
       (o || validCorrect, (validCorrect && o) || t)
   }
   write.ready := !secondOccupied

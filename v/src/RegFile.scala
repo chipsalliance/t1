@@ -21,7 +21,7 @@ class RegFile(param: RFParam) extends Module {
   val readPorts: Vec[RegFileReadPort] = IO(Vec(param.readPort, new RegFileReadPort(param)))
   val writePort: ValidIO[RegFileWritePort] = IO(Flipped(Valid(new RegFileWritePort(param))))
 
-  val rf: Mem[UInt] = Mem(param.depth, UInt(param.width.W))
+  val rf: SyncReadMem[UInt] = SyncReadMem(param.depth, UInt(param.width.W))
 
   for (i <- 0 until param.readPort) {
     readPorts(i).data := rf(readPorts(i).addr)
