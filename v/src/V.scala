@@ -257,7 +257,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val gatherOverlap: Bool = Wire(Bool())
   val gatherNeedRead: Bool = request.valid && decodeResult(Decoder.gather) &&
     !decodeResult(Decoder.vtype) && !gatherOverlap
-  val gatherReadFinish: Bool = RegEnable(!request.fire, false.B, (maskUnitReadReady && gatherNeedRead) || request.fire)
+  val gatherReadFinish: Bool = RegEnable(!request.fire, false.B, (RegNext(maskUnitReadReady) && gatherNeedRead) || request.fire)
   val gatherReadDataOffset: UInt = Wire(UInt(5.W))
   val gatherData: UInt = Mux(gatherOverlap, 0.U, (WARRedResult.bits >> gatherReadDataOffset).asUInt)
 
@@ -360,6 +360,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val lastElement: Bool = nextElementIndex === csrInterface.vl
       val updateMaskIndex = WireDefault(false.B)
       when(updateMaskIndex) { elementIndexCount := nextElementIndex}
+      // 特殊的指令,会阻止 wLast 后把 sExecute 拉回来, 因为需要等待读后才写
+      val mixedUnit: Bool = Wire(Bool())
       // slid & gather & extend
       val slidUnitIdle: Bool = RegInit(true.B)
       // compress & iota
@@ -425,7 +427,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         maskTypeInstruction := maskType && !decodeResult(Decoder.maskSource)
         completedVec.foreach(_ := false.B)
         WARRedResult.valid := false.B
-      }.elsewhen(control.state.wLast && maskUnitIdle) {
+      }.elsewhen(control.state.wLast && maskUnitIdle && !mixedUnit) {
         // 如果真需要执行的lane会wScheduler,不会提前发出last确认
         control.state.sExecute := true.B
       }
@@ -474,13 +476,14 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // 读后写中的读
       val needWAR = maskTypeInstruction || border || reduce || readMv
       val skipLaneData: Bool = decodeResultReg(Decoder.mv)
+      mixedUnit := writeMv || readMv
       maskReadLaneSelect.head := UIntToOH(writeBackCounter)
       maskWriteLaneSelect.head := maskReadLaneSelect.head
       maskUnitReadVec.head.valid := false.B
       maskUnitReadVec.head.bits.vs := Mux(readMv, vs2, Mux(reduce, vs1, vd))
       maskUnitReadVec.head.bits.offset := groupCounter
       maskUnitRead.bits.instructionIndex := control.record.instructionIndex
-      val readResultSelectResult = Mux1H(maskUnitReadSelect, laneReadResult)
+      val readResultSelectResult = Mux1H(RegNext(maskUnitReadSelect), laneReadResult)
       // 把mask选出来
       val maskSelect = v0(groupCounter ## writeBackCounter)
       val fullMask: UInt = (-1.S(parameter.dataPathWidth.W)).asUInt
@@ -503,7 +506,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       maskUnitWriteVec.head.bits.last := control.state.wLast || reduce
       maskUnitWriteVec.head.bits.instructionIndex := control.record.instructionIndex
 
-      when(maskUnitReadReady && maskUnitReadVec.map(_.valid).reduce(_ || _)) {
+      val maskUnitReadVrf = maskUnitReadReady && maskUnitReadVec.map(_.valid).reduce(_ || _)
+      when(RegNext(maskUnitReadVrf)) {
         WARRedResult.bits := readResultSelectResult
         WARRedResult.valid := true.B
       }
@@ -574,7 +578,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val lastElementForData = gatherDataSelect.asBools.last && maskUnitDataOffset(4, 3) === dataTail
       val maskUnitDataReady: Bool = (gatherDataSelect & VecInit(data.map(_.valid)).asUInt).orR
       // 正在被gather使用的数据是否就绪了
-      val slidUnitDataReady: Bool = maskUnitDataReady || !(gather || extend)
+      val isSlide = !(gather || extend)
+      val slidUnitDataReady: Bool = maskUnitDataReady || isSlide
       val compressDataReady = maskUnitDataReady || !(decodeResultReg(Decoder.compress) || decodeResultReg(Decoder.iota))
       // slid 先用状态机
       val idle :: sRead :: sWrite :: Nil = Enum(3)
@@ -646,7 +651,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       gatherReadDataOffset := readDataOffset
       val readOverlap = lmulOverlap || overlapVlMax
       val skipRead = readOverlap || (gather && compareResult) || extend
-      maskUnitReadVec(1).valid := readState || gatherNeedRead
+      val maskUnitWriteVecFire1 = maskUnitReadVec(1).valid && maskUnitReadReady
+      val readFireNext1: Bool = RegNext(maskUnitWriteVecFire1)
+      maskUnitReadVec(1).valid := (readState || gatherNeedRead) && !readFireNext1
       maskUnitReadVec(1).bits.vs := Mux(readState, vs2, request.bits.instruction(24, 20)) + readGrowth
       maskUnitReadVec(1).bits.offset := readOffset
       maskReadLaneSelect(1) := UIntToOH(readLane)
@@ -694,7 +701,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       }
       when(readState) {
         // 不需要valid,因为这个状态下一定是valid的
-        when(maskUnitReadReady) {
+        when(readFireNext1) {
           slideState := sWrite
         }
       }
@@ -729,7 +736,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val compressStateWrite = compressState === sWrite1
 
       // compress 用vs1当mask,需要先读vs1
-      when(maskUnitReadReady && compressStateRead) {
+      val readCompressMaskNext = RegNext(maskUnitReadReady && compressStateRead)
+      when(readCompressMaskNext) {
         maskDataForCompress := readResultSelectResult
       }
 
@@ -739,6 +747,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val iotaData = VecInit(data.map(_.bits)).asUInt(iotaDataOffset)
       val iota = decodeResultReg(Decoder.iota)
 
+      val maskUnitReadFire2: Bool = maskUnitReadVec(2).valid && maskUnitReadReady
+      val readFireNext2 = RegNext(maskUnitReadFire2)
       /** 计算需要读的mask的相关
         * elementIndexCount -> 11bit
         * 只会访问单寄存器
@@ -747,7 +757,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         * elementIndexCount(9, 8)作为offset
         * */
       // compress read
-      maskUnitReadVec(2).valid := compressStateRead
+      maskUnitReadVec(2).valid := compressStateRead && !readFireNext2
       maskUnitReadVec(2).bits.vs := vs1
       maskUnitReadVec(2).bits.offset := elementIndexCount(9, 8)
       maskReadLaneSelect(2) := UIntToOH(elementIndexCount(7, 5))
@@ -780,7 +790,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         compressState := firstState
       }
 
-      when(compressStateRead && maskUnitReadReady) {
+      when(compressStateRead && readFireNext2) {
         compressState := sWrite1
       }
 

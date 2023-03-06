@@ -467,6 +467,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val crossReadFinish: Bool = record.state.sSendResult0 && record.state.sSendResult1
       val schedulerFinish: Bool = record.state.wScheduler && record.state.sScheduler
       val needMaskSource: Bool = record.originalInformation.mask
+      val readVrfRequestFinish = record.state.sReadVD && record.state.sRead1 && record.state.sRead2
       // 由于mask会作为adc的输入,关于mask的计算是所有slot都需要的
       /** for non-masked instruction, always ready,
         * for masked instruction, need to wait for mask
@@ -596,8 +597,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             // mask should ready for masked instruction
             maskReady
 
-        // shift slot
-        slotCanShift(index) := !record.state.sExecute
+        // wait read result
+        val readNext0 = RegNext(vrfReadRequest(index)(0).fire)
+        val readNext1 = RegNext(vrfReadRequest(index)(1).fire)
+        val readNext2 = RegNext(vrfReadRequest(index)(2).fire)
+        // shift slot // !record.state.sExecute
+        slotCanShift(index) := !((readNext0 || readNext1 || readNext2) && slotOccupied(index))
 
         // vs1 read
         vrfReadRequest(index)(0).valid := !record.state.sRead1 && slotActive(index)
@@ -628,24 +633,26 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         vrfReadRequest(index)(2).bits.instructionIndex := record.originalInformation.instructionIndex
 
         /** all read operation is finished. */
-        val readFinish =
-        // VRF read
-          record.state.sReadVD &&
-            record.state.sRead1 &&
-            record.state.sRead2
+        val readFinish = RegNext(readVrfRequestFinish) && readVrfRequestFinish
 
         // state machine control
         when(vrfReadRequest(index)(0).fire) {
           record.state.sRead1 := true.B
-          // todo: datapath Mux
+        }
+        when(readNext0) {
           source1(index) := vrfReadResult(index)(0)
         }
         when(vrfReadRequest(index)(1).fire) {
           record.state.sRead2 := true.B
+        }
+        when(readNext1) {
           source2(index) := vrfReadResult(index)(1)
         }
         when(vrfReadRequest(index)(2).fire) {
           record.state.sReadVD := true.B
+          source3(index) := vrfReadResult(index)(2)
+        }
+        when(readNext2) {
           source3(index) := vrfReadResult(index)(2)
         }
 
@@ -959,7 +966,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             maskReady
 
         // shift slot
-        slotCanShift(index) := !record.state.sExecute
+        slotCanShift(index) := !(record.state.sExecute && slotOccupied(index))
 
         // vs1 read
         vrfReadRequest(index)(0).valid := !record.state.sRead1 && slotActive(index)
@@ -1030,10 +1037,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         /** all read operation is finished. */
         val readFinish =
-        // VRF read
-          record.state.sReadVD &&
-            record.state.sRead1 &&
-            record.state.sRead2 &&
+        // wait VRF read result, +readVrfRequestFinish是因为换组后regNext会遗留上一组的值
+          RegNext(readVrfRequestFinish) && readVrfRequestFinish &&
             // wait for cross lane read result
             record.state.wRead1 &&
             record.state.wRead2 &&
@@ -1046,6 +1051,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // state machine control
         when(vrfReadRequest(index)(0).fire) {
           record.state.sRead1 := true.B
+        }
+        when(RegNext(vrfReadRequest(index)(0).fire)) {
           // todo: datapath Mux
           source1(index) := vrfReadResult(index)(0)
         }
@@ -1053,6 +1060,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           record.state.sRead2 := true.B
           when(record.state.sRead2) {
             record.state.sCrossRead0 := true.B
+          }
+        }
+        when(RegNext(vrfReadRequest(index)(1).fire)) {
+          when(RegNext(record.state.sRead2)) {
             crossReadLSBOut := vrfReadResult(index)(1)
           }.otherwise {
             source2(index) := vrfReadResult(index)(1)
@@ -1062,6 +1073,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           record.state.sReadVD := true.B
           when(record.state.sReadVD) {
             record.state.sCrossRead1 := true.B
+          }
+        }
+        when(RegNext(vrfReadRequest(index)(2).fire)) {
+          when(RegNext(record.state.sReadVD)) {
             crossReadMSBOut := vrfReadResult(index)(2)
           }.otherwise {
             source3(index) := vrfReadResult(index)(2)
@@ -1069,8 +1084,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         }
 
         // cross lane read
-        val tryToSendHead = record.state.sCrossRead0 && !record.state.sSendResult0 && slotOccupied.head
-        val tryToSendTail = record.state.sCrossRead1 && !record.state.sSendResult1 && slotOccupied.head
+        val crossReadDataReady0 = record.state.sCrossRead0 && RegNext(record.state.sCrossRead0)
+        val crossReadDataReady1 = record.state.sCrossRead1 && RegNext(record.state.sCrossRead1)
+        val tryToSendHead = crossReadDataReady0 && !record.state.sSendResult0 && slotOccupied.head
+        val tryToSendTail = crossReadDataReady1 && !record.state.sSendResult1 && slotOccupied.head
         crossLaneRead.bits.target := (!tryToSendHead) ## laneIndex(parameter.laneNumberWidth - 1, 1)
         crossLaneRead.bits.tail := laneIndex(0)
         crossLaneRead.bits.from := laneIndex
@@ -1751,7 +1768,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val validRegulate: Bool = laneRequest.valid && typeReady
   laneRequest.ready := !slotOccupied.head && typeReady && vrf.instWriteReport.ready
   vrf.instWriteReport.valid := (laneRequest.fire || (!laneRequest.bits.store && laneRequest.bits.loadStore)) && !entranceControl.instCompleted
-  when(!slotOccupied.head && (slotOccupied.asUInt.orR || validRegulate)) {
+  when(!slotOccupied.head && (slotOccupied.asUInt.orR || validRegulate) && slotCanShift.asUInt.andR) {
     slotOccupied := VecInit(slotOccupied.tail :+ validRegulate)
     source1 := VecInit(source1.tail :+ vs1entrance)
     slotControl := VecInit(slotControl.tail :+ entranceControl)

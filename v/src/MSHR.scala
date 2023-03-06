@@ -2,7 +2,7 @@ package v
 
 import chisel3._
 import chisel3.util._
-import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
+import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelAParameter, TLChannelDParameter}
 
 case class MSHRParam(chainingSize: Int, ELEN: Int = 32, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
   val dataBits:      Int = log2Ceil(ELEN)
@@ -86,6 +86,11 @@ class MSHR(param: MSHRParam) extends Module {
   // 缓存 mask, todo
   val maskReg: UInt = RegEnable(maskRegInput, 0.U, maskSelect.fire || req.valid)
 
+  // st指令读vrf fire
+  val readRF: Bool = readDataPort.fire
+  // 更新index的时间, 需要read vrf的指令需要在读的时候更新以保证下一次的读是读到新的index
+  val updateIndex: Bool = Mux(requestReg.instInf.st, readRF, tlPort.a.fire)
+
   // 标志哪些做完了
   val reqDone: UInt = RegInit(0.U(param.lsuGroupLength.W))
   val segMask: UInt = RegInit(0.U(8.W))
@@ -106,13 +111,13 @@ class MSHR(param: MSHRParam) extends Module {
   val segEnd:    Bool = OHToUInt(segNext) === requestReg.instInf.nf
 
   // 更新 segMask
-  when((segType && tlPort.a.fire) || req.valid) {
+  when((segType && updateIndex) || req.valid) {
     segMask := Mux(segEnd || req.valid, 0.U, segMask | segNext)
   }
   // 更新 reqDone
   val reqNext:      UInt = Wire(UInt(param.lsuGroupLength.W))
   val reqNextIndex: UInt = OHToUInt(reqNext)
-  val segExhausted: Bool = tlPort.a.fire && (!segType || segEnd)
+  val segExhausted: Bool = updateIndex && (!segType || segEnd)
   val newGroup:     Bool = WireDefault(false.B)
   when(segExhausted || newGroup) {
     // todo: 应该由 vstart 决定初始值, 但是现在暂时不考虑异常
@@ -138,14 +143,24 @@ class MSHR(param: MSHRParam) extends Module {
   val reqAddress:    UInt = requestReg.rs1Data + reqOffset * segAddressMul + segmentOffset
   val reqMask:       UInt = Wire(UInt(param.dataBits.W))
 
-  tlPort.a.bits.opcode := !requestReg.instInf.st ## 0.U(2.W)
-  tlPort.a.bits.param := 0.U
-  tlPort.a.bits.size := reqSize
-  tlPort.a.bits.source := reqSource
-  tlPort.a.bits.address := reqAddress
-  tlPort.a.bits.mask := reqMask
-  tlPort.a.bits.data := Mux(requestReg.instInf.st, putData, 0.U)
-  tlPort.a.bits.corrupt := false.B
+  val tlReqRegUpdate: TLChannelA = Wire(tlPort.a.bits.cloneType)
+  tlReqRegUpdate.opcode := !requestReg.instInf.st ## 0.U(2.W)
+  tlReqRegUpdate.param := 0.U
+  tlReqRegUpdate.size := reqSize
+  tlReqRegUpdate.source := reqSource
+  tlReqRegUpdate.address := reqAddress
+  tlReqRegUpdate.mask := reqMask
+  tlReqRegUpdate.data := 0.U
+  tlReqRegUpdate.corrupt := false.B
+  val tlReqReg: TLChannelA = RegEnable(tlReqRegUpdate, 0.U.asTypeOf(tlReqRegUpdate), readRF)
+  // 数据会被反压,但是我们不能直接用queue来维护(a.ready由于分bank的原因与a.valid/a.bits有耦合)
+  val readDataRegUpdate: Bool = RegNext(readRF)
+  val readDataReg: UInt = RegEnable(readResult, 0.U, readDataRegUpdate)
+  val readDataRegValid: Bool = RegEnable(readDataRegUpdate, false.B, (readDataRegUpdate ^ tlPort.a.fire) || req.valid)
+  val readDataSelect: UInt = Mux(readDataRegValid, readDataReg, readResult)
+
+  tlPort.a.bits := Mux(requestReg.instInf.st, tlReqReg, tlReqRegUpdate)
+  tlPort.a.bits.data := Mux(requestReg.instInf.st, readDataSelect, 0.U)
   tlPort.a.valid := reqValid
 
   // 选出 reqNext
@@ -217,11 +232,12 @@ class MSHR(param: MSHRParam) extends Module {
   // 如果状态是wResp,为了让回应能寻址会暂时不更新groupIndex，但是属于groupIndex的请求已经发完了
   val elementID: UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
   // todo: evl: unit stride -> whole register load | mask load, EEW=8
-  val last:       Bool = (elementID >= csrInterface.vl) && segNext(0)
+  val lastElement: Bool = (elementID >= csrInterface.vl) && segNext(0)
+  val last: Bool = Mux(requestReg.instInf.st, RegNext(lastElement), lastElement)
   val maskCheck:  Bool = !maskType || !maskReq
   val indexCheck: Bool = !indexType || (offsetValidCheck && offsetGroupCheck)
   val fofCheck:   Bool = firstReq || !waitFirstResp
-  val dataReady:  Bool = !requestReg.instInf.st || readDataPort.ready
+  val dataReady:  Bool = !requestReg.instInf.st || readDataRegUpdate
   val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck && sourceFree && !last
   reqValid := stateReady && dataReady
 
@@ -315,7 +331,8 @@ class MSHR(param: MSHRParam) extends Module {
   status.waitFirstResp := waitFirstResp
   maskSelect.bits := groupIndex
   putData := readResult
-  readDataPort.valid := stateReady && requestReg.instInf.st
+  // lastElement: 最后一个element的时候state还没变,因为要等read result
+  readDataPort.valid := stateReady && requestReg.instInf.st && !lastElement
   readDataPort.bits.offset := vrfWritePort.bits.offset
   readDataPort.bits.vs := vrfWritePort.bits.vd
   readDataPort.bits.instructionIndex := requestReg.instIndex

@@ -124,7 +124,7 @@ class LSU(param: LSUParam) extends Module {
 
     tryToReadData(index) := Mux(mshr.readDataPort.valid, mshr.status.targetLane, 0.U)
     mshr.readDataPort.ready := getReadPort(index)
-    mshr.readResult := Mux1H(mshr.status.targetLane, readResults)
+    mshr.readResult := Mux1H(RegNext(mshr.status.targetLane), readResults)
 
     // offset
     Seq.tabulate(param.lane) { laneID =>
