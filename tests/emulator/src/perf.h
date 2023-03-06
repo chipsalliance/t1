@@ -94,3 +94,18 @@ struct LSUPerf {
     total_occupied_lsu += (int64_t) pending_req_num != 0;
   }
 };
+
+struct ChainingPerf {
+  int64_t total_records = 0;
+  int64_t total_occupied = 0;
+
+  void print_summary(std::ostream &os) const {
+    os << fmt::format("chaining_size: {}/{} ({:.3f}%)\n",
+                      total_occupied, total_records, (double) total_occupied / (double) total_records * 100.);
+  }
+
+  void step(int lane_idx, const svBitVecVal *slot_occupied) {
+    total_records++;
+    total_occupied += (int64_t) __builtin_popcount(*slot_occupied);
+  }
+};

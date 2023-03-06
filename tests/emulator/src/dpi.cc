@@ -18,6 +18,7 @@ static bool terminated = false;
 VRFPerf vrf_perf;
 ALUPerf alu_perf;
 LSUPerf lsu_perfs[consts::numTL];
+ChainingPerf chaining_perf;
 
 void sigint_handler(int s) {
   terminated = true;
@@ -193,6 +194,11 @@ void VBridgeImpl::dpiDumpWave() {
   alu_perf.step(lane_idx, is_adder_occupied, is_shifter_occupied, is_multiplier_occupied, is_divider_occupied);
 })
 
+[[maybe_unused]] void dpiChainingMonitor(int lane_idx, const svBitVecVal *slot_occupied) TRY({
+  LOG(INFO) << fmt::format("occupied: {:08b}", *slot_occupied);
+  chaining_perf.step(lane_idx, slot_occupied);
+})
+
 void print_perf_summary() {
   auto output_file_path = get_env_arg_default("PERF_output_file", nullptr);
   if (output_file_path != nullptr) {
@@ -206,6 +212,7 @@ void print_perf_summary() {
     for (int i = 0; i < consts::numTL; i++) {
       lsu_perfs[i].print_summary(os, i);
     }
+    chaining_perf.print_summary(os);
 
     LOG(INFO) << fmt::format("perf result saved in '{}'", output_file_path);
   }
