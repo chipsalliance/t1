@@ -324,9 +324,12 @@ class MSHR(param: MSHRParam) extends Module {
     groupIndex := nextGroupIndex
     newGroup := true.B
   }
+  // load/store whole register
+  val whole: Bool = requestReg.instInf.mop === 0.U && requestReg.instInf.vs2 === 8.U
+  val invalidInstruction: Bool = RegNext(csrInterface.vl === 0.U && req.valid && !whole)
   status.instIndex := requestReg.instIndex
   status.idle := state === idle
-  status.last := Mux(requestReg.instInf.st, lastReq, lastResp)
+  status.last := Mux(requestReg.instInf.st, lastReq, lastResp) || invalidInstruction
   status.targetLane := UIntToOH(baseByteOffset(4, 2))
   status.waitFirstResp := waitFirstResp
   maskSelect.bits := groupIndex

@@ -135,7 +135,7 @@ class LSU(param: LSUParam) extends Module {
     }
 
     // mask
-    maskSelect(index) := mshr.maskSelect.bits
+    maskSelect(index) := Mux(mshr.maskSelect.valid, mshr.maskSelect.bits, 0.U)
     mshr.maskRegInput := maskRegInput(index)
 
     // tile link
