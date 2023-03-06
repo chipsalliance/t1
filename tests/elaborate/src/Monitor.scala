@@ -16,24 +16,24 @@ class Monitor(dut: V) extends TapModule {
       override val desiredName = "dpiVRFMonitor"
       val clock = IO(Input(Clock()))
       val valid = IO(Input(Bool()))
-      val landIdx = IO(Input(UInt(32.W)))
+      val laneIdx = IO(Input(UInt(32.W)))
       setInline(
         s"$desiredName.sv",
         s"""module $desiredName(
            |  input clock,
-           |  input int landIdx,
+           |  input int laneIdx,
            |  input bit valid
            |);
            |import "DPI-C" function void $desiredName(
-           |  input int land_idx,
+           |  input int laneIdx,
            |  input bit valid
            |);
-           |always @ (posedge clock) #(3) $desiredName(landIdx, valid);
+           |always @ (posedge clock) #(3) $desiredName(laneIdx, valid);
            |endmodule
            |""".stripMargin
       )
     })
-    peeker.landIdx := index.U
+    peeker.laneIdx := index.U
     peeker.valid := tap(lane.vrf.write.valid)
     peeker.clock := clock
   }
@@ -43,7 +43,7 @@ class Monitor(dut: V) extends TapModule {
     val peeker = Module(new ExtModule with HasExtModuleInline {
       override val desiredName = "dpiALUMonitor"
       val clock = IO(Input(Clock()))
-      val landIdx = IO(Input(UInt(32.W)))
+      val laneIdx = IO(Input(UInt(32.W)))
       val isAdderOccupied = IO(Input(Bool()))
       val isShifterOccupied = IO(Input(Bool()))
       val isMultiplierOccupied = IO(Input(Bool()))
@@ -51,7 +51,7 @@ class Monitor(dut: V) extends TapModule {
       setInline(
         s"$desiredName.sv",
         s"""module $desiredName(
-           |  input int landIdx,
+           |  input int laneIdx,
            |  input bit isAdderOccupied,
            |  input bit isShifterOccupied,
            |  input bit isMultiplierOccupied,
@@ -59,13 +59,13 @@ class Monitor(dut: V) extends TapModule {
            |  input clock
            |);
            |import "DPI-C" function void $desiredName(
-           |  input int land_idx,
+           |  input int laneIdx,
            |  input bit isAdderOccupied,
            |  input bit isShifterOccupied,
            |  input bit isMultiplierOccupied,
            |  input bit isDividerOccupied
            |);
-           |always @ (posedge clock) #(3) $desiredName(landIdx, isAdderOccupied, isShifterOccupied, isMultiplierOccupied, isDividerOccupied);
+           |always @ (posedge clock) #(3) $desiredName(laneIdx, isAdderOccupied, isShifterOccupied, isMultiplierOccupied, isDividerOccupied);
            |endmodule
            |""".stripMargin
       )
