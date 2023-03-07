@@ -233,7 +233,7 @@ class MSHR(param: MSHRParam) extends Module {
   val elementID: UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
   // todo: evl: unit stride -> whole register load | mask load, EEW=8
   val lastElement: Bool = (elementID >= csrInterface.vl) && segNext(0)
-  val last: Bool = Mux(requestReg.instInf.st, RegNext(lastElement), lastElement)
+  val last: Bool = Mux(requestReg.instInf.st, RegNext(lastElement && !status.idle), lastElement)
   val maskCheck:  Bool = !maskType || !maskReq
   val indexCheck: Bool = !indexType || (offsetValidCheck && offsetGroupCheck)
   val fofCheck:   Bool = firstReq || !waitFirstResp

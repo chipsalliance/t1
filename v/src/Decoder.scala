@@ -243,6 +243,10 @@ object Decoder {
     def genTable(op: Op): BitPat = if (op.name.contains("vwmacc")) y else n
   }
 
+  object unOrderWrite extends BoolField {
+    def genTable(op: Op): BitPat = if (slid.genTable(op) == y) y else n
+  }
+
   // TODO[2]: uop should be well documented
   object uop extends UopField {
     val mul: Seq[String] = Seq(
@@ -385,6 +389,7 @@ object Decoder {
     readOnly,
     compress,
     vwmacc,
+    unOrderWrite
   )
 
   private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)

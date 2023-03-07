@@ -212,10 +212,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // TODO: from decode
   val maskUnitType: Bool = nextInstructionType.asUInt.orR
   val maskDestination = decodeResult(Decoder.maskDestination)
+  val unOrderType: Bool = decodeResult(Decoder.unOrderWrite)
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
   // TODO[1]: from decode
-  val specialInst: Bool = maskUnitType || indexTypeLS || maskDestination || maskUnitType || maskUnitInstruction
+  val specialInst: Bool = maskUnitType || indexTypeLS || maskDestination || maskUnitType || maskUnitInstruction || unOrderType
   val busClear:    Bool = Wire(Bool())
+  val instructionRAWReady: Bool = Wire(Bool())
+  val allSlotFree: Bool = Wire(Bool())
 
   // mask Unit 与lane交换数据
   val writeType: VRFWriteRequest = new VRFWriteRequest(
@@ -350,6 +353,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val rs1 = RegInit(0.U(parameter.xLen.W))
       val vm = RegInit(false.B)
       val instructionBit6 = RegInit(false.B)
+      val unOrderTypeInstruction = RegInit(false.B)
       val decodeResultReg = RegInit(0.U.asTypeOf(decodeResult))
       val gather: Bool = decodeResultReg(Decoder.gather)
       // for slid
@@ -405,6 +409,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val gatherWire = Mux(decodeResult(Decoder.xtype), request.bits.src1Data, request.bits.instruction(19, 15))
       val gatherAdvance = (gatherWire >> log2Ceil(parameter.vLen)).asUInt.orR
       gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance)
+      instructionRAWReady := !(unOrderTypeInstruction && !control.state.idle &&
+        // slid 类的会比执行得慢的指令快(div),会修改前面的指令的source
+        ((vd === request.bits.instruction(24, 20)) ||
+        (vd === request.bits.instruction(19, 15)) ||
+          // slid 类的会比执行得快的指令慢(mv),会被后来的指令修改 source2
+          (vs2 === request.bits.instruction(11, 7))) ||
+        (unOrderType && !allSlotFree))
       when(request.fire && instructionToSlotOH(index)) {
         writeBackCounter := 0.U
         groupCounter := 0.U
@@ -427,6 +438,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         maskTypeInstruction := maskType && !decodeResult(Decoder.maskSource)
         completedVec.foreach(_ := false.B)
         WARRedResult.valid := false.B
+        unOrderTypeInstruction := unOrderType
       }.elsewhen(control.state.wLast && maskUnitIdle && !mixedUnit) {
         // 如果真需要执行的lane会wScheduler,不会提前发出last确认
         control.state.sExecute := true.B
@@ -1014,6 +1026,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // instruction issue
   {
     val free = VecInit(instStateVec.map(_.state.idle)).asUInt
+    allSlotFree := free.andR
     val freeOR = free.orR
     val free1H = ffo(free)
     // 类型信息：isLSType noReadLD specialInst
@@ -1022,7 +1035,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     val localReady = Mux(specialInst, instStateVec.map(_.state.idle).last, freeOR)
     // 远程坑就绪
     val executionReady = (!isLoadStoreType || lsu.req.ready) && (noReadST || allLaneReady)
-    request.ready := executionReady && localReady && (!gatherNeedRead || gatherReadFinish)
+    request.ready := executionReady && localReady && (!gatherNeedRead || gatherReadFinish) && instructionRAWReady
     instructionToSlotOH := Mux(request.ready, tryToEnq, 0.U)
   }
 
