@@ -222,7 +222,7 @@ class MSHR(param: MSHRParam) extends Module {
     case (d, i) =>
       offsetUsed(i) := segExhausted && indexLaneMask(i) && indexExhausted
   }
-  val groupEnd: Bool = (maskReq || reqNext(param.maskGroupWidth - 1)) && tlPort.a.fire
+  val groupEnd: Bool = maskReq || (reqNext(param.maskGroupWidth - 1) && tlPort.a.fire)
 
   // 处理 tile link source id 的冲突
   val sourceFree: Bool = !(reqSource1H & respDone).orR
@@ -230,7 +230,7 @@ class MSHR(param: MSHRParam) extends Module {
   // stall 判断
   val stateCheck: Bool = state === sRequest
   // 如果状态是wResp,为了让回应能寻址会暂时不更新groupIndex，但是属于groupIndex的请求已经发完了
-  val elementID: UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
+  val elementID: UInt = Mux(stateCheck && !maskReq, groupIndex, nextGroupIndex) ## reqNextIndex
   // todo: evl: unit stride -> whole register load | mask load, EEW=8
   val lastElement: Bool = (elementID >= csrInterface.vl) && segNext(0)
   val last: Bool = Mux(requestReg.instInf.st, RegNext(lastElement && !status.idle), lastElement)
@@ -332,7 +332,8 @@ class MSHR(param: MSHRParam) extends Module {
   status.last := Mux(requestReg.instInf.st, lastReq, lastResp) || invalidInstruction
   status.targetLane := UIntToOH(baseByteOffset(4, 2))
   status.waitFirstResp := waitFirstResp
-  maskSelect.bits := groupIndex
+  // 需要更新的时候是需要下一组的mask
+  maskSelect.bits := nextGroupIndex
   putData := readResult
   // lastElement: 最后一个element的时候state还没变,因为要等read result
   readDataPort.valid := stateReady && requestReg.instInf.st && !lastElement
