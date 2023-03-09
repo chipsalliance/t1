@@ -52,6 +52,8 @@ stdenv.mkDerivation rec {
     hash = "sha256-djSQwKWD/NSLr6um0u/HIf3PntLrxtsmVT82SwnXJ9Y=";
   };
 
+  ninjaFlags = [ "buddy-translate" ];
+
   requiredSystemFeatures = [ "big-parallel" ];
 
   nativeBuildInputs = [ cmake ninja ];
