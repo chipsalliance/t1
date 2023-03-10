@@ -107,6 +107,7 @@ class MSHR(param: MSHRParam) extends Module {
   val reqExtendMask: Bool = req.bits.instInf.mop === 0.U && req.bits.instInf.vs2(0)
   val reqEEW: UInt = Mux(req.bits.instInf.mop(0), csrInterface.vSew, Mux(reqExtendMask, 0.U, req.bits.instInf.eew))
   val segAddressMul: UInt = RegEnable((req.bits.instInf.nf + 1.U) * (1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
+  val elementByteWidth: UInt = RegEnable((1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
 
   // 开始与结束的组内偏移
   // 标志哪些做完了
@@ -269,7 +270,7 @@ class MSHR(param: MSHRParam) extends Module {
   // todo: seg * lMul
   s0Wire.readVS := requestReg.instInf.vs3 + Mux(segType, segmentIndex, baseByteOffset(9, 7))
   s0Wire.readOffset := baseByteOffset(6, 5)
-  s0Wire.offset := reqOffset + (segAddressMul * segmentIndex)
+  s0Wire.offset := reqOffset + (elementByteWidth * segmentIndex)
   s0Wire.indexInGroup := reqNextIndex
   s0Wire.segmentIndex := segmentIndex
   s0Wire.targetLaneIndex := baseByteOffset(4, 2)
