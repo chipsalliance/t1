@@ -97,10 +97,10 @@ class MSHR(param: MSHRParam) extends Module {
   val requestReg:     LSUReq = RegEnable(req.bits, 0.U.asTypeOf(req.bits), req.valid)
   // 指令类型相关
   val segType: Bool = requestReg.instInf.nf.orR
-  // unit stride 里面有额外的 mask 类型的补充
-  val extendMaskType: Bool = requestReg.instInf.mop === 0.U && requestReg.instInf.vs2(0)
+  // unit stride 里面有额外的 mask 类型的ls
+  val maskLayoutType: Bool = requestReg.instInf.mop === 0.U && requestReg.instInf.vs2(0)
   // 所有的mask类型
-  val maskType: Bool = extendMaskType || requestReg.instInf.mask
+  val maskType: Bool = requestReg.instInf.mask
   val indexType: Bool = requestReg.instInf.mop(0)
 
   // 计算offset的太长,一个req才变一次的用reg存起来
@@ -177,7 +177,7 @@ class MSHR(param: MSHRParam) extends Module {
   }
 
   // 额外添加的mask类型对数据的粒度有限制
-  val dataEEW:       UInt = Mux(indexType, csrInterface.vSew, Mux(extendMaskType, 0.U, requestReg.instInf.eew))
+  val dataEEW:       UInt = Mux(indexType, csrInterface.vSew, Mux(maskLayoutType, 0.U, requestReg.instInf.eew))
   val dataEEWOH:     UInt = UIntToOH(dataEEW)
 
   // 用到了最后一个或这一组的全被mask了
@@ -240,8 +240,9 @@ class MSHR(param: MSHRParam) extends Module {
   val stateCheck: Bool = state === sRequest
   // 如果状态是wResp,为了让回应能寻址会暂时不更新groupIndex，但是属于groupIndex的请求已经发完了
   val elementID: UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
+  val evl: UInt = Mux(maskLayoutType, csrInterface.vl(param.VLMaxBits - 1, 3), csrInterface.vl)
   // todo: evl: unit stride -> whole register load | mask load, EEW=8
-  val last: Bool = (elementID >= csrInterface.vl) && segmentIndex === 0.U
+  val last: Bool = (elementID >= evl) && segmentIndex === 0.U
   val maskCheck:  Bool = !maskType || !maskExhausted
   val indexCheck: Bool = !indexType || (offsetValidCheck && offsetGroupCheck)
   val fofCheck:   Bool = firstReq || !waitFirstResp
@@ -403,13 +404,13 @@ class MSHR(param: MSHRParam) extends Module {
     state := sRequest
     newGroup := true.B
   }
-  val lastReq: Bool = last && tlPort.a.fire && !s0Valid
   // load/store whole register
   val whole: Bool = requestReg.instInf.mop === 0.U && requestReg.instInf.vs2 === 8.U
   val invalidInstruction: Bool = RegNext(csrInterface.vl === 0.U && req.valid && !whole)
+  val stateIdle = state === idle
   status.instIndex := requestReg.instIndex
-  status.idle := state === idle
-  status.last := Mux(requestReg.instInf.st, lastReq, lastResp) || invalidInstruction
+  status.idle := stateIdle
+  status.last := (!RegNext(stateIdle) && stateIdle) || invalidInstruction
   status.targetLane := UIntToOH(Mux(requestReg.instInf.st, s0Reg.targetLaneIndex, baseByteOffsetD(4, 2)))
   status.waitFirstResp := waitFirstResp
   // 需要更新的时候是需要下一组的mask
