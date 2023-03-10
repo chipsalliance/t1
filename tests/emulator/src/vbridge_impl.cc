@@ -276,7 +276,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     uint64_t data = mem_read->second.val;
     LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
                              get_t(), addr, decode_size(size), src, data);
-    tl_banks[tlIdx].emplace(addr, TLReqRecord{
+    tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
         data, 1u << size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
     });
     mem_read->second.executed = true;
@@ -300,7 +300,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         ": [{}] expect mem write of data {:08X}, actual data {:08X} (addr={:08X}, insn='{}')",
         get_t(), mem_write->second.val, data, addr, se->describe_insn());
 
-    tl_banks[tlIdx].emplace(addr, TLReqRecord{
+    tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
         data, 1u << size, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
     });
     mem_write->second.executed = true;
