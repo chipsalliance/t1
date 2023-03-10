@@ -173,7 +173,7 @@ std::pair<uint32_t, uint32_t> SpikeEvent::get_vrf_write_range() const {
   } else if (is_load) {
     uint32_t vd_bytes_start = rd_idx * consts::vlen_in_bytes;
     uint32_t len = vlmul & 0b100
-        ? consts::vlen_in_bytes * (1 + vnf) >> (8 - vlmul)
+        ? consts::vlen_in_bytes * (1 + vnf)
         : consts::vlen_in_bytes * (1 + vnf) << vlmul;
     return {vd_bytes_start, len};
   } else {
