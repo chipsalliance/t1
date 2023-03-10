@@ -8,7 +8,7 @@ jobs:
     name: Generate test matrix
     runs-on: [self-hosted, linux]
     env:
-      RUNNERS: 8
+      RUNNERS: 16
     outputs:
       ci-tests: ${{ steps.ci-tests.outputs.matrix }}
     steps:
