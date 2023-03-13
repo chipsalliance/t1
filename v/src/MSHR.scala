@@ -310,28 +310,21 @@ class MSHR(param: MSHRParam) extends Module {
   val dataReg: UInt = RegEnable(readResult, 0.U.asTypeOf(readResult), readNext)
   val readDataRegValid: Bool = RegEnable(readNext, false.B, (readNext ^ tlPort.a.fire) || req.valid)
 
-  {
-    // 计算mask: todo: 比较一下这两mask,然后替换掉indexMask
-    val addressMask: UInt = Mux1H(
-      dataEEWOH(2, 0),
-      Seq(
-        UIntToOH(s1Reg.address(1, 0)),
-        s1Reg.address(1) ## s1Reg.address(1) ## !s1Reg.address(1) ## !s1Reg.address(1),
-        15.U(4.W)
-      )
-    )
-    dontTouch(addressMask)
-  }
-  // s2: tl.a
-  val indexBase: UInt = (s1Reg.indexInGroup(1, 0) << dataEEW).asUInt(1, 0)
-  val indexMask: UInt = Mux1H(
+  // 计算mask: todo: 比较一下这两mask,然后替换掉indexMask
+  val addressMask: UInt = Mux1H(
     dataEEWOH(2, 0),
     Seq(
-      UIntToOH(indexBase),
-      indexBase(1) ## indexBase(1) ## !indexBase(1) ## !indexBase(1),
+      UIntToOH(s1Reg.address(1, 0)),
+      s1Reg.address(1) ## s1Reg.address(1) ## !s1Reg.address(1) ## !s1Reg.address(1),
       15.U(4.W)
     )
   )
+  // s2: tl.a
+  val indexBase: UInt = (s1Reg.indexInGroup(1, 0) << dataEEW).asUInt(1, 0)
+  // 从vrf里面读出来的数据,会带有index导致的偏移
+  val readDataResultSelect: UInt = Mux(readDataRegValid, dataReg, readResult)
+  // 由于segment的存在,数据在vrf里的偏移和在mem里的偏移是不一样的 todo: 变成mux1H
+  val putData: UInt = ((readDataResultSelect << (s1Reg.address(1, 0) ## 0.U(3.W))) >> (indexBase(1, 0) ## 0.U(3.W))).asUInt
   tlPort.a.bits.opcode := !requestReg.instInf.st ## 0.U(2.W)
   tlPort.a.bits.param := 0.U
   tlPort.a.bits.size := dataEEW
@@ -340,8 +333,8 @@ class MSHR(param: MSHRParam) extends Module {
     */
   tlPort.a.bits.source := Mux(segType, s1Reg.indexInGroup ## s1Reg.segmentIndex, s1Reg.indexInGroup)
   tlPort.a.bits.address := s1Reg.address
-  tlPort.a.bits.mask := indexMask
-  tlPort.a.bits.data := Mux(readDataRegValid, dataReg, readResult)
+  tlPort.a.bits.mask := addressMask
+  tlPort.a.bits.data := putData
   tlPort.a.bits.corrupt := false.B
   tlPort.a.valid := s1Valid
   s2Fire := tlPort.a.fire
