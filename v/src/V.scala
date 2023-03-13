@@ -209,8 +209,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   nextInstructionType.mv := decodeResult(Decoder.mv) && request.bits.instruction(6)
   nextInstructionType.popCount := decodeResult(Decoder.popCount)
   nextInstructionType.extend := decodeResult(Decoder.extend)
-  // TODO: from decode
-  val maskUnitType: Bool = nextInstructionType.asUInt.orR
+  // TODO: from decode & todo: 把lsu也放decode里去
+  val maskUnitType: Bool = nextInstructionType.asUInt.orR && request.bits.instruction(6)
   val maskDestination = decodeResult(Decoder.maskDestination)
   val unOrderType: Bool = decodeResult(Decoder.unOrderWrite)
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
