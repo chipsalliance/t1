@@ -106,7 +106,7 @@ class MSHR(param: MSHRParam) extends Module {
   // 计算offset的太长,一个req才变一次的用reg存起来
   val reqExtendMask: Bool = req.bits.instInf.mop === 0.U && req.bits.instInf.vs2(0)
   val reqEEW: UInt = Mux(req.bits.instInf.mop(0), csrInterface.vSew, Mux(reqExtendMask, 0.U, req.bits.instInf.eew))
-  val segAddressMul: UInt = RegEnable((req.bits.instInf.nf + 1.U) * (1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
+  val segAddressMul: UInt = RegEnable((req.bits.instInf.nf +& 1.U) * (1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
   val elementByteWidth: UInt = RegEnable((1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
   // lmul 会影响 seg 的vs计算: 正vlmul： 1 << vlmul(1, 0) 负： 1
   val vsMulForSeg: UInt = RegEnable(
