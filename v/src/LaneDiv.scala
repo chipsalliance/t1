@@ -18,6 +18,7 @@ class LaneDiv(param: DataPathParam) extends Module {
   val mask: UInt = IO(Input(UInt(param.dataWidth.W)))
   val resp: ValidIO[UInt] = IO(Valid(UInt(param.dataWidth.W)))
   val index = IO(Output(UInt(2.W)))
+  val busy: Bool = IO(Output(Bool()))
 
   val sign1h: UInt = mask & (~mask >> 1).asUInt
 
@@ -35,6 +36,7 @@ class LaneDiv(param: DataPathParam) extends Module {
 
   val remReg: Bool = RegEnable(req.bits.rem, false.B, req.fire)
   val indexReg: UInt = RegEnable(req.bits.index, 0.U, req.fire)
+  busy := RegEnable(req.fire, false.B, req.fire ^ resp.valid)
 
   index := indexReg
   req.ready := wrapper.input.ready

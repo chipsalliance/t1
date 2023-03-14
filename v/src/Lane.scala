@@ -362,7 +362,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val dividerRequests: Vec[LaneDivRequest] = Wire(
     Vec(parameter.chainingSize, new LaneDivRequest(parameter.datePathParam))
   )
-  val dividerResponseIndex: UInt = Wire(UInt(log2Ceil(parameter.dataPathByteWidth).W))
+  val lastDivWriteIndexWire: UInt = Wire(UInt(log2Ceil(parameter.dataPathByteWidth).W))
+  val divWrite: Bool = Wire(Bool())
+  val divBusy: Bool = Wire(Bool())
+  val lastDivWriteIndex: UInt = RegEnable(lastDivWriteIndexWire, 0.U.asTypeOf(lastDivWriteIndexWire), divWrite)
+  val divWriteIndex: UInt = Mux(divWrite, lastDivWriteIndexWire, lastDivWriteIndex)(log2Ceil(parameter.dataPathByteWidth) - 1, 0)
 
   /** request for other instruction type. */
   val otherRequests: Vec[OtherUnitReq] = Wire(Vec(parameter.chainingSize, Output(new OtherUnitReq(parameter))))
@@ -505,7 +509,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         ffo((scanLeftOr(current1H) ## false.B) & maskCorrection)(parameter.datapathWidth - 1, 0)
       val writeIndex = Mux(
         record.originalInformation.decodeResult(Decoder.divider),
-        dividerResponseIndex,
+        divWriteIndex,
         record.executeIndex
       )
       val writeByteEnable = Mux1H(
@@ -562,6 +566,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val maskCorrect = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
       val notWaitFeedBack: Bool = !(readOnly || record.originalInformation.loadStore)
       val nr = record.originalInformation.decodeResult(Decoder.nr)
+      // div
+      val longLatency: Bool = instructionTypeVec(index)(4)
+      val maskedLogLatency: Bool = masked && longLatency
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.originalInformation.decodeResult
@@ -1226,15 +1233,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         /** 这是会执行的最后一组 */
         val lastExecuteGroup: Bool = lastGroupForLane === record.groupCounter
 
+        val lastExecuteIndex = Mux(
+          lastExecuteGroup && isEndLane && !record.originalInformation.decodeResult(Decoder.maskLogic),
+          lastElementExecuteIndex,
+          slotGroupFinishedIndex
+        )
         /**
           * 需要一个除vl导致的end来决定下一个的 element index 是什么
           * 在vl没对齐的情况下，最后一组的结束的时候的 [[record.executeIndex]] 需要修正
           */
-        val groupEnd = writeIndex === Mux(
-          lastExecuteGroup && isEndLane && !record.originalInformation.decodeResult(Decoder.maskLogic),
-          lastElementExecuteIndex,
-          slotGroupFinishedIndex
-        ) || maskFilterEnd
+        val groupEnd = (writeIndex === lastExecuteIndex) || maskFilterEnd
+        val enqGroupEnd = (record.executeIndex === lastExecuteIndex) || maskFilterEnd
 
         /** 只会发生在跨lane读 */
         val waitCrossRead = lastGroupForLane < record.groupCounter && notWaitFeedBack
@@ -1455,10 +1464,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           record.state.sScheduler := true.B
         }
         instructionTypeVec(index) := record.originalInformation.instType
-        executeEnqueueValid(index) := maskAnd(readFinish && !record.state.sExecute, instructionTypeVec(index))
+        // 只有longLatency的才在masked的情况下不进执行单元
+        executeEnqueueValid(index) := maskAnd(readFinish && !record.state.sExecute && !maskedLogLatency, instructionTypeVec(index))
         // todo: 不用在lane执行的maskUnit的指令不要把sExecute初始值设0
-        when((instructionTypeVec(index) & executeEnqueueFire).orR) {
-          when(groupEnd) {
+        when((instructionTypeVec(index) & executeEnqueueFire).orR || maskedLogLatency) {
+          when(enqGroupEnd) {
             record.state.sExecute := true.B
           }.otherwise {
             record.executeIndex := nextExecuteIndex
@@ -1467,9 +1477,18 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // todo: 暂时先这样,处理mask的时候需要修
         val executeResult = (dataDequeue << dataOffset).asUInt(parameter.datapathWidth - 1, 0)
+        val writeByteEnable = Mux1H(
+          vSew1H(2, 0),
+          Seq(
+            UIntToOH(writeIndex),
+            writeIndex(1) ## writeIndex(1) ## !writeIndex(1) ## !writeIndex(1),
+            15.U(4.W)
+          )
+        )
         val resultUpdate: UInt = (executeResult & writeBitEnable) | (result(index) & (~writeBitEnable).asUInt)
-        when(dataDequeueFire) {
-          when(groupEnd) {
+        // 第一组div整个被跳过了的情况
+        when(dataDequeueFire || (longLatency && groupEnd && record.state.sExecute && !divBusy)) {
+          when(groupEnd && !(divBusy && longLatency)) {
             record.state.wExecuteRes := true.B
           }
           result(index) := resultUpdate
@@ -1484,8 +1503,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
               )
             )
           }
-          when(!masked) {
-            record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
+          // div的mask指挥影响req,不会影响回应
+          when(!masked || (longLatency && divWrite)) {
+            record.vrfWriteMask := record.vrfWriteMask | writeByteEnable
             when(updateReduce) {
               reduceResult(index) := dataDequeue
             }
@@ -1654,7 +1674,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     mul.csrInterface := csrInterface
     shifter.vxrm := csrInterface.vxrm
     otherResponse := otherUnit.resp
-    dividerResponseIndex := div.index
+    lastDivWriteIndexWire := div.index
+    divWrite := div.resp.valid
+    divBusy := div.busy
 
     // 连接执行结果
     executeDequeueData := VecInit(
