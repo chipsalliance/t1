@@ -269,17 +269,19 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     auto mem_read = se->mem_access_record.all_reads.find(addr);
     CHECK_S(mem_read != se->mem_access_record.all_reads.end())
       << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
-    CHECK_EQ_S(mem_read->second.size_by_byte, decode_size(size)) << fmt::format(
-        ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, {})",
-        get_t(), mem_read->second.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
 
-    uint64_t data = mem_read->second.val;
+    auto single_mem_read = mem_read->second.reads[mem_read->second.index];
+    CHECK_EQ_S(single_mem_read.size_by_byte, decode_size(size)) << fmt::format(
+        ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, {})",
+        get_t(), single_mem_read.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
+
+    uint64_t data = single_mem_read.val;
     LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
                              get_t(), addr, decode_size(size), src, data);
     tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
         data, 1u << size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
     });
-    mem_read->second.executed = true;
+    mem_read->second.index++;
     break;
   }
 
