@@ -252,7 +252,7 @@ class MSHR(param: MSHRParam) extends Module {
   val maskCheck:  Bool = !maskType || !maskExhausted
   val indexCheck: Bool = !indexType || (offsetValidCheck && offsetGroupCheck)
   val fofCheck:   Bool = firstReq || !waitFirstResp
-  val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck && sourceFree
+  val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck
 
   val s0EnqueueValid: Bool = stateReady && !last
   val s0Valid: Bool = RegEnable(s0Fire, false.B, s0Fire ^ s1Fire)
@@ -292,7 +292,7 @@ class MSHR(param: MSHRParam) extends Module {
   val s1Valid: Bool = RegEnable(s1Fire, false.B, s1Fire ^ s2Fire)
   val s1Wire: MSHRStage1Bundle = Wire(new MSHRStage1Bundle(param))
   val s1Reg: MSHRStage1Bundle = RegEnable(s1Wire, 0.U.asTypeOf(s1Wire), s1Fire)
-  val s1DequeueReady: Bool = tlPort.a.ready
+  val s1DequeueReady: Bool = tlPort.a.ready && sourceFree
   s1SlotReady := s1DequeueReady || !s1Valid
   s1Fire := s1EnqueueValid && s1SlotReady
   // s0DeqReady === s1EnqReady
@@ -336,7 +336,7 @@ class MSHR(param: MSHRParam) extends Module {
   tlPort.a.bits.mask := addressMask
   tlPort.a.bits.data := putData
   tlPort.a.bits.corrupt := false.B
-  tlPort.a.valid := s1Valid
+  tlPort.a.valid := s1Valid && sourceFree
   s2Fire := tlPort.a.fire
 
 
