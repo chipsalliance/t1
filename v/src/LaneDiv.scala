@@ -84,7 +84,7 @@ class SRTWrapper extends Module{
   LZC0.io.a := abs.io.aOut
   LZC1.io.a := abs.io.bOut
 
-  val srt: SRT = Module(new SRT(32, 32, 32))
+  val srt: SRT = Module(new SRT(32, 32, 32,radixLog2 = 4))
 
   /** divided by zero detection */
   val divideZero = (input.bits.divisor === 0.S)
@@ -114,14 +114,18 @@ class SRTWrapper extends Module{
   // needComputerWidth: Int = zeroHeadDivider - zeroHeadDividend + 2
   val needComputerWidth = Wire(UInt(7.W))
   needComputerWidth := sub +& 2.U
-  // noguard: Boolean = needComputerWidth % radixLog2 == 0
-  val noguard = !needComputerWidth(0)
-  // counter: Int = (needComputerWidth + 1) / 2
-  val counter = ((needComputerWidth +& 1.U) >> 1).asUInt
+  // noguard: Boolean =  needComputerWidth % 4 == 0
+  val noguard = !needComputerWidth(0) && !needComputerWidth(1)
+  // guardWidth: Int =  if (noguard) 0 else 4 - needComputerWidth % 4
+  val guardWidth = Wire(UInt(2.W))
+  guardWidth := Mux(noguard, 0.U, 4.U + -needComputerWidth(1, 0))
+  // counter: Int = (needComputerWidth + guardWidth) / radixLog2
+  val counter = ((needComputerWidth +& guardWidth) >> 2).asUInt
   // leftShiftWidthDividend: Int = zeroHeadDividend - (if (noguard) 0 else 1)
   val leftShiftWidthDividend = Wire(UInt(6.W))
   val leftShiftWidthDivisor = Wire(UInt(6.W))
-  leftShiftWidthDividend := Mux(noguard,zeroHeadDividend(4,0), zeroHeadDividend(4,0) +& "b111111".U)
+
+  leftShiftWidthDividend := zeroHeadDividend +&  -Cat(0.U(4.W),guardWidth)
   leftShiftWidthDivisor := zeroHeadDivisor(4,0)
 
   // keep mutiple cycles for SRT
