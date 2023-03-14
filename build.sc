@@ -452,7 +452,7 @@ object tests extends Module {
           "buddy-opt",
           millSourcePath / mlirSourceFile,
           "--convert-scf-to-cf",
-          "--lower-rvv",
+          "--lower-rvv=rv32",
           "--convert-vector-to-llvm",
           "--convert-memref-to-llvm",
           "--convert-arith-to-llvm",
