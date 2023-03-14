@@ -110,7 +110,11 @@ struct SpikeEvent {
       reg_t val;
       bool executed = false; // set to true when rtl execute this mem access
     };
-    std::map<uint32_t, single_mem_write> all_writes;
+    struct mem_write_record {
+      std::vector<single_mem_write> writes;
+      int index = 0;
+    };
+    std::map<uint32_t, mem_write_record> all_writes;
     std::map<uint32_t, single_mem_read> all_reads;
   } mem_access_record;
 
