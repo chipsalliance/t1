@@ -44,12 +44,12 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "buddy-mlir";
-  version = "beeaea95f2266419252662a525bee4252e9798cf";
+  version = "cc57e60f073d769224a334b4df10c16b43eb2711";
   src = fetchFromGitHub {
     owner = "buddy-compiler";
     repo = pname;
     rev = version;
-    hash = "sha256-djSQwKWD/NSLr6um0u/HIf3PntLrxtsmVT82SwnXJ9Y=";
+    hash = "sha256-jEJEzFw/+T3YmEhtefJN2cZDcKOScDCHz7BAbRt31Pg=";
   };
 
   ninjaFlags = [ "buddy-translate" ];
