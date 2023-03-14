@@ -76,7 +76,7 @@ void SpikeEvent::log_arch_changes() {
       value += (uint64_t) impl->load(address + i) << (i * 8);
     }
     LOG(INFO) << fmt::format("spike detect mem read {:08X} on {:08X} with size={}byte", value, address, size_by_byte);
-    mem_access_record.all_reads[address] = { .size_by_byte = size_by_byte, .val = value };
+    mem_access_record.all_reads[address].reads.push_back({ .size_by_byte = size_by_byte, .val = value });
   }
 }
 
@@ -148,7 +148,7 @@ void SpikeEvent::check_is_ready_for_commit() {
     }
   }
   for (auto &[addr, mem_read]: mem_access_record.all_reads) {
-    if (!mem_read.executed) {
+    if (mem_read.index != mem_read.reads.size()) {
       LOG(FATAL_S) << fmt::format(": [{}] expect to read mem {:08X}, not executed when commit ({})",
                                 impl->get_t(), addr, describe_insn());
     }
