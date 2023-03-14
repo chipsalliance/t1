@@ -64,7 +64,7 @@ void SpikeEvent::log_arch_changes() {
     // Byte size_bytes
     uint8_t size_by_byte = std::get<2>(mem_write);
     LOG(INFO) << fmt::format("spike detect mem write {:08X} on {:08X} with size={}byte", value, address, size_by_byte);
-    mem_access_record.all_writes[address] = { .size_by_byte = size_by_byte, .val = value };
+    mem_access_record.all_writes[address].writes.push_back({ .size_by_byte = size_by_byte, .val = value });
   }
 
   for (auto mem_read: state->log_mem_read) {
@@ -142,7 +142,7 @@ void SpikeEvent::drive_rtl_csr(const VCsrInterfacePoke &v_csr) const {
 
 void SpikeEvent::check_is_ready_for_commit() {
   for (auto &[addr, mem_write]: mem_access_record.all_writes) {
-    if (!mem_write.executed) {
+    if (mem_write.index != mem_write.writes.size()) {
       LOG(FATAL_S) << fmt::format(": [{}] expect to write mem {:08X}, not executed when commit ({})",
                                 impl->get_t(), addr, pc, describe_insn());
     }
