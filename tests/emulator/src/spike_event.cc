@@ -142,13 +142,13 @@ void SpikeEvent::drive_rtl_csr(const VCsrInterfacePoke &v_csr) const {
 
 void SpikeEvent::check_is_ready_for_commit() {
   for (auto &[addr, mem_write]: mem_access_record.all_writes) {
-    if (mem_write.index != mem_write.writes.size()) {
+    if (mem_write.num_completed_writes != mem_write.writes.size()) {
       LOG(FATAL_S) << fmt::format(": [{}] expect to write mem {:08X}, not executed when commit ({})",
                                 impl->get_t(), addr, pc, describe_insn());
     }
   }
   for (auto &[addr, mem_read]: mem_access_record.all_reads) {
-    if (mem_read.index != mem_read.reads.size()) {
+    if (mem_read.num_completed_reads != mem_read.reads.size()) {
       LOG(FATAL_S) << fmt::format(": [{}] expect to read mem {:08X}, not executed when commit ({})",
                                 impl->get_t(), addr, describe_insn());
     }

@@ -270,7 +270,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     CHECK_S(mem_read != se->mem_access_record.all_reads.end())
       << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
 
-    auto single_mem_read = mem_read->second.reads[mem_read->second.index];
+    auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads];
     CHECK_EQ_S(single_mem_read.size_by_byte, decode_size(size)) << fmt::format(
         ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, {})",
         get_t(), single_mem_read.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
@@ -281,7 +281,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
         data, 1u << size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
     });
-    mem_read->second.index++;
+    mem_read->second.num_completed_reads++;
     break;
   }
 
@@ -296,7 +296,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     CHECK_S(mem_write != se->mem_access_record.all_writes.end())
             << fmt::format(": [{}] cannot find mem write of addr={:08X}", get_t(), addr);
 
-    auto single_mem_write = mem_write->second.writes[mem_write->second.index];
+    auto single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes];
     CHECK_EQ_S(single_mem_write.size_by_byte, decode_size(size)) << fmt::format(
         ": [{}] expect mem write of size {}, actual size {} (addr={:08X}, insn='{}')",
         get_t(), single_mem_write.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
@@ -307,7 +307,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
         data, 1u << size, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
     });
-    mem_write->second.index++;
+    mem_write->second.num_completed_writes++;
     break;
   }
   default: {

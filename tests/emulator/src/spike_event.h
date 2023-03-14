@@ -112,11 +112,11 @@ struct SpikeEvent {
     };
     struct mem_write_record {
       std::vector<single_mem_write> writes;
-      int index = 0;
+      int num_completed_writes = 0;
     };
     struct mem_read_record {
       std::vector<single_mem_read> reads;
-      int index = 0;
+      int num_completed_reads = 0;
     };
     std::map<uint32_t, mem_write_record> all_writes;
     std::map<uint32_t, mem_read_record> all_reads;
