@@ -15,6 +15,10 @@ inline uint32_t decode_size(uint32_t encoded_size) {
   return 1 << encoded_size;
 }
 
+inline bool is_pow2(uint32_t n) {
+  return n && !(n & (n - 1));
+}
+
 void VBridgeImpl::timeoutCheck() {
   getCoverage();
   if (get_t() > timeout + last_commit_time) {
@@ -297,18 +301,35 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     CHECK_S(mem_write != se->mem_access_record.all_writes.end())
             << fmt::format(": [{}] cannot find mem write of addr={:08X}", get_t(), addr);
 
-    auto single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes];
-    CHECK_EQ_S(single_mem_write.size_by_byte, decode_size(size)) << fmt::format(
-        ": [{}] expect mem write of size {}, actual size {} (addr={:08X}, insn='{}')",
-        get_t(), single_mem_write.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
-    CHECK_EQ_S(single_mem_write.val, data) << fmt::format(
+    auto single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes++];
+
+    uint32_t expected_size = single_mem_write.size_by_byte;
+    uint32_t actual_size = decode_size(size);
+    uint32_t actual_data = 0;
+    if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
+      for (int i = 0; i < (actual_size / expected_size); i++) {
+        actual_data |= single_mem_write.val << (i * expected_size * 8);
+        if (i >= (actual_size / expected_size) - 1) break;
+        addr += expected_size;
+        mem_write = se->mem_access_record.all_writes.find(addr);
+        CHECK_S(mem_write != se->mem_access_record.all_writes.end())
+            << fmt::format(": [{}] cannot find mem write of addr={:08X}", get_t(), addr);
+        single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes++];
+      }
+    } else {
+      CHECK_S(false) << fmt::format(
+          ": [{}] expect mem write of size {}, actual size {} (addr={:08X}, insn='{}')",
+          get_t(), expected_size, actual_size, addr, se->describe_insn());
+    }
+
+    CHECK_EQ_S(actual_data, data) << fmt::format(
         ": [{}] expect mem write of data {:08X}, actual data {:08X} (addr={:08X}, insn='{}')",
-        get_t(), single_mem_write.val, data, addr, se->describe_insn());
+        get_t(), actual_data, data, addr, se->describe_insn());
 
     tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
         data, 1u << size, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
     });
-    mem_write->second.num_completed_writes++;
+
     break;
   }
   default: {
