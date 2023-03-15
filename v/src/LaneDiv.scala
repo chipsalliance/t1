@@ -34,7 +34,7 @@ class LaneDiv(param: DataPathParam) extends Module {
   wrapper.input.bits.signIn := req.bits.sign
   wrapper.input.valid := req.valid
 
-  val remReg: Bool = RegEnable(req.bits.rem, false.B, req.fire)
+  val remReg:   Bool = RegEnable(req.bits.rem, false.B, req.fire)
   val indexReg: UInt = RegEnable(req.bits.index, 0.U, req.fire)
   busy := RegEnable(req.fire, false.B, req.fire ^ resp.valid)
 
@@ -54,6 +54,7 @@ class SRTOut extends Bundle {
   val reminder = SInt(32.W)
   val quotient = SInt(32.W)
 }
+
 /** 32-bits Divider for signed and unsigned division based on SRT4
   *
   * Input:
@@ -67,9 +68,8 @@ class SRTOut extends Bundle {
   * leading zero process
   * sign process
   * }}}
-  *
   */
-class SRTWrapper extends Module{
+class SRTWrapper extends Module {
   val input = IO(Flipped(DecoupledIO(new SRTIn)))
   val output = IO(ValidIO(new SRTOut))
 
@@ -84,7 +84,7 @@ class SRTWrapper extends Module{
   LZC0.io.a := abs.io.aOut
   LZC1.io.a := abs.io.bOut
 
-  val srt: SRT = Module(new SRT(32, 32, 32,radixLog2 = 4))
+  val srt: SRT = Module(new SRT(32, 32, 32, radixLog2 = 4))
 
   /** divided by zero detection */
   val divideZero = (input.bits.divisor === 0.S)
@@ -97,12 +97,12 @@ class SRTWrapper extends Module{
   dividend := abs.io.aOut
   divisor := abs.io.bOut
   gap := divisor +& (-dividend)
-  biggerdivisor := gap(33) && !(gap(32,0).orR === false.B)
+  biggerdivisor := gap(33) && !(gap(32, 0).orR === false.B)
 
   // bypass
   val bypassSRT = (divideZero || biggerdivisor) && input.fire
 
-  /** Leading Zero component*/
+  /** Leading Zero component */
   // extend one bit for calculation
   val zeroHeadDividend = Wire(UInt(6.W))
   val zeroHeadDivisor = Wire(UInt(6.W))
@@ -125,13 +125,18 @@ class SRTWrapper extends Module{
   val leftShiftWidthDividend = Wire(UInt(6.W))
   val leftShiftWidthDivisor = Wire(UInt(6.W))
 
-  leftShiftWidthDividend := zeroHeadDividend +&  -Cat(0.U(4.W),guardWidth)
-  leftShiftWidthDivisor := zeroHeadDivisor(4,0)
+  leftShiftWidthDividend := zeroHeadDividend +& -Cat(0.U(4.W), guardWidth)
+  leftShiftWidthDivisor := zeroHeadDivisor(4, 0)
+
+  val rightshiftNumber = Mux(leftShiftWidthDividend(5), -leftShiftWidthDividend, 0.U)
+  val rightshiftBits = abs.io.aOut(1, 0)
 
   // keep mutiple cycles for SRT
   val negativeSRT = RegEnable(negative, srt.input.fire)
   val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, srt.input.fire)
   val dividendSignSRT = RegEnable(abs.io.aSign, srt.input.fire)
+  val rightshiftNumberSRT = RegEnable(rightshiftNumber, srt.input.fire)
+  val rightshiftBitsSRT = RegEnable(rightshiftBits, srt.input.fire)
 
   // keep for one cycle
   val divideZeroReg = RegEnable(divideZero, false.B, input.fire)
@@ -141,7 +146,12 @@ class SRTWrapper extends Module{
   val dividendSignReg = RegEnable(abs.io.aSign, false.B, input.fire)
 
   // do SRT
-  srt.input.bits.dividend := abs.io.aOut << leftShiftWidthDividend
+
+  srt.input.bits.dividend := Mux(
+    leftShiftWidthDividend(5),
+    abs.io.aOut >> (-leftShiftWidthDividend)(1, 0),
+    abs.io.aOut << leftShiftWidthDividend(4, 0)
+  )
   srt.input.bits.divider := abs.io.bOut << leftShiftWidthDivisor
   srt.input.bits.counter := counter
   // if dividezero or biggerdivisor, bypass SRT
@@ -150,21 +160,33 @@ class SRTWrapper extends Module{
   input.ready := srt.input.ready
 
   // post-process for sign
+  // todo: remove bias
   val quotientAbs = Wire(UInt(32.W))
-  val remainderAbs = Wire(UInt(32.W))
+  val remainderAbsFix = Wire(UInt(32.W))
+  val remainderAbsBias = Wire(UInt(32.W))
   quotientAbs := srt.output.bits.quotient
-  remainderAbs := srt.output.bits.reminder >> zeroHeadDivisorSRT
+  remainderAbsBias := srt.output.bits.reminder >> zeroHeadDivisorSRT(4, 0)
+  remainderAbsFix := Mux(
+    rightshiftNumberSRT === 2.U,
+    Cat(remainderAbsBias(31, 2), rightshiftBitsSRT(1, 0)),
+    Mux(rightshiftNumberSRT === 1.U, Cat(remainderAbsBias(31, 1), rightshiftBitsSRT(0)), remainderAbsBias)
+  )
+
   val dividendRestore = Wire(UInt(32.W))
-  dividendRestore := Mux(dividendSignReg, -dividendReg(31,0), dividendReg(31,0))
+  dividendRestore := Mux(dividendSignReg, -dividendReg(31, 0), dividendReg(31, 0))
 
   output.valid := srt.output.valid | bypassSRTReg
   // the quotient of division by zero has all bits set, and the remainder of division by zero equals the dividend.
-  output.bits.quotient := Mux(divideZeroReg,"hffffffff".U(32.W),
-    Mux(biggerdivisorReg, 0.U,
-      Mux(negativeSRT, -quotientAbs, quotientAbs))).asSInt
-  output.bits.reminder := Mux(divideZeroReg, dividendRestore,
-    Mux(biggerdivisorReg, dividendRestore,
-      Mux(dividendSignSRT, -remainderAbs, remainderAbs))).asSInt
+  output.bits.quotient := Mux(
+    divideZeroReg,
+    "hffffffff".U(32.W),
+    Mux(biggerdivisorReg, 0.U, Mux(negativeSRT, -quotientAbs, quotientAbs))
+  ).asSInt
+  output.bits.reminder := Mux(
+    divideZeroReg,
+    dividendRestore,
+    Mux(biggerdivisorReg, dividendRestore, Mux(dividendSignSRT, -remainderAbsFix, remainderAbsFix))
+  ).asSInt
 }
 
 class Abs(n: Int) extends Module {
@@ -179,42 +201,42 @@ class Abs(n: Int) extends Module {
   })
   val a = Wire(SInt(n.W))
   val b = Wire(SInt(n.W))
-  val aSign = io.aIn(n-1)
-  val bSign = io.bIn(n-1)
+  val aSign = io.aIn(n - 1)
+  val bSign = io.bIn(n - 1)
   a := io.aIn
   b := io.bIn
   io.aOut := Mux(io.signIn, Mux(aSign, -a, a), a).asUInt
   io.bOut := Mux(io.signIn, Mux(bSign, -b, b), b).asUInt
-  io.aSign := Mux(io.signIn,aSign,false.B)
-  io.bSign := Mux(io.signIn,bSign,false.B)
+  io.aSign := Mux(io.signIn, aSign, false.B)
+  io.bSign := Mux(io.signIn, bSign, false.B)
 }
 
-class LZC8 extends Module{
-  val io = IO(new Bundle{
+class LZC8 extends Module {
+  val io = IO(new Bundle {
     val a = Input(UInt(8.W))
     val z = Output(UInt(3.W))
     val v = Output(UInt(1.W))
   })
   val a = io.a
-  val z0 : UInt = (!(a(7) | (!a(6)) & a(5))) & ((a(6) | a(4)) | !(a(3) | (!a(2) & a(1))))
-  val z1 : UInt = !(a(7) | a(6)) & ((a(5) | a(4)) | !(a(3) | a(2)))
-  val z2 : UInt = !(a(7) | a(6)) & !(a(5) | a(4))
-  val _v : UInt = !(!(a(7) | a(6)) & !(a(5) | a(4))) | !(!(a(3) | a(2)) & !(a(1) | a(0)))
+  val z0: UInt = (!(a(7) | (!a(6)) & a(5))) & ((a(6) | a(4)) | !(a(3) | (!a(2) & a(1))))
+  val z1: UInt = !(a(7) | a(6)) & ((a(5) | a(4)) | !(a(3) | a(2)))
+  val z2: UInt = !(a(7) | a(6)) & !(a(5) | a(4))
+  val _v: UInt = !(!(a(7) | a(6)) & !(a(5) | a(4))) | !(!(a(3) | a(2)) & !(a(1) | a(0)))
 
-  io.z := Cat(~z2,~z1,~z0)
+  io.z := Cat(~z2, ~z1, ~z0)
   io.v := _v
 }
 
-class LZC16 extends Module{
-  val io = IO(new Bundle{
+class LZC16 extends Module {
+  val io = IO(new Bundle {
     val a = Input(UInt(16.W))
     val z = Output(UInt(4.W))
     val v = Output(UInt(1.W))
   })
   val L0 = Module(new LZC8)
   val L1 = Module(new LZC8)
-  L1.io.a := io.a(15,8)
-  L0.io.a := io.a(7,0)
+  L1.io.a := io.a(15, 8)
+  L0.io.a := io.a(7, 0)
 
   val flag = L1.io.v.asBool
   val z3 = Mux(flag, 1.U, 0.U)
@@ -222,19 +244,19 @@ class LZC16 extends Module{
   val z1 = Mux(flag, L1.io.z(1), L0.io.z(1))
   val z0 = Mux(flag, L1.io.z(0), L0.io.z(0))
 
-  io.z := Cat(z3,z2,z1,z0)
+  io.z := Cat(z3, z2, z1, z0)
   io.v := L1.io.v | L0.io.v
 }
-class LZC32 extends Module{
-  val io = IO(new Bundle{
+class LZC32 extends Module {
+  val io = IO(new Bundle {
     val a = Input(UInt(32.W))
     val z = Output(UInt(5.W))
     val v = Output(UInt(1.W))
   })
   val L0 = Module(new LZC16)
   val L1 = Module(new LZC16)
-  L1.io.a := io.a(31,16)
-  L0.io.a := io.a(15,0)
+  L1.io.a := io.a(31, 16)
+  L0.io.a := io.a(15, 0)
 
   val flag = L1.io.v.asBool
   val z4 = Mux(flag, 1.U, 0.U)
@@ -243,6 +265,6 @@ class LZC32 extends Module{
   val z1 = Mux(flag, L1.io.z(1), L0.io.z(1))
   val z0 = Mux(flag, L1.io.z(0), L0.io.z(0))
 
-  io.z := Cat(z4,z3,z2,z1,z0)
+  io.z := Cat(z4, z3, z2, z1, z0)
   io.v := L1.io.v | L0.io.v
 }
