@@ -95,18 +95,23 @@ class MSHR(param: MSHRParam) extends Module {
 
   // 进请求
   val requestReg:     LSUReq = RegEnable(req.bits, 0.U.asTypeOf(req.bits), req.valid)
+  // load/store whole register
+  val whole: Bool = requestReg.instInf.mop === 0.U && requestReg.instInf.vs2 === 8.U
   // 指令类型相关
-  val segType: Bool = requestReg.instInf.nf.orR
+  val segType: Bool = requestReg.instInf.nf.orR && !whole
   // unit stride 里面有额外的 mask 类型的ls
   val maskLayoutType: Bool = requestReg.instInf.mop === 0.U && requestReg.instInf.vs2(0)
   // 所有的mask类型
   val maskType: Bool = requestReg.instInf.mask
   val indexType: Bool = requestReg.instInf.mop(0)
 
+  val wholeReq: Bool = req.bits.instInf.mop === 0.U && req.bits.instInf.vs2 === 8.U
   // 计算offset的太长,一个req才变一次的用reg存起来
   val reqExtendMask: Bool = req.bits.instInf.mop === 0.U && req.bits.instInf.vs2(0)
-  val reqEEW: UInt = Mux(req.bits.instInf.mop(0), csrInterface.vSew, Mux(reqExtendMask, 0.U, req.bits.instInf.eew))
-  val segAddressMul: UInt = RegEnable((req.bits.instInf.nf +& 1.U) * (1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
+  val reqEEW: UInt = Mux(req.bits.instInf.mop(0), csrInterface.vSew, Mux(reqExtendMask, 0.U, Mux(wholeReq, 2.U, req.bits.instInf.eew)))
+  // 对于load/store whole register来说nf不是横向的
+  val reqNF: UInt = Mux(wholeReq, 0.U, req.bits.instInf.nf)
+  val segAddressMul: UInt = RegEnable((reqNF +& 1.U) * (1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
   val elementByteWidth: UInt = RegEnable((1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
   // lmul 会影响 seg 的vs计算: 正vlmul： 1 << vlmul(1, 0) 负： 1
   val vsMulForSeg: UInt = RegEnable(
@@ -182,7 +187,7 @@ class MSHR(param: MSHRParam) extends Module {
   }
 
   // 额外添加的mask类型对数据的粒度有限制
-  val dataEEW:       UInt = Mux(indexType, csrInterface.vSew, Mux(maskLayoutType, 0.U, requestReg.instInf.eew))
+  val dataEEW:       UInt = Mux(indexType, csrInterface.vSew, Mux(maskLayoutType, 0.U, Mux(whole, 2.U, requestReg.instInf.eew)))
   val dataEEWOH:     UInt = UIntToOH(dataEEW)
 
   // 用到了最后一个或这一组的全被mask了
@@ -246,7 +251,9 @@ class MSHR(param: MSHRParam) extends Module {
   val stateCheck: Bool = state === sRequest
   // 如果状态是wResp,为了让回应能寻址会暂时不更新groupIndex，但是属于groupIndex的请求已经发完了
   val elementID: UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
-  val evl: UInt = Mux(maskLayoutType, csrInterface.vl(param.VLMaxBits - 1, 3), csrInterface.vl)
+  // whole 类型的我们以最大粒度地执行,所以一个寄存器有(vlen/32 -> maskGroupSize)
+  val wholeEvl: UInt = (requestReg.instInf.nf +& 1.U) ## 0.U(param.maskGroupSizeBits.W)
+  val evl: UInt = Mux(whole, wholeEvl, Mux(maskLayoutType, csrInterface.vl(param.VLMaxBits - 1, 3), csrInterface.vl))
   // todo: evl: unit stride -> whole register load | mask load, EEW=8
   val last: Bool = elementID >= evl
   val maskCheck:  Bool = !maskType || !maskExhausted
@@ -389,9 +396,7 @@ class MSHR(param: MSHRParam) extends Module {
       newGroup := true.B
     }
   }
-  // load/store whole register
-  val whole: Bool = requestReg.instInf.mop === 0.U && requestReg.instInf.vs2 === 8.U
-  val invalidInstruction: Bool = csrInterface.vl === 0.U && req.valid && !whole
+  val invalidInstruction: Bool = csrInterface.vl === 0.U && req.valid && !wholeReq
   when(req.valid && !invalidInstruction) {
     state := sRequest
     newGroup := true.B

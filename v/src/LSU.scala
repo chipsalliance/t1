@@ -171,6 +171,7 @@ class LSU(param: LSUParam) extends Module {
   val idleMask:   UInt = VecInit(mshrVec.map(_.status.idle)).asUInt
   val idleSelect: UInt = ffo(idleMask)(param.mshrSize - 1, 0)
   reqEnq := VecInit(Mux(req.valid, idleSelect, 0.U).asBools)
+  // todo: address conflict
   req.ready := idleMask.orR
 
   Seq.tabulate(param.lane) { laneID =>
