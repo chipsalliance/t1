@@ -35,6 +35,9 @@ case class VParameter(
   vrfWriteQueueSize:    Int)
     extends SerializableModuleParameter {
 
+  /** TODO: make it a parameter. */
+  val instructionQueueSize: Int = 8
+
   /** TODO: make it a parameter.
     *
     * xLen data bits.
@@ -451,6 +454,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // first type instruction
       val firstLane = ffo(completedVec.asUInt)
       val firstLaneIndex: UInt = OHToUInt(firstLane)(2, 0)
+      response.bits.rd.valid := lastSlotCommit && decodeResultReg(Decoder.targetRd)
+      response.bits.rd.bits := vd
       selectffoIndex.valid := decodeResultReg(Decoder.ffo)
       selectffoIndex.bits := Mux(
         !completedVec.asUInt.orR,
@@ -1146,6 +1151,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     response.valid := slotCommit.asUInt.orR
     response.bits.data := Mux(selectffoIndex.valid, selectffoIndex.bits, dataResult.bits)
     response.bits.vxsat := DontCare
+    response.bits.mem := (slotCommit.asUInt & VecInit(instStateVec.map(_.record.loadStore)).asUInt).orR
     lastSlotCommit := slotCommit.last
   }
 
