@@ -22,7 +22,7 @@
             libargs
             glog
             fmt
-            libspike
+            (enableDebugging libspike)
             zlib
 
             mill

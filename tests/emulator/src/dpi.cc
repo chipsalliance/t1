@@ -195,7 +195,6 @@ void VBridgeImpl::dpiDumpWave() {
 })
 
 [[maybe_unused]] void dpiChainingMonitor(int lane_idx, const svBitVecVal *slot_occupied) TRY({
-  LOG(INFO) << fmt::format("occupied: {:08b}", *slot_occupied);
   chaining_perf.step(lane_idx, slot_occupied);
 })
 
