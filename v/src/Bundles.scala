@@ -10,9 +10,11 @@ class VRequest(xLen: Int) extends Bundle {
 }
 
 class VResponse(xLen: Int) extends Bundle {
-  // todo: vector解出来是否需要写rd？
   val data: UInt = UInt(xLen.W)
   val vxsat: Bool = Bool()
+  val rd: ValidIO[UInt] = Valid(UInt(5.W))
+  // 被提交的是否是一个访存的指令
+  val mem: Bool = Bool()
 }
 
 class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
