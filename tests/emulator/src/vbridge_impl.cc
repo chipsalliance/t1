@@ -159,7 +159,7 @@ void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
 }
 
 VBridgeImpl::VBridgeImpl() :
-    sim(1 << 30),
+    sim(1l << 32),
     isa("rv32gcv", "M"),
     proc(
         /*isa*/ &isa,
@@ -203,6 +203,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
     pc = fetch.func(&proc, fetch.insn, state->pc);
     se.log_arch_changes();
   } else {
+    VLOG(1) << fmt::format("spike run {} (pc={})", proc.get_disassembler()->disassemble(fetch.insn), pc);
     pc = fetch.func(&proc, fetch.insn, state->pc);
   }
 
