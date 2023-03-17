@@ -119,7 +119,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.wExecuteRes := (special && !decodeResult(Decoder.ffo)) || readOnly || decodeResult(Decoder.nr)
     res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) || readOnly ||
       decodeResult(Decoder.widen) || decodeResult(Decoder.maskDestination) ||
-      decodeResult(Decoder.red) || decodeResult(Decoder.popCount)
+      decodeResult(Decoder.red) || decodeResult(Decoder.popCount) || loadStore
     res.sCrossWrite0 := !crossWrite
     res.sCrossWrite1 := !crossWrite
     res.sSendResult0 := !crossRead
