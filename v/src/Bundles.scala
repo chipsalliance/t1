@@ -102,6 +102,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   def initState: InstGroupState = {
     val res: InstGroupState = Wire(new InstGroupState(param))
     val crossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
+    val crossWrite = decodeResult(Decoder.widen) && !loadStore
     val readOnly = decodeResult(Decoder.readOnly)
     // decode的时候需要注意有些bit操作的指令虽然不需要读vs1,但是需要读v0
     res.sRead1 := !decodeResult(Decoder.vtype) || (decodeResult(Decoder.gather) && !decodeResult(Decoder.vtype))
@@ -119,8 +120,8 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) || readOnly ||
       decodeResult(Decoder.widen) || decodeResult(Decoder.maskDestination) ||
       decodeResult(Decoder.red) || decodeResult(Decoder.popCount)
-    res.sCrossWrite0 := !decodeResult(Decoder.widen)
-    res.sCrossWrite1 := !decodeResult(Decoder.widen)
+    res.sCrossWrite0 := !crossWrite
+    res.sCrossWrite1 := !crossWrite
     res.sSendResult0 := !crossRead
     res.sSendResult1 := !crossRead
     res.sCrossRead0 := !crossRead
