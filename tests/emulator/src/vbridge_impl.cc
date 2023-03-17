@@ -275,18 +275,32 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     CHECK_S(mem_read != se->mem_access_record.all_reads.end())
       << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
 
-    auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads];
-    CHECK_EQ_S(single_mem_read.size_by_byte, decode_size(size)) << fmt::format(
-        ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, {})",
-        get_t(), single_mem_read.size_by_byte, 1 << decode_size(size), addr, se->describe_insn());
+    auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
+    uint32_t expected_size = single_mem_read.size_by_byte;
+    uint32_t actual_size = decode_size(size);
+    uint32_t actual_data = 0;
+    if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
+      for (int i = 0; i < (actual_size / expected_size); i++) {
+        actual_data |= single_mem_read.val << (i * expected_size * 8);
+        if (i >= (actual_size / expected_size) - 1) break;
+        addr += expected_size;
+        mem_read = se->mem_access_record.all_reads.find(addr);
+        CHECK_S(mem_read != se->mem_access_record.all_reads.end())
+            << fmt::format(": [{}] cannot find mem read of addr={:08X}", get_t(), addr);
+        single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
+      }
+    } else {
+      CHECK_S(false) << fmt::format(
+          ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, insn='{}')",
+          get_t(), expected_size, actual_size, addr, se->describe_insn());
+    }
 
-    uint64_t data = single_mem_read.val;
     LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
-                             get_t(), addr, decode_size(size), src, data);
+                             get_t(), addr, actual_size, src, actual_data);
+
     tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
-        data, 1u << size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
+        actual_data, actual_size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
     });
-    mem_read->second.num_completed_reads++;
     break;
   }
 
