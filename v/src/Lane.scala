@@ -1791,7 +1791,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     instructionTypeVec.zip(slotOccupied).map { case (t, v) => (t =/= entranceInstType) || !v }
   ).asUInt.andR
   val validRegulate: Bool = laneRequest.valid && typeReady
-  val shiftReady = slotCanShift.asUInt.andR
+  val shiftReady = slotCanShift.asUInt.andR && !laneResponseFeedback.valid
   laneRequest.ready := !slotOccupied.head && typeReady && vrf.instWriteReport.ready && shiftReady
   vrf.instWriteReport.valid := (laneRequest.fire || (!laneRequest.bits.store && laneRequest.bits.loadStore)) && !entranceControl.instCompleted
   when(!slotOccupied.head && (slotOccupied.asUInt.orR || validRegulate) && shiftReady) {
