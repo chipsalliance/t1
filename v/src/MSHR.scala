@@ -241,7 +241,7 @@ class MSHR(param: MSHRParam) extends Module {
     val nextIndexReq: Bool = indexType && indexLaneMask(7) && indexExhausted
     // 既然试图请求新的index,那说明前一组全用完了
     Seq.tabulate(param.lane) {
-      i => offsetUsed(i) := (segExhausted && indexLaneMask(i) && indexExhausted) || status.indexGroupEnd
+      i => offsetUsed(i) := (segExhausted && indexLaneMask(i) && indexExhausted) || status.indexGroupEnd || maskNeedUpdate
     }
   }
   val groupEnd: Bool = maskNeedUpdate || (reqNext(param.maskGroupWidth - 1) && tlPort.a.fire && lastElementForSeg)
