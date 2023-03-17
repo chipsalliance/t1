@@ -1437,15 +1437,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val noNeedWaitScheduler: Bool = !(canSendMaskRequest && !record.initState.sScheduler) || schedulerFinish
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
-          record.originalInformation.decodeResult(Decoder.maskDestination),
+          // todo: decode
+          record.originalInformation.decodeResult(Decoder.maskDestination) && !record.originalInformation.loadStore,
           maskFormatResult,
           Mux(
             updateReduce,
             reduceResult(index),
             Mux(
-              record.originalInformation.decodeResult(Decoder.gather),
+              record.originalInformation.decodeResult(Decoder.gather) && !record.originalInformation.loadStore,
               source1(index),
-              Mux(record.originalInformation.decodeResult(Decoder.ffo), ffoIndexReg, source2(index))
+              Mux(record.originalInformation.decodeResult(Decoder.ffo) && !record.originalInformation.loadStore,
+                ffoIndexReg, source2(index))
             )
 
           )
