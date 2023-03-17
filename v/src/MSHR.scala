@@ -404,8 +404,8 @@ class MSHR(param: MSHRParam) extends Module {
       state := wResp
     }
   }
-
-  when(state === wResp && respFinish && slotClear) {
+  // todo: cosim 有时会在resp done的时候继续发曾经回过的回应,但是newGroup会导致vrf寻址错误,先 && !tlPort.d.valid 绕一下
+  when(state === wResp && respFinish && slotClear && !tlPort.d.valid) {
     when(last) {
       state := idle
     }.otherwise {
