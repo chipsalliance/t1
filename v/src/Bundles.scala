@@ -112,7 +112,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.wScheduler := !(special || readOnly || decodeResult(Decoder.popCount))
     // todo
     res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red) || readOnly
-      || decodeResult(Decoder.ffo) || decodeResult(Decoder.popCount))
+      || decodeResult(Decoder.ffo) || decodeResult(Decoder.popCount) || loadStore)
     res.sExecute := readOnly || decodeResult(Decoder.nr)
     //todo: red
     res.wExecuteRes := (special && !decodeResult(Decoder.ffo)) || readOnly || decodeResult(Decoder.nr)
