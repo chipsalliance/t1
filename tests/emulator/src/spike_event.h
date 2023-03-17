@@ -54,6 +54,7 @@ struct SpikeEvent {
 
   bool is_load;
   bool is_store;
+  bool is_whole;
   bool is_widening;
   bool is_mask_vd;
   bool is_exit_insn;
