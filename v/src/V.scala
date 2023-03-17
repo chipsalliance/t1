@@ -136,7 +136,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // lane 只读不执行的指令
   val readOnlyInstruction:  Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
-  val maskUnitInstruction: Bool = decodeResult(Decoder.slid) || decodeResult(Decoder.mv)
+  val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv)) && request.bits.instruction(6)
   val skipLastFromLane: Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
   val instructionValid: Bool = csrInterface.vl > csrInterface.vStart
   val intLMUL: UInt = (1.U << csrInterface.vlmul(1, 0)).asUInt
@@ -913,6 +913,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     )
   )
 
+  val freeOR: Bool = VecInit(instStateVec.map(_.state.idle)).asUInt.orR
+  // 有一个空闲的本地坑
+  val localReady: Bool = Mux(specialInst, instStateVec.map(_.state.idle).last, freeOR)
   /** instantiate lanes.
     * TODO: move instantiate to top of class.
     */
@@ -926,7 +929,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.laneRequest.bits.vs2 := request.bits.instruction(24, 20)
     lane.laneRequest.bits.vd := request.bits.instruction(11, 7)
     lane.laneRequest.bits.readFromScalar := Mux(decodeResult(Decoder.gather), gatherData, source1Extend)
-    lane.laneRequest.bits.loadStore := isLoadStoreType
+    // 除了执行单元不让进,其他的都允许 todo：+lsu拒绝
+    lane.laneRequest.bits.loadStore := isLoadStoreType && localReady
     lane.laneRequest.bits.store := isStoreType
     lane.laneRequest.bits.special := specialInst
     lane.laneRequest.bits.segment := request.bits.instruction(31, 29)
@@ -1029,12 +1033,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   {
     val free = VecInit(instStateVec.map(_.state.idle)).asUInt
     allSlotFree := free.andR
-    val freeOR = free.orR
     val free1H = ffo(free)
     // 类型信息：isLSType noReadLD specialInst
     val tryToEnq = Mux(specialInst, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
-    // 有一个空闲的本地坑
-    val localReady = Mux(specialInst, instStateVec.map(_.state.idle).last, freeOR)
     // 远程坑就绪
     val executionReady = (!isLoadStoreType || lsu.req.ready) && (noReadST || allLaneReady)
     request.ready := executionReady && localReady && (!gatherNeedRead || gatherReadFinish) && instructionRAWReady
