@@ -1763,7 +1763,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.schedulerComplete := false.B
   entranceControl.selfCompleted := false.B
   entranceControl.instCompleted := (((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl ||
-    maskLogicCompleted) && !laneRequest.bits.decodeResult(Decoder.nr)
+    maskLogicCompleted) && !laneRequest.bits.decodeResult(Decoder.nr) && !laneRequest.bits.loadStore
   entranceControl.mask.valid := laneRequest.bits.mask
   entranceControl.mask.bits := maskInput
   entranceControl.maskGroupedOrR := maskGroupedOrR
