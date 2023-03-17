@@ -84,7 +84,7 @@ class SRTWrapper extends Module {
   LZC0.io.a := abs.io.aOut
   LZC1.io.a := abs.io.bOut
 
-  val srt: SRT = Module(new SRT(32, 32, 32, radixLog2 = 4))
+  val srt: SRT = Module(new SRT(32, 32, 32))
 
   /** divided by zero detection */
   val divideZero = (input.bits.divisor === 0.S)
@@ -98,9 +98,10 @@ class SRTWrapper extends Module {
   divisor := abs.io.bOut
   gap := divisor +& (-dividend)
   biggerdivisor := gap(33) && !(gap(32, 0).orR === false.B)
+  val divisorIsOne = abs.io.bOut === 1.U
 
   // bypass
-  val bypassSRT = (divideZero || biggerdivisor) && input.fire
+  val bypassSRT = (divideZero || biggerdivisor || divisorIsOne) && input.fire
 
   /** Leading Zero component */
   // extend one bit for calculation
@@ -114,42 +115,39 @@ class SRTWrapper extends Module {
   // needComputerWidth: Int = zeroHeadDivider - zeroHeadDividend + 2
   val needComputerWidth = Wire(UInt(7.W))
   needComputerWidth := sub +& 2.U
-  // noguard: Boolean =  needComputerWidth % 4 == 0
-  val noguard = !needComputerWidth(0) && !needComputerWidth(1)
-  // guardWidth: Int =  if (noguard) 0 else 4 - needComputerWidth % 4
-  val guardWidth = Wire(UInt(2.W))
-  guardWidth := Mux(noguard, 0.U, 4.U + -needComputerWidth(1, 0))
-  // counter: Int = (needComputerWidth + guardWidth) / radixLog2
-  val counter = ((needComputerWidth +& guardWidth) >> 2).asUInt
+  // noguard: Boolean = needComputerWidth % radixLog2 == 0
+  val noguard = !needComputerWidth(0)
+  // counter: Int = (needComputerWidth + 1) / 2
+  val counter = ((needComputerWidth +& 1.U) >> 1).asUInt
   // leftShiftWidthDividend: Int = zeroHeadDividend - (if (noguard) 0 else 1)
   val leftShiftWidthDividend = Wire(UInt(6.W))
   val leftShiftWidthDivisor = Wire(UInt(6.W))
-
-  leftShiftWidthDividend := zeroHeadDividend +& -Cat(0.U(4.W), guardWidth)
+  leftShiftWidthDividend := Mux(noguard, zeroHeadDividend(4, 0), zeroHeadDividend(4, 0) +& "b111111".U)
   leftShiftWidthDivisor := zeroHeadDivisor(4, 0)
-
-  val rightshiftNumber = Mux(leftShiftWidthDividend(5), -leftShiftWidthDividend, 0.U)
-  val rightshiftBits = abs.io.aOut(1, 0)
+  val rightshift = leftShiftWidthDividend(5)
+  val remainderNeedFix = dividend(0) & rightshift
 
   // keep mutiple cycles for SRT
   val negativeSRT = RegEnable(negative, srt.input.fire)
   val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, srt.input.fire)
   val dividendSignSRT = RegEnable(abs.io.aSign, srt.input.fire)
-  val rightshiftNumberSRT = RegEnable(rightshiftNumber, srt.input.fire)
-  val rightshiftBitsSRT = RegEnable(rightshiftBits, srt.input.fire)
+  val rightshiftSRT = RegEnable(rightshift, srt.input.fire)
+  val remainderNeedFixSRT = RegEnable(remainderNeedFix, srt.input.fire)
 
   // keep for one cycle
   val divideZeroReg = RegEnable(divideZero, false.B, input.fire)
   val biggerdivisorReg = RegEnable(biggerdivisor, false.B, input.fire)
+  val divisorIsOneReg = RegEnable(divisorIsOne, false.B, input.fire)
   val bypassSRTReg = RegNext(bypassSRT, false.B)
   val dividendReg = RegEnable(dividend, 0.U, input.fire)
   val dividendSignReg = RegEnable(abs.io.aSign, false.B, input.fire)
+  val divsorSignReg = RegEnable(abs.io.bSign, false.B, input.fire)
 
   // do SRT
 
   srt.input.bits.dividend := Mux(
-    leftShiftWidthDividend(5),
-    abs.io.aOut >> (-leftShiftWidthDividend)(1, 0),
+    rightshift,
+    abs.io.aOut >> 1,
     abs.io.aOut << leftShiftWidthDividend(4, 0)
   )
   srt.input.bits.divider := abs.io.bOut << leftShiftWidthDivisor
@@ -160,17 +158,12 @@ class SRTWrapper extends Module {
   input.ready := srt.input.ready
 
   // post-process for sign
-  // todo: remove bias
   val quotientAbs = Wire(UInt(32.W))
   val remainderAbsFix = Wire(UInt(32.W))
   val remainderAbsBias = Wire(UInt(32.W))
   quotientAbs := srt.output.bits.quotient
   remainderAbsBias := srt.output.bits.reminder >> zeroHeadDivisorSRT(4, 0)
-  remainderAbsFix := Mux(
-    rightshiftNumberSRT === 2.U,
-    Cat(remainderAbsBias(31, 2), rightshiftBitsSRT(1, 0)),
-    Mux(rightshiftNumberSRT === 1.U, Cat(remainderAbsBias(31, 1), rightshiftBitsSRT(0)), remainderAbsBias)
-  )
+  remainderAbsFix := Mux(remainderNeedFixSRT, remainderAbsBias + 1.U, remainderAbsBias)
 
   val dividendRestore = Wire(UInt(32.W))
   dividendRestore := Mux(dividendSignReg, -dividendReg(31, 0), dividendReg(31, 0))
@@ -180,12 +173,24 @@ class SRTWrapper extends Module {
   output.bits.quotient := Mux(
     divideZeroReg,
     "hffffffff".U(32.W),
-    Mux(biggerdivisorReg, 0.U, Mux(negativeSRT, -quotientAbs, quotientAbs))
+    Mux(
+      biggerdivisorReg,
+      0.U,
+      Mux(
+        divisorIsOneReg,
+        Mux(divsorSignReg, -dividendRestore, dividendRestore),
+        Mux(negativeSRT, -quotientAbs, quotientAbs)
+      )
+    )
   ).asSInt
   output.bits.reminder := Mux(
     divideZeroReg,
     dividendRestore,
-    Mux(biggerdivisorReg, dividendRestore, Mux(dividendSignSRT, -remainderAbsFix, remainderAbsFix))
+    Mux(
+      biggerdivisorReg,
+      dividendRestore,
+      Mux(divisorIsOneReg, 0.U, Mux(dividendSignSRT, -remainderAbsFix, remainderAbsFix))
+    )
   ).asSInt
 }
 
