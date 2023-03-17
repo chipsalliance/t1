@@ -936,7 +936,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.csrInterface := csrInterface
     lane.laneIndex := index.U
 
-    lane.laneResponseFeedback.valid := laneFeedBackValid
+    lane.laneResponseFeedback.valid := laneFeedBackValid || laneComplete
     lane.laneResponseFeedback.bits.complete := laneComplete || completedLeftOr(index) || readOnlyFinish
     lane.laneResponseFeedback.bits.instructionIndex := instStateVec.last.record.instructionIndex
 

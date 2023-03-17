@@ -113,6 +113,7 @@ class MSHR(param: MSHRParam) extends Module {
   val reqNF: UInt = Mux(wholeReq, 0.U, req.bits.instInf.nf)
   val segAddressMul: UInt = RegEnable((reqNF +& 1.U) * (1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
   val elementByteWidth: UInt = RegEnable((1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
+  val sew1HReg: UInt = RegEnable(UIntToOH(csrInterface.vSew)(2, 0), 0.U, req.valid)
   // lmul 会影响 seg 的vs计算: 正vlmul： 1 << vlmul(1, 0) 负： 1
   val vsMulForSeg: UInt = RegEnable(
     Mux(csrInterface.vlmul(2), 1.U, (1.U << csrInterface.vlmul(1, 0)).asUInt(3, 0)),
@@ -179,7 +180,7 @@ class MSHR(param: MSHRParam) extends Module {
   val reqDoneNext: UInt = (reqDone ## true.B) & reqFilter
   maskFilter := maskReg & reqFilter
   // 下一个请求在组内的 OH
-  val reqNext: UInt = Mux(maskType, maskNext, reqDoneNext)
+  val reqNext: UInt = Mux(maskType, maskNext, reqDoneNext)(param.maskGroupWidth - 1, 0)
   val reqNextIndex: UInt = OHToUInt(reqNext)(param.offsetCountSize - 1, 0)
   // 更新 reqDone
   when(segExhausted || newGroup) {
@@ -211,7 +212,8 @@ class MSHR(param: MSHRParam) extends Module {
   val indexOffsetTargetGroup: UInt = indexOffset(reqNextIndex.getWidth + 1, reqNextIndex.getWidth)
   val indexOffsetByteIndex:   UInt = indexOffset(reqNextIndex.getWidth - 1, 0)
   val indexOffsetNext: UInt =
-    (VecInit(indexOffsetVec.map(_.bits)).asUInt >> (indexOffsetByteIndex ## 0.U(3.W))).asUInt(param.ELEN - 1, 0)
+    (VecInit(indexOffsetVec.map(_.bits)).asUInt >> (indexOffsetByteIndex ## 0.U(3.W))).asUInt(param.ELEN - 1, 0) &
+      FillInterleaved(8, sew1HReg(2) ## sew1HReg(2) ## !sew1HReg(0) ## true.B)
   val offsetValidCheck: Bool =
     (VecInit(indexOffsetVec.map(_.valid)).asUInt >> (indexOffsetByteIndex >> 2).asUInt).asUInt(0)
   val groupMatch:       UInt = indexOffsetTargetGroup ^ offsetGroupIndex
@@ -237,9 +239,10 @@ class MSHR(param: MSHRParam) extends Module {
       * 5. unit stride 和 stride 类型的在没有mask的前提下 [[reqNext]] 最高位拉高才换组.
       */
     val nextIndexReq: Bool = indexType && indexLaneMask(7) && indexExhausted
-    // index 类型的需要在最后一份index被耗尽的时候通知lane读下一组index过来.
-    status.indexGroupEnd := nextIndexReq && tlPort.a.fire && indexOffsetVec.last.valid
-    Seq.tabulate(param.lane) { i => offsetUsed(i) := segExhausted && indexLaneMask(i) && indexExhausted }
+    // 既然试图请求新的index,那说明前一组全用完了
+    Seq.tabulate(param.lane) {
+      i => offsetUsed(i) := (segExhausted && indexLaneMask(i) && indexExhausted) || status.indexGroupEnd
+    }
   }
   val groupEnd: Bool = maskNeedUpdate || (reqNext(param.maskGroupWidth - 1) && tlPort.a.fire && lastElementForSeg)
 
@@ -260,6 +263,12 @@ class MSHR(param: MSHRParam) extends Module {
   val indexCheck: Bool = !indexType || (offsetValidCheck && offsetGroupCheck)
   val fofCheck:   Bool = firstReq || !waitFirstResp
   val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck
+  // 刚来请求的时候不需要请求 index
+  val needReqIndex: Bool = RegEnable(offsetReadResult.head.valid, false.B, offsetReadResult.head.valid || req.valid)
+  //  只能给脉冲
+  val indexReqValid: Bool = stateCheck && maskCheck && !indexCheck && fofCheck
+  val indexReqValidNext: Bool = RegNext(indexReqValid)
+  status.indexGroupEnd := indexReqValid && needReqIndex && !indexReqValidNext
 
   val s0EnqueueValid: Bool = stateReady && !last
   val s0Valid: Bool = RegEnable(s0Fire, false.B, s0Fire ^ s1Fire)
