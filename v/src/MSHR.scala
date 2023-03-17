@@ -257,10 +257,18 @@ class MSHR(param: MSHRParam) extends Module {
   // whole 类型的我们以最大粒度地执行,所以一个寄存器有(vlen/32 -> maskGroupSize)
   val wholeEvl: UInt = (requestReg.instInf.nf +& 1.U) ## 0.U(param.maskGroupSizeBits.W)
   val evl: UInt = Mux(whole, wholeEvl, Mux(maskLayoutType, csrInterface.vl(param.VLMaxBits - 1, 3), csrInterface.vl))
+  val allIndexReady: Bool = VecInit(indexOffsetVec.map(_.valid)).asUInt.andR
+  val indexAlign: Bool = RegInit(false.B)
+  // 这里处理在第一组index用完了但是第二组还没被lane发过来,然后mshr认为index应该换组的问题
+  when(!indexAlign && allIndexReady) {
+    indexAlign := true.B
+  }.elsewhen(status.indexGroupEnd) {
+    indexAlign := false.B
+  }
   // todo: evl: unit stride -> whole register load | mask load, EEW=8
   val last: Bool = elementID >= evl
   val maskCheck:  Bool = !maskType || !maskExhausted
-  val indexCheck: Bool = !indexType || (offsetValidCheck && offsetGroupCheck)
+  val indexCheck: Bool = !indexType || (offsetValidCheck && offsetGroupCheck && indexAlign)
   val fofCheck:   Bool = firstReq || !waitFirstResp
   val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck
   // 刚来请求的时候不需要请求 index
