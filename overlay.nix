@@ -42,5 +42,23 @@ in
   rv32-musl = final.callPackage ./nix/rv32-musl.nix { };
   buddy-mlir = final.callPackage ./nix/buddy-mlir.nix { };
 
+  circt = prev.circt.overrideAttrs (old: rec {
+    version = "1.35.0";
+    src = final.fetchFromGitHub {
+      owner = "llvm";
+      repo = "circt";
+      rev = "firtool-${version}";
+      sha256 = "sha256-jEWW/Xv5hOkuy2gy5vJrVCk6FvblfewVV7eeYDIkqkk=";
+      fetchSubmodules = true;
+    };
+    patches = (old.patches or []) ++ [
+      (prev.fetchpatch {
+        url = "https://github.com/llvm/circt/pull/4850.patch";
+        sha256 = "sha256-JjJTEVqz2oIk2uXr0f4eiIR1hSt0YeWM0KhBnYI5hqo=";
+      })
+    ];
+    doCheck = false;
+  });
+
   inherit rv32-clang my-cc-wrapper;
 }
