@@ -114,6 +114,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   /** the LSU Module */
   val lsu: LSU = Module(new LSU(parameter.lsuParam))
+  val decode: VectorDecoder = Module(new VectorDecoder)
 
   // TODO: cover overflow
   // TODO: uarch doc about the order of instructions
@@ -126,7 +127,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val nextResponseCounter: UInt = responseCounter + 1.U
   when(response.fire) { responseCounter := nextResponseCounter }
 
-  val decodeResult: DecodeBundle = Decoder.decode((request.bits.instruction >> 12).asUInt)
+  decode.decodeInput := request.bits.instruction >> 12
+  val decodeResult: DecodeBundle = decode.decodeResult
 
   // TODO: no valid here
   // TODO: these should be decoding results
