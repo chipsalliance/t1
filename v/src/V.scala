@@ -830,7 +830,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       }
       // reduce 也需要flush vrf
       lastMaskUnitWrite := (lastElement && !maskUnitIdle) ||
-        ((control.state.wLast || reduce) && maskUnitWriteVec.head.valid && maskUnitWriteReady)
+        ((control.state.wLast || reduce || lastExecute) && maskUnitWriteVec.head.valid && maskUnitWriteReady)
 
       // alu end
       val maskOperation = decodeResultReg(Decoder.maskLogic)
