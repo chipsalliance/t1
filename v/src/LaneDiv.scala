@@ -99,10 +99,9 @@ class SRTWrapper extends Module {
   divisor := abs.io.bOut
   gap := divisor +& (-dividend)
   biggerdivisor := gap(33) && !(gap(32, 0).orR === false.B)
-  val divisorIsOne = abs.io.bOut === 1.U
 
   // bypass
-  val bypassSRT = (divideZero || biggerdivisor || divisorIsOne) && input.fire
+  val bypassSRT = (divideZero || biggerdivisor) && input.fire
 
   /** Leading Zero component */
   // extend one bit for calculation
@@ -136,16 +135,13 @@ class SRTWrapper extends Module {
   val negativeSRT = RegEnable(negative, srt.input.fire)
   val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, srt.input.fire)
   val dividendSignSRT = RegEnable(abs.io.aSign, srt.input.fire)
-  val rightshiftSRT = RegEnable(rightshift, srt.input.fire)
 
   // keep for one cycle
   val divideZeroReg = RegEnable(divideZero, false.B, input.fire)
   val biggerdivisorReg = RegEnable(biggerdivisor, false.B, input.fire)
-  val divisorIsOneReg = RegEnable(divisorIsOne, false.B, input.fire)
   val bypassSRTReg = RegNext(bypassSRT, false.B)
   val dividendReg = RegEnable(dividend, 0.U, input.fire)
   val dividendSignReg = RegEnable(abs.io.aSign, false.B, input.fire)
-  val divsorSignReg = RegEnable(abs.io.bSign, false.B, input.fire)
 
   // do SRT
 
@@ -166,9 +162,9 @@ class SRTWrapper extends Module {
 
   // post-process for sign
   val quotientAbs = Wire(UInt(32.W))
-  val remainderAbsBias = Wire(UInt(32.W))
+  val remainderAbs = Wire(UInt(32.W))
   quotientAbs := srt.output.bits.quotient
-  remainderAbsBias := srt.output.bits.reminder >> zeroHeadDivisorSRT(4, 0)
+  remainderAbs := srt.output.bits.reminder >> zeroHeadDivisorSRT(4, 0)
 
   val dividendRestore = Wire(UInt(32.W))
   dividendRestore := Mux(dividendSignReg, -dividendReg(31, 0), dividendReg(31, 0))
@@ -181,21 +177,13 @@ class SRTWrapper extends Module {
     Mux(
       biggerdivisorReg,
       0.U,
-      Mux(
-        divisorIsOneReg,
-        Mux(divsorSignReg, -dividendRestore, dividendRestore),
-        Mux(negativeSRT, -quotientAbs, quotientAbs)
-      )
+      Mux(negativeSRT, -quotientAbs, quotientAbs)
     )
   ).asSInt
   output.bits.reminder := Mux(
-    divideZeroReg,
+    divideZeroReg || biggerdivisorReg,
     dividendRestore,
-    Mux(
-      biggerdivisorReg,
-      dividendRestore,
-      Mux(divisorIsOneReg, 0.U, Mux(dividendSignSRT, -remainderAbsBias, remainderAbsBias))
-    )
+    Mux(dividendSignSRT, -remainderAbs, remainderAbs)
   ).asSInt
 }
 
@@ -215,8 +203,8 @@ class Abs(n: Int) extends Module {
   val bSign = io.bIn(n - 1)
   a := io.aIn
   b := io.bIn
-  io.aOut := Mux(io.signIn, Mux(aSign, -a, a), a).asUInt
-  io.bOut := Mux(io.signIn, Mux(bSign, -b, b), b).asUInt
+  io.aOut := Mux(io.signIn && aSign, -a, a).asUInt
+  io.bOut := Mux(io.signIn && bSign, -b, b).asUInt
   io.aSign := Mux(io.signIn, aSign, false.B)
   io.bSign := Mux(io.signIn, bSign, false.B)
 }
