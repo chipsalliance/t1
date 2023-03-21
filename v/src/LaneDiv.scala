@@ -140,8 +140,7 @@ class SRTWrapper extends Module {
   val divideZeroReg = RegEnable(divideZero, false.B, input.fire)
   val biggerdivisorReg = RegEnable(biggerdivisor, false.B, input.fire)
   val bypassSRTReg = RegNext(bypassSRT, false.B)
-  val dividendReg = RegEnable(dividend, 0.U, input.fire)
-  val dividendSignReg = RegEnable(abs.io.aSign, false.B, input.fire)
+  val dividendInputReg = RegEnable(input.bits.dividend.asUInt, 0.U(32.W), input.fire)
 
   // do SRT
 
@@ -166,9 +165,6 @@ class SRTWrapper extends Module {
   quotientAbs := srt.output.bits.quotient
   remainderAbs := srt.output.bits.reminder >> zeroHeadDivisorSRT(4, 0)
 
-  val dividendRestore = Wire(UInt(32.W))
-  dividendRestore := Mux(dividendSignReg, -dividendReg(31, 0), dividendReg(31, 0))
-
   output.valid := srt.output.valid | bypassSRTReg
   // the quotient of division by zero has all bits set, and the remainder of division by zero equals the dividend.
   output.bits.quotient := Mux(
@@ -182,7 +178,7 @@ class SRTWrapper extends Module {
   ).asSInt
   output.bits.reminder := Mux(
     divideZeroReg || biggerdivisorReg,
-    dividendRestore,
+    dividendInputReg,
     Mux(dividendSignSRT, -remainderAbs, remainderAbs)
   ).asSInt
 }
