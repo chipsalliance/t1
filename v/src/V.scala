@@ -194,42 +194,56 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val nextResponseCounter: UInt = responseCounter + 1.U
   when(response.fire) { responseCounter := nextResponseCounter }
 
-  decode.decodeInput := request.bits.instruction >> 12
-  val decodeResult: DecodeBundle = decode.decodeResult
+  // 入口处打拍子 & 握手
+  val requestReg: ValidIO[InstructionPipeBundle] = RegInit(0.U.asTypeOf(Valid(new InstructionPipeBundle(parameter))))
+  val requestRegDeq = Wire(Decoupled(new VRequest(parameter.xLen)))
+  when(request.fire) {
+    requestReg.bits.request := request.bits
+    requestReg.bits.decodeResult := decode.decodeResult
+    requestReg.bits.csr := csrInterface
+  }
+  when(request.fire ^ requestRegDeq.fire) {
+    requestReg.valid := request.fire
+  }
+  request.ready := !requestReg.valid || requestRegDeq.ready
+  requestRegDeq.bits := requestReg.bits.request
+  requestRegDeq.valid := requestReg.valid
+  decode.decodeInput := requestRegDeq.bits.instruction >> 12
+  val decodeResult: DecodeBundle = requestReg.bits.decodeResult
 
   // TODO: no valid here
   // TODO: these should be decoding results
-  val isLoadStoreType: Bool = !request.bits.instruction(6) && request.valid
-  val isStoreType:     Bool = !request.bits.instruction(6) && request.bits.instruction(5)
-  val maskType:        Bool = !request.bits.instruction(25)
+  val isLoadStoreType: Bool = !requestRegDeq.bits.instruction(6) && requestRegDeq.valid
+  val isStoreType:     Bool = !requestRegDeq.bits.instruction(6) && requestRegDeq.bits.instruction(5)
+  val maskType:        Bool = !requestRegDeq.bits.instruction(25)
   // lane 只读不执行的指令
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
   val maskUnitInstruction: Bool =
-    (decodeResult(Decoder.slid) || decodeResult(Decoder.mv)) && request.bits.instruction(6)
+    (decodeResult(Decoder.slid) || decodeResult(Decoder.mv)) && requestRegDeq.bits.instruction(6)
   val skipLastFromLane: Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
-  val instructionValid: Bool = csrInterface.vl > csrInterface.vStart
-  val intLMUL:          UInt = (1.U << csrInterface.vlmul(1, 0)).asUInt
+  val instructionValid: Bool = requestReg.bits.csr.vl > requestReg.bits.csr.vStart
+  val intLMUL:          UInt = (1.U << requestReg.bits.csr.vlmul(1, 0)).asUInt
 
   // TODO: these should be decoding results
-  val noReadST:    Bool = isLoadStoreType && (!request.bits.instruction(26))
-  val indexTypeLS: Bool = isLoadStoreType && request.bits.instruction(26)
+  val noReadST:    Bool = isLoadStoreType && (!requestRegDeq.bits.instruction(26))
+  val indexTypeLS: Bool = isLoadStoreType && requestRegDeq.bits.instruction(26)
 
   val source1Extend: UInt = Mux1H(
-    UIntToOH(csrInterface.vSew)(2, 0),
+    UIntToOH(requestReg.bits.csr.vSew)(2, 0),
     Seq(
-      Fill(parameter.datapathWidth - 8, request.bits.src1Data(7) && !decodeResult(Decoder.unsigned0))
-        ## request.bits.src1Data(7, 0),
-      Fill(parameter.datapathWidth - 16, request.bits.src1Data(15) && !decodeResult(Decoder.unsigned0))
-        ## request.bits.src1Data(15, 0),
-      request.bits.src1Data(31, 0)
+      Fill(parameter.datapathWidth - 8, requestRegDeq.bits.src1Data(7) && !decodeResult(Decoder.unsigned0))
+        ## requestRegDeq.bits.src1Data(7, 0),
+      Fill(parameter.datapathWidth - 16, requestRegDeq.bits.src1Data(15) && !decodeResult(Decoder.unsigned0))
+        ## requestRegDeq.bits.src1Data(15, 0),
+      requestRegDeq.bits.src1Data(31, 0)
     )
   )
 
   /** duplicate v0 for mask */
   val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.maskGroupSize)(0.U(parameter.maskGroupWidth.W))))
   // TODO: if elen=32, vSew should be 2?
-  val sew1H: UInt = UIntToOH(csrInterface.vSew)
+  val sew1H: UInt = UIntToOH(requestReg.bits.csr.vSew)
   // TODO: uarch doc for the regroup
   val regroupV0: Seq[Vec[UInt]] = Seq(4, 2, 1).map { groupSize =>
     v0.map { element =>
@@ -277,11 +291,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   nextInstructionType.slid := decodeResult(Decoder.slid)
   nextInstructionType.other := decodeResult(Decoder.maskDestination)
   nextInstructionType.vGather := decodeResult(Decoder.gather) && decodeResult(Decoder.vtype)
-  nextInstructionType.mv := decodeResult(Decoder.mv) && request.bits.instruction(6)
+  nextInstructionType.mv := decodeResult(Decoder.mv) && requestRegDeq.bits.instruction(6)
   nextInstructionType.popCount := decodeResult(Decoder.popCount)
   nextInstructionType.extend := decodeResult(Decoder.extend)
   // TODO: from decode & todo: 把lsu也放decode里去
-  val maskUnitType: Bool = nextInstructionType.asUInt.orR && request.bits.instruction(6)
+  val maskUnitType: Bool = nextInstructionType.asUInt.orR && requestRegDeq.bits.instruction(6)
   val maskDestination = decodeResult(Decoder.maskDestination)
   val unOrderType: Bool = decodeResult(Decoder.unOrderWrite)
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
@@ -330,10 +344,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   // gather read state
   val gatherOverlap: Bool = Wire(Bool())
-  val gatherNeedRead: Bool = request.valid && decodeResult(Decoder.gather) &&
+  val gatherNeedRead: Bool = requestRegDeq.valid && decodeResult(Decoder.gather) &&
     !decodeResult(Decoder.vtype) && !gatherOverlap
   val gatherReadFinish: Bool =
-    RegEnable(!request.fire, false.B, (RegNext(maskUnitReadReady) && gatherNeedRead) || request.fire)
+    RegEnable(!requestRegDeq.fire, false.B, (RegNext(maskUnitReadReady) && gatherNeedRead) || requestRegDeq.fire)
   val gatherReadDataOffset: UInt = Wire(UInt(5.W))
   val gatherData:           UInt = Mux(gatherOverlap, 0.U, (WARRedResult.bits >> gatherReadDataOffset).asUInt)
 
@@ -383,7 +397,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     /** lsu is finished when report bits matched corresponding state machine */
     val lsuFinished: Bool = ohCheck(lsu.lastReport, control.record.instructionIndex, parameter.chainingSize)
     // instruction fire when instruction index matched corresponding state machine
-    when(request.fire && instructionToSlotOH(index)) {
+    when(requestRegDeq.fire && instructionToSlotOH(index)) {
       // instruction metadata
       control.record.instructionIndex := instructionCounter
       // TODO: remove
@@ -438,7 +452,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val compressWriteCount = RegInit(0.U(parameter.laneParam.vlMaxBits.W))
       val nextElementIndex: UInt = elementIndexCount + 1.U
       val firstElement = elementIndexCount === 0.U
-      val lastElement: Bool = nextElementIndex === csrInterface.vl
+      val lastElement: Bool = nextElementIndex === requestReg.bits.csr.vl
       val updateMaskIndex = WireDefault(false.B)
       when(updateMaskIndex) { elementIndexCount := nextElementIndex }
       // 特殊的指令,会阻止 wLast 后把 sExecute 拉回来, 因为需要等待读后才写
@@ -487,38 +501,38 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             largeList(i) := a
             a || b
         }
-        val extendVlmul = csrInterface.vlmul(2) ## csrInterface.vlmul
-        val selectWire = UIntToOH(5.U(4.W) + extendVlmul - csrInterface.vSew)(8, 0).asBools.reverse
+        val extendVlmul = requestReg.bits.csr.vlmul(2) ## requestReg.bits.csr.vlmul
+        val selectWire = UIntToOH(5.U(4.W) + extendVlmul - requestReg.bits.csr.vSew)(8, 0).asBools.reverse
         Mux1H(selectWire, largeList)
       }
       // 算req上面的分开吧
-      val gatherWire = Mux(decodeResult(Decoder.xtype), request.bits.src1Data, request.bits.instruction(19, 15))
+      val gatherWire = Mux(decodeResult(Decoder.xtype), requestRegDeq.bits.src1Data, requestRegDeq.bits.instruction(19, 15))
       val gatherAdvance = (gatherWire >> log2Ceil(parameter.vLen)).asUInt.orR
       gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance)
       instructionRAWReady := !(unOrderTypeInstruction && !control.state.idle &&
         // slid 类的会比执行得慢的指令快(div),会修改前面的指令的source
-        ((vd === request.bits.instruction(24, 20)) ||
-          (vd === request.bits.instruction(19, 15)) ||
+        ((vd === requestRegDeq.bits.instruction(24, 20)) ||
+          (vd === requestRegDeq.bits.instruction(19, 15)) ||
           // slid 类的会比执行得快的指令慢(mv),会被后来的指令修改 source2
-          (vs2 === request.bits.instruction(11, 7))) ||
+          (vs2 === requestRegDeq.bits.instruction(11, 7))) ||
         (unOrderType && !allSlotFree))
-      when(request.fire && instructionToSlotOH(index)) {
+      when(requestRegDeq.fire && instructionToSlotOH(index)) {
         writeBackCounter := 0.U
         groupCounter := 0.U
         executeCounter := 0.U
         elementIndexCount := 0.U
         compressWriteCount := 0.U
         iotaCount := 0.U
-        instructionBit6 := request.bits.instruction(6)
+        instructionBit6 := requestRegDeq.bits.instruction(6)
         slidUnitIdle := !((decodeResult(Decoder.slid) || nextInstructionType.vGather || decodeResult(
           Decoder.extend
         )) && instructionValid)
         iotaUnitIdle := !((decodeResult(Decoder.compress) || decodeResult(Decoder.iota)) && instructionValid)
-        vd := request.bits.instruction(11, 7)
-        vs1 := request.bits.instruction(19, 15)
-        vs2 := request.bits.instruction(24, 20)
-        vm := request.bits.instruction(25)
-        rs1 := request.bits.src1Data
+        vd := requestRegDeq.bits.instruction(11, 7)
+        vs1 := requestRegDeq.bits.instruction(19, 15)
+        vs2 := requestRegDeq.bits.instruction(24, 20)
+        vm := requestRegDeq.bits.instruction(25)
+        rs1 := requestRegDeq.bits.src1Data
         decodeResultReg := decodeResult
         // todo: decode need execute
         control.state.sExecute := !maskUnitType
@@ -544,8 +558,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         * vl假设最大1024,相应的会有11位的vl
         *   xxx xxx xxxxx
         */
-      val dataPathMisaligned = csrInterface.vl(parameter.dataPathWidthBits - 1, 0).orR
-      val groupMisaligned = csrInterface
+      val dataPathMisaligned = requestReg.bits.csr.vl(parameter.dataPathWidthBits - 1, 0).orR
+      val groupMisaligned = requestReg.bits.csr
         .vl(parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber) - 1, parameter.dataPathWidthBits)
         .orR
 
@@ -555,12 +569,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         *   lastExecuteCounter = vl(7, 5) - ![[dataPathMisaligned]]
         */
       val lastGroupCounter: UInt =
-        csrInterface.vl(
+        requestReg.bits.csr.vl(
           parameter.laneParam.vlMaxBits - 1,
           parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber)
         ) - !(dataPathMisaligned || groupMisaligned)
       val lastExecuteCounter: UInt =
-        csrInterface.vl(
+        requestReg.bits.csr.vl(
           parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber) - 1,
           parameter.dataPathWidthBits
         ) - !dataPathMisaligned
@@ -568,7 +582,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val lastExecute = lastGroup && writeBackCounter === lastExecuteCounter
       val lastExecuteForGroup = writeBackCounter.andR
       // 计算正写的这个lane是不是在边界上
-      val endOH = UIntToOH(csrInterface.vl(parameter.dataPathWidthBits - 1, 0))
+      val endOH = UIntToOH(requestReg.bits.csr.vl(parameter.dataPathWidthBits - 1, 0))
       val border = lastExecute && dataPathMisaligned
       val lastGroupMask = scanRightOr(endOH(parameter.datapathWidth - 1, 1))
       // todo: 有store被解析成mv了
@@ -644,8 +658,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       adder.req.average := false.B
       adder.req.saturat := false.B
       adder.req.maskOp := false.B
-      adder.csr.vSew := csrInterface.vSew
-      adder.csr.vxrm := csrInterface.vxrm
+      adder.csr.vSew := requestReg.bits.csr.vSew
+      adder.csr.vxrm := requestReg.bits.csr.vxrm
 
       logicUnit.req.src := VecInit(Seq(aluInput1, aluInput2))
       logicUnit.req.opcode := decodeResultReg(Decoder.uop)
@@ -661,11 +675,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         * specialUop(1,0): 倍率
         * specialUop(2)：是否是符号
         */
-      val extendSourceSew: Bool = (csrInterface.vSew >> decodeResultReg(Decoder.specialUop)(1, 0))(0)
+      val extendSourceSew: Bool = (requestReg.bits.csr.vSew >> decodeResultReg(Decoder.specialUop)(1, 0))(0)
       val extendSign:      Bool = decodeResultReg(Decoder.specialUop)(2)
       // gather 相关的控制
       val gather16: Bool = decodeResultReg(Decoder.gather16)
-      val maskUnitEEW = Mux(gather16, 1.U, Mux(extend, extendSourceSew, csrInterface.vSew))
+      val maskUnitEEW = Mux(gather16, 1.U, Mux(extend, extendSourceSew, requestReg.bits.csr.vSew))
       val maskUnitEEW1H: UInt = UIntToOH(maskUnitEEW)
       val maskUnitByteEnable = maskUnitEEW1H(2) ## maskUnitEEW1H(2) ## maskUnitEEW1H(2, 1).orR ## true.B
       val maskUnitBitEnable = FillInterleaved(8, maskUnitByteEnable)
@@ -713,7 +727,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       )
 
       def indexAnalysis(elementIndex: UInt) = {
-        val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << csrInterface.vSew)
+        val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << requestReg.bits.csr.vSew)
           .asUInt(parameter.laneParam.vlMaxBits - 2, 0)
         val accessMask = Mux1H(
           sew1H(2, 0),
@@ -736,13 +750,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           * vlmul 需要区分整数与浮点
           */
         val overlap =
-          (csrInterface.vlmul(2) && (offset ## accessLane(2)) >= intLMUL(3, 1)) ||
-            (!csrInterface.vlmul(2) && accessRegGrowth >= intLMUL)
-        accessRegGrowth >= csrInterface.vlmul
+          (requestReg.bits.csr.vlmul(2) && (offset ## accessLane(2)) >= intLMUL(3, 1)) ||
+            (!requestReg.bits.csr.vlmul(2) && accessRegGrowth >= intLMUL)
+        accessRegGrowth >= requestReg.bits.csr.vlmul
         val reallyGrowth = accessRegGrowth(2, 0)
         (accessMask, dataOffset, accessLane, offset, reallyGrowth, overlap)
       }
-      val srcOverlap: Bool = decodeResultReg(Decoder.xtype) && (rs1 >= csrInterface.vl)
+      val srcOverlap: Bool = decodeResultReg(Decoder.xtype) && (rs1 >= requestReg.bits.csr.vl)
       // rs1 >= vlMax
       val srcOversize = decodeResultReg(Decoder.xtype) && !slide1 && compareResult
       val signBit = Mux1H(
@@ -763,7 +777,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val maskUnitWriteVecFire1 = maskUnitReadVec(1).valid && maskUnitReadReady
       val readFireNext1: Bool = RegNext(maskUnitWriteVecFire1)
       maskUnitReadVec(1).valid := (readState || gatherNeedRead) && !readFireNext1
-      maskUnitReadVec(1).bits.vs := Mux(readState, vs2, request.bits.instruction(24, 20)) + readGrowth
+      maskUnitReadVec(1).bits.vs := Mux(readState, vs2, requestRegDeq.bits.instruction(24, 20)) + readGrowth
       maskUnitReadVec(1).bits.offset := readOffset
       maskReadLaneSelect(1) := UIntToOH(readLane)
       // slid write, vlXXX: 用element index 算出来的
@@ -1023,24 +1037,24 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val laneVec: Seq[Lane] = Seq.tabulate(parameter.laneNumber) { index =>
     val lane: Lane = Module(new Lane(parameter.laneParam))
     // 请求,
-    lane.laneRequest.valid := request.fire && !noReadST && allLaneReady && !maskUnitInstruction
+    lane.laneRequest.valid := requestRegDeq.fire && !noReadST && allLaneReady && !maskUnitInstruction
     lane.laneRequest.bits.instructionIndex := instructionCounter
     lane.laneRequest.bits.decodeResult := decodeResult
-    lane.laneRequest.bits.vs1 := request.bits.instruction(19, 15)
-    lane.laneRequest.bits.vs2 := request.bits.instruction(24, 20)
-    lane.laneRequest.bits.vd := request.bits.instruction(11, 7)
+    lane.laneRequest.bits.vs1 := requestRegDeq.bits.instruction(19, 15)
+    lane.laneRequest.bits.vs2 := requestRegDeq.bits.instruction(24, 20)
+    lane.laneRequest.bits.vd := requestRegDeq.bits.instruction(11, 7)
     lane.laneRequest.bits.readFromScalar := Mux(decodeResult(Decoder.gather), gatherData, source1Extend)
     // 除了执行单元不让进,其他的都允许 todo：+lsu拒绝
     lane.laneRequest.bits.loadStore := isLoadStoreType && localReady
     lane.laneRequest.bits.store := isStoreType
     lane.laneRequest.bits.special := specialInst
-    lane.laneRequest.bits.segment := request.bits.instruction(31, 29)
-    lane.laneRequest.bits.loadStoreEEW := request.bits.instruction(13, 12)
+    lane.laneRequest.bits.segment := requestRegDeq.bits.instruction(31, 29)
+    lane.laneRequest.bits.loadStoreEEW := requestRegDeq.bits.instruction(13, 12)
     lane.laneRequest.bits.mask := maskType
 //    lane.laneReq.bits.st := isST
     laneReady(index) := lane.laneRequest.ready
 
-    lane.csrInterface := csrInterface
+    lane.csrInterface := requestReg.bits.csr
     lane.laneIndex := index.U
 
     lane.laneResponseFeedback.valid := laneFeedBackValid || laneComplete
@@ -1090,23 +1104,23 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   busClear := !VecInit(laneVec.map(_.writeBusPort.deq.valid)).asUInt.orR
 
   // 连lsu
-  lsu.req.valid := request.fire && isLoadStoreType
+  lsu.req.valid := requestRegDeq.fire && isLoadStoreType
   lsu.req.bits.instIndex := instructionCounter
-  lsu.req.bits.rs1Data := request.bits.src1Data
-  lsu.req.bits.rs2Data := request.bits.src2Data
-  lsu.req.bits.instInf.nf := request.bits.instruction(31, 29)
-  lsu.req.bits.instInf.mew := request.bits.instruction(28)
-  lsu.req.bits.instInf.mop := request.bits.instruction(27, 26)
-  lsu.req.bits.instInf.vs1 := request.bits.instruction(19, 15)
-  lsu.req.bits.instInf.vs2 := request.bits.instruction(24, 20)
-  lsu.req.bits.instInf.vs3 := request.bits.instruction(11, 7)
+  lsu.req.bits.rs1Data := requestRegDeq.bits.src1Data
+  lsu.req.bits.rs2Data := requestRegDeq.bits.src2Data
+  lsu.req.bits.instInf.nf := requestRegDeq.bits.instruction(31, 29)
+  lsu.req.bits.instInf.mew := requestRegDeq.bits.instruction(28)
+  lsu.req.bits.instInf.mop := requestRegDeq.bits.instruction(27, 26)
+  lsu.req.bits.instInf.vs1 := requestRegDeq.bits.instruction(19, 15)
+  lsu.req.bits.instInf.vs2 := requestRegDeq.bits.instruction(24, 20)
+  lsu.req.bits.instInf.vs3 := requestRegDeq.bits.instruction(11, 7)
   // (0b000 0b101 0b110 0b111) -> (8, 16, 32, 64)忽略最高位
-  lsu.req.bits.instInf.eew := request.bits.instruction(13, 12)
+  lsu.req.bits.instInf.eew := requestRegDeq.bits.instruction(13, 12)
   lsu.req.bits.instInf.st := isStoreType
   lsu.req.bits.instInf.mask := maskType
 
   lsu.maskRegInput.zip(lsu.maskSelect).foreach { case (data, index) => data := v0(index) }
-  lsu.csrInterface := csrInterface
+  lsu.csrInterface := requestReg.bits.csr
 
   // 连lane的环
   laneVec.map(_.readBusPort).foldLeft(laneVec.last.readBusPort) {
@@ -1139,8 +1153,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     val tryToEnq = Mux(specialInst, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
     // 远程坑就绪
     val executionReady = (!isLoadStoreType || lsu.req.ready) && (noReadST || allLaneReady)
-    request.ready := executionReady && localReady && (!gatherNeedRead || gatherReadFinish) && instructionRAWReady
-    instructionToSlotOH := Mux(request.ready, tryToEnq, 0.U)
+    requestRegDeq.ready := executionReady && localReady && (!gatherNeedRead || gatherReadFinish) && instructionRAWReady
+    instructionToSlotOH := Mux(requestRegDeq.ready, tryToEnq, 0.U)
   }
 
   // instruction commit
