@@ -125,11 +125,8 @@ class SRTWrapper extends Module {
 
   val leftShiftWidthDividend = Wire(UInt(6.W))
   val leftShiftWidthDivisor = Wire(UInt(6.W))
-  leftShiftWidthDividend := zeroHeadDividend +& -Cat(0.U(4.W), guardWidth)
+  leftShiftWidthDividend := zeroHeadDividend +& -Cat(0.U(4.W), guardWidth) + 3.U
   leftShiftWidthDivisor := zeroHeadDivisor(4, 0)
-  val rightshift = leftShiftWidthDividend(5)
-  val dividendAppend = dividend(2, 0)
-  val appendwidth = Mux(rightshift, (-leftShiftWidthDividend)(1, 0), 0.U(2.W))
 
   // keep mutiple cycles for SRT
   val negativeSRT = RegEnable(negative, srt.input.fire)
@@ -144,15 +141,9 @@ class SRTWrapper extends Module {
 
   // do SRT
 
-  srt.input.bits.dividend := Mux(
-    rightshift,
-    abs.io.aOut >> (-leftShiftWidthDividend)(1, 0),
-    abs.io.aOut << leftShiftWidthDividend(4, 0)
-  )
+  srt.input.bits.dividend := abs.io.aOut << leftShiftWidthDividend
   srt.input.bits.divider := abs.io.bOut << leftShiftWidthDivisor
   srt.input.bits.counter := counter
-  srt.dividendAppend := dividendAppend
-  srt.appendWidth := appendwidth
 
   // if dividezero or biggerdivisor, bypass SRT
   srt.input.valid := input.valid && !bypassSRT
