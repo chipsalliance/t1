@@ -314,3 +314,15 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val ma:           Bool = Bool()
   val unOrderWrite: Bool = Bool()
 }
+
+/** 为了decode, 指令需要在入口的时候打一拍, 这是需要保存的信息 */
+class InstructionPipeBundle(parameter: VParameter) extends Bundle {
+  // 原始指令信息
+  val request: VRequest = new VRequest(parameter.xLen)
+  // decode 的结果
+  val decodeResult: DecodeBundle = new DecodeBundle(Decoder.all)
+  // 这条指令被vector分配的index
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  // 指令的csr信息
+  val csr = new LaneCsrInterface(parameter.laneParam.vlMaxBits)
+}
