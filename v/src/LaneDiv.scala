@@ -2,7 +2,6 @@ package v
 
 import chisel3._
 import chisel3.util._
-import division.srt.srt16.SRT16
 import division.srt.{SRT, SRTOutput}
 
 class LaneDivRequest(param: DataPathParam) extends Bundle {
@@ -56,18 +55,19 @@ class SRTOut extends Bundle {
   val quotient = SInt(32.W)
 }
 
-/** 32-bits Divider for signed and unsigned division based on SRT4
+/** 32-bits Divider for signed and unsigned division based on SRT16 with CSA
   *
   * Input:
   * dividend and divisor
-  * sign: true for signed input
+  * signIn: true for signed input
   *
   * Component:
   * {{{
   * divided by zero detection
   * bigger divisor detection
-  * leading zero process
-  * sign process
+  * SRT16 initial process logic containing a leading zero counter
+  * SRT16 recurrence module imported from dependencies/arithmetic
+  * SRT16 post-process logic
   * }}}
   */
 class SRTWrapper extends Module {
@@ -103,7 +103,7 @@ class SRTWrapper extends Module {
   // bypass
   val bypassSRT = (divideZero || biggerdivisor) && input.fire
 
-  /** Leading Zero component */
+  /** SRT16 initial process logic containing a leading zero counter */
   // extend one bit for calculation
   val zeroHeadDividend = Wire(UInt(6.W))
   val zeroHeadDivisor = Wire(UInt(6.W))
@@ -128,7 +128,7 @@ class SRTWrapper extends Module {
   leftShiftWidthDividend := zeroHeadDividend +& -Cat(0.U(4.W), guardWidth) + 3.U
   leftShiftWidthDivisor := zeroHeadDivisor(4, 0)
 
-  // keep mutiple cycles for SRT
+  // control signals used in SRT post-process
   val negativeSRT = RegEnable(negative, srt.input.fire)
   val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, srt.input.fire)
   val dividendSignSRT = RegEnable(abs.io.aSign, srt.input.fire)
@@ -139,25 +139,27 @@ class SRTWrapper extends Module {
   val bypassSRTReg = RegNext(bypassSRT, false.B)
   val dividendInputReg = RegEnable(input.bits.dividend.asUInt, 0.U(32.W), input.fire)
 
-  // do SRT
-
+  // SRT16 recurrence module input
   srt.input.bits.dividend := abs.io.aOut << leftShiftWidthDividend
   srt.input.bits.divider := abs.io.bOut << leftShiftWidthDivisor
   srt.input.bits.counter := counter
 
   // if dividezero or biggerdivisor, bypass SRT
   srt.input.valid := input.valid && !bypassSRT
-  // copy srt ready to top
   input.ready := srt.input.ready
 
-  // post-process for sign
+  // calculate quotient and remainder in ABS
   val quotientAbs = Wire(UInt(32.W))
   val remainderAbs = Wire(UInt(32.W))
   quotientAbs := srt.output.bits.quotient
   remainderAbs := srt.output.bits.reminder >> zeroHeadDivisorSRT(4, 0)
 
+  /** DIV output
+    *
+    * when divisor equals to zero, the quotient has all bits set and the remainder equals the dividend
+    */
   output.valid := srt.output.valid | bypassSRTReg
-  // the quotient of division by zero has all bits set, and the remainder of division by zero equals the dividend.
+
   output.bits.quotient := Mux(
     divideZeroReg,
     "hffffffff".U(32.W),
@@ -192,10 +194,11 @@ class Abs(n: Int) extends Module {
   b := io.bIn
   io.aOut := Mux(io.signIn && aSign, -a, a).asUInt
   io.bOut := Mux(io.signIn && bSign, -b, b).asUInt
-  io.aSign := Mux(io.signIn, aSign, false.B)
-  io.bSign := Mux(io.signIn, bSign, false.B)
+  io.aSign := io.signIn && aSign
+  io.bSign := io.signIn && bSign
 }
 
+/** 8-bits Leading Zero Counter */
 class LZC8 extends Module {
   val io = IO(new Bundle {
     val a = Input(UInt(8.W))
@@ -206,12 +209,13 @@ class LZC8 extends Module {
   val z0: UInt = (!(a(7) | (!a(6)) & a(5))) & ((a(6) | a(4)) | !(a(3) | (!a(2) & a(1))))
   val z1: UInt = !(a(7) | a(6)) & ((a(5) | a(4)) | !(a(3) | a(2)))
   val z2: UInt = !(a(7) | a(6)) & !(a(5) | a(4))
-  val _v: UInt = !(!(a(7) | a(6)) & !(a(5) | a(4))) | !(!(a(3) | a(2)) & !(a(1) | a(0)))
+  val v:  UInt = !(!(a(7) | a(6)) & !(a(5) | a(4))) | !(!(a(3) | a(2)) & !(a(1) | a(0)))
 
   io.z := Cat(~z2, ~z1, ~z0)
-  io.v := _v
+  io.v := v
 }
 
+/** 16-bits Leading Zero Counter */
 class LZC16 extends Module {
   val io = IO(new Bundle {
     val a = Input(UInt(16.W))
@@ -224,7 +228,7 @@ class LZC16 extends Module {
   L0.io.a := io.a(7, 0)
 
   val flag = L1.io.v.asBool
-  val z3 = Mux(flag, 1.U, 0.U)
+  val z3 = flag
   val z2 = Mux(flag, L1.io.z(2), L0.io.z(2))
   val z1 = Mux(flag, L1.io.z(1), L0.io.z(1))
   val z0 = Mux(flag, L1.io.z(0), L0.io.z(0))
@@ -232,6 +236,8 @@ class LZC16 extends Module {
   io.z := Cat(z3, z2, z1, z0)
   io.v := L1.io.v | L0.io.v
 }
+
+/** 32-bits Leading Zero Counter */
 class LZC32 extends Module {
   val io = IO(new Bundle {
     val a = Input(UInt(32.W))
@@ -244,7 +250,7 @@ class LZC32 extends Module {
   L0.io.a := io.a(15, 0)
 
   val flag = L1.io.v.asBool
-  val z4 = Mux(flag, 1.U, 0.U)
+  val z4 = flag
   val z3 = Mux(flag, L1.io.z(3), L0.io.z(3))
   val z2 = Mux(flag, L1.io.z(2), L0.io.z(2))
   val z1 = Mux(flag, L1.io.z(1), L0.io.z(1))
