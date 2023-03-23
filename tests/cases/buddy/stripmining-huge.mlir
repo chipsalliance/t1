@@ -1,5 +1,3 @@
-// https://github.com/xlinsist/buddy-mlir/blob/39d0f3107014d41b4e00c56c88f3f8f078164fd7/examples/VectorExpDialect/strip-mining-large-number-rv32.mlir
-
 memref.global "private" @gv_i32 : memref<32768xi32>
 
 func.func @test() -> i32 {
@@ -38,13 +36,13 @@ func.func @test() -> i32 {
     %new_avl = arith.subi %avl, %vl : i32
     scf.yield %new_avl, %new_idx : i32, index
   }
-  %result = vector.load %res[%c0] : memref<32768xi32>, vector<32768xi32>
+  %result = vector.load %res[%c0] : memref<32768xi32>, vector<8xi32>
 
-  %mask = arith.constant dense<1> : vector<32768xi1>
+  %mask = arith.constant dense<1> : vector<8xi1>
   %c1_i32 = arith.constant 1 : i32
-  %evl = arith.constant 32768 : i32
+  %evl = arith.constant 8: i32
   %res_reduce_add_mask_driven = "llvm.intr.vp.reduce.add" (%c1_i32, %result, %mask, %evl) :
-         (i32, vector<32768xi32>, vector<32768xi1>, i32) -> i32
+         (i32, vector<8xi32>, vector<8xi1>, i32) -> i32
 
   return %res_reduce_add_mask_driven : i32
 }
