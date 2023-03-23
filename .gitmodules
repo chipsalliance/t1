@@ -12,7 +12,8 @@
 	url = git@github.com:ucb-bar/chiseltest.git
 [submodule "dependencies/arithmetic"]
 	path = dependencies/arithmetic
-	url = git@github.com:sequencer/arithmetic.git
+    url = git@github.com:midnighter95/arithmetic.git
+    branch = srt_issue
 [submodule "dependencies/tilelink"]
 	path = dependencies/tilelink
 	url = git@github.com:sequencer/tilelink.git
