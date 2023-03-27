@@ -1,0 +1,13 @@
+{
+  "name": "documentation",
+  "version": "0.1.0",
+  "devDependencies": {
+    "honkit": "^4.0.7",
+    "gitbook-plugin-uml": "^1.2.21",
+    "gitbook-plugin-katex-ng": "^2.0.0",
+    "gitbook-plugin-wavedrom": "^1.2.7",
+    "gitbook-plugin-echarts": "^1.0.5",
+    "gitbook-plugin-flow": "^2.0.7",
+    "gitbook-plugin-sequence": "^1.0.6"
+  }
+}
