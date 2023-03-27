@@ -126,7 +126,7 @@ class LSU(param: LSUParam) extends Module {
   val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.vLenBits)))
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
   val offsetReadTag:    Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(3.W))))
-  val lastReport:       ValidIO[UInt] = IO(Output(Valid(UInt(3.W))))
+  val lastReport:       UInt = IO(Output(UInt(param.chainingSize.W)))
   val lsuOffsetReq:     Bool = IO(Output(Bool()))
 
   val reqEnq:          Vec[Bool] = Wire(Vec(param.lsuMSHRSize, Bool()))
@@ -255,7 +255,6 @@ class LSU(param: LSUParam) extends Module {
     tlPort(bankID).d.ready := ackReady(bankID) || tlPort(bankID).d.bits.opcode === 0.U
   }
   // 处理last
-  lastReport.valid := VecInit(mshrVec.map(_.status.last)).asUInt.orR
-  lastReport.bits := Mux1H(mshrVec.map(_.status.last), mshrVec.map(_.status.instIndex))
+  lastReport := mshrVec.map(m => Mux(m.status.last, indexToOH(m.status.instIndex, param.chainingSize), 0.U)).reduce(_ | _)
   lsuOffsetReq := VecInit(mshrVec.map(_.status.indexGroupEnd)).asUInt.orR
 }

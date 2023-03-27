@@ -99,7 +99,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val instWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
   val flush:           Bool = IO(Input(Bool()))
   val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.VLMaxWidth)))
-  val lsuLastReport:   ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+  val lsuLastReport:   UInt = IO(Input(UInt(parameter.chainingSize.W)))
   // write queue empty
   val bufferClear: Bool = IO(Input(Bool()))
   // todo: delete
@@ -230,7 +230,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       when(flush) {
         record.valid := false.B
       }
-      when(lsuLastReport.valid && lsuLastReport.bits === record.bits.instIndex) {
+      when(ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)) {
         record.bits.stFinish := true.B
       }
       when(record.bits.stFinish && bufferClear && record.valid) {
