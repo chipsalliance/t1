@@ -378,7 +378,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     val laneAndLSUFinish: Bool = control.endTag.asUInt.andR
 
     /** lsu is finished when report bits matched corresponding state machine */
-    val lsuFinished: Bool = lsu.lastReport.valid && lsu.lastReport.bits === control.record.instructionIndex
+    val lsuFinished: Bool = ohCheck(lsu.lastReport, control.record.instructionIndex, parameter.chainingSize)
     // instruction fire when instruction index matched corresponding state machine
     when(request.fire && instructionToSlotOH(index)) {
       // instruction metadata
@@ -992,7 +992,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // TODO: review later
   // todo: 把scheduler的反馈也加上,lsu有更高的优先级
   val laneFeedBackValid: Bool = lsu.lsuOffsetReq || synchronized
-  val laneComplete:      Bool = lsu.lastReport.valid && lsu.lastReport.bits === instStateVec.last.record.instructionIndex
+  val laneComplete:      Bool = ohCheck(lsu.lastReport, instStateVec.last.record.instructionIndex, parameter.chainingSize)
 
   val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
     Vec(

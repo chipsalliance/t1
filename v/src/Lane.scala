@@ -182,7 +182,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** because of load store index EEW, is complicated for lane to calculate whether LSU is finished.
     * let LSU directly tell each lane it is finished.
     */
-  val lsuLastReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+  val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** for RaW, VRF should wait for buffer to be empty. */
   val lsuVRFWriteBufferClear: Bool = IO(Input(Bool()))

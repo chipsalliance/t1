@@ -1,6 +1,6 @@
 import chisel3._
 import chisel3.util.experimental.decode.decoder
-import chisel3.util.scanLeftOr
+import chisel3.util._
 
 package object v {
   def csa32(s: UInt, c: UInt, a: UInt): (UInt, UInt) = {
@@ -29,5 +29,13 @@ package object v {
 
   def maskAnd(mask: Bool, data: Data): Data = {
     Mux(mask, data, 0.U.asTypeOf(data))
+  }
+
+  def indexToOH(index: UInt, chainingSize: Int): UInt = {
+    UIntToOH(index(log2Ceil(chainingSize) - 1, 0))
+  }
+
+  def ohCheck(lastReport: UInt, index: UInt, chainingSize: Int): Bool = {
+    (indexToOH(index, chainingSize) & lastReport).orR
   }
 }
