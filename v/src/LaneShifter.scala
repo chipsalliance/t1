@@ -3,7 +3,11 @@ package v
 import chisel3._
 import chisel3.util._
 
-case class LaneShifterParameter(dataWidth: Int, shifterSizeBit: Int)
+/**
+  */
+case class LaneShifterParameter(dataWidth: Int) {
+  val shifterSizeBit: Int = log2Ceil(dataWidth)
+}
 
 class LaneShifterReq(param: LaneShifterParameter) extends Bundle {
   val src:         UInt = UInt(param.dataWidth.W)
@@ -21,7 +25,7 @@ class LaneShifter(param: LaneShifterParameter) extends Module {
   val extendData: UInt = extend ## req.src
 
   val roundTail: UInt = (1.U << req.shifterSize).asUInt
-  val lostMSB: UInt = (roundTail >> 1).asUInt
+  val lostMSB:   UInt = (roundTail >> 1).asUInt
   val roundMask: UInt = roundTail - 1.U
 
   // v[d - 1]

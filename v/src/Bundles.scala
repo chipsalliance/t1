@@ -68,7 +68,7 @@ class ExtendInstructionType extends Bundle {
 }
 
 class LaneRequest(param: LaneParameter) extends Bundle {
-  val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
+  val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
   // decode
   val decodeResult: DecodeBundle = Decoder.bundle
   val loadStore:    Bool = Bool()
@@ -178,7 +178,7 @@ class InstControlRecord(param: LaneParameter) extends Bundle {
   val initState:           InstGroupState = new InstGroupState(param)
 
   /** which group in the slot is executing. */
-  val groupCounter:      UInt = UInt(param.groupNumberWidth.W)
+  val groupCounter:      UInt = UInt(param.groupNumberBits.W)
   // mask 类型的被别的lane完成了, 然后scheduler会通知 eg：sbf
   val schedulerComplete: Bool = Bool()
   // mask 类型的被这一组数据完成了 eg：sbf
@@ -231,17 +231,17 @@ class LaneDataResponse(param: LaneParameter) extends Bundle {
   // TODO: move to top?
   val toLSU:            Bool = Bool()
   val ffoSuccess:       Bool = Bool()
-  val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
+  val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 }
 
 class ReadBusData(param: LaneParameter) extends Bundle {
   val data: UInt = UInt(param.datapathWidth.W)
   val tail: Bool = Bool()
   // todo: for debug
-  val from:      UInt = UInt(param.laneNumberWidth.W)
-  val target:    UInt = UInt(param.laneNumberWidth.W)
-  val instIndex: UInt = UInt(param.instructionIndexSize.W)
-  val counter:   UInt = UInt(param.groupNumberWidth.W)
+  val from:      UInt = UInt(param.laneNumberBits.W)
+  val target:    UInt = UInt(param.laneNumberBits.W)
+  val instIndex: UInt = UInt(param.instructionIndexBits.W)
+  val counter:   UInt = UInt(param.groupNumberBits.W)
 }
 
 class WriteBusData(param: LaneParameter) extends Bundle {
@@ -249,11 +249,11 @@ class WriteBusData(param: LaneParameter) extends Bundle {
   val tail: Bool = Bool()
   // 正常的跨lane写可能会有mask类型的指令
   val mask:   UInt = UInt(2.W)
-  val target: UInt = UInt(param.laneNumberWidth.W)
+  val target: UInt = UInt(param.laneNumberBits.W)
   // todo: for debug
-  val from:      UInt = UInt(param.laneNumberWidth.W)
-  val instIndex: UInt = UInt(param.instructionIndexSize.W)
-  val counter:   UInt = UInt(param.groupNumberWidth.W)
+  val from:      UInt = UInt(param.laneNumberBits.W)
+  val instIndex: UInt = UInt(param.instructionIndexBits.W)
+  val counter:   UInt = UInt(param.groupNumberBits.W)
 }
 
 class RingPort[T <: Data](gen: T) extends Bundle {
@@ -262,7 +262,7 @@ class RingPort[T <: Data](gen: T) extends Bundle {
 }
 
 class SchedulerFeedback(param: LaneParameter) extends Bundle {
-  val instructionIndex: UInt = UInt(param.instructionIndexSize.W)
+  val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 
   /** for instructions that might finish in other lanes, use [[complete]] to tell the target lane */
   val complete: Bool = Bool()
@@ -270,7 +270,7 @@ class SchedulerFeedback(param: LaneParameter) extends Bundle {
 
 class V0Update(param: LaneParameter) extends Bundle {
   val data:   UInt = UInt(param.datapathWidth.W)
-  val offset: UInt = UInt(param.vrfOffsetWidth.W)
+  val offset: UInt = UInt(param.vrfOffsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
   val mask: UInt = UInt(4.W)
 }
@@ -298,9 +298,9 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
   val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
   val vs2:       UInt = UInt(param.regNumBits.W)
-  val instIndex: UInt = UInt(param.instructionIndexSize.W)
+  val instIndex: UInt = UInt(param.instructionIndexBits.W)
   val vdOffset:  UInt = UInt(3.W)
-  val offset:    UInt = UInt(param.offsetBits.W)
+  val offset:    UInt = UInt(param.vrfOffsetBits.W)
   val seg:       ValidIO[UInt] = Valid(UInt(3.W))
   val eew:       UInt = UInt(2.W)
   val ls:        Bool = Bool()

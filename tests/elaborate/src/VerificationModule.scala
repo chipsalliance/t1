@@ -74,7 +74,7 @@ class VerificationModule(dut: V) extends TapModule {
   // clone IO from V(I need types)
   val req:              DecoupledIO[VRequest] = IO(Decoupled(new VRequest(dut.parameter.xLen)))
   val resp:             ValidIO[VResponse] = IO(Flipped(Valid(new VResponse(dut.parameter.xLen))))
-  val csrInterface:     LaneCsrInterface = IO(Output(new LaneCsrInterface(dut.parameter.laneParam.vlWidth)))
+  val csrInterface:     LaneCsrInterface = IO(Output(new LaneCsrInterface(dut.parameter.laneParam.vlMaxBits)))
   val storeBufferClear: Bool = IO(Output(Bool()))
   val tlPort:           Vec[TLBundle] = IO(Vec(dut.parameter.memoryBankSize, Flipped(dut.parameter.tlParam.bundle())))
   storeBufferClear := true.B
@@ -88,7 +88,7 @@ class VerificationModule(dut: V) extends TapModule {
   val lsuReqEnqPeek = Module(new ExtModule with HasExtModuleInline {
     override val desiredName = "dpiPeekLsuEnq"
     val clock = IO(Input(Clock()))
-    val numMshr = dut.parameter.lsuParam.mshrSize
+    val numMshr = dut.parameter.lsuParam.lsuMSHRSize
     val enq = IO(Input(UInt(numMshr.W)))
     setInline(
       s"$desiredName.sv",
@@ -114,9 +114,9 @@ class VerificationModule(dut: V) extends TapModule {
       val peekWriteQueue = Module(new ExtModule with HasExtModuleInline {
         override val desiredName = "dpiPeekWriteQueue"
         val clock = IO(Input(Clock()))
-        val data = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.offsetBits, dut.parameter.vrfParam.instructionIndexSize, dut.parameter.vrfParam.ELEN)))
+        val data = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.vrfOffsetBits, dut.parameter.vrfParam.instructionIndexBits, dut.parameter.vrfParam.eLen)))
         val writeValid = IO(Input(Bool()))
-        val targetLane = IO(Input(UInt(dut.parameter.laneNumer.W)))
+        val targetLane = IO(Input(UInt(dut.parameter.laneNumber.W)))
         val mshrIdx = IO(Input(UInt(32.W)))
         setInline(
           s"$desiredName.sv",
@@ -170,7 +170,7 @@ class VerificationModule(dut: V) extends TapModule {
         val clock = IO(Input(Clock()))
         val valid = IO(Input(Bool()))
         val landIdx = IO(Input(UInt(32.W)))
-        val request = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.offsetBits, dut.parameter.vrfParam.instructionIndexSize, dut.parameter.vrfParam.ELEN)))
+        val request = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.vrfOffsetBits, dut.parameter.vrfParam.instructionIndexBits, dut.parameter.vrfParam.eLen)))
         setInline(
           s"$desiredName.sv",
           s"""module $desiredName(
@@ -288,7 +288,7 @@ class VerificationModule(dut: V) extends TapModule {
     override val desiredName = "dpiPeekIssue"
     val clock = IO(Input(Clock()))
     val ready = IO(Input(Bool()))
-    val issueIdx = IO(Input(UInt(dut.parameter.instructionIndexWidth.W)))
+    val issueIdx = IO(Input(UInt(dut.parameter.instructionIndexBits.W)))
     setInline(
       s"$desiredName.sv",
       s"""module $desiredName(
