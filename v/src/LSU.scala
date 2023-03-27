@@ -4,35 +4,65 @@ import chisel3._
 import chisel3.util._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelD, TLChannelDParameter}
 
-case class LSUParam(ELEN: Int, chainingSize: Int, VLEN: Int = 1024, lane: Int = 8, vaWidth: Int = 32) {
-  val maskGroupWidth:    Int = 32
-  val maskGroupSize:     Int = VLEN / 32
+/**
+  * @param datapathWidth ELEN
+  * @param chainingSize how many instructions can be chained
+  * @param vLen VLEN
+  * @param laneNumber how many lanes in the vector processor
+  * @param paWidth physical address width
+  */
+case class LSUParam(
+  datapathWidth:        Int,
+  chainingSize:         Int,
+  vLen:                 Int,
+  laneNumber:           Int,
+  paWidth:              Int,
+  sourceWidth:          Int,
+  sizeWidth:            Int,
+  maskWidth:            Int,
+  memoryBankSize:       Int,
+  lsuMSHRSize:          Int,
+  lsuVRFWriteQueueSize: Int,
+  tlParam:              TLBundleParameter) {
+
+  /** see [[VParameter.maskGroupWidth]]. */
+  val maskGroupWidth: Int = datapathWidth
+
+  /** see [[VParameter.maskGroupSize]]. */
+  val maskGroupSize: Int = vLen / datapathWidth
+
+  /** hardware width of [[maskGroupSize]] */
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
-  val VLMaxBits:         Int = log2Ceil(VLEN) + 1
-  val sourceWidth:       Int = 10
-  val tlBank:            Int = 2
-  val bankPosition:      Int = 6
-  val mshrSize:          Int = 3
-  val laneGroupSize:     Int = VLEN / lane
-  val writeQueueSize:    Int = 4
-  val tlParam: TLBundleParameter = TLBundleParameter(
-    a = TLChannelAParameter(vaWidth, sourceWidth, ELEN, 2, 4),
-    b = None,
-    c = None,
-    d = TLChannelDParameter(sourceWidth, sourceWidth, ELEN, 2),
-    e = None
-  )
-  def mshrParam:            MSHRParam = MSHRParam(chainingSize)
-  val regNumBits:           Int = log2Ceil(32)
-  val instructionIndexSize: Int = log2Ceil(chainingSize) + 1
-  val singleGroupSize:      Int = VLEN / ELEN / lane
-  val offsetBits:           Int = log2Ceil(singleGroupSize)
+
+  /** hardware width of [[LaneCsrInterface.vl]]
+    *
+    * `+1` is for vl being 0 to vl(not vlMax - 1).
+    * we use less than for comparing, rather than less equal.
+    */
+  val vLenBits: Int = log2Ceil(vLen) + 1
+
+  /** TODO: configured by cache line size. */
+  val bankPosition: Int = 6
+
+  def mshrParam: MSHRParam = MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, tlParam)
+
+  /** see [[VRFParam.regNumBits]] */
+  val regNumBits: Int = log2Ceil(32)
+
+  /** see [[VParameter.instructionIndexBits]] */
+  val instructionIndexBits: Int = log2Ceil(chainingSize) + 1
+
+  /** see [[LaneParameter.singleGroupSize]] */
+  val singleGroupSize: Int = vLen / datapathWidth / laneNumber
+
+  /** see [[LaneParameter.vrfOffsetBits]] */
+  val vrfOffsetBits: Int = log2Ceil(singleGroupSize)
 }
 
 class LSUWriteQueueBundle(param: LSUParam) extends Bundle {
   val data: VRFWriteRequest =
-    new VRFWriteRequest(param.regNumBits, param.offsetBits, param.instructionIndexSize, param.ELEN)
-  val targetLane: UInt = UInt(param.lane.W)
+    new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
+  val targetLane: UInt = UInt(param.laneNumber.W)
 }
 class LSUInstInformation extends Bundle {
 
@@ -74,49 +104,54 @@ class LSUReq(dataWidth: Int) extends Bundle {
 }
 
 class LSU(param: LSUParam) extends Module {
-  val req:          DecoupledIO[LSUReq] = IO(Flipped(Decoupled(new LSUReq(param.ELEN))))
-  val maskRegInput: Vec[UInt] = IO(Input(Vec(param.mshrSize, UInt(param.maskGroupWidth.W))))
-  val maskSelect:   Vec[UInt] = IO(Output(Vec(param.mshrSize, UInt(param.maskGroupSizeBits.W))))
-  val tlPort:       Vec[TLBundle] = IO(Vec(param.tlBank, param.tlParam.bundle()))
+  val req:          DecoupledIO[LSUReq] = IO(Flipped(Decoupled(new LSUReq(param.datapathWidth))))
+  val maskRegInput: Vec[UInt] = IO(Input(Vec(param.lsuMSHRSize, UInt(param.maskGroupWidth.W))))
+  val maskSelect:   Vec[UInt] = IO(Output(Vec(param.lsuMSHRSize, UInt(param.maskGroupSizeBits.W))))
+  val tlPort:       Vec[TLBundle] = IO(Vec(param.memoryBankSize, param.tlParam.bundle()))
   val readDataPorts: Vec[DecoupledIO[VRFReadRequest]] = IO(
-    Vec(param.lane, Decoupled(new VRFReadRequest(param.regNumBits, param.offsetBits, param.instructionIndexSize)))
-  )
-  val readResults: Vec[UInt] = IO(Input(Vec(param.lane, UInt(param.ELEN.W))))
-  val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(
     Vec(
-      param.lane,
-      Decoupled(new VRFWriteRequest(param.regNumBits, param.offsetBits, param.instructionIndexSize, param.ELEN))
+      param.laneNumber,
+      Decoupled(new VRFReadRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits))
     )
   )
-  val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.VLMaxBits)))
-  val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.lane, Flipped(Valid(UInt(param.ELEN.W)))))
-  val offsetReadTag:    Vec[UInt] = IO(Input(Vec(param.lane, UInt(3.W))))
+  val readResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
+  val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(
+    Vec(
+      param.laneNumber,
+      Decoupled(
+        new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
+      )
+    )
+  )
+  val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.vLenBits)))
+  val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
+  val offsetReadTag:    Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(3.W))))
   val lastReport:       ValidIO[UInt] = IO(Output(Valid(UInt(3.W))))
   val lsuOffsetReq:     Bool = IO(Output(Bool()))
 
-  val reqEnq:          Vec[Bool] = Wire(Vec(param.mshrSize, Bool()))
-  val tryToReadData:   Vec[UInt] = Wire(Vec(param.mshrSize, UInt(param.lane.W)))
-  val readDataArbiter: Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.lane, Bool())))
-  val readDataFire:    Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.lane, Bool())))
+  val reqEnq:          Vec[Bool] = Wire(Vec(param.lsuMSHRSize, Bool()))
+  val tryToReadData:   Vec[UInt] = Wire(Vec(param.lsuMSHRSize, UInt(param.laneNumber.W)))
+  val readDataArbiter: Vec[Vec[Bool]] = Wire(Vec(param.lsuMSHRSize, Vec(param.laneNumber, Bool())))
+  val readDataFire:    Vec[Vec[Bool]] = Wire(Vec(param.lsuMSHRSize, Vec(param.laneNumber, Bool())))
   val getReadPort:     IndexedSeq[Bool] = readDataFire.map(_.asUInt.orR)
 
-  val tryToAGet:        Vec[UInt] = Wire(Vec(param.mshrSize, UInt(param.tlBank.W)))
-  val getArbiter:       Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.tlBank, Bool())))
+  val tryToAGet:        Vec[UInt] = Wire(Vec(param.lsuMSHRSize, UInt(param.memoryBankSize.W)))
+  val getArbiter:       Vec[Vec[Bool]] = Wire(Vec(param.lsuMSHRSize, Vec(param.memoryBankSize, Bool())))
   val tileChannelReady: IndexedSeq[Bool] = getArbiter.map(_.asUInt.orR)
 
-  val tryToAckData: Vec[UInt] = Wire(Vec(param.tlBank, UInt(param.mshrSize.W)))
-  val readyArbiter: Vec[Vec[Bool]] = Wire(Vec(param.tlBank, Vec(param.mshrSize, Bool())))
-  val ackArbiter:   Vec[Vec[Bool]] = Wire(Vec(param.tlBank, Vec(param.mshrSize, Bool())))
+  val tryToAckData: Vec[UInt] = Wire(Vec(param.memoryBankSize, UInt(param.lsuMSHRSize.W)))
+  val readyArbiter: Vec[Vec[Bool]] = Wire(Vec(param.memoryBankSize, Vec(param.lsuMSHRSize, Bool())))
+  val ackArbiter:   Vec[Vec[Bool]] = Wire(Vec(param.memoryBankSize, Vec(param.lsuMSHRSize, Bool())))
   val ackReady:     IndexedSeq[Bool] = ackArbiter.map(_.asUInt.orR)
 
-  val tryToWriteData:   Vec[UInt] = Wire(Vec(param.mshrSize, UInt(param.lane.W)))
-  val writeDataArbiter: Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.lane, Bool())))
-  val writeDataFire:    Vec[Vec[Bool]] = Wire(Vec(param.mshrSize, Vec(param.lane, Bool())))
+  val tryToWriteData:   Vec[UInt] = Wire(Vec(param.lsuMSHRSize, UInt(param.laneNumber.W)))
+  val writeDataArbiter: Vec[Vec[Bool]] = Wire(Vec(param.lsuMSHRSize, Vec(param.laneNumber, Bool())))
+  val writeDataFire:    Vec[Vec[Bool]] = Wire(Vec(param.lsuMSHRSize, Vec(param.laneNumber, Bool())))
   val getWritePort:     IndexedSeq[Bool] = writeDataFire.map(_.asUInt.orR)
 
   val writeQueueVec: Seq[Queue[LSUWriteQueueBundle]] =
-    Seq.fill(param.mshrSize)(Module(new Queue(new LSUWriteQueueBundle(param), param.writeQueueSize)))
-  val mshrVec: Seq[MSHR] = Seq.tabulate(param.mshrSize) { index =>
+    Seq.fill(param.lsuMSHRSize)(Module(new Queue(new LSUWriteQueueBundle(param), param.lsuVRFWriteQueueSize)))
+  val mshrVec: Seq[MSHR] = Seq.tabulate(param.lsuMSHRSize) { index =>
     val mshr: MSHR = Module(new MSHR(param.mshrParam))
 
     mshr.req.valid := reqEnq(index)
@@ -127,7 +162,7 @@ class LSU(param: LSUParam) extends Module {
     mshr.readResult := Mux1H(RegNext(mshr.status.targetLane), readResults)
 
     // offset
-    Seq.tabulate(param.lane) { laneID =>
+    Seq.tabulate(param.laneNumber) { laneID =>
       mshr.offsetReadResult(laneID).valid := offsetReadResult(laneID).valid && offsetReadTag(
         laneID
       ) === mshr.status.instIndex
@@ -169,12 +204,12 @@ class LSU(param: LSUParam) extends Module {
   }
 
   val idleMask:   UInt = VecInit(mshrVec.map(_.status.idle)).asUInt
-  val idleSelect: UInt = ffo(idleMask)(param.mshrSize - 1, 0)
+  val idleSelect: UInt = ffo(idleMask)(param.lsuMSHRSize - 1, 0)
   reqEnq := VecInit(Mux(req.valid, idleSelect, 0.U).asBools)
   // todo: address conflict
   req.ready := idleMask.orR
 
-  Seq.tabulate(param.lane) { laneID =>
+  Seq.tabulate(param.laneNumber) { laneID =>
     // 处理读请求的仲裁
     tryToReadData.map(_(laneID)).zipWithIndex.foldLeft(false.B) {
       case (occupied, (tryToUse, i)) =>
@@ -201,7 +236,7 @@ class LSU(param: LSUParam) extends Module {
   val tlDSource:   IndexedSeq[UInt] = tlPort.map(_.d.bits.source(1, 0))
   val tlDSourceOH: IndexedSeq[UInt] = tlDSource.map(UIntToOH(_))
 
-  Seq.tabulate(param.tlBank) { bankID =>
+  Seq.tabulate(param.memoryBankSize) { bankID =>
     tryToAGet.map(_(bankID)).zipWithIndex.foldLeft(false.B) {
       case (occupied, (tryToUse, i)) =>
         getArbiter(i)(bankID) := tryToUse && !occupied && tlPort(bankID).a.ready

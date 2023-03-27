@@ -13,59 +13,110 @@ object VParameter {
 /**
   * @param xLen XLEN
   * @param vLen VLEN
-  * @param dataPathWidth width of data path, can be 32 or 64
-  * @param laneNumer how many lanes in the vector processor
+  * @param datapathWidth width of data path, can be 32 or 64, decides the memory bandwidth.
+  * @param laneNumber how many lanes in the vector processor
   * @param physicalAddressWidth width of memory bus address width
   * @param chainingSize how many instructions can be chained
+  *                     TODO: make it a val, not parameter.
+  *
+  * @note
+  * Chaining:
+  *  - limited by VRF Memory Port. TODO: add bank in VRF.
+  *  - the chaining size is decided by logic units. if the bandwidth is limited by the logic units, we should increase lane size.
+  * TODO: sort a machine-readable chaining matrix for test case generation.
   */
 case class VParameter(
   xLen:                 Int,
   vLen:                 Int,
-  dataPathWidth:        Int,
-  laneNumer:            Int,
+  datapathWidth:        Int,
+  laneNumber:           Int,
   physicalAddressWidth: Int,
   chainingSize:         Int,
   vrfWriteQueueSize:    Int)
     extends SerializableModuleParameter {
+
+  /** TODO: make it a parameter.
+    *
+    * xLen data bits.
+    *
+    * @note
+    * bandwidth = dataPathWidth * memoryBankSize
+    */
   val memoryBankSize: Int = 2
+
+  /** minimum of sew, defined in spec. */
+  val sewMin: Int = 8
 
   /** TODO: uarch docs for mask(v0) group and normal vrf groups.
     *
     * The state machine in LSU.mshr will handle `dataPathWidth` bits data for each group.
     * For each lane, it will cache corresponding data in `dataPathWidth` bits.
+    *
+    * The reason of this design, we cannot fanout all wires in mask to LSU.
+    * So we group them into `maskGroupSize` groups, and LSU will handle them one by one in cycle.
     */
-  val maskGroupWidth: Int = dataPathWidth
+  val maskGroupWidth: Int = datapathWidth * laneNumber / sewMin
 
+  /** how many groups will be divided into for mask(v0).
+    *
+    * The VRF(0) is duplicated from each lanes, this is used for mask broadcasting to each lanes.
+    */
+  val maskGroupSize: Int = vLen / maskGroupWidth
+
+  /** vLen in Byte. */
   val vlenb: Int = vLen / 8
 
-  val dataPathWidthCounterBits: Int = log2Ceil(dataPathWidth)
+  /** The hardware width of [[datapathWidth]]. */
+  val dataPathWidthBits: Int = log2Ceil(datapathWidth)
 
-  /** how many groups will be divided into for mask(v0). */
-  val maskGroupSize: Int = vLen / dataPathWidth
-
-  /** TODO: uarch docs for instruction order maintenance.
-    * 1 in MSB for instruction order.
-    */
-  val instructionIndexWidth: Int = log2Ceil(chainingSize) + 1
+  /** 1 in MSB for instruction order. */
+  val instructionIndexBits: Int = log2Ceil(chainingSize) + 1
 
   /** maximum of lmul, defined in spec. */
   val lmulMax = 8
 
-  /** Memory bundle parameter. */
-  val memoryDataWidth: Int = dataPathWidth
+  /** data group in lane:
+    * for each instruction, it will operate on `vLen * lmulMax` databits,
+    * we split them to different lanes, and partitioned into groups.
+    */
+  val groupNumberMax: Int = vLen * lmulMax / datapathWidth / laneNumber
 
-  val groupNumberMax:   Int = vLen / dataPathWidth / laneNumer * lmulMax
-  val groupCounterWidth:  Int = log2Ceil(groupNumberMax)
-  /** TODO: uarch docs
-    *
-    * width of tilelink source id
-    * 5 for offset
+  /** the hardware width of [[groupNumberMax]]. */
+  val groupNumberMaxBits: Int = log2Ceil(groupNumberMax)
+
+  /** Used in memory bundle parameter. */
+  val memoryDataWidth: Int = datapathWidth
+
+  /** LSU MSHR Size, from experience, we use 3 for 2R1W，this is also limited by the number of memory ports.
+    * TODO: in vector design, there are some instructions which have 3R1W, this may decrease performance. we need perf it.
+    */
+  val lsuMSHRSize: Int = 3
+
+  /** TODO: make it configurable for perf. */
+  val lsuVRFWriteQueueSize: Int = 4
+
+  /** width of tilelink source id
+    * log2(maskGroupWidth) for offset
     * 3 for segment index
     * 2 for 3 MSHR(2 read + 1 write)
     */
-  val sourceWidth: Int = 10
-  val sizeWidth:   Int = log2Ceil(log2Ceil(memoryDataWidth / 8)) + 1
-  val maskWidth:   Int = memoryDataWidth / 8
+  val sourceWidth: Int = {
+    log2Ceil(maskGroupWidth) + // offset of mask group
+      3 + // segment index, this is decided by spec.
+      log2Ceil(lsuMSHRSize) // 3 MSHR(2 read + 1 write)
+  }
+
+  /** for TileLink `size` element.
+    * for most of the time, size is 2'b10, which means 4 bytes.
+    * EEW = 8bit, indexed LSU will access 1 byte.(bandwidth is 1/4).
+    * TODO: perf it.
+    */
+  val sizeWidth: Int = log2Ceil(memoryDataWidth / 8)
+
+  /** for TileLink `mask` element. */
+  val maskWidth: Int = memoryDataWidth / 8
+
+  /** parameter for TileLink. */
   val tlParam: TLBundleParameter = TLBundleParameter(
     a = TLChannelAParameter(physicalAddressWidth, sourceWidth, memoryDataWidth, sizeWidth, maskWidth),
     b = None,
@@ -73,19 +124,32 @@ case class VParameter(
     d = TLChannelDParameter(sourceWidth, sourceWidth, memoryDataWidth, sizeWidth),
     e = None
   )
-  // TODO: what a fuck are these parameters?
+
+  /** Parameter for [[Lane]] */
   def laneParam: LaneParameter =
     LaneParameter(
       vLen = vLen,
-      datapathWidth = dataPathWidth,
-      laneNumber = laneNumer,
+      datapathWidth = datapathWidth,
+      laneNumber = laneNumber,
       chainingSize = chainingSize,
-      vrfWriteQueueSize = vrfWriteQueueSize
+      crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize
     )
-  def lsuParam: LSUParam = LSUParam(dataPathWidth, chainingSize)
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumer, dataPathWidth, chainingSize, vrfWriteQueueSize)
-  def datePathParam:    DataPathParam = DataPathParam(dataPathWidth)
-  require(xLen == dataPathWidth)
+  def lsuParam: LSUParam = LSUParam(
+    datapathWidth,
+    chainingSize,
+    vLen,
+    laneNumber,
+    xLen,
+    sourceWidth,
+    sizeWidth,
+    maskWidth,
+    memoryBankSize,
+    lsuMSHRSize,
+    lsuVRFWriteQueueSize,
+    tlParam
+  )
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize)
+  require(xLen == datapathWidth)
 }
 
 class V(val parameter: VParameter) extends Module with SerializableModule[VParameter] {
@@ -102,7 +166,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   /** CSR interface from CPU.
     */
-  val csrInterface: LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.laneParam.vlWidth)))
+  val csrInterface: LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.laneParam.vlMaxBits)))
 
   /** from CPU LSU, store buffer is cleared, memory can observe memory requests after this is asserted.
     */
@@ -113,17 +177,17 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.memoryBankSize, parameter.tlParam.bundle()))
 
   /** the LSU Module */
-  val lsu: LSU = Module(new LSU(parameter.lsuParam))
+  val lsu:    LSU = Module(new LSU(parameter.lsuParam))
   val decode: VectorDecoder = Module(new VectorDecoder)
 
   // TODO: cover overflow
   // TODO: uarch doc about the order of instructions
-  val instructionCounter:     UInt = RegInit(0.U(parameter.instructionIndexWidth.W))
+  val instructionCounter:     UInt = RegInit(0.U(parameter.instructionIndexBits.W))
   val nextInstructionCounter: UInt = instructionCounter + 1.U
   when(request.fire) { instructionCounter := nextInstructionCounter }
 
   // todo: handle waw
-  val responseCounter:     UInt = RegInit(0.U(parameter.instructionIndexWidth.W))
+  val responseCounter:     UInt = RegInit(0.U(parameter.instructionIndexBits.W))
   val nextResponseCounter: UInt = responseCounter + 1.U
   when(response.fire) { responseCounter := nextResponseCounter }
 
@@ -136,12 +200,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val isStoreType:     Bool = !request.bits.instruction(6) && request.bits.instruction(5)
   val maskType:        Bool = !request.bits.instruction(25)
   // lane 只读不执行的指令
-  val readOnlyInstruction:  Bool = decodeResult(Decoder.readOnly)
+  val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
-  val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv)) && request.bits.instruction(6)
+  val maskUnitInstruction: Bool =
+    (decodeResult(Decoder.slid) || decodeResult(Decoder.mv)) && request.bits.instruction(6)
   val skipLastFromLane: Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
   val instructionValid: Bool = csrInterface.vl > csrInterface.vStart
-  val intLMUL: UInt = (1.U << csrInterface.vlmul(1, 0)).asUInt
+  val intLMUL:          UInt = (1.U << csrInterface.vlmul(1, 0)).asUInt
 
   // TODO: these should be decoding results
   val noReadST:    Bool = isLoadStoreType && (!request.bits.instruction(26))
@@ -150,9 +215,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val source1Extend: UInt = Mux1H(
     UIntToOH(csrInterface.vSew)(2, 0),
     Seq(
-      Fill(parameter.dataPathWidth - 8, request.bits.src1Data(7) && !decodeResult(Decoder.unsigned0))
+      Fill(parameter.datapathWidth - 8, request.bits.src1Data(7) && !decodeResult(Decoder.unsigned0))
         ## request.bits.src1Data(7, 0),
-      Fill(parameter.dataPathWidth - 16, request.bits.src1Data(15) && !decodeResult(Decoder.unsigned0))
+      Fill(parameter.datapathWidth - 16, request.bits.src1Data(15) && !decodeResult(Decoder.unsigned0))
         ## request.bits.src1Data(15, 0),
       request.bits.src1Data(31, 0)
     )
@@ -169,7 +234,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         .grouped(groupSize)
         .toSeq
         .map(VecInit(_).asUInt)
-        .grouped(parameter.laneNumer)
+        .grouped(parameter.laneNumber)
         .toSeq
         .transpose
         .map(seq => VecInit(seq).asUInt)
@@ -182,11 +247,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val instructionToSlotOH: UInt = Wire(UInt(parameter.chainingSize.W))
 
   /** synchronize signal from each lane, for mask units.(ffo) */
-  val laneSynchronize: Vec[Bool] = Wire(Vec(parameter.laneNumer, Bool()))
+  val laneSynchronize: Vec[Bool] = Wire(Vec(parameter.laneNumber, Bool()))
 
   /** all lanes are synchronized. */
   val synchronized: Bool = WireDefault(false.B)
-  /** gather 也有eew, 由top通知lane结束, 干脆所有的lane只读的都由top维护结束*/
+
+  /** gather 也有eew, 由top通知lane结束, 干脆所有的lane只读的都由top维护结束 */
   val readOnlyFinish: Bool = WireDefault(false.B)
 
   /** last slot is committing. */
@@ -198,7 +264,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   /** for each lane, for instruction slot,
     * when asserted, the corresponding instruction is finished.
     */
-  val instructionFinished: Vec[Vec[Bool]] = Wire(Vec(parameter.laneNumer, Vec(parameter.chainingSize, Bool())))
+  val instructionFinished: Vec[Vec[Bool]] = Wire(Vec(parameter.laneNumber, Vec(parameter.chainingSize, Bool())))
 
   // TODO[0]: remove these signals
   nextInstructionType.compress := decodeResult(Decoder.compress)
@@ -217,44 +283,45 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val unOrderType: Bool = decodeResult(Decoder.unOrderWrite)
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
   // TODO[1]: from decode
-  val specialInst: Bool = maskUnitType || indexTypeLS || maskDestination || maskUnitType || maskUnitInstruction || unOrderType
-  val busClear:    Bool = Wire(Bool())
+  val specialInst: Bool =
+    maskUnitType || indexTypeLS || maskDestination || maskUnitType || maskUnitInstruction || unOrderType
+  val busClear:            Bool = Wire(Bool())
   val instructionRAWReady: Bool = Wire(Bool())
-  val allSlotFree: Bool = Wire(Bool())
+  val allSlotFree:         Bool = Wire(Bool())
 
   // mask Unit 与lane交换数据
   val writeType: VRFWriteRequest = new VRFWriteRequest(
     parameter.vrfParam.regNumBits,
-    parameter.vrfParam.offsetBits,
-    parameter.instructionIndexWidth,
-    parameter.dataPathWidth
+    parameter.vrfParam.vrfOffsetBits,
+    parameter.instructionIndexBits,
+    parameter.datapathWidth
   )
-  val maskUnitWrite: ValidIO[VRFWriteRequest] = Wire(Valid(writeType))
-  val maskUnitWriteVec: Vec[ValidIO[VRFWriteRequest]] = Wire(Vec(3, Valid(writeType)))
-  val maskWriteLaneSelect: Vec[UInt] = Wire(Vec(3, UInt(parameter.laneNumer.W)))
+  val maskUnitWrite:       ValidIO[VRFWriteRequest] = Wire(Valid(writeType))
+  val maskUnitWriteVec:    Vec[ValidIO[VRFWriteRequest]] = Wire(Vec(3, Valid(writeType)))
+  val maskWriteLaneSelect: Vec[UInt] = Wire(Vec(3, UInt(parameter.laneNumber.W)))
   // 默认是head
   val maskUnitWriteSelect: UInt = Mux1H(maskUnitWriteVec.map(_.valid), maskWriteLaneSelect)
   maskUnitWriteVec.foreach(_ := DontCare)
   maskUnitWrite := Mux1H(maskUnitWriteVec.map(_.valid), maskUnitWriteVec)
-  val writeSelectMaskUnit: Vec[Bool] = Wire(Vec(parameter.laneNumer, Bool()))
-  val maskUnitWriteReady: Bool = writeSelectMaskUnit.asUInt.orR
+  val writeSelectMaskUnit: Vec[Bool] = Wire(Vec(parameter.laneNumber, Bool()))
+  val maskUnitWriteReady:  Bool = writeSelectMaskUnit.asUInt.orR
 
   // read
   val readType: VRFReadRequest = new VRFReadRequest(
     parameter.vrfParam.regNumBits,
-    parameter.vrfParam.offsetBits,
-    parameter.instructionIndexWidth
+    parameter.vrfParam.vrfOffsetBits,
+    parameter.instructionIndexBits
   )
-  val maskUnitRead: ValidIO[VRFReadRequest] = Wire(Valid(readType))
-  val maskUnitReadVec: Vec[ValidIO[VRFReadRequest]] = Wire(Vec(3, Valid(readType)))
-  val maskReadLaneSelect: Vec[UInt] = Wire(Vec(3, UInt(parameter.laneNumer.W)))
+  val maskUnitRead:       ValidIO[VRFReadRequest] = Wire(Valid(readType))
+  val maskUnitReadVec:    Vec[ValidIO[VRFReadRequest]] = Wire(Vec(3, Valid(readType)))
+  val maskReadLaneSelect: Vec[UInt] = Wire(Vec(3, UInt(parameter.laneNumber.W)))
   val maskUnitReadSelect: UInt = Mux1H(maskUnitReadVec.map(_.valid), maskReadLaneSelect)
   maskUnitReadVec.foreach(_.bits.instructionIndex := DontCare)
   maskUnitRead := Mux1H(maskUnitReadVec.map(_.valid), maskUnitReadVec)
-  val readSelectMaskUnit: Vec[Bool] = Wire(Vec(parameter.laneNumer, Bool()))
+  val readSelectMaskUnit: Vec[Bool] = Wire(Vec(parameter.laneNumber, Bool()))
   val maskUnitReadReady = readSelectMaskUnit.asUInt.orR
-  val laneReadResult: Vec[UInt] = Wire(Vec(parameter.laneNumer, UInt(parameter.dataPathWidth.W)))
-  val WARRedResult: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W))))
+  val laneReadResult: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
+  val WARRedResult:   ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.datapathWidth.W))))
   // mask unit 最后的写
   val lastMaskUnitWrite: Bool = Wire(Bool())
 
@@ -262,46 +329,51 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val gatherOverlap: Bool = Wire(Bool())
   val gatherNeedRead: Bool = request.valid && decodeResult(Decoder.gather) &&
     !decodeResult(Decoder.vtype) && !gatherOverlap
-  val gatherReadFinish: Bool = RegEnable(!request.fire, false.B, (RegNext(maskUnitReadReady) && gatherNeedRead) || request.fire)
+  val gatherReadFinish: Bool =
+    RegEnable(!request.fire, false.B, (RegNext(maskUnitReadReady) && gatherNeedRead) || request.fire)
   val gatherReadDataOffset: UInt = Wire(UInt(5.W))
-  val gatherData: UInt = Mux(gatherOverlap, 0.U, (WARRedResult.bits >> gatherReadDataOffset).asUInt)
+  val gatherData:           UInt = Mux(gatherOverlap, 0.U, (WARRedResult.bits >> gatherReadDataOffset).asUInt)
 
   /** data that need to be compute at top. */
   val data: Vec[ValidIO[UInt]] = RegInit(
-    VecInit(Seq.fill(parameter.laneNumer)(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W)))))
+    VecInit(Seq.fill(parameter.laneNumber)(0.U.asTypeOf(Valid(UInt(parameter.datapathWidth.W)))))
   )
-  val maskDataForCompress: UInt = RegInit(0.U(parameter.dataPathWidth.W))
-  val dataClear: Bool = WireDefault(false.B)
-  val completedVec: Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.laneNumer)(false.B)))
-  val selectffoIndex: ValidIO[UInt] = Wire(Valid(UInt(parameter.xLen.W)))
-  val completedLeftOr: UInt = (scanLeftOr(completedVec.asUInt) << 1).asUInt(parameter.laneNumer - 1, 0)
+  val maskDataForCompress: UInt = RegInit(0.U(parameter.datapathWidth.W))
+  val dataClear:           Bool = WireDefault(false.B)
+  val completedVec:        Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.laneNumber)(false.B)))
+  val selectffoIndex:      ValidIO[UInt] = Wire(Valid(UInt(parameter.xLen.W)))
+  val completedLeftOr:     UInt = (scanLeftOr(completedVec.asUInt) << 1).asUInt(parameter.laneNumber - 1, 0)
   // 按指定的sew拼成 {laneNumer * dataPathWidth} bit, 然后根据sew选择出来
-  val sortedData: UInt = Mux1H(sew1H(2, 0), Seq(4, 2, 1).map { groupSize =>
-    VecInit(data.map { element =>
-      element.bits.asBools                      //[x] * 32 eg: sew = 1
-        .grouped(groupSize)                     //[x, x] * 16
-        .toSeq
-        .map(VecInit(_).asUInt)                 //[xx] * 16
-    }.transpose.map(VecInit(_).asUInt)).asUInt  //[x*16] * 16 -> x * 256
-  })
+  val sortedData: UInt = Mux1H(
+    sew1H(2, 0),
+    Seq(4, 2, 1).map { groupSize =>
+      VecInit(data.map { element =>
+        element.bits.asBools //[x] * 32 eg: sew = 1
+          .grouped(groupSize) //[x, x] * 16
+          .toSeq
+          .map(VecInit(_).asUInt) //[xx] * 16
+      }.transpose.map(VecInit(_).asUInt)).asUInt //[x*16] * 16 -> x * 256
+    }
+  )
   // 把已经排过序的数据重新分给各个lane
-  val regroupData: Vec[UInt] = VecInit(Seq.tabulate(parameter.laneNumer) { laneIndex =>
+  val regroupData: Vec[UInt] = VecInit(Seq.tabulate(parameter.laneNumber) { laneIndex =>
     sortedData(
-      laneIndex * parameter.dataPathWidth + parameter.dataPathWidth - 1,
-      laneIndex * parameter.dataPathWidth
+      laneIndex * parameter.datapathWidth + parameter.datapathWidth - 1,
+      laneIndex * parameter.datapathWidth
     )
   })
-  val dataResult: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.dataPathWidth.W))))
+  val dataResult: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.datapathWidth.W))))
   // todo: viota & compress & reduce
 
   val executeForLastLaneFire: Bool = WireDefault(false.B)
+
   /** state machine register for each instruction. */
   val instStateVec: Seq[InstructionControl] = Seq.tabulate(parameter.chainingSize) { index =>
     // todo: cover here
     val control = RegInit(
       (-1)
-        .S(new InstructionControl(parameter.instructionIndexWidth, parameter.laneNumer).getWidth.W)
-        .asTypeOf(new InstructionControl(parameter.instructionIndexWidth, parameter.laneNumer))
+        .S(new InstructionControl(parameter.instructionIndexBits, parameter.laneNumber).getWidth.W)
+        .asTypeOf(new InstructionControl(parameter.instructionIndexBits, parameter.laneNumber))
     )
     val laneAndLSUFinish: Bool = control.endTag.asUInt.andR
 
@@ -320,7 +392,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // two different initial states for endTag:
       // for load/store instruction, use the last bit to indicate whether it is the last instruction
       // for other instructions, use MSB to indicate whether it is the last instruction
-      control.endTag := VecInit(Seq.fill(parameter.laneNumer)(skipLastFromLane) :+ !isLoadStoreType)
+      control.endTag := VecInit(Seq.fill(parameter.laneNumber)(skipLastFromLane) :+ !isLoadStoreType)
     }.otherwise {
       // TODO: remove wLast. last = control.endTag.asUInt.andR
       when(laneAndLSUFinish) {
@@ -342,12 +414,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     // logic like mask&reduce will be put to last slot
     // TODO: review later
     if (index == (parameter.chainingSize - 1)) {
-      val feedBack: UInt = RegInit(0.U(parameter.laneNumer.W))
-      val executeCounter: UInt = RegInit(0.U((log2Ceil(parameter.laneNumer) + 1).W))
+      val feedBack:       UInt = RegInit(0.U(parameter.laneNumber.W))
+      val executeCounter: UInt = RegInit(0.U((log2Ceil(parameter.laneNumber) + 1).W))
       // mask destination时这两count都是以写vrf为视角
-      val writeBackCounter: UInt = RegInit(0.U(log2Ceil(parameter.laneNumer).W))
-      val groupCounter: UInt = RegInit(0.U(parameter.groupCounterWidth.W))
-      val iotaCount: UInt = RegInit(0.U((parameter.laneParam.vlWidth - 1).W))
+      val writeBackCounter: UInt = RegInit(0.U(log2Ceil(parameter.laneNumber).W))
+      val groupCounter:     UInt = RegInit(0.U(parameter.groupNumberMaxBits.W))
+      val iotaCount:        UInt = RegInit(0.U((parameter.laneParam.vlMaxBits - 1).W))
       val maskTypeInstruction = RegInit(false.B)
       val vd = RegInit(0.U(5.W))
       val vs1 = RegInit(0.U(5.W))
@@ -359,13 +431,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val decodeResultReg = RegInit(0.U.asTypeOf(decodeResult))
       val gather: Bool = decodeResultReg(Decoder.gather)
       // for slid
-      val elementIndexCount = RegInit(0.U(parameter.laneParam.vlWidth.W))
-      val compressWriteCount = RegInit(0.U(parameter.laneParam.vlWidth.W))
+      val elementIndexCount = RegInit(0.U(parameter.laneParam.vlMaxBits.W))
+      val compressWriteCount = RegInit(0.U(parameter.laneParam.vlMaxBits.W))
       val nextElementIndex: UInt = elementIndexCount + 1.U
       val firstElement = elementIndexCount === 0.U
       val lastElement: Bool = nextElementIndex === csrInterface.vl
       val updateMaskIndex = WireDefault(false.B)
-      when(updateMaskIndex) { elementIndexCount := nextElementIndex}
+      when(updateMaskIndex) { elementIndexCount := nextElementIndex }
       // 特殊的指令,会阻止 wLast 后把 sExecute 拉回来, 因为需要等待读后才写
       val mixedUnit: Bool = Wire(Bool())
       // slid & gather & extend
@@ -380,11 +452,16 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val firstLane = ffo(completedVec.asUInt)
       val firstLaneIndex: UInt = OHToUInt(firstLane)(2, 0)
       selectffoIndex.valid := decodeResultReg(Decoder.ffo)
-      selectffoIndex.bits := Mux(!completedVec.asUInt.orR, -1.S(parameter.xLen.W).asUInt, Mux1H(
-        firstLane,
-        // 3: firstLaneIndex.width
-        data.map(i => i.bits(parameter.xLen - 1 - 3, 5) ## firstLaneIndex ## i.bits(4, 0))
-      ))
+      selectffoIndex.bits := Mux(
+        !completedVec.asUInt.orR,
+        -1.S(parameter.xLen.W).asUInt,
+        Mux1H(
+          firstLane,
+          // 3: firstLaneIndex.width
+          data.map(i => i.bits(parameter.xLen - 1 - 3, 5) ## firstLaneIndex ## i.bits(4, 0))
+        )
+      )
+
       /** vlmax = vLen * (2**lmul) / (2 ** sew * 8)
         * = (vLen / 8) * 2 ** (lmul - sew)
         * = vlb * 2 ** (lmul - sew)
@@ -392,16 +469,18 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         * sew <- (0, 1, 2)
         * lmul - sew <- [-5, 3]
         * 选择信号 +5 -> lmul - sew + 5 <- [0, 8]
-        * */
+        */
       def largeThanVLMax(source: UInt, advance: Bool = false.B): Bool = {
         val vlenLog2 = log2Ceil(parameter.vLen) // 10
-        val cut = if (source.getWidth >= vlenLog2) source(vlenLog2 - 1, vlenLog2 - 9)
+        val cut =
+          if (source.getWidth >= vlenLog2) source(vlenLog2 - 1, vlenLog2 - 9)
           else (0.U(vlenLog2.W) ## source)(vlenLog2 - 1, vlenLog2 - 9)
         // 9: lmul - sew 的可能值的个数
         val largeList: Vec[Bool] = Wire(Vec(9, Bool()))
-        cut.asBools.reverse.zipWithIndex.foldLeft(advance) { case (a, (b, i)) =>
-          largeList(i) := a
-          a || b
+        cut.asBools.reverse.zipWithIndex.foldLeft(advance) {
+          case (a, (b, i)) =>
+            largeList(i) := a
+            a || b
         }
         val extendVlmul = csrInterface.vlmul(2) ## csrInterface.vlmul
         val selectWire = UIntToOH(5.U(4.W) + extendVlmul - csrInterface.vSew)(8, 0).asBools.reverse
@@ -414,7 +493,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       instructionRAWReady := !(unOrderTypeInstruction && !control.state.idle &&
         // slid 类的会比执行得慢的指令快(div),会修改前面的指令的source
         ((vd === request.bits.instruction(24, 20)) ||
-        (vd === request.bits.instruction(19, 15)) ||
+          (vd === request.bits.instruction(19, 15)) ||
           // slid 类的会比执行得快的指令慢(mv),会被后来的指令修改 source2
           (vs2 === request.bits.instruction(11, 7))) ||
         (unOrderType && !allSlotFree))
@@ -426,7 +505,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         compressWriteCount := 0.U
         iotaCount := 0.U
         instructionBit6 := request.bits.instruction(6)
-        slidUnitIdle := !((decodeResult(Decoder.slid) || nextInstructionType.vGather || decodeResult(Decoder.extend)) && instructionValid)
+        slidUnitIdle := !((decodeResult(Decoder.slid) || nextInstructionType.vGather || decodeResult(
+          Decoder.extend
+        )) && instructionValid)
         iotaUnitIdle := !((decodeResult(Decoder.compress) || decodeResult(Decoder.iota)) && instructionValid)
         vd := request.bits.instruction(11, 7)
         vs1 := request.bits.instruction(19, 15)
@@ -458,31 +539,33 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         * vl假设最大1024,相应的会有11位的vl
         *   xxx xxx xxxxx
         */
-      val dataPathMisaligned = csrInterface.vl(parameter.dataPathWidthCounterBits - 1, 0).orR
-      val groupMisaligned = csrInterface.vl(parameter.dataPathWidthCounterBits + log2Ceil(parameter.laneNumer) - 1,
-        parameter.dataPathWidthCounterBits).orR
+      val dataPathMisaligned = csrInterface.vl(parameter.dataPathWidthBits - 1, 0).orR
+      val groupMisaligned = csrInterface
+        .vl(parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber) - 1, parameter.dataPathWidthBits)
+        .orR
+
       /**
         * 我们需要计算最后一次写的 [[writeBackCounter]] & [[groupCounter]]
         *   lastGroupCounter = vl(10, 8) - !([[dataPathMisaligned]] || [[groupMisaligned]])
         *   lastExecuteCounter = vl(7, 5) - ![[dataPathMisaligned]]
-        * */
+        */
       val lastGroupCounter: UInt =
         csrInterface.vl(
-          parameter.laneParam.vlWidth - 1,
-          parameter.dataPathWidthCounterBits + log2Ceil(parameter.laneNumer)
+          parameter.laneParam.vlMaxBits - 1,
+          parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber)
         ) - !(dataPathMisaligned || groupMisaligned)
       val lastExecuteCounter: UInt =
         csrInterface.vl(
-          parameter.dataPathWidthCounterBits + log2Ceil(parameter.laneNumer) - 1,
-          parameter.dataPathWidthCounterBits
+          parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber) - 1,
+          parameter.dataPathWidthBits
         ) - !dataPathMisaligned
       val lastGroup = groupCounter === lastGroupCounter
       val lastExecute = lastGroup && writeBackCounter === lastExecuteCounter
       val lastExecuteForGroup = writeBackCounter.andR
       // 计算正写的这个lane是不是在边界上
-      val endOH = UIntToOH(csrInterface.vl(parameter.dataPathWidthCounterBits - 1, 0))
+      val endOH = UIntToOH(csrInterface.vl(parameter.dataPathWidthBits - 1, 0))
       val border = lastExecute && dataPathMisaligned
-      val lastGroupMask = scanRightOr(endOH(parameter.dataPathWidth - 1, 1))
+      val lastGroupMask = scanRightOr(endOH(parameter.datapathWidth - 1, 1))
       // todo: 有store被解析成mv了
       val mvType = decodeResultReg(Decoder.mv) && instructionBit6
       val readMv = mvType && decodeResultReg(Decoder.targetRd)
@@ -500,12 +583,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val readResultSelectResult = Mux1H(RegNext(maskUnitReadSelect), laneReadResult)
       // 把mask选出来
       val maskSelect = v0(groupCounter ## writeBackCounter)
-      val fullMask: UInt = (-1.S(parameter.dataPathWidth.W)).asUInt
+      val fullMask: UInt = (-1.S(parameter.datapathWidth.W)).asUInt
+
       /** 正常全1
         * mask：[[maskSelect]]
         * border: [[lastGroupMask]]
         * mask && border: [[maskSelect]] & [[lastGroupMask]]
-        * */
+        */
       val maskCorrect: UInt = Mux(maskTypeInstruction, maskSelect, fullMask) &
         Mux(border, lastGroupMask, fullMask)
       // mask
@@ -537,14 +621,16 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       )
       val aluInput2 = Mux1H(UIntToOH(executeCounter), data.map(d => Mux(d.valid, d.bits, 0.U)))
       // red alu instance
-      val adder:     LaneAdder = Module(new LaneAdder(parameter.datePathParam))
-      val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datePathParam))
+      val adder:     LaneAdder = Module(new LaneAdder(parameter.datapathWidth))
+      val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datapathWidth))
 
       val sign = !decodeResultReg(Decoder.unsigned1)
-      adder.req.src := VecInit(Seq(
-        (aluInput1(parameter.dataPathWidth - 1) && sign) ## aluInput1,
-        (aluInput2(parameter.dataPathWidth - 1) && sign) ## aluInput2
-      ))
+      adder.req.src := VecInit(
+        Seq(
+          (aluInput1(parameter.datapathWidth - 1) && sign) ## aluInput1,
+          (aluInput2(parameter.datapathWidth - 1) && sign) ## aluInput2
+        )
+      )
       // popCount 在top视为reduce add
       adder.req.opcode := Mux(popCount, 0.U, decodeResultReg(Decoder.uop))
       adder.req.sign := sign
@@ -565,12 +651,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // slid & gather unit
       val slideUp = decodeResultReg(Decoder.uop)(1)
       val slide1 = decodeResultReg(Decoder.uop)(0) && decodeResultReg(Decoder.slid)
+
       /** special uop 里面编码了extend的信息：
         * specialUop(1,0): 倍率
         * specialUop(2)：是否是符号
-        * */
+        */
       val extendSourceSew: Bool = (csrInterface.vSew >> decodeResultReg(Decoder.specialUop)(1, 0))(0)
-      val extendSign: Bool = decodeResultReg(Decoder.specialUop)(2)
+      val extendSign:      Bool = decodeResultReg(Decoder.specialUop)(2)
       // gather 相关的控制
       val gather16: Bool = decodeResultReg(Decoder.gather16)
       val maskUnitEEW = Mux(gather16, 1.U, Mux(extend, extendSourceSew, csrInterface.vSew))
@@ -581,14 +668,16 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // log2(dataWidth * laneNumber / 8)
       val maskUnitDataOffset = (elementIndexCount << maskUnitEEW).asUInt(4, 0) ## 0.U(3.W)
       val maskUnitData = ((VecInit(data.map(_.bits)).asUInt >> maskUnitDataOffset).asUInt & maskUnitBitEnable)(
-        parameter.dataPathWidth - 1, 0)
+        parameter.datapathWidth - 1,
+        0
+      )
 
       val compareWire = Mux(instructionType.slid, rs1, maskUnitData)
       val compareAdvance: Bool = (rs1 >> log2Ceil(parameter.vLen)).asUInt.orR
-      val compareResult: Bool = largeThanVLMax(compareWire, compareAdvance)
+      val compareResult:  Bool = largeThanVLMax(compareWire, compareAdvance)
       // 正在被gather使用的数据在data的那个组里
       val gatherDataSelect = UIntToOH(maskUnitDataOffset(7, 5))
-      val dataTail = Mux1H(UIntToOH(maskUnitEEW)(1,0), Seq(3.U(2.W), 2.U(2.W)))
+      val dataTail = Mux1H(UIntToOH(maskUnitEEW)(1, 0), Seq(3.U(2.W), 2.U(2.W)))
       val lastElementForData = gatherDataSelect.asBools.last && maskUnitDataOffset(4, 3) === dataTail
       val maskUnitDataReady: Bool = (gatherDataSelect & VecInit(data.map(_.valid)).asUInt).orR
       // 正在被gather使用的数据是否就绪了
@@ -603,7 +692,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // slid 的立即数是0扩展的
       val slidSize = Mux(slide1, 1.U, Mux(decodeResultReg(Decoder.xtype), rs1, vs1))
       // todo: 这里是否有更好的处理方式
-      val slidSizeLSB = slidSize(parameter.laneParam.vlWidth - 1, 0)
+      val slidSizeLSB = slidSize(parameter.laneParam.vlMaxBits - 1, 0)
       // down +
       // up -
       val directionSelection = Mux(slideUp, (~slidSizeLSB).asUInt, slidSizeLSB)
@@ -619,8 +708,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       )
 
       def indexAnalysis(elementIndex: UInt) = {
-        val dataPosition = (elementIndex(parameter.laneParam.vlWidth - 2, 0) << csrInterface.vSew)
-          .asUInt(parameter.laneParam.vlWidth - 2, 0)
+        val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << csrInterface.vSew)
+          .asUInt(parameter.laneParam.vlMaxBits - 2, 0)
         val accessMask = Mux1H(
           sew1H(2, 0),
           Seq(
@@ -631,19 +720,20 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         )
         // 数据起始位置在32bit(暂时只32)中的偏移,由于数据会有跨lane的情况,融合的优化时再做
         val dataOffset = (dataPosition(1) && sew1H(1, 0).orR) ## (dataPosition(0) && sew1H(0)) ## 0.U(3.W)
-        val accessLane = dataPosition(log2Ceil(parameter.laneNumer) + 1, 2)
+        val accessLane = dataPosition(log2Ceil(parameter.laneNumber) + 1, 2)
         // 32 bit / group
-        val dataGroup = (dataPosition >> (log2Ceil(parameter.laneNumer) + 2)).asUInt
+        val dataGroup = (dataPosition >> (log2Ceil(parameter.laneNumber) + 2)).asUInt
         val offset = dataGroup(1, 0)
         val accessRegGrowth = (dataGroup >> 2).asUInt
+
         /** elementIndex 需要与vlMax比较, vLen * lmul /sew 这个计算太复杂了
           * 我们可以换一个角度,计算读寄存器的增量与lmul比较,就能知道下标是否超vlMax了
           * vlmul 需要区分整数与浮点
-          * */
+          */
         val overlap =
           (csrInterface.vlmul(2) && (offset ## accessLane(2)) >= intLMUL(3, 1)) ||
             (!csrInterface.vlmul(2) && accessRegGrowth >= intLMUL)
-          accessRegGrowth >= csrInterface.vlmul
+        accessRegGrowth >= csrInterface.vlmul
         val reallyGrowth = accessRegGrowth(2, 0)
         (accessMask, dataOffset, accessLane, offset, reallyGrowth, overlap)
       }
@@ -652,7 +742,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val srcOversize = decodeResultReg(Decoder.xtype) && !slide1 && compareResult
       val signBit = Mux1H(
         sew1H,
-        readIndex(parameter.laneParam.vlWidth - 1, parameter.laneParam.vlWidth - 3).asBools.reverse
+        readIndex(parameter.laneParam.vlMaxBits - 1, parameter.laneParam.vlMaxBits - 3).asBools.reverse
       )
       // 对于up来说小于offset的element是不变得的
       val slideUpUnderflow = slideUp && !slide1 && (signBit || srcOverlap)
@@ -676,14 +766,15 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val writeState = slideState === sWrite
       // 处理数据,先硬移位吧
       val slidReadData: UInt = ((WARRedResult.bits >> readDataOffset) << vlDataOffset)
-        .asUInt(parameter.dataPathWidth - 1, 0)
+        .asUInt(parameter.datapathWidth - 1, 0)
       val selectRS1 = slide1 && ((slideUp && firstElement) || (!slideUp && lastElement))
       // extend 类型的扩展和移位
       val extendData: UInt = (Mux(
         extendSourceSew,
-        Fill(parameter.dataPathWidth - 16, extendSign && maskUnitData(15)) ## maskUnitData(15, 0),
-        Fill(parameter.dataPathWidth - 8, extendSign && maskUnitData(7)) ## maskUnitData(7, 0),
+        Fill(parameter.datapathWidth - 16, extendSign && maskUnitData(15)) ## maskUnitData(15, 0),
+        Fill(parameter.datapathWidth - 8, extendSign && maskUnitData(7)) ## maskUnitData(7, 0)
       ) << vlDataOffset).asUInt(parameter.xLen - 1, 0)
+
       /**
         * vd 的值有4种：
         *   1. 用readIndex读出来的vs2的值
@@ -756,20 +847,21 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       }
 
       // 处理 iota
-      val iotaDataOffset: UInt = elementIndexCount(7, 0)
+      val iotaDataOffset:  UInt = elementIndexCount(7, 0)
       val lastDataForIota: Bool = iotaDataOffset.andR
       val iotaData = VecInit(data.map(_.bits)).asUInt(iotaDataOffset)
       val iota = decodeResultReg(Decoder.iota)
 
       val maskUnitReadFire2: Bool = maskUnitReadVec(2).valid && maskUnitReadReady
       val readFireNext2 = RegNext(maskUnitReadFire2)
+
       /** 计算需要读的mask的相关
         * elementIndexCount -> 11bit
         * 只会访问单寄存器
         * elementIndexCount(4, 0)做为32bit内的offset
         * elementIndexCount(7, 5)作为lane的选择
         * elementIndexCount(9, 8)作为offset
-        * */
+        */
       // compress read
       maskUnitReadVec(2).valid := compressStateRead && !readFireNext2
       maskUnitReadVec(2).bits.vs := vs1
@@ -832,12 +924,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       }
       // reduce 也需要flush vrf
       lastMaskUnitWrite := (lastElement && !maskUnitIdle) ||
-        ((control.state.wLast || reduce || lastExecute) && maskUnitWriteVec.head.valid && maskUnitWriteReady)
+      ((control.state.wLast || reduce || lastExecute) && maskUnitWriteVec.head.valid && maskUnitWriteReady)
 
       // alu end
       val maskOperation = decodeResultReg(Decoder.maskLogic)
       val lastGroupDataWaitMask = scanRightOr(UIntToOH(lastExecuteCounter))
-      val dataMask = Mux(maskOperation && lastGroup, lastGroupDataWaitMask, -1.S(parameter.laneNumer.W).asUInt)
+      val dataMask = Mux(maskOperation && lastGroup, lastGroupDataWaitMask, -1.S(parameter.laneNumber.W).asUInt)
       val dataReady = ((~dataMask).asUInt | VecInit(data.map(_.valid)).asUInt).andR || skipLaneData
       when(
         // data ready
@@ -865,7 +957,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             dataResult.bits := aluOutPut
           }
         }
-        val executeFinish: Bool = (executeCounter(log2Ceil(parameter.laneNumer)) || !(reduce || popCount)) && maskUnitIdle
+        val executeFinish: Bool =
+          (executeCounter(log2Ceil(parameter.laneNumber)) || !(reduce || popCount)) && maskUnitIdle
         val schedulerWrite = decodeResultReg(Decoder.maskDestination) || reduce || writeMv
         // todo: decode
         val groupSync = decodeResultReg(Decoder.ffo)
@@ -894,22 +987,22 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   }
 
   // lane is ready to receive new instruction
-  val laneReady:    Vec[Bool] = Wire(Vec(parameter.laneNumer, Bool()))
+  val laneReady:    Vec[Bool] = Wire(Vec(parameter.laneNumber, Bool()))
   val allLaneReady: Bool = laneReady.asUInt.andR
   // TODO: review later
   // todo: 把scheduler的反馈也加上,lsu有更高的优先级
   val laneFeedBackValid: Bool = lsu.lsuOffsetReq || synchronized
-  val laneComplete: Bool = lsu.lastReport.valid && lsu.lastReport.bits === instStateVec.last.record.instructionIndex
+  val laneComplete:      Bool = lsu.lastReport.valid && lsu.lastReport.bits === instStateVec.last.record.instructionIndex
 
   val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
     Vec(
-      parameter.laneNumer,
+      parameter.laneNumber,
       Decoupled(
         new VRFWriteRequest(
           parameter.vrfParam.regNumBits,
-          parameter.vrfParam.offsetBits,
-          parameter.instructionIndexWidth,
-          parameter.dataPathWidth
+          parameter.vrfParam.vrfOffsetBits,
+          parameter.instructionIndexBits,
+          parameter.datapathWidth
         )
       )
     )
@@ -918,10 +1011,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val freeOR: Bool = VecInit(instStateVec.map(_.state.idle)).asUInt.orR
   // 有一个空闲的本地坑
   val localReady: Bool = Mux(specialInst, instStateVec.map(_.state.idle).last, freeOR)
+
   /** instantiate lanes.
     * TODO: move instantiate to top of class.
     */
-  val laneVec: Seq[Lane] = Seq.tabulate(parameter.laneNumer) { index =>
+  val laneVec: Seq[Lane] = Seq.tabulate(parameter.laneNumber) { index =>
     val lane: Lane = Module(new Lane(parameter.laneParam))
     // 请求,
     lane.laneRequest.valid := request.fire && !noReadST && allLaneReady && !maskUnitInstruction
@@ -950,7 +1044,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
     // 读 lane
     lane.vrfReadAddressChannel.valid := lsu.readDataPorts(index).valid ||
-      (maskUnitRead.valid && maskUnitReadSelect(index))
+    (maskUnitRead.valid && maskUnitReadSelect(index))
     lane.vrfReadAddressChannel.bits :=
       Mux(lsu.readDataPorts(index).valid, lsu.readDataPorts(index).bits, maskUnitRead.bits)
     lsu.readDataPorts(index).ready := lane.vrfReadAddressChannel.ready
@@ -972,7 +1066,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lsu.offsetReadTag(index) := lane.laneResponse.bits.instructionIndex
 
     instructionFinished(index).zip(instStateVec.map(_.record.instructionIndex)).foreach {
-      case (d, f) => d := (UIntToOH(f(parameter.instructionIndexWidth - 2, 0)) & lane.instructionFinished).orR
+      case (d, f) => d := (UIntToOH(f(parameter.instructionIndexBits - 2, 0)) & lane.instructionFinished).orR
     }
     lane.maskInput := regroupV0(index)(lane.maskSelect)
     lane.lsuLastReport := lsu.lastReport
@@ -1059,11 +1153,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   v0.zipWithIndex.foreach {
     case (data, index) =>
       // 属于哪个lane
-      val laneIndex: Int = index % parameter.laneNumer
+      val laneIndex: Int = index % parameter.laneNumber
       // 取出写的端口
       val v0Write = laneVec(laneIndex).v0Update
       // offset
-      val offset: Int = index / parameter.laneNumer
+      val offset: Int = index / parameter.laneNumber
       val maskExt = FillInterleaved(8, v0Write.bits.mask)
       when(v0Write.valid && v0Write.bits.offset === offset.U) {
         data := (data & (~maskExt).asUInt) | (maskExt & v0Write.bits.data)

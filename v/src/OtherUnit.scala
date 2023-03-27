@@ -5,17 +5,17 @@ import chisel3.util._
 
 class OtherUnitReq(param: LaneParameter) extends Bundle {
   val src:        Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
-  val popInit:    UInt = UInt(param.vlWidth.W)
+  val popInit:    UInt = UInt(param.vlMaxBits.W)
   val opcode:     UInt = UInt(3.W)
   val extendType: Valid[ExtendInstructionType] = Valid(new ExtendInstructionType)
   val imm:        UInt = UInt(3.W)
-  val groupIndex: UInt = UInt(param.groupNumberWidth.W)
-  val laneIndex:  UInt = UInt(param.laneNumberWidth.W)
+  val groupIndex: UInt = UInt(param.groupNumberBits.W)
+  val laneIndex:  UInt = UInt(param.laneNumberBits.W)
   // 给vid计算index用的
   val executeIndex: UInt = UInt(log2Ceil(param.dataPathByteWidth).W)
-  val sign:       Bool = Bool()
-  val mask:       Bool = Bool()
-  val complete:   Bool = Bool()
+  val sign:         Bool = Bool()
+  val mask:         Bool = Bool()
+  val complete:     Bool = Bool()
   // eg: ffo
   val specialOpcode: UInt = UInt(4.W)
   // vm = 0
@@ -27,19 +27,19 @@ class OtherUnitCsr extends Bundle {
   val vxrm: UInt = UInt(2.W)
 }
 
-class OtherUnitResp(param: DataPathParam) extends Bundle {
-  val data: UInt = UInt(param.dataWidth.W)
-  val clipFail:    Bool = Bool()
-  val ffoSuccess:  Bool = Bool()
+class OtherUnitResp(datapathWidth: Int) extends Bundle {
+  val data:       UInt = UInt(datapathWidth.W)
+  val clipFail:   Bool = Bool()
+  val ffoSuccess: Bool = Bool()
 }
 
 class OtherUnit(param: LaneParameter) extends Module {
   val req:  OtherUnitReq = IO(Input(new OtherUnitReq(param)))
-  val resp: OtherUnitResp = IO(Output(new OtherUnitResp(param.datePathParam)))
+  val resp: OtherUnitResp = IO(Output(new OtherUnitResp(param.datapathWidth)))
   val csr:  OtherUnitCsr = IO(Input(new OtherUnitCsr))
 
-  val ffo:      LaneFFO = Module(new LaneFFO(param.datePathParam))
-  val popCount: LanePopCount = Module(new LanePopCount(param.datePathParam))
+  val ffo:      LaneFFO = Module(new LaneFFO(param.datapathWidth))
+  val popCount: LanePopCount = Module(new LanePopCount(param.datapathWidth))
   val vSewOH:   UInt = UIntToOH(csr.vSew)(2, 0)
   // ["slide", "rgather", "merge", "mv", "clip", "compress"]
   val opcodeOH: UInt = UIntToOH(req.opcode)(5, 0)
@@ -55,13 +55,13 @@ class OtherUnit(param: LaneParameter) extends Module {
 
   // clip 2sew -> sew
   // vSew 0 -> sew = 8 => log2(sew) = 4
-  val clipSize: UInt = Mux1H(vSewOH(2, 1), Seq(false.B ## req.src.head(4), req.src.head(5, 4))) ## req.src.head(3, 0)
-  val clipMask: UInt = FillInterleaved(8, vSewOH(2) ## vSewOH(2) ## vSewOH(2, 1).orR ## true.B)
+  val clipSize:          UInt = Mux1H(vSewOH(2, 1), Seq(false.B ## req.src.head(4), req.src.head(5, 4))) ## req.src.head(3, 0)
+  val clipMask:          UInt = FillInterleaved(8, vSewOH(2) ## vSewOH(2) ## vSewOH(2, 1).orR ## true.B)
   val largestClipResult: UInt = (clipMask >> req.sign).asUInt
   val clipMaskRemainder: UInt = FillInterleaved(8, !vSewOH(2) ## !vSewOH(2) ## vSewOH(0) ## false.B)
-  val roundTail: UInt = (1.U << clipSize).asUInt
-  val lostMSB:   UInt = (roundTail >> 1).asUInt
-  val roundMask: UInt = roundTail - 1.U
+  val roundTail:         UInt = (1.U << clipSize).asUInt
+  val lostMSB:           UInt = (roundTail >> 1).asUInt
+  val roundMask:         UInt = roundTail - 1.U
 
   // v[d - 1]
   val vds1: Bool = (lostMSB & req.src(1)).orR

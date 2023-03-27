@@ -8,31 +8,69 @@ object VRFParam {
   implicit val rwP: upickle.default.ReadWriter[VRFParam] = upickle.default.macroRW
 }
 
+/** Parameter for [[Lane]].
+  * @param vLen VLEN
+  * @param laneNumber how many lanes in the vector processor
+  * @param eLen ELEN
+  * @param chainingSize how many instructions can be chained
+  *
+  * TODO: change to use 32bits memory + mask,
+  *       use portFactor to increase port number
+  *
+  * TODO: add ECC cc @sharzyL
+  *       8bits -> 5bits
+  *       16bits -> 6bits
+  *       32bits -> 7bits
+  */
 case class VRFParam(
-  VLEN:           Int,
-  lane:           Int,
-  ELEN:           Int,
-  chainingSize:   Int,
-  writeQueueSize: Int)
+  vLen:         Int,
+  laneNumber:   Int,
+  eLen:         Int,
+  chainingSize: Int)
     extends SerializableModuleParameter {
-  val vrfReadPort: Int = 6
-  val regNum:      Int = 32
-  val regNumBits:  Int = log2Ceil(regNum)
-  // One more bit for sorting
-  val instructionIndexSize: Int = log2Ceil(chainingSize) + 1
-  // 需要可配一行的宽度
-  val portFactor: Int = 1
-  val rowWidth:   Int = ELEN * portFactor
-  val rfDepth:    Int = VLEN * regNum / rowWidth / lane
-  val rfAddBits:  Int = log2Ceil(rfDepth)
-  // 单个寄存器能分成多少组, 每次只访问32bit
-  val singleGroupSize: Int = VLEN / ELEN / lane
-  // 记录一个寄存器的offset需要多长
-  val offsetBits: Int = log2Ceil(singleGroupSize)
-  val rfBankNum:  Int = rowWidth / 8
-  val maxVSew:    Int = log2Ceil(ELEN / 8)
-  val VLMaxWidth: Int = log2Ceil(VLEN) + 1
 
+  /** See documentation for VRF.
+    * TODO: document this
+    */
+  val vrfReadPort: Int = 6
+
+  /** VRF index number is 32, defined in spec. */
+  val regNum: Int = 32
+
+  /** The hardware width of [[regNum]] */
+  val regNumBits: Int = log2Ceil(regNum)
+  // One more bit for sorting
+  /** see [[VParameter.instructionIndexBits]] */
+  val instructionIndexBits: Int = log2Ceil(chainingSize) + 1
+
+  /** How many ELEN(32 in current design) can be accessed for one memory port accessing.
+    *
+    * @note:
+    * if increasing portFactor:
+    * - we can have more memory ports.
+    * - a big VRF memory is split into small memories, the shell of memory contributes more area...
+    */
+  val portFactor: Int = 1
+
+  /** the width of VRF banked together. */
+  val rowWidth: Int = eLen * portFactor
+
+  /** the depth of memory */
+  val rfDepth: Int = vLen * regNum / rowWidth / laneNumber
+
+  /** see [[LaneParameter.singleGroupSize]] */
+  val singleGroupSize: Int = vLen / eLen / laneNumber
+
+  /** see [[LaneParameter.vrfOffsetBits]] */
+  val vrfOffsetBits: Int = log2Ceil(singleGroupSize)
+
+  /** TODO: remove it, we use 32bits memory with mask for minimal granularity */
+  val rfBankNum: Int = rowWidth / 8
+
+  /** used to instantiate VRF. */
+  val VLMaxWidth: Int = log2Ceil(vLen) + 1
+
+  /** Parameter for [[RegFile]] */
   def rfParam: RFParam = RFParam(rfDepth)
 }
 
@@ -40,21 +78,28 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val read: Vec[DecoupledIO[VRFReadRequest]] = IO(
     Vec(
       parameter.vrfReadPort,
-      Flipped(Decoupled(new VRFReadRequest(parameter.regNumBits, parameter.offsetBits, parameter.instructionIndexSize)))
+      Flipped(
+        Decoupled(new VRFReadRequest(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits))
+      )
     )
   )
-  val readResult: Vec[UInt] = IO(Output(Vec(parameter.vrfReadPort, UInt(parameter.ELEN.W))))
+  val readResult: Vec[UInt] = IO(Output(Vec(parameter.vrfReadPort, UInt(parameter.eLen.W))))
   val write: DecoupledIO[VRFWriteRequest] = IO(
     Flipped(
       Decoupled(
-        new VRFWriteRequest(parameter.regNumBits, parameter.offsetBits, parameter.instructionIndexSize, parameter.ELEN)
+        new VRFWriteRequest(
+          parameter.regNumBits,
+          parameter.vrfOffsetBits,
+          parameter.instructionIndexBits,
+          parameter.eLen
+        )
       )
     )
   )
   val instWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
   val flush:           Bool = IO(Input(Bool()))
   val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.VLMaxWidth)))
-  val lsuLastReport:   ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexSize.W))))
+  val lsuLastReport:   ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
   // write queue empty
   val bufferClear: Bool = IO(Input(Bool()))
   // todo: delete

@@ -12,8 +12,8 @@ class TestBench extends RawModule {
     VParameter(
       xLen = 32,
       vLen = 1024,
-      dataPathWidth = 32,
-      laneNumer = 8,
+      datapathWidth = 32,
+      laneNumber = 8,
       physicalAddressWidth = 32,
       chainingSize = 4,
       vrfWriteQueueSize = 4
