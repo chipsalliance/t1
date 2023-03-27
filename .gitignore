@@ -6,3 +6,5 @@ test_run_dir/
 .vscode/
 cmake-build-*
 coverage.dat
+**/node_modules/
+**/_book/

@@ -46,6 +46,7 @@
             buddy-mlir
 
 	    yarn
+	    mdl
           ];
         in
         {
