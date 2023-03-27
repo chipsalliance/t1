@@ -44,6 +44,8 @@
             espresso
             circt
             buddy-mlir
+
+	    yarn
           ];
         in
         {
