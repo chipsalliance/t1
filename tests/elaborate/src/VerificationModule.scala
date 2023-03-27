@@ -233,7 +233,10 @@ class VerificationModule(dut: V) extends TapModule {
          |
          |  input respValid,
          |  input bit[${response.data.getWidth - 1}:0] response_data,
-         |  input bit response_vxsat
+         |  input bit response_vxsat,
+         |  input bit response_rd_valid,
+         |  input bit[${response.rd.bits.getWidth - 1}:0] response_rd_bits,
+         |  input bit response_mem
          |);
          |import "DPI-C" function void $desiredName(
          |  output bit[31:0] request_instruction,
@@ -252,7 +255,10 @@ class VerificationModule(dut: V) extends TapModule {
          |
          |  input respValid,
          |  input bit[${response.data.getWidth - 1}:0] response_data,
-         |  input bit response_vxsat
+         |  input bit response_vxsat,
+         |  input bit response_rd_valid,
+         |  input bit[${response.rd.bits.getWidth - 1}:0] response_rd_bits,
+         |  input bit response_mem
          |);
          |always @ (posedge clock) #($latPokeInst) $desiredName(
          |  request_instruction,
@@ -271,7 +277,10 @@ class VerificationModule(dut: V) extends TapModule {
          |
          |  respValid,
          |  response_data,
-         |  response_vxsat
+         |  response_vxsat,
+         |  response_rd_valid,
+         |  response_rd_bits,
+         |  response_mem
          |);
          |endmodule
          |""".stripMargin

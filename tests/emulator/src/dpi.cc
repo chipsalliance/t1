@@ -80,7 +80,10 @@ void VBridgeImpl::dpiDumpWave() {
 
     svBit respValid,
     const svBitVecVal *response_data,
-    svBit response_vxsat
+    svBit response_vxsat,
+    svBit response_rd_valid,
+    const svBitVecVal *response_rd_bits,
+    svBit response_mem
 ) {
   TRY({
     vbridge_impl_instance.dpiPokeInst(
