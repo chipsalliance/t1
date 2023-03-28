@@ -405,8 +405,10 @@ void VBridgeImpl::update_lsu_idx(const VLsuReqEnqPeek &enq) {
           break;
         }
       }
-      CHECK_NE_S(index, consts::lsuIdxDefault)
-        << fmt::format(": [{}] load store issued but not no slot allocated.", get_t());
+      if (index == consts::lsuIdxDefault) {
+        LOG(INFO) << fmt::format(": [{}] waiting for lsu request to fire.", get_t());
+        break;
+      }
       se->lsu_idx = index;
       LOG(INFO) << fmt::format("[{}] insn ({}) is allocated lsu_idx={}", get_t(), se->describe_insn(), index);
       break;
