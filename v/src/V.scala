@@ -201,6 +201,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     requestReg.bits.request := request.bits
     requestReg.bits.decodeResult := decode.decodeResult
     requestReg.bits.csr := csrInterface
+    requestReg.bits.instructionIndex := instructionCounter
   }
   when(request.fire ^ requestRegDeq.fire) {
     requestReg.valid := request.fire
@@ -208,8 +209,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   request.ready := !requestReg.valid || requestRegDeq.ready
   requestRegDeq.bits := requestReg.bits.request
   requestRegDeq.valid := requestReg.valid
-  decode.decodeInput := requestRegDeq.bits.instruction >> 12
+  decode.decodeInput := request.bits.instruction >> 12
   val decodeResult: DecodeBundle = requestReg.bits.decodeResult
+  // 这是当前正在mask unit 里面的那一条指令的csr信息,用来计算mask unit的控制信号
+  val csrRegForMaskUnit: LaneCsrInterface = RegInit(0.U.asTypeOf(new LaneCsrInterface(parameter.laneParam.vlMaxBits)))
 
   // TODO: no valid here
   // TODO: these should be decoding results
@@ -399,7 +402,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     // instruction fire when instruction index matched corresponding state machine
     when(requestRegDeq.fire && instructionToSlotOH(index)) {
       // instruction metadata
-      control.record.instructionIndex := instructionCounter
+      control.record.instructionIndex := requestReg.bits.instructionIndex
       // TODO: remove
       control.record.loadStore := isLoadStoreType
       // control signals
@@ -534,6 +537,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         vm := requestRegDeq.bits.instruction(25)
         rs1 := requestRegDeq.bits.src1Data
         decodeResultReg := decodeResult
+        csrRegForMaskUnit := requestReg.bits.csr
         // todo: decode need execute
         control.state.sExecute := !maskUnitType
         instructionType := nextInstructionType
@@ -1038,7 +1042,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     val lane: Lane = Module(new Lane(parameter.laneParam))
     // 请求,
     lane.laneRequest.valid := requestRegDeq.fire && !noReadST && allLaneReady && !maskUnitInstruction
-    lane.laneRequest.bits.instructionIndex := instructionCounter
+    lane.laneRequest.bits.instructionIndex := requestReg.bits.instructionIndex
     lane.laneRequest.bits.decodeResult := decodeResult
     lane.laneRequest.bits.vs1 := requestRegDeq.bits.instruction(19, 15)
     lane.laneRequest.bits.vs2 := requestRegDeq.bits.instruction(24, 20)
@@ -1105,7 +1109,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   // 连lsu
   lsu.req.valid := requestRegDeq.fire && isLoadStoreType
-  lsu.req.bits.instIndex := instructionCounter
+  lsu.req.bits.instIndex := requestReg.bits.instructionIndex
   lsu.req.bits.rs1Data := requestRegDeq.bits.src1Data
   lsu.req.bits.rs2Data := requestRegDeq.bits.src2Data
   lsu.req.bits.instInf.nf := requestRegDeq.bits.instruction(31, 29)
