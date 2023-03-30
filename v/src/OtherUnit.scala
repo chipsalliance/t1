@@ -20,9 +20,7 @@ class OtherUnitReq(param: LaneParameter) extends Bundle {
   val specialOpcode: UInt = UInt(4.W)
   // vm = 0
   val maskType: Bool = Bool()
-}
-
-class OtherUnitCsr extends Bundle {
+  // csr
   val vSew: UInt = UInt(2.W)
   val vxrm: UInt = UInt(2.W)
 }
@@ -36,11 +34,10 @@ class OtherUnitResp(datapathWidth: Int) extends Bundle {
 class OtherUnit(param: LaneParameter) extends Module {
   val req:  OtherUnitReq = IO(Input(new OtherUnitReq(param)))
   val resp: OtherUnitResp = IO(Output(new OtherUnitResp(param.datapathWidth)))
-  val csr:  OtherUnitCsr = IO(Input(new OtherUnitCsr))
 
   val ffo:      LaneFFO = Module(new LaneFFO(param.datapathWidth))
   val popCount: LanePopCount = Module(new LanePopCount(param.datapathWidth))
-  val vSewOH:   UInt = UIntToOH(csr.vSew)(2, 0)
+  val vSewOH:   UInt = UIntToOH(req.vSew)(2, 0)
   // ["slide", "rgather", "merge", "mv", "clip", "compress"]
   val opcodeOH: UInt = UIntToOH(req.opcode)(5, 0)
 
@@ -70,14 +67,14 @@ class OtherUnit(param: LaneParameter) extends Module {
   // v[d]
   val vd: Bool = (roundTail & req.src(1)).orR
   // r
-  val roundR:      Bool = Mux1H(UIntToOH(csr.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB)))
+  val roundR:      Bool = Mux1H(UIntToOH(req.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB)))
   val roundResult: UInt = (((signExtend ## req.src(1)) >> clipSize).asUInt + roundR)(param.datapathWidth - 1, 0)
   val roundRemainder = roundResult & clipMaskRemainder
   val roundSignBits = Mux1H(vSewOH(2, 0), Seq(roundResult(7), roundResult(15), roundResult(31)))
   val roundResultOverlap: Bool = roundRemainder.orR && !(req.sign && (roundRemainder | clipMask).andR && roundSignBits)
   val clipResult = Mux(roundResultOverlap, largestClipResult, roundResult)
 
-  val indexRes: UInt = ((req.groupIndex ## req.laneIndex ## req.executeIndex) >> csr.vSew).asUInt
+  val indexRes: UInt = ((req.groupIndex ## req.laneIndex ## req.executeIndex) >> req.vSew).asUInt
 
   val extendSign: Bool = req.sign && Mux1H(vSewOH, Seq(req.src.head(7), req.src.head(15), req.src.head(31)))
   // todo

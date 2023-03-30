@@ -201,6 +201,7 @@ class InstControlRecord(param: LaneParameter) extends Bundle {
   val originalInformation: LaneRequest = new LaneRequest(param)
   val state:               InstGroupState = new InstGroupState(param)
   val initState:           InstGroupState = new InstGroupState(param)
+  val csr:                 CSRInterface = new CSRInterface(param.vlMaxBits)
 
   /** which group in the slot is executing. */
   val groupCounter: UInt = UInt(param.groupNumberBits.W)

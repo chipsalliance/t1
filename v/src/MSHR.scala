@@ -153,6 +153,8 @@ class MSHR(param: MSHRParam) extends Module {
 
   // 进请求
   val requestReg: LSURequest = RegEnable(req.bits, 0.U.asTypeOf(req.bits), req.valid)
+  // 存储指令带来的 csr
+  val csrInterfaceReg: CSRInterface = RegEnable(csrInterface, 0.U.asTypeOf(csrInterface), req.valid)
   // load/store whole register
   val whole: Bool = requestReg.instructionInformation.mop === 0.U && requestReg.instructionInformation.lumop === 8.U
   // 指令类型相关
@@ -249,7 +251,7 @@ class MSHR(param: MSHRParam) extends Module {
 
   // 额外添加的mask类型对数据的粒度有限制
   val dataEEW: UInt =
-    Mux(indexType, csrInterface.vSew, Mux(maskLayoutType, 0.U, Mux(whole, 2.U, requestReg.instructionInformation.eew)))
+    Mux(indexType, csrInterfaceReg.vSew, Mux(maskLayoutType, 0.U, Mux(whole, 2.U, requestReg.instructionInformation.eew)))
   val dataEEWOH: UInt = UIntToOH(dataEEW)
 
   // 用到了最后一个或这一组的全被mask了
@@ -319,7 +321,7 @@ class MSHR(param: MSHRParam) extends Module {
   val elementID: UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
   // whole 类型的我们以最大粒度地执行,所以一个寄存器有(vlen/32 -> maskGroupSize)
   val wholeEvl:      UInt = (requestReg.instructionInformation.nf +& 1.U) ## 0.U(param.maskGroupSizeBits.W)
-  val evl:           UInt = Mux(whole, wholeEvl, Mux(maskLayoutType, csrInterface.vl(param.vlMaxBits - 1, 3), csrInterface.vl))
+  val evl:           UInt = Mux(whole, wholeEvl, Mux(maskLayoutType, csrInterfaceReg.vl(param.vlMaxBits - 1, 3), csrInterfaceReg.vl))
   val allIndexReady: Bool = VecInit(indexOffsetVec.map(_.valid)).asUInt.andR
   val indexAlign:    Bool = RegInit(false.B)
   // 这里处理在第一组index用完了但是第二组还没被lane发过来,然后mshr认为index应该换组的问题

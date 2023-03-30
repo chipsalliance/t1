@@ -665,8 +665,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       adder.req.average := false.B
       adder.req.saturat := false.B
       adder.req.maskOp := false.B
-      adder.csr.vSew := requestReg.bits.csr.vSew
-      adder.csr.vxrm := requestReg.bits.csr.vxrm
+      adder.req.vxrm := csrRegForMaskUnit.vxrm
+      adder.req.vSew := csrRegForMaskUnit.vSew
 
       logicUnit.req.src := VecInit(Seq(aluInput1, aluInput2))
       logicUnit.req.opcode := decodeResultReg(Decoder.uop)
