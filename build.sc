@@ -417,8 +417,8 @@ object tests extends Module {
       }
     }
 
-    class BuddyMLIRCase(mlirSourceFile: String) extends Case {
-      override def name: String = mlirSourceFile
+    class BuddyMLIRCase(mlirSourceName: String) extends Case {
+      def mlirFile = T.source(PathRef(millSourcePath / mlirSourceName))
 
       override def millSourcePath = super.millSourcePath / os.up
 
@@ -445,12 +445,12 @@ object tests extends Module {
       }
 
       override def allSourceFiles: T[Seq[PathRef]] = T {
-        val buddy = T.dest / s"${name}.buddy"
-        val llvmir = T.dest / s"${name}.llvmir"
-        val asm = T.dest / s"${name}.S"
+        val buddy = T.dest / s"${mlirSourceName}.buddy"
+        val llvmir = T.dest / s"${mlirSourceName}.llvmir"
+        val asm = T.dest / s"${mlirSourceName}.S"
         os.proc(
           "buddy-opt",
-          millSourcePath / mlirSourceFile,
+          mlirFile().path,
           "--lower-affine",
           "--convert-scf-to-cf",
           "--convert-math-to-llvm",
