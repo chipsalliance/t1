@@ -13,17 +13,14 @@ class LaneAdderReq(datapathWidth: Int) extends Bundle {
   val average: Bool = Bool()
   val saturat: Bool = Bool()
   val maskOp:  Bool = Bool()
+  val vxrm:    UInt = UInt(2.W)
+  val vSew:    UInt = UInt(2.W)
 }
 
 class LaneAdderResp(datapathWidth: Int) extends Bundle {
   val data:         UInt = UInt(datapathWidth.W)
   val singleResult: Bool = Bool()
   val vxsat:        Bool = Bool()
-}
-
-class LaneAdderCsr extends Bundle {
-  val vxrm: UInt = UInt(2.W)
-  val vSew: UInt = UInt(2.W)
 }
 
 /** 加法器的输出有两个大类：
@@ -38,7 +35,6 @@ class LaneAdderCsr extends Bundle {
 class LaneAdder(datapathWidth: Int) extends Module {
   val req:  LaneAdderReq = IO(Input(new LaneAdderReq(datapathWidth)))
   val resp: LaneAdderResp = IO(Output(new LaneAdderResp(datapathWidth)))
-  val csr:  LaneAdderCsr = IO(Input(new LaneAdderCsr()))
   // todo: decode
   // ["add", "sub", "slt", "sle", "sgt", "sge", "max", "min", "seq", "sne", "adc", "sbc"]
   val uopOH: UInt = UIntToOH(req.opcode)(11, 0)
@@ -48,9 +44,9 @@ class LaneAdder(datapathWidth: Int) extends Module {
   val subOperation1: UInt = Mux(isSub && req.reverse, (~req.src.last).asUInt, req.src.last)
   // sub + 1 || carry || borrow
   val operation2: UInt = isSub ^ req.mask
-  val vSewOrR:    Bool = csr.vSew.orR
-  val maskForSew: UInt = Fill(16, csr.vSew(1)) ## Fill(8, vSewOrR) ## Fill(8, true.B)
-  val signForSew: UInt = csr.vSew(1) ## 0.U(15.W) ## csr.vSew(0) ## 0.U(7.W) ## !vSewOrR ## 0.U(7.W)
+  val vSewOrR:    Bool = req.vSew.orR
+  val maskForSew: UInt = Fill(16, req.vSew(1)) ## Fill(8, vSewOrR) ## Fill(8, true.B)
+  val signForSew: UInt = req.vSew(1) ## 0.U(15.W) ## req.vSew(0) ## 0.U(7.W) ## !vSewOrR ## 0.U(7.W)
   // 计算最近值
   /** 往下溢出的值
     * vSew = 0:
@@ -74,7 +70,7 @@ class LaneAdder(datapathWidth: Int) extends Module {
 
   //todo: decode(req) -> roundingTail
   val roundingTail:   UInt = (subOperation0 + subOperation1 + operation2)(1, 0)
-  val vxrmCorrection: UInt = Mux(req.average, csr.vxrm, 2.U)
+  val vxrmCorrection: UInt = Mux(req.average, req.vxrm, 2.U)
   val roundingBits: Bool = Mux1H(
     UIntToOH(vxrmCorrection),
     Seq(
@@ -88,11 +84,11 @@ class LaneAdder(datapathWidth: Int) extends Module {
   val (s, c) = csa32(subOperation0, subOperation1, roundingBits ## operation2)
   val addResult: UInt = s + (c ## false.B)
   val addResultSignBit: Bool = Mux1H(
-    Seq(!vSewOrR, csr.vSew(0), csr.vSew(1)),
+    Seq(!vSewOrR, req.vSew(0), req.vSew(1)),
     Seq(addResult(7), addResult(15), addResult(31))
   )
   val overflowBit: Bool = Mux1H(
-    Seq(!vSewOrR, csr.vSew(0), csr.vSew(1)),
+    Seq(!vSewOrR, req.vSew(0), req.vSew(1)),
     Seq(addResult(8), addResult(16), addResult(32))
   )
   // 计算溢出的条件

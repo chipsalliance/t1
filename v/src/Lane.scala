@@ -830,6 +830,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         adderRequest.average := decodeResult(Decoder.average)
         adderRequest.saturat := decodeResult(Decoder.saturate)
         adderRequest.maskOp := decodeResult(Decoder.maskOp)
+        adderRequest.vxrm := record.csr.vxrm
+        adderRequest.vSew := record.csr.vSew
         adderRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.adder) && !decodeResult(Decoder.other),
           adderRequest
@@ -847,12 +849,15 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           slotOccupied(index) && decodeResult(Decoder.shift) && !decodeResult(Decoder.other),
           shiftRequest
         )
+        shiftRequest.vxrm := record.csr.vxrm
 
         // mul
         val mulRequest: LaneMulReq = Wire(new LaneMulReq(parameter.mulParam))
         mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
         mulRequest.opcode := decodeResult(Decoder.uop)
         mulRequest.saturate := decodeResult(Decoder.saturate)
+        mulRequest.vSew := record.csr.vSew
+        mulRequest.vxrm := record.csr.vxrm
         multiplerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.multiplier) && !decodeResult(Decoder.other),
           mulRequest
@@ -885,6 +890,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequest.mask := maskAsInput || !record.originalInformation.mask
         otherRequest.complete := record.schedulerComplete || record.selfCompleted
         otherRequest.maskType := record.originalInformation.mask
+        otherRequest.vSew := record.csr.vSew
+        otherRequest.vxrm := record.csr.vxrm
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
@@ -1418,6 +1425,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         adderRequest.average := decodeResult(Decoder.average)
         adderRequest.saturat := decodeResult(Decoder.saturate)
         adderRequest.maskOp := decodeResult(Decoder.maskOp)
+        adderRequest.vxrm := record.csr.vxrm
+        adderRequest.vSew := record.csr.vSew
         adderRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.adder) && !decodeResult(Decoder.other),
           adderRequest
@@ -1436,12 +1445,15 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           slotOccupied(index) && decodeResult(Decoder.shift) && !decodeResult(Decoder.other),
           shiftRequest
         )
+        shiftRequest.vxrm := record.csr.vxrm
 
         // mul
         val mulRequest: LaneMulReq = Wire(new LaneMulReq(parameter.mulParam))
         mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
         mulRequest.opcode := decodeResult(Decoder.uop)
         mulRequest.saturate := decodeResult(Decoder.saturate)
+        mulRequest.vSew := record.csr.vSew
+        mulRequest.vxrm := record.csr.vxrm
         multiplerRequests(index) := maskAnd(
           slotOccupied(index) && decodeResult(Decoder.multiplier) && !decodeResult(Decoder.other),
           mulRequest
@@ -1475,6 +1487,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequest.mask := maskAsInput || !record.originalInformation.mask
         otherRequest.complete := record.schedulerComplete || record.selfCompleted
         otherRequest.maskType := record.originalInformation.mask
+        otherRequest.vSew := record.csr.vSew
+        otherRequest.vxrm := record.csr.vxrm
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
@@ -1730,14 +1744,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       .asTypeOf(Output(new LaneDataResponse(parameter)))
     laneResponse.valid := maskRequestValids.asUInt.orR
     // 执行单元的其他连接
-    adder.csr.vSew := csrInterface.vSew
-    adder.csr.vxrm := csrInterface.vxrm
-    otherUnit.csr.vSew := csrInterface.vSew
-    otherUnit.csr.vxrm := csrInterface.vxrm
-    div.mask := DontCare
-    div.vSew := csrInterface.vSew
-    mul.csrInterface := csrInterface
-    shifter.vxrm := csrInterface.vxrm
     otherResponse := otherUnit.resp
     lastDivWriteIndexWire := div.index
     divWrite := div.resp.valid
@@ -1818,6 +1824,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val entranceControl: InstControlRecord = Wire(new InstControlRecord(parameter))
   val maskLogicCompleted: Bool = laneRequest.bits.decodeResult(Decoder.maskLogic) &&
     (laneIndex ## 0.U(parameter.datapathWidthBits.W) >= csrInterface.vl)
+  entranceControl.csr := csrInterface
   entranceControl.originalInformation := laneRequest.bits
   entranceControl.state := laneRequest.bits.initState
   entranceControl.initState := laneRequest.bits.initState

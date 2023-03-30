@@ -8,25 +8,17 @@ class LaneDivRequest(datapathWidth: Int) extends Bundle {
   val src:  Vec[UInt] = Vec(2, UInt(datapathWidth.W))
   val rem:  Bool = Bool()
   val sign: Bool = Bool()
-  val index = UInt(2.W)
+  // execute index in group
+  val index: UInt = UInt(2.W)
+  // csr
+  // val vSew: UInt = UInt(2.W)
 }
 
 class LaneDiv(datapathWidth: Int) extends Module {
   val req:  DecoupledIO[LaneDivRequest] = IO(Flipped(Decoupled(new LaneDivRequest(datapathWidth))))
-  val vSew: UInt = IO(Input(UInt(2.W)))
-  // mask for sew
-  val mask: UInt = IO(Input(UInt(datapathWidth.W)))
   val resp: ValidIO[UInt] = IO(Valid(UInt(datapathWidth.W)))
   val index = IO(Output(UInt(2.W)))
   val busy: Bool = IO(Output(Bool()))
-
-  val sign1h: UInt = mask & (~mask >> 1).asUInt
-
-  val srcExtend: IndexedSeq[UInt] = req.bits.src.map { src =>
-    val signValue:  Bool = (sign1h & src).orR
-    val signExtend: UInt = Fill(datapathWidth, signValue)
-    (src & mask) | (signExtend & (~mask).asUInt)
-  }
 
   val wrapper = Module(new SRTWrapper)
   wrapper.input.bits.dividend := req.bits.src.last.asSInt
