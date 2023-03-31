@@ -147,6 +147,7 @@ void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
 void VBridgeImpl::dpiPeekTL(const VTlInterface &v_tl) {
   VLOG(3) << fmt::format("[{}] dpiPeekTL", get_t());
   CHECK_S(0 <= v_tl.channel_id && v_tl.channel_id < consts::numTL);
+  receive_tl_d_ready(v_tl);
   receive_tl_req(v_tl);
 }
 
@@ -251,7 +252,6 @@ uint8_t VBridgeImpl::load(uint64_t address){
 }
 
 void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
-  // TODO: remove this macro since it is unnecessary
   int tlIdx = tl.channel_id;
   if (!tl.a_valid) return;
 
@@ -295,7 +295,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
           get_t(), expected_size, actual_size, addr, se->describe_insn());
     }
 
-    LOG(INFO) << fmt::format("[{}] receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
+    LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
                              get_t(), addr, actual_size, src, actual_data);
 
     tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
@@ -306,9 +306,9 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
 
   case TlOpcode::PutFullData: {
     uint32_t data = tl.a_bits_data;
-    int offset_by_bits = addr % 4 * 8; // TODO: replace 4 with XLEN.
-    data = clip(data, offset_by_bits, offset_by_bits + decode_size(size)*8 - 1);
-    LOG(INFO) << fmt::format("[{}] receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={})",
+    int offset_by_bits = (int) addr % 4 * 8; // TODO: replace 4 with XLEN.
+    data = clip(data, (int) offset_by_bits, offset_by_bits + (int) decode_size(size)*8 - 1);
+    LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={})",
                              get_t(), addr, decode_size(size), src, data);
     auto mem_write = se->mem_access_record.all_writes.find(addr);
 
@@ -352,6 +352,23 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   }
 }
 
+void VBridgeImpl::receive_tl_d_ready(const VTlInterface &tl) {
+  int tlIdx = tl.channel_id;
+
+  if (tl.d_ready) {
+    // check if there is a response waiting for RTL ready, clear if RTL is ready
+    if (auto current_req_addr = tl_current_req[tlIdx]; current_req_addr.has_value()) {
+      auto addr = current_req_addr.value();
+      auto find = tl_banks[tlIdx].find(addr);
+      CHECK_S(find != tl_banks[tlIdx].end()) << fmt::format(": [{}] cannot find current request with addr {:08X}", get_t(), addr);
+      tl_current_req[tlIdx].reset();
+      tl_banks[tlIdx].erase(find);
+      LOG(INFO) << fmt::format("[{}] -> tl response reaches d_ready (channel={} addr={:08X})",
+                               get_t(), tlIdx, addr);
+    }
+  }
+}
+
 void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
   // update remaining_cycles
   auto i = tl_poke.channel_id;
@@ -365,8 +382,8 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
   for (auto &[addr, record]: tl_banks[i]) {
 
     if (record.remaining_cycles == 0) {
-      LOG(INFO) << fmt::format("[{}] return rtl mem get resp (addr={:08X}, size={}byte, src={:04X}, data={:08X}), ready={}",
-                             get_t(), addr, record.size_by_byte, record.source, record.data, tl_poke.d_ready);
+      LOG(INFO) << fmt::format("[{}] -> send tl response (channel={}, addr={:08X}, size={}byte, src={:04X}, data={:08X})",
+                             get_t(), i, addr, record.size_by_byte, record.source, record.data);
       *tl_poke.d_bits_opcode = record.op == TLReqRecord::opType::Get ? TlOpcode::AccessAckData : TlOpcode::AccessAck;
       *tl_poke.d_bits_data = record.data;
       *tl_poke.d_bits_source = record.source;
@@ -374,18 +391,11 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
       *tl_poke.d_corrupt = false;
       *tl_poke.d_bits_denied = false;
       d_valid = true;
-      if (tl_poke.d_ready) {
-        record.op = TLReqRecord::opType::Nil;
-      }
+      tl_current_req[i] = addr;
       break;
     }
   }
   *tl_poke.d_valid = d_valid;
-
-  // collect garbage
-  erase_if(tl_banks[i], [](const auto &record) {
-    return record.second.op == TLReqRecord::opType::Nil;
-  });
 
   // welcome new requests all the time
   *tl_poke.a_ready = true;
@@ -406,7 +416,7 @@ void VBridgeImpl::update_lsu_idx(const VLsuReqEnqPeek &enq) {
         }
       }
       if (index == consts::lsuIdxDefault) {
-        LOG(INFO) << fmt::format(": [{}] waiting for lsu request to fire.", get_t());
+        LOG(INFO) << fmt::format("[{}] waiting for lsu request to fire.", get_t());
         break;
       }
       se->lsu_idx = index;
