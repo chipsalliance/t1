@@ -82,6 +82,7 @@ private:
   isa_parser_t isa;
   processor_t proc;
   std::multimap<reg_t, TLReqRecord> tl_banks[consts::numTL];
+  std::optional<reg_t> tl_current_req[consts::numTL];
 
   SpikeEvent *se_to_issue;
 
@@ -118,6 +119,7 @@ private:
   // hence for these instructions, we should record vrf write on queue, and ignore them on vrf.write
   void record_rf_queue_accesses(const VLsuWriteQueuePeek &lsu_queues);
   void record_rf_accesses(const VrfWritePeek &rf_writs);
+  void receive_tl_d_ready(const VTlInterface &tl);
   void return_tl_response(const VTlInterfacePoke &tl_poke);
   void receive_tl_req(const VTlInterface &tl);
   void update_lsu_idx(const VLsuReqEnqPeek &enq);

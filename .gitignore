@@ -8,3 +8,4 @@ cmake-build-*
 coverage.dat
 **/node_modules/
 **/_book/
+.gdbinit
