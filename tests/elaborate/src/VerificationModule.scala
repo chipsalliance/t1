@@ -5,7 +5,7 @@ import chisel3.experimental.ExtModule
 import chisel3.experimental.hierarchy._
 import chisel3.util.{log2Ceil, Decoupled, DecoupledIO, HasExtModuleInline, Valid, ValidIO}
 import tilelink.{TLBundle, TLChannelA}
-import v.{LSUWriteQueueBundle, LaneCsrInterface, V, VRFWriteRequest, VRequest, VResponse}
+import v.{LSUWriteQueueBundle, CSRInterface, V, VRFWriteRequest, VRequest, VResponse}
 
 class VerificationModule(dut: V) extends TapModule {
   override val desiredName = "VerificationModule"
@@ -74,7 +74,7 @@ class VerificationModule(dut: V) extends TapModule {
   // clone IO from V(I need types)
   val req:              DecoupledIO[VRequest] = IO(Decoupled(new VRequest(dut.parameter.xLen)))
   val resp:             ValidIO[VResponse] = IO(Flipped(Valid(new VResponse(dut.parameter.xLen))))
-  val csrInterface:     LaneCsrInterface = IO(Output(new LaneCsrInterface(dut.parameter.laneParam.vlMaxBits)))
+  val csrInterface:     CSRInterface = IO(Output(new CSRInterface(dut.parameter.laneParam.vlMaxBits)))
   val storeBufferClear: Bool = IO(Output(Bool()))
   val tlPort:           Vec[TLBundle] = IO(Vec(dut.parameter.memoryBankSize, Flipped(dut.parameter.tlParam.bundle())))
   storeBufferClear := true.B

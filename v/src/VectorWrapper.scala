@@ -6,13 +6,13 @@ import chisel3.util._
 
 class InstructionQueueBundle(parameter: VParameter) extends Bundle {
   val instruction = new VRequest(parameter.xLen)
-  val csrInterface = new LaneCsrInterface(parameter.laneParam.vlMaxBits)
+  val csrInterface = new CSRInterface(parameter.laneParam.vlMaxBits)
 }
 
 class VectorWrapper(parameter: VParameter) extends Module {
   val request: DecoupledIO[VRequest] = IO(Flipped(Decoupled(new VRequest(parameter.xLen))))
   val response: ValidIO[VResponse] = IO(Valid(new VResponse(parameter.xLen)))
-  val csrInterface: LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.laneParam.vlMaxBits)))
+  val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.laneParam.vlMaxBits)))
   val storeBufferClear: Bool = IO(Input(Bool()))
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.memoryBankSize, parameter.tlParam.bundle()))
 

@@ -136,7 +136,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(parameter))))
 
   /** CSR Interface. */
-  val csrInterface: LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.vlMaxBits)))
+  val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.vlMaxBits)))
 
   /** to mask unit or LSU */
   val laneResponse: ValidIO[LaneDataResponse] = IO(Valid(new LaneDataResponse(parameter)))
