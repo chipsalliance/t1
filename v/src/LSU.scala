@@ -34,7 +34,7 @@ case class LSUParam(
   /** hardware width of [[maskGroupSize]] */
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
 
-  /** hardware width of [[LaneCsrInterface.vl]]
+  /** hardware width of [[CSRInterface.vl]]
     *
     * `+1` is for vl being 0 to vl(not vlMax - 1).
     * we use less than for comparing, rather than less equal.
@@ -59,62 +59,48 @@ case class LSUParam(
   val vrfOffsetBits: Int = log2Ceil(singleGroupSize)
 }
 
-class LSUWriteQueueBundle(param: LSUParam) extends Bundle {
-  val data: VRFWriteRequest =
-    new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
-  val targetLane: UInt = UInt(param.laneNumber.W)
-}
-class LSUInstInformation extends Bundle {
-
-  /** nf + 1 */
-  val nf: UInt = UInt(3.W)
-
-  /** mew = 1 reserved */
-  val mew: Bool = Bool()
-
-  /** unit-stride index-uo stride index-o */
-  val mop: UInt = UInt(2.W)
-
-  /** vs2 | rs2 | umop
-    * 0         ->  unit stride
-    * 0b01000   ->  whole register
-    * 0b01011   ->  mask, eew = 8
-    * 0b10000   ->  fault only first (load)
-    */
-  val vs2: UInt = UInt(5.W)
-  val vs1: UInt = UInt(5.W)
-
-  /** 0 -> 8
-    * size(0) -> 16
-    * size(1) -> 32
-    */
-  val eew:  UInt = UInt(2.W)
-  val vs3:  UInt = UInt(5.W)
-  val st:   Bool = Bool()
-  val mask: Bool = Bool()
-  // fault only first
-  def fof: Bool = mop === 0.U && vs2(4) && !st
-}
-
-class LSUReq(dataWidth: Int) extends Bundle {
-  val instInf:   LSUInstInformation = new LSUInstInformation
-  val rs1Data:   UInt = UInt(dataWidth.W)
-  val rs2Data:   UInt = UInt(dataWidth.W)
-  val instIndex: UInt = UInt(3.W)
-}
-
 class LSU(param: LSUParam) extends Module {
-  val req:          DecoupledIO[LSUReq] = IO(Flipped(Decoupled(new LSUReq(param.datapathWidth))))
-  val maskRegInput: Vec[UInt] = IO(Input(Vec(param.lsuMSHRSize, UInt(param.maskGroupWidth.W))))
-  val maskSelect:   Vec[UInt] = IO(Output(Vec(param.lsuMSHRSize, UInt(param.maskGroupSizeBits.W))))
-  val tlPort:       Vec[TLBundle] = IO(Vec(param.memoryBankSize, param.tlParam.bundle()))
-  val readDataPorts: Vec[DecoupledIO[VRFReadRequest]] = IO(
+
+  /** [[LSURequest]] from LSU,
+    * [[request.ready]] couples to [[request.bits]] to detect memory conflict.
+    * There will be two cases that [[request.ready]] is false:
+    *  - LSU slots is full.
+    *  - memory conflict is detected.
+    */
+  val request: DecoupledIO[LSURequest] = IO(Flipped(Decoupled(new LSURequest(param.datapathWidth))))
+
+  /** mask from [[V]]
+    * TODO: since mask is one-cycle information for a mask group,
+    *       we should latch it in the LSU, and reduce the IO width.
+    *       this needs PnR information.
+    */
+  val maskInput: Vec[UInt] = IO(Input(Vec(param.lsuMSHRSize, UInt(param.maskGroupWidth.W))))
+
+  /** the address of the mask group in the [[V]]. */
+  val maskSelect: Vec[UInt] = IO(Output(Vec(param.lsuMSHRSize, UInt(param.maskGroupSizeBits.W))))
+
+  /** TileLink Port to next level memory. */
+  val tlPort: Vec[TLBundle] = IO(Vec(param.memoryBankSize, param.tlParam.bundle()))
+
+  /** read channel to [[V]], which will redirect it to [[Lane.vrf]].
+    * [[vrfReadDataPorts.head.ready]] will be deasserted if there are VRF hazards.
+    * [[vrfReadDataPorts.head.valid]] is from MSHR in LSU
+    *
+    * if fire, the next cycle [[vrfReadResults]] should be valid in the next cycle.
+    */
+  val vrfReadDataPorts: Vec[DecoupledIO[VRFReadRequest]] = IO(
     Vec(
       param.laneNumber,
       Decoupled(new VRFReadRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits))
     )
   )
-  val readResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
+
+  /** hard wire form Top.
+    * TODO: merge to [[vrfReadDataPorts]]
+    */
+  val vrfReadResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
+
+  /** write channel to [[V]], which will redirect it to [[Lane.vrf]]. */
   val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(
     Vec(
       param.laneNumber,
@@ -123,11 +109,25 @@ class LSU(param: LSUParam) extends Module {
       )
     )
   )
-  val csrInterface:     LaneCsrInterface = IO(Input(new LaneCsrInterface(param.vLenBits)))
+
+  /** the CSR interface from [[V]].
+    * TODO: merge to [[LSURequest]]
+    */
+  val csrInterface: CSRInterface = IO(Input(new CSRInterface(param.vLenBits)))
+
+  /** offset of indexed load/store instructions. */
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
-  val offsetReadTag:    Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(3.W))))
-  val lastReport:       UInt = IO(Output(UInt(param.chainingSize.W)))
-  val lsuOffsetReq:     Bool = IO(Output(Bool()))
+
+  /** which instruction is requesting the offset.
+    * TODO: merge to [[offsetReadResult]]
+    */
+  val offsetReadIndex: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.instructionIndexBits.W))))
+
+  /** interface to [[V]], indicate a MSHR slots is finished, and corresponding instruction can commit. */
+  val lastReport: UInt = IO(Output(UInt(param.chainingSize.W)))
+
+  /** interface to [[V]], redirect to [[Lane]]. */
+  val lsuOffsetRequest: Bool = IO(Output(Bool()))
 
   val reqEnq:          Vec[Bool] = Wire(Vec(param.lsuMSHRSize, Bool()))
   val tryToReadData:   Vec[UInt] = Wire(Vec(param.lsuMSHRSize, UInt(param.laneNumber.W)))
@@ -155,15 +155,15 @@ class LSU(param: LSUParam) extends Module {
     val mshr: MSHR = Module(new MSHR(param.mshrParam))
 
     mshr.req.valid := reqEnq(index)
-    mshr.req.bits := req.bits
+    mshr.req.bits := request.bits
 
     tryToReadData(index) := Mux(mshr.readDataPort.valid, mshr.status.targetLane, 0.U)
     mshr.readDataPort.ready := getReadPort(index)
-    mshr.readResult := Mux1H(RegNext(mshr.status.targetLane), readResults)
+    mshr.readResult := Mux1H(RegNext(mshr.status.targetLane), vrfReadResults)
 
     // offset
     Seq.tabulate(param.laneNumber) { laneID =>
-      mshr.offsetReadResult(laneID).valid := offsetReadResult(laneID).valid && offsetReadTag(
+      mshr.offsetReadResult(laneID).valid := offsetReadResult(laneID).valid && offsetReadIndex(
         laneID
       ) === mshr.status.instIndex
       mshr.offsetReadResult(laneID).bits := offsetReadResult(laneID).bits
@@ -171,7 +171,7 @@ class LSU(param: LSUParam) extends Module {
 
     // mask
     maskSelect(index) := Mux(mshr.maskSelect.valid, mshr.maskSelect.bits, 0.U)
-    mshr.maskRegInput := maskRegInput(index)
+    mshr.maskRegInput := maskInput(index)
 
     // tile link
     tryToAGet(index) := Mux(mshr.tlPort.a.valid, UIntToOH(mshr.tlPort.a.bits.address(param.bankPosition)), 0.U)
@@ -205,21 +205,21 @@ class LSU(param: LSUParam) extends Module {
 
   val idleMask:   UInt = VecInit(mshrVec.map(_.status.idle)).asUInt
   val idleSelect: UInt = ffo(idleMask)(param.lsuMSHRSize - 1, 0)
-  reqEnq := VecInit(Mux(req.valid, idleSelect, 0.U).asBools)
+  reqEnq := VecInit(Mux(request.valid, idleSelect, 0.U).asBools)
   // todo: address conflict
-  req.ready := idleMask.orR
+  request.ready := idleMask.orR
 
   Seq.tabulate(param.laneNumber) { laneID =>
     // 处理读请求的仲裁
     tryToReadData.map(_(laneID)).zipWithIndex.foldLeft(false.B) {
       case (occupied, (tryToUse, i)) =>
         readDataArbiter(i)(laneID) := tryToUse && !occupied
-        readDataFire(i)(laneID) := tryToUse && !occupied && readDataPorts(laneID).ready
+        readDataFire(i)(laneID) := tryToUse && !occupied && vrfReadDataPorts(laneID).ready
         occupied || tryToUse
     }
     // 连接读请求
-    readDataPorts(laneID).valid := VecInit(readDataArbiter.map(_(laneID))).asUInt.orR
-    readDataPorts(laneID).bits := Mux1H(readDataArbiter.map(_(laneID)), mshrVec.map(_.readDataPort.bits))
+    vrfReadDataPorts(laneID).valid := VecInit(readDataArbiter.map(_(laneID))).asUInt.orR
+    vrfReadDataPorts(laneID).bits := Mux1H(readDataArbiter.map(_(laneID)), mshrVec.map(_.readDataPort.bits))
 
     // 处理写请求的仲裁
     tryToWriteData.map(_(laneID)).zipWithIndex.foldLeft(false.B) {
@@ -255,6 +255,8 @@ class LSU(param: LSUParam) extends Module {
     tlPort(bankID).d.ready := ackReady(bankID) || tlPort(bankID).d.bits.opcode === 0.U
   }
   // 处理last
-  lastReport := mshrVec.map(m => Mux(m.status.last, indexToOH(m.status.instIndex, param.chainingSize), 0.U)).reduce(_ | _)
-  lsuOffsetReq := VecInit(mshrVec.map(_.status.indexGroupEnd)).asUInt.orR
+  lastReport := mshrVec
+    .map(m => Mux(m.status.last, indexToOH(m.status.instIndex, param.chainingSize), 0.U))
+    .reduce(_ | _)
+  lsuOffsetRequest := VecInit(mshrVec.map(_.status.indexGroupEnd)).asUInt.orR
 }

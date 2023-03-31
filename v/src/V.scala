@@ -155,28 +155,30 @@ case class VParameter(
   require(xLen == datapathWidth)
 }
 
+/** Top of Vector processor:
+  * couple to Rocket Core;
+  * instantiate LSU, Decoder, Lane, CSR, Instruction Queue.
+  * The logic of [[V]] contains the Vector Sequencer and Mask Unit.
+  */
 class V(val parameter: VParameter) extends Module with SerializableModule[VParameter] {
 
   /** request from CPU.
-    * it should come from commit stage.
+    * because the interrupt and exception of previous instruction is unpredictable,
+    * and the `kill` logic in Vector processor is too high,
+    * thus the request should come from commit stage to avoid any interrupt or excepiton.
     */
   val request: DecoupledIO[VRequest] = IO(Flipped(Decoupled(new VRequest(parameter.xLen))))
 
-  /** response to CPU.
-    * TODO: should be compatible to RoCC interface.
-    */
+  /** response to CPU. */
   val response: ValidIO[VResponse] = IO(Valid(new VResponse(parameter.xLen)))
 
-  /** CSR interface from CPU.
-    */
-  val csrInterface: LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.laneParam.vlMaxBits)))
+  /** CSR interface from CPU. */
+  val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.laneParam.vlMaxBits)))
 
-  /** from CPU LSU, store buffer is cleared, memory can observe memory requests after this is asserted.
-    */
+  /** from CPU LSU, store buffer is cleared, memory can observe memory requests after this is asserted. */
   val storeBufferClear: Bool = IO(Input(Bool()))
 
-  /** TileLink memory ports.
-    */
+  /** TileLink memory ports. */
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.memoryBankSize, parameter.tlParam.bundle()))
 
   /** the LSU Module */
@@ -212,7 +214,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   decode.decodeInput := request.bits.instruction >> 12
   val decodeResult: DecodeBundle = requestReg.bits.decodeResult
   // 这是当前正在mask unit 里面的那一条指令的csr信息,用来计算mask unit的控制信号
-  val csrRegForMaskUnit: LaneCsrInterface = RegInit(0.U.asTypeOf(new LaneCsrInterface(parameter.laneParam.vlMaxBits)))
+  val csrRegForMaskUnit: CSRInterface = RegInit(0.U.asTypeOf(new CSRInterface(parameter.laneParam.vlMaxBits)))
 
   // TODO: no valid here
   // TODO: these should be decoding results
@@ -509,7 +511,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         Mux1H(selectWire, largeList)
       }
       // 算req上面的分开吧
-      val gatherWire = Mux(decodeResult(Decoder.xtype), requestRegDeq.bits.src1Data, requestRegDeq.bits.instruction(19, 15))
+      val gatherWire =
+        Mux(decodeResult(Decoder.xtype), requestRegDeq.bits.src1Data, requestRegDeq.bits.instruction(19, 15))
       val gatherAdvance = (gatherWire >> log2Ceil(parameter.vLen)).asUInt.orR
       gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance)
       instructionRAWReady := !(unOrderTypeInstruction && !control.state.idle &&
@@ -1014,7 +1017,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val allLaneReady: Bool = laneReady.asUInt.andR
   // TODO: review later
   // todo: 把scheduler的反馈也加上,lsu有更高的优先级
-  val laneFeedBackValid: Bool = lsu.lsuOffsetReq || synchronized
+  val laneFeedBackValid: Bool = lsu.lsuOffsetRequest || synchronized
   val laneComplete:      Bool = ohCheck(lsu.lastReport, instStateVec.last.record.instructionIndex, parameter.chainingSize)
 
   val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
@@ -1066,15 +1069,15 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.laneResponseFeedback.bits.instructionIndex := instStateVec.last.record.instructionIndex
 
     // 读 lane
-    lane.vrfReadAddressChannel.valid := lsu.readDataPorts(index).valid ||
+    lane.vrfReadAddressChannel.valid := lsu.vrfReadDataPorts(index).valid ||
     (maskUnitRead.valid && maskUnitReadSelect(index))
     lane.vrfReadAddressChannel.bits :=
-      Mux(lsu.readDataPorts(index).valid, lsu.readDataPorts(index).bits, maskUnitRead.bits)
-    lsu.readDataPorts(index).ready := lane.vrfReadAddressChannel.ready
+      Mux(lsu.vrfReadDataPorts(index).valid, lsu.vrfReadDataPorts(index).bits, maskUnitRead.bits)
+    lsu.vrfReadDataPorts(index).ready := lane.vrfReadAddressChannel.ready
     readSelectMaskUnit(index) :=
-      lane.vrfReadAddressChannel.ready && !lsu.readDataPorts(index).valid && maskUnitReadSelect(index)
+      lane.vrfReadAddressChannel.ready && !lsu.vrfReadDataPorts(index).valid && maskUnitReadSelect(index)
     laneReadResult(index) := lane.vrfReadDataChannel
-    lsu.readResults(index) := lane.vrfReadDataChannel
+    lsu.vrfReadResults(index) := lane.vrfReadDataChannel
 
     // 写lane
     lane.vrfWriteChannel.valid := vrfWrite(index).valid || (maskUnitWrite.valid && maskUnitWriteSelect(index))
@@ -1086,7 +1089,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
     lsu.offsetReadResult(index).valid := lane.laneResponse.valid && lane.laneResponse.bits.toLSU
     lsu.offsetReadResult(index).bits := lane.laneResponse.bits.data
-    lsu.offsetReadTag(index) := lane.laneResponse.bits.instructionIndex
+    lsu.offsetReadIndex(index) := lane.laneResponse.bits.instructionIndex
 
     instructionFinished(index).zip(instStateVec.map(_.record.instructionIndex)).foreach {
       case (d, f) => d := (UIntToOH(f(parameter.instructionIndexBits - 2, 0)) & lane.instructionFinished).orR
@@ -1108,22 +1111,21 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   busClear := !VecInit(laneVec.map(_.writeBusPort.deq.valid)).asUInt.orR
 
   // 连lsu
-  lsu.req.valid := requestRegDeq.fire && isLoadStoreType
-  lsu.req.bits.instIndex := requestReg.bits.instructionIndex
-  lsu.req.bits.rs1Data := requestRegDeq.bits.src1Data
-  lsu.req.bits.rs2Data := requestRegDeq.bits.src2Data
-  lsu.req.bits.instInf.nf := requestRegDeq.bits.instruction(31, 29)
-  lsu.req.bits.instInf.mew := requestRegDeq.bits.instruction(28)
-  lsu.req.bits.instInf.mop := requestRegDeq.bits.instruction(27, 26)
-  lsu.req.bits.instInf.vs1 := requestRegDeq.bits.instruction(19, 15)
-  lsu.req.bits.instInf.vs2 := requestRegDeq.bits.instruction(24, 20)
-  lsu.req.bits.instInf.vs3 := requestRegDeq.bits.instruction(11, 7)
+  lsu.request.valid := requestRegDeq.fire && isLoadStoreType
+  lsu.request.bits.instructionIndex := requestReg.bits.instructionIndex
+  lsu.request.bits.rs1Data := requestRegDeq.bits.src1Data
+  lsu.request.bits.rs2Data := requestRegDeq.bits.src2Data
+  lsu.request.bits.instructionInformation.nf := requestRegDeq.bits.instruction(31, 29)
+  lsu.request.bits.instructionInformation.mew := requestRegDeq.bits.instruction(28)
+  lsu.request.bits.instructionInformation.mop := requestRegDeq.bits.instruction(27, 26)
+  lsu.request.bits.instructionInformation.lumop := requestRegDeq.bits.instruction(24, 20)
+  lsu.request.bits.instructionInformation.vs3 := requestRegDeq.bits.instruction(11, 7)
   // (0b000 0b101 0b110 0b111) -> (8, 16, 32, 64)忽略最高位
-  lsu.req.bits.instInf.eew := requestRegDeq.bits.instruction(13, 12)
-  lsu.req.bits.instInf.st := isStoreType
-  lsu.req.bits.instInf.mask := maskType
+  lsu.request.bits.instructionInformation.eew := requestRegDeq.bits.instruction(13, 12)
+  lsu.request.bits.instructionInformation.isStore := isStoreType
+  lsu.request.bits.instructionInformation.useMask := maskType
 
-  lsu.maskRegInput.zip(lsu.maskSelect).foreach { case (data, index) => data := v0(index) }
+  lsu.maskInput.zip(lsu.maskSelect).foreach { case (data, index) => data := v0(index) }
   lsu.csrInterface := requestReg.bits.csr
 
   // 连lane的环
@@ -1156,7 +1158,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     // 类型信息：isLSType noReadLD specialInst
     val tryToEnq = Mux(specialInst, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
     // 远程坑就绪
-    val executionReady = (!isLoadStoreType || lsu.req.ready) && (noReadST || allLaneReady)
+    val executionReady = (!isLoadStoreType || lsu.request.ready) && (noReadST || allLaneReady)
     requestRegDeq.ready := executionReady && localReady && (!gatherNeedRead || gatherReadFinish) && instructionRAWReady
     instructionToSlotOH := Mux(requestRegDeq.ready, tryToEnq, 0.U)
   }

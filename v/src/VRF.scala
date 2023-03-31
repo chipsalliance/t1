@@ -98,7 +98,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   )
   val instWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
   val flush:           Bool = IO(Input(Bool()))
-  val csrInterface:    LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.VLMaxWidth)))
+  val csrInterface:    CSRInterface = IO(Input(new CSRInterface(parameter.VLMaxWidth)))
   val lsuLastReport:   UInt = IO(Input(UInt(parameter.chainingSize.W)))
   // write queue empty
   val bufferClear: Bool = IO(Input(Bool()))

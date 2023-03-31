@@ -5,7 +5,7 @@ import chisel3.util._
 
 /**
   * @param dataPathWidth width of data path, can be 32 or 64, decides the memory bandwidth.
-  * @param vlWidth used to instantiate [[LaneCsrInterface]]
+  * @param vlWidth used to instantiate [[CSRInterface]]
   *                TODO: remove it.
   */
 case class LaneMulParam(datapathWidth: Int, vlWidth: Int) {
@@ -23,7 +23,7 @@ class LaneMul(parameter: LaneMulParam) extends Module {
   val req:          LaneMulReq = IO(Input(new LaneMulReq(parameter)))
   val resp:         UInt = IO(Output(UInt(parameter.respWidth.W)))
   val vxsat:        Bool = IO(Output(Bool()))
-  val csrInterface: LaneCsrInterface = IO(Input(new LaneCsrInterface(parameter.vlWidth)))
+  val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.vlWidth)))
 
   val sew1H: UInt = UIntToOH(csrInterface.vSew)(2, 0)
   val vSewOrR = csrInterface.vSew.orR
