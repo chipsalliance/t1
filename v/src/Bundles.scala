@@ -91,6 +91,7 @@ class ExtendInstructionType extends Bundle {
   val id:       Bool = Bool()
 }
 
+/** interface from [[V]] to [[Lane]]. */
 class LaneRequest(param: LaneParameter) extends Bundle {
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
   // decode
@@ -282,34 +283,81 @@ class CSRInterface(vlWidth: Int) extends Bundle {
   val ignoreException: Bool = Bool()
 }
 
-class LaneDataResponse(param: LaneParameter) extends Bundle {
+/** [[Lane]] -> [[V]], response for [[LaneRequest]] */
+class LaneResponse(param: LaneParameter) extends Bundle {
+
+  /** data sending to [[V]]. */
   val data: UInt = UInt(param.datapathWidth.W)
-  // TODO: move to top?
-  val toLSU:            Bool = Bool()
-  val ffoSuccess:       Bool = Bool()
+
+  /** if [[toLSU]] is asserted, this field is used to indicate the data is sending to LSU,
+    * otherwise, it is for mask unit
+    */
+  val toLSU: Bool = Bool()
+
+  /** successfully find first one in the [[V]]. */
+  val ffoSuccess: Bool = Bool()
+
+  /** which instruction is the source of this transaction
+    * TODO: for DEBUG use.
+    */
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 }
 
 class ReadBusData(param: LaneParameter) extends Bundle {
+
+  /** data field of the bus. */
   val data: UInt = UInt(param.datapathWidth.W)
-  val tail: Bool = Bool()
-  // todo: for debug
-  val from:      UInt = UInt(param.laneNumberBits.W)
-  val target:    UInt = UInt(param.laneNumberBits.W)
-  val instIndex: UInt = UInt(param.instructionIndexBits.W)
-  val counter:   UInt = UInt(param.groupNumberBits.W)
+
+  /** The cross lane data is double to [[param.datapathWidth]],
+    * assertion of this flag is indicating that the data is the second half of the cross lane data.
+    */
+  val isTail: Bool = Bool()
+
+  /** indicate which lane is the source of this transaction
+    * TODO: for DEBUG use.
+    */
+  val sourceIndex: UInt = UInt(param.laneNumberBits.W)
+
+  /** indicate which lane is the sink of this transaction */
+  val sinkIndex: UInt = UInt(param.laneNumberBits.W)
+
+  /** which instruction is the source of this transaction
+    * TODO: for DEBUG use.
+    */
+  val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
+
+  /** define the order of the data to dequeue from ring. */
+  val counter: UInt = UInt(param.groupNumberBits.W)
 }
 
 class WriteBusData(param: LaneParameter) extends Bundle {
+
+  /** data field of the bus. */
   val data: UInt = UInt(param.datapathWidth.W)
-  val tail: Bool = Bool()
-  // 正常的跨lane写可能会有mask类型的指令
-  val mask:   UInt = UInt(2.W)
-  val target: UInt = UInt(param.laneNumberBits.W)
-  // todo: for debug
-  val from:      UInt = UInt(param.laneNumberBits.W)
-  val instIndex: UInt = UInt(param.instructionIndexBits.W)
-  val counter:   UInt = UInt(param.groupNumberBits.W)
+
+  /** The cross lane data is double to [[param.datapathWidth]],
+    * assertion of this flag is indicating that the data is the second half of the cross lane data.
+    */
+  val isTail: Bool = Bool()
+
+  /** used for instruction with mask. */
+  val mask: UInt = UInt((param.datapathWidth / 2 / 8).W)
+
+  /** indicate which lane is the sink of this transaction */
+  val sinkIndex: UInt = UInt(param.laneNumberBits.W)
+
+  /** indicate which lane is the source of this transaction
+    * TODO: for DEBUG use.
+    */
+  val sourceIndex: UInt = UInt(param.laneNumberBits.W)
+
+  /** which instruction is the source of this transaction
+    * TODO: for DEBUG use.
+    */
+  val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
+
+  /** define the order of the data to dequeue from ring. */
+  val counter: UInt = UInt(param.groupNumberBits.W)
 }
 
 class RingPort[T <: Data](gen: T) extends Bundle {
@@ -317,7 +365,12 @@ class RingPort[T <: Data](gen: T) extends Bundle {
   val deq: DecoupledIO[T] = Decoupled(gen)
 }
 
-class SchedulerFeedback(param: LaneParameter) extends Bundle {
+/** [[V]] -> [[Lane]], ack of [[LaneResponse]] */
+class LaneResponseFeedback(param: LaneParameter) extends Bundle {
+
+  /** which instruction is the source of this transaction
+    * TODO: for DEBUG use.
+    */
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 
   /** for instructions that might finish in other lanes, use [[complete]] to tell the target lane */
