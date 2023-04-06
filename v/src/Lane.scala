@@ -116,36 +116,48 @@ case class LaneParameter(
   def mulParam: LaneMulParam = LaneMulParam(datapathWidth, vLen)
 }
 
+/** Instantiate [[Lane]] from [[V]],
+  * - [[VRF]] is designed for store the vector register of the processor.
+  * - datapath units: [[MaskedLogic]], [[LaneAdder]], [[LaneShifter]], [[LaneMul]], [[LaneDiv]], [[OtherUnit]]
+  */
 class Lane(val parameter: LaneParameter) extends Module with SerializableModule[LaneParameter] {
 
   /** laneIndex is a IO constant for D/I and physical implementations. */
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
+  // constant parameter for physical implementations.
   dontTouch(laneIndex)
 
-  /** VRF Read Interface.
-    * TODO: use mesh
+  /** Cross lane VRF Read Interface.
+    * only used for `narrow` an `widen`
+    * TODO: benchmark the usecase for tuning the Ring Bus width.
+    *       find a real world case for using `narrow` and `widen` aggressively.
     */
   val readBusPort: RingPort[ReadBusData] = IO(new RingPort(new ReadBusData(parameter)))
 
   /** VRF Write Interface.
-    * TODO: use mesh
+    * only used for `narrow` an `widen`
+    * TODO: benchmark the usecase for tuning the Ring Bus width.
+    *       find a real world case for using `narrow` and `widen` aggressively.
     */
   val writeBusPort: RingPort[WriteBusData] = IO(new RingPort(new WriteBusData(parameter)))
 
-  /** request from [[V]] to [[Lane]] */
+  /** request from [[V.decode]] to [[Lane]]. */
   val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(parameter))))
 
-  /** CSR Interface. */
+  /** CSR Interface.
+    * TODO: merge to [[laneRequest]]
+    */
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.vlMaxBits)))
 
-  /** to mask unit or LSU */
-  val laneResponse: ValidIO[LaneDataResponse] = IO(Valid(new LaneDataResponse(parameter)))
+  /** response to [[V.lsu]] or mask unit in [[V]] */
+  val laneResponse: ValidIO[LaneResponse] = IO(Valid(new LaneResponse(parameter)))
 
   /** feedback from [[V]] for [[laneResponse]] */
-  val laneResponseFeedback: ValidIO[SchedulerFeedback] = IO(Flipped(Valid(new SchedulerFeedback(parameter))))
+  val laneResponseFeedback: ValidIO[LaneResponseFeedback] = IO(Flipped(Valid(new LaneResponseFeedback(parameter))))
 
-  // for LSU and V accessing lane, this is not a part of ring, but a direct connection.
-  // TODO: learn AXI channel, reuse [[vrfReadAddressChannel]] and [[vrfWriteChannel]].
+  /** for LSU and V accessing lane, this is not a part of ring, but a direct connection.
+    * TODO: learn AXI channel, reuse [[vrfReadAddressChannel]] and [[vrfWriteChannel]].
+    */
   val vrfReadAddressChannel: DecoupledIO[VRFReadRequest] = IO(
     Flipped(
       Decoupled(
@@ -179,14 +191,19 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** select which mask group. */
   val maskSelect: UInt = IO(Output(UInt(parameter.maskGroupSizeBits.W)))
 
-  /** because of load store index EEW, is complicated for lane to calculate whether LSU is finished.
+  /** from [[V.lsu]] to [[Lane.vrf]], indicate it's the load store is finished, used for chaining.
+    * because of load store index EEW, is complicated for lane to calculate whether LSU is finished.
     * let LSU directly tell each lane it is finished.
     */
   val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** for RaW, VRF should wait for buffer to be empty. */
   val lsuVRFWriteBufferClear: Bool = IO(Input(Bool()))
-  val maskUnitFlushVrf:       Bool = IO(Input(Bool()))
+
+  /** for some mask instructions, e.g. `reduce`
+    * need to release the record from [[VRF]]
+    */
+  val maskUnitFlushVrf: Bool = IO(Input(Bool()))
 
   // TODO: remove
   dontTouch(writeBusPort)
@@ -350,7 +367,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val slotCanShift: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
   /** cross lane reading port from [[readBusPort]]
-    * if [[ReadBusData.target]] matches the index of this lane, dequeue from ring
+    * if [[ReadBusData.sinkIndex]] matches the index of this lane, dequeue from ring
     */
   val readBusDequeue: ValidIO[ReadBusData] = Wire(Valid(new ReadBusData(parameter: LaneParameter)))
 
@@ -420,7 +437,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val otherResponse: OtherUnitResp = Wire(Output(new OtherUnitResp(parameter.datapathWidth)))
 
   /** request for mask instruction type. */
-  val maskRequests: Vec[LaneDataResponse] = Wire(Vec(parameter.chainingSize, Output(new LaneDataResponse(parameter))))
+  val maskRequests: Vec[LaneResponse] = Wire(Vec(parameter.chainingSize, Output(new LaneResponse(parameter))))
 
   /** assert when a instruction is finished in the slot. */
   val instructionFinishedVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
@@ -494,7 +511,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val slotGroupFinishedIndex: UInt = !csrInterface.vSew(1) ## !vSewOrR
 
-  /** queue for cross lane writing. */
+  /** queue for cross lane writing.
+    * TODO: benchmark the size of the queue
+    */
   val crossLaneWriteQueue: Queue[VRFWriteRequest] = Module(
     new Queue(
       new VRFWriteRequest(
@@ -895,7 +914,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
-        val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(parameter)))
+        val maskRequest: LaneResponse = Wire(Output(new LaneResponse(parameter)))
         val canSendMaskRequest = needResponse && readFinish && record.state.sExecute
         val maskValid = canSendMaskRequest && !record.state.sScheduler
         val noNeedWaitScheduler: Bool = !(canSendMaskRequest && !record.initState.sScheduler) || schedulerFinish
@@ -1154,10 +1173,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val crossReadDataReady1 = record.state.sCrossRead1 && RegNext(record.state.sCrossRead1)
         val tryToSendHead = crossReadDataReady0 && !record.state.sSendResult0 && slotOccupied.head
         val tryToSendTail = crossReadDataReady1 && !record.state.sSendResult1 && slotOccupied.head
-        crossLaneRead.bits.target := (!tryToSendHead) ## laneIndex(parameter.laneNumberBits - 1, 1)
-        crossLaneRead.bits.tail := laneIndex(0)
-        crossLaneRead.bits.from := laneIndex
-        crossLaneRead.bits.instIndex := record.originalInformation.instructionIndex
+        crossLaneRead.bits.sinkIndex := (!tryToSendHead) ## laneIndex(parameter.laneNumberBits - 1, 1)
+        crossLaneRead.bits.isTail := laneIndex(0)
+        crossLaneRead.bits.sourceIndex := laneIndex
+        crossLaneRead.bits.instructionIndex := record.originalInformation.instructionIndex
         crossLaneRead.bits.counter := record.groupCounter
         crossLaneRead.bits.data := Mux(tryToSendHead, crossReadLSBOut, crossReadMSBOut)
         crossLaneRead.valid := tryToSendHead || tryToSendTail
@@ -1165,10 +1184,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // 跨lane的写
         val sendWriteHead = record.state.sExecute && !record.state.sCrossWrite0 && slotOccupied.head
         val sendWriteTail = record.state.sExecute && !record.state.sCrossWrite1 && slotOccupied.head
-        crossLaneWrite.bits.target := laneIndex(parameter.laneNumberBits - 2, 0) ## (!sendWriteHead)
-        crossLaneWrite.bits.from := laneIndex
-        crossLaneWrite.bits.tail := laneIndex(parameter.laneNumberBits - 1)
-        crossLaneWrite.bits.instIndex := record.originalInformation.instructionIndex
+        crossLaneWrite.bits.sinkIndex := laneIndex(parameter.laneNumberBits - 2, 0) ## (!sendWriteHead)
+        crossLaneWrite.bits.sourceIndex := laneIndex
+        crossLaneWrite.bits.isTail := laneIndex(parameter.laneNumberBits - 1)
+        crossLaneWrite.bits.instructionIndex := record.originalInformation.instructionIndex
         crossLaneWrite.bits.counter := record.groupCounter
         crossLaneWrite.bits.data := Mux(sendWriteHead, crossWriteResultLSBHalf, crossWriteResultMSBHalf)
         crossLaneWrite.bits.mask := Mux(sendWriteHead, crossWriteMaskLSBHalf, crossWriteMaskMSBHalf)
@@ -1176,8 +1195,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // 跨lane读写的数据接收
         when(readBusDequeue.valid) {
-          assert(readBusDequeue.bits.instIndex === record.originalInformation.instructionIndex)
-          when(readBusDequeue.bits.tail) {
+          assert(readBusDequeue.bits.instructionIndex === record.originalInformation.instructionIndex)
+          when(readBusDequeue.bits.isTail) {
             record.state.wRead2 := true.B
             crossReadMSBIn := readBusDequeue.bits.data
           }.otherwise {
@@ -1492,7 +1511,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         otherRequests(index) := maskAnd(slotOccupied(index) && decodeResult(Decoder.other), otherRequest)
 
         // 往scheduler的执行任务compress viota
-        val maskRequest: LaneDataResponse = Wire(Output(new LaneDataResponse(parameter)))
+        val maskRequest: LaneResponse = Wire(Output(new LaneResponse(parameter)))
         needUpdateMaskDestination := lastGroupForMask || instructionExecuteFinished(index)
 
         /** mask类型的指令并不是每一轮的状态机都会需要与scheduler交流
@@ -1664,7 +1683,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // 处理读环的
   {
     val readBusDataReg: ValidIO[ReadBusData] = RegInit(0.U.asTypeOf(Valid(new ReadBusData(parameter))))
-    val readBusDequeueMatch = readBusPort.enq.bits.target === laneIndex &&
+    val readBusDequeueMatch = readBusPort.enq.bits.sinkIndex === laneIndex &&
       readBusPort.enq.bits.counter === slotControl.head.groupCounter
     readBusDequeue.valid := readBusDequeueMatch && readBusPort.enq.valid
     readBusDequeue.bits := readBusPort.enq.bits
@@ -1689,13 +1708,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   {
     val writeBusDataReg: ValidIO[WriteBusData] = RegInit(0.U.asTypeOf(Valid(new WriteBusData(parameter))))
     // 策略依然是环上的优先,如果queue满了继续转
-    val writeBusIndexMatch = writeBusPort.enq.bits.target === laneIndex && crossLaneWriteQueue.io.enq.ready
+    val writeBusIndexMatch = writeBusPort.enq.bits.sinkIndex === laneIndex && crossLaneWriteQueue.io.enq.ready
     writeBusPort.enq.ready := true.B
     writeBusDataReg.valid := false.B
     crossLaneWriteQueue.io.enq.bits.vd := slotControl.head.originalInformation.vd + writeBusPort.enq.bits.counter(3, 1)
-    crossLaneWriteQueue.io.enq.bits.offset := writeBusPort.enq.bits.counter ## writeBusPort.enq.bits.tail
+    crossLaneWriteQueue.io.enq.bits.offset := writeBusPort.enq.bits.counter ## writeBusPort.enq.bits.isTail
     crossLaneWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
-    crossLaneWriteQueue.io.enq.bits.last := instructionExecuteFinished.head && writeBusPort.enq.bits.tail
+    crossLaneWriteQueue.io.enq.bits.last := instructionExecuteFinished.head && writeBusPort.enq.bits.isTail
     crossLaneWriteQueue.io.enq.bits.instructionIndex := slotControl.head.originalInformation.instructionIndex
     crossLaneWriteQueue.io.enq.bits.mask := FillInterleaved(2, writeBusPort.enq.bits.mask)
     //writeBusPort.enq.bits
@@ -1741,7 +1760,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     otherUnit.req := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(parameter)))
     laneResponse.bits := VecInit(maskRequests.map(_.asUInt))
       .reduce(_ | _)
-      .asTypeOf(Output(new LaneDataResponse(parameter)))
+      .asTypeOf(Output(new LaneResponse(parameter)))
     laneResponse.valid := maskRequestValids.asUInt.orR
     // 执行单元的其他连接
     otherResponse := otherUnit.resp
