@@ -222,21 +222,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       )
   ).asUInt
 
-  // mask logic 因为是1bit作为element,所以需要有mask destination一样的处理
-  /** xxx   xxx     xxxxx
-    * head  body    tail
-    */
-  val vlTail: UInt = csrInterface.vl(parameter.datapathWidthBits - 1, 0)
-  val vlBody: UInt =
-    csrInterface.vl(parameter.datapathWidthBits + parameter.laneNumberBits - 1, parameter.datapathWidthBits)
-  val vlHead: UInt = csrInterface.vl(parameter.vlMaxBits - 1, parameter.datapathWidthBits + parameter.laneNumberBits)
-  val lastGroupMask = scanRightOr(UIntToOH(vlTail)) >> 1
-  val dataPathMisaligned = vlTail.orR
-  val maskeDataGroup = (vlHead ## vlBody) - !dataPathMisaligned
-  val lastLaneIndexForMaskLogic:  UInt = maskeDataGroup(parameter.laneNumberBits - 1, 0)
-  val isLastLaneForMaskLogic:     Bool = lastLaneIndexForMaskLogic === laneIndex
-  val lastGroupCountForMaskLogic: UInt = maskeDataGroup >> parameter.laneNumberBits
-
   val fullMask: UInt = (-1.S(parameter.datapathWidth.W)).asUInt
 
   /** the slot is occupied by instruction */
@@ -458,59 +443,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val crossLaneWrite: ValidIO[WriteBusData] = Wire(Valid(new WriteBusData(parameter)))
 
-  val vSewOrR: Bool = csrInterface.vSew.orR
-  val vSew1H:  UInt = UIntToOH(csrInterface.vSew)
-  // todo: - 1 in [[v]]
-  val lastElementIndex: UInt = (csrInterface.vl - 1.U)(parameter.vlMaxBits - 2, 0)
-
-  /** For an instruction, the last group is not executed by all lanes,
-    * here is the last group of the instruction
-    * xxxxx xxx xx -> vsew = 0
-    * xxxxxx xxx x -> vsew = 1
-    * xxxxxxx xxx  -> vsew = 2
-    */
-  val lastGroupForInstruction: UInt = Mux1H(
-    vSew1H(2, 0),
-    Seq(
-      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 2),
-      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 1),
-      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits)
-    )
-  )
-
-  /** Which lane the last element is in. */
-  val lastLaneIndex: UInt = Mux1H(
-    vSew1H(2, 0),
-    Seq(
-      lastElementIndex(parameter.laneNumberBits + 2 - 1, 2),
-      lastElementIndex(parameter.laneNumberBits + 1 - 1, 1),
-      lastElementIndex(parameter.laneNumberBits - 1, 0)
-    )
-  )
-
-  /** Used to calculate the last group of mask, which will only be effective when [[isEndLane]] */
-  val lastElementExecuteIndex: UInt = Mux1H(
-    vSew1H(1, 0),
-    Seq(
-      lastElementIndex(1, 0),
-      lastElementIndex(0) ## false.B
-    )
-  )
-
-  /** The relative position of the last lane determines the processing of the last group. */
-  val lanePositionLargerThanEndLane: Bool = laneIndex > lastLaneIndex
-  val isEndLane:                     Bool = laneIndex === lastLaneIndex
-  val lastGroupForLane:              UInt = lastGroupForInstruction - lanePositionLargerThanEndLane
-
-  /** when [[InstControlRecord.executeIndex]] reaches [[slotGroupFinishedIndex]], the group in the slot is finished.
-    * 00 -> 11
-    * 01 -> 10
-    * 10 -> 00
-    *
-    * TODO: 64bit
-    */
-  val slotGroupFinishedIndex: UInt = !csrInterface.vSew(1) ## !vSewOrR
-
   /** queue for cross lane writing.
     * TODO: benchmark the size of the queue
     */
@@ -542,6 +474,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         * for masked instruction, need to wait for mask
         */
       val maskReady: Bool = record.mask.valid || !needMaskSource
+      val vSew1H: UInt = UIntToOH(record.csr.vSew)
 
       /** 正在算的是这个lane的第多少个 element */
       val elementIndex: UInt = Mux1H(
@@ -629,12 +562,82 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val needResponse: Bool = (record.originalInformation.loadStore || reduceValid || readOnly ||
         maskTypeDestinationWriteValid || record.originalInformation.decodeResult(Decoder.ffo)) && slotActive(index)
 
+      // <- handle csr ->
+      val vSewOrR: Bool = record.csr.vSew.orR
+      // todo: - 1 in [[v]]?
+      val lastElementIndex: UInt = (record.csr.vl - 1.U)(parameter.vlMaxBits - 2, 0)
+
+      /** For an instruction, the last group is not executed by all lanes,
+        * here is the last group of the instruction
+        * xxxxx xxx xx -> vsew = 0
+        * xxxxxx xxx x -> vsew = 1
+        * xxxxxxx xxx  -> vsew = 2
+        */
+      val lastGroupForInstruction: UInt = Mux1H(
+        vSew1H(2, 0),
+        Seq(
+          lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 2),
+          lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 1),
+          lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits)
+        )
+      )
+
+      /** Which lane the last element is in. */
+      val lastLaneIndex: UInt = Mux1H(
+        vSew1H(2, 0),
+        Seq(
+          lastElementIndex(parameter.laneNumberBits + 2 - 1, 2),
+          lastElementIndex(parameter.laneNumberBits + 1 - 1, 1),
+          lastElementIndex(parameter.laneNumberBits - 1, 0)
+        )
+      )
+
+      /** Used to calculate the last group of mask, which will only be effective when [[isEndLane]] */
+      val lastElementExecuteIndex: UInt = Mux1H(
+        vSew1H(1, 0),
+        Seq(
+          lastElementIndex(1, 0),
+          lastElementIndex(0) ## false.B
+        )
+      )
+
+      /** The relative position of the last lane determines the processing of the last group. */
+      val lanePositionLargerThanEndLane: Bool = laneIndex > lastLaneIndex
+      val isEndLane: Bool = laneIndex === lastLaneIndex
+      val lastGroupForLane: UInt = lastGroupForInstruction - lanePositionLargerThanEndLane
+
+      /** when [[InstControlRecord.executeIndex]] reaches [[slotGroupFinishedIndex]], the group in the slot is finished.
+        * 00 -> 11
+        * 01 -> 10
+        * 10 -> 00
+        *
+        * TODO: 64bit
+        */
+      val slotGroupFinishedIndex: UInt = !record.csr.vSew(1) ## !vSewOrR
+
+      // mask logic 因为是1bit作为element,所以需要有mask destination一样的处理
+      /** xxx   xxx     xxxxx
+        * head  body    tail
+        */
+      val vlTail: UInt = record.csr.vl(parameter.datapathWidthBits - 1, 0)
+      val vlBody: UInt =
+        record.csr.vl(parameter.datapathWidthBits + parameter.laneNumberBits - 1, parameter.datapathWidthBits)
+      val vlHead: UInt = record.csr.vl(parameter.vlMaxBits - 1, parameter.datapathWidthBits + parameter.laneNumberBits)
+      val lastGroupMask = scanRightOr(UIntToOH(vlTail)) >> 1
+      val dataPathMisaligned = vlTail.orR
+      val maskeDataGroup = (vlHead ## vlBody) - !dataPathMisaligned
+      val lastLaneIndexForMaskLogic: UInt = maskeDataGroup(parameter.laneNumberBits - 1, 0)
+      val isLastLaneForMaskLogic: Bool = lastLaneIndexForMaskLogic === laneIndex
+      val lastGroupCountForMaskLogic: UInt = maskeDataGroup >> parameter.laneNumberBits
+      // <- handle csr end ->
+
       // mask logic 的控制
       val lastGroupForMaskLogic: Bool = lastGroupCountForMaskLogic === record.groupCounter
       val maskLogicWillCompleted = lastGroupForMaskLogic && record.originalInformation.decodeResult(Decoder.maskLogic)
       val bordersForMaskLogic = lastGroupForMaskLogic && isLastLaneForMaskLogic &&
         dataPathMisaligned && record.originalInformation.decodeResult(Decoder.maskLogic)
       val maskCorrect = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
+
       val notWaitFeedBack: Bool = !(readOnly || record.originalInformation.loadStore)
       val nr = record.originalInformation.decodeResult(Decoder.nr)
       // div
@@ -663,7 +666,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         /*val firstMasked: Bool = Wire(Bool())*/
         // TODO: move this to verification module
         when(needCrossRead) {
-          assert(csrInterface.vSew != 2.U)
+          assert(record.csr.vSew != 2.U)
         }
         slotActive(index) :=
           // slot should alive
@@ -745,7 +748,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         ) + maskNeedUpdate
         val indexInLane = nextGroupCountMSB ## nextIndex
         // csrInterface.vSew 只会取值0, 1, 2,需要特别处理移位
-        val nextIntermediateVolume = (indexInLane << csrInterface.vSew).asUInt
+        val nextIntermediateVolume = (indexInLane << record.csr.vSew).asUInt
         val nextGroupCount = nextIntermediateVolume(parameter.groupNumberBits + 1, 2)
         val nextExecuteIndex = nextIntermediateVolume(1, 0)
 
@@ -825,7 +828,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             indexInLane ## laneIndex
           )
         )
-        instructionExecuteFinished(index) := nextElementIndex >= csrInterface.vl || maskLogicWillCompleted
+        instructionExecuteFinished(index) := nextElementIndex >= record.csr.vl || maskLogicWillCompleted
         // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
         val logicRequest = Wire(new MaskedLogicRequest(parameter.datapathWidth))
         logicRequest.src.head := finalSource2
@@ -1040,7 +1043,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // TODO: move this to verification module
         when(needCrossRead) {
-          assert(csrInterface.vSew != 2.U)
+          assert(record.csr.vSew != 2.U)
         }
         slotActive(index) :=
           // slot should alive
@@ -1242,7 +1245,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             // update tail
             crossWriteResultMSBHalf :=
               Mux(
-                csrInterface.vSew(0),
+                record.csr.vSew(0),
                 dataDequeue(parameter.datapathWidth - 1, parameter.halfDatapathWidth),
                 Mux(
                   record.executeIndex(0),
@@ -1250,18 +1253,18 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
                   crossWriteResultMSBHalf(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
                 )
               ) ## Mux(
-                !record.executeIndex(0) || csrInterface.vSew(0),
+                !record.executeIndex(0) || record.csr.vSew(0),
                 dataDequeue(parameter.halfDatapathWidth - 1, 0),
                 crossWriteResultMSBHalf(parameter.halfDatapathWidth - 1, 0)
               )
             crossWriteMaskMSBHalf :=
-              (record.executeIndex(0) || csrInterface.vSew(0) || crossWriteMaskMSBHalf(1)) ##
-                (!record.executeIndex(0) || csrInterface.vSew(0) || crossWriteMaskMSBHalf(0))
+              (record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskMSBHalf(1)) ##
+                (!record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskMSBHalf(0))
           }.otherwise {
             // update head
             crossWriteResultLSBHalf :=
               Mux(
-                csrInterface.vSew(0),
+                record.csr.vSew(0),
                 dataDequeue(parameter.datapathWidth - 1, parameter.halfDatapathWidth),
                 Mux(
                   record.executeIndex(0),
@@ -1269,13 +1272,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
                   crossWriteResultLSBHalf(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
                 )
               ) ## Mux(
-                !record.executeIndex(0) || csrInterface.vSew(0),
+                !record.executeIndex(0) || record.csr.vSew(0),
                 dataDequeue(parameter.halfDatapathWidth - 1, 0),
                 crossWriteResultLSBHalf(parameter.halfDatapathWidth - 1, 0)
               )
             crossWriteMaskLSBHalf :=
-              (record.executeIndex(0) || csrInterface.vSew(0) || crossWriteMaskLSBHalf(1)) ##
-                (!record.executeIndex(0) || csrInterface.vSew(0) || crossWriteMaskLSBHalf(0))
+              (record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskLSBHalf(1)) ##
+                (!record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskLSBHalf(0))
           }
 
         }
@@ -1295,7 +1298,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         ) + maskNeedUpdate
         val indexInLane = nextGroupCountMSB ## nextIndex
         // csrInterface.vSew 只会取值0, 1, 2,需要特别处理移位
-        val nextIntermediateVolume = (indexInLane << csrInterface.vSew).asUInt
+        val nextIntermediateVolume = (indexInLane << record.csr.vSew).asUInt
 
         /** mask 后 ffo 计算出来的下一次计算的 element 属于哪一个 group */
         val nextGroupMasked: UInt = nextIntermediateVolume(parameter.groupNumberBits + 1, 2)
@@ -1859,6 +1862,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // todo: vStart(2,0) > lane index
   entranceControl.groupCounter := (csrInterface.vStart >> 3).asUInt
   val src1IsSInt: Bool = !laneRequest.bits.decodeResult(Decoder.unsigned0)
+  val vSew1H = UIntToOH(csrInterface.vSew)
   // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
   val immSignExtend: UInt = Fill(16, laneRequest.bits.vs1(4) && (vSew1H(2) || src1IsSInt)) ##
     Fill(8, laneRequest.bits.vs1(4) && (vSew1H(1) || vSew1H(2) || src1IsSInt)) ##
