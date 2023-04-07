@@ -121,30 +121,66 @@ class MSHRStage1Bundle(param: MSHRParam) extends Bundle {
   val address: UInt = UInt(param.paWidth.W)
 }
 
-/** 由于vrf变成了 SyncReadMem, 重构了mshr
-  * 这次的mshr是走流水的方式,分为3级流水:
-  * s0: 计算访问vrf的相关信息, 据算offset的信息
-  * s1: 读vrf,并计算地址信息
-  * s2: tl.a
-  * 还有一个独立运行的 tl.d
+/** Miss Status Handler Register
+  * this is used to record the outstanding memory access request for each instruction.
+  * it contains 3 stages for tl.a:
+  * - s0: access lane for the offset of the memory address
+  * - s1: send VRF read request; calculate memory address based on s0 result
+  * - s2: send tilelink memory request.
+  *
+  * tl.d is handled independently.
   */
 class MSHR(param: MSHRParam) extends Module {
-  val req: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth))))
-  val readDataPort: DecoupledIO[VRFReadRequest] = IO(
+
+  /** [[LSURequest]] from LSU
+    * see [[LSU.request]]
+    */
+  val lsuRequest: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth))))
+
+  /** read channel to [[V]], which will redirect it to [[Lane.vrf]].
+    * see [[LSU.vrfReadDataPorts]]
+    */
+  val vrfReadDataPorts: DecoupledIO[VRFReadRequest] = IO(
     Decoupled(new VRFReadRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits))
   )
-  val readResult:       UInt = IO(Input(UInt(param.datapathWidth.W)))
+
+  /** hard wire form Top.
+    * see [[LSU.vrfReadResults]]
+    */
+  val vrfReadResults: UInt = IO(Input(UInt(param.datapathWidth.W)))
+
+  /** offset of indexed load/store instructions. */
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
-  val maskRegInput:     UInt = IO(Input(UInt(param.maskGroupWidth.W)))
-  val maskSelect:       ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
-  val tlPort:           TLBundle = IO(param.tlParam.bundle())
+
+  /** mask from [[V]]
+    * see [[LSU.maskInput]]
+    */
+  val maskInput: UInt = IO(Input(UInt(param.maskGroupWidth.W)))
+
+  /** the address of the mask group in the [[V]].
+    * see [[LSU.maskSelect]]
+    */
+  val maskSelect: ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
+
+  /** TileLink Port which will be route to the [[LSU.tlPort]]. */
+  val tlPort: TLBundle = IO(param.tlParam.bundle())
+
+  /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
+    * see [[LSU.vrfWritePort]]
+    */
   val vrfWritePort: DecoupledIO[VRFWriteRequest] = IO(
     Decoupled(
       new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
     )
   )
+
+  /** the CSR interface from [[V]], latch them here.
+    * TODO: merge to [[LSURequest]]
+    */
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(param.vlMaxBits)))
-  val status:       MSHRStatus = IO(Output(new MSHRStatus(param.laneNumber)))
+
+  /** notify [[LSU]] the status of [[MSHR]] */
+  val status: MSHRStatus = IO(Output(new MSHRStatus(param.laneNumber)))
 
   // 流水线的控制信号
   val s0Fire: Bool = Wire(Bool())
@@ -152,9 +188,9 @@ class MSHR(param: MSHRParam) extends Module {
   val s2Fire: Bool = Wire(Bool())
 
   // 进请求
-  val requestReg: LSURequest = RegEnable(req.bits, 0.U.asTypeOf(req.bits), req.valid)
+  val requestReg: LSURequest = RegEnable(lsuRequest.bits, 0.U.asTypeOf(lsuRequest.bits), lsuRequest.valid)
   // 存储指令带来的 csr
-  val csrInterfaceReg: CSRInterface = RegEnable(csrInterface, 0.U.asTypeOf(csrInterface), req.valid)
+  val csrInterfaceReg: CSRInterface = RegEnable(csrInterface, 0.U.asTypeOf(csrInterface), lsuRequest.valid)
   // load/store whole register
   val whole: Bool = requestReg.instructionInformation.mop === 0.U && requestReg.instructionInformation.lumop === 8.U
   // 指令类型相关
@@ -165,19 +201,25 @@ class MSHR(param: MSHRParam) extends Module {
   val maskType:  Bool = requestReg.instructionInformation.useMask
   val indexType: Bool = requestReg.instructionInformation.mop(0)
 
-  val wholeReq: Bool = req.bits.instructionInformation.mop === 0.U && req.bits.instructionInformation.lumop === 8.U
+  val wholeReq: Bool =
+    lsuRequest.bits.instructionInformation.mop === 0.U && lsuRequest.bits.instructionInformation.lumop === 8.U
   // 计算offset的太长,一个req才变一次的用reg存起来
-  val reqExtendMask: Bool = req.bits.instructionInformation.mop === 0.U && req.bits.instructionInformation.lumop(0)
+  val reqExtendMask: Bool =
+    lsuRequest.bits.instructionInformation.mop === 0.U && lsuRequest.bits.instructionInformation.lumop(0)
   val reqEEW: UInt =
-    Mux(req.bits.instructionInformation.mop(0), csrInterface.vSew, Mux(reqExtendMask, 0.U, Mux(wholeReq, 2.U, req.bits.instructionInformation.eew)))
+    Mux(
+      lsuRequest.bits.instructionInformation.mop(0),
+      csrInterface.vSew,
+      Mux(reqExtendMask, 0.U, Mux(wholeReq, 2.U, lsuRequest.bits.instructionInformation.eew))
+    )
   // 对于load/store whole register来说nf不是横向的
-  val reqNF:            UInt = Mux(wholeReq, 0.U, req.bits.instructionInformation.nf)
-  val segAddressMul:    UInt = RegEnable((reqNF +& 1.U) * (1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
-  val elementByteWidth: UInt = RegEnable((1.U << reqEEW).asUInt(2, 0), 0.U, req.valid)
-  val sew1HReg:         UInt = RegEnable(UIntToOH(csrInterface.vSew)(2, 0), 0.U, req.valid)
+  val reqNF:            UInt = Mux(wholeReq, 0.U, lsuRequest.bits.instructionInformation.nf)
+  val segAddressMul:    UInt = RegEnable((reqNF +& 1.U) * (1.U << reqEEW).asUInt(2, 0), 0.U, lsuRequest.valid)
+  val elementByteWidth: UInt = RegEnable((1.U << reqEEW).asUInt(2, 0), 0.U, lsuRequest.valid)
+  val sew1HReg:         UInt = RegEnable(UIntToOH(csrInterface.vSew)(2, 0), 0.U, lsuRequest.valid)
   // lmul 会影响 seg 的vs计算: 正vlmul： 1 << vlmul(1, 0) 负： 1
   val vsMulForSeg: UInt =
-    RegEnable(Mux(csrInterface.vlmul(2), 1.U, (1.U << csrInterface.vlmul(1, 0)).asUInt(3, 0)), 1.U, req.valid)
+    RegEnable(Mux(csrInterface.vlmul(2), 1.U, (1.U << csrInterface.vlmul(1, 0)).asUInt(3, 0)), 1.U, lsuRequest.valid)
 
   // 开始与结束的组内偏移
   // 标志哪些做完了
@@ -188,13 +230,18 @@ class MSHR(param: MSHRParam) extends Module {
 
   // 更新 groupIndex
   val groupIndex:     UInt = RegInit(0.U(param.mshrGroupSizeBits.W))
-  val nextGroupIndex: UInt = Mux(req.valid, 0.U, groupIndex + 1.U) //todo: vstart
+  val nextGroupIndex: UInt = Mux(lsuRequest.valid, 0.U, groupIndex + 1.U) //todo: vstart
   val newGroup:       Bool = WireDefault(false.B)
   when(newGroup) { groupIndex := nextGroupIndex }
 
   // fof的反压寄存器
-  val firstReq:      Bool = RegEnable(req.valid, false.B, req.valid || tlPort.a.fire)
-  val waitFirstResp: Bool = RegEnable(req.valid && req.bits.instructionInformation.fof, false.B, req.valid || tlPort.d.fire)
+  val firstReq: Bool = RegEnable(lsuRequest.valid, false.B, lsuRequest.valid || tlPort.a.fire)
+  val waitFirstResp: Bool =
+    RegEnable(
+      lsuRequest.valid && lsuRequest.bits.instructionInformation.fof,
+      false.B,
+      lsuRequest.valid || tlPort.d.fire
+    )
 
   // offset的寄存器
   val indexOffsetVec: Vec[ValidIO[UInt]] = RegInit(
@@ -202,8 +249,8 @@ class MSHR(param: MSHRParam) extends Module {
   )
   // 处理offset的寄存器
   val offsetGroupIndexNext: UInt = Wire(UInt(2.W))
-  val offsetGroupIndex:     UInt = RegEnable(offsetGroupIndexNext, req.valid || offsetReadResult.head.valid)
-  offsetGroupIndexNext := Mux(req.valid, 3.U(2.W), offsetGroupIndex + 1.U)
+  val offsetGroupIndex:     UInt = RegEnable(offsetGroupIndexNext, lsuRequest.valid || offsetReadResult.head.valid)
+  offsetGroupIndexNext := Mux(lsuRequest.valid, 3.U(2.W), offsetGroupIndex + 1.U)
   val offsetUsed: Vec[Bool] = Wire(Vec(param.laneNumber, Bool()))
   indexOffsetVec.zipWithIndex.foreach {
     case (offset, index) =>
@@ -212,15 +259,15 @@ class MSHR(param: MSHRParam) extends Module {
   }
 
   // 缓存 mask
-  val maskReg: UInt = RegEnable(maskRegInput, 0.U, maskSelect.fire || req.valid)
+  val maskReg: UInt = RegEnable(maskInput, 0.U, maskSelect.fire || lsuRequest.valid)
 
   // segment 的维护
   val segmentIndex: UInt = RegInit(0.U(3.W))
   val segIndexNext: UInt = segmentIndex + 1.U
   val segEnd:       Bool = segmentIndex === requestReg.instructionInformation.nf
   // 更新 segMask
-  when((segType && s0Fire) || req.valid) {
-    segmentIndex := Mux(segEnd || req.valid, 0.U, segIndexNext)
+  when((segType && s0Fire) || lsuRequest.valid) {
+    segmentIndex := Mux(segEnd || lsuRequest.valid, 0.U, segIndexNext)
   }
   val lastElementForSeg = !segType || segEnd
   val segExhausted: Bool = s0Fire && lastElementForSeg
@@ -251,7 +298,11 @@ class MSHR(param: MSHRParam) extends Module {
 
   // 额外添加的mask类型对数据的粒度有限制
   val dataEEW: UInt =
-    Mux(indexType, csrInterfaceReg.vSew, Mux(maskLayoutType, 0.U, Mux(whole, 2.U, requestReg.instructionInformation.eew)))
+    Mux(
+      indexType,
+      csrInterfaceReg.vSew,
+      Mux(maskLayoutType, 0.U, Mux(whole, 2.U, requestReg.instructionInformation.eew))
+    )
   val dataEEWOH: UInt = UIntToOH(dataEEW)
 
   // 用到了最后一个或这一组的全被mask了
@@ -320,8 +371,9 @@ class MSHR(param: MSHRParam) extends Module {
   // 如果状态是wResp,为了让回应能寻址会暂时不更新groupIndex，但是属于groupIndex的请求已经发完了
   val elementID: UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
   // whole 类型的我们以最大粒度地执行,所以一个寄存器有(vlen/32 -> maskGroupSize)
-  val wholeEvl:      UInt = (requestReg.instructionInformation.nf +& 1.U) ## 0.U(param.maskGroupSizeBits.W)
-  val evl:           UInt = Mux(whole, wholeEvl, Mux(maskLayoutType, csrInterfaceReg.vl(param.vlMaxBits - 1, 3), csrInterfaceReg.vl))
+  val wholeEvl: UInt = (requestReg.instructionInformation.nf +& 1.U) ## 0.U(param.maskGroupSizeBits.W)
+  val evl: UInt =
+    Mux(whole, wholeEvl, Mux(maskLayoutType, csrInterfaceReg.vl(param.vlMaxBits - 1, 3), csrInterfaceReg.vl))
   val allIndexReady: Bool = VecInit(indexOffsetVec.map(_.valid)).asUInt.andR
   val indexAlign:    Bool = RegInit(false.B)
   // 这里处理在第一组index用完了但是第二组还没被lane发过来,然后mshr认为index应该换组的问题
@@ -337,7 +389,8 @@ class MSHR(param: MSHRParam) extends Module {
   val fofCheck:   Bool = firstReq || !waitFirstResp
   val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck
   // 刚来请求的时候不需要请求 index
-  val needReqIndex: Bool = RegEnable(offsetReadResult.head.valid, false.B, offsetReadResult.head.valid || req.valid)
+  val needReqIndex: Bool =
+    RegEnable(offsetReadResult.head.valid, false.B, offsetReadResult.head.valid || lsuRequest.valid)
   //  只能给脉冲
   val indexReqValid:     Bool = stateCheck && maskCheck && !indexCheck && fofCheck
   val indexReqValidNext: Bool = RegNext(indexReqValid)
@@ -362,7 +415,11 @@ class MSHR(param: MSHRParam) extends Module {
   val baseByteOffset: UInt = (s0ElementIndex << dataEEW).asUInt(9, 0)
 
   // todo: seg * lMul
-  s0Wire.readVS := requestReg.instructionInformation.vs3 + Mux(segType, segmentIndex * vsMulForSeg, 0.U) + baseByteOffset(9, 7)
+  s0Wire.readVS := requestReg.instructionInformation.vs3 + Mux(
+    segType,
+    segmentIndex * vsMulForSeg,
+    0.U
+  ) + baseByteOffset(9, 7)
   s0Wire.readOffset := baseByteOffset(6, 5)
   s0Wire.offset := reqOffset + (elementByteWidth * segmentIndex)
   s0Wire.indexInGroup := reqNextIndex
@@ -371,12 +428,12 @@ class MSHR(param: MSHRParam) extends Module {
 
   // s1
   // s1 read vrf
-  readDataPort.valid := s0Valid && requestReg.instructionInformation.isStore && s1SlotReady
-  readDataPort.bits.offset := s0Reg.readOffset
-  readDataPort.bits.vs := s0Reg.readVS
-  readDataPort.bits.instructionIndex := requestReg.instructionIndex
+  vrfReadDataPorts.valid := s0Valid && requestReg.instructionInformation.isStore && s1SlotReady
+  vrfReadDataPorts.bits.offset := s0Reg.readOffset
+  vrfReadDataPorts.bits.vs := s0Reg.readVS
+  vrfReadDataPorts.bits.instructionIndex := requestReg.instructionIndex
 
-  val readReady:      Bool = !requestReg.instructionInformation.isStore || readDataPort.ready
+  val readReady:      Bool = !requestReg.instructionInformation.isStore || vrfReadDataPorts.ready
   val s1EnqueueValid: Bool = s0Valid && readReady
   val s1Valid:        Bool = RegEnable(s1Fire, false.B, s1Fire ^ s2Fire)
   val s1Wire:         MSHRStage1Bundle = Wire(new MSHRStage1Bundle(param))
@@ -396,8 +453,8 @@ class MSHR(param: MSHRParam) extends Module {
   // 处理数据的缓存
   val readNext: Bool = RegNext(s1Fire) && requestReg.instructionInformation.isStore
   // readResult hold unless readNext
-  val dataReg:          UInt = RegEnable(readResult, 0.U.asTypeOf(readResult), readNext)
-  val readDataRegValid: Bool = RegEnable(readNext, false.B, (readNext ^ tlPort.a.fire) || req.valid)
+  val dataReg:          UInt = RegEnable(vrfReadResults, 0.U.asTypeOf(vrfReadResults), readNext)
+  val readDataRegValid: Bool = RegEnable(readNext, false.B, (readNext ^ tlPort.a.fire) || lsuRequest.valid)
 
   // 计算mask: todo: 比较一下这两mask,然后替换掉indexMask
   val addressMask: UInt = Mux1H(
@@ -411,7 +468,7 @@ class MSHR(param: MSHRParam) extends Module {
   // s2: tl.a
   val indexBase: UInt = (s1Reg.indexInGroup(1, 0) << dataEEW).asUInt(1, 0)
   // 从vrf里面读出来的数据,会带有index导致的偏移
-  val readDataResultSelect: UInt = Mux(readDataRegValid, dataReg, readResult)
+  val readDataResultSelect: UInt = Mux(readDataRegValid, dataReg, vrfReadResults)
   // 由于segment的存在,数据在vrf里的偏移和在mem里的偏移是不一样的 todo: 变成mux1H
   val putData: UInt =
     ((readDataResultSelect << (s1Reg.address(1, 0) ## 0.U(3.W))) >> (indexBase(1, 0) ## 0.U(3.W))).asUInt
@@ -479,8 +536,8 @@ class MSHR(param: MSHRParam) extends Module {
       newGroup := true.B
     }
   }
-  val invalidInstruction: Bool = csrInterface.vl === 0.U && req.valid && !wholeReq
-  when(req.valid && !invalidInstruction) {
+  val invalidInstruction: Bool = csrInterface.vl === 0.U && lsuRequest.valid && !wholeReq
+  when(lsuRequest.valid && !invalidInstruction) {
     state := sRequest
     newGroup := true.B
   }
@@ -489,7 +546,9 @@ class MSHR(param: MSHRParam) extends Module {
   status.instIndex := requestReg.instructionIndex
   status.idle := stateIdle
   status.last := (!RegNext(stateIdle) && stateIdle) || invalidInstructionNext
-  status.targetLane := UIntToOH(Mux(requestReg.instructionInformation.isStore, s0Reg.targetLaneIndex, baseByteOffsetD(4, 2)))
+  status.targetLane := UIntToOH(
+    Mux(requestReg.instructionInformation.isStore, s0Reg.targetLaneIndex, baseByteOffsetD(4, 2))
+  )
   status.waitFirstResp := waitFirstResp
   // 需要更新的时候是需要下一组的mask
   maskSelect.bits := nextGroupIndex

@@ -200,8 +200,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** for RaW, VRF should wait for buffer to be empty. */
   val lsuVRFWriteBufferClear: Bool = IO(Input(Bool()))
 
-  /** for some mask instructions, e.g. `reduce`
-    * need to release the record from [[VRF]]
+  /** VRF will record information for each instructions,
+    * we use `last` to indicate if the write is finished.
+    * for some mask instructions, e.g. `reduce`, it will only write single lane,
+    * thus we need to use this signal to release the record from [[VRF]]
     */
   val maskUnitFlushVrf: Bool = IO(Input(Bool()))
 
@@ -474,7 +476,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         * for masked instruction, need to wait for mask
         */
       val maskReady: Bool = record.mask.valid || !needMaskSource
-      val vSew1H: UInt = UIntToOH(record.csr.vSew)
+      val vSew1H:    UInt = UIntToOH(record.csr.vSew)
 
       /** 正在算的是这个lane的第多少个 element */
       val elementIndex: UInt = Mux1H(
@@ -603,8 +605,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
       /** The relative position of the last lane determines the processing of the last group. */
       val lanePositionLargerThanEndLane: Bool = laneIndex > lastLaneIndex
-      val isEndLane: Bool = laneIndex === lastLaneIndex
-      val lastGroupForLane: UInt = lastGroupForInstruction - lanePositionLargerThanEndLane
+      val isEndLane:                     Bool = laneIndex === lastLaneIndex
+      val lastGroupForLane:              UInt = lastGroupForInstruction - lanePositionLargerThanEndLane
 
       /** when [[InstControlRecord.executeIndex]] reaches [[slotGroupFinishedIndex]], the group in the slot is finished.
         * 00 -> 11
@@ -626,8 +628,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val lastGroupMask = scanRightOr(UIntToOH(vlTail)) >> 1
       val dataPathMisaligned = vlTail.orR
       val maskeDataGroup = (vlHead ## vlBody) - !dataPathMisaligned
-      val lastLaneIndexForMaskLogic: UInt = maskeDataGroup(parameter.laneNumberBits - 1, 0)
-      val isLastLaneForMaskLogic: Bool = lastLaneIndexForMaskLogic === laneIndex
+      val lastLaneIndexForMaskLogic:  UInt = maskeDataGroup(parameter.laneNumberBits - 1, 0)
+      val isLastLaneForMaskLogic:     Bool = lastLaneIndexForMaskLogic === laneIndex
       val lastGroupCountForMaskLogic: UInt = maskeDataGroup >> parameter.laneNumberBits
       // <- handle csr end ->
 
@@ -1801,18 +1803,18 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         case (source, sink) =>
           sink <> source
       }
-    (vrfReadRequest.head ++ vrfReadRequest(1).init :+ readArbiter.io.out).zip(vrf.read).foreach {
+    (vrfReadRequest.head ++ vrfReadRequest(1).init :+ readArbiter.io.out).zip(vrf.readRequests).foreach {
       case (source, sink) =>
         sink <> source
     }
 
     // 读的结果
-    vrfReadResult.foreach(a => a.foreach(_ := vrf.readResult.last))
-    (vrfReadResult.head ++ vrfReadResult(1).init).zip(vrf.readResult.init).foreach {
+    vrfReadResult.foreach(a => a.foreach(_ := vrf.readResults.last))
+    (vrfReadResult.head ++ vrfReadResult(1).init).zip(vrf.readResults.init).foreach {
       case (sink, source) =>
         sink := source
     }
-    vrfReadDataChannel := vrf.readResult.last
+    vrfReadDataChannel := vrf.readResults.last
 
     // 写 rf
     val normalWrite = VecInit(vrfWriteArbiter.map(_.valid)).asUInt.orR
@@ -1884,8 +1886,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   ).asUInt.andR
   val validRegulate: Bool = laneRequest.valid && typeReady
   val shiftReady = slotCanShift.asUInt.andR && !laneResponseFeedback.valid
-  laneRequest.ready := !slotOccupied.head && typeReady && vrf.instWriteReport.ready && shiftReady
-  vrf.instWriteReport.valid := (laneRequest.fire || (!laneRequest.bits.store && laneRequest.bits.loadStore)) && !entranceControl.instCompleted
+  laneRequest.ready := !slotOccupied.head && typeReady && vrf.instructionWriteReport.ready && shiftReady
+  vrf.instructionWriteReport.valid := (laneRequest.fire || (!laneRequest.bits.store && laneRequest.bits.loadStore)) && !entranceControl.instCompleted
   when(!slotOccupied.head && (slotOccupied.asUInt.orR || validRegulate) && shiftReady) {
     slotOccupied := VecInit(slotOccupied.tail :+ validRegulate)
     source1 := VecInit(source1.tail :+ vs1entrance)
@@ -1899,29 +1901,29 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   }
   // 试图让vrf记录这一条指令的信息,拒绝了说明有还没解决的冲突
   vrf.flush := maskUnitFlushVrf
-  vrf.instWriteReport.bits.instIndex := laneRequest.bits.instructionIndex
-  vrf.instWriteReport.bits.offset := 0.U //todo
-  vrf.instWriteReport.bits.vdOffset := 0.U
-  vrf.instWriteReport.bits.vd.bits := laneRequest.bits.vd
-  vrf.instWriteReport.bits.vd.valid := !laneRequest.bits.initState.sWrite || (laneRequest.bits.loadStore && !laneRequest.bits.store)
-  vrf.instWriteReport.bits.vs2 := laneRequest.bits.vs2
-  vrf.instWriteReport.bits.vs1.bits := laneRequest.bits.vs1
-  vrf.instWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)
+  vrf.instructionWriteReport.bits.instIndex := laneRequest.bits.instructionIndex
+  vrf.instructionWriteReport.bits.offset := 0.U //todo
+  vrf.instructionWriteReport.bits.vdOffset := 0.U
+  vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd
+  vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.initState.sWrite || (laneRequest.bits.loadStore && !laneRequest.bits.store)
+  vrf.instructionWriteReport.bits.vs2 := laneRequest.bits.vs2
+  vrf.instructionWriteReport.bits.vs1.bits := laneRequest.bits.vs1
+  vrf.instructionWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)
   // TODO: move ma to [[V]]
-  vrf.instWriteReport.bits.ma := laneRequest.bits.ma
+  vrf.instructionWriteReport.bits.ma := laneRequest.bits.ma
   // 暂时认为ld都是无序写寄存器的
-  vrf.instWriteReport.bits.unOrderWrite := (laneRequest.bits.loadStore && !laneRequest.bits.store) || laneRequest.bits
+  vrf.instructionWriteReport.bits.unOrderWrite := (laneRequest.bits.loadStore && !laneRequest.bits.store) || laneRequest.bits
     .decodeResult(Decoder.other)
-  vrf.instWriteReport.bits.seg.valid := laneRequest.bits.loadStore && laneRequest.bits.segment.orR
-  vrf.instWriteReport.bits.seg.bits := laneRequest.bits.segment
-  vrf.instWriteReport.bits.eew := laneRequest.bits.loadStoreEEW
-  vrf.instWriteReport.bits.ls := laneRequest.bits.loadStore
-  vrf.instWriteReport.bits.st := laneRequest.bits.store
-  vrf.instWriteReport.bits.narrow := laneRequest.bits.decodeResult(Decoder.narrow)
-  vrf.instWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.widen)
-  vrf.instWriteReport.bits.stFinish := false.B
+  vrf.instructionWriteReport.bits.seg.valid := laneRequest.bits.loadStore && laneRequest.bits.segment.orR
+  vrf.instructionWriteReport.bits.seg.bits := laneRequest.bits.segment
+  vrf.instructionWriteReport.bits.eew := laneRequest.bits.loadStoreEEW
+  vrf.instructionWriteReport.bits.ls := laneRequest.bits.loadStore
+  vrf.instructionWriteReport.bits.st := laneRequest.bits.store
+  vrf.instructionWriteReport.bits.narrow := laneRequest.bits.decodeResult(Decoder.narrow)
+  vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.widen)
+  vrf.instructionWriteReport.bits.stFinish := false.B
   vrf.csrInterface := csrInterface
   vrf.lsuLastReport := lsuLastReport
-  vrf.bufferClear := lsuVRFWriteBufferClear
+  vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear
   instructionFinished := instructionFinishedVec.reduce(_ | _)
 }
