@@ -1922,7 +1922,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.narrow := laneRequest.bits.decodeResult(Decoder.narrow)
   vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.widen)
   vrf.instructionWriteReport.bits.stFinish := false.B
-  vrf.csrInterface := csrInterface
+  vrf.instructionWriteReport.bits.mul := Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
   vrf.lsuLastReport := lsuLastReport
   vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear
   instructionFinished := instructionFinishedVec.reduce(_ | _)

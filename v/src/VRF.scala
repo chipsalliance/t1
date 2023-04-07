@@ -129,9 +129,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     */
   val flush: Bool = IO(Input(Bool()))
 
-  /** TODO: remove. */
-  val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.VLMaxWidth)))
-
   /** similar to [[flush]]. */
   val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
@@ -144,12 +141,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     VecInit(Seq.fill(parameter.chainingSize)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
   )
 
-  val vsOffsetMask: UInt = {
-    // 不用管浮点的
-    val mul = csrInterface.vlmul(1, 0)
-    mul.andR ## mul(1) ## mul.orR
-  }
-  val vsBaseMask: UInt = 3.U(2.W) ## (~vsOffsetMask).asUInt
   def rawCheck(before: VRFWriteReport, after: VRFWriteReport): Bool = {
     before.vd.valid &&
     ((before.vd.bits === after.vs1.bits && after.vs1.valid) ||
@@ -171,6 +162,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     val older = instIndexL(read.instructionIndex, record.bits.instIndex)
     val sameInst = read.instructionIndex === record.bits.instIndex
 
+    val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
+    val vsBaseMask: UInt = 3.U(2.W) ## (~vsOffsetMask).asUInt
     // todo: 处理双倍的
     val vs:       UInt = read.vs & vsBaseMask
     val vsOffset: UInt = read.vs & vsOffsetMask
@@ -250,6 +243,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
+      val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
       when(recordEnq(i)) {
         record := initRecord
       }
