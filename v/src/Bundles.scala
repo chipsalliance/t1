@@ -437,6 +437,8 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   // 乘加
   val ma:           Bool = Bool()
   val unOrderWrite: Bool = Bool()
+  // csr 如果是浮点的就校正为0
+  val mul: UInt = UInt(2.W)
 }
 
 /** 为了decode, 指令需要在入口的时候打一拍, 这是需要保存的信息 */
