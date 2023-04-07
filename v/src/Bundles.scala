@@ -527,7 +527,7 @@ class LSUInstructionInformation extends Bundle {
   def fof: Bool = mop === 0.U && lumop(4) && !isStore
 }
 
-/** request interface from [[V]] to [[LSU]] */
+/** request interface from [[V]] to [[LSU]] and [[MSHR]] */
 class LSURequest(dataWidth: Int) extends Bundle {
 
   /** from instruction. */

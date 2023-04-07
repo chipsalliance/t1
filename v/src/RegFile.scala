@@ -16,6 +16,11 @@ class RegFileWritePort(param: RFParam) extends Bundle {
   val data: UInt = UInt(param.width.W)
 }
 
+/** Memory wrapper.
+  * It's a dual port SRAM: port0 has 1RW, port1 has 1R.
+  * TODO: After [[https://github.com/chipsalliance/chisel/pull/3131]] is merged,
+  *       switch to it and get rid of this module.
+  */
 class RegFile(param: RFParam) extends Module {
   // TODO: add read enable?
   val readPorts: Vec[RegFileReadPort] = IO(Vec(param.readPort, new RegFileReadPort(param)))
@@ -23,9 +28,7 @@ class RegFile(param: RFParam) extends Module {
 
   val rf: SyncReadMem[UInt] = SyncReadMem(param.depth, UInt(param.width.W))
 
-  for (i <- 0 until param.readPort) {
-    readPorts(i).data := rf(readPorts(i).addr)
-  }
+  readPorts.foreach(p => p.data := rf(p.addr))
 
   when(writePort.valid) {
     rf(writePort.bits.addr) := writePort.bits.data

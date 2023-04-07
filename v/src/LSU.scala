@@ -59,6 +59,12 @@ case class LSUParam(
   val vrfOffsetBits: Int = log2Ceil(singleGroupSize)
 }
 
+/** Load Store Unit
+  * it is instantiated in [[V]],
+  * it contains
+  * - a bunch of [[MSHR]] to record outstanding memory transactions.
+  * - a crossbar to connect memory interface and each lanes.
+  */
 class LSU(param: LSUParam) extends Module {
 
   /** [[LSURequest]] from LSU,
@@ -110,7 +116,7 @@ class LSU(param: LSUParam) extends Module {
     )
   )
 
-  /** the CSR interface from [[V]].
+  /** the CSR interface from [[V]], CSR will be latched in MSHR.
     * TODO: merge to [[LSURequest]]
     */
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(param.vLenBits)))
@@ -154,12 +160,12 @@ class LSU(param: LSUParam) extends Module {
   val mshrVec: Seq[MSHR] = Seq.tabulate(param.lsuMSHRSize) { index =>
     val mshr: MSHR = Module(new MSHR(param.mshrParam))
 
-    mshr.req.valid := reqEnq(index)
-    mshr.req.bits := request.bits
+    mshr.lsuRequest.valid := reqEnq(index)
+    mshr.lsuRequest.bits := request.bits
 
-    tryToReadData(index) := Mux(mshr.readDataPort.valid, mshr.status.targetLane, 0.U)
-    mshr.readDataPort.ready := getReadPort(index)
-    mshr.readResult := Mux1H(RegNext(mshr.status.targetLane), vrfReadResults)
+    tryToReadData(index) := Mux(mshr.vrfReadDataPorts.valid, mshr.status.targetLane, 0.U)
+    mshr.vrfReadDataPorts.ready := getReadPort(index)
+    mshr.vrfReadResults := Mux1H(RegNext(mshr.status.targetLane), vrfReadResults)
 
     // offset
     Seq.tabulate(param.laneNumber) { laneID =>
@@ -171,7 +177,7 @@ class LSU(param: LSUParam) extends Module {
 
     // mask
     maskSelect(index) := Mux(mshr.maskSelect.valid, mshr.maskSelect.bits, 0.U)
-    mshr.maskRegInput := maskInput(index)
+    mshr.maskInput := maskInput(index)
 
     // tile link
     tryToAGet(index) := Mux(mshr.tlPort.a.valid, UIntToOH(mshr.tlPort.a.bits.address(param.bankPosition)), 0.U)
@@ -219,7 +225,7 @@ class LSU(param: LSUParam) extends Module {
     }
     // 连接读请求
     vrfReadDataPorts(laneID).valid := VecInit(readDataArbiter.map(_(laneID))).asUInt.orR
-    vrfReadDataPorts(laneID).bits := Mux1H(readDataArbiter.map(_(laneID)), mshrVec.map(_.readDataPort.bits))
+    vrfReadDataPorts(laneID).bits := Mux1H(readDataArbiter.map(_(laneID)), mshrVec.map(_.vrfReadDataPorts.bits))
 
     // 处理写请求的仲裁
     tryToWriteData.map(_(laneID)).zipWithIndex.foldLeft(false.B) {
