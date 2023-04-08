@@ -34,16 +34,24 @@ public:
 
   // should return NULL for MMIO addresses
   char *addr_to_mem(reg_t addr) override {
-    CHECK_S(addr < mem_size) << fmt::format("memory out of bound ({} >= {})", addr, mem_size);
+    CHECK_S(addr < mem_size) << fmt::format("memory out of bound ({:016X} >= {:016X})", addr, mem_size);
     return &mem[addr];
   }
 
   bool mmio_load(reg_t addr, size_t len, uint8_t *bytes) override {
-    CHECK_S(false && "not implemented");
+    LOG(FATAL_S) << "not implemented";
   }
 
   bool mmio_store(reg_t addr, size_t len, const uint8_t *bytes) override {
-    CHECK_S(false && "not implemented");
+    LOG(FATAL_S) << "not implemented";
+  }
+
+  [[nodiscard]] const cfg_t &get_cfg() const override {
+    LOG(FATAL_S) << "not implemented";
+  }
+
+  [[nodiscard]] const std::map<size_t, processor_t*>& get_harts() const override {
+    LOG(FATAL_S) << "not implemented";
   }
 
   // Callback for processors to let the simulation know they were reset.

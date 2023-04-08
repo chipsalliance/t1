@@ -16,6 +16,7 @@
           pkgs = import nixpkgs { inherit system; overlays = [ overlay ]; };
           deps = with pkgs; [
             rv32-clang
+            glibc_multi
             myLLVM.bintools
 
             cmake
@@ -45,8 +46,8 @@
             circt
             buddy-mlir
 
-	    yarn
-	    mdl
+            yarn
+            mdl
           ];
         in
         {

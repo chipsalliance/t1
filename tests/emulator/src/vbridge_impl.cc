@@ -4,6 +4,7 @@
 #include <disasm.h>
 
 #include <verilated.h>
+#include <decode_macros.h>
 
 #include "exceptions.h"
 #include "glog_exception_safe.h"
@@ -164,21 +165,39 @@ void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
 }
 
 VBridgeImpl::VBridgeImpl() :
+    varch(fmt::format("vlen:{},elen:{}", consts::vlen_in_bits, consts::elen)),
     sim(1l << 32),
     isa("rv32gcv", "M"),
+    cfg(/*default_initrd_bounds=*/ std::make_pair((reg_t) 0, (reg_t) 0),
+        /*default_bootargs=*/ nullptr,
+        /*default_isa=*/ DEFAULT_ISA,
+        /*default_priv=*/ DEFAULT_PRIV,
+        /*default_varch=*/ varch.data(),
+        /*default_misaligned=*/ false,
+        /*default_endianness*/ endianness_little,
+        /*default_pmpregions=*/ 16,
+        /*default_mem_layout=*/ std::vector<mem_cfg_t>(),
+        /*default_hartids=*/ std::vector<size_t>(),
+        /*default_real_time_clint=*/ false,
+        /*default_trigger_count=*/ 4),
     proc(
         /*isa*/ &isa,
-        /*varch*/ fmt::format("vlen:{},elen:{}", consts::vlen_in_bits, consts::elen).c_str(),
+        /*cfg*/ &cfg,
         /*sim*/ &sim,
         /*id*/ 0,
         /*halt on reset*/ true,
-        /* endianness*/ memif_endianness_little,
         /*log_file_t*/ nullptr,
         /*sout*/ std::cerr),
-    vrf_shadow(std::make_unique<uint8_t[]>(consts::vlen_in_bytes * consts::numVRF)){
+    se_to_issue(nullptr),
+#ifdef COSIM_VERILATOR
+    ctx(nullptr),
+#endif
+    vrf_shadow(std::make_unique<uint8_t[]>(consts::vlen_in_bytes * consts::numVRF)) {
 
-  auto& csrmap = proc.get_state()->csrmap;
+  DEFAULT_VARCH;
+  auto &csrmap = proc.get_state()->csrmap;
   csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 0);
+  proc.enable_log_commits();
 }
 
 void VBridgeImpl::init_spike() {

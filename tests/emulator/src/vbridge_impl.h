@@ -78,6 +78,8 @@ public:
   void dpiPeekVrfWrite(const VrfWritePeek &v_enq);
 
 private:
+  std::string varch;
+  cfg_t cfg;
   simple_sim sim;
   isa_parser_t isa;
   processor_t proc;

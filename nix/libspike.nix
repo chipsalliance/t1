@@ -21,8 +21,8 @@ stdenv.mkDerivation {
   src = fetchFromGitHub {
     owner = "riscv";
     repo = "riscv-isa-sim";
-    rev = "ab3225a3ff687fda8b4180f9e4e0949a400d1247";
-    sha256 = "sha256-2cC2goTmxWnkTm3Tq08R8YkkuI2Fj8fRvpEPVZ5JvUI=";
+    rev = "eb75ab37a17ff4f8597b7b40283a08c38d2a6ff6";
+    sha256 = "sha256-slr2sMXNhNAIJYMpe9A5rVrYUuhNIYE8G1Y9tR2qP8s=";
   };
   configureFlags = [
     "--enable-commitlog"
