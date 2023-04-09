@@ -2,7 +2,7 @@
 
 #include <fstream>
 
-#include <glog/logging.h>
+#include <fmt/core.h>
 
 #include "glog_exception_safe.h"
 #include "simif.h"
@@ -21,16 +21,10 @@ public:
     delete[] mem;
   }
 
-  void load(const std::string &fname, size_t reset_vector) {
-    std::ifstream fs(fname, std::ifstream::binary);
-    CHECK_S(fs.is_open());
-
-    size_t offset = reset_vector;
-    while (!fs.eof()) {
-      fs.read(&mem[offset], 1024);
-      offset += fs.gcount();
-    }
-  }
+  struct load_elf_result_t {
+    uint32_t entry_addr;
+  };
+  load_elf_result_t load_elf(const std::string &fname);
 
   // should return NULL for MMIO addresses
   char *addr_to_mem(reg_t addr) override {

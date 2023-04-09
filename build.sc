@@ -222,6 +222,7 @@ object tests extends Module {
         "spike_event.cc",
         "vbridge_impl.cc",
         "dpi.cc",
+        "elf.cc",
       ).map(f => PathRef(csrcDir().path / f))
     }
 
@@ -336,26 +337,9 @@ object tests extends Module {
         Seq("-mno-relax")
       }
 
-      def linkScript: T[PathRef] = T {
-        os.write(T.ctx.dest / "linker.ld",
-          s"""
-             |SECTIONS
-             |{
-             |  . = 0x1000;
-             |  .text.start : { *(.text.start) }
-             |}
-             |""".stripMargin)
-        PathRef(T.ctx.dest / "linker.ld")
-      }
-
       def elf: T[PathRef] = T {
-        os.proc(Seq("clang-rv32", "-o", name + ".elf", "-mabi=ilp32f", "-march=rv32gcv", s"-T${linkScript().path}") ++ linkOpts() ++ includeDir().map(p => s"-I${p.path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
+        os.proc(Seq("clang-rv32", "-o", name + ".elf", "-mabi=ilp32f", "-march=rv32gcv") ++ linkOpts() ++ includeDir().map(p => s"-I${p.path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
         PathRef(T.ctx.dest / (name + ".elf"))
-      }
-
-      def bin: T[PathRef] = T {
-        os.proc(Seq("llvm-objcopy", "-O", "binary", "--only-section=.text", elf().path.toString, name)).call(T.ctx.dest)
-        PathRef(T.ctx.dest / name)
       }
     }
 
@@ -394,10 +378,6 @@ object tests extends Module {
           Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib")
         }
 
-        override def linkScript: T[PathRef] = T.source {
-          PathRef(u.millSourcePath / "env" / "sequencer-vector" / "link.ld")
-        }
-
         override def allSourceFiles: T[Seq[PathRef]] = T {
           val f = T.dest / s"${name.replace('_', '.')}.S"
           os.proc(
@@ -409,11 +389,6 @@ object tests extends Module {
           ).call(T.dest)
           Seq(PathRef(f))
         }
-
-        override def bin: T[PathRef] = T {
-          os.proc(Seq("llvm-objcopy", "-O", "binary", elf().path.toString, name)).call(T.ctx.dest)
-          PathRef(T.ctx.dest / name)
-        }
       }
     }
 
@@ -424,24 +399,6 @@ object tests extends Module {
 
       override def linkOpts = T {
         Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start")
-      }
-
-      override def linkScript: T[PathRef] = T {
-        os.write(T.ctx.dest / "linker.ld",
-          s"""
-             |SECTIONS
-             |{
-             |  . = 0x1000;
-             |  .text.init : { *(.text.init) }
-             |  . = ALIGN(0x1000);
-             |  .text : { *(.text) }
-             |  . = ALIGN(0x1000);
-             |  .data : { *(.data) }
-             |  .bss : { *(.bss) }
-             |  .eh_frame : { *(.eh_frame) }
-             |}
-             |""".stripMargin)
-        PathRef(T.ctx.dest / "linker.ld")
       }
 
       override def allSourceFiles: T[Seq[PathRef]] = T {
@@ -476,11 +433,6 @@ object tests extends Module {
         ).call(T.dest, stdin = llvmir)
         super.allSourceFiles() ++ Seq(PathRef(asm))
       }
-
-      override def bin: T[PathRef] = T {
-        os.proc(Seq("llvm-objcopy", "-O", "binary", elf().path.toString, name)).call(T.ctx.dest)
-        PathRef(T.ctx.dest / name)
-      }
     }
 
     object smoketest extends Case
@@ -509,7 +461,7 @@ object tests extends Module {
 
     def ciRun = T {
       val runEnv = Map(
-        "COSIM_bin" -> caseToRun.bin().path.toString,
+        "COSIM_bin" -> caseToRun.elf().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
         "COSIM_timeout" -> "1000000",
@@ -528,7 +480,7 @@ object tests extends Module {
       }
 
       val runEnv = Map(
-        "COSIM_bin" -> caseToRun.bin().path.toString,
+        "COSIM_bin" -> caseToRun.elf().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
         envDefault("COSIM_timeout", "1000000"),

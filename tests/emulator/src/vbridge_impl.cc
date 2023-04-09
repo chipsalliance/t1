@@ -35,10 +35,10 @@ void VBridgeImpl::dpiInitCosim() {
   proc.reset();
   // TODO: remove this line, and use CSR write in the test code to enable this the VS field.
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
-  sim.load(bin, reset_vector);
-  init_spike();
-  LOG(INFO) << fmt::format("Simulation Environment Initialized: bin={}, wave={}, reset_vector={:#x}, timeout={}",
-                           bin, wave, reset_vector, timeout);
+  auto load_result = sim.load_elf(bin);
+  LOG(INFO) << fmt::format("Simulation Environment Initialized: bin={}, wave={}, timeout={}, entry={:08X}",
+                           bin, wave, timeout, load_result.entry_addr);
+  proc.get_state()->pc = load_result.entry_addr;
 #if VM_TRACE
   dpiDumpWave();
 #endif
@@ -115,8 +115,8 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr, const VCsrInte
     }
     *v_instr.valid = false;
   } else {
-    LOG(INFO) << fmt::format("[{}] poke instruction ({})",
-                             get_t(), se_to_issue->describe_insn());
+    LOG(INFO) << fmt::format("[{}] poke instruction ({}, rs1={:08X}, rs2={:08X})",
+                             get_t(), se_to_issue->describe_insn(), se_to_issue->rs1_bits, se_to_issue->rs2_bits);
     se_to_issue->drive_rtl_req(v_instr);
   }
   se_to_issue->drive_rtl_csr(v_csr);
@@ -200,43 +200,43 @@ VBridgeImpl::VBridgeImpl() :
   proc.enable_log_commits();
 }
 
-void VBridgeImpl::init_spike() {
-  // reset spike CPU
-  proc.reset();
-  // load binary to reset_vector
-  sim.load(bin, reset_vector);
-}
-
 uint64_t VBridgeImpl::get_t() {
   return getCycle();
 }
 
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
-  auto fetch = proc.get_mmu()->load_insn(state->pc);
+  reg_t pc = state->pc;
+  auto fetch = proc.get_mmu()->load_insn(pc);
+//  VLOG(1) << fmt::format("pre-exec (pc={:08X})", state->pc);
   auto event = create_spike_event(fetch);
-  auto &xr = proc.get_state()->XPR;
 
-  reg_t pc;
   clear_state(proc);
   if (event) {
     auto &se = event.value();
-    LOG(INFO) << fmt::format("spike start exec insn ({}) (vl={}, sew={}, lmul={})",
-                             se.describe_insn(), se.vl, (int) se.vsew, (int) se.vlmul);
+    LOG(INFO) << fmt::format("spike run vector insn ({}) (vl={}, sew={}, lmul={}, pc={:08X}, rs1={:08X}, rs2={:08X})",
+                             se.describe_insn(), se.vl, (int) se.vsew, (int) se.vlmul, se.pc, se.rs1_bits, se.rs2_bits);
     se.pre_log_arch_changes();
     pc = fetch.func(&proc, fetch.insn, state->pc);
     se.log_arch_changes();
   } else {
-    VLOG(1) << fmt::format("spike run {} (pc={})", proc.get_disassembler()->disassemble(fetch.insn), pc);
+    LOG(INFO) << fmt::format("spike run (pc={:08X}, bits={:08X}, disasm={})", pc, fetch.insn.bits(), proc.get_disassembler()->disassemble(fetch.insn));
     pc = fetch.func(&proc, fetch.insn, state->pc);
   }
 
   // Bypass CSR insns commitlog stuff.
-  if (!invalid_pc(pc)) {
+  if ((pc & 1) == 0) {
     state->pc = pc;
-  } else if (pc == PC_SERIALIZE_BEFORE) {
-    // CSRs are in a well-defined state.
-    state->serialized = true;
+  } else {
+    switch (pc) {
+      case PC_SERIALIZE_BEFORE:
+        state->serialized = true;
+        break;
+      case PC_SERIALIZE_AFTER:
+        break;
+      default:
+        CHECK_S(false) << fmt::format("invalid pc (pc={:08X})", pc);
+    }
   }
 
   return event;
