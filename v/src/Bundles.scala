@@ -6,9 +6,19 @@ import chisel3.util.{log2Ceil, Decoupled, DecoupledIO, Valid, ValidIO}
 
 /** Interface from CPU. */
 class VRequest(xLen: Int) extends Bundle {
+
+  /** instruction fetched by scalar processor. */
   val instruction: UInt = UInt(32.W)
-  val src1Data:    UInt = UInt(xLen.W)
-  val src2Data:    UInt = UInt(xLen.W)
+
+  /** data read from scalar RF RS1.
+    * TODO: rename to rs1Data
+    */
+  val src1Data: UInt = UInt(xLen.W)
+
+  /** data read from scalar RF RS2.
+    * TODO: rename to rs2Data
+    */
+  val src2Data: UInt = UInt(xLen.W)
 }
 
 /** Interface to CPU. */
@@ -52,11 +62,24 @@ class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
   val loadStore: Bool = Bool()
 }
 
+/** context for state machine:
+  * w: passive, s: initiative
+  * assert: don't need execute or is executed.
+  * deassert: need execute.
+  */
 class InstructionState extends Bundle {
-  val wLast:    Bool = Bool()
-  val idle:     Bool = Bool()
-  val sExecute: Bool = Bool()
-  val sCommit:  Bool = Bool()
+
+  /** wait for last signal from each lanes and [[LSU]]. */
+  val wLast: Bool = Bool()
+
+  /** the slot is idle. */
+  val idle: Bool = Bool()
+
+  /** used for mask unit, schedule mask unit to execute. */
+  val sMaskUnitExecution: Bool = Bool()
+
+  /** used for instruction commit, schedule [[V]] to commit. */
+  val sCommit: Bool = Bool()
 }
 
 // TODO: rename
