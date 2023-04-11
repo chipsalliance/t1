@@ -50,16 +50,23 @@ class VResponse(xLen: Int) extends Bundle {
 }
 
 class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
+
+  /** record the index of this instruction,
+    * this is maintained by [[V.instructionCounter]]
+    */
   val instructionIndex: UInt = UInt(instructionIndexWidth.W)
-  val vrfWrite:         Bool = Bool()
 
-  /** Whether operation is widen */
-  val widen: Bool = Bool()
+  /** whether instruction is `crossWrite`,
+    * for instructions has `widen`, it need use cross lane write channel,
+    * but lane will regard the instruction is finished when data is sent to ring,
+    * so we need this bit to record if the ring is cleared.
+    */
+  val hasCrossWrite: Bool = Bool()
 
-  /** Whether operation is narrowing */
-  val narrowing: Bool = Bool()
-  // load | store
-  val loadStore: Bool = Bool()
+  /** whether instruction is load store.
+    * it should tell scalar core if this is a load store unit.
+    */
+  val isLoadStore: Bool = Bool()
 }
 
 /** context for state machine:
@@ -69,7 +76,9 @@ class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
   */
 class InstructionState extends Bundle {
 
-  /** wait for last signal from each lanes and [[LSU]]. */
+  /** wait for last signal from each lanes and [[LSU]].
+    * TODO: remove wLast. last = control.endTag.asUInt.andR & (!control.record.widen || busClear)
+    */
   val wLast: Bool = Bool()
 
   /** the slot is idle. */
@@ -99,10 +108,16 @@ class SpecialInstructionType extends Bundle {
 }
 
 class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
-  val record: InstructionRecord = new InstructionRecord(instIndexWidth)
-  val state:  InstructionState = new InstructionState
 
-  /** tag for recording each lane and lsu is finished for this instruction. */
+  /** metadata for this instruction. */
+  val record: InstructionRecord = new InstructionRecord(instIndexWidth)
+
+  /** control state to record the current execution state. */
+  val state: InstructionState = new InstructionState
+
+  /** tag for recording each lane and lsu is finished for this instruction.
+    * TODO: move to `state`.
+    */
   val endTag: Vec[Bool] = Vec(laneSize + 1, Bool())
 }
 

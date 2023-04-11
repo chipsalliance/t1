@@ -319,9 +319,19 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val unOrderType: Bool = decodeResult(Decoder.unOrderWrite)
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
   // TODO[1]: from decode
-  val specialInst: Bool =
+  /** Special instructions which will be allocate to the last slot.
+    * - mask unit
+    * - Lane <-> Top has data exchange(top might forward to LSU.)
+    *   TODO: move to normal slots(add `offset` fields)
+    * - unordered instruction(slide)
+    */
+  val specialInstruction: Bool =
     maskUnitType || indexTypeLS || maskDestination || maskUnitType || maskUnitInstruction || unOrderType
-  val busClear:            Bool = Wire(Bool())
+  val busClear: Bool = Wire(Bool())
+
+  /** designed for unordered instruction(slide),
+    * it doesn't go to lane, it has RAW hazzard.
+    */
   val instructionRAWReady: Bool = Wire(Bool())
   val allSlotFree:         Bool = Wire(Bool())
 
@@ -409,22 +419,29 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   /** state machine register for each instruction. */
   val slots: Seq[InstructionControl] = Seq.tabulate(parameter.chainingSize) { index =>
-    // todo: cover here
+    /** the control register in the slot. */
     val control = RegInit(
       (-1)
         .S(new InstructionControl(parameter.instructionIndexBits, parameter.laneNumber).getWidth.W)
         .asTypeOf(new InstructionControl(parameter.instructionIndexBits, parameter.laneNumber))
     )
+
+    /** the execution is finished.
+      * (but there might still exist some data in the ring.)
+      */
     val laneAndLSUFinish: Bool = control.endTag.asUInt.andR
 
-    /** lsu is finished when report bits matched corresponding state machine */
+    /** lsu is finished when report bits matched corresponding slot
+      * lsu send `lastReport` to [[V]], this check if the report contains this slot.
+      * this signal is used to update the `control.endTag`.
+      */
     val lsuFinished: Bool = ohCheck(lsu.lastReport, control.record.instructionIndex, parameter.chainingSize)
-    // instruction fire when instruction index matched corresponding state machine
+    // instruction is allocated to this slot.
     when(requestRegDequeue.fire && instructionToSlotOH(index)) {
       // instruction metadata
       control.record.instructionIndex := requestReg.bits.instructionIndex
       // TODO: remove
-      control.record.loadStore := isLoadStoreType
+      control.record.isLoadStore := isLoadStoreType
       // control signals
       control.state.idle := false.B
       control.state.wLast := false.B
@@ -433,24 +450,25 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // for load/store instruction, use the last bit to indicate whether it is the last instruction
       // for other instructions, use MSB to indicate whether it is the last instruction
       control.endTag := VecInit(Seq.fill(parameter.laneNumber)(skipLastFromLane) :+ !isLoadStoreType)
-    }.otherwise {
-      // TODO: remove wLast. last = control.endTag.asUInt.andR & (!control.record.widen || busClear)
-      when(laneAndLSUFinish) {
-        control.state.wLast := !control.record.widen || busClear
-      }
-      // TODO: execute first, then commit
-      when(responseCounter === control.record.instructionIndex && response.fire) {
-        control.state.sCommit := true.B
-      }
-      when(control.state.sCommit && control.state.sMaskUnitExecution) {
-        control.state.idle := true.B
-      }
-
-      // endTag update logic
-      control.endTag.zip(instructionFinished.map(_(index)) :+ lsuFinished).foreach {
-        case (d, c) => d := d || c
-      }
     }
+      // state machine starts here
+      .otherwise {
+        when(laneAndLSUFinish) {
+          control.state.wLast := !control.record.hasCrossWrite || busClear
+        }
+        // TODO: execute first, then commit
+        when(responseCounter === control.record.instructionIndex && response.fire) {
+          control.state.sCommit := true.B
+        }
+        when(control.state.sCommit && control.state.sMaskUnitExecution) {
+          control.state.idle := true.B
+        }
+
+        // endTag update logic
+        control.endTag.zip(instructionFinished.map(_(index)) :+ lsuFinished).foreach {
+          case (d, c) => d := d || c
+        }
+      }
     // logic like mask&reduce will be put to last slot
     // TODO: review later
     if (index == (parameter.chainingSize - 1)) {
@@ -1053,8 +1071,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   )
 
   val freeOR: Bool = VecInit(slots.map(_.state.idle)).asUInt.orR
-  // 有一个空闲的本地坑
-  val localReady: Bool = Mux(specialInst, slots.map(_.state.idle).last, freeOR)
+
+  /** slot is ready to accept new instructions. */
+  val slotReady: Bool = Mux(specialInstruction, slots.map(_.state.idle).last, freeOR)
 
   /** instantiate lanes.
     * TODO: move instantiate to top of class.
@@ -1070,9 +1089,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.laneRequest.bits.vd := requestRegDequeue.bits.instruction(11, 7)
     lane.laneRequest.bits.readFromScalar := Mux(decodeResult(Decoder.gather), gatherData, source1Extend)
     // 除了执行单元不让进,其他的都允许 todo：+lsu拒绝
-    lane.laneRequest.bits.loadStore := isLoadStoreType && localReady
+    lane.laneRequest.bits.loadStore := isLoadStoreType && slotReady
     lane.laneRequest.bits.store := isStoreType
-    lane.laneRequest.bits.special := specialInst
+    lane.laneRequest.bits.special := specialInstruction
     lane.laneRequest.bits.segment := requestRegDequeue.bits.instruction(31, 29)
     lane.laneRequest.bits.loadStoreEEW := requestRegDequeue.bits.instruction(13, 12)
     lane.laneRequest.bits.mask := maskType
@@ -1168,20 +1187,30 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // 暂时直接连lsu的写,后续需要处理scheduler的写
   vrfWrite.zip(lsu.vrfWritePort).foreach { case (sink, source) => sink <> source }
 
+  /** Slot has free entries. */
+  val free = VecInit(slots.map(_.state.idle)).asUInt
+  allSlotFree := free.andR
+
   // instruction issue
   {
-
-    /** Slot has free entries. */
-    val free = VecInit(slots.map(_.state.idle)).asUInt
-    allSlotFree := free.andR
     val free1H = ffo(free)
-    // 类型信息：isLSType noReadLD specialInst
-    val tryToEnq = Mux(specialInst, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
-    // 远程坑就绪
-    val executionReady = (!isLoadStoreType || lsu.request.ready) && (noReadST || allLaneReady)
-    // ready to issue instruction.
-    requestRegDequeue.ready := executionReady && localReady && (!gatherNeedRead || gatherReadFinish) && instructionRAWReady
-    instructionToSlotOH := Mux(requestRegDequeue.ready, tryToEnq, 0.U)
+
+    /** try to issue instruction to which slot. */
+    val slotToEnqueue: UInt = Mux(specialInstruction, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
+
+    /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
+    val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noReadST || allLaneReady)
+    // - ready to issue instruction
+    // - for ix type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
+    //   and convert it to mv instruction.
+    //   TODO: decode it directly
+    // - for slide instruction, it is unordered, and may have RAW hazard,
+    //   we detect the hazard and decide should we issue this slide or
+    //   issue the instruction after the slide which already in the slot.
+    requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) && instructionRAWReady
+
+    // TODO: change to `requestRegDequeue.fire`.
+    instructionToSlotOH := Mux(requestRegDequeue.ready, slotToEnqueue, 0.U)
   }
 
   // instruction commit
@@ -1192,7 +1221,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     response.valid := slotCommit.asUInt.orR
     response.bits.data := Mux(selectffoIndex.valid, selectffoIndex.bits, dataResult.bits)
     response.bits.vxsat := DontCare
-    response.bits.mem := (slotCommit.asUInt & VecInit(slots.map(_.record.loadStore)).asUInt).orR
+    response.bits.mem := (slotCommit.asUInt & VecInit(slots.map(_.record.isLoadStore)).asUInt).orR
     lastSlotCommit := slotCommit.last
   }
 
