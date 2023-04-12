@@ -197,6 +197,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   when(response.fire) { responseCounter := nextResponseCounter }
 
   // maintained a 1 depth queue for VRequest.
+  // TODO: directly maintain a `ready` signal
   /** register to latch instruction. */
   val requestReg: ValidIO[InstructionPipeBundle] = RegInit(0.U.asTypeOf(Valid(new InstructionPipeBundle(parameter))))
 
@@ -245,8 +246,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val intLMUL:          UInt = (1.U << requestReg.bits.csr.vlmul(1, 0)).asUInt
 
   // TODO: these should be decoding results
-  val noReadST:    Bool = isLoadStoreType && (!requestRegDequeue.bits.instruction(26))
-  val indexTypeLS: Bool = isLoadStoreType && requestRegDequeue.bits.instruction(26)
+  /** load store that don't read offset. */
+  val noOffsetReadLoadStore: Bool = isLoadStoreType && (!requestRegDequeue.bits.instruction(26))
+  val indexTypeLS:           Bool = isLoadStoreType && requestRegDequeue.bits.instruction(26)
 
   val source1Extend: UInt = Mux1H(
     UIntToOH(requestReg.bits.csr.vSew)(2, 0),
@@ -392,7 +394,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val dataClear:           Bool = WireDefault(false.B)
   val completedVec:        Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.laneNumber)(false.B)))
   val selectffoIndex:      ValidIO[UInt] = Wire(Valid(UInt(parameter.xLen.W)))
-  val completedLeftOr:     UInt = (scanLeftOr(completedVec.asUInt) << 1).asUInt(parameter.laneNumber - 1, 0)
+
+  /** for find first one, need to tell the lane with higher index `1` . */
+  val completedLeftOr: UInt = (scanLeftOr(completedVec.asUInt) << 1).asUInt(parameter.laneNumber - 1, 0)
   // 按指定的sew拼成 {laneNumer * dataPathWidth} bit, 然后根据sew选择出来
   val sortedData: UInt = Mux1H(
     sew1H(2, 0),
@@ -460,11 +464,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         when(responseCounter === control.record.instructionIndex && response.fire) {
           control.state.sCommit := true.B
         }
+        // TODO: remove `control.state.sMaskUnitExecution`
         when(control.state.sCommit && control.state.sMaskUnitExecution) {
           control.state.idle := true.B
         }
 
-        // endTag update logic
+        // endTag update logic from slot and lsu to instructionFinished.
         control.endTag.zip(instructionFinished.map(_(index)) :+ lsuFinished).foreach {
           case (d, c) => d := d || c
         }
@@ -1048,13 +1053,17 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     control
   }
 
-  // lane is ready to receive new instruction
+  /** lane is ready to receive new instruction. */
   val laneReady:    Vec[Bool] = Wire(Vec(parameter.laneNumber, Bool()))
   val allLaneReady: Bool = laneReady.asUInt.andR
   // TODO: review later
   // todo: 把scheduler的反馈也加上,lsu有更高的优先级
-  val laneFeedBackValid: Bool = lsu.lsuOffsetRequest || synchronized
-  val laneComplete:      Bool = ohCheck(lsu.lastReport, slots.last.record.instructionIndex, parameter.chainingSize)
+
+  /** the index type of instruction is finished.
+    * let LSU to kill the lane slot.
+    */
+  val completeIndexInstruction: Bool =
+    ohCheck(lsu.lastReport, slots.last.record.instructionIndex, parameter.chainingSize)
 
   val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
     Vec(
@@ -1079,30 +1088,48 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     * TODO: move instantiate to top of class.
     */
   val laneVec: Seq[Lane] = Seq.tabulate(parameter.laneNumber) { index =>
+    // TODO: use D/I
     val lane: Lane = Module(new Lane(parameter.laneParam))
-    // 请求,
-    lane.laneRequest.valid := requestRegDequeue.fire && !noReadST && allLaneReady && !maskUnitInstruction
+    // lane.laneRequest.valid -> requestRegDequeue.ready -> lane.laneRequest.ready -> lane.laneRequest.bits
+    // TODO: this is harmful for PnR design, since it broadcast ready singal to each lanes, which will significantly
+    //       reduce the scalability for large number of lanes.
+    // TODO: remove allLaneReady
+    lane.laneRequest.valid := requestRegDequeue.fire && !noOffsetReadLoadStore && allLaneReady && !maskUnitInstruction
+    // hard wire
     lane.laneRequest.bits.instructionIndex := requestReg.bits.instructionIndex
     lane.laneRequest.bits.decodeResult := decodeResult
     lane.laneRequest.bits.vs1 := requestRegDequeue.bits.instruction(19, 15)
     lane.laneRequest.bits.vs2 := requestRegDequeue.bits.instruction(24, 20)
     lane.laneRequest.bits.vd := requestRegDequeue.bits.instruction(11, 7)
-    lane.laneRequest.bits.readFromScalar := Mux(decodeResult(Decoder.gather), gatherData, source1Extend)
-    // 除了执行单元不让进,其他的都允许 todo：+lsu拒绝
-    lane.laneRequest.bits.loadStore := isLoadStoreType && slotReady
-    lane.laneRequest.bits.store := isStoreType
-    lane.laneRequest.bits.special := specialInstruction
     lane.laneRequest.bits.segment := requestRegDequeue.bits.instruction(31, 29)
     lane.laneRequest.bits.loadStoreEEW := requestRegDequeue.bits.instruction(13, 12)
+    // if the instruction is vi and vx type of gather, gather from rs2 with mask VRF read channel from one lane,
+    // and broadcast to all lanes.
+    lane.laneRequest.bits.readFromScalar := Mux(decodeResult(Decoder.gather), gatherData, source1Extend)
+
+    // TODO: these are from decoder.
+    // let record in VRF to know there is a load store instruction.
+    // TODO: use `fire` instead of `slotReady`
+    // TODO: if LSU reject the request, the record will not be cleared.
+    lane.laneRequest.bits.loadStore := isLoadStoreType && slotReady
+    // let record in VRF to know there is a store instruction.
+    lane.laneRequest.bits.store := isStoreType
+    // let lane know if this is a special instruction, which need group-level synchronization between lane and [[V]]
+    lane.laneRequest.bits.special := specialInstruction
+    // mask type instruction.
     lane.laneRequest.bits.mask := maskType
-//    lane.laneReq.bits.st := isST
     laneReady(index) := lane.laneRequest.ready
 
     lane.csrInterface := requestReg.bits.csr
     lane.laneIndex := index.U
 
-    lane.laneResponseFeedback.valid := laneFeedBackValid || laneComplete
-    lane.laneResponseFeedback.bits.complete := laneComplete || completedLeftOr(index) || readOnlyFinish
+    // - LSU request next offset of group
+    // - all lane are synchronized
+    // - the index type of instruction is finished.
+    lane.laneResponseFeedback.valid := lsu.lsuOffsetRequest || synchronized || completeIndexInstruction
+    // - the index type of instruction is finished.
+    // - for find first one.
+    lane.laneResponseFeedback.bits.complete := completeIndexInstruction || completedLeftOr(index) || readOnlyFinish
     lane.laneResponseFeedback.bits.instructionIndex := slots.last.record.instructionIndex
 
     // 读 lane
@@ -1199,9 +1226,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     val slotToEnqueue: UInt = Mux(specialInstruction, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
 
     /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
-    val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noReadST || allLaneReady)
+    val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
     // - ready to issue instruction
-    // - for ix type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
+    // - for vi and vx type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
     //   and convert it to mv instruction.
     //   TODO: decode it directly
     // - for slide instruction, it is unordered, and may have RAW hazard,

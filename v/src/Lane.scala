@@ -152,7 +152,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** response to [[V.lsu]] or mask unit in [[V]] */
   val laneResponse: ValidIO[LaneResponse] = IO(Valid(new LaneResponse(parameter)))
 
-  /** feedback from [[V]] for [[laneResponse]] */
+  /** feedback from [[V]] to [[Lane]] for [[laneResponse]] */
   val laneResponseFeedback: ValidIO[LaneResponseFeedback] = IO(Flipped(Valid(new LaneResponseFeedback(parameter))))
 
   /** for LSU and V accessing lane, this is not a part of ring, but a direct connection.

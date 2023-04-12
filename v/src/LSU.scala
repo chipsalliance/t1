@@ -132,7 +132,9 @@ class LSU(param: LSUParam) extends Module {
   /** interface to [[V]], indicate a MSHR slots is finished, and corresponding instruction can commit. */
   val lastReport: UInt = IO(Output(UInt(param.chainingSize.W)))
 
-  /** interface to [[V]], redirect to [[Lane]]. */
+  /** interface to [[V]], redirect to [[Lane]].
+    * this group of offset is finish, request the next group of offset.
+    */
   val lsuOffsetRequest: Bool = IO(Output(Bool()))
 
   val reqEnq:          Vec[Bool] = Wire(Vec(param.lsuMSHRSize, Bool()))
