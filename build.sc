@@ -390,6 +390,37 @@ object tests extends Module {
           Seq(PathRef(f))
         }
       }
+
+      object verdes extends mill.Cross[verdes](allTests: _*)
+
+      class verdes(caseName: String) extends ut(caseName) {
+        override def includeDir = T {
+          Seq(
+            u.millSourcePath / "env" / "sequencer-vector-verdes",
+            u.millSourcePath / "macros" / "sequencer-vector"
+          ).map(PathRef(_))
+        }
+
+        def linkScript: T[PathRef] = T.source {
+          PathRef(u.millSourcePath / "env" / "sequencer-vector-verdes" / "link.ld")
+        }
+
+        override def elf: T[PathRef] = T {
+          os.proc(Seq("clang-rv32", "-o", name + ".elf", "-mabi=ilp32f", "-march=rv32gcv", "-Wl,--nmagic", s"-T${linkScript().path}") ++ linkOpts() ++ includeDir().map(p => s"-I${p.path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
+          PathRef(T.ctx.dest / (name + ".elf"))
+        }
+
+        def bin: T[PathRef] = T {
+          os.proc(Seq("llvm-objcopy", "-O", "binary", elf().path.toString, name)).call(T.ctx.dest)
+          PathRef(T.ctx.dest / s"${name}")
+        }
+
+        def hex: T[PathRef] = T {
+          val hexfile = T.ctx.dest / s"${name}.hex"
+          os.proc(Seq("od", "-t", "x4", "-An", "-w4", "-v", bin().path.toString)).call(T.ctx.dest, stdout = hexfile)
+          PathRef(hexfile)
+        }
+      }
     }
 
     class BuddyMLIRCase(mlirSourceName: String) extends Case {
@@ -490,6 +521,20 @@ object tests extends Module {
       T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${tests.emulator(true).elf().path.toString}")
       os.proc(Seq(tests.emulator(true).elf().path.toString)).call(env = runEnv)
       PathRef(T.dest)
+    }
+  }
+
+  object gen extends mill.Cross[gen]((cases.`riscv-vector-tests`.allTests): _*)
+
+  class gen(name: String) extends Module with TaskModule {
+    override def defaultCommandName() = "gen"
+
+    def caseToGen = name match {
+      case _ => cases.`riscv-vector-tests`.verdes(name)
+    }
+
+    def gen(args: String*) = T.command {
+      T.log.info(s"generate hex test for verdes: ${caseToGen.hex().path.toString}")
     }
   }
 }
