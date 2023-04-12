@@ -435,6 +435,44 @@ object tests extends Module {
       }
     }
 
+    class BuddyASMCase(asmSourceName: String) extends Case {
+      def asmFile = T.source(PathRef(millSourcePath / asmSourceName))
+      override def millSourcePath = super.millSourcePath / os.up
+
+      override def linkOpts = T {
+        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start")
+      }
+
+      override def linkScript: T[PathRef] = T {
+        os.write(T.ctx.dest / "linker.ld",
+          s"""
+             |SECTIONS
+             |{
+             |  . = 0x1000;
+             |  .text.init : { *(.text.init) }
+             |  . = ALIGN(0x1000);
+             |  .text : { *(.text) }
+             |  . = ALIGN(0x1000);
+             |  .data : { *(.data) }
+             |  .bss : { *(.bss) }
+             |  .eh_frame : { *(.eh_frame) }
+             |}
+             |""".stripMargin)
+        PathRef(T.ctx.dest / "linker.ld")
+      }
+
+      override def allSourceFiles: T[Seq[PathRef]] = T {
+        val asmTarget = T.dest / asmSourceName
+        os.proc("cat", asmFile().path).call(T.dest, stdout = asmTarget)
+        super.allSourceFiles() ++ Seq(PathRef(asmTarget))
+      }
+
+      override def bin: T[PathRef] = T {
+        os.proc(Seq("llvm-objcopy", "-O", "binary", elf().path.toString, name)).call(T.ctx.dest)
+        PathRef(T.ctx.dest / name)
+      }
+    }
+
     object smoketest extends Case
 
     object mmm extends Case
@@ -444,18 +482,26 @@ object tests extends Module {
     object buddy extends Cross[BuddyMLIRCase](mlirTests: _*) {
       def allTests = mlirTests
     }
+
+    def buddyAsmTests = os.walk(millSourcePath / "buddyAsm").filter(_.ext == "asm").map(_.last.toString)
+
+    object buddyAsm extends Cross[BuddyASMCase](buddyAsmTests: _*) {
+      def allTests = buddyAsmTests
+    }
   }
 
-  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ cases.buddy.allTests ++ Seq(cases.smoketest, cases.mmm).map(_.name)): _*)
+  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ cases.buddyAsm.allTests ++ cases.buddy.allTests ++ Seq(cases.smoketest, cases.mmm).map(_.name)): _*)
 
   class run(name: String) extends Module with TaskModule {
     override def defaultCommandName() = "run"
 
     val mlirTestPattern = raw"(.+\.mlir)$$".r
+    val buddyAsmTestPattern = raw"(.+\.asm)$$".r
     def caseToRun = name match {
       case "smoketest" => cases.smoketest
       case "mmm" => cases.mmm
       case mlirTestPattern(testName) => cases.buddy(testName)
+      case buddyAsmTestPattern(testName) => cases.buddyAsm(testName)
       case _ => cases.`riscv-vector-tests`.ut(name)
     }
 
