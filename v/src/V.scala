@@ -290,8 +290,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   /** all lanes are synchronized. */
   val synchronized: Bool = WireDefault(false.B)
 
-  /** gather 也有eew, 由top通知lane结束, 干脆所有的lane只读的都由top维护结束 */
-  val readOnlyFinish: Bool = WireDefault(false.B)
+  /** for mask unit that need to access VRF from lanes,
+    * use this signal to indicate it is finished access VRF(but instruction might not finish).
+    */
+  val maskUnitReadOnlyFinish: Bool = WireDefault(false.B)
 
   /** last slot is committing. */
   val lastSlotCommit: Bool = Wire(Bool())
@@ -885,7 +887,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             when(gather || extend) {
               synchronized := true.B
               dataClear := true.B
-              readOnlyFinish := true.B
+              maskUnitReadOnlyFinish := true.B
             }
           }.otherwise {
             when(lastElementForData && (gather || extend)) {
@@ -978,7 +980,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             iotaUnitIdle := true.B
             synchronized := true.B
             dataClear := true.B
-            readOnlyFinish := true.B
+            maskUnitReadOnlyFinish := true.B
           }.otherwise {
             when(dataGroupTailForCompressUnit) {
               synchronized := true.B
@@ -1129,7 +1131,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.laneResponseFeedback.valid := lsu.lsuOffsetRequest || synchronized || completeIndexInstruction
     // - the index type of instruction is finished.
     // - for find first one.
-    lane.laneResponseFeedback.bits.complete := completeIndexInstruction || completedLeftOr(index) || readOnlyFinish
+    lane.laneResponseFeedback.bits.complete :=
+      completeIndexInstruction ||
+      completedLeftOr(index) ||
+      maskUnitReadOnlyFinish
+    // tell lane which
     lane.laneResponseFeedback.bits.instructionIndex := slots.last.record.instructionIndex
 
     // 读 lane
