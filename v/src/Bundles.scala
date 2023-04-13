@@ -172,8 +172,8 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sRead1 := !decodeResult(Decoder.vtype) || (decodeResult(Decoder.gather) && !decodeResult(Decoder.vtype))
     res.sRead2 := false.B
     res.sReadVD := !(ma || decodeResult(Decoder.maskLogic))
-    res.wRead1 := !crossRead
-    res.wRead2 := !crossRead
+    res.wCrossReadLSB := !crossRead
+    res.wCrossReadMSB := !crossRead
     res.wScheduler := !(special || readOnly || decodeResult(Decoder.popCount))
     // todo
     res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red) || readOnly
@@ -184,12 +184,12 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) || readOnly ||
     decodeResult(Decoder.widen) || decodeResult(Decoder.maskDestination) ||
     decodeResult(Decoder.red) || decodeResult(Decoder.popCount) || loadStore
-    res.sCrossWrite0 := !crossWrite
-    res.sCrossWrite1 := !crossWrite
-    res.sSendResult0 := !crossRead
-    res.sSendResult1 := !crossRead
-    res.sCrossRead0 := !crossRead
-    res.sCrossRead1 := !crossRead
+    res.sCrossWriteLSB := !crossWrite
+    res.sCrossWriteMSB := !crossWrite
+    res.sSendCrossReadResultLSB := !crossRead
+    res.sSendCrossReadResultMSB := !crossRead
+    res.sCrossReadLSB := !crossRead
+    res.sCrossReadMSB := !crossRead
     res
   }
 
@@ -215,38 +215,90 @@ class InstGroupState(param: LaneParameter) extends Bundle {
   // w for wait
   //   0 is for need to wait and still waiting for finishing
   //   1 is for don't need to wait or already finished
-  val sRead1:     Bool = Bool()
-  val sRead2:     Bool = Bool()
-  val sReadVD:    Bool = Bool()
-  val wRead1:     Bool = Bool()
-  val wRead2:     Bool = Bool()
+  /** schedule read src1 */
+  val sRead1: Bool = Bool()
+
+  /** schedule read src2 */
+  val sRead2: Bool = Bool()
+
+  /** schedule read vd */
+  val sReadVD: Bool = Bool()
+
+  /** wait scheduler send [[LaneResponseFeedback]] */
   val wScheduler: Bool = Bool()
+
+  /** schedule send [[LaneResponse]] to scheduler */
   val sScheduler: Bool = Bool()
-  val sExecute:   Bool = Bool()
-  // 发送写的
-  val sCrossWrite0: Bool = Bool()
-  val sCrossWrite1: Bool = Bool()
-  // 读跨lane的
-  val sCrossRead0: Bool = Bool()
-  val sCrossRead1: Bool = Bool()
-  // 发送读的
-  val sSendResult0: Bool = Bool()
-  val sSendResult1: Bool = Bool()
-  val wExecuteRes:  Bool = Bool()
-  val sWrite:       Bool = Bool()
+
+  /** schedule execute. */
+  val sExecute: Bool = Bool()
+
+  /** wait for execute result. */
+  val wExecuteRes: Bool = Bool()
+
+  /** schedule write VRF. */
+  val sWrite: Bool = Bool()
+
+  // Cross lane
+  // For each lane it won't request others to cross.
+  // All the cross request is decoded from the [[V]]
+  // Thus each lane knows it should send or wait for cross lane read/write requests.
+  /** schedule cross lane write LSB */
+  val sCrossWriteLSB: Bool = Bool()
+
+  /** schedule cross lane write MSB */
+  val sCrossWriteMSB: Bool = Bool()
+
+  /** wait for cross lane read LSB result. */
+  val wCrossReadLSB: Bool = Bool()
+
+  /** wait for cross lane read MSB result. */
+  val wCrossReadMSB: Bool = Bool()
+
+  /** schedule cross lane read LSB.(access VRF for cross read) */
+  val sCrossReadLSB: Bool = Bool()
+
+  /** schedule cross lane read MSB.(access VRF for cross read) */
+  val sCrossReadMSB: Bool = Bool()
+
+  /** schedule send cross lane read LSB result. */
+  val sSendCrossReadResultLSB: Bool = Bool()
+
+  /** schedule send cross lane read MSB result. */
+  val sSendCrossReadResultMSB: Bool = Bool()
 }
 
-class InstControlRecord(param: LaneParameter) extends Bundle {
-  val originalInformation: LaneRequest = new LaneRequest(param)
-  val state:               InstGroupState = new InstGroupState(param)
-  val initState:           InstGroupState = new InstGroupState(param)
-  val csr:                 CSRInterface = new CSRInterface(param.vlMaxBits)
+/** Instruction State in [[Lane]]. */
+class InstructionControlRecord(param: LaneParameter) extends Bundle {
+
+  /** Store request from [[V]]. */
+  val laneRequest: LaneRequest = new LaneRequest(param)
+
+  /** State machine of the current instruction. */
+  val state: InstGroupState = new InstGroupState(param)
+
+  /** the initial state of state machine,
+    * for each group refresh, it will be updated to [[state]]
+    */
+  val initState: InstGroupState = new InstGroupState(param)
+
+  /** csr follows the instruction.
+    * TODO: move to [[laneRequest]]
+    */
+  val csr: CSRInterface = new CSRInterface(param.vlMaxBits)
 
   /** which group in the slot is executing. */
   val groupCounter: UInt = UInt(param.groupNumberBits.W)
-  // mask 类型的被别的lane完成了, 然后scheduler会通知 eg：sbf
+
+  /** the mask instruction is finished by other lanes,
+    * for example, sbf(set before first)
+    * TODO: better name.
+    */
   val schedulerComplete: Bool = Bool()
-  // mask 类型的被这一组数据完成了 eg：sbf
+
+  /** the mask instruction is finished by this group.
+    * the instruction target is finished(but still need to access VRF.)
+    */
   val selfCompleted: Bool = Bool()
 
   /** the execution index in group
@@ -259,8 +311,10 @@ class InstControlRecord(param: LaneParameter) extends Bundle {
     */
   val executeIndex: UInt = UInt(log2Ceil(param.dataPathByteWidth).W)
 
-  /** 应对vl很小的时候,不会用到这条lane */
-  val instCompleted: Bool = Bool()
+  /** used for indicating the instruction is finished.
+    * for small vl, lane might not be used.
+    */
+  val instructionFinished: Bool = Bool()
 
   /** 存 mask */
   val mask: ValidIO[UInt] = Valid(UInt(param.datapathWidth.W))
@@ -411,7 +465,12 @@ class LaneResponseFeedback(param: LaneParameter) extends Bundle {
     */
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 
-  /** for instructions that might finish in other lanes, use [[complete]] to tell the target lane */
+  /** for instructions that might finish in other lanes,
+    * use [[complete]] to tell the target lane
+    * - LSU indexed type load store is finished in LSU.
+    * - find first one is found by other lanes.
+    * - the VRF read operation of mask unit is finished.
+    */
   val complete: Bool = Bool()
 }
 

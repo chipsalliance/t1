@@ -238,6 +238,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val freeRecord: UInt = VecInit(chainingRecord.map(!_.valid)).asUInt
   val recordFFO:  UInt = ffo(freeRecord)
   val recordEnq:  UInt = Wire(UInt(parameter.chainingSize.W))
+  // handle VRF hazard
+  // TODO: move to [[V]]
   instructionWriteReport.ready := chainingRecord.map(r => enqCheck(instructionWriteReport.bits, r)).reduce(_ && _)
   recordEnq := Mux(instructionWriteReport.fire, recordFFO, 0.U(parameter.chainingSize.W))
 
