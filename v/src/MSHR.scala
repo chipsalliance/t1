@@ -360,7 +360,7 @@ class MSHR(param: MSHRParam) extends Module {
       offsetUsed(i) := (segExhausted && indexLaneMask(i) && indexExhausted) || status.indexGroupEnd || maskNeedUpdate
     }
   }
-  val groupEnd: Bool = maskNeedUpdate || (reqNext(param.maskGroupWidth - 1) && tlPort.a.fire && lastElementForSeg)
+  val groupEnd: Bool = maskNeedUpdate || (reqNext(param.maskGroupWidth - 1) && s0Fire && lastElementForSeg)
 
   // 处理 tile link source id 的冲突
   val reqSource1H: UInt = UIntToOH(tlPort.a.bits.source(4, 0))
