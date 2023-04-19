@@ -224,7 +224,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   requestRegDequeue.valid := requestReg.valid
   // TODO: decode the 7 bits in LSB, to get the instruction type.
   //       we only need to use it to find if it's a load/store instruction.
-  decode.decodeInput := request.bits.instruction >> 12
+  decode.decodeInput := (request.bits.instruction >> 12) ## request.bits.instruction(6)
 
   /** alias to [[requestReg.bits.decodeResult]], it is commonly used. */
   val decodeResult: DecodeBundle = requestReg.bits.decodeResult
