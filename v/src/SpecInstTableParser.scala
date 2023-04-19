@@ -9,7 +9,7 @@ import scala.util.matching.Regex
 case class RawOp(tpe: String, funct6: String, funct3s: Seq[String], name: String)
 case class SpecialAux(name: String, vs: Int, value: String)
 case class Op(tpe: String, funct6: String, funct3: String,
-              name: String, special: Option[SpecialAux]) extends DecodePattern {
+              name: String, special: Option[SpecialAux], notLSU: Boolean) extends DecodePattern {
   val funct3Map: Map[String, String] = Map(
     "IV" -> "000",
     "IX" -> "100",
@@ -31,7 +31,8 @@ case class Op(tpe: String, funct6: String, funct3: String,
       // vs1
       (if (special.isEmpty || special.get.vs == 2) "?????" else special.get.value) +
       // funct3
-      funct3Map(tpe + funct3)
+      funct3Map(tpe + funct3) +
+      (if (notLSU) "1" else "0")
   )
 }
 
@@ -67,17 +68,20 @@ object SpecInstTableParser {
   }
 
   val expandedOps: Array[Op] = rawOps.flatMap { rawOp =>
-    rawOp.funct3s
-      .filter(_ != " ")
-      .map(funct3 =>
-        Op(
-          rawOp.tpe,
-          rawOp.funct6,
-          funct3,
-          rawOp.name,
-          None
+    Seq(true, false).flatMap { noLSU =>
+      rawOp.funct3s
+        .filter(_ != " ")
+        .map(funct3 =>
+          Op(
+            rawOp.tpe,
+            rawOp.funct6,
+            funct3,
+            rawOp.name,
+            None,
+            noLSU
+          )
         )
-      )
+    }
   }
 
   val ops: Array[Op] =
