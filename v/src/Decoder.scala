@@ -12,14 +12,19 @@ trait UopField extends DecodeField[Op, UInt] with FieldName {
   def chiselType: UInt = UInt(4.W)
 }
 
-trait BoolField extends BoolDecodeField[Op] with FieldName
-
-
+trait BoolField extends BoolDecodeField[Op] with FieldName {
+  def dontCareCase(op: Op): Boolean = false
+  // 如果包含lsu, 那么value不会被纠正, 否则value只在不是lsu的情况下被视为1
+  def containsLSU: Boolean = false
+  def value(op: Op):Boolean
+  def genTable(op: Op): BitPat = if (dontCareCase(op)) dc else if (value(op) && (containsLSU || op.notLSU)) y else n
+}
 
 object Decoder {
   object logic extends BoolField {
     val subs: Seq[String] = Seq("and", "or")
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (subs.exists(op.name.contains)) y else n
+    // 执行单元现在不做dc,因为会在top判断是否可以chain
+    def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
   object adder extends BoolField {
@@ -38,12 +43,8 @@ object Decoder {
       "sbc",
       "sum"
     )
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) n
-    else if (
-      subs.exists(op.name.contains) &&
+    def value(op: Op): Boolean = subs.exists(op.name.contains) &&
       !(op.tpe == "M" && Seq("vm", "vnm").exists(op.name.startsWith))
-    ) y
-    else n
   }
 
   object shift extends BoolField {
@@ -52,7 +53,7 @@ object Decoder {
       "sll",
       "sra"
     )
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (subs.exists(op.name.contains)) y else n
+    def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
   object multiplier extends BoolField {
@@ -63,7 +64,7 @@ object Decoder {
       "msub",
       "msac"
     )
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (subs.exists(op.name.contains)) y else n
+    def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
   object divider extends BoolField {
@@ -71,7 +72,7 @@ object Decoder {
       "div",
       "rem"
     )
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (subs.exists(op.name.contains)) y else n
+    def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
   object other extends BoolField {
@@ -83,33 +84,31 @@ object Decoder {
       "clip",
       "compress"
     )
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) y else if (subs.exists(op.name.contains)) y else n
+    // todo: special is other?
+    def value(op: Op): Boolean = op.special.nonEmpty || subs.exists(op.name.contains)
   }
 
   object firstWiden extends BoolField {
-    def genTable(op: Op): BitPat = if (op.name.endsWith(".w") || vwmacc.genTable(op) == y) y else n
+    def value(op: Op): Boolean = op.name.endsWith(".w") || vwmacc.value(op)
   }
 
   object nr extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) n else if (op.name.contains("<nr>")) y else n
+    def value(op: Op): Boolean = op.name.contains("<nr>")
   }
 
   object red extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name.contains("red")) y else n
+    // reduce 会影响special, special会极大地影响性能, 所以不能dc
+    def value(op: Op): Boolean = op.name.contains("red") || op.name.contains("pop")
   }
 
   // TODO: remove this.
   object maskOp extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc
-    else if (
-      op.name.startsWith("vm") && ((adder.genTable(op) == y && !Seq("min", "max").exists(op.name.contains)) || logic
-        .genTable(op) == y)
-    ) y
-    else n
+    def value(op: Op): Boolean = op.name.startsWith("vm") &&
+      ((adder.value(op) && !Seq("min", "max").exists(op.name.contains)) || logic.value(op))
   }
 
   object reverse extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name == "vrsub") y else n
+    def value(op: Op): Boolean = op.name == "vrsub"
   }
 
   object narrow extends BoolField {
@@ -118,21 +117,24 @@ object Decoder {
       "vnsra",
       "vnclip"
     )
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (subs.exists(op.name.contains)) y else n
+    // todo: 确认是否可以dc
+    override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
+    def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
   object widen extends BoolField {
-    def genTable(op: Op): BitPat =
-      if (op.special.nonEmpty) dc else if (op.name.startsWith("vw") && !op.name.startsWith("vwred")) y else n
+    override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
+    def value(op: Op): Boolean = op.name.startsWith("vw") && !op.name.startsWith("vwred")
   }
 
   object widenReduce extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (op.name.startsWith("vwred")) y else n
+    override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
+    def value(op: Op): Boolean = op.name.startsWith("vwred")
   }
 
   object saturate extends BoolField {
-    def genTable(op: Op): BitPat =
-      if (op.special.nonEmpty) dc else if (Seq("vsa", "vss", "vsm").exists(op.name.startsWith)) y else n
+    override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
+    def value(op: Op): Boolean = Seq("vsa", "vss", "vsm").exists(op.name.startsWith)
   }
 
   object average extends BoolField {
@@ -140,53 +142,50 @@ object Decoder {
       "vaa",
       "vas"
     )
-    def genTable(op: Op): BitPat = if (op.special.nonEmpty) dc else if (subs.exists(op.name.startsWith)) y else n
+    override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
+    def value(op: Op): Boolean = subs.exists(op.name.startsWith)
   }
 
   object unsigned0 extends BoolField {
-    def genTable(op: Op): BitPat = {
+    def value(op: Op): Boolean = {
       val nameWoW = op.name.replace(".w", "")
       val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
       val UIntOperation = nameWoW.endsWith("u") && !nameWoW.endsWith("su")
       val mul = op.name.contains("mulhsu") || op.name.contains("wmulsu") || op.name.contains("vwmaccus")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
-      if (op.special.nonEmpty || logicShift || UIntOperation || mul || madc) y else n
+      op.special.nonEmpty || logicShift || UIntOperation || mul || madc
     }
   }
 
   object unsigned1 extends BoolField {
-    def genTable(op: Op): BitPat = {
+    def value(op: Op): Boolean = {
       val nameWoW = op.name.replace(".w", "")
       val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
       val UIntOperation = nameWoW.endsWith("u") && !nameWoW.endsWith("su")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
       val vwmaccsu = op.name.contains("vwmaccsu")
-      if (op.special.nonEmpty || logicShift || UIntOperation || madc || vwmaccsu) y else n
+      op.special.nonEmpty || logicShift || UIntOperation || madc || vwmaccsu
     }
   }
 
   object vtype extends BoolField {
-    def genTable(op: Op): BitPat = if (op.funct3 == "V") y else n
+    def value(op: Op): Boolean = op.funct3 == "V"
   }
 
   object xtype extends BoolField {
-    def genTable(op: Op): BitPat = if (op.funct3 == "X") y else n
+    def value(op: Op): Boolean = op.funct3 == "X"
   }
 
   object targetRd extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.special.get.name == "VWXUNARY0") y else n
+    def value(op: Op): Boolean = op.special.isDefined && op.special.get.name == "VWXUNARY0"
   }
 
   object extend extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.special.get.name == "VXUNARY0") y else n
+    def value(op: Op): Boolean = op.special.isDefined && op.special.get.name == "VXUNARY0"
   }
 
   object mv extends BoolField {
-    def genTable(op: Op): BitPat = {
-      val isMv: Boolean = op.name.startsWith("vmv")
-      val notMoveAllRegister: Boolean = !op.name.contains("nr")
-      if (isMv && notMoveAllRegister) y else n
-    }
+    def value(op: Op): Boolean = op.name.startsWith("vmv") && !op.name.contains("nr")
   }
 
   object ffo extends BoolField {
@@ -197,54 +196,53 @@ object Decoder {
       "vmsif"
     )
 
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (subs.exists(op.name.contains)) y else n
+    def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
   object slid extends BoolField {
-    def genTable(op: Op): BitPat = if (op.name.contains("slid")) y else n
+    def value(op: Op): Boolean = op.name.contains("slid")
   }
 
   object gather extends BoolField {
-    def genTable(op: Op): BitPat = if (op.name.contains("rgather")) y else n
+    def value(op: Op): Boolean = op.name.contains("rgather")
   }
 
   object gather16 extends BoolField {
-    def genTable(op: Op): BitPat = if (op.name.contains("rgatherei16")) y else n
+    def value(op: Op): Boolean = op.name.contains("rgatherei16")
   }
 
   object compress extends BoolField {
-    def genTable(op: Op): BitPat = if (op.name.contains("compress")) y else n
+    def value(op: Op): Boolean = op.name.contains("compress")
   }
 
   object readOnly extends BoolField {
-    def genTable(op: Op): BitPat = {
+    def value(op: Op): Boolean = {
       val vGather: Boolean = op.name.contains("gather") && vtype.genTable(op) == y
       val compress: Boolean = op.name.contains("compress")
       val iota: Boolean = op.name.contains("iota")
       val extend: Boolean = op.name.contains("ext.vf")
-      val readOnly: Boolean = vGather || compress || iota || extend
-      if (readOnly) y else n
+      vGather || compress || iota || extend
     }
   }
 
   object popCount extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name == "vcpop") y else n
+    def value(op: Op): Boolean = op.name == "vcpop"
   }
 
   object iota extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name == "viota") y else n
+    def value(op: Op): Boolean = op.name == "viota"
   }
 
   object id extends BoolField {
-    def genTable(op: Op): BitPat = if (op.special.isEmpty) n else if (op.name == "vid") y else n
+    def value(op: Op): Boolean = op.name == "vid"
   }
 
   object vwmacc extends BoolField {
-    def genTable(op: Op): BitPat = if (op.name.contains("vwmacc")) y else n
+    def value(op: Op): Boolean = op.name.contains("vwmacc")
   }
 
   object unOrderWrite extends BoolField {
-    def genTable(op: Op): BitPat = if (slid.genTable(op) == y) y else n
+    def value(op: Op): Boolean = slid.value(op)
   }
 
   // TODO[2]: uop should be well documented
@@ -263,21 +261,21 @@ object Decoder {
 
       val table = if (op.special.nonEmpty) {
         "1???"
-      } else if (multiplier.genTable(op) == y) {
+      } else if (multiplier.value(op)) {
         val high = op.name.contains("mulh")
         val n = if (high) 3 else firstIndexContains(mul, op.name)
         require(n < 4)
         b2s(op.name.startsWith("vn")) + b2s(Seq("c", "cu", "cus", "csu").exists(op.name.endsWith)) +
           (("00" + n.toBinaryString).takeRight(2))
-      } else if (divider.genTable(op) == y) {
+      } else if (divider.value(op)) {
         val n = firstIndexContains(divider.subs, op.name)
         require(n < 2)
         "?" * 3 + n.toBinaryString
-      } else if (adder.genTable(op) == y) {
+      } else if (adder.value(op)) {
         val n = if (op.name.contains("sum")) 0 else firstIndexContains(adder.subs, op.name)
         require(n < 16)
         (("0000" + n.toBinaryString).takeRight(4))
-      } else if (logic.genTable(op) == y) {
+      } else if (logic.value(op)) {
         val isXnor = op.name == "vmxnor"
         val isXor = op.name.contains("xor")
         val n = if (isXnor || isXor) 2 else firstIndexContains(logic.subs, op.name)
@@ -285,12 +283,12 @@ object Decoder {
         b2s(op.name.startsWith("vmn")) +
           b2s(isXnor || op.name.endsWith("n")) +
           (("00" + n.toBinaryString).takeRight(2))
-      } else if (shift.genTable(op) == y) {
+      } else if (shift.value(op)) {
         val n = firstIndexContains(shift.subs, op.name)
         require(n < 4)
         val ssr = op.name.contains("ssr")
         "?" * 1 + b2s(ssr) + ("00" + n.toBinaryString).takeRight(2)
-      } else if (other.genTable(op) == y) {
+      } else if (other.value(op)) {
         val n = if (slid.genTable(op) == y) {
           val up = if (op.name.contains("up")) 2 else 0
           val slid1 = if (op.name.contains("slide1")) 1 else 0
@@ -302,6 +300,7 @@ object Decoder {
         "0" + (("000" + n.toBinaryString).takeRight(3))
       } else {
         // unreachable
+        println(op)
         require(false)
         "?" * 4
       }
@@ -333,21 +332,35 @@ object Decoder {
   }
 
   object maskLogic extends BoolField {
-    def genTable(op: Op): BitPat = {
+    def value(op: Op): Boolean = {
       // todo: raname maskLogic -> maskOperation
       val otherMaskOperation = Seq("sbf", "sif", "sof", "first", "cpop", "viota").exists(op.name.contains)
       val logicMaskOperation = op.name.startsWith("vm") && logic.genTable(op) == y
-      if (logicMaskOperation || otherMaskOperation) y else n
+      logicMaskOperation || otherMaskOperation
     }
   }
 
   object maskDestination extends BoolField {
-    def genTable(op: Op): BitPat =
-      if (op.name.startsWith("vm") && adder.genTable(op) == y && !Seq("min", "max").exists(op.name.contains)) y else n
+    def value(op: Op): Boolean = op.name.startsWith("vm") && adder.value(op) && !Seq("min", "max").exists(op.name.contains)
   }
 
   object maskSource extends BoolField {
-    def genTable(op: Op): BitPat = if (Seq("vadc", "vsbc", "vmadc", "vmsbc", "vmerge").exists(op.name.startsWith)) y else n
+    def value(op: Op): Boolean = Seq("vadc", "vsbc", "vmadc", "vmsbc", "vmerge").exists(op.name.startsWith)
+  }
+
+  object indexType extends BoolField {
+    override def containsLSU: Boolean = true
+    // funct6 的最低位是mop(0)
+    def value(op: Op): Boolean = !op.notLSU && op.funct6.endsWith("1")
+  }
+
+  // special -> red || compress || viota || ffo || slid || maskDestination || gather(v) || mv || popCount || extend
+  //            || index load store
+  object special extends BoolField {
+    def value(op: Op): Boolean = {
+      Seq(red, compress, iota, ffo, slid, maskDestination, mv, popCount, extend, indexType)
+        .map(_.value(op)).reduce(_ || _) || (gather.value(op) && vtype.value(op))
+    }
   }
 
   val all: Seq[DecodeField[Op, _ >: Bool <: UInt]] = Seq(
@@ -357,39 +370,62 @@ object Decoder {
     multiplier,
     divider,
     other,
-    firstWiden,
-    nr,
-    red,
-    reverse,
-    narrow,
-    widen,
-    widenReduce,
-    average,
+
     unsigned0,
     unsigned1,
+
     vtype,
-    xtype,
-    uop,
+    xtype, // -> iType
+
+    nr,
+    red,
+
+    // top only
+    widenReduce,
     targetRd,
-    extend,
-    mv,
-    ffo,
-    popCount,
-    iota,
-    id,
-    specialUop,
-    maskOp,
-    saturate,
-    maskLogic,
-    maskDestination,
-    maskSource,
     slid,
     gather,
     gather16,
-    readOnly,
     compress,
+    unOrderWrite,
+
+    uop,
+
+    maskLogic,
+    maskDestination,
+    maskSource,
+
+    readOnly,
     vwmacc,
-    unOrderWrite
+    saturate,
+
+    firstWiden, // cross read
+    reverse, // uop
+    narrow, // cross read
+    widen, // cross write
+    average, // uop
+    extend, // top uop
+    mv, // uop
+    ffo, // uop
+    popCount, // top uop add, red, uop popCount
+    iota, // top uop
+    id, // delete
+    specialUop, // uop
+    maskOp, // 细分 mask destination, maskLogic, source
+
+    //sWrite -> targetRd || readOnly || crossWrite || maskDestination || reduce || loadStore
+    //crossWrite -> widen
+    //sRead1 -> vType
+    //sReadVD -> ma || maskLogic
+    //crossRead -> narrow || firstWiden
+    // wScheduler 原来与 sScheduler 如果出错了需要检查一下,真不一样需要说明记录
+    //sScheduler -> maskDestination || red || readOnly || ffo || popCount || loadStore
+
+    // sExecute 与 wExecuteRes 也不一样,需要校验
+    // sExecute -> readOnly || nr || loadStore
+
+    // unOrder -> slid
+    // specialSlot -> crossRead || crossWrite || maskLogic || maskDestination || maskSource
   )
 
   private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)
