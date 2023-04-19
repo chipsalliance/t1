@@ -1482,12 +1482,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           )
         }
         // 处理操作数
+        val src1IsReduceResult: Bool = reduceType && !record.laneRequest.decodeResult(Decoder.popCount)
         /**
           * src1： src1有 IXV 三种类型,只有V类型的需要移位
           */
         val finalSource1 = CollapseOperand(
-          Mux(reduceType, reduceResult(index), source1(index)),
-          decodeResult(Decoder.vtype) && !reduceType,
+          Mux(src1IsReduceResult, reduceResult(index), source1(index)),
+          decodeResult(Decoder.vtype) && !src1IsReduceResult,
           !decodeResult(Decoder.unsigned0)
         )
 

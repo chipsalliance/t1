@@ -816,7 +816,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // 对于up来说小于offset的element是不变得的
       val slideUpUnderflow = slideUp && !slide1 && (signBit || srcOverlap)
       val elementActive: Bool = v0.asUInt(elementIndexCount) || vm
-      val slidActive = elementActive && !slideUpUnderflow
+      val slidActive = elementActive && (!slideUpUnderflow || !decodeResultReg(Decoder.slid))
       // index >= vlMax 是写0
       val overlapVlMax: Bool = !slideUp && (signBit || srcOversize)
       // slid read
@@ -895,6 +895,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
               dataClear := true.B
               slideState := idle
             }.otherwise {
+              // todo: skip read
               slideState := sRead
             }
             updateMaskIndex := true.B
@@ -1028,7 +1029,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         }
         val executeFinish: Bool =
           (executeCounter(log2Ceil(parameter.laneNumber)) || !(reduce || popCount)) && maskUnitIdle
-        val schedulerWrite = decodeResultReg(Decoder.maskDestination) || reduce || writeMv
+        val schedulerWrite = decodeResultReg(Decoder.maskDestination) || (reduce && !popCount) || writeMv
         // todo: decode
         val groupSync = decodeResultReg(Decoder.ffo)
         // 写回
