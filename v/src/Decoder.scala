@@ -354,11 +354,17 @@ object Decoder {
     def value(op: Op): Boolean = !op.notLSU && op.funct6.endsWith("1")
   }
 
-  // special -> red || compress || viota || ffo || slid || maskDestination || gather(v) || mv || popCount || extend
-  //            || index load store
+  // special -> maskUnit || index type load store
   object special extends BoolField {
     def value(op: Op): Boolean = {
-      Seq(red, compress, iota, ffo, slid, maskDestination, mv, popCount, extend, indexType)
+      Seq(indexType, maskUnit).map(_.value(op)).reduce(_ || _)
+    }
+  }
+
+  // mask unit -> red || compress || viota || ffo || slid || maskDestination || gather(v) || mv || popCount || extend
+  object maskUnit extends BoolField {
+    def value(op: Op): Boolean = {
+      Seq(red, compress, iota, ffo, slid, maskDestination, mv, popCount, extend)
         .map(_.value(op)).reduce(_ || _) || (gather.value(op) && vtype.value(op))
     }
   }
@@ -398,6 +404,8 @@ object Decoder {
     readOnly,
     vwmacc,
     saturate,
+    special,
+    maskUnit,
 
     firstWiden, // cross read
     reverse, // uop
