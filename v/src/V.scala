@@ -297,40 +297,24 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   /** last slot is committing. */
   val lastSlotCommit: Bool = Wire(Bool())
-  // todo: special?
-  val instructionType:     SpecialInstructionType = RegInit(0.U.asTypeOf(new SpecialInstructionType))
-  val nextInstructionType: SpecialInstructionType = Wire(new SpecialInstructionType)
 
   /** for each lane, for instruction slot,
     * when asserted, the corresponding instruction is finished.
     */
   val instructionFinished: Vec[Vec[Bool]] = Wire(Vec(parameter.laneNumber, Vec(parameter.chainingSize, Bool())))
 
-  // TODO[0]: remove these signals
-  nextInstructionType.compress := decodeResult(Decoder.compress)
-  nextInstructionType.viota := decodeResult(Decoder.iota)
-  nextInstructionType.red := !decodeResult(Decoder.other) && decodeResult(Decoder.red)
-  nextInstructionType.ffo := decodeResult(Decoder.ffo)
-  nextInstructionType.slid := decodeResult(Decoder.slid)
-  nextInstructionType.other := decodeResult(Decoder.maskDestination)
-  nextInstructionType.vGather := decodeResult(Decoder.gather) && decodeResult(Decoder.vtype)
-  nextInstructionType.mv := decodeResult(Decoder.mv) && requestRegDequeue.bits.instruction(6)
-  nextInstructionType.popCount := decodeResult(Decoder.popCount)
-  nextInstructionType.extend := decodeResult(Decoder.extend)
-  // TODO: from decode & todo: 把lsu也放decode里去
-  val maskUnitType: Bool = nextInstructionType.asUInt.orR && requestRegDequeue.bits.instruction(6)
+  // todo: 把lsu也放decode里去
+  val maskUnitType: Bool = decodeResult(Decoder.maskUnit) && requestRegDequeue.bits.instruction(6)
   val maskDestination = decodeResult(Decoder.maskDestination)
   val unOrderType: Bool = decodeResult(Decoder.unOrderWrite)
   // 是否在lane与schedule/lsu之间有数据交换,todo: decode
-  // TODO[1]: from decode
   /** Special instructions which will be allocate to the last slot.
     * - mask unit
     * - Lane <-> Top has data exchange(top might forward to LSU.)
     *   TODO: move to normal slots(add `offset` fields)
     * - unordered instruction(slide)
     */
-  val specialInstruction: Bool =
-    maskUnitType || indexTypeLS || maskDestination || maskUnitType || maskUnitInstruction || unOrderType
+  val specialInstruction: Bool = decodeResult(Decoder.special)
   val busClear: Bool = Wire(Bool())
 
   /** designed for unordered instruction(slide),
@@ -573,9 +557,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         compressWriteCount := 0.U
         iotaCount := 0.U
         instructionBit6 := requestRegDequeue.bits.instruction(6)
-        slidUnitIdle := !((decodeResult(Decoder.slid) || nextInstructionType.vGather || decodeResult(
-          Decoder.extend
-        )) && instructionValid)
+        slidUnitIdle := !((decodeResult(Decoder.slid) || (decodeResult(Decoder.gather) && decodeResult(Decoder.vtype))
+          || decodeResult(Decoder.extend)) && instructionValid)
         iotaUnitIdle := !((decodeResult(Decoder.compress) || decodeResult(Decoder.iota)) && instructionValid)
         vd := requestRegDequeue.bits.instruction(11, 7)
         vs1 := requestRegDequeue.bits.instruction(19, 15)
@@ -586,7 +569,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         csrRegForMaskUnit := requestReg.bits.csr
         // todo: decode need execute
         control.state.sMaskUnitExecution := !maskUnitType
-        instructionType := nextInstructionType
         maskTypeInstruction := maskType && !decodeResult(Decoder.maskSource)
         completedVec.foreach(_ := false.B)
         WARRedResult.valid := false.B
@@ -741,7 +723,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         0
       )
 
-      val compareWire = Mux(instructionType.slid, rs1, maskUnitData)
+      val compareWire = Mux(decodeResultReg(Decoder.slid), rs1, maskUnitData)
       val compareAdvance: Bool = (rs1 >> log2Ceil(parameter.vLen)).asUInt.orR
       val compareResult:  Bool = largeThanVLMax(compareWire, compareAdvance)
       // 正在被gather使用的数据在data的那个组里
