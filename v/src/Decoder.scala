@@ -259,7 +259,9 @@ object Decoder {
       val firstIndexContains = (xs: Iterable[String], s: String) =>
         xs.map(s.indexOf).zipWithIndex.filter(_._1 != -1).head._2
 
-      val table = if (op.special.nonEmpty) {
+      val table = if (!op.notLSU) {
+        "0000"
+      } else if (op.special.nonEmpty) {
         "1???"
       } else if (multiplier.value(op)) {
         val high = op.name.contains("mulh")
@@ -314,7 +316,7 @@ object Decoder {
     def genTable(op: Op): BitPat = {
       val b2s = (b: Boolean) => if (b) "1" else "0"
       val table =
-        if (op.special.isEmpty) "????"
+        if (op.special.isEmpty) "????" else if (!op.notLSU) "0000"
         else
           "1" + (
             if (ffo.genTable(op) == y)
@@ -356,6 +358,7 @@ object Decoder {
 
   // special -> maskUnit || index type load store
   object special extends BoolField {
+    override def containsLSU: Boolean = true
     def value(op: Op): Boolean = {
       Seq(indexType, maskUnit).map(_.value(op)).reduce(_ || _)
     }

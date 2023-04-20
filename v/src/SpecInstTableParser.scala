@@ -20,7 +20,7 @@ case class Op(tpe: String, funct6: String, funct3: String,
     "FF" -> "101"
   )
 
-  def bitPat: BitPat = BitPat(
+  def bitPat: BitPat = if (notLSU) BitPat(
     "b" +
       // funct6
       funct6 +
@@ -31,9 +31,8 @@ case class Op(tpe: String, funct6: String, funct3: String,
       // vs1
       (if (special.isEmpty || special.get.vs == 2) "?????" else special.get.value) +
       // funct3
-      funct3Map(tpe + funct3) +
-      (if (notLSU) "1" else "0")
-  )
+      funct3Map(tpe + funct3) + "1"
+  ) else BitPat("b" + funct6 + "?" * 14 + "0")
 }
 
 /** Parser for inst-table.adoc. */
@@ -68,21 +67,27 @@ object SpecInstTableParser {
   }
 
   val expandedOps: Array[Op] = rawOps.flatMap { rawOp =>
-    Seq(true, false).flatMap { noLSU =>
-      rawOp.funct3s
-        .filter(_ != " ")
-        .map(funct3 =>
-          Op(
-            rawOp.tpe,
-            rawOp.funct6,
-            funct3,
-            rawOp.name,
-            None,
-            noLSU
-          )
-        )
-    }
-  }
+    rawOp.funct3s
+      .filter(_ != " ")
+      .map(funct3 =>
+        Op(
+          rawOp.tpe,
+          rawOp.funct6,
+          funct3,
+          rawOp.name,
+          None,
+          notLSU = true
+        ))
+  } ++ Seq("1", "0").map(fun6End =>
+    Op(
+      "I",
+      "?????" + fun6End,
+      "???",
+      "lsu",
+      None,
+      notLSU = false
+    )
+  )
 
   val ops: Array[Op] =
     (expandedOps.filter(!_.name.startsWith("V")) ++ specialTable.split(raw"\n\.").drop(1).flatMap { str =>
