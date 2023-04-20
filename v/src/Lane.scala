@@ -1994,18 +1994,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * TODO: use decoder
     */
   val entranceInstType: UInt = laneRequest.bits.instType
-  // todo: 修改v0的和使用v0作为mask的指令需要产生冲突
-  // TODO: move to top,
-  //       add test
-  /** check if the execution unit is ready or not. */
-  val executionUnitsReady: Bool = VecInit(
-    instructionTypeVec.zip(slotOccupied).map { case (t, v) => (t =/= entranceInstType) || !v }
-  ).asUInt.andR
-
-  /** new instruction enqueue,
-    * in [[Lane]], we don't use `fire` to couple from the outside.
-    */
-  val validRegulate: Bool = laneRequest.valid && executionUnitsReady
 
   /** slot inside [[Lane]] is ready to shift.
     * don't shift when feedback.
@@ -2013,15 +2001,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val shiftReady = slotCanShift.asUInt.andR && !laneResponseFeedback.valid
 
   // handshake
-  // TODO: add assertion for coupling
-  // laneRequest.valid, executionUnitsReady, laneRequest.ready(couple to executionUnitsReady)
-  //         f                  f                 f
-  //         f                  t                 f
-  //         f                  t                 t
-  //         t                  f                 f
-  //         t                  t                 f
-  //         t                  t                 t           -> laneRequest.fire
-  laneRequest.ready := !slotOccupied.head && executionUnitsReady && vrf.instructionWriteReport.ready && shiftReady
+  laneRequest.ready := !slotOccupied.head && vrf.instructionWriteReport.ready && shiftReady
 
   // Slot shift logic
   when(
@@ -2031,12 +2011,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // no instruction is incoming or the next instruction is rejected, but 0th slot is free, and others are not.
         slotOccupied.asUInt.orR ||
           // new instruction enqueue
-          validRegulate
+          laneRequest.valid
       ) &&
       // slots is ready to shift
       shiftReady
   ) {
-    slotOccupied := VecInit(slotOccupied.tail :+ validRegulate)
+    slotOccupied := VecInit(slotOccupied.tail :+ laneRequest.valid)
     source1 := VecInit(source1.tail :+ src1Entrance)
     slotControl := VecInit(slotControl.tail :+ entranceControl)
     result := VecInit(result.tail :+ 0.U(parameter.datapathWidth.W))

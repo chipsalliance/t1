@@ -91,20 +91,13 @@ class InstructionState extends Bundle {
   val sCommit: Bool = Bool()
 }
 
-// TODO: rename
-class SpecialInstructionType extends Bundle {
-  val red:      Bool = Bool()
-  val compress: Bool = Bool()
-  val viota:    Bool = Bool()
-  val ffo:      Bool = Bool()
-  val slid:     Bool = Bool()
-  // 其他的需要对齐的指令
+class ExecutionUnitType extends Bundle {
+  val logic: Bool = Bool()
+  val adder: Bool = Bool()
+  val shift: Bool = Bool()
+  val multiplier: Bool = Bool()
+  val divider: Bool = Bool()
   val other: Bool = Bool()
-  // 只有v类型的gather指令需要在top执行
-  val vGather:  Bool = Bool()
-  val mv:       Bool = Bool()
-  val popCount: Bool = Bool()
-  val extend:   Bool = Bool()
 }
 
 class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
@@ -119,6 +112,8 @@ class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
     * TODO: move to `state`.
     */
   val endTag: Vec[Bool] = Vec(laneSize + 1, Bool())
+
+  val executionUnitType: ExecutionUnitType = new ExecutionUnitType
 }
 
 class ExtendInstructionType extends Bundle {

@@ -230,6 +230,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val decodeResult: DecodeBundle = requestReg.bits.decodeResult
   // 这是当前正在mask unit 里面的那一条指令的csr信息,用来计算mask unit的控制信号
   val csrRegForMaskUnit: CSRInterface = RegInit(0.U.asTypeOf(new CSRInterface(parameter.laneParam.vlMaxBits)))
+  // 正在从寄存器里面出来的这个指令会使用哪一个执行单元
+  val dequeueExecutionType: ExecutionUnitType = Wire(new ExecutionUnitType)
+  dequeueExecutionType.elements.foreach {case (key, data) => data := decodeResult.elements(key)}
 
   // TODO: no valid here
   // TODO: these should be decoding results
@@ -440,6 +443,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // for load/store instruction, use the last bit to indicate whether it is the last instruction
       // for other instructions, use MSB to indicate whether it is the last instruction
       control.endTag := VecInit(Seq.fill(parameter.laneNumber)(skipLastFromLane) :+ !isLoadStoreType)
+      // record execution unit type
+      control.executionUnitType := dequeueExecutionType
     }
       // state machine starts here
       .otherwise {
@@ -1078,8 +1083,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     // lane.laneRequest.valid -> requestRegDequeue.ready -> lane.laneRequest.ready -> lane.laneRequest.bits
     // TODO: this is harmful for PnR design, since it broadcast ready singal to each lanes, which will significantly
     //       reduce the scalability for large number of lanes.
-    // TODO: remove allLaneReady
-    lane.laneRequest.valid := requestRegDequeue.fire && !noOffsetReadLoadStore && allLaneReady && !maskUnitInstruction
+    lane.laneRequest.valid := requestRegDequeue.fire && !noOffsetReadLoadStore && !maskUnitInstruction
     // hard wire
     lane.laneRequest.bits.instructionIndex := requestReg.bits.instructionIndex
     lane.laneRequest.bits.decodeResult := decodeResult
@@ -1214,6 +1218,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     /** try to issue instruction to which slot. */
     val slotToEnqueue: UInt = Mux(specialInstruction, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
 
+    // type check
+    val typeReady = VecInit(slots.map( slot =>
+      !(slot.executionUnitType.asUInt & dequeueExecutionType.asUInt).orR || slot.state.idle
+    )).asUInt.andR
+
     /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
     val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
     // - ready to issue instruction
@@ -1223,7 +1232,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     // - for slide instruction, it is unordered, and may have RAW hazard,
     //   we detect the hazard and decide should we issue this slide or
     //   issue the instruction after the slide which already in the slot.
-    requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) && instructionRAWReady
+    requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
+      instructionRAWReady && typeReady
 
     // TODO: change to `requestRegDequeue.fire`.
     instructionToSlotOH := Mux(requestRegDequeue.ready, slotToEnqueue, 0.U)
