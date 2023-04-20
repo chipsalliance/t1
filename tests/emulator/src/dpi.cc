@@ -111,7 +111,8 @@ void VBridgeImpl::dpiDumpWave() {
     vbridge_impl_instance.dpiPeekTL(
         VTlInterface{channel_id, *a_opcode, *a_param, *a_size, *a_source, *a_address, *a_mask, *a_data,
                      a_corrupt, a_valid, d_ready});
-    lsu_perfs[channel_id].peek_tl(a_valid);
+    lsu_perfs[channel_id].peek_tl(a_valid, d_ready);
+    lsu_perfs[channel_id].step();
   })
 }
 
@@ -133,8 +134,7 @@ void VBridgeImpl::dpiDumpWave() {
     vbridge_impl_instance.dpiPokeTL(
         VTlInterfacePoke{channel_id, d_opcode, d_param, d_size, d_source, d_sink, d_denied, d_data,
                          d_corrupt, d_valid, a_ready, d_ready});
-    lsu_perfs[channel_id].poke_tl(d_ready, *d_valid, *a_ready);
-    lsu_perfs[channel_id].step();
+    lsu_perfs[channel_id].poke_tl(*d_valid, *a_ready);
   })
 }
 

@@ -72,13 +72,13 @@ struct LSUPerf {
     );
   }
 
-  void peek_tl(bool a_valid) {
+  void peek_tl(bool a_valid, bool d_ready) {
     last_a_valid = a_valid;
+    last_d_ready = d_ready;
   }
 
-  void poke_tl(bool d_ready, bool d_valid, bool a_ready) {
+  void poke_tl(bool d_valid, bool a_ready) {
     last_d_valid = d_valid;
-    last_d_ready = d_ready;
     last_a_ready = a_ready;
   }
 
