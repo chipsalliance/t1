@@ -122,7 +122,7 @@ object Decoder {
     def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
-  object widen extends BoolField {
+  object crossWrite extends BoolField {
     override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
     def value(op: Op): Boolean = op.name.startsWith("vw") && !op.name.startsWith("vwred")
   }
@@ -372,6 +372,47 @@ object Decoder {
     }
   }
 
+  // crossRead -> narrow || firstWiden
+  object crossRead extends BoolField {
+    def value(op: Op): Boolean = Seq(narrow, firstWiden).map(_.value(op)).reduce(_ || _)
+  }
+
+  //sWrite -> targetRd || readOnly || crossWrite || maskDestination || reduce || loadStore
+  object sWrite extends BoolField {
+    override def containsLSU: Boolean = true
+    def value(op: Op): Boolean = Seq(targetRd, readOnly, crossWrite, maskDestination, red).
+      map(_.value(op)).reduce(_ || _) || !op.notLSU
+  }
+
+  // decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).xorR && !decodeResult(Decoder.vwmacc)
+  object ma extends BoolField {
+    def value(op: Op): Boolean = {
+      multiplier.value(op) && Seq(BitPat("b??01"), BitPat("b??10")).exists(_.cover(uop.genTable(op))) &&
+        !vwmacc.value(op)
+    }
+  }
+
+  // sReadVD -> !(ma || maskLogic)
+  object sReadVD extends BoolField {
+    def value(op: Op): Boolean = !Seq(ma, maskLogic).map(_.value(op)).reduce(_ || _)
+  }
+
+  // wScheduler 原来与 sScheduler 如果出错了需要检查一下,真不一样需要说明记录
+  //sScheduler -> maskDestination || red || readOnly || ffo || popCount || loadStore
+  object scheduler extends BoolField {
+    override def containsLSU: Boolean = true
+    def value(op: Op): Boolean =
+      !(Seq(maskDestination, red, readOnly, ffo, popCount).map(_.value(op)).reduce(_ || _) || !op.notLSU)
+  }
+
+  // sExecute 与 wExecuteRes 也不一样,需要校验
+  // sExecute -> readOnly || nr || loadStore
+  object execute extends BoolField {
+    override def containsLSU: Boolean = true
+    def value(op: Op): Boolean =
+      Seq(readOnly, nr).map(_.value(op)).reduce(_ || _) || !op.notLSU
+  }
+
   val all: Seq[DecodeField[Op, _ >: Bool <: UInt]] = Seq(
     logic,
     adder,
@@ -383,7 +424,6 @@ object Decoder {
     unsigned0,
     unsigned1,
 
-    vtype,
     xtype, // -> iType
 
     nr,
@@ -410,10 +450,21 @@ object Decoder {
     special,
     maskUnit,
 
+    crossWrite,
+    crossRead,
+
+    // state
+    sWrite,
+    //sRead1 -> vType
+    vtype,
+    sReadVD,
+    scheduler,
+    execute,
+
     firstWiden, // cross read
     reverse, // uop
     narrow, // cross read
-    widen, // cross write
+
     average, // uop
     extend, // top uop
     mv, // uop
@@ -423,17 +474,6 @@ object Decoder {
     id, // delete
     specialUop, // uop
     maskOp, // 细分 mask destination, maskLogic, source
-
-    //sWrite -> targetRd || readOnly || crossWrite || maskDestination || reduce || loadStore
-    //crossWrite -> widen
-    //sRead1 -> vType
-    //sReadVD -> ma || maskLogic
-    //crossRead -> narrow || firstWiden
-    // wScheduler 原来与 sScheduler 如果出错了需要检查一下,真不一样需要说明记录
-    //sScheduler -> maskDestination || red || readOnly || ffo || popCount || loadStore
-
-    // sExecute 与 wExecuteRes 也不一样,需要校验
-    // sExecute -> readOnly || nr || loadStore
 
     // unOrder -> slid
     // specialSlot -> crossRead || crossWrite || maskLogic || maskDestination || maskSource

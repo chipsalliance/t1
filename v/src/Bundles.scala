@@ -160,31 +160,26 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   // TODO: move to Module
   def initState: InstGroupState = {
     val res: InstGroupState = Wire(new InstGroupState(param))
-    val crossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
-    val crossWrite = decodeResult(Decoder.widen) && !loadStore
+    val sCrossRead = !decodeResult(Decoder.crossRead)
+    val sCrossWrite = !decodeResult(Decoder.crossWrite)
     val readOnly = decodeResult(Decoder.readOnly)
     // decode的时候需要注意有些bit操作的指令虽然不需要读vs1,但是需要读v0
-    res.sRead1 := !decodeResult(Decoder.vtype) || (decodeResult(Decoder.gather) && !decodeResult(Decoder.vtype))
+    res.sRead1 := !decodeResult(Decoder.vtype)
     res.sRead2 := false.B
-    res.sReadVD := !(ma || decodeResult(Decoder.maskLogic))
-    res.wCrossReadLSB := !crossRead
-    res.wCrossReadMSB := !crossRead
-    res.wScheduler := !(special || readOnly || decodeResult(Decoder.popCount))
-    // todo
-    res.sScheduler := !(decodeResult(Decoder.maskDestination) || decodeResult(Decoder.red) || readOnly
-      || decodeResult(Decoder.ffo) || decodeResult(Decoder.popCount) || loadStore)
-    res.sExecute := readOnly || decodeResult(Decoder.nr) || loadStore
-    //todo: red
-    res.wExecuteRes := (special && !decodeResult(Decoder.ffo)) || readOnly || decodeResult(Decoder.nr)
-    res.sWrite := (decodeResult(Decoder.other) && decodeResult(Decoder.targetRd)) || readOnly ||
-    decodeResult(Decoder.widen) || decodeResult(Decoder.maskDestination) ||
-    decodeResult(Decoder.red) || decodeResult(Decoder.popCount) || loadStore
-    res.sCrossWriteLSB := !crossWrite
-    res.sCrossWriteMSB := !crossWrite
-    res.sSendCrossReadResultLSB := !crossRead
-    res.sSendCrossReadResultMSB := !crossRead
-    res.sCrossReadLSB := !crossRead
-    res.sCrossReadMSB := !crossRead
+    res.sReadVD := decodeResult(Decoder.sReadVD)
+    res.wCrossReadLSB := sCrossRead
+    res.wCrossReadMSB := sCrossRead
+    res.wScheduler := decodeResult(Decoder.scheduler)
+    res.sScheduler := decodeResult(Decoder.scheduler)
+    res.sExecute := decodeResult(Decoder.execute)
+    res.wExecuteRes := decodeResult(Decoder.execute)
+    res.sWrite := decodeResult(Decoder.sWrite)
+    res.sCrossWriteLSB := sCrossWrite
+    res.sCrossWriteMSB := sCrossWrite
+    res.sSendCrossReadResultLSB := sCrossRead
+    res.sSendCrossReadResultMSB := sCrossRead
+    res.sCrossReadLSB := sCrossRead
+    res.sCrossReadMSB := sCrossRead
     res
   }
 
