@@ -211,6 +211,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     requestReg.bits.decodeResult := decode.decodeResult
     requestReg.bits.csr := csrInterface
     requestReg.bits.instructionIndex := instructionCounter
+    requestReg.bits.vdIsV0 := request.bits.instruction(11, 7) === 0.U
   }
   // 0 0 -> don't update
   // 0 1 -> update to false
@@ -310,14 +311,14 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val maskUnitType: Bool = decodeResult(Decoder.maskUnit) && requestRegDequeue.bits.instruction(6)
   val maskDestination = decodeResult(Decoder.maskDestination)
   val unOrderType: Bool = decodeResult(Decoder.unOrderWrite)
-  // 是否在lane与schedule/lsu之间有数据交换,todo: decode
   /** Special instructions which will be allocate to the last slot.
     * - mask unit
     * - Lane <-> Top has data exchange(top might forward to LSU.)
     *   TODO: move to normal slots(add `offset` fields)
     * - unordered instruction(slide)
+    * - vd is v0
     */
-  val specialInstruction: Bool = decodeResult(Decoder.special)
+  val specialInstruction: Bool = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
   val busClear: Bool = Wire(Bool())
 
   /** designed for unordered instruction(slide),
@@ -547,13 +548,14 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         Mux(decodeResult(Decoder.xtype), requestRegDequeue.bits.src1Data, requestRegDequeue.bits.instruction(19, 15))
       val gatherAdvance = (gatherWire >> log2Ceil(parameter.vLen)).asUInt.orR
       gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance)
-      instructionRAWReady := !(unOrderTypeInstruction && !control.state.idle &&
+      val slotValid = !control.state.idle
+      instructionRAWReady := !((unOrderTypeInstruction && slotValid &&
         // slid 类的会比执行得慢的指令快(div),会修改前面的指令的source
         ((vd === requestRegDequeue.bits.instruction(24, 20)) ||
           (vd === requestRegDequeue.bits.instruction(19, 15)) ||
           // slid 类的会比执行得快的指令慢(mv),会被后来的指令修改 source2
           (vs2 === requestRegDequeue.bits.instruction(11, 7))) ||
-        (unOrderType && !allSlotFree))
+        ((unOrderType || requestReg.bits.vdIsV0) && !allSlotFree)) || (vd === 0.U && maskType && slotValid))
       when(requestRegDequeue.fire && instructionToSlotOH(index)) {
         writeBackCounter := 0.U
         groupCounter := 0.U
