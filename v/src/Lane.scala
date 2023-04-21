@@ -730,7 +730,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // TODO: use decode
         val needCrossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
         // TODO: use decode
-        val needCrossWrite = decodeResult(Decoder.widen)
+        val needCrossWrite = decodeResult(Decoder.crossWrite)
 
         /** select from VFU, send to [[result]], [[crossWriteResultLSBHalf]], [[crossWriteResultMSBHalf]]. */
         val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
@@ -2049,7 +2049,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.ls := laneRequest.bits.loadStore
   vrf.instructionWriteReport.bits.st := laneRequest.bits.store
   vrf.instructionWriteReport.bits.narrow := laneRequest.bits.decodeResult(Decoder.narrow)
-  vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.widen)
+  vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.crossWrite)
   vrf.instructionWriteReport.bits.stFinish := false.B
   vrf.instructionWriteReport.bits.mul := Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
   vrf.lsuLastReport := lsuLastReport
