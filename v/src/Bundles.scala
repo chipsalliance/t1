@@ -543,6 +543,8 @@ class InstructionPipeBundle(parameter: VParameter) extends Bundle {
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
   // 指令的csr信息
   val csr = new CSRInterface(parameter.laneParam.vlMaxBits)
+  // 有写v0的风险
+  val vdIsV0: Bool = Bool()
 }
 
 class LSUWriteQueueBundle(param: LSUParam) extends Bundle {
