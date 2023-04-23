@@ -2024,27 +2024,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // TODO: set to 0.
   entranceControl.groupCounter := (csrInterface.vStart >> 3).asUInt
 
-  /** src1 from scalar core is a signed number. */
-  val src1IsSInt: Bool = !laneRequest.bits.decodeResult(Decoder.unsigned0)
-  val vSew1H = UIntToOH(csrInterface.vSew)
-  // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
-  /** TODO: moved to [[V]], */
-  val immSignExtend: UInt = Fill(16, laneRequest.bits.vs1(4) && (vSew1H(2) || src1IsSInt)) ##
-    Fill(8, laneRequest.bits.vs1(4) && (vSew1H(1) || vSew1H(2) || src1IsSInt)) ##
-    Fill(3, laneRequest.bits.vs1(4)) ## laneRequest.bits.vs1
-
-  val src1Entrance: UInt =
-    Mux(
-      // TODO: remove vtype.
-      laneRequest.bits.decodeResult(Decoder.vtype),
-      0.U,
-      Mux(
-        laneRequest.bits.decodeResult(Decoder.xtype) || laneRequest.bits.decodeResult(Decoder.gather),
-        laneRequest.bits.readFromScalar,
-        immSignExtend
-      )
-    )
-
   /** type of execution unit.
     * TODO: use decoder
     */
@@ -2072,7 +2051,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       shiftReady
   ) {
     slotOccupied := VecInit(slotOccupied.tail :+ laneRequest.valid)
-    source1 := VecInit(source1.tail :+ src1Entrance)
+    source1 := VecInit(source1.tail :+ laneRequest.bits.readFromScalar)
     slotControl := VecInit(slotControl.tail :+ entranceControl)
     result := VecInit(result.tail :+ 0.U(parameter.datapathWidth.W))
     reduceResult := VecInit(reduceResult.tail :+ 0.U(parameter.datapathWidth.W))
