@@ -172,8 +172,8 @@ object Decoder {
     def value(op: Op): Boolean = op.funct3 == "V"
   }
 
-  object xtype extends BoolField {
-    def value(op: Op): Boolean = op.funct3 == "X"
+  object itype extends BoolField {
+    def value(op: Op): Boolean = op.funct3 == "I"
   }
 
   object targetRd extends BoolField {
@@ -425,7 +425,7 @@ object Decoder {
     other,
     unsigned0,
     unsigned1,
-    xtype, // -> iType
+    itype,
     nr,
     red,
     // top only

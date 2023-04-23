@@ -254,8 +254,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val noOffsetReadLoadStore: Bool = isLoadStoreType && (!requestRegDequeue.bits.instruction(26))
   val indexTypeLS:           Bool = isLoadStoreType && requestRegDequeue.bits.instruction(26)
 
+  val vSew1H: UInt = UIntToOH(requestReg.bits.csr.vSew)
   val source1Extend: UInt = Mux1H(
-    UIntToOH(requestReg.bits.csr.vSew)(2, 0),
+    vSew1H(2, 0),
     Seq(
       Fill(parameter.datapathWidth - 8, requestRegDequeue.bits.src1Data(7) && !decodeResult(Decoder.unsigned0))
         ## requestRegDequeue.bits.src1Data(7, 0),
@@ -264,6 +265,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       requestRegDequeue.bits.src1Data(31, 0)
     )
   )
+  /** src1 from scalar core is a signed number. */
+  val src1IsSInt: Bool = !requestReg.bits.decodeResult(Decoder.unsigned0)
+  val imm: UInt = requestReg.bits.request.instruction(19, 15)
+  // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
+  val immSignExtend: UInt = Fill(16, imm(4) && (vSew1H(2) || src1IsSInt)) ##
+    Fill(8, imm(4) && (vSew1H(1) || vSew1H(2) || src1IsSInt)) ##
+    Fill(3, imm(4)) ## imm
 
   /** duplicate v0 for mask */
   val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.maskGroupSize)(0.U(parameter.maskGroupWidth.W))))
@@ -545,7 +553,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       }
       // 算req上面的分开吧
       val gatherWire =
-        Mux(decodeResult(Decoder.xtype), requestRegDequeue.bits.src1Data, requestRegDequeue.bits.instruction(19, 15))
+        Mux(decodeResult(Decoder.itype), requestRegDequeue.bits.instruction(19, 15), requestRegDequeue.bits.src1Data)
       val gatherAdvance = (gatherWire >> log2Ceil(parameter.vLen)).asUInt.orR
       gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance)
       val slotValid = !control.state.idle
@@ -748,7 +756,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val readState = slideState === sRead
 
       // slid 的立即数是0扩展的
-      val slidSize = Mux(slide1, 1.U, Mux(decodeResultReg(Decoder.xtype), rs1, vs1))
+      val slidSize = Mux(slide1, 1.U, Mux(decodeResultReg(Decoder.itype), vs1, rs1))
       // todo: 这里是否有更好的处理方式
       val slidSizeLSB = slidSize(parameter.laneParam.vlMaxBits - 1, 0)
       // down +
@@ -795,9 +803,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         val reallyGrowth = accessRegGrowth(2, 0)
         (accessMask, dataOffset, accessLane, offset, reallyGrowth, overlap)
       }
-      val srcOverlap: Bool = decodeResultReg(Decoder.xtype) && (rs1 >= requestReg.bits.csr.vl)
+      val srcOverlap: Bool = !decodeResultReg(Decoder.itype) && (rs1 >= requestReg.bits.csr.vl)
       // rs1 >= vlMax
-      val srcOversize = decodeResultReg(Decoder.xtype) && !slide1 && compareResult
+      val srcOversize = !decodeResultReg(Decoder.itype) && !slide1 && compareResult
       val signBit = Mux1H(
         sew1H,
         readIndex(parameter.laneParam.vlMaxBits - 1, parameter.laneParam.vlMaxBits - 3).asBools.reverse
@@ -1076,6 +1084,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   /** slot is ready to accept new instructions. */
   val slotReady: Bool = Mux(specialInstruction, slots.map(_.state.idle).last, freeOR)
 
+  val source1Select: UInt =
+    Mux(decodeResult(Decoder.gather), gatherData, Mux(decodeResult(Decoder.itype), immSignExtend, source1Extend))
   /** instantiate lanes.
     * TODO: move instantiate to top of class.
     */
@@ -1096,7 +1106,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.laneRequest.bits.loadStoreEEW := requestRegDequeue.bits.instruction(13, 12)
     // if the instruction is vi and vx type of gather, gather from rs2 with mask VRF read channel from one lane,
     // and broadcast to all lanes.
-    lane.laneRequest.bits.readFromScalar := Mux(decodeResult(Decoder.gather), gatherData, source1Extend)
+    lane.laneRequest.bits.readFromScalar := source1Select
 
     // TODO: these are from decoder.
     // let record in VRF to know there is a load store instruction.
