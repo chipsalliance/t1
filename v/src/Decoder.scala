@@ -16,7 +16,7 @@ trait BoolField extends BoolDecodeField[Op] with FieldName {
   def dontCareCase(op: Op): Boolean = false
   // 如果包含lsu, 那么value不会被纠正, 否则value只在不是lsu的情况下被视为1
   def containsLSU: Boolean = false
-  def value(op: Op):Boolean
+  def value(op:    Op): Boolean
   def genTable(op: Op): BitPat = if (dontCareCase(op)) dc else if (value(op) && (containsLSU || op.notLSU)) y else n
 }
 
@@ -119,22 +119,22 @@ object Decoder {
     )
     // todo: 确认是否可以dc
     override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
-    def value(op: Op): Boolean = subs.exists(op.name.contains)
+    def value(op:                 Op): Boolean = subs.exists(op.name.contains)
   }
 
   object crossWrite extends BoolField {
     override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
-    def value(op: Op): Boolean = op.name.startsWith("vw") && !op.name.startsWith("vwred")
+    def value(op:                 Op): Boolean = op.name.startsWith("vw") && !op.name.startsWith("vwred")
   }
 
   object widenReduce extends BoolField {
     override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
-    def value(op: Op): Boolean = op.name.startsWith("vwred")
+    def value(op:                 Op): Boolean = op.name.startsWith("vwred")
   }
 
   object saturate extends BoolField {
     override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
-    def value(op: Op): Boolean = Seq("vsa", "vss", "vsm").exists(op.name.startsWith)
+    def value(op:                 Op): Boolean = Seq("vsa", "vss", "vsm").exists(op.name.startsWith)
   }
 
   object average extends BoolField {
@@ -143,7 +143,7 @@ object Decoder {
       "vas"
     )
     override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
-    def value(op: Op): Boolean = subs.exists(op.name.startsWith)
+    def value(op:                 Op): Boolean = subs.exists(op.name.startsWith)
   }
 
   object unsigned0 extends BoolField {
@@ -217,10 +217,10 @@ object Decoder {
 
   object readOnly extends BoolField {
     def value(op: Op): Boolean = {
-      val vGather: Boolean = op.name.contains("gather") && vtype.genTable(op) == y
+      val vGather:  Boolean = op.name.contains("gather") && vtype.genTable(op) == y
       val compress: Boolean = op.name.contains("compress")
-      val iota: Boolean = op.name.contains("iota")
-      val extend: Boolean = op.name.contains("ext.vf")
+      val iota:     Boolean = op.name.contains("iota")
+      val extend:   Boolean = op.name.contains("ext.vf")
       vGather || compress || iota || extend
     }
   }
@@ -316,7 +316,8 @@ object Decoder {
     def genTable(op: Op): BitPat = {
       val b2s = (b: Boolean) => if (b) "1" else "0"
       val table =
-        if (op.special.isEmpty) "????" else if (!op.notLSU) "0000"
+        if (op.special.isEmpty) "????"
+        else if (!op.notLSU) "0000"
         else
           "1" + (
             if (ffo.genTable(op) == y)
@@ -335,7 +336,7 @@ object Decoder {
 
   object maskLogic extends BoolField {
     def value(op: Op): Boolean = {
-      // todo: raname maskLogic -> maskOperation
+      // todo: rename maskLogic -> maskOperation
       val otherMaskOperation = Seq("sbf", "sif", "sof", "first", "cpop", "viota").exists(op.name.contains)
       val logicMaskOperation = op.name.startsWith("vm") && logic.genTable(op) == y
       logicMaskOperation || otherMaskOperation
@@ -343,7 +344,8 @@ object Decoder {
   }
 
   object maskDestination extends BoolField {
-    def value(op: Op): Boolean = op.name.startsWith("vm") && adder.value(op) && !Seq("min", "max").exists(op.name.contains)
+    def value(op: Op): Boolean =
+      op.name.startsWith("vm") && adder.value(op) && !Seq("min", "max").exists(op.name.contains)
   }
 
   object maskSource extends BoolField {
@@ -368,7 +370,8 @@ object Decoder {
   object maskUnit extends BoolField {
     def value(op: Op): Boolean = {
       Seq(red, compress, iota, ffo, slid, maskDestination, mv, popCount, extend)
-        .map(_.value(op)).reduce(_ || _) || (gather.value(op) && vtype.value(op))
+        .map(_.value(op))
+        .reduce(_ || _) || (gather.value(op) && vtype.value(op))
     }
   }
 
@@ -380,15 +383,15 @@ object Decoder {
   //sWrite -> targetRd || readOnly || crossWrite || maskDestination || reduce || loadStore
   object sWrite extends BoolField {
     override def containsLSU: Boolean = true
-    def value(op: Op): Boolean = Seq(targetRd, readOnly, crossWrite, maskDestination, red).
-      map(_.value(op)).reduce(_ || _) || !op.notLSU
+    def value(op: Op): Boolean =
+      Seq(targetRd, readOnly, crossWrite, maskDestination, red).map(_.value(op)).reduce(_ || _) || !op.notLSU
   }
 
   // decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).xorR && !decodeResult(Decoder.vwmacc)
   object ma extends BoolField {
     def value(op: Op): Boolean = {
       multiplier.value(op) && Seq(BitPat("b??01"), BitPat("b??10")).exists(_.cover(uop.genTable(op))) &&
-        !vwmacc.value(op)
+      !vwmacc.value(op)
     }
   }
 
@@ -420,15 +423,11 @@ object Decoder {
     multiplier,
     divider,
     other,
-
     unsigned0,
     unsigned1,
-
     xtype, // -> iType
-
     nr,
     red,
-
     // top only
     widenReduce,
     targetRd,
@@ -437,22 +436,17 @@ object Decoder {
     gather16,
     compress,
     unOrderWrite,
-
     uop,
-
     maskLogic,
     maskDestination,
     maskSource,
-
     readOnly,
     vwmacc,
     saturate,
     special,
     maskUnit,
-
     crossWrite,
     crossRead,
-
     // state
     sWrite,
     //sRead1 -> vType
@@ -460,11 +454,9 @@ object Decoder {
     sReadVD,
     scheduler,
     execute,
-
     firstWiden, // cross read
     reverse, // uop
     narrow, // cross read
-
     average, // uop
     extend, // top uop
     mv, // uop
@@ -473,7 +465,7 @@ object Decoder {
     iota, // top uop
     id, // delete
     specialUop, // uop
-    maskOp, // 细分 mask destination, maskLogic, source
+    maskOp // 细分 mask destination, maskLogic, source
 
     // unOrder -> slid
     // specialSlot -> crossRead || crossWrite || maskLogic || maskDestination || maskSource
