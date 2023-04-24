@@ -12,7 +12,6 @@ class LaneAdderReq(datapathWidth: Int) extends Bundle {
   val reverse: Bool = Bool()
   val average: Bool = Bool()
   val saturat: Bool = Bool()
-  val maskOp:  Bool = Bool()
   val vxrm:    UInt = UInt(2.W)
   val vSew:    UInt = UInt(2.W)
 }
@@ -122,8 +121,8 @@ class LaneAdder(datapathWidth: Int) extends Module {
       !less,
       equal,
       !equal,
-      upperOverflow && req.maskOp,
-      lowerOverflow && req.maskOp
+      upperOverflow,
+      lowerOverflow
     )
   )
   // 修正 average
@@ -132,7 +131,7 @@ class LaneAdder(datapathWidth: Int) extends Module {
   //选结果
   resp.data := Mux1H(
     Seq(
-      !req.maskOp && (uopOH(1, 0) ## uopOH(11, 10)).orR && !overflow,
+      (uopOH(1, 0) ## uopOH(11, 10)).orR && !overflow,
       (uopOH(6) && !less) || (uopOH(7) && less),
       (uopOH(6) && less) || (uopOH(7) && !less),
       upperOverflow && req.saturat,

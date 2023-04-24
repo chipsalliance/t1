@@ -793,9 +793,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       if (index != 0) {
         // read only
         val decodeResult: DecodeBundle = record.laneRequest.decodeResult
-        // TODO: use decode
-        val needCrossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
-        // TODO: use decode
+        val needCrossRead = decodeResult(Decoder.crossRead)
         val needCrossWrite = decodeResult(Decoder.crossWrite)
 
         /** select from VFU, send to [[result]], [[crossWriteDataLSBHalf]], [[crossWriteDataMSBHalf]]. */
@@ -821,7 +819,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           // head should alive, if not, the slot should shift to make head alive
           slotOccupied.head &&
           // cross lane instruction should execute in the first slot
-          !(needCrossRead || needCrossWrite || record.laneRequest.decodeResult(Decoder.maskOp)) &&
+          !record.laneRequest.decodeResult(Decoder.specialSlot) &&
           // mask should ready for masked instruction
           maskReady
 
@@ -998,7 +996,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         adderRequest.reverse := decodeResult(Decoder.reverse)
         adderRequest.average := decodeResult(Decoder.average)
         adderRequest.saturat := decodeResult(Decoder.saturate)
-        adderRequest.maskOp := decodeResult(Decoder.maskOp)
         adderRequest.vxrm := record.csr.vxrm
         adderRequest.vSew := record.csr.vSew
         adderRequests(index) := maskAnd(
@@ -1170,8 +1167,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         slotMaskRequestVec(index).bits := nextGroupCountMSB
       } else { // slotNumber == 0
         val decodeResult: DecodeBundle = record.laneRequest.decodeResult
-        // TODO: use [[Decoder.crossRead]]
-        val needCrossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
+        val needCrossRead = decodeResult(Decoder.crossRead)
 
         /** cross read has two case
           * - read vs2
@@ -1656,7 +1652,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         adderRequest.reverse := decodeResult(Decoder.reverse)
         adderRequest.average := decodeResult(Decoder.average)
         adderRequest.saturat := decodeResult(Decoder.saturate)
-        adderRequest.maskOp := decodeResult(Decoder.maskOp)
         adderRequest.vxrm := record.csr.vxrm
         adderRequest.vSew := record.csr.vSew
         adderRequests(index) := maskAnd(
@@ -1821,8 +1816,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         }
 
         // 更新mask类型的结果
-        val elementMaskFormatResult: UInt = Mux(adderMaskResp, current1H, 0.U)
-        val maskFormatResultUpdate:  UInt = maskFormatResult | Mux(masked, 0.U, elementMaskFormatResult)
+        val elementMaskFormatResult: UInt = Mux(adderMaskResp && !masked, current1H, 0.U)
+        val maskFormatResultUpdate:  UInt = maskFormatResult | elementMaskFormatResult
         when(dataDequeueFire || maskValid) {
           maskFormatResult := Mux(maskValid, 0.U, maskFormatResultUpdate)
         }
@@ -2152,7 +2147,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.eew := laneRequest.bits.loadStoreEEW
   vrf.instructionWriteReport.bits.ls := laneRequest.bits.loadStore
   vrf.instructionWriteReport.bits.st := laneRequest.bits.store
-  vrf.instructionWriteReport.bits.narrow := laneRequest.bits.decodeResult(Decoder.narrow)
   vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.crossWrite)
   vrf.instructionWriteReport.bits.stFinish := false.B
   vrf.instructionWriteReport.bits.mul := Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
