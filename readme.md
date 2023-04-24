@@ -43,7 +43,7 @@ systemctl start nsncd.service
 
 ## Test
 We use [spike](https://github.com/riscv/riscv-isa-sim) for reference model.
-In nix development shell, run with `mill -i 'tests.run[smoketest]'` for a single test.
+In nix development shell, run with `mill -i 'tests.run[smoke.asm]'` for a single test.
 The simulator record events of vector register file and memory load store to perform online difftest.
 The simulator use spike to emulate the RISC-V core, which means this vector generator doesn't provide a hart implementation.
 

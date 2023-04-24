@@ -2,8 +2,8 @@ rvv-vp-intrinsic-add.mlir
 rvv-vp-intrinsic-add-scalable.mlir
 hello.mlir
 stripmining.mlir
-mmm
-smoketest
+mmm.asm
+smoke.asm
 vaadd.vv
 vaadd.vx
 vaaddu.vv
