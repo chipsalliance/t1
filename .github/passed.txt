@@ -1,7 +1,9 @@
+rvv-vp-intrinsic-add.mlir
+rvv-vp-intrinsic-add-scalable.mlir
 hello.mlir
+stripmining.mlir
 mmm
 smoketest
-stripmining.mlir
 vaadd.vv
 vaadd.vx
 vaaddu.vv
