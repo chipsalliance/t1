@@ -4,6 +4,7 @@ hello.mlir
 stripmining.mlir
 mmm.asm
 smoke.asm
+conv2d_less_m2.c
 vaadd.vv
 vaadd.vx
 vaaddu.vv

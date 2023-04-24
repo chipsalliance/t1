@@ -1,4 +1,4 @@
-.globl start
+    .globl start
 start:
     li a0, 0x200 # MSTATUS_VS & (MSTATUS_VS >> 1)
     csrs mstatus, a0
@@ -9,6 +9,7 @@ start:
     call test
     csrwi 0x7cc, 0
 
+    .p2align 2
 stack_start:
     .zero 128
 
