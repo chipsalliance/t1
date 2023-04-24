@@ -441,7 +441,6 @@ object tests extends Module {
       def allTests = mlirTests
     }
 
-
     class AsmCase(asmSourceName: String) extends Case {
       def asmFile = T.source(PathRef(millSourcePath / asmSourceName))
 
@@ -461,18 +460,40 @@ object tests extends Module {
     object asm extends Cross[AsmCase](asmTests: _*) {
       def allTests = asmTests
     }
+
+    class IntrinsicCase(intrinsicSourceName: String) extends Case {
+      def intrinsicFile = T.source(PathRef(millSourcePath / intrinsicSourceName))
+
+      override def millSourcePath = super.millSourcePath / os.up
+
+      override def linkOpts = T {
+        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start")
+      }
+
+      override def allSourceFiles: T[Seq[PathRef]] = T {
+        Seq(PathRef(intrinsicFile().path), PathRef(millSourcePath / "main.S"))
+      }
+    }
+
+    def intrinsicTests = os.walk(millSourcePath / "intrinsic").filter(_.ext == "c").map(_.last.toString)
+
+    object intrinsic extends Cross[IntrinsicCase](intrinsicTests: _*) {
+      def allTests = intrinsicTests
+    }
   }
 
-  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ cases.buddy.allTests ++ cases.asm.allTests): _*)
+  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ cases.buddy.allTests ++ cases.asm.allTests ++ cases.intrinsic.allTests): _*)
 
   class run(name: String) extends Module with TaskModule {
     override def defaultCommandName() = "run"
 
     val mlirTestPattern = raw"(.+\.mlir)$$".r
     val asmTestPattern = raw"(.+\.asm)$$".r
+    val intrinsicTestPattern = raw"(.+\.c)$$".r
     def caseToRun = name match {
       case mlirTestPattern(testName) => cases.buddy(testName)
       case asmTestPattern(testName) => cases.asm(testName)
+      case intrinsicTestPattern(testName) => cases.intrinsic(testName)
       case _ => cases.`riscv-vector-tests`.ut(name)
     }
 
