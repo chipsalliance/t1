@@ -704,7 +704,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       adder.req.reverse := false.B
       adder.req.average := false.B
       adder.req.saturat := false.B
-      adder.req.maskOp := false.B
       adder.req.vxrm := csrRegForMaskUnit.vxrm
       adder.req.vSew := csrRegForMaskUnit.vSew
 

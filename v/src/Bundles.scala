@@ -162,7 +162,6 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     val res: InstGroupState = Wire(new InstGroupState(param))
     val sCrossRead = !decodeResult(Decoder.crossRead)
     val sCrossWrite = !decodeResult(Decoder.crossWrite)
-    val readOnly = decodeResult(Decoder.readOnly)
     // decode的时候需要注意有些bit操作的指令虽然不需要读vs1,但是需要读v0
     res.sRead1 := !decodeResult(Decoder.vtype)
     res.sRead2 := false.B
@@ -518,7 +517,6 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val eew:       UInt = UInt(2.W)
   val ls:        Bool = Bool()
   val st:        Bool = Bool()
-  val narrow:    Bool = Bool()
   val widen:     Bool = Bool()
   val stFinish:  Bool = Bool()
   // 乘加

@@ -416,6 +416,13 @@ object Decoder {
       Seq(readOnly, nr).map(_.value(op)).reduce(_ || _) || !op.notLSU
   }
 
+  // lane中只能在slot0中执行的指令
+  // specialSlot -> crossRead || crossWrite || maskLogic || maskDestination || maskSource
+  object specialSlot extends BoolField {
+    def value(op: Op): Boolean =
+      Seq(crossRead, crossWrite, maskLogic, maskDestination, maskSource).map(_.value(op)).reduce(_ || _)
+  }
+
   val all: Seq[DecodeField[Op, _ >: Bool <: UInt]] = Seq(
     logic,
     adder,
@@ -428,6 +435,7 @@ object Decoder {
     itype,
     nr,
     red,
+
     // top only
     widenReduce,
     targetRd,
@@ -436,6 +444,12 @@ object Decoder {
     gather16,
     compress,
     unOrderWrite,
+
+    // top uop
+    extend, // top uop
+    mv, // top uop
+    iota, // top uop
+
     uop,
     maskLogic,
     maskDestination,
@@ -454,21 +468,15 @@ object Decoder {
     sReadVD,
     scheduler,
     execute,
-    firstWiden, // cross read
     reverse, // uop
-    narrow, // cross read
     average, // uop
-    extend, // top uop
-    mv, // uop
+
+
     ffo, // uop
     popCount, // top uop add, red, uop popCount
-    iota, // top uop
-    id, // delete
+    id, // uop for other unit
     specialUop, // uop
-    maskOp // 细分 mask destination, maskLogic, source
-
-    // unOrder -> slid
-    // specialSlot -> crossRead || crossWrite || maskLogic || maskDestination || maskSource
+    specialSlot
   )
 
   private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)
