@@ -435,27 +435,44 @@ object tests extends Module {
       }
     }
 
-    object smoketest extends Case
-
-    object mmm extends Case
-
     def mlirTests = os.walk(millSourcePath / "buddy").filter(_.ext == "mlir").map(_.last.toString)
 
     object buddy extends Cross[BuddyMLIRCase](mlirTests: _*) {
       def allTests = mlirTests
     }
+
+
+    class AsmCase(asmSourceName: String) extends Case {
+      def asmFile = T.source(PathRef(millSourcePath / asmSourceName))
+
+      override def millSourcePath = super.millSourcePath / os.up
+
+      override def linkOpts = T {
+        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start")
+      }
+
+      override def allSourceFiles: T[Seq[PathRef]] = T {
+        super.allSourceFiles() ++ Seq(PathRef(asmFile().path))
+      }
+    }
+
+    def asmTests = os.walk(millSourcePath / "asm").filter(_.ext == "asm").map(_.last.toString)
+
+    object asm extends Cross[AsmCase](asmTests: _*) {
+      def allTests = asmTests
+    }
   }
 
-  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ cases.buddy.allTests ++ Seq(cases.smoketest, cases.mmm).map(_.name)): _*)
+  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ cases.buddy.allTests ++ cases.asm.allTests): _*)
 
   class run(name: String) extends Module with TaskModule {
     override def defaultCommandName() = "run"
 
     val mlirTestPattern = raw"(.+\.mlir)$$".r
+    val asmTestPattern = raw"(.+\.asm)$$".r
     def caseToRun = name match {
-      case "smoketest" => cases.smoketest
-      case "mmm" => cases.mmm
       case mlirTestPattern(testName) => cases.buddy(testName)
+      case asmTestPattern(testName) => cases.asm(testName)
       case _ => cases.`riscv-vector-tests`.ut(name)
     }
 
