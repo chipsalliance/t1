@@ -356,8 +356,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val slotActive: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
-  /** TODO: uarch doc how to shift slot
-    * the slot can slot shift when:
+  /** The slots start to shift in these rules:
+    * - instruction can only enqueue to the last slot.
+    * - all slots can only shift at the same time which means:
+    *   if one slot is finished earlier -> 1101,
+    *   it will wait for the first slot to finish -> 1100,
+    *   and then take two cycles to move to xx11.
     */
   val slotCanShift: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
@@ -494,7 +498,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       /** need mask from [[V]]. */
       val needMaskSource: Bool = record.laneRequest.mask
 
-      /** all read from VRF is done. */
+      /** all read from VRF is done.
+        * it need additional one cycle to indicate there is no read in VRF since the read latency of VRF is 1.
+        */
       val readVrfRequestFinish: Bool = record.state.sReadVD && record.state.sRead1 && record.state.sRead2
 
       /** for non-masked instruction, always ready,
@@ -1156,22 +1162,25 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         slotMaskRequestVec(index).valid := maskNeedUpdate
         slotMaskRequestVec(index).bits := nextGroupCountMSB
       } else { // slotNumber == 0
-        // TODO: START FROM HERE
-        // read only
         val decodeResult: DecodeBundle = record.laneRequest.decodeResult
-        // TODO: use decode
+        // TODO: use [[Decoder.crossRead]]
         val needCrossRead = decodeResult(Decoder.firstWiden) || decodeResult(Decoder.narrow)
+
+        /** cross read has two case
+          * - read vs2
+          * - read vd: only vwmacc
+          */
         val crossReadVS2: Bool = needCrossRead && !decodeResult(Decoder.vwmacc)
 
-        /** Each group needs a state machine,
-          * so we will ignore the effect of mask to jump to the next group at the end of this group
+        /** State machine may jump through the group if the mask is all 0.
+          * For these case it cannot jump through:
           * [[needCrossRead]]: although we may not need execution unit if it is masked,
           *                    we still need to access VRF for another lane
           * [[record.laneRequest.special]]: We need to synchronize with [[V]] every group
+          *                                 TODO: uarch about the synchronization
           * [[nr]] will ignore mask
           */
-        val alwaysNextGroup: Bool = needCrossRead ||
-          record.laneRequest.special || nr
+        val alwaysNextGroup: Bool = needCrossRead || record.laneRequest.special || nr
 
         /** select from VFU, send to [[result]], [[crossWriteResultLSBHalf]], [[crossWriteResultMSBHalf]]. */
         val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
@@ -1183,6 +1192,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         when(needCrossRead) {
           assert(record.csr.vSew != 2.U)
         }
+
+        // TODO: for index = 0, slotOccupied(index) === slotOccupied.head
         slotActive(index) :=
           // slot should alive
           slotOccupied(index) &&
@@ -1211,30 +1222,28 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // used for hazard detection
         vrfReadRequest(index)(0).bits.instructionIndex := record.laneRequest.instructionIndex
 
-        // TODO: VRF uarch doc
-        //
-        // example:
-        //  0 ->   0  |    1 ->   0  |    2 ->   1  |    3 ->   1  |    4 ->   2  |    5 ->   2  |    6 ->   3  |    7 ->   3
-        //  8 ->   4  |    9 ->   4  |   10 ->   5  |   11 ->   5  |   12 ->   6  |   13 ->   6  |   14 ->   7  |   15 ->   7
-        // 16 ->   8  |   17 ->   8  |   18 ->   9  |   19 ->   9  |   20 ->  10  |   21 ->  10  |   22 ->  11  |   23 ->  11
-        // 24 ->  12  |   25 ->  12  |   26 ->  13  |   27 ->  13  |   28 ->  14  |   29 ->  14  |   30 ->  15  |   31 ->  15
-
         // vs2 read
         vrfReadRequest(index)(1).valid := !(record.state.sRead2 && record.state.sCrossReadLSB) && slotActive(index)
         vrfReadRequest(index)(1).bits.offset := Mux(
           record.state.sRead2,
+          // cross lane LSB
           record.groupCounter(parameter.vrfOffsetBits - 2, 0) ## false.B,
+          // normal read
           record.groupCounter(parameter.vrfOffsetBits - 1, 0)
         )
         // todo: when vlmul > 0 use ## rather than +
         // TODO: pull Mux to standalone signal
         vrfReadRequest(index)(1).bits.vs := Mux(
           record.laneRequest.decodeResult(Decoder.vwmacc) && record.state.sRead2,
+          // cross read vd for vwmacc, since it need dual [[dataPathWidth]], use vs2 port to read LSB part of it.
           record.laneRequest.vd,
+          // read vs2 for other instruction
           record.laneRequest.vs2
         ) + Mux(
           record.state.sRead2,
+          // cross lane
           record.groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1),
+          // no cross lane
           record.groupCounter(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
         )
         vrfReadRequest(index)(1).bits.instructionIndex := record.laneRequest.instructionIndex
@@ -1243,14 +1252,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         vrfReadRequest(index)(2).valid := !(record.state.sReadVD && record.state.sCrossReadMSB) && slotActive(index)
         vrfReadRequest(index)(2).bits.offset := Mux(
           record.state.sReadVD,
+          // cross lane MSB
           record.groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B,
+          // normal read
           record.groupCounter(parameter.vrfOffsetBits - 1, 0)
         )
         vrfReadRequest(index)(2).bits.vs := Mux(
           record.state.sReadVD && !record.laneRequest.decodeResult(Decoder.vwmacc),
           // cross lane access use vs2
           record.laneRequest.vs2,
-          // for MAC use vd
+          // normal read vd or cross read vd for vwmacc
           record.laneRequest.vd
         ) +
           Mux(
@@ -1263,31 +1274,38 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         /** all read operation is finished. */
         val readFinish =
-          // wait VRF read result, +readVrfRequestFinish是因为换组后regNext会遗留上一组的值
-          RegNext(readVrfRequestFinish) && readVrfRequestFinish &&
+          // wait one cycle for VRF read latency.
+          RegNext(readVrfRequestFinish, false.B) &&
+            // RegNext(readVrfRequestFinish) is not initialized, to avoid the invalid value of last group,
+            // fanout readVrfRequestFinish directly.
+            readVrfRequestFinish &&
             // wait for cross lane read result
             record.state.wCrossReadLSB &&
             record.state.wCrossReadMSB &&
             record.state.sCrossReadLSB &&
             record.state.sCrossReadMSB
-        // lane 里面正常的一次状态转换,不包含与scheduler的交流
-        val internalEnd: Bool = readFinish && executeFinish && sendCrossReadResultFinish && crossWriteFinish
-        val stateEnd:    Bool = internalEnd && schedulerFinish
 
         // state machine control
+        // change state machine when read source1
         when(vrfReadRequest(index)(0).fire) {
           record.state.sRead1 := true.B
         }
+
+        // read result from source1 need read latency
         when(RegNext(vrfReadRequest(index)(0).fire)) {
           // todo: datapath Mux
           source1(index) := vrfReadResult(index)(0)
         }
+
+        // the priority of `sRead2` is higher than `sCrossReadLSB`
         when(vrfReadRequest(index)(1).fire) {
           record.state.sRead2 := true.B
           when(record.state.sRead2) {
             record.state.sCrossReadLSB := true.B
           }
         }
+
+        // read result from source2 need read latency
         when(RegNext(vrfReadRequest(index)(1).fire)) {
           when(RegNext(record.state.sRead2)) {
             crossReadLSBOut := vrfReadResult(index)(1)
@@ -1295,12 +1313,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             source2(index) := vrfReadResult(index)(1)
           }
         }
+
+        // the priority of `sReadVD` is higher than `sCrossReadMSB`
         when(vrfReadRequest(index)(2).fire) {
           record.state.sReadVD := true.B
           when(record.state.sReadVD) {
             record.state.sCrossReadMSB := true.B
           }
         }
+
+        // read result from vd need read latency
         when(RegNext(vrfReadRequest(index)(2).fire)) {
           when(RegNext(record.state.sReadVD)) {
             crossReadMSBOut := vrfReadResult(index)(2)
@@ -1309,20 +1331,38 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           }
         }
 
-        // cross lane read
-        val crossReadDataReady0 = record.state.sCrossReadLSB && RegNext(record.state.sCrossReadLSB)
-        val crossReadDataReady1 = record.state.sCrossReadMSB && RegNext(record.state.sCrossReadMSB)
-        val tryToSendHead = crossReadDataReady0 && !record.state.sSendCrossReadResultLSB && slotOccupied.head
-        val tryToSendTail = crossReadDataReady1 && !record.state.sSendCrossReadResultMSB && slotOccupied.head
-        crossLaneRead.bits.sinkIndex := (!tryToSendHead) ## laneIndex(parameter.laneNumberBits - 1, 1)
+        // VRF cross lane read
+        // TODO: VRF uarch doc
+        //
+        // example:
+        //  0 ->   0  |    1 ->   0  |    2 ->   1  |    3 ->   1  |    4 ->   2  |    5 ->   2  |    6 ->   3  |    7 ->   3
+        //  8 ->   4  |    9 ->   4  |   10 ->   5  |   11 ->   5  |   12 ->   6  |   13 ->   6  |   14 ->   7  |   15 ->   7
+        // 16 ->   8  |   17 ->   8  |   18 ->   9  |   19 ->   9  |   20 ->  10  |   21 ->  10  |   22 ->  11  |   23 ->  11
+        // 24 ->  12  |   25 ->  12  |   26 ->  13  |   27 ->  13  |   28 ->  14  |   29 ->  14  |   30 ->  15  |   31 ->  15
+
+        /** for cross lane read LSB is read from VRF, ready to send out to ring. */
+        val crossReadDataReadyLSB: Bool = record.state.sCrossReadLSB && RegNext(record.state.sCrossReadLSB)
+
+        /** for cross lane read MSB is read from VRF, ready to send out to ring. */
+        val crossReadDataReadyMSB: Bool = record.state.sCrossReadMSB && RegNext(record.state.sCrossReadMSB)
+
+        /** try to send corss lane read LSB data to ring */
+        val tryToSendLSB: Bool = crossReadDataReadyLSB && !record.state.sSendCrossReadResultLSB && slotOccupied.head
+
+        /** try to send corss lane read MSB data to ring */
+        val tryToSendMSB: Bool = crossReadDataReadyMSB && !record.state.sSendCrossReadResultMSB && slotOccupied.head
+        // TODO: use [[record.state.sSendCrossReadResultLSB]]
+        crossLaneRead.bits.sinkIndex := (!tryToSendLSB) ## laneIndex(parameter.laneNumberBits - 1, 1)
         crossLaneRead.bits.isTail := laneIndex(0)
         crossLaneRead.bits.sourceIndex := laneIndex
         crossLaneRead.bits.instructionIndex := record.laneRequest.instructionIndex
         crossLaneRead.bits.counter := record.groupCounter
-        crossLaneRead.bits.data := Mux(tryToSendHead, crossReadLSBOut, crossReadMSBOut)
-        crossLaneRead.valid := tryToSendHead || tryToSendTail
+        // TODO: use [[record.state.sSendCrossReadResultLSB]]
+        crossLaneRead.bits.data := Mux(tryToSendLSB, crossReadLSBOut, crossReadMSBOut)
+        crossLaneRead.valid := tryToSendLSB || tryToSendMSB
 
-        // 跨lane的写
+        // VRF cross write
+
         val sendWriteHead = record.state.sExecute && !record.state.sCrossWriteLSB && slotOccupied.head
         val sendWriteTail = record.state.sExecute && !record.state.sCrossWriteMSB && slotOccupied.head
         crossLaneWrite.bits.sinkIndex := laneIndex(parameter.laneNumberBits - 2, 0) ## (!sendWriteHead)
@@ -1349,7 +1389,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // 读环发送的状态变化
         // todo: 处理发给自己的, 可以在使用的时候直接用读的寄存器, init state的时候自己纠正回来
         when(crossLaneReadReady && crossLaneRead.valid) {
-          when(tryToSendHead) {
+          when(tryToSendLSB) {
             record.state.sSendCrossReadResultLSB := true.B
           }.otherwise {
             record.state.sSendCrossReadResultMSB := true.B
@@ -1783,7 +1823,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val stateCheck = Mux(
           waitCrossRead,
           readFinish,
-          internalEnd && (!needResponse || schedulerFinish) && maskUnhindered
+          (readFinish && executeFinish && sendCrossReadResultFinish && crossWriteFinish) && (!needResponse || schedulerFinish) && maskUnhindered
         )
         val crossReadReady: Bool = !needCrossRead || instructionCrossReadFinished
         when(stateCheck || record.instructionFinished) {

@@ -43,3 +43,7 @@ Additional channel `laneResponseFeedback` is required to feedback the response t
 ## Lane Control
 The control of lane is maintained in `Lane.slotControl`, 
 this slot is used for record the state of each instruction send to the Lane(including indexed LSU and some VRF readonly mask instructions in lane).
+
+## Cross Lane Channel
+
+Lane has a ring(for now) bus for communication between lanes. It is used for 
