@@ -246,10 +246,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // wait data for EEW = 2*SEW
   // TODO: do we need to switch to remote waiting?
-  val crossWriteResultLSBHalf: UInt = RegInit(0.U(parameter.datapathWidth.W))
-  val crossWriteMaskLSBHalf:   UInt = RegInit(0.U((parameter.dataPathByteWidth / 2).W))
-  val crossWriteResultMSBHalf: UInt = RegInit(0.U(parameter.datapathWidth.W))
-  val crossWriteMaskMSBHalf:   UInt = RegInit(0.U((parameter.dataPathByteWidth / 2).W))
+  /** cross write LSB data to send out to other lanes. */
+  val crossWriteDataLSBHalf: UInt = RegInit(0.U(parameter.datapathWidth.W))
+
+  /** cross write LSB mask to send out to other lanes. */
+  val crossWriteMaskLSBHalf: UInt = RegInit(0.U((parameter.dataPathByteWidth / 2).W))
+
+  /** cross write MSB data to send out to other lanes. */
+  val crossWriteDataMSBHalf: UInt = RegInit(0.U(parameter.datapathWidth.W))
+
+  /** cross write MSB mask to send out to other lanes. */
+  val crossWriteMaskMSBHalf: UInt = RegInit(0.U((parameter.dataPathByteWidth / 2).W))
 
   val maskFormatResult: UInt = RegInit(0.U(parameter.datapathWidth.W))
   val ffoIndexReg:      UInt = RegInit(0.U(log2Ceil(parameter.vLen / 8).W))
@@ -791,7 +798,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // TODO: use decode
         val needCrossWrite = decodeResult(Decoder.crossWrite)
 
-        /** select from VFU, send to [[result]], [[crossWriteResultLSBHalf]], [[crossWriteResultMSBHalf]]. */
+        /** select from VFU, send to [[result]], [[crossWriteDataLSBHalf]], [[crossWriteDataMSBHalf]]. */
         val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
 
         /** fire of [[dataDequeue]] */
@@ -1182,7 +1189,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           */
         val alwaysNextGroup: Bool = needCrossRead || record.laneRequest.special || nr
 
-        /** select from VFU, send to [[result]], [[crossWriteResultLSBHalf]], [[crossWriteResultMSBHalf]]. */
+        /** select from VFU, send to [[result]], [[crossWriteDataLSBHalf]], [[crossWriteDataMSBHalf]]. */
         val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
 
         /** fire of [[dataDequeue]] */
@@ -1331,14 +1338,20 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           }
         }
 
-        // VRF cross lane read
-        // TODO: VRF uarch doc
+        // VRF cross lane read:
+        // for each cross lane read access:
+        // it always access datapath width of VRF in two lanes.
+        // the source lane will consume: [[crossReadLSBOut]] and [[crossReadMSBOut]]
+        // it should be sent out to corresponding lane to [[crossLaneRead.bits.sinkIndex]]
+
+        // 1. group all VRF together, index them under the datapath width
+        // 2. the cross read/write take dual size of datapath width.
         //
-        // example:
-        //  0 ->   0  |    1 ->   0  |    2 ->   1  |    3 ->   1  |    4 ->   2  |    5 ->   2  |    6 ->   3  |    7 ->   3
-        //  8 ->   4  |    9 ->   4  |   10 ->   5  |   11 ->   5  |   12 ->   6  |   13 ->   6  |   14 ->   7  |   15 ->   7
-        // 16 ->   8  |   17 ->   8  |   18 ->   9  |   19 ->   9  |   20 ->  10  |   21 ->  10  |   22 ->  11  |   23 ->  11
-        // 24 ->  12  |   25 ->  12  |   26 ->  13  |   27 ->  13  |   28 ->  14  |   29 ->  14  |   30 ->  15  |   31 ->  15
+        // example of cross lane read
+        //  0| 1| 2| 3| 4| 5| 6| 7
+        //  8| 9|10|11|12|13|14|15
+        // 16|17|18|19|20|21|22|23
+        // 24|25|26|27|28|29|30|31
 
         /** for cross lane read LSB is read from VRF, ready to send out to ring. */
         val crossReadDataReadyLSB: Bool = record.state.sCrossReadLSB && RegNext(record.state.sCrossReadLSB)
@@ -1346,35 +1359,39 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         /** for cross lane read MSB is read from VRF, ready to send out to ring. */
         val crossReadDataReadyMSB: Bool = record.state.sCrossReadMSB && RegNext(record.state.sCrossReadMSB)
 
-        /** try to send corss lane read LSB data to ring */
-        val tryToSendLSB: Bool = crossReadDataReadyLSB && !record.state.sSendCrossReadResultLSB && slotOccupied.head
+        /** read data from RF, try to send cross lane read LSB data to ring */
+        val tryCrossReadSendLSB: Bool =
+          crossReadDataReadyLSB && !record.state.sSendCrossReadResultLSB && slotOccupied.head
 
-        /** try to send corss lane read MSB data to ring */
-        val tryToSendMSB: Bool = crossReadDataReadyMSB && !record.state.sSendCrossReadResultMSB && slotOccupied.head
+        /** read data from RF, try to send cross lane read MSB data to ring */
+        val tryCrossReadSendMSB: Bool =
+          crossReadDataReadyMSB && !record.state.sSendCrossReadResultMSB && slotOccupied.head
         // TODO: use [[record.state.sSendCrossReadResultLSB]]
-        crossLaneRead.bits.sinkIndex := (!tryToSendLSB) ## laneIndex(parameter.laneNumberBits - 1, 1)
+        crossLaneRead.bits.sinkIndex := (!tryCrossReadSendLSB) ## laneIndex(parameter.laneNumberBits - 1, 1)
         crossLaneRead.bits.isTail := laneIndex(0)
         crossLaneRead.bits.sourceIndex := laneIndex
         crossLaneRead.bits.instructionIndex := record.laneRequest.instructionIndex
         crossLaneRead.bits.counter := record.groupCounter
         // TODO: use [[record.state.sSendCrossReadResultLSB]]
-        crossLaneRead.bits.data := Mux(tryToSendLSB, crossReadLSBOut, crossReadMSBOut)
-        crossLaneRead.valid := tryToSendLSB || tryToSendMSB
+        crossLaneRead.bits.data := Mux(tryCrossReadSendLSB, crossReadLSBOut, crossReadMSBOut)
+        crossLaneRead.valid := tryCrossReadSendLSB || tryCrossReadSendMSB
 
         // VRF cross write
+        /** execute in ALU, try to send cross lane write LSB data to ring */
+        val tryCrossWriteSendLSB = record.state.sExecute && !record.state.sCrossWriteLSB && slotOccupied.head
 
-        val sendWriteHead = record.state.sExecute && !record.state.sCrossWriteLSB && slotOccupied.head
-        val sendWriteTail = record.state.sExecute && !record.state.sCrossWriteMSB && slotOccupied.head
-        crossLaneWrite.bits.sinkIndex := laneIndex(parameter.laneNumberBits - 2, 0) ## (!sendWriteHead)
+        /** execute in ALU, try to send cross lane write MSB data to ring */
+        val tryCrossWriteSendMSB = record.state.sExecute && !record.state.sCrossWriteMSB && slotOccupied.head
+        crossLaneWrite.bits.sinkIndex := laneIndex(parameter.laneNumberBits - 2, 0) ## (!tryCrossWriteSendLSB)
         crossLaneWrite.bits.sourceIndex := laneIndex
         crossLaneWrite.bits.isTail := laneIndex(parameter.laneNumberBits - 1)
         crossLaneWrite.bits.instructionIndex := record.laneRequest.instructionIndex
         crossLaneWrite.bits.counter := record.groupCounter
-        crossLaneWrite.bits.data := Mux(sendWriteHead, crossWriteResultLSBHalf, crossWriteResultMSBHalf)
-        crossLaneWrite.bits.mask := Mux(sendWriteHead, crossWriteMaskLSBHalf, crossWriteMaskMSBHalf)
-        crossLaneWrite.valid := sendWriteHead || sendWriteTail
+        crossLaneWrite.bits.data := Mux(tryCrossWriteSendLSB, crossWriteDataLSBHalf, crossWriteDataMSBHalf)
+        crossLaneWrite.bits.mask := Mux(tryCrossWriteSendLSB, crossWriteMaskLSBHalf, crossWriteMaskMSBHalf)
+        crossLaneWrite.valid := tryCrossWriteSendLSB || tryCrossWriteSendMSB
 
-        // 跨lane读写的数据接收
+        // cross read receive.
         when(readBusDequeue.valid) {
           assert(readBusDequeue.bits.instructionIndex === record.laneRequest.instructionIndex)
           when(readBusDequeue.bits.isTail) {
@@ -1386,16 +1403,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           }
         }
 
-        // 读环发送的状态变化
-        // todo: 处理发给自己的, 可以在使用的时候直接用读的寄存器, init state的时候自己纠正回来
+        // todo: handling self cross read for first and end lane.
+        // maintain cross read send state machine.
         when(crossLaneReadReady && crossLaneRead.valid) {
-          when(tryToSendLSB) {
+          when(tryCrossReadSendLSB) {
             record.state.sSendCrossReadResultLSB := true.B
           }.otherwise {
             record.state.sSendCrossReadResultMSB := true.B
           }
         }
-        // 写环发送的状态变化
+        // maintain cross write send state machine.
         when(crossLaneWriteReady && crossLaneWrite.valid) {
           record.state.sCrossWriteLSB := true.B
           when(record.state.sCrossWriteLSB) {
@@ -1403,9 +1420,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           }
         }
 
-        /** 记录跨lane的写
-          * sew = 2的时候不会有双倍的写,所以只需要处理sew=0和sew=1
-          * sew:
+        /** sew:
           *   0:
           *     executeIndex:
           *       0: mask = 0011, head
@@ -1416,57 +1431,65 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           *     executeIndex:
           *       0: mask = 1111, head
           *       2: mask = 1111, tail
+          *
+          *   2: not valid in SEW = 2
           */
-        // dataDeq
         when(dataDequeueFire && !masked) {
           when(record.executeIndex(1)) {
             // update tail
-            crossWriteResultMSBHalf :=
+            crossWriteDataMSBHalf :=
               Mux(
                 record.csr.vSew(0),
                 dataDequeue(parameter.datapathWidth - 1, parameter.halfDatapathWidth),
                 Mux(
                   record.executeIndex(0),
                   dataDequeue(parameter.halfDatapathWidth - 1, 0),
-                  crossWriteResultMSBHalf(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
+                  crossWriteDataMSBHalf(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
                 )
               ) ## Mux(
                 !record.executeIndex(0) || record.csr.vSew(0),
                 dataDequeue(parameter.halfDatapathWidth - 1, 0),
-                crossWriteResultMSBHalf(parameter.halfDatapathWidth - 1, 0)
+                crossWriteDataMSBHalf(parameter.halfDatapathWidth - 1, 0)
               )
             crossWriteMaskMSBHalf :=
               (record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskMSBHalf(1)) ##
                 (!record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskMSBHalf(0))
           }.otherwise {
             // update head
-            crossWriteResultLSBHalf :=
+            crossWriteDataLSBHalf :=
               Mux(
                 record.csr.vSew(0),
                 dataDequeue(parameter.datapathWidth - 1, parameter.halfDatapathWidth),
                 Mux(
                   record.executeIndex(0),
                   dataDequeue(parameter.halfDatapathWidth - 1, 0),
-                  crossWriteResultLSBHalf(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
+                  crossWriteDataLSBHalf(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
                 )
               ) ## Mux(
                 !record.executeIndex(0) || record.csr.vSew(0),
                 dataDequeue(parameter.halfDatapathWidth - 1, 0),
-                crossWriteResultLSBHalf(parameter.halfDatapathWidth - 1, 0)
+                crossWriteDataLSBHalf(parameter.halfDatapathWidth - 1, 0)
               )
             crossWriteMaskLSBHalf :=
               (record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskLSBHalf(1)) ##
                 (!record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskLSBHalf(0))
           }
-
         }
+
+        // clear mask when group change.
         when(record.state.asUInt.andR) {
           crossWriteMaskLSBHalf := 0.U
           crossWriteMaskMSBHalf := 0.U
         }
 
-        /** 这一组的mask已经没有剩余了 */
+        /** we have used mask inside mask group, and need to request from [[V]] */
         val maskNeedUpdate = !nextOrR && (!alwaysNextGroup || lastGroupForMask)
+
+        /** the MSB part of [[nextElementIndexInLane]]
+          * [[nextIndex]] is the log2 of [[parameter.datapathWidth]],
+          * it contains the higher bits of element index of lanes
+          * thus [[nextGroupCountMSB]] has the MSB suffix.
+          */
         val nextGroupCountMSB: UInt = Mux1H(
           vSew1H(1, 0),
           Seq(
@@ -1474,12 +1497,19 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             false.B ## record.groupCounter(parameter.groupNumberBits - 1, parameter.groupNumberBits - 2)
           )
         ) + maskNeedUpdate
-        val indexInLane = nextGroupCountMSB ## nextIndex
-        // csrInterface.vSew 只会取值0, 1, 2,需要特别处理移位
-        val nextIntermediateVolume = (indexInLane << record.csr.vSew).asUInt
 
-        /** mask 后 ffo 计算出来的下一次计算的 element 属于哪一个 group */
-        val nextGroupMasked: UInt = nextIntermediateVolume(parameter.groupNumberBits + 1, 2)
+        /** the next element index in lane to execute */
+        val nextElementIndexInLane = nextGroupCountMSB ## nextIndex
+
+        /** the data offset of next element in lane to execute
+          * TODO: [[record.csr.vSew]] only has value 0,1,2 for 32bits.
+          */
+        val nextElementOffset = (nextElementIndexInLane << record.csr.vSew).asUInt
+
+        /** TODO: start from here.
+          * mask 后 ffo 计算出来的下一次计算的 element 属于哪一个 group
+          */
+        val nextGroupMasked: UInt = nextElementOffset(parameter.groupNumberBits + 1, 2)
         val nextGroupCount = Mux(
           alwaysNextGroup,
           record.groupCounter + 1.U,
@@ -1512,7 +1542,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val nextExecuteIndex = Mux(
           alwaysNextGroup && groupEnd,
           0.U,
-          nextIntermediateVolume(1, 0)
+          nextElementOffset(1, 0)
         )
 
         /** 计算当前这一组的 vrf mask
