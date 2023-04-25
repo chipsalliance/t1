@@ -19,7 +19,8 @@ simple_sim::load_elf_result_t simple_sim::load_elf(const std::string &fname) {
       if (phdr.p_type == PT_LOAD) {
         CHECK_S(phdr.p_paddr + phdr.p_filesz < mem_size);
         fs.seekg((long) phdr.p_offset).read(reinterpret_cast<char *>(&mem[phdr.p_paddr]), phdr.p_filesz);
-        VLOG(1) << fmt::format("load elf segment {} at file phdr_offset {:08X} to paddr {:08X}", i, phdr.p_offset, phdr.p_paddr);
+        VLOG(1) << fmt::format("load elf segment {} at file phdr_offset {:08X} to paddr {:08X}-{:08X}",
+                   i, phdr.p_offset, phdr.p_paddr, phdr.p_paddr + phdr.p_memsz);
       }
     }
     return { .entry_addr = ehdr.e_entry };
