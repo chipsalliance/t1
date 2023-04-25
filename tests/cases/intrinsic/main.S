@@ -11,6 +11,6 @@ start:
 
     .p2align 2
 stack_start:
-    .zero 128
+    .zero 0x10000
 
 stack_end:

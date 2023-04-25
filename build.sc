@@ -333,7 +333,7 @@ object tests extends Module {
       }
 
       def linkOpts = T {
-        Seq("-mno-relax")
+        Seq("-mno-relax", "-fno-PIC")
       }
 
       def elf: T[PathRef] = T {
@@ -374,7 +374,7 @@ object tests extends Module {
         }
 
         override def linkOpts = T {
-          Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib")
+          Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-fno-PIC")
         }
 
         override def allSourceFiles: T[Seq[PathRef]] = T {
@@ -397,7 +397,7 @@ object tests extends Module {
       override def millSourcePath = super.millSourcePath / os.up
 
       override def linkOpts = T {
-        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start")
+        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start", "-fno-PIC")
       }
 
       override def allSourceFiles: T[Seq[PathRef]] = T {
@@ -446,7 +446,7 @@ object tests extends Module {
       override def millSourcePath = super.millSourcePath / os.up
 
       override def linkOpts = T {
-        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start")
+        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start", "-fno-PIC")
       }
 
       override def allSourceFiles: T[Seq[PathRef]] = T {
@@ -462,15 +462,16 @@ object tests extends Module {
 
     class IntrinsicCase(intrinsicSourceName: String) extends Case {
       def intrinsicFile = T.source(PathRef(millSourcePath / intrinsicSourceName))
+      def mainAsmFile = T.source(PathRef(millSourcePath / "main.S"))
 
       override def millSourcePath = super.millSourcePath / os.up
 
       override def linkOpts = T {
-        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start")
+        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start", "-fno-PIC")
       }
 
       override def allSourceFiles: T[Seq[PathRef]] = T {
-        Seq(PathRef(intrinsicFile().path), PathRef(millSourcePath / "main.S"))
+        Seq(PathRef(intrinsicFile().path), PathRef(mainAsmFile().path))
       }
     }
 
