@@ -714,15 +714,15 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val reduceResult = Mux(decodeResultReg(Decoder.adder) || popCount, adder.resp.data, logicUnit.resp)
       val aluOutPut = Mux(reduce || popCount, reduceResult, 0.U)
       // slid & gather unit
-      val slideUp = decodeResultReg(Decoder.uop)(1)
-      val slide1 = decodeResultReg(Decoder.uop)(0) && decodeResultReg(Decoder.slid)
+      val slideUp = decodeResultReg(Decoder.topUop)(1)
+      val slide1 = decodeResultReg(Decoder.topUop)(0) && decodeResultReg(Decoder.slid)
 
       /** special uop 里面编码了extend的信息：
         * specialUop(1,0): 倍率
         * specialUop(2)：是否是符号
         */
-      val extendSourceSew: Bool = (requestReg.bits.csr.vSew >> decodeResultReg(Decoder.specialUop)(1, 0))(0)
-      val extendSign:      Bool = decodeResultReg(Decoder.specialUop)(2)
+      val extendSourceSew: Bool = (requestReg.bits.csr.vSew >> decodeResultReg(Decoder.topUop)(1, 0))(0)
+      val extendSign:      Bool = decodeResultReg(Decoder.topUop)(2)
       // gather 相关的控制
       val gather16: Bool = decodeResultReg(Decoder.gather16)
       val maskUnitEEW = Mux(gather16, 1.U, Mux(extend, extendSourceSew, requestReg.bits.csr.vSew))

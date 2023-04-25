@@ -12,6 +12,10 @@ trait UopField extends DecodeField[Op, UInt] with FieldName {
   def chiselType: UInt = UInt(4.W)
 }
 
+trait TopUopField extends DecodeField[Op, UInt] with FieldName {
+  def chiselType: UInt = UInt(3.W)
+}
+
 trait BoolField extends BoolDecodeField[Op] with FieldName {
   def dontCareCase(op: Op): Boolean = false
   // 如果包含lsu, 那么value不会被纠正, 否则value只在不是lsu的情况下被视为1
@@ -77,15 +81,30 @@ object Decoder {
 
   object other extends BoolField {
     val subs: Seq[String] = Seq(
-      "slide",
       "rgather",
       "merge",
       "mv",
-      "clip",
-      "compress"
+      "clip"
     )
-    // todo: special is other?
-    def value(op: Op): Boolean = op.special.nonEmpty || subs.exists(op.name.contains)
+    def getType(op: Op): (Boolean, Int) = {
+      // todo: vType gather -> mv
+      val isGather = op.name.contains("rgather")
+      val isMerge = op.name.contains("merge")
+      val isClip = op.name.contains("clip")
+      val isFFO = ffo.value(op)
+      // extend read only
+      val extendType = Seq(mv, popCount, id)
+      val isOtherType: Boolean =
+        (Seq(isGather, isMerge, isClip, isFFO) ++ extendType.map(_.value(op))).reduce(_ || _)
+      // ++ffo
+      val otherType = Seq(isGather, isMerge, isClip) ++ extendType.map(_.value(op))
+      val typeIndex = if (otherType.contains(true)) 4 + otherType.indexOf(true) else 0
+      // ffo 占据 0, 1, 2, 3 作为字编码
+      val otherUop = if (isFFO) ffo.subs.indexOf(op.name) else typeIndex
+      (isOtherType, otherUop)
+    }
+
+    def value(op: Op): Boolean = getType(op)._1
   }
 
   object firstWiden extends BoolField {
@@ -255,82 +274,58 @@ object Decoder {
 
     def y: BitPat = BitPat.Y(1)
     def genTable(op: Op): BitPat = {
-      val b2s = (b: Boolean) => if (b) "1" else "0"
       val firstIndexContains = (xs: Iterable[String], s: String) =>
         xs.map(s.indexOf).zipWithIndex.filter(_._1 != -1).head._2
-
-      val table = if (!op.notLSU) {
-        "0000"
-      } else if (op.special.nonEmpty) {
-        "1???"
-      } else if (multiplier.value(op)) {
+      val opcode: Int = if (multiplier.value(op)) {
         val high = op.name.contains("mulh")
+        // 0b1000
+        val negative = if (op.name.startsWith("vn")) 8 else 0
+        // 0b100
+        val asAddend = if (Seq("c", "cu", "cus", "csu").exists(op.name.endsWith)) 4 else 0
         val n = if (high) 3 else firstIndexContains(mul, op.name)
-        require(n < 4)
-        b2s(op.name.startsWith("vn")) + b2s(Seq("c", "cu", "cus", "csu").exists(op.name.endsWith)) +
-          (("00" + n.toBinaryString).takeRight(2))
+        negative + asAddend + n
       } else if (divider.value(op)) {
-        val n = firstIndexContains(divider.subs, op.name)
-        require(n < 2)
-        "?" * 3 + n.toBinaryString
+        firstIndexContains(divider.subs, op.name)
       } else if (adder.value(op)) {
-        val n = if (op.name.contains("sum")) 0 else firstIndexContains(adder.subs, op.name)
-        require(n < 16)
-        (("0000" + n.toBinaryString).takeRight(4))
+        if (op.name.contains("sum")) 0 else firstIndexContains(adder.subs, op.name)
       } else if (logic.value(op)) {
         val isXnor = op.name == "vmxnor"
         val isXor = op.name.contains("xor")
-        val n = if (isXnor || isXor) 2 else firstIndexContains(logic.subs, op.name)
-        require(n < 4)
-        b2s(op.name.startsWith("vmn")) +
-          b2s(isXnor || op.name.endsWith("n")) +
-          (("00" + n.toBinaryString).takeRight(2))
+        val notX = if (op.name.startsWith("vmn")) 8 else 0
+        val xNot = if (isXnor || op.name.endsWith("n")) 4 else 0
+        val subOp = if (isXnor || isXor) 2 else firstIndexContains(logic.subs, op.name)
+        notX + xNot + subOp
       } else if (shift.value(op)) {
-        val n = firstIndexContains(shift.subs, op.name)
-        require(n < 4)
-        val ssr = op.name.contains("ssr")
-        "?" * 1 + b2s(ssr) + ("00" + n.toBinaryString).takeRight(2)
+        val subOp = firstIndexContains(shift.subs, op.name)
+        require(subOp < 4)
+        val ssr = if (op.name.contains("ssr")) 4 else 0
+        subOp + ssr
       } else if (other.value(op)) {
-        val n = if (slid.genTable(op) == y) {
-          val up = if (op.name.contains("up")) 2 else 0
-          val slid1 = if (op.name.contains("slide1")) 1 else 0
-          up + slid1
-        } else {
-          firstIndexContains(other.subs, op.name)
-        }
-        require(n < 8)
-        "0" + (("000" + n.toBinaryString).takeRight(3))
+        other.getType(op)._2
+      } else 0
+      if (!op.notLSU) {
+        BitPat("b" + "????")
       } else {
-        // unreachable
-        println(op)
-        require(false)
-        "?" * 4
+        BitPat("b" + ("0000" + opcode.toBinaryString).takeRight(4))
       }
-
-      BitPat("b" + table)
     }
   }
 
-  object specialUop extends UopField {
-    def y: BitPat = BitPat.Y(1)
+  object topUop extends UopField {
     def genTable(op: Op): BitPat = {
-      val b2s = (b: Boolean) => if (b) "1" else "0"
-      val table =
-        if (op.special.isEmpty) "????"
-        else if (!op.notLSU) "0000"
-        else
-          "1" + (
-            if (ffo.genTable(op) == y)
-              "?" +
-                (("00" + ffo.subs.indexOf(op.name).toBinaryString).takeRight(2))
-            else if (op.special.get.name == "VXUNARY0") {
-              val log2 = (x: Int) => (math.log10(x) / math.log10(2)).toInt
-              b2s(op.name.startsWith("vs")) +
-                (("00" + log2(op.name.last.toString.toInt).toBinaryString).takeRight(2))
-            } else
-              "?" * 3
-          )
-      BitPat("b" + table)
+      val isSlide = slid.value(op)
+      val isExtend = extend.value(op)
+      val log2 = (x: Int) => (math.log10(x) / math.log10(2)).toInt
+      val opcode = if (isSlide) {
+        val up = if (op.name.contains("up")) 2 else 0
+        val slid1 = if (op.name.contains("slide1")) 1 else 0
+        up + slid1
+      } else if (isExtend) {
+        val signExtend = if (op.name.startsWith("vs")) 4 else 0
+        val extUop = log2(op.name.last.toString.toInt)
+        signExtend + extUop
+      } else 0
+      BitPat("b" + ("000" + opcode.toBinaryString).takeRight(3))
     }
   }
 
@@ -475,7 +470,7 @@ object Decoder {
     ffo, // uop
     popCount, // top uop add, red, uop popCount
     id, // uop for other unit
-    specialUop, // uop
+    topUop,
     specialSlot
   )
 
