@@ -1044,11 +1044,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
         otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
         otherRequest.popInit := reduceResult(index)
-        otherRequest.opcode := decodeResult(Decoder.uop)(2, 0)
-        otherRequest.specialOpcode := decodeResult(Decoder.specialUop)
+        otherRequest.opcode := decodeResult(Decoder.uop)
         otherRequest.imm := record.laneRequest.vs1
-        otherRequest.extendType.valid := decodeResult(Decoder.uop)(3)
-        otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResult.elements(s) }
         otherRequest.laneIndex := laneIndex
         otherRequest.groupIndex := record.groupCounter
         otherRequest.executeIndex := record.executeIndex
@@ -1701,11 +1698,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
         otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
         otherRequest.popInit := reduceResult(index)
-        otherRequest.opcode := decodeResult(Decoder.uop)(2, 0)
-        otherRequest.specialOpcode := decodeResult(Decoder.specialUop)
+        otherRequest.opcode := decodeResult(Decoder.uop)
         otherRequest.imm := record.laneRequest.vs1
-        otherRequest.extendType.valid := decodeResult(Decoder.uop)(3)
-        otherRequest.extendType.bits.elements.foreach { case (s, d) => d := decodeResult.elements(s) }
         otherRequest.laneIndex := laneIndex
         otherRequest.groupIndex := record.groupCounter
         otherRequest.executeIndex := record.executeIndex
