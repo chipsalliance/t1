@@ -19,7 +19,7 @@ class VectorWrapper(parameter: VParameter) extends Module {
   // v主体
   val vector: V = Module(new V(parameter))
   // 先忽视v set 类型的指令
-  val vSetInstruction: Bool = (request.bits.instruction(6, 0) === "0b1010111".U) && (request.bits.instruction(14, 12) === 7.U)
+  val vSetInstruction: Bool = (request.bits.instruction(6, 0) === "b1010111".U) && (request.bits.instruction(14, 12) === 7.U)
   val instructionQueue: Queue[InstructionQueueBundle] = Module(new Queue(new InstructionQueueBundle(parameter), parameter.instructionQueueSize))
   // queue 入口的连接,csr信息伴随指令走
   instructionQueue.io.enq.valid := request.valid && !vSetInstruction

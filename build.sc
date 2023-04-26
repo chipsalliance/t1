@@ -11,6 +11,9 @@ import $file.dependencies.treadle.build
 import $file.dependencies.chiseltest.build
 import $file.dependencies.arithmetic.common
 import $file.dependencies.tilelink.common
+import $file.dependencies.cde.build
+import $file.dependencies.`berkeley-hardfloat`.build
+import $file.dependencies.`rocket-chip`.common
 import $file.common
 
 object v {
@@ -529,5 +532,234 @@ object tests extends Module {
       os.proc(Seq(tests.emulator(true).elf().path.toString)).call(env = runEnv)
       PathRef(T.dest)
     }
+  }
+
+  object rocket extends CommonModule {
+    override def scalaVersion = v.scala
+    override def moduleDeps = Seq(myrocketchip, inclusivecache, vector)
+    object elaborate extends CommonModule {
+      override def defaultCommandName() = "default"
+      override def scalaVersion = v.scala
+      override def moduleDeps = Seq(myrocketchip, rocket)
+      override def ivyDeps = super.ivyDeps() ++ Agg(
+        v.mainargs
+      )
+
+      def elaborate = T {
+        mill.modules.Jvm.runSubprocess(
+          finalMainClass(),
+          runClasspath().map(_.path),
+          forkArgs(),
+          forkEnv(),
+          Seq(
+            "--dir", T.dest.toString,
+            "--top", "freechips.rocketchip.system.TestHarness",
+            "--config", "v.rocket.VectorLongConfig"
+          ),
+          workingDir = forkWorkingDir(),
+        )
+        PathRef(T.dest)
+      }
+
+      def chiselAnno = T {
+        os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("anno.json") => p }.map(PathRef(_)).get
+      }
+
+      def chirrtl = T {
+        os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("fir") => p }.map(PathRef(_)).get
+      }
+
+      def firtool = T {
+        os.proc("firtool",
+          chirrtl().path,
+          s"--annotation-file=${chiselAnno().path}",
+          "--disable-annotation-unknown",
+          "-dedup",
+          "-O=debug",
+          "--split-verilog",
+          "--preserve-values=named",
+          "--output-annotation-file=mfc.anno.json",
+          s"-o=${T.dest}"
+        ).call(T.dest)
+        PathRef(T.dest)
+      }
+
+      def rtls = T {
+        val verilogs = os.read(firtool().path / "filelist.f").split("\n").map(str =>
+          try {
+            os.Path(str)
+          } catch {
+            case e: IllegalArgumentException if e.getMessage.contains("is not an absolute path") =>
+              firtool().path / str.stripPrefix("./")
+          }
+        ).filter(p => p.ext == "v" || p.ext == "sv").map(PathRef(_)).toSeq
+        T.log.info(s"RTL generated:\n${verilogs.map(_.path).mkString("\n")}")
+        verilogs
+      }
+
+      def annotations = T {
+        os.walk(firtool().path).filter(p => p.last.endsWith("mfc.anno.json")).map(PathRef(_))
+      }
+    }
+
+    object verilator extends Module {
+      def spikeRoot = T { envByNameOrRiscv("SPIKE_ROOT") }
+
+      def csrcDir = T {
+        PathRef(os.pwd / "dependencies" / "rocket-chip" / "src" / "main" / "resources" / "csrc")
+      }
+      def vsrcDir = T {
+        PathRef(os.pwd / "dependencies" / "rocket-chip" / "src" / "main" / "resources" / "vsrc")
+      }
+
+      def allCSourceFiles = T {
+        Seq(
+          "SimDTM.cc",
+          "SimJTAG.cc",
+          "emulator.cc",
+          "remote_bitbang.cc",
+          ).map(c => PathRef(csrcDir().path / c))
+      }
+
+      def CMakeListsString = T {
+        // format: off
+        s"""cmake_minimum_required(VERSION 3.20)
+           |project(emulator)
+           |include_directories(${csrcDir().path})
+           |# plusarg is here
+           |include_directories(${elaborate.elaborate().path})
+           |# libspike wont work
+           |# find_package(libspike REQUIRED)
+           |link_directories(${spikeRoot() + "/lib"})
+           |include_directories(${spikeRoot() + "/include"})
+           |
+           |set(CMAKE_BUILD_TYPE Release)
+           |set(CMAKE_CXX_STANDARD 20)
+           |set(CMAKE_C_COMPILER "clang")
+           |set(CMAKE_CXX_COMPILER "clang++")
+           |set(CMAKE_CXX_FLAGS
+           |"$${CMAKE_CXX_FLAGS} -DVERILATOR -DTEST_HARNESS=VTestHarness -include VTestHarness.h -include verilator.h -include freechips.rocketchip.system.VectorLongConfig.plusArgs")
+           |set(THREADS_PREFER_PTHREAD_FLAG ON)
+           |
+           |find_package(verilator)
+           |find_package(Threads)
+           |
+           |add_executable(emulator
+           |${allCSourceFiles().map(_.path).mkString("\n")}
+           |)
+           |
+           |target_link_libraries(emulator PRIVATE $${CMAKE_THREAD_LIBS_INIT})
+           |# target_link_libraries(emulator PRIVATE libspike)
+           |target_link_libraries(emulator PRIVATE fesvr)
+           |verilate(emulator
+           |  SOURCES
+           |  ${elaborate.rtls().map(_.path.toString).mkString("\n")}
+           |  TOP_MODULE TestHarness
+           |  PREFIX VTestHarness
+           |  VERILATOR_ARGS ${verilatorArgs().mkString(" ")}
+           |)
+           |""".stripMargin
+        // format: on
+      }
+
+      def verilatorArgs = T.input {
+        Seq(
+          // format: off
+          "-Wno-UNOPTTHREADS", "-Wno-STMTDLY", "-Wno-LATCH", "-Wno-WIDTH",
+          "--x-assign unique", "--no-timing",
+          """+define+PRINTF_COND=\$c\(\"verbose\",\"&&\",\"done_reset\"\)""",
+          """+define+STOP_COND=\$c\(\"done_reset\"\)""",
+          "+define+RANDOMIZE_GARBAGE_ASSIGN",
+          "--output-split 20000",
+          "--output-split-cfuncs 20000",
+          "--max-num-width 1048576",
+          "--trace",
+          s"-I${vsrcDir().path}",
+          // format: on
+        )
+      }
+
+      def cmakefileLists = T.persistent {
+        val path = T.dest / "CMakeLists.txt"
+        os.write.over(path, CMakeListsString())
+        PathRef(T.dest)
+      }
+
+      def elf = T.persistent {
+        mill.modules.Jvm.runSubprocess(Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", T.dest.toString).map(_.toString), Map[String, String](), T.dest)
+        mill.modules.Jvm.runSubprocess(Seq("ninja", "-C", T.dest).map(_.toString), Map[String, String](), T.dest)
+        PathRef(T.dest / "emulator")
+      }
+    }
+  }
+}
+
+// rocket-chip
+
+// For modules not support mill yet, need to have a ScalaModule depend on our own repositories.
+trait CommonModule extends ScalaModule {
+  override def scalaVersion = v.scala
+
+  override def scalacPluginClasspath = T { super.scalacPluginClasspath() ++ Agg(
+    mychisel3.plugin.jar()
+  ) }
+
+  override def scalacOptions = T {
+    super.scalacOptions() ++ Agg(s"-Xplugin:${mychisel3.plugin.jar().path}", "-Ymacro-annotations")
+  }
+
+  override def moduleDeps: Seq[ScalaModule] = Seq(mychisel3)
+}
+
+object myhardfloat extends dependencies.`berkeley-hardfloat`.build.hardfloat {
+  override def millSourcePath = os.pwd /  "dependencies" / "berkeley-hardfloat"
+
+  override def scalaVersion = v.scala
+
+  def chisel3Module: Option[PublishModule] = Some(mychisel3)
+
+  override def scalacPluginClasspath = T { super.scalacPluginClasspath() ++ Agg(
+    mychisel3.plugin.jar()
+  ) }
+
+  override def scalacOptions = T {
+    Seq(s"-Xplugin:${mychisel3.plugin.jar().path}")
+  }
+}
+
+object mycde extends dependencies.cde.build.cde(v.scala) with PublishModule {
+  override def millSourcePath = os.pwd /  "dependencies" / "cde" / "cde"
+}
+
+object myrocketchip extends dependencies.`rocket-chip`.common.CommonRocketChip {
+  override def scalacPluginClasspath = T { super.scalacPluginClasspath() ++ Agg(
+    mychisel3.plugin.jar()
+  ) }
+
+  override def scalacOptions = T {
+    super.scalacOptions() ++ Agg(s"-Xplugin:${mychisel3.plugin.jar().path}")
+  }
+
+  override def millSourcePath = os.pwd /  "dependencies" / "rocket-chip"
+
+  override def scalaVersion = v.scala
+
+  def chisel3Module: Option[PublishModule] = Some(mychisel3)
+
+  def hardfloatModule: PublishModule = myhardfloat
+
+  def cdeModule: PublishModule = mycde
+}
+
+object inclusivecache extends CommonModule {
+  override def millSourcePath = os.pwd / "dependencies" / "rocket-chip-inclusive-cache" / 'design / 'craft / "inclusivecache"
+
+  override def moduleDeps = super.moduleDeps ++ Seq(myrocketchip)
+}
+
+def envByNameOrRiscv(name: String): String = {
+  sys.env.get(name) match {
+    case Some(value) => value
+    case None => sys.env("RISCV") // if not found, throws NoSuchElementException exception
   }
 }

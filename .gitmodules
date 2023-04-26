@@ -20,3 +20,15 @@
 	path = dependencies/riscv-vector-tests
 	url = git@github.com:ksco/riscv-vector-tests.git
 	branch = main
+[submodule "dependencies/rocket-chip"]
+	path = dependencies/rocket-chip
+	url = git@github.com:chipsalliance/rocket-chip.git
+[submodule "dependencies/rocket-chip-inclusive-cache"]
+	path = dependencies/rocket-chip-inclusive-cache
+	url = git@github.com:chipsalliance/rocket-chip-inclusive-cache.git
+[submodule "dependencies/berkeley-hardfloat"]
+	path = dependencies/berkeley-hardfloat
+	url = git@github.com:ucb-bar/berkeley-hardfloat.git
+[submodule "dependencies/cde"]
+	path = dependencies/cde
+	url = git@github.com:chipsalliance/cde.git
