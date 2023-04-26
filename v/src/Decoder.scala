@@ -467,9 +467,8 @@ object Decoder {
     average, // uop
 
 
-    ffo, // uop
+    ffo, // todo: add mask select -> top uop
     popCount, // top uop add, red, uop popCount
-    id, // uop for other unit
     topUop,
     specialSlot
   )

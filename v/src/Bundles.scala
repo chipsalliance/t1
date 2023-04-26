@@ -266,11 +266,6 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
   /** State machine of the current instruction. */
   val state: InstGroupState = new InstGroupState(param)
 
-  /** the initial state of state machine,
-    * for each group refresh, it will be updated to [[state]]
-    */
-  val initState: InstGroupState = new InstGroupState(param)
-
   /** csr follows the instruction.
     * TODO: move to [[laneRequest]]
     */
