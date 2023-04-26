@@ -243,8 +243,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // lane 只读不执行的指令
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
-  val maskUnitInstruction: Bool =
-    (decodeResult(Decoder.slid) || decodeResult(Decoder.mv)) && requestRegDequeue.bits.instruction(6)
+  val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv))
   val skipLastFromLane: Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
   val instructionValid: Bool = requestReg.bits.csr.vl > requestReg.bits.csr.vStart
   val intLMUL:          UInt = (1.U << requestReg.bits.csr.vlmul(1, 0)).asUInt
@@ -489,7 +488,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val vs2 = RegInit(0.U(5.W))
       val rs1 = RegInit(0.U(parameter.xLen.W))
       val vm = RegInit(false.B)
-      val instructionBit6 = RegInit(false.B)
       val unOrderTypeInstruction = RegInit(false.B)
       val decodeResultReg = RegInit(0.U.asTypeOf(decodeResult))
       val gather: Bool = decodeResultReg(Decoder.gather)
@@ -571,7 +569,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         elementIndexCount := 0.U
         compressWriteCount := 0.U
         iotaCount := 0.U
-        instructionBit6 := requestRegDequeue.bits.instruction(6)
         slidUnitIdle := !((decodeResult(Decoder.slid) || (decodeResult(Decoder.gather) && decodeResult(Decoder.vtype))
           || decodeResult(Decoder.extend)) && instructionValid)
         iotaUnitIdle := !((decodeResult(Decoder.compress) || decodeResult(Decoder.iota)) && instructionValid)
@@ -632,8 +629,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val endOH = UIntToOH(requestReg.bits.csr.vl(parameter.dataPathWidthBits - 1, 0))
       val border = lastExecute && dataPathMisaligned
       val lastGroupMask = scanRightOr(endOH(parameter.datapathWidth - 1, 1))
-      // todo: 有store被解析成mv了
-      val mvType = decodeResultReg(Decoder.mv) && instructionBit6
+      val mvType = decodeResultReg(Decoder.mv)
       val readMv = mvType && decodeResultReg(Decoder.targetRd)
       val writeMv = mvType && !decodeResultReg(Decoder.targetRd) && instructionValid
       // 读后写中的读
@@ -712,7 +708,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
       // reduce resultSelect
       val reduceResult = Mux(decodeResultReg(Decoder.adder) || popCount, adder.resp.data, logicUnit.resp)
-      val aluOutPut = Mux(reduce || popCount, reduceResult, 0.U)
+      val aluOutPut = Mux(reduce, reduceResult, 0.U)
       // slid & gather unit
       val slideUp = decodeResultReg(Decoder.topUop)(1)
       val slide1 = decodeResultReg(Decoder.topUop)(0) && decodeResultReg(Decoder.slid)

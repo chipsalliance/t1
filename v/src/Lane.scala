@@ -626,30 +626,27 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         * thus we use [[LaneResponse]] to update to [[V]]
         * and [[V]] should regroup it and use [[vrfWriteChannel]] to send to each [[Lane]]
         */
-      val maskTypeDestinationWriteValid: Bool =
-        record.laneRequest.decodeResult(Decoder.maskDestination) &&
-          canUpdateVRFMaskFormat
+      val maskTypeDestinationWriteReady: Bool =
+        !record.laneRequest.decodeResult(Decoder.maskDestination) || canUpdateVRFMaskFormat
 
       /** the instruction type in the slot is a reduce type. */
       val reduceType: Bool = record.laneRequest.decodeResult(Decoder.red)
 
       /** TODO: change to decode. */
-      val updateReduce = (
-        record.laneRequest.decodeResult(Decoder.red) ||
-          record.laneRequest.decodeResult(Decoder.popCount)
-      ) && !record.laneRequest.loadStore
+      val updateReduce = record.laneRequest.decodeResult(Decoder.red)
 
       /** the instruction type in the slot is a readOnly type. */
       val readOnly: Bool = record.laneRequest.decodeResult(Decoder.readOnly)
 
       /** reduce should send feedback to at the last cycle of the execution group. */
-      val reduceValid = updateReduce && instructionExecuteFinished(index)
+      val reduceReady = !updateReduce || instructionExecuteFinished(index)
 
       /** [[Lane]] need response from [[V]] for some instructions.
-        * TODO: use decoder
+        * TODO: doc
+        * 正常来说scheduler都需要回应,只是 mask destination 和 reduce 需要有先决条件
         */
-      val needResponse: Bool = (record.laneRequest.loadStore || reduceValid || readOnly ||
-        maskTypeDestinationWriteValid || record.laneRequest.decodeResult(Decoder.ffo)) && slotActive(index)
+      val needResponse: Bool = !record.laneRequest.decodeResult(Decoder.scheduler) &&
+        maskTypeDestinationWriteReady && reduceReady && slotActive(index)
 
       // CSR
       /** if `vl = N`, the last element index is `N-1`, for each `x`, is a bit inside `vl`
@@ -775,9 +772,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       /** if [[bordersForMaskLogic]], use [[lastGroupMask]] to mask the result otherwise use [[fullMask]]. */
       val maskCorrect = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
 
-      /** no need to waif for [[laneResponseFeedback]]
-        * TODO: use decoder.
-        */
+      /** no need to waif for [[laneResponseFeedback]] */
       val noFeedBack: Bool = !(readOnly || record.laneRequest.loadStore)
 
       /** TODO: move to [[V]]. */
@@ -1061,7 +1056,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val maskRequest: LaneResponse = Wire(Output(new LaneResponse(parameter)))
         val canSendMaskRequest = needResponse && readFinish && record.state.sExecute
         val maskValid = canSendMaskRequest && !record.state.sScheduler
-        val noNeedWaitScheduler: Bool = !(canSendMaskRequest && !record.initState.sScheduler) || schedulerFinish
+        val noNeedWaitScheduler: Bool = !canSendMaskRequest || decodeResult(Decoder.scheduler) || schedulerFinish
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
           record.laneRequest.decodeResult(Decoder.maskDestination),
@@ -1139,7 +1134,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
               )
             }
           }.otherwise {
-            record.state := record.initState
+
+            record.state := record.laneRequest.initState
             record.groupCounter := nextGroupCount
             record.executeIndex := nextExecuteIndex
             record.vrfWriteMask := 0.U
@@ -1155,7 +1151,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         ) {
           // 例如:别的lane找到了第一个1
           record.schedulerComplete := true.B
-          when(record.initState.wExecuteRes) {
+          when(decodeResult(Decoder.execute)) {
             slotOccupied(index) := false.B
           }
         }
@@ -1717,12 +1713,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         /** mask类型的指令并不是每一轮的状态机都会需要与scheduler交流
           * 只有mask destination 类型的才会有scheduler与状态机不对齐的情况
-          *   我们用[[maskTypeDestinationWriteValid]]区分这种
+          *   我们用[[maskTypeDestinationWriteReady]]区分这种
           * 有每轮需要交换和只需要交换一次的区别(compress & red)
           */
         val canSendMaskRequest = needResponse && readFinish && record.state.sExecute
         val maskValid = canSendMaskRequest && !record.state.sScheduler
-        val noNeedWaitScheduler: Bool = !(canSendMaskRequest && !record.initState.sScheduler) || schedulerFinish
+        val noNeedWaitScheduler: Bool = !canSendMaskRequest || decodeResult(Decoder.scheduler) || schedulerFinish
         // 往外边发的是原始的数据
         maskRequest.data := Mux(
           // todo: decode
@@ -1855,7 +1851,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
               )
             }
           }.otherwise {
-            record.state := record.initState
+            record.state := record.laneRequest.initState
             record.groupCounter := nextGroupCount
             record.executeIndex := nextExecuteIndex
             record.vrfWriteMask := 0.U
@@ -1872,7 +1868,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         ) {
           // 例如:别的lane找到了第一个1
           record.schedulerComplete := true.B
-          when(record.initState.wExecuteRes) {
+          when(decodeResult(Decoder.execute)) {
             slotOccupied(index) := false.B
           }
         }
@@ -2055,7 +2051,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.laneRequest := laneRequest.bits
   // TODO: fix me with decode
   entranceControl.state := laneRequest.bits.initState
-  entranceControl.initState := laneRequest.bits.initState
   // TODO: in scalar core, raise illegal instruction exception when vstart is nonzero.
   //   see [[https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#37-vector-start-index-csr-vstart]]
   //   "Such implementations are permitted to raise an illegal instruction exception
@@ -2082,11 +2077,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // which group to start.
   // TODO: set to 0.
   entranceControl.groupCounter := (csrInterface.vStart >> 3).asUInt
-
-  /** type of execution unit.
-    * TODO: use decoder
-    */
-  val entranceInstType: UInt = laneRequest.bits.instType
 
   /** slot inside [[Lane]] is ready to shift.
     * don't shift when feedback.
