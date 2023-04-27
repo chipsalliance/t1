@@ -92,12 +92,12 @@ class InstructionState extends Bundle {
 }
 
 class ExecutionUnitType extends Bundle {
-  val logic: Bool = Bool()
-  val adder: Bool = Bool()
-  val shift: Bool = Bool()
+  val logic:      Bool = Bool()
+  val adder:      Bool = Bool()
+  val shift:      Bool = Bool()
   val multiplier: Bool = Bool()
-  val divider: Bool = Bool()
-  val other: Bool = Bool()
+  val divider:    Bool = Bool()
+  val other:      Bool = Bool()
 }
 
 class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
@@ -168,10 +168,10 @@ class LaneRequest(param: LaneParameter) extends Bundle {
     res.sReadVD := decodeResult(Decoder.sReadVD)
     res.wCrossReadLSB := sCrossRead
     res.wCrossReadMSB := sCrossRead
-    res.wScheduler := decodeResult(Decoder.scheduler)
-    res.sScheduler := decodeResult(Decoder.scheduler)
-    res.sExecute := decodeResult(Decoder.execute)
-    res.wExecuteRes := decodeResult(Decoder.execute)
+    res.wResponseFeedback := decodeResult(Decoder.scheduler)
+    res.sSendResponse := decodeResult(Decoder.scheduler)
+    res.sExecute := decodeResult(Decoder.dontNeedExecuteInLane)
+    res.wExecuteRes := decodeResult(Decoder.dontNeedExecuteInLane)
     res.sWrite := decodeResult(Decoder.sWrite)
     res.sCrossWriteLSB := sCrossWrite
     res.sCrossWriteMSB := sCrossWrite
@@ -183,6 +183,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   }
 
   // TODO: move to Module
+  // TODO: remove instType
   def instType: UInt = {
     VecInit(
       Seq(
@@ -214,10 +215,10 @@ class InstGroupState(param: LaneParameter) extends Bundle {
   val sReadVD: Bool = Bool()
 
   /** wait scheduler send [[LaneResponseFeedback]] */
-  val wScheduler: Bool = Bool()
+  val wResponseFeedback: Bool = Bool()
 
   /** schedule send [[LaneResponse]] to scheduler */
-  val sScheduler: Bool = Bool()
+  val sSendResponse: Bool = Bool()
 
   /** schedule execute. */
   val sExecute: Bool = Bool()
@@ -274,11 +275,10 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
   /** which group in the slot is executing. */
   val groupCounter: UInt = UInt(param.groupNumberBits.W)
 
-  /** the mask instruction is finished by other lanes,
+  /** the find first one instruction is finished by other lanes,
     * for example, sbf(set before first)
-    * TODO: better name.
     */
-  val schedulerComplete: Bool = Bool()
+  val ffoByOtherLanes: Bool = Bool()
 
   /** the mask instruction is finished by this group.
     * the instruction target is finished(but still need to access VRF.)
@@ -325,8 +325,8 @@ class CSRInterface(vlWidth: Int) extends Bundle {
   val vStart: UInt = UInt(vlWidth.W)
 
   /** Vector Register Grouping `vlmul[2:0]`
-    * subfield of `vtype``
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#342-vector-register-grouping-vlmul20]]
+    * subfield of `vtype`
+    * see table in [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#342-vector-register-grouping-vlmul20]]
     */
   val vlmul: UInt = UInt(3.W)
 
@@ -545,7 +545,8 @@ class LSUInstructionInformation extends Bundle {
 
   /** specifies the number of fields in each segment, for segment load/stores
     * NFIELDS = nf + 1
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]]
+    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]] and
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#78-vector-loadstore-segment-instructions]]
     */
   val nf: UInt = UInt(3.W)
 
@@ -577,6 +578,7 @@ class LSUInstructionInformation extends Bundle {
     * 0b00000 -> unit stride
     * 0b01000 -> whole register
     * 0b01011 -> mask, eew = 8
+    *   Additional unit-stride mask load and store instructions are provided to transfer mask values to/from memory.
     * 0b10000 -> fault only first (load)
     */
   val lumop: UInt = UInt(5.W)
@@ -603,7 +605,7 @@ class LSUInstructionInformation extends Bundle {
   val isStore: Bool = Bool()
 
   /** indicate if this instruction use mask. */
-  val useMask: Bool = Bool()
+  val maskedLoadStore: Bool = Bool()
 
   /** fault only first element
     * TODO: extract it
