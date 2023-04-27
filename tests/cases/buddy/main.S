@@ -14,3 +14,38 @@ stack_start:
     .zero 128
 
 stack_end:
+
+# Add some print functions' definitions here
+# to support direct lowering of such func.call and vector.print 
+printMemrefI32:
+    ret
+printMemrefI64:
+    ret
+printMemrefF32:
+    ret
+printMemrefF64:
+    ret
+printMemrefInd:
+    ret
+printMemrefC32:
+    ret
+printMemrefC64:
+    ret
+printCString:
+    ret
+printI64:
+    ret
+printU64:
+    ret
+printF32:
+    ret
+printF64:
+    ret
+printOpen:
+    ret
+printClose:
+    ret
+printComma:
+    ret
+printNewline:
+    ret
