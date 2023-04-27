@@ -4,9 +4,10 @@ import chisel3._
 import chisel3.util._
 
 class OtherUnitReq(param: LaneParameter) extends Bundle {
-  val src:        Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
-  val popInit:    UInt = UInt(param.vlMaxBits.W)
-  val opcode:     UInt = UInt(4.W)
+  val src:     Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
+  val popInit: UInt = UInt(param.vlMaxBits.W)
+  val opcode:  UInt = UInt(4.W)
+  // TODO: remove it.
   val imm:        UInt = UInt(3.W)
   val groupIndex: UInt = UInt(param.groupNumberBits.W)
   val laneIndex:  UInt = UInt(param.laneNumberBits.W)
@@ -36,8 +37,8 @@ class OtherUnit(param: LaneParameter) extends Module {
   val popCount: LanePopCount = Module(new LanePopCount(param.datapathWidth))
   val vSewOH:   UInt = UIntToOH(req.vSew)(2, 0)
   // ["", "", "", "", "rgather", "merge", "clip", "mv", "pop", "id"]
-  val opcodeOH: UInt = UIntToOH(req.opcode)(9, 0)
-  val isffo: Bool = opcodeOH(3, 0).orR
+  val opcodeOH:         UInt = UIntToOH(req.opcode)(9, 0)
+  val isffo:            Bool = opcodeOH(3, 0).orR
   val originalOpcodeOH: UInt = opcodeOH(9, 4)
 
   ffo.src := req.src

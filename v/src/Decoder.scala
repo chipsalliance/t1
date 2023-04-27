@@ -405,7 +405,7 @@ object Decoder {
 
   // sExecute 与 wExecuteRes 也不一样,需要校验
   // sExecute -> readOnly || nr || loadStore
-  object execute extends BoolField {
+  object dontNeedExecuteInLane extends BoolField {
     override def containsLSU: Boolean = true
     def value(op: Op): Boolean =
       Seq(readOnly, nr).map(_.value(op)).reduce(_ || _) || !op.notLSU
@@ -430,7 +430,6 @@ object Decoder {
     itype,
     nr,
     red,
-
     // top only
     widenReduce,
     targetRd,
@@ -439,12 +438,10 @@ object Decoder {
     gather16,
     compress,
     unOrderWrite,
-
     // top uop
     extend, // top uop
     mv, // top uop
     iota, // top uop
-
     uop,
     maskLogic,
     maskDestination,
@@ -462,11 +459,9 @@ object Decoder {
     vtype,
     sReadVD,
     scheduler,
-    execute,
+    dontNeedExecuteInLane,
     reverse, // uop
     average, // uop
-
-
     ffo, // todo: add mask select -> top uop
     popCount, // top uop add, red, uop popCount
     topUop,

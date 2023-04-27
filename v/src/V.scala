@@ -699,7 +699,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       adder.req.mask := false.B
       adder.req.reverse := false.B
       adder.req.average := false.B
-      adder.req.saturat := false.B
+      adder.req.saturate := false.B
       adder.req.vxrm := csrRegForMaskUnit.vxrm
       adder.req.vSew := csrRegForMaskUnit.vSew
 
@@ -1187,7 +1187,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // (0b000 0b101 0b110 0b111) -> (8, 16, 32, 64)忽略最高位
   lsu.request.bits.instructionInformation.eew := requestRegDequeue.bits.instruction(13, 12)
   lsu.request.bits.instructionInformation.isStore := isStoreType
-  lsu.request.bits.instructionInformation.useMask := maskType
+  lsu.request.bits.instructionInformation.maskedLoadStore := maskType
 
   lsu.maskInput.zip(lsu.maskSelect).foreach { case (data, index) => data := v0(index) }
   lsu.csrInterface := requestReg.bits.csr

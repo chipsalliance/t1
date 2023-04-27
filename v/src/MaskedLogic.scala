@@ -3,13 +3,18 @@ import chisel3._
 
 class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
 
-  /** 0, 1： 两个操作数
-    * 2：mask, 由v0.mask和vl共同决定
-    * 3: 原始数据,从vd里读出来的,用来细粒度地写
+  /** 0, 1: two operands
+    * 2: mask, determined by v0.mask and vl
+    * 3: original data, read from vd, used to write with fine granularity
     */
   val src: Vec[UInt] = Vec(4, UInt(datapathWidth.W))
 
-  /** n_op ## op_n ## op */
+  /** see the logic part in [[Decoder.uop]]
+    * n_op ## op_n ## op
+    * n_op: `op.name.startsWith("vmn")`, e.g. nand, nor
+    * op_n: `isXnor || op.name.endsWith("n")`, e.g. andn, orn
+    * op: `and`, `or`, `xor`
+    */
   val opcode: UInt = UInt(4.W)
 }
 

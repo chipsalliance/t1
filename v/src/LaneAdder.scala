@@ -6,14 +6,14 @@ import chisel3.util._
 class LaneAdderReq(datapathWidth: Int) extends Bundle {
   val src: Vec[UInt] = Vec(2, UInt((datapathWidth + 1).W))
   // mask for carry or borrow
-  val mask:    Bool = Bool()
-  val opcode:  UInt = UInt(4.W)
-  val sign:    Bool = Bool()
-  val reverse: Bool = Bool()
-  val average: Bool = Bool()
-  val saturat: Bool = Bool()
-  val vxrm:    UInt = UInt(2.W)
-  val vSew:    UInt = UInt(2.W)
+  val mask:     Bool = Bool()
+  val opcode:   UInt = UInt(4.W)
+  val sign:     Bool = Bool()
+  val reverse:  Bool = Bool()
+  val average:  Bool = Bool()
+  val saturate: Bool = Bool()
+  val vxrm:     UInt = UInt(2.W)
+  val vSew:     UInt = UInt(2.W)
 }
 
 class LaneAdderResp(datapathWidth: Int) extends Bundle {
@@ -127,15 +127,15 @@ class LaneAdder(datapathWidth: Int) extends Module {
   )
   // 修正 average
   val addResultCorrect: UInt = Mux(req.average, addResult(datapathWidth, 1), addResult)
-  val overflow:         Bool = (upperOverflow || lowerOverflow) && req.saturat
+  val overflow:         Bool = (upperOverflow || lowerOverflow) && req.saturate
   //选结果
   resp.data := Mux1H(
     Seq(
       (uopOH(1, 0) ## uopOH(11, 10)).orR && !overflow,
       (uopOH(6) && !less) || (uopOH(7) && less),
       (uopOH(6) && less) || (uopOH(7) && !less),
-      upperOverflow && req.saturat,
-      lowerOverflow && req.saturat
+      upperOverflow && req.saturate,
+      lowerOverflow && req.saturate
     ),
     Seq(
       addResultCorrect,
