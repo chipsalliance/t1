@@ -12,35 +12,35 @@ class Monitor(dut: V) extends TapModule {
 
   // lane vrf write
   dut.laneVec.zipWithIndex.foreach { case (lane, index) =>
-    val peeker = Module(new ExtModule with HasExtModuleInline {
+    val vrfPeeker = Module(new ExtModule with HasExtModuleInline {
       override val desiredName = "dpiVRFMonitor"
       val clock = IO(Input(Clock()))
-      val valid = IO(Input(Bool()))
+      val vrfWriteValid = IO(Input(Bool()))
       val laneIdx = IO(Input(UInt(32.W)))
       setInline(
         s"$desiredName.sv",
         s"""module $desiredName(
            |  input clock,
            |  input int laneIdx,
-           |  input bit valid
+           |  input bit vrfWriteValid
            |);
            |import "DPI-C" function void $desiredName(
            |  input int laneIdx,
-           |  input bit valid
+           |  input bit vrfWriteValid
            |);
-           |always @ (posedge clock) #(3) $desiredName(laneIdx, valid);
+           |always @ (posedge clock) #(3) $desiredName(laneIdx, vrfWriteValid);
            |endmodule
            |""".stripMargin
       )
     })
-    peeker.laneIdx := index.U
-    peeker.valid := tap(lane.vrf.write.valid)
-    peeker.clock := clock
+    vrfPeeker.laneIdx := index.U
+    vrfPeeker.vrfWriteValid := tap(lane.vrf.write.valid)
+    vrfPeeker.clock := clock
   }
 
   // alu occupied
   dut.laneVec.zipWithIndex.foreach { case (lane, index) =>
-    val peeker = Module(new ExtModule with HasExtModuleInline {
+    val aluPeeker = Module(new ExtModule with HasExtModuleInline {
       override val desiredName = "dpiALUMonitor"
       val clock = IO(Input(Clock()))
       val laneIdx = IO(Input(UInt(32.W)))
@@ -70,19 +70,19 @@ class Monitor(dut: V) extends TapModule {
            |""".stripMargin
       )
     })
-    peeker.isAdderOccupied := tap(lane.adderRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
-    peeker.isShifterOccupied := tap(lane.shiftRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
-    peeker.isMultiplierOccupied := tap(lane.multiplerRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
-    peeker.isDividerOccupied := tap(lane.dividerRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
-    peeker.laneIdx := index.U
+    aluPeeker.isAdderOccupied := tap(lane.adderRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
+    aluPeeker.isShifterOccupied := tap(lane.shiftRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
+    aluPeeker.isMultiplierOccupied := tap(lane.multiplerRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
+    aluPeeker.isDividerOccupied := tap(lane.dividerRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
+    aluPeeker.laneIdx := index.U
 
-    peeker.clock := clock
+    aluPeeker.clock := clock
   }
 
-  // lane vrf write
+  // slot occupied
   dut.laneVec.zipWithIndex.foreach { case (lane, index) =>
     val slotNum = lane.slotOccupied.length
-    val peeker = Module(new ExtModule with HasExtModuleInline {
+    val slotPeeker = Module(new ExtModule with HasExtModuleInline {
       override val desiredName = "dpiChainingMonitor"
       val clock = IO(Input(Clock()))
       val laneIdx = IO(Input(UInt(32.W)))
@@ -103,9 +103,9 @@ class Monitor(dut: V) extends TapModule {
            |""".stripMargin
       )
     })
-    peeker.laneIdx := index.U
-    peeker.slotOccupied := tap(lane.slotOccupied).asUInt
-    peeker.clock := clock
+    slotPeeker.laneIdx := index.U
+    slotPeeker.slotOccupied := tap(lane.slotOccupied).asUInt
+    slotPeeker.clock := clock
   }
 
   done()
