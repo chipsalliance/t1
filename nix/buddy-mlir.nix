@@ -12,13 +12,13 @@
 let
   llvm = stdenv.mkDerivation rec {
     pname = "llvm-project";
-    version = "e31d27e46048ccc3294d6b215dc778b3390e7834";
+    version = "unstable-2022-12-17";
     requiredSystemFeatures = [ "big-parallel" ];
     nativeBuildInputs = [ cmake ninja python3 ];
     src = fetchFromGitHub {
       owner = "llvm";
       repo = pname;
-      rev = version;
+      rev = "e31d27e46048ccc3294d6b215dc778b3390e7834";
       hash = "sha256-CM3+amf2SpOiUBzdnO7sryTwmGcC0NVabNNvuatcCDQ=";
     };
     cmakeDir = "../llvm";
@@ -44,12 +44,12 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "buddy-mlir";
-  version = "cc57e60f073d769224a334b4df10c16b43eb2711";
+  version = "unstable-2023-05-01";
   src = fetchFromGitHub {
     owner = "buddy-compiler";
     repo = pname;
-    rev = version;
-    hash = "sha256-jEJEzFw/+T3YmEhtefJN2cZDcKOScDCHz7BAbRt31Pg=";
+    rev = "2900b35cfd5ff34e1608b90d04f9dd9f41296f91";
+    hash = "sha256-3qduRyjOQKTDRdOpTJirD0Wm14BuvdJLx2IIWHDMD0g=";
   };
 
   ninjaFlags = [ "buddy-translate" ];
