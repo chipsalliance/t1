@@ -123,6 +123,98 @@ object vector extends common.VectorModule with ScalafmtModule {
   def utest: T[Dep] = v.utest
 }
 
+object impl extends Module {
+  object elaborate extends ScalaModule with ScalafmtModule {
+    override def scalacPluginClasspath = T {
+      Agg(mychisel3.plugin.jar())
+    }
+
+    override def scalacOptions = T {
+      super.scalacOptions() ++ Some(mychisel3.plugin.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq("-Ymacro-annotations")
+    }
+
+    override def scalaVersion = v.scala
+
+    override def moduleDeps = Seq(vector)
+
+    override def ivyDeps = T {
+      Seq(
+        v.mainargs
+      )
+    }
+
+    def elaborate = T {
+      // class path for `moduleDeps` is only a directory, not a jar, which breaks the cache.
+      // so we need to manually add the class files of `moduleDeps` here.
+      upstreamCompileOutput()
+      mill.modules.Jvm.runLocal(
+        finalMainClass(),
+        runClasspath().map(_.path),
+        Seq(
+          "--dir", T.dest.toString,
+        ),
+      )
+      PathRef(T.dest)
+    }
+
+    def chiselAnno = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("anno.json") => p }.map(PathRef(_)).get
+    }
+
+    def chirrtl = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("fir") => p }.map(PathRef(_)).get
+    }
+
+    def topName = T {
+      chirrtl().path.last.split('.').head
+    }
+
+  }
+
+  object mfccompile extends Module {
+    def compile = T {
+      os.proc("firtool",
+        elaborate.chirrtl().path,
+        s"--annotation-file=${elaborate.chiselAnno().path}",
+        "-dedup",
+        "-O=release",
+        "--disable-all-randomization",
+        "--split-verilog",
+        "--strip-debug-info",
+        "--preserve-values=none",
+        "--preserve-aggregate=all",
+        "--output-annotation-file=mfc.anno.json",
+        "--repl-seq-mem",
+        "--repl-seq-mem-file=repl-seq-mem.txt",
+        s"-o=${T.dest}"
+      ).call(T.dest)
+      PathRef(T.dest)
+    }
+
+    def rtls = T {
+      os.read(compile().path / "filelist.f").split("\n").map(str =>
+        try {
+          os.Path(str)
+        } catch {
+          case e: IllegalArgumentException if e.getMessage.contains("is not an absolute path") =>
+            compile().path / str.stripPrefix("./")
+        }
+      ).filter(p => p.ext == "v" || p.ext == "sv").map(PathRef(_)).toSeq
+    }
+
+    def memoryConfig = T {
+      PathRef(compile().path / "metadata" / "seq_mems.json")
+    }
+  }
+
+  def release = T {
+    val target = T.dest / s"vector-${os.proc("git", "rev-parse", "--short=7", "HEAD").call().out.text().stripLineEnd}.tar.xz"
+    os.proc(Seq("tar", "-czf", target.toString, "-C", mfccompile.compile().path.toString) ++ (mfccompile.rtls() :+ mfccompile.memoryConfig()).map(_.path.relativeTo(mfccompile.compile().path).toString)).call(T.dest)
+    T.log.info(s"Release tarball created at $target")
+    PathRef(target)
+  }
+}
+
 object tests extends Module {
   object elaborate extends ScalaModule with ScalafmtModule {
     override def scalacPluginClasspath = T {
