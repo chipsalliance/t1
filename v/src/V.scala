@@ -1056,9 +1056,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   /** the index type of instruction is finished.
     * let LSU to kill the lane slot.
+    * todo: delete?
     */
   val completeIndexInstruction: Bool =
-    ohCheck(lsu.lastReport, slots.last.record.instructionIndex, parameter.chainingSize)
+    ohCheck(lsu.lastReport, slots.last.record.instructionIndex, parameter.chainingSize) && !slots.last.state.idle
 
   val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
     Vec(
@@ -1081,6 +1082,27 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   val source1Select: UInt =
     Mux(decodeResult(Decoder.gather), gatherData, Mux(decodeResult(Decoder.itype), immSignExtend, source1Extend))
+
+  // data eew for extend type
+  val extendDataEEW: Bool = (requestReg.bits.csr.vSew >> decodeResult(Decoder.topUop)(1, 0))(0)
+  val gather16: Bool = decodeResult(Decoder.gather16)
+  val vSewSelect: UInt = Mux(
+    isLoadStoreType,
+    requestRegDequeue.bits.instruction(13, 12),
+    Mux(
+      decodeResult(Decoder.nr) || decodeResult(Decoder.maskLogic),
+      2.U,
+      Mux(gather16, 1.U, Mux(decodeResult(Decoder.extend), extendDataEEW, requestReg.bits.csr.vSew))
+    )
+  )
+
+  val evlForLane: UInt = Mux(
+    decodeResult(Decoder.nr),
+    // evl for Whole Vector Register Move ->  vs1 * (vlen / datapathWidth)
+    (requestRegDequeue.bits.instruction(17, 15) +& 1.U) ## 0.U(log2Ceil(parameter.vLen / parameter.datapathWidth).W),
+    requestReg.bits.csr.vl
+  )
+
   /** instantiate lanes.
     * TODO: move instantiate to top of class.
     */
@@ -1117,6 +1139,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     laneReady(index) := lane.laneRequest.ready
 
     lane.csrInterface := requestReg.bits.csr
+    // index type EEW Decoded in the instruction
+    lane.csrInterface.vSew := vSewSelect
+    lane.csrInterface.vl := evlForLane
     lane.laneIndex := index.U
 
     // - LSU request next offset of group

@@ -281,7 +281,8 @@ class LSU(param: LSUParam) extends Module {
   val selectedIdleMSHR: UInt = ffo(idleMSHRs)(param.lsuMSHRSize - 1, 0)
   reqEnq := VecInit(Mux(request.valid, selectedIdleMSHR, 0.U).asBools)
   // todo: address conflict
-  request.ready := idleMSHRs.orR
+  // todo: Execute only a single lsu instruction first
+  request.ready := idleMSHRs.andR
 
   Seq.tabulate(param.laneNumber) { laneID =>
     // LSU slots read VRF request arbitration
