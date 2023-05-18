@@ -101,10 +101,15 @@ case class LaneParameter(
   val maskGroupWidth: Int = datapathWidth
 
   /** see [[VParameter.maskGroupSize]] */
-  val maskGroupSize: Int = vLen / datapathWidth
+  val maskGroupSize: Int = vLen / maskGroupWidth
 
   /** hardware width of [[maskGroupSize]]. */
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
+
+  /** Size of the queue for storing execution information
+    * todo: Determined by the longest execution unit
+    * */
+  val executionQueueSize: Int = 2
 
   /** Parameter for [[VRF]] */
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize)
@@ -229,43 +234,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** the slot is occupied by instruction */
   val slotOccupied: Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(false.B)))
 
-  /** read from VRF vs1 for VFU */
-  val source1: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(parameter.datapathWidth.W))))
+  /** mask group count for slot */
+  val maskGroupCountVec: Vec[UInt] =
+    RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(parameter.maskGroupSizeBits.W))))
 
-  /** read from VRF vs2 for VFU */
-  val source2: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(parameter.datapathWidth.W))))
+  /** mask index for slot */
+  val maskIndexVec: Vec[UInt] =
+    RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(log2Ceil(parameter.maskGroupWidth).W))))
 
-  /** read from VRF rd for VFU */
-  val source3: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(parameter.datapathWidth.W))))
-
-  /** execution result, write to VRF,
-    * or goes to [[V]] for complex instructions like reduce
-    */
-  val executionResult: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(parameter.datapathWidth.W))))
-  // 跨lane写的额外用寄存器存储执行的结果和mask
-
-  // wait data for EEW = 2*SEW
-  // TODO: do we need to switch to remote waiting?
-  /** cross write LSB data to send out to other lanes. */
-  val crossWriteDataLSBHalf: UInt = RegInit(0.U(parameter.datapathWidth.W))
-
-  /** cross write LSB mask to send out to other lanes. */
-  val crossWriteMaskLSBHalf: UInt = RegInit(0.U((parameter.dataPathByteWidth / 2).W))
-
-  /** cross write MSB data to send out to other lanes. */
-  val crossWriteDataMSBHalf: UInt = RegInit(0.U(parameter.datapathWidth.W))
-
-  /** cross write MSB mask to send out to other lanes. */
-  val crossWriteMaskMSBHalf: UInt = RegInit(0.U((parameter.dataPathByteWidth / 2).W))
-
-  /** result of mask format, it need to re-arrange in Scheduler. */
-  val maskFormatResult: UInt = RegInit(0.U(parameter.datapathWidth.W))
+  /** pipe state for slot */
+  val pipeFinishVec: Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(false.B)))
 
   /** the find first one index register in this lane. */
   val ffoIndexReg: UInt = RegInit(0.U(log2Ceil(parameter.vLen / 8).W))
 
   /** result of reduce instruction. */
-  val reduceResult: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(parameter.datapathWidth.W))))
+  val reduceResult: UInt = RegInit(0.U(parameter.datapathWidth.W))
 
   /** arbiter for VRF write
     * 1 for [[vrfWriteChannel]]
@@ -368,6 +352,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val slotActive: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
+  /** When the slot wants to move,
+    * you need to stall the pipeline first and wait for the pipeline to be cleared.
+    */
+  val slotShiftValid: Bool = Wire(Bool())
+
   /** The slots start to shift in these rules:
     * - instruction can only enqueue to the last slot.
     * - all slots can only shift at the same time which means:
@@ -376,6 +365,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     *   and then take two cycles to move to xx11.
     */
   val slotCanShift: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
+
+  /** Which data group is waiting for the result of the cross-lane read */
+  val readBusDequeueGroup: UInt = Wire(UInt(parameter.groupNumberBits.W))
 
   /** cross lane reading port from [[readBusPort]]
     * if [[ReadBusData.sinkIndex]] matches the index of this lane, dequeue from ring
@@ -405,15 +397,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** for each slot, it occupies which VFU. */
   val instructionTypeVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.executeUnitNum.W)))
-
-  /** a instruction is finished in the corresponding slot. */
-  val instructionExecuteFinished: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
-
-  /** Instructions that read across lane will have an extra set of reads if vl is not aligned. */
-  val instructionCrossReadFinished: Bool = Wire(Bool())
-
-  /** valid for requesting mask unit. */
-  val maskRequestValids: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
   /** request for logic instruction type. */
   val logicRequests: Vec[MaskedLogicRequest] = Wire(
@@ -446,9 +429,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val otherRequests: Vec[OtherUnitReq] = Wire(Vec(parameter.chainingSize, Output(new OtherUnitReq(parameter))))
 
   val otherResponse: OtherUnitResp = Wire(Output(new OtherUnitResp(parameter.datapathWidth)))
-
-  /** request for mask instruction type. */
-  val maskRequests: Vec[LaneResponse] = Wire(Vec(parameter.chainingSize, Output(new LaneResponse(parameter))))
 
   /** assert when a instruction is finished in the slot. */
   val instructionFinishedVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
@@ -484,1094 +464,556 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   )
 
-  // Slot logic ~1.2k lines
   slotControl.zipWithIndex.foreach {
     case (record, index) =>
-      /** The execution is finished
-        * - all execution got its result.
-        * - VRF written is finished.
-        * - not coupling to cross lane read/write.
+      val decodeResult: DecodeBundle = record.laneRequest.decodeResult
+      val isLastSlot: Boolean = index == 0
+
+      /** We will ignore the effect of mask since:
+        * [[Decoder.crossRead]]: We need to read data to another lane
+        * [[Decoder.scheduler]]: We need to synchronize with [[V]] every group
+        * [[record.laneRequest.loadStore]]: We need to read data to lsu every group
         */
-      val executeFinish =
-        // TODO: why we need `sExecute`?
-        record.state.sExecute &&
-          record.state.wExecuteRes &&
-          record.state.sWrite
+      val alwaysNextGroup: Bool = decodeResult(Decoder.crossRead) || decodeResult(Decoder.nr) ||
+        !decodeResult(Decoder.scheduler) || record.laneRequest.loadStore
 
-      /** cross write is done. */
-      val crossWriteFinish: Bool = record.state.sCrossWriteLSB && record.state.sCrossWriteMSB
-
-      /** send cross read result is done. */
-      val sendCrossReadResultFinish: Bool = record.state.sSendCrossReadResultLSB && record.state.sSendCrossReadResultMSB
-
-      /** transaction between [[Lane]] and [[V]] is done. */
-      val schedulerFinish: Bool = record.state.wResponseFeedback && record.state.sSendResponse
-
-      /** need mask from [[V]]. */
-      val needMaskSource: Bool = record.laneRequest.mask
-
-      /** all read from VRF is done.
-        * it need additional one cycle to indicate there is no read in VRF since the read latency of VRF is 1.
-        */
-      val readVrfRequestFinish: Bool = record.state.sReadVD && record.state.sRead1 && record.state.sRead2
-
-      /** for non-masked instruction, always ready,
-        * for masked instruction, need to wait for mask
-        */
-      val maskReady: Bool = record.mask.valid || !needMaskSource
+      // mask not use for mask element
+      val maskNotMaskedElement = !record.laneRequest.mask ||
+        record.laneRequest.decodeResult(Decoder.maskSource) ||
+        record.laneRequest.decodeResult(Decoder.maskLogic)
 
       /** onehot value of SEW. */
-      val vSew1H: UInt = UIntToOH(record.csr.vSew)
-
-      /** the current index of execution. */
-      val elementIndex: UInt = Mux1H(
-        vSew1H(2, 0),
-        Seq(
-          // SEW = 8
-          (record.groupCounter ## record.executeIndex)(4, 0),
-          // SEW = 16
-          (record.groupCounter ## record.executeIndex(1))(4, 0),
-          // SEW = 32
-          record.groupCounter
-        )
-      )
-
-      /** mask for current element. */
-      val maskBits: Bool = record.mask.bits(elementIndex(parameter.datapathWidthBits - 1, 0))
-
-      /** mask bit which will be sent to execution unit.(e.g. input of `adc`) */
-      val maskAsInput: Bool = maskBits && (record.laneRequest.decodeResult(Decoder.maskSource) ||
-        record.laneRequest.decodeResult(Decoder.gather))
+      val vSew1H: UInt = UIntToOH(record.csr.vSew)(2, 0)
 
       /** if asserted, the element won't be executed.
         * adc: vm = 0; madc: vm = 0 -> s0 + s1 + c, vm = 1 -> s0 + s1
         */
       val skipEnable: Bool = record.laneRequest.mask &&
         !record.laneRequest.decodeResult(Decoder.maskSource) &&
-        !record.laneRequest.decodeResult(Decoder.maskLogic)
+        !record.laneRequest.decodeResult(Decoder.maskLogic) &&
+        !alwaysNextGroup
 
-      /** This element is skipped due to skipEnable and corresponding mask is 0. */
-      val masked: Bool = skipEnable && !maskBits
-
-      // find the next unmasked element.
-      /**
-        * TODO: fixme logic here.
-        */
-      val maskForExecutionGroup: UInt = Mux1H(
-        Seq(skipEnable && record.mask.valid, !skipEnable),
-        Seq(record.mask.bits, (-1.S(parameter.datapathWidth.W)).asUInt)
+      // mask for current mask group
+      val maskForMaskGroup: UInt = Mux(
+        skipEnable,
+        record.mask.bits,
+        (-1.S(parameter.datapathWidth.W)).asUInt
       )
 
-      /** the current 1H of the executing element in the mask group. */
-      val current1H = UIntToOH(elementIndex(4, 0))
+      // register for s0 enqueue, it will move with the slot
+      // 'maskGroupCountVec' 'maskIndexVec' 'pipeFinishVec'
 
-      /** the next element to execute in the group. */
-      val next1H =
-        ffo((scanLeftOr(current1H) ## false.B) & maskForExecutionGroup)(parameter.datapathWidth - 1, 0)
+      // pipe clear
+      val pipeClear: Bool = Wire(Bool())
 
-      /** the index to write to VRF in [[parameter.dataPathByteWidth]].
-        * for long latency pipe, the index will follow the pipeline.
-        */
-      val writeIndex = Mux(
-        record.laneRequest.decodeResult(Decoder.divider),
-        divWriteIndex,
-        record.executeIndex
-      )
+      if (isLastSlot) {
+        slotActive(index) := slotOccupied(index) && !pipeFinishVec(index)
+      } else {
+        slotActive(index) := slotOccupied(index) && !pipeFinishVec(index) && !slotShiftValid &&
+          !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)) &&
+          decodeResult(Decoder.scheduler)
+      }
 
-      /** VRF byte level mask */
-      val writeMaskInByte = Mux1H(
-        vSew1H(2, 0),
-        Seq(
-          // TODO: move UIntToOH out
-          UIntToOH(writeIndex),
-          writeIndex(1) ## writeIndex(1) ## !writeIndex(1) ## !writeIndex(1),
-          "b1111".U(4.W)
-        )
-      )
+      if(isLastSlot) { slotCanShift(index) := true.B } else { slotCanShift(index) := pipeClear }
 
-      /** VRF bit level mask */
-      val writeMaskInBit: UInt = FillInterleaved(8, writeMaskInByte)
+      // --- stage 0 start ---
+      // todo: parameter register width for all stage
 
-      /** output of execution unit need to align to VRF in bit level(used in dynamic shift)
-        * TODO: fix me
-        */
-      val dataOffset: UInt = writeIndex ## 0.U(3.W)
+      // register for stage0
+      val valid0: Bool = RegInit(false.B)
+      val groupCounterInStage0: UInt = RegInit(0.U(parameter.groupNumberBits.W))
+      val maskInStage0: UInt = RegInit(0.U(4.W))
+      val sSendResponseInStage0: Option[Bool] = Option.when(isLastSlot) {RegInit(true.B)}
+
+      val s0Valid: Bool = Wire(Bool())
+      val s0Ready: Bool = Wire(Bool())
+      val s0Fire: Bool = s0Valid && s0Ready
+
+      /** Filter by different sew */
+      val filterVec: Seq[(Bool, UInt)] = Seq(0, 1, 2).map { filterSew =>
+        // The lower 'dataGroupIndexSize' bits represent the offsets in the data group
+        val dataGroupIndexSize: Int = 2 - filterSew
+        // each group has '2 ** dataGroupIndexSize' elements
+        val dataGroupSize = 1 << dataGroupIndexSize
+        // The data group index of last data group
+        val groupIndex = (maskIndexVec(index) >> dataGroupIndexSize).asUInt
+        // Filtering data groups
+        val groupFilter: UInt = scanLeftOr(UIntToOH(groupIndex)) ## false.B
+        // Whether there are element in the data group that have not been masked
+        // TODO: use 'record.maskGroupedOrR' & update it
+        val maskForDataGroup: UInt =
+          VecInit(maskForMaskGroup.asBools.grouped(dataGroupSize).map(_.reduce(_ || _)).toSeq).asUInt
+        val groupFilterByMask = maskForDataGroup & groupFilter
+        // ffo next group
+        val nextDataGroupOH: UInt = ffo(groupFilterByMask)
+        // This mask group has the next data group to execute
+        val hasNextDataGroup = nextDataGroupOH.orR
+        val nextElementBaseIndex: UInt = (OHToUInt(nextDataGroupOH) << dataGroupIndexSize).asUInt
+        (hasNextDataGroup, nextElementBaseIndex)
+      }
 
       /** is there any data left in this group? */
-      val nextOrR: Bool = next1H.orR
+      val nextOrR: Bool = Mux1H(vSew1H, filterVec.map(_._1))
 
-      /** the index of next element in this group.(0-31) */
-      val nextIndex: UInt = OHToUInt(next1H)
+      // mask is exhausted
+      val maskExhausted: Bool = !nextOrR
 
-      /** a mask group can represent 8 execution groups.
-        *
-        * the [[groupCounter]] being all `1` in corresponding SEW indicates
-        * this is the last execution group of the mask group.
-        *
-        * when assert, mask group should be updated in next cycle.
-        */
-      val lastGroupForMask = Mux1H(
+      /** The index of next element in this mask group.(0-31) */
+      val nextIndex: UInt = Mux(decodeResult(Decoder.maskLogic), 0.U, Mux1H(vSew1H, filterVec.map(_._2)))
+
+      /** The mask group will be updated */
+      val maskGroupWillUpdate: Bool = decodeResult(Decoder.maskLogic) || maskExhausted
+
+      /** next mask group */
+      val nextMaskGroupCount: UInt = maskGroupCountVec(index) + maskGroupWillUpdate
+
+      /** The index of next execute element in whole instruction */
+      val elementIndexForInstruction = maskGroupCountVec(index) ## Mux1H(
+        vSew1H,
+        Seq(
+          maskIndexVec(index)(parameter.datapathWidthBits - 1, 2) ## laneIndex ## maskIndexVec(index)(1, 0),
+          maskIndexVec(index)(parameter.datapathWidthBits - 1, 1) ## laneIndex ## maskIndexVec(index)(0),
+          maskIndexVec(index) ## laneIndex
+        )
+      )
+
+
+      /** The next element is out of execution range */
+      val outOfExecutionRange = Mux(
+        decodeResult(Decoder.maskLogic),
+        (maskGroupCountVec(index) > record.lastGroupForInstruction),
+        elementIndexForInstruction >= record.csr.vl
+      ) || record.instructionFinished
+
+      // todo: 如果这一部分时序不够,可以放到下一级去, 然后在下一级 kill nr类型的
+      /** Encoding of different element lengths: 1, 8, 16, 32 */
+      val elementLengthOH = Mux(decodeResult(Decoder.maskLogic), 1.U, vSew1H(2, 0) ## false.B)
+
+      /** Which group of data will be accessed */
+      val dataGroupIndex: UInt = Mux1H(
+        elementLengthOH,
+        Seq(
+          maskGroupCountVec(index),
+          maskGroupCountVec(index) ## maskIndexVec(index)(4, 2),
+          maskGroupCountVec(index) ## maskIndexVec(index)(4, 1),
+          maskGroupCountVec(index) ## maskIndexVec(index)
+        )
+      )
+
+      /** Calculate the mask of the request that is in s0 */
+      val maskEnqueueWireInStage0: UInt = (record.mask.bits >> maskIndexVec(index)).asUInt(3, 0)
+
+      val isTheLastGroup = dataGroupIndex === record.lastGroupForInstruction
+      // update register in s0
+      when(s0Fire) {
+        maskGroupCountVec(index) := nextMaskGroupCount
+        // todo: handle all elements in first group are masked
+        maskIndexVec(index) := nextIndex
+        groupCounterInStage0 := dataGroupIndex
+        maskInStage0 := maskEnqueueWireInStage0
+        sSendResponseInStage0.foreach(state =>
+          state :=
+            !(record.laneRequest.loadStore ||
+              decodeResult(Decoder.readOnly) ||
+              (decodeResult(Decoder.red) && isTheLastGroup) ||
+              (decodeResult(Decoder.maskDestination) && (maskGroupWillUpdate || isTheLastGroup)) ||
+              decodeResult(Decoder.ffo))
+        )
+      }
+
+      // Handshake for s0
+      s0Valid := slotActive(index) && !outOfExecutionRange && (record.mask.valid || !record.laneRequest.mask)
+
+      when(!pipeFinishVec(index) && outOfExecutionRange) {
+        pipeFinishVec(index) := true.B
+      }
+
+      instructionFinishedVec(index) := 0.U
+      when(slotOccupied(index) && pipeClear && pipeFinishVec(index)) {
+        slotOccupied(index) := false.B
+        instructionFinishedVec(index) := UIntToOH(
+          record.laneRequest.instructionIndex(parameter.instructionIndexBits - 2, 0)
+        )
+      }
+
+      // update mask todo: handle maskRequestFireOH
+      slotMaskRequestVec(index).valid := maskExhausted && record.laneRequest.mask && (s0Fire || !record.mask.valid)
+      slotMaskRequestVec(index).bits := nextMaskGroupCount
+      // There are new masks
+      val maskUpdateFire: Bool = slotMaskRequestVec(index).valid && maskRequestFireOH(index)
+      // The old mask is used up
+      val maskFailure: Bool = maskExhausted && s0Fire
+      // update mask register
+      when(maskUpdateFire) {
+        record.mask.bits := maskInput
+      }
+      when(maskUpdateFire ^ maskFailure) {
+        record.mask.valid := maskUpdateFire
+      }
+
+      // --- stage 0 end & stage 1_0 start ---
+
+      // stage 1_0 reg
+      val valid1: Bool = RegInit(false.B)
+
+      /** schedule read src1 */
+      val sRead0 = RegInit(true.B)
+
+      /** schedule read src2 */
+      val sRead1 = RegInit(true.B)
+
+      /** schedule read vd */
+      val sRead2 = RegInit(true.B)
+
+      // pipe from stage0
+      val groupCounterInStage1: UInt = RegInit(0.U(parameter.groupNumberBits.W))
+
+      // mask for group pipe from stage0
+      val maskInStage1: UInt = RegInit(0.U(4.W))
+      val maskForFilterInStage1: UInt = FillInterleaved(4, maskNotMaskedElement) | maskInStage1
+
+      // read result register
+      val readResult0: UInt = RegInit(0.U(parameter.datapathWidth.W))
+      val readResult1: UInt = RegInit(0.U(parameter.datapathWidth.W))
+      val readResult2: UInt = RegInit(0.U(parameter.datapathWidth.W))
+
+      /** schedule cross lane read LSB.(access VRF for cross read) */
+      val sCrossReadLSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      /** schedule cross lane read MSB.(access VRF for cross read) */
+      val sCrossReadMSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      /** schedule send cross lane read LSB result. */
+      val sSendCrossReadResultLSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      /** schedule send cross lane read MSB result. */
+      val sSendCrossReadResultMSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      /** wait for cross lane read LSB result. */
+      val wCrossReadLSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      /** wait for cross lane read MSB result. */
+      val wCrossReadMSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      // next for update cross read register
+      val sReadNext0: Bool = RegNext(sRead0, false.B)
+      val sReadNext1: Bool = RegNext(sRead1, false.B)
+      val sReadNext2: Bool = RegNext(sRead2, false.B)
+      val sCrossReadLSBNext: Option[Bool] = sCrossReadLSB.map(RegNext(_, false.B))
+      val sCrossReadMSBNext: Option[Bool] = sCrossReadMSB.map(RegNext(_, false.B))
+      // All read requests sent
+      val sReadFinish: Bool = sRead0 && sRead1 && sRead2
+      // Waiting to read the response
+      val sReadFinishNext: Bool = sReadNext0 && sReadNext1 && sReadNext2
+      // 'sReadFinishNext' may assert at the next cycle of 's1Fire', need sReadFinish
+      val readFinish: Bool = sReadFinish && sReadFinishNext
+      val stage1Finish: Bool = (Seq(readFinish) ++ sSendCrossReadResultLSB ++
+        sSendCrossReadResultMSB ++ wCrossReadLSB ++ wCrossReadMSB).reduce(_ && _)
+
+      // control wire
+      val s1Valid = valid0
+      val s1Ready = Wire(Bool())
+      val s1Fire = s1Valid && s1Ready
+      val sSendResponseInStage1 = Option.when(isLastSlot)(RegEnable(sSendResponseInStage0.get, true.B, s1Fire))
+
+      when(s1Fire ^ s0Fire) { valid0 := s0Fire }
+      s0Ready := s1Ready || !valid0
+
+      /** mask offset for this group, needs to be aligned with data group */
+      val maskOffsetForNextGroup: UInt = maskIndexVec(index)(4, 2) ## Mux1H(
         vSew1H(2, 0),
         Seq(
-          record.groupCounter(log2Ceil(parameter.maskGroupWidth / 4) - 1, 0).andR,
-          record.groupCounter(log2Ceil(parameter.maskGroupWidth / 2) - 1, 0).andR,
-          record.groupCounter(log2Ceil(parameter.maskGroupWidth) - 1, 0).andR
+          0.U(2.W),
+          maskIndexVec(index)(1) ## false.B,
+          maskIndexVec(index)(1, 0)
         )
       )
 
-      /** need to update mask when
-        * - the last execution group in the mask group
-        * - the instruction is finished
-        */
-      val canUpdateVRFMaskFormat: Bool = lastGroupForMask || instructionExecuteFinished(index)
+      /** mask for this group */
+      val nextMaskForGroup: UInt = (record.mask.bits >> maskOffsetForNextGroup)(3, 0)
 
-      /** if the instruction type is `maskDestination`, for each lanes,
-        * the result of execution unit should be updated to VRF in mask format,
-        * this is a bit level cross lane access, which cannot use the cross lane channel,
-        * thus we use [[LaneResponse]] to update to [[V]]
-        * and [[V]] should regroup it and use [[vrfWriteChannel]] to send to each [[Lane]]
-        */
-      val maskTypeDestinationWriteReady: Bool =
-        !record.laneRequest.decodeResult(Decoder.maskDestination) || canUpdateVRFMaskFormat
+      // --- stage 1_0 end & stage 1_1 start ---
 
-      /** the instruction type in the slot is a reduce type. */
-      val reduceType: Bool = record.laneRequest.decodeResult(Decoder.red)
-
-      /** the instruction type in the slot is a readOnly type. */
-      val readOnly: Bool = record.laneRequest.decodeResult(Decoder.readOnly)
-
-      /** reduce should send feedback to at the last cycle of the execution group. */
-      val reduceReady = !reduceType || instructionExecuteFinished(index)
-
-      /** [[Lane]] need response from [[V]] for some instructions.
-        * TODO: doc
-        * 正常来说scheduler都需要回应,只是 mask destination 和 reduce 需要有先决条件
-        */
-      val needResponse: Bool = !record.laneRequest.decodeResult(Decoder.scheduler) &&
-        maskTypeDestinationWriteReady && reduceReady && slotActive(index)
-
-      // CSR
-      /** if `vl = N`, the last element index is `N-1`, for each `x`, is a bit inside `vl`
-        *
-        * xxxxx   xxx xx -> vsew = 0 (1 element -> 8 bits)
-        * xxxxxx  xxx  x -> vsew = 1 (1 element -> 16 bits)
-        * xxxxxxx xxx    -> vsew = 2 (1 element -> 32 bits)
-        * |       |   |
-        *             execute index
-        *         lane index
-        * group index
-        *
-        * TODO: we truncate the vl from TOP, do we need - 1 in [[V]]?
-        *       take care of `vl = 0`
-        */
-      val lastElementIndex: UInt = (record.csr.vl - 1.U)(parameter.vlMaxBits - 2, 0)
-
-      /** For an instruction, the last group is not executed by all lanes,
-        * here is the index of last group of the instruction
-        */
-      val lastGroupIndex: UInt = Mux1H(
-        vSew1H(2, 0),
-        Seq(
-          lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 2),
-          lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 1),
-          lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits)
-        )
-      )
-
-      /** the lane that the last element locate */
-      val lastLaneIndex: UInt = Mux1H(
-        vSew1H(2, 0),
-        Seq(
-          lastElementIndex(parameter.laneNumberBits + 2 - 1, 2),
-          lastElementIndex(parameter.laneNumberBits + 1 - 1, 1),
-          lastElementIndex(parameter.laneNumberBits - 1, 0)
-        )
-      )
-
-      /** Used to calculate the last group of mask, which will only be effective when [[isEndLane]] */
-      val lastElementExecuteIndex: UInt = Mux1H(
-        vSew1H(1, 0),
-        Seq(
-          lastElementIndex(1, 0),
-          lastElementIndex(0) ## false.B
-        )
-      )
-
-      /** The relative position of the last lane determines the processing of the last group. */
-      val lanePositionLargerThanEndLane: Bool = laneIndex > lastLaneIndex
-
-      /** This lane is the last group. */
-      val isEndLane: Bool = laneIndex === lastLaneIndex
-
-      /** for this lane, which group is the last group. */
-      val lastGroupForLane: UInt = lastGroupIndex - lanePositionLargerThanEndLane
-
-      /** when [[InstructionControlRecord.executeIndex]] reaches [[slotGroupFinishedIndex]], the group in the slot is finished.
-        * 00 -> 11
-        * 01 -> 10
-        * 10 -> 00
-        *
-        * TODO: 64bit
-        */
-      val slotGroupFinishedIndex: UInt = !record.csr.vSew(1) ## !record.csr.vSew.orR
-
-      /** mask logic is in bit level granularity:
-        *
-        * xxx   xxx     xxxxx(1 element -> 1 bits)
-        * |     |       |
-        *               execute index
-        *       lane index
-        * group index
-        * TODO: better name.
-        */
-      val vlTail: UInt = record.csr.vl(parameter.datapathWidthBits - 1, 0)
-
-      /** lane index in [[vlTail]]
-        * TODO: better name.
-        */
-      val vlBody: UInt =
-        record.csr.vl(parameter.datapathWidthBits + parameter.laneNumberBits - 1, parameter.datapathWidthBits)
-
-      /** group index in [[vlTail]]
-        * TODO: better name.
-        */
-      val vlHead: UInt = record.csr.vl(parameter.vlMaxBits - 1, parameter.datapathWidthBits + parameter.laneNumberBits)
-
-      /** use mask to fix the case that `vl` is not in the multiple of [[parameter.datapathWidth]].
-        * it will fill the LSB of mask to `0`, mask it to not execute those elements.
-        */
-      val lastGroupMask = scanRightOr(UIntToOH(vlTail)) >> 1
-
-      /** `vl` is not in the multiple of [[parameter.datapathWidth]]. */
-      val dataPathMisaligned = vlTail.orR
-
-      /** how many groups will be executed for the instruction.
-        * if [[dataPathMisaligned]], the last group will be executed.
-        */
-      val maskLogicGroupCount = (vlHead ## vlBody) - !dataPathMisaligned
-
-      /** which lane should execute the last group. */
-      val lastLaneIndexForMaskLogic: UInt = maskLogicGroupCount(parameter.laneNumberBits - 1, 0)
-
-      /** should this lane execute the last group? */
-      val isLastLaneForMaskLogic: Bool = lastLaneIndexForMaskLogic === laneIndex
-
-      /** TODO: bug? */
-      val lastGroupCountForMaskLogic: UInt = maskLogicGroupCount >> parameter.laneNumberBits
-
-      /** for mask logic, the group is the last group. */
-      val lastGroupForMaskLogic: Bool = lastGroupCountForMaskLogic === record.groupCounter
-
-      /** mask logic will complete at the end of group.
-        * TODO: move `&& record.laneRequest.decodeResult(Decoder.maskLogic)` to [[lastGroupForMaskLogic]]
-        */
-      val maskLogicWillCompleted: Bool = lastGroupForMaskLogic && record.laneRequest.decodeResult(Decoder.maskLogic)
-
-      /** the last element is inside this group. */
-      val bordersForMaskLogic: Bool = lastGroupForMaskLogic && isLastLaneForMaskLogic &&
-        dataPathMisaligned && record.laneRequest.decodeResult(Decoder.maskLogic)
-
-      /** if [[bordersForMaskLogic]], use [[lastGroupMask]] to mask the result otherwise use [[fullMask]]. */
-      val maskCorrect = Mux(bordersForMaskLogic, lastGroupMask, fullMask)
-
-      /** no need to waif for [[laneResponseFeedback]] */
-      val noFeedBack: Bool = !(readOnly || record.laneRequest.loadStore)
-
-      /** TODO: move to [[V]]. */
-      val nr = record.laneRequest.decodeResult(Decoder.nr)
-
-      /** the execution unit need more than one cycle,
-        * divider.
-        */
-      val longLatency: Bool = instructionTypeVec(index)(4)
-
-      /** the long latency execution unit is masked. */
-      val maskedLongLatency: Bool = masked && longLatency
-      if (index != 0) {
-        // read only
-        val decodeResult: DecodeBundle = record.laneRequest.decodeResult
-        val needCrossRead = decodeResult(Decoder.crossRead)
-        val needCrossWrite = decodeResult(Decoder.crossWrite)
-
-        /** select from VFU, send to [[executionResult]], [[crossWriteDataLSBHalf]], [[crossWriteDataMSBHalf]]. */
-        val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
-
-        /** fire of [[dataDequeue]] */
-        val dataDequeueFire: Bool = (instructionTypeVec(index) & executeDequeueFire).orR
-
-        /** [[record.groupCounter]] & [[record.executeIndex]] is used as index of current data sending to VFU.
-          * By default, data is not masked. due the the logic in [[next1H]], it is not masked.
-          * when updating [[record.mask.bits]], the pointer is updated to the first item of mask group.
-          * but this element might be masked.
-          * So firstMasked is used to take care of this.
-          */
-        /*val firstMasked: Bool = Wire(Bool())*/
-        // TODO: move this to verification module
-        when(needCrossRead) {
-          assert(record.csr.vSew != 2.U)
-        }
-        slotActive(index) :=
-          // slot should alive
-          slotOccupied(index) &&
-          // head should alive, if not, the slot should shift to make head alive
-          slotOccupied.head &&
-          // cross lane instruction should execute in the first slot
-          !record.laneRequest.decodeResult(Decoder.specialSlot) &&
-          // mask should ready for masked instruction
-          maskReady
-
-        // wait read result
-        val readNext0 = RegNext(vrfReadRequest(index)(0).fire)
-        val readNext1 = RegNext(vrfReadRequest(index)(1).fire)
-        val readNext2 = RegNext(vrfReadRequest(index)(2).fire)
-        // shift slot // !record.state.sExecute
-        slotCanShift(index) := !((readNext0 || readNext1 || readNext2) && slotOccupied(index))
-
-        // vs1 read
-        vrfReadRequest(index)(0).valid := !record.state.sRead1 && slotActive(index)
-        vrfReadRequest(index)(0).bits.offset := record.groupCounter(parameter.vrfOffsetBits - 1, 0)
-        // todo: when vlmul > 0 use ## rather than +
-        vrfReadRequest(index)(0).bits.vs := record.laneRequest.vs1 + record.groupCounter(
+      // read port 0
+      vrfReadRequest(index)(0).valid := !sRead0 && valid1
+      vrfReadRequest(index)(0).bits.offset := groupCounterInStage1(parameter.vrfOffsetBits - 1, 0)
+      vrfReadRequest(index)(0).bits.vs := Mux(
+        // encodings with vm=0 are reserved for mask type logic
+        record.laneRequest.decodeResult(Decoder.maskLogic) && !record.laneRequest.decodeResult(Decoder.logic),
+        // read v0 for (15. Vector Mask Instructions)
+        0.U,
+        record.laneRequest.vs1 + groupCounterInStage1(
           parameter.groupNumberBits - 1,
           parameter.vrfOffsetBits
         )
-        // used for hazard detection
-        vrfReadRequest(index)(0).bits.instructionIndex := record.laneRequest.instructionIndex
+      )
+      // used for hazard detection
+      vrfReadRequest(index)(0).bits.instructionIndex := record.laneRequest.instructionIndex
 
-        // vs2 read
-        vrfReadRequest(index)(1).valid := !record.state.sRead2 && slotActive(index)
-        vrfReadRequest(index)(1).bits.offset := record.groupCounter(parameter.vrfOffsetBits - 1, 0)
-        // todo: when vlmul > 0 use ## rather than +
-        // TODO: pull Mux to standalone signal
-        vrfReadRequest(index)(1).bits.vs := record.laneRequest.vs2 +
-          record.groupCounter(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
-        vrfReadRequest(index)(1).bits.instructionIndex := record.laneRequest.instructionIndex
-
-        // vd read
-        vrfReadRequest(index)(2).valid := !record.state.sReadVD && slotActive(index)
-        vrfReadRequest(index)(2).bits.offset := record.groupCounter(parameter.vrfOffsetBits - 1, 0)
-        vrfReadRequest(index)(2).bits.vs := record.laneRequest.vd +
-          record.groupCounter(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
-        // for hazard detection
-        vrfReadRequest(index)(2).bits.instructionIndex := record.laneRequest.instructionIndex
-
-        /** all read operation is finished. */
-        val readFinish = RegNext(readVrfRequestFinish) && readVrfRequestFinish
-
-        // state machine control
-        when(vrfReadRequest(index)(0).fire) {
-          record.state.sRead1 := true.B
-        }
-        when(readNext0) {
-          source1(index) := vrfReadResult(index)(0)
-        }
-        when(vrfReadRequest(index)(1).fire) {
-          record.state.sRead2 := true.B
-        }
-        when(readNext1) {
-          source2(index) := vrfReadResult(index)(1)
-        }
-        when(vrfReadRequest(index)(2).fire) {
-          record.state.sReadVD := true.B
-          source3(index) := vrfReadResult(index)(2)
-        }
-        when(readNext2) {
-          source3(index) := vrfReadResult(index)(2)
-        }
-
-        /** 这一组的mask已经没有剩余了 */
-        val maskNeedUpdate = !nextOrR
-        val nextGroupCountMSB: UInt = Mux1H(
-          vSew1H(1, 0),
-          Seq(
-            record.groupCounter(parameter.groupNumberBits - 1, parameter.groupNumberBits - 3),
-            false.B ## record.groupCounter(parameter.groupNumberBits - 1, parameter.groupNumberBits - 2)
-          )
-        ) + maskNeedUpdate
-        val indexInLane = nextGroupCountMSB ## nextIndex
-        // csrInterface.vSew 只会取值0, 1, 2,需要特别处理移位
-        val nextIntermediateVolume = (indexInLane << record.csr.vSew).asUInt
-        val nextGroupCount = nextIntermediateVolume(parameter.groupNumberBits + 1, 2)
-        val nextExecuteIndex = nextIntermediateVolume(1, 0)
-
-        /** 虽然没有计算完一组,但是这一组剩余的都被mask去掉了 */
-        val maskFilterEnd = skipEnable && (nextGroupCount =/= record.groupCounter)
-
-        /** 需要一个除vl导致的end来决定下一个的 element index 是什么 */
-        val dataDepletion = writeIndex === slotGroupFinishedIndex || maskFilterEnd
-
-        /** 这一组计算全完成了 */
-        val groupEnd = dataDepletion || instructionExecuteFinished(index)
-
-        /** 计算当前这一组的 vrf mask
-          * 已知：mask mask1H executeIndex
-          * sew match:
-          * 0:
-          * executeIndex match:
-          * 0: 0001
-          * 1: 0010
-          * 2: 0100
-          * 3: 1000
-          * 1:
-          * executeIndex(0) match:
-          * 0: 0011
-          * 1: 1100
-          * 2:
-          * 1111
-          */
-        val executeByteEnable = Mux1H(
-          vSew1H(2, 0),
-          Seq(
-            UIntToOH(record.executeIndex),
-            record.executeIndex(1) ## record.executeIndex(1) ## !record.executeIndex(1) ## !record.executeIndex(1),
-            15.U(4.W)
-          )
-        )
-        val executeBitEnable: UInt = FillInterleaved(8, executeByteEnable)
-
-        def CollapseOperand(data: UInt, enable: Bool = true.B, sign: Bool = false.B): UInt = {
-          val dataMasked: UInt = data & executeBitEnable
-          val select:     UInt = Mux(enable, vSew1H(2, 0), 4.U(3.W))
-          // when sew = 0
-          val collapse0 = Seq.tabulate(4)(i => dataMasked(8 * i + 7, 8 * i)).reduce(_ | _)
-          // when sew = 1
-          val collapse1 = Seq.tabulate(2)(i => dataMasked(16 * i + 15, 16 * i)).reduce(_ | _)
-          Mux1H(
-            select,
-            Seq(
-              Fill(25, sign && collapse0(7)) ## collapse0,
-              Fill(17, sign && collapse1(15)) ## collapse1,
-              (sign && data(31)) ## data
-            )
-          )
-        }
-
-        // 处理操作数
-        /**
-          * src1： src1有 IXV 三种类型,只有V类型的需要移位
-          */
-        val finalSource1 = CollapseOperand(
-          Mux(reduceType, reduceResult(index), source1(index)),
-          decodeResult(Decoder.vtype) && !reduceType,
-          !decodeResult(Decoder.unsigned0)
-        )
-
-        /** source2 一定是V类型的 */
-        val finalSource2 = CollapseOperand(source2(index), true.B, !decodeResult(Decoder.unsigned1))
-
-        /** source3 有两种：adc & ma, c等处理mask的时候再处理 */
-        val finalSource3 = CollapseOperand(source3(index))
-
-        val nextElementIndex = Mux1H(
-          vSew1H,
-          Seq(
-            indexInLane(indexInLane.getWidth - 1, 2) ## laneIndex ## indexInLane(1, 0),
-            indexInLane(indexInLane.getWidth - 1, 1) ## laneIndex ## indexInLane(0),
-            indexInLane ## laneIndex
-          )
-        )
-        instructionExecuteFinished(index) := nextElementIndex >= record.csr.vl || maskLogicWillCompleted
-        // 假如这个单元执行的是logic的类型的,请求应该是什么样子的
-        val logicRequest = Wire(new MaskedLogicRequest(parameter.datapathWidth))
-        logicRequest.src.head := finalSource2
-        logicRequest.src(1) := finalSource1
-        logicRequest.src(2) := maskCorrect
-        logicRequest.src(3) := finalSource3
-        logicRequest.opcode := decodeResult(Decoder.uop)
-        // 在手动做Mux1H
-        logicRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.logic) && !decodeResult(Decoder.other),
-          logicRequest
-        )
-
-        // adder 的
-        val adderRequest = Wire(new LaneAdderReq(parameter.datapathWidth))
-        adderRequest.src := VecInit(Seq(finalSource1, finalSource2))
-        adderRequest.mask := maskAsInput
-        adderRequest.opcode := decodeResult(Decoder.uop)
-        adderRequest.sign := !decodeResult(Decoder.unsigned1)
-        adderRequest.reverse := decodeResult(Decoder.reverse)
-        adderRequest.average := decodeResult(Decoder.average)
-        adderRequest.saturate := decodeResult(Decoder.saturate)
-        adderRequest.vxrm := record.csr.vxrm
-        adderRequest.vSew := record.csr.vSew
-        adderRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.adder) && !decodeResult(Decoder.other),
-          adderRequest
-        )
-
-        // shift 的
-        val shiftRequest = Wire(new LaneShifterReq(parameter.shifterParameter))
-        shiftRequest.src := finalSource2
-        shiftRequest.shifterSize := Mux1H(
-          vSew1H(2, 1),
-          Seq(false.B ## finalSource1(3), finalSource1(4, 3))
-        ) ## finalSource1(2, 0)
-        shiftRequest.opcode := decodeResult(Decoder.uop)
-        shiftRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.shift) && !decodeResult(Decoder.other),
-          shiftRequest
-        )
-        shiftRequest.vxrm := record.csr.vxrm
-
-        // mul
-        val mulRequest: LaneMulReq = Wire(new LaneMulReq(parameter.mulParam))
-        mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
-        mulRequest.opcode := decodeResult(Decoder.uop)
-        mulRequest.saturate := decodeResult(Decoder.saturate)
-        mulRequest.vSew := record.csr.vSew
-        mulRequest.vxrm := record.csr.vxrm
-        multiplerRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.multiplier) && !decodeResult(Decoder.other),
-          mulRequest
-        )
-
-        // div
-        val divRequest = Wire(new LaneDivRequest(parameter.datapathWidth))
-        divRequest.src := VecInit(Seq(finalSource1, finalSource2))
-        divRequest.rem := decodeResult(Decoder.uop)(0)
-        divRequest.sign := !decodeResult(Decoder.unsigned0)
-        divRequest.index := record.executeIndex
-        dividerRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
-          divRequest
-        )
-
-        // other
-        // TODO: remove output
-        val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
-        otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
-        otherRequest.popInit := reduceResult(index)
-        otherRequest.opcode := decodeResult(Decoder.uop)
-        otherRequest.imm := record.laneRequest.vs1
-        otherRequest.laneIndex := laneIndex
-        otherRequest.groupIndex := record.groupCounter
-        otherRequest.executeIndex := record.executeIndex
-        otherRequest.sign := !decodeResult(Decoder.unsigned0)
-        otherRequest.mask := maskAsInput || !record.laneRequest.mask
-        otherRequest.complete := record.ffoByOtherLanes || record.selfCompleted
-        otherRequest.maskType := record.laneRequest.mask
-        otherRequest.vSew := record.csr.vSew
-        otherRequest.vxrm := record.csr.vxrm
-        otherRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.other),
-          otherRequest
-        )
-
-        // 往scheduler的执行任务compress viota
-        // TODO: remove output
-        val maskRequest: LaneResponse = Wire(Output(new LaneResponse(parameter)))
-        val canSendMaskRequest = needResponse && readFinish && record.state.sExecute
-        val maskValid = canSendMaskRequest && !record.state.sSendResponse
-        val noNeedWaitScheduler: Bool = !canSendMaskRequest || decodeResult(Decoder.scheduler) || schedulerFinish
-        // 往外边发的是原始的数据
-        maskRequest.data := Mux(
-          record.laneRequest.decodeResult(Decoder.maskDestination),
-          maskFormatResult,
-          Mux(
-            reduceType,
-            reduceResult(index),
-            source2(index)
-          )
-        )
-        maskRequest.toLSU := record.laneRequest.loadStore
-        maskRequest.instructionIndex := record.laneRequest.instructionIndex
-        maskRequest.ffoSuccess := record.selfCompleted
-        maskRequests(index) := maskAnd(slotOccupied(index) && maskValid, maskRequest)
-        maskRequestValids(index) := maskValid
-
-        when(
-          laneResponseFeedback.valid && laneResponseFeedback.bits.instructionIndex === record.laneRequest.instructionIndex
-        ) {
-          record.state.wResponseFeedback := true.B
-        }
-        when(maskValid) {
-          record.state.sSendResponse := true.B
-        }
-        instructionTypeVec(index) := record.laneRequest.instType
-        executeEnqueueValid(index) := maskAnd(readFinish && !record.state.sExecute, instructionTypeVec(index))
-        when((instructionTypeVec(index) & executeEnqueueFire).orR) {
-          when(groupEnd) {
-            record.state.sExecute := true.B
-          }.otherwise {
-            record.executeIndex := nextExecuteIndex
-          }
-        }
-
-        // todo: 暂时先这样,处理mask的时候需要修
-        // TODO: hardware effort is too large since 5 bits dynamic shifting is too large.
-        val executeResult = (dataDequeue << dataOffset).asUInt(parameter.datapathWidth - 1, 0)
-        val resultUpdate: UInt = (executeResult & writeMaskInBit) | (executionResult(index) & (~writeMaskInBit).asUInt)
-        when(dataDequeueFire) {
-          when(groupEnd) {
-            record.state.wExecuteRes := true.B
-          }
-          executionResult(index) := resultUpdate
-          record.selfCompleted := otherResponse.ffoSuccess
-          when(!masked) {
-            record.vrfWriteMask := record.vrfWriteMask | executeByteEnable
-            when(reduceType) {
-              reduceResult(index) := dataDequeue
-            }
-          }
-        }
-        // 写rf
-        vrfWriteArbiter(index).valid :=
-          record.state.wExecuteRes && !record.state.sWrite && slotActive(index) && noNeedWaitScheduler
-        vrfWriteArbiter(index).bits.vd := record.laneRequest.vd + record.groupCounter(
-          parameter.groupNumberBits - 1,
-          parameter.vrfOffsetBits
-        )
-        vrfWriteArbiter(index).bits.offset := record.groupCounter
-        vrfWriteArbiter(index).bits.data := Mux(record.ffoByOtherLanes, 0.U, executionResult(index))
-        vrfWriteArbiter(index).bits.last := instructionExecuteFinished(index)
-        vrfWriteArbiter(index).bits.instructionIndex := record.laneRequest.instructionIndex
-        vrfWriteArbiter(index).bits.mask := record.vrfWriteMask
-        when(vrfWriteFire(index)) {
-          record.state.sWrite := true.B
-        }
-        instructionFinishedVec(index) := 0.U(parameter.chainingSize.W)
-        val maskUnhindered = maskRequestFireOH(index) || !maskNeedUpdate
-        when((record.state.asUInt.andR && maskUnhindered) || record.instructionFinished) {
-          when((instructionExecuteFinished(index) && noFeedBack) || record.instructionFinished) {
-            slotOccupied(index) := false.B
-            when(slotOccupied(index)) {
-              instructionFinishedVec(index) := UIntToOH(
-                record.laneRequest.instructionIndex(parameter.instructionIndexBits - 2, 0)
-              )
-            }
-          }.otherwise {
-
-            record.state := record.laneRequest.initState
-            record.groupCounter := nextGroupCount
-            record.executeIndex := nextExecuteIndex
-            record.vrfWriteMask := 0.U
-            when(maskRequestFireOH(index)) {
-              record.mask.valid := true.B
-              record.mask.bits := maskInput
-              record.maskGroupedOrR := maskGroupedOrR
-            }
-          }
-        }
-        when(
-          laneResponseFeedback.bits.complete && laneResponseFeedback.bits.instructionIndex === record.laneRequest.instructionIndex
-        ) {
-          // 例如:别的lane找到了第一个1
-          record.ffoByOtherLanes := true.B
-          when(decodeResult(Decoder.dontNeedExecuteInLane)) {
-            slotOccupied(index) := false.B
-          }
-        }
-        // mask 更换
-        slotMaskRequestVec(index).valid := maskNeedUpdate
-        slotMaskRequestVec(index).bits := nextGroupCountMSB
-      } else { // slotNumber == 0
-        val decodeResult: DecodeBundle = record.laneRequest.decodeResult
-        val needCrossRead = decodeResult(Decoder.crossRead)
-
-        /** cross read has two case
-          * - read vs2
-          * - read vd: only vwmacc
-          */
-        val crossReadVS2: Bool = needCrossRead && !decodeResult(Decoder.vwmacc)
-
-        /** State machine may jump through the group if the mask is all 0.
-          * For these case it cannot jump through:
-          * [[needCrossRead]]: although we may not need execution unit if it is masked,
-          *                    we still need to access VRF for another lane
-          * [[record.laneRequest.special]]: We need to synchronize with [[V]] every group
-          *                                 TODO: uarch about the synchronization
-          * [[nr]] will ignore mask
-          */
-        val alwaysNextGroup: Bool = needCrossRead || record.laneRequest.special || nr
-
-        /** select from VFU, send to [[executionResult]], [[crossWriteDataLSBHalf]], [[crossWriteDataMSBHalf]]. */
-        val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
-
-        /** fire of [[dataDequeue]] */
-        val dataDequeueFire: Bool = (instructionTypeVec(index) & executeDequeueFire).orR
-
-        // TODO: move this to verification module
-        when(needCrossRead) {
-          assert(record.csr.vSew != 2.U)
-        }
-
-        // TODO: for index = 0, slotOccupied(index) === slotOccupied.head
-        slotActive(index) :=
-          // slot should alive
-          slotOccupied(index) &&
-          // head should alive, if not, the slot should shift to make head alive
-          slotOccupied.head &&
-          // mask should ready for masked instruction
-          maskReady
-
-        // shift slot
-        slotCanShift(index) := !(record.state.sExecute && slotOccupied(index))
-
-        // vs1 read
-        vrfReadRequest(index)(0).valid := !record.state.sRead1 && slotActive(index)
-        vrfReadRequest(index)(0).bits.offset := record.groupCounter(parameter.vrfOffsetBits - 1, 0)
-        vrfReadRequest(index)(0).bits.vs := Mux(
-          record.laneRequest.decodeResult(Decoder.maskLogic) &&
-            !record.laneRequest.decodeResult(Decoder.logic),
-          // read v0 for (15. Vector Mask Instructions)
-          0.U,
-          // todo: when vlmul > 0 use ## rather than +
-          record.laneRequest.vs1 + record.groupCounter(
-            parameter.groupNumberBits - 1,
-            parameter.vrfOffsetBits
-          )
-        )
-        // used for hazard detection
-        vrfReadRequest(index)(0).bits.instructionIndex := record.laneRequest.instructionIndex
-
-        // vs2 read
-        vrfReadRequest(index)(1).valid := !(record.state.sRead2 && record.state.sCrossReadLSB) && slotActive(index)
+      // read port 1
+      if (isLastSlot) {
+        vrfReadRequest(index)(1).valid := !(sRead1 && sCrossReadLSB.get) && valid1
         vrfReadRequest(index)(1).bits.offset := Mux(
-          record.state.sRead2,
+          sRead1,
           // cross lane LSB
-          record.groupCounter(parameter.vrfOffsetBits - 2, 0) ## false.B,
+          groupCounterInStage1(parameter.vrfOffsetBits - 2, 0) ## false.B,
           // normal read
-          record.groupCounter(parameter.vrfOffsetBits - 1, 0)
+          groupCounterInStage1(parameter.vrfOffsetBits - 1, 0)
         )
-        // todo: when vlmul > 0 use ## rather than +
-        // TODO: pull Mux to standalone signal
         vrfReadRequest(index)(1).bits.vs := Mux(
-          record.laneRequest.decodeResult(Decoder.vwmacc) && record.state.sRead2,
+          decodeResult(Decoder.vwmacc) && sRead1,
           // cross read vd for vwmacc, since it need dual [[dataPathWidth]], use vs2 port to read LSB part of it.
           record.laneRequest.vd,
           // read vs2 for other instruction
           record.laneRequest.vs2
         ) + Mux(
-          record.state.sRead2,
+          sRead1,
           // cross lane
-          record.groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1),
+          groupCounterInStage1(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1),
           // no cross lane
-          record.groupCounter(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
+          groupCounterInStage1(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
         )
-        vrfReadRequest(index)(1).bits.instructionIndex := record.laneRequest.instructionIndex
+      } else {
+        vrfReadRequest(index)(1).valid := !sRead1 && valid1
+        vrfReadRequest(index)(1).bits.offset := groupCounterInStage1(parameter.vrfOffsetBits - 1, 0)
+        vrfReadRequest(index)(1).bits.vs := record.laneRequest.vs2 +
+          groupCounterInStage1(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
+      }
+      vrfReadRequest(index)(1).bits.instructionIndex := record.laneRequest.instructionIndex
 
-        // vd read
-        vrfReadRequest(index)(2).valid := !(record.state.sReadVD && record.state.sCrossReadMSB) && slotActive(index)
+      // read port 2
+      if (isLastSlot) {
+        vrfReadRequest(index)(2).valid := !(sRead2 && sCrossReadMSB.get) && valid1
         vrfReadRequest(index)(2).bits.offset := Mux(
-          record.state.sReadVD,
+          sRead2,
           // cross lane MSB
-          record.groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B,
+          groupCounterInStage1(parameter.vrfOffsetBits - 2, 0) ## true.B,
           // normal read
-          record.groupCounter(parameter.vrfOffsetBits - 1, 0)
+          groupCounterInStage1(parameter.vrfOffsetBits - 1, 0)
         )
         vrfReadRequest(index)(2).bits.vs := Mux(
-          record.state.sReadVD && !record.laneRequest.decodeResult(Decoder.vwmacc),
+          sRead2 && !record.laneRequest.decodeResult(Decoder.vwmacc),
           // cross lane access use vs2
           record.laneRequest.vs2,
           // normal read vd or cross read vd for vwmacc
           record.laneRequest.vd
         ) +
           Mux(
-            record.state.sReadVD,
-            record.groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1),
-            record.groupCounter(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
+            sRead2,
+            groupCounterInStage1(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1),
+            groupCounterInStage1(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
           )
-        // for hazard detection
-        vrfReadRequest(index)(2).bits.instructionIndex := record.laneRequest.instructionIndex
+      } else {
+        vrfReadRequest(index)(2).valid := !sRead2 && valid1
+        vrfReadRequest(index)(2).bits.offset := groupCounterInStage1(parameter.vrfOffsetBits - 1, 0)
+        vrfReadRequest(index)(2).bits.vs := record.laneRequest.vd +
+          groupCounterInStage1(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
+      }
+      vrfReadRequest(index)(2).bits.instructionIndex := record.laneRequest.instructionIndex
 
-        /** all read operation is finished.
-          *
-          * notice: this doesn't include [[crossReadVRFOnly]]
-          */
-        val readFinish =
-          // wait one cycle for VRF read latency.
-          RegNext(readVrfRequestFinish, false.B) &&
-            // RegNext(readVrfRequestFinish) is not initialized, to avoid the invalid value of last group,
-            // fanout readVrfRequestFinish directly.
-            readVrfRequestFinish &&
-            // wait for cross lane read result
-            record.state.wCrossReadLSB &&
-            record.state.wCrossReadMSB &&
-            record.state.sCrossReadLSB &&
-            record.state.sCrossReadMSB
+      val readPortFire0: Bool = vrfReadRequest(index)(0).fire
+      val readPortFire1: Bool = vrfReadRequest(index)(1).fire
+      val readPortFire2: Bool = vrfReadRequest(index)(2).fire
+      // reg next for update result
+      val readPortFireNext0: Bool = RegNext(readPortFire0, false.B)
+      val readPortFireNext1: Bool = RegNext(readPortFire1, false.B)
+      val readPortFireNext2: Bool = RegNext(readPortFire2, false.B)
 
-        // state machine control
+      // update read control register in stage 1
+      when(s1Fire) {
+        // init register by decode result
+        sRead0 := !decodeResult(Decoder.vtype)
+        // todo: gather only read vs1?
+        sRead1 := false.B
+        sRead2 := decodeResult(Decoder.sReadVD)
+        val sCrossRead = !decodeResult(Decoder.crossRead)
+        (
+          sCrossReadLSB ++ sCrossReadMSB ++
+            sSendCrossReadResultLSB ++ sSendCrossReadResultMSB ++
+            wCrossReadLSB ++ wCrossReadMSB
+          ).foreach(state => state := sCrossRead)
+
+        // pipe reg from stage 0
+        groupCounterInStage1 := groupCounterInStage0
+        maskInStage1 := maskInStage0
+      }.otherwise {
         // change state machine when read source1
-        when(vrfReadRequest(index)(0).fire) {
-          record.state.sRead1 := true.B
+        when(readPortFire0) {
+          sRead0 := true.B
+        }
+        // the priority of `sRead1` is higher than `sCrossReadLSB`
+        when(readPortFire1) {
+          sRead1 := true.B
+          sCrossReadLSB.foreach(d => d := sRead1)
+        }
+        // the priority of `sRead2` is higher than `sCrossReadMSB`
+        when(readPortFire2) {
+          sRead2 := true.B
+          sCrossReadMSB.foreach(d => d := sRead2)
         }
 
-        // read result from source1 need read latency
-        when(RegNext(vrfReadRequest(index)(0).fire)) {
-          // todo: datapath Mux
-          source1(index) := vrfReadResult(index)(0)
-        }
-
-        // the priority of `sRead2` is higher than `sCrossReadLSB`
-        when(vrfReadRequest(index)(1).fire) {
-          record.state.sRead2 := true.B
-          when(record.state.sRead2) {
-            record.state.sCrossReadLSB := true.B
+        when(readBusDequeue.valid) {
+          when(readBusDequeue.bits.isTail) {
+            wCrossReadMSB.foreach(_ := true.B)
+          }.otherwise {
+            wCrossReadLSB.foreach(_ := true.B)
           }
         }
+      }
 
-        // read result from source2 need read latency
-        when(RegNext(vrfReadRequest(index)(1).fire)) {
-          when(RegNext(record.state.sRead2)) {
+      // update read result register
+      when(readPortFireNext0) {
+        readResult0 := vrfReadResult(index)(0)
+      }
+
+      when(readPortFireNext1) {
+        if (isLastSlot) {
+          when(sReadNext1) {
             crossReadLSBOut := vrfReadResult(index)(1)
           }.otherwise {
-            source2(index) := vrfReadResult(index)(1)
+            readResult1 := vrfReadResult(index)(1)
           }
+        } else {
+          readResult1 := vrfReadResult(index)(1)
         }
+      }
 
-        // the priority of `sReadVD` is higher than `sCrossReadMSB`
-        when(vrfReadRequest(index)(2).fire) {
-          record.state.sReadVD := true.B
-          when(record.state.sReadVD) {
-            record.state.sCrossReadMSB := true.B
-          }
-        }
-
-        // read result from vd need read latency
-        when(RegNext(vrfReadRequest(index)(2).fire)) {
-          when(RegNext(record.state.sReadVD)) {
+      when(readPortFireNext2) {
+        if (isLastSlot) {
+          when(sReadNext2) {
             crossReadMSBOut := vrfReadResult(index)(2)
           }.otherwise {
-            source3(index) := vrfReadResult(index)(2)
+            readResult2 := vrfReadResult(index)(2)
           }
+        } else {
+          readResult2 := vrfReadResult(index)(2)
         }
+      }
 
-        // VRF cross lane read:
-        // for each cross lane read access:
-        // it always access datapath width of VRF in two lanes.
-        // the source lane will consume: [[crossReadLSBOut]] and [[crossReadMSBOut]]
-        // it should be sent out to corresponding lane to [[crossLaneRead.bits.sinkIndex]]
-
-        // 1. group all VRF together, index them under the datapath width
-        // 2. the cross read/write take dual size of datapath width.
-        //
-        // example of cross lane read
-        //  0| 1| 2| 3| 4| 5| 6| 7
-        //  8| 9|10|11|12|13|14|15
-        // 16|17|18|19|20|21|22|23
-        // 24|25|26|27|28|29|30|31
-
-        /** for cross lane read LSB is read from VRF, ready to send out to ring. */
-        val crossReadDataReadyLSB: Bool = record.state.sCrossReadLSB && RegNext(record.state.sCrossReadLSB)
-
-        /** for cross lane read MSB is read from VRF, ready to send out to ring. */
-        val crossReadDataReadyMSB: Bool = record.state.sCrossReadMSB && RegNext(record.state.sCrossReadMSB)
+      if (isLastSlot) {
+        // cross read
+        /** for dequeue group counter match */
+        readBusDequeueGroup := groupCounterInStage1
+        /** The data to be sent is ready
+          * need sCrossReadLSB since sCrossReadLSBNext may assert after s1fire.
+          */
+        val crossReadDataReadyLSB: Bool = (sCrossReadLSBNext ++ sCrossReadLSB).reduce(_ && _)
+        val crossReadDataReadyMSB: Bool = (sCrossReadMSBNext ++ sCrossReadMSB).reduce(_ && _)
 
         /** read data from RF, try to send cross lane read LSB data to ring */
-        val tryCrossReadSendLSB: Bool =
-          crossReadDataReadyLSB && !record.state.sSendCrossReadResultLSB && slotOccupied.head
+        val tryCrossReadSendLSB: Bool = crossReadDataReadyLSB && !sSendCrossReadResultLSB.get && valid1
 
         /** read data from RF, try to send cross lane read MSB data to ring */
-        val tryCrossReadSendMSB: Bool =
-          crossReadDataReadyMSB && !record.state.sSendCrossReadResultMSB && slotOccupied.head
+        val tryCrossReadSendMSB: Bool = crossReadDataReadyMSB && !sSendCrossReadResultMSB.get && valid1
         // TODO: use [[record.state.sSendCrossReadResultLSB]]
         crossLaneRead.bits.sinkIndex := (!tryCrossReadSendLSB) ## laneIndex(parameter.laneNumberBits - 1, 1)
         crossLaneRead.bits.isTail := laneIndex(0)
         crossLaneRead.bits.sourceIndex := laneIndex
         crossLaneRead.bits.instructionIndex := record.laneRequest.instructionIndex
-        crossLaneRead.bits.counter := record.groupCounter
-        // TODO: use [[record.state.sSendCrossReadResultLSB]]
+        crossLaneRead.bits.counter := groupCounterInStage1
+        // TODO: use [[record.state.sSendCrossReadResultLSB]] -> MSB may be ready earlier
         crossLaneRead.bits.data := Mux(tryCrossReadSendLSB, crossReadLSBOut, crossReadMSBOut)
         crossLaneRead.valid := tryCrossReadSendLSB || tryCrossReadSendMSB
 
-        // VRF cross write
-        /** execute in ALU, try to send cross lane write LSB data to ring */
-        val tryCrossWriteSendLSB = record.state.sExecute && !record.state.sCrossWriteLSB && slotOccupied.head
+        when(crossLaneReadReady && crossLaneRead.valid) {
+          when(tryCrossReadSendLSB) {
+            sSendCrossReadResultLSB.foreach(_ := true.B)
+          }.otherwise {
+            sSendCrossReadResultMSB.foreach(_ := true.B)
+          }
+        }
 
-        /** execute in ALU, try to send cross lane write MSB data to ring */
-        val tryCrossWriteSendMSB = record.state.sExecute && !record.state.sCrossWriteMSB && slotOccupied.head
-        crossLaneWrite.bits.sinkIndex := laneIndex(parameter.laneNumberBits - 2, 0) ## (!tryCrossWriteSendLSB)
-        crossLaneWrite.bits.sourceIndex := laneIndex
-        crossLaneWrite.bits.isTail := laneIndex(parameter.laneNumberBits - 1)
-        crossLaneWrite.bits.instructionIndex := record.laneRequest.instructionIndex
-        crossLaneWrite.bits.counter := record.groupCounter
-        crossLaneWrite.bits.data := Mux(tryCrossWriteSendLSB, crossWriteDataLSBHalf, crossWriteDataMSBHalf)
-        crossLaneWrite.bits.mask := Mux(tryCrossWriteSendLSB, crossWriteMaskLSBHalf, crossWriteMaskMSBHalf)
-        crossLaneWrite.valid := tryCrossWriteSendLSB || tryCrossWriteSendMSB
-
-        // cross read receive.
+        // cross read receive. todo: move out slot
         when(readBusDequeue.valid) {
           assert(readBusDequeue.bits.instructionIndex === record.laneRequest.instructionIndex)
           when(readBusDequeue.bits.isTail) {
-            record.state.wCrossReadMSB := true.B
             crossReadMSBIn := readBusDequeue.bits.data
           }.otherwise {
-            record.state.wCrossReadLSB := true.B
             crossReadLSBIn := readBusDequeue.bits.data
           }
         }
+      }
 
-        // todo: handling self cross read for first and end lane.
-        // maintain cross read send state machine.
-        when(crossLaneReadReady && crossLaneRead.valid) {
-          when(tryCrossReadSendLSB) {
-            record.state.sSendCrossReadResultLSB := true.B
-          }.otherwise {
-            record.state.sSendCrossReadResultMSB := true.B
-          }
-        }
-        // maintain cross write send state machine.
-        when(crossLaneWriteReady && crossLaneWrite.valid) {
-          record.state.sCrossWriteLSB := true.B
-          when(record.state.sCrossWriteLSB) {
-            record.state.sCrossWriteMSB := true.B
-          }
-        }
+      // --- stage 1_1 end & stage 2 start ---
+      val executionQueue: Queue[LaneExecuteStage] =
+        Module(new Queue(new LaneExecuteStage(parameter)(isLastSlot), parameter.executionQueueSize))
 
-        /** sew:
-          *   0:
-          *     executeIndex:
-          *       0: mask = 0011, head
-          *       1: mask = 1100, head
-          *       2: mask = 0011, tail
-          *       3: mask = 1100, tail
-          *   1:
-          *     executeIndex:
-          *       0: mask = 1111, head
-          *       2: mask = 1111, tail
-          *
-          *   2: not valid in SEW = 2
-          */
-        when(dataDequeueFire && !masked) {
-          when(record.executeIndex(1)) {
-            // update tail
-            crossWriteDataMSBHalf :=
-              Mux(
-                record.csr.vSew(0),
-                dataDequeue(parameter.datapathWidth - 1, parameter.halfDatapathWidth),
-                Mux(
-                  record.executeIndex(0),
-                  dataDequeue(parameter.halfDatapathWidth - 1, 0),
-                  crossWriteDataMSBHalf(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
-                )
-              ) ## Mux(
-                !record.executeIndex(0) || record.csr.vSew(0),
-                dataDequeue(parameter.halfDatapathWidth - 1, 0),
-                crossWriteDataMSBHalf(parameter.halfDatapathWidth - 1, 0)
-              )
-            crossWriteMaskMSBHalf :=
-              (record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskMSBHalf(1)) ##
-                (!record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskMSBHalf(0))
-          }.otherwise {
-            // update head
-            crossWriteDataLSBHalf :=
-              Mux(
-                record.csr.vSew(0),
-                dataDequeue(parameter.datapathWidth - 1, parameter.halfDatapathWidth),
-                Mux(
-                  record.executeIndex(0),
-                  dataDequeue(parameter.halfDatapathWidth - 1, 0),
-                  crossWriteDataLSBHalf(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
-                )
-              ) ## Mux(
-                !record.executeIndex(0) || record.csr.vSew(0),
-                dataDequeue(parameter.halfDatapathWidth - 1, 0),
-                crossWriteDataLSBHalf(parameter.halfDatapathWidth - 1, 0)
-              )
-            crossWriteMaskLSBHalf :=
-              (record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskLSBHalf(1)) ##
-                (!record.executeIndex(0) || record.csr.vSew(0) || crossWriteMaskLSBHalf(0))
-          }
-        }
+      val s2Ready = Wire(Bool())
+      val s2Valid = valid1 && stage1Finish
+      val s2Fire: Bool = s2Ready && s2Valid
+      val valid2 = RegInit(false.B)
+      // need clear mask format result when mask group change
+      val updateMaskResult: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
+      // backpressure for stage 1
+      s1Ready := !valid1 || (stage1Finish && s2Ready)
+      // update 'valid1'
+      when(s1Fire ^ s2Fire) {valid1 := s1Fire}
+      val s2ExecuteOver = Wire(Bool())
 
-        // clear mask when group change.
-        when(record.state.asUInt.andR) {
-          crossWriteMaskLSBHalf := 0.U
-          crossWriteMaskMSBHalf := 0.U
-        }
+      // execution result from execute unit
+      val executionResult = RegInit(0.U(parameter.datapathWidth.W))
 
-        /** we have used mask inside mask group, and need to request from [[V]] */
-        val maskNeedUpdate = !nextOrR && (!alwaysNextGroup || lastGroupForMask)
+      /** mask format result for current `mask group` */
+      val maskFormatResultForGroup: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.maskGroupWidth.W)))
 
-        /** the MSB part of [[nextElementIndexInLane]]
-          * [[nextIndex]] is the log2 of [[parameter.datapathWidth]],
-          * it contains the higher bits of element index of lanes
-          * thus [[nextGroupCountMSB]] has the MSB suffix.
-          */
-        val nextGroupCountMSB: UInt = Mux1H(
-          vSew1H(1, 0),
-          Seq(
-            record.groupCounter(parameter.groupNumberBits - 1, parameter.groupNumberBits - 3),
-            false.B ## record.groupCounter(parameter.groupNumberBits - 1, parameter.groupNumberBits - 2)
-          )
-        ) + maskNeedUpdate
+      /** cross write LSB mask to send out to other lanes. */
+      val Stage2crossWriteLSB = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
 
-        /** the next element index in lane to execute */
-        val nextElementIndexInLane = nextGroupCountMSB ## nextIndex
+      /** cross write MSB data to send out to other lanes. */
+      val Stage2crossWriteMSB = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+      // pipe from stage 0
+      val sSendResponseInStage2 = Option.when(isLastSlot)(RegEnable(sSendResponseInStage1.get, true.B, s2Fire))
+      // ffo success in current data group?
+      val ffoSuccessImStage2: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
 
-        /** the data offset of next element in lane to execute
-          * TODO: [[record.csr.vSew]] only has value 0,1,2 for 32bits.
-          */
-        val nextElementOffset = (nextElementIndexInLane << record.csr.vSew).asUInt
-
-        /** calculate the next group with the valid mask.
-          * if ![[alwaysNextGroup]] and some group has no valid mask,
-          * it will be skipped.
-          */
-        val nextGroupMasked: UInt = nextElementOffset(parameter.groupNumberBits + 1, 2)
-
-        /** which execution group to execute next. */
-        val nextGroupCount = Mux(
-          alwaysNextGroup,
-          record.groupCounter + 1.U,
-          nextGroupMasked
+      // executionQueue enqueue
+      executionQueue.io.enq.bits.pipeData.foreach { data =>
+        data := Mux(
+          // pipe source1 for gather, pipe v0 for ffo
+          decodeResult(Decoder.gather) || decodeResult(Decoder.ffo),
+          readResult0,
+          readResult1
         )
-
-        /** the left element in this group has been filter out by the mask. */
-        val maskFilterEnd = skipEnable && (nextGroupMasked =/= record.groupCounter)
-
-        /** this is the last group of the current instruction. */
-        val lastExecuteGroup: Bool = lastGroupForLane === record.groupCounter
-
-        /** the index of execute index in this lane.
-          * this is used to handle the misalignment of vl.
-          * for [[lastExecuteGroup]] and [[isEndLane]], use [[lastElementExecuteIndex]] as the index.
-          * TODO: where is the logic of [[Decoder.maskLogic]]
-          */
-        val lastExecuteIndex = Mux(
-          lastExecuteGroup && isEndLane && !record.laneRequest.decodeResult(Decoder.maskLogic),
-          lastElementExecuteIndex,
-          slotGroupFinishedIndex
+      }
+      executionQueue.io.enq.bits.pipeVD.foreach(_ := readResult2)
+      executionQueue.io.enq.bits.groupCounter := groupCounterInStage1
+      executionQueue.io.enq.bits.mask := Mux1H(
+        vSew1H,
+        Seq(
+          maskForFilterInStage1,
+          FillInterleaved(2, maskForFilterInStage1(1, 0)),
+          // todo: handle first masked
+          FillInterleaved(4, maskForFilterInStage1(0))
         )
+      )
 
-        /** the next group enqueuing to the execution unit is the last group. */
-        val enqGroupEnd = (record.executeIndex === lastExecuteIndex) || maskFilterEnd
 
-        /** the current element group is the last group of this instruction. */
-        val elementGroupEnd = (writeIndex === lastExecuteIndex) || maskFilterEnd
+      // 先用一个伪装的执行单元 todo: 等执行单元重构需要替换
+      if (true) {
+        val executionRecord: ExecutionUnitRecord = RegInit(0.U.asTypeOf(new ExecutionUnitRecord(parameter)(isLastSlot)))
 
-        /** for the case that,
-          * if the the current group is the last group in the instruction
-          * and it need to cross read VRF.
-          * some lane doesn't need to execute but only need to read VRF.
-          * this signal is used to indicate that.
-          */
-        val crossReadVRFOnly = lastGroupForLane < record.groupCounter && noFeedBack
+        val executeIndex1H: UInt = UIntToOH(executionRecord.executeIndex)
 
-        /** this is the last group of [[Decoder.nr]] type
-          */
-        val nrEnd: Bool = record.groupCounter === record.laneRequest.vs1 ## 3.U(2.W)
+        // state register
+        val sSendExecuteRequest = RegInit(true.B)
+        val wExecuteResult = RegInit(true.B)
+        val executeRequestStateValid: Bool = !sSendExecuteRequest
+        s2ExecuteOver := sSendExecuteRequest && wExecuteResult
 
-        // end the execution.
-        instructionExecuteFinished(index) := Mux(
-          nr,
-          nrEnd,
-          crossReadVRFOnly || (lastExecuteGroup && elementGroupEnd) || maskLogicWillCompleted
-        )
-
-        // wait for the cross read to finish.
-        instructionCrossReadFinished := crossReadVRFOnly || readFinish
-
-        /** indicate this is the last VRF write for a instruction for this lane. */
-        val lastVRFWrite: Bool = lastGroupForLane < nextGroupCount
-
-        /** the next index to execute. */
-        val nextExecuteIndex = Mux(
-          alwaysNextGroup && elementGroupEnd,
-          0.U,
-          nextElementOffset(1, 0)
-        )
+        val source1Select: UInt = Mux(decodeResult(Decoder.vtype), readResult0, record.laneRequest.readFromScalar)
+        // init register when s2Fire
+        when(s2Fire) {
+          executionRecord.crossReadVS2 := decodeResult(Decoder.crossRead) && !decodeResult(Decoder.vwmacc)
+          executionRecord.bordersForMaskLogic :=
+            (groupCounterInStage1 === record.lastGroupForInstruction && record.isLastLaneForMaskLogic)
+          executionRecord.mask := maskInStage1
+          executionRecord.source := VecInit(Seq(source1Select, readResult1, readResult2))
+          executionRecord.crossReadSource.foreach(_ := crossReadMSBIn ## crossReadLSBIn)
+          executionRecord.groupCounter := groupCounterInStage1
+          sSendExecuteRequest := decodeResult(Decoder.dontNeedExecuteInLane)
+          wExecuteResult := decodeResult(Decoder.dontNeedExecuteInLane)
+          ffoSuccessImStage2.foreach(_ := false.B)
+        }
 
         /** the byte-level mask of current execution.
           * sew match:
@@ -1591,8 +1033,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val byteMaskForExecution = Mux1H(
           vSew1H(2, 0),
           Seq(
-            UIntToOH(record.executeIndex),
-            record.executeIndex(1) ## record.executeIndex(1) ## !record.executeIndex(1) ## !record.executeIndex(1),
+            executeIndex1H,
+            executionRecord.executeIndex(1) ## executionRecord.executeIndex(1) ##
+              !executionRecord.executeIndex(1) ## !executionRecord.executeIndex(1),
             15.U(4.W)
           )
         )
@@ -1602,7 +1045,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         def CollapseOperand(data: UInt, enable: Bool = true.B, sign: Bool = false.B): UInt = {
           val dataMasked: UInt = data & bitMaskForExecution
-          val select:     UInt = Mux(enable, vSew1H(2, 0), 4.U(3.W))
+          val select: UInt = Mux(enable, vSew1H(2, 0), 4.U(3.W))
           // when sew = 0
           val collapse0 = Seq.tabulate(4)(i => dataMasked(8 * i + 7, 8 * i)).reduce(_ | _)
           // when sew = 1
@@ -1620,8 +1063,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // 有2 * sew 的操作数需要折叠
         def CollapseDoubleOperand(sign: Bool = false.B): UInt = {
           val doubleBitEnable = FillInterleaved(16, byteMaskForExecution)
-          val doubleDataMasked: UInt = (crossReadMSBIn ## crossReadLSBIn) & doubleBitEnable
-          val select:           UInt = vSew1H(1, 0)
+          val doubleDataMasked: UInt = executionRecord.crossReadSource.get & doubleBitEnable
+          val select: UInt = vSew1H(1, 0)
           // when sew = 0
           val collapse0 = Seq.tabulate(4)(i => doubleDataMasked(16 * i + 15, 16 * i)).reduce(_ | _)
           // when sew = 1
@@ -1635,36 +1078,34 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           )
         }
 
-        /** for reduce type, use the result of reduce as input of src1.
-          * for [[Decoder.popCount]], src1 is used for mask.
+        /** collapse the dual SEW size operand for cross read.
+          * it can be vd or src2.
           */
-        val src1IsReduceResult: Bool = reduceType && !record.laneRequest.decodeResult(Decoder.popCount)
+        val doubleCollapse = Option.when(isLastSlot)(CollapseDoubleOperand(!decodeResult(Decoder.unsigned1)))
 
         /** src1 for the execution
           * src1 has three types: V, I, X.
           * only V type need to use [[CollapseOperand]]
           */
         val finalSource1 = CollapseOperand(
-          // for reduce type, use the result of reduce as input of src1.
-          // if not use result from VRF
-          Mux(src1IsReduceResult, reduceResult(index), source1(index)),
-          decodeResult(Decoder.vtype) && !src1IsReduceResult,
+          // A will be updated every time it is executed, so you can only choose here
+          Mux(decodeResult(Decoder.red) && !decodeResult(Decoder.maskLogic), reduceResult, executionRecord.source.head),
+          decodeResult(Decoder.vtype) && (!decodeResult(Decoder.red) || decodeResult(Decoder.maskLogic)),
           !decodeResult(Decoder.unsigned0)
         )
-
-        /** collapse the dual SEW size operand for cross read.
-          * it can be vd or src2.
-          */
-        val doubleCollapse = CollapseDoubleOperand(!decodeResult(Decoder.unsigned1))
 
         /** src2 for the execution,
           * need to take care of cross read.
           */
-        val finalSource2 = Mux(
-          crossReadVS2,
-          doubleCollapse,
-          CollapseOperand(source2(index), true.B, !decodeResult(Decoder.unsigned1))
-        )
+        val finalSource2 = if (isLastSlot) {
+          Mux(
+            executionRecord.crossReadVS2,
+            doubleCollapse.get,
+            CollapseOperand(executionRecord.source(1), true.B, !decodeResult(Decoder.unsigned1))
+          )
+        } else {
+          CollapseOperand(executionRecord.source(1), true.B, !decodeResult(Decoder.unsigned1))
+        }
 
         /** source3 有两种：adc & ma, c等处理mask的时候再处理
           * two types of source3:
@@ -1673,7 +1114,33 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           *
           * this line only handle the first type.
           */
-        val finalSource3 = Mux(decodeResult(Decoder.vwmacc), doubleCollapse, CollapseOperand(source3(index)))
+        val finalSource3: UInt = if (isLastSlot) {
+          Mux(
+            decodeResult(Decoder.vwmacc),
+            doubleCollapse.get,
+            CollapseOperand(executionRecord.source(2))
+          )
+        }else {
+          CollapseOperand(executionRecord.source(2))
+        }
+
+        val maskAsInput = Mux1H(
+          vSew1H(2, 0),
+          Seq(
+            (UIntToOH(executionRecord.executeIndex) & executionRecord.mask).orR,
+            Mux(executionRecord.executeIndex(1), executionRecord.mask(1), executionRecord.mask(0)),
+            executionRecord.mask(0)
+          )
+        )
+
+        /** use mask to fix the case that `vl` is not in the multiple of [[parameter.datapathWidth]].
+          * it will fill the LSB of mask to `0`, mask it to not execute those elements.
+          */
+        val lastGroupMask = scanRightOr(UIntToOH(record.csr.vl(parameter.datapathWidthBits - 1, 0))) >> 1
+
+        /** if [[executionRecord.bordersForMaskLogic]],
+          * use [[lastGroupMask]] to mask the result otherwise use [[fullMask]]. */
+        val maskCorrect = Mux(executionRecord.bordersForMaskLogic, lastGroupMask, fullMask)
 
         // logic request.
         val logicRequest = Wire(new MaskedLogicRequest(parameter.datapathWidth))
@@ -1683,15 +1150,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         logicRequest.src(3) := finalSource3
         logicRequest.opcode := decodeResult(Decoder.uop)
         logicRequests(index) := maskAnd(
-          // TODO: remove !decodeResult(Decoder.other)
-          slotOccupied(index) && decodeResult(Decoder.logic) && !decodeResult(Decoder.other),
+          executeRequestStateValid && decodeResult(Decoder.logic),
           logicRequest
         )
 
         // add request
         val adderRequest = Wire(new LaneAdderReq(parameter.datapathWidth))
         adderRequest.src := VecInit(Seq(finalSource1, finalSource2))
-        adderRequest.mask := maskAsInput
+        adderRequest.mask := maskAsInput && decodeResult(Decoder.maskSource)
         adderRequest.opcode := decodeResult(Decoder.uop)
         adderRequest.sign := !decodeResult(Decoder.unsigned1)
         adderRequest.reverse := decodeResult(Decoder.reverse)
@@ -1700,7 +1166,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         adderRequest.vxrm := record.csr.vxrm
         adderRequest.vSew := record.csr.vSew
         adderRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.adder) && !decodeResult(Decoder.other),
+          executeRequestStateValid && decodeResult(Decoder.adder),
           adderRequest
         )
 
@@ -1709,12 +1175,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         shiftRequest.src := finalSource2
         // 2 * sew has another 1 bit signal.
         shiftRequest.shifterSize := Mux1H(
-          Mux(needCrossRead, vSew1H(1, 0), vSew1H(2, 1)),
+          Mux(executionRecord.crossReadVS2, vSew1H(1, 0), vSew1H(2, 1)),
           Seq(false.B ## finalSource1(3), finalSource1(4, 3))
         ) ## finalSource1(2, 0)
         shiftRequest.opcode := decodeResult(Decoder.uop)
         shiftRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.shift) && !decodeResult(Decoder.other),
+          executeRequestStateValid && decodeResult(Decoder.shift),
           shiftRequest
         )
         shiftRequest.vxrm := record.csr.vxrm
@@ -1727,7 +1193,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         mulRequest.vSew := record.csr.vSew
         mulRequest.vxrm := record.csr.vxrm
         multiplerRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.multiplier) && !decodeResult(Decoder.other),
+          executeRequestStateValid && decodeResult(Decoder.multiplier),
           mulRequest
         )
 
@@ -1736,280 +1202,455 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         divRequest.src := VecInit(Seq(finalSource1, finalSource2))
         divRequest.rem := decodeResult(Decoder.uop)(0)
         divRequest.sign := !decodeResult(Decoder.unsigned0)
-        divRequest.index := record.executeIndex
+        divRequest.index := executionRecord.executeIndex
         dividerRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
+          executeRequestStateValid && decodeResult(Decoder.divider),
           divRequest
         )
 
         // other
         val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
         otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
-        otherRequest.popInit := reduceResult(index)
+        otherRequest.popInit := reduceResult
         otherRequest.opcode := decodeResult(Decoder.uop)
         otherRequest.imm := record.laneRequest.vs1
         otherRequest.laneIndex := laneIndex
-        otherRequest.groupIndex := record.groupCounter
-        otherRequest.executeIndex := record.executeIndex
+        otherRequest.groupIndex := executionRecord.groupCounter
+        otherRequest.executeIndex := executionRecord.executeIndex
         otherRequest.sign := !decodeResult(Decoder.unsigned0)
-        // todo: vmv.v.* decode to mv instead of merge or delete mv
         otherRequest.mask := maskAsInput || !record.laneRequest.mask
         otherRequest.complete := record.ffoByOtherLanes || record.selfCompleted
         otherRequest.maskType := record.laneRequest.mask
         otherRequest.vSew := record.csr.vSew
         otherRequest.vxrm := record.csr.vxrm
         otherRequests(index) := maskAnd(
-          slotOccupied(index) && decodeResult(Decoder.other),
+          executeRequestStateValid && decodeResult(Decoder.other),
           otherRequest
         )
 
-        // mask request
-        // TODO: remove Output
-        val maskRequest: LaneResponse = Wire(Output(new LaneResponse(parameter)))
-
-        /** mask type instructions don't need to communicate with scheduler every cycle
-          * only mask destination type instructions doesn't align with state machine in scheduler
-          * we use [[maskTypeDestinationWriteReady]] to distinguish this
-          *
-          * there are three types:
-          * - for each execution group, need request, e.g. find first one, and indexed
-          * - for each mask group, e.g. [[Decoder.maskDestination]]
-          * - only need to send once at last, [[Decoder.red]] and [[Decoder.popCount]]
-          */
-        val canSendMaskRequest = needResponse && readFinish && record.state.sExecute
-
-        /** in this slot, the [[maskRequest]] is valid. */
-        val maskRequestValid = canSendMaskRequest && !record.state.sSendResponse
-        maskRequest.data := Mux(
-          // todo: decode
-          // TODO: remove !record.laneRequest.loadStore
-          record.laneRequest.decodeResult(Decoder.maskDestination) && !record.laneRequest.loadStore,
-          maskFormatResult,
-          Mux(
-            reduceType,
-            reduceResult(index),
-            Mux(
-              record.laneRequest.decodeResult(Decoder.gather) && !record.laneRequest.loadStore,
-              source1(index),
-              Mux(
-                record.laneRequest.decodeResult(Decoder.ffo) && !record.laneRequest.loadStore,
-                ffoIndexReg,
-                source2(index)
-              )
-            )
+        instructionTypeVec(index) := VecInit(
+          Seq(
+            decodeResult(Decoder.logic),
+            decodeResult(Decoder.adder),
+            decodeResult(Decoder.shift),
+            decodeResult(Decoder.multiplier),
+            decodeResult(Decoder.divider),
+            decodeResult(Decoder.other)
           )
-        )
-        maskRequest.toLSU := record.laneRequest.loadStore
-        maskRequest.instructionIndex := record.laneRequest.instructionIndex
-        maskRequest.ffoSuccess := record.selfCompleted
-        maskRequests(index) := maskAnd(slotOccupied(index) && maskRequestValid, maskRequest)
-        maskRequestValids(index) := maskRequestValid
+        ).asUInt
 
-        // wResponseFeedback state machine control
-        when(
-          laneResponseFeedback.valid && laneResponseFeedback.bits.instructionIndex === record.laneRequest.instructionIndex
-        ) {
-          record.state.wResponseFeedback := true.B
-        }
-
-        // TODO: why no ready?
-        when(maskRequestValid) {
-          record.state.sSendResponse := true.B
-        }
-
-        // assign type of this slot.
-        instructionTypeVec(index) := record.laneRequest.instType
-        // only long latency(div) mask is located at the execution unit
-        // others are located at the VRF write
         executeEnqueueValid(index) := maskAnd(
-          readFinish && !record.state.sExecute && !maskedLongLatency,
+          executeRequestStateValid,
           instructionTypeVec(index)
         )
 
-        // change element in execution unit:
-        // element is issued, or don't need execution(in long latency pipe), need next element.
-        when((instructionTypeVec(index) & executeEnqueueFire).orR || maskedLongLatency) {
-          when(enqGroupEnd) {
-            record.state.sExecute := true.B
-          }.otherwise {
-            // TODO: move out from enqGroupEnd
-            record.executeIndex := nextExecuteIndex
-          }
-          // TODO: record.executeIndex := nextExecuteIndex
+        /** select from VFU, send to [[executionResult]], [[Stage2crossWriteLSB]], [[Stage2crossWriteMSB]]. */
+        val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
+
+        val executeEnqueueFireForSlot: Bool = (instructionTypeVec(index) & executeEnqueueFire).orR
+
+        /** fire of [[dataDequeue]] */
+        val executeDequeueFireForSlot: Bool = (instructionTypeVec(index) & executeDequeueFire).orR
+
+        // mask reg for filtering
+        val maskForFilter = FillInterleaved(4, maskNotMaskedElement) | executionRecord.mask
+        // current one hot depends on execute index
+        val currentOHForExecuteGroup: UInt = UIntToOH(executionRecord.executeIndex)
+        // Remaining to be requested
+        val remainder: UInt = maskForFilter & (~scanRightOr(currentOHForExecuteGroup)).asUInt
+        // Finds the first unfiltered execution.
+        val nextIndex1H: UInt = ffo(remainder)
+
+        // There are no more left.
+        val isLastRequestForThisGroup: Bool =
+          Mux1H(vSew1H, Seq(!remainder.orR, !remainder(1, 0).orR, true.B))
+
+        /** the next index to execute.
+          * @note Requests into this disguised execution unit are not executed on the spot
+          * */
+        val nextExecuteIndex: UInt = Mux1H(
+          vSew1H(1, 0),
+          Seq(
+            OHToUInt(nextIndex1H),
+            // Mux(remainder(0), 0.U, 2.U)
+            !remainder(0) ## false.B
+          )
+        )
+
+        // next execute index if data group change
+        val nextExecuteIndexForNextGroup = Mux1H(
+          vSew1H(1, 0),
+          Seq(
+            OHToUInt(ffo(maskForFilterInStage1)),
+            !maskForFilterInStage1(0) ## false.B,
+          )
+        )
+
+        // update execute index
+        when(executeEnqueueFireForSlot || s2Fire) {
+          executionRecord.executeIndex := Mux(s2Fire, nextExecuteIndexForNextGroup, nextExecuteIndex)
         }
+
+        when(executeEnqueueFireForSlot && isLastRequestForThisGroup) {
+          sSendExecuteRequest := true.B
+        }
+
+        // execute response finish
+        val responseFinish: Bool = Mux(
+          decodeResult(Decoder.divider),
+          executeDequeueFireForSlot && sSendExecuteRequest,
+          executeEnqueueFireForSlot && isLastRequestForThisGroup
+        )
+
+        when(responseFinish) {
+          wExecuteResult := true.B
+        }
+
+        /** the index to write to VRF in [[parameter.dataPathByteWidth]].
+          * for long latency pipe, the index will follow the pipeline.
+          */
+        val writeIndex = Mux(
+          record.laneRequest.decodeResult(Decoder.divider),
+          divWriteIndex,
+          executionRecord.executeIndex
+        )
+
+        val writeIndex1H = UIntToOH(writeIndex)
+
+        /** VRF byte level mask */
+        val writeMaskInByte = Mux1H(
+          vSew1H(2, 0),
+          Seq(
+            writeIndex1H,
+            writeIndex(1) ## writeIndex(1) ## !writeIndex(1) ## !writeIndex(1),
+            "b1111".U(4.W)
+          )
+        )
+
+        /** VRF bit level mask */
+        val writeMaskInBit: UInt = FillInterleaved(8, writeMaskInByte)
+
+        /** output of execution unit need to align to VRF in bit level(used in dynamic shift)
+          * TODO: fix me
+          */
+        val dataOffset: UInt = writeIndex ## 0.U(3.W)
 
         // TODO: this is a dynamic shift logic, but if we switch to parallel execution unit, we don't need it anymore.
         val executeResult = (dataDequeue << dataOffset).asUInt(parameter.datapathWidth - 1, 0)
-        // TODO: remove it.
-        val writeByteEnable = Mux1H(
-          vSew1H(2, 0),
-          Seq(
-            UIntToOH(writeIndex),
-            writeIndex(1) ## writeIndex(1) ## !writeIndex(1) ## !writeIndex(1),
-            15.U(4.W)
-          )
-        )
-        // execute 1,2,4 times based on SEW, only write VRF when 32 bits is ready.
-        val resultUpdate: UInt = (executeResult & writeMaskInBit) | (executionResult(index) & (~writeMaskInBit).asUInt)
-        // VFU is finished, send to VRF.
-        // TODO: `longLatency && !divBusy && groupEnd && record.state.sExecute` ????????
-        when(dataDequeueFire || (longLatency && !divBusy && elementGroupEnd && record.state.sExecute)) {
-          // this element group is finished, including the long latency pipe.
-          when(elementGroupEnd && !(divBusy && longLatency)) {
-            record.state.wExecuteRes := true.B
-          }
 
+        // execute 1,2,4 times based on SEW, only write VRF when 32 bits is ready.
+        val resultUpdate: UInt = (executeResult & writeMaskInBit) | (executionResult & (~writeMaskInBit).asUInt)
+
+        // update execute result
+        when(executeDequeueFireForSlot) {
           // update the [[executionResult]]
-          executionResult(index) := resultUpdate
+          executionResult := resultUpdate
 
           // the find first one instruction is finished in this lane
-          record.selfCompleted := otherResponse.ffoSuccess
+          ffoSuccessImStage2.foreach(_ := otherResponse.ffoSuccess)
           when(otherResponse.ffoSuccess && !record.selfCompleted) {
-            ffoIndexReg := record.groupCounter ## Mux1H(
+            ffoIndexReg := record.lastGroupForInstruction ## Mux1H(
               vSew1H,
               Seq(
-                record.executeIndex ## otherResponse.data(2, 0),
-                record.executeIndex(1) ## otherResponse.data(3, 0),
+                executionRecord.executeIndex ## otherResponse.data(2, 0),
+                executionRecord.executeIndex(1) ## otherResponse.data(3, 0),
                 otherResponse.data(4, 0)
               )
             )
           }
 
-          // update [[vrfWriteMask]], for long latency pipe, only update when response.
-          // if reduce type,
-          when(!masked || (longLatency && divWrite)) {
-            record.vrfWriteMask := record.vrfWriteMask | writeByteEnable
-            // TODO: move out:
-            // when(!masked && reduceType) {
-            //   reduceResult(index) := dataDequeue
-            // }
-            when(reduceType) {
-              reduceResult(index) := dataDequeue
+          // update cross-lane write data
+          /** sew:
+            *   0:
+            *     executeIndex:
+            *       0: mask = 0011, head
+            *       1: mask = 1100, head
+            *       2: mask = 0011, tail
+            *       3: mask = 1100, tail
+            *   1:
+            *     executeIndex:
+            *       0: mask = 1111, head
+            *       2: mask = 1111, tail
+            *
+            *   2: not valid in SEW = 2
+            */
+          if (isLastSlot) {
+            when(executionRecord.executeIndex(1)) {
+              Stage2crossWriteMSB.foreach { crossWriteData =>
+                // update tail
+                crossWriteData :=
+                  Mux(
+                    record.csr.vSew(0),
+                    dataDequeue(parameter.datapathWidth - 1, parameter.halfDatapathWidth),
+                    Mux(
+                      executionRecord.executeIndex(0),
+                      dataDequeue(parameter.halfDatapathWidth - 1, 0),
+                      crossWriteData(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
+                    )
+                  ) ## Mux(
+                    !executionRecord.executeIndex(0) || record.csr.vSew(0),
+                    dataDequeue(parameter.halfDatapathWidth - 1, 0),
+                    crossWriteData(parameter.halfDatapathWidth - 1, 0)
+                  )
+              }
+            }.otherwise {
+              Stage2crossWriteLSB.foreach { crossWriteData =>
+                crossWriteData :=
+                  Mux(
+                    record.csr.vSew(0),
+                    dataDequeue(parameter.datapathWidth - 1, parameter.halfDatapathWidth),
+                    Mux(
+                      executionRecord.executeIndex(0),
+                      dataDequeue(parameter.halfDatapathWidth - 1, 0),
+                      crossWriteData(parameter.datapathWidth - 1, parameter.halfDatapathWidth)
+                    )
+                  ) ## Mux(
+                    !executionRecord.executeIndex(0) || record.csr.vSew(0),
+                    dataDequeue(parameter.halfDatapathWidth - 1, 0),
+                    crossWriteData(parameter.halfDatapathWidth - 1, 0)
+                  )
+              }
             }
           }
         }
 
-        /** update value for [[maskFormatResultUpdate]],
-          * it comes from ALU.
-          */
-        val elementMaskFormatResult: UInt = Mux(adderMaskResp && !masked, current1H, 0.U)
+        // update mask result
+        if (isLastSlot) {
+          val current1HInGroup = Mux1H(
+            vSew1H(2, 0),
+            Seq(
+              // 32bit, 4 bit per data group, it will had 8 data groups -> executeIndex1H << 4 * groupCounter(2, 0)
+              executeIndex1H << (executionRecord.groupCounter(2, 0) ## 0.U(2.W)),
+              // 2 bit per data group, it will had 16 data groups -> executeIndex1H << 2 * groupCounter(3, 0)
+              (executionRecord.executeIndex(1) ## !executionRecord.executeIndex(1)) <<
+                (executionRecord.groupCounter(3, 0) ## false.B),
+              // 1 bit per data group, it will had 32 data groups -> executeIndex1H << 1 * groupCounter(4, 0)
+              1.U << executionRecord.groupCounter(4, 0)
+            )
+          ).asUInt
 
-        /** update value for [[maskFormatResult]] */
-        val maskFormatResultUpdate: UInt = maskFormatResult | elementMaskFormatResult
+          /** update value for [[maskFormatResultUpdate]],
+            * it comes from ALU.
+            */
+          val elementMaskFormatResult: UInt = Mux(adderMaskResp, current1HInGroup, 0.U)
 
-        // update [[maskFormatResult]]
-        when(dataDequeueFire || maskRequestValid) {
-          maskFormatResult := Mux(maskRequestValid, 0.U, maskFormatResultUpdate)
+          /** update value for [[maskFormatResultForGroup]] */
+          val maskFormatResultUpdate: UInt = maskFormatResultForGroup.get | elementMaskFormatResult
+
+          // update `maskFormatResultForGroup`
+          when(executeDequeueFireForSlot || updateMaskResult.get) {
+            maskFormatResultForGroup.foreach(_ := Mux(executeDequeueFireForSlot, maskFormatResultUpdate, 0.U))
+          }
+          // masked element don't update 'reduceResult'
+          val updateReduceResult = (maskNotMaskedElement || maskAsInput) && executeDequeueFireForSlot
+          // update `reduceResult`
+          when( updateReduceResult || updateMaskResult.get) {
+            reduceResult := Mux(updateReduceResult && decodeResult(Decoder.red), dataDequeue, 0.U)
+          }
+        }
+      }
+
+      // --- stage 2 end & stage 3 start ---
+      // Since top has only one mask processing unit,
+      // all instructions that interact with top are placed in a single slot
+
+      val s3Valid = valid2 && s2ExecuteOver
+      val s3Ready = Wire(Bool())
+      val s3Fire = s3Valid && s3Ready
+      // Used to update valid3 without writing vrf
+      val s3DequeueFire: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
+      val valid3: Option[Bool] = Option.when(isLastSlot)(RegInit(0.U(false.B)))
+      // use for cross-lane write
+      val groupCounterInStage3: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(7.W)))
+      val maskInStage3: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(4.W)))
+      val executionResultInStage3 = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+      val pipeDataInStage3 = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+      // result for vfirst type instruction
+      val ffoIndexRegInStage3 = Option.when(isLastSlot)(RegInit(0.U(log2Ceil(parameter.vLen / 8).W)))
+      // pipe vd for ff0
+      val pipeVDInStage3: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+      updateMaskResult.foreach(_ := s3Fire && !sSendResponseInStage2.get)
+      // cross write result
+      val Stage3crossWriteLSB = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+      val Stage3crossWriteMSB = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+
+      // cross write state
+      /** schedule cross lane write LSB */
+      val sCrossWriteLSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      /** schedule cross lane write MSB */
+      val sCrossWriteMSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      // data for response to scheduler
+      val schedulerResponseData: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+
+      // state for response to scheduler
+      /** schedule send [[LaneResponse]] to scheduler */
+      val sSendResponse: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      /** wait scheduler send [[LaneResponseFeedback]] */
+      val wResponseFeedback: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+      val vrfWriteVundle: VRFWriteRequest = new VRFWriteRequest(
+        parameter.vrfParam.regNumBits,
+        parameter.vrfOffsetBits,
+        parameter.instructionIndexBits,
+        parameter.datapathWidth
+      )
+
+      val vrfWriteQueue: Queue[VRFWriteRequest] =
+        Module(new Queue(vrfWriteVundle, entries = 1, pipe = false, flow = false))
+      valid3.foreach {data => when(s3DequeueFire.get ^ s3Fire) { data := s3Fire }}
+
+      /** Write queue ready or not need to write. */
+      val vrfWriteReady: Bool = vrfWriteQueue.io.enq.ready || decodeResult(Decoder.sWrite)
+
+      if (isLastSlot) {
+        // VRF cross write
+        /** execute in ALU, try to send cross lane write LSB data to ring */
+        val tryCrossWriteSendLSB = valid3.get && !sCrossWriteLSB.get
+
+        /** execute in ALU, try to send cross lane write MSB data to ring */
+        val tryCrossWriteSendMSB = valid3.get && !sCrossWriteMSB.get
+        crossLaneWrite.bits.sinkIndex := laneIndex(parameter.laneNumberBits - 2, 0) ## (!tryCrossWriteSendLSB)
+        crossLaneWrite.bits.sourceIndex := laneIndex
+        crossLaneWrite.bits.isTail := laneIndex(parameter.laneNumberBits - 1)
+        crossLaneWrite.bits.instructionIndex := record.laneRequest.instructionIndex
+        crossLaneWrite.bits.counter := groupCounterInStage3.get
+        crossLaneWrite.bits.data := Mux(tryCrossWriteSendLSB, Stage3crossWriteLSB.get, Stage3crossWriteMSB.get)
+        crossLaneWrite.bits.mask := Mux(tryCrossWriteSendLSB, maskInStage3.get(1, 0), maskInStage3.get(3, 2))
+        crossLaneWrite.valid := tryCrossWriteSendLSB || tryCrossWriteSendMSB
+
+        when(crossLaneWriteReady && crossLaneWrite.valid) {
+          sCrossWriteLSB.foreach(_ := true.B)
+          when(sCrossWriteLSB.get) {
+            sCrossWriteMSB.foreach(_ := true.B)
+          }
+        }
+        // scheduler synchronization
+        val schedulerFinish: Bool = (sSendResponse ++ wResponseFeedback).reduce(_ && _)
+
+        // mask request
+        laneResponse.valid := valid3.get && !sSendResponse.get
+        laneResponse.bits.data := Mux(decodeResult(Decoder.ffo), ffoIndexRegInStage3.get, pipeDataInStage3.get)
+        laneResponse.bits.toLSU := record.laneRequest.loadStore
+        laneResponse.bits.instructionIndex := record.laneRequest.instructionIndex
+        laneResponse.bits.ffoSuccess := record.selfCompleted
+
+        sSendResponse.foreach(state => when(laneResponse.valid) { state := true.B})
+        wResponseFeedback.foreach(state => when(laneResponseFeedback.valid) { state := true.B})
+
+        when(laneResponseFeedback.valid && slotOccupied(index)) {
+          when(laneResponseFeedback.bits.complete) { record.ffoByOtherLanes := true.B }
+          assert(laneResponseFeedback.bits.instructionIndex === record.laneRequest.instructionIndex)
         }
 
-        /** if the find first one instruction is finished by other lanes,
-          * what should be written to VRF.
-          */
-        val ffoWriteVRFByOtherLanes = Mux(record.laneRequest.mask, (~source1(index)).asUInt & source3(index), 0.U)
-
-        /** no need to wait for scheduler */
-        val noNeedWaitScheduler: Bool = !canSendMaskRequest || decodeResult(Decoder.scheduler) || schedulerFinish
-
-        vrfWriteArbiter(index).valid :=
-          // state machine says: execute is finished(or don't need to execute) and need to write VRF(but not write yet)
-          record.state.wExecuteRes && !record.state.sWrite &&
-          // read VRF but not execute
-          readFinish &&
-          // no need to wait for scheduler
-          (!canSendMaskRequest || decodeResult(Decoder.scheduler) || schedulerFinish) &&
-          // this slot is active
-          slotActive(index)
+        // enqueue write for last slot
+        vrfWriteQueue.io.enq.valid := valid3.get && schedulerFinish && !decodeResult(Decoder.sWrite)
 
         // UInt(5.W) + UInt(3.W), use `+` here
-        vrfWriteArbiter(index).bits.vd := record.laneRequest.vd + record.groupCounter(
+        vrfWriteQueue.io.enq.bits.vd := record.laneRequest.vd + groupCounterInStage3.get(
           parameter.groupNumberBits - 1,
           parameter.vrfOffsetBits
         )
 
-        vrfWriteArbiter(index).bits.offset := record.groupCounter
+        vrfWriteQueue.io.enq.bits.offset := groupCounterInStage3.get
 
-        vrfWriteArbiter(index).bits.data := Mux(
-          record.ffoByOtherLanes,
-          ffoWriteVRFByOtherLanes,
-          Mux(nr, source2(index), executionResult(index))
+        /** what will write into vrf when ffo type instruction finished by other lanes */
+        val completeWrite: UInt = Mux(record.laneRequest.mask, (~pipeDataInStage3.get).asUInt & pipeVDInStage3.get, 0.U)
+        vrfWriteQueue.io.enq.bits.data := Mux(
+          decodeResult(Decoder.nr),
+          pipeDataInStage3.get,
+          Mux(
+            record.ffoByOtherLanes,
+            completeWrite,
+            executionResultInStage3.get
+          )
+        )
+        vrfWriteQueue.io.enq.bits.last := DontCare
+        vrfWriteQueue.io.enq.bits.instructionIndex := record.laneRequest.instructionIndex
+        vrfWriteQueue.io.enq.bits.mask := maskInStage3.get
+
+        // Handshake
+        /** Cross-lane writing is over */
+        val CrossLaneWriteOver: Bool = (sCrossWriteLSB ++ sCrossWriteMSB).reduce(_ && _)
+
+        s3Ready := !valid3.get || (CrossLaneWriteOver && schedulerFinish && vrfWriteReady)
+        s3DequeueFire.foreach(_ := valid3.get && CrossLaneWriteOver && schedulerFinish && vrfWriteReady)
+
+        //Update the registers of stage3
+        when(s3Fire) {
+          groupCounterInStage3.foreach(_ := executionQueue.io.deq.bits.groupCounter)
+          maskInStage3.foreach(_ := executionQueue.io.deq.bits.mask)
+          executionResultInStage3.foreach(_ := executionResult)
+          // todo: update maskFormatResult & reduceResult
+          pipeDataInStage3.foreach(_ := Mux(
+            decodeResult(Decoder.maskDestination),
+            maskFormatResultForGroup.get,
+            Mux(
+              decodeResult(Decoder.red),
+              reduceResult,
+              executionQueue.io.deq.bits.pipeData.get
+            )
+          ))
+          ffoIndexRegInStage3.foreach(_ := ffoIndexReg)
+          pipeVDInStage3.foreach(_ := executionQueue.io.deq.bits.pipeVD.get)
+          // cross write data
+          Stage3crossWriteLSB.foreach(_ := Stage2crossWriteLSB.get)
+          Stage3crossWriteMSB.foreach(_ := Stage2crossWriteMSB.get)
+          // init state
+          (sCrossWriteLSB ++ sCrossWriteMSB).foreach(_ := !decodeResult(Decoder.crossWrite))
+          // todo: save mask destination result if needSendResponse at stage 2?
+          (sSendResponse ++ wResponseFeedback).foreach(
+            _ := decodeResult(Decoder.scheduler) || sSendResponseInStage2.get
+          )
+
+          // save scheduler data, todo: select result when update 'executionResultInStage3'
+          schedulerResponseData.foreach { data =>
+            data := Mux(
+              record.laneRequest.decodeResult(Decoder.maskDestination),
+              maskFormatResultForGroup.get,
+              executionResultInStage3.get
+            )
+          }
+
+          ffoSuccessImStage2.foreach(record.selfCompleted := _)
+          // This group found means the next group ended early
+          record.ffoByOtherLanes := record.ffoByOtherLanes || record.selfCompleted
+        }
+      } else {
+        // Normal will be one level less
+        vrfWriteQueue.io.enq.valid := s3Fire
+
+        // UInt(5.W) + UInt(3.W), use `+` here
+        vrfWriteQueue.io.enq.bits.vd := record.laneRequest.vd + executionQueue.io.deq.bits.groupCounter(
+          parameter.groupNumberBits - 1,
+          parameter.vrfOffsetBits
         )
 
-        // todo: 是否条件有多余
-        vrfWriteArbiter(index).bits.last := instructionExecuteFinished(index) || lastVRFWrite
+        vrfWriteQueue.io.enq.bits.offset := executionQueue.io.deq.bits.groupCounter
 
-        vrfWriteArbiter(index).bits.instructionIndex := record.laneRequest.instructionIndex
+        vrfWriteQueue.io.enq.bits.data := executionResult
+        vrfWriteQueue.io.enq.bits.last := DontCare
+        vrfWriteQueue.io.enq.bits.instructionIndex := record.laneRequest.instructionIndex
+        vrfWriteQueue.io.enq.bits.mask := executionQueue.io.deq.bits.mask
 
-        vrfWriteArbiter(index).bits.mask := record.vrfWriteMask | Fill(4, nr)
-
-        when(vrfWriteFire(index)) {
-          record.state.sWrite := true.B
-        }
-        // TODO: don't last connect, use WireDefault
-        instructionFinishedVec(index) := 0.U(parameter.chainingSize.W)
-
-        /** state machine to check the element group is finished. */
-        val groupFinishCheckedByStateMachine = Mux(
-          crossReadVRFOnly,
-          readFinish,
-          (readFinish && executeFinish && sendCrossReadResultFinish && crossWriteFinish) &&
-            (!needResponse || schedulerFinish) &&
-            // can update mask or don't need to update mask
-            (maskRequestFireOH(index) || !maskNeedUpdate)
-        )
-
-        // finish group or vl is too small to use this lane
-        when(groupFinishCheckedByStateMachine || record.instructionFinished) {
-          // instruction is finished
-          when(
-            // the instruction is finished in this slot
-            (instructionExecuteFinished(index) &&
-              // cross lane read is finished
-              (!needCrossRead || instructionCrossReadFinished) &&
-              // don't need scheduler feedback
-              noFeedBack) ||
-              // vl is too small to use this lane
-              record.instructionFinished
-          ) {
-            slotOccupied(index) := false.B
-            maskFormatResult := 0.U
-            when(slotOccupied(index)) {
-              instructionFinishedVec(index) := UIntToOH(
-                record.laneRequest.instructionIndex(parameter.instructionIndexBits - 2, 0)
-              )
-            }
-          }
-            // instruction is not finished, thus element group is changed.
-            .otherwise {
-              record.state := record.laneRequest.initState
-              record.groupCounter := nextGroupCount
-              record.executeIndex := nextExecuteIndex
-              record.vrfWriteMask := 0.U
-              when(maskRequestFireOH(index)) {
-                record.mask.valid := true.B
-                record.mask.bits := maskInput
-                record.maskGroupedOrR := maskGroupedOrR
-              }
-            }
-        }
-
-        //
-        when(
-          laneResponseFeedback.bits.complete && laneResponseFeedback.valid &&
-            laneResponseFeedback.bits.instructionIndex === record.laneRequest.instructionIndex
-        ) {
-          // previous elements found first one
-          record.ffoByOtherLanes := true.B
-
-          // indexed load/store read offset.
-          // most of mask unit don't need execute.
-          when(decodeResult(Decoder.dontNeedExecuteInLane)) {
-            slotOccupied(index) := false.B
-          }
-        }
-        // sending mask group change request to scheduler.
-        slotMaskRequestVec(index).valid := maskNeedUpdate
-        slotMaskRequestVec(index).bits := nextGroupCountMSB
+        // Handshake
+        s3Ready := vrfWriteQueue.io.enq.ready
       }
+      s2Ready := !valid2 || (s2ExecuteOver && s3Ready && executionQueue.io.enq.ready)
+      when(s2Fire ^ s3Fire) {valid2 := s2Fire}
+      // s2 enqueue valid & s2 all ready except executionQueue
+      executionQueue.io.enq.valid := s2Valid && ((s2ExecuteOver && s3Ready) || !valid2)
+      executionQueue.io.deq.ready := s3Ready && s2ExecuteOver
+
+      // --- stage 3 end & stage 4 start ---
+      // vrfWriteQueue try to write vrf
+      vrfWriteArbiter(index).valid := vrfWriteQueue.io.deq.valid
+      vrfWriteArbiter(index).bits := vrfWriteQueue.io.deq.bits
+      vrfWriteQueue.io.deq.ready := vrfWriteFire(index)
+
+      pipeClear := !(Seq(valid0, valid1, valid2, vrfWriteQueue.io.deq.valid) ++ valid3).reduce(_ || _)
   }
 
   // Read Ring
@@ -2022,7 +1663,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     readBusPort.enq.bits.sinkIndex === laneIndex &&
     // because the ring may send unordered transactions, we need the check the counter on the ring.
     // TODO: add one depth escape queue to latch the case that transaction on the ring is not the current groupCounter.
-    readBusPort.enq.bits.counter === slotControl.head.groupCounter
+    readBusPort.enq.bits.counter === readBusDequeueGroup
   }
   // when `readBusDequeueMatch`, local lane must be ready.
   readBusDequeue.valid := readBusDequeueMatch && readBusPort.enq.valid
@@ -2067,7 +1708,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   crossLaneWriteQueue.io.enq.bits.vd := slotControl.head.laneRequest.vd + writeBusPort.enq.bits.counter(3, 1)
   crossLaneWriteQueue.io.enq.bits.offset := writeBusPort.enq.bits.counter ## writeBusPort.enq.bits.isTail
   crossLaneWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
-  crossLaneWriteQueue.io.enq.bits.last := instructionExecuteFinished.head && writeBusPort.enq.bits.isTail
+  crossLaneWriteQueue.io.enq.bits.last := DontCare
   crossLaneWriteQueue.io.enq.bits.instructionIndex := slotControl.head.laneRequest.instructionIndex
   crossLaneWriteQueue.io.enq.bits.mask := FillInterleaved(2, writeBusPort.enq.bits.mask)
 
@@ -2112,10 +1753,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       .reduce(_ | _)
       .asTypeOf(new LaneDivRequest(parameter.datapathWidth))
     otherUnit.req := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(parameter)))
-    laneResponse.bits := VecInit(maskRequests.map(_.asUInt))
-      .reduce(_ | _)
-      .asTypeOf(Output(new LaneResponse(parameter)))
-    laneResponse.valid := maskRequestValids.asUInt.orR
     // 执行单元的其他连接
     otherResponse := otherUnit.resp
     lastDivWriteIndexWire := div.index
@@ -2205,8 +1842,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.csr := csrInterface
 
   entranceControl.laneRequest := laneRequest.bits
-  // TODO: fix me with decode
-  entranceControl.state := laneRequest.bits.initState
   // TODO: in scalar core, raise illegal instruction exception when vstart is nonzero.
   //   see [[https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#37-vector-start-index-csr-vstart]]
   //   "Such implementations are permitted to raise an illegal instruction exception
@@ -2229,21 +1864,67 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.maskGroupedOrR := maskGroupedOrR
   // mask used for VRF write in this group.
   entranceControl.vrfWriteMask := 0.U
-  // todo: vStart(2,0) > lane index
-  // which group to start.
-  // TODO: set to 0.
-  entranceControl.groupCounter := (csrInterface.vStart >> 3).asUInt
 
-  /** slot inside [[Lane]] is ready to shift.
-    * don't shift when feedback.
+  // calculate last group
+  val lastElementIndex: UInt = (csrInterface.vl - 1.U)(parameter.vlMaxBits - 2, 0)
+  val requestVSew1H:    UInt = UIntToOH(csrInterface.vSew)
+
+  /** For an instruction, the last group is not executed by all lanes,
+    * here is the last group of the instruction
+    * xxxxx xxx xx -> vsew = 0
+    * xxxxxx xxx x -> vsew = 1
+    * xxxxxxx xxx  -> vsew = 2
     */
-  val shiftReady = slotCanShift.asUInt.andR && !laneResponseFeedback.valid
+  val lastGroupForInstruction: UInt = Mux1H(
+    requestVSew1H(2, 0),
+    Seq(
+      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 2),
+      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 1),
+      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits)
+    )
+  )
 
-  // handshake
-  laneRequest.ready := !slotOccupied.head && vrf.instructionWriteReport.ready && shiftReady
+  /** Which lane the last element is in. */
+  val lastLaneIndex: UInt = Mux1H(
+    requestVSew1H(2, 0),
+    Seq(
+      lastElementIndex(parameter.laneNumberBits + 2 - 1, 2),
+      lastElementIndex(parameter.laneNumberBits + 1 - 1, 1),
+      lastElementIndex(parameter.laneNumberBits - 1, 0)
+    )
+  )
 
-  // Slot shift logic
-  when(
+  /** The relative position of the last lane determines the processing of the last group. */
+  val lanePositionLargerThanEndLane: Bool = laneIndex > lastLaneIndex
+  val isEndLane: Bool = laneIndex === lastLaneIndex
+  val lastGroupForLane: UInt = lastGroupForInstruction - lanePositionLargerThanEndLane
+
+  // last group for mask logic type
+  /** xxx   xxx     xxxxx
+    * head  body    tail
+    */
+  val vlTail: UInt = csrInterface.vl(parameter.datapathWidthBits - 1, 0)
+  val vlBody: UInt =
+    csrInterface.vl(parameter.datapathWidthBits + parameter.laneNumberBits - 1, parameter.datapathWidthBits)
+  val vlHead: UInt = csrInterface.vl(parameter.vlMaxBits - 1, parameter.datapathWidthBits + parameter.laneNumberBits)
+  val lastGroupMask = scanRightOr(UIntToOH(vlTail)) >> 1
+  val dataPathMisaligned = vlTail.orR
+  val maskeDataGroup = (vlHead ## vlBody) - !dataPathMisaligned
+  val lastLaneIndexForMaskLogic: UInt = maskeDataGroup(parameter.laneNumberBits - 1, 0)
+  val isLastLaneForMaskLogic: Bool = lastLaneIndexForMaskLogic === laneIndex
+  val lastGroupCountForMaskLogic: UInt = (maskeDataGroup >> parameter.laneNumberBits).asUInt
+
+  entranceControl.lastGroupForInstruction := Mux(
+    laneRequest.bits.decodeResult(Decoder.maskLogic),
+    lastGroupCountForMaskLogic,
+    lastGroupForLane
+  )
+
+  entranceControl.isLastLaneForMaskLogic :=
+    isLastLaneForMaskLogic && dataPathMisaligned && laneRequest.bits.decodeResult(Decoder.maskLogic)
+
+  // slot needs to be moved
+  slotShiftValid :=
     // the first slot is not occupied
     !slotOccupied.head &&
       (
@@ -2251,19 +1932,23 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         slotOccupied.asUInt.orR ||
           // new instruction enqueue
           laneRequest.valid
-      ) &&
-      // slots is ready to shift
-      shiftReady
-  ) {
+        )
+
+  /** slot inside [[Lane]] is ready to shift.
+    * don't shift when feedback.
+    */
+  val shiftReady: Bool = slotCanShift.asUInt.andR && !laneResponseFeedback.valid
+
+  // handshake
+  laneRequest.ready := !slotOccupied.head && vrf.instructionWriteReport.ready && shiftReady
+
+  // Slot shift logic
+  when(slotShiftValid && shiftReady) {
     slotOccupied := VecInit(slotOccupied.tail :+ laneRequest.valid)
-    source1 := VecInit(source1.tail :+ laneRequest.bits.readFromScalar)
     slotControl := VecInit(slotControl.tail :+ entranceControl)
-    executionResult := VecInit(executionResult.tail :+ 0.U(parameter.datapathWidth.W))
-    reduceResult := VecInit(reduceResult.tail :+ 0.U(parameter.datapathWidth.W))
-    source2 := VecInit(source2.tail :+ 0.U(parameter.datapathWidth.W))
-    source3 := VecInit(source3.tail :+ 0.U(parameter.datapathWidth.W))
-    crossWriteMaskLSBHalf := 0.U
-    crossWriteMaskMSBHalf := 0.U
+    maskGroupCountVec := VecInit(maskGroupCountVec.tail :+ 0.U(parameter.maskGroupSizeBits.W))
+    maskIndexVec := VecInit(maskIndexVec.tail :+ 0.U(log2Ceil(parameter.maskGroupWidth).W))
+    pipeFinishVec := VecInit(pipeFinishVec.tail :+ false.B)
   }
 
   vrf.flush := maskUnitFlushVrf
@@ -2273,7 +1958,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.offset := 0.U //todo
   vrf.instructionWriteReport.bits.vdOffset := 0.U
   vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd
-  vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.initState.sWrite || (laneRequest.bits.loadStore && !laneRequest.bits.store)
+  vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.decodeResult(Decoder.sWrite) || (laneRequest.bits.loadStore && !laneRequest.bits.store)
   vrf.instructionWriteReport.bits.vs2 := laneRequest.bits.vs2
   vrf.instructionWriteReport.bits.vs1.bits := laneRequest.bits.vs1
   vrf.instructionWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)
@@ -2290,7 +1975,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.crossWrite)
   vrf.instructionWriteReport.bits.stFinish := false.B
   vrf.instructionWriteReport.bits.mul := Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
-  vrf.lsuLastReport := lsuLastReport
+  // clear record by instructionFinished
+  vrf.lsuLastReport := lsuLastReport | instructionFinished
   vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear
   instructionFinished := instructionFinishedVec.reduce(_ | _)
 }

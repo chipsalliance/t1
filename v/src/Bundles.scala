@@ -156,46 +156,6 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   // vmacc 的vd需要跨lane读 TODO: move to [[V]]
   def ma: Bool =
     decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).xorR && !decodeResult(Decoder.vwmacc)
-
-  // TODO: move to Module
-  def initState: InstGroupState = {
-    val res: InstGroupState = Wire(new InstGroupState(param))
-    val sCrossRead = !decodeResult(Decoder.crossRead)
-    val sCrossWrite = !decodeResult(Decoder.crossWrite)
-    // decode的时候需要注意有些bit操作的指令虽然不需要读vs1,但是需要读v0
-    res.sRead1 := !decodeResult(Decoder.vtype)
-    res.sRead2 := false.B
-    res.sReadVD := decodeResult(Decoder.sReadVD)
-    res.wCrossReadLSB := sCrossRead
-    res.wCrossReadMSB := sCrossRead
-    res.wResponseFeedback := decodeResult(Decoder.scheduler)
-    res.sSendResponse := decodeResult(Decoder.scheduler)
-    res.sExecute := decodeResult(Decoder.dontNeedExecuteInLane)
-    res.wExecuteRes := decodeResult(Decoder.dontNeedExecuteInLane)
-    res.sWrite := decodeResult(Decoder.sWrite)
-    res.sCrossWriteLSB := sCrossWrite
-    res.sCrossWriteMSB := sCrossWrite
-    res.sSendCrossReadResultLSB := sCrossRead
-    res.sSendCrossReadResultMSB := sCrossRead
-    res.sCrossReadLSB := sCrossRead
-    res.sCrossReadMSB := sCrossRead
-    res
-  }
-
-  // TODO: move to Module
-  // TODO: remove instType
-  def instType: UInt = {
-    VecInit(
-      Seq(
-        decodeResult(Decoder.logic) && !decodeResult(Decoder.other),
-        decodeResult(Decoder.adder) && !decodeResult(Decoder.other),
-        decodeResult(Decoder.shift) && !decodeResult(Decoder.other),
-        decodeResult(Decoder.multiplier) && !decodeResult(Decoder.other),
-        decodeResult(Decoder.divider) && !decodeResult(Decoder.other),
-        decodeResult(Decoder.other)
-      )
-    ).asUInt
-  }
 }
 
 class InstGroupState(param: LaneParameter) extends Bundle {
@@ -264,16 +224,16 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
   /** Store request from [[V]]. */
   val laneRequest: LaneRequest = new LaneRequest(param)
 
-  /** State machine of the current instruction. */
-  val state: InstGroupState = new InstGroupState(param)
-
   /** csr follows the instruction.
     * TODO: move to [[laneRequest]]
     */
   val csr: CSRInterface = new CSRInterface(param.vlMaxBits)
 
-  /** which group in the slot is executing. */
-  val groupCounter: UInt = UInt(param.groupNumberBits.W)
+  /** which group is the last group for instruction. */
+  val lastGroupForInstruction: UInt = UInt(param.groupNumberBits.W)
+
+  /** this is the last lane for mask type instruction */
+  val isLastLaneForMaskLogic: Bool = Bool()
 
   /** the find first one instruction is finished by other lanes,
     * for example, sbf(set before first)
@@ -631,4 +591,33 @@ class LSURequest(dataWidth: Int) extends Bundle {
     * TODO: parameterize it.
     */
   val instructionIndex: UInt = UInt(3.W)
+}
+
+// queue bundle for execute stage
+class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bundle {
+  // which group for this execution
+  val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
+
+  // mask for this execute group
+  val mask: UInt = UInt(4.W)
+
+  /** Store some data that will be used later. e.g:
+    * ffo Write VRF By OtherLanes: What should be written into vrf if ffo end by other lanes. pipe from s0
+    * read result of vs2, for instructions that are not executed, pipe from s1
+    */
+  val pipeData: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+  /** pipe vd for ffo */
+  val pipeVD: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+}
+
+// Record of temporary execution units
+class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends Bundle {
+  val crossReadVS2: Bool = Bool()
+  val bordersForMaskLogic: Bool = Bool()
+  val mask: UInt = UInt(4.W)
+  val executeIndex: UInt = UInt(2.W)
+  val source: Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
+  val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+  /** groupCounter need use to update `Lane.maskFormatResultForGroup` */
+  val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
 }
