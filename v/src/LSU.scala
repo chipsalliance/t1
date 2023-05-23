@@ -337,5 +337,5 @@ class LSU(param: LSUParam) extends Module {
   lastReport := mshrVec
     .map(m => Mux(m.status.last, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U))
     .reduce(_ | _)
-  lsuOffsetRequest := VecInit(mshrVec.map(_.status.indexGroupEnd)).asUInt.orR
+  lsuOffsetRequest := VecInit(mshrVec.map(_.status.offsetGroupEnd)).asUInt.orR
 }
