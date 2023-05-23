@@ -471,7 +471,9 @@ class VRFReadRequest(regNumBits: Int, offsetBits: Int, instructionIndexBits: Int
   /** address to access VRF.(v0, v1, v2, ...) */
   val vs: UInt = UInt(regNumBits.W)
 
-  /** the offset of VRF access. */
+  /** the offset of VRF access.
+    * TODO: rename to offsetForVSInLane
+    */
   val offset: UInt = UInt(offsetBits.W)
 
   /** index for record the age of instruction, designed for handling RAW hazard */

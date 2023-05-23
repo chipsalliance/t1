@@ -6,18 +6,17 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelAParameter, T
 
 /**
   * @param datapathWidth ELEN
-  * @param chainingSize how many instructions can be chained
-  * @param vLen VLEN
-  * @param laneNumber how many lanes in the vector processor
-  * @param paWidth physical address width
-  *
+  * @param chainingSize  how many instructions can be chained
+  * @param vLen          VLEN
+  * @param laneNumber    how many lanes in the vector processor
+  * @param paWidth       physical address width
   * @note
   * MSHR group:
-  *   The memory access of a single instruction will be grouped into MSHR group.
-  *   Because indexed load/store need to access VRF to get the offset of memory address to access,
-  *   we use the maximum count of transactions of indexed load/store in each memory access operation for each lanes
-  *   to calculate the size of MSHR.
-  *   The MSHR group maintains a group of transactions with a set of base address.
+  * The memory access of a single instruction will be grouped into MSHR group.
+  * Because indexed load/store need to access VRF to get the offset of memory address to access,
+  * we use the maximum count of transactions of indexed load/store in each memory access operation for each lanes
+  * to calculate the size of MSHR.
+  * The MSHR group maintains a group of transactions with a set of base address.
   */
 case class MSHRParam(
   chainingSize:  Int,
@@ -43,6 +42,7 @@ case class MSHRParam(
   val maxOffsetPerLaneAccess: Int = datapathWidth * laneNumber / sewMin
 
   /** the maximum size of memory requests a MSHR can maintain.
+    *
     * @note this is mask size
     */
   val maxOffsetGroupSize: Int = vLen / maxOffsetPerLaneAccess
@@ -98,10 +98,10 @@ class MSHRStatus(laneNumber: Int) extends Bundle {
   /** indicate this MSHR is idle. */
   val idle: Bool = Bool()
 
-  /** the MSHR finished the current index group,
+  /** the MSHR finished the current offset group,
     * need to notify Scheduler for next index group.
     */
-  val indexGroupEnd: Bool = Bool()
+  val offsetGroupEnd: Bool = Bool()
 
   /** the current lane that this MSHR is accessing. */
   val targetLane: UInt = UInt(laneNumber.W)
@@ -117,21 +117,20 @@ class MSHRStage0Bundle(param: MSHRParam) extends Bundle {
   // 读的相关
   val readVS: UInt = UInt(param.regNumBits.W)
   // 访问寄存器的 offset, 代表第几个32bit
-  val readOffset: UInt = UInt(param.vrfOffsetBits.W)
+  val offsetForVSInLane: UInt = UInt(param.vrfOffsetBits.W)
 
   // 由于 stride 需要乘, 其他的类型也有相应的 offset, 所以我们先把 offset 算出来
-  val offset:          UInt = UInt(param.paWidth.W)
-  val segmentIndex:    UInt = UInt(3.W)
-  val targetLaneIndex: UInt = UInt(log2Ceil(param.laneNumber).W)
+  val addressOffset: UInt = UInt(param.paWidth.W)
+  val segmentIndex:  UInt = UInt(3.W)
+  val offsetForLane: UInt = UInt(log2Ceil(param.laneNumber).W)
 
   // 在一个组内的offset
   val indexInGroup: UInt = UInt(param.maxOffsetPerLaneAccessBits.W)
 }
 
 class MSHRStage1Bundle(param: MSHRParam) extends Bundle {
-  // 在一个组内的offset
-  val indexInGroup: UInt = UInt(param.maxOffsetPerLaneAccessBits.W)
-  val segmentIndex: UInt = UInt(3.W)
+  val indexInMaskGroup: UInt = UInt(param.maxOffsetPerLaneAccessBits.W)
+  val segmentIndex:     UInt = UInt(3.W)
 
   // 访问l2的地址
   val address: UInt = UInt(param.paWidth.W)
@@ -299,11 +298,6 @@ class MSHR(param: MSHRParam) extends Module {
       lsuRequest.valid
     )
 
-  /** a vector of bit indicate which memory transactions in A channel are enqueued to TileLink A channel s0.
-    * if a transaction is enqueued to s0, the corresponding bit will be assert.
-    */
-  val tlAMessagesSent: UInt = RegInit(0.U(param.maxOffsetPerLaneAccess.W))
-
   /** a vector of bit indicate which memory transactions in D channel ack from memory bus. */
   val outstandingTLDMessages: UInt = RegInit(0.U(param.maxOffsetPerLaneAccess.W))
 
@@ -311,6 +305,7 @@ class MSHR(param: MSHRParam) extends Module {
   val noOutstandingMessages: Bool = outstandingTLDMessages === 0.U
 
   /** the storeage of a group of offset for indexed instructions.
+    *
     * @note this group is the offset group.
     */
   val indexedInstructionOffsets: Vec[ValidIO[UInt]] = RegInit(
@@ -327,7 +322,9 @@ class MSHR(param: MSHRParam) extends Module {
     * todo: vstart
     */
   val nextGroupIndex: UInt = Mux(lsuRequest.valid, 0.U, groupIndex + 1.U)
-  when(updateOffsetGroupEnable) { groupIndex := nextGroupIndex }
+  when(updateOffsetGroupEnable) {
+    groupIndex := nextGroupIndex
+  }
 
   // TODO: remove me.
   val indexOfIndexedInstructionOffsetsNext: UInt = Wire(UInt(2.W))
@@ -351,224 +348,485 @@ class MSHR(param: MSHRParam) extends Module {
       offset.bits := Mux(offsetReadResult(index).valid, offsetReadResult(index).bits, offset.bits)
   }
 
-  // START FROM HERE.
+  /** register to latch mask */
+  val maskReg: UInt = RegEnable(maskInput, 0.U, maskSelect.fire || lsuRequest.valid)
 
-  // fof的反压寄存器
-  val firstReq: Bool = RegEnable(lsuRequest.valid, false.B, lsuRequest.valid || tlPort.a.fire)
-  val waitFirstResp: Bool =
+  /** the index of segment in TileLink message. */
+  val segmentIndex: UInt = RegInit(0.U(3.W))
+
+  /** counter to maintain [[segmentIndex]] */
+  val segmentIndexNext: UInt = segmentIndex + 1.U
+
+  /** signal indicates this is the last transaction for the element(without handshake) */
+  val segmentEnd: Bool = segmentIndex === lsuRequestReg.instructionInformation.nf
+  // update [[segmentIndex]]
+  when((isSegmentLoadStore && s0Fire) || lsuRequest.valid) {
+    segmentIndex := Mux(segmentEnd || lsuRequest.valid, 0.U, segmentIndexNext)
+  }
+
+  // TODO: why [[!isSegmentLoadStore]]? alias segmentEnd
+  val lastElementForSegment = !isSegmentLoadStore || segmentEnd
+
+  /** signal indicates this is the last transaction for the element(with handshake) */
+  val segmentEndWithHandshake: Bool = s0Fire && lastElementForSegment
+
+  // states for [[state]]
+  val idle :: sRequest :: wResponse :: Nil = Enum(3)
+
+  /** MSHR state machine
+    * idle: the MSHR is in the idle state
+    * [[sRequest]]：require all data are ready for sending to s0
+    * [[wResponse]]: data has been send to s0, the MSHR is waiting for response on TileLink D channel.
+    *
+    * TODO: add performance monitor on the FSM.
+    */
+  val state: UInt = RegInit(idle)
+
+  // select next element.
+  /** a vector of bit indicate which memory transactions in A channel are enqueued to TileLink A channel s0.
+    * if a transaction is enqueued to s0, the corresponding bit will be assert.
+    */
+  val sentMemoryRequests: UInt = RegInit(0.U(param.maxOffsetPerLaneAccess.W))
+
+  /** unsent memory transactions to s0. */
+  val unsentMemoryRequests: UInt = (~sentMemoryRequests).asUInt
+
+  /** mask [[unsentMemoryRequests]]
+    * TODO: maskFilter = maskReg & unsentMemoryRequests
+    */
+  val maskedUnsentMemoryRequests: UInt = Wire(UInt(param.maskGroupWidth.W))
+  maskedUnsentMemoryRequests := maskReg & unsentMemoryRequests
+
+  /** the find the next [[maskedUnsentMemoryRequests]] */
+  val findFirstMaskedUnsentMemoryRequests: UInt = ffo(maskedUnsentMemoryRequests)
+
+  /** the find the next [[unsentMemoryRequests]] */
+  val findFirstUnsentMemoryRequestsNext: UInt = (sentMemoryRequests ## true.B) & unsentMemoryRequests
+
+  /** the next element used for memory request.
+    * TODO: find first one after Mux?
+    */
+  val nextElementForMemoryRequest: UInt =
+    Mux(
+      isMaskedLoadStore,
+      findFirstMaskedUnsentMemoryRequests,
+      findFirstUnsentMemoryRequestsNext
+    )(param.maskGroupWidth - 1, 0)
+
+  /** index of the next element for a mask group used for memory request. */
+  val nextElementForMemoryRequestIndex: UInt =
+    OHToUInt(nextElementForMemoryRequest)(param.maxOffsetPerLaneAccessBits - 1, 0)
+  // update [[sentMemoryRequests]]
+  when(segmentEndWithHandshake || updateOffsetGroupEnable) {
+    // TODO: after moving find first one, sentMemoryRequests := nextElementForMemoryRequest || sentMemoryRequests
+    sentMemoryRequests := Mux(updateOffsetGroupEnable, 0.U, scanRightOr(nextElementForMemoryRequest))
+  }
+
+  /** EEW for element. */
+  val dataEEW: UInt =
+    Mux(
+      isIndexedLoadStore,
+      // EEW from CSR
+      csrInterfaceReg.vSew,
+      // EEW from intermediate
+      Mux(
+        isMaskLoadStore,
+        // For mask load store, EEW is fixed to 8.
+        0.U,
+        Mux(
+          isWholeRegisterLoadStore,
+          // for whole register load store, just use the maximum EEW
+          2.U,
+          // otherwise use intermediate from instruction.
+          lsuRequestReg.instructionInformation.eew
+        )
+      )
+    )
+
+  /** 1H version for [[dataEEW]] */
+  val dataEEWOH: UInt = UIntToOH(dataEEW)
+
+  /** no more masked memory request. */
+  val noMoreMaskedUnsentMemoryRequests: Bool = maskedUnsentMemoryRequests === 0.U
+
+  /** mask need to be updated in the next cycle, this is the signal to update mask.
+    * this signal only apply to mask type instruction.
+    */
+  val maskGroupEndAndRequestNewMask: Bool = (
+    noMoreMaskedUnsentMemoryRequests ||
+      (nextElementForMemoryRequest(param.maskGroupWidth - 1) && segmentEndWithHandshake)
+  ) && isMaskedLoadStore
+
+  /** the end of mask group.
+    * TODO: duplicate with [[maskGroupEndAndRequestNewMask]]
+    */
+  val maskGroupEnd: Bool = {
+    // mask type instruction
+    maskGroupEndAndRequestNewMask ||
+    // segment type instruction
+    (
+      // the last element for the mask group
+      nextElementForMemoryRequest(param.maskGroupWidth - 1) &&
+      // enqueue to pipeline
+      s0Fire &&
+      // the last segment for element
+      lastElementForSegment
+    )
+  }
+
+  maskSelect.valid := maskGroupEndAndRequestNewMask
+
+  /** EEW for offset instructions.
+    * offset EEW is always from instruction.
+    */
+  val offsetEEW: UInt = lsuRequestReg.instructionInformation.eew
+
+  /** onehot of [[offsetEEW]] */
+  val offsetEEWOH = UIntToOH(offsetEEW)(2, 0)
+
+  // for each instruction, if using indexed memory load store instructions,
+  // it corresponds to multiple memory requests(depending on nf and elements)
+  // for each requests, the address of requests depends on `base`(from scalar rs1) and `offset`(from vrf vs2)
+  // `offset` is the value of the element(read from VRF)
+  // for each offset group, LSU will read `laneNumber` * `datapathWidth` from lanes,
+  // it will be store to [[indexedInstructionOffsets]]
+  // then extract the offset from [[indexedInstructionOffsets]]:
+  // we define [[globalOffsetOfIndexedInstructionOffsets]] with [[nextElementForMemoryRequestIndex]] and [[offsetEEW]]
+  // the MSB of [[globalOffsetOfIndexedInstructionOffsets]] is the offset group of current memory request,
+  // this is used for match offset group
+  // the LSB of [[globalOffsetOfIndexedInstructionOffsets]] is offset of the offset group
+  // this is used for extract the current offset need to be used from [[indexedInstructionOffsets]]
+
+  /** global(instruction level) offset to [[indexedInstructionOffsets]]
+    * [[nextElementForMemoryRequestIndex]] is the current index of memory request.
+    * use [[offsetEEW]] to multiply this index
+    * TODO: use Mux1H here
+    */
+  val globalOffsetOfIndexedInstructionOffsets: UInt =
+    (nextElementForMemoryRequestIndex << offsetEEW).asUInt(nextElementForMemoryRequestIndex.getWidth + 1, 0)
+
+  /** MSB of [[globalOffsetOfIndexedInstructionOffsets]], indicate the offset group of current memory request. */
+  val offsetGroupIndexOfMemoryRequest: UInt =
+    globalOffsetOfIndexedInstructionOffsets(
+      nextElementForMemoryRequestIndex.getWidth + 1,
+      nextElementForMemoryRequestIndex.getWidth
+    )
+
+  /** LSB of [[globalOffsetOfIndexedInstructionOffsets]],
+    * used for extract the current offset need to be used from [[indexedInstructionOffsets]]
+    */
+  val offsetOfOffsetGroup: UInt =
+    globalOffsetOfIndexedInstructionOffsets(nextElementForMemoryRequestIndex.getWidth - 1, 0)
+
+  /** the LSB of extract value [[indexedInstructionOffsets]] */
+  val offsetOfCurrentMemoryRequest: UInt =
+    // shift [[indexedInstructionOffsets]] to extract the current offset for memory request
+    (VecInit(indexedInstructionOffsets.map(_.bits)).asUInt >> (offsetOfOffsetGroup ## 0.U(3.W)))
+      // the LSB of shift result is the what we need.
+      .asUInt(param.datapathWidth - 1, 0) &
+      // use SEW to mask the shift result
+      FillInterleaved(8, sew1HReg(2) ## sew1HReg(2) ## !sew1HReg(0) ## true.B)
+
+  /** check offset we are using is valid or not. */
+  val offsetValidCheck: Bool =
+    (
+      VecInit(indexedInstructionOffsets.map(_.valid)).asUInt >> (
+        // offsetOfOffsetGroup is in byte level
+        offsetOfOffsetGroup >>
+          // shift it to word level
+          log2Ceil(param.datapathWidth / 8)
+      ).asUInt
+    ).asUInt(0)
+
+  /** if the current memory request matches offset group. */
+  val offsetGroupMatch: UInt = offsetGroupIndexOfMemoryRequest ^ indexOfIndexedInstructionOffsets
+
+  /**
+    * for the case that EEW!=0, offset group maybe misaligned with the mask group
+    * - eew = 0, offset group is aligned with mask group
+    * - eew = 1, one mask group corresponds 2 offset group, [[offsetGroupIndexOfMemoryRequest(0)]] need to match [[indexOfIndexedInstructionOffsets(0)]]
+    * - eew = 2, one mask group corresponds 4 offset group, [[offsetGroupIndexOfMemoryRequest]] need to match [[indexOfIndexedInstructionOffsets]]
+    */
+  val offsetGroupCheck: Bool = (!offsetEEW(0) || !offsetGroupMatch(0)) && (!offsetEEW(1) || offsetGroupMatch === 0.U)
+
+  /** offset for unit stride instruction. */
+  val offsetForUnitStride: UInt = groupIndex ## nextElementForMemoryRequestIndex
+
+  /** offset for stride instruction. */
+  val offsetForStride: UInt = (groupIndex ## nextElementForMemoryRequestIndex) * lsuRequestReg.rs2Data
+
+  /** final offset for element */
+  val baseOffsetForElement: UInt = Mux(
+    isIndexedLoadStore,
+    offsetOfCurrentMemoryRequest,
+    Mux(
+      lsuRequestReg.instructionInformation.mop(1),
+      offsetForStride,
+      offsetForUnitStride * dataWidthForSegmentLoadStore
+    )
+  )
+
+  /** which lane does the current [[offsetOfOffsetGroup]] represent. */
+  val laneOfOffsetOfOffsetGroup: UInt = UIntToOH(
+    offsetOfOffsetGroup(
+      log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) - 1,
+      log2Ceil(param.datapathWidth / 8)
+    )
+  )
+
+  /** one of [[indexedInstructionOffsets]] is exhausted. */
+  val indexedInstructionOffsetExhausted: Bool =
+    Mux1H(
+      offsetEEWOH,
+      Seq(
+        // EEW = 8
+        offsetOfOffsetGroup(1, 0).andR,
+        // EEW = 16
+        offsetOfOffsetGroup(1),
+        // EEW = 32
+        true.B
+      )
+    )
+
+  /**
+    * 各个类型的换组的标志:
+    * 3. 如果是index类型的,那么在index耗尽的时候需要更换index,只有在index的粒度8的时候index和mask才同时耗尽.
+    * 4. 如果index与mask不匹配,index在mask中的偏移由[[indexOfIndexedInstructionOffsets]]记录.
+    * 5. unit stride 和 stride 类型的在没有mask的前提下 [[nextElementForMemoryRequest]] 最高位拉高才换组.
+    */
+
+  // update [[usedIndexedInstructionOffsets]]
+  Seq.tabulate(param.laneNumber) { i =>
+    usedIndexedInstructionOffsets(i) :=
+      (
+        // the offset of the memory transaction belongs to lane
+        laneOfOffsetOfOffsetGroup(i) &&
+        // the last memory transaction is sent
+        segmentEndWithHandshake &&
+        // the tail of [[laneOfOffsetOfOffsetGroup]] is sent
+        indexedInstructionOffsetExhausted
+      ) ||
+      // change offset group
+      status.offsetGroupEnd ||
+      // change mask group
+      // TODO: remove [[maskNeedUpdate]]?
+      maskGroupEndAndRequestNewMask
+  }
+
+  /** onehot version of LSB of `tlPort.a.bits.source` */
+  val memoryRequestSourceOH: UInt = UIntToOH(tlPort.a.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0))
+
+  /** detect the case segment load store hazard. */
+  val sourceFree: Bool = !(memoryRequestSourceOH & outstandingTLDMessages).orR
+
+  /** current state machine is on [[sRequest]]. */
+  val stateIsRequest: Bool = state === sRequest
+
+  /** next element of instruction for memory request. */
+  val nextElementIndex: UInt =
+    // for [[wResponse]] being able to address, don't update [[groupIndex]] for now,
+    // choose [[nextGroupIndex]], since [[sRequest]] has already send all memory requests in the [[groupIndex]]
+    Mux(stateIsRequest, groupIndex, nextGroupIndex) ##
+      nextElementForMemoryRequestIndex
+
+  /** evl for [[isWholeRegisterLoadStore]] instruction type.
+    * we use the maximum [[dataEEW]] to handle it.
+    */
+  val wholeEvl: UInt =
+    (lsuRequestReg.instructionInformation.nf +& 1.U) ## 0.U(log2Ceil(param.vLen / param.datapathWidth).W)
+
+  /** evl for the instruction */
+  val evl: UInt = Mux(
+    isWholeRegisterLoadStore,
+    wholeEvl,
+    Mux(
+      isMaskLoadStore,
+      // TODO: bug: ceil + csrInterfaceReg.vl(2,0).orR
+      csrInterfaceReg.vl(param.vlMaxBits - 1, 3),
+      csrInterfaceReg.vl
+    )
+  )
+
+  /** signal indicate that the offset group for all lanes are valid. */
+  val allOffsetValid: Bool = VecInit(indexedInstructionOffsets.map(_.valid)).asUInt.andR
+
+  /** signal used for aligning offset groups. */
+  val offsetGroupsAlign: Bool = RegInit(false.B)
+  // to fix the bug that after the first group being used, the second group is not valid,
+  // MSHR will change group by mistake.
+  // TODO: need perf the case, if there are too much "misalignment", use a state vector for each lane(bit) in the group.
+  when(!offsetGroupsAlign && allOffsetValid) {
+    offsetGroupsAlign := true.B
+  }.elsewhen(status.offsetGroupEnd) {
+    offsetGroupsAlign := false.B
+  }
+
+  /** the current element is the last element to execute in the pipeline. */
+  val last: Bool = nextElementIndex >= evl
+
+  /** no need mask, there still exist unsent masked requests, don't need to update mask. */
+  val maskCheck: Bool = !isMaskedLoadStore || !noMoreMaskedUnsentMemoryRequests
+
+  /** no need index, when use a index, check it is valid or not. */
+  val indexCheck: Bool = !isIndexedLoadStore || (offsetValidCheck && offsetGroupCheck && offsetGroupsAlign)
+
+  // handle fault only first
+  /** the current TileLink message in A Channel is the first transaction in this instruction. */
+  val firstMemoryRequestOfInstruction: Bool = RegEnable(lsuRequest.valid, false.B, lsuRequest.valid || tlPort.a.fire)
+
+  /** if assert, need to wait for memory response, this is used for fault only first instruction. */
+  val waitFirstMemoryResponseForFaultOnlyFirst: Bool =
     RegEnable(
       lsuRequest.valid && lsuRequest.bits.instructionInformation.fof,
       false.B,
       lsuRequest.valid || tlPort.d.fire
     )
 
-  // 缓存 mask
-  val maskReg: UInt = RegEnable(maskInput, 0.U, maskSelect.fire || lsuRequest.valid)
+  /** signal to check the the first memory request is responded for fault only first instruction. */
+  val fofCheck: Bool = firstMemoryRequestOfInstruction || !waitFirstMemoryResponseForFaultOnlyFirst
 
-  // segment 的维护
-  val segmentIndex: UInt = RegInit(0.U(3.W))
-  val segIndexNext: UInt = segmentIndex + 1.U
-  val segEnd:       Bool = segmentIndex === lsuRequestReg.instructionInformation.nf
-  // 更新 segMask
-  when((isSegmentLoadStore && s0Fire) || lsuRequest.valid) {
-    segmentIndex := Mux(segEnd || lsuRequest.valid, 0.U, segIndexNext)
-  }
-  val lastElementForSeg = !isSegmentLoadStore || segEnd
-  val segExhausted: Bool = s0Fire && lastElementForSeg
+  /** all check is ready, being able to send request to pipeline. */
+  val stateReady: Bool = stateIsRequest && maskCheck && indexCheck && fofCheck
 
-  /** 状态机
-    * idle: mshr 处于闲置状态
-    * sRequest：出与试图往s0发数据的状态,前提是所有需要的源数据都准备就绪了
-    * wResp: 这一组往s0发的已经结束了,但是还需要维护相关信息等到d通道回应的时候寻址vrf
-    *
-    * TODO: add performance monitor on the FSM.
+  /** only need to request offset when changing offset group,
+    * don't send request for the first offset group for each instruction.
     */
-  val idle :: sRequest :: wResp :: Nil = Enum(3)
-  val state: UInt = RegInit(idle)
+  val needRequestOffset: Bool =
+    RegEnable(offsetReadResult.head.valid, false.B, offsetReadResult.head.valid || lsuRequest.valid)
 
-  // 选出 reqNext
-  val reqFilter:   UInt = (~tlAMessagesSent).asUInt
-  val maskFilter:  UInt = Wire(UInt(param.maskGroupWidth.W))
-  val maskNext:    UInt = ffo(maskFilter)
-  val reqDoneNext: UInt = (tlAMessagesSent ## true.B) & reqFilter
-  maskFilter := maskReg & reqFilter
-  // 下一个请求在组内的 OH
-  val reqNext:      UInt = Mux(isMaskedLoadStore, maskNext, reqDoneNext)(param.maskGroupWidth - 1, 0)
-  val reqNextIndex: UInt = OHToUInt(reqNext)(param.maxOffsetPerLaneAccessBits - 1, 0)
-  // 更新 reqDone
-  when(segExhausted || updateOffsetGroupEnable) {
-    tlAMessagesSent := Mux(updateOffsetGroupEnable, 0.U, scanRightOr(reqNext))
-  }
+  /** signal to request offset in the pipeline, only assert for one cycle. */
+  val requestOffset: Bool = stateIsRequest && maskCheck && !indexCheck && fofCheck
 
-  // 额外添加的mask类型对数据的粒度有限制
-  val dataEEW: UInt =
-    Mux(
-      isIndexedLoadStore,
-      csrInterfaceReg.vSew,
-      Mux(isMaskLoadStore, 0.U, Mux(isWholeRegisterLoadStore, 2.U, lsuRequestReg.instructionInformation.eew))
-    )
-  val dataEEWOH: UInt = UIntToOH(dataEEW)
+  /** latch [[requestOffset]] */
+  val requestOffsetNext: Bool = RegNext(requestOffset)
 
-  // 用到了最后一个或这一组的全被mask了
-  val maskExhausted = maskFilter === 0.U
-  // 耗尽的不用等seg,最后一个用完了的要等
-  val maskNeedUpdate: Bool = (maskExhausted || (reqNext(param.maskGroupWidth - 1) && segExhausted)) && isMaskedLoadStore
-  maskSelect.valid := maskNeedUpdate
+  // ask Scheduler to change offset group
+  status.offsetGroupEnd := needRequestOffset && requestOffset && !requestOffsetNext
 
-  /** 处理 offset
-    * 每次每一条lane读会读出一组32bit的offset,汇集在这边就会有32 * lane的长度
-    * 由与index在eew != 0的时候与mask(reqNext)不是一组对一组, [[indexOffset]] 记录了对应关系
-    * 高位代表相mask被分的组数,低位代表组内偏移:
-    *   eew = 0 的时候,index的element与mask是一一对应的
-    *   eew = 1 的时候,一组mask对应两组index,此时[[indexOffset(reqNextIndex.getWidth)]]需要与[[indexOfIndexedInstructionOffsets(0)]]匹配
-    *   eew = 2 时,一组mask对应四组index，[[indexOffset]]高两位需要与[[indexOfIndexedInstructionOffsets]]匹配
-    * [[indexOffsetByteIndex]]表示这一次使用的index位于[[indexedInstructionOffsets]]中的起始byte
-    * [[indexOffsetNext]] 是通过 [[indexedInstructionOffsets]] 移位得到我们想要的 index
+  /** valid signal to enqueue to s0. */
+  val s0EnqueueValid: Bool = stateReady && !last
+
+  /** there exist valid signal inside s0. */
+  val s0Valid: Bool = RegEnable(s0Fire, false.B, s0Fire ^ s1Fire)
+
+  /** request enqueue to s0. */
+  val s0Wire: MSHRStage0Bundle = Wire(new MSHRStage0Bundle(param))
+
+  /** request inside s0. */
+  val s0Reg: MSHRStage0Bundle = RegEnable(s0Wire, 0.U.asTypeOf(s0Wire), s0Fire)
+
+  /** ready signal to enqueue to s1. */
+  val s1EnqueueReady: Bool = Wire(Bool())
+
+  /** element index enqueuing to s0. */
+  val s0ElementIndex: UInt = groupIndex ## nextElementForMemoryRequestIndex
+
+  /** which byte to access in VRF, e.g.
+    * VLEN=1024,datapath=32,laneNumber=8
+    * XXXXXXXXXX   <- 10 bits for element(32bits) index
+    *           XX <- 2 bits for SEW
+    *   XXXXXXXXXX <- strip MSB for the constraint that sew*vlmax <= 8*VLEN <- [[storeBaseByteOffset]]
+    *           XX <- offset for datapath
+    *        XXX   <- offset for lane
+    *      XX      <- offset for vs in lane(one vector register is split to 4 lines in each lane)
+    *   XXX        <- offset for vector register
     */
-  val offsetEEW:              UInt = lsuRequestReg.instructionInformation.eew
-  val indexOffset:            UInt = (reqNextIndex << offsetEEW).asUInt(reqNextIndex.getWidth + 1, 0)
-  val indexOffsetTargetGroup: UInt = indexOffset(reqNextIndex.getWidth + 1, reqNextIndex.getWidth)
-  val indexOffsetByteIndex:   UInt = indexOffset(reqNextIndex.getWidth - 1, 0)
-  val indexOffsetNext: UInt =
-    (VecInit(indexedInstructionOffsets.map(_.bits)).asUInt >> (indexOffsetByteIndex ## 0.U(3.W)))
-      .asUInt(param.datapathWidth - 1, 0) &
-      FillInterleaved(8, sew1HReg(2) ## sew1HReg(2) ## !sew1HReg(0) ## true.B)
-  val offsetValidCheck: Bool =
-    (VecInit(indexedInstructionOffsets.map(_.valid)).asUInt >> (indexOffsetByteIndex >> 2).asUInt).asUInt(0)
-  val groupMatch:       UInt = indexOffsetTargetGroup ^ indexOfIndexedInstructionOffsets
-  val offsetGroupCheck: Bool = (!offsetEEW(0) || !groupMatch(0)) && (!offsetEEW(1) || groupMatch === 0.U)
-  val unitOffsetNext:   UInt = groupIndex ## reqNextIndex
-  val strideOffsetNext: UInt = (groupIndex ## reqNextIndex) * lsuRequestReg.rs2Data
-  val reqOffset = Mux(
-    isIndexedLoadStore,
-    indexOffsetNext,
-    Mux(lsuRequestReg.instructionInformation.mop(1), strideOffsetNext, unitOffsetNext * dataWidthForSegmentLoadStore)
+  val storeBaseByteOffset: UInt = (s0ElementIndex << dataEEW).asUInt(log2Ceil(param.vLen) - 1, 0)
+
+  // s0 calculate register offset
+  s0Wire.readVS :=
+    // base vs in the instruction
+    lsuRequestReg.instructionInformation.vs3 +
+      // vs offset for segment instructions
+      Mux(
+        isSegmentLoadStore,
+        // TODO strip to 3 bits
+        segmentIndex * segmentInstructionIndexInterval,
+        0.U
+      ) +
+      // vs offset for element index
+      storeBaseByteOffset(
+        // VLEN=1024 -> 9
+        log2Ceil(param.vLen) - 1,
+        // VLEN=1024,datapath=32,laneNumber=8 -> 7
+        log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits
+      )
+  s0Wire.offsetForVSInLane := storeBaseByteOffset(
+    // VLEN=1024,datapath=32,laneNumber=8 -> 6
+    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits - 1,
+    // VLEN=1024,datapath=32,laneNumber=8 -> 5
+    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber)
+  )
+  s0Wire.addressOffset := baseOffsetForElement + (elementByteWidth * segmentIndex)
+  s0Wire.indexInGroup := nextElementForMemoryRequestIndex
+  s0Wire.segmentIndex := segmentIndex
+  s0Wire.offsetForLane := storeBaseByteOffset(
+    // datapath=32,laneNumber=8 -> 4
+    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) - 1,
+    // datapath=32 -> 2
+    log2Ceil(param.datapathWidth / 8)
   )
 
-  { // 拉回 indexOffset valid
-    val indexLaneMask: UInt = UIntToOH(indexOffsetByteIndex(4, 2))
-    val indexExhausted: Bool =
-      Mux1H(UIntToOH(offsetEEW)(2, 0), Seq(indexOffsetByteIndex(1, 0).andR, indexOffsetByteIndex(1), true.B))
-
-    /**
-      * 各个类型的换组的标志:
-      * 1. 如果是seg的类型,那么需要执行完完整的一组才算是结算的时间点:[[segEnd]]
-      * 2. 如果是mask类型的,在被mask筛选之后没有剩余请求了,将直接换组: [[maskNeedUpdate]].
-      * 3. 如果是index类型的,那么在index耗尽的时候需要更换index,只有在index的粒度8的时候index和mask才同时耗尽.
-      * 4. 如果index与mask不匹配,index在mask中的偏移由[[indexOfIndexedInstructionOffsets]]记录.
-      * 5. unit stride 和 stride 类型的在没有mask的前提下 [[reqNext]] 最高位拉高才换组.
-      */
-    val nextIndexReq: Bool = isIndexedLoadStore && indexLaneMask(7) && indexExhausted
-    // 既然试图请求新的index,那说明前一组全用完了
-    Seq.tabulate(param.laneNumber) { i =>
-      usedIndexedInstructionOffsets(i) := (segExhausted && indexLaneMask(
-        i
-      ) && indexExhausted) || status.indexGroupEnd || maskNeedUpdate
-    }
-  }
-  val groupEnd: Bool = maskNeedUpdate || (reqNext(param.maskGroupWidth - 1) && s0Fire && lastElementForSeg)
-
-  // 处理 tile link source id 的冲突
-  val reqSource1H: UInt = UIntToOH(tlPort.a.bits.source(4, 0))
-  val sourceFree:  Bool = !(reqSource1H & outstandingTLDMessages).orR
-
-  // s0 stall 判断
-  val stateCheck: Bool = state === sRequest
-  // 如果状态是wResp,为了让回应能寻址会暂时不更新groupIndex，但是属于groupIndex的请求已经发完了
-  val elementID: UInt = Mux(stateCheck, groupIndex, nextGroupIndex) ## reqNextIndex
-  // whole 类型的我们以最大粒度地执行,所以一个寄存器有(vlen/32 -> maskGroupSize)
-  val wholeEvl: UInt = (lsuRequestReg.instructionInformation.nf +& 1.U) ## 0.U(param.maskGroupSizeBits.W)
-  // TODO: bug: ceil + csrInterfaceReg.vl(2,0).orR
-  val evl: UInt =
-    Mux(
-      isWholeRegisterLoadStore,
-      wholeEvl,
-      Mux(isMaskLoadStore, csrInterfaceReg.vl(param.vlMaxBits - 1, 3), csrInterfaceReg.vl)
-    )
-  val allIndexReady: Bool = VecInit(indexedInstructionOffsets.map(_.valid)).asUInt.andR
-  val indexAlign:    Bool = RegInit(false.B)
-  // 这里处理在第一组index用完了但是第二组还没被lane发过来,然后mshr认为index应该换组的问题
-  when(!indexAlign && allIndexReady) {
-    indexAlign := true.B
-  }.elsewhen(status.indexGroupEnd) {
-    indexAlign := false.B
-  }
-  // todo: evl: unit stride -> whole register load | mask load, EEW=8
-  val last:       Bool = elementID >= evl
-  val maskCheck:  Bool = !isMaskedLoadStore || !maskExhausted
-  val indexCheck: Bool = !isIndexedLoadStore || (offsetValidCheck && offsetGroupCheck && indexAlign)
-  val fofCheck:   Bool = firstReq || !waitFirstResp
-  val stateReady: Bool = stateCheck && maskCheck && indexCheck && fofCheck
-  // 刚来请求的时候不需要请求 index
-  val needReqIndex: Bool =
-    RegEnable(offsetReadResult.head.valid, false.B, offsetReadResult.head.valid || lsuRequest.valid)
-  //  只能给脉冲
-  val indexReqValid:     Bool = stateCheck && maskCheck && !indexCheck && fofCheck
-  val indexReqValidNext: Bool = RegNext(indexReqValid)
-  status.indexGroupEnd := indexReqValid && needReqIndex && !indexReqValidNext
-
-  val s0EnqueueValid: Bool = stateReady && !last
-  val s0Valid:        Bool = RegEnable(s0Fire, false.B, s0Fire ^ s1Fire)
-  val s0Wire:         MSHRStage0Bundle = Wire(new MSHRStage0Bundle(param))
-  val s0Reg:          MSHRStage0Bundle = RegEnable(s0Wire, 0.U.asTypeOf(s0Wire), s0Fire)
-  val s1SlotReady:    Bool = Wire(Bool())
-
-  /** 读我们直接用 [[reqNextIndex]]
-    * 然后我们左移 eew,得到修改的起始是第几个byte: [[baseByteOffset]]
-    * XXX XXXXXXXX XX
-    *     XXX: vd的增量
-    *     |      |: 在一个寄存器中位于哪一个32bit
-    *              XX：起始位置在32bit中的偏移
-    *          XXX： 由于寄存器的实体按32bit为粒度分散在lane中,所以这是目标lane的index
-    *        XX： 这里代表[[vrfWritePort.bits.offset]]
-    */
-  val s0ElementIndex: UInt = groupIndex ## reqNextIndex
-  val baseByteOffset: UInt = (s0ElementIndex << dataEEW).asUInt(9, 0)
-
-  // todo: seg * lMul
-  s0Wire.readVS := lsuRequestReg.instructionInformation.vs3 + Mux(
-    isSegmentLoadStore,
-    segmentIndex * segmentInstructionIndexInterval,
-    0.U
-  ) + baseByteOffset(9, 7)
-  s0Wire.readOffset := baseByteOffset(6, 5)
-  s0Wire.offset := reqOffset + (elementByteWidth * segmentIndex)
-  s0Wire.indexInGroup := reqNextIndex
-  s0Wire.segmentIndex := segmentIndex
-  s0Wire.targetLaneIndex := baseByteOffset(4, 2)
-
-  // s1
-  // s1 read vrf
-  vrfReadDataPorts.valid := s0Valid && lsuRequestReg.instructionInformation.isStore && s1SlotReady
-  vrfReadDataPorts.bits.offset := s0Reg.readOffset
+  // s1 access VRF
+  // TODO: perf `lsuRequestReg.instructionInformation.isStore && vrfReadDataPorts.ready` to check the VRF bandwidth
+  //       limitation affecting to LSU store.
+  vrfReadDataPorts.valid := s0Valid && lsuRequestReg.instructionInformation.isStore && s1EnqueueReady
+  vrfReadDataPorts.bits.offset := s0Reg.offsetForVSInLane
   vrfReadDataPorts.bits.vs := s0Reg.readVS
   vrfReadDataPorts.bits.instructionIndex := lsuRequestReg.instructionIndex
 
-  val readReady:      Bool = !lsuRequestReg.instructionInformation.isStore || vrfReadDataPorts.ready
-  val s1EnqueueValid: Bool = s0Valid && readReady
-  val s1Valid:        Bool = RegEnable(s1Fire, false.B, s1Fire ^ s2Fire)
-  val s1Wire:         MSHRStage1Bundle = Wire(new MSHRStage1Bundle(param))
-  val s1Reg:          MSHRStage1Bundle = RegEnable(s1Wire, 0.U.asTypeOf(s1Wire), s1Fire)
-  val s1DequeueReady: Bool = tlPort.a.ready && sourceFree
-  s1SlotReady := s1DequeueReady || !s1Valid
-  s1Fire := s1EnqueueValid && s1SlotReady
-  // s0DeqReady === s1EnqReady
-  val s0EnqueueReady: Bool = (s1SlotReady && readReady) || !s0Valid
-  s0Fire := s0EnqueueReady && s0EnqueueValid
-  val slotClear: Bool = !(s0Valid || s1Valid)
+  /** ready to read VRF to store to memory. */
+  val readReady: Bool = !lsuRequestReg.instructionInformation.isStore || vrfReadDataPorts.ready
 
-  s1Wire.address := lsuRequestReg.rs1Data + s0Reg.offset
-  s1Wire.indexInGroup := s0Reg.indexInGroup
+  /** valid signal to enqueue to s1 */
+  val s1EnqueueValid: Bool = s0Valid && readReady
+
+  /** data is valid in s1 */
+  val s1Valid: Bool = RegEnable(s1Fire, false.B, s1Fire ^ s2Fire)
+
+  /** request enqueue to s1. */
+  val s1Wire: MSHRStage1Bundle = Wire(new MSHRStage1Bundle(param))
+
+  /** request inside s1. */
+  val s1Reg: MSHRStage1Bundle = RegEnable(s1Wire, 0.U.asTypeOf(s1Wire), s1Fire)
+
+  /** ready to enqueue to s2. */
+  val s2EnqueueReady: Bool = tlPort.a.ready && sourceFree
+
+  s1EnqueueReady := s2EnqueueReady || !s1Valid
+  s1Fire := s1EnqueueValid && s1EnqueueReady
+
+  /** ready signal to enqueue to s0. */
+  val s0EnqueueReady: Bool = (s1EnqueueReady && readReady) || !s0Valid
+  s0Fire := s0EnqueueReady && s0EnqueueValid
+
+  /** pipeline is flushed. */
+  val pipelineClear: Bool = !s0Valid && !s1Valid
+
+  s1Wire.address := lsuRequestReg.rs1Data + s0Reg.addressOffset
+  s1Wire.indexInMaskGroup := s0Reg.indexInGroup
   s1Wire.segmentIndex := s0Reg.segmentIndex
 
-  // 处理数据的缓存
-  val readNext: Bool = RegNext(s1Fire) && lsuRequestReg.instructionInformation.isStore
+  /** previous cycle sent the VRF read request,
+    * this cycle should got response from each lanes
+    * TODO: I think the latency is too large here.
+    */
+  val readVRFResponseValid: Bool = RegNext(s1Fire) && lsuRequestReg.instructionInformation.isStore
   // readResult hold unless readNext
-  val dataReg:          UInt = RegEnable(vrfReadResults, 0.U.asTypeOf(vrfReadResults), readNext)
-  val readDataRegValid: Bool = RegEnable(readNext, false.B, (readNext ^ tlPort.a.fire) || lsuRequest.valid)
+  /** latch from lanes [[vrfReadResults]] */
+  val vrfReadResultsReg: UInt = RegEnable(vrfReadResults, 0.U.asTypeOf(vrfReadResults), readVRFResponseValid)
 
-  // 计算mask: todo: 比较一下这两mask,然后替换掉indexMask
-  val addressMask: UInt = Mux1H(
+  /** is [[vrfReadResultsReg]] valid or not?
+    * TODO: I think this is bad for timing...
+    */
+  val readDataRegValid: Bool =
+    RegEnable(readVRFResponseValid, false.B, (readVRFResponseValid ^ tlPort.a.fire) || lsuRequest.valid)
+
+  /** mux to select from [[vrfReadResultsReg]] or [[vrfReadResults]] */
+  val readDataResultSelect: UInt = Mux(readDataRegValid, vrfReadResultsReg, vrfReadResults)
+
+  /** compute the mask for store transaction. */
+  val storeMask: UInt = Mux1H(
     dataEEWOH(2, 0),
     Seq(
       UIntToOH(s1Reg.address(1, 0)),
@@ -576,91 +834,166 @@ class MSHR(param: MSHRParam) extends Module {
       15.U(4.W)
     )
   )
-  // s2: tl.a
-  val indexBase: UInt = (s1Reg.indexInGroup(1, 0) << dataEEW).asUInt(1, 0)
-  // 从vrf里面读出来的数据,会带有index导致的偏移
-  val readDataResultSelect: UInt = Mux(readDataRegValid, dataReg, vrfReadResults)
-  // 由于segment的存在,数据在vrf里的偏移和在mem里的偏移是不一样的 todo: 变成mux1H
-  val putData: UInt =
-    ((readDataResultSelect << (s1Reg.address(1, 0) ## 0.U(3.W))) >> (indexBase(1, 0) ## 0.U(3.W))).asUInt
+
+  /** offset caused by element index(byte level) in the datapath. */
+  val storeOffsetByIndex: UInt = (s1Reg.indexInMaskGroup(1, 0) << dataEEW).asUInt(1, 0)
+
+  /** align the VRF index in datapath and memory.
+    * TODO: use Mux1H to select(only 4 cases).
+    */
+  val storeData: UInt =
+    ((readDataResultSelect << (s1Reg.address(1, 0) ## 0.U(3.W))) >> (storeOffsetByIndex ## 0.U(3.W))).asUInt
+  // only PutFull / Get for now
   tlPort.a.bits.opcode := !lsuRequestReg.instructionInformation.isStore ## 0.U(2.W)
   tlPort.a.bits.param := 0.U
   tlPort.a.bits.size := dataEEW
 
-  /** offset index + segment index
-    * log(32)-> 5    log(8) -> 3
+  /** source for memory request
+    * make volatile field LSB to reduce the source conflict.
     */
-  tlPort.a.bits.source := Mux(isSegmentLoadStore, s1Reg.indexInGroup ## s1Reg.segmentIndex, s1Reg.indexInGroup)
+  val memoryRequestSource: UInt = Mux(
+    isSegmentLoadStore,
+    s1Reg.indexInMaskGroup ## s1Reg.segmentIndex,
+    s1Reg.indexInMaskGroup
+  )
+  // offset index + segment index
+  // log(32)-> 5    log(8) -> 3
+  tlPort.a.bits.source := memoryRequestSource
   tlPort.a.bits.address := s1Reg.address
-  tlPort.a.bits.mask := addressMask
-  tlPort.a.bits.data := putData
+  tlPort.a.bits.mask := storeMask
+  tlPort.a.bits.data := storeData
   tlPort.a.bits.corrupt := false.B
   tlPort.a.valid := s1Valid && sourceFree
   s2Fire := tlPort.a.fire
 
-  // 处理回应
-  val respIndex: UInt = Mux(
+  // Handle response
+
+  /** extract `indexInMaskGroup` from response. */
+  val indexInMaskGroupResponse: UInt = Mux(
     isSegmentLoadStore,
     (tlPort.d.bits.source >> 3).asUInt,
     tlPort.d.bits.source
   )(param.maxOffsetPerLaneAccessBits - 1, 0)
-  // d 通道回应的信息
-  val baseByteOffsetD: UInt = ((groupIndex ## respIndex) << dataEEW).asUInt(9, 0)
+
+  /** the LSB(maskGroupWidth) for response, MSHR only maintains maskGroupWidth of request. */
+  val responseSourceLSBOH: UInt = UIntToOH(tlPort.d.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0))
+
+  /** which byte to access in VRF for load instruction.
+    * see [[storeBaseByteOffset]]
+    */
+  val loadBaseByteOffset: UInt = ((groupIndex ## indexInMaskGroupResponse) << dataEEW).asUInt(9, 0)
   vrfWritePort.valid := tlPort.d.valid
   tlPort.d.ready := vrfWritePort.ready
-  vrfWritePort.bits.data := (tlPort.d.bits.data << (baseByteOffsetD(1, 0) ## 0.U(3.W))).asUInt
+
+  // TODO: handle alignment for VRF and memory
+  vrfWritePort.bits.data := (tlPort.d.bits.data << (loadBaseByteOffset(1, 0) ## 0.U(3.W))).asUInt
   vrfWritePort.bits.last := last
   vrfWritePort.bits.instructionIndex := lsuRequestReg.instructionIndex
   vrfWritePort.bits.mask := Mux1H(
     dataEEWOH(2, 0),
     Seq(
-      UIntToOH(baseByteOffsetD(1, 0)),
-      baseByteOffsetD(1) ## baseByteOffsetD(1) ## !baseByteOffsetD(1) ## !baseByteOffsetD(1),
+      UIntToOH(loadBaseByteOffset(1, 0)),
+      loadBaseByteOffset(1) ## loadBaseByteOffset(1) ## !loadBaseByteOffset(1) ## !loadBaseByteOffset(1),
       15.U(4.W)
     )
   )
-  vrfWritePort.bits.vd := lsuRequestReg.instructionInformation.vs3 +
-    Mux(isSegmentLoadStore, tlPort.d.bits.source(2, 0) * segmentInstructionIndexInterval, 0.U) + baseByteOffsetD(9, 7)
-  vrfWritePort.bits.offset := baseByteOffsetD(6, 5)
+  // calculate vd register offset
+  vrfWritePort.bits.vd :=
+    // base vd in the instruction
+    lsuRequestReg.instructionInformation.vs3 +
+      // vd offset for segment instructions
+      Mux(
+        isSegmentLoadStore,
+        tlPort.d.bits.source(2, 0) * segmentInstructionIndexInterval,
+        0.U
+      ) +
+      // vd offset for element index
+      loadBaseByteOffset(
+        // VLEN=1024 -> 9
+        log2Ceil(param.vLen) - 1,
+        // VLEN=1024,datapath=32,laneNumber=8 -> 7
+        log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits
+      )
+  vrfWritePort.bits.offset := loadBaseByteOffset(
+    // VLEN=1024,datapath=32,laneNumber=8 -> 6
+    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits - 1,
+    // VLEN=1024,datapath=32,laneNumber=8 -> 5
+    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber)
+  )
 
-  val respSourceOH:     UInt = UIntToOH(tlPort.d.bits.source(4, 0))
-  val sourceUpdate:     UInt = Mux(tlPort.a.fire, reqSource1H, 0.U(param.maxOffsetPerLaneAccess.W))
-  val respSourceUpdate: UInt = Mux(tlPort.d.fire, respSourceOH, 0.U(param.maxOffsetPerLaneAccess.W))
-  // 更新 respDone
+  // update [[outstandingTLDMessages]]
   when((tlPort.d.fire || tlPort.a.fire) && !lsuRequestReg.instructionInformation.isStore) {
     // 同时进出得让相应被拉高
-    outstandingTLDMessages := (outstandingTLDMessages & (~respSourceUpdate).asUInt) | sourceUpdate
+    outstandingTLDMessages := (outstandingTLDMessages &
+      // free outstanding source since got response from memory.
+      ~Mux(
+        tlPort.d.fire,
+        responseSourceLSBOH,
+        0.U(param.maxOffsetPerLaneAccess.W)
+      ): UInt) |
+      // allocate outstanding source since corresponding memory request has been issued.
+      Mux(
+        tlPort.a.fire,
+        memoryRequestSourceOH,
+        0.U(param.maxOffsetPerLaneAccess.W)
+      )
   }
 
-  // state 更新
+  // update state
   when(state === sRequest) {
-    when(last || groupEnd) {
-      state := wResp
+    when(last || maskGroupEnd) {
+      state := wResponse
     }
   }
-  // todo: cosim 有时会在resp done的时候继续发曾经回过的回应,但是newGroup会导致vrf寻址错误,先 && !tlPort.d.valid 绕一下
-  when(state === wResp && noOutstandingMessages && slotClear && !tlPort.d.valid) {
+  // if all responses are cleared
+  when(
+    state === wResponse && noOutstandingMessages && pipelineClear
+    // TODO: cosim bug for multiple response for same request!!!
+      && !tlPort.d.valid
+  ) {
+    // switch state to idle
     when(last) {
       state := idle
-    }.otherwise {
-      state := sRequest
-      updateOffsetGroupEnable := true.B
     }
+      // change mask group
+      .otherwise {
+        state := sRequest
+        updateOffsetGroupEnable := true.B
+      }
   }
-  val invalidInstruction: Bool = csrInterface.vl === 0.U && lsuRequest.valid && !requestIsWholeRegisterLoadStore
+  // handle corner case for vl=0
+  val invalidInstruction:     Bool = csrInterface.vl === 0.U && !requestIsWholeRegisterLoadStore && lsuRequest.valid
+  val invalidInstructionNext: Bool = RegNext(invalidInstruction)
+
+  // change state to request
   when(lsuRequest.valid && !invalidInstruction) {
     state := sRequest
     updateOffsetGroupEnable := true.B
   }
-  val invalidInstructionNext: Bool = RegNext(invalidInstruction)
-  val stateIdle = state === idle
+
+  // expose state for this MSHR
   status.instructionIndex := lsuRequestReg.instructionIndex
+
+  /** the current state is idle. */
+  val stateIdle = state === idle
   status.idle := stateIdle
   status.last := (!RegNext(stateIdle) && stateIdle) || invalidInstructionNext
+  // which lane to access
   status.targetLane := UIntToOH(
-    Mux(lsuRequestReg.instructionInformation.isStore, s0Reg.targetLaneIndex, baseByteOffsetD(4, 2))
+    Mux(
+      lsuRequestReg.instructionInformation.isStore,
+      // read VRF
+      s0Reg.offsetForLane,
+      // write VRF
+      loadBaseByteOffset(
+        // datapath=32,laneNumber=8 -> 4
+        log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) - 1,
+        // datapath=32 -> 2
+        log2Ceil(param.datapathWidth / 8)
+      )
+    )
   )
-  status.waitFirstResponse := waitFirstResp
-  // 需要更新的时候是需要下一组的mask
+  status.waitFirstResponse := waitFirstMemoryResponseForFaultOnlyFirst
+  // which mask to request
   maskSelect.bits := nextGroupIndex
 }
