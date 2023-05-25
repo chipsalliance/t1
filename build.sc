@@ -404,8 +404,8 @@ object tests extends Module {
       // These arguments must be wrapped in a block, starting with "BUDDY-OPT" and ending with "BUDDY-OPT-END".
       def parseBuddyOptArg(testFile: os.Path) = os.read
             .lines(testFile)
-            .dropWhile(_ == "// BUDDY-OPT")
-            .takeWhile(_ != "// BUDDY-OPT-END")
+            .dropWhile(bound => bound.startsWith("//") && bound.contains("BUDDY-OPT"))
+            .takeWhile(bound => bound.startsWith("//") && !bound.contains("BUDDY-OPT-END"))
             .map(lines => lines.stripPrefix("//").trim().split(" "))
             .flatten
 
