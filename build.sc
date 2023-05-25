@@ -400,23 +400,26 @@ object tests extends Module {
         Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start", "-fno-PIC")
       }
 
+      // Parse the header comment of the given file to get the command line arguments to pass to the buddy-opt.
+      // These arguments must be wrapped in a block, starting with "BUDDY-OPT" and ending with "BUDDY-OPT-END".
+      def parseBuddyOptArg(testFile: os.Path) = os.read
+            .lines(testFile)
+            .dropWhile(_ == "// BUDDY-OPT")
+            .takeWhile(_ != "// BUDDY-OPT-END")
+            .map(lines => lines.stripPrefix("//").trim().split(" "))
+            .flatten
+
       override def allSourceFiles: T[Seq[PathRef]] = T {
         val buddy = T.dest / s"${mlirSourceName}.buddy"
         val llvmir = T.dest / s"${mlirSourceName}.llvmir"
         val asm = T.dest / s"${mlirSourceName}.S"
+        val buddyOptArg = parseBuddyOptArg(mlirFile().path)
+
+        T.log.info(s"run buddy-opt with arg ${buddyOptArg}")
         os.proc(
           "buddy-opt",
           mlirFile().path,
-          "--lower-affine",
-          "--convert-scf-to-cf",
-          "--convert-math-to-llvm",
-          "--lower-vector-exp",
-          "--lower-rvv=rv32",
-          "--convert-vector-to-llvm",
-          "--convert-memref-to-llvm",
-          "--convert-arith-to-llvm",
-          "--convert-func-to-llvm",
-          "--reconcile-unrealized-casts"
+          buddyOptArg
         ).call(T.dest, stdout = buddy)
         os.proc(
           "buddy-translate", "--buddy-to-llvmir"
