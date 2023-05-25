@@ -1,3 +1,11 @@
+// BUDDY-OPT
+// --lower-affine --convert-scf-to-cf --convert-math-to-llvm
+// --lower-vector-exp --lower-rvv=rv32
+// --convert-vector-to-llvm --convert-memref-to-llvm
+// --convert-arith-to-llvm --convert-func-to-llvm
+// --reconcile-unrealized-casts
+// BUDDY-OPT-END
+
 // This implementation is based on [this file](https://github.com/buddy-compiler/buddy-mlir/blob/main/examples/RVVExperiment/rvv-vp-intrinsic-add.mlir) from buddy-mlir.
 
 memref.global "private" @gv_i32 : memref<20xi32> = dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9,

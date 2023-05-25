@@ -1,3 +1,11 @@
+// BUDDY-OPT
+// --lower-affine --convert-scf-to-cf --convert-math-to-llvm
+// --lower-vector-exp --lower-rvv=rv32
+// --convert-vector-to-llvm --convert-memref-to-llvm
+// --convert-arith-to-llvm --convert-func-to-llvm
+// --reconcile-unrealized-casts
+// BUDDY-OPT-END
+
 // Copied from https://github.com/xlinsist/buddy-mlir/blob/8b7ad2a79d05273e0e398dab7ae6c309fc60c811/examples/RVVDialect/test-i32-rvv-intr.mlir
 
 module {
