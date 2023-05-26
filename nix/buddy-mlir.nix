@@ -12,14 +12,14 @@
 let
   llvm = stdenv.mkDerivation rec {
     pname = "llvm-project";
-    version = "unstable-2022-12-17";
+    version = "unstable-2023-05-02";
     requiredSystemFeatures = [ "big-parallel" ];
     nativeBuildInputs = [ cmake ninja python3 ];
     src = fetchFromGitHub {
       owner = "llvm";
       repo = pname;
-      rev = "e31d27e46048ccc3294d6b215dc778b3390e7834";
-      hash = "sha256-CM3+amf2SpOiUBzdnO7sryTwmGcC0NVabNNvuatcCDQ=";
+      rev = "8f966cedea594d9a91e585e88a80a42c04049e6c";
+      hash = "sha256-g2cYk3/iyUvmIG0QCQpYmWj4L2H4znx9KbuA5TvIjrc=";
     };
     cmakeDir = "../llvm";
     cmakeFlags = [
@@ -44,12 +44,12 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "buddy-mlir";
-  version = "unstable-2023-05-01";
+  version = "unstable-2023-05-26";
   src = fetchFromGitHub {
     owner = "buddy-compiler";
     repo = pname;
-    rev = "2900b35cfd5ff34e1608b90d04f9dd9f41296f91";
-    hash = "sha256-3qduRyjOQKTDRdOpTJirD0Wm14BuvdJLx2IIWHDMD0g=";
+    rev = "74c18e6963cf4781be254d3c5d963b36c0642ba4";
+    hash = "sha256-Wx/QQrELfOT0h4B8hF9EPZKn4yVHBZeYh3Wm85Jpq60=";
   };
 
   ninjaFlags = [ "buddy-translate" ];

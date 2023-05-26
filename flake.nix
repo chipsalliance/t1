@@ -30,6 +30,7 @@
             python3
             go
             ammonite
+            metals
             gnused
             coreutils
             gnumake
