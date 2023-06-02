@@ -17,6 +17,24 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelAParameter, T
   * we use the maximum count of transactions of indexed load/store in each memory access operation for each lanes
   * to calculate the size of MSHR.
   * The MSHR group maintains a group of transactions with a set of base address.
+  *
+  * Refactor Plan:
+  * - merge memory request for cacheline not per element
+  * -- natively interleaving memory request since bank bits is not in cacheline tags
+  * -- save bandwidth in A Channel
+  * -- save bandwidth in L2 Cache(improve efficiency in cache directory)
+  * -- save request queue size in L2(less back pressure on bus)
+  * -- use PutPartial mask for masked store
+  * -- burst will block other memory requests until it is finished(this is limited by TileLink)
+  *
+  * - memory request hazard detection for multiple instructions
+  * -- unit stride without segment: instruction order, base address per instruction, current mask group index, mask inside mask group
+  * -- unit stride with segment: instruction order, base address per instruction, nf per instruction, current mask group index, mask inside mask group
+  * -- stride without segment: instruction order, stride per instruction, base address per instruction, current mask group index, mask inside mask group
+  * -- stride with segment: instruction order, stride per instruction, base address per instruction, nf per instruction, current mask group index, mask inside mask group
+  * -- indexed without segment
+  * -- indexed with segment
+  * based on the mask group granularity to detect hazard for unit stride and stride instruction
   */
 case class MSHRParam(
   chainingSize:  Int,
