@@ -1958,7 +1958,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.offset := 0.U //todo
   vrf.instructionWriteReport.bits.vdOffset := 0.U
   vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd
-  vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.decodeResult(Decoder.sWrite) || (laneRequest.bits.loadStore && !laneRequest.bits.store)
+  vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.decodeResult(Decoder.targetRd) || (laneRequest.bits.loadStore && !laneRequest.bits.store)
   vrf.instructionWriteReport.bits.vs2 := laneRequest.bits.vs2
   vrf.instructionWriteReport.bits.vs1.bits := laneRequest.bits.vs1
   vrf.instructionWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)
