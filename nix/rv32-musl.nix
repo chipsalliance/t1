@@ -1,4 +1,4 @@
-{ fetchFromGitHub, myLLVM, rv32-compilerrt }:
+{ fetchFromGitHub, legacyLLVM, rv32-compilerrt }:
 let
   pname = "musl";
   version = "a167b20fd395a45603b2d36cbf96dcb99ccedd60";
@@ -9,9 +9,9 @@ let
     sha256 = "sha256-kFOTlJ5ka5h694EBbwNkM5TLHlFg6uJsY7DK5ImQ8mY=";
   };
 in
-myLLVM.stdenv.mkDerivation {
+legacyLLVM.stdenv.mkDerivation {
   inherit src pname version;
-  nativeBuildInputs = [ myLLVM.bintools ];
+  nativeBuildInputs = [ legacyLLVM.bintools ];
   configureFlags = [
     "--target=riscv32-none-elf"
     "--enable-static"

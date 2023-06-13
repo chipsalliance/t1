@@ -7,8 +7,8 @@ let
   # from cc-wrapper
   my-cc-wrapper = final.callPackage
     (
-      { myLLVM, runCommand, gccForLibs }:
-      let cc = myLLVM.clang; in runCommand "my-cc-wrapper" { } ''
+      { myLLVMTools, runCommand, gccForLibs }:
+      let cc = myLLVMTools.clang; in runCommand "my-cc-wrapper" { } ''
         mkdir -p "$out"
         cp -rT "${cc}" "$out"
         chmod -R +w "$out"
@@ -30,10 +30,32 @@ let
     )
     { };
 
+  legacyLLVM = final.llvmPackages_14;
 in
 {
   # dont use llvmPackages = prev.llvmPackages_14 if you do not want to rebuild the world
-  myLLVM = final.llvmPackages_14;
+  myLLVMTools = (final.llvmPackages_16.override {
+    gitRelease = {
+      version = "17.0.0";
+      rev = "8f966cedea594d9a91e585e88a80a42c04049e6c";
+      rev-version = "unstable-2023-05-02";
+      sha256 = "sha256-g2cYk3/iyUvmIG0QCQpYmWj4L2H4znx9KbuA5TvIjrc=";
+    };
+    officialRelease = null;
+    buildLlvmTools = final.buildPackages.myLLVMTools;
+  }).tools.extend (lfinal: lprev: {
+    libllvm = lprev.libllvm.overrideAttrs (oldAttrs: {
+      patches = (builtins.filter (p: builtins.baseNameOf p != "gnu-install-dirs.patch") oldAttrs.patches) ++ [
+        ./nix/gnu-install-dirs.patch
+      ];
+    });
+    libclang = lprev.libclang.overrideAttrs (oldAttrs: {
+      patches = oldAttrs.patches ++ [
+        ./nix/fix-clang-build.patch
+      ];
+    });
+  });
+
   mill = prev.mill.override { jre = final.openjdk19; };
 
   espresso = final.callPackage ./nix/espresso.nix { };
@@ -42,5 +64,5 @@ in
   rv32-musl = final.callPackage ./nix/rv32-musl.nix { };
   buddy-mlir = final.callPackage ./nix/buddy-mlir.nix { };
 
-  inherit rv32-clang my-cc-wrapper;
+  inherit rv32-clang my-cc-wrapper legacyLLVM;
 }
