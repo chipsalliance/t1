@@ -1,0 +1,13 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -134,10 +134,6 @@
+       endif()
+     endif()
+ 
+-    if (NOT TARGET llvm_gtest)
+-        message(FATAL_ERROR "llvm-gtest not found. Please install llvm-gtest or disable tests with -DLLVM_INCLUDE_TESTS=OFF")
+-    endif()
+-
+     if(LLVM_LIT)
+       # Define the default arguments to use with 'lit', and an option for the user
+       # to override.
