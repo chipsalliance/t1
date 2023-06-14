@@ -6,54 +6,51 @@
 // --reconcile-unrealized-casts
 // BUDDY-OPT-END
 
-// Copied from https://github.com/xlinsist/buddy-mlir/blob/8b7ad2a79d05273e0e398dab7ae6c309fc60c811/examples/RVVDialect/test-i32-rvv-intr.mlir
+memref.global "private" @gv_i32 : memref<32768xi32>
 
-module {
-  memref.global "private" @gv_i32 : memref<20xi32> = dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]>
-  memref.global "private" @gv2_i32 : memref<20xi32>
-  func.func @test() -> i32 {
-    %0 = memref.get_global @gv_i32 : memref<20xi32>
-    %1 = builtin.unrealized_conversion_cast %0 : memref<20xi32> to !llvm.struct<(ptr<i32>, ptr<i32>, i64, array<1 x i64>, array<1 x i64>)>
-    %c0 = arith.constant 0 : index
-    %c0_i32 = arith.constant 0 : i32
-    %c2_i32 = arith.constant 2 : i32
-    %c2_i32_0 = arith.constant 2 : i32
-    %c1_i32 = arith.constant 1 : i32
-    %dim = memref.dim %0, %c0 : memref<20xi32>
-    %2 = arith.index_cast %dim : index to i32
-    %c0_1 = arith.constant 0 : index
-    %3 = memref.get_global @gv2_i32 : memref<20xi32>
-    %4 = builtin.unrealized_conversion_cast %3 : memref<20xi32> to !llvm.struct<(ptr<i32>, ptr<i32>, i64, array<1 x i64>, array<1 x i64>)>
-    %5:2 = scf.while (%arg0 = %2, %arg1 = %c0_1) : (i32, index) -> (i32, index) {
-      %8 = arith.cmpi sgt, %arg0, %c0_i32 : i32
-      scf.condition(%8) %arg0, %arg1 : i32, index
-    } do {
-    ^bb0(%arg0: i32, %arg1: index):
-      %8 = builtin.unrealized_conversion_cast %arg1 : index to i64
-      %9 = "rvv.intr.vsetvli"(%arg0, %c2_i32_0, %c1_i32) : (i32, i32, i32) -> i32
-      %10 = llvm.mlir.undef : vector<[8]xi32>
-      %11 = llvm.extractvalue %1[1] : !llvm.struct<(ptr<i32>, ptr<i32>, i64, array<1 x i64>, array<1 x i64>)> 
-      %12 = llvm.getelementptr %11[%8] : (!llvm.ptr<i32>, i64) -> !llvm.ptr<i32>
-      %13 = llvm.bitcast %12 : !llvm.ptr<i32> to !llvm.ptr<vector<[8]xi32>>
-      %14 = builtin.unrealized_conversion_cast %9 : i32 to i32
-      %15 = "rvv.intr.vle"(%10, %13, %14) : (vector<[8]xi32>, !llvm.ptr<vector<[8]xi32>>, i32) -> vector<[8]xi32>
-      %16 = llvm.mlir.undef : vector<[8]xi32>
-      %17 = "rvv.intr.vadd"(%16, %15, %c2_i32, %9) : (vector<[8]xi32>, vector<[8]xi32>, i32, i32) -> vector<[8]xi32>
-      %18 = llvm.extractvalue %4[1] : !llvm.struct<(ptr<i32>, ptr<i32>, i64, array<1 x i64>, array<1 x i64>)> 
-      %19 = llvm.getelementptr %18[%8] : (!llvm.ptr<i32>, i64) -> !llvm.ptr<i32>
-      %20 = llvm.bitcast %19 : !llvm.ptr<i32> to !llvm.ptr<vector<[8]xi32>>
-      %21 = builtin.unrealized_conversion_cast %9 : i32 to i32
-      "rvv.intr.vse"(%17, %20, %21) : (vector<[8]xi32>, !llvm.ptr<vector<[8]xi32>>, i32) -> ()
-      %22 = arith.index_cast %9 : i32 to index
-      %23 = arith.addi %arg1, %22 : index
-      %24 = arith.subi %arg0, %9 : i32
-      scf.yield %24, %23 : i32, index
-    }
-    %6 = vector.load %3[%c0] : memref<20xi32>, vector<20xi32>
-    %cst = arith.constant dense<true> : vector<20xi1>
-    %c1_i32_2 = arith.constant 1 : i32
-    %c20_i32 = arith.constant 20 : i32
-    %7 = "llvm.intr.vp.reduce.add"(%c1_i32_2, %6, %cst, %c20_i32) : (i32, vector<20xi32>, vector<20xi1>, i32) -> i32
-    return %7 : i32
+func.func @test() -> i32 {
+  %mem_i32 = memref.get_global @gv_i32 : memref<32768xi32>
+  %c0 = arith.constant 0 : index
+  %c0_i32 = arith.constant 0 : i32
+  %i2 = arith.constant 2 : i32
+
+  // Configure the register.
+  // SEW = 32
+  %sew = arith.constant 2 : i32
+  // LMUL = 2
+  %lmul = arith.constant 1 : i32
+
+  %init_avl = memref.dim %mem_i32, %c0 : memref<32768xi32>
+  %init_avl_i32 = arith.index_cast %init_avl : index to i32
+  %init_idx = arith.constant 0 : index
+  %res = memref.get_global @gv_i32 : memref<32768xi32>
+
+  // While loop for strip-mining.
+  %a1, %a2 = scf.while (%avl = %init_avl_i32, %idx = %init_idx) : (i32, index) -> (i32, index) {
+    // If avl greater than zero.
+    %cond = arith.cmpi sgt, %avl, %c0_i32 : i32
+    // Pass avl, idx to the after region.
+    scf.condition(%cond) %avl, %idx : i32, index
+  } do {
+  ^bb0(%avl : i32, %idx : index):
+    // Perform the calculation according to the vl.
+    %vl = rvv.setvl %avl, %sew, %lmul : i32
+    %input_vector = rvv.load %mem_i32[%idx], %vl : memref<32768xi32>, vector<[8]xi32>, i32
+    %result_vector = rvv.add %input_vector, %i2, %vl : vector<[8]xi32>, i32, i32
+    rvv.store %result_vector, %res[%idx], %vl : vector<[8]xi32>, memref<32768xi32>, i32
+    // Update idx and avl.
+    %vl_ind = arith.index_cast %vl : i32 to index
+    %new_idx = arith.addi %idx, %vl_ind : index
+    %new_avl = arith.subi %avl, %vl : i32
+    scf.yield %new_avl, %new_idx : i32, index
   }
+  %result = vector.load %res[%c0] : memref<32768xi32>, vector<8xi32>
+
+  %mask = arith.constant dense<1> : vector<8xi1>
+  %c1_i32 = arith.constant 1 : i32
+  %evl = arith.constant 8: i32
+  %res_reduce_add_mask_driven = "llvm.intr.vp.reduce.add" (%c1_i32, %result, %mask, %evl) :
+         (i32, vector<8xi32>, vector<8xi1>, i32) -> i32
+
+  return %res_reduce_add_mask_driven : i32
 }
