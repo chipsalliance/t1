@@ -17,7 +17,7 @@
           deps = with pkgs; [
             rv32-clang
             glibc_multi
-            legacyLLVM.bintools
+            llvmForDev.bintools
 
             cmake
             libargs
@@ -53,7 +53,7 @@
         in
         {
           legacyPackages = pkgs;
-          devShell = pkgs.mkShell.override { stdenv = pkgs.legacyLLVM.stdenv; } {
+          devShell = pkgs.mkShell.override { stdenv = pkgs.llvmForDev.stdenv; } {
             buildInputs = deps;
           };
         }
