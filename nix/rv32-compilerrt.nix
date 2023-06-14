@@ -1,9 +1,9 @@
-{ legacyLLVM, myLLVMTools, fetchFromGitHub, cmake, python3, glibc_multi  }:
+{ llvmForDev, llvmToolsForRV32Clang, fetchFromGitHub, cmake, python3, glibc_multi  }:
 
 let
   pname = "rv-compilerrt";
-  version = myLLVMTools.llvm.version;
-  rev = myLLVMTools.llvm.monorepoSrc.rev;
+  version = llvmToolsForRV32Clang.llvm.version;
+  rev = llvmToolsForRV32Clang.llvm.monorepoSrc.rev;
   src = fetchFromGitHub {
     owner = "llvm";
     repo = "llvm-project";
@@ -11,7 +11,7 @@ let
     sha256 = "sha256-g2cYk3/iyUvmIG0QCQpYmWj4L2H4znx9KbuA5TvIjrc=";
   };
 in
-legacyLLVM.stdenv.mkDerivation {
+llvmForDev.stdenv.mkDerivation {
   sourceRoot = "${src.name}/compiler-rt";
   inherit src version pname;
   nativeBuildInputs = [ cmake python3 glibc_multi ];

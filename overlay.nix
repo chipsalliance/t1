@@ -7,8 +7,8 @@ let
   # from cc-wrapper
   my-cc-wrapper = final.callPackage
     (
-      { myLLVMTools, runCommand, gccForLibs }:
-      let cc = myLLVMTools.clang; in runCommand "my-cc-wrapper" { } ''
+      { llvmToolsForRV32Clang, runCommand, gccForLibs }:
+      let cc = llvmToolsForRV32Clang.clang; in runCommand "my-cc-wrapper" { } ''
         mkdir -p "$out"
         cp -rT "${cc}" "$out"
         chmod -R +w "$out"
@@ -29,12 +29,14 @@ let
       ''
     )
     { };
-
-  legacyLLVM = final.llvmPackages_14;
 in
 {
   # dont use llvmPackages = prev.llvmPackages_14 if you do not want to rebuild the world
-  myLLVMTools = (final.llvmPackages_16.override {
+  #
+  # llvmForDev is used in the development shell and compiling the rv32-musl
+  llvmForDev = final.llvmPackages_14;
+  # llvmToolsForRV32Clang is used for compiling rv32-clang to kept compatibility with buddy-mlir
+  llvmToolsForRV32Clang = (final.llvmPackages_16.override {
     gitRelease = {
       version = "17.0.0";
       rev = "8f966cedea594d9a91e585e88a80a42c04049e6c";
@@ -42,7 +44,7 @@ in
       sha256 = "sha256-g2cYk3/iyUvmIG0QCQpYmWj4L2H4znx9KbuA5TvIjrc=";
     };
     officialRelease = null;
-    buildLlvmTools = final.buildPackages.myLLVMTools;
+    buildLlvmTools = final.buildPackages.llvmToolsForRV32Clang;
   }).tools.extend (lfinal: lprev: {
     libllvm = lprev.libllvm.overrideAttrs (oldAttrs: {
       patches = (builtins.filter (p: builtins.baseNameOf p != "gnu-install-dirs.patch") oldAttrs.patches) ++ [
@@ -64,5 +66,5 @@ in
   rv32-musl = final.callPackage ./nix/rv32-musl.nix { };
   buddy-mlir = final.callPackage ./nix/buddy-mlir.nix { };
 
-  inherit rv32-clang my-cc-wrapper legacyLLVM;
+  inherit rv32-clang my-cc-wrapper;
 }
