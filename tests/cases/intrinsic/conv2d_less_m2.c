@@ -31,15 +31,15 @@ void conv2d(int32_t *restrict output, int32_t const *restrict img,
         while (avl > 0) {
           // TODO: exchange vl-loop and kJ loop, can be more cache friendly
 
-          size_t vl = vsetvl_e32m2(avl);
+          size_t vl = __riscv_vsetvl_e32m2(avl);
 
-          vint32m2_t imgVec = vle32_v_i32m2(imgPtr, vl);
-          vint32m2_t mulVec = vmul_vx_i32m2(imgVec, K, vl);
+          vint32m2_t imgVec = __riscv_vle32_v_i32m2(imgPtr, vl);
+          vint32m2_t mulVec = __riscv_vmul_vx_i32m2(imgVec, K, vl);
 
-          vint32m2_t outVec = vle32_v_i32m2(outPtr, vl);
-          vint32m2_t resVec = vadd_vv_i32m2(outVec, mulVec, vl);
+          vint32m2_t outVec = __riscv_vle32_v_i32m2(outPtr, vl);
+          vint32m2_t resVec = __riscv_vadd_vv_i32m2(outVec, mulVec, vl);
 
-          vse32_v_i32m2(outPtr, resVec, vl);
+          __riscv_vse32_v_i32m2(outPtr, resVec, vl);
 
           avl -= vl;
           imgPtr += vl;
