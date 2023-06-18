@@ -14,3 +14,54 @@ stack_start:
     .zero 128
 
 stack_end:
+
+# Add some print functions' definitions here
+# to support direct lowering of such func.call and vector.print 
+.globl printMemrefI32
+printMemrefI32:
+        ret
+.globl printMemrefI64
+printMemrefI64:
+        ret
+.globl printMemrefF32
+printMemrefF32:
+        ret
+.globl printMemrefF64
+printMemrefF64:
+        ret
+.globl printMemrefInd
+printMemrefInd:
+        ret
+.globl printMemrefC32
+printMemrefC32:
+        ret
+.globl printMemrefC64
+printMemrefC64:
+        ret
+.globl printCString
+printCString:
+        ret
+.globl printI64
+printI64:
+        ret
+.globl printU64
+printU64:
+        ret
+.globl printF32
+printF32:
+        ret
+.globl printF64
+printF64:
+        ret
+.globl printOpen
+printOpen:
+        ret
+.globl printClose
+printClose:
+        ret
+.globl printComma
+printComma:
+        ret
+.globl printNewline
+printNewline:
+        ret
