@@ -110,13 +110,15 @@ case class VParameter(
       3 + // segment index, this is decided by spec.
       log2Ceil(lsuMSHRSize) // 3 MSHR(2 read + 1 write)
   }
+  // todo
+  val cacheLineSize = 32
 
   /** for TileLink `size` element.
     * for most of the time, size is 2'b10, which means 4 bytes.
     * EEW = 8bit, indexed LSU will access 1 byte.(bandwidth is 1/4).
     * TODO: perf it.
     */
-  val sizeWidth: Int = log2Ceil(memoryDataWidth / 8)
+  val sizeWidth: Int = log2Ceil(log2Ceil(cacheLineSize))
 
   /** for TileLink `mask` element. */
   val maskWidth: Int = memoryDataWidth / 8
@@ -153,6 +155,7 @@ case class VParameter(
     memoryBankSize,
     lsuMSHRSize,
     lsuVRFWriteQueueSize,
+    cacheLineSize,
     tlParam
   )
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize)
