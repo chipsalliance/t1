@@ -23,6 +23,7 @@ case class LSUParam(
   memoryBankSize:       Int,
   lsuMSHRSize:          Int,
   lsuVRFWriteQueueSize: Int,
+  cacheLineSize:        Int,
   tlParam:              TLBundleParameter) {
 
   /** see [[VParameter.maskGroupWidth]]. */
@@ -44,7 +45,7 @@ case class LSUParam(
   /** TODO: configured by cache line size. */
   val bankPosition: Int = 6
 
-  def mshrParam: MSHRParam = MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, tlParam)
+  def mshrParam: MSHRParam = MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, cacheLineSize, tlParam)
 
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)

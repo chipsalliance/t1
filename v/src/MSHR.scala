@@ -42,6 +42,7 @@ case class MSHRParam(
   vLen:          Int,
   laneNumber:    Int,
   paWidth:       Int,
+  cacheLineSize: Int,
   outerTLParam:  TLBundleParameter) {
 
   /** see [[LaneParameter.lmulMax]] */
@@ -106,6 +107,18 @@ case class MSHRParam(
 
   /** see [[LaneParameter.vrfOffsetBits]] */
   val vrfOffsetBits: Int = log2Ceil(singleGroupSize)
+
+  /** offset bit for a cache line */
+  val cacheLineBits: Int = log2Ceil(cacheLineSize)
+
+  val bustCount = cacheLineSize * 8 / datapathWidth
+
+  val bustCountBits: Int = log2Ceil(bustCount)
+
+  /** The maximum number of cache lines that will be accessed, a counter is needed.
+    * +1 Corresponding unaligned case
+    * */
+  val cacheLineIndexBits: Int = log2Ceil(vLen/cacheLineSize + 1)
 }
 
 class MSHRStatus(laneNumber: Int) extends Bundle {
@@ -154,6 +167,9 @@ class MSHRStage1Bundle(param: MSHRParam) extends Bundle {
 
   // 访问l2的地址
   val address: UInt = UInt(param.paWidth.W)
+  val dataForCacheLine: UInt = UInt((param.cacheLineSize * 8).W)
+  val maskForCacheLine: UInt = UInt(param.cacheLineSize.W)
+  val cacheIndex = UInt(log2Ceil(param.vLen / param.cacheLineSize).W)
 }
 
 /** Miss Status Handler Register
@@ -220,9 +236,23 @@ class MSHR(param: MSHRParam) extends Module {
   val s0Fire: Bool = Wire(Bool())
   val s1Fire: Bool = Wire(Bool())
   val s2Fire: Bool = Wire(Bool())
+  val tlPortAFire: Bool = Wire(Bool())
 
   /** request from LSU. */
   val lsuRequestReg: LSURequest = RegEnable(lsuRequest.bits, 0.U.asTypeOf(lsuRequest.bits), lsuRequest.valid)
+
+  /** Always merge into cache line */
+  val alwaysMerge: Bool = RegEnable(
+    (lsuRequest.bits.instructionInformation.mop ## lsuRequest.bits.instructionInformation.lumop) === 0.U,
+    false.B,
+    lsuRequest.valid
+  )
+
+  val mergeStore = alwaysMerge && lsuRequestReg.instructionInformation.isStore
+  val mergeLoad = alwaysMerge && !lsuRequestReg.instructionInformation.isStore
+
+  val nFiled: UInt = lsuRequest.bits.instructionInformation.nf +& 1.U
+  val nFiledReg: UInt = RegEnable(nFiled, 0.U, lsuRequest.valid)
 
   /** latch CSR.
     * TODO: merge to [[lsuRequestReg]]
@@ -287,7 +317,7 @@ class MSHR(param: MSHRParam) extends Module {
     * TODO: MuxOH(requestEEW, (reqNF +& 1.U))
     */
   val dataWidthForSegmentLoadStore: UInt = RegEnable(
-    (requestNF +& 1.U) * (1.U << requestEEW).asUInt(2, 0),
+    nFiled * (1.U << requestEEW).asUInt(2, 0),
     0.U,
     lsuRequest.valid
   )
@@ -653,7 +683,7 @@ class MSHR(param: MSHRParam) extends Module {
     * we use the maximum [[dataEEW]] to handle it.
     */
   val wholeEvl: UInt =
-    (lsuRequestReg.instructionInformation.nf +& 1.U) ## 0.U(log2Ceil(param.vLen / param.datapathWidth).W)
+    nFiledReg ## 0.U(log2Ceil(param.vLen / param.datapathWidth).W)
 
   /** evl for the instruction */
   val evl: UInt = Mux(
@@ -787,6 +817,105 @@ class MSHR(param: MSHRParam) extends Module {
     log2Ceil(param.datapathWidth / 8)
   )
 
+  // merge unit for unit stride start -----
+  /** Which cache line to start at */
+  val startCacheLine: UInt = lsuRequestReg.rs1Data(param.paWidth - 1, param.cacheLineBits)
+
+//    /** How many byte will be accessed by this instruction */
+//    val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
+//
+//
+//    /** How many cache lines will be accessed by this instruction
+//      * nFiled * vl * (2 ** eew) / 32
+//      * TODO: 暂时只有unit stride
+//      */
+//    val cacheLineNumber: UInt = bytePerInstruction(param.cacheLineIndexBits - 1, param.cacheLineBits) +
+//      bytePerInstruction(param.cacheLineBits - 1, 0).orR
+//
+//    val cacheLineNumberReg: UInt = RegEnable(cacheLineNumber, 0.U, lsuRequest.valid)
+
+  val mergeUnitDequeueFire: Bool = Wire(Bool())
+
+  // cache line index
+  val cacheLineIndex = RegInit(0.U(param.cacheLineIndexBits.W))
+
+  // update cacheLineIndex
+  when(lsuRequest.valid || mergeUnitDequeueFire) {
+    cacheLineIndex := Mux(mergeUnitDequeueFire, cacheLineIndex + 1.U, 0.U)
+  }
+
+  //
+  val dataShifter: UInt = RegInit(0.U((param.cacheLineSize * 8 + param.datapathWidth).W))
+  val maskShifter: UInt = RegInit(0.U((param.cacheLineSize + (param.datapathWidth / 8)).W))
+  // 这个cache line 已经有多少个byte了
+  val cacheByteCounter: UInt = RegInit(0.U(param.cacheLineBits.W))
+
+  val readFire: Bool = vrfReadDataPorts.fire
+  val readFireNext: Bool = RegNext(readFire, false.B)
+  val nextPtr: UInt = Wire(UInt(param.cacheLineBits.W))
+  val updateData: UInt = Wire(UInt((param.cacheLineSize * 8 + param.datapathWidth).W))
+  val updateMask: UInt = Wire(UInt((param.cacheLineSize + (param.datapathWidth / 8)).W))
+
+  // update cacheByteCounter
+  when(lsuRequest.valid || readFireNext) {
+    cacheByteCounter :=
+      Mux(readFireNext, nextPtr, lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0))
+    dataShifter := Mux(readFireNext, updateData, 0.U)
+    maskShifter := Mux(readFireNext, updateMask, 0.U)
+    // todo: need update mask
+  }
+
+  // todo: add group index
+  // (10 bit * 3bit) + 3bit
+  val relativeAddress: UInt = (s0Reg.indexInGroup * nFiledReg) + s0Reg.segmentIndex
+  // 保留上一次的相对偏移来算地址差值
+  val previousRelativeAddress: UInt = RegEnable(Mux(readFire, relativeAddress, 0.U), 0.U, readFire || lsuRequest.valid)
+
+  // 这一次的数据与上一次数据的差值
+  val addressDifference: UInt = ((relativeAddress - previousRelativeAddress) << dataEEW).asUInt
+  // 需要处理一次跳多个 cache line 的情况, 在 32 * 32 的情况下一次最多会跳过3个cache line(32 * 32 是 4 个)
+  val addressDifferenceReg: UInt = RegEnable(addressDifference, 0.U, readFire)
+  // 32 - cacheByteCounter
+  val cacheByteCounterComplementaryCode: UInt = (~cacheByteCounter).asUInt + 1.U
+
+  // addressDifferenceReg 是当前正读的数据与前一个数据的起始地址的差, 所以是先移后拼
+  // todo: byte 为粒度的移动需要优化 & 处理 vrfReadResults 往右对齐
+  updateData :=
+    vrfReadResults ## (dataShifter >> (addressDifferenceReg ## 0.U(3.W)))(param.cacheLineSize * 8 - 1, 0)
+
+  val readMask: UInt = dataEEWOH(2) ## dataEEWOH(2) ## !dataEEWOH(0) ## true.B
+  updateMask := readMask ## (maskShifter >> addressDifferenceReg)(param.cacheLineSize - 1, 0)
+
+  // sew = 8 的时候地址关于 byte 对齐
+  // sew = 16的时候地址需要关于 2byte对齐
+  // sew = 32的时候地址需要关于 4byte对齐
+  // element 不会跨cache line
+  // 但是我们可能会在 sew = 8 的时候将访问vrf的请求合并,
+  // 所以我们在跨 cache line 的时候既要把数据压进去, 又要扣出一个 cache line 出来
+  // updateData: 在压数据
+  // cacheLineUpdate: 在把 cache line 扣出来
+  // todo: 同样需要优化
+  val cacheLineToNextStage: UInt =
+    (dataShifter >> (cacheByteCounterComplementaryCode ## 0.U(3.W)))(param.cacheLineSize * 8 - 1, 0)
+
+  val maskToNextStage: UInt = (maskShifter >> cacheByteCounterComplementaryCode)(param.cacheLineSize - 1, 0)
+
+  val nextCacheByteCounter: UInt = cacheByteCounter +& addressDifferenceReg
+
+  val CrossCacheLine: Bool = (nextCacheByteCounter >> param.cacheLineBits).asUInt.orR
+  nextPtr := nextCacheByteCounter(param.cacheLineBits - 1, 0)
+
+  // todo: 暂时认为下一级是 ready 的, 反压数据后边再处理吧, 思路是放一个缓存 data 的queue 只有 ready 的时候才能 s1 ready
+  val cacheLineValid: Bool = readFireNext && (CrossCacheLine || last)
+
+  mergeUnitDequeueFire := cacheLineValid// && ready
+
+  // cacheLineValid & cacheLineUpdate 作为这一级的输出
+  // todo: 维护 cache line 的valid处理最后一个cache line,
+  //       assert(cacheByteCounterComplementaryCode === lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0))
+
+  // merge unit for unit stride end -----
+
   // s1 access VRF
   // TODO: perf `lsuRequestReg.instructionInformation.isStore && vrfReadDataPorts.ready` to check the VRF bandwidth
   //       limitation affecting to LSU store.
@@ -799,7 +928,7 @@ class MSHR(param: MSHRParam) extends Module {
   val readReady: Bool = !lsuRequestReg.instructionInformation.isStore || vrfReadDataPorts.ready
 
   /** valid signal to enqueue to s1 */
-  val s1EnqueueValid: Bool = s0Valid && readReady
+  val s1EnqueueValid: Bool = Mux(alwaysMerge, cacheLineValid, s0Valid && readReady)
 
   /** data is valid in s1 */
   val s1Valid: Bool = RegEnable(s1Fire, false.B, s1Fire ^ s2Fire)
@@ -810,8 +939,41 @@ class MSHR(param: MSHRParam) extends Module {
   /** request inside s1. */
   val s1Reg: MSHRStage1Bundle = RegEnable(s1Wire, 0.U.asTypeOf(s1Wire), s1Fire)
 
+  /** Which location of the cache line is being sent */
+  val sendCounter: UInt = RegInit(0.U(param.bustCountBits.W))
+
+  // update sendCounter
+  when((s1Fire || tlPortAFire) && alwaysMerge && lsuRequestReg.instructionInformation.isStore) {
+    sendCounter := Mux(s1Fire, 0.U, sendCounter + 1.U)
+  }
+
+  /** group data by [[param.datapathWidth]] */
+  val sendDataGroup: Seq[UInt] = Seq.tabulate(param.bustCount) { bustIndex =>
+    s1Reg.dataForCacheLine((bustIndex + 1) * param.datapathWidth - 1, bustIndex * param.datapathWidth)
+  }
+
+  /** Select the data to be sent from the cache line */
+  val mergedSendData: UInt = Mux1H(UIntToOH(sendCounter), sendDataGroup)
+
+  val sendMaskGroup: Seq[UInt] = Seq.tabulate(param.bustCount) { bustIndex =>
+    s1Reg.maskForCacheLine((bustIndex + 1) * param.datapathWidth / 8 - 1, bustIndex * param.datapathWidth / 8)
+  }
+
+  /** Select the mask to be sent from the cache line */
+  val mergedSendMask: UInt = Mux1H(UIntToOH(sendCounter), sendMaskGroup)
+
+  /** -1: eg: 32 byte / 4 byte = 8 bust -> count <- [0,7]
+    * last bust for cache line(if merge)
+    * */
+  val lastBust: Bool = sendCounter === ((param.cacheLineSize * 8 / param.datapathWidth) - 1).U
+
+  val lastBustForS1: Bool = !mergeStore || lastBust
+
+  /** select [[s2Fire]] */
+  s2Fire := tlPortAFire && lastBustForS1
+
   /** ready to enqueue to s2. */
-  val s2EnqueueReady: Bool = tlPort.a.ready && sourceFree
+  val s2EnqueueReady: Bool = tlPort.a.ready && sourceFree && lastBustForS1
 
   s1EnqueueReady := s2EnqueueReady || !s1Valid
   s1Fire := s1EnqueueValid && s1EnqueueReady
@@ -823,9 +985,15 @@ class MSHR(param: MSHRParam) extends Module {
   /** pipeline is flushed. */
   val pipelineClear: Bool = !s0Valid && !s1Valid
 
-  s1Wire.address := lsuRequestReg.rs1Data + s0Reg.addressOffset
+  val normalAddress: UInt = lsuRequestReg.rs1Data + s0Reg.addressOffset
+  val mergeAddress: UInt = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineIndex) ##
+    0.U(param.cacheLineBits.W)
+  s1Wire.address :=  Mux(alwaysMerge, mergeAddress, normalAddress)
   s1Wire.indexInMaskGroup := s0Reg.indexInGroup
   s1Wire.segmentIndex := s0Reg.segmentIndex
+  s1Wire.dataForCacheLine := cacheLineToNextStage
+  s1Wire.maskForCacheLine := maskToNextStage
+  s1Wire.cacheIndex := cacheLineIndex
 
   /** previous cycle sent the VRF read request,
     * this cycle should got response from each lanes
@@ -866,7 +1034,8 @@ class MSHR(param: MSHRParam) extends Module {
   // only PutFull / Get for now
   tlPort.a.bits.opcode := !lsuRequestReg.instructionInformation.isStore ## 0.U(2.W)
   tlPort.a.bits.param := 0.U
-  tlPort.a.bits.size := dataEEW
+  // todo: 1/2 1/4 1/8 cache line
+  tlPort.a.bits.size := Mux(alwaysMerge, param.cacheLineBits.U, dataEEW)
 
   /** source for memory request
     * make volatile field LSB to reduce the source conflict.
@@ -878,13 +1047,13 @@ class MSHR(param: MSHRParam) extends Module {
   )
   // offset index + segment index
   // log(32)-> 5    log(8) -> 3
-  tlPort.a.bits.source := memoryRequestSource
+  tlPort.a.bits.source := Mux(alwaysMerge, s1Reg.cacheIndex, memoryRequestSource)
   tlPort.a.bits.address := s1Reg.address
-  tlPort.a.bits.mask := storeMask
-  tlPort.a.bits.data := storeData
+  tlPort.a.bits.mask := Mux(alwaysMerge, mergedSendMask, storeMask)
+  tlPort.a.bits.data := Mux(alwaysMerge, mergedSendData, storeData)
   tlPort.a.bits.corrupt := false.B
   tlPort.a.valid := s1Valid && sourceFree
-  s2Fire := tlPort.a.fire
+  tlPortAFire := tlPort.a.fire
 
   // Handle response
 
