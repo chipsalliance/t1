@@ -257,9 +257,11 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
 
   bool is_csr_type = opcode == 0b1110011 && (width & 0b011);
   bool is_csr_write = is_csr_type && ((width & 0b100) | rs1);
+  bool is_vsetvl = opcode == 0b1010111 && width == 0b111;
 
-  if (is_load_type || is_store_type || is_v_type || (
-      is_csr_write && csr == CSR_MSIMEND)) {
+  if (is_vsetvl) {
+    return {};
+  } else if (is_load_type || is_store_type || is_v_type || (is_csr_write && csr == CSR_MSIMEND)) {
     return SpikeEvent{proc, fetch, this};
   } else {
     return {};
