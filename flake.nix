@@ -55,6 +55,7 @@
           legacyPackages = pkgs;
           devShell = pkgs.mkShell.override { stdenv = pkgs.llvmForDev.stdenv; } {
             buildInputs = deps;
+            SPIKE_ROOT = "${pkgs.spike}";
           };
         }
       )
