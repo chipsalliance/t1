@@ -117,7 +117,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   is_widening = opcode == 0b1010111 && (funct6 >> 4) == 0b11;
   is_mask_vd = opcode == 0b1010111 && (funct6 >> 3 == 0b011 || funct6 == 0b010001);
   is_exit_insn = opcode == 0b1110011;
-  is_vfence_insn = opcode == 0b1010111 && width == 0b111;
+  is_vfence_insn = false;
 
   is_issued = false;
 
