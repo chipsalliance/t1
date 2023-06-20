@@ -20,6 +20,14 @@ inline bool is_pow2(uint32_t n) {
   return n && !(n & (n - 1));
 }
 
+uint32_t expand_mask(uint8_t mask) {
+  uint64_t x = mask & 0xF;
+  x = (x | (x << 14)) & 0x00030003;
+  x = (x | (x <<  7)) & 0x01010101;
+  x = (x << 8) - x;
+  return (uint32_t)x;
+}
+
 void VBridgeImpl::timeoutCheck() {
   getCoverage();
   if (get_t() > timeout + last_commit_time) {
@@ -281,6 +289,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
 
   uint8_t opcode = tl.a_bits_opcode;
   uint32_t addr = tl.a_bits_address;
+  uint8_t mask = tl.a_bits_mask;
   uint8_t size = tl.a_bits_size;
   uint16_t src = tl.a_bits_source;   // MSHR id, TODO: be returned in D channel
   uint32_t lsu_index = tl.a_bits_source & 3;
@@ -295,13 +304,33 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   switch (opcode) {
 
   case TlOpcode::Get: {
+    uint32_t decoded_size = decode_size(size);
+    uint32_t actual_size = std::min(4, (int)decoded_size);
+    CHECK_S((addr & ((1 << size)-1)) == 0) << fmt::format(": [{}] unaligned mem read of addr={:08X}, size={}byte", get_t(), addr, decoded_size);
+    
+    auto record = &tl_mem_load_counter[tlIdx];
+    if (record->addr == addr) {
+      CHECK_S(record->decoded_size == decoded_size) << fmt::format(": [{}] merged mem read has inconsistant size", get_t());
+      CHECK_S(record->counter > 0) << fmt::format(": [{}] previous merged mem read has already completed", get_t());
+
+      record->counter--;
+    } else {
+      CHECK_S(record->counter == 0) << fmt::format(": [{}] previous merged mem read has not yet completed", get_t());
+
+      tl_mem_load_counter[tlIdx] = (TLMemCounterRecord){
+        .counter = (decoded_size>>2) - 1,
+        .decoded_size = decoded_size,
+        .addr = addr,
+      };
+    }
+
+    addr += decoded_size - ((record->counter+1) << 2);
     auto mem_read = se->mem_access_record.all_reads.find(addr);
     CHECK_S(mem_read != se->mem_access_record.all_reads.end())
       << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
 
     auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
     uint32_t expected_size = single_mem_read.size_by_byte;
-    uint32_t actual_size = decode_size(size);
     uint32_t actual_data = 0;
     if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
       for (int i = 0; i < (actual_size / expected_size); i++) {
@@ -330,10 +359,30 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
 
   case TlOpcode::PutFullData: {
     uint32_t data = tl.a_bits_data;
-    int offset_by_bits = (int) addr % 4 * 8; // TODO: replace 4 with XLEN.
-    data = clip(data, (int) offset_by_bits, offset_by_bits + (int) decode_size(size)*8 - 1);
-    LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={})",
-                             get_t(), addr, decode_size(size), src, data);
+    uint32_t decoded_size = decode_size(size);
+    uint32_t actual_size = std::min(4, (int)decoded_size);
+    CHECK_S((addr & ((1 << size)-1)) == 0) << fmt::format(": [{}] unaligned mem write of addr={:08X}, size={}byte", get_t(), addr, decoded_size);
+    
+    auto record = &tl_mem_store_counter[tlIdx];
+    if (record->addr == addr) {
+      CHECK_S(record->decoded_size == decoded_size) << fmt::format(": [{}] merged mem write has inconsistant size", get_t());
+      CHECK_S(record->counter > 0) << fmt::format(": [{}] previous merged mem write has already completed", get_t());
+
+      record->counter--;
+    } else {
+      CHECK_S(record->counter == 0) << fmt::format(": [{}] previous merged mem write has not yet completed", get_t());
+
+      tl_mem_store_counter[tlIdx] = (TLMemCounterRecord){
+        .counter = (decoded_size>>2) - 1,
+        .decoded_size = decoded_size,
+        .addr = addr,
+      };
+    }
+
+    addr += decoded_size - ((record->counter+1) << 2);
+    data = data & expand_mask(mask);
+    LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={}, mask={:04B}, counter={})",
+                             get_t(), addr, decoded_size, src, data, mask, record->counter);
     auto mem_write = se->mem_access_record.all_writes.find(addr);
 
     CHECK_S(mem_write != se->mem_access_record.all_writes.end())
@@ -342,7 +391,6 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     auto single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes++];
 
     uint32_t expected_size = single_mem_write.size_by_byte;
-    uint32_t actual_size = decode_size(size);
     uint32_t actual_data = 0;
     if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
       for (int i = 0; i < (actual_size / expected_size); i++) {
@@ -361,7 +409,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     }
 
     CHECK_EQ_S(actual_data, data) << fmt::format(
-        ": [{}] expect mem write of data {:08X}, actual data {:08X} (addr={:08X}, insn='{}')",
+        ": [{}] expect mem write of spike data {:08X}, rtl data {:08X} (addr={:08X}, insn='{}')",
         get_t(), actual_data, data, addr, se->describe_insn());
 
     tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
