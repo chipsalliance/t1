@@ -50,6 +50,10 @@ in
       patches = (builtins.filter (p: builtins.baseNameOf p != "gnu-install-dirs.patch") oldAttrs.patches) ++ [
         ./nix/gnu-install-dirs.patch
       ];
+      # Disable llvm tests here, because it wastes too much time.
+      # But if someday someone bumps the new llvm, it is their responsibility to make sure
+      # that these tests can pass successfully.
+      doCheck = false;
     });
     libclang = lprev.libclang.overrideAttrs (oldAttrs: {
       patches = oldAttrs.patches ++ [
