@@ -411,8 +411,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     Vec(parameter.chainingSize, new LaneShifterReq(parameter.shifterParameter))
   )
 
-  /** request for multipler instruction type. */
-  val multiplerRequests: Vec[LaneMulReq] = Wire(Vec(parameter.chainingSize, new LaneMulReq(parameter.mulParam)))
+  /** request for multiplier instruction type. */
+  val multiplierRequests: Vec[LaneMulReq] = Wire(Vec(parameter.chainingSize, new LaneMulReq(parameter.mulParam)))
 
   /** request for divider instruction type. */
   val dividerRequests: Vec[LaneDivRequest] = Wire(
@@ -1192,7 +1192,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         mulRequest.saturate := decodeResult(Decoder.saturate)
         mulRequest.vSew := record.csr.vSew
         mulRequest.vxrm := record.csr.vxrm
-        multiplerRequests(index) := maskAnd(
+        multiplierRequests(index) := maskAnd(
           executeRequestStateValid && decodeResult(Decoder.multiplier),
           mulRequest
         )
@@ -1748,7 +1748,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     shifter.req := VecInit(shiftRequests.map(_.asUInt))
       .reduce(_ | _)
       .asTypeOf(new LaneShifterReq(parameter.shifterParameter))
-    mul.req := VecInit(multiplerRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneMulReq(parameter.mulParam))
+    mul.req := VecInit(multiplierRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneMulReq(parameter.mulParam))
     div.req.bits := VecInit(dividerRequests.map(_.asUInt))
       .reduce(_ | _)
       .asTypeOf(new LaneDivRequest(parameter.datapathWidth))

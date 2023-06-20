@@ -72,7 +72,7 @@ class Monitor(dut: V) extends TapModule {
     })
     aluPeeker.isAdderOccupied := tap(lane.adderRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
     aluPeeker.isShifterOccupied := tap(lane.shiftRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
-    aluPeeker.isMultiplierOccupied := tap(lane.multiplerRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
+    aluPeeker.isMultiplierOccupied := tap(lane.multiplierRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
     aluPeeker.isDividerOccupied := tap(lane.dividerRequests).map(_.asUInt).reduce(_ | _) =/= 0.U
     aluPeeker.laneIdx := index.U
 
