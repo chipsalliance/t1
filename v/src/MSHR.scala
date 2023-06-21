@@ -875,13 +875,22 @@ class MSHR(param: MSHRParam) extends Module {
   val addressDifference: UInt = ((relativeAddress - previousRelativeAddress) << dataEEW).asUInt
   // 需要处理一次跳多个 cache line 的情况, 在 32 * 32 的情况下一次最多会跳过3个cache line(32 * 32 是 4 个)
   val addressDifferenceReg: UInt = RegEnable(addressDifference, 0.U, readFire)
+
+  val dataOffsetInDataPath: UInt = RegEnable(Mux1H(dataEEWOH(1, 0), Seq(
+    s0Reg.indexInGroup(1, 0),
+    s0Reg.indexInGroup(0) ## false.B,
+  )), 0.U, readFire)
   // 32 - cacheByteCounter
   val cacheByteCounterComplementaryCode: UInt = (~cacheByteCounter).asUInt + 1.U
 
+  val vrfReadResultsAligned: UInt = Mux1H(
+    UIntToOH(dataOffsetInDataPath),
+    Seq.tabulate(4) {baseOffset => (vrfReadResults >> (baseOffset * 8)).asUInt}
+  )
   // addressDifferenceReg 是当前正读的数据与前一个数据的起始地址的差, 所以是先移后拼
-  // todo: byte 为粒度的移动需要优化 & 处理 vrfReadResults 往右对齐
+  // todo: byte 为粒度的移动需要优化
   updateData :=
-    vrfReadResults ## (dataShifter >> (addressDifferenceReg ## 0.U(3.W)))(param.cacheLineSize * 8 - 1, 0)
+    vrfReadResultsAligned ## (dataShifter >> (addressDifferenceReg ## 0.U(3.W)))(param.cacheLineSize * 8 - 1, 0)
 
   val readMask: UInt = dataEEWOH(2) ## dataEEWOH(2) ## !dataEEWOH(0) ## true.B
   updateMask := readMask ## (maskShifter >> addressDifferenceReg)(param.cacheLineSize - 1, 0)
