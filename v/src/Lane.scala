@@ -196,6 +196,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** select which mask group. */
   val maskSelect: UInt = IO(Output(UInt(parameter.maskGroupSizeBits.W)))
 
+  /** The sew of instruction which is requesting for mask. */
+  val maskSelectSew: UInt = IO(Output(UInt(2.W)))
+
   /** from [[V.lsu]] to [[Lane.vrf]], indicate it's the load store is finished, used for chaining.
     * because of load store index EEW, is complicated for lane to calculate whether LSU is finished.
     * let LSU directly tell each lane it is finished.
@@ -1828,6 +1831,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     maskSelect := Mux1H(
       maskSelectArbitrator,
       0.U.asTypeOf(slotMaskRequestVec.head.bits) +: slotMaskRequestVec.map(_.bits)
+    )
+    maskSelectSew := Mux1H(
+      maskSelectArbitrator,
+      csrInterface.vSew +: slotControl.map(_.csr.vSew)
     )
   }
 
