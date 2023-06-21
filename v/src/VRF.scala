@@ -182,16 +182,19 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   def enqCheck(enq: VRFWriteReport, record: ValidIO[VRFWriteReport]): Bool = {
     val recordBits = record.bits
+    val sameVd = enq.vd.valid && enq.vd.bits === recordBits.vd.bits
     val raw: Bool = rawCheck(record.bits, enq)
     val war: Bool = rawCheck(enq, record.bits)
-    val waw: Bool = enq.vd.valid && recordBits.vd.valid && enq.vd.valid && enq.vd.bits === recordBits.vd.bits
+    val waw: Bool = recordBits.vd.valid && sameVd
+    val stWar = record.valid && record.bits.st && sameVd
 
     /** 两种暂时处理不了的冲突
       * 自己会乱序写 & wax: enq.unOrderWrite && (war || waw)
       * 老的会乱序写 & raw: record.bits.unOrderWrite && raw
+      * 老的是st & war
       * todo: ld 需要更大粒度的channing更新或检测,然后除开segment的ld就能chaining起来了
       */
-    (!((enq.unOrderWrite && (war || waw)) || (record.bits.unOrderWrite && raw))) || !record.valid
+    (!((enq.unOrderWrite && (war || waw)) || (record.bits.unOrderWrite && raw) || stWar)) || !record.valid
   }
 
   // todo: 根据 portFactor 变形
