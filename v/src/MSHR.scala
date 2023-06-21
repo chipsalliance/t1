@@ -757,7 +757,7 @@ class MSHR(param: MSHRParam) extends Module {
   val s0EnqueueValid: Bool = stateReady && !last
 
   /** there exist valid signal inside s0. */
-  val s0Valid: Bool = RegEnable(s0Fire, false.B, s0Fire ^ s1Fire)
+  val s0Valid: Bool = RegEnable(s0Fire, false.B, s0Fire ^ vrfReadDataPorts.fire)
 
   /** request enqueue to s0. */
   val s0Wire: MSHRStage0Bundle = Wire(new MSHRStage0Bundle(param))
@@ -841,7 +841,7 @@ class MSHR(param: MSHRParam) extends Module {
 
   // update cacheLineIndex
   when(lsuRequest.valid || mergeUnitDequeueFire) {
-    cacheLineIndex := Mux(mergeUnitDequeueFire, cacheLineIndex + 1.U, 0.U)
+    cacheLineIndex := Mux(lsuRequest.valid, 0.U, cacheLineIndex + 1.U)
   }
 
   //
@@ -915,10 +915,11 @@ class MSHR(param: MSHRParam) extends Module {
   nextPtr := nextCacheByteCounter(param.cacheLineBits - 1, 0)
 
   // todo: 暂时认为下一级是 ready 的, 反压数据后边再处理吧, 思路是放一个缓存 data 的queue 只有 ready 的时候才能 s1 ready
-  val cacheLineValid: Bool = readFireNext && (CrossCacheLine || last)
+  val cacheLineValid: Bool = Mux(readFireNext, CrossCacheLine, !readFire && last)
 
   mergeUnitDequeueFire := cacheLineValid// && ready
 
+  val mergeUnitValid: Bool = RegEnable(!cacheLineValid, false.B, readFire || cacheLineValid)
   // cacheLineValid & cacheLineUpdate 作为这一级的输出
   // todo: 维护 cache line 的valid处理最后一个cache line,
   //       assert(cacheByteCounterComplementaryCode === lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0))
@@ -1139,7 +1140,7 @@ class MSHR(param: MSHRParam) extends Module {
 
   // update state
   when(state === sRequest) {
-    when(last || maskGroupEnd) {
+    when((last || maskGroupEnd) && !(mergeUnitValid || s1Valid)) {
       state := wResponse
     }
   }
