@@ -277,7 +277,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // TODO: if elen=32, vSew should be 2?
   val sew1H: UInt = UIntToOH(requestReg.bits.csr.vSew)
   // TODO: uarch doc for the regroup
-  val regroupV0: Seq[Vec[UInt]] = Seq(4, 2, 1).map { groupSize =>
+  val regroupV0: Seq[Seq[UInt]] = Seq(4, 2, 1).map { groupSize =>
     v0.map { element =>
       element.asBools
         .grouped(groupSize)
@@ -288,9 +288,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         .transpose
         .map(seq => VecInit(seq).asUInt)
     }.transpose.map(VecInit(_).asUInt)
-  }.transpose.map(Mux1H(sew1H(2, 0), _)).map { v0ForLane =>
-    VecInit(v0ForLane.asBools.grouped(32).toSeq.map(VecInit(_).asUInt))
-  }
+  }.transpose
 
   /** which slot the instruction is entering */
   val instructionToSlotOH: UInt = Wire(UInt(parameter.chainingSize.W))
@@ -1183,7 +1181,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     instructionFinished(index).zip(slots.map(_.record.instructionIndex)).foreach {
       case (d, f) => d := (UIntToOH(f(parameter.instructionIndexBits - 2, 0)) & lane.instructionFinished).orR
     }
-    lane.maskInput := regroupV0(index)(lane.maskSelect)
+    lane.maskInput := regroupV0.map(Mux1H(UIntToOH(lane.maskSelectSew)(2, 0), _)).map { v0ForLane =>
+      VecInit(v0ForLane.asBools.grouped(parameter.datapathWidth).toSeq.map(VecInit(_).asUInt))
+    }(index)(lane.maskSelect)
     lane.lsuLastReport := lsu.lastReport
     lane.lsuVRFWriteBufferClear := !lsu.vrfWritePort(index).valid
     lane.maskUnitFlushVrf := lastMaskUnitWrite
