@@ -307,53 +307,40 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     uint32_t decoded_size = decode_size(size);
     uint32_t actual_size = std::min(4, (int)decoded_size);
     CHECK_S((addr & ((1 << size)-1)) == 0) << fmt::format(": [{}] unaligned mem read of addr={:08X}, size={}byte", get_t(), addr, decoded_size);
-    
-    auto record = &tl_mem_load_counter[tlIdx];
-    if (record->addr == addr) {
-      CHECK_S(record->decoded_size == decoded_size) << fmt::format(": [{}] merged mem read has inconsistant size", get_t());
-      CHECK_S(record->counter > 0) << fmt::format(": [{}] previous merged mem read has already completed", get_t());
 
-      record->counter--;
-    } else {
-      CHECK_S(record->counter == 0) << fmt::format(": [{}] previous merged mem read has not yet completed", get_t());
+    int i = 0;
+    do {
+      addr += (i++) << 2;
+      auto mem_read = se->mem_access_record.all_reads.find(addr);
+      CHECK_S(mem_read != se->mem_access_record.all_reads.end())
+        << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
 
-      tl_mem_load_counter[tlIdx] = (TLMemCounterRecord){
-        .counter = (decoded_size>>2) - 1,
-        .decoded_size = decoded_size,
-        .addr = addr,
-      };
-    }
-
-    addr += decoded_size - ((record->counter+1) << 2);
-    auto mem_read = se->mem_access_record.all_reads.find(addr);
-    CHECK_S(mem_read != se->mem_access_record.all_reads.end())
-      << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
-
-    auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
-    uint32_t expected_size = single_mem_read.size_by_byte;
-    uint32_t actual_data = 0;
-    if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
-      for (int i = 0; i < (actual_size / expected_size); i++) {
-        actual_data |= single_mem_read.val << (i * expected_size * 8);
-        if (i >= (actual_size / expected_size) - 1) break;
-        addr += expected_size;
-        mem_read = se->mem_access_record.all_reads.find(addr);
-        CHECK_S(mem_read != se->mem_access_record.all_reads.end())
-            << fmt::format(": [{}] cannot find mem read of addr={:08X}", get_t(), addr);
-        single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
+      auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
+      uint32_t expected_size = single_mem_read.size_by_byte;
+      uint32_t actual_data = 0;
+      if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
+        for (int i = 0; i < (actual_size / expected_size); i++) {
+          actual_data |= single_mem_read.val << (i * expected_size * 8);
+          if (i >= (actual_size / expected_size) - 1) break;
+          addr += expected_size;
+          mem_read = se->mem_access_record.all_reads.find(addr);
+          CHECK_S(mem_read != se->mem_access_record.all_reads.end())
+              << fmt::format(": [{}] cannot find mem read of addr={:08X}", get_t(), addr);
+          single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
+        }
+      } else {
+        CHECK_S(false) << fmt::format(
+            ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, insn='{}')",
+            get_t(), expected_size, actual_size, addr, se->describe_insn());
       }
-    } else {
-      CHECK_S(false) << fmt::format(
-          ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, insn='{}')",
-          get_t(), expected_size, actual_size, addr, se->describe_insn());
-    }
 
-    LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
-                             get_t(), addr, actual_size, src, actual_data);
+      LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
+                              get_t(), addr, actual_size, src, actual_data);
 
-    tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
-        actual_data, actual_size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
-    });
+      tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
+          actual_data, actual_size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
+      });
+    } while (i < (decoded_size >> 2));
     break;
   }
 
