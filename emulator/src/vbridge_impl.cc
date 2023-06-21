@@ -383,6 +383,13 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     data = data & expand_mask(mask);
     LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={}, mask={:04B}, counter={})",
                              get_t(), addr, decoded_size, src, data, mask, record->counter);
+
+    if (mask == 0) {
+      LOG(INFO) << fmt::format("[{}] mem put req masked out, skipping.. (addr={:08X}, size={}byte, src={:04X}, data={}, mask={:04B}, counter={})",
+                             get_t(), addr, decoded_size, src, data, mask, record->counter);
+      break;
+    }
+
     auto mem_write = se->mem_access_record.all_writes.find(addr);
 
     CHECK_S(mem_write != se->mem_access_record.all_writes.end())
