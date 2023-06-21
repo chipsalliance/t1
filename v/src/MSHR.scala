@@ -754,7 +754,7 @@ class MSHR(param: MSHRParam) extends Module {
   status.offsetGroupEnd := needRequestOffset && requestOffset && !requestOffsetNext
 
   /** valid signal to enqueue to s0. */
-  val s0EnqueueValid: Bool = stateReady && !last
+  val s0EnqueueValid: Bool = stateReady && !last && !mergeLoad
 
   /** there exist valid signal inside s0. */
   val s0Valid: Bool = RegEnable(s0Fire, false.B, s0Fire ^ vrfReadDataPorts.fire)
@@ -818,21 +818,19 @@ class MSHR(param: MSHRParam) extends Module {
   )
 
   // merge unit for unit stride start -----
-  /** Which cache line to start at */
-  val startCacheLine: UInt = lsuRequestReg.rs1Data(param.paWidth - 1, param.cacheLineBits)
 
-//    /** How many byte will be accessed by this instruction */
-//    val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
-//
-//
-//    /** How many cache lines will be accessed by this instruction
-//      * nFiled * vl * (2 ** eew) / 32
-//      * TODO: 暂时只有unit stride
-//      */
-//    val cacheLineNumber: UInt = bytePerInstruction(param.cacheLineIndexBits - 1, param.cacheLineBits) +
-//      bytePerInstruction(param.cacheLineBits - 1, 0).orR
-//
-//    val cacheLineNumberReg: UInt = RegEnable(cacheLineNumber, 0.U, lsuRequest.valid)
+  /** How many byte will be accessed by this instruction */
+  val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
+
+
+  /** How many cache lines will be accessed by this instruction
+    * nFiled * vl * (2 ** eew) / 32
+    * TODO: 暂时只有unit stride, 处理头不对齐 + 不整 -> 尾对齐
+    */
+  val cacheLineNumber: UInt = bytePerInstruction(param.cacheLineIndexBits - 1, param.cacheLineBits) +
+    bytePerInstruction(param.cacheLineBits - 1, 0).orR
+
+  val cacheLineNumberReg: UInt = RegEnable(cacheLineNumber, 0.U, lsuRequest.valid)
 
   val mergeUnitDequeueFire: Bool = Wire(Bool())
 
@@ -914,13 +912,17 @@ class MSHR(param: MSHRParam) extends Module {
   val CrossCacheLine: Bool = (nextCacheByteCounter >> param.cacheLineBits).asUInt.orR
   nextPtr := nextCacheByteCounter(param.cacheLineBits - 1, 0)
 
-  val mergeUnitValid: Bool = RegInit(false.B)
+  val mergeStoreUnitValid: Bool = RegInit(false.B)
 
-  // todo: 暂时认为下一级是 ready 的, 反压数据后边再处理吧, 思路是放一个缓存 data 的queue 只有 ready 的时候才能 s1 ready
-  val cacheLineValid: Bool = Mux(readFireNext, CrossCacheLine, !readFire && last) && mergeUnitValid
+  val mergeLoadValid = cacheLineIndex < cacheLineNumberReg
 
-  when(readFire || cacheLineValid) { mergeUnitValid := !cacheLineValid }
-  mergeUnitDequeueFire := cacheLineValid// && ready
+  val storeCacheLineValid: Bool = Mux(readFireNext, CrossCacheLine, !readFire && last) && mergeStoreUnitValid
+  val mergeUnitValid = mergeLoadValid || mergeStoreUnitValid
+
+  val cacheLineValid = storeCacheLineValid || mergeLoadValid
+
+  when(readFire || storeCacheLineValid) { mergeStoreUnitValid := !storeCacheLineValid }
+  mergeUnitDequeueFire := cacheLineValid && s1EnqueueReady
 
   // cacheLineValid & cacheLineUpdate 作为这一级的输出
   // todo: 维护 cache line 的valid处理最后一个cache line,
@@ -972,7 +974,8 @@ class MSHR(param: MSHRParam) extends Module {
   }
 
   /** Select the mask to be sent from the cache line */
-  val mergedSendMask: UInt = Mux1H(UIntToOH(sendCounter), sendMaskGroup)
+  val mergedSendMask: UInt = Mux1H(UIntToOH(sendCounter), sendMaskGroup) |
+    FillInterleaved(param.tlParam.a.maskWidth, mergeLoad)
 
   /** -1: eg: 32 byte / 4 byte = 8 bust -> count <- [0,7]
     * last bust for cache line(if merge)
