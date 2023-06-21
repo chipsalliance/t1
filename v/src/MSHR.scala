@@ -914,12 +914,14 @@ class MSHR(param: MSHRParam) extends Module {
   val CrossCacheLine: Bool = (nextCacheByteCounter >> param.cacheLineBits).asUInt.orR
   nextPtr := nextCacheByteCounter(param.cacheLineBits - 1, 0)
 
-  // todo: 暂时认为下一级是 ready 的, 反压数据后边再处理吧, 思路是放一个缓存 data 的queue 只有 ready 的时候才能 s1 ready
-  val cacheLineValid: Bool = Mux(readFireNext, CrossCacheLine, !readFire && last)
+  val mergeUnitValid: Bool = RegInit(false.B)
 
+  // todo: 暂时认为下一级是 ready 的, 反压数据后边再处理吧, 思路是放一个缓存 data 的queue 只有 ready 的时候才能 s1 ready
+  val cacheLineValid: Bool = Mux(readFireNext, CrossCacheLine, !readFire && last) && mergeUnitValid
+
+  when(readFire || cacheLineValid) { mergeUnitValid := !cacheLineValid }
   mergeUnitDequeueFire := cacheLineValid// && ready
 
-  val mergeUnitValid: Bool = RegEnable(!cacheLineValid, false.B, readFire || cacheLineValid)
   // cacheLineValid & cacheLineUpdate 作为这一级的输出
   // todo: 维护 cache line 的valid处理最后一个cache line,
   //       assert(cacheByteCounterComplementaryCode === lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0))
