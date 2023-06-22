@@ -310,27 +310,26 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
 
     int i = 0;
     do {
-      addr += (i++) << 2;
-      auto mem_read = se->mem_access_record.all_reads.find(addr);
       uint32_t actual_data = 0;
+      
+      auto mem_read = se->mem_access_record.all_reads.find(addr);
       if (mem_read == se->mem_access_record.all_reads.end()) {
         actual_data = 0xDEADDEAD; // falsey data
-        LOG(INFO) << fmt::format(": [{}] mem over read of addr={:08X} detected and ignored", get_t(), addr);
+        LOG(INFO) << fmt::format("[{}] mem over read of addr={:08X} detected and ignored", get_t(), addr);
       } else {
         auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
         uint32_t expected_size = single_mem_read.size_by_byte;
+        auto single_mem_read_addr = addr;
         if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
-          for (int j = 0; j < (actual_size / expected_size); j++) {
-            mem_read = se->mem_access_record.all_reads.find(addr);
-            if (mem_read != se->mem_access_record.all_reads.end()) {
-              actual_data |= single_mem_read.val << (j * expected_size * 8);
-              addr += expected_size;
-              single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
-            } else {
-              actual_data |= (j & 1) ? 0xDE : 0xAD; // falsey data
-              LOG(INFO) << fmt::format(": [{}] mem over read of addr={:08X} detected and ignored", get_t(), addr);
-            }
-            if (j >= (actual_size / expected_size) - 1) break;
+          for (int j = 0; j < (actual_size / expected_size); ++j) {
+            actual_data |= single_mem_read.val << (j * expected_size * 8);
+            single_mem_read_addr += expected_size;
+            if (j >= (actual_size / expected_size)-1) break;
+
+            mem_read = se->mem_access_record.all_reads.find(single_mem_read_addr);
+            CHECK_S(mem_read != se->mem_access_record.all_reads.end()) 
+              << fmt::format("[{}] unligned mem over read of addr={:08X} detected", get_t(), single_mem_read_addr);
+            single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
           }
         } else {
           CHECK_S(false) << fmt::format(
@@ -345,7 +344,8 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
       tl_banks[tlIdx].emplace(get_t(), TLReqRecord {
           actual_data, actual_size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
       });
-    } while (i < (decoded_size >> 2));
+      addr += actual_size;
+    } while (++i < (decoded_size >> 2));
     break;
   }
 
