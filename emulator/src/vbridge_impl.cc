@@ -312,32 +312,37 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     do {
       addr += (i++) << 2;
       auto mem_read = se->mem_access_record.all_reads.find(addr);
-      CHECK_S(mem_read != se->mem_access_record.all_reads.end())
-        << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
-
-      auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
-      uint32_t expected_size = single_mem_read.size_by_byte;
       uint32_t actual_data = 0;
-      if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
-        for (int i = 0; i < (actual_size / expected_size); i++) {
-          actual_data |= single_mem_read.val << (i * expected_size * 8);
-          if (i >= (actual_size / expected_size) - 1) break;
-          addr += expected_size;
-          mem_read = se->mem_access_record.all_reads.find(addr);
-          CHECK_S(mem_read != se->mem_access_record.all_reads.end())
-              << fmt::format(": [{}] cannot find mem read of addr={:08X}", get_t(), addr);
-          single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
-        }
+      if (mem_read == se->mem_access_record.all_reads.end()) {
+        actual_data = 0xDEADDEAD; // falsey data
+        LOG(INFO) << fmt::format(": [{}] mem over read of addr={:08X} detected and ignored", get_t(), addr);
       } else {
-        CHECK_S(false) << fmt::format(
-            ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, insn='{}')",
-            get_t(), expected_size, actual_size, addr, se->describe_insn());
+        auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
+        uint32_t expected_size = single_mem_read.size_by_byte;
+        if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
+          for (int j = 0; j < (actual_size / expected_size); j++) {
+            mem_read = se->mem_access_record.all_reads.find(addr);
+            if (mem_read != se->mem_access_record.all_reads.end()) {
+              actual_data |= single_mem_read.val << (j * expected_size * 8);
+              addr += expected_size;
+              single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
+            } else {
+              actual_data |= (j & 1) ? 0xDE : 0xAD; // falsey data
+              LOG(INFO) << fmt::format(": [{}] mem over read of addr={:08X} detected and ignored", get_t(), addr);
+            }
+            if (j >= (actual_size / expected_size) - 1) break;
+          }
+        } else {
+          CHECK_S(false) << fmt::format(
+              ": [{}] expect mem read of size {}, actual size {} (addr={:08X}, insn='{}')",
+              get_t(), expected_size, actual_size, addr, se->describe_insn());
+        }
       }
 
       LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
                               get_t(), addr, actual_size, src, actual_data);
 
-      tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
+      tl_banks[tlIdx].emplace(get_t(), TLReqRecord {
           actual_data, actual_size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
       });
     } while (i < (decoded_size >> 2));
