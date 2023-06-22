@@ -231,6 +231,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val decodeResult: DecodeBundle = requestReg.bits.decodeResult
   // 这是当前正在mask unit 里面的那一条指令的csr信息,用来计算mask unit的控制信号
   val csrRegForMaskUnit: CSRInterface = RegInit(0.U.asTypeOf(new CSRInterface(parameter.laneParam.vlMaxBits)))
+  val vSewOHForMask: UInt = UIntToOH(csrRegForMaskUnit.vSew)(2, 0)
   // 正在从寄存器里面出来的这个指令会使用哪一个执行单元
   val dequeueExecutionType: ExecutionUnitType = Wire(new ExecutionUnitType)
   dequeueExecutionType.elements.foreach {case (key, data) => data := decodeResult.elements(key)}
@@ -394,7 +395,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val completedLeftOr: UInt = (scanLeftOr(completedVec.asUInt) << 1).asUInt(parameter.laneNumber - 1, 0)
   // 按指定的sew拼成 {laneNumer * dataPathWidth} bit, 然后根据sew选择出来
   val sortedData: UInt = Mux1H(
-    sew1H(2, 0),
+    vSewOHForMask,
     Seq(4, 2, 1).map { groupSize =>
       VecInit(data.map { element =>
         element.bits.asBools //[x] * 32 eg: sew = 1
@@ -494,7 +495,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val compressWriteCount = RegInit(0.U(parameter.laneParam.vlMaxBits.W))
       val nextElementIndex: UInt = elementIndexCount + 1.U
       val firstElement = elementIndexCount === 0.U
-      val lastElement: Bool = nextElementIndex === requestReg.bits.csr.vl
+      val lastElement: Bool = nextElementIndex === csrRegForMaskUnit.vl
       val updateMaskIndex = WireDefault(false.B)
       when(updateMaskIndex) { elementIndexCount := nextElementIndex }
       // 特殊的指令,会阻止 wLast 后把 sExecute 拉回来, 因为需要等待读后才写
@@ -600,8 +601,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         * vl假设最大1024,相应的会有11位的vl
         *   xxx xxx xxxxx
         */
-      val dataPathMisaligned = requestReg.bits.csr.vl(parameter.dataPathWidthBits - 1, 0).orR
-      val groupMisaligned = requestReg.bits.csr
+      val dataPathMisaligned = csrRegForMaskUnit.vl(parameter.dataPathWidthBits - 1, 0).orR
+      val groupMisaligned = csrRegForMaskUnit
         .vl(parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber) - 1, parameter.dataPathWidthBits)
         .orR
 
@@ -611,12 +612,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         *   lastExecuteCounter = vl(7, 5) - ![[dataPathMisaligned]]
         */
       val lastGroupCounter: UInt =
-        requestReg.bits.csr.vl(
+        csrRegForMaskUnit.vl(
           parameter.laneParam.vlMaxBits - 1,
           parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber)
         ) - !(dataPathMisaligned || groupMisaligned)
       val lastExecuteCounter: UInt =
-        requestReg.bits.csr.vl(
+        csrRegForMaskUnit.vl(
           parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber) - 1,
           parameter.dataPathWidthBits
         ) - !dataPathMisaligned
@@ -624,7 +625,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val lastExecute = lastGroup && writeBackCounter === lastExecuteCounter
       val lastExecuteForGroup = writeBackCounter.andR
       // 计算正写的这个lane是不是在边界上
-      val endOH = UIntToOH(requestReg.bits.csr.vl(parameter.dataPathWidthBits - 1, 0))
+      val endOH = UIntToOH(csrRegForMaskUnit.vl(parameter.dataPathWidthBits - 1, 0))
       val border = lastExecute && dataPathMisaligned
       val lastGroupMask = scanRightOr(endOH(parameter.datapathWidth - 1, 1))
       val mvType = decodeResultReg(Decoder.mv)
@@ -715,11 +716,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         * specialUop(1,0): 倍率
         * specialUop(2)：是否是符号
         */
-      val extendSourceSew: Bool = (requestReg.bits.csr.vSew >> decodeResultReg(Decoder.topUop)(1, 0))(0)
+      val extendSourceSew: Bool = (csrRegForMaskUnit.vSew >> decodeResultReg(Decoder.topUop)(1, 0))(0)
       val extendSign:      Bool = decodeResultReg(Decoder.topUop)(2)
       // gather 相关的控制
       val gather16: Bool = decodeResultReg(Decoder.gather16)
-      val maskUnitEEW = Mux(gather16, 1.U, Mux(extend, extendSourceSew, requestReg.bits.csr.vSew))
+      val maskUnitEEW = Mux(gather16, 1.U, Mux(extend, extendSourceSew, csrRegForMaskUnit.vSew))
       val maskUnitEEW1H: UInt = UIntToOH(maskUnitEEW)
       val maskUnitByteEnable = maskUnitEEW1H(2) ## maskUnitEEW1H(2) ## maskUnitEEW1H(2, 1).orR ## true.B
       val maskUnitBitEnable = FillInterleaved(8, maskUnitByteEnable)
@@ -767,7 +768,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       )
 
       def indexAnalysis(elementIndex: UInt) = {
-        val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << requestReg.bits.csr.vSew)
+        val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << csrRegForMaskUnit.vSew)
           .asUInt(parameter.laneParam.vlMaxBits - 2, 0)
         val accessMask = Mux1H(
           sew1H(2, 0),
@@ -790,13 +791,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           * vlmul 需要区分整数与浮点
           */
         val overlap =
-          (requestReg.bits.csr.vlmul(2) && (offset ## accessLane(2)) >= intLMUL(3, 1)) ||
-            (!requestReg.bits.csr.vlmul(2) && accessRegGrowth >= intLMUL)
-        accessRegGrowth >= requestReg.bits.csr.vlmul
+          (csrRegForMaskUnit.vlmul(2) && (offset ## accessLane(2)) >= intLMUL(3, 1)) ||
+            (!csrRegForMaskUnit.vlmul(2) && accessRegGrowth >= intLMUL)
+        accessRegGrowth >= csrRegForMaskUnit.vlmul
         val reallyGrowth = accessRegGrowth(2, 0)
         (accessMask, dataOffset, accessLane, offset, reallyGrowth, overlap)
       }
-      val srcOverlap: Bool = !decodeResultReg(Decoder.itype) && (rs1 >= requestReg.bits.csr.vl)
+      val srcOverlap: Bool = !decodeResultReg(Decoder.itype) && (rs1 >= csrRegForMaskUnit.vl)
       // rs1 >= vlMax
       val srcOversize = !decodeResultReg(Decoder.itype) && !slide1 && compareResult
       val signBit = Mux1H(
@@ -1082,7 +1083,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     Mux(decodeResult(Decoder.gather), gatherData, Mux(decodeResult(Decoder.itype), immSignExtend, source1Extend))
 
   // data eew for extend type
-  val extendDataEEW: Bool = (requestReg.bits.csr.vSew >> decodeResult(Decoder.topUop)(1, 0))(0)
+  val extendDataEEW: Bool = (csrRegForMaskUnit.vSew >> decodeResult(Decoder.topUop)(1, 0))(0)
   val gather16: Bool = decodeResult(Decoder.gather16)
   val vSewSelect: UInt = Mux(
     isLoadStoreType,
