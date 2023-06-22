@@ -1123,11 +1123,15 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     // and broadcast to all lanes.
     lane.laneRequest.bits.readFromScalar := source1Select
 
-    // TODO: these are from decoder.
+    // TODO: these are from decoder?
     // let record in VRF to know there is a load store instruction.
-    // TODO: use `fire` instead of `slotReady`
-    // TODO: if LSU reject the request, the record will not be cleared.
-    lane.laneRequest.bits.loadStore := isLoadStoreType && slotReady
+    // 是不经过lane的lsu指令: noOffsetReadLoadStore
+    // 然后握手fire了:
+    //  valid: requestReg.valid
+    //  ready: slotReady && lsu.request.ready && instructionRAWReady
+    lane.laneRequest.bits.LSUFire := slotReady && requestReg.valid && noOffsetReadLoadStore &&
+      lsu.request.ready && instructionRAWReady
+    lane.laneRequest.bits.loadStore := isLoadStoreType
     // let record in VRF to know there is a store instruction.
     lane.laneRequest.bits.store := isStoreType
     // let lane know if this is a special instruction, which need group-level synchronization between lane and [[V]]
