@@ -360,7 +360,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val maskUnitReadVec:    Vec[ValidIO[VRFReadRequest]] = Wire(Vec(3, Valid(readType)))
   val maskReadLaneSelect: Vec[UInt] = Wire(Vec(3, UInt(parameter.laneNumber.W)))
   val maskUnitReadSelect: UInt = Mux1H(maskUnitReadVec.map(_.valid), maskReadLaneSelect)
-  maskUnitReadVec.foreach(_.bits.instructionIndex := DontCare)
   maskUnitRead := Mux1H(maskUnitReadVec.map(_.valid), maskUnitReadVec)
   val readSelectMaskUnit: Vec[Bool] = Wire(Vec(parameter.laneNumber, Bool()))
   val maskUnitReadReady = readSelectMaskUnit.asUInt.orR
@@ -1156,14 +1155,17 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     // tell lane which
     lane.laneResponseFeedback.bits.instructionIndex := slots.last.record.instructionIndex
 
+    // lsu 优先会有死锁:
+    // vmadc, v1, v2, 1 (vl=17) -> 需要先读后写
+    // vse32.v v1, (a0) -> 依赖上一条,但是会先发出read
     // 读 lane
     lane.vrfReadAddressChannel.valid := lsu.vrfReadDataPorts(index).valid ||
     (maskUnitRead.valid && maskUnitReadSelect(index))
     lane.vrfReadAddressChannel.bits :=
-      Mux(lsu.vrfReadDataPorts(index).valid, lsu.vrfReadDataPorts(index).bits, maskUnitRead.bits)
-    lsu.vrfReadDataPorts(index).ready := lane.vrfReadAddressChannel.ready
+      Mux(maskUnitRead.valid, maskUnitRead.bits, lsu.vrfReadDataPorts(index).bits)
+    lsu.vrfReadDataPorts(index).ready := lane.vrfReadAddressChannel.ready && !maskUnitRead.valid
     readSelectMaskUnit(index) :=
-      lane.vrfReadAddressChannel.ready && !lsu.vrfReadDataPorts(index).valid && maskUnitReadSelect(index)
+      lane.vrfReadAddressChannel.ready && maskUnitReadSelect(index)
     laneReadResult(index) := lane.vrfReadDataChannel
     lsu.vrfReadResults(index) := lane.vrfReadDataChannel
 
@@ -1301,4 +1303,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   when(dataClear) {
     data.foreach(_.valid := false.B)
   }
+  // don't care有可能会导致先读后写失败
+  maskUnitReadVec.foreach(_.bits.instructionIndex := slots.last.record.instructionIndex)
 }
