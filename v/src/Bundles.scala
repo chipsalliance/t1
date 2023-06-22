@@ -130,6 +130,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   // decode
   val decodeResult: DecodeBundle = Decoder.bundle
   val loadStore:    Bool = Bool()
+  val LSUFire:      Bool = Bool()
   val store:        Bool = Bool()
   val special:      Bool = Bool()
 
