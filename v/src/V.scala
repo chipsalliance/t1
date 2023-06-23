@@ -550,10 +550,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val gatherAdvance = (gatherWire >> log2Ceil(parameter.vLen)).asUInt.orR
       gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance, requestReg.bits.csr)
       val slotValid = !control.state.idle
+      val storeAfterSlide = isStoreType && (requestRegDequeue.bits.instruction(11, 7) === vd)
       instructionRAWReady := !((unOrderTypeInstruction && slotValid &&
         // slid 类的会比执行得慢的指令快(div),会修改前面的指令的source
         ((vd === requestRegDequeue.bits.instruction(24, 20)) ||
           (vd === requestRegDequeue.bits.instruction(19, 15)) ||
+          storeAfterSlide ||
           // slid 类的会比执行得快的指令慢(mv),会被后来的指令修改 source2
           (vs2 === requestRegDequeue.bits.instruction(11, 7))) ||
         ((unOrderType || requestReg.bits.vdIsV0) && !allSlotFree)) || (vd === 0.U && maskType && slotValid))
