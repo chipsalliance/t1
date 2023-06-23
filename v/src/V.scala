@@ -275,8 +275,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   /** duplicate v0 for mask */
   val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.maskGroupSize)(0.U(parameter.maskGroupWidth.W))))
-  // TODO: if elen=32, vSew should be 2?
-  val sew1H: UInt = UIntToOH(requestReg.bits.csr.vSew)
   // TODO: uarch doc for the regroup
   val regroupV0: Seq[Seq[UInt]] = Seq(4, 2, 1).map { groupSize =>
     v0.map { element =>
@@ -653,7 +651,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val maskCorrect: UInt = Mux(maskTypeInstruction, maskSelect, fullMask) &
         Mux(border, lastGroupMask, fullMask)
       // mask
-      val sew1HCorrect = Mux(decodeResultReg(Decoder.widenReduce), sew1H ## false.B, sew1H)
+      val sew1HCorrect = Mux(decodeResultReg(Decoder.widenReduce), vSewOHForMask ## false.B, vSewOHForMask)
       // 写的data
       val writeData = (WARRedResult.bits & (~maskCorrect).asUInt) | (regroupData(writeBackCounter) & maskCorrect)
       val writeMask = Mux(sew1HCorrect(2) || !reduce, 15.U, Mux(sew1HCorrect(1), 3.U, 1.U))
@@ -766,11 +764,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         gatherWire
       )
 
-      def indexAnalysis(elementIndex: UInt) = {
+      def indexAnalysis(elementIndex: UInt, sewInput: UInt =vSewOHForMask) = {
         val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << csrRegForMaskUnit.vSew)
           .asUInt(parameter.laneParam.vlMaxBits - 2, 0)
         val accessMask = Mux1H(
-          sew1H(2, 0),
+          sewInput(2, 0),
           Seq(
             UIntToOH(dataPosition(1, 0)),
             FillInterleaved(2, UIntToOH(dataPosition(1))),
@@ -778,7 +776,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           )
         )
         // 数据起始位置在32bit(暂时只32)中的偏移,由于数据会有跨lane的情况,融合的优化时再做
-        val dataOffset = (dataPosition(1) && sew1H(1, 0).orR) ## (dataPosition(0) && sew1H(0)) ## 0.U(3.W)
+        val dataOffset = (dataPosition(1) && sewInput(1, 0).orR) ## (dataPosition(0) && sewInput(0)) ## 0.U(3.W)
         val accessLane = dataPosition(log2Ceil(parameter.laneNumber) + 1, 2)
         // 32 bit / group
         val dataGroup = (dataPosition >> (log2Ceil(parameter.laneNumber) + 2)).asUInt
@@ -800,7 +798,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // rs1 >= vlMax
       val srcOversize = !decodeResultReg(Decoder.itype) && !slide1 && compareResult
       val signBit = Mux1H(
-        sew1H,
+        vSewOHForMask,
         readIndex(parameter.laneParam.vlMaxBits - 1, parameter.laneParam.vlMaxBits - 3).asBools.reverse
       )
       // 对于up来说小于offset的element是不变得的
@@ -1003,13 +1001,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         }
         // 可能有的计算
         val readFinish = WARRedResult.valid || !needWAR
-        val readDataSign = Mux1H(sew1H(2, 0), Seq(WARRedResult.bits(7), WARRedResult.bits(15), WARRedResult.bits(31)))
+        val readDataSign = Mux1H(vSewOHForMask(2, 0), Seq(WARRedResult.bits(7), WARRedResult.bits(15), WARRedResult.bits(31)))
         when(readFinish) {
           when(readMv) {
             control.state.sMaskUnitExecution := true.B
             // signExtend for vmv.x.s
-            dataResult.bits := Mux(sew1H(2), WARRedResult.bits(31, 16), Fill(16, readDataSign)) ##
-              Mux(sew1H(0), Fill(8, readDataSign), WARRedResult.bits(15, 8)) ##
+            dataResult.bits := Mux(vSewOHForMask(2), WARRedResult.bits(31, 16), Fill(16, readDataSign)) ##
+              Mux(vSewOHForMask(0), Fill(8, readDataSign), WARRedResult.bits(15, 8)) ##
               WARRedResult.bits(7, 0)
 
           }.otherwise {
