@@ -256,7 +256,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         write.valid && write.bits.instructionIndex === record.bits.instIndex && (write.bits.last || write.bits
           .mask(3))
       ) {
-        record.bits.offset := write.bits.offset
+        // widen 类型的可能后一个先到,所以直接-1吧
+        record.bits.offset := Mux(write.bits.offset === 0.U, write.bits.offset, write.bits.offset - 1.U)
         record.bits.vdOffset := vsOffsetMask & write.bits.vd
         when(write.bits.last) {
           record.valid := false.B
