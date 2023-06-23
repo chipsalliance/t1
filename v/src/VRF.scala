@@ -124,6 +124,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   /** when instruction is fired, record it in the VRF for chaining. */
   val instructionWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
 
+  val lsuInstructionFire: Bool = IO(Input(Bool()))
+
   /** see [[Lane.maskUnitFlushVrf]]
     * TODO: merge to [[lsuLastReport]]
     */
@@ -244,7 +246,12 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   // handle VRF hazard
   // TODO: move to [[V]]
   instructionWriteReport.ready := chainingRecord.map(r => enqCheck(instructionWriteReport.bits, r)).reduce(_ && _)
-  recordEnq := Mux(instructionWriteReport.fire, recordFFO, 0.U(parameter.chainingSize.W))
+  recordEnq := Mux(
+    // 纯粹的lsu指令的记录不需要ready
+    instructionWriteReport.valid && (instructionWriteReport.ready || lsuInstructionFire),
+    recordFFO,
+    0.U(parameter.chainingSize.W)
+  )
 
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>

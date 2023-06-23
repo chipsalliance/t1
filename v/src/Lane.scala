@@ -1960,6 +1960,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   vrf.flush := maskUnitFlushVrf
   // normal instruction, LSU instruction will be report to VRF.
+  vrf.lsuInstructionFire := laneRequest.bits.LSUFire
   vrf.instructionWriteReport.valid := (laneRequest.fire || laneRequest.bits.LSUFire) && !entranceControl.instructionFinished
   vrf.instructionWriteReport.bits.instIndex := laneRequest.bits.instructionIndex
   vrf.instructionWriteReport.bits.offset := 0.U //todo
