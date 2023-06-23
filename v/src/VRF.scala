@@ -249,9 +249,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
       val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
-      when(recordEnq(i)) {
-        record := initRecord
-      }
       when(
         write.valid && write.bits.instructionIndex === record.bits.instIndex && (write.bits.last || write.bits
           .mask(3))
@@ -271,6 +268,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       }
       when(record.bits.stFinish && lsuWriteBufferClear && record.valid) {
         record.valid := false.B
+      }
+      when(recordEnq(i)) {
+        record := initRecord
       }
   }
 }
