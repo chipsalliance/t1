@@ -247,7 +247,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv))
   val skipLastFromLane: Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
   val instructionValid: Bool = requestReg.bits.csr.vl > requestReg.bits.csr.vStart
-  val intLMUL:          UInt = (1.U << requestReg.bits.csr.vlmul(1, 0)).asUInt
 
   // TODO: these should be decoding results
   /** load store that don't read offset. */
@@ -627,7 +626,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val lastGroupMask = scanRightOr(endOH(parameter.datapathWidth - 1, 1))
       val mvType = decodeResultReg(Decoder.mv)
       val readMv = mvType && decodeResultReg(Decoder.targetRd)
-      val writeMv = mvType && !decodeResultReg(Decoder.targetRd) && instructionValid
+      val writeMv = mvType && !decodeResultReg(Decoder.targetRd) &&
+        csrRegForMaskUnit.vl > csrRegForMaskUnit.vStart
       // 读后写中的读
       val needWAR = maskTypeInstruction || border || reduce || readMv
       val skipLaneData: Bool = decodeResultReg(Decoder.mv)
