@@ -1352,7 +1352,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           // the find first one instruction is finished in this lane
           ffoSuccessImStage2.foreach(_ := otherResponse.ffoSuccess)
           when(otherResponse.ffoSuccess && !record.selfCompleted) {
-            ffoIndexReg := record.lastGroupForInstruction ## Mux1H(
+            ffoIndexReg := executionRecord.groupCounter ## Mux1H(
               vSew1H,
               Seq(
                 executionRecord.executeIndex ## otherResponse.data(2, 0),
