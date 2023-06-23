@@ -1984,6 +1984,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.mul := Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
   // clear record by instructionFinished
   vrf.lsuLastReport := lsuLastReport | instructionFinished
-  vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear
+  vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear && !crossLaneWriteQueue.io.deq.valid
   instructionFinished := instructionFinishedVec.reduce(_ | _)
 }
