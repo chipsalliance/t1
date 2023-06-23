@@ -529,7 +529,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         * lmul - sew <- [-5, 3]
         * 选择信号 +5 -> lmul - sew + 5 <- [0, 8]
         */
-      def largeThanVLMax(source: UInt, advance: Bool = false.B): Bool = {
+      def largeThanVLMax(source: UInt, advance: Bool = false.B, csrInput:CSRInterface): Bool = {
         val vlenLog2 = log2Ceil(parameter.vLen) // 10
         val cut =
           if (source.getWidth >= vlenLog2) source(vlenLog2 - 1, vlenLog2 - 9)
@@ -541,15 +541,15 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             largeList(i) := a
             a || b
         }
-        val extendVlmul = requestReg.bits.csr.vlmul(2) ## requestReg.bits.csr.vlmul
-        val selectWire = UIntToOH(5.U(4.W) + extendVlmul - requestReg.bits.csr.vSew)(8, 0).asBools.reverse
+        val extendVlmul = csrInput.vlmul(2) ## csrInput.vlmul
+        val selectWire = UIntToOH(5.U(4.W) + extendVlmul - csrInput.vSew)(8, 0).asBools.reverse
         Mux1H(selectWire, largeList)
       }
       // 算req上面的分开吧
       val gatherWire =
         Mux(decodeResult(Decoder.itype), requestRegDequeue.bits.instruction(19, 15), requestRegDequeue.bits.src1Data)
       val gatherAdvance = (gatherWire >> log2Ceil(parameter.vLen)).asUInt.orR
-      gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance)
+      gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance, requestReg.bits.csr)
       val slotValid = !control.state.idle
       instructionRAWReady := !((unOrderTypeInstruction && slotValid &&
         // slid 类的会比执行得慢的指令快(div),会修改前面的指令的source
@@ -731,7 +731,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
       val compareWire = Mux(decodeResultReg(Decoder.slid), rs1, maskUnitData)
       val compareAdvance: Bool = (rs1 >> log2Ceil(parameter.vLen)).asUInt.orR
-      val compareResult:  Bool = largeThanVLMax(compareWire, compareAdvance)
+      val compareResult:  Bool = largeThanVLMax(compareWire, compareAdvance, csrRegForMaskUnit)
       // 正在被gather使用的数据在data的那个组里
       val gatherDataSelect = UIntToOH(maskUnitDataOffset(7, 5))
       val dataTail = Mux1H(UIntToOH(maskUnitEEW)(1, 0), Seq(3.U(2.W), 2.U(2.W)))
@@ -764,11 +764,14 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         gatherWire
       )
 
-      def indexAnalysis(elementIndex: UInt, sewInput: UInt =vSewOHForMask) = {
-        val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << csrRegForMaskUnit.vSew)
+      def indexAnalysis(elementIndex: UInt, csrInput: CSRInterface = csrRegForMaskUnit) = {
+        val sewInput = csrInput.vSew
+        val sewOHInput = UIntToOH(csrInput.vSew)(2, 0)
+        val intLMULInput:UInt = (1.U << csrInput.vlmul(1, 0)).asUInt
+        val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << sewInput)
           .asUInt(parameter.laneParam.vlMaxBits - 2, 0)
         val accessMask = Mux1H(
-          sewInput(2, 0),
+          sewOHInput(2, 0),
           Seq(
             UIntToOH(dataPosition(1, 0)),
             FillInterleaved(2, UIntToOH(dataPosition(1))),
@@ -776,7 +779,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           )
         )
         // 数据起始位置在32bit(暂时只32)中的偏移,由于数据会有跨lane的情况,融合的优化时再做
-        val dataOffset = (dataPosition(1) && sewInput(1, 0).orR) ## (dataPosition(0) && sewInput(0)) ## 0.U(3.W)
+        val dataOffset = (dataPosition(1) && sewOHInput(1, 0).orR) ## (dataPosition(0) && sewOHInput(0)) ## 0.U(3.W)
         val accessLane = dataPosition(log2Ceil(parameter.laneNumber) + 1, 2)
         // 32 bit / group
         val dataGroup = (dataPosition >> (log2Ceil(parameter.laneNumber) + 2)).asUInt
@@ -788,9 +791,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           * vlmul 需要区分整数与浮点
           */
         val overlap =
-          (csrRegForMaskUnit.vlmul(2) && (offset ## accessLane(2)) >= intLMUL(3, 1)) ||
-            (!csrRegForMaskUnit.vlmul(2) && accessRegGrowth >= intLMUL)
-        accessRegGrowth >= csrRegForMaskUnit.vlmul
+          (csrInput.vlmul(2) && (offset ## accessLane(2)) >= intLMULInput(3, 1)) ||
+            (!csrInput.vlmul(2) && accessRegGrowth >= intLMULInput)
+        accessRegGrowth >= csrInput.vlmul
         val reallyGrowth = accessRegGrowth(2, 0)
         (accessMask, dataOffset, accessLane, offset, reallyGrowth, overlap)
       }
@@ -807,8 +810,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val slidActive = elementActive && (!slideUpUnderflow || !decodeResultReg(Decoder.slid))
       // index >= vlMax 是写0
       val overlapVlMax: Bool = !slideUp && (signBit || srcOversize)
+      // select csr
+      val csrSelect = Mux(control.state.idle, requestReg.bits.csr, csrRegForMaskUnit)
       // slid read
-      val (_, readDataOffset, readLane, readOffset, readGrowth, lmulOverlap) = indexAnalysis(readIndex)
+      val (_, readDataOffset, readLane, readOffset, readGrowth, lmulOverlap) = indexAnalysis(readIndex, csrSelect)
       gatherReadDataOffset := readDataOffset
       val readOverlap = lmulOverlap || overlapVlMax
       val skipRead = readOverlap || (gather && compareResult) || extend
