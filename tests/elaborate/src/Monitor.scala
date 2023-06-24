@@ -2,7 +2,7 @@ package tests.elaborate
 
 import chisel3._
 import chisel3.experimental.ExtModule
-import chisel3.util.HasExtModuleInline
+import chisel3.util.{HasExtModuleInline,Cat}
 
 import v.{V, VRFWriteRequest}
 
@@ -16,25 +16,30 @@ class Monitor(dut: V) extends TapModule {
       override val desiredName = "dpiVRFMonitor"
       val clock = IO(Input(Clock()))
       val vrfWriteValid = IO(Input(Bool()))
+      val vrfReadPortNum = lane.parameter.vrfParam.vrfReadPort
+      val vrfReadValid = IO(Input(UInt(vrfReadPortNum.W)))
       val laneIdx = IO(Input(UInt(32.W)))
       setInline(
         s"$desiredName.sv",
         s"""module $desiredName(
            |  input clock,
            |  input int laneIdx,
-           |  input bit vrfWriteValid
+           |  input bit vrfWriteValid,
+           |  input bit[${vrfReadPortNum - 1}:0] vrfReadValid
            |);
            |import "DPI-C" function void $desiredName(
            |  input int laneIdx,
-           |  input bit vrfWriteValid
+           |  input bit vrfWriteValid,
+           |  input bit[${vrfReadPortNum - 1}:0] vrfReadValid
            |);
-           |always @ (posedge clock) #(3) $desiredName(laneIdx, vrfWriteValid);
+           |always @ (posedge clock) #(3) $desiredName(laneIdx, vrfWriteValid, vrfReadValid);
            |endmodule
            |""".stripMargin
       )
     })
     vrfPeeker.laneIdx := index.U
     vrfPeeker.vrfWriteValid := tap(lane.vrf.write.valid)
+    vrfPeeker.vrfReadValid := Cat(lane.vrf.readRequests.map(req => tap(req.valid)))
     vrfPeeker.clock := clock
   }
 

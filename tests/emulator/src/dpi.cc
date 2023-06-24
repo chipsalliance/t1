@@ -17,7 +17,7 @@ static bool terminated = false;
 
 VRFPerf vrf_perf;
 ALUPerf alu_perf;
-LSUPerf lsu_perfs[consts::numTL];
+LSUPerf lsu_perf;
 ChainingPerf chaining_perf;
 
 void sigint_handler(int s) {
@@ -111,8 +111,8 @@ void VBridgeImpl::dpiDumpWave() {
     vbridge_impl_instance.dpiPeekTL(
         VTlInterface{channel_id, *a_opcode, *a_param, *a_size, *a_source, *a_address, *a_mask, *a_data,
                      a_corrupt, a_valid, d_ready});
-    lsu_perfs[channel_id].peek_tl(a_valid, d_ready);
-    lsu_perfs[channel_id].step();
+    lsu_perf.peek_tl(a_valid, d_ready, channel_id);
+    lsu_perf.step(channel_id);
   })
 }
 
@@ -134,7 +134,7 @@ void VBridgeImpl::dpiDumpWave() {
     vbridge_impl_instance.dpiPokeTL(
         VTlInterfacePoke{channel_id, d_opcode, d_param, d_size, d_source, d_sink, d_denied, d_data,
                          d_corrupt, d_valid, a_ready, d_ready});
-    lsu_perfs[channel_id].poke_tl(*d_valid, *a_ready);
+    lsu_perf.poke_tl(*d_valid, *a_ready, channel_id);
   })
 }
 
@@ -186,9 +186,10 @@ void VBridgeImpl::dpiDumpWave() {
 
 [[maybe_unused]] void dpiVRFMonitor(
     int lane_idx,
-    svBit valid
+    svBit valid,
+    const svBitVecVal *read_valid
 ) TRY({
-  vrf_perf.step(lane_idx, valid);
+  vrf_perf.step(lane_idx, valid, read_valid);
 })
 
 [[maybe_unused]] void dpiALUMonitor(int lane_idx,
@@ -211,9 +212,7 @@ void print_perf_summary() {
 
     vrf_perf.print_summary(os);
     alu_perf.print_summary(os);
-    for (int i = 0; i < consts::numTL; i++) {
-      lsu_perfs[i].print_summary(os, i);
-    }
+    lsu_perf.print_summary(os);
     chaining_perf.print_summary(os);
 
     LOG(INFO) << fmt::format("perf result saved in '{}'", output_file_path);
