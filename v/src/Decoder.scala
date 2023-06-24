@@ -261,7 +261,7 @@ object Decoder {
   }
 
   object unOrderWrite extends BoolField {
-    def value(op: Op): Boolean = slid.value(op)
+    def value(op: Op): Boolean = slid.value(op) || iota.value(op)
   }
 
   // TODO[2]: uop should be well documented
