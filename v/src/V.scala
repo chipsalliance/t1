@@ -1197,6 +1197,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       VecInit(v0ForLane.asBools.grouped(parameter.datapathWidth).toSeq.map(VecInit(_).asUInt))
     }(index)(lane.maskSelect)
     lane.lsuLastReport := lsu.lastReport
+    lane.lsuMaskGroupChange := lsu.lsuMaskGroupChange
     lane.lsuVRFWriteBufferClear := !lsu.vrfWritePort(index).valid && busClear
     lane.maskUnitFlushVrf := lastMaskUnitWrite
 
