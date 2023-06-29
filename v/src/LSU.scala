@@ -134,6 +134,8 @@ class LSU(param: LSUParam) extends Module {
   /** interface to [[V]], indicate a MSHR slots is finished, and corresponding instruction can commit. */
   val lastReport: UInt = IO(Output(UInt(param.chainingSize.W)))
 
+  val lsuMaskGroupChange: UInt = IO(Output(UInt(param.chainingSize.W)))
+
   /** interface to [[V]], redirect to [[Lane]].
     * this group of offset is finish, request the next group of offset.
     */
@@ -337,6 +339,9 @@ class LSU(param: LSUParam) extends Module {
   // gather last signal from all MSHR to notify LSU
   lastReport := mshrVec
     .map(m => Mux(m.status.last, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U))
+    .reduce(_ | _)
+  lsuMaskGroupChange := mshrVec
+    .map(m => Mux(m.status.changeMaskGroup, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U))
     .reduce(_ | _)
   lsuOffsetRequest := VecInit(mshrVec.map(_.status.offsetGroupEnd)).asUInt.orR
 }

@@ -129,6 +129,8 @@ class MSHRStatus(laneNumber: Int) extends Bundle {
 
   /** indicate this is the last cycle for a MSHR */
   val last: Bool = Bool()
+
+  val changeMaskGroup: Bool = Bool()
 }
 
 class MSHRStage0Bundle(param: MSHRParam) extends Bundle {
@@ -996,6 +998,7 @@ class MSHR(param: MSHRParam) extends Module {
   val stateIdle = state === idle
   status.idle := stateIdle
   status.last := (!RegNext(stateIdle) && stateIdle) || invalidInstructionNext
+  status.changeMaskGroup := updateOffsetGroupEnable
   // which lane to access
   status.targetLane := UIntToOH(
     Mux(

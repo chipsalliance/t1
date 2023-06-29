@@ -70,6 +70,11 @@ case class VRFParam(
   /** used to instantiate VRF. */
   val VLMaxWidth: Int = log2Ceil(vLen) + 1
 
+  /** bits of mask group counter */
+  val maskGroupCounterBits: Int = log2Ceil(vLen/datapathWidth)
+
+  val vlWidth: Int = log2Ceil(vLen)
+
   /** Parameter for [[RegFile]] */
   def rfParam: RFParam = RFParam(rfDepth)
 }
@@ -133,6 +138,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   /** similar to [[flush]]. */
   val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+
+  val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
   val lsuWriteBufferClear: Bool = IO(Input(Bool()))
@@ -256,9 +263,27 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
       val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
+
+      // lsu更新相关
+      val nextMaskGroupCount = record.bits.maskGroupCounter + 1.U
+      // 一个mask group 会访问 dataPath * seg * (2 ** sew * 8)
+      // dataByteForMaskGroup = (record.bits.seg.bits << record.bits.eew) << log2Ceil(parameter.datapathWidth)
+      // 这一次换组意味着已经执行了 maskGroupCounter * dataByteForMaskGroup
+      val executedByte: UInt =
+        ((nextMaskGroupCount * (record.bits.seg.bits +& 1.U)) << record.bits.eew) << log2Ceil(parameter.datapathWidth)
+      // 从低到高:
+      // (1, 0): 是data path的偏移
+      // (4, 2): 是lane的 index
+      // (6, 5): 是单个寄存器的偏移
+      // (9, 7): 是最终寄存器的偏移 -> (log2ceil(1024) - 1, ...-3)
+      val nextOffset = executedByte(parameter.vlWidth - 1, parameter.vlWidth - 3) - 1.U
+
       when(
-        write.valid && write.bits.instructionIndex === record.bits.instIndex && (write.bits.last || write.bits
-          .mask(3))
+        write.valid &&
+          // lsu's record is modified by lsuMaskGroupChange
+          !record.bits.ls &&
+          write.bits.instructionIndex === record.bits.instIndex &&
+          (write.bits.last || write.bits.mask(3))
       ) {
         // widen 类型的可能后一个先到,所以直接-1吧
         record.bits.offset := Mux(write.bits.offset === 0.U, write.bits.offset, write.bits.offset - 1.U)
@@ -272,6 +297,11 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       }
       when(ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)) {
         record.bits.stFinish := true.B
+      }
+      when(ohCheck(lsuMaskGroupChange, record.bits.instIndex, parameter.chainingSize)) {
+        record.bits.maskGroupCounter := nextMaskGroupCount
+        record.bits.offset := 3.U
+        record.bits.vdOffset := nextOffset
       }
       when(record.bits.stFinish && lsuWriteBufferClear && record.valid) {
         record.valid := false.B

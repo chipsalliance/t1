@@ -482,6 +482,8 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val unOrderWrite: Bool = Bool()
   // csr 如果是浮点的就校正为0
   val mul: UInt = UInt(2.W)
+  // 当前是lsu的哪一个mask group
+  val maskGroupCounter: UInt = UInt(param.maskGroupCounterBits.W)
 }
 
 /** 为了decode, 指令需要在入口的时候打一拍, 这是需要保存的信息 */

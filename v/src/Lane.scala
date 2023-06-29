@@ -205,6 +205,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
+  /** If lsu changes the mask group, you need to tell vrf */
+  val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+
   /** for RaW, VRF should wait for buffer to be empty. */
   val lsuVRFWriteBufferClear: Bool = IO(Input(Bool()))
 
@@ -1972,9 +1975,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)
   // TODO: move ma to [[V]]
   vrf.instructionWriteReport.bits.ma := laneRequest.bits.ma
-  // 暂时认为ld都是无序写寄存器的
-  vrf.instructionWriteReport.bits.unOrderWrite := (laneRequest.bits.loadStore && !laneRequest.bits.store) || laneRequest.bits
-    .decodeResult(Decoder.other)
+  // lsu访问vrf都不是无序的
+  vrf.instructionWriteReport.bits.unOrderWrite := laneRequest.bits.decodeResult(Decoder.other)
   vrf.instructionWriteReport.bits.seg.valid := laneRequest.bits.loadStore && laneRequest.bits.segment.orR
   vrf.instructionWriteReport.bits.seg.bits := laneRequest.bits.segment
   vrf.instructionWriteReport.bits.eew := laneRequest.bits.loadStoreEEW
@@ -1983,8 +1985,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.crossWrite)
   vrf.instructionWriteReport.bits.stFinish := false.B
   vrf.instructionWriteReport.bits.mul := Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
+  vrf.instructionWriteReport.bits.maskGroupCounter := 0.U
   // clear record by instructionFinished
   vrf.lsuLastReport := lsuLastReport | instructionFinished
+  vrf.lsuMaskGroupChange := lsuMaskGroupChange
   vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear && !crossLaneWriteQueue.io.deq.valid
   instructionFinished := instructionFinishedVec.reduce(_ | _)
 }
