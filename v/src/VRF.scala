@@ -276,7 +276,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       // (4, 2): 是lane的 index
       // (6, 5): 是单个寄存器的偏移
       // (9, 7): 是最终寄存器的偏移 -> (log2ceil(1024) - 1, ...-3)
-      val nextOffset = executedByte(parameter.vlWidth - 1, parameter.vlWidth - 3) - 1.U
+      val offsetForExecutedByte = executedByte(parameter.vlWidth - 4, parameter.vlWidth - 4 - parameter.vrfOffsetBits + 1)
+      val nextOffset = offsetForExecutedByte - 1.U
+      val nextVDOffset = executedByte(parameter.vlWidth - 1, parameter.vlWidth - 3) - (offsetForExecutedByte === 0.U)
 
       when(
         write.valid &&
@@ -300,8 +302,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       }
       when(ohCheck(lsuMaskGroupChange, record.bits.instIndex, parameter.chainingSize)) {
         record.bits.maskGroupCounter := nextMaskGroupCount
-        record.bits.offset := 3.U
-        record.bits.vdOffset := nextOffset
+        record.bits.offset := nextOffset
+        record.bits.vdOffset := nextVDOffset
       }
       when(record.bits.stFinish && lsuWriteBufferClear && record.valid) {
         record.valid := false.B
