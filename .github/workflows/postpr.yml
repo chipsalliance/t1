@@ -64,7 +64,9 @@ jobs:
         if: always()
         with:
           name: results
-          path: result-*.md
+          path: |
+            result-*.md
+            perf-result-*.md
 
       - uses: actions/upload-artifact@v3
         if: always()
@@ -86,3 +88,4 @@ jobs:
           name: results
       - run: printf "## Newly passed tests:\n| Test | result |\n| ---- | ---- |\n" >> $GITHUB_STEP_SUMMARY; cat result-*.md | grep true | sort >> $GITHUB_STEP_SUMMARY
       - run: printf "\n\n## Still failing tests:\n| Test | result |\n| ---- | ---- |\n" >> $GITHUB_STEP_SUMMARY; cat result-*.md | grep false | sort >> $GITHUB_STEP_SUMMARY
+      - run: printf "\n\n## Perf Result\n" >> $GITHUB_STEP_SUMMARY; cat perf-*.md >> $GITHUB_STEP_SUMMARY
