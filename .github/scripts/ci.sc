@@ -18,6 +18,18 @@ def runTest(root: os.Path, jobs: String, outputFile: os.Path) = {
   val allJson = os.walk(os.pwd).filter(_.last == "ciRun.json")
   val exitCode = allJson.map(f => ujson.read(os.read(f))("value").num.toInt).reduce(_ max _)
   allJson.map(f => s"|${f.segments.toSeq.dropRight(1).last}|${ujson.Bool(ujson.read(os.read(f))("value").num.toInt == 0)}|\n").foreach(os.write.append(outputFile, _))
+
+  val perfCases = os.read(root / os.RelPath(".github/perf-cases.txt")).split('\n').filter(_.length > 0)
+  val existCases = perfCases.filter(c => os.exists(root / os.RelPath(s"out/tests/run/$c/ciRun.dest/perf.txt")))
+  existCases.foreach{c =>
+    val output = s"""### $c
+    |```
+    |${os.read(root / os.RelPath(s"out/tests/run/$c/ciRun.dest/perf.txt")).trim}
+    |```
+    |\n""".stripMargin
+    os.write(root / s"perf-result-$c.md", output)
+  }
+
   if (exitCode != 0) {
     throw new Exception(s"runTest failed with exit code ${exitCode}")
   }
