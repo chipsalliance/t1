@@ -1,0 +1,24 @@
+{
+  "design": {
+    "parameter": {
+      "xLen": 32,
+      "vLen": 1024,
+      "datapathWidth": 32,
+      "laneNumber": 8,
+      "physicalAddressWidth": 32,
+      "chainingSize": 4,
+      "vrfWriteQueueSize": 4
+    },
+    "generator": "v.V"
+  },
+  "mfcArgs": [
+   "-dedup",
+   "-O=debug",
+   "--split-verilog",
+   "--preserve-values=named",
+   "--output-annotation-file=mfc.anno.json",
+   "--lowering-options=verifLabels"
+  ],
+  "testbench": true,
+  "trace": false
+}
