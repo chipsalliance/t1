@@ -4,30 +4,13 @@ import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
 import v.{V, VParameter}
 
-class TestBench extends RawModule {
+class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends RawModule {
   val clock = Wire(Clock())
   val reset = Wire(Bool())
-  val generator = SerializableModuleGenerator(
-    classOf[V],
-    VParameter(
-      xLen = 32,
-      vLen = 1024,
-      datapathWidth = 32,
-      laneNumber = 8,
-      physicalAddressWidth = 32,
-      chainingSize = 4,
-      vrfWriteQueueSize = 4
-    )
-  )
-  val dut = withClockAndReset(clock, reset) {
-    Module(
-      generator.module()
-    )
-  }
+  val dut = withClockAndReset(clock, reset)(Module(generator.module()))
   withClockAndReset(clock, reset) {
     val coverModule = Module(new CoverModule(dut))
     val monitor = Module(new Monitor(dut))
-
     monitor.clock := clock
     monitor.reset := reset
   }

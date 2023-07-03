@@ -1,0 +1,27 @@
+{
+  "design": {
+    "parameter": {
+      "xLen": 32,
+      "vLen": 1024,
+      "datapathWidth": 32,
+      "laneNumber": 8,
+      "physicalAddressWidth": 32,
+      "chainingSize": 4,
+      "vrfWriteQueueSize": 4
+    },
+    "generator": "v.V"
+  },
+  "mfcArgs": [
+    "-dedup",
+    "-O=release",
+    "--disable-all-randomization",
+    "--split-verilog",
+    "--strip-debug-info",
+    "--preserve-values=none",
+    "--preserve-aggregate=all",
+    "--output-annotation-file=mfc.anno.json",
+    "--repl-seq-mem",
+    "--repl-seq-mem-file=repl-seq-mem.txt"
+  ],
+  "testbench": false
+}
