@@ -4,6 +4,10 @@ import chisel3._
 import chisel3.util._
 import division.srt.{SRT, SRTOutput}
 
+case class LaneDivParam(datapathWidth: Int) extends VFUParameter {
+  val decodeField: BoolField = Decoder.divider
+}
+
 class LaneDivRequest(datapathWidth: Int) extends Bundle {
   val src:  Vec[UInt] = Vec(2, UInt(datapathWidth.W))
   val rem:  Bool = Bool()
@@ -14,9 +18,9 @@ class LaneDivRequest(datapathWidth: Int) extends Bundle {
   // val vSew: UInt = UInt(2.W)
 }
 
-class LaneDiv(datapathWidth: Int) extends Module {
-  val req:  DecoupledIO[LaneDivRequest] = IO(Flipped(Decoupled(new LaneDivRequest(datapathWidth))))
-  val resp: ValidIO[UInt] = IO(Valid(UInt(datapathWidth.W)))
+class LaneDiv(parameter: LaneDivParam) extends Module {
+  val req:  DecoupledIO[LaneDivRequest] = IO(Flipped(Decoupled(new LaneDivRequest(parameter.datapathWidth))))
+  val resp: ValidIO[UInt] = IO(Valid(UInt(parameter.datapathWidth.W)))
   val index = IO(Output(UInt(2.W)))
   val busy: Bool = IO(Output(Bool()))
 
