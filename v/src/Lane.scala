@@ -118,7 +118,19 @@ case class LaneParameter(
   def shifterParameter: LaneShifterParameter = LaneShifterParameter(datapathWidth)
 
   /** Parameter for [[LaneMul]]. */
-  def mulParam: LaneMulParam = LaneMulParam(datapathWidth, vLen)
+  def mulParam: LaneMulParam = LaneMulParam(datapathWidth)
+
+  /** Parameter for [[MaskedLogic]]. */
+  def logicParam: LogicParam = LogicParam(datapathWidth)
+
+  /** Parameter for [[LaneAdder]]. */
+  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth)
+
+  /** Parameter for [[LaneDiv]]. */
+  def divParam: LaneDivParam = LaneDivParam(datapathWidth)
+
+  /** Parameter for [[OtherUnit]]. */
+  def otherUnitParam: OtherUnitParam = OtherUnitParam(datapathWidth, vlMaxBits, groupNumberBits, laneNumberBits, dataPathByteWidth)
 }
 
 /** Instantiate [[Lane]] from [[V]],
@@ -432,7 +444,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     Mux(divWrite, lastDivWriteIndexWire, lastDivWriteIndex)(log2Ceil(parameter.dataPathByteWidth) - 1, 0)
 
   /** request for other instruction type. */
-  val otherRequests: Vec[OtherUnitReq] = Wire(Vec(parameter.chainingSize, Output(new OtherUnitReq(parameter))))
+  val otherRequests: Vec[OtherUnitReq] = Wire(Vec(parameter.chainingSize, Output(new OtherUnitReq(parameter.otherUnitParam))))
 
   val otherResponse: OtherUnitResp = Wire(Output(new OtherUnitResp(parameter.datapathWidth)))
 
@@ -1215,7 +1227,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         )
 
         // other
-        val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter)))
+        val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter.otherUnitParam)))
         otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
         otherRequest.popInit := reduceResult
         otherRequest.opcode := decodeResult(Decoder.uop)
@@ -1739,12 +1751,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // VFU
   // TODO: reuse logic, adder, multiplier datapath
   {
-    val logicUnit: MaskedLogic = Module(new MaskedLogic(parameter.datapathWidth))
-    val adder:     LaneAdder = Module(new LaneAdder(parameter.datapathWidth))
+    val logicUnit: MaskedLogic = Module(new MaskedLogic(parameter.logicParam))
+    val adder:     LaneAdder = Module(new LaneAdder(parameter.adderParam))
     val shifter:   LaneShifter = Module(new LaneShifter(parameter.shifterParameter))
     val mul:       LaneMul = Module(new LaneMul(parameter.mulParam))
-    val div:       LaneDiv = Module(new LaneDiv(parameter.datapathWidth))
-    val otherUnit: OtherUnit = Module(new OtherUnit(parameter))
+    val div:       LaneDiv = Module(new LaneDiv(parameter.divParam))
+    val otherUnit: OtherUnit = Module(new OtherUnit(parameter.otherUnitParam))
 
     // 连接执行单元的请求
     logicUnit.req := VecInit(logicRequests.map(_.asUInt))
@@ -1758,7 +1770,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     div.req.bits := VecInit(dividerRequests.map(_.asUInt))
       .reduce(_ | _)
       .asTypeOf(new LaneDivRequest(parameter.datapathWidth))
-    otherUnit.req := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(parameter)))
+    otherUnit.req := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(parameter.otherUnitParam)))
     // 执行单元的其他连接
     otherResponse := otherUnit.resp
     lastDivWriteIndexWire := div.index

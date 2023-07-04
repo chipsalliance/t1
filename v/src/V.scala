@@ -681,7 +681,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       )
       val aluInput2 = Mux1H(UIntToOH(executeCounter), data.map(d => Mux(d.valid, d.bits, 0.U)))
       // red alu instance
-      val adder:     LaneAdder = Module(new LaneAdder(parameter.datapathWidth))
+      val adder:     LaneAdder = Module(new LaneAdder(LaneAdderParam(parameter.datapathWidth)))
       val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datapathWidth))
 
       val sign = !decodeResultReg(Decoder.unsigned1)

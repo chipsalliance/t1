@@ -1,6 +1,10 @@
 package v
 import chisel3._
 
+case class LogicParam(datapathWidth: Int) extends VFUParameter {
+  val decodeField: BoolField = Decoder.logic
+}
+
 class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
 
   /** 0, 1: two operands
@@ -18,9 +22,9 @@ class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
   val opcode: UInt = UInt(4.W)
 }
 
-class MaskedLogic(datapathWidth: Int) extends Module {
-  val req:  MaskedLogicRequest = IO(Input(new MaskedLogicRequest(datapathWidth)))
-  val resp: UInt = IO(Output(UInt(datapathWidth.W)))
+class MaskedLogic(parameter: LogicParam) extends Module {
+  val req:  MaskedLogicRequest = IO(Input(new MaskedLogicRequest(parameter.datapathWidth)))
+  val resp: UInt = IO(Output(UInt(parameter.datapathWidth.W)))
 
   resp := VecInit(req.src.map(_.asBools).transpose.map {
     case Seq(sr0, sr1, sr2, sr3) =>

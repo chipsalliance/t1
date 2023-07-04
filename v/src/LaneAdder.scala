@@ -3,6 +3,10 @@ package v
 import chisel3._
 import chisel3.util._
 
+case class LaneAdderParam(datapathWidth: Int) extends VFUParameter {
+  val decodeField: BoolField = Decoder.adder
+}
+
 class LaneAdderReq(datapathWidth: Int) extends Bundle {
   val src: Vec[UInt] = Vec(2, UInt((datapathWidth + 1).W))
   // mask for carry or borrow
@@ -31,9 +35,9 @@ class LaneAdderResp(datapathWidth: Int) extends Bundle {
   *     1. carry || borrow
   *     1. 判断大小的结果
   */
-class LaneAdder(datapathWidth: Int) extends Module {
-  val req:  LaneAdderReq = IO(Input(new LaneAdderReq(datapathWidth)))
-  val resp: LaneAdderResp = IO(Output(new LaneAdderResp(datapathWidth)))
+class LaneAdder(parameter: LaneAdderParam) extends Module {
+  val req:  LaneAdderReq = IO(Input(new LaneAdderReq(parameter.datapathWidth)))
+  val resp: LaneAdderResp = IO(Output(new LaneAdderResp(parameter.datapathWidth)))
   // todo: decode
   // ["add", "sub", "slt", "sle", "sgt", "sge", "max", "min", "seq", "sne", "adc", "sbc"]
   val uopOH: UInt = UIntToOH(req.opcode)(11, 0)
@@ -96,8 +100,8 @@ class LaneAdder(datapathWidth: Int) extends Module {
     *   1. isSub & U, 结果符号位是1         eg: 1 - 3
     */
   val lowerOverflow: Bool =
-    (subOperation0(datapathWidth) && subOperation1(datapathWidth) && !addResultSignBit) ||
-      (isSub && !req.sign && addResult(datapathWidth))
+    (subOperation0(parameter.datapathWidth) && subOperation1(parameter.datapathWidth) && !addResultSignBit) ||
+      (isSub && !req.sign && addResult(parameter.datapathWidth))
 
   /** 上溢条件：
     *   1. S: 两正的加出了符号位
@@ -105,13 +109,13 @@ class LaneAdder(datapathWidth: Int) extends Module {
     */
   val upperOverflow: Bool = Mux(
     req.sign,
-    !subOperation0(datapathWidth) && !subOperation1(datapathWidth) && addResultSignBit,
+    !subOperation0(parameter.datapathWidth) && !subOperation1(parameter.datapathWidth) && addResultSignBit,
     overflowBit && !isSub
   )
 
   // 开始比较
-  val equal: Bool = addResult(datapathWidth - 1, 0) === 0.U
-  val less:  Bool = addResult(datapathWidth)
+  val equal: Bool = addResult(parameter.datapathWidth - 1, 0) === 0.U
+  val less:  Bool = addResult(parameter.datapathWidth)
   resp.singleResult := Mux1H(
     uopOH(11, 8) ## uopOH(5, 2),
     Seq(
@@ -126,7 +130,7 @@ class LaneAdder(datapathWidth: Int) extends Module {
     )
   )
   // 修正 average
-  val addResultCorrect: UInt = Mux(req.average, addResult(datapathWidth, 1), addResult)
+  val addResultCorrect: UInt = Mux(req.average, addResult(parameter.datapathWidth, 1), addResult)
   val overflow:         Bool = (upperOverflow || lowerOverflow) && req.saturate
   //选结果
   resp.data := Mux1H(

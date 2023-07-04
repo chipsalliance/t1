@@ -3,14 +3,11 @@ package v
 import chisel3._
 import chisel3.util._
 
-/**
-  * @param dataPathWidth width of data path, can be 32 or 64, decides the memory bandwidth.
-  * @param vlWidth used to instantiate [[CSRInterface]]
-  *                TODO: remove it.
-  */
-case class LaneMulParam(datapathWidth: Int, vlWidth: Int) {
+/** @param dataPathWidth width of data path, can be 32 or 64, decides the memory bandwidth. */
+case class LaneMulParam(datapathWidth: Int) extends VFUParameter {
   val respWidth:   Int = datapathWidth
   val sourceWidth: Int = datapathWidth + 1
+  val decodeField: BoolField = Decoder.multiplier
 }
 
 class LaneMulReq(parameter: LaneMulParam) extends Bundle {

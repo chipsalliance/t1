@@ -3,7 +3,17 @@ package v
 import chisel3._
 import chisel3.util._
 
-class OtherUnitReq(param: LaneParameter) extends Bundle {
+case class OtherUnitParam(
+                           datapathWidth: Int,
+                           vlMaxBits: Int,
+                           groupNumberBits: Int,
+                           laneNumberBits: Int,
+                           dataPathByteWidth: Int
+                         ) extends VFUParameter {
+  val decodeField: BoolField = Decoder.other
+}
+
+class OtherUnitReq(param: OtherUnitParam) extends Bundle {
   val src:     Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
   val popInit: UInt = UInt(param.vlMaxBits.W)
   val opcode:  UInt = UInt(4.W)
@@ -29,7 +39,7 @@ class OtherUnitResp(datapathWidth: Int) extends Bundle {
   val ffoSuccess: Bool = Bool()
 }
 
-class OtherUnit(param: LaneParameter) extends Module {
+class OtherUnit(param: OtherUnitParam) extends Module {
   val req:  OtherUnitReq = IO(Input(new OtherUnitReq(param)))
   val resp: OtherUnitResp = IO(Output(new OtherUnitResp(param.datapathWidth)))
 
