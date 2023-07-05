@@ -24,15 +24,25 @@ class RegFileWritePort(param: RFParam) extends Bundle {
   *       switch to it and get rid of this module.
   */
 class RegFile(param: RFParam) extends Module {
-  // TODO: add read enable?
+  // TODO: change port for matching different SRAM types.
   val readPorts: Vec[RegFileReadPort] = IO(Vec(param.readPort, new RegFileReadPort(param)))
   val writePort: ValidIO[RegFileWritePort] = IO(Flipped(Valid(new RegFileWritePort(param))))
 
-  val rf: SyncReadMem[UInt] = SyncReadMem(param.depth, UInt(param.memoryWidth.W))
+  // in TSN28, we use dual port memory, in the future, we can switch to other ports
+  val rf: SRAMInterface[UInt] = SRAM(param.depth, UInt(param.memoryWidth.W), 0, 0, 2)
 
-  readPorts.foreach(p => p.data := rf(p.addr))
-
-  when(writePort.valid) {
-    rf(writePort.bits.addr) := writePort.bits.data
+  rf.readwritePorts.zipWithIndex.foreach { case (memPort, index) =>
+    readPorts(index).data := memPort.readData
+    memPort.writeData := writePort.bits.data
+    // always read
+    memPort.enable := true.B
+    // only write at last port
+    if (index == readPorts.size - 1) {
+      memPort.address := Mux(writePort.valid, writePort.bits.addr, readPorts(index).addr)
+      memPort.isWrite := writePort.valid
+    } else {
+      memPort.address := readPorts(index).addr
+      memPort.isWrite := false.B
+    }
   }
 }
