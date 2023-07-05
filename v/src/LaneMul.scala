@@ -8,6 +8,7 @@ case class LaneMulParam(datapathWidth: Int) extends VFUParameter {
   val respWidth:   Int = datapathWidth
   val sourceWidth: Int = datapathWidth + 1
   val decodeField: BoolField = Decoder.multiplier
+  val inputBundle = new LaneMulReq(this)
 }
 
 class LaneMulReq(parameter: LaneMulParam) extends Bundle {

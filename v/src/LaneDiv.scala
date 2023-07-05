@@ -6,6 +6,7 @@ import division.srt.{SRT, SRTOutput}
 
 case class LaneDivParam(datapathWidth: Int) extends VFUParameter {
   val decodeField: BoolField = Decoder.divider
+  val inputBundle = new LaneDivRequest(datapathWidth)
 }
 
 class LaneDivRequest(datapathWidth: Int) extends Bundle {

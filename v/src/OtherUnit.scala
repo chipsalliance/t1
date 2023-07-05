@@ -11,6 +11,7 @@ case class OtherUnitParam(
                            dataPathByteWidth: Int
                          ) extends VFUParameter {
   val decodeField: BoolField = Decoder.other
+  val inputBundle = new OtherUnitReq(this)
 }
 
 class OtherUnitReq(param: OtherUnitParam) extends Bundle {
