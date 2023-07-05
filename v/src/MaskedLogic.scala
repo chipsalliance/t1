@@ -3,6 +3,7 @@ import chisel3._
 
 case class LogicParam(datapathWidth: Int) extends VFUParameter {
   val decodeField: BoolField = Decoder.logic
+  val inputBundle = new MaskedLogicRequest(datapathWidth)
 }
 
 class MaskedLogicRequest(datapathWidth: Int) extends Bundle {

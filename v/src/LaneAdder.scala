@@ -5,6 +5,7 @@ import chisel3.util._
 
 case class LaneAdderParam(datapathWidth: Int) extends VFUParameter {
   val decodeField: BoolField = Decoder.adder
+  val inputBundle = new LaneAdderReq(datapathWidth)
 }
 
 class LaneAdderReq(datapathWidth: Int) extends Bundle {

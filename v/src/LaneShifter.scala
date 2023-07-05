@@ -8,6 +8,7 @@ import chisel3.util._
 case class LaneShifterParameter(dataWidth: Int) extends VFUParameter {
   val shifterSizeBit: Int = log2Ceil(dataWidth)
   val decodeField: BoolField = Decoder.shift
+  val inputBundle = new LaneShifterReq(this)
 }
 
 class LaneShifterReq(param: LaneShifterParameter) extends Bundle {
