@@ -4,6 +4,7 @@ import chisel3._
 case class LogicParam(datapathWidth: Int) extends VFUParameter {
   val decodeField: BoolField = Decoder.logic
   val inputBundle = new MaskedLogicRequest(datapathWidth)
+  val outputBundle: UInt = UInt(datapathWidth.W)
 }
 
 class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
@@ -23,15 +24,15 @@ class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
   val opcode: UInt = UInt(4.W)
 }
 
-class MaskedLogic(parameter: LogicParam) extends Module {
-  val req:  MaskedLogicRequest = IO(Input(new MaskedLogicRequest(parameter.datapathWidth)))
-  val resp: UInt = IO(Output(UInt(parameter.datapathWidth.W)))
+class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) {
+  val response: UInt = Wire(UInt(parameter.datapathWidth.W))
+  val request: MaskedLogicRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 
-  resp := VecInit(req.src.map(_.asBools).transpose.map {
+  response := VecInit(request.src.map(_.asBools).transpose.map {
     case Seq(sr0, sr1, sr2, sr3) =>
       val bitCalculate = Module(new LaneBitLogic)
-      bitCalculate.src := sr0 ## (req.opcode(2) ^ sr1)
-      bitCalculate.opcode := req.opcode
-      Mux(sr2, bitCalculate.resp ^ req.opcode(3), sr3)
+      bitCalculate.src := sr0 ## (request.opcode(2) ^ sr1)
+      bitCalculate.opcode := request.opcode
+      Mux(sr2, bitCalculate.resp ^ request.opcode(3), sr3)
   }).asUInt
 }

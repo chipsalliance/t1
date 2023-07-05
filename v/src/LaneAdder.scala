@@ -1,11 +1,13 @@
 package v
 
 import chisel3._
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 
 case class LaneAdderParam(datapathWidth: Int) extends VFUParameter {
   val decodeField: BoolField = Decoder.adder
   val inputBundle = new LaneAdderReq(datapathWidth)
+  val outputBundle = new LaneAdderResp(datapathWidth)
 }
 
 class LaneAdderReq(datapathWidth: Int) extends Bundle {
@@ -36,21 +38,21 @@ class LaneAdderResp(datapathWidth: Int) extends Bundle {
   *     1. carry || borrow
   *     1. 判断大小的结果
   */
-class LaneAdder(parameter: LaneAdderParam) extends Module {
-  val req:  LaneAdderReq = IO(Input(new LaneAdderReq(parameter.datapathWidth)))
-  val resp: LaneAdderResp = IO(Output(new LaneAdderResp(parameter.datapathWidth)))
+class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) {
+  val response:  LaneAdderResp = Wire(new LaneAdderResp(parameter.datapathWidth))
+  val request: LaneAdderReq = connectIO(response).asTypeOf(parameter.inputBundle)
   // todo: decode
   // ["add", "sub", "slt", "sle", "sgt", "sge", "max", "min", "seq", "sne", "adc", "sbc"]
-  val uopOH: UInt = UIntToOH(req.opcode)(11, 0)
+  val uopOH: UInt = UIntToOH(request.opcode)(11, 0)
   val isSub: Bool = !(uopOH(0) || uopOH(10))
   // sub -> src(1) - src(0)
-  val subOperation0: UInt = Mux(isSub && !req.reverse, (~req.src.head).asUInt, req.src.head)
-  val subOperation1: UInt = Mux(isSub && req.reverse, (~req.src.last).asUInt, req.src.last)
+  val subOperation0: UInt = Mux(isSub && !request.reverse, (~request.src.head).asUInt, request.src.head)
+  val subOperation1: UInt = Mux(isSub && request.reverse, (~request.src.last).asUInt, request.src.last)
   // sub + 1 || carry || borrow
-  val operation2: UInt = isSub ^ req.mask
-  val vSewOrR:    Bool = req.vSew.orR
-  val maskForSew: UInt = Fill(16, req.vSew(1)) ## Fill(8, vSewOrR) ## Fill(8, true.B)
-  val signForSew: UInt = req.vSew(1) ## 0.U(15.W) ## req.vSew(0) ## 0.U(7.W) ## !vSewOrR ## 0.U(7.W)
+  val operation2: UInt = isSub ^ request.mask
+  val vSewOrR:    Bool = request.vSew.orR
+  val maskForSew: UInt = Fill(16, request.vSew(1)) ## Fill(8, vSewOrR) ## Fill(8, true.B)
+  val signForSew: UInt = request.vSew(1) ## 0.U(15.W) ## request.vSew(0) ## 0.U(7.W) ## !vSewOrR ## 0.U(7.W)
   // 计算最近值
   /** 往下溢出的值
     * vSew = 0:
@@ -60,7 +62,7 @@ class LaneAdder(parameter: LaneAdderParam) extends Module {
     * vSew = 2:
     *   U: 0x0  S：0x80000000
     */
-  val lowerOverflowApproximation: UInt = Mux(req.sign, signForSew, 0.U)
+  val lowerOverflowApproximation: UInt = Mux(request.sign, signForSew, 0.U)
 
   /** 往上溢出的值
     * vSew = 0:
@@ -74,7 +76,7 @@ class LaneAdder(parameter: LaneAdderParam) extends Module {
 
   //todo: decode(req) -> roundingTail
   val roundingTail:   UInt = (subOperation0 + subOperation1 + operation2)(1, 0)
-  val vxrmCorrection: UInt = Mux(req.average, req.vxrm, 2.U)
+  val vxrmCorrection: UInt = Mux(request.average, request.vxrm, 2.U)
   val roundingBits: Bool = Mux1H(
     UIntToOH(vxrmCorrection),
     Seq(
@@ -88,11 +90,11 @@ class LaneAdder(parameter: LaneAdderParam) extends Module {
   val (s, c) = csa32(subOperation0, subOperation1, roundingBits ## operation2)
   val addResult: UInt = s + (c ## false.B)
   val addResultSignBit: Bool = Mux1H(
-    Seq(!vSewOrR, req.vSew(0), req.vSew(1)),
+    Seq(!vSewOrR, request.vSew(0), request.vSew(1)),
     Seq(addResult(7), addResult(15), addResult(31))
   )
   val overflowBit: Bool = Mux1H(
-    Seq(!vSewOrR, req.vSew(0), req.vSew(1)),
+    Seq(!vSewOrR, request.vSew(0), request.vSew(1)),
     Seq(addResult(8), addResult(16), addResult(32))
   )
   // 计算溢出的条件
@@ -102,14 +104,14 @@ class LaneAdder(parameter: LaneAdderParam) extends Module {
     */
   val lowerOverflow: Bool =
     (subOperation0(parameter.datapathWidth) && subOperation1(parameter.datapathWidth) && !addResultSignBit) ||
-      (isSub && !req.sign && addResult(parameter.datapathWidth))
+      (isSub && !request.sign && addResult(parameter.datapathWidth))
 
   /** 上溢条件：
     *   1. S: 两正的加出了符号位
     *   1. U: + && 溢出位有值
     */
   val upperOverflow: Bool = Mux(
-    req.sign,
+    request.sign,
     !subOperation0(parameter.datapathWidth) && !subOperation1(parameter.datapathWidth) && addResultSignBit,
     overflowBit && !isSub
   )
@@ -117,7 +119,7 @@ class LaneAdder(parameter: LaneAdderParam) extends Module {
   // 开始比较
   val equal: Bool = addResult(parameter.datapathWidth - 1, 0) === 0.U
   val less:  Bool = addResult(parameter.datapathWidth)
-  resp.singleResult := Mux1H(
+  response.singleResult := Mux1H(
     uopOH(11, 8) ## uopOH(5, 2),
     Seq(
       less,
@@ -131,24 +133,24 @@ class LaneAdder(parameter: LaneAdderParam) extends Module {
     )
   )
   // 修正 average
-  val addResultCorrect: UInt = Mux(req.average, addResult(parameter.datapathWidth, 1), addResult)
-  val overflow:         Bool = (upperOverflow || lowerOverflow) && req.saturate
+  val addResultCorrect: UInt = Mux(request.average, addResult(parameter.datapathWidth, 1), addResult)
+  val overflow:         Bool = (upperOverflow || lowerOverflow) && request.saturate
   //选结果
-  resp.data := Mux1H(
+  response.data := Mux1H(
     Seq(
       (uopOH(1, 0) ## uopOH(11, 10)).orR && !overflow,
       (uopOH(6) && !less) || (uopOH(7) && less),
       (uopOH(6) && less) || (uopOH(7) && !less),
-      upperOverflow && req.saturate,
-      lowerOverflow && req.saturate
+      upperOverflow && request.saturate,
+      lowerOverflow && request.saturate
     ),
     Seq(
       addResultCorrect,
-      req.src.last,
-      req.src.head,
+      request.src.last,
+      request.src.head,
       upperOverflowApproximation,
       lowerOverflowApproximation
     )
   )
-  resp.vxsat := overflow
+  response.vxsat := overflow
 }

@@ -9,6 +9,7 @@ case class LaneMulParam(datapathWidth: Int) extends VFUParameter {
   val sourceWidth: Int = datapathWidth + 1
   val decodeField: BoolField = Decoder.multiplier
   val inputBundle = new LaneMulReq(this)
+  val outputBundle = new LaneMulResponse(this)
 }
 
 class LaneMulReq(parameter: LaneMulParam) extends Bundle {
@@ -21,26 +22,30 @@ class LaneMulReq(parameter: LaneMulParam) extends Bundle {
   val vxrm: UInt = UInt(2.W)
 }
 
-class LaneMul(parameter: LaneMulParam) extends Module {
-  val req:          LaneMulReq = IO(Input(new LaneMulReq(parameter)))
-  val resp:         UInt = IO(Output(UInt(parameter.respWidth.W)))
-  val vxsat:        Bool = IO(Output(Bool()))
+class LaneMulResponse(parameter: LaneMulParam) extends Bundle {
+  val data: UInt = UInt(parameter.respWidth.W)
+  val vxsat: Bool = Bool()
+}
 
-  val sew1H: UInt = UIntToOH(req.vSew)(2, 0)
-  val vSewOrR = req.vSew.orR
-  val vxrm1H: UInt = UIntToOH(req.vxrm)
+class LaneMul(val parameter: LaneMulParam) extends VFUModule(parameter) {
+  val response: LaneMulResponse = Wire(new LaneMulResponse(parameter))
+  val request: LaneMulReq = connectIO(response).asTypeOf(parameter.inputBundle)
+
+  val sew1H: UInt = UIntToOH(request.vSew)(2, 0)
+  val vSewOrR = request.vSew.orR
+  val vxrm1H: UInt = UIntToOH(request.vxrm)
   // ["mul", "ma", "ms", "mh"]
-  val opcode1H: UInt = UIntToOH(req.opcode(1, 0))
+  val opcode1H: UInt = UIntToOH(request.opcode(1, 0))
   val ma:       Bool = opcode1H(1) || opcode1H(2)
-  val asAddend = req.opcode(2)
-  val negative = req.opcode(3)
+  val asAddend = request.opcode(2)
+  val negative = request.opcode(3)
 
   // vs1 一定是被乘数
-  val mul0: UInt = req.src.head
+  val mul0: UInt = request.src.head
   // 另一个乘数
-  val mul1: UInt = Mux(asAddend || !ma, req.src(1), req.src.last)
+  val mul1: UInt = Mux(asAddend || !ma, request.src(1), request.src.last)
   // 加数
-  val addend: UInt = Mux(asAddend, req.src.last, req.src(1))
+  val addend: UInt = Mux(asAddend, request.src.last, request.src(1))
   // 乘的结果 todo: csa & delete SInt
   val mulResult: UInt = (mul0.asSInt * mul1.asSInt).asUInt
   // 处理 saturate
@@ -67,10 +72,10 @@ class LaneMul(parameter: LaneMulParam) extends Module {
   /** lower: 下溢出近值
     * upper: 上溢出近值
     */
-  val lower: UInt = req.vSew(1) ## 0.U(15.W) ## req.vSew(0) ## 0.U(7.W) ## !vSewOrR ## 0.U(7.W)
-  val upper: UInt = Fill(16, req.vSew(1)) ## Fill(8, vSewOrR) ## Fill(7, true.B)
-  val sign0 = Mux1H(sew1H, Seq(req.src.head(7), req.src.head(15), req.src.head(31)))
-  val sign1 = Mux1H(sew1H, Seq(req.src(1)(7), req.src(1)(15), req.src(1)(31)))
+  val lower: UInt = request.vSew(1) ## 0.U(15.W) ## request.vSew(0) ## 0.U(7.W) ## !vSewOrR ## 0.U(7.W)
+  val upper: UInt = Fill(16, request.vSew(1)) ## Fill(8, vSewOrR) ## Fill(7, true.B)
+  val sign0 = Mux1H(sew1H, Seq(request.src.head(7), request.src.head(15), request.src.head(31)))
+  val sign1 = Mux1H(sew1H, Seq(request.src(1)(7), request.src(1)(15), request.src(1)(31)))
   val sign2 = Mux1H(sew1H, Seq(saturateResult(7), saturateResult(15), saturateResult(31)))
   val notZero = Mux1H(sew1H, Seq(saturateResult(7, 0).orR, saturateResult(15, 0).orR, saturateResult(31, 0).orR))
   val expectedSig = sign0 ^ sign1
@@ -83,10 +88,10 @@ class LaneMul(parameter: LaneMulParam) extends Module {
   // 加法
   val maResult: UInt = adderInput0 + addend + negative
   // 选最终的结果 todo: decode
-  resp := Mux1H(
-    Seq(opcode1H(0) && !req.saturate, opcode1H(3), ma, req.saturate && !overflow, req.saturate && overflow),
+  response.data := Mux1H(
+    Seq(opcode1H(0) && !request.saturate, opcode1H(3), ma, request.saturate && !overflow, request.saturate && overflow),
     Seq(mulResult, highResult, maResult, saturateResult, overflowSelection)
   )
   // todo
-  vxsat := DontCare
+  response.vxsat := DontCare
 }

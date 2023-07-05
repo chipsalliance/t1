@@ -12,6 +12,7 @@ case class OtherUnitParam(
                          ) extends VFUParameter {
   val decodeField: BoolField = Decoder.other
   val inputBundle = new OtherUnitReq(this)
+  val outputBundle = new OtherUnitResp(datapathWidth)
 }
 
 class OtherUnitReq(param: OtherUnitParam) extends Bundle {
@@ -40,54 +41,54 @@ class OtherUnitResp(datapathWidth: Int) extends Bundle {
   val ffoSuccess: Bool = Bool()
 }
 
-class OtherUnit(param: OtherUnitParam) extends Module {
-  val req:  OtherUnitReq = IO(Input(new OtherUnitReq(param)))
-  val resp: OtherUnitResp = IO(Output(new OtherUnitResp(param.datapathWidth)))
+class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) {
+  val response: OtherUnitResp = Wire(new OtherUnitResp(parameter.datapathWidth))
+  val request: OtherUnitReq = connectIO(response).asTypeOf(parameter.inputBundle)
 
-  val ffo:      LaneFFO = Module(new LaneFFO(param.datapathWidth))
-  val popCount: LanePopCount = Module(new LanePopCount(param.datapathWidth))
-  val vSewOH:   UInt = UIntToOH(req.vSew)(2, 0)
+  val ffo:      LaneFFO = Module(new LaneFFO(parameter.datapathWidth))
+  val popCount: LanePopCount = Module(new LanePopCount(parameter.datapathWidth))
+  val vSewOH:   UInt = UIntToOH(request.vSew)(2, 0)
   // ["", "", "", "", "rgather", "merge", "clip", "mv", "pop", "id"]
-  val opcodeOH:         UInt = UIntToOH(req.opcode)(9, 0)
+  val opcodeOH:         UInt = UIntToOH(request.opcode)(9, 0)
   val isffo:            Bool = opcodeOH(3, 0).orR
   val originalOpcodeOH: UInt = opcodeOH(9, 4)
 
-  ffo.src := req.src
-  ffo.resultSelect := req.opcode
-  ffo.complete := req.complete
-  ffo.maskType := req.maskType
-  popCount.src := req.src(1) & Mux(req.maskType, req.src.head, -1.S(param.datapathWidth.W).asUInt)
+  ffo.src := request.src
+  ffo.resultSelect := request.opcode
+  ffo.complete := request.complete
+  ffo.maskType := request.maskType
+  popCount.src := request.src(1) & Mux(request.maskType, request.src.head, -1.S(parameter.datapathWidth.W).asUInt)
 
-  val signValue:  Bool = req.src(1)(param.datapathWidth - 1) && req.sign
-  val signExtend: UInt = Fill(param.datapathWidth, signValue)
+  val signValue:  Bool = request.src(1)(parameter.datapathWidth - 1) && request.sign
+  val signExtend: UInt = Fill(parameter.datapathWidth, signValue)
 
   // clip 2sew -> sew
   // vSew 0 -> sew = 8 => log2(sew) = 4
-  val clipSize:          UInt = Mux1H(vSewOH(2, 1), Seq(false.B ## req.src.head(4), req.src.head(5, 4))) ## req.src.head(3, 0)
+  val clipSize:          UInt = Mux1H(vSewOH(2, 1), Seq(false.B ## request.src.head(4), request.src.head(5, 4))) ## request.src.head(3, 0)
   val clipMask:          UInt = FillInterleaved(8, vSewOH(2) ## vSewOH(2) ## vSewOH(2, 1).orR ## true.B)
-  val largestClipResult: UInt = (clipMask >> req.sign).asUInt
+  val largestClipResult: UInt = (clipMask >> request.sign).asUInt
   val clipMaskRemainder: UInt = FillInterleaved(8, !vSewOH(2) ## !vSewOH(2) ## vSewOH(0) ## false.B)
   val roundTail:         UInt = (1.U << clipSize).asUInt
   val lostMSB:           UInt = (roundTail >> 1).asUInt
   val roundMask:         UInt = roundTail - 1.U
 
   // v[d - 1]
-  val vds1: Bool = (lostMSB & req.src(1)).orR
+  val vds1: Bool = (lostMSB & request.src(1)).orR
   // v[d -2 : 0]
-  val vLostLSB: Bool = (roundMask & req.src(1)).orR // TODO: is this WithoutMSB
+  val vLostLSB: Bool = (roundMask & request.src(1)).orR // TODO: is this WithoutMSB
   // v[d]
-  val vd: Bool = (roundTail & req.src(1)).orR
+  val vd: Bool = (roundTail & request.src(1)).orR
   // r
-  val roundR:      Bool = Mux1H(UIntToOH(req.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB)))
-  val roundResult: UInt = (((signExtend ## req.src(1)) >> clipSize).asUInt + roundR)(param.datapathWidth - 1, 0)
+  val roundR:      Bool = Mux1H(UIntToOH(request.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB)))
+  val roundResult: UInt = (((signExtend ## request.src(1)) >> clipSize).asUInt + roundR)(parameter.datapathWidth - 1, 0)
   val roundRemainder = roundResult & clipMaskRemainder
   val roundSignBits = Mux1H(vSewOH(2, 0), Seq(roundResult(7), roundResult(15), roundResult(31)))
-  val roundResultOverlap: Bool = roundRemainder.orR && !(req.sign && (roundRemainder | clipMask).andR && roundSignBits)
+  val roundResultOverlap: Bool = roundRemainder.orR && !(request.sign && (roundRemainder | clipMask).andR && roundSignBits)
   val clipResult = Mux(roundResultOverlap, largestClipResult, roundResult)
 
-  val indexRes: UInt = ((req.groupIndex ## req.laneIndex ## req.executeIndex) >> req.vSew).asUInt
+  val indexRes: UInt = ((request.groupIndex ## request.laneIndex ## request.executeIndex) >> request.vSew).asUInt
 
-  val extendSign: Bool = req.sign && Mux1H(vSewOH, Seq(req.src.head(7), req.src.head(15), req.src.head(31)))
+  val extendSign: Bool = request.sign && Mux1H(vSewOH, Seq(request.src.head(7), request.src.head(15), request.src.head(31)))
 
   /**
     * 需要特别注意 vmerge/vmv 类型的指令的编码方式是一样的,
@@ -97,8 +98,8 @@ class OtherUnit(param: OtherUnitParam) extends Module {
     */
   // ["rgather", "merge", "clip", "mv", "pop", "id"]
   // 选source1的情况 todo: 需要执行的 gather 可以视为merge, 前提不读vs2
-  val selectSource1: Bool = ((originalOpcodeOH(0) || originalOpcodeOH(1)) && req.mask) || originalOpcodeOH(3)
-  val selectSource2: Bool = originalOpcodeOH(1) && !req.mask
+  val selectSource1: Bool = ((originalOpcodeOH(0) || originalOpcodeOH(1)) && request.mask) || originalOpcodeOH(3)
+  val selectSource2: Bool = originalOpcodeOH(1) && !request.mask
   val resultSelect: UInt = VecInit(
     Seq(
       isffo,
@@ -109,12 +110,12 @@ class OtherUnit(param: OtherUnitParam) extends Module {
       selectSource2
     )
   ).asUInt
-  val popCountResult: UInt = popCount.resp + req.popInit(7, 0)
+  val popCountResult: UInt = popCount.resp + request.popInit(7, 0)
   val result: UInt = Mux1H(
     resultSelect,
-    Seq(ffo.resp.bits, popCountResult, indexRes, clipResult, req.src.head, req.src(1))
+    Seq(ffo.resp.bits, popCountResult, indexRes, clipResult, request.src.head, request.src(1))
   )
-  resp.data := result
-  resp.ffoSuccess := ffo.resp.valid && isffo
-  resp.clipFail := DontCare
+  response.data := result
+  response.ffoSuccess := ffo.resp.valid && isffo
+  response.clipFail := DontCare
 }

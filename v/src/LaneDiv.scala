@@ -7,6 +7,7 @@ import division.srt.{SRT, SRTOutput}
 case class LaneDivParam(datapathWidth: Int) extends VFUParameter {
   val decodeField: BoolField = Decoder.divider
   val inputBundle = new LaneDivRequest(datapathWidth)
+  val outputBundle = new LaneDivResponse(datapathWidth)
 }
 
 class LaneDivRequest(datapathWidth: Int) extends Bundle {
@@ -19,26 +20,31 @@ class LaneDivRequest(datapathWidth: Int) extends Bundle {
   // val vSew: UInt = UInt(2.W)
 }
 
-class LaneDiv(parameter: LaneDivParam) extends Module {
-  val req:  DecoupledIO[LaneDivRequest] = IO(Flipped(Decoupled(new LaneDivRequest(parameter.datapathWidth))))
-  val resp: ValidIO[UInt] = IO(Valid(UInt(parameter.datapathWidth.W)))
-  val index = IO(Output(UInt(2.W)))
-  val busy: Bool = IO(Output(Bool()))
+class LaneDivResponse(datapathWidth: Int) extends Bundle {
+  val data: UInt = UInt(datapathWidth.W)
+  val index: UInt = UInt(2.W)
+  val busy: Bool = Bool()
+}
+
+class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) {
+  val response: LaneDivResponse = Wire(new LaneDivResponse(parameter.datapathWidth))
+  val request: LaneDivRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val wrapper = Module(new SRTWrapper)
-  wrapper.input.bits.dividend := req.bits.src.last.asSInt
-  wrapper.input.bits.divisor := req.bits.src.head.asSInt
-  wrapper.input.bits.signIn := req.bits.sign
-  wrapper.input.valid := req.valid
+  wrapper.input.bits.dividend := request.src.last.asSInt
+  wrapper.input.bits.divisor := request.src.head.asSInt
+  wrapper.input.bits.signIn := request.sign
+  wrapper.input.valid := requestIO.valid
 
-  val remReg:   Bool = RegEnable(req.bits.rem, false.B, req.fire)
-  val indexReg: UInt = RegEnable(req.bits.index, 0.U, req.fire)
-  busy := RegEnable(req.fire, false.B, req.fire ^ resp.valid)
+  val requestFire: Bool = requestIO.fire
+  val remReg:   Bool = RegEnable(request.rem, false.B, requestFire)
+  val indexReg: UInt = RegEnable(request.index, 0.U, requestFire)
+  response.busy := RegEnable(requestFire, false.B, requestFire ^ responseIO.valid)
 
-  index := indexReg
-  req.ready := wrapper.input.ready
-  resp.valid := wrapper.output.valid
-  resp.bits := Mux(remReg, wrapper.output.bits.reminder.asUInt, wrapper.output.bits.quotient.asUInt)
+  response.index := indexReg
+  requestIO.ready := wrapper.input.ready
+  responseIO.valid := wrapper.output.valid
+  response.data := Mux(remReg, wrapper.output.bits.reminder.asUInt, wrapper.output.bits.quotient.asUInt)
 }
 
 class SRTIn extends Bundle {
