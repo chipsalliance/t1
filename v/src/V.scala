@@ -153,6 +153,7 @@ case class VParameter(
   )
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize)
   require(xLen == datapathWidth)
+  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth)
 }
 
 /** Top of Vector processor:
@@ -681,31 +682,39 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       )
       val aluInput2 = Mux1H(UIntToOH(executeCounter), data.map(d => Mux(d.valid, d.bits, 0.U)))
       // red alu instance
-      val adder:     LaneAdder = Module(new LaneAdder(LaneAdderParam(parameter.datapathWidth)))
+      val adder:     LaneAdder = Module(new LaneAdder(parameter.adderParam))
       val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datapathWidth))
 
       val sign = !decodeResultReg(Decoder.unsigned1)
-      adder.req.src := VecInit(
+      val adderRequest = Wire(LaneAdderParam(parameter.datapathWidth).inputBundle)
+      adderRequest.src := VecInit(
         Seq(
           (aluInput1(parameter.datapathWidth - 1) && sign) ## aluInput1,
           (aluInput2(parameter.datapathWidth - 1) && sign) ## aluInput2
         )
       )
       // popCount 在top视为reduce add
-      adder.req.opcode := Mux(popCount, 0.U, decodeResultReg(Decoder.uop))
-      adder.req.sign := sign
-      adder.req.mask := false.B
-      adder.req.reverse := false.B
-      adder.req.average := false.B
-      adder.req.saturate := false.B
-      adder.req.vxrm := csrRegForMaskUnit.vxrm
-      adder.req.vSew := csrRegForMaskUnit.vSew
+      adderRequest.opcode := Mux(popCount, 0.U, decodeResultReg(Decoder.uop))
+      adderRequest.sign := sign
+      adderRequest.mask := false.B
+      adderRequest.reverse := false.B
+      adderRequest.average := false.B
+      adderRequest.saturate := false.B
+      adderRequest.vxrm := csrRegForMaskUnit.vxrm
+      adderRequest.vSew := csrRegForMaskUnit.vSew
+      adder.requestIO.bits := adderRequest.asTypeOf(adder.requestIO.bits)
+      adder.requestIO.valid := DontCare
+      adder.responseIO.ready := DontCare
 
       logicUnit.req.src := VecInit(Seq(aluInput1, aluInput2))
       logicUnit.req.opcode := decodeResultReg(Decoder.uop)
 
       // reduce resultSelect
-      val reduceResult = Mux(decodeResultReg(Decoder.adder) || popCount, adder.resp.data, logicUnit.resp)
+      val reduceResult = Mux(
+        decodeResultReg(Decoder.adder) || popCount,
+        adder.responseIO.bits.asTypeOf(parameter.adderParam.outputBundle).data,
+        logicUnit.resp
+      )
       val aluOutPut = Mux(reduce, reduceResult, 0.U)
       // slid & gather unit
       val slideUp = decodeResultReg(Decoder.topUop)(1)

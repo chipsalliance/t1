@@ -1758,37 +1758,57 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val div:       LaneDiv = Module(new LaneDiv(parameter.divParam))
     val otherUnit: OtherUnit = Module(new OtherUnit(parameter.otherUnitParam))
 
+    // 单周期的忽略握手, 会在param生成连接的时候处理
+    logicUnit.requestIO.valid := DontCare
+    logicUnit.responseIO.ready := DontCare
+    adder.requestIO.valid := DontCare
+    adder.responseIO.ready := DontCare
+    shifter.requestIO.valid := DontCare
+    shifter.responseIO.ready := DontCare
+    mul.requestIO.valid := DontCare
+    mul.responseIO.ready := DontCare
+    otherUnit.requestIO.valid := DontCare
+    otherUnit.responseIO.ready := DontCare
+    div.responseIO.ready := DontCare
+
     // 连接执行单元的请求
-    logicUnit.req := VecInit(logicRequests.map(_.asUInt))
+    logicUnit.requestIO.bits := VecInit(logicRequests.map(_.asUInt))
       .reduce(_ | _)
       .asTypeOf(new MaskedLogicRequest(parameter.datapathWidth))
-    adder.req := VecInit(adderRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneAdderReq(parameter.datapathWidth))
-    shifter.req := VecInit(shiftRequests.map(_.asUInt))
+    adder.requestIO.bits := VecInit(adderRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneAdderReq(parameter.datapathWidth))
+    shifter.requestIO.bits := VecInit(shiftRequests.map(_.asUInt))
       .reduce(_ | _)
       .asTypeOf(new LaneShifterReq(parameter.shifterParameter))
-    mul.req := VecInit(multiplerRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneMulReq(parameter.mulParam))
-    div.req.bits := VecInit(dividerRequests.map(_.asUInt))
+    mul.requestIO.bits := VecInit(multiplerRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneMulReq(parameter.mulParam))
+    div.requestIO.bits := VecInit(dividerRequests.map(_.asUInt))
       .reduce(_ | _)
       .asTypeOf(new LaneDivRequest(parameter.datapathWidth))
-    otherUnit.req := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(parameter.otherUnitParam)))
+    otherUnit.requestIO.bits := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(parameter.otherUnitParam)))
     // 执行单元的其他连接
-    otherResponse := otherUnit.resp
-    lastDivWriteIndexWire := div.index
-    divWrite := div.resp.valid
-    divBusy := div.busy
+    otherResponse := otherUnit.responseIO.bits
+    lastDivWriteIndexWire := div.responseIO.bits.asTypeOf(parameter.divParam.outputBundle).index
+    divWrite := div.responseIO.valid
+    divBusy := div.responseIO.bits.asTypeOf(parameter.divParam.outputBundle).busy
 
     // 连接执行结果
     executeDequeueData := VecInit(
-      Seq(logicUnit.resp, adder.resp.data, shifter.resp, mul.resp, div.resp.bits, otherUnit.resp.data)
+      Seq(
+        logicUnit.responseIO.bits,
+        adder.responseIO.bits.asTypeOf(parameter.adderParam.outputBundle).data,
+        shifter.responseIO.bits,
+        mul.responseIO.bits.asTypeOf(parameter.mulParam.outputBundle).data,
+        div.responseIO.bits.asTypeOf(parameter.divParam.outputBundle).data,
+        otherUnit.responseIO.bits.asTypeOf(parameter.otherUnitParam.outputBundle).data
+      )
     )
-    executeDequeueFire := executeEnqueueFire(5) ## div.resp.valid ## executeEnqueueFire(3, 0)
+    executeDequeueFire := executeEnqueueFire(5) ## div.responseIO.valid ## executeEnqueueFire(3, 0)
     // 执行单元入口握手
     val tryToUseExecuteUnit = VecInit(executeEnqueueValid.map(_.asBools).transpose.map(VecInit(_).asUInt.orR)).asUInt
-    executeEnqueueFire := tryToUseExecuteUnit & (true.B ## div.req.ready ## 15.U(4.W))
-    div.req.valid := tryToUseExecuteUnit(4)
-    adderMaskResp := adder.resp.singleResult
+    executeEnqueueFire := tryToUseExecuteUnit & (true.B ## div.requestIO.ready ## 15.U(4.W))
+    div.requestIO.valid := tryToUseExecuteUnit(4)
+    adderMaskResp := adder.responseIO.bits.asTypeOf(parameter.adderParam.outputBundle).singleResult
     // todo: vssra
-    vxsat := adder.resp.vxsat
+    vxsat := adder.responseIO.bits.asTypeOf(parameter.adderParam.outputBundle).vxsat
   }
 
   // 处理 rf
