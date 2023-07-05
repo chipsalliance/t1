@@ -5,116 +5,47 @@ import mill.scalalib.publish._
 import mill.scalalib.scalafmt._
 import mill.scalalib.TestModule.Utest
 import coursier.maven.MavenRepository
-import $file.dependencies.chisel3.build
-import $file.dependencies.firrtl.build
-import $file.dependencies.treadle.build
-import $file.dependencies.chiseltest.build
+import $file.dependencies.chisel.build
 import $file.dependencies.arithmetic.common
 import $file.dependencies.tilelink.common
 import $file.common
 
 object v {
-  val scala = "2.13.6"
-  val utest = ivy"com.lihaoyi::utest:latest.integration"
+  val scala = "2.13.11"
   val mainargs = ivy"com.lihaoyi::mainargs:0.3.0"
   // for arithmetic
-  val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
-  val spire = ivy"org.typelevel::spire:latest.integration"
-  val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
+  val spire = ivy"org.typelevel::spire:0.18.0"
+  val evilplot = ivy"io.github.cibotech::evilplot:0.9.0"
 }
 
-object myfirrtl extends dependencies.firrtl.build.firrtlCrossModule(v.scala) {
-  override def millSourcePath = os.pwd / "dependencies" / "firrtl"
-
-  override val checkSystemAntlr4Version = false
-  override val checkSystemProtocVersion = false
-  override val protocVersion = os.proc("protoc", "--version").call().out.text.dropRight(1).split(' ').last
-  override val antlr4Version = os.proc("antlr4").call().out.text.split('\n').head.split(' ').last
-}
-
-object mytreadle extends dependencies.treadle.build.treadleCrossModule(v.scala) {
-  override def millSourcePath = os.pwd / "dependencies" / "treadle"
-
-  def firrtlModule: Option[PublishModule] = Some(myfirrtl)
-}
-
-object mychisel3 extends dependencies.chisel3.build.chisel3CrossModule(v.scala) {
-  override def millSourcePath = os.pwd / "dependencies" / "chisel3"
-
-  def firrtlModule: Option[PublishModule] = Some(myfirrtl)
-
-  def treadleModule: Option[PublishModule] = Some(mytreadle)
-
-  def chiseltestModule: Option[PublishModule] = Some(mychiseltest)
-}
-
-object mychiseltest extends dependencies.chiseltest.build.chiseltestCrossModule(v.scala) {
-  override def millSourcePath = os.pwd / "dependencies" / "chiseltest"
-
-  def chisel3Module: Option[PublishModule] = Some(mychisel3)
-
-  def treadleModule: Option[PublishModule] = Some(mytreadle)
+object mychisel extends dependencies.chisel.build.Chisel(v.scala) {
+  override def millSourcePath = os.pwd / "dependencies" / "chisel"
 }
 
 object myarithmetic extends dependencies.arithmetic.common.ArithmeticModule {
   override def millSourcePath = os.pwd / "dependencies" / "arithmetic" / "arithmetic"
-
-  def scalaVersion = T {
-    v.scala
-  }
-
-  def chisel3Module: Option[PublishModule] = Some(mychisel3)
-
-  def chisel3PluginJar = T {
-    Some(mychisel3.plugin.jar())
-  }
-
-  def chiseltestModule = Some(mychiseltest)
-
+  def scalaVersion = T(v.scala)
+  def chiselModule: Option[PublishModule] = Some(mychisel)
+  def chiselPluginJar = T(Some(mychisel.pluginModule.jar()))
   def spire: T[Dep] = v.spire
-
   def evilplot: T[Dep] = v.evilplot
-
-  def bc: T[Dep] = v.bc
-
-  def utest: T[Dep] = v.utest
 }
 
 object mytilelink extends dependencies.tilelink.common.TileLinkModule {
   override def millSourcePath = os.pwd / "dependencies" / "tilelink" / "tilelink"
-
-  def scalaVersion = T {
-    v.scala
-  }
-
-  def chisel3Module: Option[PublishModule] = Some(mychisel3)
-
-  def chisel3PluginJar = T {
-    Some(mychisel3.plugin.jar())
-  }
+  def scalaVersion = T(v.scala)
+  def chiselModule: Option[PublishModule] = Some(mychisel)
+  def chiselPluginJar = T(Some(mychisel.pluginModule.jar()))
 }
 
 object vector extends common.VectorModule with ScalafmtModule {
   m =>
   def millSourcePath = os.pwd / "v"
-
-  def scalaVersion = T {
-    v.scala
-  }
-
-  def chisel3Module = Some(mychisel3)
-
-  def chisel3PluginJar = T {
-    Some(mychisel3.plugin.jar())
-  }
-
-  def chiseltestModule = Some(mychiseltest)
-
+  def scalaVersion = T {v.scala}
+  def chiselModule = Some(mychisel)
+  def chiselPluginJar = T(Some(mychisel.pluginModule.jar()))
   def arithmeticModule = Some(myarithmetic)
-
   def tilelinkModule = Some(mytilelink)
-
-  def utest: T[Dep] = v.utest
 }
 
 object elaborator extends mill.Cross[Elaborator](os.walk(os.pwd / "configs").filter(_.ext == "json").map(_.baseName) :_*)
@@ -129,8 +60,8 @@ class Elaborator(config: String) extends Module {
 
   object elaborate extends ScalaModule with ScalafmtModule {
     override def millSourcePath: os.Path = os.pwd / "elaborator"
-    override def scalacPluginClasspath = T(Agg(mychisel3.plugin.jar()))
-    override def scalacOptions = T(super.scalacOptions() ++ Some(mychisel3.plugin.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq("-Ymacro-annotations"))
+    override def scalacPluginClasspath = T(Agg(mychisel.pluginModule.jar()))
+    override def scalacOptions = T(super.scalacOptions() ++ Some(mychisel.pluginModule.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq("-Ymacro-annotations"))
     override def scalaVersion = v.scala
     override def moduleDeps = Seq(vector)
     override def ivyDeps = T(Seq(v.mainargs))
