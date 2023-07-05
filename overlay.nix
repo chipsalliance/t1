@@ -63,6 +63,30 @@ in
   });
 
   mill = prev.mill.override { jre = final.openjdk19; };
+  circt = prev.circt.overrideAttrs (old: rec {
+    version = "1.44.0";
+    src = prev.fetchFromGitHub {
+      owner = "llvm";
+      repo = "circt";
+      rev = "firtool-${version}";
+      sha256 = "sha256-92gGsuwz1AfQJe1kFsqm/75P+3QuSHzZEUbItOC5nGU=";
+      fetchSubmodules = true;
+    };
+    preConfigure = ''
+      substituteInPlace test/Dialect/FIRRTL/Reduction/annotation-remover.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/Dialect/Arc/Reduction/state-elimination.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/Dialect/FIRRTL/Reduction/connect-source-operand-forward.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/Dialect/FIRRTL/Reduction/memory-stubber.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/Dialect/FIRRTL/Reduction/node-symbol-remover.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/Dialect/FIRRTL/Reduction/port-pruner.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/Dialect/HW/Reduction/hw-constantifier.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/Dialect/HW/Reduction/hw-module-externalizer.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/Dialect/HW/Reduction/hw-operand-forwarder.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/circt-reduce/canonicalize-reduction.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/circt-reduce/cse-reduction.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+      substituteInPlace test/circt-reduce/operation-pruner.mlir --replace "/usr/bin/env" "${prev.coreutils}/bin/env"
+    '';
+  });
 
   espresso = final.callPackage ./nix/espresso.nix { };
   libspike = final.callPackage ./nix/libspike.nix { };
