@@ -104,7 +104,7 @@ case class LaneParameter(
   val maskGroupSize: Int = vLen / maskGroupWidth
 
   /** hardware width of [[maskGroupSize]]. */
-  val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
+  val maskGroupSizeBits: Int = log2Ceil(maskGroupSize / laneNumber)
 
   /** Size of the queue for storing execution information
     * todo: Determined by the longest execution unit
@@ -1465,7 +1465,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val s3Fire = s3Valid && s3Ready
       // Used to update valid3 without writing vrf
       val s3DequeueFire: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
-      val valid3: Option[Bool] = Option.when(isLastSlot)(RegInit(0.U(false.B)))
+      val valid3: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
       // use for cross-lane write
       val groupCounterInStage3: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(7.W)))
       val maskInStage3: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(4.W)))
