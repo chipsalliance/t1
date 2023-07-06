@@ -1,9 +1,10 @@
 package v
 
 import chisel3._
-import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.experimental.{SerializableModule, SerializableModuleGenerator, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
+import v.TableGenerator.LaneDecodeTable.div
 
 object LaneParameter {
   implicit def rwP: upickle.default.ReadWriter[LaneParameter] = upickle.default.macroRW
@@ -131,6 +132,18 @@ case class LaneParameter(
 
   /** Parameter for [[OtherUnit]]. */
   def otherUnitParam: OtherUnitParam = OtherUnitParam(datapathWidth, vlMaxBits, groupNumberBits, laneNumberBits, dataPathByteWidth)
+
+  val VFUParameter: VFUInstantiateParameter = VFUInstantiateParameter(
+    chainingSize,
+    Seq(
+      (SerializableModuleGenerator(classOf[MaskedLogic], logicParam), Seq.range(0, chainingSize)),
+      (SerializableModuleGenerator(classOf[LaneAdder], adderParam), Seq.range(0, chainingSize)),
+      (SerializableModuleGenerator(classOf[LaneShifter], shifterParameter), Seq.range(0, chainingSize)),
+      (SerializableModuleGenerator(classOf[LaneMul], mulParam), Seq.range(0, chainingSize)),
+      (SerializableModuleGenerator(classOf[LaneDiv], divParam), Seq.range(0, chainingSize)),
+      (SerializableModuleGenerator(classOf[OtherUnit], otherUnitParam), Seq.range(0, chainingSize)),
+    )
+  )
 }
 
 /** Instantiate [[Lane]] from [[V]],
@@ -392,61 +405,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val readBusDequeue: ValidIO[ReadBusData] = Wire(Valid(new ReadBusData(parameter: LaneParameter)))
 
-  // control signals for VFU, see [[parameter.executeUnitNum]]
   /** enqueue valid for execution unit */
-  val executeEnqueueValid: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.executeUnitNum.W)))
+  val executeEnqueueValid: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
+
+  /** request from slot to vfu. */
+  val requestVec: Vec[SlotRequestToVFU] = Wire(Vec(parameter.chainingSize, new SlotRequestToVFU(parameter)))
+
+  /** response from vfu to slot. */
+  val responseVec: Vec[ValidIO[VFUResponseToSlot]] = Wire(Vec(parameter.chainingSize, Valid(new VFUResponseToSlot(parameter))))
 
   /** enqueue fire signal for execution unit */
-  val executeEnqueueFire: UInt = Wire(UInt(parameter.executeUnitNum.W))
+  val executeEnqueueFire: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
-  /** for most of time, dequeue is enqueue,
-    * for long latency FPU(divider), fire signal is from that unit
-    */
-  val executeDequeueFire: UInt = Wire(UInt(parameter.executeUnitNum.W))
+  val executeOccupied: Vec[Bool] = Wire(Vec(parameter.VFUParameter.genVec.size, Bool()))
+  dontTouch(executeOccupied)
 
-  /** execution result for each VFU. */
-  val executeDequeueData: Vec[UInt] = Wire(Vec(parameter.executeUnitNum, UInt(parameter.datapathWidth.W)))
-
-  /** mask format result out put in adder. */
-  val adderMaskResp: Bool = Wire(Bool())
-
-  /** vxsat for saturate. */
-  val vxsat: Bool = Wire(Bool())
-
-  /** for each slot, it occupies which VFU. */
-  val instructionTypeVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.executeUnitNum.W)))
-
-  /** request for logic instruction type. */
-  val logicRequests: Vec[MaskedLogicRequest] = Wire(
-    Vec(parameter.chainingSize, new MaskedLogicRequest(parameter.datapathWidth))
-  )
-
-  /** request for adder instruction type. */
-  val adderRequests: Vec[LaneAdderReq] = Wire(Vec(parameter.chainingSize, new LaneAdderReq(parameter.datapathWidth)))
-
-  /** request for shift instruction type. */
-  val shiftRequests: Vec[LaneShifterReq] = Wire(
-    Vec(parameter.chainingSize, new LaneShifterReq(parameter.shifterParameter))
-  )
-
-  /** request for multipler instruction type. */
-  val multiplerRequests: Vec[LaneMulReq] = Wire(Vec(parameter.chainingSize, new LaneMulReq(parameter.mulParam)))
-
-  /** request for divider instruction type. */
-  val dividerRequests: Vec[LaneDivRequest] = Wire(
-    Vec(parameter.chainingSize, new LaneDivRequest(parameter.datapathWidth))
-  )
-  val lastDivWriteIndexWire: UInt = Wire(UInt(log2Ceil(parameter.dataPathByteWidth).W))
-  val divWrite:              Bool = Wire(Bool())
-  val divBusy:               Bool = Wire(Bool())
-  val lastDivWriteIndex:     UInt = RegEnable(lastDivWriteIndexWire, 0.U.asTypeOf(lastDivWriteIndexWire), divWrite)
-  val divWriteIndex: UInt =
-    Mux(divWrite, lastDivWriteIndexWire, lastDivWriteIndex)(log2Ceil(parameter.dataPathByteWidth) - 1, 0)
-
-  /** request for other instruction type. */
-  val otherRequests: Vec[OtherUnitReq] = Wire(Vec(parameter.chainingSize, Output(new OtherUnitReq(parameter.otherUnitParam))))
-
-  val otherResponse: OtherUnitResp = Wire(Output(new OtherUnitResp(parameter.datapathWidth)))
+  val VFUNotClear:           Bool = Wire(Bool())
 
   /** assert when a instruction is finished in the slot. */
   val instructionFinishedVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
@@ -1160,115 +1134,44 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           * use [[lastGroupMask]] to mask the result otherwise use [[fullMask]]. */
         val maskCorrect = Mux(executionRecord.bordersForMaskLogic, lastGroupMask, fullMask)
 
-        // logic request.
-        val logicRequest = Wire(new MaskedLogicRequest(parameter.datapathWidth))
-        logicRequest.src.head := finalSource2
-        logicRequest.src(1) := finalSource1
-        logicRequest.src(2) := maskCorrect
-        logicRequest.src(3) := finalSource3
-        logicRequest.opcode := decodeResult(Decoder.uop)
-        logicRequests(index) := maskAnd(
-          executeRequestStateValid && decodeResult(Decoder.logic),
-          logicRequest
+        val requestToVFU: SlotRequestToVFU = Wire(new SlotRequestToVFU(parameter))
+        requestToVFU.src := VecInit(Seq(finalSource1, finalSource2, finalSource3, maskCorrect))
+        requestToVFU.opcode := decodeResult(Decoder.uop)
+        requestToVFU.mask := Mux(
+          decodeResult(Decoder.adder),
+          maskAsInput && decodeResult(Decoder.maskSource),
+          maskAsInput || !record.laneRequest.mask
         )
-
-        // add request
-        val adderRequest = Wire(new LaneAdderReq(parameter.datapathWidth))
-        adderRequest.src := VecInit(Seq(finalSource1, finalSource2))
-        adderRequest.mask := maskAsInput && decodeResult(Decoder.maskSource)
-        adderRequest.opcode := decodeResult(Decoder.uop)
-        adderRequest.sign := !decodeResult(Decoder.unsigned1)
-        adderRequest.reverse := decodeResult(Decoder.reverse)
-        adderRequest.average := decodeResult(Decoder.average)
-        adderRequest.saturate := decodeResult(Decoder.saturate)
-        adderRequest.vxrm := record.csr.vxrm
-        adderRequest.vSew := record.csr.vSew
-        adderRequests(index) := maskAnd(
-          executeRequestStateValid && decodeResult(Decoder.adder),
-          adderRequest
-        )
-
-        // shift request
-        val shiftRequest = Wire(new LaneShifterReq(parameter.shifterParameter))
-        shiftRequest.src := finalSource2
-        // 2 * sew has another 1 bit signal.
-        shiftRequest.shifterSize := Mux1H(
+        requestToVFU.sign := !decodeResult(Decoder.unsigned1)
+        requestToVFU.reverse := decodeResult(Decoder.reverse)
+        requestToVFU.average := decodeResult(Decoder.average)
+        requestToVFU.saturate := decodeResult(Decoder.saturate)
+        requestToVFU.vxrm := record.csr.vxrm
+        requestToVFU.vSew := record.csr.vSew
+        requestToVFU.shifterSize := Mux1H(
           Mux(executionRecord.crossReadVS2, vSew1H(1, 0), vSew1H(2, 1)),
           Seq(false.B ## finalSource1(3), finalSource1(4, 3))
         ) ## finalSource1(2, 0)
-        shiftRequest.opcode := decodeResult(Decoder.uop)
-        shiftRequests(index) := maskAnd(
-          executeRequestStateValid && decodeResult(Decoder.shift),
-          shiftRequest
-        )
-        shiftRequest.vxrm := record.csr.vxrm
+        requestToVFU.rem := decodeResult(Decoder.uop)(0)
+        requestToVFU.executeIndex := executionRecord.executeIndex
+        requestToVFU.popInit := reduceResult
+        requestToVFU.groupIndex := executionRecord.groupCounter
+        requestToVFU.laneIndex := laneIndex
+        requestToVFU.complete := record.ffoByOtherLanes || record.selfCompleted
+        requestToVFU.maskType := record.laneRequest.mask
 
-        // mul request
-        val mulRequest: LaneMulReq = Wire(new LaneMulReq(parameter.mulParam))
-        mulRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
-        mulRequest.opcode := decodeResult(Decoder.uop)
-        mulRequest.saturate := decodeResult(Decoder.saturate)
-        mulRequest.vSew := record.csr.vSew
-        mulRequest.vxrm := record.csr.vxrm
-        multiplerRequests(index) := maskAnd(
-          executeRequestStateValid && decodeResult(Decoder.multiplier),
-          mulRequest
-        )
+        requestVec(index) := requestToVFU
 
-        // div request
-        val divRequest = Wire(new LaneDivRequest(parameter.datapathWidth))
-        divRequest.src := VecInit(Seq(finalSource1, finalSource2))
-        divRequest.rem := decodeResult(Decoder.uop)(0)
-        divRequest.sign := !decodeResult(Decoder.unsigned0)
-        divRequest.index := executionRecord.executeIndex
-        dividerRequests(index) := maskAnd(
-          executeRequestStateValid && decodeResult(Decoder.divider),
-          divRequest
-        )
-
-        // other
-        val otherRequest: OtherUnitReq = Wire(Output(new OtherUnitReq(parameter.otherUnitParam)))
-        otherRequest.src := VecInit(Seq(finalSource1, finalSource2, finalSource3))
-        otherRequest.popInit := reduceResult
-        otherRequest.opcode := decodeResult(Decoder.uop)
-        otherRequest.imm := record.laneRequest.vs1
-        otherRequest.laneIndex := laneIndex
-        otherRequest.groupIndex := executionRecord.groupCounter
-        otherRequest.executeIndex := executionRecord.executeIndex
-        otherRequest.sign := !decodeResult(Decoder.unsigned0)
-        otherRequest.mask := maskAsInput || !record.laneRequest.mask
-        otherRequest.complete := record.ffoByOtherLanes || record.selfCompleted
-        otherRequest.maskType := record.laneRequest.mask
-        otherRequest.vSew := record.csr.vSew
-        otherRequest.vxrm := record.csr.vxrm
-        otherRequests(index) := maskAnd(
-          executeRequestStateValid && decodeResult(Decoder.other),
-          otherRequest
-        )
-
-        instructionTypeVec(index) := VecInit(
-          Seq(
-            decodeResult(Decoder.logic),
-            decodeResult(Decoder.adder),
-            decodeResult(Decoder.shift),
-            decodeResult(Decoder.multiplier),
-            decodeResult(Decoder.divider),
-            decodeResult(Decoder.other)
-          )
-        ).asUInt
-
-        executeEnqueueValid(index) := maskAnd(
-          executeRequestStateValid,
-          instructionTypeVec(index)
-        )
+        executeEnqueueValid(index) := executeRequestStateValid
 
         /** select from VFU, send to [[executionResult]], [[Stage2crossWriteLSB]], [[Stage2crossWriteMSB]]. */
-        val dataDequeue: UInt = Mux1H(instructionTypeVec(index), executeDequeueData)
+        val dataDequeue: UInt = responseVec(index).bits.data
 
-        val executeEnqueueFireForSlot: Bool = (instructionTypeVec(index) & executeEnqueueFire).orR
+        val executeEnqueueFireForSlot: Bool = executeEnqueueFire(index)
 
         /** fire of [[dataDequeue]] */
-        val executeDequeueFireForSlot: Bool = (instructionTypeVec(index) & executeDequeueFire).orR
+        val executeDequeueFireForSlot: Bool =
+          Mux(decodeResult(Decoder.divider), responseVec(index).valid, executeEnqueueFireForSlot)
 
         // mask reg for filtering
         val maskForFilter = FillInterleaved(4, maskNotMaskedElement) | executionRecord.mask
@@ -1324,6 +1227,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           wExecuteResult := true.B
         }
 
+        val divWriteIndexLatch: UInt = RegEnable(responseVec(index).bits.executIndex, 0.U(2.W), responseVec(index).valid)
+        val divWriteIndex = Mux(responseVec(index).valid, responseVec(index).bits.executIndex, divWriteIndexLatch)
         /** the index to write to VRF in [[parameter.dataPathByteWidth]].
           * for long latency pipe, the index will follow the pipeline.
           */
@@ -1365,14 +1270,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           executionResult := resultUpdate
 
           // the find first one instruction is finished in this lane
-          ffoSuccessImStage2.foreach(_ := otherResponse.ffoSuccess)
-          when(otherResponse.ffoSuccess && !record.selfCompleted) {
+          ffoSuccessImStage2.foreach(_ := responseVec(index).bits.ffoSuccess)
+          when(responseVec(index).bits.ffoSuccess && !record.selfCompleted) {
             ffoIndexReg := executionRecord.groupCounter ## Mux1H(
               vSew1H,
               Seq(
-                executionRecord.executeIndex ## otherResponse.data(2, 0),
-                executionRecord.executeIndex(1) ## otherResponse.data(3, 0),
-                otherResponse.data(4, 0)
+                executionRecord.executeIndex ## responseVec(index).bits.data(2, 0),
+                executionRecord.executeIndex(1) ## responseVec(index).bits.data(3, 0),
+                responseVec(index).bits.data(4, 0)
               )
             )
           }
@@ -1450,7 +1355,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           /** update value for [[maskFormatResultUpdate]],
             * it comes from ALU.
             */
-          val elementMaskFormatResult: UInt = Mux(adderMaskResp, current1HInGroup, 0.U)
+          val elementMaskFormatResult: UInt = Mux(responseVec(index).bits.adderMaskResp , current1HInGroup, 0.U)
 
           /** update value for [[maskFormatResultForGroup]] */
           val maskFormatResultUpdate: UInt = maskFormatResultForGroup.get | elementMaskFormatResult
@@ -1751,64 +1656,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // VFU
   // TODO: reuse logic, adder, multiplier datapath
   {
-    val logicUnit: MaskedLogic = Module(new MaskedLogic(parameter.logicParam))
-    val adder:     LaneAdder = Module(new LaneAdder(parameter.adderParam))
-    val shifter:   LaneShifter = Module(new LaneShifter(parameter.shifterParameter))
-    val mul:       LaneMul = Module(new LaneMul(parameter.mulParam))
-    val div:       LaneDiv = Module(new LaneDiv(parameter.divParam))
-    val otherUnit: OtherUnit = Module(new OtherUnit(parameter.otherUnitParam))
+    /**
+     * /** enqueue valid for execution unit */
+     * val executeEnqueueValid: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
+     *
+     * /** request from slot to vfu. */
+     * val requestVec: Vec[LaneRequestToVFU] = Wire(Vec(parameter.chainingSize, new LaneRequestToVFU(parameter)))
+     *
+     * /** enqueue fire signal for execution unit */
+     * val executeEnqueueFire: UInt = Wire(UInt(parameter.chainingSize.W))
+     *
+     * */
+    val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
 
-    // 单周期的忽略握手, 会在param生成连接的时候处理
-    logicUnit.requestIO.valid := DontCare
-    logicUnit.responseIO.ready := DontCare
-    adder.requestIO.valid := DontCare
-    adder.responseIO.ready := DontCare
-    shifter.requestIO.valid := DontCare
-    shifter.responseIO.ready := DontCare
-    mul.requestIO.valid := DontCare
-    mul.responseIO.ready := DontCare
-    otherUnit.requestIO.valid := DontCare
-    otherUnit.responseIO.ready := DontCare
-    div.responseIO.ready := DontCare
-
-    // 连接执行单元的请求
-    logicUnit.requestIO.bits := VecInit(logicRequests.map(_.asUInt))
-      .reduce(_ | _)
-      .asTypeOf(new MaskedLogicRequest(parameter.datapathWidth))
-    adder.requestIO.bits := VecInit(adderRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneAdderReq(parameter.datapathWidth))
-    shifter.requestIO.bits := VecInit(shiftRequests.map(_.asUInt))
-      .reduce(_ | _)
-      .asTypeOf(new LaneShifterReq(parameter.shifterParameter))
-    mul.requestIO.bits := VecInit(multiplerRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(new LaneMulReq(parameter.mulParam))
-    div.requestIO.bits := VecInit(dividerRequests.map(_.asUInt))
-      .reduce(_ | _)
-      .asTypeOf(new LaneDivRequest(parameter.datapathWidth))
-    otherUnit.requestIO.bits := VecInit(otherRequests.map(_.asUInt)).reduce(_ | _).asTypeOf(Output(new OtherUnitReq(parameter.otherUnitParam)))
-    // 执行单元的其他连接
-    otherResponse := otherUnit.responseIO.bits
-    lastDivWriteIndexWire := div.responseIO.bits.asTypeOf(parameter.divParam.outputBundle).index
-    divWrite := div.responseIO.valid
-    divBusy := div.responseIO.bits.asTypeOf(parameter.divParam.outputBundle).busy
-
-    // 连接执行结果
-    executeDequeueData := VecInit(
-      Seq(
-        logicUnit.responseIO.bits,
-        adder.responseIO.bits.asTypeOf(parameter.adderParam.outputBundle).data,
-        shifter.responseIO.bits,
-        mul.responseIO.bits.asTypeOf(parameter.mulParam.outputBundle).data,
-        div.responseIO.bits.asTypeOf(parameter.divParam.outputBundle).data,
-        otherUnit.responseIO.bits.asTypeOf(parameter.otherUnitParam.outputBundle).data
-      )
+    vfu.vfuConnect(parameter.VFUParameter)(
+      requestVec, executeEnqueueValid, decodeResultVec, executeEnqueueFire, responseVec, executeOccupied, VFUNotClear
     )
-    executeDequeueFire := executeEnqueueFire(5) ## div.responseIO.valid ## executeEnqueueFire(3, 0)
-    // 执行单元入口握手
-    val tryToUseExecuteUnit = VecInit(executeEnqueueValid.map(_.asBools).transpose.map(VecInit(_).asUInt.orR)).asUInt
-    executeEnqueueFire := tryToUseExecuteUnit & (true.B ## div.requestIO.ready ## 15.U(4.W))
-    div.requestIO.valid := tryToUseExecuteUnit(4)
-    adderMaskResp := adder.responseIO.bits.asTypeOf(parameter.adderParam.outputBundle).singleResult
-    // todo: vssra
-    vxsat := adder.responseIO.bits.asTypeOf(parameter.adderParam.outputBundle).vxsat
   }
 
   // 处理 rf

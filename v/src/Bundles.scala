@@ -624,3 +624,35 @@ class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends
   /** groupCounter need use to update `Lane.maskFormatResultForGroup` */
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
 }
+
+class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
+  val src: Vec[UInt] = Vec(4, UInt((parameter.datapathWidth + 1).W))
+  val opcode: UInt = UInt(4.W)
+  // mask for carry or borrow
+  val mask:     Bool = Bool()
+  val sign: Bool = Bool()
+  val reverse: Bool = Bool()
+  val average: Bool = Bool()
+  val saturate: Bool = Bool()
+  val vxrm: UInt = UInt(2.W)
+  val vSew: UInt = UInt(2.W)
+  val shifterSize: UInt = UInt(log2Ceil(parameter.datapathWidth).W)
+  val rem:  Bool = Bool()
+  val executeIndex: UInt = UInt(2.W)
+  val popInit: UInt = UInt(parameter.vlMaxBits.W)
+  val groupIndex: UInt = UInt(parameter.groupNumberBits.W)
+  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+  val complete:     Bool = Bool()
+  // vm = 0
+  val maskType: Bool = Bool()
+}
+
+class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
+  val data: UInt = UInt(parameter.datapathWidth.W)
+  val executIndex: UInt = UInt(2.W)
+  val clipFail: Bool = Bool()
+  val ffoSuccess: Bool = Bool()
+  val divBusy: Bool = Bool()
+  val adderMaskResp: Bool = Bool()
+  val vxsat: Bool = Bool()
+}

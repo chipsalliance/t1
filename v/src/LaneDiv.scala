@@ -1,10 +1,11 @@
 package v
 
 import chisel3._
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import division.srt.{SRT, SRTOutput}
 
-case class LaneDivParam(datapathWidth: Int) extends VFUParameter {
+case class LaneDivParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.divider
   val inputBundle = new LaneDivRequest(datapathWidth)
   val outputBundle = new LaneDivResponse(datapathWidth)
@@ -15,7 +16,7 @@ class LaneDivRequest(datapathWidth: Int) extends Bundle {
   val rem:  Bool = Bool()
   val sign: Bool = Bool()
   // execute index in group
-  val index: UInt = UInt(2.W)
+  val executeIndex: UInt = UInt(2.W)
   // csr
   // val vSew: UInt = UInt(2.W)
 }
@@ -26,7 +27,7 @@ class LaneDivResponse(datapathWidth: Int) extends Bundle {
   val busy: Bool = Bool()
 }
 
-class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) {
+class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with SerializableModule[LaneDivParam] {
   val response: LaneDivResponse = Wire(new LaneDivResponse(parameter.datapathWidth))
   val request: LaneDivRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 
@@ -38,7 +39,7 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) {
 
   val requestFire: Bool = requestIO.fire
   val remReg:   Bool = RegEnable(request.rem, false.B, requestFire)
-  val indexReg: UInt = RegEnable(request.index, 0.U, requestFire)
+  val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestFire)
   response.busy := RegEnable(requestFire, false.B, requestFire ^ responseIO.valid)
 
   response.index := indexReg
