@@ -71,7 +71,7 @@ void VBridgeImpl::dpiPeekLsuEnq(const VLsuReqEnqPeek &lsu_req_enq) {
 
 void VBridgeImpl::dpiPeekVrfWrite(const VrfWritePeek &vrf_write) {
   VLOG(3) << fmt::format("[{}] dpiPeekVrfWrite", get_t());
-  CHECK_S(0 <= vrf_write.lane_index && vrf_write.lane_index < consts::numLanes);
+  CHECK_S(0 <= vrf_write.lane_index && vrf_write.lane_index < config.lane_number);
   record_rf_accesses(vrf_write);
 }
 
@@ -137,7 +137,7 @@ void VBridgeImpl::dpiPeekIssue(svBit ready, svBitVecVal issueIdx) {
 
 void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
   VLOG(3) << fmt::format("[{}] dpiPokeTL", get_t());
-  CHECK_S(0 <= v_tl_resp.channel_id && v_tl_resp.channel_id < consts::numTL);
+  CHECK_S(0 <= v_tl_resp.channel_id && v_tl_resp.channel_id < config.tl_bank_number);
   return_tl_response(v_tl_resp);
 }
 
@@ -147,7 +147,7 @@ void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
 
 void VBridgeImpl::dpiPeekTL(const VTlInterface &v_tl) {
   VLOG(3) << fmt::format("[{}] dpiPeekTL", get_t());
-  CHECK_S(0 <= v_tl.channel_id && v_tl.channel_id < consts::numTL);
+  CHECK_S(0 <= v_tl.channel_id && v_tl.channel_id < config.tl_bank_number);
   receive_tl_d_ready(v_tl);
   receive_tl_req(v_tl);
 }
@@ -158,14 +158,15 @@ void VBridgeImpl::dpiPeekTL(const VTlInterface &v_tl) {
 
 void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
   VLOG(3) << fmt::format("[{}] dpiPeekWriteQueue", get_t());
-  CHECK_S(0 <= lsu_queue.mshr_index && lsu_queue.mshr_index < consts::numMSHR);
+  CHECK_S(0 <= lsu_queue.mshr_index && lsu_queue.mshr_index < config.mshr_number);
   record_rf_queue_accesses(lsu_queue);
 
   se_to_issue = nullptr;   // clear se_to_issue, to avoid using the wrong one
 }
 
 VBridgeImpl::VBridgeImpl() :
-    varch(fmt::format("vlen:{},elen:{}", consts::vlen_in_bits, consts::elen)),
+    config(get_env_arg("COSIM_config")),
+    varch(fmt::format("vlen:{},elen:{}", config.v_len, config.elen)),
     sim(1l << 32),
     isa("rv32gcv", "M"),
     cfg(/*default_initrd_bounds=*/ std::make_pair((reg_t) 0, (reg_t) 0),
@@ -189,10 +190,12 @@ VBridgeImpl::VBridgeImpl() :
         /*log_file_t*/ nullptr,
         /*sout*/ std::cerr),
     se_to_issue(nullptr),
+    tl_banks(config.tl_bank_number),
+    tl_current_req(config.tl_bank_number),
 #ifdef COSIM_VERILATOR
     ctx(nullptr),
 #endif
-    vrf_shadow(std::make_unique<uint8_t[]>(consts::vlen_in_bytes * consts::numVRF)) {
+    vrf_shadow(std::make_unique<uint8_t[]>(config.v_len_in_bytes * config.vreg_number)) {
 
   DEFAULT_VARCH;
   auto &csrmap = proc.get_state()->csrmap;
@@ -423,20 +426,20 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
 }
 
 void VBridgeImpl::update_lsu_idx(const VLsuReqEnqPeek &enq) {
-  uint32_t lsuReqs[consts::numMSHR];
-  for (int i = 0; i < consts::numMSHR; i++) {
+  std::vector<uint32_t> lsuReqs(config.mshr_number);
+  for (int i = 0; i < config.mshr_number; i++) {
     lsuReqs[i] = (enq.enq >> i) & 1;
   }
   for (auto se = to_rtl_queue.rbegin(); se != to_rtl_queue.rend(); se++) {
-    if (se->is_issued && (se->is_load || se->is_store) && (se->lsu_idx == consts::lsuIdxDefault)) {
-      uint8_t index = consts::lsuIdxDefault;
-      for (int i = 0; i < consts::numMSHR; i++) {
+    if (se->is_issued && (se->is_load || se->is_store) && (se->lsu_idx == lsu_idx_default)) {
+      uint8_t index = lsu_idx_default;
+      for (int i = 0; i < config.mshr_number; i++) {
         if (lsuReqs[i] == 1) {
           index = i;
           break;
         }
       }
-      if (index == consts::lsuIdxDefault) {
+      if (index == lsu_idx_default) {
         LOG(INFO) << fmt::format("[{}] waiting for lsu request to fire.", get_t());
         break;
       }
@@ -522,7 +525,7 @@ void VBridgeImpl::record_rf_queue_accesses(const VLsuWriteQueuePeek &lsu_queue) 
 }
 
 void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd, uint32_t offset, uint32_t mask, uint32_t data, uint32_t idx) {
-  uint32_t record_idx_base = vd * consts::vlen_in_bytes + (lane_idx + consts::numLanes * offset) * 4;
+  uint32_t record_idx_base = vd * config.v_len_in_bytes + (lane_idx + config.lane_number * offset) * 4;
   auto &all_writes = se->vrf_access_record.all_writes;
 
   for (int j = 0; j < 32 / 8; j++) {  // 32bit / 1byte

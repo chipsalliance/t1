@@ -25,6 +25,7 @@
             fmt
             (enableDebugging libspike)
             zlib
+            jsoncpp.dev
 
             mill
             python3

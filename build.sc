@@ -208,6 +208,7 @@ class emulator(config: String) extends Module {
       "vbridge_impl.cc",
       "dpi.cc",
       "elf.cc",
+      "rtl_config.cc",
     ).map(f => PathRef(csrcDir().path / f))
   }
 
@@ -245,6 +246,7 @@ class emulator(config: String) extends Module {
        |find_package(fmt REQUIRED)
        |find_package(libspike REQUIRED)
        |find_package(verilator REQUIRED)
+       |find_package(jsoncpp REQUIRED)
        |find_package(Threads REQUIRED)
        |set(THREADS_PREFER_PTHREAD_FLAG ON)
        |
@@ -255,7 +257,7 @@ class emulator(config: String) extends Module {
        |target_include_directories(emulator PUBLIC ${csrcDir().path.toString})
        |
        |target_link_libraries(emulator PUBLIC $${CMAKE_THREAD_LIBS_INIT})
-       |target_link_libraries(emulator PUBLIC libspike fmt::fmt glog::glog)  # note that libargs is header only, nothing to link
+       |target_link_libraries(emulator PUBLIC libspike fmt::fmt glog::glog jsoncpp)  # note that libargs is header only, nothing to link
        |target_compile_definitions(emulator PRIVATE COSIM_VERILATOR)
        |
        |verilate(emulator
@@ -494,6 +496,7 @@ object tests extends Module {
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
         "COSIM_timeout" -> "1000000",
+        "COSIM_config" -> emulator("v1024l8b2-test").configFile().toString,
         "GLOG_logtostderr" -> "0",
         "PERF_output_file" -> (T.dest / "perf.txt").toString,
       )
@@ -512,6 +515,7 @@ object tests extends Module {
         "COSIM_bin" -> caseToRun.elf().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
+        "COSIM_config" -> emulator("v1024l8b2-test").configFile().toString,
         envDefault("COSIM_timeout", "1000000"),
         envDefault("GLOG_logtostderr", "1"),
         "PERF_output_file" -> (T.dest / "perf.txt").toString,

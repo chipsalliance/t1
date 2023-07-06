@@ -34,7 +34,7 @@ void SpikeEvent::log_arch_changes() {
     if (origin_byte != cur_byte) {
       vrf_access_record.all_writes[offset] = { .byte = cur_byte };
       VLOG(1) << fmt::format("spike detect vrf change: vrf[{}, {}] from {:02X} to {:02X} [vrf_idx={}]",
-                               offset / consts::vlen_in_bytes, offset % consts::vlen_in_bytes,
+                               offset / impl->config.v_len_in_bytes, offset % impl->config.v_len_in_bytes,
                                (int) origin_byte, (int) cur_byte, offset);
     }
   }
@@ -121,7 +121,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
 
   is_issued = false;
 
-  lsu_idx = consts::lsuIdxDefault;  // default lsu_idx
+  lsu_idx = lsu_idx_default;  // default lsu_idx
 }
 
 void SpikeEvent::drive_rtl_req(const VInstrInterfacePoke &v_inst) const {
@@ -158,7 +158,7 @@ void SpikeEvent::check_is_ready_for_commit() {
   }
   for (auto &[idx, vrf_write]: vrf_access_record.all_writes) {
     CHECK_S(vrf_write.executed) << fmt::format(": [{}] expect to write vrf [{}][{}], not executed when commit ({})",
-                              impl->get_t(), idx / consts::vlen_in_bytes, idx % consts::vlen_in_bytes, describe_insn());
+                              impl->get_t(), idx / impl->config.v_len_in_bytes, idx % impl->config.v_len_in_bytes, describe_insn());
   }
 }
 
@@ -174,24 +174,24 @@ std::pair<uint32_t, uint32_t> SpikeEvent::get_vrf_write_range() const {
   if (is_store) {
     return {0, 0};  // store will not write vrf
   } else if (is_load) {
-    uint32_t vd_bytes_start = rd_idx * consts::vlen_in_bytes;
+    uint32_t vd_bytes_start = rd_idx * impl->config.v_len_in_bytes;
     if (is_whole) {
-      return {vd_bytes_start, consts::vlen_in_bytes * (1 + vnf)};
+      return {vd_bytes_start, impl->config.v_len_in_bytes * (1 + vnf)};
     }
     uint32_t len = vlmul & 0b100
-        ? consts::vlen_in_bytes * (1 + vnf)
-        : consts::vlen_in_bytes * (1 + vnf) << vlmul;
+        ? impl->config.v_len_in_bytes * (1 + vnf)
+        : impl->config.v_len_in_bytes * (1 + vnf) << vlmul;
     return {vd_bytes_start, len};
   } else {
-    uint32_t vd_bytes_start = rd_idx * consts::vlen_in_bytes;
+    uint32_t vd_bytes_start = rd_idx * impl->config.v_len_in_bytes;
 
     if (is_mask_vd) {
-      return {vd_bytes_start, consts::vlen_in_bytes};
+      return {vd_bytes_start, impl->config.v_len_in_bytes};
     }
 
     uint32_t len = vlmul & 0b100
-                   ? consts::vlen_in_bytes >> (8 - vlmul)
-                   : consts::vlen_in_bytes << vlmul;
+                   ? impl->config.v_len_in_bytes >> (8 - vlmul)
+                   : impl->config.v_len_in_bytes << vlmul;
 
     return {vd_bytes_start, is_widening ? len*2 : len};
   }
