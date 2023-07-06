@@ -17,7 +17,7 @@ static bool terminated = false;
 
 VRFPerf vrf_perf;
 ALUPerf alu_perf;
-LSUPerf lsu_perfs[consts::numTL];
+std::vector<LSUPerf> lsu_perfs;
 ChainingPerf chaining_perf;
 
 void sigint_handler(int s) {
@@ -54,6 +54,7 @@ void VBridgeImpl::dpiDumpWave() {
   svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.verbatim"));
   TRY({
     vbridge_impl_instance.dpiInitCosim();
+    lsu_perfs.resize(vbridge_impl_instance.config.tl_bank_number);
   })
 }
 
@@ -211,7 +212,7 @@ void print_perf_summary() {
 
     vrf_perf.print_summary(os);
     alu_perf.print_summary(os);
-    for (int i = 0; i < consts::numTL; i++) {
+    for (int i = 0; i < vbridge_impl_instance.config.tl_bank_number; i++) {
       lsu_perfs[i].print_summary(os, i);
     }
     chaining_perf.print_summary(os);

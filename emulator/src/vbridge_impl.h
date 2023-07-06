@@ -23,8 +23,8 @@
 #include "spike_event.h"
 #include "simple_sim.h"
 #include "encoding.h"
-#include "vbridge_config.h"
 #include "util.h"
+#include "rtl_config.h"
 
 class SpikeEvent;
 
@@ -77,14 +77,17 @@ public:
   void dpiPeekLsuEnq(const VLsuReqEnqPeek &lsu_req_enq);
   void dpiPeekVrfWrite(const VrfWritePeek &v_enq);
 
+  RTLConfig config;
+
 private:
+
   std::string varch;
   cfg_t cfg;
   simple_sim sim;
   isa_parser_t isa;
   processor_t proc;
-  std::multimap<reg_t, TLReqRecord> tl_banks[consts::numTL];
-  std::optional<reg_t> tl_current_req[consts::numTL];
+  std::vector<std::multimap<reg_t, TLReqRecord>> tl_banks;
+  std::vector<std::optional<reg_t>> tl_current_req;
 
   SpikeEvent *se_to_issue;
 

@@ -13,7 +13,6 @@
 #include "simple_sim.h"
 #include "vbridge_impl.h"
 #include "encoding.h"
-#include "vbridge_config.h"
 
 class VBridgeImpl;
 
