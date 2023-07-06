@@ -1,6 +1,7 @@
 package v
 
 import chisel3._
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 
 case class OtherUnitParam(
@@ -9,7 +10,7 @@ case class OtherUnitParam(
                            groupNumberBits: Int,
                            laneNumberBits: Int,
                            dataPathByteWidth: Int
-                         ) extends VFUParameter {
+                         ) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.other
   val inputBundle = new OtherUnitReq(this)
   val outputBundle = new OtherUnitResp(datapathWidth)
@@ -19,8 +20,6 @@ class OtherUnitReq(param: OtherUnitParam) extends Bundle {
   val src:     Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
   val popInit: UInt = UInt(param.vlMaxBits.W)
   val opcode:  UInt = UInt(4.W)
-  // TODO: remove it.
-  val imm:        UInt = UInt(3.W)
   val groupIndex: UInt = UInt(param.groupNumberBits.W)
   val laneIndex:  UInt = UInt(param.laneNumberBits.W)
   // 给vid计算index用的
@@ -41,7 +40,7 @@ class OtherUnitResp(datapathWidth: Int) extends Bundle {
   val ffoSuccess: Bool = Bool()
 }
 
-class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) {
+class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with SerializableModule[OtherUnitParam] {
   val response: OtherUnitResp = Wire(new OtherUnitResp(parameter.datapathWidth))
   val request: OtherUnitReq = connectIO(response).asTypeOf(parameter.inputBundle)
 

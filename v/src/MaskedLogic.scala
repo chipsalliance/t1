@@ -1,17 +1,18 @@
 package v
 import chisel3._
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 
-case class LogicParam(datapathWidth: Int) extends VFUParameter {
+case class LogicParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.logic
   val inputBundle = new MaskedLogicRequest(datapathWidth)
-  val outputBundle: UInt = UInt(datapathWidth.W)
+  val outputBundle = new MaskedLogicResponse(datapathWidth)
 }
 
 class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
 
   /** 0, 1: two operands
-    * 2: mask, determined by v0.mask and vl
-    * 3: original data, read from vd, used to write with fine granularity
+   * 2: original data, read from vd, used to write with fine granularity
+   * 3: mask, determined by v0.mask and vl
     */
   val src: Vec[UInt] = Vec(4, UInt(datapathWidth.W))
 
@@ -24,15 +25,19 @@ class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
   val opcode: UInt = UInt(4.W)
 }
 
-class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) {
+class MaskedLogicResponse(datapathWidth: Int) extends Bundle {
+  val data: UInt = UInt(datapathWidth.W)
+}
+
+class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) with SerializableModule[LogicParam] {
   val response: UInt = Wire(UInt(parameter.datapathWidth.W))
   val request: MaskedLogicRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 
   response := VecInit(request.src.map(_.asBools).transpose.map {
     case Seq(sr0, sr1, sr2, sr3) =>
       val bitCalculate = Module(new LaneBitLogic)
-      bitCalculate.src := sr0 ## (request.opcode(2) ^ sr1)
+      bitCalculate.src := (request.opcode(2) ^ sr0) ## sr1
       bitCalculate.opcode := request.opcode
-      Mux(sr2, bitCalculate.resp ^ request.opcode(3), sr3)
+      Mux(sr3, bitCalculate.resp ^ request.opcode(3), sr2)
   }).asUInt
 }
