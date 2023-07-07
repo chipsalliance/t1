@@ -24,9 +24,9 @@ class LaneAdderReq(datapathWidth: Int) extends Bundle {
 }
 
 class LaneAdderResp(datapathWidth: Int) extends Bundle {
-  val data:         UInt = UInt(datapathWidth.W)
-  val singleResult: Bool = Bool()
-  val vxsat:        Bool = Bool()
+  val data:           UInt = UInt(datapathWidth.W)
+  val adderMaskResp:  Bool = Bool()
+  val vxsat:          Bool = Bool()
 }
 
 /** 加法器的输出有两个大类：
@@ -119,7 +119,7 @@ class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) with
   // 开始比较
   val equal: Bool = addResult(parameter.datapathWidth - 1, 0) === 0.U
   val less:  Bool = addResult(parameter.datapathWidth)
-  response.singleResult := Mux1H(
+  response.adderMaskResp := Mux1H(
     uopOH(11, 8) ## uopOH(5, 2),
     Seq(
       less,

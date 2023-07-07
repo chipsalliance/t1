@@ -23,7 +23,7 @@ class LaneDivRequest(datapathWidth: Int) extends Bundle {
 
 class LaneDivResponse(datapathWidth: Int) extends Bundle {
   val data: UInt = UInt(datapathWidth.W)
-  val index: UInt = UInt(2.W)
+  val executeIndex: UInt = UInt(2.W)
   val busy: Bool = Bool()
 }
 
@@ -42,7 +42,7 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestFire)
   response.busy := RegEnable(requestFire, false.B, requestFire ^ responseIO.valid)
 
-  response.index := indexReg
+  response.executeIndex := indexReg
   requestIO.ready := wrapper.input.ready
   responseIO.valid := wrapper.output.valid
   response.data := Mux(remReg, wrapper.output.bits.reminder.asUInt, wrapper.output.bits.quotient.asUInt)
