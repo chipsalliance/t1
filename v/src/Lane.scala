@@ -1227,8 +1227,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           wExecuteResult := true.B
         }
 
-        val divWriteIndexLatch: UInt = RegEnable(responseVec(index).bits.executIndex, 0.U(2.W), responseVec(index).valid)
-        val divWriteIndex = Mux(responseVec(index).valid, responseVec(index).bits.executIndex, divWriteIndexLatch)
+        val divWriteIndexLatch: UInt = RegEnable(responseVec(index).bits.executeIndex, 0.U(2.W), responseVec(index).valid)
+        val divWriteIndex = Mux(responseVec(index).valid, responseVec(index).bits.executeIndex, divWriteIndexLatch)
         /** the index to write to VRF in [[parameter.dataPathByteWidth]].
           * for long latency pipe, the index will follow the pipeline.
           */

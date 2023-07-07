@@ -99,7 +99,7 @@ object vfu {
     // 处理vfu
     val vfuResponse: Seq[ValidIO[VFUResponseToSlot]] = parameter.genVec.zipWithIndex.map { case ((gen, slotVec), vfuIndex) =>
       // vfu 模块
-      val vfu = Module(gen.module())
+      val vfu = Module(gen.module()).suggestName(gen.parameter.decodeField.name)
       // 访问仲裁
       val requestArbiter: Arbiter[Data] = Module(
         new Arbiter(

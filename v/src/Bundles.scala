@@ -649,7 +649,7 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
 
 class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
   val data: UInt = UInt(parameter.datapathWidth.W)
-  val executIndex: UInt = UInt(2.W)
+  val executeIndex: UInt = UInt(2.W)
   val clipFail: Bool = Bool()
   val ffoSuccess: Bool = Bool()
   val divBusy: Bool = Bool()
