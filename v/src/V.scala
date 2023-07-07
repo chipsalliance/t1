@@ -232,10 +232,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val decodeResult: DecodeBundle = requestReg.bits.decodeResult
   // 这是当前正在mask unit 里面的那一条指令的csr信息,用来计算mask unit的控制信号
   val csrRegForMaskUnit: CSRInterface = RegInit(0.U.asTypeOf(new CSRInterface(parameter.laneParam.vlMaxBits)))
-  val vSewOHForMask: UInt = UIntToOH(csrRegForMaskUnit.vSew)(2, 0)
+  val vSewOHForMask:     UInt = UIntToOH(csrRegForMaskUnit.vSew)(2, 0)
   // 正在从寄存器里面出来的这个指令会使用哪一个执行单元
   val dequeueExecutionType: ExecutionUnitType = Wire(new ExecutionUnitType)
-  dequeueExecutionType.elements.foreach {case (key, data) => data := decodeResult.elements(key)}
+  dequeueExecutionType.elements.foreach { case (key, data) => data := decodeResult.elements(key) }
 
   // TODO: no valid here
   // TODO: these should be decoding results
@@ -246,8 +246,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
   val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv))
-  val skipLastFromLane: Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
-  val instructionValid: Bool = requestReg.bits.csr.vl > requestReg.bits.csr.vStart
+  val skipLastFromLane:    Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
+  val instructionValid:    Bool = requestReg.bits.csr.vl > requestReg.bits.csr.vStart
 
   // TODO: these should be decoding results
   /** load store that don't read offset. */
@@ -265,9 +265,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       requestRegDequeue.bits.src1Data(31, 0)
     )
   )
+
   /** src1 from scalar core is a signed number. */
   val src1IsSInt: Bool = !requestReg.bits.decodeResult(Decoder.unsigned0)
-  val imm: UInt = requestReg.bits.request.instruction(19, 15)
+  val imm:        UInt = requestReg.bits.request.instruction(19, 15)
   // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
   val immSignExtend: UInt = Fill(16, imm(4) && (vSew1H(2) || src1IsSInt)) ##
     Fill(8, imm(4) && (vSew1H(1) || vSew1H(2) || src1IsSInt)) ##
@@ -315,6 +316,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val maskUnitType: Bool = decodeResult(Decoder.maskUnit) && requestRegDequeue.bits.instruction(6)
   val maskDestination = decodeResult(Decoder.maskDestination)
   val unOrderType: Bool = decodeResult(Decoder.unOrderWrite)
+
   /** Special instructions which will be allocate to the last slot.
     * - mask unit
     * - Lane <-> Top has data exchange(top might forward to LSU.)
@@ -323,7 +325,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     * - vd is v0
     */
   val specialInstruction: Bool = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
-  val busClear: Bool = Wire(Bool())
+  val busClear:           Bool = Wire(Bool())
 
   /** designed for unordered instruction(slide),
     * it doesn't go to lane, it has RAW hazzard.
@@ -529,7 +531,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         * lmul - sew <- [-5, 3]
         * 选择信号 +5 -> lmul - sew + 5 <- [0, 8]
         */
-      def largeThanVLMax(source: UInt, advance: Bool = false.B, csrInput:CSRInterface): Bool = {
+      def largeThanVLMax(source: UInt, advance: Bool = false.B, csrInput: CSRInterface): Bool = {
         val vlenLog2 = log2Ceil(parameter.vLen) // 10
         val cut =
           if (source.getWidth >= vlenLog2) source(vlenLog2 - 1, vlenLog2 - 9)
@@ -778,7 +780,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       def indexAnalysis(elementIndex: UInt, csrInput: CSRInterface = csrRegForMaskUnit) = {
         val sewInput = csrInput.vSew
         val sewOHInput = UIntToOH(csrInput.vSew)(2, 0)
-        val intLMULInput:UInt = (1.U << csrInput.vlmul(1, 0)).asUInt
+        val intLMULInput: UInt = (1.U << csrInput.vlmul(1, 0)).asUInt
         val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << sewInput)
           .asUInt(parameter.laneParam.vlMaxBits - 2, 0)
         val accessMask = Mux1H(
@@ -1017,7 +1019,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         }
         // 可能有的计算
         val readFinish = WARRedResult.valid || !needWAR
-        val readDataSign = Mux1H(vSewOHForMask(2, 0), Seq(WARRedResult.bits(7), WARRedResult.bits(15), WARRedResult.bits(31)))
+        val readDataSign =
+          Mux1H(vSewOHForMask(2, 0), Seq(WARRedResult.bits(7), WARRedResult.bits(15), WARRedResult.bits(31)))
         when(readFinish) {
           when(readMv) {
             control.state.sMaskUnitExecution := true.B
@@ -1097,7 +1100,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   // data eew for extend type
   val extendDataEEW: Bool = (csrRegForMaskUnit.vSew >> decodeResult(Decoder.topUop)(1, 0))(0)
-  val gather16: Bool = decodeResult(Decoder.gather16)
+  val gather16:      Bool = decodeResult(Decoder.gather16)
   val vSewSelect: UInt = Mux(
     isLoadStoreType,
     requestRegDequeue.bits.instruction(13, 12),
@@ -1144,7 +1147,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     //  valid: requestReg.valid
     //  ready: slotReady && lsu.request.ready && instructionRAWReady
     lane.laneRequest.bits.LSUFire := slotReady && requestReg.valid && noOffsetReadLoadStore &&
-      lsu.request.ready && instructionRAWReady
+    lsu.request.ready && instructionRAWReady
     lane.laneRequest.bits.loadStore := isLoadStoreType
     // let record in VRF to know there is a store instruction.
     lane.laneRequest.bits.store := isStoreType
@@ -1202,9 +1205,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     instructionFinished(index).zip(slots.map(_.record.instructionIndex)).foreach {
       case (d, f) => d := (UIntToOH(f(parameter.instructionIndexBits - 2, 0)) & lane.instructionFinished).orR
     }
-    lane.maskInput := regroupV0.map(Mux1H(UIntToOH(lane.maskSelectSew)(2, 0), _)).map { v0ForLane =>
-      VecInit(v0ForLane.asBools.grouped(parameter.datapathWidth).toSeq.map(VecInit(_).asUInt))
-    }(index)(lane.maskSelect)
+    lane.maskInput := regroupV0
+      .map(Mux1H(UIntToOH(lane.maskSelectSew)(2, 0), _))
+      .map { v0ForLane =>
+        VecInit(v0ForLane.asBools.grouped(parameter.datapathWidth).toSeq.map(VecInit(_).asUInt))
+      }(index)(lane.maskSelect)
     lane.lsuLastReport := lsu.lastReport
     lane.lsuMaskGroupChange := lsu.lsuMaskGroupChange
     lane.lsuVRFWriteBufferClear := !lsu.vrfWritePort(index).valid && busClear
@@ -1273,9 +1278,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     val slotToEnqueue: UInt = Mux(specialInstruction, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
 
     // type check
-    val typeReady = VecInit(slots.map( slot =>
-      !(slot.executionUnitType.asUInt & dequeueExecutionType.asUInt).orR || slot.state.idle
-    )).asUInt.andR
+    val typeReady = VecInit(
+      slots.map(slot => !(slot.executionUnitType.asUInt & dequeueExecutionType.asUInt).orR || slot.state.idle)
+    ).asUInt.andR
 
     /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
     val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
@@ -1287,7 +1292,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     //   we detect the hazard and decide should we issue this slide or
     //   issue the instruction after the slide which already in the slot.
     requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
-      instructionRAWReady && typeReady
+    instructionRAWReady && typeReady
 
     // TODO: change to `requestRegDequeue.fire`.
     instructionToSlotOH := Mux(requestRegDequeue.ready, slotToEnqueue, 0.U)

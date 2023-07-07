@@ -11,8 +11,8 @@ case class LogicParam(datapathWidth: Int) extends VFUParameter with Serializable
 class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
 
   /** 0, 1: two operands
-   * 2: original data, read from vd, used to write with fine granularity
-   * 3: mask, determined by v0.mask and vl
+    * 2: original data, read from vd, used to write with fine granularity
+    * 3: mask, determined by v0.mask and vl
     */
   val src: Vec[UInt] = Vec(4, UInt(datapathWidth.W))
 
@@ -31,7 +31,7 @@ class MaskedLogicResponse(datapathWidth: Int) extends Bundle {
 
 class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) with SerializableModule[LogicParam] {
   val response: UInt = Wire(UInt(parameter.datapathWidth.W))
-  val request: MaskedLogicRequest = connectIO(response).asTypeOf(parameter.inputBundle)
+  val request:  MaskedLogicRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 
   response := VecInit(request.src.map(_.asBools).transpose.map {
     case Seq(sr0, sr1, sr2, sr3) =>

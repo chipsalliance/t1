@@ -22,14 +22,14 @@ class LaneDivRequest(datapathWidth: Int) extends Bundle {
 }
 
 class LaneDivResponse(datapathWidth: Int) extends Bundle {
-  val data: UInt = UInt(datapathWidth.W)
+  val data:         UInt = UInt(datapathWidth.W)
   val executeIndex: UInt = UInt(2.W)
-  val busy: Bool = Bool()
+  val busy:         Bool = Bool()
 }
 
 class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with SerializableModule[LaneDivParam] {
   val response: LaneDivResponse = Wire(new LaneDivResponse(parameter.datapathWidth))
-  val request: LaneDivRequest = connectIO(response).asTypeOf(parameter.inputBundle)
+  val request:  LaneDivRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val wrapper = Module(new SRTWrapper)
   wrapper.input.bits.dividend := request.src.last.asSInt
@@ -38,8 +38,8 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   wrapper.input.valid := requestIO.valid
 
   val requestFire: Bool = requestIO.fire
-  val remReg:   Bool = RegEnable(request.rem, false.B, requestFire)
-  val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestFire)
+  val remReg:      Bool = RegEnable(request.rem, false.B, requestFire)
+  val indexReg:    UInt = RegEnable(request.executeIndex, 0.U, requestFire)
   response.busy := RegEnable(requestFire, false.B, requestFire ^ responseIO.valid)
 
   response.executeIndex := indexReg

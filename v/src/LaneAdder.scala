@@ -24,9 +24,9 @@ class LaneAdderReq(datapathWidth: Int) extends Bundle {
 }
 
 class LaneAdderResp(datapathWidth: Int) extends Bundle {
-  val data:           UInt = UInt(datapathWidth.W)
-  val adderMaskResp:  Bool = Bool()
-  val vxsat:          Bool = Bool()
+  val data:          UInt = UInt(datapathWidth.W)
+  val adderMaskResp: Bool = Bool()
+  val vxsat:         Bool = Bool()
 }
 
 /** 加法器的输出有两个大类：
@@ -39,8 +39,8 @@ class LaneAdderResp(datapathWidth: Int) extends Bundle {
   *     1. 判断大小的结果
   */
 class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) with SerializableModule[LaneAdderParam] {
-  val response:  LaneAdderResp = Wire(new LaneAdderResp(parameter.datapathWidth))
-  val request: LaneAdderReq = connectIO(response).asTypeOf(parameter.inputBundle)
+  val response: LaneAdderResp = Wire(new LaneAdderResp(parameter.datapathWidth))
+  val request:  LaneAdderReq = connectIO(response).asTypeOf(parameter.inputBundle)
   // todo: decode
   // ["add", "sub", "slt", "sle", "sgt", "sge", "max", "min", "seq", "sne", "adc", "sbc"]
   val uopOH: UInt = UIntToOH(request.opcode)(11, 0)

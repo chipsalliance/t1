@@ -5,21 +5,22 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 
 case class OtherUnitParam(
-                           datapathWidth: Int,
-                           vlMaxBits: Int,
-                           groupNumberBits: Int,
-                           laneNumberBits: Int,
-                           dataPathByteWidth: Int
-                         ) extends VFUParameter with SerializableModuleParameter {
+  datapathWidth:     Int,
+  vlMaxBits:         Int,
+  groupNumberBits:   Int,
+  laneNumberBits:    Int,
+  dataPathByteWidth: Int)
+    extends VFUParameter
+    with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.other
   val inputBundle = new OtherUnitReq(this)
   val outputBundle = new OtherUnitResp(datapathWidth)
 }
 
 class OtherUnitReq(param: OtherUnitParam) extends Bundle {
-  val src:     Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
-  val popInit: UInt = UInt(param.vlMaxBits.W)
-  val opcode:  UInt = UInt(4.W)
+  val src:        Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
+  val popInit:    UInt = UInt(param.vlMaxBits.W)
+  val opcode:     UInt = UInt(4.W)
   val groupIndex: UInt = UInt(param.groupNumberBits.W)
   val laneIndex:  UInt = UInt(param.laneNumberBits.W)
   // 给vid计算index用的
@@ -42,7 +43,7 @@ class OtherUnitResp(datapathWidth: Int) extends Bundle {
 
 class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with SerializableModule[OtherUnitParam] {
   val response: OtherUnitResp = Wire(new OtherUnitResp(parameter.datapathWidth))
-  val request: OtherUnitReq = connectIO(response).asTypeOf(parameter.inputBundle)
+  val request:  OtherUnitReq = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val ffo:      LaneFFO = Module(new LaneFFO(parameter.datapathWidth))
   val popCount: LanePopCount = Module(new LanePopCount(parameter.datapathWidth))
@@ -63,7 +64,8 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with
 
   // clip 2sew -> sew
   // vSew 0 -> sew = 8 => log2(sew) = 4
-  val clipSize:          UInt = Mux1H(vSewOH(2, 1), Seq(false.B ## request.src.head(4), request.src.head(5, 4))) ## request.src.head(3, 0)
+  val clipSize: UInt =
+    Mux1H(vSewOH(2, 1), Seq(false.B ## request.src.head(4), request.src.head(5, 4))) ## request.src.head(3, 0)
   val clipMask:          UInt = FillInterleaved(8, vSewOH(2) ## vSewOH(2) ## vSewOH(2, 1).orR ## true.B)
   val largestClipResult: UInt = (clipMask >> request.sign).asUInt
   val clipMaskRemainder: UInt = FillInterleaved(8, !vSewOH(2) ## !vSewOH(2) ## vSewOH(0) ## false.B)
@@ -82,12 +84,14 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with
   val roundResult: UInt = (((signExtend ## request.src(1)) >> clipSize).asUInt + roundR)(parameter.datapathWidth - 1, 0)
   val roundRemainder = roundResult & clipMaskRemainder
   val roundSignBits = Mux1H(vSewOH(2, 0), Seq(roundResult(7), roundResult(15), roundResult(31)))
-  val roundResultOverlap: Bool = roundRemainder.orR && !(request.sign && (roundRemainder | clipMask).andR && roundSignBits)
+  val roundResultOverlap: Bool =
+    roundRemainder.orR && !(request.sign && (roundRemainder | clipMask).andR && roundSignBits)
   val clipResult = Mux(roundResultOverlap, largestClipResult, roundResult)
 
   val indexRes: UInt = ((request.groupIndex ## request.laneIndex ## request.executeIndex) >> request.vSew).asUInt
 
-  val extendSign: Bool = request.sign && Mux1H(vSewOH, Seq(request.src.head(7), request.src.head(15), request.src.head(31)))
+  val extendSign: Bool =
+    request.sign && Mux1H(vSewOH, Seq(request.src.head(7), request.src.head(15), request.src.head(31)))
 
   /**
     * 需要特别注意 vmerge/vmv 类型的指令的编码方式是一样的,

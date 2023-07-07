@@ -17,20 +17,20 @@ class LaneMulReq(parameter: LaneMulParam) extends Bundle {
   val src:      Vec[UInt] = Vec(3, UInt(parameter.sourceWidth.W))
   val opcode:   UInt = UInt(4.W)
   val saturate: Bool = Bool()
-  val vSew: UInt = UInt(2.W)
+  val vSew:     UInt = UInt(2.W)
 
   /** Rounding mode register */
   val vxrm: UInt = UInt(2.W)
 }
 
 class LaneMulResponse(parameter: LaneMulParam) extends Bundle {
-  val data: UInt = UInt(parameter.respWidth.W)
+  val data:  UInt = UInt(parameter.respWidth.W)
   val vxsat: Bool = Bool()
 }
 
 class LaneMul(val parameter: LaneMulParam) extends VFUModule(parameter) with SerializableModule[LaneMulParam] {
   val response: LaneMulResponse = Wire(new LaneMulResponse(parameter))
-  val request: LaneMulReq = connectIO(response).asTypeOf(parameter.inputBundle)
+  val request:  LaneMulReq = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val sew1H: UInt = UIntToOH(request.vSew)(2, 0)
   val vSewOrR = request.vSew.orR

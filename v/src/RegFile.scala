@@ -31,18 +31,19 @@ class RegFile(param: RFParam) extends Module {
   // in TSN28, we use dual port memory, in the future, we can switch to other ports
   val rf: SRAMInterface[UInt] = SRAM(param.depth, UInt(param.memoryWidth.W), 0, 0, 2)
 
-  rf.readwritePorts.zipWithIndex.foreach { case (memPort, index) =>
-    readPorts(index).data := memPort.readData
-    memPort.writeData := writePort.bits.data
-    // always read
-    memPort.enable := true.B
-    // only write at last port
-    if (index == readPorts.size - 1) {
-      memPort.address := Mux(writePort.valid, writePort.bits.addr, readPorts(index).addr)
-      memPort.isWrite := writePort.valid
-    } else {
-      memPort.address := readPorts(index).addr
-      memPort.isWrite := false.B
-    }
+  rf.readwritePorts.zipWithIndex.foreach {
+    case (memPort, index) =>
+      readPorts(index).data := memPort.readData
+      memPort.writeData := writePort.bits.data
+      // always read
+      memPort.enable := true.B
+      // only write at last port
+      if (index == readPorts.size - 1) {
+        memPort.address := Mux(writePort.valid, writePort.bits.addr, readPorts(index).addr)
+        memPort.isWrite := writePort.valid
+      } else {
+        memPort.address := readPorts(index).addr
+        memPort.isWrite := false.B
+      }
   }
 }

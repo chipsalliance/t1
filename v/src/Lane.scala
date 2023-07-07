@@ -109,7 +109,7 @@ case class LaneParameter(
 
   /** Size of the queue for storing execution information
     * todo: Determined by the longest execution unit
-    * */
+    */
   val executionQueueSize: Int = 2
 
   /** Parameter for [[VRF]] */
@@ -131,7 +131,8 @@ case class LaneParameter(
   def divParam: LaneDivParam = LaneDivParam(datapathWidth)
 
   /** Parameter for [[OtherUnit]]. */
-  def otherUnitParam: OtherUnitParam = OtherUnitParam(datapathWidth, vlMaxBits, groupNumberBits, laneNumberBits, dataPathByteWidth)
+  def otherUnitParam: OtherUnitParam =
+    OtherUnitParam(datapathWidth, vlMaxBits, groupNumberBits, laneNumberBits, dataPathByteWidth)
 
   val VFUParameter: VFUInstantiateParameter = VFUInstantiateParameter(
     chainingSize,
@@ -141,7 +142,7 @@ case class LaneParameter(
       (SerializableModuleGenerator(classOf[LaneShifter], shifterParameter), Seq.range(0, chainingSize)),
       (SerializableModuleGenerator(classOf[LaneMul], mulParam), Seq.range(0, chainingSize)),
       (SerializableModuleGenerator(classOf[LaneDiv], divParam), Seq.range(0, chainingSize)),
-      (SerializableModuleGenerator(classOf[OtherUnit], otherUnitParam), Seq.range(0, chainingSize)),
+      (SerializableModuleGenerator(classOf[OtherUnit], otherUnitParam), Seq.range(0, chainingSize))
     )
   )
 }
@@ -412,7 +413,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val requestVec: Vec[SlotRequestToVFU] = Wire(Vec(parameter.chainingSize, new SlotRequestToVFU(parameter)))
 
   /** response from vfu to slot. */
-  val responseVec: Vec[ValidIO[VFUResponseToSlot]] = Wire(Vec(parameter.chainingSize, Valid(new VFUResponseToSlot(parameter))))
+  val responseVec: Vec[ValidIO[VFUResponseToSlot]] = Wire(
+    Vec(parameter.chainingSize, Valid(new VFUResponseToSlot(parameter)))
+  )
 
   /** enqueue fire signal for execution unit */
   val executeEnqueueFire: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
@@ -420,7 +423,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val executeOccupied: Vec[Bool] = Wire(Vec(parameter.VFUParameter.genVec.size, Bool()))
   dontTouch(executeOccupied)
 
-  val VFUNotClear:           Bool = Wire(Bool())
+  val VFUNotClear: Bool = Wire(Bool())
 
   /** assert when a instruction is finished in the slot. */
   val instructionFinishedVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
@@ -459,7 +462,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   slotControl.zipWithIndex.foreach {
     case (record, index) =>
       val decodeResult: DecodeBundle = record.laneRequest.decodeResult
-      val isLastSlot: Boolean = index == 0
+      val isLastSlot:   Boolean = index == 0
 
       /** We will ignore the effect of mask since:
         * [[Decoder.crossRead]]: We need to read data to another lane
@@ -502,24 +505,25 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         slotActive(index) := slotOccupied(index) && !pipeFinishVec(index)
       } else {
         slotActive(index) := slotOccupied(index) && !pipeFinishVec(index) && !slotShiftValid &&
-          !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)) &&
-          decodeResult(Decoder.scheduler)
+        !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)) &&
+        decodeResult(Decoder.scheduler)
       }
 
-      if(isLastSlot) { slotCanShift(index) := true.B } else { slotCanShift(index) := pipeClear }
+      if (isLastSlot) { slotCanShift(index) := true.B }
+      else { slotCanShift(index) := pipeClear }
 
       // --- stage 0 start ---
       // todo: parameter register width for all stage
 
       // register for stage0
-      val valid0: Bool = RegInit(false.B)
-      val groupCounterInStage0: UInt = RegInit(0.U(parameter.groupNumberBits.W))
-      val maskInStage0: UInt = RegInit(0.U(4.W))
-      val sSendResponseInStage0: Option[Bool] = Option.when(isLastSlot) {RegInit(true.B)}
+      val valid0:                Bool = RegInit(false.B)
+      val groupCounterInStage0:  UInt = RegInit(0.U(parameter.groupNumberBits.W))
+      val maskInStage0:          UInt = RegInit(0.U(4.W))
+      val sSendResponseInStage0: Option[Bool] = Option.when(isLastSlot) { RegInit(true.B) }
 
       val s0Valid: Bool = Wire(Bool())
       val s0Ready: Bool = Wire(Bool())
-      val s0Fire: Bool = s0Valid && s0Ready
+      val s0Fire:  Bool = s0Valid && s0Ready
 
       /** Filter by different sew */
       val filterVec: Seq[(Bool, UInt)] = Seq(0, 1, 2).map { filterSew =>
@@ -568,7 +572,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           maskIndexVec(index) ## laneIndex
         )
       )
-
 
       /** The next element is out of execution range */
       val outOfExecutionRange = Mux(
@@ -661,7 +664,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val groupCounterInStage1: UInt = RegInit(0.U(parameter.groupNumberBits.W))
 
       // mask for group pipe from stage0
-      val maskInStage1: UInt = RegInit(0.U(4.W))
+      val maskInStage1:          UInt = RegInit(0.U(4.W))
       val maskForFilterInStage1: UInt = FillInterleaved(4, maskNotMaskedElement) | maskInStage1
 
       // read result register
@@ -688,9 +691,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val wCrossReadMSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
 
       // next for update cross read register
-      val sReadNext0: Bool = RegNext(sRead0, false.B)
-      val sReadNext1: Bool = RegNext(sRead1, false.B)
-      val sReadNext2: Bool = RegNext(sRead2, false.B)
+      val sReadNext0:        Bool = RegNext(sRead0, false.B)
+      val sReadNext1:        Bool = RegNext(sRead1, false.B)
+      val sReadNext2:        Bool = RegNext(sRead2, false.B)
       val sCrossReadLSBNext: Option[Bool] = sCrossReadLSB.map(RegNext(_, false.B))
       val sCrossReadMSBNext: Option[Bool] = sCrossReadMSB.map(RegNext(_, false.B))
       // All read requests sent
@@ -823,7 +826,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           sCrossReadLSB ++ sCrossReadMSB ++
             sSendCrossReadResultLSB ++ sSendCrossReadResultMSB ++
             wCrossReadLSB ++ wCrossReadMSB
-          ).foreach(state => state := sCrossRead)
+        ).foreach(state => state := sCrossRead)
 
         // pipe reg from stage 0
         groupCounterInStage1 := groupCounterInStage0
@@ -886,6 +889,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         // cross read
         /** for dequeue group counter match */
         readBusDequeueGroup := groupCounterInStage1
+
         /** The data to be sent is ready
           * need sCrossReadLSB since sCrossReadLSBNext may assert after s1fire.
           */
@@ -939,7 +943,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       // backpressure for stage 1
       s1Ready := !valid1 || (stage1Finish && s2Ready)
       // update 'valid1'
-      when(s1Fire ^ s2Fire) {valid1 := s1Fire}
+      when(s1Fire ^ s2Fire) { valid1 := s1Fire }
       val s2ExecuteOver = Wire(Bool())
 
       // execution result from execute unit
@@ -978,7 +982,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           FillInterleaved(4, maskForFilterInStage1(0))
         )
       )
-
 
       // 先用一个伪装的执行单元 todo: 等执行单元重构需要替换
       if (true) {
@@ -1037,7 +1040,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         def CollapseOperand(data: UInt, enable: Bool = true.B, sign: Bool = false.B): UInt = {
           val dataMasked: UInt = data & bitMaskForExecution
-          val select: UInt = Mux(enable, vSew1H(2, 0), 4.U(3.W))
+          val select:     UInt = Mux(enable, vSew1H(2, 0), 4.U(3.W))
           // when sew = 0
           val collapse0 = Seq.tabulate(4)(i => dataMasked(8 * i + 7, 8 * i)).reduce(_ | _)
           // when sew = 1
@@ -1056,7 +1059,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         def CollapseDoubleOperand(sign: Bool = false.B): UInt = {
           val doubleBitEnable = FillInterleaved(16, byteMaskForExecution)
           val doubleDataMasked: UInt = executionRecord.crossReadSource.get & doubleBitEnable
-          val select: UInt = vSew1H(1, 0)
+          val select:           UInt = vSew1H(1, 0)
           // when sew = 0
           val collapse0 = Seq.tabulate(4)(i => doubleDataMasked(16 * i + 15, 16 * i)).reduce(_ | _)
           // when sew = 1
@@ -1112,7 +1115,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             doubleCollapse.get,
             CollapseOperand(executionRecord.source(2))
           )
-        }else {
+        } else {
           CollapseOperand(executionRecord.source(2))
         }
 
@@ -1131,7 +1134,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         val lastGroupMask = scanRightOr(UIntToOH(record.csr.vl(parameter.datapathWidthBits - 1, 0))) >> 1
 
         /** if [[executionRecord.bordersForMaskLogic]],
-          * use [[lastGroupMask]] to mask the result otherwise use [[fullMask]]. */
+          * use [[lastGroupMask]] to mask the result otherwise use [[fullMask]].
+          */
         val maskCorrect = Mux(executionRecord.bordersForMaskLogic, lastGroupMask, fullMask)
 
         val requestToVFU: SlotRequestToVFU = Wire(new SlotRequestToVFU(parameter))
@@ -1188,7 +1192,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         /** the next index to execute.
           * @note Requests into this disguised execution unit are not executed on the spot
-          * */
+          */
         val nextExecuteIndex: UInt = Mux1H(
           vSew1H(1, 0),
           Seq(
@@ -1203,7 +1207,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           vSew1H(1, 0),
           Seq(
             OHToUInt(ffo(maskForFilterInStage1)),
-            !maskForFilterInStage1(0) ## false.B,
+            !maskForFilterInStage1(0) ## false.B
           )
         )
 
@@ -1227,8 +1231,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           wExecuteResult := true.B
         }
 
-        val divWriteIndexLatch: UInt = RegEnable(responseVec(index).bits.executeIndex, 0.U(2.W), responseVec(index).valid)
+        val divWriteIndexLatch: UInt =
+          RegEnable(responseVec(index).bits.executeIndex, 0.U(2.W), responseVec(index).valid)
         val divWriteIndex = Mux(responseVec(index).valid, responseVec(index).bits.executeIndex, divWriteIndexLatch)
+
         /** the index to write to VRF in [[parameter.dataPathByteWidth]].
           * for long latency pipe, the index will follow the pipeline.
           */
@@ -1355,7 +1361,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           /** update value for [[maskFormatResultUpdate]],
             * it comes from ALU.
             */
-          val elementMaskFormatResult: UInt = Mux(responseVec(index).bits.adderMaskResp , current1HInGroup, 0.U)
+          val elementMaskFormatResult: UInt = Mux(responseVec(index).bits.adderMaskResp, current1HInGroup, 0.U)
 
           /** update value for [[maskFormatResultForGroup]] */
           val maskFormatResultUpdate: UInt = maskFormatResultForGroup.get | elementMaskFormatResult
@@ -1367,7 +1373,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           // masked element don't update 'reduceResult'
           val updateReduceResult = (maskNotMaskedElement || maskAsInput) && executeDequeueFireForSlot
           // update `reduceResult`
-          when( updateReduceResult || updateMaskResult.get) {
+          when(updateReduceResult || updateMaskResult.get) {
             reduceResult := Mux(updateReduceResult && decodeResult(Decoder.red), dataDequeue, 0.U)
           }
         }
@@ -1382,10 +1388,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val s3Fire = s3Valid && s3Ready
       // Used to update valid3 without writing vrf
       val s3DequeueFire: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
-      val valid3: Option[Bool] = Option.when(isLastSlot)(RegInit(0.U(false.B)))
+      val valid3:        Option[Bool] = Option.when(isLastSlot)(RegInit(0.U(false.B)))
       // use for cross-lane write
       val groupCounterInStage3: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(7.W)))
-      val maskInStage3: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(4.W)))
+      val maskInStage3:         Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(4.W)))
       val executionResultInStage3 = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
       val pipeDataInStage3 = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
       // result for vfirst type instruction
@@ -1423,7 +1429,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
       val vrfWriteQueue: Queue[VRFWriteRequest] =
         Module(new Queue(vrfWriteVundle, entries = 1, pipe = false, flow = false))
-      valid3.foreach {data => when(s3DequeueFire.get ^ s3Fire) { data := s3Fire }}
+      valid3.foreach { data => when(s3DequeueFire.get ^ s3Fire) { data := s3Fire } }
 
       /** Write queue ready or not need to write. */
       val vrfWriteReady: Bool = vrfWriteQueue.io.enq.ready || decodeResult(Decoder.sWrite)
@@ -1460,8 +1466,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         laneResponse.bits.instructionIndex := record.laneRequest.instructionIndex
         laneResponse.bits.ffoSuccess := record.selfCompleted
 
-        sSendResponse.foreach(state => when(laneResponse.valid) { state := true.B})
-        wResponseFeedback.foreach(state => when(laneResponseFeedback.valid) { state := true.B})
+        sSendResponse.foreach(state => when(laneResponse.valid) { state := true.B })
+        wResponseFeedback.foreach(state => when(laneResponseFeedback.valid) { state := true.B })
 
         when(laneResponseFeedback.valid && slotOccupied(index)) {
           when(laneResponseFeedback.bits.complete) { record.ffoByOtherLanes := true.B }
@@ -1507,15 +1513,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           maskInStage3.foreach(_ := executionQueue.io.deq.bits.mask)
           executionResultInStage3.foreach(_ := executionResult)
           // todo: update maskFormatResult & reduceResult
-          pipeDataInStage3.foreach(_ := Mux(
-            decodeResult(Decoder.maskDestination),
-            maskFormatResultForGroup.get,
-            Mux(
-              decodeResult(Decoder.red),
-              reduceResult,
-              executionQueue.io.deq.bits.pipeData.get
+          pipeDataInStage3.foreach(
+            _ := Mux(
+              decodeResult(Decoder.maskDestination),
+              maskFormatResultForGroup.get,
+              Mux(
+                decodeResult(Decoder.red),
+                reduceResult,
+                executionQueue.io.deq.bits.pipeData.get
+              )
             )
-          ))
+          )
           ffoIndexRegInStage3.foreach(_ := ffoIndexReg)
           pipeVDInStage3.foreach(_ := executionQueue.io.deq.bits.pipeVD.get)
           // cross write data
@@ -1562,7 +1570,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         s3Ready := vrfWriteQueue.io.enq.ready
       }
       s2Ready := !valid2 || (s2ExecuteOver && s3Ready && executionQueue.io.enq.ready)
-      when(s2Fire ^ s3Fire) {valid2 := s2Fire}
+      when(s2Fire ^ s3Fire) { valid2 := s2Fire }
       // s2 enqueue valid & s2 all ready except executionQueue
       executionQueue.io.enq.valid := s2Valid && ((s2ExecuteOver && s3Ready) || !valid2)
       executionQueue.io.deq.ready := s3Ready && s2ExecuteOver
@@ -1656,21 +1664,27 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // VFU
   // TODO: reuse logic, adder, multiplier datapath
   {
+
     /**
-     * /** enqueue valid for execution unit */
-     * val executeEnqueueValid: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
-     *
-     * /** request from slot to vfu. */
-     * val requestVec: Vec[LaneRequestToVFU] = Wire(Vec(parameter.chainingSize, new LaneRequestToVFU(parameter)))
-     *
-     * /** enqueue fire signal for execution unit */
-     * val executeEnqueueFire: UInt = Wire(UInt(parameter.chainingSize.W))
-     *
-     * */
+      * /** enqueue valid for execution unit */
+      * val executeEnqueueValid: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
+      *
+      * /** request from slot to vfu. */
+      * val requestVec: Vec[LaneRequestToVFU] = Wire(Vec(parameter.chainingSize, new LaneRequestToVFU(parameter)))
+      *
+      * /** enqueue fire signal for execution unit */
+      * val executeEnqueueFire: UInt = Wire(UInt(parameter.chainingSize.W))
+      */
     val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
 
     vfu.vfuConnect(parameter.VFUParameter)(
-      requestVec, executeEnqueueValid, decodeResultVec, executeEnqueueFire, responseVec, executeOccupied, VFUNotClear
+      requestVec,
+      executeEnqueueValid,
+      decodeResultVec,
+      executeEnqueueFire,
+      responseVec,
+      executeOccupied,
+      VFUNotClear
     )
   }
 
@@ -1801,8 +1815,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** The relative position of the last lane determines the processing of the last group. */
   val lanePositionLargerThanEndLane: Bool = laneIndex > lastLaneIndex
-  val isEndLane: Bool = laneIndex === lastLaneIndex
-  val lastGroupForLane: UInt = lastGroupForInstruction - lanePositionLargerThanEndLane
+  val isEndLane:                     Bool = laneIndex === lastLaneIndex
+  val lastGroupForLane:              UInt = lastGroupForInstruction - lanePositionLargerThanEndLane
 
   // last group for mask logic type
   /** xxx   xxx     xxxxx
@@ -1815,8 +1829,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val lastGroupMask = scanRightOr(UIntToOH(vlTail)) >> 1
   val dataPathMisaligned = vlTail.orR
   val maskeDataGroup = (vlHead ## vlBody) - !dataPathMisaligned
-  val lastLaneIndexForMaskLogic: UInt = maskeDataGroup(parameter.laneNumberBits - 1, 0)
-  val isLastLaneForMaskLogic: Bool = lastLaneIndexForMaskLogic === laneIndex
+  val lastLaneIndexForMaskLogic:  UInt = maskeDataGroup(parameter.laneNumberBits - 1, 0)
+  val isLastLaneForMaskLogic:     Bool = lastLaneIndexForMaskLogic === laneIndex
   val lastGroupCountForMaskLogic: UInt = (maskeDataGroup >> parameter.laneNumberBits).asUInt
 
   entranceControl.lastGroupForInstruction := Mux(
@@ -1837,7 +1851,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         slotOccupied.asUInt.orR ||
           // new instruction enqueue
           laneRequest.valid
-        )
+      )
 
   /** slot inside [[Lane]] is ready to shift.
     * don't shift when feedback.
@@ -1864,7 +1878,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.offset := 0.U //todo
   vrf.instructionWriteReport.bits.vdOffset := 0.U
   vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd
-  vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.decodeResult(Decoder.targetRd) || (laneRequest.bits.loadStore && !laneRequest.bits.store)
+  vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.decodeResult(
+    Decoder.targetRd
+  ) || (laneRequest.bits.loadStore && !laneRequest.bits.store)
   vrf.instructionWriteReport.bits.vs2 := laneRequest.bits.vs2
   vrf.instructionWriteReport.bits.vs1.bits := laneRequest.bits.vs1
   vrf.instructionWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)

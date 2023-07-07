@@ -8,8 +8,8 @@ import scala.util.matching.Regex
 // TODO: refactor String to detail type.
 case class RawOp(tpe: String, funct6: String, funct3s: Seq[String], name: String)
 case class SpecialAux(name: String, vs: Int, value: String)
-case class Op(tpe: String, funct6: String, funct3: String,
-              name: String, special: Option[SpecialAux], notLSU: Boolean) extends DecodePattern {
+case class Op(tpe: String, funct6: String, funct3: String, name: String, special: Option[SpecialAux], notLSU: Boolean)
+    extends DecodePattern {
   val funct3Map: Map[String, String] = Map(
     "IV" -> "000",
     "IX" -> "100",
@@ -20,19 +20,21 @@ case class Op(tpe: String, funct6: String, funct3: String,
     "FF" -> "101"
   )
 
-  def bitPat: BitPat = if (notLSU) BitPat(
-    "b" +
-      // funct6
-      funct6 +
-      // TODO[0]: ? for vm
-      "?" +
-      // vs2
-      (if (special.isEmpty || special.get.vs == 1) "?????" else special.get.value) +
-      // vs1
-      (if (special.isEmpty || special.get.vs == 2) "?????" else special.get.value) +
-      // funct3
-      funct3Map(tpe + funct3) + "1"
-  ) else BitPat("b" + funct6 + "?" * 14 + "0")
+  def bitPat: BitPat = if (notLSU)
+    BitPat(
+      "b" +
+        // funct6
+        funct6 +
+        // TODO[0]: ? for vm
+        "?" +
+        // vs2
+        (if (special.isEmpty || special.get.vs == 1) "?????" else special.get.value) +
+        // vs1
+        (if (special.isEmpty || special.get.vs == 2) "?????" else special.get.value) +
+        // funct3
+        funct3Map(tpe + funct3) + "1"
+    )
+  else BitPat("b" + funct6 + "?" * 14 + "0")
 }
 
 /** Parser for inst-table.adoc. */
@@ -44,20 +46,20 @@ object SpecInstTableParser {
     raw"\| (\d{6})* *\|([V ])\|([X ])\|([I ])\| *([\w.<>/]*) *\| (\d{6})* *\|([V ])\|([X ])\| *([\w.<>/]*) *\| (\d{6})* *\|([V ])\|([F ])\| *([\w.<>/]*)".r
   val rawOps: Array[RawOp] = normalTable.split("\n").flatMap {
     case pattern(
-    opiFunct6,
-    opiV,
-    opiX,
-    opiI,
-    opiName,
-    opmFunct6,
-    opmV,
-    opmX,
-    opmName,
-    opfFunct6,
-    opfV,
-    opfF,
-    opfName
-    ) =>
+          opiFunct6,
+          opiV,
+          opiX,
+          opiI,
+          opiName,
+          opmFunct6,
+          opmV,
+          opmX,
+          opmName,
+          opfFunct6,
+          opfV,
+          opfF,
+          opfName
+        ) =>
       Seq(
         if (opiName.nonEmpty) Some(RawOp("I", opiFunct6, Seq(opiV, opiX, opiI), opiName)) else None,
         if (opmName.nonEmpty) Some(RawOp("M", opmFunct6, Seq(opmV, opmX), opmName)) else None,
@@ -77,7 +79,8 @@ object SpecInstTableParser {
           rawOp.name,
           None,
           notLSU = true
-        ))
+        )
+      )
   } ++ Seq("1", "0").map(fun6End =>
     Op(
       "I",
@@ -105,6 +108,6 @@ object SpecInstTableParser {
         } else
           Array.empty[Op]
       }
-      // filter out F instructions, for now.
+    // filter out F instructions, for now.
     }).filter(_.tpe != "F")
 }

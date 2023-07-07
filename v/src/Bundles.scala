@@ -609,50 +609,52 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
     * read result of vs2, for instructions that are not executed, pipe from s1
     */
   val pipeData: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+
   /** pipe vd for ffo */
   val pipeVD: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
 }
 
 // Record of temporary execution units
 class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends Bundle {
-  val crossReadVS2: Bool = Bool()
+  val crossReadVS2:        Bool = Bool()
   val bordersForMaskLogic: Bool = Bool()
-  val mask: UInt = UInt(4.W)
-  val executeIndex: UInt = UInt(2.W)
-  val source: Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
-  val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+  val mask:                UInt = UInt(4.W)
+  val executeIndex:        UInt = UInt(2.W)
+  val source:              Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
+  val crossReadSource:     Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+
   /** groupCounter need use to update `Lane.maskFormatResultForGroup` */
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
 }
 
 class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
-  val src: Vec[UInt] = Vec(4, UInt((parameter.datapathWidth + 1).W))
+  val src:    Vec[UInt] = Vec(4, UInt((parameter.datapathWidth + 1).W))
   val opcode: UInt = UInt(4.W)
   // mask for carry or borrow
-  val mask:     Bool = Bool()
-  val sign: Bool = Bool()
-  val reverse: Bool = Bool()
-  val average: Bool = Bool()
-  val saturate: Bool = Bool()
-  val vxrm: UInt = UInt(2.W)
-  val vSew: UInt = UInt(2.W)
-  val shifterSize: UInt = UInt(log2Ceil(parameter.datapathWidth).W)
-  val rem:  Bool = Bool()
+  val mask:         Bool = Bool()
+  val sign:         Bool = Bool()
+  val reverse:      Bool = Bool()
+  val average:      Bool = Bool()
+  val saturate:     Bool = Bool()
+  val vxrm:         UInt = UInt(2.W)
+  val vSew:         UInt = UInt(2.W)
+  val shifterSize:  UInt = UInt(log2Ceil(parameter.datapathWidth).W)
+  val rem:          Bool = Bool()
   val executeIndex: UInt = UInt(2.W)
-  val popInit: UInt = UInt(parameter.vlMaxBits.W)
-  val groupIndex: UInt = UInt(parameter.groupNumberBits.W)
-  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+  val popInit:      UInt = UInt(parameter.vlMaxBits.W)
+  val groupIndex:   UInt = UInt(parameter.groupNumberBits.W)
+  val laneIndex:    UInt = UInt(parameter.laneNumberBits.W)
   val complete:     Bool = Bool()
   // vm = 0
   val maskType: Bool = Bool()
 }
 
 class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
-  val data: UInt = UInt(parameter.datapathWidth.W)
-  val executeIndex: UInt = UInt(2.W)
-  val clipFail: Bool = Bool()
-  val ffoSuccess: Bool = Bool()
-  val divBusy: Bool = Bool()
+  val data:          UInt = UInt(parameter.datapathWidth.W)
+  val executeIndex:  UInt = UInt(2.W)
+  val clipFail:      Bool = Bool()
+  val ffoSuccess:    Bool = Bool()
+  val divBusy:       Bool = Bool()
   val adderMaskResp: Bool = Bool()
-  val vxsat: Bool = Bool()
+  val vxsat:         Bool = Bool()
 }

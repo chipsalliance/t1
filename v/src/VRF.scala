@@ -71,7 +71,7 @@ case class VRFParam(
   val VLMaxWidth: Int = log2Ceil(vLen) + 1
 
   /** bits of mask group counter */
-  val maskGroupCounterBits: Int = log2Ceil(vLen/datapathWidth)
+  val maskGroupCounterBits: Int = log2Ceil(vLen / datapathWidth)
 
   val vlWidth: Int = log2Ceil(vLen)
 
@@ -276,7 +276,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       // (4, 2): 是lane的 index
       // (6, 5): 是单个寄存器的偏移
       // (9, 7): 是最终寄存器的偏移 -> (log2ceil(1024) - 1, ...-3)
-      val offsetForExecutedByte = executedByte(parameter.vlWidth - 4, parameter.vlWidth - 4 - parameter.vrfOffsetBits + 1)
+      val offsetForExecutedByte =
+        executedByte(parameter.vlWidth - 4, parameter.vlWidth - 4 - parameter.vrfOffsetBits + 1)
       val nextOffset = offsetForExecutedByte - 1.U
       val nextVDOffset = executedByte(parameter.vlWidth - 1, parameter.vlWidth - 3) - (offsetForExecutedByte === 0.U)
 

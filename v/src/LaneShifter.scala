@@ -6,7 +6,7 @@ import chisel3.util._
 
 case class LaneShifterParameter(dataWidth: Int) extends VFUParameter with SerializableModuleParameter {
   val shifterSizeBit: Int = log2Ceil(dataWidth)
-  val decodeField: BoolField = Decoder.shift
+  val decodeField:    BoolField = Decoder.shift
   val inputBundle = new LaneShifterReq(this)
   val outputBundle = new LaneShifterResponse(dataWidth)
 }
@@ -24,9 +24,10 @@ class LaneShifterResponse(datapathWidth: Int) extends Bundle {
 }
 
 class LaneShifter(val parameter: LaneShifterParameter)
-  extends VFUModule(parameter) with SerializableModule[LaneShifterParameter] {
+    extends VFUModule(parameter)
+    with SerializableModule[LaneShifterParameter] {
   val response: UInt = Wire(UInt(parameter.dataWidth.W))
-  val request: LaneShifterReq = connectIO(response).asTypeOf(parameter.inputBundle)
+  val request:  LaneShifterReq = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val shifterSource: UInt = request.src(1)
   // arithmetic
@@ -45,7 +46,12 @@ class LaneShifter(val parameter: LaneShifterParameter)
   val vd: Bool = (roundTail & shifterSource(1)).orR
   // r
   val roundR: Bool =
-    Mux1H(UIntToOH(request.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB))) && request.opcode(2)
+    Mux1H(UIntToOH(request.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB))) && request
+      .opcode(2)
 
-  response := Mux(request.opcode(0), extendData << request.shifterSize, extendData >> request.shifterSize).asUInt + roundR
+  response := Mux(
+    request.opcode(0),
+    extendData << request.shifterSize,
+    extendData >> request.shifterSize
+  ).asUInt + roundR
 }

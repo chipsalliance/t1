@@ -12,18 +12,19 @@ import mainargs._
 
 object Main {
   @main def elaborate(
-                       @arg(name = "dir") dir: String,
-                       @arg(name = "config") config: String,
-                       @arg(name = "tb") tb: Boolean
-                     ) = {
-    val generator = upickle.default.read[SerializableModuleGenerator[V, VParameter]](ujson.read(os.read(os.Path(config))))
+    @arg(name = "dir") dir:       String,
+    @arg(name = "config") config: String,
+    @arg(name = "tb") tb:         Boolean
+  ) = {
+    val generator =
+      upickle.default.read[SerializableModuleGenerator[V, VParameter]](ujson.read(os.read(os.Path(config))))
     var topName: String = null
     val annos: AnnotationSeq = Seq(
       new chisel3.stage.phases.Elaborate,
       new chisel3.tests.elaborate.Convert
     ).foldLeft(
       Seq(
-        ChiselGeneratorAnnotation(() => if(tb) new TestBench(generator) else generator.module())
+        ChiselGeneratorAnnotation(() => if (tb) new TestBench(generator) else generator.module())
       ): AnnotationSeq
     ) { case (annos, stage) => stage.transform(annos) }
       .flatMap {

@@ -5,7 +5,7 @@ import chisel3.experimental.ExtModule
 import chisel3.experimental.hierarchy._
 import chisel3.util.{log2Ceil, Decoupled, DecoupledIO, HasExtModuleInline, Valid, ValidIO}
 import tilelink.{TLBundle, TLChannelA}
-import v.{LSUWriteQueueBundle, CSRInterface, V, VRFWriteRequest, VRequest, VResponse}
+import v.{CSRInterface, LSUWriteQueueBundle, V, VRFWriteRequest, VRequest, VResponse}
 
 class VerificationModule(dut: V) extends TapModule {
   override val desiredName = "VerificationModule"
@@ -114,7 +114,16 @@ class VerificationModule(dut: V) extends TapModule {
       val peekWriteQueue = Module(new ExtModule with HasExtModuleInline {
         override val desiredName = "dpiPeekWriteQueue"
         val clock = IO(Input(Clock()))
-        val data = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.vrfOffsetBits, dut.parameter.vrfParam.instructionIndexBits, dut.parameter.vrfParam.datapathWidth)))
+        val data = IO(
+          Input(
+            new VRFWriteRequest(
+              dut.parameter.vrfParam.regNumBits,
+              dut.parameter.vrfParam.vrfOffsetBits,
+              dut.parameter.vrfParam.instructionIndexBits,
+              dut.parameter.vrfParam.datapathWidth
+            )
+          )
+        )
         val writeValid = IO(Input(Bool()))
         val targetLane = IO(Input(UInt(dut.parameter.laneNumber.W)))
         val mshrIdx = IO(Input(UInt(32.W)))
@@ -170,7 +179,16 @@ class VerificationModule(dut: V) extends TapModule {
         val clock = IO(Input(Clock()))
         val valid = IO(Input(Bool()))
         val landIdx = IO(Input(UInt(32.W)))
-        val request = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.vrfOffsetBits, dut.parameter.vrfParam.instructionIndexBits, dut.parameter.vrfParam.datapathWidth)))
+        val request = IO(
+          Input(
+            new VRFWriteRequest(
+              dut.parameter.vrfParam.regNumBits,
+              dut.parameter.vrfParam.vrfOffsetBits,
+              dut.parameter.vrfParam.instructionIndexBits,
+              dut.parameter.vrfParam.datapathWidth
+            )
+          )
+        )
         setInline(
           s"$desiredName.sv",
           s"""module $desiredName(
