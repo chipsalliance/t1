@@ -5,7 +5,7 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 
 /** @param dataPathWidth width of data path, can be 32 or 64, decides the memory bandwidth. */
-case class LaneMulParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
+case class LaneMulParam(datapathWidth: Int) extends VFUParameter {
   val respWidth:   Int = datapathWidth
   val sourceWidth: Int = datapathWidth + 1
   val decodeField: BoolField = Decoder.multiplier
@@ -28,7 +28,7 @@ class LaneMulResponse(parameter: LaneMulParam) extends Bundle {
   val vxsat: Bool = Bool()
 }
 
-class LaneMul(val parameter: LaneMulParam) extends VFUModule(parameter) with SerializableModule[LaneMulParam] {
+class LaneMul(val parameter: LaneMulParam) extends VFUModule(parameter) {
   val response: LaneMulResponse = Wire(new LaneMulResponse(parameter))
   val request:  LaneMulReq = connectIO(response).asTypeOf(parameter.inputBundle)
 

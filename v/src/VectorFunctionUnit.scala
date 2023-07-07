@@ -1,21 +1,21 @@
 package v
 
 import chisel3._
-import chisel3.experimental.SerializableModuleGenerator
+import chisel3.experimental.{AutoCloneType, SerializableModule, SerializableModuleGenerator, SerializableModuleParameter}
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util._
-import chisel3.experimental.AutoCloneType
 
 import scala.collection.immutable.SeqMap
+import scala.reflect.runtime.universe
 
-trait VFUParameter {
+trait VFUParameter extends SerializableModuleParameter {
   val decodeField:  BoolField
   val inputBundle:  Data
   val outputBundle: Bundle
   val singleCycle: Boolean = true
 }
 
-abstract class VFUModule(p: VFUParameter) extends Module {
+abstract class VFUModule[P <: VFUParameter](p: P) extends Module with SerializableModule[P] {
   val requestIO:  DecoupledIO[Data] = IO(Flipped(Decoupled(p.inputBundle)))
   val responseIO: DecoupledIO[Bundle] = IO(Decoupled(p.outputBundle))
 
@@ -30,9 +30,13 @@ abstract class VFUModule(p: VFUParameter) extends Module {
   }
 }
 
+object VFUInstantiateParameter {
+  implicit def rwP: upickle.default.ReadWriter[VFUInstantiateParameter] = upickle.default.macroRW
+}
+
 case class VFUInstantiateParameter(
   slotCount: Int,
-  genVec:    Seq[(SerializableModuleGenerator[_ <: VFUModule, _ <: VFUParameter], Seq[Int])]) {
+  genVec:    Seq[(SerializableModuleGenerator[_ <: VFUModule[_], _ <: VFUParameter], Seq[Int])]) {
   genVec.foreach {
     case (_, connect) =>
       connect.foreach(connectIndex => require(connectIndex < slotCount))

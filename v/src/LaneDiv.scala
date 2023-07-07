@@ -27,7 +27,7 @@ class LaneDivResponse(datapathWidth: Int) extends Bundle {
   val busy:         Bool = Bool()
 }
 
-class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with SerializableModule[LaneDivParam] {
+class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) {
   val response: LaneDivResponse = Wire(new LaneDivResponse(parameter.datapathWidth))
   val request:  LaneDivRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 

@@ -2,7 +2,7 @@ package v
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 
-case class LogicParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
+case class LogicParam(datapathWidth: Int) extends VFUParameter {
   val decodeField: BoolField = Decoder.logic
   val inputBundle = new MaskedLogicRequest(datapathWidth)
   val outputBundle = new MaskedLogicResponse(datapathWidth)
@@ -29,7 +29,7 @@ class MaskedLogicResponse(datapathWidth: Int) extends Bundle {
   val data: UInt = UInt(datapathWidth.W)
 }
 
-class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) with SerializableModule[LogicParam] {
+class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) {
   val response: UInt = Wire(UInt(parameter.datapathWidth.W))
   val request:  MaskedLogicRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 

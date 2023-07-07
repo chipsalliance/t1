@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 
-case class LaneAdderParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
+case class LaneAdderParam(datapathWidth: Int) extends VFUParameter {
   val decodeField: BoolField = Decoder.adder
   val inputBundle = new LaneAdderReq(datapathWidth)
   val outputBundle = new LaneAdderResp(datapathWidth)
@@ -38,7 +38,7 @@ class LaneAdderResp(datapathWidth: Int) extends Bundle {
   *     1. carry || borrow
   *     1. 判断大小的结果
   */
-class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) with SerializableModule[LaneAdderParam] {
+class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter)  {
   val response: LaneAdderResp = Wire(new LaneAdderResp(parameter.datapathWidth))
   val request:  LaneAdderReq = connectIO(response).asTypeOf(parameter.inputBundle)
   // todo: decode

@@ -10,8 +10,7 @@ case class OtherUnitParam(
   groupNumberBits:   Int,
   laneNumberBits:    Int,
   dataPathByteWidth: Int)
-    extends VFUParameter
-    with SerializableModuleParameter {
+    extends VFUParameter {
   val decodeField: BoolField = Decoder.other
   val inputBundle = new OtherUnitReq(this)
   val outputBundle = new OtherUnitResp(datapathWidth)
@@ -41,7 +40,7 @@ class OtherUnitResp(datapathWidth: Int) extends Bundle {
   val ffoSuccess: Bool = Bool()
 }
 
-class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with SerializableModule[OtherUnitParam] {
+class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) {
   val response: OtherUnitResp = Wire(new OtherUnitResp(parameter.datapathWidth))
   val request:  OtherUnitReq = connectIO(response).asTypeOf(parameter.inputBundle)
 

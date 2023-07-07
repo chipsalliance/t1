@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 
-case class LaneShifterParameter(dataWidth: Int) extends VFUParameter with SerializableModuleParameter {
+case class LaneShifterParameter(dataWidth: Int) extends VFUParameter {
   val shifterSizeBit: Int = log2Ceil(dataWidth)
   val decodeField:    BoolField = Decoder.shift
   val inputBundle = new LaneShifterReq(this)
@@ -23,9 +23,7 @@ class LaneShifterResponse(datapathWidth: Int) extends Bundle {
   val data = UInt(datapathWidth.W)
 }
 
-class LaneShifter(val parameter: LaneShifterParameter)
-    extends VFUModule(parameter)
-    with SerializableModule[LaneShifterParameter] {
+class LaneShifter(val parameter: LaneShifterParameter) extends VFUModule(parameter) {
   val response: UInt = Wire(UInt(parameter.dataWidth.W))
   val request:  LaneShifterReq = connectIO(response).asTypeOf(parameter.inputBundle)
 
