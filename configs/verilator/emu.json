@@ -1,0 +1,12 @@
+{
+  "verilatorArgs": [
+    "--x-initial unique",
+    "--output-split 100000",
+    "--max-num-width 1048576",
+    "--main",
+    "--timing",
+    "--coverage-user",
+    "--assert"
+  ],
+  "threads": 8
+}

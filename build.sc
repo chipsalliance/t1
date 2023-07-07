@@ -121,7 +121,7 @@ object elaborator extends mill.Cross[Elaborator](os.walk(os.pwd / "configs").fil
 // Module to generate RTL from json config
 // TODO: remove testbench
 class Elaborator(config: String) extends Module {
-  def configDir = T(os.pwd / "configs")
+  def configDir = T(os.pwd / "configs" / "elaborate")
   def configFile = T(configDir() / s"$config.json")
   def designConfig = T(ujson.read(os.read(configFile()))("design"))
   def mfcArgs: T[Seq[String]] = T(ujson.read(os.read(configFile()))("mfcArgs").arr.map(_.str).toSeq)
@@ -183,57 +183,24 @@ class Release(config: String) extends Module {
 }
 
 object emulator extends mill.Cross[emulator](
-  "v1024l8b2-test",
-  "v1024l8b2-test-trace"
+  ("v1024l8b2-test", "emu")
 )
 
-class emulator(config: String) extends Module {
-  def configDir = T(os.pwd / "configs")
+class emulator(elaborateConfig: String, verilatorConfig: String) extends Module {
+  def verilatorConfigDir = T(os.pwd / "configs" / "verilator")
+  def verilatorConfigFile = T(verilatorConfigDir() / s"$verilatorConfig.json")
+  def verilatorArgs = T(ujson.read(os.read(verilatorConfigFile()))("verilatorArgs").arr.map(_.str).toSeq)
+  def verilatorThreads = T(ujson.read(os.read(verilatorConfigFile()))("threads").num)
 
-  def configFile = T(configDir() / s"$config.json")
-
-  def trace = T(ujson.read(os.read(configFile()))("trace").bool)
-
-  def csrcDir = T.source {
-    PathRef(millSourcePath / os.up / "src")
-  }
-
-  def allCHeaderFiles = T.sources {
-    os.walk(csrcDir().path).filter(_.ext == "h").map(PathRef(_))
-  }
-
-  def allCSourceFiles = T.sources {
-    Seq(
-      "spike_event.cc",
-      "vbridge_impl.cc",
-      "dpi.cc",
-      "elf.cc",
-      "rtl_config.cc",
-    ).map(f => PathRef(csrcDir().path / f))
-  }
-
-  def verilatorArgs = T {
-    Seq(
-      // format: off
-      "--x-initial unique",
-      "--output-split 100000",
-      "--max-num-width 1048576",
-      "--main",
-      "--timing",
-      // use for coverage
-      "--coverage-user",
-      "--assert",
-      // format: on
-    )
-  }
-
-  def topName = T {
-    "V"
-  }
-
-  def verilatorThreads = T {
-    8
-  }
+  def csrcDir = T.source(PathRef(os.pwd / "emulator" / "src"))
+  def allCHeaderFiles = T.sources(os.walk(csrcDir().path).filter(_.ext == "h").map(PathRef(_)))
+  def allCSourceFiles = T.sources(Seq(
+    "spike_event.cc",
+    "vbridge_impl.cc",
+    "dpi.cc",
+    "elf.cc",
+    "rtl_config.cc",
+  ).map(f => PathRef(csrcDir().path / f)))
 
   def CMakeListsString = T {
     // format: off
@@ -262,10 +229,11 @@ class emulator(config: String) extends Module {
        |
        |verilate(emulator
        |  SOURCES
-       |  ${elaborator(config).mfccompile.rtls().map(_.path.toString).mkString("\n")}
-       |  ${if (trace()) "TRACE_FST" else ""}
-       |  TOP_MODULE ${elaborator(config).elaborate.topName()}
-       |  PREFIX V${elaborator(config).elaborate.topName()}
+       |  ${elaborator(elaborateConfig).mfccompile.rtls().map(_.path.toString).mkString("\n")}
+       |  # Always enable trace at compile time.
+       |  TRACE_FST
+       |  TOP_MODULE ${elaborator(elaborateConfig).elaborate.topName()}
+       |  PREFIX V${elaborator(elaborateConfig).elaborate.topName()}
        |  OPT_FAST
        |  THREADS ${verilatorThreads()}
        |  VERILATOR_ARGS ${verilatorArgs().mkString(" ")}
@@ -294,7 +262,7 @@ class emulator(config: String) extends Module {
 
   def elf = T {
     // either rtl or testbench change should trigger elf rebuild
-    elaborator(config).mfccompile.rtls()
+    elaborator(elaborateConfig).mfccompile.rtls()
     allCSourceFiles()
     allCHeaderFiles()
     cmake()
@@ -304,7 +272,6 @@ class emulator(config: String) extends Module {
 }
 
 object tests extends Module {
-
   object cases extends Module {
     c =>
     trait Case extends Module {
@@ -475,14 +442,20 @@ object tests extends Module {
     }
   }
 
-  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ cases.buddy.allTests ++ cases.asm.allTests ++ cases.intrinsic.allTests): _*)
+  object run extends mill.Cross[run](
+    (cases.`riscv-vector-tests`.allTests ++ cases.buddy.allTests ++ cases.asm.allTests ++ cases.intrinsic.allTests).map(name => ("v1024l8b2-test", "emu", "run", name)) :_*
+  )
 
-  class run(name: String) extends Module with TaskModule {
+  class run(elaborateConfig: String, verilatorConfig: String, runConfig: String, name: String) extends Module with TaskModule {
+    def runConfigDir = T(os.pwd / "configs" / "verilator")
+    def runConfigFile = T(runConfigDir() / s"$runConfig.json")
+
     override def defaultCommandName() = "run"
 
     val mlirTestPattern = raw"(.+\.mlir)$$".r
     val asmTestPattern = raw"(.+\.asm)$$".r
     val intrinsicTestPattern = raw"(.+\.c)$$".r
+    // we maintain the `caseToRun` to support test case auto-discovery
     def caseToRun = name match {
       case mlirTestPattern(testName) => cases.buddy(testName)
       case asmTestPattern(testName) => cases.asm(testName)
@@ -490,18 +463,32 @@ object tests extends Module {
       case _ => cases.`riscv-vector-tests`.ut(name)
     }
 
-    def ciRun  = T {
+    def ciRun = T {
+
+      // TODO: @sharzy, use runConfig to config the runner, then merge CI run and user run
+      val p = T.dest / "runConfig.json"
+      val runConfigJson = ujson.read(os.read(runConfigFile()))
+      runConfigJson("bin") = runConfigJson("bin").strOpt.getOrElse(caseToRun.elf().path.toString)
+      runConfigJson("trace_wave") = runConfigJson("trace_wave").boolOpt.getOrElse(false)
+      runConfigJson("wave") = runConfigJson("wave").strOpt.getOrElse((T.dest / "wave").toString)
+      runConfigJson("reset_vector") = runConfigJson("reset_vector").numOpt.map(_.toInt).getOrElse(1000)
+      runConfigJson("timeout") = runConfigJson("timeout").numOpt.map(_.toInt).getOrElse(1000000)
+      runConfigJson("rtl_config") = runConfigJson("rtl_config").strOpt.getOrElse(elaborator(elaborateConfig).configFile().toString)
+      runConfigJson("logtostderr") = runConfigJson("logtostderr").boolOpt.getOrElse(false)
+      runConfigJson("perf_output_file") = runConfigJson("perf_output_file").strOpt.getOrElse((T.dest / "perf.txt").toString)
+      os.write(p, runConfigJson)
+
       val runEnv = Map(
         "COSIM_bin" -> caseToRun.elf().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
         "COSIM_timeout" -> "1000000",
-        "COSIM_config" -> emulator("v1024l8b2-test").configFile().toString,
+        "COSIM_config" -> elaborator(elaborateConfig).configFile().toString,
         "GLOG_logtostderr" -> "0",
         "PERF_output_file" -> (T.dest / "perf.txt").toString,
       )
-      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${emulator("v1024l8b2-test").elf().path.toString}")
-      os.proc(Seq(emulator("v1024l8b2-test").elf().path.toString)).call(env = runEnv, check = false).exitCode
+      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${emulator(elaborateConfig, verilatorConfig).elf().path.toString}")
+      os.proc(Seq(emulator(elaborateConfig, verilatorConfig).elf().path.toString)).call(env = runEnv, check = false).exitCode
     }
 
     def run(args: String*) = T.command {
@@ -515,13 +502,13 @@ object tests extends Module {
         "COSIM_bin" -> caseToRun.elf().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
-        "COSIM_config" -> emulator("v1024l8b2-test").configFile().toString,
+        "COSIM_config" -> elaborator(elaborateConfig).configFile().toString,
         envDefault("COSIM_timeout", "1000000"),
         envDefault("GLOG_logtostderr", "1"),
         "PERF_output_file" -> (T.dest / "perf.txt").toString,
       )
-      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${emulator("v1024l8b2-test-trace").elf().path.toString}")
-      os.proc(Seq(emulator("v1024l8b2-test").elf().path.toString)).call(env = runEnv)
+      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${emulator(elaborateConfig, verilatorConfig).elf().path.toString}")
+      os.proc(Seq(emulator(elaborateConfig, verilatorConfig).elf().path.toString)).call(env = runEnv)
       PathRef(T.dest)
     }
   }
