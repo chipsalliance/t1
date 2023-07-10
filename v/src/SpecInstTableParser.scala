@@ -89,7 +89,7 @@ object SpecInstTableParser {
     )
   )
 
-  val ops: Array[Op] =
+  def ops(fpuEnable: Boolean): Array[Op] =
     (expandedOps.filter(!_.name.startsWith("V")) ++ specialTable.split(raw"\n\.").drop(1).flatMap { str =>
       val namePattern = raw"(\w+) encoding space".r
       val vsPattern = raw"\| *vs(\d) *\|.*".r
@@ -106,5 +106,5 @@ object SpecInstTableParser {
           Array.empty[Op]
       }
       // filter out F instructions, for now.
-    }).filter(_.tpe != "F")
+    }).filter(_.tpe != "F" || fpuEnable)
 }
