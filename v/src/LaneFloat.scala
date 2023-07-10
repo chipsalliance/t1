@@ -74,8 +74,8 @@ class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
 }
 
 /** todo extends VFUModule*/
-class VFPU extends Module{
-  val req = IO(Flipped(Decoupled(new LaneFloatRequest(32))))
+class LaneFloat extends Module{
+  val req  = IO(Flipped(Decoupled(new LaneFloatRequest(32))))
   val resp = IO(Decoupled(new LaneFloatResponse(32)))
 
   val recIn0 = recFNFromFN(8, 24, req.bits.in0)
@@ -95,11 +95,14 @@ class VFPU extends Module{
   val CompareSelect = RegEnable(req.bits.Compare, false.B, req.fire)
   val OtherSelect   = RegEnable(OtherEn         , false.B, req.fire)
 
-  val occupied = RegInit(false.B)
-  val OneCyleValid = RegInit(false.B)
+  val DivsqrtOccupied    = RegInit(false.B)
+  val FastWorking = RegInit(false.B)
+  val FastValid   = RegNext(FastWorking, false.B)
 
   val VFPUresult = Wire(UInt(32.W))
   val VFPUflags = Wire(UInt(5.W))
+
+  FastWorking := req.fire && !req.bits.DIV
 
   /** FMA
     *
@@ -152,8 +155,8 @@ class VFPU extends Module{
   val sqrt7    = req.bits.DIV && (uop === "b1001".U)
   val rec7     = req.bits.DIV && (uop === "b1001".U)
 
-  val sqrt7Select = RegNext(occupied && sqrt7 ,false.B)
-  val rec7Select  = RegNext(occupied && rec7  ,false.B)
+  val sqrt7Select = RegNext(req.fire && req.bits.DIV && sqrt7 ,false.B)
+  val rec7Select  = RegNext(req.fire && req.bits.DIV && rec7  ,false.B)
 
   val sqrt7Phase1Next = Wire(Bool())
   val sqrt7Phase1 = RegNext(sqrt7Phase1Next, false.B)
@@ -276,27 +279,18 @@ class VFPU extends Module{
 
 
   /** stateMachine */
-  switch(occupied) {
+  switch(DivsqrtOccupied) {
     is(false.B) {
-      occupied := req.fire && req.bits.DIV
+      DivsqrtOccupied := req.fire && req.bits.DIV
     }
     is(true.B) {
-      occupied := DivsqrtValid
-    }
-  }
-
-  switch(OneCyleValid){
-    is(false.B){
-      OneCyleValid := req.fire && !req.bits.DIV
-    }
-    is(true.B){
-      OneCyleValid := false.B
+      DivsqrtOccupied := DivsqrtValid
     }
   }
 
   /** Output */
-  req.ready := !occupied
-  resp.valid := DivsqrtValid || OneCyleValid
+  req.ready := !DivsqrtOccupied
+  resp.valid := DivsqrtValid || FastValid
 
   VFPUresult := Mux(DivSqrtSelect, DivsqrtResult,
     Mux(FMASelect, fNFromRecFN(8, 23, mulAddRecFN.io.out),
