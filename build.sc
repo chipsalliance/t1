@@ -515,13 +515,13 @@ object tests extends Module {
         "COSIM_bin" -> caseToRun.elf().path.toString,
         "COSIM_wave" -> (T.dest / "wave").toString,
         "COSIM_reset_vector" -> "1000",
-        "COSIM_config" -> emulator("v1024l8b2-test").configFile().toString,
+        "COSIM_config" -> emulator("v1024l8b2-test-trace").configFile().toString,
         envDefault("COSIM_timeout", "1000000"),
         envDefault("GLOG_logtostderr", "1"),
         "PERF_output_file" -> (T.dest / "perf.txt").toString,
       )
       T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${emulator("v1024l8b2-test-trace").elf().path.toString}")
-      os.proc(Seq(emulator("v1024l8b2-test").elf().path.toString)).call(env = runEnv)
+      os.proc(Seq(emulator("v1024l8b2-test-trace").elf().path.toString)).call(env = runEnv)
       PathRef(T.dest)
     }
   }
