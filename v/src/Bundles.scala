@@ -126,7 +126,7 @@ class ExtendInstructionType extends Bundle {
 class LaneRequest(param: LaneParameter) extends Bundle {
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
   // decode
-  val decodeResult: DecodeBundle = Decoder.bundle
+  val decodeResult: DecodeBundle = Decoder.bundle(param.fpuEnable)
   val loadStore:    Bool = Bool()
   val LSUFire:      Bool = Bool()
   val store:        Bool = Bool()
@@ -489,7 +489,7 @@ class InstructionPipeBundle(parameter: VParameter) extends Bundle {
   // 原始指令信息
   val request: VRequest = new VRequest(parameter.xLen)
   // decode 的结果
-  val decodeResult: DecodeBundle = new DecodeBundle(Decoder.all)
+  val decodeResult: DecodeBundle = new DecodeBundle(Decoder.all(parameter.fpuEnable))
   // 这条指令被vector分配的index
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
   // 指令的csr信息
