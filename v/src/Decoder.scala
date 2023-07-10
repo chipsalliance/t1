@@ -12,6 +12,10 @@ trait UopField extends DecodeField[Op, UInt] with FieldName {
   def chiselType: UInt = UInt(4.W)
 }
 
+trait FloatType extends DecodeField[Op, UInt] with FieldName {
+  def chiselType: UInt = UInt(2.W)
+}
+
 trait TopUopField extends DecodeField[Op, UInt] with FieldName {
   def chiselType: UInt = UInt(3.W)
 }
@@ -28,7 +32,7 @@ object Decoder {
   object logic extends BoolField {
     val subs: Seq[String] = Seq("and", "or")
     // 执行单元现在不做dc,因为会在top判断是否可以chain
-    def value(op: Op): Boolean = subs.exists(op.name.contains)
+    def value(op: Op): Boolean = subs.exists(op.name.contains) && op.tpe != "F"
   }
 
   object adder extends BoolField {
@@ -48,7 +52,7 @@ object Decoder {
       "sum"
     )
     def value(op: Op): Boolean = subs.exists(op.name.contains) &&
-      !(op.tpe == "M" && Seq("vm", "vnm").exists(op.name.startsWith))
+      !(op.tpe == "M" && Seq("vm", "vnm").exists(op.name.startsWith)) && op.tpe != "F"
   }
 
   object shift extends BoolField {
@@ -57,7 +61,7 @@ object Decoder {
       "sll",
       "sra"
     )
-    def value(op: Op): Boolean = subs.exists(op.name.contains)
+    def value(op: Op): Boolean = subs.exists(op.name.contains) && op.tpe != "F"
   }
 
   object multiplier extends BoolField {
@@ -68,15 +72,22 @@ object Decoder {
       "msub",
       "msac"
     )
-    def value(op: Op): Boolean = subs.exists(op.name.contains)
+    def value(op: Op): Boolean = subs.exists(op.name.contains) && op.tpe != "F"
   }
 
   object divider extends BoolField {
     val subs: Seq[String] = Seq(
       "div",
-      "rem"
+      "rem",
+      "sqrt",
+      "rec7"
     )
-    def value(op: Op): Boolean = subs.exists(op.name.contains)
+    // todo: delete `&& op.tpe != "F"`
+    def value(op: Op): Boolean = subs.exists(op.name.contains) && op.tpe != "F"
+  }
+
+  object multiCycle extends BoolField {
+    def value(op: Op): Boolean = divider.value(op) || float.value(op)
   }
 
   object other extends BoolField {
@@ -105,6 +116,137 @@ object Decoder {
     }
 
     def value(op: Op): Boolean = getType(op)._1
+  }
+
+  object floatType extends BoolField {
+    def value(op: Op): Boolean = op.tpe == "F"
+  }
+
+  object float extends BoolField {
+    // todo: div 不解析成浮点
+    def value(op: Op): Boolean = op.tpe == "F" &&
+      !(
+        other.value(op) ||
+          dontNeedExecuteInLane.value(op) ||
+          slid.value(op) ||
+          mv.value(op) /*|| divider.value(op)*/)
+  }
+
+  object floatConvertUnsigned extends BoolField {
+    override def dontCareCase(op: Op): Boolean = !float.value(op)
+    def value(op: Op): Boolean = {
+      op.name.contains("fcvt") && op.name.contains(".xu.")
+    }
+  }
+
+  object FMA extends BoolField {
+    val adderSubsMap: Seq[(String, Int)] = Seq(
+      "vfadd" -> 0,
+      "vfsub" -> 1,
+      "vfrsub" -> 5,
+    )
+
+    // need read vd
+    val maMap: Seq[(String, Int)] = Seq(
+      "vfmacc" -> 0,
+      "vfnmacc" -> 3,
+      "vfmsac" -> 1,
+      "vfnmsac" -> 2,
+      "vfmadd" -> 4,
+      "vfnmadd" -> 7,
+      "vfmsub" -> 5,
+      "vfnmsub" -> 6,
+    )
+
+    val subsMap: Seq[(String, Int)] = Seq(
+      "vfmul" -> 0,
+      "vfredosum" -> 0,
+      "vfredusum" -> 0,
+    ) ++ adderSubsMap ++ maMap
+
+    def value(op: Op): Boolean = subsMap.exists(a => op.name.contains(a._1))
+
+    def uop(op: Op): Int = {
+      val isAdder = adderSubsMap.exists(a => op.name.contains(a._1))
+      val msbCode = if (isAdder) 8 else 0
+      // vfwadd 暂时不支持,所以没处理, 所有的widen narrow 会被解成 fma-0
+      val mapFilter: Seq[(String, Int)] = subsMap.filter(a => op.name.contains(a._1))
+      val lsbCode: Int = if (mapFilter.isEmpty) 0 else mapFilter.head._2
+      msbCode + lsbCode
+    }
+  }
+
+  object floatMul extends BoolField {
+    def value(op: Op): Boolean = op.name.contains("vfmul")
+  }
+
+  object FDiv extends BoolField {
+    val subsMap = Seq(
+      "vfdiv" -> 1,
+      "vfrdiv" -> 2,
+      "vfsqrt" -> 8
+    )
+    def value(op: Op): Boolean = subsMap.exists(a => op.name.contains(a._1))
+
+    def uop(op: Op): Int = {
+      val mapFilter = subsMap.filter(a => op.name.contains(a._1))
+      if (mapFilter.isEmpty) 0 else mapFilter.head._2
+    }
+  }
+
+  object FCompare extends BoolField {
+    val subsMap = Seq(
+      "vmfeq" -> 1,
+      "vmfge" -> 5,
+      "vmfgt" -> 4,
+      "vmfle" -> 3,
+      "vmflt" -> 2,
+      "vmfne" -> 0,
+      "vfmin" -> 8,
+      "vfmax" -> 12,
+      "vfredmin" -> 8,
+      "vfredmax" -> 12,
+    )
+
+    def value(op: Op): Boolean = subsMap.exists(a => op.name.contains(a._1))
+
+    def uop(op: Op): Int = {
+      val mapFilter = subsMap.filter(a => op.name.contains(a._1))
+      if (mapFilter.isEmpty) 0 else mapFilter.head._2
+    }
+  }
+
+  object FOther extends BoolField {
+    val unsignedMap = Seq(
+      "vfcvt.f.xu.v" -> 8,
+      "vfcvt.rtz.xu.f.v" -> 13,
+    )
+    val subsMap = Seq(
+      "vfcvt.f.x.v" -> 8,
+      "vfcvt.rtz.x.f.v" -> 14,
+      "vfcvt.x.f.v" -> 10,
+      "vfcvt.xu.f.v" -> 9,
+      "vfsgnj" -> 1,
+      "vfsgnjn" -> 2,
+      "vfsgnjx" -> 3,
+      "vfclass" -> 4,
+      "vfrsqrt7" -> 7,
+      "vfrec7" -> 6,
+    ) ++ unsignedMap
+
+    def value(op: Op): Boolean = subsMap.exists(a => op.name.contains(a._1))
+
+    def uop(op: Op): Int = {
+      val mapFilter = subsMap.filter(a => op.name.contains(a._1))
+      if (mapFilter.isEmpty) 0 else mapFilter.head._2
+    }
+  }
+
+  object fpExecutionType extends FloatType {
+    def genTable(op: Op): BitPat = {
+      val code: Int = if (FDiv.value(op)) 1 else if (FCompare.value(op)) 2 else if (FOther.value(op)) 3 else 0
+      BitPat("b" + ("00" + code.toBinaryString).takeRight(2))
+    }
   }
 
   object firstWiden extends BoolField {
@@ -183,7 +325,11 @@ object Decoder {
       val UIntOperation = nameWoW.endsWith("u") && !nameWoW.endsWith("su")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
       val vwmaccsu = op.name.contains("vwmaccsu")
-      op.special.nonEmpty || logicShift || UIntOperation || madc || vwmaccsu
+      if (floatType.value(op)) {
+        FOther.unsignedMap.exists(a => op.name.contains(a._1))
+      } else {
+        op.special.nonEmpty || logicShift || UIntOperation || madc || vwmaccsu
+      }
     }
   }
 
@@ -196,7 +342,8 @@ object Decoder {
   }
 
   object targetRd extends BoolField {
-    def value(op: Op): Boolean = op.special.isDefined && op.special.get.name == "VWXUNARY0"
+    def value(op: Op): Boolean = op.special.isDefined &&
+      (op.special.get.name == "VWXUNARY0" || op.special.get.name == "VWFUNARY0")
   }
 
   object extend extends BoolField {
@@ -204,7 +351,7 @@ object Decoder {
   }
 
   object mv extends BoolField {
-    def value(op: Op): Boolean = op.name.startsWith("vmv") && !op.name.contains("nr")
+    def value(op: Op): Boolean = (op.name.startsWith("vmv") || op.name.startsWith("vfmv")) && !op.name.contains("nr")
   }
 
   object ffo extends BoolField {
@@ -276,7 +423,17 @@ object Decoder {
     def genTable(op: Op): BitPat = {
       val firstIndexContains = (xs: Iterable[String], s: String) =>
         xs.map(s.indexOf).zipWithIndex.filter(_._1 != -1).head._2
-      val opcode: Int = if (multiplier.value(op)) {
+      val opcode: Int = if(float.value(op)) {
+        if (FMA.value(op)) {
+          FMA.uop(op)
+        } else if (FDiv.value(op)) {
+          FDiv.uop(op)
+        } else if (FCompare.value(op)) {
+          FCompare.uop(op)
+        } else {
+          FOther.uop(op)
+        }
+      } else if (multiplier.value(op)) {
         val high = op.name.contains("mulh")
         // 0b1000
         val negative = if (op.name.startsWith("vn")) 8 else 0
@@ -311,7 +468,7 @@ object Decoder {
     }
   }
 
-  object topUop extends UopField {
+  object topUop extends TopUopField {
     def genTable(op: Op): BitPat = {
       val isSlide = slid.value(op)
       val isExtend = extend.value(op)
@@ -340,11 +497,12 @@ object Decoder {
 
   object maskDestination extends BoolField {
     def value(op: Op): Boolean =
-      op.name.startsWith("vm") && adder.value(op) && !Seq("min", "max").exists(op.name.contains)
+      (op.name.startsWith("vm") && adder.value(op) && !Seq("min", "max").exists(op.name.contains)) ||
+        (op.name.startsWith("vm") && floatType.value(op))
   }
 
   object maskSource extends BoolField {
-    def value(op: Op): Boolean = Seq("vadc", "vsbc", "vmadc", "vmsbc", "vmerge").exists(op.name.startsWith)
+    def value(op: Op): Boolean = Seq("vadc", "vsbc", "vmadc", "vmsbc", "vmerge", "vfmerge").exists(op.name.startsWith)
   }
 
   object indexType extends BoolField {
@@ -385,8 +543,8 @@ object Decoder {
   // decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).xorR && !decodeResult(Decoder.vwmacc)
   object ma extends BoolField {
     def value(op: Op): Boolean = {
-      multiplier.value(op) && Seq(BitPat("b??01"), BitPat("b??10")).exists(_.cover(uop.genTable(op))) &&
-      !vwmacc.value(op)
+      (multiplier.value(op) && Seq(BitPat("b??01"), BitPat("b??10")).exists(_.cover(uop.genTable(op))) &&
+      !vwmacc.value(op)) || (floatType.value(op) && FMA.maMap.exists(a => op.name.contains(a._1)))
     }
   }
 
@@ -418,57 +576,69 @@ object Decoder {
       Seq(crossRead, crossWrite, maskLogic, maskDestination, maskSource).map(_.value(op)).reduce(_ || _)
   }
 
-  val all: Seq[DecodeField[Op, _ >: Bool <: UInt]] = Seq(
-    logic,
-    adder,
-    shift,
-    multiplier,
-    divider,
-    other,
-    unsigned0,
-    unsigned1,
-    itype,
-    nr,
-    red,
-    // top only
-    widenReduce,
-    targetRd,
-    slid,
-    gather,
-    gather16,
-    compress,
-    unOrderWrite,
-    // top uop
-    extend, // top uop
-    mv, // top uop
-    iota, // top uop
-    uop,
-    maskLogic,
-    maskDestination,
-    maskSource,
-    readOnly,
-    vwmacc,
-    saturate,
-    special,
-    maskUnit,
-    crossWrite,
-    crossRead,
-    // state
-    sWrite,
-    //sRead1 -> vType
-    vtype,
-    sReadVD,
-    scheduler,
-    dontNeedExecuteInLane,
-    reverse, // uop
-    average, // uop
-    ffo, // todo: add mask select -> top uop
-    popCount, // top uop add, red, uop popCount
-    topUop,
-    specialSlot
-  )
+  def all(fpuEnable: Boolean): Seq[DecodeField[Op, _ >: Bool <: UInt]] = {
+    Seq(
+      logic,
+      adder,
+      shift,
+      multiplier,
+      divider,
+      multiCycle,
+      other,
+      unsigned0,
+      unsigned1,
+      itype,
+      nr,
+      red,
+      // top only
+      widenReduce,
+      targetRd,
+      slid,
+      gather,
+      gather16,
+      compress,
+      unOrderWrite,
+      // top uop
+      extend, // top uop
+      mv, // top uop
+      iota, // top uop
+      uop,
+      maskLogic,
+      maskDestination,
+      maskSource,
+      readOnly,
+      vwmacc,
+      saturate,
+      special,
+      maskUnit,
+      crossWrite,
+      crossRead,
+      // state
+      sWrite,
+      //sRead1 -> vType
+      vtype,
+      sReadVD,
+      scheduler,
+      dontNeedExecuteInLane,
+      reverse, // uop
+      average, // uop
+      ffo, // todo: add mask select -> top uop
+      popCount, // top uop add, red, uop popCount
+      topUop,
+      specialSlot
+    ) ++ {
+      if (fpuEnable)
+        Seq(
+          float,
+          fpExecutionType,
+          floatMul
+        )
+      else Seq()
+    }
+  }
 
-  private val decodeTable: DecodeTable[Op] = new DecodeTable[Op](SpecInstTableParser.ops, all)
-  def decode:              UInt => DecodeBundle = decodeTable.decode
-  def bundle:              DecodeBundle = decodeTable.bundle
+  def decodeTable(fpuEnable: Boolean): DecodeTable[Op] =
+    new DecodeTable[Op](SpecInstTableParser.ops(fpuEnable), all(fpuEnable))
+  def decode(fpuEnable: Boolean): UInt => DecodeBundle = decodeTable(fpuEnable).decode
+  def bundle(fpuEnable: Boolean): DecodeBundle = decodeTable(fpuEnable).bundle
 }

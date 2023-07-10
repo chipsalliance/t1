@@ -8,7 +8,7 @@
       "physicalAddressWidth": 32,
       "chainingSize": 4,
       "vrfWriteQueueSize": 4,
-      "fpuEnable": false,
+      "fpuEnable": true,
       "vfuInstantiateParameter": {
         "slotCount": 4,
         "logicModuleParameters": [
@@ -139,17 +139,6 @@
               2,
               3
             ]
-          ]
-        ],
-        "floatModuleParameters": [
-          [
-            {
-              "parameter": {
-                "datapathWidth": 32
-              },
-              "generator": "v.LaneFloat"
-            },
-            [0, 1, 2, 3]
           ]
         ]
       }

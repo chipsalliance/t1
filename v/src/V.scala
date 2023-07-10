@@ -33,6 +33,7 @@ case class VParameter(
                        physicalAddressWidth: Int,
                        chainingSize:         Int,
                        vrfWriteQueueSize:    Int,
+                       fpuEnable:            Boolean,
                        vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
 
@@ -137,6 +138,7 @@ case class VParameter(
       laneNumber = laneNumber,
       chainingSize = chainingSize,
       crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize,
+      fpuEnable = fpuEnable,
       vfuInstantiateParameter = vfuInstantiateParameter
     )
   def lsuParam: LSUParam = LSUParam(
@@ -186,7 +188,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   /** the LSU Module */
   val lsu:    LSU = Module(new LSU(parameter.lsuParam))
-  val decode: VectorDecoder = Module(new VectorDecoder)
+  val decode: VectorDecoder = Module(new VectorDecoder(parameter.fpuEnable))
 
   // TODO: cover overflow
   // TODO: uarch doc about the order of instructions
