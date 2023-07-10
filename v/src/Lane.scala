@@ -26,6 +26,7 @@ case class LaneParameter(
                           laneNumber:                       Int,
                           chainingSize:                     Int,
                           crossLaneVRFWriteEscapeQueueSize: Int,
+                          fpuEnable:                        Boolean,
                           vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
 
