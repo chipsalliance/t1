@@ -26,6 +26,7 @@ case class LaneParameter(
                           laneNumber:                       Int,
                           chainingSize:                     Int,
                           crossLaneVRFWriteEscapeQueueSize: Int,
+                          fpuEnable:                        Boolean,
                           vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
 
@@ -1138,6 +1139,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         requestToVFU.laneIndex := laneIndex
         requestToVFU.complete := record.ffoByOtherLanes || record.selfCompleted
         requestToVFU.maskType := record.laneRequest.mask
+        requestToVFU.unitSelet := decodeResult(Decoder.fpExecutionType)
+        requestToVFU.floatMul := decodeResult(Decoder.floatMul)
+        // from float csr
+        requestToVFU.roundingMode := record.csr.vxrm
 
         requestVec(index) := requestToVFU
 
@@ -1150,7 +1155,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         /** fire of [[dataDequeue]] */
         val executeDequeueFireForSlot: Bool =
-          Mux(decodeResult(Decoder.divider), responseVec(index).valid, executeEnqueueFireForSlot)
+          Mux(decodeResult(Decoder.multiCycle), responseVec(index).valid, executeEnqueueFireForSlot)
 
         // mask reg for filtering
         val maskForFilter = FillInterleaved(4, maskNotMaskedElement) | executionRecord.mask
@@ -1197,7 +1202,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
         // execute response finish
         val responseFinish: Bool = Mux(
-          decodeResult(Decoder.divider),
+          decodeResult(Decoder.multiCycle),
           executeDequeueFireForSlot && sSendExecuteRequest,
           executeEnqueueFireForSlot && isLastRequestForThisGroup
         )
@@ -1212,7 +1217,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           * for long latency pipe, the index will follow the pipeline.
           */
         val writeIndex = Mux(
-          record.laneRequest.decodeResult(Decoder.divider),
+          record.laneRequest.decodeResult(Decoder.multiCycle),
           divWriteIndex,
           executionRecord.executeIndex
         )
