@@ -386,7 +386,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** When the slot wants to move,
     * you need to stall the pipeline first and wait for the pipeline to be cleared.
     */
-  val slotShiftValid: Bool = Wire(Bool())
+  val slotShiftValid: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
   /** The slots start to shift in these rules:
     * - instruction can only enqueue to the last slot.
@@ -501,7 +501,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       if (isLastSlot) {
         slotActive(index) := slotOccupied(index) && !pipeFinishVec(index)
       } else {
-        slotActive(index) := slotOccupied(index) && !pipeFinishVec(index) && !slotShiftValid &&
+        slotActive(index) := slotOccupied(index) && !pipeFinishVec(index) && !slotShiftValid(index) &&
           !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)) &&
           decodeResult(Decoder.scheduler)
       }
@@ -1829,32 +1829,37 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     isLastLaneForMaskLogic && dataPathMisaligned && laneRequest.bits.decodeResult(Decoder.maskLogic)
 
   // slot needs to be moved
-  slotShiftValid :=
-    // the first slot is not occupied
-    !slotOccupied.head &&
-      (
-        // no instruction is incoming or the next instruction is rejected, but 0th slot is free, and others are not.
-        slotOccupied.asUInt.orR ||
-          // new instruction enqueue
-          laneRequest.valid
-        )
+  slotShiftValid := VecInit(Seq.range(0, parameter.chainingSize).map { slotIndex =>
+    if (slotIndex == 0) false.B else slotOccupied(slotIndex - 1)
+  })
 
-  /** slot inside [[Lane]] is ready to shift.
-    * don't shift when feedback.
-    */
-  val shiftReady: Bool = slotCanShift.asUInt.andR && !laneResponseFeedback.valid
+  Seq.range(0, parameter.chainingSize).foreach { slotIndex =>
+    val currentReady = !slotOccupied(slotIndex)
+    // enqueue from lane request
+    if (slotIndex == parameter.chainingSize - 1) {
+      val preSlotCanShifter = laneRequest.valid
+      when(currentReady && preSlotCanShifter) {
+        slotOccupied(slotIndex) := laneRequest.valid
+        slotControl(slotIndex) := entranceControl
+        maskGroupCountVec(slotIndex) := 0.U(parameter.maskGroupSizeBits.W)
+        maskIndexVec(slotIndex) := 0.U(log2Ceil(parameter.maskGroupWidth).W)
+        pipeFinishVec(slotIndex) := false.B
+      }
+    } else {
+      // shifter for slot
+      val preSlotCanShifter = slotCanShift(slotIndex + 1)
+      when(currentReady && preSlotCanShifter) {
+        slotOccupied(slotIndex) := slotOccupied(slotIndex + 1)
+        slotControl(slotIndex) := slotControl(slotIndex + 1)
+        maskGroupCountVec(slotIndex) := maskGroupCountVec(slotIndex + 1)
+        maskIndexVec(slotIndex) := maskIndexVec(slotIndex + 1)
+        pipeFinishVec(slotIndex) := pipeFinishVec(slotIndex + 1)
+      }
+    }
+  }
 
   // handshake
-  laneRequest.ready := !slotOccupied.head && vrf.instructionWriteReport.ready && shiftReady
-
-  // Slot shift logic
-  when(slotShiftValid && shiftReady) {
-    slotOccupied := VecInit(slotOccupied.tail :+ laneRequest.valid)
-    slotControl := VecInit(slotControl.tail :+ entranceControl)
-    maskGroupCountVec := VecInit(maskGroupCountVec.tail :+ 0.U(parameter.maskGroupSizeBits.W))
-    maskIndexVec := VecInit(maskIndexVec.tail :+ 0.U(log2Ceil(parameter.maskGroupWidth).W))
-    pipeFinishVec := VecInit(pipeFinishVec.tail :+ false.B)
-  }
+  laneRequest.ready := !slotOccupied.last && vrf.instructionWriteReport.ready
 
   vrf.flush := maskUnitFlushVrf
   // normal instruction, LSU instruction will be report to VRF.
