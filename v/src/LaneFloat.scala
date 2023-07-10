@@ -1,8 +1,15 @@
 package v
 
 import chisel3._
+import chisel3.experimental.SerializableModuleParameter
 import chisel3.util._
 import hardfloat._
+
+case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
+  val decodeField: BoolField = Decoder.divider //todo switch to float
+  val inputBundle = new LaneFloatRequest(datapathWidth)
+  val outputBundle = new LaneFloatResponse(datapathWidth)
+}
 
 /** UOP encoding
   *
@@ -47,11 +54,11 @@ import hardfloat._
   * 1101 to uint tr
   *
   */
-class VFPUInput extends Bundle{
+class LaneFloatRequest(datapathWidth: Int) extends Bundle{
   val unsigned = Bool()
-  val in0 = UInt(32.W)
-  val in1 = UInt(32.W)
-  val in2 = UInt(32.W)
+  val in0 = UInt(datapathWidth.W)
+  val in1 = UInt(datapathWidth.W)
+  val in2 = UInt(datapathWidth.W)
   val in2en = Bool()
   val uop = UInt(4.W)
   val FMA = Bool()
@@ -61,12 +68,15 @@ class VFPUInput extends Bundle{
   val roundingMode = UInt(3.W)
 }
 
+class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
+  val output = UInt(datapathWidth.W)
+  val exceptionFlags = UInt(5.W)
+}
+
+/** todo extends VFUModule*/
 class VFPU extends Module{
-  val req  = IO(Flipped(Decoupled(new VFPUInput)))
-  val resp = IO(Decoupled(new Bundle(){
-    val output = UInt(32.W)
-    val exceptionFlags = UInt(5.W)
-  }))
+  val req = IO(Flipped(Decoupled(new LaneFloatRequest(32))))
+  val resp = IO(Decoupled(new LaneFloatResponse(32)))
 
   val recIn0 = recFNFromFN(8, 24, req.bits.in0)
   val recIn1 = recFNFromFN(8, 24, req.bits.in1)
