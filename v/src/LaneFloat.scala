@@ -1,7 +1,7 @@
 package v
 
 import chisel3._
-import chisel3.experimental.SerializableModuleParameter
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import hardfloat._
 
@@ -73,8 +73,18 @@ class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
   val exceptionFlags = UInt(5.W)
 }
 
-/** todo extends VFUModule*/
-class LaneFloat extends Module{
+/** construct extends LaneFloat*/
+
+// class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with SerializableModule[LaneFloatParam]{
+//   val response: LaneFloatResponse = Wire(new LaneFloatResponse(parameter.datapathWidth))
+//   val request: LaneFloatRequest = connectIO(response).asTypeOf(parameter.inputBundle)
+//
+//   val vfpu = Module(new VFPU)
+//
+//
+// }
+
+class VFPU extends Module{
   val req  = IO(Flipped(Decoupled(new LaneFloatRequest(32))))
   val resp = IO(Decoupled(new LaneFloatResponse(32)))
 
