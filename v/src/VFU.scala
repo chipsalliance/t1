@@ -142,6 +142,9 @@ class VFPU extends Module{
   val sqrt7    = req.bits.DIV && (uop === "b1001".U)
   val rec7     = req.bits.DIV && (uop === "b1001".U)
 
+  val sqrt7Select = RegNext(occupied && sqrt7 ,false.B)
+  val rec7Select  = RegNext(occupied && rec7  ,false.B)
+
   val sqrt7Phase1Next = Wire(Bool())
   val sqrt7Phase1 = RegNext(sqrt7Phase1Next, false.B)
   val sqrt7Phase1Valid = RegInit(false.B)
@@ -160,14 +163,14 @@ class VFPU extends Module{
   divSqrt.io.roundingMode := req.bits.roundingMode
   divSqrt.io.detectTininess := 0.U
   divSqrt.io.sqrtOp := uop === "b1000".U
-  divSqrt.io.inValid := (req.valid && req.bits.DIV) || sqrt7Phase1Valid
+  divSqrt.io.inValid := (req.fire && req.bits.DIV) || sqrt7Phase1Valid
 
   val Divfnout = fNFromRecFN(8, 24, divSqrt.io.out)
-  val DivsqrtValid = Mux(sqrt7, divSqrt.io.outValid_sqrt && sqrt7Phase1, divSqrt.io.outValid_div || divSqrt.io.outValid_sqrt)
-  DivsqrtResult := Mux(rec7, Divfnout(23,17),
-    Mux(sqrt7 && sqrt7Phase1, Divfnout(23,17), Divfnout))
+  val DivsqrtValid = Mux(sqrt7Select, divSqrt.io.outValid_sqrt && sqrt7Phase1, divSqrt.io.outValid_div || divSqrt.io.outValid_sqrt)
+  DivsqrtResult := Mux(rec7Select, Divfnout(23,17),
+    Mux(sqrt7Select && sqrt7Phase1, Divfnout(23,17), Divfnout))
   sqrt7Phase1Next := sqrt7Phase1Valid || (!DivsqrtValid &&  sqrt7Phase1)
-  sqrt7Phase1Valid := sqrt7 && divSqrt.io.outValid_sqrt
+  sqrt7Phase1Valid := sqrt7Select  && divSqrt.io.outValid_sqrt
 
   /** Compare
     *
@@ -263,13 +266,12 @@ class VFPU extends Module{
 
 
   /** stateMachine */
-  /** todo verify it*/
   switch(occupied) {
     is(false.B) {
-      occupied := req.fire
+      occupied := req.fire && req.bits.DIV
     }
     is(true.B) {
-      occupied := req.fire || Mux(DivSqrtSelect, !DivsqrtValid, false.B)
+      occupied := DivsqrtValid
     }
   }
 
