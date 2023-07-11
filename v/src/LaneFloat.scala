@@ -24,7 +24,7 @@ case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with Serializ
   * 1000 for sqrt
   *
   *
-  * For Compare
+  * For CompareModule
   * 0001 EQ
   * 0000 NQ
   * 0010 LT
@@ -76,7 +76,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val recIn2 = recFNFromFN(8, 24, request.src(2))
 
   val uop = RegEnable(request.uop, 0.U, requestIO.fire)
-  
+
   val FMA = request.UnitSelet === 0.U
   val DIV = request.UnitSelet === 1.U
   val Compare = request.UnitSelet === 2.U
@@ -178,7 +178,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   sqrt7Phase1Next := sqrt7Phase1Valid || (!DivsqrtValid &&  sqrt7Phase1)
   sqrt7Phase1Valid := sqrt7Select  && divSqrt.io.outValid_sqrt
 
-  /** Compare
+  /** CompareModule
     *
     * 0001 EQ
     * 0000 NQ
@@ -191,22 +191,22 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * 1100 max
     *
     */
-  val Compare = Module(new CompareRecFN(8, 24))
-  Compare.io.a := recIn0
-  Compare.io.b := recIn1
-  Compare.io.signaling := false.B
+  val CompareModule = Module(new CompareRecFN(8, 24))
+  CompareModule.io.a := recIn0
+  CompareModule.io.b := recIn1
+  CompareModule.io.signaling := false.B
   val CompareResult = Wire(UInt(32.W))
   val Compareflags = Wire(UInt(5.W))
-  CompareResult := Mux(uop === "b0001".U, Compare.io.eq,
-    Mux(uop === "b0000".U, !Compare.io.eq,
-      Mux(uop === "b0010".U, Compare.io.lt,
-        Mux(uop === "b0011".U, Compare.io.lt || Compare.io.eq,
-          Mux(uop === "b0100".U, Compare.io.gt,
-            Mux(uop === "b0101".U, Compare.io.gt || Compare.io.eq,
-              Mux(uop === "b1000".U , Mux(Compare.io.lt, request.src(0), request.src(1)),
-                Mux(uop === "b1100".U,Mux(Compare.io.gt, request.src(0), request.src(1)),
+  CompareResult := Mux(uop === "b0001".U, CompareModule.io.eq,
+    Mux(uop === "b0000".U, !CompareModule.io.eq,
+      Mux(uop === "b0010".U, CompareModule.io.lt,
+        Mux(uop === "b0011".U, CompareModule.io.lt || CompareModule.io.eq,
+          Mux(uop === "b0100".U, CompareModule.io.gt,
+            Mux(uop === "b0101".U, CompareModule.io.gt || CompareModule.io.eq,
+              Mux(uop === "b1000".U , Mux(CompareModule.io.lt, request.src(0), request.src(1)),
+                Mux(uop === "b1100".U,Mux(CompareModule.io.gt, request.src(0), request.src(1)),
                   false.B))))))))// todo false.B for illegal
-  Compareflags := Compare.io.exceptionFlags
+  Compareflags := CompareModule.io.exceptionFlags
 
 
   /** Other
