@@ -58,7 +58,7 @@ class LaneFloatRequest(datapathWidth: Int) extends Bundle{
   val src   = Vec(3, UInt(datapathWidth.W))
   val uop = UInt(4.W)
   val UnitSelet = UInt(2.W)
-  val roundingMode = UInt(2.W)
+  val roundingMode = UInt(3.W)
 }
 
 class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
@@ -200,15 +200,17 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val compareflags = Wire(UInt(5.W))
 
   assert(uop === "b0001".U || uop === "b0000".U || uop === "b0010".U || uop === "b0011".U || uop === "b0100".U || uop === "b0101".U || uop === "b1000".U || uop === "b1100".U)
-  compareResult := Mux(uop === "b0001".U, compareModule.io.eq,
-    Mux(uop === "b0000".U, !compareModule.io.eq,
-      Mux(uop === "b0010".U, compareModule.io.lt,
-        Mux(uop === "b0011".U, compareModule.io.lt || compareModule.io.eq,
+  compareResult := Mux(uop === "b1000".U , Mux(compareModule.io.lt, request.src(0), request.src(1)),
+    Mux(uop === "b0011".U, compareModule.io.lt || compareModule.io.eq,
+      Mux(uop === "b0101".U, compareModule.io.gt || compareModule.io.eq,
+        Mux(uop === "b0010".U, compareModule.io.lt,
           Mux(uop === "b0100".U, compareModule.io.gt,
-            Mux(uop === "b0101".U, compareModule.io.gt || compareModule.io.eq,
-              Mux(uop === "b1000".U , Mux(compareModule.io.lt, request.src(0), request.src(1)),
+            Mux(uop === "b0000".U, !compareModule.io.eq,
+              Mux(uop === "b0001".U, compareModule.io.eq,
                 Mux(compareModule.io.gt, request.src(0), request.src(1)))))))))
   compareflags := compareModule.io.exceptionFlags
+
+
 
 
   /** otherEn
