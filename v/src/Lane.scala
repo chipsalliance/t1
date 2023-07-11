@@ -392,7 +392,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** enqueue fire signal for execution unit */
   val executeEnqueueFire: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
-  val executeOccupied: Vec[Bool] = Wire(Vec(parameter.VFUParameter.genVec.size, Bool()))
+  val executeOccupied: Vec[Bool] = Wire(Vec(parameter.vfuInstantiateParameter.genVec.size, Bool()))
   dontTouch(executeOccupied)
 
   val VFUNotClear:           Bool = Wire(Bool())
@@ -481,7 +481,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           decodeResult(Decoder.scheduler)
       }
 
-      if(isLastSlot) { slotCanShift(index) := true.B } else { slotCanShift(index) := pipeClear }
+      if(isLastSlot) {
+        slotCanShift(index) := pipeClear && pipeFinishVec(index)
+      } else {
+        slotCanShift(index) := pipeClear
+      }
 
       // --- stage 0 start ---
       // todo: parameter register width for all stage
@@ -1803,33 +1807,43 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.isLastLaneForMaskLogic :=
     isLastLaneForMaskLogic && dataPathMisaligned && laneRequest.bits.decodeResult(Decoder.maskLogic)
 
-  // slot needs to be moved
+  // slot needs to be moved, try to shifter and stall pipe
   slotShiftValid := VecInit(Seq.range(0, parameter.chainingSize).map { slotIndex =>
-    if (slotIndex == 0) false.B else slotOccupied(slotIndex - 1)
+    if (slotIndex == 0) false.B else !slotOccupied(slotIndex - 1)
   })
 
-  Seq.range(0, parameter.chainingSize).foreach { slotIndex =>
-    val currentReady = !slotOccupied(slotIndex)
+
+  val slotEnqueueFire: Seq[Bool] = Seq.tabulate(parameter.chainingSize) { slotIndex =>
+    val enqueueReady: Bool = !slotOccupied(slotIndex)
+    val enqueueValid: Bool = Wire(Bool())
+    val enqueueFire: Bool = enqueueReady && enqueueValid
     // enqueue from lane request
     if (slotIndex == parameter.chainingSize - 1) {
-      val preSlotCanShifter = laneRequest.valid
-      when(currentReady && preSlotCanShifter) {
-        slotOccupied(slotIndex) := laneRequest.valid
+      enqueueValid := laneRequest.valid
+      when(enqueueFire) {
         slotControl(slotIndex) := entranceControl
         maskGroupCountVec(slotIndex) := 0.U(parameter.maskGroupSizeBits.W)
         maskIndexVec(slotIndex) := 0.U(log2Ceil(parameter.maskGroupWidth).W)
         pipeFinishVec(slotIndex) := false.B
       }
+      enqueueFire
     } else {
       // shifter for slot
-      val preSlotCanShifter = slotCanShift(slotIndex + 1)
-      when(currentReady && preSlotCanShifter) {
-        slotOccupied(slotIndex) := slotOccupied(slotIndex + 1)
+      enqueueValid := slotCanShift(slotIndex + 1) && slotOccupied(slotIndex + 1)
+      when(enqueueFire) {
         slotControl(slotIndex) := slotControl(slotIndex + 1)
         maskGroupCountVec(slotIndex) := maskGroupCountVec(slotIndex + 1)
         maskIndexVec(slotIndex) := maskIndexVec(slotIndex + 1)
         pipeFinishVec(slotIndex) := pipeFinishVec(slotIndex + 1)
       }
+      enqueueFire
+    }
+  }
+
+  val slotDequeueFire: Seq[Bool] = (slotCanShift.head && slotOccupied.head) +: slotEnqueueFire
+  Seq.tabulate(parameter.chainingSize) { slotIndex =>
+    when(slotEnqueueFire(slotIndex) ^ slotDequeueFire(slotIndex)) {
+      slotOccupied(slotIndex) := slotEnqueueFire(slotIndex)
     }
   }
 
