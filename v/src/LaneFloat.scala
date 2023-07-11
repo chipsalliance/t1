@@ -73,37 +73,26 @@ class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
   val exceptionFlags = UInt(5.W)
 }
 
-/** construct extends LaneFloat*/
+class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with SerializableModule[LaneFloatParam]{
+  val response: LaneFloatResponse = Wire(new LaneFloatResponse(parameter.datapathWidth))
+  val request : LaneFloatRequest  = connectIO(response).asTypeOf(parameter.inputBundle)
 
-// class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with SerializableModule[LaneFloatParam]{
-//   val response: LaneFloatResponse = Wire(new LaneFloatResponse(parameter.datapathWidth))
-//   val request: LaneFloatRequest = connectIO(response).asTypeOf(parameter.inputBundle)
-//
-//   val vfpu = Module(new VFPU)
-//
-//
-// }
+  val recIn0 = recFNFromFN(8, 24, request.in0)
+  val recIn1 = recFNFromFN(8, 24, request.in1)
+  val recIn2 = recFNFromFN(8, 24, request.in2)
 
-class VFPU extends Module{
-  val req  = IO(Flipped(Decoupled(new LaneFloatRequest(32))))
-  val resp = IO(Decoupled(new LaneFloatResponse(32)))
-
-  val recIn0 = recFNFromFN(8, 24, req.bits.in0)
-  val recIn1 = recFNFromFN(8, 24, req.bits.in1)
-  val recIn2 = recFNFromFN(8, 24, req.bits.in2)
-
-  val uop = RegEnable(req.bits.uop, 0.U, req.fire)
+  val uop = RegEnable(request.uop, 0.U, requestIO.fire)
   val OtherEn = Wire(Bool())
-  OtherEn := !req.bits.FMA  && !req.bits.DIV && !req.bits.Compare
+  OtherEn := !request.FMA  && !request.DIV && !request.Compare
 
-  /** DIV insn lasts muticycles
-    * Not Div insn lasts 1 cycle
+  /** DIV insn response after  muticycles
+    * Not Div insn respond at next cycle
     */
 
-  val DivSqrtSelect = RegEnable(req.bits.DIV    , false.B, req.fire)
-  val FMASelect     = RegEnable(req.bits.FMA    , false.B, req.fire)
-  val CompareSelect = RegEnable(req.bits.Compare, false.B, req.fire)
-  val OtherSelect   = RegEnable(OtherEn         , false.B, req.fire)
+  val DivSqrtSelect = RegEnable(request.DIV     , false.B, requestIO.fire)
+  val FMASelect     = RegEnable(request.FMA     , false.B, requestIO.fire)
+  val CompareSelect = RegEnable(request.Compare , false.B, requestIO.fire)
+  val OtherSelect   = RegEnable(OtherEn         , false.B, requestIO.fire)
 
   val DivsqrtOccupied    = RegInit(false.B)
   val FastWorking = RegInit(false.B)
@@ -112,7 +101,7 @@ class VFPU extends Module{
   val VFPUresult = Wire(UInt(32.W))
   val VFPUflags = Wire(UInt(5.W))
 
-  FastWorking := req.fire && !req.bits.DIV
+  FastWorking := requestIO.fire && !request.DIV
 
   /** FMA
     *
@@ -124,11 +113,11 @@ class VFPU extends Module{
     * */
 
   /** MAF control */
-  val rsub   = req.bits.FMA && uop(3,2) === 3.U
-  val mul    = req.bits.FMA && (!req.bits.in2en) && (uop(3,2) === 0.U)
-  val addsub = req.bits.FMA && req.bits.uop(3)
-  val maf    = req.bits.FMA && req.bits.in2en && (uop(3,2) === 0.U)
-  val rmaf   = req.bits.FMA && req.bits.in2en && (uop(3,2) === 1.U)
+  val rsub   = request.FMA && uop(3,2) === 3.U
+  val mul    = request.FMA && (!request.in2en) && (uop(3,2) === 0.U)
+  val addsub = request.FMA && request.uop(3)
+  val maf    = request.FMA && request.in2en && (uop(3,2) === 0.U)
+  val rmaf   = request.FMA && request.in2en && (uop(3,2) === 1.U)
 
   val fmaIn0 = Mux(rsub, recIn1, recIn0)
   val fmaIn1 = Mux(addsub, 1.U, Mux(rmaf, recIn2, recIn1))
@@ -138,11 +127,11 @@ class VFPU extends Module{
         recIn1) ))
 
   val mulAddRecFN = Module(new MulAddRecFN(8, 24))
-  mulAddRecFN.io.op := req.bits.uop(1,0)
+  mulAddRecFN.io.op := request.uop(1,0)
   mulAddRecFN.io.a := fmaIn0
   mulAddRecFN.io.b := fmaIn1
   mulAddRecFN.io.c := fmaIn2
-  mulAddRecFN.io.roundingMode := req.bits.roundingMode
+  mulAddRecFN.io.roundingMode := request.roundingMode
   mulAddRecFN.io.detectTininess := false.B
 
   /** DIV
@@ -159,14 +148,14 @@ class VFPU extends Module{
     *
     */
 
-  val div      = req.bits.DIV && (uop === "b0001".U)
-  val rdiv     = req.bits.DIV && (uop === "b0010".U)
-  val sqrt     = req.bits.DIV && (uop === "b1000".U)
-  val sqrt7    = req.bits.DIV && (uop === "b1001".U)
-  val rec7     = req.bits.DIV && (uop === "b1001".U)
+  val div      = request.DIV && (uop === "b0001".U)
+  val rdiv     = request.DIV && (uop === "b0010".U)
+  val sqrt     = request.DIV && (uop === "b1000".U)
+  val sqrt7    = request.DIV && (uop === "b1001".U)
+  val rec7     = request.DIV && (uop === "b1001".U)
 
-  val sqrt7Select = RegNext(req.fire && req.bits.DIV && sqrt7 ,false.B)
-  val rec7Select  = RegNext(req.fire && req.bits.DIV && rec7  ,false.B)
+  val sqrt7Select = RegNext(requestIO.fire && request.DIV && sqrt7 , false.B)
+  val rec7Select  = RegNext(requestIO.fire && request.DIV && rec7  , false.B)
 
   val sqrt7Phase1Next = Wire(Bool())
   val sqrt7Phase1 = RegNext(sqrt7Phase1Next, false.B)
@@ -176,22 +165,22 @@ class VFPU extends Module{
     Mux(rdiv, recIn1,
       Mux(rec7 || sqrt7Phase1, 1.U, DontCare)))
   val divIn1 = Mux(div, recIn1,
-    Mux(sqrt7Phase1, Divfnout, recIn0))
+    Mux(sqrt7Phase1, DivsqrtFnOut, recIn0))
 
   val DivsqrtResult = Wire(UInt(32.W))
   val divSqrt = Module(new DivSqrtRecFN_small(8, 24,0))
 
   divSqrt.io.a := divIn0
   divSqrt.io.b := divIn1
-  divSqrt.io.roundingMode := req.bits.roundingMode
+  divSqrt.io.roundingMode := request.roundingMode
   divSqrt.io.detectTininess := 0.U
   divSqrt.io.sqrtOp := uop === "b1000".U
-  divSqrt.io.inValid := (req.fire && req.bits.DIV) || sqrt7Phase1Valid
+  divSqrt.io.inValid := (requestIO.fire && request.DIV) || sqrt7Phase1Valid
 
-  val Divfnout = fNFromRecFN(8, 24, divSqrt.io.out)
+  val DivsqrtFnOut = fNFromRecFN(8, 24, divSqrt.io.out)
   val DivsqrtValid = Mux(sqrt7Select, divSqrt.io.outValid_sqrt && sqrt7Phase1, divSqrt.io.outValid_div || divSqrt.io.outValid_sqrt)
-  DivsqrtResult := Mux(rec7Select, Divfnout(23,17),
-    Mux(sqrt7Select && sqrt7Phase1, Divfnout(23,17), Divfnout))
+  DivsqrtResult := Mux(rec7Select, DivsqrtFnOut(23,17),
+    Mux(sqrt7Select && sqrt7Phase1, DivsqrtFnOut(23,17), DivsqrtFnOut))
   sqrt7Phase1Next := sqrt7Phase1Valid || (!DivsqrtValid &&  sqrt7Phase1)
   sqrt7Phase1Valid := sqrt7Select  && divSqrt.io.outValid_sqrt
 
@@ -220,8 +209,8 @@ class VFPU extends Module{
         Mux(uop === "b0011".U, Compare.io.lt || Compare.io.eq,
           Mux(uop === "b0100".U, Compare.io.gt,
             Mux(uop === "b0101".U, Compare.io.gt || Compare.io.eq,
-              Mux(uop === "b1000".U , Mux(Compare.io.lt, req.bits.in0, req.bits.in1),
-                Mux(uop === "b1100".U,Mux(Compare.io.gt, req.bits.in0, req.bits.in1),
+              Mux(uop === "b1000".U , Mux(Compare.io.lt, request.in0, request.in1),
+                Mux(uop === "b1100".U,Mux(Compare.io.gt, request.in0, request.in1),
                   false.B))))))))// todo false.B for illegal
   Compareflags := Compare.io.exceptionFlags
 
@@ -249,9 +238,9 @@ class VFPU extends Module{
     *
     * */
   val IntToFn = Module(new INToRecFN(32, 8, 24))
-  IntToFn.io.in := req.bits.in0
-  IntToFn.io.signedIn := req.bits.unsigned
-  IntToFn.io.roundingMode := req.bits.roundingMode
+  IntToFn.io.in := request.in0
+  IntToFn.io.signedIn := request.unsigned
+  IntToFn.io.roundingMode := request.roundingMode
   IntToFn.io.detectTininess := false.B
 
   /** io.signedOut define output sign
@@ -260,9 +249,9 @@ class VFPU extends Module{
     * true for toInt
     */
   val FnToInt = Module(new RecFNToIN(8, 24, 32))
-  val ConvertRtz = (uop(3,2) === 3.U) && req.bits.Compare
+  val ConvertRtz = (uop(3,2) === 3.U) && request.Compare
   FnToInt.io.in := recIn0
-  FnToInt.io.roundingMode := Mux(ConvertRtz, "b001".U(3.W), req.bits.roundingMode)
+  FnToInt.io.roundingMode := Mux(ConvertRtz, "b001".U(3.W), request.roundingMode)
   FnToInt.io.signedOut := !(uop(3) && uop(0))
 
   val ConvertResult = Wire(UInt(32.W))
@@ -277,21 +266,21 @@ class VFPU extends Module{
     * 0011 SGNJX
     */
   val sgnjresult = Wire(UInt(32.W))
-  val sgnjSign = Mux(OtherEn && uop === 1.U, req.bits.in1(31),
-    Mux(OtherEn && uop === 2.U, !req.bits.in1(31),
-      Mux(OtherEn && uop ===3.U, req.bits.in1(31) ^ req.bits.in0(31), false.B)))
-  sgnjresult := Cat(sgnjSign, req.bits.in0(30,0))
+  val sgnjSign = Mux(OtherEn && uop === 1.U, request.in1(31),
+    Mux(OtherEn && uop === 2.U, !request.in1(31),
+      Mux(OtherEn && uop ===3.U, request.in1(31) ^ request.in0(31), false.B)))
+  sgnjresult := Cat(sgnjSign, request.in0(30,0))
 
   val OtherResult = Wire(UInt(32.W))
   OtherResult := Mux(uop(3),ConvertResult,
     Mux(uop(3,2) === "b00".U, sgnjresult,
-      Mux(uop === "b0100".U, classifyRecFN(8, 24, recFNFromFN(8, 24, req.bits.in0)), 0.U)))
+      Mux(uop === "b0100".U, classifyRecFN(8, 24, recFNFromFN(8, 24, request.in0)), 0.U)))
 
 
   /** stateMachine */
   switch(DivsqrtOccupied) {
     is(false.B) {
-      DivsqrtOccupied := req.fire && req.bits.DIV
+      DivsqrtOccupied := requestIO.fire && request.DIV
     }
     is(true.B) {
       DivsqrtOccupied := DivsqrtValid
@@ -299,8 +288,8 @@ class VFPU extends Module{
   }
 
   /** Output */
-  req.ready := !DivsqrtOccupied
-  resp.valid := DivsqrtValid || FastValid
+  responseIO.ready := !DivsqrtOccupied
+  responseIO.valid := DivsqrtValid || FastValid
 
   VFPUresult := Mux(DivSqrtSelect, DivsqrtResult,
     Mux(FMASelect, fNFromRecFN(8, 23, mulAddRecFN.io.out),
@@ -314,6 +303,6 @@ class VFPU extends Module{
         Mux(OtherSelect && uop(3), ConvertFlags,
           0.U))))
 
-  resp.bits.output := VFPUresult
-  resp.bits.exceptionFlags := VFPUflags
+  response.output := VFPUresult
+  response.exceptionFlags := VFPUflags
 }
