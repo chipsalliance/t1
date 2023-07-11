@@ -13,18 +13,18 @@ case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with Serializ
 
 /** UOP encoding
   *
-  * for FMA
+  * for fmaEn
   * up[3] = 1 for add/sub
-  * up[2] = 1 for reverse in rsub and reversed FMA
-  * up[1:0] for FMA sign, 0 for positive, 1 for negative
+  * up[2] = 1 for reverse in rsub and reversed fmaEn
+  * up[1:0] for fmaEn sign, 0 for positive, 1 for negative
   *
-  * For DIV
+  * For divEn
   * 0001 for div
   * 0010 for rdiv
   * 1000 for sqrt
   *
   *
-  * For CompareModule
+  * For compareModule
   * 0001 EQ
   * 0000 NQ
   * 0010 LT
@@ -76,29 +76,31 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
 
   val uop = RegEnable(request.uop, 0.U, requestIO.fire)
 
-  val FMA = request.UnitSelet === 0.U
-  val DIV = request.UnitSelet === 1.U
-  val Compare = request.UnitSelet === 2.U
-  val Other = request.UnitSelet === 3.U
+  val unitSeleOH = UIntToOH(request.UnitSelet)
 
-  /** DIV insn response after  muticycles
+  val fmaEn     = unitSeleOH(0)
+  val divEn     = unitSeleOH(1)
+  val compareEn = unitSeleOH(2)
+  val otherEn   = unitSeleOH(3)
+
+  /** divEn insn response after  muticycles
     * Not Div insn respond at next cycle
     */
 
-  val DivSqrtSelect = RegEnable(DIV     , false.B, requestIO.fire)
-  val FMASelect     = RegEnable(FMA     , false.B, requestIO.fire)
-  val CompareSelect = RegEnable(Compare , false.B, requestIO.fire)
-  val OtherSelect   = RegEnable(Other   , false.B, requestIO.fire)
+  val divSqrtSelect = RegEnable(divEn     , false.B, requestIO.fire)
+  val fmaSelect     = RegEnable(fmaEn     , false.B, requestIO.fire)
+  val compareSelect = RegEnable(compareEn , false.B, requestIO.fire)
+  val otherSelect   = RegEnable(otherEn   , false.B, requestIO.fire)
 
-  val DivsqrtOccupied    = RegInit(false.B)
-  val FastWorking = RegInit(false.B)
+  val divOccupied    = RegInit(false.B)
+  val fastWorking = RegInit(false.B)
 
-  val VFPUresult = Wire(UInt(32.W))
-  val VFPUflags = Wire(UInt(5.W))
+  val laneFloatResult = Wire(UInt(32.W))
+  val laneFloatFlags = Wire(UInt(5.W))
 
-  FastWorking := requestIO.fire && !DIV
+  fastWorking := requestIO.fire && !divEn
 
-  /** FMA
+  /** fmaEn
     *
     * addsub(with rsub) rsub mul  maf  rmaf
     * a  src(0)               src(1)  src(0)  src(0)  src(0)
@@ -108,10 +110,10 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * */
 
   /** MAF control */
-  val rsub   = FMA && uop(3,2) === 3.U
-  val addsub = FMA && request.uop(3)
-  val maf    = FMA && (uop(3,2) === 0.U)
-  val rmaf   = FMA && (uop(3,2) === 1.U)
+  val rsub   = fmaEn && uop(3,2) === 3.U
+  val addsub = fmaEn && request.uop(3)
+  val maf    = fmaEn && (uop(3,2) === 0.U)
+  val rmaf   = fmaEn && (uop(3,2) === 1.U)
 
   val fmaIn0 = Mux(rsub, recIn1, recIn0)
   val fmaIn1 = Mux(addsub, 1.U, Mux(rmaf, recIn2, recIn1))
@@ -127,7 +129,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   mulAddRecFN.io.roundingMode := request.roundingMode //todo decode it
   mulAddRecFN.io.detectTininess := false.B
 
-  /** DIV
+  /** divEn
     *
     * 0001 for div
     * 0010 for rdiv
@@ -141,14 +143,14 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     *
     */
 
-  val div      = DIV && (uop === "b0001".U)
-  val rdiv     = DIV && (uop === "b0010".U)
-  val sqrt     = DIV && (uop === "b1000".U)
-  val sqrt7    = DIV && (uop === "b1001".U)
-  val rec7     = DIV && (uop === "b1001".U)
+  val div      = divEn && (uop === "b0001".U)
+  val rdiv     = divEn && (uop === "b0010".U)
+  val sqrt     = divEn && (uop === "b1000".U)
+  val sqrt7    = divEn && (uop === "b1001".U)
+  val rec7     = divEn && (uop === "b1001".U)
 
-  val sqrt7Select = RegNext(requestIO.fire && DIV && sqrt7 , false.B)
-  val rec7Select  = RegNext(requestIO.fire && DIV && rec7  , false.B)
+  val sqrt7Select = RegNext(requestIO.fire && divEn && sqrt7 , false.B)
+  val rec7Select  = RegNext(requestIO.fire && divEn && rec7  , false.B)
 
   val sqrt7Phase1Next = Wire(Bool())
   val sqrt7Phase1 = RegNext(sqrt7Phase1Next, false.B)
@@ -158,9 +160,9 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     Mux(rdiv, recIn1,
       Mux(rec7 || sqrt7Phase1, 1.U, DontCare)))
   val divIn1 = Mux(div, recIn1,
-    Mux(sqrt7Phase1, DivsqrtFnOut, recIn0))
+    Mux(sqrt7Phase1, divsqrtFnOut, recIn0))
 
-  val DivsqrtResult = Wire(UInt(32.W))
+  val divsqrtResult = Wire(UInt(32.W))
   val divSqrt = Module(new DivSqrtRecFN_small(8, 24,0))
 
   divSqrt.io.a := divIn0
@@ -168,16 +170,16 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   divSqrt.io.roundingMode := request.roundingMode //todo decode it
   divSqrt.io.detectTininess := 0.U
   divSqrt.io.sqrtOp := uop === "b1000".U
-  divSqrt.io.inValid := (requestIO.fire && DIV) || sqrt7Phase1Valid
+  divSqrt.io.inValid := (requestIO.fire && divEn) || sqrt7Phase1Valid
 
-  val DivsqrtFnOut = fNFromRecFN(8, 24, divSqrt.io.out)
-  val DivsqrtValid = Mux(sqrt7Select, divSqrt.io.outValid_sqrt && sqrt7Phase1, divSqrt.io.outValid_div || divSqrt.io.outValid_sqrt)
-  DivsqrtResult := Mux(rec7Select, DivsqrtFnOut(23,17),
-    Mux(sqrt7Select && sqrt7Phase1, DivsqrtFnOut(23,17), DivsqrtFnOut))
-  sqrt7Phase1Next := sqrt7Phase1Valid || (!DivsqrtValid &&  sqrt7Phase1)
+  val divsqrtFnOut = fNFromRecFN(8, 24, divSqrt.io.out)
+  val divsqrtValid = Mux(sqrt7Select, divSqrt.io.outValid_sqrt && sqrt7Phase1, divSqrt.io.outValid_div || divSqrt.io.outValid_sqrt)
+  divsqrtResult := Mux(rec7Select, divsqrtFnOut(23,17),
+    Mux(sqrt7Select && sqrt7Phase1, divsqrtFnOut(23,17), divsqrtFnOut))
+  sqrt7Phase1Next := sqrt7Phase1Valid || (!divsqrtValid &&  sqrt7Phase1)
   sqrt7Phase1Valid := sqrt7Select  && divSqrt.io.outValid_sqrt
 
-  /** CompareModule
+  /** compareModule
     *
     * 0001 EQ
     * 0000 NQ
@@ -190,25 +192,26 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * 1100 max
     *
     */
-  val CompareModule = Module(new CompareRecFN(8, 24))
-  CompareModule.io.a := recIn0
-  CompareModule.io.b := recIn1
-  CompareModule.io.signaling := false.B
-  val CompareResult = Wire(UInt(32.W))
-  val Compareflags = Wire(UInt(5.W))
-  CompareResult := Mux(uop === "b0001".U, CompareModule.io.eq,
-    Mux(uop === "b0000".U, !CompareModule.io.eq,
-      Mux(uop === "b0010".U, CompareModule.io.lt,
-        Mux(uop === "b0011".U, CompareModule.io.lt || CompareModule.io.eq,
-          Mux(uop === "b0100".U, CompareModule.io.gt,
-            Mux(uop === "b0101".U, CompareModule.io.gt || CompareModule.io.eq,
-              Mux(uop === "b1000".U , Mux(CompareModule.io.lt, request.src(0), request.src(1)),
-                Mux(uop === "b1100".U,Mux(CompareModule.io.gt, request.src(0), request.src(1)),
-                  false.B))))))))// todo false.B for illegal
-  Compareflags := CompareModule.io.exceptionFlags
+  val compareModule = Module(new CompareRecFN(8, 24))
+  compareModule.io.a := recIn0
+  compareModule.io.b := recIn1
+  compareModule.io.signaling := false.B
+  val compareResult = Wire(UInt(32.W))
+  val compareflags = Wire(UInt(5.W))
+
+  assert(uop === "b0001".U || uop === "b0000".U || uop === "b0010".U || uop === "b0011".U || uop === "b0100".U || uop === "b0101".U || uop === "b1000".U || uop === "b1100".U)
+  compareResult := Mux(uop === "b0001".U, compareModule.io.eq,
+    Mux(uop === "b0000".U, !compareModule.io.eq,
+      Mux(uop === "b0010".U, compareModule.io.lt,
+        Mux(uop === "b0011".U, compareModule.io.lt || compareModule.io.eq,
+          Mux(uop === "b0100".U, compareModule.io.gt,
+            Mux(uop === "b0101".U, compareModule.io.gt || compareModule.io.eq,
+              Mux(uop === "b1000".U , Mux(compareModule.io.lt, request.src(0), request.src(1)),
+                Mux(compareModule.io.gt, request.src(0), request.src(1)))))))))
+  compareflags := compareModule.io.exceptionFlags
 
 
-  /** Other
+  /** otherEn
     *
     * uop(3,2) =
     * 1x => convert
@@ -230,27 +233,27 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * 1101 to uint tr
     *
     * */
-  val IntToFn = Module(new INToRecFN(32, 8, 24))
-  IntToFn.io.in := request.src(0)
-  IntToFn.io.signedIn := request.unsigned
-  IntToFn.io.roundingMode := request.roundingMode
-  IntToFn.io.detectTininess := false.B
+  val intToFn = Module(new INToRecFN(32, 8, 24))
+  intToFn.io.in := request.src(0)
+  intToFn.io.signedIn := request.unsigned
+  intToFn.io.roundingMode := request.roundingMode
+  intToFn.io.detectTininess := false.B
 
   /** io.signedOut define output sign
     *
     * false for toUInt
     * true for toInt
     */
-  val FnToInt = Module(new RecFNToIN(8, 24, 32))
-  val ConvertRtz = (uop(3,2) === 3.U) && Compare
-  FnToInt.io.in := recIn0
-  FnToInt.io.roundingMode := Mux(ConvertRtz, "b001".U(3.W), request.roundingMode)
-  FnToInt.io.signedOut := !(uop(3) && uop(0))
+  val fnToInt = Module(new RecFNToIN(8, 24, 32))
+  val convertRtz = (uop(3,2) === 3.U) && compareEn
+  fnToInt.io.in := recIn0
+  fnToInt.io.roundingMode := Mux(convertRtz, "b001".U(3.W), request.roundingMode)
+  fnToInt.io.signedOut := !(uop(3) && uop(0))
 
-  val ConvertResult = Wire(UInt(32.W))
-  val ConvertFlags = Wire(UInt(5.W))
-  ConvertResult := Mux(uop === "b1000".U, fNFromRecFN(8, 24, IntToFn.io.out), FnToInt.io.out)
-  ConvertFlags  := Mux(uop === "b1000".U, IntToFn.io.exceptionFlags, FnToInt.io.intExceptionFlags)
+  val convertResult = Wire(UInt(32.W))
+  val convertFlags = Wire(UInt(5.W))
+  convertResult := Mux(uop === "b1000".U, fNFromRecFN(8, 24, intToFn.io.out), fnToInt.io.out)
+  convertFlags  := Mux(uop === "b1000".U, intToFn.io.exceptionFlags, fnToInt.io.intExceptionFlags)
 
   /** sgnj
     *
@@ -259,43 +262,37 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * 0011 SGNJX
     */
   val sgnjresult = Wire(UInt(32.W))
-  val sgnjSign = Mux(Other && uop === 1.U, request.src(1)(31),
-    Mux(Other && uop === 2.U, !request.src(1)(31),
-      Mux(Other && uop ===3.U, request.src(1)(31) ^ request.src(0)(31), false.B)))
+  val sgnjSign = Mux(otherEn && uop === 1.U, request.src(1)(31),
+    Mux(otherEn && uop === 2.U, !request.src(1)(31),
+      Mux(otherEn && uop ===3.U, request.src(1)(31) ^ request.src(0)(31), false.B)))
   sgnjresult := Cat(sgnjSign, request.src(0)(30,0))
 
-  val OtherResult = Wire(UInt(32.W))
-  OtherResult := Mux(uop(3),ConvertResult,
+  val otherResult = Wire(UInt(32.W))
+  otherResult := Mux(uop(3),convertResult,
     Mux(uop(3,2) === "b00".U, sgnjresult,
       Mux(uop === "b0100".U, classifyRecFN(8, 24, recFNFromFN(8, 24, request.src(0))), 0.U)))
 
 
   /** stateMachine */
-  switch(DivsqrtOccupied) {
-    is(false.B) {
-      DivsqrtOccupied := requestIO.fire && DIV
-    }
-    is(true.B) {
-      DivsqrtOccupied := DivsqrtValid
-    }
+  when(divOccupied === false.B){
+    divOccupied := requestIO.fire && divEn
+  } otherwise  {
+    divOccupied := !divsqrtValid
   }
 
   /** Output */
-  responseIO.ready := !DivsqrtOccupied
-  responseIO.valid := DivsqrtValid || FastWorking
+  responseIO.ready := !divOccupied
+  responseIO.valid := divsqrtValid || fastWorking
 
-  VFPUresult := Mux(DivSqrtSelect, DivsqrtResult,
-    Mux(FMASelect, fNFromRecFN(8, 23, mulAddRecFN.io.out),
-      Mux(CompareSelect , CompareResult,
-        Mux(OtherSelect , OtherResult,
-          0.U))))// todo 0.U for illegal
+  laneFloatResult := Mux(divSqrtSelect, divsqrtResult,
+    Mux(fmaSelect, fNFromRecFN(8, 23, mulAddRecFN.io.out),
+      Mux(compareSelect , compareResult,
+        otherResult)))
 
-  VFPUflags := Mux(DivSqrtSelect, divSqrt.io.exceptionFlags,
-    Mux(FMASelect, fNFromRecFN(8, 23, mulAddRecFN.io.exceptionFlags),
-      Mux(CompareSelect , Compareflags,
-        Mux(OtherSelect && uop(3), ConvertFlags,
-          0.U))))
+  laneFloatFlags := Mux(divSqrtSelect, divSqrt.io.exceptionFlags,
+    Mux(fmaSelect, fNFromRecFN(8, 23, mulAddRecFN.io.exceptionFlags),
+      Mux(compareSelect , compareflags, convertFlags)))
 
-  response.output := VFPUresult
-  response.exceptionFlags := VFPUflags
+  response.output := laneFloatResult
+  response.exceptionFlags := laneFloatFlags
 }
