@@ -11,6 +11,7 @@ import $file.dependencies.treadle.build
 import $file.dependencies.chiseltest.build
 import $file.dependencies.arithmetic.common
 import $file.dependencies.tilelink.common
+import $file.dependencies.hardfloat.build
 import $file.common
 
 object v {
@@ -21,6 +22,8 @@ object v {
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
   val spire = ivy"org.typelevel::spire:latest.integration"
   val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
+  // for hardfloat
+  val parallel = ivy"org.scala-lang.modules:scala-parallel-collections_3:1.0.4"
 }
 
 object myfirrtl extends dependencies.firrtl.build.firrtlCrossModule(v.scala) {
@@ -94,6 +97,24 @@ object mytilelink extends dependencies.tilelink.common.TileLinkModule {
   }
 }
 
+object myhardfloat extends dependencies.`hardfloat`.build.hardfloat {
+  override def millSourcePath = os.pwd /  "dependencies" / "hardfloat"
+
+  override def scalaVersion = v.scala
+
+  def chisel3Module: Option[PublishModule] = Some(mychisel3)
+
+  override def ivyDeps = super.ivyDeps() ++ Agg(
+    v.parallel
+  )
+
+  override def scalacOptions = T {
+    Seq(s"-Xplugin:${mychisel3.plugin.jar().path}")
+  }
+  override def scalacPluginClasspath = T { super.scalacPluginClasspath() ++ Agg(
+    mychisel3.plugin.jar()
+  ) }
+}
 object vector extends common.VectorModule with ScalafmtModule {
   m =>
   def millSourcePath = os.pwd / "v"
@@ -113,6 +134,8 @@ object vector extends common.VectorModule with ScalafmtModule {
   def arithmeticModule = Some(myarithmetic)
 
   def tilelinkModule = Some(mytilelink)
+
+  def hardfloatModule = Some(myhardfloat)
 
   def utest: T[Dep] = v.utest
 }
