@@ -87,16 +87,16 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * Not Div insn respond at next cycle
     */
 
-  val divSqrtSelect = RegEnable(divEn     , false.B, requestIO.fire)
-  val fmaSelect     = RegEnable(fmaEn     , false.B, requestIO.fire)
-  val compareSelect = RegEnable(compareEn , false.B, requestIO.fire)
-  val otherSelect   = RegEnable(otherEn   , false.B, requestIO.fire)
+  val unitSelectReg = RegEnable(unitSeleOH, false.B, requestIO.fire)
 
   val divOccupied    = RegInit(false.B)
   val fastWorking = RegInit(false.B)
+  val fastWorkingValid = RegNext(fastWorking, false.B)
 
-  val laneFloatResult = Wire(UInt(32.W))
-  val laneFloatFlags = Wire(UInt(5.W))
+  val laneFloatResultNext = Wire(UInt(32.W))
+  val laneFloatFlagsNext = Wire(UInt(5.W))
+  val laneFloatResultReg = RegNext(laneFloatResultNext)
+  val laneFloatFlagsReg  = RegNext(laneFloatFlagsNext)
 
   fastWorking := requestIO.fire && !divEn
 
@@ -178,6 +178,8 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     Mux(sqrt7Select && sqrt7Phase1, divsqrtFnOut(23,17), divsqrtFnOut))
   sqrt7Phase1Next := sqrt7Phase1Valid || (!divsqrtValid &&  sqrt7Phase1)
   sqrt7Phase1Valid := sqrt7Select  && divSqrt.io.outValid_sqrt
+
+  divOccupied := Mux(divOccupied, !divsqrtValid, requestIO.fire && divEn)
 
   /** compareModule
     *
@@ -275,35 +277,24 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
       Mux(uop === "b0100".U, classifyRecFN(8, 24, recFNFromFN(8, 24, request.src(0))), 0.U)))
 
 
-  /** stateMachine */
-  when(divOccupied === false.B){
-    divOccupied := requestIO.fire && divEn
-  } otherwise  {
-    divOccupied := !divsqrtValid
-  }
-
   /** Output */
   responseIO.ready := !divOccupied
-  responseIO.valid := divsqrtValid || fastWorking
+  responseIO.valid := divsqrtValid || fastWorkingValid
 
-  val seleOut1H = Cat(otherSelect,compareSelect,divSqrtSelect,fmaSelect)
-
-  laneFloatResult := Mux1H(Seq(
-    seleOut1H(0) -> fNFromRecFN(8, 23, mulAddRecFN.io.out),
-    seleOut1H(1) -> divsqrtResult,
-    seleOut1H(2) -> compareResult,
-    seleOut1H(3) -> otherResult
+  laneFloatResultNext := Mux1H(Seq(
+    unitSelectReg(0) -> fNFromRecFN(8, 23, mulAddRecFN.io.out),
+    unitSelectReg(1) -> divsqrtResult,
+    unitSelectReg(2) -> compareResult,
+    unitSelectReg(3) -> otherResult
   ))
 
-  laneFloatFlags := Mux1H(Seq(
-    seleOut1H(0) -> fNFromRecFN(8, 23, mulAddRecFN.io.exceptionFlags),
-    seleOut1H(1) -> divSqrt.io.exceptionFlags,
-    seleOut1H(2) -> compareflags,
-    seleOut1H(3) -> convertFlags
+  laneFloatFlagsNext := Mux1H(Seq(
+    unitSelectReg(0) -> fNFromRecFN(8, 23, mulAddRecFN.io.exceptionFlags),
+    unitSelectReg(1) -> divSqrt.io.exceptionFlags,
+    unitSelectReg(2) -> compareflags,
+    unitSelectReg(3) -> convertFlags
   ))
 
-  
-
-  response.output := laneFloatResult
-  response.exceptionFlags := laneFloatFlags
+  response.output := laneFloatResultReg
+  response.exceptionFlags := laneFloatFlagsReg
 }
