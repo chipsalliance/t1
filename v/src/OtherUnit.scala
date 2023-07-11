@@ -3,7 +3,9 @@ package v
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
-
+object OtherUnitParam {
+  implicit def rw: upickle.default.ReadWriter[OtherUnitParam] = upickle.default.macroRW
+}
 case class OtherUnitParam(
                            datapathWidth: Int,
                            vlMaxBits: Int,

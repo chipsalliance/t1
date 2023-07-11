@@ -3,7 +3,9 @@ package v
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
-
+object LaneAdderParam {
+  implicit def rw: upickle.default.ReadWriter[LaneAdderParam] = upickle.default.macroRW
+}
 case class LaneAdderParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.adder
   val inputBundle = new LaneAdderReq(datapathWidth)

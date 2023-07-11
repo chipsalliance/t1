@@ -26,13 +26,14 @@ object VParameter {
   * TODO: sort a machine-readable chaining matrix for test case generation.
   */
 case class VParameter(
-  xLen:                 Int,
-  vLen:                 Int,
-  datapathWidth:        Int,
-  laneNumber:           Int,
-  physicalAddressWidth: Int,
-  chainingSize:         Int,
-  vrfWriteQueueSize:    Int)
+                       xLen:                 Int,
+                       vLen:                 Int,
+                       datapathWidth:        Int,
+                       laneNumber:           Int,
+                       physicalAddressWidth: Int,
+                       chainingSize:         Int,
+                       vrfWriteQueueSize:    Int,
+                       vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
 
   /** TODO: make it a parameter. */
@@ -135,7 +136,8 @@ case class VParameter(
       datapathWidth = datapathWidth,
       laneNumber = laneNumber,
       chainingSize = chainingSize,
-      crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize
+      crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize,
+      vfuInstantiateParameter = vfuInstantiateParameter
     )
   def lsuParam: LSUParam = LSUParam(
     datapathWidth,

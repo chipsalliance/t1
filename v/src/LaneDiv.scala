@@ -4,7 +4,9 @@ import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import division.srt.{SRT, SRTOutput}
-
+object LaneDivParam {
+  implicit def rw: upickle.default.ReadWriter[LaneDivParam] = upickle.default.macroRW
+}
 case class LaneDivParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.divider
   val inputBundle = new LaneDivRequest(datapathWidth)

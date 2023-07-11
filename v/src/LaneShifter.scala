@@ -3,7 +3,9 @@ package v
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
-
+object LaneShifterParameter {
+  implicit def rw: upickle.default.ReadWriter[LaneShifterParameter] = upickle.default.macroRW
+}
 case class LaneShifterParameter(dataWidth: Int) extends VFUParameter with SerializableModuleParameter {
   val shifterSizeBit: Int = log2Ceil(dataWidth)
   val decodeField: BoolField = Decoder.shift
