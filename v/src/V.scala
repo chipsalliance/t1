@@ -235,9 +235,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // 这是当前正在mask unit 里面的那一条指令的csr信息,用来计算mask unit的控制信号
   val csrRegForMaskUnit: CSRInterface = RegInit(0.U.asTypeOf(new CSRInterface(parameter.laneParam.vlMaxBits)))
   val vSewOHForMask: UInt = UIntToOH(csrRegForMaskUnit.vSew)(2, 0)
-  // 正在从寄存器里面出来的这个指令会使用哪一个执行单元
-  val dequeueExecutionType: ExecutionUnitType = Wire(new ExecutionUnitType)
-  dequeueExecutionType.elements.foreach {case (key, data) => data := decodeResult.elements(key)}
 
   // TODO: no valid here
   // TODO: these should be decoding results
@@ -449,8 +446,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // for load/store instruction, use the last bit to indicate whether it is the last instruction
       // for other instructions, use MSB to indicate whether it is the last instruction
       control.endTag := VecInit(Seq.fill(parameter.laneNumber)(skipLastFromLane) :+ !isLoadStoreType)
-      // record execution unit type
-      control.executionUnitType := dequeueExecutionType
     }
       // state machine starts here
       .otherwise {
@@ -1274,11 +1269,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     /** try to issue instruction to which slot. */
     val slotToEnqueue: UInt = Mux(specialInstruction, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
 
-    // type check
-    val typeReady = VecInit(slots.map( slot =>
-      !(slot.executionUnitType.asUInt & dequeueExecutionType.asUInt).orR || slot.state.idle
-    )).asUInt.andR
-
     /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
     val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
     // - ready to issue instruction
@@ -1289,7 +1279,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     //   we detect the hazard and decide should we issue this slide or
     //   issue the instruction after the slide which already in the slot.
     requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
-      instructionRAWReady && typeReady
+      instructionRAWReady
 
     // TODO: change to `requestRegDequeue.fire`.
     instructionToSlotOH := Mux(requestRegDequeue.ready, slotToEnqueue, 0.U)

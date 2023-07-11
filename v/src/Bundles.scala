@@ -112,8 +112,6 @@ class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
     * TODO: move to `state`.
     */
   val endTag: Vec[Bool] = Vec(laneSize + 1, Bool())
-
-  val executionUnitType: ExecutionUnitType = new ExecutionUnitType
 }
 
 class ExtendInstructionType extends Bundle {
