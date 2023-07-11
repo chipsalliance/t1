@@ -3,7 +3,9 @@ package v
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
-
+object LaneMulParam {
+  implicit def rw: upickle.default.ReadWriter[LaneMulParam] = upickle.default.macroRW
+}
 /** @param dataPathWidth width of data path, can be 32 or 64, decides the memory bandwidth. */
 case class LaneMulParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
   val respWidth:   Int = datapathWidth

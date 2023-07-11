@@ -21,11 +21,12 @@ object LaneParameter {
   *                                         TODO: cover the queue full.
   */
 case class LaneParameter(
-  vLen:                             Int,
-  datapathWidth:                    Int,
-  laneNumber:                       Int,
-  chainingSize:                     Int,
-  crossLaneVRFWriteEscapeQueueSize: Int)
+                          vLen:                             Int,
+                          datapathWidth:                    Int,
+                          laneNumber:                       Int,
+                          chainingSize:                     Int,
+                          crossLaneVRFWriteEscapeQueueSize: Int,
+                          vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
 
   /** 1 in MSB for instruction order. */
@@ -115,35 +116,9 @@ case class LaneParameter(
   /** Parameter for [[VRF]] */
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize)
 
-  /** Parameter for [[LaneShifter]]. */
-  def shifterParameter: LaneShifterParameter = LaneShifterParameter(datapathWidth)
-
-  /** Parameter for [[LaneMul]]. */
-  def mulParam: LaneMulParam = LaneMulParam(datapathWidth)
-
-  /** Parameter for [[MaskedLogic]]. */
-  def logicParam: LogicParam = LogicParam(datapathWidth)
-
-  /** Parameter for [[LaneAdder]]. */
-  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth)
-
-  /** Parameter for [[LaneDiv]]. */
-  def divParam: LaneDivParam = LaneDivParam(datapathWidth)
-
   /** Parameter for [[OtherUnit]]. */
   def otherUnitParam: OtherUnitParam = OtherUnitParam(datapathWidth, vlMaxBits, groupNumberBits, laneNumberBits, dataPathByteWidth)
 
-  val VFUParameter: VFUInstantiateParameter = VFUInstantiateParameter(
-    chainingSize,
-    Seq(
-      (SerializableModuleGenerator(classOf[MaskedLogic], logicParam), Seq.range(0, chainingSize)),
-      (SerializableModuleGenerator(classOf[LaneAdder], adderParam), Seq.range(0, chainingSize)),
-      (SerializableModuleGenerator(classOf[LaneShifter], shifterParameter), Seq.range(0, chainingSize)),
-      (SerializableModuleGenerator(classOf[LaneMul], mulParam), Seq.range(0, chainingSize)),
-      (SerializableModuleGenerator(classOf[LaneDiv], divParam), Seq.range(0, chainingSize)),
-      (SerializableModuleGenerator(classOf[OtherUnit], otherUnitParam), Seq.range(0, chainingSize)),
-    )
-  )
 }
 
 /** Instantiate [[Lane]] from [[V]],
@@ -1669,7 +1644,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
      * */
     val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
 
-    vfu.vfuConnect(parameter.VFUParameter)(
+    vfu.vfuConnect(parameter.vfuInstantiateParameter)(
       requestVec, executeEnqueueValid, decodeResultVec, executeEnqueueFire, responseVec, executeOccupied, VFUNotClear
     )
   }

@@ -30,10 +30,26 @@ abstract class VFUModule(p: VFUParameter) extends Module {
   }
 }
 
+object VFUInstantiateParameter {
+  implicit def rw: upickle.default.ReadWriter[VFUInstantiateParameter] = upickle.default.macroRW
+}
+
 case class VFUInstantiateParameter(
                                     slotCount: Int,
-                                    genVec: Seq[(SerializableModuleGenerator[_ <: VFUModule, _ <: VFUParameter], Seq[Int])]
+                                    logicModuleParameters: Seq[(SerializableModuleGenerator[MaskedLogic, LogicParam], Seq[Int])],
+                                    aluModuleParameters: Seq[(SerializableModuleGenerator[LaneAdder, LaneAdderParam], Seq[Int])],
+                                    shifterModuleParameters: Seq[(SerializableModuleGenerator[LaneShifter, LaneShifterParameter], Seq[Int])],
+                                    mulModuleParameters: Seq[(SerializableModuleGenerator[LaneMul, LaneMulParam], Seq[Int])],
+                                    divModuleParameters: Seq[(SerializableModuleGenerator[LaneDiv, LaneDivParam], Seq[Int])],
+                                    otherModuleParameters: Seq[(SerializableModuleGenerator[OtherUnit, OtherUnitParam], Seq[Int])]
                                   ) {
+  val genVec: Seq[(SerializableModuleGenerator[_ <: VFUModule, _ <: VFUParameter], Seq[Int])] =
+    logicModuleParameters ++
+      aluModuleParameters ++
+      shifterModuleParameters ++
+      mulModuleParameters ++
+      divModuleParameters ++
+      otherModuleParameters
   genVec.foreach {
     case (_, connect) =>
       connect.foreach(connectIndex => require(connectIndex < slotCount))
