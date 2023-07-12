@@ -63,11 +63,13 @@ class LaneFloatRequest(datapathWidth: Int) extends Bundle{
   val opcode = UInt(4.W)
   val unitSelet = UInt(2.W)
   val roundingMode = UInt(3.W)
+  val executeIndex: UInt = UInt(2.W)
 }
 
 class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
   val data = UInt(datapathWidth.W)
   val exceptionFlags = UInt(5.W)
+  val executeIndex: UInt = UInt(2.W)
 }
 
 class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with SerializableModule[LaneFloatParam]{
@@ -79,9 +81,9 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val recIn2 = recFNFromFN(8, 24, request.src(2))
 
   val uop = RegEnable(request.opcode, 0.U, requestIO.fire)
+  val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestIO.fire)
 
   val unitSeleOH = UIntToOH(request.unitSelet)
-
   val fmaEn     = unitSeleOH(0)
   val divEn     = unitSeleOH(1)
   val compareEn = unitSeleOH(2)
@@ -103,6 +105,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val laneFloatFlagsReg  = RegNext(laneFloatFlagsNext)
 
   fastWorking := requestIO.fire && !divEn
+  response.executeIndex := indexReg
 
   /** fmaEn
     *
