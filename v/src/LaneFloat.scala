@@ -13,6 +13,7 @@ case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with Serializ
   val decodeField: BoolField = Decoder.float
   val inputBundle = new LaneFloatRequest(datapathWidth)
   val outputBundle = new LaneFloatResponse(datapathWidth)
+  override val singleCycle = false
 }
 
 /** UOP encoding
