@@ -287,14 +287,14 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   responseIO.valid := divsqrtValid || fastWorkingValid
 
   laneFloatResultNext := Mux1H(Seq(
-    unitSelectReg(0) -> fNFromRecFN(8, 23, mulAddRecFN.io.out),
+    unitSelectReg(0) -> fNFromRecFN(8, 24, mulAddRecFN.io.out),
     unitSelectReg(1) -> divsqrtResult,
     unitSelectReg(2) -> compareResult,
     unitSelectReg(3) -> otherResult
   ))
 
   laneFloatFlagsNext := Mux1H(Seq(
-    unitSelectReg(0) -> fNFromRecFN(8, 23, mulAddRecFN.io.exceptionFlags),
+    unitSelectReg(0) -> mulAddRecFN.io.exceptionFlags,
     unitSelectReg(1) -> divSqrt.io.exceptionFlags,
     unitSelectReg(2) -> compareflags,
     unitSelectReg(3) -> convertFlags
