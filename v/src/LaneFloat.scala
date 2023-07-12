@@ -5,8 +5,12 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import hardfloat._
 
+object LaneFloatParam {
+  implicit def rw: upickle.default.ReadWriter[LaneFloatParam] = upickle.default.macroRW
+}
+
 case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
-  val decodeField: BoolField = Decoder.divider //todo switch to float
+  val decodeField: BoolField = Decoder.float
   val inputBundle = new LaneFloatRequest(datapathWidth)
   val outputBundle = new LaneFloatResponse(datapathWidth)
 }
@@ -54,15 +58,15 @@ case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with Serializ
   *
   */
 class LaneFloatRequest(datapathWidth: Int) extends Bundle{
-  val unsigned = Bool()
+  val sign = Bool()
   val src   = Vec(3, UInt(datapathWidth.W))
-  val uop = UInt(4.W)
-  val UnitSelet = UInt(2.W)
+  val opcode = UInt(4.W)
+  val unitSelet = UInt(2.W)
   val roundingMode = UInt(3.W)
 }
 
 class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
-  val output = UInt(datapathWidth.W)
+  val data = UInt(datapathWidth.W)
   val exceptionFlags = UInt(5.W)
 }
 
@@ -74,9 +78,9 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val recIn1 = recFNFromFN(8, 24, request.src(1))
   val recIn2 = recFNFromFN(8, 24, request.src(2))
 
-  val uop = RegEnable(request.uop, 0.U, requestIO.fire)
+  val uop = RegEnable(request.opcode, 0.U, requestIO.fire)
 
-  val unitSeleOH = UIntToOH(request.UnitSelet)
+  val unitSeleOH = UIntToOH(request.unitSelet)
 
   val fmaEn     = unitSeleOH(0)
   val divEn     = unitSeleOH(1)
@@ -87,7 +91,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * Not Div insn respond at next cycle
     */
 
-  val unitSelectReg = RegEnable(unitSeleOH, false.B, requestIO.fire)
+  val unitSelectReg = RegEnable(unitSeleOH, 0.U, requestIO.fire)
 
   val divOccupied    = RegInit(false.B)
   val fastWorking = RegInit(false.B)
@@ -111,7 +115,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
 
   /** MAF control */
   val rsub   = fmaEn && uop(3,2) === 3.U
-  val addsub = fmaEn && request.uop(3)
+  val addsub = fmaEn && request.opcode(3)
   val maf    = fmaEn && (uop(3,2) === 0.U)
   val rmaf   = fmaEn && (uop(3,2) === 1.U)
 
@@ -122,7 +126,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
       recIn1) )
 
   val mulAddRecFN = Module(new MulAddRecFN(8, 24))
-  mulAddRecFN.io.op := request.uop(1,0)
+  mulAddRecFN.io.op := request.opcode(1,0)
   mulAddRecFN.io.a := fmaIn0
   mulAddRecFN.io.b := fmaIn1
   mulAddRecFN.io.c := fmaIn2
@@ -155,6 +159,8 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val sqrt7Phase1Next = Wire(Bool())
   val sqrt7Phase1 = RegNext(sqrt7Phase1Next, false.B)
   val sqrt7Phase1Valid = RegInit(false.B)
+  val divSqrt = Module(new DivSqrtRecFN_small(8, 24,0))
+  val divsqrtFnOut = fNFromRecFN(8, 24, divSqrt.io.out)
 
   val divIn0 = Mux(div, recIn0,
     Mux(rdiv, recIn1,
@@ -163,7 +169,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     Mux(sqrt7Phase1, divsqrtFnOut, recIn0))
 
   val divsqrtResult = Wire(UInt(32.W))
-  val divSqrt = Module(new DivSqrtRecFN_small(8, 24,0))
+
 
   divSqrt.io.a := divIn0
   divSqrt.io.b := divIn1
@@ -172,7 +178,6 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   divSqrt.io.sqrtOp := uop === "b1000".U
   divSqrt.io.inValid := (requestIO.fire && divEn) || sqrt7Phase1Valid
 
-  val divsqrtFnOut = fNFromRecFN(8, 24, divSqrt.io.out)
   val divsqrtValid = Mux(sqrt7Select, divSqrt.io.outValid_sqrt && sqrt7Phase1, divSqrt.io.outValid_div || divSqrt.io.outValid_sqrt)
   divsqrtResult := Mux(rec7Select, divsqrtFnOut(23,17),
     Mux(sqrt7Select && sqrt7Phase1, divsqrtFnOut(23,17), divsqrtFnOut))
@@ -239,7 +244,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * */
   val intToFn = Module(new INToRecFN(32, 8, 24))
   intToFn.io.in := request.src(0)
-  intToFn.io.signedIn := request.unsigned
+  intToFn.io.signedIn := !request.sign
   intToFn.io.roundingMode := request.roundingMode
   intToFn.io.detectTininess := false.B
 
@@ -278,7 +283,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
 
 
   /** Output */
-  responseIO.ready := !divOccupied
+  requestIO.ready := !divOccupied
   responseIO.valid := divsqrtValid || fastWorkingValid
 
   laneFloatResultNext := Mux1H(Seq(
@@ -295,6 +300,6 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     unitSelectReg(3) -> convertFlags
   ))
 
-  response.output := laneFloatResultReg
+  response.data := laneFloatResultReg
   response.exceptionFlags := laneFloatFlagsReg
 }

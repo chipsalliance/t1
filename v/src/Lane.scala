@@ -1139,6 +1139,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         requestToVFU.laneIndex := laneIndex
         requestToVFU.complete := record.ffoByOtherLanes || record.selfCompleted
         requestToVFU.maskType := record.laneRequest.mask
+        requestToVFU.unitSelet := decodeResult(Decoder.float)
+        // from float csr
+        requestToVFU.roundingMode := record.csr.vxrm
 
         requestVec(index) := requestToVFU
 
