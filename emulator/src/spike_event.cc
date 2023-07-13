@@ -12,9 +12,17 @@ std::string SpikeEvent::describe_insn() const {
   return fmt::format("pc={:08X}, bits={:08X}, disasm='{}'", pc, inst_bits, disasm);
 }
 
+uint32_t extract_f32(freg_t f) {
+  return (uint32_t) f.v[0];
+}
+
 void SpikeEvent::pre_log_arch_changes() {
   // TODO: support vl/vstart
-  rd_bits = proc.get_state()->XPR[rd_idx];
+  if (is_rd_fp) {
+    rd_bits = extract_f32(proc.get_state()->FPR[rd_idx]);
+  } else {
+    rd_bits = proc.get_state()->XPR[rd_idx];
+  }
   uint8_t *vreg_bytes_start = &proc.VU.elt<uint8_t>(0, 0);
   auto [start, len] = get_vrf_write_range();
   vd_write_record.vd_bytes = std::make_unique<uint8_t[]>(len);
@@ -53,6 +61,13 @@ void SpikeEvent::log_arch_changes() {
         is_rd_written = true;
         LOG(INFO) << fmt::format("spike detect scalar rf change: x[{}] from {} to {}", rd_idx, rd_bits, new_rd_bits);
       }
+    } else if ((write_idx & 0xf) == 0b0001) {
+      uint32_t new_fd_bits = extract_f32(proc.get_state()->FPR[rd_idx]);
+      if (new_fd_bits == rd_bits) {
+        rd_bits = new_fd_bits;
+        is_rd_written = true;
+        LOG(INFO) << fmt::format("spike detect float rf change: x[{}] from {} to {}", rd_idx, rd_bits, new_fd_bits);
+      }
     } else {
       VLOG(1) << fmt::format("spike detect unknown reg change (idx = {:08X})", write_idx);
     }
@@ -82,8 +97,27 @@ void SpikeEvent::log_arch_changes() {
 
 SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl): proc(proc), impl(impl) {
   auto &xr = proc.get_state()->XPR;
-  rs1_bits = xr[fetch.insn.rs1()];
-  rs2_bits = xr[fetch.insn.rs2()];
+  auto &fr = proc.get_state()->FPR;
+  inst_bits = fetch.insn.bits();
+  uint32_t opcode = clip(inst_bits, 0, 6);
+  uint32_t width = clip(inst_bits, 12, 14);  // also funct3
+  uint32_t funct6 = clip(inst_bits, 26, 31);
+  uint32_t mop = clip(inst_bits, 26, 27);
+  uint32_t lumop = clip(inst_bits, 20, 24);
+  uint32_t vm = clip(inst_bits, 25, 25);
+
+  bool is_fp_operands = opcode == 0b1010111 && (width == 0b101 /* OPFVF */);
+  if (is_fp_operands) {
+    rs1_bits = extract_f32(fr[fetch.insn.rs1()]);
+    rs2_bits = extract_f32(fr[fetch.insn.rs2()]);
+  } else {
+    rs1_bits = xr[fetch.insn.rs1()];
+    rs2_bits = xr[fetch.insn.rs2()];
+  }
+
+  // only vfmv.f.s will write fp reg
+  is_rd_fp = (opcode == 0b1010111) && (fetch.insn.rs1() == 0) && (funct6 == 0b010000) && (vm == 1) && (width == 0b001);
+
   rd_idx = fetch.insn.rd();
 
   is_rd_written = false;
@@ -105,12 +139,6 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
   disasm = proc.get_disassembler()->disassemble(fetch.insn);
 
   pc = proc.get_state()->pc;
-  inst_bits = fetch.insn.bits();
-  uint32_t opcode = clip(inst_bits, 0, 6);
-  uint32_t width = clip(inst_bits, 12, 14);
-  uint32_t funct6 = clip(inst_bits, 26, 31);
-  uint32_t mop = clip(inst_bits, 26, 27);
-  uint32_t lumop = clip(inst_bits, 20, 24);
   is_load = opcode == 0b0000111;
   is_store = opcode == 0b0100111;
   is_whole = mop == 0 && lumop == 8;

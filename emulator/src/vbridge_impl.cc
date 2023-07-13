@@ -34,7 +34,7 @@ void VBridgeImpl::dpiInitCosim() {
   LOG(INFO) << fmt::format("[{}] dpiInitCosim", getCycle());
   proc.reset();
   // TODO: remove this line, and use CSR write in the test code to enable this the VS field.
-  proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS);
+  proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS | SSTATUS_FS);
   auto load_result = sim.load_elf(bin);
   LOG(INFO) << fmt::format("Simulation Environment Initialized: bin={}, wave={}, timeout={}, entry={:08X}",
                            bin, wave, timeout, load_result.entry_addr);
@@ -494,9 +494,9 @@ void VBridgeImpl::record_rf_accesses(const VrfWritePeek &rf_write) {
     if (se_vrf_write == nullptr) {
       LOG(WARNING) << fmt::format("[{}] rtl detect vrf write which cannot find se, maybe from committed load insn (idx={})", get_t(), idx);
     } else if (!se_vrf_write->is_load) {
-      add_rtl_write(se_vrf_write, lane_idx, vd, offset, mask, data, idx);
       LOG(INFO) << fmt::format("[{}] rtl detect vrf write (lane={}, vd={}, offset={}, mask={:04b}, data={:08X}, insn idx={})",
                                get_t(), lane_idx, vd, offset, mask, data, idx);
+      add_rtl_write(se_vrf_write, lane_idx, vd, offset, mask, data, idx);
     }
   }  // end if(valid)
 }
