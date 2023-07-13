@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include "exceptions.h"
 #include "glog_exception_safe.h"
@@ -70,3 +72,18 @@ inline char *get_env_arg_default(const char *name, char *default_val) {
   char *val = std::getenv(name);
   return val == nullptr ? default_val : val;
 }
+
+inline bool operator==(const freg_t &a, const freg_t &b) {
+  return a.v[0] == b.v[0] && a.v[1] == b.v[1];
+}
+
+template <> struct fmt::formatter<freg_t> {
+  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+    return ctx.end();
+  }
+
+  template <typename FormatContext>
+  auto format(const freg_t& f, FormatContext& ctx) const -> decltype(ctx.out()) {
+    return fmt::format_to(ctx.out(), "({:016X}, {:016X})", f.v[0], f.v[1]);
+  }
+};

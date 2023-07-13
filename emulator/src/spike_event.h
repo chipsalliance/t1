@@ -95,6 +95,7 @@ struct SpikeEvent {
 
   bool is_rd_written;
   uint32_t rd_bits;
+  bool is_rd_fp;  // whether rd is a fp register
 
   // returns {a, b} if the instruction may write vrf of index in range [a, a + b)
   [[nodiscard]] std::pair<uint32_t, uint32_t> get_vrf_write_range() const;
