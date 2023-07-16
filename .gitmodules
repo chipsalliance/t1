@@ -20,3 +20,6 @@
 	path = dependencies/riscv-vector-tests
 	url = git@github.com:ksco/riscv-vector-tests.git
 	branch = main
+[submodule "dependencies/hardfloat"]
+	path = dependencies/hardfloat
+	url = https://github.com/ucb-bar/berkeley-hardfloat.git
