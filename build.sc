@@ -94,6 +94,15 @@ object mytilelink extends dependencies.tilelink.common.TileLinkModule {
   }
 }
 
+object myhardfloat extends common.HardfloatModule {
+  override def millSourcePath = os.pwd /  "dependencies" / "hardfloat"
+
+  override def scalaVersion = v.scala
+
+  def chisel3Module: Option[PublishModule] = Some(mychisel3)
+
+  def chisel3PluginJar = T(Some(mychisel3.plugin.jar()))
+}
 object vector extends common.VectorModule with ScalafmtModule {
   m =>
   def millSourcePath = os.pwd / "v"
@@ -113,6 +122,8 @@ object vector extends common.VectorModule with ScalafmtModule {
   def arithmeticModule = Some(myarithmetic)
 
   def tilelinkModule = Some(mytilelink)
+
+  def hardfloatModule = Some(myhardfloat)
 
   def utest: T[Dep] = v.utest
 }
