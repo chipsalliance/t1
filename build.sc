@@ -12,6 +12,7 @@ import $file.dependencies.chiseltest.build
 import $file.dependencies.arithmetic.common
 import $file.dependencies.tilelink.common
 import $file.common
+import $file.tests
 
 object v {
   val scala = "2.13.6"
@@ -314,226 +315,30 @@ class emulator(config: String) extends Module {
   }
 }
 
-object tests extends Module {
+class RunVerilatorEmulator(elaboratorConfig: String, testConfig: String, config: String) extends Module with TaskModule {
+  override def defaultCommandName() = "run"
 
-  object cases extends Module {
-    c =>
-    trait Case extends Module {
-      def name: String = millOuterCtx.segment.pathSegments.last
+  def configDir: T[os.Path] = T(os.pwd / "run" )
+  def configFile: T[os.Path] = T(configDir() / s"$config.json")
+  def runConfig: T[ujson.Value.Value] = T(ujson.read(os.read(configFile())))
 
-      def sources = T.sources {
-        millSourcePath
-      }
-
-      def allSourceFiles = T {
-        Lib.findSourceFiles(sources(), Seq("S", "s", "c", "cpp")).map(PathRef(_))
-      }
-
-      def includeDir = T {
-        Seq[PathRef]()
-      }
-
-      def linkOpts = T {
-        Seq("-mno-relax", "-fno-PIC")
-      }
-
-      def elf: T[PathRef] = T {
-        os.proc(Seq("clang-rv32", "-o", name + ".elf", "-mabi=ilp32f", "-march=rv32gcv") ++ linkOpts() ++ includeDir().map(p => s"-I${p.path}") ++ allSourceFiles().map(_.path.toString)).call(T.ctx.dest)
-        PathRef(T.ctx.dest / (name + ".elf"))
-      }
-    }
-
-    object `riscv-vector-tests` extends Module {
-      u =>
-      override def millSourcePath = os.pwd / "dependencies" / "riscv-vector-tests"
-      def allTests = os.walk(millSourcePath / "configs").filter(_.ext == "toml").filter{ p =>
-        os.read(p).contains("Zve32x")
-      }.map(_.last.replace(".toml", ""))
-
-      def allGoSources = T.sources {
-        os.walk(millSourcePath).filter(f => f.ext == "go" || f.last == "go.mod").map(PathRef(_))
-      }
-
-      def asmGenerator = T {
-        // depends on GO
-        allGoSources()
-        val elf = T.dest / "generator"
-        os.proc("go", "build", "-o", elf, "single/single.go").call(cwd = millSourcePath)
-        PathRef(elf)
-      }
-
-      object ut extends mill.Cross[ut](allTests: _*)
-
-      class ut(caseName: String) extends c.Case {
-        override def name = caseName
-
-        override def includeDir = T {
-          Seq(
-            u.millSourcePath / "env" / "sequencer-vector",
-            u.millSourcePath / "macros" / "sequencer-vector"
-          ).map(PathRef(_))
-        }
-
-        override def linkOpts = T {
-          Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-fno-PIC")
-        }
-
-        override def allSourceFiles: T[Seq[PathRef]] = T {
-          val f = T.dest / s"${name.replace('_', '.')}.S"
-          os.proc(
-            asmGenerator().path,
-            "-VLEN", 1024,
-            "-XLEN", 32,
-            "-outputfile", f,
-            "-configfile", u.millSourcePath / "configs" / s"${name.replace('_', '.')}.toml"
-          ).call(T.dest)
-          Seq(PathRef(f))
-        }
-      }
-    }
-
-    class BuddyMLIRCase(mlirSourceName: String) extends Case {
-      def mlirFile = T.source(PathRef(millSourcePath / mlirSourceName))
-
-      override def millSourcePath = super.millSourcePath / os.up
-
-      override def linkOpts = T {
-        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start", "-fno-PIC")
-      }
-
-      // Parse the header comment of the given file to get the command line arguments to pass to the buddy-opt.
-      // These arguments must be wrapped in a block, starting with "BUDDY-OPT" and ending with "BUDDY-OPT-END".
-      def parseBuddyOptArg(testFile: os.Path) = os.read
-            .lines(testFile)
-            .dropWhile(bound => bound.startsWith("//") && bound.contains("BUDDY-OPT"))
-            .takeWhile(bound => bound.startsWith("//") && !bound.contains("BUDDY-OPT-END"))
-            .map(lines => lines.stripPrefix("//").trim().split(" "))
-            .flatten
-
-      override def allSourceFiles: T[Seq[PathRef]] = T {
-        val buddy = T.dest / s"${mlirSourceName}.buddy"
-        val llvmir = T.dest / s"${mlirSourceName}.llvmir"
-        val asm = T.dest / s"${mlirSourceName}.S"
-        val buddyOptArg = parseBuddyOptArg(mlirFile().path)
-
-        T.log.info(s"run buddy-opt with arg ${buddyOptArg}")
-        os.proc(
-          "buddy-opt",
-          mlirFile().path,
-          buddyOptArg
-        ).call(T.dest, stdout = buddy)
-        os.proc(
-          "buddy-translate", "--buddy-to-llvmir"
-        ).call(T.dest, stdin = buddy, stdout = llvmir)
-        os.proc(
-          "buddy-llc",
-          "-mtriple", "riscv32",
-          "-target-abi", "ilp32",
-          "-mattr=+m,+d,+v",
-          "-riscv-v-vector-bits-min=128",
-          "--filetype=asm",
-          "-o", asm
-        ).call(T.dest, stdin = llvmir)
-        super.allSourceFiles() ++ Seq(PathRef(asm))
-      }
-    }
-
-    def mlirTests = os.walk(millSourcePath / "buddy").filter(_.ext == "mlir").map(_.last.toString)
-
-    object buddy extends Cross[BuddyMLIRCase](mlirTests: _*) {
-      def allTests = mlirTests
-    }
-
-    class AsmCase(asmSourceName: String) extends Case {
-      def asmFile = T.source(PathRef(millSourcePath / asmSourceName))
-
-      override def millSourcePath = super.millSourcePath / os.up
-
-      override def linkOpts = T {
-        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start", "-fno-PIC")
-      }
-
-      override def allSourceFiles: T[Seq[PathRef]] = T {
-        super.allSourceFiles() ++ Seq(PathRef(asmFile().path))
-      }
-    }
-
-    def asmTests = os.walk(millSourcePath / "asm").filter(_.ext == "asm").map(_.last.toString)
-
-    object asm extends Cross[AsmCase](asmTests: _*) {
-      def allTests = asmTests
-    }
-
-    class IntrinsicCase(intrinsicSourceName: String) extends Case {
-      def intrinsicFile = T.source(PathRef(millSourcePath / intrinsicSourceName))
-      def mainAsmFile = T.source(PathRef(millSourcePath / "main.S"))
-
-      override def millSourcePath = super.millSourcePath / os.up
-
-      override def linkOpts = T {
-        Seq("-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start", "-fno-PIC")
-      }
-
-      override def allSourceFiles: T[Seq[PathRef]] = T {
-        Seq(PathRef(intrinsicFile().path), PathRef(mainAsmFile().path))
-      }
-    }
-
-    def intrinsicTests = os.walk(millSourcePath / "intrinsic").filter(_.ext == "c").map(_.last.toString)
-
-    object intrinsic extends Cross[IntrinsicCase](intrinsicTests: _*) {
-      def allTests = intrinsicTests
-    }
-  }
-
-  object run extends mill.Cross[run]((cases.`riscv-vector-tests`.allTests ++ cases.buddy.allTests ++ cases.asm.allTests ++ cases.intrinsic.allTests): _*)
-
-  class run(name: String) extends Module with TaskModule {
-    override def defaultCommandName() = "run"
-
-    val mlirTestPattern = raw"(.+\.mlir)$$".r
-    val asmTestPattern = raw"(.+\.asm)$$".r
-    val intrinsicTestPattern = raw"(.+\.c)$$".r
-    def caseToRun = name match {
-      case mlirTestPattern(testName) => cases.buddy(testName)
-      case asmTestPattern(testName) => cases.asm(testName)
-      case intrinsicTestPattern(testName) => cases.intrinsic(testName)
-      case _ => cases.`riscv-vector-tests`.ut(name)
-    }
-
-    def ciRun  = T {
-      val runEnv = Map(
-        "COSIM_bin" -> caseToRun.elf().path.toString,
-        "COSIM_wave" -> (T.dest / "wave").toString,
-        "COSIM_reset_vector" -> "1000",
-        "COSIM_timeout" -> "1000000",
-        "COSIM_config" -> emulator("v1024l8b2-test").configFile().toString,
-        "GLOG_logtostderr" -> "0",
-        "PERF_output_file" -> (T.dest / "perf.txt").toString,
-      )
-      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${emulator("v1024l8b2-test").elf().path.toString}")
-      os.proc(Seq(emulator("v1024l8b2-test").elf().path.toString)).call(env = runEnv, check = false).exitCode
-    }
-
-    def run(args: String*) = T.command {
-      def envDefault(name: String, default: String) = {
-        name -> args.map(_.split("=")).collectFirst {
-          case arg if arg.head == name => arg.last
-        }.getOrElse(default)
-      }
-
-      val runEnv = Map(
-        "COSIM_bin" -> caseToRun.elf().path.toString,
-        "COSIM_wave" -> (T.dest / "wave").toString,
-        "COSIM_reset_vector" -> "1000",
-        "COSIM_config" -> emulator("v1024l8b2-test-trace").configFile().toString,
-        envDefault("COSIM_timeout", "1000000"),
-        envDefault("GLOG_logtostderr", "1"),
-        "PERF_output_file" -> (T.dest / "perf.txt").toString,
-      )
-      T.log.info(s"run test: ${caseToRun.name} with:\n ${runEnv.map { case (k, v) => s"$k=$v" }.mkString(" ")} ${emulator("v1024l8b2-test-trace").elf().path.toString}")
-      os.proc(Seq(emulator("v1024l8b2-test-trace").elf().path.toString)).call(env = runEnv)
-      PathRef(T.dest)
-    }
+  def run = T {
+    def bin: String = tests.router(testConfig).elf().path.toString
+    def wave: String = runConfig().obj("wave").strOpt.getOrElse((T.dest / "wave").toString)
+    def resetVector = runConfig().obj("reset_vector").num.toInt
+    def timeout = runConfig().obj("timeout").num.toInt
+    def logtostderr = if(runConfig().obj("logtostderr").bool) "1" else "0"
+    def perfFile = runConfig().obj("perf_file").strOpt.getOrElse((T.dest / "perf.txt").toString)
+    def runEnv = Map(
+      "COSIM_bin" -> bin,
+      "COSIM_wave" -> wave,
+      "COSIM_reset_vector" -> resetVector.toString,
+      "COSIM_timeout" -> timeout.toString,
+      // TODO: really need elaboratorConfig?
+      "COSIM_config" -> emulator(elaboratorConfig).configFile().toString,
+      "GLOG_logtostderr" -> logtostderr,
+      "PERF_output_file" -> perfFile,
+    )
+    os.proc(Seq(emulator(elaboratorConfig).elf().path.toString)).call(env = runEnv, check = false).exitCode
   }
 }
