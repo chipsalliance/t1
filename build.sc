@@ -1,6 +1,6 @@
 import mill._
 import mill.scalalib._
-import mill.define.{TaskModule, Command}
+import mill.define.{Command, TaskModule}
 import mill.scalalib.publish._
 import mill.scalalib.scalafmt._
 import mill.scalalib.TestModule.Utest
@@ -12,7 +12,7 @@ import $file.dependencies.chiseltest.build
 import $file.dependencies.arithmetic.common
 import $file.dependencies.tilelink.common
 import $file.common
-import $file.tests
+import $file.tests.build
 
 object v {
   val scala = "2.13.6"
@@ -96,7 +96,7 @@ object mytilelink extends dependencies.tilelink.common.TileLinkModule {
 }
 
 object myhardfloat extends common.HardfloatModule {
-  override def millSourcePath = os.pwd /  "dependencies" / "hardfloat"
+  override def millSourcePath = os.pwd / "dependencies" / "hardfloat"
 
   override def scalaVersion = v.scala
 
@@ -129,7 +129,8 @@ object vector extends common.VectorModule with ScalafmtModule {
   def utest: T[Dep] = v.utest
 }
 
-object elaborator extends mill.Cross[Elaborator](os.walk(os.pwd / "configs").filter(_.ext == "json").map(_.baseName) :_*)
+object elaborator
+    extends mill.Cross[Elaborator](os.walk(os.pwd / "configs").filter(_.ext == "json").map(_.baseName): _*)
 // Module to generate RTL from json config
 // TODO: remove testbench
 class Elaborator(config: String) extends Module {
@@ -142,7 +143,11 @@ class Elaborator(config: String) extends Module {
   object elaborate extends ScalaModule with ScalafmtModule {
     override def millSourcePath: os.Path = os.pwd / "elaborator"
     override def scalacPluginClasspath = T(Agg(mychisel3.plugin.jar()))
-    override def scalacOptions = T(super.scalacOptions() ++ Some(mychisel3.plugin.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq("-Ymacro-annotations"))
+    override def scalacOptions = T(
+      super.scalacOptions() ++ Some(mychisel3.plugin.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq(
+        "-Ymacro-annotations"
+      )
+    )
     override def scalaVersion = v.scala
     override def moduleDeps = Seq(vector)
     override def ivyDeps = T(Seq(v.mainargs))
@@ -154,50 +159,79 @@ class Elaborator(config: String) extends Module {
         finalMainClass(),
         runClasspath().map(_.path),
         Seq(
-          "--dir", T.dest.toString,
-          "--config", os.temp(designConfig()).toString,
-          "--tb", isTestbench().toString
+          "--dir",
+          T.dest.toString,
+          "--config",
+          os.temp(designConfig()).toString,
+          "--tb",
+          isTestbench().toString
         )
       )
       PathRef(T.dest)
     }
-    def chiselAnno = T(os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("anno.json") => p }.map(PathRef(_)).get)
-    def chirrtl = T(os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("fir") => p }.map(PathRef(_)).get)
+    def chiselAnno = T(
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("anno.json") => p }.map(PathRef(_)).get
+    )
+    def chirrtl = T(
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("fir") => p }.map(PathRef(_)).get
+    )
     def topName = T(chirrtl().path.last.split('.').head)
   }
   object mfccompile extends Module {
     def compile = T {
-      os.proc(Seq("firtool", elaborate.chirrtl().path.toString, s"--annotation-file=${elaborate.chiselAnno().path}", s"-o=${T.dest}") ++ mfcArgs()).call(T.dest)
+      os.proc(
+        Seq(
+          "firtool",
+          elaborate.chirrtl().path.toString,
+          s"--annotation-file=${elaborate.chiselAnno().path}",
+          s"-o=${T.dest}"
+        ) ++ mfcArgs()
+      ).call(T.dest)
       PathRef(T.dest)
     }
     def rtls = T {
-      os.read(compile().path / "filelist.f").split("\n").map(str =>
-        try {
-          os.Path(str)
-        } catch {
-          case e: IllegalArgumentException if e.getMessage.contains("is not an absolute path") =>
-            compile().path / str.stripPrefix("./")
-        }
-      ).filter(p => p.ext == "v" || p.ext == "sv").map(PathRef(_)).toSeq
+      os.read(compile().path / "filelist.f")
+        .split("\n")
+        .map(str =>
+          try {
+            os.Path(str)
+          } catch {
+            case e: IllegalArgumentException if e.getMessage.contains("is not an absolute path") =>
+              compile().path / str.stripPrefix("./")
+          }
+        )
+        .filter(p => p.ext == "v" || p.ext == "sv")
+        .map(PathRef(_))
+        .toSeq
     }
     def memoryConfig = T(PathRef(compile().path / "metadata" / "seq_mems.json"))
   }
 }
 
-object release extends mill.Cross[Release](os.walk(os.pwd / "configs").filter(_.ext == "json").filter(_.baseName.contains("release")).map(_.baseName) :_*)
+object release
+    extends mill.Cross[Release](
+      os.walk(os.pwd / "configs").filter(_.ext == "json").filter(_.baseName.contains("release")).map(_.baseName): _*
+    )
 class Release(config: String) extends Module {
   def release = T {
-    val target = T.dest / s"vector-${os.proc("git", "rev-parse", "--short=7", "HEAD").call().out.text().stripLineEnd}.tar.xz"
-    os.proc(Seq("tar", "-czf", target.toString, "-C", elaborator(config).mfccompile.compile().path.toString) ++ (elaborator(config).mfccompile.rtls() :+ elaborator(config).mfccompile.memoryConfig()).map(_.path.relativeTo(elaborator(config).mfccompile.compile().path).toString)).call(T.dest)
+    val target =
+      T.dest / s"vector-${os.proc("git", "rev-parse", "--short=7", "HEAD").call().out.text().stripLineEnd}.tar.xz"
+    os.proc(
+      Seq("tar", "-czf", target.toString, "-C", elaborator(config).mfccompile.compile().path.toString) ++ (elaborator(
+        config
+      ).mfccompile.rtls() :+ elaborator(config).mfccompile.memoryConfig())
+        .map(_.path.relativeTo(elaborator(config).mfccompile.compile().path).toString)
+    ).call(T.dest)
     T.log.info(s"Release tarball created at $target")
     PathRef(target)
   }
 }
 
-object emulator extends mill.Cross[emulator](
-  "v1024l8b2-test",
-  "v1024l8b2-test-trace"
-)
+object emulator
+    extends mill.Cross[emulator](
+      "v1024l8b2-test",
+      "v1024l8b2-test-trace"
+    )
 
 class emulator(config: String) extends Module {
   def configDir = T(os.pwd / "configs")
@@ -220,7 +254,7 @@ class emulator(config: String) extends Module {
       "vbridge_impl.cc",
       "dpi.cc",
       "elf.cc",
-      "rtl_config.cc",
+      "rtl_config.cc"
     ).map(f => PathRef(csrcDir().path / f))
   }
 
@@ -297,11 +331,11 @@ class emulator(config: String) extends Module {
   }
 
   def cmake = T {
-    mill.modules.Jvm.runSubprocess(Seq("cmake",
-      "-G", "Ninja",
-      "-S", cmakefileLists().path,
-      "-B", buildDir().path
-    ).map(_.toString), Map[String, String](), T.dest)
+    mill.modules.Jvm.runSubprocess(
+      Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", buildDir().path).map(_.toString),
+      Map[String, String](),
+      T.dest
+    )
   }
 
   def elf = T {
@@ -310,7 +344,11 @@ class emulator(config: String) extends Module {
     allCSourceFiles()
     allCHeaderFiles()
     cmake()
-    mill.modules.Jvm.runSubprocess(Seq("ninja", "-C", buildDir().path).map(_.toString), Map[String, String](), buildDir().path)
+    mill.modules.Jvm.runSubprocess(
+      Seq("ninja", "-C", buildDir().path).map(_.toString),
+      Map[String, String](),
+      buildDir().path
+    )
     PathRef(buildDir().path / "emulator")
   }
 }
@@ -318,26 +356,38 @@ class emulator(config: String) extends Module {
 class RunVerilatorEmulator(elaboratorConfig: String, testConfig: String, config: String) extends Module with TaskModule {
   override def defaultCommandName() = "run"
 
-  def configDir: T[os.Path] = T(os.pwd / "run" )
+  def configDir:  T[os.Path] = T(os.pwd / "run")
   def configFile: T[os.Path] = T(configDir() / s"$config.json")
-  def runConfig: T[ujson.Value.Value] = T(ujson.read(os.read(configFile())))
+  def runConfig:  T[ujson.Value.Value] = T(ujson.read(os.read(configFile())))
+
+  // mill doesn't support dynamic routing, we may need call another mill instance to generate the elf?
+  // os.proc("mill", "buddy[testConfig].elf").call()
+  // this is tricky, but I think it's the good solution to split the test compalation and test running
+  def bin = T(
+    ujson.read(os.read(os.pwd / "configs" / s"$testConfig.json")).obj("type").str match {
+      // case "codegen"   => codegen(testConfig).elf().path.toString
+      // case "intrinsic" => intrinsic(testConfig).elf().path.toString
+      // case "buddy"     => buddy(testConfig).elf().path.toString
+      // case "asm"       => asm(testConfig).elf().path.toString
+      case _ => throw new RuntimeException("not supported")
+    }
+  )
 
   def run = T {
-    def bin: String = tests.router(testConfig).elf().path.toString
     def wave: String = runConfig().obj("wave").strOpt.getOrElse((T.dest / "wave").toString)
     def resetVector = runConfig().obj("reset_vector").num.toInt
     def timeout = runConfig().obj("timeout").num.toInt
-    def logtostderr = if(runConfig().obj("logtostderr").bool) "1" else "0"
+    def logtostderr = if (runConfig().obj("logtostderr").bool) "1" else "0"
     def perfFile = runConfig().obj("perf_file").strOpt.getOrElse((T.dest / "perf.txt").toString)
     def runEnv = Map(
-      "COSIM_bin" -> bin,
+      "COSIM_bin" -> bin(),
       "COSIM_wave" -> wave,
       "COSIM_reset_vector" -> resetVector.toString,
       "COSIM_timeout" -> timeout.toString,
       // TODO: really need elaboratorConfig?
       "COSIM_config" -> emulator(elaboratorConfig).configFile().toString,
       "GLOG_logtostderr" -> logtostderr,
-      "PERF_output_file" -> perfFile,
+      "PERF_output_file" -> perfFile
     )
     os.proc(Seq(emulator(elaboratorConfig).elf().path.toString)).call(env = runEnv, check = false).exitCode
   }

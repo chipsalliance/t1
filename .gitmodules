@@ -17,7 +17,7 @@
 	path = dependencies/tilelink
 	url = git@github.com:sequencer/tilelink.git
 [submodule "dependencies/riscv-vector-tests"]
-	path = dependencies/riscv-vector-tests
+	path = tests/codegen
 	url = git@github.com:ksco/riscv-vector-tests.git
 	branch = main
 [submodule "dependencies/hardfloat"]
