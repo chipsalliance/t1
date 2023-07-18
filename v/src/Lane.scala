@@ -1139,8 +1139,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         requestToVFU.laneIndex := laneIndex
         requestToVFU.complete := record.ffoByOtherLanes || record.selfCompleted
         requestToVFU.maskType := record.laneRequest.mask
-        requestToVFU.unitSelet := decodeResult(Decoder.fpExecutionType)
-        requestToVFU.floatMul := decodeResult(Decoder.floatMul)
+        requestToVFU.unitSelet := {
+          if (parameter.fpuEnable) decodeResult(Decoder.fpExecutionType) else DontCare
+        }
+        requestToVFU.floatMul := {
+          if (parameter.fpuEnable) decodeResult(Decoder.floatMul) else DontCare
+        }
         // from float csr
         requestToVFU.roundingMode := record.csr.vxrm
 
