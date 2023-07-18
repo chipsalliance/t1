@@ -1,12 +1,3 @@
-// BUDDY-OPT
-// --lower-affine --convert-scf-to-cf --convert-math-to-llvm
-// --lower-vector-exp --lower-rvv=rv32
-// --convert-vector-to-llvm --finalize-memref-to-llvm
-// --convert-arith-to-llvm --convert-func-to-llvm
-// --reconcile-unrealized-casts
-// BUDDY-OPT-END
-
-// matmul.mlir
 // Matrix multiplication with strip mining method.
 
 memref.global "private" @gv_i32 : memref<23x23xi32>

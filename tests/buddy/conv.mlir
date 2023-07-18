@@ -1,11 +1,3 @@
-// BUDDY-OPT
-// --lower-affine --convert-scf-to-cf --convert-math-to-llvm
-// --lower-vector-exp --lower-rvv=rv32
-// --convert-vector-to-llvm --finalize-memref-to-llvm
-// --convert-arith-to-llvm --convert-func-to-llvm
-// --reconcile-unrealized-casts
-// BUDDY-OPT-END
-
 memref.global "private" @gv_input_i32 : memref<128x128xi32>
 memref.global "private" @gv_kernel_i32 : memref<3x3xi32>
 memref.global "private" @gv_output_i32 : memref<126x126xi32>
