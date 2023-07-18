@@ -1,0 +1,5 @@
+{
+  "reset_vector": 10000,
+  "timeout": 100000,
+  "logtostderr": true
+}
