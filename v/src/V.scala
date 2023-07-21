@@ -99,6 +99,9 @@ case class VParameter(
   /** TODO: make it configurable for perf. */
   val lsuVRFWriteQueueSize: Int = 4
 
+  // TODO: make it configurable
+  val ringQueueSize: Seq[Int] = Seq.fill(laneNumber)(1)
+
   /** width of tilelink source id
     * log2(maskGroupWidth) for offset
     * 3 for segment index
@@ -1216,7 +1219,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     }
     lane
   }
-  busClear := !VecInit(laneVec.map(_.writeBusPort.deq.valid)).asUInt.orR
+  val ringQueueDequeueValid: Vec[Bool] = Wire(Vec(parameter.laneNumber, Bool()))
+  busClear := !(VecInit(laneVec.map(_.writeBusPort.deq.valid)).asUInt.orR || ringQueueDequeueValid.asUInt.orR)
 
   // 连lsu
   lsu.request.valid := requestRegDequeue.fire && isLoadStoreType
@@ -1237,14 +1241,17 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   lsu.csrInterface := requestReg.bits.csr
 
   // 连lane的环
-  laneVec.map(_.readBusPort).foldLeft(laneVec.last.readBusPort) {
-    case (previous, current) =>
-      current.enq <> previous.deq
+  laneVec.map(_.readBusPort).zipWithIndex.foldLeft(laneVec.last.readBusPort) {
+    case (previous, (current, index)) =>
+      val readBusQueue = Queue(previous.deq, parameter.ringQueueSize(index))
+      current.enq <> readBusQueue
       current
   }
-  laneVec.map(_.writeBusPort).foldLeft(laneVec.last.writeBusPort) {
-    case (previous, current) =>
-      current.enq <> previous.deq
+  laneVec.map(_.writeBusPort).zipWithIndex.foldLeft(laneVec.last.writeBusPort) {
+    case (previous, (current, index)) =>
+      val writeBusQueue = Queue(previous.deq, parameter.ringQueueSize(index))
+      ringQueueDequeueValid(index) := writeBusQueue.valid
+      current.enq <> writeBusQueue
       current
   }
 
