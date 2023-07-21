@@ -14,48 +14,65 @@
       (system:
         let
           pkgs = import nixpkgs { inherit system; overlays = [ overlay ]; };
-          deps = with pkgs; [
-            rv32-clang
-            glibc_multi
-            llvmForDev.bintools
-
-            cmake
-            libargs
-            glog
-            fmt
-            (enableDebugging libspike)
-            zlib
-            jsoncpp.dev
-
-            mill
-            python3
-            go
-            ammonite
-            metals
+          commonDeps = with pkgs; [
             gnused
             coreutils
             gnumake
             gnugrep
             which
             parallel
-            protobuf
-            ninja
-            verilator
-            antlr4
-            numactl
-            dtc
+          ];
+
+          chiselDeps = with pkgs; [
+            mill
             espresso
             circt
-            buddy-mlir
-
-            yarn
-            mdl
+            protobuf
+            antlr4
           ];
+
+          testcaseDeps = with pkgs; [
+            rv32-clang
+            glibc_multi
+            llvmForDev.bintools
+            go
+            buddy-mlir
+          ];
+
+          emulatorDeps = with pkgs; [
+            cmake
+            libargs
+            glog
+            fmt
+            (enableDebugging libspike)
+            jsoncpp.dev
+            ninja
+
+            # for verilator
+            verilator
+            zlib
+
+            # for CI
+            ammonite
+          ];
+
+          mkLLVMShell = pkgs.mkShell.override { stdenv = pkgs.llvmForDev.stdenv; };
         in
         {
           legacyPackages = pkgs;
-          devShell = pkgs.mkShell.override { stdenv = pkgs.llvmForDev.stdenv; } {
-            buildInputs = deps;
+          devShells = {
+            chisel = pkgs.mkShell {
+              buildInputs = commonDeps ++ chiselDeps;
+            };
+            testcase = mkLLVMShell {
+              buildInputs = commonDeps ++ testcaseDeps;
+            };
+            emulator = mkLLVMShell {
+              buildInputs = commonDeps ++ emulatorDeps;
+            };
+            default = mkLLVMShell {
+              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
+            };
           };
         }
       )
