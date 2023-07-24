@@ -76,6 +76,8 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     sSendExecuteRequest := decodeResult(Decoder.dontNeedExecuteInLane)
     wExecuteResult := decodeResult(Decoder.dontNeedExecuteInLane)
     ffoSuccess.foreach(_ := false.B)
+    // 不满写的先读后写
+    executionResult := enqueue.bits.src.last
   }
 
   /** the byte-level mask of current execution.

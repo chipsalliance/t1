@@ -54,7 +54,11 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends
 
   val pipeEnqueue: LaneStage1Enqueue = RegInit(0.U.asTypeOf(enqueue.bits))
 
-  val maskedWrite: Bool = WireDefault(false.B)
+  val notNeedMaskedWrite: Bool = Mux1H(state.vSew1H, Seq(
+    enqueue.bits.mask.andR,
+    enqueue.bits.mask(1,0).andR,
+    true.B,
+  )) || state.maskNotMaskedElement
 
   // read state
   /** schedule read src1 */
@@ -203,8 +207,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends
     pipeEnqueue := enqueue.bits
     sRead0 := !state.decodeResult(Decoder.vtype)
     sRead1 := false.B
-    // todo: mask write need read vd
-    sRead2 := state.decodeResult(Decoder.sReadVD)
+    sRead2 := state.decodeResult(Decoder.sReadVD) && notNeedMaskedWrite
     val sCrossRead = !state.decodeResult(Decoder.crossRead)
     (sCrossReadLSB ++ sCrossReadMSB ++ sSendCrossReadResultLSB ++
       sSendCrossReadResultMSB ++ wCrossReadLSB ++ wCrossReadMSB).foreach(s => s := sCrossRead)

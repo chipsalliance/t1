@@ -35,9 +35,18 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   val state: LaneState = IO(Input(new LaneState(parameter)))
   val updateLaneState: LaneStage0StateUpdate = IO(Output(new LaneStage0StateUpdate(parameter)))
 
-  // 超出范围的一组不压到流水里面去
-  val enqFire: Bool = enqueue.fire && !updateLaneState.outOfExecutionRange
   val stageWire: LaneStage0Dequeue = Wire(new LaneStage0Dequeue(parameter, isLastSlot))
+  // 这一组如果全被masked了也不压进流水
+  val notMaskedAllElement: Bool = Mux1H(state.vSew1H, Seq(
+    stageWire.mask.orR,
+    stageWire.mask(1, 0).orR,
+    stageWire.mask(0),
+  )) || state.maskNotMaskedElement ||
+    state.decodeResult(Decoder.maskDestination) || state.decodeResult(Decoder.red) ||
+    state.decodeResult(Decoder.readOnly) ||  state.loadStore ||
+    state.decodeResult(Decoder.crossRead)
+  // 超出范围的一组不压到流水里面去
+  val enqFire: Bool = enqueue.fire && !updateLaneState.outOfExecutionRange && notMaskedAllElement
   val stageDataReg: Data = RegEnable(stageWire, 0.U.asTypeOf(stageWire), enqFire)
   val filterVec: Seq[(Bool, UInt)] = Seq(0, 1, 2).map { filterSew =>
     // The lower 'dataGroupIndexSize' bits represent the offsets in the data group
