@@ -392,12 +392,24 @@ object tests extends Module {
 
       // Parse the header comment of the given file to get the command line arguments to pass to the buddy-opt.
       // These arguments must be wrapped in a block, starting with "BUDDY-OPT" and ending with "BUDDY-OPT-END".
-      def parseBuddyOptArg(testFile: os.Path) = os.read
-            .lines(testFile)
-            .dropWhile(bound => bound.startsWith("//") && bound.contains("BUDDY-OPT"))
-            .takeWhile(bound => bound.startsWith("//") && !bound.contains("BUDDY-OPT-END"))
-            .map(lines => lines.stripPrefix("//").trim().split(" "))
-            .flatten
+      def parseBuddyOptArg(testFile: os.Path) = {
+        // Pipeline argument are usualy presented in this form: '--pipeline-name="arg1=1 arg2=true"'
+        // This regexp capture can help us unwrap the pipeline from double quotes.
+        val pipeline = raw"""([-\w]+)="([^"]+)"\s*(.*)$$""".r
+        os.read
+          .lines(testFile)
+          .dropWhile(bound => bound.startsWith("//") && bound.contains("BUDDY-OPT"))
+          .takeWhile(bound => bound.startsWith("//") && !bound.contains("BUDDY-OPT-END"))
+          .map(line => {
+            val raw_args = line.stripPrefix("//").trim()
+            raw_args match {
+              case pipeline(name, args, "") => Array(s"$name=$args")
+              case pipeline(name, args, others) => others.split(" ").prepended(s"$name=$args")
+              case _ => raw_args.split(" ")
+            }
+          })
+          .flatten
+      }
 
       override def allSourceFiles: T[Seq[PathRef]] = T {
         val buddy = T.dest / s"${mlirSourceName}.buddy"
