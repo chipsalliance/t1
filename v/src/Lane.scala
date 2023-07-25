@@ -751,6 +751,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // 处理 rf
   {
+    val readBeforeMaskedWrite: DecoupledIO[VRFReadRequest] = Wire(Decoupled(
+      new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)
+    ))
     // 连接读口
     val readArbiter = Module(
       new Arbiter(
@@ -765,14 +768,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         case (source, sink) =>
           sink <> source
       }
-    (vrfReadRequest.head ++ vrfReadRequest(1).init :+ readArbiter.io.out).zip(vrf.readRequests).foreach {
+    ((readBeforeMaskedWrite +: vrfReadRequest.head) ++ vrfReadRequest(1).init :+ readArbiter.io.out).zip(vrf.readRequests).foreach {
       case (source, sink) =>
         sink <> source
     }
 
     // 读的结果
     vrfReadResult.foreach(a => a.foreach(_ := vrf.readResults.last))
-    (vrfReadResult.head ++ vrfReadResult(1).init).zip(vrf.readResults.init).foreach {
+    (vrfReadResult.head ++ vrfReadResult(1).init).zip(vrf.readResults.tail.init).foreach {
       case (sink, source) =>
         sink := source
     }
@@ -782,16 +785,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val normalWrite = VecInit(vrfWriteArbiter.map(_.valid)).asUInt.orR
     val writeSelect = !normalWrite ## ffo(VecInit(vrfWriteArbiter.map(_.valid)).asUInt)
     val writeEnqBits = Mux1H(writeSelect, vrfWriteArbiter.map(_.bits) :+ crossLaneWriteQueue.io.deq.bits)
-    vrf.write.valid := normalWrite || crossLaneWriteQueue.io.deq.valid
-    vrf.write.bits := writeEnqBits
-    crossLaneWriteQueue.io.deq.ready := !normalWrite && vrf.write.ready
-    vrfWriteFire := Mux(vrf.write.ready, writeSelect, 0.U)
+
+    val maskedWriteUnit: MaskedWrite = Module(new MaskedWrite(parameter))
+    maskedWriteUnit.enqueue.valid := normalWrite || crossLaneWriteQueue.io.deq.valid
+    maskedWriteUnit.enqueue.bits := writeEnqBits
+    maskedWriteUnit.vrfReadResult := vrf.readResults.head
+    crossLaneWriteQueue.io.deq.ready := !normalWrite && maskedWriteUnit.enqueue.ready
+    vrfWriteFire := Mux(maskedWriteUnit.enqueue.ready, writeSelect, 0.U)
+
+    vrf.write <> maskedWriteUnit.dequeue
+    readBeforeMaskedWrite <> maskedWriteUnit.vrfReadRequest
 
     //更新v0
-    v0Update.valid := vrf.write.valid && writeEnqBits.vd === 0.U
-    v0Update.bits.data := writeEnqBits.data
-    v0Update.bits.offset := writeEnqBits.offset
-    v0Update.bits.mask := writeEnqBits.mask
+    v0Update.valid := vrf.write.valid && vrf.write.bits.vd === 0.U
+    v0Update.bits.data := vrf.write.bits.data
+    v0Update.bits.offset := vrf.write.bits.offset
+    v0Update.bits.mask := vrf.write.bits.mask
   }
 
   {
