@@ -32,7 +32,7 @@ case class VRFParam(
   /** See documentation for VRF.
     * TODO: document this
     */
-  val vrfReadPort: Int = 6
+  val vrfReadPort: Int = 7
 
   /** VRF index number is 32, defined in spec. */
   val regNum: Int = 32
@@ -219,7 +219,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val readRecord =
         Mux1H(chainingRecord.map(_.bits.instIndex === v.bits.instructionIndex), chainingRecord.map(_.bits))
       val checkResult:  Bool = chainingRecord.map(r => chainingCheck(v.bits, readRecord, r)).reduce(_ && _)
-      val validCorrect: Bool = v.valid && checkResult
+      val validCorrect: Bool = if (i == 0) v.valid else v.valid && checkResult
       // TODO: 加信号名
       v.ready := !t && checkResult
       bankReadF(i) := validCorrect & !o
