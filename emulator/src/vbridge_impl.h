@@ -95,7 +95,7 @@ private:
   processor_t proc;
   std::vector<std::multimap<reg_t, TLReqRecord>> tl_banks;
   std::vector<std::optional<reg_t>> tl_current_req;
-  TLMemCounterRecord tl_mem_store_counter[consts::numTL] = {0};
+  std::vector<TLMemCounterRecord> tl_mem_store_counter;
 
   SpikeEvent *se_to_issue;
 

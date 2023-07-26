@@ -200,6 +200,8 @@ VBridgeImpl::VBridgeImpl() :
     se_to_issue(nullptr),
     tl_banks(config.tl_bank_number),
     tl_current_req(config.tl_bank_number),
+    tl_mem_store_counter(config.tl_bank_number),
+
 #ifdef COSIM_VERILATOR
     ctx(nullptr),
 #endif
