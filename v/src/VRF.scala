@@ -64,8 +64,9 @@ case class VRFParam(
   /** see [[LaneParameter.vrfOffsetBits]] */
   val vrfOffsetBits: Int = log2Ceil(singleGroupSize)
 
-  /** TODO: remove it, we use 32bits memory with mask for minimal granularity */
-  val rfBankNum: Int = rowWidth / 8
+  // 用data path width 的 ram 应该是不会变了
+  val ramWidth: Int = datapathWidth
+  val rfBankNum: Int = rowWidth / ramWidth
 
   /** used to instantiate VRF. */
   val VLMaxWidth: Int = log2Ceil(vLen) + 1
@@ -76,7 +77,7 @@ case class VRFParam(
   val vlWidth: Int = log2Ceil(vLen)
 
   /** Parameter for [[RegFile]] */
-  def rfParam: RFParam = RFParam(rfDepth)
+  def rfParam: RFParam = RFParam(rfDepth, width = ramWidth)
 }
 
 /** Vector Register File.
@@ -206,41 +207,54 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     (!((enq.unOrderWrite && (war || waw)) || (record.bits.unOrderWrite && raw) || stWar)) || !record.valid
   }
 
-  // todo: 根据 portFactor 变形
   // first read
   val bankReadF:   Vec[Bool] = Wire(Vec(parameter.vrfReadPort, Bool()))
   val bankReadS:   Vec[Bool] = Wire(Vec(parameter.vrfReadPort, Bool()))
-  val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(8.W)))
-  val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(8.W)))
-  // portFactor = 1 的可以直接握手
-  val (_, secondOccupied) = readRequests.zipWithIndex.foldLeft((false.B, false.B)) {
+  val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
+  val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
+
+  val (_, secondOccupied) = readRequests.zipWithIndex.foldLeft(
+    (0.U(parameter.rfBankNum.W), 0.U(parameter.rfBankNum.W))
+  ) {
+    // o: 第一个read port是否被占用
+    // t: 第二个read port是否被占用
+    // v: readRequest
+    // i: 第几个readRequests
     case ((o, t), (v, i)) =>
       // 先找到自的record
       val readRecord =
         Mux1H(chainingRecord.map(_.bits.instIndex === v.bits.instructionIndex), chainingRecord.map(_.bits))
       val checkResult:  Bool = chainingRecord.map(r => chainingCheck(v.bits, readRecord, r)).reduce(_ && _)
       val validCorrect: Bool = if (i == 0) v.valid else v.valid && checkResult
-      // TODO: 加信号名
-      v.ready := !t && checkResult
-      bankReadF(i) := validCorrect & !o
-      bankReadS(i) := validCorrect & !t & o
-      readResults(i) := Mux(RegNext(o), readResultS.asUInt, readResultF.asUInt)
-      (o || validCorrect, (validCorrect && o) || t)
+      // select bank
+      val bank = if (parameter.rfBankNum == 1) true.B else UIntToOH(v.bits.offset(log2Ceil(parameter.rfBankNum), 0))
+      val bankCorrect = Mux(validCorrect, bank, 0.U(parameter.rfBankNum.W))
+      // 我选的这个port的第二个read port 没被占用
+      v.ready := (bank & (~t)).orR && checkResult
+      val firstUsed = (bank & o).orR
+      bankReadF(i) := (bankCorrect & (~o)).orR
+      bankReadS(i) := (bankCorrect & (~t) & o).orR
+      readResults(i) := Mux(RegNext(firstUsed), Mux1H(bank, readResultS), Mux1H(bank, readResultF))
+      (o | bankCorrect, (bankCorrect & o) | t)
   }
-  write.ready := !secondOccupied
+  val writeBank: UInt =
+    if (parameter.rfBankNum == 1) true.B else UIntToOH(write.bits.offset(log2Ceil(parameter.rfBankNum), 0))
+  write.ready := (writeBank & (~secondOccupied)).orR
 
   val rfVec: Seq[RegFile] = Seq.tabulate(parameter.rfBankNum) { bank =>
     // rf instant
     val rf = Module(new RegFile(parameter.rfParam))
     // connect readPorts
-    rf.readPorts.head.addr := Mux1H(bankReadF, readRequests.map(r => r.bits.vs ## r.bits.offset))
-    rf.readPorts.last.addr := Mux1H(bankReadS, readRequests.map(r => r.bits.vs ## r.bits.offset))
+    rf.readPorts.head.addr :=
+      Mux1H(bankReadF, readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+    rf.readPorts.last.addr :=
+      Mux1H(bankReadS, readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
     readResultF(bank) := rf.readPorts.head.data
     readResultS(bank) := rf.readPorts.last.data
     // connect writePort
-    rf.writePort.valid := write.fire && write.bits.mask(bank)
-    rf.writePort.bits.addr := write.bits.vd ## write.bits.offset
-    rf.writePort.bits.data := write.bits.data(8 * bank + 7, 8 * bank)
+    rf.writePort.valid := write.fire && writeBank(bank)
+    rf.writePort.bits.addr := (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum)
+    rf.writePort.bits.data := write.bits.data
     rf
   }
 

@@ -3,7 +3,7 @@ package v
 import chisel3._
 import chisel3.util._
 
-case class RFParam(depth: Int, readPort: Int = 2, width: Int = 8) {
+case class RFParam(depth: Int, readPort: Int = 2, width: Int = 32) {
   val indexBits: Int = log2Ceil(depth)
   // todo: 4 bit for ecc
   val memoryWidth: Int = width + 4
