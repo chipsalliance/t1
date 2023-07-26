@@ -208,8 +208,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   }
 
   // first read
-  val bankReadF:   Vec[Bool] = Wire(Vec(parameter.vrfReadPort, Bool()))
-  val bankReadS:   Vec[Bool] = Wire(Vec(parameter.vrfReadPort, Bool()))
+  val bankReadF: Vec[UInt] = Wire(Vec(parameter.vrfReadPort, UInt(parameter.rfBankNum.W)))
+  val bankReadS: Vec[UInt] = Wire(Vec(parameter.vrfReadPort, UInt(parameter.rfBankNum.W)))
   val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
   val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
 
@@ -227,18 +227,19 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val checkResult:  Bool = chainingRecord.map(r => chainingCheck(v.bits, readRecord, r)).reduce(_ && _)
       val validCorrect: Bool = if (i == 0) v.valid else v.valid && checkResult
       // select bank
-      val bank = if (parameter.rfBankNum == 1) true.B else UIntToOH(v.bits.offset(log2Ceil(parameter.rfBankNum), 0))
+      val bank = if (parameter.rfBankNum == 1) true.B else UIntToOH(v.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
+      val bankNext = RegNext(bank)
       val bankCorrect = Mux(validCorrect, bank, 0.U(parameter.rfBankNum.W))
       // 我选的这个port的第二个read port 没被占用
       v.ready := (bank & (~t)).orR && checkResult
       val firstUsed = (bank & o).orR
-      bankReadF(i) := (bankCorrect & (~o)).orR
-      bankReadS(i) := (bankCorrect & (~t) & o).orR
-      readResults(i) := Mux(RegNext(firstUsed), Mux1H(bank, readResultS), Mux1H(bank, readResultF))
+      bankReadF(i) := bankCorrect & (~o)
+      bankReadS(i) := bankCorrect & (~t) & o
+      readResults(i) := Mux(RegNext(firstUsed), Mux1H(bankNext, readResultS), Mux1H(bankNext, readResultF))
       (o | bankCorrect, (bankCorrect & o) | t)
   }
   val writeBank: UInt =
-    if (parameter.rfBankNum == 1) true.B else UIntToOH(write.bits.offset(log2Ceil(parameter.rfBankNum), 0))
+    if (parameter.rfBankNum == 1) true.B else UIntToOH(write.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
   write.ready := (writeBank & (~secondOccupied)).orR
 
   val rfVec: Seq[RegFile] = Seq.tabulate(parameter.rfBankNum) { bank =>
@@ -246,9 +247,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     val rf = Module(new RegFile(parameter.rfParam))
     // connect readPorts
     rf.readPorts.head.addr :=
-      Mux1H(bankReadF, readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+      Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
     rf.readPorts.last.addr :=
-      Mux1H(bankReadS, readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+      Mux1H(bankReadS.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
     readResultF(bank) := rf.readPorts.head.data
     readResultS(bank) := rf.readPorts.last.data
     // connect writePort
