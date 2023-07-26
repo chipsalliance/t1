@@ -640,7 +640,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       maskUnitRead.bits.instructionIndex := control.record.instructionIndex
       val readResultSelectResult = Mux1H(RegNext(maskUnitReadSelect), laneReadResult)
       // 把mask选出来
-      val maskSelect = v0(groupCounter ## writeBackCounter)
+      val maskSelect = v0((groupCounter ## writeBackCounter)(log2Ceil(parameter.maskGroupSize) - 1, 0))
       val fullMask: UInt = (-1.S(parameter.datapathWidth.W)).asUInt
 
       /** 正常全1
@@ -814,7 +814,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       )
       // 对于up来说小于offset的element是不变得的
       val slideUpUnderflow = slideUp && !slide1 && (signBit || srcOverlap)
-      val elementActive: Bool = v0.asUInt(elementIndexCount) || vm
+      val elementActive: Bool = v0.asUInt(elementIndexCount(log2Ceil(parameter.vLen) - 1, 0)) || vm
       val slidActive = elementActive && (!slideUpUnderflow || !decodeResultReg(Decoder.slid))
       // index >= vlMax 是写0
       val overlapVlMax: Bool = !slideUp && (signBit || srcOversize)
