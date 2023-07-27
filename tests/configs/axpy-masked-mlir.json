@@ -1,4 +1,5 @@
 {
+  "name": "axpy-masked",
   "type": "buddy",
   "vlen": 1024,
   "xlen": 32,

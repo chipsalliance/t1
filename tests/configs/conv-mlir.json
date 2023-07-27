@@ -1,5 +1,6 @@
 {
-  "type": "buddy",
+  "name": "conv",
+  "type": "mlir",
   "vlen": 1024,
   "xlen": 32,
   "fp": false,
