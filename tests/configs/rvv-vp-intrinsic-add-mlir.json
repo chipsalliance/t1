@@ -1,6 +1,6 @@
 {
   "name": "rvv-vp-intrinsic-add",
-  "type": "buddy",
+  "type": "mlir",
   "vlen": 1024,
   "xlen": 32,
   "fp": false,
