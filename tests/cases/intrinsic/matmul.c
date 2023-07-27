@@ -20,7 +20,7 @@ void test() {
   size_t bstep = 64;
   size_t cstep = 64;
   for (int n = 0; n < nb; n += vl, avl -= vl) {
-    vl = vsetvl_e32m4(avl);
+    vl = __riscv_vsetvl_e32m4(avl);
     for (int m = 0; m < ma; m += 7) {
       const int *aptr0 = aptr + astep * m;
       const int *aptr1 = aptr + astep * min(m + 1, ma - 1);
@@ -38,13 +38,13 @@ void test() {
       int *cptr5 = cptr + cstep * min(m + 5, ma - 1);
       int *cptr6 = cptr + cstep * min(m + 6, ma - 1);
 
-      vint32m4_t d0 = vmv_v_x_i32m4(0, vl);
-      vint32m4_t d1 = vmv_v_x_i32m4(0, vl);
-      vint32m4_t d2 = vmv_v_x_i32m4(0, vl);
-      vint32m4_t d3 = vmv_v_x_i32m4(0, vl);
-      vint32m4_t d4 = vmv_v_x_i32m4(0, vl);
-      vint32m4_t d5 = vmv_v_x_i32m4(0, vl);
-      vint32m4_t d6 = vmv_v_x_i32m4(0, vl);
+      vint32m4_t d0 = __riscv_vmv_v_x_i32m4(0, vl);
+      vint32m4_t d1 = __riscv_vmv_v_x_i32m4(0, vl);
+      vint32m4_t d2 = __riscv_vmv_v_x_i32m4(0, vl);
+      vint32m4_t d3 = __riscv_vmv_v_x_i32m4(0, vl);
+      vint32m4_t d4 = __riscv_vmv_v_x_i32m4(0, vl);
+      vint32m4_t d5 = __riscv_vmv_v_x_i32m4(0, vl);
+      vint32m4_t d6 = __riscv_vmv_v_x_i32m4(0, vl);
 
       for (int k = 0; k < na; k++) {
         int a0 = aptr0[k];
@@ -55,23 +55,23 @@ void test() {
         int a5 = aptr5[k];
         int a6 = aptr6[k];
 
-        vint32m4_t b = vle32_v_i32m4(bptr + k * bstep + n, vl);
-        d0 = vmacc_vx_i32m4(d0, a0, b, vl);
-        d1 = vmacc_vx_i32m4(d1, a1, b, vl);
-        d2 = vmacc_vx_i32m4(d2, a2, b, vl);
-        d3 = vmacc_vx_i32m4(d3, a3, b, vl);
-        d4 = vmacc_vx_i32m4(d4, a4, b, vl);
-        d5 = vmacc_vx_i32m4(d5, a5, b, vl);
-        d6 = vmacc_vx_i32m4(d6, a6, b, vl);
+        vint32m4_t b = __riscv_vle32_v_i32m4(bptr + k * bstep + n, vl);
+        d0 = __riscv_vmacc_vx_i32m4(d0, a0, b, vl);
+        d1 = __riscv_vmacc_vx_i32m4(d1, a1, b, vl);
+        d2 = __riscv_vmacc_vx_i32m4(d2, a2, b, vl);
+        d3 = __riscv_vmacc_vx_i32m4(d3, a3, b, vl);
+        d4 = __riscv_vmacc_vx_i32m4(d4, a4, b, vl);
+        d5 = __riscv_vmacc_vx_i32m4(d5, a5, b, vl);
+        d6 = __riscv_vmacc_vx_i32m4(d6, a6, b, vl);
       }
 
-      vse32_v_i32m4(cptr0 + n, d0, vl);
-      vse32_v_i32m4(cptr1 + n, d1, vl);
-      vse32_v_i32m4(cptr2 + n, d2, vl);
-      vse32_v_i32m4(cptr3 + n, d3, vl);
-      vse32_v_i32m4(cptr4 + n, d4, vl);
-      vse32_v_i32m4(cptr5 + n, d5, vl);
-      vse32_v_i32m4(cptr6 + n, d6, vl);
+      __riscv_vse32_v_i32m4(cptr0 + n, d0, vl);
+      __riscv_vse32_v_i32m4(cptr1 + n, d1, vl);
+      __riscv_vse32_v_i32m4(cptr2 + n, d2, vl);
+      __riscv_vse32_v_i32m4(cptr3 + n, d3, vl);
+      __riscv_vse32_v_i32m4(cptr4 + n, d4, vl);
+      __riscv_vse32_v_i32m4(cptr5 + n, d5, vl);
+      __riscv_vse32_v_i32m4(cptr6 + n, d6, vl);
     }
   }
 }
