@@ -74,6 +74,6 @@ def genTestElf(testDir: os.Path, outDir: os.Path) = {
       os.write(outConfigDir / s"${elfPath.baseName}-$taskType.json", ujson.write(testConfig))
     })
 
-  os.proc("tar", "--create", "--gzip", "--file", "test-elf.tar.gz", outDir).call()
+  os.proc("tar", "--create", "--gzip", "--file", "tests-artifacts.tar.gz", outDir).call()
   os.remove.all(outDir)
 }
