@@ -51,3 +51,6 @@ ci-all-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
 	amm .github/scripts/ci.sc allJson $(RUNNERS) . ./all.json
 	cat ./all.json >> $$GITHUB_OUTPUT
+
+gen-tests-artifacts:
+	amm .github/scripts/ci.sc genTestElf ./tests ./tests-artifacts
