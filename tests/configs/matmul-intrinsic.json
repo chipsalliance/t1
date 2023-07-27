@@ -1,4 +1,5 @@
 {
+  "name": "matmul",
   "type": "intrinsic",
   "vlen": 1024,
   "xlen": 32,

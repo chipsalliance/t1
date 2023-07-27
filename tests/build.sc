@@ -2,6 +2,8 @@ import mill._
 
 trait Case extends Module {
   def config: String
+  def moduleName: String
+  override def millSourcePath = os.pwd / moduleName
   def sourceDir: T[os.Path] = T(millSourcePath)
   def allSourceFiles = T.sources {
     os.walk(sourceDir())
@@ -9,7 +11,7 @@ trait Case extends Module {
       .filter(p => testConfig().obj("sources").arr.map(_.str).contains(p.last))
       .map(PathRef(_))
   }
-  def configFile = T(os.pwd / "configs" / s"$config.json")
+  def configFile = T(os.pwd / "configs" / s"$config-$moduleName.json")
   def testConfig = T(ujson.read(os.read(configFile())))
   def vLen = T(testConfig().obj("vlen").num.toInt)
   def xLen = T(testConfig().obj("xlen").num.toInt)
@@ -39,11 +41,11 @@ object codegen
       os.walk(os.pwd / "configs")
         .filter(_.ext == "json")
         .filter(f => ujson.read(os.read(f)).obj("type").str == "codegen")
-        .map(_.baseName): _*
+        .map(f => ujson.read(os.read(f)).obj("name").str): _*
     )
 class CodeGenCase(val config: String) extends Case {
-  override def millSourcePath = os.pwd / "codegen"
-  def codeGenConfig = T(testConfig().obj("config").str)
+  override def moduleName = "codegen"
+  def codeGenConfig = T(testConfig().obj("name").str)
   def genelf = T(codegenCaseGenerator.asmGenerator().path)
   override def includeDir = T {
     Seq(
@@ -87,22 +89,22 @@ object intrinsic
       os.walk(os.pwd / "configs")
         .filter(_.ext == "json")
         .filter(f => ujson.read(os.read(f)).obj("type").str == "intrinsic")
-        .map(_.baseName): _*
+        .map(f => ujson.read(os.read(f)).obj("name").str): _*
     )
 class IntrinsicCase(val config: String) extends Case {
-  override def millSourcePath = os.pwd / "intrinsic"
+  override def moduleName = "intrinsic"
 }
 
-// Case from buddy compiler
-object buddy
+// Case from mlir tests
+object mlir
     extends mill.Cross[BuddyMLIRCase](
       os.walk(os.pwd / "configs")
         .filter(_.ext == "json")
-        .filter(f => ujson.read(os.read(f)).obj("type").str == "buddy")
-        .map(_.baseName): _*
+        .filter(f => ujson.read(os.read(f)).obj("type").str == "mlir")
+        .map(f => ujson.read(os.read(f)).obj("name").str): _*
     )
 class BuddyMLIRCase(val config: String) extends Case {
-  override def millSourcePath = os.pwd / "buddy"
+  override def moduleName = "mlir"
   def buddyOptArg = T(testConfig().obj("buddyOptArg").arr.map(_.str))
 
   override def allSourceFiles = T.sources {
@@ -143,8 +145,8 @@ object asm
       os.walk(os.pwd / "configs")
         .filter(_.ext == "json")
         .filter(f => ujson.read(os.read(f)).obj("type").str == "asm")
-        .map(_.baseName): _*
+        .map(f => ujson.read(os.read(f)).obj("name").str): _*
     )
 class AsmCase(val config: String) extends Case {
-  override def millSourcePath = os.pwd / "asm"
+  override def moduleName = "asm"
 }

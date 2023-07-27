@@ -1,4 +1,5 @@
 {
+  "name": "mmm",
   "type": "asm",
   "vlen": 1024,
   "xlen": 32,
