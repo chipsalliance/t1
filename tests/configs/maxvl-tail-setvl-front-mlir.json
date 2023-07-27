@@ -1,6 +1,6 @@
 {
   "name": "maxvl-tail-setvl-front",
-  "type": "buddy",
+  "type": "mlir",
   "vlen": 1024,
   "xlen": 32,
   "fp": false,
