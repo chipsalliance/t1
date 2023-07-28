@@ -53,15 +53,15 @@ def genTestElf(testDir: os.Path, outDir: os.Path) = {
   val outElfDir = outDir / "tests"
   os.makeDir.all(outElfDir)
 
-  os.proc("mill", "resolve", "_[_]")
+  os.proc("mill", "--no-server", "resolve", "_[_]")
     .call(testDir).out.text
     .split('\n').toSeq
     .foreach(task => {
       // Compile and get abosolute path to the final elf binary
-      val rawElfPath = os.proc("mill", "show", s"$task.elf").call(testDir).out.text
+      val rawElfPath = os.proc("mill", "--no-server", "show", s"$task.elf").call(testDir).out.text
       val elfPath = os.Path(ujson.read(rawElfPath).str.split(':')(2))
       // Get original test config for this task
-      val rawTestConfig = os.proc("mill", "show", s"$task.testConfig").call(testDir).out.text
+      val rawTestConfig = os.proc("mill", "--no-server", "show", s"$task.testConfig").call(testDir).out.text
       val testConfig = ujson.read(rawTestConfig)
       val taskType = testConfig("type").str
       // { elf: { path: "../tests/$type/$elf" } }
