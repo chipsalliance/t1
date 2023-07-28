@@ -75,11 +75,16 @@ class CodegenCaseGenerator extends Module { u =>
   override def millSourcePath = os.pwd / "codegen"
   def allGoSources = T.sources(os.walk(millSourcePath).filter(f => f.ext == "go" || f.last == "go.mod").map(PathRef(_)))
   def asmGenerator = T {
-    // depends on GO
-    allGoSources()
-    val elf = T.dest / "generator"
-    os.proc("go", "build", "-o", elf, "single/single.go").call(cwd = millSourcePath)
-    PathRef(elf)
+    sys.env.get("CODEGEN_BIN_PATH") match {
+      case Some(elf) => PathRef(os.Path(elf))
+      case None => {
+        // depends on GO
+        allGoSources()
+        val elf = T.dest / "generator"
+        os.proc("go", "build", "-o", elf, "single/single.go").call(cwd = millSourcePath)
+        PathRef(elf)
+      }
+    }
   }
 }
 
