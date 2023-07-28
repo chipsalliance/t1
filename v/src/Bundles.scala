@@ -644,10 +644,10 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   // vm = 0
   val maskType: Bool = Bool()
   // for float
-  val unitSelet: UInt = UInt(2.W)
-  val floatMul: Bool = Bool()
+  val unitSelet: Option[UInt] = Option.when(parameter.fpuEnable)(UInt(2.W))
+  val floatMul: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   // float rounding mode
-  val roundingMode: UInt = UInt(3.W)
+  val roundingMode: Option[UInt] = Option.when(parameter.fpuEnable)(UInt(3.W))
 }
 
 class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
