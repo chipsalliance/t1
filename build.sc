@@ -227,11 +227,15 @@ class Release(config: String) extends Module {
   }
 }
 
-object emulator
-    extends mill.Cross[emulator](
-      "v1024l8b2-test",
-      "v1024l8b2-test-trace"
-    )
+def emulatorTarget: Seq[String] = os.walk(os.pwd / "configs")
+  .filter(cfg => {
+    var filename = cfg.baseName
+    // TODO: remove fp filter after fp is supported
+    filename.contains("test") && !filename.contains("fp")
+  })
+  .map(_.baseName)
+
+object emulator extends mill.Cross[emulator](emulatorTarget: _*)
 
 class emulator(config: String) extends Module {
   def configDir = T(os.pwd / "configs")
@@ -353,34 +357,36 @@ class emulator(config: String) extends Module {
   }
 }
 
-class RunVerilatorEmulator(elaboratorConfig: String, testConfig: String, config: String) extends Module with TaskModule {
+def testsOutDir = os.Path(sys.env("TESTS_OUT_DIR"))
+def testConfigs = os.walk(testsOutDir / "configs").filter(_.ext == "json").map(_.baseName)
+def runtimeConfigs = os.walk(os.pwd / "run").filter(_.ext == "json")
+
+// Generate a cross product from elaborator config, test config, runtime config
+def crossGenConfigProduct: Seq[(String, String, String)] =
+  emulatorTarget.flatMap(emuTarget =>
+      testConfigs.flatMap(testTarget =>
+          runtimeConfigs.map(runCfg =>
+              (emuTarget, testTarget, runCfg.baseName))))
+
+object verilatorEmulator extends mill.Cross[RunVerilatorEmulator]((crossGenConfigProduct): _*)
+
+class RunVerilatorEmulator(elaboratorConfig: String, testTask: String, config: String) extends Module with TaskModule {
   override def defaultCommandName() = "run"
 
   def configDir:  T[os.Path] = T(os.pwd / "run")
   def configFile: T[os.Path] = T(configDir() / s"$config.json")
   def runConfig:  T[ujson.Value.Value] = T(ujson.read(os.read(configFile())))
-
-  // mill doesn't support dynamic routing, we may need call another mill instance to generate the elf?
-  // os.proc("mill", "buddy[testConfig].elf").call()
-  // this is tricky, but I think it's the good solution to split the test compalation and test running
-  def bin = T(
-    ujson.read(os.read(os.pwd / "configs" / s"$testConfig.json")).obj("type").str match {
-      // case "codegen"   => codegen(testConfig).elf().path.toString
-      // case "intrinsic" => intrinsic(testConfig).elf().path.toString
-      // case "buddy"     => buddy(testConfig).elf().path.toString
-      // case "asm"       => asm(testConfig).elf().path.toString
-      case _ => throw new RuntimeException("not supported")
-    }
-  )
+  def testConfig: T[ujson.Value.Value] = T(ujson.read(os.read(testsOutDir / "configs" / s"$testTask.json")))
+  def binPath: T[os.Path] = T(testsOutDir / os.RelPath(testConfig().obj("elf").obj("path").str))
 
   def run = T {
-    def wave: String = runConfig().obj("wave").strOpt.getOrElse((T.dest / "wave").toString)
+    def wave: String = runConfig().obj.get("wave").map(_.str).getOrElse((T.dest / "wave").toString)
     def resetVector = runConfig().obj("reset_vector").num.toInt
     def timeout = runConfig().obj("timeout").num.toInt
     def logtostderr = if (runConfig().obj("logtostderr").bool) "1" else "0"
-    def perfFile = runConfig().obj("perf_file").strOpt.getOrElse((T.dest / "perf.txt").toString)
+    def perfFile = runConfig().obj.get("perf_file").map(_.str).getOrElse((T.dest / "perf.txt").toString)
     def runEnv = Map(
-      "COSIM_bin" -> bin(),
+      "COSIM_bin" -> binPath().toString,
       "COSIM_wave" -> wave,
       "COSIM_reset_vector" -> resetVector.toString,
       "COSIM_timeout" -> timeout.toString,
@@ -388,7 +394,7 @@ class RunVerilatorEmulator(elaboratorConfig: String, testConfig: String, config:
       "COSIM_config" -> emulator(elaboratorConfig).configFile().toString,
       "GLOG_logtostderr" -> logtostderr,
       "PERF_output_file" -> perfFile
-    )
+)
     os.proc(Seq(emulator(elaboratorConfig).elf().path.toString)).call(env = runEnv, check = false).exitCode
   }
 }
