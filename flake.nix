@@ -70,10 +70,8 @@
             testcase = mkLLVMShell {
               buildInputs = commonDeps ++ testcaseDeps;
 
-              shellHook = let
-                test-artifact = pkgs.callPackage ./tests {};
-              in ''
-                export TESTS_OUT_DIR=${test-artifact}
+              shellHook = ''
+                export TESTS_OUT_DIR=${self.packages."${system}".test-artifact}
               '';
             };
             emulator = mkLLVMShell {
@@ -83,6 +81,8 @@
               buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
             };
           };
+
+          packages.test-artifact = pkgs.callPackage ./tests {};
         }
       )
     // { inherit inputs; overlays.default = overlay; };
