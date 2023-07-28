@@ -108,17 +108,7 @@
             [0, 1, 2, 3]
           ]
         ],
-        "floatModuleParameters": [
-          [
-            {
-              "parameter": {
-                "datapathWidth": 32
-              },
-              "generator": "v.LaneFloat"
-            },
-            [0, 1, 2, 3]
-          ]
-        ]
+        "floatModuleParameters": []
       }
     },
     "generator": "v.V"
