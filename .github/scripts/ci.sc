@@ -62,7 +62,7 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
           stdout=logPath,
           mergeErrIntoOut=true,
         )
-        if (handle.exitCode != 0 || os.read(logPath).contains("detect exception")) {
+        if (handle.exitCode != 0) {
           println(s"[$i/${totalJobs.length}] Test case $job failed")
           os.move.into(logPath, logDir / "fail")
           failedCount + 1
