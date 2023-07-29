@@ -395,6 +395,6 @@ class RunVerilatorEmulator(elaboratorConfig: String, testTask: String, config: S
       "GLOG_logtostderr" -> logtostderr,
       "PERF_output_file" -> perfFile
     )
-    os.proc(Seq(emulator(elaboratorConfig).elf().path.toString)).call(env = runEnv, check = false).exitCode
+    os.proc(Seq(emulator(elaboratorConfig).elf().path.toString)).call(env = runEnv, check = true)
   }
 }
