@@ -83,6 +83,11 @@
                 ];
 
                 shellHook = ''
+                  export CODEGEN_BIN_PATH=${pkgs.rvv-codegen}/bin/single
+                  export CODEGEN_INC_PATH=${pkgs.rvv-codegen}/include
+                  export CODEGEN_CFG_PATH=${pkgs.rvv-codegen}/configs
+
+                  echo "To have test case setup, run 'testcase-setup'"
                   alias testcase-setup='export TEST_CASE_DIR=$(gen-vector-testcase)/bin'
                 '';
             };
