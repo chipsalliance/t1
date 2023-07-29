@@ -1,4 +1,6 @@
 name: Generate Test elf
+env:
+  USER: runner
 on:
   push:
     paths:
