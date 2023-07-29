@@ -31,12 +31,7 @@ def unpassedJson(bucketSize: Int, root: os.Path, passedFile: os.Path, outputFile
 def allJson(bucketSize: Int, root: os.Path, outputFile: os.Path) = writeJson(buckets(all(root),bucketSize),outputFile)
 
 @main
-def runTest(root: os.Path, jobs: String, outputFile: os.Path) = {
-  jobs.split(",").foreach(job => os.proc("mill", job).call(root))
-  val allJson = os.walk(os.pwd).filter(_.last == "ciRun.json")
-  val exitCode = allJson.map(f => ujson.read(os.read(f))("value").num.toInt).reduce(_ max _)
-  allJson.map(f => s"|${f.segments.toSeq.dropRight(1).last}|${ujson.Bool(ujson.read(os.read(f))("value").num.toInt == 0)}|\n").foreach(os.write.append(outputFile, _))
-
+def runPerf(root: os.Path, jobs: String, outputFile: os.Path) = {
   val perfCases = os.read(root / os.RelPath(".github/perf-cases.txt")).split('\n').filter(_.length > 0)
   val existCases = perfCases.filter(c => os.exists(root / os.RelPath(s"out/tests/run/$c/ciRun.dest/perf.txt")))
   existCases.foreach{c =>
@@ -47,9 +42,40 @@ def runTest(root: os.Path, jobs: String, outputFile: os.Path) = {
     |\n""".stripMargin
     os.write(root / s"perf-result-$c.md", output)
   }
+}
 
-  if (exitCode != 0) {
-    throw new Exception(s"runTest failed with exit code ${exitCode}")
+@main
+def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
+  var logDir = loggingDir.getOrElse(root / "test-log")
+  os.makeDir.all(logDir)
+  os.makeDir.all(logDir / "fail")
+  val totalJobs = jobs.split(";")
+  val failedCount = totalJobs.zipWithIndex
+    .foldLeft(0)(
+      (failedCount, elem) => {
+        val (job, i) = elem
+        val logPath = logDir / s"$job.log"
+        println(s"[$i/${totalJobs.length}] Running test case $job")
+        val handle = os.proc("mill", job).call(
+          cwd=root,
+          check=false,
+          stdout=logPath,
+          mergeErrIntoOut=true,
+        )
+        if (handle.exitCode != 0 || os.read(logPath).contains("detect exception")) {
+          println(s"[$i/${totalJobs.length}] Test case $job failed")
+          os.move.into(logPath, logDir / "fail")
+          failedCount + 1
+        } else {
+          failedCount
+        }
+      }
+    )
+
+  if (failedCount > 0) {
+    throw new Exception(s"$failedCount tests failed")
+  } else {
+    println(s"All tests passed")
   }
 }
 
@@ -124,14 +150,14 @@ def buildTestCases(testSrcDir: os.Path, outDir: os.Path, taskBucket: String) = {
 // @param outFile Optional. Specify the filepath where the output json is written
 @main
 def genTestBuckets(testSrcDir: os.Path, bucketSize: Int, outFile: Option[os.Path]) = {
-  val allTasks = os.proc("mill", "--no-server", "resolve", "_[_]")
+  val allTasks = os.proc("mill", "--no-server", "resolve", "mlir[_]")
     .call(testSrcDir).out.text
     .split('\n')
     .toSeq
   // If user doesn't specify outFile path, we might running this target in local environment.
   // In this case, we might also want to compile all the task together.
   if (outFile.isEmpty) {
-    println(allTasks.mkString(","))
+    println(allTasks.mkString(";"))
   } else {
     val genBuckets = buckets(allTasks, bucketSize)
     val json = ujson.Obj("include" -> genBuckets.zipWithIndex.map(
