@@ -10,3 +10,4 @@ coverage.dat
 **/_book/
 .gdbinit
 .bloop/
+.ammonite
