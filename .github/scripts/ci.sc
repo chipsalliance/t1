@@ -56,7 +56,7 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
         val (job, i) = elem
         val logPath = logDir / s"$job.log"
         println(s"[$i/${totalJobs.length}] Running test case $job")
-        val handle = os.proc("mill", job).call(
+        val handle = os.proc("mill", "--no-server", job).call(
           cwd=root,
           check=false,
           stdout=logPath,
