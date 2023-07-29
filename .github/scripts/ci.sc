@@ -5,7 +5,10 @@ def passed(passedFile: os.Path): Seq[String] = {
   verilatorType.flatMap(
     vtype => runType.flatMap(
       rtype => os.read.lines(passedFile).map(
-        test => s"verilatorEmulator[$vtype,$test,$rtype].run"
+        test => {
+          val ttype = test.replace(".", "-")
+          s"verilatorEmulator[$vtype,$ttype,$rtype].run"
+        }
       )
     )
   )
