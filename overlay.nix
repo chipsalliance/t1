@@ -69,8 +69,7 @@ in
   rv32-compilerrt = final.callPackage ./nix/rv32-compilerrt.nix { };
   rv32-musl = final.callPackage ./nix/rv32-musl.nix { };
   buddy-mlir = final.callPackage ./nix/buddy-mlir.nix { };
-
-  vector-test-case = final.callPackage ./tests { };
+  rvv-codegen = final.callPackage ./nix/rvv-codegen.nix { };
 
   inherit rv32-clang my-cc-wrapper;
 }
