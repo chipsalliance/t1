@@ -70,5 +70,7 @@ in
   rv32-musl = final.callPackage ./nix/rv32-musl.nix { };
   buddy-mlir = final.callPackage ./nix/buddy-mlir.nix { };
 
+  vector-test-case = final.callPackage ./tests { };
+
   inherit rv32-clang my-cc-wrapper;
 }
