@@ -1,8 +1,23 @@
-def passed(passedFile: os.Path): Seq[String] = os.read.lines(passedFile).map(s => s"tests.run[$s].ciRun")
-def all(root: os.Path): Seq[String] = os.proc("mill", "resolve", "tests.run[__].ciRun").call(root).out.text.split("\n").toSeq
+// Generate list of tests that must be passed
+def passed(passedFile: os.Path): Seq[String] = {
+  val verilatorType = Seq("v1024l8b2-test");
+  val runType = Seq("debug");
+  verilatorType.flatMap(
+    vtype => runType.flatMap(
+      rtype => os.read.lines(passedFile).map(
+        test => s"verilatorEmulator[$vtype,$test,$rtype].run"
+      )
+    )
+  )
+}
+
+def all(root: os.Path): Seq[String] = os.proc("mill", "resolve", "verilatorEmulator[__].Run").call(root).out.text.split("\n").toSeq
+// Turn Seq( "A", "B", "C", "D" ) to Seq( "A,B", "C,D" )
 def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] = scala.util.Random.shuffle(alltests).grouped(math.ceil(alltests.size.toDouble / bucketSize).toInt).toSeq.map(_.mkString(","))
+// Turn Seq( "A,B", "C,D" ) to { "include": [ { "name": "A,B" }, { "name": "C,D" } ] }
 def writeJson(buckets: Seq[String], outputFile: os.Path) = os.write.over(outputFile, ujson.Obj("include" -> buckets.map(a => ujson.Obj(s"name" -> ujson.Str(a)))))
 
+// passed.txt String => Array[MillTask String] => Array[MillTaskBucket String] => Json(include: [ name: MillTaskBucket ])
 @main
 def passedJson(bucketSize: Int, passedFile: os.Path, outputFile: os.Path) = writeJson(buckets(passed(passedFile),bucketSize),outputFile)
 
