@@ -110,7 +110,8 @@ def buildTestCases(testSrcDir: os.Path, outDir: os.Path, taskBucket: String) = {
 // Example:
 //
 // ```bash
-// # When $RUNNER=3, this will write the string '{ "include": [ {"name": "task1,task2"}, {"name": "task3,task4"}, {"name": "task5,task6"} ] }'
+// # When $RUNNER=2, this will write the string
+// # '{ "include": [ {"name": "bucket0", "tests": "task1,task2"}, {"name": "bucket1", "tests": "task3,task4"} ] }'
 // # into test-case-matrix.json.
 // amm ci.sc genTestBuckets ./tests $RUNNER ./test-case-matrix.json
 // ```
@@ -129,7 +130,14 @@ def genTestBuckets(testSrcDir: os.Path, bucketSize: Int, outFile: Option[os.Path
   if (outFile.isEmpty) {
     println(allTasks.mkString(","))
   } else {
-    writeJson(buckets(allTasks, bucketSize), outFile.get)
+    val genBuckets = buckets(allTasks, bucketSize)
+    val json = ujson.Obj("include" -> genBuckets.zipWithIndex.map(
+      elem => {
+        val (tests, i) = elem
+        ujson.Obj(s"name" -> ujson.Str(s"bucket$i"), s"tests" -> ujson.Str(tests))
+      }
+    ))
+    os.write.over(outFile.get, json)
     println(outFile.get)
   }
 }
