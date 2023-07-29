@@ -37,9 +37,6 @@
             llvmForDev.bintools
             go
             buddy-mlir
-            # for test case build script
-            mill
-            ammonite
           ];
 
           emulatorDeps = with pkgs; [
@@ -71,7 +68,7 @@
               buildInputs = commonDeps ++ testcaseDeps;
 
               shellHook = ''
-                export TESTS_OUT_DIR=${self.packages."${system}".test-artifact}
+                export TESTS_OUT_DIR=${pkgs.vector-test-case}
               '';
             };
             emulator = mkLLVMShell {
@@ -81,8 +78,6 @@
               buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
             };
           };
-
-          packages.test-artifact = pkgs.callPackage ./tests {};
         }
       )
     // { inherit inputs; overlays.default = overlay; };
