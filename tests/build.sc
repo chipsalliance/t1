@@ -46,23 +46,21 @@ object codegen
 class CodeGenCase(val config: String) extends Case {
   override def moduleName = "codegen"
   def codeGenConfig = T(testConfig().obj("name").str)
-  def genelf = T(codegenCaseGenerator.asmGenerator().path)
+  // String => PathRef[os.Path]
+  def codegenCaseGenerator = T( sys.env.get("CODEGEN_BIN_PATH").map( rawStr => PathRef(os.Path(rawStr)) ).get )
   override def includeDir = T {
     // User can set CODEGEN_INC_PATH to "/path/to/lib /path/to/another/lib /path/to/yet/another/lib"
     sys.env.get("CODEGEN_INC_PATH").map(raw =>
       // Array[String] => Seq[os.PathRef]
       raw.split(' ').map( each => PathRef(os.Path(each)) ).toSeq
-    ).getOrElse(
-      Seq(
-        millSourcePath / "env" / "sequencer-vector",
-        millSourcePath / "macros" / "sequencer-vector"
-      ).map(PathRef(_))
-    )
+    ).get
   }
+  // String => os.Path
+  def asmTestConfigDir = sys.env.get("CODEGEN_CFG_PATH").map(str => os.Path(str)).get
   override def allSourceFiles = T.sources {
     val output = T.dest / s"$config.S"
     os.proc(
-      codegenCaseGenerator.asmGenerator().path,
+      codegenCaseGenerator().path,
       "-VLEN",
       vLen(),
       "-XLEN",
@@ -70,27 +68,9 @@ class CodeGenCase(val config: String) extends Case {
       "-outputfile",
       output,
       "-configfile",
-      millSourcePath / "configs" / s"${codeGenConfig()}.toml"
+      asmTestConfigDir / s"${codeGenConfig()}.toml"
     ).call(T.dest)
     Seq(PathRef(output))
-  }
-}
-object codegenCaseGenerator extends CodegenCaseGenerator
-// standalone unit to compile the codegen
-class CodegenCaseGenerator extends Module { u =>
-  override def millSourcePath = os.pwd / "codegen"
-  def allGoSources = T.sources(os.walk(millSourcePath).filter(f => f.ext == "go" || f.last == "go.mod").map(PathRef(_)))
-  def asmGenerator = T {
-    sys.env.get("CODEGEN_BIN_PATH") match {
-      case Some(elf) => PathRef(os.Path(elf))
-      case None => {
-        // depends on GO
-        allGoSources()
-        val elf = T.dest / "generator"
-        os.proc("go", "build", "-o", elf, "single/single.go").call(cwd = millSourcePath)
-        PathRef(elf)
-      }
-    }
   }
 }
 
