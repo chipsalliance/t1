@@ -44,7 +44,10 @@ in stdenv.mkDerivation {
     export CODEGEN_BIN_PATH=${codegen}/bin/single
     export CODEGEN_INC_PATH=${codegen}/include
     export CODEGEN_CFG_PATH=${codegen}/configs
-    amm ${build-script} genTestElf tests-src ./tests-out
+
+    allTests="$(amm ${build-script} genTestBuckets --testDir tests-src --bucketSize 1)"
+    amm ${build-script} buildTestCases \
+      --testSrcDir tests-src --outDir ./tests-out --taskBucket "$allTests"
   '';
   installPhase = ''
     mkdir -p $out/bin
