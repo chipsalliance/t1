@@ -13,7 +13,7 @@ def passed(passedFile: os.Path): Seq[String] = {
 
 def all(root: os.Path): Seq[String] = os.proc("mill", "resolve", "verilatorEmulator[__].Run").call(root).out.text.split("\n").toSeq
 // Turn Seq( "A", "B", "C", "D" ) to Seq( "A,B", "C,D" )
-def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] = scala.util.Random.shuffle(alltests).grouped(math.ceil(alltests.size.toDouble / bucketSize).toInt).toSeq.map(_.mkString(","))
+def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] = scala.util.Random.shuffle(alltests).grouped(math.ceil(alltests.size.toDouble / bucketSize).toInt).toSeq.map(_.mkString(";"))
 // Turn Seq( "A,B", "C,D" ) to { "include": [ { "name": "A,B" }, { "name": "C,D" } ] }
 def writeJson(buckets: Seq[String], outputFile: os.Path) = os.write.over(outputFile, ujson.Obj("include" -> buckets.map(a => ujson.Obj(s"name" -> ujson.Str(a)))))
 
@@ -81,7 +81,7 @@ def buildTestCases(testSrcDir: os.Path, outDir: os.Path, taskBucket: String) = {
   os.makeDir.all(outElfDir)
 
   taskBucket
-    .split(',')
+    .split(';')
     .foreach(task => {
     // Compile and get abosolute path to the final elf binary
     val rawElfPath = os.proc("mill", "--no-server", "show", s"$task.elf").call(testSrcDir).out.text
