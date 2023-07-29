@@ -47,7 +47,12 @@ in stdenv.mkDerivation {
     amm ${build-script} genTestElf tests-src ./tests-out
   '';
   installPhase = ''
-    mkdir -p $out
-    tar --directory $out --extract -f tests-out.tar.gz
+    mkdir -p $out/bin
+    cp -r tests-out/{configs,tests} $out/bin
+
+    # Pack up configs and tests directory for distribution
+    mkdir -p $out/dist
+    tar --directory tests-out --create --gzip --file tests-out.tar.gz configs tests
+    cp tests-out.tar.gz $out/dist/vector-test-case.tar.gz
   '';
 }
