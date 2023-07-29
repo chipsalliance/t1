@@ -54,3 +54,6 @@ ci-all-tests:
 
 gen-tests-artifacts:
 	amm .github/scripts/ci.sc genTestElf ./tests ./tests-artifacts
+
+dist-test-case:
+	cp $(TESTS_OUT_DIR)/../dist/vector-test-case.tar.gz .

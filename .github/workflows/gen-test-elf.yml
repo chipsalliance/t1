@@ -28,7 +28,7 @@ jobs:
             post-build-hook = /etc/nix/upload-to-cache.sh
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-      - run: nix develop .#testcase -c cp $TESTS_OUT_DIR/../dist/vector-test-case.tar.gz .
+      - run: nix develop .#testcase -c make dist-test-case
       - uses: actions/upload-artifact@v3
         with:
           name: vector-test-case
