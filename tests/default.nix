@@ -32,10 +32,9 @@ in stdenv.mkDerivation {
   version = "ae358e0c6000aa34bffb3b2424fd8ff499418e9";
   src = ./.;
   unpackPhase = ''
+    # We need a writable dir for mill output
     mkdir -p tests-src
     cp -r $src/* tests-src/
-    mkdir -p tests-src/codegen
-    cp -r ${codegen}/configs tests-src/codegen/
   '';
   nativeBuildInputs =
     [ rv32-clang glibc_multi llvmForDev.bintools go buddy-mlir ammonite mill ];
@@ -44,6 +43,7 @@ in stdenv.mkDerivation {
 
     export CODEGEN_BIN_PATH=${codegen}/bin/single
     export CODEGEN_INC_PATH=${codegen}/include
+    export CODEGEN_CFG_PATH=${codegen}/configs
     amm ${build-script} genTestElf tests-src ./tests-out
   '';
   installPhase = ''
