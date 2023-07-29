@@ -357,7 +357,7 @@ class emulator(config: String) extends Module {
   }
 }
 
-def testsOutDir = os.Path(sys.env("TESTS_OUT_DIR"))
+def testsOutDir = os.Path(sys.env("TEST_CASE_DIR"))
 def testConfigs = os.walk(testsOutDir / "configs").filter(_.ext == "json").map(_.baseName)
 def runtimeConfigs = os.walk(os.pwd / "run").filter(_.ext == "json")
 
