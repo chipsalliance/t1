@@ -48,10 +48,16 @@ class CodeGenCase(val config: String) extends Case {
   def codeGenConfig = T(testConfig().obj("name").str)
   def genelf = T(codegenCaseGenerator.asmGenerator().path)
   override def includeDir = T {
-    Seq(
-      millSourcePath / "env" / "sequencer-vector",
-      millSourcePath / "macros" / "sequencer-vector"
-    ).map(PathRef(_))
+    // User can set CODEGEN_INC_PATH to "/path/to/lib /path/to/another/lib /path/to/yet/another/lib"
+    sys.env.get("CODEGEN_INC_PATH").map(raw =>
+      // Array[String] => Seq[os.PathRef]
+      raw.split(' ').map( each => PathRef(os.Path(each)) ).toSeq
+    ).getOrElse(
+      Seq(
+        millSourcePath / "env" / "sequencer-vector",
+        millSourcePath / "macros" / "sequencer-vector"
+      ).map(PathRef(_))
+    )
   }
   override def allSourceFiles = T.sources {
     val output = T.dest / s"$config.S"
