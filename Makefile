@@ -35,7 +35,7 @@ checkformat:
 	mill -i __.checkFormat
 
 ci-run:
-	amm .github/scripts/ci.sc runTest . $(NAME) ./result-$${NAME:0:30}.md
+	amm .github/scripts/ci.sc runTest . "$(NAME)" ./test-log
 
 ci-passed-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
@@ -62,4 +62,4 @@ gen-test-case-bucket:
 
 build-test-cases:
 	rm -rf out tests/out
-	amm .github/scripts/ci.sc buildTestCases --testSrcDir ./tests --outDir $(OUT_DIR) --taskBucket $(TESTS)
+	amm .github/scripts/ci.sc buildTestCases --testSrcDir ./tests --outDir $(OUT_DIR) --taskBucket "$(TESTS)"
