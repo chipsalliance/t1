@@ -1,36 +1,11 @@
-{ stdenv, rv32-clang, glibc_multi, llvmForDev, go, buddy-mlir, ammonite, mill
-, fetchFromGitHub, buildGoModule }:
+{ stdenv, rv32-clang, glibc_multi, llvmForDev, go, buddy-mlir, ammonite, mill, rvv-codegen, useTarball ? false }:
 
 let
   build-script = ../.github/scripts/ci.sc;
-
-  codegen = buildGoModule {
-    pname = "riscv-vector-test";
-    version = "unstable-2023-04-12";
-    src = fetchFromGitHub {
-      owner = "ksco";
-      repo = "riscv-vector-tests";
-      rev = "3fb992b1dc7f89231b27ae4a1e8d50492dde4f5b";
-      hash = "sha256-BNbK8+KUwhqk3XfFgKsaeUpX0NuApl8mN/URKwYTYtE=";
-    };
-    doCheck = false;
-    vendorHash = "sha256-9cQlivpHg6IDYpmgBp34n6BR/I0FIYnmrXCuiGmAhNE=";
-    # Get rid of copying the whole source
-    postInstall = ''
-      cp -r $src/configs $out/configs
-      mkdir $out/include
-      cp $src/macros/sequencer-vector/* $out/include
-      cp $src/env/sequencer-vector/* $out/include
-
-      cp $src/env/encoding.h $out/include
-      # Let riscv_test.h find the encoding.h file correctly
-      sed -i 's/^#include "..\/encoding.h"$/#include "encoding.h"/' $out/include/riscv_test.h
-    '';
-  };
 in stdenv.mkDerivation {
   pname = "test-case-output";
   version = "ae358e0c6000aa34bffb3b2424fd8ff499418e9";
-  src = ./.;
+  src = if useTarball then ./. else ./.;
   unpackPhase = ''
     # We need a writable dir for mill output
     mkdir -p tests-src
@@ -41,21 +16,21 @@ in stdenv.mkDerivation {
   buildPhase = ''
     mkdir -p tests-out
 
-    export CODEGEN_BIN_PATH=${codegen}/bin/single
-    export CODEGEN_INC_PATH=${codegen}/include
-    export CODEGEN_CFG_PATH=${codegen}/configs
+    export CODEGEN_BIN_PATH=${rvv-codegen}/bin/single
+    export CODEGEN_INC_PATH=${rvv-codegen}/include
+    export CODEGEN_CFG_PATH=${rvv-codegen}/configs
 
-    allTests="$(amm ${build-script} genTestBuckets --testDir tests-src --bucketSize 1)"
+    allTests="$(amm ${build-script} genTestBuckets --testSrcDir tests-src --bucketSize 1)"
     amm ${build-script} buildTestCases \
       --testSrcDir tests-src --outDir ./tests-out --taskBucket "$allTests"
   '';
   installPhase = ''
     mkdir -p $out/bin
-    cp -r tests-out/{configs,tests} $out/bin
+    cp -r tests-out/{configs,cases} $out/bin
 
     # Pack up configs and tests directory for distribution
     mkdir -p $out/dist
-    tar --directory tests-out --create --gzip --file tests-out.tar.gz configs tests
+    tar --directory tests-out --create --gzip --file tests-out.tar.gz configs cases
     cp tests-out.tar.gz $out/dist/vector-test-case.tar.gz
   '';
 }
