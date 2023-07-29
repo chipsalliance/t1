@@ -34,9 +34,8 @@ reformat:
 checkformat:
 	mill -i __.checkFormat
 
-TEST_CASE_DIR := $(shell gen-vector-testcase)
 ci-run:
-	TEST_CASE_DIR="$(TEST_CASE_DIR)/bin" \
+	TEST_CASE_DIR="$(shell gen-vector-testcase)/bin" \
 		amm .github/scripts/ci.sc runTest . "$(NAME)" ./test-log
 
 ci-passed-tests:
