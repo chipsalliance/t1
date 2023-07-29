@@ -37,6 +37,7 @@
             llvmForDev.bintools
             go
             buddy-mlir
+            rvv-codegen
           ];
 
           emulatorDeps = with pkgs; [
@@ -69,8 +70,19 @@
               # but most of them are used to get version information, so they should be cleaned up one day.
               buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
 
+              # Use function to avoid compiling testcase in same way everytime(without cache) entering the shell
               shellHook = ''
-                export TESTS_OUT_DIR=${pkgs.vector-test-case}/bin
+                echo "Notes: To setup or rebuild test case, run function 'testcase-setup' in bash"
+                testcase-setup() {
+                  local useTarball=$1; shift
+                  local output=$PWD/tests-out
+                  if (( $useTarball )); then
+                    nix build --out-link $output .#testcase-from-src
+                  else
+                    nix build --out-link $output .#testcase
+                  fi
+                  export TEST_CASE_DIR=$output/bin
+                }
               '';
             };
             emulator = mkLLVMShell {
@@ -80,6 +92,10 @@
               buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
             };
           };
+
+          # nix develop .#testcase && nix build .#test-case-from-src
+          packages.testcase-from-src = pkgs.callPackage ./tests { useTarball = false; };
+          packages.testcase = pkgs.callPackage ./tests { useTarball = true; };
         }
       )
     // { inherit inputs; overlays.default = overlay; };
