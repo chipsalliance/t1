@@ -37,13 +37,6 @@
             llvmForDev.bintools
             go
             buddy-mlir
-
-            # Required to run the verilator
-            mill
-            ammonite
-            protobuf
-            antlr4
-            espresso
           ];
 
           emulatorDeps = with pkgs; [
@@ -72,10 +65,12 @@
               buildInputs = commonDeps ++ chiselDeps;
             };
             testcase = mkLLVMShell {
-              buildInputs = commonDeps ++ testcaseDeps ++ emulatorDeps;
+              # TODO: Currently, the emulator needs all the dependencies to run a test case ,
+              # but most of them are used to get version information, so they should be cleaned up one day.
+              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
 
               shellHook = ''
-                export TESTS_OUT_DIR=${pkgs.vector-test-case}
+                export TESTS_OUT_DIR=${pkgs.vector-test-case}/bin
               '';
             };
             emulator = mkLLVMShell {
