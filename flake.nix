@@ -68,22 +68,23 @@
             testcase = mkLLVMShell {
               # TODO: Currently, the emulator needs all the dependencies to run a test case ,
               # but most of them are used to get version information, so they should be cleaned up one day.
-              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
+              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps
+                ++ [
+                  # Use this script to avoid compiling testcase in same way everytime(without cache) entering the shell.
+                  (pkgs.writeShellScriptBin "gen-vector-testcase" ''
+                    #!${pkgs.bash}
+                    USE_TARBALL=$1; shift
+                    if (( $USE_TARBALL )); then
+                      nix build --no-link --print-out-paths .#testcase-from-src
+                    else
+                      nix build --no-link --print-out-paths .#testcase
+                    fi
+                  '')
+                ];
 
-              # Use function to avoid compiling testcase in same way everytime(without cache) entering the shell
-              shellHook = ''
-                echo "Notes: To setup or rebuild test case, run function 'testcase-setup' in bash"
-                testcase-setup() {
-                  local useTarball=$1; shift
-                  local output=$PWD/tests-out
-                  if (( $useTarball )); then
-                    nix build --out-link $output .#testcase-from-src
-                  else
-                    nix build --out-link $output .#testcase
-                  fi
-                  export TEST_CASE_DIR=$output/bin
-                }
-              '';
+                shellHook = ''
+                  alias testcase-setup='export TEST_CASE_DIR=$(gen-vector-testcase)/bin'
+                '';
             };
             emulator = mkLLVMShell {
               buildInputs = commonDeps ++ emulatorDeps;
