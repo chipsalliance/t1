@@ -9,8 +9,35 @@ on:
     paths:
       - 'tests/**'
 jobs:
-  gen-test-artifacts:
+  gen-matrix:
+    name: Generate test matrix
     runs-on: [self-hosted, linux]
+    env:
+      RUNNERS: 16
+    outputs:
+      ci-tests: ${{ steps.ci-tests.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - run: sudo -E .github/setup-actions.sh
+        env:
+          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
+          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
+          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
+      - uses: cachix/install-nix-action@v19
+        with:
+          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
+          nix_path: nixpkgs=channel:nixos-unstable
+      - id: ci-tests
+        run: nix-shell -p ammonite --run 'make gen-test-case-bucket'
+
+  gen-test-artifacts:
+    needs: [gen-matrix]
+    runs-on: [self-hosted, linux]
+    strategy:
+      fail-fast: true
+      matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -28,8 +55,25 @@ jobs:
             post-build-hook = /etc/nix/upload-to-cache.sh
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-      - run: nix develop .#testcase -c make dist-test-case
+      - run: nix develop -c make build-test-cases TESTS=${{ matrix.tests }} OUT_DIR=tests-out-${{ matrix.name }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: all-test-out
+          path: ./tests-out-*
+
+  dist-test-artifacts:
+    needs: [gen-test-artifacts]
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: all-test-out
+      - run: |
+          mkdir -p vector-test-case/configs
+          mkdir -p vector-test-case/cases
+          cp -r tests-out-*/configs/* vector-test-case/configs/
+          cp -r tests-out-*/cases/* vector-test-case/cases/
       - uses: actions/upload-artifact@v3
         with:
           name: vector-test-case
-          path: vector-test-case.tar.gz
+          path: vector-test-case

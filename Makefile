@@ -55,5 +55,11 @@ ci-all-tests:
 gen-tests-artifacts:
 	amm .github/scripts/ci.sc genTestElf ./tests ./tests-artifacts
 
-dist-test-case:
-	cp $(TESTS_OUT_DIR)/../dist/vector-test-case.tar.gz .
+gen-test-case-bucket:
+	echo -n matrix= >> $$GITHUB_OUTPUT
+	amm .github/scripts/ci.sc genTestBuckets --testSrcDir ./tests --bucketSize $(RUNNERS) --outFile ./test-case-matrix.json
+	cat ./test-case-matrix.json >> $$GITHUB_OUTPUT
+
+build-test-cases:
+	rm -rf out tests/out
+	amm .github/scripts/ci.sc buildTestCases --testSrcDir ./tests --outDir $(OUT_DIR) --taskBucket $(TESTS)
