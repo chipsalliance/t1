@@ -57,12 +57,11 @@ jobs:
         run: nix develop .#testcase -c make ci-run NAME=${{ matrix.name }}
 
       - uses: actions/upload-artifact@v3
-        if: always()
+        if: failure()
         with:
-          name: results
+          name: fail-logs
           path: |
-            result-*.md
-            perf-result-*.md
+            ./test-log/fail
 
       - uses: actions/upload-artifact@v3
         if: always()
