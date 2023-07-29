@@ -1,4 +1,8 @@
-// Generate list of tests that must be passed
+// Generate `verilatorEmulator` object from the `passed.txt` file.
+// To cross product test case between multipl verilator and runtime config,
+// simply add new verilator type and runtime config into their own Seq.
+//
+// @param passedFile Path to the passed.txt file
 def passed(passedFile: os.Path): Seq[String] = {
   val verilatorType = Seq("v1024l8b2-test");
   val runType = Seq("debug");
@@ -14,13 +18,28 @@ def passed(passedFile: os.Path): Seq[String] = {
   )
 }
 
-def all(root: os.Path): Seq[String] = os.proc("mill", "resolve", "verilatorEmulator[__].Run").call(root).out.text.split("\n").toSeq
-// Turn Seq( "A", "B", "C", "D" ) to Seq( "A,B", "C,D" )
-def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] = scala.util.Random.shuffle(alltests).grouped(math.ceil(alltests.size.toDouble / bucketSize).toInt).toSeq.map(_.mkString(";"))
-// Turn Seq( "A,B", "C,D" ) to { "include": [ { "name": "A,B" }, { "name": "C,D" } ] }
-def writeJson(buckets: Seq[String], outputFile: os.Path) = os.write.over(outputFile, ujson.Obj("include" -> buckets.map(a => ujson.Obj(s"name" -> ujson.Str(a)))))
+// Resolve all the executable verilatorEmulator[$vtype,$ttype,$rtype].run object and execute them all.
+def all(root: os.Path): Seq[String] = os.proc("mill", "resolve", "verilatorEmulator[__].run").call(root).out.text.split("\n").toSeq
 
-// passed.txt String => Array[MillTask String] => Array[MillTaskBucket String] => Json(include: [ name: MillTaskBucket ])
+// Merge Seq( "A", "B", "C", "D" ) into Seq( "A;B", "C;D" )
+//
+// @param allTests The original Seq
+// @param bucketSize Specify the size of the output Seq
+def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] = 
+  scala.util.Random.shuffle(alltests).grouped(
+    math.ceil(alltests.size.toDouble / bucketSize).toInt
+  ).toSeq.map(_.mkString(";"))
+
+// Turn Seq( "A,B", "C,D" ) to GitHub Action matrix style json: { "include": [ { "name": "A,B" }, { "name": "C,D" } ] }
+//
+// @param buckets Seq of String that is already packed into bucket using the `buckets` function
+// @param outputFile Path to the output json file
+def writeJson(buckets: Seq[String], outputFile: os.Path) = 
+  os.write.over(outputFile, ujson.Obj("include" -> 
+    buckets.map(a => ujson.Obj(s"name" -> ujson.Str(a)))))
+
+// Read the passed.txt file, split the content into list of String and packed them up using the `bucket` function with specified bucket size.
+// Write the generated json into given outputFile path.
 @main
 def passedJson(bucketSize: Int, passedFile: os.Path, outputFile: os.Path) = writeJson(buckets(passed(passedFile),bucketSize),outputFile)
 
@@ -44,6 +63,13 @@ def runPerf(root: os.Path, jobs: String, outputFile: os.Path) = {
   }
 }
 
+// This function will split the given jobs with semicolon,
+// and attempt to use mill to execute them all.
+// If the execution doesn't end successfully, the stdout and sterr will be writed into the loggingDir/fail directory.
+//
+// @param: root Path to the project root
+// @param: jobs A list of test case concat with semicolon, eg. "taskA;taskB"
+// @param: loggingDir Path to the loggin directory. Optional, `root/test-log` by default.
 @main
 def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
   var logDir = loggingDir.getOrElse(root / "test-log")
