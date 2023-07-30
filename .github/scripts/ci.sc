@@ -176,7 +176,7 @@ def buildTestCases(testSrcDir: os.Path, outDir: os.Path, taskBucket: String) = {
 // @param outFile Optional. Specify the filepath where the output json is written
 @main
 def genTestBuckets(testSrcDir: os.Path, bucketSize: Int, outFile: Option[os.Path]) = {
-  val allTasks = os.proc("mill", "--no-server", "resolve", "mlir[_]")
+  val allTasks = os.proc("mill", "--no-server", "resolve", "_[_]")
     .call(testSrcDir).out.text
     .split('\n')
     .toSeq
