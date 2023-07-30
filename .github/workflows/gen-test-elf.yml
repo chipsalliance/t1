@@ -29,6 +29,10 @@ jobs:
         with:
           install_url: https://releases.nixos.org/nix/nix-2.13.3/install
           nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            post-build-hook = /etc/nix/upload-to-cache.sh
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
+            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
       - id: ci-tests
         run: nix develop -c make gen-test-case-bucket
 
