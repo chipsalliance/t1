@@ -105,94 +105,37 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
   }
 }
 
-// This run target will try to use comma `,` to split the given `taskBucket` argument into a list of tasks.
-// These tasks will be used to build elf and generate its corresbonding test config.
-// To generate a GitHub matrix style task bucket, user can call the following `genTestBuckets` run target.
+
+// This target will try to build all the test cases and put them into the given output directory.
 //
-// Example:
-// 
-// ```bash
-// amm ci.sc buildTestCases ./test ./test-out "task1,task2,task3,task4"
-// ```
-//
-// Note: Ensure cache (the out directory) is invalidated before calling this function.
-//
-// @param testSrcDir Specify the source directory of test cases
-// @param outDir Specify the destination directory for elf and configs output
-// @param taskBucket Comma separated list of test cases to be build
+// @param testSrcDir Path to the tests directory
+// @param outDir Path to the output directory
 @main
-def buildTestCases(testSrcDir: os.Path, outDir: os.Path, taskBucket: String) = {
-  // Prepare output directory
-  //   $outDir/
-  //      configs/
-  //      cases/
-  //        mlir/
-  //        asm/
-  //        .../
+def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
+  os.remove.all(outDir)
+  os.remove.all(testSrcDir / "out")
   os.makeDir.all(outDir)
   val outConfigDir = outDir / "configs"
   os.makeDir.all(outConfigDir)
   val outElfDir = outDir / "cases"
   os.makeDir.all(outElfDir)
 
-  taskBucket
-    .split(';')
-    .foreach(task => {
-    // Compile and get abosolute path to the final elf binary
-    val rawElfPath = os.proc("mill", "--no-server", "show", s"$task.elf").call(testSrcDir).out.text
-    // PathRef => os.Path
-    val elfPath = os.Path(ujson.read(rawElfPath).str.split(':')(2))
-    // Get original test config for this task
-    val rawTestConfig = os.proc("mill", "--no-server", "show", s"$task.testConfig").call(testSrcDir).out.text
-    val testConfig = ujson.read(rawTestConfig)
-    val taskType = testConfig("type").str
-    // Insert binary path into the test config { elf: { path: "cases/$type/$elf" } }
-    testConfig("elf") = ujson.Obj("path" -> s"cases/$taskType/${elfPath.last}")
+  val rawJson = os.proc("mill", "--no-server", "-j", "0", "--silent", "show", "_[_].elf")
+      .call(testSrcDir).out.text
+      .split('\n')
+      .map(rawLine => rawLine.stripPrefix("[#00] ")) // Output provided by -j0, but mill can't silent that.
+      .mkString("");
+  // Array[String] => Array[os.Path] A list of "ref:id:path", we need the path only.
+  ujson.read(rawJson).arr
+    .map(rawPathRef => os.Path(rawPathRef.str.split(":")(2)))
+    .foreach(elfPath => {
+      val IndexedSeq(module, name) = elfPath.relativeTo(testSrcDir / "out").segments.slice(0, 2)
+      val configPath = testSrcDir / "configs" / s"$name-$module.json"
+      val origConfig = ujson.read(os.read(configPath))
+      origConfig("elf") = ujson.Obj("path" -> s"cases/$module/${elfPath.last}")
 
-    val testCategory = outElfDir / taskType
-    os.makeDir.all(testCategory)
-    os.move(elfPath, testCategory / elfPath.last)
-
-    os.write(outConfigDir / s"${elfPath.baseName}-$taskType.json", ujson.write(testConfig))
-  })
-}
-
-// This run target will try to resolve all the runnable test target and collect them as a sequence of String.
-// Then split them into multiple bucket to parallel those build target.
-// The generated task bucket will be written into the file specify in the second parameter `outFile`
-// in GitHub Action Matrix json style.
-//
-// Example:
-//
-// ```bash
-// # When $RUNNER=2, this will write the string
-// # '{ "include": [ {"name": "bucket0", "tests": "task1,task2"}, {"name": "bucket1", "tests": "task3,task4"} ] }'
-// # into test-case-matrix.json.
-// amm ci.sc genTestBuckets ./tests $RUNNER ./test-case-matrix.json
-// ```
-// 
-// @param testSrcDir Specify the source directory of all test cases
-// @param bucketSize Specify the number of buckets for parallel testing
-// @param outFile Optional. Specify the filepath where the output json is written
-@main
-def genTestBuckets(testSrcDir: os.Path, bucketSize: Int, outFile: Option[os.Path]) = {
-  val allTasks = os.proc("mill", "--no-server", "resolve", "_[_]")
-    .call(testSrcDir).out.text
-    .split('\n')
-    .toSeq
-  // If user doesn't specify outFile path, we might running this target in local environment.
-  // In this case, we might also want to compile all the task together.
-  if (outFile.isEmpty) {
-    println(allTasks.mkString(";"))
-  } else {
-    val genBuckets = buckets(allTasks, bucketSize)
-    val json = ujson.Obj("include" -> genBuckets.zipWithIndex.map(
-      elem => {
-        val (tests, i) = elem
-        ujson.Obj(s"name" -> ujson.Str(s"bucket$i"), s"tests" -> ujson.Str(tests))
-      }
-    ))
-    os.write.over(outFile.get, json)
-    println(outFile.get)
-  }
+      os.makeDir.all(outElfDir / module)
+      os.move(elfPath, outElfDir / module / elfPath.last)
+      os.write(outConfigDir / s"$name-$module.json", ujson.write(origConfig))
+    })
 }
