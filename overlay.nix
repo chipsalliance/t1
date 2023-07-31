@@ -70,6 +70,7 @@ in
   rv32-musl = final.callPackage ./nix/rv32-musl.nix { };
   buddy-mlir = final.callPackage ./nix/buddy-mlir.nix { };
   rvv-codegen = final.callPackage ./nix/rvv-codegen.nix { };
+  rvv-testcase = final.callPackage ./nix/rvv-testcase.nix { };
 
   inherit rv32-clang my-cc-wrapper;
 }
