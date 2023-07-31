@@ -65,31 +65,25 @@
             chisel = pkgs.mkShell {
               buildInputs = commonDeps ++ chiselDeps;
             };
+            # This environment is provided for writing and compiling testcase.
+            # If you are going to run test cases, use the .#testcase devShell.
+            testcase-bootstrap = mkLLVMShell {
+              buildInputs = commonDeps ++ testcaseDeps ++ [ pkgs.ammonite pkgs.mill ];
+              shellHook = ''
+                export CODEGEN_BIN_PATH=${pkgs.rvv-codegen}/bin/single
+                export CODEGEN_INC_PATH=${pkgs.rvv-codegen}/include
+                export CODEGEN_CFG_PATH=${pkgs.rvv-codegen}/configs
+              '';
+            };
+            # This devShell is used for running testcase
             testcase = mkLLVMShell {
               # TODO: Currently, the emulator needs all the dependencies to run a test case ,
               # but most of them are used to get version information, so they should be cleaned up one day.
-              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps
-                ++ [
-                  # Use this script to avoid compiling testcase in same way everytime(without cache) entering the shell.
-                  (pkgs.writeShellScriptBin "gen-vector-testcase" ''
-                    #!${pkgs.bash}
-                    USE_TARBALL=$1; shift
-                    if (( $USE_TARBALL )); then
-                      nix build --no-link --print-out-paths .#testcase-from-src
-                    else
-                      nix build --no-link --print-out-paths .#testcase
-                    fi
-                  '')
-                ];
+              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
 
-                shellHook = ''
-                  export CODEGEN_BIN_PATH=${pkgs.rvv-codegen}/bin/single
-                  export CODEGEN_INC_PATH=${pkgs.rvv-codegen}/include
-                  export CODEGEN_CFG_PATH=${pkgs.rvv-codegen}/configs
-
-                  echo "To have test case setup, run 'testcase-setup'"
-                  alias testcase-setup='export TEST_CASE_DIR=$(gen-vector-testcase)/bin'
-                '';
+              shellHook = ''
+                export TEST_CASE_DIR=${pkgs.rvv-testcase}
+              '';
             };
             emulator = mkLLVMShell {
               buildInputs = commonDeps ++ emulatorDeps;
@@ -99,9 +93,8 @@
             };
           };
 
-          # nix develop .#testcase && nix build .#test-case-from-src
-          packages.testcase-from-src = pkgs.callPackage ./tests { useTarball = false; };
-          packages.testcase = pkgs.callPackage ./tests { useTarball = true; };
+          # nix develop .#testcase && nix build .#testcase
+          packages.testcase = pkgs.callPackage ./nix/rvv-testcase.nix { };
         }
       )
     // { inherit inputs; overlays.default = overlay; };
