@@ -4,7 +4,7 @@ hello-mlir
 stripmining-mlir
 mmm-asm
 smoke-asm
-conv2d_less_m2-intrinsic
+conv2d-less-m2-intrinsic
 vaadd.vv-codegen
 vaadd.vx-codegen
 vaaddu.vv-codegen
