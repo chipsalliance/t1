@@ -35,7 +35,7 @@ checkformat:
 	mill -i __.checkFormat
 
 ci-run:
-	TEST_CASE_DIR="$(shell gen-vector-testcase)/bin" \
+	TEST_CASE_DIR="$(shell echo $$TEST_CASE_DIR)" \
 		amm .github/scripts/ci.sc runTest . "$(NAME)" ./test-log
 
 ci-passed-tests:
