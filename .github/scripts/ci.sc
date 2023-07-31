@@ -9,8 +9,7 @@ def passed(passedFile: os.Path): Seq[String] = {
   verilatorType.flatMap(
     vtype => runType.flatMap(
       rtype => os.read.lines(passedFile).map(
-        test => {
-          val ttype = test.replace(".", "-")
+        ttype => {
           s"verilatorEmulator[$vtype,$ttype,$rtype].run"
         }
       )
@@ -82,7 +81,7 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
         val (job, i) = elem
         val logPath = logDir / s"$job.log"
         println(s"[$i/${totalJobs.length}] Running test case $job")
-        val handle = os.proc("mill", "--no-server", job).call(
+        val handle = os.proc("mill", "--no-server", "-j", "0", job).call(
           cwd=root,
           check=false,
           stdout=logPath,
