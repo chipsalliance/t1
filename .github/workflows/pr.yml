@@ -72,18 +72,3 @@ jobs:
         with:
           name: nix-post-build-hook-log
           path: /tmp/nix-post-build-hook.log
-
-  report:
-    name: "Report CI result"
-    needs: [ci]
-    if: always()
-    runs-on: [self-hosted, linux]
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - uses: actions/download-artifact@v3
-        with:
-          name: results
-      - run: printf "## CI Result\n| Test | result |\n| ---- | ---- |\n" >> $GITHUB_STEP_SUMMARY; cat result-*.md | sort >> $GITHUB_STEP_SUMMARY
-      - run: printf "\n\n## Perf Result\n" >> $GITHUB_STEP_SUMMARY; cat perf-result-*.md >> $GITHUB_STEP_SUMMARY
