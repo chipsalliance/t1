@@ -6,9 +6,9 @@ stdenv.mkDerivation {
     owner = "sequencer";
     repo = "vector";
     # Remember to replace this to master branch after testplan branch got merged
-    rev = "92819bb91d4b867d1727c737f079a5af2b6863a6";
+    rev = "19f881cf476a8f9d8bbb7479ca8507a4c4ff3d6a";
     sparseCheckout = [ "tests" ".github/scripts" ];
-    sha256 = "sha256-Hi2JoE+uA9H/jVhEGk3fC76Oe/pIemZmk4bjWs7B3so=";
+    sha256 = "sha256-gGkbsZtaNJH7Kb3VhCZyYtsCra8d/MUB5gOawCf6UpQ=";
   };
   unpackPhase = ''
     # mill will write data into the working directory, so the workdir cannot be $src as it is not writable
