@@ -15,15 +15,11 @@ by reading the test case source file and its corresponding config file.
 The codegen tests requires [ksco/riscv-vector-tests](https://github.com/ksco/riscv-vector-tests) to generate multiple asm tests.
 If you are going to build all the tests manually, you will need to set the following environment variable:
 
-```bash
-export CODEGEN_BIN_PATH=${rvv-codegen}/bin/single
-export CODEGEN_INC_PATH=${rvv-codegen}/include
-export CODEGEN_CFG_PATH=${rvv-codegen}/configs
-```
-
 - `CODEGEN_BIN_PATH`: Path to the `single` binary in riscv-vector-tests.
 - `CODEGEN_INC_PATH`: A list of header include paths. You may need to set it as `export CODEGEN_INC_PATH="$codegen/macro/sequencer-vector $codegen/env/sequencer-vector`.
 - `CODEGEN_CFG_PATH`: Path to the `configs` directory in riscv-vector-tests.
+
+You can also run `nix develop .#testcase-bootstrap` to have this env set up for you.
 
 ## How to resolve all the tests
 
@@ -60,12 +56,10 @@ There is a script in `.github/scripts/ci.sc` that will help you build all the te
 
 ```bash
 # You will need ammonite
-allTests="$(amm .github/scripts/ci.sc genTestBuckets --testSrcDir ./tests --bucketSize 1)"
-amm .github/scripts/ci.sc buildTestCases \
-  --testSrcDir ./tests --outDir ./tests-out --taskBucket "$allTests"
+amm .github/scripts/ci.sc buildAllTestCase . ./tests-out
 ```
 
-Then set the `TEST_CASE_DIR` to `$PWD/tests-out` (must be an absolute path), and run `mill resolve verilatorEmulator[__]`,
+Then set the `TEST_CASE_DIR` to `$PWD/tests-out` (must be an absolute path), and run `cd .. && mill resolve verilatorEmulator[__]`,
 you will get a list of executable test case targets.
 
 All the `verilatorEmulator` objects will be generated in this form: `verilatorEmulator[ $emulatorConfig, $testCase, $runtimeConfig ]`.
@@ -85,8 +79,5 @@ To reduce all the tedious setup steps, you can use the provided `.#testcase` she
 
 ```bash
 nix develop .#testcase
-
-# This function will compile all the tests, place them in the correct directory,
-# and set up the necessary runtime env.
-testcase-setup
+mill -i verilatorEmulator[v1024l8b2-test,matmul-mlir,debug].run
 ```

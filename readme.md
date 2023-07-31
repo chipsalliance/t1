@@ -93,8 +93,11 @@ systemctl start nix-daemon.service
 After nix is installed, run `nix develop` to enter the development shell, all environment variables and dependencies is included. If you want a pure environment without system packages, use `env -i nix develop` instead.
 
 #### Test
-In nix development shell, run with `mill resolve verilatorEmulator.__` to see all tests.
-For example use `mill -i 'verilatorEmulator[v1024l8b2-test,hello-mlir,debug].run'` to run a simple test.
+
+Run `nix develop .#testcase` to enter the test case environment.
+In nix development shell, run `mill resolve verilatorEmulator.__` to see all available tests.
+For example use `mill -i 'verilatorEmulator[v1024l8b2-test,hello-mlir,debug].run'` to run the `hello.mlir` test with v1024l8b2-test emulator configs.
+Read the readme file in tests directory for more details.
 
 ## Patches
 <!-- BEGIN-PATCH -->
