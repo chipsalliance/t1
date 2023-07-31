@@ -108,7 +108,7 @@ class BuddyMLIRCase(val config: String) extends Case {
     T.log.info(s"run buddy-opt with arg [${buddyOptArg().mkString(", ")}]")
     os.proc(
       "buddy-opt",
-      super.allSourceFiles().head.path,
+      super.allSourceFiles().filter(_.path.ext == "mlir").head.path,
       buddyOptArg()
     ).call(T.dest, stdout = buddy)
     os.proc(
