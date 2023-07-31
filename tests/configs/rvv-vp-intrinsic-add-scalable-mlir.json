@@ -12,5 +12,5 @@
     "--convert-arith-to-llvm", "--convert-func-to-llvm",
     "--reconcile-unrealized-casts"
   ],
-  "sources": [ "rvv-vp-intrinsic-add-scalable.mlir" ]
+  "sources": [ "rvv-vp-intrinsic-add-scalable.mlir", "main.S" ]
 }
