@@ -93,7 +93,7 @@
             };
           };
 
-          # nix develop .#testcase && nix build .#testcase
+          # nix build .#testcase
           packages.testcase = pkgs.callPackage ./nix/rvv-testcase.nix { };
         }
       )

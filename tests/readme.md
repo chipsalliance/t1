@@ -19,21 +19,15 @@ If you are going to build all the tests manually, you will need to set the follo
 - `CODEGEN_INC_PATH`: A list of header include paths. You may need to set it as `export CODEGEN_INC_PATH="$codegen/macro/sequencer-vector $codegen/env/sequencer-vector`.
 - `CODEGEN_CFG_PATH`: Path to the `configs` directory in riscv-vector-tests.
 
-You can also run `nix develop .#testcase-bootstrap` to have this env set up for you.
+You can run `nix develop .#testcase-bootstrap` to have this env set up for you.
 
 ## How to resolve all the tests
 
 ```bash
-mill resolve _[_]
+mill resolve _[_].elf
 
 # Get asm test only
-mill resolve asm[_]
-```
-
-## How to build test
-
-```bash
-mill show asm[smoke].elf
+mill resolve asm[_].elf
 ```
 
 ## How to run the test
@@ -45,10 +39,11 @@ The `TEST_CASE_DIR` must point to a directory with the following layout:
 ```text
 $TEST_CASE_DIR/
   configs/
-    testA.json
+    testName-testModule.json
     ...
   cases/
-    testA.elf
+    testModule/
+      testName.elf
     ...
 ```
 
@@ -81,3 +76,22 @@ To reduce all the tedious setup steps, you can use the provided `.#testcase` she
 nix develop .#testcase
 mill -i verilatorEmulator[v1024l8b2-test,matmul-mlir,debug].run
 ```
+
+## How to build single test and run it
+
+Assuming that you want to build the mlir/hello.mlir test and run it:
+
+```bash
+# First, we build the test case
+pushd tests
+nix develop .#testcase-bootstrap
+mill --no-server caseBuild[hello-mlir].run
+exit
+popd
+
+# Then run the test
+nix develop .#testcase
+export TEST_CASE_DIR=$PWD/tests-out
+mill --no-server verilatorEmulator[v1024l8b2-test,hello-mlir,debug].run
+```
+
