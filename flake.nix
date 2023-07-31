@@ -69,11 +69,12 @@
             # If you are going to run test cases, use the .#testcase devShell.
             testcase-bootstrap = mkLLVMShell {
               buildInputs = commonDeps ++ testcaseDeps ++ [ pkgs.ammonite pkgs.mill ];
-              shellHook = ''
-                export CODEGEN_BIN_PATH=${pkgs.rvv-codegen}/bin/single
-                export CODEGEN_INC_PATH=${pkgs.rvv-codegen}/include
-                export CODEGEN_CFG_PATH=${pkgs.rvv-codegen}/configs
-              '';
+
+              env = {
+                CODEGEN_BIN_PATH = "${pkgs.rvv-codegen}/bin/single";
+                CODEGEN_INC_PATH = "${pkgs.rvv-codegen}/include";
+                CODEGEN_CFG_PATH = "${pkgs.rvv-codegen}/configs";
+              };
             };
             # This devShell is used for running testcase
             testcase = mkLLVMShell {
@@ -81,9 +82,9 @@
               # but most of them are used to get version information, so they should be cleaned up one day.
               buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
 
-              shellHook = ''
-                export TEST_CASE_DIR=${pkgs.rvv-testcase}
-              '';
+              env = {
+                TEST_CASE_DIR = "${pkgs.rvv-testcase}";
+              };
             };
             emulator = mkLLVMShell {
               buildInputs = commonDeps ++ emulatorDeps;
