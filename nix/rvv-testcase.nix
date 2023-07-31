@@ -1,20 +1,25 @@
-{ stdenv, rv32-clang, glibc_multi, llvmForDev, go, buddy-mlir, ammonite, mill, rvv-codegen, fetchFromGitHub }:
+{ stdenv, rv32-clang, glibc_multi, llvmForDev, go, buddy-mlir, ammonite, mill, rvv-codegen }:
 stdenv.mkDerivation {
   pname = "rvv-testcase";
   version = "unstable-2023-07-31";
-  src = fetchFromGitHub {
-    owner = "sequencer";
-    repo = "vector";
-    # Remember to replace this to master branch after testplan branch got merged
-    rev = "19f881cf476a8f9d8bbb7479ca8507a4c4ff3d6a";
-    sparseCheckout = [ "tests" ".github/scripts" ];
-    sha256 = "sha256-gGkbsZtaNJH7Kb3VhCZyYtsCra8d/MUB5gOawCf6UpQ=";
-  };
+  srcs = [
+    ../.github/scripts/ci.sc
+    ../tests
+  ];
+  sourceRoot = ".";
   unpackPhase = ''
     # mill will write data into the working directory, so the workdir cannot be $src as it is not writable
     mkdir -p tests-src
-    cp -r $src/tests/* tests-src/
-    cp $src/.github/scripts/ci.sc .
+    for src in $srcs; do
+      case $src in
+        *-ci.sc)
+          cp $src ./ci.sc
+          ;;
+        *-tests)
+          cp -r $src/* tests-src
+          ;;
+      esac
+    done
   '';
   nativeBuildInputs =
     [ rv32-clang glibc_multi llvmForDev.bintools go buddy-mlir ammonite mill ];
