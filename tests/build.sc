@@ -142,3 +142,37 @@ object asm
 class AsmCase(val config: String) extends Case {
   override def moduleName = "asm"
 }
+
+object caseBuild extends mill.Cross[CaseBuilder](
+  os.walk(os.pwd / "configs")
+    .filter(_.ext == "json")
+    .map(f => {
+      val cfg = ujson.read(os.read(f))
+      val name = cfg.obj("name").str
+      val module = cfg.obj("type").str
+      s"$name-$module"
+    }): _*
+)
+class CaseBuilder(val task: String) extends Module {
+  def run = T {
+    // prepare
+    val outputDir = os.pwd / os.up / "tests-out"
+    os.remove.all(os.pwd / "out")
+    os.makeDir.all(outputDir)
+    val IndexedSeq(name, module) = task.split("-").toSeq
+    os.makeDir.all(outputDir / "cases" / module)
+    os.makeDir.all(outputDir / "configs")
+
+    // build elf
+    val rawElfPath = os.proc("mill", "--no-server", "show", s"$module[$name].elf").call(os.pwd).out.text
+    val elfPath = os.Path(ujson.read(rawElfPath).str.split(":")(2))
+
+    // write elf path into test config
+    val origConfig = ujson.read(os.read(os.pwd / "configs" / s"$task.json"))
+    origConfig("elf") = ujson.Obj("path" -> s"cases/$module/${elfPath.last}")
+
+    // install, override if file exists
+    os.move.into(elfPath, outputDir / "cases" / module, true)
+    os.write.over(outputDir / "configs" / s"$task.json", ujson.write(origConfig))
+  }
+}
