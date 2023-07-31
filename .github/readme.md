@@ -1,3 +1,0 @@
-- pr.yml: Run all the test cases on `pull_request` event
-- gen-test-elf.yml: Generate all the test elf and test config when `tests` directory has been modified.
-- passed.txt: A list of test target that must be passed in GitHub Action
