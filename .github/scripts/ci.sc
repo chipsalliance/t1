@@ -115,7 +115,8 @@ def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
   val rawJson = os.proc("mill", "--no-server", "-j", "0", "--silent", "show", "_[_].elf")
       .call(testSrcDir).out.text
       .split('\n')
-      .map(rawLine => rawLine.stripPrefix("[#00] ")) // Output provided by -j0, but mill can't silent that.
+      // Output provided by -j0 that can't be turn off. It looks like [#00] or [#0] based on $(nproc)
+      .map(raw"^\[#\d+\]".r.unanchored.replaceFirstIn(_, "").trim)
       .mkString("");
   // Array[String] => Array[os.Path] A list of "ref:id:path", we need the path only.
   ujson.read(rawJson).arr
