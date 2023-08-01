@@ -607,8 +607,6 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
     * read result of vs2, for instructions that are not executed, pipe from s1
     */
   val pipeData: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
-  /** pipe vd for ffo */
-  val pipeVD: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
 }
 
 // Record of temporary execution units
@@ -621,6 +619,7 @@ class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends
   val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
   /** groupCounter need use to update `Lane.maskFormatResultForGroup` */
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
+  val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
 }
 
 class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
