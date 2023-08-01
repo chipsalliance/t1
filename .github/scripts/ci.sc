@@ -1,20 +1,12 @@
-// Generate `verilatorEmulator` object from the `passed.txt` file.
-// To cross product test case between multipl verilator and runtime config,
-// simply add new verilator type and runtime config into their own Seq.
+// Generate `verilatorEmulator` object from the `passed.txt` path.
+// A valid passedFile path should be like: /path/to/v1024l8b2-test/debug/passed.txt.
 //
 // @param passedFile Path to the passed.txt file
 def passed(passedFile: os.Path): Seq[String] = {
-  val verilatorType = Seq("v1024l8b2-test");
-  val runType = Seq("debug");
-  verilatorType.flatMap(
-    vtype => runType.flatMap(
-      rtype => os.read.lines(passedFile).map(
-        ttype => {
-          s"verilatorEmulator[$vtype,$ttype,$rtype].run"
-        }
-      )
-    )
-  )
+  println(s"Generate tests from file: $passedFile")
+  val Seq(_, runType, verilatorType) = passedFile.segments.toSeq.reverse.slice(0, 3)
+  os.read.lines(passedFile)
+    .map(test => s"verilatorEmulator[$verilatorType,$test,$runType].run")
 }
 
 // Resolve all the executable verilatorEmulator[$vtype,$ttype,$rtype].run object and execute them all.
