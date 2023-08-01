@@ -75,9 +75,9 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
   os.makeDir.all(logDir)
   os.makeDir.all(logDir / "fail")
   val totalJobs = jobs.split(";")
-  val failedCount = totalJobs.zipWithIndex
-    .foldLeft(0)(
-      (failedCount, elem) => {
+  val failed = totalJobs.zipWithIndex
+    .foldLeft(IndexedSeq[String]())(
+      (failed, elem) => {
         val (job, i) = elem
         val logPath = logDir / s"$job.log"
         println(s"[$i/${totalJobs.length}] Running test case $job")
@@ -87,18 +87,19 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
           stdout=logPath,
           mergeErrIntoOut=true,
         )
-        if (handle.exitCode != 0) {
-          println(s"[$i/${totalJobs.length}] Test case $job failed")
+        if (handle.exitCode == 0) {
+          println(s"[${i+1}/${totalJobs.length}] Test case $job failed")
           os.move.into(logPath, logDir / "fail")
-          failedCount + 1
+          failed :+ job
         } else {
-          failedCount
+          failed
         }
       }
     )
 
-  if (failedCount > 0) {
-    throw new Exception(s"$failedCount tests failed")
+  if (failed.length > 0) {
+    println(s"${failed.length} tests failed:\n${failed.mkString("\n")}")
+    throw new Exception("Tests failed")
   } else {
     println(s"All tests passed")
   }
