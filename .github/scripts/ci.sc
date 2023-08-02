@@ -79,9 +79,10 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
           stdout=logPath,
           mergeErrIntoOut=true,
         )
-        if (handle.exitCode == 0) {
+        if (handle.exitCode > 0) {
           println(s"[${i+1}/${totalJobs.length}] Test case $job failed")
-          os.move.into(logPath, logDir / "fail")
+          val trimmedOutput = os.proc("tail", "-n", "100", logPath).call().out.text
+          os.write(logDir / "fail" / s"$job.log", trimmedOutput)
           failed :+ job
         } else {
           failed
