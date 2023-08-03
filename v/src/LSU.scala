@@ -45,7 +45,8 @@ case class LSUParam(
   /** TODO: configured by cache line size. */
   val bankPosition: Int = 6
 
-  def mshrParam: MSHRParam = MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, cacheLineSize, tlParam)
+  def mshrParam: MSHRParam =
+    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, cacheLineSize, memoryBankSize, tlParam)
 
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)

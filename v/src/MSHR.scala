@@ -43,6 +43,7 @@ case class MSHRParam(
   laneNumber:    Int,
   paWidth:       Int,
   cacheLineSize: Int,
+  memoryBankSize:Int,
   outerTLParam:  TLBundleParameter) {
 
   /** see [[LaneParameter.lmulMax]] */
