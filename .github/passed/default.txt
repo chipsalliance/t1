@@ -1,0 +1,2 @@
+v1024l8b2fp-test/debug/passed.txt
+v1024l8b2-test/debug/passed.txt
