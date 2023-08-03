@@ -228,11 +228,8 @@ class Release(config: String) extends Module {
 }
 
 def emulatorTarget: Seq[String] = os.walk(os.pwd / "configs")
-  .filter(cfg => {
-    var filename = cfg.baseName
-    // TODO: remove fp filter after fp is supported
-    filename.contains("test")
-  })
+  .filter(_.ext == "json")
+  .filter(_.baseName.contains("test"))
   .map(_.baseName)
 
 object emulator extends mill.Cross[emulator](emulatorTarget: _*)
