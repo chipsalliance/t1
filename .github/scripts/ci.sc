@@ -2,11 +2,13 @@
 // A valid passedFile path should be like: /path/to/v1024l8b2-test/debug/passed.txt.
 //
 // @param passedFile Path to the passed.txt file
-def passed(passedFile: os.Path): Seq[String] = {
-  println(s"Generate tests from file: $passedFile")
-  val Seq(_, runType, verilatorType) = passedFile.segments.toSeq.reverse.slice(0, 3)
-  os.read.lines(passedFile)
-    .map(test => s"verilatorEmulator[$verilatorType,$test,$runType].run")
+def genRunTask(passedFiles: Seq[os.Path]): Seq[String] = {
+  passedFiles.flatMap(file => {
+    println(s"Generate tests from file: $file")
+    val Seq(_, runType, verilatorType) = file.segments.toSeq.reverse.slice(0, 3)
+    os.read.lines(file)
+      .map(test => s"verilatorEmulator[$verilatorType,$test,$runType].run")
+  })
 }
 
 // Resolve all the executable verilatorEmulator[$vtype,$ttype,$rtype].run object and execute them all.
@@ -29,13 +31,36 @@ def writeJson(buckets: Seq[String], outputFile: os.Path) =
   os.write.over(outputFile, ujson.Obj("include" -> 
     buckets.map(a => ujson.Obj(s"name" -> ujson.Str(a)))))
 
-// Read the passed.txt file, split the content into list of String and packed them up using the `bucket` function with specified bucket size.
+// Read the passed.txt file path from the given defaultPassed file,
+// split the content of the passed.txt file into list of String and packed them up using the `bucket` function with specified bucket size.
 // Write the generated json into given outputFile path.
 @main
-def passedJson(bucketSize: Int, passedFile: os.Path, outputFile: os.Path) = writeJson(buckets(passed(passedFile),bucketSize),outputFile)
+def passedJson(bucketSize: Int, defaultPassed: os.Path, outputFile: os.Path) =
+  writeJson(
+    buckets(
+      genRunTask(
+        os.read.lines(defaultPassed).map(defaultPassed / os.up / os.RelPath(_))
+      ),
+      bucketSize
+    ),
+    outputFile
+  )
 
 @main
-def unpassedJson(bucketSize: Int, root: os.Path, passedFile: os.Path, outputFile: os.Path) = writeJson(buckets((all(root).toSet -- passed(passedFile).toSet).toSeq,bucketSize),outputFile)
+def unpassedJson(
+    bucketSize: Int,
+    root: os.Path,
+    defaultPassed: os.Path,
+    outputFile: os.Path
+) = writeJson(
+  buckets(
+    (all(root).toSet -- genRunTask(
+      os.read.lines(defaultPassed).map(defaultPassed / os.up / os.RelPath(_))
+    ).toSet).toSeq,
+    bucketSize
+  ),
+  outputFile
+)
 
 @main
 def allJson(bucketSize: Int, root: os.Path, outputFile: os.Path) = writeJson(buckets(all(root),bucketSize),outputFile)
@@ -67,13 +92,14 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
   os.makeDir.all(logDir)
   os.makeDir.all(logDir / "fail")
   val totalJobs = jobs.split(";")
+  // TODO: Use sliding(n, n) and scala.concurrent to run multiple test in parallel
   val failed = totalJobs.zipWithIndex
     .foldLeft(IndexedSeq[String]())(
       (failed, elem) => {
         val (job, i) = elem
         val logPath = logDir / s"$job.log"
         println(s"[$i/${totalJobs.length}] Running test case $job")
-        val handle = os.proc("mill", "--no-server", "-j", "0", job).call(
+        val handle = os.proc("mill", "--no-server", job).call(
           cwd=root,
           check=false,
           stdout=logPath,
