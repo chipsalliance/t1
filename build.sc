@@ -231,7 +231,7 @@ def emulatorTarget: Seq[String] = os.walk(os.pwd / "configs")
   .filter(cfg => {
     var filename = cfg.baseName
     // TODO: remove fp filter after fp is supported
-    filename.contains("test") && !filename.contains("fp")
+    filename.contains("test")
   })
   .map(_.baseName)
 
