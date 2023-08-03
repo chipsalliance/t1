@@ -1,0 +1,8 @@
+{
+  "name": "vfmadd.vf",
+  "type": "codegen",
+  "vlen": 1024,
+  "xlen": 32,
+  "fp": true,
+  "compileOptions": [ "-mabi=ilp32f", "-march=rv32gcv", "-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-fno-PIC" ]
+}
