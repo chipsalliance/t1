@@ -133,3 +133,32 @@ def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
       os.write(outConfigDir / s"$name-$module.json", ujson.write(origConfig))
     })
 }
+
+@main
+def genCaseCycle(root: os.Path, passedTestsRecordPath: os.Path, outFilePath: os.Path) = {
+  val isCycle = raw" \[(\d+)\] reaching exit instruction".r.unanchored
+  val cycles_result = genRunTask(
+    os.read.lines(passedTestsRecordPath)
+    .map(passedTestsRecordPath / os.up / os.RelPath(_))
+  ).foldLeft(ujson.Arr())(
+    (outputJson, task) => {
+      println(s"Fetching instruction cycle for task $task")
+      val (origStdout, cycle) = os.proc("mill", "--no-server", task).call(cwd=root,check=true,mergeErrIntoOut=true)
+        .out.lines
+        // Init Arg: Tuple[String, Int] => Pair of the stdout and cycle number
+        .foldLeft(("", 0))((result, stdout) => {
+          stdout match {
+            case isCycle(c) => (stdout, c.toInt)
+            case _ => result
+          }
+        })
+      assert(cycle > 0, s"Test case $task have invalid instruction cycle number $cycle")
+      // verify cycle is correct
+      println(s"Get cycle $cycle from stdout: $origStdout")
+      outputJson.arr.append(
+        ujson.Obj( "name" -> task, "cycle" -> cycle )
+      )
+      outputJson
+    })
+  os.write.over(outFilePath, ujson.write(cycles_result))
+}
