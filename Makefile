@@ -40,12 +40,12 @@ ci-run:
 
 ci-passed-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
-	amm .github/scripts/ci.sc passedJson $(RUNNERS) $(DEFAULT_PASSED) ./passed.json
+	amm .github/scripts/ci.sc passedJson $(RUNNERS) $(DEFAULT_PASSED) .github/cycle-data.json ./passed.json
 	cat ./passed.json >> $$GITHUB_OUTPUT
 
 ci-unpassed-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
-	amm .github/scripts/ci.sc unpassedJson $(RUNNERS) . .github/passed.txt ./unpassed.json
+	amm .github/scripts/ci.sc unpassedJson $(RUNNERS) . $(DEFAULT_PASSED) ./unpassed.json
 	cat ./unpassed.json >> $$GITHUB_OUTPUT
 
 ci-all-tests:

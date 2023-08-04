@@ -92,14 +92,17 @@ def unpassedJson(
   defaultPassed: os.Path,
   outputFile: os.Path
 ) = {
-  val allTests = os.proc("mill", "resolve", "verilatorEmulator[__].run").call(root)
-    .out.text.split("\n")
-    .toSet
-  val passed = genRunTask(os.read.lines(defaultPassed).map(defaultPassed / os.up / os.RelPath(_)))
-    .toSet
+  val passedFiles = os.read.lines(defaultPassed).map(os.RelPath(_))
+  val allTests = passedFiles.map(_.segments.toSeq).flatMap {
+    case Seq(emulator, runCfg, _) =>
+      os.proc("mill", "resolve", s"verilatorEmulator[$emulator,_,$runCfg].run")
+        .call(root).out.text
+        .split("\n")
+  }
+  val passed = genRunTask(passedFiles.map(defaultPassed / os.up / _))
   writeJson(
     buckets(
-      (allTests -- passed).toSeq,
+      (allTests.toSet -- passed.toSet).toSeq,
       bucketSize
     ),
     outputFile
