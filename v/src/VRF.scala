@@ -132,11 +132,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   val lsuInstructionFire: Bool = IO(Input(Bool()))
 
-  /** see [[Lane.maskUnitFlushVrf]]
-    * TODO: merge to [[lsuLastReport]]
-    */
-  val flush: Bool = IO(Input(Bool()))
-
   /** similar to [[flush]]. */
   val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
@@ -308,9 +303,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         when(write.bits.last) {
           record.valid := false.B
         }
-      }
-      when(flush) {
-        record.valid := false.B
       }
       when(ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)) {
         record.bits.stFinish := true.B

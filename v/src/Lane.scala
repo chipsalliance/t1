@@ -212,13 +212,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** for RaW, VRF should wait for buffer to be empty. */
   val lsuVRFWriteBufferClear: Bool = IO(Input(Bool()))
 
-  /** VRF will record information for each instructions,
-    * we use `last` to indicate if the write is finished.
-    * for some mask instructions, e.g. `reduce`, it will only write single lane,
-    * thus we need to use this signal to release the record from [[VRF]]
-    */
-  val maskUnitFlushVrf: Bool = IO(Input(Bool()))
-
   // TODO: remove
   dontTouch(writeBusPort)
 
@@ -955,7 +948,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // handshake
   laneRequest.ready := !slotOccupied.last && vrf.instructionWriteReport.ready
 
-  vrf.flush := maskUnitFlushVrf
   // normal instruction, LSU instruction will be report to VRF.
   vrf.lsuInstructionFire := laneRequest.bits.LSUFire
   vrf.instructionWriteReport.valid := (laneRequest.fire || laneRequest.bits.LSUFire) && !entranceControl.instructionFinished

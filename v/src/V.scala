@@ -1204,10 +1204,15 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.maskInput := regroupV0.map(Mux1H(UIntToOH(lane.maskSelectSew)(2, 0), _)).map { v0ForLane =>
       VecInit(v0ForLane.asBools.grouped(parameter.datapathWidth).toSeq.map(VecInit(_).asUInt))
     }(index)(lane.maskSelect)
-    lane.lsuLastReport := lsu.lastReport
+    lane.lsuLastReport := lsu.lastReport |
+      Mux(
+        lastMaskUnitWrite,
+        indexToOH(slots.last.record.instructionIndex, parameter.chainingSize),
+        0.U
+      )
+
     lane.lsuMaskGroupChange := lsu.lsuMaskGroupChange
     lane.lsuVRFWriteBufferClear := !lsu.vrfWritePort(index).valid && busClear
-    lane.maskUnitFlushVrf := lastMaskUnitWrite
 
     // 处理lane的mask类型请求
     laneSynchronize(index) := lane.laneResponse.valid && !lane.laneResponse.bits.toLSU
