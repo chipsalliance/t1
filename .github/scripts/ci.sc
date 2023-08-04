@@ -38,7 +38,8 @@ class BucketBuffer() {
   }
 }
 
-// Partition all the tests based on their instrution cycle such that CI machines used almost same time to finish the tasks.
+// This function will use the greedy partition method to partition the given tests into given `bucketSize` of subset.
+// Tests are grouped by their corresponding instruction cycle specified in `cycleDataPath` so that they have a similar time span to execute.
 //
 // @param allTests List of the test target
 // @param cycleDataPath Path to the cycle data
@@ -68,9 +69,7 @@ def writeJson(buckets: Seq[String], outputFile: os.Path) =
   os.write.over(outputFile, ujson.Obj("include" -> 
     buckets.map(a => ujson.Obj(s"name" -> ujson.Str(a)))))
 
-// Read the passed.txt file path from the given defaultPassed file,
-// split the content of the passed.txt file into list of String and packed them up using the `bucket` function with specified bucket size.
-// Write the generated json into given outputFile path.
+// Generate a list of grouped tests from the given `defaultPassed` file.
 @main
 def passedJson(bucketSize: Int, defaultPassed: os.Path, cycleDataPath: os.Path, outputFile: os.Path) =
   writeJson(
@@ -109,23 +108,49 @@ def unpassedJson(
   )
 }
 
+// Find the perf.txt file for tests specified in the .github/passed/*/*/perf-cases.txt file,
+// and convert them into markdown format.
 @main
-def runPerf(root: os.Path, jobs: String, outputFile: os.Path) = {
-  val perfCases = os.read(root / os.RelPath(".github/perf-cases.txt")).split('\n').filter(_.length > 0)
-  val existCases = perfCases.filter(c => os.exists(root / os.RelPath(s"out/tests/run/$c/ciRun.dest/perf.txt")))
-  existCases.foreach{c =>
-    val output = s"""### $c
-    |```
-    |${os.read(root / os.RelPath(s"out/tests/run/$c/ciRun.dest/perf.txt")).trim}
-    |```
-    |\n""".stripMargin
-    os.write(root / s"perf-result-$c.md", output)
-  }
-}
-
+def convertPerfToMD(root: os.Path) = os
+  .walk(root / ".github" / "passed")
+  .filter(_.last == "perf-cases.txt")
+  .foreach(p => {
+    val perfCases = os.read.lines(p).filter(_.length > 0)
+    val Seq(emulator, runCfg, _) =
+      p.relativeTo(root / ".github" / "passed").segments.toSeq
+    val existPerfFile = perfCases
+      .filter {testcase =>
+        val path = root / os.RelPath(
+          s"out/verilatorEmulator/$emulator/$testcase/$runCfg/run.dest/perf.txt"
+        )
+        os.exists(path)
+      }
+      .foreach(testcase => {
+        val path = root / os.RelPath(
+          s"out/verilatorEmulator/$emulator/$testcase/$runCfg/run.dest/perf.txt"
+        )
+        val output =
+          s"""### $testcase
+            |
+            |* Emulator: $emulator
+            |* Run Config: $runCfg
+            |
+            |```
+            |${os.read(path).trim}
+            |```
+            |\n""".stripMargin
+        os.write(root / s"perf-result-$testcase-$emulator-$runCfg.md", output)
+      })
+  })
+  
 // This function will split the given jobs with semicolon,
 // and attempt to use mill to execute them all.
 // If the execution doesn't end successfully, the stdout and sterr will be writed into the loggingDir/fail directory.
+//
+// ```bash
+// # Each test is in the form of `verilatorEmulator[$emulator,$testname,$runcfg]`
+// amm .github/scripts/ci.sc $PWD "test1;test2;test3"
+// ```
 //
 // @param: root Path to the project root
 // @param: jobs A list of test case concat with semicolon, eg. "taskA;taskB"
@@ -169,7 +194,12 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
 }
 
 
-// This target will try to build all the test cases and put them into the given output directory.
+// This target will try to build all the test cases in the given testSrcDir and group them into the given output directory.
+//
+// ```bash
+// # Run this in the project root
+// amm .github/scripts/ci.sc $PWD/tests ./test-out
+// ```
 //
 // @param testSrcDir Path to the tests directory
 // @param outDir Path to the output directory
@@ -206,6 +236,15 @@ def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
 
 // Run all the tests specify from `passedTestsRecordPath` to get their instruction cycle.
 // Then save this cycle into `outFilePath` in json format.
+//
+// Tests are schedule and group into subset based on their corresbonding instruction cycle count,
+// so all of the runner require similiar time span to execute the test subset.
+// These cycle data are unwrap from the spike output.
+// To generate the cycle data, you will need to run the following script in project root:
+// 
+// ```bash
+// amm .github/scripts/ci.sc genCaseCycle $PWD .github/passed/default.txt ./cycle-data.json
+// ```
 @main
 def genCaseCycle(root: os.Path, passedTestsRecordPath: os.Path, outFilePath: os.Path) = {
   val isCycle = raw" \[(\d+)\] reaching exit instruction".r.unanchored
