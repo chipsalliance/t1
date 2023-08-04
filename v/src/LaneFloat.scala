@@ -154,11 +154,12 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * }}}
     */
   val div      = divEn && (uop === "b0001".U)
+  val rdiv     = divEn && (uop === "b0010".U)
   val sqrt     = divEn && (uop === "b1000".U)
 
   val divSqrt = Module(new DivSqrtRecFN_small(8, 24,0))
-  val divIn0 = Mux(div, recIn0, recIn1)
-  val divIn1 = Mux(div, recIn1, recIn0)
+  val divIn0 = Mux(rdiv, recIn0, recIn1)
+  val divIn1 = Mux(rdiv, recIn1, recIn0)
 
   divSqrt.io.a := divIn0
   divSqrt.io.b := divIn1
