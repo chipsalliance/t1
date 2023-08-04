@@ -1,3 +1,5 @@
+import scala.collection.mutable.ArrayBuffer
+
 // Generate `verilatorEmulator` object from the `passed.txt` path.
 // A valid passedFile path should be like: /path/to/v1024l8b2-test/debug/passed.txt.
 //
@@ -11,9 +13,6 @@ def genRunTask(passedFiles: Seq[os.Path]): Seq[String] = {
   })
 }
 
-// Resolve all the executable verilatorEmulator[$vtype,$ttype,$rtype].run object and execute them all.
-def all(root: os.Path): Seq[String] = os.proc("mill", "resolve", "verilatorEmulator[__].run").call(root).out.text.split("\n").toSeq
-
 // Merge Seq( "A", "B", "C", "D" ) into Seq( "A;B", "C;D" )
 //
 // @param allTests The original Seq
@@ -22,6 +21,44 @@ def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] =
   scala.util.Random.shuffle(alltests).grouped(
     math.ceil(alltests.size.toDouble / bucketSize).toInt
   ).toSeq.map(_.mkString(";"))
+
+class BucketBuffer() {
+  private var _buffer: ArrayBuffer[String] = new ArrayBuffer()
+  private var _total_cycles = 0;
+
+  def push_back(test: String, cycle: Int) = {
+    _buffer += test
+    _total_cycles += cycle
+  }
+
+  def total_cycles: Int = _total_cycles
+
+  def mkString(): String = {
+    _buffer.toArray.mkString(";")
+  }
+}
+
+// Partition all the tests based on their instrution cycle such that CI machines used almost same time to finish the tasks.
+//
+// @param allTests List of the test target
+// @param cycleDataPath Path to the cycle data
+// @param bucketSize Specify the size of the output Seq
+def scheduledBuckets(allTests: Seq[String], cycleDataPath: os.Path, bucketSize: Int): Seq[String] = {
+  val cycleData = ujson.read(os.read(cycleDataPath))
+  val tests = allTests.map(test => {
+    // TODO: Remove the fallback cycle number after FP tests are fixed.
+    val cycle = cycleData.obj.getOrElse(test, ujson.Num(10000.0)).num.toInt
+    (test, cycle)
+  })
+  // Initialize a list of buckets
+  val cargo = (0 until bucketSize).map(_ => new BucketBuffer())
+  tests.sortBy(_._2)(Ordering[Int].reverse) // sort by cycle in descending order
+    .foreach((elem) => {
+      val (testName, cycle) = elem; 
+      cargo.minBy(_.total_cycles).push_back(testName, cycle)
+    })
+  cargo.map(_.mkString).toSeq
+}
 
 // Turn Seq( "A,B", "C,D" ) to GitHub Action matrix style json: { "include": [ { "name": "A,B" }, { "name": "C,D" } ] }
 //
@@ -35,35 +72,39 @@ def writeJson(buckets: Seq[String], outputFile: os.Path) =
 // split the content of the passed.txt file into list of String and packed them up using the `bucket` function with specified bucket size.
 // Write the generated json into given outputFile path.
 @main
-def passedJson(bucketSize: Int, defaultPassed: os.Path, outputFile: os.Path) =
+def passedJson(bucketSize: Int, defaultPassed: os.Path, cycleDataPath: os.Path, outputFile: os.Path) =
   writeJson(
-    buckets(
+    scheduledBuckets(
       genRunTask(
         os.read.lines(defaultPassed).map(defaultPassed / os.up / os.RelPath(_))
       ),
+      cycleDataPath,
       bucketSize
     ),
     outputFile
   )
 
+// Resolve all the executable test and filter out unpassed tests
 @main
 def unpassedJson(
-    bucketSize: Int,
-    root: os.Path,
-    defaultPassed: os.Path,
-    outputFile: os.Path
-) = writeJson(
-  buckets(
-    (all(root).toSet -- genRunTask(
-      os.read.lines(defaultPassed).map(defaultPassed / os.up / os.RelPath(_))
-    ).toSet).toSeq,
-    bucketSize
-  ),
-  outputFile
-)
-
-@main
-def allJson(bucketSize: Int, root: os.Path, outputFile: os.Path) = writeJson(buckets(all(root),bucketSize),outputFile)
+  bucketSize: Int,
+  root: os.Path,
+  defaultPassed: os.Path,
+  outputFile: os.Path
+) = {
+  val allTests = os.proc("mill", "resolve", "verilatorEmulator[__].run").call(root)
+    .out.text.split("\n")
+    .toSet
+  val passed = genRunTask(os.read.lines(defaultPassed).map(defaultPassed / os.up / os.RelPath(_)))
+    .toSet
+  writeJson(
+    buckets(
+      (allTests -- passed).toSeq,
+      bucketSize
+    ),
+    outputFile
+  )
+}
 
 @main
 def runPerf(root: os.Path, jobs: String, outputFile: os.Path) = {
