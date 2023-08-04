@@ -19,12 +19,7 @@
               },
               "generator": "v.MaskedLogic"
             },
-            [
-              0,
-              1,
-              2,
-              3
-            ]
+            [0, 1, 2, 3]
           ]
         ],
         "aluModuleParameters": [
@@ -35,9 +30,7 @@
               },
               "generator": "v.LaneAdder"
             },
-            [
-              0
-            ]
+            [0]
           ],
           [
             {
@@ -46,9 +39,7 @@
               },
               "generator": "v.LaneAdder"
             },
-            [
-              1
-            ]
+            [1]
           ],
           [
             {
@@ -57,9 +48,7 @@
               },
               "generator": "v.LaneAdder"
             },
-            [
-              2
-            ]
+            [2]
           ],
           [
             {
@@ -68,9 +57,7 @@
               },
               "generator": "v.LaneAdder"
             },
-            [
-              3
-            ]
+            [3]
           ]
         ],
         "shifterModuleParameters": [
@@ -81,12 +68,7 @@
               },
               "generator": "v.LaneShifter"
             },
-            [
-              0,
-              1,
-              2,
-              3
-            ]
+            [0, 1, 2, 3]
           ]
         ],
         "mulModuleParameters": [
@@ -97,12 +79,7 @@
               },
               "generator": "v.LaneMul"
             },
-            [
-              0,
-              1,
-              2,
-              3
-            ]
+            [0, 1, 2, 3]
           ]
         ],
         "divModuleParameters": [
@@ -113,12 +90,7 @@
               },
               "generator": "v.LaneDiv"
             },
-            [
-              0,
-              1,
-              2,
-              3
-            ]
+            [0, 1, 2, 3]
           ]
         ],
         "otherModuleParameters": [
@@ -133,12 +105,18 @@
               },
               "generator": "v.OtherUnit"
             },
-            [
-              0,
-              1,
-              2,
-              3
-            ]
+            [0, 1, 2, 3]
+          ]
+        ],
+        "floatModuleParameters": [
+          [
+            {
+              "parameter": {
+                "datapathWidth": 32
+              },
+              "generator": "v.LaneFloat"
+            },
+            [0, 1, 2, 3]
           ]
         ]
       }
@@ -147,15 +125,11 @@
   },
   "mfcArgs": [
     "-dedup",
-    "-O=release",
-    "--disable-all-randomization",
+    "-O=debug",
     "--split-verilog",
-    "--strip-debug-info",
-    "--preserve-values=none",
-    "--preserve-aggregate=all",
+    "--preserve-values=named",
     "--output-annotation-file=mfc.anno.json",
-    "--repl-seq-mem",
-    "--repl-seq-mem-file=repl-seq-mem.txt"
+    "--lowering-options=verifLabels"
   ],
   "testbench": false
 }

@@ -107,18 +107,29 @@
             },
             [0, 1, 2, 3]
           ]
+        ],
+        "floatModuleParameters": [
+          [
+            {
+              "parameter": {
+                "datapathWidth": 32
+              },
+              "generator": "v.LaneFloat"
+            },
+            [0, 1, 2, 3]
+          ]
         ]
       }
     },
     "generator": "v.V"
   },
   "mfcArgs": [
-   "-dedup",
-   "-O=debug",
-   "--split-verilog",
-   "--preserve-values=named",
-   "--output-annotation-file=mfc.anno.json",
-   "--lowering-options=verifLabels"
+    "-dedup",
+    "-O=debug",
+    "--split-verilog",
+    "--preserve-values=named",
+    "--output-annotation-file=mfc.anno.json",
+    "--lowering-options=verifLabels"
   ],
   "testbench": true,
   "trace": true
