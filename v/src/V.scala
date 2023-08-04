@@ -836,7 +836,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val skipRead = readOverlap || (gather && compareResult) || extend
       val maskUnitWriteVecFire1 = maskUnitReadVec(1).valid && maskUnitReadReady
       val readFireNext1: Bool = RegNext(maskUnitWriteVecFire1)
-      maskUnitReadVec(1).valid := (readState || gatherNeedRead) && !readFireNext1
+      val gatherTryToRead = gatherNeedRead && !VecInit(lsu.vrfReadDataPorts.map(_.valid)).asUInt.orR
+      maskUnitReadVec(1).valid := (readState || gatherTryToRead) && !readFireNext1
       maskUnitReadVec(1).bits.vs := Mux(readState, vs2, requestRegDequeue.bits.instruction(24, 20)) + readGrowth
       maskUnitReadVec(1).bits.offset := readOffset
       maskReadLaneSelect(1) := UIntToOH(readLane)

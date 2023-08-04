@@ -43,7 +43,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
     stageWire.mask(0),
   )) || state.maskNotMaskedElement ||
     state.decodeResult(Decoder.maskDestination) || state.decodeResult(Decoder.red) ||
-    state.decodeResult(Decoder.readOnly) ||  state.loadStore ||
+    state.decodeResult(Decoder.readOnly) ||  state.loadStore || state.decodeResult(Decoder.gather) ||
     state.decodeResult(Decoder.crossRead)
   // 超出范围的一组不压到流水里面去
   val enqFire: Bool = enqueue.fire && !updateLaneState.outOfExecutionRange && notMaskedAllElement
