@@ -165,24 +165,28 @@ def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
 @main
 def genCaseCycle(root: os.Path, passedTestsRecordPath: os.Path, outFilePath: os.Path) = {
   val isCycle = raw" \[(\d+)\] reaching exit instruction".r.unanchored
+  os.remove.all(root / "out" / "verilatorEmulator")
   val cycles_result = genRunTask(
     os.read.lines(passedTestsRecordPath)
     .map(passedTestsRecordPath / os.up / os.RelPath(_))
-  ).foldLeft(ujson.Arr())(
+  ).foldLeft(ujson.Obj())(
     (outputJson, task) => {
       println(s"Fetching instruction cycle for task $task")
-      val cycle = os.proc("mill", "--no-server", task).call(cwd=root,check=true,mergeErrIntoOut=true)
-        .out.lines
+      val tmpLog = os.temp(deleteOnExit = false)
+      val fd = os.proc("mill", "--no-server", "--color", "false", task)
+        .call(cwd = root, check = false, stdout = tmpLog, mergeErrIntoOut = true)
+      assert(fd.exitCode == 0, s"$task fail")
+      // Some test log is too large and this script might go OOM
+      val cycle = os.read.lines.stream(tmpLog)
         .foldLeft(0)((result, stdout) => {
           stdout match {
             case isCycle(c) => c.toInt
             case _ => result
           }
         })
-      assert(cycle > 0, s"Test case $task have invalid instruction cycle number $cycle")
-      outputJson.arr.append(
-        ujson.Obj( "name" -> task, "cycle" -> cycle )
-      )
+      assert(cycle > 0, s"Test case $task have invalid instruction cycle number $cycle, check $tmpLog")
+      outputJson(task) = cycle
+      os.remove.all(tmpLog)
       outputJson
     })
   os.write.over(outFilePath, ujson.write(cycles_result))
