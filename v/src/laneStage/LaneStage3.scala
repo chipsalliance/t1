@@ -131,7 +131,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     vrfWriteQueue.io.enq.bits.data := dataSelect.get
     vrfWriteQueue.io.enq.bits.last := DontCare
     vrfWriteQueue.io.enq.bits.instructionIndex := state.instructionIndex
-    vrfWriteQueue.io.enq.bits.mask := 15.U
+    vrfWriteQueue.io.enq.bits.mask := pipeEnqueue.get.mask
 
     // Handshake
     /** Cross-lane writing is over */
