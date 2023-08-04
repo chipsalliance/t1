@@ -195,8 +195,8 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val compareflags = Wire(UInt(5.W))
 
   assert(!unitSeleOH(2) || (uop === "b0001".U || uop === "b0000".U || uop === "b0010".U || uop === "b0011".U || uop === "b0100".U || uop === "b0101".U || uop === "b1000".U || uop === "b1100".U))
-  compareResult := Mux(uop === "b1000".U , Mux(compareModule.io.lt, request.src(0), request.src(1)),
-    Mux(uop === "b1100".U, Mux(compareModule.io.gt, request.src(0), request.src(1)),
+  compareResult := Mux(uop === "b1000".U , Mux(compareModule.io.lt, request.src(1), request.src(0)),
+    Mux(uop === "b1100".U, Mux(compareModule.io.gt, request.src(1), request.src(0)),
      Mux(uop === "b0011".U, compareModule.io.lt || compareModule.io.eq,
        Mux(uop === "b0101".U, compareModule.io.gt || compareModule.io.eq,
          Mux(uop === "b0010".U, compareModule.io.lt,
@@ -258,9 +258,9 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * }}}
     */
   val sgnjresult = Wire(UInt(32.W))
-  val sgnjSign = Mux(otherEn && uop === 1.U, request.src(0)(31),
-    Mux(otherEn && uop === 2.U, !request.src(0)(31),
-      Mux(otherEn && uop ===3.U, request.src(0)(31) ^ request.src(1)(31), false.B)))
+  val sgnjSign = Mux(otherEn && uop === "b0001".U, request.src(0)(31),
+    Mux(otherEn && uop === "b0010".U, !request.src(0)(31),
+      Mux(otherEn && uop ==="b0011".U, request.src(0)(31) ^ request.src(1)(31), false.B)))
   sgnjresult := Cat(sgnjSign, request.src(1)(30,0))
 
   val in1classify = classifyRecFN(8, 24, recIn1)
