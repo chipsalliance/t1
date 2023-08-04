@@ -325,6 +325,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     */
   val specialInstruction: Bool = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
   val busClear: Bool = Wire(Bool())
+  val writeQueueClear: Bool = Wire(Bool())
 
   /** designed for unordered instruction(slide),
     * it doesn't go to lane, it has RAW hazzard.
@@ -452,7 +453,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // state machine starts here
       .otherwise {
         when(laneAndLSUFinish) {
-          control.state.wLast := !control.record.hasCrossWrite || busClear
+          control.state.wLast := !control.record.hasCrossWrite || (busClear && writeQueueClear)
         }
         // TODO: execute first, then commit
         when(responseCounter === control.record.instructionIndex && response.fire) {
@@ -1224,6 +1225,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane
   }
   busClear := !VecInit(laneVec.map(_.writeBusPort.deq.valid)).asUInt.orR
+  writeQueueClear := !VecInit(laneVec.map(_.writeQueueValid)).asUInt.orR
 
   // 连lsu
   lsu.request.valid := requestRegDequeue.fire && isLoadStoreType
