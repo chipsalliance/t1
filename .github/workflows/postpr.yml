@@ -58,14 +58,16 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
       - id: ci-run
-        run: nix develop .#testcase -c make ci-run NAME=${{ matrix.name }}
+        run: |
+          nix develop .#testcase -c make ci-run NAME=${{ matrix.name }}
+          nix develop .#testcase -c make convert-perf-to-md
 
       - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: results
           path: |
-            result-*.md
+            ./test-log
             perf-result-*.md
 
       - uses: actions/upload-artifact@v3
@@ -86,6 +88,16 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: results
-      - run: printf "## Newly passed tests:\n| Test | result |\n| ---- | ---- |\n" >> $GITHUB_STEP_SUMMARY; cat result-*.md | grep true | sort >> $GITHUB_STEP_SUMMARY
-      - run: printf "\n\n## Still failing tests:\n| Test | result |\n| ---- | ---- |\n" >> $GITHUB_STEP_SUMMARY; cat result-*.md | grep false | sort >> $GITHUB_STEP_SUMMARY
+      - run: |
+          newly_passed=$(find test-log -name '*.run.log' | grep -Po "\[.*\]" | sed -nr 's/\[(.*)\]/\1/p' | sort)
+          echo "## Newly passed tests:" >> $GITHUB_STEP_SUMMARY
+          for pass in $newly_passed; do
+            echo "* $pass" >> $GITHUB_STEP_SUMMARY
+          done
+      - run: |
+          still_failed=$(find test-log/fail -name '*.run.log' | grep -Po "\[.*\]" | sed -nr 's/\[(.*)\]/\1/p' | sort)
+          echo "## Still failing tests:" >> $GITHUB_STEP_SUMMARY
+          for fail in $still_failed; do
+            echo "* $fail" >> $GITHUB_STEP_SUMMARY
+          done
       - run: printf "\n\n## Perf Result\n" >> $GITHUB_STEP_SUMMARY; cat perf-*.md >> $GITHUB_STEP_SUMMARY

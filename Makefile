@@ -64,3 +64,6 @@ gen-test-case-bucket:
 build-test-cases:
 	rm -rf out tests/out
 	amm .github/scripts/ci.sc buildTestCases --testSrcDir ./tests --outDir $(OUT_DIR) --taskBucket "$(TESTS)"
+
+convert-perf-to-md:
+	amm .github/scripts/ci.sc convertPerfToMD .
