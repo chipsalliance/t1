@@ -325,7 +325,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     */
   val specialInstruction: Bool = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
   val busClear: Bool = Wire(Bool())
-  val writeQueueClear: Bool = Wire(Bool())
+  val writeQueueClearVec = Wire(Vec(parameter.laneNumber, Bool()))
+  val writeQueueClear: Bool = !writeQueueClearVec.asUInt.orR
 
   /** designed for unordered instruction(slide),
     * it doesn't go to lane, it has RAW hazzard.
@@ -425,6 +426,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         .asTypeOf(new InstructionControl(parameter.instructionIndexBits, parameter.laneNumber))
     )
 
+    val mvToVRF: Option[Bool] = Option.when(index == parameter.chainingSize - 1)(RegInit(false.B))
+
     /** the execution is finished.
       * (but there might still exist some data in the ring.)
       */
@@ -459,8 +462,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         when(responseCounter === control.record.instructionIndex && response.fire) {
           control.state.sCommit := true.B
         }
+        val maskUnitEnd: Bool = (mvToVRF.map(!_ || !writeQueueClearVec.head) ++
+          Seq(control.state.sMaskUnitExecution, control.state.sCommit)).reduce(_ && _)
         // TODO: remove `control.state.sMaskUnitExecution`
-        when(control.state.sCommit && control.state.sMaskUnitExecution) {
+        when(maskUnitEnd) {
           control.state.idle := true.B
         }
 
@@ -631,6 +636,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val readMv = mvType && decodeResultReg(Decoder.targetRd)
       val writeMv = mvType && !decodeResultReg(Decoder.targetRd) &&
         csrRegForMaskUnit.vl > csrRegForMaskUnit.vStart
+      mvToVRF.foreach(d => when(requestRegDequeue.fire){d := writeMv})
       // 读后写中的读
       val needWAR = maskTypeInstruction || border || reduce || readMv
       val skipLaneData: Bool = decodeResultReg(Decoder.mv)
@@ -1225,7 +1231,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane
   }
   busClear := !VecInit(laneVec.map(_.writeBusPort.deq.valid)).asUInt.orR
-  writeQueueClear := !VecInit(laneVec.map(_.writeQueueValid)).asUInt.orR
+  writeQueueClearVec := VecInit(laneVec.map(_.writeQueueValid))
 
   // 连lsu
   lsu.request.valid := requestRegDequeue.fire && isLoadStoreType
