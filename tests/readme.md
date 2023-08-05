@@ -1,4 +1,4 @@
-## How tests are organised
+## How tests are organized
 
 The `tests/` directory itself is a single build module.
 There are four types of tests in this build module:
@@ -13,7 +13,7 @@ The `mill` build system will attempt to compile the `build.sc` file and generate
 by reading the test case source file and its corresponding config file.
 
 The codegen tests requires [ksco/riscv-vector-tests](https://github.com/ksco/riscv-vector-tests) to generate multiple asm tests.
-If you are going to build all the tests manually, you will need to set the following environment variable:
+If you want to build all the codegen tests manually, you will need to set the following environment variable:
 
 - `CODEGEN_BIN_PATH`: Path to the `single` binary in riscv-vector-tests.
 - `CODEGEN_INC_PATH`: A list of header include paths. You may need to set it as `export CODEGEN_INC_PATH="$codegen/macro/sequencer-vector $codegen/env/sequencer-vector`.
@@ -62,10 +62,10 @@ All the `verilatorEmulator` objects will be generated in this form: `verilatorEm
 The emulator configuration can be found in the `configs/` directory in the project root. Each has its own configuration.
 In GitHub CI, we will use `v1024l8b2-test` as the base emulator configuration.
 
-The test case names are taken from the `TEST_CASE_DIR/configs/*.json` with the extension stripped. To make `mill` generate more tests or less tests,
-you can modify the content of `$TEST_CASE_DIR`.
+The test case names are taken from the `TEST_CASE_DIR/configs/*.json` with the extension stripped. To make `mill` generate more tests or fewer tests,
+you can change the contents in `$TEST_CASE_DIR`.
 
-The runtime config can be found in `run/` directory in the project root. There is `debug.json` only for now.
+The runtime config can be found in `run/` directory in the project root. There is only one `debug.json` at the moment.
 
 So to use the `v1024l8b2-test.json` config for the emulator to run the test config `matmul-mlir.json` with runtime config `debug.json`,
 you can type `mill -i verilatorEmulator[v1024l8b2-test,matmul-mlir,debug].run` in your shell.
@@ -79,17 +79,17 @@ mill -i verilatorEmulator[v1024l8b2-test,matmul-mlir,debug].run
 
 ## How to build single test and run it
 
-Assuming that you want to build the mlir/hello.mlir test and run it:
+Suppose you want to build and run the mlir/hello.mlir test:
 
 ```bash
-# First, we build the test case
+# build
 pushd tests
 nix develop .#testcase-bootstrap
 mill --no-server caseBuild[hello-mlir].run
 exit
 popd
 
-# Then run the test
+# run
 nix develop .#testcase
 export TEST_CASE_DIR=$PWD/tests-out
 mill --no-server verilatorEmulator[v1024l8b2-test,hello-mlir,debug].run
