@@ -142,7 +142,29 @@ def convertPerfToMD(root: os.Path) = os
         os.write(root / s"perf-result-$testcase-$emulator-$runCfg.md", output)
       })
   })
-  
+
+
+def updPerfResult(root: os.Path, task: String, resultOutput: os.Path) = {
+  val isEmulatorTask = raw"verilatorEmulator\[([^,]+),([^,]+),([^,]+)\].run".r
+  task match {
+    case isEmulatorTask(e, t, r) => {
+      val passedFile = root / os.RelPath(s".github/passed/$e/$r/passed.json")
+      val original = ujson.read(os.read(passedFile))
+      val new_cycle = os.read.lines(root / os.RelPath(s"out/verilatorEmulator/$e/$t/$r/run.dest/perf.txt"))
+        .apply(0)
+        .stripPrefix("total_cycles: ")
+        .trim.toInt
+      val old_cycle = original.obj(t).num.toInt
+      if (old_cycle != new_cycle) {
+        os.write.append(resultOutput, s"* $t: $old_cycle -> $new_cycle\n")
+        original(t) = new_cycle
+        os.write.over(passedFile, ujson.write(original, indent = 2))
+      }
+    }
+  }
+}
+
+
 // This function will split the given jobs with semicolon,
 // and attempt to use mill to execute them all.
 // If the execution doesn't end successfully, the stdout and sterr will be writed into the loggingDir/fail directory.
@@ -158,34 +180,37 @@ def convertPerfToMD(root: os.Path) = os
 @main
 def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
   var logDir = loggingDir.getOrElse(root / "test-log")
+  os.remove.all(logDir)
   os.makeDir.all(logDir)
   os.makeDir.all(logDir / "fail")
   val totalJobs = jobs.split(";")
-  // TODO: Use sliding(n, n) and scala.concurrent to run multiple test in parallel
-  val failed = totalJobs.zipWithIndex
-    .foldLeft(IndexedSeq[String]())(
-      (failed, elem) => {
-        val (job, i) = elem
-        val logPath = logDir / s"$job.log"
-        println(s"[$i/${totalJobs.length}] Running test case $job")
-        val handle = os.proc("mill", "--no-server", job).call(
-          cwd=root,
+  os.write.over(logDir / "result.md", "## Cycle Changed\n")
+  val failed = totalJobs.zipWithIndex.foldLeft(Seq[String]()) {
+    case(failed, (job, i)) => {
+      val logPath = logDir / s"$job.log"
+      println(s"[${i+1}/${totalJobs.length}] Running test case $job")
+      val handle = os
+        .proc("mill", "--no-server", job)
+        .call(cwd=root,
           check=false,
           stdout=logPath,
-          mergeErrIntoOut=true,
-        )
-        if (handle.exitCode > 0) {
-          println(s"[${i+1}/${totalJobs.length}] Test case $job failed")
-          val trimmedOutput = os.proc("tail", "-n", "100", logPath).call().out.text
-          os.write(logDir / "fail" / s"$job.log", trimmedOutput)
-          failed :+ job
-        } else {
-          failed
-        }
+          mergeErrIntoOut=true)
+      if (handle.exitCode > 0) {
+        val trimmedOutput = os.proc("tail", "-n", "100", logPath).call().out.text
+        os.write(logDir / "fail" / s"$job.log", trimmedOutput)
+        failed :+ job
+      } else {
+        updPerfResult(root, job, logDir / "result.md")
+        failed
       }
-    )
+    }
+  }
 
   if (failed.length > 0) {
+    os.write.append(logDir/"result.md", 
+      s"""## Failed Tests
+        |${failed.map(t => s"* $t").mkString("\n")}
+        |""".stripMargin)
     println(s"${failed.length} tests failed:\n${failed.mkString("\n")}")
     throw new Exception("Tests failed")
   } else {
@@ -232,45 +257,4 @@ def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
       os.move(elfPath, outElfDir / module / elfPath.last)
       os.write(outConfigDir / s"$name-$module.json", ujson.write(origConfig))
     })
-}
-
-// Run all the tests specify from `passedTestsRecordPath` to get their instruction cycle.
-// Then save this cycle into `outFilePath` in json format.
-//
-// Tests are schedule and group into subset based on their corresbonding instruction cycle count,
-// so all of the runner require similiar time span to execute the test subset.
-// These cycle data are unwrap from the spike output.
-// To generate the cycle data, you will need to run the following script in project root:
-// 
-// ```bash
-// amm .github/scripts/ci.sc genCaseCycle $PWD .github/passed/default.txt ./cycle-data.json
-// ```
-@main
-def genCaseCycle(root: os.Path, passedTestsRecordPath: os.Path, outFilePath: os.Path) = {
-  val isCycle = raw" \[(\d+)\] reaching exit instruction".r.unanchored
-  os.remove.all(root / "out" / "verilatorEmulator")
-  val cycles_result = genRunTask(
-    os.read.lines(passedTestsRecordPath)
-    .map(passedTestsRecordPath / os.up / os.RelPath(_))
-  ).foldLeft(ujson.Obj())(
-    (outputJson, task) => {
-      println(s"Fetching instruction cycle for task $task")
-      val tmpLog = os.temp(deleteOnExit = false)
-      val fd = os.proc("mill", "--no-server", "--color", "false", task)
-        .call(cwd = root, check = false, stdout = tmpLog, mergeErrIntoOut = true)
-      assert(fd.exitCode == 0, s"$task fail")
-      // Some test log is too large and this script might go OOM
-      val cycle = os.read.lines.stream(tmpLog)
-        .foldLeft(0)((result, stdout) => {
-          stdout match {
-            case isCycle(c) => c.toInt
-            case _ => result
-          }
-        })
-      assert(cycle > 0, s"Test case $task have invalid instruction cycle number $cycle, check $tmpLog")
-      outputJson(task) = cycle
-      os.remove.all(tmpLog)
-      outputJson
-    })
-  os.write.over(outFilePath, ujson.write(cycles_result))
 }
