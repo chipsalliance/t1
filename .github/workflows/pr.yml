@@ -58,17 +58,54 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
       - id: ci-run
-        run: nix develop .#testcase -c make ci-run "NAME=${{ matrix.name }}"
+        run: |
+          nix develop .#testcase -c make ci-run "NAME=${{ matrix.name }}"
+          mkdir -p ./new-cycle-data
+          unique_ident=$(echo "${{ matrix.name }}" | sha256sum | tr -d ' -')
+          nix develop .#testcase -c amm .github/scripts/ci.sc backupCycleData . $unique_ident ./new-cycle-data
 
       - uses: actions/upload-artifact@v3
-        if: failure()
+        if: always()
         with:
-          name: fail-logs
+          name: results
           path: |
-            ./test-log/fail
+            ./test-log
+            ./new-cycle-data
 
       - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: nix-post-build-hook-log
           path: /tmp/nix-post-build-hook.log
+
+  report:
+    name: "Report CI result"
+    if: always()
+    needs: [ci]
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+      - uses: cachix/install-nix-action@v19
+        with:
+          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: actions/download-artifact@v3
+        with:
+          name: results
+      - run: |
+          echo -e "\n## Fail tests\n" >> $GITHUB_STEP_SUMMARY
+          find test-log -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
+      - run: |
+          echo -e "\n## Cycle update\n" >> $GITHUB_STEP_SUMMARY
+          find test-log -name 'result-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
+      - run: |
+          nix-shell -p ammonite --run 'amm .github/scripts/ci.sc mergeCycleData . ./new-cycle-data'
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git diff -s --exit-code '.github/passed/**/passed.json' \
+            || (git add '.github/passed/**/passed.json' \
+            && git commit -m "[ci] update test case cycle data" \
+            && git push origin ${{ github.head_ref }})

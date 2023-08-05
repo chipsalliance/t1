@@ -8,7 +8,7 @@ def genRunTask(passedFiles: Seq[os.Path]): Seq[String] = {
   passedFiles.flatMap(file => {
     println(s"Generate tests from file: $file")
     val Seq(_, runType, verilatorType) = file.segments.toSeq.reverse.slice(0, 3)
-    os.read.lines(file)
+    ujson.read(os.read(file)).obj.keys
       .map(test => s"verilatorEmulator[$verilatorType,$test,$runType].run")
   })
 }
@@ -38,24 +38,33 @@ class BucketBuffer() {
   }
 }
 
-// This function will use the greedy partition method to partition the given tests into given `bucketSize` of subset.
-// Tests are grouped by their corresponding instruction cycle specified in `cycleDataPath` so that they have a similar time span to execute.
+// Read the passed.json file and parse them into verilatorEmulator tasks.
+// Tasks will be partitioned into given `bucketSize` of subset by their corresponding instruction cycle 
+// so that this subset have a similar time span to execute.
 //
-// @param allTests List of the test target
-// @param cycleDataPath Path to the cycle data
+// @param allTasksFile List of the passed.json file path
 // @param bucketSize Specify the size of the output Seq
-def scheduledBuckets(allTests: Seq[String], cycleDataPath: os.Path, bucketSize: Int): Seq[String] = {
-  val cycleData = ujson.read(os.read(cycleDataPath))
-  val tests = allTests.map(test => {
-    // TODO: Remove the fallback cycle number after FP tests are fixed.
-    val cycle = cycleData.obj.getOrElse(test, ujson.Num(10000.0)).num.toInt
-    (test, cycle)
-  })
+def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
+  val init = Seq[(String, Int)]()
+  val cycleData = allTasksFile.foldLeft(init) {
+    case (sum, file) => {
+      println(s"Generate tests from file: $file")
+      val Seq(_, run, emu) = file.segments.toSeq.reverse.slice(0, 3)
+      ujson
+        .read(os.read(file))
+        .obj
+        .map { case (k, v) =>
+          (s"verilatorEmulator[$emu,$k,$run].run", v.num.toInt)
+        }
+        .toSeq
+    }
+  }
   // Initialize a list of buckets
   val cargo = (0 until bucketSize).map(_ => new BucketBuffer())
-  tests.sortBy(_._2)(Ordering[Int].reverse) // sort by cycle in descending order
-    .foreach((elem) => {
-      val (testName, cycle) = elem; 
+  cycleData
+    .sortBy(_._2)(Ordering[Int].reverse)
+    .foreach(elem => {
+      val (testName, cycle) = elem;
       cargo.minBy(_.total_cycles).push_back(testName, cycle)
     })
   cargo.map(_.mkString).toSeq
@@ -71,13 +80,17 @@ def writeJson(buckets: Seq[String], outputFile: os.Path) =
 
 // Generate a list of grouped tests from the given `defaultPassed` file.
 @main
-def passedJson(bucketSize: Int, defaultPassed: os.Path, cycleDataPath: os.Path, outputFile: os.Path) =
+def passedJson(
+    bucketSize: Int,
+    defaultPassed: os.Path,
+    cycleDataPath: os.Path,
+    outputFile: os.Path
+) =
   writeJson(
-    scheduledBuckets(
-      genRunTask(
-        os.read.lines(defaultPassed).map(defaultPassed / os.up / os.RelPath(_))
-      ),
-      cycleDataPath,
+    scheduleTasks(
+      os.read
+        .lines(defaultPassed)
+        .map(defaultPassed / os.up / os.RelPath(_)),
       bucketSize
     ),
     outputFile
@@ -92,18 +105,18 @@ def unpassedJson(
   outputFile: os.Path
 ) = {
   val passedFiles = os.read.lines(defaultPassed).map(os.RelPath(_))
-  val allTests = passedFiles.map(_.segments.toSeq).flatMap {
-    case Seq(emulator, runCfg, _) =>
-      os.proc("mill", "resolve", s"verilatorEmulator[$emulator,_,$runCfg].run")
+  val unpassedTests = passedFiles.flatMap(file => {
+      val Seq(emulator, runCfg, _) = file.segments.toSeq
+      val exists = ujson.read(os.read(defaultPassed / os.up / file))
+        .obj.keys
+        .map(test => s"verilatorEmulator[$emulator,$test,$runCfg].run")
+      val all = os.proc("mill", "resolve", s"verilatorEmulator[$emulator,_,$runCfg].run")
         .call(root).out.text
         .split("\n")
-  }
-  val passed = genRunTask(passedFiles.map(defaultPassed / os.up / _))
+      (all.toSet -- exists.toSet).toSeq
+  })
   writeJson(
-    buckets(
-      (allTests.toSet -- passed.toSet).toSeq,
-      bucketSize
-    ),
+    buckets(unpassedTests, bucketSize),
     outputFile
   )
 }
@@ -144,10 +157,14 @@ def convertPerfToMD(root: os.Path) = os
   })
 
 
-def updPerfResult(root: os.Path, task: String, resultOutput: os.Path) = {
+def updCycleResult(root: os.Path, task: String, resultOutput: os.Path) = {
   val isEmulatorTask = raw"verilatorEmulator\[([^,]+),([^,]+),([^,]+)\].run".r
+  val perfCases = os
+    .walk(root / ".github" / "passed")
+    .filter(_.last == "perf-cases.txt")
+    .flatMap(os.read.lines(_))
   task match {
-    case isEmulatorTask(e, t, r) => {
+    case isEmulatorTask(e, t, r) if !perfCases.contains(t) => {
       val passedFile = root / os.RelPath(s".github/passed/$e/$r/passed.json")
       val original = ujson.read(os.read(passedFile))
       val new_cycle = os.read.lines(root / os.RelPath(s"out/verilatorEmulator/$e/$t/$r/run.dest/perf.txt"))
@@ -156,11 +173,17 @@ def updPerfResult(root: os.Path, task: String, resultOutput: os.Path) = {
         .trim.toInt
       val old_cycle = original.obj(t).num.toInt
       if (old_cycle != new_cycle) {
-        os.write.append(resultOutput, s"* $t: $old_cycle -> $new_cycle\n")
+        if (old_cycle > new_cycle) {
+          os.write.append(resultOutput, s"* ✅ $t: $old_cycle -> $new_cycle\n")
+        }
+        if (old_cycle < new_cycle) {
+          os.write.append(resultOutput, s"* 🔻 $t: $old_cycle -> $new_cycle\n")
+        }
         original(t) = new_cycle
         os.write.over(passedFile, ujson.write(original, indent = 2))
       }
     }
+    case _ => {}
   }
 }
 
@@ -181,13 +204,17 @@ def updPerfResult(root: os.Path, task: String, resultOutput: os.Path) = {
 def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
   var logDir = loggingDir.getOrElse(root / "test-log")
   os.remove.all(logDir)
-  os.makeDir.all(logDir)
   os.makeDir.all(logDir / "fail")
+  // we need the unique filename to avoid file overwrite by multi-machine CI
+  val md5 = java.security.MessageDigest
+    .getInstance("MD5")
+    .digest(jobs.getBytes("UTF-8"))
+    .map("%02x".format(_))
+    .mkString
   val totalJobs = jobs.split(";")
-  os.write.over(logDir / "result.md", "## Cycle Changed\n")
   val failed = totalJobs.zipWithIndex.foldLeft(Seq[String]()) {
     case(failed, (job, i)) => {
-      val logPath = logDir / s"$job.log"
+      val logPath = os.temp()
       println(s"[${i+1}/${totalJobs.length}] Running test case $job")
       val handle = os
         .proc("mill", "--no-server", job)
@@ -200,17 +227,15 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
         os.write(logDir / "fail" / s"$job.log", trimmedOutput)
         failed :+ job
       } else {
-        updPerfResult(root, job, logDir / "result.md")
+        updCycleResult(root, job, logDir / s"result-${md5}.md")
         failed
       }
     }
   }
 
   if (failed.length > 0) {
-    os.write.append(logDir/"result.md", 
-      s"""## Failed Tests
-        |${failed.map(t => s"* $t").mkString("\n")}
-        |""".stripMargin)
+    os.write.over(logDir / s"fail-test-${md5}.md",
+      s"${failed.map(f => s"* $f").mkString("\n")}")
     println(s"${failed.length} tests failed:\n${failed.mkString("\n")}")
     throw new Exception("Tests failed")
   } else {
@@ -257,4 +282,54 @@ def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
       os.move(elfPath, outElfDir / module / elfPath.last)
       os.write(outConfigDir / s"$name-$module.json", ujson.write(origConfig))
     })
+}
+
+@main
+def backupCycleData(root: os.Path, uniqueIdent: String, outputDir: os.Path) = {
+  os
+    .proc("git", "diff", "--name-only", ".github/passed/**/passed.json")
+    .call(root)
+    .out.text
+    .split("\n")
+    .map(os.RelPath(_))
+    .foreach(path => {
+      val Seq(_, _, emu, run, _) = path.segments.toSeq
+      os.makeDir.all(outputDir / emu / run)
+      os.copy.over(os.pwd / path, outputDir / emu / run / s"$uniqueIdent-passed.json")
+    })
+}
+
+@main
+def mergeCycleData(root: os.Path, artifacts: os.Path) = {
+  val original = os.walk(root / ".github" / "passed")
+    .filter(_.last == "passed.json")
+    .map(path => {
+      val Seq(_, run, emu) = path.segments.toSeq.reverse.slice(0, 3)
+      (s"$emu,$run", ujson.read(os.read(path)))
+    })
+    .toMap
+  os.walk(artifacts)
+    .filter(_.ext == "json")
+    .filter(_.baseName.contains("passed"))
+    .map(path => {
+      val Seq(_, run, emu) = path.segments.toSeq.reverse.slice(0, 3)
+      (s"$emu,$run", ujson.read(os.read(path)))
+    })
+    .foreach {
+      case(name, latest) => {
+        val old = original.apply(name)
+        latest.obj.foreach {
+          case (k, v) => old.update(k, v)
+        }
+      }
+    }
+  original.foreach {
+    case(name, data) => {
+      val Array(emu, run) = name.split(",")
+      os.write.over(
+        root / os.RelPath(s".github/passed/$emu/$run/passed.json"),
+        ujson.write(data, indent = 2)
+      )
+    }
+  }
 }
