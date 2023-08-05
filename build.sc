@@ -355,15 +355,32 @@ class emulator(config: String) extends Module {
 }
 
 def testsOutDir = os.Path(sys.env("TEST_CASE_DIR"))
-def testConfigs = os.walk(testsOutDir / "configs").filter(_.ext == "json").map(_.baseName)
+def testConfigs = os
+  .walk(testsOutDir / "configs")
+  .filter(_.ext == "json")
+  .filter(p => !ujson.read(os.read(p)).obj("fp").bool)
+  .map(_.baseName)
+def fpTestConfigs = os
+  .walk(testsOutDir / "configs")
+  .filter(_.ext == "json")
+  .filter(p => ujson.read(os.read(p)).obj("fp").bool)
+  .map(_.baseName)
 def runtimeConfigs = os.walk(os.pwd / "run").filter(_.ext == "json")
 
 // Generate a cross product from elaborator config, test config, runtime config
 def crossGenConfigProduct: Seq[(String, String, String)] =
-  emulatorTarget.flatMap(emuTarget =>
+  emulatorTarget.flatMap(emuTarget => {
+    val emuCfg = ujson.read(os.read(os.pwd / "configs" / s"$emuTarget.json"))
+    if (emuCfg("design")("parameter")("fpuEnable").bool) {
+      fpTestConfigs.flatMap(testTarget =>
+        runtimeConfigs.map(runCfg => (emuTarget, testTarget, runCfg.baseName))
+      )
+    } else {
       testConfigs.flatMap(testTarget =>
-          runtimeConfigs.map(runCfg =>
-              (emuTarget, testTarget, runCfg.baseName))))
+        runtimeConfigs.map(runCfg => (emuTarget, testTarget, runCfg.baseName))
+      )
+    }
+  })
 
 object verilatorEmulator extends mill.Cross[RunVerilatorEmulator]((crossGenConfigProduct): _*)
 
