@@ -159,28 +159,27 @@ def convertPerfToMD(root: os.Path) = os
 
 def updCycleResult(root: os.Path, task: String, resultOutput: os.Path) = {
   val isEmulatorTask = raw"verilatorEmulator\[([^,]+),([^,]+),([^,]+)\].run".r
-  val perfCases = os
-    .walk(root / ".github" / "passed")
-    .filter(_.last == "perf-cases.txt")
-    .flatMap(os.read.lines(_))
   task match {
-    case isEmulatorTask(e, t, r) if !perfCases.contains(t) => {
+    case isEmulatorTask(e, t, r) => {
       val passedFile = root / os.RelPath(s".github/passed/$e/$r/passed.json")
       val original = ujson.read(os.read(passedFile))
       val new_cycle = os.read.lines(root / os.RelPath(s"out/verilatorEmulator/$e/$t/$r/run.dest/perf.txt"))
         .apply(0)
         .stripPrefix("total_cycles: ")
         .trim.toInt
-      val old_cycle = original.obj(t).num.toInt
-      if (old_cycle != new_cycle) {
-        if (old_cycle > new_cycle) {
-          os.write.append(resultOutput, s"* ✅ $t: $old_cycle -> $new_cycle\n")
+      val old_cycle = original.obj.get(t).map(_.num.toInt).getOrElse(-1)
+      old_cycle match {
+        case -1 => os.write.append(resultOutput, s"* $t: NaN -> $new_cycle")
+        case _ => {
+          if (old_cycle > new_cycle) {
+            os.write.append(resultOutput, s"* 📈 $t: $old_cycle -> $new_cycle\n")
+          } else if (old_cycle < new_cycle) {
+            os.write.append(resultOutput, s"* 🔻 $t: $old_cycle -> $new_cycle\n")
+          }
+
+          original(t) = new_cycle
+          os.write.over(passedFile, ujson.write(original, indent = 2))
         }
-        if (old_cycle < new_cycle) {
-          os.write.append(resultOutput, s"* 🔻 $t: $old_cycle -> $new_cycle\n")
-        }
-        original(t) = new_cycle
-        os.write.over(passedFile, ujson.write(original, indent = 2))
       }
     }
     case _ => {}
