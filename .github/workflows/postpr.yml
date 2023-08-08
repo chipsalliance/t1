@@ -88,7 +88,10 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: results
+      - run: printf "\n\n## Perf Result\n" >> $GITHUB_STEP_SUMMARY; cat perf-*.md >> $GITHUB_STEP_SUMMARY
+      - run: |
+          echo -e "\n## Newly passed tests\n" >> $GITHUB_STEP_SUMMARY
+          find . -name 'result-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
       - run: |
           echo -e "\n## Still failing tests\n" >> $GITHUB_STEP_SUMMARY
-          find test-log -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
-      - run: printf "\n\n## Perf Result\n" >> $GITHUB_STEP_SUMMARY; cat perf-*.md >> $GITHUB_STEP_SUMMARY
+          find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
