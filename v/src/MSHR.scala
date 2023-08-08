@@ -2,7 +2,7 @@ package v
 
 import chisel3._
 import chisel3.util._
-import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelAParameter, TLChannelDParameter}
+import tilelink.{TLBundle, TLBundleParameter}
 
 /**
   * @param datapathWidth ELEN
@@ -53,7 +53,7 @@ case class MSHRParam(
   val sewMin: Int = 8
 
   /** see [[LaneParameter.vlMax]] */
-  val vlMax = vLen * lmulMax / sewMin
+  val vlMax: Int = vLen * lmulMax / sewMin
 
   /** see [[LaneParameter.vlMaxBits]] */
   val vlMaxBits: Int = log2Ceil(vlMax) + 1
@@ -112,7 +112,7 @@ case class MSHRParam(
   /** offset bit for a cache line */
   val cacheLineBits: Int = log2Ceil(cacheLineSize)
 
-  val bustCount = cacheLineSize * 8 / datapathWidth
+  val bustCount: Int = cacheLineSize * 8 / datapathWidth
 
   val bustCountBits: Int = log2Ceil(bustCount)
 
@@ -170,7 +170,7 @@ class MSHRStage1Bundle(param: MSHRParam) extends Bundle {
   val address: UInt = UInt(param.paWidth.W)
   val dataForCacheLine: UInt = UInt((param.cacheLineSize * 8).W)
   val maskForCacheLine: UInt = UInt(param.cacheLineSize.W)
-  val cacheIndex = UInt(log2Ceil(param.vLen / param.cacheLineSize).W)
+  val cacheIndex: UInt = UInt(log2Ceil(param.vLen / param.cacheLineSize).W)
 }
 
 /** Miss Status Handler Register
@@ -182,13 +182,7 @@ class MSHRStage1Bundle(param: MSHRParam) extends Bundle {
   *
   * tl.d is handled independently.
   */
-class MSHR(param: MSHRParam) extends Module {
-
-  /** [[LSURequest]] from LSU
-    * see [[LSU.request]]
-    */
-  val lsuRequest: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth))))
-
+class MSHR(param: MSHRParam) extends LSUBase(param) {
   /** read channel to [[V]], which will redirect it to [[Lane.vrf]].
     * see [[LSU.vrfReadDataPorts]]
     */
@@ -204,16 +198,6 @@ class MSHR(param: MSHRParam) extends Module {
   /** offset of indexed load/store instructions. */
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
 
-  /** mask from [[V]]
-    * see [[LSU.maskInput]]
-    */
-  val maskInput: UInt = IO(Input(UInt(param.maskGroupWidth.W)))
-
-  /** the address of the mask group in the [[V]].
-    * see [[LSU.maskSelect]]
-    */
-  val maskSelect: ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
-
   /** TileLink Port which will be route to the [[LSU.tlPort]]. */
   val tlPort: TLBundle = IO(param.tlParam.bundle())
 
@@ -226,11 +210,6 @@ class MSHR(param: MSHRParam) extends Module {
     )
   )
 
-  /** the CSR interface from [[V]], latch them here.
-    * TODO: merge to [[LSURequest]]
-    */
-  val csrInterface: CSRInterface = IO(Input(new CSRInterface(param.vlMaxBits)))
-
   /** notify [[LSU]] the status of [[MSHR]] */
   val status: MSHRStatus = IO(Output(new MSHRStatus(param.laneNumber)))
 
@@ -239,9 +218,6 @@ class MSHR(param: MSHRParam) extends Module {
   val s2Fire: Bool = Wire(Bool())
   val tlPortAFire: Bool = Wire(Bool())
 
-  /** request from LSU. */
-  val lsuRequestReg: LSURequest = RegEnable(lsuRequest.bits, 0.U.asTypeOf(lsuRequest.bits), lsuRequest.valid)
-
   /** Always merge into cache line */
   val alwaysMerge: Bool = RegEnable(
     (lsuRequest.bits.instructionInformation.mop ## lsuRequest.bits.instructionInformation.lumop) === 0.U,
@@ -249,16 +225,8 @@ class MSHR(param: MSHRParam) extends Module {
     lsuRequest.valid
   )
 
-  val mergeStore = alwaysMerge && lsuRequestReg.instructionInformation.isStore
-  val mergeLoad = alwaysMerge && !lsuRequestReg.instructionInformation.isStore
-
-  val nFiled: UInt = lsuRequest.bits.instructionInformation.nf +& 1.U
-  val nFiledReg: UInt = RegEnable(nFiled, 0.U, lsuRequest.valid)
-
-  /** latch CSR.
-    * TODO: merge to [[lsuRequestReg]]
-    */
-  val csrInterfaceReg: CSRInterface = RegEnable(csrInterface, 0.U.asTypeOf(csrInterface), lsuRequest.valid)
+  val mergeStore: Bool = alwaysMerge && lsuRequestReg.instructionInformation.isStore
+  val mergeLoad: Bool = alwaysMerge && !lsuRequestReg.instructionInformation.isStore
 
   /** load whole VRF register.
     * See [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#79-vector-loadstore-whole-register-instructions]]
@@ -309,9 +277,6 @@ class MSHR(param: MSHRParam) extends Module {
         Mux(requestIsWholeRegisterLoadStore, 2.U, lsuRequest.bits.instructionInformation.eew)
       )
     )
-
-  /** nf of current request. */
-  val requestNF: UInt = Mux(requestIsWholeRegisterLoadStore, 0.U, lsuRequest.bits.instructionInformation.nf)
 
   // latch lsuRequest
   /** for segment load/store, the data width to access for a group of element in the memory in byte.
@@ -399,9 +364,6 @@ class MSHR(param: MSHRParam) extends Module {
       offset.bits := Mux(offsetReadResult(index).valid, offsetReadResult(index).bits, offset.bits)
   }
 
-  /** register to latch mask */
-  val maskReg: UInt = RegEnable(maskInput, 0.U, maskSelect.fire || lsuRequest.valid)
-
   /** the index of segment in TileLink message. */
   val segmentIndex: UInt = RegInit(0.U(3.W))
 
@@ -416,7 +378,7 @@ class MSHR(param: MSHRParam) extends Module {
   }
 
   // TODO: why [[!isSegmentLoadStore]]? alias segmentEnd
-  val lastElementForSegment = !isSegmentLoadStore || segmentEnd
+  val lastElementForSegment: Bool = !isSegmentLoadStore || segmentEnd
 
   /** signal indicates this is the last transaction for the element(with handshake) */
   val segmentEndWithHandshake: Bool = s0Fire && lastElementForSegment
@@ -493,9 +455,9 @@ class MSHR(param: MSHRParam) extends Module {
         )
       )
     )
-
   /** 1H version for [[dataEEW]] */
-  val dataEEWOH: UInt = UIntToOH(dataEEW)
+  val dataEEWOH: UInt = UIntToOH(dataEEW)(2, 0)
+
 
   /** no more masked memory request. */
   val noMoreMaskedUnsentMemoryRequests: Bool = maskedUnsentMemoryRequests === 0.U
@@ -533,7 +495,7 @@ class MSHR(param: MSHRParam) extends Module {
   val offsetEEW: UInt = lsuRequestReg.instructionInformation.eew
 
   /** onehot of [[offsetEEW]] */
-  val offsetEEWOH = UIntToOH(offsetEEW)(2, 0)
+  val offsetEEWOH: UInt = UIntToOH(offsetEEW)(2, 0)
 
   // for each instruction, if using indexed memory load store instructions,
   // it corresponds to multiple memory requests(depending on nf and elements)
@@ -821,7 +783,7 @@ class MSHR(param: MSHRParam) extends Module {
   // merge unit for unit stride start -----
 
   /** How many byte will be accessed by this instruction */
-  val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
+  val bytePerInstruction: UInt = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
 
 
   /** How many cache lines will be accessed by this instruction
@@ -836,7 +798,7 @@ class MSHR(param: MSHRParam) extends Module {
   val mergeUnitDequeueFire: Bool = Wire(Bool())
 
   // cache line index
-  val cacheLineIndex = RegInit(0.U(param.cacheLineIndexBits.W))
+  val cacheLineIndex: UInt = RegInit(0.U(param.cacheLineIndexBits.W))
 
   // update cacheLineIndex
   when(lsuRequest.valid || mergeUnitDequeueFire) {
@@ -915,12 +877,12 @@ class MSHR(param: MSHRParam) extends Module {
 
   val mergeStoreUnitValid: Bool = RegInit(false.B)
 
-  val mergeLoadValid = cacheLineIndex < cacheLineNumberReg
+  val mergeLoadValid: Bool = cacheLineIndex < cacheLineNumberReg
 
   val storeCacheLineValid: Bool = Mux(readFireNext, CrossCacheLine, !readFire && last) && mergeStoreUnitValid
-  val mergeUnitValid = mergeLoadValid || mergeStoreUnitValid
+  val mergeUnitValid: Bool = mergeLoadValid || mergeStoreUnitValid
 
-  val cacheLineValid = storeCacheLineValid || mergeLoadValid
+  val cacheLineValid: Bool = storeCacheLineValid || mergeLoadValid
 
   when(readFire || storeCacheLineValid) { mergeStoreUnitValid := !storeCacheLineValid }
   mergeUnitDequeueFire := cacheLineValid && s1EnqueueReady
@@ -1180,7 +1142,7 @@ class MSHR(param: MSHRParam) extends Module {
   status.instructionIndex := lsuRequestReg.instructionIndex
 
   /** the current state is idle. */
-  val stateIdle = state === idle
+  val stateIdle: Bool = state === idle
   status.idle := stateIdle
   status.last := (!RegNext(stateIdle) && stateIdle) || invalidInstructionNext
   status.changeMaskGroup := updateOffsetGroupEnable

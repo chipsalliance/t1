@@ -1,14 +1,26 @@
 package v
 import chisel3._
 import chisel3.util._
-import tilelink.TLChannelD
+import tilelink.{TLChannelA, TLChannelD}
 
 class cacheLineDequeueBundle(param: MSHRParam) extends Bundle {
   val data: UInt = UInt((param.cacheLineSize * 8).W)
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
+
+class LoadStatus extends Bundle {
+  val idle: Bool = Bool()
+  val last: Bool = Bool()
+  /** the current instruction in this MSHR. */
+  val instructionIndex: UInt = UInt(3.W)
+  val changeMaskGroup: Bool = Bool()
+}
+
 class LoadUnit(param: MSHRParam) extends LSUBase(param) {
+  /** TileLink Port which will be route to the [[LSU.tlPort]]. */
+  val tlPortA: DecoupledIO[TLChannelA] = IO(param.tlParam.bundle().a)
   val tlPortD: Vec[DecoupledIO[TLChannelD]] = IO(Vec(param.memoryBankSize, param.tlParam.bundle().d))
+  val status: LoadStatus = IO(Output(new LoadStatus))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
    * see [[LSU.vrfWritePort]]
@@ -18,6 +30,13 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
       new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
     )
   ))
+
+  // always use intermediate from instruction for unit stride.
+  val dataEEW: UInt = RegEnable(lsuRequest.bits.instructionInformation.eew, 0.U, lsuRequest.valid)
+
+  /** 1H version for [[dataEEW]] */
+  val dataEEWOH: UInt = UIntToOH(dataEEW)(2, 0)
+
   // states for [[state]]
   val idle :: sRequest :: wResponse :: Nil = Enum(3)
 
@@ -39,7 +58,7 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   val cacheLineNumberReg: UInt = RegEnable(lastCacheLineIndex, 0.U, lsuRequest.valid)
 
   val stateIsRequest = state === sRequest
-  val lastRequest: Bool = cacheLineNumberReg === lastCacheLineIndex
+  val lastRequest: Bool = cacheLineNumberReg === cacheLineIndex
 
   val requestAddress = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineIndex) ##
     0.U(param.cacheLineBits.W)
@@ -49,7 +68,7 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   tlPortA.bits.size := param.cacheLineBits.U
   tlPortA.bits.source := cacheLineIndex
   tlPortA.bits.address := requestAddress
-  tlPortA.bits.mask := -1.S(tlPortA.bits.mask.getWidth.W)
+  tlPortA.bits.mask := -1.S(tlPortA.bits.mask.getWidth.W).asUInt
   tlPortA.bits.data := 0.U
   tlPortA.bits.corrupt := false.B
   tlPortA.valid := stateIsRequest
@@ -58,6 +77,8 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   val queue: Seq[DecoupledIO[TLChannelD]] =
     Seq.tabulate(param.memoryBankSize)(index => Queue(tlPortD(index), burstSize))
 
+  val lastCacheLineAck: Vec[Bool] = Wire(Vec(param.memoryBankSize, Bool()))
+  val anyLastCacheLineAck = lastCacheLineAck.asUInt.orR
   val cacheLineDequeue: Vec[DecoupledIO[cacheLineDequeueBundle]] =
     Wire(Vec(param.memoryBankSize, Decoupled(new cacheLineDequeueBundle(param))))
   // 拼凑cache line
@@ -66,16 +87,17 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
 
     val cacheLineValid = RegInit(false.B)
     val dataShifterRegForPort = RegInit(0.U((param.cacheLineSize * 8).W))
-    val index = RegInit(0.U(param.cacheLineIndexBits.W))
+    val cacheIndex = RegInit(0.U(param.cacheLineIndexBits.W))
     when(port.fire) {
       dataShifterRegForPort := (port.bits.data ## dataShifterRegForPort) >> param.tlParam.d.dataWidth
-      index := port.bits.source
+      cacheIndex := port.bits.source
     }
+    lastCacheLineAck(index) := port.fire && (port.bits.source === cacheLineNumberReg)
 
     port.ready := !cacheLineValid
     cacheLineDequeue(index).valid := cacheLineValid
     cacheLineDequeue(index).bits.data := dataShifterRegForPort
-    cacheLineDequeue(index).bits.index := index
+    cacheLineDequeue(index).bits.index := cacheIndex
 
     when((port.fire & last) || cacheLineDequeue(index).fire) {
       cacheLineValid := port.fire
@@ -116,12 +138,12 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   alignedDequeue.valid := alignedDequeueValid
   alignedDequeue.bits.data :=
     multiShifter(right = true, multiSize = 8)(nextData ## unalignedCacheLine.bits.data, initOffset)
-  alignedDequeue.bits.index := unalignedCacheLine
+  alignedDequeue.bits.index := unalignedCacheLine.bits.index
 
   // 把 nFiled 个cache line 分成一组
   val bufferSize: Int = param.datapathWidth * param.laneNumber * 8 / (param.cacheLineSize * 8)
   val bufferCounterBits: Int = log2Ceil(bufferSize)
-  val dataBuffer: Vec[UInt] = RegInit(Vec(bufferSize, 0.U((param.cacheLineSize * 8).W)))
+  val dataBuffer: Vec[UInt] = RegInit(VecInit(Seq.fill(bufferSize)(0.U((param.cacheLineSize * 8).W))))
   val bufferBaseCacheLineIndex: UInt = RegInit(0.U(param.cacheLineIndexBits.W))
   val cacheLineIndexInBuffer: UInt = RegInit(0.U(bufferCounterBits.W))
   val bufferFull: Bool = RegInit(false.B)
@@ -152,7 +174,7 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
 
   // 维护mask
   val countEndForGroup: UInt = Mux1H(dataEEWOH, Seq(0.U, 1.U, 3.U))
-  val maskCounterInGroup: UInt = RegInit(0.U(log2Ceil(param.maskGroupWidth / (param.cacheLineSize * 8) / 32).W))
+  val maskCounterInGroup: UInt = RegInit(0.U(log2Ceil(param.maskGroupWidth / ((param.cacheLineSize * 8) / 32)).W))
   val nextMaskCount: UInt = maskCounterInGroup + 1.U
   val maskGroupCounter: UInt = RegInit(0.U(log2Ceil(param.vLen / param.maskGroupWidth).W))
 
@@ -166,9 +188,9 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   }
 
   // 从 buffer 里面把数据拿出来, 然后开始往 vrf里面写
-  val writeData: Vec[UInt] = RegInit(Vec(bufferSize, 0.U((param.cacheLineSize * 8).W)))
+  val writeData: Vec[UInt] = RegInit(VecInit(Seq.fill(bufferSize)(0.U((param.cacheLineSize * 8).W))))
   val maskForGroupWire: UInt = Wire(UInt((param.datapathWidth * param.laneNumber / 8).W))
-  val maskForGroup: UInt = RegInit(UInt((param.datapathWidth * param.laneNumber / 8).W))
+  val maskForGroup: UInt = RegInit(0.U((param.datapathWidth * param.laneNumber / 8).W))
 
   // state
   // which segment index
@@ -186,7 +208,7 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
     Mux(maskCounterInGroup(0), FillInterleaved(2, maskReg) >> param.maskGroupWidth, FillInterleaved(2, maskReg)),
     Mux1H(UIntToOH(maskCounterInGroup), Seq.tabulate(4) { maskIndex =>
       FillInterleaved(4, maskReg)(
-        maskIndex * param.maskGroupWidth, maskIndex * param.maskGroupWidth + param.maskGroupWidth - 1
+        maskIndex * param.maskGroupWidth + param.maskGroupWidth - 1, maskIndex * param.maskGroupWidth
       )
     })
   ))
@@ -220,7 +242,7 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
           } else {
             val dataGroup: Seq[UInt] = Seq.tabulate(blockSize) { elementIndex =>
               val basePtr = elementSize * elementIndex + dataBlockSize * segIndex
-              dataBuffer.asUInt(basePtr * 8, (basePtr + dataBlockSize) * 8 - 1)
+              dataBuffer.asUInt((basePtr + dataBlockSize) * 8 - 1, basePtr * 8)
             }
             res := VecInit(dataGroup).asUInt
           }
@@ -248,8 +270,18 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
     writePort.bits.offset := dataGroup
     writePort.bits.vd := lsuRequestReg.instructionInformation.vs3 + writePtr + (dataGroup >> writePort.bits.offset).asUInt
     writePort.bits.last := DontCare
+    writePort.bits.instructionIndex := lsuRequestReg.instructionIndex
     when(writePort.fire) {
       sendState(laneIndex) := false.B
     }
   }
+
+  val lastCacheRequest: Bool = lastRequest && tlPortA.fire
+  val lastCacheRequestReg: Bool = RegEnable(lastCacheRequest, false.B, lastCacheRequest || lsuRequest.valid)
+  val lastCacheLineAckReg: Bool = RegEnable(anyLastCacheLineAck, false.B, anyLastCacheLineAck || lsuRequest.valid)
+  val bufferClear: Bool = sendStateCheck
+  status.idle := lastCacheRequestReg && lastCacheLineAckReg && bufferClear
+  status.last := DontCare
+  status.changeMaskGroup := DontCare
+  status.instructionIndex := lsuRequestReg.instructionIndex
 }

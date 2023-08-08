@@ -68,7 +68,7 @@ package object v {
   def cutUInt(data: UInt, width: Int): Vec[UInt] = {
     require(data.getWidth % width == 0)
     VecInit(Seq.tabulate(data.getWidth / width) { groupIndex =>
-      data(groupIndex * width, groupIndex * width + width - 1)
+      data(groupIndex * width + width - 1, groupIndex * width)
     })
   }
 }

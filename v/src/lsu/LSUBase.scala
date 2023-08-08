@@ -13,8 +13,6 @@ trait LSUPublic {
 }
 
 abstract class LSUBase(param: MSHRParam) extends Module {
-  /** TileLink Port which will be route to the [[LSU.tlPort]]. */
-  val tlPortA: DecoupledIO[TLChannelA] = IO(param.tlParam.bundle().a)
   // pipe request
   /** [[LSURequest]] from LSU
    * see [[LSU.request]]
@@ -23,13 +21,6 @@ abstract class LSUBase(param: MSHRParam) extends Module {
 
   /** request from LSU. */
   val lsuRequestReg: LSURequest = RegEnable(lsuRequest.bits, 0.U.asTypeOf(lsuRequest.bits), lsuRequest.valid)
-
-//  /** Always merge into cache line */
-//  val alwaysMerge: Bool = RegEnable(
-//    (lsuRequest.bits.instructionInformation.mop ## lsuRequest.bits.instructionInformation.lumop) === 0.U,
-//    false.B,
-//    lsuRequest.valid
-//  )
 
   val nFiled: UInt = lsuRequest.bits.instructionInformation.nf +& 1.U
   val nFiledReg: UInt = RegEnable(nFiled, 0.U, lsuRequest.valid)
@@ -58,10 +49,5 @@ abstract class LSUBase(param: MSHRParam) extends Module {
   val maskSelect: ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
 
   /** register to latch mask */
-  val maskReg: UInt = RegEnable(maskInput, 0.U, maskSelect.fire || lsuRequest.valid)
-
-  val dataEEW: UInt = RegInit(0.U(2.W))
-
-  /** 1H version for [[dataEEW]] */
-  val dataEEWOH: UInt = UIntToOH(dataEEW)(2, 0)
+  val maskReg: UInt = RegEnable(maskInput, 0.U(maskInput.getWidth.W), maskSelect.fire || lsuRequest.valid)
 }
