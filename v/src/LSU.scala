@@ -42,8 +42,7 @@ case class LSUParam(
     */
   val vLenBits: Int = log2Ceil(vLen) + 1
 
-  /** TODO: configured by cache line size. */
-  val bankPosition: Int = 6
+  val bankPosition: Int = log2Ceil(cacheLineSize)
 
   def mshrParam: MSHRParam =
     MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, cacheLineSize, memoryBankSize, tlParam)
@@ -160,7 +159,7 @@ class LSU(param: LSUParam) extends Module {
   request.ready := unitReady && addressCheck
 
   val requestFire = request.fire
-  val reqEnq: Vec[Bool] = VecInit(Seq(useLoadUnit && requestFire, useLoadUnit && requestFire, useLoadUnit && requestFire))
+  val reqEnq: Vec[Bool] = VecInit(Seq(useLoadUnit && requestFire, useStoreUnit && requestFire, useOtherUnit && requestFire))
 
   unitVec.zipWithIndex.foreach { case(mshr, index) =>
     mshr.lsuRequest.valid := reqEnq(index)

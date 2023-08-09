@@ -37,11 +37,6 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   /** 1H version for [[dataEEW]] */
   val dataEEWOH: UInt = UIntToOH(dataEEW)(2, 0)
 
-  // states for [[state]]
-  val idle :: sRequest :: wResponse :: Nil = Enum(3)
-
-  val state: UInt = RegInit(idle)
-
   val nextCacheLineIndex = Wire(UInt(param.cacheLineIndexBits.W))
   val cacheLineIndex = RegEnable(Mux(lsuRequest.valid, 0.U, nextCacheLineIndex), tlPortA.fire || lsuRequest.valid)
   nextCacheLineIndex := cacheLineIndex + 1.U
@@ -49,21 +44,25 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   /** How many byte will be accessed by this instruction */
   val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
 
+  val baseAddressAligned: Bool = !lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0).orR
+  val baseAddressAlignedReg: Bool = RegEnable(baseAddressAligned, false.B, lsuRequest.valid)
+
   /** How many cache lines will be accessed by this instruction
    * nFiled * vl * (2 ** eew) / 32
    */
-  val lastCacheLineIndex: UInt = bytePerInstruction(param.cacheLineIndexBits - 1, param.cacheLineBits) +
-    bytePerInstruction(param.cacheLineBits - 1, 0).orR - 1.U
+  val lastCacheLineIndex: UInt = (bytePerInstruction >> param.cacheLineBits).asUInt +
+    bytePerInstruction(param.cacheLineBits - 1, 0).orR - baseAddressAligned
 
   val cacheLineNumberReg: UInt = RegEnable(lastCacheLineIndex, 0.U, lsuRequest.valid)
 
-  val stateIsRequest = state === sRequest
   val lastRequest: Bool = cacheLineNumberReg === cacheLineIndex
+  val sendRequest: Bool =
+    RegEnable(lsuRequest.valid && (csrInterface.vl > 0.U), false.B, lsuRequest.valid || (tlPortA.fire && lastRequest))
 
   val requestAddress = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineIndex) ##
     0.U(param.cacheLineBits.W)
 
-  tlPortA.bits.opcode := 0.U
+  tlPortA.bits.opcode := 4.U
   tlPortA.bits.param := 0.U
   tlPortA.bits.size := param.cacheLineBits.U
   tlPortA.bits.source := cacheLineIndex
@@ -71,7 +70,7 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   tlPortA.bits.mask := -1.S(tlPortA.bits.mask.getWidth.W).asUInt
   tlPortA.bits.data := 0.U
   tlPortA.bits.corrupt := false.B
-  tlPortA.valid := stateIsRequest
+  tlPortA.valid := sendRequest
 
   val burstSize: Int = param.cacheLineSize * 8 / param.tlParam.d.dataWidth
   val queue: Seq[DecoupledIO[TLChannelD]] =
@@ -121,14 +120,16 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   val unalignedEnqueueFire: Bool = dataValid && unalignedEnqueueReady
 
   val alignedDequeueValid: Bool =
-    unalignedCacheLine.valid && (dataValid || unalignedCacheLine.bits.index === cacheLineNumberReg)
+    unalignedCacheLine.valid &&
+      // 只有在base address 对齐的时候才需要推出最后一条访问的cache line
+      (dataValid || ((unalignedCacheLine.bits.index === cacheLineNumberReg) && baseAddressAlignedReg))
   // update unalignedCacheLine
   when(unalignedEnqueueFire) {
     unalignedCacheLine.bits.data := nextData
     unalignedCacheLine.bits.index := nextIndex
   }
 
-  when(unalignedEnqueueFire ^ alignedDequeue.fire) {
+  when((unalignedEnqueueFire ^ alignedDequeue.fire) || lsuRequest.valid) {
     unalignedCacheLine.valid := unalignedEnqueueFire
   }
 
@@ -203,11 +204,23 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
 
   bufferDequeueReady := writeStageReady
 
+  // 在边界上被vl修正
+  val isLastMaskGroup: Bool = RegEnable(
+    Mux(
+      maskSelect.valid,
+      maskSelect.bits === (csrInterfaceReg.vl >> log2Ceil(param.maskGroupWidth)),
+      (csrInterfaceReg.vl >> log2Ceil(param.maskGroupWidth)) === 0.U
+    ),
+    false.B,
+    maskSelect.valid || lsuRequest.valid
+  )
+  val maskWire: UInt = Wire(UInt(param.maskGroupWidth.W))
+  maskWire := maskReg & Mux(needAmend && isLastMaskGroup, lastMaskAmendReg, -1.S(param.maskGroupWidth.W).asUInt)
   maskForGroupWire := Mux1H(dataEEWOH, Seq(
-    maskReg,
-    Mux(maskCounterInGroup(0), FillInterleaved(2, maskReg) >> param.maskGroupWidth, FillInterleaved(2, maskReg)),
+    maskWire,
+    Mux(maskCounterInGroup(0), FillInterleaved(2, maskWire) >> param.maskGroupWidth, FillInterleaved(2, maskWire)),
     Mux1H(UIntToOH(maskCounterInGroup), Seq.tabulate(4) { maskIndex =>
-      FillInterleaved(4, maskReg)(
+      FillInterleaved(4, maskWire)(
         maskIndex * param.maskGroupWidth + param.maskGroupWidth - 1, maskIndex * param.maskGroupWidth
       )
     })
@@ -220,7 +233,8 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   maskSelect.bits := Mux(lsuRequest.valid, 0.U, nextMaskGroup)
   // 是否可以反向写vrf, 然后第一组24选1的multi cycle
   when(bufferDequeueFire) {
-    when(maskCounterInGroup === countEndForGroup && lsuRequestReg.instructionInformation.maskedLoadStore) {
+    // 总是换mask组
+    when(maskCounterInGroup === countEndForGroup) {
       maskSelect.valid := true.B
       maskGroupCounter := nextMaskGroup
     }
@@ -262,7 +276,7 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
 
 
   // 往vrf写数据
-  Seq.tabulate(param.laneNumber) {laneIndex =>
+  Seq.tabulate(param.laneNumber) { laneIndex =>
     val writePort: DecoupledIO[VRFWriteRequest] = vrfWritePort(laneIndex)
     writePort.valid := sendState(laneIndex)
     writePort.bits.mask := cutUInt(maskForGroup, param.datapathWidth / 8)(laneIndex)
@@ -277,11 +291,23 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   }
 
   val lastCacheRequest: Bool = lastRequest && tlPortA.fire
-  val lastCacheRequestReg: Bool = RegEnable(lastCacheRequest, false.B, lastCacheRequest || lsuRequest.valid)
-  val lastCacheLineAckReg: Bool = RegEnable(anyLastCacheLineAck, false.B, anyLastCacheLineAck || lsuRequest.valid)
-  val bufferClear: Bool = sendStateCheck
-  status.idle := lastCacheRequestReg && lastCacheLineAckReg && bufferClear
-  status.last := DontCare
-  status.changeMaskGroup := DontCare
+  val lastCacheRequestReg: Bool = RegEnable(lastCacheRequest, true.B, lastCacheRequest || lsuRequest.valid)
+  val lastCacheLineAckReg: Bool = RegEnable(anyLastCacheLineAck, true.B, anyLastCacheLineAck || lsuRequest.valid)
+  val bufferClear: Bool =
+    !(
+      // tile link port queue clear
+      queue.map(_.valid).reduce(_ || _) ||
+        // 拼cache line 的空了
+        cacheLineDequeue.map(_.valid).reduce(_ || _) ||
+        // 对齐的空了
+        alignedDequeue.valid ||
+        bufferFull ||
+        // 发送单元结束
+        !writeStageReady
+      )
+  status.idle := lastCacheRequestReg && lastCacheLineAckReg && bufferClear && !sendRequest
+  val idleNext: Bool = RegNext(status.idle, true.B)
+  status.last := !idleNext && status.idle
+  status.changeMaskGroup := maskSelect.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
 }

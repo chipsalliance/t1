@@ -48,6 +48,17 @@ abstract class LSUBase(param: MSHRParam) extends Module {
    */
   val maskSelect: ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
 
+  val isMaskType: Bool = Mux(
+    lsuRequest.valid,
+    lsuRequest.bits.instructionInformation.maskedLoadStore,
+    lsuRequestReg.instructionInformation.maskedLoadStore
+  )
+  val maskAmend: UInt = Mux(isMaskType, maskInput, -1.S(maskInput.getWidth.W).asUInt)
   /** register to latch mask */
-  val maskReg: UInt = RegEnable(maskInput, 0.U(maskInput.getWidth.W), maskSelect.fire || lsuRequest.valid)
+  val maskReg: UInt = RegEnable(maskAmend, 0.U(maskInput.getWidth.W), maskSelect.fire || lsuRequest.valid)
+
+  val lastMaskAmend: UInt =
+    (scanRightOr(UIntToOH(csrInterface.vl(log2Ceil(param.maskGroupWidth) - 1, 0))) >> 1).asUInt
+  val needAmend: Bool = RegEnable(csrInterface.vl(log2Ceil(param.maskGroupWidth) - 1, 0).orR, false.B, lsuRequest.valid)
+  val lastMaskAmendReg: UInt = RegEnable(lastMaskAmend, 0.U.asTypeOf(lastMaskAmend), lsuRequest.valid)
 }
