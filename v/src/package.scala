@@ -42,15 +42,15 @@ package object v {
 
   def firstlastHelper(burstSize: Int, param: TLBundleParameter)
                      (bits: TLChannelD, fire: Bool): (Bool, Bool, Bool, UInt) = {
-    val bustSizeForData: UInt = (~(-1.S(log2Up(burstSize).W) << bits.size >> log2Ceil(param.d.dataWidth / 8))).asUInt
-    val maxBustIndex: UInt = Mux(bits.opcode(0), bustSizeForData, 0.U)
+    // 只给cache line 用
+    val bustSizeForData: UInt = -1.S(log2Ceil(burstSize).W).asUInt
     val counter = RegInit(0.U(log2Up(burstSize).W))
     val counter1 = counter + 1.U
     val first = counter === 0.U
-    val last = counter === maxBustIndex
+    val last = counter === bustSizeForData
     val done = last && fire
     when(fire) {
-      counter := Mux(first, 0.U, counter1)
+      counter := Mux(last, 0.U, counter1)
     }
     (first, last, done, counter)
   }
