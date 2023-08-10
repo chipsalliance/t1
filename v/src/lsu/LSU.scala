@@ -143,11 +143,10 @@ class LSU(param: LSUParam) extends Module {
   val lsuOffsetRequest: Bool = IO(Output(Bool()))
 
   val loadUnit: LoadUnit = Module(new LoadUnit(param.mshrParam))
-  val storeUnit: MSHR = Module(new MSHR(param.mshrParam))
-  val otherUnit: MSHR = Module(new MSHR(param.mshrParam))
+  val storeUnit: StoreUnit = Module(new StoreUnit(param.mshrParam))
+  val otherUnit: SimpleAccessUnit = Module(new SimpleAccessUnit(param.mshrParam))
 
-  val unitVec: Seq[LSUBase] = Seq(loadUnit, storeUnit, otherUnit)
-  val storeVec: Seq[MSHR] = Seq(storeUnit, otherUnit)
+  val unitVec: Seq[Module with LSUPublic] = Seq(loadUnit, storeUnit, otherUnit)
 
   /** Always merge into cache line */
   val alwaysMerge: Bool = (request.bits.instructionInformation.mop ## request.bits.instructionInformation.lumop) === 0.U
@@ -171,45 +170,6 @@ class LSU(param: LSUParam) extends Module {
     // broadcast CSR
     mshr.csrInterface := csrInterface
   }
-  storeUnit.lsuRequest.bits.instructionInformation.isStore := true.B
-  storeUnit.lsuRequest.bits.instructionInformation.mop := 0.U
-  storeUnit.lsuRequest.bits.instructionInformation.lumop := 0.U
-
-  // read vrf
-  /** a matrix to indicate which MSHR is trying to read VRF from which lane. */
-  val mshrToLaneTryToReadVRF: Vec[UInt] = Wire(Vec(param.lsuMSHRSize - 1, UInt(param.laneNumber.W)))
-
-  /** a matrix to indicate which MSHR can read VRF from which lane. */
-  val mshrToLaneReadVRFWinner: Vec[Vec[Bool]] = Wire(Vec(param.lsuMSHRSize - 1, Vec(param.laneNumber, Bool())))
-
-  /** a matrix to indicate which MSHR is reading VRF from which lane. */
-  val mshrToLaneReadVRFFire: Vec[Vec[Bool]] = Wire(Vec(param.lsuMSHRSize - 1, Vec(param.laneNumber, Bool())))
-
-  /** a vector of MSHR that indicates which one is reading VRF from VRF. */
-  val mshrReadVRFFire: IndexedSeq[Bool] = mshrToLaneReadVRFFire.map(_.asUInt.orR)
-
-  storeVec.zipWithIndex.foreach { case (mshr, index) =>
-    mshrToLaneTryToReadVRF(index) := Mux(mshr.vrfReadDataPorts.valid, mshr.status.targetLane, 0.U)
-    mshr.vrfReadDataPorts.ready := mshrReadVRFFire(index)
-    // We use SeqMem to implement VRF, so we need to read previous cycle to get the correct result.
-    mshr.vrfReadResults := Mux1H(RegNext(mshr.status.targetLane), vrfReadResults)
-  }
-
-  Seq.tabulate(param.laneNumber) { laneID =>
-    // LSU slots read VRF request arbitration
-    // TODO: it may have dead lock issue:
-    //       the priority in LSU is low, but VRF has hazard, allocate VRF access to high priority instruction.
-    // TODO: give a test case to illustrate the issue
-    // TODO: the issue may be solved by adding priority bit here.
-    mshrToLaneTryToReadVRF.map(_(laneID)).zipWithIndex.foldLeft(false.B) {
-      case (occupied, (tryToUse, i)) =>
-        mshrToLaneReadVRFWinner(i)(laneID) := tryToUse && !occupied
-        mshrToLaneReadVRFFire(i)(laneID) := mshrToLaneReadVRFWinner(i)(laneID) && vrfReadDataPorts(laneID).ready
-        occupied || tryToUse
-    }
-    vrfReadDataPorts(laneID).valid := VecInit(mshrToLaneReadVRFWinner.map(_(laneID))).asUInt.orR
-    vrfReadDataPorts(laneID).bits := Mux1H(mshrToLaneReadVRFWinner.map(_(laneID)), storeVec.map(_.vrfReadDataPorts.bits))
-  }
 
   /** TileLink D Channel write to VRF queue:
    * TL-D -CrossBar-> MSHR -proxy-> write queue -CrossBar-> VRF
@@ -218,8 +178,19 @@ class LSU(param: LSUParam) extends Module {
     Module(new Queue(new LSUWriteQueueBundle(param), param.lsuVRFWriteQueueSize))
   )
 
+  // read vrf
+  val otherTryReadVrf: UInt = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
+  vrfReadDataPorts.zipWithIndex.foreach { case (read, index) =>
+    read.valid := otherTryReadVrf(index) || storeUnit.vrfReadDataPorts(index).valid
+    read.bits := Mux(otherTryReadVrf(index), otherUnit.vrfReadDataPorts.bits, storeUnit.vrfReadDataPorts(index).bits)
+    storeUnit.vrfReadDataPorts(index).ready := read.ready && !otherTryReadVrf(index)
+    storeUnit.vrfReadResults(index) := vrfReadResults(index)
+  }
+  otherUnit.vrfReadDataPorts.ready := (otherTryReadVrf & VecInit(vrfReadDataPorts.map(_.ready)).asUInt).orR
+  otherUnit.vrfReadResults := Mux1H(RegNext(otherUnit.status.targetLane), vrfReadResults)
+
   // write vrf
-  val otherTryToWrite = Mux(otherUnit.vrfWritePort.valid, otherUnit.status.targetLane, 0.U)
+  val otherTryToWrite: UInt = Mux(otherUnit.vrfWritePort.valid, otherUnit.status.targetLane, 0.U)
   // other 优先级更高
   otherUnit.vrfWritePort.ready := (otherUnit.status.targetLane & VecInit(vrfWritePort.map(_.ready)).asUInt).orR
   writeQueueVec.zipWithIndex.foreach {case (write, index) =>
@@ -235,34 +206,47 @@ class LSU(param: LSUParam) extends Module {
     q.io.deq.ready := p.ready
   }
 
-  // access tile link a
-  val accessPortA: Seq[DecoupledIO[TLChannelA]] = Seq(loadUnit.tlPortA, storeUnit.tlPort.a, otherUnit.tlPort.a)
-  /** a vector of MSHR that try to send Get by TileLink A channel. */
-  val mshrTryToUseTLAChannel: Vec[UInt] = WireInit(VecInit(
-    accessPortA.map(p => Mux(p.valid, UIntToOH(p.bits.address(param.bankPosition)), 0.U))
-  ))
+  val accessPortA: Seq[DecoupledIO[TLChannelA]] = Seq(loadUnit.tlPortA, otherUnit.tlPort.a)
+  val mshrTryToUseTLAChannel: Vec[UInt] =
+    WireInit(VecInit(accessPortA.map(
+      p =>
+        Mux(
+          p.valid,
+          UIntToOH(p.bits.address(param.bankPosition + log2Ceil(param.memoryBankSize) - 1, param.bankPosition)),
+          0.U
+        )
+    )))
+  // connect tile link a
+  val readyVec: Seq[Bool] = tlPort.zipWithIndex.map { case (tl, index) =>
+    val port: DecoupledIO[TLChannelA] = tl.a
+    val storeRequest: DecoupledIO[TLChannelA] = storeUnit.tlPortA(index)
+    val portFree: Bool = storeUnit.status.releasePort(index)
+    val Seq(loadTryToUse, otherTryToUse) = mshrTryToUseTLAChannel.map(_(index))
 
-  /** a vector of MSHR that is sending Get by TileLink A channel. */
-  val mshrAccessTLAChannelFire: Vec[Vec[Bool]] = Wire(Vec(param.lsuMSHRSize, Vec(param.memoryBankSize, Bool())))
+    /**
+     * a 通道的优先级分两种情况:
+     *  1. store unit 声明占用时, 无条件给 store unit
+     *  1. 不声明占用时, load > store > other
+     * */
+    val requestSelect = Seq(
+      // select store unit
+      !portFree || (!loadTryToUse && storeRequest.valid),
+      // select load unit
+      portFree && loadTryToUse,
+      // select otherUnit
+      portFree && !loadTryToUse && !storeRequest.valid
+    )
 
-  Seq.tabulate(param.memoryBankSize) { bankID =>
-    mshrTryToUseTLAChannel.map(_(bankID)).zipWithIndex.foldLeft(false.B) {
-      case (occupied, (tryToUse, i)) =>
-        mshrAccessTLAChannelFire(i)(bankID) := tryToUse && !occupied && tlPort(bankID).a.ready
-        occupied || tryToUse
-    }
-    /** encode MSHR index to source id in A channel. */
-    val sourceExtend: UInt = OHToUInt(VecInit(mshrAccessTLAChannelFire.map(_(bankID))).asUInt)
-    tlPort(bankID).a.valid := VecInit(mshrAccessTLAChannelFire.map(_(bankID))).asUInt.orR
-    tlPort(bankID).a.bits := Mux1H(mshrAccessTLAChannelFire.map(_(bankID)), accessPortA.map(_.bits))
-    tlPort(bankID).a.bits.source := Mux1H(
-      mshrAccessTLAChannelFire.map(_(bankID)),
-      accessPortA.map(_.bits.source)
-    ) ## sourceExtend
-  }
-  accessPortA.zipWithIndex.foreach{ case (p, i) =>
-    p.ready := mshrAccessTLAChannelFire(i).asUInt.orR
-  }
+    // 选出一个请求连到 a 通道上
+    port.valid := storeRequest.valid || ((loadTryToUse || otherTryToUse) && portFree)
+    port.bits := Mux1H(requestSelect, Seq(storeRequest.bits, loadUnit.tlPortA.bits, otherUnit.tlPort.a.bits))
+
+    // 反连 ready
+    storeRequest.ready := requestSelect.head && port.ready
+    requestSelect.tail.map(_ && port.ready)
+  }.transpose.map(rv => VecInit(rv).asUInt.orR)
+  loadUnit.tlPortA.ready := readyVec.head
+  otherUnit.tlPort.a.ready := readyVec.last
 
   // connect tile link D
   val tlDFireForOther: Vec[Bool] = Wire(Vec(param.memoryBankSize, Bool()))
@@ -281,20 +265,15 @@ class LSU(param: LSUParam) extends Module {
   otherUnit.tlPort.d.valid := tlDFireForOther.asUInt.orR
   otherUnit.tlPort.d.bits := Mux1H(tlDFireForOther, tlPort.map(_.d.bits))
   otherUnit.tlPort.d.bits.source := Mux1H(tlDFireForOther, tlPort.map(_.d.bits.source)) >> 2
-  storeUnit.tlPort.d <> DontCare
-  storeUnit.offsetReadResult <> DontCare
-  storeUnit.vrfWritePort.ready <> DontCare
 
   // index offset connect
   otherUnit.offsetReadResult := offsetReadResult
 
   // gather last signal from all MSHR to notify LSU
-  lastReport := storeVec
-    .map(m => Mux(m.status.last, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U))
-    .reduce(_ | _) | Mux(loadUnit.status.last, indexToOH(loadUnit.status.instructionIndex, param.chainingSize), 0.U)
-  lsuMaskGroupChange := storeVec
-    .map(m => Mux(m.status.changeMaskGroup, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U))
-    .reduce(_ | _) |
-    Mux(loadUnit.status.changeMaskGroup, indexToOH(loadUnit.status.instructionIndex, param.chainingSize), 0.U)
+  lastReport :=
+    unitVec.map(m => Mux(m.status.last, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U)).reduce(_ | _)
+  lsuMaskGroupChange := unitVec.map(
+    m => Mux(m.status.changeMaskGroup, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U)
+  ).reduce(_ | _)
   lsuOffsetRequest := otherUnit.status.offsetGroupEnd
 }
