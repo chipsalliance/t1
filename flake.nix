@@ -6,6 +6,10 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
+  nixConfig = {
+    sandbox = "relaxed";
+  };
+
   outputs = { self, nixpkgs, flake-utils }@inputs:
     let
       overlay = import ./overlay.nix;
@@ -80,7 +84,7 @@
             testcase = mkLLVMShell {
               # TODO: Currently, the emulator needs all the dependencies to run a test case ,
               # but most of them are used to get version information, so they should be cleaned up one day.
-              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
+              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps ++ [ pkgs.metals ];
 
               env = {
                 TEST_CASE_DIR = "${pkgs.rvv-testcase}";

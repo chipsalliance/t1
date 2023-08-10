@@ -262,6 +262,9 @@ def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
   val outElfDir = outDir / "cases"
   os.makeDir.all(outElfDir)
 
+  // Mill mistakenly write all the stuff into stdout, so we need to clear all the non-json output first
+  // TODO: This will be fixed in mill 0.11.2
+  os.proc("mill", "-i", "resolve", "_[_].elf").call(cwd = testSrcDir, stdout = os.Path("/dev/null"))
   val rawJson = os.proc("mill", "--no-server", "-j", "0", "--silent", "show", "_[_].elf")
       .call(testSrcDir).out.text
       .split('\n')
@@ -269,8 +272,8 @@ def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
       .map(raw"^\[#\d+\]".r.unanchored.replaceFirstIn(_, "").trim)
       .mkString("");
   // Array[String] => Array[os.Path] A list of "ref:id:path", we need the path only.
-  ujson.read(rawJson).arr
-    .map(rawPathRef => os.Path(rawPathRef.str.split(":")(2)))
+  ujson.read(rawJson).obj.values
+    .map(rawPathRef => os.Path(rawPathRef.str.split(":").apply(3)))
     .foreach(elfPath => {
       val IndexedSeq(module, name) = elfPath.relativeTo(testSrcDir / "out").segments.slice(0, 2)
       val configPath = testSrcDir / "configs" / s"$name-$module.json"

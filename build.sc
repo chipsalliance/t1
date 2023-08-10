@@ -12,7 +12,7 @@ import $file.dependencies.`berkeley-hardfloat`.common
 import $file.common
 
 object v {
-  val scala = "2.13.10"
+  val scala = "2.13.11"
   val mainargs = ivy"com.lihaoyi::mainargs:0.3.0"
   // for arithmetic
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
@@ -240,7 +240,7 @@ trait Emulator
   def trace = T(ujson.read(os.read(configFile()))("trace").bool)
 
   def csrcDir = T.source {
-    PathRef(millSourcePath / os.up / "src")
+    PathRef(millSourcePath / "src")
   }
 
   def allCHeaderFiles = T.sources {
