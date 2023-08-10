@@ -1,6 +1,7 @@
 package v
 import chisel3._
 import chisel3.util._
+import lsu.LSUBaseStatus
 import tilelink.{TLChannelA, TLChannelD}
 
 class cacheLineDequeueBundle(param: MSHRParam) extends Bundle {
@@ -8,19 +9,11 @@ class cacheLineDequeueBundle(param: MSHRParam) extends Bundle {
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
 
-class LoadStatus extends Bundle {
-  val idle: Bool = Bool()
-  val last: Bool = Bool()
-  /** the current instruction in this MSHR. */
-  val instructionIndex: UInt = UInt(3.W)
-  val changeMaskGroup: Bool = Bool()
-}
-
-class LoadUnit(param: MSHRParam) extends LSUBase(param) {
+class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   /** TileLink Port which will be route to the [[LSU.tlPort]]. */
   val tlPortA: DecoupledIO[TLChannelA] = IO(param.tlParam.bundle().a)
   val tlPortD: Vec[DecoupledIO[TLChannelD]] = IO(Vec(param.memoryBankSize, param.tlParam.bundle().d))
-  val status: LoadStatus = IO(Output(new LoadStatus))
+  val status: LSUBaseStatus = IO(Output(new LSUBaseStatus))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
    * see [[LSU.vrfWritePort]]
@@ -30,12 +23,6 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
       new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
     )
   ))
-
-  // always use intermediate from instruction for unit stride.
-  val dataEEW: UInt = RegEnable(lsuRequest.bits.instructionInformation.eew, 0.U, lsuRequest.valid)
-
-  /** 1H version for [[dataEEW]] */
-  val dataEEWOH: UInt = UIntToOH(dataEEW)(2, 0)
 
   val nextCacheLineIndex = Wire(UInt(param.cacheLineIndexBits.W))
   val cacheLineIndex = RegEnable(Mux(lsuRequest.valid, 0.U, nextCacheLineIndex), tlPortA.fire || lsuRequest.valid)
@@ -72,7 +59,6 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
   tlPortA.bits.corrupt := false.B
   tlPortA.valid := sendRequest
 
-  val burstSize: Int = param.cacheLineSize * 8 / param.tlParam.d.dataWidth
   val queue: Seq[DecoupledIO[TLChannelD]] =
     Seq.tabulate(param.memoryBankSize)(index => Queue(tlPortD(index), burstSize))
 
@@ -133,20 +119,11 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
     unalignedCacheLine.valid := unalignedEnqueueFire
   }
 
-  //初始偏移
-  val initOffset: UInt = lsuRequestReg.rs1Data(param.cacheLineBits - 1, 0)
-
   alignedDequeue.valid := alignedDequeueValid
   alignedDequeue.bits.data :=
     multiShifter(right = true, multiSize = 8)(nextData ## unalignedCacheLine.bits.data, initOffset)
   alignedDequeue.bits.index := unalignedCacheLine.bits.index
 
-  // 把 nFiled 个cache line 分成一组
-  val bufferSize: Int = param.datapathWidth * param.laneNumber * 8 / (param.cacheLineSize * 8)
-  val bufferCounterBits: Int = log2Ceil(bufferSize)
-  val dataBuffer: Vec[UInt] = RegInit(VecInit(Seq.fill(bufferSize)(0.U((param.cacheLineSize * 8).W))))
-  val bufferBaseCacheLineIndex: UInt = RegInit(0.U(param.cacheLineIndexBits.W))
-  val cacheLineIndexInBuffer: UInt = RegInit(0.U(bufferCounterBits.W))
   val bufferFull: Bool = RegInit(false.B)
   val bufferDequeueReady: Bool = Wire(Bool())
   val bufferDequeueFire: Bool = bufferDequeueReady && bufferFull
@@ -173,72 +150,26 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
     bufferBaseCacheLineIndex := alignedDequeue.bits.index
   }
 
-  // 维护mask
-  val countEndForGroup: UInt = Mux1H(dataEEWOH, Seq(0.U, 1.U, 3.U))
-  val maskCounterInGroup: UInt = RegInit(0.U(log2Ceil(param.maskGroupWidth / ((param.cacheLineSize * 8) / 32)).W))
-  val nextMaskCount: UInt = maskCounterInGroup + 1.U
-  val maskGroupCounter: UInt = RegInit(0.U(log2Ceil(param.vLen / param.maskGroupWidth).W))
-
-  // 直接维护data group吧
-  // (vl * 8) / (datapath * laneNumber)
-  val dataGroupBits: Int = log2Ceil((param.vLen * 8) / (param.datapathWidth * param.laneNumber))
-  val dataGroup: UInt = RegInit(0.U(dataGroupBits.W))
   val waitForFirstDataGroup: Bool = RegEnable(lsuRequest.fire, false.B, lsuRequest.fire || bufferDequeueFire)
   when(bufferDequeueFire) {
     dataGroup := Mux(waitForFirstDataGroup, 0.U, dataGroup + 1.U)
   }
-
-  // 从 buffer 里面把数据拿出来, 然后开始往 vrf里面写
-  val writeData: Vec[UInt] = RegInit(VecInit(Seq.fill(bufferSize)(0.U((param.cacheLineSize * 8).W))))
-  val maskForGroupWire: UInt = Wire(UInt((param.datapathWidth * param.laneNumber / 8).W))
-  val maskForGroup: UInt = RegInit(0.U((param.datapathWidth * param.laneNumber / 8).W))
-
-  // state
-  // which segment index
-  val writePtr: UInt = RegInit(0.U(3.W))
-  // true -> need send data to vrf
-  val sendState: Vec[Bool] = RegInit(VecInit(Seq.fill(param.laneNumber)(false.B)))
-  val sendStateCheck: Bool = !sendState.asUInt.orR
-  val lastPtr: Bool = writePtr === lsuRequestReg.instructionInformation.nf
-  val writeStageReady: Bool = lastPtr && sendStateCheck
+  val lastPtr: Bool = accessPtr === lsuRequestReg.instructionInformation.nf
+  val writeStageReady: Bool = lastPtr && accessStateCheck
 
   bufferDequeueReady := writeStageReady
 
-  // 在边界上被vl修正
-  val isLastMaskGroup: Bool = RegEnable(
-    Mux(
-      maskSelect.valid,
-      maskSelect.bits === (csrInterfaceReg.vl >> log2Ceil(param.maskGroupWidth)),
-      (csrInterfaceReg.vl >> log2Ceil(param.maskGroupWidth)) === 0.U
-    ),
-    false.B,
-    maskSelect.valid || lsuRequest.valid
-  )
-  val maskWire: UInt = Wire(UInt(param.maskGroupWidth.W))
-  maskWire := maskReg & Mux(needAmend && isLastMaskGroup, lastMaskAmendReg, -1.S(param.maskGroupWidth.W).asUInt)
-  maskForGroupWire := Mux1H(dataEEWOH, Seq(
-    maskWire,
-    Mux(maskCounterInGroup(0), FillInterleaved(2, maskWire) >> param.maskGroupWidth, FillInterleaved(2, maskWire)),
-    Mux1H(UIntToOH(maskCounterInGroup), Seq.tabulate(4) { maskIndex =>
-      FillInterleaved(4, maskWire)(
-        maskIndex * param.maskGroupWidth + param.maskGroupWidth - 1, maskIndex * param.maskGroupWidth
-      )
-    })
-  ))
-  val initSendState: Vec[Bool] =
-    VecInit(maskForGroupWire.asBools.grouped(param.datapathWidth / 8).map(VecInit(_).asUInt.orR).toSeq)
-
-  val nextMaskGroup: UInt = maskGroupCounter + 1.U
-  maskSelect.valid := false.B
-  maskSelect.bits := Mux(lsuRequest.valid, 0.U, nextMaskGroup)
+  when(bufferDequeueFire || lsuRequest.valid) {
+    maskCounterInGroup := Mux(isLastDataGroup || lsuRequest.valid, 0.U, nextMaskCount)
+  }
   // 是否可以反向写vrf, 然后第一组24选1的multi cycle
   when(bufferDequeueFire) {
     // 总是换mask组
-    when(maskCounterInGroup === countEndForGroup) {
+    when(isLastDataGroup) {
       maskSelect.valid := true.B
       maskGroupCounter := nextMaskGroup
     }
-    writeData := Mux1H(dataEEWOH, Seq.tabulate(3) { sewSize =>
+    accessData := Mux1H(dataEEWOH, Seq.tabulate(3) { sewSize =>
       Mux1H(UIntToOH(lsuRequestReg.instructionInformation.nf), Seq.tabulate(8) { segSize =>
         // 32 byte
         // 每个数据块 2 ** sew byte
@@ -263,30 +194,31 @@ class LoadUnit(param: MSHRParam) extends LSUBase(param) {
           res
         }).asUInt.suggestName(s"regroupLoadData_${sewSize}_$segSize")
       })
-    }).asTypeOf(writeData)
+    }).asTypeOf(accessData)
   }
 
   when(bufferDequeueFire) {
     maskForGroup := maskForGroupWire
   }
-  when(bufferDequeueFire || (sendStateCheck && !lastPtr)) {
-    sendState := initSendState
-    writePtr := Mux(bufferDequeueFire, 0.U, writePtr + 1.U)
+  when(bufferDequeueFire || (accessStateCheck && !lastPtr)) {
+    accessState := initSendState
+    accessPtr := Mux(bufferDequeueFire, 0.U, accessPtr + 1.U)
   }
 
 
   // 往vrf写数据
   Seq.tabulate(param.laneNumber) { laneIndex =>
     val writePort: DecoupledIO[VRFWriteRequest] = vrfWritePort(laneIndex)
-    writePort.valid := sendState(laneIndex)
+    writePort.valid := accessState(laneIndex)
     writePort.bits.mask := cutUInt(maskForGroup, param.datapathWidth / 8)(laneIndex)
-    writePort.bits.data := cutUInt(Mux1H(UIntToOH(writePtr), writeData), param.datapathWidth)(laneIndex)
+    writePort.bits.data := cutUInt(Mux1H(UIntToOH(accessPtr), accessData), param.datapathWidth)(laneIndex)
     writePort.bits.offset := dataGroup
-    writePort.bits.vd := lsuRequestReg.instructionInformation.vs3 + writePtr + (dataGroup >> writePort.bits.offset).asUInt
+    writePort.bits.vd :=
+      lsuRequestReg.instructionInformation.vs3 + accessPtr + (dataGroup >> writePort.bits.offset.getWidth).asUInt
     writePort.bits.last := DontCare
     writePort.bits.instructionIndex := lsuRequestReg.instructionIndex
     when(writePort.fire) {
-      sendState(laneIndex) := false.B
+      accessState(laneIndex) := false.B
     }
   }
 
