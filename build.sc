@@ -5,18 +5,14 @@ import mill.scalalib.publish._
 import mill.scalalib.scalafmt._
 import mill.scalalib.TestModule.Utest
 import coursier.maven.MavenRepository
-import $file.dependencies.chisel3.build
-import $file.dependencies.firrtl.build
-import $file.dependencies.treadle.build
-import $file.dependencies.chiseltest.build
+import $file.dependencies.chisel.build
 import $file.dependencies.arithmetic.common
 import $file.dependencies.tilelink.common
+import $file.dependencies.`berkeley-hardfloat`.common
 import $file.common
-import $file.tests.build
 
 object v {
-  val scala = "2.13.6"
-  val utest = ivy"com.lihaoyi::utest:latest.integration"
+  val scala = "2.13.10"
   val mainargs = ivy"com.lihaoyi::mainargs:0.3.0"
   // for arithmetic
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
@@ -24,116 +20,112 @@ object v {
   val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
 }
 
-object myfirrtl extends dependencies.firrtl.build.firrtlCrossModule(v.scala) {
-  override def millSourcePath = os.pwd / "dependencies" / "firrtl"
+object chisel extends Chisel
 
-  override val checkSystemAntlr4Version = false
-  override val checkSystemProtocVersion = false
-  override val protocVersion = os.proc("protoc", "--version").call().out.text.dropRight(1).split(' ').last
-  override val antlr4Version = os.proc("antlr4").call().out.text.split('\n').head.split(' ').last
+trait Chisel 
+  extends millbuild.dependencies.chisel.build.Chisel {
+  def crossValue = v.scala
+
+  override def millSourcePath = os.pwd / "dependencies" / "chisel"
+
+  def scalaVersion = T(v.scala)
 }
 
-object mytreadle extends dependencies.treadle.build.treadleCrossModule(v.scala) {
-  override def millSourcePath = os.pwd / "dependencies" / "treadle"
+object arithmetic extends Arithmetic
 
-  def firrtlModule: Option[PublishModule] = Some(myfirrtl)
-}
+trait Arithmetic 
+  extends millbuild.dependencies.arithmetic.common.ArithmeticModule 
+    with millbuild.common.ArithmeticModule {
 
-object mychisel3 extends dependencies.chisel3.build.chisel3CrossModule(v.scala) {
-  override def millSourcePath = os.pwd / "dependencies" / "chisel3"
-
-  def firrtlModule: Option[PublishModule] = Some(myfirrtl)
-
-  def treadleModule: Option[PublishModule] = Some(mytreadle)
-
-  def chiseltestModule: Option[PublishModule] = Some(mychiseltest)
-}
-
-object mychiseltest extends dependencies.chiseltest.build.chiseltestCrossModule(v.scala) {
-  override def millSourcePath = os.pwd / "dependencies" / "chiseltest"
-
-  def chisel3Module: Option[PublishModule] = Some(mychisel3)
-
-  def treadleModule: Option[PublishModule] = Some(mytreadle)
-}
-
-object myarithmetic extends dependencies.arithmetic.common.ArithmeticModule {
   override def millSourcePath = os.pwd / "dependencies" / "arithmetic" / "arithmetic"
 
-  def scalaVersion = T {
-    v.scala
-  }
+  def scalaVersion = T(v.scala)
 
-  def chisel3Module: Option[PublishModule] = Some(mychisel3)
+  def chiselModule = Some(chisel)
 
-  def chisel3PluginJar = T {
-    Some(mychisel3.plugin.jar())
-  }
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
 
-  def chiseltestModule = Some(mychiseltest)
+  def chiselIvy = None
+  
+  def chiselPluginIvy = None
 
-  def spire: T[Dep] = v.spire
+  def spireIvy: T[Dep] = v.spire
 
-  def evilplot: T[Dep] = v.evilplot
-
-  def bc: T[Dep] = v.bc
-
-  def utest: T[Dep] = v.utest
+  def evilplotIvy: T[Dep] = v.evilplot
 }
 
-object mytilelink extends dependencies.tilelink.common.TileLinkModule {
+object tilelink extends TileLink
+
+trait TileLink
+  extends millbuild.dependencies.tilelink.common.TileLinkModule
+    with millbuild.common.TileLinkModule {
+
   override def millSourcePath = os.pwd / "dependencies" / "tilelink" / "tilelink"
 
-  def scalaVersion = T {
-    v.scala
-  }
+  def scalaVersion = T(v.scala)
+ 
+  def chiselModule = Some(chisel)
 
-  def chisel3Module: Option[PublishModule] = Some(mychisel3)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
 
-  def chisel3PluginJar = T {
-    Some(mychisel3.plugin.jar())
-  }
+  def chiselIvy = None
+  
+  def chiselPluginIvy = None
 }
 
-object myhardfloat extends common.HardfloatModule {
-  override def millSourcePath = os.pwd / "dependencies" / "hardfloat"
+object hardfloat extends Hardfloat
 
-  override def scalaVersion = v.scala
+trait Hardfloat
+  extends millbuild.dependencies.`berkeley-hardfloat`.common.HardfloatModule 
+    with millbuild.common.HardfloatModule {
 
-  def chisel3Module: Option[PublishModule] = Some(mychisel3)
+  override def millSourcePath = os.pwd / "dependencies" / "berkeley-hardfloat" / "hardfloat"
 
-  def chisel3PluginJar = T(Some(mychisel3.plugin.jar()))
+  def scalaVersion = T(v.scala)
+
+  def chiselModule = Some(chisel)
+
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+
+  def chiselIvy = None
+  
+  def chiselPluginIvy = None
 }
-object vector extends common.VectorModule with ScalafmtModule {
-  m =>
+
+object vector extends Vector
+
+trait Vector
+  extends millbuild.common.VectorModule
+  with ScalafmtModule {
+
   def millSourcePath = os.pwd / "v"
 
-  def scalaVersion = T {
-    v.scala
-  }
+  def scalaVersion = T(v.scala)
 
-  def chisel3Module = Some(mychisel3)
+  def chiselModule = Some(chisel)
 
-  def chisel3PluginJar = T {
-    Some(mychisel3.plugin.jar())
-  }
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
 
-  def chiseltestModule = Some(mychiseltest)
+  def chiselIvy = None
+  
+  def chiselPluginIvy = None
 
-  def arithmeticModule = Some(myarithmetic)
+  def arithmeticModule = arithmetic
 
-  def tilelinkModule = Some(mytilelink)
+  def tilelinkModule = tilelink
 
-  def hardfloatModule = Some(myhardfloat)
-
-  def utest: T[Dep] = v.utest
+  def hardfloatModule = hardfloat
 }
 
 object elaborator
-    extends mill.Cross[Elaborator](os.walk(os.pwd / "configs").filter(_.ext == "json").map(_.baseName): _*)
+    extends mill.Cross[Elaborator](os.walk(os.pwd / "configs").filter(_.ext == "json").map(_.baseName).toSeq)
+
 // Module to generate RTL from json config
 // TODO: remove testbench
-class Elaborator(config: String) extends Module {
+trait Elaborator
+  extends Cross.Module[String] {
+  val config: String = crossValue
+
   def configDir = T(os.pwd / "configs")
   def configFile = T(configDir() / s"$config.json")
   def designConfig = T(ujson.read(os.read(configFile()))("design"))
@@ -142,9 +134,9 @@ class Elaborator(config: String) extends Module {
 
   object elaborate extends ScalaModule with ScalafmtModule {
     override def millSourcePath: os.Path = os.pwd / "elaborator"
-    override def scalacPluginClasspath = T(Agg(mychisel3.plugin.jar()))
+    override def scalacPluginClasspath = T(Agg(chisel.pluginModule.jar()))
     override def scalacOptions = T(
-      super.scalacOptions() ++ Some(mychisel3.plugin.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq(
+      super.scalacOptions() ++ Some(chisel.pluginModule.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq(
         "-Ymacro-annotations"
       )
     )
@@ -210,9 +202,12 @@ class Elaborator(config: String) extends Module {
 
 object release
     extends mill.Cross[Release](
-      os.walk(os.pwd / "configs").filter(_.ext == "json").filter(_.baseName.contains("release")).map(_.baseName): _*
+      os.walk(os.pwd / "configs").filter(_.ext == "json").filter(_.baseName.contains("release")).map(_.baseName).toSeq
     )
-class Release(config: String) extends Module {
+
+trait Release
+  extends Cross.Module[String] {
+  val config: String = crossValue
   def release = T {
     val target =
       T.dest / s"vector-${os.proc("git", "rev-parse", "--short=7", "HEAD").call().out.text().stripLineEnd}.tar.xz"
@@ -232,9 +227,12 @@ def emulatorTarget: Seq[String] = os.walk(os.pwd / "configs")
   .filter(_.baseName.contains("test"))
   .map(_.baseName)
 
-object emulator extends mill.Cross[emulator](emulatorTarget: _*)
+object emulator extends mill.Cross[Emulator](emulatorTarget)
 
-class emulator(config: String) extends Module {
+trait Emulator
+  extends Cross.Module[String] {
+  val config: String = crossValue
+
   def configDir = T(os.pwd / "configs")
 
   def configFile = T(configDir() / s"$config.json")
@@ -382,9 +380,14 @@ def crossGenConfigProduct: Seq[(String, String, String)] =
     }
   })
 
-object verilatorEmulator extends mill.Cross[RunVerilatorEmulator]((crossGenConfigProduct): _*)
+object verilatorEmulator extends mill.Cross[RunVerilatorEmulator](crossGenConfigProduct)
 
-class RunVerilatorEmulator(elaboratorConfig: String, testTask: String, config: String) extends Module with TaskModule {
+trait RunVerilatorEmulator
+  extends Cross.Module3[String, String, String]
+    with TaskModule {
+  val elaboratorConfig: String = crossValue
+  val testTask: String = crossValue2
+  val config: String = crossValue3
   override def defaultCommandName() = "run"
 
   def configDir:  T[os.Path] = T(os.pwd / "run")
