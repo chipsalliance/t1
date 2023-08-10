@@ -37,13 +37,17 @@ trait Case extends Module {
 
 // go-based Codegen test
 object codegen
-    extends mill.Cross[CodeGenCase](
-      os.walk(os.pwd / "configs")
-        .filter(_.ext == "json")
-        .filter(f => ujson.read(os.read(f)).obj("type").str == "codegen")
-        .map(f => ujson.read(os.read(f)).obj("name").str): _*
-    )
-class CodeGenCase(val config: String) extends Case {
+   extends Cross[CodeGenCase](
+  os.walk(os.pwd / "configs")
+    .filter(_.ext == "json")
+    .filter(f => ujson.read(os.read(f)).obj("type").str == "codegen")
+    .map(f => ujson.read(os.read(f)).obj("name").str)
+)
+
+trait CodeGenCase
+  extends Case 
+    with Cross.Module[String] {
+  val config: String = crossValue
   override def moduleName = "codegen"
   def codeGenConfig = T(testConfig().obj("name").str)
   // String => PathRef[os.Path]
@@ -76,25 +80,33 @@ class CodeGenCase(val config: String) extends Case {
 
 // Intrinsic Cases
 object intrinsic
-    extends mill.Cross[IntrinsicCase](
+  extends Cross[IntrinsicCase](
       os.walk(os.pwd / "configs")
         .filter(_.ext == "json")
         .filter(f => ujson.read(os.read(f)).obj("type").str == "intrinsic")
-        .map(f => ujson.read(os.read(f)).obj("name").str): _*
+        .map(f => ujson.read(os.read(f)).obj("name").str)
     )
-class IntrinsicCase(val config: String) extends Case {
+
+trait IntrinsicCase
+  extends Case 
+    with Cross.Module[String] {
+  val config: String = crossValue
   override def moduleName = "intrinsic"
 }
 
 // Case from mlir tests
 object mlir
-    extends mill.Cross[BuddyMLIRCase](
-      os.walk(os.pwd / "configs")
-        .filter(_.ext == "json")
-        .filter(f => ujson.read(os.read(f)).obj("type").str == "mlir")
-        .map(f => ujson.read(os.read(f)).obj("name").str): _*
-    )
-class BuddyMLIRCase(val config: String) extends Case {
+  extends Cross[BuddyMLIRCase](
+  os.walk(os.pwd / "configs")
+    .filter(_.ext == "json")
+    .filter(f => ujson.read(os.read(f)).obj("type").str == "mlir")
+    .map(f => ujson.read(os.read(f)).obj("name").str)
+)
+
+trait BuddyMLIRCase
+  extends Case 
+    with Cross.Module[String] {
+  val config: String = crossValue
   override def moduleName = "mlir"
   def buddyOptArg = T(testConfig().obj("buddyOptArg").arr.map(_.str))
 
@@ -133,27 +145,30 @@ class BuddyMLIRCase(val config: String) extends Case {
 
 // ASM
 object asm
-    extends mill.Cross[AsmCase](
+  extends mill.Cross[AsmCase](
       os.walk(os.pwd / "configs")
         .filter(_.ext == "json")
         .filter(f => ujson.read(os.read(f)).obj("type").str == "asm")
-        .map(f => ujson.read(os.read(f)).obj("name").str): _*
-    )
-class AsmCase(val config: String) extends Case {
+        .map(f => ujson.read(os.read(f)).obj("name").str)
+)
+
+trait AsmCase
+  extends Case 
+    with Cross.Module[String] {
+  val config: String = crossValue
   override def moduleName = "asm"
 }
 
-object caseBuild extends mill.Cross[CaseBuilder](
+object caseBuild
+  extends Cross[CaseBuilder](
   os.walk(os.pwd / "configs")
     .filter(_.ext == "json")
-    .map(f => {
-      val cfg = ujson.read(os.read(f))
-      val name = cfg.obj("name").str
-      val module = cfg.obj("type").str
-      s"$name-$module"
-    }): _*
+    .map(f => s"${ujson.read(os.read(f)).obj("name").str}-${ujson.read(os.read(f)).obj("type").str}")
 )
-class CaseBuilder(val task: String) extends Module {
+
+trait CaseBuilder
+  extends Cross.Module[String] {
+  val task: String = crossValue
   def run = T {
     // prepare
     val outputDir = os.pwd / os.up / "tests-out"

@@ -62,7 +62,15 @@ in
     });
   });
 
-  mill = prev.mill.override { jre = final.openjdk19; };
+  mill = (prev.mill.overrideAttrs (oldAttrs: rec {
+    version = "0.11.1";
+    src = prev.fetchurl {
+      url = "https://github.com/com-lihaoyi/mill/releases/download/${version}/${version}-assembly";
+      hash = "sha256-qG+Ddn0BHUZX1VX5hO84exgRz8YuUgYF/fH6MmgkrXE=";
+    };
+  })).override {
+    jre = final.openjdk19; 
+  };
 
   espresso = final.callPackage ./nix/espresso.nix { };
   libspike = final.callPackage ./nix/libspike.nix { };

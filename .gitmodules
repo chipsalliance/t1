@@ -1,25 +1,15 @@
-[submodule "dependencies/treadle"]
-	path = dependencies/treadle
-	url = git@github.com:chipsalliance/treadle.git
-[submodule "dependencies/chisel3"]
-	path = dependencies/chisel3
-	url = git@github.com:chipsalliance/chisel3.git
-[submodule "dependencies/firrtl"]
-	path = dependencies/firrtl
-	url = git@github.com:chipsalliance/firrtl.git
-[submodule "dependencies/chiseltest"]
-	path = dependencies/chiseltest
-	url = git@github.com:ucb-bar/chiseltest.git
+[submodule "dependencies/chisel"]
+	path = dependencies/chisel
+	url = git@github.com:chipsalliance/chisel.git
 [submodule "dependencies/arithmetic"]
 	path = dependencies/arithmetic
 	url = git@github.com:sequencer/arithmetic.git
 [submodule "dependencies/tilelink"]
 	path = dependencies/tilelink
 	url = git@github.com:sequencer/tilelink.git
-[submodule "dependencies/riscv-vector-tests"]
+[submodule "dependencies/berkeley-hardfloat"]
+	path = dependencies/berkeley-hardfloat
+	url = git@github.com:sequencer/berkeley-hardfloat.git
+[submodule "tests/codegen"]
 	path = tests/codegen
 	url = git@github.com:ksco/riscv-vector-tests.git
-	branch = main
-[submodule "dependencies/hardfloat"]
-	path = dependencies/hardfloat
-	url = https://github.com/ucb-bar/berkeley-hardfloat.git
