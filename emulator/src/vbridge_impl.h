@@ -81,6 +81,7 @@ public:
 
 private:
 
+  int external_handle;
   std::string varch;
   cfg_t cfg;
   simple_sim sim;

@@ -164,6 +164,7 @@ void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
   se_to_issue = nullptr;   // clear se_to_issue, to avoid using the wrong one
 }
 
+#define FORCE_EXTERNAL TRUE
 VBridgeImpl::VBridgeImpl() :
     config(get_env_arg("COSIM_config")),
     varch(fmt::format("vlen:{},elen:{}", config.v_len, config.elen)),
@@ -196,7 +197,9 @@ VBridgeImpl::VBridgeImpl() :
     ctx(nullptr),
 #endif
     vrf_shadow(std::make_unique<uint8_t[]>(config.v_len_in_bytes * config.vreg_number)) {
-
+  if (FORCE_EXTERNAL) {
+    external_handle = open("/tmp/insn", O_RDONLY);
+  }
   DEFAULT_VARCH;
   auto &csrmap = proc.get_state()->csrmap;
   csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 0);
@@ -207,10 +210,33 @@ uint64_t VBridgeImpl::get_t() {
   return getCycle();
 }
 
+std::optional<insn_fetch_t> load_external_insn(){
+  // 64 bits for a single instruction. 
+  insn_bytes=read(external_handle, insn_buf, 8);
+  insn_func_t func;
+  insn_t insn;
+
+  if(insn_bytes<8) {
+    return {};
+  }
+  
+  bool rve = extension_enabled('E');
+  bool log_commits_enabled = false;
+  insn_t insn(*(uint64_t *)insn_buf);
+  insn_func_t func=desc.func(proc->get_isa().get_max_xlen(), rve, log_commits_enabled);
+  insn_fetch_t ret; 
+  ret.func = func; 
+  ret.insn = insn; 
+  return ret;
+}
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
   reg_t pc = state->pc;
-  auto fetch = proc.get_mmu()->load_insn(pc);
+
+  if(FORCE_EXTERNAL)
+    auto fetch = load_external_insn();
+  else
+    auto fetch = proc.get_mmu()->load_insn(pc);
 //  VLOG(1) << fmt::format("pre-exec (pc={:08X})", state->pc);
   auto event = create_spike_event(fetch);
 
