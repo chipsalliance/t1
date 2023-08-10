@@ -30,10 +30,17 @@ stdenv.mkDerivation {
     export CODEGEN_INC_PATH=${rvv-codegen}/include
     export CODEGEN_CFG_PATH=${rvv-codegen}/configs
 
+    # Ammonite will write some Jar file in $HOME directory,
+    # however nix will set a non-existent directory as home directory 
+    # which will cause Ammonite fail to write and read.
+    mkdir fake-home
+    export HOME=$PWD/fake-home
+
     amm ci.sc buildAllTestCase ./tests-src ./tests-out
   '';
   installPhase = ''
     mkdir -p $out
     cp -r tests-out/{configs,cases} $out
   '';
+  __noChroot = true;
 }
