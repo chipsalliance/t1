@@ -76,14 +76,17 @@ object Decoder {
   }
 
   object divider extends BoolField {
-    val subs: Seq[String] = Seq(
+    val intDiv: Seq[String] = Seq(
       "div",
-      "rem",
-      "sqrt",
-      "rec7"
+      "rem"
     )
-    // todo: delete `&& op.tpe != "F"`
-    def value(op: Op): Boolean = subs.exists(op.name.contains) && op.tpe != "F"
+    val floatDiv: Seq[Nothing] = Seq(
+      "fdiv",
+      "fsqrt",
+      "frdiv"
+    )
+    val subs: Seq[String] = intDiv ++ floatDiv
+    def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
   object multiCycle extends BoolField {
@@ -181,11 +184,8 @@ object Decoder {
   }
 
   object FDiv extends BoolField {
-    val subsMap = Seq(
-      "vfdiv" -> 1,
-      "vfrdiv" -> 2,
-      "vfsqrt" -> 8
-    )
+    // todo: remove FDiv
+    val subsMap: Seq[(String, Int)] = Seq.empty[(String, Int)]
     def value(op: Op): Boolean = subsMap.exists(a => op.name.contains(a._1))
 
     def uop(op: Op): Int = {
@@ -442,7 +442,11 @@ object Decoder {
         val n = if (high) 3 else firstIndexContains(mul, op.name)
         negative + asAddend + n
       } else if (divider.value(op)) {
-        firstIndexContains(divider.subs, op.name)
+        if (!float.value(op)) {
+          firstIndexContains(divider.intDiv, op.name)
+        } else {
+          8 + firstIndexContains(divider.floatDiv, op.name)
+        }
       } else if (adder.value(op)) {
         if (op.name.contains("sum")) 0 else firstIndexContains(adder.subs, op.name)
       } else if (logic.value(op)) {
