@@ -75,7 +75,7 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
 // @param buckets Seq of String that is already packed into bucket using the `buckets` function
 // @param outputFile Path to the output json file
 def writeJson(buckets: Seq[String], outputFile: os.Path) = 
-  os.write.over(outputFile, ujson.Obj("include" -> 
+  os.write.over(outputFile, ujson.Obj("include" ->
     buckets.map(a => ujson.Obj(s"name" -> ujson.Str(a)))))
 
 // Generate a list of grouped tests from the given `defaultPassed` file.
@@ -157,28 +157,42 @@ def convertPerfToMD(root: os.Path) = os
   })
 
 
-def updCycleResult(root: os.Path, task: String, resultOutput: os.Path) = {
+def updCycleResult(root: os.Path, task: String, resultDir: os.Path) = {
   val isEmulatorTask = raw"verilatorEmulator\[([^,]+),([^,]+),([^,]+)\].run".r
   task match {
     case isEmulatorTask(e, t, r) => {
       val passedFile = root / os.RelPath(s".github/passed/$e/$r/passed.json")
       val original = ujson.read(os.read(passedFile))
-      val new_cycle = os.read.lines(root / os.RelPath(s"out/verilatorEmulator/$e/$t/$r/run.dest/perf.txt"))
-        .apply(0)
-        .stripPrefix("total_cycles: ")
-        .trim.toInt
-      val old_cycle = original.obj.get(t).map(_.num.toInt).getOrElse(-1)
-      old_cycle match {
-        case -1 => os.write.append(resultOutput, s"* $t: NaN -> $new_cycle")
+      val totalCycle = raw"total_cycles:\s(\d+)".r
+
+      val newCycleCount = os
+        .read
+        .lines(root / os.RelPath(s"out/verilatorEmulator/$e/$t/$r/run.dest/perf.txt"))
+        .apply(0) match {
+          case totalCycle(cycle) => cycle.toInt
+          case _ => throw new Exception("perf.txt file is not format as expected")
+        }
+
+      val oldCycleCount = original.obj.get(t).map(_.num.toInt).getOrElse(-1)
+      val logFile = resultDir / "result.md"
+      oldCycleCount match {
+        case -1 => os.write.append(logFile, s"* $t: NaN -> $newCycleCount")
         case _ => {
-          if (old_cycle > new_cycle) {
-            os.write.append(resultOutput, s"* 📈 $t: $old_cycle -> $new_cycle\n")
-          } else if (old_cycle < new_cycle) {
-            os.write.append(resultOutput, s"* 🔻 $t: $old_cycle -> $new_cycle\n")
+          if (oldCycleCount > newCycleCount) {
+            os.write.append(logFile, s"* 📈 $t: $oldCycleCount -> $newCycleCount\n")
+          } else if (oldCycleCount < newCycleCount) {
+            os.write.append(logFile, s"* 🔻 $t: $oldCycleCount -> $newCycleCount\n")
           }
 
-          original(t) = new_cycle
-          os.write.over(passedFile, ujson.write(original, indent = 2))
+          val newCycleFile = resultDir / s"${e}_${r}_cycle.json"
+          val newCycleRecord = if (os.exists(newCycleFile)) {
+            ujson.read(os.read(newCycleFile))
+          } else {
+            ujson.Obj()
+          }
+
+          newCycleRecord(t) = newCycleCount
+          os.write.over(newCycleFile, ujson.write(newCycleRecord, indent = 2))
         }
       }
     }
@@ -198,10 +212,10 @@ def updCycleResult(root: os.Path, task: String, resultOutput: os.Path) = {
 //
 // @param: root Path to the project root
 // @param: jobs A list of test case concat with semicolon, eg. "taskA;taskB"
-// @param: loggingDir Path to the loggin directory. Optional, `root/test-log` by default.
+// @param: outDir Path to the test output directory. Optional, `root/test-log` by default.
 @main
-def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
-  var logDir = loggingDir.getOrElse(root / "test-log")
+def runTest(root: os.Path, jobs: String, outDir: Option[os.Path]) = {
+  var logDir = outDir.getOrElse(root / "test-log")
   os.remove.all(logDir)
   os.makeDir.all(logDir / "fail")
   // we need the unique filename to avoid file overwrite by multi-machine CI
@@ -210,6 +224,7 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
     .digest(jobs.getBytes("UTF-8"))
     .map("%02x".format(_))
     .mkString
+  os.makeDir.all(logDir / s"result-${md5}")
   val totalJobs = jobs.split(";")
   val failed = totalJobs.zipWithIndex.foldLeft(Seq[String]()) {
     case(failed, (job, i)) => {
@@ -226,14 +241,14 @@ def runTest(root: os.Path, jobs: String, loggingDir: Option[os.Path]) = {
         os.write(logDir / "fail" / s"$job.log", trimmedOutput)
         failed :+ job
       } else {
-        updCycleResult(root, job, logDir / s"result-${md5}.md")
+        updCycleResult(root, job, logDir / s"result-${md5}")
         failed
       }
     }
   }
 
   if (failed.length > 0) {
-    os.write.over(logDir / s"fail-test-${md5}.md",
+    os.write.over(logDir / "fail" / s"fail-test-${md5}.md",
       s"${failed.map(f => s"* $f").mkString("\n")}")
     println(s"${failed.length} tests failed:\n${failed.mkString("\n")}")
     throw new Exception("Tests failed")
@@ -287,22 +302,7 @@ def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
 }
 
 @main
-def backupCycleData(root: os.Path, uniqueIdent: String, outputDir: os.Path) = {
-  os
-    .proc("git", "diff", "--name-only", ".github/passed/**/passed.json")
-    .call(root)
-    .out.text
-    .split("\n")
-    .map(os.RelPath(_))
-    .foreach(path => {
-      val Seq(_, _, emu, run, _) = path.segments.toSeq
-      os.makeDir.all(outputDir / emu / run)
-      os.copy.over(os.pwd / path, outputDir / emu / run / s"$uniqueIdent-passed.json")
-    })
-}
-
-@main
-def mergeCycleData(root: os.Path, artifacts: os.Path) = {
+def mergeCycleData(root: os.Path) = {
   val original = os.walk(root / ".github" / "passed")
     .filter(_.last == "passed.json")
     .map(path => {
@@ -310,11 +310,10 @@ def mergeCycleData(root: os.Path, artifacts: os.Path) = {
       (s"$emu,$run", ujson.read(os.read(path)))
     })
     .toMap
-  os.walk(artifacts)
-    .filter(_.ext == "json")
-    .filter(_.baseName.contains("passed"))
+  os.walk(root)
+    .filter(_.last.endsWith("_cycle.json"))
     .map(path => {
-      val Seq(_, run, emu) = path.segments.toSeq.reverse.slice(0, 3)
+      val Array(emu, run, _) = path.last.split("_")
       (s"$emu,$run", ujson.read(os.read(path)))
     })
     .foreach {
