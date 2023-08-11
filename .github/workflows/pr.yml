@@ -62,17 +62,20 @@ jobs:
       - id: ci-run
         run: |
           nix develop .#testcase -c make ci-run "NAME=${{ matrix.name }}"
-          mkdir -p ./new-cycle-data
-          unique_ident=$(echo "${{ matrix.name }}" | sha256sum | tr -d ' -')
-          nix develop .#testcase -c amm .github/scripts/ci.sc backupCycleData . $unique_ident ./new-cycle-data
 
       - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: results
           path: |
-            ./test-log
-            ./new-cycle-data
+            test-log/**/fail-test-*.md
+            test-log/result-*
+
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: fail-log
+          path: ./test-log/fail/*
 
       - uses: actions/upload-artifact@v3
         if: always()
@@ -99,12 +102,12 @@ jobs:
           name: results
       - run: |
           echo -e "\n## Fail tests\n" >> $GITHUB_STEP_SUMMARY
-          find test-log -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
+          find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
       - run: |
           echo -e "\n## Cycle update\n" >> $GITHUB_STEP_SUMMARY
-          find test-log -name 'result-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
+          find . -name 'result.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
       - run: |
-          nix-shell -p ammonite --run 'amm .github/scripts/ci.sc mergeCycleData . ./new-cycle-data'
+          nix-shell -p ammonite --run 'amm .github/scripts/ci.sc mergeCycleData .'
           git config user.name github-actions
           git config user.email github-actions@github.com
           git diff -s --exit-code '.github/passed/**/passed.json' \

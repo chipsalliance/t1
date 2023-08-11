@@ -70,7 +70,8 @@ jobs:
         with:
           name: results
           path: |
-            ./test-log
+            ./test-log/result-*
+            ./test-log/**/fail-test-*.md
             perf-result-*.md
 
       - uses: actions/upload-artifact@v3
@@ -94,7 +95,7 @@ jobs:
       - run: printf "\n\n## Perf Result\n" >> $GITHUB_STEP_SUMMARY; cat perf-*.md >> $GITHUB_STEP_SUMMARY
       - run: |
           echo -e "\n## Newly passed tests\n" >> $GITHUB_STEP_SUMMARY
-          find . -name 'result-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
+          find . -name 'result.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
       - run: |
           echo -e "\n## Still failing tests\n" >> $GITHUB_STEP_SUMMARY
           find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
