@@ -229,7 +229,6 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     Mux(executionRecord.crossReadVS2, state.vSew1H(1, 0), state.vSew1H(2, 1)),
     Seq(false.B ## finalSource1(3), finalSource1(4, 3))
   ) ## finalSource1(2, 0)
-  vfuRequest.bits.rem := decodeResult(Decoder.uop)(0)
   vfuRequest.bits.executeIndex := executionRecord.executeIndex
   vfuRequest.bits.popInit := reduceResult.getOrElse(0.U)
   vfuRequest.bits.groupIndex := executionRecord.groupCounter
