@@ -634,7 +634,6 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val vxrm: UInt = UInt(2.W)
   val vSew: UInt = UInt(2.W)
   val shifterSize: UInt = UInt(log2Ceil(parameter.datapathWidth).W)
-  val rem:  Bool = Bool()
   val executeIndex: UInt = UInt(2.W)
   val popInit: UInt = UInt(parameter.vlMaxBits.W)
   val groupIndex: UInt = UInt(parameter.groupNumberBits.W)

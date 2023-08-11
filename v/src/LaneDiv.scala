@@ -15,7 +15,7 @@ case class LaneDivParam(datapathWidth: Int) extends VFUParameter with Serializab
 
 class LaneDivRequest(datapathWidth: Int) extends Bundle {
   val src:  Vec[UInt] = Vec(2, UInt(datapathWidth.W))
-  val rem:  Bool = Bool()
+  val opcode = UInt(4.W)
   val sign: Bool = Bool()
   // execute index in group
   val executeIndex: UInt = UInt(2.W)
@@ -54,6 +54,7 @@ class SRTIn extends Bundle {
   val dividend = SInt(32.W)
   val divisor = SInt(32.W)
   val signIn = Bool()
+  val opcode = UInt(4.W)
 }
 
 class SRTOut extends Bundle {
