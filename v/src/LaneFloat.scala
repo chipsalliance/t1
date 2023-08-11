@@ -5,6 +5,7 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.experimental.decode._
 import chisel3.util._
 import hardfloat._
+import float.{rawFloatFromFN, _}
 
 object LaneFloatParam {
   implicit def rw: upickle.default.ReadWriter[LaneFloatParam] = upickle.default.macroRW
@@ -157,20 +158,18 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val rdiv     = divEn && (uop === "b0010".U)
   val sqrt     = divEn && (uop === "b1000".U)
 
-  val divSqrt = Module(new DivSqrtRecFN_small(8, 24,0))
-  val divIn0 = Mux(rdiv, recIn0, recIn1)
-  val divIn1 = Mux(rdiv, recIn1, recIn0)
+  val divSqrt = Module(new DivSqrt(8,24))
+  val divIn0 = Mux(rdiv, request.src(0), request.src(1))
+  val divIn1 = Mux(rdiv, request.src(1), request.src(0))
 
-  divSqrt.io.a := divIn0
-  divSqrt.io.b := divIn1
+  divSqrt.input.bits.a := divIn0
+  divSqrt.input.bits.b := divIn1
   // todo: need re-decode?
-  divSqrt.io.roundingMode := request.roundingMode
-  divSqrt.io.detectTininess := 0.U
-  divSqrt.io.sqrtOp := sqrt
-  divSqrt.io.inValid := (requestIO.fire && divEn)
+  divSqrt.input.bits.sqrt := sqrt
+  divSqrt.input.valid := (requestIO.fire && divEn)
 
-  val divsqrtValid = divSqrt.io.outValid_div || divSqrt.io.outValid_sqrt
-  val divsqrtResult = fNFromRecFN(8, 24, divSqrt.io.out)
+  val divsqrtValid = divSqrt.output.valid
+  val divsqrtResult = divSqrt.output.bits.result
 
   divOccupied := Mux(divOccupied, !divsqrtValid, requestIO.fire && divEn)
 
@@ -305,7 +304,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
 
   response.adderMaskResp := fastResultReg(0)
   response.data := Mux(divsqrtValid, divsqrtResult, fastResultReg)
-  response.exceptionFlags := Mux(divsqrtValid, divSqrt.io.exceptionFlags, fastFlagsReg)
+  response.exceptionFlags := Mux(divsqrtValid, divSqrt.output.bits.exceptionFlags, fastFlagsReg)
   requestIO.ready := !divOccupied
   responseIO.valid := divsqrtValid || fastWorking
 }
@@ -355,7 +354,7 @@ class Rec7Fn extends Module {
   val sigOut = Wire(UInt(23.W))
   val expOut = Wire(UInt(8.W))
 
-  normDist := countLeadingZeros(fractIn)
+  normDist := float.countLeadingZeros(fractIn)
   normExpIn := Mux(inIsSub, -normDist, expIn)
 
   // todo timing issue
@@ -408,7 +407,7 @@ class Rsqrt7Fn extends Module {
   val sigOut = Wire(UInt(23.W))
   val expOut = Wire(UInt(8.W))
 
-  normDist := countLeadingZeros(fractIn)
+  normDist := float.countLeadingZeros(fractIn)
   normExpIn := Mux(inIsSub, -normDist, expIn)
   // todo timing issue
   normSigIn := Mux(inIsSub, fractIn << (1.U - normExpIn), fractIn)
