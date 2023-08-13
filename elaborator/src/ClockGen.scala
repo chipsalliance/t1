@@ -1,0 +1,25 @@
+package tests.elaborate
+
+import chisel3.{Bool, Clock, Output}
+import chisel3.experimental.ExtModule
+import chisel3.probe._
+import chisel3.util.HasExtModuleInline
+
+case class ClockGenParameter(clockRate: Int)
+
+class ClockGen(val parameter: ClockGenParameter)
+  extends ExtModule
+    with HasExtModuleInline
+    with HasExtModuleDefine {
+  setInline("ClockGen.sv",
+    s"""module ClockGen;
+       |  reg clock = 1'b0;
+       |  always #(${parameter.clockRate}) clock = ~clock;
+       |  reg reset = 1'b1;
+       |  initial #(${2 * parameter.clockRate + 1}) reset = 0;
+       |endmodule
+       |""".stripMargin
+  )
+  val clock = define(Output(Probe(Clock())), Seq("ClockGen", "ClockGen", "clock"))
+  val reset = define(Output(Probe(Bool())), Seq("ClockGen", "ClockGen", "reset"))
+}
