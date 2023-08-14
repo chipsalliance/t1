@@ -40,7 +40,7 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   wrapper.input.valid := requestIO.valid
 
   val requestFire: Bool = requestIO.fire
-  val remReg:   Bool = RegEnable(request.rem, false.B, requestFire)
+  val remReg:   Bool = RegEnable(request.opcode===1.U, false.B, requestFire)
   val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestFire)
   response.busy := RegEnable(requestFire, false.B, requestFire ^ responseIO.valid)
 
@@ -54,7 +54,6 @@ class SRTIn extends Bundle {
   val dividend = SInt(32.W)
   val divisor = SInt(32.W)
   val signIn = Bool()
-  val opcode = UInt(4.W)
 }
 
 class SRTOut extends Bundle {
@@ -87,11 +86,6 @@ class SRTWrapper extends Module {
   abs.io.signIn := input.bits.signIn
   val negative = abs.io.aSign ^ abs.io.bSign
 
-  val LZC0 = Module(new LZC32)
-  val LZC1 = Module(new LZC32)
-  LZC0.io.a := abs.io.aOut
-  LZC1.io.a := abs.io.bOut
-
   val srt: SRT = Module(new SRT(32, 32, 32, radixLog2 = 4))
 
   /** divided by zero detection */
@@ -114,19 +108,22 @@ class SRTWrapper extends Module {
   // extend one bit for calculation
   val zeroHeadDividend = Wire(UInt(6.W))
   val zeroHeadDivisor = Wire(UInt(6.W))
-  zeroHeadDividend := ~LZC0.io.z
-  zeroHeadDivisor := ~LZC1.io.z
+  zeroHeadDividend := float.countLeadingZeros(abs.io.aOut)
+  zeroHeadDivisor  := float.countLeadingZeros(abs.io.bOut)
   // sub = zeroHeadDivider - zeroHeadDividend
   val sub = Wire(UInt(6.W))
   sub := (-zeroHeadDividend) +& zeroHeadDivisor
   // needComputerWidth: Int = zeroHeadDivider - zeroHeadDividend + 2
   val needComputerWidth = Wire(UInt(7.W))
   needComputerWidth := sub +& 2.U
-  // noguard: Boolean =  needComputerWidth % 4 == 0
-  val noguard = !needComputerWidth(0) && !needComputerWidth(1)
-  // guardWidth: Int =  if (noguard) 0 else 4 - needComputerWidth % 4
-  val guardWidth = Wire(UInt(2.W))
-  guardWidth := Mux(noguard, 0.U, 4.U + -needComputerWidth(1, 0))
+  // guardWidth = needComputerWidth % 4
+  val guardSele = UIntToOH(needComputerWidth(1,0))
+  val guardWidth = Mux1H(Seq(
+    guardSele(0) -> 0.U(2.W),
+    guardSele(1) -> 3.U(2.W),
+    guardSele(2) -> 2.U(2.W),
+    guardSele(3) -> 1.U(2.W),
+  ))
   // counter: Int = (needComputerWidth + guardWidth) / radixLog2
   val counter = ((needComputerWidth +& guardWidth) >> 2).asUInt
 
@@ -203,66 +200,4 @@ class Abs(n: Int) extends Module {
   io.bOut := Mux(io.signIn && bSign, -b, b).asUInt
   io.aSign := io.signIn && aSign
   io.bSign := io.signIn && bSign
-}
-
-/** 8-bits Leading Zero Counter */
-class LZC8 extends Module {
-  val io = IO(new Bundle {
-    val a = Input(UInt(8.W))
-    val z = Output(UInt(3.W))
-    val v = Output(UInt(1.W))
-  })
-  val a = io.a
-  val z0: UInt = (!(a(7) | (!a(6)) & a(5))) & ((a(6) | a(4)) | !(a(3) | (!a(2) & a(1))))
-  val z1: UInt = !(a(7) | a(6)) & ((a(5) | a(4)) | !(a(3) | a(2)))
-  val z2: UInt = !(a(7) | a(6)) & !(a(5) | a(4))
-  val v:  UInt = !(!(a(7) | a(6)) & !(a(5) | a(4))) | !(!(a(3) | a(2)) & !(a(1) | a(0)))
-
-  io.z := Cat(~z2, ~z1, ~z0)
-  io.v := v
-}
-
-/** 16-bits Leading Zero Counter */
-class LZC16 extends Module {
-  val io = IO(new Bundle {
-    val a = Input(UInt(16.W))
-    val z = Output(UInt(4.W))
-    val v = Output(UInt(1.W))
-  })
-  val L0 = Module(new LZC8)
-  val L1 = Module(new LZC8)
-  L1.io.a := io.a(15, 8)
-  L0.io.a := io.a(7, 0)
-
-  val flag = L1.io.v.asBool
-  val z3 = flag
-  val z2 = Mux(flag, L1.io.z(2), L0.io.z(2))
-  val z1 = Mux(flag, L1.io.z(1), L0.io.z(1))
-  val z0 = Mux(flag, L1.io.z(0), L0.io.z(0))
-
-  io.z := Cat(z3, z2, z1, z0)
-  io.v := L1.io.v | L0.io.v
-}
-
-/** 32-bits Leading Zero Counter */
-class LZC32 extends Module {
-  val io = IO(new Bundle {
-    val a = Input(UInt(32.W))
-    val z = Output(UInt(5.W))
-    val v = Output(UInt(1.W))
-  })
-  val L0 = Module(new LZC16)
-  val L1 = Module(new LZC16)
-  L1.io.a := io.a(31, 16)
-  L0.io.a := io.a(15, 0)
-
-  val flag = L1.io.v.asBool
-  val z4 = flag
-  val z3 = Mux(flag, L1.io.z(3), L0.io.z(3))
-  val z2 = Mux(flag, L1.io.z(2), L0.io.z(2))
-  val z1 = Mux(flag, L1.io.z(1), L0.io.z(1))
-  val z0 = Mux(flag, L1.io.z(0), L0.io.z(0))
-
-  io.z := Cat(z4, z3, z2, z1, z0)
-  io.v := L1.io.v | L0.io.v
 }
