@@ -132,7 +132,7 @@ object Decoder {
         other.value(op) ||
           dontNeedExecuteInLane.value(op) ||
           slid.value(op) ||
-          mv.value(op) /*|| divider.value(op)*/)
+          mv.value(op) || divider.value(op))
   }
 
   object floatConvertUnsigned extends BoolField {
@@ -442,7 +442,7 @@ object Decoder {
         val n = if (high) 3 else firstIndexContains(mul, op.name)
         negative + asAddend + n
       } else if (divider.value(op)) {
-        if (!float.value(op)) {
+        if (op.tpe != "F") {
           firstIndexContains(divider.intDiv, op.name)
         } else {
           8 + firstIndexContains(divider.floatDiv, op.name)
