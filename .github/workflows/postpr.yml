@@ -9,7 +9,7 @@ jobs:
   gen-matrix:
     name: Generate test matrix
     if: github.event.pull_request.merged == true
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, infra-testing]
     env:
       RUNNERS: 8
     outputs:
@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, infra-testing]
     outputs:
       result: ${{ steps.ci-run.outputs.result }}
     steps:
@@ -83,7 +83,7 @@ jobs:
     name: "Report CI result"
     if: github.event.pull_request.merged == true && always()
     needs: [ci]
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, infra-testing]
     steps:
       - uses: actions/checkout@v3
         with:
