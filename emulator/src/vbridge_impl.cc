@@ -295,13 +295,13 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   uint8_t size = tl.a_bits_size;
   uint16_t src = tl.a_bits_source;   // MSHR id, TODO: be returned in D channel
   uint32_t lsu_index = tl.a_bits_source & 3;
-  SpikeEvent *se;
+  SpikeEvent *se = nullptr;
   for (auto se_iter = to_rtl_queue.rbegin(); se_iter != to_rtl_queue.rend(); se_iter++) {
     if (se_iter->lsu_idx == lsu_index) {
       se = &(*se_iter);
     }
   }
-  CHECK_S(se) << fmt::format(": [{]] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
+  CHECK_S(se) << fmt::format(": [{}] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
 
   switch (opcode) {
 
