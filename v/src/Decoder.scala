@@ -80,7 +80,7 @@ object Decoder {
       "div",
       "rem"
     )
-    val floatDiv: Seq[Nothing] = Seq(
+    val floatDiv: Seq[String] = Seq(
       "fdiv",
       "fsqrt",
       "frdiv"
