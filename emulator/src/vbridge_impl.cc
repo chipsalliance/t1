@@ -166,7 +166,7 @@ void VBridgeImpl::dpiPeekTL(const VTlInterface &v_tl) {
 
 void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
   VLOG(3) << fmt::format("[{}] dpiPeekWriteQueue", get_t());
-  CHECK_S(0 <= lsu_queue.mshr_index && lsu_queue.mshr_index < config.mshr_number);
+  CHECK_S(0 <= lsu_queue.mshr_index && lsu_queue.mshr_index < config.lane_number);
   record_rf_queue_accesses(lsu_queue);
 
   se_to_issue = nullptr;   // clear se_to_issue, to avoid using the wrong one
