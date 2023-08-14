@@ -176,10 +176,11 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val selectOH: UInt = UIntToOH(alignedPortSelect)
   // tl 发送单元
   val readyVec: Vec[Bool] = VecInit(Seq.tabulate(param.memoryBankSize) { portIndex =>
-    val dataToSend: ValidIO[cacheLineDequeueBundle] = RegInit(0.U.asTypeOf(Valid(new cacheLineDequeueBundle(param))))
+    val dataToSend: ValidIO[cacheLineEnqueueBundle] = RegInit(0.U.asTypeOf(Valid(new cacheLineEnqueueBundle(param))))
     val port: DecoupledIO[TLChannelA] = tlPortA(portIndex)
     val portFire: Bool = port.fire
     val burstIndex: UInt = RegInit(0.U(log2Ceil(burstSize).W))
+    val burstOH: UInt = UIntToOH(burstIndex)
     val last = burstIndex.andR
     val enqueueReady: Bool = !dataToSend.valid
     val enqueueFire: Bool = enqueueReady && bufferValid && selectOH(portIndex)
@@ -203,8 +204,20 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     port.bits.source := dataToSend.bits.index
     port.bits.address := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + dataToSend.bits.index) ##
       0.U(param.cacheLineBits.W)
-    port.bits.mask := 0.U
-    port.bits.data := 0.U
+    port.bits.mask := Mux1H(
+      burstOH,
+      Seq.tabulate(burstSize)(burstIndex => dataToSend.bits.mask(
+        (burstIndex + 1) * param.tlParam.a.maskWidth - 1,
+        burstIndex * param.tlParam.a.maskWidth,
+      ))
+    )
+    port.bits.data := Mux1H(
+      burstOH,
+      Seq.tabulate(burstSize)(burstIndex => dataToSend.bits.data(
+        (burstIndex + 1) * param.tlParam.a.dataWidth - 1,
+        burstIndex * param.tlParam.a.dataWidth,
+      ))
+    )
     port.bits.corrupt := false.B
 
     enqueueReady
