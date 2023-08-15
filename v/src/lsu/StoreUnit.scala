@@ -33,9 +33,16 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   // stage 0, 处理 vl, mask ...
   val changeReadGroup: Bool = Wire(Bool())
-  val lastDataGroupForInstruction: Bool = isLastMaskGroup && isLastDataGroup
+  val dataGroupByteSize: Int = param.datapathWidth * param.laneNumber / 8
+  val dataByteSize: UInt = (csrInterface.vl << lsuRequest.bits.instructionInformation.eew).asUInt
+  val lastDataGroupForInstruction: UInt = (dataByteSize >> log2Ceil(dataGroupByteSize)).asUInt -
+    !dataByteSize(log2Ceil(dataGroupByteSize) - 1, 0).orR
+  val lastDataGroupReg: UInt = RegEnable(lastDataGroupForInstruction, 0.U, lsuRequest.valid)
+  val nextDataGroup: UInt = Mux(lsuRequest.valid, -1.S(dataGroup.getWidth.W).asUInt, dataGroup + 1.U)
+  val isLastRead: Bool = nextDataGroup === lastDataGroupReg
+  val lastGroupAndNeedAlign: Bool = initOffset.orR && isLastRead
   val stage0Idle: Bool = RegEnable(
-    changeReadGroup && lastDataGroupForInstruction,
+    isLastRead && !lsuRequest.valid,
     true.B,
     changeReadGroup || lsuRequest.valid
   )
@@ -48,14 +55,18 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     }
     when(isLastDataGroup && !isLastMaskGroup) {
       maskSelect.valid := true.B
-      maskGroupCounter := nextMaskGroup
     }
+    when((isLastDataGroup && !isLastMaskGroup) || lsuRequest.valid) {
+      maskGroupCounter := Mux(lsuRequest.valid, 0.U, nextMaskGroup)
+    }
+    dataGroup := nextDataGroup
   }
 
   // stage1, 读vrf
   val readStageValid: Bool = RegInit(false.B)
   val readData: Vec[UInt] = RegInit(VecInit(Seq.fill(param.laneNumber)(0.U(param.datapathWidth.W))))
   val readMask: UInt = RegInit(0.U(param.maskGroupWidth.W))
+  val tailLeft1: Bool = RegInit(false.B)
   // 从vrf里面读数据
   Seq.tabulate(param.laneNumber) { laneIndex =>
     val readPort: DecoupledIO[VRFReadRequest] = vrfReadDataPorts(laneIndex)
@@ -86,6 +97,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   when(changeReadGroup) {
     readMask := maskForGroupWire
+    tailLeft1 := lastGroupAndNeedAlign
   }
 
   when(changeReadGroup || (readStateCheck && !lastPtr)) {
@@ -103,17 +115,20 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // stage2, 用一个buffer来存转成cache line 的数据
   val bufferValid: Bool = RegInit(false.B)
   val maskForBufferData: UInt = RegInit(0.U(param.maskGroupWidth.W))
+  val tailLeft2: Bool = RegInit(false.B)
   val alignedDequeue: DecoupledIO[cacheLineEnqueueBundle] = Wire(Decoupled(new cacheLineEnqueueBundle(param)))
   val alignedDequeueFire: Bool = alignedDequeue.fire
   // cache 不对齐的时候的上一条残留
   val cacheLineTemp: UInt = RegEnable(dataBuffer.head, 0.U((param.cacheLineSize * 8).W), alignedDequeueFire)
   val maskTemp: UInt = RegInit(0.U(param.cacheLineSize.W))
+  val tailValid: Bool = RegInit(false.B)
   val isLastCacheLineInBuffer: Bool = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
   accessBufferDequeueReady := !bufferValid
   val bufferStageEnqueueData: UInt = VecInit(readData.asUInt +: accessData.init).asUInt
   // 把数据regroup, 然后放去 [[dataBuffer]]
   when(accessBufferDequeueFire) {
     maskForBufferData := readMask
+    tailLeft2 := tailLeft1
     // todo: 只是因为参数恰好是一个方形的, 需要写一个反的
     dataBuffer := Mux1H(dataEEWOH, Seq.tabulate(3) { sewSize =>
       Mux1H(UIntToOH(lsuRequestReg.instructionInformation.nf), Seq.tabulate(8) { segSize =>
@@ -160,14 +175,16 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   when(lsuRequest.valid || alignedDequeueFire) {
     maskTemp := Mux(lsuRequest.valid, 0.U, maskForBufferData)
+    tailValid := Mux(lsuRequest.valid, false.B, bufferValid && tailLeft2 && isLastCacheLineInBuffer)
   }
 
   // 连接 alignedDequeue
-  alignedDequeue.valid := bufferValid
+  alignedDequeue.valid := bufferValid || tailValid
   // aligned
   alignedDequeue.bits.data :=
     multiShifter(right = false, multiSize = 8)(dataBuffer.head ## cacheLineTemp, initOffset) >> cacheLineTemp.getWidth
-  alignedDequeue.bits.mask := ((maskForBufferData ## maskTemp) << initOffset) >> maskTemp.getWidth
+  val selectMaskForTail: UInt = Mux(bufferValid, maskForBufferData, 0.U(maskTemp.getWidth.W))
+  alignedDequeue.bits.mask := ((selectMaskForTail ## maskTemp) << initOffset) >> maskTemp.getWidth
   alignedDequeue.bits.index := bufferBaseCacheLineIndex
 
   val alignedPortSelect: UInt =
@@ -183,7 +200,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     val burstOH: UInt = UIntToOH(burstIndex)
     val last = burstIndex.andR
     val enqueueReady: Bool = !dataToSend.valid
-    val enqueueFire: Bool = enqueueReady && bufferValid && selectOH(portIndex)
+    val enqueueFire: Bool = enqueueReady && alignedDequeue.valid && selectOH(portIndex)
     status.releasePort(portIndex) := burstIndex === 0.U
     when(enqueueFire) {
       dataToSend.bits := alignedDequeue.bits
@@ -231,4 +248,5 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   status.last := !idleNext && status.idle
   status.changeMaskGroup := maskSelect.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
+
 }

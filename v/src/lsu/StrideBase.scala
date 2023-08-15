@@ -92,10 +92,10 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   // 在边界上被vl修正
   val isLastMaskGroup: Bool = RegEnable(
     Mux(
-      maskSelect.valid,
-      maskSelect.bits === (csrInterfaceReg.vl >> log2Ceil(param.maskGroupWidth)),
-      (csrInterfaceReg.vl >> log2Ceil(param.maskGroupWidth)) === 0.U
-    ),
+      lsuRequest.valid,
+      (csrInterface.vl >> log2Ceil(param.maskGroupWidth)) === 0.U,
+      maskSelect.bits === (csrInterfaceReg.vl >> log2Ceil(param.maskGroupWidth))
+  ),
     false.B,
     maskSelect.valid || lsuRequest.valid
   )

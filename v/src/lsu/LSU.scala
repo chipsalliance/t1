@@ -229,21 +229,23 @@ class LSU(param: LSUParam) extends Module {
      *  1. 不声明占用时, load > store > other
      * */
     val requestSelect = Seq(
-      // select store unit
-      !portFree || (!loadTryToUse && storeRequest.valid),
       // select load unit
       portFree && loadTryToUse,
+      // select store unit
+      !portFree || (!loadTryToUse && storeRequest.valid),
       // select otherUnit
       portFree && !loadTryToUse && !storeRequest.valid
     )
+    val selectIndex: UInt = OHToUInt(requestSelect)
 
     // 选出一个请求连到 a 通道上
+    val selectBits = Mux1H(requestSelect, Seq(loadUnit.tlPortA.bits, storeRequest.bits, otherUnit.tlPort.a.bits))
     port.valid := storeRequest.valid || ((loadTryToUse || otherTryToUse) && portFree)
-    port.bits := Mux1H(requestSelect, Seq(storeRequest.bits, loadUnit.tlPortA.bits, otherUnit.tlPort.a.bits))
-
+    port.bits := selectBits
+    port.bits.source := selectBits.source ## selectIndex
     // 反连 ready
-    storeRequest.ready := requestSelect.head && port.ready
-    requestSelect.tail.map(_ && port.ready)
+    storeRequest.ready := requestSelect(1) && port.ready
+    Seq(requestSelect.head && port.ready, requestSelect.last && port.ready)
   }.transpose.map(rv => VecInit(rv).asUInt.orR)
   loadUnit.tlPortA.ready := readyVec.head
   otherUnit.tlPort.a.ready := readyVec.last
@@ -255,10 +257,10 @@ class LSU(param: LSUParam) extends Module {
     val isAccessAck = port.bits.opcode === 0.U
     // 0 -> load unit, 0b10 -> other unit
     val responseForOther: Bool = port.bits.source(1)
-    loadUnit.tlPortD(index).valid := port.valid && !responseForOther
+    loadUnit.tlPortD(index).valid := port.valid && !responseForOther && !isAccessAck
     loadUnit.tlPortD(index).bits := port.bits
     loadUnit.tlPortD(index).bits.source := port.bits.source >> 2
-    port.ready := Mux(responseForOther, !o && otherUnit.tlPort.d.ready, loadUnit.tlPortD(index).ready)
+    port.ready := isAccessAck || Mux(responseForOther, !o && otherUnit.tlPort.d.ready, loadUnit.tlPortD(index).ready)
     tlDFireForOther(index) := !o && responseForOther
     o || responseForOther
   }
