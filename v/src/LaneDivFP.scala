@@ -64,6 +64,7 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   wrapper.input.bits.b  := Mux(fractEn,divIn1.asSInt,request.src(0).asSInt)
   wrapper.input.bits.signIn := request.sign
   wrapper.input.bits.fractEn := fractEn
+  wrapper.input.bits.sqrt := sqrt
   wrapper.input.valid := requestIO.valid && integerEn
 
 
