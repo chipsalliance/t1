@@ -46,13 +46,6 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   val rdiv = (uop === "b1010".U)
   val sqrt = (uop === "b1001".U)
 
-  val wrapper = Module(new SRTWrapper)
-  wrapper.input.bits.dividend := request.src.last.asSInt
-  wrapper.input.bits.divisor := request.src.head.asSInt
-  wrapper.input.bits.signIn := request.sign
-  wrapper.input.valid := requestIO.valid && integerEn
-
-
   val divSqrt = Module(new DivSqrt(8, 24))
   val divIn0 = Mux(rdiv, request.src(0), request.src(1))
   val divIn1 = Mux(rdiv, request.src(1), request.src(0))
@@ -66,6 +59,12 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   val divsqrtValid = divSqrt.output.valid
   val divsqrtResult = divSqrt.output.bits.result
 
+  val wrapper = Module(new SRTWrapper)
+  wrapper.input.bits.a := Mux(fractEn,divIn0.asSInt,request.src(1).asSInt)
+  wrapper.input.bits.b  := Mux(fractEn,divIn1.asSInt,request.src(0).asSInt)
+  wrapper.input.bits.signIn := request.sign
+  wrapper.input.bits.fractEn := fractEn
+  wrapper.input.valid := requestIO.valid && integerEn
 
 
   val requestFire: Bool = requestIO.fire
@@ -83,9 +82,11 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
 }
 
 class SRTIn extends Bundle {
-  val dividend = SInt(32.W)
-  val divisor = SInt(32.W)
+  val a = SInt(32.W)
+  val b = SInt(32.W)
   val signIn = Bool()
+  val fractEn = Bool()
+  val sqrt = Bool()
 }
 
 class SRTOut extends Bundle {
@@ -113,15 +114,15 @@ class SRTWrapper extends Module {
   val output = IO(ValidIO(new SRTOut))
 
   val abs = Module(new Abs(32))
-  abs.io.aIn := input.bits.dividend
-  abs.io.bIn := input.bits.divisor
+  abs.io.aIn := input.bits.a
+  abs.io.bIn := input.bits.b
   abs.io.signIn := input.bits.signIn
   val negative = abs.io.aSign ^ abs.io.bSign
 
   val srt: SRT = Module(new SRT(32, 32, 32, radixLog2 = 4))
 
   /** divided by zero detection */
-  val divideZero = (input.bits.divisor === 0.S)
+  val divideZero = (input.bits.b === 0.S)
 
   /** bigger divisor detection */
   val dividend = Wire(UInt(33.W))
@@ -173,7 +174,7 @@ class SRTWrapper extends Module {
   val divideZeroReg = RegEnable(divideZero, false.B, input.fire)
   val biggerdivisorReg = RegEnable(biggerdivisor, false.B, input.fire)
   val bypassSRTReg = RegNext(bypassSRT, false.B)
-  val dividendInputReg = RegEnable(input.bits.dividend.asUInt, 0.U(32.W), input.fire)
+  val dividendInputReg = RegEnable(input.bits.a.asUInt, 0.U(32.W), input.fire)
 
   // SRT16 recurrence module input
   srt.input.bits.dividend := abs.io.aOut << leftShiftWidthDividend
