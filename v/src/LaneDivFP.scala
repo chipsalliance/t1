@@ -6,6 +6,7 @@ import chisel3.util._
 import division.srt.SRT
 import v.{BoolField, Decoder, VFUModule, VFUParameter}
 import float._
+import sqrt.SquareRoot
 
 object LaneDivParam {
   implicit def rw: upickle.default.ReadWriter[LaneDivParam] = upickle.default.macroRW
@@ -46,26 +47,16 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   val rdiv = (uop === "b1010".U)
   val sqrt = (uop === "b1001".U)
 
-  val divSqrt = Module(new DivSqrt(8, 24))
   val divIn0 = Mux(rdiv, request.src(0), request.src(1))
   val divIn1 = Mux(rdiv, request.src(1), request.src(0))
 
-  divSqrt.input.bits.a := divIn0
-  divSqrt.input.bits.b := divIn1
-  // todo: need re-decode?
-  divSqrt.input.bits.sqrt := sqrt
-  divSqrt.input.valid := (requestIO.fire && fractEn)
-
-  val divsqrtValid = divSqrt.output.valid
-  val divsqrtResult = divSqrt.output.bits.result
-
-  val wrapper = Module(new SRTWrapper)
+  val wrapper = Module(new SRTWrapper(8,24))
   wrapper.input.bits.a := Mux(fractEn,divIn0.asSInt,request.src(1).asSInt)
   wrapper.input.bits.b  := Mux(fractEn,divIn1.asSInt,request.src(0).asSInt)
   wrapper.input.bits.signIn := request.sign
   wrapper.input.bits.fractEn := fractEn
   wrapper.input.bits.sqrt := sqrt
-  wrapper.input.valid := requestIO.valid && integerEn
+  wrapper.input.valid := requestIO.valid
 
 
   val requestFire: Bool = requestIO.fire
@@ -76,10 +67,10 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
 
   response.executeIndex := indexReg
   requestIO.ready := wrapper.input.ready
-  responseIO.valid := wrapper.output.valid || divsqrtValid
-  response.data := Mux(fractReg, divsqrtResult,
+  responseIO.valid := wrapper.output.valid
+  response.data := Mux(fractReg, wrapper.output.bits.result,
     Mux(remReg, wrapper.output.bits.reminder.asUInt, wrapper.output.bits.quotient.asUInt))
-  response.exceptionFlags := divSqrt.output.bits.exceptionFlags
+  response.exceptionFlags := wrapper.output.bits.exceptionFlags
 }
 
 class SRTIn extends Bundle {
@@ -93,6 +84,8 @@ class SRTIn extends Bundle {
 class SRTOut extends Bundle {
   val reminder = SInt(32.W)
   val quotient = SInt(32.W)
+  val result = UInt(32.W)
+  val exceptionFlags = UInt(5.W)
 }
 
 /** 32-bits Divider for signed and unsigned division based on SRT16 with CSA
@@ -110,10 +103,89 @@ class SRTOut extends Bundle {
   * SRT16 post-process logic
   * }}}
   */
-class SRTWrapper extends Module {
+class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val input = IO(Flipped(DecoupledIO(new SRTIn)))
   val output = IO(ValidIO(new SRTOut))
 
+  val fpWidth = expWidth + sigWidth
+  val calWidth = 28
+
+  val fractEn = input.bits.fractEn
+  val sqrtEn  = input.bits.sqrt
+
+  val opSqrtReg = RegEnable(input.bits.sqrt, input.fire)
+
+  val rawA_S = rawFloatFromFN(expWidth, sigWidth, input.bits.a)
+  val rawB_S = rawFloatFromFN(expWidth, sigWidth, input.bits.b)
+
+  /** Exceptions */
+  val notSigNaNIn_invalidExc_S_div =
+    (rawA_S.isZero && rawB_S.isZero) || (rawA_S.isInf && rawB_S.isInf)
+  val notSigNaNIn_invalidExc_S_sqrt =
+    !rawA_S.isNaN && !rawA_S.isZero && rawA_S.sign
+  val majorExc_S =
+    Mux(input.bits.sqrt,
+      isSigNaNRawFloat(rawA_S) || notSigNaNIn_invalidExc_S_sqrt,
+      isSigNaNRawFloat(rawA_S) || isSigNaNRawFloat(rawB_S) ||
+        notSigNaNIn_invalidExc_S_div ||
+        (!rawA_S.isNaN && !rawA_S.isInf && rawB_S.isZero)
+    )
+  val isNaN_S =
+    Mux(input.bits.sqrt,
+      rawA_S.isNaN || notSigNaNIn_invalidExc_S_sqrt,
+      rawA_S.isNaN || rawB_S.isNaN || notSigNaNIn_invalidExc_S_div
+    )
+  val isInf_S = Mux(input.bits.sqrt, rawA_S.isInf, rawA_S.isInf || rawB_S.isZero)
+  val isZero_S = Mux(input.bits.sqrt, rawA_S.isZero, rawA_S.isZero || rawB_S.isInf)
+
+  val majorExc_Z = RegEnable(majorExc_S, false.B, input.fire)
+  val isNaN_Z = RegEnable(isNaN_S, false.B, input.fire)
+  val isInf_Z = RegEnable(isInf_S, false.B, input.fire)
+  val isZero_Z = RegEnable(isZero_S, false.B, input.fire)
+
+  val invalidExec = majorExc_Z && isNaN_Z
+  val infinitExec = majorExc_Z && !isNaN_Z
+
+  val specialCaseA_S = rawA_S.isNaN || rawA_S.isInf || rawA_S.isZero
+  val specialCaseB_S = rawB_S.isNaN || rawB_S.isInf || rawB_S.isZero
+  val normalCase_S_div = !specialCaseA_S && !specialCaseB_S
+  val normalCase_S_sqrt = !specialCaseA_S && !rawA_S.sign
+  val normalCase_S = Mux(input.bits.sqrt, normalCase_S_sqrt, normalCase_S_div)
+  val specialCase_S = !normalCase_S
+
+  val fastValid = RegInit(false.B)
+  fastValid := specialCase_S && input.fire
+
+  // needNorm for div
+  val needNormNext = input.bits.b(sigWidth - 2, 0) > input.bits.a(sigWidth - 2, 0)
+  val needNorm = RegEnable(needNormNext, input.fire)
+
+  // sign
+  val signNext = Mux(input.bits.sqrt, false.B, rawA_S.sign ^ rawB_S.sign)
+  val signReg = RegEnable(signNext, input.fire)
+
+  // sqrt
+  val adjustedExp = Cat(rawA_S.sExp(expWidth - 1), rawA_S.sExp(expWidth - 1, 0))
+  val sqrtExpIsEven = input.bits.a(sigWidth - 1)
+  val sqrtFractIn = Mux(sqrtExpIsEven, Cat("b0".U(1.W), rawA_S.sig(sigWidth - 1, 0), 0.U(1.W)),
+    Cat(rawA_S.sig(sigWidth - 1, 0), 0.U(2.W)))
+
+  val SqrtModule = Module(new SquareRoot(2, 2, sigWidth + 2, sigWidth + 2))
+  SqrtModule.input.bits.operand := sqrtFractIn
+  SqrtModule.input.valid := input.valid && input.bits.sqrt && normalCase_S_sqrt
+
+  val rbits_sqrt = SqrtModule.output.bits.result(1) ## (!SqrtModule.output.bits.zeroRemainder || SqrtModule.output.bits.result(0))
+  val sigToRound_sqrt = SqrtModule.output.bits.result(24, 2)
+
+
+  // div FP
+  val fractDividendIn = Wire(UInt((fpWidth).W))
+  val fractDivisorIn = Wire(UInt((fpWidth).W))
+  fractDividendIn := Cat(1.U(1.W), rawA_S.sig(sigWidth - 2, 0), 0.U(expWidth.W))
+  fractDivisorIn := Cat(1.U(1.W), rawB_S.sig(sigWidth - 2, 0), 0.U(expWidth.W))
+
+
+//-----------------------Integer----------------------
   val abs = Module(new Abs(32))
   abs.io.aIn := input.bits.a
   abs.io.bIn := input.bits.b
@@ -178,12 +250,12 @@ class SRTWrapper extends Module {
   val dividendInputReg = RegEnable(input.bits.a.asUInt, 0.U(32.W), input.fire)
 
   // SRT16 recurrence module input
-  srt.input.bits.dividend := abs.io.aOut << leftShiftWidthDividend
-  srt.input.bits.divider := abs.io.bOut << leftShiftWidthDivisor
-  srt.input.bits.counter := counter
+  srt.input.bits.dividend := Mux(fractEn,fractDividendIn, abs.io.aOut << leftShiftWidthDividend)
+  srt.input.bits.divider  := Mux(fractEn, fractDivisorIn, abs.io.bOut << leftShiftWidthDivisor)
+  srt.input.bits.counter :=  Mux(fractEn, 8.U, counter)
 
   // if dividezero or biggerdivisor, bypass SRT
-  srt.input.valid := input.valid && !bypassSRT
+  srt.input.valid := input.valid && !(bypassSRT && !fractEn) && !(!sqrtEn && !normalCase_S_div && fractEn)
   input.ready := srt.input.ready
 
   // calculate quotient and remainder in ABS
@@ -198,7 +270,10 @@ class SRTWrapper extends Module {
     */
   output.valid := srt.output.valid | bypassSRTReg
 
-  output.bits.quotient := Mux(
+  val intQuotient  = Wire(SInt(32.W))
+  val intRemainder = Wire(SInt(32.W))
+
+  intQuotient := Mux(
     divideZeroReg,
     "hffffffff".U(32.W),
     Mux(
@@ -207,11 +282,16 @@ class SRTWrapper extends Module {
       Mux(negativeSRT, -quotientAbs, quotientAbs)
     )
   ).asSInt
-  output.bits.reminder := Mux(
+  intRemainder := Mux(
     divideZeroReg || biggerdivisorReg,
     dividendInputReg,
     Mux(dividendSignSRT, -remainderAbs, remainderAbs)
   ).asSInt
+
+  output.bits.quotient := intQuotient
+  output.bits.reminder := intRemainder
+  output.bits.result   := intRemainder.asUInt
+  output.bits.exceptionFlags := 0.U
 }
 
 class Abs(n: Int) extends Module {
