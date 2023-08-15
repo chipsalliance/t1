@@ -8,16 +8,16 @@ import v.{BoolField, Decoder, VFUModule, VFUParameter}
 import float._
 import sqrt.SquareRoot
 
-object LaneDivParam {
-  implicit def rw: upickle.default.ReadWriter[LaneDivParam] = upickle.default.macroRW
+object LaneDivFPParam {
+  implicit def rw: upickle.default.ReadWriter[LaneDivFPParam] = upickle.default.macroRW
 }
-case class LaneDivParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
+case class LaneDivFPParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.divider
-  val inputBundle = new LaneDivRequest(datapathWidth)
-  val outputBundle = new LaneDivResponse(datapathWidth)
+  val inputBundle = new LaneDivFPRequest(datapathWidth)
+  val outputBundle = new LaneDivFPResponse(datapathWidth)
 }
 
-class LaneDivRequest(datapathWidth: Int) extends Bundle {
+class LaneDivFPRequest(datapathWidth: Int) extends Bundle {
   val src:  Vec[UInt] = Vec(2, UInt(datapathWidth.W))
   val opcode = UInt(4.W)
   val sign: Bool = Bool()
@@ -27,16 +27,16 @@ class LaneDivRequest(datapathWidth: Int) extends Bundle {
   // val vSew: UInt = UInt(2.W)
 }
 
-class LaneDivResponse(datapathWidth: Int) extends Bundle {
+class LaneDivFPResponse(datapathWidth: Int) extends Bundle {
   val data: UInt = UInt(datapathWidth.W)
   val exceptionFlags = UInt(5.W)
   val executeIndex: UInt = UInt(2.W)
   val busy: Bool = Bool()
 }
 
-class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with SerializableModule[LaneDivParam] {
-  val response: LaneDivResponse = Wire(new LaneDivResponse(parameter.datapathWidth))
-  val request: LaneDivRequest = connectIO(response).asTypeOf(parameter.inputBundle)
+class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with SerializableModule[LaneDivFPParam] {
+  val response: LaneDivFPResponse = Wire(new LaneDivFPResponse(parameter.datapathWidth))
+  val request: LaneDivFPRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val uop = request.opcode
 
@@ -50,7 +50,7 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   val divIn0 = Mux(rdiv, request.src(0), request.src(1))
   val divIn1 = Mux(rdiv, request.src(1), request.src(0))
 
-  val wrapper = Module(new SRTWrapper(8,24))
+  val wrapper = Module(new SRTFPWrapper(8,24))
   wrapper.input.bits.a := Mux(fractEn,divIn0.asSInt,request.src(1).asSInt)
   wrapper.input.bits.b  := Mux(fractEn,divIn1.asSInt,request.src(0).asSInt)
   wrapper.input.bits.signIn := request.sign
@@ -73,22 +73,6 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   response.exceptionFlags := wrapper.output.bits.exceptionFlags
 }
 
-class SRTIn extends Bundle {
-  val a = SInt(32.W)
-  val b = SInt(32.W)
-  val signIn = Bool()
-  val fractEn = Bool()
-  val sqrt = Bool()
-  val rem  = Bool()
-}
-
-class SRTOut extends Bundle {
-  val reminder = UInt(32.W)
-  val quotient = UInt(32.W)
-  val result = UInt(32.W)
-  val exceptionFlags = UInt(5.W)
-}
-
 /** 32-bits Divider for signed and unsigned division based on SRT16 with CSA
   *
   * Input:
@@ -104,7 +88,21 @@ class SRTOut extends Bundle {
   * SRT16 post-process logic
   * }}}
   */
-class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
+class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
+  class SRTIn extends Bundle {
+    val a = SInt(32.W)
+    val b = SInt(32.W)
+    val signIn = Bool()
+    val fractEn = Bool()
+    val sqrt = Bool()
+    val rem = Bool()
+  }
+  class SRTOut extends Bundle {
+    val reminder = UInt(32.W)
+    val quotient = UInt(32.W)
+    val result = UInt(32.W)
+    val exceptionFlags = UInt(5.W)
+  }
   val input = IO(Flipped(DecoupledIO(new SRTIn)))
   val output = IO(ValidIO(new SRTOut))
 

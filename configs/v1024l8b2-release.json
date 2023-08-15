@@ -141,7 +141,8 @@
             ]
           ]
         ],
-        "floatModuleParameters": []
+        "floatModuleParameters": [],
+        "divfpModuleParameters": []
       }
     },
     "generator": "v.V"

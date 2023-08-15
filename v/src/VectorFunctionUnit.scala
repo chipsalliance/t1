@@ -41,6 +41,7 @@ case class VFUInstantiateParameter(
                                     shifterModuleParameters: Seq[(SerializableModuleGenerator[LaneShifter, LaneShifterParameter], Seq[Int])],
                                     mulModuleParameters: Seq[(SerializableModuleGenerator[LaneMul, LaneMulParam], Seq[Int])],
                                     divModuleParameters: Seq[(SerializableModuleGenerator[LaneDiv, LaneDivParam], Seq[Int])],
+                                    divfpModuleParameters: Seq[(SerializableModuleGenerator[LaneDivFP, LaneDivFPParam], Seq[Int])],
                                     otherModuleParameters: Seq[(SerializableModuleGenerator[OtherUnit, OtherUnitParam], Seq[Int])],
                                     floatModuleParameters: Seq[(SerializableModuleGenerator[LaneFloat, LaneFloatParam], Seq[Int])]
                                   ) {
@@ -50,6 +51,7 @@ case class VFUInstantiateParameter(
       shifterModuleParameters ++
       mulModuleParameters ++
       divModuleParameters ++
+      divfpModuleParameters ++
       otherModuleParameters ++
       floatModuleParameters
   genVec.foreach {
