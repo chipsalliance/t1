@@ -56,6 +56,7 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   wrapper.input.bits.signIn := request.sign
   wrapper.input.bits.fractEn := fractEn
   wrapper.input.bits.sqrt := sqrt
+  wrapper.input.bits.rem  := isRem
   wrapper.input.valid := requestIO.valid
 
 
@@ -68,8 +69,7 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   response.executeIndex := indexReg
   requestIO.ready := wrapper.input.ready
   responseIO.valid := wrapper.output.valid
-  response.data := Mux(fractReg, wrapper.output.bits.result,
-    Mux(remReg, wrapper.output.bits.reminder.asUInt, wrapper.output.bits.quotient.asUInt))
+  response.data := wrapper.output.bits.result
   response.exceptionFlags := wrapper.output.bits.exceptionFlags
 }
 
@@ -79,11 +79,12 @@ class SRTIn extends Bundle {
   val signIn = Bool()
   val fractEn = Bool()
   val sqrt = Bool()
+  val rem  = Bool()
 }
 
 class SRTOut extends Bundle {
-  val reminder = SInt(32.W)
-  val quotient = SInt(32.W)
+  val reminder = UInt(32.W)
+  val quotient = UInt(32.W)
   val result = UInt(32.W)
   val exceptionFlags = UInt(5.W)
 }
@@ -112,8 +113,9 @@ class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
 
   val fractEn = input.bits.fractEn
   val sqrtEn  = input.bits.sqrt
-
-  val opSqrtReg = RegEnable(input.bits.sqrt, input.fire)
+  val fractEnReg = RegEnable(fractEn,false.B,input.fire)
+  val opSqrtReg =  RegEnable(input.bits.sqrt, input.fire)
+  val remReg =     RegEnable(input.bits.rem, input.fire)
 
   val rawA_S = rawFloatFromFN(expWidth, sigWidth, input.bits.a)
   val rawB_S = rawFloatFromFN(expWidth, sigWidth, input.bits.b)
@@ -154,7 +156,7 @@ class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val specialCase_S = !normalCase_S
 
   val fastValid = RegInit(false.B)
-  fastValid := specialCase_S && input.fire
+  fastValid := specialCase_S && input.fire && fractEn
 
   // needNorm for div
   val needNormNext = input.bits.b(sigWidth - 2, 0) > input.bits.a(sigWidth - 2, 0)
@@ -164,7 +166,7 @@ class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val signNext = Mux(input.bits.sqrt, false.B, rawA_S.sign ^ rawB_S.sign)
   val signReg = RegEnable(signNext, input.fire)
 
-  // sqrt
+  // sqrt input
   val adjustedExp = Cat(rawA_S.sExp(expWidth - 1), rawA_S.sExp(expWidth - 1, 0))
   val sqrtExpIsEven = input.bits.a(sigWidth - 1)
   val sqrtFractIn = Mux(sqrtExpIsEven, Cat("b0".U(1.W), rawA_S.sig(sigWidth - 1, 0), 0.U(1.W)),
@@ -174,11 +176,8 @@ class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
   SqrtModule.input.bits.operand := sqrtFractIn
   SqrtModule.input.valid := input.valid && input.bits.sqrt && normalCase_S_sqrt
 
-  val rbits_sqrt = SqrtModule.output.bits.result(1) ## (!SqrtModule.output.bits.zeroRemainder || SqrtModule.output.bits.result(0))
-  val sigToRound_sqrt = SqrtModule.output.bits.result(24, 2)
 
-
-  // div FP
+  // div FP input
   val fractDividendIn = Wire(UInt((fpWidth).W))
   val fractDivisorIn = Wire(UInt((fpWidth).W))
   fractDividendIn := Cat(1.U(1.W), rawA_S.sig(sigWidth - 2, 0), 0.U(expWidth.W))
@@ -192,7 +191,7 @@ class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
   abs.io.signIn := input.bits.signIn
   val negative = abs.io.aSign ^ abs.io.bSign
 
-  val srt: SRT = Module(new SRT(32, 32, 32, radixLog2 = 4))
+  val divModule: SRT = Module(new SRT(32, 32, 32, radixLog2 = 4))
 
   /** divided by zero detection */
   val divideZero = (input.bits.b === 0.S)
@@ -208,7 +207,7 @@ class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
   biggerdivisor := gap(33) && !(gap(32, 0).orR === false.B)
 
   // bypass
-  val bypassSRT = (divideZero || biggerdivisor) && input.fire
+  val bypassSRT = (divideZero || biggerdivisor) && input.fire && !fractEn
 
   /** SRT16 initial process logic containing a leading zero counter */
   // extend one bit for calculation
@@ -239,9 +238,9 @@ class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
   leftShiftWidthDivisor := zeroHeadDivisor(4, 0)
 
   // control signals used in SRT post-process
-  val negativeSRT = RegEnable(negative, srt.input.fire)
-  val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, srt.input.fire)
-  val dividendSignSRT = RegEnable(abs.io.aSign, srt.input.fire)
+  val negativeSRT = RegEnable(negative, divModule.input.fire)
+  val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, divModule.input.fire)
+  val dividendSignSRT = RegEnable(abs.io.aSign, divModule.input.fire)
 
   // keep for one cycle
   val divideZeroReg = RegEnable(divideZero, false.B, input.fire)
@@ -250,29 +249,28 @@ class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val dividendInputReg = RegEnable(input.bits.a.asUInt, 0.U(32.W), input.fire)
 
   // SRT16 recurrence module input
-  srt.input.bits.dividend := Mux(fractEn,fractDividendIn, abs.io.aOut << leftShiftWidthDividend)
-  srt.input.bits.divider  := Mux(fractEn, fractDivisorIn, abs.io.bOut << leftShiftWidthDivisor)
-  srt.input.bits.counter :=  Mux(fractEn, 8.U, counter)
+  divModule.input.bits.dividend := Mux(fractEn,fractDividendIn, abs.io.aOut << leftShiftWidthDividend)
+  divModule.input.bits.divider  := Mux(fractEn, fractDivisorIn, abs.io.bOut << leftShiftWidthDivisor)
+  divModule.input.bits.counter :=  Mux(fractEn, 8.U, counter)
 
   // if dividezero or biggerdivisor, bypass SRT
-  srt.input.valid := input.valid && !(bypassSRT && !fractEn) && !(!sqrtEn && !normalCase_S_div && fractEn)
-  input.ready := srt.input.ready
+  divModule.input.valid := input.valid && !(bypassSRT && !fractEn) && !( !normalCase_S_div && fractEn) && !sqrtEn
+  input.ready := divModule.input.ready
 
   // calculate quotient and remainder in ABS
   val quotientAbs = Wire(UInt(32.W))
   val remainderAbs = Wire(UInt(32.W))
-  quotientAbs := srt.output.bits.quotient
-  remainderAbs := srt.output.bits.reminder >> zeroHeadDivisorSRT(4, 0)
+  quotientAbs := divModule.output.bits.quotient
+  remainderAbs := divModule.output.bits.reminder >> zeroHeadDivisorSRT(4, 0)
 
-  /** DIV output
+  val intQuotient  = Wire(UInt(32.W))
+  val intRemainder = Wire(UInt(32.W))
+  val intResult    = Wire(UInt(32.W))
+
+  /** divInteger result collect
     *
     * when divisor equals to zero, the quotient has all bits set and the remainder equals the dividend
     */
-  output.valid := srt.output.valid | bypassSRTReg
-
-  val intQuotient  = Wire(SInt(32.W))
-  val intRemainder = Wire(SInt(32.W))
-
   intQuotient := Mux(
     divideZeroReg,
     "hffffffff".U(32.W),
@@ -281,17 +279,58 @@ class SRTWrapper(expWidth: Int, sigWidth: Int) extends Module {
       0.U,
       Mux(negativeSRT, -quotientAbs, quotientAbs)
     )
-  ).asSInt
+  )
   intRemainder := Mux(
     divideZeroReg || biggerdivisorReg,
     dividendInputReg,
     Mux(dividendSignSRT, -remainderAbs, remainderAbs)
-  ).asSInt
+  )
+
+  intResult := Mux(remReg, intRemainder, intQuotient)
+
+
+  // -------------------- FP result collect -----------------------------------------
+  val sigToRound_sqrt = SqrtModule.output.bits.result(24, 2)
+  val rbits_sqrt = SqrtModule.output.bits.result(1) ## (!SqrtModule.output.bits.zeroRemainder || SqrtModule.output.bits.result(0))
+
+  val sigToRound_div = Mux(needNorm, divModule.output.bits.quotient(calWidth - 3, calWidth - sigWidth - 1),
+    divModule.output.bits.quotient(calWidth - 2, calWidth - sigWidth))
+  val rbits_div = Mux(needNorm, divModule.output.bits.quotient(calWidth - sigWidth - 2) ## 1.U(1.W),
+    divModule.output.bits.quotient(calWidth - sigWidth - 1) ## 1.U(1.W))
+
+
+  // collect sig result
+  val sigToRound = Mux(opSqrtReg, sigToRound_sqrt, sigToRound_div)
+  val rbitsToRound = Mux(opSqrtReg, rbits_sqrt, rbits_div)
+
+  // exp logic
+  val expStoreNext = Wire(UInt(expWidth.W))
+  val expToRound = Wire(UInt(expWidth.W))
+  expStoreNext := Mux(input.bits.sqrt,
+    Cat(rawA_S.sExp(expWidth - 1), rawA_S.sExp(expWidth - 1, 0))(expWidth, 1),
+    input.bits.a(fpWidth - 1, sigWidth - 1) - input.bits.b(fpWidth - 1, sigWidth - 1))
+  val expStore = RegEnable(expStoreNext, 0.U(expWidth.W), input.fire)
+  expToRound := Mux(opSqrtReg, expStore, expStore - needNorm)
+
+  val roundresult = RoundingUnit(
+    signReg,
+    expToRound,
+    sigToRound,
+    rbitsToRound,
+    consts.round_near_even,
+    invalidExec,
+    infinitExec,
+    isNaN_Z,
+    isInf_Z,
+    isZero_Z)
+
+
+  output.valid := divModule.output.valid | bypassSRTReg | SqrtModule.output.valid | fastValid
 
   output.bits.quotient := intQuotient
   output.bits.reminder := intRemainder
-  output.bits.result   := intRemainder.asUInt
-  output.bits.exceptionFlags := 0.U
+  output.bits.result   := Mux(fractEnReg, roundresult(0), intResult)
+  output.bits.exceptionFlags := roundresult(1)
 }
 
 class Abs(n: Int) extends Module {
