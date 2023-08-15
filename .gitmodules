@@ -3,7 +3,8 @@
 	url = git@github.com:chipsalliance/chisel.git
 [submodule "dependencies/arithmetic"]
 	path = dependencies/arithmetic
-	url = git@github.com:sequencer/arithmetic.git
+    url = git@github.com:midnighter95/arithmetic.git
+    branch = rebase
 [submodule "dependencies/tilelink"]
 	path = dependencies/tilelink
 	url = git@github.com:sequencer/tilelink.git
