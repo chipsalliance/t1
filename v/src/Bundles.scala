@@ -478,6 +478,8 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   // 乘加
   val ma:           Bool = Bool()
   val unOrderWrite: Bool = Bool()
+  // 慢指令 eg. div madc
+  val slow: Bool = Bool()
   // csr 如果是浮点的就校正为0
   val mul: UInt = UInt(2.W)
   // 当前是lsu的哪一个mask group

@@ -213,6 +213,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val lsuVRFWriteBufferClear: Bool = IO(Input(Bool()))
 
   val writeQueueValid: Bool = IO(Output(Bool()))
+  val writeReadyForLsu: Bool = IO(Output(Bool()))
 
   // TODO: remove
   dontTouch(writeBusPort)
@@ -966,6 +967,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.ma := laneRequest.bits.ma
   // lsu访问vrf都不是无序的
   vrf.instructionWriteReport.bits.unOrderWrite := laneRequest.bits.decodeResult(Decoder.other)
+  vrf.instructionWriteReport.bits.slow := laneRequest.bits.decodeResult(Decoder.divider) ||
+    laneRequest.bits.decodeResult(Decoder.maskDestination)
   vrf.instructionWriteReport.bits.seg.valid := laneRequest.bits.loadStore && laneRequest.bits.segment.orR
   vrf.instructionWriteReport.bits.seg.bits := laneRequest.bits.segment
   vrf.instructionWriteReport.bits.eew := laneRequest.bits.loadStoreEEW
@@ -980,4 +983,5 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.lsuMaskGroupChange := lsuMaskGroupChange
   vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear && !crossLaneWriteQueue.io.deq.valid
   instructionFinished := instructionFinishedVec.reduce(_ | _)
+  writeReadyForLsu := vrf.writeReadyForLsu
 }
