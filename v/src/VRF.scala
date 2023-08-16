@@ -307,7 +307,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       when(ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)) {
         record.bits.stFinish := true.B
       }
-      when(ohCheck(lsuMaskGroupChange, record.bits.instIndex, parameter.chainingSize)) {
+      when(ohCheck(lsuMaskGroupChange, record.bits.instIndex, parameter.chainingSize) && record.bits.ls) {
         record.bits.maskGroupCounter := nextMaskGroupCount
         record.bits.offset := nextOffset
         record.bits.vdOffset := nextVDOffset
