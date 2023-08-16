@@ -352,7 +352,11 @@ trait Emulator
   }
 }
 
-def testsOutDir = os.Path(sys.env("TEST_CASE_DIR"))
+def testsOutDir = sys.env.get("TEST_CASE_DIR").map(os.Path(_)).getOrElse {
+  val tmpDir = os.temp.dir(dir = os.pwd / "out", prefix = "TEST_CASE_DIR", deleteOnExit = false)
+  os.makeDir(tmpDir / "configs")
+  tmpDir
+}
 def testConfigs = os
   .walk(testsOutDir / "configs")
   .filter(_.ext == "json")
