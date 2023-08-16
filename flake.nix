@@ -91,7 +91,7 @@
               };
             };
             emulator = mkLLVMShell {
-              buildInputs = commonDeps ++ emulatorDeps;
+              buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
             };
             default = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
