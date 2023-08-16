@@ -25,12 +25,6 @@ case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with Serializ
   * up[2] = 1 for reverse in rsub and reversed fmaEn
   * up[1:0] for fmaEn sign, 0 for positive, 1 for negative
   *
-  * For divEn
-  * 0001 for div
-  * 0010 for rdiv
-  * 1000 for sqrt
-  *
-  *
   * For compareModule
   * 0001 EQ
   * 0000 NQ
@@ -90,7 +84,6 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
 
   val unitSeleOH = UIntToOH(request.unitSelet)
   val fmaEn     = unitSeleOH(0)
-  val divEn     = unitSeleOH(1)
   val compareEn = unitSeleOH(2)
   val otherEn   = unitSeleOH(3)
 
@@ -106,7 +99,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val fastResultReg = RegNext(fastResultNext)
   val fastFlagsReg  = RegNext(fastFlagsNext)
 
-  fastWorking := requestIO.fire && !divEn
+  fastWorking := requestIO.fire
   response.executeIndex := indexReg
 
   /** fmaEn
@@ -141,37 +134,6 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
 
   val fmaResult = fNFromRecFN(8, 24, mulAddRecFN.io.out)
 
-  /** DivSqrtModule
-    * {{{
-    * 0001 for div
-    * 0010 for rdiv
-    * 1000 for sqrt
-    * 1001 for sqrt7
-    * 1010 for rec7
-    *
-    *     div       rdiv    sqrt
-    * a   in1       in0     in0
-    * b   in0       in1     Dontcare
-    * }}}
-    */
-  val div      = divEn && (uop === "b0001".U)
-  val rdiv     = divEn && (uop === "b0010".U)
-  val sqrt     = divEn && (uop === "b1000".U)
-
-  val divSqrt = Module(new DivSqrt(8,24))
-  val divIn0 = Mux(rdiv, request.src(0), request.src(1))
-  val divIn1 = Mux(rdiv, request.src(1), request.src(0))
-
-  divSqrt.input.bits.a := divIn0
-  divSqrt.input.bits.b := divIn1
-  // todo: need re-decode?
-  divSqrt.input.bits.sqrt := sqrt
-  divSqrt.input.valid := (requestIO.fire && divEn)
-
-  val divsqrtValid = divSqrt.output.valid
-  val divsqrtResult = divSqrt.output.bits.result
-
-  divOccupied := Mux(divOccupied, !divsqrtValid, requestIO.fire && divEn)
 
   /** CompareModule
     *
@@ -303,10 +265,10 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   ))
 
   response.adderMaskResp := fastResultReg(0)
-  response.data := Mux(divsqrtValid, divsqrtResult, fastResultReg)
-  response.exceptionFlags := Mux(divsqrtValid, divSqrt.output.bits.exceptionFlags, fastFlagsReg)
-  requestIO.ready := !divOccupied
-  responseIO.valid := divsqrtValid || fastWorking
+  response.data := fastResultReg
+  response.exceptionFlags := fastFlagsReg
+  requestIO.ready := true.B
+  responseIO.valid := fastWorking
 }
 
 class Rec7Fn extends Module {
