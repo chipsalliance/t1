@@ -14,6 +14,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   val tlPortA: DecoupledIO[TLChannelA] = IO(param.tlParam.bundle().a)
   val tlPortD: Vec[DecoupledIO[TLChannelD]] = IO(Vec(param.memoryBankSize, param.tlParam.bundle().d))
   val status: LSUBaseStatus = IO(Output(new LSUBaseStatus))
+  val writeReadyForLsu: Bool = IO(Input(Bool()))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
    * see [[LSU.vrfWritePort]]
@@ -48,6 +49,8 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
 
   val requestAddress = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineIndex) ##
     0.U(param.cacheLineBits.W)
+  val writeReadyReg: Bool =
+    RegEnable(writeReadyForLsu && !lsuRequest.valid, false.B, lsuRequest.valid || writeReadyForLsu)
 
   tlPortA.bits.opcode := 4.U
   tlPortA.bits.param := 0.U
@@ -209,7 +212,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   // 往vrf写数据
   Seq.tabulate(param.laneNumber) { laneIndex =>
     val writePort: DecoupledIO[VRFWriteRequest] = vrfWritePort(laneIndex)
-    writePort.valid := accessState(laneIndex)
+    writePort.valid := accessState(laneIndex) && writeReadyReg
     writePort.bits.mask := cutUInt(maskForGroup, param.datapathWidth / 8)(laneIndex)
     writePort.bits.data := cutUInt(Mux1H(UIntToOH(accessPtr), accessData), param.datapathWidth)(laneIndex)
     writePort.bits.offset := dataGroup

@@ -141,6 +141,7 @@ class LSU(param: LSUParam) extends Module {
     * this group of offset is finish, request the next group of offset.
     */
   val lsuOffsetRequest: Bool = IO(Output(Bool()))
+  val writeReadyForLsu: Bool = IO(Input(Bool()))
 
   val loadUnit: LoadUnit = Module(new LoadUnit(param.mshrParam))
   val storeUnit: StoreUnit = Module(new StoreUnit(param.mshrParam))
@@ -278,4 +279,5 @@ class LSU(param: LSUParam) extends Module {
     m => Mux(m.status.changeMaskGroup, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U)
   ).reduce(_ | _)
   lsuOffsetRequest := otherUnit.status.offsetGroupEnd
+  loadUnit.writeReadyForLsu := writeReadyForLsu
 }
