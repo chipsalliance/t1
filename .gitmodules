@@ -9,7 +9,16 @@
 	url = git@github.com:sequencer/tilelink.git
 [submodule "dependencies/berkeley-hardfloat"]
 	path = dependencies/berkeley-hardfloat
-	url = git@github.com:sequencer/berkeley-hardfloat.git
+	url = git@github.com:ucb-bar/berkeley-hardfloat.git
 [submodule "tests/codegen"]
 	path = tests/codegen
 	url = git@github.com:ksco/riscv-vector-tests.git
+[submodule "dependencies/rocket-chip"]
+	path = dependencies/rocket-chip
+	url = git@github.com:chipsalliance/rocket-chip.git
+[submodule "dependencies/cde"]
+	path = dependencies/cde
+	url = git@github.com:chipsalliance/cde.git
+[submodule "dependencies/rocket-chip-inclusive-cache"]
+	path = dependencies/rocket-chip-inclusive-cache
+	url = git@github.com:chipsalliance/rocket-chip-inclusive-cache.git

@@ -27,41 +27,21 @@ trait HasChisel
   override def scalacPluginIvyDeps: T[Agg[Dep]] = T(super.scalacPluginIvyDeps() ++ chiselPluginIvy.map(Agg(_)).getOrElse(Agg.empty[Dep]))
 }
 
-// external modules definations
-
-trait ArithmeticModule
-  extends ScalaModule 
-
-trait HardfloatModule
-  extends ScalaModule 
-
-trait TileLinkModule
-  extends ScalaModule 
-
-trait RocketChipModule 
-  extends ScalaModule 
-
-trait InclusiveCacheModule 
-  extends ScalaModule 
-
-trait BlocksModule 
-  extends ScalaModule 
-
 // Local definations
 trait VectorModule
   extends ScalaModule 
     with HasChisel {
-  def arithmeticModule: ArithmeticModule
-  def hardfloatModule: HardfloatModule
-  def tilelinkModule: TileLinkModule
+  def arithmeticModule: ScalaModule
+  def hardfloatModule: ScalaModule
+  def tilelinkModule: ScalaModule
   def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, tilelinkModule)
 }
 
 trait VectorSubsystemModule
   extends ScalaModule
     with HasChisel {
-  def vectorModule: VectorModule
-  def rocketchipModule: RocketChipModule 
-  def inclusivecacheModule: InclusiveCacheModule
+  def vectorModule: ScalaModule
+  def rocketchipModule: ScalaModule
+  def inclusivecacheModule: ScalaModule
   def moduleDeps = super.moduleDeps ++ Seq(vectorModule, rocketchipModule, inclusivecacheModule)
 }

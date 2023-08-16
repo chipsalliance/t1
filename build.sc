@@ -16,8 +16,9 @@ import $file.common
 
 object v {
   val scala = "2.13.11"
-  val mainargs = ivy"com.lihaoyi::mainargs:0.3.0"
-  // for arithmetic
+  val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
+  val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"
+  val scalaReflect = ivy"org.scala-lang:scala-reflect:${scala}"
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
   val spire = ivy"org.typelevel::spire:latest.integration"
   val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
@@ -37,8 +38,7 @@ trait Chisel
 object arithmetic extends Arithmetic
 
 trait Arithmetic 
-  extends millbuild.dependencies.arithmetic.common.ArithmeticModule 
-    with millbuild.common.ArithmeticModule {
+  extends millbuild.dependencies.arithmetic.common.ArithmeticModule {
 
   override def millSourcePath = os.pwd / "dependencies" / "arithmetic" / "arithmetic"
 
@@ -60,8 +60,7 @@ trait Arithmetic
 object tilelink extends TileLink
 
 trait TileLink
-  extends millbuild.dependencies.tilelink.common.TileLinkModule
-    with millbuild.common.TileLinkModule {
+  extends millbuild.dependencies.tilelink.common.TileLinkModule {
 
   override def millSourcePath = os.pwd / "dependencies" / "tilelink" / "tilelink"
 
@@ -79,8 +78,7 @@ trait TileLink
 object hardfloat extends Hardfloat
 
 trait Hardfloat
-  extends millbuild.dependencies.`berkeley-hardfloat`.common.HardfloatModule 
-    with millbuild.common.HardfloatModule {
+  extends millbuild.dependencies.`berkeley-hardfloat`.common.HardfloatModule {
 
   override def millSourcePath = os.pwd / "dependencies" / "berkeley-hardfloat" / "hardfloat"
 
@@ -421,4 +419,169 @@ trait RunVerilatorEmulator
     )
     os.proc(Seq(emulator(elaboratorConfig).elf().path.toString)).call(env = runEnv, check = true)
   }
+}
+
+// SoC demostration, not the real dependencies for the vector project
+import $file.dependencies.`cde`.common
+import $file.dependencies.`rocket-chip`.common
+import $file.dependencies.`rocket-chip-inclusive-cache`.common
+
+object cde extends CDE
+
+trait CDE
+  extends millbuild.dependencies.cde.common.CDEModule {
+
+  override def millSourcePath = os.pwd / "dependencies" / "cde" / "cde"
+
+  def scalaVersion = T(v.scala)
+}
+
+object rocketchip extends RocketChip
+
+trait RocketChip
+  extends millbuild.dependencies.`rocket-chip`.common.RocketChipModule {
+
+  override def millSourcePath = os.pwd / "dependencies" / "rocket-chip"
+
+  def scalaVersion = T(v.scala)
+
+  def chiselModule = Some(chisel)
+
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+
+  def chiselIvy = None
+
+  def chiselPluginIvy = None
+
+  def macrosModule = macros
+
+  def hardfloatModule = hardfloat
+
+  def cdeModule = cde
+
+  def mainargsIvy = v.mainargs
+
+  def json4sJacksonIvy = v.json4sJackson
+}
+
+object macros extends Macros
+
+trait Macros
+  extends millbuild.dependencies.`rocket-chip`.common.MacrosModule {
+
+  override def millSourcePath = os.pwd / "dependencies" / "rocket-chip" / "macros"
+
+  def scalaVersion: T[String] = T(v.scala)
+
+  def scalaReflectIvy = v.scalaReflect
+}
+
+object inclusivecache extends InclusiveCache
+
+trait InclusiveCache
+  extends millbuild.dependencies.`rocket-chip-inclusive-cache`.common.InclusiveCacheModule {
+
+  override def millSourcePath = os.pwd / "dependencies" / "rocket-chip-inclusive-cache" / "inclusivecache"
+
+  def scalaVersion = T(v.scala)
+
+  def chiselModule = Some(chisel)
+
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+
+  def chiselIvy = None
+
+  def chiselPluginIvy = None
+
+  def rocketchipModule = rocketchip
+}
+
+object vectorsubsystem extends VectorSubsystem
+
+trait VectorSubsystem
+  extends millbuild.common.VectorSubsystemModule
+  with TaskModule {
+
+  def scalaVersion = T(v.scala)
+
+  def chiselModule = Some(chisel)
+
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+
+  def chiselIvy = None
+
+  def chiselPluginIvy = None
+
+  def vectorModule = vector
+
+  def rocketchipModule = rocketchip
+
+  def inclusivecacheModule = inclusivecache
+
+  // Directly elaborate everything
+  def elaborate = T {
+    // class path for `moduleDeps` is only a directory, not a jar, which breaks the cache.
+    // so we need to manually add the class files of `moduleDeps` here.
+    upstreamCompileOutput()
+    mill.util.Jvm.runLocal(
+      finalMainClass(),
+      runClasspath().map(_.path),
+      Seq("--dir", T.dest.toString)
+    )
+    PathRef(T.dest)
+  }
+
+  def chiselAnno = T(
+    os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("anno.json") => p }.map(PathRef(_)).get
+  )
+
+  def chirrtl = T(
+    os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("fir") => p }.map(PathRef(_)).get
+  )
+
+  def topName = T(chirrtl().path.last.split('.').head)
+
+  def runFirtool = T {
+    os.proc(
+      Seq(
+        "firtool",
+        chirrtl().path.toString,
+        s"--annotation-file=${chiselAnno().path}",
+        s"-o=${T.dest}"
+      ) ++ Seq(
+        "-dedup",
+        "-O=release",
+        "--disable-all-randomization",
+        "--split-verilog",
+        "--strip-debug-info",
+        "--preserve-values=none",
+        "--preserve-aggregate=all",
+        "--disable-annotation-unknown",
+        "--output-annotation-file=mfc.anno.json",
+        "--repl-seq-mem",
+        "--repl-seq-mem-file=repl-seq-mem.txt"
+      )
+    ).call(T.dest)
+    PathRef(T.dest)
+  }
+
+  def rtls = T {
+    os.read(runFirtool().path / "filelist.f")
+      .split("\n")
+      .map(str =>
+        try {
+          os.Path(str)
+        } catch {
+          case e: IllegalArgumentException if e.getMessage.contains("is not an absolute path") =>
+            runFirtool().path / str.stripPrefix("./")
+        }
+      )
+      .filter(p => p.ext == "v" || p.ext == "sv")
+      .map(PathRef(_))
+      .toSeq
+  }
+
+  def memoryConfig = T(PathRef(runFirtool().path / "metadata" / "seq_mems.json"))
+
+  def defaultCommandName = "rtls"
 }
