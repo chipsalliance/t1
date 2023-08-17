@@ -193,7 +193,7 @@ class LSU(param: LSUParam) extends Module {
   // write vrf
   val otherTryToWrite: UInt = Mux(otherUnit.vrfWritePort.valid, otherUnit.status.targetLane, 0.U)
   // other 优先级更高
-  otherUnit.vrfWritePort.ready := (otherUnit.status.targetLane & VecInit(vrfWritePort.map(_.ready)).asUInt).orR
+  otherUnit.vrfWritePort.ready := (otherUnit.status.targetLane & VecInit(writeQueueVec.map(_.io.enq.ready)).asUInt).orR
   writeQueueVec.zipWithIndex.foreach {case (write, index) =>
     write.io.enq.valid := otherTryToWrite(index) || loadUnit.vrfWritePort(index).valid
     write.io.enq.bits.data := Mux(otherTryToWrite(index), otherUnit.vrfWritePort.bits, loadUnit.vrfWritePort(index).bits)
