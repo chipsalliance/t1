@@ -42,10 +42,10 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
     bytePerInstruction(param.cacheLineBits - 1, 0).orR - baseAddressAligned
 
   val cacheLineNumberReg: UInt = RegEnable(lastCacheLineIndex, 0.U, lsuRequest.valid)
-
+  val validInstruction = !invalidInstruction && lsuRequest.valid
   val lastRequest: Bool = cacheLineNumberReg === cacheLineIndex
   val sendRequest: Bool =
-    RegEnable(lsuRequest.valid && (csrInterface.vl > 0.U), false.B, lsuRequest.valid || (tlPortA.fire && lastRequest))
+    RegEnable(lsuRequest.valid && (csrInterface.vl > 0.U), false.B, validInstruction || (tlPortA.fire && lastRequest))
 
   val requestAddress = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineIndex) ##
     0.U(param.cacheLineBits.W)
@@ -226,8 +226,8 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   }
 
   val lastCacheRequest: Bool = lastRequest && tlPortA.fire
-  val lastCacheRequestReg: Bool = RegEnable(lastCacheRequest, true.B, lastCacheRequest || lsuRequest.valid)
-  val lastCacheLineAckReg: Bool = RegEnable(anyLastCacheLineAck, true.B, anyLastCacheLineAck || lsuRequest.valid)
+  val lastCacheRequestReg: Bool = RegEnable(lastCacheRequest, true.B, lastCacheRequest || validInstruction)
+  val lastCacheLineAckReg: Bool = RegEnable(anyLastCacheLineAck, true.B, anyLastCacheLineAck || validInstruction)
   val bufferClear: Bool =
     !(
       // tile link port queue clear
@@ -242,7 +242,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
       )
   status.idle := lastCacheRequestReg && lastCacheLineAckReg && bufferClear && !sendRequest
   val idleNext: Bool = RegNext(status.idle, true.B)
-  status.last := !idleNext && status.idle
+  status.last := (!idleNext && status.idle) || invalidInstructionNext
   status.changeMaskGroup := maskSelect.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
 }

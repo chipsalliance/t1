@@ -133,4 +133,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
 
   //初始偏移
   val initOffset: UInt = lsuRequestReg.rs1Data(param.cacheLineBits - 1, 0)
+
+  val invalidInstruction: Bool = csrInterface.vl === 0.U
+  val invalidInstructionNext: Bool = RegNext(invalidInstruction && lsuRequest.valid)
 }
