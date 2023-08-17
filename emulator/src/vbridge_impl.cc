@@ -308,6 +308,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   case TlOpcode::Get: {
     uint32_t decoded_size = decode_size(size);
     uint32_t actual_size = std::min(4, (int)decoded_size);
+    uint32_t burst_size = std::max(4, (int)decoded_size);
     CHECK_S((addr & ((1 << size)-1)) == 0) << fmt::format(": [{}] unaligned mem read of addr={:08X}, size={}byte", get_t(), addr, decoded_size);
 
     int i = 0;
@@ -347,7 +348,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
           actual_data, actual_size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
       });
       addr += actual_size;
-    } while (++i < (decoded_size >> 2));
+    } while (++i < (burst_size >> 2));
     break;
   }
 
@@ -355,6 +356,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     uint32_t data = tl.a_bits_data;
     uint32_t decoded_size = decode_size(size);
     uint32_t actual_size = std::min(4, (int)decoded_size);
+    uint32_t burst_size = std::max(4, (int)decoded_size);
     CHECK_S((addr & ((1 << size)-1)) == 0) << fmt::format(": [{}] unaligned mem write of addr={:08X}, size={}byte", get_t(), addr, decoded_size);
     
     auto record = &tl_mem_store_counter[tlIdx];
@@ -367,13 +369,13 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
       CHECK_S(record->counter == 0) << fmt::format(": [{}] previous merged mem write has not yet completed", get_t());
 
       tl_mem_store_counter[tlIdx] = (TLMemCounterRecord){
-        .counter = (decoded_size>>2) - 1,
+        .counter = (burst_size>>2) - 1,
         .decoded_size = decoded_size,
         .addr = addr,
       };
     }
 
-    addr += decoded_size - ((record->counter+1) << 2);
+    addr += burst_size - ((record->counter+1) << 2);
     data = data & expand_mask(mask);
     LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={}, mask={:04B}, counter={})",
                              get_t(), addr, decoded_size, src, data, mask, record->counter);
