@@ -50,9 +50,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   changeReadGroup := readStageEnqueueReady && !stage0Idle
 
   when(changeReadGroup || lsuRequest.valid) {
-    when((!lastDataGroupForInstruction) || lsuRequest.valid) {
-      maskCounterInGroup := Mux(isLastDataGroup || lsuRequest.valid, 0.U, nextMaskCount)
-    }
+    maskCounterInGroup := Mux(isLastDataGroup || lsuRequest.valid, 0.U, nextMaskCount)
     when(isLastDataGroup && !isLastMaskGroup) {
       maskSelect.valid := true.B
     }
@@ -108,13 +106,21 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     )
     // 在更新ptr的时候把数据推进 [[accessData]] 里面
     accessData := VecInit(readData.asUInt +: accessData.init)
+
     // 更新access state
-    accessState := initSendState
+    accessState := Mux(changeReadGroup, initSendState, initStateReg)
+  }
+
+  // changeReadGroup 可能会换 mask 所以需要存起来
+  when(changeReadGroup) {
+    initStateReg := initSendState
   }
 
   // stage2, 用一个buffer来存转成cache line 的数据
   val bufferValid: Bool = RegInit(false.B)
-  val maskForBufferData: UInt = RegInit(0.U(param.maskGroupWidth.W))
+  // 存每条cache 的mask, 也许能优化, 暂时先这样
+  val maskForBufferData: Vec[UInt] = RegInit(VecInit(Seq.fill(8)(0.U(param.cacheLineSize.W))))
+  val maskForBufferDequeue: UInt = maskForBufferData(cacheLineIndexInBuffer)
   val tailLeft2: Bool = RegInit(false.B)
   val alignedDequeue: DecoupledIO[cacheLineEnqueueBundle] = Wire(Decoupled(new cacheLineEnqueueBundle(param)))
   val alignedDequeueFire: Bool = alignedDequeue.fire
@@ -124,33 +130,41 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val tailValid: Bool = RegInit(false.B)
   val isLastCacheLineInBuffer: Bool = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
   accessBufferDequeueReady := !bufferValid
-  val bufferStageEnqueueData: UInt = VecInit(readData.asUInt +: accessData.init).asUInt
+  val bufferStageEnqueueData: Vec[UInt] = VecInit(readData.asUInt +: accessData.init)
+  // 处理mask, 对于 segment type 来说 一个mask 管 nf 个element
+  val fillBySeg: UInt = Mux1H(UIntToOH(lsuRequestReg.instructionInformation.nf), Seq.tabulate(8) { segSize =>
+    FillInterleaved(segSize + 1, readMask)
+  })
   // 把数据regroup, 然后放去 [[dataBuffer]]
   when(accessBufferDequeueFire) {
-    maskForBufferData := readMask
+    maskForBufferData := cutUInt(fillBySeg, param.cacheLineSize)
     tailLeft2 := tailLeft1
     // todo: 只是因为参数恰好是一个方形的, 需要写一个反的
     dataBuffer := Mux1H(dataEEWOH, Seq.tabulate(3) { sewSize =>
+      // 每个数据块 2 ** sew byte
+      val dataBlockBits = 8 << sewSize
+
+      /** 先把数据按sew分组
+       * bufferStageEnqueueData => [vx result, v(x + 1) result, ... vnf result, don't care ...]
+       * 分组
+       * dataRegroupBySew => [ [vx_e0, vx_e1, ... vx_en], [vx1_e0, vx1_e1, ... vx1_en] ...]
+       *  vx result = [vx_e0, vx_e1, ... vx_en].asUInt
+       * */
+      val dataRegroupBySew: Seq[Vec[UInt]] = bufferStageEnqueueData.map(cutUInt(_, dataBlockBits))
       Mux1H(UIntToOH(lsuRequestReg.instructionInformation.nf), Seq.tabulate(8) { segSize =>
-        // 32 byte
-        // 每个数据块 2 ** sew byte
-        val dataBlockSize = 1 << sewSize
-        // 总共需要32byte数据, 会有 32/dataBlockSize 个数据块
-        val blockSize = 32 / dataBlockSize
-        val nFiled = segSize + 1
-        // 一次element会用掉多少 byte 数据
-        val elementSize = dataBlockSize * nFiled
+        /** seg store 在mem 中的分布:
+         *  vx_e0 vx1_e0 ... vnf_e0  vx_e1 vx1_e1 ... vnf_e1
+         *  所以我们把 [[dataRegroupBySew]] 的前 nf 个组拿出来转置一下就得到了数据在 mem 中的分布情况
+         * */
+        val dataInMem = VecInit(dataRegroupBySew.take(segSize + 1).transpose.map(VecInit(_).asUInt)).asUInt
+        val regroupCacheLine: Vec[UInt] = cutUInt(dataInMem, param.cacheLineSize * 8)
         VecInit(Seq.tabulate(8) { segIndex =>
           val res = Wire(UInt((param.cacheLineSize * 8).W))
           if (segIndex > segSize) {
             // todo: 优化这个 DontCare
             res := DontCare
           } else {
-            val dataGroup: Seq[UInt] = Seq.tabulate(blockSize) { elementIndex =>
-              val basePtr = elementSize * elementIndex + dataBlockSize * segIndex
-              bufferStageEnqueueData.asUInt((basePtr + dataBlockSize) * 8 - 1, basePtr * 8)
-            }
-            res := VecInit(dataGroup).asUInt
+            res := regroupCacheLine(segIndex)
           }
           res
         }).asUInt.suggestName(s"regroupLoadData_${sewSize}_$segSize")
@@ -174,7 +188,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   }
 
   when(lsuRequest.valid || alignedDequeueFire) {
-    maskTemp := Mux(lsuRequest.valid, 0.U, maskForBufferData)
+    maskTemp := Mux(lsuRequest.valid, 0.U, maskForBufferDequeue)
     tailValid := Mux(lsuRequest.valid, false.B, bufferValid && tailLeft2 && isLastCacheLineInBuffer)
   }
 
@@ -183,7 +197,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // aligned
   alignedDequeue.bits.data :=
     multiShifter(right = false, multiSize = 8)(dataBuffer.head ## cacheLineTemp, initOffset) >> cacheLineTemp.getWidth
-  val selectMaskForTail: UInt = Mux(bufferValid, maskForBufferData, 0.U(maskTemp.getWidth.W))
+  val selectMaskForTail: UInt = Mux(bufferValid, maskForBufferDequeue, 0.U(maskTemp.getWidth.W))
   alignedDequeue.bits.mask := ((selectMaskForTail ## maskTemp) << initOffset) >> maskTemp.getWidth
   alignedDequeue.bits.index := bufferBaseCacheLineIndex
 
