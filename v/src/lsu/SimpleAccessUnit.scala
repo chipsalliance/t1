@@ -870,7 +870,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
    * see [[storeBaseByteOffset]]
    */
   val loadBaseByteOffset: UInt = ((groupIndex ## indexInMaskGroupResponse) << dataEEW).asUInt(9, 0)
-  vrfWritePort.valid := tlPort.d.valid
+  vrfWritePort.valid := tlPort.d.valid && !lsuRequestReg.instructionInformation.isStore
   tlPort.d.ready := vrfWritePort.ready
 
   // TODO: handle alignment for VRF and memory
