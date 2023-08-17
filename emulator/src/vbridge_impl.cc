@@ -360,14 +360,12 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     CHECK_S((addr & ((1 << size)-1)) == 0) << fmt::format(": [{}] unaligned mem write of addr={:08X}, size={}byte", get_t(), addr, decoded_size);
     
     auto record = &tl_mem_store_counter[tlIdx];
-    if (record->addr == addr) {
+    if (record->counter != 0) {
       CHECK_S(record->decoded_size == decoded_size) << fmt::format(": [{}] merged mem write has inconsistant size", get_t());
-      CHECK_S(record->counter > 0) << fmt::format(": [{}] previous merged mem write has already completed", get_t());
+      CHECK_S(record->addr == addr) << fmt::format(": [{}] previous merged mem write has already completed", get_t());
 
       record->counter--;
     } else {
-      CHECK_S(record->counter == 0) << fmt::format(": [{}] previous merged mem write has not yet completed", get_t());
-
       tl_mem_store_counter[tlIdx] = (TLMemCounterRecord){
         .counter = (burst_size>>2) - 1,
         .decoded_size = decoded_size,
@@ -376,7 +374,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     }
 
     addr += burst_size - ((record->counter+1) << 2);
-    data = data & expand_mask(mask);
+    data = (data & expand_mask(mask)) >> ((addr & 3) * 8);
     LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={}, mask={:04B}, counter={})",
                              get_t(), addr, decoded_size, src, data, mask, record->counter);
 
