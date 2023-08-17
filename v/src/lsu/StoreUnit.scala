@@ -42,7 +42,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val isLastRead: Bool = nextDataGroup === lastDataGroupReg
   val lastGroupAndNeedAlign: Bool = initOffset.orR && isLastRead
   val stage0Idle: Bool = RegEnable(
-    isLastRead && !lsuRequest.valid,
+    Mux(lsuRequest.valid, invalidInstruction, isLastRead),
     true.B,
     changeReadGroup || lsuRequest.valid
   )
@@ -245,7 +245,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   status.idle := sendStageClear && !bufferValid && !readStageValid && stage0Idle
   val idleNext: Bool = RegNext(status.idle, true.B)
-  status.last := !idleNext && status.idle
+  status.last := (!idleNext && status.idle) || invalidInstructionNext
   status.changeMaskGroup := maskSelect.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
 
