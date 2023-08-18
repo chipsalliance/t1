@@ -99,7 +99,10 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     val schedulerFinish: Bool = (sSendResponse ++ wResponseFeedback).reduce(_ && _)
 
     val dataSelect: Option[UInt] = Option.when(isLastSlot) {
-      Mux(state.decodeResult(Decoder.nr) || state.ffoByOtherLanes || state.decodeResult(Decoder.dontNeedExecuteInLane),
+      Mux(
+        state.decodeResult(Decoder.nr) ||
+          (state.ffoByOtherLanes && state.decodeResult(Decoder.ffo)) ||
+          state.decodeResult(Decoder.dontNeedExecuteInLane),
         pipeEnqueue.get.pipeData,
         pipeEnqueue.get.data
       )
