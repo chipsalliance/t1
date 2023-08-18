@@ -137,6 +137,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
   val writeReadyForLsu: Bool = IO(Output(Bool()))
+  val vrfReadyToStore: Bool = IO(Output(Bool()))
 
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
   val lsuWriteBufferClear: Bool = IO(Input(Bool()))
@@ -321,16 +322,21 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       }
   }
   // 判断lsu 是否可以写
-  writeReadyForLsu := !VecInit(chainingRecord.init.zipWithIndex.map { case (sourceRecord, sourceIndex) =>
-    VecInit(chainingRecord.drop(sourceIndex + 1).zipWithIndex.map { case (sinkRecord, _) =>
+  val hazardVec: Seq[IndexedSeq[(Bool, Bool)]] = chainingRecord.init.zipWithIndex.map { case (sourceRecord, sourceIndex) =>
+    chainingRecord.drop(sourceIndex + 1).zipWithIndex.map { case (sinkRecord, _) =>
       val recordSeq: Seq[ValidIO[VRFWriteReport]] = Seq(sourceRecord, sinkRecord)
       val isLoad = recordSeq.map(r => r.valid && r.bits.ls && !r.bits.st)
+      val isStore = recordSeq.map(r => r.valid && r.bits.ls && r.bits.st)
       val isSlow = recordSeq.map(r => r.valid && r.bits.slow)
       // todo: 重叠而不是相等
       val samVd = sourceRecord.bits.vd === sinkRecord.bits.vd
       // source更新
       val older = instIndexL(sinkRecord.bits.instIndex, sourceRecord.bits.instIndex)
-      Mux(older, isLoad.head && isSlow.last, isLoad.last && isSlow.head) && samVd
-    }).asUInt.orR
-  }).asUInt.orR
+      val wawForeLoad = Mux(older, isLoad.head && isSlow.last, isLoad.last && isSlow.head) && samVd
+      val rawForeStore = Mux(older, isStore.head && isSlow.last, isStore.last && isSlow.head) && samVd
+      (wawForeLoad, rawForeStore)
+    }
+  }
+  writeReadyForLsu := !hazardVec.map(_.map(_._1).reduce(_ || _)).reduce(_ || _)
+  vrfReadyToStore := !hazardVec.map(_.map(_._2).reduce(_ || _)).reduce(_ || _)
 }

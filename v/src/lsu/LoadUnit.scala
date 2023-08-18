@@ -243,6 +243,6 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   status.idle := lastCacheRequestReg && lastCacheLineAckReg && bufferClear && !sendRequest
   val idleNext: Bool = RegNext(status.idle, true.B)
   status.last := (!idleNext && status.idle) || invalidInstructionNext
-  status.changeMaskGroup := maskSelect.valid
+  status.changeMaskGroup := maskSelect.valid && !lsuRequest.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
 }
