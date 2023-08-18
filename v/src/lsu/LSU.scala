@@ -142,6 +142,7 @@ class LSU(param: LSUParam) extends Module {
     */
   val lsuOffsetRequest: Bool = IO(Output(Bool()))
   val writeReadyForLsu: Bool = IO(Input(Bool()))
+  val vrfReadyToStore: Bool = IO(Input(Bool()))
 
   val loadUnit: LoadUnit = Module(new LoadUnit(param.mshrParam))
   val storeUnit: StoreUnit = Module(new StoreUnit(param.mshrParam))
@@ -280,4 +281,5 @@ class LSU(param: LSUParam) extends Module {
   ).reduce(_ | _)
   lsuOffsetRequest := otherUnit.status.offsetGroupEnd
   loadUnit.writeReadyForLsu := writeReadyForLsu
+  storeUnit.vrfReadyToStore := vrfReadyToStore
 }
