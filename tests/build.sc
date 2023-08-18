@@ -115,7 +115,7 @@ trait BuddyMLIRCase
     val buddy = T.dest / s"$config.buddy"
     val llvmir = T.dest / s"$config.llvmir"
     val asm = T.dest / s"$config.S"
-    val main = super.allSourceFiles().filter(p => p.path.toString.contains("main.S")).head
+    val otherAsmSrcs = super.allSourceFiles().filter(_.path.ext == "S")
 
     T.log.info(s"run buddy-opt with arg [${buddyOptArg().mkString(", ")}]")
     os.proc(
@@ -139,7 +139,8 @@ trait BuddyMLIRCase
       "-o",
       asm
     ).call(T.dest, stdin = llvmir)
-    Seq(PathRef(asm), main)
+
+    otherAsmSrcs :+ PathRef(asm)
   }
 }
 
