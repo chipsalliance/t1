@@ -100,7 +100,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   val unalignedEnqueueReady: Bool = alignedDequeue.ready || !unalignedCacheLine.valid
 
   val nextIndex: UInt = Mux(unalignedCacheLine.valid, unalignedCacheLine.bits.index + 1.U, 0.U)
-  val nextCacheLineMatch: Seq[Bool] = cacheLineDequeue.map(_.bits.index === nextIndex)
+  val nextCacheLineMatch: Seq[Bool] = cacheLineDequeue.map(deq => deq.valid && (deq.bits.index === nextIndex))
   cacheLineDequeue.zip(nextCacheLineMatch).foreach { case (d, r) =>
     d.ready := r && unalignedEnqueueReady
   }
