@@ -330,11 +330,24 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val isSlow = recordSeq.map(r => r.valid && r.bits.slow)
       // todo: 重叠而不是相等
       val samVd = sourceRecord.bits.vd === sinkRecord.bits.vd
+      val sourceVdEqSinkVs: Bool = sourceRecord.bits.vd.valid && (
+        (sourceRecord.bits.vd.bits === sinkRecord.bits.vs2) ||
+          ((sourceRecord.bits.vd.bits === sinkRecord.bits.vs1.bits) && sinkRecord.bits.vs1.valid)
+      )
+      val sinkVdEqSourceVs: Bool = sinkRecord.bits.vd.valid && (
+        (sinkRecord.bits.vd.bits === sourceRecord.bits.vs2) ||
+          ((sinkRecord.bits.vd.bits === sourceRecord.bits.vs1.bits) && sourceRecord.bits.vs1.valid)
+      )
       // source更新
       val older = instIndexL(sinkRecord.bits.instIndex, sourceRecord.bits.instIndex)
-      val wawForeLoad = Mux(older, isLoad.head && isSlow.last, isLoad.last && isSlow.head) && samVd
+      val hazardForeLoad = Mux(older, isLoad.head && isSlow.last, isLoad.last && isSlow.head) && (
+        // waw
+        samVd ||
+          // war
+          Mux(older, sourceVdEqSinkVs, sinkVdEqSourceVs)
+        )
       val rawForeStore = Mux(older, isStore.head && isSlow.last, isStore.last && isSlow.head) && samVd
-      (wawForeLoad, rawForeStore)
+      (hazardForeLoad, rawForeStore)
     }
   }
   writeReadyForLsu := !hazardVec.map(_.map(_._1).reduce(_ || _)).reduce(_ || _)
