@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <queue>
 #include <optional>
 #include <mutex>
@@ -42,12 +41,6 @@ struct TLReqRecord {
 
   TLReqRecord(uint64_t data, uint32_t size_by_byte, uint16_t source, opType op, int cycles) :
       data(data), size_by_byte(size_by_byte), source(source), op(op), remaining_cycles(cycles) {};
-};
-
-struct TLMemCounterRecord {
-  uint32_t counter;
-  uint32_t decoded_size;
-  uint32_t addr;
 };
 
 class VBridgeImpl {
@@ -95,6 +88,7 @@ private:
   processor_t proc;
   std::vector<std::multimap<reg_t, TLReqRecord>> tl_banks;
   std::vector<std::optional<reg_t>> tl_current_req;
+
   std::vector<TLMemCounterRecord> tl_mem_store_counter;
 
   SpikeEvent *se_to_issue;
