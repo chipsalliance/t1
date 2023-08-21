@@ -110,7 +110,7 @@ void VBridgeImpl::dpiDumpWave() {
 ) {
   TRY({
     vbridge_impl_instance.dpiPeekTL(
-        VTlInterface{channel_id, *a_opcode, *a_param, *a_size, *a_source, *a_address, *a_mask, *a_data,
+        VTlInterface{channel_id, *a_opcode, *a_param, *a_size, *a_source, *a_address, a_mask, a_data,
                      a_corrupt, a_valid, d_ready});
     lsu_perfs[channel_id].peek_tl(a_valid, d_ready);
     lsu_perfs[channel_id].step();

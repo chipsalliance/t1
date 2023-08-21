@@ -87,3 +87,11 @@ template <> struct fmt::formatter<freg_t> {
     return fmt::format_to(ctx.out(), "({:016X}, {:016X})", f.v[0], f.v[1]);
   }
 };
+
+inline uint8_t n_th_byte(const uint32_t *data, size_t n) {
+  return (data[n / 4] >> (1 * (n % 4))) & 0xff;
+}
+
+inline bool n_th_bit(const uint32_t *data, size_t n) {
+  return (data[n / 32] >> (n % 32)) & 1;
+}

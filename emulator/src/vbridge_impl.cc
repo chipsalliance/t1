@@ -1,4 +1,5 @@
 #include <fmt/core.h>
+#include <fmt/ranges.h>
 #include <glog/logging.h>
 
 #include <disasm.h>
@@ -192,7 +193,6 @@ VBridgeImpl::VBridgeImpl() :
     se_to_issue(nullptr),
     tl_banks(config.tl_bank_number),
     tl_current_req(config.tl_bank_number),
-    tl_mem_store_counter(config.tl_bank_number),
 
 #ifdef COSIM_VERILATOR
     ctx(nullptr),
@@ -282,89 +282,68 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   if (!tl.a_valid) return;
 
   uint8_t opcode = tl.a_bits_opcode;
-  uint32_t addr = tl.a_bits_address;
-  uint8_t size = tl.a_bits_size;
+  uint32_t base_addr = tl.a_bits_address;
+
+  uint32_t size = decode_size(tl.a_bits_size);
   uint16_t src = tl.a_bits_source;   // MSHR id, TODO: be returned in D channel
   uint32_t lsu_index = tl.a_bits_source & 3;
-  SpikeEvent *se = nullptr;
+  const uint32_t *mask = tl.a_bits_mask;
+  SpikeEvent *se;
   for (auto se_iter = to_rtl_queue.rbegin(); se_iter != to_rtl_queue.rend(); se_iter++) {
     if (se_iter->lsu_idx == lsu_index) {
       se = &(*se_iter);
     }
   }
   CHECK_S(se) << fmt::format(": [{}] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
+  CHECK_EQ_S(base_addr & (size - 1), 0) << fmt::format(": [{}] unaligned access (addr={:08X}, size={}", get_t(), base_addr, size);
 
   switch (opcode) {
 
   case TlOpcode::Get: {
-    auto mem_read = se->mem_access_record.all_reads.find(addr);
-    CHECK_S(mem_read != se->mem_access_record.all_reads.end())
-      << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
-
-    auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
-    uint32_t expected_size = single_mem_read.size_by_byte;
-    uint32_t actual_size = decode_size(size);
-    uint32_t actual_data = 0;
-    if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
-      for (int i = 0; i < (actual_size / expected_size); i++) {
-        actual_data |= single_mem_read.val << (i * expected_size * 8);
-        if (i >= (actual_size / expected_size) - 1) break;
-        addr += expected_size;
-        mem_read = se->mem_access_record.all_reads.find(addr);
+    std::vector<uint8_t> actual_data(size);
+    for (size_t offset = 0; offset < size; offset++) {
+      if (n_th_bit(mask, offset)) {
+        uint32_t addr = base_addr + offset;
+        auto mem_read = se->mem_access_record.all_reads.find(addr);
         CHECK_S(mem_read != se->mem_access_record.all_reads.end())
-            << fmt::format(": [{}] cannot find mem read of addr={:08X}", get_t(), addr);
-        single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
+            << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
+        auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
+        actual_data[offset] = single_mem_read.val;
       }
+    }
 
-      LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (addr={:08X}, size={}byte, src={:04X}), should return data {:04X}",
-                              get_t(), addr, actual_size, src, actual_data);
+    LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (base_addr={:08X}, size={}byte, src={:04X}), should return data {}...",
+                             get_t(), base_addr, size, src, actual_data);
 
-      tl_banks[tlIdx].emplace(get_t(), TLReqRecord {
-          actual_data, actual_size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
-      });
-      addr += actual_size;
-    } while (++i < (burst_size >> 2));
+    tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
+        actual_data, size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
+    });
     break;
   }
 
   case TlOpcode::PutFullData: {
-    uint32_t data = tl.a_bits_data;
-    int offset_by_bits = (int) addr % 4 * 8; // TODO: replace 4 with XLEN.
-    data = clip(data, (int) offset_by_bits, offset_by_bits + (int) decode_size(size)*8 - 1);
-    LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (addr={:08X}, size={}byte, src={:04X}, data={})",
-                             get_t(), addr, decode_size(size), src, data);
-    auto mem_write = se->mem_access_record.all_writes.find(addr);
-
-    CHECK_S(mem_write != se->mem_access_record.all_writes.end())
-            << fmt::format(": [{}] cannot find mem write of addr={:08X}", get_t(), addr);
-
-    auto single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes++];
-
-    uint32_t expected_size = single_mem_write.size_by_byte;
-    uint32_t actual_size = decode_size(size);
-    uint32_t actual_data = 0;
-    if ((expected_size <= actual_size) && (actual_size % expected_size == 0) && is_pow2(actual_size / expected_size)) {
-      for (int i = 0; i < (actual_size / expected_size); i++) {
-        actual_data |= single_mem_write.val << (i * expected_size * 8);
-        if (i >= (actual_size / expected_size) - 1) break;
-        addr += expected_size;
-        mem_write = se->mem_access_record.all_writes.find(addr);
+    for (size_t offset = 0; offset < size; offset++) {
+      if (n_th_bit(mask, offset)) {
+        uint32_t addr = base_addr + offset;
+        uint8_t data = n_th_byte(tl.a_bits_data, offset);
+        auto mem_write = se->mem_access_record.all_writes.find(addr);
         CHECK_S(mem_write != se->mem_access_record.all_writes.end())
-            << fmt::format(": [{}] cannot find mem write of addr={:08X}", get_t(), addr);
-        single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes++];
+            << fmt::format(": [{}] cannot find mem write of addr {:08X}", get_t(), addr);
+        auto single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes++];
+        CHECK_EQ_S(data, single_mem_write.val) << fmt::format(
+            ": [{}] expect mem write of data {:08X}, actual data {:08X} (base_addr={:08X}, insn='{}')",
+            get_t(), data, single_mem_write.val, base_addr, se->describe_insn());
       }
-    } else {
-      CHECK_S(false) << fmt::format(
-          ": [{}] expect mem write of size {}, actual size {} (addr={:08X}, insn='{}')",
-          get_t(), expected_size, actual_size, addr, se->describe_insn());
     }
 
-    CHECK_EQ_S(actual_data, data) << fmt::format(
-        ": [{}] expect mem write of data {:08X}, actual data {:08X} (addr={:08X}, insn='{}')",
-        get_t(), actual_data, data, addr, se->describe_insn());
-
+    std::vector<uint8_t> data(size);
+    for (size_t offset = 0; offset < size; offset++) {
+      data[offset] = n_th_byte(tl.a_bits_data, offset);
+    }
+    LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (base_addr={:08X}, size={}byte, src={:04X}, data={:04X})",
+                             get_t(), base_addr, decode_size(size), src, data);
     tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
-        data, 1u << size, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
+      data, 1u << size, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
     });
 
     break;
@@ -405,10 +384,10 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
   for (auto &[addr, record]: tl_banks[i]) {
 
     if (record.remaining_cycles == 0) {
-      LOG(INFO) << fmt::format("[{}] -> send tl response (channel={}, addr={:08X}, size={}byte, src={:04X}, data={:08X})",
+      LOG(INFO) << fmt::format("[{}] -> send tl response (channel={}, addr={:08X}, size={}byte, src={:04X}, data={})",
                              get_t(), i, addr, record.size_by_byte, record.source, record.data);
       *tl_poke.d_bits_opcode = record.op == TLReqRecord::opType::Get ? TlOpcode::AccessAckData : TlOpcode::AccessAck;
-      *tl_poke.d_bits_data = record.data;
+      std::memcpy(tl_poke.d_bits_data, record.data.data(), record.size_by_byte);
       *tl_poke.d_bits_source = record.source;
       *tl_poke.d_bits_sink = 0;
       *tl_poke.d_corrupt = false;

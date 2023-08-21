@@ -102,13 +102,11 @@ struct SpikeEvent {
 
   struct {
     struct single_mem_write {
-      uint32_t size_by_byte;
-      reg_t val;
+      uint8_t val;
       bool executed = false; // set to true when rtl execute this mem access
     };
     struct single_mem_read {
-      uint16_t size_by_byte;
-      reg_t val;
+      uint8_t val;
       bool executed = false; // set to true when rtl execute this mem access
     };
     struct mem_write_record {

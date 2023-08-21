@@ -79,7 +79,10 @@ void SpikeEvent::log_arch_changes() {
     // Byte size_bytes
     uint8_t size_by_byte = std::get<2>(mem_write);
     LOG(INFO) << fmt::format("spike detect mem write {:08X} on {:08X} with size={}byte", value, address, size_by_byte);
-    mem_access_record.all_writes[address].writes.push_back({ .size_by_byte = size_by_byte, .val = value });
+    for (size_t offset = 0; offset < size_by_byte; offset++) {
+      uint8_t val_byte = (value >> (8 * offset)) & 0xff;
+      mem_access_record.all_writes[address + offset].writes.push_back({ .val = val_byte });
+    }
   }
 
   for (auto mem_read: state->log_mem_read) {
@@ -91,7 +94,10 @@ void SpikeEvent::log_arch_changes() {
       value += (uint64_t) impl->load(address + i) << (i * 8);
     }
     LOG(INFO) << fmt::format("spike detect mem read {:08X} on {:08X} with size={}byte", value, address, size_by_byte);
-    mem_access_record.all_reads[address].reads.push_back({ .size_by_byte = size_by_byte, .val = value });
+    for (size_t offset = 0; offset < size_by_byte; offset++) {
+      uint8_t val_byte = (uint64_t) impl->load(address + offset) << (offset * 8);
+      mem_access_record.all_reads[address + offset].reads.push_back({ .val = val_byte });
+    }
   }
 }
 
