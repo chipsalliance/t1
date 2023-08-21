@@ -6,6 +6,7 @@
 #include <thread>
 #include <condition_variable>
 #include <list>
+#include <utility>
 
 #include <mmu.h>
 
@@ -29,7 +30,7 @@
 class SpikeEvent;
 
 struct TLReqRecord {
-  uint64_t data;
+  std::vector<uint8_t> data;
   uint32_t size_by_byte;
   uint16_t source;
 
@@ -39,8 +40,9 @@ struct TLReqRecord {
   } op;
   int remaining_cycles;
 
-  TLReqRecord(uint64_t data, uint32_t size_by_byte, uint16_t source, opType op, int cycles) :
-      data(data), size_by_byte(size_by_byte), source(source), op(op), remaining_cycles(cycles) {};
+  TLReqRecord(std::vector<uint8_t> data, uint32_t size_by_byte, uint16_t source, opType op, int cycles) :
+      data(std::move(data)), size_by_byte(size_by_byte), source(source), op(op), remaining_cycles(cycles) {
+  };
 };
 
 class VBridgeImpl {
@@ -88,8 +90,6 @@ private:
   processor_t proc;
   std::vector<std::multimap<reg_t, TLReqRecord>> tl_banks;
   std::vector<std::optional<reg_t>> tl_current_req;
-
-  std::vector<TLMemCounterRecord> tl_mem_store_counter;
 
   SpikeEvent *se_to_issue;
 

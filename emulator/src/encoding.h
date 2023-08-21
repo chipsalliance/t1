@@ -30,8 +30,8 @@ struct VTlInterface {
   svBitVecVal a_bits_size;
   svBitVecVal a_bits_source;
   svBitVecVal a_bits_address;
-  svBitVecVal a_bits_mask;
-  svBitVecVal a_bits_data;
+  const svBitVecVal *a_bits_mask;
+  const svBitVecVal *a_bits_data;
   svBit a_corrupt;
   svBit a_valid;
   svBit d_ready;
