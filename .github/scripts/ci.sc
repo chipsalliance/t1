@@ -110,7 +110,9 @@ def unpassedJson(
       val exists = ujson.read(os.read(defaultPassed / os.up / file))
         .obj.keys
         .map(test => s"verilatorEmulator[$emulator,$test,$runCfg].run")
-      val all = os.proc("mill", "resolve", s"verilatorEmulator[$emulator,_,$runCfg].run")
+      // Mill will write rubbish into stdout, so we to do a warm up
+      os.proc("mill", "-i", "resolve", "__.run").call(cwd = root, stdout = os.Path("/dev/null"))
+      val all = os.proc("mill", "-i", "resolve", s"verilatorEmulator[$emulator,_,$runCfg].run")
         .call(root).out.text
         .split("\n")
       (all.toSet -- exists.toSet).toSeq
