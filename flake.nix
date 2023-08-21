@@ -95,6 +95,12 @@
             };
             default = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
+              env = {
+                CODEGEN_BIN_PATH = "${pkgs.rvv-codegen}/bin/single";
+                CODEGEN_INC_PATH = "${pkgs.rvv-codegen}/include";
+                CODEGEN_CFG_PATH = "${pkgs.rvv-codegen}/configs";
+                TEST_CASE_DIR = "${pkgs.rvv-testcase}";
+              };
             };
           };
 
