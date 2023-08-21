@@ -21,8 +21,7 @@ stdenv.mkDerivation {
       esac
     done
   '';
-  nativeBuildInputs =
-    [ rv32-clang glibc_multi llvmForDev.bintools go buddy-mlir ammonite mill ];
+  nativeBuildInputs = [ rv32-clang glibc_multi llvmForDev.bintools go buddy-mlir ammonite mill ];
   buildPhase = ''
     mkdir -p tests-out
 
@@ -30,13 +29,8 @@ stdenv.mkDerivation {
     export CODEGEN_INC_PATH=${rvv-codegen}/include
     export CODEGEN_CFG_PATH=${rvv-codegen}/configs
 
-    # Ammonite will write some Jar file in $HOME directory,
-    # however nix will set a non-existent directory as home directory 
-    # which will cause Ammonite fail to write and read.
-    mkdir fake-home
-    export HOME=$PWD/fake-home
-
-    amm ci.sc buildAllTestCase ./tests-src ./tests-out
+    # amm will write some cache under user.home, it is by default not writable inside some nix sandboxes
+    JAVA_OPTS="-Duser.home=$TMPDIR" amm ci.sc buildAllTestCase ./tests-src ./tests-out
   '';
   installPhase = ''
     mkdir -p $out
