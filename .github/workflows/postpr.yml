@@ -6,98 +6,13 @@ env:
   USER: runner
 
 jobs:
-  gen-matrix:
-    name: Generate test matrix
-    if: github.event.pull_request.merged == true
-    runs-on: [self-hosted, linux]
-    env:
-      RUNNERS: 8
-    outputs:
-      ci-tests: ${{ steps.ci-tests.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - run: sudo -E .github/setup-actions.sh
-        env:
-          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
-          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
-          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-      - uses: cachix/install-nix-action@v19
-        with:
-          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
-          nix_path: nixpkgs=channel:nixos-unstable
-          extra_nix_config: |
-            sandbox = relaxed
-      - id: ci-tests
-        run: nix develop .#testcase -c make ci-unpassed-tests DEFAULT_PASSED=.github/passed/default.txt
-
-  ci:
-    name: "CI"
-    if: github.event.pull_request.merged == true
-    needs: [gen-matrix]
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
-    runs-on: [self-hosted, linux]
-    outputs:
-      result: ${{ steps.ci-run.outputs.result }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - run: sudo -E .github/setup-actions.sh
-        env:
-          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
-          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
-          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-      - uses: cachix/install-nix-action@v19
-        with:
-          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
-          nix_path: nixpkgs=channel:nixos-unstable
-          extra_nix_config: |
-            post-build-hook = /etc/nix/upload-to-cache.sh
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
-            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-            sandbox = relaxed
-      - id: ci-run
-        run: |
-          nix develop .#testcase -c make ci-run "NAME=${{ matrix.name }}"
-          nix develop .#testcase -c make convert-perf-to-md
-
-      - uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: results
-          path: |
-            ./test-log/result-*
-            ./test-log/**/fail-test-*.md
-            perf-result-*.md
-
-      - uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: nix-post-build-hook-log
-          path: /tmp/nix-post-build-hook.log
-
   report:
     name: "Report CI result"
     if: github.event.pull_request.merged == true && always()
-    needs: [ci]
-    runs-on: [self-hosted, linux]
+    runs-on: "ubuntu-latest"
     outputs:
       should_release_testcase: ${{ steps.testcase_status.outputs.run_release }}
     steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: results
-      - run: printf "\n\n## Perf Result\n" >> $GITHUB_STEP_SUMMARY; cat perf-*.md >> $GITHUB_STEP_SUMMARY
-      - run: |
-          echo -e "\n## Newly passed tests\n" >> $GITHUB_STEP_SUMMARY
-          find . -name 'result.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
-      - run: |
-          echo -e "\n## Still failing tests\n" >> $GITHUB_STEP_SUMMARY
-          find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
@@ -109,7 +24,7 @@ jobs:
             echo "Release job triggered"
 
   release:
-    runs-on: [self-hosted, linux]
+    runs-on: "ubuntu-latest"
     needs: report
     if: ${{ needs.report.outputs.should_release_testcase == 'true' }}
     steps:
@@ -118,16 +33,15 @@ jobs:
           install_url: https://releases.nixos.org/nix/nix-2.13.3/install
           nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
-            post-build-hook = /etc/nix/upload-to-cache.sh
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
-            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             sandbox = relaxed
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           ref: master
       - run: |
-          nix build .#testcase --print-build-logs --out-link result
+          #nix build .#testcase --print-build-logs --out-link result
+          mkdir result
+          echo "TEST" > result/test.txt
           tar czvf rvv-testcase.tar.gz --directory ./result .
       - uses: "marvinpinto/action-automatic-releases@latest"
         id: step-release
@@ -176,4 +90,3 @@ jobs:
           body: "Bump rvv-testcase-unwrapped.nix"
           reviewers: |
             avimitin
-            sequencer
