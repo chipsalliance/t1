@@ -95,7 +95,7 @@ void SpikeEvent::log_arch_changes() {
     }
     LOG(INFO) << fmt::format("spike detect mem read {:08X} on {:08X} with size={}byte", value, address, size_by_byte);
     for (size_t offset = 0; offset < size_by_byte; offset++) {
-      uint8_t val_byte = (uint64_t) impl->load(address + offset) << (offset * 8);
+      uint8_t val_byte = ((uint64_t) value >> (offset * 8)) & 0xff;
       mem_access_record.all_reads[address + offset].reads.push_back({ .val = val_byte });
     }
   }
@@ -179,20 +179,20 @@ void SpikeEvent::drive_rtl_csr(const VCsrInterfacePoke &v_csr) const {
 
 void SpikeEvent::check_is_ready_for_commit() {
   for (auto &[addr, mem_write]: mem_access_record.all_writes) {
-    if (mem_write.num_completed_writes != mem_write.writes.size()) {
-      LOG(FATAL_S) << fmt::format(": [{}] expect to write mem {:08X}, not executed when commit ({})",
-                                impl->get_t(), addr, pc, describe_insn());
-    }
+    CHECK_EQ_S(mem_write.num_completed_writes, mem_write.writes.size())
+      << fmt::format(": [{}] expect to write mem {:08X}, not executed when commit ({})",
+                     impl->get_t(), addr, pc, describe_insn());
   }
   for (auto &[addr, mem_read]: mem_access_record.all_reads) {
-    if (mem_read.num_completed_reads != mem_read.reads.size()) {
-      LOG(FATAL_S) << fmt::format(": [{}] expect to read mem {:08X}, not executed when commit ({})",
-                                impl->get_t(), addr, describe_insn());
-    }
+    CHECK_EQ_S(mem_read.num_completed_reads, mem_read.reads.size())
+      << fmt::format(": [{}] expect to read mem {:08X}, not executed when commit ({})",
+                     impl->get_t(), addr, describe_insn());
   }
   for (auto &[idx, vrf_write]: vrf_access_record.all_writes) {
-    CHECK_S(vrf_write.executed) << fmt::format(": [{}] expect to write vrf [{}][{}], not executed when commit ({})",
-                              impl->get_t(), idx / impl->config.v_len_in_bytes, idx % impl->config.v_len_in_bytes, describe_insn());
+    CHECK_S(vrf_write.executed)
+        << fmt::format(": [{}] expect to write vrf [{}][{}], not executed when commit ({})",
+                       impl->get_t(), idx / impl->config.v_len_in_bytes, idx % impl->config.v_len_in_bytes,
+                       describe_insn());
   }
 }
 
@@ -200,7 +200,7 @@ void SpikeEvent::record_rd_write(const VRespInterface &v_resp) {
   // TODO: rtl should indicate whether resp_bits_data is valid
   if (is_rd_written) {
     CHECK_EQ_S(v_resp.data, rd_bits) << fmt::format(": [{}] expect to write rd[{}] = {}, actual {}",
-                                                             impl->get_t(), rd_idx, rd_bits, v_resp.data);
+                                                    impl->get_t(), rd_idx, rd_bits, v_resp.data);
   }
 }
 
@@ -213,8 +213,8 @@ std::pair<uint32_t, uint32_t> SpikeEvent::get_vrf_write_range() const {
       return {vd_bytes_start, impl->config.v_len_in_bytes * (1 + vnf)};
     }
     uint32_t len = vlmul & 0b100
-        ? impl->config.v_len_in_bytes * (1 + vnf)
-        : impl->config.v_len_in_bytes * (1 + vnf) << vlmul;
+                   ? impl->config.v_len_in_bytes * (1 + vnf)
+                   : impl->config.v_len_in_bytes * (1 + vnf) << vlmul;
     return {vd_bytes_start, len};
   } else {
     uint32_t vd_bytes_start = rd_idx * impl->config.v_len_in_bytes;
@@ -227,6 +227,6 @@ std::pair<uint32_t, uint32_t> SpikeEvent::get_vrf_write_range() const {
                    ? impl->config.v_len_in_bytes >> (8 - vlmul)
                    : impl->config.v_len_in_bytes << vlmul;
 
-    return {vd_bytes_start, is_widening ? len*2 : len};
+    return {vd_bytes_start, is_widening ? len * 2 : len};
   }
 }

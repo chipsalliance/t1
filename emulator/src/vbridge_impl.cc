@@ -37,8 +37,8 @@ void VBridgeImpl::dpiInitCosim() {
   // TODO: remove this line, and use CSR write in the test code to enable this the VS field.
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() | SSTATUS_VS | SSTATUS_FS);
   auto load_result = sim.load_elf(bin);
-  LOG(INFO) << fmt::format("Simulation Environment Initialized: bin={}, wave={}, timeout={}, entry={:08X}",
-                           bin, wave, timeout, load_result.entry_addr);
+  LOG(INFO) << fmt::format("Simulation Environment Initialized: config={}, bin={}, wave={}, timeout={}, entry={:08X}",
+                           get_env_arg("COSIM_config"), bin, wave, timeout, load_result.entry_addr);
   proc.get_state()->pc = load_result.entry_addr;
 #if VM_TRACE
   dpiDumpWave();
@@ -166,11 +166,11 @@ void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
 }
 
 VBridgeImpl::VBridgeImpl() :
-    config(get_env_arg("COSIM_config")),
-    varch(fmt::format("vlen:{},elen:{}", config.v_len, config.elen)),
-    sim(1l << 32),
-    isa("rv32gcv", "M"),
-    cfg(/*default_initrd_bounds=*/ std::make_pair((reg_t) 0, (reg_t) 0),
+  config(get_env_arg("COSIM_config")),
+  varch(fmt::format("vlen:{},elen:{}", config.v_len, config.elen)),
+  sim(1l << 32),
+  isa("rv32gcv", "M"),
+  cfg(/*default_initrd_bounds=*/ std::make_pair((reg_t) 0, (reg_t) 0),
         /*default_bootargs=*/ nullptr,
         /*default_isa=*/ DEFAULT_ISA,
         /*default_priv=*/ DEFAULT_PRIV,
@@ -182,7 +182,7 @@ VBridgeImpl::VBridgeImpl() :
         /*default_hartids=*/ std::vector<size_t>(),
         /*default_real_time_clint=*/ false,
         /*default_trigger_count=*/ 4),
-    proc(
+  proc(
         /*isa*/ &isa,
         /*cfg*/ &cfg,
         /*sim*/ &sim,
@@ -190,14 +190,15 @@ VBridgeImpl::VBridgeImpl() :
         /*halt on reset*/ true,
         /*log_file_t*/ nullptr,
         /*sout*/ std::cerr),
-    se_to_issue(nullptr),
-    tl_banks(config.tl_bank_number),
-    tl_current_req(config.tl_bank_number),
+  se_to_issue(nullptr),
+  tl_req_record_of_bank(config.tl_bank_number),
+  tl_req_waiting_ready(config.tl_bank_number),
+  tl_req_ongoing_burst(config.tl_bank_number),
 
 #ifdef COSIM_VERILATOR
-    ctx(nullptr),
+  ctx(nullptr),
 #endif
-    vrf_shadow(std::make_unique<uint8_t[]>(config.v_len_in_bytes * config.vreg_number)) {
+  vrf_shadow(std::make_unique<uint8_t[]>(config.v_len_in_bytes * config.vreg_number)) {
 
   DEFAULT_VARCH;
   auto &csrmap = proc.get_state()->csrmap;
@@ -284,7 +285,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   uint8_t opcode = tl.a_bits_opcode;
   uint32_t base_addr = tl.a_bits_address;
 
-  uint32_t size = decode_size(tl.a_bits_size);
+  size_t size = decode_size(tl.a_bits_size);
   uint16_t src = tl.a_bits_source;   // MSHR id, TODO: be returned in D channel
   uint32_t lsu_index = tl.a_bits_source & 3;
   const uint32_t *mask = tl.a_bits_mask;
@@ -302,49 +303,90 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   case TlOpcode::Get: {
     std::vector<uint8_t> actual_data(size);
     for (size_t offset = 0; offset < size; offset++) {
-      if (n_th_bit(mask, offset)) {
-        uint32_t addr = base_addr + offset;
-        auto mem_read = se->mem_access_record.all_reads.find(addr);
-        CHECK_S(mem_read != se->mem_access_record.all_reads.end())
-            << fmt::format(": [{}] cannot find mem read of addr {:08X}", get_t(), addr);
+      uint32_t addr = base_addr + offset;
+      auto mem_read = se->mem_access_record.all_reads.find(addr);
+      if (mem_read != se->mem_access_record.all_reads.end()) {
         auto single_mem_read = mem_read->second.reads[mem_read->second.num_completed_reads++];
         actual_data[offset] = single_mem_read.val;
+      } else {
+        // TODO: check if the cache line should be accessed
+        VLOG(1) << fmt::format("[{}] mem over read of addr={:08X} detected and ignored", get_t(), addr);
+        actual_data[offset] = 0xDE;  // falsy data
       }
     }
 
-    LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (base_addr={:08X}, size={}byte, src={:04X}), should return data {}...",
-                             get_t(), base_addr, size, src, actual_data);
+    LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (base_addr={:08X}, size={}byte, mask={:b}, src={:04X}), "
+                             "should return data {:02X}",
+                             get_t(), base_addr, size, *mask, src, fmt::join(actual_data, " "));
 
-    tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
-        actual_data, size, src, TLReqRecord::opType::Get, get_mem_req_cycles()
+    tl_req_record_of_bank[tlIdx].emplace(get_t(), TLReqRecord{
+        get_t(), actual_data, size, base_addr, src, TLReqRecord::opType::Get, get_mem_req_cycles()
     });
     break;
   }
 
   case TlOpcode::PutFullData: {
-    for (size_t offset = 0; offset < size; offset++) {
+    TLReqRecord *cur_record = nullptr;
+    // determine if it is a beat of ongoing burst
+    if (tl_req_ongoing_burst[tlIdx].has_value()) {
+      auto find = tl_req_record_of_bank[tlIdx].find(tl_req_ongoing_burst[tlIdx].value());
+      if (find != tl_req_record_of_bank[tlIdx].end()) {
+        auto &record = find->second;
+        CHECK_LT_S(record.bytes_received, record.size_by_byte);
+        if (record.bytes_received < record.size_by_byte) {
+          CHECK_EQ_S(record.addr, base_addr) << fmt::format(": inconsistent burst addr");
+          CHECK_EQ_S(record.size_by_byte, size) << fmt::format(": inconsistent burst size");
+          LOG(INFO) << fmt::format("[{}]    continue burst (channel={}, base_addr={:08X}, offset={})", get_t(), tlIdx, base_addr, record.bytes_received);
+          cur_record = &record;
+        }
+      }
+    }
+
+    // else create a new record
+    if (cur_record == nullptr) {
+      auto record = tl_req_record_of_bank[tlIdx].emplace(get_t(), TLReqRecord{
+        get_t(), std::vector<uint8_t>(size), size, base_addr, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
+      });
+      cur_record = &record->second;
+    }
+
+    std::vector<uint8_t> data(size);
+    size_t actual_beat_size = std::min(size, config.datapath_width_in_bytes);
+    size_t data_begin_pos = cur_record->bytes_received;
+
+    // receive put data
+    for (size_t offset = 0; offset < actual_beat_size; offset++) {
+      data[data_begin_pos + offset] = n_th_byte(tl.a_bits_data, offset);
+    }
+    LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (channel={}, base_addr={:08X}, size={}byte, src={:04X}, "
+                             "data={:02X}, offset={}, mask={:04b})",
+                             get_t(), tlIdx, base_addr, size, src,
+                             fmt::join(data.begin() + (long) data_begin_pos, data.begin() + (long) (data_begin_pos + actual_beat_size), " "),
+                             data_begin_pos, *mask);
+
+    // compare with spike event record
+    for (size_t offset = 0; offset < actual_beat_size; offset++) {
       if (n_th_bit(mask, offset)) {
-        uint32_t addr = base_addr + offset;
-        uint8_t data = n_th_byte(tl.a_bits_data, offset);
+        uint32_t addr = base_addr + data_begin_pos + offset;
+        uint8_t tl_data_byte = n_th_byte(tl.a_bits_data, offset);
         auto mem_write = se->mem_access_record.all_writes.find(addr);
         CHECK_S(mem_write != se->mem_access_record.all_writes.end())
             << fmt::format(": [{}] cannot find mem write of addr {:08X}", get_t(), addr);
         auto single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes++];
-        CHECK_EQ_S(data, single_mem_write.val) << fmt::format(
-            ": [{}] expect mem write of data {:08X}, actual data {:08X} (base_addr={:08X}, insn='{}')",
-            get_t(), data, single_mem_write.val, base_addr, se->describe_insn());
+        CHECK_EQ_S(tl_data_byte, single_mem_write.val) << fmt::format(
+            ": [{}] expect mem write of byte {:02X}, actual byte {:02X} (channel={}, addr={:08X}, {})",
+            get_t(), single_mem_write.val, tl_data_byte, tlIdx, addr, se->describe_insn());
       }
     }
 
-    std::vector<uint8_t> data(size);
-    for (size_t offset = 0; offset < size; offset++) {
-      data[offset] = n_th_byte(tl.a_bits_data, offset);
+    cur_record->bytes_received += actual_beat_size;
+
+    // update tl_req_ongoing_burst
+    if (cur_record->bytes_received < size) {
+      tl_req_ongoing_burst[tlIdx] = cur_record->t;
+    } else {
+      tl_req_ongoing_burst[tlIdx].reset();
     }
-    LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (base_addr={:08X}, size={}byte, src={:04X}, data={:04X})",
-                             get_t(), base_addr, decode_size(size), src, data);
-    tl_banks[tlIdx].emplace(get_t(), TLReqRecord{
-      data, 1u << size, src, TLReqRecord::opType::PutFullData, get_mem_req_cycles()
-    });
 
     break;
   }
@@ -359,14 +401,18 @@ void VBridgeImpl::receive_tl_d_ready(const VTlInterface &tl) {
 
   if (tl.d_ready) {
     // check if there is a response waiting for RTL ready, clear if RTL is ready
-    if (auto current_req_addr = tl_current_req[tlIdx]; current_req_addr.has_value()) {
+    if (auto current_req_addr = tl_req_waiting_ready[tlIdx]; current_req_addr.has_value()) {
       auto addr = current_req_addr.value();
-      auto find = tl_banks[tlIdx].find(addr);
-      CHECK_S(find != tl_banks[tlIdx].end()) << fmt::format(": [{}] cannot find current request with addr {:08X}", get_t(), addr);
-      tl_current_req[tlIdx].reset();
-      tl_banks[tlIdx].erase(find);
-      LOG(INFO) << fmt::format("[{}] -> tl response reaches d_ready (channel={} addr={:08X})",
-                               get_t(), tlIdx, addr);
+      auto find = tl_req_record_of_bank[tlIdx].find(addr);
+      CHECK_S(find != tl_req_record_of_bank[tlIdx].end()) << fmt::format(": [{}] cannot find current request with addr {:08X}", get_t(), addr);
+      auto &req_record = find->second;
+      req_record.bytes_sent += std::min(config.datapath_width_in_bytes, req_record.size_by_byte);
+      if (req_record.bytes_sent >= req_record.size_by_byte) {
+        tl_req_waiting_ready[tlIdx].reset();
+        tl_req_record_of_bank[tlIdx].erase(find);
+        LOG(INFO) << fmt::format("[{}] -> tl response reaches d_ready (channel={} addr={:08X})",
+                                 get_t(), tlIdx, addr);
+      }
     }
   }
 }
@@ -374,26 +420,29 @@ void VBridgeImpl::receive_tl_d_ready(const VTlInterface &tl) {
 void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
   // update remaining_cycles
   auto i = tl_poke.channel_id;
-  for (auto &[addr, record]: tl_banks[i]) {
+  for (auto &[addr, record]: tl_req_record_of_bank[i]) {
     if (record.remaining_cycles > 0) record.remaining_cycles--;
   }
 
   // find a finished request and return
   bool d_valid = false;
   *tl_poke.d_bits_source = 0;   // just for cleanness of the waveform, no effect
-  for (auto &[addr, record]: tl_banks[i]) {
+  for (auto &[t, record]: tl_req_record_of_bank[i]) {
 
     if (record.remaining_cycles == 0) {
-      LOG(INFO) << fmt::format("[{}] -> send tl response (channel={}, addr={:08X}, size={}byte, src={:04X}, data={})",
-                             get_t(), i, addr, record.size_by_byte, record.source, record.data);
+      size_t actual_beat_size = std::min(config.datapath_width_in_bytes, record.size_by_byte);
+      LOG(INFO) << fmt::format("[{}] -> send tl response (channel={}, addr={:08X}, size={}byte, src={:04X}, data={:02X}, offset={})",
+                               get_t(), i, record.addr, record.size_by_byte, record.source,
+                               fmt::join(record.data.begin() + (long) record.bytes_sent, record.data.begin() + (long) (record.bytes_sent + actual_beat_size), " "),
+                               record.bytes_sent);
       *tl_poke.d_bits_opcode = record.op == TLReqRecord::opType::Get ? TlOpcode::AccessAckData : TlOpcode::AccessAck;
-      std::memcpy(tl_poke.d_bits_data, record.data.data(), record.size_by_byte);
+      std::memcpy(tl_poke.d_bits_data, &record.data[record.bytes_sent], std::min(config.datapath_width_in_bytes, record.size_by_byte));
       *tl_poke.d_bits_source = record.source;
       *tl_poke.d_bits_sink = 0;
       *tl_poke.d_corrupt = false;
       *tl_poke.d_bits_denied = false;
       d_valid = true;
-      tl_current_req[i] = addr;
+      tl_req_waiting_ready[i] = t;
       break;
     }
   }
