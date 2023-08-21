@@ -89,7 +89,7 @@ template <> struct fmt::formatter<freg_t> {
 };
 
 inline uint8_t n_th_byte(const uint32_t *data, size_t n) {
-  return (data[n / 4] >> (1 * (n % 4))) & 0xff;
+  return (data[n / 4] >> (8 * (n % 4))) & 0xff;
 }
 
 inline bool n_th_bit(const uint32_t *data, size_t n) {

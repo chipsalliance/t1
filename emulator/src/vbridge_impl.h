@@ -31,8 +31,12 @@ class SpikeEvent;
 
 struct TLReqRecord {
   std::vector<uint8_t> data;
-  uint32_t size_by_byte;
+  size_t t;
+  size_t size_by_byte;
+  reg_t addr;
   uint16_t source;
+  size_t bytes_received = 0;
+  size_t bytes_sent = 0;
 
   /// when opType set to nil, it means this record is already sent back
   enum class opType {
@@ -40,8 +44,8 @@ struct TLReqRecord {
   } op;
   int remaining_cycles;
 
-  TLReqRecord(std::vector<uint8_t> data, uint32_t size_by_byte, uint16_t source, opType op, int cycles) :
-      data(std::move(data)), size_by_byte(size_by_byte), source(source), op(op), remaining_cycles(cycles) {
+  TLReqRecord(size_t t, std::vector<uint8_t> data, size_t size_by_byte, reg_t addr, uint16_t source, opType op, int cycles) :
+      t(t), data(std::move(data)), size_by_byte(size_by_byte), addr(addr), source(source), op(op), remaining_cycles(cycles) {
   };
 };
 
@@ -88,8 +92,9 @@ private:
   simple_sim sim;
   isa_parser_t isa;
   processor_t proc;
-  std::vector<std::multimap<reg_t, TLReqRecord>> tl_banks;
-  std::vector<std::optional<reg_t>> tl_current_req;
+  std::vector<std::multimap<size_t, TLReqRecord>> tl_req_record_of_bank;  // indexed by get_t()
+  std::vector<std::optional<size_t>> tl_req_waiting_ready;  // the get_t() of a req response waiting for ready
+  std::vector<std::optional<size_t>> tl_req_ongoing_burst;  // the get_t() of a req with ongoing burst
 
   SpikeEvent *se_to_issue;
 
