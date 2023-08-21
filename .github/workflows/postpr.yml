@@ -110,7 +110,7 @@ jobs:
           # Run release only when changes is in tests/ directory or is nix/rvv-testcase.nix or is nix/rvv-testcase-unwrapped.nix
           git diff --name-only HEAD HEAD^ | grep -q "^tests/\|^nix/rvv-testcase" && \
             echo "run_release=true" >> $GITHUB_OUTPUT && \
-            echo "Release job triggered"
+            echo "Release job triggered" || true
 
   release:
     runs-on: [self-hosted, linux]
