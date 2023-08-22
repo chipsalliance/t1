@@ -854,6 +854,14 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   tlPort.a.valid := s1Valid && sourceFree
   s2Fire := tlPort.a.fire
 
+  val offsetRecord = RegInit(VecInit(Seq.fill(param.datapathWidth)(0.U(2.W))))
+
+  offsetRecord.zipWithIndex.foreach { case (d, i) =>
+    when(tlPort.a.fire && memoryRequestSourceOH(i)) {
+      d := s1Reg.address
+    }
+  }
+
   // Handle response
 
   /** extract `indexInMaskGroup` from response. */
@@ -871,10 +879,11 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
    */
   val loadBaseByteOffset: UInt = ((groupIndex ## indexInMaskGroupResponse) << dataEEW).asUInt(9, 0)
   vrfWritePort.valid := tlPort.d.valid && !lsuRequestReg.instructionInformation.isStore
+  val addressOffset = offsetRecord(tlPort.d.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0)) ## 0.U(3.W)
   tlPort.d.ready := vrfWritePort.ready
 
   // TODO: handle alignment for VRF and memory
-  vrfWritePort.bits.data := (tlPort.d.bits.data << (loadBaseByteOffset(1, 0) ## 0.U(3.W))).asUInt
+  vrfWritePort.bits.data := (((tlPort.d.bits.data >> addressOffset) << (loadBaseByteOffset(1, 0) ## 0.U(3.W)))).asUInt
   vrfWritePort.bits.last := last
   vrfWritePort.bits.instructionIndex := lsuRequestReg.instructionIndex
   vrfWritePort.bits.mask := Mux1H(
