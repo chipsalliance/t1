@@ -72,7 +72,9 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     val readPort: DecoupledIO[VRFReadRequest] = vrfReadDataPorts(laneIndex)
     readPort.valid := accessState(laneIndex) && readStageValid && hazardCheck
     readPort.bits.vs :=
-      lsuRequestReg.instructionInformation.vs3 + accessPtr + (dataGroup >> readPort.bits.offset.getWidth).asUInt
+      lsuRequestReg.instructionInformation.vs3 +
+        accessPtr * segmentInstructionIndexInterval +
+        (dataGroup >> readPort.bits.offset.getWidth).asUInt
     readPort.bits.offset := dataGroup
     readPort.bits.instructionIndex := lsuRequestReg.instructionIndex
     when(readPort.fire) {
