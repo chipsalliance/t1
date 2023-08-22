@@ -221,7 +221,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
     writePort.bits.data := cutUInt(Mux1H(UIntToOH(accessPtr), accessData), param.datapathWidth)(laneIndex)
     writePort.bits.offset := dataGroup
     writePort.bits.vd :=
-      lsuRequestReg.instructionInformation.vs3 + accessPtr + (dataGroup >> writePort.bits.offset.getWidth).asUInt
+      lsuRequestReg.instructionInformation.vs3 + accessPtr * segmentInstructionIndexInterval + (dataGroup >> writePort.bits.offset.getWidth).asUInt
     writePort.bits.last := DontCare
     writePort.bits.instructionIndex := lsuRequestReg.instructionIndex
     when(writePort.fire) {

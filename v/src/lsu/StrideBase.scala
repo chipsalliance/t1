@@ -142,4 +142,22 @@ abstract class StrideBase(param: MSHRParam) extends Module {
     // pipe instructionIndex for last report
     lsuRequestReg.instructionIndex := lsuRequest.bits.instructionIndex
   }
+
+  /** for segment instructions, the interval between VRF index accessing.
+   * e.g. vs0, vs2, vs4 ...
+   * for lmul less than 1, the interval will be fixed to 1(ignore the frac lmul)
+   */
+  val segmentInstructionIndexInterval: UInt =
+    RegEnable(
+      Mux(
+        // if vlmul(2) is 1, lmul is less than 1, see table in
+        // [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#342-vector-register-grouping-vlmul20]]
+        csrInterface.vlmul(2),
+        1.U,
+        (1.U << csrInterface.vlmul(1, 0)).asUInt(3, 0)
+      ),
+      // TODO: reset to 0.U
+      1.U,
+      lsuRequest.valid
+    )
 }
