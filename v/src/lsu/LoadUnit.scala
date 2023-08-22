@@ -203,8 +203,9 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   when(bufferDequeueFire) {
     maskForGroup := maskForGroupWire
   }
+  val sendStateReg = RegEnable(initSendState, 0.U.asTypeOf(initSendState), bufferDequeueFire)
   when(bufferDequeueFire || (accessStateCheck && !lastPtr)) {
-    accessState := initSendState
+    accessState := Mux(bufferDequeueFire, initSendState, sendStateReg)
     accessPtr := Mux(bufferDequeueFire, lsuRequestReg.instructionInformation.nf, accessPtr - 1.U)
   }
 
