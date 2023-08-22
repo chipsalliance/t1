@@ -285,7 +285,8 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   uint8_t opcode = tl.a_bits_opcode;
   uint32_t base_addr = tl.a_bits_address;
 
-  size_t size = decode_size(tl.a_bits_size);
+  size_t size_encoded = tl.a_bits_size;
+  size_t size = decode_size(size_encoded);
   uint16_t src = tl.a_bits_source;   // MSHR id, TODO: be returned in D channel
   uint32_t lsu_index = tl.a_bits_source & 3;
   const uint32_t *mask = tl.a_bits_mask;
@@ -296,7 +297,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     }
   }
   CHECK_S(se) << fmt::format(": [{}] cannot find SpikeEvent with lsu_idx={}", get_t(), lsu_index);
-  CHECK_EQ_S(base_addr & (size - 1), 0) << fmt::format(": [{}] unaligned access (addr={:08X}, size={}", get_t(), base_addr, size);
+  CHECK_EQ_S(base_addr & (size - 1), 0) << fmt::format(": [{}] unaligned access (addr={:08X}, size={})", get_t(), base_addr, size);
 
   switch (opcode) {
 
@@ -315,9 +316,9 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
       }
     }
 
-    LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (base_addr={:08X}, size={}byte, mask={:b}, src={:04X}), "
+    LOG(INFO) << fmt::format("[{}] <- receive rtl mem get req (channel={}, base_addr={:08X}, size={}byte, mask={:b}, src={:04X}), "
                              "should return data {:02X}",
-                             get_t(), base_addr, size, *mask, src, fmt::join(actual_data, " "));
+                             get_t(), tlIdx, base_addr, size, *mask, src, fmt::join(actual_data, " "));
 
     tl_req_record_of_bank[tlIdx].emplace(get_t(), TLReqRecord{
         get_t(), actual_data, size, base_addr, src, TLReqRecord::opType::Get, get_mem_req_cycles()
@@ -351,14 +352,14 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     }
 
     std::vector<uint8_t> data(size);
-    size_t actual_beat_size = std::min(size, config.datapath_width_in_bytes);
+    size_t actual_beat_size = std::min(size, config.datapath_width_in_bytes);  // since tl require alignment
     size_t data_begin_pos = cur_record->bytes_received;
 
     // receive put data
     for (size_t offset = 0; offset < actual_beat_size; offset++) {
       data[data_begin_pos + offset] = n_th_byte(tl.a_bits_data, offset);
     }
-    LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (channel={}, base_addr={:08X}, size={}byte, src={:04X}, "
+    LOG(INFO) << fmt::format("[{}] <- receive rtl mem put req (channel={}, addr={:08X}, size={}byte, src={:04X}, "
                              "data={:02X}, offset={}, mask={:04b})",
                              get_t(), tlIdx, base_addr, size, src,
                              fmt::join(data.begin() + (long) data_begin_pos, data.begin() + (long) (data_begin_pos + actual_beat_size), " "),
@@ -366,16 +367,21 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
 
     // compare with spike event record
     for (size_t offset = 0; offset < actual_beat_size; offset++) {
-      if (n_th_bit(mask, offset)) {
-        uint32_t addr = base_addr + data_begin_pos + offset;
-        uint8_t tl_data_byte = n_th_byte(tl.a_bits_data, offset);
-        auto mem_write = se->mem_access_record.all_writes.find(addr);
+      size_t byte_lane_idx = (base_addr & (config.datapath_width_in_bytes - 1)) + offset;
+      if (n_th_bit(mask, byte_lane_idx)) {
+        uint32_t byte_addr = base_addr + cur_record->bytes_received + offset;
+        uint8_t tl_data_byte = n_th_byte(tl.a_bits_data, byte_lane_idx);
+        auto mem_write = se->mem_access_record.all_writes.find(byte_addr);
         CHECK_S(mem_write != se->mem_access_record.all_writes.end())
-            << fmt::format(": [{}] cannot find mem write of addr {:08X}", get_t(), addr);
-        auto single_mem_write = mem_write->second.writes[mem_write->second.num_completed_writes++];
-        CHECK_EQ_S(tl_data_byte, single_mem_write.val) << fmt::format(
-            ": [{}] expect mem write of byte {:02X}, actual byte {:02X} (channel={}, addr={:08X}, {})",
-            get_t(), single_mem_write.val, tl_data_byte, tlIdx, addr, se->describe_insn());
+            << fmt::format(": [{}] cannot find mem write of byte_addr {:08X}", get_t(), byte_addr);
+//        for (auto &w : mem_write->second.writes) {
+//          LOG(INFO) << fmt::format("write addr={:08X}, byte={:02X}", byte_addr, w.val);
+//        }
+        CHECK_LT_S(mem_write->second.num_completed_writes, mem_write->second.writes.size());
+        auto single_mem_write = mem_write->second.writes.at(mem_write->second.num_completed_writes++);
+        CHECK_EQ_S(single_mem_write.val, tl_data_byte) << fmt::format(
+            ": [{}] expect mem write of byte {:02X}, actual byte {:02X} (channel={}, byte_addr={:08X}, {})",
+            get_t(), single_mem_write.val, tl_data_byte, tlIdx, byte_addr, se->describe_insn());
       }
     }
 
@@ -436,7 +442,13 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
                                fmt::join(record.data.begin() + (long) record.bytes_sent, record.data.begin() + (long) (record.bytes_sent + actual_beat_size), " "),
                                record.bytes_sent);
       *tl_poke.d_bits_opcode = record.op == TLReqRecord::opType::Get ? TlOpcode::AccessAckData : TlOpcode::AccessAck;
-      std::memcpy(tl_poke.d_bits_data, &record.data[record.bytes_sent], std::min(config.datapath_width_in_bytes, record.size_by_byte));
+
+      for (size_t offset = 0; offset < actual_beat_size; offset++) {
+        // for GET request not aligned to data bus, put it to a correct byte lane
+        size_t byte_lane_idx = (record.addr & (config.datapath_width_in_bytes - 1)) + offset;
+        ((uint8_t *) tl_poke.d_bits_data)[byte_lane_idx] = record.data[record.bytes_sent + offset];
+      }
+
       *tl_poke.d_bits_source = record.source;
       *tl_poke.d_bits_sink = 0;
       *tl_poke.d_corrupt = false;
@@ -557,7 +569,7 @@ void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd, 
 
   for (int j = 0; j < 32 / 8; j++) {  // 32bit / 1byte
     if ((mask >> j) & 1) {
-      uint8_t written_byte = (data >> (8 * j)) & 255;
+      uint8_t written_byte = (data >> (8 * j)) & 0xff;
       auto record_iter = all_writes.find(record_idx_base + j);
 
       if (record_iter != all_writes.end()) { // if find a spike write record
