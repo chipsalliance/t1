@@ -26,7 +26,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   val lsuRequest: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth))))
 
   /** request from LSU. */
-  val lsuRequestReg: LSURequest = RegEnable(lsuRequest.bits, 0.U.asTypeOf(lsuRequest.bits), lsuRequest.valid)
+  val lsuRequestReg: LSURequest = RegInit(0.U.asTypeOf(lsuRequest.bits))
 
   val nFiled: UInt = lsuRequest.bits.instructionInformation.nf +& 1.U
   val nFiledReg: UInt = RegEnable(nFiled, 0.U, lsuRequest.valid)
@@ -137,4 +137,9 @@ abstract class StrideBase(param: MSHRParam) extends Module {
 
   val invalidInstruction: Bool = csrInterface.vl === 0.U
   val invalidInstructionNext: Bool = RegNext(invalidInstruction && lsuRequest.valid)
+  when(lsuRequest.valid) {
+    lsuRequestReg := Mux(invalidInstruction, 0.U.asTypeOf(lsuRequestReg), lsuRequest.bits)
+    // pipe instructionIndex for last report
+    lsuRequestReg.instructionIndex := lsuRequest.bits.instructionIndex
+  }
 }
