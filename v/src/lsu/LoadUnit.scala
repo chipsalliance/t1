@@ -157,7 +157,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   when(bufferDequeueFire) {
     dataGroup := Mux(waitForFirstDataGroup, 0.U, dataGroup + 1.U)
   }
-  val lastPtr: Bool = accessPtr === lsuRequestReg.instructionInformation.nf
+  val lastPtr: Bool = accessPtr === 0.U
   val writeStageReady: Bool = lastPtr && accessStateCheck
 
   bufferDequeueReady := writeStageReady
@@ -205,7 +205,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   }
   when(bufferDequeueFire || (accessStateCheck && !lastPtr)) {
     accessState := initSendState
-    accessPtr := Mux(bufferDequeueFire, 0.U, accessPtr + 1.U)
+    accessPtr := Mux(bufferDequeueFire, lsuRequestReg.instructionInformation.nf, accessPtr - 1.U)
   }
 
 
