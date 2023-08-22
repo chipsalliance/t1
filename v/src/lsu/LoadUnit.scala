@@ -165,6 +165,9 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   when(bufferDequeueFire || lsuRequest.valid) {
     maskCounterInGroup := Mux(isLastDataGroup || lsuRequest.valid, 0.U, nextMaskCount)
   }
+  when(lsuRequest.valid) {
+    maskGroupCounter := 0.U
+  }
   // 是否可以反向写vrf, 然后第一组24选1的multi cycle
   when(bufferDequeueFire) {
     // 总是换mask组
