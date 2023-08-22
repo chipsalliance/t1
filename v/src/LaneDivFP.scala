@@ -25,6 +25,7 @@ class LaneDivFPRequest(datapathWidth: Int) extends Bundle {
   val executeIndex: UInt = UInt(2.W)
   // csr
   // val vSew: UInt = UInt(2.W)
+  val roundingMode = UInt(3.W)
 }
 
 class LaneDivFPResponse(datapathWidth: Int) extends Bundle {
@@ -57,7 +58,7 @@ class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with
   wrapper.input.bits.sqrt    := sqrt
   wrapper.input.bits.rem     := isRem
   wrapper.input.valid        := requestIO.valid
-
+  wrapper.input.bits.roundingMode := request.roundingMode
 
   val requestFire: Bool = requestIO.fire
   val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestFire)
@@ -93,6 +94,7 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
     val fractEn = Bool()
     val sqrt = Bool()
     val rem = Bool()
+    val roundingMode = UInt(3.W)
   }
   class SRTOut extends Bundle {
     val reminder = UInt(32.W)
@@ -111,6 +113,7 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val fractEnReg = RegEnable(fractEn, false.B, input.fire)
   val opSqrtReg  = RegEnable(input.bits.sqrt, input.fire)
   val remReg     = RegEnable(input.bits.rem, input.fire)
+  val rmReg      = RegEnable(input.bits.roundingMode, input.fire)
 
   val rawA_S = rawFloatFromFN(expWidth, sigWidth, input.bits.a)
   val rawB_S = rawFloatFromFN(expWidth, sigWidth, input.bits.b)
@@ -311,7 +314,7 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
     expToRound,
     sigToRound,
     rbitsToRound,
-    consts.round_near_even,
+    rmReg,
     invalidExec,
     infinitExec,
     isNaN_Z,
