@@ -108,7 +108,8 @@ jobs:
       - id: testcase_status
         run: |
           # Run release only when changes is in tests/ directory or is nix/rvv-testcase.nix or is nix/rvv-testcase-unwrapped.nix
-          git diff --name-only HEAD HEAD^ | grep -q "^tests/\|^nix/rvv-testcase" && \
+          git diff --name-only HEAD HEAD^ | \
+            grep -q "^tests/\|^nix/rvv-testcase\|^.github" && \
             echo "run_release=true" >> $GITHUB_OUTPUT && \
             echo "Release job triggered" || true
 
@@ -117,6 +118,10 @@ jobs:
     needs: report
     if: ${{ needs.report.outputs.should_release_testcase == 'true' }}
     steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: master
       - run: sudo -E .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
@@ -131,10 +136,6 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             sandbox = relaxed
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          ref: master
       - run: |
           nix build .#testcase --print-build-logs --out-link result
           tar czvf rvv-testcase.tar.gz --directory ./result .
