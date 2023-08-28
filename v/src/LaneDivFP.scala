@@ -111,9 +111,9 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val fractEn = input.bits.fractEn
   val sqrtEn  = input.bits.sqrt
   val fractEnReg = RegEnable(fractEn, false.B, input.fire)
-  val opSqrtReg  = RegEnable(input.bits.sqrt, input.fire)
-  val remReg     = RegEnable(input.bits.rem, input.fire)
-  val rmReg      = RegEnable(input.bits.roundingMode, input.fire)
+  val opSqrtReg  = RegEnable(input.bits.sqrt, false.B, input.fire)
+  val remReg     = RegEnable(input.bits.rem,  false.B, input.fire)
+  val rmReg      = RegEnable(input.bits.roundingMode, 0.U(5.W), input.fire)
 
   val rawA_S = rawFloatFromFN(expWidth, sigWidth, input.bits.a)
   val rawB_S = rawFloatFromFN(expWidth, sigWidth, input.bits.b)
@@ -145,9 +145,9 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val isZero_S = Mux(input.bits.sqrt, rawA_S.isZero, rawA_S.isZero || rawB_S.isInf)
 
   val majorExc_Z = RegEnable(majorExc_S, false.B, input.fire)
-  val isNaN_Z = RegEnable(isNaN_S, false.B, input.fire)
-  val isInf_Z = RegEnable(isInf_S, false.B, input.fire)
-  val isZero_Z = RegEnable(isZero_S, false.B, input.fire)
+  val isNaN_Z    = RegEnable(isNaN_S, false.B, input.fire)
+  val isInf_Z    = RegEnable(isInf_S, false.B, input.fire)
+  val isZero_Z   = RegEnable(isZero_S, false.B, input.fire)
 
   /** invalid operation flag */
   val invalidExec = majorExc_Z && isNaN_Z
@@ -168,17 +168,17 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
 
 
   // sign
-  val signNext = Mux(input.bits.sqrt, false.B, rawA_S.sign ^ rawB_S.sign)
-  val signReg = RegEnable(signNext, input.fire)
+  val signNext = Mux(input.bits.sqrt, rawA_S.isZero && rawA_S.sign, rawA_S.sign ^ rawB_S.sign)
+  val signReg = RegEnable(signNext, false.B, input.fire)
 
-  // sqrt input
-
-  /** construct expForSqrt
+  /** sqrt logic
     *
-    * sExp first 2 bits
+    * {{{
+    * rawA_S.sExp first 2 bits
     * 00 -> 10 (subnormal)
     * 01 -> 11 (true exp negative)
     * 10 -> 00 (true exp positive)
+    * }}}
     *
     */
   val expfirst2 = UIntToOH(rawA_S.sExp(expWidth, expWidth - 1))
@@ -187,8 +187,7 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
     Seq(
       expfirst2(0) -> "b10".U,
       expfirst2(1) -> "b11".U,
-      expfirst2(2) -> "b00".U,
-      expfirst2(3) -> "b00".U
+      expfirst2(2) -> "b00".U
     )
   )
 
@@ -263,9 +262,9 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   leftShiftWidthDivisor := zeroHeadDivisor(4, 0)
 
   // control signals used in SRT post-process
-  val negativeSRT        = RegEnable(negative,        divModule.input.fire)
-  val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, divModule.input.fire)
-  val dividendSignSRT    = RegEnable(abs.io.aSign,    divModule.input.fire)
+  val negativeSRT        = RegEnable(negative,        false.B,  divModule.input.fire)
+  val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, 0.U(6.W), divModule.input.fire)
+  val dividendSignSRT    = RegEnable(abs.io.aSign,    false.B,  divModule.input.fire)
 
   // keep for one cycle
   val divideZeroReg    = RegEnable(divideZero, false.B, input.fire)

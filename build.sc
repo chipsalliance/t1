@@ -18,6 +18,10 @@ object v {
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
   val spire = ivy"org.typelevel::spire:latest.integration"
   val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
+
+  val scalatest = ivy"org.scalatest::scalatest:3.2.0"
+  val scalapar = ivy"org.scala-lang.modules::scala-parallel-collections:1.0.4"
+  val oslib =  ivy"com.lihaoyi::os-lib:0.9.1"
 }
 
 object chisel extends Chisel
@@ -48,6 +52,12 @@ trait Arithmetic
   def chiselIvy = None
   
   def chiselPluginIvy = None
+
+  def scalatestIvy = v.scalatest
+
+  def scalaparIvy = v.scalapar
+
+  def oslibIvy = v.oslib
 
   def spireIvy: T[Dep] = v.spire
 
