@@ -23,5 +23,31 @@ class floatAdd extends Module{
 
   io.out := fNFromRecFN(8, 24, addRecFN.io.out)
   io.exceptionFlags := addRecFN.io.exceptionFlags
-
 }
+
+/**
+  * isMax = true  => max
+  * isMax = false => min
+  * */
+class floatCompare extends Module{
+  val expWidth = 8
+  val sigWidth = 24
+  val io = IO(new Bundle {
+    val a = Input(UInt((expWidth + sigWidth).W))
+    val b = Input(UInt((expWidth + sigWidth).W))
+    val isMax = Input(Bool())
+    val out = Output(UInt((expWidth + sigWidth).W))
+    val exceptionFlags = Output(UInt(5.W))
+  })
+
+  val compareModule = Module(new CompareRecFN(8, 24))
+  compareModule.io.a := io.a
+  compareModule.io.b := io.b
+  compareModule.io.signaling := false.B
+  val compareResult = Wire(UInt(32.W))
+  val compareflags  = Wire(UInt(5.W))
+
+  io.out := Mux((io.isMax && compareModule.io.gt) || (!io.isMax && compareModule.io.lt), io.a, io.b)
+  io.exceptionFlags := compareModule.io.exceptionFlags
+}
+
