@@ -173,7 +173,7 @@ object Decoder {
     def value(op: Op): Boolean = subsMap.exists(a => op.name.contains(a._1))
 
     def uop(op: Op): Int = {
-      val isAdder = adderSubsMap.exists(a => op.name.contains(a._1))
+      val isAdder = adderSubsMap.exists(a => op.name.contains(a._1)) || op.name.contains("sum")
       val msbCode = if (isAdder) 8 else 0
       // vfwadd 暂时不支持,所以没处理, 所有的widen narrow 会被解成 fma-0
       val mapFilter: Seq[(String, Int)] = subsMap.filter(a => op.name.contains(a._1))

@@ -44,8 +44,6 @@ class floatCompare extends Module{
   compareModule.io.a := io.a
   compareModule.io.b := io.b
   compareModule.io.signaling := false.B
-  val compareResult = Wire(UInt(32.W))
-  val compareflags  = Wire(UInt(5.W))
 
   io.out := Mux((io.isMax && compareModule.io.gt) || (!io.isMax && compareModule.io.lt), io.a, io.b)
   io.exceptionFlags := compareModule.io.exceptionFlags
