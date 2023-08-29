@@ -22,7 +22,7 @@ abstract class DPIModule
 
   def dpiTrigger[T <: Element](name: String, data: T) = bind(name, false, Input(data.cloneType))
 
-  def dpi[T <: Element](name: String, data: T) = bind(name, true, data.cloneType)
+  def dpi[T <: Element](name: String, data: T) = bind(name, true, data)
 
   val isImport: Boolean
   val references: ArrayBuffer[DPIElement[_]] = scala.collection.mutable.ArrayBuffer.empty[DPIElement[_]]
@@ -55,11 +55,11 @@ abstract class DPIModule
     val localDefinition = "(" + references.map {
       case DPIElement(name, _, element) =>
         val output = chisel3.reflect.DataMirror.directionOf(element) match {
-          case ActualDirection.Empty => false
-          case ActualDirection.Unspecified => false
+          case ActualDirection.Empty => throw new Exception("no direction")
+          case ActualDirection.Unspecified => throw new Exception("no direction")
           case ActualDirection.Output => true
           case ActualDirection.Input => false
-          case ActualDirection.Bidirectional(dir) => false
+          case ActualDirection.Bidirectional(dir) => throw new Exception("unknown direction")
         }
         val width = chisel3.reflect.DataMirror.widthOf(element) match {
           case UnknownWidth() => throw new Exception(s"$desiredName.$name width unknown")
