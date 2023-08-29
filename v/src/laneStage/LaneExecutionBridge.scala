@@ -52,6 +52,9 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
 
   /** mask format result for current `mask group` */
   val maskFormatResultForGroup: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.maskGroupWidth.W)))
+  val firstRequest: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot) {
+    RegEnable(state.newInstruction.get, false.B, state.newInstruction.get || enqueue.fire)
+  }
 
   // state register
   val stageValidReg: Bool = RegInit(false.B)
@@ -78,6 +81,12 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     ffoSuccess.foreach(_ := false.B)
     // 不满写的先读后写
     executionResult := enqueue.bits.src.last
+    // red max min 的第一次不能和上一个指令的reduce结果比, 只能和自己比
+    firstRequest.foreach { first =>
+      when(first && decodeResult(Decoder.float) && decodeResult(Decoder.fpExecutionType).orR){
+        reduceResult.foreach(_ := enqueue.bits.src(1))
+      }
+    }
   }
 
   /** the byte-level mask of current execution.
