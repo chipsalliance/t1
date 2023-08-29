@@ -693,6 +693,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // red alu instance
       val adder:     LaneAdder = Module(new LaneAdder(parameter.adderParam))
       val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datapathWidth))
+      // option unit for flot reduce
+      val floatAdder: Option[floatAdd] = Option.when(parameter.fpuEnable)(Module(new floatAdd))
+      val flotCompare  = Option.when(parameter.fpuEnable)(Module(new floatCompare))
 
       val sign = !decodeResultReg(Decoder.unsigned1)
       val adderRequest = Wire(LaneAdderParam(parameter.datapathWidth).inputBundle)
@@ -715,16 +718,36 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       adder.requestIO.valid := DontCare
       adder.responseIO.ready := DontCare
 
+      floatAdder.foreach { fAdder =>
+        fAdder.io.a := aluInput1
+        fAdder.io.b := aluInput2
+        fAdder.io.roundingMode := csrRegForMaskUnit.vxrm
+      }
+
+      flotCompare.foreach { fCompare =>
+        fCompare.io.a := aluInput1
+        fCompare.io.b := aluInput2
+        // max -> 12, min -> 8
+        fCompare.io.isMax := decodeResultReg(Decoder.uop)(2)
+      }
+
       logicUnit.req.src := VecInit(Seq(aluInput1, aluInput2))
       logicUnit.req.opcode := decodeResultReg(Decoder.uop)
 
       // reduce resultSelect
-      val reduceResult = Mux(
+      val intReduceResult = Mux(
         decodeResultReg(Decoder.adder) || popCount,
         adder.responseIO.bits.asTypeOf(parameter.adderParam.outputBundle).data,
         logicUnit.resp
       )
-      val aluOutPut = Mux(reduce, reduceResult, 0.U)
+      val flotReduceResult: Option[UInt] = Option.when(parameter.fpuEnable)(
+        Mux(decodeResultReg(Decoder.fpExecutionType) === 0.U, floatAdder.get.io.out, flotCompare.get.io.out)
+      )
+      val aluOutPut = Mux1H(
+        Seq(if (parameter.fpuEnable) reduce && !decodeResultReg(Decoder.float) else reduce) ++
+          Option.when(parameter.fpuEnable)(reduce && decodeResultReg(Decoder.float)),
+        Seq(intReduceResult) ++ flotReduceResult
+      )
       // slid & gather unit
       val slideUp = decodeResultReg(Decoder.topUop)(1)
       val slide1 = decodeResultReg(Decoder.topUop)(0) && decodeResultReg(Decoder.slid)
