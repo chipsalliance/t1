@@ -410,6 +410,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   val VFUNotClear:           Bool = Wire(Bool())
 
+  val slot0EnqueueFire: Bool = Wire(Bool())
+
   /** assert when a instruction is finished in the slot. */
   val instructionFinishedVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
 
@@ -529,6 +531,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.instructionIndex := record.laneRequest.instructionIndex
       laneState.maskForMaskGroup := maskForMaskGroup
       laneState.ffoByOtherLanes := record.ffoByOtherLanes
+      laneState.newInstruction.foreach(_ := slot0EnqueueFire)
 
       stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask)
       stage0.enqueue.bits.maskIndex := maskIndexVec(index)
@@ -1019,6 +1022,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       slotOccupied(slotIndex) := slotEnqueueFire(slotIndex)
     }
   }
+  slot0EnqueueFire := slotEnqueueFire.head
 
   // handshake
   laneRequest.ready := !slotOccupied.last && vrf.instructionWriteReport.ready
