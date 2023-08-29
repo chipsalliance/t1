@@ -57,6 +57,8 @@ abstract class StrideBase(param: MSHRParam) extends Module {
    */
   val maskSelect: ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
 
+  val addressConflict: Bool = IO(Input(Bool()))
+
   // always use intermediate from instruction for unit stride.
   val dataEEW: UInt = RegEnable(lsuRequest.bits.instructionInformation.eew, 0.U, lsuRequest.valid)
 
@@ -163,4 +165,17 @@ abstract class StrideBase(param: MSHRParam) extends Module {
       1.U,
       lsuRequest.valid
     )
+
+  /** How many byte will be accessed by this instruction */
+  val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
+
+  val baseAddressAligned: Bool = !lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0).orR
+
+  /** How many cache lines will be accessed by this instruction
+   * nFiled * vl * (2 ** eew) / 32
+   */
+  val lastCacheLineIndex: UInt = (bytePerInstruction >> param.cacheLineBits).asUInt +
+    bytePerInstruction(param.cacheLineBits - 1, 0).orR - baseAddressAligned
+
+  val cacheLineNumberReg: UInt = RegEnable(lastCacheLineIndex, 0.U, lsuRequest.valid)
 }

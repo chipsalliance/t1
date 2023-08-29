@@ -212,6 +212,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     lsuRequestReg.rs1Data(param.bankPosition + log2Ceil(param.memoryBankSize) - 1, param.bankPosition) +
       bufferBaseCacheLineIndex(log2Ceil(param.memoryBankSize) - 1, 0)
   val selectOH: UInt = UIntToOH(alignedPortSelect)
+  val currentAddress: Vec[UInt] = Wire(Vec(param.memoryBankSize, UInt(param.tlParam.a.addressWidth.W)))
   // tl 发送单元
   val readyVec: Vec[Bool] = VecInit(Seq.tabulate(param.memoryBankSize) { portIndex =>
     val dataToSend: ValidIO[cacheLineEnqueueBundle] = RegInit(0.U.asTypeOf(Valid(new cacheLineEnqueueBundle(param))))
@@ -222,6 +223,10 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     val last = burstIndex.andR
     val enqueueReady: Bool = !dataToSend.valid
     val enqueueFire: Bool = enqueueReady && alignedDequeue.valid && selectOH(portIndex)
+    val firstCacheLine = RegEnable(lsuRequest.valid, true.B, lsuRequest.valid || enqueueFire)
+    val address = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + dataToSend.bits.index) ##
+      0.U(param.cacheLineBits.W)
+    currentAddress(portIndex) := Mux(firstCacheLine, 0.U, address)
     status.releasePort(portIndex) := burstIndex === 0.U
     when(enqueueFire) {
       dataToSend.bits := alignedDequeue.bits
@@ -235,13 +240,12 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       burstIndex := Mux(enqueueFire, 0.U, burstIndex + 1.U)
     }
 
-    port.valid := dataToSend.valid
+    port.valid := dataToSend.valid && !addressConflict
     port.bits.opcode := 0.U
     port.bits.param := 0.U
     port.bits.size := param.cacheLineBits.U
     port.bits.source := dataToSend.bits.index
-    port.bits.address := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + dataToSend.bits.index) ##
-      0.U(param.cacheLineBits.W)
+    port.bits.address := address
     port.bits.mask := Mux1H(
       burstOH,
       Seq.tabulate(burstSize)(burstIndex => dataToSend.bits.mask(
@@ -269,5 +273,8 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   status.last := (!idleNext && status.idle) || invalidInstructionNext
   status.changeMaskGroup := maskSelect.valid && !lsuRequest.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
-
+  status.startAddress := Mux1H(selectOH, currentAddress)
+  status.endAddress := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineNumberReg) ##
+    0.U(param.cacheLineBits.W)
+  dontTouch(status)
 }

@@ -19,6 +19,9 @@ class LSUBaseStatus extends Bundle {
   val instructionIndex: UInt = UInt(3.W)
 
   val changeMaskGroup: Bool = Bool()
+
+  val startAddress: UInt = UInt(32.W)
+  val endAddress: UInt = UInt(32.W)
 }
 
 class SimpleAccessStatus(laneNumber: Int) extends LSUBaseStatus {

@@ -285,4 +285,18 @@ class LSU(param: LSUParam) extends Module {
   lsuOffsetRequest := otherUnit.status.offsetGroupEnd
   loadUnit.writeReadyForLsu := writeReadyForLsu
   storeUnit.vrfReadyToStore := vrfReadyToStore
+
+  val unitOrder: Bool = instIndexL(loadUnit.status.instructionIndex, storeUnit.status.instructionIndex)
+  val storeStartLargerThanLoadStart: Bool = loadUnit.status.startAddress <= storeUnit.status.startAddress
+  val storeStartLessThanLoadEnd: Bool = storeUnit.status.startAddress <= loadUnit.status.endAddress
+  val storeEndLargerThanLoadStart: Bool = loadUnit.status.startAddress <= storeUnit.status.endAddress
+  val storeEndLessThanLoadEnd: Bool = storeUnit.status.endAddress <= loadUnit.status.endAddress
+
+  val addressOverlap: Bool = ((storeStartLargerThanLoadStart && storeStartLessThanLoadEnd) ||
+    (storeEndLargerThanLoadStart || storeEndLessThanLoadEnd)) && !(storeUnit.status.idle || loadUnit.status.idle)
+  val stallLoad: Bool = !unitOrder && addressOverlap
+  val stallStore: Bool = unitOrder && addressOverlap
+
+  loadUnit.addressConflict := stallLoad
+  storeUnit.addressConflict := stallStore
 }

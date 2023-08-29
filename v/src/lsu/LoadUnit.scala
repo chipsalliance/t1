@@ -32,19 +32,8 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   val cacheLineIndex = RegEnable(Mux(lsuRequest.valid, 0.U, nextCacheLineIndex), tlPortA.fire || lsuRequest.valid)
   nextCacheLineIndex := cacheLineIndex + 1.U
 
-  /** How many byte will be accessed by this instruction */
-  val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
-
-  val baseAddressAligned: Bool = !lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0).orR
   val baseAddressAlignedReg: Bool = RegEnable(baseAddressAligned, false.B, lsuRequest.valid)
 
-  /** How many cache lines will be accessed by this instruction
-   * nFiled * vl * (2 ** eew) / 32
-   */
-  val lastCacheLineIndex: UInt = (bytePerInstruction >> param.cacheLineBits).asUInt +
-    bytePerInstruction(param.cacheLineBits - 1, 0).orR - baseAddressAligned
-
-  val cacheLineNumberReg: UInt = RegEnable(lastCacheLineIndex, 0.U, lsuRequest.valid)
   val validInstruction = !invalidInstruction && lsuRequest.valid
   val lastRequest: Bool = cacheLineNumberReg === cacheLineIndex
   val sendRequest: Bool =
@@ -63,7 +52,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   tlPortA.bits.mask := -1.S(tlPortA.bits.mask.getWidth.W).asUInt
   tlPortA.bits.data := 0.U
   tlPortA.bits.corrupt := false.B
-  tlPortA.valid := sendRequest
+  tlPortA.valid := sendRequest && !addressConflict
 
   val queue: Seq[DecoupledIO[TLChannelD]] =
     Seq.tabulate(param.memoryBankSize)(index => Queue(tlPortD(index), burstSize))
@@ -252,4 +241,8 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   status.last := (!idleNext && status.idle) || invalidInstructionNext
   status.changeMaskGroup := maskSelect.valid && !lsuRequest.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
+  status.startAddress := requestAddress
+  status.endAddress := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineNumberReg) ##
+    0.U(param.cacheLineBits.W)
+  dontTouch(status)
 }
