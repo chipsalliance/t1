@@ -88,8 +88,6 @@ jobs:
     if: github.event.pull_request.merged == true && always()
     needs: [ci]
     runs-on: [self-hosted, linux]
-    outputs:
-      should_release_testcase: ${{ steps.testcase_status.outputs.run_release }}
     steps:
       - uses: actions/download-artifact@v3
         with:
@@ -101,22 +99,10 @@ jobs:
       - run: |
           echo -e "\n## Still failing tests\n" >> $GITHUB_STEP_SUMMARY
           find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          ref: master
-      - id: testcase_status
-        run: |
-          # Run release only when changes is in tests/ directory or is nix/rvv-testcase.nix or is nix/rvv-testcase-unwrapped.nix
-          git diff --name-only HEAD HEAD^ | \
-            grep -q "^tests/\|^nix/rvv-testcase\|^.github" && \
-            echo "run_release=true" >> $GITHUB_OUTPUT && \
-            echo "Release job triggered" || true
 
   release:
     runs-on: [self-hosted, linux]
     needs: report
-    if: ${{ needs.report.outputs.should_release_testcase == 'true' }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -136,46 +122,26 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             sandbox = relaxed
-      - run: |
+      - id: build
+        run: |
           nix build .#testcase --print-build-logs --out-link result
           tar czvf rvv-testcase.tar.gz --directory ./result .
+          . .github/scripts/ci.sh
+          check_before_do_release ./rvv-testcase.tar.gz
       - uses: "marvinpinto/action-automatic-releases@latest"
         id: step-release
-        if: success()
+        if: ${{ steps.build.outputs.do_release == 'true' }}
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: true
           automatic_release_tag: "latest"
           title: "Testcase Release ${{ github.sha }}"
           files: ./rvv-testcase.tar.gz
-      - if: success()
-        id: step-bump
+      - if: ${{ steps.build.outputs.do_release == 'true' }}
         run: |
-          NIX_FILE="./nix/rvv-testcase-unwrapped.nix"
-          NIX_EXPR_PREFIX="with import <nixpkgs> {}; let pkg = callPackage $NIX_FILE {}; in"
-          get_src_url() {
-            nix eval --impure --raw --expr "$NIX_EXPR_PREFIX pkg.src.url"
-          }
-          get_output_hash() {
-            nix eval --impure --raw --expr "$NIX_EXPR_PREFIX pkg.src.outputHash"
-          }
-          src_url=$(get_src_url)
-          echo "Updating src url: $src_url"
-          new_file=$(nix-prefetch-url $src_url --print-path --type sha256 | tail -n1)
-          echo "File downloaded to $new_file"
-          new_hash=$(nix hash file --base16 --type sha256 --sri $new_file)
-          echo "Generated new hash: $new_hash"
-          old_hash=$(get_output_hash)
-          sed -i "s|$old_hash|$new_hash|" $NIX_FILE
-          new_hash=$(get_output_hash)
-          if [[ "$old_hash" = "$new_hash" ]]; then
-            echo "No update"
-            echo "CREATE_PR=0" >> $GITHUB_OUTPUT
-          else
-            echo "Hash is updated from $old_hash to $new_hash"
-            echo "CREATE_PR=1" >> $GITHUB_OUTPUT
-          fi
-      - if: ${{ steps.step-bump.outputs.CREATE_PR == '1' }}
+          . .github/scripts/ci.sh
+          bump
+      - if: ${{ steps.build.outputs.do_release == 'true' }}
         uses: peter-evans/create-pull-request@v5
         with:
           add-paths: ./nix/rvv-testcase-unwrapped.nix
