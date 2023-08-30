@@ -6,9 +6,9 @@ import freechips.rocketchip.devices.debug.Debug
 import freechips.rocketchip.diplomacy.LazyModule
 import freechips.rocketchip.subsystem.{ExtBus, ExtMem}
 import freechips.rocketchip.util.AsyncResetReg
+import org.chipsalliance.cde.config.Parameters
 
-class TestHarness extends RawModule {
-  implicit val p = new VerdesConfig
+class TestHarness(implicit val p: Parameters) extends RawModule {
   val ldut = LazyModule(new VerdesSystem)
   val dpiClockGen = Module(new ClockGen(ClockGenParameter(2)))
   val clock = read(dpiClockGen.clock)
