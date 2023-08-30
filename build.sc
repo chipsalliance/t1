@@ -555,10 +555,9 @@ trait VectorSubsystem
         "--split-verilog",
         "--strip-debug-info",
         "--preserve-values=none",
-        "--preserve-aggregate=all",
+        // "--preserve-aggregate=all", // TODO: fix chisel
         "--disable-annotation-unknown",
         "--output-annotation-file=mfc.anno.json",
-        "--repl-seq-mem",
         "--repl-seq-mem-file=repl-seq-mem.txt"
       )
     ).call(T.dest)
