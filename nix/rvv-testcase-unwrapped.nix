@@ -7,8 +7,9 @@ stdenv.mkDerivation rec {
     url = "https://github.com/sequencer/vector/releases/download/${version}/rvv-testcase.tar.gz";
     sha256 = "sha256-hitMGx2ZZH/qzXZtPpgd9p7IgviDDzqska4jhSShsZk=";
   };
+  dontUnpack = true;
   installPhase = ''
     mkdir $out
-    cp -r $src/* $out
+    tar xzf $src -C $out
   '';
 }
