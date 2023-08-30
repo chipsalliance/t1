@@ -15,7 +15,7 @@ class LazyAXI4MemBFM(edge: AXI4EdgeParameters, size: BigInt, base: BigInt = 0)(i
       wcorrupt=edge.slave.requestKeys.contains(AMBACorrupt)))
   }
   val xbar = AXI4Xbar()
-  bfms.foreach{ s => s.node := AXI4Buffer() := AXI4Fragmenter() := xbar }
+  bfms.foreach{ s => s.node := AXI4Buffer() := xbar }
   xbar := node
   val io_axi4 = InModuleBody { node.makeIOs() }
 }
