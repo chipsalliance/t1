@@ -7,12 +7,16 @@ import freechips.rocketchip.diplomacy.LazyModule
 import freechips.rocketchip.subsystem.{ExtBus, ExtMem}
 import freechips.rocketchip.util.AsyncResetReg
 import org.chipsalliance.cde.config.Parameters
+import verdes.dpi._
 
 class TestHarness(implicit val p: Parameters) extends RawModule {
   val ldut = LazyModule(new VerdesSystem)
   val dpiClockGen = Module(new ClockGen(ClockGenParameter(2)))
   val clock = read(dpiClockGen.clock)
   val reset = read(dpiClockGen.reset)
+  val dpiInit = Module(new InitCosim)
+  val dpiDumpWave = Module(new DumpWave)
+  val dpiFinish = Module(new Finish)
 
   withClockAndReset(clock.asClock, reset) {
     val dut = Module(ldut.module)
