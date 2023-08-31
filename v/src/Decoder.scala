@@ -186,6 +186,10 @@ object Decoder {
     def value(op: Op): Boolean = op.name.contains("vfmul")
   }
 
+  object orderReduce extends BoolField {
+    def value(op: Op): Boolean = op.name.contains("vfredosum")
+  }
+
   object FDiv extends BoolField {
     // todo: remove FDiv
     val subsMap: Seq[(String, Int)] = Seq.empty[(String, Int)]
@@ -411,7 +415,7 @@ object Decoder {
   }
 
   object unOrderWrite extends BoolField {
-    def value(op: Op): Boolean = slid.value(op) || iota.value(op) || mv.value(op)
+    def value(op: Op): Boolean = slid.value(op) || iota.value(op) || mv.value(op) || orderReduce.value(op)
   }
 
   // TODO[2]: uop should be well documented
@@ -638,7 +642,8 @@ object Decoder {
         Seq(
           float,
           fpExecutionType,
-          floatMul
+          floatMul,
+          orderReduce
         )
       else Seq()
     }
