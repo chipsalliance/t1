@@ -509,8 +509,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val slidUnitIdle: Bool = RegInit(true.B)
       // compress & iota
       val iotaUnitIdle: Bool = RegInit(true.B)
-      val maskUnitIdle = slidUnitIdle && iotaUnitIdle
+      val orderedReduceGroupCount: Option[UInt] = Option.when(parameter.fpuEnable)(
+        RegInit(0.U(log2Ceil(parameter.vLen / parameter.laneNumber).W))
+      )
+      val orderedReduceIdle: Option[Bool] = Option.when(parameter.fpuEnable)(RegInit(true.B))
+      val maskUnitIdle = (Seq(slidUnitIdle, iotaUnitIdle) ++ orderedReduceIdle).reduce(_ && _)
       val reduce = decodeResultReg(Decoder.red)
+      val orderedReduce: Bool = if (parameter.fpuEnable) decodeResultReg(Decoder.orderReduce) else false.B
       val popCount = decodeResultReg(Decoder.popCount)
       val extend = decodeResultReg(Decoder.extend)
       // first type instruction
@@ -578,6 +583,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         slidUnitIdle := !((decodeResult(Decoder.slid) || (decodeResult(Decoder.gather) && decodeResult(Decoder.vtype))
           || decodeResult(Decoder.extend)) && instructionValid)
         iotaUnitIdle := !((decodeResult(Decoder.compress) || decodeResult(Decoder.iota)) && instructionValid)
+        orderedReduceIdle.foreach( _ := !(decodeResult(Decoder.orderReduce) && instructionValid))
+        orderedReduceGroupCount.foreach(_ := 0.U)
         vd := requestRegDequeue.bits.instruction(11, 7)
         vs1 := requestRegDequeue.bits.instruction(19, 15)
         vs2 := requestRegDequeue.bits.instruction(24, 20)
@@ -681,7 +688,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       }
       // alu start
       val aluInput1 = Mux(
-        executeCounter === 0.U,
+        (Seq(executeCounter === 0.U) ++ orderedReduceGroupCount.map(_ === 0.U)).reduce(_ && _),
         Mux(
           needWAR,
           WARRedResult.bits & FillInterleaved(8, writeMask),
@@ -1049,6 +1056,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           maskUnitReadVec.head.valid := true.B
         }
         // 可能有的计算
+        val nextExecuteIndex: UInt = executeCounter + 1.U
+        val isLastExecuteForGroup: Bool = executeCounter(log2Ceil(parameter.laneNumber) - 1, 0).andR
+        val lastExecuteForInstruction: Option[Bool] = orderedReduceGroupCount.map(count =>
+          (count ## 0.U(log2Ceil(parameter.laneNumber).W) + nextExecuteIndex) === csrRegForMaskUnit.vl
+        )
         val readFinish = WARRedResult.valid || !needWAR
         val readDataSign = Mux1H(vSewOHForMask(2, 0), Seq(WARRedResult.bits(7), WARRedResult.bits(15), WARRedResult.bits(31)))
         when(readFinish) {
@@ -1060,12 +1072,28 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
               WARRedResult.bits(7, 0)
 
           }.otherwise {
-            executeCounter := executeCounter + 1.U
+            executeCounter := nextExecuteIndex
             dataResult.bits := aluOutPut
+            if (parameter.fpuEnable) {
+              when(!orderedReduceIdle.get) {
+                when(isLastExecuteForGroup) {
+                  synchronized := true.B
+                  executeCounter := 0.U
+                  dataClear := !lastExecuteForInstruction.get
+                  orderedReduceGroupCount.foreach(d => d := d + 1.U)
+                }
+                when(lastExecuteForInstruction.get) {
+                  orderedReduceIdle.get := true.B
+                }
+              }
+            }
           }
         }
+        orderedReduceIdle.foreach(f => when(f){
+          dataClear := orderedReduce
+        })
         val executeFinish: Bool =
-          (executeCounter(log2Ceil(parameter.laneNumber)) || !(reduce || popCount)) && maskUnitIdle
+          (executeCounter(log2Ceil(parameter.laneNumber)) || !(reduce || popCount) || orderedReduce) && maskUnitIdle
         val schedulerWrite = decodeResultReg(Decoder.maskDestination) || (reduce && !popCount) || writeMv
         // todo: decode
         val groupSync = decodeResultReg(Decoder.ffo)

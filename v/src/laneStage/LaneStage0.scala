@@ -127,12 +127,13 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   updateLaneState.maskGroupCount := enqueue.bits.maskGroupCount + maskGroupWillUpdate
 
   stageWire.sSendResponse.foreach { data =>
-    data :=
-      !(state.loadStore ||
-        state.decodeResult(Decoder.readOnly) ||
-        (state.decodeResult(Decoder.red) && isTheLastGroup) ||
-        (state.decodeResult(Decoder.maskDestination) && (maskGroupWillUpdate || isTheLastGroup)) ||
-        state.decodeResult(Decoder.ffo))
+    data := !(Seq(
+      state.loadStore,
+      state.decodeResult(Decoder.readOnly),
+      state.decodeResult(Decoder.red) && isTheLastGroup,
+      state.decodeResult(Decoder.maskDestination) && (maskGroupWillUpdate || isTheLastGroup),
+      state.decodeResult(Decoder.ffo)
+    ) ++ Option.when(parameter.fpuEnable)(state.decodeResult(Decoder.orderReduce))).reduce(_ || _)
   }
   when(enqFire ^ dequeue.fire) {
     stageValidReg := enqFire
