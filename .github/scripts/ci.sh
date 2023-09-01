@@ -14,6 +14,10 @@ get_output_hash() {
   nix_eval "pkg.src.outputHash"
 }
 
+get_version() {
+  nix_eval "pkg.version"
+}
+
 nix_hash() {
   local filepath=$1; shift
   nix hash file --base16 --type sha256 --sri $filepath
@@ -37,11 +41,26 @@ check_before_do_release() {
   fi
 }
 
+bump_version() {
+  local version=$1; shift
+
+  local old_version=$(get_version)
+  sed -i "s|$old_version|$version|" $NIX_FILE
+
+  echo "Version updated to $(get_version)"
+}
+
 bump() {
+  local version=$1; shift
+  [[ -z "$version" ]] && echo "Missing arugment 'version'" && return 1
+
+  bump_version "$version"
+
   local src_url=$(get_src_url)
   echo "Fetching $src_url"
   local new_file=$(nix_fetch "$src_url" | tail -n1)
   echo "File downloaded to $new_file"
+
   new_hash=$(nix_hash $new_file)
   echo "Generated new hash: $new_hash"
   old_hash=$(get_output_hash)
