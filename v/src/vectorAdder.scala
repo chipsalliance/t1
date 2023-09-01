@@ -96,7 +96,7 @@ class vectorAdder(val width: Int) extends Module {
   ))
   val treeRestore = treeRestoreP.asBools.zip(treeRestoreG.asBools)
 
-  def buildCarry(tree: Seq[(Bool, Bool)], pg: Seq[(Bool, Bool)], cin: UInt): UInt = {
+  def buildCarry(tree: Seq[(Bool, Bool)], cin: UInt): UInt = {
     val ci0 = VecInit(tree.slice(0, 8).map(pg => cgen(pg, cin(0)))).asUInt
     val ci1 = VecInit(tree.slice(8, 16).map(pg => cgen(pg, cin(1)))).asUInt
     val ci2 = VecInit(tree.slice(16, 24).map(pg => cgen(pg, cin(2)))).asUInt
@@ -105,7 +105,7 @@ class vectorAdder(val width: Int) extends Module {
   }
 
   /** if carry generated in each bit */
-  val carry = buildCarry(treeRestore, pairs, cin)
+  val carry = buildCarry(treeRestore, cin)
   val cout8  = carry(31) ## carry(23) ## carry(15) ## carry(7)
   val cout16 = carry(31) ## carry(15)
   val cout32 = carry(31)
