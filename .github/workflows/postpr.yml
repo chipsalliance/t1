@@ -134,21 +134,21 @@ jobs:
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: true
-          automatic_release_tag: "latest"
+          automatic_release_tag: "${{ github.sha }}"
           title: "Testcase Release ${{ github.sha }}"
           files: ./rvv-testcase.tar.gz
       - if: ${{ steps.build.outputs.do_release == 'true' }}
         run: |
           . .github/scripts/ci.sh
-          bump
+          bump "$GITHUB_SHA"
       - if: ${{ steps.build.outputs.do_release == 'true' }}
         uses: peter-evans/create-pull-request@v5
         with:
           add-paths: ./nix/rvv-testcase-unwrapped.nix
-          commit-message: "[nix] bump testcase"
+          commit-message: "[nix] bump testcase to version ${{ github.sha }}"
           branch: nix-testcase-bump
           delete-branch: true
-          title: "[nix] bump testcase"
+          title: "[nix] bump testcase to version ${{ github.sha }}"
           body: "Bump rvv-testcase-unwrapped.nix"
           reviewers: |
             avimitin
