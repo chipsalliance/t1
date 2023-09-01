@@ -58,7 +58,7 @@ The v1p0 will tapeout in 2023 with TSN28 process. This tapeout is the silicon ve
 ### After v1p0 tapeout
 - 64-bits support;
 - IEEE-754 FPU support;
-- FGMT scalar code for handling interupt during vector SIMD being running;
+- FGMT scalar code for handling interrupt during vector SIMD being running;
 - MMU support;
 - MSP support;
 
