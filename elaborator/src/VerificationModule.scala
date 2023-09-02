@@ -4,16 +4,16 @@
 package tests.elaborate
 
 import chisel3._
-import chisel3.experimental.ExtModule
+import chisel3.probe._
 import chisel3.experimental.hierarchy._
-import chisel3.util.{log2Ceil, Decoupled, DecoupledIO, HasExtModuleInline, Valid, ValidIO}
+import chisel3.util.experimental.BoringUtils.{bore, tap, tapAndRead}
+import chisel3.util.{Decoupled, DecoupledIO, HasExtModuleInline, Valid, ValidIO, log2Ceil}
 import tilelink.{TLBundle, TLChannelA}
-import v.{LSUWriteQueueBundle, CSRInterface, V, VRFWriteRequest, VRequest, VResponse}
+import v.{CSRInterface, LSUWriteQueueBundle, V, VRFWriteRequest, VRequest, VResponse}
+import elaborate.dpi._
 
-class VerificationModule(dut: V) extends TapModule {
+class VerificationModule(dut: V) extends RawModule {
   override val desiredName = "VerificationModule"
-  val clock = IO(Output(Clock()))
-  val reset = IO(Output(Bool()))
 
   val clockRate = 5
 
@@ -27,52 +27,20 @@ class VerificationModule(dut: V) extends TapModule {
 
   val negLatPeekWriteQueue = 1
 
-  val verbatim = Module(new ExtModule with HasExtModuleInline {
-    override val desiredName = "Verbatim"
-    val clock = IO(Output(Clock()))
-    val reset = IO(Output(Bool()))
-    setInline(
-      "verbatim.sv",
-      s"""module Verbatim(
-         |  output clock,
-         |  output reset
-         |);
-         |  reg _clock = 1'b0;
-         |  always #($clockRate) _clock = ~_clock;
-         |  reg _reset = 1'b1;
-         |  initial #(${2 * clockRate + 1}) _reset = 0;
-         |
-         |  assign clock = _clock;
-         |  assign reset = _reset;
-         |
-         |  import "DPI-C" function void dpiInitCosim();
-         |  initial dpiInitCosim();
-         |
-         |  import "DPI-C" function void dpiTimeoutCheck();
-         |  always #(${2 * clockRate + 1}) dpiTimeoutCheck();
-         |
-         |  export "DPI-C" function dpiDumpWave;
-         |  function dpiDumpWave(input string file);
-         |   $$dumpfile(file);
-         |   $$dumpvars(0);
-         |  endfunction;
-         |
-         |  export "DPI-C" function dpiFinish;
-         |  function dpiFinish();
-         |   $$finish;
-         |  endfunction;
-         |
-         |  export "DPI-C" function dpiError;
-         |  function dpiError(input string what);
-         |   $$error(what);
-         |  endfunction;
-         |
-         |endmodule
-         |""".stripMargin
-    )
-  })
-  clock := verbatim.clock
-  reset := verbatim.reset
+  val clockGen = Module(new ClockGen(ClockGenParameter(clockRate)))
+
+  val dumpDumpWave = Module(new DpiDumpWave)
+  val dpiFinish = Module(new DpiFinish)
+  val dpiError = Module(new DpiError)
+  val dpiInit = Module(new DpiInitCosim)
+  val dpiTimeoutCheck = Module(new TimeoutCheck(new TimeoutCheckParameter(clockRate)))
+
+  val clock = IO(Output(Clock()))
+  val reset = IO(Output(Bool()))
+
+  val genClock = read(clockGen.clock)
+  clock := genClock.asClock
+  reset := read(clockGen.reset)
 
   // clone IO from V(I need types)
   val req:              DecoupledIO[VRequest] = IO(Decoupled(new VRequest(dut.parameter.xLen)))
@@ -82,381 +50,107 @@ class VerificationModule(dut: V) extends TapModule {
   val tlPort:           Vec[TLBundle] = IO(Vec(dut.parameter.memoryBankSize, Flipped(dut.parameter.tlParam.bundle())))
   storeBufferClear := true.B
 
-  // XMR
-  val laneWriteReadySeq = dut.laneVec.map(_.vrf.write.ready).map(tap)
-  val laneWriteValidSeq = dut.laneVec.map(_.vrf.write.valid).map(tap)
-  val laneWriteBitsSeq = dut.laneVec.map(_.vrf.write.bits).map(tap)
-
-  val lsuReqEnqDbg = withClockAndReset(clock, reset)(RegNext(tap(dut.lsu.reqEnq)))
-  val lsuReqEnqPeek = Module(new ExtModule with HasExtModuleInline {
-    override val desiredName = "dpiPeekLsuEnq"
-    val clock = IO(Input(Clock()))
-    val numMshr = dut.parameter.lsuParam.lsuMSHRSize
-    val enq = IO(Input(UInt(numMshr.W)))
-    setInline(
-      s"$desiredName.sv",
-      s"""module $desiredName(
-         |  input clock,
-         |  input bit[${enq.getWidth - 1}:0] enq
-         |);
-         |import "DPI-C" function void $desiredName(
-         |  input bit[${enq.getWidth - 1}:0] enq
-         |);
-         |always @ (posedge clock) #($latPeekLsuEnq) $desiredName(enq);
-         |endmodule
-         |""".stripMargin
-    )
-  })
-  lsuReqEnqPeek.clock := clock
-  lsuReqEnqPeek.enq := lsuReqEnqDbg.asUInt
+  val peekLsuEnq = Module(new PeekLsuEnq(PeekLsuEnqParameter(dut.parameter.lsuParam.lsuMSHRSize, latPeekLsuEnq)))
+  peekLsuEnq.clock.ref := genClock
+  peekLsuEnq.enq.ref := tapAndRead(dut.lsu.reqEnq).asUInt
 
   dut.lsu.writeQueueVec.zipWithIndex.foreach {
     case (mshr, i) =>
-      val enq_data = tap(mshr.io.enq.bits.data)
-      val targetLane = tap(mshr.io.enq.bits.targetLane)
-      val peekWriteQueue = Module(new ExtModule with HasExtModuleInline {
-        override val desiredName = "dpiPeekWriteQueue"
-        val clock = IO(Input(Clock()))
-        val data = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.vrfOffsetBits, dut.parameter.vrfParam.instructionIndexBits, dut.parameter.vrfParam.datapathWidth)))
-        val writeValid = IO(Input(Bool()))
-        val targetLane = IO(Input(UInt(dut.parameter.laneNumber.W)))
-        val mshrIdx = IO(Input(UInt(32.W)))
-        setInline(
-          s"$desiredName.sv",
-          s"""module $desiredName(
-             |  input clock,
-             |  input bit writeValid,
-             |  input int mshrIdx,
-             |  input bit[${enq_data.vd.getWidth - 1}:0] data_vd,
-             |  input bit[${enq_data.offset.getWidth - 1}:0] data_offset,
-             |  input bit[${enq_data.mask.getWidth - 1}:0] data_mask,
-             |  input bit[${enq_data.data.getWidth - 1}:0] data_data,
-             |  input bit[${enq_data.instructionIndex.getWidth - 1}:0] data_instructionIndex,
-             |  input bit[${enq_data.last.getWidth - 1}:0] data_last,
-             |  input bit[${targetLane.getWidth - 1}:0] targetLane
-             |);
-             |import "DPI-C" function void $desiredName(
-             |  input int mshr_index,
-             |  input bit write_valid,
-             |  input bit[${enq_data.vd.getWidth - 1}:0] data_vd,
-             |  input bit[${enq_data.offset.getWidth - 1}:0] data_offset,
-             |  input bit[${enq_data.mask.getWidth - 1}:0] data_mask,
-             |  input bit[${enq_data.data.getWidth - 1}:0] data_data,
-             |  input bit[${enq_data.instructionIndex.getWidth - 1}:0] data_instructionIndex,
-             |  input bit[${targetLane.getWidth - 1}:0] targetLane
-             |);
-             |always @ (negedge clock) #($negLatPeekWriteQueue) $desiredName(
-             |  mshrIdx,
-             |  writeValid,
-             |  data_vd,
-             |  data_offset,
-             |  data_mask,
-             |  data_data,
-             |  data_instructionIndex,
-             |  targetLane
-             |);
-             |endmodule
-             |""".stripMargin
-        )
-      })
-      peekWriteQueue.mshrIdx := i.U
-      peekWriteQueue.clock := clock
-      peekWriteQueue.data := enq_data
-      peekWriteQueue.writeValid := tap(mshr.io.enq.valid)
-      peekWriteQueue.targetLane := targetLane
+      val peekWriteQueue = Module(new PeekWriteQueue(PeekWriteQueueParameter(
+        dut.parameter.vrfParam.regNumBits,
+        dut.parameter.laneNumber,
+        dut.parameter.vrfParam.vrfOffsetBits,
+        dut.parameter.vrfParam.instructionIndexBits,
+        dut.parameter.vrfParam.datapathWidth,
+        negLatPeekWriteQueue,
+      )))
+      peekWriteQueue.mshrIdx.ref := i.U
+      peekWriteQueue.clock.ref := genClock
+      peekWriteQueue.data_vd.ref := tapAndRead(mshr.io.enq.bits.data.vd)
+      peekWriteQueue.data_offset.ref := tapAndRead(mshr.io.enq.bits.data.offset)
+      peekWriteQueue.data_mask.ref := tapAndRead(mshr.io.enq.bits.data.mask)
+      peekWriteQueue.data_data.ref := tapAndRead(mshr.io.enq.bits.data.data)
+      peekWriteQueue.data_instruction.ref := tapAndRead(mshr.io.enq.bits.data.instructionIndex)
+      peekWriteQueue.writeValid.ref := tapAndRead(mshr.io.enq.valid)
+      peekWriteQueue.targetLane.ref := tapAndRead(mshr.io.enq.bits.targetLane)
   }
 
   dut.laneVec.zipWithIndex.foreach {
     case (lane, i) =>
-      val writePeek = Module(new ExtModule with HasExtModuleInline {
-        override val desiredName = "dpiPeekVrfWrite"
-        val clock = IO(Input(Clock()))
-        val valid = IO(Input(Bool()))
-        val landIdx = IO(Input(UInt(32.W)))
-        val request = IO(Input(new VRFWriteRequest(dut.parameter.vrfParam.regNumBits, dut.parameter.vrfParam.vrfOffsetBits, dut.parameter.vrfParam.instructionIndexBits, dut.parameter.vrfParam.datapathWidth)))
-        setInline(
-          s"$desiredName.sv",
-          s"""module $desiredName(
-             |  input clock,
-             |  input bit valid,
-             |  input int landIdx,
-             |  input bit[${request.vd.getWidth - 1}:0] request_vd,
-             |  input bit[${request.offset.getWidth - 1}:0] request_offset,
-             |  input bit[${request.mask.getWidth - 1}:0] request_mask,
-             |  input bit[${request.data.getWidth - 1}:0] request_data,
-             |  input bit[${request.instructionIndex.getWidth - 1}:0] request_instructionIndex,
-             |  input bit[${request.last.getWidth - 1}:0] request_last
-             |);
-             |import "DPI-C" function void $desiredName(
-             |  input int land_idx,
-             |  input bit valid,
-             |  input bit[${request.vd.getWidth - 1}:0] request_vd,
-             |  input bit[${request.offset.getWidth - 1}:0] request_offset,
-             |  input bit[${request.mask.getWidth - 1}:0] request_mask,
-             |  input bit[${request.data.getWidth - 1}:0] request_data,
-             |  input bit[${request.instructionIndex.getWidth - 1}:0] request_instructionIndex
-             |);
-             |always @ (posedge clock) #($latPeekVrfWrite) $desiredName(landIdx, valid, request_vd, request_offset, request_mask, request_data, request_instructionIndex);
-             |endmodule
-             |""".stripMargin
-        )
-      })
-      writePeek.landIdx := i.U
-      writePeek.valid := tap(lane.vrf.write.valid)
-      writePeek.clock := clock
-      writePeek.request := tap(lane.vrf.write.bits)
+      val peekVrfWrite = Module(new PeekVrfWrite(PeekVrfWriteParameter(
+        dut.parameter.vrfParam.regNumBits,
+        dut.parameter.laneNumber,
+        dut.parameter.vrfParam.vrfOffsetBits,
+        dut.parameter.vrfParam.instructionIndexBits,
+        dut.parameter.vrfParam.datapathWidth,
+        negLatPeekWriteQueue,
+      )))
+      peekVrfWrite.landIdx.ref := i.U
+      peekVrfWrite.valid.ref := tapAndRead(lane.vrf.write.valid)
+      peekVrfWrite.clock.ref := genClock
+      peekVrfWrite.request_vd.ref := tapAndRead(lane.vrf.write.bits.vd)
+      peekVrfWrite.request_offset.ref := tapAndRead(lane.vrf.write.bits.offset)
+      peekVrfWrite.request_mask.ref := tapAndRead(lane.vrf.write.bits.mask)
+      peekVrfWrite.request_data.ref := tapAndRead(lane.vrf.write.bits.data)
+      peekVrfWrite.request_instruction.ref := tapAndRead(lane.vrf.write.bits.instructionIndex)
   }
 
-  val dpiPokeInst = Module(new ExtModule with HasExtModuleInline {
-    override val desiredName = "dpiPokeInst"
-    val clock = IO(Input(Clock()))
-    val request = IO(Output(new VRequest(dut.parameter.xLen)))
-    val csrInterface = IO(Output(dut.csrInterface.cloneType))
-    val instructionValid = IO(Output(Bool()))
+  val pokeInst = Module(new PokeInst(PokeInstParameter(dut.parameter.xLen, dut.parameter.laneParam.vlMaxBits, latPokeInst)))
+  pokeInst.clock.ref := genClock
+  pokeInst.respValid.ref := tapAndRead(resp.valid)
+  pokeInst.response_data.ref := tapAndRead(resp.bits.data)
+  pokeInst.response_vxsat.ref := tapAndRead(resp.bits.vxsat)
+  pokeInst.response_rd_valid.ref := tapAndRead(resp.bits.rd.valid)
+  pokeInst.response_rd_bits.ref := tapAndRead(resp.bits.rd.bits)
+  pokeInst.response_mem.ref := tapAndRead(resp.bits.mem)
+  bore(csrInterface.vl) := pokeInst.csrInterface_vl.ref
+  bore(csrInterface.vStart) := pokeInst.csrInterface_vStart.ref
+  bore(csrInterface.vlmul) := pokeInst.csrInterface_vlMul.ref
+  bore(csrInterface.vSew) := pokeInst.csrInterface_vSew.ref
+  bore(csrInterface.vxrm) := pokeInst.csrInterface_vxrm.ref
+  bore(csrInterface.vta) := pokeInst.csrInterface_vta.ref
+  bore(csrInterface.vma) := pokeInst.csrInterface_vma.ref
+  bore(csrInterface.ignoreException) := pokeInst.csrInterface_ignoreException.ref
+  bore(req.bits.instruction) := pokeInst.request_instruction.ref
+  bore(req.bits.src1Data) := pokeInst.request_src1Data.ref
+  bore(req.bits.src2Data) := pokeInst.request_src2Data.ref
+  bore(req.valid) := pokeInst.instructionValid.ref
 
-    val respValid = IO(Input(Bool()))
-    val response = IO(Input(dut.response.bits.cloneType))
-    setInline(
-      s"$desiredName.sv",
-      s"""module $desiredName(
-         |  input clock,
-         |  output [31:0] request_instruction,
-         |  output [${dut.parameter.xLen - 1}:0] request_src1Data,
-         |  output [${dut.parameter.xLen - 1}:0] request_src2Data,
-         |  output instructionValid,
-         |
-         |  output bit[${csrInterface.vl.getWidth - 1}:0] csrInterface_vl,
-         |  output bit[${csrInterface.vStart.getWidth - 1}:0] csrInterface_vStart,
-         |  output bit[${csrInterface.vlmul.getWidth - 1}:0] csrInterface_vlmul,
-         |  output bit[${csrInterface.vSew.getWidth - 1}:0] csrInterface_vSew,
-         |  output bit[${csrInterface.vxrm.getWidth - 1}:0] csrInterface_vxrm,
-         |  output bit csrInterface_vta,
-         |  output bit csrInterface_vma,
-         |  output bit csrInterface_ignoreException,
-         |
-         |  input respValid,
-         |  input bit[${response.data.getWidth - 1}:0] response_data,
-         |  input bit response_vxsat,
-         |  input bit response_rd_valid,
-         |  input bit[${response.rd.bits.getWidth - 1}:0] response_rd_bits,
-         |  input bit response_mem
-         |);
-         |import "DPI-C" function void $desiredName(
-         |  output bit[31:0] request_instruction,
-         |  output bit[${dut.parameter.xLen - 1}:0] request_src1Data,
-         |  output bit[${dut.parameter.xLen - 1}:0] request_src2Data,
-         |  output bit instructionValid,
-         |
-         |  output bit[${csrInterface.vl.getWidth - 1}:0] vl,
-         |  output bit[${csrInterface.vStart.getWidth - 1}:0] vStart,
-         |  output bit[${csrInterface.vlmul.getWidth - 1}:0] vlmul,
-         |  output bit[${csrInterface.vSew.getWidth - 1}:0] vSew,
-         |  output bit[${csrInterface.vxrm.getWidth - 1}:0] vxrm,
-         |  output bit vta,
-         |  output bit vma,
-         |  output bit ignoreException,
-         |
-         |  input respValid,
-         |  input bit[${response.data.getWidth - 1}:0] response_data,
-         |  input bit response_vxsat,
-         |  input bit response_rd_valid,
-         |  input bit[${response.rd.bits.getWidth - 1}:0] response_rd_bits,
-         |  input bit response_mem
-         |);
-         |always @ (posedge clock) #($latPokeInst) $desiredName(
-         |  request_instruction,
-         |  request_src1Data,
-         |  request_src2Data,
-         |  instructionValid,
-         |
-         |  csrInterface_vl,
-         |  csrInterface_vStart,
-         |  csrInterface_vlmul,
-         |  csrInterface_vSew,
-         |  csrInterface_vxrm,
-         |  csrInterface_vta,
-         |  csrInterface_vma,
-         |  csrInterface_ignoreException,
-         |
-         |  respValid,
-         |  response_data,
-         |  response_vxsat,
-         |  response_rd_valid,
-         |  response_rd_bits,
-         |  response_mem
-         |);
-         |endmodule
-         |""".stripMargin
-    )
-  })
-  dpiPokeInst.clock := clock
-  dpiPokeInst.respValid := resp.valid
-  dpiPokeInst.response := resp.bits
-  csrInterface := dpiPokeInst.csrInterface
-  req.bits := dpiPokeInst.request
-  req.valid := dpiPokeInst.instructionValid
+  val peekIssue = Module(new PeekIssue(PeekIssueParameter(dut.parameter.instructionIndexBits, latPeekIssue)))
+  peekIssue.clock.ref := genClock
+  peekIssue.ready.ref := tapAndRead(req.ready)
+  peekIssue.issueIdx.ref := tapAndRead(dut.instructionCounter)
 
-  val dpiPeekIssue = Module(new ExtModule with HasExtModuleInline {
-    override val desiredName = "dpiPeekIssue"
-    val clock = IO(Input(Clock()))
-    val ready = IO(Input(Bool()))
-    val issueIdx = IO(Input(UInt(dut.parameter.instructionIndexBits.W)))
-    setInline(
-      s"$desiredName.sv",
-      s"""module $desiredName(
-         |  input clock,
-         |  input ready,
-         |  input bit[${issueIdx.getWidth - 1}:0] issueIdx
-         |);
-         |import "DPI-C" function void $desiredName(
-         |  input ready,
-         |  input bit[${issueIdx.getWidth - 1}:0] issueIdx
-         |);
-         |always @ (posedge clock) #($latPeekIssue) $desiredName(
-         |  ready,
-         |  issueIdx
-         |);
-         |endmodule
-         |""".stripMargin
-    )
-  })
-  dpiPeekIssue.clock := clock
-  dpiPeekIssue.ready := req.ready
-  dpiPeekIssue.issueIdx := tap(dut.instructionCounter)
-
-  @instantiable
-  class PeekTL(bundle: TLBundle) extends ExtModule with HasExtModuleInline {
-    override val desiredName = "dpiPeekTL"
-    @public val clock = IO(Input(Clock()))
-    @public val channel = IO(Input(UInt(32.W)))
-    @public val aBits:  TLChannelA = IO(Input(bundle.a.bits))
-    @public val aValid: Bool = IO(Input(bundle.a.valid))
-    @public val dReady: Bool = IO(Input(bundle.d.ready))
-    setInline(
-      "dpiPeekTL.sv",
-      s"""module $desiredName(
-         |  input clock,
-         |  input int channel,
-         |  input bit[${aBits.opcode.getWidth - 1}:0] aBits_opcode,
-         |  input bit[${aBits.param.getWidth - 1}:0] aBits_param,
-         |  input bit[${aBits.size.getWidth - 1}:0] aBits_size,
-         |  input bit[${aBits.source.getWidth - 1}:0] aBits_source,
-         |  input bit[${aBits.address.getWidth - 1}:0] aBits_address,
-         |  input bit[${aBits.mask.getWidth - 1}:0] aBits_mask,
-         |  input bit[${aBits.data.getWidth - 1}:0] aBits_data,
-         |  input bit aBits_corrupt,
-         |  input bit aValid,
-         |  input bit dReady
-         |);
-         |import "DPI-C" function void $desiredName(
-         |  input int channel_id,
-         |  input bit[${aBits.opcode.getWidth - 1}:0] a_opcode,
-         |  input bit[${aBits.param.getWidth - 1}:0] a_param,
-         |  input bit[${aBits.size.getWidth - 1}:0] a_size,
-         |  input bit[${aBits.source.getWidth - 1}:0] a_source,
-         |  input bit[${aBits.address.getWidth - 1}:0] a_address,
-         |  input bit[${aBits.mask.getWidth - 1}:0] a_mask,
-         |  input bit[${aBits.data.getWidth - 1}:0] a_data,
-         |  input bit a_corrupt,
-         |  input bit a_valid,
-         |  input bit d_ready
-         |);
-         |always @ (posedge clock) #($latPeekTL) $desiredName(
-         |  channel,
-         |  aBits_opcode,
-         |  aBits_param,
-         |  aBits_size,
-         |  aBits_source,
-         |  aBits_address,
-         |  aBits_mask,
-         |  aBits_data,
-         |  aBits_corrupt,
-         |  aValid,
-         |  dReady
-         |);
-         |endmodule
-         |""".stripMargin
-    )
-  }
-
-  @instantiable
-  class PokeTL(bundle: TLBundle) extends ExtModule with HasExtModuleInline {
-    override val desiredName = "dpiPokeTL"
-    @public val clock = IO(Input(Clock()))
-    @public val channel = IO(Input(UInt(32.W)))
-    @public val dBits = IO(Output(bundle.d.bits))
-    @public val dValid = IO(Output(bundle.d.valid))
-    @public val aReady = IO(Output(bundle.a.ready))
-    @public val dReady = IO(Input(bundle.d.ready))
-    setInline(
-      s"$desiredName.sv",
-      s"""module $desiredName(
-         |  input clock,
-         |  input int channel,
-         |  output bit[${dBits.opcode.getWidth - 1}:0] dBits_opcode,
-         |  output bit[${dBits.param.getWidth - 1}:0] dBits_param,
-         |  output bit[${dBits.size.getWidth - 1}:0] dBits_size,
-         |  output bit[${dBits.source.getWidth - 1}:0] dBits_source,
-         |  output bit[${dBits.sink.getWidth - 1}:0] dBits_sink,
-         |  output bit[${dBits.denied.getWidth - 1}:0] dBits_denied,
-         |  output bit[${dBits.data.getWidth - 1}:0] dBits_data,
-         |  output bit dBits_corrupt,
-         |  output bit dValid,
-         |  output bit aReady,
-         |  input bit dReady
-         |);
-         |import "DPI-C" function void $desiredName(
-         |  input int channel_id,
-         |  output bit[${dBits.opcode.getWidth - 1}:0] d_opcode,
-         |  output bit[${dBits.param.getWidth - 1}:0] d_param,
-         |  output bit[${dBits.size.getWidth - 1}:0] d_size,
-         |  output bit[${dBits.source.getWidth - 1}:0] d_source,
-         |  output bit[${dBits.sink.getWidth - 1}:0] d_sink,
-         |  output bit[${dBits.denied.getWidth - 1}:0] d_denied,
-         |  output bit[${dBits.data.getWidth - 1}:0] d_data,
-         |  output bit d_corrupt,
-         |  output bit d_valid,
-         |  output bit a_ready,
-         |  input bit d_ready
-         |);
-         |always @ (posedge clock) #($latPokeTL) $desiredName(
-         |  channel,
-         |  dBits_opcode,
-         |  dBits_param,
-         |  dBits_size,
-         |  dBits_source,
-         |  dBits_sink,
-         |  dBits_denied,
-         |  dBits_data,
-         |  dBits_corrupt,
-         |  dValid,
-         |  aReady,
-         |  dReady
-         |);
-         |endmodule
-         |""".stripMargin
-    )
-  }
-
-  val peekTlDef = Definition(new PeekTL(dut.parameter.tlParam.bundle()))
-  val pokeTlDef = Definition(new PokeTL(dut.parameter.tlParam.bundle()))
   tlPort.zipWithIndex.foreach {
     case (bundle, idx) =>
-      val peek = Instance(peekTlDef)
-      peek.clock := clock
-      peek.channel := idx.U
-      peek.aBits := bundle.a.bits
-      peek.aValid := bundle.a.valid
-      peek.dReady := bundle.d.ready
+      val peek = Module(new PeekTL(dut.parameter.tlParam.bundle(), latPeekTL))
+      peek.clock.ref := genClock
+      peek.channel.ref := idx.U
+      peek.aBits_opcode.ref := tapAndRead(bundle.a.bits.opcode)
+      peek.aBits_param.ref := tapAndRead(bundle.a.bits.param)
+      peek.aBits_size.ref := tapAndRead(bundle.a.bits.size)
+      peek.aBits_source.ref := tapAndRead(bundle.a.bits.source)
+      peek.aBits_address.ref := tapAndRead(bundle.a.bits.address)
+      peek.aBits_mask.ref := tapAndRead(bundle.a.bits.mask)
+      peek.aBits_data.ref := tapAndRead(bundle.a.bits.data)
+      peek.aBits_corrupt.ref := tapAndRead(bundle.a.bits.corrupt)
 
-      val poke = Instance(pokeTlDef)
-      poke.clock := clock
-      poke.channel := idx.U
-      bundle.d.bits := poke.dBits
-      bundle.d.valid := poke.dValid
-      poke.dReady := bundle.d.ready
-      bundle.a.ready := poke.aReady
+      peek.aValid.ref := tapAndRead(bundle.a.valid)
+      peek.dReady.ref := tapAndRead(bundle.d.ready)
+
+      val poke = Module(new PokeTL(dut.parameter.tlParam.bundle(), latPokeTL))
+      poke.clock.ref := genClock
+      poke.channel.ref := idx.U
+      bore(bundle.d.bits.opcode) := poke.dBits_opcode.ref
+      bore(bundle.d.bits.param) := poke.dBits_param.ref
+      bore(bundle.d.bits.sink) := poke.dBits_sink.ref
+      bore(bundle.d.bits.source) := poke.dBits_source.ref
+      bore(bundle.d.bits.size) := poke.dBits_size.ref
+      bore(bundle.d.bits.denied) := poke.dBits_denied.ref
+      bore(bundle.d.bits.data) := poke.dBits_data.ref
+      bore(bundle.d.bits.corrupt) := poke.dBits_corrupt.ref
+      bore(bundle.d.valid) := poke.dValid.ref
+      poke.dReady.ref := tapAndRead(bundle.d.ready)
+      bore(bundle.a.ready) := poke.aReady.ref
   }
-
-  done()
 }
