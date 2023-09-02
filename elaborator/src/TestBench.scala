@@ -7,12 +7,13 @@ import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
 import v.{V, VParameter}
 
+
 class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends RawModule {
   val clock = Wire(Clock())
   val reset = Wire(Bool())
   val dut = withClockAndReset(clock, reset)(Module(generator.module()))
   withClockAndReset(clock, reset) {
-    val coverModule = Module(new CoverModule(dut))
+//    val coverModule = Module(new CoverModule(dut))
     val monitor = Module(new Monitor(dut))
     monitor.clock := clock
     monitor.reset := reset

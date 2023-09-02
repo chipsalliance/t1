@@ -24,7 +24,7 @@ struct VCsrInterfacePoke {
 };
 
 struct VTlInterface {
-  int channel_id;
+  uint32_t channel_id;
   svBitVecVal a_bits_opcode;
   svBitVecVal a_bits_param;
   svBitVecVal a_bits_size;
@@ -38,13 +38,13 @@ struct VTlInterface {
 };
 
 struct VTlInterfacePoke {
-  int channel_id;
+  uint32_t channel_id;
   svBitVecVal *d_bits_opcode;
   svBitVecVal *d_bits_param;
   svBitVecVal *d_bits_size;
   svBitVecVal *d_bits_source;
   svBitVecVal *d_bits_sink;
-  svBitVecVal *d_bits_denied;
+  svBit *d_bits_denied;
   svBitVecVal *d_bits_data;
   svBit *d_corrupt;
   svBit *d_valid;
@@ -72,7 +72,7 @@ struct VInstrFire {
 };
 
 struct VLsuWriteQueuePeek {
-  int mshr_index;
+  uint32_t mshr_index;
   svBit write_valid;
   svBitVecVal request_data_vd;
   svBitVecVal request_data_offset;
@@ -83,7 +83,7 @@ struct VLsuWriteQueuePeek {
 };
 
 struct VrfWritePeek {
-  int lane_index;
+  uint32_t lane_index;
   svBit valid;
   svBitVecVal request_vd;
   svBitVecVal request_offset;

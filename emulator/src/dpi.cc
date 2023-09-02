@@ -22,7 +22,7 @@ ChainingPerf chaining_perf;
 
 void sigint_handler(int s) {
   terminated = true;
-  dpiFinish();
+  dpi_finish();
 }
 
 void print_perf_summary();
@@ -34,11 +34,11 @@ void print_perf_summary();
     terminated = true;                \
     LOG(INFO) << fmt::format("detect returning instruction, gracefully quit simulation");                  \
     print_perf_summary();   \
-    dpiFinish();    \
+    dpi_finish();    \
   } catch (std::runtime_error &e) { \
     terminated = true;                \
     LOG(ERROR) << fmt::format("detect exception ({}), gracefully abort simulation", e.what());                 \
-    dpiError(e.what());  \
+    dpi_error(e.what());  \
   }
 
 #if VM_TRACE
@@ -49,22 +49,24 @@ void VBridgeImpl::dpiDumpWave() {
 }
 #endif
 
-[[maybe_unused]] void dpiInitCosim() {
+[[maybe_unused]] void dpi_init_cosim() {
   std::signal(SIGINT, sigint_handler);
-  svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.verbatim"));
+  auto scope = svGetScopeFromName("TOP.TestBench.verificationModule.dpiFinish");
+  CHECK_S(scope);
+  svSetScope(scope);
   TRY({
     vbridge_impl_instance.dpiInitCosim();
     lsu_perfs.resize(vbridge_impl_instance.config.tl_bank_number);
   })
 }
 
-[[maybe_unused]] void dpiPeekIssue(svBit ready, const svBitVecVal *issueIdx) {
+[[maybe_unused]] void peek_issue(svBit ready, const svBitVecVal *issueIdx) {
   TRY({
     vbridge_impl_instance.dpiPeekIssue(ready, *issueIdx);
   })
 }
 
-[[maybe_unused]] void dpiPokeInst(
+[[maybe_unused]] void poke_inst(
     svBitVecVal *request_inst,
     svBitVecVal *request_src1Data,
     svBitVecVal *request_src2Data,
@@ -95,8 +97,8 @@ void VBridgeImpl::dpiDumpWave() {
   })
 }
 
-[[maybe_unused]] void dpiPeekTL(
-    int channel_id,
+[[maybe_unused]] void peek_t_l(
+    const svBitVecVal *channel_id,
     const svBitVecVal *a_opcode,
     const svBitVecVal *a_param,
     const svBitVecVal *a_size,
@@ -110,21 +112,21 @@ void VBridgeImpl::dpiDumpWave() {
 ) {
   TRY({
     vbridge_impl_instance.dpiPeekTL(
-        VTlInterface{channel_id, *a_opcode, *a_param, *a_size, *a_source, *a_address, a_mask, a_data,
+        VTlInterface{*channel_id, *a_opcode, *a_param, *a_size, *a_source, *a_address, a_mask, a_data,
                      a_corrupt, a_valid, d_ready});
-    lsu_perfs[channel_id].peek_tl(a_valid, d_ready);
-    lsu_perfs[channel_id].step();
+    lsu_perfs[*channel_id].peek_tl(a_valid, d_ready);
+    lsu_perfs[*channel_id].step();
   })
 }
 
-[[maybe_unused]] void dpiPokeTL(
-    int channel_id,
+[[maybe_unused]] void poke_t_l(
+    const svBitVecVal *channel_id,
     svBitVecVal *d_opcode,
     svBitVecVal *d_param,
     svBitVecVal *d_size,
     svBitVecVal *d_source,
     svBitVecVal *d_sink,
-    svBitVecVal *d_denied,
+    svBit *d_denied,
     svBitVecVal *d_data,
     svBit *d_corrupt,
     svBit *d_valid,
@@ -133,20 +135,20 @@ void VBridgeImpl::dpiDumpWave() {
 ) {
   TRY({
     vbridge_impl_instance.dpiPokeTL(
-        VTlInterfacePoke{channel_id, d_opcode, d_param, d_size, d_source, d_sink, d_denied, d_data,
+        VTlInterfacePoke{*channel_id, d_opcode, d_param, d_size, d_source, d_sink, d_denied, d_data,
                          d_corrupt, d_valid, a_ready, d_ready});
-    lsu_perfs[channel_id].poke_tl(*d_valid, *a_ready);
+    lsu_perfs[*channel_id].poke_tl(*d_valid, *a_ready);
   })
 }
 
-[[maybe_unused]] void dpiPeekLsuEnq(const svBitVecVal *enq) {
+[[maybe_unused]] void peek_lsu_enq(const svBitVecVal *enq) {
   TRY({
     vbridge_impl_instance.dpiPeekLsuEnq(VLsuReqEnqPeek{*enq});
   })
 }
 
-[[maybe_unused]] void dpiPeekWriteQueue(
-    int mshr_index,
+[[maybe_unused]] void peek_write_queue(
+    const svBitVecVal *mshr_index,
     svBit write_valid,
     const svBitVecVal *request_data_vd,
     const svBitVecVal *request_data_offset,
@@ -157,14 +159,14 @@ void VBridgeImpl::dpiDumpWave() {
 ) {
   TRY({
     vbridge_impl_instance.dpiPeekWriteQueue(
-        VLsuWriteQueuePeek{mshr_index, write_valid, *request_data_vd, *request_data_offset,
+        VLsuWriteQueuePeek{*mshr_index, write_valid, *request_data_vd, *request_data_offset,
                            *request_data_mask, *request_data_data, *request_data_instIndex,
                            *request_targetLane});
   })
 }
 
-[[maybe_unused]] void dpiPeekVrfWrite(
-    int lane_idx,
+[[maybe_unused]] void peek_vrf_write(
+    const svBitVecVal *lane_idx,
     svBit valid,
     const svBitVecVal *request_vd,
     const svBitVecVal *request_offset,
@@ -173,33 +175,33 @@ void VBridgeImpl::dpiDumpWave() {
     const svBitVecVal *request_instIndex
 ) {
   TRY({
-    vbridge_impl_instance.dpiPeekVrfWrite(VrfWritePeek{lane_idx, valid, *request_vd, *request_offset,
+    vbridge_impl_instance.dpiPeekVrfWrite(VrfWritePeek{*lane_idx, valid, *request_vd, *request_offset,
                                                        *request_mask, *request_data, *request_instIndex});
   })
 }
 
-[[maybe_unused]] void dpiTimeoutCheck() {
+[[maybe_unused]] void timeout_check() {
   TRY({
     vbridge_impl_instance.timeoutCheck();
   })
 }
 
 
-[[maybe_unused]] void dpiVRFMonitor(
-    int lane_idx,
+[[maybe_unused]] void vrf_monitor(
+    const svBitVecVal *lane_idx,
     svBit valid
 ) TRY({
-  vrf_perf.step(lane_idx, valid);
+  vrf_perf.step(*lane_idx, valid);
 })
 
-[[maybe_unused]] void dpiALUMonitor(int lane_idx,
+[[maybe_unused]] void alu_monitor(const svBitVecVal *lane_idx,
                                     svBit is_adder_occupied, svBit is_shifter_occupied,
                                     svBit is_multiplier_occupied, svBit is_divider_occupied) TRY({
-  alu_perf.step(lane_idx, is_adder_occupied, is_shifter_occupied, is_multiplier_occupied, is_divider_occupied);
+  alu_perf.step(*lane_idx, is_adder_occupied, is_shifter_occupied, is_multiplier_occupied, is_divider_occupied);
 })
 
-[[maybe_unused]] void dpiChainingMonitor(int lane_idx, const svBitVecVal *slot_occupied) TRY({
-  chaining_perf.step(lane_idx, slot_occupied);
+[[maybe_unused]] void chaining_monitor(const svBitVecVal *lane_idx, const svBitVecVal *slot_occupied) TRY({
+  chaining_perf.step(*lane_idx, slot_occupied);
 })
 
 void print_perf_summary() {
