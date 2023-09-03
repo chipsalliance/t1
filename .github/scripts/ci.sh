@@ -38,6 +38,7 @@ check_before_do_release() {
   else
     echo "Hash is changed from $old_hash to $new_hash, make new release"
     echo "do_release=true" >> $GITHUB_OUTPUT
+    echo "tag=$(date +%F)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
   fi
 }
 
