@@ -4,25 +4,46 @@
 #include <cassert>
 #include <cstdlib>
 #include <csignal>
+#include <string>
+#include <iostream>
 #include "axi4_mem.hpp"
 
 #define DPI extern "C"
 #define IN const
 #define OUT
 
+DPI const char* plus_arg_val(IN char* param);
+
+
+std::string plusarg_read_str(std::string param) {
+    svSetScope(svGetScopeFromName("TOP.TestHarness.dpi_plus_arg"));
+    param += "=%s";
+    std::string res = std::string(plus_arg_val(param.c_str()));
+    std::cout << "plusarg got [" << param << "]=[" << res << "]\n";
+    return res;
+}
+
 axi4_mem <30,32,4> ram(0x20000000, true);
 axi4     <30,32,4> mem_sigs;
 
 DPI void init_cosim() {
+    // read plusarg
+    std::string trace_file = plusarg_read_str("trace_file");
+    std::string init_file = plusarg_read_str("init_file");
     // init dumpwave
-    svSetScope(svGetScopeFromName("TOP.TestHarness.dpiDumpWave"));
-    dump_wave("trace.fst");
+    if (trace_file != "") {
+        svSetScope(svGetScopeFromName("TOP.TestHarness.dpiDumpWave"));
+        dump_wave(trace_file.c_str());
+    }
     // sigint signal
     std::signal(SIGINT, [](int) {
         svSetScope(svGetScopeFromName("TOP.TestHarness.dpiFinish"));
         finish();
     });
-    // TODO: use ram.load_binary to init memory file
+    // init memory file
+    if (init_file != "") {
+        ram.load_binary(init_file.c_str());
+    }
 }
 
     

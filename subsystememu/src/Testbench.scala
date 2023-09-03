@@ -17,6 +17,7 @@ class TestHarness(implicit val p: Parameters) extends RawModule {
   val dpiInit = Module(new InitCosim)
   val dpiDumpWave = Module(new DumpWave)
   val dpiFinish = Module(new Finish)
+  val dpi_plus_arg = Module(new PlusArgVal)
 
   withClockAndReset(clock.asClock, reset) {
     val dut = Module(ldut.module)
