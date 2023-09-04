@@ -8,9 +8,9 @@ import chisel3.util.HasExtModuleInline
 
 import scala.collection.mutable.ArrayBuffer
 
-case class DPIElement[T <: Element](name: String, output: Boolean, data: T)
+case class DPIElement[T <: Data](name: String, output: Boolean, data: T)
 
-case class DPIReference[T <: Element](name: String, ref: T)
+case class DPIReference[T <: Data](name: String, ref: T)
 
 abstract class DPIModule
   extends ExtModule
@@ -22,6 +22,12 @@ abstract class DPIModule
   })
 
   def dpiIn[T <: Element](name: String, data: T) = bind(name, true, Input(data))
+  def dpiIn[T <: Element](name: String, data: Iterable[T]) = {
+    data.zipWithIndex.map {case (d, i) => bind(s"$name$i", true, Input(d))}
+  }
+  def dpiIn[T <: Element](name: String, data: Bundle) = {
+    data.elements.map {case (s, d) => s -> bind(s"${name}_$s", true, Input(d))}
+  }
 
   def dpiOut[T <: Element](name: String, data: T) = bind(name, true, Output(data))
 
@@ -31,7 +37,7 @@ abstract class DPIModule
   val references: ArrayBuffer[DPIElement[_]] = scala.collection.mutable.ArrayBuffer.empty[DPIElement[_]]
   val dpiReferences: ArrayBuffer[DPIElement[_]] = scala.collection.mutable.ArrayBuffer.empty[DPIElement[_]]
 
-  def bind[T <: Element](name: String, isDPIArg: Boolean, data: T) = {
+  def bind[T <: Data](name: String, isDPIArg: Boolean, data: T) = {
     val ref = IO(data).suggestName(name)
 
     val ele = DPIElement(name, chisel3.reflect.DataMirror.directionOf(ref) match {
