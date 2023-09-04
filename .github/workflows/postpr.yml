@@ -124,8 +124,6 @@ jobs:
             sandbox = relaxed
       - id: build
         run: |
-          nix build .#testcase --print-build-logs --out-link result
-          tar czvf rvv-testcase.tar.gz --directory ./result .
           . .github/scripts/ci.sh
           check_before_do_release ./rvv-testcase.tar.gz
       - uses: "marvinpinto/action-automatic-releases@latest"
