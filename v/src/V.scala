@@ -1287,27 +1287,25 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   allSlotFree := free.andR
 
   // instruction issue
-  {
-    val free1H = ffo(free)
+  val free1H = ffo(free)
 
-    /** try to issue instruction to which slot. */
-    val slotToEnqueue: UInt = Mux(specialInstruction, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
+  /** try to issue instruction to which slot. */
+  val slotToEnqueue: UInt = Mux(specialInstruction, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
 
-    /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
-    val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
-    // - ready to issue instruction
-    // - for vi and vx type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
-    //   and convert it to mv instruction.
-    //   TODO: decode it directly
-    // - for slide instruction, it is unordered, and may have RAW hazard,
-    //   we detect the hazard and decide should we issue this slide or
-    //   issue the instruction after the slide which already in the slot.
-    requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
-      instructionRAWReady
+  /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
+  val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
+  // - ready to issue instruction
+  // - for vi and vx type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
+  //   and convert it to mv instruction.
+  //   TODO: decode it directly
+  // - for slide instruction, it is unordered, and may have RAW hazard,
+  //   we detect the hazard and decide should we issue this slide or
+  //   issue the instruction after the slide which already in the slot.
+  requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
+    instructionRAWReady
 
-    // TODO: change to `requestRegDequeue.fire`.
-    instructionToSlotOH := Mux(requestRegDequeue.ready, slotToEnqueue, 0.U)
-  }
+  // TODO: change to `requestRegDequeue.fire`.
+  instructionToSlotOH := Mux(requestRegDequeue.ready, slotToEnqueue, 0.U)
 
   // instruction commit
   {
