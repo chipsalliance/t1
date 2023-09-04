@@ -1,7 +1,7 @@
-{ stdenv, rv32-clang, glibc_multi, llvmForDev, go, buddy-mlir, ammonite, mill, rvv-codegen }:
-stdenv.mkDerivation {
+{ rv32-clang, glibc_multi, llvmForDev, go, buddy-mlir, ammonite, mill, rvv-codegen }:
+llvmForDev.stdenv.mkDerivation {
   pname = "rvv-testcase";
-  version = "unstable-2023-07-31";
+  version = "unstable-2023-09-04";
   srcs = [
     ../.github/scripts/ci.sc
     ../tests
@@ -36,5 +36,7 @@ stdenv.mkDerivation {
     mkdir -p $out
     cp -r tests-out/{configs,cases} $out
   '';
+  dontPatchELF = true;
+  dontStrip = true;
   __noChroot = true;
 }
