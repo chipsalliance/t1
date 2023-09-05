@@ -1,7 +1,9 @@
 set -e
 
-AWS_ID=$(echo "$AWS_CREDENTIALS" | head -n2 | tail -n1 | cut -d '=' -f 2)
-AWS_SECRET=$(echo "$AWS_CREDENTIALS" | tail -n1 | cut -d '=' -f 2)
+eval $(ssh-agent -s)
+echo "${ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}" |  ssh-add -
+mkdir -p ~/.ssh
+ssh-keyscan -H ${ROCKETCHIP_NIX_REMOTE_HOST} > ~/.ssh/known_hosts
 
 mkdir -p /etc/nix
 cat > /etc/nix/upload-to-cache.sh << EOF
@@ -38,6 +40,12 @@ echo -n "$CACHE_PRIV_KEY" | tr -d '\n' > /etc/nix/cache-key.pem
 echo "Cache key file:"
 ls -ll /etc/nix/cache-key.pem
 
+echo "$ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY" > /etc/nix/builder-key
+echo "Builder key file:"
+ls -ll /etc/nix/builder-key
+
 chown runner:runner /etc/nix/cache-key.pem
 chmod 600 /etc/nix/cache-key.pem
+chown runner:runner /etc/nix/builder-key
+chmod 600 /etc/nix/builder-key
 chmod +x /etc/nix/upload-to-cache.sh

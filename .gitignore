@@ -11,3 +11,4 @@ coverage.dat
 .gdbinit
 .bloop/
 .ammonite
+.*.sw[a-p]
