@@ -1,6 +1,7 @@
 {
   "plugins": [
     "-highlight",
+    "hide-published-with",
     "uml",
     "katex-ng",
     "wavedrom",
