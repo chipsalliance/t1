@@ -815,6 +815,11 @@ gitbook-plugin-fontsettings@^2.0.0:
   resolved "https://registry.yarnpkg.com/gitbook-plugin-fontsettings/-/gitbook-plugin-fontsettings-2.0.0.tgz#835f900ae3dd111086fe7ed4425ee3de024861ab"
   integrity sha512-bZpz/Jev7lL1d3VNp41KHZD67UYqyqdOwbsJE6YEW93R2mGiLfZLpUs86d2nrY61BedhlNck1xF52FNT6sWeig==
 
+gitbook-plugin-hide-published-with@^0.0.1:
+  version "0.0.1"
+  resolved "https://registry.yarnpkg.com/gitbook-plugin-hide-published-with/-/gitbook-plugin-hide-published-with-0.0.1.tgz#90799e2a2a791d18b5738136f7137666830639dc"
+  integrity sha512-aa4Dch5lJ1xzNRpLur2P53IOLqyWR+me1wwU9hd90+WoHXqL/N7LM3QHwmfZcDVXmU74AxSbp6xoNf8YLAGxcg==
+
 gitbook-plugin-katex-ng@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/gitbook-plugin-katex-ng/-/gitbook-plugin-katex-ng-2.0.0.tgz#3c8b7f54c389768f6c291081a708c9b5d0e4ff4c"
@@ -1919,6 +1924,11 @@ yargs@16.2.0:
     string-width "^4.2.0"
     y18n "^5.0.5"
     yargs-parser "^20.2.2"
+
+yarn@^1.22.19:
+  version "1.22.19"
+  resolved "https://registry.yarnpkg.com/yarn/-/yarn-1.22.19.tgz#4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447"
+  integrity sha512-/0V5q0WbslqnwP91tirOvldvYISzaqhClxzyUKXYxs07yUILIs5jx/k6CFe8bvKSkds5w+eiOqta39Wk3WxdcQ==
 
 yauzl@^2.10.0:
   version "2.10.0"
