@@ -50,7 +50,7 @@
             glog
             fmt
             (enableDebugging libspike)
-            jsoncpp.dev
+            nlohmann_json
             ninja
 
             # for verilator
