@@ -1,6 +1,7 @@
 {
   "name": "documentation",
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "devDependencies": {
     "honkit": "^4.0.7",
     "gitbook-plugin-echarts": "^1.0.5",
