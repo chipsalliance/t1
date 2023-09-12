@@ -51,4 +51,5 @@ this slot is used for record the state of each instruction send to the Lane(incl
 
 ## Cross Lane Channel
 
-Lane has a ring(for now) bus for communication between lanes. It is used for data exchange between different lanes for operations that require cross-lane computation or data sharing.
+Lane has a ring(for now) bus for communication between lanes. It is used for data exchange between different lanes for operations that require cross-lane computation or data sharing,
+facilitating the execution of vector instructions that involve multiple lanes, such as scatter-gather operations or lane-wise reductions.
