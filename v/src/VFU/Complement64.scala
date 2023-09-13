@@ -3,7 +3,10 @@ package VFU
 import chisel3._
 import chisel3.util._
 
-/** IO:a = ~in */
+/** Banked complement64
+  *
+  * Bank width: 16, 32, 64
+  */
 class Complement64 extends Module{
   val a: UInt = IO(Input(UInt(64.W)))
   val z: UInt = IO(Output(UInt(64.W)))
