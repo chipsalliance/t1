@@ -41,7 +41,7 @@ class Multiplier16 extends Module{
   /** output effect width = 16 */
   def compress82(in: Seq[UInt]): (UInt, UInt) = {
     val layer0 = csa42(12)(VecInit(in.dropRight(4)))
-    val layer1 = csa42(12)(VecInit(in(4)(11, 4), in(5)(12, 4), in(6)(13, 4), in(7)(14, 4)))
+    val layer1 = csa42(12)(VecInit(in(4)>>4, in(5)(12, 4), in(6)(13, 4), in(7)(14, 4)))
     val layerOut = csa42(16)(VecInit(layer0._1 << 1, layer0._2, layer1._1 << 5, layer1._2 << 4))
     ((layerOut._1(14, 0) << 1).asUInt, layerOut._2(15, 0))
   }

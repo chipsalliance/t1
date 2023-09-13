@@ -3,12 +3,14 @@ package VFU
 import chisel3._
 import chisel3.util._
 
-/** IO:a = ~in */
+/** Banked Abs32
+  *
+  * Bank width: 8, 16, 32
+  */
 class Abs32 extends Module{
   val a: UInt = IO(Input(UInt(32.W)))
   val z: UInt = IO(Output(UInt(32.W)))
   val sew = IO(Input(UInt(3.W)))
-//  val doComplement = IO(Input(UInt(4.W)))
 
   def addOne8Bits(in: Tuple2[UInt, Bool]): (Bool, UInt) = {
     val sum = Mux(in._2, in._1 +& 1.U, in._1)
@@ -58,7 +60,6 @@ object Abs32 {
   def apply(a: UInt,
             sew:UInt) = {
     val Abs = Module(new Abs32)
-    // This need synthesis tool to do constant propagation
     Abs.a := a
     Abs.sew := sew
     Abs.z
