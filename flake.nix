@@ -62,6 +62,13 @@
           ];
 
           mkLLVMShell = pkgs.mkShell.override { stdenv = pkgs.llvmForDev.stdenv; };
+          postHook = ''
+            # clangd provided in llvmPackages_14 doesn't handle nix rpath, while the one in clang-tools package does.
+            # However, since we are using the stdenv from llvmPackages_14, the bin path clang-tools always comes after
+            # the llvmPackages_14. Thus we need a workaround to make sure that we can have `clangd` binary points to
+            # the one provided by clang-tools package
+            export PATH="${pkgs.clang-tools}/bin:$PATH"
+          '';
         in
         {
           legacyPackages = pkgs;
@@ -92,6 +99,8 @@
             };
             emulator = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
+
+              inherit postHook;
             };
             default = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
@@ -101,6 +110,7 @@
                 CODEGEN_CFG_PATH = "${pkgs.rvv-codegen}/configs";
                 TEST_CASE_DIR = "${pkgs.rvv-testcase}";
               };
+              inherit postHook;
             };
           };
 
