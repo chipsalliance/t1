@@ -47,7 +47,7 @@
           emulatorDeps = with pkgs; [
             cmake
             libargs
-            glog
+            spdlog
             fmt
             (enableDebugging libspike)
             nlohmann_json
