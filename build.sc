@@ -332,7 +332,7 @@ trait Emulator
 
   def cmake = T {
     mill.modules.Jvm.runSubprocess(
-      Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", buildDir().path).map(_.toString),
+      Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", buildDir().path, "-DCMAKE_EXPORT_COMPILE_COMMANDS=1").map(_.toString),
       Map[String, String](),
       T.dest
     )
