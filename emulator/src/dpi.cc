@@ -44,7 +44,7 @@ void print_perf_summary();
 #if VM_TRACE
 void VBridgeImpl::dpiDumpWave() {
   TRY({
-    ::dpiDumpWave((wave + ".fst").c_str());
+    ::dpi_dump_wave((wave + ".fst").c_str());
   })
 }
 #endif
