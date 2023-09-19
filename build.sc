@@ -288,11 +288,11 @@ trait Emulator
        |set(CMAKE_CXX_STANDARD 17)
        |
        |find_package(args REQUIRED)
-       |find_package(glog REQUIRED)
+       |find_package(spdlog REQUIRED)
        |find_package(fmt REQUIRED)
        |find_package(libspike REQUIRED)
        |find_package(verilator REQUIRED)
-       |find_package(nlohmann_json CONFIG REQUIRED)
+       |find_package(nlohmann_json REQUIRED)
        |find_package(Threads REQUIRED)
        |set(THREADS_PREFER_PTHREAD_FLAG ON)
        |
@@ -303,7 +303,7 @@ trait Emulator
        |target_include_directories(emulator PUBLIC ${csrcDir().path.toString})
        |
        |target_link_libraries(emulator PUBLIC $${CMAKE_THREAD_LIBS_INIT})
-       |target_link_libraries(emulator PUBLIC libspike fmt::fmt glog::glog nlohmann_json::nlohmann_json)  # note that libargs is header only, nothing to link
+       |target_link_libraries(emulator PUBLIC libspike fmt::fmt spdlog::spdlog nlohmann_json::nlohmann_json)  # note that libargs is header only, nothing to link
        |target_compile_definitions(emulator PRIVATE COSIM_VERILATOR)
        |
        |verilate(emulator
