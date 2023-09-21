@@ -4,7 +4,7 @@
 
 #include <csignal>
 
-#include <glog/logging.h>
+#include <spdlog/spdlog.h>
 #include <fmt/core.h>
 
 #include "encoding.h"
@@ -32,13 +32,16 @@ void print_perf_summary();
     if (!terminated) {action}          \
   } catch (ReturnException &e) { \
     terminated = true;                \
-    LOG(INFO) << fmt::format("detect returning instruction, gracefully quit simulation");                  \
+    Log("SimulationExit") \
+      .info("detect returning instruction, gracefully quit simulation"); \
     print_perf_summary();   \
     dpi_finish();    \
   } catch (std::runtime_error &e) { \
     terminated = true;                \
-    LOG(ERROR) << fmt::format("detect exception ({}), gracefully abort simulation", e.what());                 \
-    svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.dpiError")); \
+    std::cerr << e.what() << std::endl; \
+    Log("RuntimeException") \
+      .with("error", e.what()) \
+      .warn("detect exception, gracefully abort simulation"); \
     dpi_error(e.what());  \
   }
 
@@ -55,7 +58,7 @@ void VBridgeImpl::dpiDumpWave() {
 [[maybe_unused]] void dpi_init_cosim() {
   std::signal(SIGINT, sigint_handler);
   auto scope = svGetScopeFromName("TOP.TestBench.verificationModule.dpiFinish");
-  CHECK_S(scope);
+  CHECK(scope, "Got empty scope");
   svSetScope(scope);
   TRY({
     vbridge_impl_instance.dpiInitCosim();
@@ -207,6 +210,10 @@ void VBridgeImpl::dpiDumpWave() {
   chaining_perf.step(*lane_idx, slot_occupied);
 })
 
+[[maybe_unused]] void load_unit_monitor(const svBit load_unit_status_idle, const svBit writeReadyForLSU) TRY({
+  
+})
+
 void print_perf_summary() {
   auto output_file_path = get_env_arg_default("PERF_output_file", nullptr);
   if (output_file_path != nullptr) {
@@ -222,6 +229,8 @@ void print_perf_summary() {
     }
     chaining_perf.print_summary(os);
 
-    LOG(INFO) << fmt::format("perf result saved in '{}'", output_file_path);
+    Log("PrintPerfSummary")
+      .with("path", output_file_path)
+      .info("Perf result saved");
   }
 }

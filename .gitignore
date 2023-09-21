@@ -12,3 +12,4 @@ coverage.dat
 .bloop/
 .ammonite
 .cache
+build

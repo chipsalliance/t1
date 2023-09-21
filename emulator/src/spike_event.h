@@ -1,5 +1,6 @@
 #pragma once
 
+#include "spdlog-ext.h"
 #include <queue>
 #include <optional>
 
@@ -27,6 +28,7 @@ struct SpikeEvent {
   SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl);
 
   [[nodiscard]] std::string describe_insn() const;
+  json jsonify_insn() const;
 
   void drive_rtl_req(const VInstrInterfacePoke &vinst) const;
   void drive_rtl_csr(const VCsrInterfacePoke &v_csr) const;

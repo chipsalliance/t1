@@ -251,6 +251,7 @@ trait Emulator
   def allCSourceFiles = T.sources {
     Seq(
       "spike_event.cc",
+      "spdlog-ext.cc",
       "vbridge_impl.cc",
       "dpi.cc",
       "elf.cc",

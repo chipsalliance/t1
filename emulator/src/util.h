@@ -5,11 +5,11 @@
 #include <fmt/format.h>
 
 #include "exceptions.h"
-#include "glog_exception_safe.h"
+#include "spdlog-ext.h"
 
 /// @return: binary[a, b]
 inline uint32_t clip(uint32_t binary, int a, int b) {
-  CHECK_S(a <= b);
+  CHECK_LE(a, b, "");
   int nbits = b - a + 1;
   uint32_t mask = nbits >= 32 ? (uint32_t)-1 : (1 << nbits) - 1;
   return (binary >> a) & mask;
@@ -64,7 +64,7 @@ erase_if( std::multimap<Key,T,Compare,Alloc>& c, Pred pred ) {
 
 inline char *get_env_arg(const char *name) {
   char *val = std::getenv(name);
-  CHECK_S(val != nullptr) << fmt::format("cannot find environment of name '{}'", name);
+  CHECK_NE(val, nullptr, fmt::format("cannot find environment of name '{}'", name));
   return val;
 }
 
