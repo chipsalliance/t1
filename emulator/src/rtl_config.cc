@@ -6,6 +6,7 @@
 using json = nlohmann::json;
 
 #include "rtl_config.h"
+#include "spdlog-ext.h"
 
 RTLConfig::RTLConfig(const char *json_file_name) {
   std::ifstream json_file(json_file_name);

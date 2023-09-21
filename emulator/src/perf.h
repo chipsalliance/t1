@@ -1,6 +1,5 @@
 #pragma once
 
-#include <glog/logging.h>
 #include <fmt/core.h>
 
 #include "encoding.h"

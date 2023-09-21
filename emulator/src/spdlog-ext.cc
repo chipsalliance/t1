@@ -2,6 +2,7 @@
 #include <fmt/core.h>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <sstream>
@@ -12,9 +13,6 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
-
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 #include "spdlog-ext.h"
 
@@ -71,15 +69,19 @@ public:
 
 protected:
   void sink_it_(const spdlog::details::log_msg &msg) override {
+    auto data = std::string(msg.payload.data(), msg.payload.size());
     // Don't touch error message
     if (msg.level == spdlog::level::info) {
-      json payload = json::parse(msg.payload.data());
       std::string module_name;
       try {
-        payload["module"].get_to(module_name);
+        json payload = json::parse(data);
+        payload["name"].get_to(module_name);
+      } catch (const json::parse_error &ex) {
+        throw std::runtime_error(
+            fmt::format("Fail to convert msg {} to json: {}", data, ex.what()));
       } catch (const json::type_error &ex) {
-        fmt::println("Fail to get field `module` from: {}", msg.payload.data());
-        throw ex;
+        throw std::runtime_error(
+            fmt::format("Fail to get field name from: {}", msg.payload.data()));
       }
 
       // If module name was found in blacklist
@@ -94,10 +96,11 @@ protected:
 
     spdlog::memory_buf_t formatted;
     spdlog::sinks::base_sink<std::mutex>::formatter_->format(msg, formatted);
-    std::cout << fmt::to_string(formatted);
+    // stdout will be captured by mill, so we need to print them into stderr
+    std::cerr << fmt::to_string(formatted);
   }
 
-  void flush_() override { std::cout << std::flush; }
+  void flush_() override { std::cerr << std::flush; }
 };
 
 /**
@@ -139,18 +142,22 @@ void setup_logger() {
   // %T: "23:55:59" (We don't need other information.)
   console_sink->set_pattern("%T %v");
 
-  // Combine the console sink and file sink into one logger.
+  // One thread with 8192 queue size
   spdlog::init_thread_pool(8192, 1);
   std::vector<spdlog::sink_ptr> sinks;
   sinks.push_back(file_sink);
   sinks.push_back(console_sink);
+
+  // Combine the console sink and file sink into one logger.
   auto logger = std::make_shared<spdlog::async_logger>(
       "Emulator", std::begin(sinks), std::end(sinks), spdlog::thread_pool(),
       spdlog::async_overflow_policy::block);
   logger->set_error_handler([&](const std::string &msg) {
     throw std::runtime_error(fmt::format("Emulator internal error: {}", msg));
   });
+  logger->flush_on(spdlog::level::info);
   logger->flush_on(spdlog::level::err);
+  logger->flush_on(spdlog::level::critical);
 
   spdlog::set_default_logger(logger);
 
