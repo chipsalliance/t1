@@ -6,6 +6,7 @@ import chisel3._
 import chisel3.util._
 import lsu.LSUBaseStatus
 import tilelink.{TLChannelA, TLChannelD}
+import chisel3.probe.{Probe, ProbeValue, define}
 
 class cacheLineDequeueBundle(param: MSHRParam) extends Bundle {
   val data: UInt = UInt((param.cacheLineSize * 8).W)
@@ -245,4 +246,12 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   status.endAddress := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineNumberReg) ##
     0.U(param.cacheLineBits.W)
   dontTouch(status)
+
+  /**
+    * Probes for fetching internal signals
+    */
+  val probeStatus: LSUBaseStatus = IO(Output(Probe(chiselTypeOf(status))))
+  define(probeStatus, ProbeValue(status))
+  val probeWriteReadyForLSU: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu))))
+  define(probeWriteReadyForLSU, ProbeValue(writeReadyForLsu))
 }
