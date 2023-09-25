@@ -62,6 +62,17 @@ private:
   std::set<std::string> blacklist;
   std::set<std::string> whitelist;
 
+  bool is_expected_module(std::string &module) {
+    if (!blacklist.empty() && blacklist.find(module) != blacklist.end()) {
+      return false;
+    }
+    if (!whitelist.empty() && whitelist.find(module) == whitelist.end()) {
+      return false;
+    }
+
+    return true;
+  }
+
 public:
   ConsoleSink()
       : blacklist{get_set_from_env("EMULATOR_BLACKLIST_MODULE", ',')},
@@ -81,15 +92,10 @@ protected:
             fmt::format("Fail to convert msg {} to json: {}", data, ex.what()));
       } catch (const json::type_error &ex) {
         throw std::runtime_error(
-            fmt::format("Fail to get field name from: {}", msg.payload.data()));
+            fmt::format("Fail to get field name from: {}", data));
       }
 
-      // If module name was found in blacklist
-      if (!blacklist.empty() && !blacklist.find(module_name)->empty()) {
-        return;
-      }
-      // If module name wat not found in whitelist
-      if (!whitelist.empty() && whitelist.find(module_name)->empty()) {
+      if (!is_expected_module(module_name)) {
         return;
       }
     }
