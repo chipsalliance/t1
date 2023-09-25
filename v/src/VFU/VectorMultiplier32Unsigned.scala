@@ -3,7 +3,7 @@ package VFU
 import chisel3._
 import chisel3.util._
 
-class Multiplier32 extends Module{
+class VectorMultiplier32Unsigned extends Module{
   val a = IO(Input(UInt(32.W)))
   val b = IO(Input(UInt(32.W)))
   val z = IO(Output(UInt(64.W)))
@@ -67,7 +67,7 @@ class Multiplier32 extends Module{
   val sumForAdder   = Mux(sew(2), mergeSplit32._1, ax11(0) ## ax00(0))
   val carryForAdder = Mux(sew(2), mergeSplit32._2, ax11(1) ## ax00(1))
 
-  val result = vectorAdder64(sumForAdder, carryForAdder, sew ## 0.U(1.W))
+  val result = VectorAdder64(sumForAdder, carryForAdder, sew ## 0.U(1.W))
 
   z := result
 }

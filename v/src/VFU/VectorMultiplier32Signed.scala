@@ -3,7 +3,7 @@ package VFU
 import chisel3._
 import chisel3.util._
 
-class VectorMultiplier32 extends Module{
+class VectorMultiplier32Signed extends Module{
   val a = IO(Input(UInt(32.W)))
   val b = IO(Input(UInt(32.W)))
   val z = IO(Output(UInt(64.W)))
@@ -15,7 +15,7 @@ class VectorMultiplier32 extends Module{
 
   val zSign = (a(31)^b(31)) ## (a(23)^b(23)) ## (a(15)^b(15)) ## (a(7)^b(7))
 
-  val Mul = Module(new Multiplier32)
+  val Mul = Module(new VectorMultiplier32Unsigned)
   Mul.a := Mux(unsign, a, aAbs)
   Mul.b := Mux(unsign, b, bAbs)
   Mul.sew := sew

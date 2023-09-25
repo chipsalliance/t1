@@ -27,7 +27,7 @@ import chisel3.util._
   *}}}
   *
   */
-class vectorAdder64 extends Module {
+class VectorAdder64 extends Module {
   val width = 64
   val a: UInt = IO(Input(UInt(width.W)))
   val b: UInt = IO(Input(UInt(width.W)))
@@ -37,7 +37,7 @@ class vectorAdder64 extends Module {
   val indexSeq = Seq(0,1,2,3,4,5,6,7)
   val e = indexSeq.map(i => i * 8)
   val s = Seq(7,15,23,31,39,47,55,63)
-  
+
   val cin = IO(Input(UInt(8.W)))
   val cout = IO(Output(UInt(8.W)))
 
@@ -214,10 +214,10 @@ class vectorAdder64 extends Module {
   z := ps ^ cs
 }
 
-object vectorAdder64 {
+object VectorAdder64 {
   def apply(a: UInt,
             b: UInt, sew:UInt) = {
-    val adder64 = Module(new vectorAdder64)
+    val adder64 = Module(new VectorAdder64)
     adder64.a := a
     adder64.b := b
     adder64.cin := 0.U
