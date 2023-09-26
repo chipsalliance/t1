@@ -210,8 +210,60 @@ void VBridgeImpl::dpiDumpWave() {
   chaining_perf.step(*lane_idx, slot_occupied);
 })
 
-[[maybe_unused]] void load_unit_monitor(const svBit load_unit_status_idle, const svBit writeReadyForLSU) TRY({
-  
+[[maybe_unused]] void load_unit_monitor(const svBit status_idle,
+                                        const svBit status_last,
+                                        const svBit tl_port_a_is_valid,
+                                        const svBit tl_port_a_is_ready,
+                                        const svBit write_ready_for_lsu) TRY({
+  Log("LoadUnit")
+    .with("status", json {
+      { "idle", (bool)status_idle },
+      { "last", (bool)status_last }
+    })
+    .with("tl_port_a", json {
+      { "valid", (bool)tl_port_a_is_valid },
+      { "ready", (bool)tl_port_a_is_ready }
+    })
+    .with("write_ready_for_lsu", (bool)write_ready_for_lsu)
+    .info();
+})
+
+[[maybe_unused]] void load_unit_port_d_monitor(const svBitVecVal *port_d_index,
+                                               const svBit port_d_is_valid,
+                                               const svBit port_d_is_ready) TRY({
+  Log("LoadUnitPortD")
+    .with("index", (int)(*port_d_index))
+    .with("is_valid", (bool)port_d_is_valid)
+    .with("is_ready", (bool)port_d_is_ready)
+    .info();
+})
+
+[[maybe_unused]] void load_unit_vrf_write_port_monitor(const svBitVecVal *index,
+                                                       const svBit is_valid,
+                                                       const svBit is_ready) TRY({
+  Log("LoadUnitVrfWritePort")
+    .with("index", (int)(*index))
+    .with("is_valid", (bool)is_valid)
+    .with("is_ready", (bool)is_ready)
+    .info();
+})
+
+[[maybe_unused]] void load_unit_last_cache_line_ack_monitor(const svBitVecVal *index,
+                                                            const svBit is_ack) TRY({
+  Log("LoadUnitLastCacheLineAck")
+    .with("index", (int)(*index))
+    .with("is_ack", (bool)is_ack)
+    .info();
+})
+
+[[maybe_unused]] void load_unit_cache_line_dequeue_monitor(const svBitVecVal *index,
+                                                           const svBit is_ready,
+                                                           const svBit is_valid) TRY({
+  Log("LoadUnitCacheLineDequeueMonitor")
+    .with("index", (int)(*index))
+    .with("is_ready", (bool)is_ready)
+    .with("is_valid", (bool)is_valid)
+    .info();
 })
 
 void print_perf_summary() {
