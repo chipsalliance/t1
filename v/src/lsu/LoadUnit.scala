@@ -248,10 +248,26 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   dontTouch(status)
 
   /**
-    * Probes for fetching internal signals
+    * Internal signals probes
     */
-  val probeStatus: LSUBaseStatus = IO(Output(Probe(chiselTypeOf(status))))
-  define(probeStatus, ProbeValue(status))
-  val probeWriteReadyForLSU: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu))))
-  define(probeWriteReadyForLSU, ProbeValue(writeReadyForLsu))
+  val tlPortAProbe: DecoupledIO[TLChannelA] = IO(Output(Probe(chiselTypeOf(tlPortA))))
+  define(tlPortAProbe, ProbeValue(tlPortA))
+
+  val tlPortDProbe = IO(Output(Probe(chiselTypeOf(tlPortD))))
+  define(tlPortDProbe, ProbeValue(tlPortD))
+
+  val vrfWritePortProbe = IO(Output(Probe(chiselTypeOf(vrfWritePort))))
+  define(vrfWritePortProbe, ProbeValue(vrfWritePort))
+
+  val statusProbe: LSUBaseStatus = IO(Output(Probe(chiselTypeOf(status))))
+  define(statusProbe, ProbeValue(status))
+
+  val writeReadyForLSUProbe: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu))))
+  define(writeReadyForLSUProbe, ProbeValue(writeReadyForLsu))
+
+  val lastCacheLineAckProbe: Vec[Bool] = IO(Output(Probe(chiselTypeOf(lastCacheLineAck))))
+  define(lastCacheLineAckProbe, ProbeValue(lastCacheLineAck))
+
+  val cacheLineDequeueProbe: Vec[DecoupledIO[cacheLineDequeueBundle]] = IO(Output(Probe(chiselTypeOf(cacheLineDequeue))))
+  define(cacheLineDequeueProbe, ProbeValue(cacheLineDequeue))
 }
