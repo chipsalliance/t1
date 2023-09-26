@@ -307,7 +307,16 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends
     }
   }
 
-  val source1Select: UInt = Mux(state.decodeResult(Decoder.vtype), readResult0, readFromScalar)
+  val scalarDataSelect = Mux(state.decodeResult(Decoder.adder), state.vSew1H, 4.U(3.W))
+  val scalarDataRepeat = Mux1H(
+    scalarDataSelect,
+    Seq(
+      Fill(4, readFromScalar(7, 0)),
+      Fill(2, readFromScalar(15, 0)),
+      readFromScalar
+    )
+  )
+  val source1Select: UInt = Mux(state.decodeResult(Decoder.vtype), readResult0, scalarDataRepeat)
   dequeue.bits.mask := pipeEnqueue.mask
   dequeue.bits.groupCounter := pipeEnqueue.groupCounter
   dequeue.bits.src := VecInit(Seq(source1Select, readResult1, readResult2))

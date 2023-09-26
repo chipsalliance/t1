@@ -631,7 +631,7 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val src: Vec[UInt] = Vec(4, UInt((parameter.datapathWidth + 1).W))
   val opcode: UInt = UInt(4.W)
   // mask for carry or borrow
-  val mask:     Bool = Bool()
+  val mask: UInt = UInt(4.W)
   val sign: Bool = Bool()
   val reverse: Bool = Bool()
   val average: Bool = Bool()
@@ -660,8 +660,8 @@ class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
   val clipFail: Bool = Bool()
   val ffoSuccess: Bool = Bool()
   val divBusy: Bool = Bool()
-  val adderMaskResp: Bool = Bool()
-  val vxsat: Bool = Bool()
+  val adderMaskResp: UInt = UInt(4.W)
+  val vxsat: UInt = UInt(4.W)
   // float flag
   val exceptionFlags: UInt = UInt(5.W)
 }
