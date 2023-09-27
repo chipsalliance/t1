@@ -1,7 +1,7 @@
 set -e
 
-sudo -HE -u runner bash -c << EOF
-eval $(ssh-agent -s)
+sudo -HE -u runner bash << EOF
+eval \$(ssh-agent -s)
 echo "${ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}" |  ssh-add -
 mkdir -p ~/.ssh
 ssh-keyscan -H ${ROCKETCHIP_NIX_REMOTE_HOST} > ~/.ssh/known_hosts
