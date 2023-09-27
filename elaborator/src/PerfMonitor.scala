@@ -36,7 +36,6 @@ class LoadUnitPortDMonitor extends DPIModule {
   override val trigger: String = s"always @(posedge ${clock.name})";
 }
 
-
 /**
   * Monitor signals in VRF write port in [[v.LoadUnit]]
   */
@@ -52,6 +51,9 @@ class LoadUnitVrfWritePortMonitor extends DPIModule {
   override val trigger: String = s"always @(posedge ${clock.name})";
 }
 
+/**
+  * Monitor lastCacheLineAck status [[v.LoadUnit]]
+  */
 class LoadUnitLastCacheLineAckMonitor extends DPIModule {
   override val isImport = true;
 
@@ -71,6 +73,53 @@ class LoadUnitCacheLineDequeueMonitor extends DPIModule {
   val index = dpiIn("LoadUnitCacheLineDequeueIndex", Input(UInt(32.W)))
   val isValid = dpiIn("LoadUnitCacheLineDequeueIsValid", Input(Bool()))
   val isReady = dpiIn("LoadUnitCacheLineDequeueIsReady", Input(Bool()))
+
+  override val trigger: String = s"always @(posedge ${clock.name})";
+}
+
+class SimpleAccessUnitMonitor extends DPIModule {
+  override val isImport = true;
+
+  val clock = dpiTrigger("clock", Input(Bool()))
+
+  val lsuRequestIsValid = dpiIn("SimpleAccessUnitLSURequestIsValid", Input(Bool()))
+
+  val vrfReadDataPortsIsReady = dpiIn("SimpleAccessUnitVRFReadDataPortsIsReady", Input(Bool()))
+  val vrfReadDataPortsIsValid = dpiIn("SimpleAccessUnitVRFReadDataPortsIsValid", Input(Bool()))
+
+  val maskSelectIsValid = dpiIn("SimpleAccessUnitMaskSelectIsValid", Input(Bool()))
+
+  val vrfWritePortIsReady = dpiIn("SimpleAccessUnitVRFWritePortIsReady", Input(Bool()))
+  val vrfWritePortIsValid = dpiIn("SimpleAccessUnitVRFWritePortIsValid", Input(Bool()))
+
+  val currentLane = dpiIn("SimpleAccessUnitStatusTargetLane", Input(UInt(32.W)))
+  val statusIsOffsetGroupEnd = dpiIn("SimpleAccessUnitStatusIsOffsetGroupEnd", Input(Bool()))
+  val statusIsWaitingFirstResponse = dpiIn("SimpleAccessUnitStatusIsWaitingFirstResponse", Input(Bool()))
+
+  val s0Fire = dpiIn("SimpleAccessUnitS0Fire", Input(Bool()))
+  val s1Fire = dpiIn("SimpleAccessUnitS1Fire", Input(Bool()))
+  val s2Fire = dpiIn("SimpleAccessUnitS2Fire", Input(Bool()))
+
+  override val trigger: String = s"always @(posedge ${clock.name})";
+}
+
+class SimpleAccessUnitOffsetReadResultMonitor extends DPIModule {
+  override val isImport = true;
+
+  val clock = dpiTrigger("clock", Input(Bool()))
+
+  val index = dpiIn("SimpleAccessUnitOffSetReadResultIndex", Input(UInt(32.W)))
+  val offsetReadResultIsValid = dpiIn("SimpleAccessUnitOffsetReadResultIsValid", Input(Bool()))
+
+  override val trigger: String = s"always @(posedge ${clock.name})";
+}
+
+class SimpleAccessUnitIndexedInsnOffsetsIsValidMonitor extends DPIModule {
+  override val isImport = true;
+  val clock = dpiTrigger("clock", Input(Bool()))
+
+  val index = dpiIn("SimpleAccessUnitIndexedInsnOffsetsIndex", Input(UInt(32.W)))
+  val isValid = dpiIn("SimpleAccessUnitIndexedInsnOffsetsIsValid", Input(Bool()))
 
   override val trigger: String = s"always @(posedge ${clock.name})";
 }

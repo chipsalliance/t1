@@ -5,6 +5,7 @@ package v
 
 import chisel3._
 import chisel3.util._
+import chisel3.probe._
 import lsu.{MSHRStage0Bundle, SimpleAccessStatus, SimpleAccessStage1}
 import tilelink.{TLBundle, TLBundleParameter}
 
@@ -999,4 +1000,45 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   maskSelect.bits := nextGroupIndex
   status.startAddress := DontCare
   status.endAddress := DontCare
+
+  /**
+   * probes for monitoring internal signal
+   */
+  val lsuRequestProbe: ValidIO[LSURequest] = IO(Output(Probe(chiselTypeOf(lsuRequest))))
+  define(lsuRequestProbe, ProbeValue(lsuRequest))
+
+  val vrfReadDataPortsProbe: DecoupledIO[VRFReadRequest] = IO(Output(Probe(chiselTypeOf(vrfReadDataPorts))))
+  define(vrfReadDataPortsProbe, ProbeValue(vrfReadDataPorts))
+
+  val offsetReadResultValidProbe: Seq[Bool] = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
+  offsetReadResult.zipWithIndex.foreach({ case(readResult, i) =>
+    define(offsetReadResultValidProbe(i), ProbeValue(readResult.valid))
+  })
+
+  val maskSelectValidProbe = IO(Output(Probe(Bool())))
+  define(maskSelectValidProbe, ProbeValue(maskSelect.valid))
+
+  val vrfWritePortIsValidProbe = IO(Output(Probe(Bool())))
+  define(vrfWritePortIsValidProbe, ProbeValue(vrfWritePort.valid))
+  val vrfWritePortIsReadyProbe = IO(Output(Probe(Bool())))
+  define(vrfWritePortIsReadyProbe, ProbeValue(vrfWritePort.ready))
+
+  val statusIsOffsetGroupEndProbe = IO(Output(Probe(Bool())))
+  define(statusIsOffsetGroupEndProbe, ProbeValue(status.offsetGroupEnd))
+  val currentLaneProbe: UInt = IO(Output(Probe(chiselTypeOf(status.targetLane))))
+  define(currentLaneProbe, ProbeValue(status.targetLane))
+  val statusIsWaitingFirstResponseProbe = IO(Output(Probe(Bool())))
+  define(statusIsWaitingFirstResponseProbe, ProbeValue(status.waitFirstResponse))
+
+  val s0FireProbe = IO(Output(Probe(chiselTypeOf(s0Fire))))
+  define(s0FireProbe, ProbeValue(s0Fire))
+  val s1FireProbe = IO(Output(Probe(chiselTypeOf(s1Fire))))
+  define(s1FireProbe, ProbeValue(s1Fire))
+  val s2FireProbe = IO(Output(Probe(chiselTypeOf(s2Fire))))
+  define(s2FireProbe, ProbeValue(s2Fire))
+
+  val indexedInsturctionOffsetsIsValidProbe: Seq[Bool] = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
+  indexedInstructionOffsets.zipWithIndex.foreach({ case(offset, i) =>
+    define(indexedInsturctionOffsetsIsValidProbe(i), ProbeValue(offset.valid))
+  })
 }
