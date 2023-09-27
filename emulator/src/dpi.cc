@@ -322,6 +322,52 @@ void VBridgeImpl::dpiDumpWave() {
     .info();
 })
 
+[[maybe_unused]] void store_unit_monitor(
+  const svBit vrf_ready_to_store,
+  const svBit aligned_dequeue_is_ready,
+  const svBit aligned_dequeue_is_valid
+) {
+  Log("StoreUnitMonitor")
+    .with("vrf_ready_to_store", (bool)vrf_ready_to_store)
+    .with("aligned_dequeue_is_ready", (bool)aligned_dequeue_is_ready)
+    .with("aligned_dequeue_is_valid", (bool)aligned_dequeue_is_valid)
+    .info();
+}
+
+[[maybe_unused]] void store_unit_tl_port_a_ready_monitor(
+  const svBitVecVal *index,
+  svLogic ready
+) {
+  Log("StoreUnitTLPortAReadyMonitor")
+    .with("index", (int)(*index))
+    .with("is_ready", (bool)ready)
+    .info();
+}
+
+[[maybe_unused]] void store_unit_tl_port_a_valid_monitor(
+  const svBitVecVal *index,
+  svLogic valid
+) TRY({
+  Log("StoreUnitTLPortAReadyMonitor")
+    .with("index", (int)(*index))
+    .with("is_valid", (bool)valid)
+    .info();
+})
+
+[[maybe_unused]] void store_unit_vrf_read_data_port_ready_monitor(const svBitVecVal *index, svLogic ready) TRY({
+  Log("StoreUnitVrfReadDataPortReadyMonitor")
+    .with("index", (int)(*index))
+    .with("is_ready", (bool)ready)
+    .info();
+})
+
+[[maybe_unused]] void store_unit_vrf_read_data_port_valid_monitor(const svBitVecVal *index, svLogic valid) TRY({
+  Log("StoreUnitVrfReadDataPortReadyMonitor")
+    .with("index", (int)(*index))
+    .with("is_valid", (bool)valid)
+    .info();
+})
+
 void print_perf_summary() {
   auto output_file_path = get_env_arg_default("PERF_output_file", nullptr);
   if (output_file_path != nullptr) {
