@@ -75,4 +75,36 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
   })
 
   // End of [[v.LoadUnit]] probe connection
+
+  /**
+    * [[v.SimpleAccessUnit]] related probe connection
+    */
+  val simpleAccessUnitMonitor = Module(new SimpleAccessUnitMonitor)
+  simpleAccessUnitMonitor.clock.ref := clock.asBool
+  simpleAccessUnitMonitor.lsuRequestIsValid.ref := read(bore(dut.lsu.otherUnit.lsuRequestProbe.valid))
+  simpleAccessUnitMonitor.vrfReadDataPortsIsReady.ref := read(bore(dut.lsu.otherUnit.vrfReadDataPortsProbe.ready))
+  simpleAccessUnitMonitor.vrfReadDataPortsIsValid.ref := read(bore(dut.lsu.otherUnit.vrfReadDataPortsProbe.valid))
+  simpleAccessUnitMonitor.maskSelectIsValid.ref := read(bore(dut.lsu.otherUnit.maskSelectValidProbe))
+  simpleAccessUnitMonitor.vrfWritePortIsReady.ref := read(bore(dut.lsu.otherUnit.vrfWritePortIsReadyProbe))
+  simpleAccessUnitMonitor.vrfWritePortIsValid.ref := read(bore(dut.lsu.otherUnit.vrfWritePortIsValidProbe))
+  simpleAccessUnitMonitor.currentLane.ref := read(bore(dut.lsu.otherUnit.currentLaneProbe))
+  simpleAccessUnitMonitor.statusIsOffsetGroupEnd.ref := read(bore(dut.lsu.otherUnit.statusIsOffsetGroupEndProbe))
+  simpleAccessUnitMonitor.statusIsWaitingFirstResponse.ref := read(bore(dut.lsu.otherUnit.statusIsWaitingFirstResponseProbe))
+  simpleAccessUnitMonitor.s0Fire.ref := read(bore(dut.lsu.otherUnit.s0FireProbe))
+  simpleAccessUnitMonitor.s1Fire.ref := read(bore(dut.lsu.otherUnit.s1FireProbe))
+  simpleAccessUnitMonitor.s2Fire.ref := read(bore(dut.lsu.otherUnit.s2FireProbe))
+
+  dut.lsu.otherUnit.offsetReadResultValidProbe.zipWithIndex.foreach({ case(probe, i) =>
+    val monitor = Module(new SimpleAccessUnitOffsetReadResultMonitor)
+    monitor.clock.ref := clock.asBool
+    monitor.index.ref := i.U
+    monitor.offsetReadResultIsValid.ref := read(bore(probe))
+  })
+
+  dut.lsu.otherUnit.indexedInsturctionOffsetsIsValidProbe.zipWithIndex.foreach({ case(probe, i) =>
+    val monitor = Module(new SimpleAccessUnitIndexedInsnOffsetsIsValidMonitor)
+    monitor.clock.ref := clock.asBool
+    monitor.index.ref := i.U
+    monitor.isValid.ref := read(bore(probe))
+  })
 }

@@ -266,6 +266,62 @@ void VBridgeImpl::dpiDumpWave() {
     .info();
 })
 
+[[maybe_unused]] void simple_access_unit_monitor(
+  const svBit lsu_request_is_valid,
+  const svBit vrf_read_data_port_is_ready,
+  const svBit vrf_read_data_port_is_valid,
+  const svBit mask_select_is_valid,
+  const svBit vrf_write_port_is_ready,
+  const svBit vrf_write_port_is_valid,
+  const svBitVecVal *current_lane,
+  const svBit status_is_offset_group_end,
+  const svBit status_is_waiting_first_resp,
+  const svBit s0_fire,
+  const svBit s1_fire,
+  const svBit s2_fire
+) TRY({
+  Log("SimpleAccessUnit")
+    .with("lsu_request_is_valid", (bool)lsu_request_is_valid)
+    .with("vrf_read_data_port", json {
+      { "is_ready", (bool)vrf_read_data_port_is_ready },
+      { "is_valid", (bool)vrf_read_data_port_is_valid }
+    })
+    .with("vrf_write_port", json {
+      { "is_ready", (bool)vrf_write_port_is_ready },
+      { "is_valid", (bool)vrf_write_port_is_valid }
+    })
+    .with("mask_select_is_valid", (bool)mask_select_is_valid)
+    .with("status", json {
+      { "current_lane", (int)(*current_lane) },
+      { "is_waiting_first_response", (bool)status_is_waiting_first_resp },
+      { "is_offset_group_end", (bool)status_is_offset_group_end }
+    })
+    .with("s0_fire", (bool)s0_fire)
+    .with("s1_fire", (bool)s1_fire)
+    .with("s2_fire", (bool)s2_fire)
+    .info();
+})
+
+[[maybe_unused]] void simple_access_unit_offset_read_result_monitor(
+  const svBitVecVal *index,
+  const svBit is_valid
+) TRY({
+  Log("SimpleAccessUnitOffsetReadResult")
+    .with("index", (int)(*index))
+    .with("is_valid", (bool)is_valid)
+    .info();
+})
+
+[[maybe_unused]] void simple_access_unit_indexed_insn_offsets_is_valid_monitor(
+  const svBitVecVal *index,
+  const svBit is_valid
+) TRY({
+  Log("SimpleAccessUnitIndexedInsnOffsetIsValid")
+    .with("index", (int)(*index))
+    .with("is_valid", (bool)is_valid)
+    .info();
+})
+
 void print_perf_summary() {
   auto output_file_path = get_env_arg_default("PERF_output_file", nullptr);
   if (output_file_path != nullptr) {
