@@ -7,6 +7,11 @@ mkdir -p ~/.ssh
 ssh-keyscan -H ${ROCKETCHIP_NIX_REMOTE_HOST} > ~/.ssh/known_hosts
 EOF
 
+eval $(ssh-agent -s)
+echo "${ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}" |  ssh-add -
+mkdir -p ~/.ssh
+ssh-keyscan -H ${ROCKETCHIP_NIX_REMOTE_HOST} > ~/.ssh/known_hosts
+
 mkdir -p /etc/nix
 cat > /etc/nix/upload-to-cache.sh << EOF
 #!/bin/sh
