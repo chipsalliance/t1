@@ -5,6 +5,7 @@ package v
 
 import chisel3._
 import chisel3.util._
+import chisel3.probe._
 import lsu.StoreStatus
 import tilelink.TLChannelA
 
@@ -277,4 +278,29 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   status.endAddress := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineNumberReg) ##
     0.U(param.cacheLineBits.W)
   dontTouch(status)
+
+  /**
+    * Probes
+    */
+  val tlPortAIsValidProbe = Seq.fill(param.memoryBankSize)(IO(Output(Probe(Bool()))))
+  val tlPortAIsReadyProbe = Seq.fill(param.memoryBankSize)(IO(Output(Probe(Bool()))))
+  tlPortA.zipWithIndex.foreach({ case(port, i) =>
+    define(tlPortAIsValidProbe(i), ProbeValue(port.valid))
+    define(tlPortAIsReadyProbe(i), ProbeValue(port.ready))
+  })
+
+  val vrfReadDataPortIsValidProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
+  val vrfReadDataPortIsReadyProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
+  vrfReadDataPorts.zipWithIndex.foreach({ case(port, i) =>
+    define(vrfReadDataPortIsValidProbe(i), ProbeValue(port.valid))
+    define(vrfReadDataPortIsReadyProbe(i), ProbeValue(port.ready))
+  })
+
+  val vrfReadyToStoreProbe = IO(Output(Probe(Bool())))
+  define(vrfReadyToStoreProbe, ProbeValue(vrfReadyToStore))
+
+  val alignedDequeueValidProbe = IO(Output(Probe(Bool())))
+  define(alignedDequeueValidProbe, ProbeValue(alignedDequeue.valid))
+  val alignedDequeueReadyProbe = IO(Output(Probe(Bool())))
+  define(alignedDequeueReadyProbe, ProbeValue(alignedDequeue.ready))
 }

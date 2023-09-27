@@ -123,3 +123,51 @@ class SimpleAccessUnitIndexedInsnOffsetsIsValidMonitor extends DPIModule {
 
   override val trigger: String = s"always @(posedge ${clock.name})";
 }
+
+class StoreUnitMonitor extends DPIModule {
+  override val isImport: Boolean = true;
+  val clock = dpiTrigger("clock", Input(Bool()))
+  override val trigger: String = s"always @(posedge ${clock.name})";
+
+  val vrfReadyToStore = dpiIn("VrfReadyToStore", Input(Bool()))
+  val alignedDequeueValid = dpiIn("AlignedDequeueValid", Input(Bool()))
+  val alignedDequeueReady = dpiIn("AlignedDequeueReady", Input(Bool()))
+}
+
+// Monitor tlPortA in [[v.StoreUnit]]
+class StoreUnitTlPortAValidMonitor extends DPIModule {
+  override val isImport: Boolean = true;
+  val clock = dpiTrigger("clock", Input(Bool()))
+  override val trigger: String = s"always @(posedge ${clock.name})";
+
+  val index = dpiIn("index", Input(UInt(32.W)))
+  val valid = dpiIn("valid", Input(Bool()))
+}
+
+class StoreUnitTlPortAReadyMonitor extends DPIModule {
+  override val isImport: Boolean = true;
+  val clock = dpiTrigger("clock", Input(Bool()))
+  override val trigger: String = s"always @(posedge ${clock.name})";
+
+  val index = dpiIn("index", Input(UInt(32.W)))
+  val ready = dpiIn("ready", Input(Bool()))
+}
+
+class StoreUnitVrfReadDataPortValidMonitor extends DPIModule {
+  override val isImport: Boolean = true;
+  val clock = dpiTrigger("clock", Input(Bool()))
+  override val trigger: String = s"always @(posedge ${clock.name})";
+
+  val index = dpiIn("index", Input(UInt(32.W)))
+  val valid = dpiIn("valid", Input(Bool()))
+}
+
+class StoreUnitVrfReadDataPortReadyMonitor extends DPIModule {
+  override val isImport: Boolean = true;
+  val clock = dpiTrigger("clock", Input(Bool()))
+  override val trigger: String = s"always @(posedge ${clock.name})";
+
+  val index = dpiIn("index", Input(UInt(32.W)))
+  val ready = dpiIn("ready", Input(Bool()))
+}
+

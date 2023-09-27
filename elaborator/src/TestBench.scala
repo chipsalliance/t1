@@ -73,8 +73,8 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
     cacheLineDequeueMonitor.isReady.ref := cacheLine.ready
     cacheLineDequeueMonitor.isValid.ref := cacheLine.valid
   })
-
   // End of [[v.LoadUnit]] probe connection
+
 
   /**
     * [[v.SimpleAccessUnit]] related probe connection
@@ -106,5 +106,43 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
     monitor.clock.ref := clock.asBool
     monitor.index.ref := i.U
     monitor.isValid.ref := read(bore(probe))
+  })
+  // End of [[v.SimpleAccessUnit]] related probe connection
+
+  /**
+   * [[v.StoreUnit]] related probe connection
+   */
+  val storeUnitMonitor = Module(new StoreUnitMonitor)
+  storeUnitMonitor.clock.ref := clock.asBool
+  storeUnitMonitor.vrfReadyToStore.ref := read(bore(dut.lsu.storeUnit.vrfReadyToStoreProbe))
+  storeUnitMonitor.alignedDequeueReady.ref := read(bore(dut.lsu.storeUnit.alignedDequeueReadyProbe))
+  storeUnitMonitor.alignedDequeueValid.ref := read(bore(dut.lsu.storeUnit.alignedDequeueValidProbe))
+
+  dut.lsu.storeUnit.tlPortAIsReadyProbe.zipWithIndex.foreach({ case(probe, i) =>
+    val monitor = Module(new StoreUnitTlPortAReadyMonitor)
+    monitor.clock.ref := clock.asBool
+    monitor.index.ref := i.U
+    monitor.ready.ref := read(bore(probe))
+  })
+
+  dut.lsu.storeUnit.tlPortAIsValidProbe.zipWithIndex.foreach({ case(probe, i) =>
+    val monitor = Module(new StoreUnitTlPortAValidMonitor)
+    monitor.clock.ref := clock.asBool
+    monitor.index.ref := i.U
+    monitor.valid.ref := read(bore(probe))
+  })
+
+  dut.lsu.storeUnit.vrfReadDataPortIsReadyProbe.zipWithIndex.foreach({ case(probe, i) =>
+    val monitor = Module(new StoreUnitVrfReadDataPortReadyMonitor)
+    monitor.clock.ref := clock.asBool
+    monitor.index.ref := i.U
+    monitor.ready.ref := read(bore(probe))
+  })
+
+  dut.lsu.storeUnit.vrfReadDataPortIsValidProbe.zipWithIndex.foreach({ case(probe, i) =>
+    val monitor = Module(new StoreUnitVrfReadDataPortValidMonitor)
+    monitor.clock.ref := clock.asBool
+    monitor.index.ref := i.U
+    monitor.valid.ref := read(bore(probe))
   })
 }
