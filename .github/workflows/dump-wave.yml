@@ -1,0 +1,34 @@
+name: Test dump wave
+on: [pull_request]
+env:
+  USER: runner
+
+jobs:
+  ci:
+    name: "CI"
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - run: sudo -E .github/setup-actions.sh
+        env:
+          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
+          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
+          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
+          ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
+          ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      - uses: cachix/install-nix-action@v19
+        with:
+          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            post-build-hook = /etc/nix/upload-to-cache.sh
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
+            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
+            sandbox = relaxed
+            max-jobs = 0
+            builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders-use-substitutes = true
+      - run: |
+          nix develop .#testcase -c mill -i verilatorEmulator[v1024l8b2-test-trace,hello-mlir,debug].run
