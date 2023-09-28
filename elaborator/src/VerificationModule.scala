@@ -29,7 +29,7 @@ class VerificationModule(dut: V) extends RawModule {
 
   val clockGen = Module(new ClockGen(ClockGenParameter(clockRate)))
 
-  val dumpDumpWave = Module(new DpiDumpWave)
+  val dpiDumpWave = Module(new DpiDumpWave)
   val dpiFinish = Module(new DpiFinish)
   val dpiError = Module(new DpiError)
   val dpiInit = Module(new DpiInitCosim)
