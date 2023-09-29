@@ -38,6 +38,7 @@ void print_perf_summary();
   } catch (std::runtime_error &e) { \
     terminated = true;                \
     LOG(ERROR) << fmt::format("detect exception ({}), gracefully abort simulation", e.what());                 \
+    svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.dpiError")); \
     dpi_error(e.what());  \
   }
 
