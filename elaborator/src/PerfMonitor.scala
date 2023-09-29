@@ -171,3 +171,85 @@ class StoreUnitVrfReadDataPortReadyMonitor extends DPIModule {
   val ready = dpiIn("ready", Input(Bool()))
 }
 
+class MaskedWriteMonitor extends DPIModule {
+  override val isImport: Boolean = true;
+  val clock = dpiTrigger("clock", Input(Bool()))
+  override val trigger: String = s"always @(posedge ${clock.name})";
+
+  val enqueueValid = dpiIn("enqueueValid", Input(Bool()))
+  val enqueueReady = dpiIn("enqueueReady", Input(Bool()))
+  val dequeueValid = dpiIn("dequeueValid", Input(Bool()))
+  val dequeueReady = dpiIn("dequeueReady", Input(Bool()))
+  val vrfReadRequestValid = dpiIn("vrfReadRequestValid", Input(Bool()))
+  val vrfReadRequestReady = dpiIn("vrfReadRequestReady", Input(Bool()))
+  val writeQueueReady = dpiIn("writeQueueReady", Input(Bool()))
+  val writeQueueValid = dpiIn("writeQueueValid", Input(Bool()))
+}
+
+abstract class LaneMonitor extends DPIModule {
+  override val isImport: Boolean = true;
+  val clock = dpiTrigger("clock", Input(Bool()))
+  override val trigger: String = s"always @(posedge ${clock.name})";
+  val laneIndex = dpiIn("laneIndex", Input(UInt(32.W)))
+}
+
+class LaneReadBusPortMonitor extends LaneMonitor {
+  val readBusPortEnqReady = dpiIn("readBusPortEnqReady", Input(Bool()))
+  val readBusPortEnqValid = dpiIn("readBusPortEnqValid", Input(Bool()))
+  val readBusPortDeqReady = dpiIn("readBusPortDeqReady", Input(Bool()))
+  val readBusPortDeqValid = dpiIn("readBusPortDeqValid", Input(Bool()))
+}
+
+class LaneWriteBusPortMonitor extends LaneMonitor {
+  val writeBusPortEnqReady = dpiIn("writeBusPortEnqReady", Input(Bool()))
+  val writeBusPortEnqValid = dpiIn("writeBusPortEnqValid", Input(Bool()))
+  val writeBusPortDeqReady = dpiIn("writeBusPortDeqReady", Input(Bool()))
+  val writeBusPortDeqValid = dpiIn("writeBusPortDeqValid", Input(Bool()))
+}
+
+class LaneRequestMonitor extends LaneMonitor {
+  val laneRequestValid = dpiIn("laneRequestValid", Input(Bool()))
+  val laneRequestReady = dpiIn("laneRequestReady", Input(Bool()))
+}
+
+class LaneResponseMonitor extends LaneMonitor {
+  val laneResponseValid = dpiIn("laneResponseValid", Input(Bool()))
+  val laneResponseFeedbackValid = dpiIn("laneResponseFeedbackValid", Input(Bool()))
+}
+
+class LaneVrfReadMonitor extends LaneMonitor {
+  val vrfReadAddressChannelValid = dpiIn("vrfReadAddressChannelValid", Input(Bool()))
+  val vrfReadAddressChannelReady = dpiIn("vrfReadAddressChannelReady", Input(Bool()))
+}
+
+class LaneVrfWriteMonitor extends LaneMonitor {
+  val vrfWriteChannelValid = dpiIn("vrfWriteChannelValid", Input(Bool()))
+  val vrfWriteChannelReady = dpiIn("vrfWriteChannelReady", Input(Bool()))
+}
+
+class LaneStatusMonitor extends LaneMonitor {
+  val v0UpdateValid = dpiIn("v0UpdateValid", Input(Bool()))
+  val writeReadyForLsu = dpiIn("writeReadyForLsu", Input(Bool()))
+  val vrfReadyToStore = dpiIn("vrfReadyToStore", Input(Bool()))
+}
+
+class LaneWriteQueueMonitor extends LaneMonitor {
+  val writeQueueValid = dpiIn("writeQueueValid", Input(Bool()))
+}
+
+class LaneReadBusDequeueMonitor extends LaneMonitor {
+  val readBusDequeueValid = dpiIn("readBusDequeueValid", Input(Bool()))
+}
+
+class CrossLaneMonitor extends LaneMonitor {
+  val crossLaneReadValid = dpiIn("crossLaneReadValid", Input(Bool()))
+  val crossLaneWriteValid = dpiIn("crossLaneWriteValid", Input(Bool()))
+}
+
+class LaneReadBusDataMonitor extends LaneMonitor {
+  val readBusDataReqValid = dpiIn("readBusDataReqValid", Input(Bool()))
+}
+
+class LaneWriteBusDataMonitor extends LaneMonitor {
+  val writeBusDataReqValid = dpiIn("writeBusDataReqValid", Input(Bool()))
+}

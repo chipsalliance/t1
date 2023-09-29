@@ -368,6 +368,172 @@ void VBridgeImpl::dpiDumpWave() {
     .info();
 })
 
+[[maybe_unused]] void lane_read_bus_port_monitor(
+  const svBitVecVal *index,
+  const svBit read_bus_port_enq_ready,
+  const svBit read_bus_port_enq_valid,
+  const svBit read_bus_port_deq_ready,
+  const svBit read_bus_port_deq_valid
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("read_bus_port", json {
+      { "enq", {
+        { "ready", (bool)read_bus_port_enq_ready },
+        { "valid", (bool)read_bus_port_enq_valid }
+      }},
+      { "deq", {
+        { "ready", (bool)read_bus_port_deq_ready },
+        { "valid", (bool)read_bus_port_deq_valid }
+      }}
+    })
+    .info();
+})
+
+[[maybe_unused]] void lane_write_bus_port_monitor(
+  const svBitVecVal *index,
+  const svBit write_bus_port_enq_ready,
+  const svBit write_bus_port_enq_valid,
+  const svBit write_bus_port_deq_ready,
+  const svBit write_bus_port_deq_valid
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("write_bus_port", json {
+      { "enq", {
+        { "ready", (bool)write_bus_port_enq_ready },
+        { "valid", (bool)write_bus_port_enq_valid }
+      }},
+      { "deq", {
+        { "ready", (bool)write_bus_port_deq_ready },
+        { "valid", (bool)write_bus_port_deq_valid }
+      }}
+    })
+    .info();
+})
+
+[[maybe_unused]] void lane_request_monitor(
+  const svBitVecVal *index,
+  const svBit lane_request_valid,
+  const svBit lane_request_ready
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("lane_request", json {
+      { "valid", (bool)lane_request_valid },
+      { "ready", (bool)lane_request_ready }
+    })
+    .info();
+})
+
+[[maybe_unused]] void lane_response_monitor(
+  const svBitVecVal *index,
+  const svBit lane_response_valid,
+  const svBit lane_response_feedback_valid
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("lane_response", json{{ "valid", (bool)lane_response_valid }})
+    .with("lane_response_feedback", json{{ "valid", (bool)lane_response_feedback_valid }})
+    .info();
+})
+
+[[maybe_unused]] void lane_vrf_read_monitor(
+  const svBitVecVal *index,
+  const svBit vrf_read_address_channel_valid,
+  const svBit vrf_read_address_channel_ready
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("vrf_read_address_channel", json {
+      { "valid", (bool)vrf_read_address_channel_valid },
+      { "ready", (bool)vrf_read_address_channel_ready },
+     })
+    .info();
+})
+
+[[maybe_unused]] void lane_vrf_write_monitor(
+  const svBitVecVal *index,
+  const svBit vrf_write_channel_valid,
+  const svBit vrf_write_channel_ready
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("vrf_write_channel", json {
+      { "valid", (bool)vrf_write_channel_valid },
+      { "ready", (bool)vrf_write_channel_valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void lane_status_monitor(
+  const svBitVecVal *index,
+  const svBit v0_update_valid,
+  const svBit write_ready_for_lsu,
+  const svBit vrf_ready_to_store
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("v0_update_valid", (bool)v0_update_valid)
+    .with("write_ready_for_lsu", (bool)write_ready_for_lsu)
+    .with("vrf_ready_to_store", (bool)vrf_ready_to_store)
+    .info();
+})
+
+[[maybe_unused]] void lane_write_queue_monitor(
+  const svBitVecVal *index,
+  const svBit write_queue_valid
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("write_queue_valid", (bool)write_queue_valid)
+    .info();
+})
+
+[[maybe_unused]] void lane_read_bus_dequeue_monitor(
+  const svBitVecVal *index,
+  const svBit read_bus_dequeue_valid
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("read_bus_dequeue_valid", (bool)read_bus_dequeue_valid)
+    .info();
+})
+
+[[maybe_unused]] void cross_lane_monitor(
+  const svBitVecVal *index,
+  const svBit cross_lane_read_valid,
+  const svBit cross_lane_write_valid
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("cross_lane", json {
+      { "read_valid", (bool)cross_lane_read_valid },
+      { "write_valid", (bool)cross_lane_write_valid },
+     })
+    .info();
+})
+
+[[maybe_unused]] void lane_read_bus_data_monitor(
+  const svBitVecVal *index,
+  const svBit read_bus_data_req_valid
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("read_bus_data_req_valid", (bool)read_bus_data_req_valid)
+    .info();
+})
+
+[[maybe_unused]] void lane_write_bus_data_monitor(
+  const svBitVecVal *index,
+  const svBit write_bus_data_req_valid
+) TRY({
+  Log("LaneMonitor")
+    .with("lane_index", (int)(*index))
+    .with("write_bus_data_req_valid", (bool)write_bus_data_req_valid)
+    .info();
+})
+
 void print_perf_summary() {
   auto output_file_path = get_env_arg_default("PERF_output_file", nullptr);
   if (output_file_path != nullptr) {
