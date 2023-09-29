@@ -145,4 +145,113 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
     monitor.index.ref := i.U
     monitor.valid.ref := read(bore(probe))
   })
+
+  dut.laneVec.zipWithIndex.foreach({ case (lane, i) =>
+    {
+      val monitor = Module(new LaneReadBusPortMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.readBusPortEnqReady.ref := read(bore(lane.readBusPortEnqReadyProbe))
+      monitor.readBusPortEnqValid.ref := read(bore(lane.readBusPortEnqValidProbe))
+      monitor.readBusPortDeqReady.ref := read(bore(lane.readBusPortDeqReadyProbe))
+      monitor.readBusPortDeqValid.ref := read(bore(lane.readBusPortDeqValidProbe))
+    }
+    {
+      val monitor = Module(new LaneWriteBusPortMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.writeBusPortDeqReady.ref := read(bore(lane.writeBusPortDeqReadyProbe))
+      monitor.writeBusPortDeqValid.ref := read(bore(lane.writeBusPortDeqValidProbe))
+      monitor.writeBusPortEnqReady.ref := read(bore(lane.writeBusPortEnqReadyProbe))
+      monitor.writeBusPortEnqValid.ref := read(bore(lane.writeBusPortEnqValidProbe))
+    }
+    {
+      val monitor = Module(new LaneRequestMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.laneRequestReady.ref := read(bore(lane.laneRequestReadyProbe))
+      monitor.laneRequestValid.ref := read(bore(lane.laneRequestValidProbe))
+    }
+    {
+      val monitor = Module(new LaneResponseMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.laneResponseValid.ref := read(bore(lane.laneResponseValidProbe))
+      monitor.laneResponseFeedbackValid.ref := read(bore(lane.laneResponseFeedbackValidProbe))
+    }
+    {
+      val monitor = Module(new LaneVrfReadMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.vrfReadAddressChannelReady.ref := read(bore(lane.vrfReadAddressChannelReadyProbe))
+      monitor.vrfReadAddressChannelValid.ref := read(bore(lane.vrfReadAddressChannelValidProbe))
+    }
+    {
+      val monitor = Module(new LaneVrfWriteMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.vrfWriteChannelValid.ref := read(bore(lane.vrfWriteChannelValidProbe))
+      monitor.vrfWriteChannelReady.ref := read(bore(lane.vrfWriteChannelReadyProbe))
+    }
+    {
+      val monitor = Module(new LaneStatusMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.v0UpdateValid.ref := read(bore(lane.v0UpdateValidProbe))
+      monitor.writeReadyForLsu.ref := read(bore(lane.writeReadyForLsuProbe))
+      monitor.vrfReadyToStore.ref := read(bore(lane.vrfReadyToStoreProbe))
+    }
+    {
+      val monitor = Module(new LaneWriteQueueMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.writeQueueValid.ref := read(bore(lane.writeQueueValidProbe))
+    }
+    {
+      val monitor = Module(new LaneReadBusDequeueMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.readBusDequeueValid.ref := read(bore(lane.readBusDequeueValidProbe))
+    }
+    {
+      val monitor = Module(new CrossLaneMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.crossLaneReadValid.ref := read(bore(lane.crossLaneReadValidProbe))
+      monitor.crossLaneWriteValid.ref := read(bore(lane.crossLaneWriteValidProbe))
+    }
+    {
+      val monitor = Module(new CrossLaneMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.crossLaneReadValid.ref := read(bore(lane.crossLaneReadValidProbe))
+      monitor.crossLaneWriteValid.ref := read(bore(lane.crossLaneWriteValidProbe))
+    }
+    {
+      val monitor = Module(new LaneReadBusDataMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.readBusDataReqValid.ref := read(bore(lane.readBusDataReqValidProbe))
+    }
+    {
+      val monitor = Module(new LaneWriteBusDataMonitor)
+      monitor.clock.ref := clock.asBool
+      monitor.laneIndex.ref := i.U
+
+      monitor.writeBusDataReqValid.ref := read(bore(lane.writeBusDataReqValidProbe))
+    }
+  })
+
 }
