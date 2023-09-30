@@ -265,6 +265,7 @@ trait Emulator
       "--x-initial unique",
       "--output-split 100000",
       "--max-num-width 1048576",
+      "--threads-max-mtasks 100000",
       "--main",
       "--timing",
       // use for coverage
