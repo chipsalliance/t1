@@ -139,10 +139,10 @@ void setup_logger() {
   };
   auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
       log_path, /*truncate=*/true, f_handlers);
-  // Basic logging information, other data are nested in the `data` attribute
+  // Basic logging information, other data are nested in the `log` attribute
   // set.
   file_sink->set_pattern(
-      "{ \"timestamp\": \"%E\", \"level\": \"%l\", \"data\": %v },");
+      "{ \"timestamp\": \"%E\", \"level\": \"%l\", \"log\": %v },");
 
   auto console_sink = std::make_shared<ConsoleSink>();
   // %T: "23:55:59" (We don't need other information.)

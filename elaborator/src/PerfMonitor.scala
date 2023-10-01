@@ -2,6 +2,29 @@ package tests.elaborate
 
 import chisel3._
 
+abstract class PerfMonitor extends DPIModule {
+  override val isImport = true;
+
+  val clock = dpiTrigger("clock", Input(Bool()))
+  override val trigger: String = s"always @(posedge ${clock.name})";
+}
+
+trait IndexedPerfMonitor extends PerfMonitor {
+  val index = dpiIn("index", Input(UInt(32.W)))
+}
+
+trait ValidMonitor extends PerfMonitor {
+  val valid = dpiIn("valid", Input(Bool()))
+}
+
+trait ReadyMonitor extends PerfMonitor {
+  val ready = dpiIn("ready", Input(Bool()))
+}
+
+trait IndexedValidMonitor extends ValidMonitor with IndexedPerfMonitor
+trait IndexedReadyMonitor extends ReadyMonitor with IndexedPerfMonitor
+trait ReadyAndValidMonitor extends ValidMonitor with ReadyMonitor
+
 /**
   * Monitor signals in [[v.LoadUnit]]
   */
@@ -171,25 +194,7 @@ class StoreUnitVrfReadDataPortReadyMonitor extends DPIModule {
   val ready = dpiIn("ready", Input(Bool()))
 }
 
-class MaskedWriteMonitor extends DPIModule {
-  override val isImport: Boolean = true;
-  val clock = dpiTrigger("clock", Input(Bool()))
-  override val trigger: String = s"always @(posedge ${clock.name})";
-
-  val enqueueValid = dpiIn("enqueueValid", Input(Bool()))
-  val enqueueReady = dpiIn("enqueueReady", Input(Bool()))
-  val dequeueValid = dpiIn("dequeueValid", Input(Bool()))
-  val dequeueReady = dpiIn("dequeueReady", Input(Bool()))
-  val vrfReadRequestValid = dpiIn("vrfReadRequestValid", Input(Bool()))
-  val vrfReadRequestReady = dpiIn("vrfReadRequestReady", Input(Bool()))
-  val writeQueueReady = dpiIn("writeQueueReady", Input(Bool()))
-  val writeQueueValid = dpiIn("writeQueueValid", Input(Bool()))
-}
-
-abstract class LaneMonitor extends DPIModule {
-  override val isImport: Boolean = true;
-  val clock = dpiTrigger("clock", Input(Bool()))
-  override val trigger: String = s"always @(posedge ${clock.name})";
+abstract class LaneMonitor extends PerfMonitor {
   val laneIndex = dpiIn("laneIndex", Input(UInt(32.W)))
 }
 
@@ -253,3 +258,58 @@ class LaneReadBusDataMonitor extends LaneMonitor {
 class LaneWriteBusDataMonitor extends LaneMonitor {
   val writeBusDataReqValid = dpiIn("writeBusDataReqValid", Input(Bool()))
 }
+
+class VRequestMonitor extends PerfMonitor {
+  val valid = dpiIn("VRequestValid", Input(Bool()))
+  val ready = dpiIn("VRequestReady", Input(Bool()))
+}
+
+class VResponseMonitor extends PerfMonitor {
+  val valid = dpiIn("VResponseValid", Input(Bool()))
+}
+
+class VRequestRegMonitor extends PerfMonitor {
+  val valid = dpiIn("VRequestRegValid", Input(Bool()))
+}
+
+class VRequestRegDequeueMonitor extends PerfMonitor {
+  val valid = dpiIn("VRequestRegDequeueValid", Input(Bool()))
+  val ready = dpiIn("VRequestRegDequeueReady", Input(Bool()))
+}
+
+class VMaskUnitWriteValidMonitor extends PerfMonitor {
+  val valid = dpiIn("VMaskedUnitWriteValid", Input(Bool()))
+}
+
+class VMaskUnitWriteValidIndexedMonitor extends PerfMonitor {
+  val index = dpiIn("index", Input(UInt(32.W)))
+  val valid = dpiIn("valid", Input(Bool()))
+}
+
+class VMaskUnitReadValidMonitor extends PerfMonitor {
+  val valid = dpiIn("valid", Input(Bool()))
+}
+
+class VMaskUnitReadValidIndexedMonitor extends PerfMonitor {
+  val index = dpiIn("index", Input(UInt(32.W)))
+  val valid = dpiIn("valid", Input(Bool()))
+}
+
+class VWarReadResultValidMonitor extends PerfMonitor {
+  val valid = dpiIn("valid", Input(Bool()))
+}
+
+class VDataMonitor extends IndexedValidMonitor
+
+class VSelectffoIndexMonitor extends ValidMonitor
+
+class VDataResultMonitor extends ValidMonitor
+
+class VLaneReadyMonitor extends IndexedPerfMonitor with ReadyMonitor
+
+class VSlotStatIdleMonitor extends IndexedPerfMonitor {
+  val idle = dpiIn("idle", Input(Bool()))
+}
+
+class VVrfWriteMonitor extends IndexedPerfMonitor with ReadyMonitor with ValidMonitor
+
