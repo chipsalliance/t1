@@ -534,6 +534,163 @@ void VBridgeImpl::dpiDumpWave() {
     .info();
 })
 
+[[maybe_unused]] void v_request_monitor(
+  const svBit valid,
+  const svBit ready
+) TRY({
+  Log("V")
+    .with("request", json {
+      { "valid", (bool)valid },
+      { "ready", (bool)ready }
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_response_monitor(
+  const svBit valid
+) TRY({
+  Log("V")
+    .with("response", json {
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_request_reg_monitor(
+  const svBit valid
+) TRY({
+  Log("V")
+    .with("request_reg_valid", (bool)valid)
+    .info();
+})
+
+[[maybe_unused]] void v_request_reg_dequeue_monitor(
+  const svBit valid,
+  const svBit ready
+) TRY({
+  Log("V")
+    .with("request_reg", json{
+      { "valid", (bool)valid },
+      { "ready", (bool)ready },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_mask_unit_write_valid(
+  const svBit valid
+) TRY({
+  Log("V")
+    .with("masked_unit_write", json{
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_mask_unit_write_vec_elem_valid(
+  const svBitVecVal *index,
+  const svBit valid
+) TRY({
+  Log("V")
+    .with("masked_unit_write", json{
+      { "index", (int)(*index) },
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_data_monitor(svLogic valid, const svBitVecVal *index) TRY({
+  Log("V")
+    .with("data", json{
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_mask_unit_read_valid_monitor(svLogic valid) TRY({
+  Log("V")
+    .with("mask_unit_read", json {
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_mask_unit_read_valid_indexed_monitor(const svBitVecVal *index, svLogic valid) TRY({
+  Log("V")
+    .with("mask_unit_read_item", json {
+      { "index", (int)(*index) },
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_mask_unit_write_valid_monitor(svLogic valid) TRY({
+  Log("V")
+    .with("mask_unit_write", json {
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_mask_unit_write_valid_indexed_monitor(const svBitVecVal *index, svLogic valid) TRY({
+  Log("V")
+    .with("mask_unit_write_item", json {
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_war_read_result_valid_monitor(svLogic valid) TRY({
+  Log("V")
+    .with("war_red_result", json {
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_slot_stat_idle_monitor(const svBitVecVal *index, svLogic idle) TRY({
+  Log("V")
+    .with("slot", json {
+      { "index", (int)(*index) },
+      { "idle", (bool)idle },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_selectffo_index_monitor(svLogic valid) TRY({
+  Log("V")
+    .with("select_ffo_index", json {
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_vrf_write_monitor(const svBitVecVal *index, svLogic valid, svLogic ready) TRY({
+  Log("V")
+    .with("vrf_write", json {
+      { "index", (int)(*index) },
+      { "valid", (bool)valid },
+      { "ready", (bool)ready },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_lane_ready_monitor(const svBitVecVal *index, svLogic ready ) TRY({
+  Log("V")
+    .with("lane", json {
+      { "index", (int)(*index) },
+      { "ready", (bool)ready },
+    })
+    .info();
+})
+
+[[maybe_unused]] void v_data_result_monitor(svLogic valid) TRY({
+  Log("V")
+    .with("data_result", json {
+      { "valid", (bool)valid },
+    })
+    .info();
+})
+
 void print_perf_summary() {
   auto output_file_path = get_env_arg_default("PERF_output_file", nullptr);
   if (output_file_path != nullptr) {

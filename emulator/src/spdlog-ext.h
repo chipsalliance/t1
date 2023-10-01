@@ -52,7 +52,7 @@ public:
   ~Log() = default;
 
   template <typename T> Log &with(const char *key, T value) {
-    internal["info"][key] = value;
+    internal["data"][key] = value;
     return *this;
   }
 

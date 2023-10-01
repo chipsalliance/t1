@@ -8,6 +8,9 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
+import chisel3.probe.Probe
+import chisel3.probe.ProbeValue
+import chisel3.probe.define
 
 object VParameter {
   implicit def rwP: upickle.default.ReadWriter[VParameter] = upickle.default.macroRW
@@ -1338,4 +1341,79 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   }
   // don't care有可能会导致先读后写失败
   maskUnitReadVec.foreach(_.bits.instructionIndex := slots.last.record.instructionIndex)
+
+  /**
+    * Probes
+    */
+  val requestValidProbe: Bool = IO(Output(Probe(Bool())))
+  val requestReadyProbe: Bool = IO(Output(Probe(Bool())))
+  define(requestValidProbe, ProbeValue(request.valid))
+  define(requestReadyProbe, ProbeValue(request.ready))
+
+  val responseValidProbe: Bool = IO(Output(Probe(Bool())))
+  define(responseValidProbe, ProbeValue(response.valid))
+
+  val requestRegValidProbe: Bool = IO(Output(Probe(Bool())))
+  define(requestRegValidProbe, ProbeValue(requestReg.valid))
+
+  val requestRegDequeueValidProbe: Bool = IO(Output(Probe(Bool())))
+  val requestRegDequeueReadyProbe: Bool = IO(Output(Probe(Bool())))
+  define(requestRegDequeueValidProbe, ProbeValue(requestRegDequeue.valid))
+  define(requestRegDequeueReadyProbe, ProbeValue(requestRegDequeue.ready))
+
+  val maskUnitWriteValidProbe: Bool = IO(Output(Probe(Bool())))
+  define(maskUnitWriteValidProbe, ProbeValue(maskUnitWrite.valid))
+
+  val maskUnitWriteValidProbesVec: IndexedSeq[Bool] = maskUnitWriteVec.map({ case(unit) =>
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(unit.valid))
+    probe
+  })
+
+  val maskUnitReadValidProbe = IO(Output(Probe(Bool())))
+  define(maskUnitReadValidProbe, ProbeValue(maskUnitRead.valid))
+
+  val maskUnitReadValidProbeVec = maskUnitReadVec.map({ case(unit) =>
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(unit.valid))
+    probe
+  })
+
+  val WARRedResultValidProbe = IO(Output(Probe(Bool())))
+  define(WARRedResultValidProbe, ProbeValue(WARRedResult.valid))
+
+  val dataValidProbes = data.map({ case(unit) =>
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(unit.valid))
+    probe
+  })
+
+  val selectffoIndexValidProbe = IO(Output(Probe(Bool())))
+  define(selectffoIndexValidProbe, ProbeValue(selectffoIndex.valid))
+
+  val dataResultValidProbe = IO(Output(Probe(Bool())))
+  define(dataResultValidProbe, ProbeValue(dataResult.valid))
+
+  val slotStateIdleProbe = slots.map({ case(slot) =>
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(slot.state.idle))
+    probe
+  })
+
+  val laneReadyProbe = laneReady.map({ case(laneState) =>
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(laneState))
+    probe
+  })
+
+  val vrfWriteValidProbe = vrfWrite.map({ case(req) =>
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(req.valid))
+    probe
+  })
+  val vrfWriteReadyProbe = vrfWrite.map({ case(req) =>
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(req.ready))
+    probe
+  })
 }
