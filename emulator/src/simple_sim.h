@@ -4,8 +4,8 @@
 
 #include <fmt/core.h>
 
-#include "spdlog-ext.h"
 #include "simif.h"
+#include "spdlog-ext.h"
 
 class simple_sim : public simif_t {
 private:
@@ -13,13 +13,11 @@ private:
   size_t mem_size;
 
 public:
-  explicit simple_sim(size_t mem_size): mem_size(mem_size) {
+  explicit simple_sim(size_t mem_size) : mem_size(mem_size) {
     mem = new char[mem_size];
   }
 
-  ~simple_sim() override {
-    delete[] mem;
-  }
+  ~simple_sim() override { delete[] mem; }
 
   struct load_elf_result_t {
     uint32_t entry_addr;
@@ -28,7 +26,9 @@ public:
 
   // should return NULL for MMIO addresses
   char *addr_to_mem(reg_t addr) override {
-    CHECK_LE(addr, mem_size, fmt::format("memory out of bound ({:016X} >= {:016X})", addr, mem_size));
+    CHECK_LE(addr, mem_size,
+             fmt::format("memory out of bound ({:016X} >= {:016X})", addr,
+                         mem_size));
     return &mem[addr];
   }
 
@@ -44,7 +44,8 @@ public:
     FATAL("Unimplemented");
   }
 
-  [[nodiscard]] const std::map<size_t, processor_t*>& get_harts() const override {
+  [[nodiscard]] const std::map<size_t, processor_t *> &
+  get_harts() const override {
     FATAL("Unimplemented");
   }
 
@@ -53,7 +54,5 @@ public:
     // maybe nothing to do
   }
 
-  const char *get_symbol(uint64_t addr) override {
-    FATAL("Unimplemented");
-  }
+  const char *get_symbol(uint64_t addr) override { FATAL("Unimplemented"); }
 };
