@@ -1,6 +1,6 @@
-#include <fstream>
 #include <bit>
 #include <cstdint>
+#include <fstream>
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;

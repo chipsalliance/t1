@@ -250,24 +250,53 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   /**
     * Internal signals probes
     */
-  val tlPortAProbe: DecoupledIO[TLChannelA] = IO(Output(Probe(chiselTypeOf(tlPortA))))
-  define(tlPortAProbe, ProbeValue(tlPortA))
+  val tlPortAValidProbe = IO(Output(Probe(Bool())))
+  define(tlPortAValidProbe, ProbeValue(tlPortA.valid))
+  val tlPortAReadyProbe = IO(Output(Probe(Bool())))
+  define(tlPortAReadyProbe, ProbeValue(tlPortA.ready))
 
-  val tlPortDProbe = IO(Output(Probe(chiselTypeOf(tlPortD))))
-  define(tlPortDProbe, ProbeValue(tlPortD))
+  val tlPortDValidProbe: IndexedSeq[Bool] = tlPortD.map(port => {
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(port.valid))
+    probe
+  })
+  val tlPortDReadyProbe: IndexedSeq[Bool] = tlPortD.map(port => {
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(port.ready))
+    probe
+  })
 
-  val vrfWritePortProbe = IO(Output(Probe(chiselTypeOf(vrfWritePort))))
-  define(vrfWritePortProbe, ProbeValue(vrfWritePort))
+  val vrfWriteValidProbe: IndexedSeq[Bool] = vrfWritePort.map(port => {
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(port.valid))
+    probe
+  })
+  val vrfWriteReadyProbe: IndexedSeq[Bool] = vrfWritePort.map(port => {
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(port.ready))
+    probe
+  })
 
-  val statusProbe: LSUBaseStatus = IO(Output(Probe(chiselTypeOf(status))))
-  define(statusProbe, ProbeValue(status))
+  val statusIdleProbe = IO(Output(Probe(Bool())))
+  define(statusIdleProbe, ProbeValue(status.idle))
 
   val writeReadyForLSUProbe: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu))))
   define(writeReadyForLSUProbe, ProbeValue(writeReadyForLsu))
 
-  val lastCacheLineAckProbe: Vec[Bool] = IO(Output(Probe(chiselTypeOf(lastCacheLineAck))))
-  define(lastCacheLineAckProbe, ProbeValue(lastCacheLineAck))
+  val lastCacheLineAckProbe = lastCacheLineAck.map(stat => {
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(stat))
+    probe
+  })
 
-  val cacheLineDequeueProbe: Vec[DecoupledIO[cacheLineDequeueBundle]] = IO(Output(Probe(chiselTypeOf(cacheLineDequeue))))
-  define(cacheLineDequeueProbe, ProbeValue(cacheLineDequeue))
+  val cacheLineDequeueValidProbe: IndexedSeq[Bool] = cacheLineDequeue.map(port => {
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(port.valid))
+    probe
+  })
+  val cacheLineDequeueReadyProbe: IndexedSeq[Bool] = cacheLineDequeue.map(port => {
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(port.ready))
+    probe
+  })
 }

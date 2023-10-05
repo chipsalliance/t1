@@ -6,12 +6,8 @@
 constexpr uint32_t CSR_MSIMEND = 0x7cc;
 
 namespace TlOpcode {
-constexpr int
-    Get = 4,
-    AccessAckData = 1,
-    PutFullData = 0,
-    PutPartialData = 1,
-    AccessAck = 0;
+constexpr int Get = 4, AccessAckData = 1, PutFullData = 0, PutPartialData = 1,
+              AccessAck = 0;
 }
 
 struct VCsrInterfacePoke {

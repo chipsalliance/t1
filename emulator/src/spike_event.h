@@ -1,19 +1,19 @@
 #pragma once
 
 #include "spdlog-ext.h"
-#include <queue>
 #include <optional>
+#include <queue>
 
-#include <processor.h>
 #include <mmu.h>
+#include <processor.h>
 
 #if VM_TRACE
 #include <verilated_fst_c.h>
 #endif
 
+#include "encoding.h"
 #include "simple_sim.h"
 #include "vbridge_impl.h"
-#include "encoding.h"
 
 class VBridgeImpl;
 
@@ -70,26 +70,27 @@ struct SpikeEvent {
   uint32_t rd_idx;
 
   // vtype
-  uint32_t vsew: 3;
-  uint32_t vlmul: 3;
-  bool vma: 1;
-  bool vta: 1;
-  uint32_t vxrm: 2;
-  uint32_t vnf: 3;
+  uint32_t vsew : 3;
+  uint32_t vlmul : 3;
+  bool vma : 1;
+  bool vta : 1;
+  uint32_t vxrm : 2;
+  uint32_t vnf : 3;
 
   // other CSR
-  bool vill: 1;
-  bool vxsat: 1;
+  bool vill : 1;
+  bool vxsat : 1;
 
   /// range [XLEN-1:0].
-  /// updated with vset{i}vl{i} and fault-only-first vector load instruction variants
-  /// currently, we don't implement MMU, thus, no fault-only-first will be executed.
+  /// updated with vset{i}vl{i} and fault-only-first vector load instruction
+  /// variants currently, we don't implement MMU, thus, no fault-only-first will
+  /// be executed.
   uint32_t vl;
   uint16_t vstart;
 
   /// pipeline control signal with core
-  bool _ignore_exception = false;  // TODO: give it correct value
-  bool _store_buffer_clear = false;  // TODO: give it correct value
+  bool _ignore_exception = false;   // TODO: give it correct value
+  bool _store_buffer_clear = false; // TODO: give it correct value
 
   struct vd_write_record_t {
     std::unique_ptr<uint8_t[]> vd_bytes;
@@ -97,9 +98,10 @@ struct SpikeEvent {
 
   bool is_rd_written;
   uint32_t rd_bits;
-  bool is_rd_fp;  // whether rd is a fp register
+  bool is_rd_fp; // whether rd is a fp register
 
-  // returns {a, b} if the instruction may write vrf of index in range [a, a + b)
+  // returns {a, b} if the instruction may write vrf of index in range [a, a +
+  // b)
   [[nodiscard]] std::pair<uint32_t, uint32_t> get_vrf_write_range() const;
 
   struct {
