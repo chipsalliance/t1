@@ -153,49 +153,4 @@ class VerificationModule(dut: V) extends RawModule {
       poke.dReady.ref := tapAndRead(bundle.d.ready)
       bore(bundle.a.ready) := poke.aReady.ref
   }
-
-  if (false) {
-    val perfEvent = Module(new PerfEvent(PerfEventParameter(latPeekIssue, dut.parameter)))
-    perfEvent.clock.ref := genClock
-    perfEvent.instructionEnqValid.ref := tapAndRead(dut.requestRegDequeue.valid)
-    perfEvent.instructionEnqReady.ref := tapAndRead(dut.requestRegDequeue.ready)
-    perfEvent.executionReady.ref := tapAndRead(dut.executionReady)
-    perfEvent.slotReady.ref := tapAndRead(dut.slotReady)
-    perfEvent.instructionRAWReady.ref := tapAndRead(dut.instructionRAWReady)
-
-    dut.laneVec.zipWithIndex.foreach { case (lane, index) =>
-      perfEvent.slotShifterEnqueue(index) zip lane.slotEnqueueFire.map(tapAndRead(_)) foreach {case (s, i) => s.ref := i}
-    }
-
-    // lsu store unit
-    perfEvent.storeUnitIdle.ref := tapAndRead(dut.lsu.storeUnit.status.idle)
-    dut.lsu.storeUnit.status.releasePort.zip(perfEvent.storeUnitReleasePort).foreach {case (d, r) => r.ref := tapAndRead(d)}
-    dut.lsu.storeUnit.vrfReadDataPorts.zip(perfEvent.storeUnitReadVrfValid).foreach {case(d, r) => r.ref := tapAndRead(d.valid)}
-    dut.lsu.storeUnit.vrfReadDataPorts.zip(perfEvent.storeUnitReadVrfReady).foreach {case(d, r) => r.ref := tapAndRead(d.ready)}
-    perfEvent.vrfReadyToStore.ref := tapAndRead(dut.lsu.storeUnit.vrfReadyToStore)
-    dut.lsu.storeUnit.tlPortA.zip(perfEvent.storeUnitAccessTileLinkValid).foreach {case (d, r) => r.ref := tapAndRead(d.valid)}
-    dut.lsu.storeUnit.tlPortA.zip(perfEvent.storeUnitAccessTileLinkReady).foreach {case (d, r) => r.ref := tapAndRead(d.ready)}
-
-    // lsu load unit
-    perfEvent.loadUnitIdle.ref := tapAndRead(dut.lsu.loadUnit.status.idle)
-    perfEvent.writeReadyForLsu.ref := tapAndRead(dut.lsu.loadUnit.writeReadyForLsu)
-    perfEvent.loadUnitAccessTileLinkValid.ref := tapAndRead(dut.lsu.loadUnit.tlPortA.valid)
-    perfEvent.loadUnitAccessTileLinkReady.ref := tapAndRead(dut.lsu.loadUnit.tlPortA.ready)
-    dut.lsu.loadUnit.tlPortD.zip(perfEvent.loadUnitTileLinkAckValid).foreach {case (d, r) => r.ref := tapAndRead(d.valid)}
-    dut.lsu.loadUnit.tlPortD.zip(perfEvent.loadUnitTileLinkAckReady).foreach {case (d, r) => r.ref := tapAndRead(d.ready)}
-    dut.lsu.loadUnit.vrfWritePort.zip(perfEvent.loadUnitWriteVrfValid).foreach {case (d, r) => r.ref := tapAndRead(d.valid)}
-    dut.lsu.loadUnit.vrfWritePort.zip(perfEvent.loadUnitWriteVrfReady).foreach {case (d, r) => r.ref := tapAndRead(d.ready)}
-
-    // lsu other unit
-    perfEvent.otherUnitIdle.ref := tapAndRead(dut.lsu.otherUnit.status.idle)
-    perfEvent.otherUnitReadVrfValid.ref := tapAndRead(dut.lsu.otherUnit.vrfReadDataPorts.valid)
-    perfEvent.otherUnitReadVrfReady.ref := tapAndRead(dut.lsu.otherUnit.vrfReadDataPorts.ready)
-    perfEvent.otherUnitAccessTileLinkValid.ref := tapAndRead(dut.lsu.otherUnit.tlPort.a.valid)
-    perfEvent.otherUnitAccessTileLinkReady.ref := tapAndRead(dut.lsu.otherUnit.tlPort.a.ready)
-    perfEvent.otherUnitTileLinkAckValid.ref := tapAndRead(dut.lsu.otherUnit.tlPort.d.valid)
-    perfEvent.otherUnitTileLinkAckReady.ref := tapAndRead(dut.lsu.otherUnit.tlPort.d.ready)
-    perfEvent.otherUnitWriteVrfValid.ref := tapAndRead(dut.lsu.otherUnit.vrfWritePort.valid)
-    perfEvent.otherUnitWriteVrfReady.ref := tapAndRead(dut.lsu.otherUnit.vrfWritePort.ready)
-    perfEvent.otherUnitAccessVrfTargetLane.ref := tapAndRead(dut.lsu.otherUnit.status.targetLane)
-  }
 }

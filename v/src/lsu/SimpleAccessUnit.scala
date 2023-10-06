@@ -1026,10 +1026,10 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   val vrfWritePortIsReadyProbe: Bool = IO(Output(Probe(Bool())))
   define(vrfWritePortIsReadyProbe, ProbeValue(vrfWritePort.ready))
 
-  val currentLaneProbe: UInt = IO(Output(Probe(chiselTypeOf(status.targetLane))))
-  define(currentLaneProbe, ProbeValue(status.targetLane))
-  val statusIsWaitingFirstResponseProbe: Bool = IO(Output(Probe(Bool())))
-  define(statusIsWaitingFirstResponseProbe, ProbeValue(status.waitFirstResponse))
+  val targetLaneProbe: UInt = IO(Output(Probe(chiselTypeOf(status.targetLane))))
+  define(targetLaneProbe, ProbeValue(status.targetLane))
+  val statusIdleProbe: Bool = IO(Output(Probe(Bool())))
+  define(statusIdleProbe, ProbeValue(status.idle))
 
   val s0FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s0Fire))))
   define(s0FireProbe, ProbeValue(s0Fire))
@@ -1043,4 +1043,14 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
     define(probe, ProbeValue(offset.valid))
     probe
   })
+
+  val accessTileLinkValidProbe = IO(Output(Probe(Bool())))
+  define(accessTileLinkValidProbe, ProbeValue(tlPort.a.valid))
+  val accessTileLinkReadyProbe = IO(Output(Probe(Bool())))
+  define(accessTileLinkReadyProbe, ProbeValue(tlPort.a.ready))
+
+  val tileLinkAckValidProbe = IO(Output(Probe(Bool())))
+  define(tileLinkAckValidProbe, ProbeValue(tlPort.d.valid))
+  val tileLinkAckReadyProbe = IO(Output(Probe(Bool())))
+  define(tileLinkAckReadyProbe, ProbeValue(tlPort.d.ready))
 }

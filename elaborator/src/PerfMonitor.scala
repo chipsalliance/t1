@@ -49,7 +49,7 @@ class LoadUnitCacheLineDequeueMonitor extends IndexedPerfMonitor with ValidMonit
 /**
   * Monitor signals in [[v.SimpleAccessUnit]]
   */
-class SimpleAccessUnitMonitor extends PerfMonitor {
+class OtherUnitMonitor extends PerfMonitor {
   val lsuRequestIsValid = dpiIn("SimpleAccessUnitLSURequestIsValid", Input(Bool()))
 
   val vrfReadDataPortsIsReady = dpiIn("SimpleAccessUnitVRFReadDataPortsIsReady", Input(Bool()))
@@ -60,17 +60,21 @@ class SimpleAccessUnitMonitor extends PerfMonitor {
   val vrfWritePortIsReady = dpiIn("SimpleAccessUnitVRFWritePortIsReady", Input(Bool()))
   val vrfWritePortIsValid = dpiIn("SimpleAccessUnitVRFWritePortIsValid", Input(Bool()))
 
-  val currentLane = dpiIn("SimpleAccessUnitStatusTargetLane", Input(UInt(32.W)))
-  val statusIsWaitingFirstResponse = dpiIn("SimpleAccessUnitStatusIsWaitingFirstResponse", Input(Bool()))
+  val targetLane = dpiIn("SimpleAccessUnitStatusTargetLane", Input(UInt(32.W)))
+  val idle = dpiIn("SimpleAccessUnitIsIdle", Input(Bool()))
 
   val s0Fire = dpiIn("SimpleAccessUnitS0Fire", Input(Bool()))
   val s1Fire = dpiIn("SimpleAccessUnitS1Fire", Input(Bool()))
   val s2Fire = dpiIn("SimpleAccessUnitS2Fire", Input(Bool()))
 }
 
-class SimpleAccessUnitOffsetReadResultMonitor extends IndexedPerfMonitor with ValidMonitor
+class OtherUnitAccessTileLinkMonitor extends ValidMonitor with ReadyMonitor
 
-class SimpleAccessUnitIndexedInsnOffsetsIsValidMonitor extends IndexedPerfMonitor with ValidMonitor
+class OtherUnitTileLinkAckMonitor extends ValidMonitor with ReadyMonitor
+
+class OtherUnitOffsetReadResultMonitor extends IndexedPerfMonitor with ValidMonitor
+
+class OtherUnitIndexedInsnOffsetsIsValidMonitor extends IndexedPerfMonitor with ValidMonitor
 // End of SimpleAccessUnit monitors definition
 
 
@@ -122,8 +126,8 @@ class LaneWriteQueueMonitor extends IndexedPerfMonitor with ValidMonitor
 class LaneReadBusDequeueMonitor extends IndexedPerfMonitor with ValidMonitor
 
 class CrossLaneMonitor extends IndexedPerfMonitor {
-  val crossLaneReadValid = dpiIn("crossLaneReadValid", Input(Bool()))
-  val crossLaneWriteValid = dpiIn("crossLaneWriteValid", Input(Bool()))
+  val readValid = dpiIn("crossLaneReadValid", Input(Bool()))
+  val writeValid = dpiIn("crossLaneWriteValid", Input(Bool()))
 }
 
 class LaneReadBusDataMonitor extends IndexedPerfMonitor with ValidMonitor
@@ -156,6 +160,12 @@ class VSelectffoIndexMonitor extends ValidMonitor
 class VDataResultMonitor extends ValidMonitor
 
 class VLaneReadyMonitor extends IndexedPerfMonitor with ReadyMonitor
+
+class VExecutionReadyMonitor extends PerfMonitor with ReadyMonitor
+
+class VInsnRawReadyMonitor extends PerfMonitor with ReadyMonitor
+
+class VSlotReadyMonitor extends PerfMonitor with ReadyMonitor
 
 class VSlotStatIdleMonitor extends IndexedPerfMonitor {
   val idle = dpiIn("idle", Input(Bool()))
