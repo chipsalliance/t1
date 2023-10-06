@@ -157,14 +157,15 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
   TRY({ vbridge_impl_instance.timeoutCheck(); })
 }
 
-[[maybe_unused]] void vrf_monitor(const svBitVecVal *lane_idx, svBit valid)
-    TRY({ vrf_perf.step(*lane_idx, valid); })
+[[maybe_unused]] void vrf_monitor(const svBitVecVal *lane_idx, svBit valid) {
+  TRY({ vrf_perf.step(*lane_idx, valid); })
+}
 
-        [[maybe_unused]] void alu_monitor(const svBitVecVal *lane_idx,
-                                          svBit is_adder_occupied,
-                                          svBit is_shifter_occupied,
-                                          svBit is_multiplier_occupied,
-                                          svBit is_divider_occupied) {
+[[maybe_unused]] void alu_monitor(const svBitVecVal *lane_idx,
+                                  svBit is_adder_occupied,
+                                  svBit is_shifter_occupied,
+                                  svBit is_multiplier_occupied,
+                                  svBit is_divider_occupied) {
   TRY({
     alu_perf.step(*lane_idx, is_adder_occupied, is_shifter_occupied,
                   is_multiplier_occupied, is_divider_occupied);
@@ -239,14 +240,14 @@ load_unit_last_cache_line_ack_monitor(const svBitVecVal *index,
   })
 }
 
-[[maybe_unused]] void simple_access_unit_monitor(
+[[maybe_unused]] void other_unit_monitor(
     const svBit lsu_request_is_valid, const svBit vrf_read_data_port_is_ready,
     const svBit vrf_read_data_port_is_valid, const svBit mask_select_is_valid,
     const svBit vrf_write_port_is_ready, const svBit vrf_write_port_is_valid,
-    const svBitVecVal *current_lane, const svBit status_is_waiting_first_resp,
-    const svBit s0_fire, const svBit s1_fire, const svBit s2_fire) {
+    const svBitVecVal *targetLane, const svBit idle, const svBit s0_fire,
+    const svBit s1_fire, const svBit s2_fire) {
   TRY({
-    Log("SimpleAccessUnit")
+    Log("OtherUnit")
         .with("lsu_request_is_valid", (bool)lsu_request_is_valid)
         .with("vrf_read_data_port",
               json{{"is_ready", (bool)vrf_read_data_port_is_ready},
@@ -257,9 +258,8 @@ load_unit_last_cache_line_ack_monitor(const svBitVecVal *index,
         .with("mask_select_is_valid", (bool)mask_select_is_valid)
         .with("status",
               json{
-                  {"current_lane", (int)(*current_lane)},
-                  {"is_waiting_first_response",
-                   (bool)status_is_waiting_first_resp},
+                  {"target_lane", (int)(*targetLane)},
+                  {"is_idle", (bool)idle},
               })
         .with("s0_fire", (bool)s0_fire)
         .with("s1_fire", (bool)s1_fire)
@@ -269,23 +269,51 @@ load_unit_last_cache_line_ack_monitor(const svBitVecVal *index,
 }
 
 [[maybe_unused]] void
-simple_access_unit_offset_read_result_monitor(const svBitVecVal *index,
-                                              const svBit is_valid) {
+other_unit_access_tile_link_monitor(const svBit is_valid,
+                                    const svBit is_ready) {
   TRY({
-    Log("SimpleAccessUnitOffsetReadResult")
-        .with("index", (int)(*index))
-        .with("is_valid", (bool)is_valid)
-        .info();
+    Log("OtherUnit")
+        .with("AccessTileLink",
+              json{
+                  {"is_valid", (bool)is_valid},
+                  {"is_ready", (bool)is_ready},
+              })
+        .info("Receive access tile link signal");
   })
 }
 
-[[maybe_unused]] void simple_access_unit_indexed_insn_offsets_is_valid_monitor(
-    const svBitVecVal *index, const svBit is_valid) {
+[[maybe_unused]] void other_unit_tile_link_ack_monitor(const svBit is_valid,
+                                                       const svBit is_ready) {
   TRY({
-    Log("SimpleAccessUnitIndexedInsnOffsetIsValid")
+    Log("OtherUnit")
+        .with("TileLinkAck",
+              json{
+                  {"is_valid", (bool)is_valid},
+                  {"is_ready", (bool)is_ready},
+              })
+        .info("Receive tile link ack signal");
+  })
+}
+
+[[maybe_unused]] void
+other_unit_offset_read_result_monitor(const svBitVecVal *index,
+                                      const svBit is_valid) {
+  TRY({
+    Log("OtherUnit")
         .with("index", (int)(*index))
         .with("is_valid", (bool)is_valid)
-        .info();
+        .info("receive offset read result signal");
+  })
+}
+
+[[maybe_unused]] void
+other_unit_indexed_insn_offsets_is_valid_monitor(const svBitVecVal *index,
+                                                 const svBit is_valid) {
+  TRY({
+    Log("OtherUnit")
+        .with("index", (int)(*index))
+        .with("is_valid", (bool)is_valid)
+        .info("receive indexed instruction offset signal");
   })
 }
 
@@ -314,10 +342,13 @@ simple_access_unit_offset_read_result_monitor(const svBitVecVal *index,
                                                    svLogic valid,
                                                    svLogic ready) {
   TRY({
-    Log("StoreUnitTLPortAReadyMonitor")
-        .with("index", (int)(*index))
-        .with("is_valid", (bool)valid)
-        .with("is_ready", (bool)ready)
+    Log("StoreUnit")
+        .with("TLPortA",
+              json{
+                  {"index", (int)(*index)},
+                  {"is_valid", (bool)valid},
+                  {"is_ready", (bool)ready},
+              })
         .info();
   })
 }
@@ -649,6 +680,39 @@ v_mask_unit_read_valid_indexed_monitor(const svBitVecVal *index,
         .with("lane",
               json{
                   {"index", (int)(*index)},
+                  {"is_ready", (bool)is_ready},
+              })
+        .info();
+  })
+}
+
+[[maybe_unused]] void v_execution_ready_monitor(const svBit is_ready) {
+  TRY({
+    Log("V")
+        .with("ExecutionReady",
+              json{
+                  {"is_ready", (bool)is_ready},
+              })
+        .info();
+  })
+}
+
+[[maybe_unused]] void v_slot_ready_monitor(const svBit is_ready) {
+  TRY({
+    Log("V")
+        .with("slot",
+              json{
+                  {"is_ready", (bool)is_ready},
+              })
+        .info();
+  })
+}
+
+[[maybe_unused]] void v_insn_raw_ready_monitor(const svBit is_ready) {
+  TRY({
+    Log("V")
+        .with("Instruction RAW",
+              json{
                   {"is_ready", (bool)is_ready},
               })
         .info();

@@ -1345,6 +1345,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   /**
     * Probes
     */
+  val executionReadyProbe = IO(Output(Probe(Bool())))
+  define(executionReadyProbe, ProbeValue(executionReady))
+
   val requestValidProbe: Bool = IO(Output(Probe(Bool())))
   val requestReadyProbe: Bool = IO(Output(Probe(Bool())))
   define(requestValidProbe, ProbeValue(request.valid))
@@ -1382,6 +1385,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val WARRedResultValidProbe = IO(Output(Probe(Bool())))
   define(WARRedResultValidProbe, ProbeValue(WARRedResult.valid))
 
+  val insnRAWReadyProbe = IO(Output(Probe(Bool())))
+  define(insnRAWReadyProbe, ProbeValue(instructionRAWReady))
+
   val dataValidProbes = data.map({ case(unit) =>
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(unit.valid))
@@ -1399,6 +1405,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     define(probe, ProbeValue(slot.state.idle))
     probe
   })
+
+  val slotReadyProbe = IO(Output(Probe(Bool())))
+  define(slotReadyProbe, ProbeValue(slotReady))
 
   val laneReadyProbe = laneReady.map({ case(laneState) =>
     val probe = IO(Output(Probe(Bool())))
