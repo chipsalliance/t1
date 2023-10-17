@@ -18,6 +18,8 @@ object v {
   val scala = "2.13.12"
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"
+  val oslib = ivy"com.lihaoyi::os-lib:0.9.1"
+  val upickle = ivy"com.lihaoyi::upickle:3.1.3"
   val scalaReflect = ivy"org.scala-lang:scala-reflect:${scala}"
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
   val spire = ivy"org.typelevel::spire:latest.integration"
@@ -453,6 +455,22 @@ trait RunVerilatorEmulator
 import $file.dependencies.`cde`.common
 import $file.dependencies.`rocket-chip`.common
 import $file.dependencies.`rocket-chip-inclusive-cache`.common
+import $file.dependencies.rvdecoderdb.common
+
+object rvdecoderdb extends RVDecoderDB
+
+trait RVDecoderDB
+  extends millbuild.dependencies.rvdecoderdb.common.RVDecoderDBJVMModule
+    with ScalaModule {
+
+  def scalaVersion: T[String] = T(v.scala)
+
+  def osLibIvy = v.oslib
+
+  def upickleIvy = v.upickle
+
+  override def millSourcePath = os.pwd / "dependencies" / "rvdecoderdb" / "rvdecoderdb"
+}
 
 object cde extends CDE
 
@@ -486,6 +504,8 @@ trait RocketChip
   def hardfloatModule = hardfloat
 
   def cdeModule = cde
+
+  def rvdecoderdbModule = rvdecoderdb
 
   def mainargsIvy = v.mainargs
 
@@ -635,7 +655,7 @@ trait SubsystemEmulator
   }
 
   def verilatorThreads = T {
-    8
+    1
   }
 
   def CMakeListsString = T {

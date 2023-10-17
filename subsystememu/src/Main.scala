@@ -4,7 +4,6 @@ import chisel3.stage.ChiselGeneratorAnnotation
 import chisel3.stage.phases.{Convert, Elaborate}
 import firrtl.AnnotationSeq
 import firrtl.options.TargetDirAnnotation
-import freechips.rocketchip.diplomacy.LazyModule
 import mainargs._
 
 object Main {

@@ -22,3 +22,9 @@
 [submodule "dependencies/rocket-chip-inclusive-cache"]
 	path = dependencies/rocket-chip-inclusive-cache
 	url = git@github.com:chipsalliance/rocket-chip-inclusive-cache.git
+[submodule "dependencies/riscv-opcodes"]
+	path = dependencies/riscv-opcodes
+	url = git@github.com:sequencer/riscv-opcodes.git
+[submodule "dependencies/rvdecoderdb"]
+	path = dependencies/rvdecoderdb
+	url = git@github.com:sequencer/rvdecoderdb.git
