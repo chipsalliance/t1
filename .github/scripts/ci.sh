@@ -35,33 +35,40 @@ nix_fetch() {
   nix-prefetch-url $url --print-path --type sha256
 }
 
-# Try to build testcase and compare it's hash to the previous release
+# Try to find changes in test case directory and release new test cases ELFs when tests/ directory
+# got changed.
 check_before_do_release() {
   local output_file=$1; shift
+  [[ -z "$output_file" ]] && echo "Missing argument 'output_file'" && return 1
+  [[ -z "$GITHUB_OUTPUT" ]] && echo "Missing env 'GITHUB_OUTPUT'" && return 1
 
+  local tests_dir_last_commit=$(git log --pretty=tformat:"%H" -n1 tests)
+  echo "Tests dir last commit sha: $tests_dir_last_commit"
+  local repo_last_commit=$(git rev-parse HEAD)
+  echo "HEAD commit sha: $repo_last_commit"
+
+  local diff_command="git diff --name-only $repo_last_commit $tests_dir_last_commit"
+  [[ "$tests_dir_last_commit" = "$repo_last_commit" ]] \
+    && diff_command="git diff --name-only HEAD HEAD^"
+
+  local changed_files=$($diff_command | grep -E "^tests/")
+
+  [[ -z "$changed_files" ]] \
+    && echo "'tests/' directory unchanged, exit release workflow" \
+    && echo "do_release=false" >> "$GITHUB_OUTPUT" \
+    && return 0
+
+  echo
+  echo "Detect file changes between tests_dir and HEAD"
+  echo "$changed_files"
+  echo
+
+  echo "Build new tests case ELFs"
   nix build .#testcase --print-build-logs --out-link result
-  local output_dir=$(realpath ./result)
-  local new_hash=$(nix_hash_path $output_dir)
-
-  # Nix hash for tar archive changed everytime when testcase got rebuild in GitHub Action.
-  # So here I have to use nix hash path to compare only testcase elf and configs.
-  local original_file=$(nix_fetch $(get_src_url) | tail -n1)
-  local temp_dir=$(mktemp -d -t "rvv-testcase-XXX")
-  tar xzf "$original_file" -C "$temp_dir"
-  local old_hash=$(nix_hash_path $temp_dir)
-
-  if [[ "$old_hash" = "$new_hash" ]]; then
-    echo "Hash are still the same, no release will be made"
-    echo "do_release=false" >> $GITHUB_OUTPUT
-  else
-    echo "Hash is changed from $old_hash to $new_hash, make new release"
-    echo "Different content: "
-    diff -bur $temp_dir $output_dir
-
-    echo "do_release=true" >> $GITHUB_OUTPUT
-    echo "tag=$(date +%F)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-    tar czf $output_file --directory $output_dir .
-  fi
+  tar czf "$output_file" --directory "$(realpath ./result)" .
+  echo "do_release=true" >> "$GITHUB_OUTPUT"
+  echo "tag=$(date +%F)+$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+  echo "New testscase file pack up at $output_file"
 }
 
 bump_version() {
