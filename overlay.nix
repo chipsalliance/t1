@@ -79,6 +79,7 @@ in
   buddy-mlir = final.callPackage ./nix/buddy-mlir.nix { };
   rvv-codegen = final.callPackage ./nix/rvv-codegen.nix { };
   rvv-testcase = final.callPackage ./nix/rvv-testcase-unwrapped.nix { };
+  rv32-gnu-toolchain = final.callPackage ./nix/riscv-gnu-toolchain.nix { };
 
   inherit rv32-clang my-cc-wrapper;
 }

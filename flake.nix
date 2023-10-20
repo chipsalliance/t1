@@ -42,6 +42,7 @@
             go
             buddy-mlir
             rvv-codegen
+            rv32-gnu-toolchain
           ];
 
           emulatorDeps = with pkgs; [

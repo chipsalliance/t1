@@ -1,4 +1,5 @@
     .globl start
+    .globl heap_end
 start:
     li a0, 0x2200 # MSTATUS_VS & (MSTATUS_VS >> 1)
     csrs mstatus, a0
@@ -14,3 +15,8 @@ stack_start:
     .zero 0x10000
 
 stack_end:
+
+heap_start:
+    .zero 0x100000
+
+heap_end:
