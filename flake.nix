@@ -92,7 +92,7 @@
             testcase = mkLLVMShell {
               # TODO: Currently, the emulator needs all the dependencies to run a test case ,
               # but most of them are used to get version information, so they should be cleaned up one day.
-              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps ++ [ pkgs.metals ];
+              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
 
               env = {
                 TEST_CASE_DIR = "${pkgs.rvv-testcase}";
@@ -110,6 +110,8 @@
                 CODEGEN_INC_PATH = "${pkgs.rvv-codegen}/include";
                 CODEGEN_CFG_PATH = "${pkgs.rvv-codegen}/configs";
                 TEST_CASE_DIR = "${pkgs.rvv-testcase}";
+                NEWLIB_INC_PATH = "${pkgs.rv32-gnu-toolchain}/riscv32-unknown-elf/include";
+                NEWLIB_LIB_PATH = "${pkgs.rv32-gnu-toolchain}/riscv32-unknown-elf/lib";
               };
               inherit postHook;
             };
