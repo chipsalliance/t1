@@ -679,3 +679,31 @@ trait SubsystemEmulator
 
   def defaultCommandName = "elf"
 }
+
+object runSubsystemEmu extends mill.Cross[RunSubsystemEmu](
+  os.walk(os.pwd / "tests" / "configs").filter(_.ext == "json").map(_.baseName).toSeq
+)
+trait RunSubsystemEmu extends Cross.Module[String] with TaskModule {
+  override def defaultCommandName() = "run"
+
+  val test: String = crossValue
+  def testConfigDir = T(os.pwd / "tests" / "configs" / s"$test.json")
+  def testConfig = T(ujson.read(os.read(testConfigDir())))
+  def testName = T(testConfig().apply("name").str)
+  def testType = T(testConfig().apply("type").str)
+
+  import scala.util.chaining._
+  def testElf = T (
+    os.proc(Seq("mill", "-i", "show", s"${testType()}[${testName()}].bin"))
+      .call(os.pwd / "tests")
+      .out
+      .text
+      .pipe(ujson.read(_).str.split(":")(3))
+      .pipe(os.Path(_))
+  )
+
+  def run = T {
+    def traceFile = (T.dest / s"${testName()}-${testType()}.fst").toString
+    os.proc(Seq(subsystememu.elf().path.toString, s"+init_file=${testElf()}", s"+trace_file=$traceFile")).call(check = true)
+  }
+}
