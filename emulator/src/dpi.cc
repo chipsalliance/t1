@@ -40,10 +40,7 @@ void print_perf_summary();
     dpi_finish();                                                              \
   } catch (std::runtime_error & e) {                                           \
     terminated = true;                                                         \
-    std::cerr << e.what() << std::endl;                                        \
-    Log("RuntimeException")                                                    \
-        .with("error", e.what())                                               \
-        .warn("detect exception, gracefully abort simulation");                \
+    svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.dpiError")); \
     dpi_error(e.what());                                                       \
   }
 
