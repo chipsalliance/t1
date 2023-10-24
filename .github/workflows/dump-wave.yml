@@ -31,4 +31,11 @@ jobs:
             builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
       - run: |
-          nix develop .#testcase -c mill -i verilatorEmulator[v1024l8b2-test-trace,hello-mlir,debug].run
+          # Force to make test fail
+          sed -i 's/CHECK_EQ/CHECK_GT/' emulator/src/vbridge_impl.cc
+          nix develop .#testcase -c mill -i verilatorEmulator[v1024l8b2-test-trace,hello-mlir,debug].run || true
+          outputDir=out/verilatorEmulator/v1024l8b2-test-trace/hello-mlir/debug/run.dest
+          [[ -f $outputDir/wave.fst ]] || (echo "Wave file doesn't generate" && exit 1)
+          [[ ! -f $outputDir/wave.fst.hier  ]] || \
+            (echo "Verilator doesn't exit correctly" \
+            && exit 1)
