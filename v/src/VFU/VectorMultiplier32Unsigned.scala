@@ -8,6 +8,8 @@ class VectorMultiplier32Unsigned extends Module{
   val b = IO(Input(UInt(32.W)))
   val z = IO(Output(UInt(64.W)))
   val sew = IO(Input(UInt(3.W)))
+  val multiplierSum: UInt = IO(Output(UInt(64.W)))
+  val multiplierCarry: UInt = IO(Output(UInt(64.W)))
 
   val a0Vec = a(15, 0).asBools
   val a1Vec = a(31, 16).asBools
@@ -69,5 +71,7 @@ class VectorMultiplier32Unsigned extends Module{
 
   val result = VectorAdder64(sumForAdder, carryForAdder, sew ## 0.U(1.W))
 
+  multiplierSum := sumForAdder
+  multiplierCarry := carryForAdder
   z := result
 }

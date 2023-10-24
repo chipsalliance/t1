@@ -632,6 +632,8 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val opcode: UInt = UInt(4.W)
   // mask for carry or borrow
   val mask: UInt = UInt(4.W)
+  // eg: vwmaccus, vwmulsu
+  val sign0: Bool = Bool()
   val sign: Bool = Bool()
   val reverse: Bool = Bool()
   val average: Bool = Bool()

@@ -307,7 +307,8 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends
     }
   }
 
-  val scalarDataSelect = Mux(state.decodeResult(Decoder.adder), state.vSew1H, 4.U(3.W))
+  val repeatScalarData = state.decodeResult(Decoder.adder) || state.decodeResult(Decoder.multiplier)
+  val scalarDataSelect = Mux(repeatScalarData, state.vSew1H, 4.U(3.W))
   val scalarDataRepeat = Mux1H(
     scalarDataSelect,
     Seq(

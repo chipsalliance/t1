@@ -56,7 +56,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   /** mask format result for current `mask group` */
   val maskFormatResultForGroup: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.maskGroupWidth.W)))
 
-  val fusion: Bool = decodeResult(Decoder.adder) && !decodeResult(Decoder.red)
+  val fusion: Bool = (decodeResult(Decoder.adder) && !decodeResult(Decoder.red)) || decodeResult(Decoder.multiplier)
   // Data path width is always 32 when fusion
   val vSew1HCorrect: UInt = Mux(
     fusion,
@@ -274,6 +274,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     Mux(decodeResult(Decoder.maskSource), executionRecord.mask, 0.U(4.W)),
     maskAsInput || !state.maskType
   )
+  vfuRequest.bits.sign0 := !decodeResult(Decoder.unsigned0)
   vfuRequest.bits.sign := !decodeResult(Decoder.unsigned1)
   vfuRequest.bits.reverse := decodeResult(Decoder.reverse)
   vfuRequest.bits.average := decodeResult(Decoder.average)
