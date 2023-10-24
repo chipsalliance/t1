@@ -24,13 +24,32 @@ You can run `nix develop .#testcase-bootstrap` to have this env set up for you.
 ## How to resolve all the tests
 
 ```bash
-mill resolve _[_].elf
+mill -i resolve _[_].elf
 
 # Get asm test only
-mill resolve asm[_].elf
+mill -i resolve asm[_].elf
 ```
 
 ## How to run the test
+
+```bash
+nix develop .#testcase
+
+# List all runnable tests
+mill -i resolve verilatorEmulator[v1024l8b2-test,_,debug].run
+
+# Run a specific test
+mill -i verilatorEmulator[v1024l8b2-test,matmul-mlir,debug].run
+```
+
+## How to build single test and run it
+
+```bash
+unset TEST_CASE_DIR
+mill -i verilatorEmulator[$emulator,$YOUR_TEST,$debug].run
+```
+
+## How to manually rebuild all the tests
 
 Test cases are run by an emulator specified in the `build.sc` file which located at the project root.
 `mill` will create a bunch of `verilatorEmulator[__]` objects by reading test file in env `TEST_CASE_DIR`.
@@ -71,27 +90,4 @@ So to use the `v1024l8b2-test.json` config for the emulator to run the test conf
 you can type `mill -i verilatorEmulator[v1024l8b2-test,matmul-mlir,debug].run` in your shell.
 
 To reduce all the tedious setup steps, you can use the provided `.#testcase` shell:
-
-```bash
-nix develop .#testcase
-mill -i verilatorEmulator[v1024l8b2-test,matmul-mlir,debug].run
-```
-
-## How to build single test and run it
-
-Suppose you want to build and run the mlir/hello.mlir test:
-
-```bash
-# build
-pushd tests
-nix develop .#testcase-bootstrap
-mill --no-server caseBuild[hello-mlir].run
-exit
-popd
-
-# run
-nix develop .#testcase
-export TEST_CASE_DIR=$PWD/tests-out
-mill --no-server verilatorEmulator[v1024l8b2-test,hello-mlir,debug].run
-```
 

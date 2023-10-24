@@ -355,18 +355,21 @@ trait Emulator
   }
 }
 
-def testsOutDir = sys.env.get("TEST_CASE_DIR").map(os.Path(_)).getOrElse {
-  val tmpDir = os.temp.dir(dir = os.pwd / "out", prefix = "TEST_CASE_DIR", deleteOnExit = false)
-  os.makeDir(tmpDir / "configs")
-  tmpDir
+def testsCaseDir = sys.env.get("TEST_CASE_DIR").map(os.Path(_)).getOrElse {
+  val testsCaseDir = os.pwd / "out" / "testCaseDir.dest"
+  if (!os.exists(testsCaseDir)) {
+    os.makeDir(testsCaseDir)
+    os.symlink(testsCaseDir / "configs", os.pwd / "tests" / "configs")
+  }
+  testsCaseDir
 }
 def testConfigs = os
-  .walk(testsOutDir / "configs")
+  .walk(testsCaseDir / "configs")
   .filter(_.ext == "json")
   .filter(p => !ujson.read(os.read(p)).obj("fp").bool)
   .map(_.baseName)
 def fpTestConfigs = os
-  .walk(testsOutDir / "configs")
+  .walk(testsCaseDir / "configs")
   .filter(_.ext == "json")
   .filter(p => ujson.read(os.read(p)).obj("fp").bool)
   .map(_.baseName)
@@ -400,8 +403,22 @@ trait RunVerilatorEmulator
   def configDir:  T[os.Path] = T(os.pwd / "run")
   def configFile: T[os.Path] = T(configDir() / s"$config.json")
   def runConfig:  T[ujson.Value.Value] = T(ujson.read(os.read(configFile())))
-  def testConfig: T[ujson.Value.Value] = T(ujson.read(os.read(testsOutDir / "configs" / s"$testTask.json")))
-  def binPath: T[os.Path] = T(testsOutDir / os.RelPath(testConfig().obj("elf").obj("path").str))
+  def testConfig: T[ujson.Value.Value] = T(ujson.read(os.read(testsCaseDir / "configs" / s"$testTask.json")))
+  def binPath: T[os.Path] = T {
+    if (testConfig().obj.get("elf").isDefined) {
+      testsCaseDir / os.RelPath(testConfig().obj("elf").obj("path").str)
+    } else {
+      import scala.util.chaining._
+      val testType = testConfig().obj("type").str
+      val testName = testConfig().obj("name").str
+      os.proc("mill", "-i", "show", s"$testType[$testName].elf")
+        .call(os.pwd / "tests")
+        .out
+        .text()
+        .pipe(ujson.read(_).str.split(":")(3))
+        .pipe(os.Path(_))
+    }
+  }
 
   def run = T {
     def wave: String = runConfig().obj.get("wave").map(_.str).getOrElse((T.dest / "wave").toString)
@@ -677,29 +694,32 @@ trait SubsystemEmulator
     PathRef(buildDir().path / "emulator")
   }
 
-  def defaultCommandName = "elf"
+  override def defaultCommandName() = "elf"
 }
 
 object runSubsystemEmu extends mill.Cross[RunSubsystemEmu](
-  os.walk(os.pwd / "tests" / "configs").filter(_.ext == "json").map(_.baseName).toSeq
+  os.walk(testsCaseDir).filter(_.ext == "json").map(_.baseName).toSeq
 )
 trait RunSubsystemEmu extends Cross.Module[String] with TaskModule {
   override def defaultCommandName() = "run"
 
   val test: String = crossValue
-  def testConfigDir = T(os.pwd / "tests" / "configs" / s"$test.json")
-  def testConfig = T(ujson.read(os.read(testConfigDir())))
+  def testConfig = T(ujson.read(os.read(testsCaseDir / "configs" / s"$test.json")))
   def testName = T(testConfig().apply("name").str)
   def testType = T(testConfig().apply("type").str)
 
   import scala.util.chaining._
   def testElf = T (
-    os.proc(Seq("mill", "-i", "show", s"${testType()}[${testName()}].bin"))
-      .call(os.pwd / "tests")
-      .out
-      .text
-      .pipe(ujson.read(_).str.split(":")(3))
-      .pipe(os.Path(_))
+    if (testConfig().obj.get("elf").isDefined) {
+      testsCaseDir / os.RelPath(testConfig().obj("elf").obj("path").str)
+    } else {
+      os.proc(Seq("mill", "-i", "show", s"${testType()}[${testName()}].bin"))
+        .call(os.pwd / "tests")
+        .out
+        .text
+        .pipe(ujson.read(_).str.split(":")(3))
+        .pipe(os.Path(_))
+    }
   )
 
   def run = T {
