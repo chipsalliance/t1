@@ -63,13 +63,13 @@ in
   });
 
   mill = (prev.mill.overrideAttrs (oldAttrs: rec {
-    version = "0.11.1";
+    version = "0.11.5";
     src = prev.fetchurl {
       url = "https://github.com/com-lihaoyi/mill/releases/download/${version}/${version}-assembly";
-      hash = "sha256-qG+Ddn0BHUZX1VX5hO84exgRz8YuUgYF/fH6MmgkrXE=";
+      hash = "sha256-sCJMCy4TLRQV3zI28Aydv5a8OV8OHOjLbwhfyIlxOeY=";
     };
   })).override {
-    jre = final.openjdk19; 
+    jre = final.openjdk19;
   };
 
   espresso = final.callPackage ./nix/espresso.nix { };
@@ -81,4 +81,6 @@ in
   rvv-testcase = final.callPackage ./nix/rvv-testcase-unwrapped.nix { };
 
   inherit rv32-clang my-cc-wrapper;
+
+  inherit (final.callPackage ./nix/mill-builder.nix { }) fetchMillDeps millSetupHook;
 }
