@@ -38,7 +38,8 @@ jobs:
             builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
       - id: ci-tests
-        run: nix develop .#testcase -c make ci-unpassed-tests DEFAULT_PASSED=.github/passed/default.txt
+        run: |
+          nix develop '.#ci' -c make ci-unpassed-tests DEFAULT_PASSED=.github/passed/default.txt
 
   ci:
     name: "CI"
@@ -75,8 +76,8 @@ jobs:
             builders-use-substitutes = true
       - id: ci-run
         run: |
-          nix develop .#testcase -c make ci-run "NAME=${{ matrix.name }}"
-          nix develop .#testcase -c make convert-perf-to-md
+          nix develop '.#ci' -c make ci-run "NAME=${{ matrix.name }}"
+          nix develop '.#ci' -c make convert-perf-to-md
 
       - uses: actions/upload-artifact@v3
         if: always()

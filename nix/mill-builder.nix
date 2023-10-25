@@ -18,20 +18,20 @@
 
       buildPhase = ''
         export JAVA_OPTS="-Duser.home=$TMPDIR"
+        # Use "https://repo1.maven.org/maven2/" only to keep dependencies integrity
+        export COURSIER_REPOSITORIES="central"
 
         local buildTasks=( $(mill -i resolve __._ | grep "prepareOffline") )
+
         for task in ''${buildTasks[@]}; do
           mill -i "$task" --all
         done
       '';
 
       installPhase = ''
-        mkdir $out
+        mkdir -p $out
 
-        [[ -d out ]] && mv out $out/project-cache
-
-        mkdir -p $out/mill-cache
-        mv $TMPDIR/.{cache,mill} $out/mill-cache/
+        mv $TMPDIR/.cache/coursier $out/coursier
       '';
 
       outputHashAlgo = "sha256";
@@ -53,9 +53,14 @@
         export HOME=$(mktemp -d)
         export JAVA_OPTS="-Duser.home=$HOME"
 
-        find "$millDeps"/mill-cache -maxdepth 1 -type d -exec cp -r {} $HOME \;
-        cp -r "$millDeps"/project-cache $sourceRoot/out
-        chmod -R u+w -- $sourceRoot/out $HOME
+        [[ -z "$millDeps" ]] && \
+          echo "\$millDeps variable not found, please set mill dependencies by `millDeps` attr." && \
+          exit 1
+
+        mkdir -p $HOME/.cache
+        cp -r "$millDeps"/coursier $HOME/.cache/
+
+        chmod -R u+w -- $HOME
         echo "JAVA HOME dir set to $HOME"
       }
 

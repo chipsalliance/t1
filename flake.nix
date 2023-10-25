@@ -72,30 +72,20 @@
             chisel = pkgs.mkShell {
               buildInputs = commonDeps ++ chiselDeps;
             };
-            # This environment is provided for writing and compiling testcase.
-            # If you are going to run test cases, use the .#testcase devShell.
-            testcase-bootstrap = mkLLVMShell {
-              buildInputs = commonDeps ++ testcaseDeps ++ [ pkgs.ammonite pkgs.mill ];
-
-              env = {
-                CODEGEN_BIN_PATH = "${pkgs.rvv-codegen}/bin/single";
-                CODEGEN_INC_PATH = "${pkgs.rvv-codegen}/include";
-                CODEGEN_CFG_PATH = "${pkgs.rvv-codegen}/configs";
-              };
-            };
             # This devShell is used only for running testcase
             testcase = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
 
               env = {
+                # use default devShell to build testcase
                 TEST_CASE_DIR = "${pkgs.rvv-testcase}";
-                VERILATOR_EMULATOR_BIN_PATH =
-                  let
-                    verilatorEmulator = pkgs.callPackage
-                      ./nix/verilator-emulator.nix
-                      { emulatorTypes = [ "v1024l8b2-test" "v1024l8b2-test-trace" ]; };
-                  in
-                  "${verilatorEmulator}/bin";
+              };
+            };
+            ci = mkLLVMShell {
+              buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
+              env = {
+                VERILATOR_EMULATOR_BIN_PATH = "${pkgs.verilator-emulator}/bin";
+                TEST_CASE_DIR = "${pkgs.rvv-testcase}";
               };
             };
             emulator = mkLLVMShell {
