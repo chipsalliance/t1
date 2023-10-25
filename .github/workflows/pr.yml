@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
+          fetch-depth: 0
       - run: sudo -E .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
@@ -30,12 +31,12 @@ jobs:
             post-build-hook = /etc/nix/upload-to-cache.sh
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-            sandbox = relaxed
             max-jobs = 0
             builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
       - id: ci-tests
-        run: nix develop .#testcase -c make ci-passed-tests DEFAULT_PASSED=.github/passed/default.txt
+        run: |
+          nix develop '.#ci' --print-build-logs --show-trace -c make ci-passed-tests DEFAULT_PASSED=.github/passed/default.txt
 
   ci:
     name: "CI"
@@ -71,7 +72,7 @@ jobs:
             builders-use-substitutes = true
       - id: ci-run
         run: |
-          nix develop .#testcase -c make ci-run "NAME=${{ matrix.name }}"
+          nix develop '.#ci' -c make ci-run "NAME=${{ matrix.name }}"
 
       - uses: actions/upload-artifact@v3
         if: always()
@@ -92,6 +93,79 @@ jobs:
         with:
           name: nix-post-build-hook-log
           path: /tmp/nix-post-build-hook.log
+
+
+  gen-fail-wave:
+    name: "Generate wave for failing test"
+    if: always()
+    needs: [ci]
+    runs-on: [self-hosted, linux]
+    outputs:
+      generate_wave: ${{ steps.filter-fail-jobs.outputs.generate_wave }}
+      retry_tasks: ${{ steps.filter-fail-jobs.outputs.retry_tasks }}
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: results
+      - id: filter-fail-jobs
+        name: fileter-fail-jobs
+        run: |
+          touch all-fail-tests.txt
+          find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> all-fail-tests.txt' \;
+          retry=$(sed 's/\* //' all-fail-tests.txt | tail -n3)
+          [[ -z "$retry" ]] \
+            || (echo "generate_wave=true" >> "$GITHUB_OUTPUT" \
+            && echo "$retry" | jq -n --indent 0 "{include:[{name: inputs}]}")
+
+  build-fail-wave:
+    name: "Generate wave for failing tests"
+    needs: [gen-fail-wave]
+    if: ${{ needs.gen-fail-wave.outputs.generate_wave == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-fail-wave.outputs.retry_tasks) }}
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - run: sudo -E .github/setup-actions.sh
+        env:
+          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
+          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
+          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
+          ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
+          ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      - uses: cachix/install-nix-action@v19
+        with:
+          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            post-build-hook = /etc/nix/upload-to-cache.sh
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
+            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
+            sandbox = relaxed
+            max-jobs = 0
+            builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders-use-substitutes = true
+      - run: |
+          millTask=$(echo ${{ matrix.name }} | sed 's/v1024l8b2-test/v1024l8b2-test-trace/')
+          nix develop '.#ci' -c mill -i "$millTask"
+          waveFile=$(find out -name 'wave.fst')
+          hierFile=$(find out -name 'wave.hier')
+          if [[ -z "$waveFile" || -n "$hierFile" ]]; then
+            echo "Verilator doesn't generate wave correctly"
+            exit 1
+          fi
+          mv "$waveFile" ./wave-"$millTask".fst
+      - uses: actions/upload-artifact@v3
+        with:
+          name: fail-test-wave
+          path: './*.fst'
+      - run: |
+          echo "Test ${{ matrix.name }} run fail"
+          # We are just running post action for failing test, so we need to avoid the workflow finishing successfully
+          exit 1
 
   report:
     name: "Report CI result"

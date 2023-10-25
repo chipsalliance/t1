@@ -148,7 +148,7 @@ trait Elaborator
       // class path for `moduleDeps` is only a directory, not a jar, which breaks the cache.
       // so we need to manually add the class files of `moduleDeps` here.
       upstreamCompileOutput()
-      mill.modules.Jvm.runLocal(
+      mill.util.Jvm.runLocal(
         finalMainClass(),
         runClasspath().map(_.path),
         Seq(
@@ -347,7 +347,7 @@ trait Emulator
         Option.when(os.exists(path))(path)
       }
       .getOrElse {
-        println(s"No pre-built emulator found, try to build with config $config")
+        System.err.println(s"No pre-built emulator found, try to build with config $config")
         // either rtl or testbench change should trigger elf rebuild
         elaborator(config).mfccompile.rtls()
         allCSourceFiles()
@@ -683,7 +683,7 @@ trait SubsystemEmulator
   }
 
   def cmake = T {
-    mill.modules.Jvm.runSubprocess(
+    mill.util.Jvm.runSubprocess(
       Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", buildDir().path).map(_.toString),
       Map[String, String](),
       T.dest
@@ -695,7 +695,7 @@ trait SubsystemEmulator
     rtls()
     allCSourceFiles()
     cmake()
-    mill.modules.Jvm.runSubprocess(
+    mill.util.Jvm.runSubprocess(
       Seq("ninja", "-C", buildDir().path).map(_.toString),
       Map[String, String](),
       buildDir().path

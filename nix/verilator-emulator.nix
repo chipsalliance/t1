@@ -1,5 +1,5 @@
 { lib
-, runCommandLocal
+, fetchFromGitHub
 , mill
 , fetchMillDeps
 , millSetupHook
@@ -22,43 +22,34 @@
 , # Try speed up compilation
   llvmPackages_14
 , # Compile options
-  emulatorTypes ? [ "v1024l8b2-test" ]
+  emulatorTypes ? [ "v1024l8b2-test" "v1024l8b2-test-trace" ]
+, emulatorSrc ? null
 }:
 
 assert lib.assertMsg ((builtins.typeOf emulatorTypes) == "list") "`emulatorTypes` is not a `list`";
 
 let
-  srcs = [
-    ../build.sc
-    ../common.sc
-    ../v
-    ../run
-    ../emulator
-    ../elaborator
-    ../dependencies
-    ../configs
-  ];
-  # We can simpliy reference the whole repository, but it will let the emulator build again and again
-  # even when we are editing GitHub Action workflow.
-  pureEmulatorSrc = runCommandLocal "prepareEmulatorSrc" { inherit srcs; } ''
-    mkdir -p $out && cd $out
-
-    srcArray=( $srcs )
-    for src in ''${srcArray[@]}; do
-      dest="$(stripHash "$src")"
-      cp -pr --reflink=auto -- "$src" "$dest"
-    done
-  '';
+  t1 = (fetchFromGitHub {
+    owner = "chipsalliance";
+    repo = "t1";
+    rev = "a8c7e76545c3abd7520440a8d572e4f6b5e2aa77";
+    hash = "sha256-PFi4BEJdeTNwYar2QGXhtqIo1WYPk8lFLJ2eJy/NGZ0=";
+    fetchSubmodules = true;
+  }).overrideAttrs (_: {
+    GIT_CONFIG_COUNT = 1;
+    GIT_CONFIG_KEY_0 = "url.https://github.com/.insteadOf";
+    GIT_CONFIG_VALUE_0 = "git@github.com:";
+  });
 in
 llvmPackages_14.stdenv.mkDerivation rec {
   version = "unstable-2023-10";
   pname = "emulator";
-  src = pureEmulatorSrc;
+
+  src = if (builtins.typeOf emulatorSrc != "null") then emulatorSrc else t1;
 
   millDeps = fetchMillDeps {
-    inherit pname;
-    src = pureEmulatorSrc;
-    millDepsHash = "sha256-Z/CobcyBWB3y81iT+IFVapRn1gJh7ky71es11a4NvCU=";
+    inherit src pname;
+    millDepsHash = "sha256-7opXn973oEMRKSAMugIpXjCUrI0qS5wpbd8R5jTE8Uo=";
   };
 
   nativeBuildInputs = [
@@ -91,10 +82,14 @@ llvmPackages_14.stdenv.mkDerivation rec {
 
     ${lib.toShellVar "emulatorTypes" emulatorTypes}
 
+    # Mill will write rubbish into stdout in a fresh environment,
+    # so we need to do a simple warm up here to let it generate cache.
+    mill -i resolve emulator._ &> /dev/null
+
     for t in ''${emulatorTypes[@]}; do
-      echo "Building emulator $t"
+      echo "[nix] building emulator $t"
       local path=$(mill -i show "emulator[$t].elf" | jq --raw-output '. | split(":") | .[3]')
-      [[ -z "$path" ]] && echo "Compilation fail" && exit 1
+      [[ -z "$path" ]] && echo "[build] fail to find path for emualtor $t" && exit 1
       outputsArray+=( ["$t"]="$path" )
     done
   '';
