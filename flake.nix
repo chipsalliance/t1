@@ -6,10 +6,6 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  nixConfig = {
-    sandbox = "relaxed";
-  };
-
   outputs = { self, nixpkgs, flake-utils }@inputs:
     let
       overlay = import ./overlay.nix;
@@ -93,6 +89,13 @@
 
               env = {
                 TEST_CASE_DIR = "${pkgs.rvv-testcase}";
+                VERILATOR_EMULATOR_BIN_PATH =
+                  let
+                    verilatorEmulator = pkgs.callPackage
+                      ./nix/verilator-emulator.nix
+                      { emulatorTypes = [ "v1024l8b2-test" "v1024l8b2-test-trace" ]; };
+                  in
+                  "${verilatorEmulator}/bin";
               };
             };
             emulator = mkLLVMShell {
@@ -106,7 +109,6 @@
                 CODEGEN_BIN_PATH = "${pkgs.rvv-codegen}/bin/single";
                 CODEGEN_INC_PATH = "${pkgs.rvv-codegen}/include";
                 CODEGEN_CFG_PATH = "${pkgs.rvv-codegen}/configs";
-                TEST_CASE_DIR = "${pkgs.rvv-testcase}";
               };
               inherit postHook;
             };
@@ -114,6 +116,7 @@
 
           # nix build .#testcase
           packages.testcase = pkgs.callPackage ./nix/rvv-testcase.nix { };
+          formatter = pkgs.nixpkgs-fmt;
         }
       )
     // { inherit inputs; overlays.default = overlay; };

@@ -1,27 +1,30 @@
-{ rv32-clang, glibc_multi, llvmForDev, go, buddy-mlir, ammonite, mill, rvv-codegen }:
-llvmForDev.stdenv.mkDerivation {
+{ rv32-clang, glibc_multi, llvmForDev, go, buddy-mlir, ammonite, mill, rvv-codegen, fetchMillDeps, millSetupHook }:
+let
   pname = "rvv-testcase";
   version = "unstable-2023-09-04";
-  srcs = [
-    ../.github/scripts/ci.sc
-    ../tests
+  src = ../tests;
+  buildScript = ../.github/scripts/ci.sc;
+
+  millDeps = fetchMillDeps {
+    inherit pname src;
+
+    millDepsHash = "sha256-onyUHOYJ7nuN7aSgaVEmgLsdjB6qR9n09MonLe79bEE=";
+  };
+in
+llvmForDev.stdenv.mkDerivation {
+  inherit pname version src millDeps;
+
+  nativeBuildInputs = [
+    rv32-clang
+    glibc_multi
+    llvmForDev.bintools
+    go
+    buddy-mlir
+    ammonite
+    mill
+    millSetupHook
   ];
-  sourceRoot = ".";
-  unpackPhase = ''
-    # mill will write data into the working directory, so the workdir cannot be $src as it is not writable
-    mkdir -p tests-src
-    for src in $srcs; do
-      case $src in
-        *-ci.sc)
-          cp $src ./ci.sc
-          ;;
-        *-tests)
-          cp -r $src/* tests-src
-          ;;
-      esac
-    done
-  '';
-  nativeBuildInputs = [ rv32-clang glibc_multi llvmForDev.bintools go buddy-mlir ammonite mill ];
+
   buildPhase = ''
     mkdir -p tests-out
 
@@ -29,14 +32,17 @@ llvmForDev.stdenv.mkDerivation {
     export CODEGEN_INC_PATH=${rvv-codegen}/include
     export CODEGEN_CFG_PATH=${rvv-codegen}/configs
 
-    # amm will write some cache under user.home, it is by default not writable inside some nix sandboxes
-    JAVA_OPTS="-Duser.home=$TMPDIR" amm ci.sc buildAllTestCase ./tests-src ./tests-out
+    amm ${buildScript} buildAllTestCase . ./tests-out
   '';
+
   installPhase = ''
     mkdir -p $out
     cp -r tests-out/{configs,cases} $out
   '';
+
+  dontPatchShebangs = true;
   dontPatchELF = true;
   dontStrip = true;
-  __noChroot = true;
+  dontMoveSbin = true;
+  dontFixup = true;
 }

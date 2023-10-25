@@ -333,7 +333,7 @@ trait Emulator
   }
 
   def cmake = T {
-    mill.modules.Jvm.runSubprocess(
+    mill.util.Jvm.runSubprocess(
       Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", buildDir().path, "-DCMAKE_EXPORT_COMPILE_COMMANDS=1").map(_.toString),
       Map[String, String](),
       T.dest
@@ -341,17 +341,26 @@ trait Emulator
   }
 
   def elf = T {
-    // either rtl or testbench change should trigger elf rebuild
-    elaborator(config).mfccompile.rtls()
-    allCSourceFiles()
-    allCHeaderFiles()
-    cmake()
-    mill.modules.Jvm.runSubprocess(
-      Seq("ninja", "-C", buildDir().path).map(_.toString),
-      Map[String, String](),
-      buildDir().path
-    )
-    PathRef(buildDir().path / "emulator")
+    val path: os.Path = sys.env.get("VERILATOR_EMULATOR_BIN_PATH")
+      .flatMap { case (raw) =>
+        val path = os.Path(raw) / s"emulator-$config"
+        Option.when(os.exists(path))(path)
+      }
+      .getOrElse {
+        println(s"No pre-built emulator found, try to build with config $config")
+        // either rtl or testbench change should trigger elf rebuild
+        elaborator(config).mfccompile.rtls()
+        allCSourceFiles()
+        allCHeaderFiles()
+        cmake()
+        mill.util.Jvm.runSubprocess(
+          Seq("ninja", "-C", buildDir().path).map(_.toString),
+          Map[String, String](),
+          buildDir().path
+        )
+        buildDir().path / "emulator"
+      }
+    PathRef(path)
   }
 }
 
