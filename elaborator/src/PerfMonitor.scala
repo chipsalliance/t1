@@ -25,25 +25,38 @@ trait ReadyMonitor extends PerfMonitor {
 /**
   * Monitor signals in [[v.LoadUnit]]
   */
-class LoadUnitMonitor extends PerfMonitor {
-  val tlPortAIsValid = dpiIn("LoadUnitTlPortAIsValid", Input(Bool()))
-  val tlPortAIsReady = dpiIn("LoadUnitTlPortAIsReady", Input(Bool()))
 
-  val statusIdle = dpiIn("LoadUnitStatusIdle", Input(Bool()))
+case class LoadUnitMonitorParam(memoryBankSize: Int, laneNumber: Int)
+
+class LoadUnitMonitor(param: LoadUnitMonitorParam) extends PerfMonitor {
+  val lsuRequestValid = dpiIn("LSURequestValid", Input(Bool()))
+
+  val statusIdle = dpiIn("idle", Input(Bool()))
+
+  val tlPortAIsValid = dpiIn("tlPortAIsValid", Input(Bool()))
+  val tlPortAIsReady = dpiIn("tlPortAIsReady", Input(Bool()))
+
+  val addressConflict = dpiIn("addressConflict", Input(Bool()))
+
+  val tlPortDIsValid = dpiIn("tlPortDIsValid", Seq.fill(param.memoryBankSize)(Input(Bool())))
+  val tlPortDIsReady = dpiIn("tlPortDIsReady", Seq.fill(param.memoryBankSize)(Input(Bool())))
+
+  val queueValid = dpiIn("queueValid", Seq.fill(param.memoryBankSize)(Input(Bool())))
+  val queueReady = dpiIn("queueReady", Seq.fill(param.memoryBankSize)(Input(Bool())))
+
+  val cacheLineDequeueValid = dpiIn("cacheLineDequeueValid", Seq.fill(param.memoryBankSize)(Input(Bool())))
+  val cacheLineDequeueReady = dpiIn("cacheLineDequeueReady", Seq.fill(param.memoryBankSize)(Input(Bool())))
+
+  val unalignedCacheLine = dpiIn("unalignedCacheLine", Input(Bool()))
+
+  val alignedDequeueReady = dpiIn("alignedDequeueReady", Input(Bool()))
+  val alignedDequeueValid = dpiIn("alignedDequeueValid", Input(Bool()))
 
   val writeReadyForLSU = dpiIn("LoadUnitWriteReadyForLSU", Input(Bool()))
+
+  val vrfWritePortValid = dpiIn("vrfWritePortValid", Seq.fill(param.laneNumber)(Input(Bool())))
+  val vrfWritePortReady = dpiIn("vrfWritePortReady", Seq.fill(param.laneNumber)(Input(Bool())))
 }
-
-class LoadUnitPortDMonitor extends IndexedPerfMonitor with ValidMonitor with ReadyMonitor
-
-class LoadUnitVrfWritePortMonitor extends IndexedPerfMonitor with ValidMonitor with ReadyMonitor
-
-class LoadUnitLastCacheLineAckMonitor extends IndexedPerfMonitor {
-  val isAck = dpiIn("LoadUnitLastCacheLineIsAck", Input(Bool()))
-}
-
-class LoadUnitCacheLineDequeueMonitor extends IndexedPerfMonitor with ValidMonitor with ReadyMonitor
-// End of LoadUnit monitor definition
 
 
 /**

@@ -40,16 +40,19 @@ void print_perf_summary();
     dpi_finish();                                                              \
   } catch (std::runtime_error & e) {                                           \
     terminated = true;                                                         \
-    svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.dpiError")); \
+    svSetScope(                                                                \
+        svGetScopeFromName("TOP.TestBench.verificationModule.dpiError"));      \
     dpi_error(e.what());                                                       \
   }
 
 #if VM_TRACE
 void VBridgeImpl::dpiDumpWave() {
   TRY({
-    svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.dpiDumpWave"));
+    svSetScope(
+        svGetScopeFromName("TOP.TestBench.verificationModule.dpiDumpWave"));
     dpi_dump_wave((wave + ".fst").c_str());
-    svSetScope(svGetScopeFromName("TOP.TestBench.verificationModule.dpiFinish"));
+    svSetScope(
+        svGetScopeFromName("TOP.TestBench.verificationModule.dpiFinish"));
   })
 }
 #endif
@@ -174,65 +177,59 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
   TRY({ chaining_perf.step(*lane_idx, slot_occupied); })
 }
 
-[[maybe_unused]] void load_unit_monitor(const svBit tl_port_a_is_valid,
-                                        const svBit tl_port_a_is_ready,
-                                        const svBit status_idle,
-                                        const svBit write_ready_for_lsu) {
+[[maybe_unused]] void load_unit_monitor(
+    svLogic LSURequestValid, svLogic idle, svLogic tlPortAIsValid,
+    svLogic tlPortAIsReady, svLogic addressConflict, svLogic tlPortDIsValid0,
+    svLogic tlPortDIsValid1, svLogic tlPortDIsReady0, svLogic tlPortDIsReady1,
+    svLogic queueValid0, svLogic queueValid1, svLogic queueReady0,
+    svLogic queueReady1, svLogic cacheLineDequeueValid0,
+    svLogic cacheLineDequeueValid1, svLogic cacheLineDequeueReady0,
+    svLogic cacheLineDequeueReady1, svLogic unalignedCacheLine,
+    svLogic alignedDequeueReady, svLogic alignedDequeueValid,
+    svLogic LoadUnitWriteReadyForLSU, svLogic vrfWritePortValid0,
+    svLogic vrfWritePortValid1, svLogic vrfWritePortValid2,
+    svLogic vrfWritePortValid3, svLogic vrfWritePortValid4,
+    svLogic vrfWritePortValid5, svLogic vrfWritePortValid6,
+    svLogic vrfWritePortValid7, svLogic vrfWritePortReady0,
+    svLogic vrfWritePortReady1, svLogic vrfWritePortReady2,
+    svLogic vrfWritePortReady3, svLogic vrfWritePortReady4,
+    svLogic vrfWritePortReady5, svLogic vrfWritePortReady6,
+    svLogic vrfWritePortReady7) {
   TRY({
     Log("LoadUnit")
-        .with("status",
+        .with("lsu_request_is_valid", (bool)LSURequestValid)
+        .with("idle", (bool)idle)
+        .with("tl_port_a",
               json{
-                  {"idle", (bool)status_idle},
+                  {"valid", (bool)tlPortAIsValid},
+                  {"ready", (bool)tlPortAIsReady},
               })
-        .with("tl_port_a", json{{"is_valid", (bool)tl_port_a_is_valid},
-                                {"is_ready", (bool)tl_port_a_is_ready}})
-        .with("write_ready_for_lsu", (bool)write_ready_for_lsu)
-        .info();
-  })
-}
-
-[[maybe_unused]] void load_unit_port_d_monitor(const svBitVecVal *port_d_index,
-                                               const svBit port_d_is_valid,
-                                               const svBit port_d_is_ready) {
-  TRY({
-    Log("LoadUnitPortD")
-        .with("index", (int)(*port_d_index))
-        .with("is_valid", (bool)port_d_is_valid)
-        .with("is_ready", (bool)port_d_is_ready)
-        .info();
-  })
-}
-
-[[maybe_unused]] void load_unit_vrf_write_port_monitor(const svBitVecVal *index,
-                                                       const svBit is_valid,
-                                                       const svBit is_ready) {
-  TRY({
-    Log("LoadUnitVrfWritePort")
-        .with("index", (int)(*index))
-        .with("is_valid", (bool)is_valid)
-        .with("is_ready", (bool)is_ready)
-        .info();
-  })
-}
-
-[[maybe_unused]] void
-load_unit_last_cache_line_ack_monitor(const svBitVecVal *index,
-                                      const svBit is_ack) {
-  TRY({
-    Log("LoadUnitLastCacheLineAck")
-        .with("index", (int)(*index))
-        .with("is_ack", (bool)is_ack)
-        .info();
-  })
-}
-
-[[maybe_unused]] void load_unit_cache_line_dequeue_monitor(
-    const svBitVecVal *index, const svBit is_valid, const svBit is_ready) {
-  TRY({
-    Log("LoadUnitCacheLineDequeueMonitor")
-        .with("index", (int)(*index))
-        .with("is_ready", (bool)is_ready)
-        .with("is_valid", (bool)is_valid)
+        .with("tl_port_d", std::vector{json{{"ready", (bool)tlPortDIsReady0},
+                                            {"valid", (bool)tlPortDIsValid0}},
+                                       json{{"ready", (bool)tlPortDIsReady1},
+                                            {"valid", (bool)tlPortDIsValid1}}})
+        .with("queue", std::vector{json{{"ready", (bool)queueReady0},
+                                        {"valid", (bool)queueValid0}},
+                                   json{{"ready", (bool)queueReady1},
+                                        {"valid", (bool)queueValid1}}})
+        .with("cacheLineDequeue",
+              std::vector{json{{"ready", (bool)cacheLineDequeueReady0},
+                               {"valid", (bool)cacheLineDequeueValid0}},
+                          json{{"ready", (bool)cacheLineDequeueReady1},
+                               {"valid", (bool)cacheLineDequeueValid1}}})
+        .with("alignedDequeue", json{{"ready", (bool)alignedDequeueReady},
+                                     {"valid", (bool)alignedDequeueValid}})
+        .with("writeReadyForLSU", (bool)LoadUnitWriteReadyForLSU)
+        .with("vrfWritePort", std::vector{
+          json{ {"ready", (bool)vrfWritePortReady0}, {"valid", (bool)vrfWritePortValid0} },
+          json{ {"ready", (bool)vrfWritePortReady1}, {"valid", (bool)vrfWritePortValid1} },
+          json{ {"ready", (bool)vrfWritePortReady2}, {"valid", (bool)vrfWritePortValid2} },
+          json{ {"ready", (bool)vrfWritePortReady3}, {"valid", (bool)vrfWritePortValid3} },
+          json{ {"ready", (bool)vrfWritePortReady4}, {"valid", (bool)vrfWritePortValid4} },
+          json{ {"ready", (bool)vrfWritePortReady5}, {"valid", (bool)vrfWritePortValid5} },
+          json{ {"ready", (bool)vrfWritePortReady6}, {"valid", (bool)vrfWritePortValid6} },
+          json{ {"ready", (bool)vrfWritePortReady7}, {"valid", (bool)vrfWritePortValid7} },
+        })
         .info();
   })
 }
