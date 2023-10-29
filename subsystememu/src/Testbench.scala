@@ -38,8 +38,12 @@ class TestHarness(implicit val p: Parameters) extends RawModule {
       mem.io_axi4.head <> io
       mem
     }.toSeq
+
     ldut.mmio_axi4.zip(ldut.mmioAXI4Node.in).map { case (io, (_, edge)) =>
-      io <> DontCare
+      val mmio = LazyModule(new LazyAXI4MemBFM(edge, base = p(ExtMem).get.master.base, size = p(ExtMem).get.master.size, dpiName = "AXI4MMIODPI"))
+      Module(mmio.module).suggestName("mmio")
+      mmio.io_axi4.head <> io
+      mmio
     }.toSeq
   }
 }
