@@ -31,6 +31,7 @@ class VerdesConfig
       // SoC
       .orElse(new WithoutTLMonitors)
       .orElse(new WithDefaultMemPort)
+      .orElse(new WithDefaultMMIOPort)
       .orElse(new WithDebugSBA)
       // 1 MHz
       .orElse(new WithTimebase(BigInt(1000000)))
@@ -42,7 +43,8 @@ class VerdesConfig
 class VerdesSystem(implicit p: Parameters) extends BaseSubsystem
   with HasRocketTiles
   with HasPeripheryDebug
-  with CanHaveMasterAXI4MemPort {
+  with CanHaveMasterAXI4MemPort
+  with CanHaveMasterAXI4MMIOPort {
   // configure
   val resetVectorSourceNode = BundleBridgeSource[UInt]()
   tileResetVectorNexusNode := resetVectorSourceNode

@@ -7,6 +7,8 @@
 #include <string>
 #include <iostream>
 #include "axi4_mem.hpp"
+#include "axi4_xbar.hpp"
+#include "uartlite.hpp"
 
 #define DPI extern "C"
 #define IN const
@@ -26,6 +28,10 @@ std::string plusarg_read_str(std::string param) {
 axi4_mem <30,32,4> ram(0x20000000, true);
 axi4     <30,32,4> mem_sigs;
 
+axi4     <30,32,4> mmio_sigs;
+axi4_xbar<30,32,4> mmio;
+uartlite           uart;
+
 DPI void init_cosim() {
     // read plusarg
     std::string trace_file = plusarg_read_str("trace_file");
@@ -44,6 +50,7 @@ DPI void init_cosim() {
     if (init_file != "") {
         ram.load_binary(init_file.c_str());
     }
+    assert(mmio.add_dev(0x20000000, 16, &uart)); // 0x60000000-0x80000000 mapped to 0x20000000-0x40000000
 }
 
     
@@ -131,4 +138,96 @@ extern "C" void AXI4BFMDPI(
     
     // input b
     mem_sigs.bready = bready;
+}
+
+extern "C" void AXI4MMIODPI(
+    IN  svBitVecVal* arid,
+    IN  svBitVecVal* araddr,
+    IN  svBitVecVal* arlen,
+    IN  svBitVecVal* arsize,
+    IN  svBitVecVal* arburst,
+    IN  svLogic arvalid,
+    OUT svLogic* arready,
+    OUT svBitVecVal* rid,
+    OUT svBitVecVal* rdata,
+    OUT svLogic* rlast,
+    OUT svBitVecVal* rresp,
+    OUT svLogic* rvalid,
+    IN  svLogic rready,
+    IN  svBitVecVal* awid,
+    IN  svBitVecVal* awaddr,
+    IN  svBitVecVal* awlen,
+    IN  svBitVecVal* awsize,
+    IN  svBitVecVal* awburst,
+    IN  svLogic awvalid,
+    OUT svLogic* awready,
+    IN  svBitVecVal* wdata,
+    IN  svLogic wlast,
+    IN  svBitVecVal* wstrb,
+    IN  svLogic wvalid,
+    OUT svLogic* wready,
+    OUT svBitVecVal* bid,
+    OUT svBitVecVal* bresp,
+    OUT svLogic* bvalid,
+    IN  svLogic bready) {
+
+    // CTRL START {
+    axi4_ref <30,32,4> ref(mmio_sigs);
+    mmio.beat(ref);
+
+    while (uart.exist_tx()) {
+        char c = uart.getc();
+        printf("%c",c);
+        fflush(stdout);
+    }
+    // CTRL  END  }
+    
+    // output ar
+    *arready = mmio_sigs.arready;
+
+    // output r
+    *rid    = mmio_sigs.rid;
+    *rdata  = mmio_sigs.rdata;
+    *rlast  = mmio_sigs.rlast;
+    *rresp  = mmio_sigs.rresp;
+    *rvalid = mmio_sigs.rvalid;
+
+    // output aw
+    *awready= mmio_sigs.awready;
+
+    // output w
+    *wready = mmio_sigs.wready;
+
+    // output b
+    *bid    = mmio_sigs.bid;
+    *bresp  = mmio_sigs.bresp;
+    *bvalid = mmio_sigs.bvalid;
+
+    // input ar
+    mmio_sigs.arid   = *arid;
+    mmio_sigs.araddr = *araddr;
+    mmio_sigs.arlen  = *arlen;
+    mmio_sigs.arsize = *arsize;
+    mmio_sigs.arburst= *arburst;
+    mmio_sigs.arvalid= arvalid;
+
+    // input r
+    mmio_sigs.rready = rready;
+
+    // input aw
+    mmio_sigs.awid   = *awid;
+    mmio_sigs.awaddr = *awaddr;
+    mmio_sigs.awlen  = *awlen;
+    mmio_sigs.awsize = *awsize;
+    mmio_sigs.awburst= *awburst;
+    mmio_sigs.awvalid= awvalid;
+
+    // input w
+    mmio_sigs.wdata  = *wdata;
+    mmio_sigs.wstrb  = *wstrb;
+    mmio_sigs.wlast  = wlast;
+    mmio_sigs.wvalid = wvalid;
+    
+    // input b
+    mmio_sigs.bready = bready;
 }

@@ -6,13 +6,14 @@ import freechips.rocketchip.amba.axi4._
 import freechips.rocketchip.diplomacy._
 import org.chipsalliance.cde.config.Parameters
 
-class LazyAXI4MemBFM(edge: AXI4EdgeParameters, size: BigInt, base: BigInt = 0)(implicit p: Parameters) extends SimpleLazyModule {
+class LazyAXI4MemBFM(edge: AXI4EdgeParameters, size: BigInt, base: BigInt = 0, dpiName: String = "AXI4BFMDPI")(implicit p: Parameters) extends SimpleLazyModule {
   val node = AXI4MasterNode(List(edge.master))
   val bfms = AddressSet.misaligned(base, size).map { aSet =>
     LazyModule(new AXI4BFM(
       address = aSet,
       beatBytes = edge.bundle.dataBits/8,
-      wcorrupt=edge.slave.requestKeys.contains(AMBACorrupt)))
+      wcorrupt=edge.slave.requestKeys.contains(AMBACorrupt),
+      dpiName=dpiName))
   }
   val xbar = AXI4Xbar()
   bfms.foreach{ s => s.node := AXI4Buffer() := xbar }
@@ -25,7 +26,8 @@ class AXI4BFM(address: AddressSet,
               executable: Boolean = true,
               beatBytes: Int = 4,
               errors: Seq[AddressSet] = Nil,
-              wcorrupt: Boolean = true
+              wcorrupt: Boolean = true,
+              dpiName: String
              )(implicit p: Parameters) extends LazyModule
 { outer =>
   val node = AXI4SlaveNode(Seq(AXI4SlavePortParameters(
@@ -46,7 +48,7 @@ class AXI4BFM(address: AddressSet,
     val axi4Bundle: AXI4Bundle = node.in.head._1
     val bundleTpe = axi4Bundle.cloneType
     val dpiGen = Module(new DPIModule {
-      override def desiredName = "AXI4BFMDPI"
+      override def desiredName = dpiName
       override val isImport: Boolean = true
       val clock = dpiTrigger("clock", Input(Bool()))
       val reset = dpiTrigger("reset", Input(Bool()))
