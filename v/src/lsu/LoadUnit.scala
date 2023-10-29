@@ -250,53 +250,86 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   /**
     * Internal signals probes
     */
+  // Load Unit ready to accpet LSU request
+  val lsuRequestValidProbe = IO(Output(Probe(Bool())))
+  define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
+
+  // Load Unit is idle
+  val idleProbe = IO(Output(Probe(Bool())))
+  define(idleProbe, ProbeValue(status.idle))
+
+  // Tilelink Channel A decouple IO status
+  // ready: channel A is ready to accept signal
+  // valid: Load Unit try to send signal to channel A
   val tlPortAValidProbe = IO(Output(Probe(Bool())))
   define(tlPortAValidProbe, ProbeValue(tlPortA.valid))
   val tlPortAReadyProbe = IO(Output(Probe(Bool())))
   define(tlPortAReadyProbe, ProbeValue(tlPortA.ready))
 
-  val tlPortDValidProbe: IndexedSeq[Bool] = tlPortD.map(port => {
+  // Fail to send signal to tilelink Channel A because of address conflict
+  val addressConflictProbe = IO(Output(Probe(Bool())))
+  define(addressConflictProbe, ProbeValue(addressConflict))
+
+  // Tilelink used for accepting signal from receive signal from Channel D
+  val tlPortDValidProbe: Seq[Bool] = tlPortD.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.valid))
     probe
-  })
-  val tlPortDReadyProbe: IndexedSeq[Bool] = tlPortD.map(port => {
+  }).toSeq
+  val tlPortDReadyProbe: Seq[Bool] = tlPortD.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.ready))
     probe
+  }).toSeq
+
+  // Store data from tilelink Channel D, each item corresponding to tlPortD port index
+  val queueValidProbe = queue.map(io => {
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(io.valid))
+    probe
+  })
+  val queueReadyProbe = queue.map(io => {
+    val probe = IO(Output(Probe(Bool())))
+    define(probe, ProbeValue(io.ready))
+    probe
   })
 
-  val vrfWriteValidProbe: IndexedSeq[Bool] = vrfWritePort.map(port => {
+  // After reading data from tilelink channel D, data is concat into a full form cacheline, then go to lower level through cachelineDequeue
+  val cacheLineDequeueValidProbe: Seq[Bool] = cacheLineDequeue.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.valid))
     probe
-  })
-  val vrfWriteReadyProbe: IndexedSeq[Bool] = vrfWritePort.map(port => {
+  }).toSeq
+  val cacheLineDequeueReadyProbe: Seq[Bool] = cacheLineDequeue.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.ready))
     probe
-  })
+  }).toSeq
 
-  val statusIdleProbe = IO(Output(Probe(Bool())))
-  define(statusIdleProbe, ProbeValue(status.idle))
+  // After receiving new cacheline from top, or current item is the last cacheline,
+  // pop out data and transform it to an aligned cacheline, go through alignedDequeue to next level
+  val unalignedCacheLineProbe = IO(Output(Probe(Bool())))
+  define(unalignedCacheLineProbe, ProbeValue(unalignedCacheLine.valid))
 
+  // Used for transmitting data from unalignedCacheline to dataBuffer
+  val alignedDequeueValidProbe = IO(Output(Probe(Bool())))
+  define(alignedDequeueValidProbe, ProbeValue(alignedDequeue.valid))
+  val alignedDequeueReadyProbe = IO(Output(Probe(Bool())))
+  define(alignedDequeueReadyProbe, ProbeValue(alignedDequeue.ready))
+
+  // Load Unit can write VRF after writeReadyForLSU is true
   val writeReadyForLSUProbe: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu))))
   define(writeReadyForLSUProbe, ProbeValue(writeReadyForLsu))
 
-  val lastCacheLineAckProbe = lastCacheLineAck.map(stat => {
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(stat))
-    probe
-  })
-
-  val cacheLineDequeueValidProbe: IndexedSeq[Bool] = cacheLineDequeue.map(port => {
+  // Write to VRF
+  val vrfWriteValidProbe: Seq[Bool] = vrfWritePort.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.valid))
     probe
-  })
-  val cacheLineDequeueReadyProbe: IndexedSeq[Bool] = cacheLineDequeue.map(port => {
+  }).toSeq
+  val vrfWriteReadyProbe: Seq[Bool] = vrfWritePort.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.ready))
     probe
-  })
+  }).toSeq
 }
