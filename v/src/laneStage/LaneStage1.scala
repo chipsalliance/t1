@@ -6,6 +6,7 @@ package v
 import chisel3._
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
+import chisel3.probe.{Probe, ProbeValue, define}
 
 class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
@@ -328,5 +329,41 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends
 
   when(enqueue.fire ^ dequeue.fire) {
     stageValidReg := enqueue.fire
+  }
+
+  object stageProbe {
+    def newProbe = () => IO(Output(Probe(Bool())))
+
+    val dequeueReadyProbe = newProbe()
+    val dequeueValidProbe = newProbe()
+
+    val hasDataOccupiedProbe = newProbe()
+
+    val stageFinishProbe = newProbe()
+    val readFinishProbe = Option.when(isLastSlot)(newProbe())
+    val sSendCrossReadResultLSBProbe = Option.when(isLastSlot)(newProbe())
+    val sSendCrossReadResultMSBProbe = Option.when(isLastSlot)(newProbe())
+    val wCrossReadLSBProbe = Option.when(isLastSlot)(newProbe())
+    val wCrossReadMSBProbe = Option.when(isLastSlot)(newProbe())
+
+    val vrfReadRequestProbe: Seq[(Bool, Bool)] = Seq.fill(3)((newProbe(),newProbe()))
+  }
+
+  define(stageProbe.dequeueReadyProbe, ProbeValue(dequeue.ready))
+  define(stageProbe.dequeueValidProbe, ProbeValue(dequeue.valid))
+  define(stageProbe.hasDataOccupiedProbe, ProbeValue(stageValid))
+  define(stageProbe.stageFinishProbe, ProbeValue(stageFinish))
+
+  if (isLastSlot) {
+    stageProbe.readFinishProbe.map(p => define(p, ProbeValue(readFinish)))
+    stageProbe.sSendCrossReadResultLSBProbe.map(p => define(p, ProbeValue(sSendCrossReadResultLSB.get)))
+    stageProbe.sSendCrossReadResultMSBProbe.map(p => define(p, ProbeValue(sSendCrossReadResultMSB.get)))
+    stageProbe.wCrossReadLSBProbe.map(p => define(p, ProbeValue(wCrossReadLSB.get)))
+    stageProbe.wCrossReadMSBProbe.map(p => define(p, ProbeValue(wCrossReadMSB.get)))
+  }
+
+  stageProbe.vrfReadRequestProbe.zipWithIndex.foreach { case((ready, valid), i) =>
+    define(ready, ProbeValue(vrfReadRequest(i).ready))
+    define(valid, ProbeValue(vrfReadRequest(i).valid))
   }
 }

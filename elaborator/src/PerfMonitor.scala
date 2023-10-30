@@ -120,4 +120,46 @@ class LaneMonitor(param: LaneParam) extends PerfMonitor {
   val slotOccupied = dpiIn("slotOccupied", Seq.fill(param.slot)(Input(Bool())))
   val instructionFinished = dpiIn("instructionFinished", Input(UInt(32.W)))
 }
+
+class LaneSlotMonitor extends PerfMonitor {
+  val laneIndex = dpiIn("laneIndex", Input(UInt(32.W)))
+  val slotIndex = dpiIn("slotIndex", Input(UInt(32.W)))
+
+  val stage0EnqueueReady = dpiIn("stage0EnqueueReady", Input(Bool()))
+  val stage0EnqueueValid = dpiIn("stage0EnqueueValid", Input(Bool()))
+
+  val changingMaskSet = dpiIn("changingMaskSet", Input(Bool()))
+
+  val slotActive = dpiIn("slotActive", Input(Bool()))
+  val slotOccupied = dpiIn("slotOccupied", Input(Bool()))
+  val pipeFinish = dpiIn("pipeFinish", Input(Bool()))
+
+  val stage1DequeueReady = dpiIn("stage1DequeueReady", Input(Bool()))
+  val stage1DequeueValid = dpiIn("stage1DequeueValid", Input(Bool()))
+
+  val stage1HasDataOccupied = dpiIn("stage1HasDataOccpied", Input(Bool()))
+  val stage1Finishing = dpiIn("stage1Finishing", Input(Bool()))
+
+  val stage1VrfReadReadyRequest = dpiIn("stage1VrfReadReadyRequest", Seq.fill(3)(Input(Bool())))
+  val stage1VrfReadValidRequest = dpiIn("stage1VrfReadValidRequest", Seq.fill(3)(Input(Bool())))
+
+  val executionUnitVfuRequestReady = dpiIn("executionUnitVfuRequestReady", Input(Bool()))
+  val executionUnitVfuRequestValid = dpiIn("executionUnitVfuRequestValid", Input(Bool()))
+
+  val stage3VrfWriteReady = dpiIn("stage3VrfWriteReady", Input(Bool()))
+  val stage3VrfWriteValid = dpiIn("stage3VrfWriteValid", Input(Bool()))
+}
+
+class LaneLastSlotMonitor() extends LaneSlotMonitor {
+  val slotShiftValid = dpiIn("slotShiftValid", Input(Bool()))
+  val decodeResultIsCrossReadOrWrite = dpiIn("decodeResultIsCrossReadOrWrite", Input(Bool()))
+  val decodeResultIsScheduler = dpiIn("decodeResultIsScheduler", Input(Bool()))
+
+  val stage1ReadFinish = dpiIn("stage1ReadFinish", Input(Bool()))
+
+  val stage1sSendCrossReadResultLSB = dpiIn("sSendCrossReadResultLSB", Input(Bool()))
+  val stage1sSendCrossReadResultMSB = dpiIn("sSendCrossReadResultMSB", Input(Bool()))
+  val stage1wCrossReadLSB = dpiIn("wCrossReadLSB", Input(Bool()))
+  val stage1wCrossReadMSB = dpiIn("wCrossReadMSB", Input(Bool()))
+}
 // End of Lane monitor
