@@ -177,7 +177,7 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
   TRY({ chaining_perf.step(*lane_idx, slot_occupied); })
 }
 
-[[maybe_unused]] void load_unit_monitor(
+void load_unit_monitor(
     svLogic LSURequestValid, svLogic idle, svLogic tlPortAIsValid,
     svLogic tlPortAIsReady, svLogic addressConflict, svLogic tlPortDIsValid0,
     svLogic tlPortDIsValid1, svLogic tlPortDIsReady0, svLogic tlPortDIsReady1,
@@ -199,6 +199,7 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
     Log("LoadUnit")
         .with("lsu_request_is_valid", (bool)LSURequestValid)
         .with("idle", (bool)idle)
+        .with("address_conlict", (bool)addressConflict)
         .with("tl_port_a",
               json{
                   {"valid", (bool)tlPortAIsValid},
@@ -220,16 +221,76 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
         .with("alignedDequeue", json{{"ready", (bool)alignedDequeueReady},
                                      {"valid", (bool)alignedDequeueValid}})
         .with("writeReadyForLSU", (bool)LoadUnitWriteReadyForLSU)
-        .with("vrfWritePort", std::vector{
-          json{ {"ready", (bool)vrfWritePortReady0}, {"valid", (bool)vrfWritePortValid0} },
-          json{ {"ready", (bool)vrfWritePortReady1}, {"valid", (bool)vrfWritePortValid1} },
-          json{ {"ready", (bool)vrfWritePortReady2}, {"valid", (bool)vrfWritePortValid2} },
-          json{ {"ready", (bool)vrfWritePortReady3}, {"valid", (bool)vrfWritePortValid3} },
-          json{ {"ready", (bool)vrfWritePortReady4}, {"valid", (bool)vrfWritePortValid4} },
-          json{ {"ready", (bool)vrfWritePortReady5}, {"valid", (bool)vrfWritePortValid5} },
-          json{ {"ready", (bool)vrfWritePortReady6}, {"valid", (bool)vrfWritePortValid6} },
-          json{ {"ready", (bool)vrfWritePortReady7}, {"valid", (bool)vrfWritePortValid7} },
-        })
+        .with("vrfWritePort",
+              std::vector{
+                  json{{"ready", (bool)vrfWritePortReady0},
+                       {"valid", (bool)vrfWritePortValid0}},
+                  json{{"ready", (bool)vrfWritePortReady1},
+                       {"valid", (bool)vrfWritePortValid1}},
+                  json{{"ready", (bool)vrfWritePortReady2},
+                       {"valid", (bool)vrfWritePortValid2}},
+                  json{{"ready", (bool)vrfWritePortReady3},
+                       {"valid", (bool)vrfWritePortValid3}},
+                  json{{"ready", (bool)vrfWritePortReady4},
+                       {"valid", (bool)vrfWritePortValid4}},
+                  json{{"ready", (bool)vrfWritePortReady5},
+                       {"valid", (bool)vrfWritePortValid5}},
+                  json{{"ready", (bool)vrfWritePortReady6},
+                       {"valid", (bool)vrfWritePortValid6}},
+                  json{{"ready", (bool)vrfWritePortReady7},
+                       {"valid", (bool)vrfWritePortValid7}},
+              })
+        .info();
+  })
+}
+
+void store_unit_monitor(
+    svLogic idle, svLogic lsuRequestIsValid, svLogic tlPortAIsValid0,
+    svLogic tlPortAIsValid1, svLogic tlPortAIsReady0, svLogic tlPortAIsReady1,
+    svLogic addressConflict, svLogic vrfReadDataPortIsValid0,
+    svLogic vrfReadDataPortIsValid1, svLogic vrfReadDataPortIsValid2,
+    svLogic vrfReadDataPortIsValid3, svLogic vrfReadDataPortIsValid4,
+    svLogic vrfReadDataPortIsValid5, svLogic vrfReadDataPortIsValid6,
+    svLogic vrfReadDataPortIsValid7, svLogic vrfReadDataPortIsReady0,
+    svLogic vrfReadDataPortIsReady1, svLogic vrfReadDataPortIsReady2,
+    svLogic vrfReadDataPortIsReady3, svLogic vrfReadDataPortIsReady4,
+    svLogic vrfReadDataPortIsReady5, svLogic vrfReadDataPortIsReady6,
+    svLogic vrfReadDataPortIsReady7, svLogic vrfReadyToStore,
+    svLogic alignedDequeueReady, svLogic alignedDequeueValid) {
+  TRY({
+    Log("LoadUnit")
+        .with("idle", (bool)idle)
+        .with("lsu_request_is_valid", (bool)lsuRequestIsValid)
+        .with("tl_port_a", std::vector{json{
+                                           {"valid", (bool)tlPortAIsValid0},
+                                           {"ready", (bool)tlPortAIsReady0},
+                                       },
+                                       json{
+                                           {"valid", (bool)tlPortAIsValid1},
+                                           {"ready", (bool)tlPortAIsReady1},
+                                       }})
+        .with("address_conflict", (bool)addressConflict)
+        .with("vrfReadDataPort",
+              std::vector{
+                  json{{"ready", (bool)vrfReadDataPortIsReady0},
+                       {"valid", (bool)vrfReadDataPortIsValid0}},
+                  json{{"ready", (bool)vrfReadDataPortIsReady1},
+                       {"valid", (bool)vrfReadDataPortIsValid1}},
+                  json{{"ready", (bool)vrfReadDataPortIsReady2},
+                       {"valid", (bool)vrfReadDataPortIsValid2}},
+                  json{{"ready", (bool)vrfReadDataPortIsReady3},
+                       {"valid", (bool)vrfReadDataPortIsValid3}},
+                  json{{"ready", (bool)vrfReadDataPortIsReady4},
+                       {"valid", (bool)vrfReadDataPortIsValid4}},
+                  json{{"ready", (bool)vrfReadDataPortIsReady5},
+                       {"valid", (bool)vrfReadDataPortIsValid5}},
+                  json{{"ready", (bool)vrfReadDataPortIsReady6},
+                       {"valid", (bool)vrfReadDataPortIsValid6}},
+                  json{{"ready", (bool)vrfReadDataPortIsReady7},
+                       {"valid", (bool)vrfReadDataPortIsValid7}},
+              })
+        .with("alignedDequeue", json{{"ready", (bool)alignedDequeueReady},
+                                     {"valid", (bool)alignedDequeueValid}})
         .info();
   })
 }

@@ -23,12 +23,11 @@ trait ReadyMonitor extends PerfMonitor {
 
 
 /**
-  * Monitor signals in [[v.LoadUnit]]
+  * Monitor signals in [[v.LoadUnit]] [[v.StoreUnit]]
   */
+case class LSUParam(memoryBankSize: Int, laneNumber: Int)
 
-case class LoadUnitMonitorParam(memoryBankSize: Int, laneNumber: Int)
-
-class LoadUnitMonitor(param: LoadUnitMonitorParam) extends PerfMonitor {
+class LoadUnitMonitor(param: LSUParam) extends PerfMonitor {
   val lsuRequestValid = dpiIn("LSURequestValid", Input(Bool()))
 
   val statusIdle = dpiIn("idle", Input(Bool()))
@@ -58,6 +57,18 @@ class LoadUnitMonitor(param: LoadUnitMonitorParam) extends PerfMonitor {
   val vrfWritePortReady = dpiIn("vrfWritePortReady", Seq.fill(param.laneNumber)(Input(Bool())))
 }
 
+class StoreUnitMonitor(param: LSUParam) extends PerfMonitor {
+  val idle = dpiIn("idle", Input(Bool()))
+  val lsuRequestIsValid = dpiIn("lsuRequestIsValid", Input(Bool()))
+  val tlPortAIsValid = dpiIn("tlPortAIsValid", Seq.fill(param.memoryBankSize)(Input(Bool())))
+  val tlPortAIsReady = dpiIn("tlPortAIsReady", Seq.fill(param.memoryBankSize)(Input(Bool())))
+  val addressConflict = dpiIn("addressConflict", Input(Bool()))
+  val vrfReadDataPortIsValid = dpiIn("vrfReadDataPortIsValid", Seq.fill(param.laneNumber)(Input(Bool())))
+  val vrfReadDataPortIsReady = dpiIn("vrfReadDataPortIsReady", Seq.fill(param.laneNumber)(Input(Bool())))
+  val vrfReadyToStore = dpiIn("vrfReadyToStore", Input(Bool()))
+  val alignedDequeueReady = dpiIn("alignedDequeueReady", Input(Bool()))
+  val alignedDequeueValid = dpiIn("alignedDequeueValid", Input(Bool()))
+}
 
 /**
   * Monitor signals in [[v.SimpleAccessUnit]]
@@ -89,20 +100,6 @@ class OtherUnitOffsetReadResultMonitor extends IndexedPerfMonitor with ValidMoni
 
 class OtherUnitIndexedInsnOffsetsIsValidMonitor extends IndexedPerfMonitor with ValidMonitor
 // End of SimpleAccessUnit monitors definition
-
-
-/**
-  * Monitor signals in [[v.StoreUnit]]
-  */
-class StoreUnitMonitor extends PerfMonitor {
-  val vrfReadyToStore = dpiIn("VrfReadyToStore", Input(Bool()))
-}
-
-class StoreUnitAlignedDequeueMonitor extends PerfMonitor with ValidMonitor with ReadyMonitor
-
-class StoreUnitTlPortAMonitor extends IndexedPerfMonitor with ValidMonitor with ReadyMonitor
-
-class StoreUnitVrfReadDataPortMonitor extends IndexedPerfMonitor with ValidMonitor with ReadyMonitor
 
 class LaneReadBusPortMonitor extends IndexedPerfMonitor {
   val readBusPortEnqReady = dpiIn("readBusPortEnqReady", Input(Bool()))

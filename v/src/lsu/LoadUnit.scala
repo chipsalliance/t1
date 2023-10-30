@@ -317,6 +317,9 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   val alignedDequeueReadyProbe = IO(Output(Probe(Bool())))
   define(alignedDequeueReadyProbe, ProbeValue(alignedDequeue.ready))
 
+  val bufferEnqueueSelectProbe = IO(Output(Probe(chiselTypeOf(bufferEnqueueSelect))))
+  define(bufferEnqueueSelectProbe, ProbeValue(bufferEnqueueSelect))
+
   // Load Unit can write VRF after writeReadyForLSU is true
   val writeReadyForLSUProbe: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu))))
   define(writeReadyForLSUProbe, ProbeValue(writeReadyForLsu))
