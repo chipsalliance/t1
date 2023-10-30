@@ -97,6 +97,27 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
   storeUnitMonitor.alignedDequeueReady.ref := read(bore(dut.lsu.storeUnit.alignedDequeueReadyProbe))
   storeUnitMonitor.alignedDequeueValid.ref := read(bore(dut.lsu.storeUnit.alignedDequeueValidProbe))
 
+  val vMonitor = Module(new VMonitor(VParam(generator.parameter.chainingSize)))
+  vMonitor.clock.ref := clock.asBool
+  vMonitor.requestValid.ref := read(bore(dut.requestValidProbe))
+  vMonitor.requestReady.ref := read(bore(dut.requestReadyProbe))
+  vMonitor.requestRegValid.ref := read(bore(dut.requestRegValidProbe))
+  vMonitor.requestRegDequeueReady.ref := read(bore(dut.requestRegDequeueReadyProbe))
+  vMonitor.requestRegDequeueValid.ref := read(bore(dut.requestRegDequeueValidProbe))
+  vMonitor.executionReady.ref := read(bore(dut.executionReadyProbe))
+  vMonitor.slotReady.ref := read(bore(dut.slotReadyProbe))
+  vMonitor.waitForGather.ref := (!read(bore(dut.gatherNeedReadProbe))) || read(bore(dut.gatherReadFinishProbe))
+  vMonitor.instructionRawReady.ref := read(bore(dut.instructionRAWReadyProbe))
+  vMonitor.responseValid.ref := read(bore(dut.responseValidProbe))
+  vMonitor.sMaskUnitExecuted
+    .zip(vMonitor.wLast)
+    .zip(vMonitor.isLastInst)
+    .zipWithIndex.foreach { case(((sMaskUnit, wLast), isLastInst), index) =>
+      sMaskUnit.ref := read(bore(dut.slotStateProbe(index)._1))
+      wLast.ref := read(bore(dut.slotStateProbe(index)._2))
+      isLastInst.ref := read(bore(dut.slotStateProbe(index)._3))
+    }
+
   /**
     * [[v.SimpleAccessUnit]] related probe connection
     */
@@ -238,98 +259,4 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
       monitor.isValid.ref := read(bore(lane.writeBusDataReqValidProbe))
     }
   })
-
-  val vRequestMonitor = Module(new VRequestMonitor)
-  vRequestMonitor.clock.ref := clock.asBool
-  vRequestMonitor.isValid.ref := read(bore(dut.requestValidProbe))
-  vRequestMonitor.isReady.ref := read(bore(dut.requestReadyProbe))
-
-  val vResponseMonitor = Module(new VResponseMonitor)
-  vResponseMonitor.clock.ref := clock.asBool
-  vResponseMonitor.isValid.ref := read(bore(dut.responseValidProbe))
-
-  val vRequestRegMonitor = Module(new VRequestRegMonitor)
-  vRequestRegMonitor.clock.ref := clock.asBool
-  vRequestRegMonitor.isValid.ref := read(bore(dut.requestValidProbe))
-
-  val vRequestRegDequeueMonitor = Module(new VRequestRegDequeueMonitor)
-  vRequestRegDequeueMonitor.clock.ref := clock.asBool
-  vRequestRegDequeueMonitor.isValid.ref := read(bore(dut.requestRegDequeueValidProbe))
-  vRequestRegDequeueMonitor.isReady.ref := read(bore(dut.requestRegDequeueReadyProbe))
-
-  val vMaskedUnitWriteValid = Module(new VMaskUnitWriteValidMonitor)
-  vMaskedUnitWriteValid.clock.ref := clock.asBool
-  vMaskedUnitWriteValid.isValid.ref := read(bore(dut.maskUnitWriteValidProbe))
-
-  dut.maskUnitWriteValidProbesVec.zipWithIndex.foreach({ case(probe, i) =>
-    val monitor = Module(new VMaskUnitWriteValidIndexedMonitor)
-    monitor.clock.ref := clock.asBool
-    monitor.index.ref := i.U
-    monitor.isValid.ref := read(bore(probe))
-  })
-
-  val vMaskUnitWriteValid = Module(new VMaskUnitReadValidMonitor)
-  vMaskUnitWriteValid.clock.ref := clock.asBool
-  vMaskUnitWriteValid.isValid.ref := read(bore(dut.maskUnitReadValidProbe))
-
-  dut.maskUnitReadValidProbeVec.zipWithIndex.foreach({ case(probe, i) =>
-    val monitor = Module(new VMaskUnitReadValidIndexedMonitor)
-    monitor.clock.ref := clock.asBool
-    monitor.index.ref := i.U
-    monitor.isValid.ref := read(bore(probe))
-  })
-
-  val vWARRedResultMonitor = Module(new VWarReadResultValidMonitor)
-  vWARRedResultMonitor.clock.ref := clock.asBool
-  vWARRedResultMonitor.isValid.ref := read(bore(dut.WARRedResultValidProbe))
-
-  dut.dataValidProbes.zipWithIndex.foreach({ case(probe, i) =>
-    val vDataMonitor = Module(new VDataMonitor)
-    vDataMonitor.clock.ref := clock.asBool
-    vDataMonitor.index.ref := i.U
-    vDataMonitor.isValid.ref := read(bore(probe))
-  })
-
-  val vDataResultMonitor = Module(new VDataResultMonitor)
-  vDataResultMonitor.clock.ref := clock.asBool
-  vDataResultMonitor.isValid.ref := read(bore(dut.dataResultValidProbe))
-
-  val vSelectffoIndexMonitor = Module(new VSelectffoIndexMonitor)
-  vSelectffoIndexMonitor.clock.ref := clock.asBool
-  vSelectffoIndexMonitor.isValid.ref := read(bore(dut.selectffoIndexValidProbe))
-
-  val vExecutionReadyMonitor = Module(new VExecutionReadyMonitor)
-  vExecutionReadyMonitor.clock.ref := clock.asBool
-  vExecutionReadyMonitor.isReady.ref := read(bore(dut.executionReadyProbe))
-
-  val vInsnRawReadyMonitor = Module(new VInsnRawReadyMonitor)
-  vInsnRawReadyMonitor.clock.ref := clock.asBool
-  vInsnRawReadyMonitor.isReady.ref := read(bore(dut.insnRAWReadyProbe))
-
-  val vSlotReadyMonitor = Module(new VSlotReadyMonitor)
-  vSlotReadyMonitor.clock.ref := clock.asBool
-  vSlotReadyMonitor.isReady.ref := read(bore(dut.slotReadyProbe))
-
-  dut.laneReadyProbe.zipWithIndex.foreach({ case(probe, i) =>
-    val monitor = Module(new VLaneReadyMonitor)
-    monitor.clock.ref := clock.asBool
-    monitor.index.ref := i.U
-    monitor.isReady.ref := read(bore(probe))
-  })
-
-  dut.slotStateIdleProbe.zipWithIndex.foreach({ case(state, i) =>
-    val monitor = Module(new VSlotStatIdleMonitor)
-    monitor.clock.ref := clock.asBool
-    monitor.index.ref := i.U
-    monitor.idle.ref := read(bore(state))
-  })
-
-  dut.vrfWriteReadyProbe.zip(dut.vrfWriteValidProbe)
-    .zipWithIndex.foreach({ case((readyProbe, validProbe), i) =>
-      val monitor = Module(new VVrfWriteMonitor)
-      monitor.clock.ref := clock.asBool
-      monitor.index.ref := i.U
-      monitor.isReady.ref := read(bore(readyProbe))
-      monitor.isValid.ref := read(bore(validProbe))
-    })
  }

@@ -70,6 +70,27 @@ class StoreUnitMonitor(param: LSUParam) extends PerfMonitor {
   val alignedDequeueValid = dpiIn("alignedDequeueValid", Input(Bool()))
 }
 
+case class VParam(chainingSize: Int)
+class VMonitor(param: VParam) extends PerfMonitor {
+  val requestValid = dpiIn("requestValid", Input(Bool()))
+  val requestReady = dpiIn("requestReady", Input(Bool()))
+
+  val requestRegValid = dpiIn("requestRegValid", Input(Bool()))
+
+  val requestRegDequeueValid = dpiIn("requestRegDequeueValid", Input(Bool()))
+  val requestRegDequeueReady = dpiIn("requestRegDequeueReady", Input(Bool()))
+  val executionReady = dpiIn("executionReady", Input(Bool()))
+  val slotReady = dpiIn("slotReady", Input(Bool()))
+  val waitForGather = dpiIn("waitForGather", Input(Bool()))
+  // Can't use 'RAW' here cuz it will be parsed as 'r_a_w' at DPI side
+  val instructionRawReady = dpiIn("instructionRawReady", Input(Bool()))
+
+  val responseValid = dpiIn("responseValid", Input(Bool()))
+  val sMaskUnitExecuted = dpiIn("sMaskUnitExecuted", Seq.fill(param.chainingSize)(Input(Bool())))
+  val wLast = dpiIn("wLast", Seq.fill(param.chainingSize)(Input(Bool())))
+  val isLastInst = dpiIn("isLastInst", Seq.fill(param.chainingSize)(Input(Bool())))
+}
+
 /**
   * Monitor signals in [[v.SimpleAccessUnit]]
   */
@@ -144,42 +165,3 @@ class LaneReadBusDataMonitor extends IndexedPerfMonitor with ValidMonitor
 
 class LaneWriteBusDataMonitor extends IndexedPerfMonitor with ValidMonitor
 // End of Lane monitor
-
-class VRequestMonitor extends PerfMonitor with ValidMonitor with ReadyMonitor
-
-class VResponseMonitor extends PerfMonitor with ValidMonitor
-
-class VRequestRegMonitor extends PerfMonitor with ValidMonitor
-
-class VRequestRegDequeueMonitor extends PerfMonitor with ValidMonitor with ReadyMonitor
-
-class VMaskUnitWriteValidMonitor extends PerfMonitor with ValidMonitor
-
-class VMaskUnitWriteValidIndexedMonitor extends IndexedPerfMonitor with ValidMonitor
-
-class VMaskUnitReadValidMonitor extends PerfMonitor with ValidMonitor
-
-class VMaskUnitReadValidIndexedMonitor extends IndexedPerfMonitor with ValidMonitor
-
-class VWarReadResultValidMonitor extends PerfMonitor with ValidMonitor
-
-class VDataMonitor extends IndexedPerfMonitor with ValidMonitor
-
-class VSelectffoIndexMonitor extends ValidMonitor
-
-class VDataResultMonitor extends ValidMonitor
-
-class VLaneReadyMonitor extends IndexedPerfMonitor with ReadyMonitor
-
-class VExecutionReadyMonitor extends PerfMonitor with ReadyMonitor
-
-class VInsnRawReadyMonitor extends PerfMonitor with ReadyMonitor
-
-class VSlotReadyMonitor extends PerfMonitor with ReadyMonitor
-
-class VSlotStatIdleMonitor extends IndexedPerfMonitor {
-  val idle = dpiIn("idle", Input(Bool()))
-}
-
-class VVrfWriteMonitor extends IndexedPerfMonitor with ReadyMonitor with ValidMonitor
-
