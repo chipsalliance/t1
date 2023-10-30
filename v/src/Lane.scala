@@ -435,7 +435,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   )
 
-  slotControl.zipWithIndex.foreach {
+  val slotProbes = slotControl.zipWithIndex.map {
     case (record, index) =>
       val decodeResult: DecodeBundle = record.laneRequest.decodeResult
       val isLastSlot: Boolean = index == 0
@@ -663,6 +663,53 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage3.vrfWriteRequest.ready := vrfWriteFire(index)
 
       pipeClear := !Seq(stage0.stageValid, stage1.stageValid, stage2.stageValid, stage3.stageValid).reduce(_ || _)
+
+      // Probes
+      object probe {
+        def newProbe() = IO(Output(Probe(Bool())))
+
+        val stage0EnqueueReady = newProbe().suggestName(s"stage0EnqueueReady${index}")
+        val stage0EnqueueValid = newProbe().suggestName(s"stage0EnqueueValid${index}")
+
+        val changingMaskSet = newProbe().suggestName(s"changingMaskSet${index}")
+
+        val slotActive = newProbe().suggestName(s"slotActive${index}")
+        val slotOccupied = newProbe().suggestName(s"slotOccupied${index}")
+        val pipeFinish = newProbe().suggestName(s"pipeFinish${index}")
+
+        val slotShiftValid = newProbe().suggestName(s"slotShiftValid${index}")
+        val decodeResultIsCrossReadOrWrite = newProbe().suggestName(s"decodeResultIsCrossReadOrWrite${index}")
+        val decodeResultIsScheduler = newProbe().suggestName(s"decodeResultIsScheduler${index}")
+
+        val executionUnitVfuRequestReady = newProbe().suggestName(s"executionUnitVfuRequestReady${index}")
+        val executionUnitVfuRequestValid = newProbe().suggestName(s"executionUnitVfuRequestValid${index}")
+
+        val stage3VrfWriteReady = newProbe().suggestName(s"stage3VrfWriteReady${index}")
+        val stage3VrfWriteValid = newProbe().suggestName(s"stage3VrfWriteValid${index}")
+
+        val stage1Probes = stage1.stageProbe
+      }
+
+      define(probe.stage0EnqueueReady, ProbeValue(stage0.enqueue.ready))
+      define(probe.stage0EnqueueValid, ProbeValue(stage0.enqueue.valid))
+      define(probe.changingMaskSet, ProbeValue(record.mask.valid || !record.laneRequest.mask))
+      define(probe.slotActive, ProbeValue(slotActive(index)))
+
+      // Signals about why slot is stall
+      define(probe.slotOccupied, ProbeValue(slotOccupied(index)))
+      define(probe.pipeFinish, ProbeValue(pipeFinishVec(index)))
+
+      // If this is not the last slot, don't populate probe for these signals
+      define(probe.slotShiftValid, ProbeValue(slotShiftValid(index)))
+      define(probe.decodeResultIsCrossReadOrWrite, ProbeValue(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)))
+      define(probe.decodeResultIsScheduler, ProbeValue(decodeResult(Decoder.scheduler)))
+
+      define(probe.executionUnitVfuRequestReady, ProbeValue(executionUnit.vfuRequest.ready))
+      define(probe.executionUnitVfuRequestValid, ProbeValue(executionUnit.vfuRequest.valid))
+
+      define(probe.stage3VrfWriteReady, ProbeValue(stage3.vrfWriteRequest.ready))
+      define(probe.stage3VrfWriteValid, ProbeValue(stage3.vrfWriteRequest.valid))
+      probe
   }
 
   // Read Ring

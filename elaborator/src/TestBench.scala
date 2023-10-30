@@ -143,10 +143,10 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
   otherUnitMonitor.stateValue.ref := read(bore(dut.lsu.otherUnit.stateValueProbe))
   // End of [[v.SimpleAccessUnit]] related probe connection
 
-  dut.laneVec.zipWithIndex.foreach({ case (lane, i) =>
+  dut.laneVec.zipWithIndex.foreach({ case (lane, laneIndex) =>
     val laneMonitor = Module(new LaneMonitor(LaneParam(generator.parameter.chainingSize)))
     laneMonitor.clock.ref := clock.asBool
-    laneMonitor.index.ref := i.U
+    laneMonitor.index.ref := laneIndex.U
     laneMonitor.laneRequestReady.ref := read(bore(lane.laneRequestReadyProbe))
     laneMonitor.laneRequestValid.ref := read(bore(lane.laneRequestValidProbe))
     laneMonitor.lastSlotOccupied.ref := read(bore(lane.lastSlotOccupiedProbe))
@@ -155,5 +155,82 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
       dpi.ref := read(bore(lane.slotOccupiedProbe(index)))
     }
     laneMonitor.instructionFinished.ref := read(bore(lane.instructionFinishedProbe))
+
+    lane.slotProbes.zipWithIndex.foreach({ case(probes, slotIndex) =>
+      val isLastSlot = probes.stage1Probes.sSendCrossReadResultLSBProbe.isDefined
+      if (isLastSlot) {
+        val slotMonitor = Module(new LaneLastSlotMonitor())
+        slotMonitor.clock.ref := clock.asBool
+        slotMonitor.laneIndex.ref := laneIndex.U
+        slotMonitor.slotIndex.ref := slotIndex.U
+
+        slotMonitor.stage0EnqueueReady.ref := read(bore(probes.stage0EnqueueReady))
+        slotMonitor.stage0EnqueueValid.ref := read(bore(probes.stage0EnqueueValid))
+        slotMonitor.changingMaskSet.ref := read(bore(probes.changingMaskSet))
+        slotMonitor.slotActive.ref := read(bore(probes.slotActive))
+        slotMonitor.slotOccupied.ref := read(bore(probes.slotOccupied))
+        slotMonitor.pipeFinish.ref := read(bore(probes.pipeFinish))
+
+        slotMonitor.slotShiftValid.ref := read(bore(probes.slotShiftValid))
+        slotMonitor.decodeResultIsCrossReadOrWrite.ref := read(bore(probes.decodeResultIsCrossReadOrWrite))
+        slotMonitor.decodeResultIsScheduler.ref := read(bore(probes.decodeResultIsScheduler))
+
+        slotMonitor.stage1DequeueReady.ref := read(bore(probes.stage1Probes.dequeueReadyProbe))
+        slotMonitor.stage1DequeueValid.ref := read(bore(probes.stage1Probes.dequeueValidProbe))
+        slotMonitor.stage1HasDataOccupied.ref := read(bore(probes.stage1Probes.hasDataOccupiedProbe))
+        slotMonitor.stage1Finishing.ref := read(bore(probes.stage1Probes.stageFinishProbe))
+
+        probes.stage1Probes.readFinishProbe.map(p => slotMonitor.stage1ReadFinish.ref := read(bore(p)))
+        probes.stage1Probes.sSendCrossReadResultLSBProbe.map(p => slotMonitor.stage1sSendCrossReadResultLSB.ref := read(bore(p)))
+        probes.stage1Probes.sSendCrossReadResultMSBProbe.map(p => slotMonitor.stage1sSendCrossReadResultMSB.ref := read(bore(p)))
+        probes.stage1Probes.wCrossReadLSBProbe.map(p => slotMonitor.stage1wCrossReadLSB.ref := read(bore(p)))
+        probes.stage1Probes.wCrossReadMSBProbe.map(p => slotMonitor.stage1wCrossReadMSB.ref := read(bore(p)))
+
+        slotMonitor.stage1VrfReadReadyRequest
+          .zip(slotMonitor.stage1VrfReadValidRequest)
+          .zipWithIndex.foreach{ case((ready, valid), index) =>
+            val (readyProbe, validProbe) = probes.stage1Probes.vrfReadRequestProbe(index)
+            ready.ref := read(bore(readyProbe))
+            valid.ref := read(bore(validProbe))
+          }
+
+        slotMonitor.executionUnitVfuRequestReady.ref := read(bore(probes.executionUnitVfuRequestReady))
+        slotMonitor.executionUnitVfuRequestValid.ref := read(bore(probes.executionUnitVfuRequestValid))
+
+        slotMonitor.stage3VrfWriteReady.ref := read(bore(probes.stage3VrfWriteReady))
+        slotMonitor.stage3VrfWriteValid.ref := read(bore(probes.stage3VrfWriteValid))
+      } else {
+        val slotMonitor = Module(new LaneSlotMonitor())
+        slotMonitor.clock.ref := clock.asBool
+        slotMonitor.laneIndex.ref := laneIndex.U
+        slotMonitor.slotIndex.ref := slotIndex.U
+
+        slotMonitor.stage0EnqueueReady.ref := read(bore(probes.stage0EnqueueReady))
+        slotMonitor.stage0EnqueueValid.ref := read(bore(probes.stage0EnqueueValid))
+        slotMonitor.changingMaskSet.ref := read(bore(probes.changingMaskSet))
+        slotMonitor.slotActive.ref := read(bore(probes.slotActive))
+        slotMonitor.slotOccupied.ref := read(bore(probes.slotOccupied))
+        slotMonitor.pipeFinish.ref := read(bore(probes.pipeFinish))
+
+        slotMonitor.stage1DequeueReady.ref := read(bore(probes.stage1Probes.dequeueReadyProbe))
+        slotMonitor.stage1DequeueValid.ref := read(bore(probes.stage1Probes.dequeueValidProbe))
+        slotMonitor.stage1HasDataOccupied.ref := read(bore(probes.stage1Probes.hasDataOccupiedProbe))
+        slotMonitor.stage1Finishing.ref := read(bore(probes.stage1Probes.stageFinishProbe))
+
+        slotMonitor.stage1VrfReadReadyRequest
+          .zip(slotMonitor.stage1VrfReadValidRequest)
+          .zipWithIndex.foreach{ case((ready, valid), index) =>
+            val (readyProbe, validProbe) = probes.stage1Probes.vrfReadRequestProbe(index)
+            ready.ref := read(bore(readyProbe))
+            valid.ref := read(bore(validProbe))
+          }
+
+        slotMonitor.executionUnitVfuRequestReady.ref := read(bore(probes.executionUnitVfuRequestReady))
+        slotMonitor.executionUnitVfuRequestValid.ref := read(bore(probes.executionUnitVfuRequestValid))
+
+        slotMonitor.stage3VrfWriteReady.ref := read(bore(probes.stage3VrfWriteReady))
+        slotMonitor.stage3VrfWriteValid.ref := read(bore(probes.stage3VrfWriteValid))
+      }
+    })
   })
  }

@@ -386,14 +386,114 @@ void lane_monitor(const svBitVecVal *index, svLogic laneRequestValid,
         .with("lane_request", json{{"valid", (bool)laneRequestValid},
                                    {"ready", (bool)laneRequestReady}})
         .with("last_slot_occpied", (bool)lastSlotOccupied)
-        .with("vrf_instruction_write_report_ready", (bool)vrfInstructionWriteReportReady)
-        .with("slot_occpied", std::vector{
-          (bool)slotOccupied0,
-          (bool)slotOccupied1,
-          (bool)slotOccupied2,
-          (bool)slotOccupied3,
-        })
+        .with("vrf_instruction_write_report_ready",
+              (bool)vrfInstructionWriteReportReady)
+        .with("slot_occpied",
+              std::vector{
+                  (bool)slotOccupied0,
+                  (bool)slotOccupied1,
+                  (bool)slotOccupied2,
+                  (bool)slotOccupied3,
+              })
         .with("instruction_finished", (int)(*instructionFinished))
+        .info();
+  })
+}
+
+void lane_slot_monitor(
+    const svBitVecVal *laneIndex, const svBitVecVal *slotIndex,
+    svLogic stage0EnqueueReady, svLogic stage0EnqueueValid,
+    svLogic changingMaskSet, svLogic slotActive, svLogic slotOccupied,
+    svLogic pipeFinish, svLogic stage1DequeueReady, svLogic stage1DequeueValid,
+    svLogic stage1HasDataOccpied, svLogic stage1Finishing,
+    svLogic stage1VrfReadReadyRequest0, svLogic stage1VrfReadReadyRequest1,
+    svLogic stage1VrfReadReadyRequest2, svLogic stage1VrfReadValidRequest0,
+    svLogic stage1VrfReadValidRequest1, svLogic stage1VrfReadValidRequest2,
+    svLogic executionUnitVfuRequestReady, svLogic executionUnitVfuRequestValid,
+    svLogic stage3VrfWriteReady, svLogic stage3VrfWriteValid) {
+  TRY({
+    Log("Lane")
+        .with("index", (int)(*laneIndex))
+        .with("slot_index", (int)(*slotIndex))
+        .with("stage_0_enqueue", json{{"valid", (bool)stage0EnqueueValid},
+                                      {"ready", (bool)stage0EnqueueReady}})
+        .with("changing_mask_set", (bool)(changingMaskSet))
+        .with("slot_active", (bool)(slotActive))
+        .with("slot_occupied", (bool)(slotOccupied))
+        .with("pipe_finish", (bool)(pipeFinish))
+        .with("stage_1",
+              json{{"dequeue",
+                    {"valid", (bool)stage1DequeueValid},
+                    {"ready", (bool)stage1DequeueReady}},
+                   {"has_data_occupied", (bool)stage1HasDataOccpied},
+                   {"finishing", (bool)stage1Finishing},
+                   {"VRF_read_request",
+                    std::vector{
+                        json{{"ready", (bool)stage1VrfReadReadyRequest0},
+                             {"valid", (bool)stage1VrfReadValidRequest0}},
+                        json{{"ready", (bool)stage1VrfReadReadyRequest1},
+                             {"valid", (bool)stage1VrfReadValidRequest1}},
+                        json{{"ready", (bool)stage1VrfReadReadyRequest2},
+                             {"valid", (bool)stage1VrfReadValidRequest2}},
+                    }}})
+        .with("stage_3_vrf_write", json{{"valid", (bool)stage3VrfWriteValid},
+                                        {"ready", (bool)stage3VrfWriteReady}})
+        .info();
+  })
+}
+
+void lane_last_slot_monitor(
+    const svBitVecVal *laneIndex, const svBitVecVal *slotIndex,
+    svLogic stage0EnqueueReady, svLogic stage0EnqueueValid,
+    svLogic changingMaskSet, svLogic slotActive, svLogic slotOccupied,
+    svLogic pipeFinish, svLogic stage1DequeueReady, svLogic stage1DequeueValid,
+    svLogic stage1HasDataOccpied, svLogic stage1Finishing,
+    svLogic stage1VrfReadReadyRequest0, svLogic stage1VrfReadReadyRequest1,
+    svLogic stage1VrfReadReadyRequest2, svLogic stage1VrfReadValidRequest0,
+    svLogic stage1VrfReadValidRequest1, svLogic stage1VrfReadValidRequest2,
+    svLogic executionUnitVfuRequestReady, svLogic executionUnitVfuRequestValid,
+    svLogic stage3VrfWriteReady, svLogic stage3VrfWriteValid,
+    svLogic slotShiftValid, svLogic decodeResultIsCrossReadOrWrite,
+    svLogic decodeResultIsScheduler, svLogic stage1ReadFinish,
+    svLogic sSendCrossReadResultLSB, svLogic sSendCrossReadResultMSB,
+    svLogic wCrossReadLSB, svLogic wCrossReadMSB) {
+  TRY({
+    Log("Lane")
+        .with("index", (int)(*laneIndex))
+        .with("slot_index", (int)(*slotIndex))
+        .with("stage_0_enqueue", json{{"valid", (bool)stage0EnqueueValid},
+                                      {"ready", (bool)stage0EnqueueReady}})
+        .with("changing_mask_set", (bool)(changingMaskSet))
+        .with("slot_active", (bool)(slotActive))
+        .with("slot_occupied", (bool)(slotOccupied))
+        .with("pipe_finish", (bool)(pipeFinish))
+        .with("stage_1",
+              json{{"dequeue",
+                    {"valid", (bool)stage1DequeueValid},
+                    {"ready", (bool)stage1DequeueReady}},
+                   {"has_data_occupied", (bool)stage1HasDataOccpied},
+                   {"finishing", (bool)stage1Finishing},
+                   {"read_finish", (bool)stage1ReadFinish},
+                   {"sSendCrossReadResultLSB", (bool)sSendCrossReadResultLSB},
+                   {"sSendCrossReadResultMSB", (bool)sSendCrossReadResultMSB},
+                   {"wCrossReadLSB", (bool)wCrossReadLSB},
+                   {"wCrossReadMSB", (bool)wCrossReadMSB},
+                   {"VRF_read_request",
+                    std::vector{
+                        json{{"ready", (bool)stage1VrfReadReadyRequest0},
+                             {"valid", (bool)stage1VrfReadValidRequest0}},
+                        json{{"ready", (bool)stage1VrfReadReadyRequest1},
+                             {"valid", (bool)stage1VrfReadValidRequest1}},
+                        json{{"ready", (bool)stage1VrfReadReadyRequest2},
+                             {"valid", (bool)stage1VrfReadValidRequest2}},
+                    }}})
+        .with("stage_3_vrf_write", json{{"valid", (bool)stage3VrfWriteValid},
+                                        {"ready", (bool)stage3VrfWriteReady}})
+        .with("slot_shift_valid", (bool)slotShiftValid)
+        .with("decode_result",
+              json{{"is_cross_read_or_write",
+                    (bool)decodeResultIsCrossReadOrWrite},
+                   {"is_scheduler", (bool)decodeResultIsScheduler}})
         .info();
   })
 }
