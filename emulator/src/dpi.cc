@@ -258,7 +258,7 @@ void store_unit_monitor(
     svLogic vrfReadDataPortIsReady7, svLogic vrfReadyToStore,
     svLogic alignedDequeueReady, svLogic alignedDequeueValid) {
   TRY({
-    Log("LoadUnit")
+    Log("StoreUnit")
         .with("idle", (bool)idle)
         .with("lsu_request_is_valid", (bool)lsuRequestIsValid)
         .with("tl_port_a", std::vector{json{
@@ -293,6 +293,42 @@ void store_unit_monitor(
                                      {"valid", (bool)alignedDequeueValid}})
         .info();
   })
+}
+
+void v_monitor(svLogic requestValid, svLogic requestReady,
+               svLogic requestRegValid, svLogic requestRegDequeueValid,
+               svLogic requestRegDequeueReady, svLogic executionReady,
+               svLogic slotReady, svLogic waitForGather,
+               svLogic instructionRawReady, svLogic responseValid,
+               svLogic sMaskUnitExecuted0, svLogic sMaskUnitExecuted1,
+               svLogic sMaskUnitExecuted2, svLogic sMaskUnitExecuted3,
+               svLogic wLast0, svLogic wLast1, svLogic wLast2, svLogic wLast3,
+               svLogic isLastInst0, svLogic isLastInst1, svLogic isLastInst2,
+               svLogic isLastInst3) {
+  TRY({
+    Log("V")
+      .with("request", json{
+        { "valid", (bool)requestValid },
+        { "ready", (bool)requestReady },
+      })
+      .with("request_reg_valid", (bool)requestRegValid)
+      .with("request_reg_dequeue", json {
+        { "valid", (bool)requestRegDequeueValid },
+        { "ready", (bool)requestRegDequeueReady },
+      })
+      .with("execution_ready", (bool)executionReady)
+      .with("slot_ready", (bool)slotReady)
+      .with("wait_for_gather", (bool)waitForGather)
+      .with("instrution_RAW_ready", (bool)instructionRawReady)
+      .with("response_valid", (bool)responseValid)
+      .with("slots", std::vector{
+        json { { "s_mask_unit_exectued", (bool)sMaskUnitExecuted0 }, { "w_last", (bool)wLast0 }, { "is_last_instruction", (bool)isLastInst0 } },
+        json { { "s_mask_unit_exectued", (bool)sMaskUnitExecuted1 }, { "w_last", (bool)wLast1 }, { "is_last_instruction", (bool)isLastInst1 } },
+        json { { "s_mask_unit_exectued", (bool)sMaskUnitExecuted2 }, { "w_last", (bool)wLast2 }, { "is_last_instruction", (bool)isLastInst2 } },
+        json { { "s_mask_unit_exectued", (bool)sMaskUnitExecuted3 }, { "w_last", (bool)wLast3 }, { "is_last_instruction", (bool)isLastInst3 } },
+      })
+      .info();
+  });
 }
 
 [[maybe_unused]] void other_unit_monitor(
@@ -579,225 +615,6 @@ lane_write_bus_data_monitor(const svBitVecVal *index,
     Log("LaneMonitor")
         .with("lane_index", (int)(*index))
         .with("write_bus_data_req_valid", (bool)write_bus_data_req_valid)
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_request_monitor(const svBit is_valid,
-                                        const svBit is_ready) {
-  TRY({
-    Log("V")
-        .with("request",
-              json{{"is_valid", (bool)is_valid}, {"is_ready", (bool)is_ready}})
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_response_monitor(const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("response",
-              json{
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_request_reg_monitor(const svBit is_valid) {
-  TRY({ Log("V").with("request_reg_valid", (bool)is_valid).info(); })
-}
-
-[[maybe_unused]] void v_request_reg_dequeue_monitor(const svBit is_valid,
-                                                    const svBit is_ready) {
-  TRY({
-    Log("V")
-        .with("request_reg",
-              json{
-                  {"is_valid", (bool)is_valid},
-                  {"is_ready", (bool)is_ready},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_mask_unit_write_valid(const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("masked_unit_write",
-              json{
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_mask_unit_write_valid_monitor(const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("mask_unit_write",
-              json{
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void
-v_mask_unit_write_valid_indexed_monitor(const svBitVecVal *index,
-                                        const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("masked_unit_write",
-              json{
-                  {"index", (int)(*index)},
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_mask_unit_read_valid_monitor(const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("mask_unit_read",
-              json{
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void
-v_mask_unit_read_valid_indexed_monitor(const svBitVecVal *index,
-                                       const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("mask_unit_read_item",
-              json{
-                  {"index", (int)(*index)},
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_war_read_result_valid_monitor(const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("war_red_result",
-              json{
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_data_monitor(const svBitVecVal *index,
-                                     const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("index", (int)(*index))
-        .with("data",
-              json{
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_selectffo_index_monitor(const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("select_ffo_index",
-              json{
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_data_result_monitor(const svBit is_valid) {
-  TRY({
-    Log("V")
-        .with("data_result",
-              json{
-                  {"is_valid", (bool)is_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_lane_ready_monitor(const svBitVecVal *index,
-                                           const svBit is_ready) {
-  TRY({
-    Log("V")
-        .with("lane",
-              json{
-                  {"index", (int)(*index)},
-                  {"is_ready", (bool)is_ready},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_execution_ready_monitor(const svBit is_ready) {
-  TRY({
-    Log("V")
-        .with("ExecutionReady",
-              json{
-                  {"is_ready", (bool)is_ready},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_slot_ready_monitor(const svBit is_ready) {
-  TRY({
-    Log("V")
-        .with("slot",
-              json{
-                  {"is_ready", (bool)is_ready},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_insn_raw_ready_monitor(const svBit is_ready) {
-  TRY({
-    Log("V")
-        .with("Instruction RAW",
-              json{
-                  {"is_ready", (bool)is_ready},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_slot_stat_idle_monitor(const svBitVecVal *index,
-                                               const svBit idle) {
-  TRY({
-    Log("V")
-        .with("slot",
-              json{
-                  {"index", (int)(*index)},
-                  {"idle", (bool)idle},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void v_vrf_write_monitor(const svBitVecVal *index,
-                                          const svBit is_valid,
-                                          const svBit is_ready) {
-  TRY({
-    Log("V")
-        .with("vrf_write",
-              json{
-                  {"index", (int)(*index)},
-                  {"is_valid", (bool)is_valid},
-                  {"is_ready", (bool)is_ready},
-              })
         .info();
   })
 }

@@ -1345,84 +1345,65 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   /**
     * Probes
     */
-  val executionReadyProbe = IO(Output(Probe(Bool())))
-  define(executionReadyProbe, ProbeValue(executionReady))
-
+  // new V Request from core
   val requestValidProbe: Bool = IO(Output(Probe(Bool())))
   val requestReadyProbe: Bool = IO(Output(Probe(Bool())))
   define(requestValidProbe, ProbeValue(request.valid))
   define(requestReadyProbe, ProbeValue(request.ready))
 
-  val responseValidProbe: Bool = IO(Output(Probe(Bool())))
-  define(responseValidProbe, ProbeValue(response.valid))
-
+  // Store decoded request
   val requestRegValidProbe: Bool = IO(Output(Probe(Bool())))
   define(requestRegValidProbe, ProbeValue(requestReg.valid))
 
+  /** Dispatch request from requestReg to lane
+   *
+   * There are four cases that might affect the ready status of requestRegDequeue:
+   *   1. executionReady: There are capable slot to load this instruction in top local
+   *   2. slotReady: Execution unit accept this instrution
+   *   3. !gatherNeedRead || gatherReadFinish: This is not a instrution which needs to wait for gather
+   *   4. instructionRAWReady: This is not instruction which will cause harzard that can not be avoid.
+   */
   val requestRegDequeueValidProbe: Bool = IO(Output(Probe(Bool())))
   val requestRegDequeueReadyProbe: Bool = IO(Output(Probe(Bool())))
   define(requestRegDequeueValidProbe, ProbeValue(requestRegDequeue.valid))
   define(requestRegDequeueReadyProbe, ProbeValue(requestRegDequeue.ready))
 
-  val maskUnitWriteValidProbe: Bool = IO(Output(Probe(Bool())))
-  define(maskUnitWriteValidProbe, ProbeValue(maskUnitWrite.valid))
-
-  val maskUnitWriteValidProbesVec: IndexedSeq[Bool] = maskUnitWriteVec.map({ case(unit) =>
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(unit.valid))
-    probe
-  })
-
-  val maskUnitReadValidProbe = IO(Output(Probe(Bool())))
-  define(maskUnitReadValidProbe, ProbeValue(maskUnitRead.valid))
-
-  val maskUnitReadValidProbeVec = maskUnitReadVec.map({ case(unit) =>
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(unit.valid))
-    probe
-  })
-
-  val WARRedResultValidProbe = IO(Output(Probe(Bool())))
-  define(WARRedResultValidProbe, ProbeValue(WARRedResult.valid))
-
-  val insnRAWReadyProbe = IO(Output(Probe(Bool())))
-  define(insnRAWReadyProbe, ProbeValue(instructionRAWReady))
-
-  val dataValidProbes = data.map({ case(unit) =>
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(unit.valid))
-    probe
-  })
-
-  val selectffoIndexValidProbe = IO(Output(Probe(Bool())))
-  define(selectffoIndexValidProbe, ProbeValue(selectffoIndex.valid))
-
-  val dataResultValidProbe = IO(Output(Probe(Bool())))
-  define(dataResultValidProbe, ProbeValue(dataResult.valid))
-
-  val slotStateIdleProbe = slots.map({ case(slot) =>
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(slot.state.idle))
-    probe
-  })
+  val executionReadyProbe = IO(Output(Probe(Bool())))
+  define(executionReadyProbe, ProbeValue(executionReady))
 
   val slotReadyProbe = IO(Output(Probe(Bool())))
   define(slotReadyProbe, ProbeValue(slotReady))
 
-  val laneReadyProbe = laneReady.map({ case(laneState) =>
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(laneState))
-    probe
-  })
+  val gatherNeedReadProbe = IO(Output(Probe(Bool())))
+  define(gatherNeedReadProbe, ProbeValue(gatherNeedRead))
+  val gatherReadFinishProbe = IO(Output(Probe(Bool())))
+  define(gatherReadFinishProbe, ProbeValue(gatherReadFinish))
 
-  val vrfWriteValidProbe = vrfWrite.map({ case(req) =>
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(req.valid))
-    probe
-  })
-  val vrfWriteReadyProbe = vrfWrite.map({ case(req) =>
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(req.ready))
-    probe
-  })
+  val instructionRAWReadyProbe = IO(Output(Probe(Bool())))
+  define(instructionRAWReadyProbe, ProbeValue(instructionRAWReady))
+  // End of requestRegDequeueProbe
+
+  /**
+    * Response send back to core.
+    *
+    * There are four cases that might affect response is valid or not:
+    *
+    *   1. slot(n).state.sMaskUnit: The mask unit in slot n has finished its work.
+    *   2. slot(n).state.wLast: The execution unit in slot n has finished its work.
+    *   3. !slot(n).state.sCommit: This instruction doesn't committed. This is not an important signal so we don't capture it.
+    *   4. slot(n).record.instruction Index == responseCounter: current instruction is the oldest insn in V
+    */
+  val responseValidProbe: Bool = IO(Output(Probe(Bool())))
+  define(responseValidProbe, ProbeValue(response.valid))
+
+  val slotStateProbe: Seq[(Bool, Bool, Bool)] = slots.map { inst =>
+    val sMaskUnitProbe = IO(Output(Probe(Bool())))
+    define(sMaskUnitProbe, ProbeValue(inst.state.sMaskUnitExecution))
+    val wLastProbe = IO(Output(Probe(Bool())))
+    define(wLastProbe, ProbeValue(inst.state.wLast))
+    val isLastInstProbe = IO(Output(Probe(Bool())))
+    define(isLastInstProbe, ProbeValue(inst.record.instructionIndex === responseCounter))
+
+    (sMaskUnitProbe, wLastProbe, isLastInstProbe)
+  }
 }
