@@ -35,7 +35,7 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
   /**
     * [[v.LoadUnit]] related probe connection
     */
-  val loadUnitMonitor = Module(new LoadUnitMonitor(LoadUnitMonitorParam(generator.parameter.memoryBankSize, generator.parameter.laneNumber)))
+  val loadUnitMonitor = Module(new LoadUnitMonitor(LSUParam(generator.parameter.memoryBankSize, generator.parameter.laneNumber)))
   loadUnitMonitor.clock.ref := clock.asBool
   loadUnitMonitor.lsuRequestValid.ref := read(bore(dut.lsu.loadUnit.lsuRequestValidProbe))
   loadUnitMonitor.statusIdle.ref := read(bore(dut.lsu.loadUnit.idleProbe))
@@ -43,37 +43,59 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
   loadUnitMonitor.tlPortAIsReady.ref := read(bore(dut.lsu.loadUnit.tlPortAReadyProbe))
   loadUnitMonitor.addressConflict.ref := read(bore(dut.lsu.loadUnit.addressConflictProbe))
 
-  loadUnitMonitor.tlPortDIsReady.zipWithIndex.foreach {
-    case (dpi, index) => dpi.ref := read(bore(dut.lsu.loadUnit.tlPortDReadyProbe(index)))
-  }
-  loadUnitMonitor.tlPortDIsValid.zipWithIndex.foreach {
-    case (dpi, index) => dpi.ref := read(bore(dut.lsu.loadUnit.tlPortDValidProbe(index)))
-  }
+  loadUnitMonitor.tlPortDIsReady
+    .zip(loadUnitMonitor.tlPortDIsValid)
+    .zipWithIndex.foreach { case ((ready, valid), index) =>
+      ready.ref := read(bore(dut.lsu.loadUnit.tlPortDReadyProbe(index)))
+      valid.ref := read(bore(dut.lsu.loadUnit.tlPortDValidProbe(index)))
+    }
 
-  loadUnitMonitor.queueValid.zipWithIndex.foreach {
-    case (dpi, index) => dpi.ref := read(bore(dut.lsu.loadUnit.queueValidProbe(index)))
-  }
-  loadUnitMonitor.queueReady.zipWithIndex.foreach {
-    case (dpi, index) => dpi.ref := read(bore(dut.lsu.loadUnit.queueReadyProbe(index)))
-  }
-  loadUnitMonitor.cacheLineDequeueValid.zipWithIndex.foreach {
-    case (dpi, index) => dpi.ref := read(bore(dut.lsu.loadUnit.cacheLineDequeueValidProbe(index)))
-  }
-  loadUnitMonitor.cacheLineDequeueReady.zipWithIndex.foreach {
-    case (dpi, index) => dpi.ref := read(bore(dut.lsu.loadUnit.cacheLineDequeueReadyProbe(index)))
-  }
+  loadUnitMonitor.queueReady
+    .zip(loadUnitMonitor.queueValid)
+    .zipWithIndex.foreach { case ((ready, valid), index) =>
+      ready.ref := read(bore(dut.lsu.loadUnit.queueValidProbe(index)))
+      valid.ref := read(bore(dut.lsu.loadUnit.queueReadyProbe(index)))
+    }
+
+  loadUnitMonitor.cacheLineDequeueReady
+    .zip(loadUnitMonitor.cacheLineDequeueValid)
+    .zipWithIndex.foreach { case ((ready, valid), index) =>
+      ready.ref := read(bore(dut.lsu.loadUnit.cacheLineDequeueReadyProbe(index)))
+      valid.ref := read(bore(dut.lsu.loadUnit.cacheLineDequeueValidProbe(index)))
+    }
+
   loadUnitMonitor.unalignedCacheLine.ref := read(bore(dut.lsu.loadUnit.unalignedCacheLineProbe))
   loadUnitMonitor.alignedDequeueReady.ref := read(bore(dut.lsu.loadUnit.alignedDequeueReadyProbe))
   loadUnitMonitor.alignedDequeueValid.ref := read(bore(dut.lsu.loadUnit.alignedDequeueValidProbe))
   loadUnitMonitor.writeReadyForLSU.ref := read(bore(dut.lsu.loadUnit.writeReadyForLSUProbe))
 
-  loadUnitMonitor.vrfWritePortReady.zipWithIndex.foreach {
-    case (dpi, index) => dpi.ref := read(bore(dut.lsu.loadUnit.vrfWriteReadyProbe(index)))
-  }
-  loadUnitMonitor.vrfWritePortValid.zipWithIndex.foreach {
-    case (dpi, index) => dpi.ref := read(bore(dut.lsu.loadUnit.vrfWriteValidProbe(index)))
-  }
+  loadUnitMonitor.vrfWritePortReady
+    .zip(loadUnitMonitor.vrfWritePortValid)
+    .zipWithIndex.foreach { case ((ready, valid), index) =>
+      ready.ref := read(bore(dut.lsu.loadUnit.vrfWriteReadyProbe(index)))
+      valid.ref := read(bore(dut.lsu.loadUnit.vrfWriteValidProbe(index)))
+    }
 
+  val storeUnitMonitor = Module(new StoreUnitMonitor(LSUParam(generator.parameter.memoryBankSize, generator.parameter.laneNumber)))
+  storeUnitMonitor.clock.ref := clock.asBool
+  storeUnitMonitor.lsuRequestIsValid.ref := read(bore(dut.lsu.storeUnit.lsuRequestValidProbe))
+  storeUnitMonitor.idle.ref := read(bore(dut.lsu.storeUnit.idleProbe))
+  storeUnitMonitor.tlPortAIsReady
+    .zip(storeUnitMonitor.tlPortAIsValid)
+    .zipWithIndex.foreach{ case((ready, valid), index) =>
+      ready.ref := read(bore(dut.lsu.storeUnit.tlPortAIsReadyProbe(index)))
+      valid.ref := read(bore(dut.lsu.storeUnit.tlPortAIsValidProbe(index)))
+    }
+  storeUnitMonitor.addressConflict.ref := read(bore(dut.lsu.storeUnit.addressConflictProbe))
+  storeUnitMonitor.vrfReadDataPortIsReady
+    .zip(storeUnitMonitor.vrfReadDataPortIsValid)
+    .zipWithIndex.foreach{ case((ready, valid), index) =>
+      ready.ref := read(bore(dut.lsu.storeUnit.vrfReadDataPortIsReadyProbe(index)))
+      valid.ref := read(bore(dut.lsu.storeUnit.vrfReadDataPortIsValidProbe(index)))
+    }
+  storeUnitMonitor.vrfReadyToStore.ref := read(bore(dut.lsu.storeUnit.vrfReadyToStoreProbe))
+  storeUnitMonitor.alignedDequeueReady.ref := read(bore(dut.lsu.storeUnit.alignedDequeueReadyProbe))
+  storeUnitMonitor.alignedDequeueValid.ref := read(bore(dut.lsu.storeUnit.alignedDequeueValidProbe))
 
   /**
     * [[v.SimpleAccessUnit]] related probe connection
@@ -116,38 +138,6 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
     monitor.isValid.ref := read(bore(probe))
   })
   // End of [[v.SimpleAccessUnit]] related probe connection
-
-  /**
-   * [[v.StoreUnit]] related probe connection
-   */
-  val storeUnitMonitor = Module(new StoreUnitMonitor)
-  storeUnitMonitor.clock.ref := clock.asBool
-  storeUnitMonitor.vrfReadyToStore.ref := read(bore(dut.lsu.storeUnit.vrfReadyToStoreProbe))
-
-  val storeUnitAlignedDequeueMonitor = Module(new StoreUnitAlignedDequeueMonitor)
-  storeUnitAlignedDequeueMonitor.clock.ref := clock.asBool
-  storeUnitAlignedDequeueMonitor.isValid.ref := read(bore(dut.lsu.storeUnit.alignedDequeueValidProbe))
-  storeUnitAlignedDequeueMonitor.isReady.ref := read(bore(dut.lsu.storeUnit.alignedDequeueReadyProbe))
-
-  dut.lsu.storeUnit.tlPortAIsReadyProbe
-    .zip(dut.lsu.storeUnit.tlPortAIsValidProbe)
-    .zipWithIndex.foreach({ case((ready, valid), i) =>
-      val monitor = Module(new StoreUnitTlPortAMonitor)
-      monitor.clock.ref := clock.asBool
-      monitor.index.ref := i.U
-      monitor.isReady.ref := read(bore(ready))
-      monitor.isValid.ref := read(bore(valid))
-  })
-
-  dut.lsu.storeUnit.vrfReadDataPortIsReadyProbe
-    .zip(dut.lsu.storeUnit.vrfReadDataPortIsValidProbe)
-    .zipWithIndex.foreach({ case((ready, valid), i) =>
-      val monitor = Module(new StoreUnitVrfReadDataPortMonitor)
-      monitor.clock.ref := clock.asBool
-      monitor.index.ref := i.U
-      monitor.isReady.ref := read(bore(ready))
-      monitor.isValid.ref := read(bore(valid))
-  })
 
   dut.laneVec.zipWithIndex.foreach({ case (lane, i) =>
     {

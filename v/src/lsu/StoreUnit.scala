@@ -282,12 +282,23 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   /**
     * Probes
     */
+  // Store Unit is idle
+  val idleProbe = IO(Output(Probe(Bool())))
+  define(idleProbe, ProbeValue(status.idle))
+
+  // lsuRequest is valid
+  val lsuRequestValidProbe = IO(Output(Probe(Bool())))
+  define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
+
   val tlPortAIsValidProbe = Seq.fill(param.memoryBankSize)(IO(Output(Probe(Bool()))))
   val tlPortAIsReadyProbe = Seq.fill(param.memoryBankSize)(IO(Output(Probe(Bool()))))
   tlPortA.zipWithIndex.foreach({ case(port, i) =>
     define(tlPortAIsValidProbe(i), ProbeValue(port.valid))
     define(tlPortAIsReadyProbe(i), ProbeValue(port.ready))
   })
+
+  val addressConflictProbe = IO(Output(Probe(Bool())))
+  define(addressConflictProbe, ProbeValue(addressConflict))
 
   val vrfReadDataPortIsValidProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
   val vrfReadDataPortIsReadyProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
