@@ -307,151 +307,75 @@ void v_monitor(svLogic requestValid, svLogic requestReady,
                svLogic isLastInst3) {
   TRY({
     Log("V")
-      .with("request", json{
-        { "valid", (bool)requestValid },
-        { "ready", (bool)requestReady },
-      })
-      .with("request_reg_valid", (bool)requestRegValid)
-      .with("request_reg_dequeue", json {
-        { "valid", (bool)requestRegDequeueValid },
-        { "ready", (bool)requestRegDequeueReady },
-      })
-      .with("execution_ready", (bool)executionReady)
-      .with("slot_ready", (bool)slotReady)
-      .with("wait_for_gather", (bool)waitForGather)
-      .with("instrution_RAW_ready", (bool)instructionRawReady)
-      .with("response_valid", (bool)responseValid)
-      .with("slots", std::vector{
-        json { { "s_mask_unit_exectued", (bool)sMaskUnitExecuted0 }, { "w_last", (bool)wLast0 }, { "is_last_instruction", (bool)isLastInst0 } },
-        json { { "s_mask_unit_exectued", (bool)sMaskUnitExecuted1 }, { "w_last", (bool)wLast1 }, { "is_last_instruction", (bool)isLastInst1 } },
-        json { { "s_mask_unit_exectued", (bool)sMaskUnitExecuted2 }, { "w_last", (bool)wLast2 }, { "is_last_instruction", (bool)isLastInst2 } },
-        json { { "s_mask_unit_exectued", (bool)sMaskUnitExecuted3 }, { "w_last", (bool)wLast3 }, { "is_last_instruction", (bool)isLastInst3 } },
-      })
-      .info();
+        .with("request",
+              json{
+                  {"valid", (bool)requestValid},
+                  {"ready", (bool)requestReady},
+              })
+        .with("request_reg_valid", (bool)requestRegValid)
+        .with("request_reg_dequeue",
+              json{
+                  {"valid", (bool)requestRegDequeueValid},
+                  {"ready", (bool)requestRegDequeueReady},
+              })
+        .with("execution_ready", (bool)executionReady)
+        .with("slot_ready", (bool)slotReady)
+        .with("wait_for_gather", (bool)waitForGather)
+        .with("instrution_RAW_ready", (bool)instructionRawReady)
+        .with("response_valid", (bool)responseValid)
+        .with("slots",
+              std::vector{
+                  json{{"s_mask_unit_exectued", (bool)sMaskUnitExecuted0},
+                       {"w_last", (bool)wLast0},
+                       {"is_last_instruction", (bool)isLastInst0}},
+                  json{{"s_mask_unit_exectued", (bool)sMaskUnitExecuted1},
+                       {"w_last", (bool)wLast1},
+                       {"is_last_instruction", (bool)isLastInst1}},
+                  json{{"s_mask_unit_exectued", (bool)sMaskUnitExecuted2},
+                       {"w_last", (bool)wLast2},
+                       {"is_last_instruction", (bool)isLastInst2}},
+                  json{{"s_mask_unit_exectued", (bool)sMaskUnitExecuted3},
+                       {"w_last", (bool)wLast3},
+                       {"is_last_instruction", (bool)isLastInst3}},
+              })
+        .info();
   });
 }
 
-[[maybe_unused]] void other_unit_monitor(
-    const svBit lsu_request_is_valid, const svBit vrf_read_data_port_is_ready,
-    const svBit vrf_read_data_port_is_valid, const svBit mask_select_is_valid,
-    const svBit vrf_write_port_is_ready, const svBit vrf_write_port_is_valid,
-    const svBitVecVal *targetLane, const svBit idle, const svBit s0_fire,
-    const svBit s1_fire, const svBit s2_fire) {
+void other_unit_monitor(svLogic lsuRequestIsValid, svLogic s0EnqueueValid,
+                        svLogic stateIsRequest, svLogic maskCheck,
+                        svLogic indexCheck, svLogic fofCheck, svLogic s0Fire,
+                        svLogic s1Fire, svLogic s2Fire, svLogic tlPortAIsReady,
+                        svLogic tlPortAIsValid, svLogic s1Valid,
+                        svLogic sourceFree, svLogic tlPortDIsValid,
+                        svLogic tlPortDIsReady, svLogic VrfWritePortIsReady,
+                        svLogic VrfWritePortIsValid,
+                        const svBitVecVal *stateValue) {
   TRY({
     Log("OtherUnit")
-        .with("lsu_request_is_valid", (bool)lsu_request_is_valid)
-        .with("vrf_read_data_port",
-              json{{"is_ready", (bool)vrf_read_data_port_is_ready},
-                   {"is_valid", (bool)vrf_read_data_port_is_valid}})
-        .with("vrf_write_port",
-              json{{"is_ready", (bool)vrf_write_port_is_ready},
-                   {"is_valid", (bool)vrf_write_port_is_valid}})
-        .with("mask_select_is_valid", (bool)mask_select_is_valid)
-        .with("status",
-              json{
-                  {"target_lane", (int)(*targetLane)},
-                  {"is_idle", (bool)idle},
-              })
-        .with("s0_fire", (bool)s0_fire)
-        .with("s1_fire", (bool)s1_fire)
-        .with("s2_fire", (bool)s2_fire)
-        .info();
-  })
-}
-
-[[maybe_unused]] void
-other_unit_access_tile_link_monitor(const svBit is_valid,
-                                    const svBit is_ready) {
-  TRY({
-    Log("OtherUnit")
-        .with("AccessTileLink",
-              json{
-                  {"is_valid", (bool)is_valid},
-                  {"is_ready", (bool)is_ready},
-              })
-        .info("Receive access tile link signal");
-  })
-}
-
-[[maybe_unused]] void other_unit_tile_link_ack_monitor(const svBit is_valid,
-                                                       const svBit is_ready) {
-  TRY({
-    Log("OtherUnit")
-        .with("TileLinkAck",
-              json{
-                  {"is_valid", (bool)is_valid},
-                  {"is_ready", (bool)is_ready},
-              })
-        .info("Receive tile link ack signal");
-  })
-}
-
-[[maybe_unused]] void
-other_unit_offset_read_result_monitor(const svBitVecVal *index,
-                                      const svBit is_valid) {
-  TRY({
-    Log("OtherUnit")
-        .with("index", (int)(*index))
-        .with("is_valid", (bool)is_valid)
-        .info("receive offset read result signal");
-  })
-}
-
-[[maybe_unused]] void
-other_unit_indexed_insn_offsets_is_valid_monitor(const svBitVecVal *index,
-                                                 const svBit is_valid) {
-  TRY({
-    Log("OtherUnit")
-        .with("index", (int)(*index))
-        .with("is_valid", (bool)is_valid)
-        .info("receive indexed instruction offset signal");
-  })
-}
-
-[[maybe_unused]] void store_unit_monitor(const svBit vrf_ready_to_store) {
-  TRY({
-    Log("StoreUnit")
-        .with("vrf_ready_to_store", (bool)vrf_ready_to_store)
-        .info();
-  })
-}
-
-[[maybe_unused]] void store_unit_aligned_dequeue_monitor(const svBit is_valid,
-                                                         const svBit is_ready) {
-  TRY({
-    Log("StoreUnit")
-        .with("aligned_dequeue",
-              json{
-                  {"is_valid", (bool)is_valid},
-                  {"is_ready", (bool)is_ready},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void store_unit_tl_port_a_monitor(const svBitVecVal *index,
-                                                   svLogic valid,
-                                                   svLogic ready) {
-  TRY({
-    Log("StoreUnit")
-        .with("TLPortA",
-              json{
-                  {"index", (int)(*index)},
-                  {"is_valid", (bool)valid},
-                  {"is_ready", (bool)ready},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void
-store_unit_vrf_read_data_port_monitor(const svBitVecVal *index, svLogic valid,
-                                      svLogic ready) {
-  TRY({
-    Log("StoreUnitVrfReadDataPortReadyMonitor")
-        .with("index", (int)(*index))
-        .with("is_valid", (bool)valid)
-        .with("is_ready", (bool)ready)
+        .with("lsu_request_is_valid", (bool)lsuRequestIsValid)
+        .with("s0_enqueue_valid", (bool)s0EnqueueValid)
+        .with("state_is_request", (bool)stateIsRequest)
+        .with("mask_check", (bool)maskCheck)
+        .with("index_check", (bool)indexCheck)
+        .with("fof_check", (bool)fofCheck)
+        .with("s0_fire", (bool)s0Fire)
+        .with("s1_fire", (bool)s1Fire)
+        .with("s2_fire", (bool)s2Fire)
+        .with("tl_port_a", json {
+          { "valid", (bool)tlPortAIsValid },
+          { "ready", (bool)tlPortAIsReady }
+        })
+        .with("s1_valid", (bool)s1Valid)
+        .with("source_free", (bool)sourceFree)
+        .with("tl_port_d", json {
+          { "valid", (bool)tlPortDIsValid },
+          { "ready", (bool)tlPortDIsReady }
+        })
+        .with("vrf_write_port", json {
+          { "valid", (bool)VrfWritePortIsValid },
+          { "ready", (bool)VrfWritePortIsReady }
+        })
         .info();
   })
 }
