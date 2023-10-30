@@ -362,183 +362,38 @@ void other_unit_monitor(svLogic lsuRequestIsValid, svLogic s0EnqueueValid,
         .with("s0_fire", (bool)s0Fire)
         .with("s1_fire", (bool)s1Fire)
         .with("s2_fire", (bool)s2Fire)
-        .with("tl_port_a", json {
-          { "valid", (bool)tlPortAIsValid },
-          { "ready", (bool)tlPortAIsReady }
-        })
+        .with("tl_port_a", json{{"valid", (bool)tlPortAIsValid},
+                                {"ready", (bool)tlPortAIsReady}})
         .with("s1_valid", (bool)s1Valid)
         .with("source_free", (bool)sourceFree)
-        .with("tl_port_d", json {
-          { "valid", (bool)tlPortDIsValid },
-          { "ready", (bool)tlPortDIsReady }
+        .with("tl_port_d", json{{"valid", (bool)tlPortDIsValid},
+                                {"ready", (bool)tlPortDIsReady}})
+        .with("vrf_write_port", json{{"valid", (bool)VrfWritePortIsValid},
+                                     {"ready", (bool)VrfWritePortIsReady}})
+        .info();
+  })
+}
+
+void lane_monitor(const svBitVecVal *index, svLogic laneRequestValid,
+                  svLogic laneRequestReady, svLogic lastSlotOccupied,
+                  svLogic vrfInstructionWriteReportReady, svLogic slotOccupied0,
+                  svLogic slotOccupied1, svLogic slotOccupied2,
+                  svLogic slotOccupied3,
+                  const svBitVecVal *instructionFinished) {
+  TRY({
+    Log("Lane")
+        .with("index", (int)(*index))
+        .with("lane_request", json{{"valid", (bool)laneRequestValid},
+                                   {"ready", (bool)laneRequestReady}})
+        .with("last_slot_occpied", (bool)lastSlotOccupied)
+        .with("vrf_instruction_write_report_ready", (bool)vrfInstructionWriteReportReady)
+        .with("slot_occpied", std::vector{
+          (bool)slotOccupied0,
+          (bool)slotOccupied1,
+          (bool)slotOccupied2,
+          (bool)slotOccupied3,
         })
-        .with("vrf_write_port", json {
-          { "valid", (bool)VrfWritePortIsValid },
-          { "ready", (bool)VrfWritePortIsReady }
-        })
-        .info();
-  })
-}
-
-[[maybe_unused]] void lane_read_bus_port_monitor(
-    const svBitVecVal *index, const svBit read_bus_port_enq_ready,
-    const svBit read_bus_port_enq_valid, const svBit read_bus_port_deq_ready,
-    const svBit read_bus_port_deq_valid) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("read_bus_port",
-              json{{"enq",
-                    {{"is_ready", (bool)read_bus_port_enq_ready},
-                     {"is_valid", (bool)read_bus_port_enq_valid}}},
-                   {"deq",
-                    {{"is_ready", (bool)read_bus_port_deq_ready},
-                     {"is_valid", (bool)read_bus_port_deq_valid}}}})
-        .info();
-  })
-}
-
-[[maybe_unused]] void lane_write_bus_port_monitor(
-    const svBitVecVal *index, const svBit write_bus_port_enq_ready,
-    const svBit write_bus_port_enq_valid, const svBit write_bus_port_deq_ready,
-    const svBit write_bus_port_deq_valid) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("write_bus_port",
-              json{{"enq",
-                    {{"is_ready", (bool)write_bus_port_enq_ready},
-                     {"is_valid", (bool)write_bus_port_enq_valid}}},
-                   {"deq",
-                    {{"is_ready", (bool)write_bus_port_deq_ready},
-                     {"is_valid", (bool)write_bus_port_deq_valid}}}})
-        .info();
-  })
-}
-
-[[maybe_unused]] void lane_request_monitor(const svBitVecVal *index,
-                                           const svBit lane_request_valid,
-                                           const svBit lane_request_ready) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("lane_request", json{{"is_valid", (bool)lane_request_valid},
-                                   {"is_ready", (bool)lane_request_ready}})
-        .info();
-  })
-}
-
-[[maybe_unused]] void
-lane_response_monitor(const svBitVecVal *index, const svBit lane_response_valid,
-                      const svBit lane_response_feedback_valid) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("lane_response", json{{"is_valid", (bool)lane_response_valid}})
-        .with("lane_response_feedback",
-              json{{"is_valid", (bool)lane_response_feedback_valid}})
-        .info();
-  })
-}
-
-[[maybe_unused]] void lane_vrf_read_monitor(const svBitVecVal *index,
-                                            const svBit is_valid,
-                                            const svBit is_ready) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("vrf_read_address_channel",
-              json{
-                  {"is_valid", (bool)is_valid},
-                  {"is_ready", (bool)is_ready},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void lane_vrf_write_monitor(const svBitVecVal *index,
-                                             const svBit is_valid,
-                                             const svBit is_ready) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("vrf_write_channel",
-              json{
-                  {"is_valid", (bool)is_valid},
-                  {"is_ready", (bool)is_ready},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void lane_status_monitor(const svBitVecVal *index,
-                                          const svBit v0_update_valid,
-                                          const svBit write_ready_for_lsu,
-                                          const svBit vrf_ready_to_store) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("v0_update_valid", (bool)v0_update_valid)
-        .with("write_ready_for_lsu", (bool)write_ready_for_lsu)
-        .with("vrf_ready_to_store", (bool)vrf_ready_to_store)
-        .info();
-  })
-}
-
-[[maybe_unused]] void lane_write_queue_monitor(const svBitVecVal *index,
-                                               const svBit write_queue_valid) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("write_queue_valid", (bool)write_queue_valid)
-        .info();
-  })
-}
-
-[[maybe_unused]] void
-lane_read_bus_dequeue_monitor(const svBitVecVal *index,
-                              const svBit read_bus_dequeue_valid) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("read_bus_dequeue_valid", (bool)read_bus_dequeue_valid)
-        .info();
-  })
-}
-
-[[maybe_unused]] void cross_lane_monitor(const svBitVecVal *index,
-                                         const svBit cross_lane_read_valid,
-                                         const svBit cross_lane_write_valid) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("cross_lane",
-              json{
-                  {"read_valid", (bool)cross_lane_read_valid},
-                  {"write_valid", (bool)cross_lane_write_valid},
-              })
-        .info();
-  })
-}
-
-[[maybe_unused]] void
-lane_read_bus_data_monitor(const svBitVecVal *index,
-                           const svBit read_bus_data_req_valid) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("read_bus_data_req_valid", (bool)read_bus_data_req_valid)
-        .info();
-  })
-}
-
-[[maybe_unused]] void
-lane_write_bus_data_monitor(const svBitVecVal *index,
-                            const svBit write_bus_data_req_valid) {
-  TRY({
-    Log("LaneMonitor")
-        .with("lane_index", (int)(*index))
-        .with("write_bus_data_req_valid", (bool)write_bus_data_req_valid)
+        .with("instruction_finished", (int)(*instructionFinished))
         .info();
   })
 }

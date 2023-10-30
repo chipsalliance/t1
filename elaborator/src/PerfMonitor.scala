@@ -9,19 +9,6 @@ abstract class PerfMonitor extends DPIModule {
   override val trigger: String = s"always @(posedge ${clock.name})";
 }
 
-trait IndexedPerfMonitor extends PerfMonitor {
-  val index = dpiIn("index", Input(UInt(32.W)))
-}
-
-trait ValidMonitor extends PerfMonitor {
-  val isValid = dpiIn("isValid", Input(Bool()))
-}
-
-trait ReadyMonitor extends PerfMonitor {
-  val isReady = dpiIn("isReady", Input(Bool()))
-}
-
-
 /**
   * Monitor signals in [[v.LoadUnit]] [[v.StoreUnit]]
   */
@@ -123,46 +110,14 @@ class OtherUnitMonitor extends PerfMonitor {
 }
 // End of SimpleAccessUnit monitors definition
 
-class LaneReadBusPortMonitor extends IndexedPerfMonitor {
-  val readBusPortEnqReady = dpiIn("readBusPortEnqReady", Input(Bool()))
-  val readBusPortEnqValid = dpiIn("readBusPortEnqValid", Input(Bool()))
-  val readBusPortDeqReady = dpiIn("readBusPortDeqReady", Input(Bool()))
-  val readBusPortDeqValid = dpiIn("readBusPortDeqValid", Input(Bool()))
+case class LaneParam(slot: Int)
+class LaneMonitor(param: LaneParam) extends PerfMonitor {
+  val index = dpiIn("index", Input(UInt(32.W)))
+  val laneRequestValid = dpiIn("laneRequestValid", Input(Bool()))
+  val laneRequestReady = dpiIn("laneRequestReady", Input(Bool()))
+  val lastSlotOccupied = dpiIn("lastSlotOccupied", Input(Bool()))
+  val vrfInstructionWriteReportReady = dpiIn("vrfInstructionWriteReportReady", Input(Bool()))
+  val slotOccupied = dpiIn("slotOccupied", Seq.fill(param.slot)(Input(Bool())))
+  val instructionFinished = dpiIn("instructionFinished", Input(UInt(32.W)))
 }
-
-class LaneWriteBusPortMonitor extends IndexedPerfMonitor {
-  val writeBusPortEnqReady = dpiIn("writeBusPortEnqReady", Input(Bool()))
-  val writeBusPortEnqValid = dpiIn("writeBusPortEnqValid", Input(Bool()))
-  val writeBusPortDeqReady = dpiIn("writeBusPortDeqReady", Input(Bool()))
-  val writeBusPortDeqValid = dpiIn("writeBusPortDeqValid", Input(Bool()))
-}
-
-class LaneRequestMonitor extends IndexedPerfMonitor with ValidMonitor with ReadyMonitor
-
-class LaneResponseMonitor extends IndexedPerfMonitor with ValidMonitor {
-  val laneResponseFeedbackValid = dpiIn("laneResponseFeedbackValid", Input(Bool()))
-}
-
-class LaneVrfReadMonitor extends IndexedPerfMonitor with ValidMonitor with ReadyMonitor
-
-class LaneVrfWriteMonitor extends IndexedPerfMonitor with ValidMonitor with ReadyMonitor
-
-class LaneStatusMonitor extends IndexedPerfMonitor {
-  val v0UpdateValid = dpiIn("v0UpdateValid", Input(Bool()))
-  val writeReadyForLsu = dpiIn("writeReadyForLsu", Input(Bool()))
-  val vrfReadyToStore = dpiIn("vrfReadyToStore", Input(Bool()))
-}
-
-class LaneWriteQueueMonitor extends IndexedPerfMonitor with ValidMonitor
-
-class LaneReadBusDequeueMonitor extends IndexedPerfMonitor with ValidMonitor
-
-class CrossLaneMonitor extends IndexedPerfMonitor {
-  val readValid = dpiIn("crossLaneReadValid", Input(Bool()))
-  val writeValid = dpiIn("crossLaneWriteValid", Input(Bool()))
-}
-
-class LaneReadBusDataMonitor extends IndexedPerfMonitor with ValidMonitor
-
-class LaneWriteBusDataMonitor extends IndexedPerfMonitor with ValidMonitor
 // End of Lane monitor
