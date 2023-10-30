@@ -996,107 +996,23 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /**
     * probes
     */
-  val readBusPortEnqReadyProbe = IO(Output(Probe(Bool())))
-  val readBusPortDeqReadyProbe = IO(Output(Probe(Bool())))
-  define(readBusPortEnqReadyProbe, ProbeValue(readBusPort.enq.ready))
-  define(readBusPortDeqReadyProbe, ProbeValue(readBusPort.deq.ready))
-
-  val readBusPortEnqValidProbe = IO(Output(Probe(Bool())))
-  val readBusPortDeqValidProbe = IO(Output(Probe(Bool())))
-  define(readBusPortEnqValidProbe, ProbeValue(readBusPort.enq.valid))
-  define(readBusPortDeqValidProbe, ProbeValue(readBusPort.deq.valid))
-
-  val writeBusPortEnqReadyProbe = IO(Output(Probe(Bool())))
-  val writeBusPortDeqReadyProbe = IO(Output(Probe(Bool())))
-  define(writeBusPortEnqReadyProbe, ProbeValue(writeBusPort.enq.ready))
-  define(writeBusPortDeqReadyProbe, ProbeValue(writeBusPort.deq.ready))
-
-  val writeBusPortEnqValidProbe = IO(Output(Probe(Bool())))
-  val writeBusPortDeqValidProbe = IO(Output(Probe(Bool())))
-  define(writeBusPortEnqValidProbe, ProbeValue(writeBusPort.enq.valid))
-  define(writeBusPortDeqValidProbe, ProbeValue(writeBusPort.deq.valid))
-
   val laneRequestValidProbe = IO(Output(Probe(Bool())))
   val laneRequestReadyProbe = IO(Output(Probe(Bool())))
   define(laneRequestValidProbe, ProbeValue(laneRequest.valid))
   define(laneRequestReadyProbe, ProbeValue(laneRequest.ready))
 
-  val laneResponseValidProbe = IO(Output(Probe(Bool())))
-  define(laneResponseValidProbe, ProbeValue(laneResponse.valid))
+  val lastSlotOccupiedProbe = IO(Output(Probe(Bool())))
+  define(lastSlotOccupiedProbe, ProbeValue(slotOccupied.last))
 
-  val laneResponseFeedbackValidProbe = IO(Output(Probe(Bool())))
-  define(laneResponseFeedbackValidProbe, ProbeValue(laneResponseFeedback.valid))
+  val vrfInstructionWriteReportReadyProbe = IO(Output(Probe(Bool())))
+  define(vrfInstructionWriteReportReadyProbe, ProbeValue(vrf.instructionWriteReport.ready))
 
-  val vrfReadAddressChannelValidProbe = IO(Output(Probe(Bool())))
-  val vrfReadAddressChannelReadyProbe = IO(Output(Probe(Bool())))
-  define(vrfReadAddressChannelValidProbe, ProbeValue(vrfReadAddressChannel.valid))
-  define(vrfReadAddressChannelReadyProbe, ProbeValue(vrfReadAddressChannel.ready))
-
-  val vrfWriteChannelValidProbe = IO(Output(Probe(Bool())))
-  val vrfWriteChannelReadyProbe = IO(Output(Probe(Bool())))
-  define(vrfWriteChannelReadyProbe, ProbeValue(vrfWriteChannel.ready))
-  define(vrfWriteChannelValidProbe, ProbeValue(vrfWriteChannel.valid))
-
-  val v0UpdateValidProbe = IO(Output(Probe(Bool())))
-  define(v0UpdateValidProbe, ProbeValue(v0Update.valid))
-
-  val writeQueueValidProbe = IO(Output(Probe(Bool())))
-  define(writeQueueValidProbe, ProbeValue(writeQueueValid))
-
-  val writeReadyForLsuProbe = IO(Output(Probe(Bool())))
-  define(writeReadyForLsuProbe, ProbeValue(writeReadyForLsu))
-
-  val vrfReadyToStoreProbe = IO(Output(Probe(Bool())))
-  define(vrfReadyToStoreProbe, ProbeValue(vrfReadyToStore))
-
-  val vrfWriteArbiterValidProbes: Seq[Bool] = Seq.fill(parameter.chainingSize + 1)(IO(Output(Probe(Bool()))))
-  vrfWriteArbiter.zipWithIndex.foreach({ case (arbiter, i) =>
-    define(vrfWriteArbiterValidProbes(i), ProbeValue(arbiter.valid))
+  val slotOccupiedProbe = slotOccupied.map(occupied => {
+    val occupiedProbe = IO(Output(Probe(Bool())))
+    define(occupiedProbe, ProbeValue(occupied))
+    occupiedProbe
   })
 
-  val slotMaskRequestValidProbes: Seq[Bool] = Seq.fill(parameter.chainingSize)(IO(Output(Probe(Bool()))))
-  slotMaskRequestVec.zipWithIndex.foreach({ case(data, i) =>
-    define(slotMaskRequestValidProbes(i), ProbeValue(data.valid))
-  })
-
-  val vrfReadRequestValidProbes: Seq[Seq[Bool]] = Seq.fill(parameter.chainingSize)(
-    Seq.fill(3)(
-      IO(Output(Probe(Bool())))
-    )
-  )
-  vrfReadRequest.zipWithIndex.foreach({ case (slot, i) =>
-    slot.zipWithIndex.foreach({ case(source, j) =>
-      define(vrfReadRequestValidProbes(i)(j), ProbeValue(source.valid))
-    })
-  })
-
-  val vrfReadRequestReadyProbes: Seq[Seq[Bool]] = Seq.fill(parameter.chainingSize)(
-    Seq.fill(3)(
-      IO(Output(Probe(Bool())))
-    )
-  )
-  vrfReadRequest.zipWithIndex.foreach({ case (slot, i) =>
-    slot.zipWithIndex.foreach({ case(source, j) =>
-      define(vrfReadRequestReadyProbes(i)(j), ProbeValue(source.ready))
-    })
-  })
-
-  val readBusDequeueValidProbe = IO(Output(Probe(Bool())))
-  define(readBusDequeueValidProbe, ProbeValue(readBusDequeue.valid))
-
-  val responseValidProbes = Seq.fill(parameter.chainingSize)(IO(Output(Probe(Bool()))))
-  responseVec.zipWithIndex.foreach({ case(resp, i) =>
-    define(responseValidProbes(i), ProbeValue(resp.valid))
-  })
-
-  val crossLaneReadValidProbe = IO(Output(Probe(Bool())))
-  define(crossLaneReadValidProbe, ProbeValue(crossLaneRead.valid))
-
-  val crossLaneWriteValidProbe = IO(Output(Probe(Bool())))
-  define(crossLaneWriteValidProbe, ProbeValue(crossLaneWrite.valid))
-
-  val readBusDataReqValidProbe = IO(Output(Probe(Bool())))
-  define(readBusDataReqValidProbe, ProbeValue(readBusDataReg.valid))
-  val writeBusDataReqValidProbe = IO(Output(Probe(Bool())))
-  define(writeBusDataReqValidProbe, ProbeValue(writeBusDataReg.valid))
+  val instructionFinishedProbe: UInt = IO(Output(Probe(chiselTypeOf(instructionFinished))))
+  define(instructionFinishedProbe, ProbeValue(instructionFinished))
 }
