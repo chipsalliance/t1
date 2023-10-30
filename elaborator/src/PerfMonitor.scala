@@ -95,31 +95,32 @@ class VMonitor(param: VParam) extends PerfMonitor {
   * Monitor signals in [[v.SimpleAccessUnit]]
   */
 class OtherUnitMonitor extends PerfMonitor {
-  val lsuRequestIsValid = dpiIn("SimpleAccessUnitLSURequestIsValid", Input(Bool()))
+  val lsuRequestIsValid = dpiIn("lsuRequestIsValid", Input(Bool()))
 
-  val vrfReadDataPortsIsReady = dpiIn("SimpleAccessUnitVRFReadDataPortsIsReady", Input(Bool()))
-  val vrfReadDataPortsIsValid = dpiIn("SimpleAccessUnitVRFReadDataPortsIsValid", Input(Bool()))
+  val s0EnqueueValid = dpiIn("s0EnqueueValid", Input(Bool()))
+  val stateIsRequest = dpiIn("stateIsRequest", Input(Bool()))
+  val maskCheck = dpiIn("maskCheck", Input(Bool()))
+  val indexCheck = dpiIn("indexCheck", Input(Bool()))
+  val fofCheck = dpiIn("fofCheck", Input(Bool()))
 
-  val maskSelectIsValid = dpiIn("SimpleAccessUnitMaskSelectIsValid", Input(Bool()))
+  val s0Fire = dpiIn("s0Fire", Input(Bool()))
+  val s1Fire = dpiIn("s1Fire", Input(Bool()))
+  val s2Fire = dpiIn("s2Fire", Input(Bool()))
 
-  val vrfWritePortIsReady = dpiIn("SimpleAccessUnitVRFWritePortIsReady", Input(Bool()))
-  val vrfWritePortIsValid = dpiIn("SimpleAccessUnitVRFWritePortIsValid", Input(Bool()))
+  val tlPortAIsReady = dpiIn("tlPortAIsReady", Input(Bool()))
+  val tlPortAIsValid = dpiIn("tlPortAIsValid", Input(Bool()))
+  val s1Valid = dpiIn("s1Valid", Input(Bool()))
+  val sourceFree = dpiIn("sourceFree", Input(Bool()))
 
-  val targetLane = dpiIn("SimpleAccessUnitStatusTargetLane", Input(UInt(32.W)))
-  val idle = dpiIn("SimpleAccessUnitIsIdle", Input(Bool()))
+  val tlPortDIsValid = dpiIn("tlPortDIsValid", Input(Bool()))
+  val tlPortDIsReady = dpiIn("tlPortDIsReady", Input(Bool()))
 
-  val s0Fire = dpiIn("SimpleAccessUnitS0Fire", Input(Bool()))
-  val s1Fire = dpiIn("SimpleAccessUnitS1Fire", Input(Bool()))
-  val s2Fire = dpiIn("SimpleAccessUnitS2Fire", Input(Bool()))
+  // Can't use 'VRF' here cuz it will be parsed as 'v_r_f' at DPI side
+  val vrfWritePortIsReady = dpiIn("VrfWritePortIsReady", Input(Bool()))
+  val vrfWritePortIsValid = dpiIn("VrfWritePortIsValid", Input(Bool()))
+
+  val stateValue = dpiIn("stateValue", Input(UInt(32.W)))
 }
-
-class OtherUnitAccessTileLinkMonitor extends ValidMonitor with ReadyMonitor
-
-class OtherUnitTileLinkAckMonitor extends ValidMonitor with ReadyMonitor
-
-class OtherUnitOffsetReadResultMonitor extends IndexedPerfMonitor with ValidMonitor
-
-class OtherUnitIndexedInsnOffsetsIsValidMonitor extends IndexedPerfMonitor with ValidMonitor
 // End of SimpleAccessUnit monitors definition
 
 class LaneReadBusPortMonitor extends IndexedPerfMonitor {

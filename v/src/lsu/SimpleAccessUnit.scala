@@ -1007,50 +1007,45 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   val lsuRequestValidProbe = IO(Output(Probe(Bool())))
   define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
 
-  val vrfReadDataPortsValidProbe = IO(Output(Probe(Bool())))
-  val vrfReadDataPortsReadyProbe = IO(Output(Probe(Bool())))
-  define(vrfReadDataPortsValidProbe, ProbeValue(vrfReadDataPorts.valid))
-  define(vrfReadDataPortsReadyProbe, ProbeValue(vrfReadDataPorts.ready))
+  val s0EnqueueValidProbe = IO(Output(Probe(Bool())))
+  define(s0EnqueueValidProbe, ProbeValue(s0EnqueueValid))
+  val stateIsRequestProbe = IO(Output(Probe(Bool())))
+  define(stateIsRequestProbe, ProbeValue(stateIsRequest))
+  val maskCheckProbe = IO(Output(Probe(Bool())))
+  define(maskCheckProbe, ProbeValue(maskCheck))
+  val indexCheckProbe = IO(Output(Probe(Bool())))
+  define(indexCheckProbe, ProbeValue(indexCheck))
+  val fofCheckProbe = IO(Output(Probe(Bool())))
+  define(fofCheckProbe, ProbeValue(fofCheck))
 
-  val offsetReadResultValidProbe: Seq[Bool] = offsetReadResult.map(result => {
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(result.valid))
-    probe
-  })
+  val s0FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s0Fire))))
+  define(s0FireProbe, ProbeValue(s0Fire))
 
-  val maskSelectValidProbe: Bool = IO(Output(Probe(Bool())))
-  define(maskSelectValidProbe, ProbeValue(maskSelect.valid))
+  val s1FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s1Fire))))
+  define(s1FireProbe, ProbeValue(s1Fire))
+
+  val tlPortAReadyProbe = IO(Output(Probe(Bool())))
+  define(tlPortAReadyProbe, ProbeValue(tlPort.a.ready))
+  val tlPortAValidProbe = IO(Output(Probe(Bool())))
+  define(tlPortAValidProbe, ProbeValue(tlPort.a.valid))
+  val s1ValidProbe = IO(Output(Probe(Bool())))
+  define(s1ValidProbe, ProbeValue(s1Valid))
+  val sourceFreeProbe = IO(Output(Probe(Bool())))
+  define(sourceFreeProbe, ProbeValue(sourceFree))
+
+  val s2FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s2Fire))))
+  define(s2FireProbe, ProbeValue(s2Fire))
+
+  val tlPortDReadyProbe = IO(Output(Probe(Bool())))
+  define(tlPortDReadyProbe, ProbeValue(tlPort.d.ready))
+  val tlPortDValidProbe = IO(Output(Probe(Bool())))
+  define(tlPortDValidProbe, ProbeValue(tlPort.d.valid))
+
+  val stateValueProbe: UInt = IO(Output(Probe(chiselTypeOf(state))))
+  define(stateValueProbe, ProbeValue(state))
 
   val vrfWritePortIsValidProbe: Bool = IO(Output(Probe(Bool())))
   define(vrfWritePortIsValidProbe, ProbeValue(vrfWritePort.valid))
   val vrfWritePortIsReadyProbe: Bool = IO(Output(Probe(Bool())))
   define(vrfWritePortIsReadyProbe, ProbeValue(vrfWritePort.ready))
-
-  val targetLaneProbe: UInt = IO(Output(Probe(chiselTypeOf(status.targetLane))))
-  define(targetLaneProbe, ProbeValue(status.targetLane))
-  val statusIdleProbe: Bool = IO(Output(Probe(Bool())))
-  define(statusIdleProbe, ProbeValue(status.idle))
-
-  val s0FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s0Fire))))
-  define(s0FireProbe, ProbeValue(s0Fire))
-  val s1FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s1Fire))))
-  define(s1FireProbe, ProbeValue(s1Fire))
-  val s2FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s2Fire))))
-  define(s2FireProbe, ProbeValue(s2Fire))
-
-  val indexedInsturctionOffsetsIsValidProbe: IndexedSeq[Bool] = indexedInstructionOffsets.map(offset => {
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(offset.valid))
-    probe
-  })
-
-  val accessTileLinkValidProbe = IO(Output(Probe(Bool())))
-  define(accessTileLinkValidProbe, ProbeValue(tlPort.a.valid))
-  val accessTileLinkReadyProbe = IO(Output(Probe(Bool())))
-  define(accessTileLinkReadyProbe, ProbeValue(tlPort.a.ready))
-
-  val tileLinkAckValidProbe = IO(Output(Probe(Bool())))
-  define(tileLinkAckValidProbe, ProbeValue(tlPort.d.valid))
-  val tileLinkAckReadyProbe = IO(Output(Probe(Bool())))
-  define(tileLinkAckReadyProbe, ProbeValue(tlPort.d.ready))
 }

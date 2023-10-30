@@ -124,40 +124,23 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
   val otherUnitMonitor = Module(new OtherUnitMonitor)
   otherUnitMonitor.clock.ref := clock.asBool
   otherUnitMonitor.lsuRequestIsValid.ref := read(bore(dut.lsu.otherUnit.lsuRequestValidProbe))
-  otherUnitMonitor.vrfReadDataPortsIsReady.ref := read(bore(dut.lsu.otherUnit.vrfReadDataPortsValidProbe))
-  otherUnitMonitor.vrfReadDataPortsIsValid.ref := read(bore(dut.lsu.otherUnit.vrfReadDataPortsReadyProbe))
-  otherUnitMonitor.maskSelectIsValid.ref := read(bore(dut.lsu.otherUnit.maskSelectValidProbe))
-  otherUnitMonitor.vrfWritePortIsReady.ref := read(bore(dut.lsu.otherUnit.vrfWritePortIsReadyProbe))
-  otherUnitMonitor.vrfWritePortIsValid.ref := read(bore(dut.lsu.otherUnit.vrfWritePortIsValidProbe))
-  otherUnitMonitor.targetLane.ref := read(bore(dut.lsu.otherUnit.targetLaneProbe))
-  otherUnitMonitor.idle.ref := read(bore(dut.lsu.otherUnit.statusIdleProbe))
+  otherUnitMonitor.s0EnqueueValid.ref := read(bore(dut.lsu.otherUnit.s0EnqueueValidProbe))
+  otherUnitMonitor.stateIsRequest.ref := read(bore(dut.lsu.otherUnit.stateIsRequestProbe))
+  otherUnitMonitor.maskCheck.ref := read(bore(dut.lsu.otherUnit.maskCheckProbe))
+  otherUnitMonitor.indexCheck.ref := read(bore(dut.lsu.otherUnit.indexCheckProbe))
+  otherUnitMonitor.fofCheck.ref := read(bore(dut.lsu.otherUnit.fofCheckProbe))
   otherUnitMonitor.s0Fire.ref := read(bore(dut.lsu.otherUnit.s0FireProbe))
   otherUnitMonitor.s1Fire.ref := read(bore(dut.lsu.otherUnit.s1FireProbe))
   otherUnitMonitor.s2Fire.ref := read(bore(dut.lsu.otherUnit.s2FireProbe))
-
-  val otherUnitAccessTileLinkMonitor = Module(new OtherUnitAccessTileLinkMonitor)
-  otherUnitAccessTileLinkMonitor.clock.ref := clock.asBool
-  otherUnitAccessTileLinkMonitor.isValid.ref := read(bore(dut.lsu.otherUnit.accessTileLinkValidProbe))
-  otherUnitAccessTileLinkMonitor.isReady.ref := read(bore(dut.lsu.otherUnit.accessTileLinkReadyProbe))
-
-  val otherUnitTileLinkAckMonitor = Module(new OtherUnitTileLinkAckMonitor)
-  otherUnitTileLinkAckMonitor.clock.ref := clock.asBool
-  otherUnitTileLinkAckMonitor.isValid.ref := read(bore(dut.lsu.otherUnit.tileLinkAckValidProbe))
-  otherUnitTileLinkAckMonitor.isReady.ref := read(bore(dut.lsu.otherUnit.tileLinkAckReadyProbe))
-
-  dut.lsu.otherUnit.offsetReadResultValidProbe.zipWithIndex.foreach({ case(probe, i) =>
-    val monitor = Module(new OtherUnitOffsetReadResultMonitor)
-    monitor.clock.ref := clock.asBool
-    monitor.index.ref := i.U
-    monitor.isValid.ref := read(bore(probe))
-  })
-
-  dut.lsu.otherUnit.indexedInsturctionOffsetsIsValidProbe.zipWithIndex.foreach({ case(probe, i) =>
-    val monitor = Module(new OtherUnitIndexedInsnOffsetsIsValidMonitor)
-    monitor.clock.ref := clock.asBool
-    monitor.index.ref := i.U
-    monitor.isValid.ref := read(bore(probe))
-  })
+  otherUnitMonitor.tlPortAIsReady.ref := read(bore(dut.lsu.otherUnit.tlPortAReadyProbe))
+  otherUnitMonitor.tlPortAIsValid.ref := read(bore(dut.lsu.otherUnit.tlPortAValidProbe))
+  otherUnitMonitor.s1Valid.ref := read(bore(dut.lsu.otherUnit.s1ValidProbe))
+  otherUnitMonitor.sourceFree.ref := read(bore(dut.lsu.otherUnit.sourceFreeProbe))
+  otherUnitMonitor.tlPortDIsReady.ref := read(bore(dut.lsu.otherUnit.tlPortDReadyProbe))
+  otherUnitMonitor.tlPortDIsValid.ref := read(bore(dut.lsu.otherUnit.tlPortDValidProbe))
+  otherUnitMonitor.vrfWritePortIsReady.ref := read(bore(dut.lsu.otherUnit.vrfWritePortIsReadyProbe))
+  otherUnitMonitor.vrfWritePortIsValid.ref := read(bore(dut.lsu.otherUnit.vrfWritePortIsValidProbe))
+  otherUnitMonitor.stateValue.ref := read(bore(dut.lsu.otherUnit.stateValueProbe))
   // End of [[v.SimpleAccessUnit]] related probe connection
 
   dut.laneVec.zipWithIndex.foreach({ case (lane, i) =>
