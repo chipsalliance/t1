@@ -128,6 +128,15 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
   )
 
+  val lsuWriteCheck: LSUWriteCheck = IO(Input(new LSUWriteCheck(
+    parameter.regNumBits,
+    parameter.vrfOffsetBits,
+    parameter.instructionIndexBits,
+    parameter.datapathWidth
+  )))
+
+  val lsuWriteAllow: Bool = IO(Output(Bool()))
+
   /** when instruction is fired, record it in the VRF for chaining. */
   val instructionWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
 
@@ -297,18 +306,18 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         write.valid &&
           // lsu's record is modified by lsuMaskGroupChange
           !record.bits.ls &&
-          write.bits.instructionIndex === record.bits.instIndex &&
-          (write.bits.last || write.bits.mask(3))
+          write.bits.instructionIndex === record.bits.instIndex && write.bits.mask(3)
       ) {
         // widen 类型的可能后一个先到,所以直接-1吧
         record.bits.offset := Mux(write.bits.offset === 0.U, write.bits.offset, write.bits.offset - 1.U)
         record.bits.vdOffset := vsOffsetMask & write.bits.vd
-        when(write.bits.last) {
-          record.valid := false.B
-        }
       }
       when(ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)) {
-        record.bits.stFinish := true.B
+        when(record.bits.ls) {
+          record.bits.stFinish := true.B
+        }.otherwise {
+          record.valid := false.B
+        }
       }
       when(ohCheck(lsuMaskGroupChange, record.bits.instIndex, parameter.chainingSize) && record.bits.ls) {
         record.bits.maskGroupCounter := nextMaskGroupCount
@@ -353,4 +362,27 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   }
   writeReadyForLsu := !hazardVec.map(_.map(_._1).reduce(_ || _)).reduce(_ || _)
   vrfReadyToStore := !hazardVec.map(_.map(_._2).reduce(_ || _)).reduce(_ || _)
+
+  // lsuWriteCheck is load unit check
+  val isLoadCheck: Bool = chainingRecord.map { record =>
+    val isLoad: Bool = record.bits.ls && !record.bits.st
+    val sameIndex: Bool = record.bits.instIndex === lsuWriteCheck.instructionIndex
+    isLoad && sameIndex && record.valid
+  }.reduce(_ || _)
+
+  lsuWriteAllow := chainingRecord.map { record =>
+    // 先看新老
+    val older = instIndexL(lsuWriteCheck.instructionIndex, record.bits.instIndex)
+    val sameInst = lsuWriteCheck.instructionIndex === record.bits.instIndex
+
+    val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
+    val vsBaseMask: UInt = 3.U(2.W) ## (~vsOffsetMask).asUInt
+    // todo: 处理双倍的
+    val writeVsBase: UInt = lsuWriteCheck.vd & vsBaseMask
+    val vsOffset: UInt = lsuWriteCheck.vd & vsOffsetMask
+
+    val waw: Bool = record.bits.vd.valid && writeVsBase === record.bits.vd.bits &&
+      !regOffsetCheck(record.bits.vdOffset, record.bits.offset, vsOffset, lsuWriteCheck.offset)
+    !((!older && waw) && !sameInst && record.valid)
+  }.reduce(_ && _) || !isLoadCheck
 }
