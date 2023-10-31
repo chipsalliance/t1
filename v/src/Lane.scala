@@ -278,15 +278,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       )
     )
   )
-  vrfWriteArbiter(parameter.chainingSize).valid := vrfWriteChannel.valid
-  vrfWriteArbiter(parameter.chainingSize).bits := vrfWriteChannel.bits
+  val topWriteQueue: DecoupledIO[VRFWriteRequest] = Queue(vrfWriteChannel, 1)
+  val lsuWritAllow: Bool = Wire(Bool())
+  vrfWriteArbiter(parameter.chainingSize).valid := topWriteQueue.valid && lsuWritAllow
+  vrfWriteArbiter(parameter.chainingSize).bits := topWriteQueue.bits
 
   /** writing to VRF
     * 1 for [[vrfWriteChannel]]
     * 1 for [[crossLaneWriteQueue]]
     */
   val vrfWriteFire: UInt = Wire(UInt((parameter.chainingSize + 2).W))
-  vrfWriteChannel.ready := vrfWriteFire(parameter.chainingSize)
+  topWriteQueue.ready := vrfWriteFire(parameter.chainingSize) && lsuWritAllow
 
   /** for each slot, assert when it is asking [[V]] to change mask */
   val slotMaskRequestVec: Vec[ValidIO[UInt]] = Wire(
@@ -1022,8 +1024,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.ma := laneRequest.bits.ma
   // lsu访问vrf都不是无序的
   vrf.instructionWriteReport.bits.unOrderWrite := laneRequest.bits.decodeResult(Decoder.other)
-  vrf.instructionWriteReport.bits.slow := laneRequest.bits.decodeResult(Decoder.divider) ||
-    laneRequest.bits.decodeResult(Decoder.maskDestination) || laneRequest.bits.decodeResult(Decoder.dontNeedExecuteInLane)
+  // for mask unit
+  vrf.instructionWriteReport.bits.slow := laneRequest.bits.decodeResult(Decoder.maskDestination) ||
+    laneRequest.bits.decodeResult(Decoder.dontNeedExecuteInLane)
   vrf.instructionWriteReport.bits.seg.valid := laneRequest.bits.loadStore && laneRequest.bits.segment.orR
   vrf.instructionWriteReport.bits.seg.bits := laneRequest.bits.segment
   vrf.instructionWriteReport.bits.eew := laneRequest.bits.loadStoreEEW
@@ -1036,10 +1039,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // clear record by instructionFinished
   vrf.lsuLastReport := lsuLastReport | instructionFinished
   vrf.lsuMaskGroupChange := lsuMaskGroupChange
-  vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear && !crossLaneWriteQueue.io.deq.valid
+  vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear && !crossLaneWriteQueue.io.deq.valid && !topWriteQueue.valid
   instructionFinished := instructionFinishedVec.reduce(_ | _)
   writeReadyForLsu := vrf.writeReadyForLsu
   vrfReadyToStore := vrf.vrfReadyToStore
+  vrf.lsuWriteCheck.vd := topWriteQueue.bits.vd
+  vrf.lsuWriteCheck.offset := topWriteQueue.bits.offset
+  vrf.lsuWriteCheck.instructionIndex := topWriteQueue.bits.instructionIndex
+  lsuWritAllow := vrf.lsuWriteAllow
 
   /**
     * probes

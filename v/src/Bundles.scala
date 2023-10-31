@@ -465,6 +465,18 @@ class VRFWriteRequest(regNumBits: Int, offsetBits: Int, instructionIndexSize: In
   val instructionIndex: UInt = UInt(instructionIndexSize.W)
 }
 
+class LSUWriteCheck(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {
+
+  /** address to access VRF.(v0, v1, v2, ...) */
+  val vd: UInt = UInt(regNumBits.W)
+
+  /** the offset of VRF access. */
+  val offset: UInt = UInt(offsetBits.W)
+
+  /** used to update the record in VRF. */
+  val instructionIndex: UInt = UInt(instructionIndexSize.W)
+}
+
 class VRFWriteReport(param: VRFParam) extends Bundle {
   val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
   val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
@@ -481,7 +493,7 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   // 乘加
   val ma:           Bool = Bool()
   val unOrderWrite: Bool = Bool()
-  // 慢指令 eg. div madc
+  // 慢指令 mask unit
   val slow: Bool = Bool()
   // csr 如果是浮点的就校正为0
   val mul: UInt = UInt(2.W)
