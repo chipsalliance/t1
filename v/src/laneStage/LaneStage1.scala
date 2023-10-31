@@ -222,12 +222,12 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends
     // the priority of `sRead1` is higher than `sCrossReadLSB`
     when(readPortFire1) {
       sRead1 := true.B
-      sCrossReadLSB.foreach(d => d := sRead1)
+      sCrossReadLSB.foreach(d => d := sRead1 || d)
     }
     // the priority of `sRead2` is higher than `sCrossReadMSB`
     when(readPortFire2) {
       sRead2 := true.B
-      sCrossReadMSB.foreach(d => d := sRead2)
+      sCrossReadMSB.foreach(d => d := sRead2 || d)
     }
 
     readBusDequeue.foreach { crossReadDequeue =>
