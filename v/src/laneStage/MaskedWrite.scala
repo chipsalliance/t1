@@ -17,6 +17,7 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   val vrfReadRequest: DecoupledIO[VRFReadRequest] = IO(Decoupled(
     new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)
   ))
+  val maskedWrite1H: UInt = IO(Output(UInt(parameter.chainingSize.W)))
   /** VRF read result for each slot,
    * 3 is for [[source1]] [[source2]] [[source3]]
    */
@@ -39,4 +40,6 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   dequeue <> writeQueue
   val maskFill: UInt = FillInterleaved(8, writeQueue.bits.mask)
   dequeue.bits.data := writeQueue.bits.data & maskFill | (dataSelect & (~maskFill))
+  maskedWrite1H :=
+    Mux(writeQueue.valid, indexToOH(writeQueue.bits.instructionIndex, parameter.chainingSize), 0.U)
 }

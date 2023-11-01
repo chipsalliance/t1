@@ -407,6 +407,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** assert when a instruction is finished in the slot. */
   val instructionFinishedVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
 
+  /** assert when a instruction will not use mask unit */
+  val instructionUnrelatedMaskUnitVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
+
   /** ready signal for enqueuing [[readBusPort]] */
   val crossLaneReadReady: Bool = Wire(Bool())
 
@@ -553,12 +556,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         record.mask.valid := maskUpdateFire
       }
 
+      val instructionIndex1H: UInt = UIntToOH(
+        record.laneRequest.instructionIndex(parameter.instructionIndexBits - 2, 0)
+      )
       instructionFinishedVec(index) := 0.U
+      instructionUnrelatedMaskUnitVec(index) := Mux(decodeResult(Decoder.maskUnit), 0.U, instructionIndex1H)
       when(slotOccupied(index) && pipeClear && pipeFinishVec(index)) {
         slotOccupied(index) := false.B
-        instructionFinishedVec(index) := UIntToOH(
-          record.laneRequest.instructionIndex(parameter.instructionIndexBits - 2, 0)
-        )
+        instructionFinishedVec(index) := instructionIndex1H
       }
 
       // stage 1: read stage
@@ -802,6 +807,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   }
 
+  val maskedWriteUnit: MaskedWrite = Module(new MaskedWrite(parameter))
+
   // 处理 rf
   {
     val readBeforeMaskedWrite: DecoupledIO[VRFReadRequest] = Wire(Decoupled(
@@ -839,7 +846,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val writeSelect = !normalWrite ## ffo(VecInit(vrfWriteArbiter.map(_.valid)).asUInt)
     val writeEnqBits = Mux1H(writeSelect, vrfWriteArbiter.map(_.bits) :+ crossLaneWriteQueue.io.deq.bits)
 
-    val maskedWriteUnit: MaskedWrite = Module(new MaskedWrite(parameter))
     maskedWriteUnit.enqueue.valid := normalWrite || crossLaneWriteQueue.io.deq.valid
     maskedWriteUnit.enqueue.bits := writeEnqBits
     maskedWriteUnit.vrfReadResult := vrf.readResults.head
@@ -1034,12 +1040,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.st := laneRequest.bits.store
   vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.crossWrite)
   vrf.instructionWriteReport.bits.stFinish := false.B
+  vrf.instructionWriteReport.bits.wWriteQueueClear := false.B
   vrf.instructionWriteReport.bits.mul := Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
   vrf.instructionWriteReport.bits.maskGroupCounter := 0.U
   // clear record by instructionFinished
-  vrf.lsuLastReport := lsuLastReport | instructionFinished
+  vrf.lsuLastReport := lsuLastReport | (instructionFinished & instructionUnrelatedMaskUnitVec.reduce(_ | _))
   vrf.lsuMaskGroupChange := lsuMaskGroupChange
-  vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear && !crossLaneWriteQueue.io.deq.valid && !topWriteQueue.valid
+  vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear
+  vrf.dataInWriteQueue :=
+    Mux(crossLaneWriteQueue.io.deq.valid, indexToOH(crossLaneWriteQueue.io.deq.bits.instructionIndex, parameter.chainingSize), 0.U) |
+      Mux(topWriteQueue.valid, indexToOH(topWriteQueue.bits.instructionIndex, parameter.chainingSize), 0.U) |
+      maskedWriteUnit.maskedWrite1H
   instructionFinished := instructionFinishedVec.reduce(_ | _)
   writeReadyForLsu := vrf.writeReadyForLsu
   vrfReadyToStore := vrf.vrfReadyToStore
