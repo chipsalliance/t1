@@ -26,8 +26,6 @@ void VBridgeImpl::timeoutCheck() {
 }
 
 void VBridgeImpl::dpiInitCosim() {
-  setup_logger();
-
   ctx = Verilated::threadContextp();
   Log("DPIInitCosim")
       .info("Initializing simulation environment");
