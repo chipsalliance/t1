@@ -145,6 +145,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   /** similar to [[flush]]. */
   val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
+  /** data in write queue */
+  val dataInWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+
   val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
   val writeReadyForLsu: Bool = IO(Output(Bool()))
   val vrfReadyToStore: Bool = IO(Output(Bool()))
@@ -316,7 +319,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         when(record.bits.ls) {
           record.bits.stFinish := true.B
         }.otherwise {
-          record.valid := false.B
+          record.bits.wWriteQueueClear := true.B
         }
       }
       when(ohCheck(lsuMaskGroupChange, record.bits.instIndex, parameter.chainingSize) && record.bits.ls) {
@@ -325,6 +328,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         record.bits.vdOffset := nextVDOffset
       }
       when(record.bits.stFinish && lsuWriteBufferClear && record.valid) {
+        record.valid := false.B
+      }
+      when(record.bits.wWriteQueueClear && !ohCheck(dataInWriteQueue, record.bits.instIndex, parameter.chainingSize)) {
         record.valid := false.B
       }
       when(recordEnq(i)) {

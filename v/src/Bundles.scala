@@ -490,6 +490,8 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val st:        Bool = Bool()
   val widen:     Bool = Bool()
   val stFinish:  Bool = Bool()
+  // execute finish, wait for write queue clear
+  val wWriteQueueClear: Bool = Bool()
   // 乘加
   val ma:           Bool = Bool()
   val unOrderWrite: Bool = Bool()
