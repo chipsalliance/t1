@@ -1,10 +1,9 @@
 #pragma once
 
-#include <set>
 #include <iostream>
 #include <optional>
+#include <set>
 
-#include <spdlog/spdlog.h>
 #include <spdlog/async.h>
 #include <spdlog/common.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -31,7 +30,8 @@ inline std::string getenv_or(const char *env, std::string fallback) {
  * Get environment variable and split them into std::vector by the given
  * `delimiter`
  */
-inline std::set<std::string> get_set_from_env(const char *env, const char delimiter) {
+inline std::set<std::string> get_set_from_env(const char *env,
+                                              const char delimiter) {
   std::set<std::string> set;
 
   auto raw = getenv_or(env, "");
@@ -60,12 +60,8 @@ private:
   std::set<std::string> whitelist;
   bool enable_sink;
 
-  bool is_expected_module(std::string &module) {
-    if (!whitelist.empty() && whitelist.find(module) == whitelist.end()) {
-      return false;
-    }
-
-    return true;
+  inline bool is_expected_module(std::string &module) {
+    return whitelist.empty() || whitelist.find(module) != whitelist.end();
   }
 
 public:
@@ -81,7 +77,9 @@ public:
 
 protected:
   void sink_it_(const spdlog::details::log_msg &msg) override {
-    if (!enable_sink) { return; };
+    if (!enable_sink) {
+      return;
+    };
 
     auto data = std::string(msg.payload.data(), msg.payload.size());
     // Don't touch error message
@@ -124,10 +122,13 @@ private:
   json internal;
   bool do_logging;
 
-  inline std::string dump() {
+  std::shared_ptr<spdlog::async_logger> file;
+  std::shared_ptr<spdlog::async_logger> console;
+
+  inline std::string dump(int indent) {
     std::string ret;
     try {
-      ret = internal.dump();
+      ret = internal.dump(indent);
     } catch (json::type_error &ex) {
       throw std::runtime_error(fmt::format("JSON error for log '{}': {}",
                                            internal["name"], ex.what()));
@@ -137,9 +138,14 @@ private:
 
   uint64_t get_cycle();
 
+  // We can only implement a class method with template inside the class
+  // declaration
   template <typename... Arg>
-  inline void try_log(LogType log_type, std::optional<fmt::format_string<Arg...>> fmt, Arg &&...args) {
-    if (!do_logging) return;
+  inline void try_log(LogType log_type,
+                      std::optional<fmt::format_string<Arg...>> fmt,
+                      Arg &&...args) {
+    if (!do_logging)
+      return;
 
     if (fmt.has_value()) {
       auto msg = fmt::format(fmt.value(), args...);
@@ -148,37 +154,44 @@ private:
 
     internal["cycle"] = get_cycle();
 
-    switch(log_type) {
-      case LogType::Info : spdlog::info("{}", this->dump()); break;
-      case LogType::Warn : spdlog::warn("{}", this->dump()); break;
-      case LogType::Trace : spdlog::trace("{}", this->dump()); break;
-      case LogType::Fatal : {
-        spdlog::critical("{}", this->dump());
-        spdlog::shutdown();
+    switch (log_type) {
+    case LogType::Info:
+      file->info("{}", this->dump(-1));
+      console->info("{}", this->dump(2));
+      break;
+    case LogType::Warn:
+      file->warn("{}", this->dump(-1));
+      console->warn("{}", this->dump(2));
+      break;
+    case LogType::Trace:
+      file->trace("{}", this->dump(-1));
+      console->trace("{}", this->dump(2));
+      break;
+    case LogType::Fatal:
+      file->critical("{}", this->dump(-1));
+      console->critical("{}", this->dump(2));
+      spdlog::shutdown();
 
-        throw std::runtime_error(internal["message"]);
-      }
+      throw std::runtime_error(internal["message"]);
     }
-
   }
 
 public:
-  JsonLogger() {
-    auto no_log = getenv_or("EMULATOR_NO_LOG", "false");
-    do_logging = (no_log == "false");
-  }
+  JsonLogger();
   ~JsonLogger() = default;
 
-  JsonLogger operator()(const char*n) {
-    if (!do_logging) return *this;
+  inline JsonLogger operator()(const char *n) {
+    if (!do_logging)
+      return *this;
 
     internal.clear();
     internal["name"] = n;
     return *this;
   }
 
-  template <typename T> JsonLogger &with(const char *key, T value) {
-    if (!do_logging) return *this;
+  template <typename T> inline JsonLogger &with(const char *key, T value) {
+    if (!do_logging)
+      return *this;
 
     internal["data"][key] = value;
     return *this;
@@ -187,12 +200,8 @@ public:
   // Overload the index operator
   json &operator[](const char *key) { return internal["info"][key]; };
 
-  inline void info() {
-    try_log(LogType::Info, std::nullopt);
-  }
-  inline void trace() {
-    try_log(LogType::Trace, std::nullopt);
-  }
+  inline void info() { try_log(LogType::Info, std::nullopt); }
+  inline void trace() { try_log(LogType::Trace, std::nullopt); }
 
   template <typename... Arg>
   inline void info(fmt::format_string<Arg...> fmt, Arg &&...args) {
@@ -213,8 +222,7 @@ public:
   inline void fatal(fmt::format_string<Arg...> fmt, Arg &&...args) {
     try_log(LogType::Fatal, fmt, args...);
   };
- };
-
+};
 
 // Exported symbols
 #define FATAL(context)                                                         \
@@ -239,7 +247,5 @@ public:
 #define CHECK_LT(val1, val2, context) CHECK(val1 < val2, context)
 #define CHECK_GE(val1, val2, context) CHECK(val1 >= val2, context)
 #define CHECK_GT(val1, val2, context) CHECK(val1 > val2, context)
-
-void setup_logger();
 
 inline JsonLogger Log;
