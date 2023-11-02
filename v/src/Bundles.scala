@@ -442,6 +442,13 @@ class VRFReadRequest(regNumBits: Int, offsetBits: Int, instructionIndexBits: Int
   val instructionIndex: UInt = UInt(instructionIndexBits.W)
 }
 
+class VRFReadQueueEntry(regNumBits: Int, offsetBits: Int) extends Bundle {
+  val vs: UInt = UInt(regNumBits.W)
+  val offset: UInt = UInt(offsetBits.W)
+  // for debug
+  val groupIndex: UInt = UInt(4.W)
+}
+
 class VRFWriteRequest(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {
 
   /** address to access VRF.(v0, v1, v2, ...) */
