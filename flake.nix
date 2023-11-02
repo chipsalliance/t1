@@ -72,20 +72,30 @@
             chisel = pkgs.mkShell {
               buildInputs = commonDeps ++ chiselDeps;
             };
-            # This devShell is used only for running testcase
+            # This devShell is used for build && run testcase
             testcase = mkLLVMShell {
+              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
+
+              env = {
+                CODEGEN_BIN_PATH = "${pkgs.rvv-codegen}/bin/single";
+                CODEGEN_INC_PATH = "${pkgs.rvv-codegen}/include";
+                CODEGEN_CFG_PATH = "${pkgs.rvv-codegen}/configs";
+              };
+            };
+            # Used only for run testcase
+            testcase-prebuilt = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
 
               env = {
                 # use default devShell to build testcase
-                TEST_CASE_DIR = "${pkgs.rvv-testcase}";
+                TEST_CASE_DIR = "${pkgs.rvv-testcase-prebuilt}";
               };
             };
             ci = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
               env = {
                 VERILATOR_EMULATOR_BIN_PATH = "${pkgs.verilator-emulator}/bin";
-                TEST_CASE_DIR = "${pkgs.rvv-testcase}";
+                TEST_CASE_DIR = "${pkgs.rvv-testcase-prebuilt}";
               };
             };
             emulator = mkLLVMShell {
@@ -94,18 +104,17 @@
               inherit postHook;
             };
             default = mkLLVMShell {
-              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
+              buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
+
               env = {
-                CODEGEN_BIN_PATH = "${pkgs.rvv-codegen}/bin/single";
-                CODEGEN_INC_PATH = "${pkgs.rvv-codegen}/include";
-                CODEGEN_CFG_PATH = "${pkgs.rvv-codegen}/configs";
+                # use default devShell to build testcase
+                TEST_CASE_DIR = "${pkgs.rvv-testcase-prebuilt}";
               };
+
               inherit postHook;
             };
           };
 
-          # nix build .#testcase
-          packages.testcase = pkgs.callPackage ./nix/rvv-testcase.nix { };
           formatter = pkgs.nixpkgs-fmt;
         }
       )

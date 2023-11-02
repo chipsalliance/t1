@@ -78,7 +78,8 @@ in
   rv32-musl = final.callPackage ./nix/rv32-musl.nix { };
   buddy-mlir = final.callPackage ./nix/buddy-mlir.nix { };
   rvv-codegen = final.callPackage ./nix/rvv-codegen.nix { };
-  rvv-testcase = final.callPackage ./nix/rvv-testcase-unwrapped.nix { };
+  rvv-testcase = final.callPackage ./nix/rvv-testcase.nix { };
+  rvv-testcase-prebuilt = final.callPackage ./nix/rvv-testcase-prebuilt.nix { };
   verilator-emulator = final.callPackage ./nix/verilator-emulator.nix { };
 
   inherit rv32-clang my-cc-wrapper;

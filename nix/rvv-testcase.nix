@@ -8,7 +8,7 @@ let
   millDeps = fetchMillDeps {
     inherit pname src;
 
-    millDepsHash = "sha256-onyUHOYJ7nuN7aSgaVEmgLsdjB6qR9n09MonLe79bEE=";
+    millDepsHash = "sha256-5kERoVxlD5sd/em6TMnmQUfDGvzSV2gV93P2n5nsBek=";
   };
 in
 llvmForDev.stdenv.mkDerivation {
