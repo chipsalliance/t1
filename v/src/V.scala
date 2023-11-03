@@ -1217,7 +1217,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       )
 
     lane.lsuMaskGroupChange := lsu.lsuMaskGroupChange
-    lane.lsuVRFWriteBufferClear := !lsu.vrfWritePort(index).valid && busClear
+    lane.lsuVRFWriteBufferClear := !lsu.vrfWritePort(index).valid
+    lane.crossWriteBusClear := busClear
 
     // 处理lane的mask类型请求
     laneSynchronize(index) := lane.laneResponse.valid && !lane.laneResponse.bits.toLSU
