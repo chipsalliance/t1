@@ -219,6 +219,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** for RaW, VRF should wait for buffer to be empty. */
   val lsuVRFWriteBufferClear: Bool = IO(Input(Bool()))
 
+  /** for RaW, VRF should wait for cross write bus to be empty. */
+  val crossWriteBusClear: Bool = IO(Input(Bool()))
+
   val writeQueueValid: Bool = IO(Output(Bool()))
   val writeReadyForLsu: Bool = IO(Output(Bool()))
   val vrfReadyToStore: Bool = IO(Output(Bool()))
@@ -1047,6 +1050,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.lsuLastReport := lsuLastReport | (instructionFinished & instructionUnrelatedMaskUnitVec.reduce(_ | _))
   vrf.lsuMaskGroupChange := lsuMaskGroupChange
   vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear
+  vrf.crossWriteBusClear := crossWriteBusClear
   vrf.dataInWriteQueue :=
     Mux(crossLaneWriteQueue.io.deq.valid, indexToOH(crossLaneWriteQueue.io.deq.bits.instructionIndex, parameter.chainingSize), 0.U) |
       Mux(topWriteQueue.valid, indexToOH(topWriteQueue.bits.instructionIndex, parameter.chainingSize), 0.U) |
