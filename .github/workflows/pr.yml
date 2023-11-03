@@ -2,6 +2,10 @@ name: PR
 on: [pull_request]
 env:
   USER: runner
+  # This can fixed the issue of git failing to fetch submodule at GitHub Runner
+  GIT_CONFIG_COUNT: 1
+  GIT_CONFIG_KEY_0: "url.https://github.com/.insteadOf"
+  GIT_CONFIG_VALUE_0: "git@github.com:"
 
 jobs:
   gen-matrix:
@@ -36,7 +40,7 @@ jobs:
             builders-use-substitutes = true
       - id: ci-tests
         run: |
-          nix develop '.#ci' --print-build-logs --show-trace -c make ci-passed-tests DEFAULT_PASSED=.github/passed/default.txt
+          nix develop '.?submodules=1#ci' --print-build-logs --show-trace -c make ci-passed-tests DEFAULT_PASSED=.github/passed/default.txt
 
   ci:
     name: "CI"
@@ -72,7 +76,7 @@ jobs:
             builders-use-substitutes = true
       - id: ci-run
         run: |
-          nix develop '.#ci' -c make ci-run "NAME=${{ matrix.name }}"
+          nix develop '.?submodules=1#ci' -c make ci-run "NAME=${{ matrix.name }}"
 
       - uses: actions/upload-artifact@v3
         if: always()
@@ -96,13 +100,13 @@ jobs:
 
 
   gen-fail-wave:
-    name: "Generate wave for failing test"
+    name: "Test before generate fail wave"
     if: always()
     needs: [ci]
     runs-on: [self-hosted, linux]
     outputs:
       generate_wave: ${{ steps.filter-fail-jobs.outputs.generate_wave }}
-      retry_tasks: ${{ steps.filter-fail-jobs.outputs.retry_tasks }}
+      retry_tasks: ${{ steps.filter-fail-jobs.outputs.matrix }}
     steps:
       - uses: actions/download-artifact@v3
         with:
@@ -112,15 +116,22 @@ jobs:
         run: |
           touch all-fail-tests.txt
           find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> all-fail-tests.txt' \;
-          retry=$(sed 's/\* //' all-fail-tests.txt | tail -n3)
-          [[ -z "$retry" ]] \
-            || (echo "generate_wave=true" >> "$GITHUB_OUTPUT" \
-            && echo "$retry" | jq -n --indent 0 "{include:[{name: inputs}]}")
+          echo "DEBUG: all fail tests:"
+          cat all-fail-tests.txt
+          retry=$(sed 's/\* //' all-fail-tests.txt | shuf -n3)
+          if [[ -n "$retry" ]]; then
+            echo "DEBUG: retry tasks $retry"
+            echo "generate_wave=true" >> "$GITHUB_OUTPUT"
+            echo -n "matrix=" >> "$GITHUB_OUTPUT"
+            echo "$retry" | jq -nR --indent 0 "{include:[{name: inputs}]}" >> "$GITHUB_OUTPUT"
+            echo "DEBUG: final GITHUB OUTPUT"
+            cat "$GITHUB_OUTPUT"
+          fi
 
   build-fail-wave:
-    name: "Generate wave for failing tests"
+    name: "Build wave for failing test"
     needs: [gen-fail-wave]
-    if: ${{ needs.gen-fail-wave.outputs.generate_wave == 'true' }}
+    if: ${{ always() && needs.gen-fail-wave.outputs.generate_wave == 'true' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-fail-wave.outputs.retry_tasks) }}
@@ -150,7 +161,7 @@ jobs:
             builders-use-substitutes = true
       - run: |
           millTask=$(echo ${{ matrix.name }} | sed 's/v1024l8b2-test/v1024l8b2-test-trace/')
-          nix develop '.#ci' -c mill -i "$millTask"
+          nix develop '.?submodules=1#ci' -c mill -i "$millTask" || true
           waveFile=$(find out -name 'wave.fst')
           hierFile=$(find out -name 'wave.hier')
           if [[ -z "$waveFile" || -n "$hierFile" ]]; then
@@ -158,11 +169,14 @@ jobs:
             exit 1
           fi
           mv "$waveFile" ./wave-"$millTask".fst
-      - uses: actions/upload-artifact@v3
+          ls -al ./wave-"$millTask".fst
+      - if: always()
+        uses: actions/upload-artifact@v3
         with:
           name: fail-test-wave
-          path: './*.fst'
-      - run: |
+          path: wave-*.fst
+      - if: always()
+        run: |
           echo "Test ${{ matrix.name }} run fail"
           # We are just running post action for failing test, so we need to avoid the workflow finishing successfully
           exit 1

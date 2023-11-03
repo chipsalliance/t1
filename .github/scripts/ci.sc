@@ -250,7 +250,7 @@ def runTest(root: os.Path, jobs: String, outDir: Option[os.Path]) = {
   }
 
   if (failed.length > 0) {
-    os.write.over(logDir / "fail" / s"fail-test-${md5}.md", failed.map(f => s"* $f").mkString("\n"))
+    os.write.over(logDir / "fail" / s"fail-test-${md5}.md", failed.map(f => s"* $f").appended("").mkString("\n"))
     println(s"${failed.length} tests failed:\n${failed.mkString("\n")}")
     throw new Exception("Tests failed")
   } else {

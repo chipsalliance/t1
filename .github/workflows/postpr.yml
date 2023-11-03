@@ -39,7 +39,7 @@ jobs:
             builders-use-substitutes = true
       - id: ci-tests
         run: |
-          nix develop '.#ci' -c make ci-unpassed-tests DEFAULT_PASSED=.github/passed/default.txt
+          nix develop '.?submodules=1#ci' -c make ci-unpassed-tests DEFAULT_PASSED=.github/passed/default.txt
 
   ci:
     name: "CI"
@@ -76,8 +76,8 @@ jobs:
             builders-use-substitutes = true
       - id: ci-run
         run: |
-          nix develop '.#ci' -c make ci-run "NAME=${{ matrix.name }}"
-          nix develop '.#ci' -c make convert-perf-to-md
+          nix develop '.?submodules=1#ci' -c make ci-run "NAME=${{ matrix.name }}"
+          nix develop '.?submodules=1#ci' -c make convert-perf-to-md
 
       - uses: actions/upload-artifact@v3
         if: always()

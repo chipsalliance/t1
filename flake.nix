@@ -96,9 +96,12 @@
             };
             ci = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
-              env = {
-                VERILATOR_EMULATOR_BIN_PATH = "${pkgs.verilator-emulator}/bin";
-                TEST_CASE_DIR = "${pkgs.rvv-testcase-prebuilt}";
+              env = let
+                verilator-emulator = pkgs.callPackage ./nix/verilator-emulator.nix { emulatorSrc = ./.; };
+              in
+              {
+                VERILATOR_EMULATOR_BIN_PATH = "${verilator-emulator}/bin";
+                TEST_CASE_DIR = "${pkgs.rvv-testcase}";
               };
             };
             emulator = mkLLVMShell {
