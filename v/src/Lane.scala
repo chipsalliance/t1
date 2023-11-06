@@ -563,7 +563,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         record.laneRequest.instructionIndex(parameter.instructionIndexBits - 2, 0)
       )
       instructionFinishedVec(index) := 0.U
-      instructionUnrelatedMaskUnitVec(index) := Mux(decodeResult(Decoder.maskUnit), 0.U, instructionIndex1H)
+      instructionUnrelatedMaskUnitVec(index) :=
+        Mux(decodeResult(Decoder.maskUnit) && decodeResult(Decoder.readOnly), 0.U, instructionIndex1H)
       when(slotOccupied(index) && pipeClear && pipeFinishVec(index)) {
         slotOccupied(index) := false.B
         instructionFinishedVec(index) := instructionIndex1H
@@ -857,7 +858,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
     vrf.write <> maskedWriteUnit.dequeue
     readBeforeMaskedWrite <> maskedWriteUnit.vrfReadRequest
-    writeQueueValid := maskedWriteUnit.enqueue.valid || maskedWriteUnit.dequeue.valid
+    writeQueueValid := maskedWriteUnit.enqueue.valid || maskedWriteUnit.dequeue.valid ||
+      topWriteQueue.valid || vrfWriteChannel.valid
 
     //更新v0
     v0Update.valid := vrf.write.valid && vrf.write.bits.vd === 0.U
