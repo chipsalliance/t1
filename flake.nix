@@ -8,7 +8,7 @@
 
   outputs = { self, nixpkgs, flake-utils }@inputs:
     let
-      overlay = import ./overlay.nix;
+      overlay = import ./nix/overlay.nix;
     in
     flake-utils.lib.eachDefaultSystem
       (system:
@@ -31,21 +31,12 @@
             antlr4
           ];
 
-          testcaseDeps = with pkgs; [
-            rv32-clang
-            glibc_multi
-            llvmForDev.bintools
-            go
-            buddy-mlir
-            rvv-codegen
-          ];
-
           emulatorDeps = with pkgs; [
             cmake
             libargs
             spdlog
             fmt
-            (enableDebugging libspike)
+            libspike
             nlohmann_json
             ninja
 
@@ -72,48 +63,31 @@
         {
           legacyPackages = pkgs;
           devShells = {
+            # for chisel-only development
             chisel = pkgs.mkShell {
               buildInputs = commonDeps ++ chiselDeps;
             };
-            # This devShell is used for build && run testcase
-            testcase = mkLLVMShell {
-              buildInputs = commonDeps ++ chiselDeps ++ testcaseDeps ++ emulatorDeps;
 
-              env = {
-                CODEGEN_BIN_PATH = "${pkgs.rvv-codegen}/bin/single";
-                CODEGEN_INC_PATH = "${pkgs.rvv-codegen}/include";
-                CODEGEN_CFG_PATH = "${pkgs.rvv-codegen}/configs";
-              };
-            };
-            # Used only for run testcase
-            testcase-prebuilt = mkLLVMShell {
-              buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
-
-              env = {
-                # use default devShell to build testcase
-                TEST_CASE_DIR = "${pkgs.rvv-testcase-prebuilt}";
-              };
-            };
+            # for running ci
             ci = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
               env = {
                 VERILATOR_EMULATOR_BIN_PATH = "${pkgs.verilator-emulator}/bin";
-                TEST_CASE_DIR = "${pkgs.rvv-testcase-prebuilt}";
+                TEST_CASE_DIR = "${pkgs.rvv-testcases-prebuilt}";
               };
             };
-            emulator = mkLLVMShell {
-              buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
 
-              inherit postHook;
-            };
+            # for general development
             default = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
+              env.TEST_CASE_DIR = "${pkgs.rvv-testcases}";
+              inherit postHook;
+            };
 
-              env = {
-                # use default devShell to build testcase
-                TEST_CASE_DIR = "${pkgs.rvv-testcase-prebuilt}";
-              };
-
+            # for general development but with prebuilt testcases
+            default-prebuilt-cases = mkLLVMShell {
+              buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
+              env.TEST_CASE_DIR = "${pkgs.rvv-testcases-prebuilt}";
               inherit postHook;
             };
           };
