@@ -290,27 +290,10 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
       val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
-
-      // lsu更新相关
-      val nextMaskGroupCount = record.bits.maskGroupCounter + 1.U
-      // 一个mask group 会访问 dataPath * seg * (2 ** sew * 8)
-      // dataByteForMaskGroup = (record.bits.seg.bits << record.bits.eew) << log2Ceil(parameter.datapathWidth)
-      // 这一次换组意味着已经执行了 maskGroupCounter * dataByteForMaskGroup
-      val executedByte: UInt =
-        ((nextMaskGroupCount * (record.bits.seg.bits +& 1.U)) << record.bits.eew) << log2Ceil(parameter.datapathWidth)
-      // 从低到高:
-      // (1, 0): 是data path的偏移
-      // (4, 2): 是lane的 index
-      // (6, 5): 是单个寄存器的偏移
-      // (9, 7): 是最终寄存器的偏移 -> (log2ceil(1024) - 1, ...-3)
-      val offsetForExecutedByte = executedByte(parameter.vlWidth - 4, parameter.vlWidth - 4 - parameter.vrfOffsetBits + 1)
-      val nextOffset = offsetForExecutedByte - 1.U
-      val nextVDOffset = executedByte(parameter.vlWidth - 1, parameter.vlWidth - 3) - (offsetForExecutedByte === 0.U)
-
+      // vlmul (0, 1, 2, 3) -> mul (1, 2, 4, 8) -> base vd (vd, vd + (0, 1), vd + (0, 3), vd + (0, 7 ))
+      val segCheck = ((write.bits.vd ^ record.bits.vd.bits) >> record.bits.mul === 0.U) || record.bits.seg.valid
       when(
-        write.valid &&
-          // lsu's record is modified by lsuMaskGroupChange
-          !record.bits.ls &&
+        write.valid  && segCheck &&
           write.bits.instructionIndex === record.bits.instIndex && write.bits.mask(3)
       ) {
         // widen 类型的可能后一个先到,所以直接-1吧
@@ -323,11 +306,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         }.otherwise {
           record.bits.wWriteQueueClear := true.B
         }
-      }
-      when(ohCheck(lsuMaskGroupChange, record.bits.instIndex, parameter.chainingSize) && record.bits.ls) {
-        record.bits.maskGroupCounter := nextMaskGroupCount
-        record.bits.offset := nextOffset
-        record.bits.vdOffset := nextVDOffset
       }
       when(record.bits.stFinish && lsuWriteBufferClear && record.valid) {
         record.valid := false.B
