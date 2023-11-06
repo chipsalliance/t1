@@ -1,19 +1,11 @@
-{ llvmForDev, llvmToolsForRV32Clang, fetchFromGitHub, cmake, python3, glibc_multi  }:
+{ stdenv, llvmPackages, cmake, python3, glibc_multi  }:
 
-let
+stdenv.mkDerivation rec {
   pname = "rv-compilerrt";
-  version = llvmToolsForRV32Clang.llvm.version;
-  rev = llvmToolsForRV32Clang.llvm.monorepoSrc.rev;
-  src = fetchFromGitHub {
-    owner = "llvm";
-    repo = "llvm-project";
-    rev = rev;
-    sha256 = "sha256-g2cYk3/iyUvmIG0QCQpYmWj4L2H4znx9KbuA5TvIjrc=";
-  };
-in
-llvmForDev.stdenv.mkDerivation {
+  version = llvmPackages.llvm.version;
+
+  src = llvmPackages.llvm.monorepoSrc;
   sourceRoot = "${src.name}/compiler-rt";
-  inherit src version pname;
   nativeBuildInputs = [ cmake python3 glibc_multi ];
   cmakeFlags = [
     "-DCOMPILER_RT_BUILD_LIBFUZZER=OFF"
@@ -36,9 +28,7 @@ llvmForDev.stdenv.mkDerivation {
     "-DCMAKE_C_COMPILER_TARGET=riscv32-none-elf"
     "-DCMAKE_C_COMPILER_WORKS=ON"
     "-DCMAKE_CXX_COMPILER_WORKS=ON"
-    "-DCMAKE_C_COMPILER=clang"
-    "-DCMAKE_CXX_COMPILER=clang++"
     "-Wno-dev"
   ];
-  CMAKE_C_FLAGS = "-nodefaultlibs -fno-exceptions -mno-relax -Wno-macro-redefined -fPIC";
+  env.CMAKE_C_FLAGS = "-nodefaultlibs -fno-exceptions -mno-relax -Wno-macro-redefined -fPIC";
 }

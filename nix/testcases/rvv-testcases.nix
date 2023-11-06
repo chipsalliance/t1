@@ -1,29 +1,46 @@
-{ rv32-clang, glibc_multi, llvmForDev, go, buddy-mlir, ammonite, mill, rvv-codegen, fetchMillDeps, millSetupHook }:
+{ stdenv
+
+, llvmPackages
+, go
+, mill
+, glibc_multi
+, ammonite
+
+, rv32-clang
+, rvv-codegen
+, buddy-mlir
+, fetchMillDeps
+}:
 let
-  pname = "rvv-testcase";
+  pname = "rvv-testcases";
   version = "unstable-2023-09-04";
-  src = ../tests;
-  buildScript = ../.github/scripts/ci.sc;
+  src = ../../tests;
+  buildScript = ../../.github/scripts/ci.sc;
 
   millDeps = fetchMillDeps {
-    inherit pname src;
+    inherit src;
+    name = "${pname}-${version}";
 
-    millDepsHash = "sha256-5kERoVxlD5sd/em6TMnmQUfDGvzSV2gV93P2n5nsBek=";
+    millDepsHash = "sha256-ERYtxexobe8XK1RNftclghkWb0gHcfvGK72aFyywsOg=";
   };
+
 in
-llvmForDev.stdenv.mkDerivation {
-  inherit pname version src millDeps;
+
+stdenv.mkDerivation {
+  inherit pname version src;
 
   nativeBuildInputs = [
     rv32-clang
     glibc_multi
-    llvmForDev.bintools
+    llvmPackages.bintools
     go
     buddy-mlir
     ammonite
     mill
-    millSetupHook
+    millDeps.setupHook
   ];
+
+  passthru = { inherit millDeps; }; # for easier inspection
 
   buildPhase = ''
     mkdir -p tests-out
