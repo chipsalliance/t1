@@ -204,8 +204,8 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   }
 
   // cross read data queue(before cross) <-> cross read unit <-> cross read data queue(after cross)
-  val crossReadResult: Option[DecoupledIO[UInt]] =
-    Option.when(isLastSlot)(Wire(Decoupled(UInt((parameter.datapathWidth * 2).W))))
+  val crossReadResultQueue: Option[Queue[UInt]] =
+    Option.when(isLastSlot)(Module(new Queue(UInt((parameter.datapathWidth * 2).W), 1)))
   val crossReadStageFree: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
   val crossReadUnitOp: Option[CrossReadUnit] = Option.when(isLastSlot)(Module(new CrossReadUnit(parameter)))
   if (isLastSlot) {
@@ -218,7 +218,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     crossReadUnit.dataGroup := dataGroupQueue.io.deq.bits
     readBusRequest.get <> crossReadUnit.readBusRequest
     crossReadUnit.readBusDequeue <> readBusDequeue.get
-    crossReadResult.get <> crossReadUnit.crossReadDequeue
+    crossReadResultQueue.get.io.enq <> crossReadUnit.crossReadDequeue
     crossReadStageFree.get := crossReadUnit.crossReadStageFree
 
     // data group
@@ -226,7 +226,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     assert(dataGroupQueue.io.enq.ready || !dataGroupQueue.io.enq.valid)
     dataGroupQueue.io.enq.bits := enqueue.bits.groupCounter
     dataGroupQueue.io.deq.ready := crossReadUnit.dataInputLSB.fire
-    dequeue.bits.readBusDequeueGroup.get := dataGroupQueue.io.deq.bits
+    dequeue.bits.readBusDequeueGroup.get := crossReadUnitOp.get.currentGroup
   }
   // replace instructionIndex
   readBusRequest.foreach(_.bits.instructionIndex := state.instructionIndex)
@@ -246,7 +246,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.mask := pipeQueue.io.deq.bits.mask
   dequeue.bits.groupCounter := pipeQueue.io.deq.bits.groupCounter
   dequeue.bits.src := VecInit(Seq(source1Select, dataQueueVs2.io.deq.bits, dataQueueVd.io.deq.bits))
-  dequeue.bits.crossReadSource.foreach(_ := crossReadResult.get.bits)
+  dequeue.bits.crossReadSource.foreach(_ := crossReadResultQueue.get.io.deq.bits)
   dequeue.bits.sSendResponse.foreach(_ := pipeQueue.io.deq.bits.sSendResponse.get)
 
   dequeue.bits.maskForFilter := FillInterleaved(4, state.maskNotMaskedElement) | pipeQueue.io.deq.bits.mask
@@ -262,14 +262,14 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       dataQueueVs2.io.deq.valid,
       dataQueueVd.io.deq.valid || (state.decodeResult(Decoder.sReadVD) && notNeedMaskedWriteDeq)
     ) ++
-      crossReadResult.map(_.valid || !state.decodeResult(Decoder.crossRead))
+      crossReadResultQueue.map(_.io.deq.valid || !state.decodeResult(Decoder.crossRead))
   val allDataQueueValid: Bool = VecInit(dataQueueValidVec).asUInt.andR
   dequeue.valid := allDataQueueValid
   dataQueueVs1.ready := allDataQueueValid && dequeue.ready && state.decodeResult(Decoder.vtype)
   dataQueueVs2.io.deq.ready := allDataQueueValid && dequeue.ready
   dataQueueVd.io.deq.ready :=
     allDataQueueValid && dequeue.ready && !(state.decodeResult(Decoder.sReadVD) && notNeedMaskedWriteDeq)
-  crossReadResult.foreach(_.ready := allDataQueueValid && dequeue.ready && state.decodeResult(Decoder.crossRead))
+  crossReadResultQueue.foreach(_.io.deq.ready := allDataQueueValid && dequeue.ready && state.decodeResult(Decoder.crossRead))
   stageValid := Seq(dataQueueVs2.io.deq.valid, readPipe1.dequeue.valid, readRequestQueueVs2.io.deq.valid).reduce(_ || _)
   val stageFinish = !stageValid
 

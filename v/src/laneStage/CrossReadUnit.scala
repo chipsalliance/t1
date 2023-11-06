@@ -16,6 +16,7 @@ class CrossReadUnit(parameter: LaneParameter) extends Module {
   val dataInputMSB: DecoupledIO[UInt] = IO(Flipped(Decoupled(UInt(parameter.datapathWidth.W))))
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
   val dataGroup: UInt = IO(Input(UInt(parameter.groupNumberBits.W)))
+  val currentGroup: UInt = IO(Output(UInt(parameter.groupNumberBits.W)))
 
   val readBusDequeue: ValidIO[ReadBusData] = IO(
     Flipped(Valid(new ReadBusData(parameter: LaneParameter))
@@ -61,25 +62,26 @@ class CrossReadUnit(parameter: LaneParameter) extends Module {
     }
   }
 
-  val deqQueue: Queue[UInt] = Module(new Queue(UInt((parameter.datapathWidth * 2).W), 1))
+
   val allStateReady: Bool = stateVec.reduce(_ && _)
-  val stageReady: Bool = !stageValid || (allStateReady && deqQueue.io.enq.ready)
+  val stageReady: Bool = !stageValid || (allStateReady && crossReadDequeue.ready)
   val allSourceValid: Bool = dataInputLSB.valid && dataInputMSB.valid
   val enqueueFire: Bool = stageReady && allSourceValid
   dataInputLSB.ready := allSourceValid && stageReady
   dataInputMSB.ready := allSourceValid && stageReady
 
-  when(enqueueFire ^ deqQueue.io.enq.fire) {
+  when(enqueueFire ^ crossReadDequeue.fire) {
     stageValid := enqueueFire
   }
   when(enqueueFire) {
     stateVec.foreach(_ := false.B)
     sendDataVec := VecInit(Seq(dataInputLSB.bits, dataInputMSB.bits))
+    groupCounter := dataGroup
   }
-  deqQueue.io.enq.bits := receiveDataVec.asUInt
-  deqQueue.io.enq.valid := allStateReady && stageValid
-  crossReadStageFree := (!stageValid) && stateVec.reduce(_ && _) && !deqQueue.io.deq.valid
-  crossReadDequeue <> deqQueue.io.deq
+  currentGroup := groupCounter
+  crossReadDequeue.bits := receiveDataVec.asUInt
+  crossReadDequeue.valid := allStateReady && stageValid
+  crossReadStageFree := (!stageValid) && stateVec.reduce(_ && _)
 
   crossWriteState.sSendCrossReadResultLSB := sSendCrossReadResultLSB
   crossWriteState.sSendCrossReadResultMSB := sSendCrossReadResultMSB
