@@ -16,6 +16,12 @@ object VRFParam {
   * @param laneNumber how many lanes in the vector processor
   * @param datapathWidth ELEN
   * @param chainingSize how many instructions can be chained
+  * @param portFactor How many ELEN(32 in current design) can be accessed for one memory port accessing.
+  *
+  * @note:
+  *  if increasing portFactor:
+  *   - we can have more memory ports.
+  *   - a big VRF memory is split into small memories, the shell of memory contributes more area...
   *
   * TODO: change to use 32bits memory + mask,
   *       use portFactor to increase port number
@@ -29,7 +35,8 @@ case class VRFParam(
   vLen:          Int,
   laneNumber:    Int,
   datapathWidth: Int,
-  chainingSize:  Int)
+  chainingSize:  Int,
+  portFactor:    Int)
     extends SerializableModuleParameter {
 
   /** See documentation for VRF.
@@ -45,15 +52,6 @@ case class VRFParam(
   // One more bit for sorting
   /** see [[VParameter.instructionIndexBits]] */
   val instructionIndexBits: Int = log2Ceil(chainingSize) + 1
-
-  /** How many ELEN(32 in current design) can be accessed for one memory port accessing.
-    *
-    * @note:
-    * if increasing portFactor:
-    * - we can have more memory ports.
-    * - a big VRF memory is split into small memories, the shell of memory contributes more area...
-    */
-  val portFactor: Int = 1
 
   /** the width of VRF banked together. */
   val rowWidth: Int = datapathWidth * portFactor

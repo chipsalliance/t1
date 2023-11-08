@@ -40,21 +40,13 @@ case class VParameter(
                        chainingSize:         Int,
                        vrfWriteQueueSize:    Int,
                        fpuEnable:            Boolean,
+                       instructionQueueSize: Int,
+                       memoryBankSize:       Int,
+                       lsuVRFWriteQueueSize: Int,
+                       cacheLineSize:        Int,
+                       portFactor:           Int,
                        vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
-
-  /** TODO: make it a parameter. */
-  val instructionQueueSize: Int = 8
-
-  /** TODO: make it a parameter.
-    *
-    * xLen data bits.
-    *
-    * @note
-    * bandwidth = dataPathWidth * memoryBankSize
-    */
-  val memoryBankSize: Int = 2
-
   /** minimum of sew, defined in spec. */
   val sewMin: Int = 8
 
@@ -103,9 +95,6 @@ case class VParameter(
     */
   val lsuMSHRSize: Int = 3
 
-  /** TODO: make it configurable for perf. */
-  val lsuVRFWriteQueueSize: Int = 4
-
   /** width of tilelink source id
     * log2(maskGroupWidth) for offset
     * 3 for segment index
@@ -116,8 +105,6 @@ case class VParameter(
       3 + // segment index, this is decided by spec.
       log2Ceil(lsuMSHRSize) // 3 MSHR(2 read + 1 write)
   }
-  // todo
-  val cacheLineSize = 32
 
   /** for TileLink `size` element.
     * for most of the time, size is 2'b10, which means 4 bytes.
@@ -147,6 +134,7 @@ case class VParameter(
       chainingSize = chainingSize,
       crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize,
       fpuEnable = fpuEnable,
+      portFactor = portFactor,
       vfuInstantiateParameter = vfuInstantiateParameter
     )
   def lsuParam: LSUParam = LSUParam(
@@ -164,7 +152,7 @@ case class VParameter(
     cacheLineSize,
     tlParam
   )
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize)
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor)
   require(xLen == datapathWidth)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth)
 }

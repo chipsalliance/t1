@@ -33,6 +33,7 @@ case class LaneParameter(
                           chainingSize:                     Int,
                           crossLaneVRFWriteEscapeQueueSize: Int,
                           fpuEnable:                        Boolean,
+                          portFactor:                       Int,
                           vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
 
@@ -121,7 +122,7 @@ case class LaneParameter(
   val executionQueueSize: Int = 2
 
   /** Parameter for [[VRF]] */
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize)
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor)
 
   /** Parameter for [[OtherUnit]]. */
   def otherUnitParam: OtherUnitParam = OtherUnitParam(datapathWidth, vlMaxBits, groupNumberBits, laneNumberBits, dataPathByteWidth)

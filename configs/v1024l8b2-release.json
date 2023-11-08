@@ -9,6 +9,11 @@
       "chainingSize": 4,
       "vrfWriteQueueSize": 4,
       "fpuEnable": false,
+      "instructionQueueSize": 8,
+      "memoryBankSize": 2,
+      "lsuVRFWriteQueueSize": 4,
+      "cacheLineSize": 32,
+      "portFactor": 1,
       "vfuInstantiateParameter": {
         "slotCount": 4,
         "logicModuleParameters": [
