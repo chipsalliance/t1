@@ -1,5 +1,7 @@
 out/
 test_run_dir/
+.envrc
+.direnv/
 .bsp/
 .idea/
 .metals/
