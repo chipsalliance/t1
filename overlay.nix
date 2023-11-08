@@ -81,6 +81,7 @@ in
   rvv-testcase = final.callPackage ./nix/rvv-testcase.nix { };
   rvv-testcase-prebuilt = final.callPackage ./nix/rvv-testcase-prebuilt.nix { };
   verilator-emulator = final.callPackage ./nix/verilator-emulator.nix { };
+  wal-lang = with final.python3Packages; toPythonApplication (callPackage ./nix/wal-lang.nix { });
 
   inherit rv32-clang my-cc-wrapper;
 
