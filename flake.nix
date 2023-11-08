@@ -55,6 +55,9 @@
 
             # for CI
             ammonite
+
+            # wave interpreter
+            wal-lang
           ];
 
           mkLLVMShell = pkgs.mkShell.override { stdenv = pkgs.llvmForDev.stdenv; };
