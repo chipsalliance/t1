@@ -16,6 +16,7 @@ trait VFUParameter {
   val inputBundle: Data
   val outputBundle: Bundle
   val singleCycle: Boolean = true
+  val NeedSplit: Boolean = false
 }
 
 abstract class VFUModule(p: VFUParameter) extends Module {
@@ -62,10 +63,11 @@ case class VFUInstantiateParameter(
 
 }
 
-class SlotExecuteRequest(slotIndex: Int, parameter: VFUInstantiateParameter) extends Record with AutoCloneType {
-  val elements: SeqMap[String, Data] = SeqMap.from(
+class SlotExecuteRequest[T <: SlotRequestToVFU](requestFromSlot: T)(slotIndex: Int, parameter: VFUInstantiateParameter)
+  extends Record with AutoCloneType {
+  val elements: SeqMap[String, DecoupledIO[SlotRequestToVFU]] = SeqMap.from(
     parameter.genVec.filter(_._2.contains(slotIndex)).map { case (p, _) =>
-      p.parameter.decodeField.name -> Decoupled(p.parameter.inputBundle)
+      p.parameter.decodeField.name -> Decoupled(requestFromSlot)
     }
   )
 
@@ -88,13 +90,13 @@ object vfu {
   ): Unit = {
 
     // 声明 vfu 的入口
-    val requestVecFromSlot: Seq[SlotExecuteRequest] = Seq.tabulate(parameter.slotCount) { index =>
-      Wire(new SlotExecuteRequest(index, parameter))
+    val requestVecFromSlot: Seq[SlotExecuteRequest[SlotRequestToVFU]] = Seq.tabulate(parameter.slotCount) { index =>
+      Wire(new SlotExecuteRequest(chiselTypeOf(requestVec.head))(index, parameter))
     }
 
     // 连接 requestVecFromSlot 根据从lane里来的握手信息
     requestVecFromSlot.zipWithIndex.foreach { case (request, slotIndex) =>
-      val requestFire = request.elements.map { case (name: String, reqForVfu: DecoupledIO[Bundle]) =>
+      val requestFire = request.elements.map { case (name: String, reqForVfu: DecoupledIO[SlotRequestToVFU]) =>
         // 检测类型
         val requestParameter: VFUParameter = request.parameterMap(name)
         val typeCheck = decodeResult(slotIndex)(requestParameter.decodeField)
@@ -102,13 +104,7 @@ object vfu {
         reqForVfu.valid := requestValid(slotIndex) && typeCheck
 
         // 连接bits
-        reqForVfu.bits.elements.foreach {case (s, d) =>
-          d match {
-            // src 不等长,所以要特别连
-            case src: Vec[Data] => src.zipWithIndex.foreach {case(sd, si) => sd := requestVec(slotIndex).src(si)}
-            case _ => d := requestVec(slotIndex).elements(s)
-          }
-        }
+        reqForVfu.bits := requestVec(slotIndex)
 
         // 返回 fire
         reqForVfu.fire
@@ -121,10 +117,17 @@ object vfu {
     val vfuResponse: Seq[ValidIO[VFUResponseToSlot]] = parameter.genVec.zipWithIndex.map { case ((gen, slotVec), vfuIndex) =>
       // vfu 模块
       val vfu = Module(gen.module()).suggestName(gen.parameter.decodeField.name)
+      // vfu request distributor
+      val distributor: Option[Distributor[SlotRequestToVFU, VFUResponseToSlot]] = Option.when(gen.parameter.NeedSplit)(
+        Module(new Distributor(
+          chiselTypeOf(requestVec.head),
+          chiselTypeOf(responseVec.head.bits)
+        )(!gen.parameter.singleCycle)).suggestName(s"${gen.parameter.decodeField.name}Distributor")
+      )
       // 访问仲裁
-      val requestArbiter: Arbiter[Data] = Module(
+      val requestArbiter: Arbiter[SlotRequestToVFU] = Module(
         new Arbiter(
-          chiselTypeOf(vfu.requestIO.bits),
+          chiselTypeOf(requestVecFromSlot(slotVec.head).elements(gen.parameter.decodeField.name).bits),
           slotVec.size
         )
       ).suggestName(s"${gen.parameter.decodeField.name}Arbiter")
@@ -132,7 +135,26 @@ object vfu {
       requestArbiter.io.in.zip(slotVec).foreach { case (arbiterInput, slotIndex) =>
         arbiterInput <> requestVecFromSlot(slotIndex).elements(gen.parameter.decodeField.name)
       }
-      vfu.requestIO <> requestArbiter.io.out
+      val vfuInput: DecoupledIO[SlotRequestToVFU] = if (gen.parameter.NeedSplit) {
+        distributor.get.requestFromSlot <> requestArbiter.io.out
+        distributor.get.requestToVfu
+      } else {
+        requestArbiter.io.out
+      }
+      vfu.requestIO.valid := vfuInput.valid
+      vfuInput.ready := vfu.requestIO.ready
+      vfu.requestIO.bits match {
+        case req: Bundle =>
+          req.elements.foreach { case (s, d) =>
+            d match {
+              // src 不等长,所以要特别连
+              case src: Vec[Data] =>
+                src.zipWithIndex.foreach { case (sd, si) => sd := vfuInput.bits.src(si) }
+              case _ => d := vfuInput.bits.elements(s)
+            }
+          }
+      }
+
       if (vfu.responseIO.bits.elements.contains("busy")) {
         vrfIsBusy(vfuIndex) := vfu.responseIO.bits.elements("busy").asInstanceOf[Bool] // || !vfu.requestIO.ready
       } else {
@@ -154,7 +176,12 @@ object vfu {
       }
       executeOccupied(vfuIndex) := vfu.requestIO.fire
       VFUNotClear := vrfIsBusy.asUInt.orR
-      responseBundle
+      if (gen.parameter.NeedSplit) {
+        distributor.get.responseFromVfu := responseBundle
+        distributor.get.responseToSlot
+      } else {
+        responseBundle
+      }
     }
 
     // 把response丢给slot

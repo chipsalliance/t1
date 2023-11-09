@@ -231,10 +231,8 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   // replace instructionIndex
   readBusRequest.foreach(_.bits.instructionIndex := state.instructionIndex)
 
-  val repeatScalarData: Bool = state.decodeResult(Decoder.adder) || state.decodeResult(Decoder.multiplier)
-  val scalarDataSelect: UInt = Mux(repeatScalarData, state.vSew1H, 4.U(3.W))
   val scalarDataRepeat: UInt = Mux1H(
-    scalarDataSelect,
+    state.vSew1H,
     Seq(
       Fill(4, readFromScalar(7, 0)),
       Fill(2, readFromScalar(15, 0)),

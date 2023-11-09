@@ -490,7 +490,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         slotActive(index) := slotOccupied(index) && !pipeFinishVec(index)
       } else {
         slotActive(index) := slotOccupied(index) && !pipeFinishVec(index) && !slotShiftValid(index) &&
-          !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)) &&
+          !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite) || decodeResult(Decoder.widenReduce)) &&
           decodeResult(Decoder.scheduler)
       }
 
