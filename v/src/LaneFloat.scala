@@ -18,6 +18,7 @@ case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with Serializ
   val inputBundle = new LaneFloatRequest(datapathWidth)
   val outputBundle = new LaneFloatResponse(datapathWidth)
   override val singleCycle = false
+  override val NeedSplit: Boolean = true
 }
 
 /** UOP encoding

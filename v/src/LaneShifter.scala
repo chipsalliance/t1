@@ -14,6 +14,7 @@ case class LaneShifterParameter(dataWidth: Int) extends VFUParameter with Serial
   val decodeField: BoolField = Decoder.shift
   val inputBundle = new LaneShifterReq(this)
   val outputBundle = new LaneShifterResponse(dataWidth)
+  override val NeedSplit: Boolean = true
 }
 
 class LaneShifterReq(param: LaneShifterParameter) extends Bundle {

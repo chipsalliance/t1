@@ -640,7 +640,8 @@ class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends
   val crossReadVS2: Bool = Bool()
   val bordersForMaskLogic: Bool = Bool()
   val mask: UInt = UInt(4.W)
-  val executeIndex: UInt = UInt(2.W)
+  // false -> lsb of cross read group
+  val executeIndex: Bool = Bool()
   val source: Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
   val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
   /** groupCounter need use to update `Lane.maskFormatResultForGroup` */
@@ -653,6 +654,8 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val opcode: UInt = UInt(4.W)
   // mask for carry or borrow
   val mask: UInt = UInt(4.W)
+  // mask for execute
+  val executeMask: UInt = UInt(4.W)
   // eg: vwmaccus, vwmulsu
   val sign0: Bool = Bool()
   val sign: Bool = Bool()
@@ -661,7 +664,7 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val saturate: Bool = Bool()
   val vxrm: UInt = UInt(2.W)
   val vSew: UInt = UInt(2.W)
-  val shifterSize: UInt = UInt(log2Ceil(parameter.datapathWidth).W)
+  val shifterSize: UInt = UInt((log2Ceil(parameter.datapathWidth) * 4).W)
   val rem:  Bool = Bool()
   val executeIndex: UInt = UInt(2.W)
   val popInit: UInt = UInt(parameter.vlMaxBits.W)

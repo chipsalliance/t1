@@ -19,6 +19,7 @@ case class OtherUnitParam(
   val decodeField: BoolField = Decoder.other
   val inputBundle = new OtherUnitReq(this)
   val outputBundle = new OtherUnitResp(datapathWidth)
+  override val NeedSplit: Boolean = true
 }
 
 class OtherUnitReq(param: OtherUnitParam) extends Bundle {

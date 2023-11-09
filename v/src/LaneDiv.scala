@@ -14,6 +14,7 @@ case class LaneDivParam(datapathWidth: Int) extends VFUParameter with Serializab
   val decodeField: BoolField = Decoder.divider
   val inputBundle = new LaneDivRequest(datapathWidth)
   val outputBundle = new LaneDivResponse(datapathWidth)
+  override val NeedSplit: Boolean = true
 }
 
 class LaneDivRequest(datapathWidth: Int) extends Bundle {
