@@ -33,8 +33,8 @@ trait Case extends Module {
         compileOptions() ++
         includeDir().map(p => s"-I${p.path}") ++
         allSourceFiles().map(_.path.toString)
-    ).call(T.ctx.dest)
-    PathRef(T.ctx.dest / (config + ".elf"))
+    ).call(T.ctx().dest)
+    PathRef(T.ctx().dest / (config + ".elf"))
   }
   def bin: T[PathRef] = T{ // TODO: change start address when compile with -fno-PIC
     os.proc(
@@ -45,8 +45,8 @@ trait Case extends Module {
         "binary",
         config + ".bin"
       )
-    ).call(T.ctx.dest)
-    PathRef(T.ctx.dest / (config + ".bin"))
+    ).call(T.ctx().dest)
+    PathRef(T.ctx().dest / (config + ".bin"))
   }
 }
 

@@ -1,5 +1,8 @@
 { lib
+, pkgs
 , newScope
+
+, llvmForDev
 }:
 
 let
@@ -7,15 +10,29 @@ let
   configNames = builtins.map (lib.removeSuffix ".json") configFiles;
 in
 
-lib.genAttrs configNames (configName:
-# by using makeScope, callPackage can send the following attributes to package parameters
-lib.makeScope newScope (self: {
-  elaborate-config = ../../configs/${configName}.json;
+lib.makeScope newScope
+  (self: {
+    submodules = self.callPackage ./submodules.nix { };
+    elaborator = self.callPackage ./elaborator.nix { };
 
-  elaborator-jar = self.callPackage ./elaborator-jar.nix { };
+    rvv-codegen = self.callPackage ./testcases/rvv-codegen.nix { };
+    rvv-testcases = self.callPackage ./testcases/rvv-testcases.nix {
+      stdenv = llvmForDev.stdenv;
+      llvmPackages = llvmForDev;
+    };
+    rvv-testcases-prebuilt = self.callPackage ./testcases/rvv-testcases-prebuilt.nix {
+      # clang is faster for compiling verilator emulator
+      stdenv = llvmForDev.stdenv;
+    };
+  } //
+  lib.genAttrs configNames (configName:
+    # by using makeScope, callPackage can send the following attributes to package parameters
+    lib.makeScope self.newScope (innerSelf: {
+      elaborate-config = ../../configs/${configName}.json;
 
-  elaborate = self.callPackage ./elaborate.nix { };
+      elaborate = innerSelf.callPackage ./elaborate.nix { };
 
-  verilator-emulator = self.callPackage ./verilator-emulator.nix { };
-})
+      verilator-emulator = innerSelf.callPackage ./verilator-emulator.nix { };
+    })
+  )
 )

@@ -1,3 +1,5 @@
+#!/usr/bin/env amm
+
 import scala.collection.mutable.ArrayBuffer
 
 // Generate `verilatorEmulator` object from the `passed.txt` path.
@@ -54,7 +56,7 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
         .read(os.read(file))
         .obj
         .map { case (k, v) =>
-          (s"verilatorEmulator[$emu,$k,$run].run", v.num.toInt)
+          (k, v.num.toInt)
         }
         .toSeq
     }
@@ -83,7 +85,6 @@ def writeJson(buckets: Seq[String], outputFile: os.Path) =
 def passedJson(
     bucketSize: Int,
     defaultPassed: os.Path,
-    cycleDataPath: os.Path,
     outputFile: os.Path
 ) =
   writeJson(
@@ -109,12 +110,10 @@ def unpassedJson(
       val Seq(emulator, runCfg, _) = file.segments.toSeq
       val exists = ujson.read(os.read(defaultPassed / os.up / file))
         .obj.keys
-        .map(test => s"verilatorEmulator[$emulator,$test,$runCfg].run")
       // Mill will write rubbish into stdout, so we to do a warm up
-      os.proc("mill", "-i", "resolve", "__.run").call(cwd = root, stdout = os.Path("/dev/null"))
-      val all = os.proc("mill", "-i", "resolve", s"verilatorEmulator[$emulator,_,$runCfg].run")
-        .call(root).out.text
-        .split("\n")
+      val all: Seq[String] = os.list(os.Path(sys.env("TEST_CASES_DIR")) / "configs")
+        .map(_.baseName.toString)
+
       (all.toSet -- exists.toSet).toSeq
   })
   writeJson(
@@ -136,13 +135,13 @@ def convertPerfToMD(root: os.Path) = os
     val existPerfFile = perfCases
       .filter {testcase =>
         val path = root / os.RelPath(
-          s"out/verilatorEmulator/$emulator/$testcase/$runCfg/run.dest/perf.txt"
+          s"out/$emulator/$testcase/$runCfg/perf.txt"
         )
         os.exists(path)
       }
       .foreach(testcase => {
         val path = root / os.RelPath(
-          s"out/verilatorEmulator/$emulator/$testcase/$runCfg/run.dest/perf.txt"
+          s"out/$emulator/$testcase/$runCfg/perf.txt"
         )
         val output =
           s"""### $testcase
@@ -233,7 +232,7 @@ def runTest(root: os.Path, jobs: String, outDir: Option[os.Path]) = {
       val logPath = os.temp()
       println(s"[${i+1}/${totalJobs.length}] Running test case $job")
       val handle = os
-        .proc("mill", "--no-server", job)
+        .proc("scripts/run-test.py", job)
         .call(cwd=root,
           check=false,
           stdout=logPath,
@@ -256,50 +255,6 @@ def runTest(root: os.Path, jobs: String, outDir: Option[os.Path]) = {
   } else {
     println(s"All tests passed")
   }
-}
-
-
-// This target will try to build all the test cases in the given testSrcDir and group them into the given output directory.
-//
-// ```bash
-// # Run this in the project root
-// amm .github/scripts/ci.sc $PWD/tests ./test-out
-// ```
-//
-// @param testSrcDir Path to the tests directory
-// @param outDir Path to the output directory
-@main
-def buildAllTestCase(testSrcDir: os.Path, outDir: os.Path) = {
-  os.remove.all(outDir)
-  os.remove.all(testSrcDir / "out")
-  os.makeDir.all(outDir)
-  val outConfigDir = outDir / "configs"
-  os.makeDir.all(outConfigDir)
-  val outElfDir = outDir / "cases"
-  os.makeDir.all(outElfDir)
-
-  // Mill mistakenly write all the stuff into stdout, so we need to clear all the non-json output first
-  // TODO: This will be fixed in mill 0.11.2
-  os.proc("mill", "-i", "resolve", "_[_].elf").call(cwd = testSrcDir, stdout = os.Path("/dev/null"))
-  val rawJson = os.proc("mill", "--no-server", "-j", "0", "--silent", "show", "_[_].elf")
-      .call(testSrcDir).out.text
-      .split('\n')
-      // Output provided by -j0 that can't be turn off. It looks like [#00] or [#0] based on $(nproc)
-      .map(raw"^\[#\d+\]".r.unanchored.replaceFirstIn(_, "").trim)
-      .mkString("");
-  // Array[String] => Array[os.Path] A list of "ref:id:path", we need the path only.
-  ujson.read(rawJson).obj.values
-    .map(rawPathRef => os.Path(rawPathRef.str.split(":").apply(3)))
-    .foreach(elfPath => {
-      val IndexedSeq(module, name) = elfPath.relativeTo(testSrcDir / "out").segments.slice(0, 2)
-      val configPath = testSrcDir / "configs" / s"$name-$module.json"
-      val origConfig = ujson.read(os.read(configPath))
-      origConfig("elf") = ujson.Obj("path" -> s"cases/$module/${elfPath.last}")
-
-      os.makeDir.all(outElfDir / module)
-      os.move(elfPath, outElfDir / module / elfPath.last)
-      os.write(outConfigDir / s"$name-$module.json", ujson.write(origConfig))
-    })
 }
 
 @main
