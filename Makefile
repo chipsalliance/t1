@@ -35,35 +35,34 @@ checkformat:
 	mill -i __.checkFormat
 
 ci-run:
-	TEST_CASE_DIR="$(shell echo $$TEST_CASE_DIR)" \
-		amm .github/scripts/ci.sc runTest . "$(NAME)" ./test-log
+	.github/scripts/ci.sc runTest . "$(NAME)" ./test-log
 
 ci-passed-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
-	amm .github/scripts/ci.sc passedJson $(RUNNERS) $(DEFAULT_PASSED) .github/cycle-data.json ./passed.json
+	.github/scripts/ci.sc passedJson "$(RUNNERS)" "$(DEFAULT_PASSED)" ./passed.json
 	cat ./passed.json >> $$GITHUB_OUTPUT
 
 ci-unpassed-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
-	amm .github/scripts/ci.sc unpassedJson $(RUNNERS) . $(DEFAULT_PASSED) ./unpassed.json
+	.github/scripts/ci.sc unpassedJson "$(RUNNERS)" . "$(DEFAULT_PASSED)" ./unpassed.json
 	cat ./unpassed.json >> $$GITHUB_OUTPUT
 
 ci-all-tests:
 	echo -n matrix= >> $$GITHUB_OUTPUT
-	amm .github/scripts/ci.sc allJson $(RUNNERS) . ./all.json
+	.github/scripts/ci.sc allJson "$(RUNNERS)" . ./all.json
 	cat ./all.json >> $$GITHUB_OUTPUT
 
 gen-tests-artifacts:
-	amm .github/scripts/ci.sc genTestElf ./tests ./tests-artifacts
+	.github/scripts/ci.sc genTestElf ./tests ./tests-artifacts
 
 gen-test-case-bucket:
 	echo -n matrix= >> $$GITHUB_OUTPUT
-	amm .github/scripts/ci.sc genTestBuckets --testSrcDir ./tests --bucketSize $(RUNNERS) --outFile ./test-case-matrix.json
+	.github/scripts/ci.sc genTestBuckets --testSrcDir ./tests --bucketSize "$(RUNNERS)" --outFile ./test-case-matrix.json
 	cat ./test-case-matrix.json >> $$GITHUB_OUTPUT
 
 build-test-cases:
 	rm -rf out tests/out
-	amm .github/scripts/ci.sc buildTestCases --testSrcDir ./tests --outDir $(OUT_DIR) --taskBucket "$(TESTS)"
+	.github/scripts/ci.sc buildTestCases --testSrcDir ./tests --outDir "$(OUT_DIR)" --taskBucket "$(TESTS)"
 
 convert-perf-to-md:
-	amm .github/scripts/ci.sc convertPerfToMD .
+	.github/scripts/ci.sc convertPerfToMD .

@@ -16,8 +16,6 @@ jobs:
       ci-tests: ${{ steps.ci-tests.outputs.matrix }}
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true
       - run: sudo -E .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
@@ -25,21 +23,18 @@ jobs:
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
           ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v22
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
-          nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             post-build-hook = /etc/nix/upload-to-cache.sh
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-            sandbox = relaxed
             max-jobs = 0
             builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
       - id: ci-tests
         run: |
-          nix develop '.#ci' -c make ci-unpassed-tests DEFAULT_PASSED=.github/passed/default.txt
+          nix develop -c make ci-unpassed-tests DEFAULT_PASSED=.github/passed/default.txt
 
   ci:
     name: "CI"
@@ -53,8 +48,6 @@ jobs:
       result: ${{ steps.ci-run.outputs.result }}
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true
       - run: sudo -E .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
@@ -62,22 +55,19 @@ jobs:
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
           ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v22
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
-          nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             post-build-hook = /etc/nix/upload-to-cache.sh
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-            sandbox = relaxed
             max-jobs = 0
             builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
       - id: ci-run
         run: |
-          nix develop '.#ci' -c make ci-run "NAME=${{ matrix.name }}"
-          nix develop '.#ci' -c make convert-perf-to-md
+          nix develop -c make ci-run "NAME=${{ matrix.name }}"
+          nix develop -c make convert-perf-to-md
 
       - uses: actions/upload-artifact@v3
         if: always()
@@ -128,22 +118,18 @@ jobs:
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
           ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v22
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
-          nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             post-build-hook = /etc/nix/upload-to-cache.sh
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-            sandbox = relaxed
             max-jobs = 0
             builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
       - id: build
         run: |
-          . .github/scripts/ci.sh
-          check_before_do_release ./rvv-testcase.tar.gz
+          .github/scripts/bump-prebuilt-testcases.sh check_before_do_release ./rvv-testcase.tar.gz
       - uses: "marvinpinto/action-automatic-releases@latest"
         id: step-release
         if: ${{ steps.build.outputs.do_release == 'true' }}
@@ -155,8 +141,7 @@ jobs:
           files: ./rvv-testcase.tar.gz
       - if: ${{ steps.build.outputs.do_release == 'true' }}
         run: |
-          . .github/scripts/ci.sh
-          bump "${{ steps.build.outputs.tag }}"
+          .github/scripts/bump-prebuilt-testcases.sh bump "${{ steps.build.outputs.tag }}"
       - if: ${{ steps.build.outputs.do_release == 'true' }}
         uses: peter-evans/create-pull-request@v5
         with:

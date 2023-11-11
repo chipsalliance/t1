@@ -24,23 +24,27 @@ stdenv.mkDerivation {
 
   src = ../../emulator/src;
 
-  cmakeFlags = [
-    "-DVERILATE_SRC_DIR=${elaborate}"
-  ] ++ lib.optionals doTrace [
-    "-DEMULATOR_TRACE=ON"
+  # CMakeLists.txt will read the environment
+  env.VERILATE_SRC_DIR = toString elaborate;
+
+  cmakeFlags = lib.optionals doTrace [
+    "-DVERILATE_TRACE=ON"
   ];
 
   nativeBuildInputs = [
     cmake
-
     verilator
-    zlib
+    ninja
+  ];
 
+  buildInputs = [
+    zlib
     libargs
     spdlog
     fmt
     libspike
     nlohmann_json
-    ninja
   ];
+
+  meta.mainProgram = "emulator";
 }

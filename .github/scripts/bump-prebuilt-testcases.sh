@@ -1,4 +1,12 @@
+<<<<<<< HEAD:.github/scripts/ci.sh
 NIX_FILE="./nix/rvv-testcase-prebuilt.nix"
+||||||| parent of bc108cf ([build system] remove submodules, add run-test.py):.github/scripts/ci.sh
+NIX_FILE="./nix/rvv-testcase-unwrapped.nix"
+=======
+#!/usr/bin/env bash
+
+NIX_FILE="./nix/t1/verilator"
+>>>>>>> bc108cf ([build system] remove submodules, add run-test.py):.github/scripts/bump-prebuilt-testcases.sh
 NIX_EXPR_PREFIX="with import <nixpkgs> {}; let pkg = callPackage $NIX_FILE {}; in"
 
 nix_eval() {
@@ -64,7 +72,7 @@ check_before_do_release() {
   echo
 
   echo "Build new tests case ELFs"
-  nix build .#rvv-testcase --print-build-logs --out-link result
+  nix build .#t1.rvv-testcases --print-build-logs --out-link result
   tar czf "$output_file" --directory "$(realpath ./result)" .
   echo "do_release=true" >> "$GITHUB_OUTPUT"
   echo "tag=$(date +%F)+$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
@@ -96,3 +104,15 @@ bump() {
   old_hash=$(get_output_hash)
   sed -i "s|$old_hash|$new_hash|" $NIX_FILE
 }
+
+action="$1"
+shift
+case "$action" in
+  bump)
+    bump "$@"
+    ;;
+  check_before_do_release)
+    check_before_do_release "$@"
+    ;;
+esac
+

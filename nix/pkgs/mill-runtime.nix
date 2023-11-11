@@ -1,10 +1,10 @@
-{ stdenvNoCC, mill }:
+{ stdenvNoCC, mill, strip-nondeterminism }:
 
 stdenvNoCC.mkDerivation {
   pname = "mill-runtime";
   version = mill.version;
   dontUnpack = true;
-  nativeBuildInputs = [ mill ];
+  nativeBuildInputs = [ mill strip-nondeterminism ];
   buildPhase = ''
     runHook preBuild
     export JAVA_OPTS="-Duser.home=$TMPDIR"
@@ -15,11 +15,12 @@ stdenvNoCC.mkDerivation {
   installPhase = ''
     runHook preInstall
     mkdir -p $out
+    strip-nondeterminism $TMPDIR/.mill/ammonite/*
     cp -r $TMPDIR/.mill/ammonite $out/
     runHook postInstall
   '';
 
   outputHashAlgo = "sha256";
   outputHashMode = "recursive";
-  outputHash = "sha256-nZkMUnZHC3uDPuf69DKP9wTyICJSp28A+rYCwgIu2EA=";
+  outputHash = "sha256-tVh8IQoD1P2xmCprQgSrvhKOJGUF8M1x5afjaXsKQ8g=";
 }

@@ -65,12 +65,5 @@ final: prev:
     clang = final.llvmToolsForRV32Clang.clang;
   };
 
-  rvv-codegen = final.callPackage ./testcases/rvv-codegen.nix { };
-  rvv-testcases = final.callPackage ./testcases/rvv-testcases.nix {
-    stdenv = final.llvmForDev.stdenv;
-    llvmPackages = final.llvmForDev;
-  };
-  rvv-testcases-prebuilt = final.callPackage ./testcases/rvv-testcases-prebuilt.nix { };
-
   t1 = final.callPackage ./t1 { };
 }

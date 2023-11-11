@@ -53,41 +53,16 @@
 
           mkLLVMShell = pkgs.mkShell.override { stdenv = pkgs.llvmForDev.stdenv; };
           postHook = ''
-            # clangd provided in llvmPackages_14 doesn't handle nix rpath, while the one in clang-tools package does.
-            # However, since we are using the stdenv from llvmPackages_14, the bin path clang-tools always comes after
-            # the llvmPackages_14. Thus we need a workaround to make sure that we can have `clangd` binary points to
-            # the one provided by clang-tools package
+            # workaround for https://github.com/NixOS/nixpkgs/issues/214945
             export PATH="${pkgs.clang-tools}/bin:$PATH"
           '';
         in
         {
           legacyPackages = pkgs;
           devShells = {
-            # for chisel-only development
-            chisel = pkgs.mkShell {
-              buildInputs = commonDeps ++ chiselDeps;
-            };
-
-            # for running ci
-            ci = mkLLVMShell {
-              buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
-              env = {
-                VERILATOR_EMULATOR_BIN_PATH = "${pkgs.verilator-emulator}/bin";
-                TEST_CASE_DIR = "${pkgs.rvv-testcases-prebuilt}";
-              };
-            };
-
-            # for general development
             default = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
-              env.TEST_CASE_DIR = "${pkgs.rvv-testcases}";
-              inherit postHook;
-            };
-
-            # for general development but with prebuilt testcases
-            default-prebuilt-cases = mkLLVMShell {
-              buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
-              env.TEST_CASE_DIR = "${pkgs.rvv-testcases-prebuilt}";
+              env.TEST_CASES_DIR = "${pkgs.t1.rvv-testcases}";
               inherit postHook;
             };
           };

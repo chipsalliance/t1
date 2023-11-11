@@ -62,46 +62,109 @@ The v1p0 will tapeout in 2023 with TSN28 process. This tapeout is the silicon ve
 - MMU support;
 - MSP support;
 
-## Environment setup
+## Build and Development
 
-### Run IP emulators
 The IP emulators are designed to emulate the vector IP. Spike is used as the scalar core integrating with verilated vector IP and use difftest for IP-level verification, it records events from VRF and LSU to perform online difftest.
-You can find different cases under `tests/cases` folder, they are dynamically detected found by the `mill` build system, please refer to the `build.sc` and mill documentation for more informations.
 
-#### Nix setup
-We use nix flake to setup test environment. If you have not installed nix, install it following the [guide](https://nixos.org/manual/nix/stable/installation/installing-binary.html), and enable flake following the [wiki](https://nixos.wiki/wiki/Flakes#Enable_flakes). For example:
+You can find different cases under `tests/cases` folder, they are dynamically detected found by the `nix` build system.
 
-Install with package manager e.g. on ArchLinux:
+### Nix setup
+We use nix flake to setup test environment. If you have not installed nix, install it following the [guide](https://nixos.org/manual/nix/stable/installation/installing-binary.html), and enable flake following the [wiki](https://nixos.wiki/wiki/Flakes#Enable_flakes). Or you can try the [installer](https://github.com/DeterminateSystems/nix-installer) provided by Determinate Systems, which enables flake automatically.
+
+### Build
+
+t1 includes a hardware design written in Chisel and a emulator powered by verilator. The elaborator and emulator can be run with different configurations. Each configuration is specified with a JSON file in `./configs` directory. We can specify a configuration by its JSON file name, e.g. `v1024l8p2fp-test`.
+
+You can build its components with the following commands:
 ```shell
-pacman -S nix
-```
-or with installation script:
-```
-sh <(curl -L https://nixos.org/nix/install)
-```
+$ nix build .#t1.elaborator  # the wrapped jar file of the Chisel elaborator
+$ nix build .#t1.<config-name>.elaborate  # the elaborated .sv files
+$ nix build .#t1.<config-name>.verilator-emulator  # the verilator emulator
 
-Add flake to configurations:
+$ nix build .#t1.rvv-testcases  # the testcases
+```
+where `<config-name>` should be replaced with a configuration name, e.g. `v1024l8p2fp-test`.
+
+### Development
+
+#### Developing Elaborator (Chisel-only)
 ```shell
-echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
+$ nix develop .#t1.elaborator
+
+$ nix develop .#t1.elaborator.editable  # or if you want submodules editable
+
+$ mill -i elaborator  # build and run elaborator
 ```
 
-Enable nix-daemon systemd service (if your package manager has not enabled it automatically):
+#### Developing Emulator
 ```shell
-systemctl start nix-daemon.service
+$ nix develop .#t1.v1024l8b2-test-trace.verilator-emulator
+$ cd emulator/src
+$ cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Debug
+$ cmake --build build
 ```
 
-After nix is installed, run `nix develop` to enter the development shell, all environment variables and dependencies is included. If you want a pure environment without system packages, use `env -i nix develop` instead.
+#### Developing Testcases
+The `tests/` directory itself is a single build module.
+There are four types of tests in this build module:
 
-#### Test
+- asm
+- intrinsic
+- mlir
+- codegen
 
-Run `nix develop .#testcase` to enter the test case environment.
-In nix development shell, run `mill resolve verilatorEmulator.__` to see all available tests.
-For example use `mill -i 'verilatorEmulator[v1024l8b2-test,hello-mlir,debug].run'` to run the `hello.mlir` test with v1024l8b2-test emulator configs.
-Read the readme file in tests directory for more details.
+To control how these tests are run, there are separate configs for each test in the `configs/` directory.
+The `mill` build system will attempt to compile the `build.sc` file and generate test case objects
+by reading the test case source file and its corresponding config file.
 
-## Patches
-<!-- BEGIN-PATCH -->
-<!-- END-PATCH -->
+The codegen tests requires [ksco/riscv-vector-tests](https://github.com/ksco/riscv-vector-tests) to generate multiple asm tests.
+If you want to build all the codegen tests manually, you will need to set the following environment variable:
+
+- `CODEGEN_BIN_PATH`: Path to the `single` binary in riscv-vector-tests.
+- `CODEGEN_INC_PATH`: A list of header include paths. You may need to set it as `export CODEGEN_INC_PATH="$codegen/macro/sequencer-vector $codegen/env/sequencer-vector`.
+- `CODEGEN_CFG_PATH`: Path to the `configs` directory in riscv-vector-tests.
+
+Enter the development shell with above environment variables set:
+```shell
+$ nix develop .#t1.testcases
+```
+
+List available tests:
+```shell
+$ mill -i resolve _[_].elf
+
+# Get asm test only
+$ mill -i resolve asm[_].elf
+```
+
+Build tests:
+```shell
+# build a single test
+$ mill -i asm[hello-mlir].elf
+
+# build all tests
+$ cd tests
+$ ./buildAll.sc . path/to/output/directory
+```
+
+Run testcases in the development shell:
+```shell
+$ nix develop  # enter the default development shell with testcases built by nix
+$ ./scripts/run-test.py -c v1024l8b2-test conv-mlir
+$ ./scripts/run-test.py --help  # see all options
+```
+
+### Bump Dependencies
+Bump nixpkgs:
+```shell
+$ nix flake update
+```
+
+Bump submodule versions:
+```shell
+$ cd nix/t1
+$ nvfetcher
+```
 
 ## License
 Copyright © 2022-2023, Jiuyang Liu. Released under the Apache-2.0 License.
