@@ -272,7 +272,18 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     /** update value for [[maskFormatResultUpdate]],
      * it comes from ALU.
      */
-    val elementMaskFormatResult = (maskResult << (recordQueue.io.deq.bits.groupCounter(2, 0) ## 0.U(2.W))).asUInt
+    val elementMaskFormatResult = Mux1H(
+      state.vSew1H(2, 0),
+      Seq(
+        // 32bit, 4 bit per data group, it will had 8 data groups -> executeIndex1H << 4 * groupCounter(2, 0)
+        maskResult << (recordQueue.io.deq.bits.groupCounter(2, 0) ## 0.U(2.W)),
+        // 2 bit per data group, it will had 16 data groups -> executeIndex1H << 2 * groupCounter(3, 0)
+        maskResult(1, 0) <<
+          (recordQueue.io.deq.bits.groupCounter(3, 0) ## false.B),
+        // 1 bit per data group, it will had 32 data groups -> executeIndex1H << 1 * groupCounter(4, 0)
+        maskResult(0) << recordQueue.io.deq.bits.groupCounter(4, 0)
+      )
+    ).asUInt
 
     maskFormatResultUpdate.get := maskFormatResultForGroup.get | elementMaskFormatResult
 
