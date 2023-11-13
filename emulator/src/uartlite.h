@@ -25,6 +25,7 @@ public:
         wait_ack = false;
     }
     bool do_read(uint64_t start_addr, uint64_t size, unsigned char* buffer) {
+        if (size != 4) return false;
         uint32_t &res_buffer = *reinterpret_cast<uint32_t*>(buffer);
         switch (start_addr) {
             case offsetof(uartlite_regs, rx_fifo): {
@@ -53,6 +54,7 @@ public:
         return true;
     }
     bool do_write(uint64_t start_addr, uint64_t size, const unsigned char* buffer) {
+        if (size != 4) return false;
         switch (start_addr) {
             case offsetof(uartlite_regs, tx_fifo): {
                 std::unique_lock<std::mutex> lock_tx(tx_lock);
