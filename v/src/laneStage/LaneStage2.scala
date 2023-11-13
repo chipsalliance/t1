@@ -35,8 +35,6 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
   val executionQueue: Queue[LaneExecuteStage] =
     Module(new Queue(new LaneExecuteStage(parameter)(isLastSlot), parameter.executionQueueSize))
 
-  // pipe from stage 0
-  val sSendResponseInStage2 = Option.when(isLastSlot)(RegEnable(enqueue.bits.sSendResponse.get, true.B, enqueue.fire))
   // ffo success in current data group?
   val ffoSuccess: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
 
@@ -50,6 +48,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
       enqueue.bits.src(1)
     )
   }
+  executionQueue.io.enq.bits.sSendResponse.foreach {d => d := enqueue.bits.sSendResponse.get}
   executionQueue.io.enq.bits.groupCounter := enqueue.bits.groupCounter
   executionQueue.io.enq.bits.mask := Mux1H(
     state.vSew1H,
@@ -68,6 +67,6 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
   dequeue.bits.pipeData.foreach(_ := executionQueue.io.deq.bits.pipeData.get)
   dequeue.bits.groupCounter := executionQueue.io.deq.bits.groupCounter
   dequeue.bits.mask := executionQueue.io.deq.bits.mask
-  dequeue.bits.sSendResponse.foreach(_ := sSendResponseInStage2.get)
+  dequeue.bits.sSendResponse.foreach(_ := executionQueue.io.deq.bits.sSendResponse.get)
   stageValid := executionQueue.io.deq.valid
 }
