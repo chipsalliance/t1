@@ -633,6 +633,9 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
     * read result of vs2, for instructions that are not executed, pipe from s1
     */
   val pipeData: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+
+  // pipe from stage 0
+  val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
 }
 
 // Record of temporary execution units
