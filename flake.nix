@@ -59,11 +59,18 @@
         in
         {
           legacyPackages = pkgs;
-          devShells = {
+          devShells = rec {
             default = mkLLVMShell {
               buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
-              env.TEST_CASES_DIR = "${pkgs.t1.rvv-testcases}";
+              env.TEST_CASES_DIR = pkgs.t1.rvv-testcases;
               inherit postHook;
+            };
+            with-prebuilt-cases = default.overrideAttrs (_: {
+              env.TEST_CASES_DIR = pkgs.t1.rvv-testcases-prebuilt;
+            });
+            ci = pkgs.mkShellNoCC {
+              buildInputs = with pkgs; [ ammonite python3 ];
+              env.TEST_CASES_DIR = pkgs.t1.rvv-testcases;
             };
           };
 

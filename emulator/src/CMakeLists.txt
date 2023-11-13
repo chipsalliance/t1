@@ -49,7 +49,7 @@ set(VERILATE_ARGS
 )
 
 if (${VERILATE_TRACE})
-  list(PREPEND VERILATE_ARGS "TRACE")
+  list(PREPEND VERILATE_ARGS "TRACE_FST")
 endif()
 
 verilate(emulator

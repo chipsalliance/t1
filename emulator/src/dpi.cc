@@ -50,7 +50,7 @@ void VBridgeImpl::dpiDumpWave() {
   TRY({
     svSetScope(
         svGetScopeFromName("TOP.TestBench.verificationModule.dpiDumpWave"));
-    dpi_dump_wave((wave + ".fst").c_str());
+    dpi_dump_wave(wave.c_str());
     svSetScope(
         svGetScopeFromName("TOP.TestBench.verificationModule.dpiFinish"));
   })

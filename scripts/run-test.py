@@ -21,10 +21,14 @@ def main():
                         help='configuration name, as filenames in ./configs')
     parser.add_argument('-r', '--run-config', default="debug",
                         help='run configuration name, as filenames in ./run')
+    parser.add_argument('-v', '--verbose', action='store_true', help='set loglevel to debug')
+    parser.add_argument('--no-log', action='store_true', help='do not produce emulator log')
+    parser.add_argument('-q', '--no-console-log', action='store_true', help='do not produce emulator log')
+
     parser.add_argument('--cases-dir', help='path to testcases, default to TEST_CASES_DIR environment')
     parser.add_argument('--out-dir', default=None, help='path to save wave file and perf result file')
-    parser.add_argument('-v', '--verbose', action='store_true', help='set loglevel to debug')
-    parser.add_argument('-q', '--no-log', action='store_true', help='do not produce emulator log')
+    parser.add_argument('--base-out-dir', default=None, help='save result files in {base_out_dir}/{config}/{case}/{run_config}')
+    parser.add_argument('--emulator-path', default=None, help='path to emulator')
     args = parser.parse_args()
 
     if args.verbose:
@@ -37,16 +41,16 @@ def main():
             args.cases_dir = env_case_dir
         else:
             logger.fatal('no testcases directory specified with TEST_CASES_DIR environment or --cases-dir argument')
+            exit(1)
 
     if args.out_dir is None:
-        args.out_dir = f'./out/{args.config}/{args.case}/{args.run_config}'
+        if args.base_out_dir is not None:
+            args.out_dir = f'{args.base_out_dir}/{args.config}/{args.case}/{args.run_config}'
+        else:
+            args.out_dir = f'./testrun/{args.config}/{args.case}/{args.run_config}'
         Path(args.out_dir).mkdir(exist_ok=True, parents=True)
 
-    try:
-        run(args)
-    except subprocess.CalledProcessError as e:
-        logger.error(f'failed to run "{e.args}" (return code {e.returncode}):\n{e.stderr.decode()}')
-        raise e
+    run(args)
 
 def run(args):
     cases_dir = Path(args.cases_dir)
@@ -66,20 +70,24 @@ def run(args):
     elaborate_config_path = Path('configs') / f'{args.config}.json'
     assert elaborate_config_path.exists(), f'cannot find elaborate config in {elaborate_config_path}'
 
-    process_args = ['nix', 'run', f'.#t1.{args.config}.verilator-emulator']
+    process_args = [ args.emulator_path ] if args.emulator_path else ['nix', 'run', f'.#t1.{args.config}.verilator-emulator']
     env = {
         'COSIM_bin': str(case_elf_path),
         'COSIM_wave': str(Path(args.out_dir) / 'wave.fst'),
         'COSIM_timeout': str(run_config['timeout']),
         'COSIM_config': str(elaborate_config_path),
         'PERF_output_file': str(Path(args.out_dir) / 'perf.txt'),
-        'EMULATOR_LOG_PATH': str(Path(args.out_dir) / 'emulator.log'),
-        'EMULATOR_NO_LOG': 'true' if args.no_log else 'false',
+        'EMULATOR_log_path': str(Path(args.out_dir) / 'emulator.log'),
+        'EMULATOR_no_log': 'true' if args.no_log else 'false',
+        'EMULATOR_no_console_log': 'true' if args.no_console_log else 'false',
     }
     env_repr = '\n'.join(f'{k}={v}' for k, v in env.items())
-    logger.info(f'Run {" ".join(process_args)} with:\n{env_repr}')
-    subprocess.Popen(process_args, env=os.environ | env).wait()
-    logger.info(f'Emulator result saved in {args.out_dir}')
+    logger.info(f'Run "{" ".join(process_args)}" with:\n{env_repr}')
+    return_code = subprocess.Popen(process_args, env=os.environ | env).wait()
+    if return_code != 0:
+        logger.error(f'Emulator exited with return code {return_code}')
+        exit(return_code)
+    logger.info(f'Emulator logs were saved in {args.out_dir}')
 
 if __name__ == '__main__':
     main()

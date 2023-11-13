@@ -7,7 +7,7 @@ env:
 
 jobs:
   gen-matrix:
-    name: Generate test matrix
+    name: "Generate test matrix"
     if: github.event.pull_request.merged == true
     runs-on: [self-hosted, linux]
     env:
@@ -30,14 +30,16 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             max-jobs = 0
-            builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
       - id: ci-tests
+        name: "Generate matrix"  # TODO: why unpassed testcases corresponds to perf testcases
         run: |
-          nix develop -c make ci-unpassed-tests DEFAULT_PASSED=.github/passed/default.txt
+          echo -n matrix= >> "$GITHUB_OUTPUT"
+          nix develop .#ci -c .github/scripts/ci.sc postPrMatrixJson --bucketSize "$RUNNERS" >> "$GITHUB_OUTPUT"
 
-  ci:
-    name: "CI"
+  run-testcases:
+    name: "Run unpassed and perf testcases"
     if: github.event.pull_request.merged == true
     needs: [gen-matrix]
     strategy:
@@ -62,20 +64,22 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             max-jobs = 0
-            builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
       - id: ci-run
+        name: "Run testcases"
         run: |
-          nix develop -c make ci-run "NAME=${{ matrix.name }}"
-          nix develop -c make convert-perf-to-md
+          nix develop .#ci -c .github/scripts/ci.sc runTests --jobs "${{ matrix.jobs }}" \
+            --resultDir test-results-$(head -c 10 /dev/urandom | base32)
+          nix develop .#ci -c .github/scripts/ci.sc convertPerfToMD
 
       - uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: results
+          name: test-results
           path: |
-            ./test-log/result-*
-            ./test-log/**/fail-test-*.md
+            test-results-*/cycle-updates.md
+            test-results-*/failed-tests.md
             perf-result-*.md
 
       - uses: actions/upload-artifact@v3
@@ -86,26 +90,30 @@ jobs:
 
   report:
     name: "Report CI result"
-    if: github.event.pull_request.merged == true && always()
-    needs: [ci]
+    if: github.event.pull_request.merged == true
+    needs: [run-testcases]
     runs-on: [self-hosted, linux]
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: results
-      - run: printf "\n\n## Perf Result\n" >> $GITHUB_STEP_SUMMARY; cat perf-*.md >> $GITHUB_STEP_SUMMARY
+          name: test-results
       - run: |
-          echo -e "\n## Newly passed tests\n" >> $GITHUB_STEP_SUMMARY
-          find . -name 'result.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
+          printf "\n\n## Perf Result\n" >> "$GITHUB_STEP_SUMMARY"
+          shopt -s nullglob
+          cat perf-*.md >> "$GITHUB_STEP_SUMMARY"
       - run: |
-          echo -e "\n## Still failing tests\n" >> $GITHUB_STEP_SUMMARY
-          find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
+          echo -e "\n## Newly passed tests\n" >> "$GITHUB_STEP_SUMMARY"
+          shopt -s nullglob
+          cat test-results-*/cycle-updates.md >> "$GITHUB_STEP_SUMMARY"
+      - run: |
+          echo -e "\n## Still failing tests\n" >> "$GITHUB_STEP_SUMMARY"
+          shopt -s nullglob
+          cat test-results-*/failed-tests.md >> "$GITHUB_STEP_SUMMARY"
 
   release:
+    name: "Release prebuilt testcases"
     runs-on: [self-hosted, linux]
     needs: report
-    strategy:
-      fail-fast: false
     steps:
       - uses: actions/checkout@v3
         with:
@@ -125,11 +133,11 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             max-jobs = 0
-            builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
       - id: build
         run: |
-          .github/scripts/bump-prebuilt-testcases.sh check_before_do_release ./rvv-testcase.tar.gz
+          .github/scripts/bump-prebuilt-testcases.sh build_testcases_if_updated ./rvv-testcases.tar.gz
       - uses: "marvinpinto/action-automatic-releases@latest"
         id: step-release
         if: ${{ steps.build.outputs.do_release == 'true' }}
@@ -138,19 +146,21 @@ jobs:
           prerelease: true
           automatic_release_tag: "${{ steps.build.outputs.tag }}"
           title: "Testcase Release ${{ steps.build.outputs.tag }}"
-          files: ./rvv-testcase.tar.gz
+          files: ./rvv-testcases.tar.gz
       - if: ${{ steps.build.outputs.do_release == 'true' }}
         run: |
-          .github/scripts/bump-prebuilt-testcases.sh bump "${{ steps.build.outputs.tag }}"
+          .github/scripts/bump-prebuilt-testcases.sh bump "${{ steps.build.outputs.tag }}" \
+            nix/t1/testcases/rvv-testcases-prebuilt.nix
       - if: ${{ steps.build.outputs.do_release == 'true' }}
         uses: peter-evans/create-pull-request@v5
         with:
-          add-paths: ./nix/rvv-testcase-unwrapped.nix
+          add-paths: nix/t1/testcases/rvv-testcases-prebuilt.nix
           commit-message: "[nix] bump testcase to version ${{ steps.build.outputs.tag }}"
           branch: nix-testcase-bump
           delete-branch: true
           title: "[nix] bump testcase to version ${{ steps.build.outputs.tag }}"
-          body: "Bump rvv-testcase-unwrapped.nix"
+          body: "Bump rvv-testcases-unwrapped.nix"
           reviewers: |
             avimitin
             sequencer
+

@@ -1,12 +1,5 @@
 #!/usr/bin/env amm
 
-// This target will try to build all the test cases in the given testSrcDir and group them into the given output directory.
-//
-// ```bash
-// # Run this in the project root
-// amm .github/scripts/ci.sc $PWD/tests ./test-out
-// ```
-//
 // @param testSrcDir Path to the tests directory
 // @param outDir Path to the output directory
 @main
