@@ -1,0 +1,9 @@
+{
+  "name": "memcpy",
+  "type": "asm",
+  "vlen": 1024,
+  "xlen": 32,
+  "fp": false,
+  "compileOptions": ["-mabi=ilp32f", "-march=rv32gcv", "-mno-relax", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-Wl,--entry=start", "-fno-PIC"],
+  "sources": ["main.S", "memcpy.asm"]
+}
