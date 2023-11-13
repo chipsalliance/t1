@@ -6,11 +6,14 @@
 
 #include "simif.h"
 #include "spdlog-ext.h"
+#include "uartlite.h"
 
 class simple_sim : public simif_t {
 private:
   char *mem;
   size_t mem_size;
+  uartlite uart;
+  reg_t uart_addr = 0x60000000;
 
 public:
   explicit simple_sim(size_t mem_size) : mem_size(mem_size) {
@@ -26,6 +29,9 @@ public:
 
   // should return NULL for MMIO addresses
   char *addr_to_mem(reg_t addr) override {
+    if (uart_addr <= addr && addr < uart_addr + sizeof(uartlite_regs)) {
+      return NULL;
+    }
     CHECK_LE(addr, mem_size,
              fmt::format("memory out of bound ({:016X} >= {:016X})", addr,
                          mem_size));
@@ -33,11 +39,22 @@ public:
   }
 
   bool mmio_load(reg_t addr, size_t len, uint8_t *bytes) override {
-    FATAL("Unimplemented");
+    if (uart_addr <= addr && addr < uart_addr + sizeof(uartlite_regs)) {
+      return uart.do_read(addr - uart_addr, len, bytes);
+    }
+    FATAL(fmt::format("Unknown MMIO load address ({:016X})", addr));
   }
 
   bool mmio_store(reg_t addr, size_t len, const uint8_t *bytes) override {
-    FATAL("Unimplemented");
+    if (uart_addr <= addr && addr < uart_addr + sizeof(uartlite_regs)) {
+      bool res = uart.do_write(addr - uart_addr, len, bytes);
+      while (uart.exist_tx()) {
+        std::cerr << uart.getc();
+        std::cerr.flush();
+      }
+      return res;
+    }
+    FATAL(fmt::format("Unknown MMIO load address ({:016X})", addr));
   }
 
   [[nodiscard]] const cfg_t &get_cfg() const override {
