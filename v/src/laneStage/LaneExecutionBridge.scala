@@ -195,12 +195,13 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
    * use [[lastGroupMask]] to mask the result otherwise use [[fullMask]]. */
   val maskCorrect: Bits = Mux(executionRecord.bordersForMaskLogic, lastGroupMask, fullMask)
 
+  val maskExtend = Mux(state.vSew1H(1), FillInterleaved(2, executionRecord.mask(1, 0)), executionRecord.mask)
   vfuRequest.bits.src := VecInit(Seq(finalSource1, finalSource2, finalSource3, maskCorrect))
   vfuRequest.bits.opcode := decodeResult(Decoder.uop)
   vfuRequest.bits.mask := Mux(
     decodeResult(Decoder.adder),
     Mux(decodeResult(Decoder.maskSource), executionRecord.mask, 0.U(4.W)),
-    executionRecord.mask | Fill(4, !state.maskType)
+    maskExtend | Fill(4, !state.maskType)
   )
   vfuRequest.bits.executeMask := executionRecord.mask | FillInterleaved(4, state.maskNotMaskedElement)
   vfuRequest.bits.sign0 := !decodeResult(Decoder.unsigned0)
