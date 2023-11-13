@@ -14,8 +14,7 @@
 }:
 
 stdenv.mkDerivation rec {
-  pname = "rvv-testcases";
-  version = "unstable-2023-09-04";
+  name = "rvv-testcases";
   src = ../../../tests;
 
   nativeBuildInputs = [
@@ -31,7 +30,7 @@ stdenv.mkDerivation rec {
 
   passthru.millDeps = fetchMillDeps {
     src = lib'.sourceFilesByPrefixes src [ "/build.sc" "/configs" ];
-    name = "${pname}-${version}";
+    inherit name;
 
     millDepsHash = "sha256-ERYtxexobe8XK1RNftclghkWb0gHcfvGK72aFyywsOg=";
   };

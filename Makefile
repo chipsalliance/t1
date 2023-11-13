@@ -34,35 +34,3 @@ reformat:
 checkformat:
 	mill -i __.checkFormat
 
-ci-run:
-	.github/scripts/ci.sc runTest . "$(NAME)" ./test-log
-
-ci-passed-tests:
-	echo -n matrix= >> $$GITHUB_OUTPUT
-	.github/scripts/ci.sc passedJson "$(RUNNERS)" "$(DEFAULT_PASSED)" ./passed.json
-	cat ./passed.json >> $$GITHUB_OUTPUT
-
-ci-unpassed-tests:
-	echo -n matrix= >> $$GITHUB_OUTPUT
-	.github/scripts/ci.sc unpassedJson "$(RUNNERS)" . "$(DEFAULT_PASSED)" ./unpassed.json
-	cat ./unpassed.json >> $$GITHUB_OUTPUT
-
-ci-all-tests:
-	echo -n matrix= >> $$GITHUB_OUTPUT
-	.github/scripts/ci.sc allJson "$(RUNNERS)" . ./all.json
-	cat ./all.json >> $$GITHUB_OUTPUT
-
-gen-tests-artifacts:
-	.github/scripts/ci.sc genTestElf ./tests ./tests-artifacts
-
-gen-test-case-bucket:
-	echo -n matrix= >> $$GITHUB_OUTPUT
-	.github/scripts/ci.sc genTestBuckets --testSrcDir ./tests --bucketSize "$(RUNNERS)" --outFile ./test-case-matrix.json
-	cat ./test-case-matrix.json >> $$GITHUB_OUTPUT
-
-build-test-cases:
-	rm -rf out tests/out
-	.github/scripts/ci.sc buildTestCases --testSrcDir ./tests --outDir "$(OUT_DIR)" --taskBucket "$(TESTS)"
-
-convert-perf-to-md:
-	.github/scripts/ci.sc convertPerfToMD .

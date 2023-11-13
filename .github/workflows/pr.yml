@@ -5,12 +5,12 @@ env:
 
 jobs:
   gen-matrix:
-    name: Generate test matrix
+    name: "Generate test matrix"
     runs-on: [self-hosted, linux]
     env:
       RUNNERS: 16
     outputs:
-      ci-tests: ${{ steps.ci-tests.outputs.matrix }}
+      ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -29,14 +29,16 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             max-jobs = 0
-            builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
-      - id: ci-tests
+      - id: gen-matrix
+        name: "Generate test matrix"
         run: |
-          nix shell .#ammonite -c make ci-passed-tests DEFAULT_PASSED=.github/passed/default.txt
+          echo -n matrix= >> "$GITHUB_OUTPUT"
+          nix develop .#ci -c .github/scripts/ci.sc passedMatrixJson --bucketSize "$RUNNERS" >> "$GITHUB_OUTPUT"
 
-  ci:
-    name: "CI"
+  run-testcases:
+    name: "Run testcases"
     needs: [gen-matrix]
     strategy:
       fail-fast: false
@@ -60,25 +62,27 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             max-jobs = 0
-            builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
-      - id: ci-run
+      - name: "Run testcases"
+        id: ci-run
         run: |
-          nix develop -c make ci-run "NAME=${{ matrix.name }}"
+          nix develop .#ci -c .github/scripts/ci.sc runTests --jobs "${{ matrix.jobs }}" \
+            --resultDir test-results-$(head -c 10 /dev/urandom | base32)
 
       - uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: results
+          name: test-reports
           path: |
-            test-log/**/fail-test-*.md
-            test-log/result-*
+            test-results-*/failed-tests.md
+            test-results-*/cycle-updates.md
 
       - uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: fail-log
-          path: ./test-log/fail/*
+          name: failed-logs
+          path: test-results-*/failed-logs
 
       - uses: actions/upload-artifact@v3
         if: always()
@@ -87,35 +91,38 @@ jobs:
           path: /tmp/nix-post-build-hook.log
 
 
-  gen-fail-wave:
-    name: "Generate wave for failing test"
+  gen-fail-wave-matrix:
+    name: "Generate matrix for re-testing failing tests"
     if: always()
-    needs: [ci]
+    needs: [run-testcases]
     runs-on: [self-hosted, linux]
     outputs:
-      generate_wave: ${{ steps.filter-fail-jobs.outputs.generate_wave }}
-      retry_tasks: ${{ steps.filter-fail-jobs.outputs.retry_tasks }}
+      generate_wave: ${{ steps.generate-matrix.outputs.generate_wave }}
+      retry_tasks: ${{ steps.generate-matrix.outputs.retry_tasks }}
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: results
-      - id: filter-fail-jobs
-        name: fileter-fail-jobs
+          name: test-reports
+      - id: generate-matrix
+        name: "Generate matrix"
         run: |
           touch all-fail-tests.txt
-          find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> all-fail-tests.txt' \;
-          retry=$(sed 's/\* //' all-fail-tests.txt | tail -n3)
-          [[ -z "$retry" ]] \
-            || (echo "generate_wave=true" >> "$GITHUB_OUTPUT" \
-            && echo "$retry" | jq -n --indent 0 "{include:[{name: inputs}]}")
+          shopt -s nullglob
+          cat test-results-*/failed-tests.md > all-failed-tests.txt
+          retry=$(sed 's/\* //' all-fail-tests.txt | tail -n3)  # only retry last three failed
+          if [ -n "$retry" ]; then
+            echo "generate_wave=true" >> "$GITHUB_OUTPUT"
+            echo -n "retry_tasks=" >> "$GITHUB_OUTPUT"
+            echo "$retry" | jq -nR --indent 0 "{include:[{job: inputs}]}" >> "$GITHUB_OUTPUT"
+          fi
 
   build-fail-wave:
     name: "Generate wave for failing tests"
-    needs: [gen-fail-wave]
-    if: ${{ needs.gen-fail-wave.outputs.generate_wave == 'true' }}
+    needs: [gen-fail-wave-matrix]
+    if: ${{ needs.gen-fail-wave-matrix.outputs.generate_wave == 'true' }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.gen-fail-wave.outputs.retry_tasks) }}
+      matrix: ${{ fromJSON(needs.gen-fail-wave-matrix.outputs.retry_tasks) }}
     runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v3
@@ -133,31 +140,31 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             max-jobs = 0
-            builders = ssh://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
             builders-use-substitutes = true
-      - run: |
-          millTask=$(echo ${{ matrix.name }} | sed 's/v1024l8b2-test/v1024l8b2-test-trace/')
-          nix develop '.#ci' -c mill -i "$millTask"
-          waveFile=$(find out -name 'wave.fst')
-          hierFile=$(find out -name 'wave.hier')
-          if [[ -z "$waveFile" || -n "$hierFile" ]]; then
+      - name: "Run failed testcases"
+        run: |
+          nix develop .#ci -c .github/scripts/ci.sc runFailedTests --jobs "${{ matrix.job }}"
+          waveFile=$(find testrun -name 'wave.fst')
+          hierFile=$(find testrun -name 'wave.hier')
+          if [[ -z "$waveFile" || -n "$hierFile" ]]; then  # when emulator failed, .hier is not merged into .fst
             echo "Verilator doesn't generate wave correctly"
             exit 1
           fi
-          mv "$waveFile" ./wave-"$millTask".fst
+          mv "$waveFile" ./wave-${{ matrix.job }}.fst
       - uses: actions/upload-artifact@v3
         with:
-          name: fail-test-wave
-          path: './*.fst'
+          name: failed-tests-wave
+          path: 'wave-*.fst'
       - run: |
-          echo "Test ${{ matrix.name }} run fail"
+          echo "Test ${{ matrix.job }} run fail"
           # We are just running post action for failing test, so we need to avoid the workflow finishing successfully
           exit 1
 
   report:
     name: "Report CI result"
     if: always()
-    needs: [ci]
+    needs: [run-testcases]
     runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v3
@@ -167,18 +174,22 @@ jobs:
       - uses: cachix/install-nix-action@v22
       - uses: actions/download-artifact@v3
         with:
-          name: results
-      - run: |
-          echo -e "\n## Fail tests\n" >> $GITHUB_STEP_SUMMARY
-          find . -name 'fail-test-*.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
-      - run: |
-          echo -e "\n## Cycle update\n" >> $GITHUB_STEP_SUMMARY
-          find . -name 'result.md' -exec bash -c 'cat {} >> $GITHUB_STEP_SUMMARY' \;
-      - run: |
-          nix shell p#ammonite -c .github/scripts/ci.sc mergeCycleData .
+          name: test-reports
+      - name: "Print step summary"
+        run: |
+          echo -e "\n## Failed tests\n" >> $GITHUB_STEP_SUMMARY
+          shopt -s nullglob
+          cat test-result-*/failed-tests.md >> $GITHUB_STEP_SUMMARY
+          echo -e "\n## Cycle updates\n" >> $GITHUB_STEP_SUMMARY
+          shopt -s nullglob
+          cat test-result-*/cycle-updates.md >> $GITHUB_STEP_SUMMARY
+      - name: "Commit cycle updates"
+        run: |
+          nix shell .#ammonite -c .github/scripts/ci.sc mergeCycleData  # no need to use devShells.ci
           git config user.name github-actions
           git config user.email github-actions@github.com
           git diff -s --exit-code '.github/passed/**/passed.json' \
             || (git add '.github/passed/**/passed.json' \
             && git commit -m "[ci] update test case cycle data" \
             && git push origin ${{ github.head_ref }})
+

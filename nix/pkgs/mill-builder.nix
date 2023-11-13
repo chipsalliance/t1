@@ -62,6 +62,6 @@ let
 
         postUnpackHooks+=(setupMillCache)
       '');
-  } // (builtins.removeAttrs args [ "name" "src" "millDepsHash" ]));
+  } // (builtins.removeAttrs args [ "name" "src" "millDepsHash" "nativeBuildInputs" ]));
 in
 self

@@ -65,10 +65,7 @@ private:
   }
 
 public:
-  ConsoleSink() {
-    auto no_log = getenv_or("EMULATOR_NO_LOG", "false");
-    enable_sink = (no_log == "false");
-
+  explicit ConsoleSink(bool enable): enable_sink(enable) {
     whitelist = get_set_from_env("EMULATOR_WHITELIST_MODULE", ',');
     whitelist.insert("DPIInitCosim");
     whitelist.insert("SpikeStep");
@@ -157,19 +154,19 @@ private:
     switch (log_type) {
     case LogType::Info:
       file->info("{}", this->dump(-1));
-      console->info("{}", this->dump(2));
+      if (console) console->info("{}", this->dump(2));
       break;
     case LogType::Warn:
       file->warn("{}", this->dump(-1));
-      console->warn("{}", this->dump(2));
+      if (console) console->warn("{}", this->dump(2));
       break;
     case LogType::Trace:
       file->trace("{}", this->dump(-1));
-      console->trace("{}", this->dump(2));
+      if (console) console->trace("{}", this->dump(2));
       break;
     case LogType::Fatal:
       file->critical("{}", this->dump(-1));
-      console->critical("{}", this->dump(2));
+      if (console) console->critical("{}", this->dump(2));
       spdlog::shutdown();
 
       throw std::runtime_error(internal["message"]);
@@ -248,4 +245,4 @@ public:
 #define CHECK_GE(val1, val2, context) CHECK(val1 >= val2, context)
 #define CHECK_GT(val1, val2, context) CHECK(val1 > val2, context)
 
-inline JsonLogger Log;
+extern JsonLogger Log;

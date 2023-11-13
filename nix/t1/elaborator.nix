@@ -17,7 +17,7 @@
 
 let
   self = stdenv.mkDerivation rec {
-    name = "t1-elaborator-jar";
+    name = "t1-elaborator";
 
     src = lib'.sourceFilesByPrefixes ./../.. [ "/v" "/build.sc" "/common.sc" "/elaborator" ];
     sourceRoot = src.name;

@@ -15,7 +15,5 @@ coverage.dat
 build
 /result*
 /dependencies
-emulator-log.json
 __pycache__
-/test-log
-passed.json
+/testrun
