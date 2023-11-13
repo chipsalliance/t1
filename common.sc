@@ -27,7 +27,7 @@ trait HasChisel
   override def scalacPluginIvyDeps: T[Agg[Dep]] = T(super.scalacPluginIvyDeps() ++ chiselPluginIvy.map(Agg(_)).getOrElse(Agg.empty[Dep]))
 }
 
-// Local definations
+// Local definitions
 trait VectorModule
   extends ScalaModule 
     with HasChisel {
