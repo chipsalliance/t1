@@ -3,13 +3,13 @@
 #include <stdint.h>
 
 struct uartlite_regs {
-    volatile unsigned int rx_fifo;
-    volatile unsigned int tx_fifo;
-    volatile unsigned int status;
-    volatile unsigned int control;
+    unsigned int rx_fifo;
+    unsigned int tx_fifo;
+    unsigned int status;
+    unsigned int control;
 };
 
-struct uartlite_regs *const ttyUL0 = (struct uartlite_regs *)0x60000000;
+volatile struct uartlite_regs *const ttyUL0 = (struct uartlite_regs *)0x60000000;
 
 void uart_put_c(const char c) {
   while (ttyUL0->status & (1<<3) /* transmit FIFO full */);
