@@ -76,12 +76,17 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     executionRecordValid := enqueue.fire
   }
   if (isLastSlot) {
+    val firstGroupNotExecute = decodeResult(Decoder.crossWrite) && !state.maskNotMaskedElement && !Mux(
+      state.vSew1H(0),
+      // sew = 8, 2 mask bit / group
+      enqueue.bits.mask(1, 0).orR,
+      enqueue.bits.mask(0)
+    )
     // update execute index
-    when(enqueue.fire || recordDequeueFire) {
-      // Mux(enqueue.fire, decodeResult(Decoder.crossWrite) && !enqueue.bits.mask(0), true.B)
+    when(enqueue.fire || vfuRequest.fire) {
+      // Mux(enqueue.fire, firstGroupNotExecute, true.B)
       // executeIndex = 0 when enqueue.fire && widenReduce
-      executionRecord.executeIndex :=
-        decodeResult(Decoder.crossWrite) && !enqueue.bits.mask(0) || !enqueue.fire
+      executionRecord.executeIndex := firstGroupNotExecute || !enqueue.fire
     }
   }
   enqueue.ready := !executionRecordValid || recordDequeueReady
@@ -332,7 +337,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   queue.io.enq.valid :=
     recordQueue.io.deq.valid &&
       ((dataResponse.valid && reduceReady &&
-      (!decodeResult(Decoder.crossRead) || recordQueue.io.deq.bits.executeIndex)) ||
+        (!(decodeResult(Decoder.crossWrite) || widenReduce) || executionRecord.executeIndex)) ||
       notExecute)
   assert(!queue.io.enq.valid || queue.io.enq.ready)
   dequeue <> queue.io.deq
