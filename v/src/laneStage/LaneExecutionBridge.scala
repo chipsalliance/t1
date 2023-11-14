@@ -346,7 +346,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   queue.io.enq.valid :=
     recordQueue.io.deq.valid &&
       ((dataResponse.valid && reduceReady &&
-        (!doubleExecution || executionRecord.executeIndex)) ||
+        (!doubleExecution || recordQueue.io.deq.bits.executeIndex)) ||
       notExecute)
   assert(!queue.io.enq.valid || queue.io.enq.ready)
   dequeue <> queue.io.deq
