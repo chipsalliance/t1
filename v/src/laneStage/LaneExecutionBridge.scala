@@ -60,14 +60,17 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   /** mask format result for current `mask group` */
   val maskFormatResultForGroup: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.maskGroupWidth.W)))
 
-  val fusion: Bool = (decodeResult(Decoder.adder) && !decodeResult(Decoder.red)) || decodeResult(Decoder.multiplier)
   // Type widenReduce instructions occupy double the data registers because they need to retain the carry bit.
   val widenReduce: Bool = decodeResult(Decoder.widenReduce)
+  // Whether cross-lane reading or cross-lane writing requires double execution
+  val doubleExecution = decodeResult(Decoder.crossWrite) || decodeResult(Decoder.crossRead) || widenReduce
+  // narrow type
+  val narrow: Bool = !decodeResult(Decoder.crossWrite) && decodeResult(Decoder.crossRead)
   // todo: Need to collapse the results of combined calculations
   val reduceReady: Bool = true.B
   val recordQueueReadyForNoExecute = Wire(Bool())
   val recordDequeueReady: Bool = (if (isLastSlot) {
-    vfuRequest.ready && (!(decodeResult(Decoder.crossWrite) || widenReduce) || executionRecord.executeIndex)
+    vfuRequest.ready && (!doubleExecution || executionRecord.executeIndex)
   } else {
     vfuRequest.ready
   }) || recordQueueReadyForNoExecute
@@ -257,11 +260,16 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
 
   /** select from VFU, send to [[executionResult]], [[crossWriteLSB]], [[crossWriteMSB]]. */
   val dataDequeue: UInt = Mux(notExecute, recordQueue.io.deq.bits.source2, dataResponse.bits.data)
+  val deqVec = cutUInt(dataDequeue, 8)
 
+  // vsew = 8     -> d2 ## d0
+  // vasew = 16   -> d1 ## d0
+  val narrowUpdate = (Mux(state.vSew1H(0), deqVec(2), deqVec(1)) ## deqVec(0) ## executionResult) >> (parameter.datapathWidth / 2)
+  val lastSlotDataUpdate: UInt = Mux(narrow, narrowUpdate.asUInt, dataDequeue)
   // update execute result
   when(dataResponse.valid) {
     // update the [[executionResult]]
-    executionResult := dataDequeue
+    executionResult := lastSlotDataUpdate
 
     crossWriteLSB.foreach { crossWriteData =>
       crossWriteData := dataDequeue
@@ -325,7 +333,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
       Mux(
         decodeResult(Decoder.red),
         updateReduceResult.get,
-        dataDequeue
+        lastSlotDataUpdate
       )
     )
   } else {
@@ -338,7 +346,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   queue.io.enq.valid :=
     recordQueue.io.deq.valid &&
       ((dataResponse.valid && reduceReady &&
-        (!(decodeResult(Decoder.crossWrite) || widenReduce) || executionRecord.executeIndex)) ||
+        (!doubleExecution || executionRecord.executeIndex)) ||
       notExecute)
   assert(!queue.io.enq.valid || queue.io.enq.ready)
   dequeue <> queue.io.deq
