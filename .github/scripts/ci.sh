@@ -1,4 +1,4 @@
-NIX_FILE="./nix/rvv-testcase-unwrapped.nix"
+NIX_FILE="./nix/rvv-testcase-prebuilt.nix"
 NIX_EXPR_PREFIX="with import <nixpkgs> {}; let pkg = callPackage $NIX_FILE {}; in"
 
 nix_eval() {
@@ -64,7 +64,7 @@ check_before_do_release() {
   echo
 
   echo "Build new tests case ELFs"
-  nix build .#testcase --print-build-logs --out-link result
+  nix build .#rvv-testcase --print-build-logs --out-link result
   tar czf "$output_file" --directory "$(realpath ./result)" .
   echo "do_release=true" >> "$GITHUB_OUTPUT"
   echo "tag=$(date +%F)+$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
