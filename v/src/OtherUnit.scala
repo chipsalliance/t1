@@ -38,6 +38,8 @@ class OtherUnitReq(param: OtherUnitParam) extends Bundle {
   // csr
   val vSew: UInt = UInt(2.W)
   val vxrm: UInt = UInt(2.W)
+  // sew for narrow clip need to be corrected
+  val narrow: Bool = Bool()
 }
 
 class OtherUnitResp(datapathWidth: Int) extends Bundle {
@@ -52,7 +54,7 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with
 
   val ffo:      LaneFFO = Module(new LaneFFO(parameter.datapathWidth))
   val popCount: LanePopCount = Module(new LanePopCount(parameter.datapathWidth))
-  val vSewOH:   UInt = UIntToOH(request.vSew)(2, 0)
+  val vSewOH:   UInt = (UIntToOH(request.vSew) >> request.narrow).asUInt(2, 0)
   // ["", "", "", "", "rgather", "merge", "clip", "mv", "pop", "id"]
   val opcodeOH:         UInt = UIntToOH(request.opcode)(9, 0)
   val isffo:            Bool = opcodeOH(3, 0).orR

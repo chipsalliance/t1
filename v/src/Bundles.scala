@@ -676,6 +676,7 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val complete:     Bool = Bool()
   // vm = 0
   val maskType: Bool = Bool()
+  val narrow: Bool = Bool()
   // for float
   val unitSelet: Option[UInt] = Option.when(parameter.fpuEnable)(UInt(2.W))
   val floatMul: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
