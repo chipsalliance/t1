@@ -67,7 +67,8 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   // narrow type
   val narrow: Bool = !decodeResult(Decoder.crossWrite) && decodeResult(Decoder.crossRead)
   // todo: Need to collapse the results of combined calculations
-  val reduceReady: Bool = true.B
+  val reduceReady: Bool = WireDefault(true.B)
+  val sendFoldReduce: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
   val recordQueueReadyForNoExecute = Wire(Bool())
   val recordDequeueReady: Bool = (if (isLastSlot) {
     vfuRequest.ready && (!doubleExecution || executionRecord.executeIndex)
@@ -146,7 +147,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     )
   val finalSource1: UInt = if (isLastSlot) {
     Mux(
-      decodeResult(Decoder.crossWrite),
+      decodeResult(Decoder.crossWrite) || narrow,
       extendSource1,
       normalSource1
     )
@@ -154,6 +155,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     normalSource1
   }
 
+  val reduceFoldSource2: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
   /** src2 for the execution,
    * need to take care of cross read.
    */
@@ -162,9 +164,13 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
       executionRecord.crossReadVS2,
       doubleCollapse.get,
       Mux(
-        decodeResult(Decoder.crossWrite) || widenReduce,
+        decodeResult(Decoder.crossWrite) || (widenReduce && !sendFoldReduce.get),
         extendSource2,
-        executionRecord.source(1)
+        Mux(
+          sendFoldReduce.get,
+          reduceFoldSource2.get,
+          executionRecord.source(1)
+        )
       )
     )
   } else {
@@ -245,7 +251,11 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   // from float csr
   vfuRequest.bits.roundingMode.foreach(_ := state.csr.vxrm)
 
-  vfuRequest.valid := executionRecordValid
+  vfuRequest.valid := (if (isLastSlot) {
+    executionRecordValid || sendFoldReduce.get
+  } else {
+    executionRecordValid
+  })
   //--- record <-> vfu end ---
   //                        --- record <-> record pipe queue <-> response stage
   val recordQueue = Module(
@@ -253,7 +263,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   )
   assert(!vfuRequest.fire || recordQueue.io.enq.ready)
   recordQueueReadyForNoExecute := notExecute && recordQueue.io.enq.ready
-  recordQueue.io.enq.valid := vfuRequest.valid && (vfuRequest.ready || notExecute)
+  recordQueue.io.enq.valid := executionRecordValid && (vfuRequest.ready || notExecute)
   recordQueue.io.enq.bits.bordersForMaskLogic := executionRecord.bordersForMaskLogic
   recordQueue.io.enq.bits.mask := executionRecord.mask
   recordQueue.io.enq.bits.groupCounter := executionRecord.groupCounter
@@ -286,6 +296,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   val maskFormatResultUpdate: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
 
   val updateReduceResult: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
+  val reduceLastResponse = WireDefault(false.B)
   // update mask result
   if (isLastSlot) {
     val maskResult: UInt = dataResponse.bits.adderMaskResp
@@ -313,8 +324,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     when(dataResponse.valid || updateMaskResult.get) {
       maskFormatResultForGroup.foreach(_ := Mux(dataResponse.valid, maskFormatResultUpdate.get, 0.U))
     }
-    // masked element don't update 'reduceResult'
-    val reduceUpdateByteMask: UInt = Mux1H(
+    val normalReduceMask = Mux1H(
       state.vSew1H,
       Seq(
         recordQueue.io.deq.bits.mask,
@@ -322,12 +332,87 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
         FillInterleaved(4, recordQueue.io.deq.bits.mask(0))
       )
     )
-    val reduceUpdateBitMask = FillInterleaved(8, reduceUpdateByteMask)
-    updateReduceResult.get := (dataDequeue & reduceUpdateBitMask) | (reduceResult.get & ~reduceUpdateBitMask)
+    val widenReduceMask = Mux1H(
+      state.vSew1H(1, 0),
+      Seq(
+        FillInterleaved(2, Mux(
+          executionRecord.executeIndex,
+          recordQueue.io.deq.bits.mask(3, 2),
+          recordQueue.io.deq.bits.mask(1, 0)
+        )),
+        FillInterleaved(4, Mux(
+          executionRecord.executeIndex,
+          recordQueue.io.deq.bits.mask(1),
+          recordQueue.io.deq.bits.mask(0)
+        ))
+      )
+    )
+    // masked element don't update 'reduceResult'
+    val reduceUpdateByteMask: UInt =
+      Mux(widenReduce, widenReduceMask, normalReduceMask) | FillInterleaved(4, state.maskNotMaskedElement)
+    val foldUpdateMask = Wire(UInt(4.W))
+    updateReduceResult.get := {
+      val dataVec = cutUInt(dataDequeue, 8)
+      val ResultVec = cutUInt(reduceResult.get, 8)
+      VecInit(dataVec.zipWithIndex.map {case (d, i) =>
+        Mux1H(
+          Seq(
+            Mux(sendFoldReduce.get, foldUpdateMask(i), reduceUpdateByteMask(i)),
+            !sendFoldReduce.get && !reduceUpdateByteMask(i)
+          ),
+          Seq(d, ResultVec(i))
+        )
+      }).asUInt
+    }
     // update `reduceResult`
     when(dataResponse.valid || updateMaskResult.get) {
       reduceResult.get := Mux(dataResponse.valid && decodeResult(Decoder.red), updateReduceResult.get, 0.U)
     }
+
+    // reduce state machine
+    // widenReduce    false     true
+    // sew = 8        1         0
+    // sew = 16       0         -
+    // sew = 32       -         -
+    val nextFoldCount = state.vSew1H(0) && !widenReduce
+    val needFold = state.vSew1H(0) || (state.vSew1H(1) && !widenReduce)
+    val reduceFoldCount: Bool = RegInit(false.B)
+    val idle :: wLastResponse :: fold :: Nil = Enum(3)
+    val redState = RegInit(idle)
+    val stateFold = redState === fold
+    when(enqueue.fire && !enqueue.bits.sSendResponse.get && decodeResult(Decoder.red)) {
+      redState := wLastResponse
+    }
+    when(redState === wLastResponse && (dataResponse.valid && (!doubleExecution || recordQueue.io.deq.bits.executeIndex))) {
+      when(needFold) {
+        redState := fold
+        reduceFoldCount := nextFoldCount
+      }.otherwise {
+        redState := idle
+      }
+    }
+    // todo: && vrfRequest.valid ?
+    when(stateFold && reduceFoldCount === 0.U) {
+      redState := idle
+      reduceLastResponse := true.B
+    }
+    when(stateFold && dataResponse.valid) {
+      reduceFoldCount := false.B
+    }
+    sendFoldReduce.get := stateFold
+    reduceReady := (stateFold && reduceFoldCount === 0.U) || redState === idle ||
+      (wLastResponse === wLastResponse && !needFold)
+    val reduceDataVec = cutUInt(reduceResult.get, 8)
+    // reduceFoldCount = false => abcd -> xxab | xxcd -> mask 0011
+    // reduceFoldCount = true =>  abcd -> xaxc | xbxd -> mask 0101
+    reduceFoldSource2.get := Mux(
+      reduceFoldCount,
+      reduceDataVec(3) ## reduceDataVec(3) ## reduceDataVec(1),
+      reduceDataVec(3) ## reduceDataVec(3) ## reduceDataVec(2)
+    )
+
+    val foldMask = Mux(reduceFoldCount, 5.U, 3.U)
+    foldUpdateMask := Mux(stateFold, foldMask, 15.U)
   }
 
   // queue before dequeue
@@ -350,10 +435,10 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   queue.io.enq.bits.ffoSuccess.foreach(_ := dataResponse.bits.ffoSuccess)
   recordQueue.io.deq.ready := dataResponse.valid || (notExecute && queue.io.enq.ready)
   queue.io.enq.valid :=
-    recordQueue.io.deq.valid &&
+    (recordQueue.io.deq.valid &&
       ((dataResponse.valid && reduceReady &&
         (!doubleExecution || recordQueue.io.deq.bits.executeIndex)) ||
-      notExecute)
+      notExecute)) || reduceLastResponse
   assert(!queue.io.enq.valid || queue.io.enq.ready)
   dequeue <> queue.io.deq
 }

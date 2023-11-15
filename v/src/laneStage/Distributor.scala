@@ -100,6 +100,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
 
   requestToVfu.valid := sendRequestValid
   requestToVfu.bits := requestReg.bits
+  requestToVfu.bits.executeIndex := executeIndex
   requestToVfu.bits.src := VecInit(
     requestReg.bits.src.zip(signSeq).map{ case (d, s) => CollapseOperand(d, s) }
   )
