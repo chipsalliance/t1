@@ -57,5 +57,7 @@ final: prev:
     clang = final.llvmToolsForRV32Clang.clang;
   };
 
+  rv32-newlib-gnu-toolchain = final.callPackage ./pkgs/rv32-newlib-gnu-toolchain.nix { };
+
   t1 = final.callPackage ./t1 { };
 }
