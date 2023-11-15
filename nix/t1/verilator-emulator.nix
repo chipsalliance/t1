@@ -22,7 +22,7 @@ in
 stdenv.mkDerivation {
   name = "t1-verilator-emulator";
 
-  src = ../../emulator/src;
+  src = ../../emulator;
 
   # CMakeLists.txt will read the environment
   env.VERILATE_SRC_DIR = toString elaborate;

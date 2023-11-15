@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.20)
 project(emulator)
 set(CMAKE_CXX_STANDARD 17)
 
+message(STATUS "Project '${PROJECT_NAME}' build type: ${CMAKE_BUILD_TYPE}")
+
 find_package(args REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
