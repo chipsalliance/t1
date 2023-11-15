@@ -19,7 +19,14 @@ trait Case extends Module {
   def vLen = T(testConfig().obj("vlen").num.toInt)
   def xLen = T(testConfig().obj("xlen").num.toInt)
   def hasFP = T(testConfig().obj("fp").bool)
-  def compileOptions = T(testConfig().obj("compileOptions").arr.map(_.str))
+  def substituteWithEnv = (og: String) => {
+    // Match env request like: "${FOO_BAR_VAR}"
+    val isEnv = raw"\$$\{([\w-]+)\}".r.unanchored
+    isEnv.replaceAllIn(og, m => {
+      sys.env(m.group(1))
+    })
+  }
+  def compileOptions = T(testConfig().obj("compileOptions").arr.map(opt => substituteWithEnv(opt.str)))
   def includeDir = T(Seq[PathRef]())
   // TODO: merge to compileOptions
   // def linkOpts = T(Seq("-mno-relax", "-fno-PIC"))
