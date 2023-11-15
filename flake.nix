@@ -14,60 +14,29 @@
       (system:
         let
           pkgs = import nixpkgs { inherit system; overlays = [ overlay ]; };
-          commonDeps = with pkgs; [
-            gnused
-            coreutils
-            gnumake
-            gnugrep
-            which
-            parallel
-          ];
-
-          chiselDeps = with pkgs; [
-            mill
-            espresso
-            circt
-            protobuf
-            antlr4
-          ];
-
-          emulatorDeps = with pkgs; [
-            cmake
-            libargs
-            spdlog
-            fmt
-            libspike
-            nlohmann_json
-            ninja
-
-            # for verilator
-            verilator
-            zlib
-
-            # for CI
-            ammonite
-
-            # wave interpreter
-            wal-lang
-          ];
-
-          mkLLVMShell = pkgs.mkShell.override { stdenv = pkgs.llvmForDev.stdenv; };
-          postHook = ''
-            # workaround for https://github.com/NixOS/nixpkgs/issues/214945
-            export PATH="${pkgs.clang-tools}/bin:$PATH"
-          '';
         in
         {
           legacyPackages = pkgs;
           devShells = rec {
-            default = mkLLVMShell {
-              buildInputs = commonDeps ++ chiselDeps ++ emulatorDeps;
+            default = pkgs.mkShell {
+              buildInputs = with pkgs; [
+                gnumake
+                gnugrep
+                gnused
+
+                mill
+                ammonite
+
+                # wave interpreter
+                wal-lang
+              ];
               env.TEST_CASES_DIR = pkgs.t1.rvv-testcases;
-              inherit postHook;
             };
+
             with-prebuilt-cases = default.overrideAttrs (_: {
               env.TEST_CASES_DIR = pkgs.t1.rvv-testcases-prebuilt;
             });
+
             ci = pkgs.mkShellNoCC {
               buildInputs = with pkgs; [ ammonite python3 ];
               env.TEST_CASES_DIR = pkgs.t1.rvv-testcases;
