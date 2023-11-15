@@ -45,7 +45,7 @@ For tuning the ideal vector machines, follow these performance tuning methodolog
 - Decide on the vector cache size. Specific workloads are required to benchmark the miss rate.
 - Configure the vector cache microarchitecture. This is essentially determined by the next level memory subsystems.
 
-# Future Work
+## Future Work
 The v1p0 will tapeout in 2023 with TSN28 process. This tapeout is the silicon verification for our architecture and design flows.
 
 ### Before v1p0 tapeout
@@ -62,18 +62,16 @@ The v1p0 will tapeout in 2023 with TSN28 process. This tapeout is the silicon ve
 - MMU support;
 - MSP support;
 
-## Build and Development
+## Development Guide
 
 The IP emulators are designed to emulate the vector IP. Spike is used as the scalar core integrating with verilated vector IP and use difftest for IP-level verification, it records events from VRF and LSU to perform online difftest.
 
-You can find different cases under `tests/cases` folder, they are dynamically detected found by the `nix` build system.
-
 ### Nix setup
-We use nix flake to setup test environment. If you have not installed nix, install it following the [guide](https://nixos.org/manual/nix/stable/installation/installing-binary.html), and enable flake following the [wiki](https://nixos.wiki/wiki/Flakes#Enable_flakes). Or you can try the [installer](https://github.com/DeterminateSystems/nix-installer) provided by Determinate Systems, which enables flake automatically.
+We use nix flake as our primary build system. If you have not installed nix, install it following the [guide](https://nixos.org/manual/nix/stable/installation/installing-binary.html), and enable flake following the [wiki](https://nixos.wiki/wiki/Flakes#Enable_flakes). Or you can try the [installer](https://github.com/DeterminateSystems/nix-installer) provided by Determinate Systems, which enables flake by default.
 
 ### Build
 
-t1 includes a hardware design written in Chisel and a emulator powered by verilator. The elaborator and emulator can be run with different configurations. Each configuration is specified with a JSON file in `./configs` directory. We can specify a configuration by its JSON file name, e.g. `v1024l8p2fp-test`.
+t1 includes a hardware design written in Chisel and a emulator powered by verilator. The elaborator and emulator can be run with various configurations. Each configuration is specified with a JSON file in `./configs` directory. We can specify a configuration by its JSON file name, e.g. `v1024l8p2fp-test`.
 
 You can build its components with the following commands:
 ```shell
@@ -83,13 +81,37 @@ $ nix build .#t1.<config-name>.verilator-emulator  # the verilator emulator
 
 $ nix build .#t1.rvv-testcases  # the testcases
 ```
-where `<config-name>` should be replaced with a configuration name, e.g. `v1024l8p2fp-test`.
+where `<config-name>` should be replaced with a configuration name, e.g. `v1024l8p2fp-test`. The build output will be put in `./result` directory by default.
+
+#### Run Testcases
+
+To run testcases, set `TEST_CASES_DIR` to the directory containing built testcases, either manually or using the following commands:
+```shell
+$ nix develop  # enter the default development shell with common tools
+$ nix develop .#with-prebuilt-cases  # enter the default shell but with prebuilt testcases
+```
+
+Now run the job using the following script:
+```shell
+$ ./scripts/run-test.py -c <config> -r <runConfig> <caseName>
+```
+wheres
+- `<config>` is the configuration name, filename in `./configs`;
+- `<caseName>` is the name of a testcase, filename in `$TEST_CASES_DIR/configs`;
+- `<runConfig>` is a emulator running config, described as filename in `./run`.
+
+For example:
+```shell
+./scripts/run-test.py -c v1024l8b2fp-test -r debug conv-mlir  # '-r debug' can be omitted since it is the default
+```
+
+`run-test.py` provides various command-line options for different use cases. Run `./scripts/run-test.py -h` for help.
 
 ### Development
 
 #### Developing Elaborator (Chisel-only)
 ```shell
-$ nix develop .#t1.elaborator
+$ nix develop .#t1.elaborator  # bring up scala environment, circt tools, and create submodule soft links
 
 $ nix develop .#t1.elaborator.editable  # or if you want submodules editable
 
@@ -98,36 +120,33 @@ $ mill -i elaborator  # build and run elaborator
 
 #### Developing Emulator
 ```shell
-$ nix develop .#t1.v1024l8b2-test-trace.verilator-emulator
-$ cd emulator/src
+$ nix develop .#t1.<config>.verilator-emulator  # replace <config> with your configuration name
+$ cd emulator
 $ cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Debug
 $ cmake --build build
+$ cd ..; ./scripts/run-test.py --emulator-path=emulator/src/build/emulator conv-mlir
 ```
 
 #### Developing Testcases
-The `tests/` directory itself is a single build module.
-There are four types of tests in this build module:
-
+The `tests/` contains the testcases. There are four types of testcases:
 - asm
 - intrinsic
 - mlir
 - codegen
 
-To control how these tests are run, there are separate configs for each test in the `configs/` directory.
-The `mill` build system will attempt to compile the `build.sc` file and generate test case objects
-by reading the test case source file and its corresponding config file.
+To control how these tests are run, there are separate configs for each test in the `configs/` directory. The `mill` build system will attempt to compile the `build.sc` file and generate test case objects by reading the test case source file and its corresponding config file.
 
-The codegen tests requires [ksco/riscv-vector-tests](https://github.com/ksco/riscv-vector-tests) to generate multiple asm tests.
-If you want to build all the codegen tests manually, you will need to set the following environment variable:
+The codegen tests requires [ksco/riscv-vector-tests](https://github.com/ksco/riscv-vector-tests) to generate multiple asm tests. If you want to build all the codegen tests manually, you will need to set the following environment variable:
 
 - `CODEGEN_BIN_PATH`: Path to the `single` binary in riscv-vector-tests.
 - `CODEGEN_INC_PATH`: A list of header include paths. You may need to set it as `export CODEGEN_INC_PATH="$codegen/macro/sequencer-vector $codegen/env/sequencer-vector`.
 - `CODEGEN_CFG_PATH`: Path to the `configs` directory in riscv-vector-tests.
 
-Enter the development shell with above environment variables set:
+To develop testcases, enter the development shell:
 ```shell
 $ nix develop .#t1.testcases
 ```
+`CODEGEN_` like environments described above will be automatically set.
 
 List available tests:
 ```shell
@@ -144,14 +163,7 @@ $ mill -i asm[hello-mlir].elf
 
 # build all tests
 $ cd tests
-$ ./buildAll.sc . path/to/output/directory
-```
-
-Run testcases in the development shell:
-```shell
-$ nix develop  # enter the default development shell with testcases built by nix
-$ ./scripts/run-test.py -c v1024l8b2-test conv-mlir
-$ ./scripts/run-test.py --help  # see all options
+$ ./buildAll.sc . path/to/output/directory  # a wrapper script for mill
 ```
 
 ### Bump Dependencies
@@ -160,7 +172,7 @@ Bump nixpkgs:
 $ nix flake update
 ```
 
-Bump submodule versions:
+Bump chisel submodule versions:
 ```shell
 $ cd nix/t1
 $ nvfetcher

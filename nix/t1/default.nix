@@ -20,10 +20,7 @@ lib.makeScope newScope
       stdenv = llvmForDev.stdenv;
       llvmPackages = llvmForDev;
     };
-    rvv-testcases-prebuilt = self.callPackage ./testcases/rvv-testcases-prebuilt.nix {
-      # clang is faster for compiling verilator emulator
-      stdenv = llvmForDev.stdenv;
-    };
+    rvv-testcases-prebuilt = self.callPackage ./testcases/rvv-testcases-prebuilt.nix { };
   } //
   lib.genAttrs configNames (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters
