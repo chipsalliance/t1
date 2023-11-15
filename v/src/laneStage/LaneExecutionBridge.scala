@@ -206,7 +206,12 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     Mux(decodeResult(Decoder.maskSource), executionRecord.mask, 0.U(4.W)),
     maskExtend | Fill(4, !state.maskType)
   )
-  vfuRequest.bits.executeMask := executionRecord.mask | FillInterleaved(4, state.maskNotMaskedElement)
+  val executeMask = executionRecord.mask | FillInterleaved(4, state.maskNotMaskedElement)
+  vfuRequest.bits.executeMask := Mux(
+    executionRecord.executeIndex,
+    0.U(2.W) ## executeMask(3, 2),
+    executeMask
+  )
   vfuRequest.bits.sign0 := !decodeResult(Decoder.unsigned0)
   vfuRequest.bits.sign := !decodeResult(Decoder.unsigned1)
   vfuRequest.bits.reverse := decodeResult(Decoder.reverse)
@@ -214,7 +219,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   vfuRequest.bits.saturate := decodeResult(Decoder.saturate)
   vfuRequest.bits.vxrm := state.csr.vxrm
   vfuRequest.bits.vSew := Mux(
-    decodeResult(Decoder.crossWrite) || decodeResult(Decoder.widenReduce),
+    doubleExecution,
     state.csr.vSew + 1.U,
     state.csr.vSew
   )
@@ -233,6 +238,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   vfuRequest.bits.laneIndex := state.laneIndex
   vfuRequest.bits.complete := ffoByOtherLanes || selfCompleted
   vfuRequest.bits.maskType := state.maskType
+  vfuRequest.bits.narrow := narrow
   vfuRequest.bits.unitSelet.foreach(_ := decodeResult(Decoder.fpExecutionType))
   vfuRequest.bits.floatMul.foreach(_ := decodeResult(Decoder.floatMul))
 
