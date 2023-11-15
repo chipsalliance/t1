@@ -42,13 +42,14 @@ check_before_do_release() {
   [[ -z "$output_file" ]] && echo "Missing argument 'output_file'" && return 1
   [[ -z "$GITHUB_OUTPUT" ]] && echo "Missing env 'GITHUB_OUTPUT'" && return 1
 
-  local tests_dir_last_commit=$(git log --pretty=tformat:"%H" -n1 tests)
-  echo "Tests dir last commit sha: $tests_dir_last_commit"
+  local last_release=$(git tag --sort=committerdate | tail -n1)
+  local last_release_commit=$(git rev-parse "$last_release")
+  echo "Last release commit sha: $last_release_commit"
   local repo_last_commit=$(git rev-parse HEAD)
   echo "HEAD commit sha: $repo_last_commit"
 
-  local diff_command="git diff --name-only $repo_last_commit $tests_dir_last_commit"
-  [[ "$tests_dir_last_commit" = "$repo_last_commit" ]] \
+  local diff_command="git diff --name-only $repo_last_commit $last_release_commit"
+  [[ "$last_release_commit" = "$repo_last_commit" ]] \
     && diff_command="git diff --name-only HEAD HEAD^"
 
   local changed_files=$($diff_command | grep -E "^tests/")
@@ -59,7 +60,7 @@ check_before_do_release() {
     && return 0
 
   echo
-  echo "Detect file changes between tests_dir and HEAD"
+  echo "Detect file changes in test directory between last release and HEAD"
   echo "$changed_files"
   echo
 
