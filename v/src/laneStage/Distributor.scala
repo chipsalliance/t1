@@ -20,6 +20,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
 
   val requestReg: ValidIO[SlotRequestToVFU] = RegInit(0.U.asTypeOf(Valid(enqueue)))
   val sendRequestValid: Bool = RegInit(false.B)
+  val ffoSuccess: Bool = RegInit(false.B)
   val responseData: UInt = RegInit(0.U(enqueue.src.head.getWidth.W))
   val executeIndex = RegInit(0.U(2.W))
 
@@ -150,10 +151,15 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   when(responseFromVfu.fire) {
     responseData := resultUpdate
   }
+  val updateFFO = responseFromVfu.bits.ffoSuccess || ffoSuccess
+  when(responseFromVfu.fire || requestFromSlot.fire) {
+    ffoSuccess := updateFFO && !requestFromSlot.fire
+  }
 
   requestFromSlot.ready := !requestReg.valid || isLastResponse
   responseToSlot.valid := isLastResponse && requestReg.valid
   // todo: clipFail ffoSuccess vxsat exceptionFlags?
   responseToSlot.bits := DontCare
   responseToSlot.bits.data := resultUpdate
+  responseToSlot.bits.ffoSuccess := updateFFO
 }
