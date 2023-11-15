@@ -45,13 +45,14 @@ build_testcases_if_updated() {
   [[ -z "$output_file" ]] && echo "Missing argument 'output_file'" && return 1
   [[ -z "$GITHUB_OUTPUT" ]] && echo "Missing env 'GITHUB_OUTPUT'" && return 1
 
-  local tests_dir_last_commit=$(git log --pretty=tformat:"%H" -n1 tests)
-  log "Tests dir last commit sha: $tests_dir_last_commit"
+  local last_release=$(git tag --sort=committerdate | tail -n1)
+  local last_release_commit=$(git rev-parse "$last_release")
+  log "Last release commit sha: $last_release_commit"
   local repo_last_commit=$(git rev-parse HEAD)
   log "HEAD commit sha: $repo_last_commit"
 
-  local diff_command="git diff --name-only $repo_last_commit $tests_dir_last_commit"
-  [[ "$tests_dir_last_commit" = "$repo_last_commit" ]] \
+  local diff_command="git diff --name-only $repo_last_commit $last_release_commit"
+  [[ "$last_release_commit" = "$repo_last_commit" ]] \
     && diff_command="git diff --name-only HEAD HEAD^"
 
   local changed_files=$($diff_command | grep -E "^tests/")
@@ -61,12 +62,12 @@ build_testcases_if_updated() {
     && log "do_release=false" >> "$GITHUB_OUTPUT" \
     && return 0
 
-  log "Detected the following files changes between last commit of ./tests and HEAD"
+  log "Detected the following files changes is ./tests between last release and HEAD"
   while read -r f; do
     log "- $f"
   done <<< "$changed_files"
 
-  log "Build new tests case ELFs"
+  log "Build new tests case derivation"
   result=$(nix build .#t1.rvv-testcases.out --print-build-logs --no-link --print-out-paths)
   tar czf "$output_file" --directory "$result" .
   echo "do_release=true" >> "$GITHUB_OUTPUT"
