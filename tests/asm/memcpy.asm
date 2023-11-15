@@ -41,10 +41,12 @@ memset_loop:
 
 test:
     # fill 0x1001000 with 0x55 x 4096 bytes
+    # a0: void* dest, a1: int n, a2: size_t len
     li a0, 0x1001000
     li a1, 0x55
     li a2, 0x1000
     call memset
+    # copy 0x1001000 to 0x1000000 with 4096 bytes
     # a0: void* dest, a1: void* src, a2: size_t n
     li a0, 0x1000000
     li a1, 0x1001000
