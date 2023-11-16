@@ -36,7 +36,6 @@ final: prev:
   espresso = final.callPackage ./pkgs/espresso.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
-  mill-runtime = final.callPackage ./pkgs/mill-runtime.nix { };
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
 
   mill = prev.mill.override {
