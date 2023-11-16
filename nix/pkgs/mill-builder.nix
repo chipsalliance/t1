@@ -1,4 +1,4 @@
-{ stdenvNoCC, mill, writeText, makeSetupHook, runCommand, mill-runtime }:
+{ stdenvNoCC, mill, writeText, makeSetupHook, runCommand }:
 
 { name, src, millDepsHash, ... }@args:
 
@@ -14,7 +14,6 @@ let
     buildPhase = ''
       runHook preBuild
       export JAVA_OPTS="-Duser.home=$TMPDIR"
-      ln -s ${mill-runtime} $TMPDIR/.mill
 
       # Use "https://repo1.maven.org/maven2/" only to keep dependencies integrity
       export COURSIER_REPOSITORIES="central"
@@ -50,7 +49,6 @@ let
       (writeText "mill-setup-hook" ''
         setupMillCache() {
           local tmpdir=$(mktemp -d)
-          ln -s ${mill-runtime} $tmpdir/.mill
           export JAVA_OPTS="$JAVA_OPTS -Duser.home=$tmpdir"
 
           mkdir -p "$tmpdir"/.cache
