@@ -1,20 +1,23 @@
-NIX_EXPR_PREFIX="with import <nixpkgs> {}; let pkg = callPackage $NIX_FILE {}; in"
+set -e
 
 nix_eval() {
+  local nix_file="$1"; shift
   local expr="$@"
-  nix eval --impure --raw --expr "$NIX_EXPR_PREFIX $expr"
+
+  # We need --impure to access file in eval mode
+  nix eval --raw --impure .#callPackage --apply "callPackage: let pkg = callPackage $nix_file {}; in $expr"
 }
 
 get_src_url() {
-  nix_eval "pkg.src.url"
+  nix_eval "$1" "pkg.src.url"
 }
 
 get_output_hash() {
-  nix_eval "pkg.src.outputHash"
+  nix_eval "$1" "pkg.src.outputHash"
 }
 
 get_version() {
-  nix_eval "pkg.version"
+  nix_eval "$1" "pkg.version"
 }
 
 nix_hash_file() {
@@ -79,10 +82,10 @@ bump_version() {
   local version="$1"
   local nix_file="$2"
 
-  local old_version=$(get_version)
+  local old_version=$(get_version "$nix_file")
   sed -i "s|$old_version|$version|" "$nix_file"
 
-  echo "Version updated to $(get_version)"
+  echo "Version updated to $(get_version "$nix_file")"
 }
 
 bump() {
@@ -90,16 +93,16 @@ bump() {
   local nix_file="$2"
   [[ -z "$version" ]] && echo "Missing arugment 'version'" && return 1
 
-  bump_version "$version"
+  bump_version "$version" "$nix_file"
 
-  local src_url=$(get_src_url)
-  echo "Fetching $src_url"
+  local src_url=$(get_src_url "$nix_file")
+  echo "Fetching $src_url for $nix_file"
   local new_file=$(nix_fetch "$src_url" | tail -n1)
   echo "File downloaded to $new_file"
 
   new_hash=$(nix_hash_file $new_file)
   echo "Generated new hash: $new_hash"
-  old_hash=$(get_output_hash)
+  old_hash=$(get_output_hash "$nix_file")
   sed -i "s|$old_hash|$new_hash|" "$nix_file"
 }
 
