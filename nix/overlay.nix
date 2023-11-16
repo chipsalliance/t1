@@ -33,21 +33,15 @@ final: prev:
     });
   });
 
-  mill = (prev.mill.overrideAttrs (oldAttrs: rec {
-    version = "0.11.5";
-    src = prev.fetchurl {
-      url = "https://github.com/com-lihaoyi/mill/releases/download/${version}/${version}-assembly";
-      hash = "sha256-sCJMCy4TLRQV3zI28Aydv5a8OV8OHOjLbwhfyIlxOeY=";
-    };
-  })).override {
-    jre = final.openjdk19;
-  };
-
   espresso = final.callPackage ./pkgs/espresso.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
   mill-runtime = final.callPackage ./pkgs/mill-runtime.nix { };
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
+
+  mill = prev.mill.override {
+    jre = final.jdk21;
+  };
 
   rv32-compilerrt = final.callPackage ./pkgs/rv32-compilerrt.nix {
     stdenv = final.llvmForDev.stdenv;
