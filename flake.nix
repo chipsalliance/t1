@@ -26,9 +26,6 @@
 
                 mill
                 ammonite
-
-                # wave interpreter
-                wal-lang
               ];
               env.TEST_CASES_DIR = pkgs.t1.rvv-testcases;
             };

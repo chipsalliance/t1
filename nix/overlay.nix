@@ -45,7 +45,6 @@ final: prev:
 
   espresso = final.callPackage ./pkgs/espresso.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
-  wal-lang = with final.python3Packages; toPythonApplication (callPackage ./pkgs/wal-lang.nix { });
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
   mill-runtime = final.callPackage ./pkgs/mill-runtime.nix { };
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
