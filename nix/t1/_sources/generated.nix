@@ -9,9 +9,7 @@
       repo = "arithmetic";
       rev = "2685fb7ec6dc7cca7ee3808377d841d19a9d2ced";
       fetchSubmodules = false;
-      deepClone = false;
-      leaveDotGit = true;
-      sha256 = "sha256-spc4SgYjc8PkVQXcV+Y4wmVxh6AFRGhLuhK3P359ngQ=";
+      sha256 = "sha256-hF9sqbVtlJeACHFUF2B14CdazQfu0LTW1RM8J0tdybE=";
     };
     date = "2023-11-06";
   };
@@ -23,9 +21,7 @@
       repo = "berkeley-hardfloat";
       rev = "b3c8a38c286101973b3bc071f7918392343faba7";
       fetchSubmodules = false;
-      deepClone = false;
-      leaveDotGit = true;
-      sha256 = "sha256-VHOUFm5PM2ONxvE91tfxrsfPCRpsW/Ror1/giBiV9uo=";
+      sha256 = "sha256-3j6K/qFuH8PqJT6zHVTIphq9HWxmSGoIqDo9GV1bxmU=";
     };
     date = "2023-10-25";
   };
@@ -37,39 +33,33 @@
       repo = "cde";
       rev = "52768c97a27b254c0cc0ac9401feb55b29e18c28";
       fetchSubmodules = false;
-      deepClone = false;
-      leaveDotGit = true;
-      sha256 = "sha256-wIj73zpdWveNMzXixd/dDkwsfoW/4IShdQxrXHLRkWs=";
+      sha256 = "sha256-bmiVhuriiuDFFP5gXcP2kKwdrFQ2I0Cfz3N2zed+IyY=";
     };
     date = "2023-08-05";
   };
   chisel = {
     pname = "chisel";
-    version = "5d03a5cdd257f07a2a907cfb26a4dc26e4b65f2e";
+    version = "9d3a977dfcdb8c1d24281688f969c3de37d0067f";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "5d03a5cdd257f07a2a907cfb26a4dc26e4b65f2e";
+      rev = "9d3a977dfcdb8c1d24281688f969c3de37d0067f";
       fetchSubmodules = false;
-      deepClone = false;
-      leaveDotGit = true;
-      sha256 = "sha256-gZ43DFCEL4x+TI9WbgN2LJzpPdaSrLqJsDeq5nfKNSY=";
+      sha256 = "sha256-LeT6FvnKWxb/xLxOBpRHgWtHBzMRtCKU+FlOZtGrNLY=";
     };
-    date = "2023-11-10";
+    date = "2023-11-16";
   };
   rocket-chip = {
     pname = "rocket-chip";
-    version = "1988d7d18ce366e4b48ffb41a9682faeed5303a5";
+    version = "aa183271e978d708d9c75617bd1e261b755b6726";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "rocket-chip";
-      rev = "1988d7d18ce366e4b48ffb41a9682faeed5303a5";
+      rev = "aa183271e978d708d9c75617bd1e261b755b6726";
       fetchSubmodules = false;
-      deepClone = false;
-      leaveDotGit = true;
-      sha256 = "sha256-0KaQcd2ZaFeCJV9KF2XFn+NC0fXZKzJxh0I8bsd21ig=";
+      sha256 = "sha256-2yjMHC52c9oxL1dVPYIxzXjax9YQTA+d58x7YI95rZU=";
     };
-    date = "2023-11-08";
+    date = "2023-11-14";
   };
   rocket-chip-inclusive-cache = {
     pname = "rocket-chip-inclusive-cache";
@@ -79,9 +69,7 @@
       repo = "rocket-chip-inclusive-cache";
       rev = "7f391c5e4cba3cdd4388efb778bd80da35d5574a";
       fetchSubmodules = false;
-      deepClone = false;
-      leaveDotGit = true;
-      sha256 = "sha256-JP3DDuaqbACbG/wm/yWEaTYTT7pVj372YYrFk1tzpxM=";
+      sha256 = "sha256-mr3PA/wlXkC/Cu/H5T6l1xtBrK9KQQmGOfL3TMxq5T4=";
     };
     date = "2023-08-15";
   };
@@ -93,9 +81,7 @@
       repo = "tilelink";
       rev = "cd177e4636eb4a20326795a66e9ab502f9b2500a";
       fetchSubmodules = false;
-      deepClone = false;
-      leaveDotGit = true;
-      sha256 = "sha256-+HJSdD9PaBh9cXIwIO902wKNOhbhp7IKax2hzdlhyps=";
+      sha256 = "sha256-PIPLdZSCNKHBbho0YWGODSEM8toRBlOYC2gcbh+gqIY=";
     };
     date = "2023-08-11";
   };
