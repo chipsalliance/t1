@@ -9,7 +9,7 @@ let
 
     nativeBuildInputs = [
       mill
-    ] ++ (args.nativeBuildInputs or []);
+    ] ++ (args.nativeBuildInputs or [ ]);
 
     buildPhase = ''
       runHook preBuild
