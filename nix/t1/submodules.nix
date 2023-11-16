@@ -32,11 +32,6 @@ in
         cp -rT "$src" "$depDir"
         chmod +w -R "$depDir"
       fi
-
-      if ! git -C "$depDir" remote get-url origin >/dev/null 2>&1; then
-        echo "[nix-shell] adding remote '$remote' for '$depDir'"
-        git -C "$depDir" remote add origin "$remote"
-      fi
     }
 
     setupSubmodules() {

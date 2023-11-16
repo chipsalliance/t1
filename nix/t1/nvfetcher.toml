@@ -2,41 +2,34 @@
 src.git = "https://github.com/sequencer/arithmetic"
 src.branch = "master"
 fetch.github = "sequencer/arithmetic"
-git.leaveDotGit = true
 
 [tilelink]
 src.git = "https://github.com/sequencer/tilelink"
 src.branch = "master"
 fetch.github = "sequencer/tilelink"
-git.leaveDotGit = true
 
 [berkeley-hardfloat]
 src.git = "https://github.com/ucb-bar/berkeley-hardfloat"
 src.branch = "master"
 fetch.github = "ucb-bar/berkeley-hardfloat"
-git.leaveDotGit = true
 
 [rocket-chip]
 src.git = "https://github.com/chipsalliance/rocket-chip"
 src.branch = "master"
 fetch.github = "chipsalliance/rocket-chip"
-git.leaveDotGit = true
 
 [cde]
 src.git = "https://github.com/chipsalliance/cde"
 src.branch = "master"
 fetch.github = "chipsalliance/cde"
-git.leaveDotGit = true
 
 [rocket-chip-inclusive-cache]
 src.git = "https://github.com/chipsalliance/rocket-chip-inclusive-cache"
 src.branch = "mill"
 fetch.github = "chipsalliance/rocket-chip-inclusive-cache"
-git.leaveDotGit = true
 
 [chisel]
 src.git = "https://github.com/chipsalliance/chisel"
 src.branch = "main"
 fetch.github = "chipsalliance/chisel"
-git.leaveDotGit = true
 
