@@ -69,18 +69,23 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
     val cacheLineValid = RegInit(false.B)
     val dataShifterRegForPort = RegInit(0.U((param.cacheLineSize * 8).W))
     val cacheIndex = RegInit(0.U(param.cacheLineIndexBits.W))
+    val dataUpdate = (port.bits.data ## dataShifterRegForPort) >> param.tlParam.d.dataWidth
     when(port.fire) {
-      dataShifterRegForPort := (port.bits.data ## dataShifterRegForPort) >> param.tlParam.d.dataWidth
+      dataShifterRegForPort := dataUpdate
       cacheIndex := port.bits.source
     }
     lastCacheLineAck(index) := port.fire && (port.bits.source === cacheLineNumberReg)
 
     port.ready := !cacheLineValid
-    cacheLineDequeue(index).valid := cacheLineValid
-    cacheLineDequeue(index).bits.data := dataShifterRegForPort
+    cacheLineDequeue(index).valid := cacheLineValid || (port.fire & last)
+    cacheLineDequeue(index).bits.data := Mux(
+      cacheLineValid,
+      dataShifterRegForPort,
+      dataUpdate
+    )
     cacheLineDequeue(index).bits.index := cacheIndex
 
-    when((port.fire & last) || cacheLineDequeue(index).fire) {
+    when((port.fire & last) ^ cacheLineDequeue(index).fire) {
       cacheLineValid := port.fire
     }
   }

@@ -214,6 +214,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       bufferBaseCacheLineIndex(log2Ceil(param.memoryBankSize) - 1, 0)
   val selectOH: UInt = UIntToOH(alignedPortSelect)
   val currentAddress: Vec[UInt] = Wire(Vec(param.memoryBankSize, UInt(param.tlParam.a.addressWidth.W)))
+  val sendStageReady: Vec[Bool] = Wire(Vec(param.memoryBankSize, Bool()))
   // tl 发送单元
   val readyVec: Vec[Bool] = VecInit(Seq.tabulate(param.memoryBankSize) { portIndex =>
     val dataToSend: ValidIO[cacheLineEnqueueBundle] = RegInit(0.U.asTypeOf(Valid(new cacheLineEnqueueBundle(param))))
@@ -222,7 +223,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     val burstIndex: UInt = RegInit(0.U(log2Ceil(burstSize).W))
     val burstOH: UInt = UIntToOH(burstIndex)
     val last = burstIndex.andR
-    val enqueueReady: Bool = !dataToSend.valid
+    val enqueueReady: Bool = !dataToSend.valid || (port.ready && !addressConflict && last)
     val enqueueFire: Bool = enqueueReady && alignedDequeue.valid && selectOH(portIndex)
     val firstCacheLine = RegEnable(lsuRequest.valid, true.B, lsuRequest.valid || enqueueFire)
     val address = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + dataToSend.bits.index) ##
@@ -233,7 +234,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       dataToSend.bits := alignedDequeue.bits
     }
 
-    when(enqueueFire || (portFire && last)) {
+    when(enqueueFire ^ (portFire && last)) {
       dataToSend.valid := enqueueFire
     }
 
@@ -262,12 +263,12 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       ))
     )
     port.bits.corrupt := false.B
-
-    enqueueReady
+    sendStageReady(portIndex) := enqueueReady
+    !dataToSend.valid
   })
 
   val sendStageClear: Bool = readyVec.asUInt.andR
-  alignedDequeue.ready := (readyVec.asUInt & selectOH).orR
+  alignedDequeue.ready := (sendStageReady.asUInt & selectOH).orR
 
   status.idle := sendStageClear && !bufferValid && !readStageValid && stage0Idle
   val idleNext: Bool = RegNext(status.idle, true.B)
