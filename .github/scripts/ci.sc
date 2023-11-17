@@ -219,7 +219,7 @@ def runTests(jobs: String, resultDir: Option[os.Path]) = {
       System.err.println(s"[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg")
       val handle = os
         .proc("scripts/run-test.py", "-c", config, "-r", runCfg, "--no-console-log", "--base-out-dir", testRunDir, caseName)
-        .call(check=false)
+        .call(check=false, stdout=os.Path("/dev/null"), stderr=os.Path("/dev/null"))
       if (handle.exitCode != 0) {
         val outDir = testRunDir / config / caseName / runCfg
         System.err.println(s"Test case $job failed")
@@ -234,8 +234,9 @@ def runTests(jobs: String, resultDir: Option[os.Path]) = {
 
   os.write.over(actualResultDir / "failed-tests.md", "")  // touch file, to avoid upload-artifacts warning
   if (failed.length > 0) {
-    os.write.over(actualResultDir / "failed-tests.md", failed.map(f => s"* $f").mkString("\n"))
-    System.err.println(s"${failed.length} tests failed:\n${failed.mkString("\n")}")
+    val listOfFailJobs = failed.map(f => s"* $f").appended("").mkString("\n")
+    os.write.over(actualResultDir / "failed-tests.md", listOfFailJobs)
+    System.err.println(s"${failed.length} tests failed:\n${listOfFailJobs}")
     throw new Exception("Tests failed")
   } else {
     System.err.println(s"All tests passed")
