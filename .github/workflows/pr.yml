@@ -29,7 +29,7 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             max-jobs = 0
-            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key x86_64-linux - 32 1 big-parallel
             builders-use-substitutes = true
       - id: gen-matrix
         name: "Generate test matrix"
@@ -62,7 +62,7 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             max-jobs = 0
-            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key x86_64-linux - 32 1 big-parallel
             builders-use-substitutes = true
       - name: "Run testcases"
         id: ci-run
@@ -140,7 +140,7 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
             extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
             max-jobs = 0
-            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key
+            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key x86_64-linux - 32 1 big-parallel
             builders-use-substitutes = true
       - name: "Run failed testcases"
         run: |
