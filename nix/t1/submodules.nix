@@ -15,22 +15,23 @@ in
     }
 
     _setupOneSubmoduleEditable() {
-      src="$1"
-      name="$2"
-      remote="$3"
+      name="$1"; shift
+      remote="$1"; shift
+      rev="$1"; shift
       depDir="dependencies/$name"
 
       if [ -d "$depDir" -a ! -L "$depDir" ]; then
         echo "[nix-shell] ignored existing submodule directory '$depDir', remove them if you want a update"
       else 
         if [ -L "$depDir" ]; then
-          echo "[nix-shell] replacing symlink '$depDir' with '$src'"
+          echo "[nix-shell] replacing symlink '$depDir' with full git worktree"
           rm "$depDir"
         else
-          echo "[nix-shell] copying '$src' to '$depDir'"
+          echo "[nix-shell] fetching submodule $name"
         fi
-        cp -rT "$src" "$depDir"
-        chmod +w -R "$depDir"
+
+        git clone $remote $depDir
+        git -C $depDir -c advice.detachedHead=false checkout $rev
       fi
     }
 
@@ -42,7 +43,7 @@ in
     # for use of shellHook
     setupSubmodulesEditable() {
       mkdir -p dependencies
-  '' + lib.concatLines (lib.mapAttrsToList (k: v: "_setupOneSubmoduleEditable '${v.src}' '${k}' '${makeRemote v}'") submodules) + ''
+  '' + lib.concatLines (lib.mapAttrsToList (k: v: "_setupOneSubmoduleEditable '${k}' '${makeRemote v}' '${v.src.rev}'") submodules) + ''
     }
     prePatchHooks+=(setupSubmodules)
   ''));
