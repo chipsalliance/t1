@@ -11,6 +11,8 @@ def main(testSrcDir: os.Path, outDir: os.Path) = {
   os.makeDir.all(outConfigDir)
   val outElfDir = outDir / "cases"
   os.makeDir.all(outElfDir)
+  // Mill will write rubbish into stdout when it start at the first time, we need to make a warm up here
+  os.proc("mill", "-i", "resolve", "_").call(cwd = testSrcDir, stdout = os.Path("/dev/null"))
   val rawJson = os.proc("mill", "--no-server", "-j", "0", "--silent", "show", "_[_].elf")
       .call(testSrcDir).out.text
       .split('\n')
