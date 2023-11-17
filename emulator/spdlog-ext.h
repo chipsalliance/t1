@@ -127,8 +127,7 @@ private:
     try {
       ret = internal.dump(indent);
     } catch (json::type_error &ex) {
-      throw std::runtime_error(fmt::format("JSON error for log '{}': {}",
-                                           internal["name"], ex.what()));
+      throw std::runtime_error(fmt::format("fail to dump internal json into string: ", ex.what()));
     }
     return ret;
   }
