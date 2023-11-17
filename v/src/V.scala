@@ -635,7 +635,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         csrRegForMaskUnit.vl > csrRegForMaskUnit.vStart
       mvToVRF.foreach(d => when(requestRegDequeue.fire){d := writeMv})
       // 读后写中的读
-      val needWAR = maskTypeInstruction || border || reduce || readMv
+      val needWAR = maskTypeInstruction || border || (reduce && !popCount) || readMv
       val skipLaneData: Bool = decodeResultReg(Decoder.mv)
       mixedUnit := writeMv || readMv
       maskReadLaneSelect.head := UIntToOH(writeBackCounter)
