@@ -179,10 +179,10 @@ jobs:
         run: |
           echo -e "\n## Failed tests\n" >> $GITHUB_STEP_SUMMARY
           shopt -s nullglob
-          cat test-result-*/failed-tests.md >> $GITHUB_STEP_SUMMARY
+          cat test-results-*/failed-tests.md >> $GITHUB_STEP_SUMMARY
           echo -e "\n## Cycle updates\n" >> $GITHUB_STEP_SUMMARY
           shopt -s nullglob
-          cat test-result-*/cycle-updates.md >> $GITHUB_STEP_SUMMARY
+          cat test-results-*/cycle-updates.md >> $GITHUB_STEP_SUMMARY
       - name: "Commit cycle updates"
         run: |
           nix shell .#ammonite -c .github/scripts/ci.sc mergeCycleData  # no need to use devShells.ci
