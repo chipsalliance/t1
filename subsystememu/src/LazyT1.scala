@@ -1,10 +1,10 @@
-package verdes
+package org.chipsalliance.t1.rocketcore
 
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
 import freechips.rocketchip.diplomacy.AddressSet
-import freechips.rocketchip.tile.{AbstractLazyT1, AbstractLazyT1ModuleImp}
 import org.chipsalliance.cde.config._
+import org.chipsalliance.t1.rockettile.{AbstractLazyT1, AbstractLazyT1ModuleImp}
 import v.{V, VParameter}
 
 case object T1ConfigPath extends Field[os.Path]

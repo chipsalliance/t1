@@ -6,9 +6,11 @@ import freechips.rocketchip.devices.debug.HasPeripheryDebug
 import freechips.rocketchip.diplomacy.{BundleBridgeSource, InModuleBody, LazyModule, SynchronousCrossing, ValName}
 import freechips.rocketchip.rocket.{DCacheParams, ICacheParams, MulDivParams, RocketCoreParams}
 import freechips.rocketchip.subsystem._
-import freechips.rocketchip.tile.{BuildVector, RocketTileParams, XLen}
+import freechips.rocketchip.tile.{RocketTileParams, XLen}
 import freechips.rocketchip.util.DontTouch
 import org.chipsalliance.cde.config._
+import org.chipsalliance.t1.rocketcore.{LazyT1, T1ConfigPath}
+import org.chipsalliance.t1.rockettile.BuildVector
 
 class VerdesConfig
   extends Config(
@@ -26,9 +28,6 @@ class VerdesConfig
             haveSimTimeout = false,
             useVM = false,
             fpu = None,
-            // TODO: config
-            vLen = 1024,
-            vMemDataBits = 256,
             mulDiv = Some(MulDivParams(mulUnroll = 8))),
           btb = None,
           dcache = Some(DCacheParams(

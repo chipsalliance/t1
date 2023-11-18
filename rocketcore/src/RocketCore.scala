@@ -9,6 +9,7 @@ import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.util._
 import freechips.rocketchip.util.property
+import org.chipsalliance.t1.rockettile.{VectorRequest, VectorResponse}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -65,6 +66,12 @@ class RocketCustomCSRs(implicit p: Parameters) extends CustomCSRs with HasRocket
 class Rocket(tile: RocketTile)(implicit val p: Parameters)
   extends Module
     with HasRocketCoreParameters {
+  val t1Request = Option.when(usingVectorT1)(IO(Valid(new VectorRequest(xLen))))
+  val t1Response = Option.when(usingVectorT1)(IO(Flipped(Valid(new VectorResponse(xLen)))))
+  // logic for T1
+  val t1IssueQueueFull = Option.when(usingVectorT1)(IO(Output(Bool())))
+  val t1IssueQueueEmpty = Option.when(usingVectorT1)(IO(Output(Bool())))
+
   // Checker
   require(decodeWidth == 1 /* TODO */ && retireWidth == decodeWidth)
   require(!(coreParams.useRVE && coreParams.fpu.nonEmpty), "Can't select both RVE and floating-point")
@@ -123,7 +130,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters)
             case s if s.contains("rv_sdext") => usingDebug
 
             // T1 Vector
-            // case s if s.contains("rv_v") => usingVectorT1
+            case s if s.contains("rv_v") => usingVectorT1
             // unratified but supported.
             case s if s.contains("rv_zicond") => usingConditionalZero
             // custom
@@ -798,7 +805,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters)
       wbDcacheMiss ||
         Option.when(usingMulDiv)(wbRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
         Option.when(usingRoCC)(wbRegDecodeOutput(decoder.rocc)).getOrElse(false.B)
-        // Option.when(usingVectorT1)(wbRegDecodeOutput(decoder.isVector)).getOrElse(false.B)
+        Option.when(usingVectorT1)(wbRegDecodeOutput(decoder.isVector)).getOrElse(false.B)
     val replayWbCommon: Bool = io.dmem.s2_nack || wbRegReplay
     val replayWbRocc: Option[Bool] = Option.when(usingRoCC)(wbRegValid && wbRegDecodeOutput(decoder.rocc) && !io.rocc.cmd.ready)
     val replayWbCsr: Bool = wbRegValid && csr.io.rwStall

@@ -971,6 +971,12 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def uopType: UOPA2.type = UOPA2
   }
 
+  object isVector extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "vector"
+
+    override def genTable(op: RocketDecodePattern): BitPat = if (op.isRoCC) y else n
+  }
+
   // Custom extensions
 
   /** Rocket Custom Coprocessor, add FU at commit stage */

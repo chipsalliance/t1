@@ -13,6 +13,7 @@ import freechips.rocketchip.subsystem.TileCrossingParamsLike
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci.ClockSinkParameters
 import freechips.rocketchip.tile._
+import org.chipsalliance.t1.rockettile.HasLazyT1
 // TODO: remove it.
 import freechips.rocketchip.rocket.{BTBParams, DCacheParams, ICacheParams, RocketCoreParams}
 
@@ -47,6 +48,7 @@ class RocketTile private(
     with SinksExternalInterrupts
     with SourcesExternalNotifications
     with HasHellaCache
+    with HasLazyT1
     with HasICacheFrontend
 {
   // Private constructor ensures altered LazyModule.p is used implicitly

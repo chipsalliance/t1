@@ -14,7 +14,7 @@ import freechips.rocketchip.tilelink.TLWidthWidget
 import freechips.rocketchip.util._
 import freechips.rocketchip.util.property
 // TODO: get rid of it.
-import freechips.rocketchip.rocket.{Instructions, ICacheParams}
+import freechips.rocketchip.rocket.{Instructions, Instructions32, ICacheParams}
 
 class FrontendReq(implicit p: Parameters) extends CoreBundle()(p) {
   val pc = UInt(vaddrBitsExtended.W)

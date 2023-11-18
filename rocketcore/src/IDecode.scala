@@ -9,6 +9,7 @@ import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.util._
 import freechips.rocketchip.rocket.DecodeLogic
 import freechips.rocketchip.rocket.Instructions._
+import freechips.rocketchip.rocket.Instructions32
 import freechips.rocketchip.rocket.CustomInstructions._
 
 abstract trait DecodeConstants
