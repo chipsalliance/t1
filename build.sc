@@ -514,6 +514,19 @@ trait RocketChip
 
 object macros extends Macros
 
+object rocketcore extends RocketCore
+
+trait RocketCore
+  extends millbuild.common.RocketCoreModule {
+  def rvdecoderdbModule = rvdecoderdb
+  def rocketchipModule: ScalaModule = rocketchip
+  def scalaVersion = T(v.scala)
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselIvy = None
+  def chiselPluginIvy = None
+}
+
 trait Macros
   extends millbuild.dependencies.`rocket-chip`.common.MacrosModule {
 
@@ -565,6 +578,8 @@ trait SubsystemEmulator
   def rocketchipModule = rocketchip
 
   def inclusivecacheModule = inclusivecache
+
+  def rocketcoreModule = rocketcore
 
   // Directly elaborate everything
   def elaborate = T {

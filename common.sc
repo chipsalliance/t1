@@ -37,11 +37,23 @@ trait VectorModule
   def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, tilelinkModule)
 }
 
+// Our forked RocketCore specifically designed for Chisel6+
+trait RocketCoreModule
+  extends ScalaModule
+    with HasChisel {
+  def rvdecoderdbModule: ScalaModule
+  // TODO: remove dependency to rocketchip after finish refactoring
+  def rocketchipModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(rocketchipModule, rvdecoderdbModule)
+}
+
 trait SubsystemEmulatorModule
   extends ScalaModule
     with HasChisel {
   def vectorModule: ScalaModule
   def rocketchipModule: ScalaModule
   def inclusivecacheModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(vectorModule, rocketchipModule, inclusivecacheModule)
+  def rocketcoreModule: ScalaModule
+
+  def moduleDeps = super.moduleDeps ++ Seq(vectorModule, rocketchipModule, inclusivecacheModule, rocketcoreModule)
 }
