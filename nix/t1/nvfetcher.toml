@@ -15,7 +15,7 @@ fetch.github = "ucb-bar/berkeley-hardfloat"
 
 [rocket-chip]
 src.git = "https://github.com/chipsalliance/rocket-chip"
-src.branch = "master"
+src.branch = "dev"
 fetch.github = "chipsalliance/rocket-chip"
 
 [cde]
