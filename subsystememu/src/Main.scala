@@ -5,13 +5,17 @@ import chisel3.stage.phases.{Convert, Elaborate}
 import firrtl.AnnotationSeq
 import firrtl.options.TargetDirAnnotation
 import mainargs._
+import org.chipsalliance.cde.config._
 
 object Main {
   @main def elaborate(
                        @arg(name = "dir", doc = "output directory") dir: String,
                        @arg(name = "config") config: String,
                      ) = {
-    implicit val p = new VerdesConfig
+    implicit val p: Parameters = (new VerdesConfig).orElse(new Config((site, here, up) => {
+        case T1ConfigPath => os.Path(config)
+      })
+    )
     var topName: String = null
     val annos = Seq(
       new Elaborate,

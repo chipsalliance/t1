@@ -13,6 +13,7 @@ lib.makeScope newScope
   (self: {
     submodules = self.callPackage ./submodules.nix { };
     elaborator = self.callPackage ./elaborator.nix { };
+    soc-elaborator = self.callPackage ./soc-elaborator.nix { };
 
     rvv-codegen = self.callPackage ./testcases/rvv-codegen.nix { };
     rvv-testcases = self.callPackage ./testcases/rvv-testcases.nix {
@@ -32,6 +33,10 @@ lib.makeScope newScope
 
       verilator-emulator = innerSelf.callPackage ./verilator-emulator.nix { };
       verilator-emulator-trace = innerSelf.callPackage ./verilator-emulator.nix { do-trace = true; };
+
+      soc-elaborate = innerSelf.callPackage ./soc-elaborate.nix { };
+      soc-verilator-emulator = innerSelf.callPackage ./soc-verilator-emulator.nix { };
+      soc-verilator-emulator-trace = innerSelf.callPackage ./soc-verilator-emulator.nix { do-trace = true; };
     })
   )
-)
+  )
