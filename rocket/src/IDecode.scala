@@ -1,14 +1,16 @@
 // See LICENSE.SiFive for license details.
 // See LICENSE.Berkeley for license details.
-
-package freechips.rocketchip.rocket
+// TODO: this files should be removed.
+package org.chipsalliance.t1.rocketcore
 
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.util._
-import Instructions._
-import CustomInstructions._
+import freechips.rocketchip.rocket.DecodeLogic
+import freechips.rocketchip.rocket.Instructions._
+import freechips.rocketchip.rocket.Instructions32
+import freechips.rocketchip.rocket.CustomInstructions._
 
 abstract trait DecodeConstants
 {

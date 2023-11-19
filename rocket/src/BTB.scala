@@ -1,31 +1,21 @@
 // See LICENSE.Berkeley for license details.
 // See LICENSE.SiFive for license details.
 
-package freechips.rocketchip.rocket
+package org.chipsalliance.t1.rocketcore
 
 import chisel3._
 import chisel3.util._
-import chisel3.internal.InstanceId
+import freechips.rocketchip.rocket.BHTParams
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.subsystem.CacheBlockBytes
 import freechips.rocketchip.tile.HasCoreParameters
 import freechips.rocketchip.util._
+// TODO: Get rid of it.
+import freechips.rocketchip.rocket.BTBParams
 
-case class BHTParams(
-  nEntries: Int = 512,
-  counterLength: Int = 1,
-  historyLength: Int = 8,
-  historyBits: Int = 3)
 
-case class BTBParams(
-  nEntries: Int = 28,
-  nMatchBits: Int = 14,
-  nPages: Int = 6,
-  nRAS: Int = 6,
-  bhtParams: Option[BHTParams] = Some(BHTParams()),
-  updatesOutOfOrder: Boolean = false)
-
-trait HasBtbParameters extends HasCoreParameters { this: InstanceId =>
+trait HasBtbParameters extends HasCoreParameters {
+  // damn... tile deps rocketcore
   val btbParams = tileParams.btb.getOrElse(BTBParams(nEntries = 0))
   val matchBits = btbParams.nMatchBits max log2Ceil(p(CacheBlockBytes) * tileParams.icache.get.nSets)
   val entries = btbParams.nEntries

@@ -1,6 +1,6 @@
 // See LICENSE.Berkeley for license details.
 
-package freechips.rocketchip.rocket.constants
+package org.chipsalliance.t1.rocketcore.constants
 
 import chisel3._
 import chisel3.util._
