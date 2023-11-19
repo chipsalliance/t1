@@ -25,6 +25,11 @@ std::string plusarg_read_str(std::string param) {
 
 axi4_mem <30,32,4> ram(0x20000000, true);
 axi4     <30,32,4> mem_sigs;
+uint32_t entry_addr;
+
+DPI void reset_vector(svBitVecVal* resetVector) {
+  *resetVector = entry_addr;
+}
 
 DPI void init_cosim() {
     // read plusarg
@@ -43,6 +48,8 @@ DPI void init_cosim() {
     // init memory file
     if (init_file != "") {
         ram.load_binary(init_file.c_str());
+        entry_addr = ram.get_entry_addr();
+        std::cout << "set reset vector to "<< entry_addr << "\n";
     }
 }
 

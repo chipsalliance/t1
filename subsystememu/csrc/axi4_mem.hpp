@@ -3,6 +3,7 @@
 #include "axi4_slave.hpp"
 #include <fstream>
 #include <iostream>
+#include <linux/elf.h>
 
 
 template <unsigned int A_WIDTH = 64, unsigned int D_WIDTH = 64, unsigned int ID_WIDTH = 4>
@@ -30,14 +31,36 @@ class axi4_mem : public axi4_slave<A_WIDTH,D_WIDTH,ID_WIDTH>  {
             return do_write(start_addr, size, buffer) == RESP_OKEY;
         }
         void load_binary(const char *init_file, uint64_t start_addr = 0) {
-            std::ifstream file(init_file,std::ios::in | std::ios::binary | std::ios::ate);
-            size_t file_size = file.tellg();
-            file.seekg(std::ios_base::beg);
-            if (start_addr >= mem_size || file_size > mem_size - start_addr) {
-                std::cerr << "memory size is not big enough for init file." << std::endl;
-                file_size = mem_size;
+            std::ifstream fs(init_file, std::ios::binary);
+            fs.exceptions(std::ios::failbit);
+
+            Elf32_Ehdr ehdr;
+            fs.read(reinterpret_cast<char *>(&ehdr), sizeof(ehdr));
+            if (!(ehdr.e_machine == EM_RISCV && ehdr.e_type == ET_EXEC
+                    && ehdr.e_ident[EI_CLASS] == ELFCLASS32)) {
+                std::cerr << "ehdr check failed when loading elf" << std::endl;
             }
-            file.read((char*)mem+start_addr,file_size);
+            if (ehdr.e_phentsize != sizeof(elf32_phdr)) {
+                std::cerr << "ehdr.e_phentsize does not equal to elf32_phdr" << std::endl;
+            }
+
+            for (size_t i = 0; i < ehdr.e_phnum; i++) {
+              auto phdr_offset = ehdr.e_phoff + i * ehdr.e_phentsize;
+              Elf32_Phdr phdr;
+              fs.seekg((long)phdr_offset)
+                  .read(reinterpret_cast<char *>(&phdr), sizeof(phdr));
+              if (phdr.p_type == PT_LOAD) {
+                if (phdr.p_paddr + phdr.p_filesz >= mem_size) {
+                    std::cerr << "phdr p_paddr + p_filesz check failed" << std::endl;
+                }
+                fs.seekg((long)phdr.p_offset)
+                    .read(reinterpret_cast<char *>(&mem[phdr.p_paddr]), phdr.p_filesz);
+              }
+            }
+            entry_addr = ehdr.e_entry;
+        }
+        uint32_t get_entry_addr() {
+            return entry_addr;
         }
     protected:
         axi_resp do_read(uint64_t start_addr, uint64_t size, uint8_t* buffer) {
@@ -59,5 +82,6 @@ class axi4_mem : public axi4_slave<A_WIDTH,D_WIDTH,ID_WIDTH>  {
     private:
         uint8_t *mem;
         size_t mem_size;
+        uint32_t entry_addr;
         bool allow_warp = false;
 };

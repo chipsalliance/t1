@@ -4,11 +4,13 @@ import chisel3.stage.ChiselGeneratorAnnotation
 import chisel3.stage.phases.{Convert, Elaborate}
 import firrtl.AnnotationSeq
 import firrtl.options.TargetDirAnnotation
-import freechips.rocketchip.diplomacy.LazyModule
 import mainargs._
 
 object Main {
-  @main def elaborate(@arg(name = "dir", doc = "output directory") dir: String) = {
+  @main def elaborate(
+                       @arg(name = "dir", doc = "output directory") dir: String,
+                       @arg(name = "config") config: String,
+                     ) = {
     implicit val p = new VerdesConfig
     var topName: String = null
     val annos = Seq(
