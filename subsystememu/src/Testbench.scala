@@ -17,6 +17,7 @@ class TestHarness(implicit val p: Parameters) extends RawModule {
   val dpiInit = Module(new InitCosim)
   val dpiDumpWave = Module(new DumpWave)
   val dpiFinish = Module(new Finish)
+  val dpiResetVector = Module(new ResetVector)
   val dpi_plus_arg = Module(new PlusArgVal)
 
   withClockAndReset(clock.asClock, reset) {
@@ -26,6 +27,9 @@ class TestHarness(implicit val p: Parameters) extends RawModule {
     Debug.tieoffDebug(ldut.debug, ldut.resetctrl, Some(ldut.psd))
     dut.dontTouchPorts()
 
+    ldut.resetVector := dpiResetVector.resetVector.ref + p(ExtMem).get.master.base.U
+    dpiResetVector.reset.ref := dut.reset
+    dpiResetVector.clock.ref := dut.clock.asBool
     ldut.mem_axi4.zip(ldut.memAXI4Node.in).map { case (io, (_, edge)) =>
       val mem = LazyModule(new LazyAXI4MemBFM(edge, base = p(ExtMem).get.master.base, size = p(ExtMem).get.master.size))
       Module(mem.module).suggestName("mem")
