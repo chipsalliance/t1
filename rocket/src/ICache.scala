@@ -1,7 +1,7 @@
 // See LICENSE.Berkeley for license details.
 // See LICENSE.SiFive for license details.
 
-package freechips.rocketchip.rocket
+package org.chipsalliance.t1.rocketcore
 
 import chisel3._
 import chisel3.util.{Cat, Decoupled, Mux1H, OHToUInt, RegEnable, Valid, isPow2, log2Ceil, log2Up, PopCount}
@@ -15,46 +15,8 @@ import freechips.rocketchip.util.property
 import chisel3.experimental.SourceInfo
 import chisel3.dontTouch
 import chisel3.util.random.LFSR
-
-/** Parameter of [[ICache]].
-  *
-  * @param nSets number of sets.
-  * @param nWays number of ways.
-  * @param rowBits L1Cache parameter
-  * @param nTLBSets TLB sets
-  * @param nTLBWays TLB ways
-  * @param nTLBBasePageSectors TLB BasePageSectors
-  * @param nTLBSuperpages TLB Superpages
-  * @param tagECC tag ECC, will be parsed to [[freechips.rocketchip.util.Code]].
-  * @param dataECC data ECC, will be parsed to [[freechips.rocketchip.util.Code]].
-  * @param itimAddr optional base ITIM address,
-  *                 if None, ITIM won't be generated,
-  *                 if Some, ITIM will be generated, with itimAddr as ITIM base address.
-  * @param prefetch if set, will send next-line[[TLEdgeOut.Hint]] to manger.
-  * @param blockBytes size of a cacheline, calculates in byte.
-  * @param latency latency of a instruction fetch, 1 or 2 are available
-  * @param fetchBytes byte size fetched by CPU for each cycle.
-  */
-case class ICacheParams(
-    nSets: Int = 64,
-    nWays: Int = 4,
-    rowBits: Int = 128,
-    nTLBSets: Int = 1,
-    nTLBWays: Int = 32,
-    nTLBBasePageSectors: Int = 4,
-    nTLBSuperpages: Int = 4,
-    cacheIdBits: Int = 0,
-    tagECC: Option[String] = None,
-    dataECC: Option[String] = None,
-    itimAddr: Option[BigInt] = None,
-    prefetch: Boolean = false,
-    blockBytes: Int = 64,
-    latency: Int = 2,
-    fetchBytes: Int = 4) extends L1CacheParams {
-  def tagCode: Code = Code.fromString(tagECC)
-  def dataCode: Code = Code.fromString(dataECC)
-  def replacement = new RandomReplacement(nWays)
-}
+// TODO: get rid of it.
+import freechips.rocketchip.rocket.ICacheParams
 
 trait HasL1ICacheParameters extends HasL1CacheParameters with HasCoreParameters {
   val cacheParams = tileParams.icache.get

@@ -1,13 +1,12 @@
 // See LICENSE.Berkeley for license details.
 // See LICENSE.SiFive for license details.
 
-package freechips.rocketchip.rocket
+package org.chipsalliance.t1.rocketcore
 
 import chisel3._
 import chisel3.util._
-import chisel3.experimental.{IntParam}
-import org.chipsalliance.cde.config.{Parameters}
-import freechips.rocketchip.tile.{HasCoreParameters}
+import freechips.rocketchip.tile.HasCoreParameters
+import org.chipsalliance.cde.config.Parameters
 
 
 class WidenedTracedInstruction extends Bundle {
