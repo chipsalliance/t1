@@ -1,5 +1,5 @@
 // See LICENSE.Berkeley for license details.
 
-package freechips.rocketchip
+package org.chipsalliance.t1
 
-package object rocket extends rocket.constants.ScalarOpConstants with rocket.constants.MemoryOpConstants
+package object rocketcore extends rocketcore.constants.ScalarOpConstants with rocketcore.constants.MemoryOpConstants

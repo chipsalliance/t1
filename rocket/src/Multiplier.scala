@@ -1,11 +1,13 @@
 // See LICENSE.Berkeley for license details.
 // See LICENSE.SiFive for license details.
 
-package freechips.rocketchip.rocket
+package org.chipsalliance.t1.rocketcore
 
 import chisel3._
-import chisel3.util.{Cat, log2Up, log2Ceil, log2Floor, Log2, Decoupled, Enum, Fill, Valid, Pipe}
+import chisel3.util.{Cat, Decoupled, Enum, Fill, Log2, Pipe, Valid, log2Ceil, log2Floor, log2Up}
 import freechips.rocketchip.util._
+// TODO: remove it
+import freechips.rocketchip.rocket.{DecodeLogic, MulDivParams}
 
 class MultiplierReq(dataBits: Int, tagBits: Int, aluFn: ALUFN = new ALUFN) extends Bundle {
   val fn = Bits(aluFn.SZ_ALU_FN.W)
@@ -25,14 +27,6 @@ class MultiplierIO(val dataBits: Int, val tagBits: Int, aluFn: ALUFN = new ALUFN
   val kill = Input(Bool())
   val resp = Decoupled(new MultiplierResp(dataBits, tagBits))
 }
-
-case class MulDivParams(
-  mulUnroll: Int = 1,
-  divUnroll: Int = 1,
-  mulEarlyOut: Boolean = false,
-  divEarlyOut: Boolean = false,
-  divEarlyOutGranularity: Int = 1
-)
 
 class MulDiv(cfg: MulDivParams, width: Int, nXpr: Int = 32, aluFn: ALUFN = new ALUFN) extends Module {
   private def minDivLatency = (cfg.divUnroll > 0).option(if (cfg.divEarlyOut) 3 else 1 + w/cfg.divUnroll)

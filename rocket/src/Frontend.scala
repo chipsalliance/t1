@@ -1,18 +1,20 @@
 // See LICENSE.Berkeley for license details.
 // See LICENSE.SiFive for license details.
 
-package freechips.rocketchip.rocket
+package org.chipsalliance.t1.rocketcore
 
 import chisel3._
 import chisel3.util._
-import chisel3.{withClock,withReset}
+import chisel3.{withClock, withReset}
 import chisel3.experimental.SourceInfo
 import org.chipsalliance.cde.config._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.tile._
-import freechips.rocketchip.tilelink.{TLWidthWidget}
+import freechips.rocketchip.tilelink.TLWidthWidget
 import freechips.rocketchip.util._
 import freechips.rocketchip.util.property
+// TODO: get rid of it.
+import freechips.rocketchip.rocket.{Instructions, Instructions32, ICacheParams}
 
 class FrontendReq(implicit p: Parameters) extends CoreBundle()(p) {
   val pc = UInt(vaddrBitsExtended.W)

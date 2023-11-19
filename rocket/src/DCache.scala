@@ -1,6 +1,6 @@
 // See LICENSE.SiFive for license details.
 
-package freechips.rocketchip.rocket
+package org.chipsalliance.t1.rocketcore
 
 import chisel3._
 import chisel3.util._
@@ -14,6 +14,8 @@ import freechips.rocketchip.util.property
 import chisel3.{DontCare, WireInit, dontTouch, withClock}
 import chisel3.experimental.SourceInfo
 import TLMessages._
+// TODO: remove it.
+import freechips.rocketchip.rocket.DecodeLogic
 
 // TODO: delete this trait once deduplication is smart enough to avoid globally inlining matching circuits
 trait InlineInstance { self: chisel3.experimental.BaseModule =>
