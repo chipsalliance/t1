@@ -39,13 +39,13 @@
   };
   chisel = {
     pname = "chisel";
-    version = "9d3a977dfcdb8c1d24281688f969c3de37d0067f";
+    version = "2372b1c401ff15c34b8c1f8766232c4cd9a8c67e";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "9d3a977dfcdb8c1d24281688f969c3de37d0067f";
+      rev = "2372b1c401ff15c34b8c1f8766232c4cd9a8c67e";
       fetchSubmodules = false;
-      sha256 = "sha256-LeT6FvnKWxb/xLxOBpRHgWtHBzMRtCKU+FlOZtGrNLY=";
+      sha256 = "sha256-jsg4jZTTM68DmWgPkwnK08wcuweTImxL3EC48DXjXPg=";
     };
     date = "2023-11-16";
   };
@@ -72,6 +72,18 @@
       sha256 = "sha256-mr3PA/wlXkC/Cu/H5T6l1xtBrK9KQQmGOfL3TMxq5T4=";
     };
     date = "2023-08-15";
+  };
+  rvdecoderdb = {
+    pname = "rvdecoderdb";
+    version = "d06544ed41f4174c01bf1e1cb265da41ff64b54a";
+    src = fetchFromGitHub {
+      owner = "sequencer";
+      repo = "rvdecoderdb";
+      rev = "d06544ed41f4174c01bf1e1cb265da41ff64b54a";
+      fetchSubmodules = false;
+      sha256 = "sha256-s8X1pZceNyAqzE+mKEK7TVL4FP30GJbCOTa376vko+M=";
+    };
+    date = "2023-10-16";
   };
   tilelink = {
     pname = "tilelink";

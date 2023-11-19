@@ -33,3 +33,7 @@ src.git = "https://github.com/chipsalliance/chisel"
 src.branch = "main"
 fetch.github = "chipsalliance/chisel"
 
+[rvdecoderdb]
+src.git = "https://github.com/sequencer/rvdecoderdb"
+src.branch = "master"
+fetch.github = "sequencer/rvdecoderdb"
