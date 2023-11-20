@@ -147,7 +147,7 @@ class RocketTileModuleImp(outer: RocketTile)
   val core = Module(new Rocket(outer)(outer.p))
 
   // reset vector is connected in the Frontend to s2_pc
-  core.io.resetVector := DontCare
+  core.resetVector := DontCare
 
   // Report unrecoverable error conditions; for now the only cause is cache ECC errors
   outer.reportHalt(List(outer.dcache.module.io.errors))
@@ -158,44 +158,44 @@ class RocketTileModuleImp(outer: RocketTile)
       !outer.dcache.module.io.cpu.clock_enabled &&
         !outer.frontend.module.io.cpu.clock_enabled &&
         !ptw.io.dpath.clock_enabled &&
-        core.io.cease
+        core.cease
     )
   )
 
-  outer.reportWFI(Some(core.io.wfi))
+  outer.reportWFI(Some(core.wfi))
 
-  outer.decodeCoreInterrupts(core.io.interrupts) // Decode the interrupt vector
+  outer.decodeCoreInterrupts(core.interrupts) // Decode the interrupt vector
 
   outer.bus_error_unit.foreach { beu =>
-    core.io.interrupts.buserror.get := beu.module.io.interrupt
+    core.interrupts.buserror.get := beu.module.io.interrupt
     beu.module.io.errors.dcache := outer.dcache.module.io.errors
     beu.module.io.errors.icache := outer.frontend.module.io.errors
   }
 
-  core.io.interrupts.nmi.foreach { nmi => nmi := outer.nmiSinkNode.bundle }
+  core.interrupts.nmi.foreach { nmi => nmi := outer.nmiSinkNode.bundle }
 
   // Pass through various external constants and reports that were bundle-bridged into the tile
-  outer.traceSourceNode.bundle <> core.io.trace
-  core.io.traceStall := outer.traceAuxSinkNode.bundle.stall
-  outer.bpwatchSourceNode.bundle <> core.io.bpwatch
-  core.io.hartid := outer.hartIdSinkNode.bundle
+  outer.traceSourceNode.bundle <> core.trace
+  core.traceStall := outer.traceAuxSinkNode.bundle.stall
+  outer.bpwatchSourceNode.bundle <> core.bpwatch
+  core.hartid := outer.hartIdSinkNode.bundle
   require(
-    core.io.hartid.getWidth >= outer.hartIdSinkNode.bundle.getWidth,
-    s"core hartid wire (${core.io.hartid.getWidth}b) truncates external hartid wire (${outer.hartIdSinkNode.bundle.getWidth}b)"
+    core.hartid.getWidth >= outer.hartIdSinkNode.bundle.getWidth,
+    s"core hartid wire (${core.hartid.getWidth}b) truncates external hartid wire (${outer.hartIdSinkNode.bundle.getWidth}b)"
   )
 
   // Connect the core pipeline to other intra-tile modules
-  outer.frontend.module.io.cpu <> core.io.imem
-  dcachePorts += core.io.dmem // TODO outer.dcachePorts += () => module.core.io.dmem ??
+  outer.frontend.module.io.cpu <> core.imem
+  dcachePorts += core.dmem // TODO outer.dcachePorts += () => module.core.dmem ??
   fpuOpt.foreach { fpu =>
-    core.io.fpu :<>= fpu.io.waiveAs[FPUCoreIO](_.cp_req, _.cp_resp)
+    core.fpu :<>= fpu.io.waiveAs[FPUCoreIO](_.cp_req, _.cp_resp)
     fpu.io.cp_req := DontCare
     fpu.io.cp_resp := DontCare
   }
   if (fpuOpt.isEmpty) {
-    core.io.fpu := DontCare
+    core.fpu := DontCare
   }
-  core.io.ptw <> ptw.io.dpath
+  core.ptw <> ptw.io.dpath
 
   // Rocket has higher priority to DTIM than other TileLink clients
   outer.dtim_adapter.foreach { lm => dcachePorts += lm.module.io.dmem }
