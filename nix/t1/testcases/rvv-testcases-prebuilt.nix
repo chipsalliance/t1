@@ -2,10 +2,10 @@
 
 stdenv.mkDerivation rec {
   name = "rvv-testcases-prebuilt";
-  version = "2023-09-03+25d3212";
+  version = "2023-11-16+b0ad92b";
   src = fetchurl {
     url = "https://github.com/chipsalliance/t1/releases/download/${version}/rvv-testcases.tar.gz";
-    sha256 = "sha256-zqDs+blxLrpDTVaRR9GFwu4t8E39T52rsc2eQhXLgpc=";
+    sha256 = "sha256-FLVHYf+Dr89B0Oa6n7BizP91XqxPcRTbQxAGp2k/IIM=";
   };
   dontUnpack = true;
   installPhase = ''
