@@ -293,7 +293,7 @@ class LSU(param: LSUParam) extends Module {
   val storeEndLessThanLoadEnd: Bool = storeUnit.status.endAddress <= loadUnit.status.endAddress
 
   val addressOverlap: Bool = ((storeStartLargerThanLoadStart && storeStartLessThanLoadEnd) ||
-    (storeEndLargerThanLoadStart || storeEndLessThanLoadEnd)) && !(storeUnit.status.idle || loadUnit.status.idle)
+    (storeEndLargerThanLoadStart && storeEndLessThanLoadEnd)) && !(storeUnit.status.idle || loadUnit.status.idle)
   val stallLoad: Bool = !unitOrder && addressOverlap
   val stallStore: Bool = unitOrder && addressOverlap
 
