@@ -4,19 +4,19 @@
 package org.chipsalliance.t1.rocketcore
 
 import chisel3._
-import chisel3.util.{Valid,Decoupled,Queue,log2Up,OHToUInt,UIntToOH,PriorityEncoderOH,Arbiter,RegEnable,Cat}
+import chisel3.util.{log2Up, Arbiter, Cat, Decoupled, OHToUInt, PriorityEncoderOH, Queue, RegEnable, UIntToOH, Valid}
 
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.util._
 
 /**
- * This module buffers requests made by the SimpleHellaCacheIF in case they
- * are nacked. Nacked requests must be replayed in order, and no other requests
- * must be allowed to go through until the replayed requests are successfully
- * completed.
- */
-class SimpleHellaCacheIFReplayQueue(depth: Int)
-    (implicit val p: Parameters) extends Module
+  * This module buffers requests made by the SimpleHellaCacheIF in case they
+  * are nacked. Nacked requests must be replayed in order, and no other requests
+  * must be allowed to go through until the replayed requests are successfully
+  * completed.
+  */
+class SimpleHellaCacheIFReplayQueue(depth: Int)(implicit val p: Parameters)
+    extends Module
     with HasL1HellaCacheParameters {
   val io = IO(new Bundle {
     val req = Flipped(Decoupled(new HellaCacheReq))
@@ -69,31 +69,28 @@ class SimpleHellaCacheIFReplayQueue(depth: Int)
   // the previous replay
   nackq.io.enq.valid := io.nack.valid && !nack_head
   nackq.io.enq.bits := OHToUInt(nack_onehot)
-  assert(!nackq.io.enq.valid || nackq.io.enq.ready,
-    "SimpleHellaCacheIF: ReplayQueue nack queue overflow")
+  assert(!nackq.io.enq.valid || nackq.io.enq.ready, "SimpleHellaCacheIF: ReplayQueue nack queue overflow")
 
   // Dequeue from the nack queue if the last replay was successfully completed
   nackq.io.deq.ready := replay_complete
-  assert(!nackq.io.deq.ready || nackq.io.deq.valid,
-    "SimpleHellaCacheIF: ReplayQueue nack queue underflow")
+  assert(!nackq.io.deq.ready || nackq.io.deq.valid, "SimpleHellaCacheIF: ReplayQueue nack queue underflow")
 
   // Set inflight bit when a request is made
   // Clear it when it is successfully completed
   inflight := (inflight | Mux(io.req.fire, next_inflight_onehot, 0.U)) &
-                          ~Mux(io.resp.valid, resp_onehot, 0.U)
+    ~Mux(io.resp.valid, resp_onehot, 0.U)
 
-  when (io.req.fire) {
+  when(io.req.fire) {
     reqs(next_inflight) := io.req.bits
   }
 
   // Only one replay outstanding at a time
-  when (io.replay.fire) { replaying := true.B }
-  when (nack_head || replay_complete) { replaying := false.B }
+  when(io.replay.fire) { replaying := true.B }
+  when(nack_head || replay_complete) { replaying := false.B }
 }
 
 // exposes a sane decoupled request interface
-class SimpleHellaCacheIF(implicit p: Parameters) extends Module
-{
+class SimpleHellaCacheIF(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
     val requestor = Flipped(new HellaCacheIO())
     val cache = new HellaCacheIO
@@ -103,10 +100,7 @@ class SimpleHellaCacheIF(implicit p: Parameters) extends Module
   val replayq = Module(new SimpleHellaCacheIFReplayQueue(2))
   val req_arb = Module(new Arbiter(new HellaCacheReq, 2))
 
-  val req_helper = DecoupledHelper(
-    req_arb.io.in(1).ready,
-    replayq.io.req.ready,
-    io.requestor.req.valid)
+  val req_helper = DecoupledHelper(req_arb.io.in(1).ready, replayq.io.req.ready, io.requestor.req.valid)
 
   req_arb.io.in(0) <> replayq.io.replay
   req_arb.io.in(1).valid := req_helper.fire(req_arb.io.in(1).ready)
