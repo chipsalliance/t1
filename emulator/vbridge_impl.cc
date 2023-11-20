@@ -500,15 +500,26 @@ void VBridgeImpl::receive_tl_d_ready(const VTlInterface &tl) {
           fmt::format("cannot find current request with addr {:08X}",
                       addr));
       auto &req_record = find->second;
-      req_record.bytes_sent +=
+      if (req_record.op == TLReqRecord::opType::Get) {
+        req_record.bytes_sent +=
           std::min(config.datapath_width_in_bytes, req_record.size_by_byte);
-      if (req_record.bytes_sent >= req_record.size_by_byte) {
+        if (req_record.bytes_sent >= req_record.size_by_byte) {
+          tl_req_waiting_ready[tlIdx].reset();
+          tl_req_record_of_bank[tlIdx].erase(find);
+          Log("ReceiveTlDReady")
+            .with("channel", tlIdx)
+            .with("addr", fmt::format("{:08X}", addr))
+            .info("-> tl response for Get reaches d_ready");
+        }
+      } else if (req_record.op == TLReqRecord::opType::PutFullData) {
         tl_req_waiting_ready[tlIdx].reset();
         tl_req_record_of_bank[tlIdx].erase(find);
         Log("ReceiveTlDReady")
-            .with("channel", tlIdx)
-            .with("addr", fmt::format("{:08X}", addr))
-            .info("-> tl response reaches d_ready");
+          .with("channel", tlIdx)
+          .with("addr", fmt::format("{:08X}", addr))
+          .info("-> tl response for PutFullData reaches d_ready");
+      } else {
+        FATAL(fmt::format("unknown opcode {}", (int) req_record.op))
       }
     }
   }
@@ -561,8 +572,15 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
       *tl_poke.d_bits_sink = 0;
       *tl_poke.d_corrupt = false;
       *tl_poke.d_bits_denied = false;
-      d_valid = true;
-      tl_req_waiting_ready[i] = t;
+
+      if (record.op == TLReqRecord::opType::PutFullData) {  // for PUT request, only ack at last request
+        d_valid = record.bytes_received >= record.size_by_byte;
+      } else {
+        d_valid = true;
+      }
+      if (d_valid) {
+        tl_req_waiting_ready[i] = t;
+      }
       break;
     }
   }
