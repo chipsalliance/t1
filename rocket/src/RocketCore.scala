@@ -14,16 +14,7 @@ import org.chipsalliance.t1.rockettile.{VectorRequest, VectorResponse}
 import scala.collection.mutable.ArrayBuffer
 
 // TODO: remove it.
-import freechips.rocketchip.tile.{
-  CoreInterrupts,
-  CustomCSR,
-  CustomCSRs,
-  FPUCoreIO,
-  HasCoreParameters,
-  RoCCCoreIO,
-  RoCCInstruction,
-  TraceBundle
-}
+import freechips.rocketchip.tile.{CoreInterrupts, CustomCSR, CustomCSRs, FPUCoreIO, HasCoreParameters, TraceBundle}
 import freechips.rocketchip.rocket.{CSRs, Causes, MulDivParams, RocketCoreParams}
 
 trait HasRocketCoreParameters extends HasCoreParameters {
@@ -91,8 +82,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     org.chipsalliance.t1.rocketcore.InstructionDecoderParameter(
       // TODO: configurable
       (org.chipsalliance.rvdecoderdb.fromFile.instructions(os.pwd / "dependencies" / "riscv-opcodes") ++
-        // TODO: select rocc instructions via configuration.
-        org.chipsalliance.t1.rocketcore.CustomInstructions.roccSet ++
         org.chipsalliance.t1.rocketcore.CustomInstructions.rocketSet.filter { i =>
           i.instructionSets.map(_.name) match {
             // I
@@ -147,8 +136,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
                 case "c.discard.d.l1" => coreParams.haveCFlush
                 case "cease"          => rocketParams.haveCease
               }
-            case s if s.contains("rv_rocc") => usingRoCC
-            case _                          => false
+            case _ => false
           }
         }.filter {
           // special case for rv32 pseudo from rv64
@@ -172,7 +160,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val dmem = new HellaCacheIO
     val ptw = Flipped(new DatapathPTWIO())
     val fpu = Flipped(new FPUCoreIO())
-    val rocc = Flipped(new RoCCCoreIO(0))
     val trace = Output(new TraceBundle)
     val bpwatch = Output(Vec(coreParams.nBreakpoints, new BPWatch(coreParams.retireWidth)))
     val cease = Output(Bool())
@@ -412,8 +399,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val idFpIllegal: Option[Bool] =
       Option.when(usingFPU)(idDecodeOutput(decoder.fp) && (csr.io.decode(0).fpIllegal || io.fpu.illegal_rm))
     val idDpIllegal: Option[Bool] = Option.when(usingFPU)(idDecodeOutput(decoder.dp) && !csr.io.status.isa('d' - 'a'))
-    val idRoCCIllegal: Option[Bool] =
-      Option.when(usingRoCC)(idDecodeOutput(decoder.rocc) && csr.io.decode(0).roccIllegal)
 
     val idIllegalInstruction: Bool =
       !idDecodeOutput(decoder.isLegal) ||
@@ -424,8 +409,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         idAtomicIllegal.getOrElse(false.B) ||
         idFpIllegal.getOrElse(false.B) ||
         idDpIllegal.getOrElse(false.B) ||
-        idCompressIllegal.getOrElse(false.B) ||
-        idRoCCIllegal.getOrElse(false.B)
+        idCompressIllegal.getOrElse(false.B)
     val idVirtualInstruction: Bool =
       idDecodeOutput(decoder.isLegal) &&
         (
@@ -445,19 +429,11 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val idFenceSucc:  UInt = idInstruction(23, 20)
     val idFenceNext:  Bool = idDecodeOutput(decoder.fence) || idDecodeOutput(decoder.amo) && idAmoAquire
     val idMemoryBusy: Bool = !io.dmem.ordered || io.dmem.req.valid
-    when(!idMemoryBusy) { idRegFence := false.B }
-    val idRoccBusy: Option[Bool] = Option.when(usingRoCC)(
-      io.rocc.busy ||
-        exRegValid && exRegDecodeOutput(decoder.rocc) ||
-        memRegValid && memRegDecodeOutput(decoder.rocc) ||
-        wbRegValid && wbRegDecodeOutput(decoder.rocc)
-    )
     val idDoFence =
-      idRoccBusy.getOrElse(false.B) && idDecodeOutput(decoder.fence) ||
-        idMemoryBusy && (idDecodeOutput(decoder.amo) && idAmoRelease ||
+      idMemoryBusy &&
+        (idDecodeOutput(decoder.amo) && idAmoRelease ||
           idDecodeOutput(decoder.fenceI) ||
-          idRegFence && (idDecodeOutput(decoder.mem) ||
-            Option.when(usingRoCC)(idDecodeOutput(decoder.rocc)).getOrElse(false.B)))
+          idRegFence && idDecodeOutput(decoder.mem))
 
     breakpointUnit.io.status := csr.io.status
     breakpointUnit.io.bp := csr.io.bp
@@ -711,13 +687,9 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       memBranchTaken := arithmeticLogicUnit.io.cmp_out
 
       when(
-        exRegDecodeOutput(decoder.rxs2) && (exRegDecodeOutput(decoder.mem) || Option
-          .when(usingRoCC)(exRegDecodeOutput(decoder.rocc))
-          .getOrElse(false.B) || exSfence)
+        exRegDecodeOutput(decoder.rxs2) && (exRegDecodeOutput(decoder.mem) || exSfence)
       ) {
-        val size =
-          if (usingRoCC) Mux(exRegDecodeOutput(decoder.rocc), log2Ceil(xLen / 8).U, exRegMemSize)
-          else exRegMemSize
+        val size = exRegMemSize
         memRegRS2 := new StoreGen(size, 0.U, exRs(1), coreDataBytes).data
       }
       when(exRegDecodeOutput(decoder.isJalr) && csr.io.status.debug) {
@@ -773,7 +745,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
           )
         else memIntWdata
       }
-      when(Option.when(usingRoCC)(memRegDecodeOutput(decoder.rocc)).getOrElse(false.B) || memRegSfence) {
+      when(memRegSfence) {
         wbRegRS2 := memRegRS2
       }
       wbRegCause := memCause
@@ -833,13 +805,10 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val wbSetSboard: Bool =
       wbDcacheMiss ||
         Option.when(usingMulDiv)(wbRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
-        Option.when(usingRoCC)(wbRegDecodeOutput(decoder.rocc)).getOrElse(false.B)
-    Option.when(usingVectorT1)(wbRegDecodeOutput(decoder.isVector)).getOrElse(false.B)
+        Option.when(usingVectorT1)(wbRegDecodeOutput(decoder.isVector)).getOrElse(false.B)
     val replayWbCommon: Bool = io.dmem.s2_nack || wbRegReplay
-    val replayWbRocc: Option[Bool] =
-      Option.when(usingRoCC)(wbRegValid && wbRegDecodeOutput(decoder.rocc) && !io.rocc.cmd.ready)
-    val replayWbCsr: Bool = wbRegValid && csr.io.rwStall
-    val replayWb:    Bool = replayWbCommon || replayWbCsr || replayWbRocc.getOrElse(false.B)
+    val replayWbCsr:    Bool = wbRegValid && csr.io.rwStall
+    val replayWb:       Bool = replayWbCommon || replayWbCsr
     takePcWb := replayWb || wbException || csr.io.eret || wbRegFlushPipe
 
     // writeback arbitration
@@ -853,25 +822,9 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val longlatencyWdata:    UInt = WireDefault(muldiv.io.resp.bits.data)
     val longlatencyWaddress: UInt = WireDefault(muldiv.io.resp.bits.tag)
     val longLatencyWenable:  Bool = WireDefault(muldiv.io.resp.fire)
-    if (usingRoCC) {
-      io.rocc.resp.ready := !wbWxd
-      when(io.rocc.resp.fire) {
-        muldiv.io.resp.ready := false.B
-        longlatencyWdata := io.rocc.resp.bits.data
-        longlatencyWaddress := io.rocc.resp.bits.rd
-        longLatencyWenable := true.B
-      }
-    } else {
-      // tie off RoCC
-      io.rocc.resp.ready := false.B
-      io.rocc.mem.req.ready := false.B
-    }
-    // Dont care mem since not all RoCC need accessing memory
-    io.rocc.mem := DontCare
 
     when(dmemResponseReplay && dmemResponseXpu) {
       muldiv.io.resp.ready := false.B
-      if (usingRoCC) io.rocc.resp.ready := false.B
       longlatencyWaddress := dmemResponseWaddr
       longLatencyWenable := true.B
     }
@@ -917,7 +870,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     csr.io.fcsrFlags := io.fpu.fcsr_flags
     io.fpu.time := csr.io.time(31, 0)
     io.fpu.hartid := io.hartid
-    csr.io.roccInterrupt := io.rocc.interrupt
     csr.io.pc := wbRegPc
     val tvalDmemAddr = !wbRegException
     val tvalAnyAddr = tvalDmemAddr ||
@@ -953,7 +905,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     csr.io.rw.addr := wbRegInstruction(31, 20)
     csr.io.rw.cmd := CSR.maskCmd(wbRegValid, wbRegDecodeOutput(decoder.csr))
     csr.io.rw.wdata := wbRegWdata
-    io.rocc.csrs <> csr.io.roccCSRs
     io.trace.time := csr.io.time
     io.trace.insns := csr.io.trace
     // TODO: move it to verification part.
@@ -1018,8 +969,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         exRegDecodeOutput(decoder.mem) ||
         Option.when(usingMulDiv && pipelinedMul)(exRegDecodeOutput(decoder.mul)).getOrElse(false.B) ||
         Option.when(usingMulDiv)(exRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
-        Option.when(usingFPU)(exRegDecodeOutput(decoder.fp)).getOrElse(false.B) ||
-        Option.when(usingRoCC)(exRegDecodeOutput(decoder.rocc)).getOrElse(false.B)
+        Option.when(usingFPU)(exRegDecodeOutput(decoder.fp)).getOrElse(false.B)
     val dataHazardEx: Bool = exRegDecodeOutput(decoder.wxd) && checkHazards(hazardTargets, _ === exWaddr)
     val fpDataHazardEx: Option[Bool] = Option.when(usingFPU)(
       idDecodeOutput(decoder.fp) && exRegDecodeOutput(decoder.wfd) && checkHazards(fpHazardTargets, _ === exWaddr)
@@ -1036,8 +986,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         memRegDecodeOutput(decoder.mem) && memMemCmdBh ||
         Option.when(usingMulDiv && pipelinedMul)(memRegDecodeOutput(decoder.mul)).getOrElse(false.B) ||
         Option.when(usingMulDiv)(memRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
-        Option.when(usingFPU)(memRegDecodeOutput(decoder.fp)).getOrElse(false.B) ||
-        Option.when(usingRoCC)(memRegDecodeOutput(decoder.rocc)).getOrElse(false.B)
+        Option.when(usingFPU)(memRegDecodeOutput(decoder.fp)).getOrElse(false.B)
     val dataHazardMem: Bool = memRegDecodeOutput(decoder.wxd) && checkHazards(hazardTargets, _ === memWaddr)
     val fpDataHazardMem: Option[Bool] = Option.when(usingFPU)(
       idDecodeOutput(decoder.fp) &&
@@ -1074,8 +1023,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       blocked := !io.dmem.req.ready && io.dmem.clock_enabled && !io.dmem.perf.grant && (blocked || io.dmem.req.valid || io.dmem.s2_nack)
       blocked && !io.dmem.perf.grant
     }
-    val roccBlocked: Option[Bool] = Option.when(usingRoCC)(Reg(Bool()))
-    roccBlocked.foreach(_ := !wbException && !io.rocc.cmd.ready && (io.rocc.cmd.valid || roccBlocked.get))
 
     val ctrlStalld: Bool =
       idExHazard || idMemHazard || idWbHazard || idScoreboardHazard || idDoFence || idRegPause ||
@@ -1084,9 +1031,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         !clockEnable ||
         Option.when(usingFPU)(idDecodeOutput(decoder.fp) && idStallFpu).getOrElse(false.B) ||
         idDecodeOutput(decoder.mem) && dcacheBlocked || // reduce activity during D$ misses
-        Option
-          .when(usingRoCC)(idDecodeOutput(decoder.rocc) && roccBlocked.get)
-          .getOrElse(false.B) || // reduce activity while RoCC is busy
         Option
           .when(usingMulDiv)(
             idDecodeOutput(
@@ -1209,22 +1153,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     io.dmem.s2_kill := false.B
     // don't let D$ go to sleep if we're probably going to use it soon
     io.dmem.keep_clock_enabled := instructionBufferOut.valid && idDecodeOutput(decoder.mem) && !csr.io.csrStall
-
-    if (usingRoCC) {
-      io.rocc.cmd.valid := wbRegValid && wbRegDecodeOutput(decoder.rocc) && !replayWbCommon
-      io.rocc.exception := wbException && csr.io.status.xs.orR
-      io.rocc.cmd.bits.status := csr.io.status
-      io.rocc.cmd.bits.inst := wbRegInstruction.asTypeOf(new RoCCInstruction())
-      io.rocc.cmd.bits.rs1 := wbRegWdata
-      io.rocc.cmd.bits.rs2 := wbRegRS2
-    } else {
-      io.rocc.cmd.valid := DontCare
-      io.rocc.exception := DontCare
-      io.rocc.cmd.bits.status := DontCare
-      io.rocc.cmd.bits.inst := DontCare
-      io.rocc.cmd.bits.rs1 := DontCare
-      io.rocc.cmd.bits.rs2 := DontCare
-    }
 
     // gate the clock
     val unpause: Bool =

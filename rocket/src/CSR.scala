@@ -109,7 +109,6 @@ class MIP(implicit p: Parameters) extends CoreBundle()(p) with HasCoreParameters
   val lip = Vec(coreParams.nLocalInterrupts, Bool())
   val zero1 = Bool()
   val debug = Bool() // keep in sync with CSR.debugIntCause
-  val rocc = Bool()
   val sgeip = Bool()
   val meip = Bool()
   val vseip = Bool()
@@ -243,7 +242,6 @@ class CSRDecodeIO(implicit p: Parameters) extends CoreBundle {
   val fpIllegal = Output(Bool())
   val vectorIllegal = Output(Bool())
   val fpCsr = Output(Bool())
-  val roccIllegal = Output(Bool())
   val readIllegal = Output(Bool())
   val writeIllegal = Output(Bool())
   val writeFlush = Output(Bool())
@@ -288,7 +286,6 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle with HasCoreParameter
   val fcsrRm = Output(Bits(FPConstants.RM_SZ.W))
   val fcsrFlags = Flipped(Valid(Bits(FPConstants.FLAGS_SZ.W)))
   val setFsDirty = coreParams.haveFSDirty.option(Input(Bool()))
-  val roccInterrupt = Input(Bool())
   val interrupt = Output(Bool())
   val interruptCause = Output(UInt(xLen.W))
   val bp = Output(Vec(nBreakpoints, new BP))
@@ -382,15 +379,13 @@ class VType(implicit p: Parameters) extends CoreBundle {
 
 class CSRFile(
   perfEventSets: EventSets = new EventSets(Seq()),
-  customCSRs:    Seq[CustomCSR] = Nil,
-  roccCSRs:      Seq[CustomCSR] = Nil
+  customCSRs:    Seq[CustomCSR] = Nil
 )(
   implicit p: Parameters)
     extends CoreModule()(p)
     with HasCoreParameters {
   val io = IO(new CSRFileIO {
     val customCSRs = Vec(CSRFile.this.customCSRs.size, new CustomCSRIO)
-    val roccCSRs = Vec(CSRFile.this.roccCSRs.size, new CustomCSRIO)
   })
 
   io.rwStall := false.B
@@ -398,7 +393,7 @@ class CSRFile(
   val reset_mstatus = WireDefault(0.U.asTypeOf(new MStatus()))
   reset_mstatus.mpp := PRV.M.U
   reset_mstatus.prv := PRV.M.U
-  reset_mstatus.xs := (if (usingRoCC) 3.U else 0.U)
+  reset_mstatus.xs := 0.U
   val reg_mstatus = RegInit(reset_mstatus)
 
   val new_prv = WireDefault(reg_mstatus.prv)
@@ -424,7 +419,6 @@ class CSRFile(
     sup.vseip := usingHypervisor.B
     sup.meip := true.B
     sup.sgeip := false.B
-    sup.rocc := usingRoCC.B
     sup.debug := false.B
     sup.zero1 := false.B
     sup.lip.foreach { _ := true.B }
@@ -612,7 +606,6 @@ class CSRFile(
   io.interrupts.seip.foreach { mip.seip := reg_mip.seip || _ }
   // Simimlar sort of thing would apply if the PLIC had a VSEIP line:
   //io.interrupts.vseip.foreach { mip.vseip := reg_mip.vseip || _ }
-  mip.rocc := io.roccInterrupt
   val read_mip = mip.asUInt & supported_interrupts
   val read_hip = read_mip & hs_delegable_interrupts
   val high_interrupts = (if (usingNMI) 0.U else io.interrupts.buserror.map(_ << CSR.busErrorIntCause).getOrElse(0.U))
@@ -662,7 +655,7 @@ class CSRFile(
       (if (usingCompressed) "C" else "")
   val isaString = (if (coreParams.useRVE) "E" else "I") +
     isaMaskString +
-    (if (customIsaExt.isDefined || usingRoCC) "X" else "") +
+    (if (customIsaExt.isDefined) "X" else "") +
     (if (usingSupervisor) "S" else "") +
     (if (usingHypervisor) "H" else "") +
     (if (usingUser) "U" else "")
@@ -842,7 +835,6 @@ class CSRFile(
     reg
   }
   val reg_custom = customCSRs.zip(io.customCSRs).map(t => generateCustomCSR(t._1, t._2))
-  val reg_rocc = roccCSRs.zip(io.roccCSRs).map(t => generateCustomCSR(t._1, t._2))
 
   if (usingHypervisor) {
     read_mapping += CSRs.mtinst -> 0.U
@@ -956,7 +948,6 @@ class CSRFile(
     io_dec.fpIllegal := io.status.fs === 0.U || reg_mstatus.v && reg_vsstatus.fs === 0.U || !reg_misa('f' - 'a')
     io_dec.vectorIllegal := io.status.vs === 0.U || reg_mstatus.v && reg_vsstatus.vs === 0.U || !reg_misa('v' - 'a')
     io_dec.fpCsr := decodeFast(fp_csrs.keys.toList)
-    io_dec.roccIllegal := io.status.xs === 0.U || reg_mstatus.v && reg_vsstatus.xs === 0.U || !reg_misa('x' - 'a')
     val csr_addr_legal = reg_mstatus.prv >= CSR.mode(addr) ||
       usingHypervisor.B && !reg_mstatus.v && reg_mstatus.prv === PRV.S.U && CSR.mode(addr) === PRV.H.U
     val csr_exists = decodeAny(read_mapping)
@@ -1220,12 +1211,6 @@ class CSRFile(
   io.status.wfi := reg_wfi
 
   for ((io, reg) <- io.customCSRs.zip(reg_custom)) {
-    io.wen := false.B
-    io.wdata := wdata
-    io.value := reg
-  }
-
-  for ((io, reg) <- io.roccCSRs.zip(reg_rocc)) {
     io.wen := false.B
     io.wdata := wdata
     io.value := reg
@@ -1589,9 +1574,7 @@ class CSRFile(
     for ((io, csr, reg) <- (io.customCSRs, customCSRs, reg_custom).zipped) {
       writeCustomCSR(io, csr, reg)
     }
-    for ((io, csr, reg) <- (io.roccCSRs, roccCSRs, reg_rocc).zipped) {
-      writeCustomCSR(io, csr, reg)
-    }
+
     if (usingVector) {
       when(decoded_addr(CSRs.vstart)) { set_vs_dirty := true.B; reg_vstart.get := wdata }
       when(decoded_addr(CSRs.vxrm)) { set_vs_dirty := true.B; reg_vxrm.get := wdata }
@@ -1611,9 +1594,6 @@ class CSRFile(
     }
   }
   for ((io, csr, reg) <- (io.customCSRs, customCSRs, reg_custom).zipped) {
-    setCustomCSR(io, csr, reg)
-  }
-  for ((io, csr, reg) <- (io.roccCSRs, roccCSRs, reg_rocc).zipped) {
     setCustomCSR(io, csr, reg)
   }
 
@@ -1663,7 +1643,7 @@ class CSRFile(
   if (!(vmIdBits > 0)) {
     reg_hgatp.asid := 0.U
   }
-  reg_vsstatus.xs := (if (usingRoCC) 3.U else 0.U)
+  reg_vsstatus.xs := 0.U
 
   if (nBreakpoints <= 1) reg_tselect := 0.U
   for (bpc <- reg_bp.map { _.control }) {
