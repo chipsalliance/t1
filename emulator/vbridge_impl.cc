@@ -54,17 +54,15 @@ void VBridgeImpl::dpiInitCosim() {
 /* cosim                          rtl
  * clock = 1
  * (prepare spike_event)
- *    <----- lsu idx -----------  (peekLsuEnq      posedge 1)
- *    <---- rf access ----------  (peekVrfWrite    posedge 1)
- *    <------- resp ------------  (peekResponse    posedge 1)
- *    <------- inst,csr --------  (peekInstruction posedge 1)
+ *    <---- lsu idx ------------  (peekLsuEnq      posedge 1) [update_lsu_idx]
+ *    <---- rf access ----------  (peekVrfWrite    posedge 1) [record_rf_accesses]
+ *    <---- resp ---------------  (pokeInst        posedge 1)
+ *    ----- tl resp ----------->  (pokeTL          posedge 1) [return_tl_response]
  *
- *    ------- inst ------------>  (peekIssue       posedge 2)
- *    ------- tl resp --------->  (pokeTL          posedge 2)
- *
- *    <------ tl req -----------  (peekTL          posedge 3)
+ *    ----- issueIdx ---------->  (peekIssue       posedge 2)
+ *    <---- tl req -------------  (peekTL          posedge 2) [receive_tl_d_ready, receive_tl_req]
  * clock = 0, eval
- *    <---- rf queue access ----  (peekWriteQueue  negedge 1)
+ *    <---- rf queue access ----  (peekWriteQueue  negedge 1) [record_rf_queue_accesses]
  */
 
 //==================
@@ -152,6 +150,14 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr,
   se_to_issue->drive_rtl_csr(v_csr);
 }
 
+void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
+  Log("DPIPokeTL").trace();
+  CHECK(0 <= v_tl_resp.channel_id &&
+        v_tl_resp.channel_id < config.tl_bank_number,
+        "invalid v_tl_resp channel id");
+  return_tl_response(v_tl_resp);
+}
+
 //==================
 // posedge (2)
 //==================
@@ -167,18 +173,6 @@ void VBridgeImpl::dpiPeekIssue(svBit ready, svBitVecVal issueIdx) {
         .info("issue to rtl");
   }
 }
-
-void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
-  Log("DPIPokeTL").trace();
-  CHECK(0 <= v_tl_resp.channel_id &&
-            v_tl_resp.channel_id < config.tl_bank_number,
-        "invalid v_tl_resp channel id");
-  return_tl_response(v_tl_resp);
-}
-
-//==================
-// posedge (3)
-//==================
 
 void VBridgeImpl::dpiPeekTL(const VTlInterface &v_tl) {
   Log("DPIPeekTL").trace();
@@ -200,6 +194,10 @@ void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
 
   se_to_issue = nullptr; // clear se_to_issue, to avoid using the wrong one
 }
+
+//==================
+// end of dpi interfaces
+//==================
 
 VBridgeImpl::VBridgeImpl()
     : config(get_env_arg("COSIM_config")),
@@ -460,7 +458,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         //        }
         CHECK_LT(mem_write->second.num_completed_writes,
                  mem_write->second.writes.size(),
-                 "writed size should be smaller than completed writes");
+                 "written size should be smaller than completed writes");
         auto single_mem_write = mem_write->second.writes.at(
             mem_write->second.num_completed_writes++);
         CHECK_EQ(single_mem_write.val, tl_data_byte,
