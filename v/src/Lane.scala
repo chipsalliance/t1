@@ -1036,8 +1036,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // lsu访问vrf都不是无序的
   vrf.instructionWriteReport.bits.unOrderWrite := laneRequest.bits.decodeResult(Decoder.other)
   // for mask unit
-  vrf.instructionWriteReport.bits.slow := laneRequest.bits.decodeResult(Decoder.maskDestination) ||
-    laneRequest.bits.decodeResult(Decoder.dontNeedExecuteInLane)
+  vrf.instructionWriteReport.bits.slow := laneRequest.bits.decodeResult(Decoder.special)
   vrf.instructionWriteReport.bits.seg.valid := laneRequest.bits.loadStore && laneRequest.bits.segment.orR
   vrf.instructionWriteReport.bits.seg.bits := laneRequest.bits.segment
   vrf.instructionWriteReport.bits.eew := laneRequest.bits.loadStoreEEW

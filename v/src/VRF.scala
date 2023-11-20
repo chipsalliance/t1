@@ -308,7 +308,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           record.bits.wWriteQueueClear := true.B
         }
       }
-      when(record.bits.stFinish && lsuWriteBufferClear && record.valid) {
+      when(record.bits.stFinish && (lsuWriteBufferClear || record.bits.st) && record.valid) {
         when(dataIndexWriteQueue) {
           record.bits.wWriteQueueClear
         } otherwise {
