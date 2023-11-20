@@ -109,7 +109,8 @@ jobs:
           touch all-fail-tests.txt
           shopt -s nullglob
           cat test-results-*/failed-tests.md > all-failed-tests.txt
-          retry=$(sed 's/\* //' all-fail-tests.txt | tail -n3)  # only retry last three failed
+          retry=$(sed 's/\* //' all-failed-tests.txt | shuf -n3)  # only retry last three failed
+          echo "build wave for: $retry"
           if [ -n "$retry" ]; then
             echo "generate_wave=true" >> "$GITHUB_OUTPUT"
             echo -n "retry_tasks=" >> "$GITHUB_OUTPUT"
@@ -119,7 +120,7 @@ jobs:
   build-fail-wave:
     name: "Generate wave for failing tests"
     needs: [gen-fail-wave-matrix]
-    if: ${{ needs.gen-fail-wave-matrix.outputs.generate_wave == 'true' }}
+    if: ${{ always() && needs.gen-fail-wave-matrix.outputs.generate_wave == 'true'  }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-fail-wave-matrix.outputs.retry_tasks) }}
