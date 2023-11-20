@@ -4,11 +4,10 @@
 package org.chipsalliance.t1.rocketcore
 
 import chisel3._
-import chisel3.util.{Cat,log2Up}
+import chisel3.util.{log2Up, Cat}
 import org.chipsalliance.cde.config.Parameters
 
-class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module
-{
+class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
     val requestor = Flipped(Vec(n, new HellaCacheIO))
     val mem = new HellaCacheIO
@@ -20,14 +19,14 @@ class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module
     val s1_id = Reg(UInt())
     val s2_id = RegNext(s1_id)
 
-    io.mem.keep_clock_enabled := io.requestor.map(_.keep_clock_enabled).reduce(_||_)
+    io.mem.keep_clock_enabled := io.requestor.map(_.keep_clock_enabled).reduce(_ || _)
 
-    io.mem.req.valid := io.requestor.map(_.req.valid).reduce(_||_)
+    io.mem.req.valid := io.requestor.map(_.req.valid).reduce(_ || _)
     io.requestor(0).req.ready := io.mem.req.ready
     for (i <- 1 until n)
-      io.requestor(i).req.ready := io.requestor(i-1).req.ready && !io.requestor(i-1).req.valid
+      io.requestor(i).req.ready := io.requestor(i - 1).req.ready && !io.requestor(i - 1).req.valid
 
-    for (i <- n-1 to 0 by -1) {
+    for (i <- n - 1 to 0 by -1) {
       val req = io.requestor(i).req
       def connect_s0() = {
         io.mem.req.bits := req.bits
@@ -42,14 +41,14 @@ class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module
         io.mem.s2_kill := io.requestor(i).s2_kill
       }
 
-      if (i == n-1) {
+      if (i == n - 1) {
         connect_s0()
         connect_s1()
         connect_s2()
       } else {
-        when (req.valid) { connect_s0() }
-        when (s1_id === i.U) { connect_s1() }
-        when (s2_id === i.U) { connect_s2() }
+        when(req.valid) { connect_s0() }
+        when(s1_id === i.U) { connect_s1() }
+        when(s2_id === i.U) { connect_s2() }
       }
     }
 
@@ -57,7 +56,7 @@ class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module
 
     for (i <- 0 until n) {
       val resp = io.requestor(i).resp
-      val tag_hit = io.mem.resp.bits.tag(log2Up(n)-1,0) === i.U
+      val tag_hit = io.mem.resp.bits.tag(log2Up(n) - 1, 0) === i.U
       resp.valid := io.mem.resp.valid && tag_hit
       io.requestor(i).s2_xcpt := io.mem.s2_xcpt
       io.requestor(i).s2_gpa := io.mem.s2_gpa
@@ -75,9 +74,9 @@ class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module
       io.requestor(i).replay_next := io.mem.replay_next
 
       io.requestor(i).uncached_resp.map { uncached_resp =>
-        val uncached_tag_hit = io.mem.uncached_resp.get.bits.tag(log2Up(n)-1,0) === i.U
+        val uncached_tag_hit = io.mem.uncached_resp.get.bits.tag(log2Up(n) - 1, 0) === i.U
         uncached_resp.valid := io.mem.uncached_resp.get.valid && uncached_tag_hit
-        when (uncached_resp.ready && uncached_tag_hit) {
+        when(uncached_resp.ready && uncached_tag_hit) {
           io.mem.uncached_resp.get.ready := true.B
         }
         uncached_resp.bits := io.mem.uncached_resp.get.bits
