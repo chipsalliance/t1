@@ -386,7 +386,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val maskDataForCompress: UInt = RegInit(0.U(parameter.datapathWidth.W))
   val dataClear:           Bool = WireDefault(false.B)
   val completedVec:        Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.laneNumber)(false.B)))
-  val selectffoIndex:      ValidIO[UInt] = Wire(Valid(UInt(parameter.xLen.W)))
+  // ffoIndexReg.valid: Already found the first one
+  val ffoIndexReg:  ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.xLen.W))))
+  val ffoType:      Bool = Wire(Bool())
 
   /** for find first one, need to tell the lane with higher index `1` . */
   val completedLeftOr: UInt = (scanLeftOr(completedVec.asUInt) << 1).asUInt(parameter.laneNumber - 1, 0)
@@ -512,16 +514,18 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val firstLaneIndex: UInt = OHToUInt(firstLane)(2, 0)
       response.bits.rd.valid := lastSlotCommit && decodeResultReg(Decoder.targetRd)
       response.bits.rd.bits := vd
-      selectffoIndex.valid := decodeResultReg(Decoder.ffo)
-      selectffoIndex.bits := Mux(
-        !completedVec.asUInt.orR,
-        -1.S(parameter.xLen.W).asUInt,
-        Mux1H(
+      when(requestRegDequeue.fire) {
+        ffoIndexReg.valid := false.B
+        ffoIndexReg.bits := -1.S(parameter.xLen.W).asUInt
+      }.elsewhen(synchronized && completedVec.asUInt.orR && !ffoIndexReg.valid) {
+        ffoIndexReg.valid := true.B
+        ffoIndexReg.bits := Mux1H(
           firstLane,
           // 3: firstLaneIndex.width
           data.map(i => i.bits(parameter.xLen - 1 - 3, 5) ## firstLaneIndex ## i.bits(4, 0))
         )
-      )
+      }
+      ffoType := decodeResultReg(Decoder.ffo)
 
       /** vlmax = vLen * (2**lmul) / (2 ** sew * 8)
         * = (vLen / 8) * 2 ** (lmul - sew)
@@ -1305,7 +1309,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       inst.state.sMaskUnitExecution && inst.state.wLast && !inst.state.sCommit && inst.record.instructionIndex === responseCounter
     })
     response.valid := slotCommit.asUInt.orR
-    response.bits.data := Mux(selectffoIndex.valid, selectffoIndex.bits, dataResult.bits)
+    response.bits.data := Mux(ffoType, ffoIndexReg.bits, dataResult.bits)
     response.bits.vxsat := DontCare
     response.bits.mem := (slotCommit.asUInt & VecInit(slots.map(_.record.isLoadStore)).asUInt).orR
     lastSlotCommit := slotCommit.last
