@@ -91,7 +91,6 @@ class RocketTile private (
 
   tile_master_blocker.foreach(lm => connectTLSlave(lm.controlNode, xBytes))
 
-  // TODO: this doesn't block other masters, e.g. RoCCs
   tlOtherMastersNode := tile_master_blocker.map { _.node := tlMasterXbar.node }.getOrElse { tlMasterXbar.node }
   masterNode :=* tlOtherMastersNode
   DisableMonitors { implicit p => tlSlaveXbar.node :*= slaveNode }
@@ -197,14 +196,6 @@ class RocketTileModuleImp(outer: RocketTile)
     core.io.fpu := DontCare
   }
   core.io.ptw <> ptw.io.dpath
-
-  // tie off rocc
-  core.io.rocc.cmd.ready := false.B
-  core.io.rocc.resp.valid := false.B
-  core.io.rocc.resp.bits := DontCare
-  core.io.rocc.busy := DontCare
-  core.io.rocc.interrupt := DontCare
-  core.io.rocc.mem := DontCare
 
   // Rocket has higher priority to DTIM than other TileLink clients
   outer.dtim_adapter.foreach { lm => dcachePorts += lm.module.io.dmem }
