@@ -292,6 +292,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
       // vlmul (0, 1, 2, 3) -> mul (1, 2, 4, 8) -> base vd (vd, vd + (0, 1), vd + (0, 3), vd + (0, 7 ))
       val segCheck = ((write.bits.vd ^ record.bits.vd.bits) >> record.bits.mul === 0.U) || record.bits.seg.valid
+      val dataIndexWriteQueue = ohCheck(dataInWriteQueue, record.bits.instIndex, parameter.chainingSize)
       when(
         write.valid  && segCheck &&
           write.bits.instructionIndex === record.bits.instIndex && write.bits.mask(3)
@@ -308,11 +309,15 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         }
       }
       when(record.bits.stFinish && lsuWriteBufferClear && record.valid) {
-        record.valid := false.B
+        when(dataIndexWriteQueue) {
+          record.bits.wWriteQueueClear
+        } otherwise {
+          record.valid := false.B
+        }
       }
       when(
         record.bits.wWriteQueueClear &&
-          !ohCheck(dataInWriteQueue, record.bits.instIndex, parameter.chainingSize) &&
+          !dataIndexWriteQueue &&
           (crossWriteBusClear || !record.bits.widen)
       ) {
         record.valid := false.B
