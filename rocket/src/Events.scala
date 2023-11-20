@@ -17,7 +17,7 @@ class EventSet(val gate: (UInt, UInt) => Bool, val events: Seq[(String, () => Bo
   }
   def dump(): Unit = {
     for (((name, _), i) <- events.zipWithIndex)
-      when (check(1.U << i)) { printf(s"Event $name\n") }
+      when(check(1.U << i)) { printf(s"Event $name\n") }
   }
   def withCovers: Unit = {
     events.zipWithIndex.foreach {
@@ -37,14 +37,14 @@ class EventSets(val eventSets: Seq[EventSet]) {
   private def decode(counter: UInt): (UInt, UInt) = {
     require(eventSets.size <= (1 << maxEventSetIdBits))
     require(eventSetIdBits > 0)
-    (counter(eventSetIdBits-1, 0), counter >> maxEventSetIdBits)
+    (counter(eventSetIdBits - 1, 0), counter >> maxEventSetIdBits)
   }
 
   def evaluate(eventSel: UInt): Bool = {
     val (set, mask) = decode(eventSel)
     val sets = for (e <- eventSets) yield {
       require(e.hits.getWidth <= mask.getWidth, s"too many events ${e.hits.getWidth} wider than mask ${mask.getWidth}")
-      e check mask
+      e.check(mask)
     }
     sets(set)
   }
@@ -62,7 +62,10 @@ class SuperscalarEventSets(val eventSets: Seq[(Seq[EventSet], (UInt, UInt) => UI
     val (set, mask) = decode(eventSel)
     val sets = for ((sets, reducer) <- eventSets) yield {
       sets.map { set =>
-        require(set.hits.getWidth <= mask.getWidth, s"too many events ${set.hits.getWidth} wider than mask ${mask.getWidth}")
+        require(
+          set.hits.getWidth <= mask.getWidth,
+          s"too many events ${set.hits.getWidth} wider than mask ${mask.getWidth}"
+        )
         set.check(mask)
       }.reduce(reducer)
     }
@@ -77,7 +80,7 @@ class SuperscalarEventSets(val eventSets: Seq[(Seq[EventSet], (UInt, UInt) => UI
   private def decode(counter: UInt): (UInt, UInt) = {
     require(eventSets.size <= (1 << maxEventSetIdBits))
     require(eventSetIdBits > 0)
-    (counter(eventSetIdBits-1, 0), counter >> maxEventSetIdBits)
+    (counter(eventSetIdBits - 1, 0), counter >> maxEventSetIdBits)
   }
 
   private def eventSetIdBits = log2Ceil(eventSets.size)

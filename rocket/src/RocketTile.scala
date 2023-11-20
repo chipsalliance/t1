@@ -20,18 +20,18 @@ import freechips.rocketchip.rocket.{BTBParams, DCacheParams, ICacheParams, Rocke
 case class RocketTileBoundaryBufferParams(force: Boolean = false)
 
 case class RocketTileParams(
-                             core: RocketCoreParams = RocketCoreParams(),
-                             icache: Option[ICacheParams] = Some(ICacheParams()),
-                             dcache: Option[DCacheParams] = Some(DCacheParams()),
-                             btb: Option[BTBParams] = Some(BTBParams()),
-                             dataScratchpadBytes: Int = 0,
-                             name: Option[String] = Some("tile"),
-                             hartId: Int = 0,
-                             beuAddr: Option[BigInt] = None,
-                             blockerCtrlAddr: Option[BigInt] = None,
-                             clockSinkParams: ClockSinkParameters = ClockSinkParameters(),
-                             boundaryBuffers: Option[RocketTileBoundaryBufferParams] = None
-                           ) extends InstantiableTileParams[RocketTile] {
+  core:                RocketCoreParams = RocketCoreParams(),
+  icache:              Option[ICacheParams] = Some(ICacheParams()),
+  dcache:              Option[DCacheParams] = Some(DCacheParams()),
+  btb:                 Option[BTBParams] = Some(BTBParams()),
+  dataScratchpadBytes: Int = 0,
+  name:                Option[String] = Some("tile"),
+  hartId:              Int = 0,
+  beuAddr:             Option[BigInt] = None,
+  blockerCtrlAddr:     Option[BigInt] = None,
+  clockSinkParams:     ClockSinkParameters = ClockSinkParameters(),
+  boundaryBuffers:     Option[RocketTileBoundaryBufferParams] = None)
+    extends InstantiableTileParams[RocketTile] {
   require(icache.isDefined)
   require(dcache.isDefined)
   def instantiate(crossing: TileCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): RocketTile = {
@@ -39,32 +39,45 @@ case class RocketTileParams(
   }
 }
 
-class RocketTile private(
-                          val rocketParams: RocketTileParams,
-                          crossing: ClockCrossingType,
-                          lookup: LookupByHartIdImpl,
-                          q: Parameters)
-  extends BaseTile(rocketParams, crossing, lookup, q)
+class RocketTile private (
+  val rocketParams: RocketTileParams,
+  crossing:         ClockCrossingType,
+  lookup:           LookupByHartIdImpl,
+  q:                Parameters)
+    extends BaseTile(rocketParams, crossing, lookup, q)
     with SinksExternalInterrupts
     with SourcesExternalNotifications
     with HasHellaCache
     with HasLazyT1
-    with HasICacheFrontend
-{
+    with HasICacheFrontend {
   // Private constructor ensures altered LazyModule.p is used implicitly
-  def this(params: RocketTileParams, crossing: TileCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters) =
+  def this(
+    params:   RocketTileParams,
+    crossing: TileCrossingParamsLike,
+    lookup:   LookupByHartIdImpl
+  )(
+    implicit p: Parameters
+  ) =
     this(params, crossing.crossingType, lookup, p)
 
   val intOutwardNode = IntIdentityNode()
   val slaveNode = TLIdentityNode()
   val masterNode = visibilityNode
 
-  val dtim_adapter = tileParams.dcache.flatMap { d => d.scratch.map { s =>
-    LazyModule(new ScratchpadSlavePort(AddressSet.misaligned(s, d.dataScratchpadBytes), lazyCoreParamsView.coreDataBytes, tileParams.core.useAtomics && !tileParams.core.useAtomicsOnlyForIO))
-  }}
+  val dtim_adapter = tileParams.dcache.flatMap { d =>
+    d.scratch.map { s =>
+      LazyModule(
+        new ScratchpadSlavePort(
+          AddressSet.misaligned(s, d.dataScratchpadBytes),
+          lazyCoreParamsView.coreDataBytes,
+          tileParams.core.useAtomics && !tileParams.core.useAtomicsOnlyForIO
+        )
+      )
+    }
+  }
   dtim_adapter.foreach(lm => connectTLSlave(lm.node, lm.node.portParams.head.beatBytes))
 
-  val bus_error_unit = rocketParams.beuAddr map { a =>
+  val bus_error_unit = rocketParams.beuAddr.map { a =>
     val beu = LazyModule(new BusErrorUnit(new L1BusErrors, BusErrorUnitParams(a)))
     intOutwardNode := beu.intNode
     connectTLSlave(beu.node, xBytes)
@@ -79,26 +92,27 @@ class RocketTile private(
   tile_master_blocker.foreach(lm => connectTLSlave(lm.controlNode, xBytes))
 
   // TODO: this doesn't block other masters, e.g. RoCCs
-  tlOtherMastersNode := tile_master_blocker.map { _.node := tlMasterXbar.node } getOrElse { tlMasterXbar.node }
+  tlOtherMastersNode := tile_master_blocker.map { _.node := tlMasterXbar.node }.getOrElse { tlMasterXbar.node }
   masterNode :=* tlOtherMastersNode
   DisableMonitors { implicit p => tlSlaveXbar.node :*= slaveNode }
 
   nDCachePorts += 1 /*core */ + (dtim_adapter.isDefined).toInt
 
-  val dtimProperty = dtim_adapter.map(d => Map(
-    "sifive,dtim" -> d.device.asProperty)).getOrElse(Nil)
+  val dtimProperty = dtim_adapter.map(d => Map("sifive,dtim" -> d.device.asProperty)).getOrElse(Nil)
 
   val itimProperty = frontend.icache.itimProperty.toSeq.flatMap(p => Map("sifive,itim" -> p))
 
-  val beuProperty = bus_error_unit.map(d => Map(
-    "sifive,buserror" -> d.device.asProperty)).getOrElse(Nil)
+  val beuProperty = bus_error_unit.map(d => Map("sifive,buserror" -> d.device.asProperty)).getOrElse(Nil)
 
   val cpuDevice: SimpleDevice = new SimpleDevice("cpu", Seq("sifive,rocket0", "riscv")) {
     override def parent = Some(ResourceAnchors.cpus)
     override def describe(resources: ResourceBindings): Description = {
       val Description(name, mapping) = super.describe(resources)
-      Description(name, mapping ++ cpuProperties ++ nextLevelCacheProperty
-        ++ tileProperties ++ dtimProperty ++ itimProperty ++ beuProperty)
+      Description(
+        name,
+        mapping ++ cpuProperties ++ nextLevelCacheProperty
+          ++ tileProperties ++ dtimProperty ++ itimProperty ++ beuProperty
+      )
     }
   }
 
@@ -108,22 +122,27 @@ class RocketTile private(
 
   override lazy val module = new RocketTileModuleImp(this)
 
-  override def makeMasterBoundaryBuffers(crossing: ClockCrossingType)(implicit p: Parameters) = (rocketParams.boundaryBuffers, crossing) match {
-    case (Some(RocketTileBoundaryBufferParams(true )), _)                   => TLBuffer()
-    case (Some(RocketTileBoundaryBufferParams(false)), _: RationalCrossing) => TLBuffer(BufferParams.none, BufferParams.flow, BufferParams.none, BufferParams.flow, BufferParams(1))
-    case _ => TLBuffer(BufferParams.none)
-  }
+  override def makeMasterBoundaryBuffers(crossing: ClockCrossingType)(implicit p: Parameters) =
+    (rocketParams.boundaryBuffers, crossing) match {
+      case (Some(RocketTileBoundaryBufferParams(true)), _) => TLBuffer()
+      case (Some(RocketTileBoundaryBufferParams(false)), _: RationalCrossing) =>
+        TLBuffer(BufferParams.none, BufferParams.flow, BufferParams.none, BufferParams.flow, BufferParams(1))
+      case _ => TLBuffer(BufferParams.none)
+    }
 
-  override def makeSlaveBoundaryBuffers(crossing: ClockCrossingType)(implicit p: Parameters) = (rocketParams.boundaryBuffers, crossing) match {
-    case (Some(RocketTileBoundaryBufferParams(true )), _)                   => TLBuffer()
-    case (Some(RocketTileBoundaryBufferParams(false)), _: RationalCrossing) => TLBuffer(BufferParams.flow, BufferParams.none, BufferParams.none, BufferParams.none, BufferParams.none)
-    case _ => TLBuffer(BufferParams.none)
-  }
+  override def makeSlaveBoundaryBuffers(crossing: ClockCrossingType)(implicit p: Parameters) =
+    (rocketParams.boundaryBuffers, crossing) match {
+      case (Some(RocketTileBoundaryBufferParams(true)), _) => TLBuffer()
+      case (Some(RocketTileBoundaryBufferParams(false)), _: RationalCrossing) =>
+        TLBuffer(BufferParams.flow, BufferParams.none, BufferParams.none, BufferParams.none, BufferParams.none)
+      case _ => TLBuffer(BufferParams.none)
+    }
 }
 
-class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
-  with HasFpuOpt
-  with HasICacheFrontendModule {
+class RocketTileModuleImp(outer: RocketTile)
+    extends BaseTileModuleImp(outer)
+    with HasFpuOpt
+    with HasICacheFrontendModule {
   Annotated.params(this, outer.rocketParams)
 
   val core = Module(new Rocket(outer)(outer.p))
@@ -135,11 +154,14 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   outer.reportHalt(List(outer.dcache.module.io.errors))
 
   // Report when the tile has ceased to retire instructions; for now the only cause is clock gating
-  outer.reportCease(outer.rocketParams.core.clockGate.option(
-    !outer.dcache.module.io.cpu.clock_enabled &&
-      !outer.frontend.module.io.cpu.clock_enabled &&
-      !ptw.io.dpath.clock_enabled &&
-      core.io.cease))
+  outer.reportCease(
+    outer.rocketParams.core.clockGate.option(
+      !outer.dcache.module.io.cpu.clock_enabled &&
+        !outer.frontend.module.io.cpu.clock_enabled &&
+        !ptw.io.dpath.clock_enabled &&
+        core.io.cease
+    )
+  )
 
   outer.reportWFI(Some(core.io.wfi))
 
@@ -158,13 +180,15 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   core.io.traceStall := outer.traceAuxSinkNode.bundle.stall
   outer.bpwatchSourceNode.bundle <> core.io.bpwatch
   core.io.hartid := outer.hartIdSinkNode.bundle
-  require(core.io.hartid.getWidth >= outer.hartIdSinkNode.bundle.getWidth,
-    s"core hartid wire (${core.io.hartid.getWidth}b) truncates external hartid wire (${outer.hartIdSinkNode.bundle.getWidth}b)")
+  require(
+    core.io.hartid.getWidth >= outer.hartIdSinkNode.bundle.getWidth,
+    s"core hartid wire (${core.io.hartid.getWidth}b) truncates external hartid wire (${outer.hartIdSinkNode.bundle.getWidth}b)"
+  )
 
   // Connect the core pipeline to other intra-tile modules
   outer.frontend.module.io.cpu <> core.io.imem
   dcachePorts += core.io.dmem // TODO outer.dcachePorts += () => module.core.io.dmem ??
-  fpuOpt foreach { fpu =>
+  fpuOpt.foreach { fpu =>
     core.io.fpu :<>= fpu.io.waiveAs[FPUCoreIO](_.cp_req, _.cp_resp)
     fpu.io.cp_req := DontCare
     fpu.io.cp_resp := DontCare

@@ -8,7 +8,6 @@ import chisel3.util._
 import freechips.rocketchip.tile.HasCoreParameters
 import org.chipsalliance.cde.config.Parameters
 
-
 class WidenedTracedInstruction extends Bundle {
   val valid = Bool()
   val iaddr = UInt(64.W)
@@ -26,7 +25,7 @@ class WidenedTracedInstruction extends Bundle {
 // These is not synthesizable, they use a C++ blackbox to implement the
 // write-back reordering
 class DebugROBPushTrace(implicit val p: Parameters) extends BlackBox with HasBlackBoxResource with HasCoreParameters {
-  require(traceHasWdata && (vLen max xLen) <= 512)
+  require(traceHasWdata && (vLen.max(xLen)) <= 512)
   val io = IO(new Bundle {
     val clock = Input(Clock())
     val reset = Input(Bool())
@@ -40,9 +39,8 @@ class DebugROBPushTrace(implicit val p: Parameters) extends BlackBox with HasBla
   addResource("/vsrc/debug_rob.v")
 }
 
-class DebugROBPushWb(implicit val p: Parameters) extends BlackBox
-    with HasBlackBoxResource with HasCoreParameters {
-  require(traceHasWdata && (vLen max xLen) <= 512)
+class DebugROBPushWb(implicit val p: Parameters) extends BlackBox with HasBlackBoxResource with HasCoreParameters {
+  require(traceHasWdata && (vLen.max(xLen)) <= 512)
   val io = IO(new Bundle {
     val clock = Input(Clock())
     val reset = Input(Bool())
@@ -56,7 +54,7 @@ class DebugROBPushWb(implicit val p: Parameters) extends BlackBox
 }
 
 class DebugROBPopTrace(implicit val p: Parameters) extends BlackBox with HasBlackBoxResource with HasCoreParameters {
-  require(traceHasWdata && (vLen max xLen) <= 512)
+  require(traceHasWdata && (vLen.max(xLen)) <= 512)
   val io = IO(new Bundle {
     val clock = Input(Clock())
     val reset = Input(Bool())
@@ -68,9 +66,17 @@ class DebugROBPopTrace(implicit val p: Parameters) extends BlackBox with HasBlac
 }
 
 object DebugROB {
-  def pushTrace(clock: Clock, reset: Reset,
-    hartid: UInt, trace: TracedInstruction,
-    should_wb: Bool, has_wb: Bool, wb_tag: UInt)(implicit p: Parameters) = {
+  def pushTrace(
+    clock:     Clock,
+    reset:     Reset,
+    hartid:    UInt,
+    trace:     TracedInstruction,
+    should_wb: Bool,
+    has_wb:    Bool,
+    wb_tag:    UInt
+  )(
+    implicit p: Parameters
+  ) = {
     val debug_rob_push_trace = Module(new DebugROBPushTrace)
     debug_rob_push_trace.io.clock := clock
     debug_rob_push_trace.io.reset := reset
@@ -80,8 +86,7 @@ object DebugROB {
     debug_rob_push_trace.io.wb_tag := wb_tag
     debug_rob_push_trace.io.trace := trace
   }
-  def popTrace(clock: Clock, reset: Reset,
-    hartid: UInt)(implicit p: Parameters): TracedInstruction = {
+  def popTrace(clock: Clock, reset: Reset, hartid: UInt)(implicit p: Parameters): TracedInstruction = {
     val debug_rob_pop_trace = Module(new DebugROBPopTrace)
     debug_rob_pop_trace.io.clock := clock
     debug_rob_pop_trace.io.reset := reset
@@ -90,8 +95,7 @@ object DebugROB {
     trace := debug_rob_pop_trace.io.trace
     trace
   }
-  def pushWb(clock: Clock, reset: Reset,
-    hartid: UInt, valid: Bool, tag: UInt, data: UInt)(implicit p: Parameters) {
+  def pushWb(clock: Clock, reset: Reset, hartid: UInt, valid: Bool, tag: UInt, data: UInt)(implicit p: Parameters) {
     val debug_rob_push_wb = Module(new DebugROBPushWb)
     debug_rob_push_wb.io.clock := clock
     debug_rob_push_wb.io.reset := reset
