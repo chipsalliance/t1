@@ -29,6 +29,7 @@ JsonLogger::JsonLogger() {
   file->set_error_handler([](const std::string &msg) {
     throw std::runtime_error(fmt::format("Emulator internal error: {}", msg));
   });
+  file->flush_on(spdlog::level::critical);
 
   bool do_console_log = getenv_or("EMULATOR_no_console_log", "false") == "false";
   if (do_console_log) {
@@ -46,6 +47,7 @@ JsonLogger::JsonLogger() {
   }
 
   spdlog::register_logger(file);
+  spdlog::set_default_logger(file);
 }
 
 uint64_t JsonLogger::get_cycle() { return vbridge_impl_instance.get_t(); }
