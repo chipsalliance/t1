@@ -1,12 +1,20 @@
 { fetchFromGitHub, buildGoModule }:
+let
+  riscv-test-env = fetchFromGitHub {
+    owner = "riscv";
+    repo = "riscv-test-env";
+    rev = "1c577dc7c7d6aee27b8d5cb0e2e87c8473e3ad12";
+    hash = "sha256-JZ7Yn4cTel9uVo6uGu0zs3IMMySoGzjSMW544YLYips=";
+  };
+in
 buildGoModule {
   pname = "riscv-vector-test";
   version = "unstable-2023-04-12";
   src = fetchFromGitHub {
     owner = "ksco";
     repo = "riscv-vector-tests";
-    rev = "3fb992b1dc7f89231b27ae4a1e8d50492dde4f5b";
-    hash = "sha256-BNbK8+KUwhqk3XfFgKsaeUpX0NuApl8mN/URKwYTYtE=";
+    rev = "a6ae0393a9de500f348e7ac2c33d839f08ec50a4";
+    hash = "sha256-MOLc9hB91NYgD2+s9WA0AKhP0yi9r83A9TtfFlN8fWE=";
   };
   doCheck = false;
   vendorHash = "sha256-9cQlivpHg6IDYpmgBp34n6BR/I0FIYnmrXCuiGmAhNE=";
@@ -17,8 +25,9 @@ buildGoModule {
     cp $src/macros/sequencer-vector/* $out/include
     cp $src/env/sequencer-vector/* $out/include
 
-    cp $src/env/encoding.h $out/include
+    cp ${riscv-test-env}/encoding.h $out/include
     # Let riscv_test.h find the encoding.h file correctly
     sed -i 's/^#include "..\/encoding.h"$/#include "encoding.h"/' $out/include/riscv_test.h
   '';
 }
+
