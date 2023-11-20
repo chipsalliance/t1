@@ -169,7 +169,6 @@ def writeCycleUpdates(job: String, testRunDir: os.Path, resultDir: os.Path) = {
 
       val oldCycleCount = original.obj.get(t).map(_.num.toInt).getOrElse(-1)
       val cycleUpdateFile = resultDir / "cycle-updates.md"
-      os.write.over(cycleUpdateFile, "")  // touch file
       System.err.println(f"job '$job' cycle $oldCycleCount -> $newCycleCount")
       oldCycleCount match {
         case -1 => os.write.append(cycleUpdateFile, s"* 🆕 $job: NaN -> $newCycleCount\n")
