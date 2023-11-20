@@ -64,12 +64,6 @@ class RocketCustomCSRs(implicit p: Parameters) extends CustomCSRs with HasRocket
 }
 
 class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with HasRocketCoreParameters {
-  val t1Request = Option.when(usingVectorT1)(IO(Valid(new VectorRequest(xLen))))
-  val t1Response = Option.when(usingVectorT1)(IO(Flipped(Valid(new VectorResponse(xLen)))))
-  // logic for T1
-  val t1IssueQueueFull = Option.when(usingVectorT1)(IO(Output(Bool())))
-  val t1IssueQueueEmpty = Option.when(usingVectorT1)(IO(Output(Bool())))
-
   // Checker
   require(decodeWidth == 1 /* TODO */ && retireWidth == decodeWidth)
   require(!(coreParams.useRVE && coreParams.fpu.nonEmpty), "Can't select both RVE and floating-point")
@@ -151,21 +145,24 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   val lgNXRegs:    Int = if (coreParams.useRVE) 4 else 5
   val regAddrMask: Int = (1 << lgNXRegs) - 1
 
-  // TODO: extract to MultiIO and remove implicit parameters
-  val io = IO(new Bundle {
-    val hartid = Input(UInt(hartIdLen.W))
-    val resetVector = Input(UInt(resetVectorLen.W))
-    val interrupts = Input(new CoreInterrupts())
-    val imem = new FrontendIO
-    val dmem = new HellaCacheIO
-    val ptw = Flipped(new DatapathPTWIO())
-    val fpu = Flipped(new FPUCoreIO())
-    val trace = Output(new TraceBundle)
-    val bpwatch = Output(Vec(coreParams.nBreakpoints, new BPWatch(coreParams.retireWidth)))
-    val cease = Output(Bool())
-    val wfi = Output(Bool())
-    val traceStall = Input(Bool())
-  })
+  val hartid = IO(Input(UInt(hartIdLen.W)))
+  val resetVector = IO(Input(UInt(resetVectorLen.W)))
+  val interrupts = IO(Input(new CoreInterrupts()))
+  val imem = IO(new FrontendIO)
+  val dmem = IO(new HellaCacheIO)
+  val ptw = IO(Flipped(new DatapathPTWIO()))
+  val fpu = IO(Flipped(new FPUCoreIO()))
+  val trace = IO(Output(new TraceBundle))
+  val bpwatch = IO(Output(Vec(coreParams.nBreakpoints, new BPWatch(coreParams.retireWidth))))
+  val cease = IO(Output(Bool()))
+  val wfi = IO(Output(Bool()))
+  val traceStall = IO(Input(Bool()))
+  val t1Request = Option.when(usingVectorT1)(IO(Valid(new VectorRequest(xLen))))
+  val t1Response = Option.when(usingVectorT1)(IO(Flipped(Valid(new VectorResponse(xLen)))))
+  // logic for T1
+  val t1IssueQueueFull = Option.when(usingVectorT1)(IO(Output(Bool())))
+  val t1IssueQueueEmpty = Option.when(usingVectorT1)(IO(Output(Bool())))
+
 
   // Signal outside from internal clock domain.
 
@@ -207,13 +204,13 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
               ("div", () => if (pipelinedMul) idDecodeOutput(decoder.div) else idDecodeOutput(decoder.div) && (idDecodeOutput(decoder.aluFn) & aluFn.FN_DIV) === aluFn.FN_DIV)
             )).getOrElse(Seq()) ++
             Option.when(usingFPU)(Seq(
-              ("fp load", () => idDecodeOutput(decoder.fp) && io.fpu.dec.ldst && io.fpu.dec.wen),
-              ("fp store", () => idDecodeOutput(decoder.fp) && io.fpu.dec.ldst && !io.fpu.dec.wen),
-              ("fp add", () => idDecodeOutput(decoder.fp) && io.fpu.dec.fma && io.fpu.dec.swap23),
-              ("fp mul", () => idDecodeOutput(decoder.fp) && io.fpu.dec.fma && !io.fpu.dec.swap23 && !io.fpu.dec.ren3),
-              ("fp mul-add", () => idDecodeOutput(decoder.fp) && io.fpu.dec.fma && io.fpu.dec.ren3),
-              ("fp div/sqrt", () => idDecodeOutput(decoder.fp) && (io.fpu.dec.div || io.fpu.dec.sqrt)),
-              ("fp other", () => idDecodeOutput(decoder.fp) && !(io.fpu.dec.ldst || io.fpu.dec.fma || io.fpu.dec.div || io.fpu.dec.sqrt ))
+              ("fp load", () => idDecodeOutput(decoder.fp) && fpu.dec.ldst && fpu.dec.wen),
+              ("fp store", () => idDecodeOutput(decoder.fp) && fpu.dec.ldst && !fpu.dec.wen),
+              ("fp add", () => idDecodeOutput(decoder.fp) && fpu.dec.fma && fpu.dec.swap23),
+              ("fp mul", () => idDecodeOutput(decoder.fp) && fpu.dec.fma && !fpu.dec.swap23 && !fpu.dec.ren3),
+              ("fp mul-add", () => idDecodeOutput(decoder.fp) && fpu.dec.fma && fpu.dec.ren3),
+              ("fp div/sqrt", () => idDecodeOutput(decoder.fp) && (fpu.dec.div || fpu.dec.sqrt)),
+              ("fp other", () => idDecodeOutput(decoder.fp) && !(fpu.dec.ldst || fpu.dec.fma || fpu.dec.div || fpu.dec.sqrt ))
             )).getOrElse(Seq())
         ),
         new EventSet(
@@ -239,12 +236,12 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         new EventSet(
           (mask, hits) => (mask & hits).orR,
           Seq(
-            ("I$ miss", () => io.imem.perf.acquire),
-            ("D$ miss", () => io.dmem.perf.acquire),
-            ("D$ release", () => io.dmem.perf.release),
-            ("ITLB miss", () => io.imem.perf.tlbMiss),
-            ("DTLB miss", () => io.dmem.perf.tlbMiss),
-            ("L2 TLB miss", () => io.ptw.perf.l2miss)
+            ("I$ miss", () => imem.perf.acquire),
+            ("D$ miss", () => dmem.perf.acquire),
+            ("D$ release", () =>dmem.perf.release),
+            ("ITLB miss", () => imem.perf.tlbMiss),
+            ("DTLB miss", () => dmem.perf.tlbMiss),
+            ("L2 TLB miss", () => ptw.perf.l2miss)
           )
         )
       )
@@ -348,7 +345,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val takePc = takePcMemWb
 
     // From IBUF to ID
-    instructionBuffer.io.imem <> io.imem.resp
+    instructionBuffer.io.imem <> imem.resp
     val instructionBufferOut: DecoupledIO[Instruction] = instructionBuffer.io.inst.head
     // TODO: does these really has its meaning? I don't think so:(
     val idExpandedInstruction: ExpandedInstruction = instructionBufferOut.bits.inst
@@ -397,7 +394,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val idCompressIllegal: Option[Bool] =
       Option.when(usingCompressed)(instructionBufferOut.bits.rvc && !csr.io.status.isa('c' - 'a'))
     val idFpIllegal: Option[Bool] =
-      Option.when(usingFPU)(idDecodeOutput(decoder.fp) && (csr.io.decode(0).fpIllegal || io.fpu.illegal_rm))
+      Option.when(usingFPU)(idDecodeOutput(decoder.fp) && (csr.io.decode(0).fpIllegal || fpu.illegal_rm))
     val idDpIllegal: Option[Bool] = Option.when(usingFPU)(idDecodeOutput(decoder.dp) && !csr.io.status.isa('d' - 'a'))
 
     val idIllegalInstruction: Bool =
@@ -428,7 +425,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     // TODO: what's this?
     val idFenceSucc:  UInt = idInstruction(23, 20)
     val idFenceNext:  Bool = idDecodeOutput(decoder.fence) || idDecodeOutput(decoder.amo) && idAmoAquire
-    val idMemoryBusy: Bool = !io.dmem.ordered || io.dmem.req.valid
+    val idMemoryBusy: Bool = !dmem.ordered || dmem.req.valid
     val idDoFence =
       idMemoryBusy &&
         (idDecodeOutput(decoder.amo) && idAmoRelease ||
@@ -471,8 +468,8 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
 
     // Bypass signals
     val dcacheBypassData: UInt =
-      if (fastLoadByte) io.dmem.resp.bits.data(xLen - 1, 0)
-      else if (fastLoadWord) io.dmem.resp.bits.data_word_bypass(xLen - 1, 0)
+      if (fastLoadByte) dmem.resp.bits.data(xLen - 1, 0)
+      else if (fastLoadWord) dmem.resp.bits.data_word_bypass(xLen - 1, 0)
       else wbRegWdata
     // detect bypass opportunities
     val exWaddr:  UInt = exRegInstruction(11, 7) & regAddrMask.U
@@ -594,8 +591,8 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     }
     // replay inst in ex stage?
     val exPcValid:    Bool = exRegValid || exRegReplay || exRegExceptionInterrupt
-    val wbDcacheMiss: Bool = wbRegDecodeOutput(decoder.mem) && !io.dmem.resp.valid
-    val replayExStructural: Bool = exRegDecodeOutput(decoder.mem) && !io.dmem.req.ready || Option
+    val wbDcacheMiss: Bool = wbRegDecodeOutput(decoder.mem) && !dmem.resp.valid
+    val replayExStructural: Bool = exRegDecodeOutput(decoder.mem) && !dmem.req.ready || Option
       .when(usingMulDiv)(exRegDecodeOutput(decoder.div))
       .getOrElse(false.B) && !muldiv.io.req.ready
     val replayExLoadUse: Bool = wbDcacheMiss && exRegLoadUse
@@ -680,7 +677,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       memRegInstruction := exRegInstruction
       memRegRawInstruction := exRegRawInstruction
       memRegMemSize := exRegMemSize
-      memRegHlsOrDv := io.dmem.req.bits.dv
+      memRegHlsOrDv := dmem.req.bits.dv
       memRegPc := exRegPC
       // IDecode ensured they are 1H
       memRegWdata := arithmeticLogicUnit.io.out
@@ -721,8 +718,8 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     coverExceptions(memException, memCause, "MEMORY", memCoverCauses)
 
     val dcacheKillMem =
-      memRegValid && memRegDecodeOutput(decoder.wxd) && io.dmem.replay_next // structural hazard on writeback port
-    val fpuKillMem = Option.when(usingFPU)(memRegValid && memRegDecodeOutput(decoder.fp) && io.fpu.nack_mem)
+      memRegValid && memRegDecodeOutput(decoder.wxd) && dmem.replay_next // structural hazard on writeback port
+    val fpuKillMem = Option.when(usingFPU)(memRegValid && memRegDecodeOutput(decoder.fp) && fpu.nack_mem)
     val replayMem = dcacheKillMem || memRegReplay || fpuKillMem.getOrElse(false.B)
     val killmCommon = dcacheKillMem || takePcWb || memRegException || !memRegValid
     muldiv.io.kill := killmCommon && RegNext(muldiv.io.req.fire)
@@ -740,7 +737,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         if (usingFPU)
           Mux(
             !memRegException && memRegDecodeOutput(decoder.fp) && memRegDecodeOutput(decoder.wxd),
-            io.fpu.toint_data,
+            fpu.toint_data,
             memIntWdata
           )
         else memIntWdata
@@ -765,14 +762,14 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val (wbException, wbCause) = checkExceptions(
       List(
         (wbRegException, wbRegCause),
-        (wbRegValid && wbRegDecodeOutput(decoder.mem) && io.dmem.s2_xcpt.pf.st, Causes.store_page_fault.U),
-        (wbRegValid && wbRegDecodeOutput(decoder.mem) && io.dmem.s2_xcpt.pf.ld, Causes.load_page_fault.U),
-        (wbRegValid && wbRegDecodeOutput(decoder.mem) && io.dmem.s2_xcpt.gf.st, Causes.store_guest_page_fault.U),
-        (wbRegValid && wbRegDecodeOutput(decoder.mem) && io.dmem.s2_xcpt.gf.ld, Causes.load_guest_page_fault.U),
-        (wbRegValid && wbRegDecodeOutput(decoder.mem) && io.dmem.s2_xcpt.ae.st, Causes.store_access.U),
-        (wbRegValid && wbRegDecodeOutput(decoder.mem) && io.dmem.s2_xcpt.ae.ld, Causes.load_access.U),
-        (wbRegValid && wbRegDecodeOutput(decoder.mem) && io.dmem.s2_xcpt.ma.st, Causes.misaligned_store.U),
-        (wbRegValid && wbRegDecodeOutput(decoder.mem) && io.dmem.s2_xcpt.ma.ld, Causes.misaligned_load.U)
+        (wbRegValid && wbRegDecodeOutput(decoder.mem) && dmem.s2_xcpt.pf.st, Causes.store_page_fault.U),
+        (wbRegValid && wbRegDecodeOutput(decoder.mem) && dmem.s2_xcpt.pf.ld, Causes.load_page_fault.U),
+        (wbRegValid && wbRegDecodeOutput(decoder.mem) && dmem.s2_xcpt.gf.st, Causes.store_guest_page_fault.U),
+        (wbRegValid && wbRegDecodeOutput(decoder.mem) && dmem.s2_xcpt.gf.ld, Causes.load_guest_page_fault.U),
+        (wbRegValid && wbRegDecodeOutput(decoder.mem) && dmem.s2_xcpt.ae.st, Causes.store_access.U),
+        (wbRegValid && wbRegDecodeOutput(decoder.mem) && dmem.s2_xcpt.ae.ld, Causes.load_access.U),
+        (wbRegValid && wbRegDecodeOutput(decoder.mem) && dmem.s2_xcpt.ma.st, Causes.misaligned_store.U),
+        (wbRegValid && wbRegDecodeOutput(decoder.mem) && dmem.s2_xcpt.ma.ld, Causes.misaligned_load.U)
       )
     )
 
@@ -806,17 +803,17 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       wbDcacheMiss ||
         Option.when(usingMulDiv)(wbRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
         Option.when(usingVectorT1)(wbRegDecodeOutput(decoder.isVector)).getOrElse(false.B)
-    val replayWbCommon: Bool = io.dmem.s2_nack || wbRegReplay
+    val replayWbCommon: Bool = dmem.s2_nack || wbRegReplay
     val replayWbCsr:    Bool = wbRegValid && csr.io.rwStall
     val replayWb:       Bool = replayWbCommon || replayWbCsr
     takePcWb := replayWb || wbException || csr.io.eret || wbRegFlushPipe
 
     // writeback arbitration
-    val dmemResponseXpu:    Bool = !io.dmem.resp.bits.tag(0).asBool
-    val dmemResponseFpu:    Bool = io.dmem.resp.bits.tag(0).asBool
-    val dmemResponseWaddr:  UInt = io.dmem.resp.bits.tag(5, 1)
-    val dmemResponseValid:  Bool = io.dmem.resp.valid && io.dmem.resp.bits.has_data
-    val dmemResponseReplay: Bool = dmemResponseValid && io.dmem.resp.bits.replay
+    val dmemResponseXpu:    Bool = !dmem.resp.bits.tag(0).asBool
+    val dmemResponseFpu:    Bool = dmem.resp.bits.tag(0).asBool
+    val dmemResponseWaddr:  UInt = dmem.resp.bits.tag(5, 1)
+    val dmemResponseValid:  Bool = dmem.resp.valid && dmem.resp.bits.has_data
+    val dmemResponseReplay: Bool = dmemResponseValid && dmem.resp.bits.replay
 
     muldiv.io.resp.ready := !wbWxd
     val longlatencyWdata:    UInt = WireDefault(muldiv.io.resp.bits.data)
@@ -836,7 +833,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val rfWaddr = Mux(longLatencyWenable, longlatencyWaddress, wbWaddr)
     val rfWdata = Mux(
       dmemResponseValid && dmemResponseXpu,
-      io.dmem.resp.bits.data(xLen - 1, 0),
+      dmem.resp.bits.data(xLen - 1, 0),
       Mux(
         longLatencyWenable,
         longlatencyWdata,
@@ -864,12 +861,12 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         Cat(Mux(wbRegRawInstruction(1, 0).andR, wbRegInstruction >> 16, 0.U), wbRegRawInstruction(15, 0))
       else wbRegInstruction
     )
-    csr.io.interrupts := io.interrupts
-    csr.io.hartid := io.hartid
-    io.fpu.fcsr_rm := csr.io.fcsrRm
-    csr.io.fcsrFlags := io.fpu.fcsr_flags
-    io.fpu.time := csr.io.time(31, 0)
-    io.fpu.hartid := io.hartid
+    csr.io.interrupts := interrupts
+    csr.io.hartid := hartid
+    fpu.fcsr_rm := csr.io.fcsrRm
+    csr.io.fcsrFlags := fpu.fcsr_flags
+    fpu.time := csr.io.time(31, 0)
+    fpu.hartid := hartid
     csr.io.pc := wbRegPc
     val tvalDmemAddr = !wbRegException
     val tvalAnyAddr = tvalDmemAddr ||
@@ -885,28 +882,28 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     csr.io.tval := Mux(tvalValid, encodeVirtualAddress(wbRegWdata, wbRegWdata), 0.U)
     csr.io.htval := {
       val htvalValidImem = wbRegException && wbRegCause === Causes.fetch_guest_page_fault.U
-      val htvalImem = Mux(htvalValidImem, io.imem.gpa.bits, 0.U)
-      assert(!htvalValidImem || io.imem.gpa.valid)
+      val htvalImem = Mux(htvalValidImem, imem.gpa.bits, 0.U)
+      assert(!htvalValidImem || imem.gpa.valid)
 
       val htvalValidDmem =
-        wbException && tvalDmemAddr && io.dmem.s2_xcpt.gf.asUInt.orR && !io.dmem.s2_xcpt.pf.asUInt.orR
-      val htvalDmem = Mux(htvalValidDmem, io.dmem.s2_gpa, 0.U)
+        wbException && tvalDmemAddr && dmem.s2_xcpt.gf.asUInt.orR && !dmem.s2_xcpt.pf.asUInt.orR
+      val htvalDmem = Mux(htvalValidDmem, dmem.s2_gpa, 0.U)
 
       (htvalDmem | htvalImem) >> hypervisorExtraAddrBits
     }
-    io.ptw.ptbr := csr.io.ptbr
-    io.ptw.hgatp := csr.io.hgatp
-    io.ptw.vsatp := csr.io.vsatp
-    io.ptw.customCSRs.csrs.zip(csr.io.customCSRs).foreach { case (lhs, rhs) => lhs <> rhs }
-    io.ptw.status := csr.io.status
-    io.ptw.hstatus := csr.io.hstatus
-    io.ptw.gstatus := csr.io.gstatus
-    io.ptw.pmp := csr.io.pmp
+    ptw.ptbr := csr.io.ptbr
+    ptw.hgatp := csr.io.hgatp
+    ptw.vsatp := csr.io.vsatp
+    ptw.customCSRs.csrs.zip(csr.io.customCSRs).foreach { case (lhs, rhs) => lhs <> rhs }
+    ptw.status := csr.io.status
+    ptw.hstatus := csr.io.hstatus
+    ptw.gstatus := csr.io.gstatus
+    ptw.pmp := csr.io.pmp
     csr.io.rw.addr := wbRegInstruction(31, 20)
     csr.io.rw.cmd := CSR.maskCmd(wbRegValid, wbRegDecodeOutput(decoder.csr))
     csr.io.rw.wdata := wbRegWdata
-    io.trace.time := csr.io.time
-    io.trace.insns := csr.io.trace
+    trace.time := csr.io.time
+    trace.insns := csr.io.trace
     // TODO: move it to verification part.
     if (rocketParams.debugROB) {
       val csrTraceWithWdata = WireInit(csr.io.trace(0))
@@ -914,7 +911,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       DebugROB.pushTrace(
         clock,
         reset,
-        io.hartid,
+        hartid,
         csrTraceWithWdata,
         Option
           .when(usingFPU)(wbRegDecodeOutput(decoder.wfd) || (wbRegDecodeOutput(decoder.wxd) && wbWaddr =/= 0.U))
@@ -922,13 +919,13 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         wbRegDecodeOutput(decoder.wxd) && wbWen && !wbSetSboard,
         wbWaddr + Mux(Option.when(usingFPU)(wbRegDecodeOutput(decoder.wfd)).getOrElse(false.B), 32.U, 0.U)
       )
-      io.trace.insns(0) := DebugROB.popTrace(clock, reset, io.hartid)
-      DebugROB.pushWb(clock, reset, io.hartid, longLatencyWenable, rfWaddr, rfWdata)
+      trace.insns(0) := DebugROB.popTrace(clock, reset, hartid)
+      DebugROB.pushWb(clock, reset, hartid, longLatencyWenable, rfWaddr, rfWdata)
     } else {
-      io.trace.insns := csr.io.trace
+      trace.insns := csr.io.trace
     }
-    io.bpwatch.zip(wbRegWphit).zip(csr.io.bp)
-    io.bpwatch.lazyZip(wbRegWphit).lazyZip(csr.io.bp).foreach {
+    bpwatch.zip(wbRegWphit).zip(csr.io.bp)
+    bpwatch.lazyZip(wbRegWphit).lazyZip(csr.io.bp).foreach {
       case (iobpw, wphit, bp) =>
         iobpw.valid(0) := wphit
         iobpw.action := bp.control.action
@@ -944,10 +941,10 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       (idDecodeOutput(decoder.wxd) && idWaddr =/= 0.U, idWaddr)
     )
     val fpHazardTargets = Seq(
-      (io.fpu.dec.ren1, idRaddr1),
-      (io.fpu.dec.ren2, idRaddr2),
-      (io.fpu.dec.ren3, idRaddr3),
-      (io.fpu.dec.wen, idWaddr)
+      (fpu.dec.ren1, idRaddr1),
+      (fpu.dec.ren2, idRaddr2),
+      (fpu.dec.ren3, idRaddr3),
+      (fpu.dec.wen, idWaddr)
     )
 
     val scoreboard: Scoreboard = new Scoreboard(32, true)
@@ -1010,9 +1007,9 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       Option
         .when(usingFPU) {
           val fpScoreboard = new Scoreboard(32)
-          fpScoreboard.set((wbDcacheMiss && wbRegDecodeOutput(decoder.wfd) || io.fpu.sboard_set) && wbValid, wbWaddr)
+          fpScoreboard.set((wbDcacheMiss && wbRegDecodeOutput(decoder.wfd) || fpu.sboard_set) && wbValid, wbWaddr)
           fpScoreboard.clear(dmemResponseReplay && dmemResponseFpu, dmemResponseWaddr)
-          fpScoreboard.clear(io.fpu.sboard_clr, io.fpu.sboard_clra)
+          fpScoreboard.clear(fpu.sboard_clr, fpu.sboard_clra)
           checkHazards(fpHazardTargets, fpScoreboard.read)
         }
         .getOrElse(false.B)
@@ -1020,14 +1017,14 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val dcacheBlocked: Bool = {
       // speculate that a blocked D$ will unblock the cycle after a Grant
       val blocked = Reg(Bool())
-      blocked := !io.dmem.req.ready && io.dmem.clock_enabled && !io.dmem.perf.grant && (blocked || io.dmem.req.valid || io.dmem.s2_nack)
-      blocked && !io.dmem.perf.grant
+      blocked := !dmem.req.ready && dmem.clock_enabled && !dmem.perf.grant && (blocked || dmem.req.valid || dmem.s2_nack)
+      blocked && !dmem.perf.grant
     }
 
     val ctrlStalld: Bool =
       idExHazard || idMemHazard || idWbHazard || idScoreboardHazard || idDoFence || idRegPause ||
         csr.io.csrStall || csr.io.singleStep && (exRegValid || memRegValid || wbRegValid) ||
-        idCsrEn && csr.io.decode(0).fpCsr && !io.fpu.fcsr_rdy || io.traceStall ||
+        idCsrEn && csr.io.decode(0).fpCsr && !fpu.fcsr_rdy || traceStall ||
         !clockEnable ||
         Option.when(usingFPU)(idDecodeOutput(decoder.fp) && idStallFpu).getOrElse(false.B) ||
         idDecodeOutput(decoder.mem) && dcacheBlocked || // reduce activity during D$ misses
@@ -1046,10 +1043,10 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         ctrlStalld ||
         csr.io.interrupt
 
-    io.imem.req.valid := takePc
-    io.imem.req.bits.speculative := !takePcWb
+    imem.req.valid := takePc
+    imem.req.bits.speculative := !takePcWb
     // flush or branch misprediction
-    io.imem.req.bits.pc := Mux(
+    imem.req.bits.pc := Mux(
       wbException || csr.io.eret,
       csr.io.evec, // exception or [m|s]ret
       Mux(
@@ -1058,26 +1055,26 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         memNextPC
       )
     )
-    io.imem.flush_icache := wbRegValid && wbRegDecodeOutput(decoder.fenceI) && !io.dmem.s2_nack
-    io.imem.might_request := {
-      imemMightRequestReg := exPcValid || memPcValid || io.ptw.customCSRs.disableICacheClockGate
+    imem.flush_icache := wbRegValid && wbRegDecodeOutput(decoder.fenceI) && !dmem.s2_nack
+    imem.might_request := {
+      imemMightRequestReg := exPcValid || memPcValid || ptw.customCSRs.disableICacheClockGate
       imemMightRequestReg
     }
-    io.imem.progress := RegNext(wbRegValid && !replayWbCommon)
-    io.imem.sfence.valid := wbRegValid && wbRegSfence
-    io.imem.sfence.bits.rs1 := wbRegMemSize(0)
-    io.imem.sfence.bits.rs2 := wbRegMemSize(1)
-    io.imem.sfence.bits.addr := wbRegWdata
-    io.imem.sfence.bits.asid := wbRegRS2
-    io.imem.sfence.bits.hv := wbRegHfenceV
-    io.imem.sfence.bits.hg := wbRegHfenceG
-    io.ptw.sfence := io.imem.sfence
+    imem.progress := RegNext(wbRegValid && !replayWbCommon)
+    imem.sfence.valid := wbRegValid && wbRegSfence
+    imem.sfence.bits.rs1 := wbRegMemSize(0)
+    imem.sfence.bits.rs2 := wbRegMemSize(1)
+    imem.sfence.bits.addr := wbRegWdata
+    imem.sfence.bits.asid := wbRegRS2
+    imem.sfence.bits.hv := wbRegHfenceV
+    imem.sfence.bits.hg := wbRegHfenceG
+    ptw.sfence := imem.sfence
 
     instructionBufferOut.ready := !ctrlStalld
 
-    io.imem.btb_update.valid := memRegValid && !takePcWb && memWrongNpc && (!memCfi || memCfiTaken)
-    io.imem.btb_update.bits.isValid := memCfi
-    io.imem.btb_update.bits.cfiType :=
+    imem.btb_update.valid := memRegValid && !takePcWb && memWrongNpc && (!memCfi || memCfiTaken)
+    imem.btb_update.bits.isValid := memCfi
+    imem.btb_update.bits.cfiType :=
       Mux(
         (memRegDecodeOutput(decoder.isJal) || memRegDecodeOutput(decoder.isJalr)) && memWaddr(0),
         CFIType.call,
@@ -1087,102 +1084,102 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
           Mux(memRegDecodeOutput(decoder.isJal) || memRegDecodeOutput(decoder.isJalr), CFIType.jump, CFIType.branch)
         )
       )
-    io.imem.btb_update.bits.target := io.imem.req.bits.pc
-    io.imem.btb_update.bits.br_pc := (if (usingCompressed) memRegPc + Mux(memRegRVC, 0.U, 2.U) else memRegPc)
-    io.imem.btb_update.bits.pc := ~(~io.imem.btb_update.bits.br_pc | (coreInstBytes * fetchWidth - 1).U)
-    io.imem.btb_update.bits.prediction := memRegBTBResponse
-    io.imem.btb_update.bits.taken := DontCare
+    imem.btb_update.bits.target := imem.req.bits.pc
+    imem.btb_update.bits.br_pc := (if (usingCompressed) memRegPc + Mux(memRegRVC, 0.U, 2.U) else memRegPc)
+    imem.btb_update.bits.pc := ~(~imem.btb_update.bits.br_pc | (coreInstBytes * fetchWidth - 1).U)
+    imem.btb_update.bits.prediction := memRegBTBResponse
+    imem.btb_update.bits.taken := DontCare
 
-    io.imem.bht_update.valid := memRegValid && !takePcWb
-    io.imem.bht_update.bits.pc := io.imem.btb_update.bits.pc
-    io.imem.bht_update.bits.taken := memBranchTaken
-    io.imem.bht_update.bits.mispredict := memWrongNpc
-    io.imem.bht_update.bits.branch := memRegDecodeOutput(decoder.isBranch)
-    io.imem.bht_update.bits.prediction := memRegBTBResponse.bht
+    imem.bht_update.valid := memRegValid && !takePcWb
+    imem.bht_update.bits.pc := imem.btb_update.bits.pc
+    imem.bht_update.bits.taken := memBranchTaken
+    imem.bht_update.bits.mispredict := memWrongNpc
+    imem.bht_update.bits.branch := memRegDecodeOutput(decoder.isBranch)
+    imem.bht_update.bits.prediction := memRegBTBResponse.bht
 
     // Connect RAS in Frontend
-    io.imem.ras_update := DontCare
+    imem.ras_update := DontCare
 
     if (usingFPU) {
-      io.fpu.valid := !ctrlKilled && idDecodeOutput(decoder.fp)
-      io.fpu.killx := ctrlKillx
-      io.fpu.killm := killmCommon
-      io.fpu.inst := idInstruction
-      io.fpu.fromint_data := exRs(0)
-      io.fpu.dmem_resp_val := dmemResponseValid && dmemResponseFpu
-      io.fpu.dmem_resp_data := (if (minFLen == 32) io.dmem.resp.bits.data_word_bypass else io.dmem.resp.bits.data)
-      io.fpu.dmem_resp_type := io.dmem.resp.bits.size
-      io.fpu.dmem_resp_tag := dmemResponseWaddr
-      io.fpu.keep_clock_enabled := io.ptw.customCSRs.disableCoreClockGate
+      fpu.valid := !ctrlKilled && idDecodeOutput(decoder.fp)
+      fpu.killx := ctrlKillx
+      fpu.killm := killmCommon
+      fpu.inst := idInstruction
+      fpu.fromint_data := exRs(0)
+      fpu.dmem_resp_val := dmemResponseValid && dmemResponseFpu
+      fpu.dmem_resp_data := (if (minFLen == 32) dmem.resp.bits.data_word_bypass else dmem.resp.bits.data)
+      fpu.dmem_resp_type := dmem.resp.bits.size
+      fpu.dmem_resp_tag := dmemResponseWaddr
+      fpu.keep_clock_enabled := ptw.customCSRs.disableCoreClockGate
     } else {
-      io.fpu.valid := DontCare
-      io.fpu.killx := DontCare
-      io.fpu.killm := DontCare
-      io.fpu.inst := DontCare
-      io.fpu.fromint_data := DontCare
-      io.fpu.dmem_resp_val := DontCare
-      io.fpu.dmem_resp_data := DontCare
-      io.fpu.dmem_resp_type := DontCare
-      io.fpu.dmem_resp_tag := DontCare
-      io.fpu.keep_clock_enabled := DontCare
+      fpu.valid := DontCare
+      fpu.killx := DontCare
+      fpu.killm := DontCare
+      fpu.inst := DontCare
+      fpu.fromint_data := DontCare
+      fpu.dmem_resp_val := DontCare
+      fpu.dmem_resp_data := DontCare
+      fpu.dmem_resp_type := DontCare
+      fpu.dmem_resp_tag := DontCare
+      fpu.keep_clock_enabled := DontCare
     }
 
-    io.dmem.req.valid := exRegValid && exRegDecodeOutput(decoder.mem)
+    dmem.req.valid := exRegValid && exRegDecodeOutput(decoder.mem)
     val ex_dcache_tag = Cat(exWaddr, Option.when(usingFPU)(exRegDecodeOutput(decoder.fp)).getOrElse(false.B))
     require(coreParams.dcacheReqTagBits >= ex_dcache_tag.getWidth)
-    io.dmem.req.bits.tag := ex_dcache_tag
-    io.dmem.req.bits.cmd := exRegDecodeOutput(decoder.memCommand)
-    io.dmem.req.bits.size := exRegMemSize
-    io.dmem.req.bits.signed := !Mux(exRegHLS, exRegInstruction(20), exRegInstruction(14))
-    io.dmem.req.bits.phys := false.B
-    io.dmem.req.bits.addr := encodeVirtualAddress(exRs(0), arithmeticLogicUnit.io.adder_out)
-    io.dmem.req.bits.idx.foreach(_ := io.dmem.req.bits.addr)
-    io.dmem.req.bits.dprv := Mux(exRegHLS, csr.io.hstatus.spvp, csr.io.status.dprv)
-    io.dmem.req.bits.dv := exRegHLS || csr.io.status.dv
-    io.dmem.req.bits.no_alloc := DontCare
-    io.dmem.req.bits.no_xcpt := DontCare
-    io.dmem.req.bits.data := DontCare
-    io.dmem.req.bits.mask := DontCare
+    dmem.req.bits.tag := ex_dcache_tag
+    dmem.req.bits.cmd := exRegDecodeOutput(decoder.memCommand)
+    dmem.req.bits.size := exRegMemSize
+    dmem.req.bits.signed := !Mux(exRegHLS, exRegInstruction(20), exRegInstruction(14))
+    dmem.req.bits.phys := false.B
+    dmem.req.bits.addr := encodeVirtualAddress(exRs(0), arithmeticLogicUnit.io.adder_out)
+    dmem.req.bits.idx.foreach(_ := dmem.req.bits.addr)
+    dmem.req.bits.dprv := Mux(exRegHLS, csr.io.hstatus.spvp, csr.io.status.dprv)
+    dmem.req.bits.dv := exRegHLS || csr.io.status.dv
+    dmem.req.bits.no_alloc := DontCare
+    dmem.req.bits.no_xcpt := DontCare
+    dmem.req.bits.data := DontCare
+    dmem.req.bits.mask := DontCare
 
-    io.dmem.s1_data.data := Option
-      .when(usingFPU)(Mux(memRegDecodeOutput(decoder.fp), Fill(xLen.max(fLen) / fLen, io.fpu.store_data), memRegRS2))
+    dmem.s1_data.data := Option
+      .when(usingFPU)(Mux(memRegDecodeOutput(decoder.fp), Fill(xLen.max(fLen) / fLen, fpu.store_data), memRegRS2))
       .getOrElse(memRegRS2)
-    io.dmem.s1_data.mask := DontCare
+    dmem.s1_data.mask := DontCare
 
-    io.dmem.s1_kill := killmCommon || memLoadStoreException || fpuKillMem.getOrElse(false.B)
-    io.dmem.s2_kill := false.B
+    dmem.s1_kill := killmCommon || memLoadStoreException || fpuKillMem.getOrElse(false.B)
+    dmem.s2_kill := false.B
     // don't let D$ go to sleep if we're probably going to use it soon
-    io.dmem.keep_clock_enabled := instructionBufferOut.valid && idDecodeOutput(decoder.mem) && !csr.io.csrStall
+    dmem.keep_clock_enabled := instructionBufferOut.valid && idDecodeOutput(decoder.mem) && !csr.io.csrStall
 
     // gate the clock
     val unpause: Bool =
-      csr.io.time(rocketParams.lgPauseCycles - 1, 0) === 0.U || csr.io.inhibitCycle || io.dmem.perf.release || takePc
+      csr.io.time(rocketParams.lgPauseCycles - 1, 0) === 0.U || csr.io.inhibitCycle || dmem.perf.release || takePc
     when(unpause) { idRegPause := false.B }
-    io.cease := csr.io.status.cease && !clockEnableReg
-    io.wfi := csr.io.status.wfi
+    cease := csr.io.status.cease && !clockEnableReg
+    wfi := csr.io.status.wfi
     if (rocketParams.clockGate) {
-      longLatencyStall := csr.io.csrStall || io.dmem.perf.blocked || idRegPause && !unpause
-      clockEnable := clockEnableReg || exPcValid || (!longLatencyStall && io.imem.resp.valid)
+      longLatencyStall := csr.io.csrStall || dmem.perf.blocked || idRegPause && !unpause
+      clockEnable := clockEnableReg || exPcValid || (!longLatencyStall && imem.resp.valid)
       clockEnableReg :=
         exPcValid || memPcValid || wbPcValid || // instruction in flight
-        io.ptw.customCSRs.disableCoreClockGate || // chicken bit
+        ptw.customCSRs.disableCoreClockGate || // chicken bit
         !muldiv.io.req.ready || // mul/div in flight
-        usingFPU.B && !io.fpu.fcsr_rdy || // long-latency FPU in flight
-        io.dmem.replay_next || // long-latency load replaying
-        (!longLatencyStall && (instructionBufferOut.valid || io.imem.resp.valid)) // instruction pending
+        usingFPU.B && !fpu.fcsr_rdy || // long-latency FPU in flight
+        dmem.replay_next || // long-latency load replaying
+        (!longLatencyStall && (instructionBufferOut.valid || imem.resp.valid)) // instruction pending
 
       assert(!(exPcValid || memPcValid || wbPcValid) || clockEnable)
     }
 
     // evaluate performance counters
-    val icacheBlocked = !(io.imem.resp.valid || RegNext(io.imem.resp.valid))
+    val icacheBlocked = !(imem.resp.valid || RegNext(imem.resp.valid))
     csr.io.counters.foreach { c => c.inc := RegNext(perfEvents.evaluate(c.eventSel)) }
 
     // TODO: move to Probe Module
     val coreMonitorBundle: CoreMonitorBundle = Wire(new CoreMonitorBundle(xLen, fLen))
     coreMonitorBundle.clock := clock
     coreMonitorBundle.reset := reset
-    coreMonitorBundle.hartid := io.hartid
+    coreMonitorBundle.hartid := hartid
     coreMonitorBundle.timer := csr.io.time(31, 0)
     coreMonitorBundle.valid := csr.io.trace(0).valid && !csr.io.trace(0).exception
     coreMonitorBundle.pc := csr.io.trace(0).iaddr(vaddrBitsExtended - 1, 0).sextTo(xLen)
@@ -1226,7 +1223,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       when(csr.io.trace(0).valid) {
         printf(
           "C%d: %d [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] DASM(%x)\n",
-          io.hartid,
+          hartid,
           coreMonitorBundle.timer,
           coreMonitorBundle.valid,
           coreMonitorBundle.pc,
@@ -1275,7 +1272,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val xrfWriteBundle = Wire(new CoreMonitorBundle(xLen, fLen))
     xrfWriteBundle.clock := clock
     xrfWriteBundle.reset := reset
-    xrfWriteBundle.hartid := io.hartid
+    xrfWriteBundle.hartid := hartid
     xrfWriteBundle.timer := csr.io.time(31, 0)
     xrfWriteBundle.valid := false.B
     xrfWriteBundle.pc := 0.U
