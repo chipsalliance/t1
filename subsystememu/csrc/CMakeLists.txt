@@ -40,6 +40,10 @@ set(VERILATE_ARGS
   VERILATOR_ARGS --x-initial unique --output-split 100000 --max-num-width 1048576 --threads-max-mtasks 100000 --main --timing --coverage-user --assert
 )
 
+if (${VERILATE_TRACE})
+  list(PREPEND VERILATE_ARGS "TRACE_FST")
+endif()
+
 verilate(emulator
   SOURCES ${VERILATE_SRC_LIST}
   ${VERILATE_ARGS}
