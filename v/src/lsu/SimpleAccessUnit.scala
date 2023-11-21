@@ -642,16 +642,28 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /** signal indicate that the offset group for all lanes are valid. */
   val allOffsetValid: Bool = VecInit(indexedInstructionOffsets.map(_.valid)).asUInt.andR
 
-  /** signal used for aligning offset groups. */
-  val offsetGroupsAlign: Bool = RegInit(false.B)
+  /** signal used for aligning offset groups.
+   *  eg: vl = 65, eew = 16, only wait for first group of offset
+   * */
+  val offsetGroupsAlign: Vec[Bool] = RegInit(VecInit(Seq.fill(param.laneNumber)(false.B)))
   // to fix the bug that after the first group being used, the second group is not valid,
   // MSHR will change group by mistake.
-  // TODO: need perf the case, if there are too much "misalignment", use a state vector for each lane(bit) in the group.
-  when(!offsetGroupsAlign && allOffsetValid) {
-    offsetGroupsAlign := true.B
-  }.elsewhen(status.offsetGroupEnd) {
-    offsetGroupsAlign := false.B
+  offsetGroupsAlign.zip(offsetReadResult).foreach {case (a, d) =>
+    when(!a && d.valid) {
+      a := true.B
+    }.elsewhen(status.offsetGroupEnd) {
+      a := false.B
+    }
   }
+
+  val alignCheck: Bool =
+    (offsetGroupsAlign.asUInt >> (
+      // offsetOfOffsetGroup is in byte level
+      offsetOfOffsetGroup >>
+        // shift it to word level
+        log2Ceil(param.datapathWidth / 8)
+      ).asUInt
+      ).asUInt(0)
 
   /** the current element is the last element to execute in the pipeline. */
   val last: Bool = nextElementIndex >= evl
@@ -660,7 +672,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   val maskCheck: Bool = !isMaskedLoadStore || !noMoreMaskedUnsentMemoryRequests
 
   /** no need index, when use a index, check it is valid or not. */
-  val indexCheck: Bool = !isIndexedLoadStore || (offsetValidCheck && offsetGroupCheck && offsetGroupsAlign)
+  val indexCheck: Bool = !isIndexedLoadStore || (offsetValidCheck && offsetGroupCheck && alignCheck)
 
   // handle fault only first
   /** the current TileLink message in A Channel is the first transaction in this instruction. */
