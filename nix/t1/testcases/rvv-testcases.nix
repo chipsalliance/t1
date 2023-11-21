@@ -11,6 +11,7 @@
 , rvv-codegen
 , buddy-mlir
 , fetchMillDeps
+, rv32-gnu-toolchain
 }:
 
 stdenv.mkDerivation rec {
@@ -25,6 +26,7 @@ stdenv.mkDerivation rec {
     buddy-mlir
     ammonite
     mill
+    rv32-gnu-toolchain
     passthru.millDeps.setupHook
   ];
 

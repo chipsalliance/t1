@@ -56,6 +56,8 @@ final: prev:
   rv32-clang = final.callPackage ./pkgs/rv32-clang.nix {
     clang = final.llvmToolsForRV32Clang.clang;
   };
+  rv32-gnu-toolchain = final.callPackage ./pkgs/riscv-gnu-toolchain.nix { };
+  rv32-gnu-cpp = final.callPackage ./pkgs/rv32-gnu-cpp.nix { };
 
   t1 = final.callPackage ./t1 { };
 }

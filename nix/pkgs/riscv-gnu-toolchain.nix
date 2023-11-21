@@ -16,7 +16,7 @@ let
     hash = "sha256-LgBvtrFsw/s7cKmb3s/HUK22PWuRuqlhS0Y7WWgzzs4=";
   };
   newlibSrc = fetchzip {
-    url = "ftp://sourceware.org/pub/newlib/newlib-4.3.0.20230120.tar.gz";
+    url = "https://sourceware.org/pub/newlib/newlib-4.3.0.20230120.tar.gz";
     hash = "sha256-4IJJ2WiSU06+N63Yev/lmkmjVc/cuyIGQnvt6D+1piI=";
   };
 in

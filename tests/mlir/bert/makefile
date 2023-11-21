@@ -1,5 +1,14 @@
-bert.S:
-	@buddy-opt ./bert-with-weights.mlir \
+CC := riscv32-unknown-elf-gcc
+CXX := riscv32-unknown-elf-g++
+
+CFLAGS := -mabi=ilp32f -march=rv32gcv -fno-PIC
+LDFLAGS := -nostartfiles -nostdlib -mno-relax -static -mcmodel=medany -Wl,--entry=start -lc -lstdc++ -lgcc -lm -lg
+
+.PHONY: all
+all: bert.elf
+
+bert.S: bert-with-weights.mlir
+	@buddy-opt $^ \
 		--linalg-bufferize \
 		--convert-linalg-to-loops \
 		--func-bufferize \
@@ -22,21 +31,17 @@ bert.S:
 	buddy-translate --mlir-to-llvmir | \
 	buddy-llc -O3 -mtriple riscv32 -target-abi ilp32 \
 		-mattr=+m,+d,+v -filetype=asm -riscv-v-vector-bits-min=128 \
-		-o ./bert.S
+		-o $@
 
-TOOLCHAIN := $(shell nix build '.#rv32-gnu-toolchain')
+sys.o: ../lib/sys.c 
+	$(CC) $^ $(CFLAGS) -c -o $@
 
-sys.o:
-		./result/bin/riscv32-unknown-elf-gcc -mabi=ilp32f -march=rv32gcv -c ../lib/sys.c -o sys.o
+entry.o: entry.cpp
+	$(CXX) $^ $(CFLAGS) -c -o $@
 
-bert.elf: sys.o bert.S
-	@rv32-g++ -nostartfiles -nostdlib \
-		sys.o bert.S ./entry.cpp  ../main.S -mno-relax -static -mcmodel=medany \
-		-lc -lstdc++ -lgcc -lm -lg  \
-		-fvisibility=hidden -Wl,--entry=start -fno-PIC -o bert.elf
+bert.elf: sys.o entry.o bert.S ../main.S
+	$(CC)  $^ $(LDFLAGS) -o $@
 
 .PHONY: clean
 clean:
-	rm bert.o
-	rm sys.o
-	rm bert.elf
+	rm -f *.o *.elf
