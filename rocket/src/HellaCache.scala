@@ -233,10 +233,8 @@ case object BuildHellaCache extends Field[BaseTile => Parameters => HellaCache](
 
 object HellaCacheFactory {
   def apply(tile: BaseTile)(p: Parameters): HellaCache = {
-    if (tile.tileParams.dcache.get.nMSHRs == 0)
-      new DCache(tile.staticIdForMetadataUseOnly, tile.crossing)(p)
-    else
-      new NonBlockingDCache(tile.staticIdForMetadataUseOnly)(p)
+    assert(tile.tileParams.dcache.get.nMSHRs == 0)
+    new DCache(tile.staticIdForMetadataUseOnly, tile.crossing)(p)
   }
 }
 
