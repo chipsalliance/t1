@@ -7,9 +7,10 @@ import freechips.rocketchip.diplomacy.{BundleBridgeSource, InModuleBody, LazyMod
 import freechips.rocketchip.rocket.{DCacheParams, ICacheParams, MulDivParams, RocketCoreParams}
 import freechips.rocketchip.subsystem._
 import org.chipsalliance.t1.rockettile.BuildVector
-import freechips.rocketchip.tile.{RocketTileParams, XLen}
+import freechips.rocketchip.tile.XLen
 import freechips.rocketchip.util.DontTouch
 import org.chipsalliance.cde.config._
+import org.chipsalliance.t1.rocketcore.RocketTileParams
 
 class VerdesConfig
   extends Config(
