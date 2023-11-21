@@ -36,6 +36,11 @@ jobs:
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
           nix develop .#ci -c .github/scripts/ci.sc passedMatrixJson --bucketSize "$RUNNERS" >> "$GITHUB_OUTPUT"
+      # build verilator emulator first, so that every developer can download new cache from latest commit.
+      - name: "Build verilator emulator"
+        run: |
+          nix build '.#t1.v1024l8b2-test.verilator-emulator' --no-link
+          nix build '.#t1.v1024l8b2-test-trace.verilator-emulator' --no-link
 
   run-testcases:
     name: "Run testcases"
