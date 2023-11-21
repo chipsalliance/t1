@@ -60,6 +60,10 @@ let
       mkdir -p $out/share/java
       mv out/subsystememu/assembly.dest/out.jar $out/share/java/subsystememu.jar
       makeWrapper ${jre}/bin/java $out/bin/subsystememu --add-flags "-jar $out/share/java/subsystememu.jar"
+
+      # Share the riscv-opcodes sources for soc-elaborate to use
+      # We can't use soft link here, because the upstream use os.isDir to verify the content
+      cp -rT ${submodules.sources.riscv-opcodes.src} $out/share/riscv-opcodes
     '';
 
     meta.mainProgram = "subsystememu";

@@ -79,6 +79,26 @@
         },
         "version": "2372b1c401ff15c34b8c1f8766232c4cd9a8c67e"
     },
+    "riscv-opcodes": {
+        "cargoLocks": null,
+        "date": "2023-11-01",
+        "extract": null,
+        "name": "riscv-opcodes",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "riscv",
+            "repo": "riscv-opcodes",
+            "rev": "d5755c9d380f8ab75a98ee9901019ab3f52259dc",
+            "sha256": "sha256-yC5dSpQlvBHx/FORfkvBGYMZaqpEgr3aOJiW+mg5Cz0=",
+            "type": "github"
+        },
+        "version": "d5755c9d380f8ab75a98ee9901019ab3f52259dc"
+    },
     "rocket-chip": {
         "cargoLocks": null,
         "date": "2023-11-17",
