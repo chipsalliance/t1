@@ -144,7 +144,7 @@ The codegen tests requires [ksco/riscv-vector-tests](https://github.com/ksco/ris
 
 To develop testcases, enter the development shell:
 ```shell
-$ nix develop .#t1.testcases
+$ nix develop .#t1.rvv-testcases
 ```
 `CODEGEN_` like environments described above will be automatically set.
 

@@ -22,8 +22,8 @@ def main():
     parser.add_argument('-r', '--run-config', default="debug",
                         help='run configuration name, as filenames in ./run')
     parser.add_argument('-v', '--verbose', action='store_true', help='set loglevel to debug')
-    parser.add_argument('--no-log', action='store_true', help='do not produce emulator log')
-    parser.add_argument('-q', '--no-console-log', action='store_true', help='do not produce emulator log')
+    parser.add_argument('--no-log', action='store_true', help='prevent emulator produce log (both console and file)')
+    parser.add_argument('-q', '--no-console-log', action='store_true', help='prevent emulator print log to console')
 
     parser.add_argument('--cases-dir', help='path to testcases, default to TEST_CASES_DIR environment')
     parser.add_argument('--out-dir', default=None, help='path to save wave file and perf result file')
