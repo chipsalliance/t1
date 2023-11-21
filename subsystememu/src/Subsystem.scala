@@ -5,12 +5,12 @@ import chisel3.experimental.UnlocatableSourceInfo
 import freechips.rocketchip.devices.debug.HasPeripheryDebug
 import freechips.rocketchip.diplomacy.{BundleBridgeSource, InModuleBody, LazyModule, SynchronousCrossing, ValName}
 import freechips.rocketchip.rocket.{DCacheParams, ICacheParams, MulDivParams, RocketCoreParams}
-import freechips.rocketchip.subsystem._
+import freechips.rocketchip.subsystem.{BaseSubsystem, BaseSubsystemConfig, BaseSubsystemModuleImp, CacheBlockBytes, CanHaveMasterAXI4MemPort, ExtMem, HasRTCModuleImp, HasTilesModuleImp, InSubsystem, MasterPortParams, MemoryBusKey, MemoryPortParams, RocketCrossingParams, SystemBusKey, TileMasterPortParams, TilesLocated, WithCacheBlockBytes, WithClockGateModel, WithCoherentBusTopology, WithDTS, WithDebugSBA, WithNoSimulationTimeout, WithScratchpadsBaseAddress, WithTimebase, WithoutTLMonitors}
 import org.chipsalliance.t1.rockettile.BuildVector
 import freechips.rocketchip.tile.XLen
 import freechips.rocketchip.util.DontTouch
 import org.chipsalliance.cde.config._
-import org.chipsalliance.t1.rocketcore.RocketTileParams
+import org.chipsalliance.t1.rocketcore.{RocketTileAttachParams, RocketTileParams}
 
 class VerdesConfig
   extends Config(
@@ -53,7 +53,6 @@ class VerdesConfig
             crossingType = SynchronousCrossing(),
             master = TileMasterPortParams())
         ))
-      case T1ConfigPath => os.pwd / "configs" / "v1024l8b2-release.json"
     })
       .orElse(new WithClockGateModel("./dependencies/rocket-chip/src/vsrc/EICG_wrapper.v"))
       .orElse(new WithNoSimulationTimeout)

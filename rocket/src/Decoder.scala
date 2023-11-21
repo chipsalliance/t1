@@ -105,6 +105,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
   private val useABLU: Boolean = usingBitManip || usingBitManipCrypto || usingCryptoNIST || usingCryptoSM
   private val useFPU = !fLen0
   private val useMulDiv = hasAnySetIn("rv_m", "rv64_m")
+  private val useVector = hasAnySetIn("rv_v")
 
   private val instructionDecodePatterns: Seq[RocketDecodePattern] = instructions.map(RocketDecodePattern.apply)
   private val instructionDecodeFields: Seq[DecodeField[RocketDecodePattern, _ <: Data]] = Seq(
@@ -128,7 +129,8 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
   ) ++
     (if (useABLU) Seq(abluFn, zbk, zkn, zks) else Some(aluFn)) ++
     (if (useFPU) Seq(fp, rfs1, rfs2, rfs3, wfd, dp) else None) ++
-    (if (useMulDiv) if (p.pipelinedMul) Seq(mul, div) else Seq(div) else None)
+    (if (useMulDiv) if (p.pipelinedMul) Seq(mul, div) else Seq(div) else None) ++
+    (if (useVector) Seq(isVector) else None)
 
   val table: DecodeTable[RocketDecodePattern] = new DecodeTable[RocketDecodePattern](
     instructionDecodePatterns,

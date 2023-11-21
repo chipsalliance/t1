@@ -17,7 +17,7 @@ trait HasT1Tiles extends HasTiles { this: BaseSubsystem =>
 
 class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
   lazy val module = new LazyT1Imp(this)
-  lazy val generator: SerializableModuleGenerator[V, VParameter] = upickle.default.read[SerializableModuleGenerator[V, VParameter]](ujson.read(os.read(p(T1ConfigPath))).obj("design"))
+  lazy val generator: SerializableModuleGenerator[V, VParameter] = upickle.default.read[SerializableModuleGenerator[V, VParameter]](ujson.read(os.read(p(T1ConfigPath))))
   def banks: Int = generator.parameter.memoryBankSize
   def uarchName: String = "t1"
   def sourceIdSize: Int = generator.parameter.sourceWidth
