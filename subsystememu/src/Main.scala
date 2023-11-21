@@ -6,14 +6,17 @@ import firrtl.AnnotationSeq
 import firrtl.options.TargetDirAnnotation
 import mainargs._
 import org.chipsalliance.cde.config._
+import org.chipsalliance.t1.rocketcore.RISCVOpcodesPath
 
 object Main {
   @main def elaborate(
                        @arg(name = "dir", doc = "output directory") dir: String,
                        @arg(name = "config") config: String,
+                       @arg(name = "riscvopcodes") riscvOpcodes: String
                      ) = {
     implicit val p: Parameters = (new VerdesConfig).orElse(new Config((site, here, up) => {
         case T1ConfigPath => os.Path(config)
+        case RISCVOpcodesPath => os.Path(riscvOpcodes)
       })
     )
     var topName: String = null
