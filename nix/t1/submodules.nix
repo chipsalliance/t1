@@ -47,4 +47,5 @@ in
     }
     prePatchHooks+=(setupSubmodules)
   ''));
+  sources = submodules;
 }

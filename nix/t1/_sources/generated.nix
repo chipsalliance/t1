@@ -49,6 +49,18 @@
     };
     date = "2023-11-16";
   };
+  riscv-opcodes = {
+    pname = "riscv-opcodes";
+    version = "d5755c9d380f8ab75a98ee9901019ab3f52259dc";
+    src = fetchFromGitHub {
+      owner = "riscv";
+      repo = "riscv-opcodes";
+      rev = "d5755c9d380f8ab75a98ee9901019ab3f52259dc";
+      fetchSubmodules = false;
+      sha256 = "sha256-yC5dSpQlvBHx/FORfkvBGYMZaqpEgr3aOJiW+mg5Cz0=";
+    };
+    date = "2023-11-01";
+  };
   rocket-chip = {
     pname = "rocket-chip";
     version = "6b6731794e23e8cdbbd1710d85db53db417b30c6";

@@ -6,7 +6,7 @@ package org.chipsalliance.t1.rocketcore
 import chisel3._
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.cde.config.Parameters
+import org.chipsalliance.cde.config.{Field, Parameters}
 import freechips.rocketchip.util._
 import freechips.rocketchip.util.property
 import org.chipsalliance.t1.rockettile.{VectorRequest, VectorResponse}
@@ -16,6 +16,8 @@ import scala.collection.mutable.ArrayBuffer
 // TODO: remove it.
 import freechips.rocketchip.tile.{CoreInterrupts, CustomCSR, CustomCSRs, FPUCoreIO, HasCoreParameters, TraceBundle}
 import freechips.rocketchip.rocket.{CSRs, Causes, MulDivParams, RocketCoreParams}
+
+case object RISCVOpcodesPath extends Field[os.Path]
 
 trait HasRocketCoreParameters extends HasCoreParameters {
   lazy val rocketParams: RocketCoreParams = tileParams.core.asInstanceOf[RocketCoreParams]
@@ -44,7 +46,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   val decoder: InstructionDecoder = new org.chipsalliance.t1.rocketcore.InstructionDecoder(
     org.chipsalliance.t1.rocketcore.InstructionDecoderParameter(
       // TODO: configurable
-      (org.chipsalliance.rvdecoderdb.fromFile.instructions(os.pwd / "dependencies" / "riscv-opcodes") ++
+      (org.chipsalliance.rvdecoderdb.fromFile.instructions(p(RISCVOpcodesPath)) ++
         org.chipsalliance.t1.rocketcore.CustomInstructions.rocketSet).filter { i =>
           i.instructionSets.map(_.name) match {
             // I
