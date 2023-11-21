@@ -269,9 +269,6 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
    */
   val elementByteWidth: UInt = RegEnable((1.U << requestEEW).asUInt(2, 0), 0.U, lsuRequest.valid)
 
-  /** expand SEW from [[csrInterface]] */
-  val sew1HReg: UInt = RegEnable(UIntToOH(csrInterface.vSew)(2, 0), 0.U, lsuRequest.valid)
-
   /** for segment instructions, the interval between VRF index accessing.
    * e.g. vs0, vs2, vs4 ...
    * for lmul less than 1, the interval will be fixed to 1(ignore the frac lmul)
@@ -619,7 +616,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   // for [[wResponse]] being able to address, don't update [[groupIndex]] for now,
   // choose [[nextGroupIndex]], since [[sRequest]] has already send all memory requests in the [[groupIndex]]
     Mux(stateIsRequest, groupIndex, nextGroupIndex) ##
-      nextElementForMemoryRequestIndex
+      Mux(stateIsRequest, nextElementForMemoryRequestIndex, 0.U(nextElementForMemoryRequestIndex.getWidth.W))
 
   /** evl for [[isWholeRegisterLoadStore]] instruction type.
    * we use the maximum [[dataEEW]] to handle it.
