@@ -174,7 +174,7 @@ def writeCycleUpdates(job: String, testRunDir: os.Path, resultDir: os.Path) = {
         case -1 => os.write.append(cycleUpdateFile, s"* 🆕 $job: NaN -> $newCycleCount\n")
         case _ => {
           if (oldCycleCount > newCycleCount) {
-            os.write.append(cycleUpdateFile, s"* 🔺 $job: $oldCycleCount -> $newCycleCount\n")
+            os.write.append(cycleUpdateFile, s"* 🚀 $job: $oldCycleCount -> $newCycleCount\n")
           } else if (oldCycleCount < newCycleCount) {
             os.write.append(cycleUpdateFile, s"* 🔻 $job: $oldCycleCount -> $newCycleCount\n")
           }
