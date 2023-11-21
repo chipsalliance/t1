@@ -72,7 +72,7 @@ intptr_t sizesOutput[2] = {1, 2};
 long long sentenceTokens[12] = {101,  1996, 4248,  2829, 4419, 14523,
                                 2058, 1996, 13971, 3899, 1012, 102};
 
-int test() {
+extern "C" int test() {
   // TODO: Find a way to encode any input sentences given by command line
   // arguments into tokens, pad the tokens to the specified length or raise an
   // error when the given sentence is too long.
