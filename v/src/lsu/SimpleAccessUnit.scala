@@ -517,7 +517,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
       // the LSB of shift result is the what we need.
       .asUInt(param.datapathWidth - 1, 0) &
       // use SEW to mask the shift result
-      FillInterleaved(8, sew1HReg(2) ## sew1HReg(2) ## !sew1HReg(0) ## true.B)
+      FillInterleaved(8, offsetEEWOH(2) ## offsetEEWOH(2) ## !offsetEEWOH(0) ## true.B)
 
   /** check offset we are using is valid or not. */
   val offsetValidCheck: Bool =
