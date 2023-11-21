@@ -4,20 +4,25 @@
 package org.chipsalliance.t1.rocketcore
 
 import chisel3._
-import org.chipsalliance.cde.config._
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.interrupts._
-import freechips.rocketchip.tilelink._
-import freechips.rocketchip.subsystem.TileCrossingParamsLike
-import freechips.rocketchip.util._
 import freechips.rocketchip.prci.ClockSinkParameters
+import freechips.rocketchip.subsystem.{CanAttachTile, RocketCrossingParams, TileCrossingParamsLike}
 import freechips.rocketchip.tile._
+import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util._
+import org.chipsalliance.cde.config._
 import org.chipsalliance.t1.rockettile.HasLazyT1
 // TODO: remove it.
 import freechips.rocketchip.rocket.{BTBParams, DCacheParams, ICacheParams, RocketCoreParams}
 
 case class RocketTileBoundaryBufferParams(force: Boolean = false)
+
+case class RocketTileAttachParams(
+                                   tileParams: RocketTileParams,
+                                   crossingParams: RocketCrossingParams
+                                 ) extends CanAttachTile { type TileType = RocketTile }
 
 case class RocketTileParams(
   core:                RocketCoreParams = RocketCoreParams(),
