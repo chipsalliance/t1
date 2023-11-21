@@ -32,37 +32,6 @@ trait HasRocketCoreParameters extends HasCoreParameters {
   require(!usingConditionalZero, "Zicond is not yet implemented in ABLU")
 }
 
-class RocketCustomCSRs(implicit p: Parameters) extends CustomCSRs with HasRocketCoreParameters {
-  override def bpmCSR = {
-    rocketParams.branchPredictionModeCSR.option(CustomCSR(bpmCSRId, BigInt(1), Some(BigInt(0))))
-  }
-
-  private def haveDCache = tileParams.dcache.get.scratch.isEmpty
-
-  override def chickenCSR = {
-    val mask = BigInt(
-      tileParams.dcache.get.clockGate.toInt << 0 |
-        rocketParams.clockGate.toInt << 1 |
-        rocketParams.clockGate.toInt << 2 |
-        1 << 3 | // disableSpeculativeICacheRefill
-        haveDCache.toInt << 9 | // suppressCorruptOnGrantData
-        tileParams.icache.get.prefetch.toInt << 17
-    )
-    Some(CustomCSR(chickenCSRId, mask, Some(mask)))
-  }
-
-  def disableICachePrefetch = getOrElse(chickenCSR, _.value(17), true.B)
-
-  def marchid = CustomCSR.constant(CSRs.marchid, BigInt(1))
-
-  def mvendorid = CustomCSR.constant(CSRs.mvendorid, BigInt(rocketParams.mvendorid))
-
-  // mimpid encodes a release version in the form of a BCD-encoded datestamp.
-  def mimpid = CustomCSR.constant(CSRs.mimpid, BigInt(rocketParams.mimpid))
-
-  override def decls = super.decls :+ marchid :+ mvendorid :+ mimpid
-}
-
 class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with HasRocketCoreParameters {
   // Checker
   require(decodeWidth == 1 /* TODO */ && retireWidth == decodeWidth)
@@ -76,7 +45,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     org.chipsalliance.t1.rocketcore.InstructionDecoderParameter(
       // TODO: configurable
       (org.chipsalliance.rvdecoderdb.fromFile.instructions(os.pwd / "dependencies" / "riscv-opcodes") ++
-        org.chipsalliance.t1.rocketcore.CustomInstructions.rocketSet.filter { i =>
+        org.chipsalliance.t1.rocketcore.CustomInstructions.rocketSet).filter { i =>
           i.instructionSets.map(_.name) match {
             // I
             case s if s.contains("rv_i")   => true
@@ -137,7 +106,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
           case i if i.pseudoFrom.isDefined && Seq("slli", "srli", "srai").contains(i.name) => true
           case i if i.pseudoFrom.isDefined                                                 => false
           case _                                                                           => true
-        }).toSeq.distinct,
+        }.toSeq.distinct,
       pipelinedMul,
       tile.dcache.flushOnFenceI
     )
