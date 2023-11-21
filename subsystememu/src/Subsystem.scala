@@ -69,7 +69,7 @@ class VerdesConfig
   )
 
 class VerdesSystem(implicit p: Parameters) extends BaseSubsystem
-  with HasRocketTiles
+  with HasT1Tiles
   with HasPeripheryDebug
   with CanHaveMasterAXI4MemPort {
   // configure

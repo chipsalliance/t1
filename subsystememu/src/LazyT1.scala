@@ -3,11 +3,17 @@ package verdes
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
 import freechips.rocketchip.diplomacy.AddressSet
+import freechips.rocketchip.subsystem.{BaseSubsystem, HasTiles}
+import freechips.rocketchip.util.CoreMonitorBundle
 import org.chipsalliance.t1.rockettile.{AbstractLazyT1, AbstractLazyT1ModuleImp}
 import org.chipsalliance.cde.config._
 import v.{V, VParameter}
 
 case object T1ConfigPath extends Field[os.Path]
+trait HasT1Tiles extends HasTiles { this: BaseSubsystem =>
+  val t1Tiles = tiles.collect { case r: org.chipsalliance.t1.rocketcore.RocketTile => r }
+  def coreMonitorBundles = List.empty[CoreMonitorBundle]
+}
 
 class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
   lazy val module = new LazyT1Imp(this)
