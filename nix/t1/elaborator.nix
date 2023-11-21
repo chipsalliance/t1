@@ -25,8 +25,8 @@ let
     passthru.millDeps = fetchMillDeps {
       inherit name;
       src = lib'.sourceFilesByPrefixes ./../.. [ "/build.sc" "/common.sc" ];
+      millDepsHash = "sha256-RIA/lgtFEaUxbZTmJaErlWcypDUdBGuK7P9iUMGtIdc=";
       nativeBuildInputs = [ submodules.setupHook ];
-      millDepsHash = "sha256-83qNe7ry+tvXvQRUAo2I+JMGFUjORW8/IRbWuYc8WX0=";
     };
 
     passthru.editable = self.overrideAttrs (_: {
