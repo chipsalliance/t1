@@ -1054,6 +1054,16 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       fpu.keep_clock_enabled := ptw.customCSRs.disableCoreClockGate
     }
 
+    t1Request.foreach { t1 =>
+      t1.valid := wbRegValid && !replayWbCommon && wbRegDecodeOutput(decoder.isVector)
+      t1.bits.instruction := wbRegInstruction
+      t1.bits.rs1Data := wbRegWdata
+      t1.bits.rs2Data := wbRegRS2
+    }
+    t1Response.foreach(_ <> DontCare)
+    t1IssueQueueFull.foreach(_ <> DontCare)
+    t1IssueQueueEmpty.foreach(_ <> DontCare)
+
     dmem.req.valid := exRegValid && exRegDecodeOutput(decoder.mem)
     val ex_dcache_tag = Cat(exWaddr, Option.when(usingFPU)(exRegDecodeOutput(decoder.fp)).getOrElse(false.B))
     require(coreParams.dcacheReqTagBits >= ex_dcache_tag.getWidth)
