@@ -180,7 +180,6 @@ class RocketTileModuleImp(outer: RocketTile)
   core.interrupts.nmi.foreach { nmi => nmi := outer.nmiSinkNode.bundle }
 
   // Pass through various external constants and reports that were bundle-bridged into the tile
-  outer.traceSourceNode.bundle <> core.trace
   core.traceStall := outer.traceAuxSinkNode.bundle.stall
   outer.bpwatchSourceNode.bundle <> core.bpwatch
   core.hartid := outer.hartIdSinkNode.bundle

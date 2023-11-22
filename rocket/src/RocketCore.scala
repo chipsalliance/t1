@@ -123,7 +123,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   val dmem = IO(new HellaCacheIO)
   val ptw = IO(Flipped(new DatapathPTWIO()))
   val fpu = IO(Flipped(new FPUCoreIO()))
-  val trace = IO(Output(new TraceBundle))
   val bpwatch = IO(Output(Vec(coreParams.nBreakpoints, new BPWatch(coreParams.retireWidth))))
   val cease = IO(Output(Bool()))
   val wfi = IO(Output(Bool()))
@@ -873,28 +872,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     csr.io.rw.addr := wbRegInstruction(31, 20)
     csr.io.rw.cmd := CSR.maskCmd(wbRegValid, wbRegDecodeOutput(decoder.csr))
     csr.io.rw.wdata := wbRegWdata
-    trace.time := csr.io.time
-    trace.insns := csr.io.trace
-    // TODO: move it to verification part.
-    if (rocketParams.debugROB) {
-      val csrTraceWithWdata = WireInit(csr.io.trace(0))
-      csrTraceWithWdata.wdata.get := rfWdata
-      DebugROB.pushTrace(
-        clock,
-        reset,
-        hartid,
-        csrTraceWithWdata,
-        Option
-          .when(usingFPU)(wbRegDecodeOutput(decoder.wfd) || (wbRegDecodeOutput(decoder.wxd) && wbWaddr =/= 0.U))
-          .getOrElse(false.B) && !csr.io.trace(0).exception,
-        wbRegDecodeOutput(decoder.wxd) && wbWen && !wbSetSboard,
-        wbWaddr + Mux(Option.when(usingFPU)(wbRegDecodeOutput(decoder.wfd)).getOrElse(false.B), 32.U, 0.U)
-      )
-      trace.insns(0) := DebugROB.popTrace(clock, reset, hartid)
-      DebugROB.pushWb(clock, reset, hartid, longLatencyWenable, rfWaddr, rfWdata)
-    } else {
-      trace.insns := csr.io.trace
-    }
+
     bpwatch.zip(wbRegWphit).zip(csr.io.bp)
     bpwatch.lazyZip(wbRegWphit).lazyZip(csr.io.bp).foreach {
       case (iobpw, wphit, bp) =>
