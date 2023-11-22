@@ -129,16 +129,16 @@ abstract class AbstractLazyT1ModuleImp(outer: AbstractLazyT1)(implicit p: Parame
 }
 
 trait HasLazyT1 { this: BaseTile =>
-  val vector = p(BuildVector).map(_(p))
-  val requestSinkNode:       Option[BundleBridgeSink[ValidIO[VectorRequest]]] = vector.map(_.requestNode.makeSink())
-  val responseSinkNode:      Option[BundleBridgeSink[ValidIO[VectorResponse]]] = vector.map(_.responseNode.makeSink())
-  val hazardControlSinkNode: Option[BundleBridgeSink[VectorHazardControl]] = vector.map(_.hazardControlNode.makeSink())
-  vector.foreach(tlMasterXbar.node :=* _.vectorMasterNode)
+  val t1 = p(BuildVector).map(_(p))
+  val requestSinkNode:       Option[BundleBridgeSink[ValidIO[VectorRequest]]] = t1.map(_.requestNode.makeSink())
+  val responseSinkNode:      Option[BundleBridgeSink[ValidIO[VectorResponse]]] = t1.map(_.responseNode.makeSink())
+  val hazardControlSinkNode: Option[BundleBridgeSink[VectorHazardControl]] = t1.map(_.hazardControlNode.makeSink())
+  t1.foreach(tlMasterXbar.node :=* _.vectorMasterNode)
 }
 
 trait HasLazyT1Module { this: RocketTileModuleImp =>
 
-  outer.vector.map(_.module).foreach { t1Module =>
+  outer.t1.map(_.module).foreach { t1Module =>
     // TODO: make it configurable
     val maxCount: Int = 32
 
