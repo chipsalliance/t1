@@ -191,13 +191,10 @@ class RocketTileModuleImp(outer: RocketTile)
   // Connect the core pipeline to other intra-tile modules
   outer.frontend.module.io.cpu <> core.imem
   dcachePorts += core.dmem // TODO outer.dcachePorts += () => module.core.dmem ??
-  fpuOpt.foreach { fpu =>
-    core.fpu :<>= fpu.io.waiveAs[FPUCoreIO](_.cp_req, _.cp_resp)
+  fpuOpt.zip(core.fpu).foreach { case (fpu, core) =>
+    core :<>= fpu.io.waiveAs[FPUCoreIO](_.cp_req, _.cp_resp)
     fpu.io.cp_req := DontCare
     fpu.io.cp_resp := DontCare
-  }
-  if (fpuOpt.isEmpty) {
-    core.fpu := DontCare
   }
   core.ptw <> ptw.io.dpath
 
