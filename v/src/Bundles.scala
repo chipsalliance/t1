@@ -70,6 +70,11 @@ class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
     * it should tell scalar core if this is a load store unit.
     */
   val isLoadStore: Bool = Bool()
+
+  /** whether instruction is mask type instruction.
+   * Need to stall instructions which will write v0.
+   */
+  val maskType: Bool = Bool()
 }
 
 /** context for state machine:
