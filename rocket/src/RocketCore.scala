@@ -117,7 +117,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   val regAddrMask: Int = (1 << lgNXRegs) - 1
 
   val hartid = IO(Input(UInt(hartIdLen.W)))
-  val resetVector = IO(Input(UInt(resetVectorLen.W)))
   val interrupts = IO(Input(new CoreInterrupts()))
   val imem = IO(new FrontendIO)
   val dmem = IO(new HellaCacheIO)
