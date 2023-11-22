@@ -180,7 +180,7 @@ class LSU(param: LSUParam) extends Module {
    * TL-D -CrossBar-> MSHR -proxy-> write queue -CrossBar-> VRF
    */
   val writeQueueVec: Seq[Queue[LSUWriteQueueBundle]] = Seq.fill(param.laneNumber)(
-    Module(new Queue(new LSUWriteQueueBundle(param), param.lsuVRFWriteQueueSize))
+    Module(new Queue(new LSUWriteQueueBundle(param), param.lsuVRFWriteQueueSize, flow = true))
   )
 
   // read vrf
