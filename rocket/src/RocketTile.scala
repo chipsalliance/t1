@@ -151,9 +151,6 @@ class RocketTileModuleImp(outer: RocketTile)
 
   val core = Module(new Rocket(outer)(outer.p))
 
-  // reset vector is connected in the Frontend to s2_pc
-  core.resetVector := DontCare
-
   // Report unrecoverable error conditions; for now the only cause is cache ECC errors
   outer.reportHalt(List(outer.dcache.module.io.errors))
 
