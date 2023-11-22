@@ -213,7 +213,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     requestReg.bits.decodeResult := decode.decodeResult
     requestReg.bits.csr := csrInterface
     requestReg.bits.instructionIndex := instructionCounter
-    requestReg.bits.vdIsV0 := request.bits.instruction(11, 7) === 0.U
+    // vd === 0 && not store type
+    requestReg.bits.vdIsV0 := (request.bits.instruction(11, 7) === 0.U) &&
+      (request.bits.instruction(6) || !request.bits.instruction(5))
   }
   // 0 0 -> don't update
   // 0 1 -> update to false
@@ -330,6 +332,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     */
   val instructionRAWReady: Bool = Wire(Bool())
   val allSlotFree:         Bool = Wire(Bool())
+  val existMaskType:        Bool = Wire(Bool())
 
   // mask Unit 与lane交换数据
   val writeType: VRFWriteRequest = new VRFWriteRequest(
@@ -443,6 +446,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       control.record.instructionIndex := requestReg.bits.instructionIndex
       // TODO: remove
       control.record.isLoadStore := isLoadStoreType
+      control.record.maskType := maskType
       // control signals
       control.state.idle := false.B
       control.state.wLast := false.B
@@ -565,7 +569,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           storeAfterSlide ||
           // slid 类的会比执行得快的指令慢(mv),会被后来的指令修改 source2
           (vs2 === requestRegDequeue.bits.instruction(11, 7))) ||
-        ((unOrderType || requestReg.bits.vdIsV0) && !allSlotFree)) || (vd === 0.U && maskType && slotValid))
+        (unOrderType && !allSlotFree) ||
+        (requestReg.bits.vdIsV0 && existMaskType)) ||
+        (vd === 0.U && maskType && slotValid))
       when(requestRegDequeue.fire && instructionToSlotOH(index)) {
         writeBackCounter := 0.U
         groupCounter := 0.U
@@ -1281,6 +1287,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   /** Slot has free entries. */
   val free = VecInit(slots.map(_.state.idle)).asUInt
   allSlotFree := free.andR
+
+  existMaskType := VecInit(slots.map(slot => !slot.state.idle && slot.record.maskType)).asUInt.orR
 
   // instruction issue
   val free1H = ffo(free)
