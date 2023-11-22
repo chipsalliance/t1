@@ -13,7 +13,7 @@ import freechips.rocketchip.tile._
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util._
 import org.chipsalliance.cde.config._
-import org.chipsalliance.t1.rockettile.HasLazyT1
+import org.chipsalliance.t1.rockettile.{HasLazyT1, HasLazyT1Module}
 // TODO: remove it.
 import freechips.rocketchip.rocket.{BTBParams, DCacheParams, ICacheParams, RocketCoreParams}
 
@@ -145,11 +145,12 @@ class RocketTile private (
 
 class RocketTileModuleImp(outer: RocketTile)
     extends BaseTileModuleImp(outer)
-    with HasFpuOpt
-    with HasICacheFrontendModule {
+      with HasFpuOpt
+      with HasLazyT1Module
+      with HasICacheFrontendModule {
   Annotated.params(this, outer.rocketParams)
 
-  val core = Module(new Rocket(outer)(outer.p))
+  lazy val core = Module(new Rocket(outer)(outer.p))
 
   // Report unrecoverable error conditions; for now the only cause is cache ECC errors
   outer.reportHalt(List(outer.dcache.module.io.errors))
