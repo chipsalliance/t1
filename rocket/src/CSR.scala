@@ -217,13 +217,11 @@ class PerfCounterIO(implicit p: Parameters) extends CoreBundle with HasCoreParam
   val inc = Input(UInt(log2Ceil(1 + retireWidth).W))
 }
 
+// CSR Interface with decode stage, basically check illegal
 class CSRDecodeIO(implicit p: Parameters) extends CoreBundle {
   val inst = Input(UInt(iLen.W))
-
   def csrAddr = (inst >> 20)(CSR.ADDRSZ - 1, 0)
-
   val fpIllegal = Output(Bool())
-  val vectorIllegal = Output(Bool())
   val fpCsr = Output(Bool())
   val readIllegal = Output(Bool())
   val writeIllegal = Output(Bool())
@@ -282,73 +280,9 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle with HasCoreParameter
   val fiom = Output(Bool())
 }
 
-class VConfig(implicit p: Parameters) extends CoreBundle {
-  val vl = UInt((maxVLMax.log2 + 1).W)
-  val vtype = new VType
-}
-
-object VType {
-  def fromUInt(that: UInt, ignore_vill: Boolean = false)(implicit p: Parameters): VType = {
-    val res = 0.U.asTypeOf(new VType)
-    val in = that.asTypeOf(res)
-    val vill = (in.max_vsew.U < in.vsew) || !in.lmul_ok || in.reserved =/= 0.U || in.vill
-    when(!vill || ignore_vill.B) {
-      res := in
-      res.vsew := in.vsew(log2Ceil(1 + in.max_vsew) - 1, 0)
-    }
-    res.reserved := 0.U
-    res.vill := vill
-    res
-  }
-
-  def computeVL(
-    avl:          UInt,
-    vtype:        UInt,
-    currentVL:    UInt,
-    useCurrentVL: Bool,
-    useMax:       Bool,
-    useZero:      Bool
-  )(
-    implicit p: Parameters
-  ): UInt =
-    VType.fromUInt(vtype, true).vl(avl, currentVL, useCurrentVL, useMax, useZero)
-}
-
-class VType(implicit p: Parameters) extends CoreBundle {
-  val vill = Bool()
-  val reserved = UInt((xLen - 9).W)
-  val vma = Bool()
-  val vta = Bool()
-  val vsew = UInt(3.W)
-  val vlmul_sign = Bool()
-  val vlmul_mag = UInt(2.W)
-
-  def vlmul_signed: SInt = Cat(vlmul_sign, vlmul_mag).asSInt
-
-  @deprecated("use vlmul_sign, vlmul_mag, or vlmul_signed", "RVV 0.9")
-  def vlmul: UInt = vlmul_mag
-
-  def max_vsew = log2Ceil(eLen / 8)
-  def max_vlmul = (1 << vlmul_mag.getWidth) - 1
-
-  def lmul_ok: Bool = Mux(this.vlmul_sign, this.vlmul_mag =/= 0.U && ~this.vlmul_mag < max_vsew.U - this.vsew, true.B)
-
-  def minVLMax: Int = ((maxVLMax / eLen) >> ((1 << vlmul_mag.getWidth) - 1)).max(1)
-
-  def vlMax: UInt = (maxVLMax.U >> (this.vsew +& Cat(this.vlmul_sign, ~this.vlmul_mag))).andNot((minVLMax - 1).U)
-
-  def vl(avl: UInt, currentVL: UInt, useCurrentVL: Bool, useMax: Bool, useZero: Bool): UInt = {
-    val atLeastMaxVLMax = useMax || Mux(useCurrentVL, currentVL >= maxVLMax.U, avl >= maxVLMax.U)
-    val avl_lsbs = Mux(useCurrentVL, currentVL, avl)(maxVLMax.log2 - 1, 0)
-
-    val atLeastVLMax =
-      atLeastMaxVLMax || (avl_lsbs & (-maxVLMax.S >> (this.vsew +& Cat(this.vlmul_sign, ~this.vlmul_mag))).asUInt
-        .andNot((minVLMax - 1).U)).orR
-    val isZero = vill || useZero
-    Mux(!isZero && atLeastVLMax, vlMax, 0.U) | Mux(!isZero && !atLeastVLMax, avl_lsbs, 0.U)
-  }
-}
-
+/**
+  * https://github.com/riscv/riscv-isa-manual/blob/main/src/zicsr.adoc
+  */
 class CSRFile(
   perfEventSets: EventSets = new EventSets(Seq()),
   customCSRs:    Seq[CustomCSR] = Nil
@@ -356,6 +290,8 @@ class CSRFile(
   implicit p: Parameters)
     extends CoreModule()(p)
     with HasCoreParameters {
+  val vector = Option.when(usingVector)(new csr.V(vLen, usingHypervisor))
+
   val io = IO(new CSRFileIO {
     val customCSRs = Vec(CSRFile.this.customCSRs.size, new CustomCSRIO)
   })
@@ -619,6 +555,7 @@ class CSRFile(
       (if (usingAtomics) "A" else "") +
       (if (fLen >= 32) "F" else "") +
       (if (fLen >= 64) "D" else "") +
+      (if (usingVector) "V" else "") +
       (if (usingCompressed) "C" else "")
   val isaString = (if (coreParams.useRVE) "E" else "I") +
     isaMaskString +
@@ -628,7 +565,10 @@ class CSRFile(
     (if (usingUser) "U" else "")
   val isaMax = (BigInt(log2Ceil(xLen) - 4) << (xLen - 2)) | isaStringToMask(isaString)
   val reg_misa = RegInit(isaMax.U)
-  val read_mstatus = io.status.asUInt.extract(xLen - 1, 0)
+  // I(sequencer) do hate the original implmentation, so I mask original read_mstatus
+  val read_mstatus =
+    io.status.asUInt(xLen - 1, 0) & ((-1.S(xLen.W).asUInt) & (~(3.U(2.W) << 9)).asUInt) |
+      vector.map(vector => vector.states("mstatus.VS") << 9).getOrElse(0.U(2.W))
   val read_mtvec = formTVec(reg_mtvec).padTo(xLen)
   val read_stvec = formTVec(reg_stvec).sextTo(xLen)
 
@@ -687,6 +627,19 @@ class CSRFile(
   read_mapping ++= nmi_csrs
   read_mapping ++= context_csrs
   read_mapping ++= fp_csrs
+
+  // Vector read CSR logic injection
+  vector.foreach { v =>
+    read_mapping ++= LinkedHashMap[Int, Bits](
+      CSRs.vxsat -> v.states("vxsat"),
+      CSRs.vxrm -> v.states("vxrm"),
+      CSRs.vcsr -> v.states("vxrm") ## v.states("vxsat"),
+      CSRs.vstart -> v.states("vstart"),
+      CSRs.vtype -> v.states("vlmul") ## v.states("vsew") ## v.states("vta") ## v.states("vma") ## 0.U(23.W) ## v.states("vill"),
+      CSRs.vl -> v.states("vl"),
+      CSRs.vlenb -> v.constants("vlenb")
+    )
+  }
 
   if (coreParams.haveBasicCounters) {
     read_mapping += CSRs.mcountinhibit -> reg_mcountinhibit
@@ -898,17 +851,22 @@ class CSRFile(
       (!usingSupervisor.B || reg_mstatus.prv >= PRV.S.U || read_scounteren(counter_addr)) &&
       (!usingHypervisor.B || !reg_mstatus.v || read_hcounteren(counter_addr))
     io_dec.fpIllegal := io.status.fs === 0.U || reg_mstatus.v && reg_vsstatus.fs === 0.U || !reg_misa('f' - 'a')
-    io_dec.vectorIllegal := io.status.vs === 0.U || reg_mstatus.v && reg_vsstatus.vs === 0.U || !reg_misa('v' - 'a')
     io_dec.fpCsr := decodeFast(fp_csrs.keys.toList)
     val csr_addr_legal = reg_mstatus.prv >= CSR.mode(addr) ||
       usingHypervisor.B && !reg_mstatus.v && reg_mstatus.prv === PRV.S.U && CSR.mode(addr) === PRV.H.U
     val csr_exists = decodeAny(read_mapping)
     io_dec.readIllegal := !csr_addr_legal ||
-    !csr_exists ||
-    ((addr === CSRs.satp.U || addr === CSRs.hgatp.U) && !allow_sfence_vma) ||
-    is_counter && !allow_counter ||
-    decodeFast(debug_csrs.keys.toList) && !reg_debug ||
-    io_dec.fpCsr && io_dec.fpIllegal
+      !csr_exists ||
+      ((addr === CSRs.satp.U || addr === CSRs.hgatp.U) && !allow_sfence_vma) ||
+      is_counter && !allow_counter ||
+      decodeFast(debug_csrs.keys.toList) && !reg_debug ||
+      io_dec.fpCsr && io_dec.fpIllegal ||
+      // vector read CSR illegal: if address is in the vector CSR,
+      vector.map(vector =>
+        decodeFast(Seq(CSRs.vxsat, CSRs.vxrm, CSRs.vcsr, CSRs.vstart, CSRs.vtype, CSRs.vl, CSRs.vlenb)) &&
+          vector.states("mstatus.VS") === 0.U &&
+          !reg_misa('v' - 'a')
+      ).getOrElse(false.B)
     io_dec.writeIllegal := addr(11, 10).andR
     io_dec.writeFlush := {
       val addr_m = addr | (PRV.M.U << CSR.modeLSB)
@@ -1247,6 +1205,8 @@ class CSRFile(
       }
 
       if (usingSupervisor || usingFPU) reg_mstatus.fs := formFS(new_mstatus.fs)
+
+      vector.map(vector => vector.states("mstatus.VS") := new_mstatus.vs)
     }
     when(decoded_addr(CSRs.misa)) {
       val mask = isaStringToMask(isaMaskString).U(xLen.W)
