@@ -40,7 +40,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   require(!(coreParams.useRVE && coreParams.useHypervisor), "Can't select both RVE and Hypervisor")
 
   // Parameters
-  def usingVectorT1 = true
   val pipelinedMul: Boolean = usingMulDiv && mulDivParams.mulUnroll == xLen
   val decoder: InstructionDecoder = new org.chipsalliance.t1.rocketcore.InstructionDecoder(
     org.chipsalliance.t1.rocketcore.InstructionDecoderParameter(
@@ -90,7 +89,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
             case s if s.contains("rv_sdext") => usingDebug
 
             // T1 Vector
-            case s if s.contains("rv_v") => usingVectorT1
+            case s if s.contains("rv_v") => usingVector
             // unratified but supported.
             case s if s.contains("rv_zicond") => usingConditionalZero
             // custom
@@ -125,11 +124,11 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   val cease = IO(Output(Bool()))
   val wfi = IO(Output(Bool()))
   val traceStall = IO(Input(Bool()))
-  val t1Request = Option.when(usingVectorT1)(IO(Valid(new VectorRequest(xLen))))
-  val t1Response = Option.when(usingVectorT1)(IO(Flipped(Valid(new VectorResponse(xLen)))))
+  val t1Request = Option.when(usingVector)(IO(Valid(new VectorRequest(xLen))))
+  val t1Response = Option.when(usingVector)(IO(Flipped(Valid(new VectorResponse(xLen)))))
   // logic for T1
-  val t1IssueQueueFull = Option.when(usingVectorT1)(IO(Output(Bool())))
-  val t1IssueQueueEmpty = Option.when(usingVectorT1)(IO(Output(Bool())))
+  val t1IssueQueueFull = Option.when(usingVector)(IO(Output(Bool())))
+  val t1IssueQueueEmpty = Option.when(usingVector)(IO(Output(Bool())))
 
 
   // Signal outside from internal clock domain.
@@ -765,7 +764,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val wbSetSboard: Bool =
       wbDcacheMiss ||
         Option.when(usingMulDiv)(wbRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
-        Option.when(usingVectorT1)(wbRegDecodeOutput(decoder.isVector)).getOrElse(false.B)
+        Option.when(usingVector)(wbRegDecodeOutput(decoder.isVector)).getOrElse(false.B)
     val replayWbCommon: Bool = dmem.s2_nack || wbRegReplay
     val replayWbCsr:    Bool = wbRegValid && csr.io.rwStall
     val replayWb:       Bool = replayWbCommon || replayWbCsr
