@@ -6,16 +6,15 @@ package org.chipsalliance.t1.rocketcore
 import chisel3._
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.cde.config.{Field, Parameters}
 import freechips.rocketchip.util._
-import freechips.rocketchip.util.property
+import org.chipsalliance.cde.config.{Field, Parameters}
 import org.chipsalliance.t1.rockettile.{VectorRequest, VectorResponse}
 
 import scala.collection.mutable.ArrayBuffer
 
 // TODO: remove it.
-import freechips.rocketchip.tile.{CoreInterrupts, CustomCSR, CustomCSRs, FPUCoreIO, HasCoreParameters, TraceBundle}
-import freechips.rocketchip.rocket.{CSRs, Causes, MulDivParams, RocketCoreParams}
+import freechips.rocketchip.rocket.{Causes, MulDivParams, RocketCoreParams}
+import freechips.rocketchip.tile.{CoreInterrupts, FPUCoreIO, HasCoreParameters}
 
 case object RISCVOpcodesPath extends Field[os.Path]
 
