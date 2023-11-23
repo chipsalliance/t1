@@ -15,7 +15,7 @@ jobs:
     outputs:
       ci-tests: ${{ steps.ci-tests.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: sudo -E .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
@@ -49,7 +49,7 @@ jobs:
     outputs:
       result: ${{ steps.ci-run.outputs.result }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: sudo -E .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
@@ -115,7 +115,7 @@ jobs:
     runs-on: [self-hosted, linux]
     needs: report
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: master
