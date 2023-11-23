@@ -222,6 +222,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** for RaW, VRF should wait for cross write bus to be empty. */
   val crossWriteBusClear: Bool = IO(Input(Bool()))
 
+  /** How many dataPath will writ by instruction in this lane */
+  val writeCount: UInt =
+    IO(Input(UInt((log2Ceil(parameter.vlMax) - log2Ceil(parameter.laneNumber) - log2Ceil(parameter.dataPathByteWidth)).W)))
   val writeQueueValid: Bool = IO(Output(Bool()))
   val writeReadyForLsu: Bool = IO(Output(Bool()))
   val vrfReadyToStore: Bool = IO(Output(Bool()))
@@ -1046,7 +1049,42 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.stFinish := false.B
   vrf.instructionWriteReport.bits.wWriteQueueClear := false.B
   vrf.instructionWriteReport.bits.mul := Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
-  vrf.instructionWriteReport.bits.maskGroupCounter := 0.U
+
+  val elementSizeForOneRegister: Int = parameter.vLen / parameter.datapathWidth / parameter.laneNumber
+  val nrMask: UInt = VecInit(Seq.tabulate(8){ i =>
+    Fill(elementSizeForOneRegister, laneRequest.bits.segment < i.U)
+  }).asUInt
+  println(writeCount.getWidth, parameter.vrfParam.elementSize)
+  // writeCount
+  val lastWriteOH: UInt = scanLeftOr(UIntToOH(writeCount)(parameter.vrfParam.elementSize - 1, 0))
+
+  // segment ls type
+  val segmentLS: Bool = laneRequest.bits.loadStore && laneRequest.bits.segment.orR
+  // 0 -> 1, 1 -> 2, 2 -> 4, 4 -> 8
+  val mul: UInt = Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
+  val mul1H: UInt = UIntToOH(mul)
+  val seg1H: UInt = UIntToOH(laneRequest.bits.segment)
+  val segmentMask: UInt =
+    calculateSegmentWriteMask(parameter.datapathWidth, parameter.laneNumber, elementSizeForOneRegister)(
+      seg1H, mul1H, lastWriteOH
+    )
+
+  val selectMask: UInt = Mux(
+    segmentLS,
+    segmentMask,
+    Mux(
+      laneRequest.bits.decodeResult(Decoder.nr),
+      nrMask,
+      lastWriteOH
+    )
+  )
+  val shifterMask: UInt = (
+    ((selectMask ## Fill(32, true.B))
+      << laneRequest.bits.vd(2, 0) ## 0.U(log2Ceil(elementSizeForOneRegister).W))
+      >> 32).asUInt
+
+  vrf.instructionWriteReport.bits.elementMask := shifterMask
+
   // clear record by instructionFinished
   vrf.lsuLastReport := lsuLastReport | (instructionFinished & instructionUnrelatedMaskUnitVec.reduce(_ | _))
   vrf.lsuMaskGroupChange := lsuMaskGroupChange

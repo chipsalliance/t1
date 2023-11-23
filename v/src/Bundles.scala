@@ -511,8 +511,9 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val slow: Bool = Bool()
   // csr 如果是浮点的就校正为0
   val mul: UInt = UInt(2.W)
-  // 当前是lsu的哪一个mask group
-  val maskGroupCounter: UInt = UInt(param.maskGroupCounterBits.W)
+  // which element will access(write or store read)
+  // true: No access or access has been completed
+  val elementMask: UInt = UInt(param.elementSize.W)
 }
 
 /** 为了decode, 指令需要在入口的时候打一拍, 这是需要保存的信息 */
@@ -527,6 +528,9 @@ class InstructionPipeBundle(parameter: VParameter) extends Bundle {
   val csr = new CSRInterface(parameter.laneParam.vlMaxBits)
   // 有写v0的风险
   val vdIsV0: Bool = Bool()
+
+  // How many bytes of registers will be written by one instruction?
+  val writeByte: UInt = UInt(parameter.laneParam.vlMaxBits.W)
 }
 
 class LSUWriteQueueBundle(param: LSUParam) extends Bundle {

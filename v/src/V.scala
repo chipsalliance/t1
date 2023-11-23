@@ -216,6 +216,16 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     // vd === 0 && not store type
     requestReg.bits.vdIsV0 := (request.bits.instruction(11, 7) === 0.U) &&
       (request.bits.instruction(6) || !request.bits.instruction(5))
+    requestReg.bits.writeByte := Mux(
+      decode.decodeResult(Decoder.red),
+      // Must be smaller than dataPath
+      1.U,
+      Mux(
+        decode.decodeResult(Decoder.maskDestination),
+        (csrInterface.vl >> 3).asUInt + csrInterface.vl(2, 0).orR,
+        csrInterface.vl << csrInterface.vSew
+      )
+    )
   }
   // 0 0 -> don't update
   // 0 1 -> update to false
@@ -252,7 +262,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   // TODO: these should be decoding results
   /** load store that don't read offset. */
   val noOffsetReadLoadStore: Bool = isLoadStoreType && (!requestRegDequeue.bits.instruction(26))
-  val indexTypeLS:           Bool = isLoadStoreType && requestRegDequeue.bits.instruction(26)
 
   val vSew1H: UInt = UIntToOH(requestReg.bits.csr.vSew)
   val source1Extend: UInt = Mux1H(
@@ -1229,6 +1238,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.lsuMaskGroupChange := lsu.lsuMaskGroupChange
     lane.lsuVRFWriteBufferClear := !lsu.vrfWritePort(index).valid
     lane.crossWriteBusClear := busClear
+    // 2 + 3 = 5
+    val rowWith: Int = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
+    lane.writeCount :=
+      (requestReg.bits.writeByte >> rowWith).asUInt +
+        (requestReg.bits.writeByte(rowWith - 1, 0) > ((parameter.datapathWidth / 8) * index).U)
 
     // 处理lane的mask类型请求
     laneSynchronize(index) := lane.laneResponse.valid && !lane.laneResponse.bits.toLSU
