@@ -217,23 +217,6 @@ class PerfCounterIO(implicit p: Parameters) extends CoreBundle with HasCoreParam
   val inc = Input(UInt(log2Ceil(1 + retireWidth).W))
 }
 
-class TracedInstruction(implicit p: Parameters) extends CoreBundle {
-  val valid = Bool()
-  val iaddr = UInt(coreMaxAddrBits.W)
-  val insn = UInt(iLen.W)
-  val priv = UInt(3.W)
-  val exception = Bool()
-  val interrupt = Bool()
-  val cause = UInt(xLen.W)
-  val tval = UInt((coreMaxAddrBits.max(iLen)).W)
-  val wdata = Option.when(traceHasWdata)(UInt((vLen.max(xLen)).W))
-}
-
-class TraceAux extends Bundle {
-  val enable = Bool()
-  val stall = Bool()
-}
-
 class CSRDecodeIO(implicit p: Parameters) extends CoreBundle {
   val inst = Input(UInt(iLen.W))
 
@@ -294,7 +277,6 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle with HasCoreParameter
   val csrwCounter = Output(UInt(CSR.nCtr.W))
   val inhibitCycle = Output(Bool())
   val inst = Input(Vec(retireWidth, UInt(iLen.W)))
-  val trace = Output(Vec(retireWidth, new TracedInstruction))
   val mcontext = Output(UInt(coreParams.mcontextWidth.W))
   val scontext = Output(UInt(coreParams.scontextWidth.W))
   val fiom = Output(Bool())
@@ -1673,18 +1655,6 @@ class CSRFile(
   for (pmp <- reg_pmp) {
     pmp.cfg.res := 0.U
     when(reset.asBool) { pmp.reset() }
-  }
-
-  for (((t, insn), i) <- (io.trace.zip(io.inst)).zipWithIndex) {
-    t.exception := io.retire >= i.U && exception
-    t.valid := io.retire > i.U || t.exception
-    t.insn := insn
-    t.iaddr := io.pc
-    t.priv := Cat(reg_debug, reg_mstatus.prv)
-    t.cause := cause
-    t.interrupt := cause(xLen - 1)
-    t.tval := io.tval
-    t.wdata.foreach(_ := DontCare)
   }
 
   def chooseInterrupt(masksIn: Seq[UInt]): (Bool, UInt) = {
