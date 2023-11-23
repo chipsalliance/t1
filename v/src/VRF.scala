@@ -77,6 +77,8 @@ case class VRFParam(
 
   val vlWidth: Int = log2Ceil(vLen)
 
+  val elementSize: Int = vLen * 8 / datapathWidth / laneNumber
+
   /** Parameter for [[RegFile]] */
   def rfParam: RFParam = RFParam(rfDepth, width = ramWidth)
 }
