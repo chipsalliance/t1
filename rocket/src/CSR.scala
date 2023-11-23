@@ -280,16 +280,6 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle with HasCoreParameter
   val mcontext = Output(UInt(coreParams.mcontextWidth.W))
   val scontext = Output(UInt(coreParams.scontextWidth.W))
   val fiom = Output(Bool())
-
-  val vector = usingVector.option(new Bundle {
-    val vconfig = Output(new VConfig())
-    val vstart = Output(UInt(maxVLMax.log2.W))
-    val vxrm = Output(UInt(2.W))
-    val set_vs_dirty = Input(Bool())
-    val set_vconfig = Flipped(Valid(new VConfig))
-    val set_vstart = Flipped(Valid(vstart))
-    val set_vxsat = Input(Bool())
-  })
 }
 
 class VConfig(implicit p: Parameters) extends CoreBundle {
@@ -561,10 +551,6 @@ class CSRFile(
 
   val reg_fflags = Reg(UInt(5.W))
   val reg_frm = Reg(UInt(3.W))
-  val reg_vconfig = usingVector.option(Reg(new VConfig))
-  val reg_vstart = usingVector.option(Reg(UInt(maxVLMax.log2.W)))
-  val reg_vxsat = usingVector.option(Reg(Bool()))
-  val reg_vxrm = usingVector.option(Reg(UInt(io.vector.get.vxrm.getWidth.W)))
 
   val reg_mcountinhibit = RegInit(0.U((CSR.firstHPM + nPerfCounters).W))
   io.inhibitCycle := reg_mcountinhibit(0)
@@ -633,7 +619,6 @@ class CSRFile(
       (if (usingAtomics) "A" else "") +
       (if (fLen >= 32) "F" else "") +
       (if (fLen >= 64) "D" else "") +
-      (if (usingVector) "V" else "") +
       (if (usingCompressed) "C" else "")
   val isaString = (if (coreParams.useRVE) "E" else "I") +
     isaMaskString +
@@ -696,27 +681,12 @@ class CSRFile(
   val fp_csrs = LinkedHashMap[Int, Bits]() ++
     usingFPU.option(CSRs.fflags -> reg_fflags) ++
     usingFPU.option(CSRs.frm -> reg_frm) ++
-    (usingFPU || usingVector).option(CSRs.fcsr -> read_fcsr)
-
-  val read_vcsr = Cat(reg_vxrm.getOrElse(0.U), reg_vxsat.getOrElse(0.U))
-  val vector_csrs =
-    if (!usingVector) LinkedHashMap()
-    else
-      LinkedHashMap[Int, Bits](
-        CSRs.vxsat -> reg_vxsat.get,
-        CSRs.vxrm -> reg_vxrm.get,
-        CSRs.vcsr -> read_vcsr,
-        CSRs.vstart -> reg_vstart.get,
-        CSRs.vtype -> reg_vconfig.get.vtype.asUInt,
-        CSRs.vl -> reg_vconfig.get.vl,
-        CSRs.vlenb -> (vLen / 8).U
-      )
+    usingFPU.option(CSRs.fcsr -> read_fcsr)
 
   read_mapping ++= debug_csrs
   read_mapping ++= nmi_csrs
   read_mapping ++= context_csrs
   read_mapping ++= fp_csrs
-  read_mapping ++= vector_csrs
 
   if (coreParams.haveBasicCounters) {
     read_mapping += CSRs.mcountinhibit -> reg_mcountinhibit
@@ -938,7 +908,6 @@ class CSRFile(
     ((addr === CSRs.satp.U || addr === CSRs.hgatp.U) && !allow_sfence_vma) ||
     is_counter && !allow_counter ||
     decodeFast(debug_csrs.keys.toList) && !reg_debug ||
-    decodeFast(vector_csrs.keys.toList) && io_dec.vectorIllegal ||
     io_dec.fpCsr && io_dec.fpIllegal
     io_dec.writeIllegal := addr(11, 10).andR
     io_dec.writeFlush := {
@@ -1223,15 +1192,6 @@ class CSRFile(
     }
   })
 
-  val set_vs_dirty = WireDefault(io.vector.map(_.set_vs_dirty).getOrElse(false.B))
-  io.vector.foreach { vio =>
-    when(set_vs_dirty) {
-      assert(reg_mstatus.vs > 0.U)
-      when(reg_mstatus.v) { reg_vsstatus.vs := 3.U }
-      reg_mstatus.vs := 3.U
-    }
-  }
-
   val set_fs_dirty = WireDefault(io.setFsDirty.getOrElse(false.B))
   if (coreParams.haveFSDirty) {
     when(set_fs_dirty) {
@@ -1245,13 +1205,6 @@ class CSRFile(
   when(io.fcsrFlags.valid) {
     reg_fflags := reg_fflags | io.fcsrFlags.bits
     set_fs_dirty := true.B
-  }
-
-  io.vector.foreach { vio =>
-    when(vio.set_vxsat) {
-      reg_vxsat.get := true.B
-      set_vs_dirty := true.B
-    }
   }
 
   val csr_wen = io.rw.cmd.isOneOf(CSR.S, CSR.C, CSR.W) && !io.rwStall
@@ -1294,7 +1247,6 @@ class CSRFile(
       }
 
       if (usingSupervisor || usingFPU) reg_mstatus.fs := formFS(new_mstatus.fs)
-      reg_mstatus.vs := formVS(new_mstatus.vs)
     }
     when(decoded_addr(CSRs.misa)) {
       val mask = isaStringToMask(isaMaskString).U(xLen.W)
@@ -1386,7 +1338,6 @@ class CSRFile(
         reg_mstatus.spie := new_sstatus.spie
         reg_mstatus.spp := new_sstatus.spp
         reg_mstatus.fs := formFS(new_sstatus.fs)
-        reg_mstatus.vs := formVS(new_sstatus.vs)
         if (usingVM) {
           reg_mstatus.mxr := new_sstatus.mxr
           reg_mstatus.sum := new_sstatus.sum
@@ -1466,7 +1417,6 @@ class CSRFile(
         reg_vsstatus.mxr := new_vsstatus.mxr
         reg_vsstatus.sum := new_vsstatus.sum
         reg_vsstatus.fs := formFS(new_vsstatus.fs)
-        reg_vsstatus.vs := formVS(new_vsstatus.vs)
       }
       when(decoded_addr(CSRs.vsip)) {
         val new_vsip = ((read_hip & ~read_hideleg) | ((wdata << 1) & read_hideleg)).asTypeOf(new MIP())
@@ -1557,16 +1507,6 @@ class CSRFile(
       writeCustomCSR(io, csr, reg)
     }
 
-    if (usingVector) {
-      when(decoded_addr(CSRs.vstart)) { set_vs_dirty := true.B; reg_vstart.get := wdata }
-      when(decoded_addr(CSRs.vxrm)) { set_vs_dirty := true.B; reg_vxrm.get := wdata }
-      when(decoded_addr(CSRs.vxsat)) { set_vs_dirty := true.B; reg_vxsat.get := wdata }
-      when(decoded_addr(CSRs.vcsr)) {
-        set_vs_dirty := true.B
-        reg_vxsat.get := wdata
-        reg_vxrm.get := wdata >> 1
-      }
-    }
   }
 
   def setCustomCSR(io: CustomCSRIO, csr: CustomCSR, reg: UInt) = {
@@ -1577,27 +1517,6 @@ class CSRFile(
   }
   for ((io, csr, reg) <- (io.customCSRs, customCSRs, reg_custom).zipped) {
     setCustomCSR(io, csr, reg)
-  }
-
-  io.vector.map { vio =>
-    when(vio.set_vconfig.valid) {
-      // user of CSRFile is responsible for set_vs_dirty in this case
-      assert(vio.set_vconfig.bits.vl <= vio.set_vconfig.bits.vtype.vlMax)
-      reg_vconfig.get := vio.set_vconfig.bits
-    }
-    when(vio.set_vstart.valid) {
-      set_vs_dirty := true.B
-      reg_vstart.get := vio.set_vstart.bits
-    }
-    vio.vstart := reg_vstart.get
-    vio.vconfig := reg_vconfig.get
-    vio.vxrm := reg_vxrm.get
-
-    when(reset.asBool) {
-      reg_vconfig.get.vl := 0.U
-      reg_vconfig.get.vtype := 0.U.asTypeOf(new VType)
-      reg_vconfig.get.vtype.vill := true.B
-    }
   }
 
   when(reset.asBool) {
@@ -1695,5 +1614,4 @@ class CSRFile(
   def formTVec(x:        UInt) = x.andNot(Mux(x(0), ((((BigInt(1) << mtvecInterruptAlign) - 1) << mtvecBaseAlign) | 2).U, 2.U))
   def isaStringToMask(s: String) = s.map(x => 1 << (x - 'A')).foldLeft(0)(_ | _)
   def formFS(fs:         UInt) = if (coreParams.haveFSDirty) fs else Fill(2, fs.orR)
-  def formVS(vs:         UInt) = if (usingVector) vs else 0.U
 }
