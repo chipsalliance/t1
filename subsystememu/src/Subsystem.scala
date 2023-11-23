@@ -24,11 +24,15 @@ class VerdesConfig
       case XLen => 32
       case TilesLocated(InSubsystem) =>
         val tiny = RocketTileParams(
-          core = RocketCoreParams(
+          core = new RocketCoreParams(
             haveSimTimeout = false,
             useVM = false,
             fpu = None,
-            mulDiv = Some(MulDivParams(mulUnroll = 8))),
+            mulDiv = Some(MulDivParams(mulUnroll = 8))) {
+            // hot fix
+            override val useVector = true
+            override def vLen = 1024
+          },
           btb = None,
           dcache = Some(DCacheParams(
             rowBits = site(SystemBusKey).beatBits,
