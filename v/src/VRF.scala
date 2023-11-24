@@ -164,6 +164,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val chainingRecord: Vec[ValidIO[VRFWriteReport]] = RegInit(
     VecInit(Seq.fill(parameter.chainingSize)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
   )
+  val recordValidVec: Seq[Bool] = chainingRecord.map(r => !r.bits.elementMask.andR && r.valid)
 
   def rawCheck(before: VRFWriteReport, after: VRFWriteReport): Bool = {
     before.vd.valid &&
@@ -181,27 +182,22 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     * @param record : 要做比对的指令的记录
     * todo: 维护冲突表,免得每次都要算一次
     */
-  def chainingCheck(read: VRFReadRequest, readRecord: VRFWriteReport, record: ValidIO[VRFWriteReport]): Bool = {
+  def chainingCheck(read: VRFReadRequest, readRecord: VRFWriteReport,
+                    record: ValidIO[VRFWriteReport], recordValid: Bool): Bool = {
     // 先看新老
     val older = instIndexL(read.instructionIndex, record.bits.instIndex)
     val sameInst = read.instructionIndex === record.bits.instIndex
-
-    val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
-    val vsBaseMask: UInt = 3.U(2.W) ## (~vsOffsetMask).asUInt
-    // todo: 处理双倍的
-    val vs:       UInt = read.vs & vsBaseMask
-    val vsOffset: UInt = read.vs & vsOffsetMask
+    val readOH = UIntToOH((read.vs ## read.offset)(4, 0))
+    val hitElement: Bool = (readOH & record.bits.elementMask) === 0.U
     val vd = readRecord.vd.bits
 
-    val raw: Bool = record.bits.vd.valid && (vs === record.bits.vd.bits) &&
-      !regOffsetCheck(record.bits.vdOffset, record.bits.offset, vsOffset, read.offset)
+    val raw: Bool = record.bits.vd.valid && (read.vs(4, 3) === record.bits.vd.bits) && hitElement
     val waw: Bool = readRecord.vd.valid && record.bits.vd.valid && readRecord.vd.bits === record.bits.vd.bits &&
-      !regOffsetCheck(record.bits.vdOffset, record.bits.offset, vsOffset, read.offset)
-    val offsetCheckFail: Bool = !regOffsetCheck(record.bits.vdOffset, record.bits.offset, vsOffset, read.offset)
+      hitElement
     val war: Bool = readRecord.vd.valid &&
       (((vd === record.bits.vs1.bits) && record.bits.vs1.valid) || (vd === record.bits.vs2) ||
-        ((vd === record.bits.vd.bits) && record.bits.ma)) && offsetCheckFail
-    !((!older && (waw || raw || war)) && !sameInst && record.valid)
+        ((vd === record.bits.vd.bits) && record.bits.ma)) && hitElement
+    !((!older && (waw || raw || war)) && !sameInst && recordValid)
   }
 
   def enqCheck(enq: VRFWriteReport, record: ValidIO[VRFWriteReport]): Bool = {
@@ -238,7 +234,10 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       // 先找到自的record
       val readRecord =
         Mux1H(chainingRecord.map(_.bits.instIndex === v.bits.instructionIndex), chainingRecord.map(_.bits))
-      val checkResult:  Bool = chainingRecord.map(r => chainingCheck(v.bits, readRecord, r)).reduce(_ && _)
+      val checkResult:  Bool =
+        chainingRecord.zip(recordValidVec).map {
+          case (r, f) => chainingCheck(v.bits, readRecord, r, f)
+        }.reduce(_ && _)
       val validCorrect: Bool = if (i == 0) v.valid else v.valid && checkResult
       // select bank
       val bank = if (parameter.rfBankNum == 1) true.B else UIntToOH(v.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
@@ -292,17 +291,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val writeOH: UInt = UIntToOH((write.bits.vd ## write.bits.offset)(4, 0))
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
-      val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
-      // vlmul (0, 1, 2, 3) -> mul (1, 2, 4, 8) -> base vd (vd, vd + (0, 1), vd + (0, 3), vd + (0, 7 ))
-      val segCheck = ((write.bits.vd ^ record.bits.vd.bits) >> record.bits.mul === 0.U) || record.bits.seg.valid
       val dataIndexWriteQueue = ohCheck(dataInWriteQueue, record.bits.instIndex, parameter.chainingSize)
-      when(
-        write.valid  && segCheck &&
-          write.bits.instructionIndex === record.bits.instIndex && write.bits.mask(3)
-      ) {
-        // widen 类型的可能后一个先到,所以直接-1吧
-        record.bits.offset := Mux(write.bits.offset === 0.U, write.bits.offset, write.bits.offset - 1.U)
-        record.bits.vdOffset := vsOffsetMask & write.bits.vd
+      when(write.fire && write.bits.instructionIndex === record.bits.instIndex && write.bits.mask(3)) {
         record.bits.elementMask := record.bits.elementMask | writeOH
       }
       when(ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)) {
@@ -369,19 +359,14 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     isLoad && sameIndex && record.valid
   }.reduce(_ || _)
 
+  val writeCheckOH: UInt = UIntToOH((lsuWriteCheck.vd ## lsuWriteCheck.offset)(4, 0))
   lsuWriteAllow := chainingRecord.map { record =>
     // 先看新老
     val older = instIndexL(lsuWriteCheck.instructionIndex, record.bits.instIndex)
     val sameInst = lsuWriteCheck.instructionIndex === record.bits.instIndex
 
-    val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
-    val vsBaseMask: UInt = 3.U(2.W) ## (~vsOffsetMask).asUInt
-    // todo: 处理双倍的
-    val writeVsBase: UInt = lsuWriteCheck.vd & vsBaseMask
-    val vsOffset: UInt = lsuWriteCheck.vd & vsOffsetMask
-
-    val waw: Bool = record.bits.vd.valid && writeVsBase === record.bits.vd.bits &&
-      !regOffsetCheck(record.bits.vdOffset, record.bits.offset, vsOffset, lsuWriteCheck.offset)
+    val waw: Bool = record.bits.vd.valid && lsuWriteCheck.vd(4, 3) === record.bits.vd.bits &&
+      (writeCheckOH & record.bits.elementMask) === 0.U
     !((!older && waw) && !sameInst && record.valid)
   }.reduce(_ && _) || !isLoadCheck
 }

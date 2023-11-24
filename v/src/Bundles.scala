@@ -490,12 +490,11 @@ class LSUWriteCheck(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int,
 }
 
 class VRFWriteReport(param: VRFParam) extends Bundle {
-  val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
-  val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
-  val vs2:       UInt = UInt(param.regNumBits.W)
+  // 8 reg/group; which group?
+  val vd:        ValidIO[UInt] = Valid(UInt(2.W))
+  val vs1:       ValidIO[UInt] = Valid(UInt(2.W))
+  val vs2:       UInt = UInt(2.W)
   val instIndex: UInt = UInt(param.instructionIndexBits.W)
-  val vdOffset:  UInt = UInt(3.W)
-  val offset:    UInt = UInt(param.vrfOffsetBits.W)
   val seg:       ValidIO[UInt] = Valid(UInt(3.W))
   val eew:       UInt = UInt(2.W)
   val ls:        Bool = Bool()
