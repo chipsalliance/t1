@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 
 struct uartlite_regs {
     volatile unsigned int rx_fifo;
@@ -27,14 +28,14 @@ void uart_put_hex_d(uint64_t x) {
     }
 }
 
-extern char* heap_end;
+extern char* heap_start;
 char *heap_ptr;
 
 char *_sbrk(int nbytes) {
   char *base;
 
   if (!heap_ptr)
-    heap_ptr = (char *)&heap_end;
+    heap_ptr = (char *)&heap_start;
   base = heap_ptr;
   heap_ptr += nbytes;
 
