@@ -289,6 +289,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     0.U(parameter.chainingSize.W)
   )
 
+  val writeOH: UInt = UIntToOH((write.bits.vd ## write.bits.offset)(4, 0))
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
       val vsOffsetMask = record.bits.mul.andR ## record.bits.mul(1) ## record.bits.mul.orR
@@ -302,6 +303,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         // widen 类型的可能后一个先到,所以直接-1吧
         record.bits.offset := Mux(write.bits.offset === 0.U, write.bits.offset, write.bits.offset - 1.U)
         record.bits.vdOffset := vsOffsetMask & write.bits.vd
+        record.bits.elementMask := record.bits.elementMask | writeOH
       }
       when(ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)) {
         when(record.bits.ls) {
