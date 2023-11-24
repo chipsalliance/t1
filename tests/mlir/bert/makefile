@@ -30,17 +30,20 @@ bert.S: bert-with-weights.mlir
 		--reconcile-unrealized-casts | \
 	buddy-translate --mlir-to-llvmir | \
 	buddy-llc -O3 -mtriple riscv32 -target-abi ilp32 \
-		-mattr=+m,+d,+v -filetype=asm -riscv-v-vector-bits-min=128 \
+		-mattr=+m,+v,+zve32f -filetype=asm -riscv-v-vector-bits-min=128 \
 		-o $@
 
-sys.o: ../lib/sys.c 
+sys.o: ../lib/sys.c
 	$(CC) $^ $(CFLAGS) -c -o $@
 
 entry.o: entry.cpp
 	$(CXX) $^ $(CFLAGS) -c -o $@
 
-bert.elf: sys.o entry.o bert.S ../main.S
+bert.elf: entry.o bert.S sys.o ../main.S
 	$(CC)  $^ $(LDFLAGS) -o $@
+
+newlib_test.elf: sys.o ../main.S ../newlib_test.c
+	$(CC) $^ $(LDFLAGS) -o $@
 
 .PHONY: clean
 clean:
