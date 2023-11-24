@@ -224,7 +224,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** How many dataPath will writ by instruction in this lane */
   val writeCount: UInt =
-    IO(Input(UInt((log2Ceil(parameter.vlMax) - log2Ceil(parameter.laneNumber) - log2Ceil(parameter.dataPathByteWidth)).W)))
+    IO(Input(UInt((parameter.vlMaxBits - log2Ceil(parameter.laneNumber) - log2Ceil(parameter.dataPathByteWidth)).W)))
   val writeQueueValid: Bool = IO(Output(Bool()))
   val writeReadyForLsu: Bool = IO(Output(Bool()))
   val vrfReadyToStore: Bool = IO(Output(Bool()))
@@ -1027,12 +1027,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.lsuInstructionFire := laneRequest.bits.LSUFire
   vrf.instructionWriteReport.valid := (laneRequest.fire || laneRequest.bits.LSUFire) && !entranceControl.instructionFinished
   vrf.instructionWriteReport.bits.instIndex := laneRequest.bits.instructionIndex
-  vrf.instructionWriteReport.bits.offset := 0.U //todo
-  vrf.instructionWriteReport.bits.vdOffset := 0.U
-  vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd
+  vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd(4, 3)
   vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.decodeResult(Decoder.targetRd) || (laneRequest.bits.loadStore && !laneRequest.bits.store)
-  vrf.instructionWriteReport.bits.vs2 := laneRequest.bits.vs2
-  vrf.instructionWriteReport.bits.vs1.bits := laneRequest.bits.vs1
+  vrf.instructionWriteReport.bits.vs2 := laneRequest.bits.vs2(4, 3)
+  vrf.instructionWriteReport.bits.vs1.bits := laneRequest.bits.vs1(4, 3)
   vrf.instructionWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)
   // TODO: move ma to [[V]]
   vrf.instructionWriteReport.bits.ma := laneRequest.bits.ma
@@ -1054,7 +1052,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val nrMask: UInt = VecInit(Seq.tabulate(8){ i =>
     Fill(elementSizeForOneRegister, laneRequest.bits.segment < i.U)
   }).asUInt
-  println(writeCount.getWidth, parameter.vrfParam.elementSize)
   // writeCount
   val lastWriteOH: UInt = scanLeftOr(UIntToOH(writeCount)(parameter.vrfParam.elementSize - 1, 0))
 

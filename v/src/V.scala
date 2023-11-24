@@ -223,7 +223,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       Mux(
         decode.decodeResult(Decoder.maskDestination),
         (csrInterface.vl >> 3).asUInt + csrInterface.vl(2, 0).orR,
-        csrInterface.vl << csrInterface.vSew
+        csrInterface.vl << (csrInterface.vSew + decode.decodeResult(Decoder.crossWrite))
       )
     )
   }
