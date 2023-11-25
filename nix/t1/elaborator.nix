@@ -12,6 +12,7 @@
 , protobuf
 , antlr4
 
+, nvfetcher
 , submodules
 }:
 
@@ -49,6 +50,7 @@ let
       makeWrapper
       passthru.millDeps.setupHook
 
+      nvfetcher
       submodules.setupHook
     ];
 
