@@ -1032,6 +1032,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.vs2 := laneRequest.bits.vs2(4, 3)
   vrf.instructionWriteReport.bits.vs1.bits := laneRequest.bits.vs1(4, 3)
   vrf.instructionWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)
+  vrf.instructionWriteReport.bits.indexType := laneRequest.valid && laneRequest.bits.loadStore
   // TODO: move ma to [[V]]
   vrf.instructionWriteReport.bits.ma := laneRequest.bits.ma
   // lsu访问vrf都不是无序的

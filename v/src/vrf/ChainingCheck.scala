@@ -28,8 +28,11 @@ class ChainingCheck(val parameter: VRFParam) extends Module {
   val raw: Bool = record.bits.vd.valid && (read.vs(4, 3) === record.bits.vd.bits) && hitElement
   val waw: Bool = readRecord.vd.valid && record.bits.vd.valid && readRecord.vd.bits === record.bits.vd.bits &&
     hitElement
-  val war: Bool = readRecord.vd.valid &&
-    (((vd === record.bits.vs1.bits) && record.bits.vs1.valid) || (vd === record.bits.vs2) ||
-      ((vd === record.bits.vd.bits) && record.bits.ma)) && hitElement
+  val warSource1: Bool = (vd === record.bits.vs1.bits) && record.bits.vs1.valid
+  // Only index type will read vs2
+  val warSource2: Bool = vd === record.bits.vs2 && (!record.bits.ls || record.bits.indexType)
+  // store or ma need read vd
+  val warVD: Bool = (vd === record.bits.vd.bits) && (record.bits.ma || record.bits.st)
+  val war: Bool = readRecord.vd.valid && (warSource1 || warSource2 || warVD) && hitElement
   checkResult := !((!older && (waw || raw || war)) && !sameInst && recordValid)
 }
