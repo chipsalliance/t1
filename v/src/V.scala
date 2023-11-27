@@ -1154,7 +1154,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.laneRequest.bits.vs1 := requestRegDequeue.bits.instruction(19, 15)
     lane.laneRequest.bits.vs2 := requestRegDequeue.bits.instruction(24, 20)
     lane.laneRequest.bits.vd := requestRegDequeue.bits.instruction(11, 7)
-    lane.laneRequest.bits.segment := requestRegDequeue.bits.instruction(31, 29)
+    lane.laneRequest.bits.segment := Mux(
+      decodeResult(Decoder.nr),
+      requestRegDequeue.bits.instruction(17, 15),
+      requestRegDequeue.bits.instruction(31, 29)
+    )
+
     lane.laneRequest.bits.loadStoreEEW := requestRegDequeue.bits.instruction(13, 12)
     // if the instruction is vi and vx type of gather, gather from rs2 with mask VRF read channel from one lane,
     // and broadcast to all lanes.
