@@ -177,29 +177,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     (beforeVsOffset > afterVsOffset) || ((beforeVsOffset === afterVsOffset) && (beforeOffset > afterOffset))
   }
 
-  /** @param read : 发起读请求的相应信息
-    * @param readRecord : 发起读请求的指令的记录\
-    * @param record : 要做比对的指令的记录
-    * todo: 维护冲突表,免得每次都要算一次
-    */
-  def chainingCheck(read: VRFReadRequest, readRecord: VRFWriteReport,
-                    record: ValidIO[VRFWriteReport], recordValid: Bool): Bool = {
-    // 先看新老
-    val older = instIndexL(read.instructionIndex, record.bits.instIndex)
-    val sameInst = read.instructionIndex === record.bits.instIndex
-    val readOH = UIntToOH((read.vs ## read.offset)(4, 0))
-    val hitElement: Bool = (readOH & record.bits.elementMask) === 0.U
-    val vd = readRecord.vd.bits
-
-    val raw: Bool = record.bits.vd.valid && (read.vs(4, 3) === record.bits.vd.bits) && hitElement
-    val waw: Bool = readRecord.vd.valid && record.bits.vd.valid && readRecord.vd.bits === record.bits.vd.bits &&
-      hitElement
-    val war: Bool = readRecord.vd.valid &&
-      (((vd === record.bits.vs1.bits) && record.bits.vs1.valid) || (vd === record.bits.vs2) ||
-        ((vd === record.bits.vd.bits) && record.bits.ma)) && hitElement
-    !((!older && (waw || raw || war)) && !sameInst && recordValid)
-  }
-
   def enqCheck(enq: VRFWriteReport, record: ValidIO[VRFWriteReport]): Bool = {
     val recordBits = record.bits
     val sameVd = enq.vd.valid && enq.vd.bits === recordBits.vd.bits
@@ -235,8 +212,15 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val readRecord =
         Mux1H(chainingRecord.map(_.bits.instIndex === v.bits.instructionIndex), chainingRecord.map(_.bits))
       val checkResult:  Bool =
-        chainingRecord.zip(recordValidVec).map {
-          case (r, f) => chainingCheck(v.bits, readRecord, r, f)
+        chainingRecord.zip(recordValidVec).zipWithIndex.map {
+          case ((r, f), recordIndex) =>
+            val checkModule = Module(new ChainingCheck(parameter))
+              .suggestName(s"ChainingCheck_read_port${i}_record${recordIndex}")
+            checkModule.read := v.bits
+            checkModule.readRecord := readRecord
+            checkModule.record := r
+            checkModule.recordValid := f
+            checkModule.checkResult
         }.reduce(_ && _)
       val validCorrect: Bool = if (i == 0) v.valid else v.valid && checkResult
       // select bank
