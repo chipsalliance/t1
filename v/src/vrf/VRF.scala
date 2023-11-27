@@ -215,7 +215,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         chainingRecord.zip(recordValidVec).zipWithIndex.map {
           case ((r, f), recordIndex) =>
             val checkModule = Module(new ChainingCheck(parameter))
-              .suggestName(s"ChainingCheck_read_port${i}_record${recordIndex}")
+              .suggestName(s"ChainingCheck_readPort${i}_record${recordIndex}")
             checkModule.read := v.bits
             checkModule.readRecord := readRecord
             checkModule.record := r
