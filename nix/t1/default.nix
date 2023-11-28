@@ -24,6 +24,7 @@ lib.makeScope newScope
   lib.genAttrs configNames (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters
     lib.makeScope self.newScope (innerSelf: {
+      config-name = configName;
       elaborate-config = ../../configs/${configName}.json;
 
       elaborate = innerSelf.callPackage ./elaborate.nix { };

@@ -7,7 +7,7 @@
 
 , elaborate-config
 , elaborator
-
+, config-name
 , is-testbench ? true
 }:
 
@@ -21,13 +21,13 @@ let mfcArgs = lib.escapeShellArgs [
 ];
 in
 stdenvNoCC.mkDerivation {
-  name = "t1-elaborate";
+  name = "t1-${config-name}-elaborate" + lib.optionalString (!is-testbench) "-release";
   nativeBuildInputs = [ jq espresso circt ];
   buildCommand = ''
-    mkdir -p $out
-    ${elaborator}/bin/elaborator --config "${elaborate-config}" --dir $out --tb ${lib.boolToString is-testbench}
+    mkdir -p elaborate $out
+    ${elaborator}/bin/elaborator --config "${elaborate-config}" --dir elaborate --tb ${lib.boolToString is-testbench}
 
-    firtool $out/*.fir --annotation-file $out/*.anno.json -o $out ${mfcArgs}
+    firtool elaborate/*.fir --annotation-file elaborate/*.anno.json -o $out ${mfcArgs}
 
     # Fix file ordering difference introduced in some unknown breaking change between firtool 1.50 -> 1.58
     # In the previous working version, all files starting with './' should be placed on top of the filelist.f.
