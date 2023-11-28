@@ -272,13 +272,26 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     0.U(parameter.chainingSize.W)
   )
 
-  val writeOH: UInt = UIntToOH((write.bits.vd ## write.bits.offset)(4, 0))
+  val writePort: Seq[DecoupledIO[VRFWriteRequest]] = Seq(write)
+  val writeOH = writePort.map(p => UIntToOH((p.bits.vd ## p.bits.offset)(4, 0)))
+  val loadUnitReadPorts: Seq[DecoupledIO[VRFReadRequest]] = Seq(readRequests.last)
+  val loadReadOH: Seq[UInt] = loadUnitReadPorts.map(p => UIntToOH((p.bits.vs ## p.bits.offset)(4, 0)))
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
       val dataIndexWriteQueue = ohCheck(dataInWriteQueue, record.bits.instIndex, parameter.chainingSize)
-      when(write.fire && write.bits.instructionIndex === record.bits.instIndex && write.bits.mask(3)) {
-        record.bits.elementMask := record.bits.elementMask | writeOH
-      }
+      // elementMask update by write
+      val writeUpdateValidVec: Seq[Bool] = writePort.map( p =>
+        p.fire && p.bits.instructionIndex === record.bits.instIndex && p.bits.mask(3)
+      )
+      val writeUpdate1HVec: Seq[UInt] =writeOH.zip(writeUpdateValidVec).map{ case (oh, v) => Mux(v, oh, 0.U) }
+      // elementMask update by read of store instruction
+      val loadUpdateValidVec = loadUnitReadPorts.map( p =>
+        p.fire && p.bits.instructionIndex === record.bits.instIndex && record.bits.st
+      )
+      val loadUpdate1HVec: Seq[UInt] = loadReadOH.zip(loadUpdateValidVec).map{ case (oh, v) => Mux(v, oh, 0.U) }
+      // all elementMask update
+      val elementUpdateValid: Bool = (writeUpdateValidVec ++ loadUpdateValidVec).reduce(_ || _)
+      val elementUpdate1H: UInt = (writeUpdate1HVec ++ loadUpdate1HVec).reduce(_ | _)
       when(ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)) {
         when(record.bits.ls) {
           record.bits.stFinish := true.B
@@ -302,6 +315,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       }
       when(recordEnq(i)) {
         record := initRecord
+      }.elsewhen(elementUpdateValid) {
+        record.bits.elementMask := record.bits.elementMask | elementUpdate1H
       }
   }
   // 判断lsu 是否可以写
