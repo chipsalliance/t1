@@ -17,8 +17,9 @@ logger.addHandler(ch)
 def main():
     parser = ArgumentParser()
     parser.add_argument('case')
-    parser.add_argument('-c', '--config', default="v1024l8b2-test",
+    parser.add_argument('-c', '--config', default="v1024-l8-b2",
                         help='configuration name, as filenames in ./configs')
+    parser.add_argument('--trace', action='store_true', help='use emulator with trace support')
     parser.add_argument('-r', '--run-config', default="debug",
                         help='run configuration name, as filenames in ./run')
     parser.add_argument('-v', '--verbose', action='store_true', help='set loglevel to debug')
@@ -70,7 +71,8 @@ def run(args):
     elaborate_config_path = Path('configs') / f'{args.config}.json'
     assert elaborate_config_path.exists(), f'cannot find elaborate config in {elaborate_config_path}'
 
-    process_args = [ args.emulator_path ] if args.emulator_path else ['nix', 'run', f'.#t1.{args.config}.verilator-emulator']
+    target_name = 'verilator-emulator-trace' if args.trace else 'verilator-emulator';
+    process_args = [ args.emulator_path ] if args.emulator_path else ['nix', 'run', f'.#t1.{args.config}.{target_name}']
     env = {
         'COSIM_bin': str(case_elf_path),
         'COSIM_wave': str(Path(args.out_dir) / 'wave.fst'),

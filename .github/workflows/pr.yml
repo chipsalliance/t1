@@ -40,8 +40,8 @@ jobs:
       # build verilator emulator first, so that every developer can download new cache from latest commit.
       - name: "Build verilator emulator"
         run: |
-          nix build '.#t1.v1024l8b2-test.verilator-emulator' --no-link
-          nix build '.#t1.v1024l8b2-test-trace.verilator-emulator' --no-link
+          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
+          nix build '.#t1.v1024-l8-b2.verilator-emulator-trace' --no-link
 
   run-testcases:
     name: "Run testcases"

@@ -1,2 +1,2 @@
-v1024l8b2fp-test/debug/passed.json
-v1024l8b2-test/debug/passed.json
+v1024-l8-b2/debug/passed.json
+v1024-l8-b2-fp/debug/passed.json

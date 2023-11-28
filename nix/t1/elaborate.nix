@@ -1,4 +1,5 @@
 { stdenvNoCC
+, lib
 , jq
 
 , espresso
@@ -6,19 +7,27 @@
 
 , elaborate-config
 , elaborator
+
+, is-testbench ? true
 }:
 
-
+let mfcArgs = lib.escapeShellArgs [
+  "-dedup"
+   "-O=debug"
+   "--split-verilog"
+   "--preserve-values=named"
+   "--output-annotation-file=mfc.anno.json"
+   "--lowering-options=verifLabels"
+];
+in
 stdenvNoCC.mkDerivation {
   name = "t1-elaborate";
   nativeBuildInputs = [ jq espresso circt ];
   buildCommand = ''
-    jq .design < ${elaborate-config} > config.json
     mkdir -p $out
-    ${elaborator}/bin/elaborator --config $(realpath config.json) --dir $out --tb true
+    ${elaborator}/bin/elaborator --config "${elaborate-config}" --dir $out --tb ${lib.boolToString is-testbench}
 
-    mfcArgs="$(jq -r '.mfcArgs[]' < "${elaborate-config}")"
-    firtool $out/*.fir --annotation-file $out/*.anno.json -o $out $mfcArgs
+    firtool $out/*.fir --annotation-file $out/*.anno.json -o $out ${mfcArgs}
 
     # Fix file ordering difference introduced in some unknown breaking change between firtool 1.50 -> 1.58
     # In the previous working version, all files starting with './' should be placed on top of the filelist.f.
