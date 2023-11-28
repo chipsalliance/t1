@@ -16,6 +16,7 @@ jobs:
       ci-tests: ${{ steps.ci-tests.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v22
       - run: sudo -E .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
@@ -23,15 +24,6 @@ jobs:
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
           ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
-      - uses: cachix/install-nix-action@v22
-        with:
-          extra_nix_config: |
-            post-build-hook = /etc/nix/upload-to-cache.sh
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
-            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-            max-jobs = 0
-            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key x86_64-linux - 32 1 big-parallel
-            builders-use-substitutes = true
       - id: ci-tests
         name: "Generate matrix"  # TODO: why unpassed testcases corresponds to perf testcases
         run: |
@@ -50,6 +42,7 @@ jobs:
       result: ${{ steps.ci-run.outputs.result }}
     steps:
       - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v22
       - run: sudo -E .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
@@ -57,15 +50,6 @@ jobs:
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
           ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
-      - uses: cachix/install-nix-action@v22
-        with:
-          extra_nix_config: |
-            post-build-hook = /etc/nix/upload-to-cache.sh
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
-            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-            max-jobs = 0
-            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key x86_64-linux - 32 1 big-parallel
-            builders-use-substitutes = true
       - id: ci-run
         name: "Run testcases"
         run: |
@@ -119,6 +103,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: master
+      - uses: cachix/install-nix-action@v22
       - run: sudo -E .github/setup-actions.sh
         env:
           AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
@@ -126,15 +111,6 @@ jobs:
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
           ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
-      - uses: cachix/install-nix-action@v22
-        with:
-          extra_nix_config: |
-            post-build-hook = /etc/nix/upload-to-cache.sh
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= minio.inner.fi.c-3.moe:gDg5SOIH65O0tTV89dUawME5BTmduWWaA7as/cqvevM=
-            extra-substituters = https://${{secrets.CACHE_DOMAIN}}/nix
-            max-jobs = 0
-            builders = ssh-ng://nix-remote@${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}?ssh-key=/etc/nix/builder-key x86_64-linux - 32 1 big-parallel
-            builders-use-substitutes = true
       - id: build
         run: |
           .github/scripts/bump-prebuilt-testcases.sh build_testcases_if_updated ./rvv-testcases.tar.gz
