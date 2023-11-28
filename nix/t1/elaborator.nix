@@ -33,6 +33,7 @@ let
     passthru.editable = self.overrideAttrs (_: {
       shellHook = ''
         setupSubmodulesEditable
+        mill mill.bsp.BSP/install 0
       '';
     });
 
