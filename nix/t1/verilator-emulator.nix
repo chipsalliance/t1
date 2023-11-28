@@ -13,12 +13,13 @@
 , zlib
 
 , elaborate
+, config-name
 
 , do-trace ? false
 }:
 
 stdenv.mkDerivation {
-  name = "t1-verilator-emulator";
+  name = "t1-${config-name}-verilator-emulator" + lib.optionalString do-trace "-trace";
 
   src = ../../emulator;
 
