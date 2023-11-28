@@ -635,7 +635,8 @@ class CSRFile(
       CSRs.vxrm -> v.states("vxrm"),
       CSRs.vcsr -> v.states("vxrm") ## v.states("vxsat"),
       CSRs.vstart -> v.states("vstart"),
-      CSRs.vtype -> v.states("vlmul") ## v.states("vsew") ## v.states("vta") ## v.states("vma") ## 0.U(23.W) ## v.states("vill"),
+      CSRs.vtype -> v.states("vlmul") ## v.states("vsew") ## v.states("vta") ## v.states("vma") ## 0.U(23.W) ## v
+        .states("vill"),
       CSRs.vl -> v.states("vl"),
       CSRs.vlenb -> v.constants("vlenb")
     )
@@ -856,17 +857,19 @@ class CSRFile(
       usingHypervisor.B && !reg_mstatus.v && reg_mstatus.prv === PRV.S.U && CSR.mode(addr) === PRV.H.U
     val csr_exists = decodeAny(read_mapping)
     io_dec.readIllegal := !csr_addr_legal ||
-      !csr_exists ||
-      ((addr === CSRs.satp.U || addr === CSRs.hgatp.U) && !allow_sfence_vma) ||
-      is_counter && !allow_counter ||
-      decodeFast(debug_csrs.keys.toList) && !reg_debug ||
-      io_dec.fpCsr && io_dec.fpIllegal ||
-      // vector read CSR illegal: if address is in the vector CSR,
-      vector.map(vector =>
+    !csr_exists ||
+    ((addr === CSRs.satp.U || addr === CSRs.hgatp.U) && !allow_sfence_vma) ||
+    is_counter && !allow_counter ||
+    decodeFast(debug_csrs.keys.toList) && !reg_debug ||
+    io_dec.fpCsr && io_dec.fpIllegal ||
+    // vector read CSR illegal: if address is in the vector CSR,
+    vector
+      .map(vector =>
         decodeFast(Seq(CSRs.vxsat, CSRs.vxrm, CSRs.vcsr, CSRs.vstart, CSRs.vtype, CSRs.vl, CSRs.vlenb)) &&
           vector.states("mstatus.VS") === 0.U &&
           !reg_misa('v' - 'a')
-      ).getOrElse(false.B)
+      )
+      .getOrElse(false.B)
     io_dec.writeIllegal := addr(11, 10).andR
     io_dec.writeFlush := {
       val addr_m = addr | (PRV.M.U << CSR.modeLSB)
