@@ -38,13 +38,13 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
   def isVectorLSU = instruction.instructionSet.name match {
     // unit stride
     case s"v${t}e${sz}.v" if (t == "l") || (t == "s") => true
-    case s"v${t}m.v" if (t == "l") || (t == "s") => true
-    case s"vle${sz}ff.v" => true
+    case s"v${t}m.v" if (t == "l") || (t == "s")      => true
+    case s"vle${sz}ff.v"                              => true
     // stride
     case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
     // indexed
     case s"v${t}${o}xei${sz}.v" if ((t == "l") || (t == "s")) && ((t == "u") || (t == "o")) => true
-    case _ => false
+    case _                                                                                  => false
   }
 }
 
@@ -88,34 +88,6 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
 
   private def fLen64: Boolean = hasAnySetIn("rv_d", "rv32_d", "rv64_d")
 
-  private def zfh: Boolean = hasAnySetIn("rv_zfh", "rv64_zfh", "rv_d_zfh")
-
-  private def usingAtomics: Boolean = hasAnySetIn("rv_a", "rv64_a")
-
-  private def usingBitManip: Boolean =
-    hasAnySetIn("rv_zba", "rv64_zba", "rv_zbb", "rv32_zbb", "rv64_zbb", "rv_zbc", "rv_zbs")
-
-  private def usingBitManipCrypto: Boolean = hasAnySetIn("rv_zbkb", "rv32_zbkb", "rv64_zbkb", "rv_zbkc", "rv_zbkx")
-
-  private def usingCryptoNIST: Boolean = hasAnySetIn(
-    "rv32_zknd",
-    "rv64_zknd",
-    "rv32_zkne",
-    "rv64_zkne",
-    "rv_zknh",
-    "rv32_zknh",
-    "rv64_zknh",
-    "rv_zkn",
-    "rv32_zkn",
-    "rv64_zkn"
-  )
-
-  private def usingCryptoSM: Boolean = hasAnySetIn("rv_zksed", "rv_zksh", "rv_zks", "rv32_zks", "rv64_zks", "rv_zk")
-
-  private def usingConditionalZero = hasAnySetIn("rv_zicond")
-
-  /** use ablu for ALU which supports zb zk */
-  private val useABLU: Boolean = usingBitManip || usingBitManipCrypto || usingCryptoNIST || usingCryptoSM
   private val useFPU = !fLen0
   private val useMulDiv = hasAnySetIn("rv_m", "rv64_m")
   private val useVector = hasAnySetIn("rv_v")
@@ -138,12 +110,12 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     csr,
     fenceI,
     fence,
-    amo
+    amo,
+    aluFn
   ) ++
-    (if (useABLU) Seq(abluFn, zbk, zkn, zks) else Some(aluFn)) ++
     (if (useFPU) Seq(fp, rfs1, rfs2, rfs3, wfd, dp) else None) ++
     (if (useMulDiv) if (p.pipelinedMul) Seq(mul, div) else Seq(div) else None) ++
-    (if (useVector) Seq(vector) else None)
+    (if (useVector) Seq(vector, vectorLSU, vectorCSR) else None)
 
   val table: DecodeTable[RocketDecodePattern] = new DecodeTable[RocketDecodePattern](
     instructionDecodePatterns,
@@ -223,136 +195,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def name: String = "rxs2"
 
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
-      case i
-          if Seq(
-            "bne",
-            "beq",
-            "blt",
-            "bltu",
-            "bge",
-            "bgeu",
-            "sb",
-            "sh",
-            "sw",
-            "add",
-            "sub",
-            "slt",
-            "sltu",
-            "and",
-            "or",
-            "xor",
-            "sll",
-            "srl",
-            "sra",
-            "czero.eqz",
-            "czero.nez",
-            "sfence.vma",
-            "hfence.vvma",
-            "hfence.gvma",
-            "hsv.b",
-            "hsv.h",
-            "hsv.w",
-            "sd",
-            "addw",
-            "subw",
-            "sllw",
-            "srlw",
-            "sraw",
-            "hsv.d",
-            "mul",
-            "mulh",
-            "mulhu",
-            "mulhsu",
-            "div",
-            "divu",
-            "rem",
-            "remu",
-            "mulw",
-            "divw",
-            "divuw",
-            "remw",
-            "remuw",
-            "amoadd.w",
-            "amoxor.w",
-            "amoswap.w",
-            "amoand.w",
-            "amoor.w",
-            "amomin.w",
-            "amominu.w",
-            "amomax.w",
-            "amomaxu.w",
-            "lr.w",
-            "sc.w",
-            "amoadd.d",
-            "amoswap.d",
-            "amoxor.d",
-            "amoand.d",
-            "amoor.d",
-            "amomin.d",
-            "amominu.d",
-            "amomax.d",
-            "amomaxu.d",
-            "lr.d",
-            "sc.d",
-            "sh1add",
-            "sh2add",
-            "sh3add",
-            "add.uw",
-            "sh1add.uw",
-            "sh2add.uw",
-            "sh3add.uw",
-            "andn",
-            "orn",
-            "xnor",
-            "ror",
-            "rol",
-            "rorw",
-            "rolw",
-            "max",
-            "maxu",
-            "min",
-            "minu",
-            "pack",
-            "packh",
-            "packw",
-            "clmul",
-            "clmulh",
-            "clmulr",
-            "xperm8",
-            "xperm4",
-            "bclr",
-            "bext",
-            "binv",
-            "bset",
-            "aes32dsi",
-            "aes32dsmi",
-            "aes64ds",
-            "aes64dsm",
-            "aes64im",
-            "aes64ks2",
-            "aes32esi",
-            "aes32esmi",
-            "aes64es",
-            "aes64esm",
-            "sha512sig0l",
-            "sha512sig1l",
-            "sha512sig0h",
-            "sha512sig1h",
-            "sha512sum0r",
-            "sha512sum1r",
-            "sm4ed",
-            "sm4ks",
-            "custom0.rs1.rs2",
-            "custom0.rd.rs1.rs2",
-            "custom1.rs1.rs2",
-            "custom1.rd.rs1.rs2",
-            "custom2.rs1.rs2",
-            "custom2.rd.rs1.rs2",
-            "custom3.rs1.rs2",
-            "custom3.rd.rs1.rs2"
-          ).contains(i) =>
-        y
+      // format: off
+      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "hsv.w", "hsv.b", "hfence.vvma", "hsv.h", "hfence.gvma", "hsv.d", "or", "srl", "sltu", "sra", "sb", "add", "xor", "beq", "bge", "sw", "blt", "bgeu", "bltu", "bne", "sub", "and", "slt", "sh", "sll", "addw", "sd", "sllw", "sraw", "subw", "srlw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "czero.nez", "czero.eqz").contains(i) => y
       case _ => n
+      // format: on
     }
   }
 
@@ -360,242 +206,11 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def name: String = "rxs1"
 
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
-      case i
-          if Seq(
-            "bne",
-            "beq",
-            "blt",
-            "bltu",
-            "bge",
-            "bgeu",
-            "jalr",
-            "lb",
-            "lh",
-            "lw",
-            "lbu",
-            "lhu",
-            "sb",
-            "sh",
-            "sw",
-            "addi",
-            "slti",
-            "sltiu",
-            "andi",
-            "ori",
-            "xori",
-            "add",
-            "sub",
-            "slt",
-            "sltu",
-            "and",
-            "or",
-            "xor",
-            "sll",
-            "srl",
-            "sra",
-            "csrrw",
-            "csrrs",
-            "csrrc",
-            "czero.eqz",
-            "czero.nez",
-            "cflush.d.l1",
-            "cdiscard.d.l1",
-            "sfence.vma",
-            "hfence.vvma",
-            "hfence.gvma",
-            "hlv.b",
-            "hlv.bu",
-            "hlv.h",
-            "hlv.hu",
-            "hlvx.hu",
-            "hlv.w",
-            "hlvx.wu",
-            "hsv.b",
-            "hsv.h",
-            "hsv.w",
-            "srli",
-            "srai",
-            "ld",
-            "lwu",
-            "sd",
-            "slli",
-            "srli",
-            "srai",
-            "addiw",
-            "slliw",
-            "srliw",
-            "sraiw",
-            "addw",
-            "subw",
-            "sllw",
-            "srlw",
-            "sraw",
-            "hlv.d",
-            "hsv.d",
-            "hlv.wu",
-            "mul",
-            "mulh",
-            "mulhu",
-            "mulhsu",
-            "div",
-            "divu",
-            "rem",
-            "remu",
-            "mulw",
-            "divw",
-            "divuw",
-            "remw",
-            "remuw",
-            "amoadd.w",
-            "amoxor.w",
-            "amoswap.w",
-            "amoand.w",
-            "amoor.w",
-            "amomin.w",
-            "amominu.w",
-            "amomax.w",
-            "amomaxu.w",
-            "lr.w",
-            "sc.w",
-            "amoadd.d",
-            "amoswap.d",
-            "amoxor.d",
-            "amoand.d",
-            "amoor.d",
-            "amomin.d",
-            "amominu.d",
-            "amomax.d",
-            "amomaxu.d",
-            "lr.d",
-            "sc.d",
-            "fmv.h.x",
-            "fcvt.h.w",
-            "fcvt.h.wu",
-            "flh",
-            "fsh",
-            "fmv.w.x",
-            "fcvt.s.w",
-            "fcvt.s.wu",
-            "flw",
-            "fsw",
-            "fcvt.d.w",
-            "fcvt.d.wu",
-            "fld",
-            "fsd",
-            "fcvt.h.l",
-            "fcvt.h.lu",
-            "fcvt.s.l",
-            "fcvt.s.lu",
-            "fmv.d.x",
-            "fcvt.d.l",
-            "fcvt.d.lu",
-            "sh1add",
-            "sh2add",
-            "sh3add",
-            "add.uw",
-            "slli.uw",
-            "sh1add.uw",
-            "sh2add.uw",
-            "sh3add.uw",
-            "andn",
-            "orn",
-            "xnor",
-            "ror",
-            "rol",
-            "rori",
-            "rori",
-            "rorw",
-            "rolw",
-            "roriw",
-            "clz",
-            "ctz",
-            "cpop",
-            "clzw",
-            "ctzw",
-            "cpopw",
-            "max",
-            "maxu",
-            "min",
-            "minu",
-            "sext.h",
-            "sext.b",
-            "zext.h",
-            "zext.h",
-            "orc.b",
-            "rev8",
-            "rev8",
-            "pack",
-            "packh",
-            "brev8",
-            "packw",
-            "zip",
-            "unzip",
-            "clmul",
-            "clmulh",
-            "clmulr",
-            "xperm8",
-            "xperm4",
-            "bclr",
-            "bext",
-            "binv",
-            "bset",
-            "bclri",
-            "bexti",
-            "binvi",
-            "bseti",
-            "bclri",
-            "bexti",
-            "binvi",
-            "bseti",
-            "aes32dsi",
-            "aes32dsmi",
-            "aes64ds",
-            "aes64dsm",
-            "aes64im",
-            "aes64ks1i",
-            "aes64ks2",
-            "aes32esi",
-            "aes32esmi",
-            "aes64es",
-            "aes64esm",
-            "sha256sig0",
-            "sha256sig1",
-            "sha256sum0",
-            "sha256sum1",
-            "sha512sig0l",
-            "sha512sig1l",
-            "sha512sig0h",
-            "sha512sig1h",
-            "sha512sum0r",
-            "sha512sum1r",
-            "sha512sig0",
-            "sha512sig1",
-            "sha512sum0",
-            "sha512sum1",
-            "sm4ed",
-            "sm4ks",
-            "sm3p0",
-            "sm3p1",
-            "custom0.rs1",
-            "custom0.rs1.rs2",
-            "custom0.rd.rs1",
-            "custom0.rd.rs1.rs2",
-            "custom1.rs1",
-            "custom1.rs1.rs2",
-            "custom1.rd.rs1",
-            "custom1.rd.rs1.rs2",
-            "custom2.rs1",
-            "custom2.rs1.rs2",
-            "custom2.rd.rs1",
-            "custom2.rd.rs1.rs2",
-            "custom3.rs1",
-            "custom3.rs1.rs2",
-            "custom3.rd.rs1",
-            "custom3.rd.rs1.rs2"
-          ).contains(i) =>
-        y
-      case i if Seq("ecall", "ebreak", "mret", "wfi", "cease", "sret", "dret", "nmret").contains(i) => dc
+      // format: off
+      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fcvt.d.wu", "fsd", "fcvt.d.w", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.s.wu", "fmv.w.x", "fsw", "fcvt.s.w", "flw", "fcvt.s.lu", "fcvt.s.l", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "bne", "lbu", "sub", "and", "xori", "slti", "slt", "addi", "lb", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "fsh", "flh", "fcvt.h.wu", "fcvt.h.w", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l", "csrrc", "csrrs", "csrrw", "czero.nez", "czero.eqz", "cflush.d.l1", "cdiscard.d.l1").contains(i) => y
+      case i if Seq("ecall", "ebreak", "mret", "wfi", "sret", "dret", "cease", "nmret").contains(i) => dc
       case _                                                                                        => n
+      // format: on
     }
   }
 
@@ -632,48 +247,14 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object zbk extends BoolDecodeField[RocketDecodePattern] {
-    override def name: String = "zbk"
-
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.instructionSet.name match {
-      // format: off
-      case s if Seq("rv_zbc", "rv_zbkx").contains(s) => y
-      case _ => n
-      // format: on
-    }
-  }
-
-  object zkn extends BoolDecodeField[RocketDecodePattern] {
-    override def name: String = "zkn"
-
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.instructionSet.name match {
-      // format: off
-      case s if Seq("rv32_zknd", "rv64_zknd", "rv32_zkne", "rv64_zkne", "rv_zknh", "rv32_zknh", "rv64_zknh", "rv_zksed").contains(s) => y
-      case _ => n
-      // format: on
-    }
-
-  }
-
-  object zks extends BoolDecodeField[RocketDecodePattern] {
-    override def name: String = "zks"
-
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.instructionSet.name match {
-      // format: off
-      case s if Seq("rv_zksed").contains(s) => y
-      case _ => n
-      // format: on
-    }
-  }
-
   object aluDoubleWords extends BoolDecodeField[RocketDecodePattern] {
     override def name: String = "alu_dw"
 
     override def genTable(op: RocketDecodePattern): BitPat = {
       op.instruction.name match {
         // format: off
-        case i if Seq("bne", "beq", "blt", "bltu", "bge", "bgeu", "jal", "jalr", "auipc", "lb", "lh", "lw", "lbu", "lhu", "sb", "sh", "sw", "lui", "addi", "slti", "sltiu", "andi", "ori", "xori", "add", "sub", "slt", "sltu", "and", "or", "xor", "sll", "srl", "sra", "csrrw", "csrrs", "csrrc", "csrrwi", "csrrsi", "csrrci", "czero.eqz", "czero.nez", "sfence.vma", "hfence.vvma", "hfence.gvma", "hlv.b", "hlv.bu", "hlv.h", "hlv.hu", "hlvx.hu", "hlv.w", "hlvx.wu", "hsv.b", "hsv.h", "hsv.w", "ld", "lwu", "sd", "slli", "srli", "srai", "hlv.d", "hsv.d", "hlv.wu", "mul", "mulh", "mulhu", "mulhsu", "div", "divu", "rem", "remu", "amoadd.w", "amoxor.w", "amoswap.w", "amoand.w", "amoor.w", "amomin.w", "amominu.w", "amomax.w", "amomaxu.w", "lr.w", "sc.w", "amoadd.d", "amoswap.d", "amoxor.d", "amoand.d", "amoor.d", "amomin.d", "amominu.d", "amomax.d", "amomaxu.d", "lr.d", "sc.d", "flh", "fsh", "flw", "fsw", "fld", "fsd", "sh1add", "sh2add", "sh3add", "andn", "orn", "xnor", "ror", "rol", "rori", "clz", "ctz", "cpop", "max", "maxu", "min", "minu", "sext.h", "sext.b", "zext.h", "orc.b", "rev8", "pack", "packh", "brev8", "clmul", "clmulh", "clmulr", "xperm8", "xperm4", "bclr", "bext", "binv", "bset", "bclri", "bexti", "binvi", "bseti", "aes64ds", "aes64dsm", "aes64im", "aes64ks1i", "aes64ks2", "aes64es", "aes64esm", "add.uw", "slli.uw", "sh1add.uw", "sh2add.uw", "sh3add.uw").contains(i) => y
-        case i if Seq("addiw", "slliw", "srliw", "sraiw", "addw", "subw", "sllw", "srlw", "sraw", "mulw", "divw", "divuw", "remw", "remuw", "rorw", "rolw", "roriw", "clzw", "ctzw", "cpopw", "packw").contains(i) => n
+        case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fsd", "fsw", "flw", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "lui", "bne", "lbu", "sub", "and", "auipc", "xori", "slti", "slt", "addi", "lb", "jal", "sh", "sll", "srli", "srai", "slli", "ld", "sd", "lwu", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "sfence.vma", "fsh", "flh", "csrrc", "csrrci", "csrrs", "csrrw", "csrrsi", "csrrwi", "czero.nez", "czero.eqz").contains(i) => y
+        case i if Seq("addw", "sraiw", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "remuw", "divw", "divuw", "mulw", "remw").contains(i) => n
         case _ => dc
         // format: on
       }
@@ -688,7 +269,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def genTable(op: RocketDecodePattern): BitPat = {
       op.instruction.name match {
         // format: off
-        case i if Seq("lb", "lh", "lw", "lbu", "lhu", "sb", "sh", "sw", "hlv.b", "hlv.bu", "hlv.h", "hlv.hu", "hlv.w", "hsv.b", "hsv.h", "hsv.w", "ld", "lwu", "sd", "hlv.d", "hsv.d", "hlv.wu", "amoadd.w", "amoxor.w", "amoswap.w", "amoand.w", "amoor.w", "amomin.w", "amominu.w", "amomax.w", "amomaxu.w", "lr.w", "sc.w", "amoadd.d", "amoswap.d", "amoxor.d", "amoand.d", "amoor.d", "amomin.d", "amominu.d", "amomax.d", "amomaxu.d", "lr.d", "sc.d", "flh", "fsh", "flw", "fsw", "fld", "fsd", "sfence.vma").contains(i) => y
+        case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fsd", "fsw", "flw", "hsv.w", "hsv.b", "hlv.hu", "hlv.b", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hsv.d", "hlv.d", "hlv.wu", "lhu", "sb", "lw", "sw", "lh", "lbu", "lb", "sh", "ld", "sd", "lwu", "sfence.vma", "fsh", "flh").contains(i) => y
         case i if Seq("fence.i").contains(i) && p.fenceIFlushDCache => y
         case _ => n
         // format: on
@@ -702,7 +283,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def genTable(op: RocketDecodePattern): BitPat = {
       op.instruction.name match {
         // format: off
-        case i if Seq("fcvt.s.h", "fcvt.h.s", "fsgnj.h", "fsgnjx.h", "fsgnjn.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fclass.h", "fmv.x.h", "fcvt.w.h", "fcvt.wu.h", "feq.h", "flt.h", "fle.h", "fdiv.h", "fsqrt.h", "fsgnj.s", "fsgnjx.s", "fsgnjn.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fclass.s", "fmv.x.w", "fcvt.w.s", "fcvt.wu.s", "feq.s", "flt.s", "fle.s", "fdiv.s", "fsqrt.s", "fcvt.s.d", "fcvt.d.s", "fsgnj.d", "fsgnjx.d", "fsgnjn.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fclass.d", "fcvt.w.d", "fcvt.wu.d", "feq.d", "flt.d", "fle.d", "fdiv.d", "fsqrt.d", "fcvt.d.h", "fcvt.h.d", "fcvt.l.h", "fcvt.lu.h", "fcvt.l.s", "fcvt.lu.s", "fmv.x.d", "fcvt.l.d", "fcvt.lu.d").contains(i) => y
+        case i if Seq("fmin.d", "fsgnj.d", "fle.d", "fnmsub.d", "fadd.d", "fcvt.w.d", "fmsub.d", "fmul.d", "fcvt.wu.d", "feq.d", "fmax.d", "fnmadd.d", "fcvt.d.s", "fcvt.s.d", "fmadd.d", "fsgnjx.d", "flt.d", "fsgnjn.d", "fsub.d", "fsqrt.d", "fclass.d", "fdiv.d", "fmv.x.d", "fcvt.lu.d", "fcvt.l.d", "fcvt.d.h", "fcvt.h.d", "fnmsub.s", "fsgnjx.s", "fmsub.s", "fsgnjn.s", "fdiv.s", "fmin.s", "fsqrt.s", "fclass.s", "fcvt.wu.s", "fmax.s", "feq.s", "fle.s", "fmadd.s", "fsgnj.s", "fadd.s", "flt.s", "fmv.x.w", "fnmadd.s", "fmul.s", "fcvt.w.s", "fsub.s", "fcvt.lu.s", "fcvt.l.s", "feq.h", "fsgnjx.h", "fcvt.w.h", "fcvt.h.s", "fdiv.h", "fclass.h", "fsgnj.h", "fmul.h", "fsub.h", "fcvt.wu.h", "fadd.h", "fmax.h", "fsgnjn.h", "fmv.x.h", "fcvt.s.h", "fmsub.h", "fmin.h", "fsqrt.h", "flt.h", "fnmadd.h", "fmadd.h", "fnmsub.h", "fle.h", "fcvt.l.h", "fcvt.lu.h").contains(i) => y
         case _ => n
         // format: on
       }
@@ -715,7 +296,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def genTable(op: RocketDecodePattern): BitPat = {
       op.instruction.name match {
         // format: off
-        case i if Seq("fsgnj.h", "fsgnjx.h", "fsgnjn.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "feq.h", "flt.h", "fle.h", "fdiv.h", "fsqrt.h", "fsgnj.s", "fsgnjx.s", "fsgnjn.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "feq.s", "flt.s", "fle.s", "fdiv.s", "fsqrt.s", "fsgnj.d", "fsgnjx.d", "fsgnjn.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "feq.d", "flt.d", "fle.d", "fdiv.d", "fsqrt.d").contains(i) => y
+        case i if Seq("fmin.d", "fsgnj.d", "fle.d", "fnmsub.d", "fadd.d", "fmsub.d", "fmul.d", "feq.d", "fmax.d", "fnmadd.d", "fmadd.d", "fsgnjx.d", "flt.d", "fsgnjn.d", "fsub.d", "fsqrt.d", "fdiv.d", "fnmsub.s", "fsgnjx.s", "fmsub.s", "fsgnjn.s", "fdiv.s", "fmin.s", "fsqrt.s", "fmax.s", "feq.s", "fle.s", "fmadd.s", "fsgnj.s", "fadd.s", "flt.s", "fnmadd.s", "fmul.s", "fsub.s", "feq.h", "fsgnjx.h", "fdiv.h", "fsgnj.h", "fmul.h", "fsub.h", "fadd.h", "fmax.h", "fsgnjn.h", "fmsub.h", "fmin.h", "fsqrt.h", "flt.h", "fnmadd.h", "fmadd.h", "fnmsub.h", "fle.h").contains(i) => y
         case _ => n
         // format: on
       }
@@ -728,7 +309,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def genTable(op: RocketDecodePattern): BitPat =
       op.instruction.name match {
         // format: off
-        case i if Seq("fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d").contains(i) => y
+        case i if Seq("fnmsub.d", "fmsub.d", "fnmadd.d", "fmadd.d", "fnmsub.s", "fmsub.s", "fmadd.s", "fnmadd.s", "fmsub.h", "fnmadd.h", "fmadd.h", "fnmsub.h").contains(i) => y
         case _ => n
         // format: on
       }
@@ -739,7 +320,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
 
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
-      case i if Seq("fcvt.s.h", "fcvt.h.s", "fsgnj.h", "fsgnjx.h", "fsgnjn.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fmv.h.x", "fcvt.h.w", "fcvt.h.wu", "flh", "fdiv.h", "fsqrt.h", "fsgnj.s", "fsgnjx.s", "fsgnjn.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fmv.w.x", "fcvt.s.w", "fcvt.s.wu", "flw", "fdiv.s", "fsqrt.s", "fcvt.s.d", "fcvt.d.s", "fsgnj.d", "fsgnjx.d", "fsgnjn.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fcvt.d.w", "fcvt.d.wu", "fld", "fdiv.d", "fsqrt.d", "fcvt.d.h", "fcvt.h.d", "fcvt.h.l", "fcvt.h.lu", "fcvt.s.l", "fcvt.s.lu", "fmv.d.x", "fcvt.d.l", "fcvt.d.lu").contains(i) => y
+      case i if Seq("fmin.d", "fsgnj.d", "fnmsub.d", "fadd.d", "fmsub.d", "fld", "fmul.d", "fmax.d", "fcvt.d.wu", "fnmadd.d", "fcvt.d.s", "fcvt.s.d", "fmadd.d", "fsgnjx.d", "fsgnjn.d", "fsub.d", "fsqrt.d", "fcvt.d.w", "fdiv.d", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.d.h", "fcvt.h.d", "fnmsub.s", "fsgnjx.s", "fmsub.s", "fsgnjn.s", "fdiv.s", "fmin.s", "fsqrt.s", "fmax.s", "fcvt.s.wu", "fmv.w.x", "fmadd.s", "fsgnj.s", "fadd.s", "fnmadd.s", "fcvt.s.w", "flw", "fmul.s", "fsub.s", "fcvt.s.lu", "fcvt.s.l", "fsgnjx.h", "fcvt.h.s", "fdiv.h", "fsgnj.h", "fmul.h", "fsub.h", "flh", "fadd.h", "fmax.h", "fsgnjn.h", "fcvt.s.h", "fcvt.h.wu", "fcvt.h.w", "fmsub.h", "fmin.h", "fsqrt.h", "fnmadd.h", "fmadd.h", "fnmsub.h", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l").contains(i) => y
       case _ => n
       // format: on
     }
@@ -750,7 +331,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
 
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
-      case i if Seq("mul", "mulh", "mulhu", "mulhsu", "mulw").contains(i) => y
+      case i if Seq("mulhsu", "mul", "mulhu", "mulh", "mulw").contains(i) => y
       case _ => n
       // format: on
     }
@@ -761,8 +342,8 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
 
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
-      case i if Seq("mul", "mulh", "mulhu", "mulhsu", "mulw").contains(i) && !p.pipelinedMul => y
-      case i if Seq("div", "divu", "rem", "remu", "divw", "divuw", "remw", "remuw").contains(i) => y
+      case i if Seq("mulhsu", "mul", "mulhu", "mulh", "mulw").contains(i) && !p.pipelinedMul => y
+      case i if Seq("rem", "div", "remu", "divu", "remuw", "divw", "divuw", "remw").contains(i) => y
       case _ => n
       // format: on
     }
@@ -774,7 +355,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
       // TODO: filter out rd
-      case i if Seq("jal", "jalr", "auipc", "lb", "lh", "lw", "lbu", "lhu", "lui", "addi", "slti", "sltiu", "andi", "ori", "xori", "add", "sub", "slt", "sltu", "and", "or", "xor", "sll", "srl", "sra", "csrrw", "csrrs", "csrrc", "csrrwi", "csrrsi", "csrrci", "czero.eqz", "czero.nez", "hlv.b", "hlv.bu", "hlv.h", "hlv.hu", "hlvx.hu", "hlv.w", "hlvx.wu", "slli", "srli", "srai", "ld", "lwu", "slli", "srli", "srai", "addiw", "slliw", "srliw", "sraiw", "addw", "subw", "sllw", "srlw", "sraw", "hlv.d", "hlv.wu", "mul", "mulh", "mulhu", "mulhsu", "div", "divu", "rem", "remu", "mulw", "divw", "divuw", "remw", "remuw", "amoadd.w", "amoxor.w", "amoswap.w", "amoand.w", "amoor.w", "amomin.w", "amominu.w", "amomax.w", "amomaxu.w", "lr.w", "sc.w", "amoadd.d", "amoswap.d", "amoxor.d", "amoand.d", "amoor.d", "amomin.d", "amominu.d", "amomax.d", "amomaxu.d", "lr.d", "sc.d", "fclass.h", "fmv.x.h", "fcvt.w.h", "fcvt.wu.h", "feq.h", "flt.h", "fle.h", "fclass.s", "fmv.x.w", "fcvt.w.s", "fcvt.wu.s", "feq.s", "flt.s", "fle.s", "fclass.d", "fcvt.w.d", "fcvt.wu.d", "feq.d", "flt.d", "fle.d", "fcvt.l.h", "fcvt.lu.h", "fcvt.l.s", "fcvt.lu.s", "fmv.x.d", "fcvt.l.d", "fcvt.lu.d", "sh1add", "sh2add", "sh3add", "add.uw", "slli.uw", "sh1add.uw", "sh2add.uw", "sh3add.uw", "andn", "orn", "xnor", "ror", "rol", "rori", "rori", "rorw", "rolw", "roriw", "clz", "ctz", "cpop", "clzw", "ctzw", "cpopw", "max", "maxu", "min", "minu", "sext.h", "sext.b", "zext.h", "zext.h", "orc.b", "rev8", "rev8", "pack", "packh", "brev8", "packw", "zip", "unzip", "clmul", "clmulh", "clmulr", "xperm8", "xperm4", "bclr", "bext", "binv", "bset", "bclri", "bexti", "binvi", "bseti", "bclri", "bexti", "binvi", "bseti", "aes32dsi", "aes32dsmi", "aes64ds", "aes64dsm", "aes64im", "aes64ks1i", "aes64ks2", "aes32esi", "aes32esmi", "aes64es", "aes64esm", "sha256sig0", "sha256sig1", "sha256sum0", "sha256sum1", "sha512sig0l", "sha512sig1l", "sha512sig0h", "sha512sig1h", "sha512sum0r", "sha512sum1r", "sha512sig0", "sha512sig1", "sha512sum0", "sha512sum1", "sm4ed", "sm4ks", "sm3p0", "sm3p1", "custom0.rd", "custom0.rd.rs1", "custom0.rd.rs1.rs2", "custom1.rd", "custom1.rd.rs1", "custom1.rd.rs1.rs2", "custom2.rd", "custom2.rd.rs1", "custom2.rd.rs1.rs2", "custom3.rd", "custom3.rd.rs1", "custom3.rd.rs1.rs2").contains(i) => y
+      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fle.d", "fcvt.w.d", "fcvt.wu.d", "feq.d", "flt.d", "fclass.d", "fmv.x.d", "fcvt.lu.d", "fcvt.l.d", "fclass.s", "fcvt.wu.s", "feq.s", "fle.s", "flt.s", "fmv.x.w", "fcvt.w.s", "fcvt.lu.s", "fcvt.l.s", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hlv.h", "hlv.bu", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "lw", "add", "xor", "andi", "sltiu", "lh", "jalr", "lui", "lbu", "sub", "and", "auipc", "xori", "slti", "slt", "addi", "lb", "jal", "sll", "srli", "srai", "slli", "ld", "addw", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "feq.h", "fcvt.w.h", "fclass.h", "fcvt.wu.h", "fmv.x.h", "flt.h", "fle.h", "fcvt.l.h", "fcvt.lu.h", "csrrc", "csrrci", "csrrs", "csrrw", "csrrsi", "csrrwi", "czero.nez", "czero.eqz").contains(i) => y
       case _ => n
       // format: on
     }
@@ -894,8 +475,8 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
       // TODO: default should be N?
-      case i if Seq("bne", "beq", "blt", "bltu", "bge", "bgeu", "jal", "jalr", "auipc", "lb", "lh", "lw", "lbu", "lhu", "sb", "sh", "sw", "lui", "addi", "slti", "sltiu", "andi", "ori", "xori", "add", "sub", "slt", "sltu", "and", "or", "xor", "sll", "srl", "sra", "fence", "fence.i", "czero.eqz", "czero.nez", "slli", "srli", "srai", "ld", "lwu", "sd", "slli", "srli", "srai", "addiw", "slliw", "srliw", "sraiw", "addw", "subw", "sllw", "srlw", "sraw", "mul", "mulh", "mulhu", "mulhsu", "div", "divu", "rem", "remu", "mulw", "divw", "divuw", "remw", "remuw", "amoadd.w", "amoxor.w", "amoswap.w", "amoand.w", "amoor.w", "amomin.w", "amominu.w", "amomax.w", "amomaxu.w", "lr.w", "sc.w", "amoadd.d", "amoswap.d", "amoxor.d", "amoand.d", "amoor.d", "amomin.d", "amominu.d", "amomax.d", "amomaxu.d", "lr.d", "sc.d", "fcvt.s.h", "fcvt.h.s", "fsgnj.h", "fsgnjx.h", "fsgnjn.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fclass.h", "fmv.x.h", "fcvt.w.h", "fcvt.wu.h", "feq.h", "flt.h", "fle.h", "fmv.h.x", "fcvt.h.w", "fcvt.h.wu", "flh", "fsh", "fdiv.h", "fsqrt.h", "fsgnj.s", "fsgnjx.s", "fsgnjn.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fclass.s", "fmv.x.w", "fcvt.w.s", "fcvt.wu.s", "feq.s", "flt.s", "fle.s", "fmv.w.x", "fcvt.s.w", "fcvt.s.wu", "flw", "fsw", "fdiv.s", "fsqrt.s", "fcvt.s.d", "fcvt.d.s", "fsgnj.d", "fsgnjx.d", "fsgnjn.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fclass.d", "fcvt.w.d", "fcvt.wu.d", "feq.d", "flt.d", "fle.d", "fcvt.d.w", "fcvt.d.wu", "fld", "fsd", "fdiv.d", "fsqrt.d", "fcvt.d.h", "fcvt.h.d", "fcvt.l.h", "fcvt.lu.h", "fcvt.h.l", "fcvt.h.lu", "fcvt.l.s", "fcvt.lu.s", "fcvt.s.l", "fcvt.s.lu", "fmv.x.d", "fcvt.l.d", "fcvt.lu.d", "fmv.d.x", "fcvt.d.l", "fcvt.d.lu", "sh1add", "sh2add", "sh3add", "add.uw", "slli.uw", "sh1add.uw", "sh2add.uw", "sh3add.uw", "andn", "orn", "xnor", "ror", "rol", "rori", "rori", "rorw", "rolw", "roriw", "clz", "ctz", "cpop", "clzw", "ctzw", "cpopw", "max", "maxu", "min", "minu", "sext.h", "sext.b", "zext.h", "zext.h", "orc.b", "rev8", "rev8", "pack", "packh", "brev8", "packw", "zip", "unzip", "clmul", "clmulh", "clmulr", "xperm8", "xperm4", "bclr", "bext", "binv", "bset", "bclri", "bexti", "binvi", "bseti", "bclri", "bexti", "binvi", "bseti", "aes32dsi", "aes32dsmi", "aes64ds", "aes64dsm", "aes64im", "aes64ks1i", "aes64ks2", "aes32esi", "aes32esmi", "aes64es", "aes64esm", "sha256sig0", "sha256sig1", "sha256sum0", "sha256sum1", "sha512sig0l", "sha512sig1l", "sha512sig0h", "sha512sig1h", "sha512sum0r", "sha512sum1r", "sha512sig0", "sha512sig1", "sha512sum0", "sha512sum1", "sm4ed", "sm4ks", "sm3p0", "sm3p1", "custom0", "custom0.rs1", "custom0.rs1.rs2", "custom0.rd", "custom0.rd.rs1", "custom0.rd.rs1.rs2", "custom1", "custom1.rs1", "custom1.rs1.rs2", "custom1.rd", "custom1.rd.rs1", "custom1.rd.rs1.rs2", "custom2", "custom2.rs1", "custom2.rs1.rs2", "custom2.rd", "custom2.rd.rs1", "custom2.rd.rs1.rs2", "custom3", "custom3.rs1", "custom3.rs1.rs2", "custom3.rd", "custom3.rd.rs1", "custom3.rd.rs1.rs2").contains(i) => UOPCSR.n
-      case i if Seq("cdiscard.d.l1", "cease", "cflush.d.l1", "dret", "ebreak", "ecall", "hfence.gvma", "hfence.vvma", "hlv.b", "hlv.bu", "hlv.d", "hlv.h", "hlv.hu", "hlv.w", "hlv.wu", "hlvx.hu", "hlvx.wu", "hsv.b", "hsv.d", "hsv.h", "hsv.w", "mnret", "mret", "sfence.vma", "sret", "wfi", "cease").contains(i) => UOPCSR.i
+      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fmin.d", "fsgnj.d", "fle.d", "fnmsub.d", "fadd.d", "fcvt.w.d", "fmsub.d", "fld", "fmul.d", "fcvt.wu.d", "feq.d", "fmax.d", "fcvt.d.wu", "fnmadd.d", "fcvt.d.s", "fcvt.s.d", "fsd", "fmadd.d", "fsgnjx.d", "flt.d", "fsgnjn.d", "fsub.d", "fsqrt.d", "fclass.d", "fcvt.d.w", "fdiv.d", "fcvt.d.lu", "fmv.x.d", "fmv.d.x", "fcvt.lu.d", "fcvt.l.d", "fcvt.d.l", "fcvt.d.h", "fcvt.h.d", "fnmsub.s", "fsgnjx.s", "fmsub.s", "fsgnjn.s", "fdiv.s", "fmin.s", "fsqrt.s", "fclass.s", "fcvt.wu.s", "fmax.s", "feq.s", "fcvt.s.wu", "fmv.w.x", "fle.s", "fmadd.s", "fsgnj.s", "fadd.s", "fsw", "flt.s", "fmv.x.w", "fnmadd.s", "fcvt.s.w", "flw", "fmul.s", "fcvt.w.s", "fsub.s", "fcvt.lu.s", "fcvt.s.lu", "fcvt.l.s", "fcvt.s.l", "or", "srl", "fence", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "lui", "bne", "lbu", "sub", "and", "auipc", "xori", "slti", "slt", "addi", "lb", "jal", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "feq.h", "fsgnjx.h", "fcvt.w.h", "fcvt.h.s", "fdiv.h", "fclass.h", "fsh", "fsgnj.h", "fmul.h", "fsub.h", "flh", "fcvt.wu.h", "fadd.h", "fmax.h", "fsgnjn.h", "fmv.x.h", "fcvt.s.h", "fcvt.h.wu", "fcvt.h.w", "fmsub.h", "fmin.h", "fsqrt.h", "flt.h", "fnmadd.h", "fmadd.h", "fnmsub.h", "fmv.h.x", "fle.h", "fcvt.l.h", "fcvt.lu.h", "fcvt.h.lu", "fcvt.h.l", "fence.i", "czero.nez", "czero.eqz").contains(i) => UOPCSR.n
+      case i if Seq("cdiscard.d.l1", "cease", "cflush.d.l1", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "ebreak", "ecall", "sret", "sfence.vma", "dret", "wfi", "mret", "mnret").contains(i) => UOPCSR.i
       case i if Seq("csrrw", "csrrwi").contains(i) => UOPCSR.w
       case i if Seq("csrrs", "csrrsi").contains(i) => UOPCSR.s
       case i if Seq("csrrc", "csrrci").contains(i) => UOPCSR.c
@@ -963,7 +544,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
 
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
-      case i if Seq("add", "addi", "addiw", "addw", "amoadd.d", "amoadd.w", "amoand.d", "amoand.w", "amomax.d", "amomax.w", "amomaxu.d", "amomaxu.w", "amomin.d", "amomin.w", "amominu.d", "amominu.w", "amoor.d", "amoor.w", "amoswap.d", "amoswap.w", "amoxor.d", "amoxor.w", "auipc", "cdiscard.d.l1", "cflush.d.l1", "csrrc", "csrrci", "csrrs", "csrrsi", "csrrw", "csrrwi", "fld", "flh", "flw", "fsd", "fsh", "fsw", "hfence.gvma", "hfence.vvma", "hlv.b", "hlv.bu", "hlv.d", "hlv.h", "hlv.hu", "hlv.w", "hlv.wu", "hlvx.hu", "hlvx.wu", "hsv.b", "hsv.d", "hsv.h", "hsv.w", "jal", "jalr", "lb", "lbu", "ld", "lh", "lhu", "lr.d", "lr.w", "lui", "lw", "lwu", "sb", "sc.d", "sc.w", "sd", "sfence.vma", "sh", "sw").contains(i) => UOPALU.add
+      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fsd", "fsw", "flw", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "lhu", "sb", "lw", "add", "sw", "lh", "jalr", "lui", "lbu", "auipc", "addi", "lb", "jal", "sh", "ld", "addw", "sd", "lwu", "addiw", "sfence.vma", "fsh", "flh", "csrrc", "csrrci", "csrrs", "csrrw", "csrrsi", "csrrwi", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPALU.add
       case i if Seq("and", "andi").contains(i) => UOPALU.and
       case i if Seq("or", "ori").contains(i) => UOPALU.or
       case i if Seq("beq").contains(i) => UOPALU.seq
@@ -997,266 +578,6 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def uopType: UOPALU.type = UOPALU
   }
 
-  object UOPABLU extends UOP {
-    def width = 39
-
-    def add: BitPat = encode("b000000000000000000001000000000000000001")
-
-    def sl: BitPat = encode("b000000000110000000001000000000000000010")
-
-    def seq: BitPat = encode("b001000000000000000001000000000001000000")
-
-    def sne: BitPat = encode("b001100000000000000001000000000001000000")
-
-    def xor: BitPat = encode("b000000000000000000001000000000000001000")
-
-    def sr: BitPat = encode("b000000000000000000001000000000000000010")
-
-    def or: BitPat = encode("b000000000000000000001000000000000010000")
-
-    def and: BitPat = encode("b000000000000000000001000000000000000100")
-
-    def czeqz: BitPat = encode(8)
-
-    def cznez: BitPat = encode(9)
-
-    def sub: BitPat = encode("b000000000000000110001000000000000000001")
-
-    def sra: BitPat = encode("b000000000000100000001000000000000000010")
-
-    def slt: BitPat = encode("b000000000000000110001000000000001000000")
-
-    def sge: BitPat = encode("b000100000000000110001000000000001000000")
-
-    def sltu: BitPat = encode("b000010000000000110001000000000001000000")
-
-    def sgeu: BitPat = encode("b000110000000000110001000000000001000000")
-
-    def adduw: BitPat = encode("b000000000000010000001000000000000000001")
-
-    def slliuw: BitPat = encode("b000000000110010000001000000000000000010")
-
-    def sh1add: BitPat = encode("b000000000000000000010000000000000000001")
-
-    def sh1adduw: BitPat = encode("b000000000000010000010000000000000000001")
-
-    def sh2add: BitPat = encode("b000000000000000000100000000000000000001")
-
-    def sh2adduw: BitPat = encode("b000000000000010000100000000000000000001")
-
-    def sh3add: BitPat = encode("b000000000000000001000000000000000000001")
-
-    def sh3adduw: BitPat = encode("b000000000000010001000000000000000000001")
-
-    def ror: BitPat = encode("b000000000001000000001000000000000000010")
-
-    def rol: BitPat = encode("b000000000111000000001000000000000000010")
-
-    def andn: BitPat = encode("b000000000000000100001000000000000000100")
-
-    def orn: BitPat = encode("b000000000000000100001000000000000010000")
-
-    def xnor: BitPat = encode("b000000000000000100001000000000000001000")
-
-    def rev8: BitPat = encode("b000000000000000000001000001000000000000")
-
-    def orcb: BitPat = encode("b100000000000000000001000010000000000000")
-
-    def sextb: BitPat = encode("b000000000000000000001000000100000000000")
-
-    def sexth: BitPat = encode("b010000000000000000001000000010000000000")
-
-    def zexth: BitPat = encode("b000000000000000000001000000010000000000")
-
-    def max: BitPat = encode("b000000000000000110001000000000010000000")
-
-    def maxu: BitPat = encode("b000010000000000110001000000000010000000")
-
-    def min: BitPat = encode("b000100000000000110001000000000010000000")
-
-    def minu: BitPat = encode("b000110000000000110001000000000010000000")
-
-    def cpop: BitPat = encode("b000000000000000000001000000000100000000")
-
-    def clz: BitPat = encode("b000001101111000000001000000001000000000")
-
-    def ctz: BitPat = encode("b000001101000000000001000000001000000000")
-
-    def bclr: BitPat = encode("b000001110100001000001000000000000000100")
-
-    def bext: BitPat = encode("b000001000100001000001000000000000100000")
-
-    def binv: BitPat = encode("b000001000100001000001000000000000001000")
-
-    def bset: BitPat = encode("b000001000100001000001000000000000010000")
-
-    def brev8: BitPat = encode("b000000000000000000001000010000000000000")
-
-    def pack: BitPat = encode("b000000000000000000001000100000000000000")
-
-    def packh: BitPat = encode("b000000000000000000001001000000000000000")
-
-    def zip: BitPat = encode("b000000000000000000001010000000000000000")
-
-    def unzip: BitPat = encode("b000000000000000000001100000000000000000")
-
-    def clmul: BitPat = encode("b00001")
-
-    def clmulr: BitPat = encode("b00010")
-
-    def clmulh: BitPat = encode("b00100")
-
-    def xperm8: BitPat = encode("b01000")
-
-    def xperm4: BitPat = encode("b10000")
-
-    def aesds: BitPat = encode("b00100001000000001")
-
-    def aesdsm: BitPat = encode("b00000010000000001")
-
-    def aeses: BitPat = encode("b00110001000000001")
-
-    def aesesm: BitPat = encode("b00010010000000001")
-
-    def aesim: BitPat = encode("b10000010000000001")
-
-    def aesks1: BitPat = encode("b01010100000000001")
-
-    def aesks2: BitPat = encode("b00001000000000001")
-
-    def sha256sig0: BitPat = encode("b00000001000000010")
-
-    def sha256sig1: BitPat = encode("b00000001000000100")
-
-    def sha256sum0: BitPat = encode("b00000001000001000")
-
-    def sha256sum1: BitPat = encode("b00000001000010000")
-
-    def sha512sig0: BitPat = encode("b00000001000100000")
-
-    def sha512sig1: BitPat = encode("b00000001001000000")
-
-    def sha512sum0: BitPat = encode("b00000001010000000")
-
-    def sha512sum1: BitPat = encode("b00000001100000000")
-
-    def sm4ed: BitPat = encode("b0101")
-
-    def sm4ks: BitPat = encode("b0001")
-
-    def sm3p0: BitPat = encode("b1010")
-
-    def sm3p1: BitPat = encode("b0010")
-
-    def div: BitPat = xor
-
-    def divu: BitPat = sr
-
-    def rem: BitPat = or
-
-    def remu: BitPat = and
-
-    def mul: BitPat = add
-
-    def mulh: BitPat = sl
-
-    def mulhsu: BitPat = seq
-
-    def mulhu: BitPat = sne
-  }
-
-  object abluFn extends UOPDecodeField[RocketDecodePattern] {
-    override def name: String = "alu_fn"
-
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
-      // format: off
-      case i if Seq("add", "addi", "addiw", "addw", "amoadd.d", "amoadd.w", "amoand.d", "amoand.w", "amomax.d", "amomax.w", "amomaxu.d", "amomaxu.w", "amomin.d", "amomin.w", "amominu.d", "amominu.w", "amoor.d", "amoor.w", "amoswap.d", "amoswap.w", "amoxor.d", "amoxor.w", "auipc", "cdiscard.d.l1", "cflush.d.l1", "csrrc", "csrrci", "csrrs", "csrrsi", "csrrw", "csrrwi", "fld", "flh", "flw", "fsd", "fsh", "fsw", "hfence.gvma", "hfence.vvma", "hlv.b", "hlv.bu", "hlv.d", "hlv.h", "hlv.hu", "hlv.w", "hlv.wu", "hlvx.hu", "hlvx.wu", "hsv.b", "hsv.d", "hsv.h", "hsv.w", "jal", "jalr", "lb", "lbu", "ld", "lh", "lhu", "lr.d", "lr.w", "lui", "lw", "lwu", "sb", "sc.d", "sc.w", "sd", "sfence.vma", "sh", "sw").contains(i) => UOPABLU.add
-      case i if Seq("add.uw").contains(i) => UOPABLU.adduw
-      case i if Seq("aes32dsi", "aes64ds").contains(i) => UOPABLU.aesds
-      case i if Seq("aes32dsmi", "aes64dsm").contains(i) => UOPABLU.aesdsm
-      case i if Seq("aes32esi", "aes64es").contains(i) => UOPABLU.aeses
-      case i if Seq("aes32esmi", "aes64esm").contains(i) => UOPABLU.aesesm
-      case i if Seq("aes64im").contains(i) => UOPABLU.aesim
-      case i if Seq("aes64ks1i", "aes64ks2").contains(i) => UOPABLU.aesks1
-      case i if Seq("and", "andi").contains(i) => UOPABLU.and
-      case i if Seq("andn").contains(i) => UOPABLU.andn
-      case i if Seq("bclr", "bclri", "bclri").contains(i) => UOPABLU.bclr
-      case i if Seq("bext", "bexti", "bexti").contains(i) => UOPABLU.bext
-      case i if Seq("binv", "binvi", "binvi").contains(i) => UOPABLU.binv
-      case i if Seq("brev8").contains(i) => UOPABLU.brev8
-      case i if Seq("bset", "bseti", "bseti").contains(i) => UOPABLU.bset
-      case i if Seq("clmul").contains(i) => UOPABLU.clmul
-      case i if Seq("clmulh").contains(i) => UOPABLU.clmulh
-      case i if Seq("clmulr").contains(i) => UOPABLU.clmulr
-      case i if Seq("clz", "clzw").contains(i) => UOPABLU.clz
-      case i if Seq("cpop", "cpopw").contains(i) => UOPABLU.cpop
-      case i if Seq("ctz", "ctzw").contains(i) => UOPABLU.ctz
-      case i if Seq("czero.eqz", "czero.nez").contains(i) => UOPABLU.czeqz
-      case i if Seq("div", "divw").contains(i) => UOPABLU.div
-      case i if Seq("divu", "divuw").contains(i) => UOPABLU.divu
-      case i if Seq("max").contains(i) => UOPABLU.max
-      case i if Seq("maxu").contains(i) => UOPABLU.maxu
-      case i if Seq("min").contains(i) => UOPABLU.min
-      case i if Seq("minu").contains(i) => UOPABLU.minu
-      case i if Seq("mul", "mulw").contains(i) => UOPABLU.mul
-      case i if Seq("mulh").contains(i) => UOPABLU.mulh
-      case i if Seq("mulhsu").contains(i) => UOPABLU.mulhsu
-      case i if Seq("mulhu").contains(i) => UOPABLU.mulhu
-      case i if Seq("or", "ori").contains(i) => UOPABLU.or
-      case i if Seq("orc.b").contains(i) => UOPABLU.orcb
-      case i if Seq("orn").contains(i) => UOPABLU.orn
-      case i if Seq("pack", "packw").contains(i) => UOPABLU.pack
-      case i if Seq("packh").contains(i) => UOPABLU.packh
-      case i if Seq("rem", "remw").contains(i) => UOPABLU.rem
-      case i if Seq("remu", "remuw").contains(i) => UOPABLU.remu
-      case i if Seq("rev8", "rev8").contains(i) => UOPABLU.rev8
-      case i if Seq("rol", "rolw").contains(i) => UOPABLU.rol
-      case i if Seq("ror", "rori", "rori", "roriw", "rorw").contains(i) => UOPABLU.ror
-      case i if Seq("beq").contains(i) => UOPABLU.seq
-      case i if Seq("sext.b").contains(i) => UOPABLU.sextb
-      case i if Seq("sext.h").contains(i) => UOPABLU.sexth
-      case i if Seq("bge").contains(i) => UOPABLU.sge
-      case i if Seq("bgeu").contains(i) => UOPABLU.sgeu
-      case i if Seq("sh1add").contains(i) => UOPABLU.sh1add
-      case i if Seq("sh1add.uw").contains(i) => UOPABLU.sh1adduw
-      case i if Seq("sh2add").contains(i) => UOPABLU.sh2add
-      case i if Seq("sh2add.uw").contains(i) => UOPABLU.sh2adduw
-      case i if Seq("sh3add").contains(i) => UOPABLU.sh3add
-      case i if Seq("sh3add.uw").contains(i) => UOPABLU.sh3adduw
-      case i if Seq("sha256sig0").contains(i) => UOPABLU.sha256sig0
-      case i if Seq("sha256sig1").contains(i) => UOPABLU.sha256sig1
-      case i if Seq("sha256sum0").contains(i) => UOPABLU.sha256sum0
-      case i if Seq("sha256sum1").contains(i) => UOPABLU.sha256sum1
-      case i if Seq("sha512sig0", "sha512sig0h", "sha512sig0l").contains(i) => UOPABLU.sha512sig0
-      case i if Seq("sha512sig1", "sha512sig1h", "sha512sig1l").contains(i) => UOPABLU.sha512sig1
-      case i if Seq("sha512sum0", "sha512sum0r").contains(i) => UOPABLU.sha512sum0
-      case i if Seq("sha512sum1", "sha512sum1r").contains(i) => UOPABLU.sha512sum1
-      case i if Seq("sll", "slli", "slli", "slliw", "sllw").contains(i) => UOPABLU.sl
-      case i if Seq("slli.uw").contains(i) => UOPABLU.slliuw
-      case i if Seq("blt", "slt", "slti").contains(i) => UOPABLU.slt
-      case i if Seq("bltu", "sltiu", "sltu").contains(i) => UOPABLU.sltu
-      case i if Seq("sm3p0").contains(i) => UOPABLU.sm3p0
-      case i if Seq("sm3p1").contains(i) => UOPABLU.sm3p1
-      case i if Seq("sm4ed").contains(i) => UOPABLU.sm4ed
-      case i if Seq("sm4ks").contains(i) => UOPABLU.sm4ks
-      case i if Seq("bne").contains(i) => UOPABLU.sne
-      case i if Seq("srl", "srli", "srli", "srliw", "srlw").contains(i) => UOPABLU.sr
-      case i if Seq("sra", "srai", "srai", "sraiw", "sraw").contains(i) => UOPABLU.sra
-      case i if Seq("sub", "subw").contains(i) => UOPABLU.sub
-      case i if Seq("unzip").contains(i) => UOPABLU.unzip
-      case i if Seq("xnor").contains(i) => UOPABLU.xnor
-      case i if Seq("xor", "xori").contains(i) => UOPABLU.xor
-      case i if Seq("xperm4").contains(i) => UOPABLU.xperm4
-      case i if Seq("xperm8").contains(i) => UOPABLU.xperm8
-      case i if Seq("zext.h").contains(i) => UOPABLU.zexth
-      case i if Seq("zip").contains(i) => UOPABLU.zip
-      case _ => UOPABLU.dontCare
-      // format: on
-    }
-
-    override def uopType: UOPALU.type = UOPALU
-  }
-
   object UOPIMM extends UOP {
     def width = 3
 
@@ -1278,7 +599,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
 
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
-      case i if Seq("addi", "addiw", "aes64ks1i", "andi", "bclri", "bclri", "bexti", "bexti", "binvi", "binvi", "bseti", "bseti", "fld", "flh", "flw", "hsv.b", "hsv.d", "hsv.h", "hsv.w", "jalr", "lb", "lbu", "ld", "lh", "lhu", "lw", "lwu", "ori", "rori", "rori", "roriw", "slli", "slli", "slli.uw", "slliw", "slti", "sltiu", "srai", "srai", "sraiw", "srli", "srli", "srliw", "xori").contains(i) => UOPIMM.i
+      case i if Seq("fld", "flw", "hsv.w", "hsv.b", "hsv.h", "hsv.d", "ori", "lhu", "lw", "andi", "sltiu", "lh", "jalr", "lbu", "xori", "slti", "addi", "lb", "srli", "srai", "slli", "ld", "sraiw", "lwu", "addiw", "srliw", "slliw", "flh").contains(i) => UOPIMM.i
       case i if Seq("fsd", "fsh", "fsw", "sb", "sd", "sh", "sw").contains(i) => UOPIMM.s
       case i if Seq("beq", "bge", "bgeu", "blt", "bltu", "bne").contains(i) => UOPIMM.sb
       case i if Seq("auipc", "lui").contains(i) => UOPIMM.u
@@ -1307,7 +628,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("auipc", "jal").contains(i) => UOPA1.pc
-      case i if Seq("add", "add.uw", "addi", "addiw", "addw", "aes32dsi", "aes32dsmi", "aes32esi", "aes32esmi", "aes64ds", "aes64dsm", "aes64es", "aes64esm", "aes64im", "aes64ks1i", "aes64ks2", "amoadd.d", "amoadd.w", "amoand.d", "amoand.w", "amomax.d", "amomax.w", "amomaxu.d", "amomaxu.w", "amomin.d", "amomin.w", "amominu.d", "amominu.w", "amoor.d", "amoor.w", "amoswap.d", "amoswap.w", "amoxor.d", "amoxor.w", "and", "andi", "andn", "bclr", "bclri", "bclri", "beq", "bext", "bexti", "bexti", "bge", "bgeu", "binv", "binvi", "binvi", "blt", "bltu", "bne", "brev8", "bset", "bseti", "bseti", "cdiscard.d.l1", "cflush.d.l1", "clmul", "clmulh", "clmulr", "clz", "clzw", "cpop", "cpopw", "csrrc", "csrrs", "csrrw", "ctz", "ctzw", "czero.eqz", "czero.nez", "div", "divu", "divuw", "divw", "fcvt.d.l", "fcvt.d.lu", "fcvt.d.w", "fcvt.d.wu", "fcvt.h.l", "fcvt.h.lu", "fcvt.h.w", "fcvt.h.wu", "fcvt.s.l", "fcvt.s.lu", "fcvt.s.w", "fcvt.s.wu", "fld", "flh", "flw", "fmv.d.x", "fmv.h.x", "fmv.w.x", "fsd", "fsh", "fsw", "hfence.gvma", "hfence.vvma", "hlv.b", "hlv.bu", "hlv.d", "hlv.h", "hlv.hu", "hlv.w", "hlv.wu", "hlvx.hu", "hlvx.wu", "hsv.b", "hsv.d", "hsv.h", "hsv.w", "jalr", "lb", "lbu", "ld", "lh", "lhu", "lr.d", "lr.w", "lw", "lwu", "max", "maxu", "min", "minu", "mul", "mulh", "mulhsu", "mulhu", "mulw", "or", "orc.b", "ori", "orn", "pack", "packh", "packw", "rem", "remu", "remuw", "remw", "rev8", "rev8", "rol", "rolw", "ror", "rori", "rori", "roriw", "rorw", "sb", "sc.d", "sc.w", "sd", "sext.b", "sext.h", "sfence.vma", "sh", "sh1add", "sh1add.uw", "sh2add", "sh2add.uw", "sh3add", "sh3add.uw", "sha256sig0", "sha256sig1", "sha256sum0", "sha256sum1", "sha512sig0", "sha512sig0h", "sha512sig0l", "sha512sig1", "sha512sig1h", "sha512sig1l", "sha512sum0", "sha512sum0r", "sha512sum1", "sha512sum1r", "sll", "slli", "slli.uw", "slliw", "sllw", "slt", "slti", "sltiu", "sltu", "sm3p0", "sm3p1", "sm4ed", "sm4ks", "sra", "srai", "srai", "sraiw", "sraw", "srl", "srli", "srli", "srliw", "srlw", "sub", "subw", "sw", "unzip", "xnor", "xor", "xori", "xperm4", "xperm8", "zext.h", "zext.h", "zip").contains(i) => UOPA1.rs1
+      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fcvt.d.wu", "fsd", "fcvt.d.w", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.s.wu", "fmv.w.x", "fsw", "fcvt.s.w", "flw", "fcvt.s.lu", "fcvt.s.l", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "bne", "lbu", "sub", "and", "xori", "slti", "slt", "addi", "lb", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "fsh", "flh", "fcvt.h.wu", "fcvt.h.w", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l", "csrrc", "csrrs", "csrrw", "czero.nez", "czero.eqz", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPA1.rs1
       case i if Seq("csrrci", "csrrsi", "csrrwi", "lui").contains(i) => UOPA1.zero
       case _ => UOPA1.dontCare
     }
@@ -1332,11 +653,11 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
 
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
-      case i if Seq("addi", "addiw", "aes64ks1i", "andi", "auipc", "bclri", "bclri", "bexti", "bexti", "binvi", "binvi", "bseti", "bseti", "csrrci", "csrrsi", "csrrwi", "fld", "flh", "flw", "fsd", "fsh", "fsw", "jalr", "lb", "lbu", "ld", "lh", "lhu", "lui", "lw", "lwu", "ori", "rori", "rori", "roriw", "sb", "sd", "sh", "slli", "slli.uw", "slliw", "slti", "sltiu", "srai", "srai", "sraiw", "srli", "srli", "srliw", "sw", "xori").contains(i) => UOPA2.imm
-      case i if Seq("add", "add.uw", "addw", "aes32dsi", "aes32dsmi", "aes32esi", "aes32esmi", "aes64ds", "aes64dsm", "aes64es", "aes64esm", "aes64im", "aes64ks2", "and", "andn", "bclr", "beq", "bext", "bge", "bgeu", "binv", "blt", "bltu", "bne", "bset", "clmul", "clmulh", "clmulr", "czero.eqz", "czero.nez", "div", "divu", "divuw", "divw", "max", "maxu", "min", "minu", "mul", "mulh", "mulhsu", "mulhu", "mulw", "or", "orn", "pack", "packh", "packw", "rem", "remu", "remuw", "remw", "rol", "rolw", "ror", "rorw", "sh1add", "sh1add.uw", "sh2add", "sh2add.uw", "sh3add", "sh3add.uw", "sha512sig0h", "sha512sig0l", "sha512sig1h", "sha512sig1l", "sha512sum0r", "sha512sum1r", "sll", "sllw", "slt", "sltu", "sm4ed", "sm4ks", "sra", "sraw", "srl", "srlw", "sub", "subw", "xnor", "xor", "xperm4", "xperm8").contains(i) => UOPA2.rs2
+      case i if Seq("fld", "fsd", "fsw", "flw", "ori", "lhu", "sb", "lw", "andi", "sw", "sltiu", "lh", "jalr", "lui", "lbu", "auipc", "xori", "slti", "addi", "lb", "sh", "srli", "srai", "slli", "ld", "sd", "sraiw", "lwu", "addiw", "srliw", "slliw", "fsh", "flh", "csrrci", "csrrsi", "csrrwi").contains(i) => UOPA2.imm
+      case i if Seq("or", "srl", "sltu", "sra", "add", "xor", "beq", "bge", "blt", "bgeu", "bltu", "bne", "sub", "and", "slt", "sll", "addw", "sllw", "sraw", "subw", "srlw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "czero.nez", "czero.eqz").contains(i) => UOPA2.rs2
       case i if Seq("jal").contains(i) => UOPA2.size
-      case i if Seq("amoadd.d", "amoadd.w", "amoand.d", "amoand.w", "amomax.d", "amomax.w", "amomaxu.d", "amomaxu.w", "amomin.d", "amomin.w", "amominu.d", "amominu.w", "amoor.d", "amoor.w", "amoswap.d", "amoswap.w", "amoxor.d", "amoxor.w", "cdiscard.d.l1", "cflush.d.l1", "csrrc", "csrrs", "csrrw", "hfence.gvma", "hfence.vvma", "hlv.b", "hlv.bu", "hlv.d", "hlv.h", "hlv.hu", "hlv.w", "hlv.wu", "hlvx.hu", "hlvx.wu", "hsv.b", "hsv.d", "hsv.h", "hsv.w", "lr.d", "lr.w", "sc.d", "sc.w", "sfence.vma").contains(i) => UOPA2.zero
-      case i => UOPA2.dontCare
+      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "sfence.vma", "csrrc", "csrrs", "csrrw", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPA2.zero
+      case _ => UOPA2.dontCare
     }
 
     override def uopType: UOPA2.type = UOPA2
