@@ -63,8 +63,9 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     )
   }
 
+  // Used to cut off back pressure forward
   val vrfWriteQueue: Queue[VRFWriteRequest] =
-    Module(new Queue(vrfWriteBundle, entries = 1, pipe = false, flow = false))
+    Module(new Queue(vrfWriteBundle, entries = 4, pipe = false, flow = false))
 
   /** Write queue ready or not need to write. */
   val vrfWriteReady: Bool = vrfWriteQueue.io.enq.ready || state.decodeResult(Decoder.sWrite)

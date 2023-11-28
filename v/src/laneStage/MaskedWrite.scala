@@ -34,12 +34,19 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   val dataReg: UInt = RegEnable(vrfReadResult, 0.U(parameter.datapathWidth.W), readNext)
   val dataSelect: UInt = Mux(readNext, vrfReadResult, dataReg)
 
-
-  val writeQueue: DecoupledIO[VRFWriteRequest] = Queue(enq = enqueue, entries = 1)
-
-  dequeue <> writeQueue
-  val maskFill: UInt = FillInterleaved(8, writeQueue.bits.mask)
-  dequeue.bits.data := writeQueue.bits.data & maskFill | (dataSelect & (~maskFill))
+  val pipeValid: Bool = RegInit(false.B)
+  val enqueuePipe: VRFWriteRequest = RegEnable(enqueue.bits, 0.U.asTypeOf(enqueue.bits), enqueue.fire)
+  val writeQueue: Queue[VRFWriteRequest] = Module(new Queue(chiselTypeOf(enqueue.bits), entries = 1, flow = true))
+  dequeue <> writeQueue.io.deq
+  writeQueue.io.enq.valid := pipeValid
+  writeQueue.io.enq.bits := enqueuePipe
+  val maskFill: UInt = FillInterleaved(8, enqueuePipe.mask)
+  writeQueue.io.enq.bits.data := enqueuePipe.data & maskFill | (dataSelect & (~maskFill))
   maskedWrite1H :=
-    Mux(writeQueue.valid, indexToOH(writeQueue.bits.instructionIndex, parameter.chainingSize), 0.U)
+    Mux(writeQueue.io.deq.valid, indexToOH(writeQueue.io.deq.bits.instructionIndex, parameter.chainingSize), 0.U) |
+      Mux(pipeValid, indexToOH(enqueuePipe.instructionIndex, parameter.chainingSize), 0.U)
+  enqueue.ready := !pipeValid || writeQueue.io.enq.ready
+  when(enqueue.fire ^ writeQueue.io.enq.fire) {
+    pipeValid := enqueue.fire
+  }
 }
