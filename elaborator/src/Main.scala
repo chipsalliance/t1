@@ -19,7 +19,10 @@ object Main {
                        @arg(name = "config") config: String,
                        @arg(name = "tb") tb: Boolean
                      ) = {
-    val generator = upickle.default.read[SerializableModuleGenerator[V, VParameter]](ujson.read(os.read(os.Path(config))))
+    val dir_ = os.Path(dir, os.pwd)
+    val config_ = os.Path(config, os.pwd)
+
+    val generator = upickle.default.read[SerializableModuleGenerator[V, VParameter]](ujson.read(os.read(config_)))
     var topName: String = null
     val annos: AnnotationSeq = Seq(
       new chisel3.stage.phases.Elaborate,
@@ -32,12 +35,12 @@ object Main {
       .flatMap {
         case FirrtlCircuitAnnotation(circuit) =>
           topName = circuit.main
-          os.write(os.Path(dir) / s"$topName.fir", circuit.serialize)
+          os.write(dir_ / s"$topName.fir", circuit.serialize)
           None
         case _: chisel3.stage.DesignAnnotation[_] => None
         case a => Some(a)
       }
-    os.write(os.Path(dir) / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
+    os.write(dir_ / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
   }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
