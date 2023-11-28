@@ -1,5 +1,4 @@
 { lib
-, pkgs
 , newScope
 
 , llvmForDev
@@ -28,8 +27,10 @@ lib.makeScope newScope
       elaborate-config = ../../configs/${configName}.json;
 
       elaborate = innerSelf.callPackage ./elaborate.nix { };
+      elaborate-release = innerSelf.callPackage ./elaborate.nix { is-testbench = false; };
 
       verilator-emulator = innerSelf.callPackage ./verilator-emulator.nix { };
+      verilator-emulator-trace = innerSelf.callPackage ./verilator-emulator.nix { do-trace = true; };
     })
   )
 )

@@ -13,12 +13,10 @@
 , zlib
 
 , elaborate
-, elaborate-config
+
+, do-trace ? false
 }:
 
-let
-  doTrace = (builtins.fromJSON (builtins.readFile elaborate-config)).trace;
-in
 stdenv.mkDerivation {
   name = "t1-verilator-emulator";
 
@@ -27,7 +25,7 @@ stdenv.mkDerivation {
   # CMakeLists.txt will read the environment
   env.VERILATE_SRC_DIR = toString elaborate;
 
-  cmakeFlags = lib.optionals doTrace [
+  cmakeFlags = lib.optionals do-trace [
     "-DVERILATE_TRACE=ON"
   ];
 

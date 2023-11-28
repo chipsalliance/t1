@@ -71,17 +71,19 @@ We use nix flake as our primary build system. If you have not installed nix, ins
 
 ### Build
 
-t1 includes a hardware design written in Chisel and a emulator powered by verilator. The elaborator and emulator can be run with various configurations. Each configuration is specified with a JSON file in `./configs` directory. We can specify a configuration by its JSON file name, e.g. `v1024l8p2fp-test`.
+t1 includes a hardware design written in Chisel and a emulator powered by verilator. The elaborator and emulator can be run with various configurations. Each configuration is specified with a JSON file in `./configs` directory. We can specify a configuration by its JSON file name, e.g. `v1024-l8-b2`.
 
 You can build its components with the following commands:
 ```shell
 $ nix build .#t1.elaborator  # the wrapped jar file of the Chisel elaborator
 $ nix build .#t1.<config-name>.elaborate  # the elaborated .sv files
+$ nix build .#t1.<config-name>.elaborate-release  # the release elaborated .sv files
 $ nix build .#t1.<config-name>.verilator-emulator  # the verilator emulator
+$ nix build .#t1.<config-name>.verilator-emulator-trace  # the verilator emulator with trace support
 
 $ nix build .#t1.rvv-testcases  # the testcases
 ```
-where `<config-name>` should be replaced with a configuration name, e.g. `v1024l8p2fp-test`. The build output will be put in `./result` directory by default.
+where `<config-name>` should be replaced with a configuration name, e.g. `v1024-l8-b2`. The build output will be put in `./result` directory by default.
 
 #### Run Testcases
 
@@ -102,7 +104,7 @@ wheres
 
 For example:
 ```shell
-./scripts/run-test.py -c v1024l8b2fp-test -r debug conv-mlir  # '-r debug' can be omitted since it is the default
+./scripts/run-test.py -c v1024-l8-b2 -r debug conv-mlir  # '-r debug' can be omitted since it is the default
 ```
 
 `run-test.py` provides various command-line options for different use cases. Run `./scripts/run-test.py -h` for help.
