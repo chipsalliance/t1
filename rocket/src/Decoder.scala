@@ -33,6 +33,19 @@ trait UOPDecodeField[T <: DecodePattern] extends DecodeField[T, UInt] {
 /** DecodePattern for an RISC-V instruction */
 case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
   override def bitPat: BitPat = BitPat("b" + instruction.encoding.toString)
+  def isVector = instruction.instructionSet.name == "rv_v"
+  def isVectorCSR = Seq("vsetvl", "vsetivli", "vsetvli").contains(instruction.instructionSet.name)
+  def isVectorLSU = instruction.instructionSet.name match {
+    // unit stride
+    case s"v${t}e${sz}.v" if (t == "l") || (t == "s") => true
+    case s"v${t}m.v" if (t == "l") || (t == "s") => true
+    case s"vle${sz}ff.v" => true
+    // stride
+    case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
+    // indexed
+    case s"v${t}${o}xei${sz}.v" if ((t == "l") || (t == "s")) && ((t == "u") || (t == "o")) => true
+    case _ => false
+  }
 }
 
 object CustomInstructions {
@@ -130,7 +143,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     (if (useABLU) Seq(abluFn, zbk, zkn, zks) else Some(aluFn)) ++
     (if (useFPU) Seq(fp, rfs1, rfs2, rfs3, wfd, dp) else None) ++
     (if (useMulDiv) if (p.pipelinedMul) Seq(mul, div) else Seq(div) else None) ++
-    (if (useVector) Seq(isVector) else None)
+    (if (useVector) Seq(vector) else None)
 
   val table: DecodeTable[RocketDecodePattern] = new DecodeTable[RocketDecodePattern](
     instructionDecodePatterns,
@@ -1329,9 +1342,21 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     override def uopType: UOPA2.type = UOPA2
   }
 
-  object isVector extends BoolDecodeField[RocketDecodePattern] {
+  object vector extends BoolDecodeField[RocketDecodePattern] {
     override def name: String = "vector"
 
-    override def genTable(op: RocketDecodePattern): BitPat = n
+    override def genTable(op: RocketDecodePattern): BitPat = if (op.instruction.instructionSet.name == "rv_v") Y else N
+  }
+
+  object vectorLSU extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "vectorLSU"
+
+    override def genTable(op: RocketDecodePattern): BitPat = if (op.isVectorLSU) Y else N
+  }
+
+  object vectorCSR extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "vectorCSR"
+
+    override def genTable(op: RocketDecodePattern): BitPat = if (op.isVectorCSR) Y else N
   }
 }
