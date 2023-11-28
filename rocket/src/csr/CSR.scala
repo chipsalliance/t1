@@ -6,7 +6,6 @@ package org.chipsalliance.t1.rocketcore.csr
 import chisel3._
 import chisel3.util.log2Ceil
 
-
 // context for Vector
 class V(vlen: Int, hypervisor: Boolean) {
   require(Module.currentModule.isDefined)
@@ -39,19 +38,19 @@ class V(vlen: Int, hypervisor: Boolean) {
     "vxsat"
   )
   def chiselType(content: String): Data = content match {
-    case "misa.V" => Bool()
-    case "mstatus.VS" => UInt(2.W)
+    case "misa.V"      => Bool()
+    case "mstatus.VS"  => UInt(2.W)
     case "vsstatus.VS" => UInt(2.W)
-    case "vlmul" => UInt(3.W)
-    case "vsew" => UInt(3.W)
-    case "vta" => Bool()
-    case "vma" => Bool()
-    case "vill" => Bool()
-    case "vl" => UInt(vlWidth.W)
-    case "vlenb" => UInt(vlenbWidth.W)
-    case "vstart" => UInt(vlWidth.W)
-    case "vxrm" => UInt(2.W)
-    case "vxsat" => UInt(2.W)
+    case "vlmul"       => UInt(3.W)
+    case "vsew"        => UInt(3.W)
+    case "vta"         => Bool()
+    case "vma"         => Bool()
+    case "vill"        => Bool()
+    case "vl"          => UInt(vlWidth.W)
+    case "vlenb"       => UInt(vlenbWidth.W)
+    case "vstart"      => UInt(vlWidth.W)
+    case "vxrm"        => UInt(2.W)
+    case "vxsat"       => UInt(2.W)
   }
   // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#311-state-of-vector-extension-at-reset
   def reset(content: String): Option[UInt] = content match {
@@ -59,10 +58,10 @@ class V(vlen: Int, hypervisor: Boolean) {
     case "mstatus.VS" => Some(0.U)
     //  It is recommended that at reset, vtype.vill is set, the remaining bits in vtype are zero, and vl is set to zero.
     case "vlmul" => Some(0.U)
-    case "vsew" => Some(0.U)
-    case "vta" => Some(false.B)
-    case "vma" => Some(false.B)
-    case "vill" => Some(true.B)
+    case "vsew"  => Some(0.U)
+    case "vta"   => Some(false.B)
+    case "vma"   => Some(false.B)
+    case "vill"  => Some(true.B)
     // The vector extension must have a consistent state at reset. In particular, vtype and vl must have values that can be read and then restored with a single vsetvl instruction.
     case "vl" => Some(0.U)
     // The vstart, vxrm, vxsat CSRs can have arbitrary values at reset.
@@ -71,8 +70,8 @@ class V(vlen: Int, hypervisor: Boolean) {
   def constant(content: String): Option[UInt] = content match {
     // MISA in Rocket is not writable.
     case "misa.V" => Some(true.B)
-    case "vlenb" => Some((vlen / 8).U)
-    case _ => None
+    case "vlenb"  => Some((vlen / 8).U)
+    case _        => None
   }
 
   val states: Map[String, UInt] =
@@ -95,7 +94,8 @@ class V(vlen: Int, hypervisor: Boolean) {
         reset(content)
           .map(resetValue => RegInit(resetValue))
           .getOrElse(Reg(chiselType(content)))
-          .suggestName(content).asUInt
+          .suggestName(content)
+          .asUInt
     }.toMap
 
   val constants: Map[String, UInt] = Seq(

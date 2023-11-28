@@ -46,67 +46,67 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       // TODO: configurable
       (org.chipsalliance.rvdecoderdb.fromFile.instructions(p(RISCVOpcodesPath)) ++
         org.chipsalliance.t1.rocketcore.CustomInstructions.rocketSet).filter { i =>
-          i.instructionSets.map(_.name) match {
-            // I
-            case s if s.contains("rv_i")   => true
-            case s if s.contains("rv32_i") => xLen == 32
-            case s if s.contains("rv64_i") => xLen == 64
-            // M
-            case s if s.contains("rv_m")   => usingMulDiv
-            case s if s.contains("rv64_m") => (xLen == 64) && usingMulDiv
-            // A
-            case s if s.contains("rv_a")   => usingAtomics
-            case s if s.contains("rv64_a") => (xLen == 64) && usingAtomics
-            // ZICSR
-            case s if s.contains("rv_zicsr") => true
-            // ZIFENCEI
-            case s if s.contains("rv_zifencei") => true
-            // F
-            case s if s.contains("rv_f")   => !(fLen == 0)
-            case s if s.contains("rv64_f") => (xLen == 64) && !(fLen == 0)
-            // D
-            case s if s.contains("rv_d")   => fLen == 64
-            case s if s.contains("rv64_d") => (xLen == 64) && (fLen == 64)
-            // ZFH
-            case s if s.contains("rv_zfh")   => minFLen == 16
-            case s if s.contains("rv64_zfh") => (xLen == 64) && (minFLen == 16)
-            case s if s.contains("rv_d_zfh") => (fLen == 64) && (minFLen == 16)
+        i.instructionSets.map(_.name) match {
+          // I
+          case s if s.contains("rv_i")   => true
+          case s if s.contains("rv32_i") => xLen == 32
+          case s if s.contains("rv64_i") => xLen == 64
+          // M
+          case s if s.contains("rv_m")   => usingMulDiv
+          case s if s.contains("rv64_m") => (xLen == 64) && usingMulDiv
+          // A
+          case s if s.contains("rv_a")   => usingAtomics
+          case s if s.contains("rv64_a") => (xLen == 64) && usingAtomics
+          // ZICSR
+          case s if s.contains("rv_zicsr") => true
+          // ZIFENCEI
+          case s if s.contains("rv_zifencei") => true
+          // F
+          case s if s.contains("rv_f")   => !(fLen == 0)
+          case s if s.contains("rv64_f") => (xLen == 64) && !(fLen == 0)
+          // D
+          case s if s.contains("rv_d")   => fLen == 64
+          case s if s.contains("rv64_d") => (xLen == 64) && (fLen == 64)
+          // ZFH
+          case s if s.contains("rv_zfh")   => minFLen == 16
+          case s if s.contains("rv64_zfh") => (xLen == 64) && (minFLen == 16)
+          case s if s.contains("rv_d_zfh") => (fLen == 64) && (minFLen == 16)
 
-            // Priv
-            case s if s.contains("rv_system") => true
-            // Supervisor
-            case s if s.contains("rv_s") =>
-              i.name match {
-                // if support superviosr but don't support virtual memory, raise illinstr.
-                case s if s.contains("sfence.vma") => usingVM
-                case s if s.contains("sret")       => usingSupervisor
-              }
-            case s if s.contains("rv_smrnmi") => usingNMI
-            // Hypervisor
-            case s if s.contains("rv_h")   => usingHypervisor
-            case s if s.contains("rv64_h") => (xLen == 64) && usingHypervisor
-            // Debug
-            case s if s.contains("rv_sdext") => usingDebug
+          // Priv
+          case s if s.contains("rv_system") => true
+          // Supervisor
+          case s if s.contains("rv_s") =>
+            i.name match {
+              // if support superviosr but don't support virtual memory, raise illinstr.
+              case s if s.contains("sfence.vma") => usingVM
+              case s if s.contains("sret")       => usingSupervisor
+            }
+          case s if s.contains("rv_smrnmi") => usingNMI
+          // Hypervisor
+          case s if s.contains("rv_h")   => usingHypervisor
+          case s if s.contains("rv64_h") => (xLen == 64) && usingHypervisor
+          // Debug
+          case s if s.contains("rv_sdext") => usingDebug
 
-            // T1 Vector
-            case s if s.contains("rv_v") => usingVector
-            // unratified but supported.
-            case s if s.contains("rv_zicond") => usingConditionalZero
-            // custom
-            case s if s.contains("rv_rocket") =>
-              i.name match {
-                case "c.flush.d.l1"   => coreParams.haveCFlush
-                case "c.discard.d.l1" => coreParams.haveCFlush
-                case "cease"          => rocketParams.haveCease
-              }
-            case _ => false
-          }
-        }.filter {
-          // special case for rv32 pseudo from rv64
-          case i if i.pseudoFrom.isDefined && Seq("slli", "srli", "srai").contains(i.name) => true
-          case i if i.pseudoFrom.isDefined                                                 => false
-          case _                                                                           => true
-        }.toSeq.distinct,
+          // T1 Vector
+          case s if s.contains("rv_v") => usingVector
+          // unratified but supported.
+          case s if s.contains("rv_zicond") => usingConditionalZero
+          // custom
+          case s if s.contains("rv_rocket") =>
+            i.name match {
+              case "c.flush.d.l1"   => coreParams.haveCFlush
+              case "c.discard.d.l1" => coreParams.haveCFlush
+              case "cease"          => rocketParams.haveCease
+            }
+          case _ => false
+        }
+      }.filter {
+        // special case for rv32 pseudo from rv64
+        case i if i.pseudoFrom.isDefined && Seq("slli", "srli", "srai").contains(i.name) => true
+        case i if i.pseudoFrom.isDefined                                                 => false
+        case _                                                                           => true
+      }.toSeq.distinct,
       pipelinedMul,
       tile.dcache.flushOnFenceI
     )
@@ -129,7 +129,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   // logic for T1
   val t1IssueQueueFull = Option.when(usingVector)(IO(Output(Bool())))
   val t1IssueQueueEmpty = Option.when(usingVector)(IO(Output(Bool())))
-
 
   // Signal outside from internal clock domain.
 
@@ -360,7 +359,8 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       )
     val idCompressIllegal: Option[Bool] =
       Option.when(usingCompressed)(instructionBufferOut.bits.rvc && !csr.io.status.isa('c' - 'a'))
-    val idFpIllegal: Option[Bool] = fpu.map(fpu => idDecodeOutput(decoder.fp) && (csr.io.decode(0).fpIllegal || fpu.illegal_rm))
+    val idFpIllegal: Option[Bool] =
+      fpu.map(fpu => idDecodeOutput(decoder.fp) && (csr.io.decode(0).fpIllegal || fpu.illegal_rm))
     val idDpIllegal: Option[Bool] = Option.when(usingFPU)(idDecodeOutput(decoder.dp) && !csr.io.status.isa('d' - 'a'))
 
     val idIllegalInstruction: Bool =
@@ -699,11 +699,15 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     when(memPcValid) {
       wbRegDecodeOutput := memRegDecodeOutput
       wbRegSfence := memRegSfence
-      wbRegWdata := fpu.map(fpu => Mux(
-        !memRegException && memRegDecodeOutput(decoder.fp) && memRegDecodeOutput(decoder.wxd),
-        fpu.toint_data,
-        memIntWdata
-      )).getOrElse(memIntWdata)
+      wbRegWdata := fpu
+        .map(fpu =>
+          Mux(
+            !memRegException && memRegDecodeOutput(decoder.fp) && memRegDecodeOutput(decoder.wxd),
+            fpu.toint_data,
+            memIntWdata
+          )
+        )
+        .getOrElse(memIntWdata)
       when(memRegSfence) {
         wbRegRS2 := memRegRS2
       }
@@ -885,12 +889,14 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       (idDecodeOutput(decoder.rxs2) && idRaddr2 =/= 0.U, idRaddr2),
       (idDecodeOutput(decoder.wxd) && idWaddr =/= 0.U, idWaddr)
     )
-    val fpHazardTargets = fpu.map(fpu => Seq(
-      (fpu.dec.ren1, idRaddr1),
-      (fpu.dec.ren2, idRaddr2),
-      (fpu.dec.ren3, idRaddr3),
-      (fpu.dec.wen, idWaddr)
-    ))
+    val fpHazardTargets = fpu.map(fpu =>
+      Seq(
+        (fpu.dec.ren1, idRaddr1),
+        (fpu.dec.ren2, idRaddr2),
+        (fpu.dec.ren3, idRaddr3),
+        (fpu.dec.wen, idWaddr)
+      )
+    )
 
     val scoreboard: Scoreboard = new Scoreboard(32, true)
     scoreboard.clear(longLatencyWenable, longlatencyWaddress)
@@ -913,7 +919,9 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         Option.when(usingMulDiv)(exRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
         Option.when(usingFPU)(exRegDecodeOutput(decoder.fp)).getOrElse(false.B)
     val dataHazardEx: Bool = exRegDecodeOutput(decoder.wxd) && checkHazards(hazardTargets, _ === exWaddr)
-    val fpDataHazardEx: Option[Bool] = fpHazardTargets.map(fpHazardTargets => idDecodeOutput(decoder.fp) && exRegDecodeOutput(decoder.wfd) && checkHazards(fpHazardTargets,  _ === exWaddr))
+    val fpDataHazardEx: Option[Bool] = fpHazardTargets.map(fpHazardTargets =>
+      idDecodeOutput(decoder.fp) && exRegDecodeOutput(decoder.wfd) && checkHazards(fpHazardTargets, _ === exWaddr)
+    )
     val idExHazard: Bool = exRegValid && (dataHazardEx && exCannotBypass || fpDataHazardEx.getOrElse(false.B))
 
     // stall for RAW/WAW hazards on CSRs, LB/LH, and mul/div in memory stage.
@@ -937,21 +945,26 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     idLoadUse := memRegValid && dataHazardMem && memRegDecodeOutput(decoder.mem)
     // stall for RAW/WAW hazards on load/AMO misses and mul/div in writeback.
     val dataHazardWb: Bool = wbRegDecodeOutput(decoder.wxd) && checkHazards(hazardTargets, _ === wbWaddr)
-    val fpDataHazardWb: Bool = fpHazardTargets.map(fpHazardTargets =>
+    val fpDataHazardWb: Bool = fpHazardTargets
+      .map(fpHazardTargets =>
         idDecodeOutput(decoder.fp) &&
           wbRegDecodeOutput(decoder.wfd) &&
           checkHazards(fpHazardTargets, _ === wbWaddr)
-      ).getOrElse(false.B)
+      )
+      .getOrElse(false.B)
     val idWbHazard: Bool = wbRegValid && (dataHazardWb && wbSetSboard || fpDataHazardWb)
     val idStallFpu: Bool =
-      fpu.zip(fpHazardTargets).map{ case (fpu, fpHazardTargets) =>
-        val fpScoreboard = new Scoreboard(32)
-        fpScoreboard.set((wbDcacheMiss && wbRegDecodeOutput(decoder.wfd) || fpu.sboard_set) && wbValid, wbWaddr)
-        fpScoreboard.clear(dmemResponseReplay && dmemResponseFpu, dmemResponseWaddr)
-        fpScoreboard.clear(fpu.sboard_clr, fpu.sboard_clra)
-        checkHazards(fpHazardTargets, fpScoreboard.read)
-      }.getOrElse(false.B)
-
+      fpu
+        .zip(fpHazardTargets)
+        .map {
+          case (fpu, fpHazardTargets) =>
+            val fpScoreboard = new Scoreboard(32)
+            fpScoreboard.set((wbDcacheMiss && wbRegDecodeOutput(decoder.wfd) || fpu.sboard_set) && wbValid, wbWaddr)
+            fpScoreboard.clear(dmemResponseReplay && dmemResponseFpu, dmemResponseWaddr)
+            fpScoreboard.clear(fpu.sboard_clr, fpu.sboard_clra)
+            checkHazards(fpHazardTargets, fpScoreboard.read)
+        }
+        .getOrElse(false.B)
 
     val dcacheBlocked: Bool = {
       // speculate that a blocked D$ will unblock the cycle after a Grant
@@ -1078,7 +1091,9 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     dmem.req.bits.no_xcpt := DontCare
     dmem.req.bits.data := DontCare
     dmem.req.bits.mask := DontCare
-    dmem.s1_data.data := fpu.map(fpu => Mux(memRegDecodeOutput(decoder.fp), Fill(xLen.max(fLen) / fLen, fpu.store_data), memRegRS2)).getOrElse(memRegRS2)
+    dmem.s1_data.data := fpu
+      .map(fpu => Mux(memRegDecodeOutput(decoder.fp), Fill(xLen.max(fLen) / fLen, fpu.store_data), memRegRS2))
+      .getOrElse(memRegRS2)
     dmem.s1_data.mask := DontCare
 
     dmem.s1_kill := killmCommon || memLoadStoreException || fpuKillMem.getOrElse(false.B)
