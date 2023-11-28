@@ -20,9 +20,9 @@ import freechips.rocketchip.rocket.{BTBParams, DCacheParams, ICacheParams, Rocke
 case class RocketTileBoundaryBufferParams(force: Boolean = false)
 
 case class RocketTileAttachParams(
-                                   tileParams: RocketTileParams,
-                                   crossingParams: RocketCrossingParams
-                                 ) extends CanAttachTile { type TileType = RocketTile }
+  tileParams:     RocketTileParams,
+  crossingParams: RocketCrossingParams)
+    extends CanAttachTile { type TileType = RocketTile }
 
 case class RocketTileParams(
   core:                RocketCoreParams = RocketCoreParams(),
@@ -145,9 +145,9 @@ class RocketTile private (
 
 class RocketTileModuleImp(outer: RocketTile)
     extends BaseTileModuleImp(outer)
-      with HasFpuOpt
-      with HasLazyT1Module
-      with HasICacheFrontendModule {
+    with HasFpuOpt
+    with HasLazyT1Module
+    with HasICacheFrontendModule {
   Annotated.params(this, outer.rocketParams)
 
   lazy val core = Module(new Rocket(outer)(outer.p))
@@ -189,10 +189,11 @@ class RocketTileModuleImp(outer: RocketTile)
   // Connect the core pipeline to other intra-tile modules
   outer.frontend.module.io.cpu <> core.imem
   dcachePorts += core.dmem // TODO outer.dcachePorts += () => module.core.dmem ??
-  fpuOpt.zip(core.fpu).foreach { case (fpu, core) =>
-    core :<>= fpu.io.waiveAs[FPUCoreIO](_.cp_req, _.cp_resp)
-    fpu.io.cp_req := DontCare
-    fpu.io.cp_resp := DontCare
+  fpuOpt.zip(core.fpu).foreach {
+    case (fpu, core) =>
+      core :<>= fpu.io.waiveAs[FPUCoreIO](_.cp_req, _.cp_resp)
+      fpu.io.cp_req := DontCare
+      fpu.io.cp_resp := DontCare
   }
   core.ptw <> ptw.io.dpath
 
