@@ -119,7 +119,7 @@ case class LaneParameter(
   /** Size of the queue for storing execution information
     * todo: Determined by the longest execution unit
     * */
-  val executionQueueSize: Int = 2
+  val executionQueueSize: Int = 4
 
   /** Parameter for [[VRF]] */
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor)
