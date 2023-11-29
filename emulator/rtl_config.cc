@@ -11,7 +11,7 @@ using json = nlohmann::json;
 RTLConfig::RTLConfig(const char *json_file_name) {
   std::ifstream json_file(json_file_name);
   json root = json::parse(json_file);
-  const auto &para = root["design"]["parameter"];
+  const auto &para = root["parameter"];
   para["xLen"].get_to(x_len);
   para["vLen"].get_to(v_len);
   v_len_in_bytes = v_len / 8;
