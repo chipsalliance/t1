@@ -35,8 +35,7 @@ class BucketBuffer() {
 // @param bucketSize Specify the size of the output Seq
 def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
   val init = Seq[(String, Int)]()
-  val cycleData = allTasksFile.foldLeft(init) {
-    case (sum, file) => {
+  val cycleData = allTasksFile.flatMap (file => {
       System.err.println(s"Generate tests from file: $file")
       val Seq(_, runCfg, config) = file.segments.toSeq.reverse.slice(0, 3)
       ujson
@@ -46,8 +45,7 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
           (s"$config,$caseName,$runCfg", v.num.toInt)
         }
         .toSeq
-    }
-  }
+  })
   // Initialize a list of buckets
   val cargo = (0 until bucketSize).map(_ => new BucketBuffer())
   cycleData
@@ -92,7 +90,7 @@ def postPrMatrixJson(
   val unpassedTests = passedFiles.flatMap(file => {
     val Seq(config, runCfg, _) = file.segments.toSeq
     val configFile = os.pwd / "configs" / s"$config.json"
-    val isFp = ujson.read(os.read(configFile))("design")("parameter")("fpuEnable").bool
+    val isFp = ujson.read(os.read(configFile))("parameter")("fpuEnable").bool
     val exists = ujson.read(os.read(defaultPassed / os.up / file))
       .obj.keys
       .map(caseName => s"$config,$caseName,$runCfg")
@@ -176,7 +174,7 @@ def writeCycleUpdates(job: String, testRunDir: os.Path, resultDir: os.Path) = {
           if (oldCycleCount > newCycleCount) {
             os.write.append(cycleUpdateFile, s"* 🚀 $job: $oldCycleCount -> $newCycleCount\n")
           } else if (oldCycleCount < newCycleCount) {
-            os.write.append(cycleUpdateFile, s"* 🔻 $job: $oldCycleCount -> $newCycleCount\n")
+            os.write.append(cycleUpdateFile, s"* 🐢 $job: $oldCycleCount -> $newCycleCount\n")
           }
 
           val newCycleFile = resultDir / s"${e}_${r}_cycle.json"
@@ -253,9 +251,9 @@ def runFailedTests(jobs: String) = {
   val failed = totalJobs.zipWithIndex.foreach { case (job, i) => {
     val Array(config, caseName, runCfg) = job.split(",")
     val actualConfig = if (config.endsWith("-trace")) config else s"$config-trace"
-    System.err.println(s"[${i+1}/${totalJobs.length}] Running test case $actualConfig,$caseName,$runCfg")
+    System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $actualConfig,$caseName,$runCfg")
     val handle = os
-      .proc("scripts/run-test.py", "-c", actualConfig, "-r", runCfg, "--no-console-log", "--base-out-dir", testRunDir, caseName)
+      .proc("scripts/run-test.py", "-c", actualConfig, "-r", runCfg, "--trace", "--no-console-log", "--base-out-dir", testRunDir, caseName)
       .call(check=false)
   }}
 }
