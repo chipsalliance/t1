@@ -872,6 +872,10 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     csr.io.rw.addr := wbRegInstruction(31, 20)
     csr.io.rw.cmd := CSR.maskCmd(wbRegValid, wbRegDecodeOutput(decoder.csr))
     csr.io.rw.wdata := wbRegWdata
+    csr.io.vectorCsr.foreach(_ := wbRegDecodeOutput(decoder.vectorCSR))
+    csr.io.wbRegRS2.foreach(_ := wbRegRS2)
+    csr.io.rs1IsZero.foreach(_ := wbRegMemSize(0))
+    csr.io.rdIsZero.foreach(_ := (wbWaddr === 0.U))
 
     bpwatch.zip(wbRegWphit).zip(csr.io.bp)
     bpwatch.lazyZip(wbRegWphit).lazyZip(csr.io.bp).foreach {
