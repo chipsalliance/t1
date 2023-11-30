@@ -322,7 +322,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
 
     // update `maskFormatResultForGroup`
     when(dataResponse.valid || updateMaskResult.get) {
-      maskFormatResultForGroup.foreach(_ := Mux(dataResponse.valid, maskFormatResultUpdate.get, 0.U))
+      maskFormatResultForGroup.foreach(_ := Mux(updateMaskResult.get, 0.U, maskFormatResultUpdate.get))
     }
     val normalReduceMask = Mux1H(
       state.vSew1H,
