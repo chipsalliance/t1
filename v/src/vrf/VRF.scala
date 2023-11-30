@@ -160,6 +160,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val lsuWriteBufferClear: Bool = IO(Input(Bool()))
   // todo: delete
   dontTouch(write)
+  val portFireCount: UInt = PopCount(VecInit(readRequests.map(_.fire) :+ write.fire))
+  dontTouch(portFireCount)
 
   val chainingRecord: Vec[ValidIO[VRFWriteReport]] = RegInit(
     VecInit(Seq.fill(parameter.chainingSize)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
