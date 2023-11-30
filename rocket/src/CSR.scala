@@ -278,6 +278,10 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle with HasCoreParameter
   val mcontext = Output(UInt(coreParams.mcontextWidth.W))
   val scontext = Output(UInt(coreParams.scontextWidth.W))
   val fiom = Output(Bool())
+  val vectorCsr = Option.when(usingVector)(Input(Bool()))
+  val wbRegRS2 = Option.when(usingVector)(Input(UInt()))
+  val rs1IsZero = Option.when(usingVector)(Input(Bool()))
+  val rdIsZero = Option.when(usingVector)(Input(Bool()))
 }
 
 /**
@@ -1470,6 +1474,32 @@ class CSRFile(
 
   }
 
+  // update csr for vector
+  if (usingVector) {
+    // set vl type
+    val vsetvli = !io.inst(0)(31)
+    val vsetivli = io.inst(0)(31, 30).andR
+    val vsetvl = io.inst(0)(31) && !io.inst(0)(30)
+    // v type set
+    val newVType = Mux1H(Seq(
+      (vsetvli || vsetivli) -> io.inst(0)(27, 20),
+      vsetvl -> io.wbRegRS2.get(7, 0)
+    ))
+    // set vl
+    val setVL = Mux1H(Seq(
+      (vsetvli || (vsetvl && !io.rs1IsZero.get)) -> io.rw.wdata,
+      (vsetvl && io.rs1IsZero.get && !io.rdIsZero.get) -> vLen.U,
+      (vsetvl && io.rs1IsZero.get && io.rdIsZero.get) -> vector.get.states("vl"),
+      vsetivli -> io.inst(0)(19, 15)
+    ))
+    when(io.retire(0) && io.vectorCsr.get) {
+      vector.get.states("vl") := setVL
+      vector.get.states("vlmul") := newVType(2, 0)
+      vector.get.states("vsew") := newVType(5, 3)
+      vector.get.states("vta") := newVType(6)
+      vector.get.states("vma") := newVType(7)
+    }
+  }
   def setCustomCSR(io: CustomCSRIO, csr: CustomCSR, reg: UInt) = {
     val mask = csr.mask.U(xLen.W)
     when(io.set) {
