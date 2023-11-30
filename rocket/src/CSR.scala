@@ -565,10 +565,7 @@ class CSRFile(
     (if (usingUser) "U" else "")
   val isaMax = (BigInt(log2Ceil(xLen) - 4) << (xLen - 2)) | isaStringToMask(isaString)
   val reg_misa = RegInit(isaMax.U)
-  // I(sequencer) do hate the original implmentation, so I mask original read_mstatus
-  val read_mstatus =
-    io.status.asUInt(xLen - 1, 0) & ((-1.S(xLen.W).asUInt) & (~(3.U(2.W) << 9)).asUInt) |
-      vector.map(vector => vector.states("mstatus.VS") << 9).getOrElse(0.U(2.W))
+  val read_mstatus = io.status.asUInt
   val read_mtvec = formTVec(reg_mtvec).padTo(xLen)
   val read_stvec = formTVec(reg_stvec).sextTo(xLen)
 
@@ -964,6 +961,7 @@ class CSRFile(
   io.status.sd_rv32 := (xLen == 32).B && io.status.sd
   io.status.mpv := reg_mstatus.mpv
   io.status.gva := reg_mstatus.gva
+  io.status.vs := vector.map(vector => vector.states("mstatus.VS") << 9).getOrElse(0.U(2.W))
   io.hstatus := reg_hstatus
   io.hstatus.vsxl := (if (usingSupervisor) log2Ceil(xLen) - 4 else 0).U
   io.gstatus := reg_vsstatus
