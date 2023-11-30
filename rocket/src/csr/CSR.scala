@@ -9,7 +9,7 @@ import chisel3.util.log2Ceil
 // context for Vector
 class V(vlen: Int, hypervisor: Boolean) {
   require(Module.currentModule.isDefined)
-  def vlWidth: Int = log2Ceil(vlen)
+  def vlWidth: Int = log2Ceil(vlen) + 1
   def vlenbWidth = log2Ceil(vlen / 8)
   val contents: Seq[String] = Seq(
     "misa.V",
