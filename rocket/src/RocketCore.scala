@@ -977,6 +977,18 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       blocked && !dmem.perf.grant
     }
 
+    // vector stall
+    val vectorLSUEmpty: Option[Bool] = Option.when(usingVector)(Wire(Bool()))
+    val vectorQueueFull: Option[Bool] = Option.when(usingVector)(Wire(Bool()))
+    val vectorStall: Option[Bool] = Option.when(usingVector) {
+      val vectorLSUNotClear =
+        (exRegValid && exRegDecodeOutput(decoder.vectorLSU)) ||
+          (memRegValid && memRegDecodeOutput(decoder.vectorLSU)) ||
+          (wbRegValid && wbRegDecodeOutput(decoder.vectorLSU)) || !vectorLSUEmpty.get
+      (idDecodeOutput(decoder.vector) && vectorQueueFull.get) ||
+        (idDecodeOutput(decoder.mem) && !idDecodeOutput(decoder.vector) && vectorLSUNotClear)
+    }
+
     val ctrlStalld: Bool =
       idExHazard || idMemHazard || idWbHazard || idScoreboardHazard || idDoFence || idRegPause ||
         csr.io.csrStall || csr.io.singleStep && (exRegValid || memRegValid || wbRegValid) ||
@@ -990,7 +1002,8 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
               decoder.div
             ) && (!(muldiv.io.req.ready || (muldiv.io.resp.valid && !wbWxd)) || muldiv.io.req.valid)
           )
-          .getOrElse(false.B) // reduce odds of replay
+          .getOrElse(false.B) || // reduce odds of replay
+        vectorStall.getOrElse(false.B)
 
     ctrlKilled :=
       !instructionBuffer.io.inst(0).valid ||
@@ -1074,6 +1087,35 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       t1.bits.instruction := wbRegInstruction
       t1.bits.rs1Data := wbRegWdata
       t1.bits.rs2Data := wbRegRS2
+
+      val response: ValidIO[VectorResponse] = t1Response.get
+
+      // TODO: make it configurable
+      val maxCount: Int = 32
+      val countWidth = log2Up(maxCount)
+
+      def counterManagement(size: Int, margin: Int = 0)(grant: Bool, release: Bool, flush: Option[Bool]=None) = {
+        val counter: UInt = RegInit(0.U(size.W))
+        val nextCount = counter + Mux(grant, 1.U(size.W), (-1.S(size.W)).asUInt)
+        val updateCounter = grant ^ release
+        when(updateCounter) {
+          counter := nextCount
+        }
+        flush.foreach(f => when(f)(counter := 0.U))
+        val empty = (updateCounter && nextCount === 0.U) || counter === 0.U
+        val fullCounter: Int = (1 << size) - 1 - margin
+        val full = (updateCounter && nextCount === fullCounter.U) || counter === fullCounter.U
+        (empty, full)
+      }
+      // Maintain lsu counter
+      val lsuGrant: Bool = t1.valid && wbRegDecodeOutput(decoder.vectorLSU)
+      val lsuRelease: Bool = response.fire && response.bits.mem
+      val (lsuEmpty, _) = counterManagement(countWidth)(lsuGrant, lsuRelease)
+      // Maintain vector counter
+      // There may be 4 instructions in the pipe
+      val (vectorEmpty, vectorFull) = counterManagement(countWidth, 4)(t1.valid, response.fire)
+      vectorLSUEmpty.foreach(_ := lsuEmpty)
+      vectorQueueFull.foreach(_ := vectorFull)
     }
     t1Response.foreach(_ <> DontCare)
     t1IssueQueueFull.foreach(_ <> DontCare)

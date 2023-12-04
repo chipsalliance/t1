@@ -44,6 +44,8 @@ class VectorResponse(xLen: Int) extends Bundle {
     * This is not maintained in the vector coprocessor since it is not used in the Vector processor.
     */
   val vxsat: Bool = Bool()
+
+  val mem: Bool = Bool()
 }
 
 /** IO for maintaining the memory hazard between Scalar and Vector core.
