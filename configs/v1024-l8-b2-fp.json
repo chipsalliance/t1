@@ -109,22 +109,7 @@
           ]
         ]
       ],
-      "divModuleParameters": [
-        [
-          {
-            "parameter": {
-              "datapathWidth": 32
-            },
-            "generator": "v.LaneDiv"
-          },
-          [
-            0,
-            1,
-            2,
-            3
-          ]
-        ]
-      ],
+      "divModuleParameters": [],
       "otherModuleParameters": [
         [
           {
@@ -159,6 +144,17 @@
             2,
             3
           ]
+        ]
+      ],
+      "divfpModuleParameters": [
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32
+            },
+            "generator": "v.LaneDivFP"
+          },
+          [0, 1, 2, 3]
         ]
       ]
     }
