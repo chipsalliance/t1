@@ -8,6 +8,7 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.experimental.decode._
 import chisel3.util._
 import hardfloat._
+import float.{rawFloatFromFN, _}
 
 object LaneFloatParam {
   implicit def rw: upickle.default.ReadWriter[LaneFloatParam] = upickle.default.macroRW
@@ -27,12 +28,6 @@ case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with Serializ
   * up[3] = 1 for add/sub
   * up[2] = 1 for reverse in rsub and reversed fmaEn
   * up[1:0] for fmaEn sign, 0 for positive, 1 for negative
-  *
-  * For divEn
-  * 0001 for div
-  * 0010 for rdiv
-  * 1000 for sqrt
-  *
   *
   * For compareModule
   * 0001 EQ
@@ -93,7 +88,6 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
 
   val unitSeleOH = UIntToOH(request.unitSelet)
   val fmaEn     = unitSeleOH(0)
-  val divEn     = unitSeleOH(1)
   val compareEn = unitSeleOH(2)
   val otherEn   = unitSeleOH(3)
 
@@ -109,7 +103,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val fastResultReg = RegNext(fastResultNext)
   val fastFlagsReg  = RegNext(fastFlagsNext)
 
-  fastWorking := requestIO.fire && !divEn
+  fastWorking := requestIO.fire
   response.executeIndex := indexReg
 
   /** fmaEn
@@ -144,39 +138,6 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
 
   val fmaResult = fNFromRecFN(8, 24, mulAddRecFN.io.out)
 
-  /** DivSqrtModule
-    * {{{
-    * 0001 for div
-    * 0010 for rdiv
-    * 1000 for sqrt
-    * 1001 for sqrt7
-    * 1010 for rec7
-    *
-    *     div       rdiv    sqrt
-    * a   in1       in0     in0
-    * b   in0       in1     Dontcare
-    * }}}
-    */
-  val div      = divEn && (uop === "b0001".U)
-  val rdiv     = divEn && (uop === "b0010".U)
-  val sqrt     = divEn && (uop === "b1000".U)
-
-  val divSqrt = Module(new DivSqrtRecFN_small(8, 24,0))
-  val divIn0 = Mux(rdiv, recIn0, recIn1)
-  val divIn1 = Mux(rdiv, recIn1, recIn0)
-
-  divSqrt.io.a := divIn0
-  divSqrt.io.b := divIn1
-  // todo: need re-decode?
-  divSqrt.io.roundingMode := request.roundingMode
-  divSqrt.io.detectTininess := 0.U
-  divSqrt.io.sqrtOp := sqrt
-  divSqrt.io.inValid := (requestIO.fire && divEn)
-
-  val divsqrtValid = divSqrt.io.outValid_div || divSqrt.io.outValid_sqrt
-  val divsqrtResult = fNFromRecFN(8, 24, divSqrt.io.out)
-
-  divOccupied := Mux(divOccupied, !divsqrtValid, requestIO.fire && divEn)
 
   /** CompareModule
     *
@@ -308,10 +269,10 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   ))
 
   response.adderMaskResp := fastResultReg(0)
-  response.data := Mux(divsqrtValid, divsqrtResult, fastResultReg)
-  response.exceptionFlags := Mux(divsqrtValid, divSqrt.io.exceptionFlags, fastFlagsReg)
-  requestIO.ready := !divOccupied
-  responseIO.valid := divsqrtValid || fastWorking
+  response.data := fastResultReg
+  response.exceptionFlags := fastFlagsReg
+  requestIO.ready := true.B
+  responseIO.valid := fastWorking
 }
 
 class Rec7Fn extends Module {
@@ -359,7 +320,7 @@ class Rec7Fn extends Module {
   val sigOut = Wire(UInt(23.W))
   val expOut = Wire(UInt(8.W))
 
-  normDist := countLeadingZeros(fractIn)
+  normDist := float.countLeadingZeros(fractIn)
   normExpIn := Mux(inIsSub, -normDist, expIn)
 
   // todo timing issue
@@ -412,7 +373,7 @@ class Rsqrt7Fn extends Module {
   val sigOut = Wire(UInt(23.W))
   val expOut = Wire(UInt(8.W))
 
-  normDist := countLeadingZeros(fractIn)
+  normDist := float.countLeadingZeros(fractIn)
   normExpIn := Mux(inIsSub, -normDist, expIn)
   // todo timing issue
   normSigIn := Mux(inIsSub, fractIn << (1.U - normExpIn), fractIn)
