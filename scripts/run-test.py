@@ -17,58 +17,97 @@ logger.addHandler(ch)
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("case")
-    parser.add_argument(
+    subparsers = parser.add_subparsers(help="sub-commands help")
+
+    # Set verilator emulator arg handler
+    verilator_args_parser = subparsers.add_parser(
+        "verilate", help="Run verilator emulator"
+    )
+    verilator_args_parser.add_argument("case", help="name alias for loading test case")
+    verilator_args_parser.add_argument(
         "-c",
         "--config",
         default="v1024-l8-b2",
         help="configuration name, as filenames in ./configs",
     )
-    parser.add_argument(
+    verilator_args_parser.add_argument(
         "--trace", action="store_true", help="use emulator with trace support"
     )
-    parser.add_argument(
+    verilator_args_parser.add_argument(
         "-r",
         "--run-config",
         default="debug",
         help="run configuration name, as filenames in ./run",
     )
-    parser.add_argument(
+    verilator_args_parser.add_argument(
         "-v", "--verbose", action="store_true", help="set loglevel to debug"
     )
-    parser.add_argument(
+    verilator_args_parser.add_argument(
         "--no-log",
         action="store_true",
         help="prevent emulator produce log (both console and file)",
     )
-    parser.add_argument(
+    verilator_args_parser.add_argument(
         "-q",
         "--no-console-log",
         action="store_true",
         help="prevent emulator print log to console",
     )
-    parser.add_argument(
-        "-s",
-        "--soc",
-        action="store_true",
-        default=None,
-        help="simulate with SoC framework",
-    )
 
-    parser.add_argument(
+    verilator_args_parser.add_argument(
         "--cases-dir", help="path to testcases, default to TEST_CASES_DIR environment"
     )
-    parser.add_argument(
+    verilator_args_parser.add_argument(
         "--out-dir", default=None, help="path to save wave file and perf result file"
     )
-    parser.add_argument(
+    verilator_args_parser.add_argument(
         "--base-out-dir",
         default=None,
         help="save result files in {base_out_dir}/{config}/{case}/{run_config}",
     )
-    parser.add_argument("--emulator-path", default=None, help="path to emulator")
-    args = parser.parse_args()
+    verilator_args_parser.add_argument(
+        "--emulator-path", default=None, help="path to emulator"
+    )
+    # Set verilator emulator args handler
+    verilator_args_parser.set_defaults(func=run_verilator_emulator)
 
+    # Set soc runner arg handler
+    soc_args_parser = subparsers.add_parser("soc", help="Run soc emulator")
+    soc_args_parser.add_argument("elf", help="path to ELF file")
+    soc_args_parser.add_argument(
+        "-c",
+        "--config",
+        default="v1024-l8-b2",
+        help="config name, as filename in ./configs. default to v1024-l8-b2",
+    )
+    soc_args_parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="path to save results, default to ./testrun/soc-emulator/<config>/<elf_basename>/",
+    )
+    soc_args_parser.add_argument(
+        "--trace", action="store_true", help="enable trace file dumping"
+    )
+    soc_args_parser.add_argument(
+        "--trace-output-file",
+        default="None",
+        help="path for storing trace file, default to <output-dir>/trace.fst",
+    )
+    soc_args_parser.add_argument(
+        "--emulator-path",
+        default=None,
+        help="path to the soc emulator, default using nix generated one",
+    )
+
+    # Set soc args handler
+    soc_args_parser.set_defaults(func=run_soc)
+
+    # Run
+    args = parser.parse_args()
+    args.func(args)
+
+
+def run_verilator_emulator(args):
     if args.verbose:
         logger.setLevel(logging.DEBUG)
     else:
@@ -89,10 +128,10 @@ def main():
             args.out_dir = f"./testrun/{args.config}/{args.case}/{args.run_config}"
         Path(args.out_dir).mkdir(exist_ok=True, parents=True)
 
-    run(args)
+    execute_verilator_emulator(args)
 
 
-def run(args):
+def execute_verilator_emulator(args):
     cases_dir = Path(args.cases_dir)
     case_name = args.case
 
@@ -135,6 +174,47 @@ def run(args):
         logger.error(f"Emulator exited with return code {return_code}")
         exit(return_code)
     logger.info(f"Emulator logs were saved in {args.out_dir}")
+
+
+def run_soc(args):
+    assert Path(
+        f"./configs/{args.config}.json"
+    ).exists(), f"./configs/{args.config}.json doesn't exists. \nHint: are you running this script in project root?"
+
+    target_name = (
+        "soc-verilator-emulator-trace" if args.trace else "soc-verilator-emulator"
+    )
+    process_args = (
+        [args.emulator_path]
+        if args.emulator_path
+        else ["nix", "run", f".#t1.{args.config}.${target_name}", "--"]
+    )
+
+    elf_path = Path(args.elf)
+    assert elf_path.exists(), f"ELF file doesn't exist in {elf_path}"
+    process_args.append(f"+init_file={elf_path}")
+
+    elf_filename = os.path.splitext(os.path.basename(elf_path))[0]
+    if args.output_dir is None:
+        args.output_dir = f"./testrun/soc-emulator/{elf_filename}/"
+        logger.info(f"Output dir set to {args.output_dir}")
+
+    trace_filepath = args.trace_output_file or f"{args.trace_output_dir}/trace.fst"
+    process_args.append(
+        f"+trace_file={trace_filepath}"
+        if args.trace
+        else ""  # return empty string if trace is not enable
+    )
+
+    logger.info(f"Running {' '.join(process_args)}")
+    return_code = subprocess.Popen(process_args).wait()
+    if return_code != 0:
+        logger.error(f"Emulator exited with return code {return_code}")
+        exit(return_code)
+
+    logger.info("soc emulator exit with success")
+    if args.trace:
+        logger.info(f"Trace store in {trace_filepath}")
 
 
 if __name__ == "__main__":
