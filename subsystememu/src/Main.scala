@@ -36,6 +36,7 @@ object Main {
           None
         case _: chisel3.stage.ChiselCircuitAnnotation => None
         case _: chisel3.stage.DesignAnnotation[_] => None
+        case _: freechips.rocketchip.util.ParamsAnnotation  => None
         case a => Some(a)
       }
     os.write(os.Path(dir) / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))

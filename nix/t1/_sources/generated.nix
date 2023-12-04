@@ -39,39 +39,39 @@
   };
   chisel = {
     pname = "chisel";
-    version = "2372b1c401ff15c34b8c1f8766232c4cd9a8c67e";
+    version = "03587c2eeb6527e2797423584999c0307543a54f";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "2372b1c401ff15c34b8c1f8766232c4cd9a8c67e";
+      rev = "03587c2eeb6527e2797423584999c0307543a54f";
       fetchSubmodules = false;
-      sha256 = "sha256-jsg4jZTTM68DmWgPkwnK08wcuweTImxL3EC48DXjXPg=";
+      sha256 = "sha256-AEqC2yNzeHRtMFjB0igfgnErEvZkZRB44b5NN1W4ih4=";
     };
-    date = "2023-11-16";
+    date = "2023-12-01";
   };
   riscv-opcodes = {
     pname = "riscv-opcodes";
-    version = "d5755c9d380f8ab75a98ee9901019ab3f52259dc";
+    version = "61d2ef45dcb4a276a1e69643880cb75a9ca5ba79";
     src = fetchFromGitHub {
       owner = "riscv";
       repo = "riscv-opcodes";
-      rev = "d5755c9d380f8ab75a98ee9901019ab3f52259dc";
+      rev = "61d2ef45dcb4a276a1e69643880cb75a9ca5ba79";
       fetchSubmodules = false;
-      sha256 = "sha256-yC5dSpQlvBHx/FORfkvBGYMZaqpEgr3aOJiW+mg5Cz0=";
+      sha256 = "sha256-jdXKNIigKAqn2bbrMn6HxB61AM8KwSCvFEoL1N604rw=";
     };
-    date = "2023-11-01";
+    date = "2023-11-27";
   };
   rocket-chip = {
     pname = "rocket-chip";
-    version = "6b6731794e23e8cdbbd1710d85db53db417b30c6";
+    version = "b3fa8df9bfb3a6d5b1d57dc4a0633fc6028242ac";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "rocket-chip";
-      rev = "6b6731794e23e8cdbbd1710d85db53db417b30c6";
+      rev = "b3fa8df9bfb3a6d5b1d57dc4a0633fc6028242ac";
       fetchSubmodules = false;
-      sha256 = "sha256-TY4zwCCwoY0xOMRCoVo+nVCfb7V8RS30H7+YZcu0ljY=";
+      sha256 = "sha256-hQcjdwIObdMLrmLaK/yGTdClbbGlVC61K/o6dehiHFU=";
     };
-    date = "2023-11-17";
+    date = "2023-11-25";
   };
   rocket-chip-inclusive-cache = {
     pname = "rocket-chip-inclusive-cache";
@@ -87,15 +87,15 @@
   };
   rvdecoderdb = {
     pname = "rvdecoderdb";
-    version = "d06544ed41f4174c01bf1e1cb265da41ff64b54a";
+    version = "6c8ae11a99a1bfc06965a1dc00aa491d4a847553";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "rvdecoderdb";
-      rev = "d06544ed41f4174c01bf1e1cb265da41ff64b54a";
+      rev = "6c8ae11a99a1bfc06965a1dc00aa491d4a847553";
       fetchSubmodules = false;
       sha256 = "sha256-s8X1pZceNyAqzE+mKEK7TVL4FP30GJbCOTa376vko+M=";
     };
-    date = "2023-10-16";
+    date = "2023-11-28";
   };
   tilelink = {
     pname = "tilelink";
