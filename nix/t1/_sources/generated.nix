@@ -3,15 +3,15 @@
 {
   arithmetic = {
     pname = "arithmetic";
-    version = "2685fb7ec6dc7cca7ee3808377d841d19a9d2ced";
+    version = "3792445857a590893cfb7bb9f0e4a10adb8b22a7";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "arithmetic";
-      rev = "2685fb7ec6dc7cca7ee3808377d841d19a9d2ced";
+      rev = "3792445857a590893cfb7bb9f0e4a10adb8b22a7";
       fetchSubmodules = false;
-      sha256 = "sha256-hF9sqbVtlJeACHFUF2B14CdazQfu0LTW1RM8J0tdybE=";
+      sha256 = "sha256-fBbfP05a0bk4yS1g3fGtzdi5U1dsjIXzJDBi97J2gQY=";
     };
-    date = "2023-11-06";
+    date = "2023-10-23";
   };
   berkeley-hardfloat = {
     pname = "berkeley-hardfloat";
