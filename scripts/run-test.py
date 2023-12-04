@@ -73,7 +73,7 @@ def main():
 
     # Set soc runner arg handler
     soc_args_parser = subparsers.add_parser("soc", help="Run soc emulator")
-    soc_args_parser.add_argument("elf", help="path to ELF file")
+    soc_args_parser.add_argument("case", help="Case name alias or a path to ELF file")
     soc_args_parser.add_argument(
         "-c",
         "--config",
@@ -98,6 +98,9 @@ def main():
         default=None,
         help="path to the soc emulator, default using nix generated one",
     )
+    soc_args_parser.add_argument(
+        "--cases-dir", help="path to testcases, default to TEST_CASES_DIR environment"
+    )
 
     # Set soc args handler
     soc_args_parser.set_defaults(func=run_soc)
@@ -113,15 +116,6 @@ def run_verilator_emulator(args):
     else:
         logger.setLevel(logging.INFO)
 
-    if args.cases_dir is None:
-        if env_case_dir := os.environ.get("TEST_CASES_DIR"):
-            args.cases_dir = env_case_dir
-        else:
-            logger.fatal(
-                "no testcases directory specified with TEST_CASES_DIR environment or --cases-dir argument"
-            )
-            exit(1)
-
     if args.out_dir is None:
         if args.base_out_dir is not None:
             args.out_dir = (
@@ -134,13 +128,18 @@ def run_verilator_emulator(args):
     execute_verilator_emulator(args)
 
 
-def execute_verilator_emulator(args):
-    cases_dir = Path(args.cases_dir)
-    case_name = args.case
+# Try to search ELF from the given directory
+def load_elf_from_dir(cases_dir, case_name):
+    if cases_dir is None:
+        if env_case_dir := os.environ.get("TEST_CASES_DIR"):
+            cases_dir = env_case_dir
+        else:
+            logger.fatal(
+                "no testcases directory specified with TEST_CASES_DIR environment or --cases-dir argument"
+            )
+            exit(1)
 
-    run_config_path = Path("run") / f"{args.run_config}.json"
-    assert run_config_path.exists(), f"cannot find run config in {run_config_path}"
-    run_config = json.loads(run_config_path.read_text())
+    cases_dir = Path(cases_dir)
 
     case_config_path = cases_dir / "configs" / f"{case_name}.json"
     assert case_config_path.exists(), f"cannot find case config in {case_config_path}"
@@ -148,6 +147,20 @@ def execute_verilator_emulator(args):
 
     case_elf_path = cases_dir / config["elf"]["path"]
     assert case_elf_path.exists(), f"cannot find case elf in {case_elf_path}"
+
+    return case_elf_path
+
+
+def execute_verilator_emulator(args):
+    run_config_path = Path("run") / f"{args.run_config}.json"
+    assert run_config_path.exists(), f"cannot find run config in {run_config_path}"
+    run_config = json.loads(run_config_path.read_text())
+
+    case_elf_path = (
+        args.case
+        if Path(args.case).exists()
+        else load_elf_from_dir(args.cases_dir, args.case)
+    )
 
     elaborate_config_path = Path("configs") / f"{args.config}.json"
     assert (
@@ -190,16 +203,19 @@ def run_soc(args):
     process_args = (
         [args.emulator_path]
         if args.emulator_path
-        else ["nix", "run", f".#t1.{args.config}.${target_name}", "--"]
+        else ["nix", "run", f".#t1.{args.config}.{target_name}", "--"]
     )
 
-    elf_path = Path(args.elf)
-    assert elf_path.exists(), f"ELF file doesn't exist in {elf_path}"
+    elf_path = (
+        args.case
+        if Path(args.case).exists()
+        else load_elf_from_dir(args.cases_dir, args.case)
+    )
     process_args.append(f"+init_file={elf_path}")
 
     elf_filename = os.path.splitext(os.path.basename(elf_path))[0]
     if args.output_dir is None:
-        args.output_dir = f"./testrun/soc-emulator/{elf_filename}/"
+        args.output_dir = f"./testrun/soc-emulator/{args.config}/{elf_filename}/"
         logger.info(f"Output dir set to {args.output_dir}")
 
     trace_filepath = args.trace_output_file or f"{args.trace_output_dir}/trace.fst"
