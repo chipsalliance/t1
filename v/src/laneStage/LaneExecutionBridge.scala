@@ -305,6 +305,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   val maskFormatResultUpdate: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
 
   val updateReduceResult: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
+  val updateMaskResult: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
   val reduceLastResponse = WireDefault(false.B)
   // update mask result
   if (isLastSlot) {
@@ -326,8 +327,6 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
     ).asUInt
 
     maskFormatResultUpdate.get := maskFormatResultForGroup.get | elementMaskFormatResult
-
-    val updateMaskResult: Option[Bool] = recordQueue.io.deq.bits.sSendResponse.map(!_ && dequeue.fire)
 
     // update `maskFormatResultForGroup`
     when(dataResponse.valid || updateMaskResult.get) {
@@ -374,8 +373,8 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
       }).asUInt
     }
     // update `reduceResult`
-    when(dataResponse.valid || updateMaskResult.get) {
-      reduceResult.get := Mux(dataResponse.valid && decodeResult(Decoder.red), updateReduceResult.get, 0.U)
+    when((dataResponse.valid && decodeResult(Decoder.red)) || updateMaskResult.get) {
+      reduceResult.get := Mux(updateMaskResult.get, 0.U, updateReduceResult.get)
     }
 
     // reduce state machine
@@ -450,4 +449,5 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
       notExecute)) || reduceLastResponse
   assert(!queue.io.enq.valid || queue.io.enq.ready)
   dequeue <> queue.io.deq
+  updateMaskResult.foreach(_ := !recordQueue.io.deq.bits.sSendResponse.get && queue.io.enq.fire)
 }

@@ -3,13 +3,13 @@
 {
   arithmetic = {
     pname = "arithmetic";
-    version = "3792445857a590893cfb7bb9f0e4a10adb8b22a7";
+    version = "dd9bd585a8d444399eb5a31d088567e0ef56f43a";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "arithmetic";
-      rev = "3792445857a590893cfb7bb9f0e4a10adb8b22a7";
+      rev = "dd9bd585a8d444399eb5a31d088567e0ef56f43a";
       fetchSubmodules = false;
-      sha256 = "sha256-fBbfP05a0bk4yS1g3fGtzdi5U1dsjIXzJDBi97J2gQY=";
+      sha256 = "sha256-PquHsdyKbN/xKV4UhtTmBAVic2PwiUPvw50oZKUN08I=";
     };
     date = "2023-10-23";
   };
