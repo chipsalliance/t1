@@ -34,8 +34,8 @@ trait UOPDecodeField[T <: DecodePattern] extends DecodeField[T, UInt] {
 case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
   override def bitPat: BitPat = BitPat("b" + instruction.encoding.toString)
   def isVector = instruction.instructionSet.name == "rv_v"
-  def isVectorCSR = Seq("vsetvl", "vsetivli", "vsetvli").contains(instruction.instructionSet.name)
-  def isVectorLSU = instruction.instructionSet.name match {
+  def isVectorCSR = Seq("vsetvl", "vsetivli", "vsetvli").contains(instruction.name)
+  def isVectorLSU = instruction.name match {
     // unit stride
     case s"v${t}e${sz}.v" if (t == "l") || (t == "s") => true
     case s"v${t}m.v" if (t == "l") || (t == "s")      => true
@@ -45,6 +45,21 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
     // indexed
     case s"v${t}${o}xei${sz}.v" if ((t == "l") || (t == "s")) && ((t == "u") || (t == "o")) => true
     case _                                                                                  => false
+  }
+  // todo: Incomplete
+  def vectorReadRs1: Boolean = isVectorLSU || (instruction.name match {
+    // vx type
+    case s"v${op}.vx" => true
+    // set vl
+    case s"vsetvl${i}" => true
+    case _ => false
+  })
+  def vectorReadRs2 = instruction.name match {
+    // set vl
+    case s"vsetvl" => true
+    // stride
+    case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
+    case _ => false
   }
 }
 
@@ -194,9 +209,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
   object rxs2 extends BoolDecodeField[RocketDecodePattern] {
     override def name: String = "rxs2"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
       // format: off
-      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "hsv.w", "hsv.b", "hfence.vvma", "hsv.h", "hfence.gvma", "hsv.d", "or", "srl", "sltu", "sra", "sb", "add", "xor", "beq", "bge", "sw", "blt", "bgeu", "bltu", "bne", "sub", "and", "slt", "sh", "sll", "addw", "sd", "sllw", "sraw", "subw", "srlw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "czero.nez", "czero.eqz").contains(i) => y
+      case (i, _) if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "hsv.w", "hsv.b", "hfence.vvma", "hsv.h", "hfence.gvma", "hsv.d", "or", "srl", "sltu", "sra", "sb", "add", "xor", "beq", "bge", "sw", "blt", "bgeu", "bltu", "bne", "sub", "and", "slt", "sh", "sll", "addw", "sd", "sllw", "sraw", "subw", "srlw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "czero.nez", "czero.eqz").contains(i) => y
+      case (_, p) if p.vectorReadRs2 => y
       case _ => n
       // format: on
     }
@@ -205,10 +221,11 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
   object rxs1 extends BoolDecodeField[RocketDecodePattern] {
     override def name: String = "rxs1"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
       // format: off
-      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fcvt.d.wu", "fsd", "fcvt.d.w", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.s.wu", "fmv.w.x", "fsw", "fcvt.s.w", "flw", "fcvt.s.lu", "fcvt.s.l", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "bne", "lbu", "sub", "and", "xori", "slti", "slt", "addi", "lb", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "fsh", "flh", "fcvt.h.wu", "fcvt.h.w", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l", "csrrc", "csrrs", "csrrw", "czero.nez", "czero.eqz", "cflush.d.l1", "cdiscard.d.l1").contains(i) => y
-      case i if Seq("ecall", "ebreak", "mret", "wfi", "sret", "dret", "cease", "nmret").contains(i) => dc
+      case (i, _) if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fcvt.d.wu", "fsd", "fcvt.d.w", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.s.wu", "fmv.w.x", "fsw", "fcvt.s.w", "flw", "fcvt.s.lu", "fcvt.s.l", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "bne", "lbu", "sub", "and", "xori", "slti", "slt", "addi", "lb", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "fsh", "flh", "fcvt.h.wu", "fcvt.h.w", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l", "csrrc", "csrrs", "csrrw", "czero.nez", "czero.eqz", "cflush.d.l1", "cdiscard.d.l1").contains(i) => y
+      case (i, _) if Seq("ecall", "ebreak", "mret", "wfi", "sret", "dret", "cease", "nmret").contains(i) => dc
+      case (_, p) if p.vectorReadRs1 => y
       case _                                                                                        => n
       // format: on
     }
@@ -542,35 +559,37 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
   object aluFn extends UOPDecodeField[RocketDecodePattern] {
     override def name: String = "alu_fn"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
       // format: off
-      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fsd", "fsw", "flw", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "lhu", "sb", "lw", "add", "sw", "lh", "jalr", "lui", "lbu", "auipc", "addi", "lb", "jal", "sh", "ld", "addw", "sd", "lwu", "addiw", "sfence.vma", "fsh", "flh", "csrrc", "csrrci", "csrrs", "csrrw", "csrrsi", "csrrwi", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPALU.add
-      case i if Seq("and", "andi").contains(i) => UOPALU.and
-      case i if Seq("or", "ori").contains(i) => UOPALU.or
-      case i if Seq("beq").contains(i) => UOPALU.seq
-      case i if Seq("bge").contains(i) => UOPALU.sge
-      case i if Seq("bgeu").contains(i) => UOPALU.sgeu
-      case i if Seq("sll", "slli", "slli", "slliw", "sllw").contains(i) => UOPALU.sl
-      case i if Seq("blt", "slt", "slti").contains(i) => UOPALU.slt
-      case i if Seq("bltu", "sltiu", "sltu").contains(i) => UOPALU.sltu
-      case i if Seq("bne").contains(i) => UOPALU.sne
-      case i if Seq("srl", "srli", "srli", "srliw", "srlw").contains(i) => UOPALU.sr
-      case i if Seq("sra", "srai", "srai", "sraiw", "sraw").contains(i) => UOPALU.sra
-      case i if Seq("sub", "subw").contains(i) => UOPALU.sub
-      case i if Seq("xor", "xori").contains(i) => UOPALU.xor
+      case (i, _) if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fsd", "fsw", "flw", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "lhu", "sb", "lw", "add", "sw", "lh", "jalr", "lui", "lbu", "auipc", "addi", "lb", "jal", "sh", "ld", "addw", "sd", "lwu", "addiw", "sfence.vma", "fsh", "flh", "csrrc", "csrrci", "csrrs", "csrrw", "csrrsi", "csrrwi", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPALU.add
+      case (i, _) if Seq("and", "andi").contains(i) => UOPALU.and
+      case (i, _) if Seq("or", "ori").contains(i) => UOPALU.or
+      case (i, _) if Seq("beq").contains(i) => UOPALU.seq
+      case (i, _) if Seq("bge").contains(i) => UOPALU.sge
+      case (i, _) if Seq("bgeu").contains(i) => UOPALU.sgeu
+      case (i, _) if Seq("sll", "slli", "slli", "slliw", "sllw").contains(i) => UOPALU.sl
+      case (i, _) if Seq("blt", "slt", "slti").contains(i) => UOPALU.slt
+      case (i, _) if Seq("bltu", "sltiu", "sltu").contains(i) => UOPALU.sltu
+      case (i, _) if Seq("bne").contains(i) => UOPALU.sne
+      case (i, _) if Seq("srl", "srli", "srli", "srliw", "srlw").contains(i) => UOPALU.sr
+      case (i, _) if Seq("sra", "srai", "srai", "sraiw", "sraw").contains(i) => UOPALU.sra
+      case (i, _) if Seq("sub", "subw").contains(i) => UOPALU.sub
+      case (i, _) if Seq("xor", "xori").contains(i) => UOPALU.xor
 
       // rv_m
-      case i if Seq("mul", "mulw").contains(i) => UOPALU.mul
-      case i if Seq("mulh").contains(i) => UOPALU.mulh
-      case i if Seq("mulhu").contains(i) => UOPALU.mulhu
-      case i if Seq("mulhsu").contains(i) => UOPALU.mulhsu
-      case i if Seq("div", "divw").contains(i) => UOPALU.div
-      case i if Seq("divu", "divuw").contains(i) => UOPALU.divu
-      case i if Seq("rem", "remw").contains(i) => UOPALU.rem
-      case i if Seq("remu", "remuw").contains(i) => UOPALU.remu
+      case (i, _) if Seq("mul", "mulw").contains(i) => UOPALU.mul
+      case (i, _) if Seq("mulh").contains(i) => UOPALU.mulh
+      case (i, _) if Seq("mulhu").contains(i) => UOPALU.mulhu
+      case (i, _) if Seq("mulhsu").contains(i) => UOPALU.mulhsu
+      case (i, _) if Seq("div", "divw").contains(i) => UOPALU.div
+      case (i, _) if Seq("divu", "divuw").contains(i) => UOPALU.divu
+      case (i, _) if Seq("rem", "remw").contains(i) => UOPALU.rem
+      case (i, _) if Seq("remu", "remuw").contains(i) => UOPALU.remu
 
-      case i if Seq("czero.eqz").contains(i) => UOPALU.czeqz
-      case i if Seq("czero.nez").contains(i) => UOPALU.cznez
+      case (i, _) if Seq("czero.eqz").contains(i) => UOPALU.czeqz
+      case (i, _) if Seq("czero.nez").contains(i) => UOPALU.cznez
+      // vector
+      case (_, p) if p.vectorReadRs1 => UOPALU.add
       case _ => UOPALU.dontCare
       // format: on
     }
@@ -625,11 +644,12 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
   object selAlu1 extends UOPDecodeField[RocketDecodePattern] {
     override def name: String = "sel_alu1"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
       // format: off
-      case i if Seq("auipc", "jal").contains(i) => UOPA1.pc
-      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fcvt.d.wu", "fsd", "fcvt.d.w", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.s.wu", "fmv.w.x", "fsw", "fcvt.s.w", "flw", "fcvt.s.lu", "fcvt.s.l", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "bne", "lbu", "sub", "and", "xori", "slti", "slt", "addi", "lb", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "fsh", "flh", "fcvt.h.wu", "fcvt.h.w", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l", "csrrc", "csrrs", "csrrw", "czero.nez", "czero.eqz", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPA1.rs1
-      case i if Seq("csrrci", "csrrsi", "csrrwi", "lui").contains(i) => UOPA1.zero
+      case (i, _) if Seq("auipc", "jal").contains(i) => UOPA1.pc
+      case (i, _) if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fcvt.d.wu", "fsd", "fcvt.d.w", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.s.wu", "fmv.w.x", "fsw", "fcvt.s.w", "flw", "fcvt.s.lu", "fcvt.s.l", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "bne", "lbu", "sub", "and", "xori", "slti", "slt", "addi", "lb", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "fsh", "flh", "fcvt.h.wu", "fcvt.h.w", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l", "csrrc", "csrrs", "csrrw", "czero.nez", "czero.eqz", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPA1.rs1
+      case (_, p) if p.vectorReadRs1 => UOPA1.rs1
+      case (i, _) if Seq("csrrci", "csrrsi", "csrrwi", "lui").contains(i) => UOPA1.zero
       case _ => UOPA1.dontCare
     }
 
@@ -651,12 +671,13 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
   object selAlu2 extends UOPDecodeField[RocketDecodePattern] {
     override def name: String = "sel_alu2"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
       // format: off
-      case i if Seq("fld", "fsd", "fsw", "flw", "ori", "lhu", "sb", "lw", "andi", "sw", "sltiu", "lh", "jalr", "lui", "lbu", "auipc", "xori", "slti", "addi", "lb", "sh", "srli", "srai", "slli", "ld", "sd", "sraiw", "lwu", "addiw", "srliw", "slliw", "fsh", "flh", "csrrci", "csrrsi", "csrrwi").contains(i) => UOPA2.imm
-      case i if Seq("or", "srl", "sltu", "sra", "add", "xor", "beq", "bge", "blt", "bgeu", "bltu", "bne", "sub", "and", "slt", "sll", "addw", "sllw", "sraw", "subw", "srlw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "czero.nez", "czero.eqz").contains(i) => UOPA2.rs2
-      case i if Seq("jal").contains(i) => UOPA2.size
-      case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "sfence.vma", "csrrc", "csrrs", "csrrw", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPA2.zero
+      case (i, _) if Seq("fld", "fsd", "fsw", "flw", "ori", "lhu", "sb", "lw", "andi", "sw", "sltiu", "lh", "jalr", "lui", "lbu", "auipc", "xori", "slti", "addi", "lb", "sh", "srli", "srai", "slli", "ld", "sd", "sraiw", "lwu", "addiw", "srliw", "slliw", "fsh", "flh", "csrrci", "csrrsi", "csrrwi").contains(i) => UOPA2.imm
+      case (i, _) if Seq("or", "srl", "sltu", "sra", "add", "xor", "beq", "bge", "blt", "bgeu", "bltu", "bne", "sub", "and", "slt", "sll", "addw", "sllw", "sraw", "subw", "srlw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "czero.nez", "czero.eqz").contains(i) => UOPA2.rs2
+      case (i, _) if Seq("jal").contains(i) => UOPA2.size
+      case (i, _) if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "sfence.vma", "csrrc", "csrrs", "csrrw", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPA2.zero
+      case (_, p) if p.vectorReadRs1 => UOPA2.zero
       case _ => UOPA2.dontCare
     }
 
