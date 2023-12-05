@@ -19,7 +19,7 @@ case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with Serializ
   val inputBundle = new LaneFloatRequest(datapathWidth)
   val outputBundle = new LaneFloatResponse(datapathWidth)
   override val singleCycle = false
-  override val NeedSplit: Boolean = true
+  override val NeedSplit: Boolean = false
 }
 
 /** UOP encoding
@@ -82,6 +82,8 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val recIn0 = recFNFromFN(8, 24, request.src(0))
   val recIn1 = recFNFromFN(8, 24, request.src(1))
   val recIn2 = recFNFromFN(8, 24, request.src(2))
+  val raw0   = rawFloatFromRecFN(8, 24, recIn0)
+  val raw1   = rawFloatFromRecFN(8, 24, recIn1)
 
   val uop = request.opcode
   val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestIO.fire)
@@ -159,10 +161,17 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   compareModule.io.signaling := false.B
   val compareResult = Wire(UInt(32.W))
   val compareflags = Wire(UInt(5.W))
+  val twoNaN = raw0.isNaN && raw1.isNaN
+  val oneNaN = raw0.isNaN ^  raw1.isNaN
+  val compareNaN = Mux(oneNaN,
+    Mux(raw0.isNaN, request.src(1), request.src(0)),
+    "x7fc00000".U
+  )
+  val hasNaN = raw0.isNaN ||  raw1.isNaN
 
   assert(!unitSeleOH(2) || (uop === "b0001".U || uop === "b0000".U || uop === "b0010".U || uop === "b0011".U || uop === "b0100".U || uop === "b0101".U || uop === "b1000".U || uop === "b1100".U))
-  compareResult := Mux(uop === "b1000".U , Mux(compareModule.io.lt, request.src(1), request.src(0)),
-    Mux(uop === "b1100".U, Mux(compareModule.io.gt, request.src(1), request.src(0)),
+  compareResult := Mux(uop === "b1000".U , Mux(hasNaN, compareNaN, Mux(compareModule.io.lt, request.src(1), request.src(0))),
+    Mux(uop === "b1100".U, Mux(hasNaN, compareNaN, Mux(compareModule.io.gt, request.src(1), request.src(0))),
      Mux(uop === "b0011".U, compareModule.io.lt || compareModule.io.eq,
        Mux(uop === "b0101".U, compareModule.io.gt || compareModule.io.eq,
          Mux(uop === "b0010".U, compareModule.io.lt,
