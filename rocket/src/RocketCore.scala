@@ -654,6 +654,9 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       ) {
         val size = exRegMemSize
         memRegRS2 := new StoreGen(size, 0.U, exRs(1), coreDataBytes).data
+      }.elsewhen(exRegDecodeOutput(decoder.rxs2) && exRegDecodeOutput(decoder.vector)) {
+        // for setvl
+        memRegRS2 := exRs(1)
       }
       when(exRegDecodeOutput(decoder.isJalr) && csr.io.status.debug) {
         // flush I$ on D-mode JALR to effect uncached fetch without D$ flush
@@ -708,7 +711,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
           )
         )
         .getOrElse(memIntWdata)
-      when(memRegSfence) {
+      when(memRegSfence || memRegDecodeOutput(decoder.vector)) {
         wbRegRS2 := memRegRS2
       }
       wbRegCause := memCause
@@ -874,7 +877,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     csr.io.rw.wdata := wbRegWdata
     csr.io.vectorCsr.foreach(_ := wbRegDecodeOutput(decoder.vectorCSR))
     csr.io.wbRegRS2.foreach(_ := wbRegRS2)
-    csr.io.rs1IsZero.foreach(_ := wbRegMemSize(0))
+    csr.io.rs1IsZero.foreach(_ := !wbRegMemSize(0))
     csr.io.rdIsZero.foreach(_ := (wbWaddr === 0.U))
 
     bpwatch.zip(wbRegWphit).zip(csr.io.bp)
@@ -1104,7 +1107,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         flush.foreach(f => when(f)(counter := 0.U))
         val empty = (updateCounter && nextCount === 0.U) || counter === 0.U
         val fullCounter: Int = (1 << size) - 1 - margin
-        val full = (updateCounter && nextCount === fullCounter.U) || counter === fullCounter.U
+        val full = (updateCounter && nextCount >= fullCounter.U) || counter >= fullCounter.U
         (empty, full)
       }
       // Maintain lsu counter
