@@ -14,6 +14,7 @@ object Main {
                        @arg(name = "config") config: String,
                        @arg(name = "riscvopcodes") riscvOpcodes: String
                      ) = {
+    val dir_ = os.Path(dir, os.pwd)
     implicit val p: Parameters = (new VerdesConfig).orElse(new Config((site, here, up) => {
         case T1ConfigPath => os.Path(config)
         case RISCVOpcodesPath => os.Path(riscvOpcodes)
@@ -25,21 +26,21 @@ object Main {
       new Convert
     ).foldLeft(
         Seq(
-          TargetDirAnnotation(dir),
+          TargetDirAnnotation(dir_.toString()),
           ChiselGeneratorAnnotation(() => new TestHarness)
         ): AnnotationSeq
       ) { case (annos, phase) => phase.transform(annos) }
       .flatMap {
         case firrtl.stage.FirrtlCircuitAnnotation(circuit) =>
           topName = circuit.main
-          os.write(os.Path(dir) / s"${circuit.main}.fir", circuit.serialize)
+          os.write(dir_ / s"${circuit.main}.fir", circuit.serialize)
           None
         case _: chisel3.stage.ChiselCircuitAnnotation => None
         case _: chisel3.stage.DesignAnnotation[_] => None
         case _: freechips.rocketchip.util.ParamsAnnotation  => None
         case a => Some(a)
       }
-    os.write(os.Path(dir) / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
+    os.write(dir_ / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
   }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
