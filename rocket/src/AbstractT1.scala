@@ -72,23 +72,6 @@ class VectorHazardControl extends Bundle {
   val loadStoreTokenRelease: Bool = Flipped(Bool())
 }
 
-/** Scalar -> Vector IO.
-  * aligned: vector -> core
-  * flipped: core -> vector
-  */
-class T1CoreIO(xLen: Int) extends Bundle {
-
-  /** Scalar to Vector Datapath.
-    * at last stage of Core, [[request.valid]] is asserted.
-    */
-  val request: Valid[VectorRequest] = Valid(new VectorRequest(xLen))
-
-  /** Vector to Scalar Datapath.
-    * when [[response.valid]], a vector instruction should assert.
-    */
-  val response: ValidIO[VectorResponse] = Flipped(Valid(new VectorResponse(xLen)))
-}
-
 /** The hierarchy under [[BaseTile]]. */
 abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
   def module:       AbstractLazyT1ModuleImp
