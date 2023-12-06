@@ -96,8 +96,8 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
     )
   )
 
-  val requestNode: BundleBridgeSource[ValidIO[VectorRequest]] =
-    BundleBridgeSource(() => Flipped(Valid(new VectorRequest(xLen))))
+  val requestSinkNode: BundleBridgeSink[ValidIO[VectorRequest]] =
+    BundleBridgeSink[ValidIO[VectorRequest]]()
   val responseNode: BundleBridgeSource[ValidIO[VectorResponse]] =
     BundleBridgeSource(() => Valid(new VectorResponse(xLen)))
   val hazardControlNode: BundleBridgeSource[VectorHazardControl] =
@@ -108,14 +108,15 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
   * but is should be configurable module for fitting different vector architectures
   */
 abstract class AbstractLazyT1ModuleImp(outer: AbstractLazyT1)(implicit p: Parameters) extends LazyModuleImp(outer) {
-  val request:       Valid[VectorRequest] = outer.requestNode.bundle
+  val request:       Valid[VectorRequest] = outer.requestSinkNode.bundle
   val response:      ValidIO[VectorResponse] = outer.responseNode.bundle
   val hazardControl: VectorHazardControl = outer.hazardControlNode.bundle
 }
 
 trait HasLazyT1 { this: BaseTile =>
   val t1 = p(BuildVector).map(_(p))
-  val requestSinkNode:       Option[BundleBridgeSink[ValidIO[VectorRequest]]] = t1.map(_.requestNode.makeSink())
+  val requestNode:       Option[BundleBridgeSource[ValidIO[VectorRequest]]] = t1.map(_ => BundleBridgeSource(() => Valid(new VectorRequest(xLen))))
+  requestNode.zip(t1.map(_.requestSinkNode)).foreach{case (src, dst) => dst := src }
   val responseSinkNode:      Option[BundleBridgeSink[ValidIO[VectorResponse]]] = t1.map(_.responseNode.makeSink())
   val hazardControlSinkNode: Option[BundleBridgeSink[VectorHazardControl]] = t1.map(_.hazardControlNode.makeSink())
   t1.foreach(tlMasterXbar.node :=* _.vectorMasterNode)
@@ -152,7 +153,7 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
 
     // pull bundle bridge from T1 here:
     // TODO: I wanna make RocketCore diplomatic...
-    (core.t1Request.zip(outer.requestSinkNode.map(_.bundle))).foreach {
+    (core.t1Request.zip(outer.requestNode.map(_.bundle))).foreach {
       case (c, v) =>
         v <> c
     }
