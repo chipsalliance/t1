@@ -48,6 +48,50 @@ class VectorResponse(xLen: Int) extends Bundle {
   val mem: Bool = Bool()
 }
 
+class CSRInterface(vlWidth: Int) extends Bundle {
+  /** Vector Length Register `vl`,
+   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#35-vector-length-register-vl]]
+   */
+  val vl: UInt = UInt(vlWidth.W)
+
+  /** Vector Start Index CSR `vstart`,
+   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#37-vector-start-index-csr-vstart]]
+   * TODO: rename to `vstart`
+   */
+  val vStart: UInt = UInt(vlWidth.W)
+
+  /** Vector Register Grouping `vlmul[2:0]`
+   * subfield of `vtype`
+   * see table in [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#342-vector-register-grouping-vlmul20]]
+   */
+  val vlmul: UInt = UInt(3.W)
+
+  /** Vector Register Grouping (vlmul[2:0])
+   * subfield of `vtype``
+   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#341-vector-selected-element-width-vsew20]]
+   */
+  val vSew: UInt = UInt(2.W)
+
+  /** Rounding mode register
+   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
+   */
+  val vxrm: UInt = UInt(2.W)
+
+  /** Vector Tail Agnostic
+   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
+   *
+   * we always keep the undisturbed behavior, since there is no rename here.
+   */
+  val vta: Bool = Bool()
+
+  /** Vector Mask Agnostic
+   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
+   *
+   * we always keep the undisturbed behavior, since there is no rename here.
+   */
+  val vma: Bool = Bool()
+}
+
 /** IO for maintaining the memory hazard between Scalar and Vector core.
   * aligned: core -> vector
   * flipped: vector -> core
@@ -96,8 +140,10 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
     )
   )
 
-  val requestSinkNode: BundleBridgeSink[ValidIO[VectorRequest]] =
-    BundleBridgeSink[ValidIO[VectorRequest]]()
+  val requestSinkNode: BundleBridgeSink[DecoupledIO[VectorRequest]] =
+    BundleBridgeSink[DecoupledIO[VectorRequest]]()
+  val csrSinkNode: BundleBridgeSink[CSRInterface] =
+    BundleBridgeSink[CSRInterface]()
   val responseNode: BundleBridgeSource[ValidIO[VectorResponse]] =
     BundleBridgeSource(() => Valid(new VectorResponse(xLen)))
   val hazardControlNode: BundleBridgeSource[VectorHazardControl] =
@@ -108,15 +154,18 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
   * but is should be configurable module for fitting different vector architectures
   */
 abstract class AbstractLazyT1ModuleImp(outer: AbstractLazyT1)(implicit p: Parameters) extends LazyModuleImp(outer) {
-  val request:       Valid[VectorRequest] = outer.requestSinkNode.bundle
+  val request:       DecoupledIO[VectorRequest] = outer.requestSinkNode.bundle
+  val csr:           CSRInterface = outer.csrSinkNode.bundle
   val response:      ValidIO[VectorResponse] = outer.responseNode.bundle
   val hazardControl: VectorHazardControl = outer.hazardControlNode.bundle
 }
 
 trait HasLazyT1 { this: BaseTile =>
   val t1 = p(BuildVector).map(_(p))
-  val requestNode:       Option[BundleBridgeSource[ValidIO[VectorRequest]]] = t1.map(_ => BundleBridgeSource(() => Valid(new VectorRequest(xLen))))
+  val requestNode: Option[BundleBridgeSource[DecoupledIO[VectorRequest]]] = t1.map(_ => BundleBridgeSource(() => Decoupled(new VectorRequest(xLen))))
   requestNode.zip(t1.map(_.requestSinkNode)).foreach{case (src, dst) => dst := src }
+  val csrNode: Option[BundleBridgeSource[CSRInterface]] = t1.map(_ => BundleBridgeSource(() => new CSRInterface(11)))
+  csrNode.zip(t1.map(_.csrSinkNode)).foreach{case (src, dst) => dst := src }
   val responseSinkNode:      Option[BundleBridgeSink[ValidIO[VectorResponse]]] = t1.map(_.responseNode.makeSink())
   val hazardControlSinkNode: Option[BundleBridgeSink[VectorHazardControl]] = t1.map(_.hazardControlNode.makeSink())
   t1.foreach(tlMasterXbar.node :=* _.vectorMasterNode)
@@ -127,44 +176,74 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
   outer.t1.map(_.module).foreach { t1Module =>
     // TODO: make it configurable
     val maxCount: Int = 32
+    val vlMax: Int = 1024
 
-    /** at commit stage, CPU says: issued a vector load instruction! */
-    val vectorGrant = WireDefault(false.B) // from [[core.io]]
-    /** after vector finish a load, release this token. */
-    val vectorRelease = WireDefault(false.B) // from [[t1Module.]]
+    val instructionQueue: Option[Queue[VectorRequest]] =
+      core.t1Request.map(req => Module(new Queue(chiselTypeOf(req.bits), maxCount)))
+    val instructionDequeue: Option[DecoupledIO[VectorRequest]] =
+      core.t1Request.map(_ => Wire(Decoupled(new VectorRequest(xLen))))
 
-    // for scalar token, we forget it for now.
-    /** the memory load store token issuer:
-      * it will hazard scalar load store instructions for waiting there is not pending vector load store in the pipeline.
-      * TODO: when resolving interrupt/exception, the counter should be 0.
-      */
-    val vectorCounter = RegInit(0.U(log2Up(maxCount).W))
+    val csr: Option[CSRInterface] = instructionQueue.map { queue =>
+      queue.io.enq.valid := core.t1Request.get.valid
+      queue.io.enq.bits := core.t1Request.get.bits
+      assert(queue.io.enq.ready || !core.t1Request.get.valid, "t1 instruction queue exploded.")
 
-    /** vector load store counter is full, so don't all acquire. */
-    val vectorCounterIsFull = WireDefault(false.B)
+      val csrReg: CSRInterface = RegInit(0.U.asTypeOf(new CSRInterface(log2Ceil(vlMax + 1))))
+      val deqInst = queue.io.deq.bits.instruction
+      val isSetVl: Bool = (deqInst(6, 0) === "b1010111".U) && (deqInst(14, 12) === 7.U)
+      // set vl type
+      val vsetvli = !deqInst(31)
+      val vsetivli = deqInst(31, 30).andR
+      val vsetvl = deqInst(31) && !deqInst(30)
+      // v type set
+      val newVType = Mux1H(Seq(
+        (vsetvli || vsetivli) -> deqInst(27, 20),
+        vsetvl -> queue.io.deq.bits.rs2Data(7, 0)
+      ))
 
-    when(!vectorCounterIsFull && (vectorGrant && !vectorRelease)) {
-      vectorCounter := vectorCounter + 1.U
+      val rs1IsZero = deqInst(19, 15) === 0.U
+      val rdIsZero = deqInst(11, 7) === 0.U
+      // set vl
+      val setVL = Mux1H(Seq(
+        (vsetvli || (vsetvl && !rs1IsZero)) ->
+          Mux(queue.io.deq.bits.rs1Data > vlMax.U, vlMax.U, queue.io.deq.bits.rs1Data),
+        (vsetvl && rs1IsZero && !rdIsZero) -> vlMax.U,
+        (vsetvl && rs1IsZero && rdIsZero) -> csrReg.vl,
+        vsetivli -> deqInst(19, 15)
+      ))
+      // todo: vxrm
+      when(queue.io.deq.fire && isSetVl) {
+        csrReg.vl := setVL
+        csrReg.vlmul := newVType(2, 0)
+        csrReg.vSew := newVType(5, 3)
+        csrReg.vta := newVType(6)
+        csrReg.vma := newVType(7)
+      }
+
+      instructionDequeue.get <> queue.io.deq
+      instructionDequeue.get.valid := queue.io.deq.valid && !isSetVl
+      queue.io.deq.ready := instructionDequeue.get.ready || isSetVl
+      core.t1IssueQueueRelease.foreach(_ := queue.io.deq.fire )
+      csrReg
     }
-    when(!vectorCounterIsFull && (vectorGrant && !vectorRelease)) {
-      vectorCounter := vectorCounter - 1.U
-    }
-    vectorCounterIsFull := vectorCounter === maxCount.U
 
     // pull bundle bridge from T1 here:
     // TODO: I wanna make RocketCore diplomatic...
-    (core.t1Request.zip(outer.requestNode.map(_.bundle))).foreach {
+    instructionDequeue.zip(outer.requestNode.map(_.bundle)).foreach {
       case (c, v) =>
         v <> c
+    }
+    csr.zip(outer.csrNode.map(_.bundle)).foreach {
+      case (c, v) =>
+        v := c
     }
     (core.t1Response.zip(outer.responseSinkNode.map(_.bundle))).foreach {
       case (c, v) =>
         c <> v
     }
-    outer.hazardControlSinkNode.map(_.bundle).lazyZip(core.t1IssueQueueEmpty).lazyZip(core.t1IssueQueueFull).foreach {
-      case (c, e, f) =>
-        c.loadStoreTokenGrant := vectorGrant
-        vectorRelease := c.loadStoreTokenRelease
+    outer.hazardControlSinkNode.map(_.bundle).foreach {
+      c =>
+        c.loadStoreTokenGrant := false.B
         c.issueQueueEmpty := false.B
         c.issueQueueFull := false.B
         // TODO: fixme

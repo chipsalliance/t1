@@ -127,8 +127,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   val t1Request = Option.when(usingVector)(IO(Valid(new VectorRequest(xLen))))
   val t1Response = Option.when(usingVector)(IO(Flipped(Valid(new VectorResponse(xLen)))))
   // logic for T1
-  val t1IssueQueueFull = Option.when(usingVector)(IO(Output(Bool())))
-  val t1IssueQueueEmpty = Option.when(usingVector)(IO(Output(Bool())))
+  val t1IssueQueueRelease = Option.when(usingVector)(IO(Input(Bool())))
 
   // Signal outside from internal clock domain.
 
@@ -1116,13 +1115,11 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       val (lsuEmpty, _) = counterManagement(countWidth)(lsuGrant, lsuRelease)
       // Maintain vector counter
       // There may be 4 instructions in the pipe
-      val (vectorEmpty, vectorFull) = counterManagement(countWidth, 4)(t1.valid, response.fire)
+      val (vectorEmpty, vectorFull) = counterManagement(countWidth, 4)(t1.valid, t1IssueQueueRelease.get)
       vectorLSUEmpty.foreach(_ := lsuEmpty)
       vectorQueueFull.foreach(_ := vectorFull)
     }
     t1Response.foreach(_ <> DontCare)
-    t1IssueQueueFull.foreach(_ <> DontCare)
-    t1IssueQueueEmpty.foreach(_ <> DontCare)
 
     dmem.req.valid := exRegValid && exRegDecodeOutput(decoder.mem)
     val ex_dcache_tag = Cat(exWaddr, Option.when(usingFPU)(exRegDecodeOutput(decoder.fp)).getOrElse(false.B))
