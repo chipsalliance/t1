@@ -35,6 +35,7 @@ class LazyT1Imp(outer: LazyT1)(implicit p: Parameters) extends AbstractLazyT1Mod
   t1.request.bits.instruction := request.bits.instruction
   t1.request.bits.src1Data := request.bits.rs1Data
   t1.request.bits.src2Data := request.bits.rs2Data
+  request.ready := t1.request.ready
 
   response.valid := t1.response.valid
   response.bits.data := t1.response.bits.data
@@ -47,7 +48,7 @@ class LazyT1Imp(outer: LazyT1)(implicit p: Parameters) extends AbstractLazyT1Mod
   // hazardControl.loadTokenGrant := !dut.response.bits.mem
   // hazardControl.storeTokenGrant := !dut.response.bits.mem
 
-  t1.csrInterface := DontCare
+  t1.csrInterface.elements.foreach{ case (s, d) => d := csr.elements.getOrElse(s, 0.U)}
   // TODO: fixme
   t1.storeBufferClear := true.B
 
