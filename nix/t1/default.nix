@@ -15,11 +15,15 @@ lib.makeScope newScope
     elaborator = self.callPackage ./elaborator.nix { };
 
     rvv-codegen = self.callPackage ./testcases/rvv-codegen.nix { };
-    rvv-testcases = self.callPackage ./testcases/rvv-testcases.nix {
+    rvv-testcases' = self.callPackage ./testcases/rvv-testcases.nix {
       stdenv = llvmForDev.stdenv;
       llvmPackages = llvmForDev;
     };
     rvv-testcases-prebuilt = self.callPackage ./testcases/rvv-testcases-prebuilt.nix { };
+    testcase-env = {
+      mkMlirCase = self.callPackage ./testcases/make-mlir-case.nix { };
+    };
+    rvv-testcases = self.callPackage ../../tests { };
   } //
   lib.genAttrs configNames (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters
@@ -34,4 +38,4 @@ lib.makeScope newScope
       verilator-emulator-trace = innerSelf.callPackage ./verilator-emulator.nix { do-trace = true; };
     })
   )
-)
+  )
