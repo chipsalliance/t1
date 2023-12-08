@@ -58,6 +58,10 @@ final: prev:
   };
 
   rv32-newlib-gnu-toolchain = final.callPackage ./pkgs/rv32-newlib-gnu-toolchain.nix { };
+  rv32-newlib = final.pkgsCross.riscv32-embedded.newlib.overrideAttrs {
+    CFLAGS_FOR_TARGET = "-march=rv32gcv -mabi=ilp32f";
+    CXXFLAGS_FOR_TARGET = "-march=rv32gcv -mabi=ilp32f";
+  };
 
   t1 = final.callPackage ./t1 { };
 }
