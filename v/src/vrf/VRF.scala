@@ -266,7 +266,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val recordEnq:  UInt = Wire(UInt(parameter.chainingSize.W))
   // handle VRF hazard
   // TODO: move to [[V]]
-  instructionWriteReport.ready := chainingRecord.map(r => enqCheck(instructionWriteReport.bits, r)).reduce(_ && _)
+  instructionWriteReport.ready := true.B
   recordEnq := Mux(
     // 纯粹的lsu指令的记录不需要ready
     instructionWriteReport.valid && (instructionWriteReport.ready || lsuInstructionFire),
