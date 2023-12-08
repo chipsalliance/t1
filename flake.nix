@@ -27,7 +27,6 @@
                 mill
                 ammonite
               ];
-              env.TEST_CASES_DIR = pkgs.t1.rvv-testcases;
             };
 
             with-prebuilt-cases = default.overrideAttrs (_: {

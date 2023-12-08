@@ -1,4 +1,4 @@
-{ stdenvNoCC, buddy-mlir, rv32-clang, llvmForDev }:
+{ stdenvNoCC, jq, writeText, buddy-mlir, rv32-clang, llvmForDev }:
 
 { caseName
 , linkSrcs ? [ ]
@@ -6,13 +6,24 @@
 , buddyTranslateArgs ? [ ]
 , buddyLlcArgs ? [ ]
 , compileFlags ? [ ]
+, xLen ? 32
+, vLen ? 1024
+, fp ? false
 , ...
 }@inputs:
+let
+  caseConfigFile = writeText "${caseName}-mlir.json" (builtins.toJSON {
+    name = "${caseName}";
+    type = "mlir";
+    inherit xLen vLen fp;
+  });
+in
 stdenvNoCC.mkDerivation
   ({
     name = "${caseName}-mlir";
 
     nativeBuildInputs = [
+      jq
       buddy-mlir
       rv32-clang
       llvmForDev.bintools
@@ -73,12 +84,9 @@ stdenvNoCC.mkDerivation
     '';
 
     installPhase = ''
-      runHook preBuild
-
       mkdir -p $out/bin
       cp $name.elf $out/bin/
-
-      runHook postBuild
+      jq ".+={\"elf\": {\"path\": \"$out/bin/$name.elf\"}}" ${caseConfigFile} > $out/$name.json
     '';
 
   } // inputs)

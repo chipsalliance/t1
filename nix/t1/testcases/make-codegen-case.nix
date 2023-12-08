@@ -1,12 +1,18 @@
-{ lib, stdenvNoCC, rvv-codegen, rv32-clang, llvmForDev }:
+{ lib, writeText, jq, stdenvNoCC, rvv-codegen, rv32-clang, llvmForDev }:
 
 { caseName, xLen ? 32, vLen ? 1024, fp ? false, compileFlags ? [ ], ... }@inputs:
-
+let
+  caseConfigFile = writeText "${caseName}-codegen.json" (builtins.toJSON {
+    name = "${caseName}";
+    type = "codegen";
+    inherit xLen vLen fp;
+  });
+in
 stdenvNoCC.mkDerivation ({
   name = "${caseName}-codegen";
   dontUnpack = true;
 
-  nativeBuildInputs = [ rvv-codegen rv32-clang llvmForDev.bintools ];
+  nativeBuildInputs = [ jq rvv-codegen rv32-clang llvmForDev.bintools ];
 
   compileFlags = [
     "-mabi=ilp32f"
@@ -28,12 +34,12 @@ stdenvNoCC.mkDerivation ({
       -configfile ${rvv-codegen}/configs/$caseName.toml \
       -outputfile $caseName.S
 
-    clang-rv32 $caseName.S $compileFlags -o $caseName.elf
+    clang-rv32 $caseName.S $compileFlags -o $name.elf
   '';
 
   installPhase = ''
     mkdir -p $out/bin
-
-    cp $caseName.elf $out/bin
+    cp $name.elf $out/bin
+    jq ".+={\"elf\": {\"path\": \"$out/bin/$name.elf\"}}" ${caseConfigFile} > $out/$name.json
   '';
 } // inputs)
