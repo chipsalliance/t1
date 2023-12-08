@@ -774,6 +774,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   vrfReadDataPorts.valid := s0Valid && lsuRequestReg.instructionInformation.isStore && s1EnqueueReady
   vrfReadDataPorts.bits.offset := s0Reg.offsetForVSInLane
   vrfReadDataPorts.bits.vs := s0Reg.readVS
+  vrfReadDataPorts.bits.readSource := 2.U
   vrfReadDataPorts.bits.instructionIndex := lsuRequestReg.instructionIndex
 
   /** ready to read VRF to store to memory. */

@@ -25,9 +25,15 @@ class ChainingCheck(val parameter: VRFParam) extends Module {
   val readOH: UInt = UIntToOH((read.vs ## read.offset)(4, 0))
   val hitElement: Bool = (readOH & record.bits.elementMask) === 0.U
 
+  // read.readSource === 3.U -> readBase = 0.U
+  val readBase: UInt = Mux1H(
+    UIntToOH(read.readSource)(2, 0),
+    Seq(readRecord.vs1.bits, readRecord.vs2, readRecord.vd.bits)
+  )
   // use for waw | war check, if read success, where will write.
+  val willWriteVd: UInt = readRecord.vd.bits(2, 0) + read.vs - readBase
   // tip: Only the oldest instructions will be written across lanes
-  val writeOH: UInt = UIntToOH((readRecord.vd.bits ## read.offset)(4, 0))
+  val writeOH: UInt = UIntToOH((willWriteVd ## read.offset)(4, 0))
   val writeHitElement: Bool = (writeOH & record.bits.elementMask) === 0.U
 
   val vdGroup: UInt = readRecord.vd.bits(4, 3)

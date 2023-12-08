@@ -27,6 +27,7 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   val readBeforeWrite: Bool = enqueue.fire && !enqueue.bits.mask.andR
   vrfReadRequest.valid := readBeforeWrite
   vrfReadRequest.bits.vs := enqueue.bits.vd
+  vrfReadRequest.bits.readSource := 2.U
   vrfReadRequest.bits.offset := enqueue.bits.offset
   vrfReadRequest.bits.instructionIndex := enqueue.bits.instructionIndex
   // latch data
