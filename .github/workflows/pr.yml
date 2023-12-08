@@ -12,7 +12,12 @@ jobs:
     outputs:
       ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
     steps:
+      # actions/checkout will use the "event" commit to checkout repository,
+      # which will lead to an unexpected issue that the "event" commit doesn't belongs to the repository,
+      # and causing the derivation build output cannot be cache correctly.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: cachix/install-nix-action@v22
       - run: sudo -E .github/setup-actions.sh
         env:
@@ -40,6 +45,8 @@ jobs:
       ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: cachix/install-nix-action@v22
       - run: sudo -E .github/setup-actions.sh
         env:
@@ -57,6 +64,8 @@ jobs:
     runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: cachix/install-nix-action@v22
       - run: sudo -E .github/setup-actions.sh
         env:
@@ -86,6 +95,8 @@ jobs:
       result: ${{ steps.ci-run.outputs.result }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: cachix/install-nix-action@v22
       - run: sudo -E .github/setup-actions.sh
         env:
@@ -157,6 +168,8 @@ jobs:
     runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: cachix/install-nix-action@v22
       - run: sudo -E .github/setup-actions.sh
         env:
