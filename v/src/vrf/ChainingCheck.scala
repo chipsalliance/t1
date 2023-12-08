@@ -21,18 +21,26 @@ class ChainingCheck(val parameter: VRFParam) extends Module {
   // 先看新老
   val older: Bool = instIndexL(read.instructionIndex, record.bits.instIndex)
   val sameInst: Bool = read.instructionIndex === record.bits.instIndex
+
   val readOH: UInt = UIntToOH((read.vs ## read.offset)(4, 0))
   val hitElement: Bool = (readOH & record.bits.elementMask) === 0.U
-  val vd: UInt = readRecord.vd.bits
 
-  val raw: Bool = record.bits.vd.valid && (read.vs(4, 3) === record.bits.vd.bits) && hitElement
-  val waw: Bool = readRecord.vd.valid && record.bits.vd.valid && readRecord.vd.bits === record.bits.vd.bits &&
-    hitElement
-  val warSource1: Bool = (vd === record.bits.vs1.bits) && record.bits.vs1.valid
+  // use for waw | war check, if read success, where will write.
+  // tip: Only the oldest instructions will be written across lanes
+  val writeOH: UInt = UIntToOH((readRecord.vd.bits ## read.offset)(4, 0))
+  val writeHitElement: Bool = (writeOH & record.bits.elementMask) === 0.U
+
+  val vdGroup: UInt = readRecord.vd.bits(4, 3)
+
+  val raw: Bool = record.bits.vd.valid && (read.vs(4, 3) === record.bits.vd.bits(4, 3)) && hitElement
+  val waw: Bool = readRecord.vd.valid && record.bits.vd.valid &&
+    readRecord.vd.bits(4, 3) === record.bits.vd.bits(4, 3) &&
+    writeHitElement
+  val warSource1: Bool = (vdGroup === record.bits.vs1.bits(4, 3)) && record.bits.vs1.valid
   // Only index type will read vs2
-  val warSource2: Bool = vd === record.bits.vs2 && (!record.bits.ls || record.bits.indexType)
+  val warSource2: Bool = vdGroup === record.bits.vs2(4, 3) && (!record.bits.ls || record.bits.indexType)
   // store or ma need read vd
-  val warVD: Bool = (vd === record.bits.vd.bits) && (record.bits.ma || record.bits.st)
-  val war: Bool = readRecord.vd.valid && (warSource1 || warSource2 || warVD) && hitElement
+  val warVD: Bool = (vdGroup === record.bits.vd.bits(4, 3)) && (record.bits.ma || record.bits.st)
+  val war: Bool = readRecord.vd.valid && (warSource1 || warSource2 || warVD) && writeHitElement
   checkResult := !((!older && (waw || raw || war)) && !sameInst && recordValid)
 }

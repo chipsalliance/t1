@@ -491,12 +491,11 @@ class LSUWriteCheck(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int,
 
 class VRFWriteReport(param: VRFParam) extends Bundle {
   // 8 reg/group; which group?
-  val vd:        ValidIO[UInt] = Valid(UInt(2.W))
-  val vs1:       ValidIO[UInt] = Valid(UInt(2.W))
-  val vs2:       UInt = UInt(2.W)
+  val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs2:       UInt = UInt(param.regNumBits.W)
   val instIndex: UInt = UInt(param.instructionIndexBits.W)
   val seg:       ValidIO[UInt] = Valid(UInt(3.W))
-  val eew:       UInt = UInt(2.W)
   val ls:        Bool = Bool()
   val st:        Bool = Bool()
   val widen:     Bool = Bool()
@@ -510,8 +509,6 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val unOrderWrite: Bool = Bool()
   // 慢指令 mask unit
   val slow: Bool = Bool()
-  // csr 如果是浮点的就校正为0
-  val mul: UInt = UInt(2.W)
   // which element will access(write or store read)
   // true: No access or access has been completed
   val elementMask: UInt = UInt(param.elementSize.W)
