@@ -1,4 +1,4 @@
-{ stdenvNoCC, buddy-mlir, rv32-clang, llvmToolsForRV32Clang }:
+{ stdenvNoCC, buddy-mlir, rv32-clang, llvmForDev }:
 
 { caseName
 , linkSrcs ? [ ]
@@ -15,7 +15,7 @@ stdenvNoCC.mkDerivation
     nativeBuildInputs = [
       buddy-mlir
       rv32-clang
-      llvmToolsForRV32Clang.bintools
+      llvmForDev.bintools
     ];
 
     dontUnpack = true;
