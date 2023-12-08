@@ -1031,10 +1031,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.lsuInstructionFire := laneRequest.bits.LSUFire
   vrf.instructionWriteReport.valid := (laneRequest.fire || laneRequest.bits.LSUFire) && !entranceControl.instructionFinished
   vrf.instructionWriteReport.bits.instIndex := laneRequest.bits.instructionIndex
-  vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd(4, 3)
+  vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd
   vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.decodeResult(Decoder.targetRd) || (laneRequest.bits.loadStore && !laneRequest.bits.store)
-  vrf.instructionWriteReport.bits.vs2 := laneRequest.bits.vs2(4, 3)
-  vrf.instructionWriteReport.bits.vs1.bits := laneRequest.bits.vs1(4, 3)
+  vrf.instructionWriteReport.bits.vs2 := laneRequest.bits.vs2
+  vrf.instructionWriteReport.bits.vs1.bits := laneRequest.bits.vs1
   vrf.instructionWriteReport.bits.vs1.valid := laneRequest.bits.decodeResult(Decoder.vtype)
   vrf.instructionWriteReport.bits.indexType := laneRequest.valid && laneRequest.bits.loadStore
   // TODO: move ma to [[V]]
@@ -1045,13 +1045,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.slow := laneRequest.bits.decodeResult(Decoder.special)
   vrf.instructionWriteReport.bits.seg.valid := laneRequest.bits.loadStore && laneRequest.bits.segment.orR
   vrf.instructionWriteReport.bits.seg.bits := laneRequest.bits.segment
-  vrf.instructionWriteReport.bits.eew := laneRequest.bits.loadStoreEEW
   vrf.instructionWriteReport.bits.ls := laneRequest.bits.loadStore
   vrf.instructionWriteReport.bits.st := laneRequest.bits.store
   vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.crossWrite)
   vrf.instructionWriteReport.bits.stFinish := false.B
   vrf.instructionWriteReport.bits.wWriteQueueClear := false.B
-  vrf.instructionWriteReport.bits.mul := Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
 
   val elementSizeForOneRegister: Int = parameter.vLen / parameter.datapathWidth / parameter.laneNumber
   val nrMask: UInt = VecInit(Seq.tabulate(8){ i =>
