@@ -79,6 +79,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       lsuRequestReg.instructionInformation.vs3 +
         accessPtr * segmentInstructionIndexInterval +
         (dataGroup >> readPort.bits.offset.getWidth).asUInt
+    readPort.bits.readSource := 2.U
     readPort.bits.offset := dataGroup
     readPort.bits.instructionIndex := lsuRequestReg.instructionIndex
     when(readPort.fire) {

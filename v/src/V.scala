@@ -669,6 +669,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       maskWriteLaneSelect.head := maskReadLaneSelect.head
       maskUnitReadVec.head.valid := false.B
       maskUnitReadVec.head.bits.vs := Mux(readMv, vs2, Mux(reduce, vs1, vd))
+      maskUnitReadVec.head.bits.readSource := Mux(readMv, 1.U, Mux(reduce, 0.U, 2.U))
       maskUnitReadVec.head.bits.offset := groupCounter
       maskUnitRead.bits.instructionIndex := control.record.instructionIndex
       val readResultSelectResult = Mux1H(RegNext(maskUnitReadSelect), laneReadResult)
@@ -886,6 +887,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val gatherTryToRead = gatherNeedRead && !VecInit(lsu.vrfReadDataPorts.map(_.valid)).asUInt.orR
       maskUnitReadVec(1).valid := (readState || gatherTryToRead) && !readFireNext1
       maskUnitReadVec(1).bits.vs := Mux(readState, vs2, requestRegDequeue.bits.instruction(24, 20)) + readGrowth
+      maskUnitReadVec(1).bits.readSource := 1.U
       maskUnitReadVec(1).bits.offset := readOffset
       maskReadLaneSelect(1) := UIntToOH(readLane)
       // slid write, vlXXX: 用element index 算出来的
@@ -993,6 +995,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // compress read
       maskUnitReadVec(2).valid := compressStateRead && !readFireNext2
       maskUnitReadVec(2).bits.vs := vs1
+      maskUnitReadVec(2).bits.readSource := 0.U
       maskUnitReadVec(2).bits.offset := elementIndexCount(9, 8)
       maskReadLaneSelect(2) := UIntToOH(elementIndexCount(7, 5))
       // val lastElementForMask: Bool = elementIndexCount(4, 0).andR

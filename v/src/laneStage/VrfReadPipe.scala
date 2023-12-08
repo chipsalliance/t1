@@ -36,6 +36,7 @@ class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends 
   // access read port
   vrfReadRequest.valid := reqArbitrate.io.out.valid && dataStageFree
   vrfReadRequest.bits.vs := reqArbitrate.io.out.bits.vs
+  vrfReadRequest.bits.readSource := reqArbitrate.io.out.bits.readSource
   vrfReadRequest.bits.offset := reqArbitrate.io.out.bits.offset
   vrfReadRequest.bits.instructionIndex := DontCare
   reqArbitrate.io.out.ready := dataStageFree && vrfReadRequest.ready

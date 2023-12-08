@@ -438,6 +438,9 @@ class VRFReadRequest(regNumBits: Int, offsetBits: Int, instructionIndexBits: Int
   /** address to access VRF.(v0, v1, v2, ...) */
   val vs: UInt = UInt(regNumBits.W)
 
+  /** read vs1 vs2 vd? */
+  val readSource: UInt = UInt(2.W)
+
   /** the offset of VRF access.
     * TODO: rename to offsetForVSInLane
     */
@@ -452,6 +455,7 @@ class VRFReadQueueEntry(regNumBits: Int, offsetBits: Int) extends Bundle {
   val offset: UInt = UInt(offsetBits.W)
   // for debug
   val groupIndex: UInt = UInt(4.W)
+  val readSource: UInt = UInt(4.W)
 }
 
 class VRFWriteRequest(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {

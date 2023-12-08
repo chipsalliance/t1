@@ -113,10 +113,17 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       parameter.vrfOffsetBits
     )
   )
+  readRequestQueueVs1.io.enq.bits.readSource := Mux(
+    state.decodeResult(Decoder.maskLogic) && !state.decodeResult(Decoder.logic),
+    3.U,
+    0.U
+  )
   readRequestQueueVs2.io.enq.bits.vs := state.vs2 +
     groupCounter(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
+  readRequestQueueVs2.io.enq.bits.readSource := 1.U
   readRequestQueueVd.io.enq.bits.vs := state.vd +
     groupCounter(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
+  readRequestQueueVd.io.enq.bits.readSource := 2.U
 
   // calculate offset
   readRequestQueueVs1.io.enq.bits.offset := groupCounter(parameter.vrfOffsetBits - 1, 0)
@@ -132,6 +139,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       // read vs2 for other instruction
       state.vs2
     ) + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
+    q.io.enq.bits.readSource := Mux(state.decodeResult(Decoder.vwmacc), 2.U, 1.U)
     q.io.enq.bits.offset := groupCounter(parameter.vrfOffsetBits - 2, 0) ## false.B
   }
 
@@ -143,6 +151,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       // cross lane access use vs2
       state.vs2
     ) + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
+    q.io.enq.bits.readSource := Mux(state.decodeResult(Decoder.vwmacc), 2.U, 1.U)
     q.io.enq.bits.offset := groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B
   }
 
