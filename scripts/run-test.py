@@ -41,8 +41,7 @@ def main():
         if env_case_dir := os.environ.get('TEST_CASES_DIR'):
             args.cases_dir = env_case_dir
         else:
-            logger.fatal('no testcases directory specified with TEST_CASES_DIR environment or --cases-dir argument')
-            exit(1)
+            args.cases_dir = subprocess.check_output("nix build .#t1.rvv-testcases.all --max-jobs 16 --no-link --print-out-paths".split()).strip().decode("UTF-8")
 
     if args.out_dir is None:
         if args.base_out_dir is not None:
