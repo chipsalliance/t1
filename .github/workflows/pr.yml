@@ -30,6 +30,7 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
+          nix build .#t1.rvv-testcases.all --max-jobs $(nproc)
           nix develop .#ci -c .github/scripts/ci.sc passedMatrixJson --bucketSize "$RUNNERS" >> "$GITHUB_OUTPUT"
       # build verilator emulator first, so that every developer can download new cache from latest commit.
       - name: "Build verilator emulator"
