@@ -1,35 +1,57 @@
 { lib, runCommand, callPackage, testcase-env }:
 
 let
+  /* Return true if the given path contains a file called "default.nix";
+
+     Example:
+        isCallableDir ./testDir => true
+
+     Type:
+       isCallableDir :: Path -> bool
+  */
+  isCallableDir = path:
+    with builtins;
+    let
+      files = lib.filesystem.listFilesRecursive path;
+    in
+    any (f: baseNameOf (toString f) == "default.nix") files;
+
+  /* Search for callable directory (there is a file default.nix in the directory),
+     and use callPackage to call it. Return an attr set with key as directory basename, value as derivation.
+
+     Example:
+        $ ls testDir
+        testDir
+          * A
+            - default.nix
+          * B
+            - default.nix
+          * C
+            - otherStuff
+
+        nix> searchAndCallPackage ./testDir => { A = <derivation>; B = <derivation>; }
+
+     Type:
+       searchAndCallPackage :: Path -> AttrSet
+  */
+  searchAndCallPackage = dir:
+    with builtins;
+    lib.pipe (readDir dir) [
+      # First filter out all non-directory object
+      (lib.filterAttrs (_: type: type == "directory"))
+      # { "A": "directory"; "B": "directory" } => { "A": "/nix/store/.../"; B: "/nix/store/.../"; }
+      (lib.mapAttrs (subDirName: _: (lib.path.append dir subDirName)))
+      # Then filter out those directory that have no file named default.nix
+      (lib.filterAttrs (_: fullPath: isCallableDir fullPath))
+      # { "A": "/nix/store/.../"; B: "/nix/store/.../"; } => { "A": <derivation>; "B": <derivation>; }
+      (lib.mapAttrs (_: fullPath: callPackage fullPath { }))
+    ];
+
   self = {
-    # nix build .#t1.rvv-testcases.mlir.hello -L
-    mlir = {
-      axpy-masked = callPackage ./mlir/axpy-masked { };
-      conv = callPackage ./mlir/conv { };
-      hello = callPackage ./mlir/hello { };
-      matmul = callPackage ./mlir/matmul { };
-      maxvl-tail-setvl-front = callPackage ./mlir/maxvl-tail-setvl-front { };
-      rvv-vp-intrinsic-add = callPackage ./mlir/rvv-vp-intrinsic-add { };
-      rvv-vp-intrinsic-add-scalable = callPackage ./mlir/rvv-vp-intrinsic-add-scalable { };
-      stripmining = callPackage ./mlir/stripmining { };
-      vectoradd = callPackage ./mlir/vectoradd { };
-    };
-
-    # nix build .#t1.rvv-testcases.intrinsic.matmul -L
-    intrinsic = {
-      matmul = callPackage ./intrinsic/matmul { };
-      conv2d-less-m2 = callPackage ./intrinsic/conv2d_less_m2 { };
-    };
-
-    # nix build .#t1.rvv-testcases.asm.mmm -L
-    asm = {
-      fpsmoke = callPackage ./asm/fpsmoke { };
-      memcpy = callPackage ./asm/memcpy { };
-      mmm = callPackage ./asm/mmm { };
-      smoke = callPackage ./asm/smoke { };
-      strlen = callPackage ./asm/strlen { };
-      utf8-count = callPackage ./asm/utf8-count { };
-    };
+    # nix build .#t1.rvv-testcases.<type>.<name>
+    mlir = searchAndCallPackage ./mlir;
+    intrinsic = searchAndCallPackage ./intrinsic;
+    asm = searchAndCallPackage ./asm;
 
     # nix build .#t1.rvv-testcases.codegen.vaadd-vv -L
     # codegen case are using xLen=32,vLen=1024 by default
@@ -37,7 +59,7 @@ let
       with lib;
       let
         # batchMkCases convert a list of name to a set of codegen case derivation.
-        # Eg. [ "vadd.vx" ] => { "vadd-vx": <vadd.vx drv> }
+        # Eg. [ { caseName = "vadd.vx"; <mkCodegenCase args...> } ] => { "vadd-vx": <vadd.vx codegen drv>, ... }
         batchMkCases = cases: pipe cases [
           (map (caseSpec: nameValuePair
             (replaceStrings [ "." ] [ "-" ] caseSpec.caseName)
@@ -535,8 +557,7 @@ let
         { caseName = "vzext.vf4"; }
       ];
   };
-in
-self // {
+
   all = runCommand "all-testcases"
     {
       mlirCases = lib.attrValues self.mlir;
@@ -552,8 +573,8 @@ self // {
         local -a caseArray
         caseArray=( $1 )
         for case in ''${caseArray[@]}; do
-          ln -s $case/bin/*.elf $out/cases/$2/
-          ln -s $case/*.json $out/configs/
+          cp $case/bin/*.elf $out/cases/$2/
+          cp $case/*.json $out/configs/
         done
       }
 
@@ -562,4 +583,5 @@ self // {
       linkCases "$intrinsicCases" intrinsic
       linkCases "$codegenCases" codegen
     '';
-}
+in
+self
