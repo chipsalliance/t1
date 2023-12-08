@@ -1,13 +1,6 @@
-{ stdenvNoCC, jq, writeText, rv32-clang, rv32-newlib, llvmForDev }:
+{ stdenvNoCC, jq, rv32-clang, rv32-newlib, llvmForDev }:
 
 { caseName, compileFlags ? [ ], xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
-let
-  caseConfigFile = writeText "${caseName}-intrinsic.json" (builtins.toJSON {
-    name = "${caseName}";
-    type = "intrinsic";
-    inherit xLen vLen fp;
-  });
-in
 stdenvNoCC.mkDerivation ({
   name = "${caseName}-intrinsic";
 
@@ -41,16 +34,31 @@ stdenvNoCC.mkDerivation ({
   ];
 
   buildPhase = ''
+    runHook preBuild
+
     clang-rv32 $compileFlags $srcs -o $name.elf
+
+    runHook postBuild
   '';
 
   installPhase = ''
+    runHook preInstall
+
     mkdir -p $out/bin
     cp $name.elf $out/bin
-    jq ".+={\"elf\": {\"path\": \"$out/bin/$name.elf\"}}" ${caseConfigFile} > $out/$name.json
+
+    jq --null-input \
+      --arg name ${caseName} \
+      --arg type intrinsic \
+      --arg xLen ${toString xLen} \
+      --arg vLen ${toString vLen} \
+      --arg fp '${if fp then "true" else "false"}' \
+      --arg elfPath "$out/bin/$name.elf" \
+      '{ "name": $name, "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
+      > $out/$name.json
+
+    runHook postInstall
   '';
 
-  dontPatchELF = true;
-  dontStrip = true;
-  dontShrinkRPATH = true;
+  dontFixup = true;
 } // inputs)

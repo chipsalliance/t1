@@ -1,13 +1,6 @@
-{ lib, writeText, jq, stdenvNoCC, rvv-codegen, rv32-clang, llvmForDev }:
+{ lib, jq, stdenvNoCC, rvv-codegen, rv32-clang, llvmForDev }:
 
 { caseName, xLen ? 32, vLen ? 1024, fp ? false, compileFlags ? [ ], ... }@inputs:
-let
-  caseConfigFile = writeText "${caseName}-codegen.json" (builtins.toJSON {
-    name = "${caseName}";
-    type = "codegen";
-    inherit xLen vLen fp;
-  });
-in
 stdenvNoCC.mkDerivation ({
   name = "${caseName}-codegen";
   dontUnpack = true;
@@ -22,12 +15,13 @@ stdenvNoCC.mkDerivation ({
     "-mcmodel=medany"
     "-fvisibility=hidden"
     "-nostdlib"
-    "-Wl,--entry=start"
     "-fno-PIC"
     "-I${rvv-codegen}/include"
   ];
 
   buildPhase = ''
+    runHook preBuild
+
     single \
       -VLEN ${toString vLen} \
       -XLEN ${toString xLen} \
@@ -35,11 +29,28 @@ stdenvNoCC.mkDerivation ({
       -outputfile $caseName.S
 
     clang-rv32 $caseName.S $compileFlags -o $name.elf
+
+    runHook postBuild
   '';
 
   installPhase = ''
+    runHook preInstall
+
     mkdir -p $out/bin
     cp $name.elf $out/bin
-    jq ".+={\"elf\": {\"path\": \"$out/bin/$name.elf\"}}" ${caseConfigFile} > $out/$name.json
+
+    jq --null-input \
+      --arg name ${caseName} \
+      --arg type intrinsic \
+      --arg xLen ${toString xLen} \
+      --arg vLen ${toString vLen} \
+      --arg fp '${if fp then "true" else "false"}' \
+      --arg elfPath "$out/bin/$name.elf" \
+      '{ "name": $name, "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
+      > $out/$name.json
+
+    runHook postInstall
   '';
+
+  dontFixup = true;
 } // inputs)
