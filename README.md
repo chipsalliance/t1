@@ -131,42 +131,53 @@ $ cd ..; ./scripts/run-test.py --emulator-path=emulator/src/build/emulator conv-
 
 #### Developing Testcases
 The `tests/` contains the testcases. There are four types of testcases:
+
 - asm
 - intrinsic
 - mlir
 - codegen
 
-To control how these tests are run, there are separate configs for each test in the `configs/` directory. The `mill` build system will attempt to compile the `build.sc` file and generate test case objects by reading the test case source file and its corresponding config file.
+To add new testcases for asm/intrinsic/mlir, create a new directory with `default.nix` and source files.
+Refer to the existing code for more information on how to write the nix file.
 
-The codegen tests requires [ksco/riscv-vector-tests](https://github.com/ksco/riscv-vector-tests) to generate multiple asm tests. If you want to build all the codegen tests manually, you will need to set the following environment variable:
+To add new testcases for codegen type cases, add new entry in `codegen/*.txt`, then our nix macro will automatically populate new testcases to build.
 
-- `CODEGEN_BIN_PATH`: Path to the `single` binary in riscv-vector-tests.
-- `CODEGEN_INC_PATH`: A list of header include paths. You may need to set it as `export CODEGEN_INC_PATH="$codegen/macro/sequencer-vector $codegen/env/sequencer-vector`.
-- `CODEGEN_CFG_PATH`: Path to the `configs` directory in riscv-vector-tests.
+To view what is available to ran, use the below nix expression:
 
-To develop testcases, enter the development shell:
-```shell
-$ nix develop .#t1.rvv-testcases
+```console
+# nix eval .#t1.rvv-testcases.<type> --apply 'pkg: builtins.attrNames pkg'
+#
+# For example:
+
+$ nix eval .#t1.rvv-testcases.asm --apply 'pkg: builtins.attrNames pkg'
+[ "fpsmoke" "memcpy" "mmm" "smoke" "strlen" "utf8-count" ]
+# Then you can:
+$ nix build .#t1.rvv-testcases.asm.smoke
 ```
-`CODEGEN_` like environments described above will be automatically set.
 
-List available tests:
+To develop a specific testcases, enter the development shell:
+
 ```shell
-$ mill -i resolve _[_].elf
+# nix develop .#t1.rvv-testcases.<type>.<name>
+#
+# For example:
 
-# Get asm test only
-$ mill -i resolve asm[_].elf
+$ nix develop .#t1.rvv-testcases.asm.smoke
 ```
 
 Build tests:
+
 ```shell
 # build a single test
-$ mill -i asm[hello-mlir].elf
+$ nix build .#t1.rvv-testcases.intrinsic.matmul -L
+$ ls -al ./result
 
 # build all tests
-$ cd tests
-$ ./buildAll.sc . path/to/output/directory  # a wrapper script for mill
+$ nix build .#t1.rvv-testcases.all --max-jobs $(nproc)
+$ ls -al ./result
 ```
+
+> All the `mk*Case` expression are defined in `./nix/t1/default.nix`.
 
 ### Bump Dependencies
 Bump nixpkgs:
