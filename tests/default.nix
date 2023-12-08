@@ -1,16 +1,24 @@
 { callPackage }:
 
 {
-  axpy-masked-mlir = callPackage ./mlir/axpy-masked { };
-  conv-mlir = callPackage ./mlir/conv { };
-  hello-mlir = callPackage ./mlir/hello { };
-  matmul-mlir = callPackage ./mlir/matmul { };
-  maxvl-tail-setvl-front-mlir = callPackage ./mlir/maxvl-tail-setvl-front { };
-  rvv-vp-intrinsic-add-mlir = callPackage ./mlir/rvv-vp-intrinsic-add { };
-  rvv-vp-intrinsic-add-scalable-mlir = callPackage ./mlir/rvv-vp-intrinsic-add-scalable { };
-  stripmining-mlir = callPackage ./mlir/stripmining { };
-  vectoradd-mlir = callPackage ./mlir/vectoradd { };
+  mlir = {
+    axpy-masked = callPackage ./mlir/axpy-masked { };
+    conv = callPackage ./mlir/conv { };
+    hello = callPackage ./mlir/hello { };
+    matmul = callPackage ./mlir/matmul { };
+    maxvl-tail-setvl-front = callPackage ./mlir/maxvl-tail-setvl-front { };
+    rvv-vp-intrinsic-add = callPackage ./mlir/rvv-vp-intrinsic-add { };
+    rvv-vp-intrinsic-add-scalable = callPackage ./mlir/rvv-vp-intrinsic-add-scalable { };
+    stripmining = callPackage ./mlir/stripmining { };
+    vectoradd = callPackage ./mlir/vectoradd { };
+  };
 
-  matmul-intrinsic = callPackage ./intrinsic/matmul { };
-  conv2d-less-m2-intrinsic = callPackage ./intrinsic/conv2d_less_m2 { };
+  intrinsic = {
+    matmul = callPackage ./intrinsic/matmul { };
+    conv2d-less-m2 = callPackage ./intrinsic/conv2d_less_m2 { };
+  };
+
+  asm = {
+    fpsmoke = callPackage ./asm/fpsmoke { };
+  };
 }
