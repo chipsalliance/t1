@@ -2,7 +2,6 @@ package verdes
 
 import chisel3._
 import chisel3.probe._
-import freechips.rocketchip.devices.debug.Debug
 import freechips.rocketchip.diplomacy.LazyModule
 import freechips.rocketchip.subsystem.{ExtBus, ExtMem}
 import freechips.rocketchip.util.AsyncResetReg
@@ -23,8 +22,7 @@ class TestHarness(implicit val p: Parameters) extends RawModule {
   withClockAndReset(clock.asClock, reset) {
     val dut = Module(ldut.module)
     // Allow the debug ndreset to reset the dut, but not until the initial reset has completed
-    dut.reset := (reset.asBool | ldut.debug.map { debug => AsyncResetReg(debug.ndreset) }.getOrElse(false.B)).asBool
-    Debug.tieoffDebug(ldut.debug, ldut.resetctrl, Some(ldut.psd))
+    dut.reset := reset.asBool
     dut.dontTouchPorts()
 
     ldut.resetVector := dpiResetVector.resetVector.ref + p(ExtMem).get.master.base.U

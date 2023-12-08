@@ -23,8 +23,8 @@ std::string plusarg_read_str(std::string param) {
     return res;
 }
 
-axi4_mem <30,32,4> ram(0x20000000, true);
-axi4     <30,32,4> mem_sigs;
+axi4_mem <31,32,4> ram(0x80000000L, true);
+axi4     <31,32,4> mem_sigs;
 uint32_t entry_addr;
 
 DPI void reset_vector(svBitVecVal* resetVector) {
@@ -86,7 +86,7 @@ extern "C" void AXI4BFMDPI(
     IN  svLogic bready) {
 
     // CTRL START {
-    axi4_ref <30,32,4> ref(mem_sigs);
+    axi4_ref <31,32,4> ref(mem_sigs);
     ram.beat(ref);
     // CTRL  END  }
     
