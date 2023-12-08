@@ -1,6 +1,13 @@
-{ stdenvNoCC, rv32-clang, rv32-newlib, llvmForDev }:
+{ stdenvNoCC, jq, writeText, rv32-clang, rv32-newlib, llvmForDev }:
 
-{ caseName, compileFlags ? [ ], ... }@inputs:
+{ caseName, compileFlags ? [ ], xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
+let
+  caseConfigFile = writeText "${caseName}-mlir.json" (builtins.toJSON {
+    name = "${caseName}";
+    type = "asm";
+    inherit xLen vLen fp;
+  });
+in
 stdenvNoCC.mkDerivation ({
   name = "${caseName}-asm";
 
@@ -27,6 +34,7 @@ stdenvNoCC.mkDerivation ({
   ];
 
   nativeBuildInputs = [
+    jq
     rv32-clang
     llvmForDev.bintools
   ];
@@ -38,6 +46,7 @@ stdenvNoCC.mkDerivation ({
   installPhase = ''
     mkdir -p $out/bin
     cp $name.elf $out/bin
+    jq ".+={\"elf\": {\"path\": \"$out/bin/$name.elf\"}}" ${caseConfigFile} > $out/$name.json
   '';
 
   dontPatchELF = true;

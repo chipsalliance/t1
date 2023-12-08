@@ -39,501 +39,500 @@ let
         # batchMkCases convert a list of name to a set of codegen case derivation.
         # Eg. [ "vadd.vx" ] => { "vadd-vx": <vadd.vx drv> }
         batchMkCases = cases: pipe cases [
-          (map (caseName: nameValuePair
-            (replaceStrings [ "." ] [ "-" ] caseName)
-            (testcase-env.mkCodegenCase { inherit caseName; })
+          (map (caseSpec: nameValuePair
+            (replaceStrings [ "." ] [ "-" ] caseSpec.caseName)
+            (testcase-env.mkCodegenCase caseSpec)
           ))
           listToAttrs
         ];
       in
       batchMkCases [
-        "vaadd.vv"
-        "vaadd.vx"
-        "vaaddu.vv"
-        "vaaddu.vx"
-        "vadc.vim"
-        "vadc.vvm"
-        "vadc.vxm"
-        "vadd.vi"
-        "vadd.vv"
-        "vadd.vx"
-        "vand.vi"
-        "vand.vv"
-        "vand.vx"
-        "vasub.vv"
-        "vasub.vx"
-        "vasubu.vv"
-        "vasubu.vx"
-        "vcompress.vm"
-        "vcpop.m"
-        "vdiv.vv"
-        "vdiv.vx"
-        "vdivu.vv"
-        "vdivu.vx"
-        "vfadd.vf"
-        "vfadd.vv"
-        "vfclass.v"
-        "vfcvt.f.x.v"
-        "vfcvt.f.xu.v"
-        "vfcvt.rtz.x.f.v"
-        "vfcvt.rtz.xu.f.v"
-        "vfcvt.x.f.v"
-        "vfcvt.xu.f.v"
-        "vfdiv.vf"
-        "vfdiv.vv"
-        "vfirst.m"
-        "vfmacc.vf"
-        "vfmacc.vv"
-        "vfmadd.vf"
-        "vfmadd.vv"
-        "vfmax.vf"
-        "vfmax.vv"
-        "vfmerge.vfm"
-        "vfmin.vf"
-        "vfmin.vv"
-        "vfmsac.vf"
-        "vfmsac.vv"
-        "vfmsub.vf"
-        "vfmsub.vv"
-        "vfmul.vf"
-        "vfmul.vv"
-        "vfmv.f.s"
-        "vfmv.s.f"
-        "vfmv.v.f"
-        "vfnmacc.vf"
-        "vfnmacc.vv"
-        "vfnmadd.vf"
-        "vfnmadd.vv"
-        "vfnmsac.vf"
-        "vfnmsac.vv"
-        "vfnmsub.vf"
-        "vfnmsub.vv"
-        "vfrdiv.vf"
-        "vfrec7.v"
-        "vfrsqrt7.v"
-        "vfrsub.vf"
-        "vfsgnj.vf"
-        "vfsgnj.vv"
-        "vfsgnjn.vf"
-        "vfsgnjn.vv"
-        "vfsgnjx.vf"
-        "vfsgnjx.vv"
-        "vfsqrt.v"
-        "vfsub.vf"
-        "vfsub.vv"
-        "vid.v"
-        "viota.m"
-        "vl1re8.v"
-        "vl1re16.v"
-        "vl1re32.v"
-        "vl2re8.v"
-        "vl2re16.v"
-        "vl2re32.v"
-        "vl4re8.v"
-        "vl4re16.v"
-        "vl4re32.v"
-        "vl8re8.v"
-        "vl8re16.v"
-        "vl8re32.v"
-        "vle8.v"
-        "vle8ff.v"
-        "vle16.v"
-        "vle16ff.v"
-        "vle32.v"
-        "vle32ff.v"
-        "vlm.v"
-        "vloxei8.v"
-        "vloxei16.v"
-        "vloxei32.v"
-        "vloxseg2ei8.v"
-        "vloxseg2ei16.v"
-        "vloxseg2ei32.v"
-        "vloxseg3ei8.v"
-        "vloxseg3ei16.v"
-        "vloxseg3ei32.v"
-        "vloxseg4ei8.v"
-        "vloxseg4ei16.v"
-        "vloxseg4ei32.v"
-        "vloxseg5ei8.v"
-        "vloxseg5ei16.v"
-        "vloxseg5ei32.v"
-        "vloxseg6ei8.v"
-        "vloxseg6ei16.v"
-        "vloxseg6ei32.v"
-        "vloxseg7ei8.v"
-        "vloxseg7ei16.v"
-        "vloxseg7ei32.v"
-        "vloxseg8ei8.v"
-        "vloxseg8ei16.v"
-        "vloxseg8ei32.v"
-        "vlse8.v"
-        "vlse16.v"
-        "vlse32.v"
-        "vlseg2e8.v"
-        "vlseg2e16.v"
-        "vlseg2e32.v"
-        "vlseg3e8.v"
-        "vlseg3e16.v"
-        "vlseg3e32.v"
-        "vlseg4e8.v"
-        "vlseg4e16.v"
-        "vlseg4e32.v"
-        "vlseg5e8.v"
-        "vlseg5e16.v"
-        "vlseg5e32.v"
-        "vlseg6e8.v"
-        "vlseg6e16.v"
-        "vlseg6e32.v"
-        "vlseg7e8.v"
-        "vlseg7e16.v"
-        "vlseg7e32.v"
-        "vlseg8e8.v"
-        "vlseg8e16.v"
-        "vlseg8e32.v"
-        "vlsseg2e8.v"
-        "vlsseg2e16.v"
-        "vlsseg2e32.v"
-        "vlsseg3e8.v"
-        "vlsseg3e16.v"
-        "vlsseg3e32.v"
-        "vlsseg4e8.v"
-        "vlsseg4e16.v"
-        "vlsseg4e32.v"
-        "vlsseg5e8.v"
-        "vlsseg5e16.v"
-        "vlsseg5e32.v"
-        "vlsseg6e8.v"
-        "vlsseg6e16.v"
-        "vlsseg6e32.v"
-        "vlsseg7e8.v"
-        "vlsseg7e16.v"
-        "vlsseg7e32.v"
-        "vlsseg8e8.v"
-        "vlsseg8e16.v"
-        "vlsseg8e32.v"
-        "vluxei8.v"
-        "vluxei16.v"
-        "vluxei32.v"
-        "vluxseg2ei8.v"
-        "vluxseg2ei16.v"
-        "vluxseg2ei32.v"
-        "vluxseg3ei8.v"
-        "vluxseg3ei16.v"
-        "vluxseg3ei32.v"
-        "vluxseg4ei8.v"
-        "vluxseg4ei16.v"
-        "vluxseg4ei32.v"
-        "vluxseg5ei8.v"
-        "vluxseg5ei16.v"
-        "vluxseg5ei32.v"
-        "vluxseg6ei8.v"
-        "vluxseg6ei16.v"
-        "vluxseg6ei32.v"
-        "vluxseg7ei8.v"
-        "vluxseg7ei16.v"
-        "vluxseg7ei32.v"
-        "vluxseg8ei8.v"
-        "vluxseg8ei16.v"
-        "vluxseg8ei32.v"
-        "vmacc.vv"
-        "vmacc.vx"
-        "vmadc.vi"
-        "vmadc.vim"
-        "vmadc.vv"
-        "vmadc.vvm"
-        "vmadc.vx"
-        "vmadc.vxm"
-        "vmadd.vv"
-        "vmadd.vx"
-        "vmand.mm"
-        "vmandn.mm"
-        "vmax.vv"
-        "vmax.vx"
-        "vmaxu.vv"
-        "vmaxu.vx"
-        "vmerge.vim"
-        "vmerge.vvm"
-        "vmerge.vxm"
-        "vmfeq.vf"
-        "vmfeq.vv"
-        "vmfge.vf"
-        "vmfgt.vf"
-        "vmflt.vf"
-        "vmflt.vv"
-        "vmfne.vf"
-        "vmfne.vv"
-        "vmin.vv"
-        "vmin.vx"
-        "vminu.vv"
-        "vminu.vx"
-        "vmnand.mm"
-        "vmnor.mm"
-        "vmor.mm"
-        "vmorn.mm"
-        "vmsbc.vv"
-        "vmsbc.vvm"
-        "vmsbc.vx"
-        "vmsbc.vxm"
-        "vmsbf.m"
-        "vmseq.vi"
-        "vmseq.vv"
-        "vmseq.vx"
-        "vmsgt.vi"
-        "vmsgt.vv"
-        "vmsgt.vx"
-        "vmsgtu.vi"
-        "vmsgtu.vv"
-        "vmsgtu.vx"
-        "vmsif.m"
-        "vmsle.vi"
-        "vmsle.vv"
-        "vmsle.vx"
-        "vmsleu.vi"
-        "vmsleu.vv"
-        "vmsleu.vx"
-        "vmslt.vv"
-        "vmslt.vx"
-        "vmsltu.vv"
-        "vmsltu.vx"
-        "vmsne.vi"
-        "vmsne.vv"
-        "vmsne.vx"
-        "vmsof.m"
-        "vmul.vv"
-        "vmul.vx"
-        "vmulh.vv"
-        "vmulh.vx"
-        "vmulhsu.vv"
-        "vmulhsu.vx"
-        "vmulhu.vv"
-        "vmulhu.vx"
-        "vmv.s.x"
-        "vmv.v.i"
-        "vmv.v.v"
-        "vmv.v.x"
-        "vmv.x.s"
-        "vmv1r.v"
-        "vmv2r.v"
-        "vmv4r.v"
-        "vmv8r.v"
-        "vmxnor.mm"
-        "vmxor.mm"
-        "vnclip.wi"
-        "vnclip.wv"
-        "vnclip.wx"
-        "vnclipu.wi"
-        "vnclipu.wv"
-        "vnclipu.wx"
-        "vnmsac.vv"
-        "vnmsac.vx"
-        "vnmsub.vv"
-        "vnmsub.vx"
-        "vnsra.wi"
-        "vnsra.wv"
-        "vnsra.wx"
-        "vnsrl.wi"
-        "vnsrl.wv"
-        "vnsrl.wx"
-        "vor.vi"
-        "vor.vv"
-        "vor.vx"
-        "vredand.vs"
-        "vredmax.vs"
-        "vredmaxu.vs"
-        "vredmin.vs"
-        "vredminu.vs"
-        "vredor.vs"
-        "vredsum.vs"
-        "vredxor.vs"
-        "vrem.vv"
-        "vrem.vx"
-        "vremu.vv"
-        "vremu.vx"
-        "vrgather.vi"
-        "vrgather.vv"
-        "vrgather.vx"
-        "vrgatherei16.vv"
-        "vrsub.vi"
-        "vrsub.vx"
-        "vs1r.v"
-        "vs2r.v"
-        "vs4r.v"
-        "vs8r.v"
-        "vsadd.vi"
-        "vsadd.vv"
-        "vsadd.vx"
-        "vsaddu.vi"
-        "vsaddu.vv"
-        "vsaddu.vx"
-        "vsbc.vvm"
-        "vsbc.vxm"
-        "vse8.v"
-        "vse16.v"
-        "vse32.v"
-        "vsetivli"
-        "vsetvl"
-        "vsetvli"
-        "vsext.vf2"
-        "vsext.vf4"
-        "vslide1down.vx"
-        "vslide1up.vx"
-        "vslidedown.vi"
-        "vslidedown.vx"
-        "vslideup.vi"
-        "vslideup.vx"
-        "vsll.vi"
-        "vsll.vv"
-        "vsll.vx"
-        "vsm.v"
-        "vsmul.vv"
-        "vsmul.vx"
-        "vsoxei8.v"
-        "vsoxei16.v"
-        "vsoxei32.v"
-        "vsoxseg2ei8.v"
-        "vsoxseg2ei16.v"
-        "vsoxseg2ei32.v"
-        "vsoxseg3ei8.v"
-        "vsoxseg3ei16.v"
-        "vsoxseg3ei32.v"
-        "vsoxseg4ei8.v"
-        "vsoxseg4ei16.v"
-        "vsoxseg4ei32.v"
-        "vsoxseg5ei8.v"
-        "vsoxseg5ei16.v"
-        "vsoxseg5ei32.v"
-        "vsoxseg6ei8.v"
-        "vsoxseg6ei16.v"
-        "vsoxseg6ei32.v"
-        "vsoxseg7ei8.v"
-        "vsoxseg7ei16.v"
-        "vsoxseg7ei32.v"
-        "vsoxseg8ei8.v"
-        "vsoxseg8ei16.v"
-        "vsoxseg8ei32.v"
-        "vsra.vi"
-        "vsra.vv"
-        "vsra.vx"
-        "vsrl.vi"
-        "vsrl.vv"
-        "vsrl.vx"
-        "vsse8.v"
-        "vsse16.v"
-        "vsse32.v"
-        "vsseg2e8.v"
-        "vsseg2e16.v"
-        "vsseg2e32.v"
-        "vsseg3e8.v"
-        "vsseg3e16.v"
-        "vsseg3e32.v"
-        "vsseg4e8.v"
-        "vsseg4e16.v"
-        "vsseg4e32.v"
-        "vsseg5e8.v"
-        "vsseg5e16.v"
-        "vsseg5e32.v"
-        "vsseg6e8.v"
-        "vsseg6e16.v"
-        "vsseg6e32.v"
-        "vsseg7e8.v"
-        "vsseg7e16.v"
-        "vsseg7e32.v"
-        "vsseg8e8.v"
-        "vsseg8e16.v"
-        "vsseg8e32.v"
-        "vssra.vi"
-        "vssra.vv"
-        "vssra.vx"
-        "vssrl.vi"
-        "vssrl.vv"
-        "vssrl.vx"
-        "vssseg2e8.v"
-        "vssseg2e16.v"
-        "vssseg2e32.v"
-        "vssseg3e8.v"
-        "vssseg3e16.v"
-        "vssseg3e32.v"
-        "vssseg4e8.v"
-        "vssseg4e16.v"
-        "vssseg4e32.v"
-        "vssseg5e8.v"
-        "vssseg5e16.v"
-        "vssseg5e32.v"
-        "vssseg6e8.v"
-        "vssseg6e16.v"
-        "vssseg6e32.v"
-        "vssseg7e8.v"
-        "vssseg7e16.v"
-        "vssseg7e32.v"
-        "vssseg8e8.v"
-        "vssseg8e16.v"
-        "vssseg8e32.v"
-        "vssub.vv"
-        "vssub.vx"
-        "vssubu.vv"
-        "vssubu.vx"
-        "vsub.vv"
-        "vsub.vx"
-        "vsuxei8.v"
-        "vsuxei16.v"
-        "vsuxei32.v"
-        "vsuxseg2ei8.v"
-        "vsuxseg2ei16.v"
-        "vsuxseg2ei32.v"
-        "vsuxseg3ei8.v"
-        "vsuxseg3ei16.v"
-        "vsuxseg3ei32.v"
-        "vsuxseg4ei8.v"
-        "vsuxseg4ei16.v"
-        "vsuxseg4ei32.v"
-        "vsuxseg5ei8.v"
-        "vsuxseg5ei16.v"
-        "vsuxseg5ei32.v"
-        "vsuxseg6ei8.v"
-        "vsuxseg6ei16.v"
-        "vsuxseg6ei32.v"
-        "vsuxseg7ei8.v"
-        "vsuxseg7ei16.v"
-        "vsuxseg7ei32.v"
-        "vsuxseg8ei8.v"
-        "vsuxseg8ei16.v"
-        "vsuxseg8ei32.v"
-        "vwadd.vv"
-        "vwadd.vx"
-        "vwadd.wv"
-        "vwadd.wx"
-        "vwaddu.vv"
-        "vwaddu.vx"
-        "vwaddu.wv"
-        "vwaddu.wx"
-        "vwmacc.vv"
-        "vwmacc.vx"
-        "vwmaccsu.vv"
-        "vwmaccsu.vx"
-        "vwmaccu.vv"
-        "vwmaccu.vx"
-        "vwmaccus.vx"
-        "vwmul.vv"
-        "vwmul.vx"
-        "vwmulsu.vv"
-        "vwmulsu.vx"
-        "vwmulu.vv"
-        "vwmulu.vx"
-        "vwredsum.vs"
-        "vwredsumu.vs"
-        "vwsub.vv"
-        "vwsub.vx"
-        "vwsub.wv"
-        "vwsub.wx"
-        "vwsubu.vv"
-        "vwsubu.vx"
-        "vwsubu.wv"
-        "vwsubu.wx"
-        "vxor.vi"
-        "vxor.vv"
-        "vxor.vx"
-        "vzext.vf2"
-        "vzext.vf4"
+        { caseName = "vaadd.vv"; }
+        { caseName = "vaadd.vx"; }
+        { caseName = "vaaddu.vv"; }
+        { caseName = "vaaddu.vx"; }
+        { caseName = "vadc.vim"; }
+        { caseName = "vadc.vvm"; }
+        { caseName = "vadc.vxm"; }
+        { caseName = "vadd.vi"; }
+        { caseName = "vadd.vv"; }
+        { caseName = "vadd.vx"; }
+        { caseName = "vand.vi"; }
+        { caseName = "vand.vv"; }
+        { caseName = "vand.vx"; }
+        { caseName = "vasub.vv"; }
+        { caseName = "vasub.vx"; }
+        { caseName = "vasubu.vv"; }
+        { caseName = "vasubu.vx"; }
+        { caseName = "vcompress.vm"; }
+        { caseName = "vcpop.m"; }
+        { caseName = "vdiv.vv"; }
+        { caseName = "vdiv.vx"; }
+        { caseName = "vdivu.vv"; }
+        { caseName = "vdivu.vx"; }
+        { caseName = "vfadd.vf"; fp = true; }
+        { caseName = "vfadd.vv"; fp = true; }
+        { caseName = "vfclass.v"; fp = true; }
+        { caseName = "vfcvt.f.x.v"; fp = true; }
+        { caseName = "vfcvt.f.xu.v"; fp = true; }
+        { caseName = "vfcvt.rtz.x.f.v"; fp = true; }
+        { caseName = "vfcvt.rtz.xu.f.v"; fp = true; }
+        { caseName = "vfcvt.x.f.v"; fp = true; }
+        { caseName = "vfcvt.xu.f.v"; fp = true; }
+        { caseName = "vfdiv.vf"; fp = true; }
+        { caseName = "vfdiv.vv"; fp = true; }
+        { caseName = "vfmacc.vf"; fp = true; }
+        { caseName = "vfmacc.vv"; fp = true; }
+        { caseName = "vfmadd.vf"; fp = true; }
+        { caseName = "vfmadd.vv"; fp = true; }
+        { caseName = "vfmax.vf"; fp = true; }
+        { caseName = "vfmax.vv"; fp = true; }
+        { caseName = "vfmerge.vfm"; fp = true; }
+        { caseName = "vfmin.vf"; fp = true; }
+        { caseName = "vfmin.vv"; fp = true; }
+        { caseName = "vfmsac.vf"; fp = true; }
+        { caseName = "vfmsac.vv"; fp = true; }
+        { caseName = "vfmsub.vf"; fp = true; }
+        { caseName = "vfmsub.vv"; fp = true; }
+        { caseName = "vfmul.vf"; fp = true; }
+        { caseName = "vfmul.vv"; fp = true; }
+        { caseName = "vfmv.f.s"; fp = true; }
+        { caseName = "vfmv.s.f"; fp = true; }
+        { caseName = "vfmv.v.f"; fp = true; }
+        { caseName = "vfnmacc.vf"; fp = true; }
+        { caseName = "vfnmacc.vv"; fp = true; }
+        { caseName = "vfnmadd.vf"; fp = true; }
+        { caseName = "vfnmadd.vv"; fp = true; }
+        { caseName = "vfnmsac.vf"; fp = true; }
+        { caseName = "vfnmsac.vv"; fp = true; }
+        { caseName = "vfnmsub.vf"; fp = true; }
+        { caseName = "vfnmsub.vv"; fp = true; }
+        { caseName = "vfrdiv.vf"; fp = true; }
+        { caseName = "vfrec7.v"; fp = true; }
+        { caseName = "vfrsqrt7.v"; fp = true; }
+        { caseName = "vfrsub.vf"; fp = true; }
+        { caseName = "vfsgnj.vf"; fp = true; }
+        { caseName = "vfsgnj.vv"; fp = true; }
+        { caseName = "vfsgnjn.vf"; fp = true; }
+        { caseName = "vfsgnjn.vv"; fp = true; }
+        { caseName = "vfsgnjx.vf"; fp = true; }
+        { caseName = "vfsgnjx.vv"; fp = true; }
+        { caseName = "vfsqrt.v"; fp = true; }
+        { caseName = "vfsub.vf"; fp = true; }
+        { caseName = "vfsub.vv"; fp = true; }
+        { caseName = "vid.v"; }
+        { caseName = "viota.m"; }
+        { caseName = "vl1re8.v"; }
+        { caseName = "vl1re16.v"; }
+        { caseName = "vl1re32.v"; }
+        { caseName = "vl2re8.v"; }
+        { caseName = "vl2re16.v"; }
+        { caseName = "vl2re32.v"; }
+        { caseName = "vl4re8.v"; }
+        { caseName = "vl4re16.v"; }
+        { caseName = "vl4re32.v"; }
+        { caseName = "vl8re8.v"; }
+        { caseName = "vl8re16.v"; }
+        { caseName = "vl8re32.v"; }
+        { caseName = "vle8.v"; }
+        { caseName = "vle8ff.v"; }
+        { caseName = "vle16.v"; }
+        { caseName = "vle16ff.v"; }
+        { caseName = "vle32.v"; }
+        { caseName = "vle32ff.v"; }
+        { caseName = "vlm.v"; }
+        { caseName = "vloxei8.v"; }
+        { caseName = "vloxei16.v"; }
+        { caseName = "vloxei32.v"; }
+        { caseName = "vloxseg2ei8.v"; }
+        { caseName = "vloxseg2ei16.v"; }
+        { caseName = "vloxseg2ei32.v"; }
+        { caseName = "vloxseg3ei8.v"; }
+        { caseName = "vloxseg3ei16.v"; }
+        { caseName = "vloxseg3ei32.v"; }
+        { caseName = "vloxseg4ei8.v"; }
+        { caseName = "vloxseg4ei16.v"; }
+        { caseName = "vloxseg4ei32.v"; }
+        { caseName = "vloxseg5ei8.v"; }
+        { caseName = "vloxseg5ei16.v"; }
+        { caseName = "vloxseg5ei32.v"; }
+        { caseName = "vloxseg6ei8.v"; }
+        { caseName = "vloxseg6ei16.v"; }
+        { caseName = "vloxseg6ei32.v"; }
+        { caseName = "vloxseg7ei8.v"; }
+        { caseName = "vloxseg7ei16.v"; }
+        { caseName = "vloxseg7ei32.v"; }
+        { caseName = "vloxseg8ei8.v"; }
+        { caseName = "vloxseg8ei16.v"; }
+        { caseName = "vloxseg8ei32.v"; }
+        { caseName = "vlse8.v"; }
+        { caseName = "vlse16.v"; }
+        { caseName = "vlse32.v"; }
+        { caseName = "vlseg2e8.v"; }
+        { caseName = "vlseg2e16.v"; }
+        { caseName = "vlseg2e32.v"; }
+        { caseName = "vlseg3e8.v"; }
+        { caseName = "vlseg3e16.v"; }
+        { caseName = "vlseg3e32.v"; }
+        { caseName = "vlseg4e8.v"; }
+        { caseName = "vlseg4e16.v"; }
+        { caseName = "vlseg4e32.v"; }
+        { caseName = "vlseg5e8.v"; }
+        { caseName = "vlseg5e16.v"; }
+        { caseName = "vlseg5e32.v"; }
+        { caseName = "vlseg6e8.v"; }
+        { caseName = "vlseg6e16.v"; }
+        { caseName = "vlseg6e32.v"; }
+        { caseName = "vlseg7e8.v"; }
+        { caseName = "vlseg7e16.v"; }
+        { caseName = "vlseg7e32.v"; }
+        { caseName = "vlseg8e8.v"; }
+        { caseName = "vlseg8e16.v"; }
+        { caseName = "vlseg8e32.v"; }
+        { caseName = "vlsseg2e8.v"; }
+        { caseName = "vlsseg2e16.v"; }
+        { caseName = "vlsseg2e32.v"; }
+        { caseName = "vlsseg3e8.v"; }
+        { caseName = "vlsseg3e16.v"; }
+        { caseName = "vlsseg3e32.v"; }
+        { caseName = "vlsseg4e8.v"; }
+        { caseName = "vlsseg4e16.v"; }
+        { caseName = "vlsseg4e32.v"; }
+        { caseName = "vlsseg5e8.v"; }
+        { caseName = "vlsseg5e16.v"; }
+        { caseName = "vlsseg5e32.v"; }
+        { caseName = "vlsseg6e8.v"; }
+        { caseName = "vlsseg6e16.v"; }
+        { caseName = "vlsseg6e32.v"; }
+        { caseName = "vlsseg7e8.v"; }
+        { caseName = "vlsseg7e16.v"; }
+        { caseName = "vlsseg7e32.v"; }
+        { caseName = "vlsseg8e8.v"; }
+        { caseName = "vlsseg8e16.v"; }
+        { caseName = "vlsseg8e32.v"; }
+        { caseName = "vluxei8.v"; }
+        { caseName = "vluxei16.v"; }
+        { caseName = "vluxei32.v"; }
+        { caseName = "vluxseg2ei8.v"; }
+        { caseName = "vluxseg2ei16.v"; }
+        { caseName = "vluxseg2ei32.v"; }
+        { caseName = "vluxseg3ei8.v"; }
+        { caseName = "vluxseg3ei16.v"; }
+        { caseName = "vluxseg3ei32.v"; }
+        { caseName = "vluxseg4ei8.v"; }
+        { caseName = "vluxseg4ei16.v"; }
+        { caseName = "vluxseg4ei32.v"; }
+        { caseName = "vluxseg5ei8.v"; }
+        { caseName = "vluxseg5ei16.v"; }
+        { caseName = "vluxseg5ei32.v"; }
+        { caseName = "vluxseg6ei8.v"; }
+        { caseName = "vluxseg6ei16.v"; }
+        { caseName = "vluxseg6ei32.v"; }
+        { caseName = "vluxseg7ei8.v"; }
+        { caseName = "vluxseg7ei16.v"; }
+        { caseName = "vluxseg7ei32.v"; }
+        { caseName = "vluxseg8ei8.v"; }
+        { caseName = "vluxseg8ei16.v"; }
+        { caseName = "vluxseg8ei32.v"; }
+        { caseName = "vmacc.vv"; }
+        { caseName = "vmacc.vx"; }
+        { caseName = "vmadc.vi"; }
+        { caseName = "vmadc.vim"; }
+        { caseName = "vmadc.vv"; }
+        { caseName = "vmadc.vvm"; }
+        { caseName = "vmadc.vx"; }
+        { caseName = "vmadc.vxm"; }
+        { caseName = "vmadd.vv"; }
+        { caseName = "vmadd.vx"; }
+        { caseName = "vmand.mm"; }
+        { caseName = "vmandn.mm"; }
+        { caseName = "vmax.vv"; }
+        { caseName = "vmax.vx"; }
+        { caseName = "vmaxu.vv"; }
+        { caseName = "vmaxu.vx"; }
+        { caseName = "vmerge.vim"; }
+        { caseName = "vmerge.vvm"; }
+        { caseName = "vmerge.vxm"; }
+        { caseName = "vmfeq.vf"; fp = true; }
+        { caseName = "vmfeq.vv"; fp = true; }
+        { caseName = "vmfge.vf"; fp = true; }
+        { caseName = "vmfgt.vf"; fp = true; }
+        { caseName = "vmflt.vf"; fp = true; }
+        { caseName = "vmflt.vv"; fp = true; }
+        { caseName = "vmfne.vf"; fp = true; }
+        { caseName = "vmfne.vv"; fp = true; }
+        { caseName = "vmin.vv"; }
+        { caseName = "vmin.vx"; }
+        { caseName = "vminu.vv"; }
+        { caseName = "vminu.vx"; }
+        { caseName = "vmnand.mm"; }
+        { caseName = "vmnor.mm"; }
+        { caseName = "vmor.mm"; }
+        { caseName = "vmorn.mm"; }
+        { caseName = "vmsbc.vv"; }
+        { caseName = "vmsbc.vvm"; }
+        { caseName = "vmsbc.vx"; }
+        { caseName = "vmsbc.vxm"; }
+        { caseName = "vmsbf.m"; }
+        { caseName = "vmseq.vi"; }
+        { caseName = "vmseq.vv"; }
+        { caseName = "vmseq.vx"; }
+        { caseName = "vmsgt.vi"; }
+        { caseName = "vmsgt.vv"; }
+        { caseName = "vmsgt.vx"; }
+        { caseName = "vmsgtu.vi"; }
+        { caseName = "vmsgtu.vv"; }
+        { caseName = "vmsgtu.vx"; }
+        { caseName = "vmsif.m"; }
+        { caseName = "vmsle.vi"; }
+        { caseName = "vmsle.vv"; }
+        { caseName = "vmsle.vx"; }
+        { caseName = "vmsleu.vi"; }
+        { caseName = "vmsleu.vv"; }
+        { caseName = "vmsleu.vx"; }
+        { caseName = "vmslt.vv"; }
+        { caseName = "vmslt.vx"; }
+        { caseName = "vmsltu.vv"; }
+        { caseName = "vmsltu.vx"; }
+        { caseName = "vmsne.vi"; }
+        { caseName = "vmsne.vv"; }
+        { caseName = "vmsne.vx"; }
+        { caseName = "vmsof.m"; }
+        { caseName = "vmul.vv"; }
+        { caseName = "vmul.vx"; }
+        { caseName = "vmulh.vv"; }
+        { caseName = "vmulh.vx"; }
+        { caseName = "vmulhsu.vv"; }
+        { caseName = "vmulhsu.vx"; }
+        { caseName = "vmulhu.vv"; }
+        { caseName = "vmulhu.vx"; }
+        { caseName = "vmv.s.x"; }
+        { caseName = "vmv.v.i"; }
+        { caseName = "vmv.v.v"; }
+        { caseName = "vmv.v.x"; }
+        { caseName = "vmv.x.s"; }
+        { caseName = "vmv1r.v"; }
+        { caseName = "vmv2r.v"; }
+        { caseName = "vmv4r.v"; }
+        { caseName = "vmv8r.v"; }
+        { caseName = "vmxnor.mm"; }
+        { caseName = "vmxor.mm"; }
+        { caseName = "vnclip.wi"; }
+        { caseName = "vnclip.wv"; }
+        { caseName = "vnclip.wx"; }
+        { caseName = "vnclipu.wi"; }
+        { caseName = "vnclipu.wv"; }
+        { caseName = "vnclipu.wx"; }
+        { caseName = "vnmsac.vv"; }
+        { caseName = "vnmsac.vx"; }
+        { caseName = "vnmsub.vv"; }
+        { caseName = "vnmsub.vx"; }
+        { caseName = "vnsra.wi"; }
+        { caseName = "vnsra.wv"; }
+        { caseName = "vnsra.wx"; }
+        { caseName = "vnsrl.wi"; }
+        { caseName = "vnsrl.wv"; }
+        { caseName = "vnsrl.wx"; }
+        { caseName = "vor.vi"; }
+        { caseName = "vor.vv"; }
+        { caseName = "vor.vx"; }
+        { caseName = "vredand.vs"; }
+        { caseName = "vredmax.vs"; }
+        { caseName = "vredmaxu.vs"; }
+        { caseName = "vredmin.vs"; }
+        { caseName = "vredminu.vs"; }
+        { caseName = "vredor.vs"; }
+        { caseName = "vredsum.vs"; }
+        { caseName = "vredxor.vs"; }
+        { caseName = "vrem.vv"; }
+        { caseName = "vrem.vx"; }
+        { caseName = "vremu.vv"; }
+        { caseName = "vremu.vx"; }
+        { caseName = "vrgather.vi"; }
+        { caseName = "vrgather.vv"; }
+        { caseName = "vrgather.vx"; }
+        { caseName = "vrgatherei16.vv"; }
+        { caseName = "vrsub.vi"; }
+        { caseName = "vrsub.vx"; }
+        { caseName = "vs1r.v"; }
+        { caseName = "vs2r.v"; }
+        { caseName = "vs4r.v"; }
+        { caseName = "vs8r.v"; }
+        { caseName = "vsadd.vi"; }
+        { caseName = "vsadd.vv"; }
+        { caseName = "vsadd.vx"; }
+        { caseName = "vsaddu.vi"; }
+        { caseName = "vsaddu.vv"; }
+        { caseName = "vsaddu.vx"; }
+        { caseName = "vsbc.vvm"; }
+        { caseName = "vsbc.vxm"; }
+        { caseName = "vse8.v"; }
+        { caseName = "vse16.v"; }
+        { caseName = "vse32.v"; }
+        { caseName = "vsetivli"; }
+        { caseName = "vsetvl"; }
+        { caseName = "vsetvli"; }
+        { caseName = "vsext.vf2"; }
+        { caseName = "vsext.vf4"; }
+        { caseName = "vslide1down.vx"; }
+        { caseName = "vslide1up.vx"; }
+        { caseName = "vslidedown.vi"; }
+        { caseName = "vslidedown.vx"; }
+        { caseName = "vslideup.vi"; }
+        { caseName = "vslideup.vx"; }
+        { caseName = "vsll.vi"; }
+        { caseName = "vsll.vv"; }
+        { caseName = "vsll.vx"; }
+        { caseName = "vsm.v"; }
+        { caseName = "vsmul.vv"; }
+        { caseName = "vsmul.vx"; }
+        { caseName = "vsoxei8.v"; }
+        { caseName = "vsoxei16.v"; }
+        { caseName = "vsoxei32.v"; }
+        { caseName = "vsoxseg2ei8.v"; }
+        { caseName = "vsoxseg2ei16.v"; }
+        { caseName = "vsoxseg2ei32.v"; }
+        { caseName = "vsoxseg3ei8.v"; }
+        { caseName = "vsoxseg3ei16.v"; }
+        { caseName = "vsoxseg3ei32.v"; }
+        { caseName = "vsoxseg4ei8.v"; }
+        { caseName = "vsoxseg4ei16.v"; }
+        { caseName = "vsoxseg4ei32.v"; }
+        { caseName = "vsoxseg5ei8.v"; }
+        { caseName = "vsoxseg5ei16.v"; }
+        { caseName = "vsoxseg5ei32.v"; }
+        { caseName = "vsoxseg6ei8.v"; }
+        { caseName = "vsoxseg6ei16.v"; }
+        { caseName = "vsoxseg6ei32.v"; }
+        { caseName = "vsoxseg7ei8.v"; }
+        { caseName = "vsoxseg7ei16.v"; }
+        { caseName = "vsoxseg7ei32.v"; }
+        { caseName = "vsoxseg8ei8.v"; }
+        { caseName = "vsoxseg8ei16.v"; }
+        { caseName = "vsoxseg8ei32.v"; }
+        { caseName = "vsra.vi"; }
+        { caseName = "vsra.vv"; }
+        { caseName = "vsra.vx"; }
+        { caseName = "vsrl.vi"; }
+        { caseName = "vsrl.vv"; }
+        { caseName = "vsrl.vx"; }
+        { caseName = "vsse8.v"; }
+        { caseName = "vsse16.v"; }
+        { caseName = "vsse32.v"; }
+        { caseName = "vsseg2e8.v"; }
+        { caseName = "vsseg2e16.v"; }
+        { caseName = "vsseg2e32.v"; }
+        { caseName = "vsseg3e8.v"; }
+        { caseName = "vsseg3e16.v"; }
+        { caseName = "vsseg3e32.v"; }
+        { caseName = "vsseg4e8.v"; }
+        { caseName = "vsseg4e16.v"; }
+        { caseName = "vsseg4e32.v"; }
+        { caseName = "vsseg5e8.v"; }
+        { caseName = "vsseg5e16.v"; }
+        { caseName = "vsseg5e32.v"; }
+        { caseName = "vsseg6e8.v"; }
+        { caseName = "vsseg6e16.v"; }
+        { caseName = "vsseg6e32.v"; }
+        { caseName = "vsseg7e8.v"; }
+        { caseName = "vsseg7e16.v"; }
+        { caseName = "vsseg7e32.v"; }
+        { caseName = "vsseg8e8.v"; }
+        { caseName = "vsseg8e16.v"; }
+        { caseName = "vsseg8e32.v"; }
+        { caseName = "vssra.vi"; }
+        { caseName = "vssra.vv"; }
+        { caseName = "vssra.vx"; }
+        { caseName = "vssrl.vi"; }
+        { caseName = "vssrl.vv"; }
+        { caseName = "vssrl.vx"; }
+        { caseName = "vssseg2e8.v"; }
+        { caseName = "vssseg2e16.v"; }
+        { caseName = "vssseg2e32.v"; }
+        { caseName = "vssseg3e8.v"; }
+        { caseName = "vssseg3e16.v"; }
+        { caseName = "vssseg3e32.v"; }
+        { caseName = "vssseg4e8.v"; }
+        { caseName = "vssseg4e16.v"; }
+        { caseName = "vssseg4e32.v"; }
+        { caseName = "vssseg5e8.v"; }
+        { caseName = "vssseg5e16.v"; }
+        { caseName = "vssseg5e32.v"; }
+        { caseName = "vssseg6e8.v"; }
+        { caseName = "vssseg6e16.v"; }
+        { caseName = "vssseg6e32.v"; }
+        { caseName = "vssseg7e8.v"; }
+        { caseName = "vssseg7e16.v"; }
+        { caseName = "vssseg7e32.v"; }
+        { caseName = "vssseg8e8.v"; }
+        { caseName = "vssseg8e16.v"; }
+        { caseName = "vssseg8e32.v"; }
+        { caseName = "vssub.vv"; }
+        { caseName = "vssub.vx"; }
+        { caseName = "vssubu.vv"; }
+        { caseName = "vssubu.vx"; }
+        { caseName = "vsub.vv"; }
+        { caseName = "vsub.vx"; }
+        { caseName = "vsuxei8.v"; }
+        { caseName = "vsuxei16.v"; }
+        { caseName = "vsuxei32.v"; }
+        { caseName = "vsuxseg2ei8.v"; }
+        { caseName = "vsuxseg2ei16.v"; }
+        { caseName = "vsuxseg2ei32.v"; }
+        { caseName = "vsuxseg3ei8.v"; }
+        { caseName = "vsuxseg3ei16.v"; }
+        { caseName = "vsuxseg3ei32.v"; }
+        { caseName = "vsuxseg4ei8.v"; }
+        { caseName = "vsuxseg4ei16.v"; }
+        { caseName = "vsuxseg4ei32.v"; }
+        { caseName = "vsuxseg5ei8.v"; }
+        { caseName = "vsuxseg5ei16.v"; }
+        { caseName = "vsuxseg5ei32.v"; }
+        { caseName = "vsuxseg6ei8.v"; }
+        { caseName = "vsuxseg6ei16.v"; }
+        { caseName = "vsuxseg6ei32.v"; }
+        { caseName = "vsuxseg7ei8.v"; }
+        { caseName = "vsuxseg7ei16.v"; }
+        { caseName = "vsuxseg7ei32.v"; }
+        { caseName = "vsuxseg8ei8.v"; }
+        { caseName = "vsuxseg8ei16.v"; }
+        { caseName = "vsuxseg8ei32.v"; }
+        { caseName = "vwadd.vv"; }
+        { caseName = "vwadd.vx"; }
+        { caseName = "vwadd.wv"; }
+        { caseName = "vwadd.wx"; }
+        { caseName = "vwaddu.vv"; }
+        { caseName = "vwaddu.vx"; }
+        { caseName = "vwaddu.wv"; }
+        { caseName = "vwaddu.wx"; }
+        { caseName = "vwmacc.vv"; }
+        { caseName = "vwmacc.vx"; }
+        { caseName = "vwmaccsu.vv"; }
+        { caseName = "vwmaccsu.vx"; }
+        { caseName = "vwmaccu.vv"; }
+        { caseName = "vwmaccu.vx"; }
+        { caseName = "vwmaccus.vx"; }
+        { caseName = "vwmul.vv"; }
+        { caseName = "vwmul.vx"; }
+        { caseName = "vwmulsu.vv"; }
+        { caseName = "vwmulsu.vx"; }
+        { caseName = "vwmulu.vv"; }
+        { caseName = "vwmulu.vx"; }
+        { caseName = "vwredsum.vs"; }
+        { caseName = "vwredsumu.vs"; }
+        { caseName = "vwsub.vv"; }
+        { caseName = "vwsub.vx"; }
+        { caseName = "vwsub.wv"; }
+        { caseName = "vwsub.wx"; }
+        { caseName = "vwsubu.vv"; }
+        { caseName = "vwsubu.vx"; }
+        { caseName = "vwsubu.wv"; }
+        { caseName = "vwsubu.wx"; }
+        { caseName = "vxor.vi"; }
+        { caseName = "vxor.vv"; }
+        { caseName = "vxor.vx"; }
+        { caseName = "vzext.vf2"; }
+        { caseName = "vzext.vf4"; }
       ];
   };
 in
@@ -547,12 +546,14 @@ self // {
     }
     ''
       mkdir -p $out/cases/{mlir,asm,intrinsic,codegen}
+      mkdir -p $out/configs
 
       linkCases() {
         local -a caseArray
         caseArray=( $1 )
         for case in ''${caseArray[@]}; do
           ln -s $case/bin/*.elf $out/cases/$2/
+          ln -s $case/*.json $out/configs/
         done
       }
 
