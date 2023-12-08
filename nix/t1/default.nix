@@ -22,6 +22,7 @@ lib.makeScope newScope
     rvv-testcases-prebuilt = self.callPackage ./testcases/rvv-testcases-prebuilt.nix { };
     testcase-env = {
       mkMlirCase = self.callPackage ./testcases/make-mlir-case.nix { };
+      mkIntrinsicCase = self.callPackage ./testcases/make-intrinsic-case.nix { };
     };
     rvv-testcases = self.callPackage ../../tests { };
   } //
