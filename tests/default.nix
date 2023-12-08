@@ -20,5 +20,10 @@
 
   asm = {
     fpsmoke = callPackage ./asm/fpsmoke { };
+    memcpy = callPackage ./asm/memcpy { };
+    mmm = callPackage ./asm/mmm { };
+    smoke = callPackage ./asm/smoke { };
+    strlen = callPackage ./asm/strlen { };
+    utf8-count = callPackage ./asm/utf8-count { };
   };
 }
