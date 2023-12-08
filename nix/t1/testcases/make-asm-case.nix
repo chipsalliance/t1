@@ -1,4 +1,4 @@
-{ stdenvNoCC, rv32-clang, rv32-newlib, llvmToolsForRV32Clang }:
+{ stdenvNoCC, rv32-clang, rv32-newlib, llvmForDev }:
 
 { caseName, compileFlags ? [ ], ... }@inputs:
 stdenvNoCC.mkDerivation ({
@@ -28,7 +28,7 @@ stdenvNoCC.mkDerivation ({
 
   nativeBuildInputs = [
     rv32-clang
-    llvmToolsForRV32Clang.bintools
+    llvmForDev.bintools
   ];
 
   buildPhase = ''

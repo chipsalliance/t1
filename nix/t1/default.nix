@@ -15,10 +15,6 @@ lib.makeScope newScope
     elaborator = self.callPackage ./elaborator.nix { };
 
     rvv-codegen = self.callPackage ./testcases/rvv-codegen.nix { };
-    rvv-testcases' = self.callPackage ./testcases/rvv-testcases.nix {
-      stdenv = llvmForDev.stdenv;
-      llvmPackages = llvmForDev;
-    };
     rvv-testcases-prebuilt = self.callPackage ./testcases/rvv-testcases-prebuilt.nix { };
     testcase-env = {
       mkMlirCase = self.callPackage ./testcases/make-mlir-case.nix { };
