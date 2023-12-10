@@ -43,7 +43,7 @@ final: prev:
   };
 
   rv32-compilerrt = final.callPackage ./pkgs/rv32-compilerrt.nix {
-    stdenv = final.llvmForDev.stdenv;
+    stdenv = final.overrideCC final.pkgsCross.riscv32-embedded.stdenv final.pkgsCross.riscv32-embedded.buildPackages.llvmPackages.clangNoCompilerRtWithLibc;
     llvmPackages = final.llvmToolsForRV32Clang;
   };
   rv32-musl = final.callPackage ./pkgs/rv32-musl.nix {
