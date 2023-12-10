@@ -44,6 +44,7 @@ Host builder
   IdentityFile /etc/nix/builder-key
   User nix-remote
 EOF
+chown runner -R ~runner/.ssh
 
 tee -a /etc/nix/nix.conf << EOF
 post-build-hook = /etc/nix/upload-to-cache.sh
