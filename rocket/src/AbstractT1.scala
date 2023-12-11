@@ -132,7 +132,7 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
         Seq(
           TLMasterParameters.v1(
             name = s"${uarchName}_bank$bank",
-            sourceId = IdRange(0, sourceIdSize - 1),
+            sourceId = IdRange(0, (1 << sourceIdSize) - 1),
             visibility = Seq(banksMapping(bank))
           )
         )
