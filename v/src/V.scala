@@ -396,6 +396,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     VecInit(Seq.fill(parameter.laneNumber)(0.U.asTypeOf(Valid(UInt(parameter.datapathWidth.W)))))
   )
   val maskDataForCompress: UInt = RegInit(0.U(parameter.datapathWidth.W))
+  // clear the previous set of data from lane
   val dataClear:           Bool = WireDefault(false.B)
   val completedVec:        Vec[Bool] = RegInit(VecInit(Seq.fill(parameter.laneNumber)(false.B)))
   // ffoIndexReg.valid: Already found the first one
@@ -1092,7 +1093,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
                 when(isLastExecuteForGroup) {
                   synchronized := true.B
                   executeCounter := 0.U
-                  dataClear := !lastExecuteForInstruction.get
+                  dataClear := true.B
                   orderedReduceGroupCount.foreach(d => d := d + 1.U)
                 }
                 when(lastExecuteForInstruction.get) {
@@ -1102,9 +1103,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             }
           }
         }
-        orderedReduceIdle.foreach(f => when(f){
-          dataClear := orderedReduce
-        })
         val executeFinish: Bool =
           (executeCounter(log2Ceil(parameter.laneNumber)) || !(reduce || popCount) || orderedReduce) && maskUnitIdle
         val schedulerWrite = decodeResultReg(Decoder.maskDestination) || (reduce && !popCount) || writeMv
