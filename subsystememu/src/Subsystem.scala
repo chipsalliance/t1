@@ -76,7 +76,7 @@ class VerdesConfig
       // 1 MHz
       .orElse(new WithTimebase(BigInt(1000000)))
       .orElse(new WithDTS("sequencer,verdes", Nil))
-      .orElse(new WithCoherentBusTopology)
+      .orElse(new WithIncoherentBusTopology)
       .orElse(new BaseSubsystemConfig)
   )
 
