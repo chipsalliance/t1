@@ -47,7 +47,7 @@ set(VERILATE_ARGS
   PREFIX VTestBench
   OPT_FAST
   THREADS 8
-  VERILATOR_ARGS --x-initial unique --output-split 100000 --max-num-width 1048576 --threads-max-mtasks 100000 --main --timing --coverage-user --assert
+  VERILATOR_ARGS --x-initial unique --output-split 2048 --max-num-width 1048576 --threads-max-mtasks 100000 --main --timing --coverage-user --assert
 )
 
 if (${VERILATE_TRACE})
