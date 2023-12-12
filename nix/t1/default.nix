@@ -16,7 +16,6 @@ lib.makeScope newScope
     soc-elaborator = self.callPackage ./soc-elaborator.nix { };
 
     rvv-codegen = self.callPackage ./testcases/rvv-codegen.nix { };
-    rvv-testcases-prebuilt = self.callPackage ./testcases/rvv-testcases-prebuilt.nix { };
     testcase-env = {
       mkMlirCase = self.callPackage ./testcases/make-mlir-case.nix { stdenv = rv32-stdenv; };
       mkIntrinsicCase = self.callPackage ./testcases/make-intrinsic-case.nix { stdenv = rv32-stdenv; };

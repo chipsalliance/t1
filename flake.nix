@@ -17,7 +17,7 @@
         in
         {
           legacyPackages = pkgs;
-          devShells = rec {
+          devShells = {
             default = pkgs.mkShell {
               buildInputs = with pkgs; [
                 gnumake
@@ -28,12 +28,7 @@
                 ammonite
               ];
             };
-
-            with-prebuilt-cases = default.overrideAttrs (_: {
-              env.TEST_CASES_DIR = pkgs.t1.rvv-testcases-prebuilt;
-            });
           };
-
           formatter = pkgs.nixpkgs-fmt;
         }
       )
