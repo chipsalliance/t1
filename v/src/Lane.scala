@@ -824,32 +824,26 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val readBeforeMaskedWrite: DecoupledIO[VRFReadRequest] = Wire(Decoupled(
       new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)
     ))
-    // 连接读口
-    val readArbiter = Module(
-      new Arbiter(
-        new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits),
-        8
-      )
-    )
-    // 暂时把lsu的读放在了最低优先级,有问题再改
-    (vrfReadRequest(1).last +: (vrfReadRequest(2) ++ vrfReadRequest(3)) :+ vrfReadAddressChannel)
-      .zip(readArbiter.io.in)
-      .foreach {
-        case (source, sink) =>
-          sink <> source
-      }
-    ((readBeforeMaskedWrite +: vrfReadRequest.head) ++ vrfReadRequest(1).init :+ readArbiter.io.out).zip(vrf.readRequests).foreach {
-      case (source, sink) =>
-        sink <> source
-    }
+    val readPortVec: Seq[DecoupledIO[VRFReadRequest]] = readBeforeMaskedWrite +: vrfReadRequest.flatten :+ vrfReadAddressChannel
+    val readResultVec: Seq[UInt] = maskedWriteUnit.vrfReadResult +: vrfReadResult.flatten :+ vrfReadDataChannel
+    parameter.vrfParam.connectTree.zipWithIndex.foreach {
+      case (connectSource, vrfPortIndex) =>
+        val readArbiter = Module(
+          new Arbiter(
+            new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits),
+            connectSource.size
+          )
+        ).suggestName(s"vrfReadArbiter_${vrfPortIndex}")
 
-    // 读的结果
-    vrfReadResult.foreach(a => a.foreach(_ := vrf.readResults.last))
-    (vrfReadResult.head ++ vrfReadResult(1).init).zip(vrf.readResults.tail.init).foreach {
-      case (sink, source) =>
-        sink := source
+        connectSource.zipWithIndex.foreach { case (sourceIndex, i) =>
+          // connect arbiter input
+          readArbiter.io.in(i) <> readPortVec(sourceIndex)
+          // connect arbiter output
+          vrf.readRequests(vrfPortIndex) <> readArbiter.io.out
+          // connect read result
+          readResultVec(sourceIndex) := vrf.readResults(vrfPortIndex)
+        }
     }
-    vrfReadDataChannel := vrf.readResults.last
 
     // 写 rf
     val normalWrite = VecInit(vrfWriteArbiter.map(_.valid)).asUInt.orR
@@ -858,7 +852,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
     maskedWriteUnit.enqueue.valid := normalWrite || crossLaneWriteQueue.io.deq.valid
     maskedWriteUnit.enqueue.bits := writeEnqBits
-    maskedWriteUnit.vrfReadResult := vrf.readResults.head
     crossLaneWriteQueue.io.deq.ready := !normalWrite && maskedWriteUnit.enqueue.ready
     vrfWriteFire := Mux(maskedWriteUnit.enqueue.ready, writeSelect, 0.U)
 

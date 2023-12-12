@@ -40,9 +40,14 @@ case class VRFParam(
     extends SerializableModuleParameter {
 
   /** See documentation for VRF.
-    * TODO: document this
+    * chainingSize * 3 + 1 + 1: 3 read /slot + maskedWrite + lsu read
+    * 0: maskedWrite
+    * last: lsu read
+    * Each element represents a read port of vrf,
+    * The number inside is which of the above requests will share this port.
     */
-  val vrfReadPort: Int = 7
+  val connectTree: Seq[Seq[Int]] = Seq.tabulate(chainingSize * 3 + 1 + 1) { i => Seq(i)}
+  val vrfReadPort: Int = connectTree.size
 
   /** VRF index number is 32, defined in spec. */
   val regNum: Int = 32
