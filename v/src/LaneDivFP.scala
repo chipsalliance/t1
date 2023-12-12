@@ -118,7 +118,7 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val output = IO(ValidIO(new SRTOut))
 
   val fpWidth = expWidth + sigWidth
-  val calWidth = 28
+  val floatDivCalculateWidth = 28
   val iterWidth: Int = fpWidth + 6
   val sqrtIterWidth = sigWidth + 4
   val ohWidth = 5
@@ -379,8 +379,8 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val sigPlusSqrt = sqrtIter.resultOutput.bits.result(24, 1) ## (!sqrtIter.resultOutput.bits.zeroRemainder || sqrtIter.resultOutput.bits.result(0))
   val sigPlusDiv = Wire(UInt((sigWidth+2).W))
   sigPlusDiv := Mux(needRightShift,
-    divIter.resultOutput.bits.quotient(calWidth - 3, calWidth - sigWidth - 2) ## divIter.resultOutput.bits.reminder.orR,
-    divIter.resultOutput.bits.quotient(calWidth - 2, calWidth - sigWidth - 1) ## divIter.resultOutput.bits.reminder.orR
+    divIter.resultOutput.bits.quotient(floatDivCalculateWidth - 3, floatDivCalculateWidth - sigWidth - 2) ## divIter.resultOutput.bits.reminder.orR,
+    divIter.resultOutput.bits.quotient(floatDivCalculateWidth - 2, floatDivCalculateWidth - sigWidth - 1) ## divIter.resultOutput.bits.reminder.orR
   )
 
   val expSelected, expToRound = Wire(UInt((expWidth + 2).W))
