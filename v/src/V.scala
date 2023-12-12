@@ -715,8 +715,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val adder:     LaneAdder = Module(new LaneAdder(parameter.adderParam))
       val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datapathWidth))
       // option unit for flot reduce
-      val floatAdder: Option[floatAdd] = Option.when(parameter.fpuEnable)(Module(new floatAdd))
-      val flotCompare  = Option.when(parameter.fpuEnable)(Module(new floatCompare))
+      val floatAdder: Option[FloatAdder] = Option.when(parameter.fpuEnable)(Module(new FloatAdder(8, 24)))
+      val flotCompare  = Option.when(parameter.fpuEnable)(Module(new FloatCompare(8, 24)))
 
       val sign = !decodeResultReg(Decoder.unsigned1)
       val adderRequest = Wire(LaneAdderParam(parameter.datapathWidth).inputBundle)
