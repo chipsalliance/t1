@@ -90,7 +90,6 @@ where `<config-name>` should be replaced with a configuration name, e.g. `v1024-
 To run testcases, set `TEST_CASES_DIR` to the directory containing built testcases, either manually or using the following commands:
 ```shell
 $ nix develop  # enter the default development shell with common tools
-$ nix develop .#with-prebuilt-cases  # enter the default shell but with prebuilt testcases
 ```
 
 Now run the job using the following script:
