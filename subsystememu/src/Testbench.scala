@@ -3,8 +3,7 @@ package verdes
 import chisel3._
 import chisel3.probe._
 import freechips.rocketchip.diplomacy.LazyModule
-import freechips.rocketchip.subsystem.{ExtBus, ExtMem}
-import freechips.rocketchip.util.AsyncResetReg
+import freechips.rocketchip.subsystem.ExtMem
 import org.chipsalliance.cde.config.Parameters
 import verdes.dpi._
 
@@ -23,9 +22,10 @@ class TestHarness(implicit val p: Parameters) extends RawModule {
     val dut = Module(ldut.module)
     // Allow the debug ndreset to reset the dut, but not until the initial reset has completed
     dut.reset := reset.asBool
+    dut.interrupts := 0.U
     dut.dontTouchPorts()
 
-    ldut.resetVector := dpiResetVector.resetVector.ref + p(ExtMem).get.master.base.U
+    ldut.resetVector := dpiResetVector.resetVector.ref
     dpiResetVector.reset.ref := dut.reset
     dpiResetVector.clock.ref := dut.clock.asBool
     ldut.mem_axi4.zip(ldut.memAXI4Node.in).map { case (io, (_, edge)) =>
@@ -33,6 +33,9 @@ class TestHarness(implicit val p: Parameters) extends RawModule {
       Module(mem.module).suggestName("mem")
       mem.io_axi4.head <> io
       mem
+    }.toSeq
+    ldut.mmio_axi4.zip(ldut.mmioAXI4Node.in).map { case (io, (_, edge)) =>
+      io <> DontCare
     }.toSeq
   }
 }
