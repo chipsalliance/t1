@@ -22,6 +22,11 @@ class VerdesConfig
         size = BigInt("80000000", 16),
         beatBytes = site(MemoryBusKey).beatBytes,
         idBits = 4), 1))
+      case ExtBus => Some(MasterPortParams(
+        base = x"9000_0000",
+        size = x"1000_0000",
+        beatBytes = site(MemoryBusKey).beatBytes,
+        idBits = 4))
       case BuildVector => Some((p: Parameters) => LazyModule(new LazyT1()(p))(ValName("T1"), UnlocatableSourceInfo))
       case XLen => 32
       case ControlBusKey => PeripheryBusParams(
@@ -73,6 +78,7 @@ class VerdesConfig
       .orElse(new WithCacheBlockBytes(16))
       // SoC
       .orElse(new WithoutTLMonitors)
+      .orElse(new WithNExtTopInterrupts(1))
       // 1 MHz
       .orElse(new WithTimebase(BigInt(1000000)))
       .orElse(new WithDTS("sequencer,verdes", Nil))
@@ -82,7 +88,9 @@ class VerdesConfig
 
 class VerdesSystem(implicit p: Parameters) extends BaseSubsystem
   with HasT1Tiles
-  with CanHaveMasterAXI4MemPort {
+  with CanHaveMasterAXI4MemPort
+  with CanHaveMasterAXI4MMIOPort
+  with HasAsyncExtInterrupts {
   // configure
   val resetVectorSourceNode = BundleBridgeSource[UInt]()
   tileResetVectorNexusNode := resetVectorSourceNode
@@ -94,4 +102,5 @@ class VerdesSystem(implicit p: Parameters) extends BaseSubsystem
 class VerdesSystemModuleImp[+L <: VerdesSystem](_outer: L) extends BaseSubsystemModuleImp(_outer)
   with HasTilesModuleImp
   with HasRTCModuleImp
+  with HasExtInterruptsModuleImp
   with DontTouch
