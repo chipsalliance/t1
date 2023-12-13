@@ -7,12 +7,14 @@ import firrtl.options.TargetDirAnnotation
 import mainargs._
 import org.chipsalliance.cde.config._
 import org.chipsalliance.t1.rocketcore.RISCVOpcodesPath
+import verdes.fpga._
 
 object Main {
   @main def elaborate(
                        @arg(name = "dir", doc = "output directory") dir: String,
                        @arg(name = "config") config: String,
-                       @arg(name = "riscvopcodes") riscvOpcodes: String
+                       @arg(name = "riscvopcodes") riscvOpcodes: String,
+                       @arg(name = "fpga") fpga: Boolean
                      ) = {
     val dir_ = os.Path(dir, os.pwd)
     implicit val p: Parameters = (new VerdesConfig).orElse(new Config((site, here, up) => {
@@ -27,7 +29,7 @@ object Main {
     ).foldLeft(
         Seq(
           TargetDirAnnotation(dir_.toString()),
-          ChiselGeneratorAnnotation(() => new TestHarness)
+          ChiselGeneratorAnnotation(() => if (fpga) new FPGAHarness else new TestHarness)
         ): AnnotationSeq
       ) { case (annos, phase) => phase.transform(annos) }
       .flatMap {
@@ -41,6 +43,7 @@ object Main {
         case a => Some(a)
       }
     os.write(dir_ / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
+    freechips.rocketchip.util.ElaborationArtefacts.files.foreach { case (ext, contents) => os.write.over(dir_ / s"${p.toString}.${ext}", contents()) }
   }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
