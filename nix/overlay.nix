@@ -43,14 +43,15 @@ final: prev:
   };
 
   rv32-compilerrt = final.callPackage ./pkgs/rv32-compilerrt.nix {
-    stdenv = final.overrideCC final.pkgsCross.riscv32-embedded.stdenv final.pkgsCross.riscv32-embedded.buildPackages.llvmPackages.clangNoCompilerRtWithLibc;
+    stdenv = final.pkgsCross.riscv32-embedded.stdenv.override {
+      cc = final.pkgsCross.riscv32-embedded.buildPackages.llvmPackages.clangNoCompilerRtWithLibc;
+    };
     llvmPackages = final.llvmToolsForRV32Clang;
   };
+
   rv32-musl = final.callPackage ./pkgs/rv32-musl.nix {
-    stdenv = final.llvmForDev.stdenv.override {
-      cc = final.llvmForDev.stdenv.cc.override {
-        bintools = final.llvmForDev.bintools;
-      };
+    stdenv = final.pkgsCross.riscv32-embedded.stdenv.override {
+      cc = final.pkgsCross.riscv32-embedded.buildPackages.llvmPackages.clangNoCompilerRt;
     };
   };
   rv32-clang = final.callPackage ./pkgs/rv32-clang.nix {

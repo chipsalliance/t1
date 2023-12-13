@@ -12,17 +12,19 @@ in
 stdenv.mkDerivation {
   inherit src pname version;
   configureFlags = [
-    "--target=riscv32-none-elf"
     "--enable-static"
     "--syslibdir=${placeholder "out"}/lib"
+    "LIBCC=-lclang_rt.builtins-riscv32"
   ];
   env = {
-    LIBCC = "-lclang_rt.builtins-riscv32";
-    CFLAGS = "--target=riscv32 -mno-relax -nostdinc";
-    LDFLAGS = "-fuse-ld=lld --target=riscv32 -nostdlib -L${rv32-compilerrt}/lib/riscv32";
+    NIX_CFLAGS_COMPILE = "--ld-path=${stdenv.cc.bintools}/bin/${stdenv.targetPlatform.config}-ld -mno-relax";
+    NIX_LDFLAGS = "-L${rv32-compilerrt}/lib/riscv32";
     NIX_DONT_SET_RPATH = true;
+    NIX_DEBUG = 1;
   };
   dontDisableStatic = true;
   dontAddStaticConfigureFlags = true;
+
+  enableParallelBuilding = true;
 }
 
