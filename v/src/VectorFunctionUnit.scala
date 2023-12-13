@@ -169,6 +169,7 @@ object vfu {
       // 暂时不会有 response 握手
       responseBundle.valid := vfu.responseIO.valid
       vfu.responseIO.ready := true.B
+      responseBundle.bits.tag := vfuInput.bits.tag
 
       // 把 vfu的 response 类型转换过来
       responseBundle.bits.elements.foreach { case (name, data) =>
@@ -193,11 +194,12 @@ object vfu {
         case (resp, (gen, _)) =>
           (decodeResult(slotIndex)(gen.parameter.decodeField), resp)
       }
-      // 多个slot同类长延时型访问需要自己带tag
-      data <> Mux1H(
+      val selectResponse: ValidIO[VFUResponseToSlot] = Mux1H(
         responseFilter.map(_._1),
         responseFilter.map(_._2),
       )
+      data.valid := selectResponse.valid && (selectResponse.bits.tag === slotIndex.U)
+      data.bits := selectResponse.bits
     }
   }
 }

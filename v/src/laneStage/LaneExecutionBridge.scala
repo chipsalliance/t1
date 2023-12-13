@@ -32,7 +32,7 @@ class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) 
   val source2: UInt = UInt(parameter.datapathWidth.W)
 }
 
-class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
+class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotIndex: Int) extends Module {
   // request from lane slot
   val enqueue: DecoupledIO[LaneExecuteRequest] = IO(Flipped(Decoupled(new LaneExecuteRequest(parameter, isLastSlot))))
   // request from lane slot
@@ -256,6 +256,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean) extends
   vfuRequest.bits.narrow := narrow
   vfuRequest.bits.unitSelet.foreach(_ := decodeResult(Decoder.fpExecutionType))
   vfuRequest.bits.floatMul.foreach(_ := decodeResult(Decoder.floatMul))
+  vfuRequest.bits.tag := slotIndex.U
 
   // from float csr
   vfuRequest.bits.roundingMode.foreach(_ := state.csr.vxrm)

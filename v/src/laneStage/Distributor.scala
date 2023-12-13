@@ -163,4 +163,5 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   responseToSlot.bits := DontCare
   responseToSlot.bits.data := resultUpdate
   responseToSlot.bits.ffoSuccess := updateFFO
+  responseToSlot.bits.tag := requestReg.bits.tag
 }
