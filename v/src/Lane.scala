@@ -509,7 +509,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val stage0: LaneStage0 = Module(new LaneStage0(parameter, isLastSlot))
       val stage1 = Module(new LaneStage1(parameter, isLastSlot))
       val stage2 = Module(new LaneStage2(parameter, isLastSlot))
-      val executionUnit: LaneExecutionBridge = Module(new LaneExecutionBridge(parameter, isLastSlot))
+      val executionUnit: LaneExecutionBridge = Module(new LaneExecutionBridge(parameter, isLastSlot, index))
       val stage3 = Module(new LaneStage3(parameter, isLastSlot))
 
       // slot state
