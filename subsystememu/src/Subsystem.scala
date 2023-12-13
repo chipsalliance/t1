@@ -2,7 +2,7 @@ package verdes
 
 import chisel3._
 import chisel3.experimental.UnlocatableSourceInfo
-import freechips.rocketchip.devices.debug.HasPeripheryDebug
+import freechips.rocketchip.devices.debug.DebugModuleKey
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.rocket.{DCacheParams, ICacheParams, MulDivParams, RocketCoreParams}
 import freechips.rocketchip.subsystem._
@@ -31,6 +31,7 @@ class VerdesConfig
           errorParams = DevNullParams(List(AddressSet(BigInt("80003000", 16), BigInt("fff", 16))), maxAtomic=site(XLen)/8, maxTransfer=4096))))
       case CLINTKey => Some(CLINTParams(BigInt("82000000", 16)))
       case PLICKey => Some(PLICParams(BigInt("8C000000", 16)))
+      case DebugModuleKey => None
       case TilesLocated(InSubsystem) =>
         val tiny = RocketTileParams(
           core = new RocketCoreParams(
@@ -72,7 +73,6 @@ class VerdesConfig
       .orElse(new WithCacheBlockBytes(16))
       // SoC
       .orElse(new WithoutTLMonitors)
-      .orElse(new WithDebugSBA)
       // 1 MHz
       .orElse(new WithTimebase(BigInt(1000000)))
       .orElse(new WithDTS("sequencer,verdes", Nil))
