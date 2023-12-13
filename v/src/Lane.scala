@@ -551,7 +551,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
       // update mask todo: handle maskRequestFireOH
       slotMaskRequestVec(index).valid :=
-        stage0.updateLaneState.maskExhausted && record.laneRequest.mask && (stage0.enqueue.fire || !record.mask.valid)
+        record.laneRequest.mask &&
+          ((stage0.enqueue.fire && stage0.updateLaneState.maskExhausted) || !record.mask.valid)
       slotMaskRequestVec(index).bits := stage0.updateLaneState.maskGroupCount
       // There are new masks
       val maskUpdateFire: Bool = slotMaskRequestVec(index).valid && maskRequestFireOH(index)
