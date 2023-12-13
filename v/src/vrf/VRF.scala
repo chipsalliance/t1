@@ -371,7 +371,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     val older = instIndexL(lsuWriteCheck.instructionIndex, record.bits.instIndex)
     val sameInst = lsuWriteCheck.instructionIndex === record.bits.instIndex
 
-    val waw: Bool = record.bits.vd.valid && lsuWriteCheck.vd(4, 3) === record.bits.vd.bits &&
+    val waw: Bool = record.bits.vd.valid && lsuWriteCheck.vd(4, 3) === record.bits.vd.bits(4, 3) &&
       (writeCheckOH & record.bits.elementMask) === 0.U
     !((!older && waw) && !sameInst && record.valid)
   }.reduce(_ && _) || !isLoadCheck
