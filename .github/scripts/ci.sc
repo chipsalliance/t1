@@ -258,10 +258,9 @@ def runFailedTests(jobs: String) = {
   val totalJobs = jobs.split(";")
   val failed = totalJobs.zipWithIndex.foreach { case (job, i) => {
     val Array(config, caseName, runCfg) = job.split(",")
-    val actualConfig = if (config.endsWith("-trace")) config else s"$config-trace"
     System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $actualConfig,$caseName,$runCfg")
     val handle = os
-      .proc("scripts/run-test.py", "verilate", "-c", actualConfig, "-r", runCfg, "--trace", "--no-console-log", "--base-out-dir", testRunDir, caseName)
+      .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--trace", "--no-console-log", "--base-out-dir", testRunDir, caseName)
       .call(check=false)
   }}
 }
