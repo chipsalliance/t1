@@ -215,7 +215,7 @@ def runTests(jobs: String, resultDir: Option[os.Path]) = {
       val Array(config, caseName, runCfg) = job.split(",")
       System.err.println(s"[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg")
       val handle = os
-        .proc("scripts/run-test.py", "-c", config, "-r", runCfg, "--no-console-log", "--base-out-dir", testRunDir, caseName)
+        .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--no-console-log", "--base-out-dir", testRunDir, caseName)
         .call(check=false, stdout=os.Path("/dev/null"), stderr=os.Path("/dev/null"))
       if (handle.exitCode != 0) {
         val outDir = testRunDir / config / caseName / runCfg
@@ -253,7 +253,7 @@ def runFailedTests(jobs: String) = {
     val actualConfig = if (config.endsWith("-trace")) config else s"$config-trace"
     System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $actualConfig,$caseName,$runCfg")
     val handle = os
-      .proc("scripts/run-test.py", "-c", actualConfig, "-r", runCfg, "--trace", "--no-console-log", "--base-out-dir", testRunDir, caseName)
+      .proc("scripts/run-test.py", "verilate", "-c", actualConfig, "-r", runCfg, "--trace", "--no-console-log", "--base-out-dir", testRunDir, caseName)
       .call(check=false)
   }}
 }
