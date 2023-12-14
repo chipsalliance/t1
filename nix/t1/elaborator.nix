@@ -26,7 +26,7 @@ let
     passthru.millDeps = fetchMillDeps {
       inherit name;
       src = lib'.sourceFilesByPrefixes ./../.. [ "/build.sc" "/common.sc" ];
-      millDepsHash = "sha256-RIA/lgtFEaUxbZTmJaErlWcypDUdBGuK7P9iUMGtIdc=";
+      millDepsHash = "sha256-WBjh7mgTK1BAiBcWJ0UIdwInR9g6x6DMGJMTuOPLM0Y=";
       nativeBuildInputs = [ submodules.setupHook ];
     };
 
