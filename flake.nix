@@ -32,11 +32,6 @@
             with-prebuilt-cases = default.overrideAttrs (_: {
               env.TEST_CASES_DIR = pkgs.t1.rvv-testcases-prebuilt;
             });
-
-            ci = pkgs.mkShellNoCC {
-              buildInputs = with pkgs; [ ammonite python3 ];
-              env.TEST_CASES_DIR = pkgs.t1.rvv-testcases.all;
-            };
           };
 
           formatter = pkgs.nixpkgs-fmt;
