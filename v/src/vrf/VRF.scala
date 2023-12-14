@@ -158,7 +158,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val lsuInstructionFire: Bool = IO(Input(Bool()))
 
   /** similar to [[flush]]. */
-  val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  val instructionLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** data in write queue */
   val dataInWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
@@ -279,7 +279,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       // all elementMask update
       val elementUpdateValid: Bool = (writeUpdateValidVec ++ loadUpdateValidVec).reduce(_ || _)
       val elementUpdate1H: UInt = (writeUpdate1HVec ++ loadUpdate1HVec).reduce(_ | _)
-      when(ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)) {
+      val queueClear = !dataIndexWriteQueue
+      val busClear = crossWriteBusClear || !record.bits.crossWrite
+      when(ohCheck(instructionLastReport, record.bits.instIndex, parameter.chainingSize)) {
         when(record.bits.ls) {
           record.bits.stFinish := true.B
         }.otherwise {
@@ -293,11 +295,15 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           record.valid := false.B
         }
       }
-      when(
-        record.bits.wWriteQueueClear &&
-          !dataIndexWriteQueue &&
-          (crossWriteBusClear || !record.bits.crossWrite)
-      ) {
+      when(record.bits.wWriteQueueClear) {
+        when(busClear) {
+          record.bits.wBusClear := true.B
+        }
+        when((busClear || record.bits.wBusClear) && queueClear) {
+          record.bits.wQueueClear := true.B
+        }
+      }
+      when(record.bits.wWriteQueueClear && record.bits.wBusClear && record.bits.wQueueClear) {
         record.valid := false.B
       }
       when(recordEnq(i)) {

@@ -1046,6 +1046,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.crossRead := laneRequest.bits.decodeResult(Decoder.crossRead)
   vrf.instructionWriteReport.bits.stFinish := false.B
   vrf.instructionWriteReport.bits.wWriteQueueClear := false.B
+  vrf.instructionWriteReport.bits.wBusClear := false.B
+  vrf.instructionWriteReport.bits.wQueueClear := false.B
 
   val elementSizeForOneRegister: Int = parameter.vLen / parameter.datapathWidth / parameter.laneNumber
   val nrMask: UInt = VecInit(Seq.tabulate(8){ i =>
@@ -1082,7 +1084,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.elementMask := shifterMask
 
   // clear record by instructionFinished
-  vrf.lsuLastReport := lsuLastReport | (instructionFinished & instructionUnrelatedMaskUnitVec.reduce(_ | _))
+  vrf.instructionLastReport := lsuLastReport | (instructionFinished & instructionUnrelatedMaskUnitVec.reduce(_ | _))
   vrf.lsuMaskGroupChange := lsuMaskGroupChange
   vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear
   vrf.crossWriteBusClear := crossWriteBusClear

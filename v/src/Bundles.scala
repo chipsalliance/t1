@@ -508,6 +508,10 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val indexType: Bool = Bool()
   // execute finish, wait for write queue clear
   val wWriteQueueClear: Bool = Bool()
+  // wait cross write bus clear
+  val wBusClear = Bool()
+  // wait cross write queue clear
+  val wQueueClear = Bool()
   // 乘加
   val ma:           Bool = Bool()
   // 慢指令 mask unit
