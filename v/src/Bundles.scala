@@ -59,12 +59,12 @@ class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
     */
   val instructionIndex: UInt = UInt(instructionIndexWidth.W)
 
-  /** whether instruction is `crossWrite`,
+  /** whether instruction need wait for write queue clear,
     * for instructions has `widen`, it need use cross lane write channel,
     * but lane will regard the instruction is finished when data is sent to ring,
     * so we need this bit to record if the ring is cleared.
     */
-  val hasCrossWrite: Bool = Bool()
+  val needWaitWriteQueueClear: Bool = Bool()
 
   /** whether instruction is load store.
     * it should tell scalar core if this is a load store unit.
