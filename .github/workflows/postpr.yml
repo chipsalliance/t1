@@ -28,7 +28,7 @@ jobs:
         name: "Generate matrix"  # TODO: why unpassed testcases corresponds to perf testcases
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix develop .#ci -c .github/scripts/ci.sc postPrMatrixJson --bucketSize "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix shell '.#amm' -c .github/scripts/ci.sc postPrMatrixJson --bucketSize "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
     name: "Run unpassed and perf testcases"
@@ -53,9 +53,9 @@ jobs:
       - id: ci-run
         name: "Run testcases"
         run: |
-          nix develop .#ci -c .github/scripts/ci.sc runTests --jobs "${{ matrix.jobs }}" \
+          nix shell '.#amm' -c .github/scripts/ci.sc runTests --jobs "${{ matrix.jobs }}" \
             --resultDir test-results-$(head -c 10 /dev/urandom | base32)
-          nix develop .#ci -c .github/scripts/ci.sc convertPerfToMD
+          nix shell '.#amm' -c .github/scripts/ci.sc convertPerfToMD
 
       - uses: actions/upload-artifact@v3
         if: always()
