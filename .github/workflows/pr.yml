@@ -30,20 +30,15 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix build .#t1.rvv-testcases.all --max-jobs $(nproc)
-          nix develop .#ci -c .github/scripts/ci.sc passedMatrixJson --bucketSize "$RUNNERS" >> "$GITHUB_OUTPUT"
-      # build verilator emulator first, so that every developer can download new cache from latest commit.
-      - name: "Build verilator emulator"
-        run: |
-          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
+          # Build all test cases before tests started.
+          nix build .#t1.rvv-testcases.all --max-jobs auto --no-link
+          nix shell .ammonite -c .github/scripts/ci.sc generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
-  build-trace-emulator:
+  build-emulators:
     name: "Build trace emulator"
     runs-on: [self-hosted, linux]
     env:
       RUNNERS: 16
-    outputs:
-      ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,9 +51,15 @@ jobs:
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
           ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      # build verilator emulator first, so that every developer can download new cache from latest commit.
       - name: "Build verilator emulator"
         run: |
+          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
+          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' --no-link
+      - name: "Build verilator emulator with trace"
+        run: |
           nix build '.#t1.v1024-l8-b2.verilator-emulator-trace' --no-link
+          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator-trace' --no-link
 
   test-emit:
     name: "Test elaborate"
@@ -109,7 +110,7 @@ jobs:
       - name: "Run testcases"
         id: ci-run
         run: |
-          nix develop .#ci -c .github/scripts/ci.sc runTests --jobs "${{ matrix.jobs }}" \
+          nix shell .#ammonite -c .github/scripts/ci.sc runTests --jobs "${{ matrix.jobs }}" \
             --resultDir test-results-$(head -c 10 /dev/urandom | base32)
 
       - uses: actions/upload-artifact@v3
@@ -222,11 +223,13 @@ jobs:
           cat test-results-*/cycle-updates.md >> $GITHUB_STEP_SUMMARY
       - name: "Commit cycle updates"
         run: |
-          nix shell .#ammonite -c .github/scripts/ci.sc mergeCycleData  # no need to use devShells.ci
+          nix shell .#ammonite -c .github/scripts/ci.sc mergeCycleData
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git diff -s --exit-code '.github/passed/**/passed.json' \
-            || (git add '.github/passed/**/passed.json' \
+          changed_cases=$(git diff --name-only --exit-code '.github/cases/**/default.json')
+          [ -n "$changed_cases" ] \
+            && echo "changed cases: $changed_cases" \
+            && git add '.github/cases/**/default.json' \
             && git commit -m "[ci] update test case cycle data" \
             && git push origin ${{ github.head_ref }})
 
