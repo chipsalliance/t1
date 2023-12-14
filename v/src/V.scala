@@ -457,6 +457,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // TODO: remove
       control.record.isLoadStore := isLoadStoreType
       control.record.maskType := maskType
+      control.record.needWaitWriteQueueClear :=
+        requestReg.bits.decodeResult(Decoder.crossWrite) || requestReg.bits.decodeResult(Decoder.maskUnit)
       // control signals
       control.state.idle := false.B
       control.state.wLast := false.B
@@ -469,7 +471,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       // state machine starts here
       .otherwise {
         when(laneAndLSUFinish) {
-          control.state.wLast := !control.record.hasCrossWrite || (busClear && writeQueueClear)
+          control.state.wLast := !control.record.needWaitWriteQueueClear || (busClear && writeQueueClear)
         }
         // TODO: execute first, then commit
         when(responseCounter === control.record.instructionIndex && response.fire) {
