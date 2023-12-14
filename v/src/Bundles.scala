@@ -394,9 +394,7 @@ class WriteBusData(param: LaneParameter) extends Bundle {
     */
   val sourceIndex: UInt = UInt(param.laneNumberBits.W)
 
-  /** which instruction is the source of this transaction
-    * TODO: for DEBUG use.
-    */
+  /** which instruction is the source of this transaction. */
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 
   /** define the order of the data to dequeue from ring. */

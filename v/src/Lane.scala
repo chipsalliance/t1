@@ -787,7 +787,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   crossLaneWriteQueue.io.enq.bits.offset := writeBusPort.enq.bits.counter ## writeBusPort.enq.bits.isTail
   crossLaneWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
   crossLaneWriteQueue.io.enq.bits.last := DontCare
-  crossLaneWriteQueue.io.enq.bits.instructionIndex := slotControl.head.laneRequest.instructionIndex
+  crossLaneWriteQueue.io.enq.bits.instructionIndex := writeBusPort.enq.bits.instructionIndex
   crossLaneWriteQueue.io.enq.bits.mask := FillInterleaved(2, writeBusPort.enq.bits.mask)
 
   // arbitrate ring data to ring or local.
