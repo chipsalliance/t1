@@ -19,3 +19,4 @@ __pycache__
 /testrun
 .direnv
 .envrc
+test-results

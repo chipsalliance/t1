@@ -95,7 +95,7 @@ $ nix develop .#with-prebuilt-cases  # enter the default shell but with prebuilt
 
 Now run the job using the following script:
 ```shell
-$ ./scripts/run-test.py -c <config> -r <runConfig> <caseName>
+$ ./scripts/run-test.py verilate -c <config> -r <runConfig> <caseName>
 ```
 wheres
 - `<config>` is the configuration name, filename in `./configs`;
@@ -104,7 +104,7 @@ wheres
 
 For example:
 ```shell
-./scripts/run-test.py -c v1024-l8-b2 -r debug conv-mlir  # '-r debug' can be omitted since it is the default
+./scripts/run-test.py verilate -c v1024-l8-b2 -r debug conv-mlir  # '-r debug' can be omitted since it is the default
 ```
 
 `run-test.py` provides various command-line options for different use cases. Run `./scripts/run-test.py -h` for help.
@@ -126,7 +126,7 @@ $ nix develop .#t1.<config>.verilator-emulator  # replace <config> with your con
 $ cd emulator
 $ cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Debug
 $ cmake --build build
-$ cd ..; ./scripts/run-test.py --emulator-path=emulator/src/build/emulator conv-mlir
+$ cd ..; ./scripts/run-test.py verilate --emulator-path=emulator/src/build/emulator conv-mlir
 ```
 
 #### Developing Testcases
