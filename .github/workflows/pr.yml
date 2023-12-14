@@ -120,6 +120,7 @@ jobs:
           path: |
             test-results-*/failed-tests.md
             test-results-*/cycle-updates.md
+            test-results-*/*_cycle.json
 
       - uses: actions/upload-artifact@v3
         if: failure()
@@ -226,10 +227,14 @@ jobs:
           nix shell .#ammonite -c .github/scripts/ci.sc mergeCycleData
           git config user.name github-actions
           git config user.email github-actions@github.com
-          changed_cases=$(git diff --name-only --exit-code '.github/cases/**/default.json')
-          [ -n "$changed_cases" ] \
-            && echo "changed cases: $changed_cases" \
-            && git add '.github/cases/**/default.json' \
-            && git commit -m "[ci] update test case cycle data" \
-            && git push origin ${{ github.head_ref }})
+          changed_cases=$(git diff --name-only '.github/cases/**/default.json')
+
+          if [ -n "$changed_cases" ]; then
+            echo "changed cases: $changed_cases"
+            git add '.github/cases/**/default.json'
+            git commit -m "[ci] update test case cycle data"
+            git push origin ${{ github.head_ref }}
+          else
+            echo "No cycle change detect"
+          fi
 
