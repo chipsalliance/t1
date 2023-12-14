@@ -497,10 +497,12 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
   val vs2:       UInt = UInt(param.regNumBits.W)
   val instIndex: UInt = UInt(param.instructionIndexBits.W)
-  val seg:       ValidIO[UInt] = Valid(UInt(3.W))
   val ls:        Bool = Bool()
   val st:        Bool = Bool()
-  val widen:     Bool = Bool()
+  // instruction will cross write
+  val crossWrite: Bool = Bool()
+  // instruction will cross read
+  val crossRead: Bool = Bool()
   val stFinish:  Bool = Bool()
   // index type lsu
   val indexType: Bool = Bool()
@@ -508,7 +510,6 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val wWriteQueueClear: Bool = Bool()
   // 乘加
   val ma:           Bool = Bool()
-  val unOrderWrite: Bool = Bool()
   // 慢指令 mask unit
   val slow: Bool = Bool()
   // which element will access(write or store read)

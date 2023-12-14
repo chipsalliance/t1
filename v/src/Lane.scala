@@ -851,9 +851,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val writeSelect = !normalWrite ## ffo(VecInit(vrfWriteArbiter.map(_.valid)).asUInt)
     val writeEnqBits = Mux1H(writeSelect, vrfWriteArbiter.map(_.bits) :+ crossLaneWriteQueue.io.deq.bits)
 
-    maskedWriteUnit.enqueue.valid := normalWrite || crossLaneWriteQueue.io.deq.valid
+    // check cross write
+    vrf.crossWriteCheck.vd := crossLaneWriteQueue.io.deq.bits.vd
+    vrf.crossWriteCheck.offset := crossLaneWriteQueue.io.deq.bits.offset
+    vrf.crossWriteCheck.instructionIndex := crossLaneWriteQueue.io.deq.bits.instructionIndex
+    val crossWriteCheckResult = vrf.crossWriteAllow
+    maskedWriteUnit.enqueue.valid := normalWrite || (crossLaneWriteQueue.io.deq.valid && crossWriteCheckResult)
     maskedWriteUnit.enqueue.bits := writeEnqBits
-    crossLaneWriteQueue.io.deq.ready := !normalWrite && maskedWriteUnit.enqueue.ready
+    crossLaneWriteQueue.io.deq.ready := !normalWrite && maskedWriteUnit.enqueue.ready && crossWriteCheckResult
     vrfWriteFire := Mux(maskedWriteUnit.enqueue.ready, writeSelect, 0.U)
 
     vrf.write <> maskedWriteUnit.dequeue
@@ -1033,15 +1038,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.indexType := laneRequest.valid && laneRequest.bits.loadStore
   // TODO: move ma to [[V]]
   vrf.instructionWriteReport.bits.ma := laneRequest.bits.ma
-  // lsu访问vrf都不是无序的
-  vrf.instructionWriteReport.bits.unOrderWrite := laneRequest.bits.decodeResult(Decoder.other)
   // for mask unit
   vrf.instructionWriteReport.bits.slow := laneRequest.bits.decodeResult(Decoder.special)
-  vrf.instructionWriteReport.bits.seg.valid := laneRequest.bits.loadStore && laneRequest.bits.segment.orR
-  vrf.instructionWriteReport.bits.seg.bits := laneRequest.bits.segment
   vrf.instructionWriteReport.bits.ls := laneRequest.bits.loadStore
   vrf.instructionWriteReport.bits.st := laneRequest.bits.store
-  vrf.instructionWriteReport.bits.widen := laneRequest.bits.decodeResult(Decoder.crossWrite)
+  vrf.instructionWriteReport.bits.crossWrite := laneRequest.bits.decodeResult(Decoder.crossWrite)
+  vrf.instructionWriteReport.bits.crossRead := laneRequest.bits.decodeResult(Decoder.crossRead)
   vrf.instructionWriteReport.bits.stFinish := false.B
   vrf.instructionWriteReport.bits.wWriteQueueClear := false.B
 

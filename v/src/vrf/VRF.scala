@@ -144,6 +144,14 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   val lsuWriteAllow: Bool = IO(Output(Bool()))
 
+  val crossWriteCheck: LSUWriteCheck = IO(Input(new LSUWriteCheck(
+    parameter.regNumBits,
+    parameter.vrfOffsetBits,
+    parameter.instructionIndexBits,
+    parameter.datapathWidth
+  )))
+  val crossWriteAllow: Bool = IO(Output(Bool()))
+
   /** when instruction is fired, record it in the VRF for chaining. */
   val instructionWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
 
@@ -172,34 +180,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     VecInit(Seq.fill(parameter.chainingSize)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
   )
   val recordValidVec: Seq[Bool] = chainingRecord.map(r => !r.bits.elementMask.andR && r.valid)
-
-  def rawCheck(before: VRFWriteReport, after: VRFWriteReport): Bool = {
-    before.vd.valid &&
-    ((before.vd.bits === after.vs1.bits && after.vs1.valid) ||
-    (before.vd.bits === after.vs2) ||
-    (before.vd.bits === after.vd.bits && after.ma))
-  }
-
-  def regOffsetCheck(beforeVsOffset: UInt, beforeOffset: UInt, afterVsOffset: UInt, afterOffset: UInt): Bool = {
-    (beforeVsOffset > afterVsOffset) || ((beforeVsOffset === afterVsOffset) && (beforeOffset > afterOffset))
-  }
-
-  def enqCheck(enq: VRFWriteReport, record: ValidIO[VRFWriteReport]): Bool = {
-    val recordBits = record.bits
-    val sameVd = enq.vd.valid && enq.vd.bits === recordBits.vd.bits
-    val raw: Bool = rawCheck(record.bits, enq)
-    val war: Bool = rawCheck(enq, record.bits)
-    val waw: Bool = recordBits.vd.valid && sameVd
-    val stWar = record.valid && record.bits.st && sameVd
-
-    /** 两种暂时处理不了的冲突
-      * 自己会乱序写 & wax: enq.unOrderWrite && (war || waw)
-      * 老的会乱序写 & raw: record.bits.unOrderWrite && raw
-      * 老的是st & war
-      * todo: ld 需要更大粒度的channing更新或检测,然后除开segment的ld就能chaining起来了
-      */
-    (!((enq.unOrderWrite && (war || waw)) || (record.bits.unOrderWrite && raw) || stWar)) || !record.valid
-  }
 
   // first read
   val bankReadF: Vec[UInt] = Wire(Vec(parameter.vrfReadPort, UInt(parameter.rfBankNum.W)))
@@ -316,7 +296,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       when(
         record.bits.wWriteQueueClear &&
           !dataIndexWriteQueue &&
-          (crossWriteBusClear || !record.bits.widen)
+          (crossWriteBusClear || !record.bits.crossWrite)
       ) {
         record.valid := false.B
       }
@@ -375,4 +355,21 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       (writeCheckOH & record.bits.elementMask) === 0.U
     !((!older && waw) && !sameInst && record.valid)
   }.reduce(_ && _) || !isLoadCheck
+
+  // lsuWriteCheck is load unit check
+  val crossReadNeedCheck: Bool = chainingRecord.map { record =>
+    val needCheck: Bool = record.bits.crossWrite && !record.bits.crossRead
+    val sameIndex: Bool = record.bits.instIndex === crossWriteCheck.instructionIndex
+    needCheck && sameIndex && record.valid
+  }.reduce(_ || _)
+  val crossWriteOH: UInt = UIntToOH((crossWriteCheck.vd ## crossWriteCheck.offset)(4, 0))
+  crossWriteAllow := chainingRecord.map { record =>
+    // 先看新老
+    val older = instIndexL(crossWriteCheck.instructionIndex, record.bits.instIndex)
+    val sameInst = crossWriteCheck.instructionIndex === record.bits.instIndex
+
+    val waw: Bool = record.bits.vd.valid && crossWriteCheck.vd(4, 3) === record.bits.vd.bits(4, 3) &&
+      (crossWriteOH & record.bits.elementMask) === 0.U
+    !((!older && waw) && !sameInst && record.valid)
+  }.reduce(_ && _) || !crossReadNeedCheck
 }
