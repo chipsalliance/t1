@@ -219,7 +219,7 @@ def runTests(jobs: String, resultDir: Option[os.Path]) = {
   val failed = totalJobs.zipWithIndex.foldLeft(Seq[String]()) {
     case(failed, (job, i)) => {
       val Array(config, caseName, runCfg) = job.split(",")
-      System.err.println(s"\n\n\n[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg")
+      System.err.println(s"[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg \n\n\n")
       val handle = os
         .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--no-console-log", "--base-out-dir", testRunDir, caseName)
         .call(check=false, stdout=os.Path("/dev/null"))
@@ -268,8 +268,9 @@ def runFailedTests(jobs: String) = {
 
 @main
 def mergeCycleData() = {
-  val original = os.walk(os.pwd / ".github" / "passed")
-    .filter(_.last == "passed.json")
+  println("Updating cycle data")
+  val original = os.walk(os.pwd / ".github" / "cases")
+    .filter(_.last == "default.json")
     .map(path => {
       val Seq(_, runConfig, config) = path.segments.toSeq.reverse.slice(0, 3)
       (s"$config,$runConfig", ujson.read(os.read(path)))
@@ -279,6 +280,7 @@ def mergeCycleData() = {
     .filter(_.last.endsWith("_cycle.json"))
     .map(path => {
       val Array(config, runConfig, _) = path.last.split("_")
+      println(s"Reading new cycle data from $path")
       (s"$config,$runConfig", ujson.read(os.read(path)))
     })
     .foreach {
@@ -298,4 +300,5 @@ def mergeCycleData() = {
       )
     }
   }
+  println("Cycle data updated")
 }
