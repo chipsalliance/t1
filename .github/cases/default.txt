@@ -1,0 +1,2 @@
+v1024-l8-b2/debug/default.json
+v1024-l8-b2-fp/debug/default.json

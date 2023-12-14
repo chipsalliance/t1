@@ -27,9 +27,13 @@ class BucketBuffer() {
   }
 }
 
-// Read the passed.json file and parse them into verilatorEmulator tasks.
-// Tasks will be partitioned into given `bucketSize` of subset by their corresponding instruction cycle 
-// so that this subset have a similar time span to execute.
+// Read test case and their cycle data from the given paths.
+// Test cases will be grouped into a single bucket, and then partitioned into given `bucketSize` of sub-bucket.
+// Each sub-bucket will have similar weight, so that the time cost will be similar between each runners.
+//
+// For example:
+//
+//   [ {A: 100}, {B: 180}, {C: 300}, {D:200} ] => [[A,C], [B,D]]
 //
 // @param allTasksFile List of the passed.json file path
 // @param bucketSize Specify the size of the output Seq
@@ -64,18 +68,20 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
 def toMatrixJson(buckets: Seq[String]) = 
   ujson.Obj("include" -> buckets.map(a => ujson.Obj(s"jobs" -> ujson.Str(a))))
 
-// Generate a list of grouped tests from the given `defaultPassed` file.
+
+// Read default tests information from '.github/cases/default.txt' file, and use that information to generate GitHub CI matrix.
+// The result will be printed to stdout, and should be pipe into $GITHUB_OUTPUT
 @main
-def passedMatrixJson(
-    bucketSize: Int,
+def generateCiMatrix(
+    runnersAmount: Int,
 ) = {
-  val defaultPassed = os.pwd / os.RelPath(".github/passed/default.txt")
+  val defaultCases = os.pwd / os.RelPath(".github/cases/default.txt")
   println(toMatrixJson(
     scheduleTasks(
       os.read
-        .lines(defaultPassed)
-        .map(defaultPassed / os.up / os.RelPath(_)),
-      bucketSize
+        .lines(defaultCases)
+        .map(defaultCases / os.up / os.RelPath(_)),
+      runnersAmount
     ),
   ))
 }
@@ -85,19 +91,19 @@ def passedMatrixJson(
 def postPrMatrixJson(
   bucketSize: Int,
 ) = {
-  val defaultPassed = os.pwd / os.RelPath(".github/passed/default.txt")
-  val passedFiles = os.read.lines(defaultPassed).map(os.RelPath(_))
-  val unpassedTests = passedFiles.flatMap(file => {
+  val defaultCases = os.pwd / os.RelPath(".github/cases/default.txt")
+  val caseFile = os.read.lines(defaultCases).map(os.RelPath(_))
+  val unpassedCases = caseFile.flatMap(file => {
     val Seq(config, runCfg, _) = file.segments.toSeq
     val configFile = os.pwd / "configs" / s"$config.json"
     val isFp = ujson.read(os.read(configFile))("parameter")("fpuEnable").bool
-    val exists = ujson.read(os.read(defaultPassed / os.up / file))
+    val exists = ujson.read(os.read(defaultCases / os.up / file))
       .obj.keys
       .map(caseName => s"$config,$caseName,$runCfg")
     val all: Seq[String] = os.list(os.Path(sys.env("TEST_CASES_DIR")) / "configs")
       .filter(f => ujson.read(os.read(f))("fp").bool == isFp)
       .map(f => s"$config,${f.baseName.toString},$runCfg")
-    val perfCases = os.walk(defaultPassed / os.up)
+    val perfCases = os.walk(defaultCases / os.up)
       .filter(f => f.last == "perf-cases.txt")
       .flatMap(f => {
         val Seq(_, runCfg, config) = file.segments.toSeq.reverse.slice(0, 3)
@@ -108,7 +114,7 @@ def postPrMatrixJson(
 
     (all.toSet -- exists.toSet ++ perfCases).toSeq
   })
-  println(toMatrixJson(buckets(unpassedTests, bucketSize)))
+  println(toMatrixJson(buckets(unpassedCases, bucketSize)))
 }
 
 // Find the perf.txt file for tests specified in the .github/passed/*/*/perf-cases.txt file,
@@ -153,7 +159,7 @@ def writeCycleUpdates(job: String, testRunDir: os.Path, resultDir: os.Path) = {
   val isEmulatorTask = raw"([^,]+),([^,]+),([^,]+)".r
   job match {
     case isEmulatorTask(e, t, r) => {
-      val passedFile = os.pwd / os.RelPath(s".github/passed/$e/$r/passed.json")
+      val passedFile = os.pwd / os.RelPath(s".github/cases/$e/$r/default.json")
       val original = ujson.read(os.read(passedFile))
 
       val perfCycleRegex = raw"total_cycles:\s(\d+)".r
@@ -213,14 +219,16 @@ def runTests(jobs: String, resultDir: Option[os.Path]) = {
   val failed = totalJobs.zipWithIndex.foldLeft(Seq[String]()) {
     case(failed, (job, i)) => {
       val Array(config, caseName, runCfg) = job.split(",")
-      System.err.println(s"[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg")
+      System.err.println(s"\n\n\n[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg")
       val handle = os
         .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--no-console-log", "--base-out-dir", testRunDir, caseName)
-        .call(check=false, stdout=os.Path("/dev/null"), stderr=os.Path("/dev/null"))
+        .call(check=false, stdout=os.Path("/dev/null"))
       if (handle.exitCode != 0) {
         val outDir = testRunDir / config / caseName / runCfg
         System.err.println(s"Test case $job failed")
         os.proc("tail", "-n", "100", outDir / "emulator.log").call(stdout=actualResultDir / "failed-logs" / s"$job.log")
+        System.err.println(s"Last 10 lines of error log:")
+        os.proc("tail", "-n", "10", actualResultDir / "failed-logs" / s"$job.log").call()
         failed :+ job
       } else {
         writeCycleUpdates(job, testRunDir, actualResultDir)
@@ -285,7 +293,7 @@ def mergeCycleData() = {
     case(name, data) => {
       val Array(config, runConfig) = name.split(",")
       os.write.over(
-        os.pwd / os.RelPath(s".github/passed/$config/$runConfig/passed.json"),
+        os.pwd / os.RelPath(s".github/cases/$config/$runConfig/default.json"),
         ujson.write(data, indent = 2)
       )
     }

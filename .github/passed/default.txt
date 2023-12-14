@@ -1,2 +1,0 @@
-v1024-l8-b2/debug/passed.json
-v1024-l8-b2-fp/debug/passed.json
