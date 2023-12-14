@@ -864,7 +864,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     vrf.write <> maskedWriteUnit.dequeue
     readBeforeMaskedWrite <> maskedWriteUnit.vrfReadRequest
     writeQueueValid := maskedWriteUnit.enqueue.valid || maskedWriteUnit.dequeue.valid ||
-      topWriteQueue.valid || vrfWriteChannel.valid
+      topWriteQueue.valid || vrfWriteChannel.valid ||
+      crossLaneWriteQueue.io.deq.valid || crossLaneWriteQueue.io.enq.valid
 
     //更新v0
     v0Update.valid := vrf.write.valid && vrf.write.bits.vd === 0.U
