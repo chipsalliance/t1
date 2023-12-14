@@ -163,7 +163,7 @@ jobs:
 
   build-fail-wave:
     name: "Generate wave for failing tests"
-    needs: [build-trace-emulator, gen-fail-wave-matrix]
+    needs: [build-emulators, gen-fail-wave-matrix]
     if: ${{ always() && needs.gen-fail-wave-matrix.outputs.generate_wave == 'true'  }}
     strategy:
       fail-fast: false
