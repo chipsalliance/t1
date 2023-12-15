@@ -64,6 +64,7 @@ class LaneFloatRequest(datapathWidth: Int) extends Bundle{
   val floatMul = Bool()
   val roundingMode = UInt(3.W)
   val executeIndex: UInt = UInt(2.W)
+  val tag: UInt = UInt(2.W)
 }
 
 class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
@@ -71,11 +72,12 @@ class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
   val adderMaskResp: Bool = Bool()
   val exceptionFlags = UInt(5.W)
   val executeIndex: UInt = UInt(2.W)
+  val tag: UInt = UInt(2.W)
 }
 
 class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with SerializableModule[LaneFloatParam]{
   val response: LaneFloatResponse = Wire(new LaneFloatResponse(parameter.datapathWidth))
-  val request : LaneFloatRequest  = connectIO(response).asTypeOf(parameter.inputBundle)
+  val request : LaneFloatRequest  = connectIO(response, true.B).asTypeOf(parameter.inputBundle)
 
   val recIn0 = recFNFromFN(8, 24, request.src(0))
   val recIn1 = recFNFromFN(8, 24, request.src(1))
@@ -84,22 +86,14 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val raw1   = rawFloatFromRecFN(8, 24, recIn1)
 
   val uop = request.opcode
-  val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestIO.fire)
 
   val unitSeleOH = UIntToOH(request.unitSelet)
   val fmaEn     = unitSeleOH(0)
   val compareEn = unitSeleOH(2)
   val otherEn   = unitSeleOH(3)
 
-  /** All instructions responds in next cycle */
-  val floatValid = RegNext(requestIO.fire, false.B)
-
-  val resultNext = Wire(UInt(32.W))
-  val flagsNext  = Wire(UInt(5.W))
-  val resultOutput = RegNext(resultNext)
-  val flagsOutput  = RegNext(flagsNext)
-
-  response.executeIndex := indexReg
+  val result = Wire(UInt(32.W))
+  val flags  = Wire(UInt(5.W))
 
   /** Vector Single-Width Floating-Point Add/Subtract/Multiply/Floating-Point Fused Multiply-Add Instructions
     *
@@ -251,22 +245,23 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     Mux(rsqrt7En,rsqrt7Module.out.exceptionFlags, convertFlags))
 
   /** collect results */
-  resultNext := Mux1H(Seq(
+  result := Mux1H(Seq(
     unitSeleOH(0) -> fmaResult,
     unitSeleOH(2) -> compareResult,
     unitSeleOH(3) -> otherResult
   ))//todo: cannot select div output
 
-  flagsNext := Mux1H(Seq(
+  flags := Mux1H(Seq(
     unitSeleOH(0) -> mulAddRecFN.io.exceptionFlags,
     unitSeleOH(2) -> compareFlags,
     unitSeleOH(3) -> otherFlags
   ))
 
-  response.adderMaskResp := resultOutput(0)
-  response.data := resultOutput
-  response.exceptionFlags := flagsOutput
+  response.adderMaskResp := result(0)
+  response.data := result
+  response.exceptionFlags := flags
+  response.executeIndex := request.executeIndex
+  response.tag := request.tag
   requestIO.ready := true.B
-  responseIO.valid := floatValid
 }
 

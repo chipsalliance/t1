@@ -17,6 +17,7 @@ trait VFUParameter {
   val outputBundle: Bundle
   val singleCycle: Boolean = true
   val NeedSplit: Boolean = false
+  val latency: Int = 0
 }
 
 abstract class VFUModule(p: VFUParameter) extends Module {
@@ -28,8 +29,15 @@ abstract class VFUModule(p: VFUParameter) extends Module {
     responseIO.valid := requestIO.valid
   }
 
-  def connectIO(response: Data): Data = {
-    responseIO.bits := response.asTypeOf(responseIO.bits)
+  def connectIO(response: Data, responseValid: Bool = true.B): Data = {
+    if (p.singleCycle) {
+      responseIO.bits := response.asTypeOf(responseIO.bits)
+    } else {
+      // todo: Confirm the function of 'Pipe'
+      val pipeResponse: ValidIO[Bundle] = Pipe(responseValid, response.asTypeOf(responseIO.bits), p.latency)
+      responseIO.valid := pipeResponse.valid
+      responseIO.bits := pipeResponse.bits
+    }
     requestIO.bits
   }
 }
