@@ -176,8 +176,10 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val portFireCount: UInt = PopCount(VecInit(readRequests.map(_.fire) :+ write.fire))
   dontTouch(portFireCount)
 
+  // Add one more record slot to prevent there is no free slot when the instruction comes in
+  // (the slot will die a few cycles later than the instruction)
   val chainingRecord: Vec[ValidIO[VRFWriteReport]] = RegInit(
-    VecInit(Seq.fill(parameter.chainingSize)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
+    VecInit(Seq.fill(parameter.chainingSize + 1)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
   )
   val recordValidVec: Seq[Bool] = chainingRecord.map(r => !r.bits.elementMask.andR && r.valid)
 
@@ -248,15 +250,15 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   initRecord.bits := instructionWriteReport.bits
   val freeRecord: UInt = VecInit(chainingRecord.map(!_.valid)).asUInt
   val recordFFO:  UInt = ffo(freeRecord)
-  val recordEnq:  UInt = Wire(UInt(parameter.chainingSize.W))
+  val recordEnq:  UInt = Wire(UInt((parameter.chainingSize + 1).W))
   // handle VRF hazard
   // TODO: move to [[V]]
   instructionWriteReport.ready := true.B
   recordEnq := Mux(
     // 纯粹的lsu指令的记录不需要ready
-    instructionWriteReport.valid && (instructionWriteReport.ready || lsuInstructionFire),
+    instructionWriteReport.valid,
     recordFFO,
-    0.U(parameter.chainingSize.W)
+    0.U((parameter.chainingSize + 1).W)
   )
 
   val writePort: Seq[DecoupledIO[VRFWriteRequest]] = Seq(write)
