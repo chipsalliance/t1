@@ -39,7 +39,7 @@ class BucketBuffer() {
 // @param bucketSize Specify the size of the output Seq
 def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
   val init = Seq[(String, Int)]()
-  val cycleData = allTasksFile.flatMap (file => {
+  val allCycleData = allTasksFile.flatMap (file => {
       System.err.println(s"Generate tests from file: $file")
       val Seq(_, runCfg, config) = file.segments.toSeq.reverse.slice(0, 3)
       ujson
@@ -52,12 +52,21 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
   })
   // Initialize a list of buckets
   val cargo = (0 until bucketSize).map(_ => new BucketBuffer())
-  cycleData
+  // _2 is the cycle number
+  val (unProcessedData, normalData) = allCycleData.partition(_._2 == 0)
+  // Group tests that have cycle data into subset by their cycle size
+  normalData
     .sortBy(_._2)(Ordering[Int].reverse)
     .foreach(elem => {
       val (testName, cycle) = elem;
       cargo.minBy(_.total_cycles).push_back(testName, cycle)
     })
+  // For unprocessed data, just split them into subset that have equal size
+  cargo.zipWithIndex.foreach { case(buffer, i) =>
+    val startIdx = i * bucketSize
+    val endIdx = math.min((i + 1) * bucketSize, unProcessedData.length)
+    unProcessedData.slice(startIdx, endIdx).foreach { case(name, cycle) => buffer.push_back(name, cycle) }
+  }
   cargo.map(_.mkString).toSeq
 }
 
@@ -258,7 +267,7 @@ def runFailedTests(jobs: String) = {
   val totalJobs = jobs.split(";")
   val failed = totalJobs.zipWithIndex.foreach { case (job, i) => {
     val Array(config, caseName, runCfg) = job.split(",")
-    System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $actualConfig,$caseName,$runCfg")
+    System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $config,$caseName,$runCfg")
     val handle = os
       .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--trace", "--no-console-log", "--base-out-dir", testRunDir, caseName)
       .call(check=false)
