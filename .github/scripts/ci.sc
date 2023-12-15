@@ -230,14 +230,11 @@ def runTests(jobs: String, resultDir: Option[os.Path]) = {
       val Array(config, caseName, runCfg) = job.split(",")
       System.err.println(s"[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg \n\n\n")
       val handle = os
-        .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--no-console-log", "--base-out-dir", testRunDir, caseName)
+        .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--no-log", "--base-out-dir", testRunDir, caseName)
         .call(check=false, stdout=os.Path("/dev/null"))
       if (handle.exitCode != 0) {
         val outDir = testRunDir / config / caseName / runCfg
         System.err.println(s"Test case $job failed")
-        os.proc("tail", "-n", "100", outDir / "emulator.log").call(stdout=actualResultDir / "failed-logs" / s"$job.log")
-        System.err.println(s"Last 10 lines of error log:")
-        os.proc("tail", "-n", "10", actualResultDir / "failed-logs" / s"$job.log").call()
         failed :+ job
       } else {
         writeCycleUpdates(job, testRunDir, actualResultDir)
@@ -269,7 +266,7 @@ def runFailedTests(jobs: String) = {
     val Array(config, caseName, runCfg) = job.split(",")
     System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $config,$caseName,$runCfg")
     val handle = os
-      .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--trace", "--no-console-log", "--base-out-dir", testRunDir, caseName)
+      .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--trace", "--no-log", "--base-out-dir", testRunDir, caseName)
       .call(check=false)
   }}
 }
