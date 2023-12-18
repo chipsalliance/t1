@@ -1332,8 +1332,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
   lsu.maskInput.zip(lsu.maskSelect).foreach { case (data, index) => data := v0(index) }
   lsu.csrInterface := requestReg.bits.csr
-  lsu.writeReadyForLsu := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
-  lsu.vrfReadyToStore := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
 
   // 连lane的环
   laneVec.map(_.readBusPort).foldLeft(laneVec.last.readBusPort) {

@@ -226,8 +226,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val writeCount: UInt =
     IO(Input(UInt((parameter.vlMaxBits - log2Ceil(parameter.laneNumber) - log2Ceil(parameter.dataPathByteWidth)).W)))
   val writeQueueValid: Bool = IO(Output(Bool()))
-  val writeReadyForLsu: Bool = IO(Output(Bool()))
-  val vrfReadyToStore: Bool = IO(Output(Bool()))
 
   // TODO: remove
   dontTouch(writeBusPort)
@@ -1094,8 +1092,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       Mux(topWriteQueue.valid, indexToOH(topWriteQueue.bits.instructionIndex, parameter.chainingSize), 0.U) |
       maskedWriteUnit.maskedWrite1H
   instructionFinished := instructionFinishedVec.reduce(_ | _)
-  writeReadyForLsu := vrf.writeReadyForLsu
-  vrfReadyToStore := vrf.vrfReadyToStore
   vrf.lsuWriteCheck.vd := topWriteQueue.bits.vd
   vrf.lsuWriteCheck.offset := topWriteQueue.bits.offset
   vrf.lsuWriteCheck.instructionIndex := topWriteQueue.bits.instructionIndex

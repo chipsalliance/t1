@@ -34,7 +34,6 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
    * see [[LSU.vrfReadResults]]
    */
   val vrfReadResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
-  val vrfReadyToStore: Bool = IO(Input(Bool()))
 
   // stage 0, 处理 vl, mask ...
   val changeReadGroup: Bool = Wire(Bool())
@@ -67,14 +66,13 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   // stage1, 读vrf
   val readStageValid: Bool = RegInit(false.B)
-  val hazardCheck: Bool = RegEnable(vrfReadyToStore && !lsuRequest.valid, false.B, lsuRequest.valid || vrfReadyToStore)
   val readData: Vec[UInt] = RegInit(VecInit(Seq.fill(param.laneNumber)(0.U(param.datapathWidth.W))))
   val readMask: UInt = RegInit(0.U(param.maskGroupWidth.W))
   val tailLeft1: Bool = RegInit(false.B)
   // 从vrf里面读数据
   Seq.tabulate(param.laneNumber) { laneIndex =>
     val readPort: DecoupledIO[VRFReadRequest] = vrfReadDataPorts(laneIndex)
-    readPort.valid := accessState(laneIndex) && readStageValid && hazardCheck
+    readPort.valid := accessState(laneIndex) && readStageValid
     readPort.bits.vs :=
       lsuRequestReg.instructionInformation.vs3 +
         accessPtr * segmentInstructionIndexInterval +
@@ -310,7 +308,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   })
 
   val vrfReadyToStoreProbe = IO(Output(Probe(Bool())))
-  define(vrfReadyToStoreProbe, ProbeValue(vrfReadyToStore))
+  define(vrfReadyToStoreProbe, ProbeValue(true.B))
 
   val alignedDequeueValidProbe = IO(Output(Probe(Bool())))
   define(alignedDequeueValidProbe, ProbeValue(alignedDequeue.valid))
