@@ -54,7 +54,7 @@ jobs:
         name: "Run testcases"
         run: |
           nix shell '.#ammonite' -c .github/scripts/ci.sc runTests --jobs "${{ matrix.jobs }}" \
-            --resultDir test-results-$(head -c 10 /dev/urandom | base32)
+            --resultDir test-results-$(head -c 10 /dev/urandom | base32) --dontBail true
           nix shell '.#ammonite' -c .github/scripts/ci.sc convertPerfToMD
 
       - uses: actions/upload-artifact@v3
@@ -74,7 +74,7 @@ jobs:
 
   report:
     name: "Report CI result"
-    if: github.event.pull_request.merged == true
+    if: always() && github.event.pull_request.merged == true
     needs: [run-testcases]
     runs-on: [self-hosted, linux]
     steps:
