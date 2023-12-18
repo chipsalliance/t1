@@ -50,9 +50,9 @@ stdenvNoCC.mkDerivation ({
     jq --null-input \
       --arg name ${caseName} \
       --arg type intrinsic \
-      --arg xLen ${toString xLen} \
-      --arg vLen ${toString vLen} \
-      --arg fp '${if fp then "true" else "false"}' \
+      --argjson xLen ${toString xLen} \
+      --argjson vLen ${toString vLen} \
+      --argjson fp '${if fp then "true" else "false"}' \
       --arg elfPath "$out/bin/$name.elf" \
       '{ "name": $name, "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
       > $out/$name.json
