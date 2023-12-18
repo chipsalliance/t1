@@ -56,3 +56,7 @@ vmflt.vf
 vmflt.vv
 vmfne.vf
 vmfne.vv
+vfredosum.vs
+vfredusum.vs
+vfredmax.vs
+vfredmin.vs
