@@ -183,7 +183,7 @@ jobs:
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
       - name: "Run failed testcases"
         run: |
-          nix shell ".#amm" -c .github/scripts/ci.sc runFailedTests --jobs "${{ matrix.job }}"
+          nix shell ".#ammonite" -c .github/scripts/ci.sc runFailedTests --jobs "${{ matrix.job }}"
           waveFile=$(find testrun -name 'wave.fst')
           hierFile=$(find testrun -name 'wave.hier')
           if [[ -z "$waveFile" || -n "$hierFile" ]]; then  # when emulator failed, .hier is not merged into .fst
