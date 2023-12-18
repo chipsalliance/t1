@@ -53,7 +53,7 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
   // Initialize a list of buckets
   val cargo = (0 until bucketSize).map(_ => new BucketBuffer())
   // _2 is the cycle number
-  val (unProcessedData, normalData) = allCycleData.partition(_._2 == 0)
+  val (unProcessedData, normalData) = allCycleData.partition(_._2 <= 0)
   // Group tests that have cycle data into subset by their cycle size
   normalData
     .sortBy(_._2)(Ordering[Int].reverse)
