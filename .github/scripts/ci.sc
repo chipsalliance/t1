@@ -98,45 +98,48 @@ def generateCiMatrix(
 // Resolve all the executable test and filter out unpassed tests, appending perf testcases
 @main
 def postPrMatrixJson(
-  bucketSize: Int,
+  runnersAmount: Int,
 ) = {
   val defaultCases = os.pwd / os.RelPath(".github/cases/default.txt")
-  val caseFile = os.read.lines(defaultCases).map(os.RelPath(_))
-  val unpassedCases = caseFile.flatMap(file => {
-    val Seq(config, runCfg, _) = file.segments.toSeq
-    val configFile = os.pwd / "configs" / s"$config.json"
-    val isFp = ujson.read(os.read(configFile))("parameter")("fpuEnable").bool
+  val caseFiles = os.read.lines(defaultCases).map(os.RelPath(_))
+  val unpassedCases = caseFiles.flatMap(file => {
+    val Seq(verilateCfg, runCfg, _) = file.segments.toSeq
+    val configFile = os.pwd / "configs" / s"$verilateCfg.json"
     val exists = ujson.read(os.read(defaultCases / os.up / file))
       .obj.keys
-      .map(caseName => s"$config,$caseName,$runCfg")
-    val all: Seq[String] = os.list(os.Path(sys.env("TEST_CASES_DIR")) / "configs")
-      .filter(f => ujson.read(os.read(f))("fp").bool == isFp)
-      .map(f => s"$config,${f.baseName.toString},$runCfg")
+      .map(caseName => s"$verilateCfg,$caseName,$runCfg")
+    val testCaseDir = os.proc("nix", "build", ".#t1.rvv-testcases.all", "--no-link", "--print-out-paths").call(cwd=os.pwd).out.trim
+    val isFpVerilator = verilateCfg.endsWith("-fp")
+    val all: Seq[String] = os.list(os.Path(testCaseDir) / "configs")
+      // For fp verilator, don't filter tests
+      // For non-fp verilator, filter out fp tests
+      .filter(f => !isFpVerilator && !ujson.read(os.read(f))("fp").bool)
+      .map(f => s"$verilateCfg,${f.baseName.toString},$runCfg")
     val perfCases = os.walk(defaultCases / os.up)
       .filter(f => f.last == "perf-cases.txt")
       .flatMap(f => {
-        val Seq(_, runCfg, config) = file.segments.toSeq.reverse.slice(0, 3)
-        os.read.lines(f).filter(_.length > 0).map (caseName => 
-          s"$config,$caseName,$runCfg"
+        val Seq(_, runCfg, verilateCfg) = file.segments.toSeq.reverse.slice(0, 3)
+        os.read.lines(f).filter(_.length > 0).map (caseName =>
+          s"$verilateCfg,$caseName,$runCfg"
         )
       })
 
     (all.toSet -- exists.toSet ++ perfCases).toSeq
   })
-  println(toMatrixJson(buckets(unpassedCases, bucketSize)))
+  println(toMatrixJson(buckets(unpassedCases, runnersAmount)))
 }
 
 // Find the perf.txt file for tests specified in the .github/passed/*/*/perf-cases.txt file,
 // and convert them into markdown format.
 @main
 def convertPerfToMD() = os
-  .walk(os.pwd / ".github" / "passed")
+  .walk(os.pwd / ".github" / "cases")
   .filter(_.last == "perf-cases.txt")
   .foreach(p => {
     val testRunDir = os.pwd / "testrun"
     val perfCases = os.read.lines(p).filter(_.length > 0)
     val Seq(config, runCfg, _) =
-      p.relativeTo(os.pwd / ".github" / "passed").segments.toSeq
+      p.relativeTo(os.pwd / ".github" / "cases").segments.toSeq
     val existPerfFile = perfCases
       .filter {testcase =>
         val path = testRunDir / os.RelPath(
@@ -228,7 +231,7 @@ def runTests(jobs: String, resultDir: Option[os.Path]) = {
   val failed = totalJobs.zipWithIndex.foldLeft(Seq[String]()) {
     case(failed, (job, i)) => {
       val Array(config, caseName, runCfg) = job.split(",")
-      System.err.println(s"[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg \n\n\n")
+      System.err.println(s"\n\n\n>>>[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg")
       val handle = os
         .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--no-log", "--base-out-dir", testRunDir, caseName)
         .call(check=false, stdout=os.Path("/dev/null"))

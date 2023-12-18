@@ -28,7 +28,7 @@ jobs:
         name: "Generate matrix"  # TODO: why unpassed testcases corresponds to perf testcases
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix shell '.#ammonite' -c .github/scripts/ci.sc postPrMatrixJson --bucketSize "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix shell '.#ammonite' -c .github/scripts/ci.sc postPrMatrixJson --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
     name: "Run unpassed and perf testcases"
