@@ -131,6 +131,9 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
 
   /** CompareModule
     *
+    * perform a signaling comparing in IEEE-754 for LE,LT,GT,GE
+    *
+    * UOP
     * {{{
     * 0001 EQ
     * 0000 NQ
@@ -142,13 +145,15 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * 1000 min
     * 1100 max
     * }}}
+    *
+    *
     */
   val compareModule = Module(new CompareRecFN(8, 24))
   compareModule.io.a := recIn1
   compareModule.io.b := recIn0
-  compareModule.io.signaling := false.B
+  compareModule.io.signaling := uop(3,1) === "b001".U || uop(3,1) === "b010".U
   val compareResult = Wire(UInt(32.W))
-  val compareFlags = Wire(UInt(5.W))
+  val compareFlags  = Wire(UInt(5.W))
   val oneNaN = raw0.isNaN ^  raw1.isNaN
   val compareNaN = Mux(oneNaN,
     Mux(raw0.isNaN, request.src(1), request.src(0)),
