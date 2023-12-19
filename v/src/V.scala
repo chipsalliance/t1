@@ -1095,14 +1095,13 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             dataResult.bits := aluOutPut
             if (parameter.fpuEnable) {
               when(!orderedReduceIdle.get) {
-                when(isLastExecuteForGroup) {
+                when(lastExecuteForInstruction.get) {
+                  orderedReduceIdle.get := true.B
+                }.elsewhen(isLastExecuteForGroup) {
                   synchronized := true.B
                   executeCounter := 0.U
                   dataClear := true.B
                   orderedReduceGroupCount.foreach(d => d := d + 1.U)
-                }
-                when(lastExecuteForInstruction.get) {
-                  orderedReduceIdle.get := true.B
                 }
               }
             }
