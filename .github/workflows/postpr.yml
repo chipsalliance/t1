@@ -17,13 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v22
-      - run: sudo -E .github/setup-actions.sh
-        env:
-          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
-          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
-          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-          ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
-          ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      - name: "Recover Cache"
+        run: nix-store --dump-db --store /mnt | nix-store --load-db
       - id: ci-tests
         name: "Generate matrix"  # TODO: why unpassed testcases corresponds to perf testcases
         run: |
@@ -43,13 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v22
-      - run: sudo -E .github/setup-actions.sh
-        env:
-          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
-          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
-          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-          ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
-          ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      - name: "Recover Cache"
+        run: nix-store --dump-db --store /mnt | nix-store --load-db
       - id: ci-run
         name: "Run testcases"
         run: |

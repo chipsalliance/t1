@@ -18,19 +18,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - run: sudo -E .github/setup-actions.sh
-        env:
-          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
-          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
-          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-          ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
-          ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
-      - name: "Build Emulator and testcases"
-        run: |
-          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
-          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' --no-link
-          # Build all test cases before tests started.
-          nix build ".#t1.rvv-testcases.all" --max-jobs auto --no-link
+      - name: "Recover Cache"
+        run: nix-store --dump-db --store /mnt | nix-store --load-db
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
@@ -39,20 +28,21 @@ jobs:
 
   build-emulators:
     name: "Build trace emulator"
-    runs-on: [self-hosted, linux, 7940HS]
+    runs-on: [self-hosted, linux, nixos, "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics"]
+    needs: [gen-matrix]
     env:
       RUNNERS: 16
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - run: sudo -E .github/setup-actions.sh
-        env:
-          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
-          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
-          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-          ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
-          ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      - name: "Recover Cache"
+        run: nix-store --dump-db --store /mnt | nix-store --load-db
+      # build verilator emulator first, so that every developer can download new cache from latest commit.
+      - name: "Build verilator emulator"
+        run: |
+          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
+          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' --no-link
       - name: "Build verilator emulator with trace"
         run: |
           nix build '.#t1.v1024-l8-b2.verilator-emulator-trace' --no-link
@@ -65,13 +55,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - run: sudo -E .github/setup-actions.sh
-        env:
-          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
-          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
-          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-          ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
-          ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      - name: "Recover Cache"
+        run: nix-store --dump-db --store /mnt | nix-store --load-db
       - name: "Test elaborate"
         run: |
           set -e
@@ -95,13 +80,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - run: sudo -E .github/setup-actions.sh
-        env:
-          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
-          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
-          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-          ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
-          ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      - name: "Recover Cache"
+        run: nix-store --dump-db --store /mnt | nix-store --load-db
       - name: "Run testcases"
         id: ci-run
         run: |
@@ -168,13 +148,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - run: sudo -E .github/setup-actions.sh
-        env:
-          AWS_CREDENTIALS: ${{secrets.AWS_CREDENTIALS}}
-          CACHE_PRIV_KEY: ${{secrets.CACHE_PRIV_KEY}}
-          CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
-          ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
-          ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      - name: "Recover Cache"
+        run: nix-store --dump-db --store /mnt | nix-store --load-db
       - name: "Run failed testcases"
         run: |
           nix shell ".#ammonite" -c .github/scripts/ci.sc runFailedTests --jobs "${{ matrix.job }}"
