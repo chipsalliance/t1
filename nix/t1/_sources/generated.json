@@ -1,7 +1,7 @@
 {
     "arithmetic": {
         "cargoLocks": null,
-        "date": "2023-11-06",
+        "date": "2023-12-08",
         "extract": null,
         "name": "arithmetic",
         "passthru": null,
@@ -13,11 +13,11 @@
             "name": null,
             "owner": "sequencer",
             "repo": "arithmetic",
-            "rev": "2685fb7ec6dc7cca7ee3808377d841d19a9d2ced",
-            "sha256": "sha256-hF9sqbVtlJeACHFUF2B14CdazQfu0LTW1RM8J0tdybE=",
+            "rev": "dd9bd585a8d444399eb5a31d088567e0ef56f43a",
+            "sha256": "sha256-PquHsdyKbN/xKV4UhtTmBAVic2PwiUPvw50oZKUN08I=",
             "type": "github"
         },
-        "version": "2685fb7ec6dc7cca7ee3808377d841d19a9d2ced"
+        "version": "dd9bd585a8d444399eb5a31d088567e0ef56f43a"
     },
     "berkeley-hardfloat": {
         "cargoLocks": null,
@@ -61,7 +61,7 @@
     },
     "chisel": {
         "cargoLocks": null,
-        "date": "2023-12-01",
+        "date": "2023-12-19",
         "extract": null,
         "name": "chisel",
         "passthru": null,
@@ -73,11 +73,11 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "chisel",
-            "rev": "03587c2eeb6527e2797423584999c0307543a54f",
-            "sha256": "sha256-AEqC2yNzeHRtMFjB0igfgnErEvZkZRB44b5NN1W4ih4=",
+            "rev": "efe9646f422178f7deb12a976ee89842fa8a5ccf",
+            "sha256": "sha256-0eMlw6Kdnd2oKxoczAjopEm+17o3iZ3+fNQkVGprIFg=",
             "type": "github"
         },
-        "version": "03587c2eeb6527e2797423584999c0307543a54f"
+        "version": "efe9646f422178f7deb12a976ee89842fa8a5ccf"
     },
     "riscv-opcodes": {
         "cargoLocks": null,
