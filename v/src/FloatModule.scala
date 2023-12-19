@@ -28,6 +28,8 @@ class FloatAdder(expWidth: Int, sigWidth:Int) extends Module {
   *
   * isMax = true  => max
   * isMax = false => min
+  *
+  * perform a quiet comparing in IEEE-754
   */
 class FloatCompare(expWidth: Int, sigWidth:Int) extends Module {
   val io = IO(new Bundle {
@@ -38,12 +40,27 @@ class FloatCompare(expWidth: Int, sigWidth:Int) extends Module {
     val exceptionFlags = Output(UInt(5.W))
   })
 
+  val rec0 = recFNFromFN(expWidth, sigWidth, io.a)
+  val rec1 = recFNFromFN(expWidth, sigWidth, io.b)
+
+  val raw0 = rawFloatFromRecFN(8, 24, rec0)
+  val raw1 = rawFloatFromRecFN(8, 24, rec1)
+
   val compareModule = Module(new CompareRecFN(8, 24))
-  compareModule.io.a := io.a
-  compareModule.io.b := io.b
+  compareModule.io.a := rec0
+  compareModule.io.b := rec1
   compareModule.io.signaling := false.B
 
-  io.out := Mux((io.isMax && compareModule.io.gt) || (!io.isMax && compareModule.io.lt), io.a, io.b)
+  val oneNaN = raw0.isNaN ^ raw1.isNaN
+  val hasNaNResult = Mux(oneNaN,
+    Mux(raw0.isNaN, io.b, io.a),
+    "x7fc00000".U
+  )
+  val hasNaN = raw0.isNaN || raw1.isNaN
+
+  val noNaNResult = Mux((io.isMax && compareModule.io.gt) || (!io.isMax && compareModule.io.lt), io.a, io.b)
+
+  io.out := Mux(hasNaN, hasNaNResult, noNaNResult)
   io.exceptionFlags := compareModule.io.exceptionFlags
 }
 
