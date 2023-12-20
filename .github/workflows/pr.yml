@@ -26,12 +26,16 @@ jobs:
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
           ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
+      - name: "Build Emulator and testcases"
+        run: |
+          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
+          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' --no-link
+          # Build all test cases before tests started.
+          nix build ".#t1.rvv-testcases.all" --max-jobs auto --no-link
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          # Build all test cases before tests started.
-          nix build ".#t1.rvv-testcases.all" --max-jobs auto --no-link
           nix shell ".#ammonite" -c .github/scripts/ci.sc generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   build-emulators:
@@ -51,11 +55,6 @@ jobs:
           CACHE_DOMAIN: ${{secrets.CACHE_DOMAIN}}
           ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY: ${{secrets.ROCKETCHIP_NIX_REMOTE_SSH_PRIVKEY}}
           ROCKETCHIP_NIX_REMOTE_HOST: ${{secrets.ROCKETCHIP_NIX_REMOTE_HOST}}
-      # build verilator emulator first, so that every developer can download new cache from latest commit.
-      - name: "Build verilator emulator"
-        run: |
-          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
-          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' --no-link
       - name: "Build verilator emulator with trace"
         run: |
           nix build '.#t1.v1024-l8-b2.verilator-emulator-trace' --no-link
@@ -88,7 +87,7 @@ jobs:
 
   run-testcases:
     name: "Run testcases"
-    needs: [gen-matrix, build-emulators]
+    needs: [gen-matrix]
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
