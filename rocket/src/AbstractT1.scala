@@ -205,10 +205,10 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
       val rdIsZero = deqInst(11, 7) === 0.U
       // set vl
       val setVL = Mux1H(Seq(
-        (vsetvli || (vsetvl && !rs1IsZero)) ->
+        ((vsetvli || vsetvl) && !rs1IsZero) ->
           Mux(queue.io.deq.bits.rs1Data > vlMax.U, vlMax.U, queue.io.deq.bits.rs1Data),
-        (vsetvl && rs1IsZero && !rdIsZero) -> vlMax.U,
-        (vsetvl && rs1IsZero && rdIsZero) -> csrReg.vl,
+        ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vlMax.U,
+        ((vsetvli || vsetvl) && rs1IsZero && rdIsZero) -> csrReg.vl,
         vsetivli -> deqInst(19, 15)
       ))
       // todo: vxrm
