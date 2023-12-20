@@ -1,13 +1,14 @@
-{ lib, jq, stdenvNoCC, rvv-codegen, rv32-clang, llvmForDev }:
+{ lib, jq, stdenv, rvv-codegen }:
 
-{ caseName, xLen ? 32, vLen ? 1024, fp ? false, compileFlags ? [ ], ... }@inputs:
-stdenvNoCC.mkDerivation ({
+{ caseName, xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
+stdenv.mkDerivation (rec {
   name = "${caseName}-codegen";
+
   dontUnpack = true;
 
-  nativeBuildInputs = [ jq rvv-codegen rv32-clang llvmForDev.bintools ];
+  nativeBuildInputs = [ jq rvv-codegen ];
 
-  compileFlags = [
+  NIX_CFLAGS_COMPILE = [
     "-mabi=ilp32f"
     "-march=rv32gcv"
     "-mno-relax"
@@ -25,10 +26,10 @@ stdenvNoCC.mkDerivation ({
     single \
       -VLEN ${toString vLen} \
       -XLEN ${toString xLen} \
-      -configfile ${rvv-codegen}/configs/$caseName.toml \
-      -outputfile $caseName.S
+      -configfile ${rvv-codegen}/configs/${caseName}.toml \
+      -outputfile ${caseName}.S
 
-    clang-rv32 $caseName.S $compileFlags -o $name.elf
+    ${stdenv.targetPlatform.config}-cc ${caseName}.S -o ${name}.elf
 
     runHook postBuild
   '';
@@ -37,17 +38,17 @@ stdenvNoCC.mkDerivation ({
     runHook preInstall
 
     mkdir -p $out/bin
-    cp $name.elf $out/bin
+    cp ${name}.elf $out/bin
 
     jq --null-input \
       --arg name ${caseName} \
       --arg type intrinsic \
       --argjson xLen ${toString xLen} \
       --argjson vLen ${toString vLen} \
-      --argjson fp '${if fp then "true" else "false"}' \
-      --arg elfPath "$out/bin/$name.elf" \
-      '{ "name": $name, "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
-      > $out/$name.json
+      --argjson fp ${lib.boolToString fp} \
+      --arg elfPath "$out/bin/${name}.elf" \
+      '{ "name": "${name}", "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
+      > $out/${name}.json
 
     runHook postInstall
   '';
