@@ -50,6 +50,7 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
   def vectorReadRs1: Boolean = isVectorLSU || (instruction.name match {
     // vx type
     case s"v${op}.vx" => true
+    case s"v${op}.v.x" => true
     // set vl
     case s"vsetvl${i}" => true
     case _ => false
