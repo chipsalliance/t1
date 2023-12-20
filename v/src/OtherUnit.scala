@@ -82,7 +82,7 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with
   // v[d - 1]
   val vds1: Bool = (lostMSB & request.src(1)).orR
   // v[d -2 : 0]
-  val vLostLSB: Bool = (roundMask & request.src(1)).orR // TODO: is this WithoutMSB
+  val vLostLSB: Bool = ((roundMask >> 1).asUInt & request.src(1)).orR
   // v[d]
   val vd: Bool = (roundTail & request.src(1)).orR
   // r
@@ -91,7 +91,8 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with
   val roundRemainder = roundResult & clipMaskRemainder
   val roundSignBits = Mux1H(vSewOH(2, 0), Seq(roundResult(7), roundResult(15), roundResult(31)))
   val roundResultOverlap: Bool = roundRemainder.orR && !(request.sign && (roundRemainder | clipMask).andR && roundSignBits)
-  val clipResult = Mux(roundResultOverlap, largestClipResult, roundResult)
+  val differentSign: Bool = request.sign && roundSignBits && !request.src(1)(parameter.datapathWidth - 1)
+  val clipResult = Mux(roundResultOverlap || differentSign, largestClipResult, roundResult)
 
   val indexRes: UInt = ((request.groupIndex ## request.laneIndex ## request.executeIndex) >> request.vSew).asUInt
 

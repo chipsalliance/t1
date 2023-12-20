@@ -46,9 +46,9 @@ class LaneShifter(val parameter: LaneShifterParameter)
   // v[d - 1]
   val vds1: Bool = (lostMSB & shifterSource).orR
   // v[d -2 : 0]
-  val vLostLSB: Bool = (roundMask & shifterSource(1)).orR
+  val vLostLSB: Bool = ((roundMask >> 1).asUInt & shifterSource).orR
   // v[d]
-  val vd: Bool = (roundTail & shifterSource(1)).orR
+  val vd: Bool = (roundTail & shifterSource).orR
   // r
   val roundR: Bool =
     Mux1H(UIntToOH(request.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB))) && request.opcode(2)
