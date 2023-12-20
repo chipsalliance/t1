@@ -11,10 +11,12 @@
 , ninja
 , verilator
 , zlib
+, glog
 
 , rtl
 , config-name
 , do-trace ? false
+, enableDebugging
 }:
 
 stdenv.mkDerivation {
@@ -40,8 +42,9 @@ stdenv.mkDerivation {
     libargs
     spdlog
     fmt
-    libspike
+    (enableDebugging libspike)
     nlohmann_json
+    glog
   ];
 
   meta.mainProgram = "emulator";

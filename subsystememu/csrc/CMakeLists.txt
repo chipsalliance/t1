@@ -4,18 +4,31 @@ set(CMAKE_CXX_STANDARD 17)
 
 message(STATUS "Project '${PROJECT_NAME}' build type: ${CMAKE_BUILD_TYPE}")
 
+find_package(args REQUIRED)
+find_package(spdlog REQUIRED)
+find_package(fmt REQUIRED)
+find_package(libspike REQUIRED)
 find_package(verilator REQUIRED)
+find_package(nlohmann_json REQUIRED)
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(glog REQUIRED)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+
 
 add_executable(emulator
   dpic.cc
+  rtl_config.cc
+  elf.cc
+  spdlog-ext.cc
+  vbridge_impl.cc
+  spike_event.cc
 )
 
 option(VERILATE_TRACE "enable verilator trace" OFF)
 
 target_link_libraries(emulator PUBLIC ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(emulator PUBLIC libspike fmt::fmt spdlog::spdlog nlohmann_json::nlohmann_json glog::glog)
 target_compile_definitions(emulator PRIVATE COSIM_VERILATOR)
 
 # read VERILATE_SRC_DIR from args, else read from environment

@@ -8,11 +8,39 @@
 #include <iostream>
 #include "axi4_mem.hpp"
 
+#include "vbridge_impl.h"
+#include "exceptions.h"
+#include "encoding.h"
+
 #define DPI extern "C"
 #define IN const
 #define OUT
 
 DPI const char* plus_arg_val(IN char* param);
+
+static bool terminated = false;
+
+void sigint_handler(int s) {
+  terminated = true;
+  finish();
+}
+
+#define TRY(action)                                                            \
+  try {                                                                        \
+    if (!terminated) {                                                         \
+      action                                                                   \
+    }                                                                          \
+  } catch (ReturnException & e) {                                              \
+    terminated = true;                                                         \
+    Log("SimulationExit")                                                      \
+        .info("detect returning instruction, gracefully quit simulation");     \
+    svSetScope(svGetScopeFromName("TOP.TestHarness.dpiFinish"));\
+    finish();\
+  }catch (std::runtime_error & e) {                                           \
+    terminated = true;                                                         \
+    svSetScope(svGetScopeFromName("TOP.TestHarness.dpiFinish"));\
+    finish();\
+  }
 
 
 std::string plusarg_read_str(std::string param) {
@@ -31,10 +59,20 @@ DPI void reset_vector(svBitVecVal* resetVector) {
   *resetVector = entry_addr;
 }
 
+void dpi_commit_peek(svBit ll_wen, svBit rf_wen, svBit wb_valid, const svBitVecVal *rf_waddr, const svBitVecVal *rf_wdata,
+              const svBitVecVal *wb_reg_pc, const svBitVecVal *wb_reg_inst) {
+  TRY({
+      vbridge_impl_instance.dpiCommitPeek(
+          ll_wen, rf_wen, wb_valid, *rf_waddr, *rf_wdata, *wb_reg_pc, *wb_reg_inst);
+  })
+
+}
+
 DPI void init_cosim() {
     // read plusarg
     std::string trace_file = plusarg_read_str("trace_file");
     std::string init_file = plusarg_read_str("init_file");
+    std::cout << "Init Cosim";
     // init dumpwave
     if (trace_file != "") {
         svSetScope(svGetScopeFromName("TOP.TestHarness.dpiDumpWave"));
@@ -45,12 +83,30 @@ DPI void init_cosim() {
         svSetScope(svGetScopeFromName("TOP.TestHarness.dpiFinish"));
         finish();
     });
+
+    std::signal(SIGTERM, [](int) {
+      svSetScope(svGetScopeFromName("TOP.TestHarness.dpiFinish"));
+      finish();
+    });
+
     // init memory file
     if (init_file != "") {
         ram.load_binary(init_file.c_str());
         entry_addr = ram.get_entry_addr();
         std::cout << "set reset vector to "<< entry_addr << "\n";
     }
+
+
+    vbridge_impl_instance.dpiInitCosim();
+
+}
+
+void dpi_refill_queue(
+) {
+  TRY({
+    vbridge_impl_instance.dpiRefillQueue();
+  })
+
 }
 
     
