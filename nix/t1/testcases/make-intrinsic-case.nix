@@ -1,7 +1,8 @@
-{ stdenvNoCC, jq, rv32-clang, rv32-newlib, llvmForDev }:
+{ stdenv, jq, lib }:
 
-{ caseName, compileFlags ? [ ], xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
-stdenvNoCC.mkDerivation ({
+{ caseName, xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
+
+stdenv.mkDerivation (rec {
   name = "${caseName}-intrinsic";
 
   unpackPhase = ''
@@ -14,29 +15,23 @@ stdenvNoCC.mkDerivation ({
     fi
   '';
 
-  compileFlags = [
+  NIX_CFLAGS_COMPILE = [
     "-mabi=ilp32f"
     "-march=rv32gcv"
     "-mno-relax"
     "-static"
     "-mcmodel=medany"
     "-fvisibility=hidden"
-    "-nostdlib"
-    "-Wl,--entry=start"
+    # "-nostdlib"
     "-fno-PIC"
-    "-I${rv32-newlib}/${rv32-newlib.passthru.incdir}" # Needed for gnu/stub-32.h
   ];
 
-  nativeBuildInputs = [
-    jq
-    rv32-clang
-    llvmForDev.bintools
-  ];
+  nativeBuildInputs = [ jq ];
 
   buildPhase = ''
     runHook preBuild
 
-    clang-rv32 $compileFlags $srcs -o $name.elf
+    ${stdenv.targetPlatform.config}-cc $srcs -o ${name}.elf
 
     runHook postBuild
   '';
@@ -45,17 +40,17 @@ stdenvNoCC.mkDerivation ({
     runHook preInstall
 
     mkdir -p $out/bin
-    cp $name.elf $out/bin
+    cp ${name}.elf $out/bin
 
     jq --null-input \
       --arg name ${caseName} \
       --arg type intrinsic \
       --argjson xLen ${toString xLen} \
       --argjson vLen ${toString vLen} \
-      --argjson fp '${if fp then "true" else "false"}' \
-      --arg elfPath "$out/bin/$name.elf" \
-      '{ "name": $name, "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
-      > $out/$name.json
+      --argjson fp ${lib.boolToString fp} \
+      --arg elfPath "$out/bin/${name}.elf" \
+      '{ "name": "${name}", "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
+      > $out/${name}.json
 
     runHook postInstall
   '';

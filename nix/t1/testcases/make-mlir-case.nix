@@ -1,4 +1,4 @@
-{ stdenvNoCC, jq, buddy-mlir, rv32-clang, llvmForDev }:
+{ stdenv, lib, jq, buddy-mlir }:
 
 { caseName
 , linkSrcs ? [ ]
@@ -11,15 +11,13 @@
 , fp ? false
 , ...
 }@inputs:
-stdenvNoCC.mkDerivation
-  ({
+stdenv.mkDerivation
+  (rec {
     name = "${caseName}-mlir";
 
     nativeBuildInputs = [
       jq
       buddy-mlir
-      rv32-clang
-      llvmForDev.bintools
     ];
 
     dontUnpack = true;
@@ -48,18 +46,18 @@ stdenvNoCC.mkDerivation
       runHook preBuild
 
       echo "Running buddy-opt with args $buddyOptsArgs"
-      buddy-opt $src $buddyOptArgs -o $name-opt.mlir
+      buddy-opt $src $buddyOptArgs -o ${name}-opt.mlir
 
       echo "Running buddy-translate with args $buddyTranslateArgs"
-      buddy-translate $name-opt.mlir $buddyTranslateArgs -o $name.llvm
+      buddy-translate ${name}-opt.mlir $buddyTranslateArgs -o ${name}.llvm
 
       echo "Running buddy-llc with args $buddyLLCArgs"
-      buddy-llc $name.llvm $buddyLLCArgs --filetype=asm -o $name.S
+      buddy-llc ${name}.llvm $buddyLLCArgs --filetype=asm -o ${name}.S
 
       runHook postBuild
     '';
 
-    compileFlags = [
+    NIX_CFLAGS_COMPILE = [
       "-mabi=ilp32f"
       "-march=rv32gcv"
       "-mno-relax"
@@ -67,30 +65,30 @@ stdenvNoCC.mkDerivation
       "-mcmodel=medany"
       "-fvisibility=hidden"
       "-nostdlib"
-      "-Wl,--entry=start"
       "-fno-PIC"
     ];
 
     # Set final compile and link step at postBuild, so that user can easily override them
     postBuild = ''
-      clang-rv32 $compileFlags $linkSrcs $name.S -o $name.elf
+      ${stdenv.targetPlatform.config}-cc $linkSrcs ${name}.S -o ${name}.elf
     '';
 
     installPhase = ''
       runHook preInstall
 
       mkdir -p $out/bin
-      cp $name.elf $out/bin/
+      cp ${name}.elf $out/bin/
 
+      set -x
       jq --null-input \
         --arg name ${caseName} \
         --arg type intrinsic \
         --argjson xLen ${toString xLen} \
         --argjson vLen ${toString vLen} \
-        --argjson fp '${if fp then "true" else "false"}' \
-        --arg elfPath "$out/bin/$name.elf" \
-        '{ "name": $name, "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
-        > $out/$name.json
+        --argjson fp ${lib.boolToString fp} \
+        --arg elfPath "$out/bin/${name}.elf" \
+        '{ "name": "${name}", "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
+        > $out/${name}.json
 
       runHook preInstall
     '';

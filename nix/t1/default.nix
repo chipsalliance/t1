@@ -1,7 +1,7 @@
 { lib
 , newScope
 
-, llvmForDev
+, rv32-stdenv
 }:
 
 let
@@ -18,10 +18,10 @@ lib.makeScope newScope
     rvv-codegen = self.callPackage ./testcases/rvv-codegen.nix { };
     rvv-testcases-prebuilt = self.callPackage ./testcases/rvv-testcases-prebuilt.nix { };
     testcase-env = {
-      mkMlirCase = self.callPackage ./testcases/make-mlir-case.nix { };
-      mkIntrinsicCase = self.callPackage ./testcases/make-intrinsic-case.nix { };
-      mkAsmCase = self.callPackage ./testcases/make-asm-case.nix { };
-      mkCodegenCase = self.callPackage ./testcases/make-codegen-case.nix { };
+      mkMlirCase = self.callPackage ./testcases/make-mlir-case.nix { stdenv = rv32-stdenv; };
+      mkIntrinsicCase = self.callPackage ./testcases/make-intrinsic-case.nix { stdenv = rv32-stdenv; };
+      mkAsmCase = self.callPackage ./testcases/make-asm-case.nix { stdenv = rv32-stdenv; };
+      mkCodegenCase = self.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
     };
     rvv-testcases = self.callPackage ../../tests { };
   } //
