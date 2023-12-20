@@ -26,7 +26,7 @@ let
       inherit name;
       src = lib'.sourceFilesByPrefixes ./../.. [ "/build.sc" "/common.sc" ];
       nativeBuildInputs = [ submodules.setupHook ];
-      millDepsHash = "sha256-RIA/lgtFEaUxbZTmJaErlWcypDUdBGuK7P9iUMGtIdc=";
+      millDepsHash = "sha256-3ueeJddftivvV5jQtg58sKKwXv0T2vkGxblenYFjrso=";
     };
 
     passthru.editable = self.overrideAttrs (_: {
