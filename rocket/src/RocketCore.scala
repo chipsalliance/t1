@@ -806,7 +806,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         longLatencyWenable,
         longlatencyWdata,
         Mux(
-          wbRegDecodeOutput(decoder.csr) =/= CSR.N,
+          (wbRegDecodeOutput(decoder.csr) =/= CSR.N) || wbRegDecodeOutput(decoder.vectorCSR),
           csr.io.rw.rdata,
           Mux(
             Option.when(usingMulDiv && pipelinedMul)(wbRegDecodeOutput(decoder.mul)).getOrElse(false.B),

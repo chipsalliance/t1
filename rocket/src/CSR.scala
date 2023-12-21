@@ -1130,7 +1130,8 @@ class CSRFile(
     io.value := reg
   }
 
-  io.rw.rdata := Mux1H(for ((k, v) <- read_mapping) yield decoded_addr(k) -> v)
+  val setVlReadData: UInt = Wire(UInt(xLen.W))
+  io.rw.rdata := Mux1H(for ((k, v) <- read_mapping) yield decoded_addr(k) -> v).asUInt | setVlReadData
 
   // cover access to register
   val coverable_counters = read_mapping.filterNot {
@@ -1492,6 +1493,7 @@ class CSRFile(
       ((vsetvli || vsetvl) && io.rs1IsZero.get && io.rdIsZero.get) -> vector.get.states("vl"),
       vsetivli -> io.inst(0)(19, 15)
     ))
+    setVlReadData := Mux(io.retire(0) && io.vectorCsr.getOrElse(false.B), setVL, 0.U)
     when(io.retire(0) && io.vectorCsr.get) {
       vector.get.states("vl") := setVL
       vector.get.states("vlmul") := newVType(2, 0)
@@ -1499,6 +1501,8 @@ class CSRFile(
       vector.get.states("vta") := newVType(6)
       vector.get.states("vma") := newVType(7)
     }
+  } else {
+    setVlReadData := 0.U
   }
   def setCustomCSR(io: CustomCSRIO, csr: CustomCSR, reg: UInt) = {
     val mask = csr.mask.U(xLen.W)
