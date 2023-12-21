@@ -374,6 +374,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
       // format: off
       // TODO: filter out rd
       case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fle.d", "fcvt.w.d", "fcvt.wu.d", "feq.d", "flt.d", "fclass.d", "fmv.x.d", "fcvt.lu.d", "fcvt.l.d", "fclass.s", "fcvt.wu.s", "feq.s", "fle.s", "flt.s", "fmv.x.w", "fcvt.w.s", "fcvt.lu.s", "fcvt.l.s", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hlv.h", "hlv.bu", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "lw", "add", "xor", "andi", "sltiu", "lh", "jalr", "lui", "lbu", "sub", "and", "auipc", "xori", "slti", "slt", "addi", "lb", "jal", "sll", "srli", "srai", "slli", "ld", "addw", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "feq.h", "fcvt.w.h", "fclass.h", "fcvt.wu.h", "fmv.x.h", "flt.h", "fle.h", "fcvt.l.h", "fcvt.lu.h", "csrrc", "csrrci", "csrrs", "csrrw", "csrrsi", "csrrwi", "czero.nez", "czero.eqz").contains(i) => y
+      case i if Seq("vsetvl", "vsetivli", "vsetvli", "vmv.x.s", "vcpop.m", "vfirst.m").contains(i) => y
       case _ => n
       // format: on
     }
