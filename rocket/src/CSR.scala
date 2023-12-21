@@ -280,8 +280,6 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle with HasCoreParameter
   val fiom = Output(Bool())
   val vectorCsr = Option.when(usingVector)(Input(Bool()))
   val wbRegRS2 = Option.when(usingVector)(Input(UInt()))
-  val rs1IsZero = Option.when(usingVector)(Input(Bool()))
-  val rdIsZero = Option.when(usingVector)(Input(Bool()))
 }
 
 /**
@@ -1481,6 +1479,8 @@ class CSRFile(
     val vsetvli = !io.inst(0)(31)
     val vsetivli = io.inst(0)(31, 30).andR
     val vsetvl = io.inst(0)(31) && !io.inst(0)(30)
+    val rs1IsZero = io.inst(0)(19, 15) === 0.U
+    val rdIsZero = io.inst(0)(11, 7) === 0.U
     // v type set
     val newVType = Mux1H(Seq(
       (vsetvli || vsetivli) -> io.inst(0)(27, 20),
@@ -1488,9 +1488,9 @@ class CSRFile(
     ))
     // set vl
     val setVL = Mux1H(Seq(
-      ((vsetvli || vsetvl) && !io.rs1IsZero.get) -> io.rw.wdata,
-      ((vsetvli || vsetvl) && io.rs1IsZero.get && !io.rdIsZero.get) -> vLen.U,
-      ((vsetvli || vsetvl) && io.rs1IsZero.get && io.rdIsZero.get) -> vector.get.states("vl"),
+      ((vsetvli || vsetvl) && !rs1IsZero) -> io.rw.wdata,
+      ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vLen.U,
+      ((vsetvli || vsetvl) && rs1IsZero && rdIsZero) -> vector.get.states("vl"),
       vsetivli -> io.inst(0)(19, 15)
     ))
     setVlReadData := Mux(io.retire(0) && io.vectorCsr.getOrElse(false.B), setVL, 0.U)
