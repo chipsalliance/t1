@@ -17,6 +17,9 @@ import freechips.rocketchip.interrupts.NullIntSyncSource
 class VerdesConfig
   extends Config(
     new Config((site, here, up) => {
+      case SystemBusKey => SystemBusParams(
+        beatBytes = site(XLen)/8,
+        blockBytes = 32)
       case ExtMem => Some(MemoryPortParams(MasterPortParams(
         base = BigInt("0", 16),
         size = BigInt("80000000", 16),
