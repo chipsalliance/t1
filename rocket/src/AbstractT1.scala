@@ -237,9 +237,14 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
       case (c, v) =>
         v := c
     }
-    (core.t1Response.zip(outer.responseSinkNode.map(_.bundle))).foreach {
+    core.t1Response.zip(outer.responseSinkNode.map(_.bundle)).foreach {
       case (c, v) =>
-        c <> v
+        // todo: param entries
+        val vectorCommitQueue = Module(new Queue(chiselTypeOf(v.bits), 16))
+        vectorCommitQueue.io.enq.valid := v.valid
+        vectorCommitQueue.io.enq.bits := v.bits
+        assert(!v.valid || vectorCommitQueue.io.enq.ready, "vector commit queue exploded")
+        c <> vectorCommitQueue.io.deq
     }
     outer.hazardControlSinkNode.map(_.bundle).foreach {
       c =>
