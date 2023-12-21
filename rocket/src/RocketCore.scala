@@ -770,7 +770,9 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val wbSetSboard: Bool =
       wbDcacheMiss ||
         Option.when(usingMulDiv)(wbRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
-        Option.when(usingVector)(wbRegDecodeOutput(decoder.vector)).getOrElse(false.B)
+        Option.when(usingVector){
+          wbRegDecodeOutput(decoder.wxd) && wbRegDecodeOutput(decoder.vector) && !wbRegDecodeOutput(decoder.vectorCSR)
+        }.getOrElse(false.B)
     val replayWbCommon: Bool = dmem.s2_nack || wbRegReplay
     val replayWbCsr:    Bool = wbRegValid && csr.io.rwStall
     val replayWb:       Bool = replayWbCommon || replayWbCsr
