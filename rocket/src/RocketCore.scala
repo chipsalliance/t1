@@ -878,8 +878,6 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     csr.io.rw.wdata := wbRegWdata
     csr.io.vectorCsr.foreach(_ := wbRegDecodeOutput(decoder.vectorCSR))
     csr.io.wbRegRS2.foreach(_ := wbRegRS2)
-    csr.io.rs1IsZero.foreach(_ := !wbRegMemSize(0))
-    csr.io.rdIsZero.foreach(_ := (wbWaddr === 0.U))
 
     bpwatch.zip(wbRegWphit).zip(csr.io.bp)
     bpwatch.lazyZip(wbRegWphit).lazyZip(csr.io.bp).foreach {
@@ -1092,7 +1090,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       t1.bits.rs1Data := wbRegWdata
       t1.bits.rs2Data := wbRegRS2
 
-      val response: ValidIO[VectorResponse] = t1Response.get
+      val response: DecoupledIO[VectorResponse] = t1Response.get
 
       // TODO: make it configurable
       val maxCount: Int = 32
