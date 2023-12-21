@@ -125,7 +125,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   val wfi = IO(Output(Bool()))
   val traceStall = IO(Input(Bool()))
   val t1Request = Option.when(usingVector)(IO(Valid(new VectorRequest(xLen))))
-  val t1Response = Option.when(usingVector)(IO(Flipped(Valid(new VectorResponse(xLen)))))
+  val t1Response = Option.when(usingVector)(IO(Flipped(Decoupled(new VectorResponse(xLen)))))
   // logic for T1
   val t1IssueQueueRelease = Option.when(usingVector)(IO(Input(Bool())))
 
@@ -1121,7 +1121,16 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       vectorLSUEmpty.foreach(_ := lsuEmpty)
       vectorQueueFull.foreach(_ := vectorFull)
     }
-    t1Response.foreach(_ <> DontCare)
+    // todo: vector change csr
+    t1Response.foreach { vectorResponse =>
+      val vectorTryToWriteRd = vectorResponse.bits.rd.valid
+      vectorResponse.ready := !(wbWxd || (dmemResponseReplay && dmemResponseXpu)) || !vectorTryToWriteRd
+      when(vectorResponse.fire && vectorTryToWriteRd) {
+        longlatencyWdata := vectorResponse.bits.data
+        longlatencyWaddress := vectorResponse.bits.rd.bits
+        longLatencyWenable := true.B
+      }
+    }
 
     dmem.req.valid := exRegValid && exRegDecodeOutput(decoder.mem)
     val ex_dcache_tag = Cat(exWaddr, Option.when(usingFPU)(exRegDecodeOutput(decoder.fp)).getOrElse(false.B))
