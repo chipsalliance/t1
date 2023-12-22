@@ -1488,7 +1488,7 @@ class CSRFile(
     ))
     // set vl
     val setVL = Mux1H(Seq(
-      ((vsetvli || vsetvl) && !rs1IsZero) -> io.rw.wdata,
+      ((vsetvli || vsetvl) && !rs1IsZero) -> Mux(io.rw.wdata > vLen.U, vLen.U, io.rw.wdata),
       ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vLen.U,
       ((vsetvli || vsetvl) && rs1IsZero && rdIsZero) -> vector.get.states("vl"),
       vsetivli -> io.inst(0)(19, 15)
