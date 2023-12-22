@@ -493,8 +493,8 @@
   "vfcvt.rtz.x.f.v-codegen": 7970,
   "vfcvt.f.xu.v-codegen": 7970,
   "vfcvt.f.x.v-codegen": 7970,
-  "vfredosum.vs-codegen": 0,
-  "vfredusum.vs-codegen": 0,
-  "vfredmax.vs-codegen": 0,
-  "vfredmin.vs-codegen": 0
+  "vfredosum.vs-codegen": 11518,
+  "vfredusum.vs-codegen": 8278,
+  "vfredmax.vs-codegen": 8278,
+  "vfredmin.vs-codegen": 8278
 }
