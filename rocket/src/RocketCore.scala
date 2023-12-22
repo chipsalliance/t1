@@ -339,7 +339,10 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val idCsrRen:            Bool = idDecodeOutput(decoder.csr).isOneOf(CSR.S, CSR.C) && idExpandedInstruction.rs1 === 0.U
     val idCsr =
       Mux(idSystemInstruction && idDecodeOutput(decoder.mem), CSR.N, Mux(idCsrRen, CSR.R, idDecodeOutput(decoder.csr)))
-    val idCsrFlush = idSystemInstruction || (idCsrEn && !idCsrRen && csr.io.decode(0).writeFlush)
+    val idCsrFlush =
+      idSystemInstruction ||
+        (idCsrEn && !idCsrRen && csr.io.decode(0).writeFlush) ||
+        Option.when(usingVector)(idDecodeOutput(decoder.vectorCSR)).getOrElse(false.B)
     val idRfIllegal: Bool =
       idRaddr2Illegal && idDecodeOutput(decoder.rxs2) ||
         idRaddr1Illegal && idDecodeOutput(decoder.rxs1) ||
