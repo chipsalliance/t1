@@ -81,7 +81,7 @@
         [
           {
             "parameter": {
-              "dataWidth": 32
+              "datapathWidth": 32
             },
             "generator": "v.LaneShifter"
           },

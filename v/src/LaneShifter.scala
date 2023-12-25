@@ -9,17 +9,17 @@ import chisel3.util._
 object LaneShifterParameter {
   implicit def rw: upickle.default.ReadWriter[LaneShifterParameter] = upickle.default.macroRW
 }
-case class LaneShifterParameter(dataWidth: Int) extends VFUParameter with SerializableModuleParameter {
-  val shifterSizeBit: Int = log2Ceil(dataWidth)
+case class LaneShifterParameter(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
+  val shifterSizeBit: Int = log2Ceil(datapathWidth)
   val decodeField: BoolField = Decoder.shift
   val inputBundle = new LaneShifterReq(this)
-  val outputBundle = new LaneShifterResponse(dataWidth)
+  val outputBundle = new LaneShifterResponse(datapathWidth)
   override val NeedSplit: Boolean = true
 }
 
 class LaneShifterReq(param: LaneShifterParameter) extends Bundle {
   // vec(2, n) 是用来与别的vfu module的输入对齐
-  val src:         Vec[UInt] = Vec(2, UInt(param.dataWidth.W))
+  val src:         Vec[UInt] = Vec(2, UInt(param.datapathWidth.W))
   val shifterSize: UInt = UInt(param.shifterSizeBit.W)
   val opcode:      UInt = UInt(3.W)
   val vxrm:        UInt = UInt(2.W)
@@ -31,12 +31,12 @@ class LaneShifterResponse(datapathWidth: Int) extends Bundle {
 
 class LaneShifter(val parameter: LaneShifterParameter)
   extends VFUModule(parameter) with SerializableModule[LaneShifterParameter] {
-  val response: UInt = Wire(UInt(parameter.dataWidth.W))
+  val response: UInt = Wire(UInt(parameter.datapathWidth.W))
   val request: LaneShifterReq = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val shifterSource: UInt = request.src(1)
   // arithmetic
-  val extend:     UInt = Fill(parameter.dataWidth, request.opcode(1) && shifterSource(parameter.dataWidth - 1))
+  val extend:     UInt = Fill(parameter.datapathWidth, request.opcode(1) && shifterSource(parameter.datapathWidth - 1))
   val extendData: UInt = extend ## shifterSource
 
   val roundTail: UInt = (1.U << request.shifterSize).asUInt
