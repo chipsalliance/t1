@@ -11,7 +11,7 @@ object LaneMulParam {
   implicit def rw: upickle.default.ReadWriter[LaneMulParam] = upickle.default.macroRW
 }
 /** @param dataPathWidth width of data path, can be 32 or 64, decides the memory bandwidth. */
-case class LaneMulParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
+case class LaneMulParam(datapathWidth: Int, latency: Int) extends VFUParameter with SerializableModuleParameter {
   val respWidth:   Int = datapathWidth
   val sourceWidth: Int = datapathWidth
   val decodeField: BoolField = Decoder.multiplier

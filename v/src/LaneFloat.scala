@@ -12,7 +12,7 @@ object LaneFloatParam {
   implicit def rw: upickle.default.ReadWriter[LaneFloatParam] = upickle.default.macroRW
 }
 
-case class LaneFloatParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
+case class LaneFloatParam(datapathWidth: Int, latency: Int) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.float
   val inputBundle = new LaneFloatRequest(datapathWidth)
   val outputBundle = new LaneFloatResponse(datapathWidth)

@@ -19,7 +19,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.MaskedLogic"
           },
@@ -35,7 +36,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneAdder"
           },
@@ -46,7 +48,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneAdder"
           },
@@ -57,7 +60,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneAdder"
           },
@@ -68,7 +72,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneAdder"
           },
@@ -81,7 +86,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneShifter"
           },
@@ -97,7 +103,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneMul"
           },
@@ -118,7 +125,8 @@
               "vlMaxBits": 11,
               "groupNumberBits": 6,
               "laneNumberBits": 3,
-              "dataPathByteWidth": 4
+              "dataPathByteWidth": 4,
+              "latency": 0
             },
             "generator": "v.OtherUnit"
           },
@@ -134,7 +142,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneFloat"
           },
@@ -150,7 +159,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneDivFP"
           },
