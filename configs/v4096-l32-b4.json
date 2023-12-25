@@ -1,15 +1,15 @@
 {
   "parameter": {
     "xLen": 32,
-    "vLen": 1024,
+    "vLen": 4096,
     "datapathWidth": 32,
-    "laneNumber": 8,
+    "laneNumber": 32,
     "physicalAddressWidth": 32,
     "chainingSize": 4,
     "vrfWriteQueueSize": 4,
     "fpuEnable": false,
     "instructionQueueSize": 8,
-    "memoryBankSize": 2,
+    "memoryBankSize": 4,
     "lsuVRFWriteQueueSize": 4,
     "cacheLineSize": 32,
     "portFactor": 1,
