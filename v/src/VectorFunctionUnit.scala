@@ -8,6 +8,7 @@ import chisel3.experimental.SerializableModuleGenerator
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util._
 import chisel3.experimental.AutoCloneType
+import chisel3.properties.Property
 
 import scala.collection.immutable.SeqMap
 
@@ -23,6 +24,9 @@ trait VFUParameter {
 abstract class VFUModule(p: VFUParameter) extends Module {
   val requestIO: DecoupledIO[Data] = IO(Flipped(Decoupled(p.inputBundle)))
   val responseIO: DecoupledIO[Bundle] = IO(Decoupled(p.outputBundle))
+  // FFUModule is a behavior Module which should be retimed to [[latency]] cycles.
+  val retime: Option[Property[Int]] = Option.when(p.latency > 0)(IO(Property[Int]()))
+  retime.foreach(_ := Property(p.latency))
 
   if (p.singleCycle) {
     requestIO.ready := true.B
