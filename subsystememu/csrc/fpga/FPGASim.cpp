@@ -107,7 +107,7 @@ public:
         printf("last mem write=%x\n", user_bar->lastMemWrite);
         printf("last mmio read=%x\n", user_bar->lastMMIORead);
         printf("last mmio write=%x\n", user_bar->lastMMIOWrite);
-	    printf("has mmio error=%x\n", user_bar->hasMMIOError);
+        printf("has mmio error=%x\n", user_bar->hasMMIOError);
         printf("cpu cycle=%ld\n", (user_bar->cpucycle_hi*1llu << 32) | user_bar->cpucycle_lo);
         printf("resetVector=%x\n", user_bar->resetVector);
     }
