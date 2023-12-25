@@ -25,7 +25,7 @@ stdenvNoCC.mkDerivation {
   nativeBuildInputs = [ espresso circt ];
   buildCommand = ''
     mkdir -p elaborate $out
-    ${soc-elaborator}/bin/subsystememu --config ${elaborate-config} --dir $PWD/elaborate --riscvopcodes ${soc-elaborator}/share/riscv-opcodes --fpga ${enableFpga}
+    ${soc-elaborator}/bin/subsystememu --config ${elaborate-config} --dir $PWD/elaborate --riscvopcodes ${soc-elaborator}/share/riscv-opcodes --fpga ${lib.boolToString enableFpga}
 
     # --disable-annotation-unknown is used for fixing "Unhandled annotation" from firtool
     firtool elaborate/*.fir --disable-annotation-unknown --annotation-file elaborate/*.anno.json -o $out ${mfcArgs}
