@@ -3,7 +3,7 @@
     "xLen": 32,
     "vLen": 1024,
     "datapathWidth": 32,
-    "laneNumber": 8,
+    "laneNumber": 2,
     "physicalAddressWidth": 32,
     "chainingSize": 4,
     "vrfWriteQueueSize": 4,
