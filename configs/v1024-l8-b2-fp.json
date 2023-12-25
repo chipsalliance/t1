@@ -6,7 +6,7 @@
     "laneNumber": 8,
     "physicalAddressWidth": 32,
     "chainingSize": 4,
-    "vrfWriteQueueSize": 4,
+    "vrfWriteQueueSize": 32,
     "fpuEnable": true,
     "instructionQueueSize": 8,
     "memoryBankSize": 2,
