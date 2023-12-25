@@ -10,7 +10,7 @@ import division.srt.{SRT, SRTOutput}
 object LaneDivParam {
   implicit def rw: upickle.default.ReadWriter[LaneDivParam] = upickle.default.macroRW
 }
-case class LaneDivParam(datapathWidth: Int) extends VFUParameter with SerializableModuleParameter {
+case class LaneDivParam(datapathWidth: Int, latency: Int) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.divider
   val inputBundle = new LaneDivRequest(datapathWidth)
   val outputBundle = new LaneDivResponse(datapathWidth)

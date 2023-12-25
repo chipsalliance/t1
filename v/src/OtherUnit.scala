@@ -14,7 +14,8 @@ case class OtherUnitParam(
                            vlMaxBits: Int,
                            groupNumberBits: Int,
                            laneNumberBits: Int,
-                           dataPathByteWidth: Int
+                           dataPathByteWidth: Int,
+                           latency: Int
                          ) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.other
   val inputBundle = new OtherUnitReq(this)

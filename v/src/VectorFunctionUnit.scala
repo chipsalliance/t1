@@ -17,7 +17,7 @@ trait VFUParameter {
   val outputBundle: Bundle
   val singleCycle: Boolean = true
   val NeedSplit: Boolean = false
-  val latency: Int = 0
+  val latency: Int
 }
 
 abstract class VFUModule(p: VFUParameter) extends Module {
