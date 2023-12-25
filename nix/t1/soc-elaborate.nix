@@ -7,7 +7,7 @@
 , elaborate-config
 , soc-elaborator
 , config-name
-, enableFpga ? false
+, enableFpga
 }:
 
 let
