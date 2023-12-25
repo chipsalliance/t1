@@ -37,7 +37,7 @@ lib.makeScope newScope
       verilator-emulator = innerSelf.callPackage ./verilator-emulator.nix { };
       verilator-emulator-trace = innerSelf.callPackage ./verilator-emulator.nix { do-trace = true; };
 
-      soc-elaborate = innerSelf.callPackage ./soc-elaborate.nix { };
+      soc-elaborate = innerSelf.callPackage ./soc-elaborate.nix { enableFpga = false; };
       soc-elaborate-fpga = innerSelf.callPackage ./soc-elaborate.nix { enableFpga = true; };
       soc-verilator-emulator = innerSelf.callPackage ./soc-verilator-emulator.nix { };
       soc-verilator-emulator-trace = innerSelf.callPackage ./soc-verilator-emulator.nix { do-trace = true; };
