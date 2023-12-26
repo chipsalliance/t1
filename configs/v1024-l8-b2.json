@@ -103,7 +103,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneMul"
           },
@@ -119,7 +120,8 @@
         [
           {
             "parameter": {
-              "datapathWidth": 32
+              "datapathWidth": 32,
+              "latency": 0
             },
             "generator": "v.LaneDiv"
           },
@@ -139,7 +141,8 @@
               "vlMaxBits": 11,
               "groupNumberBits": 6,
               "laneNumberBits": 3,
-              "dataPathByteWidth": 4
+              "dataPathByteWidth": 4,
+              "latency": 0
             },
             "generator": "v.OtherUnit"
           },
