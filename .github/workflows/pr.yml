@@ -6,7 +6,7 @@ env:
 jobs:
   gen-matrix:
     name: "Generate test matrix"
-    runs-on: [self-hosted, linux, 7940HS]
+    runs-on: [self-hosted, linux, nixos, "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics"]
     env:
       RUNNERS: 16
     outputs:
@@ -50,7 +50,7 @@ jobs:
 
   test-emit:
     name: "Test elaborate"
-    runs-on: [self-hosted, linux, 7940HS]
+    runs-on: [self-hosted, linux, nixos]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -73,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
-    runs-on: [self-hosted, linux, 7940HS]
+    runs-on: [self-hosted, linux, nixos]
     outputs:
       result: ${{ steps.ci-run.outputs.result }}
     steps:
@@ -114,7 +114,7 @@ jobs:
     name: "Generate matrix for re-testing failing tests"
     if: always()
     needs: [run-testcases]
-    runs-on: [self-hosted, linux, 7940HS]
+    runs-on: [self-hosted, linux, nixos]
     outputs:
       generate_wave: ${{ steps.generate-matrix.outputs.generate_wave }}
       retry_tasks: ${{ steps.generate-matrix.outputs.retry_tasks }}
@@ -143,7 +143,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-fail-wave-matrix.outputs.retry_tasks) }}
-    runs-on: [self-hosted, linux, 7940HS]
+    runs-on: [self-hosted, linux, nixos]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -173,7 +173,7 @@ jobs:
     name: "Report CI result"
     if: always()
     needs: [run-testcases]
-    runs-on: [self-hosted, linux, 7940HS]
+    runs-on: [self-hosted, linux, nixos]
     steps:
       - uses: actions/checkout@v4
         with:
