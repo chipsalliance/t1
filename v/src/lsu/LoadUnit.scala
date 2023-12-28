@@ -179,7 +179,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
         // 每个数据块 2 ** sew byte
         val dataBlockSize = 1 << sewSize
         // 总共需要32byte数据, 会有 32/dataBlockSize 个数据块
-        val blockSize = 32 / dataBlockSize
+        val blockSize = (param.datapathWidth * param.laneNumber / 8) / dataBlockSize
         val nFiled = segSize + 1
         // 一次element会用掉多少 byte 数据
         val elementSize = dataBlockSize * nFiled

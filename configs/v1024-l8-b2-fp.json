@@ -142,7 +142,7 @@
           {
             "parameter": {
               "datapathWidth": 32,
-              "latency": 0
+              "latency": 3
             },
             "generator": "v.LaneFloat"
           },

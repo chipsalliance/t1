@@ -534,7 +534,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val extend = decodeResultReg(Decoder.extend)
       // first type instruction
       val firstLane = ffo(completedVec.asUInt)
-      val firstLaneIndex: UInt = OHToUInt(firstLane)(2, 0)
+      val firstLaneIndex: UInt = OHToUInt(firstLane)(log2Ceil(parameter.laneNumber) - 1, 0)
       response.bits.rd.valid := lastSlotCommit && decodeResultReg(Decoder.targetRd)
       response.bits.rd.bits := vd
       when(requestRegDequeue.fire) {
@@ -850,18 +850,21 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         )
         // 数据起始位置在32bit(暂时只32)中的偏移,由于数据会有跨lane的情况,融合的优化时再做
         val dataOffset = (dataPosition(1) && sewOHInput(1, 0).orR) ## (dataPosition(0) && sewOHInput(0)) ## 0.U(3.W)
-        val accessLane = dataPosition(log2Ceil(parameter.laneNumber) + 1, 2)
+        val accessLane = if (parameter.laneNumber > 1) dataPosition(log2Ceil(parameter.laneNumber) + 1, 2) else 0.U(1.W)
         // 32 bit / group
         val dataGroup = (dataPosition >> (log2Ceil(parameter.laneNumber) + 2)).asUInt
         val offset = dataGroup(1, 0)
         val accessRegGrowth = (dataGroup >> 2).asUInt
+        val decimalProportion = offset ## accessLane
+        // 1/8 register
+        val decimal = decimalProportion(decimalProportion.getWidth -1, 0 max (decimalProportion.getWidth - 3))
 
         /** elementIndex 需要与vlMax比较, vLen * lmul /sew 这个计算太复杂了
           * 我们可以换一个角度,计算读寄存器的增量与lmul比较,就能知道下标是否超vlMax了
           * vlmul 需要区分整数与浮点
           */
         val overlap =
-          (csrInput.vlmul(2) && (offset ## accessLane(2)) >= intLMULInput(3, 1)) ||
+          (csrInput.vlmul(2) && decimal >= intLMULInput(3, 1)) ||
             (!csrInput.vlmul(2) && accessRegGrowth >= intLMULInput)
         accessRegGrowth >= csrInput.vlmul
         val reallyGrowth = accessRegGrowth(2, 0)

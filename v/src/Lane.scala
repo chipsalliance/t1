@@ -102,7 +102,7 @@ case class LaneParameter(
   val executeUnitNum: Int = 6
 
   /** hardware width of [[laneNumber]]. */
-  val laneNumberBits: Int = log2Ceil(laneNumber)
+  val laneNumberBits: Int = 1 max log2Ceil(laneNumber)
 
   /** hardware width of [[datapathWidth]]. */
   val datapathWidthBits: Int = log2Ceil(datapathWidth)
