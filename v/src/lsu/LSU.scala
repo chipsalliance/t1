@@ -203,7 +203,7 @@ class LSU(param: LSUParam) extends Module {
   writeQueueVec.zipWithIndex.foreach {case (write, index) =>
     write.io.enq.valid := otherTryToWrite(index) || loadUnit.vrfWritePort(index).valid
     write.io.enq.bits.data := Mux(otherTryToWrite(index), otherUnit.vrfWritePort.bits, loadUnit.vrfWritePort(index).bits)
-    write.io.enq.bits.targetLane := (1L << index).U
+    write.io.enq.bits.targetLane := (BigInt(1) << index).U
     loadUnit.vrfWritePort(index).ready := write.io.enq.ready && !otherTryToWrite(index)
   }
 

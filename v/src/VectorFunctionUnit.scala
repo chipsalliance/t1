@@ -74,7 +74,7 @@ case class VFUInstantiateParameter(
     case (_, connect) =>
       connect.foreach(connectIndex => require(connectIndex < slotCount))
   }
-
+  val maxLatency: Int = genVec.map(_._1.parameter.latency).max
 }
 
 class SlotExecuteRequest[T <: SlotRequestToVFU](requestFromSlot: T)(slotIndex: Int, parameter: VFUInstantiateParameter)

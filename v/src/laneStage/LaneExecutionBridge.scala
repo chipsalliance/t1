@@ -271,7 +271,11 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   //--- record <-> vfu end ---
   //                        --- record <-> record pipe queue <-> response stage
   val recordQueue = Module(
-    new Queue(new ExecutionBridgeRecordQueue(parameter, isLastSlot), 2, flow = true)
+    new Queue(
+      new ExecutionBridgeRecordQueue(parameter, isLastSlot),
+      entries = 2 max parameter.vfuInstantiateParameter.maxLatency + 1,
+      flow = true
+    )
   )
   assert(!vfuRequest.fire || recordQueue.io.enq.ready)
   recordQueueReadyForNoExecute := notExecute && recordQueue.io.enq.ready

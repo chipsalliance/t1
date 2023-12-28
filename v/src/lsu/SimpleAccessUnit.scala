@@ -557,12 +557,12 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   )
 
   /** which lane does the current [[offsetOfOffsetGroup]] represent. */
-  val laneOfOffsetOfOffsetGroup: UInt = UIntToOH(
+  val laneOfOffsetOfOffsetGroup: UInt = if (param.laneNumber > 1 ) UIntToOH(
     offsetOfOffsetGroup(
       log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) - 1,
       log2Ceil(param.datapathWidth / 8)
     )
-  )
+  ) else 0.U
 
   /** one of [[indexedInstructionOffsets]] is exhausted. */
   val indexedInstructionOffsetExhausted: Bool =
@@ -762,12 +762,14 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   s0Wire.addressOffset := baseOffsetForElement + (elementByteWidth * segmentIndex)
   s0Wire.indexInGroup := nextElementForMemoryRequestIndex
   s0Wire.segmentIndex := segmentIndex
-  s0Wire.offsetForLane := storeBaseByteOffset(
-    // datapath=32,laneNumber=8 -> 4
-    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) - 1,
-    // datapath=32 -> 2
-    log2Ceil(param.datapathWidth / 8)
-  )
+  s0Wire.offsetForLane := {
+    if (param.laneNumber > 1) storeBaseByteOffset(
+      // datapath=32,laneNumber=8 -> 4
+      log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) - 1,
+      // datapath=32 -> 2
+      log2Ceil(param.datapathWidth / 8)
+    ) else 0.U
+  }
 
   // s1 access VRF
   // TODO: perf `lsuRequestReg.instructionInformation.isStore && vrfReadDataPorts.ready` to check the VRF bandwidth
@@ -869,7 +871,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   tlPort.a.valid := s1Valid && sourceFree
   s2Fire := tlPort.a.fire
 
-  val offsetRecord = RegInit(VecInit(Seq.fill(param.datapathWidth)(0.U(2.W))))
+  val offsetRecord = RegInit(VecInit(Seq.fill(memoryRequestSourceOH.getWidth)(0.U(2.W))))
 
   offsetRecord.zipWithIndex.foreach { case (d, i) =>
     when(tlPort.a.fire && memoryRequestSourceOH(i)) {
@@ -992,20 +994,22 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   status.last := (!RegNext(stateIdle) && stateIdle) || invalidInstructionNext
   status.changeMaskGroup := updateOffsetGroupEnable
   // which lane to access
-  status.targetLane := UIntToOH(
-    Mux(
-      lsuRequestReg.instructionInformation.isStore,
-      // read VRF
-      s0Reg.offsetForLane,
-      // write VRF
-      loadBaseByteOffset(
-        // datapath=32,laneNumber=8 -> 4
-        log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) - 1,
-        // datapath=32 -> 2
-        log2Ceil(param.datapathWidth / 8)
+  status.targetLane := {
+    if (param.laneNumber > 1) UIntToOH(
+      Mux(
+        lsuRequestReg.instructionInformation.isStore,
+        // read VRF
+        s0Reg.offsetForLane,
+        // write VRF
+        loadBaseByteOffset(
+          // datapath=32,laneNumber=8 -> 4
+          log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) - 1,
+          // datapath=32 -> 2
+          log2Ceil(param.datapathWidth / 8)
+        )
       )
-    )
-  )
+    ) else 1.U
+  }
   status.waitFirstResponse := waitFirstMemoryResponseForFaultOnlyFirst
   // which mask to request
   maskSelect.bits := nextGroupIndex
