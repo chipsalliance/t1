@@ -110,8 +110,6 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecord.crossReadSource.foreach(_ := enqueue.bits.crossReadSource.get)
     executionRecord.sSendResponse.foreach(_ := enqueue.bits.sSendResponse.get)
     executionRecord.groupCounter := enqueue.bits.groupCounter
-    // 不满写的先读后写
-    executionResult := enqueue.bits.src.last
     // red max min 的第一次不能和上一个指令的reduce结果比, 只能和自己比
     firstRequestFire.foreach { first =>
       when(first && decodeResult(Decoder.float) && decodeResult(Decoder.fpExecutionType).orR){

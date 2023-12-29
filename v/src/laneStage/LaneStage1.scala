@@ -47,12 +47,12 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
    */
   val vrfReadResult: Vec[UInt] = IO(Input(Vec(3, UInt(parameter.datapathWidth.W))))
 
-  val readBusDequeue: Option[ValidIO[ReadBusData]] = Option.when(isLastSlot)(IO(
-    Flipped(Valid(new ReadBusData(parameter: LaneParameter)))
+  val readBusDequeue: Option[Vec[DecoupledIO[ReadBusData]]] = Option.when(isLastSlot)(IO(
+    Vec(2, Flipped(Decoupled(new ReadBusData(parameter: LaneParameter))))
   ))
 
-  val readBusRequest: Option[DecoupledIO[ReadBusData]] =
-    Option.when(isLastSlot)(IO(Decoupled(new ReadBusData(parameter))))
+  val readBusRequest: Option[Vec[DecoupledIO[ReadBusData]]] =
+    Option.when(isLastSlot)(IO(Vec(2, Decoupled(new ReadBusData(parameter)))))
   val readFromScalar: UInt = IO(Input(UInt(parameter.datapathWidth.W)))
 
   val notNeedMaskedWrite: Bool = Mux1H(state.vSew1H, Seq(
@@ -225,8 +225,8 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     crossReadUnit.dataInputMSB <> dataQueueMSB.get.io.deq
     crossReadUnit.laneIndex := state.laneIndex
     crossReadUnit.dataGroup := dataGroupQueue.io.deq.bits
-    readBusRequest.get <> crossReadUnit.readBusRequest
-    crossReadUnit.readBusDequeue <> readBusDequeue.get
+    readBusRequest.get.zip(crossReadUnit.readBusRequest).foreach { case (sink, source) => sink <> source}
+    crossReadUnit.readBusDequeue.zip(readBusDequeue.get).foreach { case (sink, source) => sink <> source}
     crossReadResultQueue.get.io.enq <> crossReadUnit.crossReadDequeue
     crossReadStageFree.get := crossReadUnit.crossReadStageFree
 
@@ -237,8 +237,6 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     dataGroupQueue.io.deq.ready := crossReadUnit.dataInputLSB.fire
     dequeue.bits.readBusDequeueGroup.get := crossReadUnitOp.get.currentGroup
   }
-  // replace instructionIndex
-  readBusRequest.foreach(_.bits.instructionIndex := state.instructionIndex)
 
   val scalarDataRepeat: UInt = Mux1H(
     state.vSew1H,

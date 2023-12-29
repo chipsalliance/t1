@@ -18,12 +18,12 @@ class CrossReadUnit(parameter: LaneParameter) extends Module {
   val dataGroup: UInt = IO(Input(UInt(parameter.groupNumberBits.W)))
   val currentGroup: UInt = IO(Output(UInt(parameter.groupNumberBits.W)))
 
-  val readBusDequeue: ValidIO[ReadBusData] = IO(
-    Flipped(Valid(new ReadBusData(parameter: LaneParameter))
+  val readBusDequeue: Vec[DecoupledIO[ReadBusData]] = IO(
+    Vec(2, Flipped(Decoupled(new ReadBusData(parameter: LaneParameter)))
   ))
 
-  val readBusRequest: DecoupledIO[ReadBusData] =
-    IO(Decoupled(new ReadBusData(parameter)))
+  val readBusRequest: Vec[DecoupledIO[ReadBusData]] =
+    IO(Vec(2, Decoupled(new ReadBusData(parameter))))
 
   val crossReadDequeue: DecoupledIO[UInt] = IO(Decoupled(UInt((parameter.datapathWidth * 2).W)))
   val crossReadStageFree: Bool = IO(Output(Bool()))
@@ -35,33 +35,22 @@ class CrossReadUnit(parameter: LaneParameter) extends Module {
   val sendDataVec: Vec[UInt] = RegInit(VecInit(Seq.fill(2)(0.U(parameter.datapathWidth.W))))
   val groupCounter: UInt = RegInit(0.U(parameter.groupNumberBits.W))
   val receiveDataVec: Vec[UInt] = RegInit(VecInit(Seq.fill(2)(0.U(parameter.datapathWidth.W))))
+  val sendState = Seq(sSendCrossReadResultLSB, sSendCrossReadResultMSB)
+  val receiveState = Seq(wCrossReadLSB, wCrossReadMSB)
 
-  readBusRequest.valid := stageValid && !(sSendCrossReadResultLSB && sSendCrossReadResultMSB)
-  readBusRequest.bits.sinkIndex := sSendCrossReadResultLSB ## laneIndex(parameter.laneNumberBits - 1, 1)
-  readBusRequest.bits.isTail := laneIndex(0)
-  readBusRequest.bits.sourceIndex := laneIndex
-  readBusRequest.bits.instructionIndex := DontCare
-  readBusRequest.bits.counter := groupCounter
-  readBusRequest.bits.data := Mux(sSendCrossReadResultLSB, sendDataVec.last, sendDataVec.head)
-
-  when(readBusRequest.fire) {
-    when(!sSendCrossReadResultLSB) {
-      sSendCrossReadResultLSB := true.B
-    }.otherwise {
-      sSendCrossReadResultMSB := true.B
-    }
+  readBusRequest.zipWithIndex.foreach { case (port, index) =>
+    port.valid := stageValid && !sendState(index)
+    port.bits.data := sendDataVec(index)
+    when(port.fire) { sendState(index) := true.B}
   }
 
-  when(readBusDequeue.valid) {
-    when(readBusDequeue.bits.isTail) {
-      wCrossReadMSB := true.B
-      receiveDataVec.last := readBusDequeue.bits.data
-    }.otherwise {
-      wCrossReadLSB := true.B
-      receiveDataVec.head := readBusDequeue.bits.data
+  readBusDequeue.zipWithIndex.foreach { case (port, index) =>
+    when(port.fire) {
+      receiveState(index) := true.B
+      receiveDataVec(index) := port.bits.data
     }
+    port.ready := !receiveState(index)
   }
-
 
   val allStateReady: Bool = stateVec.reduce(_ && _)
   val stageReady: Bool = !stageValid || (allStateReady && crossReadDequeue.ready)

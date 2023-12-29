@@ -178,4 +178,20 @@ package object v {
     )
     segMask7 ## segMask6 ## segMask5 ## segMask4 ## segMask3 ## segMask2 ## segMask1 ## segMask0
   }
+
+  def connectWithShifter[T <: Data](latency: Int)(source: Valid[T], sink: Valid[T]): Bool = {
+    val tpe = Vec(latency, chiselTypeOf(source))
+    val shifterReg: Vec[ValidIO[T]] = RegInit(0.U.asTypeOf(tpe))
+    val shifterValid: Bool = (shifterReg.map(_.valid) :+ source.valid).reduce(_ || _)
+    when(shifterValid) {
+      shifterReg.zipWithIndex.foreach {case (d, i) =>
+        i match {
+          case 0 => d := source
+          case _ => d := shifterReg(i - 1)
+        }
+      }
+    }
+    sink := shifterReg.last
+    shifterValid
+  }
 }
