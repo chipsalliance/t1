@@ -36,8 +36,8 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   /** feedback from [[V]] to [[Lane]] for [[laneResponse]] */
   val laneResponseFeedback: Option[ValidIO[LaneResponseFeedback]] =
     Option.when(isLastSlot)(IO(Flipped(Valid(new LaneResponseFeedback(parameter)))))
-  val crossWritePort: Option[DecoupledIO[WriteBusData]] =
-    Option.when(isLastSlot)(IO(Decoupled(new WriteBusData(parameter))))
+  val crossWritePort: Option[Vec[DecoupledIO[WriteBusData]]] =
+    Option.when(isLastSlot)(IO(Vec(2, Decoupled(new WriteBusData(parameter)))))
 
   val stageValidReg: Option[Bool] = Option.when(isLastSlot) (RegInit(false.B))
 
@@ -72,31 +72,15 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
   if (isLastSlot) {
     // VRF cross write
-    /** data for enqueuing [[writeBusPort]]
-     * [[crossLaneWrite.valid]] indicate there is a slot try to enqueue [[writeBusPort]]
-     */
-    val crossLaneWrite: DecoupledIO[WriteBusData] = Wire(Decoupled(new WriteBusData(parameter)))
-    crossWritePort.get <> crossLaneWrite
-
-    /** execute in ALU, try to send cross lane write LSB data to ring */
-    val tryCrossWriteSendLSB = stageValidReg.get && !sCrossWriteLSB.get
-
-    /** execute in ALU, try to send cross lane write MSB data to ring */
-    val tryCrossWriteSendMSB = stageValidReg.get && !sCrossWriteMSB.get
-    crossLaneWrite.bits.sinkIndex := state.laneIndex(parameter.laneNumberBits - 2, 0) ## (!tryCrossWriteSendLSB)
-    crossLaneWrite.bits.sourceIndex := state.laneIndex
-    crossLaneWrite.bits.isTail := state.laneIndex(parameter.laneNumberBits - 1)
-    crossLaneWrite.bits.instructionIndex := state.instructionIndex
-    crossLaneWrite.bits.counter := pipeEnqueue.get.groupCounter
-    crossLaneWrite.bits.data :=
-      Mux(tryCrossWriteSendLSB, pipeEnqueue.get.crossWriteData.head, pipeEnqueue.get.crossWriteData.last)
-    crossLaneWrite.bits.mask := Mux(tryCrossWriteSendLSB, pipeEnqueue.get.mask(1, 0), pipeEnqueue.get.mask(3, 2))
-    crossLaneWrite.valid := tryCrossWriteSendLSB || tryCrossWriteSendMSB
-
-    when(crossLaneWrite.fire) {
-      sCrossWriteLSB.foreach(_ := true.B)
-      when(sCrossWriteLSB.get) {
-        sCrossWriteMSB.foreach(_ := true.B)
+    val sendState = (sCrossWriteLSB ++ sCrossWriteMSB).toSeq
+    crossWritePort.get.zipWithIndex.foreach { case (port, index) =>
+      port.valid := stageValidReg.get && !sendState(index)
+      port.bits.mask := pipeEnqueue.get.mask(2 * index + 1, 2 * index)
+      port.bits.data := pipeEnqueue.get.crossWriteData(index)
+      port.bits.counter := pipeEnqueue.get.groupCounter
+      port.bits.instructionIndex := state.instructionIndex
+      when(port.fire) {
+        sendState(index) := true.B
       }
     }
     // scheduler synchronization

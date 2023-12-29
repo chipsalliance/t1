@@ -347,52 +347,16 @@ class LaneResponse(param: LaneParameter) extends Bundle {
 }
 
 class ReadBusData(param: LaneParameter) extends Bundle {
-
   /** data field of the bus. */
   val data: UInt = UInt(param.datapathWidth.W)
-
-  /** The cross lane data is double to [[param.datapathWidth]],
-    * assertion of this flag is indicating that the data is the second half of the cross lane data.
-    */
-  val isTail: Bool = Bool()
-
-  /** indicate which lane is the source of this transaction
-    * TODO: for DEBUG use.
-    */
-  val sourceIndex: UInt = UInt(param.laneNumberBits.W)
-
-  /** indicate which lane is the sink of this transaction */
-  val sinkIndex: UInt = UInt(param.laneNumberBits.W)
-
-  /** which instruction is the source of this transaction
-    * TODO: for DEBUG use.
-    */
-  val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
-
-  /** define the order of the data to dequeue from ring. */
-  val counter: UInt = UInt(param.groupNumberBits.W)
 }
 
 class WriteBusData(param: LaneParameter) extends Bundle {
-
   /** data field of the bus. */
   val data: UInt = UInt(param.datapathWidth.W)
 
-  /** The cross lane data is double to [[param.datapathWidth]],
-    * assertion of this flag is indicating that the data is the second half of the cross lane data.
-    */
-  val isTail: Bool = Bool()
-
   /** used for instruction with mask. */
   val mask: UInt = UInt((param.datapathWidth / 2 / 8).W)
-
-  /** indicate which lane is the sink of this transaction */
-  val sinkIndex: UInt = UInt(param.laneNumberBits.W)
-
-  /** indicate which lane is the source of this transaction
-    * TODO: for DEBUG use.
-    */
-  val sourceIndex: UInt = UInt(param.laneNumberBits.W)
 
   /** which instruction is the source of this transaction. */
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
@@ -402,8 +366,10 @@ class WriteBusData(param: LaneParameter) extends Bundle {
 }
 
 class RingPort[T <: Data](gen: T) extends Bundle {
-  val enq: DecoupledIO[T] = Flipped(Decoupled(gen))
-  val deq: DecoupledIO[T] = Decoupled(gen)
+  val enq: ValidIO[T] = Flipped(Valid(gen))
+  val enqRelease: Bool = Output(Bool())
+  val deq: ValidIO[T] = Valid(gen)
+  val deqRelease: Bool = Input(Bool())
 }
 
 /** [[V]] -> [[Lane]], ack of [[LaneResponse]] */
@@ -711,3 +677,5 @@ class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
   val exceptionFlags: UInt = UInt(5.W)
   val tag: UInt = UInt(log2Ceil(parameter.chainingSize).W)
 }
+
+final class EmptyBundle extends Bundle

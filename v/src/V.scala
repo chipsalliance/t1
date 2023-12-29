@@ -116,6 +116,10 @@ case class VParameter(
   /** for TileLink `mask` element. */
   val maskWidth: Int = memoryDataWidth / 8
 
+  // each element: Each lane will be connected to the other two lanes,
+  // and the values are their respective delays.
+  val crossLaneConnectCycles: Seq[Seq[Int]] = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
+
   /** parameter for TileLink. */
   val tlParam: TLBundleParameter = TLBundleParameter(
     a = TLChannelAParameter(physicalAddressWidth, sourceWidth, memoryDataWidth, sizeWidth, maskWidth),
@@ -1311,7 +1315,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     }
     lane
   }
-  busClear := !VecInit(laneVec.map(_.writeBusPort.deq.valid)).asUInt.orR
   writeQueueClearVec := VecInit(laneVec.map(_.writeQueueValid))
 
   // 连lsu
@@ -1335,16 +1338,33 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   lsu.vrfReadyToStore := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
 
   // 连lane的环
-  laneVec.map(_.readBusPort).foldLeft(laneVec.last.readBusPort) {
-    case (previous, current) =>
-      current.enq <> previous.deq
-      current
-  }
-  laneVec.map(_.writeBusPort).foldLeft(laneVec.last.writeBusPort) {
-    case (previous, current) =>
-      current.enq <> previous.deq
-      current
-  }
+  busClear := !parameter.crossLaneConnectCycles.zipWithIndex.map { case (cycles, index) =>
+    cycles.zipWithIndex.map { case (cycle, portIndex) =>
+      // read source <=> write sink
+      val readSourceIndex = (2 * index + portIndex) % parameter.laneNumber
+      val readSourcePort = (2 * index + portIndex) / parameter.laneNumber
+
+      // read connect
+      laneVec(readSourceIndex).readBusPort(readSourcePort).deqRelease := Pipe(
+        laneVec(index).readBusPort(portIndex).enqRelease,
+        0.U.asTypeOf(new EmptyBundle),
+        cycle
+      ).valid
+      connectWithShifter(cycle)(
+        laneVec(readSourceIndex).readBusPort(readSourcePort).deq,
+        laneVec(index).readBusPort(portIndex).enq
+      )
+
+      // write connect
+      laneVec(index).writeBusPort(portIndex).deqRelease := Pipe(
+        laneVec(readSourceIndex).writeBusPort(readSourcePort).enqRelease,
+        0.U.asTypeOf(new EmptyBundle),
+        cycle
+      ).valid
+      connectWithShifter(cycle)(laneVec(index).writeBusPort(portIndex).deq,
+        laneVec(readSourceIndex).writeBusPort(readSourcePort).enq)
+    }.reduce(_ || _)
+  }.reduce(_ || _)
 
   // 连 tilelink
   memoryPorts.zip(lsu.tlPort).foreach {

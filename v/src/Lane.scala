@@ -145,14 +145,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * TODO: benchmark the usecase for tuning the Ring Bus width.
     *       find a real world case for using `narrow` and `widen` aggressively.
     */
-  val readBusPort: RingPort[ReadBusData] = IO(new RingPort(new ReadBusData(parameter)))
+  val readBusPort: Vec[RingPort[ReadBusData]] = IO(Vec(2, new RingPort(new ReadBusData(parameter))))
 
   /** VRF Write Interface.
     * only used for `narrow` an `widen`
     * TODO: benchmark the usecase for tuning the Ring Bus width.
     *       find a real world case for using `narrow` and `widen` aggressively.
     */
-  val writeBusPort: RingPort[WriteBusData] = IO(new RingPort(new WriteBusData(parameter)))
+  val writeBusPort: Vec[RingPort[WriteBusData]] = IO(Vec(2, new RingPort(new WriteBusData(parameter))))
 
   /** request from [[V.decode]] to [[Lane]]. */
   val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(parameter))))
@@ -307,22 +307,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** which slot wins the arbitration for requesting mask. */
   val maskRequestFireOH: UInt = Wire(UInt(parameter.chainingSize.W))
 
-  /** read from VRF, it will go to ring in the next cycle.
-    * from [[vrfReadRequest]](1)
-    */
-  val crossReadLSBOut: UInt = RegInit(0.U(parameter.datapathWidth.W))
-
-  /** read from VRF, it will go to ring in the next cycle.
-    * from [[vrfReadRequest]](2)
-    */
-  val crossReadMSBOut: UInt = RegInit(0.U(parameter.datapathWidth.W))
-
-  /** read from Bus, it will try to write to VRF in the next cycle. */
-  val crossReadLSBIn: UInt = RegInit(0.U(parameter.datapathWidth.W))
-
-  /** read from Bus, it will try to write to VRF in the next cycle. */
-  val crossReadMSBIn: UInt = RegInit(0.U(parameter.datapathWidth.W))
-
   /** FSM control for each slot.
     * if index == 0,
     * - slot can support write v0 in mask type, see [[Decoder.maskDestination]] [[Decoder.maskSource]] [[Decoder.maskLogic]]
@@ -388,11 +372,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** Which data group is waiting for the result of the cross-lane read */
   val readBusDequeueGroup: UInt = Wire(UInt(parameter.groupNumberBits.W))
 
-  /** cross lane reading port from [[readBusPort]]
-    * if [[ReadBusData.sinkIndex]] matches the index of this lane, dequeue from ring
-    */
-  val readBusDequeue: ValidIO[ReadBusData] = Wire(Valid(new ReadBusData(parameter: LaneParameter)))
-
   /** enqueue valid for execution unit */
   val executeEnqueueValid: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
@@ -418,26 +397,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** assert when a instruction will not use mask unit */
   val instructionUnrelatedMaskUnitVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
 
-  /** ready signal for enqueuing [[readBusPort]] */
-  val crossLaneReadReady: Bool = Wire(Bool())
-
-  /** ready signal for enqueuing [[writeBusPort]] */
-  val crossLaneWriteReady: Bool = Wire(Bool())
-
-  /** data for enqueuing [[readBusPort]]
-    * [[crossLaneRead.valid]] indicate there is a slot try to enqueue [[readBusPort]]
-    */
-  val crossLaneRead: ValidIO[ReadBusData] = Wire(Valid(new ReadBusData(parameter)))
-
-  /** data for enqueuing [[writeBusPort]]
-    * [[crossLaneWrite.valid]] indicate there is a slot try to enqueue [[writeBusPort]]
-    */
-  val crossLaneWrite: ValidIO[WriteBusData] = Wire(Valid(new WriteBusData(parameter)))
-
   /** queue for cross lane writing.
     * TODO: benchmark the size of the queue
     */
-  val crossLaneWriteQueue: Queue[VRFWriteRequest] = Module(
+  val crossLaneWriteQueue: Seq[Queue[VRFWriteRequest]] = Seq.tabulate(2)(i => Module(
     new Queue(
       new VRFWriteRequest(
         parameter.vrfParam.regNumBits,
@@ -445,9 +408,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         parameter.instructionIndexBits,
         parameter.datapathWidth
       ),
-      parameter.crossLaneVRFWriteEscapeQueueSize
+      parameter.crossLaneVRFWriteEscapeQueueSize,
+      pipe = true
     )
-  )
+  ))
 
   val slotProbes = slotControl.zipWithIndex.map {
     case (record, index) =>
@@ -593,10 +557,43 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       vrfReadResult(index).zip(stage1.vrfReadResult).foreach{ case (source, sink) => sink := source }
       // connect cross read bus
       if(isLastSlot) {
-        crossLaneRead.valid := stage1.readBusRequest.get.valid
-        crossLaneRead.bits := stage1.readBusRequest.get.bits
-        stage1.readBusRequest.get.ready := crossLaneReadReady
-        stage1.readBusDequeue.get <> readBusDequeue
+        val tokenSize = parameter.crossLaneVRFWriteEscapeQueueSize
+        readBusPort.zipWithIndex.foreach {case (readPort, portIndex) =>
+          // tx
+          val tokenReg = RegInit(0.U(log2Ceil(tokenSize + 1).W))
+          val tokenReady: Bool = tokenReg =/= tokenSize.U
+          stage1.readBusRequest.get(portIndex).ready := tokenReady
+          readPort.deq.valid := stage1.readBusRequest.get(portIndex).valid && tokenReady
+          readPort.deq.bits := stage1.readBusRequest.get(portIndex).bits
+          val tokenUpdate = Mux(readPort.deq.valid, 1.U, -1.S(tokenReg.getWidth.W).asUInt)
+          when(readPort.deq.valid ^ readPort.deqRelease) {
+            tokenReg := tokenReg + tokenUpdate
+          }
+          // rx
+          // rx queue
+          val queue = Module(new Queue(chiselTypeOf(readPort.deq.bits), tokenSize, pipe=true))
+          queue.io.enq.valid := readPort.enq.valid
+          queue.io.enq.bits := readPort.enq.bits
+          readPort.enqRelease := queue.io.deq.fire
+          assert(queue.io.enq.ready || !readPort.enq.valid)
+          // dequeue to cross read unit
+          stage1.readBusDequeue.get(portIndex) <> queue.io.deq
+        }
+
+        // cross write
+        writeBusPort.zipWithIndex.foreach {case (writePort, portIndex) =>
+          val tokenReg = RegInit(0.U(log2Ceil(tokenSize + 1).W))
+          val tokenReady: Bool = tokenReg =/= tokenSize.U
+          writePort.deq.valid := stage3.crossWritePort.get(portIndex).valid && tokenReady
+          writePort.deq.bits := stage3.crossWritePort.get(portIndex).bits
+          stage3.crossWritePort.get(portIndex).ready := tokenReady
+
+          // update token
+          val tokenUpdate = Mux(writePort.deq.valid, 1.U, -1.S(tokenReg.getWidth.W).asUInt)
+          when(writePort.deq.valid ^ writePort.deqRelease) {
+            tokenReg := tokenReg + tokenUpdate
+          }
+        }
       }
 
       stage2.enqueue.valid := stage1.dequeue.valid && executionUnit.enqueue.ready
@@ -667,9 +664,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           // This group found means the next group ended early
           record.ffoByOtherLanes := record.ffoByOtherLanes || record.selfCompleted
         }
-        crossLaneWrite.valid := stage3.crossWritePort.get.valid
-        crossLaneWrite.bits := stage3.crossWritePort.get.bits
-        stage3.crossWritePort.get.ready := crossLaneWriteReady
 
         laneResponse <> stage3.laneResponse.get
         stage3.laneResponseFeedback.get <> laneResponseFeedback
@@ -731,82 +725,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       probe
   }
 
-  // Read Ring
-  /** latch from [[readBusPort]]. */
-  val readBusDataReg: ValidIO[ReadBusData] = RegInit(0.U.asTypeOf(Valid(new ReadBusData(parameter))))
 
-  /** peek bits on the bus, checking if it is matched, if match dequeue it. */
-  val readBusDequeueMatch = {
-    // check the request is to this lane.
-    readBusPort.enq.bits.sinkIndex === laneIndex &&
-    // because the ring may send unordered transactions, we need the check the counter on the ring.
-    // TODO: add one depth escape queue to latch the case that transaction on the ring is not the current groupCounter.
-    readBusPort.enq.bits.counter === readBusDequeueGroup
+  // cross write bus <> write queue
+  crossLaneWriteQueue.zipWithIndex.foreach {case (queue, index) =>
+    val port = writeBusPort(index)
+    queue.io.enq.valid := port.enq.valid
+    queue.io.enq.bits.vd := slotControl.head.laneRequest.vd + port.enq.bits.counter(3, 1)
+    queue.io.enq.bits.offset := port.enq.bits.counter ## index.U(1.W)
+    queue.io.enq.bits.data := port.enq.bits.data
+    queue.io.enq.bits.last := DontCare
+    queue.io.enq.bits.instructionIndex := port.enq.bits.instructionIndex
+    queue.io.enq.bits.mask := FillInterleaved(2, port.enq.bits.mask)
+    assert(queue.io.enq.ready || !port.enq.valid)
+    port.enqRelease := queue.io.deq.fire
   }
-  // when `readBusDequeueMatch`, local lane must be ready.
-  readBusDequeue.valid := readBusDequeueMatch && readBusPort.enq.valid
-  readBusDequeue.bits := readBusPort.enq.bits
-  // ring has higher priority than local data enqueue.
-  readBusPort.enq.ready := true.B
-  // last connect: by default false
-  readBusDataReg.valid := false.B
-
-  // data is latched to [[readBusDataReg]]
-  // TODO: merge two when.
-  when(readBusPort.enq.valid) {
-    when(!readBusDequeueMatch) {
-      readBusDataReg.valid := true.B
-      readBusDataReg.bits := readBusPort.enq.bits
-    }
-  }
-
-  // enqueue data to read ring.
-  readBusPort.deq.valid := readBusDataReg.valid || crossLaneRead.valid
-  // arbitrate between ring data and local data.
-  readBusPort.deq.bits := Mux(readBusDataReg.valid, readBusDataReg.bits, crossLaneRead.bits)
-  // no forward will enqueue successfully.
-  crossLaneReadReady := !readBusDataReg.valid
-
-  // Write Ring
-  /** latch from [[writeBusPort]] */
-  val writeBusDataReg: ValidIO[WriteBusData] = RegInit(0.U.asTypeOf(Valid(new WriteBusData(parameter))))
-
-  /** peek bits on the bus, checking if it is matched, if match dequeue it.
-    * don't need compare counter since unorder write to VRF is allowed.
-    * need to block the case if [[crossLaneWriteQueue]] is full.
-    */
-  val writeBusIndexMatch = writeBusPort.enq.bits.sinkIndex === laneIndex && crossLaneWriteQueue.io.enq.ready
-  // ring has higher priority than local data enqueue.
-  writeBusPort.enq.ready := true.B
-  // last connect: by default false
-  writeBusDataReg.valid := false.B
-  crossLaneWriteQueue.io.enq.valid := false.B
-
   // convert data types
-  crossLaneWriteQueue.io.enq.bits.vd := slotControl.head.laneRequest.vd + writeBusPort.enq.bits.counter(3, 1)
-  crossLaneWriteQueue.io.enq.bits.offset := writeBusPort.enq.bits.counter ## writeBusPort.enq.bits.isTail
-  crossLaneWriteQueue.io.enq.bits.data := writeBusPort.enq.bits.data
-  crossLaneWriteQueue.io.enq.bits.last := DontCare
-  crossLaneWriteQueue.io.enq.bits.instructionIndex := writeBusPort.enq.bits.instructionIndex
-  crossLaneWriteQueue.io.enq.bits.mask := FillInterleaved(2, writeBusPort.enq.bits.mask)
 
-  // arbitrate ring data to ring or local.
-  when(writeBusPort.enq.valid) {
-    when(writeBusIndexMatch) {
-      crossLaneWriteQueue.io.enq.valid := true.B
-    }.otherwise {
-      writeBusDataReg.valid := true.B
-      // gate ring when there is no data.
-      writeBusDataReg.bits := writeBusPort.enq.bits
-    }
-  }
-
-  // enqueue data to write ring.
-  writeBusPort.deq.valid := writeBusDataReg.valid || crossLaneWrite.valid
-  // arbitrate between ring data and local data.
-  writeBusPort.deq.bits := Mux(writeBusDataReg.valid, writeBusDataReg.bits, crossLaneWrite.bits)
-  // no forward will enqueue successfully.
-  crossLaneWriteReady := !writeBusDataReg.valid
 
   // VFU
   // TODO: reuse logic, adder, multiplier datapath
@@ -846,26 +780,30 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         }
     }
 
+
+    val crossWriteArbiter: Arbiter[VRFWriteRequest] = Module(new Arbiter(chiselTypeOf(crossLaneWriteQueue.head.io.enq.bits), 2))
+    crossWriteArbiter.io.in.zip(crossLaneWriteQueue.map(_.io.deq)).foreach { case (sink, source) => sink <> source }
+
     // 写 rf
     val normalWrite = VecInit(vrfWriteArbiter.map(_.valid)).asUInt.orR
     val writeSelect = !normalWrite ## ffo(VecInit(vrfWriteArbiter.map(_.valid)).asUInt)
-    val writeEnqBits = Mux1H(writeSelect, vrfWriteArbiter.map(_.bits) :+ crossLaneWriteQueue.io.deq.bits)
+    val writeEnqBits = Mux1H(writeSelect, vrfWriteArbiter.map(_.bits) :+ crossWriteArbiter.io.out.bits)
 
     // check cross write
-    vrf.crossWriteCheck.vd := crossLaneWriteQueue.io.deq.bits.vd
-    vrf.crossWriteCheck.offset := crossLaneWriteQueue.io.deq.bits.offset
-    vrf.crossWriteCheck.instructionIndex := crossLaneWriteQueue.io.deq.bits.instructionIndex
+    vrf.crossWriteCheck.vd := crossWriteArbiter.io.out.bits.vd
+    vrf.crossWriteCheck.offset := crossWriteArbiter.io.out.bits.offset
+    vrf.crossWriteCheck.instructionIndex := crossWriteArbiter.io.out.bits.instructionIndex
     val crossWriteCheckResult = vrf.crossWriteAllow
-    maskedWriteUnit.enqueue.valid := normalWrite || (crossLaneWriteQueue.io.deq.valid && crossWriteCheckResult)
+    maskedWriteUnit.enqueue.valid := normalWrite || (crossWriteArbiter.io.out.valid && crossWriteCheckResult)
     maskedWriteUnit.enqueue.bits := writeEnqBits
-    crossLaneWriteQueue.io.deq.ready := !normalWrite && maskedWriteUnit.enqueue.ready && crossWriteCheckResult
+    crossWriteArbiter.io.out.ready := !normalWrite && maskedWriteUnit.enqueue.ready && crossWriteCheckResult
     vrfWriteFire := Mux(maskedWriteUnit.enqueue.ready, writeSelect, 0.U)
 
     vrf.write <> maskedWriteUnit.dequeue
     readBeforeMaskedWrite <> maskedWriteUnit.vrfReadRequest
     writeQueueValid := maskedWriteUnit.enqueue.valid || maskedWriteUnit.dequeue.valid ||
       topWriteQueue.valid || vrfWriteChannel.valid ||
-      crossLaneWriteQueue.io.deq.valid || crossLaneWriteQueue.io.enq.valid
+      crossLaneWriteQueue.map(q => q.io.deq.valid || q.io.enq.valid).reduce(_ || _)
 
     //更新v0
     v0Update.valid := vrf.write.valid && vrf.write.bits.vd === 0.U
@@ -1090,7 +1028,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.lsuWriteBufferClear := lsuVRFWriteBufferClear
   vrf.crossWriteBusClear := crossWriteBusClear
   vrf.dataInWriteQueue :=
-    Mux(crossLaneWriteQueue.io.deq.valid, indexToOH(crossLaneWriteQueue.io.deq.bits.instructionIndex, parameter.chainingSize), 0.U) |
+    crossLaneWriteQueue.map(q => Mux(q.io.deq.valid, indexToOH(q.io.deq.bits.instructionIndex, parameter.chainingSize), 0.U)).reduce(_ | _)|
       Mux(topWriteQueue.valid, indexToOH(topWriteQueue.bits.instructionIndex, parameter.chainingSize), 0.U) |
       maskedWriteUnit.maskedWrite1H
   instructionFinished := instructionFinishedVec.reduce(_ | _)
