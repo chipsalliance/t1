@@ -18,8 +18,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: "Recover Cache"
-        run: nix-store --dump-db --store /mnt | nix-store --load-db
+      - name: "Setup Action"
+        run: ./.github/scripts/setup-action.sh
+      - name: "Build verilator emulator"
+        run: |
+          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
+          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' --no-link
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
@@ -36,13 +40,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: "Recover Cache"
-        run: nix-store --dump-db --store /mnt | nix-store --load-db
-      # build verilator emulator first, so that every developer can download new cache from latest commit.
-      - name: "Build verilator emulator"
-        run: |
-          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
-          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' --no-link
+      - name: "Setup Action"
+        run: ./.github/scripts/setup-action.sh
       - name: "Build verilator emulator with trace"
         run: |
           nix build '.#t1.v1024-l8-b2.verilator-emulator-trace' --no-link
@@ -55,8 +54,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: "Recover Cache"
-        run: nix-store --dump-db --store /mnt | nix-store --load-db
+      - name: "Setup Action"
+        run: ./.github/scripts/setup-action.sh
       - name: "Test elaborate"
         run: |
           set -e
@@ -80,8 +79,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: "Recover Cache"
-        run: nix-store --dump-db --store /mnt | nix-store --load-db
+      - name: "Setup Action"
+        run: ./.github/scripts/setup-action.sh
       - name: "Run testcases"
         id: ci-run
         run: |
@@ -148,8 +147,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: "Recover Cache"
-        run: nix-store --dump-db --store /mnt | nix-store --load-db
+      - name: "Setup Action"
+        run: ./.github/scripts/setup-action.sh
       - name: "Run failed testcases"
         run: |
           nix shell ".#ammonite" -c .github/scripts/ci.sc runFailedTests --jobs "${{ matrix.job }}"

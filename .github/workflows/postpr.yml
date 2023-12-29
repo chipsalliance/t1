@@ -16,9 +16,8 @@ jobs:
       ci-tests: ${{ steps.ci-tests.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v22
-      - name: "Recover Cache"
-        run: nix-store --dump-db --store /mnt | nix-store --load-db
+      - name: "Setup Action"
+        run: ./.github/scripts/setup-action.sh
       - id: ci-tests
         name: "Generate matrix"  # TODO: why unpassed testcases corresponds to perf testcases
         run: |
@@ -37,9 +36,8 @@ jobs:
       result: ${{ steps.ci-run.outputs.result }}
     steps:
       - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v22
-      - name: "Recover Cache"
-        run: nix-store --dump-db --store /mnt | nix-store --load-db
+      - name: "Setup Action"
+        run: ./.github/scripts/setup-action.sh
       - id: ci-run
         name: "Run testcases"
         run: |
