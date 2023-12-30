@@ -49,7 +49,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: test-results
+          name: test-results-${{ matrix.id }}
           path: |
             test-results-*/cycle-updates.md
             test-results-*/failed-tests.md
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: nix-post-build-hook-log
+          name: nix-post-build-hook-log-${{ matrix.id }}
           path: /tmp/nix-post-build-hook.log
 
   report:
@@ -69,7 +69,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: test-results
+          pattern: test-reports-*
+          merge-multiple: true
       - run: |
           printf "\n\n## Perf Result\n" >> "$GITHUB_STEP_SUMMARY"
           shopt -s nullglob

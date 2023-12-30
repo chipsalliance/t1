@@ -91,7 +91,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-reports
+          name: test-reports-${{ matrix.id }}
           path: |
             test-results-*/failed-tests.md
             test-results-*/cycle-updates.md
@@ -100,13 +100,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: failed-logs
+          name: failed-logs-${{ matrix.id }}
           path: test-results-*/failed-logs
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: nix-post-build-hook-log
+          name: nix-post-build-hook-log-${{ matrix.id }}
           path: /tmp/nix-post-build-hook.log
 
 
@@ -121,7 +121,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: test-reports
+          pattern: test-reports-*
+          merge-multiple: true
       - id: generate-matrix
         name: "Generate matrix"
         run: |
@@ -133,7 +134,8 @@ jobs:
           if [ -n "$retry" ]; then
             echo "generate_wave=true" >> "$GITHUB_OUTPUT"
             echo -n "retry_tasks=" >> "$GITHUB_OUTPUT"
-            echo "$retry" | jq -nR --indent 0 "{include:[{job: inputs}]}" >> "$GITHUB_OUTPUT"
+            echo "$retry" | \
+              jq -nR --indent 0 '{"include": [inputs | {"item": ., "id": (input_line_number)}]}' >> "$GITHUB_OUTPUT"
           fi
 
   build-fail-wave:
@@ -162,7 +164,7 @@ jobs:
           mv "$waveFile" ./wave-${{ matrix.job }}.fst
       - uses: actions/upload-artifact@v4
         with:
-          name: failed-tests-wave
+          name: failed-tests-wave-${{ matrix.id }}
           path: 'wave-*.fst'
       - run: |
           echo "Test ${{ matrix.job }} run fail"
@@ -181,7 +183,8 @@ jobs:
           ref: ${{ github.head_ref }}
       - uses: actions/download-artifact@v4
         with:
-          name: test-reports
+          pattern: test-reports-*
+          merge-multiple: true
       - name: "Print step summary"
         run: |
           echo -e "\n## Failed tests\n" >> $GITHUB_STEP_SUMMARY

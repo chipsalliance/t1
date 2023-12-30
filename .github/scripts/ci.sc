@@ -74,9 +74,8 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
 //
 // @param buckets Seq of String that is already packed into bucket using the `buckets` function
 // @param outputFile Path to the output json file
-def toMatrixJson(buckets: Seq[String]) = 
-  ujson.Obj("include" -> buckets.map(a => ujson.Obj(s"jobs" -> ujson.Str(a))))
-
+def toMatrixJson(buckets: Seq[String]) =
+  ujson.Obj("include" -> buckets.zipWithIndex.map{ case(a, i)  => ujson.Obj("jobs" -> ujson.Str(a), "id" -> ujson.Num(i + 1)) })
 
 // Read default tests information from '.github/cases/default.txt' file, and use that information to generate GitHub CI matrix.
 // The result will be printed to stdout, and should be pipe into $GITHUB_OUTPUT
