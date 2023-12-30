@@ -45,8 +45,8 @@ jobs:
         run: ./.github/scripts/setup-action.sh
       - name: "Build verilator emulator with trace"
         run: |
-          nix build '.#t1.v1024-l8-b2.verilator-emulator-trace' --no-link
-          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator-trace' --no-link
+          nix build '.#t1.v1024-l8-b2.verilator-emulator-trace' -L --no-link --cores 64
+          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator-trace' -L --no-link --cores 64
 
   test-emit:
     name: "Test elaborate"
