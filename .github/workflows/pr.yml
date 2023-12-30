@@ -6,10 +6,10 @@ env:
 
 jobs:
   gen-matrix:
-    name: "Generate test matrix"
+    name: "Prepare for running testcases"
     runs-on: [self-hosted, linux, nixos, "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics"]
     env:
-      RUNNERS: 16
+      RUNNERS: 8
     outputs:
       ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
     steps:
@@ -23,8 +23,10 @@ jobs:
         run: ./.github/scripts/setup-action.sh
       - name: "Build verilator emulator"
         run: |
-          nix build '.#t1.v1024-l8-b2.verilator-emulator' --no-link
-          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' --no-link
+          nix build '.#t1.v1024-l8-b2.verilator-emulator' -L --no-link
+          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' -L --no-link
+      - name: "Build all testcases"
+        run: nix build ".#t1.rvv-testcases.all" --max-jobs auto -L --no-link
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
@@ -35,8 +37,6 @@ jobs:
     name: "Build trace emulator"
     runs-on: [self-hosted, linux, nixos, "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics"]
     needs: [gen-matrix]
-    env:
-      RUNNERS: 16
     steps:
       - uses: actions/checkout@v4
         with:
