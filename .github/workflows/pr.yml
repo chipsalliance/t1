@@ -9,7 +9,8 @@ jobs:
     name: "Prepare for running testcases"
     runs-on: [self-hosted, linux, nixos, "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics"]
     env:
-      RUNNERS: 8
+      # TODO: after refactoring all test into derivations, we will split tasks into larger runners.
+      RUNNERS: 7
     outputs:
       ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
     steps:
