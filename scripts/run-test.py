@@ -170,7 +170,7 @@ def execute_verilator_emulator(args):
         elaborate_config_path.exists()
     ), f"cannot find elaborate config in {elaborate_config_path}"
 
-    target_name = "verilator-emulator-trace" if args.trace else "verilator-emulator"
+    target_name = "ip.emu-trace" if args.trace else "ip.emu"
     process_args = (
         [args.emulator_path]
         if args.emulator_path
@@ -200,9 +200,7 @@ def run_soc(args):
         f"./configs/{args.config}.json"
     ).exists(), f"./configs/{args.config}.json doesn't exists. \nHint: are you running this script in project root?"
 
-    target_name = (
-        "soc-verilator-emulator-trace" if args.trace else "soc-verilator-emulator"
-    )
+    target_name = "subsystem.emu-trace" if args.trace else "subsystem.emu"
     process_args = (
         [args.emulator_path]
         if args.emulator_path

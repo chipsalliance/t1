@@ -13,7 +13,8 @@ lib.makeScope newScope
   (self: {
     submodules = self.callPackage ./submodules.nix { };
     elaborator = self.callPackage ./elaborator.nix { };
-    soc-elaborator = self.callPackage ./soc-elaborator.nix { };
+
+    riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
 
     rvv-codegen = self.callPackage ./testcases/rvv-codegen.nix { };
     testcase-env = {
@@ -30,16 +31,23 @@ lib.makeScope newScope
       config-name = configName;
       elaborate-config = ../../configs/${configName}.json;
 
-      elaborate = innerSelf.callPackage ./elaborate.nix { };
-      elaborate-release = innerSelf.callPackage ./elaborate.nix { is-testbench = false; };
+      ip = {
+        rtl = innerSelf.callPackage ./elaborate.nix { target = "ip"; };
 
-      verilator-emulator = innerSelf.callPackage ./verilator-emulator.nix { };
-      verilator-emulator-trace = innerSelf.callPackage ./verilator-emulator.nix { do-trace = true; };
+        emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; };
+        emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; };
+        emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; do-trace = true; };
+      };
 
-      soc-elaborate = innerSelf.callPackage ./soc-elaborate.nix { enableFpga = false; };
-      soc-elaborate-fpga = innerSelf.callPackage ./soc-elaborate.nix { enableFpga = true; };
-      soc-verilator-emulator = innerSelf.callPackage ./soc-verilator-emulator.nix { };
-      soc-verilator-emulator-trace = innerSelf.callPackage ./soc-verilator-emulator.nix { do-trace = true; };
+      subsystem = {
+        rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystem"; };
+
+        emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystememu"; };
+        emu = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; };
+        emu-trace = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; do-trace = true; };
+
+        fpga-rtl = innerSelf.callPackage ./elaborate.nix { target = "fpga"; };
+      };
     })
   )
   )
