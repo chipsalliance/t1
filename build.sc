@@ -76,12 +76,11 @@ trait Hardfloat
   def chiselPluginIvy = None
 }
 
-object vector extends Vector
+object t1 extends T1
 
-trait Vector
-  extends millbuild.common.VectorModule
+trait T1
+  extends millbuild.common.T1Module
   with ScalafmtModule {
-  def millSourcePath = os.pwd / "v"
   def scalaVersion = T(v.scala)
 
   def arithmeticModule = arithmetic
@@ -172,7 +171,7 @@ trait IPEmulator
   extends millbuild.common.IPEmulatorModule {
   def scalaVersion = T(v.scala)
 
-  def vectorModule = vector
+  def t1Module = t1
 
   def chiselModule = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
@@ -186,7 +185,7 @@ trait SubsystemEmulator
   extends millbuild.common.SubsystemEmulatorModule {
   def scalaVersion = T(v.scala)
 
-  def vectorModule = vector
+  def t1Module = t1
   def rocketModule = rocket
 
   def chiselModule = Some(chisel)
@@ -203,7 +202,7 @@ trait Elaborator
   def scalaVersion = T(v.scala)
 
   def generators = Seq(
-    vector,
+    t1,
     ipemu,
     subsystememu
   )

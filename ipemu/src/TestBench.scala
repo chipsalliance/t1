@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
 
-package tests.elaborate
+package org.chipsalliance.t1.ipemu
 
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
-import v.{V, VParameter}
 import chisel3.probe._
 import chisel3.util.experimental.BoringUtils.bore
-import chisel3.util.DecoupledIO
-import tilelink.TLChannelD
+import org.chipsalliance.t1.rtl.{V, VParameter}
 
 
 class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends RawModule {
@@ -17,7 +15,6 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
   val reset = Wire(Bool())
   val dut: V = withClockAndReset(clock, reset)(Module(generator.module()))
   withClockAndReset(clock, reset) {
-//    val coverModule = Module(new CoverModule(dut))
     val monitor = Module(new Monitor(dut))
     monitor.clock := clock
     monitor.reset := reset

@@ -1,4 +1,7 @@
-package tests.elaborate
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
+
+package org.chipsalliance.t1.ipemu
 
 import chisel3._
 

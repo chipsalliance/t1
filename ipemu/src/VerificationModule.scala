@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
 
-package tests.elaborate
+package org.chipsalliance.t1.ipemu
 
 import chisel3._
 import chisel3.probe._
-import chisel3.experimental.hierarchy._
-import chisel3.util.experimental.BoringUtils.{bore, tap, tapAndRead}
-import chisel3.util.{Decoupled, DecoupledIO, HasExtModuleInline, Valid, ValidIO, log2Ceil}
-import tilelink.{TLBundle, TLChannelA}
-import v.{CSRInterface, LSUWriteQueueBundle, V, VRFWriteRequest, VRequest, VResponse}
-import elaborate.dpi._
+import chisel3.util.experimental.BoringUtils.{bore, tapAndRead}
+import chisel3.util.{Decoupled, DecoupledIO, Valid, ValidIO}
+import org.chipsalliance.t1.ipemu.dpi._
+import org.chipsalliance.t1.rtl.{CSRInterface, V, VRequest, VResponse}
+import tilelink.TLBundle
 
 class VerificationModule(dut: V) extends RawModule {
   override val desiredName = "VerificationModule"

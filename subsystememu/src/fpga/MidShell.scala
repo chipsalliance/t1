@@ -1,13 +1,14 @@
-package verdes.fpga
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
+
+package org.chipsalliance.t1.fpga
 
 import chisel3._
 import chisel3.util._
-import verdes.fpga.io._
 import freechips.rocketchip.amba.axi4.{AXI4Bundle, AXI4BundleParameters}
-import org.chipsalliance.cde.config.Parameters
-import verdes.VerdesSystem
-import freechips.rocketchip.devices.debug.Debug
 import freechips.rocketchip.diplomacy.LazyModule
+import org.chipsalliance.cde.config.Parameters
+import org.chipsalliance.t1.subsystem.VerdesSystem
 
 class MidShell(implicit val p: Parameters) extends Module {
   val io = IO(new Bundle{

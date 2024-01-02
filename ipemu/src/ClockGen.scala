@@ -1,4 +1,4 @@
-package tests.elaborate
+package org.chipsalliance.t1.ipemu
 
 import chisel3.{Bool, Clock, Output}
 import chisel3.experimental.ExtModule

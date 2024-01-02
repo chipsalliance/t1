@@ -1,8 +1,10 @@
-package verdes.fpga
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
+
+package org.chipsalliance.t1.fpga
 
 import chisel3._
 import chisel3.util._
-import verdes.fpga.io._
 
 object UARTLiteRegMap { // All RX is defined as dut side RX
   val RX_FIFO = 0x0.U
