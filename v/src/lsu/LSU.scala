@@ -15,19 +15,19 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelD}
   * @param paWidth physical address width
   */
 case class LSUParam(
-  datapathWidth:        Int,
-  chainingSize:         Int,
-  vLen:                 Int,
-  laneNumber:           Int,
-  paWidth:              Int,
-  sourceWidth:          Int,
-  sizeWidth:            Int,
-  maskWidth:            Int,
-  memoryBankSize:       Int,
-  lsuMSHRSize:          Int,
-  lsuVRFWriteQueueSize: Int,
-  cacheLineSize:        Int,
-  tlParam:              TLBundleParameter) {
+                     datapathWidth:        Int,
+                     chainingSize:         Int,
+                     vLen:                 Int,
+                     laneNumber:           Int,
+                     paWidth:              Int,
+                     sourceWidth:          Int,
+                     sizeWidth:            Int,
+                     maskWidth:            Int,
+                     memoryBankSize:       Int,
+                     lsuMSHRSize:          Int,
+                     lsuVRFWriteQueueSize: Int,
+                     lsuTransposeSize:     Int,
+                     tlParam:              TLBundleParameter) {
 
   /** see [[VParameter.maskGroupWidth]]. */
   val maskGroupWidth: Int = datapathWidth
@@ -45,10 +45,10 @@ case class LSUParam(
     */
   val vLenBits: Int = log2Ceil(vLen) + 1
 
-  val bankPosition: Int = log2Ceil(cacheLineSize)
+  val bankPosition: Int = log2Ceil(lsuTransposeSize)
 
   def mshrParam: MSHRParam =
-    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, cacheLineSize, memoryBankSize, tlParam)
+    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, lsuTransposeSize, memoryBankSize, tlParam)
 
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)
@@ -203,7 +203,7 @@ class LSU(param: LSUParam) extends Module {
   writeQueueVec.zipWithIndex.foreach {case (write, index) =>
     write.io.enq.valid := otherTryToWrite(index) || loadUnit.vrfWritePort(index).valid
     write.io.enq.bits.data := Mux(otherTryToWrite(index), otherUnit.vrfWritePort.bits, loadUnit.vrfWritePort(index).bits)
-    write.io.enq.bits.targetLane := (1 << index).U
+    write.io.enq.bits.targetLane := (1L << index).U
     loadUnit.vrfWritePort(index).ready := write.io.enq.ready && !otherTryToWrite(index)
   }
 

@@ -42,14 +42,14 @@ import tilelink.{TLBundle, TLBundleParameter}
  * based on the mask group granularity to detect hazard for unit stride and stride instruction
  */
 case class MSHRParam(
-                      chainingSize:  Int,
-                      datapathWidth: Int,
-                      vLen:          Int,
-                      laneNumber:    Int,
-                      paWidth:       Int,
-                      cacheLineSize: Int,
-                      memoryBankSize:Int,
-                      outerTLParam:  TLBundleParameter) {
+                      chainingSize:     Int,
+                      datapathWidth:    Int,
+                      vLen:             Int,
+                      laneNumber:       Int,
+                      paWidth:          Int,
+                      lsuTransposeSize: Int,
+                      memoryBankSize:   Int,
+                      outerTLParam:     TLBundleParameter) {
 
   /** see [[LaneParameter.lmulMax]] */
   val lmulMax: Int = 8
@@ -115,17 +115,17 @@ case class MSHRParam(
   val vrfOffsetBits: Int = log2Ceil(singleGroupSize)
 
   /** offset bit for a cache line */
-  val cacheLineBits: Int = log2Ceil(cacheLineSize)
+  val cacheLineBits: Int = log2Ceil(lsuTransposeSize)
 
-  val bustCount: Int = cacheLineSize * 8 / datapathWidth
+  val bustCount: Int = lsuTransposeSize * 8 / datapathWidth
 
   val bustCountBits: Int = log2Ceil(bustCount)
 
   /** The maximum number of cache lines that will be accessed, a counter is needed.
    * +1 Corresponding unaligned case
    * */
-  val cacheLineIndexBits: Int = log2Ceil(vLen/cacheLineSize + 1)
-  val bankPosition: Int = log2Ceil(cacheLineSize)
+  val cacheLineIndexBits: Int = log2Ceil(vLen/lsuTransposeSize + 1)
+  val bankPosition: Int = log2Ceil(lsuTransposeSize)
 }
 
 /** Miss Status Handler Register
@@ -492,7 +492,8 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
    * TODO: use Mux1H here
    */
   val globalOffsetOfIndexedInstructionOffsets: UInt =
-    (nextElementForMemoryRequestIndex << offsetEEW).asUInt(nextElementForMemoryRequestIndex.getWidth + 1, 0)
+    ((groupIndex ## nextElementForMemoryRequestIndex) << offsetEEW).
+      asUInt(nextElementForMemoryRequestIndex.getWidth + 1, 0)
 
   /** MSB of [[globalOffsetOfIndexedInstructionOffsets]], indicate the offset group of current memory request. */
   val offsetGroupIndexOfMemoryRequest: UInt =
@@ -891,7 +892,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /** which byte to access in VRF for load instruction.
    * see [[storeBaseByteOffset]]
    */
-  val loadBaseByteOffset: UInt = ((groupIndex ## indexInMaskGroupResponse) << dataEEW).asUInt(9, 0)
+  val loadBaseByteOffset: UInt = ((groupIndex ## indexInMaskGroupResponse) << dataEEW)
   vrfWritePort.valid := tlPort.d.valid && !lsuRequestReg.instructionInformation.isStore
   val addressOffset = offsetRecord(tlPort.d.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0)) ## 0.U(3.W)
   tlPort.d.ready := vrfWritePort.ready

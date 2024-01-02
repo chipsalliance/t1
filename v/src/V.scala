@@ -43,7 +43,6 @@ case class VParameter(
                        instructionQueueSize: Int,
                        memoryBankSize:       Int,
                        lsuVRFWriteQueueSize: Int,
-                       cacheLineSize:        Int,
                        portFactor:           Int,
                        vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
@@ -106,12 +105,15 @@ case class VParameter(
       log2Ceil(lsuMSHRSize) // 3 MSHR(2 read + 1 write)
   }
 
+  // Read all lanes at once and send the data obtained at once.
+  val lsuTransposeSize = datapathWidth * laneNumber / 8
+
   /** for TileLink `size` element.
     * for most of the time, size is 2'b10, which means 4 bytes.
     * EEW = 8bit, indexed LSU will access 1 byte.(bandwidth is 1/4).
     * TODO: perf it.
     */
-  val sizeWidth: Int = log2Ceil(log2Ceil(cacheLineSize))
+  val sizeWidth: Int = log2Ceil(log2Ceil(lsuTransposeSize))
 
   /** for TileLink `mask` element. */
   val maskWidth: Int = memoryDataWidth / 8
@@ -153,7 +155,7 @@ case class VParameter(
     memoryBankSize,
     lsuMSHRSize,
     lsuVRFWriteQueueSize,
-    cacheLineSize,
+    lsuTransposeSize,
     tlParam
   )
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor)
@@ -289,18 +291,14 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   /** duplicate v0 for mask */
   val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.maskGroupSize)(0.U(parameter.maskGroupWidth.W))))
   // TODO: uarch doc for the regroup
-  val regroupV0: Seq[Seq[UInt]] = Seq(4, 2, 1).map { groupSize =>
-    v0.map { element =>
-      element.asBools
-        .grouped(groupSize)
-        .toSeq
-        .map(VecInit(_).asUInt)
-        .grouped(parameter.laneNumber)
-        .toSeq
-        .transpose
-        .map(seq => VecInit(seq).asUInt)
-    }.transpose.map(VecInit(_).asUInt)
-  }.transpose
+  val regroupV0: Seq[UInt] = Seq(4, 2, 1).map { groupSize =>
+    VecInit(cutUInt(v0.asUInt, groupSize)
+      .grouped(parameter.laneNumber)
+      .toSeq
+      .transpose
+      .map(seq => VecInit(seq).asUInt))
+      .asUInt
+  }
 
   /** which slot the instruction is entering */
   val instructionToSlotOH: UInt = Wire(UInt(parameter.chainingSize.W))
@@ -636,9 +634,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         *   xxx xxx xxxxx
         */
       val dataPathMisaligned = csrRegForMaskUnit.vl(parameter.dataPathWidthBits - 1, 0).orR
-      val groupMisaligned = csrRegForMaskUnit
+      val groupMisaligned = if (parameter.laneNumber > 1) csrRegForMaskUnit
         .vl(parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber) - 1, parameter.dataPathWidthBits)
-        .orR
+        .orR else false.B
 
       /**
         * 我们需要计算最后一次写的 [[writeBackCounter]] & [[groupCounter]]
@@ -650,11 +648,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           parameter.laneParam.vlMaxBits - 1,
           parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber)
         ) - !(dataPathMisaligned || groupMisaligned)
-      val lastExecuteCounter: UInt =
+      val lastExecuteCounter: UInt = if (parameter.laneNumber > 1) {
         csrRegForMaskUnit.vl(
           parameter.dataPathWidthBits + log2Ceil(parameter.laneNumber) - 1,
           parameter.dataPathWidthBits
         ) - !dataPathMisaligned
+      } else 0.U
       val lastGroup = groupCounter === lastGroupCounter
       val lastExecute = lastGroup && writeBackCounter === lastExecuteCounter
       val lastExecuteForGroup = writeBackCounter.andR
@@ -1287,9 +1286,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     instructionFinished(index).zip(slots.map(_.record.instructionIndex)).foreach {
       case (d, f) => d := (UIntToOH(f(parameter.instructionIndexBits - 2, 0)) & lane.instructionFinished).orR
     }
-    lane.maskInput := regroupV0.map(Mux1H(UIntToOH(lane.maskSelectSew)(2, 0), _)).map { v0ForLane =>
-      VecInit(v0ForLane.asBools.grouped(parameter.datapathWidth).toSeq.map(VecInit(_).asUInt))
-    }(index)(lane.maskSelect)
+    val v0ForThisLane: Seq[UInt] = regroupV0.map(rv => cutUInt(rv, parameter.vLen / parameter.laneNumber)(index))
+    val v0SelectBySew = Mux1H(UIntToOH(lane.maskSelectSew)(2, 0), v0ForThisLane)
+    lane.maskInput := cutUInt(v0SelectBySew, parameter.datapathWidth)(lane.maskSelect)
     lane.lsuLastReport := lsu.lastReport |
       Mux(
         lastMaskUnitWrite,

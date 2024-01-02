@@ -15,8 +15,9 @@ trait LSUPublic {
 }
 
 abstract class StrideBase(param: MSHRParam) extends Module {
-  val bufferSize: Int = param.datapathWidth * param.laneNumber * 8 / (param.cacheLineSize * 8)
-  val burstSize: Int = param.cacheLineSize * 8 / param.tlParam.d.dataWidth
+  // max nField = 8
+  val bufferSize: Int = 8
+  val burstSize: Int = param.lsuTransposeSize * 8 / param.tlParam.d.dataWidth
 
   // 直接维护data group吧
   // (vl * 8) / (datapath * laneNumber)
@@ -83,7 +84,8 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   val countEndForGroup: UInt = Mux1H(dataEEWOH, Seq(0.U, 1.U, 3.U))
   val maskGroupCounter: UInt = RegInit(0.U(log2Ceil(param.vLen / param.maskGroupWidth).W))
   val nextMaskGroup: UInt = maskGroupCounter + 1.U
-  val maskCounterInGroup: UInt = RegInit(0.U(log2Ceil(param.maskGroupWidth / ((param.cacheLineSize * 8) / 32)).W))
+  val maxMaskGroupSize: Int = 1 max param.maskGroupWidth / ((param.lsuTransposeSize * 8) / 32)
+  val maskCounterInGroup: UInt = RegInit(0.U((1 max log2Ceil(maxMaskGroupSize)).W))
   val nextMaskCount: UInt = maskCounterInGroup + 1.U
   // is last data group for mask group
   val isLastDataGroup: Bool = maskCounterInGroup === countEndForGroup
@@ -109,7 +111,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   maskForGroupWire := Mux1H(dataEEWOH, Seq(
     maskWire,
     Mux(maskCounterInGroup(0), FillInterleaved(2, maskWire) >> param.maskGroupWidth, FillInterleaved(2, maskWire)),
-    Mux1H(UIntToOH(maskCounterInGroup), Seq.tabulate(4) { maskIndex =>
+    Mux1H(UIntToOH(maskCounterInGroup), Seq.tabulate(maxMaskGroupSize) { maskIndex =>
       FillInterleaved(4, maskWire)(
         maskIndex * param.maskGroupWidth + param.maskGroupWidth - 1, maskIndex * param.maskGroupWidth
       )
@@ -133,7 +135,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
 
   // 把 nFiled 个cache line 分成一组
   val bufferCounterBits: Int = log2Ceil(bufferSize)
-  val dataBuffer: Vec[UInt] = RegInit(VecInit(Seq.fill(bufferSize)(0.U((param.cacheLineSize * 8).W))))
+  val dataBuffer: Vec[UInt] = RegInit(VecInit(Seq.fill(bufferSize)(0.U((param.lsuTransposeSize * 8).W))))
   val bufferBaseCacheLineIndex: UInt = RegInit(0.U(param.cacheLineIndexBits.W))
   val cacheLineIndexInBuffer: UInt = RegInit(0.U(bufferCounterBits.W))
 

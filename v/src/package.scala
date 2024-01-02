@@ -80,7 +80,6 @@ package object v {
     // not access for register -> na
     val notAccessForRegister = Fill(elementSizeForOneRegister, true.B)
     val writeOHGroup = cutUInt(lastWriteOH, elementSizeForOneRegister)
-    require(datapath==32 && laneNumber == 8, "If the parameters are modified, you need to modify them here.")
     // writeOHGroup: d7 ## d6 ## d5 ## d4 ## d3 ## d2 ## d1 ## d0
     // seg1: 2 reg group
     //  mul0    na ## na ## na ## na ## na ## na ## d0 ## d0
