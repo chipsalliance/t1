@@ -1,9 +1,11 @@
-package verdes.fpga
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
+
+package org.chipsalliance.t1.fpga
 
 import chisel3._
 import freechips.rocketchip.util.ElaborationArtefacts
 import org.chipsalliance.cde.config.Parameters
-import verdes.fpga.io._
 
 class FPGAHarness(implicit val p: Parameters) extends RawModule {
   val io = IO(new Bundle{

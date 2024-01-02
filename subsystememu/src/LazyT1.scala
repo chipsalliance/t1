@@ -1,4 +1,7 @@
-package verdes
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
+
+package org.chipsalliance.t1.subsystem
 
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
@@ -7,7 +10,7 @@ import freechips.rocketchip.subsystem.{BaseSubsystem, HasTiles}
 import freechips.rocketchip.util.CoreMonitorBundle
 import org.chipsalliance.t1.rockettile.{AbstractLazyT1, AbstractLazyT1ModuleImp}
 import org.chipsalliance.cde.config._
-import v.{V, VParameter}
+import org.chipsalliance.t1.rtl.{V, VParameter}
 
 case object T1ConfigPath extends Field[os.Path]
 trait HasT1Tiles extends HasTiles { this: BaseSubsystem =>

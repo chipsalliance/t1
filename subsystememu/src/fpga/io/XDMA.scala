@@ -1,4 +1,7 @@
-package verdes.fpga.io
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
+
+package org.chipsalliance.t1.fpga
 
 import chisel3._
 import freechips.rocketchip.amba.axi4._

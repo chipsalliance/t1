@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
 
-package tests.elaborate
+package org.chipsalliance.t1.ipemu
 
 import chisel3._
-import chisel3.probe._
-import chisel3.experimental.ExtModule
-import chisel3.util.HasExtModuleInline
 import chisel3.util.experimental.BoringUtils.tapAndRead
-import elaborate.dpi._
-import v.{V, VRFWriteRequest}
-
-import scala.util.ChainingOps
+import org.chipsalliance.t1.ipemu.dpi._
+import org.chipsalliance.t1.rtl.V
 
 class Monitor(dut: V) extends RawModule {
   val clock = IO(Input(Clock()))

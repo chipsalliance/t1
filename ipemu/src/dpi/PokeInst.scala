@@ -1,7 +1,7 @@
-package elaborate.dpi
+package org.chipsalliance.t1.ipemu.dpi
 
 import chisel3._
-import v.{CSRInterface, VRequest, VResponse}
+import org.chipsalliance.t1.rtl.{CSRInterface, VRequest, VResponse}
 
 case class PokeInstParameter(xLen: Int,
                              vlMaxBits: Int,

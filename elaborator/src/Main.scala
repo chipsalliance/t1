@@ -47,7 +47,7 @@ object Main {
   case class IPConfig(
     @arg(name = "ip-config", short = 'c') ipConfig: os.Path) {
     def generator = upickle.default
-      .read[chisel3.experimental.SerializableModuleGenerator[v.V, v.VParameter]](ujson.read(os.read(ipConfig)))
+      .read[chisel3.experimental.SerializableModuleGenerator[org.chipsalliance.t1.rtl.V, org.chipsalliance.t1.rtl.VParameter]](ujson.read(os.read(ipConfig)))
   }
 
   implicit def ipConfig: ParserForClass[IPConfig] = ParserForClass[IPConfig]
@@ -56,8 +56,8 @@ object Main {
   case class SubsystemConfig(
     ipConfig:                                                 IPConfig,
     @arg(name = "rvopcodes-path", short = 'r') rvopcodesPath: os.Path) {
-    def cdeParameter = (new verdes.VerdesConfig).orElse(new org.chipsalliance.cde.config.Config((_, _, _) => {
-      case verdes.T1ConfigPath                              => ipConfig.ipConfig
+    def cdeParameter = (new org.chipsalliance.t1.subsystem.VerdesConfig).orElse(new org.chipsalliance.cde.config.Config((_, _, _) => {
+      case org.chipsalliance.t1.subsystem.T1ConfigPath                              => ipConfig.ipConfig
       case org.chipsalliance.t1.rocketcore.RISCVOpcodesPath => rvopcodesPath
     }))
   }
@@ -68,16 +68,16 @@ object Main {
     ipConfig.generator.module()
   )
   @main def ipemu(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
-    new tests.elaborate.TestBench(ipConfig.generator)
+    new org.chipsalliance.t1.ipemu.TestBench(ipConfig.generator)
   )
   @main def subsystem(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
-    freechips.rocketchip.diplomacy.LazyModule(new verdes.VerdesSystem()(subsystemConfig.cdeParameter))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
+    freechips.rocketchip.diplomacy.LazyModule(new org.chipsalliance.t1.subsystem.VerdesSystem()(subsystemConfig.cdeParameter))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
   )
   @main def subsystememu(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
-    new verdes.TestHarness()(subsystemConfig.cdeParameter)
+    new org.chipsalliance.t1.subsystememu.TestHarness()(subsystemConfig.cdeParameter)
   )
   @main def fpga(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
-    new verdes.fpga.FPGAHarness()(subsystemConfig.cdeParameter)
+    new org.chipsalliance.t1.fpga.FPGAHarness()(subsystemConfig.cdeParameter)
   )
   // format: on
 

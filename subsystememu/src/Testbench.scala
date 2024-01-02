@@ -1,11 +1,15 @@
-package verdes
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
+
+package org.chipsalliance.t1.subsystememu
 
 import chisel3._
 import chisel3.probe._
 import freechips.rocketchip.diplomacy.LazyModule
 import freechips.rocketchip.subsystem.ExtMem
 import org.chipsalliance.cde.config.Parameters
-import verdes.dpi._
+import org.chipsalliance.t1.subsystem.VerdesSystem
+import org.chipsalliance.t1.subsystememu.dpi._
 
 class TestHarness(implicit val p: Parameters) extends RawModule {
   val ldut = LazyModule(new VerdesSystem)

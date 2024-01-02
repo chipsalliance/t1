@@ -28,7 +28,7 @@ trait HasChisel
 }
 
 // Local definitions
-trait VectorModule
+trait T1Module
   extends ScalaModule 
     with HasChisel {
   def arithmeticModule: ScalaModule
@@ -49,16 +49,16 @@ trait RocketModule
 trait IPEmulatorModule
   extends ScalaModule
     with HasChisel {
-  def vectorModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(vectorModule)
+  def t1Module: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(t1Module)
 }
 
 trait SubsystemEmulatorModule
   extends ScalaModule
     with HasChisel {
-  def vectorModule: ScalaModule
+  def t1Module: ScalaModule
   def rocketModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(vectorModule, rocketModule)
+  def moduleDeps = super.moduleDeps ++ Seq(t1Module, rocketModule)
 }
 
 trait ElaboratorModule
