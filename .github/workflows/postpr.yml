@@ -46,7 +46,7 @@ jobs:
             --resultDir test-results-$(head -c 10 /dev/urandom | base32) --dontBail true
           nix shell '.#ammonite' -c .github/scripts/ci.sc convertPerfToMD
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.id }}
@@ -55,7 +55,7 @@ jobs:
             test-results-*/failed-tests.md
             perf-result-*.md
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: nix-post-build-hook-log-${{ matrix.id }}
@@ -67,7 +67,7 @@ jobs:
     needs: [run-testcases]
     runs-on: [self-hosted, linux, nixos]
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           pattern: test-reports-*
           merge-multiple: true
