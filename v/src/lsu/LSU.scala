@@ -122,6 +122,8 @@ class LSU(param: LSUParam) extends Module {
     )
   )
 
+  val dataInWriteQueue: Vec[UInt] = IO(Output(Vec(param.laneNumber, UInt(param.chainingSize.W))))
+
   /** the CSR interface from [[V]], CSR will be latched in MSHR.
     * TODO: merge to [[LSURequest]]
     */
@@ -209,6 +211,22 @@ class LSU(param: LSUParam) extends Module {
     p.valid := q.io.deq.valid
     p.bits := q.io.deq.bits.data
     q.io.deq.ready := p.ready
+  }
+
+  // Record whether there is data for the corresponding instruction in the queue
+  writeQueueVec.zip(dataInWriteQueue).foreach {case (q, p) =>
+    val queueCount: Seq[UInt] = Seq.tabulate(param.chainingSize) { _ =>
+      RegInit(0.U(log2Ceil(param.lsuVRFWriteQueueSize).W))
+    }
+    val queueEnq: UInt = Mux(q.io.enq.fire, indexToOH(q.io.enq.bits.data.instructionIndex, param.chainingSize), 0.U)
+    val queueDeq = Mux(q.io.deq.fire, indexToOH(q.io.deq.bits.data.instructionIndex, param.chainingSize), 0.U)
+    queueCount.zipWithIndex.foreach {case (count, index) =>
+      val counterUpdate: UInt = Mux(queueEnq(index), 1.U, -1.S(log2Ceil(param.lsuVRFWriteQueueSize).W).asUInt)
+      when(queueEnq(index) ^ queueDeq(index)) {
+        count := count + counterUpdate
+      }
+    }
+    p := VecInit(queueCount.map(_ =/= 0.U)).asUInt
   }
 
   val accessPortA: Seq[DecoupledIO[TLChannelA]] = Seq(loadUnit.tlPortA, otherUnit.tlPort.a)

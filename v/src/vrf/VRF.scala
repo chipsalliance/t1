@@ -170,7 +170,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val vrfReadyToStore: Bool = IO(Output(Bool()))
 
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
-  val lsuWriteBufferClear: Bool = IO(Input(Bool()))
+  val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
   // todo: delete
   dontTouch(write)
   val portFireCount: UInt = PopCount(VecInit(readRequests.map(_.fire) :+ write.fire))
@@ -268,6 +268,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
       val dataIndexWriteQueue = ohCheck(dataInWriteQueue, record.bits.instIndex, parameter.chainingSize)
+      val dataInLsuQueue = ohCheck(loadDataInLSUWriteQueue, record.bits.instIndex, parameter.chainingSize)
       // elementMask update by write
       val writeUpdateValidVec: Seq[Bool] = writePort.map( p =>
         p.fire && p.bits.instructionIndex === record.bits.instIndex && p.bits.mask(3)
@@ -290,7 +291,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           record.bits.wWriteQueueClear := true.B
         }
       }
-      when(record.bits.stFinish && (lsuWriteBufferClear || record.bits.st) && record.valid) {
+      when(record.bits.stFinish && (!dataInLsuQueue || record.bits.st) && record.valid) {
         when(dataIndexWriteQueue) {
           record.bits.wWriteQueueClear
         } otherwise {
