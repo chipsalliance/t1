@@ -7,7 +7,7 @@ case class PokeInstParameter(xLen: Int,
                              vlMaxBits: Int,
                              triggerDelay: Int)
 
-class PokeInst(p: PokeInstParameter) extends DPIModule {
+class PokeInst(p: PokeInstParameter) extends DPIModuleLegacy {
   val isImport: Boolean = true
   val clock = dpiTrigger("clock", Input(Bool()))
 

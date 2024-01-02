@@ -165,6 +165,18 @@ trait Rocket
   def chiselIvy = None
 }
 
+object emuhelper extends EmuHelper
+
+trait EmuHelper
+  extends millbuild.common.EmuHelperModule {
+  def scalaVersion = T(v.scala)
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
 object ipemu extends IPEmulator
 
 trait IPEmulator
@@ -172,6 +184,22 @@ trait IPEmulator
   def scalaVersion = T(v.scala)
 
   def t1Module = t1
+  def emuHelperModule = emuhelper
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
+object subsystem extends Subsystem
+
+trait Subsystem
+  extends millbuild.common.SubsystemModule {
+  def scalaVersion = T(v.scala)
+
+  def t1Module = t1
+  def rocketModule = rocket
 
   def chiselModule = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
@@ -185,8 +213,22 @@ trait SubsystemEmulator
   extends millbuild.common.SubsystemEmulatorModule {
   def scalaVersion = T(v.scala)
 
-  def t1Module = t1
-  def rocketModule = rocket
+  def subsystemModule = subsystem
+  def emuHelperModule = emuhelper
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
+object fpga extends FPGA
+
+trait FPGA
+  extends millbuild.common.FPGAModule {
+  def scalaVersion = T(v.scala)
+
+  def subsystemModule = subsystem
 
   def chiselModule = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
@@ -204,7 +246,9 @@ trait Elaborator
   def generators = Seq(
     t1,
     ipemu,
-    subsystememu
+    subsystem,
+    subsystememu,
+    fpga
   )
 
   def mainargsIvy = v.mainargs

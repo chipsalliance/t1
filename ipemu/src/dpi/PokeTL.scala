@@ -7,7 +7,7 @@ import chisel3._
 
 import tilelink.TLBundle
 
-class PokeTL(bundle: TLBundle, triggerDelay: Int) extends DPIModule {
+class PokeTL(bundle: TLBundle, triggerDelay: Int) extends DPIModuleLegacy {
   val isImport: Boolean = true
   val clock = dpiTrigger("clock", Input(Bool()))
 

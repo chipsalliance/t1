@@ -7,7 +7,7 @@ import chisel3._
 
 case class PeekIssueParameter(instIdxBits: Int, triggerDelay: Int)
 
-class PeekIssue(p: PeekIssueParameter) extends DPIModule {
+class PeekIssue(p: PeekIssueParameter) extends DPIModuleLegacy {
   val isImport: Boolean = true
   val clock = dpiTrigger("clock", Input(Bool()))
   val ready = dpiIn("ready", Input(Bool()))

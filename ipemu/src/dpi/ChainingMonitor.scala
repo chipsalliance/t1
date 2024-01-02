@@ -7,7 +7,7 @@ import chisel3._
 
 case class ChainingMonitorParameter(slotNum: Int, triggerDelay: Int)
 
-class ChainingMonitor(p: ChainingMonitorParameter) extends DPIModule {
+class ChainingMonitor(p: ChainingMonitorParameter) extends DPIModuleLegacy {
   val isImport: Boolean = true
 
   val clock = dpiTrigger("clock", Input(Bool()))

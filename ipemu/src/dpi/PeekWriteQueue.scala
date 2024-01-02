@@ -13,7 +13,7 @@ case class PeekWriteQueueParameter(regNumBits: Int,
                                    datapathWidth: Int,
                                    negTriggerDelay: Int)
 
-class PeekWriteQueue(p: PeekWriteQueueParameter) extends DPIModule {
+class PeekWriteQueue(p: PeekWriteQueueParameter) extends DPIModuleLegacy {
   val isImport: Boolean = true
   val clock = dpiTrigger("clock", Input(Bool()))
 

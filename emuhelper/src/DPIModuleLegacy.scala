@@ -11,11 +11,11 @@ import chisel3.util.HasExtModuleInline
 
 import scala.collection.mutable.ArrayBuffer
 
-case class DPIElement[T <: Data](name: String, output: Boolean, data: T)
+case class DPIElementLegacy[T <: Data](name: String, output: Boolean, data: T)
 
-case class DPIReference[T <: Data](name: String, ref: T)
+case class DPIReferenceLegacy[T <: Data](name: String, ref: T)
 
-abstract class DPIModule
+abstract class DPIModuleLegacy
   extends ExtModule
     with HasExtModuleInline {
 
@@ -37,13 +37,13 @@ abstract class DPIModule
   def dpiTrigger[T <: Element](name: String, data: T) = bind(name, false, Input(data))
 
   val isImport: Boolean
-  val references: ArrayBuffer[DPIElement[_]] = scala.collection.mutable.ArrayBuffer.empty[DPIElement[_]]
-  val dpiReferences: ArrayBuffer[DPIElement[_]] = scala.collection.mutable.ArrayBuffer.empty[DPIElement[_]]
+  val references: ArrayBuffer[DPIElementLegacy[_]] = scala.collection.mutable.ArrayBuffer.empty[DPIElementLegacy[_]]
+  val dpiReferences: ArrayBuffer[DPIElementLegacy[_]] = scala.collection.mutable.ArrayBuffer.empty[DPIElementLegacy[_]]
 
   def bind[T <: Data](name: String, isDPIArg: Boolean, data: T) = {
     val ref = IO(data).suggestName(name)
 
-    val ele = DPIElement(name, chisel3.reflect.DataMirror.directionOf(ref) match {
+    val ele = DPIElementLegacy(name, chisel3.reflect.DataMirror.directionOf(ref) match {
       case ActualDirection.Empty => false
       case ActualDirection.Unspecified => false
       case ActualDirection.Output => true
@@ -55,7 +55,7 @@ abstract class DPIModule
     if (isDPIArg) {
       dpiReferences += ele
     }
-    DPIReference(name, ref)
+    DPIReferenceLegacy(name, ref)
   }
 
   val trigger: String = ""
@@ -65,7 +65,7 @@ abstract class DPIModule
   private[chisel3] override def generateComponent() = {
     // return binding function and probe signals
     val localDefinition = "(" + references.map {
-      case DPIElement(name, _, element) =>
+      case DPIElementLegacy(name, _, element) =>
         val output = chisel3.reflect.DataMirror.directionOf(element) match {
           case ActualDirection.Empty => false
           case ActualDirection.Unspecified => false
@@ -82,7 +82,7 @@ abstract class DPIModule
     }.mkString(", ") + ")"
 
     val dpiArg = dpiReferences.map {
-      case DPIElement(name, output, element) =>
+      case DPIElementLegacy(name, output, element) =>
         val direction = if (output) "output " else "input "
         val width = chisel3.reflect.DataMirror.widthOf(element) match {
           case UnknownWidth() => throw new Exception(s"$desiredName.$name width unknown")

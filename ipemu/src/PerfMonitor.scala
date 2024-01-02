@@ -5,7 +5,7 @@ package org.chipsalliance.t1.ipemu
 
 import chisel3._
 
-abstract class PerfMonitor extends DPIModule {
+abstract class PerfMonitor extends DPIModuleLegacy {
   override val isImport = true;
 
   val clock = dpiTrigger("clock", Input(Bool()))

@@ -5,7 +5,7 @@ package org.chipsalliance.t1.ipemu.dpi
 
 import chisel3._
 
-class DpiError extends DPIModule {
+class DpiError extends DPIModuleLegacy {
   val isImport: Boolean = false
 
   // TODO: think about `chisel3.properties.Property`?

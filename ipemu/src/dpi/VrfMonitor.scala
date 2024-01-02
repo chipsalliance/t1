@@ -7,7 +7,7 @@ import chisel3._
 
 case class VrfMonitorParameter(triggerDelay: Int)
 
-class VrfMonitor(p: VrfMonitorParameter) extends DPIModule {
+class VrfMonitor(p: VrfMonitorParameter) extends DPIModuleLegacy {
   val isImport: Boolean = true
 
   val clock = dpiTrigger("clock", Input(Bool()))

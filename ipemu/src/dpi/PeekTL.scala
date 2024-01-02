@@ -7,7 +7,7 @@ import chisel3._
 
 import tilelink.TLBundle
 
-class PeekTL(bundle: TLBundle, triggerDelay: Int) extends DPIModule {
+class PeekTL(bundle: TLBundle, triggerDelay: Int) extends DPIModuleLegacy {
   val isImport: Boolean = true
   val clock = dpiTrigger("clock", Input(Bool()))
   val channel = dpiIn("channel", Input(UInt(32.W)))
