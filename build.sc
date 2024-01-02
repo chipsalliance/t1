@@ -94,21 +94,6 @@ trait Vector
   def chiselPluginIvy = None
 }
 
-// Module to generate RTL from json config
-// TODO: remove testbench
-object elaborator extends ScalaModule with ScalafmtModule {
-  override def millSourcePath: os.Path = os.pwd / "elaborator"
-  override def scalacPluginClasspath = T(Agg(chisel.pluginModule.jar()))
-  override def scalacOptions = T(
-    super.scalacOptions() ++ Some(chisel.pluginModule.jar()).map(path => s"-Xplugin:${path.path}") ++ Seq(
-      "-Ymacro-annotations"
-    )
-  )
-  override def scalaVersion = v.scala
-  override def moduleDeps = Seq(vector)
-  override def ivyDeps = T(Seq(v.mainargs))
-}
-
 // SoC demostration, not the real dependencies for the vector project
 import $file.dependencies.`cde`.common
 import $file.dependencies.`rocket-chip`.common
@@ -181,15 +166,49 @@ trait Rocket
   def chiselIvy = None
 }
 
+object ipemu extends IPEmulator
+
+trait IPEmulator
+  extends millbuild.common.IPEmulatorModule {
+  def scalaVersion = T(v.scala)
+
+  def vectorModule = vector
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
 object subsystememu extends SubsystemEmulator
 
 trait SubsystemEmulator
-  extends millbuild.common.SubsystemEmulatorModule
-    with TaskModule {
+  extends millbuild.common.SubsystemEmulatorModule {
   def scalaVersion = T(v.scala)
 
   def vectorModule = vector
   def rocketModule = rocket
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
+// Module to generate RTL from json config
+object elaborator extends Elaborator
+
+trait Elaborator
+  extends millbuild.common.ElaboratorModule {
+  def scalaVersion = T(v.scala)
+
+  def generators = Seq(
+    vector,
+    ipemu,
+    subsystememu
+  )
+
+  def mainargsIvy = v.mainargs
 
   def chiselModule = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
