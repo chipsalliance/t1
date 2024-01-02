@@ -1298,7 +1298,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       )
 
     lane.lsuMaskGroupChange := lsu.lsuMaskGroupChange
-    lane.lsuVRFWriteBufferClear := !lsu.vrfWritePort(index).valid
+    lane.loadDataInLSUWriteQueue := lsu.dataInWriteQueue(index)
     lane.crossWriteBusClear := busClear
     // 2 + 3 = 5
     val rowWith: Int = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
