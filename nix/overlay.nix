@@ -73,4 +73,6 @@ in
   };
 
   t1 = final.callPackage ./t1 { };
+
+  lane-layout-gen = final.callPackage ../lane-layout-gen { };
 }

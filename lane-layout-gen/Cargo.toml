@@ -1,0 +1,11 @@
+[package]
+name = "lane-layout-gen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "^4.4.13", features = ["derive"] }
+rand = { version = "^0.8.5" }
+kdam = { version = "^0.5.1" , features = ["rayon"]}
+rayon = { version = "^1.8.0" }
+serde_json = {  version = "^1.0.111" }
