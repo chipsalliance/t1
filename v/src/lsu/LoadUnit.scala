@@ -9,7 +9,7 @@ import tilelink.{TLChannelA, TLChannelD}
 import chisel3.probe.{Probe, ProbeValue, define}
 
 class cacheLineDequeueBundle(param: MSHRParam) extends Bundle {
-  val data: UInt = UInt((param.cacheLineSize * 8).W)
+  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
 
@@ -67,7 +67,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
     val (_, last, _, _) = firstlastHelper(burstSize, param.tlParam)(port.bits, port.fire)
 
     val cacheLineValid = RegInit(false.B)
-    val dataShifterRegForPort = RegInit(0.U((param.cacheLineSize * 8).W))
+    val dataShifterRegForPort = RegInit(0.U((param.lsuTransposeSize * 8).W))
     val cacheIndex = RegInit(0.U(param.cacheLineIndexBits.W))
     val dataUpdate = (port.bits.data ## dataShifterRegForPort) >> param.tlParam.d.dataWidth
     when(port.fire) {
@@ -184,7 +184,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
         // 一次element会用掉多少 byte 数据
         val elementSize = dataBlockSize * nFiled
         VecInit(Seq.tabulate(8) { segIndex =>
-          val res = Wire(UInt((param.cacheLineSize * 8).W))
+          val res = Wire(UInt((param.lsuTransposeSize * 8).W))
           if (segIndex > segSize) {
             // todo: 优化这个 DontCare
             res := DontCare

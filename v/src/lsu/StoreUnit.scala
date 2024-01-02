@@ -10,8 +10,8 @@ import lsu.StoreStatus
 import tilelink.TLChannelA
 
 class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
-  val data: UInt = UInt((param.cacheLineSize * 8).W)
-  val mask: UInt = UInt(param.cacheLineSize.W)
+  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
+  val mask: UInt = UInt(param.lsuTransposeSize.W)
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
 
@@ -128,14 +128,14 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // stage2, 用一个buffer来存转成cache line 的数据
   val bufferValid: Bool = RegInit(false.B)
   // 存每条cache 的mask, 也许能优化, 暂时先这样
-  val maskForBufferData: Vec[UInt] = RegInit(VecInit(Seq.fill(8)(0.U(param.cacheLineSize.W))))
+  val maskForBufferData: Vec[UInt] = RegInit(VecInit(Seq.fill(8)(0.U(param.lsuTransposeSize.W))))
   val maskForBufferDequeue: UInt = maskForBufferData(cacheLineIndexInBuffer)
   val tailLeft2: Bool = RegInit(false.B)
   val alignedDequeue: DecoupledIO[cacheLineEnqueueBundle] = Wire(Decoupled(new cacheLineEnqueueBundle(param)))
   val alignedDequeueFire: Bool = alignedDequeue.fire
   // cache 不对齐的时候的上一条残留
-  val cacheLineTemp: UInt = RegEnable(dataBuffer.head, 0.U((param.cacheLineSize * 8).W), alignedDequeueFire)
-  val maskTemp: UInt = RegInit(0.U(param.cacheLineSize.W))
+  val cacheLineTemp: UInt = RegEnable(dataBuffer.head, 0.U((param.lsuTransposeSize * 8).W), alignedDequeueFire)
+  val maskTemp: UInt = RegInit(0.U(param.lsuTransposeSize.W))
   val tailValid: Bool = RegInit(false.B)
   val isLastCacheLineInBuffer: Bool = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
   accessBufferDequeueReady := !bufferValid
@@ -146,7 +146,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   })
   // 把数据regroup, 然后放去 [[dataBuffer]]
   when(accessBufferDequeueFire) {
-    maskForBufferData := cutUInt(fillBySeg, param.cacheLineSize)
+    maskForBufferData := cutUInt(fillBySeg, param.lsuTransposeSize)
     tailLeft2 := tailLeft1
     // todo: 只是因为参数恰好是一个方形的, 需要写一个反的
     dataBuffer := Mux1H(dataEEWOH, Seq.tabulate(3) { sewSize =>
@@ -166,9 +166,9 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
          *  所以我们把 [[dataRegroupBySew]] 的前 nf 个组拿出来转置一下就得到了数据在 mem 中的分布情况
          * */
         val dataInMem = VecInit(dataRegroupBySew.take(segSize + 1).transpose.map(VecInit(_).asUInt)).asUInt
-        val regroupCacheLine: Vec[UInt] = cutUInt(dataInMem, param.cacheLineSize * 8)
+        val regroupCacheLine: Vec[UInt] = cutUInt(dataInMem, param.lsuTransposeSize * 8)
         VecInit(Seq.tabulate(8) { segIndex =>
-          val res = Wire(UInt((param.cacheLineSize * 8).W))
+          val res = Wire(UInt((param.lsuTransposeSize * 8).W))
           if (segIndex > segSize) {
             // todo: 优化这个 DontCare
             res := DontCare

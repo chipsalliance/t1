@@ -11,7 +11,6 @@
     "instructionQueueSize": 8,
     "memoryBankSize": 2,
     "lsuVRFWriteQueueSize": 4,
-    "cacheLineSize": 32,
     "portFactor": 1,
     "vfuInstantiateParameter": {
       "slotCount": 4,
