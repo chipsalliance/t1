@@ -7,7 +7,7 @@ import chisel3._
 
 case class TimeoutCheckParameter(clockRate: Int)
 
-class TimeoutCheck(p: TimeoutCheckParameter) extends DPIModule{
+class TimeoutCheck(p: TimeoutCheckParameter) extends DPIModuleLegacy {
   val isImport: Boolean = true
   override val trigger = s"always #(${2 * p.clockRate + 1})"
 }

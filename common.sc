@@ -46,19 +46,39 @@ trait RocketModule
   def moduleDeps = super.moduleDeps ++ Seq(rocketchipModule, rvdecoderdbModule)
 }
 
+trait EmuHelperModule
+  extends ScalaModule
+    with HasChisel
+
 trait IPEmulatorModule
   extends ScalaModule
     with HasChisel {
   def t1Module: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(t1Module)
+  def emuHelperModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(t1Module, emuHelperModule)
 }
 
-trait SubsystemEmulatorModule
+trait SubsystemModule
   extends ScalaModule
     with HasChisel {
   def t1Module: ScalaModule
   def rocketModule: ScalaModule
   def moduleDeps = super.moduleDeps ++ Seq(t1Module, rocketModule)
+}
+
+trait SubsystemEmulatorModule
+  extends ScalaModule
+    with HasChisel {
+  def subsystemModule: ScalaModule
+  def emuHelperModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(subsystemModule, emuHelperModule)
+}
+
+trait FPGAModule
+  extends ScalaModule
+    with HasChisel {
+  def subsystemModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(subsystemModule)
 }
 
 trait ElaboratorModule

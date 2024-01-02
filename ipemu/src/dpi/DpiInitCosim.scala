@@ -5,7 +5,7 @@ package org.chipsalliance.t1.ipemu.dpi
 
 import chisel3._
 
-class DpiInitCosim extends DPIModule {
+class DpiInitCosim extends DPIModuleLegacy {
   val isImport: Boolean = true
   override val trigger: String = s"initial"
 }

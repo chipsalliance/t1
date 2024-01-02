@@ -13,7 +13,7 @@ case class PeekVrfWriteParameter(regNumBits: Int,
                                  datapathWidth: Int,
                                  triggerDelay: Int)
 
-class PeekVrfWrite(p: PeekVrfWriteParameter) extends DPIModule {
+class PeekVrfWrite(p: PeekVrfWriteParameter) extends DPIModuleLegacy {
   val isImport: Boolean = true
   val clock = dpiTrigger("clock", Input(Bool()))
 

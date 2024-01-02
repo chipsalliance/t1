@@ -7,7 +7,7 @@ import chisel3._
 
 case class AluMonitorParameter(triggerDelay: Int)
 
-class AluMonitor(p: AluMonitorParameter) extends DPIModule {
+class AluMonitor(p: AluMonitorParameter) extends DPIModuleLegacy {
   val isImport: Boolean = true
 
   val clock = dpiTrigger("clock", Input(Bool()))

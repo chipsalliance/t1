@@ -7,7 +7,7 @@ import chisel3._
 
 case class PeekLsuEnqParameter(mshrSize: Int, triggerDelay: Int)
 
-class PeekLsuEnq(p: PeekLsuEnqParameter) extends DPIModule {
+class PeekLsuEnq(p: PeekLsuEnqParameter) extends DPIModuleLegacy {
   val isImport: Boolean = true
   val clock = dpiTrigger("clock", Input(Bool()))
   val enq = dpiIn("enq", Input(UInt(p.mshrSize.W)))
