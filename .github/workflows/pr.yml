@@ -136,7 +136,7 @@ jobs:
             echo "generate_wave=true" >> "$GITHUB_OUTPUT"
             echo -n "retry_tasks=" >> "$GITHUB_OUTPUT"
             echo "$retry" | \
-              jq -nR --indent 0 '{"include": [inputs | {"item": ., "id": (input_line_number)}]}' >> "$GITHUB_OUTPUT"
+              jq -nR --indent 0 '{"include": [inputs | {"job": ., "id": (input_line_number)}]}' >> "$GITHUB_OUTPUT"
           fi
 
   build-fail-wave:
