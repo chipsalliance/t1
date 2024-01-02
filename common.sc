@@ -46,10 +46,26 @@ trait RocketModule
   def moduleDeps = super.moduleDeps ++ Seq(rocketchipModule, rvdecoderdbModule)
 }
 
+trait IPEmulatorModule
+  extends ScalaModule
+    with HasChisel {
+  def vectorModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(vectorModule)
+}
+
 trait SubsystemEmulatorModule
   extends ScalaModule
     with HasChisel {
   def vectorModule: ScalaModule
   def rocketModule: ScalaModule
   def moduleDeps = super.moduleDeps ++ Seq(vectorModule, rocketModule)
+}
+
+trait ElaboratorModule
+  extends ScalaModule
+    with HasChisel {
+  def generators: Seq[ScalaModule]
+  override def moduleDeps = super.moduleDeps ++ generators
+  def mainargsIvy: Dep
+  override def ivyDeps = T(super.ivyDeps() ++ Seq(mainargsIvy))
 }

@@ -1,47 +1,85 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
 
-package tests.elaborate
+package org.chipsalliance.t1.elaborator
 
-import chisel3._
-import chisel3.aop.Select
-import chisel3.aop.injecting.InjectingAspect
-import chisel3.stage.ChiselGeneratorAnnotation
-import chisel3.experimental.SerializableModuleGenerator
-import v.{V, VParameter}
-import firrtl.AnnotationSeq
-import firrtl.stage.FirrtlCircuitAnnotation
 import mainargs._
 
 object Main {
-  @main def elaborate(
-                       @arg(name = "dir") dir: String,
-                       @arg(name = "config") config: String,
-                       @arg(name = "tb") tb: Boolean
-                     ) = {
-    val dir_ = os.Path(dir, os.pwd)
-    val config_ = os.Path(config, os.pwd)
-
-    val generator = upickle.default.read[SerializableModuleGenerator[V, VParameter]](ujson.read(os.read(config_)))
-    var topName: String = null
-    val annos: AnnotationSeq = Seq(
-      new chisel3.stage.phases.Elaborate,
-      new chisel3.tests.elaborate.Convert
-    ).foldLeft(
-      Seq(
-        ChiselGeneratorAnnotation(() => if(tb) new TestBench(generator) else generator.module())
-      ): AnnotationSeq
-    ) { case (annos, stage) => stage.transform(annos) }
-      .flatMap {
-        case FirrtlCircuitAnnotation(circuit) =>
-          topName = circuit.main
-          os.write(dir_ / s"$topName.fir", circuit.serialize)
-          None
-        case _: chisel3.stage.DesignAnnotation[_] => None
-        case a => Some(a)
-      }
-    os.write(dir_ / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
+  implicit object PathRead extends TokensReader.Simple[os.Path] {
+    def shortName = "path"
+    def read(strs: Seq[String]): Either[String, os.Path] = Right(os.Path(strs.head, os.pwd))
   }
+
+  @main
+  case class ElaborateConfig(
+    @arg(name = "target-dir", short = 't') targetDir: os.Path) {
+    def elaborate(gen: () => chisel3.RawModule): Unit = {
+      var topName: String = null
+      val annos = Seq(
+        new chisel3.stage.phases.Elaborate,
+        new chisel3.stage.phases.Convert
+      ).foldLeft(
+        Seq(
+          chisel3.stage.ChiselGeneratorAnnotation(gen)
+        ): firrtl.AnnotationSeq
+      ) { case (annos, stage) => stage.transform(annos) }
+        .flatMap {
+          case firrtl.stage.FirrtlCircuitAnnotation(circuit) =>
+            topName = circuit.main
+            os.write(targetDir / s"$topName.fir", circuit.serialize)
+            None
+          case _: chisel3.stage.DesignAnnotation[_]                       => None
+          case _: chisel3.stage.ChiselCircuitAnnotation                   => None
+          case _: freechips.rocketchip.util.ParamsAnnotation              => None
+          case _: freechips.rocketchip.util.RegFieldDescMappingAnnotation => None
+          case _: freechips.rocketchip.util.AddressMapAnnotation          => None
+          case _: freechips.rocketchip.util.ParamsAnnotation              => None
+          case _: freechips.rocketchip.util.SRAMAnnotation                => None
+          case a => Some(a)
+        }
+      os.write(targetDir / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
+    }
+  }
+
+  implicit def elaborateConfig: ParserForClass[ElaborateConfig] = ParserForClass[ElaborateConfig]
+
+  case class IPConfig(
+    @arg(name = "ip-config", short = 'c') ipConfig: os.Path) {
+    def generator = upickle.default
+      .read[chisel3.experimental.SerializableModuleGenerator[v.V, v.VParameter]](ujson.read(os.read(ipConfig)))
+  }
+
+  implicit def ipConfig: ParserForClass[IPConfig] = ParserForClass[IPConfig]
+
+  @main
+  case class SubsystemConfig(
+    ipConfig:                                                 IPConfig,
+    @arg(name = "rvopcodes-path", short = 'r') rvopcodesPath: os.Path) {
+    def cdeParameter = (new verdes.VerdesConfig).orElse(new org.chipsalliance.cde.config.Config((_, _, _) => {
+      case verdes.T1ConfigPath                              => ipConfig.ipConfig
+      case org.chipsalliance.t1.rocketcore.RISCVOpcodesPath => rvopcodesPath
+    }))
+  }
+  implicit def subsystemConfig: ParserForClass[SubsystemConfig] = ParserForClass[SubsystemConfig]
+
+  // format: off
+  @main def ip(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
+    ipConfig.generator.module()
+  )
+  @main def ipemu(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
+    new tests.elaborate.TestBench(ipConfig.generator)
+  )
+  @main def subsystem(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
+    freechips.rocketchip.diplomacy.LazyModule(new verdes.VerdesSystem()(subsystemConfig.cdeParameter))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
+  )
+  @main def subsystememu(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
+    new verdes.TestHarness()(subsystemConfig.cdeParameter)
+  )
+  @main def fpga(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
+    new verdes.fpga.FPGAHarness()(subsystemConfig.cdeParameter)
+  )
+  // format: on
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 }
