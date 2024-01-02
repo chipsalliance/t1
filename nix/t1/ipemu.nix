@@ -12,18 +12,19 @@
 , verilator
 , zlib
 
-, soc-elaborate
+, rtl
 , config-name
+
 , do-trace ? false
 }:
 
 stdenv.mkDerivation {
-  name = "t1-soc-${config-name}-verilator-emulator" + lib.optionalString do-trace "-trace";
+  name = "t1-${config-name}-ipemu" + lib.optionalString do-trace "-trace";
 
-  src = ../../subsystememu/csrc;
+  src = ../../ipemu/csrc;
 
   # CMakeLists.txt will read the environment
-  env.VERILATE_SRC_DIR = toString soc-elaborate;
+  env.VERILATE_SRC_DIR = toString rtl;
 
   cmakeFlags = lib.optionals do-trace [
     "-DVERILATE_TRACE=ON"

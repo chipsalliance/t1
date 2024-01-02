@@ -2,15 +2,11 @@
 , stdenv
 , fetchMillDeps
 , makeWrapper
-, jq
 , jre
 
   # chisel deps
 , mill
 , espresso
-, circt
-, protobuf
-, antlr4
 
 , nvfetcher
 , submodules
@@ -20,7 +16,18 @@ let
   self = stdenv.mkDerivation rec {
     name = "t1-elaborator";
 
-    src = lib'.sourceFilesByPrefixes ./../.. [ "/v" "/build.sc" "/common.sc" "/elaborator" ];
+    src = lib'.sourceFilesByPrefixes ./../.. [
+      "/build.sc"
+      "/common.sc"
+      "/t1"
+      "/subsystem"
+      "/rocket"
+      "/emuhelper"
+      "/ipemu"
+      "/subsystememu"
+      "/fpga"
+      "/elaborator"
+    ];
     sourceRoot = src.name;
 
     passthru.millDeps = fetchMillDeps {
@@ -43,11 +50,7 @@ let
 
     nativeBuildInputs = [
       mill
-      jq
-      espresso
-      circt
-      protobuf
-      antlr4
+
       makeWrapper
       passthru.millDeps.setupHook
 
