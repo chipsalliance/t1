@@ -24,8 +24,8 @@ jobs:
         run: ./.github/scripts/setup-action.sh
       - name: "Build verilator emulator"
         run: |
-          nix build '.#t1.v1024-l8-b2.verilator-emulator' -L --no-link
-          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' -L --no-link
+          nix build '.#t1.v1024-l8-b2.verilator-emulator' -L --no-link --cores 64
+          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' -L --no-link --cores 64
       - name: "Build all testcases"
         run: nix build ".#t1.rvv-testcases.all" --max-jobs auto -L --no-link --cores 64
       - id: gen-matrix
