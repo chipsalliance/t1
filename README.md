@@ -76,12 +76,19 @@ t1 includes a hardware design written in Chisel and a emulator powered by verila
 You can build its components with the following commands:
 ```shell
 $ nix build .#t1.elaborator  # the wrapped jar file of the Chisel elaborator
-$ nix build .#t1.<config-name>.elaborate  # the elaborated .sv files
-$ nix build .#t1.<config-name>.elaborate-release  # the release elaborated .sv files
-$ nix build .#t1.<config-name>.verilator-emulator  # the verilator emulator
-$ nix build .#t1.<config-name>.verilator-emulator-trace  # the verilator emulator with trace support
 
-$ nix build .#t1.rvv-testcases  # the testcases
+$ nix build .#t1.<config-name>.ip.rtl  # the elaborated IP core .sv files
+$ nix build .#t1.<config-name>.ip.emu-rtl  # the elaborated IP core .sv files with emulation support
+$ nix build .#t1.<config-name>.ip.emu  # build the IP core emulator
+$ nix build .#t1.<config-name>.ip.emu-trace  # build the IP core emulator with trace support
+
+$ nix build .#t1.<config-name>.subsystem.rtl  # the elaborated soc .sv files
+$ nix build .#t1.<config-name>.subsystem.emu-rtl  # the elaborated soc .sv files with emulation support
+$ nix build .#t1.<config-name>.subsystem.emu  # build the soc emulator
+$ nix build .#t1.<config-name>.subsystem.emu-trace  # build the soc emulator with trace support
+$ nix build .#t1.<config-name>.subsystem.fpga  # build the elaborated soc .sv files with fpga support
+
+$ nix build .#t1.rvv-testcases.all  # the testcases
 ```
 where `<config-name>` should be replaced with a configuration name, e.g. `v1024-l8-b2`. The build output will be put in `./result` directory by default.
 
@@ -121,7 +128,7 @@ $ mill -i elaborator  # build and run elaborator
 
 #### Developing Emulator
 ```shell
-$ nix develop .#t1.<config>.verilator-emulator  # replace <config> with your configuration name
+$ nix develop .#t1.<config>.ip.emu  # replace <config> with your configuration name
 $ cd emulator
 $ cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Debug
 $ cmake --build build
