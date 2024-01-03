@@ -31,13 +31,18 @@ def main():
         help="configuration name, as filenames in ./configs",
     )
     verilator_args_parser.add_argument(
+        "--config-file",
+        default=None,
+        help="path to the configuration",
+    )
+    verilator_args_parser.add_argument(
         "--trace", action="store_true", help="use emulator with trace support"
     )
     verilator_args_parser.add_argument(
-        "-r",
-        "--run-config",
-        default="debug",
-        help="run configuration name, as filenames in ./run",
+        "-t",
+        "--cosim-timeout",
+        default="100000",
+        help="Timeout value for cosim",
     )
     verilator_args_parser.add_argument(
         "-v", "--verbose", action="store_true", help="set loglevel to debug"
@@ -46,6 +51,11 @@ def main():
         "--no-log",
         action="store_true",
         help="prevent emulator produce log (both console and file)",
+    )
+    verilator_args_parser.add_argument(
+        "--no-file-log",
+        action="store_true",
+        help="prevent emulator writing events to disk",
     )
     verilator_args_parser.add_argument(
         "-q",
@@ -123,7 +133,8 @@ def run_verilator_emulator(args):
             )
         else:
             args.out_dir = f"./testrun/{args.config}/{args.case}/{args.run_config}"
-        Path(args.out_dir).mkdir(exist_ok=True, parents=True)
+
+    Path(args.out_dir).mkdir(exist_ok=True, parents=True)
 
     execute_verilator_emulator(args)
 
@@ -155,17 +166,17 @@ def load_elf_from_dir(cases_dir, case_name):
 
 
 def execute_verilator_emulator(args):
-    run_config_path = Path("run") / f"{args.run_config}.json"
-    assert run_config_path.exists(), f"cannot find run config in {run_config_path}"
-    run_config = json.loads(run_config_path.read_text())
-
     case_elf_path = (
         args.case
         if Path(args.case).exists()
         else load_elf_from_dir(args.cases_dir, args.case)
     )
 
-    elaborate_config_path = Path("configs") / f"{args.config}.json"
+    elaborate_config_path = (
+        Path(args.config_file)
+        if args.config_file
+        else Path("configs") / f"{args.config}.json"
+    )
     assert (
         elaborate_config_path.exists()
     ), f"cannot find elaborate config in {elaborate_config_path}"
@@ -179,11 +190,12 @@ def execute_verilator_emulator(args):
     env = {
         "COSIM_bin": str(case_elf_path),
         "COSIM_wave": str(Path(args.out_dir) / "wave.fst"),
-        "COSIM_timeout": str(run_config["timeout"]),
+        "COSIM_timeout": str(args.cosim_timeout),
         "COSIM_config": str(elaborate_config_path),
         "PERF_output_file": str(Path(args.out_dir) / "perf.txt"),
         "EMULATOR_log_path": str(Path(args.out_dir) / "emulator.log"),
         "EMULATOR_no_log": "true" if args.no_log else "false",
+        "EMULATOR_no_file_log": "true" if args.no_file_log else "false",
         "EMULATOR_no_console_log": "true" if args.no_console_log else "false",
     }
     env_repr = "\n".join(f"{k}={v}" for k, v in env.items())

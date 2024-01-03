@@ -152,19 +152,19 @@ private:
 
     switch (log_type) {
     case LogType::Info:
-      file->info("{}", this->dump(-1));
+      if (file) file->info("{}", this->dump(-1));
       if (console) console->info("{}", this->dump(2));
       break;
     case LogType::Warn:
-      file->warn("{}", this->dump(-1));
+      if (file) file->warn("{}", this->dump(-1));
       if (console) console->warn("{}", this->dump(2));
       break;
     case LogType::Trace:
-      file->trace("{}", this->dump(-1));
+      if (file) file->trace("{}", this->dump(-1));
       if (console) console->trace("{}", this->dump(2));
       break;
     case LogType::Fatal:
-      file->critical("{}", this->dump(-1));
+      if (file) file->critical("{}", this->dump(-1));
       if (console) console->critical("{}", this->dump(2));
       spdlog::shutdown();
 

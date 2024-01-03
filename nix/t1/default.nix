@@ -24,6 +24,8 @@ lib.makeScope newScope
       mkCodegenCase = self.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
     };
     rvv-testcases = self.callPackage ../../tests { };
+
+    makeTestArtifacts = self.callPackage ./testcases/make-test-artifacts.nix { };
   } //
   lib.genAttrs configNames (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters
@@ -50,6 +52,38 @@ lib.makeScope newScope
 
         fpga-rtl = innerSelf.callPackage ./elaborate.nix { target = "fpga"; };
       };
+
+      _rvvTestCaseExecutors =
+        let
+          /*
+            Turn all the test cases derivation into a set of lambda, with each of them when filling the argument can produce a test case outputs.
+
+            Example:
+              mapTestCaseToBuilder { codegen = { vaadd-vv = <drv>; }; }
+
+              => { codegen = { vaadd-vv = { args }: derivation } }
+
+            Type:
+              mapTestCaseToBuilder :: { caseType :: { caseName :: <derivation> } } -> { caseType :: { caseName :: (AttrSet -> <derivation>) } }
+          */
+          mapTestCaseToBuilder = with lib; with builtins;
+            attr: pipe attr [
+              # Filter out some derived functions
+              (filterAttrs
+                (_: v: typeOf v == "set"))
+              # Filter out our magic "all" derivation
+              (filterAttrs (name: _: name != "all"))
+              # Filter out the magic nix search attribute
+              (filterAttrsRecursive (name: _: name != "recurseForDerivations"))
+              # Transform all the derivation into lambda
+              (mapAttrs
+                (_: case:
+                  mapAttrs
+                    (_: caseDrv: self.makeTestArtifacts caseDrv)
+                    case))
+            ];
+        in
+        mapTestCaseToBuilder self.rvv-testcases;
     })
   )
   )

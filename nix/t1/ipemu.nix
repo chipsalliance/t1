@@ -13,37 +13,59 @@
 , zlib
 
 , rtl
+, elaborate-config
 , config-name
+
+, _rvvTestCaseExecutors
 
 , do-trace ? false
 }:
 
-stdenv.mkDerivation {
-  name = "t1-${config-name}-ipemu" + lib.optionalString do-trace "-trace";
+let
+  self = stdenv.mkDerivation {
+    name = "t1-${config-name}-ipemu" + lib.optionalString do-trace "-trace";
 
-  src = ../../ipemu/csrc;
+    src = ../../ipemu/csrc;
 
-  # CMakeLists.txt will read the environment
-  env.VERILATE_SRC_DIR = toString rtl;
+    # CMakeLists.txt will read the environment
+    env.VERILATE_SRC_DIR = toString rtl;
 
-  cmakeFlags = lib.optionals do-trace [
-    "-DVERILATE_TRACE=ON"
-  ];
+    cmakeFlags = lib.optionals do-trace [
+      "-DVERILATE_TRACE=ON"
+    ];
 
-  nativeBuildInputs = [
-    cmake
-    verilator
-    ninja
-  ];
+    nativeBuildInputs = [
+      cmake
+      verilator
+      ninja
+    ];
 
-  buildInputs = [
-    zlib
-    libargs
-    spdlog
-    fmt
-    libspike
-    nlohmann_json
-  ];
+    buildInputs = [
+      zlib
+      libargs
+      spdlog
+      fmt
+      libspike
+      nlohmann_json
+    ];
 
-  meta.mainProgram = "emulator";
-}
+    meta.mainProgram = "emulator";
+
+    passthru =
+      (lib.mapAttrs
+        (_: caseSet:
+          (lib.mapAttrs
+            (_: builder: builder {
+              emuType = "verilate";
+              enableTrace = do-trace;
+              emulator = self;
+              elaborateConfig = elaborate-config;
+            })
+            caseSet))
+        _rvvTestCaseExecutors)
+      // {
+        inherit config-name;
+      };
+  };
+in
+self
