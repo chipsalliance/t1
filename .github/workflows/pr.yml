@@ -24,8 +24,8 @@ jobs:
         run: ./.github/scripts/setup-action.sh
       - name: "Build verilator emulator"
         run: |
-          nix build '.#t1.v1024-l8-b2.verilator-emulator' -L --no-link --cores 64
-          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator' -L --no-link --cores 64
+          nix build '.#t1.v1024-l8-b2.ip.emu' -L --no-link --cores 64
+          nix build '.#t1.v1024-l8-b2-fp.ip.emu' -L --no-link --cores 64
       - name: "Build all testcases"
         run: nix build ".#t1.rvv-testcases.all" --max-jobs auto -L --no-link --cores 64
       - id: gen-matrix
@@ -46,8 +46,8 @@ jobs:
         run: ./.github/scripts/setup-action.sh
       - name: "Build verilator emulator with trace"
         run: |
-          nix build '.#t1.v1024-l8-b2.verilator-emulator-trace' -L --no-link --cores 64
-          nix build '.#t1.v1024-l8-b2-fp.verilator-emulator-trace' -L --no-link --cores 64
+          nix build '.#t1.v1024-l8-b2.ip.emu-trace' -L --no-link --cores 64
+          nix build '.#t1.v1024-l8-b2-fp.ip.emu-trace' -L --no-link --cores 64
 
   test-emit:
     name: "Test elaborate"
@@ -64,8 +64,8 @@ jobs:
           for f in configs/*; do
             fname=$(basename $f)
             configName=${fname%.*}
-            echo "building .#t1.${configName}.elaborate"
-            nix build .#t1.${configName}.elaborate
+            echo "building .#t1.${configName}.rtl"
+            nix build .#t1.${configName}.ip.rtl
           done
 
   run-testcases:
