@@ -93,6 +93,18 @@ trait T1
   def chiselPluginIvy = None
 }
 
+object configgen extends ConfigGen
+
+trait ConfigGen
+  extends millbuild.common.ConfigGenModule
+    with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+
+  def t1Module = t1
+
+  def mainargsIvy = v.mainargs
+}
+
 // SoC demostration, not the real dependencies for the vector project
 import $file.dependencies.`cde`.common
 import $file.dependencies.`rocket-chip`.common

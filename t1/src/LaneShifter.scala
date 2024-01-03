@@ -10,7 +10,7 @@ import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
 object LaneShifterParameter {
   implicit def rw: upickle.default.ReadWriter[LaneShifterParameter] = upickle.default.macroRW
 }
-case class LaneShifterParameter(datapathWidth: Int, latency: Int=0) extends VFUParameter with SerializableModuleParameter {
+case class LaneShifterParameter(datapathWidth: Int, latency: Int) extends VFUParameter with SerializableModuleParameter {
   val shifterSizeBit: Int = log2Ceil(datapathWidth)
   val decodeField: BoolField = Decoder.shift
   val inputBundle = new LaneShifterReq(this)

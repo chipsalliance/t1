@@ -37,6 +37,14 @@ trait T1Module
   def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, tilelinkModule)
 }
 
+trait ConfigGenModule
+  extends ScalaModule {
+  def t1Module: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(t1Module)
+  def mainargsIvy: Dep
+  override def ivyDeps = T(super.ivyDeps() ++ Seq(mainargsIvy))
+}
+
 // T1 forked version of RocketCore
 trait RocketModule
   extends ScalaModule
