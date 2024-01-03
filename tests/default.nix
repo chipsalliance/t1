@@ -91,33 +91,46 @@ let
       in
       { recurseForDerivations = true; } // builtins.listToAttrs (commonTests ++ fpTests);
 
-    all = runCommand "all-testcases"
-      {
-        # TODO: filter out "all" attr and map lefted attrs into this env attr set
-        mlirCases = lib.attrValues self.mlir;
-        asmCases = lib.attrValues self.asm;
-        intrinsicCases = lib.attrValues self.intrinsic;
-        codegenCases = lib.attrValues self.codegen;
-      }
-      ''
-        mkdir -p $out/cases/{mlir,asm,intrinsic,codegen}
-        mkdir -p $out/configs
+    all =
+      let
+        /*
+          Transform the current attribute set into bash script.
 
-        linkCases() {
-          local -a caseArray
-          caseArray=( $1 )
-          for case in ''${caseArray[@]}; do
-            cp $case/bin/*.elf $out/cases/$2/
-            cp $case/*.json $out/configs/
-          done
-        }
+          Example:
+            { mlir: { hello: <derivation> } } => ''
+              mkdir -p $out/configs
+              mkdir -p $out/cases/mlir
+              cp /nix/store/xxx/bin/*.elf $out/case/mlir/
+              cp /nix/store/xxx/*.json $out/configs/
+            '';
 
-        # TODO: try read "*Cases" and turn it into "$*Cases" and "$*"
-        linkCases "$mlirCases" mlir
-        linkCases "$asmCases" asm
-        linkCases "$intrinsicCases" intrinsic
-        linkCases "$codegenCases" codegen
-      '';
+          Types:
+            annoynomous :: set -> string
+        */
+        script = lib.pipe self [
+          # filter the `all` attr set
+          (lib.filterAttrs (k: _: k != "all"))
+          # filter all the `recurseForDerivation` name value pair
+          (lib.filterAttrsRecursive (k: _: k != "recurseForDerivations"))
+          # turn kkv to k-list, example: { k: { a: v, b: x } } -> { k: [ v, x ] }
+          (lib.mapAttrs (_: drvs: lib.attrValues drvs))
+          # turn the k-list to final bash script
+          # for each k, the value list will be transformed into bash glob path
+          #
+          #   { k: [ /a /b /c ] } -> cp /a/bin/*.elf $out/case/$k/
+          (lib.foldlAttrs
+            (acc: name: drvs:
+              let
+                makeGlobPaths = segment: paths: lib.concatStringsSep " " (map (x: x + segment) paths);
+              in
+              acc + ''
+                mkdir -p $out/cases/${name}
+                cp ${makeGlobPaths "/bin/*.elf" drvs} $out/cases/${name}/
+                cp ${makeGlobPaths "/*.json" drvs} $out/configs/
+              '') "mkdir -p $out/configs \n")
+        ];
+      in
+      runCommand "build-all-testcases" { } script;
   };
 in
 self
