@@ -163,7 +163,7 @@ case class VParameter(
   )
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor)
   require(xLen == datapathWidth)
-  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth)
+  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 }
 
 /** Top of Vector processor:
@@ -728,7 +728,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       val flotCompare  = Option.when(parameter.fpuEnable)(Module(new FloatCompare(8, 24)))
 
       val sign = !decodeResultReg(Decoder.unsigned1)
-      val adderRequest = Wire(LaneAdderParam(parameter.datapathWidth).inputBundle)
+      val adderRequest = Wire(LaneAdderParam(parameter.datapathWidth, 0).inputBundle)
       adderRequest.src := VecInit(
         Seq(
           (aluInput1(parameter.datapathWidth - 1) && sign) ## aluInput1,

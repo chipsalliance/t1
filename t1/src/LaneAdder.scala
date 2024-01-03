@@ -11,7 +11,7 @@ import org.chipsalliance.t1.rtl.vfu.VectorAdder32
 object LaneAdderParam {
   implicit def rw: upickle.default.ReadWriter[LaneAdderParam] = upickle.default.macroRW
 }
-case class LaneAdderParam(datapathWidth: Int, latency: Int=0) extends VFUParameter with SerializableModuleParameter {
+case class LaneAdderParam(datapathWidth: Int, latency: Int) extends VFUParameter with SerializableModuleParameter {
   val decodeField: BoolField = Decoder.adder
   val inputBundle = new LaneAdderReq(datapathWidth)
   val outputBundle = new LaneAdderResp(datapathWidth)
