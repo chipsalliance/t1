@@ -45,9 +45,10 @@ let
       (lib.filterAttrs (_: fullPath: isCallableDir fullPath))
       # { "A": "/nix/store/.../"; B: "/nix/store/.../"; } => { "A": <derivation>; "B": <derivation>; }
       (lib.mapAttrs (_: fullPath: callPackage fullPath { }))
-    ];
+    ] // { recurseForDerivations = true; };
 
   self = {
+    recurseForDerivations = true;
     # nix build .#t1.rvv-testcases.<type>.<name>
     mlir = searchAndCallPackage ./mlir;
     intrinsic = searchAndCallPackage ./intrinsic;
@@ -88,7 +89,7 @@ let
         commonTests = getTestsFromFile ./codegen/common.txt { };
         fpTests = getTestsFromFile ./codegen/fp.txt { fp = true; };
       in
-      builtins.listToAttrs (commonTests ++ fpTests);
+      { recurseForDerivations = true; } // builtins.listToAttrs (commonTests ++ fpTests);
 
     all = runCommand "all-testcases"
       {

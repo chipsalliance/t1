@@ -28,6 +28,8 @@ lib.makeScope newScope
   lib.genAttrs configNames (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters
     lib.makeScope self.newScope (innerSelf: {
+      recurseForDerivations = true;
+
       config-name = configName;
       elaborate-config = ../../configs/${configName}.json;
 
