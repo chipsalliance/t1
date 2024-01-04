@@ -10,6 +10,18 @@ in
 
   lib' = final.callPackages ./lib.nix { };
 
+  circt-all = final.symlinkJoin {
+    name = "circt-all";
+    paths = with final; [
+      circt
+      circt.dev
+      circt.lib
+      circt.llvm
+      circt.llvm.dev
+      circt.llvm.lib
+    ];
+  };
+
   espresso = final.callPackage ./pkgs/espresso.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
