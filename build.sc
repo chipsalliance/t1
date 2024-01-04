@@ -248,12 +248,27 @@ trait FPGA
   def chiselIvy = None
 }
 
+object circtpanamabinder extends CIRCTPanamaBinder
+
+trait CIRCTPanamaBinder
+  extends millbuild.dependencies.chisel.build.CIRCTPanamaBinder {
+  def crossValue = v.scala
+
+  override def millSourcePath = os.pwd / "dependencies" / "chisel" / "binder"
+
+  def scalaVersion = T(v.scala)
+}
+
 // Module to generate RTL from json config
 object elaborator extends Elaborator
 
 trait Elaborator
   extends millbuild.common.ElaboratorModule {
   def scalaVersion = T(v.scala)
+
+  def circtPanamaBinderModule = circtpanamabinder
+
+  def circtInstallPath = T.input(PathRef(os.Path(T.ctx.env.getOrElse("CIRCT_INSTALL_PATH", "/usr/local"))))
 
   def generators = Seq(
     t1,
@@ -269,4 +284,5 @@ trait Elaborator
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
   def chiselPluginIvy = None
   def chiselIvy = None
+
 }
