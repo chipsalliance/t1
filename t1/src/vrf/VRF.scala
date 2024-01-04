@@ -154,7 +154,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val crossWriteAllow: Bool = IO(Output(Bool()))
 
   /** when instruction is fired, record it in the VRF for chaining. */
-  val instructionWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
+  val instructionWriteReport: ValidIO[VRFWriteReport] = IO(Flipped(Valid(new VRFWriteReport(parameter))))
 
   val lsuInstructionFire: Bool = IO(Input(Bool()))
 
@@ -169,6 +169,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
   val writeReadyForLsu: Bool = IO(Output(Bool()))
   val vrfReadyToStore: Bool = IO(Output(Bool()))
+  val recordFree: Bool = IO(Output(Bool()))
 
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
@@ -252,9 +253,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val freeRecord: UInt = VecInit(chainingRecord.map(!_.valid)).asUInt
   val recordFFO:  UInt = ffo(freeRecord)
   val recordEnq:  UInt = Wire(UInt((parameter.chainingSize + 1).W))
-  // handle VRF hazard
-  // TODO: move to [[V]]
-  instructionWriteReport.ready := true.B
   recordEnq := Mux(
     // 纯粹的lsu指令的记录不需要ready
     instructionWriteReport.valid,
@@ -382,4 +380,5 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       (crossWriteOH & record.bits.elementMask) === 0.U
     !((!older && waw) && !sameInst && record.valid)
   }.reduce(_ && _) || !crossReadNeedCheck
+  recordFree := !chainingRecord.map(_.valid).reduce(_ && _)
 }
