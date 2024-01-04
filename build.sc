@@ -9,6 +9,7 @@ import mill.scalalib.scalafmt._
 import mill.scalalib.TestModule.Utest
 import coursier.maven.MavenRepository
 import $file.dependencies.chisel.build
+import $file.dependencies.chisel.common
 import $file.dependencies.arithmetic.common
 import $file.dependencies.tilelink.common
 import $file.dependencies.`berkeley-hardfloat`.common
@@ -248,11 +249,22 @@ trait FPGA
   def chiselIvy = None
 }
 
+object circtpanamabinder extends CIRCTPanamaBinder
+
+trait CIRCTPanamaBinder
+  extends millbuild.dependencies.chisel.build.CIRCTPanamaBinder {
+  def crossValue = v.scala
+
+  override def millSourcePath = os.pwd / "dependencies" / "chisel" / "binder"
+
+  def scalaVersion = T(v.scala)
+}
+
 // Module to generate RTL from json config
 object elaborator extends Elaborator
 
 trait Elaborator
-  extends millbuild.common.ElaboratorModule {
+  extends millbuild.common.ElaboratorModule with millbuild.dependencies.chisel.common.HasCIRCTPanamaBinderModule {
   def scalaVersion = T(v.scala)
 
   def generators = Seq(
@@ -269,4 +281,6 @@ trait Elaborator
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
   def chiselPluginIvy = None
   def chiselIvy = None
+
+  override def circtPanamaBinderModule = circtpanamabinder
 }

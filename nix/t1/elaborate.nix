@@ -10,6 +10,7 @@
 , elaborator
 , config-name
 , target
+, use-binder ? false
 }:
 
 assert lib.assertMsg
@@ -28,8 +29,6 @@ let
     "--ip-config"
     # Can't use `toString` here, or due to some shell escape issue, Java nio cannot find the path
     "${elaborate-config}"
-    "--target-dir"
-    "elaborate"
   ] ++ lib.optionals (lib.elem target [ "subsystem" "subsystememu" "fpga" ]) [ "--rvopcodes-path" "${riscv-opcodes-src}" ];
 in
 stdenvNoCC.mkDerivation {
@@ -37,21 +36,24 @@ stdenvNoCC.mkDerivation {
   nativeBuildInputs = [ jq espresso circt ];
   buildCommand = ''
     mkdir -p elaborate $out
-    ${elaborator}/bin/elaborator ${target} ${lib.escapeShellArgs elaborateArgs}
+    ${elaborator}/bin/elaborator ${target} ${lib.escapeShellArgs elaborateArgs} "--target-dir" ${if use-binder then "$out" else "elaborate"} ${lib.optionalString (use-binder) "--binder"}
 
-    # TODO: use binder to replace emiting below
-    firtool elaborate/*.fir --annotation-file elaborate/*.anno.json -o $out ${mfcArgs}
+    if [ ${lib.boolToString use-binder} = false]; then
+      firtool elaborate/*.fir --annotation-file elaborate/*.anno.json -o $out ${mfcArgs}
+    fi
   '' + lib.optionalString (lib.elem target [ "ipemu" "subsystememu" ]) ''
-    # For ipemu and subsystememu, there are also some manually generated system verilog file for test bench.
-    # Those files are not correctly handled by firtool.
-    #
-    # Fix file ordering difference introduced in some unknown breaking change between firtool 1.50 -> 1.58
-    # In the previous working version, all files starting with './' should be placed on top of the filelist.f.
-    # However in the latest version, they were placed at the bottom, which breaks the verilator.
-    # Here is an disgusting workaround to make it work. But we need to fix this issue at firtool side.
-    echo "Fixing generated filelist.f"
-    grep '^\./' $out/filelist.f > prefixed.f
-    grep -v '^\./' $out/filelist.f > not-prefixed.f
-    cat prefixed.f not-prefixed.f > $out/filelist.f
+    if [ ${lib.boolToString use-binder} = false]; then
+      # For ipemu and subsystememu, there are also some manually generated system verilog file for test bench.
+      # Those files are not correctly handled by firtool.
+      #
+      # Fix file ordering difference introduced in some unknown breaking change between firtool 1.50 -> 1.58
+      # In the previous working version, all files starting with './' should be placed on top of the filelist.f.
+      # However in the latest version, they were placed at the bottom, which breaks the verilator.
+      # Here is an disgusting workaround to make it work. But we need to fix this issue at firtool side.
+      echo "Fixing generated filelist.f"
+      grep '^\./' $out/filelist.f > prefixed.f
+      grep -v '^\./' $out/filelist.f > not-prefixed.f
+      cat prefixed.f not-prefixed.f > $out/filelist.f
+    fi
   '';
 }

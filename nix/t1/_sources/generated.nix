@@ -39,39 +39,39 @@
   };
   chisel = {
     pname = "chisel";
-    version = "efe9646f422178f7deb12a976ee89842fa8a5ccf";
+    version = "4911fe97f19481d2a3201bade2b660185022bac6";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "efe9646f422178f7deb12a976ee89842fa8a5ccf";
+      rev = "4911fe97f19481d2a3201bade2b660185022bac6";
       fetchSubmodules = false;
-      sha256 = "sha256-0eMlw6Kdnd2oKxoczAjopEm+17o3iZ3+fNQkVGprIFg=";
+      sha256 = "sha256-23/fhe8kODEZGBYfmoenc4CGh3spb1s+ZkdV1nWXNYg=";
     };
-    date = "2023-12-19";
+    date = "2023-12-31";
   };
   riscv-opcodes = {
     pname = "riscv-opcodes";
-    version = "61d2ef45dcb4a276a1e69643880cb75a9ca5ba79";
+    version = "a014979d6067642315c629a25504f94f7f2917f6";
     src = fetchFromGitHub {
       owner = "riscv";
       repo = "riscv-opcodes";
-      rev = "61d2ef45dcb4a276a1e69643880cb75a9ca5ba79";
+      rev = "a014979d6067642315c629a25504f94f7f2917f6";
       fetchSubmodules = false;
-      sha256 = "sha256-jdXKNIigKAqn2bbrMn6HxB61AM8KwSCvFEoL1N604rw=";
+      sha256 = "sha256-JM1RmXMf9ccnzYa/5Vt73xdKvo00wb9H4aBVKoQw5W8=";
     };
-    date = "2023-11-27";
+    date = "2023-12-25";
   };
   rocket-chip = {
     pname = "rocket-chip";
-    version = "b3fa8df9bfb3a6d5b1d57dc4a0633fc6028242ac";
+    version = "37e1d56224a1139ffbb315d1bf1dafccda5d3a9f";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "rocket-chip";
-      rev = "b3fa8df9bfb3a6d5b1d57dc4a0633fc6028242ac";
+      rev = "37e1d56224a1139ffbb315d1bf1dafccda5d3a9f";
       fetchSubmodules = false;
-      sha256 = "sha256-hQcjdwIObdMLrmLaK/yGTdClbbGlVC61K/o6dehiHFU=";
+      sha256 = "sha256-zXbHyb71I1sxdyRCauKXLXvstxk88hpu1xdhy8C4npw=";
     };
-    date = "2023-11-25";
+    date = "2023-12-19";
   };
   rocket-chip-inclusive-cache = {
     pname = "rocket-chip-inclusive-cache";

@@ -5,6 +5,8 @@ package org.chipsalliance.t1.elaborator
 
 import mainargs._
 
+import java.io.{BufferedOutputStream, FileOutputStream}
+
 object Main {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
     def shortName = "path"
@@ -13,12 +15,13 @@ object Main {
 
   @main
   case class ElaborateConfig(
-    @arg(name = "target-dir", short = 't') targetDir: os.Path) {
+    @arg(name = "target-dir", short = 't') targetDir: os.Path,
+    @arg(name = "binder") binder: Boolean) {
     def elaborate(gen: () => chisel3.RawModule): Unit = {
-      var topName: String = null
+      var topName: String = "unnamed"
       val annos = Seq(
         new chisel3.stage.phases.Elaborate,
-        new chisel3.stage.phases.Convert
+        if (!binder) new chisel3.stage.phases.Convert else chisel3.internal.panama.Convert
       ).foldLeft(
         Seq(
           chisel3.stage.ChiselGeneratorAnnotation(gen)
@@ -29,6 +32,9 @@ object Main {
             topName = circuit.main
             os.write(targetDir / s"$topName.fir", circuit.serialize)
             None
+          case chisel3.internal.panama.circt.PanamaCIRCTConverterAnnotation(converter) =>
+            converter.exportSplitVerilog(dir_)
+            None
           case _: chisel3.stage.DesignAnnotation[_]                       => None
           case _: chisel3.stage.ChiselCircuitAnnotation                   => None
           case _: freechips.rocketchip.util.ParamsAnnotation              => None
@@ -38,7 +44,9 @@ object Main {
           case _: freechips.rocketchip.util.SRAMAnnotation                => None
           case a => Some(a)
         }
-      os.write(targetDir / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
+      if (!binder) {
+        os.write(targetDir / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
+      }
     }
   }
 
