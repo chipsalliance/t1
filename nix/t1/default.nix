@@ -36,6 +36,8 @@ lib.makeScope newScope
       elaborate-config = ../../configs/${configName}.json;
 
       ip = {
+        recurseForDerivations = true;
+
         rtl = innerSelf.callPackage ./elaborate.nix { target = "ip"; };
 
         emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; };
@@ -44,6 +46,8 @@ lib.makeScope newScope
       };
 
       subsystem = {
+        recurseForDerivations = true;
+
         rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystem"; };
 
         emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystememu"; };
