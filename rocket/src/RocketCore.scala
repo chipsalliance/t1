@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rocketcore
 
 import chisel3._
+import chisel3.util.BitPat.bitPatToUInt
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import freechips.rocketchip.util._
@@ -25,8 +26,6 @@ trait HasRocketCoreParameters extends HasCoreParameters {
   val fastLoadByte = rocketParams.fastLoadByte
 
   val mulDivParams = rocketParams.mulDiv.getOrElse(MulDivParams()) // TODO ask andrew about this
-
-  val aluFn = new ALUFN
 
   require(!fastLoadByte || fastLoadWord)
   require(!rocketParams.haveFSDirty, "rocket doesn't support setting fs dirty from outside, please disable haveFSDirty")
@@ -165,8 +164,8 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
               ("amo", () => idDecodeOutput(decoder.mem) && (isAMO(idDecodeOutput(decoder.memCommand)) || idDecodeOutput(decoder.memCommand).isOneOf(M_XLR, M_XSC)))
             )).getOrElse(Seq()) ++
             Option.when(usingMulDiv)(Seq(
-              ("mul", () => if (pipelinedMul) idDecodeOutput(decoder.mul) else idDecodeOutput(decoder.div) && (idDecodeOutput(decoder.aluFn) & aluFn.FN_DIV) =/= aluFn.FN_DIV),
-              ("div", () => if (pipelinedMul) idDecodeOutput(decoder.div) else idDecodeOutput(decoder.div) && (idDecodeOutput(decoder.aluFn) & aluFn.FN_DIV) === aluFn.FN_DIV)
+              ("mul", () => if (pipelinedMul) idDecodeOutput(decoder.mul) else idDecodeOutput(decoder.div) && (idDecodeOutput(decoder.aluFn) & bitPatToUInt(decoder.UOPALU.div)) =/= bitPatToUInt(decoder.UOPALU.div)),
+              ("div", () => if (pipelinedMul) idDecodeOutput(decoder.div) else idDecodeOutput(decoder.div) && (idDecodeOutput(decoder.aluFn) & bitPatToUInt(decoder.UOPALU.div) === bitPatToUInt(decoder.UOPALU.div)).asBool)
             )).getOrElse(Seq()) ++
             fpu.map(fpu => Seq(
               ("fp load", () => idDecodeOutput(decoder.fp) && fpu.dec.ldst && fpu.dec.wen),
@@ -224,22 +223,22 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val decoderModule = Module(new RawModule {
       override def desiredName: String = "RocketDecoder"
       val instruction = IO(Input(UInt(32.W)))
-      val output = IO(Output(decoder.table.bundle))
-      output := decoder.table.decode(instruction)
+      val output = IO(Output(decoder.rocketCoreDecoderTable.bundle))
+      output := decoder.rocketCoreDecoderTable.decode(instruction)
     })
     val instructionBuffer:   IBuf = Module(new IBuf)
     val breakpointUnit:      BreakpointUnit = Module(new BreakpointUnit(nBreakpoints))
-    val arithmeticLogicUnit: ALU = Module(new ALU())
+    val arithmeticLogicUnit: ALU = Module(new ALU(ALUParameter(decoder, xLen, usingConditionalZero)))
     val muldiv = Module(
-      new MulDiv(if (pipelinedMul) mulDivParams.copy(mulUnroll = 0) else mulDivParams, width = xLen, aluFn = aluFn)
+      new MulDiv(if (pipelinedMul) mulDivParams.copy(mulUnroll = 0) else mulDivParams, width = xLen)
     ).suggestName(if (pipelinedMul) "div" else "muldiv")
-    val mul = pipelinedMul.option(Module(new PipelinedMultiplier(xLen, 2, aluFn = aluFn)))
+    val mul = pipelinedMul.option(Module(new PipelinedMultiplier(xLen, 2)))
     // RF is not a Module.
     val rf = new RegFile(regAddrMask, xLen)
 
     // wire definations.
 
-    val idDecodeOutput: DecodeBundle = Wire(decoder.table.bundle)
+    val idDecodeOutput: DecodeBundle = Wire(decoder.rocketCoreDecoderTable.bundle)
 
     val exRegExceptionInterrupt: Bool = Reg(Bool())
     val exRegException:          Bool = Reg(Bool())
@@ -259,7 +258,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val exRegRawInstruction: UInt = Reg(UInt())
     // TODO: what's this?
     val exRegWphit:        Vec[Bool] = Reg(Vec(nBreakpoints, Bool()))
-    val exRegDecodeOutput: DecodeBundle = Reg(decoder.table.bundle)
+    val exRegDecodeOutput: DecodeBundle = Reg(decoder.rocketCoreDecoderTable.bundle)
 
     val memRegExceptionInterrupt = Reg(Bool())
     val memRegValid = Reg(Bool())
@@ -276,7 +275,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val memRegPc = Reg(UInt())
     val memRegInstruction = Reg(Bits())
     val memRegMemSize = Reg(UInt())
-    val memRegDecodeOutput: DecodeBundle = Reg(decoder.table.bundle)
+    val memRegDecodeOutput: DecodeBundle = Reg(decoder.rocketCoreDecoderTable.bundle)
 
     /** virtualization mode? */
     val memRegHlsOrDv = Reg(Bool())
@@ -294,7 +293,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val wbRegCause = Reg(UInt())
     val wbRegSfence = Reg(Bool())
     val wbRegPc = Reg(UInt())
-    val wbRegDecodeOutput: DecodeBundle = Reg(decoder.table.bundle)
+    val wbRegDecodeOutput: DecodeBundle = Reg(decoder.rocketCoreDecoderTable.bundle)
     val wbRegMemSize = Reg(UInt())
     val wbRegHlsOrDv = Reg(Bool())
     val wbRegHfenceV = Reg(Bool())
@@ -497,7 +496,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       when(idDecodeOutput(decoder.fence) && idFenceSucc === 0.U) { idRegPause := true.B }
       when(idFenceNext) { idRegFence := true.B }
       when(idException) { // pass PC down ALU writeback pipeline for badaddr
-        exRegDecodeOutput(decoder.aluFn) := aluFn.FN_ADD
+        exRegDecodeOutput(decoder.aluFn) := bitPatToUInt(decoder.UOPALU.add)
         exRegDecodeOutput(decoder.aluDoubleWords) := DW_XPR
         exRegDecodeOutput(decoder.selAlu1) := A1_RS1 // badaddr := instruction
         exRegDecodeOutput(decoder.selAlu2) := A2_ZERO

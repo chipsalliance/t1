@@ -9,8 +9,8 @@ import freechips.rocketchip.util._
 // TODO: remove it
 import freechips.rocketchip.rocket.{DecodeLogic, MulDivParams}
 
-class MultiplierReq(dataBits: Int, tagBits: Int, aluFn: ALUFN = new ALUFN) extends Bundle {
-  val fn = Bits(aluFn.SZ_ALU_FN.W)
+class MultiplierReq(dataBits: Int, tagBits: Int, aluFnSize: Int) extends Bundle {
+  val fn = Bits(aluFnSize.W)
   val dw = Bits(SZ_DW.W)
   val in1 = Bits(dataBits.W)
   val in2 = Bits(dataBits.W)
@@ -22,18 +22,20 @@ class MultiplierResp(dataBits: Int, tagBits: Int) extends Bundle {
   val tag = UInt(tagBits.W)
 }
 
-class MultiplierIO(val dataBits: Int, val tagBits: Int, aluFn: ALUFN = new ALUFN) extends Bundle {
-  val req = Flipped(Decoupled(new MultiplierReq(dataBits, tagBits, aluFn)))
+class MultiplierIO(val dataBits: Int, val tagBits: Int, aluFnSize: Int) extends Bundle {
+  val req = Flipped(Decoupled(new MultiplierReq(dataBits, tagBits, aluFnSize)))
   val kill = Input(Bool())
   val resp = Decoupled(new MultiplierResp(dataBits, tagBits))
 }
 
-class MulDiv(cfg: MulDivParams, width: Int, nXpr: Int = 32, aluFn: ALUFN = new ALUFN) extends Module {
+class MulDiv(cfg: MulDivParams, width: Int, nXpr: Int = 32) extends Module {
   private def minDivLatency = (cfg.divUnroll > 0).option(if (cfg.divEarlyOut) 3 else 1 + w / cfg.divUnroll)
   private def minMulLatency = (cfg.mulUnroll > 0).option(if (cfg.mulEarlyOut) 2 else w / cfg.mulUnroll)
   def minLatency: Int = (minDivLatency ++ minMulLatency).min
 
-  val io = IO(new MultiplierIO(width, log2Up(nXpr), aluFn))
+  val aluFnSize: Int
+
+  val io = IO(new MultiplierIO(width, log2Up(nXpr), aluFnSize))
   val w = io.req.bits.in1.getWidth
   val mulw = if (cfg.mulUnroll == 0) w else (w + cfg.mulUnroll - 1) / cfg.mulUnroll * cfg.mulUnroll
   val fastMulW = if (cfg.mulUnroll == 0) false else w / 2 > cfg.mulUnroll && w % (2 * cfg.mulUnroll) == 0
@@ -186,11 +188,11 @@ class MulDiv(cfg: MulDivParams, width: Int, nXpr: Int = 32, aluFn: ALUFN = new A
   io.req.ready := state === s_ready
 }
 
-class PipelinedMultiplier(width: Int, latency: Int, nXpr: Int = 32, aluFn: ALUFN = new ALUFN)
+class PipelinedMultiplier(width: Int, latency: Int, nXpr: Int = 32)
     extends Module
     with ShouldBeRetimed {
   val io = IO(new Bundle {
-    val req = Flipped(Valid(new MultiplierReq(width, log2Ceil(nXpr), aluFn)))
+    val req = Flipped(Valid(new MultiplierReq(width, log2Ceil(nXpr))))
     val resp = Valid(new MultiplierResp(width, log2Ceil(nXpr)))
   })
 

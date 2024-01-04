@@ -30,39 +30,6 @@ trait UOPDecodeField[T <: DecodePattern] extends DecodeField[T, UInt] {
   def chiselType: UInt = uopType.chiselType
 }
 
-/** DecodePattern for an RISC-V instruction */
-case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
-  override def bitPat: BitPat = BitPat("b" + instruction.encoding.toString)
-  def isVector = instruction.instructionSet.name == "rv_v"
-  def isVectorCSR = Seq("vsetvl", "vsetivli", "vsetvli").contains(instruction.name)
-  def isVectorLSU = instruction.name match {
-    // unit stride
-    case s"v${t}e${sz}.v" if (t == "l") || (t == "s") => true
-    case s"v${t}m.v" if (t == "l") || (t == "s")      => true
-    case s"vle${sz}ff.v"                              => true
-    // stride
-    case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
-    // indexed
-    case s"v${t}${o}xei${sz}.v" if ((t == "l") || (t == "s")) && ((t == "u") || (t == "o")) => true
-    case _                                                                                  => false
-  }
-  // todo: Incomplete
-  def vectorReadRs1: Boolean = isVectorLSU || (instruction.name match {
-    // vx type
-    case s"v${op}.vx" => true
-    case s"v${op}.v.x" => true
-    // set vl
-    case s"vsetvl${i}" => true
-    case _ => false
-  })
-  def vectorReadRs2 = instruction.name match {
-    // set vl
-    case s"vsetvl" => true
-    // stride
-    case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
-    case _ => false
-  }
-}
 
 object CustomInstructions {
   private def rocket(name: String, encoding: Encoding) =
@@ -107,9 +74,41 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
   private val useFPU = !fLen0
   private val useMulDiv = hasAnySetIn("rv_m", "rv64_m")
   private val useVector = hasAnySetIn("rv_v")
-
-  private val instructionDecodePatterns: Seq[RocketDecodePattern] = instructions.map(RocketDecodePattern.apply)
-  private val instructionDecodeFields: Seq[DecodeField[RocketDecodePattern, _ <: Data]] = Seq(
+  // Construct the RocketCoreDecoder
+  case class RocketCoreDecoderPattern(instruction: Instruction) extends DecodePattern {
+    override def bitPat: BitPat = BitPat("b" + instruction.encoding.toString)
+    def isVector = instruction.instructionSet.name == "rv_v"
+    def isVectorCSR = Seq("vsetvl", "vsetivli", "vsetvli").contains(instruction.name)
+    def isVectorLSU = instruction.name match {
+      // unit stride
+      case s"v${t}e${sz}.v" if (t == "l") || (t == "s") => true
+      case s"v${t}m.v" if (t == "l") || (t == "s")      => true
+      case s"vle${sz}ff.v"                              => true
+      // stride
+      case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
+      // indexed
+      case s"v${t}${o}xei${sz}.v" if ((t == "l") || (t == "s")) && ((t == "u") || (t == "o")) => true
+      case _                                                                                  => false
+    }
+    // todo: Incomplete
+    def vectorReadRs1: Boolean = isVectorLSU || (instruction.name match {
+      // vx type
+      case s"v${op}.vx"  => true
+      case s"v${op}.v.x" => true
+      // set vl
+      case s"vsetvl${i}" => true
+      case _             => false
+    })
+    def vectorReadRs2 = instruction.name match {
+      // set vl
+      case s"vsetvl" => true
+      // stride
+      case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
+      case _                                             => false
+    }
+  }
+  private val rocketCoreDecoderPatterns: Seq[RocketCoreDecoderPattern] = instructions.map(RocketCoreDecoderPattern.apply)
+  private val rocketCoreDecoderFields: Seq[DecodeField[RocketCoreDecoderPattern, _ <: Data]] = Seq(
     isLegal,
     isBranch,
     isJal,
@@ -132,25 +131,24 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     (if (useFPU) Seq(fp, rfs1, rfs2, rfs3, wfd, dp) else None) ++
     (if (useMulDiv) if (p.pipelinedMul) Seq(mul, div) else Seq(div) else None) ++
     (if (useVector) Seq(vector, vectorLSU, vectorCSR) else None)
-
-  val table: DecodeTable[RocketDecodePattern] = new DecodeTable[RocketDecodePattern](
-    instructionDecodePatterns,
-    instructionDecodeFields
+  val rocketCoreDecoderTable: DecodeTable[RocketCoreDecoderPattern] = new DecodeTable[RocketCoreDecoderPattern](
+    rocketCoreDecoderPatterns,
+    rocketCoreDecoderFields
   )
 
-  object isLegal extends BoolDecodeField[RocketDecodePattern] {
+  object isLegal extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "legal"
 
     override def default: BitPat = n
 
     // should always be true
-    override def genTable(op: RocketDecodePattern): BitPat = y
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = y
   }
 
-  object fp extends BoolDecodeField[RocketDecodePattern] {
+  object fp extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "fp"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.instructionSet.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.instructionSet.name match {
       // format: off
       case s if Seq(
         "rv_d", "rv64_d",
@@ -163,10 +161,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object dp extends BoolDecodeField[RocketDecodePattern] {
+  object dp extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "dp"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.instructionSet.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.instructionSet.name match {
       // format: off
       case s if Seq("rv_d", "rv_d_zfh", "rv64_d").contains(s) => y
       case _ => n
@@ -174,10 +172,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object isBranch extends BoolDecodeField[RocketDecodePattern] {
+  object isBranch extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "branch"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("bne", "beq", "blt", "bltu", "bge", "bgeu").contains(i) => y
       case _ => n
@@ -185,10 +183,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object isJal extends BoolDecodeField[RocketDecodePattern] {
+  object isJal extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "jal"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("jal").contains(i) => y
       case _ => n
@@ -196,10 +194,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object isJalr extends BoolDecodeField[RocketDecodePattern] {
+  object isJalr extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "jalr"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("jalr").contains(i) => y
       case _ => n
@@ -207,10 +205,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object rxs2 extends BoolDecodeField[RocketDecodePattern] {
+  object rxs2 extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "rxs2"
 
-    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = (op.instruction.name, op) match {
       // format: off
       case (i, _) if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "hsv.w", "hsv.b", "hfence.vvma", "hsv.h", "hfence.gvma", "hsv.d", "or", "srl", "sltu", "sra", "sb", "add", "xor", "beq", "bge", "sw", "blt", "bgeu", "bltu", "bne", "sub", "and", "slt", "sh", "sll", "addw", "sd", "sllw", "sraw", "subw", "srlw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "czero.nez", "czero.eqz").contains(i) => y
       case (_, p) if p.vectorReadRs2 => y
@@ -219,10 +217,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object rxs1 extends BoolDecodeField[RocketDecodePattern] {
+  object rxs1 extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "rxs1"
 
-    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = (op.instruction.name, op) match {
       // format: off
       case (i, _) if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fcvt.d.wu", "fsd", "fcvt.d.w", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.s.wu", "fmv.w.x", "fsw", "fcvt.s.w", "flw", "fcvt.s.lu", "fcvt.s.l", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "bne", "lbu", "sub", "and", "xori", "slti", "slt", "addi", "lb", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "fsh", "flh", "fcvt.h.wu", "fcvt.h.w", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l", "csrrc", "csrrs", "csrrw", "czero.nez", "czero.eqz", "cflush.d.l1", "cdiscard.d.l1").contains(i) => y
       case (i, _) if Seq("ecall", "ebreak", "mret", "wfi", "sret", "dret", "cease", "nmret").contains(i) => dc
@@ -232,10 +230,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object fenceI extends BoolDecodeField[RocketDecodePattern] {
+  object fenceI extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "fence_i"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("fence.i").contains(i) => y
       case _ => n
@@ -243,10 +241,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object fence extends BoolDecodeField[RocketDecodePattern] {
+  object fence extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "fence"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("fence").contains(i) => y
       case _ => n
@@ -254,10 +252,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object amo extends BoolDecodeField[RocketDecodePattern] {
+  object amo extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "amo"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.instructionSet.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.instructionSet.name match {
       // format: off
       case s if Seq("rv_a", "rv64_a").contains(s) => y
       case _ => n
@@ -265,10 +263,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object aluDoubleWords extends BoolDecodeField[RocketDecodePattern] {
+  object aluDoubleWords extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "alu_dw"
 
-    override def genTable(op: RocketDecodePattern): BitPat = {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = {
       op.instruction.name match {
         // format: off
         case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fsd", "fsw", "flw", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "lui", "bne", "lbu", "sub", "and", "auipc", "xori", "slti", "slt", "addi", "lb", "jal", "sh", "sll", "srli", "srai", "slli", "ld", "sd", "lwu", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "sfence.vma", "fsh", "flh", "csrrc", "csrrci", "csrrs", "csrrw", "csrrsi", "csrrwi", "czero.nez", "czero.eqz").contains(i) => y
@@ -279,12 +277,12 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object mem extends BoolDecodeField[RocketDecodePattern] {
+  object mem extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "mem"
 
     override def default: BitPat = n
 
-    override def genTable(op: RocketDecodePattern): BitPat = {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = {
       op.instruction.name match {
         // format: off
         case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fsd", "fsw", "flw", "hsv.w", "hsv.b", "hlv.hu", "hlv.b", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hsv.d", "hlv.d", "hlv.wu", "lhu", "sb", "lw", "sw", "lh", "lbu", "lb", "sh", "ld", "sd", "lwu", "sfence.vma", "fsh", "flh").contains(i) => y
@@ -295,10 +293,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object rfs1 extends BoolDecodeField[RocketDecodePattern] {
+  object rfs1 extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "rfs1"
 
-    override def genTable(op: RocketDecodePattern): BitPat = {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = {
       op.instruction.name match {
         // format: off
         case i if Seq("fmin.d", "fsgnj.d", "fle.d", "fnmsub.d", "fadd.d", "fcvt.w.d", "fmsub.d", "fmul.d", "fcvt.wu.d", "feq.d", "fmax.d", "fnmadd.d", "fcvt.d.s", "fcvt.s.d", "fmadd.d", "fsgnjx.d", "flt.d", "fsgnjn.d", "fsub.d", "fsqrt.d", "fclass.d", "fdiv.d", "fmv.x.d", "fcvt.lu.d", "fcvt.l.d", "fcvt.d.h", "fcvt.h.d", "fnmsub.s", "fsgnjx.s", "fmsub.s", "fsgnjn.s", "fdiv.s", "fmin.s", "fsqrt.s", "fclass.s", "fcvt.wu.s", "fmax.s", "feq.s", "fle.s", "fmadd.s", "fsgnj.s", "fadd.s", "flt.s", "fmv.x.w", "fnmadd.s", "fmul.s", "fcvt.w.s", "fsub.s", "fcvt.lu.s", "fcvt.l.s", "feq.h", "fsgnjx.h", "fcvt.w.h", "fcvt.h.s", "fdiv.h", "fclass.h", "fsgnj.h", "fmul.h", "fsub.h", "fcvt.wu.h", "fadd.h", "fmax.h", "fsgnjn.h", "fmv.x.h", "fcvt.s.h", "fmsub.h", "fmin.h", "fsqrt.h", "flt.h", "fnmadd.h", "fmadd.h", "fnmsub.h", "fle.h", "fcvt.l.h", "fcvt.lu.h").contains(i) => y
@@ -308,10 +306,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object rfs2 extends BoolDecodeField[RocketDecodePattern] {
+  object rfs2 extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "rfs2"
 
-    override def genTable(op: RocketDecodePattern): BitPat = {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = {
       op.instruction.name match {
         // format: off
         case i if Seq("fmin.d", "fsgnj.d", "fle.d", "fnmsub.d", "fadd.d", "fmsub.d", "fmul.d", "feq.d", "fmax.d", "fnmadd.d", "fmadd.d", "fsgnjx.d", "flt.d", "fsgnjn.d", "fsub.d", "fsqrt.d", "fdiv.d", "fnmsub.s", "fsgnjx.s", "fmsub.s", "fsgnjn.s", "fdiv.s", "fmin.s", "fsqrt.s", "fmax.s", "feq.s", "fle.s", "fmadd.s", "fsgnj.s", "fadd.s", "flt.s", "fnmadd.s", "fmul.s", "fsub.s", "feq.h", "fsgnjx.h", "fdiv.h", "fsgnj.h", "fmul.h", "fsub.h", "fadd.h", "fmax.h", "fsgnjn.h", "fmsub.h", "fmin.h", "fsqrt.h", "flt.h", "fnmadd.h", "fmadd.h", "fnmsub.h", "fle.h").contains(i) => y
@@ -321,10 +319,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object rfs3 extends BoolDecodeField[RocketDecodePattern] {
+  object rfs3 extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "rfs3"
 
-    override def genTable(op: RocketDecodePattern): BitPat =
+    override def genTable(op: RocketCoreDecoderPattern): BitPat =
       op.instruction.name match {
         // format: off
         case i if Seq("fnmsub.d", "fmsub.d", "fnmadd.d", "fmadd.d", "fnmsub.s", "fmsub.s", "fmadd.s", "fnmadd.s", "fmsub.h", "fnmadd.h", "fmadd.h", "fnmsub.h").contains(i) => y
@@ -333,10 +331,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
       }
   }
 
-  object wfd extends BoolDecodeField[RocketDecodePattern] {
+  object wfd extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "wfd"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("fmin.d", "fsgnj.d", "fnmsub.d", "fadd.d", "fmsub.d", "fld", "fmul.d", "fmax.d", "fcvt.d.wu", "fnmadd.d", "fcvt.d.s", "fcvt.s.d", "fmadd.d", "fsgnjx.d", "fsgnjn.d", "fsub.d", "fsqrt.d", "fcvt.d.w", "fdiv.d", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.d.h", "fcvt.h.d", "fnmsub.s", "fsgnjx.s", "fmsub.s", "fsgnjn.s", "fdiv.s", "fmin.s", "fsqrt.s", "fmax.s", "fcvt.s.wu", "fmv.w.x", "fmadd.s", "fsgnj.s", "fadd.s", "fnmadd.s", "fcvt.s.w", "flw", "fmul.s", "fsub.s", "fcvt.s.lu", "fcvt.s.l", "fsgnjx.h", "fcvt.h.s", "fdiv.h", "fsgnj.h", "fmul.h", "fsub.h", "flh", "fadd.h", "fmax.h", "fsgnjn.h", "fcvt.s.h", "fcvt.h.wu", "fcvt.h.w", "fmsub.h", "fmin.h", "fsqrt.h", "fnmadd.h", "fmadd.h", "fnmsub.h", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l").contains(i) => y
       case _ => n
@@ -344,10 +342,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object mul extends BoolDecodeField[RocketDecodePattern] {
+  object mul extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "mul"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("mulhsu", "mul", "mulhu", "mulh", "mulw").contains(i) => y
       case _ => n
@@ -355,10 +353,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object div extends BoolDecodeField[RocketDecodePattern] {
+  object div extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "div"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("mulhsu", "mul", "mulhu", "mulh", "mulw").contains(i) && !p.pipelinedMul => y
       case i if Seq("rem", "div", "remu", "divu", "remuw", "divw", "divuw", "remw").contains(i) => y
@@ -367,10 +365,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
   }
 
-  object wxd extends BoolDecodeField[RocketDecodePattern] {
+  object wxd extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "wxd"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       // TODO: filter out rd
       case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fle.d", "fcvt.w.d", "fcvt.wu.d", "feq.d", "flt.d", "fclass.d", "fmv.x.d", "fcvt.lu.d", "fcvt.l.d", "fclass.s", "fcvt.wu.s", "feq.s", "fle.s", "flt.s", "fmv.x.w", "fcvt.w.s", "fcvt.lu.s", "fcvt.l.s", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hlv.h", "hlv.bu", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "lw", "add", "xor", "andi", "sltiu", "lh", "jalr", "lui", "lbu", "sub", "and", "auipc", "xori", "slti", "slt", "addi", "lb", "jal", "sll", "srli", "srai", "slli", "ld", "addw", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "feq.h", "fcvt.w.h", "fclass.h", "fcvt.wu.h", "fmv.x.h", "flt.h", "fle.h", "fcvt.l.h", "fcvt.lu.h", "csrrc", "csrrci", "csrrs", "csrrw", "csrrsi", "csrrwi", "czero.nez", "czero.eqz").contains(i) => y
@@ -440,10 +438,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     def hlvx: BitPat = encode("b10000")
   }
 
-  object memCommand extends UOPDecodeField[RocketDecodePattern] {
+  object memCommand extends UOPDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "mem_cmd"
 
-    override def genTable(op: RocketDecodePattern): BitPat = {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = {
       op.instruction.name match {
         // format: off
         case i if Seq("fld", "flh", "flw", "hlv.b", "hlv.bu", "hlv.d", "hlv.h", "hlv.hu", "hlv.w", "hlv.wu", "lb", "lbu", "ld", "lh", "lhu", "lw", "lwu").contains(i) => UOPMEM.xrd
@@ -488,10 +486,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     def c: BitPat = encode(7)
   }
 
-  object csr extends UOPDecodeField[RocketDecodePattern] {
+  object csr extends UOPDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "csr"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       // TODO: default should be N?
       case i if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fmin.d", "fsgnj.d", "fle.d", "fnmsub.d", "fadd.d", "fcvt.w.d", "fmsub.d", "fld", "fmul.d", "fcvt.wu.d", "feq.d", "fmax.d", "fcvt.d.wu", "fnmadd.d", "fcvt.d.s", "fcvt.s.d", "fsd", "fmadd.d", "fsgnjx.d", "flt.d", "fsgnjn.d", "fsub.d", "fsqrt.d", "fclass.d", "fcvt.d.w", "fdiv.d", "fcvt.d.lu", "fmv.x.d", "fmv.d.x", "fcvt.lu.d", "fcvt.l.d", "fcvt.d.l", "fcvt.d.h", "fcvt.h.d", "fnmsub.s", "fsgnjx.s", "fmsub.s", "fsgnjn.s", "fdiv.s", "fmin.s", "fsqrt.s", "fclass.s", "fcvt.wu.s", "fmax.s", "feq.s", "fcvt.s.wu", "fmv.w.x", "fle.s", "fmadd.s", "fsgnj.s", "fadd.s", "fsw", "flt.s", "fmv.x.w", "fnmadd.s", "fcvt.s.w", "flw", "fmul.s", "fcvt.w.s", "fsub.s", "fcvt.lu.s", "fcvt.s.lu", "fcvt.l.s", "fcvt.s.l", "or", "srl", "fence", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "lui", "bne", "lbu", "sub", "and", "auipc", "xori", "slti", "slt", "addi", "lb", "jal", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "feq.h", "fsgnjx.h", "fcvt.w.h", "fcvt.h.s", "fdiv.h", "fclass.h", "fsh", "fsgnj.h", "fmul.h", "fsub.h", "flh", "fcvt.wu.h", "fadd.h", "fmax.h", "fsgnjn.h", "fmv.x.h", "fcvt.s.h", "fcvt.h.wu", "fcvt.h.w", "fmsub.h", "fmin.h", "fsqrt.h", "flt.h", "fnmadd.h", "fmadd.h", "fnmsub.h", "fmv.h.x", "fle.h", "fcvt.l.h", "fcvt.lu.h", "fcvt.h.lu", "fcvt.h.l", "fence.i", "czero.nez", "czero.eqz").contains(i) => UOPCSR.n
@@ -556,12 +554,25 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     def mulhsu: BitPat = seq
 
     def mulhu: BitPat = sne
+
+    // Some helper function for this uop.
+    def isMulFN(fn: UInt, cmp: UInt) = fn(1, 0) === cmp(1, 0)
+
+    def isSub(cmd: UInt) = cmd(3)
+
+    def isCmp(cmd: UInt) = cmd >= slt.value.U
+
+    def cmpUnsigned(cmd: UInt) = cmd(1)
+
+    def cmpInverted(cmd: UInt) = cmd(0)
+
+    def cmpEq(cmd: UInt) = !cmd(3)
   }
 
-  object aluFn extends UOPDecodeField[RocketDecodePattern] {
+  object aluFn extends UOPDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "alu_fn"
 
-    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = (op.instruction.name, op) match {
       // format: off
       case (i, _) if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fsd", "fsw", "flw", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "lhu", "sb", "lw", "add", "sw", "lh", "jalr", "lui", "lbu", "auipc", "addi", "lb", "jal", "sh", "ld", "addw", "sd", "lwu", "addiw", "sfence.vma", "fsh", "flh", "csrrc", "csrrci", "csrrs", "csrrw", "csrrsi", "csrrwi", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPALU.add
       case (i, _) if Seq("and", "andi").contains(i) => UOPALU.and
@@ -615,10 +626,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     def z: BitPat = encode(5)
   }
 
-  object selImm extends UOPDecodeField[RocketDecodePattern] {
+  object selImm extends UOPDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "sel_imm"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("fld", "flw", "hsv.w", "hsv.b", "hsv.h", "hsv.d", "ori", "lhu", "lw", "andi", "sltiu", "lh", "jalr", "lbu", "xori", "slti", "addi", "lb", "srli", "srai", "slli", "ld", "sraiw", "lwu", "addiw", "srliw", "slliw", "flh").contains(i) => UOPIMM.i
       case i if Seq("fsd", "fsh", "fsw", "sb", "sd", "sh", "sw").contains(i) => UOPIMM.s
@@ -643,10 +654,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     def pc: BitPat = encode(2)
   }
 
-  object selAlu1 extends UOPDecodeField[RocketDecodePattern] {
+  object selAlu1 extends UOPDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "sel_alu1"
 
-    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = (op.instruction.name, op) match {
       // format: off
       case (i, _) if Seq("auipc", "jal").contains(i) => UOPA1.pc
       case (i, _) if Seq("amomaxu.w", "amoand.w", "amoor.w", "amoxor.w", "amoswap.w", "lr.w", "amomax.w", "amoadd.w", "amomin.w", "amominu.w", "sc.w", "lr.d", "amomax.d", "amoswap.d", "amoxor.d", "amoand.d", "amomin.d", "amoor.d", "amoadd.d", "amomaxu.d", "amominu.d", "sc.d", "fld", "fcvt.d.wu", "fsd", "fcvt.d.w", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.s.wu", "fmv.w.x", "fsw", "fcvt.s.w", "flw", "fcvt.s.lu", "fcvt.s.l", "hsv.w", "hsv.b", "hfence.vvma", "hlv.hu", "hlvx.hu", "hlv.b", "hlvx.wu", "hlv.w", "hsv.h", "hlv.h", "hlv.bu", "hfence.gvma", "hsv.d", "hlv.d", "hlv.wu", "or", "srl", "ori", "lhu", "sltu", "sra", "sb", "lw", "add", "xor", "beq", "andi", "bge", "sw", "blt", "bgeu", "sltiu", "lh", "bltu", "jalr", "bne", "lbu", "sub", "and", "xori", "slti", "slt", "addi", "lb", "sh", "sll", "srli", "srai", "slli", "ld", "addw", "sd", "sraiw", "lwu", "sllw", "sraw", "subw", "srlw", "addiw", "srliw", "slliw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "sfence.vma", "fsh", "flh", "fcvt.h.wu", "fcvt.h.w", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l", "csrrc", "csrrs", "csrrw", "czero.nez", "czero.eqz", "cdiscard.d.l1", "cflush.d.l1").contains(i) => UOPA1.rs1
@@ -670,10 +681,10 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     def imm: BitPat = encode(3)
   }
 
-  object selAlu2 extends UOPDecodeField[RocketDecodePattern] {
+  object selAlu2 extends UOPDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "sel_alu2"
 
-    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.name, op) match {
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = (op.instruction.name, op) match {
       // format: off
       case (i, _) if Seq("fld", "fsd", "fsw", "flw", "ori", "lhu", "sb", "lw", "andi", "sw", "sltiu", "lh", "jalr", "lui", "lbu", "auipc", "xori", "slti", "addi", "lb", "sh", "srli", "srai", "slli", "ld", "sd", "sraiw", "lwu", "addiw", "srliw", "slliw", "fsh", "flh", "csrrci", "csrrsi", "csrrwi").contains(i) => UOPA2.imm
       case (i, _) if Seq("or", "srl", "sltu", "sra", "add", "xor", "beq", "bge", "blt", "bgeu", "bltu", "bne", "sub", "and", "slt", "sll", "addw", "sllw", "sraw", "subw", "srlw", "mulhsu", "rem", "div", "mul", "mulhu", "mulh", "remu", "divu", "remuw", "divw", "divuw", "mulw", "remw", "czero.nez", "czero.eqz").contains(i) => UOPA2.rs2
@@ -684,23 +695,60 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
     }
 
     override def uopType: UOPA2.type = UOPA2
+
+    // Construct the Mul Decoder
+    case class RocketMulDivDecodePattern(instruction: Instruction) extends DecodePattern {
+      override def bitPat: BitPat = BitPat("b" + instruction.encoding.toString)
+      require(Seq("rv_m", "rv64_m").contains(instruction.instructionSet.name))
+    }
+    private val muldivDecoderPatterns: Seq[RocketMulDivDecodePattern] = instructions.map(RocketMulDivDecodePattern.apply)
+    private val muldivDecoderFields: Seq[DecodeField[RocketMulDivDecodePattern, _ <: Data]] = Seq(
+      cmdMul,
+      cmdHi,
+      lhsSigned,
+      rhsSigned
+    )
+    val rocketCoreDecoderTable: DecodeTable[RocketMulDivDecodePattern] = new DecodeTable[RocketMulDivDecodePattern](
+      muldivDecoderPatterns,
+      muldivDecoderFields
+    )
+
+    object cmdMul extends BoolDecodeField[RocketMulDivDecodePattern] {
+      override def name: String = ???
+      override def genTable(op: RocketMulDivDecodePattern): BitPat = ???
+    }
+
+    object cmdHi extends BoolDecodeField[RocketMulDivDecodePattern] {
+      override def name: String = ???
+      override def genTable(op: RocketMulDivDecodePattern): BitPat = ???
+    }
+
+    object lhsSigned extends BoolDecodeField[RocketMulDivDecodePattern] {
+      override def name: String = ???
+      override def genTable(op: RocketMulDivDecodePattern): BitPat = ???
+    }
+
+    object rhsSigned extends BoolDecodeField[RocketMulDivDecodePattern] {
+      override def name: String = ???
+      override def genTable(op: RocketMulDivDecodePattern): BitPat = ???
+    }
   }
 
-  object vector extends BoolDecodeField[RocketDecodePattern] {
+  object vector extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "vector"
 
-    override def genTable(op: RocketDecodePattern): BitPat = if (op.instruction.instructionSet.name == "rv_v") Y else N
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = if (op.instruction.instructionSet.name == "rv_v") Y else N
   }
 
-  object vectorLSU extends BoolDecodeField[RocketDecodePattern] {
+  object vectorLSU extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "vectorLSU"
 
-    override def genTable(op: RocketDecodePattern): BitPat = if (op.isVectorLSU) Y else N
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = if (op.isVectorLSU) Y else N
   }
 
-  object vectorCSR extends BoolDecodeField[RocketDecodePattern] {
+  object vectorCSR extends BoolDecodeField[RocketCoreDecoderPattern] {
     override def name: String = "vectorCSR"
 
-    override def genTable(op: RocketDecodePattern): BitPat = if (op.isVectorCSR) Y else N
+    override def genTable(op: RocketCoreDecoderPattern): BitPat = if (op.isVectorCSR) Y else N
   }
 }
