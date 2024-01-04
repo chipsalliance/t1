@@ -226,8 +226,16 @@ def run_soc(args):
         else ""  # return empty string if trace is not enable
     )
 
+    elaborate_config_path = str(os.getcwd()) + "/configs/v1024-l8-b2.json"
+    env = {
+            "COSIM_bin": str(elf_path),
+            "COSIM_config": str(elaborate_config_path),
+        }
+
     logger.info(f"Running {' '.join(process_args)}")
-    return_code = subprocess.Popen(process_args).wait()
+    print(process_args)
+    print(env)
+    return_code = subprocess.Popen(process_args, env=env).wait()
     if return_code != 0:
         logger.error(f"Emulator exited with return code {return_code}")
         exit(return_code)
