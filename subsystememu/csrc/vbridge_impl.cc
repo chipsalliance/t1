@@ -1,6 +1,5 @@
 #include <fmt/core.h>
 #include <fmt/ranges.h>
-#include <glog/logging.h>
 
 #include <disasm.h>
 
@@ -11,7 +10,7 @@
 #include "spdlog-ext.h"
 #include "util.h"
 #include "vbridge_impl.h"
-#include "glog_exception_safe.h"
+
 
 /// convert TL style size to size_by_bytes
 inline uint32_t decode_size(uint32_t encoded_size) { return 1 << encoded_size; }
@@ -21,11 +20,6 @@ inline bool is_pow2(uint32_t n) { return n && !(n & (n - 1)); }
 
 
 void VBridgeImpl::dpiInitCosim() {
-  google::InitGoogleLogging("emulator");
-  FLAGS_logtostderr = true;
-
-  LOG(INFO) << fmt::format("VBridgeImpl init cosim");
-
   proc.reset();
   // TODO: remove this line, and use CSR write in the test code to enable this
   // the VS field.
@@ -40,7 +34,6 @@ void VBridgeImpl::dpiInitCosim() {
 
   proc.get_state()->pc = load_result.entry_addr;
 
-  init_spike();
 }
 
 void VBridgeImpl::check_rf_write(svBit ll_wen,
@@ -67,11 +60,14 @@ void VBridgeImpl::check_rf_write(svBit ll_wen,
 
   // exclude those rtl reg_write from csr insn
   if (rtl_csr) {
-    LOG(INFO) << fmt::format("RTL csr insn wirte reg({}) = {:08X}, pc = {:08X}", waddr, wdata, pc);
     return;
   }
 
-  LOG(INFO) << fmt::format("RTL wirte reg({}) = {:08X}, pc = {:08X},DASM={}", waddr, wdata, pc, proc.get_disassembler()->disassemble(wb_reg_inst));
+  Log("RecordRFAccess")
+      .with("Reg", fmt::format("{}", waddr))
+      .with("wdata", fmt::format("{:08X}", wdata))
+      .with("pc", fmt::format("{:08X}", pc))
+      .warn("rtl detect scalar rf write");
 
   // find corresponding spike event
   SpikeEvent *se = nullptr;
@@ -82,30 +78,24 @@ void VBridgeImpl::check_rf_write(svBit ll_wen,
     }
   }
   if (se == nullptr) {
-    for (auto se_iter = to_rtl_queue.rbegin(); se_iter != to_rtl_queue.rend(); se_iter++) {
-      LOG(INFO)
-          << fmt::format("List: spike pc = {:08X}, write reg({}) from {:08x} to {:08X}, is commit:{}", se_iter->pc,
-                         se_iter->rd_idx, se_iter->rd_old_bits, se_iter->rd_new_bits, se_iter->is_committed);
-    }
-    LOG(FATAL_S)
-        << fmt::format("RTL rf_write Cannot find se ; pc = {:08X} , waddr={:08X}, waddr=Reg({})", pc, waddr, waddr);
+    Log("RecordRFAccess")
+        .with("index", waddr)
+        .warn("rtl detect sclar rf write which cannot find se, maybe from "
+              "committed load insn");
   }
   // start to check RTL rf_write with spike event
   // for non-store ins. check rf write
   // todo: why exclude store insn? store insn shouldn't write regfile., try to remove it
   if ((!se->is_store) && (!se->is_mutiCycle)) {
-    LOG(INFO)
-        << fmt::format("Do rf check in pc={:08X},dasm={}",wb_reg_pc,proc.get_disassembler()->disassemble(wb_reg_inst));
-    CHECK_EQ_S(wdata, se->rd_new_bits)
-        << fmt::format("\n RTL write Reg({})={:08X} but Spike write={:08X}", waddr, wdata, se->rd_new_bits);
+    CHECK_EQ(wdata, se->rd_new_bits,fmt::format("\n RTL write Reg({})={:08X} but Spike write={:08X}", waddr, wdata, se->rd_new_bits));
   } else if (se->is_mutiCycle) {
     waitforMutiCycleInsn = true;
     pendingInsn_pc = pc;
     pendingInsn_waddr = se->rd_idx;
     pendingInsn_wdata = se->rd_new_bits;
-    LOG(INFO) << fmt::format("Find MutiCycle Instruction pc={:08X}", pendingInsn_pc);
+    Log("RecordRFAccess").info("Find MutiCycle Instruction");
   } else {
-    LOG(INFO) << fmt::format("Find Store insn");
+    Log("RecordRFAccess").info("Find Store insn");
   }
 }
 
@@ -125,7 +115,6 @@ void VBridgeImpl::dpiCommitPeek(svBit ll_wen,
     if (waitforMutiCycleInsn) {
       if(rf_waddr == pendingInsn_waddr && rf_wdata == pendingInsn_wdata){
         waitforMutiCycleInsn = false;
-        LOG(INFO) << fmt::format("match mutiCycleInsn pc = {:08x}", pendingInsn_pc);
       }
     }
     return;
@@ -152,16 +141,18 @@ void VBridgeImpl::dpiCommitPeek(svBit ll_wen,
       }
       se_iter->is_committed = true;
       haveCommittedSe = true;
-      LOG(INFO) << fmt::format("Set spike {:08X} as committed", se_iter->pc);
       break;
     }
   }
 
-  if (!haveCommittedSe) LOG(INFO) << fmt::format("RTL wb without se in pc =  {:08X}", pc);
+  if (!haveCommittedSe) {
+    Log("RecordRFAccess")
+        .with("pc", fmt::format("{:08X}", wb_reg_pc))
+        .warn("rtl detect rf write which cannot find se");
+  }
   // pop the committed Event from the queue
   for (int i = 0; i < to_rtl_queue_size; i++) {
     if (to_rtl_queue.back().is_committed) {
-      LOG(INFO) << fmt::format("Pop SE pc = {:08X} ", to_rtl_queue.back().pc);
       to_rtl_queue.pop_back();
     }
   }
@@ -172,7 +163,7 @@ void VBridgeImpl::dpiRefillQueue() {
 }
 
 void VBridgeImpl::loop_until_se_queue_full() {
-  LOG(INFO) << fmt::format("Refilling Spike queue");
+
   while (to_rtl_queue.size() < to_rtl_queue_size) {
     try {
       std::optional<SpikeEvent> spike_event = spike_step();
@@ -181,14 +172,10 @@ void VBridgeImpl::loop_until_se_queue_full() {
         to_rtl_queue.push_front(std::move(se));
       }
     } catch (trap_t &trap) {
-      LOG(FATAL) << fmt::format("spike trapped with {}", trap.name());
+      FATAL(fmt::format("spike trapped with {}", trap.name()));
     }
   }
-  LOG(INFO) << fmt::format("to_rtl_queue is full now, start to simulate.");
-  for (auto se_iter = to_rtl_queue.rbegin(); se_iter != to_rtl_queue.rend(); se_iter++) {
-    LOG(INFO) << fmt::format("List: spike pc = {:08X}, write reg({}) from {:08x} to {:08X},commit={}", se_iter->pc,
-                             se_iter->rd_idx, se_iter->rd_old_bits, se_iter->rd_new_bits, se_iter->is_committed);
-  }
+  Log("Refilling queue").info("to_rtl_queue is full now, start to simulate");
 }
 
 // now we take all the instruction as spike event except csr insn
@@ -208,55 +195,36 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   // record pc before execute
   auto pc_before = state->pc;
   reg_t pc = state->pc;
-  try {
-    auto fetch = proc.get_mmu()->load_insn(state->pc);
-    auto event = create_spike_event(fetch);
-    auto &xr = proc.get_state()->XPR;
-    LOG(INFO) << fmt::format("Spike start to execute pc=[{:08X}] insn = {:08X} DISASM:{}", pc_before, fetch.insn.bits(),
-                             proc.get_disassembler()->disassemble(fetch.insn));
-    auto &se = event.value();
-    se.pre_log_arch_changes();
-    pc = fetch.func(&proc, fetch.insn, state->pc);
-    se.log_arch_changes();
 
-    //
-
-    // Bypass CSR insns commitlog stuff.
-    if ((pc & 1) == 0) {
-      state->pc = pc;
-    } else {
-      switch (pc) {
-      case PC_SERIALIZE_BEFORE:
-        state->serialized = true;
-        break;
-      case PC_SERIALIZE_AFTER:
-        break;
-      default:
-        Log("SpikeStep")
-            .with("pc", fmt::format("{:08x}", pc))
-            .fatal("invalid pc");
-      }
+  auto fetch = proc.get_mmu()->load_insn(state->pc);
+  auto event = create_spike_event(fetch);
+  auto &xr = proc.get_state()->XPR;
+  Log("SpikeStep")
+      .with("insn", fmt::format("{:08x}", fetch.insn.bits()))
+      .with("pc", pc_before)
+      .with("disasm", proc.get_disassembler()->disassemble(fetch.insn))
+      .info("spike run insn");
+  auto &se = event.value();
+  se.pre_log_arch_changes();
+  pc = fetch.func(&proc, fetch.insn, state->pc);
+  se.log_arch_changes();
+  // Bypass CSR insns commitlog stuff.
+  if ((pc & 1) == 0) {
+    state->pc = pc;
+  } else {
+    switch (pc) {
+    case PC_SERIALIZE_BEFORE:
+      state->serialized = true;
+      break;
+    case PC_SERIALIZE_AFTER:
+      break;
+    default:
+      Log("SpikeStep")
+          .with("pc", fmt::format("{:08x}", pc))
+          .fatal("invalid pc");
     }
-    // todo: detect exactly the trap
-    // if a insn_after_pc = 0x80000004,set it as committed
-    // set insn which traps as committed in case the queue stalls
-    if (state->pc == 0x80000004) {
-      se.is_trap = true;
-      LOG(INFO) << fmt::format("Trap happens at pc = {:08X} ", pc_before);
-    }
-    LOG(INFO) << fmt::format("Spike after execute pc={:08X} ", state->pc);
-    return event;
-  } catch (trap_t &trap) {
-    LOG(INFO) << fmt::format("spike fetch trapped with {}", trap.name());
-    proc.step(1);
-    LOG(INFO) << fmt::format("Spike mcause={:08X}", state->mcause->read());
-    return {};
-  } catch (triggers::matched_t &t) {
-    LOG(INFO) << fmt::format("spike fetch triggers ");
-    proc.step(1);
-    LOG(INFO) << fmt::format("Spike mcause={:08X}", state->mcause->read());
-    return {};
   }
+  return event;
 }
 
 
@@ -303,18 +271,5 @@ uint64_t VBridgeImpl::get_t() { return 1; }
 uint8_t VBridgeImpl::load(uint64_t address) {
   return *sim.addr_to_mem(address);
 }
-
-void VBridgeImpl::init_spike() {
-//  proc.reset();
-  auto state = proc.get_state();
-  LOG(INFO) << fmt::format("Spike reset misa={:08X}", state->misa->read());
-  LOG(INFO) << fmt::format("Spike reset mstatus={:08X}", state->mstatus->read());
-  // load binary to reset_vector
-  LOG(INFO) << fmt::format(
-      "Simulation Environment Initialized: COSIM_bin={}",
-      bin);
-}
-
-
 
 VBridgeImpl vbridge_impl_instance;

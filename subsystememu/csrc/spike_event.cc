@@ -1,9 +1,7 @@
 #include <fmt/core.h>
-#include <glog/logging.h>
 
 #include "disasm.h"
 #include "exceptions.h"
-#include "glog_exception_safe.h"
 #include "spike_event.h"
 #include "util.h"
 
@@ -27,7 +25,6 @@ void SpikeEvent::pre_log_arch_changes() {
       block.addr = addr_align;
       block.remaining = true;
     }
-    LOG(INFO) << fmt::format("spike pre_log mem access on:{:08X} ; block_addr={:08X}", address, addr_align);
   }
 }
 
@@ -48,41 +45,9 @@ void SpikeEvent::log_arch_changes() {
       if (rd_new_bits != rd_should_be_bits) {
         rd_new_bits = rd_should_be_bits;
         is_rd_written = true;
-        LOG(INFO) << fmt::format("Log Spike {:08X} with scalar rf change: x[{}] from {:08X} to {:08X}", pc, rd_idx,
-                                 rd_old_bits, rd_new_bits);
       }
     }
   }
-
-//  for (auto mem_write: state->log_mem_write) {
-//    uint64_t address = std::get<0>(mem_write);
-//    if (address != target_mem) {
-//      LOG(FATAL_S) << fmt::format("Error! spike detect mem_write at= {:08X}; target mem = {:08X}", address, target_mem);
-//    }
-//    uint64_t value = std::get<1>(mem_write);
-//    // Byte size_bytes
-//    uint8_t size_by_byte = std::get<2>(mem_write);
-//    LOG(INFO)
-//        << fmt::format("spike detect mem write {:08X} on mem:{:08X} with size={}byte", value, address, size_by_byte);
-//    mem_access_record.all_writes[address] = {.size_by_byte = size_by_byte, .val = value};
-//  }
-  // since log_mem_read doesn't record mem data, we need to load manually
-//  for (auto mem_read: state->log_mem_read) {
-//    uint64_t address = std::get<0>(mem_read);
-//    if (address != target_mem) {
-//      LOG(FATAL_S) << fmt::format("Error! spike detect mem_read at= {:08X}; target mem = {:08X}", address, target_mem);
-//    }
-//    // Byte size_bytes
-//    uint8_t size_by_byte = std::get<2>(mem_read);
-//    uint64_t value = 0;
-//    // record mem target
-//    for (int i = 0; i < size_by_byte; ++i) {
-//      value += (uint64_t) impl->load(address + i) << (i * 8);
-//    }
-//    LOG(INFO)
-//        << fmt::format("spike detect mem read {:08X} on mem:{:08X} with size={}byte", value, address, size_by_byte);
-//    mem_access_record.all_reads[address] = {.size_by_byte = size_by_byte, .val = value};
-//  }
 
   // record root page table
   if (satp_mode == 0x8 && block.addr == -1) {
@@ -158,7 +123,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
               target_mem = rs1s_bits + fetch.insn.rvc_ld_imm();
               break;
             default:
-              LOG(FATAL) << fmt::format("unknown compress func3");
+              FATAL("unknown compress func3");
           }
         } else if (func3 >= 1 && func3 <= 3) {// include all 0-> the illegal insn
           is_load = true;
@@ -173,7 +138,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
               target_mem = rs1s_bits + fetch.insn.rvc_ld_imm();
               break;
             default:
-              LOG(FATAL) << fmt::format("unknown compress func3");
+              FATAL("unknown compress func3");
           }
         } else {
         }
@@ -200,7 +165,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
               target_mem = sp_bits + fetch.insn.rvc_sdsp_imm();
               break;
             default:
-              LOG(FATAL) << fmt::format("unknown compress func3");
+              FATAL("unknown compress func3");
           }
         } else if (func3 >= 1 && func3 <= 3) {// for C.LWSP etc.
           is_load = true;
@@ -216,7 +181,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
               target_mem = sp_bits + fetch.insn.rvc_ldsp_imm();
               break;
             default:
-              LOG(FATAL) << fmt::format("unknown compress func3");
+              FATAL("unknown compress func3");
           }
 
         } else if (func3 == 4 && (((inst_bits & 0x1000) >> 12) == 1) && (fetch.insn.rvc_rs1() != 0) &&
@@ -230,7 +195,7 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl
         }
         break;
       default:
-        LOG(FATAL) << fmt::format("unknown compress opcode");
+        FATAL("unknown compress opcode");
     }
   }
   rd_old_bits = proc.get_state()->XPR[rd_idx];

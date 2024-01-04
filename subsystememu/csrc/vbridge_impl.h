@@ -38,8 +38,6 @@ public:
 
   void dpiInitCosim();
 
-  void init_spike();
-
   void dpiRefillQueue();
 
   void dpiCommitPeek(svBit ll_wen,
