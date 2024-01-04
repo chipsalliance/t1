@@ -34,21 +34,21 @@ lib.makeScope newScope
       elaborate-config = ../../configs/${configName}.json;
 
       ip = {
-        rtl = innerSelf.callPackage ./elaborate.nix { target = "ip"; };
+        rtl = innerSelf.callPackage ./elaborate.nix { target = "ip"; use-binder = true;};
 
-        emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; };
+        emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; use-binder = true; };
         emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; };
         emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; do-trace = true; };
       };
 
       subsystem = {
-        rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystem"; };
+        rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystem"; use-binder = true; };
 
-        emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystememu"; };
+        emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystememu"; use-binder = true;};
         emu = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; };
         emu-trace = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; do-trace = true; };
 
-        fpga-rtl = innerSelf.callPackage ./elaborate.nix { target = "fpga"; };
+        fpga-rtl = innerSelf.callPackage ./elaborate.nix { target = "fpga"; use-binder = true; };
       };
     })
   )
