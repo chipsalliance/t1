@@ -240,7 +240,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val initRecord: ValidIO[VRFWriteReport] = WireDefault(0.U.asTypeOf(Valid(new VRFWriteReport(parameter))))
   initRecord.valid := true.B
   initRecord.bits := instructionWriteReport.bits
-  val freeRecord: UInt = VecInit(chainingRecord.map(!_.valid)).asUInt
+  val freeRecord: UInt = VecInit(recordValidVec.map(!_)).asUInt
   val recordFFO:  UInt = ffo(freeRecord)
   val recordEnq:  UInt = Wire(UInt((parameter.chainingSize + 1).W))
   recordEnq := Mux(
