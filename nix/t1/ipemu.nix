@@ -53,15 +53,12 @@ let
 
     passthru =
       (lib.mapAttrs
-        (_: caseSet:
-          (lib.mapAttrs
-            (_: builder: builder {
-              emuType = "verilate";
-              enableTrace = do-trace;
-              emulator = self;
-              elaborateConfig = elaborate-config;
-            })
-            caseSet))
+        (_: builder: builder {
+          emuType = "verilate";
+          enableTrace = do-trace;
+          emulator = self;
+          elaborateConfig = elaborate-config;
+        })
         _rvvTestCaseExecutors)
       // {
         inherit config-name;

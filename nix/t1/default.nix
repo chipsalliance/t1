@@ -80,11 +80,11 @@ lib.makeScope newScope
               # Filter out the magic nix search attribute
               (filterAttrsRecursive (name: _: name != "recurseForDerivations"))
               # Transform all the derivation into lambda
-              (mapAttrs
-                (_: case:
-                  mapAttrs
-                    (_: caseDrv: self.makeTestArtifacts caseDrv)
-                    case))
+              (concatMapAttrs
+                (type: cases:
+                  mapAttrs'
+                    (caseName: caseDrv: nameValuePair "${caseName}-${type}" (self.makeTestArtifacts caseDrv))
+                    cases))
             ];
         in
         mapTestCaseToBuilder self.rvv-testcases;

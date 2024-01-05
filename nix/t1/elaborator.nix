@@ -50,6 +50,7 @@ let
 
     nativeBuildInputs = [
       mill
+      jre
 
       makeWrapper
       passthru.millDeps.setupHook

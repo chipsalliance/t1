@@ -32,7 +32,7 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix shell ".#ammonite" -c .github/scripts/ci.sc generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix run ".#ammonite" -- .github/scripts/ci.sc generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   build-emulators:
     name: "Build trace emulator"
@@ -86,8 +86,7 @@ jobs:
       - name: "Run testcases"
         id: ci-run
         run: |
-          nix shell ".#ammonite" -c .github/scripts/ci.sc runTests --jobs "${{ matrix.jobs }}" \
-            --resultDir test-results-$(head -c 10 /dev/urandom | base32)
+          nix run ".#ammonite" -- .github/scripts/ci.sc runTests --jobs "${{ matrix.jobs }}"
 
       - uses: actions/upload-artifact@v4
         if: always()
