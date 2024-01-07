@@ -39,6 +39,14 @@ let
     };
 
     passthru.editable = self.overrideAttrs (_: {
+      nativeBuildInputs = [
+        mill
+        makeWrapper
+        passthru.millDeps.setupHook
+        nvfetcher
+        submodules.setupHook
+        espresso
+      ];
       shellHook = ''
         setupSubmodulesEditable
         mill mill.bsp.BSP/install 0
