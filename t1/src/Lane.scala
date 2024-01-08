@@ -354,14 +354,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val slotShiftValid: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
 
-  /** The slots start to shift in these rules:
-    * - instruction can only enqueue to the last slot.
-    * - all slots can only shift at the same time which means:
-    *   if one slot is finished earlier -> 1101,
-    *   it will wait for the first slot to finish -> 1100,
-    *   and then take two cycles to move to xx11.
-    */
-  val slotCanShift: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
+  val slotHeadFinish: Bool = Wire(Bool())
 
   /** Which data group is waiting for the result of the cross-lane read */
   val readBusDequeueGroup: UInt = Wire(UInt(parameter.groupNumberBits.W))
@@ -462,9 +455,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       }
 
       if(isLastSlot) {
-        slotCanShift(index) := pipeClear && pipeFinishVec(index)
-      } else {
-        slotCanShift(index) := true.B
+        slotHeadFinish := pipeClear && pipeFinishVec(index)
       }
 
       val newInstruction: Bool = slotEnqueueFireVec(index)
@@ -474,6 +465,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val laneStateReg: LaneState = RegInit(0.U.asTypeOf(laneState))
       pipeDecode(index) := laneStateReg.decodeResult
       val laneStateReady = RegInit(true.B)
+      val readyToSendData = laneStateReady && !newInstruction
       when(pipeClear ^ newInstruction) {
         laneStateReady := pipeClear
       }
@@ -509,7 +501,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.ffoByOtherLanes := record.ffoByOtherLanes
       laneState.newInstruction.foreach(_ := newInstruction)
 
-      stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask) && laneStateReady
+      stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask) && readyToSendData
       stage0.enqueue.bits.maskIndex := maskIndexVec(index)
       stage0.enqueue.bits.maskForMaskGroup := record.mask.bits
       stage0.enqueue.bits.maskGroupCount := maskGroupCountVec(index)
@@ -945,8 +937,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   })
 
 
+  val slotEnqReady: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
+  val requestReady: Bool = slotOccupied.zipWithIndex.foldLeft(false.B) {case (p, (o, i)) =>
+    slotEnqReady(i) := p || !o
+    p || !o
+  }
   val slotEnqueueFire: Seq[Bool] = Seq.tabulate(parameter.chainingSize) { slotIndex =>
-    val enqueueReady: Bool = !slotOccupied(slotIndex)
+    val enqueueReady: Bool = slotEnqReady(slotIndex)
     val enqueueValid: Bool = Wire(Bool())
     val enqueueFire: Bool = enqueueReady && enqueueValid
     // enqueue from lane request
@@ -961,7 +958,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       enqueueFire
     } else {
       // shifter for slot
-      enqueueValid := slotCanShift(slotIndex + 1) && slotOccupied(slotIndex + 1)
+      enqueueValid := slotOccupied(slotIndex + 1)
       when(enqueueFire) {
         slotControl(slotIndex) := slotControl(slotIndex + 1)
         maskGroupCountVec(slotIndex) := maskGroupCountVec(slotIndex + 1)
@@ -972,7 +969,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     }
   }
 
-  val slotDequeueFire: Seq[Bool] = (slotCanShift.head && slotOccupied.head) +: slotEnqueueFire
+  val slotDequeueFire: Seq[Bool] = (slotHeadFinish && slotOccupied.head) +: slotEnqueueFire
   Seq.tabulate(parameter.chainingSize) { slotIndex =>
     when(slotEnqueueFire(slotIndex) ^ slotDequeueFire(slotIndex)) {
       slotOccupied(slotIndex) := slotEnqueueFire(slotIndex)
@@ -981,7 +978,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   slotEnqueueFireVec := VecInit(slotEnqueueFire)
 
   // handshake
-  laneRequest.ready := !slotOccupied.last
+  laneRequest.ready := requestReady
 
   val instructionFinishAndNotReportByTop: Bool =
     entranceControl.instructionFinished && !laneRequest.bits.decodeResult(Decoder.readOnly)
