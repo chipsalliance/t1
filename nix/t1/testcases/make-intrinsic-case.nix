@@ -55,5 +55,7 @@ stdenv.mkDerivation (rec {
     runHook postInstall
   '';
 
+  meta.description = "Test case '${caseName}', written in C intrinsic.";
+
   dontFixup = true;
 } // inputs)

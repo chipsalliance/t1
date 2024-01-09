@@ -148,16 +148,32 @@ Refer to the existing code for more information on how to write the nix file.
 
 To add new testcases for codegen type cases, add new entry in `codegen/*.txt`, then our nix macro will automatically populate new testcases to build.
 
-To view what is available to ran, use the below nix expression:
+To view what is available to ran, use the `nix search` sub command:
 
 ```console
-# nix eval .#t1.rvv-testcases.<type> --apply 'pkg: builtins.attrNames pkg'
+# nix search .#t1 <regexp>
 #
 # For example:
+$ nix search .#t1 asm
+* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.fpsmoke
+  Test case 'fpsmoke', written in assembly.
 
-$ nix eval .#t1.rvv-testcases.asm --apply 'pkg: builtins.attrNames pkg'
-[ "fpsmoke" "memcpy" "mmm" "smoke" "strlen" "utf8-count" ]
-# Then you can:
+* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.memcpy
+  Test case 'memcpy', written in assembly.
+
+* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.mmm
+  Test case 'mmm', written in assembly.
+
+* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.smoke
+  Test case 'smoke', written in assembly.
+
+* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.strlen
+  Test case 'strlen', written in assembly.
+
+* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.utf8-count
+  Test case 'utf8-count', written in assembly.
+
+# Then ignore the `legacyPackage.x86_64-linux` attribute, build the testcase like below:
 $ nix build .#t1.rvv-testcases.asm.smoke
 ```
 

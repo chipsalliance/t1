@@ -93,5 +93,7 @@ stdenv.mkDerivation
       runHook preInstall
     '';
 
+    meta.description = "Test case '${caseName}', written in MLIR.";
+
     dontFixup = true;
   } // inputs)
