@@ -33,7 +33,7 @@ trait HasRocketCoreParameters extends HasCoreParameters {
   require(!usingConditionalZero, "Zicond is not yet implemented in ABLU")
 }
 
-class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with HasRocketCoreParameters {
+class Rocket(flushOnFenceI: Boolean)(implicit val p: Parameters) extends Module with HasRocketCoreParameters {
   // Checker
   require(decodeWidth == 1 /* TODO */ && retireWidth == decodeWidth)
   require(!(coreParams.useRVE && coreParams.fpu.nonEmpty), "Can't select both RVE and floating-point")
@@ -108,7 +108,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         case _                                                                           => true
       }.toSeq.distinct,
       pipelinedMul,
-      tile.dcache.flushOnFenceI
+      flushOnFenceI
     )
   )
   val lgNXRegs:    Int = if (coreParams.useRVE) 4 else 5
@@ -525,7 +525,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         exRegDecodeOutput(decoder.memCommand) := M_HFENCEV
       }
 
-      if (tile.dcache.flushOnFenceI) {
+      if (flushOnFenceI) {
         when(idDecodeOutput(decoder.fenceI)) {
           exRegMemSize := 0.U
         }

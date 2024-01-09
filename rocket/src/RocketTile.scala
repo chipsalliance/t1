@@ -150,7 +150,7 @@ class RocketTileModuleImp(outer: RocketTile)
     with HasICacheFrontendModule {
   Annotated.params(this, outer.rocketParams)
 
-  lazy val core = Module(new Rocket(outer)(outer.p))
+  lazy val core = Module(new Rocket(outer.dcache.flushOnFenceI)(outer.p))
 
   // Report unrecoverable error conditions; for now the only cause is cache ECC errors
   outer.reportHalt(List(outer.dcache.module.io.errors))
