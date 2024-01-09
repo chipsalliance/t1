@@ -177,6 +177,7 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
     // TODO: make it configurable
     val maxCount: Int = 32
     val vlMax: Int = 1024
+    val xLen: Int = 32
 
     val instructionQueue: Option[Queue[VectorRequest]] =
       core.t1Request.map(req => Module(new Queue(chiselTypeOf(req.bits), maxCount)))
