@@ -68,7 +68,10 @@ let
       makeWrapper ${jre}/bin/java $out/bin/elaborator --add-flags "-jar $out/share/java/elaborator.jar"
     '';
 
-    meta.mainProgram = "elaborator";
+    meta = {
+      mainProgram = "elaborator";
+      description = "The program that can be used to produce RTL";
+    };
   };
 in
 self

@@ -44,5 +44,8 @@ stdenv.mkDerivation {
     nlohmann_json
   ];
 
-  meta.mainProgram = "emulator";
+  meta = {
+    mainProgram = "emulator";
+    description = "Subsystem emulator for config ${config-name}";
+  };
 }

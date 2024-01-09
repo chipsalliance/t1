@@ -54,4 +54,6 @@ stdenvNoCC.mkDerivation {
     grep -v '^\./' $out/filelist.f > not-prefixed.f
     cat prefixed.f not-prefixed.f > $out/filelist.f
   '';
+
+  meta.description = "All the elaborated system verilog files for ${target} with ${config-name} config.";
 }
