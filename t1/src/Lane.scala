@@ -544,7 +544,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         Mux(slotOccupied(index), indexToOH(record.laneRequest.instructionIndex, parameter.chainingSize), 0.U) |
         // instruction in pipe
         Mux(!pipeClear, indexToOH(laneStateReg.instructionIndex, parameter.chainingSize), 0.U)
-      when(slotOccupied(index) && pipeClear && pipeFinishVec(index) && !dataInWritePipe) {
+      when(slotOccupied(index) && pipeFinishVec(index)) {
         slotOccupied(index) := false.B
       }
 
