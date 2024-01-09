@@ -245,16 +245,6 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
   /** this is the last lane for mask type instruction */
   val isLastLaneForMaskLogic: Bool = Bool()
 
-  /** the find first one instruction is finished by other lanes,
-    * for example, sbf(set before first)
-    */
-  val ffoByOtherLanes: Bool = Bool()
-
-  /** the mask instruction is finished by this group.
-    * the instruction target is finished(but still need to access VRF.)
-    */
-  val selfCompleted: Bool = Bool()
-
   /** the execution index in group
     * use byte as granularity,
     * SEW

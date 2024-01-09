@@ -460,6 +460,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
       val newInstruction: Bool = slotEnqueueFireVec(index)
       // state for each stage
+      /** the find first one instruction is finished by other lanes,
+       * for example, sbf(set before first)
+       */
+      val ffoByOtherLanes: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
+
+      /** the mask instruction is finished by this group.
+       * the instruction target is finished(but still need to access VRF.)
+       */
+      val selfCompleted: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
+
       val laneState: LaneState = Wire(new LaneState(parameter))
       val readFromScalarReg: UInt = RegInit(0.U(parameter.datapathWidth.W))
       val laneStateReg: LaneState = RegInit(0.U.asTypeOf(laneState))
@@ -472,6 +482,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       when(pipeClear && (RegNext(newInstruction) || !laneStateReady)) {
         laneStateReg := laneState
         readFromScalarReg := record.laneRequest.readFromScalar
+        (ffoByOtherLanes ++ selfCompleted).map(_ := false.B)
       }
 
       val stage0: LaneStage0 = Module(new LaneStage0(parameter, isLastSlot))
@@ -498,7 +509,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.vd := record.laneRequest.vd
       laneState.instructionIndex := record.laneRequest.instructionIndex
       laneState.maskForMaskGroup := maskForMaskGroup
-      laneState.ffoByOtherLanes := record.ffoByOtherLanes
+      laneState.ffoByOtherLanes := ffoByOtherLanes.getOrElse(false.B)
       laneState.newInstruction.foreach(_ := newInstruction)
 
       stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask) && readyToSendData
@@ -631,8 +642,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         sink := source
       }
 
-      executionUnit.ffoByOtherLanes := record.ffoByOtherLanes
-      executionUnit.selfCompleted := record.selfCompleted
+      executionUnit.ffoByOtherLanes := ffoByOtherLanes.getOrElse(false.B)
+      executionUnit.selfCompleted := selfCompleted.getOrElse(false.B)
 
       // executionUnit <> vfu
       requestVec(index) := executionUnit.vfuRequest.bits
@@ -664,15 +675,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       executionUnit.dequeue.bits.ffoSuccess.foreach(_ => stage3.enqueue.bits.ffoSuccess := _)
 
       if (isLastSlot){
-        when(laneResponseFeedback.valid && slotOccupied(index)) {
-          when(laneResponseFeedback.bits.complete) {
-            record.ffoByOtherLanes := true.B
-          }
+        when(laneResponseFeedback.valid && laneResponseFeedback.bits.complete) {
+          ffoByOtherLanes.get := true.B
         }
         when(stage3.enqueue.fire) {
-          executionUnit.dequeue.bits.ffoSuccess.foreach(record.selfCompleted := _)
+          executionUnit.dequeue.bits.ffoSuccess.foreach(selfCompleted.get := _)
           // This group found means the next group ended early
-          record.ffoByOtherLanes := record.ffoByOtherLanes || record.selfCompleted
+          ffoByOtherLanes.get := ffoByOtherLanes.get || selfCompleted.get
         }
 
         laneResponse <> stage3.laneResponse.get
@@ -855,8 +864,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   //   "Such implementations are permitted to raise an illegal instruction exception
   //   when attempting to execute a vector arithmetic instruction when vstart is nonzero."
   entranceControl.executeIndex := 0.U
-  entranceControl.ffoByOtherLanes := false.B
-  entranceControl.selfCompleted := false.B
   entranceControl.instructionFinished :=
     // vl is too small, don't need to use this lane.
     (((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl || maskLogicCompleted) &&
