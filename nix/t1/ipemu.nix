@@ -45,5 +45,8 @@ stdenv.mkDerivation {
     nlohmann_json
   ];
 
-  meta.mainProgram = "emulator";
+  meta = {
+    mainProgram = "emulator";
+    description = "IP emulator for config ${config-name}";
+  };
 }
