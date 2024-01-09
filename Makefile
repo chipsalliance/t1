@@ -34,3 +34,6 @@ reformat:
 checkformat:
 	mill -i __.checkFormat
 
+.PHONY: list-testcases
+list-testcases:
+	nix search '.#t1' rvv-testcases --json | jq 'to_entries[].key|split(".")|.[-2:]|reverse|join("-")' -r
