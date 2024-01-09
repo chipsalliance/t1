@@ -244,7 +244,9 @@ VBridgeImpl::VBridgeImpl()
   proc.enable_log_commits();
 
 #ifndef COSIM_NO_DRAMSIM
-  // std::cout<<"[meow]: init dramsim"<<std::endl;
+  char *primary_tck_str = get_env_arg("COSIM_tck");
+  tck = std::stod(primary_tck_str);
+
   char *dramsim_result_parent = get_env_arg("COSIM_dramsim3_result");
   char *dramsim_config = get_env_arg("COSIM_dramsim3_config");
   for(int i = 0; i < config.tl_bank_number; ++i) {
@@ -255,6 +257,7 @@ VBridgeImpl::VBridgeImpl()
     };
 
     drams.emplace_back(dramsim3::MemorySystem(dramsim_config, result_dir.c_str(), completion, completion), 0);
+    // std::cout<<"Relative tck ratio on channel "<<i<<" = "<<tck / drams[i].first.GetTCK()<<std::endl;
   }
 #endif
 }
@@ -548,15 +551,19 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
 
   // Pop all fully resolved requests
   while (!tl_req_record_of_bank[i].empty() &&
-         tl_req_record_of_bank[i].begin()->second.done_return())
+         tl_req_record_of_bank[i].begin()->second.fully_done())
     tl_req_record_of_bank[i].erase(tl_req_record_of_bank[i].begin());
 
-  if(!tl_req_record_of_bank[i].empty()) {
-    auto begin = tl_req_record_of_bank[i].begin();
-    auto returned_resp = begin->second.issue_tl_response(config.datapath_width_in_bytes);
+  // Find first response that haven't finish returning
+
+  auto next_return = tl_req_record_of_bank[i].begin();
+  while(next_return != tl_req_record_of_bank[i].end() && next_return->second.done_return()) ++next_return;
+
+  if(next_return != tl_req_record_of_bank[i].end()) {
+    auto returned_resp = next_return->second.issue_tl_response(config.datapath_width_in_bytes);
     d_valid = returned_resp.operator bool();
     if(d_valid) {
-      auto &record = begin->second;
+      auto &record = next_return->second;
       auto [offset, len] = *returned_resp;
       Log("ReturnTlResponse")
           .with("channel", i)
@@ -594,7 +601,7 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
   }
 
   if (d_valid)
-    tl_req_waiting_ready[i] = tl_req_record_of_bank[i].begin()->first;
+    tl_req_waiting_ready[i] = next_return->first;
 
   *tl_poke.d_valid = d_valid;
 
@@ -782,6 +789,7 @@ void VBridgeImpl::dramsim_drive(const int channel_id) {
         auto dram_req = req.issue_mem_request(burst_size);
 
         if(dram_req && dram.WillAcceptTransaction(dram_req->first, dram_req->second)) {
+          // std::cout<<"Add transaction "<<fmt::format("0x{:08x}", dram_req->first)<<std::endl;
           dram.AddTransaction(dram_req->first, dram_req->second);
           req.commit_mem_request(burst_size);
         }
@@ -790,6 +798,11 @@ void VBridgeImpl::dramsim_drive(const int channel_id) {
       }
     }
 
+    // std::cout<<"Digest of channel "<<channel_id<<std::endl;
+    // for(auto &[_, req] : tl_req_record_of_bank[channel_id])
+    //   req.format();
+    // std::cout<<"================"<<std::endl;
+
   }
 }
 
@@ -797,8 +810,17 @@ void VBridgeImpl::dramsim_resolve(const int channel_id, reg_t addr) {
   if(tl_req_record_of_bank[channel_id].empty())
     FATAL(fmt::format("Response on an idle channel {}", channel_id));
 
-  auto req = tl_req_record_of_bank[channel_id].begin();
-  req->second.resolve_mem_response(addr, dramsim_burst_size(channel_id));
+  bool found = false;
+  for(auto &[_, req] : tl_req_record_of_bank[channel_id])
+    if(req.resolve_mem_response(addr, dramsim_burst_size(channel_id))) {
+      // std::cout<<"After resolution"<<std::endl;
+      // req.format();
+      found = true;
+      break;
+    }
+
+  if(!found)
+    FATAL(fmt::format("dram response no matching request: 0x{:08x}", addr));
 }
 
 size_t VBridgeImpl::dramsim_burst_size(const int channel_id) const {

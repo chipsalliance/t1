@@ -52,6 +52,10 @@ struct TLReqRecord {
   // This is the number of bytes(or worth-of transaction for reads) sent to the memory controller
   size_t bytes_committed = 0;
 
+  // Only meaningful for writes. This is the number of bytes that have been processed by the memory controller
+  // TODO(meow): this is a little bit confusing. Refactor such that bytes_received is only meaningful for writes, and bytes_processed is consistent across all ops
+  size_t bytes_processed = 0;
+
   // For read, number of bytes returned to user
   size_t bytes_returned = 0;
 
@@ -81,6 +85,12 @@ struct TLReqRecord {
     else return bytes_returned >= size_by_byte;
   }
 
+  bool fully_done() const {
+    if(!done_return()) return false;
+    if(op == opType::PutFullData && bytes_processed < size_by_byte) return false;
+    return true;
+  }
+
   std::optional<std::pair<reg_t, bool>> issue_mem_request(reg_t burst_size) const {
     if(muxin_read_required) {
       if(muxin_read_sent) return {};
@@ -88,7 +98,9 @@ struct TLReqRecord {
     }
 
     if(bytes_committed >= size_by_byte) return {};
-    if(op == opType::PutFullData) if(bytes_committed - bytes_received < std::min(burst_size, size_by_byte)) return {};
+    if(op == opType::PutFullData) {
+      if(bytes_committed + std::min(burst_size, size_by_byte) > bytes_received) return {};
+    }
 
     return {{ aligned_addr(burst_size) + bytes_committed, op == opType::PutFullData }};
   }
@@ -98,10 +110,20 @@ struct TLReqRecord {
     else bytes_committed += burst_bytes;
   }
 
-  void resolve_mem_response(reg_t addr, reg_t burst_bytes) {
-    // TODO: check is valid response
-    if(muxin_read_required) muxin_read_required = false; // Resolve mux-in read
-    else if(op != opType::PutFullData) bytes_received += burst_bytes;
+  bool resolve_mem_response(reg_t resp_addr, reg_t burst_bytes) {
+    if(muxin_read_required) {
+      if(aligned_addr(burst_bytes) != resp_addr) return false;
+      muxin_read_required = false; // Resolve mux-in read
+      return true;
+    } else if(op != opType::PutFullData) {
+      if(bytes_received >= size_by_byte || aligned_addr(burst_bytes) + bytes_received != resp_addr) return false;
+      bytes_received += burst_bytes;
+      return true;
+    } else {
+      if(bytes_processed >= size_by_byte || aligned_addr(burst_bytes) + bytes_processed != resp_addr) return false;
+      bytes_processed += burst_bytes;
+      return true;
+    }
   }
 
   // Returns: offset!
@@ -120,6 +142,15 @@ struct TLReqRecord {
 
   void commit_tl_respones(reg_t tl_bytes) {
     bytes_returned += tl_bytes;
+  }
+
+  void format() {
+    std::cout<<(op == opType::Get ? "R" : "W")<<std::endl;
+    std::cout<<"- size: "<<size_by_byte<<std::endl;
+    std::cout<<"- received: "<<bytes_received<<std::endl;
+    std::cout<<"- committed: "<<bytes_committed<<std::endl;
+    if(op == opType::PutFullData) std::cout<<"- processed: "<<bytes_processed<<std::endl;
+    std::cout<<"- returned: "<<bytes_returned<<std::endl;
   }
 };
 
