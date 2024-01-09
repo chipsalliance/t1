@@ -233,7 +233,7 @@ def runTests(jobs: String, resultDir: Option[os.Path], dontBail: Boolean = false
       val Array(config, caseName, runCfg) = job.split(",")
       System.err.println(s"\n\n\n>>>[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg")
       val handle = os
-        .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--no-log", "--base-out-dir", testRunDir, caseName)
+        .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--no-log", "--base-out-dir", testRunDir, "-f", "500", "-d", "dramsim3.cfg.ini", caseName)
         .call(check=false)
       if (handle.exitCode != 0) {
         val outDir = testRunDir / config / caseName / runCfg
