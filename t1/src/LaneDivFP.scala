@@ -78,8 +78,19 @@ class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with
 
 /** 32-bits Divider-Sqrt for integer/float division and square-root
   *
+  * Structure:
+  * partialSum,partialCarry Registers(used in both DIV and SQRT)
+  * DIV and SQRT iterModule
+  * OTF (shared by DIV and SQRT)
+  * RoundingUnit
   *
-  * DIV/FDIV component
+  * Overall Flow
+  * Build SQRT,DIV input, and select the right one to partialSum and partialCarry.
+  * Begin iteration process below and collect results.
+  * partialSum,partialCarry --> iterModule(DIV or SQRT) --> OTF --> result collecting(Rounding if needed)
+  * |                                                        |
+  * |----------------------iteration-------------------------|
+  *
   *
   * FDIV input
   * {{{
@@ -87,7 +98,7 @@ class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with
   * divisor  = 0.1f  -> 1f +"00000" right extends to 32
   * }}}
   *
-  * FDIV output = 0.01f or 0.1f, LSB 28bits effective
+  * FDIV output (Low 28bits effective)
   * {{{
   * 0.01f: 28bits=01f f=sig=select(25,3)
   * 0.1f : 28bits=1f  f=sig=select(26,4)
@@ -124,10 +135,8 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val iterWidth: Int = fpWidth + 6
   val sqrtIterWidth = sigWidth + 4
   val ohWidth = 5
-
-  val opFloat = input.bits.opFloat
-  val opSqrt  = input.bits.opSqrt
-  val opFloatReg      = RegEnable(opFloat, false.B, input.fire)
+  
+  val opFloatReg      = RegEnable(input.bits.opFloat, false.B, input.fire)
   val opSqrtReg       = RegEnable(input.bits.opSqrt, false.B, input.fire)
   val opRemReg        = RegEnable(input.bits.opRem,  false.B, input.fire)
   val roundingModeReg = RegEnable(input.bits.roundingMode, 0.U(5.W), input.fire)
@@ -178,7 +187,7 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val normalCase = Mux(input.bits.opSqrt, normalCaseSqrt, normalCaseDiv)
   val specialCase = !normalCase
 
-  val bypassFloat   = specialCase && opFloat
+  val bypassFloat   = specialCase && input.bits.opFloat
   val floatSpecialValid = RegInit(false.B)
   floatSpecialValid := bypassFloat && input.fire
 
@@ -186,8 +195,17 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val signNext = Mux(input.bits.opSqrt, rawA.isZero && rawA.sign, rawA.sign ^ rawB.sign)
   val signReg = RegEnable(signNext, false.B, input.fire)
 
-  /** sqrt logic
+  val divIter = Module(new SRT16Iter(fpWidth, fpWidth, fpWidth, 2, 2, 4, 4))
+  val sqrtIter = Module(new SqrtIter(2, 2, sqrtIterWidth, sigWidth + 2))
+
+  /** build SQRT input
     *
+    * {{{
+    *   fractDividendIn
+    *   fractDivisorIn
+    * }}}
+    *
+    * convert logic
     * {{{
     * rawA_S.sExp first 2 bits
     * 00 -> 10 (subnormal)
@@ -205,15 +223,18 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
       expfirst2(2) -> "b00".U
     )
   )
-
   val expForSqrt = Cat(expstart, rawA.sExp(expWidth - 2, 0)) >> 1
   val sqrtExpIsOdd = !rawA.sExp(0)
   val sqrtFractIn = Mux(sqrtExpIsOdd, Cat("b0".U(1.W), rawA.sig(sigWidth - 1, 0), 0.U(1.W)),
     Cat(rawA.sig(sigWidth - 1, 0), 0.U(2.W)))
 
-  val sqrtIter = Module(new SqrtIter(2, 2, sqrtIterWidth, sigWidth + 2))
-
-  // build FDIV input
+  /** build FDIV input
+    * {{{
+    *   fractDividendIn
+    *   fractDivisorIn
+    * }}}
+    *
+    */
   val fractDividendIn = Wire(UInt((fpWidth).W))
   val fractDivisorIn  = Wire(UInt((fpWidth).W))
   fractDividendIn := Cat(1.U(1.W), rawA.sig(sigWidth - 2, 0), 0.U(expWidth.W))
@@ -221,8 +242,13 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
 
 
 //-----------------------Integer----------------------
-
-  val divIter = Module(new SRT16Iter(fpWidth, fpWidth, fpWidth, 2, 2, 4, 4))
+  /** Build integer divsion input
+    * {{{
+    *   integerDividendIn
+    *   integerDivisorIn
+    *   counter
+    * }}}
+    */
 
   val abs = Module(new Abs(32))
   abs.io.aIn := input.bits.a
@@ -244,7 +270,7 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   biggerdivisor := gap(33) && !(gap(32, 0).orR === false.B)
 
   // when dividezero or biggerdivisor, bypass SRT
-  val bypassInteger = (divideZero || biggerdivisor) && input.fire && !opFloat
+  val bypassInteger = (divideZero || biggerdivisor) && input.fire && ! input.bits.opFloat
 
   /** SRT16 initial process logic containing a leading zero counter */
   // extend one bit for calculation
@@ -274,6 +300,9 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   leftShiftWidthDividend := zeroHeadDividend +& -Cat(0.U(4.W), guardWidth) + 3.U
   leftShiftWidthDivisor := zeroHeadDivisor(4, 0)
 
+  val integerDividendIn = abs.io.aOut << leftShiftWidthDividend
+  val integerDivisorIn  = abs.io.bOut << leftShiftWidthDivisor
+
   // control signals used in SRT post-process
   val negativeSRT        = RegEnable(negative,        false.B,  divIter.input.fire)
   val zeroHeadDivisorSRT = RegEnable(zeroHeadDivisor, 0.U(6.W), divIter.input.fire)
@@ -285,18 +314,22 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val bypassIntegerReg = RegNext(bypassInteger, false.B)
   val dividendInputReg = RegEnable(input.bits.a.asUInt, 0.U(32.W), input.fire)
 
+  // Mux to merge fraction and integer DIV input
   val divDividend = Wire(UInt((fpWidth+3).W))
   val divDivisor  = Wire(UInt(fpWidth.W))
-  divDividend := Mux(opFloat || (input.fire && opFloat), fractDividendIn, abs.io.aOut << leftShiftWidthDividend)
-  divDivisor  := Mux(opFloat || (input.fire && opFloat), fractDivisorIn , abs.io.bOut << leftShiftWidthDivisor)
+  divDividend := Mux(input.fire && input.bits.opFloat, fractDividendIn, integerDividendIn)
+  divDivisor  := Mux(input.fire && input.bits.opFloat, fractDivisorIn , integerDivisorIn)
 
-  // Float iteration Mux for FDIV and SQRT
+
+  /** SQRT iteration input */
   val sqrtMuxIn     = Wire(new IterMuxIO(expWidth, sigWidth, fpWidth, ohWidth, iterWidth))
+  /** DIV iteration  input */
   val divMuxIn      = Wire(new IterMuxIO(expWidth, sigWidth, fpWidth, ohWidth, iterWidth))
+  /** Iteration Mux output for all cases */
   val divSqrtMuxOut = Wire(new IterMuxIO(expWidth, sigWidth, fpWidth, ohWidth, iterWidth))
   divSqrtMuxOut := Mux(opSqrtReg || (input.bits.opSqrt && input.fire), sqrtMuxIn, divMuxIn)
 
-  val divValid  = input.valid && !bypassInteger && !bypassFloat && !opSqrt
+  val divValid  = input.valid && !bypassInteger && !bypassFloat && !(input.bits.opSqrt)
   val sqrtValid = input.valid && input.bits.opSqrt && normalCaseSqrt
   val divReady  = divIter.input.ready
   val sqrtReady = sqrtIter.input.ready
@@ -328,7 +361,7 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   divIter.input.bits.partialSum   := partialSum
   divIter.input.bits.partialCarry := partialCarry
   divIter.input.bits.divider := divDivisor
-  divIter.input.bits.counter := Mux(opFloatReg || (opFloat && input.fire), 8.U, counter)
+  divIter.input.bits.counter := Mux(opFloatReg || (input.bits.opFloat && input.fire), 8.U, counter)
 
   sqrtIter.respOTF.quotient := otf(0)
   sqrtIter.respOTF.quotientMinusOne := otf(1)
