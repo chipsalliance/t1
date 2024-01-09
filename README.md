@@ -94,23 +94,17 @@ where `<config-name>` should be replaced with a configuration name, e.g. `v1024-
 
 #### Run Testcases
 
-To run testcases, set `TEST_CASES_DIR` to the directory containing built testcases, either manually or using the following commands:
-```shell
-$ nix develop  # enter the default development shell with common tools
-```
-
-Now run the job using the following script:
+To run testcase on IP emulator, use the following script:
 ```shell
 $ ./scripts/run-test.py verilate -c <config> -r <runConfig> <caseName>
 ```
 wheres
 - `<config>` is the configuration name, filename in `./configs`;
-- `<caseName>` is the name of a testcase, filename in `$TEST_CASES_DIR/configs`;
-- `<runConfig>` is a emulator running config, described as filename in `./run`.
+- `<caseName>` is the name of a testcase, you can resolve runnable test cases by command: `make list-testcases`;
 
 For example:
 ```shell
-./scripts/run-test.py verilate -c v1024-l8-b2 -r debug conv-mlir  # '-r debug' can be omitted since it is the default
+./scripts/run-test.py verilate -c v1024-l8-b2 conv-mlir
 ```
 
 `run-test.py` provides various command-line options for different use cases. Run `./scripts/run-test.py -h` for help.
