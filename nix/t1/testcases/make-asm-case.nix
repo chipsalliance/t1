@@ -56,5 +56,7 @@ stdenv.mkDerivation (rec {
     runHook postInstall
   '';
 
+  meta.description = "Test case '${caseName}', written in assembly.";
+
   dontFixup = true;
 } // inputs)
