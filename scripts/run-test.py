@@ -24,6 +24,8 @@ def main():
         "verilate", help="Run verilator emulator"
     )
     verilator_args_parser.add_argument("case", help="name alias for loading test case")
+    verilator_args_parser.add_argument("-d", "--dramsim3-cfg", help="configuration file for dramsim3", required=True)
+    verilator_args_parser.add_argument("-f", "--frequency", help="frequency for the vector processor (in MHz)", required=True)
     verilator_args_parser.add_argument(
         "-c",
         "--config",
@@ -165,6 +167,9 @@ def execute_verilator_emulator(args):
         else load_elf_from_dir(args.cases_dir, args.case)
     )
 
+    dramsim3_cfg = args.dramsim3_cfg
+    tck = 10**3 / float(args.frequency)
+
     elaborate_config_path = Path("configs") / f"{args.config}.json"
     assert (
         elaborate_config_path.exists()
@@ -181,6 +186,9 @@ def execute_verilator_emulator(args):
         "COSIM_wave": str(Path(args.out_dir) / "wave.fst"),
         "COSIM_timeout": str(run_config["timeout"]),
         "COSIM_config": str(elaborate_config_path),
+        "COSIM_dramsim3_result": str(Path(args.out_dir) / "dramsim3-logs"),
+        "COSIM_dramsim3_config": str(dramsim3_cfg),
+        "COSIM_tck": str(tck),
         "PERF_output_file": str(Path(args.out_dir) / "perf.txt"),
         "EMULATOR_log_path": str(Path(args.out_dir) / "emulator.log"),
         "EMULATOR_no_log": "true" if args.no_log else "false",
