@@ -82,8 +82,8 @@ class DCacheMetadataReq(implicit p: Parameters) extends L1HellaCacheBundle()(p) 
   val data = UInt(cacheParams.tagCode.width(new L1Metadata().getWidth).W)
 }
 
-class DCache(staticIdForMetadataUseOnly: Int, val crossing: ClockCrossingType)(implicit p: Parameters)
-    extends HellaCache(staticIdForMetadataUseOnly)(p) {
+class DCache(val crossing: ClockCrossingType)(implicit p: Parameters)
+    extends HellaCache()(p) {
   override lazy val module = new DCacheModule(this)
 }
 
