@@ -64,7 +64,7 @@ jobs:
           for f in configs/*; do
             fname=$(basename $f)
             configName=${fname%.*}
-            echo "building .#t1.${configName}.rtl"
+            echo "building .#t1.${configName}.ip.rtl"
             nix build .#t1.${configName}.ip.rtl
           done
 
