@@ -61,7 +61,7 @@
     },
     "chisel": {
         "cargoLocks": null,
-        "date": "2023-12-19",
+        "date": "2024-01-09",
         "extract": null,
         "name": "chisel",
         "passthru": null,
@@ -73,15 +73,15 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "chisel",
-            "rev": "efe9646f422178f7deb12a976ee89842fa8a5ccf",
-            "sha256": "sha256-0eMlw6Kdnd2oKxoczAjopEm+17o3iZ3+fNQkVGprIFg=",
+            "rev": "8f147a3cf8afb8a7c6c0b733a9c4bf2ffb9a2aa2",
+            "sha256": "sha256-ZlfIWZxAa9L279lgBDaybASgpMvLrPkjDHzXY1B0S/Q=",
             "type": "github"
         },
-        "version": "efe9646f422178f7deb12a976ee89842fa8a5ccf"
+        "version": "8f147a3cf8afb8a7c6c0b733a9c4bf2ffb9a2aa2"
     },
     "riscv-opcodes": {
         "cargoLocks": null,
-        "date": "2023-11-27",
+        "date": "2024-01-08",
         "extract": null,
         "name": "riscv-opcodes",
         "passthru": null,
@@ -93,15 +93,15 @@
             "name": null,
             "owner": "riscv",
             "repo": "riscv-opcodes",
-            "rev": "61d2ef45dcb4a276a1e69643880cb75a9ca5ba79",
-            "sha256": "sha256-jdXKNIigKAqn2bbrMn6HxB61AM8KwSCvFEoL1N604rw=",
+            "rev": "eb901304175d51f9db9ce055c1332e02f3b83cce",
+            "sha256": "sha256-wa4r8THH4cDqH352AK7AeZmHEYG3l+RwFKPaRnF09Jo=",
             "type": "github"
         },
-        "version": "61d2ef45dcb4a276a1e69643880cb75a9ca5ba79"
+        "version": "eb901304175d51f9db9ce055c1332e02f3b83cce"
     },
     "rocket-chip": {
         "cargoLocks": null,
-        "date": "2023-11-25",
+        "date": "2024-01-10",
         "extract": null,
         "name": "rocket-chip",
         "passthru": null,
@@ -113,11 +113,11 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "rocket-chip",
-            "rev": "b3fa8df9bfb3a6d5b1d57dc4a0633fc6028242ac",
-            "sha256": "sha256-hQcjdwIObdMLrmLaK/yGTdClbbGlVC61K/o6dehiHFU=",
+            "rev": "060a761c5ef0d068aefdeb7c44da8c0c4943176b",
+            "sha256": "sha256-rLRYmGNazYAkvYAgZE4kYWHGJ+bhIW5HOak/qD0Vq5w=",
             "type": "github"
         },
-        "version": "b3fa8df9bfb3a6d5b1d57dc4a0633fc6028242ac"
+        "version": "060a761c5ef0d068aefdeb7c44da8c0c4943176b"
     },
     "rocket-chip-inclusive-cache": {
         "cargoLocks": null,
@@ -141,7 +141,7 @@
     },
     "rvdecoderdb": {
         "cargoLocks": null,
-        "date": "2023-11-28",
+        "date": "2024-01-02",
         "extract": null,
         "name": "rvdecoderdb",
         "passthru": null,
@@ -153,11 +153,11 @@
             "name": null,
             "owner": "sequencer",
             "repo": "rvdecoderdb",
-            "rev": "6c8ae11a99a1bfc06965a1dc00aa491d4a847553",
+            "rev": "c4bf448c799bd021f6e23e2561d48b80408cc7a8",
             "sha256": "sha256-s8X1pZceNyAqzE+mKEK7TVL4FP30GJbCOTa376vko+M=",
             "type": "github"
         },
-        "version": "6c8ae11a99a1bfc06965a1dc00aa491d4a847553"
+        "version": "c4bf448c799bd021f6e23e2561d48b80408cc7a8"
     },
     "tilelink": {
         "cargoLocks": null,
