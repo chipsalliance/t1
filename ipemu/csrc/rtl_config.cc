@@ -22,6 +22,7 @@ RTLConfig::RTLConfig(const char *json_file_name) {
   para["physicalAddressWidth"].get_to(physical_address_width);
   para["chainingSize"].get_to(chaining_size);
   para["vrfWriteQueueSize"].get_to(vrf_write_queue_size);
+  para["memoryBankSize"].get_to(tl_bank_number);
 }
 
 size_t lsu_idx_default = 255;
