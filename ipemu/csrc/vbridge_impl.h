@@ -21,9 +21,7 @@
 #include <svdpi.h>
 #endif
 
-#ifndef COSIM_NO_DRAMSIM
 #include "dramsim3.h"
-#endif
 
 #include "encoding.h"
 #include "rtl_config.h"
@@ -43,17 +41,16 @@ struct TLReqRecord {
   bool muxin_read_required; // Read required for partial writes
   bool muxin_read_sent = false; // Mux-in read consists of at most one transaction
 
-  // For writes, this is the number of bytes written by user.
-  // For reads, this is the number of bytes returned by memory controller
   // For writes, as soon as the transaction is sent to the controller, the request is resolved, so we don't have to track the number
   //   of bytes that have been processed by the memory controller
+
+  // Only meaningful for writes, this is the number of bytes written by user.
   size_t bytes_received = 0;
 
   // This is the number of bytes(or worth-of transaction for reads) sent to the memory controller
   size_t bytes_committed = 0;
 
-  // Only meaningful for writes. This is the number of bytes that have been processed by the memory controller
-  // TODO(meow): this is a little bit confusing. Refactor such that bytes_received is only meaningful for writes, and bytes_processed is consistent across all ops
+  // This is the number of bytes that have been processed by the memory controller
   size_t bytes_processed = 0;
 
   // For read, number of bytes returned to user
@@ -110,14 +107,19 @@ struct TLReqRecord {
     else bytes_committed += burst_bytes;
   }
 
+  void skip() {
+    this->muxin_read_required = false;
+    if(op == opType::PutFullData)
+      this->bytes_committed = bytes_received;
+    else
+      this->bytes_committed = size_by_byte;
+    this->bytes_processed = this->bytes_committed;
+  }
+
   bool resolve_mem_response(reg_t resp_addr, reg_t burst_bytes) {
     if(muxin_read_required) {
       if(aligned_addr(burst_bytes) != resp_addr) return false;
       muxin_read_required = false; // Resolve mux-in read
-      return true;
-    } else if(op != opType::PutFullData) {
-      if(bytes_received >= size_by_byte || aligned_addr(burst_bytes) + bytes_received != resp_addr) return false;
-      bytes_received += burst_bytes;
       return true;
     } else {
       if(bytes_processed >= size_by_byte || aligned_addr(burst_bytes) + bytes_processed != resp_addr) return false;
@@ -135,7 +137,7 @@ struct TLReqRecord {
     } else {
       // Reads need to wait for available data
       auto transfer_size = std::min(tl_bytes, size_by_byte);
-      if(bytes_returned - bytes_received < transfer_size) return {};
+      if(bytes_returned - bytes_processed < transfer_size) return {};
       return {{ bytes_returned, transfer_size }};
     }
   }
@@ -147,9 +149,9 @@ struct TLReqRecord {
   void format() {
     std::cout<<(op == opType::Get ? "R" : "W")<<std::endl;
     std::cout<<"- size: "<<size_by_byte<<std::endl;
-    std::cout<<"- received: "<<bytes_received<<std::endl;
+    if(op == opType::PutFullData) std::cout<<"- received: "<<bytes_received<<std::endl;
     std::cout<<"- committed: "<<bytes_committed<<std::endl;
-    if(op == opType::PutFullData) std::cout<<"- processed: "<<bytes_processed<<std::endl;
+    std::cout<<"- processed: "<<bytes_processed<<std::endl;
     std::cout<<"- returned: "<<bytes_returned<<std::endl;
   }
 };
@@ -256,12 +258,11 @@ private:
 
 #endif
 
-#ifndef COSIM_NO_DRAMSIM
   void dramsim_drive(const int channel_id);
   void dramsim_resolve(const int channel_id, const reg_t addr);
   size_t dramsim_burst_size(const int channel_id) const;
   std::vector<std::pair<dramsim3::MemorySystem, uint64_t>> drams; // (controller, dram tick)
-#endif
+  bool using_dramsim3 = false;
 
   double tck;
   uint64_t last_commit_time = 0;
