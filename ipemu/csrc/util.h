@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <fmt/core.h>
 #include <fmt/format.h>
+#include <optional>
 
 #include "exceptions.h"
 #include "spdlog-ext.h"
@@ -67,6 +68,12 @@ inline char *get_env_arg(const char *name) {
   CHECK_NE(val, nullptr,
            fmt::format("cannot find environment of name '{}'", name));
   return val;
+}
+
+inline std::optional<char *> get_env_arg_optional(const char *name) {
+  char *val = std::getenv(name);
+  if(val == nullptr) return {};
+  return { val };
 }
 
 inline char *get_env_arg_default(const char *name, char *default_val) {

@@ -158,9 +158,8 @@ void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
         "invalid v_tl_resp channel id");
   return_tl_response(v_tl_resp);
 
-#ifndef COSIM_NO_DRAMSIM
-  dramsim_drive(v_tl_resp.channel_id);
-#endif
+  if(using_dramsim3)
+    dramsim_drive(v_tl_resp.channel_id);
 }
 
 //==================
@@ -243,23 +242,25 @@ VBridgeImpl::VBridgeImpl()
   csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 0);
   proc.enable_log_commits();
 
-#ifndef COSIM_NO_DRAMSIM
   char *primary_tck_str = get_env_arg("COSIM_tck");
   tck = std::stod(primary_tck_str);
 
-  char *dramsim_result_parent = get_env_arg("COSIM_dramsim3_result");
-  char *dramsim_config = get_env_arg("COSIM_dramsim3_config");
-  for(int i = 0; i < config.tl_bank_number; ++i) {
-    std::string result_dir = std::string(dramsim_result_parent) + "/channel." + std::to_string(i);
-    std::filesystem::create_directories(result_dir);
-    auto completion = [i, this](uint64_t address) {
-      this->dramsim_resolve(i, address);
-    };
+  auto dramsim_config_opt = get_env_arg_optional("COSIM_dramsim3_config");
+  this->using_dramsim3 = dramsim_config_opt.operator bool();
 
-    drams.emplace_back(dramsim3::MemorySystem(dramsim_config, result_dir.c_str(), completion, completion), 0);
-    // std::cout<<"Relative tck ratio on channel "<<i<<" = "<<tck / drams[i].first.GetTCK()<<std::endl;
+  if(this->using_dramsim3) {
+    char *dramsim_result_parent = get_env_arg("COSIM_dramsim3_result");
+    for(int i = 0; i < config.tl_bank_number; ++i) {
+      std::string result_dir = std::string(dramsim_result_parent) + "/channel." + std::to_string(i);
+      std::filesystem::create_directories(result_dir);
+      auto completion = [i, this](uint64_t address) {
+        this->dramsim_resolve(i, address);
+      };
+
+      drams.emplace_back(dramsim3::MemorySystem(*dramsim_config_opt, result_dir.c_str(), completion, completion), 0);
+      // std::cout<<"Relative tck ratio on channel "<<i<<" = "<<tck / drams[i].first.GetTCK()<<std::endl;
+    }
   }
-#endif
 }
 
 uint64_t VBridgeImpl::get_t() { return getCycle(); }
@@ -403,10 +404,10 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         .with("return_data", fmt::format("{:02X}", fmt::join(actual_data, " ")))
         .info("<- receive rtl mem get req");
 
-    // TODO: ifndef COSIM_NO_DRAMSIM
-    tl_req_record_of_bank[tlIdx].emplace(
+    auto emplaced = tl_req_record_of_bank[tlIdx].emplace(
         get_t(), TLReqRecord{get_t(), actual_data, size, base_addr, src,
                              TLReqRecord::opType::Get, dramsim_burst_size(tlIdx)});
+    if(!this->using_dramsim3) emplaced->second.skip();
     break;
   }
 
@@ -494,6 +495,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     }
 
     cur_record->bytes_received += actual_beat_size;
+    if(!this->using_dramsim3) cur_record->skip();
 
     // update tl_req_ongoing_burst
     if (cur_record->bytes_received < size) {
@@ -772,7 +774,6 @@ void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd,
   }   // end for j
 }
 
-#ifndef COSIM_NO_DRAMSIM
 void VBridgeImpl::dramsim_drive(const int channel_id) {
   auto &[dram, tick] = drams[channel_id];
   const auto target_dram_tick = get_t() * tck / dram.GetTCK();
@@ -826,6 +827,5 @@ void VBridgeImpl::dramsim_resolve(const int channel_id, reg_t addr) {
 size_t VBridgeImpl::dramsim_burst_size(const int channel_id) const {
   return drams[channel_id].first.GetBurstLength() * drams[channel_id].first.GetBusBits() / 8;
 }
-#endif // COSIM_NO_DRAMSIM
 
 VBridgeImpl vbridge_impl_instance;

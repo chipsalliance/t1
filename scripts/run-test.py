@@ -24,8 +24,8 @@ def main():
         "verilate", help="Run verilator emulator"
     )
     verilator_args_parser.add_argument("case", help="name alias for loading test case")
-    verilator_args_parser.add_argument("-d", "--dramsim3-cfg", help="configuration file for dramsim3", required=True)
-    verilator_args_parser.add_argument("-f", "--frequency", help="frequency for the vector processor (in MHz)", required=True)
+    verilator_args_parser.add_argument("-d", "--dramsim3-cfg", help="Enable dramsim3, and specify its configuration file")
+    verilator_args_parser.add_argument("-f", "--frequency", help="frequency for the vector processor (in MHz)", default="2000")
     verilator_args_parser.add_argument(
         "-c",
         "--config",
@@ -168,6 +168,9 @@ def execute_verilator_emulator(args):
     )
 
     dramsim3_cfg = args.dramsim3_cfg
+    if dramsim3_cfg is not None:
+        dramsim3_cfg = str(dramsim3_cfg)
+
     tck = 10**3 / float(args.frequency)
 
     elaborate_config_path = Path("configs") / f"{args.config}.json"
@@ -187,7 +190,7 @@ def execute_verilator_emulator(args):
         "COSIM_timeout": str(run_config["timeout"]),
         "COSIM_config": str(elaborate_config_path),
         "COSIM_dramsim3_result": str(Path(args.out_dir) / "dramsim3-logs"),
-        "COSIM_dramsim3_config": str(dramsim3_cfg),
+        "COSIM_dramsim3_config": dramsim3_cfg, # str or None
         "COSIM_tck": str(tck),
         "PERF_output_file": str(Path(args.out_dir) / "perf.txt"),
         "EMULATOR_log_path": str(Path(args.out_dir) / "emulator.log"),
