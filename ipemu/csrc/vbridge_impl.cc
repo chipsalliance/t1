@@ -825,6 +825,7 @@ void VBridgeImpl::dramsim_resolve(const int channel_id, reg_t addr) {
 }
 
 size_t VBridgeImpl::dramsim_burst_size(const int channel_id) const {
+  if(!using_dramsim3) return 1; // Dummy value, won't be effective whatsoever. 1 is to ensure that no sub-line write is possible
   return drams[channel_id].first.GetBurstLength() * drams[channel_id].first.GetBusBits() / 8;
 }
 

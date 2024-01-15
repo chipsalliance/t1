@@ -268,4 +268,4 @@ private:
   uint64_t last_commit_time = 0;
 };
 
-  extern VBridgeImpl vbridge_impl_instance;
+extern VBridgeImpl vbridge_impl_instance;
