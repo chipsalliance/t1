@@ -190,13 +190,15 @@ def execute_verilator_emulator(args):
         "COSIM_timeout": str(run_config["timeout"]),
         "COSIM_config": str(elaborate_config_path),
         "COSIM_dramsim3_result": str(Path(args.out_dir) / "dramsim3-logs"),
-        "COSIM_dramsim3_config": dramsim3_cfg, # str or None
         "COSIM_tck": str(tck),
         "PERF_output_file": str(Path(args.out_dir) / "perf.txt"),
         "EMULATOR_log_path": str(Path(args.out_dir) / "emulator.log"),
         "EMULATOR_no_log": "true" if args.no_log else "false",
         "EMULATOR_no_console_log": "true" if args.no_console_log else "false",
     }
+    if dramsim3_cfg is not None:
+        env["COSIM_dramsim3_config"] = dramsim3_cfg
+
     env_repr = "\n".join(f"{k}={v}" for k, v in env.items())
     logger.info(f'Run "{" ".join(process_args)}" with:\n{env_repr}')
     return_code = subprocess.Popen(process_args, env=os.environ | env).wait()
