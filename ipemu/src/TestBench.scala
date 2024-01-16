@@ -7,6 +7,7 @@ import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
 import chisel3.probe._
 import chisel3.util.experimental.BoringUtils.bore
+import org.chipsalliance.t1.montior.{Issue, Retire, VRFWrite}
 import org.chipsalliance.t1.rtl.{V, VParameter}
 
 
@@ -19,6 +20,10 @@ class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends R
     monitor.clock := clock
     monitor.reset := reset
   }
+  // For offline difftest
+  val issue = new Issue(dut)
+  val retire = new Retire(dut)
+  val vrfWrite = new VRFWrite(dut)
 
   val verificationModule = Module(new VerificationModule(dut))
   dut.request <> verificationModule.req

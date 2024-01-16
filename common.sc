@@ -58,12 +58,20 @@ trait EmuHelperModule
   extends ScalaModule
     with HasChisel
 
+trait T1MonitorModule
+  extends ScalaModule
+    with HasChisel {
+  def t1Module: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(t1Module)
+}
+
 trait IPEmulatorModule
   extends ScalaModule
     with HasChisel {
   def t1Module: ScalaModule
   def emuHelperModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(t1Module, emuHelperModule)
+  def t1MonitorModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(t1Module, emuHelperModule, t1MonitorModule)
 }
 
 trait SubsystemModule

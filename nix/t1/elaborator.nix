@@ -20,6 +20,7 @@ let
       "/build.sc"
       "/common.sc"
       "/t1"
+      "/t1monitor"
       "/subsystem"
       "/rocket"
       "/emuhelper"

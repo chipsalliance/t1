@@ -189,6 +189,20 @@ trait EmuHelper
   def chiselIvy = None
 }
 
+object t1monitor extends T1Monitor
+
+trait T1Monitor
+  extends millbuild.common.T1MonitorModule {
+  def scalaVersion = T(v.scala)
+
+  def t1Module = t1
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
 object ipemu extends IPEmulator
 
 trait IPEmulator
@@ -196,6 +210,7 @@ trait IPEmulator
   def scalaVersion = T(v.scala)
 
   def t1Module = t1
+  def t1MonitorModule = t1monitor
   def emuHelperModule = emuhelper
 
   def chiselModule = Some(chisel)
