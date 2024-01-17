@@ -16,6 +16,22 @@ object Main {
     def emit(targetDir: os.Path) = os.write(targetDir / "config.json", upickle.default.write(SerializableModuleGenerator(classOf[V], p), indent = 2))
   }
 
+  @main def listConfigs(
+    @arg(name = "out", short = 'o') outputPath: os.Path
+  ): Unit = {
+    val configs = Main
+      .getClass()
+      .getDeclaredMethods()
+      .filter(m => m.getParameters().mkString.contains("os.Path targetDir"))
+      .map(m => {
+        val cfg = """(v\d+)(l\d+)(b\d+)(.*)""".r
+        m.getName() match {
+          case cfg(v, l, b, fp) => Seq(v, l, b, fp).filter(_.size > 0).mkString("-")
+        }
+      })
+    os.write(outputPath, upickle.default.write(configs))
+  }
+
   @main def v1024l1b2(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = VParameter(
