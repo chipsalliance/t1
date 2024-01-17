@@ -1,2 +1,4 @@
 v1024-l8-b2/default.json
 v1024-l8-b2-fp/default.json
+v4096-l8-b4/default.json
+v4096-l8-b4-fp/default.json
