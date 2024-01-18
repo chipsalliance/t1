@@ -46,10 +46,7 @@ def main():
         "--trace", action="store_true", help="use emulator with trace support"
     )
     verilator_args_parser.add_argument(
-        "-r",
-        "--run-config",
-        default="debug",
-        help="run configuration name, as filenames in ./run",
+        "--cosim-timeout", default=100000, help="set cosim timeout"
     )
     verilator_args_parser.add_argument(
         "-v", "--verbose", action="store_true", help="set loglevel to debug"
@@ -75,7 +72,7 @@ def main():
     verilator_args_parser.add_argument(
         "--base-out-dir",
         default=None,
-        help="save result files in {base_out_dir}/{config}/{case}/{run_config}",
+        help="save result files in {base_out_dir}/{config}/{case}",
     )
     verilator_args_parser.add_argument(
         "--emulator-path", default=None, help="path to emulator"
@@ -130,11 +127,9 @@ def run_verilator_emulator(args):
 
     if args.out_dir is None:
         if args.base_out_dir is not None:
-            args.out_dir = (
-                f"{args.base_out_dir}/{args.config}/{args.case}/{args.run_config}"
-            )
+            args.out_dir = f"{args.base_out_dir}/{args.config}/{args.case}"
         else:
-            args.out_dir = f"./testrun/{args.config}/{args.case}/{args.run_config}"
+            args.out_dir = f"./testrun/{args.config}/{args.case}"
         Path(args.out_dir).mkdir(exist_ok=True, parents=True)
 
     execute_verilator_emulator(args)
@@ -167,10 +162,6 @@ def load_elf_from_dir(cases_dir, case_name):
 
 
 def execute_verilator_emulator(args):
-    run_config_path = Path("run") / f"{args.run_config}.json"
-    assert run_config_path.exists(), f"cannot find run config in {run_config_path}"
-    run_config = json.loads(run_config_path.read_text())
-
     case_elf_path = (
         args.case
         if Path(args.case).exists()
@@ -200,6 +191,7 @@ def execute_verilator_emulator(args):
         elaborate_config_path.exists()
     ), f"cannot find elaborate config in {elaborate_config_path}"
 
+    logger.info("Running emulator builder")
     target_name = "ip.emu-trace" if args.trace else "ip.emu"
     process_args = (
         [args.emulator_path]
@@ -211,7 +203,7 @@ def execute_verilator_emulator(args):
         "--wave",
         str(Path(args.out_dir) / "wave.fst"),
         "--timeout",
-        str(run_config["timeout"]),
+        str(args.cosim_timeout),
         "--config",
         str(elaborate_config_path),
         "--tck",
@@ -242,10 +234,24 @@ def execute_verilator_emulator(args):
 
 
 def run_soc(args):
-    assert Path(
-        f"./configs/{args.config}.json"
-    ).exists(), f"./configs/{args.config}.json doesn't exists. \nHint: are you running this script in project root?"
+    logger.info("Running configgen")
+    subprocess.check_call(
+        [
+            "nix",
+            "run",
+            ".#t1.configgen",
+            "--",
+            f"{args.config.replace('-', '')}",
+            "-t",
+            f"{args.out_dir}",
+        ]
+    )
+    elaborate_config_path = Path(f"{args.out_dir}/config.json")
+    assert (
+        elaborate_config_path.exists()
+    ), f"cannot find elaborate config in {elaborate_config_path}"
 
+    logger.info("Running emulator builder")
     target_name = "subsystem.emu-trace" if args.trace else "subsystem.emu"
     process_args = (
         [args.emulator_path]

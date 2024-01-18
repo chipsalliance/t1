@@ -6,7 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 //
 // @param allTests The original Seq
 // @param bucketSize Specify the size of the output Seq
-def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] =  // TODO: investigate load inbalance
+def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] =
   scala.util.Random.shuffle(alltests).grouped(
     math.ceil(alltests.size.toDouble / bucketSize).toInt
   ).toSeq.map(_.mkString(";"))
@@ -41,12 +41,12 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
   val init = Seq[(String, Int)]()
   val allCycleData = allTasksFile.flatMap (file => {
       System.err.println(s"Generate tests from file: $file")
-      val Seq(_, runCfg, config) = file.segments.toSeq.reverse.slice(0, 3)
+      val config = file.segments.toSeq.reverse(1)
       ujson
         .read(os.read(file))
         .obj
-        .map { case (caseName, v) =>
-          (s"$config,$caseName,$runCfg", v.num.toInt)
+        .map { case (caseName, cycle) =>
+          (s"$config,$caseName", cycle.num.toInt)
         }
         .toSeq
   })
@@ -101,25 +101,24 @@ def postPrMatrixJson(
 ) = {
   val defaultCases = os.pwd / os.RelPath(".github/cases/default.txt")
   val caseFiles = os.read.lines(defaultCases).map(os.RelPath(_))
+  val testCaseDir = os.proc("nix", "build", ".#t1.rvv-testcases.all", "--no-link", "--print-out-paths").call(cwd=os.pwd).out.trim
   val unpassedCases = caseFiles.flatMap(file => {
-    val Seq(verilateCfg, runCfg, _) = file.segments.toSeq
-    val configFile = os.pwd / "configs" / s"$verilateCfg.json"
+    val verilateCfg = file.segments.head
     val exists = ujson.read(os.read(defaultCases / os.up / file))
       .obj.keys
-      .map(caseName => s"$verilateCfg,$caseName,$runCfg")
-    val testCaseDir = os.proc("nix", "build", ".#t1.rvv-testcases.all", "--no-link", "--print-out-paths").call(cwd=os.pwd).out.trim
+      .map(caseName => s"$verilateCfg,$caseName")
     val isFpVerilator = verilateCfg.endsWith("-fp")
     val all: Seq[String] = os.list(os.Path(testCaseDir) / "configs")
       // For fp verilator, don't filter tests
       // For non-fp verilator, filter out fp tests
       .filter(f => !isFpVerilator && !ujson.read(os.read(f))("fp").bool)
-      .map(f => s"$verilateCfg,${f.baseName.toString},$runCfg")
+      .map(f => s"$verilateCfg,${f.baseName.toString}")
     val perfCases = os.walk(defaultCases / os.up)
       .filter(f => f.last == "perf-cases.txt")
       .flatMap(f => {
-        val Seq(_, runCfg, verilateCfg) = file.segments.toSeq.reverse.slice(0, 3)
+        val Seq(_, verilateCfg) = file.segments.toSeq.reverse.slice(0, 2)
         os.read.lines(f).filter(_.length > 0).map (caseName =>
-          s"$verilateCfg,$caseName,$runCfg"
+          s"$verilateCfg,$caseName"
         )
       })
 
@@ -137,46 +136,44 @@ def convertPerfToMD() = os
   .foreach(p => {
     val testRunDir = os.pwd / "testrun"
     val perfCases = os.read.lines(p).filter(_.length > 0)
-    val Seq(config, runCfg, _) =
-      p.relativeTo(os.pwd / ".github" / "cases").segments.toSeq
+    val config = p.relativeTo(os.pwd / ".github" / "cases").segments.toSeq(0)
     val existPerfFile = perfCases
       .filter {testcase =>
         val path = testRunDir / os.RelPath(
-          s"$config/$testcase/$runCfg/perf.txt"
+          s"$config/$testcase/perf.txt"
         )
         os.exists(path)
       }
       .foreach(testcase => {
         val path = testRunDir / os.RelPath(
-          s"$config/$testcase/$runCfg/perf.txt"
+          s"$config/$testcase/perf.txt"
         )
-        System.err.println(s"generating perf-result-$testcase-$config-$runCfg.md")
+        System.err.println(s"generating perf-result-$testcase-$config.md")
         val output =
           s"""### $testcase
             |
             |* Config: $config
-            |* Run Config: $runCfg
             |
             |```
             |${os.read(path).trim}
             |```
             |\n""".stripMargin
-        os.write(os.pwd / s"perf-result-$testcase-$config-$runCfg.md", output)
+        os.write(os.pwd / s"perf-result-$testcase-$config.md", output)
       })
   })
 
 
 def writeCycleUpdates(job: String, testRunDir: os.Path, resultDir: os.Path) = {
-  val isEmulatorTask = raw"([^,]+),([^,]+),([^,]+)".r
+  val isEmulatorTask = raw"([^,]+),([^,]+)".r
   job match {
-    case isEmulatorTask(e, t, r) => {
-      val passedFile = os.pwd / os.RelPath(s".github/cases/$e/$r/default.json")
+    case isEmulatorTask(e, t) => {
+      val passedFile = os.pwd / os.RelPath(s".github/cases/$e/default.json")
       val original = ujson.read(os.read(passedFile))
 
       val perfCycleRegex = raw"total_cycles:\s(\d+)".r
       val newCycleCount = os
         .read
-        .lines(testRunDir / os.RelPath(s"$e/$t/$r/perf.txt"))
+        .lines(testRunDir / os.RelPath(s"$e/$t/perf.txt"))
         .apply(0) match {
           case perfCycleRegex(cycle) => cycle.toInt
           case _ => throw new Exception("perf.txt file is not format as expected")
@@ -194,7 +191,7 @@ def writeCycleUpdates(job: String, testRunDir: os.Path, resultDir: os.Path) = {
             os.write.append(cycleUpdateFile, s"* 🐢 $job: $oldCycleCount -> $newCycleCount\n")
           }
 
-          val newCycleFile = resultDir / s"${e}_${r}_cycle.json"
+          val newCycleFile = resultDir / s"${e}_cycle.json"
           val newCycleRecord = if (os.exists(newCycleFile)) {
             ujson.read(os.read(newCycleFile))
           } else {
@@ -230,13 +227,13 @@ def runTests(jobs: String, resultDir: Option[os.Path], dontBail: Boolean = false
   val totalJobs = jobs.split(";")
   val failed = totalJobs.zipWithIndex.foldLeft(Seq[String]()) {
     case(failed, (job, i)) => {
-      val Array(config, caseName, runCfg) = job.split(",")
-      System.err.println(s"\n\n\n>>>[${i+1}/${totalJobs.length}] Running test case $config,$caseName,$runCfg")
+      val Array(config, caseName) = job.split(",")
+      System.err.println(s"\n\n\n>>>[${i+1}/${totalJobs.length}] Running test case $config,$caseName")
       val handle = os
-        .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--no-log", "--base-out-dir", testRunDir, caseName)
+        .proc("scripts/run-test.py", "verilate", "-c", config, "--no-log", "--base-out-dir", testRunDir, caseName)
         .call(check=false)
       if (handle.exitCode != 0) {
-        val outDir = testRunDir / config / caseName / runCfg
+        val outDir = testRunDir / config / caseName
         System.err.println(s"Test case $job failed")
         os.write(actualResultDir / "failed-logs" / s"$job.txt", handle.out.text)
         failed :+ job
@@ -270,10 +267,10 @@ def runFailedTests(jobs: String) = {
   val testRunDir = os.pwd / "testrun"
   val totalJobs = jobs.split(";")
   val failed = totalJobs.zipWithIndex.foreach { case (job, i) => {
-    val Array(config, caseName, runCfg) = job.split(",")
-    System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $config,$caseName,$runCfg")
+    val Array(config, caseName) = job.split(",")
+    System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $config,$caseName")
     val handle = os
-      .proc("scripts/run-test.py", "verilate", "-c", config, "-r", runCfg, "--trace", "--no-log", "--base-out-dir", testRunDir, caseName)
+      .proc("scripts/run-test.py", "verilate", "-c", config, "--trace", "--no-log", "--base-out-dir", testRunDir, caseName)
       .call(check=false)
   }}
 }
@@ -284,16 +281,16 @@ def mergeCycleData() = {
   val original = os.walk(os.pwd / ".github" / "cases")
     .filter(_.last == "default.json")
     .map(path => {
-      val Seq(_, runConfig, config) = path.segments.toSeq.reverse.slice(0, 3)
-      (s"$config,$runConfig", ujson.read(os.read(path)))
+      val config = path.segments.toSeq.reverse(1)
+      (config, ujson.read(os.read(path)))
     })
     .toMap
   os.walk(os.pwd)
     .filter(_.last.endsWith("_cycle.json"))
     .map(path => {
-      val Array(config, runConfig, _) = path.last.split("_")
+      val config = path.last.split("_")(0)
       println(s"Reading new cycle data from $path")
-      (s"$config,$runConfig", ujson.read(os.read(path)))
+      (config, ujson.read(os.read(path)))
     })
     .foreach {
       case(name, latest) => {
@@ -305,9 +302,9 @@ def mergeCycleData() = {
     }
   original.foreach {
     case(name, data) => {
-      val Array(config, runConfig) = name.split(",")
+      val config = name.split(",")(0)
       os.write.over(
-        os.pwd / os.RelPath(s".github/cases/$config/$runConfig/default.json"),
+        os.pwd / os.RelPath(s".github/cases/$config/default.json"),
         ujson.write(data, indent = 2)
       )
     }
