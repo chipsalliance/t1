@@ -971,9 +971,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // handshake
   laneRequest.ready := !slotOccupied.last && vrf.instructionWriteReport.ready
 
+  val instructionFinishAndNotReportByTop: Bool =
+    entranceControl.instructionFinished && !laneRequest.bits.decodeResult(Decoder.readOnly)
   // normal instruction, LSU instruction will be report to VRF.
-  vrf.lsuInstructionFire := laneRequest.bits.LSUFire
-  vrf.instructionWriteReport.valid := (laneRequest.fire || laneRequest.bits.LSUFire) && !entranceControl.instructionFinished
+  vrf.instructionWriteReport.valid := laneRequest.bits.issueInst && !instructionFinishAndNotReportByTop
   vrf.instructionWriteReport.bits.instIndex := laneRequest.bits.instructionIndex
   vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd
   vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.decodeResult(Decoder.targetRd) || (laneRequest.bits.loadStore && !laneRequest.bits.store)

@@ -385,7 +385,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val laneReadResult: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
   val WARRedResult:   ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.datapathWidth.W))))
   // mask unit 最后的写
-  val lastMaskUnitWrite: Bool = Wire(Bool())
+  val maskUnitFlushVrf: Bool = WireDefault(false.B)
 
   // gather read state
   val gatherOverlap: Bool = Wire(Bool())
@@ -623,9 +623,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         completedVec.foreach(_ := false.B)
         WARRedResult.valid := false.B
         unOrderTypeInstruction := unOrderType
-      }.elsewhen(control.state.wLast && maskUnitIdle && !mixedUnit) {
+      }.elsewhen(control.state.wLast && maskUnitIdle) {
         // 如果真需要执行的lane会wScheduler,不会提前发出last确认
-        control.state.sMaskUnitExecution := true.B
+        when(!mixedUnit) {
+          control.state.sMaskUnitExecution := true.B
+        }
+        maskUnitFlushVrf := !control.state.idle
       }
       when(laneSynchronize.asUInt.orR) {
         feedBack := feedBack | laneSynchronize.asUInt
@@ -1068,10 +1071,6 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           }
         }
       }
-      // reduce 也需要flush vrf
-      lastMaskUnitWrite := (lastElement && !maskUnitIdle) ||
-      ((control.state.wLast || reduce || lastExecute) && maskUnitWriteVec.head.valid && maskUnitWriteReady)
-
       // alu end
       val maskOperation = decodeResultReg(Decoder.maskLogic)
       val lastGroupDataWaitMask = scanRightOr(UIntToOH(lastExecuteCounter))
@@ -1231,14 +1230,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     // and broadcast to all lanes.
     lane.laneRequest.bits.readFromScalar := source1Select
 
-    // TODO: these are from decoder?
-    // let record in VRF to know there is a load store instruction.
-    // 是不经过lane的lsu指令: noOffsetReadLoadStore
-    // 然后握手fire了:
-    //  valid: requestReg.valid
-    //  ready: slotReady && lsu.request.ready && instructionRAWReady
-    lane.laneRequest.bits.LSUFire := slotReady && requestReg.valid && noOffsetReadLoadStore &&
-      lsu.request.ready && instructionRAWReady
+    lane.laneRequest.bits.issueInst := requestRegDequeue.fire
     lane.laneRequest.bits.loadStore := isLoadStoreType
     // let record in VRF to know there is a store instruction.
     lane.laneRequest.bits.store := isStoreType
@@ -1301,7 +1293,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     lane.maskInput := cutUInt(v0SelectBySew, parameter.datapathWidth)(lane.maskSelect)
     lane.lsuLastReport := lsu.lastReport |
       Mux(
-        lastMaskUnitWrite,
+        maskUnitFlushVrf,
         indexToOH(slots.last.record.instructionIndex, parameter.chainingSize),
         0.U
       )
