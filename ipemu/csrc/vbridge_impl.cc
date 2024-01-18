@@ -5,6 +5,7 @@
 
 #include <decode_macros.h>
 #include <verilated.h>
+#include <filesystem>
 
 #include "exceptions.h"
 #include "spdlog-ext.h"
@@ -156,6 +157,10 @@ void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
         v_tl_resp.channel_id < config.tl_bank_number,
         "invalid v_tl_resp channel id");
   return_tl_response(v_tl_resp);
+
+#ifndef COSIM_NO_DRAMSIM
+  dramsim_drive(v_tl_resp.channel_id);
+#endif
 }
 
 //==================
@@ -237,6 +242,21 @@ VBridgeImpl::VBridgeImpl()
   auto &csrmap = proc.get_state()->csrmap;
   csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 0);
   proc.enable_log_commits();
+
+#ifndef COSIM_NO_DRAMSIM
+  char *dramsim_result_parent = get_env_arg("COSIM_dramsim3_result");
+  char *dramsim_config = get_env_arg("COSIM_dramsim3_config");
+  if(dramsim_result_parent == nullptr) dramsim_result_parent = "./dramsim3.log";
+  for(int i = 0; i < config.tl_bank_number; ++i) {
+    std::string result_dir = std::string(dramsim_result_parent) + "/channel." + std::to_string(i);
+    std::filesystem::create_directories(result_dir);
+    auto completion = [i, this](uint64_t address) {
+      this->dramsim_resolve(i, address);
+    };
+
+    drams.emplace_back(dramsim_config, result_dir.c_str(), completion, completion);
+  }
+#endif
 }
 
 uint64_t VBridgeImpl::get_t() { return getCycle(); }
@@ -380,9 +400,10 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         .with("return_data", fmt::format("{:02X}", fmt::join(actual_data, " ")))
         .info("<- receive rtl mem get req");
 
+    // TODO: ifndef COSIM_NO_DRAMSIM
     tl_req_record_of_bank[tlIdx].emplace(
         get_t(), TLReqRecord{get_t(), actual_data, size, base_addr, src,
-                             TLReqRecord::opType::Get, get_mem_req_cycles()});
+                             TLReqRecord::opType::Get, dramsim_burst_size(tlIdx)});
     break;
   }
 
@@ -413,7 +434,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
       auto record = tl_req_record_of_bank[tlIdx].emplace(
           get_t(),
           TLReqRecord{get_t(), std::vector<uint8_t>(size), size, base_addr, src,
-                      TLReqRecord::opType::PutFullData, get_mem_req_cycles()});
+                      TLReqRecord::opType::PutFullData, dramsim_burst_size(tlIdx)});
       cur_record = &record->second;
     }
 
@@ -500,27 +521,18 @@ void VBridgeImpl::receive_tl_d_ready(const VTlInterface &tl) {
           fmt::format("cannot find current request with addr {:08X}",
                       addr));
       auto &req_record = find->second;
-      if (req_record.op == TLReqRecord::opType::Get) {
-        req_record.bytes_sent +=
-          std::min(config.datapath_width_in_bytes, req_record.size_by_byte);
-        if (req_record.bytes_sent >= req_record.size_by_byte) {
-          tl_req_waiting_ready[tlIdx].reset();
-          tl_req_record_of_bank[tlIdx].erase(find);
-          Log("ReceiveTlDReady")
-            .with("channel", tlIdx)
-            .with("addr", fmt::format("{:08X}", addr))
-            .info("-> tl response for Get reaches d_ready");
-        }
-      } else if (req_record.op == TLReqRecord::opType::PutFullData) {
-        tl_req_waiting_ready[tlIdx].reset();
-        tl_req_record_of_bank[tlIdx].erase(find);
+
+      req_record.commit_tl_respones(config.datapath_width_in_bytes);
+      if(req_record.done_return()) {
         Log("ReceiveTlDReady")
           .with("channel", tlIdx)
           .with("addr", fmt::format("{:08X}", addr))
-          .info("-> tl response for PutFullData reaches d_ready");
-      } else {
-        FATAL(fmt::format("unknown opcode {}", (int) req_record.op))
+          .info(fmt::format("-> tl response for {} reaches d_ready", req_record.op == TLReqRecord::opType::Get ? "Get" : "PutFullData"));
       }
+      tl_req_waiting_ready[tlIdx].reset();
+
+      // TODO(Meow): add this check back
+      // FATAL(fmt::format("unknown opcode {}", (int) req_record.op))
     }
   }
 }
@@ -528,19 +540,24 @@ void VBridgeImpl::receive_tl_d_ready(const VTlInterface &tl) {
 void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
   // update remaining_cycles
   auto i = tl_poke.channel_id;
-  for (auto &[addr, record] : tl_req_record_of_bank[i]) {
-    if (record.remaining_cycles > 0)
-      record.remaining_cycles--;
-  }
-
   // find a finished request and return
   bool d_valid = false;
   *tl_poke.d_bits_source = 0; // just for cleanness of the waveform, no effect
-  for (auto &[t, record] : tl_req_record_of_bank[i]) {
 
-    if (record.remaining_cycles == 0) {
-      size_t actual_beat_size =
-          std::min(config.datapath_width_in_bytes, record.size_by_byte);
+  // Right now, we only resolves the request at the head of the queue.
+
+  // Pop all fully resolved requests
+  while (!tl_req_record_of_bank[i].empty() &&
+         tl_req_record_of_bank[i].begin()->second.done_return())
+    tl_req_record_of_bank[i].erase(tl_req_record_of_bank[i].begin());
+
+  if(!tl_req_record_of_bank[i].empty()) {
+    auto begin = tl_req_record_of_bank[i].begin();
+    auto returned_resp = begin->second.issue_tl_response(config.datapath_width_in_bytes);
+    d_valid = returned_resp.operator bool();
+    if(d_valid) {
+      auto &record = begin->second;
+      auto [offset, len] = *returned_resp;
       Log("ReturnTlResponse")
           .with("channel", i)
           .with("addr", fmt::format("{:08x}", record.addr))
@@ -549,41 +566,36 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
           .with("data",
                 fmt::format(
                     "{}",
-                    fmt::join(record.data.begin() + (long)record.bytes_sent,
+                    fmt::join(record.data.begin() + (long) offset,
                               record.data.begin() +
-                                  (long)(record.bytes_sent + actual_beat_size),
+                                  (long)(offset + len),
                               " ")))
-          .with("offset", record.bytes_sent)
+          .with("offset", offset)
           .info("-> send tl response");
+
       *tl_poke.d_bits_opcode = record.op == TLReqRecord::opType::Get
                                    ? TlOpcode::AccessAckData
                                    : TlOpcode::AccessAck;
 
-      for (size_t offset = 0; offset < actual_beat_size; offset++) {
+      for (size_t ioffset = 0; ioffset < len; ioffset++) {
         // for GET request not aligned to data bus, put it to a correct byte
         // lane
         size_t byte_lane_idx =
-            (record.addr & (config.datapath_width_in_bytes - 1)) + offset;
+            (record.addr & (config.datapath_width_in_bytes - 1)) + ioffset;
         ((uint8_t *)tl_poke.d_bits_data)[byte_lane_idx] =
-            record.data[record.bytes_sent + offset];
+            record.data[offset + ioffset];
       }
 
       *tl_poke.d_bits_source = record.source;
       *tl_poke.d_bits_sink = 0;
       *tl_poke.d_corrupt = false;
       *tl_poke.d_bits_denied = false;
-
-      if (record.op == TLReqRecord::opType::PutFullData) {  // for PUT request, only ack at last request
-        d_valid = record.bytes_received >= record.size_by_byte;
-      } else {
-        d_valid = true;
-      }
-      if (d_valid) {
-        tl_req_waiting_ready[i] = t;
-      }
-      break;
     }
   }
+
+  if (d_valid)
+    tl_req_waiting_ready[i] = tl_req_record_of_bank[i].begin()->first;
+
   *tl_poke.d_valid = d_valid;
 
   // welcome new requests all the time
@@ -752,5 +764,46 @@ void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd,
     } // end if mask
   }   // end for j
 }
+
+#ifndef COSIM_NO_DRAMSIM
+void VBridgeImpl::dramsim_drive(const int channel_id) {
+  auto &[dram, tick] = drams[channel_id];
+  const auto target_dram_tick = get_t() * tck / dram.GetTCK();
+  while(tick < target_dram_tick) {
+    ++tick;
+    dram.ClockTick();
+
+    // Presents request, look for first request that's not fully sent
+    for(auto &[tick, req] : tl_req_record_of_bank[channel_id]) {
+      if(!req.done_commit()) {
+        // Found head of queue, check eligibility
+
+        auto burst_size = dramsim_burst_size(channel_id);
+        auto dram_req = req.issue_mem_request(burst_size);
+
+        if(dram_req && dram.WillAcceptTransaction(dram_req->first, dram_req->second)) {
+          dram.AddTransaction(dram_req->first, dram_req->second);
+          req.commit_mem_request(burst_size);
+        }
+
+        break;
+      }
+    }
+
+  }
+}
+
+void VBridgeImpl::dramsim_resolve(const int channel_id, reg_t addr) {
+  if(tl_req_record_of_bank[channel_id].empty())
+    FATAL(fmt::format("Response on an idle channel {}", channel_id));
+
+  auto req = tl_req_record_of_bank[channel_id].begin();
+  req->second.resolve_mem_response(addr, dramsim_burst_size(channel_id));
+}
+
+size_t VBridgeImpl::dramsim_burst_size(const int channel_id) const {
+  return drams[channel_id].first.GetBurstLength() * drams[channel_id].first.GetBusBits() / 8;
+}
+#endif COSIM_NO_DRAMSIM
 
 VBridgeImpl vbridge_impl_instance;

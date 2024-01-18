@@ -221,11 +221,11 @@ public:
 };
 
 // Exported symbols
-#define FATAL(context)                                                         \
+#define FATAL(context) {                                                       \
   auto _fatal_fmt_msg = fmt::format("{}", context);                            \
   spdlog::critical("{}", context);                                             \
   spdlog::shutdown();                                                          \
-  throw std::runtime_error(_fatal_fmt_msg);
+  throw std::runtime_error(_fatal_fmt_msg); }
 
 #define CHECK(cond, context)                                                   \
   if (!(cond)) {                                                               \
