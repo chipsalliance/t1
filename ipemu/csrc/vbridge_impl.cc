@@ -244,9 +244,9 @@ VBridgeImpl::VBridgeImpl()
   proc.enable_log_commits();
 
 #ifndef COSIM_NO_DRAMSIM
+  // std::cout<<"[meow]: init dramsim"<<std::endl;
   char *dramsim_result_parent = get_env_arg("COSIM_dramsim3_result");
   char *dramsim_config = get_env_arg("COSIM_dramsim3_config");
-  if(dramsim_result_parent == nullptr) dramsim_result_parent = "./dramsim3.log";
   for(int i = 0; i < config.tl_bank_number; ++i) {
     std::string result_dir = std::string(dramsim_result_parent) + "/channel." + std::to_string(i);
     std::filesystem::create_directories(result_dir);
@@ -254,7 +254,7 @@ VBridgeImpl::VBridgeImpl()
       this->dramsim_resolve(i, address);
     };
 
-    drams.emplace_back(dramsim_config, result_dir.c_str(), completion, completion);
+    drams.emplace_back(dramsim3::MemorySystem(dramsim_config, result_dir.c_str(), completion, completion), 0);
   }
 #endif
 }
@@ -804,6 +804,6 @@ void VBridgeImpl::dramsim_resolve(const int channel_id, reg_t addr) {
 size_t VBridgeImpl::dramsim_burst_size(const int channel_id) const {
   return drams[channel_id].first.GetBurstLength() * drams[channel_id].first.GetBusBits() / 8;
 }
-#endif COSIM_NO_DRAMSIM
+#endif // COSIM_NO_DRAMSIM
 
 VBridgeImpl vbridge_impl_instance;
