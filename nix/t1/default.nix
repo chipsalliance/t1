@@ -30,27 +30,38 @@ lib.makeScope newScope
     lib.makeScope self.newScope (innerSelf: {
       recurseForDerivations = true;
 
-      config-name = configName;
+      # For package name concatenate
+      inherit configName;
+
       elaborate-config = ../../configs/${configName}.json;
 
       ip = {
         recurseForDerivations = true;
-        rtl = innerSelf.callPackage ./elaborate.nix { target = "ip"; };
 
-        emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; };
+        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ip"; };
+        rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.mlirbc; };
+
+        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ipemu"; };
+        emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.emu-mlirbc; };
+
         emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; };
         emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; do-trace = true; };
       };
 
       subsystem = {
         recurseForDerivations = true;
-        rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystem"; };
 
-        emu-rtl = innerSelf.callPackage ./elaborate.nix { target = "subsystememu"; };
+        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; };
+        rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
+
+        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystememu"; };
+        emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
+
         emu = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; };
         emu-trace = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; do-trace = true; };
 
-        fpga-rtl = innerSelf.callPackage ./elaborate.nix { target = "fpga"; };
+        fpga-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "fpga"; };
+        fpga-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.fpga-rtl; };
       };
     })
   )
