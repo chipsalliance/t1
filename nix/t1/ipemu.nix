@@ -7,6 +7,7 @@
 , spdlog
 , fmt
 , libspike
+, dramsim3
 , nlohmann_json
 , ninja
 , verilator
@@ -41,6 +42,7 @@ stdenv.mkDerivation {
     spdlog
     fmt
     libspike
+    dramsim3
     nlohmann_json
   ];
 

@@ -11,9 +11,8 @@ find_package(libspike REQUIRED)
 find_package(verilator REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Threads REQUIRED)
+find_package(dramsim3 REQUIRED)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-
-file(GLOB DRAMSIM3_SRCS ${CMAKE_SOURCE_DIR}/dramsim3/src/*.c)
 
 add_executable(emulator
   spike_event.cc
@@ -22,15 +21,12 @@ add_executable(emulator
   dpi.cc
   elf.cc
   rtl_config.cc
-  ${DRAMSIM3_SRCS}
 )
 
 option(VERILATE_TRACE "enable verilator trace" OFF)
 
-target_include_directories(emulator PRIVATE ${CMAKE_SOURCE_DIR}/dramsim3/src)
-
 target_link_libraries(emulator PUBLIC ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(emulator PUBLIC libspike fmt::fmt spdlog::spdlog nlohmann_json::nlohmann_json)
+target_link_libraries(emulator PUBLIC libspike fmt::fmt spdlog::spdlog nlohmann_json::nlohmann_json dramsim3)
 target_compile_definitions(emulator PRIVATE COSIM_VERILATOR)
 
 # read VERILATE_SRC_DIR from args, else read from environment
