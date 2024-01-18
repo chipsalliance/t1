@@ -12,6 +12,7 @@ in
 lib.makeScope newScope
   (self: {
     submodules = self.callPackage ./submodules.nix { };
+    configgen = self.callPackage ./configgen.nix { };
     elaborator = self.callPackage ./elaborator.nix { };
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
