@@ -285,8 +285,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   )
   val topWriteQueue: DecoupledIO[VRFWriteRequest] = Queue(vrfWriteChannel, 1)
-  val lsuWritAllow: Bool = Wire(Bool())
-  vrfWriteArbiter(parameter.chainingSize).valid := topWriteQueue.valid && lsuWritAllow
+  val topWritAllow: Bool = Wire(Bool())
+  vrfWriteArbiter(parameter.chainingSize).valid := topWriteQueue.valid && topWritAllow
   vrfWriteArbiter(parameter.chainingSize).bits := topWriteQueue.bits
 
   /** writing to VRF
@@ -294,7 +294,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * 1 for [[crossLaneWriteQueue]]
     */
   val vrfWriteFire: UInt = Wire(UInt((parameter.chainingSize + 2).W))
-  topWriteQueue.ready := vrfWriteFire(parameter.chainingSize) && lsuWritAllow
+  topWriteQueue.ready := vrfWriteFire(parameter.chainingSize) && topWritAllow
 
   /** for each slot, assert when it is asking [[V]] to change mask */
   val slotMaskRequestVec: Vec[ValidIO[UInt]] = Wire(
@@ -1044,7 +1044,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.lsuWriteCheck.vd := topWriteQueue.bits.vd
   vrf.lsuWriteCheck.offset := topWriteQueue.bits.offset
   vrf.lsuWriteCheck.instructionIndex := topWriteQueue.bits.instructionIndex
-  lsuWritAllow := vrf.lsuWriteAllow
+  topWritAllow := vrf.topWriteAllow
 
   /**
     * probes
