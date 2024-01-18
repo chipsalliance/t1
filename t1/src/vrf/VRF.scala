@@ -156,8 +156,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   /** when instruction is fired, record it in the VRF for chaining. */
   val instructionWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
 
-  val lsuInstructionFire: Bool = IO(Input(Bool()))
-
   /** similar to [[flush]]. */
   val instructionLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
