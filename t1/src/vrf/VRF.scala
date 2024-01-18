@@ -143,7 +143,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     parameter.datapathWidth
   )))
 
-  val lsuWriteAllow: Bool = IO(Output(Bool()))
+  val topWriteAllow: Bool = IO(Output(Bool()))
 
   val crossWriteCheck: LSUWriteCheck = IO(Input(new LSUWriteCheck(
     parameter.regNumBits,
@@ -346,15 +346,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   writeReadyForLsu := !hazardVec.map(_.map(_._1).reduce(_ || _)).reduce(_ || _)
   vrfReadyToStore := !hazardVec.map(_.map(_._2).reduce(_ || _)).reduce(_ || _)
 
-  // lsuWriteCheck is load unit check
-  val isLoadCheck: Bool = chainingRecord.map { record =>
-    val isLoad: Bool = record.bits.ls && !record.bits.st
-    val sameIndex: Bool = record.bits.instIndex === lsuWriteCheck.instructionIndex
-    isLoad && sameIndex && record.valid
-  }.reduce(_ || _)
-
   val writeCheckOH: UInt = UIntToOH((lsuWriteCheck.vd ## lsuWriteCheck.offset)(4, 0))
-  lsuWriteAllow := chainingRecord.map { record =>
+  topWriteAllow := chainingRecord.map { record =>
     // 先看新老
     val older = instIndexL(lsuWriteCheck.instructionIndex, record.bits.instIndex)
     val sameInst = lsuWriteCheck.instructionIndex === record.bits.instIndex
@@ -362,7 +355,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     val waw: Bool = record.bits.vd.valid && lsuWriteCheck.vd(4, 3) === record.bits.vd.bits(4, 3) &&
       (writeCheckOH & record.bits.elementMask) === 0.U
     !((!older && waw) && !sameInst && record.valid)
-  }.reduce(_ && _) || !isLoadCheck
+  }.reduce(_ && _)
 
   // lsuWriteCheck is load unit check
   val crossReadNeedCheck: Bool = chainingRecord.map { record =>
