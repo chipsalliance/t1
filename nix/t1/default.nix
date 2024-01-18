@@ -2,18 +2,24 @@
 , newScope
 
 , rv32-stdenv
+, callPackage
+, runCommand
 }:
 
 let
-  configFiles = builtins.attrNames (builtins.readDir ../../configs);
-  configNames = builtins.map (lib.removeSuffix ".json") configFiles;
+  # We need to bring submodules and configgen out of scope. Using them in scope to generate the package attribute set
+  # will lead to infinite recursion.
+  submodules = callPackage ./submodules.nix { };
+  configgen = callPackage ./configgen.nix { inherit submodules; };
+  allConfigs = builtins.fromJSON (builtins.readFile "${configgen}/share/all-supported-configs.json");
 in
 
 lib.makeScope newScope
-  (self: {
-    submodules = self.callPackage ./submodules.nix { };
-    configgen = self.callPackage ./configgen.nix { };
+  (self:
+  {
     elaborator = self.callPackage ./elaborator.nix { };
+
+    inherit submodules configgen;
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
 
@@ -26,15 +32,18 @@ lib.makeScope newScope
     };
     rvv-testcases = self.callPackage ../../tests { };
   } //
-  lib.genAttrs configNames (configName:
+  lib.genAttrs allConfigs (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters
-    lib.makeScope self.newScope (innerSelf: {
+    lib.makeScope self.newScope (innerSelf: rec {
       recurseForDerivations = true;
 
       # For package name concatenate
       inherit configName;
 
-      elaborate-config = ../../configs/${configName}.json;
+      elaborate-config = runCommand "emit-${configName}-config" { } ''
+        mkdir -p $out
+        ${configgen}/bin/configgen ${lib.concatStrings (lib.splitString "-" configName)} -t $out
+      '';
 
       ip = {
         recurseForDerivations = true;
