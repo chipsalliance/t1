@@ -245,6 +245,51 @@ object Main {
     )
   ).emit(targetDir)
 
+  @main def v4096l8b4fp(
+    @arg(name = "target-dir", short = 't') targetDir: os.Path
+  ): Unit = VParameter(
+    xLen = 32,
+    vLen = 4096,
+    datapathWidth = 32,
+    laneNumber = 8,
+    physicalAddressWidth = 32,
+    chainingSize = 4,
+    vrfWriteQueueSize = 4,
+    fpuEnable = true,
+    instructionQueueSize = 8,
+    memoryBankSize = 4,
+    lsuVRFWriteQueueSize = 96,
+    portFactor = 1,
+    vfuInstantiateParameter = VFUInstantiateParameter(
+      slotCount = 4,
+      logicModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      aluModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(0)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(1)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(2)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(3))
+      ),
+      shifterModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      mulModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divfpModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 0)), Seq(0, 1, 2, 3))),
+      otherModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))),
+      floatModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3)))
+    )
+  ).emit(targetDir)
+
+
   @main def v4096l32b4(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = VParameter(
@@ -284,6 +329,50 @@ object Main {
       otherModuleParameters =
         Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))),
       floatModuleParameters = Seq()
+    )
+  ).emit(targetDir)
+
+  @main def v4096l32b4fp(
+    @arg(name = "target-dir", short = 't') targetDir: os.Path
+  ): Unit = VParameter(
+    xLen = 32,
+    vLen = 4096,
+    datapathWidth = 32,
+    laneNumber = 32,
+    physicalAddressWidth = 32,
+    chainingSize = 4,
+    vrfWriteQueueSize = 4,
+    fpuEnable = true,
+    instructionQueueSize = 8,
+    memoryBankSize = 4,
+    lsuVRFWriteQueueSize = 96,
+    portFactor = 1,
+    vfuInstantiateParameter = VFUInstantiateParameter(
+      slotCount = 4,
+      logicModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      aluModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(0)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(1)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(2)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(3))
+      ),
+      shifterModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      mulModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divfpModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 0)), Seq(0, 1, 2, 3))),
+      otherModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))),
+      floatModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3)))
     )
   ).emit(targetDir)
 
