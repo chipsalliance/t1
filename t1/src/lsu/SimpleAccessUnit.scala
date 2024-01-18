@@ -49,6 +49,7 @@ case class MSHRParam(
                       paWidth:          Int,
                       lsuTransposeSize: Int,
                       memoryBankSize:   Int,
+                      vrfReadLatency:   Int,
                       outerTLParam:     TLBundleParameter) {
 
   /** see [[LaneParameter.lmulMax]] */

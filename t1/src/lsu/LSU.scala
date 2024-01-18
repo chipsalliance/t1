@@ -28,6 +28,7 @@ case class LSUParam(
                      lsuMSHRSize:          Int,
                      lsuVRFWriteQueueSize: Int,
                      lsuTransposeSize:     Int,
+                     vrfReadLatency:       Int,
                      tlParam:              TLBundleParameter) {
 
   /** see [[VParameter.maskGroupWidth]]. */
@@ -49,7 +50,7 @@ case class LSUParam(
   val bankPosition: Int = log2Ceil(lsuTransposeSize)
 
   def mshrParam: MSHRParam =
-    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, lsuTransposeSize, memoryBankSize, tlParam)
+    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, lsuTransposeSize, memoryBankSize, vrfReadLatency, tlParam)
 
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)
@@ -312,9 +313,9 @@ class LSU(param: LSUParam) extends Module {
   val storeEndLessThanLoadEnd: Bool = storeUnit.status.endAddress <= loadUnit.status.endAddress
 
   val addressOverlap: Bool = ((storeStartLargerThanLoadStart && storeStartLessThanLoadEnd) ||
-    (storeEndLargerThanLoadStart && storeEndLessThanLoadEnd)) && !(storeUnit.status.idle || loadUnit.status.idle)
-  val stallLoad: Bool = !unitOrder && addressOverlap
-  val stallStore: Bool = unitOrder && addressOverlap
+    (storeEndLargerThanLoadStart && storeEndLessThanLoadEnd))
+  val stallLoad: Bool = !unitOrder && addressOverlap && !storeUnit.status.idle
+  val stallStore: Bool = unitOrder && addressOverlap && !loadUnit.status.idle
 
   loadUnit.addressConflict := stallLoad
   storeUnit.addressConflict := stallStore

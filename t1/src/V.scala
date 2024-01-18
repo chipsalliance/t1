@@ -121,6 +121,9 @@ case class VParameter(
   /** for TileLink `mask` element. */
   val maskWidth: Int = memoryDataWidth / 8
 
+  // todo
+  val vrfReadLatency = 1
+
   // each element: Each lane will be connected to the other two lanes,
   // and the values are their respective delays.
   val crossLaneConnectCycles: Seq[Seq[Int]] = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
@@ -159,6 +162,7 @@ case class VParameter(
     lsuMSHRSize,
     lsuVRFWriteQueueSize,
     lsuTransposeSize,
+    vrfReadLatency,
     tlParam
   )
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor)

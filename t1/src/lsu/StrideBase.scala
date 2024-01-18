@@ -60,7 +60,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   val maskSelect: ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
 
   val addressConflict: Bool = IO(Input(Bool()))
-
+  val requestFireNext: Bool = RegNext(lsuRequest.valid, false.B)
   // always use intermediate from instruction for unit stride.
   val dataEEW: UInt = RegEnable(lsuRequest.bits.instructionInformation.eew, 0.U, lsuRequest.valid)
 
