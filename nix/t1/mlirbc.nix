@@ -19,7 +19,7 @@ let
   elaborateArgs = [
     "--ip-config"
     # Can't use `toString` here, or due to some shell escape issue, Java nio cannot find the path
-    "${elaborate-config}"
+    "${elaborate-config}/config.json"
     "--target-dir"
     "elaborate"
   ] ++ lib.optionals (lib.elem target [ "subsystem" "subsystememu" "fpga" ]) [ "--rvopcodes-path" "${riscv-opcodes-src}" ];

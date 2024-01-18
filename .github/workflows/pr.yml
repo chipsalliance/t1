@@ -60,11 +60,10 @@ jobs:
       - name: "Test elaborate"
         run: |
           set -e
-          for f in configs/*; do
-            fname=$(basename $f)
-            configName=${fname%.*}
-            echo "building .#t1.${configName}.ip.rtl"
-            nix build .#t1.${configName}.ip.rtl -L
+          nix build '.#t1.configgen' -L --out-link ./config-gen
+          for cfg in $(jq -r '.[]' ./config-gen/share/all-supported-configs.json); do
+            echo "Building .#t1.${cfg}.ip.rtl"
+            nix build ".#t1.${cfg}.ip.rtl" -L
           done
 
   run-testcases:
