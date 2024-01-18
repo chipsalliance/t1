@@ -13,13 +13,12 @@
 , zlib
 
 , rtl
-, config-name
 
 , do-trace ? false
 }:
 
 stdenv.mkDerivation {
-  name = "t1-${config-name}-ipemu" + lib.optionalString do-trace "-trace";
+  name = "t1-${rtl.elaborateConfig}-ipemu" + lib.optionalString do-trace "-trace";
 
   src = ../../ipemu/csrc;
 
@@ -47,6 +46,6 @@ stdenv.mkDerivation {
 
   meta = {
     mainProgram = "emulator";
-    description = "IP emulator for config ${config-name}";
+    description = "IP emulator for config ${rtl.elaborateConfig}";
   };
 }
