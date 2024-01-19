@@ -406,6 +406,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   ))
 
+  val maskedWriteUnit: MaskedWrite = Module(new MaskedWrite(parameter))
   val slotProbes = slotControl.zipWithIndex.map {
     case (record, index) =>
       val decodeResult: DecodeBundle = record.laneRequest.decodeResult
@@ -529,7 +530,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       instructionFinishedVec(index) := 0.U
       instructionUnrelatedMaskUnitVec(index) :=
         Mux(decodeResult(Decoder.maskUnit) && decodeResult(Decoder.readOnly), 0.U, instructionIndex1H)
-      when(slotOccupied(index) && pipeClear && pipeFinishVec(index)) {
+      val dataInWritePipe: Bool =
+        ohCheck(maskedWriteUnit.maskedWrite1H, record.laneRequest.instructionIndex, parameter.chainingSize)
+      when(slotOccupied(index) && pipeClear && pipeFinishVec(index) && !dataInWritePipe) {
         slotOccupied(index) := false.B
         instructionFinishedVec(index) := instructionIndex1H
       }
@@ -668,7 +671,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       vrfWriteArbiter(index).bits := stage3.vrfWriteRequest.bits
       stage3.vrfWriteRequest.ready := vrfWriteArbiter(index).ready
 
-      pipeClear := !Seq(stage0.stageValid, stage1.stageValid, stage2.stageValid, stage3.stageValid).reduce(_ || _)
+      pipeClear := !Seq(stage0.stageValid, stage1.stageValid, stage2.stageValid, stage3.stageValid, dataInWritePipe).reduce(_ || _)
 
       // Probes
       object probe {
@@ -750,8 +753,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       VFUNotClear
     )
   }
-
-  val maskedWriteUnit: MaskedWrite = Module(new MaskedWrite(parameter))
 
   // 处理 rf
   {
