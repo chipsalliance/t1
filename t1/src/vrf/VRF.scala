@@ -136,22 +136,14 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
   )
 
-  val lsuWriteCheck: LSUWriteCheck = IO(Input(new LSUWriteCheck(
+  val writeCheck: Vec[LSUWriteCheck] = IO(Vec(parameter.chainingSize + 2, Input(new LSUWriteCheck(
     parameter.regNumBits,
     parameter.vrfOffsetBits,
     parameter.instructionIndexBits,
     parameter.datapathWidth
-  )))
+  ))))
 
-  val topWriteAllow: Bool = IO(Output(Bool()))
-
-  val crossWriteCheck: LSUWriteCheck = IO(Input(new LSUWriteCheck(
-    parameter.regNumBits,
-    parameter.vrfOffsetBits,
-    parameter.instructionIndexBits,
-    parameter.datapathWidth
-  )))
-  val crossWriteAllow: Bool = IO(Output(Bool()))
+  val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 2, Output(Bool())))
 
   /** when instruction is fired, record it in the VRF for chaining. */
   val instructionWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
@@ -346,31 +338,16 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   writeReadyForLsu := !hazardVec.map(_.map(_._1).reduce(_ || _)).reduce(_ || _)
   vrfReadyToStore := !hazardVec.map(_.map(_._2).reduce(_ || _)).reduce(_ || _)
 
-  val writeCheckOH: UInt = UIntToOH((lsuWriteCheck.vd ## lsuWriteCheck.offset)(4, 0))
-  topWriteAllow := chainingRecord.map { record =>
-    // 先看新老
-    val older = instIndexL(lsuWriteCheck.instructionIndex, record.bits.instIndex)
-    val sameInst = lsuWriteCheck.instructionIndex === record.bits.instIndex
+  writeCheck.zip(writeAllow).foreach{ case (check, allow) =>
+    val checkOH: UInt = UIntToOH((check.vd ## check.offset)(4, 0))
+    allow := chainingRecord.map { record =>
+      // 先看新老
+      val older = instIndexL(check.instructionIndex, record.bits.instIndex)
+      val sameInst = check.instructionIndex === record.bits.instIndex
 
-    val waw: Bool = record.bits.vd.valid && lsuWriteCheck.vd(4, 3) === record.bits.vd.bits(4, 3) &&
-      (writeCheckOH & record.bits.elementMask) === 0.U
-    !((!older && waw) && !sameInst && record.valid)
-  }.reduce(_ && _)
-
-  // lsuWriteCheck is load unit check
-  val crossReadNeedCheck: Bool = chainingRecord.map { record =>
-    val needCheck: Bool = record.bits.crossWrite && !record.bits.crossRead
-    val sameIndex: Bool = record.bits.instIndex === crossWriteCheck.instructionIndex
-    needCheck && sameIndex && record.valid
-  }.reduce(_ || _)
-  val crossWriteOH: UInt = UIntToOH((crossWriteCheck.vd ## crossWriteCheck.offset)(4, 0))
-  crossWriteAllow := chainingRecord.map { record =>
-    // 先看新老
-    val older = instIndexL(crossWriteCheck.instructionIndex, record.bits.instIndex)
-    val sameInst = crossWriteCheck.instructionIndex === record.bits.instIndex
-
-    val waw: Bool = record.bits.vd.valid && crossWriteCheck.vd(4, 3) === record.bits.vd.bits(4, 3) &&
-      (crossWriteOH & record.bits.elementMask) === 0.U
-    !((!older && waw) && !sameInst && record.valid)
-  }.reduce(_ && _) || !crossReadNeedCheck
+      val waw: Bool = record.bits.vd.valid && check.vd(4, 3) === record.bits.vd.bits(4, 3) &&
+        (checkOH & record.bits.elementMask) === 0.U
+      !((!older && waw) && !sameInst && record.valid)
+    }.reduce(_ && _)
+  }
 }
