@@ -346,7 +346,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     */
   val instructionRAWReady: Bool = Wire(Bool())
   val allSlotFree:         Bool = Wire(Bool())
-  val existMaskType:        Bool = Wire(Bool())
+  val existMaskType:       Bool = Wire(Bool())
+  val recordReady:         Bool = Wire(Bool())
 
   // mask Unit 与lane交换数据
   val writeType: VRFWriteRequest = new VRFWriteRequest(
@@ -1234,7 +1235,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     //  valid: requestReg.valid
     //  ready: slotReady && lsu.request.ready && instructionRAWReady
     lane.laneRequest.bits.LSUFire := slotReady && requestReg.valid && noOffsetReadLoadStore &&
-      lsu.request.ready && instructionRAWReady
+      lsu.request.ready && instructionRAWReady && recordReady
     lane.laneRequest.bits.loadStore := isLoadStoreType
     // let record in VRF to know there is a store instruction.
     lane.laneRequest.bits.store := isStoreType
@@ -1393,6 +1394,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   /** try to issue instruction to which slot. */
   val slotToEnqueue: UInt = Mux(specialInstruction, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
 
+  /** all lane have vrf record free */
+  recordReady := laneVec.map(_.recordFree).reduce(_ && _)
+
   /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
   val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
   // - ready to issue instruction
@@ -1403,7 +1407,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   //   we detect the hazard and decide should we issue this slide or
   //   issue the instruction after the slide which already in the slot.
   requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
-    instructionRAWReady
+    instructionRAWReady && recordReady
 
   // TODO: change to `requestRegDequeue.fire`.
   instructionToSlotOH := Mux(requestRegDequeue.ready, slotToEnqueue, 0.U)
