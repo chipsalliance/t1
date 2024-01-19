@@ -271,10 +271,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** arbiter for VRF write
     * 1 for [[vrfWriteChannel]]
     */
-  val vrfWriteArbiter: Vec[ValidIO[VRFWriteRequest]] = Wire(
+  val vrfWriteArbiter: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
     Vec(
       parameter.chainingSize + 1,
-      Valid(
+      Decoupled(
         new VRFWriteRequest(
           parameter.vrfParam.regNumBits,
           parameter.vrfOffsetBits,
@@ -285,16 +285,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   )
   val topWriteQueue: DecoupledIO[VRFWriteRequest] = Queue(vrfWriteChannel, 1)
-  val topWritAllow: Bool = Wire(Bool())
-  vrfWriteArbiter(parameter.chainingSize).valid := topWriteQueue.valid && topWritAllow
+  vrfWriteArbiter(parameter.chainingSize).valid := topWriteQueue.valid
   vrfWriteArbiter(parameter.chainingSize).bits := topWriteQueue.bits
-
-  /** writing to VRF
-    * 1 for [[vrfWriteChannel]]
-    * 1 for [[crossLaneWriteQueue]]
-    */
-  val vrfWriteFire: UInt = Wire(UInt((parameter.chainingSize + 2).W))
-  topWriteQueue.ready := vrfWriteFire(parameter.chainingSize) && topWritAllow
+  topWriteQueue.ready := vrfWriteArbiter(parameter.chainingSize).ready
 
   /** for each slot, assert when it is asking [[V]] to change mask */
   val slotMaskRequestVec: Vec[ValidIO[UInt]] = Wire(
@@ -673,7 +666,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       // vrfWriteQueue try to write vrf
       vrfWriteArbiter(index).valid := stage3.vrfWriteRequest.valid
       vrfWriteArbiter(index).bits := stage3.vrfWriteRequest.bits
-      stage3.vrfWriteRequest.ready := vrfWriteFire(index)
+      stage3.vrfWriteRequest.ready := vrfWriteArbiter(index).ready
 
       pipeClear := !Seq(stage0.stageValid, stage1.stageValid, stage2.stageValid, stage3.stageValid).reduce(_ || _)
 
@@ -790,20 +783,21 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val crossWriteArbiter: Arbiter[VRFWriteRequest] = Module(new Arbiter(chiselTypeOf(crossLaneWriteQueue.head.io.enq.bits), 2))
     crossWriteArbiter.io.in.zip(crossLaneWriteQueue.map(_.io.deq)).foreach { case (sink, source) => sink <> source }
 
-    // 写 rf
-    val normalWrite = VecInit(vrfWriteArbiter.map(_.valid)).asUInt.orR
-    val writeSelect = !normalWrite ## ffo(VecInit(vrfWriteArbiter.map(_.valid)).asUInt)
-    val writeEnqBits = Mux1H(writeSelect, vrfWriteArbiter.map(_.bits) :+ crossWriteArbiter.io.out.bits)
-
-    // check cross write
-    vrf.crossWriteCheck.vd := crossWriteArbiter.io.out.bits.vd
-    vrf.crossWriteCheck.offset := crossWriteArbiter.io.out.bits.offset
-    vrf.crossWriteCheck.instructionIndex := crossWriteArbiter.io.out.bits.instructionIndex
-    val crossWriteCheckResult = vrf.crossWriteAllow
-    maskedWriteUnit.enqueue.valid := normalWrite || (crossWriteArbiter.io.out.valid && crossWriteCheckResult)
-    maskedWriteUnit.enqueue.bits := writeEnqBits
-    crossWriteArbiter.io.out.ready := !normalWrite && maskedWriteUnit.enqueue.ready && crossWriteCheckResult
-    vrfWriteFire := Mux(maskedWriteUnit.enqueue.ready, writeSelect, 0.U)
+    // all vrf write
+    val allVrfWrite: Seq[DecoupledIO[VRFWriteRequest]] = vrfWriteArbiter :+ crossWriteArbiter.io.out
+    // check all write
+    vrf.writeCheck.zip(allVrfWrite).foreach {case (check, write) =>
+      check.vd := write.bits.vd
+      check.offset := write.bits.offset
+      check.instructionIndex := write.bits.instructionIndex
+    }
+    val checkResult = vrf.writeAllow.asUInt
+    // Arbiter
+    val writeSelect: UInt = ffo(checkResult & VecInit(allVrfWrite.map(_.valid)).asUInt)
+    allVrfWrite.zipWithIndex.foreach{ case (p, i) => p.ready := writeSelect(i) && maskedWriteUnit.enqueue.ready }
+    //
+    maskedWriteUnit.enqueue.valid := writeSelect.orR
+    maskedWriteUnit.enqueue.bits := Mux1H(writeSelect, allVrfWrite.map(_.bits))
 
     vrf.write <> maskedWriteUnit.dequeue
     readBeforeMaskedWrite <> maskedWriteUnit.vrfReadRequest
@@ -1041,10 +1035,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   instructionFinished := instructionFinishedVec.reduce(_ | _)
   writeReadyForLsu := vrf.writeReadyForLsu
   vrfReadyToStore := vrf.vrfReadyToStore
-  vrf.lsuWriteCheck.vd := topWriteQueue.bits.vd
-  vrf.lsuWriteCheck.offset := topWriteQueue.bits.offset
-  vrf.lsuWriteCheck.instructionIndex := topWriteQueue.bits.instructionIndex
-  topWritAllow := vrf.topWriteAllow
 
   /**
     * probes
