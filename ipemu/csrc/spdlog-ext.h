@@ -221,13 +221,14 @@ public:
 };
 
 // Exported symbols
-#define FATAL(context) {                                                       \
+#define FATAL(context) do {                                                    \
   auto _fatal_fmt_msg = fmt::format("{}", context);                            \
   spdlog::critical("{}", context);                                             \
   spdlog::shutdown();                                                          \
-  throw std::runtime_error(_fatal_fmt_msg); }
+  throw std::runtime_error(_fatal_fmt_msg);                                    \
+} while (0)
 
-#define CHECK(cond, context)                                                   \
+#define CHECK(cond, context) do {                                              \
   if (!(cond)) {                                                               \
     auto _f_msg =                                                              \
         fmt::format("check failed: {} : Assertion ({}) failed at {}:{}",       \
@@ -235,7 +236,8 @@ public:
     json _j;                                                                   \
     _j["message"] = _f_msg;                                                    \
     FATAL(_j.dump());                                                          \
-  }
+  }                                                                            \
+} while (0)
 
 #define CHECK_EQ(val1, val2, context) CHECK(val1 == val2, context)
 #define CHECK_NE(val1, val2, context) CHECK(val1 != val2, context)

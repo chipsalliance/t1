@@ -246,7 +246,7 @@ VBridgeImpl::VBridgeImpl()
   tck = std::stod(primary_tck_str);
 
   auto dramsim_config_opt = get_env_arg_optional("COSIM_dramsim3_config");
-  this->using_dramsim3 = dramsim_config_opt.operator bool();
+  this->using_dramsim3 = dramsim_config_opt.has_value();
 
   if(this->using_dramsim3) {
     char *dramsim_result_parent = get_env_arg("COSIM_dramsim3_result");
@@ -257,7 +257,7 @@ VBridgeImpl::VBridgeImpl()
         this->dramsim_resolve(i, address);
       };
 
-      drams.emplace_back(dramsim3::MemorySystem(*dramsim_config_opt, result_dir.c_str(), completion, completion), 0);
+      drams.emplace_back(dramsim3::MemorySystem(*dramsim_config_opt, result_dir, completion, completion), 0);
       // std::cout<<"Relative tck ratio on channel "<<i<<" = "<<tck / drams[i].first.GetTCK()<<std::endl;
     }
   }
@@ -350,7 +350,7 @@ uint8_t VBridgeImpl::load(uint64_t address) {
 }
 
 void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
-  int tlIdx = tl.channel_id;
+  uint32_t tlIdx = tl.channel_id;
   if (!tl.a_valid)
     return;
 
@@ -670,7 +670,7 @@ SpikeEvent *VBridgeImpl::find_se_to_issue() {
 
 void VBridgeImpl::record_rf_accesses(const VrfWritePeek &rf_write) {
   int valid = rf_write.valid;
-  int lane_idx = rf_write.lane_index;
+  uint32_t lane_idx = rf_write.lane_index;
   if (valid) {
     uint32_t vd = rf_write.request_vd;
     uint32_t offset = rf_write.request_offset;
@@ -774,15 +774,15 @@ void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd,
   }   // end for j
 }
 
-void VBridgeImpl::dramsim_drive(const int channel_id) {
+void VBridgeImpl::dramsim_drive(uint32_t channel_id) {
   auto &[dram, tick] = drams[channel_id];
-  const auto target_dram_tick = get_t() * tck / dram.GetTCK();
-  while(tick < target_dram_tick) {
+  const auto target_dram_tick = (double) get_t() * tck / dram.GetTCK();
+  while((double) tick < target_dram_tick) {
     ++tick;
     dram.ClockTick();
 
     // Presents request, look for first request that's not fully sent
-    for(auto &[tick, req] : tl_req_record_of_bank[channel_id]) {
+    for(auto &[_, req] : tl_req_record_of_bank[channel_id]) {
       if(!req.done_commit()) {
         // Found head of queue, check eligibility
 
@@ -807,7 +807,7 @@ void VBridgeImpl::dramsim_drive(const int channel_id) {
   }
 }
 
-void VBridgeImpl::dramsim_resolve(const int channel_id, reg_t addr) {
+void VBridgeImpl::dramsim_resolve(uint32_t channel_id, reg_t addr) {
   if(tl_req_record_of_bank[channel_id].empty())
     FATAL(fmt::format("Response on an idle channel {}", channel_id));
 
@@ -824,7 +824,7 @@ void VBridgeImpl::dramsim_resolve(const int channel_id, reg_t addr) {
     FATAL(fmt::format("dram response no matching request: 0x{:08x}", addr));
 }
 
-size_t VBridgeImpl::dramsim_burst_size(const int channel_id) const {
+size_t VBridgeImpl::dramsim_burst_size(uint32_t channel_id) const {
   if(!using_dramsim3) return 1; // Dummy value, won't be effective whatsoever. 1 is to ensure that no sub-line write is possible
   return drams[channel_id].first.GetBurstLength() * drams[channel_id].first.GetBusBits() / 8;
 }

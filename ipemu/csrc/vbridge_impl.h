@@ -70,25 +70,25 @@ struct TLReqRecord {
     return (addr / burst_size) * burst_size;
   }
 
-  bool done_commit() const {
+  [[nodiscard]] bool done_commit() const {
     if(muxin_read_required) return false;
     if(bytes_committed < size_by_byte) return false;
     return true;
   }
 
-  bool done_return() const {
+  [[nodiscard]] bool done_return() const {
     if(muxin_read_required) return false;
     if(op == opType::PutFullData) return bytes_returned > 0;
     else return bytes_returned >= size_by_byte;
   }
 
-  bool fully_done() const {
+  [[nodiscard]] bool fully_done() const {
     if(!done_return()) return false;
     if(op == opType::PutFullData && bytes_processed < size_by_byte) return false;
     return true;
   }
 
-  std::optional<std::pair<reg_t, bool>> issue_mem_request(reg_t burst_size) const {
+  [[nodiscard]] std::optional<std::pair<reg_t, bool>> issue_mem_request(reg_t burst_size) const {
     if(muxin_read_required) {
       if(muxin_read_sent) return {};
       return {{ aligned_addr(burst_size), false }};
@@ -129,7 +129,7 @@ struct TLReqRecord {
   }
 
   // Returns: offset!
-  std::optional<std::pair<reg_t, size_t>> issue_tl_response(size_t tl_bytes) const {
+  [[nodiscard]] std::optional<std::pair<reg_t, size_t>> issue_tl_response(size_t tl_bytes) const {
     if(op == opType::PutFullData) {
       // Writes need to wait for commit finishes
       if(!done_commit()) return {};
@@ -146,7 +146,7 @@ struct TLReqRecord {
     bytes_returned += tl_bytes;
   }
 
-  void format() {
+  void format() const {
     std::cout<<(op == opType::Get ? "R" : "W")<<std::endl;
     std::cout<<"- size: "<<size_by_byte<<std::endl;
     if(op == opType::PutFullData) std::cout<<"- received: "<<bytes_received<<std::endl;
@@ -258,9 +258,9 @@ private:
 
 #endif
 
-  void dramsim_drive(const int channel_id);
-  void dramsim_resolve(const int channel_id, const reg_t addr);
-  size_t dramsim_burst_size(const int channel_id) const;
+  void dramsim_drive(uint32_t channel_id);
+  void dramsim_resolve(uint32_t channel_id, reg_t addr);
+  size_t dramsim_burst_size(uint32_t channel_id) const;
   std::vector<std::pair<dramsim3::MemorySystem, uint64_t>> drams; // (controller, dram tick)
   bool using_dramsim3 = false;
 
