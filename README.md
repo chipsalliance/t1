@@ -123,10 +123,15 @@ $ mill -i elaborator  # build and run elaborator
 #### Developing Emulator
 ```shell
 $ nix develop .#t1.<config>.ip.emu  # replace <config> with your configuration name
-$ cd emulator
+$ cd ipemu/csrc
 $ cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Debug
 $ cmake --build build
-$ cd ..; ./scripts/run-test.py verilate --emulator-path=emulator/src/build/emulator conv-mlir
+$ cd ..; ./scripts/run-test.py verilate --emulator-path=ipemu/csrc/build/emulator conv-mlir
+```
+
+If using clion
+```shell
+$ nix develop .#t1.<config>.ip.emu -c clion ipemu/csrc
 ```
 
 #### Developing Testcases
