@@ -25,8 +25,6 @@ void sigint_handler(int s) {
   dpi_finish();
 }
 
-void print_perf_summary();
-
 #define TRY(action)                                                            \
   try {                                                                        \
     if (!terminated) {                                                         \
@@ -36,7 +34,7 @@ void print_perf_summary();
     terminated = true;                                                         \
     Log("SimulationExit")                                                      \
         .info("detect returning instruction, gracefully quit simulation");     \
-    print_perf_summary();                                                      \
+    vbridge_impl_instance.on_exit();                                                      \
     dpi_finish();                                                              \
   } catch (std::runtime_error & e) {                                           \
     terminated = true;                                                         \
@@ -177,24 +175,15 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
   TRY({ chaining_perf.step(*lane_idx, slot_occupied); })
 }
 
-void print_perf_summary() {
-  auto output_file_path = get_env_arg_default("PERF_output_file", nullptr);
-  if (output_file_path != nullptr) {
-    std::ofstream os(output_file_path);
+void print_perf_summary(std::ostream &os) {
+  // each top cycle is 10 cycles for rtl
+  os << fmt::format("total_cycles: {}\n",
+                    Verilated::threadContextp()->time() / 10);
 
-    // each top cycle is 10 cycles for rtl
-    os << fmt::format("total_cycles: {}\n",
-                      Verilated::threadContextp()->time() / 10);
-
-    vrf_perf.print_summary(os);
-    alu_perf.print_summary(os);
-    for (int i = 0; i < vbridge_impl_instance.config.tl_bank_number; i++) {
-      lsu_perfs[i].print_summary(os, i);
-    }
-    chaining_perf.print_summary(os);
-
-    Log("PrintPerfSummary")
-        .with("path", output_file_path)
-        .info("Perf result saved");
+  vrf_perf.print_summary(os);
+  alu_perf.print_summary(os);
+  for (int i = 0; i < vbridge_impl_instance.config.tl_bank_number; i++) {
+    lsu_perfs[i].print_summary(os, i);
   }
+  chaining_perf.print_summary(os);
 }

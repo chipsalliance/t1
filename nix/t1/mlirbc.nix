@@ -12,8 +12,8 @@
 }:
 
 assert lib.assertMsg
-  (lib.any (x: x == target)
-    [ "ip" "ipemu" "subsystem" "subsystememu" "fpga" ]) "Unknown elaborate target ${target}";
+  (lib.elem target [ "ip" "ipemu" "subsystem" "subsystememu" "fpga" ])
+  "Unknown elaborate target ${target}";
 
 let
   elaborateArgs = [

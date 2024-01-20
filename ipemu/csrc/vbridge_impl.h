@@ -29,7 +29,22 @@
 #include "spike_event.h"
 #include "util.h"
 
+// implemented in dpi.cc
+void print_perf_summary(std::ostream &os);
+
 class SpikeEvent;
+
+struct CosimConfig {
+  std::string bin_path;
+  std::string wave_path;
+  std::optional<std::string> perf_path;
+
+  uint64_t timeout;
+
+  double tck;
+  std::optional<std::string> dramsim3_config_path;
+  std::optional<std::string> dramsim3_result_dir;
+};
 
 struct TLReqRecord {
   std::vector<uint8_t> data;
@@ -158,7 +173,7 @@ struct TLReqRecord {
 
 class VBridgeImpl {
 public:
-  VBridgeImpl();
+  VBridgeImpl(const std::string &config_path, const CosimConfig &cosim_config);
 
 #if VM_TRACE
   void dpiDumpWave();
@@ -190,6 +205,8 @@ public:
 
   RTLConfig config;
 
+  void on_exit();
+
 private:
   std::string varch;
   cfg_t cfg;
@@ -219,15 +236,18 @@ private:
   std::unique_ptr<uint8_t[]> vrf_shadow;
 
   /// file path of executable binary file, which will be executed.
-  const std::string bin = get_env_arg("COSIM_bin");
+  const std::string bin;
 
   /// generated waveform path.
-  const std::string wave = get_env_arg("COSIM_wave");
+  const std::string wave;
+
+  /// generated perf report path.
+  const std::optional<std::string> perf_path;
 
   /// RTL timeout cycles
   /// note: this is not the real system cycles, scalar instructions is evaulated
   /// via spike, which is not recorded.
-  const uint64_t timeout = std::stoul(get_env_arg("COSIM_timeout"));
+  const uint64_t timeout;
 
   std::optional<SpikeEvent> create_spike_event(insn_fetch_t fetch);
 
