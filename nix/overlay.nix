@@ -8,8 +8,6 @@ in
 {
   inherit rv32_pkgs rv32_buildPkgs; # for easier inspection
 
-  lib' = final.callPackages ./lib.nix { };
-
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
@@ -17,7 +15,6 @@ in
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
 
   mill = prev.mill.override { jre = final.jdk21; };
-
 
   # some symbols in newlib libgloss uses ecall, which does not work in emulator
   # emurt provides hand-written implementations for these symbols
