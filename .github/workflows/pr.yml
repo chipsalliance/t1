@@ -4,6 +4,11 @@ env:
   USER: runner
   JAVA_OPTS: "-Duser.home=/run/github-runner/sequencer"
 
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   gen-matrix:
     name: "Prepare for running testcases"
