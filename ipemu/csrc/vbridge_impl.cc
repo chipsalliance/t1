@@ -1,11 +1,13 @@
+#include <filesystem>
+
 #include <fmt/core.h>
 #include <fmt/ranges.h>
+#include <args.hxx>
 
 #include <disasm.h>
-
 #include <decode_macros.h>
+
 #include <verilated.h>
-#include <filesystem>
 
 #include "exceptions.h"
 #include "spdlog-ext.h"
@@ -28,9 +30,6 @@ void VBridgeImpl::timeoutCheck() {
 
 void VBridgeImpl::dpiInitCosim() {
   ctx = Verilated::threadContextp();
-  Log("DPIInitCosim")
-      .info("Initializing simulation environment");
-
   proc.reset();
   // TODO: remove this line, and use CSR write in the test code to enable this
   // the VS field.
@@ -38,15 +37,16 @@ void VBridgeImpl::dpiInitCosim() {
                                    SSTATUS_VS | SSTATUS_FS);
 
   auto load_result = sim.load_elf(bin);
-  Log("DPIInitCosim")
-      .with("config", get_env_arg("COSIM_config"))
-      .with("bin", bin)
-      .with("wave", wave)
-      .with("timeout", timeout)
-      .with("entry", fmt::format("{:08x}", load_result.entry_addr))
-      .info("Simulation environment initialized");
 
   proc.get_state()->pc = load_result.entry_addr;
+
+  Log("DPIInitCosim")
+    .with("bin", bin)
+    .with("wave", wave)
+    .with("timeout", timeout)
+    .with("entry", fmt::format("{:08x}", load_result.entry_addr))
+    .info("Simulation environment initialized");
+
 #if VM_TRACE
   dpiDumpWave();
 #endif
@@ -203,8 +203,55 @@ void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
 // end of dpi interfaces
 //==================
 
-VBridgeImpl::VBridgeImpl()
-    : config(get_env_arg("COSIM_config")),
+static VBridgeImpl vbridgeImplFromArgs() {
+  std::ifstream cmdline("/proc/self/cmdline");
+  std::vector<std::string> arg_vec;
+  for (std::string line; std::getline(cmdline, line, '\0');) {
+    arg_vec.emplace_back(line);
+  }
+  std::vector<const char*> argv;
+  argv.reserve(arg_vec.size());
+  for (const auto& arg: arg_vec) {
+    argv.emplace_back(arg.c_str());
+  }
+
+  args::ArgumentParser parser("emulator for t1");
+  args::ValueFlag<std::string> config_path(parser, "config path", "", {"config"}, args::Options::Required);
+  args::ValueFlag<std::string> bin_path(parser, "elf path", "", {"elf"}, args::Options::Required);
+  args::ValueFlag<std::string> wave_path(parser, "wave path", "", {"wave"}, args::Options::Required);
+  args::ValueFlag<std::optional<std::string>> perf_path(parser, "perf path", "", {"perf"});
+  args::ValueFlag<uint64_t> timeout(parser, "timeout", "", {"timeout"}, args::Options::Required);
+  args::ValueFlag<double> tck(parser, "tck", "", {"tck"}, args::Options::Required);
+  args::Group dramsim_group(parser, "dramsim config", args::Group::Validators::AllOrNone);
+  args::ValueFlag<std::optional<std::string>> dramsim3_config_path(dramsim_group, "config path", "", {"dramsim3-config"});
+  args::ValueFlag<std::optional<std::string>> dramsim3_result_dir(dramsim_group, "result dir", "", {"dramsim-result"});
+
+  try {
+    parser.ParseCLI((int) argv.size(), argv.data());
+  } catch (args::Help&) {
+    std::cerr << parser;
+    std::exit(0);
+  } catch (args::Error& e) {
+    std::cerr << e.what() << std::endl << parser;
+    std::exit(1);
+  }
+
+  CosimConfig cosim_config {
+    .bin_path = bin_path.Get(),
+    .wave_path = wave_path.Get(),
+    .perf_path = perf_path.Get(),
+
+    .timeout = timeout.Get(),
+    .tck = tck.Get(),
+    .dramsim3_config_path = dramsim3_config_path.Get(),
+    .dramsim3_result_dir = dramsim3_result_dir.Get(),
+  };
+
+  return VBridgeImpl(config_path.Get(), cosim_config);
+}
+
+VBridgeImpl::VBridgeImpl(const std::string &config_path, const CosimConfig &cosim_config)
+    : config(config_path.c_str()),
       varch(fmt::format("vlen:{},elen:{}", config.v_len, config.elen)),
       sim(1l << 32), isa("rv32gcv", "M"),
       cfg(/*default_initrd_bounds=*/std::make_pair((reg_t)0, (reg_t)0),
@@ -230,34 +277,34 @@ VBridgeImpl::VBridgeImpl()
       se_to_issue(nullptr), tl_req_record_of_bank(config.tl_bank_number),
       tl_req_waiting_ready(config.tl_bank_number),
       tl_req_ongoing_burst(config.tl_bank_number),
+      bin(cosim_config.bin_path),
+      wave(cosim_config.wave_path),
+      perf_path(cosim_config.perf_path),
+      timeout(cosim_config.timeout),
+      tck(cosim_config.tck),
 
 #ifdef COSIM_VERILATOR
       ctx(nullptr),
 #endif
       vrf_shadow(std::make_unique<uint8_t[]>(config.v_len_in_bytes *
-                                             config.vreg_number)) {
+                                             config.vreg_number))
+                                             {
 
-  DEFAULT_VARCH;
   auto &csrmap = proc.get_state()->csrmap;
   csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 0);
   proc.enable_log_commits();
 
-  char *primary_tck_str = get_env_arg("COSIM_tck");
-  tck = std::stod(primary_tck_str);
-
-  auto dramsim_config_opt = get_env_arg_optional("COSIM_dramsim3_config");
-  this->using_dramsim3 = dramsim_config_opt.has_value();
+  this->using_dramsim3 = cosim_config.dramsim3_config_path.has_value();
 
   if(this->using_dramsim3) {
-    char *dramsim_result_parent = get_env_arg("COSIM_dramsim3_result");
     for(int i = 0; i < config.tl_bank_number; ++i) {
-      std::string result_dir = std::string(dramsim_result_parent) + "/channel." + std::to_string(i);
+      std::string result_dir = cosim_config.dramsim3_config_path.value() + "/channel." + std::to_string(i);
       std::filesystem::create_directories(result_dir);
       auto completion = [i, this](uint64_t address) {
         this->dramsim_resolve(i, address);
       };
 
-      drams.emplace_back(dramsim3::MemorySystem(*dramsim_config_opt, result_dir, completion, completion), 0);
+      drams.emplace_back(dramsim3::MemorySystem(cosim_config.dramsim3_config_path.value(), result_dir, completion, completion), 0);
       // std::cout<<"Relative tck ratio on channel "<<i<<" = "<<tck / drams[i].first.GetTCK()<<std::endl;
     }
   }
@@ -829,4 +876,14 @@ size_t VBridgeImpl::dramsim_burst_size(uint32_t channel_id) const {
   return drams[channel_id].first.GetBurstLength() * drams[channel_id].first.GetBusBits() / 8;
 }
 
-VBridgeImpl vbridge_impl_instance;
+void VBridgeImpl::on_exit() {
+  if (perf_path.has_value()) {
+    std::ofstream of(perf_path->c_str());
+    print_perf_summary(of);
+    Log("PrintPerfSummary")
+      .with("path", perf_path.value())
+      .info("Perf result saved");
+  }
+}
+
+VBridgeImpl vbridge_impl_instance = vbridgeImplFromArgs();

@@ -25,7 +25,7 @@ def main():
     )
     verilator_args_parser.add_argument("case", help="name alias for loading test case")
     verilator_args_parser.add_argument("-d", "--dramsim3-cfg", help="Enable dramsim3, and specify its configuration file")
-    verilator_args_parser.add_argument("-f", "--frequency", help="frequency for the vector processor (in MHz)", default="2000")
+    verilator_args_parser.add_argument("-f", "--frequency", help="frequency for the vector processor (in MHz)", default=2000, type=float)
     verilator_args_parser.add_argument(
         "-c",
         "--config",
@@ -168,10 +168,8 @@ def execute_verilator_emulator(args):
     )
 
     dramsim3_cfg = args.dramsim3_cfg
-    if dramsim3_cfg is not None:
-        dramsim3_cfg = str(dramsim3_cfg)
 
-    tck = 10**3 / float(args.frequency)
+    tck = 10**3 / args.frequency
 
     elaborate_config_path = Path("configs") / f"{args.config}.json"
     assert (
@@ -182,22 +180,25 @@ def execute_verilator_emulator(args):
     process_args = (
         [args.emulator_path]
         if args.emulator_path
-        else ["nix", "run", f".#t1.{args.config}.{target_name}"]
-    )
+        else ["nix", "run", f".#t1.{args.config}.{target_name}", "--"]
+    ) + [
+        "--elf", str(case_elf_path),
+        "--wave", str(Path(args.out_dir) / "wave.fst"),
+        "--timeout", str(run_config["timeout"]),
+        "--config", str(elaborate_config_path),
+        "--tck", str(tck),
+        "--perf", str(Path(args.out_dir) / "perf.txt"),
+    ]
+    if dramsim3_cfg is not None:
+        process_args = process_args + [
+            "--dramsim3-result", str(Path(args.out_dir) / "dramsim3-logs"),
+            "--dramsim3-config", dramsim3_cfg
+        ]
     env = {
-        "COSIM_bin": str(case_elf_path),
-        "COSIM_wave": str(Path(args.out_dir) / "wave.fst"),
-        "COSIM_timeout": str(run_config["timeout"]),
-        "COSIM_config": str(elaborate_config_path),
-        "COSIM_dramsim3_result": str(Path(args.out_dir) / "dramsim3-logs"),
-        "COSIM_tck": str(tck),
-        "PERF_output_file": str(Path(args.out_dir) / "perf.txt"),
         "EMULATOR_log_path": str(Path(args.out_dir) / "emulator.log"),
         "EMULATOR_no_log": "true" if args.no_log else "false",
         "EMULATOR_no_console_log": "true" if args.no_console_log else "false",
     }
-    if dramsim3_cfg is not None:
-        env["COSIM_dramsim3_config"] = dramsim3_cfg
 
     env_repr = "\n".join(f"{k}={v}" for k, v in env.items())
     logger.info(f'Run "{" ".join(process_args)}" with:\n{env_repr}')
