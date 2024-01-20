@@ -1,4 +1,4 @@
-{ lib'
+{ lib
 , stdenv
 , fetchMillDeps
 , makeWrapper
@@ -16,23 +16,31 @@ let
   self = stdenv.mkDerivation rec {
     name = "t1-elaborator";
 
-    src = lib'.sourceFilesByPrefixes ./../.. [
-      "/build.sc"
-      "/common.sc"
-      "/t1"
-      "/subsystem"
-      "/rocket"
-      "/emuhelper"
-      "/ipemu"
-      "/subsystememu"
-      "/fpga"
-      "/elaborator"
-    ];
-    sourceRoot = src.name;
+    src = (with lib.fileset; toSource {
+      root = ./../..;
+      fileset = unions [
+        ./../../build.sc
+        ./../../common.sc
+        ./../../t1
+        ./../../subsystem
+        ./../../rocket
+        ./../../emuhelper
+        ./../../ipemu/src
+        ./../../subsystememu
+        ./../../fpga
+        ./../../elaborator
+      ];
+    }).outPath;
 
     passthru.millDeps = fetchMillDeps {
       inherit name;
-      src = lib'.sourceFilesByPrefixes ./../.. [ "/build.sc" "/common.sc" ];
+      src = (with lib.fileset; toSource {
+        root = ./../..;
+        fileset = unions [
+          ./../../build.sc
+          ./../../common.sc
+        ];
+      }).outPath;
       millDepsHash = "sha256-3ueeJddftivvV5jQtg58sKKwXv0T2vkGxblenYFjrso=";
       nativeBuildInputs = [ submodules.setupHook ];
     };
