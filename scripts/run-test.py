@@ -24,8 +24,18 @@ def main():
         "verilate", help="Run verilator emulator"
     )
     verilator_args_parser.add_argument("case", help="name alias for loading test case")
-    verilator_args_parser.add_argument("-d", "--dramsim3-cfg", help="Enable dramsim3, and specify its configuration file")
-    verilator_args_parser.add_argument("-f", "--frequency", help="frequency for the vector processor (in MHz)", default=2000, type=float)
+    verilator_args_parser.add_argument(
+        "-d",
+        "--dramsim3-cfg",
+        help="Enable dramsim3, and specify its configuration file",
+    )
+    verilator_args_parser.add_argument(
+        "-f",
+        "--frequency",
+        help="frequency for the vector processor (in MHz)",
+        default=2000,
+        type=float,
+    )
     verilator_args_parser.add_argument(
         "-c",
         "--config",
@@ -171,7 +181,21 @@ def execute_verilator_emulator(args):
 
     tck = 10**3 / args.frequency
 
-    elaborate_config_path = Path("configs") / f"{args.config}.json"
+    logger.info("Running configgen")
+    elaborate_config_path = Path(f"{args.out_dir}/config.json")
+    if elaborate_config_path.exists():
+        os.remove(elaborate_config_path)
+    subprocess.check_call(
+        [
+            "nix",
+            "run",
+            ".#t1.configgen",
+            "--",
+            f"{args.config.replace('-', '')}",
+            "-t",
+            f"{args.out_dir}",
+        ]
+    )
     assert (
         elaborate_config_path.exists()
     ), f"cannot find elaborate config in {elaborate_config_path}"
@@ -182,17 +206,25 @@ def execute_verilator_emulator(args):
         if args.emulator_path
         else ["nix", "run", f".#t1.{args.config}.{target_name}", "--"]
     ) + [
-        "--elf", str(case_elf_path),
-        "--wave", str(Path(args.out_dir) / "wave.fst"),
-        "--timeout", str(run_config["timeout"]),
-        "--config", str(elaborate_config_path),
-        "--tck", str(tck),
-        "--perf", str(Path(args.out_dir) / "perf.txt"),
+        "--elf",
+        str(case_elf_path),
+        "--wave",
+        str(Path(args.out_dir) / "wave.fst"),
+        "--timeout",
+        str(run_config["timeout"]),
+        "--config",
+        str(elaborate_config_path),
+        "--tck",
+        str(tck),
+        "--perf",
+        str(Path(args.out_dir) / "perf.txt"),
     ]
     if dramsim3_cfg is not None:
         process_args = process_args + [
-            "--dramsim3-result", str(Path(args.out_dir) / "dramsim3-logs"),
-            "--dramsim3-config", dramsim3_cfg
+            "--dramsim3-result",
+            str(Path(args.out_dir) / "dramsim3-logs"),
+            "--dramsim3-config",
+            dramsim3_cfg,
         ]
     env = {
         "EMULATOR_log_path": str(Path(args.out_dir) / "emulator.log"),
