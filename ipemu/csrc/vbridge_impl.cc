@@ -213,7 +213,13 @@ static VBridgeImpl vbridgeImplFromArgs() {
   }
 
   args::ArgumentParser parser("emulator for t1");
-  args::ValueFlag<std::string> config_path(parser, "config path", "", {"config"}, args::Options::Required);
+
+  args::Flag no_logging(parser, "no_logging", "Disable all logging utilities.", { "no-logging" });
+  args::Flag no_file_logging(parser, "no_file_logging", "Disable file logging utilities.", { "no-file-logging" });
+  args::Flag no_console_logging(parser, "no_console_logging", "Disable console logging utilities.", { "no-console-logging" });
+  args::ValueFlag<std::optional<std::string>> log_path(parser, "log path", "Path to store logging file", {"log-path"});
+
+  args::ValueFlag<std::string> config_path(parser, "config path", "", {"config"});
   args::ValueFlag<std::string> bin_path(parser, "elf path", "", {"elf"}, args::Options::Required);
   args::ValueFlag<std::string> wave_path(parser, "wave path", "", {"wave"}, args::Options::Required);
   args::ValueFlag<std::optional<std::string>> perf_path(parser, "perf path", "", {"perf"});
@@ -232,6 +238,8 @@ static VBridgeImpl vbridgeImplFromArgs() {
     std::cerr << e.what() << std::endl << parser;
     std::exit(1);
   }
+
+  Log = JsonLogger(no_logging.Get(), no_file_logging.Get(), no_console_logging.Get(), log_path.Get());
 
   CosimConfig cosim_config {
     .bin_path = bin_path.Get(),

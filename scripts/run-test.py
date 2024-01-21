@@ -52,13 +52,19 @@ def main():
         "-v", "--verbose", action="store_true", help="set loglevel to debug"
     )
     verilator_args_parser.add_argument(
-        "--no-log",
+        "--no-logging",
         action="store_true",
         help="prevent emulator produce log (both console and file)",
     )
     verilator_args_parser.add_argument(
+        "--no-file-logging",
+        action="store_false",
+        default=True,
+        help="prevent emulator write log to file",
+    )
+    verilator_args_parser.add_argument(
         "-q",
-        "--no-console-log",
+        "--no-console-logging",
         action="store_true",
         help="prevent emulator print log to console",
     )
@@ -210,7 +216,12 @@ def execute_verilator_emulator(args):
         str(tck),
         "--perf",
         str(Path(args.out_dir) / "perf.txt"),
+        "--no-logging" if (args.no_logging) else None,
+        "--no-file-logging" if (args.no_file_logging) else None,
+        "--no-console-logging" if (args.no_console_logging) else None,
+        f"--log-path={str(Path(args.out_dir) / 'emulator.log')}",
     ]
+    process_args = list(filter(None, process_args))
     if dramsim3_cfg is not None:
         process_args = process_args + [
             "--dramsim3-result",
@@ -218,15 +229,9 @@ def execute_verilator_emulator(args):
             "--dramsim3-config",
             dramsim3_cfg,
         ]
-    env = {
-        "EMULATOR_log_path": str(Path(args.out_dir) / "emulator.log"),
-        "EMULATOR_no_log": "true" if args.no_log else "false",
-        "EMULATOR_no_console_log": "true" if args.no_console_log else "false",
-    }
 
-    env_repr = "\n".join(f"{k}={v}" for k, v in env.items())
-    logger.info(f'Run "{" ".join(process_args)}" with:\n{env_repr}')
-    return_code = subprocess.Popen(process_args, env=os.environ | env).wait()
+    logger.info(f'Run "{" ".join(process_args)}"')
+    return_code = subprocess.Popen(process_args).wait()
     if return_code != 0:
         logger.error(f"Emulator exited with return code {return_code}")
         exit(return_code)
