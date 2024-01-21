@@ -47,7 +47,7 @@ jobs:
           nix shell '.#ammonite' -c .github/scripts/ci.sc convertPerfToMD
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() }}
         with:
           name: test-results-${{ matrix.id }}
           path: |
@@ -56,14 +56,14 @@ jobs:
             perf-result-*.md
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() }}
         with:
           name: nix-post-build-hook-log-${{ matrix.id }}
           path: /tmp/nix-post-build-hook.log
 
   report:
     name: "Report CI result"
-    if: always() && github.event.pull_request.merged == true
+    if: ${{ !cancelled() && github.event.pull_request.merged == true }}
     needs: [run-testcases]
     runs-on: [self-hosted, linux, nixos]
     steps:
