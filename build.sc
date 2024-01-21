@@ -17,6 +17,7 @@ import $file.common
 
 object v {
   val scala = "2.13.12"
+  val scala3 = "3.3.3"
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"
   val oslib = ivy"com.lihaoyi::os-lib:0.9.1"
@@ -26,6 +27,11 @@ object v {
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
   val spire = ivy"org.typelevel::spire:latest.integration"
   val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
+}
+
+object script extends ScalaModule {
+  def scalaVersion = v.scala3
+  override def ivyDeps = Agg(v.mainargs, v.oslib)
 }
 
 object chisel extends Chisel
