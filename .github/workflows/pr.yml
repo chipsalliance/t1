@@ -95,7 +95,7 @@ jobs:
             --resultDir test-results-$(head -c 10 /dev/urandom | base32)
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() }}
         with:
           name: test-reports-${{ matrix.id }}
           path: |
@@ -110,7 +110,7 @@ jobs:
           path: test-results-*/failed-logs
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() }}
         with:
           name: nix-post-build-hook-log-${{ matrix.id }}
           path: /tmp/nix-post-build-hook.log
@@ -118,7 +118,7 @@ jobs:
 
   gen-fail-wave-matrix:
     name: "Generate matrix for re-testing failing tests"
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [run-testcases]
     runs-on: [self-hosted, linux, nixos]
     outputs:
@@ -147,7 +147,7 @@ jobs:
   build-fail-wave:
     name: "Generate wave for failing tests"
     needs: [build-emulators, gen-fail-wave-matrix]
-    if: ${{ always() && needs.gen-fail-wave-matrix.outputs.generate_wave == 'true'  }}
+    if: ${{ !cancelled() && needs.gen-fail-wave-matrix.outputs.generate_wave == 'true'  }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-fail-wave-matrix.outputs.retry_tasks) }}
@@ -179,7 +179,7 @@ jobs:
 
   report:
     name: "Report CI result"
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [run-testcases]
     runs-on: [self-hosted, linux, nixos]
     steps:
