@@ -21,11 +21,8 @@ inline bool is_pow2(uint32_t n) { return n && !(n & (n - 1)); }
 
 void VBridgeImpl::timeoutCheck() {
   getCoverage();
-  if (get_t() > timeout + last_commit_time) {
-    Log("VBridgeImplTimeoutCheck")
-        .with("last_commit", last_commit_time)
-        .fatal("Simulation timeout");
-  }
+  CHECK_LE(get_t(), timeout + last_commit_time,
+           fmt::format("Simulation timeout, last_commit: {}", last_commit_time));
 }
 
 void VBridgeImpl::dpiInitCosim() {
@@ -354,9 +351,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
     case PC_SERIALIZE_AFTER:
       break;
     default:
-      Log("SpikeStep")
-          .with("pc", fmt::format("{:08x}", pc))
-          .fatal("invalid pc");
+      FATAL(fmt::format("SpikeStep: invalid pc: {:08X}", pc));
     }
   }
 
