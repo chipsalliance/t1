@@ -3,6 +3,7 @@
 
 import mill._
 import mill.scalalib._
+import mill.scalanativelib._
 import mill.define.{Command, TaskModule}
 import mill.scalalib.publish._
 import mill.scalalib.scalafmt._
@@ -24,6 +25,17 @@ object v {
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
   val spire = ivy"org.typelevel::spire:latest.integration"
   val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
+
+  val scala3 = "3.3.1"
+  val scalaNative = "0.4.17"
+  val mainargsNative = ivy"com.lihaoyi::mainargs::0.5.0"
+  val oslibNative = ivy"com.lihaoyi::os-lib::0.9.1"
+}
+
+object script extends ScalaNativeModule {
+  def scalaVersion = v.scala3
+  def scalaNativeVersion = v.scalaNative
+  override def ivyDeps = Agg(v.mainargsNative, v.oslibNative)
 }
 
 object chisel extends Chisel

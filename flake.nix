@@ -25,6 +25,7 @@
                 gnused
 
                 mill
+                clang
                 ammonite
               ];
             };
