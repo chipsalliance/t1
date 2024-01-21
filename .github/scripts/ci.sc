@@ -238,6 +238,7 @@ def runTests(jobs: String, resultDir: Option[os.Path], dontBail: Boolean = false
       if (handle.exitCode != 0) {
         val outDir = testRunDir / config / caseName / runCfg
         System.err.println(s"Test case $job failed")
+        os.write(actualResultDir / "failed-logs" / s"$job.txt", handle.out.text)
         failed :+ job
       } else {
         writeCycleUpdates(job, testRunDir, actualResultDir)
@@ -248,9 +249,10 @@ def runTests(jobs: String, resultDir: Option[os.Path], dontBail: Boolean = false
 
   os.write.over(actualResultDir / "failed-tests.md", "")  // touch file, to avoid upload-artifacts warning
   if (failed.length > 0) {
-    val listOfFailJobs = failed.map(f => s"* $f").appended("").mkString("\n")
+    val listOfFailJobs = failed.map(job => s"* $job").appended("").mkString("\n")
     os.write.over(actualResultDir / "failed-tests.md", listOfFailJobs)
-    System.err.println(s"\n\n${failed.length} tests failed:\n${listOfFailJobs}")
+    val failedJobsWithError = failed.map(job => s"* $job\n     >>> ERROR SUMMARY <<<\n${os.read(actualResultDir / "failed-logs" / s"$job.txt")}").appended("").mkString("\n")
+    System.err.println(s"\n\n${failed.length} tests failed:\n${failedJobsWithError}")
     if (!dontBail) {
       throw new Exception("Tests failed")
     }
