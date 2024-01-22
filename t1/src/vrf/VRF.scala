@@ -253,9 +253,10 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   )
 
   val writePort: Seq[DecoupledIO[VRFWriteRequest]] = Seq(write)
-  val writeOH = writePort.map(p => UIntToOH((p.bits.vd ## p.bits.offset)(4, 0)))
+  val writeOH = writePort.map(p => UIntToOH((p.bits.vd ## p.bits.offset)(parameter.vrfOffsetBits + 3 - 1, 0)))
   val loadUnitReadPorts: Seq[DecoupledIO[VRFReadRequest]] = Seq(readRequests.last)
-  val loadReadOH: Seq[UInt] = loadUnitReadPorts.map(p => UIntToOH((p.bits.vs ## p.bits.offset)(4, 0)))
+  val loadReadOH: Seq[UInt] =
+    loadUnitReadPorts.map(p => UIntToOH((p.bits.vs ## p.bits.offset)(parameter.vrfOffsetBits + 3 - 1, 0)))
   chainingRecord.zipWithIndex.foreach {
     case (record, i) =>
       val dataIndexWriteQueue = ohCheck(dataInWriteQueue, record.bits.instIndex, parameter.chainingSize)
@@ -339,7 +340,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   vrfReadyToStore := !hazardVec.map(_.map(_._2).reduce(_ || _)).reduce(_ || _)
 
   writeCheck.zip(writeAllow).foreach{ case (check, allow) =>
-    val checkOH: UInt = UIntToOH((check.vd ## check.offset)(4, 0))
+    val checkOH: UInt = UIntToOH((check.vd ## check.offset)(parameter.vrfOffsetBits + 3 - 1, 0))
     allow := chainingRecord.map { record =>
       // 先看新老
       val older = instIndexL(check.instructionIndex, record.bits.instIndex)
