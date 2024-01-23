@@ -640,7 +640,7 @@ class DCacheModule(outer: DCache) extends HellaCacheModule(outer) {
     val atomics = if (edge.manager.anySupportLogical) {
       MuxLookup(
         s2_req.cmd,
-        WireDefault(0.U.asTypeOf(new TLBundleA(edge.bundle))),
+        WireDefault(0.U.asTypeOf(new TLBundleA(edge.bundle))))(
         Array(
           M_XA_SWAP -> edge.Logical(a_source, access_address, a_size, a_data, TLAtomics.SWAP)._2,
           M_XA_XOR -> edge.Logical(a_source, access_address, a_size, a_data, TLAtomics.XOR)._2,

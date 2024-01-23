@@ -1,7 +1,7 @@
 [arithmetic]
-src.git = "https://github.com/sequencer/arithmetic"
-src.branch = "master"
-fetch.github = "sequencer/arithmetic"
+src.git = "https://github.com/SpriteOvO/arithmetic"
+src.branch = "fix-chisel-deprecated-api"
+fetch.github = "SpriteOvO/arithmetic"
 
 [tilelink]
 src.git = "https://github.com/sequencer/tilelink"
@@ -30,7 +30,7 @@ fetch.github = "chipsalliance/rocket-chip-inclusive-cache"
 
 [chisel]
 src.git = "https://github.com/chipsalliance/chisel"
-src.branch = "main"
+src.branch = "ci/ci-circt-nightly"
 fetch.github = "chipsalliance/chisel"
 
 [rvdecoderdb]

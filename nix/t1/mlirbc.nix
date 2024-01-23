@@ -9,6 +9,7 @@
 , elaborator
 , configName
 , target
+, use-binder
 }:
 
 assert lib.assertMsg
@@ -20,8 +21,6 @@ let
     "--ip-config"
     # Can't use `toString` here, or due to some shell escape issue, Java nio cannot find the path
     "${elaborate-config}"
-    "--target-dir"
-    "elaborate"
   ] ++ lib.optionals (lib.elem target [ "subsystem" "subsystememu" "fpga" ]) [ "--rvopcodes-path" "${riscv-opcodes-src}" ];
 in
 stdenvNoCC.mkDerivation {
@@ -37,8 +36,8 @@ stdenvNoCC.mkDerivation {
   buildCommand = ''
     mkdir -p elaborate $out
 
-    ${elaborator}/bin/elaborator ${target} ${lib.escapeShellArgs elaborateArgs}
-
+    ${elaborator}/bin/elaborator ${target} ${lib.escapeShellArgs elaborateArgs} "--target-dir" ${if use-binder then "$out" else "elaborate"} ${lib.optionalString (use-binder) "--use-binder"}
+  '' + lib.optionalString (!use-binder) ''
     firtool elaborate/*.fir \
       --annotation-file elaborate/*.anno.json \
       -O=debug \

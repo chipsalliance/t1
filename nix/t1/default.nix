@@ -38,29 +38,29 @@ lib.makeScope newScope
       ip = {
         recurseForDerivations = true;
 
-        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ip"; };
+        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ip"; use-binder = true; };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.mlirbc; };
 
-        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ipemu"; };
+        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ipemu"; use-binder = true; };
         emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.emu-mlirbc; };
 
-        emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; };
+        emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; use-binder = true; };
         emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; do-trace = true; };
       };
 
       subsystem = {
         recurseForDerivations = true;
 
-        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; };
+        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; use-binder = true; };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
 
-        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystememu"; };
+        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystememu"; use-binder = true; };
         emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
 
         emu = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; };
         emu-trace = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; do-trace = true; };
 
-        fpga-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "fpga"; };
+        fpga-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "fpga"; use-binder = true; };
         fpga-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.fpga-rtl; };
       };
     })

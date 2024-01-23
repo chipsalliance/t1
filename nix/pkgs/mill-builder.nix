@@ -18,7 +18,8 @@ let
       export JAVA_OPTS="-Duser.home=$TMPDIR $JAVA_OPTS"
 
       # Use "https://repo1.maven.org/maven2/" only to keep dependencies integrity
-      export COURSIER_REPOSITORIES="central"
+      # TODO: firtool-resolver(dep from chisel) is on sonatype for now
+      export COURSIER_REPOSITORIES="central|sonatype:releases"
 
       local buildTasks=( $(mill -i resolve __._ | grep "prepareOffline") )
 

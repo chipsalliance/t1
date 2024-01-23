@@ -8,6 +8,29 @@ in
 {
   inherit rv32_pkgs rv32_buildPkgs; # for easier inspection
 
+  lib' = final.callPackages ./lib.nix { };
+
+  circt = prev.circt.overrideAttrs (oldAttrs: {
+    patches = [
+      (prev.fetchpatch {
+        url = "https://github.com/llvm/circt/pull/6577.patch";
+        sha256 = "sha256-pdhLTEu/bZuXm00i19GYzsuRhiGfi9Ah1VHFy7kiKzY=";
+      })
+    ];
+  });
+
+  circt-all = final.symlinkJoin {
+    name = "circt-all";
+    paths = with final; [
+      circt
+      circt.dev
+      circt.lib
+      circt.llvm
+      circt.llvm.dev
+      circt.llvm.lib
+    ];
+  };
+
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };

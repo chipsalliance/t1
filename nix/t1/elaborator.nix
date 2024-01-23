@@ -2,12 +2,13 @@
 , stdenv
 , fetchMillDeps
 , makeWrapper
-, jre
+, jdk21
 
   # chisel deps
 , mill
 , espresso
-
+, circt-all
+, jextract
 , nvfetcher
 , submodules
 }:
@@ -41,11 +42,21 @@ let
           ./../../common.sc
         ];
       }).outPath;
-      millDepsHash = "sha256-3ueeJddftivvV5jQtg58sKKwXv0T2vkGxblenYFjrso=";
+      millDepsHash = "sha256-udjbpTLIfV/dgQxEeCJlR5IVl/avdYaPmInmqq9pwJs=";
       nativeBuildInputs = [ submodules.setupHook ];
     };
 
     passthru.editable = self.overrideAttrs (_: {
+      nativeBuildInputs = [
+        mill
+        circt-all
+        jextract
+        makeWrapper
+        passthru.millDeps.setupHook
+        nvfetcher
+        submodules.setupHook
+        espresso
+      ];
       shellHook = ''
         setupSubmodulesEditable
         mill mill.bsp.BSP/install 0
@@ -58,13 +69,16 @@ let
 
     nativeBuildInputs = [
       mill
-
+      circt-all
+      jextract
       makeWrapper
       passthru.millDeps.setupHook
 
       nvfetcher
       submodules.setupHook
     ];
+
+    env.CIRCT_INSTALL_PATH = circt-all;
 
     buildPhase = ''
       mill -i 'elaborator.assembly'
@@ -73,7 +87,7 @@ let
     installPhase = ''
       mkdir -p $out/share/java
       mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar
-      makeWrapper ${jre}/bin/java $out/bin/elaborator --add-flags "-jar $out/share/java/elaborator.jar"
+      makeWrapper ${jdk21}/bin/java $out/bin/elaborator --add-flags "--enable-preview -Djava.library.path=${circt-all}/lib -jar $out/share/java/elaborator.jar"
     '';
 
     meta = {

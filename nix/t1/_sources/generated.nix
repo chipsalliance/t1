@@ -3,15 +3,15 @@
 {
   arithmetic = {
     pname = "arithmetic";
-    version = "dd9bd585a8d444399eb5a31d088567e0ef56f43a";
+    version = "eed986c07ef0fb57256403ea5c2d2a9a826a4902";
     src = fetchFromGitHub {
-      owner = "sequencer";
+      owner = "SpriteOvO";
       repo = "arithmetic";
-      rev = "dd9bd585a8d444399eb5a31d088567e0ef56f43a";
+      rev = "eed986c07ef0fb57256403ea5c2d2a9a826a4902";
       fetchSubmodules = false;
-      sha256 = "sha256-PquHsdyKbN/xKV4UhtTmBAVic2PwiUPvw50oZKUN08I=";
+      sha256 = "sha256-tQwzECNOXhuKzpwRD+iKSEJYl1/wlhMQTJULJSCdTrY=";
     };
-    date = "2023-12-08";
+    date = "2024-01-22";
   };
   berkeley-hardfloat = {
     pname = "berkeley-hardfloat";
@@ -39,15 +39,15 @@
   };
   chisel = {
     pname = "chisel";
-    version = "8f147a3cf8afb8a7c6c0b733a9c4bf2ffb9a2aa2";
+    version = "5054c42ca47281fa3082e8acc2cb715ce172cb7f";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "8f147a3cf8afb8a7c6c0b733a9c4bf2ffb9a2aa2";
+      rev = "5054c42ca47281fa3082e8acc2cb715ce172cb7f";
       fetchSubmodules = false;
-      sha256 = "sha256-ZlfIWZxAa9L279lgBDaybASgpMvLrPkjDHzXY1B0S/Q=";
+      sha256 = "sha256-bZrUD0ylzk5Kjvi7e0pZ16w8beFkBNNmZFVeNQoZ6M8=";
     };
-    date = "2024-01-09";
+    date = "2024-01-23";
   };
   riscv-opcodes = {
     pname = "riscv-opcodes";
@@ -63,15 +63,15 @@
   };
   rocket-chip = {
     pname = "rocket-chip";
-    version = "060a761c5ef0d068aefdeb7c44da8c0c4943176b";
+    version = "ef404d7596f00c89d6476a6e56e4887b7f328fa9";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "rocket-chip";
-      rev = "060a761c5ef0d068aefdeb7c44da8c0c4943176b";
+      rev = "ef404d7596f00c89d6476a6e56e4887b7f328fa9";
       fetchSubmodules = false;
-      sha256 = "sha256-rLRYmGNazYAkvYAgZE4kYWHGJ+bhIW5HOak/qD0Vq5w=";
+      sha256 = "sha256-aGEybm3Htu/TxYhiAcMNueGHO2EzbtOeKKmks6I/jC0=";
     };
-    date = "2024-01-10";
+    date = "2024-01-23";
   };
   rocket-chip-inclusive-cache = {
     pname = "rocket-chip-inclusive-cache";
@@ -87,15 +87,15 @@
   };
   rvdecoderdb = {
     pname = "rvdecoderdb";
-    version = "c4bf448c799bd021f6e23e2561d48b80408cc7a8";
+    version = "d6741015ff1e110b91ce75d946b2d4099153a650";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "rvdecoderdb";
-      rev = "c4bf448c799bd021f6e23e2561d48b80408cc7a8";
+      rev = "d6741015ff1e110b91ce75d946b2d4099153a650";
       fetchSubmodules = false;
       sha256 = "sha256-s8X1pZceNyAqzE+mKEK7TVL4FP30GJbCOTa376vko+M=";
     };
-    date = "2024-01-02";
+    date = "2024-01-15";
   };
   tilelink = {
     pname = "tilelink";
