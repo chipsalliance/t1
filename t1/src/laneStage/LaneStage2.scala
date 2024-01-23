@@ -15,6 +15,7 @@ class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val maskForFilter: UInt = UInt((parameter.datapathWidth / 8).W)
   val mask: UInt = UInt((parameter.datapathWidth / 8).W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
+  val bordersForMaskLogic: Bool = Bool()
 }
 
 class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -40,7 +41,22 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
   // ffo success in current data group?
   val ffoSuccess: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
 
-  val ffoCompleteWrite: UInt = Mux(state.maskType, (~enqueue.bits.src(0)).asUInt & enqueue.bits.src(2), 0.U)
+  val bordersCorrectMask: UInt = Mux(
+    enqueue.bits.bordersForMaskLogic,
+    (scanRightOr(UIntToOH(state.csr.vl(parameter.datapathWidthBits - 1, 0))) >> 1).asUInt,
+    -1.S(parameter.datapathWidth.W).asUInt
+  )
+  val maskTypeMask: UInt = Mux(
+    state.maskType,
+    enqueue.bits.src(0),
+    -1.S(parameter.datapathWidth.W).asUInt
+  )
+  val complexMask: UInt = bordersCorrectMask & maskTypeMask
+  val ffoCompleteWrite: UInt = Mux(
+    state.maskType || enqueue.bits.bordersForMaskLogic,
+    (~complexMask).asUInt & enqueue.bits.src(2),
+    0.U
+  )
   // executionQueue enqueue
   executionQueue.io.enq.bits.pipeData.foreach { data =>
     data := Mux(
