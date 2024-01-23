@@ -5,17 +5,16 @@ package org.chipsalliance.t1.subsystem
 
 import chisel3._
 import chisel3.experimental.UnlocatableSourceInfo
-import freechips.rocketchip.devices.debug.DebugModuleKey
+import freechips.rocketchip.devices.debug.{DebugModuleKey, TLDebugModule}
+import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.rocket.{DCacheParams, ICacheParams, MulDivParams, RocketCoreParams}
 import freechips.rocketchip.subsystem._
-import freechips.rocketchip.devices.tilelink._
-import org.chipsalliance.t1.rockettile.BuildVector
 import freechips.rocketchip.tile.XLen
 import freechips.rocketchip.util.DontTouch
 import org.chipsalliance.cde.config._
 import org.chipsalliance.t1.rocketcore.{RocketTileAttachParams, RocketTileParams}
-import freechips.rocketchip.interrupts.NullIntSyncSource
+import org.chipsalliance.t1.rockettile.BuildVector
 
 class VerdesConfig
   extends Config(
@@ -38,6 +37,7 @@ class VerdesConfig
       case ControlBusKey => PeripheryBusParams(
         beatBytes = site(XLen)/8,
         blockBytes = site(CacheBlockBytes),
+        dtsFrequency = Some(BigInt(1000000000)),
         errorDevice = Some(BuiltInErrorDeviceParams(
           errorParams = DevNullParams(List(AddressSet(BigInt("80003000", 16), BigInt("fff", 16))), maxAtomic=site(XLen)/8, maxTransfer=4096))))
       case CLINTKey => Some(CLINTParams(BigInt("82000000", 16)))
@@ -76,7 +76,7 @@ class VerdesConfig
           tiny,
           RocketCrossingParams(
             crossingType = SynchronousCrossing(),
-            master = TileMasterPortParams())
+            master = HierarchicalElementMasterPortParams())
         ))
     })
       .orElse(new WithClockGateModel("./dependencies/rocket-chip/src/vsrc/EICG_wrapper.v"))
@@ -93,20 +93,27 @@ class VerdesConfig
   )
 
 class VerdesSystem(implicit p: Parameters) extends BaseSubsystem
-  with HasT1Tiles
+  with InstantiatesHierarchicalElements
+  with HasTileNotificationSinks
+  with HasTileInputConstants
+  with CanHavePeripheryCLINT
+  with CanHavePeripheryPLIC
   with CanHaveMasterAXI4MemPort
   with CanHaveMasterAXI4MMIOPort
-  with HasAsyncExtInterrupts {
+  with HasAsyncExtInterrupts
+  with HasHierarchicalElementsRootContext
+  with HasHierarchicalElements
+  with HasT1Tiles {
   // configure
   val resetVectorSourceNode = BundleBridgeSource[UInt]()
-  tileResetVectorNexusNode := resetVectorSourceNode
+  tileResetVectorNodes.values.foreach(_ := resetVectorSourceNode)
   val resetVector = InModuleBody(resetVectorSourceNode.makeIO())
-  override lazy val debugNode = NullIntSyncSource()
   override lazy val module = new VerdesSystemModuleImp(this)
+  lazy val debugOpt: Option[TLDebugModule] = None
 }
 
 class VerdesSystemModuleImp[+L <: VerdesSystem](_outer: L) extends BaseSubsystemModuleImp(_outer)
-  with HasTilesModuleImp
+  with HasHierarchicalElementsRootContextModuleImp
   with HasRTCModuleImp
   with HasExtInterruptsModuleImp
   with DontTouch

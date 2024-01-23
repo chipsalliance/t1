@@ -71,13 +71,13 @@ class ScratchpadSlavePort(address: Seq[AddressSet], coreDataBytes: Int, usingAto
       val req = Wire(new HellaCacheReq)
       req.cmd := MuxLookup(
         a.opcode,
-        M_XRD,
+        M_XRD)(
         Array(
           TLMessages.PutFullData -> M_XWR,
           TLMessages.PutPartialData -> M_PWR,
           TLMessages.ArithmeticData -> MuxLookup(
             a.param,
-            M_XRD,
+            M_XRD)(
             Array(
               TLAtomics.MIN -> M_XA_MIN,
               TLAtomics.MAX -> M_XA_MAX,
@@ -88,7 +88,7 @@ class ScratchpadSlavePort(address: Seq[AddressSet], coreDataBytes: Int, usingAto
           ),
           TLMessages.LogicalData -> MuxLookup(
             a.param,
-            M_XRD,
+            M_XRD)(
             Array(
               TLAtomics.XOR -> M_XA_XOR,
               TLAtomics.OR -> M_XA_OR,

@@ -6,16 +6,14 @@ package org.chipsalliance.t1.subsystem
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
 import freechips.rocketchip.diplomacy.AddressSet
-import freechips.rocketchip.subsystem.{BaseSubsystem, HasTiles}
-import freechips.rocketchip.util.CoreMonitorBundle
-import org.chipsalliance.t1.rockettile.{AbstractLazyT1, AbstractLazyT1ModuleImp}
+import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements}
 import org.chipsalliance.cde.config._
+import org.chipsalliance.t1.rockettile.{AbstractLazyT1, AbstractLazyT1ModuleImp}
 import org.chipsalliance.t1.rtl.{V, VParameter}
 
 case object T1ConfigPath extends Field[os.Path]
-trait HasT1Tiles extends HasTiles { this: BaseSubsystem =>
-  val t1Tiles = tiles.collect { case r: org.chipsalliance.t1.rocketcore.RocketTile => r }
-  def coreMonitorBundles = List.empty[CoreMonitorBundle]
+trait HasT1Tiles { this: BaseSubsystem with InstantiatesHierarchicalElements =>
+  lazy val t1Tiles = totalTiles.values.collect { case r: org.chipsalliance.t1.rocketcore.RocketTile => r }
 }
 
 class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
