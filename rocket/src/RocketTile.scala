@@ -8,7 +8,7 @@ import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.interrupts._
 import freechips.rocketchip.prci.ClockSinkParameters
-import freechips.rocketchip.subsystem.{CanAttachTile, RocketCrossingParams, TileCrossingParamsLike}
+import freechips.rocketchip.subsystem.{CanAttachTile, RocketCrossingParams, HierarchicalElementCrossingParamsLike}
 import freechips.rocketchip.tile._
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util._
@@ -31,7 +31,7 @@ case class RocketTileParams(
   btb:                 Option[BTBParams] = Some(BTBParams()),
   dataScratchpadBytes: Int = 0,
   name:                Option[String] = Some("tile"),
-  hartId:              Int = 0,
+  tileId:              Int = 0,
   beuAddr:             Option[BigInt] = None,
   blockerCtrlAddr:     Option[BigInt] = None,
   clockSinkParams:     ClockSinkParameters = ClockSinkParameters(),
@@ -39,7 +39,9 @@ case class RocketTileParams(
     extends InstantiableTileParams[RocketTile] {
   require(icache.isDefined)
   require(dcache.isDefined)
-  def instantiate(crossing: TileCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): RocketTile = {
+  val baseName = "rockettile"
+  val uniqueName = s"${baseName}_$tileId"
+  def instantiate(crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): RocketTile = {
     new RocketTile(this, crossing, lookup)
   }
 }
@@ -58,14 +60,14 @@ class RocketTile private (
   // Private constructor ensures altered LazyModule.p is used implicitly
   def this(
     params:   RocketTileParams,
-    crossing: TileCrossingParamsLike,
+    crossing: HierarchicalElementCrossingParamsLike,
     lookup:   LookupByHartIdImpl
   )(
     implicit p: Parameters
   ) =
     this(params, crossing.crossingType, lookup, p)
 
-  val intOutwardNode = IntIdentityNode()
+  val intOutwardNode = rocketParams.beuAddr map { _ => IntIdentityNode() }
   val slaveNode = TLIdentityNode()
   val masterNode = visibilityNode
 
@@ -84,7 +86,7 @@ class RocketTile private (
 
   val bus_error_unit = rocketParams.beuAddr.map { a =>
     val beu = LazyModule(new BusErrorUnit(new L1BusErrors, BusErrorUnitParams(a)))
-    intOutwardNode := beu.intNode
+    intOutwardNode.get := beu.intNode
     connectTLSlave(beu.node, xBytes)
     beu
   }
@@ -121,7 +123,7 @@ class RocketTile private (
   }
 
   ResourceBinding {
-    Resource(cpuDevice, "reg").bind(ResourceAddress(staticIdForMetadataUseOnly))
+    Resource(cpuDevice, "reg").bind(ResourceAddress(tileId))
   }
 
   override lazy val module = new RocketTileModuleImp(this)
@@ -150,7 +152,7 @@ class RocketTileModuleImp(outer: RocketTile)
     with HasICacheFrontendModule {
   Annotated.params(this, outer.rocketParams)
 
-  lazy val core = Module(new Rocket(outer)(outer.p))
+  lazy val core = Module(new Rocket(outer.dcache.flushOnFenceI, outer.bus_error_unit.isDefined)(outer.p))
 
   // Report unrecoverable error conditions; for now the only cause is cache ECC errors
   outer.reportHalt(List(outer.dcache.module.io.errors))
@@ -175,7 +177,7 @@ class RocketTileModuleImp(outer: RocketTile)
     beu.module.io.errors.icache := outer.frontend.module.io.errors
   }
 
-  core.interrupts.nmi.foreach { nmi => nmi := outer.nmiSinkNode.bundle }
+  core.interrupts.nmi.foreach { nmi => nmi := outer.nmiSinkNode.get.bundle }
 
   // Pass through various external constants and reports that were bundle-bridged into the tile
   core.traceStall := outer.traceAuxSinkNode.bundle.stall
