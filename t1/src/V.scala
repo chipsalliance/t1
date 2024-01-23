@@ -1072,7 +1072,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         }
       }
       // alu end
-      val maskOperation = decodeResultReg(Decoder.maskLogic)
+      val maskOperation = decodeResultReg(Decoder.maskLogic) || decodeResultReg(Decoder.maskDestination)
       val lastGroupDataWaitMask = scanRightOr(UIntToOH(lastExecuteCounter))
       val dataMask = Mux(maskOperation && lastGroup, lastGroupDataWaitMask, -1.S(parameter.laneNumber.W).asUInt)
       val dataReady = ((~dataMask).asUInt | VecInit(data.map(_.valid)).asUInt).andR || skipLaneData

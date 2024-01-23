@@ -604,6 +604,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage2.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
         sink := source
       }
+      stage2.enqueue.bits.bordersForMaskLogic := executionUnit.enqueue.bits.bordersForMaskLogic
 
       executionUnit.state := laneState
       executionUnit.enqueue.bits.src := stage1.dequeue.bits.src
