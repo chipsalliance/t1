@@ -6,6 +6,7 @@ package org.chipsalliance.t1.rocketcore
 import chisel3._
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
+import freechips.rocketchip.tile.TileInterrupts
 import freechips.rocketchip.util._
 import org.chipsalliance.cde.config.{Field, Parameters}
 import org.chipsalliance.t1.rockettile.{VectorRequest, VectorResponse}
@@ -14,7 +15,7 @@ import scala.collection.mutable.ArrayBuffer
 
 // TODO: remove it.
 import freechips.rocketchip.rocket.{Causes, MulDivParams, RocketCoreParams}
-import freechips.rocketchip.tile.{CoreInterrupts, FPUCoreIO, HasCoreParameters}
+import freechips.rocketchip.tile.{FPUCoreIO, HasCoreParameters}
 
 trait HasRocketCoreParameters extends HasCoreParameters {
   lazy val rocketParams: RocketCoreParams = tileParams.core.asInstanceOf[RocketCoreParams]
@@ -30,8 +31,13 @@ trait HasRocketCoreParameters extends HasCoreParameters {
   require(!rocketParams.haveFSDirty, "rocket doesn't support setting fs dirty from outside, please disable haveFSDirty")
   require(!usingConditionalZero, "Zicond is not yet implemented in ABLU")
 }
+class CoreInterrupts(val hasBeu: Boolean)(implicit p: Parameters) extends TileInterrupts()(p) {
+  val buserror = Option.when(hasBeu)(Bool())
+}
 
-class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with HasRocketCoreParameters {
+class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters)
+    extends Module
+    with HasRocketCoreParameters {
   // Checker
   require(decodeWidth == 1 /* TODO */ && retireWidth == decodeWidth)
   require(!(coreParams.useRVE && coreParams.fpu.nonEmpty), "Can't select both RVE and floating-point")
@@ -105,14 +111,14 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         case _                                                                           => true
       }.toSeq.distinct,
       pipelinedMul,
-      tile.dcache.flushOnFenceI
+      flushOnFenceI
     )
   )
   val lgNXRegs:    Int = if (coreParams.useRVE) 4 else 5
   val regAddrMask: Int = (1 << lgNXRegs) - 1
 
   val hartid = IO(Input(UInt(hartIdLen.W)))
-  val interrupts = IO(Input(new CoreInterrupts()))
+  val interrupts = IO(Input(new CoreInterrupts(hasBeu)))
   val imem = IO(new FrontendIO)
   val dmem = IO(new HellaCacheIO)
   val ptw = IO(Flipped(new DatapathPTWIO()))
@@ -214,7 +220,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     // instantiate modules
     // TODO: remove implicit parameter for them.
 
-    val csr: CSRFile = Module(new CSRFile(perfEvents, coreParams.customCSRs.decls))
+    val csr: CSRFile = Module(new CSRFile(perfEvents, coreParams.customCSRs.decls, hasBeu))
 
     // TODO: move to Parameter Level or LazyModule level.
     /** Decoder instantiated, input from IF, output to ID. */
@@ -522,7 +528,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         exRegDecodeOutput(decoder.memCommand) := M_HFENCEV
       }
 
-      if (tile.dcache.flushOnFenceI) {
+      if (flushOnFenceI) {
         when(idDecodeOutput(decoder.fenceI)) {
           exRegMemSize := 0.U
         }
@@ -770,9 +776,11 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     val wbSetSboard: Bool =
       wbDcacheMiss ||
         Option.when(usingMulDiv)(wbRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
-        Option.when(usingVector){
-          wbRegDecodeOutput(decoder.wxd) && wbRegDecodeOutput(decoder.vector) && !wbRegDecodeOutput(decoder.vectorCSR)
-        }.getOrElse(false.B)
+        Option
+          .when(usingVector) {
+            wbRegDecodeOutput(decoder.wxd) && wbRegDecodeOutput(decoder.vector) && !wbRegDecodeOutput(decoder.vectorCSR)
+          }
+          .getOrElse(false.B)
     val replayWbCommon: Bool = dmem.s2_nack || wbRegReplay
     val replayWbCsr:    Bool = wbRegValid && csr.io.rwStall
     val replayWb:       Bool = replayWbCommon || replayWbCsr
@@ -980,7 +988,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
     }
 
     // vector stall
-    val vectorLSUEmpty: Option[Bool] = Option.when(usingVector)(Wire(Bool()))
+    val vectorLSUEmpty:  Option[Bool] = Option.when(usingVector)(Wire(Bool()))
     val vectorQueueFull: Option[Bool] = Option.when(usingVector)(Wire(Bool()))
     val vectorStall: Option[Bool] = Option.when(usingVector) {
       val vectorLSUNotClear =
@@ -988,7 +996,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
           (memRegValid && memRegDecodeOutput(decoder.vectorLSU)) ||
           (wbRegValid && wbRegDecodeOutput(decoder.vectorLSU)) || !vectorLSUEmpty.get
       (idDecodeOutput(decoder.vector) && vectorQueueFull.get) ||
-        (idDecodeOutput(decoder.mem) && !idDecodeOutput(decoder.vector) && vectorLSUNotClear)
+      (idDecodeOutput(decoder.mem) && !idDecodeOutput(decoder.vector) && vectorLSUNotClear)
     }
 
     val ctrlStalld: Bool =
@@ -1096,7 +1104,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
       val maxCount: Int = 32
       val countWidth = log2Up(maxCount)
 
-      def counterManagement(size: Int, margin: Int = 0)(grant: Bool, release: Bool, flush: Option[Bool]=None) = {
+      def counterManagement(size: Int, margin: Int = 0)(grant: Bool, release: Bool, flush: Option[Bool] = None) = {
         val counter: UInt = RegInit(0.U(size.W))
         val nextCount = counter + Mux(grant, 1.U(size.W), (-1.S(size.W)).asUInt)
         val updateCounter = grant ^ release
@@ -1110,7 +1118,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
         (empty, full)
       }
       // Maintain lsu counter
-      val lsuGrant: Bool = t1.valid && wbRegDecodeOutput(decoder.vectorLSU)
+      val lsuGrant:   Bool = t1.valid && wbRegDecodeOutput(decoder.vectorLSU)
       val lsuRelease: Bool = response.fire && response.bits.mem
       val (lsuEmpty, _) = counterManagement(countWidth)(lsuGrant, lsuRelease)
       // Maintain vector counter

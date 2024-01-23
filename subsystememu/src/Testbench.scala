@@ -25,13 +25,12 @@ class TestHarness(implicit val p: Parameters) extends RawModule {
   withClockAndReset(clock.asClock, reset) {
     val dut = Module(ldut.module)
     // Allow the debug ndreset to reset the dut, but not until the initial reset has completed
-    dut.reset := reset.asBool
     dut.interrupts := 0.U
     dut.dontTouchPorts()
 
     ldut.resetVector := dpiResetVector.resetVector.ref
-    dpiResetVector.reset.ref := dut.reset
-    dpiResetVector.clock.ref := dut.clock.asBool
+    dpiResetVector.reset.ref := reset
+    dpiResetVector.clock.ref := clock
     ldut.mem_axi4.zip(ldut.memAXI4Node.in).map { case (io, (_, edge)) =>
       val mem = LazyModule(new LazyAXI4MemBFM(edge, base = p(ExtMem).get.master.base, size = p(ExtMem).get.master.size))
       Module(mem.module).suggestName("mem")

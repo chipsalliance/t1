@@ -4,7 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.{AutoCloneType, SerializableModuleGenerator}
+import chisel3.experimental.{SerializableModuleGenerator}
 import chisel3.properties.Property
 import org.chipsalliance.t1.rtl.decoder.BoolField
 import chisel3.util._
@@ -77,7 +77,7 @@ case class VFUInstantiateParameter(
 }
 
 class SlotExecuteRequest[T <: SlotRequestToVFU](requestFromSlot: T)(slotIndex: Int, parameter: VFUInstantiateParameter)
-  extends Record with AutoCloneType {
+  extends Record {
   val elements: SeqMap[String, DecoupledIO[SlotRequestToVFU]] = SeqMap.from(
     parameter.genVec.filter(_._2.contains(slotIndex)).map { case (p, _) =>
       p.parameter.decodeField.name -> Decoupled(requestFromSlot)

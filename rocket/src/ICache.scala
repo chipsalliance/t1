@@ -77,9 +77,8 @@ class ICacheErrors(implicit p: Parameters) extends CoreBundle()(p) with HasL1ICa
   * There will always be one way(the last way) used for I$, which cannot be allocated to ITIM.
   *
   * @param icacheParams parameter to this I$.
-  * @param staticIdForMetadataUseOnly metadata used for hart id.
   */
-class ICache(val icacheParams: ICacheParams, val staticIdForMetadataUseOnly: Int)(implicit p: Parameters)
+class ICache(val icacheParams: ICacheParams)(implicit p: Parameters)
     extends LazyModule {
   lazy val module = new ICacheModule(this)
 
@@ -111,7 +110,7 @@ class ICache(val icacheParams: ICacheParams, val staticIdForMetadataUseOnly: Int
         clients = Seq(
           TLMasterParameters.v1(
             sourceId = IdRange(0, 1 + icacheParams.prefetch.toInt), // 0=refill, 1=hint
-            name = s"Core ${staticIdForMetadataUseOnly} ICache"
+            name = s"ICache"
           )
         ),
         requestFields = useVM.option(Seq()).getOrElse(Seq(AMBAProtField()))
