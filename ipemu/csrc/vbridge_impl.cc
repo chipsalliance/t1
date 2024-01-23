@@ -736,7 +736,7 @@ void VBridgeImpl::record_rf_accesses(const VrfWritePeek &rf_write) {
     if (se_vrf_write == nullptr) {
       Log("RecordRFAccess")
           .with("index", idx)
-          .warn("rtl detect vrf write which cannot find se, maybe from "
+          .info("rtl detect vrf write which cannot find se, maybe from "
                 "committed load insn");
     } else if (!se_vrf_write->is_load) {
       Log("RecordRFAccess")
