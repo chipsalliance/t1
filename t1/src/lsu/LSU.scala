@@ -200,6 +200,8 @@ class LSU(param: LSUParam) extends Module {
 
   // write vrf
   val otherTryToWrite: UInt = Mux(otherUnit.vrfWritePort.valid, otherUnit.status.targetLane, 0.U)
+  // Permission to enter the queue TODO: Investigate why this happens
+  val canEnterQueue: Vec[Bool] = Wire(Vec(param.laneNumber, Bool()))
   // other 优先级更高
   otherUnit.vrfWritePort.ready := (otherUnit.status.targetLane & VecInit(writeQueueVec.map(_.io.enq.ready)).asUInt).orR
   writeQueueVec.zipWithIndex.foreach {case (write, index) =>
@@ -216,11 +218,12 @@ class LSU(param: LSUParam) extends Module {
   }
 
   // Record whether there is data for the corresponding instruction in the queue
-  writeQueueVec.zip(dataInWriteQueue).foreach {case (q, p) =>
+  writeQueueVec.zip(dataInWriteQueue).zipWithIndex.foreach {case ((q, p), queueIndex) =>
     val queueCount: Seq[UInt] = Seq.tabulate(param.chainingSize) { _ =>
       RegInit(0.U(log2Ceil(param.lsuVRFWriteQueueSize).W))
     }
-    val queueEnq: UInt = Mux(q.io.enq.fire, indexToOH(q.io.enq.bits.data.instructionIndex, param.chainingSize), 0.U)
+    val enqOH: UInt = indexToOH(q.io.enq.bits.data.instructionIndex, param.chainingSize)
+    val queueEnq: UInt = Mux(q.io.enq.fire, enqOH, 0.U)
     val queueDeq = Mux(q.io.deq.fire, indexToOH(q.io.deq.bits.data.instructionIndex, param.chainingSize), 0.U)
     queueCount.zipWithIndex.foreach {case (count, index) =>
       val counterUpdate: UInt = Mux(queueEnq(index), 1.U, -1.S(log2Ceil(param.lsuVRFWriteQueueSize).W).asUInt)
@@ -229,6 +232,18 @@ class LSU(param: LSUParam) extends Module {
       }
     }
     p := VecInit(queueCount.map(_ =/= 0.U)).asUInt
+    val dataTag = VecInit(Seq.tabulate(param.chainingSize) { _ =>
+      RegInit(false.B)
+    })
+    val nextTag = q.io.enq.bits.data.instructionIndex.asBools.last
+    val currentTag = (dataTag.asUInt & enqOH).orR
+    // same tage or nothing in queue
+    canEnterQueue(queueIndex) := (nextTag === currentTag) || !p
+    dataTag.zipWithIndex.foreach {case (d, i) =>
+      when(q.io.deq.fire && enqOH(i)) {
+        d := nextTag
+      }
+    }
   }
 
   val accessPortA: Seq[DecoupledIO[TLChannelA]] = Seq(loadUnit.tlPortA, otherUnit.tlPort.a)
