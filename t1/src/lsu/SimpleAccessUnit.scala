@@ -333,7 +333,8 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
     case (offset, index) =>
       // offsetReadResult(index).valid: new offset came
       // (offset.valid && !usedIndexedInstructionOffsets(index)): old unused offset
-      offset.valid := offsetReadResult(index).valid || (offset.valid && !usedIndexedInstructionOffsets(index))
+      offset.valid := offsetReadResult(index).valid ||
+        (offset.valid && !usedIndexedInstructionOffsets(index) && !status.last)
       // select from new and old.
       offset.bits := Mux(offsetReadResult(index).valid, offsetReadResult(index).bits, offset.bits)
   }
