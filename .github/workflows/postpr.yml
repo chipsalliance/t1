@@ -17,8 +17,6 @@ jobs:
       ci-tests: ${{ steps.ci-tests.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      - name: "Setup Action"
-        run: ./.github/scripts/setup-action.sh
       - id: ci-tests
         name: "Generate matrix"  # TODO: why unpassed testcases corresponds to perf testcases
         run: |
@@ -37,8 +35,6 @@ jobs:
       result: ${{ steps.ci-run.outputs.result }}
     steps:
       - uses: actions/checkout@v4
-      - name: "Setup Action"
-        run: ./.github/scripts/setup-action.sh
       - id: ci-run
         name: "Run testcases"
         run: |
