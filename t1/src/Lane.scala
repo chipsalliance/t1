@@ -853,9 +853,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     // vl is too small, don't need to use this lane.
     (((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl || maskLogicCompleted) &&
       // for 'nr' type instructions, they will need another complete signal.
-      !laneRequest.bits.decodeResult(Decoder.nr) &&
-      // complete is notified by LSU.
-      !laneRequest.bits.loadStore
+      !laneRequest.bits.decodeResult(Decoder.nr)
   // indicate if this is the mask type.
   entranceControl.mask.valid := laneRequest.bits.mask
   // assign mask from [[V]]
@@ -866,7 +864,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.vrfWriteMask := 0.U
 
   // calculate last group
-  val lastElementIndex: UInt = (csrInterface.vl - 1.U)(parameter.vlMaxBits - 2, 0)
+  val lastElementIndex: UInt = (csrInterface.vl - csrInterface.vl.orR)(parameter.vlMaxBits - 2, 0)
   val requestVSew1H:    UInt = UIntToOH(csrInterface.vSew)
 
   /** For an instruction, the last group is not executed by all lanes,
