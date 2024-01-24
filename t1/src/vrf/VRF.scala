@@ -243,8 +243,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val recordFFO:  UInt = ffo(freeRecord)
   val recordEnq:  UInt = Wire(UInt((parameter.chainingSize + 1).W))
   // handle VRF hazard
-  // TODO: move to [[V]]
-  instructionWriteReport.ready := true.B
+  instructionWriteReport.ready := freeRecord.orR
   recordEnq := Mux(
     // 纯粹的lsu指令的记录不需要ready
     instructionWriteReport.valid,
