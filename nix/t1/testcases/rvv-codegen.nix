@@ -13,8 +13,8 @@ buildGoModule {
   src = fetchFromGitHub {
     owner = "ksco";
     repo = "riscv-vector-tests";
-    rev = "4dc7375d8992fbe44dffc5a6bdff2361d9290808";
-    hash = "sha256-+S2JRUOOsDEv1nQ3PvTSego0NEKyOTNTyls/jMIauX0=";
+    rev = "e990fc2b5913da6274724b26c529d547b108b932";
+    hash = "sha256-tUSpV+/Lm3pUMFiyKLIbBAuCW0jtLuSklQkXBHWgL40=";
   };
   doCheck = false;
   vendorHash = "sha256-9cQlivpHg6IDYpmgBp34n6BR/I0FIYnmrXCuiGmAhNE=";
