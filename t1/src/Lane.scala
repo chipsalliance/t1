@@ -928,12 +928,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
 
   val slotEnqueueFire: Seq[Bool] = Seq.tabulate(parameter.chainingSize) { slotIndex =>
-    val enqueueReady: Bool = !slotOccupied(slotIndex)
+    val enqueueReady: Bool = Wire(Bool())
     val enqueueValid: Bool = Wire(Bool())
     val enqueueFire: Bool = enqueueReady && enqueueValid
     // enqueue from lane request
     if (slotIndex == parameter.chainingSize - 1) {
       enqueueValid := laneRequest.valid
+      enqueueReady := !slotOccupied(slotIndex) && vrf.instructionWriteReport.ready
       when(enqueueFire) {
         slotControl(slotIndex) := entranceControl
         maskGroupCountVec(slotIndex) := 0.U(parameter.maskGroupSizeBits.W)
@@ -944,6 +945,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     } else {
       // shifter for slot
       enqueueValid := slotCanShift(slotIndex + 1) && slotOccupied(slotIndex + 1)
+      enqueueReady := !slotOccupied(slotIndex)
       when(enqueueFire) {
         slotControl(slotIndex) := slotControl(slotIndex + 1)
         maskGroupCountVec(slotIndex) := maskGroupCountVec(slotIndex + 1)
