@@ -64,7 +64,7 @@ jobs:
             fname=$(basename $f)
             configName=${fname%.*}
             echo "building .#t1.${configName}.ip.rtl"
-            nix build .#t1.${configName}.ip.rtl
+            nix build .#t1.${configName}.ip.rtl -L
           done
 
   run-testcases:
