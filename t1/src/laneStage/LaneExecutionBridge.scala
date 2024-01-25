@@ -14,6 +14,7 @@ class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends 
   val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
   val bordersForMaskLogic: Bool = Bool()
   val mask: UInt = UInt((parameter.datapathWidth / 8).W)
+  val maskForFilter: UInt = UInt((parameter.datapathWidth / 8).W)
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
 }
@@ -27,7 +28,7 @@ class LaneExecuteResponse(parameter: LaneParameter, isLastSlot: Boolean) extends
 
 class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
   val bordersForMaskLogic: Bool = Bool()
-  val mask: UInt = UInt((parameter.datapathWidth / 8).W)
+  val maskForFilter: UInt = UInt((parameter.datapathWidth / 8).W)
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
   val executeIndex: Bool = Bool()
@@ -66,7 +67,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     RegEnable(state.newInstruction.get, false.B, state.newInstruction.get || firstRequestFire.get)
   }
   firstRequestFire.foreach(d =>
-    d := enqueue.fire && firstRequest.get && (state.maskNotMaskedElement || enqueue.bits.mask(0))
+    d := enqueue.fire && firstRequest.get && enqueue.bits.maskForFilter(0)
   )
 
   // Type widenReduce instructions occupy double the data registers because they need to retain the carry bit.
@@ -89,11 +90,11 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecordValid := enqueue.fire
   }
   if (isLastSlot) {
-    val firstGroupNotExecute = decodeResult(Decoder.crossWrite) && !state.maskNotMaskedElement && !Mux(
+    val firstGroupNotExecute = decodeResult(Decoder.crossWrite) && !Mux(
       state.vSew1H(0),
       // sew = 8, 2 mask bit / group
-      enqueue.bits.mask(1, 0).orR,
-      enqueue.bits.mask(0)
+      enqueue.bits.maskForFilter(1, 0).orR,
+      enqueue.bits.maskForFilter(0)
     )
     // update execute index
     when(enqueue.fire || vfuRequest.fire) {
@@ -106,8 +107,9 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
 
   when(enqueue.fire) {
     executionRecord.crossReadVS2 := decodeResult(Decoder.crossRead) && !decodeResult(Decoder.vwmacc)
-    executionRecord.bordersForMaskLogic := enqueue.bits.bordersForMaskLogic
-    executionRecord.mask := enqueue.bits.mask
+    executionRecord.bordersForMaskLogic := enqueue.bits.bordersForMaskLogic && state.decodeResult(Decoder.maskLogic)
+    executionRecord.maskForMaskInput := enqueue.bits.mask
+    executionRecord.maskForFilter := enqueue.bits.maskForFilter
     executionRecord.source := enqueue.bits.src
     executionRecord.crossReadSource.foreach(_ := enqueue.bits.crossReadSource.get)
     executionRecord.sSendResponse.foreach(_ := enqueue.bits.sSendResponse.get)
@@ -217,19 +219,18 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
    * use [[lastGroupMask]] to mask the result otherwise use [[fullMask]]. */
   val maskCorrect: Bits = Mux(executionRecord.bordersForMaskLogic, lastGroupMask, fullMask)
 
-  val maskExtend = Mux(state.vSew1H(1), FillInterleaved(2, executionRecord.mask(1, 0)), executionRecord.mask)
+  val maskExtend = Mux(state.vSew1H(1), FillInterleaved(2, executionRecord.maskForMaskInput(1, 0)), executionRecord.maskForMaskInput)
   vfuRequest.bits.src := VecInit(Seq(finalSource1, finalSource2, finalSource3, maskCorrect))
   vfuRequest.bits.opcode := decodeResult(Decoder.uop)
   vfuRequest.bits.mask := Mux(
     decodeResult(Decoder.adder),
-    Mux(decodeResult(Decoder.maskSource), executionRecord.mask, 0.U(4.W)),
+    Mux(decodeResult(Decoder.maskSource), executionRecord.maskForMaskInput, 0.U(4.W)),
     maskExtend | Fill(4, !state.maskType)
   )
-  val executeMask = executionRecord.mask | FillInterleaved(4, state.maskNotMaskedElement)
   vfuRequest.bits.executeMask := Mux(
     executionRecord.executeIndex,
-    0.U(2.W) ## executeMask(3, 2),
-    executeMask
+    0.U(2.W) ## executionRecord.maskForFilter(3, 2),
+    executionRecord.maskForFilter
   )
   vfuRequest.bits.sign0 := !decodeResult(Decoder.unsigned0)
   vfuRequest.bits.sign := !decodeResult(Decoder.unsigned1)
@@ -283,7 +284,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   recordQueueReadyForNoExecute := notExecute && recordQueue.io.enq.ready
   recordQueue.io.enq.valid := executionRecordValid && (vfuRequest.ready || notExecute)
   recordQueue.io.enq.bits.bordersForMaskLogic := executionRecord.bordersForMaskLogic
-  recordQueue.io.enq.bits.mask := executionRecord.mask
+  recordQueue.io.enq.bits.maskForFilter := executionRecord.maskForFilter
   recordQueue.io.enq.bits.groupCounter := executionRecord.groupCounter
   recordQueue.io.enq.bits.executeIndex := executionRecord.executeIndex
   recordQueue.io.enq.bits.source2 := executionRecord.source(1)
@@ -344,9 +345,9 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     val normalReduceMask = Mux1H(
       state.vSew1H,
       Seq(
-        recordQueue.io.deq.bits.mask,
-        FillInterleaved(2, recordQueue.io.deq.bits.mask(1, 0)),
-        FillInterleaved(4, recordQueue.io.deq.bits.mask(0))
+        recordQueue.io.deq.bits.maskForFilter,
+        FillInterleaved(2, recordQueue.io.deq.bits.maskForFilter(1, 0)),
+        FillInterleaved(4, recordQueue.io.deq.bits.maskForFilter(0))
       )
     )
     val widenReduceMask = Mux1H(
@@ -354,19 +355,19 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       Seq(
         FillInterleaved(2, Mux(
           executionRecord.executeIndex,
-          recordQueue.io.deq.bits.mask(3, 2),
-          recordQueue.io.deq.bits.mask(1, 0)
+          recordQueue.io.deq.bits.maskForFilter(3, 2),
+          recordQueue.io.deq.bits.maskForFilter(1, 0)
         )),
         FillInterleaved(4, Mux(
           executionRecord.executeIndex,
-          recordQueue.io.deq.bits.mask(1),
-          recordQueue.io.deq.bits.mask(0)
+          recordQueue.io.deq.bits.maskForFilter(1),
+          recordQueue.io.deq.bits.maskForFilter(0)
         ))
       )
     )
     // masked element don't update 'reduceResult'
     val reduceUpdateByteMask: UInt =
-      Mux(widenReduce, widenReduceMask, normalReduceMask) | FillInterleaved(4, state.maskNotMaskedElement)
+      Mux(widenReduce, widenReduceMask, normalReduceMask)
     val foldUpdateMask = Wire(UInt(4.W))
     updateReduceResult.get := {
       val dataVec = cutUInt(dataDequeue, 8)

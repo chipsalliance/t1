@@ -243,7 +243,7 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
   val lastGroupForInstruction: UInt = UInt(param.groupNumberBits.W)
 
   /** this is the last lane for mask type instruction */
-  val isLastLaneForMaskLogic: Bool = Bool()
+  val isLastLaneForInstruction: Bool = Bool()
 
   /** the find first one instruction is finished by other lanes,
     * for example, sbf(set before first)
@@ -625,7 +625,8 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
 class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends Bundle {
   val crossReadVS2: Bool = Bool()
   val bordersForMaskLogic: Bool = Bool()
-  val mask: UInt = UInt(4.W)
+  val maskForMaskInput: UInt = UInt(4.W)
+  val maskForFilter: UInt = UInt(4.W)
   // false -> lsb of cross read group
   val executeIndex: Bool = Bool()
   val source: Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
