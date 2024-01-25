@@ -863,8 +863,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         val accessLane = if (parameter.laneNumber > 1) dataPosition(log2Ceil(parameter.laneNumber) + 1, 2) else 0.U(1.W)
         // 32 bit / group
         val dataGroup = (dataPosition >> (log2Ceil(parameter.laneNumber) + 2)).asUInt
-        val offset = dataGroup(1, 0)
-        val accessRegGrowth = (dataGroup >> 2).asUInt
+        val offsetWidth: Int = parameter.laneParam.vrfParam.vrfOffsetBits
+        val offset = dataGroup(offsetWidth - 1, 0)
+        val accessRegGrowth = (dataGroup >> offsetWidth).asUInt
         val decimalProportion = offset ## accessLane
         // 1/8 register
         val decimal = decimalProportion(decimalProportion.getWidth -1, 0 max (decimalProportion.getWidth - 3))
