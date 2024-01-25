@@ -118,13 +118,6 @@ jobs:
           name: failed-logs-${{ matrix.id }}
           path: test-results-*/failed-logs
 
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: nix-post-build-hook-log-${{ matrix.id }}
-          path: /tmp/nix-post-build-hook.log
-
-
   gen-fail-wave-matrix:
     name: "Generate matrix for re-testing failing tests"
     if: ${{ !cancelled() }}
