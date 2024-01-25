@@ -173,12 +173,15 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
 
   val baseAddressAligned: Bool = !lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0).orR
+  val vlMisaligned: Bool = bytePerInstruction(param.cacheLineBits - 1, 0).orR
 
   /** How many cache lines will be accessed by this instruction
    * nFiled * vl * (2 ** eew) / 32
    */
   val lastCacheLineIndex: UInt = (bytePerInstruction >> param.cacheLineBits).asUInt +
-    bytePerInstruction(param.cacheLineBits - 1, 0).orR - baseAddressAligned
+    vlMisaligned - baseAddressAligned
+
+  val vlMisalignedReg: Bool = RegEnable(vlMisaligned, false.B, lsuRequest.valid)
 
   val cacheLineNumberReg: UInt = RegEnable(lastCacheLineIndex, 0.U, lsuRequest.valid)
 }
