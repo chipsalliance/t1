@@ -913,7 +913,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val maskeDataGroup = (vlHead ## vlBody) - !dataPathMisaligned
   val lastLaneIndexForMaskLogic: UInt = maskeDataGroup(parameter.laneNumberBits - 1, 0)
   val isLastLaneForMaskLogic: Bool = lastLaneIndexForMaskLogic === laneIndex
-  val lastGroupCountForMaskLogic: UInt = (maskeDataGroup >> parameter.laneNumberBits).asUInt
+  val lastGroupCountForMaskLogic: UInt = (maskeDataGroup >> parameter.laneNumberBits).asUInt -
+    ((vlBody.orR || dataPathMisaligned) && (laneIndex > lastLaneIndexForMaskLogic))
   val misalignedForOther: Bool = Mux1H(
     requestVSew1H(1, 0),
     Seq(
