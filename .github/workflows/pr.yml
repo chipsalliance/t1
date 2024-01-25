@@ -55,6 +55,7 @@ jobs:
     name: "Build trace emulator"
     runs-on: [self-hosted, linux, nixos]
     strategy:
+      fail-fast: false
       matrix:
         config:
           - "v1024-l8-b2"
