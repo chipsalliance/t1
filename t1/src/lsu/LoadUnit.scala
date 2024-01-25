@@ -109,8 +109,8 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
 
   val alignedDequeueValid: Bool =
     unalignedCacheLine.valid &&
-      // 只有在base address 对齐的时候才需要推出最后一条访问的cache line
-      (dataValid || ((unalignedCacheLine.bits.index === cacheLineNumberReg) && baseAddressAlignedReg))
+      // 只有在 vlMisaligned || base address 对齐的时候才需要推出最后一条访问的cache line
+      (dataValid || ((unalignedCacheLine.bits.index === cacheLineNumberReg) && (vlMisalignedReg || baseAddressAlignedReg)))
   // update unalignedCacheLine
   when(unalignedEnqueueFire) {
     unalignedCacheLine.bits.data := nextData
