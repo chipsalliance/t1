@@ -51,12 +51,6 @@ jobs:
             test-results-*/failed-tests.md
             perf-result-*.md
 
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: nix-post-build-hook-log-${{ matrix.id }}
-          path: /tmp/nix-post-build-hook.log
-
   report:
     name: "Report CI result"
     if: ${{ !cancelled() && github.event.pull_request.merged == true }}
