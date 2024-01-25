@@ -22,6 +22,7 @@ ChainingPerf chaining_perf;
 
 void sigint_handler(int s) {
   terminated = true;
+  // tests
   dpi_finish();
 }
 
