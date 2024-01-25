@@ -24,7 +24,8 @@ class LaneStage0StateUpdate(parameter: LaneParameter) extends Bundle {
 }
 
 class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
-  val mask: UInt = UInt((parameter.datapathWidth/8).W)
+  val maskForMaskInput: UInt = UInt((parameter.datapathWidth/8).W)
+  val boundaryMaskCorrection: UInt = UInt((parameter.datapathWidth/8).W)
   val sSendResponse: Option[Bool] =  Option.when(isLastSlot)(Bool())
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
 }
@@ -43,9 +44,9 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   val stageWire: LaneStage0Dequeue = Wire(new LaneStage0Dequeue(parameter, isLastSlot))
   // 这一组如果全被masked了也不压进流水
   val notMaskedAllElement: Bool = Mux1H(state.vSew1H, Seq(
-    stageWire.mask.orR,
-    stageWire.mask(1, 0).orR,
-    stageWire.mask(0),
+    stageWire.maskForMaskInput.orR,
+    stageWire.maskForMaskInput(1, 0).orR,
+    stageWire.maskForMaskInput(0),
   )) || state.maskNotMaskedElement ||
     state.decodeResult(Decoder.maskDestination) || state.decodeResult(Decoder.red) ||
     state.decodeResult(Decoder.readOnly) ||  state.loadStore || state.decodeResult(Decoder.gather) ||
@@ -84,23 +85,6 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   /** The mask group will be updated */
   val maskGroupWillUpdate: Bool = state.decodeResult(Decoder.maskLogic) || updateLaneState.maskExhausted
 
-  /** The index of next execute element in whole instruction */
-  val elementIndexForInstruction = enqueue.bits.maskGroupCount ## Mux1H(
-    state.vSew1H,
-    Seq(
-      enqueue.bits.maskIndex(parameter.datapathWidthBits - 1, 2) ## state.laneIndex ##  enqueue.bits.maskIndex(1, 0),
-      enqueue.bits.maskIndex(parameter.datapathWidthBits - 1, 1) ## state.laneIndex ##  enqueue.bits.maskIndex(0),
-      enqueue.bits.maskIndex ## state.laneIndex
-    )
-  )
-
-  /** The next element is out of execution range */
-  updateLaneState.outOfExecutionRange := Mux(
-    state.decodeResult(Decoder.maskLogic),
-    (enqueue.bits.maskGroupCount > state.lastGroupForInstruction),
-    elementIndexForInstruction >= state.csr.vl
-  ) || state.instructionFinished
-
   /** Encoding of different element lengths: 1, 8, 16, 32 */
   val elementLengthOH = Mux(state.decodeResult(Decoder.maskLogic), 1.U, state.vSew1H(2, 0) ## false.B)
 
@@ -115,9 +99,34 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
     )
   )
 
-  val isTheLastGroup = dataGroupIndex === state.lastGroupForInstruction
+  /** The next element is out of execution range */
+  updateLaneState.outOfExecutionRange := dataGroupIndex > state.lastGroupForInstruction || state.instructionFinished
 
-  stageWire.mask := (state.mask.bits >> enqueue.bits.maskIndex).asUInt(3, 0)
+  val isTheLastGroup: Bool = dataGroupIndex === state.lastGroupForInstruction
+
+  // Correct the mask on the boundary line
+  val vlNeedCorrect: Bool = Mux1H(
+    state.vSew1H(1, 0),
+    Seq(
+      state.csr.vl(1, 0).orR,
+      state.csr.vl(0)
+    )
+  )
+  val correctMask: UInt = Mux1H(
+    state.vSew1H(1, 0),
+    Seq(
+      (scanRightOr(UIntToOH(state.csr.vl(1, 0))) >> 1).asUInt,
+      1.U(4.W)
+    )
+  )
+  val needCorrect: Bool =
+    isTheLastGroup &&
+      state.isLastLaneForInstruction &&
+      vlNeedCorrect
+  val maskCorrect: UInt = Mux(needCorrect, correctMask, 15.U(4.W))
+
+  stageWire.maskForMaskInput := (state.mask.bits >> enqueue.bits.maskIndex).asUInt(3, 0)
+  stageWire.boundaryMaskCorrection := maskCorrect
 
   /** The index of next element in this mask group.(0-31) */
   updateLaneState.maskIndex := Mux(

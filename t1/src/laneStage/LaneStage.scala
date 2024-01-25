@@ -16,6 +16,7 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
   /** which group is the last group for instruction. */
   val lastGroupForInstruction: UInt = UInt(parameter.groupNumberBits.W)
+  val isLastLaneForInstruction: Bool = Bool()
   val instructionFinished: Bool = Bool()
   val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
   // vm = 0

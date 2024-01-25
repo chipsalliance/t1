@@ -11,7 +11,8 @@ import org.chipsalliance.t1.rtl.lane.{CrossReadUnit, LaneState, VrfReadPipe}
 
 class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
-  val mask: UInt = UInt((parameter.datapathWidth / 8).W)
+  val maskForMaskInput: UInt = UInt((parameter.datapathWidth / 8).W)
+  val boundaryMaskCorrection: UInt = UInt((parameter.datapathWidth / 8).W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
 }
 
@@ -243,13 +244,15 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   )
 
   val source1Select: UInt = Mux(state.decodeResult(Decoder.vtype), dataQueueVs1.bits, scalarDataRepeat)
-  dequeue.bits.mask := pipeQueue.io.deq.bits.mask
+  dequeue.bits.mask := pipeQueue.io.deq.bits.maskForMaskInput
   dequeue.bits.groupCounter := pipeQueue.io.deq.bits.groupCounter
   dequeue.bits.src := VecInit(Seq(source1Select, dataQueueVs2.io.deq.bits, dataQueueVd.io.deq.bits))
   dequeue.bits.crossReadSource.foreach(_ := crossReadResultQueue.get.io.deq.bits)
   dequeue.bits.sSendResponse.foreach(_ := pipeQueue.io.deq.bits.sSendResponse.get)
 
-  dequeue.bits.maskForFilter := FillInterleaved(4, state.maskNotMaskedElement) | pipeQueue.io.deq.bits.mask
+  dequeue.bits.maskForFilter :=
+    (FillInterleaved(4, state.maskNotMaskedElement) | pipeQueue.io.deq.bits.maskForMaskInput) &
+      pipeQueue.io.deq.bits.boundaryMaskCorrection
   // All required data is ready
   val dataQueueValidVec: Seq[Bool] =
     Seq(

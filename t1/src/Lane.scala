@@ -476,6 +476,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.laneIndex := laneIndex
       laneState.decodeResult := record.laneRequest.decodeResult
       laneState.lastGroupForInstruction := record.lastGroupForInstruction
+      laneState.isLastLaneForInstruction := record.isLastLaneForInstruction
       laneState.instructionFinished := record.instructionFinished
       laneState.csr := record.csr
       laneState.maskType := record.laneRequest.mask
@@ -541,7 +542,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage1.enqueue.valid := stage0.dequeue.valid
       stage0.dequeue.ready := stage1.enqueue.ready
       stage1.enqueue.bits.groupCounter := stage0.dequeue.bits.groupCounter
-      stage1.enqueue.bits.mask := stage0.dequeue.bits.mask
+      stage1.enqueue.bits.maskForMaskInput := stage0.dequeue.bits.maskForMaskInput
+      stage1.enqueue.bits.boundaryMaskCorrection := stage0.dequeue.bits.boundaryMaskCorrection
       stage1.enqueue.bits.sSendResponse.zip(stage0.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
         sink := source
       }
@@ -609,8 +611,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       executionUnit.state := laneState
       executionUnit.enqueue.bits.src := stage1.dequeue.bits.src
       executionUnit.enqueue.bits.bordersForMaskLogic :=
-        (stage1.dequeue.bits.groupCounter === record.lastGroupForInstruction && record.isLastLaneForMaskLogic)
+        (stage1.dequeue.bits.groupCounter === record.lastGroupForInstruction && record.isLastLaneForInstruction)
       executionUnit.enqueue.bits.mask := stage1.dequeue.bits.mask
+      executionUnit.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
       executionUnit.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
       executionUnit.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
         sink := source
@@ -906,11 +909,18 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     csrInterface.vl(parameter.datapathWidthBits + parameter.laneNumberBits - 1, parameter.datapathWidthBits)
   val vlHead: UInt = csrInterface.vl(parameter.vlMaxBits - 1, parameter.datapathWidthBits + parameter.laneNumberBits)
   val lastGroupMask = scanRightOr(UIntToOH(vlTail)) >> 1
-  val dataPathMisaligned = vlTail.orR
+  val dataPathMisaligned: Bool = vlTail.orR
   val maskeDataGroup = (vlHead ## vlBody) - !dataPathMisaligned
   val lastLaneIndexForMaskLogic: UInt = maskeDataGroup(parameter.laneNumberBits - 1, 0)
   val isLastLaneForMaskLogic: Bool = lastLaneIndexForMaskLogic === laneIndex
   val lastGroupCountForMaskLogic: UInt = (maskeDataGroup >> parameter.laneNumberBits).asUInt
+  val misalignedForOther: Bool = Mux1H(
+    requestVSew1H(1, 0),
+    Seq(
+      csrInterface.vl(1, 0).orR,
+      csrInterface.vl(0),
+    )
+  )
 
   entranceControl.lastGroupForInstruction := Mux(
     laneRequest.bits.decodeResult(Decoder.maskLogic),
@@ -918,8 +928,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     lastGroupForLane
   )
 
-  entranceControl.isLastLaneForMaskLogic :=
-    isLastLaneForMaskLogic && dataPathMisaligned && laneRequest.bits.decodeResult(Decoder.maskLogic)
+  entranceControl.isLastLaneForInstruction := Mux(
+    laneRequest.bits.decodeResult(Decoder.maskLogic),
+    isLastLaneForMaskLogic && dataPathMisaligned,
+    isEndLane && misalignedForOther
+  )
 
   // slot needs to be moved, try to shifter and stall pipe
   slotShiftValid := VecInit(Seq.range(0, parameter.chainingSize).map { slotIndex =>
