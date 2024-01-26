@@ -52,7 +52,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
     state.decodeResult(Decoder.readOnly) ||  state.loadStore || state.decodeResult(Decoder.gather) ||
     state.decodeResult(Decoder.crossRead)
   // 超出范围的一组不压到流水里面去
-  val enqFire: Bool = enqueue.fire && !updateLaneState.outOfExecutionRange && notMaskedAllElement
+  val enqFire: Bool = enqueue.fire && (!updateLaneState.outOfExecutionRange || state.additionalRead) && notMaskedAllElement
   val stageDataReg: Data = RegEnable(stageWire, 0.U.asTypeOf(stageWire), enqFire)
   val filterVec: Seq[(Bool, UInt)] = Seq(0, 1, 2).map { filterSew =>
     // The lower 'dataGroupIndexSize' bits represent the offsets in the data group
@@ -124,9 +124,10 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
       state.isLastLaneForInstruction &&
       vlNeedCorrect
   val maskCorrect: UInt = Mux(needCorrect, correctMask, 15.U(4.W))
+  val crossReadOnlyMask: UInt = Fill(4, !updateLaneState.outOfExecutionRange)
 
   stageWire.maskForMaskInput := (state.mask.bits >> enqueue.bits.maskIndex).asUInt(3, 0)
-  stageWire.boundaryMaskCorrection := maskCorrect
+  stageWire.boundaryMaskCorrection := maskCorrect & crossReadOnlyMask
 
   /** The index of next element in this mask group.(0-31) */
   updateLaneState.maskIndex := Mux(

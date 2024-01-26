@@ -38,6 +38,7 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
   // 为了 flot reduce max min
   val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
+  val additionalRead: Bool = Bool()
 }
 
 abstract class LaneStage[A <: Data, B <:Data](pipe: Boolean)(input: A, output: B) extends Module{

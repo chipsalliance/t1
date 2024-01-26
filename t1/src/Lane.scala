@@ -490,6 +490,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.instructionIndex := record.laneRequest.instructionIndex
       laneState.maskForMaskGroup := maskForMaskGroup
       laneState.ffoByOtherLanes := record.ffoByOtherLanes
+      laneState.additionalRead := record.additionalRead
       laneState.newInstruction.foreach(_ := slot0EnqueueFire)
 
       stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask)
@@ -938,6 +939,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     isLastLaneForMaskLogic && dataPathMisaligned,
     isEndLane && misalignedForOther
   )
+
+  entranceControl.additionalRead :=
+    laneRequest.bits.decodeResult(Decoder.crossRead) &&
+      lanePositionLargerThanEndLane && !lastLaneIndex.andR && !entranceControl.instructionFinished
 
   // slot needs to be moved, try to shifter and stall pipe
   slotShiftValid := VecInit(Seq.range(0, parameter.chainingSize).map { slotIndex =>
