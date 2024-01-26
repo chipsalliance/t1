@@ -1,4 +1,4 @@
-{ lib, runCommand, callPackage, testcase-env }:
+{ lib, runCommand, callPackage, testcase-env, xLen ? 32, vLen ? 1024 }:
 
 let
   /* Return true if the given path contains a file called "default.nix";
@@ -44,6 +44,7 @@ let
       # Then filter out those directory that have no file named default.nix
       (lib.filterAttrs (_: fullPath: isCallableDir fullPath))
       # { "A": "/nix/store/.../"; B: "/nix/store/.../"; } => { "A": <derivation>; "B": <derivation>; }
+      # TODO: Transfer xLen vLen value from here if these test cases are going to support multiple configuration in future.
       (lib.mapAttrs (_: fullPath: callPackage fullPath { }))
     ] // { recurseForDerivations = true; };
 
@@ -76,7 +77,7 @@ let
           with lib;
           let
             textNames = lib.splitString "\n" (lib.fileContents file);
-            buildSpec = map (caseName: { inherit caseName; } // extra) textNames;
+            buildSpec = map (caseName: { inherit caseName xLen vLen; } // extra) textNames;
           in
           (map
             (spec: nameValuePair
