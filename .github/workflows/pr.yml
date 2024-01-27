@@ -44,7 +44,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build all testcases"
-        run: nix build ".#t1.cases.all" --max-jobs auto -L --no-link --cores 64
+        run: |
+          # Build testcases with vlen 1024 and vlen 4096
+          nix build ".#t1.v1024-l8-b2.cases.all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.v4096-l8-b4.cases.all" --max-jobs auto -L --no-link --cores 64
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
