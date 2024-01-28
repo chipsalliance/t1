@@ -16,8 +16,6 @@ import scala.collection.mutable.ArrayBuffer
 import freechips.rocketchip.rocket.{Causes, MulDivParams, RocketCoreParams}
 import freechips.rocketchip.tile.{CoreInterrupts, FPUCoreIO, HasCoreParameters}
 
-case object RISCVOpcodesPath extends Field[os.Path]
-
 trait HasRocketCoreParameters extends HasCoreParameters {
   lazy val rocketParams: RocketCoreParams = tileParams.core.asInstanceOf[RocketCoreParams]
 
@@ -43,8 +41,7 @@ class Rocket(tile: RocketTile)(implicit val p: Parameters) extends Module with H
   val pipelinedMul: Boolean = usingMulDiv && mulDivParams.mulUnroll == xLen
   val decoder: InstructionDecoder = new org.chipsalliance.t1.rocketcore.InstructionDecoder(
     org.chipsalliance.t1.rocketcore.InstructionDecoderParameter(
-      // TODO: configurable
-      (org.chipsalliance.rvdecoderdb.fromFile.instructions(p(RISCVOpcodesPath)) ++
+      (org.chipsalliance.rvdecoderdb.instructions(org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader)) ++
         org.chipsalliance.t1.rocketcore.CustomInstructions.rocketSet).filter { i =>
         i.instructionSets.map(_.name) match {
           // I

@@ -53,12 +53,9 @@ object Main {
   implicit def ipConfig: ParserForClass[IPConfig] = ParserForClass[IPConfig]
 
   @main
-  case class SubsystemConfig(
-    ipConfig:                                                 IPConfig,
-    @arg(name = "rvopcodes-path", short = 'r') rvopcodesPath: os.Path) {
+  case class SubsystemConfig(ipConfig: IPConfig) {
     def cdeParameter = (new org.chipsalliance.t1.subsystem.VerdesConfig).orElse(new org.chipsalliance.cde.config.Config((_, _, _) => {
       case org.chipsalliance.t1.subsystem.T1ConfigPath                              => ipConfig.ipConfig
-      case org.chipsalliance.t1.rocketcore.RISCVOpcodesPath => rvopcodesPath
     }))
   }
   implicit def subsystemConfig: ParserForClass[SubsystemConfig] = ParserForClass[SubsystemConfig]
