@@ -4,7 +4,6 @@
 , espresso
 , circt
 
-, riscv-opcodes-src
 , elaborate-config
 , elaborator
 , configName
@@ -22,7 +21,7 @@ let
     "${elaborate-config}/config.json"
     "--target-dir"
     "elaborate"
-  ] ++ lib.optionals (lib.elem target [ "subsystem" "subsystememu" "fpga" ]) [ "--rvopcodes-path" "${riscv-opcodes-src}" ];
+  ];
 in
 stdenvNoCC.mkDerivation {
   name = "t1-${target}-${configName}-mlirbc";
