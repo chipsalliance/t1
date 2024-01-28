@@ -12,6 +12,7 @@ import $file.dependencies.chisel.build
 import $file.dependencies.arithmetic.common
 import $file.dependencies.tilelink.common
 import $file.dependencies.`berkeley-hardfloat`.common
+import $file.dependencies.rvdecoderdb.common
 import $file.common
 
 object v {
@@ -76,6 +77,17 @@ trait Hardfloat
   def chiselPluginIvy = None
 }
 
+object rvdecoderdb extends RVDecoderDB
+
+trait RVDecoderDB
+  extends millbuild.dependencies.rvdecoderdb.common.RVDecoderDBJVMModule
+    with ScalaModule {
+  def scalaVersion = T(v.scala)
+  def osLibIvy = v.oslib
+  def upickleIvy = v.upickle
+  override def millSourcePath = os.pwd / "dependencies" / "rvdecoderdb" / "rvdecoderdb"
+}
+
 object t1 extends T1
 
 trait T1
@@ -86,6 +98,8 @@ trait T1
   def arithmeticModule = arithmetic
   def tilelinkModule = tilelink
   def hardfloatModule = hardfloat
+  def rvdecoderdbModule = rvdecoderdb
+  def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
 
   def chiselModule = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
@@ -148,18 +162,6 @@ trait Macros
 }
 
 // we maintain our own Rocket for T1
-import $file.dependencies.rvdecoderdb.common
-
-object rvdecoderdb extends RVDecoderDB
-
-trait RVDecoderDB
-  extends millbuild.dependencies.rvdecoderdb.common.RVDecoderDBJVMModule
-    with ScalaModule {
-  def scalaVersion = T(v.scala)
-  def osLibIvy = v.oslib
-  def upickleIvy = v.upickle
-  override def millSourcePath = os.pwd / "dependencies" / "rvdecoderdb" / "rvdecoderdb"
-}
 
 object rocket extends Rocket
 
@@ -170,6 +172,7 @@ trait Rocket
 
   def rvdecoderdbModule = rvdecoderdb
   def rocketchipModule = rocketchip
+  def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
 
   def chiselModule = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
