@@ -141,7 +141,7 @@
     },
     "rvdecoderdb": {
         "cargoLocks": null,
-        "date": "2023-11-28",
+        "date": "2024-01-28",
         "extract": null,
         "name": "rvdecoderdb",
         "passthru": null,
@@ -153,11 +153,11 @@
             "name": null,
             "owner": "sequencer",
             "repo": "rvdecoderdb",
-            "rev": "6c8ae11a99a1bfc06965a1dc00aa491d4a847553",
-            "sha256": "sha256-s8X1pZceNyAqzE+mKEK7TVL4FP30GJbCOTa376vko+M=",
+            "rev": "d65525e7e18004b0877d8fbe2c435296ab986f44",
+            "sha256": "sha256-MzEoFjyUgarR62ux4ngYNFOgvAoeasdr1EVhaCvuh+Q=",
             "type": "github"
         },
-        "version": "6c8ae11a99a1bfc06965a1dc00aa491d4a847553"
+        "version": "d65525e7e18004b0877d8fbe2c435296ab986f44"
     },
     "tilelink": {
         "cargoLocks": null,

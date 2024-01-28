@@ -87,15 +87,15 @@
   };
   rvdecoderdb = {
     pname = "rvdecoderdb";
-    version = "6c8ae11a99a1bfc06965a1dc00aa491d4a847553";
+    version = "d65525e7e18004b0877d8fbe2c435296ab986f44";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "rvdecoderdb";
-      rev = "6c8ae11a99a1bfc06965a1dc00aa491d4a847553";
+      rev = "d65525e7e18004b0877d8fbe2c435296ab986f44";
       fetchSubmodules = false;
-      sha256 = "sha256-s8X1pZceNyAqzE+mKEK7TVL4FP30GJbCOTa376vko+M=";
+      sha256 = "sha256-MzEoFjyUgarR62ux4ngYNFOgvAoeasdr1EVhaCvuh+Q=";
     };
-    date = "2023-11-28";
+    date = "2024-01-28";
   };
   tilelink = {
     pname = "tilelink";
