@@ -27,10 +27,36 @@ trait HasChisel
   override def scalacPluginIvyDeps: T[Agg[Dep]] = T(super.scalacPluginIvyDeps() ++ chiselPluginIvy.map(Agg(_)).getOrElse(Agg.empty[Dep]))
 }
 
+
+trait HasRVDecoderDB extends ScalaModule {
+  def rvdecoderdbModule: ScalaModule
+  def riscvOpcodesPath: T[PathRef]
+  def moduleDeps = super.moduleDeps ++ Seq(rvdecoderdbModule)
+  def riscvOpcodesTar: T[PathRef] = T {
+    val tmpDir = os.temp.dir()
+    os.makeDir(tmpDir / "unratified")
+    os.walk(riscvOpcodesPath().path)
+      .filter(f =>
+        f.baseName.startsWith("rv128_") ||
+          f.baseName.startsWith("rv64_") ||
+          f.baseName.startsWith("rv32_") ||
+          f.baseName.startsWith("rv_") ||
+          f.ext == "csv"
+      ).groupBy(_.segments.contains("unratified")).map {
+          case (true, fs) => fs.map(os.copy.into(_, tmpDir / "unratified"))
+          case (false, fs) => fs.map(os.copy.into(_, tmpDir))
+        }
+    os.proc("tar", "cf", T.dest / "riscv-opcodes.tar", ".").call(tmpDir)
+    PathRef(T.dest)
+  }
+  override def resources: T[Seq[PathRef]] = super.resources() ++ Some(riscvOpcodesTar())
+}
+
 // Local definitions
 trait T1Module
-  extends ScalaModule 
-    with HasChisel {
+  extends ScalaModule
+    with HasChisel
+    with HasRVDecoderDB {
   def arithmeticModule: ScalaModule
   def hardfloatModule: ScalaModule
   def tilelinkModule: ScalaModule
@@ -48,10 +74,10 @@ trait ConfigGenModule
 // T1 forked version of RocketCore
 trait RocketModule
   extends ScalaModule
-    with HasChisel {
+    with HasChisel
+    with HasRVDecoderDB {
   def rocketchipModule: ScalaModule
-  def rvdecoderdbModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(rocketchipModule, rvdecoderdbModule)
+  def moduleDeps = super.moduleDeps ++ Seq(rocketchipModule)
 }
 
 trait EmuHelperModule
