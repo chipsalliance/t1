@@ -21,12 +21,7 @@ let
       # Use "https://repo1.maven.org/maven2/" only to keep dependencies integrity
       export COURSIER_REPOSITORIES="central"
 
-      local buildTasks=( $(mill -i resolve __._ | grep "prepareOffline") )
-
-      for task in ''${buildTasks[@]}; do
-        echo "run mill task: $task"
-        mill -i "$task" --all
-      done
+      mill -i __.prepareOffline
       runHook postBuild
     '';
 
