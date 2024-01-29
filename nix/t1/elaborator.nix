@@ -7,6 +7,7 @@
   # chisel deps
 , mill
 , espresso
+, strip-nondeterminism
 
 , nvfetcher
 , submodules
@@ -58,6 +59,7 @@ let
 
     nativeBuildInputs = [
       mill
+      strip-nondeterminism
 
       makeWrapper
       passthru.millDeps.setupHook
@@ -72,6 +74,7 @@ let
 
     installPhase = ''
       mkdir -p $out/share/java
+      strip-nondeterminism out/elaborator/assembly.dest/out.jar
       mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar
       makeWrapper ${jre}/bin/java $out/bin/elaborator --add-flags "-jar $out/share/java/elaborator.jar"
     '';

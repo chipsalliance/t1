@@ -4,6 +4,7 @@
 , mill
 , makeWrapper
 , jre
+, strip-nondeterminism
 , submodules
 }:
 
@@ -39,6 +40,7 @@ stdenvNoCC.mkDerivation rec {
 
   nativeBuildInputs = [
     mill
+    strip-nondeterminism
 
     makeWrapper
     passthru.millDeps.setupHook
@@ -51,6 +53,7 @@ stdenvNoCC.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out/share/java
+    strip-nondeterminism out/configgen/assembly.dest/out.jar
     mv out/configgen/assembly.dest/out.jar $out/share/java/configgen.jar
     makeWrapper ${jre}/bin/java $out/bin/configgen --add-flags "-jar $out/share/java/configgen.jar"
 
