@@ -136,14 +136,14 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
   )
 
-  val writeCheck: Vec[LSUWriteCheck] = IO(Vec(parameter.chainingSize + 2, Input(new LSUWriteCheck(
+  val writeCheck: Vec[LSUWriteCheck] = IO(Vec(parameter.chainingSize + 3, Input(new LSUWriteCheck(
     parameter.regNumBits,
     parameter.vrfOffsetBits,
     parameter.instructionIndexBits,
     parameter.datapathWidth
   ))))
 
-  val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 2, Output(Bool())))
+  val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 3, Output(Bool())))
 
   /** when instruction is fired, record it in the VRF for chaining. */
   val instructionWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
@@ -283,9 +283,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         }
       }
       when(record.bits.stFinish && (!dataInLsuQueue || record.bits.st) && record.valid) {
-        when(dataIndexWriteQueue) {
-          record.bits.wWriteQueueClear
-        } otherwise {
+        when(!dataIndexWriteQueue) {
           record.valid := false.B
         }
       }

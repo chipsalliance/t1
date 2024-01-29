@@ -789,12 +789,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         }
     }
 
-
-    val crossWriteArbiter: Arbiter[VRFWriteRequest] = Module(new Arbiter(chiselTypeOf(crossLaneWriteQueue.head.io.enq.bits), 2))
-    crossWriteArbiter.io.in.zip(crossLaneWriteQueue.map(_.io.deq)).foreach { case (sink, source) => sink <> source }
-
     // all vrf write
-    val allVrfWrite: Seq[DecoupledIO[VRFWriteRequest]] = vrfWriteArbiter :+ crossWriteArbiter.io.out
+    val allVrfWrite: Seq[DecoupledIO[VRFWriteRequest]] = vrfWriteArbiter ++ crossLaneWriteQueue.map(_.io.deq)
     // check all write
     vrf.writeCheck.zip(allVrfWrite).foreach {case (check, write) =>
       check.vd := write.bits.vd
