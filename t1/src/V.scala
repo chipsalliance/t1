@@ -1015,10 +1015,17 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       maskUnitReadVec(2).valid := compressStateRead && !readFireNext2
       maskUnitReadVec(2).bits.vs := vs1
       maskUnitReadVec(2).bits.readSource := 0.U
-      maskUnitReadVec(2).bits.offset := elementIndexCount(9, 8)
-      maskReadLaneSelect(2) := UIntToOH(elementIndexCount(7, 5))
+      maskUnitReadVec(2).bits.offset := elementIndexCount(
+        log2Ceil(parameter.datapathWidth) + log2Ceil(parameter.laneNumber) +
+          parameter.laneParam.vrfParam.vrfOffsetBits - 1,
+        log2Ceil(parameter.datapathWidth) + log2Ceil(parameter.laneNumber)
+      )
+      maskReadLaneSelect(2) := UIntToOH(elementIndexCount(
+        log2Ceil(parameter.datapathWidth) + ((log2Ceil(parameter.laneNumber) - 1) max 0),
+        log2Ceil(parameter.datapathWidth)
+      ))
       // val lastElementForMask: Bool = elementIndexCount(4, 0).andR
-      val maskForCompress: Bool = maskDataForCompress(elementIndexCount(4, 0))
+      val maskForCompress: Bool = maskDataForCompress(elementIndexCount(log2Ceil(parameter.datapathWidth) - 1, 0))
 
       // compress vm=0 是保留的
       val skipWrite = !Mux(decodeResultReg(Decoder.compress), maskForCompress, elementActive)
