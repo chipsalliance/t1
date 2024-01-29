@@ -1,8 +1,9 @@
-{ stdenvNoCC, mill, writeText, makeSetupHook, runCommand }:
+{ stdenvNoCC, mill, writeText, makeSetupHook, runCommand, lib }:
 
 { name, src, millDepsHash, ... }@args:
 
 let
+  mill-rt-version = lib.head (lib.splitString "+" mill.jre.version);
   self = stdenvNoCC.mkDerivation ({
     name = "${name}-mill-deps";
     inherit src;
@@ -53,9 +54,10 @@ let
           local tmpdir=$(mktemp -d)
           export JAVA_OPTS="$JAVA_OPTS -Duser.home=$tmpdir"
 
-          mkdir -p "$tmpdir"/.cache
+          mkdir -p "$tmpdir"/.cache "$tmpdir/.mill/ammonite"
 
           cp -r "${self}"/.cache/coursier "$tmpdir"/.cache/
+          touch "$tmpdir/.mill/ammonite/rt-${mill-rt-version}.jar"
 
           echo "JAVA HOME dir set to $tmpdir"
         }
