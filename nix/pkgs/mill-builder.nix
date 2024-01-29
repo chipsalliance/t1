@@ -40,8 +40,7 @@ let
     outputHashMode = "recursive";
     outputHash = millDepsHash;
 
-    dontShrink = true;
-    dontPatchELF = true;
+    dontFixup = true;
 
     passthru.setupHook = makeSetupHook
       {
@@ -50,14 +49,14 @@ let
       }
       (writeText "mill-setup-hook" ''
         setupMillCache() {
-          local tmpdir=$(mktemp -d)
-          export JAVA_OPTS="$JAVA_OPTS -Duser.home=$tmpdir"
+          export MILL_HOME=$TMPDIR/mill-cache
+          export JAVA_OPTS="$JAVA_OPTS -Duser.home=$MILL_HOME"
 
-          mkdir -p "$tmpdir"/.cache
+          mkdir -p "$MILL_HOME"/.cache
 
-          cp -r "${self}"/.cache/coursier "$tmpdir"/.cache/
+          cp -r "${self}"/.cache/coursier "$MILL_HOME"/.cache/
 
-          echo "JAVA HOME dir set to $tmpdir"
+          echo "JAVA HOME dir set to $MILL_HOME"
         }
 
         postUnpackHooks+=(setupMillCache)

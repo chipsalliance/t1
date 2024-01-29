@@ -10,16 +10,19 @@ let
   # We need to bring submodules and configgen out of scope. Using them in scope to generate the package attribute set
   # will lead to infinite recursion.
   submodules = callPackage ./submodules.nix { };
-  configgen = callPackage ./configgen.nix { inherit submodules; };
+
+  _t1CompileCache = callPackage ./t1CompileCache.nix { inherit submodules; };
+
+  configgen = callPackage ./configgen.nix { inherit submodules _t1CompileCache; };
   allConfigs = builtins.fromJSON (builtins.readFile "${configgen}/share/all-supported-configs.json");
 in
 
 lib.makeScope newScope
   (self:
   {
-    elaborator = self.callPackage ./elaborator.nix { };
+    elaborator = self.callPackage ./elaborator.nix { inherit _t1CompileCache; };
 
-    inherit submodules configgen;
+    inherit submodules configgen _t1CompileCache;
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
 

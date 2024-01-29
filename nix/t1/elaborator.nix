@@ -10,6 +10,8 @@
 
 , nvfetcher
 , submodules
+
+, _t1CompileCache
 }:
 
 let
@@ -32,17 +34,8 @@ let
       ];
     }).outPath;
 
-    passthru.millDeps = fetchMillDeps {
-      inherit name;
-      src = (with lib.fileset; toSource {
-        root = ./../..;
-        fileset = unions [
-          ./../../build.sc
-          ./../../common.sc
-        ];
-      }).outPath;
-      millDepsHash = "sha256-3ueeJddftivvV5jQtg58sKKwXv0T2vkGxblenYFjrso=";
-      nativeBuildInputs = [ submodules.setupHook ];
+    passthru = {
+      inherit (_t1CompileCache) millDeps;
     };
 
     passthru.editable = self.overrideAttrs (_: {
@@ -64,6 +57,7 @@ let
 
       nvfetcher
       submodules.setupHook
+      _t1CompileCache.setupHook
     ];
 
     buildPhase = ''
