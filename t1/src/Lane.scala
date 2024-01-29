@@ -491,6 +491,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.maskForMaskGroup := maskForMaskGroup
       laneState.ffoByOtherLanes := record.ffoByOtherLanes
       laneState.additionalRead := record.additionalRead
+      laneState.skipRead := record.laneRequest.decodeResult(Decoder.other) &&
+        (record.laneRequest.decodeResult(Decoder.uop) === 9.U)
       laneState.newInstruction.foreach(_ := slot0EnqueueFire)
 
       stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask)
