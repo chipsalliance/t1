@@ -14,7 +14,10 @@ in
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
 
-  mill = prev.mill.override { jre = final.jdk21; };
+  mill = let jre = final.jdk21; in
+    (prev.mill.override { inherit jre; }).overrideAttrs (_: {
+      passthru = { inherit jre; };
+    });
 
   # some symbols in newlib libgloss uses ecall, which does not work in emulator
   # emurt provides hand-written implementations for these symbols
