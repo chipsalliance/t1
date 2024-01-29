@@ -750,7 +750,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       adderRequest.average := false.B
       adderRequest.saturate := false.B
       adderRequest.vxrm := csrRegForMaskUnit.vxrm
-      adderRequest.vSew := OHToUInt(sew1HCorrect)
+      adderRequest.vSew := Mux(popCount, 2.U, OHToUInt(sew1HCorrect))
       adder.requestIO.bits := adderRequest.asTypeOf(adder.requestIO.bits)
       adder.requestIO.valid := DontCare
       adder.responseIO.ready := DontCare
