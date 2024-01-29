@@ -5,7 +5,9 @@ package org.chipsalliance.t1.rtl.decoder
 
 import chisel3._
 import chisel3.util.BitPat
-import chisel3.util.experimental.decode.{DecodeField, BoolDecodeField, DecodeTable, DecodeBundle}
+import chisel3.util.experimental.decode.{DecodeField, BoolDecodeField, DecodeTable, DecodeBundle, DecodePattern}
+import org.chipsalliance.rvdecoderdb
+import org.chipsalliance.rvdecoderdb.{Encoding, Instruction, InstructionSet}
 
 trait FieldName {
   def name: String = this.getClass.getSimpleName.replace("$", "")
@@ -31,7 +33,172 @@ trait BoolField extends BoolDecodeField[Op] with FieldName {
   def genTable(op: Op): BitPat = if (dontCareCase(op)) dc else if (value(op) && (containsLSU || op.notLSU)) y else n
 }
 
+case class SpecialAux(name: String, vs: Int, value: String)
+case class SpecialMap(name: String, vs: Int, data: Map[String, String])
+case class SpecialAuxInstr(instrName: String, vs: Int, value: String, name: String)
+case class Op(tpe: String, funct6: String, tpeOp2: String, funct3: String,
+              name: String, special: Option[SpecialAux], notLSU: Boolean) extends DecodePattern {
+  // include 21 bits: funct6 + vm + vs2 + vs1 + funct3 + LSU
+  def bitPat: BitPat = if (notLSU) BitPat(
+    "b" +
+      // funct6
+      funct6 +
+      // ? for vm
+      "?" +
+      // vs2
+      (if (special.isEmpty || special.get.vs == 1) "?????" else special.get.value) +
+      // vs1
+      (if (special.isEmpty || special.get.vs == 2) "?????" else special.get.value) +
+      // funct3
+      funct3 + "1"
+  ) else BitPat("b" + funct6 + "?" * 14 + "0")
+}
+
 object Decoder {
+  // Opcode: instruction[6:0]
+  // refer to [https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#vector-instruction-formats]
+  private val opcodeV      = "1010111"
+  private val opcodeLoadF  = "0000111"
+  private val opcodeStoreF = "0100111"
+
+  // Funct3: instruction[14:12]
+  // refer to [https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#101-vector-arithmetic-instruction-encoding]
+  private val funct3IVV = "000"
+  private val funct3IVI = "011"
+  private val funct3IVX = "100"
+  private val funct3MVV = "010"
+  private val funct3MVX = "110"
+  private val funct3FVV = "001"
+  private val funct3FVF = "101"
+  private val funct3CFG = "111" // TODO: need implementations
+
+  // type of rs1
+  private val op1iFunct3 = Seq(funct3IVV, funct3IVI, funct3IVX)
+  private val op1mFunct3 = Seq(funct3MVV, funct3MVX)
+  private val op1fFunct3 = Seq(funct3FVV, funct3FVF)
+  private val op1cFunct3 = Seq(funct3CFG)
+  // type of rs2
+  private val op2vFunct3 = Seq(funct3IVV, funct3MVV, funct3FVV)
+  private val op2xFunct3 = Seq(funct3IVX, funct3MVX)
+  private val op2iFunct3 = Seq(funct3IVI)
+  private val op2fFunct3 = Seq(funct3FVF)
+
+  // special instrctions
+  // refer to [https://github.com/riscv/riscv-v-spec/blob/master/inst-table.adoc]
+  private val insnVRXUNARY0 = SpecialMap("VRXUNARY0", 2, Map("vmv.s.x" -> "00000"))
+  private val insnVWXUNARY0 = SpecialMap("VWXUNARY0", 1, Map(
+      "vmv.x.s" -> "00000",
+      "vcpop"   -> "10000",
+      "vfirst"  -> "10001",
+    )
+  )
+  private val insnVXUNARY0 = SpecialMap("VXUNARY0", 1, Map(
+      "vzext.vf8" -> "00010",
+      "vsext.vf8" -> "00011",
+      "vzext.vf4" -> "00100",
+      "vsext.vf4" -> "00101",
+      "vzext.vf2" -> "00110",
+      "vsext.vf2" -> "00111"
+    )
+  )
+  private val insnVRFUNARY0 = SpecialMap("VRFUNARY0", 2, Map("vfmv.s.f" -> "00000"))
+  private val insnVWFUNARY0 = SpecialMap("VWFUNARY0", 1, Map("vfmv.f.s" -> "00000"))
+  private val insnVFUNARY0 = SpecialMap("VFUNARY0", 1, Map(
+      // single-width converts
+      "vfcvt.xu.f.v"      -> "00000",
+      "vfcvt.x.f.v"       -> "00001",
+      "vfcvt.f.xu.v"      -> "00010",
+      "vfcvt.f.x.v"       -> "00011",
+      "vfcvt.rtz.xu.f.v"  -> "00110",
+      "vfcvt.rtz.x.f.v"   -> "00111",
+      // widening converts
+      "vfwcvt.xu.f.v"     -> "01000",
+      "vfwcvt.x.f.v"      -> "01001",
+      "vfwcvt.f.xu.v"     -> "01010",
+      "vfwcvt.f.x.v"      -> "01011",
+      "vfwcvt.f.f.v"      -> "01100",
+      "vfwcvt.rtz.xu.f.v" -> "01110",
+      "vfwcvt.rtz.x.f.v"  -> "01111",
+      // narrowing converts
+      "vfncvt.xu.f.w"     -> "10000",
+      "vfncvt.x.f.w"      -> "10001",
+      "vfncvt.f.xu.w"     -> "10010",
+      "vfncvt.f.x.w"      -> "10011",
+      "vfncvt.f.f.w"      -> "10100",
+      "vfncvt.rod.f.f.w"  -> "10101",
+      "vfncvt.rtz.xu.f.w" -> "10110",
+      "vfncvt.rtz.x.f.w"  -> "10111",
+    )
+  )
+  private val insnVFUNARY1 = SpecialMap("VFUNARY1", 1, Map(
+      "vfsqrt.v"   -> "00000",
+      "vfrsqrt7.v" -> "00100",
+      "vfrec7.v"   -> "00101",
+      "vfclass.v"  -> "10000",
+    )
+  )
+  private val insnVMUNARY0 = SpecialMap("VMUNARY0", 1, Map(
+      "vmsbf" -> "00001",
+      "vmsof" -> "00010",
+      "vmsif" -> "00011",
+      "viota" -> "10000",
+      "vid"   -> "10001",
+    )
+  )
+  def insnVToSpecialAux(insns: SpecialMap): Seq[SpecialAuxInstr] = {
+    val vs = insns.vs
+    val name = insns.name
+    insns.data.map { case (instrName, value) =>
+      SpecialAuxInstr(instrName, vs, value, name)
+    }.toSeq
+  }
+  private val insnSpec: Seq[SpecialAuxInstr] = insnVToSpecialAux(insnVRXUNARY0) ++ insnVToSpecialAux(insnVWXUNARY0) ++ insnVToSpecialAux(insnVXUNARY0)  ++ insnVToSpecialAux(insnVRFUNARY0) ++ insnVToSpecialAux(insnVWFUNARY0) ++ insnVToSpecialAux(insnVFUNARY0) ++ insnVToSpecialAux(insnVFUNARY1)  ++ insnVToSpecialAux(insnVMUNARY0)
+
+  def ops(fpuEnable: Boolean): Array[Op] = {
+    val instructions: Seq[Instruction] = (org.chipsalliance.rvdecoderdb.instructions(org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader))).filter { i =>
+        i.instructionSets.map(_.name) match {
+          case s if s.contains("rv_v") => true
+          case _ => false
+        }
+    }.filter { i =>
+      i.name match {
+          // csr instructions
+          case s if Seq("vsetivli", "vsetvli", "vsetvl").contains(s) => false
+          // instrctions `vmv` and `vmerge` share the same opcode, as defined in [https://github.com/riscv/riscv-v-spec/blob/master/inst-table.adoc]
+          case s if s.contains("vmv.v") => false
+          // instructions `vfmv.v.f` and `vfmerge.vfm` share the same opcode, as defined in [https://github.com/riscv/riscv-v-spec/blob/master/inst-table.adoc]
+          case s if s.contains("vfmv.v.f") => false
+          case _ => true
+      }
+    }.toSeq.distinct
+    val expandedOps: Array[Op] =
+      // case of notLSU instructions
+      (instructions.filter(_.encoding.toString.substring(32-6-1, 32-0) == opcodeV).map{ insn =>
+        val funct3 = insn.encoding.toString.substring(32-14-1, 32-12)
+
+        val tpe = if (op1iFunct3.contains(funct3)) "I" else if (op1mFunct3.contains(funct3)) "M" else if (op1fFunct3.contains(funct3)) "F" else "" // TODO: OPCFG
+        val tpeOp2 = if (op2vFunct3.contains(funct3)) "V" else if (op2xFunct3.contains(funct3)) "X" else if (op2iFunct3.contains(funct3)) "I" else if (op2fFunct3.contains(funct3)) "F" else "" // TODO: OPCFG
+        val funct6 = insn.encoding.toString.substring(32-31-1, 32-26)
+        val special = insnSpec.collectFirst { case s if (insn.name.contains(s.instrName)) => SpecialAux(s.name, s.vs, s.value) }
+        Op(tpe, funct6, tpeOp2, funct3, insn.name, special, notLSU=true)
+      }
+      // case of LSU instructions: `opcodeLoadF` and `opcodeStoreF`
+      ++ Seq("1", "0").map(fun6End =>
+        Op(
+          "I",               // tpe
+          "?????" + fun6End,
+          "?",               // tpeOp2
+          "???",             // funct3
+          "lsu",
+          None,
+          notLSU = false
+        )
+      )
+    ).toArray
+
+    expandedOps.filter(_.tpe != "F" || fpuEnable)
+  }
+
   object logic extends BoolField {
     val subs: Seq[String] = Seq("and", "or")
     // 执行单元现在不做dc,因为会在top判断是否可以chain
@@ -257,11 +424,15 @@ object Decoder {
   }
 
   object firstWiden extends BoolField {
-    def value(op: Op): Boolean = op.name.endsWith(".w") || vwmacc.value(op)
+    def value(op: Op): Boolean = {
+      val nameWoW = op.name.replace(".wf", ".w").replace(".wx", ".w").replace(".wv", ".w")
+      nameWoW.endsWith(".w") || vwmacc.value(op)
+    }
   }
 
   object nr extends BoolField {
-    def value(op: Op): Boolean = op.name.contains("<nr>")
+    // for instructions `vmv1r.v`,`vmv2r.v`, `vmv4r.v`, `vmv8r.v`
+    def value(op: Op): Boolean = Seq("vmv1r.v","vmv2r.v", "vmv4r.v", "vmv8r.v").contains(op.name)
   }
 
   object red extends BoolField {
@@ -276,7 +447,7 @@ object Decoder {
   }
 
   object reverse extends BoolField {
-    def value(op: Op): Boolean = op.name == "vrsub"
+    def value(op: Op): Boolean = op.name.contains("vrsub")
   }
 
   object narrow extends BoolField {
@@ -316,8 +487,8 @@ object Decoder {
 
   object unsigned0 extends BoolField {
     def value(op: Op): Boolean = {
-      val nameWoW = op.name.replace(".w", "")
-      val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
+      val nameWoW = op.name.replace(".vv", "").replace(".vi", "").replace(".vx", "").replace(".vs", "").replace(".wi", "").replace(".wx", "").replace(".wv", "")
+      val logicShift = shift.genTable(op) == y && nameWoW.endsWith("l")
       val UIntOperation = nameWoW.endsWith("u") && !nameWoW.endsWith("su")
       val mul = op.name.contains("mulhsu") || op.name.contains("wmulsu") || op.name.contains("vwmaccus")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
@@ -327,8 +498,8 @@ object Decoder {
 
   object unsigned1 extends BoolField {
     def value(op: Op): Boolean = {
-      val nameWoW = op.name.replace(".w", "")
-      val logicShift = shift.genTable(op) == y && op.name.endsWith("l")
+      val nameWoW = op.name.replace(".vv", "").replace(".vi", "").replace(".vx", "").replace(".vs", "").replace(".wi", "").replace(".wx", "").replace(".wv", "")
+      val logicShift = shift.genTable(op) == y && nameWoW.endsWith("l")
       val UIntOperation = nameWoW.endsWith("u") && !nameWoW.endsWith("su")
       val madc = Seq("adc", "sbc").exists(op.name.contains) && op.name.startsWith("vm")
       val vwmaccsu = op.name.contains("vwmaccsu")
@@ -341,11 +512,11 @@ object Decoder {
   }
 
   object vtype extends BoolField {
-    def value(op: Op): Boolean = op.funct3 == "V"
+    def value(op: Op): Boolean = op.tpeOp2 == "V"
   }
 
   object itype extends BoolField {
-    def value(op: Op): Boolean = op.funct3 == "I"
+    def value(op: Op): Boolean = op.tpeOp2 == "I"
   }
 
   object targetRd extends BoolField {
@@ -358,15 +529,15 @@ object Decoder {
   }
 
   object mv extends BoolField {
-    def value(op: Op): Boolean = (op.name.startsWith("vmv") || op.name.startsWith("vfmv")) && !op.name.contains("nr")
+    def value(op: Op): Boolean = (op.name.startsWith("vmv") || op.name.startsWith("vfmv")) && !nr.value(op)
   }
 
   object ffo extends BoolField {
     val subs: Seq[String] = Seq(
-      "vfirst",
-      "vmsbf",
-      "vmsof",
-      "vmsif"
+      "vfirst.m",
+      "vmsbf.m",
+      "vmsof.m",
+      "vmsif.m"
     )
 
     def value(op: Op): Boolean = subs.exists(op.name.contains)
@@ -399,15 +570,15 @@ object Decoder {
   }
 
   object popCount extends BoolField {
-    def value(op: Op): Boolean = op.name == "vcpop"
+    def value(op: Op): Boolean = op.name.contains("vcpop")
   }
 
   object iota extends BoolField {
-    def value(op: Op): Boolean = op.name == "viota"
+    def value(op: Op): Boolean = op.name.contains("viota")
   }
 
   object id extends BoolField {
-    def value(op: Op): Boolean = op.name == "vid"
+    def value(op: Op): Boolean = op.name.contains("vid")
   }
 
   object vwmacc extends BoolField {
@@ -441,12 +612,13 @@ object Decoder {
           FOther.uop(op)
         }
       } else if (multiplier.value(op)) {
-        val high = op.name.contains("mulh")
+        val nameWoW = op.name.replace(".vv", "").replace(".vi", "").replace(".vx", "").replace(".vs", "")
+        val high = nameWoW.contains("mulh")
         // 0b1000
-        val negative = if (op.name.startsWith("vn")) 8 else 0
+        val negative = if (nameWoW.startsWith("vn")) 8 else 0
         // 0b100
-        val asAddend = if (Seq("c", "cu", "cus", "csu").exists(op.name.endsWith)) 4 else 0
-        val n = if (high) 3 else firstIndexContains(mul, op.name)
+        val asAddend = if (Seq("c", "cu", "cus", "csu").exists(nameWoW.endsWith)) 4 else 0
+        val n = if (high) 3 else firstIndexContains(mul, nameWoW)
         negative + asAddend + n
       } else if (divider.value(op)) {
         if (op.tpe != "F") {
@@ -457,10 +629,11 @@ object Decoder {
       } else if (adder.value(op)) {
         if (op.name.contains("sum")) 0 else firstIndexContains(adder.subs, op.name)
       } else if (logic.value(op)) {
-        val isXnor = op.name == "vmxnor"
+        val nameWoW = op.name.replace(".mm", "")
+        val isXnor = op.name.contains("vmxnor")
         val isXor = op.name.contains("xor")
         val notX = if (op.name.startsWith("vmn")) 8 else 0
-        val xNot = if (isXnor || op.name.endsWith("n")) 4 else 0
+        val xNot = if (isXnor || nameWoW.endsWith("n")) 4 else 0
         val subOp = if (isXnor || isXor) 2 else firstIndexContains(logic.subs, op.name)
         notX + xNot + subOp
       } else if (shift.value(op)) {
@@ -568,8 +741,7 @@ object Decoder {
   //sScheduler -> maskDestination || red || readOnly || ffo || popCount || loadStore
   object scheduler extends BoolField {
     override def containsLSU: Boolean = true
-    def value(op: Op): Boolean =
-      !(Seq(maskDestination, red, readOnly, ffo, popCount).map(_.value(op)).reduce(_ || _) || !op.notLSU)
+    def value(op: Op): Boolean = !(Seq(maskDestination, red, readOnly, ffo, popCount).map(_.value(op)).reduce(_ || _) || !op.notLSU)
   }
 
   // sExecute 与 wExecuteRes 也不一样,需要校验
@@ -649,8 +821,7 @@ object Decoder {
     }
   }
 
-  def decodeTable(fpuEnable: Boolean): DecodeTable[Op] =
-    new DecodeTable[Op](SpecInstTableParser.ops(fpuEnable), all(fpuEnable))
+  def decodeTable(fpuEnable: Boolean): DecodeTable[Op] = new DecodeTable[Op](ops(fpuEnable), all(fpuEnable))
   def decode(fpuEnable: Boolean): UInt => DecodeBundle = decodeTable(fpuEnable).decode
   def bundle(fpuEnable: Boolean): DecodeBundle = decodeTable(fpuEnable).bundle
 }
