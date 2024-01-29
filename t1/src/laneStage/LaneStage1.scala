@@ -81,18 +81,17 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   pipeQueue.io.enq.bits := enqueue.bits
   pipeQueue.io.enq.valid := enqueue.fire
   pipeQueue.io.deq.ready := dequeue.fire
-  assert(pipeQueue.io.enq.ready || !pipeQueue.io.enq.valid)
 
   val readQueueVec: Seq[Queue[VRFReadQueueEntry]] =
     Seq(readRequestQueueVs1, readRequestQueueVs2, readRequestQueueVd) ++
       readRequestQueueLSB ++ readRequestQueueMSB
   val allReadQueueReady: Bool = readQueueVec.map(_.io.enq.ready).reduce(_ && _)
   val allReadQueueEmpty: Bool = readQueueVec.map(!_.io.deq.valid).reduce(_ && _)
-  enqueue.ready := allReadQueueReady
+  enqueue.ready := allReadQueueReady && pipeQueue.io.enq.ready
 
   // request enqueue
-  readRequestQueueVs1.io.enq.valid := enqueue.valid && allReadQueueReady && state.decodeResult(Decoder.vtype)
-  readRequestQueueVs2.io.enq.valid := enqueue.valid && allReadQueueReady
+  readRequestQueueVs1.io.enq.valid := enqueue.valid && allReadQueueReady && state.decodeResult(Decoder.vtype) && !state.skipRead
+  readRequestQueueVs2.io.enq.valid := enqueue.valid && allReadQueueReady && !state.skipRead
   readRequestQueueVd.io.enq.valid := enqueue.valid && allReadQueueReady && !state.decodeResult(Decoder.sReadVD)
   (readRequestQueueLSB ++ readRequestQueueMSB).foreach { q =>
     q.io.enq.valid := enqueue.valid && allReadQueueReady && state.decodeResult(Decoder.crossRead)
@@ -256,19 +255,19 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   // All required data is ready
   val dataQueueValidVec: Seq[Bool] =
     Seq(
-      dataQueueVs1.valid || !state.decodeResult(Decoder.vtype),
-      dataQueueVs2.io.deq.valid,
+      dataQueueVs1.valid || !state.decodeResult(Decoder.vtype) || state.skipRead,
+      dataQueueVs2.io.deq.valid || state.skipRead,
       dataQueueVd.io.deq.valid || (state.decodeResult(Decoder.sReadVD))
     ) ++
       crossReadResultQueue.map(_.io.deq.valid || !state.decodeResult(Decoder.crossRead))
   val allDataQueueValid: Bool = VecInit(dataQueueValidVec).asUInt.andR
-  dequeue.valid := allDataQueueValid
+  dequeue.valid := allDataQueueValid && pipeQueue.io.deq.valid
   dataQueueVs1.ready := allDataQueueValid && dequeue.ready && state.decodeResult(Decoder.vtype)
   dataQueueVs2.io.deq.ready := allDataQueueValid && dequeue.ready
   dataQueueVd.io.deq.ready :=
     allDataQueueValid && dequeue.ready && !state.decodeResult(Decoder.sReadVD)
   crossReadResultQueue.foreach(_.io.deq.ready := allDataQueueValid && dequeue.ready && state.decodeResult(Decoder.crossRead))
-  stageValid := Seq(dataQueueVs2.io.deq.valid, readPipe1.dequeue.valid, readRequestQueueVs2.io.deq.valid).reduce(_ || _)
+  stageValid := pipeQueue.io.deq.valid
   val stageFinish = !stageValid
 
   object stageProbe {

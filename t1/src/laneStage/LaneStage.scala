@@ -39,6 +39,8 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   // 为了 flot reduce max min
   val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   val additionalRead: Bool = Bool()
+  // skip vrf read in stage 1?
+  val skipRead: Bool = Bool()
 }
 
 abstract class LaneStage[A <: Data, B <:Data](pipe: Boolean)(input: A, output: B) extends Module{
