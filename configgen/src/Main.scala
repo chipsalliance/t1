@@ -239,8 +239,9 @@ object Main {
         (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
       ),
       divfpModuleParameters = Seq(),
+      // todo: 8 = ?
       otherModuleParameters =
-        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))),
+        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 8, 3, 4, 0)), Seq(0, 1, 2, 3))),
       floatModuleParameters = Seq()
     )
   ).emit(targetDir)
@@ -277,13 +278,11 @@ object Main {
       mulModuleParameters = Seq(
         (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 0)), Seq(0, 1, 2, 3))
       ),
-      divModuleParameters = Seq(
-        (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
-      ),
+      divModuleParameters = Seq(),
       divfpModuleParameters =
         Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 0)), Seq(0, 1, 2, 3))),
       otherModuleParameters =
-        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))),
+        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 8, 3, 4, 0)), Seq(0, 1, 2, 3))),
       floatModuleParameters =
         Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3)))
     )
@@ -364,9 +363,7 @@ object Main {
       mulModuleParameters = Seq(
         (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 0)), Seq(0, 1, 2, 3))
       ),
-      divModuleParameters = Seq(
-        (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
-      ),
+      divModuleParameters = Seq(),
       divfpModuleParameters =
         Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 0)), Seq(0, 1, 2, 3))),
       otherModuleParameters =
