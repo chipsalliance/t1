@@ -30,7 +30,7 @@ lib.makeScope newScope
       mkAsmCase = self.callPackage ./testcases/make-asm-case.nix { stdenv = rv32-stdenv; };
       mkCodegenCase = self.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
     };
-    rvv-testcases = self.callPackage ../../tests { };
+    cases = self.callPackage ../../tests { };
   } //
   lib.genAttrs allConfigs (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters

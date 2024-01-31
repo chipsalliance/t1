@@ -149,7 +149,7 @@ def load_elf_from_dir(cases_dir, case_name):
         else:
             cases_dir = (
                 subprocess.check_output(
-                    "nix build .#t1.rvv-testcases.all --max-jobs 16 --no-link --print-out-paths".split()
+                    "nix build .#t1.cases.all --max-jobs 16 --no-link --print-out-paths".split()
                 )
                 .strip()
                 .decode("UTF-8")

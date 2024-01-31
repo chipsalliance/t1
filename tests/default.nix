@@ -49,12 +49,12 @@ let
 
   self = {
     recurseForDerivations = true;
-    # nix build .#t1.rvv-testcases.<type>.<name>
+    # nix build .#t1.cases.<type>.<name>
     mlir = searchAndCallPackage ./mlir;
     intrinsic = searchAndCallPackage ./intrinsic;
     asm = searchAndCallPackage ./asm;
 
-    # nix build .#t1.rvv-testcases.codegen.vaadd-vv -L
+    # nix build .#t1.cases.codegen.vaadd-vv -L
     # codegen case are using xLen=32,vLen=1024 by default
     codegen =
       let

@@ -101,7 +101,7 @@ def postPrMatrixJson(
 ) = {
   val defaultCases = os.pwd / os.RelPath(".github/cases/default.txt")
   val caseFiles = os.read.lines(defaultCases).map(os.RelPath(_))
-  val testCaseDir = os.proc("nix", "build", ".#t1.rvv-testcases.all", "--no-link", "--print-out-paths").call(cwd=os.pwd).out.trim
+  val testCaseDir = os.proc("nix", "build", ".#t1.cases.all", "--no-link", "--print-out-paths").call(cwd=os.pwd).out.trim
   val unpassedCases = caseFiles.flatMap(file => {
     val verilateCfg = file.segments.head
     val exists = ujson.read(os.read(defaultCases / os.up / file))
