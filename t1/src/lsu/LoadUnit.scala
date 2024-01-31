@@ -34,8 +34,6 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   val cacheLineIndex = RegEnable(Mux(lsuRequest.valid, 0.U, nextCacheLineIndex), tlPortA.fire || lsuRequest.valid)
   nextCacheLineIndex := cacheLineIndex + 1.U
 
-  val baseAddressAlignedReg: Bool = RegEnable(baseAddressAligned, false.B, lsuRequest.valid)
-
   val validInstruction = !invalidInstruction && lsuRequest.valid
   val lastRequest: Bool = cacheLineNumberReg === cacheLineIndex
   val sendRequest: Bool =
@@ -109,8 +107,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
 
   val alignedDequeueValid: Bool =
     unalignedCacheLine.valid &&
-      // 只有在 vlMisaligned || base address 对齐的时候才需要推出最后一条访问的cache line
-      (dataValid || ((unalignedCacheLine.bits.index === cacheLineNumberReg) && (vlMisalignedReg || baseAddressAlignedReg)))
+      (dataValid || (unalignedCacheLine.bits.index === cacheLineNumberReg && lastCacheNeedPush))
   // update unalignedCacheLine
   when(unalignedEnqueueFire) {
     unalignedCacheLine.bits.data := nextData
@@ -139,12 +136,13 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
 
   dataBuffer.zipWithIndex.foreach {case (d, i) => when(bufferEnqueueSelect(i)) {d := alignedDequeue.bits.data}}
   val lastCacheLineForThisGroup: Bool = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
+  val lastCacheLineForInst: Bool = alignedDequeue.bits.index === lastWriteVrfIndexReg
   // update cacheLineIndexInBuffer
   when(alignedDequeue.fire || bufferDequeueFire) {
     cacheLineIndexInBuffer := Mux(bufferDequeueFire, 0.U, cacheLineIndexInBuffer + 1.U)
   }
 
-  when((alignedDequeue.fire && lastCacheLineForThisGroup) || bufferDequeueFire) {
+  when((alignedDequeue.fire && (lastCacheLineForThisGroup || lastCacheLineForInst)) || bufferDequeueFire) {
     bufferFull := !bufferDequeueFire
   }
 
