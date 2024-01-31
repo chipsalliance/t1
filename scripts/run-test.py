@@ -17,13 +17,50 @@ logger.addHandler(ch)
 
 def main():
     parser = ArgumentParser()
-    subparsers = parser.add_subparsers(help="sub-commands help")
+    subparsers = parser.add_subparsers(help="sub-commands help", required=True)
 
-    # Set verilator emulator arg handler
-    verilator_args_parser = subparsers.add_parser(
-        "verilate", help="Run verilator emulator"
-    )
-    verilator_args_parser.add_argument("case", help="name alias for loading test case")
+    # Add sub-commands
+    verilator_args_parser = subparsers.add_parser("verilate", help="ip emulator help")  # TODO: rename to ip
+    verilator_args_parser.set_defaults(func=run_ip)
+    soc_args_parser = subparsers.add_parser("soc", help="soc emulator help")
+    soc_args_parser.set_defaults(func=run_soc)
+
+    # Register common args
+    for subparser in (verilator_args_parser, soc_args_parser):
+        subparser.add_argument("case", help="Case name alias or a path to ELF file")
+        subparser.add_argument(
+            "-c",
+            "--config",
+            default="v1024-l8-b2",
+            help="config name, as filename in ./configs. default to v1024-l8-b2",
+        )
+        subparser.add_argument(
+            "--trace", action="store_true", help="enable trace file dumping"
+        )
+        subparser.add_argument(
+            "--emulator-path",
+            default=None,
+            help="path to the soc emulator, use nix generated one if unspecified",
+        )
+        subparser.add_argument(
+            "--cases-dir", help="path to testcases, default to TEST_CASES_DIR environment"
+        )
+        subparser.add_argument(
+            "--use-individual-drv", help="use .#t1.rvv-testcases.<case_type>.<case_name> instead of .#t1.rvv-testcases.all",
+            action="store_true",
+        )
+        subparser.add_argument(
+            "--out-dir",
+            default=None,
+            help="path to save results",  # TODO: give a consistent behavior for both verilate and soc emulator
+        )
+        subparser.add_argument(
+            "--base-out-dir",
+            default=None,
+            help="save result files in {base_out_dir}/{config}/{case}",
+        )
+
+    # Register verilator emulator args
     verilator_args_parser.add_argument(
         "-d",
         "--dramsim3-cfg",
@@ -35,15 +72,6 @@ def main():
         help="frequency for the vector processor (in MHz)",
         default=2000,
         type=float,
-    )
-    verilator_args_parser.add_argument(
-        "-c",
-        "--config",
-        default="v1024-l8-b2",
-        help="configuration name, as filenames in ./configs",
-    )
-    verilator_args_parser.add_argument(
-        "--trace", action="store_true", help="use emulator with trace support"
     )
     verilator_args_parser.add_argument(
         "--cosim-timeout", default=100000, help="set cosim timeout"
@@ -69,63 +97,56 @@ def main():
         help="prevent emulator print log to console",
     )
 
-    verilator_args_parser.add_argument(
-        "--cases-dir", help="path to testcases, default to TEST_CASES_DIR environment"
-    )
-    verilator_args_parser.add_argument(
-        "--out-dir", default=None, help="path to save wave file and perf result file"
-    )
-    verilator_args_parser.add_argument(
-        "--base-out-dir",
-        default=None,
-        help="save result files in {base_out_dir}/{config}/{case}",
-    )
-    verilator_args_parser.add_argument(
-        "--emulator-path", default=None, help="path to emulator"
-    )
-    # Set verilator emulator args handler
-    verilator_args_parser.set_defaults(func=run_verilator_emulator)
-
-    # Set soc runner arg handler
-    soc_args_parser = subparsers.add_parser("soc", help="Run soc emulator")
-    soc_args_parser.add_argument("case", help="Case name alias or a path to ELF file")
+    # Register soc emulator args
     soc_args_parser.add_argument(
-        "-c",
-        "--config",
-        default="v1024-l8-b2",
-        help="config name, as filename in ./configs. default to v1024-l8-b2",
-    )
-    soc_args_parser.add_argument(
-        "--output-dir",
-        default=None,
-        help="path to save results, default to ./testrun/soc-emulator/<config>/<elf_basename>/",
-    )
-    soc_args_parser.add_argument(
-        "--trace", action="store_true", help="enable trace file dumping"
-    )
-    soc_args_parser.add_argument(
-        "--trace-output-file",
+        "--trace-out-file",
         default="None",
         help="path for storing trace file, default to <output-dir>/trace.fst",
     )
-    soc_args_parser.add_argument(
-        "--emulator-path",
-        default=None,
-        help="path to the soc emulator, default using nix generated one",
-    )
-    soc_args_parser.add_argument(
-        "--cases-dir", help="path to testcases, default to TEST_CASES_DIR environment"
-    )
-
-    # Set soc args handler
-    soc_args_parser.set_defaults(func=run_soc)
 
     # Run
     args = parser.parse_args()
     args.func(args)
 
 
-def run_verilator_emulator(args):
+# Try to search ELF from the given directory
+def load_elf_from_dir(cases_dir, case_name, use_individual_drv=False):
+    if cases_dir is None:
+        if env_case_dir := os.environ.get("TEST_CASES_DIR"):
+            cases_dir = env_case_dir
+        else:
+            if use_individual_drv:
+                split_idx = case_name.rfind('-')
+                case_true_name, case_type = case_name[:split_idx], case_name[split_idx+1:]
+                cases_dir = (
+                    subprocess.check_output(
+                        f"nix build .#t1.rvv-testcases.{case_type}.{case_true_name} --max-jobs 16 --no-link --print-out-paths".split()
+                    )
+                    .strip()
+                    .decode("UTF-8")
+                )
+            else:
+                cases_dir = (
+                    subprocess.check_output(
+                        "nix build .#t1.rvv-testcases.all --max-jobs 16 --no-link --print-out-paths".split()
+                    )
+                    .strip()
+                    .decode("UTF-8")
+                )
+
+    cases_dir = Path(cases_dir)
+
+    case_config_path = cases_dir / f"{case_name}.json" if use_individual_drv else cases_dir / "configs" / f"{case_name}.json"
+    assert case_config_path.exists(), f"cannot find case config in {case_config_path}"
+    config = json.loads(case_config_path.read_text())
+
+    case_elf_path = cases_dir / config["elf"]["path"]
+    assert case_elf_path.exists(), f"cannot find case elf in {case_elf_path}"
+
+    return case_elf_path
+
+
+def run_ip(args):
     if args.verbose:
         logger.setLevel(logging.DEBUG)
     else:
@@ -138,40 +159,10 @@ def run_verilator_emulator(args):
             args.out_dir = f"./testrun/{args.config}/{args.case}"
         Path(args.out_dir).mkdir(exist_ok=True, parents=True)
 
-    execute_verilator_emulator(args)
-
-
-# Try to search ELF from the given directory
-def load_elf_from_dir(cases_dir, case_name):
-    if cases_dir is None:
-        if env_case_dir := os.environ.get("TEST_CASES_DIR"):
-            cases_dir = env_case_dir
-        else:
-            cases_dir = (
-                subprocess.check_output(
-                    "nix build .#t1.rvv-testcases.all --max-jobs 16 --no-link --print-out-paths".split()
-                )
-                .strip()
-                .decode("UTF-8")
-            )
-
-    cases_dir = Path(cases_dir)
-
-    case_config_path = cases_dir / "configs" / f"{case_name}.json"
-    assert case_config_path.exists(), f"cannot find case config in {case_config_path}"
-    config = json.loads(case_config_path.read_text())
-
-    case_elf_path = cases_dir / config["elf"]["path"]
-    assert case_elf_path.exists(), f"cannot find case elf in {case_elf_path}"
-
-    return case_elf_path
-
-
-def execute_verilator_emulator(args):
     case_elf_path = (
         args.case
         if Path(args.case).exists()
-        else load_elf_from_dir(args.cases_dir, args.case)
+        else load_elf_from_dir(args.cases_dir, args.case, args.use_individual_drv)
     )
 
     dramsim3_cfg = args.dramsim3_cfg
@@ -267,16 +258,16 @@ def run_soc(args):
     elf_path = (
         args.case
         if Path(args.case).exists()
-        else load_elf_from_dir(args.cases_dir, args.case)
+        else load_elf_from_dir(args.cases_dir, args.case, args.use_individual_drv)
     )
     process_args.append(f"+init_file={elf_path}")
 
     elf_filename = os.path.splitext(os.path.basename(elf_path))[0]
-    if args.output_dir is None:
-        args.output_dir = f"./testrun/soc-emulator/{args.config}/{elf_filename}/"
-        logger.info(f"Output dir set to {args.output_dir}")
+    if args.out_dir is None:
+        args.out_dir = f"./testrun/soc-emulator/{args.config}/{elf_filename}/"
+        logger.info(f"Output dir set to {args.out_dir}")
 
-    trace_filepath = args.trace_output_file or f"{args.trace_output_dir}/trace.fst"
+    trace_filepath = args.trace_output_file or f"{args.trace_out_dir}/trace.fst"
     process_args.append(
         f"+trace_file={trace_filepath}"
         if args.trace
