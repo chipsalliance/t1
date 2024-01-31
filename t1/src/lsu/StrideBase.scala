@@ -169,19 +169,26 @@ abstract class StrideBase(param: MSHRParam) extends Module {
       lsuRequest.valid
     )
 
-  /** How many byte will be accessed by this instruction */
+  /** How many byte will be accessed by this instruction(write vrf) */
   val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
 
-  val baseAddressAligned: Bool = !lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0).orR
-  val vlMisaligned: Bool = bytePerInstruction(param.cacheLineBits - 1, 0).orR
+  /** access byte + address offset(access memory) */
+  val accessMemSize: UInt = bytePerInstruction + lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0)
 
   /** How many cache lines will be accessed by this instruction
    * nFiled * vl * (2 ** eew) / 32
    */
-  val lastCacheLineIndex: UInt = (bytePerInstruction >> param.cacheLineBits).asUInt +
-    vlMisaligned - baseAddressAligned
+  val lastCacheLineIndex: UInt = (accessMemSize >> param.cacheLineBits).asUInt -
+    !accessMemSize(param.cacheLineBits - 1, 0).orR
 
-  val vlMisalignedReg: Bool = RegEnable(vlMisaligned, false.B, lsuRequest.valid)
+  // last cache index will write into vrf
+  val lastWriteVrfIndex: UInt = (bytePerInstruction >> param.cacheLineBits).asUInt -
+    !bytePerInstruction(param.cacheLineBits - 1, 0).orR
+
+  val lastWriteVrfIndexReg: UInt = RegEnable(lastWriteVrfIndex, 0.U, lsuRequest.valid)
+
+  // The last cache line needs to be pushed out with a blank cache line.
+  val lastCacheNeedPush: Bool = RegEnable(lastCacheLineIndex === lastWriteVrfIndex, false.B, lsuRequest.valid)
 
   val cacheLineNumberReg: UInt = RegEnable(lastCacheLineIndex, 0.U, lsuRequest.valid)
 }
