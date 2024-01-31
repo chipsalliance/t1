@@ -1,3 +1,5 @@
+{ self }:
+
 final: prev:
 
 let
@@ -6,6 +8,8 @@ let
   rv32_buildPkgs = rv32_pkgs.buildPackages;
 in
 {
+  pkgsX86 = self.legacyPackages."x86_64-linux";
+
   inherit rv32_pkgs rv32_buildPkgs; # for easier inspection
 
   espresso = final.callPackage ./pkgs/espresso.nix { };

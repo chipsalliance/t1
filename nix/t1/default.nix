@@ -1,25 +1,36 @@
 { lib
+, system
 , newScope
 
 , rv32-stdenv
 , callPackage
 , runCommand
+, pkgsX86
 }:
 
 let
   # We need to bring submodules and configgen out of scope. Using them in scope to generate the package attribute set
   # will lead to infinite recursion.
-  submodules = callPackage ./submodules.nix { };
-  configgen = callPackage ./configgen.nix { inherit submodules; };
-  allConfigs = builtins.fromJSON (builtins.readFile "${configgen}/share/all-supported-configs.json");
+  allConfigs = [
+    "v4096-l32-b4-fp"
+    "v4096-l32-b4"
+    "v4096-l8-b4-fp"
+    "v4096-l8-b4"
+    "v1024-l8-b2-fp"
+    "v1024-l8-b2"
+    "v1024-l2-b2"
+    "v1024-l1-b2"
+  ];
 in
 
 lib.makeScope newScope
   (self:
   {
+    submodules = self.callPackage ./submodules.nix { };
+
     elaborator = self.callPackage ./elaborator.nix { };
 
-    inherit submodules configgen;
+    configgen = self.callPackage ./configgen.nix { };
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
 
@@ -31,6 +42,11 @@ lib.makeScope newScope
       mkCodegenCase = self.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
     };
     cases = self.callPackage ../../tests { };
+
+    cases-x86 =
+      if system == "x86-64-linux"
+      then self.cases
+      else pkgsX86.t1.cases;
   } //
   lib.genAttrs allConfigs (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters
@@ -42,7 +58,7 @@ lib.makeScope newScope
 
       elaborate-config = runCommand "emit-${configName}-config" { } ''
         mkdir -p $out
-        ${configgen}/bin/configgen ${lib.concatStrings (lib.splitString "-" configName)} -t $out
+        ${self.configgen}/bin/configgen ${lib.concatStrings (lib.splitString "-" configName)} -t $out
       '';
 
       ip = {
