@@ -88,7 +88,7 @@ $ nix build .#t1.<config-name>.subsystem.emu  # build the soc emulator
 $ nix build .#t1.<config-name>.subsystem.emu-trace  # build the soc emulator with trace support
 $ nix build .#t1.<config-name>.subsystem.fpga  # build the elaborated soc .sv files with fpga support
 
-$ nix build .#t1.rvv-testcases.all  # the testcases
+$ nix build .#t1.cases.all  # the testcases
 ```
 where `<config-name>` should be replaced with a configuration name, e.g. `v1024-l8-b2`. The build output will be put in `./result` directory by default.
 
@@ -154,47 +154,47 @@ To view what is available to ran, use the `nix search` sub command:
 #
 # For example:
 $ nix search .#t1 asm
-* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.fpsmoke
+* legacyPackages.x86_64-linux.t1.cases.asm.fpsmoke
   Test case 'fpsmoke', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.memcpy
+* legacyPackages.x86_64-linux.t1.cases.asm.memcpy
   Test case 'memcpy', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.mmm
+* legacyPackages.x86_64-linux.t1.cases.asm.mmm
   Test case 'mmm', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.smoke
+* legacyPackages.x86_64-linux.t1.cases.asm.smoke
   Test case 'smoke', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.strlen
+* legacyPackages.x86_64-linux.t1.cases.asm.strlen
   Test case 'strlen', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.rvv-testcases.asm.utf8-count
+* legacyPackages.x86_64-linux.t1.cases.asm.utf8-count
   Test case 'utf8-count', written in assembly.
 
 # Then ignore the `legacyPackage.x86_64-linux` attribute, build the testcase like below:
-$ nix build .#t1.rvv-testcases.asm.smoke
+$ nix build .#t1.cases.asm.smoke
 ```
 
 To develop a specific testcases, enter the development shell:
 
 ```shell
-# nix develop .#t1.rvv-testcases.<type>.<name>
+# nix develop .#t1.cases.<type>.<name>
 #
 # For example:
 
-$ nix develop .#t1.rvv-testcases.asm.smoke
+$ nix develop .#t1.cases.asm.smoke
 ```
 
 Build tests:
 
 ```shell
 # build a single test
-$ nix build .#t1.rvv-testcases.intrinsic.matmul -L
+$ nix build .#t1.cases.intrinsic.matmul -L
 $ ls -al ./result
 
 # build all tests
-$ nix build .#t1.rvv-testcases.all --max-jobs $(nproc)
+$ nix build .#t1.cases.all --max-jobs $(nproc)
 $ ls -al ./result
 ```
 
@@ -214,4 +214,3 @@ $ nvfetcher
 
 ## License
 Copyright © 2022-2023, Jiuyang Liu. Released under the Apache-2.0 License.
-

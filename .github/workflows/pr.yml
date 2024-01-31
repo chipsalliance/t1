@@ -30,7 +30,7 @@ jobs:
           nix build '.#t1.v1024-l8-b2.ip.emu' -L --no-link --cores 64
           nix build '.#t1.v1024-l8-b2-fp.ip.emu' -L --no-link --cores 64
       - name: "Build all testcases"
-        run: nix build ".#t1.rvv-testcases.all" --max-jobs auto -L --no-link --cores 64
+        run: nix build ".#t1.cases.all" --max-jobs auto -L --no-link --cores 64
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
