@@ -230,7 +230,7 @@ def runTests(jobs: String, resultDir: Option[os.Path], dontBail: Boolean = false
       val Array(config, caseName) = job.split(",")
       System.err.println(s"\n\n\n>>>[${i+1}/${totalJobs.length}] Running test case $config,$caseName")
       val handle = os
-        .proc("scripts/run-test.py", "verilate", "-c", config, "--no-log", "--base-out-dir", testRunDir, caseName)
+        .proc("scripts/run-test.py", "ip", "-c", config, "--no-log", "--base-out-dir", testRunDir, caseName)
         .call(check=false)
       if (handle.exitCode != 0) {
         val outDir = testRunDir / config / caseName
@@ -270,7 +270,7 @@ def runFailedTests(jobs: String) = {
     val Array(config, caseName) = job.split(",")
     System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $config,$caseName")
     val handle = os
-      .proc("scripts/run-test.py", "verilate", "-c", config, "--trace", "--no-log", "--base-out-dir", testRunDir, caseName)
+      .proc("scripts/run-test.py", "ip", "-c", config, "--trace", "--no-log", "--base-out-dir", testRunDir, caseName)
       .call(check=false)
   }}
 }
