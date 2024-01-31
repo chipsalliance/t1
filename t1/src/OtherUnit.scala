@@ -25,7 +25,7 @@ case class OtherUnitParam(
 }
 
 class OtherUnitReq(param: OtherUnitParam) extends Bundle {
-  val src:     Vec[UInt] = Vec(3, UInt(param.datapathWidth.W))
+  val src:     Vec[UInt] = Vec(4, UInt(param.datapathWidth.W))
   val popInit: UInt = UInt(param.vlMaxBits.W)
   val opcode:  UInt = UInt(4.W)
   val groupIndex: UInt = UInt(param.groupNumberBits.W)
@@ -62,11 +62,12 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with
   val isffo:            Bool = opcodeOH(3, 0).orR
   val originalOpcodeOH: UInt = opcodeOH(9, 4)
 
-  ffo.src := request.src
+  ffo.src := request.src.init
   ffo.resultSelect := request.opcode
   ffo.complete := request.complete
   ffo.maskType := request.maskType
-  popCount.src := request.src(1) & Mux(request.maskType, request.src.head, -1.S(parameter.datapathWidth.W).asUInt)
+  popCount.src :=
+    request.src(1) & Mux(request.maskType, request.src.head, -1.S(parameter.datapathWidth.W).asUInt) & request.src(3)
 
   val signValue:  Bool = request.src(1)(parameter.datapathWidth - 1) && request.sign
   val signExtend: UInt = Fill(parameter.datapathWidth, signValue)
