@@ -200,6 +200,7 @@ void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
 // end of dpi interfaces
 //==================
 
+// TODO: unify camelcase and underscore function name style
 static VBridgeImpl vbridgeImplFromArgs() {
   std::ifstream cmdline("/proc/self/cmdline");
   std::vector<std::string> arg_vec;

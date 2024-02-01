@@ -4,7 +4,7 @@ _start:
     csrs mstatus, a0
     csrwi vcsr, 0
 
-    la sp, stack_end
+    li sp, 0xffff0000  # 4GB - 64KB
 
     call test
     csrwi 0x7cc, 0

@@ -28,18 +28,12 @@ void uart_put_hex_d(uint64_t x) {
     }
 }
 
-extern char* heap_start;
-char *heap_ptr;
+char *heap_ptr = (char *) (512 * 1024 * 1024);  // heap starts at 64MB
 
 char *_sbrk(int nbytes) {
-  char *base;
-
-  if (!heap_ptr)
-    heap_ptr = (char *)&heap_start;
-  base = heap_ptr;
   heap_ptr += nbytes;
 
-  return base;
+  return heap_ptr;
 }
 
 // We don't support FS

@@ -84,7 +84,7 @@ protected:
       std::string module_name;
       try {
         json payload = json::parse(data);
-        payload["name"].get_to(module_name);
+        module_name = payload["name"];
       } catch (const json::parse_error &ex) {
         throw std::runtime_error(
             fmt::format("Fail to convert msg {} to json: {}", data, ex.what()));

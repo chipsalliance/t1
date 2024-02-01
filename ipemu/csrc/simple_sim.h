@@ -29,6 +29,7 @@ public:
 
   // should return NULL for MMIO addresses
   char *addr_to_mem(reg_t addr) override {
+    addr = addr & 0xffffffff;  // since we are working on 32bit and reg_t is 64bit
     if (uart_addr <= addr && addr < uart_addr + sizeof(uartlite_regs)) {
       return NULL;
     }
@@ -39,6 +40,7 @@ public:
   }
 
   bool mmio_load(reg_t addr, size_t len, uint8_t *bytes) override {
+    addr = addr & 0xffffffff;  // since we are working on 32bit and reg_t is 64bit
     if (uart_addr <= addr && addr < uart_addr + sizeof(uartlite_regs)) {
       return uart.do_read(addr - uart_addr, len, bytes);
     }
@@ -46,6 +48,7 @@ public:
   }
 
   bool mmio_store(reg_t addr, size_t len, const uint8_t *bytes) override {
+    addr = addr & 0xffffffff;  // since we are working on 32bit and reg_t is 64bit
     if (uart_addr <= addr && addr < uart_addr + sizeof(uartlite_regs)) {
       bool res = uart.do_write(addr - uart_addr, len, bytes);
       while (uart.exist_tx()) {
