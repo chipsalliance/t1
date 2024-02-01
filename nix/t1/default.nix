@@ -3,7 +3,6 @@
 , newScope
 
 , rv32-stdenv
-, callPackage
 , runCommand
 , pkgsX86
 }:
@@ -25,12 +24,13 @@ in
 
 lib.makeScope newScope
   (self:
-  {
+  rec {
+    _millOutput = self.callPackage ./t1.nix { };
+
+    elaborator = _millOutput.elaborator // { meta.mainProgram = "elaborator"; };
+    configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
+
     submodules = self.callPackage ./submodules.nix { };
-
-    elaborator = self.callPackage ./elaborator.nix { };
-
-    configgen = self.callPackage ./configgen.nix { };
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
 
