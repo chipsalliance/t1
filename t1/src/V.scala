@@ -1152,8 +1152,12 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             }
           }
         }
+        // for vfredmax
+        val lastReduceCounter =
+          (executeCounter === csrRegForMaskUnit.vl && decodeResultReg(Decoder.float)) ||
+            executeCounter(log2Ceil(parameter.laneNumber))
         val executeFinish: Bool =
-          (executeCounter(log2Ceil(parameter.laneNumber)) || !(reduce || popCount) || orderedReduce) && maskUnitIdle
+          (lastReduceCounter || !(reduce || popCount) || orderedReduce) && maskUnitIdle
         val schedulerWrite = decodeResultReg(Decoder.maskDestination) || (reduce && !popCount) || writeMv
         // todo: decode
         val groupSync = decodeResultReg(Decoder.ffo)
