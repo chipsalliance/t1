@@ -14,12 +14,12 @@
 , zlib
 
 , rtl
-, config-name
+, configName
 , do-trace ? false
 }:
 
 stdenv.mkDerivation {
-  name = "t1-${config-name}-subsystememu" + lib.optionalString do-trace "-trace";
+  name = "t1-${configName}-subsystememu" + lib.optionalString do-trace "-trace";
 
   src = ../../subsystememu/csrc;
 
@@ -48,6 +48,6 @@ stdenv.mkDerivation {
 
   meta = {
     mainProgram = "emulator";
-    description = "Subsystem emulator for config ${config-name}";
+    description = "Subsystem emulator for config ${configName}";
   };
 }
