@@ -24,6 +24,7 @@
                 gnugrep
                 gnused
 
+                python3
                 mill
                 ammonite
               ];
