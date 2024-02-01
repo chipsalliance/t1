@@ -654,6 +654,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       if (isLastSlot) {
         stage3.enqueue.bits.sSendResponse := stage2.dequeue.bits.sSendResponse.get
         stage3.enqueue.bits.ffoSuccess := executionUnit.dequeue.bits.ffoSuccess.get
+        stage3.enqueue.bits.fpReduceValid.zip(executionUnit.dequeue.bits.fpReduceValid).foreach {
+          case (sink, source) => sink := source
+        }
       }
       stage3.enqueue.bits.data := executionUnit.dequeue.bits.data
       stage3.enqueue.bits.pipeData := stage2.dequeue.bits.pipeData.getOrElse(DontCare)

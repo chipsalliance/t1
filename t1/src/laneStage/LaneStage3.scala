@@ -8,7 +8,7 @@ import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl._
 
-class LaneStage3Enqueue(parameter: LaneParameter) extends Bundle {
+class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
   val data: UInt = UInt(parameter.datapathWidth.W)
   val pipeData: UInt = UInt(parameter.datapathWidth.W)
@@ -17,10 +17,11 @@ class LaneStage3Enqueue(parameter: LaneParameter) extends Bundle {
   val crossWriteData: Vec[UInt] = Vec(2, UInt(parameter.datapathWidth.W))
   val sSendResponse: Bool = Bool()
   val ffoSuccess: Bool = Bool()
+  val fpReduceValid: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
 }
 
 class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
-  val enqueue: DecoupledIO[LaneStage3Enqueue] = IO(Flipped(Decoupled(new LaneStage3Enqueue(parameter))))
+  val enqueue: DecoupledIO[LaneStage3Enqueue] = IO(Flipped(Decoupled(new LaneStage3Enqueue(parameter, isLastSlot))))
   val vrfWriteBundle: VRFWriteRequest = new VRFWriteRequest(
     parameter.vrfParam.regNumBits,
     parameter.vrfOffsetBits,
@@ -102,6 +103,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     laneResponse.head.bits.toLSU := state.loadStore
     laneResponse.head.bits.instructionIndex := state.instructionIndex
     laneResponse.head.bits.ffoSuccess := pipeEnqueue.get.ffoSuccess
+    laneResponse.head.bits.fpReduceValid.zip(pipeEnqueue.get.fpReduceValid).foreach {case (s, f) => s := f}
 
     sSendResponse.foreach(state => when(laneResponse.head.valid) {
       state := true.B
