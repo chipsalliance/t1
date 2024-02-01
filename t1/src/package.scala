@@ -178,7 +178,7 @@ package object rtl {
     segMask7 ## segMask6 ## segMask5 ## segMask4 ## segMask3 ## segMask2 ## segMask1 ## segMask0
   }
 
-  def connectWithShifter[T <: Data](latency: Int)(source: Valid[T], sink: Valid[T]): Bool = {
+  def connectWithShifter[T <: Data](latency: Int, id: Option[T => UInt] = None)(source: Valid[T], sink: Valid[T]): Option[UInt] = {
     val tpe = Vec(latency, chiselTypeOf(source))
     val shifterReg: Vec[ValidIO[T]] = RegInit(0.U.asTypeOf(tpe))
     val shifterValid: Bool = (shifterReg.map(_.valid) :+ source.valid).reduce(_ || _)
@@ -191,7 +191,7 @@ package object rtl {
       }
     }
     sink := shifterReg.last
-    shifterValid
+    id.map(f => (shifterReg :+ source).map(p => Mux(p.valid, indexToOH(f(p.bits), 4), 0.U)).reduce(_ | _))
   }
 
   def vfuConnect(parameter: VFUInstantiateParameter)(

@@ -154,7 +154,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   /** data in write queue */
   val dataInWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
-  val crossWriteBusClear: Bool = IO(Input(Bool()))
+  val dataInCrossBus: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
   val writeReadyForLsu: Bool = IO(Output(Bool()))
@@ -274,7 +274,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val elementUpdateValid: Bool = (writeUpdateValidVec ++ loadUpdateValidVec).reduce(_ || _)
       val elementUpdate1H: UInt = (writeUpdate1HVec ++ loadUpdate1HVec).reduce(_ | _)
       val queueClear = !dataIndexWriteQueue
-      val busClear = crossWriteBusClear || !record.bits.crossWrite
+      val dataInBusCheck = ohCheck(dataInCrossBus, record.bits.instIndex, parameter.chainingSize)
+      val busClear = !dataInBusCheck || !record.bits.crossWrite
       when(ohCheck(instructionLastReport, record.bits.instIndex, parameter.chainingSize)) {
         when(record.bits.ls) {
           record.bits.stFinish := true.B
