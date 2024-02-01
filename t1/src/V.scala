@@ -1093,7 +1093,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       } else 0.U
       val lastGroupDataWaitMaskForRed: UInt = scanRightOr(UIntToOH(lastExecuteCounterForReduce))
       // alu end
-      val maskOperation = decodeResultReg(Decoder.maskLogic) || decodeResultReg(Decoder.maskDestination)
+      val maskOperation =
+        decodeResultReg(Decoder.maskLogic) ||
+          decodeResultReg(Decoder.maskDestination) ||
+          decodeResultReg(Decoder.ffo)
       val lastGroupDataWaitMask = scanRightOr(UIntToOH(lastExecuteCounter))
       val dataMask =
         Mux(
@@ -1163,7 +1166,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
             when(lastExecuteForGroup || lastExecute || reduce || groupSync || writeMv || popCount) {
               synchronized := true.B
               dataClear := true.B
-              when(lastExecuteForGroup) {
+              when(lastExecuteForGroup || groupSync) {
                 executeForLastLaneFire := true.B
                 groupCounter := groupCounter + 1.U
               }
