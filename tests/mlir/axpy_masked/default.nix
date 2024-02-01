@@ -1,7 +1,7 @@
 { testcase-env }:
 testcase-env.mkMlirCase {
-  caseName = "rvv-vp-intrinsic-add";
-  src = ./rvv-vp-intrinsic-add.mlir;
+  caseName = "axpy_masked";
+  src = ./axpy-masked.mlir;
   linkSrcs = [
     ../main.S
   ];

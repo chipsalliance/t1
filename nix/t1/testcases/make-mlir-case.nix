@@ -14,7 +14,7 @@
 }@inputs:
 stdenv.mkDerivation
   (rec {
-    name = "${caseName}-mlir";
+    name = "mlir.${caseName}";
 
     nativeBuildInputs = [
       jq

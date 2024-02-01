@@ -1,6 +1,6 @@
 { testcase-env }:
 testcase-env.mkMlirCase {
-  caseName = "maxvl-tail-setvl-front";
+  caseName = "maxvl_tail_setvl_front";
   src = ./maxvl-tail-setvl-front.mlir;
   linkSrcs = [
     ../main.S

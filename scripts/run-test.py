@@ -103,9 +103,8 @@ def main():
         help="prevent emulator produce log (both console and file)",
     )
     verilator_args_parser.add_argument(
-        "--no-file-logging",
-        action="store_false",
-        default=True,
+        "--with-file-logging",
+        action="store_true",
         help="prevent emulator write log to file",
     )
     verilator_args_parser.add_argument(
@@ -169,14 +168,7 @@ def load_elf_from_dir(config, cases_dir, case_name, use_individual_drv, force_x8
                 "--no-warn-dirty",
             ]
             if use_individual_drv:
-                split_idx = case_name.rfind("-")
-                case_true_name, case_type = (
-                    case_name[:split_idx].replace(".", "-"),
-                    case_name[split_idx + 1 :],
-                )
-                nix_args.append(
-                    f".#t1.{config}.{cases_attr_name}.{case_type}.{case_true_name}"
-                )
+                nix_args.append(f".#t1.{cases_attr_name}.{case_name}")
             else:
                 nix_args.append(f".#t1.{config}.{cases_attr_name}.all")
             logger.info(f'Run "{" ".join(nix_args)}"')
@@ -261,42 +253,32 @@ def run_test(args):
         dramsim3_cfg = args.dramsim3_cfg
         rtl_config = json.loads(elaborate_config_path.read_text())
         tck = 10**3 / args.frequency
-        emu_args = (
-            [
-                "--elf",
-                str(case_elf_path),
-                "--wave",
-                str(Path(args.out_dir) / "wave.fst"),
-                "--timeout",
-                str(args.cosim_timeout),
-                "--tck",
-                str(tck),
-                "--perf",
-                str(Path(args.out_dir) / "perf.txt"),
-                "--vlen",
-                str(rtl_config["parameter"]["vLen"]),
-                "--dlen",
-                str(rtl_config["parameter"]["dLen"]),
-                # TODO: this will be refactored soon to support multiple LSU
-                "--tl_bank_number",
-                str(rtl_config["parameter"]["lsuInstantiateParameters"][0]["banks"])
-            ]
-            + optionals(args.no_logging, ["--no-logging"])
-            + optionals(args.no_file_logging, ["--no-file-logging"])
-            + optionals(args.no_console_logging, ["--no-console-logging"])
-            + optionals(
-                args.out_dir, [f"--log-path={str(Path(args.out_dir) / 'emulator.log')}"]
-            )
-            + optionals(
-                dramsim3_cfg is not None,
-                [
-                    "--dramsim3-result",
-                    str(Path(args.out_dir) / "dramsim3-logs"),
-                    "--dramsim3-config",
-                    dramsim3_cfg,
-                ],
-            )
-        )
+        emu_args = [
+            "--elf", str(case_elf_path),
+            "--wave", str(Path(args.out_dir) / "wave.fst"),
+            "--timeout", str(args.cosim_timeout),
+            "--tck", str(tck),
+            "--perf", str(Path(args.out_dir) / "perf.txt"),
+            "--vlen", str(rtl_config["parameter"]["vLen"]),
+            "--dlen", str(rtl_config["parameter"]["dLen"]),
+            # TODO: this will be refactored soon to support multiple LSU
+            "--tl_bank_number", str(rtl_config["parameter"]["lsuInstantiateParameters"][0]["banks"])
+        ] + optionals(args.no_logging, [
+              "--no-logging"
+            ]) \
+          + optionals(not args.with_file_logging,[
+              "--no-file-logging"
+            ]) \
+          + optionals(args.no_console_logging, [
+              "--no-console-logging"
+            ]) \
+          + optionals(args.out_dir, [
+              f"--log-path={str(Path(args.out_dir) / 'emulator.log')}"
+            ]) \
+          + optionals(dramsim3_cfg is not None, [
+              "--dramsim3-result", str(Path(args.out_dir) / "dramsim3-logs"),
+              "--dramsim3-config", dramsim3_cfg,
+            ])
 
     elif emu_type == "subsystem":
         emu_args = [f"+init_file={case_elf_path}"]
