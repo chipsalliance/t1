@@ -1098,12 +1098,19 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           decodeResultReg(Decoder.maskDestination) ||
           decodeResultReg(Decoder.ffo)
       val lastGroupDataWaitMask = scanRightOr(UIntToOH(lastExecuteCounter))
+      // todo: other ways
+      val lastOrderedGroup: Option[Bool] = orderedReduceGroupCount.map(count =>
+        (count ## 0.U(log2Ceil(parameter.laneNumber).W) + -1.S(log2Ceil(parameter.laneNumber).W).asUInt) >= csrRegForMaskUnit.vl
+      )
+      val misalignedOrdered: Bool = if (parameter.fpuEnable) {
+        lastOrderedGroup.get && csrRegForMaskUnit.vl(log2Ceil(parameter.laneNumber) - 1, 0).orR && decodeResultReg(Decoder.float)
+      } else false.B
       val dataMask =
         Mux(
           maskOperation && lastGroup,
           lastGroupDataWaitMask,
           Mux(
-            reduce && smallVL,
+            reduce && (smallVL || misalignedOrdered),
             lastGroupDataWaitMaskForRed,
             -1.S(parameter.laneNumber.W).asUInt
           )
@@ -1154,8 +1161,8 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         }
         // for vfredmax
         val lastReduceCounter =
-          (executeCounter === csrRegForMaskUnit.vl && decodeResultReg(Decoder.float)) ||
-            executeCounter(log2Ceil(parameter.laneNumber))
+          executeCounter === csrRegForMaskUnit.vl || executeCounter(log2Ceil(parameter.laneNumber))
+        dontTouch(lastReduceCounter)
         val executeFinish: Bool =
           (lastReduceCounter || !(reduce || popCount) || orderedReduce) && maskUnitIdle
         val schedulerWrite = decodeResultReg(Decoder.maskDestination) || (reduce && !popCount) || writeMv
