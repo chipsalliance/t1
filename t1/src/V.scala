@@ -341,7 +341,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     * - vd is v0
     */
   val specialInstruction: Bool = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
-  val busClear: Bool = Wire(Bool())
+  val dataInCrossBus = Wire(UInt(parameter.chainingSize.W))
   val writeQueueClearVec = Wire(Vec(parameter.laneNumber, Bool()))
   val writeQueueClear: Bool = !writeQueueClearVec.asUInt.orR
 
@@ -459,6 +459,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       * this signal is used to update the `control.endTag`.
       */
     val lsuFinished: Bool = ohCheck(lsu.lastReport, control.record.instructionIndex, parameter.chainingSize)
+    val busClear: Bool = !ohCheck(dataInCrossBus, control.record.instructionIndex, parameter.chainingSize)
     // instruction is allocated to this slot.
     when(requestRegDequeue.fire && instructionToSlotOH(index)) {
       // instruction metadata
@@ -1308,7 +1309,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
 
     lane.lsuMaskGroupChange := lsu.lsuMaskGroupChange
     lane.loadDataInLSUWriteQueue := lsu.dataInWriteQueue(index)
-    lane.crossWriteBusClear := busClear
+    lane.dataInCrossBus := dataInCrossBus
     // 2 + 3 = 5
     val rowWith: Int = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
     lane.writeCount :=
@@ -1347,7 +1348,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   lsu.vrfReadyToStore := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
 
   // 连lane的环
-  busClear := !parameter.crossLaneConnectCycles.zipWithIndex.map { case (cycles, index) =>
+  dataInCrossBus := parameter.crossLaneConnectCycles.zipWithIndex.map { case (cycles, index) =>
     cycles.zipWithIndex.map { case (cycle, portIndex) =>
       // read source <=> write sink
       val readSourceIndex = (2 * index + portIndex) % parameter.laneNumber
@@ -1370,10 +1371,10 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         0.U.asTypeOf(new EmptyBundle),
         cycle
       ).valid
-      connectWithShifter(cycle)(laneVec(index).writeBusPort(portIndex).deq,
-        laneVec(readSourceIndex).writeBusPort(readSourcePort).enq)
-    }.reduce(_ || _)
-  }.reduce(_ || _)
+      connectWithShifter(cycle, id = Some((a: WriteBusData) => a.instructionIndex))(laneVec(index).writeBusPort(portIndex).deq,
+        laneVec(readSourceIndex).writeBusPort(readSourcePort).enq).get | laneVec(index).crossWriteDataInSlot
+    }.reduce(_ | _)
+  }.reduce(_ | _)
 
   // 连 tilelink
   memoryPorts.zip(lsu.tlPort).foreach {
