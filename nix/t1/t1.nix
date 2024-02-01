@@ -15,7 +15,7 @@
 
 let
   self = stdenv.mkDerivation rec {
-    name = "t1-elaborator";
+    name = "t1";
 
     src = (with lib.fileset; toSource {
       root = ./../..;
@@ -30,6 +30,7 @@ let
         ./../../subsystememu
         ./../../fpga
         ./../../elaborator
+        ./../../configgen
       ];
     }).outPath;
 
@@ -68,21 +69,25 @@ let
       submodules.setupHook
     ];
 
+    outputs = [ "out" "configgen" "elaborator" ];
+
     buildPhase = ''
-      mill -i 'elaborator.assembly'
+      mill -i '__.assembly'
     '';
 
     installPhase = ''
       mkdir -p $out/share/java
-      strip-nondeterminism out/elaborator/assembly.dest/out.jar
-      mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar
-      makeWrapper ${jre}/bin/java $out/bin/elaborator --add-flags "-jar $out/share/java/elaborator.jar"
-    '';
 
-    meta = {
-      mainProgram = "elaborator";
-      description = "The program that can be used to produce RTL";
-    };
+      strip-nondeterminism out/elaborator/assembly.dest/out.jar
+      strip-nondeterminism out/configgen/assembly.dest/out.jar
+
+      mv out/configgen/assembly.dest/out.jar $out/share/java/configgen.jar
+      mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar
+
+      mkdir -p $configgen/bin $elaborator/bin
+      makeWrapper ${jre}/bin/java $configgen/bin/configgen --add-flags "-jar $out/share/java/configgen.jar"
+      makeWrapper ${jre}/bin/java $elaborator/bin/elaborator --add-flags "-jar $out/share/java/elaborator.jar"
+    '';
   };
 in
 self
