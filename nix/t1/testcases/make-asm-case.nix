@@ -2,7 +2,7 @@
 
 { caseName, xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
 stdenv.mkDerivation (rec {
-  name = "${caseName}-asm";
+  name = "asm.${caseName}";
 
   unpackPhase = ''
     if [ -z "''${srcs:-}" ]; then

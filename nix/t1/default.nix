@@ -33,6 +33,8 @@ lib.makeScope newScope
   rec {
     _millOutput = self.callPackage ./t1.nix { };
 
+    inherit allConfigs;
+
     elaborator = _millOutput.elaborator // { meta.mainProgram = "elaborator"; };
     configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
 
