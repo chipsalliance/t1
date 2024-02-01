@@ -633,8 +633,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
     wholeEvl,
     Mux(
       isMaskLoadStore,
-      // TODO: bug: ceil + csrInterfaceReg.vl(2,0).orR
-      csrInterfaceReg.vl(param.vlMaxBits - 1, 3),
+      csrInterfaceReg.vl(param.vlMaxBits - 1, 3) + csrInterfaceReg.vl(2,0).orR,
       csrInterfaceReg.vl
     )
   )
