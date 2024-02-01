@@ -1080,10 +1080,31 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
           }
         }
       }
+      // for small vl & reduce
+      val accessByte = (csrRegForMaskUnit.vl << csrRegForMaskUnit.vSew).asUInt
+      // vl < row(vl)
+      val smallVL = accessByte < (parameter.datapathWidth * parameter.laneNumber / 8).U
+      val byteSizePerDataPathBits = log2Ceil(parameter.datapathWidth / 8)
+      val lastExecuteCounterForReduce: UInt = if (parameter.laneNumber > 1) {
+        accessByte(
+          byteSizePerDataPathBits + log2Ceil(parameter.laneNumber) - 1,
+          byteSizePerDataPathBits
+        ) - !accessByte(byteSizePerDataPathBits - 1, 0).orR
+      } else 0.U
+      val lastGroupDataWaitMaskForRed: UInt = scanRightOr(UIntToOH(lastExecuteCounterForReduce))
       // alu end
       val maskOperation = decodeResultReg(Decoder.maskLogic) || decodeResultReg(Decoder.maskDestination)
       val lastGroupDataWaitMask = scanRightOr(UIntToOH(lastExecuteCounter))
-      val dataMask = Mux(maskOperation && lastGroup, lastGroupDataWaitMask, -1.S(parameter.laneNumber.W).asUInt)
+      val dataMask =
+        Mux(
+          maskOperation && lastGroup,
+          lastGroupDataWaitMask,
+          Mux(
+            reduce && smallVL,
+            lastGroupDataWaitMaskForRed,
+            -1.S(parameter.laneNumber.W).asUInt
+          )
+        )
       val dataReady = ((~dataMask).asUInt | VecInit(data.map(_.valid)).asUInt).andR || skipLaneData
       when(
         // data ready
