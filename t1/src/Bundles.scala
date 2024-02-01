@@ -346,6 +346,9 @@ class LaneResponse(param: LaneParameter) extends Bundle {
   /** successfully find first one in the [[V]]. */
   val ffoSuccess: Bool = Bool()
 
+  // Whether at least one member of the reduce is executed
+  val fpReduceValid: Option[Bool] = Option.when(param.fpuEnable)(Bool())
+
   /** which instruction is the source of this transaction
     * TODO: for DEBUG use.
     */

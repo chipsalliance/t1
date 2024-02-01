@@ -24,6 +24,7 @@ class LaneExecuteResponse(parameter: LaneParameter, isLastSlot: Boolean) extends
   val ffoIndex: UInt = UInt(log2Ceil(parameter.vLen / 8).W)
   val crossWriteData: Option[Vec[UInt]] = Option.when(isLastSlot)(Vec(2, UInt(parameter.datapathWidth.W)))
   val ffoSuccess: Option[Bool] = Option.when(isLastSlot)(Bool())
+  val fpReduceValid: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
 }
 
 class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -114,12 +115,6 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecord.crossReadSource.foreach(_ := enqueue.bits.crossReadSource.get)
     executionRecord.sSendResponse.foreach(_ := enqueue.bits.sSendResponse.get)
     executionRecord.groupCounter := enqueue.bits.groupCounter
-    // red max min 的第一次不能和上一个指令的reduce结果比, 只能和自己比
-    firstRequestFire.foreach { first =>
-      when(first && decodeResult(Decoder.float) && decodeResult(Decoder.fpExecutionType).orR){
-        reduceResult.foreach(_ := enqueue.bits.src(1))
-      }
-    }
   }
 
   /** collapse the dual SEW size operand for cross read.
@@ -386,6 +381,15 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     when((dataResponse.valid && decodeResult(Decoder.red)) || updateMaskResult.get) {
       reduceResult.get := Mux(updateMaskResult.get, 0.U, updateReduceResult.get)
     }
+    // 前面的可能会有mask = 0 但是还试图更新reduce result 的情况, todo: 去掉mask = 0 时的执行
+    when(enqueue.fire) {
+      // red max min 的第一次不能和上一个指令的reduce结果比, 只能和自己比
+      firstRequestFire.foreach { first =>
+        when(first && decodeResult(Decoder.float) && decodeResult(Decoder.fpExecutionType).orR){
+          reduceResult.foreach(_ := enqueue.bits.src(1))
+        }
+      }
+    }
 
     // reduce state machine
     // widenReduce    false     true
@@ -451,6 +455,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   queue.io.enq.bits.ffoIndex := recordQueue.io.deq.bits.groupCounter ## dataResponse.bits.data(4, 0)
   queue.io.enq.bits.crossWriteData.foreach(_ := VecInit((crossWriteLSB ++ Seq(dataDequeue)).toSeq))
   queue.io.enq.bits.ffoSuccess.foreach(_ := dataResponse.bits.ffoSuccess)
+  queue.io.enq.bits.fpReduceValid.foreach(_ := !firstRequest.get)
   recordQueue.io.deq.ready := dataResponse.valid || (notExecute && queue.io.enq.ready)
   queue.io.enq.valid :=
     (recordQueue.io.deq.valid &&

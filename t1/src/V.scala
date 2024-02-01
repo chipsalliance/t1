@@ -404,6 +404,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val data: Vec[ValidIO[UInt]] = RegInit(
     VecInit(Seq.fill(parameter.laneNumber)(0.U.asTypeOf(Valid(UInt(parameter.datapathWidth.W)))))
   )
+  val flotReduceValid: Seq[Option[Bool]] = Seq.tabulate(parameter.laneNumber) { _ =>
+    Option.when(parameter.fpuEnable)(RegInit(false.B))
+  }
   val maskDataForCompress: UInt = RegInit(0.U(parameter.datapathWidth.W))
   // clear the previous set of data from lane
   val dataClear:           Bool = WireDefault(false.B)
@@ -728,6 +731,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         dataResult.bits
       )
       val aluInput2 = Mux1H(UIntToOH(executeCounter), data.map(d => Mux(d.valid, d.bits, 0.U)))
+      val skipFlotReduce: Bool = !Mux1H(UIntToOH(executeCounter), flotReduceValid.map(_.getOrElse(false.B)))
       // red alu instance
       val adder:     LaneAdder = Module(new LaneAdder(parameter.adderParam))
       val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datapathWidth))
@@ -779,7 +783,11 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
         logicUnit.resp
       )
       val flotReduceResult: Option[UInt] = Option.when(parameter.fpuEnable)(
-        Mux(decodeResultReg(Decoder.fpExecutionType) === 0.U, floatAdder.get.io.out, flotCompare.get.io.out)
+        Mux(
+          skipFlotReduce,
+          aluInput1,
+          Mux(decodeResultReg(Decoder.fpExecutionType) === 0.U, floatAdder.get.io.out, flotCompare.get.io.out)
+        )
       )
       val aluOutPut = Mux1H(
         Seq(if (parameter.fpuEnable) reduce && !decodeResultReg(Decoder.float) else reduce) ++
@@ -1357,6 +1365,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
       data(index).valid := true.B
       data(index).bits := lane.laneResponse.bits.data
       completedVec(index) := lane.laneResponse.bits.ffoSuccess
+      flotReduceValid(index).foreach(d => d := lane.laneResponse.bits.fpReduceValid.get)
     }
     lane
   }
