@@ -87,9 +87,8 @@ def main():
         help="prevent emulator produce log (both console and file)",
     )
     verilator_args_parser.add_argument(
-        "--no-file-logging",
-        action="store_false",
-        default=True,
+        "--with-file-logging",
+        action="store_true",
         help="prevent emulator write log to file",
     )
     verilator_args_parser.add_argument(
@@ -120,9 +119,7 @@ def load_elf_from_dir(cases_dir, case_name, use_individual_drv, force_x86):
         else:
             nix_args = [ "nix", "build", "--no-link", "--print-out-paths", "--no-warn-dirty" ]
             if use_individual_drv:
-                split_idx = case_name.rfind('-')
-                case_true_name, case_type = case_name[:split_idx].replace('.', '-'), case_name[split_idx+1:]
-                nix_args.append(f".#t1.{cases_attr_name}.{case_type}.{case_true_name}")
+                nix_args.append(f".#t1.{cases_attr_name}.{case_name}")
             else:
                 nix_args.append(f".#t1.{cases_attr_name}.all")
             logger.info(f'Run "{" ".join(nix_args)}"')
@@ -193,7 +190,7 @@ def run_test(args):
         ] + optionals(args.no_logging, [
               "--no-logging"
             ]) \
-          + optionals(args.no_file_logging,[
+          + optionals(not args.with_file_logging,[
               "--no-file-logging"
             ]) \
           + optionals(args.no_console_logging, [

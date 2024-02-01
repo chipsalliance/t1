@@ -3,7 +3,7 @@
 { caseName, xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
 
 stdenv.mkDerivation (rec {
-  name = "${caseName}-intrinsic";
+  name = "intrinsic.${caseName}";
 
   unpackPhase = ''
     if [ -z "''${srcs:-}" ]; then

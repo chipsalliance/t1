@@ -36,4 +36,4 @@ checkformat:
 
 .PHONY: list-testcases
 list-testcases:
-	nix search '.#t1' cases --json | jq 'to_entries[].key|split(".")|.[-2:]|reverse|join("-")' -r
+	nix search '.#t1.cases' cases --json | jq 'to_entries[].key|split(".")|.[-2:]|join(".")' -r

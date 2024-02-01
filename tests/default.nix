@@ -66,8 +66,8 @@ let
              v.a
              v.b
 
-             getTestsFromFile ./test.txt { } => { "v-a": <derivation>; "v-b": <derivation>; }
-             getTestsFromFile ./test.txt { fp = true } => { "v-a": <derivation>; "v-b": <derivation>; }
+             getTestsFromFile ./test.txt { } => { "v_a": <derivation>; "v_b": <derivation>; }
+             getTestsFromFile ./test.txt { fp = true } => { "v_a": <derivation>; "v_b": <derivation>; }
 
            Type:
              getTestsFromFile :: Path -> AttrSet -> AttrSet
@@ -81,7 +81,7 @@ let
           (map
             (spec: nameValuePair
               # If we using `.` as key, nix command line will fail to parse our input
-              (replaceStrings [ "." ] [ "-" ] spec.caseName)
+              (replaceStrings [ "." ] [ "_" ] spec.caseName)
               (testcase-env.mkCodegenCase spec)
             )
             buildSpec);
