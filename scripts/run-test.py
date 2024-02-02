@@ -257,7 +257,7 @@ def run_test(args):
     elif emu_type == "subsystem":
         emu_args = [f"+init_file={case_elf_path}"]
         if args.trace:
-            trace_file_path = args.trace_output_file or f"{args.out_dir}/trace.fst"
+            trace_file_path = args.trace_out_file or f"{args.out_dir}/trace.fst"
             emu_args.append(f"+trace_file={trace_file_path}")
 
     else:
