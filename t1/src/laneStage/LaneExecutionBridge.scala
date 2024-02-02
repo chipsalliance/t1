@@ -60,6 +60,10 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   // execution result from execute unit
   val executionResult = RegInit(0.U(parameter.datapathWidth.W))
   val crossWriteLSB: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+  val responseFinish: Bool = RegInit(true.B)
+  when(vfuRequest.fire ^ dataResponse.fire) {
+    responseFinish := dataResponse.fire
+  }
 
   /** mask format result for current `mask group` */
   val maskFormatResultForGroup: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.maskGroupWidth.W)))
@@ -262,7 +266,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   vfuRequest.bits.roundingMode.foreach(_ := state.csr.vxrm)
 
   vfuRequest.valid := (if (isLastSlot) {
-    executionRecordValid || sendFoldReduce.get
+    (executionRecordValid || sendFoldReduce.get) && (responseFinish || !decodeResult(Decoder.red))
   } else {
     executionRecordValid
   })
