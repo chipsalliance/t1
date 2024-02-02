@@ -53,5 +53,7 @@ test:
     li a2, 0x1000
     call memcpy
 exit:
-    # Write msimend to exit simulation.
+    li a0, 0x90000000
+    li a1, -1
+    sw a1, 4(a0)
     csrwi 0x7cc, 0
