@@ -124,5 +124,7 @@ test:
     vsseg2e32.v v20, (a0)
 
 exit:
-    # Write msimend to exit simulation.
+    li a0, 0x90000000
+    li a1, -1
+    sw a1, 4(a0)
     csrwi 0x7cc, 0

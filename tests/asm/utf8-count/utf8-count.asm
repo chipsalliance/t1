@@ -40,5 +40,7 @@ test:
     # a0: char const *str, a1: size_t len
     call utf8_count
 exit:
-    # Write msimend to exit simulation.
+    li a0, 0x90000000
+    li a1, -1
+    sw a1, 4(a0)
     csrwi 0x7cc, 0
