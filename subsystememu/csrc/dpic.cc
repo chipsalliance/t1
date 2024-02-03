@@ -33,8 +33,8 @@ DPI void reset_vector(svBitVecVal* resetVector) {
   *resetVector = entry_addr;
 }
 
-axi4     <30,32,4> mmio_sigs;
-axi4_xbar<30,32,4> mmio;
+axi4     <31,32,4> mmio_sigs;
+axi4_xbar<31,32,4> mmio;
 uartlite           uart;
 
 DPI void init_cosim() {
@@ -179,7 +179,7 @@ extern "C" void AXI4MMIODPI(
     IN  svLogic bready) {
 
     // CTRL START {
-    axi4_ref <30,32,4> ref(mmio_sigs);
+    axi4_ref <31,32,4> ref(mmio_sigs);
     mmio.beat(ref);
 
     while (uart.exist_tx()) {
