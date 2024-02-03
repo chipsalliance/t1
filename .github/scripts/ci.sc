@@ -220,7 +220,7 @@ def writeCycleUpdates(job: String, testRunDir: os.Path, resultDir: os.Path) = {
 // @param: resultDir output directory of the test results, default to ./test-results
 // @param: dontBail don't throw exception when test fail. Useful for postpr.
 @main
-def runTests(jobs: String, resultDir: Option[os.Path], dontBail: Boolean = false) = {
+def runTests(jobs: String, runTarget: String = "ip", resultDir: Option[os.Path], dontBail: Boolean = false) = {
   var actualResultDir = resultDir.getOrElse(os.pwd / "test-results")
   val testRunDir = os.pwd / "testrun"
   os.makeDir.all(actualResultDir / "failed-logs")
@@ -230,7 +230,7 @@ def runTests(jobs: String, resultDir: Option[os.Path], dontBail: Boolean = false
       val Array(config, caseName) = job.split(",")
       System.err.println(s"\n\n\n>>>[${i+1}/${totalJobs.length}] Running test case $config,$caseName")
       val handle = os
-        .proc("scripts/run-test.py", "ip", "-c", config, "--no-log", "--base-out-dir", testRunDir, caseName)
+        .proc("scripts/run-test.py", runTarget, "-c", config, "--no-log", "--base-out-dir", testRunDir, caseName)
         .call(check=false)
       if (handle.exitCode != 0) {
         val outDir = testRunDir / config / caseName
@@ -263,14 +263,14 @@ def runTests(jobs: String, resultDir: Option[os.Path], dontBail: Boolean = false
 // @param: jobs A semicolon-separated list of job names of the form $config,$caseName,$runConfig
 // @param: output directory of the test results, default to ./test-results
 @main
-def runFailedTests(jobs: String) = {
+def runFailedTests(jobs: String, runTarget: String = "ip") = {
   val testRunDir = os.pwd / "testrun"
   val totalJobs = jobs.split(";")
   val failed = totalJobs.zipWithIndex.foreach { case (job, i) => {
     val Array(config, caseName) = job.split(",")
     System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $config,$caseName")
     val handle = os
-      .proc("scripts/run-test.py", "ip", "-c", config, "--trace", "--no-log", "--base-out-dir", testRunDir, caseName)
+      .proc("scripts/run-test.py", runTarget, "-c", config, "--trace", "--no-log", "--base-out-dir", testRunDir, caseName)
       .call(check=false)
   }}
 }

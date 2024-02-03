@@ -1,0 +1,223 @@
+name: subsystem
+on: [pull_request]
+env:
+  USER: runner
+  JAVA_OPTS: "-Duser.home=/run/github-runner/sequencer"
+
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-emulators:
+    name: "Build Emulators"
+    runs-on: [self-hosted, linux, nixos]
+    strategy:
+      matrix:
+        config:
+          - "v1024-l8-b2"
+          - "v1024-l8-b2-fp"
+          - "v4096-l8-b4"
+          - "v4096-l8-b4-fp"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build verilator emulator"
+        run: |
+          nix build '.#t1.${{ matrix.config }}.subsystem.emu' -L --no-link --cores 64
+
+  gen-matrix:
+    name: "Prepare for running testcases"
+    needs: [build-emulators]
+    runs-on: [self-hosted, linux, nixos, "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics"]
+    env:
+      RUNNERS: 70
+    outputs:
+      ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
+    steps:
+      # actions/checkout will use the "event" commit to checkout repository,
+      # which will lead to an unexpected issue that the "event" commit doesn't belongs to the repository,
+      # and causing the derivation build output cannot be cache correctly.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build all testcases"
+        run: |
+          # Build testcases with vlen 1024 and vlen 4096
+          nix build ".#t1.v1024-l8-b2.cases.all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.v4096-l8-b4.cases.all" --max-jobs auto -L --no-link --cores 64
+      - id: gen-matrix
+        name: "Generate test matrix"
+        run: |
+          echo -n matrix= >> "$GITHUB_OUTPUT"
+          nix shell ".#ammonite" -c .github/scripts/ci.sc generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+
+  build-trace-emulators:
+    name: "Build trace emulator"
+    runs-on: [self-hosted, linux, nixos]
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - "v1024-l8-b2"
+          - "v1024-l8-b2-fp"
+          - "v4096-l8-b4"
+          - "v4096-l8-b4-fp"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build verilator emulator with trace"
+        run: nix build '.#t1.${{ matrix.config }}.subsystem.emu-trace' -L --no-link --cores 64
+
+  test-emit:
+    name: "Test elaborate"
+    runs-on: [self-hosted, linux, nixos]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Test elaborate"
+        run: |
+          set -e
+          nix build '.#t1.configgen' -L --out-link ./config-gen
+          for cfg in $(jq -r '.[]' ./config-gen/share/all-supported-configs.json); do
+            echo "Building .#t1.${cfg}.subsystem.rtl"
+            nix build ".#t1.${cfg}.subsystem.rtl" -L
+          done
+
+  run-testcases:
+    name: "Run testcases"
+    needs: [gen-matrix]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      result: ${{ steps.ci-run.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Run testcases"
+        id: ci-run
+        run: |
+          nix shell ".#ammonite" -c .github/scripts/ci.sc runTests \
+            --runTarget subsystem \
+            --jobs "${{ matrix.jobs }}" \
+            --resultDir test-results-$(head -c 10 /dev/urandom | base32)
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: test-reports-${{ matrix.id }}
+          path: |
+            test-results-*/failed-tests.md
+            test-results-*/cycle-updates.md
+            test-results-*/*_cycle.json
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: failed-logs-${{ matrix.id }}
+          path: test-results-*/failed-logs
+
+  gen-fail-wave-matrix:
+    name: "Generate matrix for re-testing failing tests"
+    if: ${{ !cancelled() }}
+    needs: [run-testcases]
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      generate_wave: ${{ steps.generate-matrix.outputs.generate_wave }}
+      retry_tasks: ${{ steps.generate-matrix.outputs.retry_tasks }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: test-reports-*
+          merge-multiple: true
+      - id: generate-matrix
+        name: "Generate matrix"
+        run: |
+          touch all-fail-tests.txt
+          shopt -s nullglob
+          cat test-results-*/failed-tests.md > all-failed-tests.txt
+          retry=$(sed 's/\* //' all-failed-tests.txt | shuf -n3)  # only retry last three failed
+          echo "build wave for: $retry"
+          if [ -n "$retry" ]; then
+            echo "generate_wave=true" >> "$GITHUB_OUTPUT"
+            echo -n "retry_tasks=" >> "$GITHUB_OUTPUT"
+            echo "$retry" | \
+              jq -nR --indent 0 '{"include": [inputs | {"job": ., "id": (input_line_number)}]}' >> "$GITHUB_OUTPUT"
+          fi
+
+  build-fail-wave:
+    name: "Generate wave for failing tests"
+    needs: [build-emulators, gen-fail-wave-matrix]
+    if: ${{ !cancelled() && needs.gen-fail-wave-matrix.outputs.generate_wave == 'true'  }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-fail-wave-matrix.outputs.retry_tasks) }}
+    runs-on: [self-hosted, linux, nixos]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Run failed testcases"
+        run: |
+          nix shell ".#ammonite" -c .github/scripts/ci.sc runFailedTests --runTarget subsystem --jobs "${{ matrix.job }}"
+          waveFile=$(find testrun -name 'wave.fst')
+          hierFile=$(find testrun -name 'wave.hier')
+          if [[ -z "$waveFile" || -n "$hierFile" ]]; then  # when emulator failed, .hier is not merged into .fst
+            echo "Verilator doesn't generate wave correctly"
+            exit 1
+          fi
+          mv "$waveFile" ./wave-${{ matrix.job }}.fst
+      - uses: actions/upload-artifact@v4
+        with:
+          name: failed-tests-wave-${{ matrix.id }}
+          path: 'wave-*.fst'
+      - run: |
+          echo "Test ${{ matrix.job }} run fail"
+          # We are just running post action for failing test, so we need to avoid the workflow finishing successfully
+          exit 1
+
+  report:
+    name: "Report CI result"
+    if: ${{ !cancelled() }}
+    needs: [run-testcases]
+    runs-on: [self-hosted, linux, nixos]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: test-reports-*
+          merge-multiple: true
+      - name: "Print step summary"
+        run: |
+          echo -e "\n## Failed tests\n" >> $GITHUB_STEP_SUMMARY
+          shopt -s nullglob
+          cat test-results-*/failed-tests.md >> $GITHUB_STEP_SUMMARY
+          echo -e "\n## Cycle updates\n" >> $GITHUB_STEP_SUMMARY
+          shopt -s nullglob
+          cat test-results-*/cycle-updates.md >> $GITHUB_STEP_SUMMARY
+      - name: "Commit cycle updates"
+        run: |
+          nix shell ".#ammonite" -c .github/scripts/ci.sc mergeCycleData
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          changed_cases=$(git diff --name-only '.github/cases/**/default.json')
+
+          if [ -n "$changed_cases" ]; then
+            echo "changed cases: $changed_cases"
+            git add '.github/cases/**/default.json'
+            git commit -m "[ci] update test case cycle data"
+            git push origin ${{ github.head_ref }}
+          else
+            echo "No cycle change detect"
+          fi
+
