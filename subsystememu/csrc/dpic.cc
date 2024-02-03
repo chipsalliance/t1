@@ -57,7 +57,7 @@ DPI void init_cosim() {
         entry_addr = ram.get_entry_addr();
         std::cout << "set reset vector to "<< entry_addr << "\n";
     }
-    assert(mmio.add_dev(0x10000000, 16, &uart)); // 0x90000000-0xa0000000 mapped to 0x10000000-0x20000000
+    mmio.add_dev(0x10000000, 16, &uart); // 0x90000000-0xa0000000 mapped to 0x10000000-0x20000000
 }
 
     
