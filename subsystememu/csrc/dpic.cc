@@ -184,10 +184,12 @@ extern "C" void AXI4MMIODPI(
 
     while (uart.exist_tx()) {
         char c = uart.getc();
-        printf("%c",c);
-        fflush(stdout);
         if (c == -1) {
             exit(0);
+        }
+        else {
+            printf("%c",c);
+            fflush(stdout);
         }
     }
     // CTRL  END  }
