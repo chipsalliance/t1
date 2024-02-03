@@ -6,6 +6,8 @@ stdenv.mkDerivation (rec {
   name = "${caseName}-intrinsic";
 
   unpackPhase = ''
+    runHook preUnpack
+
     if [ -z "''${srcs:-}" ]; then
         if [ -z "''${src:-}" ]; then
             echo 'variable $src or $srcs should point to the source'
@@ -13,6 +15,8 @@ stdenv.mkDerivation (rec {
         fi
         srcs="$src"
     fi
+
+    runHook postUnpack
   '';
 
   NIX_CFLAGS_COMPILE = [
