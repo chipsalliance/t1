@@ -17,7 +17,7 @@ exit:
     .p2align 2
 
 heap_start:
-    .zero 1073741824
+    .zero 2048
 
 heap_end:
 stack_start:
