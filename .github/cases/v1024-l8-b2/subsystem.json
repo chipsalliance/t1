@@ -1,0 +1,17 @@
+{
+  "rvv-vp-intrinsic-add-mlir": 291,
+  "rvv-vp-intrinsic-add-scalable-mlir": 448,
+  "hello-mlir": 72,
+  "stripmining-mlir": 23635,
+  "conv2d-less-m2-intrinsic": 27600,
+  "linear_normalization-intrinsic": 1,
+  "matmul-intrinsic": 1,
+  "softmax-intrinsic": 1,
+  "uarttest-intrinsic": 1,
+  "fpsmoke-asm": 1,
+  "memcpy-asm": 1,
+  "mmm-asm": 61401,
+  "smoke-asm": 7539,
+  "strlen-asm": 1,
+  "utf8-count-asm": 1
+}

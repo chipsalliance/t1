@@ -51,7 +51,8 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
         .toSeq
   })
   // Initialize a list of buckets
-  val cargo = (0 until bucketSize).map(_ => new BucketBuffer())
+  val size = bucketSize.min(allCycleData.size)
+  val cargo = (0 until size).map(_ => new BucketBuffer())
   // _2 is the cycle number
   val (unProcessedData, normalData) = allCycleData.partition(_._2 <= 0)
   // Group tests that have cycle data into subset by their cycle size
@@ -63,8 +64,8 @@ def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] = {
     })
   // For unprocessed data, just split them into subset that have equal size
   cargo.zipWithIndex.foreach { case(buffer, i) =>
-    val startIdx = i * bucketSize
-    val endIdx = math.min((i + 1) * bucketSize, unProcessedData.length)
+    val startIdx = i * size
+    val endIdx = math.min((i + 1) * size, unProcessedData.length)
     unProcessedData.slice(startIdx, endIdx).foreach { case(name, cycle) => buffer.push_back(name, cycle) }
   }
   cargo.map(_.mkString).toSeq
@@ -80,18 +81,15 @@ def toMatrixJson(buckets: Seq[String]) =
 // Read default tests information from '.github/cases/default.txt' file, and use that information to generate GitHub CI matrix.
 // The result will be printed to stdout, and should be pipe into $GITHUB_OUTPUT
 @main
-def generateCiMatrix(
-    runnersAmount: Int,
-) = {
-  val defaultCases = os.pwd / os.RelPath(".github/cases/default.txt")
-  println(toMatrixJson(
-    scheduleTasks(
-      os.read
-        .lines(defaultCases)
-        .map(defaultCases / os.up / os.RelPath(_)),
-      runnersAmount
-    ),
-  ))
+def generateCiMatrix(defaultCases: String = "default.json", runnersAmount: Int) = {
+  println(
+    toMatrixJson(
+      scheduleTasks(
+        os.walk(os.pwd/".github"/"cases").filter(_.last == defaultCases),
+        runnersAmount
+      ),
+    )
+  )
 }
 
 // Resolve all the executable test and filter out unpassed tests, appending perf testcases
@@ -229,8 +227,11 @@ def runTests(jobs: String, runTarget: String = "ip", resultDir: Option[os.Path],
     case(failed, (job, i)) => {
       val Array(config, caseName) = job.split(",")
       System.err.println(s"\n\n\n>>>[${i+1}/${totalJobs.length}] Running test case $config,$caseName")
+      val args = Seq("scripts/run-test.py", runTarget, "-c", config, "--base-out-dir", testRunDir.toString) ++
+        { if (runTarget == "ip") Seq("--no-log") else Seq() } ++
+        Seq(caseName)
       val handle = os
-        .proc("scripts/run-test.py", runTarget, "-c", config, "--no-log", "--base-out-dir", testRunDir, caseName)
+        .proc(args)
         .call(check=false)
       if (handle.exitCode != 0) {
         val outDir = testRunDir / config / caseName
@@ -238,7 +239,10 @@ def runTests(jobs: String, runTarget: String = "ip", resultDir: Option[os.Path],
         os.write(actualResultDir / "failed-logs" / s"$job.txt", handle.out.text)
         failed :+ job
       } else {
-        writeCycleUpdates(job, testRunDir, actualResultDir)
+        if (runTarget == "ip") {
+          writeCycleUpdates(job, testRunDir, actualResultDir)
+        }
+
         failed
       }
     }

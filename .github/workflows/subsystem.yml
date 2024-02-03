@@ -12,14 +12,12 @@ concurrency:
 jobs:
   build-emulators:
     name: "Build Emulators"
-    runs-on: [self-hosted, linux, nixos]
+    runs-on: [self-hosted, linux, nixos, AMD Ryzen 9 7940HS w/ Radeon 780M Graphics]
     strategy:
       matrix:
         config:
           - "v1024-l8-b2"
           - "v1024-l8-b2-fp"
-          - "v4096-l8-b4"
-          - "v4096-l8-b4-fp"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,19 +50,18 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix shell ".#ammonite" -c .github/scripts/ci.sc generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix shell ".#ammonite" -c .github/scripts/ci.sc generateCiMatrix subsystem.json "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   build-trace-emulators:
     name: "Build trace emulator"
-    runs-on: [self-hosted, linux, nixos]
+    needs: [gen-matrix]
+    runs-on: [self-hosted, linux, nixos, AMD Ryzen 9 7940HS w/ Radeon 780M Graphics]
     strategy:
       fail-fast: false
       matrix:
         config:
           - "v1024-l8-b2"
           - "v1024-l8-b2-fp"
-          - "v4096-l8-b4"
-          - "v4096-l8-b4-fp"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -115,8 +112,6 @@ jobs:
           name: test-reports-${{ matrix.id }}
           path: |
             test-results-*/failed-tests.md
-            test-results-*/cycle-updates.md
-            test-results-*/*_cycle.json
 
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -202,22 +197,3 @@ jobs:
           echo -e "\n## Failed tests\n" >> $GITHUB_STEP_SUMMARY
           shopt -s nullglob
           cat test-results-*/failed-tests.md >> $GITHUB_STEP_SUMMARY
-          echo -e "\n## Cycle updates\n" >> $GITHUB_STEP_SUMMARY
-          shopt -s nullglob
-          cat test-results-*/cycle-updates.md >> $GITHUB_STEP_SUMMARY
-      - name: "Commit cycle updates"
-        run: |
-          nix shell ".#ammonite" -c .github/scripts/ci.sc mergeCycleData
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          changed_cases=$(git diff --name-only '.github/cases/**/default.json')
-
-          if [ -n "$changed_cases" ]; then
-            echo "changed cases: $changed_cases"
-            git add '.github/cases/**/default.json'
-            git commit -m "[ci] update test case cycle data"
-            git push origin ${{ github.head_ref }}
-          else
-            echo "No cycle change detect"
-          fi
-

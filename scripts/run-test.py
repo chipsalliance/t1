@@ -179,11 +179,11 @@ def load_elf_from_dir(config, cases_dir, case_name, use_individual_drv, force_x8
                 )
             else:
                 nix_args.append(f".#t1.{config}.{cases_attr_name}.all")
-            logger.info(f'Run "{" ".join(nix_args)}"')
+            logger.info(f'Get ELFs dir by cmd: "{" ".join(nix_args)}"')
             cases_dir = subprocess.check_output(nix_args).strip().decode("UTF-8")
 
     cases_dir = Path(cases_dir)
-    logger.info(f"Running cases in {cases_dir}")
+    logger.info(f"Reading ELFs in {cases_dir}")
 
     case_config_path = (
         cases_dir / f"{case_name}.json"
@@ -244,7 +244,7 @@ def run_test(args):
         "-t",
         f"{args.out_dir}",
     ]
-    logger.info(f'Run "{" ".join(configgen_args)}"')
+    logger.info(f'Get emulator config by cmd: "{" ".join(configgen_args)}"')
     subprocess.Popen(configgen_args).wait()
     assert (
         elaborate_config_path.exists()
@@ -319,7 +319,7 @@ def run_test(args):
         ]
     ) + emu_args
 
-    logger.info(f'Run "{" ".join(process_args)}"')
+    logger.info(f'Run {emu_type} emulator with cmd: "{" ".join(process_args)}"')
     return_code = subprocess.Popen(process_args).wait()
 
     if return_code != 0:
