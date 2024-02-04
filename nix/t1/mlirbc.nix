@@ -45,7 +45,7 @@ stdenvNoCC.mkDerivation {
       --output-annotation-file=mfc.anno.json \
       --lowering-options=verifLabels \
       --emit-bytecode \
-      --ir-verilog \
+      --parse-only \
       -o $out/${target}-${configName}.mlirbc
   '';
 
