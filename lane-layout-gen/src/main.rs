@@ -1,13 +1,24 @@
+mod svg_gen;
+
 use std::cmp::{min, max};
 use std::collections::HashMap;
 
 use rand::{Rng, prelude::SliceRandom, distributions::Uniform, SeedableRng};
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 
 use kdam::par_tqdm;
 
 use rayon::prelude::*;
+
+use crate::svg_gen::print_svg;
+
+#[derive(ValueEnum, Clone, Copy, Debug)]
+enum OutputFormat {
+    Text,
+    Json,
+    Svg,
+}
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -20,8 +31,8 @@ struct Args {
     #[arg(long, default_value_t = 19260817)]
     seed: u64,
 
-    #[arg(long)]
-    print_json: bool,
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    output_format: OutputFormat,
 
     #[arg(long)]
     /// if set, will not stop until find a d smaller or equal to that
@@ -48,12 +59,18 @@ fn main() {
     }).collect();
 
     eprintln!("found a layout with the max distance: {}", searcher.best_d);
-    if args.print_json {
-        println!("{}", serde_json::to_string_pretty(&transformed_layout).unwrap());
-    } else {
-        for idx in 0..args.n as usize {
-            let (x, y) = transformed_layout[&idx];
-            println!("{} -> ({}, {})", idx, x, y);
+    match args.output_format {
+        OutputFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(&transformed_layout).unwrap());
+        },
+        OutputFormat::Text => {
+            for idx in 0..args.n as usize {
+                let (x, y) = transformed_layout[&idx];
+                println!("{} -> ({}, {})", idx, x, y);
+            }
+        }
+        OutputFormat::Svg => {
+            print_svg(&transformed_layout);
         }
     }
 }

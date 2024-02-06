@@ -9,3 +9,4 @@ rand = { version = "^0.8.5" }
 kdam = { version = "^0.5.1" , features = ["rayon"]}
 rayon = { version = "^1.8.0" }
 serde_json = {  version = "^1.0.111" }
+svg = "0.15.0"
