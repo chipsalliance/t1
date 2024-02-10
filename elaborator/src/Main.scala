@@ -54,7 +54,7 @@ object Main {
 
   @main
   case class SubsystemConfig(ipConfig: IPConfig) {
-    def cdeParameter = (new org.chipsalliance.t1.subsystem.VerdesConfig).orElse(new org.chipsalliance.cde.config.Config((_, _, _) => {
+    def cdeParameter = (new org.chipsalliance.t1.subsystem.T1SubsystemConfig).orElse(new org.chipsalliance.cde.config.Config((_, _, _) => {
       case org.chipsalliance.t1.subsystem.T1ConfigPath                              => ipConfig.ipConfig
     }))
   }
@@ -68,7 +68,7 @@ object Main {
     new org.chipsalliance.t1.ipemu.TestBench(ipConfig.generator)
   )
   @main def subsystem(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
-    freechips.rocketchip.diplomacy.LazyModule(new org.chipsalliance.t1.subsystem.VerdesSystem()(subsystemConfig.cdeParameter))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
+    freechips.rocketchip.diplomacy.LazyModule(new org.chipsalliance.t1.subsystem.T1SubsystemSystem()(subsystemConfig.cdeParameter))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
   )
   @main def subsystememu(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
     new org.chipsalliance.t1.subsystememu.TestHarness()(subsystemConfig.cdeParameter)
