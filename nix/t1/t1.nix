@@ -72,6 +72,7 @@ let
     outputs = [ "out" "configgen" "elaborator" ];
 
     buildPhase = ''
+      echo "-Dchisel.project.root=/build/source/" > .mill-jvm-opts
       mill -i '__.assembly'
     '';
 

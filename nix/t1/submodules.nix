@@ -10,8 +10,8 @@ in
       src="$1"
       name="$2"
 
-      echo "[nix-shell] linking '$src' to 'dependencies/$name'"
-      ln -sfT "$src" "dependencies/$name"
+      echo "[nix-shell] copy '$src' to 'dependencies/$name'"
+      cp -r "$src" "dependencies/$name"
     }
 
     _setupOneSubmoduleEditable() {
