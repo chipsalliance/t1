@@ -8,7 +8,7 @@ import chisel3.util._
 import freechips.rocketchip.amba.axi4.{AXI4Bundle, AXI4BundleParameters}
 import freechips.rocketchip.diplomacy.LazyModule
 import org.chipsalliance.cde.config.Parameters
-import org.chipsalliance.t1.subsystem.VerdesSystem
+import org.chipsalliance.t1.subsystem.T1SubsystemSystem
 
 class MidShell(implicit val p: Parameters) extends Module {
   val io = IO(new Bundle{
@@ -248,7 +248,7 @@ class MidShell(implicit val p: Parameters) extends Module {
     val axiltoaxi = Module(new AXILtoAXI(4))
     axiltoaxi.io.axil <> dutUART.io.mmio
 
-    val ldut = LazyModule(new VerdesSystem)
+    val ldut = LazyModule(new T1SubsystemSystem)
     val dut = Module(ldut.module)
 
     ldut.resetVector := cpuResetVector
