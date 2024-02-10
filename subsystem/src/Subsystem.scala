@@ -16,7 +16,7 @@ import org.chipsalliance.cde.config._
 import org.chipsalliance.t1.rocketcore.{RocketTileAttachParams, RocketTileParams}
 import org.chipsalliance.t1.rockettile.BuildVector
 
-class VerdesConfig
+class T1SubsystemConfig
   extends Config(
     new Config((site, here, up) => {
       case SystemBusKey => SystemBusParams(
@@ -87,12 +87,12 @@ class VerdesConfig
       .orElse(new WithNExtTopInterrupts(1))
       // 1 MHz
       .orElse(new WithTimebase(BigInt(1000000)))
-      .orElse(new WithDTS("sequencer,verdes", Nil))
+      .orElse(new WithDTS("chipsalliance,t1", Nil))
       .orElse(new WithIncoherentBusTopology)
       .orElse(new BaseSubsystemConfig)
   )
 
-class VerdesSystem(implicit p: Parameters) extends BaseSubsystem
+class T1SubsystemSystem(implicit p: Parameters) extends BaseSubsystem
   with InstantiatesHierarchicalElements
   with HasTileNotificationSinks
   with HasTileInputConstants
@@ -108,11 +108,11 @@ class VerdesSystem(implicit p: Parameters) extends BaseSubsystem
   val resetVectorSourceNode = BundleBridgeSource[UInt]()
   tileResetVectorNodes.values.foreach(_ := resetVectorSourceNode)
   val resetVector = InModuleBody(resetVectorSourceNode.makeIO())
-  override lazy val module = new VerdesSystemModuleImp(this)
+  override lazy val module = new T1SubsystemModuleImp(this)
   lazy val debugOpt: Option[TLDebugModule] = None
 }
 
-class VerdesSystemModuleImp[+L <: VerdesSystem](_outer: L) extends BaseSubsystemModuleImp(_outer)
+class T1SubsystemModuleImp[+L <: T1SubsystemSystem](_outer: L) extends BaseSubsystemModuleImp(_outer)
   with HasHierarchicalElementsRootContextModuleImp
   with HasRTCModuleImp
   with HasExtInterruptsModuleImp
