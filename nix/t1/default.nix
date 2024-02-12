@@ -41,6 +41,8 @@ lib.makeScope newScope
       mkAsmCase = self.callPackage ./testcases/make-asm-case.nix { stdenv = rv32-stdenv; };
       mkCodegenCase = self.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
     };
+    makeTestCase = { xLen, vLen }: self.callPackage ../../tests { inherit xLen vLen; };
+
   } //
   lib.genAttrs allConfigs (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters
@@ -57,7 +59,7 @@ lib.makeScope newScope
 
       _elaborateConfig = with builtins; fromJSON (readFile "${elaborate-config}/config.json");
 
-      cases = self.callPackage ../../tests { inherit (_elaborateConfig.parameter) xLen vLen; };
+      cases = self.makeTestCase { inherit (_elaborateConfig.parameter) xLen vLen; };
 
       cases-x86 =
         if system == "x86-64-linux"
