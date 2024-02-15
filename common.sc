@@ -63,6 +63,14 @@ trait T1Module
   def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, tilelinkModule)
 }
 
+trait SystoleModule
+  extends ScalaModule
+    with HasChisel {
+  def hardfloatModule: ScalaModule
+  def tilelinkModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(hardfloatModule, tilelinkModule)
+}
+
 trait ConfigGenModule
   extends ScalaModule {
   def t1Module: ScalaModule

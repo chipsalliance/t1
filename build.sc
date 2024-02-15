@@ -107,6 +107,22 @@ trait T1
   def chiselPluginIvy = None
 }
 
+object systole extends Systole
+
+trait Systole
+  extends millbuild.common.SystoleModule
+  with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+
+  def tilelinkModule = tilelink
+  def hardfloatModule = hardfloat
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselIvy = None
+  def chiselPluginIvy = None
+}
+
 object configgen extends ConfigGen
 
 trait ConfigGen
