@@ -71,7 +71,8 @@ We use nix flake as our primary build system. If you have not installed nix, ins
 
 ### Build
 
-t1 includes a hardware design written in Chisel and a emulator powered by verilator. The elaborator and emulator can be run with various configurations. Each configuration is specified with a JSON file in `./configs` directory. We can specify a configuration by its JSON file name, e.g. `v1024-l8-b2`.
+t1 includes a hardware design written in Chisel and a emulator powered by verilator. The elaborator and emulator can be run with various configurations. Each configuration can be represented by a triplet of `vLen-dLen-memoryBankSize`, e.g. `v1024-l8-b2`. The specific configuration can be found in `configgen/src/Main.scala`.
+
 
 You can build its components with the following commands:
 ```shell
@@ -88,7 +89,7 @@ $ nix build .#t1.<config-name>.subsystem.emu  # build the soc emulator
 $ nix build .#t1.<config-name>.subsystem.emu-trace  # build the soc emulator with trace support
 $ nix build .#t1.<config-name>.subsystem.fpga  # build the elaborated soc .sv files with fpga support
 
-$ nix build .#t1.cases.all  # the testcases
+$ nix build .#t1.<config-name>.cases.all  # the testcases
 ```
 where `<config-name>` should be replaced with a configuration name, e.g. `v1024-l8-b2`. The build output will be put in `./result` directory by default.
 
@@ -96,11 +97,11 @@ where `<config-name>` should be replaced with a configuration name, e.g. `v1024-
 
 To run testcase on IP emulator, use the following script:
 ```shell
-$ ./scripts/run-test.py verilate -c <config> -r <runConfig> <caseName>
+$ ./scripts/run-test.py verilate -c <config-name> <case-name>
 ```
 wheres
-- `<config>` is the configuration name, filename in `./configs`;
-- `<caseName>` is the name of a testcase, you can resolve runnable test cases by command: `make list-testcases`;
+- `<config-name>` is the configuration name;
+- `<case-name>` is the name of a testcase, you can resolve runnable test cases by command: `make list-testcases`;
 
 For example:
 ```shell
@@ -122,7 +123,7 @@ $ mill -i elaborator  # build and run elaborator
 
 #### Developing Emulator
 ```shell
-$ nix develop .#t1.<config>.ip.emu  # replace <config> with your configuration name
+$ nix develop .#t1.<config-name>.ip.emu  # replace <config-name> with your configuration name
 $ cd ipemu/csrc
 $ cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Debug
 $ cmake --build build
@@ -131,7 +132,7 @@ $ cd ..; ./scripts/run-test.py verilate --emulator-path=ipemu/csrc/build/emulato
 
 If using clion
 ```shell
-$ nix develop .#t1.<config>.ip.emu -c clion ipemu/csrc
+$ nix develop .#t1.<config-name>.ip.emu -c clion ipemu/csrc
 ```
 
 #### Developing Testcases
@@ -154,47 +155,47 @@ To view what is available to ran, use the `nix search` sub command:
 #
 # For example:
 $ nix search .#t1 asm
-* legacyPackages.x86_64-linux.t1.cases.asm.fpsmoke
+* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.fpsmoke
   Test case 'fpsmoke', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.cases.asm.memcpy
+* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.memcpy
   Test case 'memcpy', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.cases.asm.mmm
+* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.mmm
   Test case 'mmm', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.cases.asm.smoke
+* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.smoke
   Test case 'smoke', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.cases.asm.strlen
+* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.strlen
   Test case 'strlen', written in assembly.
 
-* legacyPackages.x86_64-linux.t1.cases.asm.utf8-count
+* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.utf8-count
   Test case 'utf8-count', written in assembly.
 
 # Then ignore the `legacyPackage.x86_64-linux` attribute, build the testcase like below:
-$ nix build .#t1.cases.asm.smoke
+$ nix build .#t1.<config-name>.cases.asm.smoke
 ```
 
 To develop a specific testcases, enter the development shell:
 
 ```shell
-# nix develop .#t1.cases.<type>.<name>
+# nix develop .#t1.<config-name>.cases.<type>.<name>
 #
 # For example:
 
-$ nix develop .#t1.cases.asm.smoke
+$ nix develop .#t1.<config-name>.cases.asm.smoke
 ```
 
 Build tests:
 
 ```shell
 # build a single test
-$ nix build .#t1.cases.intrinsic.matmul -L
+$ nix build .#t1.<config-name>.cases.intrinsic.matmul -L
 $ ls -al ./result
 
 # build all tests
-$ nix build .#t1.cases.all --max-jobs $(nproc)
+$ nix build .#t1.<config-name>.cases.all --max-jobs $(nproc)
 $ ls -al ./result
 ```
 
