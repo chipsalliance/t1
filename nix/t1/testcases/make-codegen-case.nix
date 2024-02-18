@@ -26,6 +26,7 @@ stdenv.mkDerivation (rec {
     single \
       -VLEN ${toString vLen} \
       -XLEN ${toString xLen} \
+      -testfloat3level 1 \
       -configfile ${rvv-codegen}/configs/${caseName}.toml \
       -outputfile ${caseName}.S
 
