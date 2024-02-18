@@ -162,7 +162,7 @@
   "vmaxu.vx-codegen": 174495,
   "vmerge.vim-codegen": 63722,
   "vmerge.vvm-codegen": 31587,
-  "vmerge.vxm-codegen": 31587,
+  "vmerge.vxm-codegen": 86535,
   "vmin.vv-codegen": 66018,
   "vmin.vx-codegen": 174495,
   "vminu.vv-codegen": 66018,
@@ -274,8 +274,8 @@
   "vsetivli-codegen": 0,
   "vsetvl-codegen": 0,
   "vsetvli-codegen": 0,
-  "vsext.vf2-codegen": 46977,
-  "vsext.vf4-codegen": 9688,
+  "vsext.vf2-codegen": 40394,
+  "vsext.vf4-codegen": 6532,
   "vslide1down.vx-codegen": 1371604,
   "vslide1up.vx-codegen": 1367764,
   "vslidedown.vi-codegen": 967870,
@@ -433,6 +433,6 @@
   "vxor.vi-codegen": 127639,
   "vxor.vv-codegen": 66018,
   "vxor.vx-codegen": 174403,
-  "vzext.vf2-codegen": 46977,
-  "vzext.vf4-codegen": 9688
+  "vzext.vf2-codegen": 40394,
+  "vzext.vf4-codegen": 6532
 }
