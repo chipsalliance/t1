@@ -1,3 +1,4 @@
+# TODO: testcase should come from OM.
 { stdenv, lib, jq, buddy-mlir }:
 
 { caseName
@@ -83,11 +84,10 @@ stdenv.mkDerivation
       jq --null-input \
         --arg name ${caseName} \
         --arg type intrinsic \
-        --argjson xLen ${toString xLen} \
         --argjson vLen ${toString vLen} \
         --argjson fp ${lib.boolToString fp} \
         --arg elfPath "$out/bin/${name}.elf" \
-        '{ "name": "${name}", "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
+        '{ "name": "${name}", "type": $type, "xLen": 32, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
         > $out/${name}.json
 
       runHook preInstall

@@ -41,7 +41,7 @@ lib.makeScope newScope
       mkAsmCase = self.callPackage ./testcases/make-asm-case.nix { stdenv = rv32-stdenv; };
       mkCodegenCase = self.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
     };
-    makeTestCase = { xLen, vLen }: self.callPackage ../../tests { inherit xLen vLen; };
+    makeTestCase = { vLen }: self.callPackage ../../tests { inherit vLen; };
 
   } //
   lib.genAttrs allConfigs (configName:
@@ -59,7 +59,7 @@ lib.makeScope newScope
 
       _elaborateConfig = with builtins; fromJSON (readFile "${elaborate-config}/config.json");
 
-      cases = self.makeTestCase { inherit (_elaborateConfig.parameter) xLen vLen; };
+      cases = self.makeTestCase { inherit (_elaborateConfig.parameter) vLen; };
 
       cases-x86 =
         if system == "x86-64-linux"
