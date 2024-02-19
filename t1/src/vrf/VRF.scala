@@ -208,7 +208,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val bankNext = RegNext(bank)
       val bankCorrect = Mux(validCorrect, bank, 0.U(parameter.rfBankNum.W))
       // 我选的这个port的第二个read port 没被占用
-      v.ready := (bank & (~t)).orR && checkResult
+      v.ready := (bank & (~o)).orR && checkResult
       val firstUsed = (bank & o).orR
       bankReadF(i) := bankCorrect & (~o)
       bankReadS(i) := bankCorrect & (~t) & o
@@ -217,7 +217,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   }
   val writeBank: UInt =
     if (parameter.rfBankNum == 1) true.B else UIntToOH(write.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
-  write.ready := (writeBank & (~secondOccupied)).orR
+  write.ready := true.B
 
   val rfVec: Seq[RegFile] = Seq.tabulate(parameter.rfBankNum) { bank =>
     // rf instant
