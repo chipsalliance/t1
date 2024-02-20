@@ -201,7 +201,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
   val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
 
-  val (_, secondOccupied) = readRequests.zipWithIndex.foldLeft(
+  val (firstOccupied, secondOccupied) = readRequests.zipWithIndex.foldLeft(
     (0.U(parameter.rfBankNum.W), 0.U(parameter.rfBankNum.W))
   ) {
     // o: 第一个read port是否被占用
@@ -244,7 +244,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val writeBank: UInt =
     if (parameter.rfBankNum == 1) true.B else UIntToOH(write.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
   write.ready := (parameter.ramType match {
-    case p0rw => true.B
+    case p0rw => (writeBank & (~firstOccupied)).orR
     case p0rp1w => true.B
     case p0rwp1rw => (writeBank & (~secondOccupied)).orR
   })
