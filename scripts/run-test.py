@@ -221,6 +221,7 @@ def run_test(args):
 
     if emu_type == "ip":
         dramsim3_cfg = args.dramsim3_cfg
+        rtl_config = json.loads(elaborate_config_path.read_text())
         tck = 10**3 / args.frequency
         emu_args = (
             [
@@ -230,12 +231,17 @@ def run_test(args):
                 str(Path(args.out_dir) / "wave.fst"),
                 "--timeout",
                 str(args.cosim_timeout),
-                "--config",
-                str(elaborate_config_path),
                 "--tck",
                 str(tck),
                 "--perf",
                 str(Path(args.out_dir) / "perf.txt"),
+                "--vlen",
+                str(rtl_config["parameter"]["vLen"]),
+                "--dlen",
+                str(rtl_config["parameter"]["dLen"]),
+                # TODO: this will be refactored soon to support multiple LSU
+                "--tl_bank_number",
+                str(rtl_config["parameter"]["memoryBankSize"])
             ]
             + optionals(args.no_logging, ["--no-logging"])
             + optionals(args.no_file_logging, ["--no-file-logging"])

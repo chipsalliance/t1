@@ -219,7 +219,10 @@ static VBridgeImpl vbridgeImplFromArgs() {
   args::Flag no_console_logging(parser, "no_console_logging", "Disable console logging utilities.", { "no-console-logging" });
   args::ValueFlag<std::optional<std::string>> log_path(parser, "log path", "Path to store logging file", {"log-path"});
 
-  args::ValueFlag<std::string> config_path(parser, "config path", "", {"config"});
+  args::ValueFlag<size_t> vlen(parser, "vlen", "match from RTL config, tobe removed", {"vlen"}, args::Options::Required);
+  args::ValueFlag<size_t> dlen(parser, "dlen", "match from RTL config, tobe removed", {"dlen"}, args::Options::Required);
+  args::ValueFlag<size_t> tl_bank_number(parser, "tl_bank_number", "match from RTL config, tobe removed", {"tl_bank_number"}, args::Options::Required);
+
   args::ValueFlag<std::string> bin_path(parser, "elf path", "", {"elf"}, args::Options::Required);
   args::ValueFlag<std::string> wave_path(parser, "wave path", "", {"wave"}, args::Options::Required);
   args::ValueFlag<std::optional<std::string>> perf_path(parser, "perf path", "", {"perf"});
@@ -241,23 +244,34 @@ static VBridgeImpl vbridgeImplFromArgs() {
 
   Log = JsonLogger(no_logging.Get(), no_file_logging.Get(), no_console_logging.Get(), log_path.Get());
 
-  CosimConfig cosim_config {
+  Config cosim_config {
     .bin_path = bin_path.Get(),
     .wave_path = wave_path.Get(),
     .perf_path = perf_path.Get(),
-
     .timeout = timeout.Get(),
     .tck = tck.Get(),
     .dramsim3_config_path = dramsim3_config_path.Get(),
     .dramsim3_result_dir = dramsim3_result_dir.Get(),
+    .vlen = vlen.Get(),
+    .dlen = dlen.Get(),
+    .tl_bank_number = tl_bank_number.Get(),
+    // TODO: clean me up
+    .datapath_width = 32,
+    .lane_number = dlen.Get() / 32,
+    .elen = 32,
+    .vreg_number = 32,
+    .mshr_number = 3,
+    .lsu_idx_default = 255,
+    .vlen_in_bytes = vlen.Get() / 8,
+    .datapath_width_in_bytes = 4,
   };
 
-  return VBridgeImpl(config_path.Get(), cosim_config);
+  return VBridgeImpl(cosim_config);
 }
 
-VBridgeImpl::VBridgeImpl(const std::string &config_path, const CosimConfig &cosim_config)
-    : config(config_path.c_str()),
-      varch(fmt::format("vlen:{},elen:{}", config.v_len, config.elen)),
+VBridgeImpl::VBridgeImpl(const Config cosim_config)
+    : config(cosim_config),
+      varch(fmt::format("vlen:{},elen:{}", config.vlen, config.elen)),
       sim(1l << 32), isa("rv32gcv", "M"),
       cfg(/*default_initrd_bounds=*/std::make_pair((reg_t)0, (reg_t)0),
           /*default_bootargs=*/nullptr,
@@ -282,16 +296,16 @@ VBridgeImpl::VBridgeImpl(const std::string &config_path, const CosimConfig &cosi
       se_to_issue(nullptr), tl_req_record_of_bank(config.tl_bank_number),
       tl_req_waiting_ready(config.tl_bank_number),
       tl_req_ongoing_burst(config.tl_bank_number),
-      bin(cosim_config.bin_path),
-      wave(cosim_config.wave_path),
-      perf_path(cosim_config.perf_path),
-      timeout(cosim_config.timeout),
-      tck(cosim_config.tck),
+      bin(config.bin_path),
+      wave(config.wave_path),
+      perf_path(config.perf_path),
+      timeout(config.timeout),
+      tck(config.tck),
 
 #ifdef COSIM_VERILATOR
       ctx(nullptr),
 #endif
-      vrf_shadow(std::make_unique<uint8_t[]>(config.v_len_in_bytes *
+      vrf_shadow(std::make_unique<uint8_t[]>(config.vlen_in_bytes *
                                              config.vreg_number))
                                              {
 
@@ -299,17 +313,17 @@ VBridgeImpl::VBridgeImpl(const std::string &config_path, const CosimConfig &cosi
   csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 0);
   proc.enable_log_commits();
 
-  this->using_dramsim3 = cosim_config.dramsim3_config_path.has_value();
+  this->using_dramsim3 = config.dramsim3_config_path.has_value();
 
   if(this->using_dramsim3) {
     for(int i = 0; i < config.tl_bank_number; ++i) {
-      std::string result_dir = cosim_config.dramsim3_config_path.value() + "/channel." + std::to_string(i);
+      std::string result_dir = config.dramsim3_config_path.value() + "/channel." + std::to_string(i);
       std::filesystem::create_directories(result_dir);
       auto completion = [i, this](uint64_t address) {
         this->dramsim_resolve(i, address);
       };
 
-      drams.emplace_back(dramsim3::MemorySystem(cosim_config.dramsim3_config_path.value(), result_dir, completion, completion), 0);
+      drams.emplace_back(dramsim3::MemorySystem(config.dramsim3_config_path.value(), result_dir, completion, completion), 0);
       // std::cout<<"Relative tck ratio on channel "<<i<<" = "<<tck / drams[i].first.GetTCK()<<std::endl;
     }
   }
@@ -389,7 +403,7 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
     return {};
   } else if (is_load_type || is_store_type || is_v_type ||
              (is_csr_write && csr == CSR_MSIMEND)) {
-    return SpikeEvent{proc, fetch, this};
+    return SpikeEvent{proc, fetch, this, config.lsu_idx_default };
   } else {
     return {};
   }
@@ -494,7 +508,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
 
     std::vector<uint8_t> data(size);
     size_t actual_beat_size = std::min(
-        size, config.datapath_width_in_bytes); // since tl require alignment
+    size, config.datapath_width_in_bytes); // since tl require alignment
     size_t data_begin_pos = cur_record->bytes_received;
 
     // receive put data
@@ -668,15 +682,15 @@ void VBridgeImpl::update_lsu_idx(const VLsuReqEnqPeek &enq) {
   }
   for (auto se = to_rtl_queue.rbegin(); se != to_rtl_queue.rend(); se++) {
     if (se->is_issued && (se->is_load || se->is_store) &&
-        (se->lsu_idx == lsu_idx_default)) {
-      uint8_t index = lsu_idx_default;
+        (se->lsu_idx == config.lsu_idx_default)) {
+      uint8_t index = config.lsu_idx_default;
       for (int i = 0; i < config.mshr_number; i++) {
         if (lsuReqs[i] == 1) {
           index = i;
           break;
         }
       }
-      if (index == lsu_idx_default) {
+      if (index == config.lsu_idx_default) {
         Log("UpdateLSUIdx")
             .info("waiting for lsu request to fire");
         break;
@@ -787,7 +801,7 @@ void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd,
                                 uint32_t offset, uint32_t mask, uint32_t data,
                                 uint32_t idx) {
   uint32_t record_idx_base =
-      vd * config.v_len_in_bytes + (lane_idx + config.lane_number * offset) * 4;
+      vd * config.vlen_in_bytes + (lane_idx + config.lane_number * offset) * 4;
   auto &all_writes = se->vrf_access_record.all_writes;
 
   for (int j = 0; j < 32 / 8; j++) { // 32bit / 1byte

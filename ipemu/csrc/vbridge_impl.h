@@ -24,7 +24,6 @@
 #include "dramsim3.h"
 
 #include "encoding.h"
-#include "rtl_config.h"
 #include "simple_sim.h"
 #include "spike_event.h"
 #include "util.h"
@@ -34,7 +33,7 @@ void print_perf_summary(std::ostream &os);
 
 class SpikeEvent;
 
-struct CosimConfig {
+struct Config {
   std::string bin_path;
   std::string wave_path;
   std::optional<std::string> perf_path;
@@ -44,6 +43,20 @@ struct CosimConfig {
   double tck;
   std::optional<std::string> dramsim3_config_path;
   std::optional<std::string> dramsim3_result_dir;
+  // TODO: move these configs to compiler time after t1 support OM:
+  // TODO: these are unused parameters
+  size_t vlen;
+  size_t dlen;
+  size_t tl_bank_number;
+
+  size_t datapath_width;
+  size_t lane_number;
+  size_t elen;
+  size_t vreg_number;
+  size_t mshr_number;
+  size_t lsu_idx_default;
+  size_t vlen_in_bytes;
+  size_t datapath_width_in_bytes;
 };
 
 struct TLReqRecord {
@@ -173,8 +186,7 @@ struct TLReqRecord {
 
 class VBridgeImpl {
 public:
-  VBridgeImpl(const std::string &config_path, const CosimConfig &cosim_config);
-
+  VBridgeImpl(const Config cosim_config);
 #if VM_TRACE
   void dpiDumpWave();
 #endif
@@ -203,7 +215,7 @@ public:
   void dpiPeekLsuEnq(const VLsuReqEnqPeek &lsu_req_enq);
   void dpiPeekVrfWrite(const VrfWritePeek &v_enq);
 
-  RTLConfig config;
+  Config config;
 
   void on_exit();
 
