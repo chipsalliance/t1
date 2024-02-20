@@ -160,6 +160,8 @@ class LaneRequest(param: LaneParameter) extends Bundle {
 
   val segment: UInt = UInt(3.W)
 
+  val wholeRegisterLS: Bool = Bool()
+
   /** data of rs1 */
   val readFromScalar: UInt = UInt(param.datapathWidth.W)
 
