@@ -15,7 +15,7 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelD}
   * @param laneNumber how many lanes in the vector processor
   * @param paWidth physical address width
   */
-case class LSUParam(
+case class LSUParameter(
                      datapathWidth:        Int,
                      chainingSize:         Int,
                      vLen:                 Int,
@@ -26,10 +26,12 @@ case class LSUParam(
                      maskWidth:            Int,
                      memoryBankSize:       Int,
                      lsuMSHRSize:          Int,
-                     lsuVRFWriteQueueSize: Int,
-                     lsuTransposeSize:     Int,
+                     toVRFWriteQueueSize:  Int,
+                     transferSize:         Int,
+                     // TODO: refactor to per lane parameter.
                      vrfReadLatency:       Int,
-                     tlParam:              TLBundleParameter) {
+                     tlParam:              TLBundleParameter,
+                       ) {
 
   /** see [[VParameter.maskGroupWidth]]. */
   val maskGroupWidth: Int = datapathWidth
@@ -47,10 +49,10 @@ case class LSUParam(
     */
   val vLenBits: Int = log2Ceil(vLen) + 1
 
-  val bankPosition: Int = log2Ceil(lsuTransposeSize)
+  val bankPosition: Int = log2Ceil(transferSize)
 
   def mshrParam: MSHRParam =
-    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, lsuTransposeSize, memoryBankSize, vrfReadLatency, tlParam)
+    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, transferSize, memoryBankSize, vrfReadLatency, tlParam)
 
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)
@@ -71,7 +73,7 @@ case class LSUParam(
   * - a bunch of [[MSHR]] to record outstanding memory transactions.
   * - a crossbar to connect memory interface and each lanes.
   */
-class LSU(param: LSUParam) extends Module {
+class LSU(param: LSUParameter) extends Module {
 
   /** [[LSURequest]] from Scheduler to LSU
     * [[request.ready]] couples to [[request.bits]] to detect memory conflict.
@@ -184,7 +186,7 @@ class LSU(param: LSUParam) extends Module {
    * TL-D -CrossBar-> MSHR -proxy-> write queue -CrossBar-> VRF
    */
   val writeQueueVec: Seq[Queue[LSUWriteQueueBundle]] = Seq.fill(param.laneNumber)(
-    Module(new Queue(new LSUWriteQueueBundle(param), param.lsuVRFWriteQueueSize, flow = true))
+    Module(new Queue(new LSUWriteQueueBundle(param), param.toVRFWriteQueueSize, flow = true))
   )
 
   // read vrf
@@ -220,13 +222,13 @@ class LSU(param: LSUParam) extends Module {
   // Record whether there is data for the corresponding instruction in the queue
   writeQueueVec.zip(dataInWriteQueue).zipWithIndex.foreach {case ((q, p), queueIndex) =>
     val queueCount: Seq[UInt] = Seq.tabulate(param.chainingSize) { _ =>
-      RegInit(0.U(log2Ceil(param.lsuVRFWriteQueueSize).W))
+      RegInit(0.U(log2Ceil(param.toVRFWriteQueueSize).W))
     }
     val enqOH: UInt = indexToOH(q.io.enq.bits.data.instructionIndex, param.chainingSize)
     val queueEnq: UInt = Mux(q.io.enq.fire, enqOH, 0.U)
     val queueDeq = Mux(q.io.deq.fire, indexToOH(q.io.deq.bits.data.instructionIndex, param.chainingSize), 0.U)
     queueCount.zipWithIndex.foreach {case (count, index) =>
-      val counterUpdate: UInt = Mux(queueEnq(index), 1.U, -1.S(log2Ceil(param.lsuVRFWriteQueueSize).W).asUInt)
+      val counterUpdate: UInt = Mux(queueEnq(index), 1.U, -1.S(log2Ceil(param.toVRFWriteQueueSize).W).asUInt)
       when(queueEnq(index) ^ queueDeq(index)) {
         count := count + counterUpdate
       }

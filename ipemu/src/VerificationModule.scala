@@ -8,10 +8,10 @@ import chisel3.probe._
 import chisel3.util.experimental.BoringUtils.{bore, tapAndRead}
 import chisel3.util.{Decoupled, DecoupledIO, Valid, ValidIO}
 import org.chipsalliance.t1.ipemu.dpi._
-import org.chipsalliance.t1.rtl.{CSRInterface, V, VRequest, VResponse}
+import org.chipsalliance.t1.rtl.{CSRInterface, T1, VRequest, VResponse}
 import tilelink.TLBundle
 
-class VerificationModule(dut: V) extends RawModule {
+class VerificationModule(dut: T1) extends RawModule {
   override val desiredName = "VerificationModule"
 
   val clockRate = 5
@@ -49,7 +49,7 @@ class VerificationModule(dut: V) extends RawModule {
   val tlPort:           Vec[TLBundle] = IO(Vec(dut.parameter.memoryBankSize, Flipped(dut.parameter.tlParam.bundle())))
   storeBufferClear := true.B
 
-  val peekLsuEnq = Module(new PeekLsuEnq(PeekLsuEnqParameter(dut.parameter.lsuParam.lsuMSHRSize, latPeekLsuEnq)))
+  val peekLsuEnq = Module(new PeekLsuEnq(PeekLsuEnqParameter(dut.parameter.lsuParameters.head.lsuMSHRSize, latPeekLsuEnq)))
   peekLsuEnq.clock.ref := genClock
   peekLsuEnq.enq.ref := tapAndRead(dut.lsu.reqEnq).asUInt
 

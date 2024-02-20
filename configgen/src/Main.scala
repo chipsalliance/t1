@@ -12,8 +12,11 @@ object Main {
     def shortName = "path"
     def read(strs: Seq[String]): Either[String, os.Path] = Right(os.Path(strs.head, os.pwd))
   }
-  implicit class EmitVParameter(p: VParameter) {
-    def emit(targetDir: os.Path) = os.write(targetDir / "config.json", upickle.default.write(SerializableModuleGenerator(classOf[V], p), indent = 2))
+  implicit class EmitVParameter(p: T1Parameter) {
+    def emit(targetDir: os.Path) = os.write(
+      targetDir / "config.json",
+      upickle.default.write(SerializableModuleGenerator(classOf[T1], p), indent = 2)
+    )
   }
 
   @main def listConfigs(
@@ -34,19 +37,13 @@ object Main {
 
   @main def v1024l1b2(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
-  ): Unit = VParameter(
-    xLen = 32,
+  ): Unit = T1Parameter(
     vLen = 1024,
-    datapathWidth = 32,
-    laneNumber = 1,
-    physicalAddressWidth = 32,
-    chainingSize = 4,
-    vrfWriteQueueSize = 4,
-    fpuEnable = false,
-    instructionQueueSize = 8,
+    dLen = 32,
+    extensions = Seq("Zve32x"),
     memoryBankSize = 2,
     lsuVRFWriteQueueSize = 96,
-    portFactor = 1,
+    vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -77,19 +74,13 @@ object Main {
 
   @main def v1024l2b2(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
-  ): Unit = VParameter(
-    xLen = 32,
+  ): Unit = T1Parameter(
     vLen = 1024,
-    datapathWidth = 32,
-    laneNumber = 2,
-    physicalAddressWidth = 32,
-    chainingSize = 4,
-    vrfWriteQueueSize = 4,
-    fpuEnable = false,
-    instructionQueueSize = 8,
+    dLen = 64,
+    extensions = Seq("Zve32x"),
     memoryBankSize = 2,
     lsuVRFWriteQueueSize = 96,
-    portFactor = 1,
+    vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -120,19 +111,13 @@ object Main {
 
   @main def v1024l8b2(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
-  ): Unit = VParameter(
-    xLen = 32,
+  ): Unit = T1Parameter(
     vLen = 1024,
-    datapathWidth = 32,
-    laneNumber = 8,
-    physicalAddressWidth = 32,
-    chainingSize = 4,
-    vrfWriteQueueSize = 4,
-    fpuEnable = false,
-    instructionQueueSize = 8,
+    dLen = 256,
+    extensions = Seq("Zve32x"),
     memoryBankSize = 2,
     lsuVRFWriteQueueSize = 96,
-    portFactor = 1,
+    vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -163,19 +148,13 @@ object Main {
 
   @main def v1024l8b2fp(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
-  ): Unit = VParameter(
-    xLen = 32,
+  ): Unit = T1Parameter(
     vLen = 1024,
-    datapathWidth = 32,
-    laneNumber = 8,
-    physicalAddressWidth = 32,
-    chainingSize = 4,
-    vrfWriteQueueSize = 4,
-    fpuEnable = true,
-    instructionQueueSize = 8,
+    dLen = 256,
+    extensions = Seq("Zve32f"),
     memoryBankSize = 2,
     lsuVRFWriteQueueSize = 96,
-    portFactor = 1,
+    vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -205,19 +184,13 @@ object Main {
 
   @main def v4096l8b4(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
-  ): Unit = VParameter(
-    xLen = 32,
+  ): Unit = T1Parameter(
     vLen = 4096,
-    datapathWidth = 32,
-    laneNumber = 8,
-    physicalAddressWidth = 32,
-    chainingSize = 4,
-    vrfWriteQueueSize = 4,
-    fpuEnable = false,
-    instructionQueueSize = 8,
+    dLen = 256,
+    extensions = Seq("Zve32x"),
     memoryBankSize = 4,
     lsuVRFWriteQueueSize = 96,
-    portFactor = 1,
+    vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -248,19 +221,13 @@ object Main {
 
   @main def v4096l8b4fp(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
-  ): Unit = VParameter(
-    xLen = 32,
+  ): Unit = T1Parameter(
     vLen = 4096,
-    datapathWidth = 32,
-    laneNumber = 8,
-    physicalAddressWidth = 32,
-    chainingSize = 4,
-    vrfWriteQueueSize = 4,
-    fpuEnable = true,
-    instructionQueueSize = 8,
+    dLen = 256,
+    extensions = Seq("Zve32f"),
     memoryBankSize = 4,
     lsuVRFWriteQueueSize = 96,
-    portFactor = 1,
+    vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -288,22 +255,15 @@ object Main {
     )
   ).emit(targetDir)
 
-
   @main def v4096l32b4(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
-  ): Unit = VParameter(
-    xLen = 32,
+  ): Unit = T1Parameter(
     vLen = 4096,
-    datapathWidth = 32,
-    laneNumber = 32,
-    physicalAddressWidth = 32,
-    chainingSize = 4,
-    vrfWriteQueueSize = 4,
-    fpuEnable = false,
-    instructionQueueSize = 8,
+    dLen = 1024,
+    extensions = Seq("Zve32x"),
     memoryBankSize = 4,
     lsuVRFWriteQueueSize = 96,
-    portFactor = 1,
+    vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -333,19 +293,13 @@ object Main {
 
   @main def v4096l32b4fp(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
-  ): Unit = VParameter(
-    xLen = 32,
+  ): Unit = T1Parameter(
     vLen = 4096,
-    datapathWidth = 32,
-    laneNumber = 32,
-    physicalAddressWidth = 32,
-    chainingSize = 4,
-    vrfWriteQueueSize = 4,
-    fpuEnable = true,
-    instructionQueueSize = 8,
+    dLen = 1024,
+    extensions = Seq("Zve32f"),
     memoryBankSize = 4,
     lsuVRFWriteQueueSize = 96,
-    portFactor = 1,
+    vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(

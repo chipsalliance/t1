@@ -43,7 +43,7 @@ case class LaneParameter(
   /** maximum of lmul, defined in spec. */
   val lmulMax: Int = 8
 
-  /** see [[VParameter.sewMin]] */
+  /** see [[T1Parameter.sewMin]] */
   val sewMin: Int = 8
 
   /** The datapath is divided into groups based on SEW.
@@ -107,10 +107,10 @@ case class LaneParameter(
   /** hardware width of [[datapathWidth]]. */
   val datapathWidthBits: Int = log2Ceil(datapathWidth)
 
-  /** see [[VParameter.maskGroupWidth]] */
+  /** see [[T1Parameter.maskGroupWidth]] */
   val maskGroupWidth: Int = datapathWidth
 
-  /** see [[VParameter.maskGroupSize]] */
+  /** see [[T1Parameter.maskGroupSize]] */
   val maskGroupSize: Int = vLen / maskGroupWidth
 
   /** hardware width of [[maskGroupSize]]. */
@@ -129,7 +129,7 @@ case class LaneParameter(
 
 }
 
-/** Instantiate [[Lane]] from [[V]],
+/** Instantiate [[Lane]] from [[T1]],
   * - [[VRF]] is designed for store the vector register of the processor.
   * - datapath units: [[MaskedLogic]], [[LaneAdder]], [[LaneShifter]], [[LaneMul]], [[LaneDiv]], [[OtherUnit]]
   */
@@ -154,7 +154,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val writeBusPort: Vec[RingPort[WriteBusData]] = IO(Vec(2, new RingPort(new WriteBusData(parameter))))
 
-  /** request from [[V.decode]] to [[Lane]]. */
+  /** request from [[T1.decode]] to [[Lane]]. */
   val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(parameter))))
 
   /** CSR Interface.
@@ -162,10 +162,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.vlMaxBits)))
 
-  /** response to [[V.lsu]] or mask unit in [[V]] */
+  /** response to [[T1.lsu]] or mask unit in [[T1]] */
   val laneResponse: ValidIO[LaneResponse] = IO(Valid(new LaneResponse(parameter)))
 
-  /** feedback from [[V]] to [[Lane]] for [[laneResponse]] */
+  /** feedback from [[T1]] to [[Lane]] for [[laneResponse]] */
   val laneResponseFeedback: ValidIO[LaneResponseFeedback] = IO(Flipped(Valid(new LaneResponseFeedback(parameter))))
 
   /** for LSU and V accessing lane, this is not a part of ring, but a direct connection.
@@ -195,7 +195,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** for each instruction in the slot, response to top when instruction is finished in this lane. */
   val instructionFinished: UInt = IO(Output(UInt(parameter.chainingSize.W)))
 
-  /** V0 update in the lane should also update [[V.v0]] */
+  /** V0 update in the lane should also update [[T1.v0]] */
   val v0Update: ValidIO[V0Update] = IO(Valid(new V0Update(parameter)))
 
   /** input of mask data */
@@ -207,7 +207,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** The sew of instruction which is requesting for mask. */
   val maskSelectSew: UInt = IO(Output(UInt(2.W)))
 
-  /** from [[V.lsu]] to [[Lane.vrf]], indicate it's the load store is finished, used for chaining.
+  /** from [[T1.lsu]] to [[Lane.vrf]], indicate it's the load store is finished, used for chaining.
     * because of load store index EEW, is complicated for lane to calculate whether LSU is finished.
     * let LSU directly tell each lane it is finished.
     */
@@ -290,7 +290,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrfWriteArbiter(parameter.chainingSize).bits := topWriteQueue.bits
   topWriteQueue.ready := vrfWriteArbiter(parameter.chainingSize).ready
 
-  /** for each slot, assert when it is asking [[V]] to change mask */
+  /** for each slot, assert when it is asking [[T1]] to change mask */
   val slotMaskRequestVec: Vec[ValidIO[UInt]] = Wire(
     Vec(
       parameter.chainingSize,
@@ -415,7 +415,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
       /** We will ignore the effect of mask since:
         * [[Decoder.crossRead]]: We need to read data to another lane
-        * [[Decoder.scheduler]]: We need to synchronize with [[V]] every group
+        * [[Decoder.scheduler]]: We need to synchronize with [[T1]] every group
         * [[record.laneRequest.loadStore]]: We need to read data to lsu every group
         */
       val alwaysNextGroup: Bool = decodeResult(Decoder.crossRead) || decodeResult(Decoder.nr) ||

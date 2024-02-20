@@ -47,7 +47,7 @@ object Main {
   case class IPConfig(
     @arg(name = "ip-config", short = 'c') ipConfig: os.Path) {
     def generator = upickle.default
-      .read[chisel3.experimental.SerializableModuleGenerator[org.chipsalliance.t1.rtl.V, org.chipsalliance.t1.rtl.VParameter]](ujson.read(os.read(ipConfig)))
+      .read[chisel3.experimental.SerializableModuleGenerator[org.chipsalliance.t1.rtl.T1, org.chipsalliance.t1.rtl.T1Parameter]](ujson.read(os.read(ipConfig)))
   }
 
   implicit def ipConfig: ParserForClass[IPConfig] = ParserForClass[IPConfig]
