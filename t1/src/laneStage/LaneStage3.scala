@@ -32,10 +32,10 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
   val state: LaneState = IO(Input(new LaneState(parameter)))
   val pipeEnqueue: Option[LaneStage3Enqueue] = Option.when(isLastSlot)(RegInit(0.U.asTypeOf(enqueue.bits)))
-  /** response to [[V.lsu]] or mask unit in [[V]] */
+  /** response to [[T1.lsu]] or mask unit in [[T1]] */
   val laneResponse: Option[ValidIO[LaneResponse]] = Option.when(isLastSlot)(IO(Valid(new LaneResponse(parameter))))
   val stageValid: Bool = IO(Output(Bool()))
-  /** feedback from [[V]] to [[Lane]] for [[laneResponse]] */
+  /** feedback from [[T1]] to [[Lane]] for [[laneResponse]] */
   val laneResponseFeedback: Option[ValidIO[LaneResponseFeedback]] =
     Option.when(isLastSlot)(IO(Flipped(Valid(new LaneResponseFeedback(parameter)))))
   val crossWritePort: Option[Vec[DecoupledIO[WriteBusData]]] =

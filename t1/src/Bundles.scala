@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{Valid, ValidIO, log2Ceil}
 import org.chipsalliance.t1.rtl.decoder.Decoder
-import org.chipsalliance.t1.rtl.lsu.LSUParam
+import org.chipsalliance.t1.rtl.lsu.LSUParameter
 import org.chipsalliance.t1.rtl.vrf.VRFParam
 
 /** Interface from CPU. */
@@ -58,7 +58,7 @@ class VResponse(xLen: Int) extends Bundle {
 class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
 
   /** record the index of this instruction,
-    * this is maintained by [[V.instructionCounter]]
+    * this is maintained by [[T1.instructionCounter]]
     */
   val instructionIndex: UInt = UInt(instructionIndexWidth.W)
 
@@ -98,7 +98,7 @@ class InstructionState extends Bundle {
   /** used for mask unit, schedule mask unit to execute. */
   val sMaskUnitExecution: Bool = Bool()
 
-  /** used for instruction commit, schedule [[V]] to commit. */
+  /** used for instruction commit, schedule [[T1]] to commit. */
   val sCommit: Bool = Bool()
 }
 
@@ -133,7 +133,7 @@ class ExtendInstructionType extends Bundle {
   val id:       Bool = Bool()
 }
 
-/** interface from [[V]] to [[Lane]]. */
+/** interface from [[T1]] to [[Lane]]. */
 class LaneRequest(param: LaneParameter) extends Bundle {
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
   // decode
@@ -231,7 +231,7 @@ class InstGroupState(param: LaneParameter) extends Bundle {
 /** Instruction State in [[Lane]]. */
 class InstructionControlRecord(param: LaneParameter) extends Bundle {
 
-  /** Store request from [[V]]. */
+  /** Store request from [[T1]]. */
   val laneRequest: LaneRequest = new LaneRequest(param)
 
   /** csr follows the instruction.
@@ -332,10 +332,10 @@ class CSRInterface(vlWidth: Int) extends Bundle {
   val ignoreException: Bool = Bool()
 }
 
-/** [[Lane]] -> [[V]], response for [[LaneRequest]] */
+/** [[Lane]] -> [[T1]], response for [[LaneRequest]] */
 class LaneResponse(param: LaneParameter) extends Bundle {
 
-  /** data sending to [[V]]. */
+  /** data sending to [[T1]]. */
   val data: UInt = UInt(param.datapathWidth.W)
 
   /** if [[toLSU]] is asserted, this field is used to indicate the data is sending to LSU,
@@ -343,7 +343,7 @@ class LaneResponse(param: LaneParameter) extends Bundle {
     */
   val toLSU: Bool = Bool()
 
-  /** successfully find first one in the [[V]]. */
+  /** successfully find first one in the [[T1]]. */
   val ffoSuccess: Bool = Bool()
 
   // Whether at least one member of the reduce is executed
@@ -381,7 +381,7 @@ class RingPort[T <: Data](gen: T) extends Bundle {
   val deqRelease: Bool = Input(Bool())
 }
 
-/** [[V]] -> [[Lane]], ack of [[LaneResponse]] */
+/** [[T1]] -> [[Lane]], ack of [[LaneResponse]] */
 class LaneResponseFeedback(param: LaneParameter) extends Bundle {
 
   /** which instruction is the source of this transaction
@@ -497,7 +497,7 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
 }
 
 /** 为了decode, 指令需要在入口的时候打一拍, 这是需要保存的信息 */
-class InstructionPipeBundle(parameter: VParameter) extends Bundle {
+class InstructionPipeBundle(parameter: T1Parameter) extends Bundle {
   // 原始指令信息
   val request: VRequest = new VRequest(parameter.xLen)
   // decode 的结果
@@ -513,7 +513,7 @@ class InstructionPipeBundle(parameter: VParameter) extends Bundle {
   val writeByte: UInt = UInt(parameter.laneParam.vlMaxBits.W)
 }
 
-class LSUWriteQueueBundle(param: LSUParam) extends Bundle {
+class LSUWriteQueueBundle(param: LSUParameter) extends Bundle {
   val data: VRFWriteRequest =
     new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
   val targetLane: UInt = UInt(param.laneNumber.W)
@@ -591,7 +591,7 @@ class LSUInstructionInformation extends Bundle {
   def fof: Bool = mop === 0.U && lumop(4) && !isStore
 }
 
-/** request interface from [[V]] to [[LSU]] and [[MSHR]] */
+/** request interface from [[T1]] to [[LSU]] and [[MSHR]] */
 class LSURequest(dataWidth: Int) extends Bundle {
 
   /** from instruction. */
@@ -603,7 +603,7 @@ class LSURequest(dataWidth: Int) extends Bundle {
   /** data from rs2 in scalar core, if necessary. */
   val rs2Data: UInt = UInt(dataWidth.W)
 
-  /** tag from [[V]] to record instruction.
+  /** tag from [[T1]] to record instruction.
     * TODO: parameterize it.
     */
   val instructionIndex: UInt = UInt(3.W)

@@ -6,9 +6,9 @@ package org.chipsalliance.t1.ipemu
 import chisel3._
 import chisel3.util.experimental.BoringUtils.tapAndRead
 import org.chipsalliance.t1.ipemu.dpi._
-import org.chipsalliance.t1.rtl.V
+import org.chipsalliance.t1.rtl.T1
 
-class Monitor(dut: V) extends RawModule {
+class Monitor(dut: T1) extends RawModule {
   val clock = IO(Input(Clock()))
   val reset = IO(Input(Bool()))
 

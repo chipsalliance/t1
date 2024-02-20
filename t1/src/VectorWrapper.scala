@@ -7,12 +7,12 @@ import chisel3._
 import tilelink._
 import chisel3.util._
 
-class InstructionQueueBundle(parameter: VParameter) extends Bundle {
+class InstructionQueueBundle(parameter: T1Parameter) extends Bundle {
   val instruction = new VRequest(parameter.xLen)
   val csrInterface = new CSRInterface(parameter.laneParam.vlMaxBits)
 }
 
-class VectorWrapper(parameter: VParameter) extends Module {
+class VectorWrapper(parameter: T1Parameter) extends Module {
   val request: DecoupledIO[VRequest] = IO(Flipped(Decoupled(new VRequest(parameter.xLen))))
   val response: ValidIO[VResponse] = IO(Valid(new VResponse(parameter.xLen)))
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.laneParam.vlMaxBits)))
@@ -20,7 +20,7 @@ class VectorWrapper(parameter: VParameter) extends Module {
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.memoryBankSize, parameter.tlParam.bundle()))
 
   // v主体
-  val vector: V = Module(new V(parameter))
+  val vector: T1 = Module(new T1(parameter))
   // 先忽视v set 类型的指令
   val vSetInstruction: Bool = (request.bits.instruction(6, 0) === "0b1010111".U) && (request.bits.instruction(14, 12) === 7.U)
   val instructionQueue: Queue[InstructionQueueBundle] = Module(new Queue(new InstructionQueueBundle(parameter), parameter.instructionQueueSize))

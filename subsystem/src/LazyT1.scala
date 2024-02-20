@@ -9,7 +9,7 @@ import freechips.rocketchip.diplomacy.AddressSet
 import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements}
 import org.chipsalliance.cde.config._
 import org.chipsalliance.t1.rockettile.{AbstractLazyT1, AbstractLazyT1ModuleImp}
-import org.chipsalliance.t1.rtl.{V, VParameter}
+import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
 case object T1ConfigPath extends Field[os.Path]
 trait HasT1Tiles { this: BaseSubsystem with InstantiatesHierarchicalElements =>
@@ -18,7 +18,7 @@ trait HasT1Tiles { this: BaseSubsystem with InstantiatesHierarchicalElements =>
 
 class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
   lazy val module = new LazyT1Imp(this)
-  lazy val generator: SerializableModuleGenerator[V, VParameter] = upickle.default.read[SerializableModuleGenerator[V, VParameter]](ujson.read(os.read(p(T1ConfigPath))))
+  lazy val generator: SerializableModuleGenerator[T1, T1Parameter] = upickle.default.read[SerializableModuleGenerator[T1, T1Parameter]](ujson.read(os.read(p(T1ConfigPath))))
   def banks: Int = generator.parameter.memoryBankSize
   def uarchName: String = "t1"
   def sourceIdSize: Int = generator.parameter.sourceWidth
@@ -30,7 +30,7 @@ class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
 
 class LazyT1Imp(outer: LazyT1)(implicit p: Parameters) extends AbstractLazyT1ModuleImp(outer) {
   // We insist using the json config for Vector for uArch tuning.
-  val t1: V = Module(outer.generator.module())
+  val t1: T1 = Module(outer.generator.module())
 
   t1.request.valid := request.valid
   t1.request.bits.instruction := request.bits.instruction

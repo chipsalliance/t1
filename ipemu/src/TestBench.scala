@@ -7,13 +7,13 @@ import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
 import chisel3.probe._
 import chisel3.util.experimental.BoringUtils.bore
-import org.chipsalliance.t1.rtl.{V, VParameter}
+import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
 
-class TestBench(generator: SerializableModuleGenerator[V, VParameter]) extends RawModule {
+class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends RawModule {
   val clock = Wire(Clock())
   val reset = Wire(Bool())
-  val dut: V = withClockAndReset(clock, reset)(Module(generator.module()))
+  val dut: T1 = withClockAndReset(clock, reset)(Module(generator.module()))
   withClockAndReset(clock, reset) {
     val monitor = Module(new Monitor(dut))
     monitor.clock := clock

@@ -12,16 +12,21 @@ import chisel3.probe.Probe
 import chisel3.probe.ProbeValue
 import chisel3.probe.define
 import org.chipsalliance.t1.rtl.decoder.Decoder
-import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParam}
+import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter}
 import org.chipsalliance.t1.rtl.vrf.VRFParam
 
-object VParameter {
-  implicit def rwP: upickle.default.ReadWriter[VParameter] = upickle.default.macroRW
+object T1Parameter {
+  implicit def rwP: upickle.default.ReadWriter[T1Parameter] = upickle.default.macroRW
 }
 
 /**
   * @param xLen XLEN
   * @param vLen VLEN
+  * @param dLen DLEN
+  * @param extensions what extensions does T1 support. currently Zve32x or Zve32f,
+  *                   TODO: we may add
+  *                     - Zvfhmin, Zvfh for ML workloads
+  *                     - Zvbb, Zvbc, Zvkb for Crypto, and other Crypto accelerators in the future.
   * @param datapathWidth width of data path, can be 32 or 64, decides the memory bandwidth.
   * @param laneNumber how many lanes in the vector processor
   * @param physicalAddressWidth width of memory bus address width
@@ -34,23 +39,49 @@ object VParameter {
   *  - the chaining size is decided by logic units. if the bandwidth is limited by the logic units, we should increase lane size.
   * TODO: sort a machine-readable chaining matrix for test case generation.
   */
-case class VParameter(
-                       xLen:                 Int,
-                       vLen:                 Int,
-                       datapathWidth:        Int,
-                       laneNumber:           Int,
-                       physicalAddressWidth: Int,
-                       chainingSize:         Int,
-                       vrfWriteQueueSize:    Int,
-                       fpuEnable:            Boolean,
-                       instructionQueueSize: Int,
-                       memoryBankSize:       Int,
-                       lsuVRFWriteQueueSize: Int,
-                       portFactor:           Int,
-                       vfuInstantiateParameter: VFUInstantiateParameter)
+case class T1Parameter(
+  vLen:                    Int,
+  dLen:                    Int,
+  extensions:              Seq[String],
+  // LSU
+  //   TODO: from latency, rather than queue size
+  memoryBankSize:          Int,
+  lsuVRFWriteQueueSize:    Int,
+  // Lane
+  vrfBankSize:             Int,
+  // TODO: simplify it. this is user-level API.
+  vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
+  require(extensions.forall(Seq("Zve32x", "Zve32f").contains), "unsupported extension.")
+
+  /** xLen of T1, we currently only support 32. */
+  val xLen: Int = 32
+
   /** minimum of sew, defined in spec. */
   val sewMin: Int = 8
+
+  /** TODO: configure it. */
+  val instructionQueueSize: Int = 4
+
+  /** crosslane write token size */
+  val vrfWriteQueueSize: Int = 4
+
+  /** does t1 has floating datapath? */
+  val fpuEnable: Boolean = extensions.contains("Zve32f")
+
+  /** how many chaining does T1 support, this is not a parameter yet. */
+  val chainingSize: Int = 4
+
+  /** datapath width of each lane should be aligned to xLen
+    * T1 only support 32 for now.
+    */
+  val datapathWidth: Int = xLen
+
+  /** How many lanes does T1 have. */
+  val laneNumber: Int = dLen / datapathWidth
+
+  /** MMU is living in the subsystem, T1 only fires physical address. */
+  val physicalAddressWidth: Int = datapathWidth
 
   /** TODO: uarch docs for mask(v0) group and normal vrf groups.
     *
@@ -146,26 +177,27 @@ case class VParameter(
       chainingSize = chainingSize,
       crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize,
       fpuEnable = fpuEnable,
-      portFactor = portFactor,
+      portFactor = vrfBankSize,
       vfuInstantiateParameter = vfuInstantiateParameter
     )
-  def lsuParam: LSUParam = LSUParam(
-    datapathWidth,
-    chainingSize,
-    vLen,
-    laneNumber,
-    xLen,
-    sourceWidth,
-    sizeWidth,
-    maskWidth,
-    memoryBankSize,
-    lsuMSHRSize,
-    lsuVRFWriteQueueSize,
-    lsuTransposeSize,
-    vrfReadLatency,
-    tlParam
-  )
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor)
+  /** Parameter for each LSU. */
+  def lsuParameters: Seq[LSUParameter] = Seq(LSUParameter(
+    datapathWidth = datapathWidth,
+    chainingSize = chainingSize,
+    vLen = vLen,
+    laneNumber = laneNumber,
+    paWidth = xLen,
+    sourceWidth = sourceWidth,
+    sizeWidth = sizeWidth,
+    maskWidth = maskWidth,
+    memoryBankSize = memoryBankSize,
+    lsuMSHRSize = lsuMSHRSize,
+    toVRFWriteQueueSize = lsuVRFWriteQueueSize,
+    transferSize = lsuTransposeSize,
+    vrfReadLatency = vrfReadLatency,
+    tlParam = tlParam
+  ))
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize)
   require(xLen == datapathWidth)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 }
@@ -173,9 +205,9 @@ case class VParameter(
 /** Top of Vector processor:
   * couple to Rocket Core;
   * instantiate LSU, Decoder, Lane, CSR, Instruction Queue.
-  * The logic of [[V]] contains the Vector Sequencer and Mask Unit.
+  * The logic of [[T1]] contains the Vector Sequencer and Mask Unit.
   */
-class V(val parameter: VParameter) extends Module with SerializableModule[VParameter] {
+class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Parameter] {
 
   /** request from CPU.
     * because the interrupt and exception of previous instruction is unpredictable,
@@ -197,7 +229,9 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.memoryBankSize, parameter.tlParam.bundle()))
 
   /** the LSU Module */
-  val lsu:    LSU = Module(new LSU(parameter.lsuParam))
+
+  // TODO: Multiple LSU support
+  val lsu: LSU = Module(new LSU(parameter.lsuParameters.head))
   val decode: VectorDecoder = Module(new VectorDecoder(parameter.fpuEnable))
 
   // TODO: cover overflow
@@ -458,7 +492,7 @@ class V(val parameter: VParameter) extends Module with SerializableModule[VParam
     val laneAndLSUFinish: Bool = control.endTag.asUInt.andR
 
     /** lsu is finished when report bits matched corresponding slot
-      * lsu send `lastReport` to [[V]], this check if the report contains this slot.
+      * lsu send `lastReport` to [[T1]], this check if the report contains this slot.
       * this signal is used to update the `control.endTag`.
       */
     val lsuFinished: Bool = ohCheck(lsu.lastReport, control.record.instructionIndex, parameter.chainingSize)

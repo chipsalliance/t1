@@ -97,7 +97,7 @@ case class MSHRParam(
   /** The hardware length of [[maskGroupSize]] */
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
 
-  /** override [[LSUParam.tlParam]] to purge the MSHR source. */
+  /** override [[LSUParameter.tlParam]] to purge the MSHR source. */
   val tlParam: TLBundleParameter = outerTLParam.copy(
     a = outerTLParam.a.copy(sourceWidth = sourceWidth),
     d = outerTLParam.d.copy(sourceWidth = sourceWidth)
