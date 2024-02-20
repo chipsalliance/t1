@@ -270,19 +270,41 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
        case RamType.p0rwp1rw => 2
       }
     )
-    // connect readPorts
-    rf.readPorts.head.address :=
-      Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
-    if (rf.readPorts.size > 1) {
-      rf.readPorts.last.address :=
-        Mux1H(bankReadS.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+    parameter.ramType match {
+      case RamType.p0rw =>
+        require(requirement = false, "not support")
+      case RamType.p0rp1w =>
+        // connect readPorts
+        rf.readPorts.head.address :=
+          Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+        rf.readPorts.head.enable := true.B
+        readResultF(bank) := rf.readPorts.head.data
+        readResultS(bank) := DontCare
+
+        rf.writePorts.head.enable := write.fire && writeBank(bank)
+        rf.writePorts.head.address := (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum)
+        rf.writePorts.head.data := write.bits.data
+      case RamType.p0rwp1rw =>
+        // connect readPorts
+        rf.readwritePorts.head.address :=
+          Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+        rf.readwritePorts.head.enable := true.B
+        rf.readwritePorts.head.isWrite := false.B
+        rf.readwritePorts.head.writeData := DontCare
+
+        readResultF(bank) := rf.readwritePorts.head.readData
+        readResultS(bank) := rf.readwritePorts.last.readData
+
+        rf.readwritePorts.last.address := Mux(
+          write.fire,
+          (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum),
+          Mux1H(bankReadS.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+        )
+        rf.readwritePorts.last.enable := true.B
+        rf.readwritePorts.last.isWrite := write.fire && writeBank(bank)
+        rf.readwritePorts.last.writeData := write.bits.data
     }
-    readResultF(bank) := rf.readPorts.head.data
-    readResultS(bank) := rf.readPorts.last.data
-    // connect writePort
-    rf.writePorts.head.enable := write.fire && writeBank(bank)
-    rf.writePorts.head.address := (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum)
-    rf.writePorts.head.data := write.bits.data
+
     rf
   }
 
