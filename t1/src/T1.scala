@@ -14,7 +14,7 @@ import chisel3.probe.define
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUInstantiateParameter, LSUParameter}
-import org.chipsalliance.t1.rtl.vrf.VRFParam
+import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam}
 
 object T1Parameter {
   implicit def rwP: upickle.default.ReadWriter[T1Parameter] = upickle.default.macroRW
@@ -48,6 +48,7 @@ case class T1Parameter(
   lsuInstantiateParameters: Seq[LSUInstantiateParameter],
   // Lane
   vrfBankSize:             Int,
+  vrfRamType:              RamType,
   // TODO: simplify it. this is user-level API.
   vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
@@ -177,6 +178,7 @@ case class T1Parameter(
       crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize,
       fpuEnable = fpuEnable,
       portFactor = vrfBankSize,
+      vrfRamType = vrfRamType,
       vfuInstantiateParameter = vfuInstantiateParameter
     )
   /** Parameter for each LSU. */
@@ -209,7 +211,7 @@ case class T1Parameter(
     tlParam = tlParam,
     name = p.name
   ))
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize)
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
   require(xLen == datapathWidth)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 }

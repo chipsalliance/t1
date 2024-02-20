@@ -10,7 +10,7 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lane._
-import org.chipsalliance.t1.rtl.vrf.{VRF, VRFParam}
+import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam}
 
 object LaneParameter {
   implicit def rwP: upickle.default.ReadWriter[LaneParameter] = upickle.default.macroRW
@@ -34,6 +34,7 @@ case class LaneParameter(
                           crossLaneVRFWriteEscapeQueueSize: Int,
                           fpuEnable:                        Boolean,
                           portFactor:                       Int,
+                          vrfRamType:                       RamType,
                           vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
 
@@ -122,7 +123,7 @@ case class LaneParameter(
   val executionQueueSize: Int = 4
 
   /** Parameter for [[VRF]] */
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor)
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor, vrfRamType)
 
   /** Parameter for [[OtherUnit]]. */
   def otherUnitParam: OtherUnitParam = OtherUnitParam(datapathWidth, vlMaxBits, groupNumberBits, laneNumberBits, dataPathByteWidth, 0)

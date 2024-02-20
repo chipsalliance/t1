@@ -7,6 +7,7 @@ import chisel3.experimental.SerializableModuleGenerator
 import mainargs._
 import org.chipsalliance.t1.rtl._
 import org.chipsalliance.t1.rtl.lsu.LSUInstantiateParameter
+import org.chipsalliance.t1.rtl.vrf.RamType
 
 object Main {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
@@ -51,6 +52,7 @@ object Main {
       )
     ),
     vrfBankSize = 1,
+    vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -94,6 +96,7 @@ object Main {
       )
     ),
     vrfBankSize = 1,
+    vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -137,6 +140,7 @@ object Main {
       )
     ),
     vrfBankSize = 1,
+    vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -180,6 +184,7 @@ object Main {
       )
     ),
     vrfBankSize = 1,
+    vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -222,6 +227,7 @@ object Main {
       )
     ),
     vrfBankSize = 1,
+    vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -265,6 +271,7 @@ object Main {
       )
     ),
     vrfBankSize = 1,
+    vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -307,6 +314,7 @@ object Main {
       )
     ),
     vrfBankSize = 1,
+    vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
@@ -349,6 +357,7 @@ object Main {
       )
     ),
     vrfBankSize = 1,
+    vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
       logicModuleParameters = Seq(
