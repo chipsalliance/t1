@@ -20,7 +20,6 @@ add_executable(emulator
   vbridge_impl.cc
   dpi.cc
   elf.cc
-  rtl_config.cc
 )
 
 option(VERILATE_TRACE "enable verilator trace" OFF)
