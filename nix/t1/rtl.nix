@@ -10,8 +10,8 @@ let
     "-O=debug"
     "--split-verilog"
     "--preserve-values=named"
-    "--output-annotation-file=mfc.anno.json"
-    "--lowering-options=verifLabels"
+    "--lowering-options=verifLabels,omitVersionComment"
+    "--strip-debug-info"
   ];
   fixupFilelist = lib.elem mlirbc.elaborateTarget [ "ipemu" "subsystememu" ];
 in
