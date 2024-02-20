@@ -1158,7 +1158,16 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         decodeResultReg(Decoder.maskLogic) ||
           decodeResultReg(Decoder.maskDestination) ||
           decodeResultReg(Decoder.ffo)
-      val lastGroupDataWaitMask = scanRightOr(UIntToOH(lastExecuteCounter))
+      // How many data path(32 bit) will used by maskDestination instruction.
+      val maskDestinationUseDataPathSize = (csrRegForMaskUnit.vl << csrRegForMaskUnit.vSew >> 2).asUInt
+      val dataPathSizeForThisGroup = maskDestinationUseDataPathSize(log2Ceil(parameter.laneNumber) + 2, 0)
+      val lastGroupCountForThisGroup: UInt = dataPathSizeForThisGroup(log2Ceil(parameter.laneNumber) - 1, 0)
+      val counterForMaskDestination = (lastGroupCountForThisGroup - 1.U) |
+        Fill(log2Ceil(parameter.laneNumber), (dataPathSizeForThisGroup >> log2Ceil(parameter.laneNumber)).asUInt.orR)
+
+      val waitSourceDataCounter =
+        Mux(decodeResultReg(Decoder.maskDestination), counterForMaskDestination, lastExecuteCounter)
+      val lastGroupDataWaitMask = scanRightOr(UIntToOH(waitSourceDataCounter))
       // todo: other ways
       val lastOrderedGroup: Option[Bool] = orderedReduceGroupCount.map(count =>
         (count ## 0.U(log2Ceil(parameter.laneNumber).W) + -1.S(log2Ceil(parameter.laneNumber).W).asUInt) >= csrRegForMaskUnit.vl
