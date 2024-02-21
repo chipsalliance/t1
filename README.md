@@ -91,13 +91,13 @@ $ nix build .#t1.<config-name>.subsystem.fpga  # build the elaborated soc .sv fi
 
 $ nix build .#t1.<config-name>.cases.all  # the testcases
 ```
-where `<config-name>` should be replaced with a configuration name, e.g. `v1024-l8-b2`. The build output will be put in `./result` directory by default.
+where `<config-name>` should be replaced with a configuration name, e.g. `bulbasaur`. The build output will be put in `./result` directory by default.
 
 #### Run Testcases
 
 To run testcase on IP emulator, use the following script:
 ```shell
-$ ./scripts/run-test.py verilate -c <config-name> <case-name>
+$ ./scripts/run-test.py ip -c <config-name> <case-name>
 ```
 wheres
 - `<config-name>` is the configuration name;
@@ -105,7 +105,7 @@ wheres
 
 For example:
 ```shell
-./scripts/run-test.py verilate -c v1024-l8-b2 conv-mlir
+./scripts/run-test.py ip --config squirtle conv-mlir
 ```
 
 `run-test.py` provides various command-line options for different use cases. Run `./scripts/run-test.py -h` for help.

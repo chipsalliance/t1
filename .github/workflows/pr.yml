@@ -15,10 +15,10 @@ jobs:
     strategy:
       matrix:
         config:
-          - "v1024-l8-b2"
-          - "v1024-l8-b2-fp"
-          - "v4096-l8-b4"
-          - "v4096-l8-b4-fp"
+          - squirtle
+          - blastoise
+          - magnemite
+          - magneton
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,8 +45,8 @@ jobs:
       - name: "Build all testcases"
         run: |
           # Build testcases with vlen 1024 and vlen 4096
-          nix build ".#t1.v1024-l8-b2.cases.all" --max-jobs auto -L --no-link --cores 64
-          nix build ".#t1.v4096-l8-b4.cases.all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.squirtle.cases.all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.magnemite.cases.all" --max-jobs auto -L --no-link --cores 64
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
@@ -60,10 +60,10 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - "v1024-l8-b2"
-          - "v1024-l8-b2-fp"
-          - "v4096-l8-b4"
-          - "v4096-l8-b4-fp"
+          - squirtle
+          - blastoise
+          - magnemite
+          - magneton
     steps:
       - uses: actions/checkout@v4
         with:
@@ -81,8 +81,9 @@ jobs:
       - name: "Test elaborate"
         run: |
           set -e
-          nix build '.#t1.configgen' -L --out-link ./config-gen
-          for cfg in $(jq -r '.[]' ./config-gen/share/all-supported-configs.json); do
+          configStr=$(nix run '.#t1.configgen' -- listConfigs)
+          IFS=',' read -ra configArray <<< "$configStr"
+          for cfg in "${configArray[@]}"; do
             echo "Building .#t1.${cfg}.ip.rtl"
             nix build ".#t1.${cfg}.ip.rtl" -L
           done
