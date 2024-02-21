@@ -46,7 +46,7 @@ class VerificationModule(dut: T1) extends RawModule {
   val resp:             ValidIO[VResponse] = IO(Flipped(Valid(new VResponse(dut.parameter.xLen))))
   val csrInterface:     CSRInterface = IO(Output(new CSRInterface(dut.parameter.laneParam.vlMaxBits)))
   val storeBufferClear: Bool = IO(Output(Bool()))
-  val tlPort:           Vec[TLBundle] = IO(Vec(dut.parameter.memoryBankSize, Flipped(dut.parameter.tlParam.bundle())))
+  val tlPort:           Vec[TLBundle] = IO(Vec(dut.parameter.lsuInstantiateParameters.head.banks.size, Flipped(dut.parameter.tlParam.bundle())))
   storeBufferClear := true.B
 
   val peekLsuEnq = Module(new PeekLsuEnq(PeekLsuEnqParameter(dut.parameter.lsuParameters.head.lsuMSHRSize, latPeekLsuEnq)))

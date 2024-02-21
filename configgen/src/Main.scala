@@ -6,6 +6,7 @@ package org.chipsalliance.t1.configgen
 import chisel3.experimental.SerializableModuleGenerator
 import mainargs._
 import org.chipsalliance.t1.rtl._
+import org.chipsalliance.t1.rtl.lsu.LSUInstantiateParameter
 
 object Main {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
@@ -41,8 +42,15 @@ object Main {
     vLen = 1024,
     dLen = 32,
     extensions = Seq("Zve32x"),
-    memoryBankSize = 2,
-    lsuVRFWriteQueueSize = 96,
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("0x8000000"),
+        banks = 1,
+        bankAtBit = 6
+      )
+    ),
     vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
@@ -78,8 +86,15 @@ object Main {
     vLen = 1024,
     dLen = 64,
     extensions = Seq("Zve32x"),
-    memoryBankSize = 2,
-    lsuVRFWriteQueueSize = 96,
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("0x8000000"),
+        banks = 2,
+        bankAtBit = 6
+      )
+    ),
     vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
@@ -115,8 +130,15 @@ object Main {
     vLen = 1024,
     dLen = 256,
     extensions = Seq("Zve32x"),
-    memoryBankSize = 2,
-    lsuVRFWriteQueueSize = 96,
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("0x8000000"),
+        banks = 2,
+        bankAtBit = 6
+      )
+    ),
     vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
@@ -152,8 +174,15 @@ object Main {
     vLen = 1024,
     dLen = 256,
     extensions = Seq("Zve32f"),
-    memoryBankSize = 2,
-    lsuVRFWriteQueueSize = 96,
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("0x8000000"),
+        banks = 2,
+        bankAtBit = 6
+      )
+    ),
     vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
@@ -188,8 +217,15 @@ object Main {
     vLen = 4096,
     dLen = 256,
     extensions = Seq("Zve32x"),
-    memoryBankSize = 4,
-    lsuVRFWriteQueueSize = 96,
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("0x8000000"),
+        banks = 4,
+        bankAtBit = 6
+      )
+    ),
     vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
@@ -225,8 +261,15 @@ object Main {
     vLen = 4096,
     dLen = 256,
     extensions = Seq("Zve32f"),
-    memoryBankSize = 4,
-    lsuVRFWriteQueueSize = 96,
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("0x8000000"),
+        banks = 4,
+        bankAtBit = 6
+      )
+    ),
     vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
@@ -261,8 +304,15 @@ object Main {
     vLen = 4096,
     dLen = 1024,
     extensions = Seq("Zve32x"),
-    memoryBankSize = 4,
-    lsuVRFWriteQueueSize = 96,
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("0x8000000"),
+        banks = 4,
+        bankAtBit = 6
+      )
+    ),
     vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,
@@ -297,8 +347,15 @@ object Main {
     vLen = 4096,
     dLen = 1024,
     extensions = Seq("Zve32f"),
-    memoryBankSize = 4,
-    lsuVRFWriteQueueSize = 96,
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("0x8000000"),
+        banks = 4,
+        bankAtBit = 6
+      )
+    ),
     vrfBankSize = 1,
     vfuInstantiateParameter = VFUInstantiateParameter(
       slotCount = 4,

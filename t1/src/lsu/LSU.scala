@@ -5,8 +5,37 @@ package org.chipsalliance.t1.rtl.lsu
 
 import chisel3._
 import chisel3.util._
+import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.{CSRInterface, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, indexToOH, instIndexL}
 import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelD}
+
+// TODO: need some idea from BankBinder
+object LSUInstantiateParameter {
+  implicit def bitSetP:upickle.default.ReadWriter[BitSet] = upickle.default.readwriter[String].bimap[BitSet](
+    _.toString,
+    BitSet.fromString
+  )
+
+  implicit def rwP: upickle.default.ReadWriter[LSUInstantiateParameter] = upickle.default.macroRW
+
+  def apply(name: String, base: BigInt, size: BigInt, banks: Int, bankAtBit: Int): LSUInstantiateParameter = ???
+}
+
+/** Public LSU parameter expose to upper level. */
+case class LSUInstantiateParameter(name: String, banks: Seq[BitSet]) {
+  // TODO: uarch tuning for different LSUs to reduce segment overhead.
+  //       these tweaks should only be applied to some special MMIO LSU, e.g. systolic array, etc
+  val supportStride: Boolean = true
+  val supportSegment: Set[Int] = Seq.tabulate(8)(_ + 1).toSet
+  val supportMask: Boolean = true
+  // TODO: support MMU for linux.
+  val supportMMU: Boolean = false
+
+  // used for add latency from LSU to corresponding lanes, it should be managed by floorplan
+  val latencyToLanes: Seq[Int] = Seq()
+  // used for add queue for avoid dead lock on memory.
+  val maxLatencyToEndpoint: Int = 96
+}
 
 /**
   * @param datapathWidth ELEN
