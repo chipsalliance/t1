@@ -12,7 +12,7 @@ import chisel3.probe.Probe
 import chisel3.probe.ProbeValue
 import chisel3.probe.define
 import org.chipsalliance.t1.rtl.decoder.Decoder
-import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter}
+import org.chipsalliance.t1.rtl.lsu.{LSU, LSUInstantiateParameter, LSUParameter}
 import org.chipsalliance.t1.rtl.vrf.VRFParam
 
 object T1Parameter {
@@ -44,16 +44,14 @@ case class T1Parameter(
   dLen:                    Int,
   extensions:              Seq[String],
   // LSU
-  //   TODO: from latency, rather than queue size
-  memoryBankSize:          Int,
-  lsuVRFWriteQueueSize:    Int,
+  lsuInstantiateParameters: Seq[LSUInstantiateParameter],
   // Lane
   vrfBankSize:             Int,
   // TODO: simplify it. this is user-level API.
   vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
   require(extensions.forall(Seq("Zve32x", "Zve32f").contains), "unsupported extension.")
-
+  require(lsuParameters.size == 1, "only support one LSU for now.")
   /** xLen of T1, we currently only support 32. */
   val xLen: Int = 32
 
@@ -181,20 +179,24 @@ case class T1Parameter(
       vfuInstantiateParameter = vfuInstantiateParameter
     )
   /** Parameter for each LSU. */
-  def lsuParameters: Seq[LSUParameter] = Seq(LSUParameter(
+  def lsuParameters: Seq[LSUParameter] = lsuInstantiateParameters.map(p => LSUParameter(
     datapathWidth = datapathWidth,
     chainingSize = chainingSize,
     vLen = vLen,
     laneNumber = laneNumber,
     paWidth = xLen,
+    // TODO: configurable for each LSU
     sourceWidth = sourceWidth,
     sizeWidth = sizeWidth,
+    // TODO: configurable for each LSU [[p.supportMask]]
     maskWidth = maskWidth,
-    memoryBankSize = memoryBankSize,
+    memoryBankSize = p.banks.size,
     lsuMSHRSize = lsuMSHRSize,
-    toVRFWriteQueueSize = lsuVRFWriteQueueSize,
+    // TODO: make it configurable for each lane
+    toVRFWriteQueueSize = p.latencyToLanes.head,
     transferSize = lsuTransposeSize,
     vrfReadLatency = vrfReadLatency,
+    // TODO: configurable for each LSU
     tlParam = tlParam
   ))
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize)
@@ -225,13 +227,16 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /** from CPU LSU, store buffer is cleared, memory can observe memory requests after this is asserted. */
   val storeBufferClear: Bool = IO(Input(Bool()))
 
-  /** TileLink memory ports. */
-  val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.memoryBankSize, parameter.tlParam.bundle()))
+  /** TileLink memory ports.
+    * TODO: Multiple LSU support
+    */
+  val memoryPorts: Vec[Vec[TLBundle]] = IO(VecInit(parameter.lsuInstantiateParameters.map(p => Vec(p.banks.size, parameter.tlParam.bundle()))))
 
   /** the LSU Module */
 
   // TODO: Multiple LSU support
-  val lsu: LSU = Module(new LSU(parameter.lsuParameters.head))
+  val lsuModules: Seq[LSU] = parameter.lsuParameters.map(p => Module(new LSU(p)))
+  val lsu: LSU = lsuModules.head
   val decode: VectorDecoder = Module(new VectorDecoder(parameter.fpuEnable))
 
   // TODO: cover overflow
@@ -890,7 +895,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       def indexAnalysis(elementIndex: UInt, csrInput: CSRInterface = csrRegForMaskUnit) = {
         val sewInput = csrInput.vSew
         val sewOHInput = UIntToOH(csrInput.vSew)(2, 0)
-        val intLMULInput:UInt = (1.U << csrInput.vlmul(1, 0)).asUInt
+        val intLMULInput: UInt = (1.U << csrInput.vlmul(1, 0)).asUInt
         val dataPosition = (elementIndex(parameter.laneParam.vlMaxBits - 2, 0) << sewInput)
           .asUInt(parameter.laneParam.vlMaxBits - 2, 0)
         val accessMask = Mux1H(
@@ -1454,12 +1459,13 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     }.reduce(_ | _)
   }.reduce(_ | _)
 
-  // 连 tilelink
-  memoryPorts.zip(lsu.tlPort).foreach {
-    case (source, sink) =>
-      val dBuffer = Queue(source.d, 1, flow = true)
-      sink <> source
-      sink.d <> dBuffer
+  memoryPorts.zip(lsuModules.map(_.tlPort)).foreach {
+    case (sources, sinks) => (sources zip sinks).foreach {
+        case (source, sink) =>
+          val dBuffer = Queue(source.d, 1, flow = true)
+          sink <> source
+          sink.d <> dBuffer
+      }
   }
   // 暂时直接连lsu的写,后续需要处理scheduler的写
   vrfWrite.zip(lsu.vrfWritePort).foreach { case (sink, source) => sink <> source }

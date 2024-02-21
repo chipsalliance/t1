@@ -17,7 +17,8 @@ class VectorWrapper(parameter: T1Parameter) extends Module {
   val response: ValidIO[VResponse] = IO(Valid(new VResponse(parameter.xLen)))
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.laneParam.vlMaxBits)))
   val storeBufferClear: Bool = IO(Input(Bool()))
-  val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.memoryBankSize, parameter.tlParam.bundle()))
+  // TODO: multiple LSU support.
+  val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.lsuInstantiateParameters.head.banks.size, parameter.tlParam.bundle()))
 
   // v主体
   val vector: T1 = Module(new T1(parameter))

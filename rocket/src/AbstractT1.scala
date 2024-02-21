@@ -116,29 +116,33 @@ class VectorHazardControl extends Bundle {
   val loadStoreTokenRelease: Bool = Flipped(Bool())
 }
 
+case class T1LSUParameter(name: String, banks: Seq[Seq[AddressSet]], sourceIdSize: Int)
+
 /** The hierarchy under [[BaseTile]]. */
 abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
-  def module:       AbstractLazyT1ModuleImp
-  def xLen:         Int
-  def vLen:         Int
-  def banks:        Int
-  def uarchName:    String
-  def sourceIdSize: Int
-  def banksMapping(bank: Int): AddressSet
+  def module:    AbstractLazyT1ModuleImp
+  def xLen:      Int
+  def uarchName: String
+  def t1LSUParameters: Seq[T1LSUParameter]
 
-  val vectorMasterNode = TLClientNode(
-    Seq.tabulate(banks)(bank =>
-      TLMasterPortParameters.v1(
-        Seq(
-          TLMasterParameters.v1(
-            name = s"${uarchName}_bank$bank",
-            sourceId = IdRange(0, (1 << sourceIdSize) - 1),
-            visibility = Seq(banksMapping(bank))
+  val t1LSUNodes = t1LSUParameters.map(lsu =>
+    // TODO: add bankbinder here.
+    TLClientNode(
+      lsu.banks.zipWithIndex.map{ case (addresses, bank) =>
+        TLMasterPortParameters.v1(
+          Seq(
+            TLMasterParameters.v1(
+              name = s"${uarchName}_${lsu.name}_bank$bank",
+              sourceId = IdRange(0, (1 << lsu.sourceIdSize) - 1),
+              visibility = addresses
+            )
           )
         )
-      )
+      }
     )
   )
+
+
 
   val requestSinkNode: BundleBridgeSink[DecoupledIO[VectorRequest]] =
     BundleBridgeSink[DecoupledIO[VectorRequest]]()
@@ -168,7 +172,9 @@ trait HasLazyT1 { this: BaseTile =>
   csrNode.zip(t1.map(_.csrSinkNode)).foreach{case (src, dst) => dst := src }
   val responseSinkNode:      Option[BundleBridgeSink[ValidIO[VectorResponse]]] = t1.map(_.responseNode.makeSink())
   val hazardControlSinkNode: Option[BundleBridgeSink[VectorHazardControl]] = t1.map(_.hazardControlNode.makeSink())
-  t1.foreach(tlMasterXbar.node :=* _.vectorMasterNode)
+
+  // TODO: add bankbinder here
+  t1.foreach(_.t1LSUNodes.foreach(tlMasterXbar.node :=* _))
 }
 
 trait HasLazyT1Module { this: RocketTileModuleImp =>
