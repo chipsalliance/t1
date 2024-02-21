@@ -267,7 +267,17 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
     parameter.ramType match {
       case RamType.p0rw =>
-        require(requirement = false, "not support")
+        rf.readwritePorts.last.address := Mux(
+          write.fire && writeBank(bank),
+          (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum),
+          Mux1H(bankReadS.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+        )
+        rf.readwritePorts.last.enable := true.B
+        rf.readwritePorts.last.isWrite := write.fire && writeBank(bank)
+        rf.readwritePorts.last.writeData := write.bits.data
+
+        readResultF(bank) := rf.readwritePorts.head.readData
+        readResultS(bank) := DontCare
       case RamType.p0rp1w =>
         // connect readPorts
         rf.readPorts.head.address :=
