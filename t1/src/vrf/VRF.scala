@@ -183,6 +183,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val portFireCount: UInt = PopCount(VecInit(readRequests.map(_.fire) :+ write.fire))
   dontTouch(portFireCount)
 
+  val writeBank: UInt =
+    if (parameter.rfBankNum == 1) true.B else UIntToOH(write.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
+
   // Add one more record slot to prevent there is no free slot when the instruction comes in
   // (the slot will die a few cycles later than the instruction)
   val chainingRecord: Vec[ValidIO[VRFWriteReport]] = RegInit(
@@ -207,6 +210,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       // 先找到自的record
       val readRecord =
         Mux1H(chainingRecord.map(_.bits.instIndex === v.bits.instructionIndex), chainingRecord.map(_.bits))
+      val portConflictCheck = Wire(Bool())
       val checkResult:  Bool =
         chainingRecord.zip(recordValidVec).zipWithIndex.map {
           case ((r, f), recordIndex) =>
@@ -217,7 +221,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
             checkModule.record := r
             checkModule.recordValid := f
             checkModule.checkResult
-        }.reduce(_ && _)
+        }.reduce(_ && _) && portConflictCheck
       val validCorrect: Bool = if (i == 0) v.valid else v.valid && checkResult
       // select bank
       val bank = if (parameter.rfBankNum == 1) true.B else UIntToOH(v.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
@@ -228,6 +232,11 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         case RamType.p0rp1w => o
         case RamType.p0rwp1rw => t
       }
+      portConflictCheck := (parameter.ramType match {
+        case RamType.p0rw => true.B
+        case _ =>
+          !(write.valid && bank === writeBank && write.bits.vd === v.bits.vs && write.bits.offset === v.bits.offset)
+      })
       // 我选的这个port的第二个read port 没被占用
       v.ready := (bank & (~readPortCheckSelect)).orR && checkResult
       val firstUsed = (bank & o).orR
@@ -236,8 +245,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       readResults(i) := Mux(RegNext(firstUsed), Mux1H(bankNext, readResultS), Mux1H(bankNext, readResultF))
       (o | bankCorrect, (bankCorrect & o) | t)
   }
-  val writeBank: UInt =
-    if (parameter.rfBankNum == 1) true.B else UIntToOH(write.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
   write.ready := (parameter.ramType match {
     case RamType.p0rw => (writeBank & (~firstOccupied)).orR
     case RamType.p0rp1w => true.B
