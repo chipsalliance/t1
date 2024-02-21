@@ -270,9 +270,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         rf.readwritePorts.last.address := Mux(
           write.fire && writeBank(bank),
           (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum),
-          Mux1H(bankReadS.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+          Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
         )
-        rf.readwritePorts.last.enable := true.B
+        rf.readwritePorts.last.enable := write.fire && writeBank(bank) || bankReadF.map(_(bank)).reduce(_ || _)
         rf.readwritePorts.last.isWrite := write.fire && writeBank(bank)
         rf.readwritePorts.last.writeData := write.bits.data
 
@@ -282,7 +282,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         // connect readPorts
         rf.readPorts.head.address :=
           Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
-        rf.readPorts.head.enable := true.B
+        rf.readPorts.head.enable := bankReadF.map(_(bank)).reduce(_ || _)
         readResultF(bank) := rf.readPorts.head.data
         readResultS(bank) := DontCare
 
@@ -293,7 +293,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         // connect readPorts
         rf.readwritePorts.head.address :=
           Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
-        rf.readwritePorts.head.enable := true.B
+        rf.readwritePorts.head.enable := bankReadF.map(_(bank)).reduce(_ || _)
         rf.readwritePorts.head.isWrite := false.B
         rf.readwritePorts.head.writeData := DontCare
 
@@ -305,7 +305,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum),
           Mux1H(bankReadS.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
         )
-        rf.readwritePorts.last.enable := true.B
+        rf.readwritePorts.last.enable := write.fire && writeBank(bank) || bankReadS.map(_(bank)).reduce(_ || _)
         rf.readwritePorts.last.isWrite := write.fire && writeBank(bank)
         rf.readwritePorts.last.writeData := write.bits.data
     }
