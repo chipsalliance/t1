@@ -100,11 +100,6 @@ case class VRFParam(
 
   val elementSize: Int = vLen * 8 / datapathWidth / laneNumber
 
-  val readPort: Int = ramType match {
-    case p0rw => 0
-    case p0rp1w => 1
-    case p0rwp1rw => 2
-  }
   val indexBits: Int = log2Ceil(rfDepth)
   // todo: 4 bit for ecc
   val memoryWidth: Int = ramWidth + 4
@@ -229,9 +224,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val bankNext = RegNext(bank)
       val bankCorrect = Mux(validCorrect, bank, 0.U(parameter.rfBankNum.W))
       val readPortCheckSelect = parameter.ramType match {
-        case p0rw => o
-        case p0rp1w => o
-        case p0rwp1rw => t
+        case RamType.p0rw => o
+        case RamType.p0rp1w => o
+        case RamType.p0rwp1rw => t
       }
       // 我选的这个port的第二个read port 没被占用
       v.ready := (bank & (~readPortCheckSelect)).orR && checkResult
@@ -244,9 +239,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val writeBank: UInt =
     if (parameter.rfBankNum == 1) true.B else UIntToOH(write.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
   write.ready := (parameter.ramType match {
-    case p0rw => (writeBank & (~firstOccupied)).orR
-    case p0rp1w => true.B
-    case p0rwp1rw => (writeBank & (~secondOccupied)).orR
+    case RamType.p0rw => (writeBank & (~firstOccupied)).orR
+    case RamType.p0rp1w => true.B
+    case RamType.p0rwp1rw => (writeBank & (~secondOccupied)).orR
   })
 
   val rfVec: Seq[SRAMInterface[UInt]] = Seq.tabulate(parameter.rfBankNum) { bank =>
@@ -296,7 +291,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         readResultS(bank) := rf.readwritePorts.last.readData
 
         rf.readwritePorts.last.address := Mux(
-          write.fire,
+          write.fire && writeBank(bank),
           (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum),
           Mux1H(bankReadS.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
         )
