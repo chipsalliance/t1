@@ -21,23 +21,16 @@ object Main {
     )
   }
 
-  @main def listConfigs(
-    @arg(name = "out", short = 'o') outputPath: os.Path
-  ): Unit = {
+  @main def listConfigs(): Unit = {
     val configs = Main
       .getClass()
       .getDeclaredMethods()
       .filter(m => m.getParameters().mkString.contains("os.Path targetDir"))
-      .map(m => {
-        val cfg = """(v\d+)(l\d+)(b\d+)(.*)""".r
-        m.getName() match {
-          case cfg(v, l, b, fp) => Seq(v, l, b, fp).filter(_.size > 0).mkString("-")
-        }
-      })
-    os.write(outputPath, upickle.default.write(configs))
+      .map(_.getName())
+    println(configs.mkString(","))
   }
 
-  @main def v1024l1b2(
+  @main def bulbasaur(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = T1Parameter(
     vLen = 1024,
@@ -81,7 +74,7 @@ object Main {
     )
   ).emit(targetDir)
 
-  @main def v1024l2b2(
+  @main def charmander(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = T1Parameter(
     vLen = 1024,
@@ -125,7 +118,7 @@ object Main {
     )
   ).emit(targetDir)
 
-  @main def v1024l8b2(
+  @main def squirtle(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = T1Parameter(
     vLen = 1024,
@@ -169,7 +162,8 @@ object Main {
     )
   ).emit(targetDir)
 
-  @main def v1024l8b2fp(
+  // squirtle + fp => blastoise
+  @main def blastoise(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = T1Parameter(
     vLen = 1024,
@@ -212,7 +206,183 @@ object Main {
     )
   ).emit(targetDir)
 
-  @main def v4096l8b4(
+  @main def seel(
+    @arg(name = "target-dir", short = 't') targetDir: os.Path
+  ): Unit = T1Parameter(
+    vLen = 1024,
+    dLen = 256,
+    extensions = Seq("Zve32x"),
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("8000000", 16),
+        banks = 2
+      )
+    ),
+    vrfBankSize = 2,
+    vrfRamType = RamType.p0rp1w,
+    vfuInstantiateParameter = VFUInstantiateParameter(
+      slotCount = 4,
+      logicModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      aluModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(0)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(1)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(2)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(3))
+      ),
+      shifterModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      mulModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divfpModuleParameters = Seq(),
+      otherModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))
+      ),
+      floatModuleParameters = Seq()
+    )
+  ).emit(targetDir)
+
+  // seel + fp
+  @main def dewgong(
+    @arg(name = "target-dir", short = 't') targetDir: os.Path
+  ): Unit = T1Parameter(
+    vLen = 1024,
+    dLen = 256,
+    extensions = Seq("Zve32f"),
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("8000000", 16),
+        banks = 2
+      )
+    ),
+    vrfBankSize = 2,
+    vrfRamType = RamType.p0rp1w,
+    vfuInstantiateParameter = VFUInstantiateParameter(
+      slotCount = 4,
+      logicModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      aluModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(0)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(1)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(2)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(3))
+      ),
+      shifterModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      mulModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divModuleParameters = Seq(),
+      divfpModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 0)), Seq(0, 1, 2, 3))),
+      otherModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))),
+      floatModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3)))
+    )
+  ).emit(targetDir)
+
+  @main def horsea(
+    @arg(name = "target-dir", short = 't') targetDir: os.Path
+  ): Unit = T1Parameter(
+    vLen = 1024,
+    dLen = 256,
+    extensions = Seq("Zve32x"),
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("8000000", 16),
+        banks = 2
+      )
+    ),
+    vrfBankSize = 4,
+    vrfRamType = RamType.p0rw,
+    vfuInstantiateParameter = VFUInstantiateParameter(
+      slotCount = 4,
+      logicModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      aluModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(0)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(1)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(2)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(3))
+      ),
+      shifterModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      mulModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divfpModuleParameters = Seq(),
+      otherModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))
+      ),
+      floatModuleParameters = Seq()
+    )
+  ).emit(targetDir)
+
+  // horsea + fp
+  @main def seadra(
+    @arg(name = "target-dir", short = 't') targetDir: os.Path
+  ): Unit = T1Parameter(
+    vLen = 1024,
+    dLen = 256,
+    extensions = Seq("Zve32f"),
+    lsuInstantiateParameters = Seq(
+      LSUInstantiateParameter(
+        name = "main",
+        base = 0,
+        size = BigInt("8000000", 16),
+        banks = 2
+      )
+    ),
+    vrfBankSize = 4,
+    vrfRamType = RamType.p0rw,
+    vfuInstantiateParameter = VFUInstantiateParameter(
+      slotCount = 4,
+      logicModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      aluModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(0)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(1)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(2)),
+        (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(3))
+      ),
+      shifterModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      mulModuleParameters = Seq(
+        (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 0)), Seq(0, 1, 2, 3))
+      ),
+      divModuleParameters = Seq(),
+      divfpModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 0)), Seq(0, 1, 2, 3))),
+      otherModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))),
+      floatModuleParameters =
+        Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3)))
+    )
+  ).emit(targetDir)
+
+  @main def psyduck(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = T1Parameter(
     vLen = 4096,
@@ -256,7 +426,7 @@ object Main {
     )
   ).emit(targetDir)
 
-  @main def v4096l8b4fp(
+  @main def golduck(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = T1Parameter(
     vLen = 4096,
@@ -299,7 +469,7 @@ object Main {
     )
   ).emit(targetDir)
 
-  @main def v4096l32b4(
+  @main def magnemite(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = T1Parameter(
     vLen = 4096,
@@ -342,7 +512,7 @@ object Main {
     )
   ).emit(targetDir)
 
-  @main def v4096l32b4fp(
+  @main def magneton(
     @arg(name = "target-dir", short = 't') targetDir: os.Path
   ): Unit = T1Parameter(
     vLen = 4096,

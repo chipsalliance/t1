@@ -11,14 +11,18 @@ let
   # We need to bring submodules and configgen out of scope. Using them in scope to generate the package attribute set
   # will lead to infinite recursion.
   allConfigs = [
-    "v4096-l32-b4-fp"
-    "v4096-l32-b4"
-    "v4096-l8-b4-fp"
-    "v4096-l8-b4"
-    "v1024-l8-b2-fp"
-    "v1024-l8-b2"
-    "v1024-l2-b2"
-    "v1024-l1-b2"
+    "magneton"
+    "magnemite"
+    "golduck"
+    "psyduck"
+    "seadra"
+    "horsea"
+    "dewgong"
+    "seel"
+    "blastoise"
+    "squirtle"
+    "charmander"
+    "bulbasaur"
   ];
 in
 

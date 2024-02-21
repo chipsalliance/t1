@@ -6,6 +6,9 @@ import os
 import logging
 import subprocess
 import json
+import tempfile
+import shutil
+from pprint import pprint
 
 from _utils import ColorFormatter
 
@@ -17,9 +20,13 @@ logger.addHandler(ch)
 
 def main():
     parser = ArgumentParser()
-    subparsers = parser.add_subparsers(
-        help="sub-commands help", dest="emu_type", required=True
+
+    parser.add_argument(
+        "--list-config", action="store_true", help="List all config name"
     )
+    parser.add_argument("--explain-config", default=None, help="Explain config detail")
+
+    subparsers = parser.add_subparsers(help="sub-commands help", dest="emu_type")
 
     # Add sub-commands
     verilator_args_parser = subparsers.add_parser(
@@ -35,8 +42,8 @@ def main():
         subparser.add_argument(
             "-c",
             "--config",
-            default="v1024-l8-b2",
-            help="config name, as filename in ./configs. default to v1024-l8-b2",
+            default="squirtle",
+            help="config name, default to squirtle. Use --list-config to get all configs",
         )
         subparser.add_argument(
             "--trace", action="store_true", help="enable trace file dumping"
@@ -117,6 +124,33 @@ def main():
 
     # Run
     args = parser.parse_args()
+
+    if args.list_config:
+        subprocess.Popen(
+            ["nix", "run", "--no-warn-dirty", ".#t1.configgen", "--", "listConfigs"]
+        ).wait()
+        return
+
+    if args.explain_config is not None:
+        config_outputpath = tempfile.mkdtemp()
+        configgen_args = [
+            "nix",
+            "run",
+            "--no-warn-dirty",
+            ".#t1.configgen",
+            "--",
+            f"{args.explain_config}",
+            "-t",
+            f"{config_outputpath}",
+        ]
+        subprocess.Popen(configgen_args).wait()
+
+        with open(f"{config_outputpath}/config.json") as json_data:
+            pprint(json.load(json_data)["parameter"])
+
+        shutil.rmtree(config_outputpath)
+        return
+
     run_test(args)
 
 
@@ -167,6 +201,10 @@ def load_elf_from_dir(config, cases_dir, case_name, use_individual_drv, force_x8
 
 def run_test(args):
     emu_type = args.emu_type
+    if emu_type is None or len(emu_type) == 0:
+        print("Either `ip` or `subsystem` are not given")
+        return
+
     if args.verbose:
         logger.setLevel(logging.DEBUG)
     else:
@@ -202,7 +240,7 @@ def run_test(args):
         "--no-warn-dirty",
         ".#t1.configgen",
         "--",
-        f"{args.config.replace('-', '')}",
+        f"{args.config}",
         "-t",
         f"{args.out_dir}",
     ]
