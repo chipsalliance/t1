@@ -4,7 +4,6 @@ on:
     types: [closed]
 env:
   USER: runner
-  JAVA_OPTS: "-Duser.home=/run/github-runner/sequencer"
 
 jobs:
   gen-matrix:

@@ -2,7 +2,6 @@ name: PR
 on: [pull_request]
 env:
   USER: runner
-  JAVA_OPTS: "-Duser.home=/run/github-runner/sequencer"
 
 # Cancel the current workflow when new commit pushed
 concurrency:
@@ -31,7 +30,7 @@ jobs:
   gen-matrix:
     name: "Prepare for running testcases"
     needs: [build-emulators]
-    runs-on: [self-hosted, linux, nixos, "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics"]
+    runs-on: [self-hosted, linux, nixos, "MEM:32"]
     env:
       RUNNERS: 70
     outputs:
