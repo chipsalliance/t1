@@ -21,7 +21,7 @@ class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
   lazy val generator: SerializableModuleGenerator[T1, T1Parameter] = upickle.default.read[SerializableModuleGenerator[T1, T1Parameter]](ujson.read(os.read(p(T1ConfigPath))))
   def uarchName: String = "t1"
   def xLen: Int = generator.parameter.xLen
-  override def t1LSUParameters: Seq[T1LSUParameter] = generator.parameter.lsuInstantiateParameters.map(lsu =>
+  override def t1LSUParameters: Seq[T1LSUParameter] = generator.parameter.lsuParameters.map(lsu =>
     T1LSUParameter(
       name = lsu.name,
       banks = lsu.banks.map(bank => bank.terms.map(bitpat => AddressSet(bitpat.value, bitpat.mask)).toSeq.sorted),

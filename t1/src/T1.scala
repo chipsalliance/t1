@@ -11,6 +11,7 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDPar
 import chisel3.probe.Probe
 import chisel3.probe.ProbeValue
 import chisel3.probe.define
+import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUInstantiateParameter, LSUParameter}
 import org.chipsalliance.t1.rtl.vrf.VRFParam
@@ -51,7 +52,7 @@ case class T1Parameter(
   vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
   require(extensions.forall(Seq("Zve32x", "Zve32f").contains), "unsupported extension.")
-  require(lsuParameters.size == 1, "only support one LSU for now.")
+  require(lsuInstantiateParameters.size == 1, "only support one LSU for now.")
   /** xLen of T1, we currently only support 32. */
   val xLen: Int = 32
 
@@ -190,14 +191,23 @@ case class T1Parameter(
     sizeWidth = sizeWidth,
     // TODO: configurable for each LSU [[p.supportMask]]
     maskWidth = maskWidth,
-    memoryBankSize = p.banks.size,
+    banks = Seq.tabulate(p.banks) { bankIndex =>
+      val bankBitStart = log2Ceil(lsuTransposeSize)
+      val bankBitSize = log2Ceil(p.banks)
+      val eigenvalues: BigInt = BigInt(bankIndex << bankBitStart)
+      val eigenMask: BigInt = BigInt(((1 << bankBitSize) - 1) << bankBitStart)
+      val baseMask: BigInt = p.size - 1
+      val bitPatForBank = new BitPat(p.base | (eigenMask & eigenvalues), baseMask ^ eigenMask, log2Ceil(p.size))
+      BitSet(bitPatForBank)
+    },
     lsuMSHRSize = lsuMSHRSize,
     // TODO: make it configurable for each lane
     toVRFWriteQueueSize = p.latencyToLanes.head,
     transferSize = lsuTransposeSize,
     vrfReadLatency = vrfReadLatency,
     // TODO: configurable for each LSU
-    tlParam = tlParam
+    tlParam = tlParam,
+    name = p.name
   ))
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize)
   require(xLen == datapathWidth)
@@ -230,7 +240,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /** TileLink memory ports.
     * TODO: Multiple LSU support
     */
-  val memoryPorts: Vec[Vec[TLBundle]] = IO(VecInit(parameter.lsuInstantiateParameters.map(p => Vec(p.banks.size, parameter.tlParam.bundle()))))
+  val memoryPorts: Seq[Vec[TLBundle]] = parameter.lsuInstantiateParameters.map(p =>
+    IO(Vec(p.banks, parameter.tlParam.bundle()))
+  )
 
   /** the LSU Module */
 

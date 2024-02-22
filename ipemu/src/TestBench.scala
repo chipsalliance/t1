@@ -25,7 +25,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
   dut.response <> verificationModule.resp
   dut.csrInterface <> verificationModule.csrInterface
   dut.storeBufferClear <> verificationModule.storeBufferClear
-  dut.memoryPorts <> verificationModule.tlPort
+  dut.memoryPorts.head <> verificationModule.tlPort
   clock := verificationModule.clock
   reset := verificationModule.reset
 
