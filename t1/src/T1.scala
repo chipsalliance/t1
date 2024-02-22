@@ -1162,8 +1162,10 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val maskDestinationUseDataPathSize = (csrRegForMaskUnit.vl << csrRegForMaskUnit.vSew >> 2).asUInt
       val dataPathSizeForThisGroup = maskDestinationUseDataPathSize(log2Ceil(parameter.laneNumber) + 2, 0)
       val lastGroupCountForThisGroup: UInt = dataPathSizeForThisGroup(log2Ceil(parameter.laneNumber) - 1, 0)
-      val counterForMaskDestination = (lastGroupCountForThisGroup - 1.U) |
-        Fill(log2Ceil(parameter.laneNumber), (dataPathSizeForThisGroup >> log2Ceil(parameter.laneNumber)).asUInt.orR)
+      val counterForMaskDestination: UInt = if(parameter.laneNumber > 1) {
+        (lastGroupCountForThisGroup - 1.U) |
+          Fill(log2Ceil(parameter.laneNumber), (dataPathSizeForThisGroup >> log2Ceil(parameter.laneNumber)).asUInt.orR)
+      } else 0.U
 
       val waitSourceDataCounter =
         Mux(decodeResultReg(Decoder.maskDestination), counterForMaskDestination, lastExecuteCounter)
