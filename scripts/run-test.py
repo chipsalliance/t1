@@ -241,7 +241,7 @@ def run_test(args):
                 str(rtl_config["parameter"]["dLen"]),
                 # TODO: this will be refactored soon to support multiple LSU
                 "--tl_bank_number",
-                str(rtl_config["parameter"]["memoryBankSize"])
+                str(rtl_config["parameter"]["lsuInstantiateParameters"][0]["banks"])
             ]
             + optionals(args.no_logging, ["--no-logging"])
             + optionals(args.no_file_logging, ["--no-file-logging"])

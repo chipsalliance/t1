@@ -17,12 +17,10 @@ object LSUInstantiateParameter {
   )
 
   implicit def rwP: upickle.default.ReadWriter[LSUInstantiateParameter] = upickle.default.macroRW
-
-  def apply(name: String, base: BigInt, size: BigInt, banks: Int, bankAtBit: Int): LSUInstantiateParameter = ???
 }
 
 /** Public LSU parameter expose to upper level. */
-case class LSUInstantiateParameter(name: String, banks: Seq[BitSet]) {
+case class LSUInstantiateParameter(name: String, base: BigInt, size: BigInt, banks: Int) {
   // TODO: uarch tuning for different LSUs to reduce segment overhead.
   //       these tweaks should only be applied to some special MMIO LSU, e.g. systolic array, etc
   val supportStride: Boolean = true
@@ -32,7 +30,7 @@ case class LSUInstantiateParameter(name: String, banks: Seq[BitSet]) {
   val supportMMU: Boolean = false
 
   // used for add latency from LSU to corresponding lanes, it should be managed by floorplan
-  val latencyToLanes: Seq[Int] = Seq()
+  val latencyToLanes: Seq[Int] = Seq(1)
   // used for add queue for avoid dead lock on memory.
   val maxLatencyToEndpoint: Int = 96
 }
@@ -53,14 +51,16 @@ case class LSUParameter(
                      sourceWidth:          Int,
                      sizeWidth:            Int,
                      maskWidth:            Int,
-                     memoryBankSize:       Int,
+                     banks:                Seq[BitSet],
                      lsuMSHRSize:          Int,
                      toVRFWriteQueueSize:  Int,
                      transferSize:         Int,
                      // TODO: refactor to per lane parameter.
                      vrfReadLatency:       Int,
                      tlParam:              TLBundleParameter,
+                     name: String
                        ) {
+  val memoryBankSize: Int = banks.size
 
   /** see [[VParameter.maskGroupWidth]]. */
   val maskGroupWidth: Int = datapathWidth

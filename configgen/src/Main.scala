@@ -46,9 +46,8 @@ object Main {
       LSUInstantiateParameter(
         name = "main",
         base = 0,
-        size = BigInt("0x8000000"),
-        banks = 1,
-        bankAtBit = 6
+        size = BigInt("8000000", 16),
+        banks = 1
       )
     ),
     vrfBankSize = 1,
@@ -90,9 +89,8 @@ object Main {
       LSUInstantiateParameter(
         name = "main",
         base = 0,
-        size = BigInt("0x8000000"),
-        banks = 2,
-        bankAtBit = 6
+        size = BigInt("8000000", 16),
+        banks = 2
       )
     ),
     vrfBankSize = 1,
@@ -134,9 +132,8 @@ object Main {
       LSUInstantiateParameter(
         name = "main",
         base = 0,
-        size = BigInt("0x8000000"),
-        banks = 2,
-        bankAtBit = 6
+        size = BigInt("8000000", 16),
+        banks = 2
       )
     ),
     vrfBankSize = 1,
@@ -178,9 +175,8 @@ object Main {
       LSUInstantiateParameter(
         name = "main",
         base = 0,
-        size = BigInt("0x8000000"),
-        banks = 2,
-        bankAtBit = 6
+        size = BigInt("8000000", 16),
+        banks = 2
       )
     ),
     vrfBankSize = 1,
@@ -221,9 +217,8 @@ object Main {
       LSUInstantiateParameter(
         name = "main",
         base = 0,
-        size = BigInt("0x8000000"),
-        banks = 4,
-        bankAtBit = 6
+        size = BigInt("8000000", 16),
+        banks = 4
       )
     ),
     vrfBankSize = 1,
@@ -265,9 +260,8 @@ object Main {
       LSUInstantiateParameter(
         name = "main",
         base = 0,
-        size = BigInt("0x8000000"),
-        banks = 4,
-        bankAtBit = 6
+        size = BigInt("8000000", 16),
+        banks = 4
       )
     ),
     vrfBankSize = 1,
@@ -308,9 +302,8 @@ object Main {
       LSUInstantiateParameter(
         name = "main",
         base = 0,
-        size = BigInt("0x8000000"),
-        banks = 4,
-        bankAtBit = 6
+        size = BigInt("8000000", 16),
+        banks = 4
       )
     ),
     vrfBankSize = 1,
@@ -351,9 +344,8 @@ object Main {
       LSUInstantiateParameter(
         name = "main",
         base = 0,
-        size = BigInt("0x8000000"),
-        banks = 4,
-        bankAtBit = 6
+        size = BigInt("8000000", 16),
+        banks = 4
       )
     ),
     vrfBankSize = 1,
