@@ -2,7 +2,7 @@
 
 { caseName, xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
 let
-  caseNameEscaped = builtins.replaceStrings ["."] ["_"] caseName;
+  caseNameEscaped = builtins.replaceStrings [ "." ] [ "_" ] caseName;
 in
 stdenv.mkDerivation (rec {
   name = "codegen.${caseNameEscaped}";
@@ -29,7 +29,8 @@ stdenv.mkDerivation (rec {
     single \
       -VLEN ${toString vLen} \
       -XLEN ${toString xLen} \
-      -testfloat3level 1 \
+      -testfloat3level 2 \
+      -repeat 16 \
       -configfile ${rvv-codegen}/configs/${caseName}.toml \
       -outputfile ${caseNameEscaped}.S
 
