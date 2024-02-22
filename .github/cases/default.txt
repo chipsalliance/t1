@@ -1,4 +1,4 @@
 squirtle/default.json
 blastoise/default.json
-magnemite/default.json
-magneton/default.json
+mankey/default.json
+primeape/default.json
