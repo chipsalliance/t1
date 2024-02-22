@@ -23,6 +23,8 @@ let
     "squirtle"
     "charmander"
     "bulbasaur"
+    "mankey"
+    "primeape"
   ];
 in
 
