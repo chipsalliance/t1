@@ -118,7 +118,7 @@ class Rec7Fn extends Module {
   normExpIn := Mux(inIsSub, -normDist, expIn)
 
   // todo timing issue
-  normSigIn := Mux(inIsSub, fractIn << (1.U - normExpIn), fractIn)
+  normSigIn := Mux(inIsSub, fractIn << 1.U >> normExpIn, fractIn)
 
   val rec7Decoder = Module(new Rec7LUT)
   rec7Decoder.in := normSigIn(22, 16)
@@ -159,7 +159,7 @@ class Rsqrt7Fn extends Module {
   val inIsSub = !expIn.orR
 
   val outNaN = Cat(in.classifyIn(2,0), in.classifyIn(9,8)).orR
-  val outInf = in.classifyIn(3)|| in.classifyIn(4)
+  val outInf = in.classifyIn(3) || in.classifyIn(4)
 
   val normDist = Wire(UInt(8.W))
   val normExpIn = Wire(UInt(8.W))
@@ -170,15 +170,17 @@ class Rsqrt7Fn extends Module {
   normDist := float.countLeadingZeros(fractIn)
   normExpIn := Mux(inIsSub, -normDist, expIn)
   // todo timing issue
-  normSigIn := Mux(inIsSub, fractIn << (1.U - normExpIn), fractIn)
+  normSigIn := Mux(inIsSub, (fractIn << 1.U << normDist), fractIn)
 
   val rsqrt7Decoder = Module(new Rsqrt7LUT)
   rsqrt7Decoder.in := Cat(normExpIn(0), normSigIn(22,17))
 
   sigOut := Cat(rsqrt7Decoder.out, 0.U(16.W))
-  expOut := (380.U - normExpIn) >> 1
+  expOut := Mux(inIsSub, 380.U + normDist, 380.U(10.W) - expIn) >> 1
 
-  out.data := Mux(outNaN, "x7FC00000".U, Cat(sign, expOut, sigOut))
+  out.data := Mux(outNaN, "x7FC00000".U,
+    Mux(outInf, Cat(sign, "x7f800000".U(31.W)),
+      Cat(sign, expOut, sigOut)))
   out.exceptionFlags := Mux(outNaN, 16.U,
     Mux(outInf, 8.U, 0.U))
 }
