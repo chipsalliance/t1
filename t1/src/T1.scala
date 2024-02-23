@@ -349,7 +349,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     Fill(3, imm(4)) ## imm
 
   /** duplicate v0 for mask */
-  val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.maskGroupSize)(0.U(parameter.maskGroupWidth.W))))
+  val v0: Vec[UInt] = RegInit(VecInit(Seq.fill(parameter.vLen / parameter.datapathWidth)(0.U(parameter.datapathWidth.W))))
   // TODO: uarch doc for the regroup
   val regroupV0: Seq[UInt] = Seq(4, 2, 1).map { groupSize =>
     VecInit(cutUInt(v0.asUInt, groupSize)
@@ -1450,7 +1450,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   lsu.request.bits.instructionInformation.isStore := isStoreType
   lsu.request.bits.instructionInformation.maskedLoadStore := maskType
 
-  lsu.maskInput.zip(lsu.maskSelect).foreach { case (data, index) => data := v0(index) }
+  lsu.maskInput.zip(lsu.maskSelect).foreach { case (data, index) =>
+    data :=  cutUInt(v0.asUInt, parameter.maskGroupWidth)(index)
+  }
   lsu.csrInterface := requestReg.bits.csr
   lsu.writeReadyForLsu := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
   lsu.vrfReadyToStore := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
