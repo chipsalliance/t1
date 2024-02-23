@@ -874,7 +874,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       )
 
       val compareWire = Mux(decodeResultReg(Decoder.slid), rs1, maskUnitData)
-      val compareAdvance: Bool = (rs1 >> log2Ceil(parameter.vLen)).asUInt.orR
+      val compareAdvance: Bool = (compareWire >> log2Ceil(parameter.vLen)).asUInt.orR
       val compareResult:  Bool = largeThanVLMax(compareWire, compareAdvance, csrRegForMaskUnit)
       // 正在被gather使用的数据在data的那个组里
       val gatherDataSelect = UIntToOH(maskUnitDataOffset(5 + log2Ceil(parameter.laneNumber) - 1, 5))
