@@ -54,15 +54,6 @@ def main():
             help="path to the subsystem emulator, use nix generated one if unspecified",
         )
         subparser.add_argument(
-            "--cases-dir",
-            help="path to testcases, default to TEST_CASES_DIR environment",
-        )
-        subparser.add_argument(
-            "--use-individual-drv",
-            help="use .#t1.cases.<case_type>.<case_name> instead of .#t1.cases.all",
-            action="store_true",
-        )
-        subparser.add_argument(
             "--force-x86",
             help="use cases built in x86, for non-x86 machines not capable of building cases",
             action="store_true",
@@ -154,34 +145,23 @@ def main():
 
 
 # Try to search ELF from the given directory
-def load_elf_from_dir(config, cases_dir, case_name, use_individual_drv, force_x86):
+def load_elf_from_dir(config, case_name, force_x86):
     cases_attr_name = "cases-x86" if force_x86 else "cases"
-    if cases_dir is None:
-        if env_case_dir := os.environ.get("TEST_CASES_DIR"):
-            cases_dir = env_case_dir
-        else:
-            nix_args = [
-                "nix",
-                "build",
-                "--no-link",
-                "--print-out-paths",
-                "--no-warn-dirty",
-            ]
-            if use_individual_drv:
-                nix_args.append(f".#t1.{cases_attr_name}.{case_name}")
-            else:
-                nix_args.append(f".#t1.{config}.{cases_attr_name}.all")
-            logger.info(f'Run "{" ".join(nix_args)}"')
-            cases_dir = subprocess.check_output(nix_args).strip().decode("UTF-8")
+    nix_args = [
+        "nix",
+        "build",
+        "--no-link",
+        "--print-out-paths",
+        "--no-warn-dirty",
+    ]
+    nix_args.append(f".#t1.{config}.{cases_attr_name}.{case_name}")
+    logger.info(f'Run "{" ".join(nix_args)}"')
+    cases_dir = subprocess.check_output(nix_args).strip().decode("UTF-8")
 
     cases_dir = Path(cases_dir)
     logger.info(f"Running cases in {cases_dir}")
 
-    case_config_path = (
-        cases_dir / f"{case_name}.json"
-        if use_individual_drv
-        else cases_dir / "configs" / f"{case_name}.json"
-    )
+    case_config_path = cases_dir / f"{case_name}.json"
     assert case_config_path.exists(), f"cannot find case config in {case_config_path}"
     config = json.loads(case_config_path.read_text())
 
@@ -216,9 +196,7 @@ def run_test(args):
         if Path(args.case).exists()
         else load_elf_from_dir(
             args.config,
-            args.cases_dir,
             args.case,
-            args.use_individual_drv,
             args.force_x86,
         )
     )
@@ -253,32 +231,42 @@ def run_test(args):
         dramsim3_cfg = args.dramsim3_cfg
         rtl_config = json.loads(elaborate_config_path.read_text())
         tck = 10**3 / args.frequency
-        emu_args = [
-            "--elf", str(case_elf_path),
-            "--wave", str(Path(args.out_dir) / "wave.fst"),
-            "--timeout", str(args.cosim_timeout),
-            "--tck", str(tck),
-            "--perf", str(Path(args.out_dir) / "perf.txt"),
-            "--vlen", str(rtl_config["parameter"]["vLen"]),
-            "--dlen", str(rtl_config["parameter"]["dLen"]),
-            # TODO: this will be refactored soon to support multiple LSU
-            "--tl_bank_number", str(rtl_config["parameter"]["lsuInstantiateParameters"][0]["banks"])
-        ] + optionals(args.no_logging, [
-              "--no-logging"
-            ]) \
-          + optionals(not args.with_file_logging,[
-              "--no-file-logging"
-            ]) \
-          + optionals(args.no_console_logging, [
-              "--no-console-logging"
-            ]) \
-          + optionals(args.out_dir, [
-              f"--log-path={str(Path(args.out_dir) / 'emulator.log')}"
-            ]) \
-          + optionals(dramsim3_cfg is not None, [
-              "--dramsim3-result", str(Path(args.out_dir) / "dramsim3-logs"),
-              "--dramsim3-config", dramsim3_cfg,
-            ])
+        emu_args = (
+            [
+                "--elf",
+                str(case_elf_path),
+                "--wave",
+                str(Path(args.out_dir) / "wave.fst"),
+                "--timeout",
+                str(args.cosim_timeout),
+                "--tck",
+                str(tck),
+                "--perf",
+                str(Path(args.out_dir) / "perf.txt"),
+                "--vlen",
+                str(rtl_config["parameter"]["vLen"]),
+                "--dlen",
+                str(rtl_config["parameter"]["dLen"]),
+                # TODO: this will be refactored soon to support multiple LSU
+                "--tl_bank_number",
+                str(rtl_config["parameter"]["lsuInstantiateParameters"][0]["banks"]),
+            ]
+            + optionals(args.no_logging, ["--no-logging"])
+            + optionals(not args.with_file_logging, ["--no-file-logging"])
+            + optionals(args.no_console_logging, ["--no-console-logging"])
+            + optionals(
+                args.out_dir, [f"--log-path={str(Path(args.out_dir) / 'emulator.log')}"]
+            )
+            + optionals(
+                dramsim3_cfg is not None,
+                [
+                    "--dramsim3-result",
+                    str(Path(args.out_dir) / "dramsim3-logs"),
+                    "--dramsim3-config",
+                    dramsim3_cfg,
+                ],
+            )
+        )
 
     elif emu_type == "subsystem":
         emu_args = [f"+init_file={case_elf_path}"]
