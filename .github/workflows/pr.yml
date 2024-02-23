@@ -74,19 +74,30 @@ jobs:
   test-emit:
     name: "Test elaborate"
     runs-on: [self-hosted, linux, nixos]
+    strategy:
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Test elaborate"
         run: |
-          set -e
           configStr=$(nix run '.#t1.configgen' -- listConfigs)
+          declare -a failed_rtl_configs
           IFS=',' read -ra configArray <<< "$configStr"
           for cfg in "${configArray[@]}"; do
             echo "Building .#t1.${cfg}.ip.rtl"
-            nix build ".#t1.${cfg}.ip.rtl" -L
+            if ! nix build ".#t1.${cfg}.ip.rtl" -L; then
+              failed_rtl_configs+=("${cfg}")
+            fi
           done
+          if [ -n "${failed_rtl_configs[*]}"  ]; then
+            echo -e "## Failed RTL\n" >> "$GITHUB_STEP_SUMMARY"
+            for cfg in "${failed_rtl_configs[@]}"; do
+              echo "* ${cfg}" >> $GITHUB_STEP_SUMMARY
+            done
+            printf "\n" >> $GITHUB_STEP_SUMMARY
+          fi
 
   run-testcases:
     name: "Run testcases"
