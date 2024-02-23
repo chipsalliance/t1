@@ -877,7 +877,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val compareAdvance: Bool = (compareWire >> log2Ceil(parameter.vLen)).asUInt.orR
       val compareResult:  Bool = largeThanVLMax(compareWire, compareAdvance, csrRegForMaskUnit)
       // 正在被gather使用的数据在data的那个组里
-      val gatherDataSelect = UIntToOH(maskUnitDataOffset(5 + (log2Ceil(parameter.laneNumber) max 1) - 1, 5))
+      val gatherDataSelect = UIntToOH((false.B ## maskUnitDataOffset)(5 + (log2Ceil(parameter.laneNumber) max 1) - 1, 5))
       val dataTail = Mux1H(UIntToOH(maskUnitEEW)(1, 0), Seq(3.U(2.W), 2.U(2.W)))
       val lastElementForData = gatherDataSelect.asBools.last && maskUnitDataOffset(4, 3) === dataTail
       val lastElementForCompressMask = elementIndexCount(log2Ceil(parameter.datapathWidth) - 1, 0).andR
@@ -1061,7 +1061,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       }
 
       // 处理 iota
-      val iotaDataOffset:  UInt = elementIndexCount(7, 0)
+      val iotaDataOffset:  UInt = elementIndexCount(log2Ceil(parameter.datapathWidth * parameter.laneNumber) - 1, 0)
       val lastDataForIota: Bool = iotaDataOffset.andR
       val iotaData = VecInit(data.map(_.bits)).asUInt(iotaDataOffset)
       val iota = decodeResultReg(Decoder.iota)
