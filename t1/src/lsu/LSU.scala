@@ -62,8 +62,13 @@ case class LSUParameter(
                        ) {
   val memoryBankSize: Int = banks.size
 
-  /** see [[VParameter.maskGroupWidth]]. */
-  val maskGroupWidth: Int = datapathWidth
+  val sewMin: Int = 8
+
+  /** the maximum address offsets number can be accessed from lanes for one time. */
+  val maxOffsetPerLaneAccess: Int = datapathWidth * laneNumber / sewMin
+
+  /** see [[MSHRParam.maskGroupWidth]]. */
+  val maskGroupWidth: Int = maxOffsetPerLaneAccess
 
   /** see [[VParameter.maskGroupSize]]. */
   val maskGroupSize: Int = vLen / datapathWidth
