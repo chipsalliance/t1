@@ -209,7 +209,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
     * true for toInt
     */
   val fnToInt = Module(new RecFNToIN(8, 24, 32))
-  val convertRtz = (uop(3,2) === 3.U) && compareEn
+  val convertRtz = uop(3,2) === 3.U
   fnToInt.io.in := recIn1
   fnToInt.io.roundingMode := Mux(convertRtz, "b001".U(3.W), request.roundingMode)
   fnToInt.io.signedOut := !(uop(3) && uop(0))
