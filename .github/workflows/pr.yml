@@ -185,12 +185,8 @@ jobs:
           mv "$waveFile" ./wave-${{ matrix.job }}.fst
       - uses: actions/upload-artifact@v4
         with:
-          name: failed-tests-wave-${{ matrix.id }}
+          name: ${{ matrix.id }}-failed-tests-wave
           path: 'wave-*.fst'
-      - run: |
-          echo "Test ${{ matrix.job }} run fail"
-          # We are just running post action for failing test, so we need to avoid the workflow finishing successfully
-          exit 1
 
   report:
     name: "Report CI result"
