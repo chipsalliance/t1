@@ -93,12 +93,14 @@ class Rec7Fn extends Module {
   val maybeRoundToMax = in.roundingMode === 1.U ||
     ((in.roundingMode === 2.U) && !sign) ||
     ((in.roundingMode === 3.U) && sign)
-  val maybyRoundToNegaInf = in.roundingMode === 0.U ||
+  val maybyRoundToNegaInf = sign &&
+    (in.roundingMode === 0.U ||
     in.roundingMode === 4.U ||
-    ((in.roundingMode === 2.U) && sign)
-  val maybyRoundToPosInf = in.roundingMode === 0.U ||
+    in.roundingMode === 2.U)
+  val maybyRoundToPosInf = !sign &&
+    (in.roundingMode === 0.U ||
     in.roundingMode === 4.U ||
-    ((in.roundingMode === 3.U) && !sign)
+    in.roundingMode === 3.U)
   val roundAbnormalToMax     = inIsSubMayberound && maybeRoundToMax
   val roundAbnormalToNegaInf = inIsSubMayberound && maybyRoundToNegaInf
   val roundAbnormalToPosInf  = inIsSubMayberound && maybyRoundToPosInf
