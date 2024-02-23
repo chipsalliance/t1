@@ -950,7 +950,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   entranceControl.additionalRead :=
     laneRequest.bits.decodeResult(Decoder.crossRead) &&
-      lanePositionLargerThanEndLane && !lastLaneIndex.andR && !entranceControl.instructionFinished
+      lanePositionLargerThanEndLane && !lastLaneIndex.andR && csrInterface.vl.orR
 
   // slot needs to be moved, try to shifter and stall pipe
   slotShiftValid := VecInit(Seq.range(0, parameter.chainingSize).map { slotIndex =>
@@ -1000,8 +1000,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   val instructionFinishAndNotReportByTop: Bool =
     entranceControl.instructionFinished && !laneRequest.bits.decodeResult(Decoder.readOnly)
+  val needWaitCrossWrite: Bool = laneRequest.bits.decodeResult(Decoder.crossWrite) && csrInterface.vl.orR
   // normal instruction, LSU instruction will be report to VRF.
-  vrf.instructionWriteReport.valid := laneRequest.bits.issueInst && !instructionFinishAndNotReportByTop
+  vrf.instructionWriteReport.valid := laneRequest.bits.issueInst && (!instructionFinishAndNotReportByTop || needWaitCrossWrite)
   vrf.instructionWriteReport.bits.instIndex := laneRequest.bits.instructionIndex
   vrf.instructionWriteReport.bits.vd.bits := laneRequest.bits.vd
   vrf.instructionWriteReport.bits.vd.valid := !laneRequest.bits.decodeResult(Decoder.targetRd) || (laneRequest.bits.loadStore && !laneRequest.bits.store)
