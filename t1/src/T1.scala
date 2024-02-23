@@ -865,7 +865,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val maskUnitBitEnable = FillInterleaved(8, maskUnitByteEnable)
       maskUnitWriteVec.head.bits.mask := Mux(writeMv, maskUnitByteEnable, writeMask)
       // log2(dataWidth * laneNumber / 8)
-      val maskUnitDataOffset = (elementIndexCount << maskUnitEEW).asUInt(4, 0) ## 0.U(3.W)
+      val maskUnitDataOffset =
+        (elementIndexCount << maskUnitEEW).
+          asUInt(log2Ceil(parameter.datapathWidth * parameter.laneNumber / 8) - 1, 0) ## 0.U(3.W)
       val maskUnitData = ((VecInit(data.map(_.bits)).asUInt >> maskUnitDataOffset).asUInt & maskUnitBitEnable)(
         parameter.datapathWidth - 1,
         0
@@ -875,7 +877,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val compareAdvance: Bool = (rs1 >> log2Ceil(parameter.vLen)).asUInt.orR
       val compareResult:  Bool = largeThanVLMax(compareWire, compareAdvance, csrRegForMaskUnit)
       // 正在被gather使用的数据在data的那个组里
-      val gatherDataSelect = UIntToOH(maskUnitDataOffset(7, 5))
+      val gatherDataSelect = UIntToOH(maskUnitDataOffset(5 + log2Ceil(parameter.laneNumber) - 1, 5))
       val dataTail = Mux1H(UIntToOH(maskUnitEEW)(1, 0), Seq(3.U(2.W), 2.U(2.W)))
       val lastElementForData = gatherDataSelect.asBools.last && maskUnitDataOffset(4, 3) === dataTail
       val maskUnitDataReady: Bool = (gatherDataSelect & VecInit(data.map(_.valid)).asUInt).orR
