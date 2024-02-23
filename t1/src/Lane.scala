@@ -124,10 +124,6 @@ case class LaneParameter(
 
   /** Parameter for [[VRF]] */
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor, vrfRamType)
-
-  /** Parameter for [[OtherUnit]]. */
-  def otherUnitParam: OtherUnitParam = OtherUnitParam(datapathWidth, vlMaxBits, groupNumberBits, laneNumberBits, dataPathByteWidth, 0)
-
 }
 
 /** Instantiate [[Lane]] from [[T1]],

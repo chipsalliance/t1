@@ -420,7 +420,7 @@ object Main {
       ),
       divfpModuleParameters = Seq(),
       otherModuleParameters = Seq(
-        (SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))
+        (SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 4, 4, 0)), Seq(0, 1, 2, 3))
       ),
       floatModuleParameters = Seq()
     )
@@ -464,7 +464,7 @@ object Main {
       divfpModuleParameters =
         Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 0)), Seq(0, 1, 2, 3))),
       otherModuleParameters =
-        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))),
+        Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 4, 4, 0)), Seq(0, 1, 2, 3))),
       floatModuleParameters =
         Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3)))
     )
