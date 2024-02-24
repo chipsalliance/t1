@@ -16,8 +16,8 @@ jobs:
     strategy:
       matrix:
         config:
-          - "v1024-l8-b2"
-          - "v1024-l8-b2-fp"
+          - squirtle
+          - blastoise
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,8 +44,8 @@ jobs:
       - name: "Build all testcases"
         run: |
           # Build testcases with vlen 1024 and vlen 4096
-          nix build ".#t1.v1024-l8-b2.cases.all" --max-jobs auto -L --no-link --cores 64
-          nix build ".#t1.v4096-l8-b4.cases.all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.bulbasaur.cases.all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.psyduck.cases.all" --max-jobs auto -L --no-link --cores 64
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
@@ -60,8 +60,8 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - "v1024-l8-b2"
-          - "v1024-l8-b2-fp"
+          - squirtle
+          - blastoise
     steps:
       - uses: actions/checkout@v4
         with:
