@@ -1,0 +1,113 @@
+diff --git a/riscv/insns/vfredusum_vs.h b/riscv/insns/vfredusum_vs.h
+index bad7308e..3c1fd776 100644
+--- a/riscv/insns/vfredusum_vs.h
++++ b/riscv/insns/vfredusum_vs.h
+@@ -1,6 +1,6 @@
+ // vfredsum: vd[0] =  sum( vs2[*] , vs1[0] )
+ bool is_propagate = true;
+-VI_VFP_VV_LOOP_REDUCTION
++VI_VFP_VV_LOOP_LANE_ORDERED_REDUCTION
+ ({
+   vd_0 = f16_add(vd_0, vs2);
+ },
+diff --git a/riscv/v_ext_macros.h b/riscv/v_ext_macros.h
+index b198d54b..7062177b 100644
+--- a/riscv/v_ext_macros.h
++++ b/riscv/v_ext_macros.h
+@@ -1656,6 +1656,63 @@ reg_t index[P.VU.vlmax]; \
+       break; \
+   }; \
+ 
++#define VI_VFP_VV_LOOP_REDUCTION_LANE_ORDERED_BASE(width, BODY) \
++  float##width##_t vd_0 = P.VU.elt<float##width##_t>(rd_num, 0); \
++  float##width##_t vs1_0 = P.VU.elt<float##width##_t>(rs1_num, 0); \
++  vd_0 = vs1_0; \
++  bool is_active = false; \
++  reg_t vstart = P.VU.vstart->read(); \
++  reg_t step_size = LANE_NUM * LANE_GRANULARITY / width; \
++  for (reg_t l = 0; l < LANE_NUM; l++) { \
++    if (l >= vl) continue; \
++    reg_t i = l; \
++    float##width##_t vd_0_backup = vd_0; \
++    bool vd_0_initialized = false; \
++    bool mask = insn.v_vm() == 1 || (P.VU.elt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1; \
++    if (mask) { \
++      vd_0 = P.VU.elt<float##width##_t>(rs2_num, i); \
++      vd_0_initialized = true; \
++    } \
++    for (i = l + step_size; i < vl; i += step_size) { \
++      bool mask = insn.v_vm() == 1 || (P.VU.elt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1; \
++      if (mask) { \
++        if (vd_0_initialized) { \
++          float##width##_t vs2 = P.VU.elt<float##width##_t>(rs2_num, i); \
++          is_active = true; BODY; set_fp_exceptions; \
++        } else { \
++          vd_0 = P.VU.elt<float##width##_t>(rs2_num, i); \
++          vd_0_initialized = true; \
++        } \
++      } \
++    } \
++    float##width##_t vs2 = vd_0; \
++    vd_0 = vd_0_backup; \
++    if (vd_0_initialized) { \
++      is_active = true; BODY; set_fp_exceptions; \
++    } \
++  /* back brace included */ VI_VFP_LOOP_REDUCTION_END(e32);
++
++#define VI_VFP_VV_LOOP_LANE_ORDERED_REDUCTION(BODY16, BODY32, BODY64) \
++  VI_CHECK_REDUCTION(false) \
++  VI_VFP_COMMON \
++  switch (P.VU.vsew) { \
++    case e16: { \
++      VI_VFP_VV_LOOP_REDUCTION_LANE_ORDERED_BASE(16, BODY16) \
++      break; \
++    } \
++    case e32: { \
++      VI_VFP_VV_LOOP_REDUCTION_LANE_ORDERED_BASE(32, BODY32) \
++      break; \
++    } \
++    case e64: { \
++      VI_VFP_VV_LOOP_REDUCTION_LANE_ORDERED_BASE(64, BODY64) \
++      break; \
++    } \
++    default: \
++      require(0); \
++      break; \
++  }; \
++
+ #define VI_VFP_VV_LOOP_WIDE_REDUCTION(BODY16, BODY32) \
+   VI_CHECK_REDUCTION(true) \
+   VI_VFP_COMMON \
+diff --git a/riscv/vector_unit.cc b/riscv/vector_unit.cc
+index 08adc616..6273f179 100644
+--- a/riscv/vector_unit.cc
++++ b/riscv/vector_unit.cc
+@@ -153,3 +153,15 @@ template EGU32x4_t& vectorUnit_t::elt_group<EGU32x4_t>(reg_t, reg_t, bool);
+ template EGU32x8_t& vectorUnit_t::elt_group<EGU32x8_t>(reg_t, reg_t, bool);
+ template EGU64x4_t& vectorUnit_t::elt_group<EGU64x4_t>(reg_t, reg_t, bool);
+ template EGU8x16_t& vectorUnit_t::elt_group<EGU8x16_t>(reg_t, reg_t, bool);
++
++inline reg_t get_num_from_env_with_default(const std::string &name, reg_t default_val) {
++  const char *env_p = std::getenv(name.c_str());
++  if (env_p == nullptr) {
++    return default_val;
++  } else {
++    return std::stoll(env_p);
++  }
++}
++
++const reg_t LANE_NUM = get_num_from_env_with_default("RVV_LANE_NUM", 16);
++const reg_t LANE_GRANULARITY = get_num_from_env_with_default("RVV_LANE_GRANULARITY", 32);
+diff --git a/riscv/vector_unit.h b/riscv/vector_unit.h
+index a057c62f..6d52b8c9 100644
+--- a/riscv/vector_unit.h
++++ b/riscv/vector_unit.h
+@@ -149,4 +149,8 @@ public:
+     return (VRM)(vxrm->read());
+   }
+ };
++
++extern const reg_t LANE_NUM;
++extern const reg_t LANE_GRANULARITY;
++
+ #endif

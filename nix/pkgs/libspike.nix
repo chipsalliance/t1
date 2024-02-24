@@ -26,6 +26,9 @@ stdenv.mkDerivation {
   configureFlags = [
     "--enable-commitlog"
   ];
+
+  patches = [ ../patches/spike/order_of_unordered_reduce.patch ];
+
   installPhase = ''
     runHook preInstall
     mkdir -p $out/include/{riscv,fesvr,softfloat} $out/lib $out/lib/cmake/libspike
