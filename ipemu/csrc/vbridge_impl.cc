@@ -322,6 +322,8 @@ VBridgeImpl::VBridgeImpl(const Config cosim_config)
       vrf_shadow(std::make_unique<uint8_t[]>(config.vlen_in_bytes *
                                              config.vreg_number))
                                              {
+  proc.VU.lane_num = config.lane_number;
+  proc.VU.lane_granularity = 32;
 
   auto &csrmap = proc.get_state()->csrmap;
   csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 0);
