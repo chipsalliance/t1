@@ -1,8 +1,10 @@
 { stdenv, dtc, fetchFromGitHub }:
-let
-  version = "1.1.0";
+
+stdenv.mkDerivation {
+  version = "unstable-2024-02-20";
   pname = "libspike";
-  cmakeConfig = ''
+
+  env.cmakeConfig = ''
     add_library(libspike STATIC IMPORTED GLOBAL)
     set_target_properties(libspike PROPERTIES
       IMPORTED_LOCATION "${placeholder "out"}/lib/libriscv.so")
@@ -13,16 +15,13 @@ let
       "${placeholder "out"}/include/softfloat"
     )
   '';
-in
-stdenv.mkDerivation {
-  inherit version pname cmakeConfig;
   nativeBuildInputs = [ dtc ];
   enableParallelBuilding = true;
   src = fetchFromGitHub {
     owner = "riscv";
     repo = "riscv-isa-sim";
-    rev = "eb75ab37a17ff4f8597b7b40283a08c38d2a6ff6";
-    sha256 = "sha256-slr2sMXNhNAIJYMpe9A5rVrYUuhNIYE8G1Y9tR2qP8s=";
+    rev = "a22119e562c4185275a10eb11ca4ba568d09a570";
+    sha256 = "sha256-FR+so/kFbdSdlAQ6/P4WlD+wr18R4LXCwaNSTlki8mk=";
   };
   configureFlags = [
     "--enable-commitlog"

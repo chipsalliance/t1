@@ -269,22 +269,30 @@ static VBridgeImpl vbridgeImplFromArgs() {
   return VBridgeImpl(cosim_config);
 }
 
+cfg_t make_spike_cfg(const std::string &varch) {
+  cfg_t cfg;
+  cfg.initrd_bounds = std::make_pair((reg_t)0, (reg_t)0),
+  cfg.bootargs = nullptr;
+  cfg.isa = DEFAULT_ISA;
+  cfg.priv = DEFAULT_PRIV;
+  cfg.varch = varch.data();
+  cfg.misaligned = false;
+  cfg.endianness = endianness_little;
+  cfg.pmpregions = 16;
+  cfg.pmpgranularity = 4;
+  cfg.mem_layout = std::vector<mem_cfg_t>();
+  cfg.hartids = std::vector<size_t>();
+  cfg.explicit_hartids = false;
+  cfg.real_time_clint = false;
+  cfg.trigger_count = 4;
+  return cfg;
+}
+
 VBridgeImpl::VBridgeImpl(const Config cosim_config)
     : config(cosim_config),
       varch(fmt::format("vlen:{},elen:{}", config.vlen, config.elen)),
       sim(1l << 32), isa("rv32gcv", "M"),
-      cfg(/*default_initrd_bounds=*/std::make_pair((reg_t)0, (reg_t)0),
-          /*default_bootargs=*/nullptr,
-          /*default_isa=*/DEFAULT_ISA,
-          /*default_priv=*/DEFAULT_PRIV,
-          /*default_varch=*/varch.data(),
-          /*default_misaligned=*/false,
-          /*default_endianness*/ endianness_little,
-          /*default_pmpregions=*/16,
-          /*default_mem_layout=*/std::vector<mem_cfg_t>(),
-          /*default_hartids=*/std::vector<size_t>(),
-          /*default_real_time_clint=*/false,
-          /*default_trigger_count=*/4),
+      cfg(make_spike_cfg(varch)),
       proc(
           /*isa*/ &isa,
           /*cfg*/ &cfg,
