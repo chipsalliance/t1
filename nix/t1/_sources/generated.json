@@ -101,7 +101,7 @@
     },
     "rocket-chip": {
         "cargoLocks": null,
-        "date": "2024-01-28",
+        "date": "2024-02-27",
         "extract": null,
         "name": "rocket-chip",
         "passthru": null,
@@ -113,11 +113,11 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "rocket-chip",
-            "rev": "baa9f4523f846831f03761179c209fb633c68f8d",
-            "sha256": "sha256-kBfeLpliTc2cj3ZUNe1CUKj1qhpJBWglgcuXtuQVZco=",
+            "rev": "2b8fa0ad90659caa4ff1a8c46c200893a4dac3b8",
+            "sha256": "sha256-iTO407brdqpANs9vEB6X17VO5EB7szTuWXeCNEgwSPs=",
             "type": "github"
         },
-        "version": "baa9f4523f846831f03761179c209fb633c68f8d"
+        "version": "2b8fa0ad90659caa4ff1a8c46c200893a4dac3b8"
     },
     "rocket-chip-inclusive-cache": {
         "cargoLocks": null,
