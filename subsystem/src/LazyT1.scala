@@ -11,14 +11,14 @@ import org.chipsalliance.cde.config._
 import org.chipsalliance.t1.rockettile.{AbstractLazyT1, AbstractLazyT1ModuleImp, T1LSUParameter}
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
-case object T1ConfigPath extends Field[os.Path]
+case object T1Generator extends Field[SerializableModuleGenerator[T1, T1Parameter]]
 trait HasT1Tiles { this: BaseSubsystem with InstantiatesHierarchicalElements =>
-  lazy val t1Tiles = totalTiles.values.collect { case r: org.chipsalliance.t1.rocketcore.RocketTile => r }
+  lazy val t1Tiles = totalTiles.values.collect { case r: org.chipsalliance.t1.rocketcore.T1Tile => r }
 }
 
 class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
   lazy val module = new LazyT1Imp(this)
-  lazy val generator: SerializableModuleGenerator[T1, T1Parameter] = upickle.default.read[SerializableModuleGenerator[T1, T1Parameter]](ujson.read(os.read(p(T1ConfigPath))))
+  lazy val generator: SerializableModuleGenerator[T1, T1Parameter] = p(T1Generator)
   def uarchName: String = "t1"
   def xLen: Int = generator.parameter.xLen
   override def t1LSUParameters: T1LSUParameter =
@@ -55,7 +55,7 @@ class LazyT1Imp(outer: LazyT1)(implicit p: Parameters) extends AbstractLazyT1Mod
   t1.storeBufferClear := true.B
 
   // TODO: multiple LSU support
-  outer.t1LSUNodes.out.zipWithIndex.foreach {
+  outer.t1LSUNode.out.zipWithIndex.foreach {
     case ((bundle, _), i) =>
       bundle.a.bits.opcode := t1.memoryPorts(i).a.bits.opcode
       bundle.a.bits.param := t1.memoryPorts(i).a.bits.param
