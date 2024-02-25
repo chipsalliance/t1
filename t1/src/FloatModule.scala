@@ -118,11 +118,15 @@ class Rec7Fn extends Module {
   normExpIn := Mux(inIsSub, -normDist, expIn)
 
   // todo timing issue
-  normSigIn := Mux(inIsSub, fractIn << 1.U >> normExpIn, fractIn)
+  normSigIn := Mux(inIsSub, fractIn << 1.U << normDist, fractIn)
 
   val rec7Decoder = Module(new Rec7LUT)
   rec7Decoder.in := normSigIn(22, 16)
 
+  /** rec7 algorithm
+    *
+    * @note see riscv-v-spec p66
+    */
   normSigOut := Cat(rec7Decoder.out, 0.U(16.W))
   normExpOut := 253.U - normExpIn
 
@@ -175,6 +179,9 @@ class Rsqrt7Fn extends Module {
   val rsqrt7Decoder = Module(new Rsqrt7LUT)
   rsqrt7Decoder.in := Cat(normExpIn(0), normSigIn(22,17))
 
+  /** rsqrt7 algorithm
+    * @note see riscv-v-spec p62
+    */
   sigOut := Cat(rsqrt7Decoder.out, 0.U(16.W))
   expOut := Mux(inIsSub, 380.U + normDist, 380.U(10.W) - expIn) >> 1
 
