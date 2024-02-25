@@ -9,7 +9,7 @@ import freechips.rocketchip.tilelink._
 import org.chipsalliance.cde.config._
 import org.chipsalliance.t1.rocketcore.RocketTileModuleImp
 
-case object BuildVector extends Field[Option[Parameters => AbstractLazyT1]](None)
+case object BuildT1 extends Field[Option[Parameters => AbstractLazyT1]](None)
 
 /** Request from CPU to Vector.
   * aligned: core -> vector
@@ -50,46 +50,47 @@ class VectorResponse(xLen: Int) extends Bundle {
 }
 
 class CSRInterface(vlWidth: Int) extends Bundle {
+
   /** Vector Length Register `vl`,
-   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#35-vector-length-register-vl]]
-   */
+    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#35-vector-length-register-vl]]
+    */
   val vl: UInt = UInt(vlWidth.W)
 
   /** Vector Start Index CSR `vstart`,
-   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#37-vector-start-index-csr-vstart]]
-   * TODO: rename to `vstart`
-   */
+    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#37-vector-start-index-csr-vstart]]
+    * TODO: rename to `vstart`
+    */
   val vStart: UInt = UInt(vlWidth.W)
 
   /** Vector Register Grouping `vlmul[2:0]`
-   * subfield of `vtype`
-   * see table in [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#342-vector-register-grouping-vlmul20]]
-   */
+    * subfield of `vtype`
+    * see table in [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#342-vector-register-grouping-vlmul20]]
+    */
   val vlmul: UInt = UInt(3.W)
 
   /** Vector Register Grouping (vlmul[2:0])
-   * subfield of `vtype``
-   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#341-vector-selected-element-width-vsew20]]
-   */
+    * subfield of `vtype``
+    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#341-vector-selected-element-width-vsew20]]
+    */
   val vSew: UInt = UInt(2.W)
 
   /** Rounding mode register
-   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
-   */
+    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
+    */
   val vxrm: UInt = UInt(2.W)
 
   /** Vector Tail Agnostic
-   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
-   *
-   * we always keep the undisturbed behavior, since there is no rename here.
-   */
+    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
+    *
+    * we always keep the undisturbed behavior, since there is no rename here.
+    */
   val vta: Bool = Bool()
 
   /** Vector Mask Agnostic
-   * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
-   *
-   * we always keep the undisturbed behavior, since there is no rename here.
-   */
+    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
+    *
+    * we always keep the undisturbed behavior, since there is no rename here.
+    */
   val vma: Bool = Bool()
 }
 
@@ -121,29 +122,27 @@ case class T1LSUParameter(name: String, banks: Seq[Seq[AddressSet]], sourceIdSiz
 
 /** The hierarchy under [[BaseTile]]. */
 abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
-  def module:    AbstractLazyT1ModuleImp
-  def xLen:      Int
-  def uarchName: String
+  def module:          AbstractLazyT1ModuleImp
+  def xLen:            Int
+  def uarchName:       String
   def t1LSUParameters: T1LSUParameter
 
-  def bitsetToAddressSet(bitset: BitSet): Seq[AddressSet] = bitset.terms.map(bp => AddressSet(bp.value, bp.mask ^ (1 << bp.width - 1))).toSeq
+  def bitsetToAddressSet(bitset: BitSet): Seq[AddressSet] = bitset.terms.map(bp => AddressSet(bp.value, bp.mask ^ ((1 << bp.width) - 1))).toSeq
 
-  val t1LSUNodes = TLClientNode(
-    t1LSUParameters.banks.zipWithIndex.map { case (addresses, bank) =>
-      TLMasterPortParameters.v1(
-        Seq(
-          TLMasterParameters.v1(
-            name = s"${uarchName}_${t1LSUParameters.name}_bank$bank",
-            sourceId = IdRange(0, (1 << t1LSUParameters.sourceIdSize) - 1),
-            visibility = addresses
+  val t1LSUNode = TLClientNode(
+    t1LSUParameters.banks.zipWithIndex.map {
+      case (addresses, bank) =>
+        TLMasterPortParameters.v1(
+          Seq(
+            TLMasterParameters.v1(
+              name = s"${uarchName}_bank$bank",
+              sourceId = IdRange(0, (1 << t1LSUParameters.sourceIdSize) - 1),
+              visibility = addresses
+            )
           )
         )
-      )
     }
   )
-
-
-
   val requestSinkNode: BundleBridgeSink[DecoupledIO[VectorRequest]] =
     BundleBridgeSink[DecoupledIO[VectorRequest]]()
   val csrSinkNode: BundleBridgeSink[CSRInterface] =
@@ -165,16 +164,15 @@ abstract class AbstractLazyT1ModuleImp(outer: AbstractLazyT1)(implicit p: Parame
 }
 
 trait HasLazyT1 { this: BaseTile =>
-  val t1 = p(BuildVector).map(_(p))
-  val requestNode: Option[BundleBridgeSource[DecoupledIO[VectorRequest]]] = t1.map(_ => BundleBridgeSource(() => Decoupled(new VectorRequest(xLen))))
-  requestNode.zip(t1.map(_.requestSinkNode)).foreach{case (src, dst) => dst := src }
+  // TODO: We should manage the T1 PRCI under the T1's own PRCI Domain in the future.
+  val t1: Option[AbstractLazyT1] = p(BuildT1).map(_(p))
+  val requestNode: Option[BundleBridgeSource[DecoupledIO[VectorRequest]]] =
+    t1.map(_ => BundleBridgeSource(() => Decoupled(new VectorRequest(xLen))))
+  requestNode.zip(t1.map(_.requestSinkNode)).foreach { case (src, dst) => dst := src }
   val csrNode: Option[BundleBridgeSource[CSRInterface]] = t1.map(_ => BundleBridgeSource(() => new CSRInterface(11)))
-  csrNode.zip(t1.map(_.csrSinkNode)).foreach{case (src, dst) => dst := src }
+  csrNode.zip(t1.map(_.csrSinkNode)).foreach { case (src, dst) => dst := src }
   val responseSinkNode:      Option[BundleBridgeSink[ValidIO[VectorResponse]]] = t1.map(_.responseNode.makeSink())
   val hazardControlSinkNode: Option[BundleBridgeSink[VectorHazardControl]] = t1.map(_.hazardControlNode.makeSink())
-
-  // TODO: add bankbinder here
-  t1.foreach(tlMasterXbar.node :=* _.t1LSUNodes)
 }
 
 trait HasLazyT1Module { this: RocketTileModuleImp =>
@@ -182,8 +180,8 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
   outer.t1.map(_.module).foreach { t1Module =>
     // TODO: make it configurable
     val maxCount: Int = 32
-    val vlMax: Int = 1024
-    val xLen: Int = 32
+    val vlMax:    Int = 1024
+    val xLen:     Int = 32
 
     val instructionQueue: Option[Queue[VectorRequest]] =
       core.t1Request.map(req => Module(new Queue(chiselTypeOf(req.bits), maxCount)))
@@ -203,21 +201,25 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
       val vsetivli = deqInst(31, 30).andR
       val vsetvl = deqInst(31) && !deqInst(30)
       // v type set
-      val newVType = Mux1H(Seq(
-        (vsetvli || vsetivli) -> deqInst(27, 20),
-        vsetvl -> queue.io.deq.bits.rs2Data(7, 0)
-      ))
+      val newVType = Mux1H(
+        Seq(
+          (vsetvli || vsetivli) -> deqInst(27, 20),
+          vsetvl -> queue.io.deq.bits.rs2Data(7, 0)
+        )
+      )
 
       val rs1IsZero = deqInst(19, 15) === 0.U
       val rdIsZero = deqInst(11, 7) === 0.U
       // set vl
-      val setVL = Mux1H(Seq(
-        ((vsetvli || vsetvl) && !rs1IsZero) ->
-          Mux(queue.io.deq.bits.rs1Data > vlMax.U, vlMax.U, queue.io.deq.bits.rs1Data),
-        ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vlMax.U,
-        ((vsetvli || vsetvl) && rs1IsZero && rdIsZero) -> csrReg.vl,
-        vsetivli -> deqInst(19, 15)
-      ))
+      val setVL = Mux1H(
+        Seq(
+          ((vsetvli || vsetvl) && !rs1IsZero) ->
+            Mux(queue.io.deq.bits.rs1Data > vlMax.U, vlMax.U, queue.io.deq.bits.rs1Data),
+          ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vlMax.U,
+          ((vsetvli || vsetvl) && rs1IsZero && rdIsZero) -> csrReg.vl,
+          vsetivli -> deqInst(19, 15)
+        )
+      )
       // todo: vxrm
       when(queue.io.deq.fire && isSetVl) {
         csrReg.vl := setVL
@@ -230,7 +232,7 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
       instructionDequeue.get <> queue.io.deq
       instructionDequeue.get.valid := queue.io.deq.valid && !isSetVl
       queue.io.deq.ready := instructionDequeue.get.ready || isSetVl
-      core.t1IssueQueueRelease.foreach(_ := queue.io.deq.fire )
+      core.t1IssueQueueRelease.foreach(_ := queue.io.deq.fire)
       csrReg
     }
 
@@ -253,13 +255,12 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
         assert(!v.valid || vectorCommitQueue.io.enq.ready, "vector commit queue exploded")
         c <> vectorCommitQueue.io.deq
     }
-    outer.hazardControlSinkNode.map(_.bundle).foreach {
-      c =>
-        c.loadStoreTokenGrant := false.B
-        c.issueQueueEmpty := false.B
-        c.issueQueueFull := false.B
-        // TODO: fixme
-        c.storeBufferClear := true.B
+    outer.hazardControlSinkNode.map(_.bundle).foreach { c =>
+      c.loadStoreTokenGrant := false.B
+      c.issueQueueEmpty := false.B
+      c.issueQueueFull := false.B
+      // TODO: fixme
+      c.storeBufferClear := true.B
     }
   }
 }

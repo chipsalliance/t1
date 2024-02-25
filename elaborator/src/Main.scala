@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.elaborator
 
 import mainargs._
+import org.chipsalliance.t1.rtl.T1Parameter
 
 object Main {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
@@ -48,17 +49,10 @@ object Main {
     @arg(name = "ip-config", short = 'c') ipConfig: os.Path) {
     def generator = upickle.default
       .read[chisel3.experimental.SerializableModuleGenerator[org.chipsalliance.t1.rtl.T1, org.chipsalliance.t1.rtl.T1Parameter]](ujson.read(os.read(ipConfig)))
+    def parameter: T1Parameter = generator.parameter
   }
 
   implicit def ipConfig: ParserForClass[IPConfig] = ParserForClass[IPConfig]
-
-  @main
-  case class SubsystemConfig(ipConfig: IPConfig) {
-    def cdeParameter = (new org.chipsalliance.t1.subsystem.T1SubsystemConfig).orElse(new org.chipsalliance.cde.config.Config((_, _, _) => {
-      case org.chipsalliance.t1.subsystem.T1ConfigPath                              => ipConfig.ipConfig
-    }))
-  }
-  implicit def subsystemConfig: ParserForClass[SubsystemConfig] = ParserForClass[SubsystemConfig]
 
   // format: off
   @main def ip(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
@@ -67,9 +61,11 @@ object Main {
   @main def ipemu(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
     new org.chipsalliance.t1.ipemu.TestBench(ipConfig.generator)
   )
-  @main def subsystem(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
-    freechips.rocketchip.diplomacy.LazyModule(new org.chipsalliance.t1.subsystem.T1SubsystemSystem()(subsystemConfig.cdeParameter))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
-  )
+  @main def subsystem(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate { () =>
+    freechips.rocketchip.diplomacy.LazyModule(new org.chipsalliance.t1.subsystem.T1Subsystem()(
+      (new org.chipsalliance.t1.subsystem.T1SubsystemConfig(ipConfig.generator))
+    ))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
+  }
   // format: on
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)

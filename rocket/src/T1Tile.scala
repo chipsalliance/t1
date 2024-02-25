@@ -7,8 +7,8 @@ import chisel3._
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.interrupts._
-import freechips.rocketchip.prci.ClockSinkParameters
-import freechips.rocketchip.subsystem.{CanAttachTile, RocketCrossingParams, HierarchicalElementCrossingParamsLike}
+import freechips.rocketchip.prci.{ClockGroup, ClockSinkParameters, NoResetCrossing, ResetCrossingType}
+import freechips.rocketchip.subsystem.{Attachable, CBUS, CanAttachTile, HierarchicalElementCrossingParamsLike, HierarchicalElementMasterPortParams, HierarchicalElementPortParamsLike, HierarchicalElementSlavePortParams, RocketCrossingParams, TLBusWrapperLocation}
 import freechips.rocketchip.tile._
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util._
@@ -19,35 +19,87 @@ import freechips.rocketchip.rocket.{BTBParams, DCacheParams, ICacheParams, Rocke
 
 case class RocketTileBoundaryBufferParams(force: Boolean = false)
 
-case class RocketTileAttachParams(
-  tileParams:     RocketTileParams,
-  crossingParams: RocketCrossingParams)
-    extends CanAttachTile { type TileType = RocketTile }
+case class T1CrossingParams(
+                             crossingType: ClockCrossingType,
+                             master: HierarchicalElementPortParamsLike,
+                             vectorMaster: HierarchicalElementPortParamsLike,
+                             slave: HierarchicalElementSlavePortParams,
+                             mmioBaseAddressPrefixWhere: TLBusWrapperLocation,
+                             resetCrossingType: ResetCrossingType,
+                             forceSeparateClockReset: Boolean
+                           ) extends HierarchicalElementCrossingParamsLike
 
-case class RocketTileParams(
+case class T1TileAttachParams(
+  tileParams:     T1TileParams,
+  crossingParams: T1CrossingParams)
+    extends CanAttachTile {
+  type TileType = T1Tile
+  /** Connect power/reset/clock resources. */
+  override def connectPRC(domain: TilePRCIDomain[TileType], context: TileContextType): Unit = {
+    implicit val p = context.p
+    val tlBusToGetClockDriverFrom = context.locateTLBusWrapper(crossingParams.master.where)
+    crossingParams.crossingType match {
+      case _: SynchronousCrossing | _: CreditedCrossing =>
+        if (crossingParams.forceSeparateClockReset) {
+          domain.clockNode := tlBusToGetClockDriverFrom.clockNode
+        } else {
+          domain.clockNode := tlBusToGetClockDriverFrom.fixedClockNode
+        }
+      case _: RationalCrossing => domain.clockNode := tlBusToGetClockDriverFrom.clockNode
+      case _: AsynchronousCrossing =>
+        val tileClockGroup = ClockGroup()
+        tileClockGroup := context.allClockGroupsNode
+        domain.clockNode := tileClockGroup
+    }
+
+    val vectorBusToGetClockDriverFrom = context.locateTLBusWrapper(crossingParams.vectorMaster.where)
+
+    domain {
+      domain.element_reset_domain.clockNode := crossingParams.resetCrossingType.injectClockNode := domain.clockNode
+    }
+  }
+
+  /** Connect the port where the tile is the master to a TileLink interconnect. */
+  override def connectMasterPorts(domain: TilePRCIDomain[TileType], context: Attachable): Unit = {
+    super.connectMasterPorts(domain, context)
+    implicit val p = context.p
+    val vectorBus = context.locateTLBusWrapper(crossingParams.vectorMaster.where)
+    vectorBus.coupleFrom(tileParams.baseName) { bus: TLInwardNode =>
+      // TODO: add clock crossing here.
+      domain.element.t1.foreach(bus :=* crossingParams.vectorMaster.injectNode(context) :=* _.t1LSUNode)
+    }
+  }
+}
+
+case class T1TileParams(
   core:                RocketCoreParams = RocketCoreParams(),
   icache:              Option[ICacheParams] = Some(ICacheParams()),
   dcache:              Option[DCacheParams] = Some(DCacheParams()),
   btb:                 Option[BTBParams] = Some(BTBParams()),
   dataScratchpadBytes: Int = 0,
-  name:                Option[String] = Some("tile"),
+  name:                Option[String] = Some("T1"),
   tileId:              Int = 0,
   beuAddr:             Option[BigInt] = None,
   blockerCtrlAddr:     Option[BigInt] = None,
   clockSinkParams:     ClockSinkParameters = ClockSinkParameters(),
   boundaryBuffers:     Option[RocketTileBoundaryBufferParams] = None)
-    extends InstantiableTileParams[RocketTile] {
+    extends InstantiableTileParams[T1Tile] {
   require(icache.isDefined)
   require(dcache.isDefined)
-  val baseName = "rockettile"
+  val baseName = "t1tile"
   val uniqueName = s"${baseName}_$tileId"
-  def instantiate(crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): RocketTile = {
-    new RocketTile(this, crossing, lookup)
+  def instantiate(
+    crossing: HierarchicalElementCrossingParamsLike,
+    lookup:   LookupByHartIdImpl
+  )(
+    implicit p: Parameters
+  ): T1Tile = {
+    new T1Tile(this, crossing, lookup)
   }
 }
 
-class RocketTile private (
-  val rocketParams: RocketTileParams,
+class T1Tile private(
+  val rocketParams: T1TileParams,
   crossing:         ClockCrossingType,
   lookup:           LookupByHartIdImpl,
   q:                Parameters)
@@ -59,7 +111,7 @@ class RocketTile private (
     with HasICacheFrontend {
   // Private constructor ensures altered LazyModule.p is used implicitly
   def this(
-    params:   RocketTileParams,
+    params:   T1TileParams,
     crossing: HierarchicalElementCrossingParamsLike,
     lookup:   LookupByHartIdImpl
   )(
@@ -67,7 +119,7 @@ class RocketTile private (
   ) =
     this(params, crossing.crossingType, lookup, p)
 
-  val intOutwardNode = rocketParams.beuAddr map { _ => IntIdentityNode() }
+  val intOutwardNode = rocketParams.beuAddr.map { _ => IntIdentityNode() }
   val slaveNode = TLIdentityNode()
   val masterNode = visibilityNode
 
@@ -145,7 +197,7 @@ class RocketTile private (
     }
 }
 
-class RocketTileModuleImp(outer: RocketTile)
+class RocketTileModuleImp(outer: T1Tile)
     extends BaseTileModuleImp(outer)
     with HasFpuOpt
     with HasLazyT1Module
