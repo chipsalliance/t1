@@ -63,15 +63,15 @@
   };
   rocket-chip = {
     pname = "rocket-chip";
-    version = "baa9f4523f846831f03761179c209fb633c68f8d";
+    version = "2b8fa0ad90659caa4ff1a8c46c200893a4dac3b8";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "rocket-chip";
-      rev = "baa9f4523f846831f03761179c209fb633c68f8d";
+      rev = "2b8fa0ad90659caa4ff1a8c46c200893a4dac3b8";
       fetchSubmodules = false;
-      sha256 = "sha256-kBfeLpliTc2cj3ZUNe1CUKj1qhpJBWglgcuXtuQVZco=";
+      sha256 = "sha256-iTO407brdqpANs9vEB6X17VO5EB7szTuWXeCNEgwSPs=";
     };
-    date = "2024-01-28";
+    date = "2024-02-27";
   };
   rocket-chip-inclusive-cache = {
     pname = "rocket-chip-inclusive-cache";
