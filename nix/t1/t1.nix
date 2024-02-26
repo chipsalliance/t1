@@ -26,7 +26,6 @@ let
         ./../../rocket
         ./../../emuhelper
         ./../../ipemu/src
-        ./../../fpga
         ./../../elaborator
         ./../../configgen
       ];
