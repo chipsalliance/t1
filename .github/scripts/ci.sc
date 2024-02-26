@@ -101,30 +101,31 @@ def postPrMatrixJson(
 ) = {
   val defaultCases = os.pwd / os.RelPath(".github/cases/default.txt")
   val caseFiles = os.read.lines(defaultCases).map(os.RelPath(_))
-  val testCaseDir = os.proc("nix", "build", ".#t1.cases.all", "--no-link", "--print-out-paths").call(cwd=os.pwd).out.trim
-  val unpassedCases = caseFiles.flatMap(file => {
-    val verilateCfg = file.segments.head
-    val exists = ujson.read(os.read(defaultCases / os.up / file))
-      .obj.keys
-      .map(caseName => s"$verilateCfg,$caseName")
-    val isFpVerilator = verilateCfg.endsWith("-fp")
-    val all: Seq[String] = os.list(os.Path(testCaseDir) / "configs")
-      // For fp verilator, don't filter tests
-      // For non-fp verilator, filter out fp tests
-      .filter(f => !isFpVerilator && !ujson.read(os.read(f))("fp").bool)
-      .map(f => s"$verilateCfg,${f.baseName.toString}")
-    val perfCases = os.walk(defaultCases / os.up)
+  val postPrCases = caseFiles.flatMap(caseFilePath => {
+    val ipCfg = caseFilePath.segments.head
+    val searchCmdline = Seq("nix", "search", s".#t1.$ipCfg", raw"\.cases\.", "--json", "--option", "allow-import-from-derivation", "true")
+    println(s"Searching cases with cmd: $searchCmdline")
+    val searchOutput = os.proc(searchCmdline).call(cwd=os.pwd).out.trim
+
+    val allCases = ujson.read(searchOutput).obj.keys
+      .filter(_.split(raw"\.").last != "all")
+      .map(caseAttr => {
+        val caseName = caseAttr.split(raw"\.").dropWhile(_ != "cases").drop(1).mkString(".")
+        s"$ipCfg,$caseName"
+      })
+    val existCases = ujson.read(os.read(defaultCases / os.up / caseFilePath)).obj.keys
+      .map(caseName => s"$ipCfg,$caseName")
+    val perfCases = os.walk(defaultCases / os.up / ipCfg)
       .filter(f => f.last == "perf-cases.txt")
       .flatMap(f => {
-        val Seq(_, verilateCfg) = file.segments.toSeq.reverse.slice(0, 2)
         os.read.lines(f).filter(_.length > 0).map (caseName =>
-          s"$verilateCfg,$caseName"
+          s"$ipCfg,$caseName"
         )
       })
 
-    (all.toSet -- exists.toSet ++ perfCases).toSeq
+    (allCases.toSet -- existCases.toSet ++ perfCases).toSeq
   })
-  println(toMatrixJson(buckets(unpassedCases, runnersAmount)))
+  println(toMatrixJson(buckets(postPrCases, runnersAmount)))
 }
 
 // Find the perf.txt file for tests specified in the .github/passed/*/*/perf-cases.txt file,
@@ -251,7 +252,8 @@ def runTests(jobs: String, resultDir: Option[os.Path], dontBail: Boolean = false
     val failedJobsWithError = failed.map(job => s"* $job\n     >>> ERROR SUMMARY <<<\n${os.read(actualResultDir / "failed-logs" / s"$job.txt")}").appended("").mkString("\n")
     System.err.println(s"\n\n${failed.length} tests failed:\n${failedJobsWithError}")
     if (!dontBail) {
-      throw new Exception("Tests failed")
+      System.err.println("Tests failed")
+      System.exit(1)
     }
   } else {
     System.err.println(s"All tests passed")
