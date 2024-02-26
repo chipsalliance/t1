@@ -6,6 +6,7 @@ package org.chipsalliance.t1.rtl.lsu
 import chisel3._
 import chisel3.util._
 import chisel3.probe._
+import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.{CSRInterface, LSURequest, VRFReadRequest, VRFWriteRequest, ffo}
 import tilelink.{TLBundle, TLBundleParameter}
 
@@ -50,6 +51,7 @@ case class MSHRParam(
                       lsuTransposeSize: Int,
                       memoryBankSize:   Int,
                       vrfReadLatency:   Int,
+                      banks:            Seq[BitSet],
                       outerTLParam:     TLBundleParameter) {
 
   /** see [[LaneParameter.lmulMax]] */

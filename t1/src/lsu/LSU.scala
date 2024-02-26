@@ -86,7 +86,7 @@ case class LSUParameter(
   val bankPosition: Int = log2Ceil(transferSize)
 
   def mshrParam: MSHRParam =
-    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, transferSize, memoryBankSize, vrfReadLatency, tlParam)
+    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, transferSize, memoryBankSize, vrfReadLatency, banks, tlParam)
 
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)
@@ -288,7 +288,7 @@ class LSU(param: LSUParameter) extends Module {
       p =>
         Mux(
           p.valid,
-          UIntToOH(p.bits.address(param.bankPosition + log2Ceil(param.memoryBankSize) - 1, param.bankPosition)),
+          VecInit(param.banks.map(_.matches(p.bits.address))).asUInt,
           0.U
         )
     )))

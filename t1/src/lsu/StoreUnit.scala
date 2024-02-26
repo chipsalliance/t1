@@ -237,15 +237,16 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   alignedDequeue.bits.mask := ((selectMaskForTail ## maskTemp) << initOffset) >> maskTemp.getWidth
   alignedDequeue.bits.index := bufferBaseCacheLineIndex
 
-  val alignedPortSelect: UInt =
-    lsuRequestReg.rs1Data(param.bankPosition + log2Ceil(param.memoryBankSize) - 1, param.bankPosition) +
-      bufferBaseCacheLineIndex(log2Ceil(param.memoryBankSize) - 1, 0)
-  val selectOH: UInt = UIntToOH(alignedPortSelect)
+  // select by address set
+  val alignedDequeueAddress: UInt = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + bufferBaseCacheLineIndex) ##
+    0.U(param.cacheLineBits.W)
+  val selectOH: UInt = VecInit(param.banks.map(as => as.matches(alignedDequeueAddress))).asUInt
   val currentAddress: Vec[UInt] = Wire(Vec(param.memoryBankSize, UInt(param.tlParam.a.addressWidth.W)))
   val sendStageReady: Vec[Bool] = Wire(Vec(param.memoryBankSize, Bool()))
   // tl 发送单元
   val readyVec = Seq.tabulate(param.memoryBankSize) { portIndex =>
     val dataToSend: ValidIO[cacheLineEnqueueBundle] = RegInit(0.U.asTypeOf(Valid(new cacheLineEnqueueBundle(param))))
+    val addressReg: UInt = RegInit(0.U(param.paWidth.W))
     val port: DecoupledIO[TLChannelA] = tlPortA(portIndex)
     val portFire: Bool = port.fire
     val burstIndex: UInt = RegInit(0.U(log2Ceil(burstSize).W))
@@ -254,12 +255,11 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     val enqueueReady: Bool = !dataToSend.valid || (port.ready && !addressConflict && last)
     val enqueueFire: Bool = enqueueReady && alignedDequeue.valid && selectOH(portIndex)
     val firstCacheLine = RegEnable(lsuRequest.valid, true.B, lsuRequest.valid || enqueueFire)
-    val address = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + dataToSend.bits.index) ##
-      0.U(param.cacheLineBits.W)
-    currentAddress(portIndex) := Mux(firstCacheLine, 0.U, address)
+    currentAddress(portIndex) := Mux(firstCacheLine, 0.U, addressReg)
     status.releasePort(portIndex) := burstIndex === 0.U
     when(enqueueFire) {
       dataToSend.bits := alignedDequeue.bits
+      addressReg := alignedDequeueAddress
     }
 
     when(enqueueFire ^ (portFire && last)) {
@@ -275,7 +275,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     port.bits.param := 0.U
     port.bits.size := param.cacheLineBits.U
     port.bits.source := dataToSend.bits.index
-    port.bits.address := address
+    port.bits.address := addressReg
     port.bits.mask := Mux1H(
       burstOH,
       Seq.tabulate(burstSize)(burstIndex => dataToSend.bits.mask(
