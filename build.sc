@@ -222,20 +222,6 @@ trait Subsystem
   def chiselIvy = None
 }
 
-object subsystememu extends SubsystemEmulator
-
-trait SubsystemEmulator
-  extends millbuild.common.SubsystemEmulatorModule {
-  def scalaVersion = T(v.scala)
-
-  def subsystemModule = subsystem
-  def emuHelperModule = emuhelper
-
-  def chiselModule = Some(chisel)
-  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
-  def chiselPluginIvy = None
-  def chiselIvy = None
-}
 
 object fpga extends FPGA
 
@@ -262,7 +248,6 @@ trait Elaborator
     t1,
     ipemu,
     subsystem,
-    subsystememu,
     fpga
   )
 

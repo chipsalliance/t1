@@ -13,7 +13,7 @@ let
     "--lowering-options=verifLabels,omitVersionComment"
     "--strip-debug-info"
   ];
-  fixupFilelist = lib.elem mlirbc.elaborateTarget [ "ipemu" "subsystememu" ];
+  fixupFilelist = lib.elem mlirbc.elaborateTarget [ "ipemu" ];
 in
 stdenvNoCC.mkDerivation {
   name = "t1-${mlirbc.elaborateConfig}-${mlirbc.elaborateTarget}-rtl";
@@ -28,7 +28,7 @@ stdenvNoCC.mkDerivation {
 
     firtool ${mlirbc}/*.mlirbc -o $out ${mfcArgs}
   '' + lib.optionalString fixupFilelist ''
-    # For ipemu and subsystememu, there are also some manually generated system verilog file for test bench.
+    # For ipemu, there are also some manually generated system verilog file for test bench.
     # Those files are not correctly handled by firtool.
     #
     # Fix file ordering difference introduced in some unknown breaking change between firtool 1.50 -> 1.58
