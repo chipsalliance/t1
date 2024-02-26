@@ -199,12 +199,12 @@ case class T1Parameter(
       val eigenvalues: BigInt = BigInt(bankIndex << bankBitStart)
       val eigenMask: BigInt = BigInt(((1 << bankBitSize) - 1) << bankBitStart)
       val baseMask: BigInt = p.size - 1
-      val bitPatForBank = new BitPat(p.base | (eigenMask & eigenvalues), baseMask ^ eigenMask, log2Ceil(p.size))
+      val bitPatForBank = new BitPat(p.base | (eigenMask & eigenvalues), baseMask & eigenMask, log2Ceil(p.size))
       BitSet(bitPatForBank)
     },
     lsuMSHRSize = lsuMSHRSize,
     // TODO: make it configurable for each lane
-    toVRFWriteQueueSize = p.latencyToLanes.head,
+    toVRFWriteQueueSize = p.maxLatencyToEndpoint,
     transferSize = lsuTransposeSize,
     vrfReadLatency = vrfReadLatency,
     // TODO: configurable for each LSU
