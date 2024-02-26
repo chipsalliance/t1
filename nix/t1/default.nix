@@ -92,9 +92,6 @@ lib.makeScope newScope
 
         mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
-
-        fpga-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "fpga"; };
-        fpga-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.fpga-rtl; };
       };
     })
   )

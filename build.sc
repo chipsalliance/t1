@@ -222,21 +222,6 @@ trait Subsystem
   def chiselIvy = None
 }
 
-
-object fpga extends FPGA
-
-trait FPGA
-  extends millbuild.common.FPGAModule {
-  def scalaVersion = T(v.scala)
-
-  def subsystemModule = subsystem
-
-  def chiselModule = Some(chisel)
-  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
-  def chiselPluginIvy = None
-  def chiselIvy = None
-}
-
 // Module to generate RTL from json config
 object elaborator extends Elaborator
 
@@ -248,7 +233,6 @@ trait Elaborator
     t1,
     ipemu,
     subsystem,
-    fpga
   )
 
   def mainargsIvy = v.mainargs
