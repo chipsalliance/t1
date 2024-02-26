@@ -93,12 +93,6 @@ lib.makeScope newScope
         mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
 
-        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystememu"; };
-        emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.emu-mlirbc; };
-
-        emu = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; };
-        emu-trace = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystem.emu-rtl; do-trace = true; };
-
         fpga-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "fpga"; };
         fpga-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.fpga-rtl; };
       };

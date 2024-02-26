@@ -70,9 +70,6 @@ object Main {
   @main def subsystem(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
     freechips.rocketchip.diplomacy.LazyModule(new org.chipsalliance.t1.subsystem.T1SubsystemSystem()(subsystemConfig.cdeParameter))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
   )
-  @main def subsystememu(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
-    new org.chipsalliance.t1.subsystememu.TestHarness()(subsystemConfig.cdeParameter)
-  )
   @main def fpga(elaborateConfig: ElaborateConfig, subsystemConfig: SubsystemConfig): Unit = elaborateConfig.elaborate(() =>
     new org.chipsalliance.t1.fpga.FPGAHarness()(subsystemConfig.cdeParameter)
   )
