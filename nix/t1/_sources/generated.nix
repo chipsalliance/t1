@@ -3,15 +3,15 @@
 {
   arithmetic = {
     pname = "arithmetic";
-    version = "dd9bd585a8d444399eb5a31d088567e0ef56f43a";
+    version = "4a81e23e1794844b36c53385d343475d4d7eca49";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "arithmetic";
-      rev = "dd9bd585a8d444399eb5a31d088567e0ef56f43a";
+      rev = "4a81e23e1794844b36c53385d343475d4d7eca49";
       fetchSubmodules = false;
-      sha256 = "sha256-PquHsdyKbN/xKV4UhtTmBAVic2PwiUPvw50oZKUN08I=";
+      sha256 = "sha256-tQwzECNOXhuKzpwRD+iKSEJYl1/wlhMQTJULJSCdTrY=";
     };
-    date = "2023-12-08";
+    date = "2024-01-23";
   };
   berkeley-hardfloat = {
     pname = "berkeley-hardfloat";
@@ -39,15 +39,15 @@
   };
   chisel = {
     pname = "chisel";
-    version = "efe9646f422178f7deb12a976ee89842fa8a5ccf";
+    version = "344bdd636a36e6c3933cac527c61b5671d271534";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "efe9646f422178f7deb12a976ee89842fa8a5ccf";
+      rev = "344bdd636a36e6c3933cac527c61b5671d271534";
       fetchSubmodules = false;
-      sha256 = "sha256-0eMlw6Kdnd2oKxoczAjopEm+17o3iZ3+fNQkVGprIFg=";
+      sha256 = "sha256-SZNs0AeAQtenGatRbUftxAZOLI2G7KgEbAeW0ciAl0c=";
     };
-    date = "2023-12-19";
+    date = "2024-02-26";
   };
   riscv-opcodes = {
     pname = "riscv-opcodes";
