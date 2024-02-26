@@ -11,7 +11,7 @@
 }:
 
 assert lib.assertMsg
-  (lib.elem target [ "ip" "ipemu" "subsystem" "subsystememu" "fpga" ])
+  (lib.elem target [ "ip" "ipemu" "subsystem" "fpga" ])
   "Unknown elaborate target ${target}";
 
 let
