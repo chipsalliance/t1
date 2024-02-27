@@ -210,6 +210,7 @@ $ nix flake update
 Bump chisel submodule versions:
 ```shell
 $ cd nix/t1
+# Or nix run '.#nvfetcher'
 $ nvfetcher
 ```
 

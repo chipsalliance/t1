@@ -9,7 +9,6 @@
 , espresso
 , strip-nondeterminism
 
-, nvfetcher
 , submodules
 }:
 
@@ -65,7 +64,6 @@ let
       makeWrapper
       passthru.millDeps.setupHook
 
-      nvfetcher
       submodules.setupHook
     ];
 
