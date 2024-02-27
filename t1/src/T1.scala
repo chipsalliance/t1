@@ -593,6 +593,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val vs2 = RegInit(0.U(5.W))
       val rs1 = RegInit(0.U(parameter.xLen.W))
       val vm = RegInit(false.B)
+      val executeFinishReg = RegInit(true.B)
       val unOrderTypeInstruction = RegInit(false.B)
       val decodeResultReg = RegInit(0.U.asTypeOf(decodeResult))
       val gather: Bool = decodeResultReg(Decoder.gather)
@@ -694,6 +695,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         vs1 := requestRegDequeue.bits.instruction(19, 15)
         vs2 := requestRegDequeue.bits.instruction(24, 20)
         vm := requestRegDequeue.bits.instruction(25)
+        executeFinishReg := false.B
         rs1 := requestRegDequeue.bits.src1Data
         decodeResultReg := decodeResult
         csrRegForMaskUnit := requestReg.bits.csr
@@ -1236,7 +1238,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         )
         val readFinish = WARRedResult.valid || !needWAR
         val readDataSign = Mux1H(vSewOHForMask(2, 0), Seq(WARRedResult.bits(7), WARRedResult.bits(15), WARRedResult.bits(31)))
-        when(readFinish) {
+        when(readFinish && !executeFinishReg) {
           when(readMv) {
             control.state.sMaskUnitExecution := true.B
             // signExtend for vmv.x.s
@@ -1246,7 +1248,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
           }.otherwise {
             executeCounter := nextExecuteIndex
-            dataResult.bits := aluOutPut
+            when(executeCounter =/= csrRegForMaskUnit.vl) {
+              dataResult.bits := aluOutPut
+            }
             if (parameter.fpuEnable) {
               when(!orderedReduceIdle.get) {
                 when(lastExecuteForInstruction.get) {
@@ -1271,8 +1275,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         // todo: decode
         val groupSync = decodeResultReg(Decoder.ffo)
         // 写回
-        when(readFinish && (executeFinish || writeMv)) {
+        when(readFinish && (executeFinish || writeMv || executeFinishReg)) {
           maskUnitWriteVec.head.valid := schedulerWrite
+          executeFinishReg := true.B
           when(maskUnitWriteReady || !schedulerWrite) {
             WARRedResult.valid := false.B
             writeBackCounter := writeBackCounter + schedulerWrite
