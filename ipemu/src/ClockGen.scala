@@ -20,6 +20,6 @@ class ClockGen(val parameter: ClockGenParameter)
        |endmodule
        |""".stripMargin
   )
-  val clock = define(RWProbe(Bool()), Seq("ClockGen", "ClockGen", "clock"))
-  val reset = define(RWProbe(Bool()), Seq("ClockGen", "ClockGen", "reset"))
+  val clock = define(RWProbe(Bool()), Seq("ClockGen", "clock"))
+  val reset = define(RWProbe(Bool()), Seq("ClockGen", "reset"))
 }
