@@ -60,8 +60,9 @@ class FloatCompare(expWidth: Int, sigWidth:Int) extends Module {
     "x7fc00000".U
   )
   val hasNaN = raw0.isNaN || raw1.isNaN
+  val differentZeros = compareModule.io.eq && (io.a(expWidth + sigWidth - 1) ^ io.b(expWidth + sigWidth - 1))
 
-  val noNaNResult = Mux((io.isMax && compareModule.io.gt) || (!io.isMax && compareModule.io.lt), io.a, io.b)
+  val noNaNResult = Mux((io.isMax && compareModule.io.gt) || (!io.isMax && compareModule.io.lt) || (differentZeros && (!(io.isMax ^ io.b(expWidth + sigWidth - 1)))), io.a, io.b)
 
   io.out := Mux(hasNaN, hasNaNResult, noNaNResult)
   io.exceptionFlags := compareModule.io.exceptionFlags
