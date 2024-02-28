@@ -240,7 +240,8 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // select by address set
   val alignedDequeueAddress: UInt = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + bufferBaseCacheLineIndex) ##
     0.U(param.cacheLineBits.W)
-  val selectOH: UInt = VecInit(param.banks.map(as => as.matches(alignedDequeueAddress))).asUInt
+  val selectOH: UInt = VecInit(param.banks.map(bs => bs.matches(alignedDequeueAddress))).asUInt
+  assert(PopCount(selectOH) === 1.U, "address overlap")
   val currentAddress: Vec[UInt] = Wire(Vec(param.memoryBankSize, UInt(param.tlParam.a.addressWidth.W)))
   val sendStageReady: Vec[Bool] = Wire(Vec(param.memoryBankSize, Bool()))
   // tl 发送单元

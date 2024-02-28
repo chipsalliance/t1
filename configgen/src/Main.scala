@@ -4,6 +4,8 @@
 package org.chipsalliance.t1.configgen
 
 import chisel3.experimental.SerializableModuleGenerator
+import chisel3.util.BitPat
+import chisel3.util.experimental.BitSet
 import mainargs._
 import org.chipsalliance.t1.rtl._
 import org.chipsalliance.t1.rtl.lsu.LSUInstantiateParameter
@@ -36,14 +38,10 @@ object Main {
     vLen = 1024,
     dLen = 32,
     extensions = Seq("Zve32x"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 1
-      )
-    ),
+    // banks = 1 dLen = 32
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("0", 16), 28))
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -80,14 +78,11 @@ object Main {
     vLen = 1024,
     dLen = 64,
     extensions = Seq("Zve32x"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 2
-      )
-    ),
+    // banks = 2 dLen=64
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("8", 16), 28)),
+      BitSet(new BitPat(BigInt("8", 16), BigInt("8", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -124,14 +119,11 @@ object Main {
     vLen = 1024,
     dLen = 256,
     extensions = Seq("Zve32x"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 2
-      )
-    ),
+    // banks = 2 dLen=256
+    lsuBankParameters = Seq(
+      new BitPat(BigInt("0", 16), BigInt("20", 16), 28),
+      new BitPat(BigInt("20", 16), BigInt("20", 16), 28),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -169,14 +161,11 @@ object Main {
     vLen = 1024,
     dLen = 256,
     extensions = Seq("Zve32f"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 2
-      )
-    ),
+    // banks = 2 dLen=256
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
+      BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -212,14 +201,11 @@ object Main {
     vLen = 1024,
     dLen = 256,
     extensions = Seq("Zve32x"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 2
-      )
-    ),
+    // banks = 2 dLen=256
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
+      BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 2,
     vrfRamType = RamType.p0rp1w,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -257,14 +243,11 @@ object Main {
     vLen = 1024,
     dLen = 256,
     extensions = Seq("Zve32f"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 2
-      )
-    ),
+    // banks = 2 dLen=256
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
+      BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 2,
     vrfRamType = RamType.p0rp1w,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -300,14 +283,11 @@ object Main {
     vLen = 1024,
     dLen = 256,
     extensions = Seq("Zve32x"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 2
-      )
-    ),
+    // banks = 2 dLen=256
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
+      BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 4,
     vrfRamType = RamType.p0rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -345,14 +325,11 @@ object Main {
     vLen = 1024,
     dLen = 256,
     extensions = Seq("Zve32f"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 2
-      )
-    ),
+    // banks = 2 dLen=256
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
+      BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 4,
     vrfRamType = RamType.p0rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -388,14 +365,11 @@ object Main {
     vLen = 2048,
     dLen = 512,
     extensions = Seq("Zve32x"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 2
-      )
-    ),
+    // banks = 2 dLen=512
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("40", 16), 28)),
+      BitSet(new BitPat(BigInt("40", 16), BigInt("40", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -433,14 +407,11 @@ object Main {
     vLen = 4096,
     dLen = 512,
     extensions = Seq("Zve32f"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 2
-      )
-    ),
+    // banks = 2 dLen=512
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("40", 16), 28)),
+      BitSet(new BitPat(BigInt("40", 16), BigInt("40", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -476,14 +447,13 @@ object Main {
     vLen = 4096,
     dLen = 256,
     extensions = Seq("Zve32x"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 4
-      )
-    ),
+    // banks = 4 dLen=256
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("60", 16), 28)),
+      BitSet(new BitPat(BigInt("20", 16), BigInt("60", 16), 28)),
+      BitSet(new BitPat(BigInt("40", 16), BigInt("60", 16), 28)),
+      BitSet(new BitPat(BigInt("60", 16), BigInt("60", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -520,14 +490,13 @@ object Main {
     vLen = 4096,
     dLen = 256,
     extensions = Seq("Zve32f"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 4
-      )
-    ),
+    // banks = 4 dLen=256
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("60", 16), 28)),
+      BitSet(new BitPat(BigInt("20", 16), BigInt("60", 16), 28)),
+      BitSet(new BitPat(BigInt("40", 16), BigInt("60", 16), 28)),
+      BitSet(new BitPat(BigInt("60", 16), BigInt("60", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -563,14 +532,13 @@ object Main {
     vLen = 4096,
     dLen = 1024,
     extensions = Seq("Zve32x"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 4
-      )
-    ),
+    // banks = 4 dLen=1024
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("180", 16), 28)),
+      BitSet(new BitPat(BigInt("80", 16), BigInt("180", 16), 28)),
+      BitSet(new BitPat(BigInt("100", 16), BigInt("180", 16), 28)),
+      BitSet(new BitPat(BigInt("180", 16), BigInt("180", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -606,14 +574,13 @@ object Main {
     vLen = 4096,
     dLen = 1024,
     extensions = Seq("Zve32f"),
-    lsuInstantiateParameters = Seq(
-      LSUInstantiateParameter(
-        name = "main",
-        base = 0,
-        size = BigInt("8000000", 16),
-        banks = 4
-      )
-    ),
+    // banks = 4 dLen=1024
+    lsuBankParameters = Seq(
+      BitSet(new BitPat(BigInt("0", 16), BigInt("180", 16), 28)),
+      BitSet(new BitPat(BigInt("80", 16), BigInt("180", 16), 28)),
+      BitSet(new BitPat(BigInt("100", 16), BigInt("180", 16), 28)),
+      BitSet(new BitPat(BigInt("180", 16), BigInt("180", 16), 28)),
+    ).map(bs => LSUBankParameter(bs, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(

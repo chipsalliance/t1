@@ -62,6 +62,12 @@ case class LSUParameter(
                        ) {
   val memoryBankSize: Int = banks.size
 
+  banks.zipWithIndex.foreach { case (bs, i) =>
+    Seq.tabulate(banks.size) { bankIndex =>
+      require(i == bankIndex || !banks(bankIndex).overlap(bs))
+    }
+  }
+
   val sewMin: Int = 8
 
   /** the maximum address offsets number can be accessed from lanes for one time. */
@@ -288,10 +294,11 @@ class LSU(param: LSUParameter) extends Module {
       p =>
         Mux(
           p.valid,
-          VecInit(param.banks.map(_.matches(p.bits.address))).asUInt,
+          VecInit(param.banks.map(bs => bs.matches(p.bits.address))).asUInt,
           0.U
         )
     )))
+  mshrTryToUseTLAChannel.foreach(select => assert(PopCount(select) <= 1.U, "address overlap"))
   // connect tile link a
   val readyVec: Seq[Bool] = tlPort.zipWithIndex.map { case (tl, index) =>
     val port: DecoupledIO[TLChannelA] = tl.a

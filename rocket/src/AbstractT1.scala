@@ -2,6 +2,7 @@ package org.chipsalliance.t1.rockettile
 
 import chisel3._
 import chisel3.util._
+import chisel3.util.experimental.BitSet
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.tile.BaseTile
 import freechips.rocketchip.tilelink._
@@ -123,23 +124,22 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
   def module:    AbstractLazyT1ModuleImp
   def xLen:      Int
   def uarchName: String
-  def t1LSUParameters: Seq[T1LSUParameter]
+  def t1LSUParameters: T1LSUParameter
 
-  val t1LSUNodes = t1LSUParameters.map(lsu =>
-    // TODO: add bankbinder here.
-    TLClientNode(
-      lsu.banks.zipWithIndex.map{ case (addresses, bank) =>
-        TLMasterPortParameters.v1(
-          Seq(
-            TLMasterParameters.v1(
-              name = s"${uarchName}_${lsu.name}_bank$bank",
-              sourceId = IdRange(0, (1 << lsu.sourceIdSize) - 1),
-              visibility = addresses
-            )
+  def bitsetToAddressSet(bitset: BitSet): Seq[AddressSet] = bitset.terms.map(bp => AddressSet(bp.value, bp.mask ^ (1 << bp.width - 1))).toSeq
+
+  val t1LSUNodes = TLClientNode(
+    t1LSUParameters.banks.zipWithIndex.map { case (addresses, bank) =>
+      TLMasterPortParameters.v1(
+        Seq(
+          TLMasterParameters.v1(
+            name = s"${uarchName}_${t1LSUParameters.name}_bank$bank",
+            sourceId = IdRange(0, (1 << t1LSUParameters.sourceIdSize) - 1),
+            visibility = addresses
           )
         )
-      }
-    )
+      )
+    }
   )
 
 
@@ -174,7 +174,7 @@ trait HasLazyT1 { this: BaseTile =>
   val hazardControlSinkNode: Option[BundleBridgeSink[VectorHazardControl]] = t1.map(_.hazardControlNode.makeSink())
 
   // TODO: add bankbinder here
-  t1.foreach(_.t1LSUNodes.foreach(tlMasterXbar.node :=* _))
+  t1.foreach(tlMasterXbar.node :=* _.t1LSUNodes)
 }
 
 trait HasLazyT1Module { this: RocketTileModuleImp =>
