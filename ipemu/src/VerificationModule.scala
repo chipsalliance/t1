@@ -49,7 +49,7 @@ class VerificationModule(dut: T1) extends RawModule {
   val tlPort:           Vec[TLBundle] = IO(Vec(dut.parameter.lsuBankParameters.size, Flipped(dut.parameter.tlParam.bundle())))
   storeBufferClear := true.B
 
-  val peekLsuEnq = Module(new PeekLsuEnq(PeekLsuEnqParameter(dut.parameter.lsuBankParameters.size, latPeekLsuEnq)))
+  val peekLsuEnq = Module(new PeekLsuEnq(PeekLsuEnqParameter(dut.parameter.lsuParameters.lsuMSHRSize, latPeekLsuEnq)))
   peekLsuEnq.clock.ref := genClock
   peekLsuEnq.enq.ref := tapAndRead(dut.lsu.reqEnq).asUInt
 
