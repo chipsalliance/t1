@@ -16,7 +16,8 @@ struct InflightRead {
 // Please only call rresp and wresp once. Internal counters will change.
 // TODO: if that cannot be done, additional logic is needed
 //
-// Offsets: w = 0, x = 0x10000, result = 0x20000
+// Offsets: w = 0, x = 0x10000
+//          result = 0x0 
 class SystolicArray {
 public:
   SystolicArray(

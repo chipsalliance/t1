@@ -5,7 +5,7 @@
 
 constexpr std::size_t EL_SIZE = 4;
 constexpr std::size_t X_OFFSET = 0x10000;
-constexpr std::size_t R_OFFSET = 0x10000;
+constexpr std::size_t R_OFFSET = 0;
 
 SystolicArray::SystolicArray(std::size_t N, std::size_t K, std::size_t M, std::size_t buffer_cnt, std::size_t phys_size)
   : _N(N), _K(K), _M(M), _buffer_cnt(buffer_cnt), _phys_size_el(phys_size / EL_SIZE) {
