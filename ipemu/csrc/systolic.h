@@ -20,8 +20,7 @@ struct InflightRead {
 class SystolicArray {
 public:
   SystolicArray(
-    std::size_t N, std::size_t K, std::size_t M, std::size_t buffer_cnt,
-    std::size_t base_addr, std::size_t phys_size); // phys_size in bytes
+    std::size_t N, std::size_t K, std::size_t M, std::size_t buffer_cnt, std::size_t phys_size); // phys_size in bytes
 
   void tick();
   bool wreq(std::size_t addr, std::size_t size, float *data);
@@ -30,7 +29,7 @@ public:
   bool rresp(float *data);
 
 private:
-  std::size_t _N, _K, _M, _buffer_cnt, _base_addr, _phys_size_el;
+  std::size_t _N, _K, _M, _buffer_cnt, _phys_size_el;
 
   // (buffer, buffer_cnt)
   std::optional<std::pair<std::size_t, std::size_t>> _current_op = {};

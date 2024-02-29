@@ -7,8 +7,8 @@ constexpr std::size_t EL_SIZE = 4;
 constexpr std::size_t X_OFFSET = 0x10000;
 constexpr std::size_t R_OFFSET = 0x10000;
 
-SystolicArray::SystolicArray(std::size_t N, std::size_t K, std::size_t M, std::size_t buffer_cnt, std::size_t base_addr, std::size_t phys_size)
-  : _N(N), _K(K), _M(M), _buffer_cnt(buffer_cnt), _base_addr(base_addr), _phys_size_el(phys_size / EL_SIZE) {
+SystolicArray::SystolicArray(std::size_t N, std::size_t K, std::size_t M, std::size_t buffer_cnt, std::size_t phys_size)
+  : _N(N), _K(K), _M(M), _buffer_cnt(buffer_cnt), _phys_size_el(phys_size / EL_SIZE) {
     CHECK(phys_size % EL_SIZE == 0, "phys_size must be a multiple of element size");
     CHECK(__builtin_popcount(N) == 1 && __builtin_popcount(M) == 1 && __builtin_popcount(K) == 1, "N, K, M must be powers of 2");
     _buffer.resize(N * K * buffer_cnt);
