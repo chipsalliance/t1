@@ -69,6 +69,8 @@ struct TLReqRecord {
   bool muxin_read_required; // Read required for partial writes
   bool muxin_read_sent = false; // Mux-in read consists of at most one transaction
 
+  const SpikeEvent *se;
+
   // For writes, as soon as the transaction is sent to the controller, the request is resolved, so we don't have to track the number
   //   of bytes that have been processed by the memory controller
 
@@ -87,9 +89,9 @@ struct TLReqRecord {
   /// when opType set to nil, it means this record is already sent back
   enum class opType { Nil, Get, PutFullData } op;
 
-  TLReqRecord(size_t t, std::vector<uint8_t> data, size_t size_by_byte,
+  TLReqRecord(const SpikeEvent *se, size_t t, std::vector<uint8_t> data, size_t size_by_byte,
               reg_t addr, uint16_t source, opType op, reg_t burst_size)
-      : t(t), data(std::move(data)), size_by_byte(size_by_byte), addr(addr),
+      : se(se), t(t), data(std::move(data)), size_by_byte(size_by_byte), addr(addr),
         source(source), op(op) {
           muxin_read_required = op == opType::PutFullData && size_by_byte < burst_size;
         };
