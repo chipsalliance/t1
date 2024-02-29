@@ -41,7 +41,7 @@ void VBridgeImpl::dpiInitCosim() {
     .with("bin", bin)
     .with("wave", wave)
     .with("timeout", timeout)
-    .with("entry", fmt::format("{:08x}", load_result.entry_addr))
+    .with("entry", fmt::format("{:08X}", load_result.entry_addr))
     .info("Simulation environment initialized");
 
 #if VM_TRACE
@@ -140,9 +140,9 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr,
   } else {
     Log("DPIPokeInst")
         .with("inst", se_to_issue->jsonify_insn())
-        .with("rs1", fmt::format("{:08x}", se_to_issue->rs1_bits))
-        .with("rs2", fmt::format("{:08x}", se_to_issue->rs2_bits))
-        .info("poke instuction");
+        .with("rs1", fmt::format("{:08X}", se_to_issue->rs1_bits))
+        .with("rs2", fmt::format("{:08X}", se_to_issue->rs2_bits))
+        .info("poke instruction");
     se_to_issue->drive_rtl_req(v_instr);
   }
   se_to_issue->drive_rtl_csr(v_csr);
@@ -170,6 +170,11 @@ void VBridgeImpl::dpiPeekIssue(svBit ready, svBitVecVal issueIdx) {
     se_to_issue->issue_idx = issueIdx;
     Log("DPIPeekIssue")
         .with("insn", se_to_issue->jsonify_insn())
+        .with("vl", se_to_issue->vl)
+        .with("vsew", se_to_issue->vsew)
+        .with("vlmul", se_to_issue->vlmul)
+        .with("rs1", fmt::format("{:08X}", se_to_issue->rs1_bits))
+        .with("rs2", fmt::format("{:08X}", se_to_issue->rs2_bits))
         .with("issue_idx", issueIdx)
         .info("issue to rtl");
   }
@@ -346,17 +351,17 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
         .with("vl", se.vl)
         .with("sew", (int)se.vsew)
         .with("lmul", (int)se.vlmul)
-        .with("pc", se.pc)
-        .with("rs1", fmt::format("{:08x}", se.rs1_bits))
-        .with("rs2", fmt::format("{:08x}", se.rs2_bits))
+        .with("pc", fmt::format("{:08X}", se.pc))
+        .with("rs1", fmt::format("{:08X}", se.rs1_bits))
+        .with("rs2", fmt::format("{:08X}", se.rs2_bits))
         .info("spike run vector insn");
     se.pre_log_arch_changes();
     pc = fetch.func(&proc, fetch.insn, state->pc);
     se.log_arch_changes();
   } else {
     Log("SpikeStep")
-        .with("pc", fmt::format("{:08x}", pc))
-        .with("bits", fmt::format("{:08x}", fetch.insn.bits()))
+        .with("pc", fmt::format("{:08X}", pc))
+        .with("bits", fmt::format("{:08X}", fetch.insn.bits()))
         .with("disasm", proc.get_disassembler()->disassemble(fetch.insn))
         .trace();
     pc = fetch.func(&proc, fetch.insn, state->pc);
@@ -433,11 +438,11 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
       break;
     }
   }
-  CHECK(se != nullptr, fmt::format("cannot find SpikeEvent with lsu_idx={}",
-                        lsu_index));
+  CHECK(se != nullptr, fmt::format("[{}] cannot find SpikeEvent with lsu_idx={}",
+                        get_t(), lsu_index));
   CHECK_EQ((base_addr & (size - 1)), 0,
-           fmt::format("unaligned access (addr={:08X}, size={})",
-                       base_addr, size));
+           fmt::format("[{}] unaligned access (addr={:08X}, size={})",
+                       get_t(), base_addr, size));
 
   switch (opcode) {
 
@@ -453,15 +458,16 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
       } else {
         // TODO: check if the cache line should be accessed
         Log("ReceiveTLReq")
-            .with("addr", fmt::format("{:08x}", addr))
-            .trace();
+            .with("addr", fmt::format("{:08X}", addr))
+            .with("insn", se->jsonify_insn())
+            .warn("send falsy data 0xDE");
         actual_data[offset] = 0xDE; // falsy data
       }
     }
 
     Log("ReceiveTLReq")
         .with("channel", tlIdx)
-        .with("bass_addr", fmt::format("{:08x}", base_addr))
+        .with("bass_addr", fmt::format("{:08X}", base_addr))
         .with("size_by_byte", size)
         .with("mask", fmt::format("{:b}", *mask))
         .with("src", fmt::format("{:04X}", src))
@@ -469,7 +475,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         .info("<- receive rtl mem get req");
 
     auto emplaced = tl_req_record_of_bank[tlIdx].emplace(
-        get_t(), TLReqRecord{get_t(), actual_data, size, base_addr, src,
+        get_t(), TLReqRecord{se, get_t(), actual_data, size, base_addr, src,
                              TLReqRecord::opType::Get, dramsim_burst_size(tlIdx)});
     if(!this->using_dramsim3) emplaced->second.skip();
     break;
@@ -501,7 +507,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     if (cur_record == nullptr) {
       auto record = tl_req_record_of_bank[tlIdx].emplace(
           get_t(),
-          TLReqRecord{get_t(), std::vector<uint8_t>(size), size, base_addr, src,
+          TLReqRecord{se, get_t(), std::vector<uint8_t>(size), size, base_addr, src,
                       TLReqRecord::opType::PutFullData, dramsim_burst_size(tlIdx)});
       cur_record = &record->second;
     }
@@ -539,8 +545,8 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         uint8_t tl_data_byte = n_th_byte(tl.a_bits_data, byte_lane_idx);
         auto mem_write = se->mem_access_record.all_writes.find(byte_addr);
         CHECK_NE(mem_write, se->mem_access_record.all_writes.end(),
-                 fmt::format("cannot find mem write of byte_addr {:08X}",
-                             byte_addr));
+                 fmt::format("[{}] cannot find mem write of byte_addr {:08X}",
+                             get_t(), byte_addr));
         //        for (auto &w : mem_write->second.writes) {
         //          LOG(INFO) << fmt::format("write addr={:08X}, byte={:02X}",
         //          byte_addr, w.val);
@@ -551,9 +557,9 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         auto single_mem_write = mem_write->second.writes.at(
             mem_write->second.num_completed_writes++);
         CHECK_EQ(single_mem_write.val, tl_data_byte,
-                 fmt::format("expect mem write of byte {:02X}, actual "
+                 fmt::format("[{}] expect mem write of byte {:02X}, actual "
                              "byte {:02X} (channel={}, byte_addr={:08X}, {})",
-                             single_mem_write.val, tl_data_byte, tlIdx,
+                             get_t(), single_mem_write.val, tl_data_byte, tlIdx,
                              byte_addr, se->describe_insn()));
       }
     }
@@ -633,17 +639,18 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
       auto [offset, len] = *returned_resp;
       Log("ReturnTlResponse")
           .with("channel", i)
-          .with("addr", fmt::format("{:08x}", record.addr))
+          .with("addr", fmt::format("{:08X}", record.addr))
           .with("size_by_byte", record.size_by_byte)
           .with("src", fmt::format("{:04X}", record.source))
           .with("data",
                 fmt::format(
-                    "{}",
+                    "{:02X}",
                     fmt::join(record.data.begin() + (long) offset,
                               record.data.begin() +
                                   (long)(offset + len),
                               " ")))
           .with("offset", offset)
+          .with("lsu_idx", record.se->lsu_idx)
           .info("-> send tl response");
 
       *tl_poke.d_bits_opcode = record.op == TLReqRecord::opType::Get
@@ -692,7 +699,7 @@ void VBridgeImpl::update_lsu_idx(const VLsuReqEnqPeek &enq) {
       }
       if (index == config.lsu_idx_default) {
         Log("UpdateLSUIdx")
-            .info("waiting for lsu request to fire");
+            .trace("waiting for lsu request to fire");
         break;
       }
       se->lsu_idx = index;
@@ -792,7 +799,7 @@ void VBridgeImpl::record_rf_queue_accesses(
         .with("instruction_index", idx)
         .info("rtl detect vrf queue write");
     CHECK_NE(se_vrf_write, nullptr,
-             fmt::format("cannot find se with issue_idx {}", idx));
+             fmt::format("[{}] cannot find se with issue_idx {}", get_t(), idx));
     add_rtl_write(se_vrf_write, lane_idx, vd, offset, mask, data, idx);
   }
 }
@@ -813,11 +820,11 @@ void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd,
         auto &record = record_iter->second;
         CHECK_EQ((int)record.byte, (int)written_byte,
                  fmt::format( // convert to int to avoid stupid printing
-                     "{}th byte incorrect ({:02X} != {:02X}) for vrf "
+                     "[{}] {}th byte incorrect ({:02X} != {:02X}) for vrf "
                      "write (lane={}, vd={}, offset={}, mask={:04b}) "
-                     "[vrf_idx={}]",
-                     j, record.byte, written_byte, lane_idx, vd,
-                     offset, mask, record_idx_base + j));
+                     "[vrf_idx={}] (lsu_idx={}, {})",
+                     get_t(), j, record.byte, written_byte, lane_idx, vd,
+                     offset, mask, record_idx_base + j, se->lsu_idx, se->describe_insn()));
         record.executed = true;
 
       } else if (uint8_t original_byte = vrf_shadow[record_idx_base + j];
@@ -885,7 +892,7 @@ void VBridgeImpl::dramsim_resolve(uint32_t channel_id, reg_t addr) {
     }
 
   if(!found)
-    FATAL(fmt::format("dram response no matching request: 0x{:08x}", addr));
+    FATAL(fmt::format("dram response no matching request: 0x{:08X}", addr));
 }
 
 size_t VBridgeImpl::dramsim_burst_size(uint32_t channel_id) const {
