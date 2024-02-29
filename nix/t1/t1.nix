@@ -26,6 +26,7 @@ let
         ./../../rocket
         ./../../emuhelper
         ./../../ipemu/src
+        ./../../subsystememu
         ./../../elaborator
         ./../../configgen
       ];

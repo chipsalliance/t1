@@ -66,6 +66,11 @@ object Main {
       (new org.chipsalliance.t1.subsystem.T1SubsystemConfig(ipConfig.generator))
     ))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
   }
+  @main def subsystememu(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
+    freechips.rocketchip.diplomacy.LazyModule(new org.chipsalliance.t1.subsystem.T1Subsystem()(
+      (new org.chipsalliance.t1.subsystememu.TestHarness(ipConfig.generator))
+    ))(freechips.rocketchip.diplomacy.ValName("T1SubsystemEmu"), chisel3.experimental.UnlocatableSourceInfo).module
+  )
   // format: on
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)

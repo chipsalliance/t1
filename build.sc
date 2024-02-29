@@ -222,6 +222,21 @@ trait Subsystem
   def chiselIvy = None
 }
 
+object subsystememu extends SubsystemEmulator
+
+trait SubsystemEmulator
+  extends millbuild.common.SubsystemEmulatorModule {
+  def scalaVersion = T(v.scala)
+
+  def subsystemModule = subsystem
+  def emuHelperModule = emuhelper
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
 // Module to generate RTL from json config
 object elaborator extends Elaborator
 
@@ -233,6 +248,7 @@ trait Elaborator
     t1,
     ipemu,
     subsystem,
+    subsystememu,
   )
 
   def mainargsIvy = v.mainargs
