@@ -426,14 +426,14 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   uint16_t src = tl.a_bits_source; // MSHR id, TODO: be returned in D channel
   uint32_t lsu_index = tl.a_bits_source & 3;
   const uint32_t *mask = tl.a_bits_mask;
-  SpikeEvent *se;
-  for (auto se_iter = to_rtl_queue.rbegin(); se_iter != to_rtl_queue.rend();
-       se_iter++) {
+  SpikeEvent *se = nullptr;
+  for (auto se_iter = to_rtl_queue.rbegin(); se_iter != to_rtl_queue.rend(); se_iter++) {
     if (se_iter->lsu_idx == lsu_index) {
       se = &(*se_iter);
+      break;
     }
   }
-  CHECK(se, fmt::format("cannot find SpikeEvent with lsu_idx={}",
+  CHECK(se != nullptr, fmt::format("cannot find SpikeEvent with lsu_idx={}",
                         lsu_index));
   CHECK_EQ((base_addr & (size - 1)), 0,
            fmt::format("unaligned access (addr={:08X}, size={})",
