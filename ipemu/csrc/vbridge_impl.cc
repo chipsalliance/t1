@@ -432,7 +432,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   uint32_t lsu_index = tl.a_bits_source & 3;
   const uint32_t *mask = tl.a_bits_mask;
   SpikeEvent *se = nullptr;
-  for (auto se_iter = to_rtl_queue.rbegin(); se_iter != to_rtl_queue.rend(); se_iter++) {
+  for (auto se_iter = to_rtl_queue.begin(); se_iter != to_rtl_queue.end(); se_iter++) {
     if (se_iter->lsu_idx == lsu_index) {
       se = &(*se_iter);
       break;
