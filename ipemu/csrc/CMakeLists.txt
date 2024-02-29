@@ -20,6 +20,7 @@ add_executable(emulator
   vbridge_impl.cc
   dpi.cc
   elf.cc
+  systolic.cc
 )
 
 option(VERILATE_TRACE "enable verilator trace" OFF)
