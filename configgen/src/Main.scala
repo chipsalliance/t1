@@ -41,7 +41,7 @@ object Main {
     // banks = 1 dLen = 32
     lsuBankParameters = Seq(
       BitSet(new BitPat(BigInt("0", 16), BigInt("0", 16), 28))
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -82,7 +82,7 @@ object Main {
     lsuBankParameters = Seq(
       BitSet(new BitPat(BigInt("0", 16), BigInt("8", 16), 28)),
       BitSet(new BitPat(BigInt("8", 16), BigInt("8", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -123,7 +123,7 @@ object Main {
     lsuBankParameters = Seq(
       new BitPat(BigInt("0", 16), BigInt("20", 16), 28),
       new BitPat(BigInt("20", 16), BigInt("20", 16), 28),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -165,7 +165,7 @@ object Main {
     lsuBankParameters = Seq(
       BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
       BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -205,7 +205,7 @@ object Main {
     lsuBankParameters = Seq(
       BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
       BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 2,
     vrfRamType = RamType.p0rp1w,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -247,7 +247,7 @@ object Main {
     lsuBankParameters = Seq(
       BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
       BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 2,
     vrfRamType = RamType.p0rp1w,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -287,7 +287,7 @@ object Main {
     lsuBankParameters = Seq(
       BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
       BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 4,
     vrfRamType = RamType.p0rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -329,7 +329,7 @@ object Main {
     lsuBankParameters = Seq(
       BitSet(new BitPat(BigInt("0", 16), BigInt("20", 16), 28)),
       BitSet(new BitPat(BigInt("20", 16), BigInt("20", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 4,
     vrfRamType = RamType.p0rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -369,7 +369,7 @@ object Main {
     lsuBankParameters = Seq(
       BitSet(new BitPat(BigInt("0", 16), BigInt("40", 16), 28)),
       BitSet(new BitPat(BigInt("40", 16), BigInt("40", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -411,7 +411,7 @@ object Main {
     lsuBankParameters = Seq(
       BitSet(new BitPat(BigInt("0", 16), BigInt("40", 16), 28)),
       BitSet(new BitPat(BigInt("40", 16), BigInt("40", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -453,7 +453,7 @@ object Main {
       BitSet(new BitPat(BigInt("20", 16), BigInt("60", 16), 28)),
       BitSet(new BitPat(BigInt("40", 16), BigInt("60", 16), 28)),
       BitSet(new BitPat(BigInt("60", 16), BigInt("60", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -496,7 +496,7 @@ object Main {
       BitSet(new BitPat(BigInt("20", 16), BigInt("60", 16), 28)),
       BitSet(new BitPat(BigInt("40", 16), BigInt("60", 16), 28)),
       BitSet(new BitPat(BigInt("60", 16), BigInt("60", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -538,7 +538,7 @@ object Main {
       BitSet(new BitPat(BigInt("80", 16), BigInt("180", 16), 28)),
       BitSet(new BitPat(BigInt("100", 16), BigInt("180", 16), 28)),
       BitSet(new BitPat(BigInt("180", 16), BigInt("180", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(
@@ -580,7 +580,7 @@ object Main {
       BitSet(new BitPat(BigInt("80", 16), BigInt("180", 16), 28)),
       BitSet(new BitPat(BigInt("100", 16), BigInt("180", 16), 28)),
       BitSet(new BitPat(BigInt("180", 16), BigInt("180", 16), 28)),
-    ).map(bs => LSUBankParameter(bs, false)),
+    ).map(bs => LSUBankParameter(bs, 32, false)),
     vrfBankSize = 1,
     vrfRamType = RamType.p0rwp1rw,
     vfuInstantiateParameter = VFUInstantiateParameter(

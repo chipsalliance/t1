@@ -24,7 +24,7 @@ class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
   override def t1LSUParameters: T1LSUParameter =
     T1LSUParameter(
       name = generator.parameter.lsuParameters.name,
-      banks = generator.parameter.lsuParameters.banks.map(bank => bitsetToAddressSet(bank)),
+      banks = generator.parameter.lsuParameters.banks.map(bank => bitsetToAddressSet(bank.region)),
       sourceIdSize = generator.parameter.sourceWidth
     )
 }
