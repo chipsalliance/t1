@@ -210,12 +210,6 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   when(bufferDequeueFire) {
     maskForGroup := maskForGroupWire
   }
-  val sendStateReg = RegEnable(initSendState, 0.U.asTypeOf(initSendState), bufferDequeueFire)
-  when(bufferDequeueFire || (accessStateCheck && !lastPtr)) {
-    accessState := Mux(bufferDequeueFire, initSendState, sendStateReg)
-    accessPtr := Mux(bufferDequeueFire, lsuRequestReg.instructionInformation.nf, accessPtr - 1.U)
-  }
-
 
   // 往vrf写数据
   Seq.tabulate(param.laneNumber) { laneIndex =>
@@ -230,7 +224,13 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
     writePort.bits.instructionIndex := lsuRequestReg.instructionIndex
     when(writePort.fire) {
       accessState(laneIndex) := false.B
+      accessStateUpdate(laneIndex) := false.B
     }
+  }
+  val sendStateReg = RegEnable(initSendState, 0.U.asTypeOf(initSendState), bufferDequeueFire)
+  when(bufferDequeueFire || (accessStateCheck && !lastPtr)) {
+    accessState := Mux(bufferDequeueFire, initSendState, sendStateReg)
+    accessPtr := Mux(bufferDequeueFire, lsuRequestReg.instructionInformation.nf, accessPtr - 1.U)
   }
 
   val lastCacheRequest: Bool = lastRequest && tlPortA.fire
