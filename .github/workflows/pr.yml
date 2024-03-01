@@ -88,7 +88,11 @@ jobs:
           for cfg in "${configArray[@]}"; do
             echo "Building .#t1.${cfg}.ip.rtl"
             if ! nix build ".#t1.${cfg}.ip.rtl" -L; then
-              failed_rtl_configs+=("${cfg}")
+              failed_rtl_configs+=("${cfg}.ip")
+            fi
+            echo "Building .#t1.${cfg}.subsystem.rtl"
+            if ! nix build ".#t1.${cfg}.subsystem.rtl" -L; then
+              failed_rtl_configs+=("${cfg}.subsystem")
             fi
           done
           if [ -n "${failed_rtl_configs[*]}"  ]; then
