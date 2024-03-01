@@ -6,7 +6,7 @@ package org.chipsalliance.t1.rtl.lsu
 import chisel3._
 import chisel3.util._
 import chisel3.util.experimental.BitSet
-import org.chipsalliance.t1.rtl.{CSRInterface, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, indexToOH, instIndexL}
+import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, indexToOH, instIndexL}
 import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelD}
 
 // TODO: need some idea from BankBinder
@@ -43,28 +43,28 @@ case class LSUInstantiateParameter(name: String, base: BigInt, size: BigInt, ban
   * @param paWidth physical address width
   */
 case class LSUParameter(
-                     datapathWidth:        Int,
-                     chainingSize:         Int,
-                     vLen:                 Int,
-                     laneNumber:           Int,
-                     paWidth:              Int,
-                     sourceWidth:          Int,
-                     sizeWidth:            Int,
-                     maskWidth:            Int,
-                     banks:                Seq[BitSet],
-                     lsuMSHRSize:          Int,
-                     toVRFWriteQueueSize:  Int,
-                     transferSize:         Int,
-                     // TODO: refactor to per lane parameter.
-                     vrfReadLatency:       Int,
-                     tlParam:              TLBundleParameter,
-                     name: String
+                         datapathWidth:        Int,
+                         chainingSize:         Int,
+                         vLen:                 Int,
+                         laneNumber:           Int,
+                         paWidth:              Int,
+                         sourceWidth:          Int,
+                         sizeWidth:            Int,
+                         maskWidth:            Int,
+                         banks:                Seq[LSUBankParameter],
+                         lsuMSHRSize:          Int,
+                         toVRFWriteQueueSize:  Int,
+                         transferSize:         Int,
+                         // TODO: refactor to per lane parameter.
+                         vrfReadLatency:       Int,
+                         tlParam:              TLBundleParameter,
+                         name: String
                        ) {
   val memoryBankSize: Int = banks.size
 
   banks.zipWithIndex.foreach { case (bs, i) =>
     Seq.tabulate(banks.size) { bankIndex =>
-      require(i == bankIndex || !banks(bankIndex).overlap(bs))
+      require(i == bankIndex || !banks(bankIndex).region.overlap(bs.region))
     }
   }
 
@@ -294,7 +294,7 @@ class LSU(param: LSUParameter) extends Module {
       p =>
         Mux(
           p.valid,
-          VecInit(param.banks.map(bs => bs.matches(p.bits.address))).asUInt,
+          VecInit(param.banks.map(bs => bs.region.matches(p.bits.address))).asUInt,
           0.U
         )
     )))

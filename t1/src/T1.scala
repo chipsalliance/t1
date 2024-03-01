@@ -28,7 +28,7 @@ object LSUBankParameter{
 
   implicit def rwP: upickle.default.ReadWriter[LSUBankParameter] = upickle.default.macroRW
 }
-case class LSUBankParameter(region: BitSet, supportMMU: Boolean)
+case class LSUBankParameter(region: BitSet, beatbyte: Int, supportMMU: Boolean)
 
 /**
   * @param xLen XLEN
@@ -202,7 +202,7 @@ case class T1Parameter(
     sizeWidth = sizeWidth,
     // TODO: configurable for each LSU [[p.supportMask]]
     maskWidth = maskWidth,
-    banks = lsuBankParameters.map(_.region),
+    banks = lsuBankParameters,
     lsuMSHRSize = lsuMSHRSize,
     // TODO: make it configurable for each lane
     toVRFWriteQueueSize = 96,
