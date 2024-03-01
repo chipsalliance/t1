@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.{SerializableModuleGenerator, UnlocatableSourceInfo}
 import chisel3.util.BitPat
 import chisel3.util.experimental.BitSet
-import freechips.rocketchip.amba.axi4.{AXI4IdIndexer, AXI4SlaveNode, AXI4SlaveParameters, AXI4SlavePortParameters, AXI4UserYanker, AXI4Xbar}
+import freechips.rocketchip.amba.axi4.{AXI4Bundle, AXI4IdIndexer, AXI4SlaveNode, AXI4SlaveParameters, AXI4SlavePortParameters, AXI4UserYanker, AXI4Xbar}
 import freechips.rocketchip.devices.debug.{DebugModuleKey, TLDebugModule}
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
@@ -17,7 +17,7 @@ import freechips.rocketchip.subsystem.CoherenceManagerWrapper.CoherenceManagerIn
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.tile.{MaxHartIdBits, XLen}
 import freechips.rocketchip.tilelink.{HasTLBusParams, RegionReplicator, ReplicatedRegion, TLBroadcast, TLBusWrapper, TLBusWrapperConnection, TLBusWrapperInstantiationLike, TLBusWrapperTopology, TLCacheCork, TLClientNode, TLEdge, TLFilter, TLInwardNode, TLManagerNode, TLMasterParameters, TLMasterPortParameters, TLOutwardNode, TLSourceShrinker, TLToAXI4, TLWidthWidget, TLXbar}
-import freechips.rocketchip.util.{DontTouch, Location, RecordMap}
+import freechips.rocketchip.util.{DontTouch, HeterogeneousBag, Location, RecordMap}
 import org.chipsalliance.cde.config._
 import org.chipsalliance.t1.rocketcore.{T1CrossingParams, T1TileAttachParams, T1TileParams}
 import org.chipsalliance.t1.rockettile.BuildT1
