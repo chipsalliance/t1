@@ -130,8 +130,8 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   val accessPtr: UInt = RegInit(0.U(3.W))
   // true -> need send data to vrf
   val accessState: Vec[Bool] = RegInit(VecInit(Seq.fill(param.laneNumber)(false.B)))
-  val initStateReg: Vec[Bool] = RegInit(VecInit(Seq.fill(param.laneNumber)(false.B)))
-  val accessStateCheck: Bool = !accessState.asUInt.orR
+  val accessStateUpdate: Vec[Bool] = WireDefault(accessState)
+  val accessStateCheck: Bool = !accessStateUpdate.asUInt.orR
   val dataGroup: UInt = RegInit(0.U(dataGroupBits.W))
 
   // 把 nFiled 个cache line 分成一组
