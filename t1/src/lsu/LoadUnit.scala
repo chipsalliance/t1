@@ -124,8 +124,10 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   alignedDequeue.bits.index := unalignedCacheLine.bits.index
 
   val bufferFull: Bool = RegInit(false.B)
+  val bufferTailFire: Bool = Wire(Bool())
+  val bufferDequeueValid: Bool = bufferFull || bufferTailFire
   val bufferDequeueReady: Bool = Wire(Bool())
-  val bufferDequeueFire: Bool = bufferDequeueReady && bufferFull
+  val bufferDequeueFire: Bool = bufferDequeueReady && bufferDequeueValid
 
   alignedDequeue.ready := !bufferFull
   val bufferEnqueueSelect: UInt = Mux(
@@ -134,15 +136,20 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
     0.U
   )
 
-  dataBuffer.zipWithIndex.foreach {case (d, i) => when(bufferEnqueueSelect(i)) {d := alignedDequeue.bits.data}}
+  val dataBufferUpdate: Vec[UInt] = VecInit(dataBuffer.zipWithIndex.map {case (d, i) =>
+    when(bufferEnqueueSelect(i)) {d := alignedDequeue.bits.data}
+    Mux(bufferEnqueueSelect(i), alignedDequeue.bits.data, d)
+  })
+  val dataSelect: Vec[UInt] = Mux(bufferFull, dataBuffer, dataBufferUpdate)
   val lastCacheLineForThisGroup: Bool = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
   val lastCacheLineForInst: Bool = alignedDequeue.bits.index === lastWriteVrfIndexReg
+  bufferTailFire := alignedDequeue.fire && (lastCacheLineForThisGroup || lastCacheLineForInst)
   // update cacheLineIndexInBuffer
   when(alignedDequeue.fire || bufferDequeueFire) {
     cacheLineIndexInBuffer := Mux(bufferDequeueFire, 0.U, cacheLineIndexInBuffer + 1.U)
   }
 
-  when((alignedDequeue.fire && (lastCacheLineForThisGroup || lastCacheLineForInst)) || bufferDequeueFire) {
+  when(bufferTailFire || bufferDequeueFire) {
     bufferFull := !bufferDequeueFire
   }
 
@@ -190,7 +197,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
           } else {
             val dataGroup: Seq[UInt] = Seq.tabulate(blockSize) { elementIndex =>
               val basePtr = elementSize * elementIndex + dataBlockSize * segIndex
-              dataBuffer.asUInt((basePtr + dataBlockSize) * 8 - 1, basePtr * 8)
+              dataSelect.asUInt((basePtr + dataBlockSize) * 8 - 1, basePtr * 8)
             }
             res := VecInit(dataGroup).asUInt
           }
