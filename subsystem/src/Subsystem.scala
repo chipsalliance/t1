@@ -11,7 +11,7 @@ import freechips.rocketchip.amba.axi4.{AXI4IdIndexer, AXI4SlaveNode, AXI4SlavePa
 import freechips.rocketchip.devices.debug.{DebugModuleKey, TLDebugModule}
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
-import freechips.rocketchip.prci.{ClockDomain, ClockGroupAggregator, ClockGroupSourceNode, ClockGroupSourceParameters, NoResetCrossing}
+import freechips.rocketchip.prci.{ClockBundle, ClockDomain, ClockGroup, ClockGroupAggregator, ClockGroupSourceNode, ClockGroupSourceParameters, ClockSourceNode, ClockSourceParameters, FixedClockBroadcast, FixedClockBroadcastNode, NoResetCrossing, SimpleClockGroupSource}
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.subsystem.CoherenceManagerWrapper.CoherenceManagerInstantiationFn
 import freechips.rocketchip.subsystem._
@@ -250,15 +250,15 @@ class T1Subsystem(implicit p: Parameters)
 
   // ClockDomains:
   val clockSource = ClockGroupSourceNode(Seq(ClockGroupSourceParameters()))
+  // Expose clock to IO.
+  allClockGroupsNode := ClockGroupAggregator() := clockSource
 
   // First clock is ScalarMaster Clock, it will drive ScalarControlClock.
   viewpointBus.clockGroupNode := allClockGroupsNode
   // TODO: should it located at control bus?
   ibus.clockNode := viewpointBus.fixedClockNode
   // Second is VectorMasterBus clock, it will drive T1.
-  tlBusWrapperLocationMap(VectorMasterBus).clockGroupNode := allClockGroupsNode
-  // Expose clock to IO.
-  allClockGroupsNode :*= ClockGroupAggregator() := clockSource
+  tlBusWrapperLocationMap(VectorMasterBus).clockGroupNode := viewpointBus.clockGroupNode
 
   lazy val clintOpt = None
   lazy val clintDomainOpt = None
@@ -312,7 +312,8 @@ class T1Subsystem(implicit p: Parameters)
   val scalarPort = InModuleBody { scalarMemoryNode.makeIOs() }
   val vectorPorts = InModuleBody { vectorMemoryNodes.zipWithIndex.map{case (n, i ) => n.makeIOs()(ValName(s"vectorChannel$i")) } }
   val clocks = InModuleBody {
-    val elements = clockSource.out.flatMap(_._1.member.elements)
+    // Only take the first clock for now, I'll purge the clock group.
+    val elements: Seq[(String, ClockBundle)] = clockSource.out.flatMap(_._1.member.elements).take(1)
     val io = IO(Flipped(RecordMap(elements.map { case (name, data) => name -> data.cloneType }: _*)))
     elements.foreach { case (name, data) => io(name).foreach { data := _ } }
     io
@@ -323,5 +324,6 @@ class T1SubsystemModuleImp[+L <: T1Subsystem](_outer: L)
     extends BareSubsystemModuleImp(_outer)
     with HasHierarchicalElementsRootContextModuleImp {
   lazy val outer = _outer
+  // IntSyncCrossingSource requires implcit clock
   override def provideImplicitClockToLazyChildren: Boolean = true
 }
