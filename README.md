@@ -1,78 +1,96 @@
-# The RISC-V Long Vector Machine Hardware Generator
+# T1
 
-Welcome to our project (name to be announced). We're developing a RISC-V Long Vector Machine Hardware Generator using the Chisel hardware construction language. It is fully compliant with the RISC-V Vector Spec 1.0, and currently supports the Zvl1024b and Zve32x extensions. The architecture is inspired by the Cray X1 vector machine.
+T1(Torrent-1) is a RISC-V Vector implementation inspired by the Cray X1 vector machine, which is named after [T0](https://www2.eecs.berkeley.edu/Pubs/TechRpts/1997/5411.html).
+
+T1 aims to implementing the RISC-V Vector in a lane-based micro-architectures, with intensive chaining support and SRAM-based VRFs.
+
+T1 supports standard `Zve32f` and `Zve32x`, `VLEN`/`DLEN` can be increased upto `64K`, hitting the RISC-V Vector architecture bottleneck.
+
+T1 ships important vector machine features: e.g., lanes, chaining, large LSU outstanding by default, but also can be a general platform for MMIO DSA(Domain-Specific-Accelerators).
+
+T1 is design with [Chisel](https://github.com/chipsalliance/chisel), and releasing `IPEmulator` to users.
+
+T1 uses a forked version of the Rocket Core as the scalar part of T1. But we don't officially support it for now, it can be replaced by any other RISC-V Scalar CPUs.
+
+T1 only support baremetal program loading and execution, test example can be found at `tests/` folder.
 
 ## Architecture Highlights:
 
-The generated vector processors can integrate with any RISC-V scalar core that uses the Out-of-Order (OoO) write-back scheme.
+The generated T1 vector processors can integrate with any RISC-V scalar core.
 
 ### Lanes Basic Profiles:
-- Default support for multiple lanes.
-- Vector Register File (VRF) based on Dual-port Static RAM (SRAM).
-- Fully pipelined Vector Function Unit (VFU) with comprehensive chaining support. We allocate 4 VFU slots per VRF.
-- Our design can skip masked elements for mask instructions to accommodate the sparsity of the mask.
-- We use a ring-based lane interconnection for widen instructions.
-- No rename unit is implemented.
+- Default support for multiple lanes(32-bits per-lane).
+- Load to Multiple-Exec to Store to Load chaining-ability.
+- RAM-based configurable banked SRAM, with DualPort, TwoPort, SinglePort supports.
+- Pipelined/Asynchronous Vector Function Unit (VFU) with comprehensive chaining support. Allocating 4 VFU slots per lane, multiple and different VFU can be attached to the corresponding lane.
+- T1 lane execution can skip masked elements for the mask instructions that are all masked to accommodate the sparsity of the mask.
+- We use a direct-connected lane interconnection for `widen` and `narrow` instructions.
 
 ### Load Store Unit (LSU) Profiles:
 
-- Configurable banked memory port with a banked TileLink-based vector cache.
+- Configurable banked memory port.
 - Instruction-level Out-of-Order (OoO) load/store, leveraging the high memory bandwidth of the vector cache.
 - Configurable outstanding size to mitigate memory latency.
 - Fully chained to the Vector Function Unit (VFU).
 
 ## Design Space Exploration (DSE) Principles and Methodology:
 
-Compared to some commercial Out-of-Order core designs with advanced prediction schemes, the architecture of the vector machine is relatively straightforward. Instead of dedicating area to a Branch Prediction Unit (BPU) or Rename and Reorder Buffer (ROB), vector instructions provide enough data to allow the VPU to run for thousands of cycles without requiring a prediction scheme.
+Compared to some commercial Out-of-Order core designs with advanced speculation schemes, the architecture of the vector machine is relatively straightforward. Instead of dedicating area to a Branch Prediction Unit (BPU), Rename and Reorder Buffer(ROB) or prefetching. Vector instructions provide enough metadata to allow T1 to run for thousands elements without requiring a speculation scheme.
 
-The VPU is designed to balance bandwidth, area, and frequency among the VRF, VFU, and LSU. With this generator, the vector machine can be easily configured to achieve either high efficiency or high performance, depending on the desired trade-offs.
+T1 is designed to balance the throughput, area, and frequency among the VRF, VFU, and LSU. With T1 generator, it can be easily configured to achieve either high efficiency or high performance, depending on the desired trade-offs, even adding function units or purging out FPU, which supports `Zve32f` and remains `Zve32x` only.
 
-The methodology for microarchitecture tuning based on this trade-off idea includes:
+The methodology for the micro-architecture tuning is based on this trade-off idea:
 
-**The overall vector core frequency should be limited by the VRF memory frequency**: Based on this principle, the VFU pipeline should be retimed to multiple stages to meet the frequency target. For a small, highly efficient core, designers should choose high-density memory (which usually doesn't offer high frequency) and reduce the VFU pipeline stages. For a high-performance core, they should increase the pipeline stages and use the fastest possible SRAM for the VRFs.
+**The overall vector core frequency should be limited by the VRF memory**: Based on this principle, the VFU pipeline should be retimed to multiple stages to meet the frequency target. For a small, highly efficient core, designers should choose high-density memory (which usually doesn't offer high frequency) and reduce the VFU pipeline stages. For a high-performance core, they should increase the pipeline stages and use as the fastest as possible SRAM for the VRFs.
 
-**The bandwidth bottleneck is limited by VRF SRAM**: For each VFU, if it is operating, it might encounter hazards due to the limited VRF memory ports. To resolve this, we strictly limit each VRF bank to 4 VFUs. In the v1p0 release, this issue should be resolved by a banked VRF design. But the banked VRF creates an all-to-all crossbar between the VFU and VRF banks, which is heavily constrained by the physical design.
+**The bandwidth bottleneck is limited by VRF SRAM**: For each VFU, if it is operating, it might encounter hazards due to the limited VRF memory ports, users can increase the banking size of VRFs. While the banked VRF is forcing an all-to-all crossbar between the VFU and VRF banks, which has heavily impact at the physical design. Users should trade off the Exec and VRF bandwidth by limiting the connection between Execution and VRFs.
 
-**The bandwidth of the LSU is limited by the memory ports to the Vector Cache**: The LSU is also configurable to provide the required memory bandwidth: it is designed to support multiple vector cache memory banks. Each memory bank has 3 MSHRs for outstanding memory transactions, which are limited by the VRF memory ports. Our design supports instruction-level interleaved vector load/store to maximize the use of memory ports for high memory bandwidth.
+**The bandwidth of the LSU is limited by the memory ports**: The LSU is also configurable to provide an insane memory bandwidth with a small overhead, it contains these limitation to bus:
+- requires FIFO(first-in-first-out) ordering in bus, if FIFO is not implemented in the bus ip, a large reorder unit will be implemented due to extremely large outstanding `sourceId` in `TileLink`, while `AWID`, `ARID`, `WID`, `RID`, `BID`.
+- requires no-MMU for high-bandwidth-ports, since we may query `DLEN/32` elements from TLB for each cycle in a indexed load store mode, while, there might be a unreasonable page fault outstandings. for now these features are not supported in the current Rocket Core.
+- No Coherence support: any high performance cache cannot bare T1's `DLEN/32` queries.
 
-**The upward bandwidth of the Vector Cache is limited by the bank size**: The vector cache microarchitecture essentially has multiple banks with relatively small cache line sizes. It is always constrained by physical design.
+The keypoint of T1 LSU is designed to support multiple memory banks. Each memory bank has 3 MSHRs for outstanding memory instructions, while every instruction can record thoughts of transaction states in the FIFO ordering. T1 also supports instruction-level interleaved vector load/store to maximize the use of memory ports for high memory bandwidth.
 
 For tuning the ideal vector machines, follow these performance tuning methodologies:
 
-- Determine the required VLEN as it dictates the VRF memory area.
+- Determine DLEN for your parallelism requirement, AKA the required bandwidth for Vector unit.
+- Matching bandwidth for VRF, VFU, LSU.
+- Based on your workload, determine the required VLEN as it dictates the VRF memory area.
 - Choose the memory type for the VRF, which will determine the chip frequency.
-- Determine the required bandwidth. This will decide the bandwidth for VRF, VFU, LSU. Benchmarks for specific programs are needed to balance the bandwidth for these components. The lane size is also decided at this stage.
-- Decide on the vector cache size. Specific workloads are required to benchmark the miss rate.
-- Configure the vector cache microarchitecture. This is essentially determined by the next level memory subsystems.
-
-## Future Work
-The v1p0 will tapeout in 2023 with TSN28 process. This tapeout is the silicon verification for our architecture and design flows.
-
-### Before v1p0 tapeout
-- Banked VRF support(increase bandwidth for VRF);
-- VRF memory with ECC support(no complex MBIST design for VRF);
-- Datapath for merging Int8 to Int32 pipeline(increase bandwidth for VFU);
-- Burst support for unit-stride(saves bandwidth in TL-A Channel);
-- Configurable VFU type and size(tune performance).
-
-### After v1p0 tapeout
-- 64-bits support;
-- IEEE-754 FPU support;
-- FGMT scalar code for handling interrupt during vector SIMD being running;
-- MMU support;
-- MSP support;
+- Running the IPEmulator and PnR for your workloads to tune micro architecture.
 
 ## Development Guide
 
-The IP emulators are designed to emulate the vector IP. Spike is used as the scalar core integrating with verilated vector IP and use difftest for IP-level verification, it records events from VRF and LSU to perform online difftest.
+The IP emulators are designed to emulate the vector IP. [Spike](https://github.com/riscv/riscv-isa-sim) is used as the scalar core integrating with verilated vector IP and use online-difftest for IP-level verification, comparing result between spike as golden reference and T1 vector load store VRF write as test input.
 
 ### Nix setup
 We use nix flake as our primary build system. If you have not installed nix, install it following the [guide](https://nixos.org/manual/nix/stable/installation/installing-binary.html), and enable flake following the [wiki](https://nixos.wiki/wiki/Flakes#Enable_flakes). Or you can try the [installer](https://github.com/DeterminateSystems/nix-installer) provided by Determinate Systems, which enables flake by default.
 
 ### Build
 
-t1 includes a hardware design written in Chisel and a emulator powered by verilator. The elaborator and emulator can be run with various configurations. Each configuration can be represented by a triplet of `vLen-dLen-memoryBankSize`, e.g. `v1024-l8-b2`. The specific configuration can be found in `configgen/src/Main.scala`.
+T1 includes a hardware design written in Chisel and a emulator powered by verilator. The elaborator and emulator can be run with various configurations. Configurations can be represent by your favorite Pokemon! While the only limitation is T1 use [Pokemon type](https://pokemon.fandom.com/wiki/Types) to determine `DLEN`, aka lane size, based on the corresponding map:
 
+|Type|DLEN|
+|-|-|
+|[Grass](https://bulbapedia.bulbagarden.net/wiki/Grass_(type))|32|
+|[Fire](https://bulbapedia.bulbagarden.net/wiki/Fire_(type))|64|
+|[Flying](https://bulbapedia.bulbagarden.net/wiki/Flying_(type))|128|
+|[Water](https://bulbapedia.bulbagarden.net/wiki/Water_(type))|256|
+|[Fighting](https://bulbapedia.bulbagarden.net/wiki/Fighting_(type))|512|
+|[Electric](https://bulbapedia.bulbagarden.net/wiki/Electric_(type))|1K|
+|[Ground](https://bulbapedia.bulbagarden.net/wiki/Ground_(type))|1K|
+|[Psychic](https://bulbapedia.bulbagarden.net/wiki/Psychic_(type))|2K|
+|[Dark](https://bulbapedia.bulbagarden.net/wiki/Rock_(type))|4K|
+|[Ice](https://bulbapedia.bulbagarden.net/wiki/Ice_(type))|8K|
+|[Fairy](https://bulbapedia.bulbagarden.net/wiki/Fairy_(type))|16K|
+|[Ghost](https://bulbapedia.bulbagarden.net/wiki/Ghost_(type))|32K|
+|[Dragon](https://bulbapedia.bulbagarden.net/wiki/Dragon_(type))|64K|
+
+Special Notice:
+The `Bug` type is reserved to submit bug report by users.
+
+Users can add their own pokemon to `configgen/src/Main.scala` to add configurations with different variations.
 
 You can build its components with the following commands:
 ```shell
@@ -87,7 +105,6 @@ $ nix build .#t1.<config-name>.subsystem.rtl  # the elaborated soc .sv files
 $ nix build .#t1.<config-name>.subsystem.emu-rtl  # the elaborated soc .sv files with emulation support
 $ nix build .#t1.<config-name>.subsystem.emu  # build the soc emulator
 $ nix build .#t1.<config-name>.subsystem.emu-trace  # build the soc emulator with trace support
-$ nix build .#t1.<config-name>.subsystem.fpga  # build the elaborated soc .sv files with fpga support
 
 $ nix build .#t1.<config-name>.cases.all  # the testcases
 ```
@@ -114,7 +131,7 @@ For example:
 
 #### Developing Elaborator (Chisel-only)
 ```shell
-$ nix develop .#t1.elaborator  # bring up scala environment, circt tools, and create submodule soft links
+$ nix develop .#t1.elaborator  # bring up scala environment, circt tools, and create submodules
 
 $ nix develop .#t1.elaborator.editable  # or if you want submodules editable
 
