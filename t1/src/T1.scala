@@ -8,9 +8,7 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
-import chisel3.probe.Probe
-import chisel3.probe.ProbeValue
-import chisel3.probe.define
+import chisel3.probe.{Probe, ProbeValue, define, read}
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter}
@@ -168,6 +166,8 @@ case class T1Parameter(
   // and the values are their respective delays.
   val crossLaneConnectCycles: Seq[Seq[Int]] = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
 
+  val supportedMMU: Boolean = lsuBankParameters.map(_.supportMMU).reduce(_ || _)
+
   /** parameter for TileLink. */
   val tlParam: TLBundleParameter = TLBundleParameter(
     a = TLChannelAParameter(physicalAddressWidth, sourceWidth, memoryDataWidth, sizeWidth, maskWidth),
@@ -245,6 +245,12 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     */
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.lsuBankParameters.size, parameter.tlParam.bundle()))
 
+  /** tlb port if any bank need tlb */
+  val tlbRequest: Option[DecoupledIO[T1TLBRequest]] =
+    Option.when(parameter.supportedMMU)(IO(Decoupled(new T1TLBRequest(parameter.datapathWidth))))
+  val tlbResponse: Option[ValidIO[T1TLBResponse]] =
+    Option.when(parameter.supportedMMU)(IO(Flipped(Valid(new T1TLBResponse(parameter.datapathWidth)))))
+  tlbRequest.foreach{ req => req <> DontCare }
   /** the LSU Module */
 
   val lsu: LSU = Module(new LSU(parameter.lsuParameters))

@@ -689,3 +689,15 @@ class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
 }
 
 final class EmptyBundle extends Bundle
+
+class T1TLBRequest(datapathWidth: Int) extends Bundle {
+  val virtualAddress: UInt = UInt((datapathWidth - 12).W)
+  val isRead: Bool = Bool()
+}
+
+class T1TLBResponse(datapathWidth: Int) extends Bundle {
+  val physicalAddress: UInt = UInt((datapathWidth - 12).W)
+  val ae: Bool = Bool()
+  val pf: Bool = Bool()
+  val pageLevel: UInt = UInt(2.W)
+}
