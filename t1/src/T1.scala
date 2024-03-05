@@ -129,8 +129,9 @@ case class T1Parameter(
   /** the hardware width of [[groupNumberMax]]. */
   val groupNumberMaxBits: Int = log2Ceil(groupNumberMax)
 
+  require(lsuBankParameters.map(_.beatbyte).toSet.size == 1, "The width is temporarily unified")
   /** Used in memory bundle parameter. */
-  val memoryDataWidth: Int = datapathWidth
+  val memoryDataWidth: Int = lsuBankParameters.head.beatbyte
 
   /** LSU MSHR Size, from experience, we use 3 for 2R1W，this is also limited by the number of memory ports.
     * TODO: in vector design, there are some instructions which have 3R1W, this may decrease performance. we need perf it.
