@@ -227,6 +227,7 @@ static VBridgeImpl vbridgeImplFromArgs() {
   args::ValueFlag<size_t> vlen(parser, "vlen", "match from RTL config, tobe removed", {"vlen"}, args::Options::Required);
   args::ValueFlag<size_t> dlen(parser, "dlen", "match from RTL config, tobe removed", {"dlen"}, args::Options::Required);
   args::ValueFlag<size_t> tl_bank_number(parser, "tl_bank_number", "match from RTL config, tobe removed", {"tl_bank_number"}, args::Options::Required);
+  args::ValueFlag<size_t> beat_byte(parser, "beat_byte", "match from RTL config, tobe removed", {"beat_byte"}, args::Options::Required);
 
   args::ValueFlag<std::string> bin_path(parser, "elf path", "", {"elf"}, args::Options::Required);
   args::ValueFlag<std::string> wave_path(parser, "wave path", "", {"wave"}, args::Options::Required);
@@ -268,7 +269,7 @@ static VBridgeImpl vbridgeImplFromArgs() {
     .mshr_number = 3,
     .lsu_idx_default = 255,
     .vlen_in_bytes = vlen.Get() / 8,
-    .datapath_width_in_bytes = 4,
+    .datapath_width_in_bytes = beat_byte.Get(),
   };
 
   return VBridgeImpl(cosim_config);

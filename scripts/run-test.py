@@ -250,6 +250,8 @@ def run_test(args):
                 # TODO: this will be refactored soon to support multiple LSU
                 "--tl_bank_number",
                 str(len(rtl_config["parameter"]["lsuBankParameters"])),
+                "--beat_byte",
+                str(rtl_config["parameter"]["lsuBankParameters"][0]["beatbyte"]),
             ]
             + optionals(args.no_logging, ["--no-logging"])
             + optionals(not args.with_file_logging, ["--no-file-logging"])
