@@ -63,7 +63,8 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
     Wire(Vec(param.memoryBankSize, Decoupled(new cacheLineDequeueBundle(param))))
   // 拼凑cache line
   queue.zipWithIndex.foreach { case (port, index) =>
-    val (_, last, _, _) = firstlastHelper(burstSize, param.tlParam)(port.bits, port.fire)
+    // todo: size from channel d?
+    val (_, last, _, _) = param.fistLast(param.cacheLineBits.U, true.B, port.fire)
 
     val cacheLineValid = RegInit(false.B)
     val dataShifterRegForPort = RegInit(0.U((param.lsuTransposeSize * 8).W))
