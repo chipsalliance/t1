@@ -26,13 +26,29 @@ object Main {
   @main def listConfigs(
     @arg(name = "project-dir", short = 't') projectDir: os.Path = os.pwd
   ): Unit = {
-    val configs = Main
-      .getClass()
-      .getDeclaredMethods()
-      .filter(m => m.getParameters().mkString.contains("os.Path targetDir"))
-      .map(_.getName())
+    val declaredMethods =
+      Main.getClass().getDeclaredMethods().filter(m => m.getParameters().mkString.contains("os.Path targetDir"))
 
-    os.write(projectDir / "configgen" / "all-configs.json", upickle.default.write(configs))
+    import scala.io.AnsiColor._
+
+    val tmpDir = os.temp.dir(deleteOnExit = true)
+    declaredMethods.foreach(configgen => {
+      configgen.invoke(Main, tmpDir)
+      val config = ujson.read(os.read(tmpDir / "config.json"))
+      val param = config.obj("parameter")
+      println(s"""${BOLD}${configgen.getName()}${RESET}
+                 |  exts: ${param.obj("extensions")}
+                 |  vlen: ${param.obj("vLen")}
+                 |  bank: ${param.obj("vrfBankSize")}
+                 |  dlen: ${param.obj("dLen")}
+                 |  port: ${param.obj("vrfRamType").str.split('.').last}""".stripMargin)
+      os.remove(tmpDir / "config.json")
+    })
+
+    os.write.over(
+      projectDir / "configgen" / "all-configs.json",
+      upickle.default.write(declaredMethods.map(_.getName()))
+    )
   }
 
   @main def bulbasaur(

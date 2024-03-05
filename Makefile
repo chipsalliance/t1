@@ -50,5 +50,5 @@ list-testcases:
 
 .PHONY: list-configs
 list-configs:
-	nix eval --json '.#t1.allConfigs' | jq -r '.[]'
+	nix run '.#t1.configgen' -- listConfigs | less -R
 
