@@ -43,21 +43,6 @@ package object rtl {
     (indexToOH(index, chainingSize) & lastReport).orR
   }
 
-  def firstlastHelper(burstSize: Int, param: TLBundleParameter)
-                     (bits: TLChannelD, fire: Bool): (Bool, Bool, Bool, UInt) = {
-    // 只给cache line 用
-    val bustSizeForData: UInt = -1.S(log2Ceil(burstSize).W).asUInt
-    val counter = RegInit(0.U(log2Up(burstSize).W))
-    val counter1 = counter + 1.U
-    val first = counter === 0.U
-    val last = counter === bustSizeForData
-    val done = last && fire
-    when(fire) {
-      counter := Mux(last, 0.U, counter1)
-    }
-    (first, last, done, counter)
-  }
-
   def multiShifter(right: Boolean, multiSize: Int)(data: UInt, shifterSize: UInt): UInt = {
     VecInit(data.asBools.grouped(multiSize).toSeq.transpose.map { dataGroup =>
       if (right) {
@@ -316,4 +301,23 @@ package object rtl {
     }
   }
 
+  def UIntToOH1(x: UInt, width: Int): UInt = (~((-1).S(width.W).asUInt << x)).asUInt(width-1, 0)
+  def numBeats1(maxTransferSize: Int, beatBytes: Int)(size: UInt, hasData: Bool): UInt = {
+    val decode = (UIntToOH1(size, log2Ceil(maxTransferSize)) >> log2Ceil(beatBytes)).asUInt
+    Mux(hasData, decode, 0.U)
+  }
+
+  def firstlastHelper(maxTransferSize: Int, beatBytes: Int)(size: UInt, hasData: Bool, fire: Bool): (Bool, Bool, Bool, UInt) = {
+    val beats1   = numBeats1(maxTransferSize, beatBytes)(size, hasData)
+    val counter  = RegInit(0.U(log2Up(maxTransferSize / beatBytes).W))
+    val counter1 = counter - 1.U
+    val first = counter === 0.U
+    val last  = counter === 1.U || beats1 === 0.U
+    val done  = last && fire
+    val count = beats1 & (~counter1).asUInt
+    when (fire) {
+      counter := Mux(first, beats1, counter1)
+    }
+    (first, last, done, count)
+  }
 }

@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.util._
 import chisel3.probe._
 import chisel3.util.experimental.BitSet
-import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, VRFReadRequest, VRFWriteRequest, ffo}
+import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, VRFReadRequest, VRFWriteRequest, ffo, firstlastHelper}
 import tilelink.{TLBundle, TLBundleParameter}
 
 /**
@@ -120,15 +120,13 @@ case class MSHRParam(
   /** offset bit for a cache line */
   val cacheLineBits: Int = log2Ceil(lsuTransposeSize)
 
-  val bustCount: Int = lsuTransposeSize * 8 / datapathWidth
-
-  val bustCountBits: Int = log2Ceil(bustCount)
-
   /** The maximum number of cache lines that will be accessed, a counter is needed.
    * +1 Corresponding unaligned case
    * */
   val cacheLineIndexBits: Int = log2Ceil(vLen/lsuTransposeSize + 1)
-  val bankPosition: Int = log2Ceil(lsuTransposeSize)
+
+  val fistLast: (UInt, Bool, Bool) => (Bool, Bool, Bool, UInt) =
+    firstlastHelper(lsuTransposeSize, tlParam.a.dataWidth / 8)
 }
 
 /** Miss Status Handler Register
