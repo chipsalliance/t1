@@ -23,13 +23,16 @@ object Main {
     )
   }
 
-  @main def listConfigs(): Unit = {
+  @main def listConfigs(
+    @arg(name = "project-dir", short = 't') projectDir: os.Path = os.pwd
+  ): Unit = {
     val configs = Main
       .getClass()
       .getDeclaredMethods()
       .filter(m => m.getParameters().mkString.contains("os.Path targetDir"))
       .map(_.getName())
-    println(configs.mkString(","))
+
+    os.write(projectDir / "configgen" / "all-configs.json", upickle.default.write(configs))
   }
 
   @main def bulbasaur(

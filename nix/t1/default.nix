@@ -8,24 +8,7 @@
 }:
 
 let
-  # We need to bring submodules and configgen out of scope. Using them in scope to generate the package attribute set
-  # will lead to infinite recursion.
-  allConfigs = [
-    "magneton"
-    "magnemite"
-    "golduck"
-    "psyduck"
-    "seadra"
-    "horsea"
-    "dewgong"
-    "seel"
-    "blastoise"
-    "squirtle"
-    "charmander"
-    "bulbasaur"
-    "mankey"
-    "primeape"
-  ];
+  allConfigs = builtins.fromJSON (builtins.readFile ../../configgen/all-configs.json);
 in
 
 lib.makeScope newScope
