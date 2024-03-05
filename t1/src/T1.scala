@@ -62,6 +62,25 @@ case class T1Parameter(
   // TODO: simplify it. this is user-level API.
   vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
+  // TODO: expose it with the Property API
+  override def toString: String =
+    s"""T1-VLEN$vLen-DLEN$dLen-${extensions.mkString(",")}(${dLen/32} lanes)
+       |Lane:
+       |  VRF:
+       |    Banks: ${vrfBankSize}
+       |    RAMType: ${
+      vrfRamType match {
+        case RamType.p0rw => "Single Port."
+        case RamType.p0rp1w => "First Port Read, Second Port Write."
+        case RamType.p0rwp1rw => "Dual Ports Read Write."
+      }}
+       |LSU:
+       |${lsuBankParameters.zipWithIndex.map{case (lsuP, idx) =>
+      s"""BANK${idx}W${lsuP.beatbyte * 8}b ${if(lsuP.supportMMU) "can" else "can't"} access scalar memory
+         |  ${lsuP.region.terms.map(_.rawString).mkString("\n  ")}
+         |""".stripMargin}}
+       |""".stripMargin
+
   require(extensions.forall(Seq("Zve32x", "Zve32f").contains), "unsupported extension.")
   /** xLen of T1, we currently only support 32. */
   val xLen: Int = 32
