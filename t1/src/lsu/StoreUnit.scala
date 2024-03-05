@@ -250,25 +250,22 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     val addressReg: UInt = RegInit(0.U(param.paWidth.W))
     val port: DecoupledIO[TLChannelA] = tlPortA(portIndex)
     val portFire: Bool = port.fire
-    val burstIndex: UInt = RegInit(0.U(log2Ceil(burstSize).W))
-    val burstOH: UInt = UIntToOH(burstIndex)
-    val last = burstIndex.andR
+    val (first, last, done, _) = param.fistLast(param.cacheLineBits.U, true.B, portFire)
     val enqueueReady: Bool = !dataToSend.valid || (port.ready && !addressConflict && last)
     val enqueueFire: Bool = enqueueReady && alignedDequeue.valid && selectOH(portIndex)
     val firstCacheLine = RegEnable(lsuRequest.valid, true.B, lsuRequest.valid || enqueueFire)
     currentAddress(portIndex) := Mux(firstCacheLine, 0.U, addressReg)
-    status.releasePort(portIndex) := burstIndex === 0.U
+    status.releasePort(portIndex) := first
     when(enqueueFire) {
       dataToSend.bits := alignedDequeue.bits
       addressReg := alignedDequeueAddress
+    }.elsewhen(portFire) {
+      dataToSend.bits.mask := dataToSend.bits.mask >> param.tlParam.a.maskWidth
+      dataToSend.bits.data := dataToSend.bits.data >> param.tlParam.a.dataWidth
     }
 
-    when(enqueueFire ^ (portFire && last)) {
+    when(enqueueFire ^ done) {
       dataToSend.valid := enqueueFire
-    }
-
-    when(enqueueFire || portFire) {
-      burstIndex := Mux(enqueueFire, 0.U, burstIndex + 1.U)
     }
 
     port.valid := dataToSend.valid && !addressConflict
@@ -277,20 +274,8 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     port.bits.size := param.cacheLineBits.U
     port.bits.source := dataToSend.bits.index
     port.bits.address := addressReg
-    port.bits.mask := Mux1H(
-      burstOH,
-      Seq.tabulate(burstSize)(burstIndex => dataToSend.bits.mask(
-        (burstIndex + 1) * param.tlParam.a.maskWidth - 1,
-        burstIndex * param.tlParam.a.maskWidth,
-      ))
-    )
-    port.bits.data := Mux1H(
-      burstOH,
-      Seq.tabulate(burstSize)(burstIndex => dataToSend.bits.data(
-        (burstIndex + 1) * param.tlParam.a.dataWidth - 1,
-        burstIndex * param.tlParam.a.dataWidth,
-      ))
-    )
+    port.bits.mask := dataToSend.bits.mask(param.tlParam.a.maskWidth - 1, 0)
+    port.bits.data := dataToSend.bits.data(param.tlParam.a.dataWidth - 1, 0)
     port.bits.corrupt := false.B
     sendStageReady(portIndex) := enqueueReady
     !dataToSend.valid
