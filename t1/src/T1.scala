@@ -4,16 +4,31 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Instance, Instantiate, public}
+import chisel3.experimental.hierarchy.{Definition, Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
 import chisel3.probe.{Probe, ProbeValue, define, force}
+import chisel3.properties.{Class, ClassType, Property}
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
+
+// TODO: this should be a object model. There should 3 object model here:
+//       1. T1SubsystemOM(T1(OM), MemoryRegion, Cache configuration)
+//       2. T1(Lane(OM), VLEN, DLEN, uarch parameters, customer IDs(for floorplan);)
+//       3. Lane(Retime, VRF memory type, id, multiple instances(does it affect dedup? not for sure))
+@instantiable
+class T1OM extends Class {
+  val laneOMType: ClassType = Definition(new LaneOM).getClassType
+  @public
+  val lanes = IO(Output(Property[Seq[laneOMType.Type]]()))
+  @public
+  val lanesIn = IO(Input(Property[Seq[laneOMType.Type]]()))
+  lanes := lanesIn
+}
 
 object T1Parameter {
   implicit def bitSetP:upickle.default.ReadWriter[BitSet] = upickle.default.readwriter[String].bimap[BitSet](
@@ -244,6 +259,11 @@ class T1Probe(param: T1Parameter) extends Bundle {
   * The logic of [[T1]] contains the Vector Sequencer and Mask Unit.
   */
 class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Parameter] {
+  val omInstance: Instance[T1OM] = Instantiate(new T1OM)
+  val omType: ClassType = omInstance.toDefinition.getClassType
+  @public
+  val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
+  om := omInstance.getPropertyReference
 
   /** request from CPU.
     * because the interrupt and exception of previous instruction is unpredictable,
@@ -1493,6 +1513,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     define(laneVrfProbes(index), lane.vrfProbe)
     lane
   }
+
+  omInstance.lanesIn := Property(laneVec.map(_.om.as(Definition(new LaneOM).getClassType)))
+
   define(lsuProbe, lsu.probe)
 
   writeQueueClearVec := VecInit(laneVec.map(_.writeQueueValid))

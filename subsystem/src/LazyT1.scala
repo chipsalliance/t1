@@ -5,6 +5,7 @@ package org.chipsalliance.t1.subsystem
 
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
+import chisel3.properties.{ClassType, Path, Property}
 import freechips.rocketchip.diplomacy.AddressSet
 import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements}
 import org.chipsalliance.cde.config._
@@ -12,9 +13,6 @@ import org.chipsalliance.t1.rockettile.{AbstractLazyT1, AbstractLazyT1ModuleImp,
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
 case object T1Generator extends Field[SerializableModuleGenerator[T1, T1Parameter]]
-trait HasT1Tiles { this: BaseSubsystem with InstantiatesHierarchicalElements =>
-  lazy val t1Tiles = totalTiles.values.collect { case r: org.chipsalliance.t1.rocketcore.T1Tile => r }
-}
 
 class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
   lazy val module = new LazyT1Imp(this)
@@ -82,4 +80,6 @@ class LazyT1Imp(outer: LazyT1)(implicit p: Parameters) extends AbstractLazyT1Mod
       bundle.d.ready := t1.memoryPorts(i).d.ready
 
   }
+
+  om := t1.om
 }

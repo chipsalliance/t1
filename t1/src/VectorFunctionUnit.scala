@@ -5,8 +5,8 @@ package org.chipsalliance.t1.rtl
 
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
-import chisel3.experimental.hierarchy.{instantiable, public}
-import chisel3.properties.Property
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
+import chisel3.properties.{Class, ClassType, Path, Property}
 import org.chipsalliance.t1.rtl.decoder.BoolField
 import chisel3.util._
 
@@ -27,15 +27,28 @@ class VFUPipeBundle extends Bundle {
 }
 
 @instantiable
+// TODO: expose more metadatas to VFU OM, this is important for documentation generator.
+class VFUOM extends Class {
+  @public
+  val cycles = IO(Output(Property[Int]()))
+  @public
+  val cyclesIn = IO(Input(Property[Int]()))
+  cycles := cyclesIn
+}
+
+@instantiable
 abstract class VFUModule(p: VFUParameter) extends Module {
+  val omInstance: Instance[VFUOM] = Instantiate(new VFUOM)
+  val omType: ClassType = omInstance.toDefinition.getClassType
+
+  @public
+  val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
   @public
   val requestIO: DecoupledIO[VFUPipeBundle] = IO(Flipped(Decoupled(p.inputBundle)))
   @public
   val responseIO: DecoupledIO[VFUPipeBundle] = IO(Decoupled(p.outputBundle))
-  // FFUModule is a behavior Module which should be retimed to [[latency]] cycles.
-  @public
-  val retime: Option[Property[Int]] = Option.when(p.latency > 1)(IO(Property[Int]()))
-  retime.foreach(_ := Property(p.latency))
+  om := omInstance.getPropertyReference
+  omInstance.cyclesIn := Property(p.latency)
 
   val vfuRequestReady: Option[Bool] = Option.when(!p.singleCycle)(Wire(Bool()))
   val requestReg: VFUPipeBundle = RegEnable(requestIO.bits, 0.U.asTypeOf(requestIO.bits), requestIO.fire)
