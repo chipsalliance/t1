@@ -4,13 +4,24 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
+import chisel3.properties.{Class, ClassType, Path, Property}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lane._
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam}
+
+@instantiable
+class T1LaneOM extends Class {
+  @public
+  val retime = IO(Output(Property[Seq[Path]]()))
+  @public
+  val retimeIn = IO(Input(Property[Seq[Path]]()))
+  retime := retimeIn
+}
 
 object LaneParameter {
   implicit def rwP: upickle.default.ReadWriter[LaneParameter] = upickle.default.macroRW
@@ -37,7 +48,6 @@ case class LaneParameter(
                           vrfRamType:                       RamType,
                           vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
-
   /** 1 in MSB for instruction order. */
   val instructionIndexBits: Int = log2Ceil(chainingSize) + 1
 
@@ -131,6 +141,10 @@ case class LaneParameter(
   * - datapath units: [[MaskedLogic]], [[LaneAdder]], [[LaneShifter]], [[LaneMul]], [[LaneDiv]], [[OtherUnit]]
   */
 class Lane(val parameter: LaneParameter) extends Module with SerializableModule[LaneParameter] {
+  val laneOM: Instance[T1LaneOM] = Instantiate(new T1LaneOM)
+  val laneOMClassType: ClassType = laneOM.toDefinition.getClassType
+  val laneOMOutput: Property[ClassType] = IO(Output(Property[laneOMClassType.Type]()))
+  laneOMOutput := laneOM.getPropertyReference
 
   /** laneIndex is a IO constant for D/I and physical implementations. */
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
@@ -408,7 +422,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   ))
 
   val maskedWriteUnit: MaskedWrite = Module(new MaskedWrite(parameter))
-  val slotProbes = slotControl.zipWithIndex.map {
+  val slots = slotControl.zipWithIndex.map {
     case (record, index) =>
       val decodeResult: DecodeBundle = record.laneRequest.decodeResult
       val isLastSlot: Boolean = index == 0
@@ -735,7 +749,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
       define(probe.stage3VrfWriteReady, ProbeValue(stage3.vrfWriteRequest.ready))
       define(probe.stage3VrfWriteValid, ProbeValue(stage3.vrfWriteRequest.valid))
-      probe
+      (executionUnit, probe)
   }
 
 
@@ -761,19 +775,19 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // VFU
   // TODO: reuse logic, adder, multiplier datapath
-  {
-    val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
+  val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
 
-    vfuConnect(parameter.vfuInstantiateParameter)(
-      requestVec,
-      executeEnqueueValid,
-      decodeResultVec,
-      executeEnqueueFire,
-      responseVec,
-      executeOccupied,
-      VFUNotClear
-    )
-  }
+  val vfuInstances: Seq[VFUModule] = vfuInstantiate(parameter.vfuInstantiateParameter)(
+    requestVec,
+    executeEnqueueValid,
+    decodeResultVec,
+    executeEnqueueFire,
+    responseVec,
+    executeOccupied,
+    VFUNotClear
+  )
+  // ask OM to retime these all VFUs.
+  laneOM.retimeIn := Property(vfuInstances.map(Path(_)))
 
   // 处理 rf
   {
@@ -1093,4 +1107,5 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   val instructionFinishedProbe: UInt = IO(Output(Probe(chiselTypeOf(instructionFinished))))
   define(instructionFinishedProbe, ProbeValue(instructionFinished))
+
 }

@@ -1,6 +1,7 @@
 package org.chipsalliance.t1.rockettile
 
 import chisel3._
+import chisel3.properties.{ClassType, Path, Property}
 import chisel3.util._
 import chisel3.util.experimental.BitSet
 import freechips.rocketchip.diplomacy._
@@ -152,6 +153,9 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
     BundleBridgeSource(() => Valid(new VectorResponse(xLen)))
   val hazardControlNode: BundleBridgeSource[VectorHazardControl] =
     BundleBridgeSource(() => Output(new VectorHazardControl))
+  val t1OM = ClassType.unsafeGetClassTypeByName("T1OM")
+  // Diplomacy is dirty and doesn't support Property yet, this is a dirty hack and will be bore from top
+  val om = InModuleBody{ IO(Output(Property[t1OM.Type]())).suggestName("T1OM") }
 }
 
 /** This is a vector interface comply to chipsalliance/t1 project.
@@ -162,6 +166,7 @@ abstract class AbstractLazyT1ModuleImp(val outer: AbstractLazyT1)(implicit p: Pa
   val csr:           CSRInterface = outer.csrSinkNode.bundle
   val response:      ValidIO[VectorResponse] = outer.responseNode.bundle
   val hazardControl: VectorHazardControl = outer.hazardControlNode.bundle
+  val om:            Property[ClassType] = outer.om
 }
 
 trait HasLazyT1 { this: BaseTile =>

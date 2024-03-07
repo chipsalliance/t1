@@ -4,6 +4,8 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy._
+import chisel3.experimental.hierarchy.core.Definition
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode._
@@ -11,10 +13,27 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDPar
 import chisel3.probe.Probe
 import chisel3.probe.ProbeValue
 import chisel3.probe.define
+import chisel3.properties.{Class, ClassType, Property}
 import chisel3.util.experimental.BitSet
+import chisel3.util.experimental.BoringUtils.bore
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam}
+
+// TODO: this should be a object model. There should 3 object model here:
+//       1. T1SubsystemOM(T1(OM), MemoryRegion, Cache configuration)
+//       2. T1(Lane(OM), VLEN, DLEN, uarch parameters, customer IDs(for floorplan);)
+//       3. Lane(Retime, VRF memory type, id, multiple instances(does it affect dedup? not for sure))
+@instantiable
+class T1OM(p: T1Parameter) extends Class {
+  val T1LaneOM: ClassType = ClassType.unsafeGetClassTypeByName("T1LaneOM")
+
+  @public
+  val laneOMs: Seq[Property[ClassType]] = Seq.tabulate(p.laneNumber)(i => IO(Output(Property[T1LaneOM.Type]())).suggestName(s"lane${i}OM"))
+  @public
+  val laneOMsIn: Seq[Property[ClassType]] = Seq.tabulate(p.laneNumber)(i => IO(Input(Property[T1LaneOM.Type]())).suggestName(s"lane${i}OMIn"))
+  laneOMs.zip(laneOMsIn).foreach{case (o, i) => o := i}
+}
 
 object T1Parameter {
   implicit def bitSetP:upickle.default.ReadWriter[BitSet] = upickle.default.readwriter[String].bimap[BitSet](
@@ -249,6 +268,11 @@ case class T1Parameter(
   * The logic of [[T1]] contains the Vector Sequencer and Mask Unit.
   */
 class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Parameter] {
+  val t1OM: Instance[T1OM] = Instantiate(new T1OM(parameter))
+  val laneOMsIn: Seq[Property[ClassType]] = t1OM.laneOMsIn
+  val t1OMClassType: ClassType = t1OM.toDefinition.getClassType
+  val t1OMOutput: Property[ClassType] = IO(Output(Property[t1OMClassType.Type]()))
+  t1OMOutput := t1OM.getPropertyReference
 
   /** request from CPU.
     * because the interrupt and exception of previous instruction is unpredictable,
@@ -1478,6 +1502,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     }
     lane
   }
+  laneOMsIn.zip(laneVec).foreach {case (om, lane) => om := lane.laneOMOutput}
   writeQueueClearVec := VecInit(laneVec.map(_.writeQueueValid))
 
   // 连lsu
@@ -1664,4 +1689,5 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
     (sMaskUnitProbe, wLastProbe, isLastInstProbe)
   }
+
 }
