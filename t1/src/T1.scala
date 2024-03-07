@@ -17,12 +17,17 @@ import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam}
 
 object T1Parameter {
+  implicit def bitSetP:upickle.default.ReadWriter[BitSet] = upickle.default.readwriter[String].bimap[BitSet](
+    bs => bs.terms.map("b" + _.rawString).mkString("\n"),
+    str => BitSet.fromString(str)
+  )
+
   implicit def rwP: upickle.default.ReadWriter[T1Parameter] = upickle.default.macroRW
 }
 
 object LSUBankParameter{
   implicit def bitSetP:upickle.default.ReadWriter[BitSet] = upickle.default.readwriter[String].bimap[BitSet](
-    bs => bs.toString.replace("BitPat(", "b").replace(")", ""),
+    bs => bs.terms.map("b" + _.rawString).mkString("\n"),
     str => BitSet.fromString(str)
   )
 
@@ -56,6 +61,7 @@ case class T1Parameter(
   extensions:              Seq[String],
   // LSU
   lsuBankParameters:       Seq[LSUBankParameter],
+  lsuDontTouchRegion:      BitSet,
   // Lane
   vrfBankSize:             Int,
   vrfRamType:              RamType,
@@ -82,6 +88,7 @@ case class T1Parameter(
        |""".stripMargin
 
   require(extensions.forall(Seq("Zve32x", "Zve32f").contains), "unsupported extension.")
+  // TODO: require bank not overlap
   /** xLen of T1, we currently only support 32. */
   val xLen: Int = 32
 
