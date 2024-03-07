@@ -831,15 +831,11 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /** mux to select from [[vrfReadResultsReg]] or [[vrfReadResults]] */
   val readDataResultSelect: UInt = Mux(readDataRegValid, vrfReadResultsReg, vrfReadResults)
 
+  val addressInBeatByte: UInt = s1Reg.address(log2Ceil(param.tlParam.a.maskWidth) - 1, 0)
+  // 1 -> 1 2 -> 3 4 -> 15
+  val baseMask: UInt = dataEEWOH(2) ## dataEEWOH(2) ## !dataEEWOH(0) ## true.B
   /** compute the mask for store transaction. */
-  val storeMask: UInt = Mux1H(
-    dataEEWOH(2, 0),
-    Seq(
-      UIntToOH(s1Reg.address(1, 0)),
-      s1Reg.address(1) ## s1Reg.address(1) ## !s1Reg.address(1) ## !s1Reg.address(1),
-      15.U(4.W)
-    )
-  )
+  val storeMask: UInt = (baseMask << addressInBeatByte).asUInt(param.tlParam.a.maskWidth - 1, 0)
 
   /** offset caused by element index(byte level) in the datapath. */
   val storeOffsetByIndex: UInt = (s1Reg.indexInMaskGroup(1, 0) << dataEEW).asUInt(1, 0)
@@ -848,7 +844,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
    * TODO: use Mux1H to select(only 4 cases).
    */
   val storeData: UInt =
-    ((readDataResultSelect << (s1Reg.address(1, 0) ## 0.U(3.W))) >> (storeOffsetByIndex ## 0.U(3.W))).asUInt
+    ((readDataResultSelect << (addressInBeatByte ## 0.U(3.W))) >> (storeOffsetByIndex ## 0.U(3.W))).asUInt
   // only PutFull / Get for now
   tlPort.a.bits.opcode := !lsuRequestReg.instructionInformation.isStore ## 0.U(2.W)
   tlPort.a.bits.param := 0.U
@@ -872,7 +868,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   tlPort.a.valid := s1Valid && sourceFree
   s2Fire := tlPort.a.fire
 
-  val offsetRecord = RegInit(VecInit(Seq.fill(memoryRequestSourceOH.getWidth)(0.U(2.W))))
+  val offsetRecord = RegInit(VecInit(Seq.fill(memoryRequestSourceOH.getWidth)(0.U(log2Ceil(param.tlParam.a.maskWidth).W))))
 
   offsetRecord.zipWithIndex.foreach { case (d, i) =>
     when(tlPort.a.fire && memoryRequestSourceOH(i)) {
