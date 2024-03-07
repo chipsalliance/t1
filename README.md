@@ -41,16 +41,16 @@ T1 is designed to balance the throughput, area, and frequency among the VRF, VFU
 
 The methodology for the micro-architecture tuning is based on this trade-off idea:
 
-**The overall vector core frequency should be limited by the VRF memory**. Based on this principle, we could retime the VFU pipeline to multiple stages to meet the frequency target. For a small, highly efficient core, designers should choose high-density memory (which usually doesn't offer high frequency) and reduce the VFU pipeline stages. For a high-performance core, they should increase the pipeline stages and use the fastest possible SRAM for the VRFs.
+**The overall vector core frequency should be limited by the VRF memory**. Based on this principle, we could retime the VFU pipeline to multiple stages to meet the frequency target. For a small, highly efficient core, designers should choose high-density memory (which usually doesn’t offer high frequency) and reduce the VFU pipeline stages. For a high-performance core, they should increase the pipeline stages and use the fastest possible SRAM for the VRFs.
 
 **The bandwidth bottleneck is limited by VRF SRAM**. For each VFU, if it is operating, it might encounter hazards due to the limited VRF memory ports. Users can increase the banking size of VRFs. The banked VRF is forcing an all-to-all crossbar between the VFU and VRF banks, which has a heavy impact on the physical design. Users should trade off the Exec and VRF bandwidth by limiting the connection between Execution and VRFs.
 
 **The bandwidth of the LSU is limited by the memory ports**: The LSU is also configurable to provide an insane memory bandwidth with a small overhead. It contains these limitations to bus:
-- Requiring FIFO(first-in-first-out) ordering in bus. If FIFO is not implemented in the bus IP, a large reorder unit will be implemented due to extremely large outstanding `sourceId` in `TileLink,` while `AWID,` `ARID,` `WID,` `RID,` `BID.`
+- Requiring FIFO (first-in-first-out) ordering in bus. If FIFO is not implemented in the bus IP, a large reorder unit will be implemented due to extremely large outstanding `sourceId` in TileLink, like `AWID`, `ARID`, `WID`, `RID`, `BID` in AXI protocol.
 - Requiring no-MMU for high-bandwidth-ports, since we may query `DLEN/32` elements from TLB for each cycle in an indexed load store mode, while there might be an unreasonable page fault outstandings. For now, these features are not supported in the current Rocket Core.
-- No Coherence support: any high-performance cache cannot bear T1's `DLEN/32` queries.
+- No Coherence support: any high-performance cache cannot bear T1’s `DLEN/32` queries.
 
-The key point of T1 LSU is that it is designed to support multiple memory banks. Each memory bank has 3 MSHRs for outstanding memory instructions, while every instruction can record thoughts of transaction states in the FIFO order. T1 also supports instruction-level interleaved vector load/store to maximize the use of memory ports for high memory bandwidth.
+The key point of T1 LSU is that it is designed to support multiple memory banks. Each memory bank has 3 MSHRs for outstanding memory instructions, while every instruction can record thousands of transaction states in the FIFO order. T1 also supports instruction-level interleaved vector load/store to maximize the use of memory ports for high memory bandwidth.
 
 For tuning the ideal vector machines, follow these performance-tuning methodologies:
 
@@ -62,7 +62,7 @@ For tuning the ideal vector machines, follow these performance-tuning methodolog
 
 ## Development Guide
 
-The IP emulators are designed to emulate the vector IP. [Spike](https://github.com/riscv/riscv-isa-sim) is used as the scalar core integrating with ventilated vector IP and uses online-different for IP-level verification, comparing result between spike as a golden reference and T1 vector load store VRF write as test input.
+We have a IP emulator under the directory `./ipemu`. [Spike](https://github.com/riscv/riscv-isa-sim) is used as the reference scalar core, integrated with the verilated vector IP. Under the online differential-test strategy, the emulator compares the load/store and VRF writes between Spike and T1 to verify T1’s correctness.
 
 ### Nix setup
 We use Nix Flake as our primary build system. If you have not installed nix, install it following the [guide](https://nixos.org/manual/nix/stable/installation/installing-binary.html), and enable flake following the [wiki](https://nixos.wiki/wiki/Flakes#Enable_flakes). Or you can try the [installer](https://github.com/DeterminateSystems/nix-installer) provided by Determinate Systems, which enables flake by default.
@@ -87,8 +87,8 @@ T1 includes a hardware design written in Chisel and an emulator powered by a ver
 |[Ghost](https://bulbapedia.bulbagarden.net/wiki/Ghost_(type))|32K|
 |[Dragon](https://bulbapedia.bulbagarden.net/wiki/Dragon_(type))|64K|
 
-Special Notice:
-The `Bug` type is reserved to submit bug report by users.
+> [!NOTE]
+> The `Bug` type is reserved to submit bug report by users.
 
 Users can add their own pokemon to `configgen/src/Main.scala` to add configurations with different variations.
 
@@ -147,7 +147,7 @@ $ cmake --build build
 $ cd ..; ./scripts/run-test.py verilate --emulator-path=ipemu/csrc/build/emulator conv-mlir
 ```
 
-If using clion
+If using clion,
 ```shell
 $ nix develop .#t1.<config-name>.ip.emu -c clion ipemu/csrc
 ```
@@ -168,9 +168,11 @@ To add new testcases for codegen type cases, add new entry in `codegen/*.txt`, t
 To view what is available to ran, use the `nix search` sub command:
 
 ```console
-# nix search .#t1 <regexp>
-#
-# For example:
+$ nix search .#t1 <regexp>
+```
+
+For example,
+```console
 $ nix search .#t1 asm
 * legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.fpsmoke
   Test case 'fpsmoke', written in assembly.
@@ -216,6 +218,7 @@ $ nix build .#t1.<config-name>.cases.all --max-jobs $(nproc)
 $ ls -al ./result
 ```
 
+> [!TIP]
 > All the `mk*Case` expression are defined in `./nix/t1/default.nix`.
 
 ### Bump Dependencies
