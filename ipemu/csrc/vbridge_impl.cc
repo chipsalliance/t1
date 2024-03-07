@@ -634,10 +634,10 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
 
   if(next_return != tl_req_record_of_bank[i].end()) {
     auto returned_resp = next_return->second.issue_tl_response(config.datapath_width_in_bytes);
-    d_valid = returned_resp.operator bool();
+    d_valid = returned_resp.has_value();
     if(d_valid) {
       auto &record = next_return->second;
-      auto [offset, len] = *returned_resp;
+      auto [offset, transfer_size] = *returned_resp;
       Log("ReturnTlResponse")
           .with("channel", i)
           .with("addr", fmt::format("{:08X}", record.addr))
@@ -648,7 +648,7 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
                     "{:02X}",
                     fmt::join(record.data.begin() + (long) offset,
                               record.data.begin() +
-                                  (long)(offset + len),
+                                  (long)(offset + transfer_size),
                               " ")))
           .with("offset", offset)
           .with("lsu_idx", record.se->lsu_idx)
@@ -658,13 +658,11 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
                                    ? TlOpcode::AccessAckData
                                    : TlOpcode::AccessAck;
 
-      for (size_t ioffset = 0; ioffset < len; ioffset++) {
+      for (size_t ioffset = 0; ioffset < transfer_size; ioffset++) {
         // for GET request not aligned to data bus, put it to a correct byte
         // lane
-        size_t byte_lane_idx =
-            (record.addr & (config.datapath_width_in_bytes - 1)) + ioffset;
-        ((uint8_t *)tl_poke.d_bits_data)[byte_lane_idx] =
-            record.data[offset + ioffset];
+        size_t byte_lane_idx = (record.addr + ioffset) % config.datapath_width_in_bytes;
+        ((uint8_t *)tl_poke.d_bits_data)[byte_lane_idx] = record.data[offset + ioffset];
       }
 
       *tl_poke.d_bits_source = record.source;
