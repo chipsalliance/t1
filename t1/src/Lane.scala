@@ -4,14 +4,25 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
+import chisel3.experimental.hierarchy.{Definition, Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
+import chisel3.properties.{Class, ClassType, Path, Property}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lane._
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam, VRFProbe}
+
+@instantiable
+class LaneOM extends Class {
+  val vfuOMType: ClassType = Definition(new VFUOM).getClassType
+  @public
+  val vfus = IO(Output(Property[Seq[vfuOMType.Type]]()))
+  @public
+  val vfusIn = IO(Input(Property[Seq[vfuOMType.Type]]()))
+  vfus := vfusIn
+}
 
 class LaneSlotProbe extends Bundle {
   val stage0EnqueueReady: Bool = Bool()
@@ -159,6 +170,11 @@ case class LaneParameter(
   */
 @instantiable
 class Lane(val parameter: LaneParameter) extends Module with SerializableModule[LaneParameter] {
+  val omInstance: Instance[LaneOM] = Instantiate(new LaneOM)
+  val omType: ClassType = omInstance.toDefinition.getClassType
+  @public
+  val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
+  om := omInstance.getPropertyReference
 
   /** laneIndex is a IO constant for D/I and physical implementations. */
   @public
@@ -807,6 +823,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     executeOccupied,
     VFUNotClear
   )
+  omInstance.vfusIn := Property(vfus.map(_.om.as(Definition(new VFUOM).getClassType)))
 
   // It’s been a long time since I selected it. Need pipe
   val queueBeforeMaskWrite: Queue[VRFWriteRequest] =

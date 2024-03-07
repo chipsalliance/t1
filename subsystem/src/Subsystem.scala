@@ -4,7 +4,9 @@
 package org.chipsalliance.t1.subsystem
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Definition, Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModuleGenerator, UnlocatableSourceInfo}
+import chisel3.properties.Class.ClassDefinitionOps
 import chisel3.util.experimental.BitSet
 import chisel3.util.{BitPat, Counter}
 import freechips.rocketchip.devices.debug.DebugModuleKey
@@ -17,9 +19,24 @@ import freechips.rocketchip.tile.{FPUParams, MaxHartIdBits, XLen}
 import freechips.rocketchip.tilelink.{BroadcastFilter, HasTLBusParams, TLBusWrapper, TLBusWrapperConnection, TLBusWrapperInstantiationLike, TLBusWrapperTopology, TLEdge, TLFIFOFixer, TLFragmenter, TLInwardNode, TLManagerNode, TLOutwardNode, TLSlaveParameters, TLSlavePortParameters, TLWidthWidget, TLXbar}
 import freechips.rocketchip.util.Location
 import org.chipsalliance.cde.config._
-import org.chipsalliance.t1.rocketcore.{T1CrossingParams, T1TileAttachParams, T1TileParams}
+import org.chipsalliance.t1.rocketcore.{T1CrossingParams, T1Tile, T1TileAttachParams, T1TileParams}
 import org.chipsalliance.t1.rockettile.BuildT1
-import org.chipsalliance.t1.rtl.{T1, T1Parameter}
+import org.chipsalliance.t1.rtl.{T1, T1OM, T1Parameter}
+import chisel3.properties.{Class, ClassType, Path, Property}
+import chisel3.util.experimental.BoringUtils.bore
+
+
+/** The top OM we need to read. */
+@instantiable
+class T1SubsystemOM extends Class {
+  val t1OMType: ClassType = Instantiate.definition(new T1OM).getClassType
+  @public
+  val t1 = IO(Output(Property[t1OMType.Type]()))
+  @public
+  val t1In = IO(Input(Property[t1OMType.Type]()))
+  t1 := t1In
+  // TODO: add memory ranges, scalar core info, here.
+}
 
 // The Subsystem that T1 lives in.
 case object T1Subsystem extends HierarchicalLocation("T1Subsystem")
@@ -423,6 +440,14 @@ class T1Subsystem(implicit p: Parameters)
   }.unzip
 
   // IOs
+  val t1OM = InModuleBody {
+    val omInstance: Instance[T1SubsystemOM] = Instantiate(new T1SubsystemOM)
+    val omType: ClassType = omInstance.toDefinition.getClassType
+    val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
+    om := omInstance.getPropertyReference
+    omInstance.t1In := bore(totalTiles.head._2.asInstanceOf[T1Tile].t1.map(_.om).get)
+    om
+  }
   val scalarPort = InModuleBody { scalarMemoryNode.makeIOs() }
   val mmioPort = InModuleBody { mmioNode.makeIOs() }
   val vectorPorts = InModuleBody {
