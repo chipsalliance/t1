@@ -160,7 +160,7 @@ case class T1Parameter(
   val sizeWidth: Int = log2Ceil(log2Ceil(lsuTransposeSize))
 
   /** for TileLink `mask` element. */
-  val maskWidth: Int = memoryDataWidthBytes / 8
+  val maskWidth: Int = lsuBankParameters.head.beatbyte
 
   // todo
   val vrfReadLatency = 1
