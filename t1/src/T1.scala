@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.core.{Definition, Instance}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode._
@@ -11,7 +12,9 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDPar
 import chisel3.probe.Probe
 import chisel3.probe.ProbeValue
 import chisel3.probe.define
+import chisel3.properties.{ClassType, Path, Property}
 import chisel3.util.experimental.BitSet
+import chisel3.util.experimental.BoringUtils.bore
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam}
@@ -62,6 +65,15 @@ case class T1Parameter(
   // TODO: simplify it. this is user-level API.
   vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
+  /** only allowed to instanitate during elaboration. */
+  lazy val omDef = Definition(new org.chipsalliance.t1.om.T1(this))
+  def instantiateOM(t1: T1) = {
+    val omInst = Instance(omDef)
+    omInst.retimesIn := Property(t1.laneVec.flatMap(_.vfuInstances))
+    val output = IO(Output(omDef.getPropertyType))
+    output := omInst.getPropertyReference
+    output
+  }
   require(extensions.forall(Seq("Zve32x", "Zve32f").contains), "unsupported extension.")
   /** xLen of T1, we currently only support 32. */
   val xLen: Int = 32
@@ -1622,4 +1634,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
     (sMaskUnitProbe, wLastProbe, isLastInstProbe)
   }
+
+  // setup OM.
+  val om = parameter.instantiateOM(this)
 }

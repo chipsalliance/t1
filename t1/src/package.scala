@@ -194,7 +194,7 @@ package object rtl {
     id.map(f => (shifterReg :+ source).map(p => Mux(p.valid, indexToOH(f(p.bits), 4), 0.U)).reduce(_ | _))
   }
 
-  def vfuConnect(parameter: VFUInstantiateParameter)(
+  def vfuInstantiate(parameter: VFUInstantiateParameter)(
     requestVec: Vec[SlotRequestToVFU],
     requestValid: Vec[Bool],
     decodeResult: Seq[DecodeBundle],
@@ -202,7 +202,7 @@ package object rtl {
     responseVec: Vec[ValidIO[VFUResponseToSlot]],
     executeOccupied: Vec[Bool],
     VFUNotClear: Bool
-  ): Unit = {
+  ): Seq[VFUModule] = {
 
     // 声明 vfu 的入口
     val requestVecFromSlot: Seq[SlotExecuteRequest[SlotRequestToVFU]] = Seq.tabulate(parameter.slotCount) { index =>
@@ -228,8 +228,9 @@ package object rtl {
     }
 
     val vrfIsBusy = Wire(Vec(parameter.genVec.size, Bool()))
+
     // 处理vfu
-    val vfuResponse: Seq[ValidIO[VFUResponseToSlot]] = parameter.genVec.zipWithIndex.map { case ((gen, slotVec), vfuIndex) =>
+    val vfus = parameter.genVec.zipWithIndex.map { case ((gen, slotVec), vfuIndex) =>
       // vfu 模块
       val vfu = Module(gen.module()).suggestName(gen.parameter.decodeField.name)
       // vfu request distributor
@@ -292,13 +293,17 @@ package object rtl {
       }
       executeOccupied(vfuIndex) := vfu.requestIO.fire
       VFUNotClear := vrfIsBusy.asUInt.orR
-      if (gen.parameter.NeedSplit) {
+
+      (vfu, if (gen.parameter.NeedSplit) {
         distributor.get.responseFromVfu := responseBundle
         distributor.get.responseToSlot
       } else {
         responseBundle
-      }
+      })
     }
+
+    val vfuInstances = vfus.map(_._1)
+    val vfuResponse = vfus.map(_._2)
 
     // 把response丢给slot
     responseVec.zipWithIndex.foreach{ case (data, slotIndex) =>
@@ -314,6 +319,7 @@ package object rtl {
       data.valid := selectResponse.valid && (selectResponse.bits.tag === slotIndex.U)
       data.bits := selectResponse.bits
     }
+    vfuInstances
   }
 
 }

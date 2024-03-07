@@ -37,7 +37,6 @@ case class LaneParameter(
                           vrfRamType:                       RamType,
                           vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
-
   /** 1 in MSB for instruction order. */
   val instructionIndexBits: Int = log2Ceil(chainingSize) + 1
 
@@ -131,7 +130,6 @@ case class LaneParameter(
   * - datapath units: [[MaskedLogic]], [[LaneAdder]], [[LaneShifter]], [[LaneMul]], [[LaneDiv]], [[OtherUnit]]
   */
 class Lane(val parameter: LaneParameter) extends Module with SerializableModule[LaneParameter] {
-
   /** laneIndex is a IO constant for D/I and physical implementations. */
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
   // constant parameter for physical implementations.
@@ -405,7 +403,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   ))
 
   val maskedWriteUnit: MaskedWrite = Module(new MaskedWrite(parameter))
-  val slotProbes = slotControl.zipWithIndex.map {
+  val slots = slotControl.zipWithIndex.map {
     case (record, index) =>
       val decodeResult: DecodeBundle = record.laneRequest.decodeResult
       val isLastSlot: Boolean = index == 0
@@ -731,7 +729,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
       define(probe.stage3VrfWriteReady, ProbeValue(stage3.vrfWriteRequest.ready))
       define(probe.stage3VrfWriteValid, ProbeValue(stage3.vrfWriteRequest.valid))
-      probe
+      (executionUnit, probe)
   }
 
 
@@ -757,19 +755,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // VFU
   // TODO: reuse logic, adder, multiplier datapath
-  {
-    val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
+  val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
 
-    vfuConnect(parameter.vfuInstantiateParameter)(
-      requestVec,
-      executeEnqueueValid,
-      decodeResultVec,
-      executeEnqueueFire,
-      responseVec,
-      executeOccupied,
-      VFUNotClear
-    )
-  }
+  val vfuInstances: Seq[VFUModule] = vfuInstantiate(parameter.vfuInstantiateParameter)(
+    requestVec,
+    executeEnqueueValid,
+    decodeResultVec,
+    executeEnqueueFire,
+    responseVec,
+    executeOccupied,
+    VFUNotClear
+  )
 
   // 处理 rf
   {
