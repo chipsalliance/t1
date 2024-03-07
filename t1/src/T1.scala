@@ -131,7 +131,7 @@ case class T1Parameter(
 
   require(lsuBankParameters.map(_.beatbyte).toSet.size == 1, "The width is temporarily unified")
   /** Used in memory bundle parameter. */
-  val memoryDataWidth: Int = lsuBankParameters.head.beatbyte
+  val memoryDataWidthBytes: Int = lsuBankParameters.head.beatbyte
 
   /** LSU MSHR Size, from experience, we use 3 for 2R1W，this is also limited by the number of memory ports.
     * TODO: in vector design, there are some instructions which have 3R1W, this may decrease performance. we need perf it.
@@ -160,7 +160,7 @@ case class T1Parameter(
   val sizeWidth: Int = log2Ceil(log2Ceil(lsuTransposeSize))
 
   /** for TileLink `mask` element. */
-  val maskWidth: Int = memoryDataWidth / 8
+  val maskWidth: Int = memoryDataWidthBytes / 8
 
   // todo
   val vrfReadLatency = 1
@@ -171,10 +171,10 @@ case class T1Parameter(
 
   /** parameter for TileLink. */
   val tlParam: TLBundleParameter = TLBundleParameter(
-    a = TLChannelAParameter(physicalAddressWidth, sourceWidth, memoryDataWidth, sizeWidth, maskWidth),
+    a = TLChannelAParameter(physicalAddressWidth, sourceWidth, memoryDataWidthBytes * 8, sizeWidth, maskWidth),
     b = None,
     c = None,
-    d = TLChannelDParameter(sourceWidth, sourceWidth, memoryDataWidth, sizeWidth),
+    d = TLChannelDParameter(sourceWidth, sourceWidth, memoryDataWidthBytes * 8, sizeWidth),
     e = None
   )
 
