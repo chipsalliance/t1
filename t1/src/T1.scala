@@ -1183,12 +1183,12 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
           decodeResultReg(Decoder.maskDestination) ||
           decodeResultReg(Decoder.ffo)
       // How many data path(32 bit) will used by maskDestination instruction.
-      val maskDestinationUseDataPathSize = (csrRegForMaskUnit.vl << csrRegForMaskUnit.vSew >> 2).asUInt
-      val dataPathSizeForThisGroup = maskDestinationUseDataPathSize(log2Ceil(parameter.laneNumber) + 2, 0)
-      val lastGroupCountForThisGroup: UInt = dataPathSizeForThisGroup(log2Ceil(parameter.laneNumber) - 1, 0)
+      val maskDestinationUseDataPathSize =
+        (csrRegForMaskUnit.vl(log2Ceil(parameter.dLen) - 1, 0) << csrRegForMaskUnit.vSew >> 2).asUInt
+      val lastGroupCountForThisGroup: UInt = maskDestinationUseDataPathSize(log2Ceil(parameter.laneNumber) - 1, 0)
       val counterForMaskDestination: UInt = if(parameter.laneNumber > 1) {
         (lastGroupCountForThisGroup - 1.U) |
-          Fill(log2Ceil(parameter.laneNumber), (dataPathSizeForThisGroup >> log2Ceil(parameter.laneNumber)).asUInt.orR)
+          Fill(log2Ceil(parameter.laneNumber), (maskDestinationUseDataPathSize >> log2Ceil(parameter.laneNumber)).asUInt.orR)
       } else 0.U
 
       val waitSourceDataCounter =
