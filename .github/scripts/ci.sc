@@ -83,15 +83,8 @@ def toMatrixJson(buckets: Seq[String]) =
 def generateCiMatrix(
     runnersAmount: Int,
 ) = {
-  val defaultCases = os.pwd / os.RelPath(".github/cases/default.txt")
-  println(toMatrixJson(
-    scheduleTasks(
-      os.read
-        .lines(defaultCases)
-        .map(defaultCases / os.up / os.RelPath(_)),
-      runnersAmount
-    ),
-  ))
+  val testPlans = os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+  println(toMatrixJson(scheduleTasks(testPlans, runnersAmount)))
 }
 
 // Resolve all the executable test and filter out unpassed tests, appending perf testcases
@@ -99,10 +92,9 @@ def generateCiMatrix(
 def postPrMatrixJson(
   runnersAmount: Int,
 ) = {
-  val defaultCases = os.pwd / os.RelPath(".github/cases/default.txt")
-  val caseFiles = os.read.lines(defaultCases).map(os.RelPath(_))
-  val postPrCases = caseFiles.flatMap(caseFilePath => {
-    val ipCfg = caseFilePath.segments.head
+  val testPlans = os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+  val postPrCases = testPlans.flatMap(caseFilePath => {
+    val ipCfg = caseFilePath.segments.dropWhile(_ != "cases").drop(1).head
     val searchCmdline = Seq("nix", "search", s".#t1.$ipCfg", raw"\.cases\.", "--json", "--option", "allow-import-from-derivation", "true")
     println(s"Searching cases with cmd: $searchCmdline")
     val searchOutput = os.proc(searchCmdline).call(cwd=os.pwd).out.trim
@@ -113,8 +105,10 @@ def postPrMatrixJson(
         val caseName = caseAttr.split(raw"\.").dropWhile(_ != "cases").drop(1).mkString(".")
         s"$ipCfg,$caseName"
       })
-    val existCases = ujson.read(os.read(defaultCases / os.up / caseFilePath)).obj.keys
-      .map(caseName => s"$ipCfg,$caseName")
+    val existCases = ujson.read(os.read(caseFilePath)).obj.keys.map(caseName => s"$ipCfg,$caseName")
+
+    import scala.util.chaining._
+    val perfCaseFile = caseFilePath.segments.toSeq.dropRight(1).mkString("/").pipe(x => os.Path(x, os.root))
     val perfCases = os.walk(defaultCases / os.up / ipCfg)
       .filter(f => f.last == "perf-cases.txt")
       .flatMap(f => {
