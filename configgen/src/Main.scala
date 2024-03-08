@@ -27,7 +27,7 @@ object Main {
     @arg(name = "project-dir", short = 't') projectDir: os.Path = os.pwd
   ): Unit = {
     val declaredMethods =
-      Main.getClass().getDeclaredMethods().filter(m => m.getParameters().mkString.contains("os.Path targetDir"))
+      Main.getClass().getDeclaredMethods().filter(m => m.getParameterTypes().mkString(", ") == "class os.Path, boolean")
 
     import scala.io.AnsiColor._
 
