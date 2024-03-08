@@ -243,12 +243,27 @@ trait Subsystem
   def chiselIvy = None
 }
 
+object panamaconverter extends PanamaConverter
+
+trait PanamaConverter
+  extends millbuild.dependencies.chisel.build.PanamaConverter {
+  def crossValue = v.scala
+
+  override def millSourcePath = os.pwd / "dependencies" / "chisel" / "panamaconverter"
+
+  def scalaVersion = T(v.scala)
+}
+
 // Module to generate RTL from json config
 object elaborator extends Elaborator
 
 trait Elaborator
   extends millbuild.common.ElaboratorModule {
   def scalaVersion = T(v.scala)
+
+  def panamaconverterModule = panamaconverter
+
+  def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
 
   def generators = Seq(
     t1,
