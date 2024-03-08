@@ -1,4 +1,0 @@
-squirtle/default.json
-blastoise/default.json
-mankey/default.json
-primeape/default.json
