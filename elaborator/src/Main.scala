@@ -5,6 +5,7 @@ package org.chipsalliance.t1.elaborator
 
 import mainargs._
 import org.chipsalliance.t1.rtl.T1Parameter
+import chisel3.panamalib.option._
 
 object Main {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
@@ -14,22 +15,33 @@ object Main {
 
   @main
   case class ElaborateConfig(
-    @arg(name = "target-dir", short = 't') targetDir: os.Path) {
+    @arg(name = "target-dir", short = 't') targetDir: os.Path,
+    @arg(name = "binder-mlirbc-out") binderMlirbcOut: Option[String] = None) {
     def elaborate(gen: () => chisel3.RawModule): Unit = {
-      var topName: String = null
+      var fir:                  firrtl.ir.Circuit = null
+      var panamaCIRCTConverter: chisel3.panamaconverter.PanamaCIRCTConverter = null
+
       val annos = Seq(
         new chisel3.stage.phases.Elaborate,
-        new chisel3.stage.phases.Convert
+        if (binderMlirbcOut.isEmpty) new chisel3.stage.phases.Convert else chisel3.panamaconverter.stage.Convert
       ).foldLeft(
         Seq(
-          chisel3.stage.ChiselGeneratorAnnotation(gen)
+          chisel3.stage.ChiselGeneratorAnnotation(gen),
+          chisel3.panamaconverter.stage.FirtoolOptionsAnnotation(FirtoolOptions(Set(
+            BuildMode(BuildModeDebug),
+            PreserveValues(PreserveValuesModeNamed),
+            DisableUnknownAnnotations(true)
+          ))),
         ): firrtl.AnnotationSeq
       ) { case (annos, stage) => stage.transform(annos) }
         .flatMap {
           case firrtl.stage.FirrtlCircuitAnnotation(circuit) =>
-            topName = circuit.main
-            os.write(targetDir / s"$topName.fir", circuit.serialize)
+            if (binderMlirbcOut.isEmpty) fir = circuit
             None
+          case chisel3.panamaconverter.stage.PanamaCIRCTConverterAnnotation(converter) =>
+            if (binderMlirbcOut.nonEmpty) panamaCIRCTConverter = converter
+            None
+          case _: chisel3.panamaconverter.stage.FirtoolOptionsAnnotation  => None
           case _: chisel3.stage.DesignAnnotation[_]                       => None
           case _: chisel3.stage.ChiselCircuitAnnotation                   => None
           case _: freechips.rocketchip.util.ParamsAnnotation              => None
@@ -39,7 +51,14 @@ object Main {
           case _: freechips.rocketchip.util.SRAMAnnotation                => None
           case a => Some(a)
         }
-      os.write(targetDir / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
+
+      binderMlirbcOut match {
+        case Some(outFile) =>
+          os.write(targetDir / s"$outFile.mlirbc", panamaCIRCTConverter.mlirBytecodeStream)
+        case None =>
+          os.write(targetDir / s"${fir.main}.fir", fir.serialize)
+          os.write(targetDir / s"${fir.main}.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
+      }
     }
   }
 
