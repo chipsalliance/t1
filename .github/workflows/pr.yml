@@ -35,6 +35,10 @@ jobs:
       - name: "Build verilator emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.ip.emu' -L --no-link --cores 64
+      - name: "Build all testcases"
+        run: |
+          # Build testcases with vlen 1024 and vlen 4096
+          nix build ".#t1.${{ matrix.config }}.cases.all" --max-jobs auto -L --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
@@ -51,11 +55,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: "Build all testcases"
-        run: |
-          # Build testcases with vlen 1024 and vlen 4096
-          nix build ".#t1.squirtle.cases.all" --max-jobs auto -L --no-link --cores 64
-          nix build ".#t1.magnemite.cases.all" --max-jobs auto -L --no-link --cores 64
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
