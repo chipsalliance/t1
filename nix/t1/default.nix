@@ -8,7 +8,7 @@
 }:
 
 let
-  allConfigs = builtins.fromJSON (builtins.readFile ../../configgen/all-configs.json);
+  allConfigs = (builtins.fromJSON (builtins.readFile ../../configgen/all-configs.json)).configs;
 in
 
 lib.makeScope newScope

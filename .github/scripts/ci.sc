@@ -307,3 +307,12 @@ def mergeCycleData() = {
   }
   println("Cycle data updated")
 }
+
+@main
+def generateTestPlan() = {
+  val allCases = os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+  val testPlans = allCases.map(caseFilePath => {
+    caseFilePath.segments.dropWhile(_ != "cases").drop(1).next
+  })
+  println(ujson.write(Map("config" -> testPlans)))
+}

@@ -9,16 +9,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gen-test-plan:
+    name: "Generate test plan"
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      testplan: ${{ steps.get-all-configs.outputs.out }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: "get-all-configs"
+        run: echo "out=$(nix run '.#ammonite' -- ./.github/scripts/ci.sc generateTestPlan)" > $GITHUB_OUTPUT
+
   build-emulators:
     name: "Build Emulators"
+    needs: [gen-test-plan]
     runs-on: [self-hosted, linux, nixos]
     strategy:
-      matrix:
-        config:
-          - squirtle
-          - blastoise
-          - mankey
-          - primeape
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,15 +64,11 @@ jobs:
 
   build-trace-emulators:
     name: "Build trace emulator"
+    needs: [gen-test-plan]
     runs-on: [self-hosted, linux, nixos]
     strategy:
       fail-fast: false
-      matrix:
-        config:
-          - squirtle
-          - blastoise
-          - mankey
-          - primeape
+      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -82,9 +87,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Test elaborate"
         run: |
-          configStr=$(nix run '.#t1.configgen' -- listConfigs)
-          declare -a failed_rtl_configs
-          IFS=',' read -ra configArray <<< "$configStr"
+          configArray=( $(jq -r '.configs[]' configgen/all-configs.json) )
           for cfg in "${configArray[@]}"; do
             echo "Building .#t1.${cfg}.ip.rtl"
             if ! nix build ".#t1.${cfg}.ip.rtl" -L; then
