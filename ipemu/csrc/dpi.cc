@@ -138,6 +138,14 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
   })
 }
 
+[[maybe_unused]] void peek_write_queue(const svBitVecVal *mshrIdx, svLogic writeValid,
+                                       const svBitVecVal *data_vd, svLogic data_offset,
+                                       const svBitVecVal *data_mask, const svBitVecVal *data_data,
+                                       const svBitVecVal *data_instructionIndex, const svBitVecVal *targetLane) {
+  svBitVecVal offset = (svBitVecVal)data_offset;
+  return peek_write_queue(mshrIdx, writeValid, data_vd, &offset, data_mask, data_data, data_instructionIndex, targetLane);
+}
+
 [[maybe_unused]] void peek_vrf_write(const svBitVecVal *lane_idx, svBit valid,
                                      const svBitVecVal *request_vd,
                                      const svBitVecVal *request_offset,
@@ -149,6 +157,17 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
         VrfWritePeek{*lane_idx, valid, *request_vd, *request_offset,
                      *request_mask, *request_data, *request_instIndex});
   })
+}
+
+// When offset == 1, verilator might generate DPI function with uint8_t offset
+[[maybe_unused]] void peek_vrf_write(const svBitVecVal *laneIdx, svLogic valid,
+                                     const svBitVecVal *request_vd,
+                                     svLogic request_offset,
+                                     const svBitVecVal *request_mask,
+                                     const svBitVecVal *request_data,
+                                     const svBitVecVal *request_instructionIndex) {
+  svBitVecVal offset = (svBitVecVal) request_offset;
+  return peek_vrf_write(laneIdx, valid, request_vd, &offset, request_mask, request_data, request_instructionIndex);
 }
 
 [[maybe_unused]] void timeout_check() {
