@@ -45,7 +45,7 @@ class MSHRStage0Bundle(param: MSHRParam) extends Bundle {
   // 读的相关
   val readVS: UInt = UInt(param.regNumBits.W)
   // 访问寄存器的 offset, 代表第几个32bit
-  val offsetForVSInLane: UInt = UInt(param.vrfOffsetBits.W)
+  val offsetForVSInLane: Option[UInt] = Option.when(param.vrfOffsetBits > 0)(UInt(param.vrfOffsetBits.W))
 
   // 由于 stride 需要乘, 其他的类型也有相应的 offset, 所以我们先把 offset 算出来
   val addressOffset: UInt = UInt(param.paWidth.W)

@@ -114,7 +114,7 @@ Currently under tested configs:
 
 | Config name   | Short summary                                                        |
 |---------------|----------------------------------------------------------------------|
-| **Blastoise** | `DLEN256 VLEN256;   FP; VRF p0rw,p1rw bank1; LSU bank8  beatbyte 8`  |
+| **Blastoise** | `DLEN256 VLEN512;   FP; VRF p0rw,p1rw bank1; LSU bank8  beatbyte 8`  |
 | **Machamp**   | `DLEN512 VLEN1K ; NOFP; VRF p0r,p1w   bank2; LSU bank8  beatbyte 16` |
 | **Sandslash** | `DLEN1K  VLEN4K ; NOFP; VRF p0rw      bank4; LSU bank16 beatbyte 16` |
 | **Alakazam**  | `DLEN2K  VLEN16K; NOFP; VRF p0rw      bank8; LSU bank8  beatbyte 64` |

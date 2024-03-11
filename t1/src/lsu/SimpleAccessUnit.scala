@@ -754,12 +754,14 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
         // VLEN=1024,datapath=32,laneNumber=8 -> 7
         log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits
       )
-  s0Wire.offsetForVSInLane := storeBaseByteOffset(
-    // VLEN=1024,datapath=32,laneNumber=8 -> 6
-    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits - 1,
-    // VLEN=1024,datapath=32,laneNumber=8 -> 5
-    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber)
-  )
+  s0Wire.offsetForVSInLane.foreach {
+    _ := storeBaseByteOffset(
+      // VLEN=1024,datapath=32,laneNumber=8 -> 6
+      log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits - 1,
+      // VLEN=1024,datapath=32,laneNumber=8 -> 5
+      log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber)
+    )
+  }
   s0Wire.addressOffset := baseOffsetForElement + (elementByteWidth * segmentIndex)
   s0Wire.indexInGroup := nextElementForMemoryRequestIndex
   s0Wire.segmentIndex := segmentIndex
@@ -776,7 +778,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   // TODO: perf `lsuRequestReg.instructionInformation.isStore && vrfReadDataPorts.ready` to check the VRF bandwidth
   //       limitation affecting to LSU store.
   vrfReadDataPorts.valid := s0Valid && lsuRequestReg.instructionInformation.isStore && s1EnqueueReady
-  vrfReadDataPorts.bits.offset := s0Reg.offsetForVSInLane
+  vrfReadDataPorts.bits.offset := s0Reg.offsetForVSInLane.getOrElse(DontCare)
   vrfReadDataPorts.bits.vs := s0Reg.readVS
   vrfReadDataPorts.bits.readSource := 2.U
   vrfReadDataPorts.bits.instructionIndex := lsuRequestReg.instructionIndex
@@ -925,12 +927,15 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
         // VLEN=1024,datapath=32,laneNumber=8 -> 7
         log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits
       )
-  vrfWritePort.bits.offset := loadBaseByteOffset(
-    // VLEN=1024,datapath=32,laneNumber=8 -> 6
-    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits - 1,
-    // VLEN=1024,datapath=32,laneNumber=8 -> 5
-    log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber)
-  )
+  val writeOffset: UInt = if (param.vrfOffsetBits > 0) {
+    loadBaseByteOffset(
+      // VLEN=1024,datapath=32,laneNumber=8 -> 6
+      log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber) + param.vrfOffsetBits - 1,
+      // VLEN=1024,datapath=32,laneNumber=8 -> 5
+      log2Ceil(param.datapathWidth / 8) + log2Ceil(param.laneNumber)
+    )
+  } else 0.U
+  vrfWritePort.bits.offset := writeOffset
 
   // update [[outstandingTLDMessages]]
   when((tlPort.d.fire || tlPort.a.fire) && !lsuRequestReg.instructionInformation.isStore) {
