@@ -33,7 +33,7 @@ object LSUBankParameter{
 
   implicit def rwP: upickle.default.ReadWriter[LSUBankParameter] = upickle.default.macroRW
 }
-case class LSUBankParameter(region: BitSet, beatbyte: Int, supportMMU: Boolean)
+case class LSUBankParameter(name: String, region: BitSet, beatbyte: Int, accessScalar: Boolean)
 
 /**
   * @param xLen XLEN
@@ -61,7 +61,6 @@ case class T1Parameter(
   extensions:              Seq[String],
   // LSU
   lsuBankParameters:       Seq[LSUBankParameter],
-  lsuDontTouchRegion:      BitSet,
   // Lane
   vrfBankSize:             Int,
   vrfRamType:              RamType,
@@ -82,7 +81,7 @@ case class T1Parameter(
       }}
        |LSU:
        |${lsuBankParameters.zipWithIndex.map{case (lsuP, idx) =>
-      s"""BANK${idx}W${lsuP.beatbyte * 8}b ${if(lsuP.supportMMU) "can" else "can't"} access scalar memory
+      s"""BANK${idx}W${lsuP.beatbyte * 8}b ${if(lsuP.accessScalar) "can" else "can't"} access scalar memory
          |  ${lsuP.region.terms.map(_.rawString).mkString("\n  ")}
          |""".stripMargin}}
        |""".stripMargin

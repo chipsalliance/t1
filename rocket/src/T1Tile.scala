@@ -48,7 +48,7 @@ case class T1TileAttachParams(
       case _: RationalCrossing => domain.clockNode := tlBusToGetClockDriverFrom.clockNode
       case _: AsynchronousCrossing =>
         val tileClockGroup = ClockGroup()
-        tileClockGroup := context.allClockGroupsNode
+        // tileClockGroup ???
         domain.clockNode := tileClockGroup
     }
 
