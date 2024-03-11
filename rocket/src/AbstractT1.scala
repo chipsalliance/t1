@@ -127,7 +127,7 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
   def uarchName:       String
   def t1LSUParameters: T1LSUParameter
 
-  def bitsetToAddressSet(bitset: BitSet): Seq[AddressSet] = bitset.terms.map(bp => AddressSet(bp.value, bp.mask ^ ((1 << bp.width) - 1))).toSeq
+  def bitsetToAddressSet(bitset: BitSet): Seq[AddressSet] = bitset.terms.map(bp => AddressSet(bp.value, bp.mask ^ ((BigInt(1) << bp.width) - 1))).toSeq
 
   val t1LSUNode = TLClientNode(
     t1LSUParameters.banks.zipWithIndex.map {
