@@ -94,7 +94,7 @@ def postPrMatrixJson(
 ) = {
   val testPlans = os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
   val postPrCases = testPlans.flatMap(caseFilePath => {
-    val ipCfg = caseFilePath.segments.dropWhile(_ != "cases").drop(1).head
+    val ipCfg = caseFilePath.segments.dropWhile(_ != "cases").drop(1).next
     val searchCmdline = Seq("nix", "search", s".#t1.$ipCfg", raw"\.cases\.", "--json", "--option", "allow-import-from-derivation", "true")
     println(s"Searching cases with cmd: $searchCmdline")
     val searchOutput = os.proc(searchCmdline).call(cwd=os.pwd).out.trim
@@ -109,7 +109,7 @@ def postPrMatrixJson(
 
     import scala.util.chaining._
     val perfCaseFile = caseFilePath.segments.toSeq.dropRight(1).mkString("/").pipe(x => os.Path(x, os.root))
-    val perfCases = os.walk(defaultCases / os.up / ipCfg)
+    val perfCases = os.walk(perfCaseFile)
       .filter(f => f.last == "perf-cases.txt")
       .flatMap(f => {
         os.read.lines(f).filter(_.length > 0).map (caseName =>
