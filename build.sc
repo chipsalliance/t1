@@ -21,6 +21,7 @@ object v {
   val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"
   val oslib = ivy"com.lihaoyi::os-lib:0.9.1"
   val upickle = ivy"com.lihaoyi::upickle:3.1.3"
+  val sourcecode = ivy"com.lihaoyi::sourcecode:0.3.1"
   val scalaReflect = ivy"org.scala-lang:scala-reflect:${scala}"
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
   val spire = ivy"org.typelevel::spire:latest.integration"
@@ -121,6 +122,7 @@ trait ConfigGen
 
 // SoC demostration, not the real dependencies for the vector project
 import $file.dependencies.`cde`.common
+import $file.dependencies.`diplomacy`.common
 import $file.dependencies.`rocket-chip`.common
 
 object cde extends CDE
@@ -130,6 +132,24 @@ trait CDE
   override def millSourcePath = os.pwd / "dependencies" / "cde" / "cde"
   def scalaVersion = T(v.scala)
 }
+
+object diplomacy extends Diplomacy
+
+trait Diplomacy
+    extends millbuild.dependencies.diplomacy.common.DiplomacyModule {
+  override def millSourcePath = os.pwd / "dependencies" / "diplomacy" / "diplomacy"
+  def scalaVersion = T(v.scala)
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselIvy = None
+  def chiselPluginIvy = None
+
+  def cdeModule = cde
+
+  def sourcecodeIvy = v.sourcecode
+}
+
 
 object rocketchip extends RocketChip
 
@@ -146,6 +166,7 @@ trait RocketChip
   def macrosModule = macros
   def hardfloatModule = hardfloat
   def cdeModule = cde
+  def diplomacyModule = diplomacy
   def mainargsIvy = v.mainargs
   def json4sJacksonIvy = v.json4sJackson
 }

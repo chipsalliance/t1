@@ -49,6 +49,18 @@
     };
     date = "2024-02-26";
   };
+  diplomacy = {
+    pname = "diplomacy";
+    version = "edf375300d99a4c260a214d7c1553de0040771d7";
+    src = fetchFromGitHub {
+      owner = "chipsalliance";
+      repo = "diplomacy";
+      rev = "edf375300d99a4c260a214d7c1553de0040771d7";
+      fetchSubmodules = false;
+      sha256 = "sha256-3WuzrzFaQnVsSEpQTBjO+Xy1z+ouH0TjKI1AS02/bhQ=";
+    };
+    date = "2024-03-11";
+  };
   riscv-opcodes = {
     pname = "riscv-opcodes";
     version = "61d2ef45dcb4a276a1e69643880cb75a9ca5ba79";
@@ -63,15 +75,15 @@
   };
   rocket-chip = {
     pname = "rocket-chip";
-    version = "2b8fa0ad90659caa4ff1a8c46c200893a4dac3b8";
+    version = "4fa4a8df81f0f058e50bfdcb36e32ade912eadb5";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "rocket-chip";
-      rev = "2b8fa0ad90659caa4ff1a8c46c200893a4dac3b8";
+      rev = "4fa4a8df81f0f058e50bfdcb36e32ade912eadb5";
       fetchSubmodules = false;
-      sha256 = "sha256-iTO407brdqpANs9vEB6X17VO5EB7szTuWXeCNEgwSPs=";
+      sha256 = "sha256-Dq3tSx4neQWs5aqEnR8Hc/kHVU9z2sBAcHUF35w8bPc=";
     };
-    date = "2024-02-27";
+    date = "2024-03-11";
   };
   rocket-chip-inclusive-cache = {
     pname = "rocket-chip-inclusive-cache";

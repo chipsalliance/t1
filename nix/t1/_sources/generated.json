@@ -79,6 +79,26 @@
         },
         "version": "344bdd636a36e6c3933cac527c61b5671d271534"
     },
+    "diplomacy": {
+        "cargoLocks": null,
+        "date": "2024-03-11",
+        "extract": null,
+        "name": "diplomacy",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "chipsalliance",
+            "repo": "diplomacy",
+            "rev": "edf375300d99a4c260a214d7c1553de0040771d7",
+            "sha256": "sha256-3WuzrzFaQnVsSEpQTBjO+Xy1z+ouH0TjKI1AS02/bhQ=",
+            "type": "github"
+        },
+        "version": "edf375300d99a4c260a214d7c1553de0040771d7"
+    },
     "riscv-opcodes": {
         "cargoLocks": null,
         "date": "2023-11-27",
@@ -101,7 +121,7 @@
     },
     "rocket-chip": {
         "cargoLocks": null,
-        "date": "2024-02-27",
+        "date": "2024-03-11",
         "extract": null,
         "name": "rocket-chip",
         "passthru": null,
@@ -113,11 +133,11 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "rocket-chip",
-            "rev": "2b8fa0ad90659caa4ff1a8c46c200893a4dac3b8",
-            "sha256": "sha256-iTO407brdqpANs9vEB6X17VO5EB7szTuWXeCNEgwSPs=",
+            "rev": "4fa4a8df81f0f058e50bfdcb36e32ade912eadb5",
+            "sha256": "sha256-Dq3tSx4neQWs5aqEnR8Hc/kHVU9z2sBAcHUF35w8bPc=",
             "type": "github"
         },
-        "version": "2b8fa0ad90659caa4ff1a8c46c200893a4dac3b8"
+        "version": "4fa4a8df81f0f058e50bfdcb36e32ade912eadb5"
     },
     "rocket-chip-inclusive-cache": {
         "cargoLocks": null,
