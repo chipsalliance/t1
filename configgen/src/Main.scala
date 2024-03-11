@@ -10,6 +10,7 @@ import mainargs._
 import org.chipsalliance.t1.rtl._
 import org.chipsalliance.t1.rtl.lsu.LSUInstantiateParameter
 import org.chipsalliance.t1.rtl.vrf.RamType
+import java.util.LinkedHashMap
 
 object Main {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
@@ -39,7 +40,7 @@ object Main {
 
     os.write.over(
       projectDir / "configgen" / "all-configs.json",
-      upickle.default.write(declaredMethods.map(_.getName()).sorted)
+      upickle.default.write(Map("configs" -> declaredMethods.map(_.getName()).sorted))
     )
   }
 
