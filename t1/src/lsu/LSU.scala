@@ -259,6 +259,14 @@ class LSU(param: LSUParameter) extends Module {
     q.io.deq.ready := p.ready
   }
 
+  val dataInMSHR: UInt =
+    Mux(loadUnit.status.idle, 0.U(param.chainingSize.W), indexToOH(loadUnit.status.instructionIndex, param.chainingSize)) |
+      Mux(
+        otherUnit.status.idle || otherUnit.status.isStore,
+        0.U(param.chainingSize.W),
+        indexToOH(otherUnit.status.instructionIndex, param.chainingSize)
+      )
+
   // Record whether there is data for the corresponding instruction in the queue
   writeQueueVec.zip(dataInWriteQueue).zipWithIndex.foreach {case ((q, p), queueIndex) =>
     val queueCount: Seq[UInt] = Seq.tabulate(param.chainingSize) { _ =>
@@ -273,7 +281,7 @@ class LSU(param: LSUParameter) extends Module {
         count := count + counterUpdate
       }
     }
-    p := VecInit(queueCount.map(_ =/= 0.U)).asUInt
+    p := VecInit(queueCount.map(_ =/= 0.U)).asUInt | dataInMSHR
     val dataTag = VecInit(Seq.tabulate(param.chainingSize) { _ =>
       RegInit(false.B)
     })

@@ -1013,6 +1013,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
     ) else 1.U
   }
   status.waitFirstResponse := waitFirstMemoryResponseForFaultOnlyFirst
+  status.isStore := lsuRequestReg.instructionInformation.isStore
   // which mask to request
   maskSelect.bits := nextGroupIndex
   status.startAddress := DontCare

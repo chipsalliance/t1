@@ -34,6 +34,9 @@ class SimpleAccessStatus(laneNumber: Int) extends LSUBaseStatus {
 
   /** wait for the fault for fault-only-first instruction. */
   val waitFirstResponse: Bool = Bool()
+
+  // current instruction will not write vrf
+  val isStore: Bool = Bool()
 }
 
 class StoreStatus(bankSize: Int) extends LSUBaseStatus {
