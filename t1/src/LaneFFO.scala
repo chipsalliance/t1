@@ -8,7 +8,7 @@ import chisel3.util._
 
 class LaneFFO(datapathWidth: Int) extends Module {
   // Seq(mask, data, destination)
-  val src:          Vec[UInt] = IO(Input(Vec(3, UInt(datapathWidth.W))))
+  val src:          Vec[UInt] = IO(Input(Vec(4, UInt(datapathWidth.W))))
   val resultSelect: UInt = IO(Input(UInt(2.W)))
   val resp:         ValidIO[UInt] = IO(Output(Valid(UInt(datapathWidth.W))))
   val complete:     Bool = IO(Input(Bool()))
@@ -62,6 +62,7 @@ class LaneFFO(datapathWidth: Int) extends Module {
     ),
     Seq(0.U, index, ro, OH, inc, -1.S.asUInt)
   )
-  val resultMask: UInt = Mux(maskType && !first, src.head, -1.S(datapathWidth.W).asUInt)
-  resp.bits := (ffoResult & resultMask) | (src.last & (~resultMask).asUInt)
+  val resultMask: UInt = Mux(maskType && !first, src.head, -1.S(datapathWidth.W).asUInt) &
+    Mux(first, -1.S(datapathWidth.W).asUInt, src.last)
+  resp.bits := (ffoResult & resultMask) | (src(2) & (~resultMask).asUInt)
 }

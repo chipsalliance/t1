@@ -62,7 +62,7 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with
   val isffo:            Bool = opcodeOH(3, 0).orR
   val originalOpcodeOH: UInt = opcodeOH(9, 4)
 
-  ffo.src := request.src.init
+  ffo.src := request.src
   ffo.resultSelect := request.opcode
   ffo.complete := request.complete
   ffo.maskType := request.maskType
