@@ -4,7 +4,7 @@
 package org.chipsalliance.t1.configgen
 
 import chisel3.experimental.SerializableModuleGenerator
-import chisel3.util.BitPat
+import chisel3.util.{BitPat, log2Ceil}
 import chisel3.util.experimental.BitSet
 import mainargs._
 import org.chipsalliance.t1.rtl._
@@ -49,9 +49,11 @@ object Main {
     @arg(name = "target-dir", short = 't') targetDir:             os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
+    val vLen = 512
+    val dLen = 256
     val param = T1Parameter(
-      vLen = 512,
-      dLen = 256,
+      vLen,
+      dLen,
       extensions = Seq("Zve32f"),
       lsuBankParameters =
         // scalar bank 0-1G
@@ -99,7 +101,12 @@ object Main {
         divfpModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 0)), Seq(0, 1, 2, 3))),
         otherModuleParameters =
-          Seq((SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))),
+          Seq((
+            SerializableModuleGenerator(
+              classOf[OtherUnit],
+              OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 0)
+            ),
+            Seq(0, 1, 2, 3))),
         floatModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3)))
       )
@@ -113,9 +120,11 @@ object Main {
     @arg(name = "target-dir", short = 't') targetDir:             os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
+    val vLen = 1024
+    val dLen = 512
     val param = T1Parameter(
-      vLen = 1024,
-      dLen = 512,
+      vLen,
+      dLen,
       extensions = Seq("Zve32x"),
       // banks=8 dLen=512 beatbyte16
       lsuBankParameters =
@@ -169,9 +178,13 @@ object Main {
           (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
         ),
         divfpModuleParameters = Seq(),
-        otherModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))
-        ),
+        otherModuleParameters =
+          Seq((
+            SerializableModuleGenerator(
+              classOf[OtherUnit],
+              OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 0)
+            ),
+            Seq(0, 1, 2, 3))),
         floatModuleParameters = Seq()
       )
     )
@@ -184,9 +197,11 @@ object Main {
     @arg(name = "target-dir", short = 't') targetDir:             os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
+    val vLen = 4096
+    val dLen = 1024
     val param = T1Parameter(
-      vLen = 4096,
-      dLen = 1024,
+      vLen,
+      dLen,
       extensions = Seq("Zve32x"),
       lsuBankParameters =
         // scalar bank 0-1G
@@ -242,9 +257,13 @@ object Main {
           (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
         ),
         divfpModuleParameters = Seq(),
-        otherModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))
-        ),
+        otherModuleParameters =
+          Seq((
+            SerializableModuleGenerator(
+              classOf[OtherUnit],
+              OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 0)
+            ),
+            Seq(0, 1, 2, 3))),
         floatModuleParameters = Seq()
       )
     )
@@ -257,9 +276,11 @@ object Main {
     @arg(name = "target-dir", short = 't') targetDir:             os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
+    val vLen = 16384
+    val dLen = 2048
     val param = T1Parameter(
-      vLen = 16384,
-      dLen = 2048,
+      vLen,
+      dLen,
       extensions = Seq("Zve32x"),
       // banks=8 dLen=2048
       lsuBankParameters =
@@ -308,9 +329,13 @@ object Main {
           (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
         ),
         divfpModuleParameters = Seq(),
-        otherModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[OtherUnit], OtherUnitParam(32, 11, 6, 3, 4, 0)), Seq(0, 1, 2, 3))
-        ),
+        otherModuleParameters =
+          Seq((
+            SerializableModuleGenerator(
+              classOf[OtherUnit],
+              OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 0)
+            ),
+            Seq(0, 1, 2, 3))),
         floatModuleParameters = Seq()
       )
     )
