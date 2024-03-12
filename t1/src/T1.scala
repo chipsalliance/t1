@@ -749,7 +749,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val lastExecuteForGroup = writeBackCounter.andR
       // 计算正写的这个lane是不是在边界上
       val endOH = UIntToOH(csrRegForMaskUnit.vl(parameter.dataPathWidthBits - 1, 0))
-      val border = lastExecute && dataPathMisaligned
+      val border = lastExecute && dataPathMisaligned && !(decodeResultReg(Decoder.compress))
       val lastGroupMask = scanRightOr(endOH(parameter.datapathWidth - 1, 1))
       val mvType = decodeResultReg(Decoder.mv)
       val readMv = mvType && decodeResultReg(Decoder.targetRd)
