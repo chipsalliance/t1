@@ -352,7 +352,7 @@ class LSU(param: LSUParameter) extends Module {
     loadUnit.tlPortD(index).bits := port.bits
     loadUnit.tlPortD(index).bits.source := port.bits.source >> 2
     port.ready := isAccessAck || Mux(responseForOther, !o && otherUnit.tlPort.d.ready, loadUnit.tlPortD(index).ready)
-    tlDFireForOther(index) := !o && responseForOther
+    tlDFireForOther(index) := !o && responseForOther && port.valid
     o || responseForOther
   }
   otherUnit.tlPort.d.valid := tlDFireForOther.asUInt.orR
