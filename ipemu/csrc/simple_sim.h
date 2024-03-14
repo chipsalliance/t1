@@ -30,7 +30,7 @@ public:
   // should return NULL for MMIO addresses
   char *addr_to_mem(reg_t addr) override {
     if (uart_addr <= addr && addr < uart_addr + sizeof(uartlite_regs)) {
-      return NULL;
+      return nullptr;
     }
     CHECK_LE(addr, mem_size,
              fmt::format("memory out of bound ({:016X} >= {:016X})", addr,

@@ -96,7 +96,9 @@ void SpikeEvent::log_arch_changes() {
   }
 
   for (auto mem_write : state->log_mem_write) {
-    uint64_t address = std::get<0>(mem_write);
+    // spike would sign-extend memory address to uint64_t, even in rv32, hence we should mask higher bits
+    uint64_t address = std::get<0>(mem_write) & 0xffffffff;
+
     uint64_t value = std::get<1>(mem_write);
     // Byte size_bytes
     uint8_t size_by_byte = std::get<2>(mem_write);
@@ -113,7 +115,9 @@ void SpikeEvent::log_arch_changes() {
   }
 
   for (auto mem_read : state->log_mem_read) {
-    uint64_t address = std::get<0>(mem_read);
+    // spike would sign-extend memory address to uint64_t, even in rv32, hence we should mask higher bits
+    uint64_t address = std::get<0>(mem_read) & 0xffffffff;
+
     // Byte size_bytes
     uint8_t size_by_byte = std::get<2>(mem_read);
     uint64_t value = 0;
