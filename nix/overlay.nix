@@ -25,7 +25,7 @@ in
 
   # some symbols in newlib libgloss uses ecall, which does not work in emulator
   # emurt provides hand-written implementations for these symbols
-  emurt = final.callPackage ./pkgs/emurt {
+  emurt = final.callPackage ../tests/emurt {
     stdenv = rv32_pkgs.stdenv;
     bintools = rv32_buildPkgs.bintools;
   };
