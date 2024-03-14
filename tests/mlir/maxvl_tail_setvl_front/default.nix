@@ -1,8 +1,8 @@
-{ testcase-env }:
-testcase-env.mkMlirCase {
+{ _caseBuilders }:
+_caseBuilders.mkMlirCase {
   caseName = "maxvl_tail_setvl_front";
   src = ./maxvl_tail_setvl_front.mlir;
   linkSrcs = [
-    ../main.S
+    ../../t1_main.S
   ];
 }

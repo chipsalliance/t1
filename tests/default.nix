@@ -1,4 +1,4 @@
-{ lib, runCommand, callPackage, testcase-env, xLen ? 32, vLen ? 1024 }:
+{ lib, runCommand, callPackage, _caseBuilders, xLen ? 32, vLen ? 1024 }:
 
 let
   /* Return true if the given path contains a file called "default.nix";
@@ -83,7 +83,7 @@ let
             (spec: nameValuePair
               # If we using `.` as key, nix command line will fail to parse our input
               (replaceStrings [ "." ] [ "_" ] spec.caseName)
-              (testcase-env.mkCodegenCase spec)
+              (_caseBuilders.mkCodegenCase spec)
             )
             buildSpec);
 

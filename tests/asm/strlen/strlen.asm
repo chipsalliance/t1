@@ -42,24 +42,27 @@ memset_loop:
     ret                              # Return from the function
 
 test:
+    addi sp, sp, -4
+    sw ra, 0(sp)
+
     # fill 0x1000000 with 0x55 x 4096 bytes
     # a0: void* dest, a1: int n, a2: size_t len
-    li a0, 0x1000000
+    lw a0, test_str_start
     li a1, 0x55
     li a2, 0x1000
     call memset
-    # fill 0x1001000 with 0x0 x 1 bytes
-    # a0: void* dest, a1: int n, a2: size_t len
-    li a0, 0x1001000
-    li a1, 0x0
-    li a2, 0x1
-    call memset
     # Call strlen to calculate the length of the string starting at memory address 0x1000000
     # a0: const char *str
-    li a0, 0x1000000
+    lw a0, test_str_start
     call strlen
-exit:
-    li a0, 0x90000000
-    li a1, -1
-    sw a1, 4(a0)
-    csrwi 0x7cc, 0
+
+    lw ra, 0(sp)
+    addi sp, sp, 4
+    ret
+
+.section .vbss, "aw", @nobits
+.balign 64
+test_str_start:
+    .zero 4096
+test_str_end:
+    .zero 1

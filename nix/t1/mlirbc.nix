@@ -4,7 +4,7 @@
 , espresso
 , circt
 
-, elaborate-config
+, elaborateConfigJson
 , elaborator
 , configName
 , target
@@ -18,7 +18,7 @@ let
   elaborateArgs = [
     "--ip-config"
     # Can't use `toString` here, or due to some shell escape issue, Java nio cannot find the path
-    "${elaborate-config}/config.json"
+    "${elaborateConfigJson}/config.json"
     "--target-dir"
     "elaborate"
   ];

@@ -4,9 +4,11 @@ _start:
     csrs mstatus, a0
     csrwi vcsr, 0
 
-    la sp, stack_end
+    la sp, __stacktop
 
+    // no ra to save
     call test
+
 exit:
     li a0, 0x90000000
     li a1, -1
@@ -14,7 +16,3 @@ exit:
     csrwi 0x7cc, 0
 
     .p2align 2
-stack_start:
-    .zero 128
-
-stack_end:

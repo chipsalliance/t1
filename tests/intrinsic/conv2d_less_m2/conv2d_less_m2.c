@@ -50,7 +50,7 @@ void conv2d(int32_t *restrict output, int32_t const *restrict img,
   }
 }
 
-int img[7][7] = {
+__attribute((section(".vdata"))) int img[7][7] = {
   {0, 1, 2, 3, 4, 5, 6},
   {7, 8, 9, 10, 11, 12, 13},
   {14, 15, 16, 17, 18, 19, 20},
@@ -60,13 +60,13 @@ int img[7][7] = {
   {42, 43, 44, 45, 46, 47, 48},
 };
 
-int kernel[3][3] = {
+__attribute((section(".vdata"))) int kernel[3][3] = {
   {1, 2, 3},
   {4, 5, 6},
   {7, 8, 9},
 };
 
-int output[5][5];
+__attribute((section(".vbss"))) int output[5][5];
 
 int test() {
   conv2d((int32_t*) output, (int32_t const*) img, (int32_t const*) kernel, 7, 7, 3);

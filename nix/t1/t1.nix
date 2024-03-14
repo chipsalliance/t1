@@ -16,7 +16,7 @@ let
   self = stdenv.mkDerivation rec {
     name = "t1";
 
-    src = (with lib.fileset; toSource {
+    src = with lib.fileset; toSource {
       root = ./../..;
       fileset = unions [
         ./../../build.sc
@@ -29,17 +29,17 @@ let
         ./../../elaborator
         ./../../configgen
       ];
-    }).outPath;
+    };
 
     passthru.millDeps = fetchMillDeps {
       inherit name;
-      src = (with lib.fileset; toSource {
+      src = with lib.fileset; toSource {
         root = ./../..;
         fileset = unions [
           ./../../build.sc
           ./../../common.sc
         ];
-      }).outPath;
+      };
       millDepsHash = "sha256-KYKD7TS34dxzkzJncx7fP1x+CEPw7Oc6h7lxwARIUF0=";
       nativeBuildInputs = [ submodules.setupHook ];
     };

@@ -13,12 +13,7 @@ add_test:
     vfadd.vf v1, v1, f0
     vfadd.vv v2, v1, v0
     vfmv.f.s f1, v2
-
-exit:
-    li a0, 0x90000000
-    li a1, -1
-    sw a1, 4(a0)
-    csrwi 0x7cc, 0
+    ret
 
 will_not_be_executed:
     vadd.vv v2, v1, v1
