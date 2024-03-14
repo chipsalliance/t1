@@ -3,6 +3,7 @@
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 #include <args.hxx>
+#include <utility>
 
 #include <disasm.h>
 #include <decode_macros.h>
@@ -88,14 +89,6 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr,
                               const VRespInterface &v_resp) {
   Log("DPIPokeInst").trace();
 
-  for (auto &se : to_rtl_queue) {
-    Log("DPIPokeInst")
-        .with("insn", se.jsonify_insn())
-        .with("is_issued", se.is_issued)
-        .with("issue_idx", se.issue_idx)
-        .trace();
-  }
-
   if (v_resp.valid) {
     Log("DPIPokeInst").info("prepare to commit");
 
@@ -133,10 +126,10 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr,
     // se_to_issue should not be issued
     CHECK_GT(to_rtl_queue.size(), 1, "to_rtl_queue are smaller than expected");
     if (se_to_issue->is_exit_insn) {
-      Log("DPIPokeInst").info("exit waiting for fence");
+      Log("DPIPokeInst").trace("exit waiting for fence");
     } else {
       Log("DPIPokeInst")
-          .info("waiting for fence, no issuing new instruction");
+          .trace("waiting for fence, no issuing new instruction");
     }
     *v_instr.valid = false;
   } else {
@@ -144,7 +137,7 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr,
         .with("inst", se_to_issue->jsonify_insn())
         .with("rs1", fmt::format("{:08X}", se_to_issue->rs1_bits))
         .with("rs2", fmt::format("{:08X}", se_to_issue->rs2_bits))
-        .info("poke instruction");
+        .trace("poke instruction");
     se_to_issue->drive_rtl_req(v_instr);
   }
   se_to_issue->drive_rtl_csr(v_csr);
@@ -166,7 +159,6 @@ void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
 //==================
 
 void VBridgeImpl::dpiPeekIssue(svBit ready, svBitVecVal issueIdx) {
-  Log("DPIPeekIssue").with("func", __func__).trace();
   if (ready && !(se_to_issue->is_vfence_insn || se_to_issue->is_exit_insn)) {
     se_to_issue->is_issued = true;
     se_to_issue->issue_idx = issueIdx;
@@ -280,7 +272,7 @@ static VBridgeImpl vbridgeImplFromArgs() {
     .datapath_width_in_bytes = beat_byte.Get(),
   };
 
-  return VBridgeImpl(cosim_config);
+  return VBridgeImpl { cosim_config };
 }
 
 cfg_t make_spike_cfg(const std::string &varch) {
@@ -302,8 +294,8 @@ cfg_t make_spike_cfg(const std::string &varch) {
   return cfg;
 }
 
-VBridgeImpl::VBridgeImpl(const Config cosim_config)
-    : config(cosim_config),
+VBridgeImpl::VBridgeImpl(Config cosim_config)
+    : config(std::move(cosim_config)),
       varch(fmt::format("vlen:{},elen:{}", config.vlen, config.elen)),
       sim(1l << 32), isa("rv32gcv", "M"),
       cfg(make_spike_cfg(varch)),
@@ -356,7 +348,16 @@ VBridgeImpl::VBridgeImpl(const Config cosim_config)
   }
 }
 
-uint64_t VBridgeImpl::get_t() { return getCycle(); }
+#ifdef COSIM_VERILATOR
+uint64_t VBridgeImpl::get_t() {
+  if (ctx) {
+    return ctx->time();
+  } else {  // before ctx is initialized
+    return 0;
+  }
+}
+void VBridgeImpl::getCoverage() { return ctx->coveragep()->write(); }
+#endif
 
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
@@ -385,7 +386,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
         .with("pc", fmt::format("{:08X}", pc))
         .with("bits", fmt::format("{:08X}", fetch.insn.bits()))
         .with("disasm", proc.get_disassembler()->disassemble(fetch.insn))
-        .trace();
+        .info();
     pc = fetch.func(&proc, fetch.insn, state->pc);
   }
 
@@ -460,6 +461,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
       break;
     }
   }
+
   CHECK(se != nullptr, fmt::format("[{}] cannot find SpikeEvent with lsu_idx={}",
                         get_t(), lsu_index));
   CHECK_EQ((base_addr & (size - 1)), 0,
