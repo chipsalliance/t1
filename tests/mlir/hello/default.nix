@@ -1,8 +1,8 @@
-{ testcase-env }:
-testcase-env.mkMlirCase {
+{ _caseBuilders }:
+_caseBuilders.mkMlirCase {
   caseName = "hello";
   src = ./hello.mlir;
   linkSrcs = [
-    ../main.S
+    ../../t1_main.S
   ];
 }

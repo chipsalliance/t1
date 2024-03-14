@@ -3,8 +3,8 @@
 # 1. add test to call memcpy
 # 2. add exit to finish simulation
 
-.data
-.align 1
+.section .vdata, "aw", @progbits
+.balign 64
 string:
 .string "这里是一段 UTF-8 编码的文字，用来测试 utf8_count 函数的 RVV 实现。"
 string_end:
@@ -32,6 +32,9 @@ utf8_count_loop:
     ret                              # Return from the function
 
 test:
+    addi sp, sp, -4
+    sw ra, 0(sp)
+
     la a1, string_end                # Load the address of the string end into a1
     la a0, string                    # Load the address of the string into a0
     sub a1, a1, a0                   # Subtract the start address from the end address to get the length
@@ -39,8 +42,8 @@ test:
     # Call the utf8_count function to count the number of UTF-8 characters in the string
     # a0: char const *str, a1: size_t len
     call utf8_count
-exit:
-    li a0, 0x90000000
-    li a1, -1
-    sw a1, 4(a0)
-    csrwi 0x7cc, 0
+
+    lw ra, 0(sp)
+    addi sp, sp, 4
+    ret
+

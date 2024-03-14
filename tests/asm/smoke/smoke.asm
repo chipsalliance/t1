@@ -27,11 +27,7 @@ loop:
     addi a2, a2, -1
     bnez a2, add_test
 
-exit:
-    li a0, 0x90000000
-    li a1, -1
-    sw a1, 4(a0)
-    csrwi 0x7cc, 0
+    ret
 
 will_not_be_executed:
     vadd.vv v2, v1, v1

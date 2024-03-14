@@ -1,6 +1,6 @@
-{ lib, jq, stdenv, rvv-codegen }:
+{ lib, jq, stdenv, rvv-codegen, linkerScript, elaborateConfigJson }:
 
-{ caseName, xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
+{ caseName, xLen ? 32, fp ? false, ... }@inputs:
 let
   caseNameEscaped = builtins.replaceStrings [ "." ] [ "_" ] caseName;
 in
@@ -9,7 +9,7 @@ stdenv.mkDerivation (rec {
 
   dontUnpack = true;
 
-  nativeBuildInputs = [ jq rvv-codegen ];
+  nativeBuildInputs = [ jq ];
 
   NIX_CFLAGS_COMPILE = [
     "-mabi=ilp32f"
@@ -20,17 +20,29 @@ stdenv.mkDerivation (rec {
     "-fvisibility=hidden"
     "-nostdlib"
     "-fno-PIC"
+    "-I${../../../tests/codegen/override_include}"
     "-I${rvv-codegen}/include"
+    "-T" "${linkerScript}"
   ];
+
+  configurePhase = ''
+    export vLen=$(jq < ${elaborateConfigJson} .parameter.dLen --exit-status)
+
+    if jq < ${elaborateConfigJson} -r .parameter.extensions[] --exit-status | grep "ve32"; then
+      export xLen=32
+    else
+      export xLen=64
+    fi
+  '';
 
   buildPhase = ''
     runHook preBuild
 
-    single \
-      -VLEN ${toString vLen} \
-      -XLEN ${toString xLen} \
-      -testfloat3level 2 \
+    ${rvv-codegen}/bin/single \
+      -VLEN "$vLen" \
+      -XLEN "$xLen" \
       -repeat 16 \
+      -testfloat3level 1 \
       -configfile ${rvv-codegen}/configs/${caseName}.toml \
       -outputfile ${caseNameEscaped}.S
 
@@ -48,8 +60,8 @@ stdenv.mkDerivation (rec {
     jq --null-input \
       --arg name ${caseNameEscaped} \
       --arg type intrinsic \
-      --argjson xLen ${toString xLen} \
-      --argjson vLen ${toString vLen} \
+      --argjson xLen "$xLen" \
+      --argjson vLen "$vLen" \
       --argjson fp ${lib.boolToString fp} \
       --arg elfPath "$out/bin/${name}.elf" \
       '{ "name": "${name}", "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \

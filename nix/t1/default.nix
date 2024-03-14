@@ -12,10 +12,9 @@ let
 in
 
 lib.makeScope newScope
-  (self:
-  rec {
+  (self: let
     _millOutput = self.callPackage ./t1.nix { };
-
+  in {
     inherit allConfigs;
 
     elaborator = _millOutput.elaborator // { meta.mainProgram = "elaborator"; };
@@ -26,13 +25,6 @@ lib.makeScope newScope
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
 
     rvv-codegen = self.callPackage ./testcases/rvv-codegen.nix { };
-    testcase-env = {
-      mkMlirCase = self.callPackage ./testcases/make-mlir-case.nix { stdenv = rv32-stdenv; };
-      mkIntrinsicCase = self.callPackage ./testcases/make-intrinsic-case.nix { stdenv = rv32-stdenv; };
-      mkAsmCase = self.callPackage ./testcases/make-asm-case.nix { stdenv = rv32-stdenv; };
-      mkCodegenCase = self.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
-    };
-    makeTestCase = { vLen }: self.callPackage ../../tests { inherit vLen; };
 
   } //
   lib.genAttrs allConfigs (configName:
@@ -43,15 +35,25 @@ lib.makeScope newScope
       # For package name concatenate
       inherit configName;
 
-      elaborate-config = runCommand "emit-${configName}-config" { } ''
-        mkdir -p $out
-        ${self.configgen}/bin/configgen ${lib.concatStrings (lib.splitString "-" configName)} -t $out
+      # TODO: avoid IFD
+      elaborateConfigJson = runCommand "${configName}-config.json" { } ''
+        ${self.configgen}/bin/configgen ${configName} -t .
+        mv config.json $out
       '';
 
-      _elaborateConfig = with builtins; fromJSON (readFile "${elaborate-config}/config.json");
+      _caseBuilders = {
+        mkMlirCase = innerSelf.callPackage ./testcases/make-mlir-case.nix { stdenv = rv32-stdenv; };
+        mkIntrinsicCase = innerSelf.callPackage ./testcases/make-intrinsic-case.nix { stdenv = rv32-stdenv; };
+        mkAsmCase = innerSelf.callPackage ./testcases/make-asm-case.nix { stdenv = rv32-stdenv; };
+        mkCodegenCase = innerSelf.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
+      };
 
-      cases = self.makeTestCase { inherit (_elaborateConfig.parameter) vLen; };
+      # Maybe dependent on config later
+      linkerScript = ../../tests/t1.ld;
 
+      cases = innerSelf.callPackage ../../tests { };
+
+      # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
       cases-x86 =
         if system == "x86-64-linux"
         then self.cases

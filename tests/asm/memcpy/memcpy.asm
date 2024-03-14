@@ -40,20 +40,30 @@ memset_loop:
     ret                              # Return from the function
 
 test:
+    addi sp, sp, -4
+    sw ra, 0(sp)
+
     # fill 0x1001000 with 0x55 x 4096 bytes
     # a0: void* dest, a1: int n, a2: size_t len
-    li a0, 0x1001000
+    lw a0, test_src_start
     li a1, 0x55
     li a2, 0x1000
     call memset
     # copy 0x1001000 to 0x1000000 with 4096 bytes
     # a0: void* dest, a1: void* src, a2: size_t n
-    li a0, 0x1000000
-    li a1, 0x1001000
+    lw a0, test_src_start
+    lw a1, test_dst_start
     li a2, 0x1000
     call memcpy
-exit:
-    li a0, 0x90000000
-    li a1, -1
-    sw a1, 4(a0)
-    csrwi 0x7cc, 0
+
+    lw ra, 0(sp)
+    addi sp, sp, 4
+    ret
+
+.section .vbss, "aw", @nobits
+.balign 64
+test_src_start:
+    .zero 4096
+test_dst_start:
+    .zero 4096
+

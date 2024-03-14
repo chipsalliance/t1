@@ -13,10 +13,10 @@
 test:
 
 # a0: uint32_t result, a1: uint32_t *a, a2: uint32_t *b, a3: uint32_t *p
-    li a0, 0x1000000
-    li a1, 0x1001000
-    li a2, 0x1002000
-    li a3, 0x1003000
+    lw a0, mmm_result
+    lw a1, mmm_a
+    lw a2, mmm_b
+    lw a3, mmm_p
 
 # for (int i = 0; i < 16; i++) a[i] = b[i] = p[i] = i;
     li      a4, 0
@@ -31,10 +31,10 @@ test:
     addi    a3, a3, 4
     bne     a4, a5, .LBB0_1
 
-    li a0, 0x1000000
-    li a1, 0x1001000
-    li a2, 0x1002000
-    li a3, 0x1003000
+    lw a0, mmm_result
+    lw a1, mmm_a
+    lw a2, mmm_b
+    lw a3, mmm_p
 
 # begin mmm main program
 
@@ -122,9 +122,16 @@ test:
     bne   t1,t0,1b
 
     vsseg2e32.v v20, (a0)
+    ret
 
-exit:
-    li a0, 0x90000000
-    li a1, -1
-    sw a1, 4(a0)
-    csrwi 0x7cc, 0
+.section .vdata, "aw", @progbits
+.balign 64
+mmm_result:
+    .zero 0x1000
+mmm_a:
+    .zero 0x1000
+mmm_b:
+    .zero 0x1000
+mmm_p:
+    .zero 0x1000
+

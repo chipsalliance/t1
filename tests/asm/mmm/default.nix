@@ -1,8 +1,8 @@
-{ testcase-env }:
-testcase-env.mkAsmCase {
+{ _caseBuilders }:
+_caseBuilders.mkAsmCase {
   caseName = "mmm";
   srcs = [
     ./mmm.asm
-    ../main.S
+    ../../t1_main.S
   ];
 }

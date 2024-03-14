@@ -3,9 +3,9 @@
 #include <riscv_vector.h>
 #define min(a,b) (int)((a) < (b) ? (a) : (b))
 
-int A[64];
-int B[64];
-int C[64];
+__attribute((section(".vbss"))) int A[64];
+__attribute((section(".vbss"))) int B[64];
+__attribute((section(".vbss"))) int C[64];
 
 void test() {
 
