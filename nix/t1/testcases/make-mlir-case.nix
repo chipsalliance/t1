@@ -1,5 +1,5 @@
 # TODO: testcase should come from OM.
-{ stdenv, lib, jq, buddy-mlir }:
+{ stdenv, lib, jq, buddy-mlir, linkerScript }:
 
 { caseName
 , linkSrcs ? [ ]
@@ -67,6 +67,7 @@ stdenv.mkDerivation
       "-fvisibility=hidden"
       "-nostdlib"
       "-fno-PIC"
+      "-T" "${linkerScript}"
     ];
 
     # Set final compile and link step at postBuild, so that user can easily override them
@@ -79,6 +80,7 @@ stdenv.mkDerivation
 
       mkdir -p $out/bin
       cp ${name}.elf $out/bin/
+      cp ${name}.S $out/bin
 
       set -x
       jq --null-input \

@@ -5,11 +5,11 @@
 #define PI (3.14159265358979f)
 
 #define ARRAY_ZIZE 1024
-float src_f32[ARRAY_ZIZE];
-float actual[ARRAY_ZIZE];
-float temp[ARRAY_ZIZE];
+__attribute((section(".vbss"))) float src_f32[ARRAY_ZIZE];
+__attribute((section(".vbss"))) float actual[ARRAY_ZIZE];
+__attribute((section(".vbss"))) float temp[ARRAY_ZIZE];
 
-float test_data[] = {
+__attribute((section(".vdata"))) float test_data[] = {
     -5.000000000000000000,   -4.990224828934506363,    -4.980449657869012725,
     -4.970674486803519088,   -4.960899315738025450,    -4.951124144672531813,
     -4.941348973607038175,   -4.931573802541544538,    -4.921798631476050900,

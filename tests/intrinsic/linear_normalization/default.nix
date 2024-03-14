@@ -1,8 +1,8 @@
-{ testcase-env }:
-testcase-env.mkIntrinsicCase {
+{ _caseBuilders }:
+_caseBuilders.mkIntrinsicCase {
   caseName = "linear_normalization";
   srcs = [
     ./linear_normalization.c
-    ../main.S
+    ../../t1_main.S
   ];
 }

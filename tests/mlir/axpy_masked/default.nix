@@ -1,8 +1,8 @@
-{ testcase-env }:
-testcase-env.mkMlirCase {
+{ _caseBuilders }:
+_caseBuilders.mkMlirCase {
   caseName = "axpy_masked";
   src = ./axpy_masked.mlir;
   linkSrcs = [
-    ../main.S
+    ../../t1_main.S
   ];
 }

@@ -1,8 +1,8 @@
-{ testcase-env }:
-testcase-env.mkIntrinsicCase {
+{ _caseBuilders }:
+_caseBuilders.mkIntrinsicCase {
   caseName = "conv2d_less_m2";
   srcs = [
     ./conv2d_less_m2.c
-    ../main.S
+    ../../t1_main.S
   ];
 }

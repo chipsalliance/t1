@@ -1,4 +1,4 @@
-{ stdenv, lib, jq }:
+{ stdenv, lib, jq, linkerScript }:
 
 { caseName, xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
 stdenv.mkDerivation (rec {
@@ -23,6 +23,7 @@ stdenv.mkDerivation (rec {
     "-fvisibility=hidden"
     "-nostdlib"
     "-fno-PIC"
+    "-T" "${linkerScript}"
   ];
 
   nativeBuildInputs = [
