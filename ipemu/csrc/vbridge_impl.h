@@ -188,7 +188,7 @@ struct TLReqRecord {
 
 class VBridgeImpl {
 public:
-  VBridgeImpl(const Config cosim_config);
+  explicit VBridgeImpl(Config cosim_config);
 #if VM_TRACE
   void dpiDumpWave();
 #endif
@@ -199,12 +199,10 @@ public:
 
   uint8_t load(uint64_t address);
 
-  uint64_t get_t();
-
   // Simulator Calls
 #ifdef COSIM_VERILATOR
-  uint64_t getCycle() { return ctx->time(); }
-  void getCoverage() { return ctx->coveragep()->write(); }
+  uint64_t get_t();
+  void getCoverage();
 #endif
 
   void dpiPokeInst(const VInstrInterfacePoke &v_instr,

@@ -55,7 +55,7 @@ void SpikeEvent::log_arch_changes() {
           .with("change_from", (int)origin_byte)
           .with("change_to", (int)cur_byte)
           .with("vrf_idx", offset)
-          .info("spike detect vrf change");
+          .trace("spike detect vrf change");
     }
   }
 
@@ -75,7 +75,7 @@ void SpikeEvent::log_arch_changes() {
             .with("rd_index", rd_idx)
             .with("change_from", rd_bits)
             .with("change_to", new_rd_bits)
-            .info("spike detect scalar rf change");
+            .trace("spike detect scalar rf change");
       }
     } else if ((write_idx & 0xf) == 0b0001) {
       uint32_t new_fd_bits = extract_f32(proc.get_state()->FPR[rd_idx]);
@@ -86,7 +86,7 @@ void SpikeEvent::log_arch_changes() {
             .with("rd_index", rd_idx)
             .with("change_from", rd_bits)
             .with("change_to", new_fd_bits)
-            .info("spike detect float rf change");
+            .trace("spike detect float rf change");
       }
     } else {
       Log("UnknownRegChange")
