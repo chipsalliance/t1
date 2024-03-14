@@ -28,16 +28,16 @@ void uart_put_hex_d(uint64_t x) {
     }
 }
 
-extern char* heap_start;
-char *heap_ptr;
+extern char* __heapbegin;
+char *heap_top;
 
 char *_sbrk(int nbytes) {
   char *base;
 
-  if (!heap_ptr)
-    heap_ptr = (char *)&heap_start;
-  base = heap_ptr;
-  heap_ptr += nbytes;
+  if (!heap_top)
+    heap_top = (char *)&__heapbegin;
+  base = heap_top;
+  heap_top += nbytes;
 
   return base;
 }
