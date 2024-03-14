@@ -140,7 +140,7 @@ JsonLogger::JsonLogger(bool no_logging, bool no_file_logging, bool no_console_lo
     console->set_error_handler([&](const std::string &msg) {
       throw std::runtime_error(fmt::format("Emulator logger internal error: {}", msg));
     });
-    file->set_level(get_level_from_env("EMULATOR_CONSOLE_LOG_LEVEL", spdlog::level::info));
+    console->set_level(get_level_from_env("EMULATOR_CONSOLE_LOG_LEVEL", spdlog::level::info));
     spdlog::register_logger(console);
   }
 }
