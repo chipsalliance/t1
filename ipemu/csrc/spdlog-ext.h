@@ -11,43 +11,8 @@
 #include <spdlog/spdlog.h>
 
 #include <nlohmann/json.hpp>
+
 using json = nlohmann::json;
-
-/**
- * Get environment variable by the given `env` key or fallback to a default
- * value.
- */
-inline std::string getenv_or(const char *env, std::string fallback) {
-  char *env_var = std::getenv(env);
-  if (env_var && strlen(env_var) > 0) {
-    return std::string{env_var};
-  }
-
-  return fallback;
-}
-
-/**
- * Get environment variable and split them into std::vector by the given
- * `delimiter`
- */
-inline std::set<std::string> get_set_from_env(const char *env,
-                                              const char delimiter) {
-  std::set<std::string> set;
-
-  auto raw = getenv_or(env, "");
-  if (raw.empty()) {
-    return set;
-  }
-
-  std::stringstream ss(raw);
-  std::string token;
-  // Use `delimiter` instead of '\n' to split element in string.
-  while (std::getline(ss, token, delimiter)) {
-    set.insert(token);
-  }
-
-  return set;
-}
 
 /**
  * Filter logging message by module type. Filter should be set by environment
@@ -59,185 +24,121 @@ class ConsoleSink : public spdlog::sinks::base_sink<std::mutex> {
 private:
   std::set<std::string> whitelist;
   bool enable_sink;
-
-  inline bool is_expected_module(std::string &module) {
-    return whitelist.empty() || whitelist.find(module) != whitelist.end();
-  }
+  bool is_module_enabled(std::string &module);
 
 public:
-  explicit ConsoleSink(bool enable): enable_sink(enable) {
-    whitelist = get_set_from_env("EMULATOR_WHITELIST_MODULE", ',');
-    whitelist.insert("DPIInitCosim");
-    whitelist.insert("SpikeStep");
-    whitelist.insert("SimulationExit");
-  }
+  explicit ConsoleSink(bool enable);
 
 protected:
-  void sink_it_(const spdlog::details::log_msg &msg) override {
-    if (!enable_sink) {
-      return;
-    };
-
-    auto data = std::string(msg.payload.data(), msg.payload.size());
-    // Don't touch error message
-    if (msg.level == spdlog::level::info) {
-      std::string module_name;
-      try {
-        json payload = json::parse(data);
-        payload["name"].get_to(module_name);
-      } catch (const json::parse_error &ex) {
-        throw std::runtime_error(
-            fmt::format("Fail to convert msg {} to json: {}", data, ex.what()));
-      } catch (const json::type_error &ex) {
-        throw std::runtime_error(
-            fmt::format("Fail to get field name from: {}", data));
-      }
-
-      if (!is_expected_module(module_name)) {
-        return;
-      }
-    }
-
-    spdlog::memory_buf_t formatted;
-    spdlog::sinks::base_sink<std::mutex>::formatter_->format(msg, formatted);
-    // stdout will be captured by mill, so we need to print them into stderr
-    std::cerr << fmt::to_string(formatted);
-  }
-
-  void flush_() override { std::cerr << std::flush; }
-};
-
-enum class LogType {
-  Info,
-  Warn,
-  Trace,
-  Fatal,
+  void sink_it_(const spdlog::details::log_msg &msg) override;
+  void flush_() override;
 };
 
 class JsonLogger {
-private:
-  json internal;
-  bool do_logging;
-
-  std::shared_ptr<spdlog::async_logger> file;
-  std::shared_ptr<spdlog::async_logger> console;
-
-  inline std::string dump(int indent) {
-    std::string ret;
-    try {
-      ret = internal.dump(indent);
-    } catch (json::type_error &ex) {
-      throw std::runtime_error(fmt::format("fail to dump internal json into string: ", ex.what()));
-    }
-    return ret;
-  }
-
-  uint64_t get_cycle();
-
-  // We can only implement a class method with template inside the class
-  // declaration
-  template <typename... Arg>
-  inline void try_log(LogType log_type,
-                      std::optional<fmt::format_string<Arg...>> fmt,
-                      Arg &&...args) {
-    if (!do_logging)
-      return;
-
-    if (fmt.has_value()) {
-      auto msg = fmt::format(fmt.value(), args...);
-      internal["message"] = msg;
-    }
-
-    internal["cycle"] = get_cycle();
-
-    switch (log_type) {
-    case LogType::Info:
-      if (file) file->info("{}", this->dump(-1));
-      if (console) console->info("{}", this->dump(2));
-      break;
-    case LogType::Warn:
-      if (file) file->warn("{}", this->dump(-1));
-      if (console) console->warn("{}", this->dump(2));
-      break;
-    case LogType::Trace:
-      if (file) file->trace("{}", this->dump(-1));
-      if (console) console->trace("{}", this->dump(2));
-      break;
-    case LogType::Fatal:
-      if (file) file->critical("{}", this->dump(-1));
-      if (console) console->critical("{}", this->dump(2));
-      spdlog::shutdown();
-
-      throw std::runtime_error(internal["message"]);
-    }
-  }
-
 public:
-  JsonLogger(bool no_logging, bool no_file_logging, bool no_console_logging, std::optional<std::string> log_path);
+
+  // a transient class to build up log message
+  class LogBuilder {
+  public:
+    explicit LogBuilder(JsonLogger *logger, const char *name) : logger(logger), module_name(name) {};
+
+    template<typename T>
+    inline LogBuilder &with(const char *key, T value) {
+      if (!logger->do_logging) return *this;
+
+      // use '~' to put it the last
+      logContent[key] = value;
+      return *this;
+    }
+
+    template<typename... Arg>
+    inline void trace(fmt::format_string<Arg...> fmt, Arg &&...args) {
+      if (logger->do_logging) {
+        logContent["_msg"] = fmt::format(fmt, std::forward<decltype(args)>(args)...);
+        do_log(spdlog::level::trace);
+      }
+    };
+
+    inline void trace() {
+      if (logger->do_logging) do_log(spdlog::level::trace);
+    }
+
+    template<typename... Arg>
+    inline void info(fmt::format_string<Arg...> fmt, Arg &&...args) {
+      if (logger->do_logging) {
+        logContent["_msg"] = fmt::format(fmt, std::forward<decltype(args)>(args)...);
+        do_log(spdlog::level::info);
+      }
+    };
+
+    inline void info() {
+      if (logger->do_logging) do_log(spdlog::level::info);
+    }
+
+    template<typename... Arg>
+    inline void warn(fmt::format_string<Arg...> fmt, Arg &&...args) {
+      if (logger->do_logging) {
+        logContent["_msg"] = fmt::format(fmt, std::forward<decltype(args)>(args)...);
+        do_log(spdlog::level::warn);
+      }
+    };
+
+    inline void warn() {
+      if (logger->do_logging) do_log(spdlog::level::warn);
+    }
+
+    template<typename... Arg>
+    [[noreturn]] inline void fatal(fmt::format_string<Arg...> fmt, Arg &&...args) {
+      logContent["_msg"] = fmt::format(fmt, std::forward<decltype(args)>(args)...);
+
+      if (logger->do_logging) {
+        do_log(spdlog::level::critical);
+      }
+
+      spdlog::shutdown();
+      throw std::runtime_error(fmt::format("fatal error: {}", logContent.dump(-1)));
+    };
+
+    [[noreturn]] inline void fatal() {
+      if (logger->do_logging) {
+        do_log(spdlog::level::critical);
+      }
+
+      spdlog::shutdown();
+      throw std::runtime_error(fmt::format("fatal error: {}", logContent.dump(-1)));
+    };
+
+  private:
+    JsonLogger *logger;
+    const char *module_name;
+    json logContent;
+
+    void do_log(spdlog::level::level_enum log_type);
+  };
+
+  JsonLogger(bool no_logging, bool no_file_logging, bool no_console_logging,
+             const std::optional<std::string> &log_path);
+
   ~JsonLogger() = default;
 
-  inline JsonLogger operator()(const char *n) {
-    if (!do_logging)
-      return *this;
-
-    internal.clear();
-    internal["name"] = n;
-    return *this;
+  inline LogBuilder operator()(const char *name) {
+    return LogBuilder(this, name);
   }
 
-  template <typename T> inline JsonLogger &with(const char *key, T value) {
-    if (!do_logging)
-      return *this;
-
-    internal["data"][key] = value;
-    return *this;
-  }
-
-  // Overload the index operator
-  json &operator[](const char *key) { return internal["info"][key]; };
-
-  inline void info() { try_log(LogType::Info, std::nullopt); }
-  inline void trace() { try_log(LogType::Trace, std::nullopt); }
-
-  template <typename... Arg>
-  inline void info(fmt::format_string<Arg...> fmt, Arg &&...args) {
-    try_log(LogType::Info, fmt, args...);
-  }
-
-  template <typename... Arg>
-  inline void warn(fmt::format_string<Arg...> fmt, Arg &&...args) {
-    try_log(LogType::Warn, fmt, args...);
-  }
-
-  template <typename... Arg>
-  inline void trace(fmt::format_string<Arg...> fmt, Arg &&...args) {
-    try_log(LogType::Trace, fmt, args...);
-  };
-
-  template <typename... Arg>
-  inline void fatal(fmt::format_string<Arg...> fmt, Arg &&...args) {
-    try_log(LogType::Fatal, fmt, args...);
-  };
+private:
+  std::shared_ptr<spdlog::async_logger> file;
+  std::shared_ptr<spdlog::async_logger> console;
+  bool do_logging;
 };
 
-// Exported symbols
 #define FATAL(context) do {                                                    \
-  auto _fatal_fmt_msg = fmt::format("{}", context);                            \
-  spdlog::critical("{}", context);                                             \
-  spdlog::shutdown();                                                          \
-  throw std::runtime_error(_fatal_fmt_msg);                                    \
+  Log("Fatal").fatal("{}", context);                                                                             \
 } while (0)
 
 #define CHECK(cond, context) do {                                              \
-  if (!(cond)) {                                                               \
-    auto _f_msg =                                                              \
-        fmt::format("check failed: {} : Assertion ({}) failed at {}:{}",       \
-                    context, #cond, __FILE__, __LINE__);                       \
-    json _j;                                                                   \
-    _j["message"] = _f_msg;                                                    \
-    FATAL(_j.dump());                                                          \
-  }                                                                            \
-} while (0)
+  if (!(cond)) \
+  Log("Check").fatal("check failed: {} : Assertion ({}) failed at {}:{}", context, #cond, __FILE__, __LINE__); \
+} while (0) \
 
 #define CHECK_EQ(val1, val2, context) CHECK(val1 == val2, context)
 #define CHECK_NE(val1, val2, context) CHECK(val1 != val2, context)
