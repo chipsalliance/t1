@@ -281,6 +281,24 @@ trait Elaborator
 }
 
 
+object omreader extends OMReader
+
+trait OMReader
+  extends millbuild.common.OMReaderModule {
+  def scalaVersion = T(v.scala)
+
+  def panamaconverterModule = panamaconverter
+
+  def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
+
+  def mainargsIvy = v.mainargs
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
 /** A simple release flow for T1 generator:
   * package required dependency to flat jar.
   * usage:

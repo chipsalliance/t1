@@ -30,6 +30,7 @@ let
         ./../../ipemu/src
         ./../../elaborator
         ./../../configgen
+        ./../../omreader
       ];
     };
 
@@ -71,7 +72,7 @@ let
 
     env.CIRCT_INSTALL_PATH = circt-full;
 
-    outputs = [ "out" "configgen" "elaborator" "t1package" ];
+    outputs = [ "out" "configgen" "elaborator" "t1package" "omreader" ];
 
     buildPhase = ''
       mill -i '__.assembly'
@@ -85,21 +86,24 @@ let
 
       strip-nondeterminism out/elaborator/assembly.dest/out.jar
       strip-nondeterminism out/configgen/assembly.dest/out.jar
+      strip-nondeterminism out/omreader/assembly.dest/out.jar
       strip-nondeterminism out/t1package/assembly.dest/out.jar
       strip-nondeterminism out/t1package/sourceJar.dest/out.jar
       strip-nondeterminism out/t1package/chiselPluginJar.dest/out.jar
 
       mv out/configgen/assembly.dest/out.jar $out/share/java/configgen.jar
       mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar
+      mv out/omreader/assembly.dest/out.jar $out/share/java/omreader.jar
 
       mkdir -p $t1package/share/java
       mv out/t1package/sourceJar.dest/out.jar $t1package/share/java/t1package-sources.jar
       mv out/t1package/assembly.dest/out.jar $t1package/share/java/t1package.jar
       mv out/t1package/chiselPluginJar.dest/out.jar $t1package/share/java/chiselPluginJar.jar
 
-      mkdir -p $configgen/bin $elaborator/bin
+      mkdir -p $configgen/bin $elaborator/bin $omreader/bin
       makeWrapper ${jdk21}/bin/java $configgen/bin/configgen --add-flags "-jar $out/share/java/configgen.jar"
       makeWrapper ${jdk21}/bin/java $elaborator/bin/elaborator --add-flags "--enable-preview -Djava.library.path=${circt-full}/lib -jar $out/share/java/elaborator.jar"
+      makeWrapper ${jdk21}/bin/java $omreader/bin/omreader --add-flags "--enable-preview -Djava.library.path=${circt-full}/lib -jar $out/share/java/omreader.jar"
     '';
   };
 in

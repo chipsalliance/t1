@@ -25,6 +25,7 @@ lib.makeScope newScope
 
     elaborator = _millOutput.elaborator // { meta.mainProgram = "elaborator"; };
     configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
+    omreader = _millOutput.omreader // { meta.mainProgram = "omreader"; };
     t1package = _millOutput.t1package;
 
     submodules = self.callPackage ./submodules.nix { };
@@ -70,6 +71,7 @@ lib.makeScope newScope
 
         mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ip"; /* use-binder = true; */ };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.mlirbc; };
+        om = innerSelf.callPackage ./om.nix { mlirbc = innerSelf.ip.mlirbc; };
 
         emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ipemu"; /* use-binder = true; */ };
         emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.emu-mlirbc; };
