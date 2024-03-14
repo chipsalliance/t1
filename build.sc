@@ -278,3 +278,27 @@ trait Elaborator
   def chiselPluginIvy = None
   def chiselIvy = None
 }
+
+object omreader extends OMReader
+
+trait OMReader
+  extends millbuild.common.OMReaderModule {
+  def scalaVersion = T(v.scala)
+
+  def panamaconverterModule = panamaconverter
+
+  def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
+
+  def generators = Seq(
+    t1,
+    ipemu,
+    subsystem,
+  )
+
+  def mainargsIvy = v.mainargs
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
