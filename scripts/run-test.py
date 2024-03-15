@@ -221,24 +221,27 @@ def run_test(args):
         )
     )
 
-    elaborate_config_path = Path(f"{args.out_dir}/config.json")
-    if elaborate_config_path.exists():
-        os.remove(elaborate_config_path)
-    configgen_args = [
-        "nix",
-        "run",
-        "--no-warn-dirty",
-        ".#t1.configgen",
-        "--",
-        f"{args.config}",
-        "-t",
-        f"{args.out_dir}",
-    ]
-    logger.info(f'Run "{" ".join(configgen_args)}"')
-    subprocess.Popen(configgen_args).wait()
-    assert (
-        elaborate_config_path.exists()
-    ), f"cannot find elaborate config in {elaborate_config_path}"
+    elaborate_config_path = Path(args.config)
+    if not elaborate_config_path.exists():
+        elaborate_config_path = Path(f"{args.out_dir}/config.json")
+        if elaborate_config_path.exists():
+            os.remove(elaborate_config_path)
+        configgen_args = [
+            "nix",
+            "run",
+            "--no-warn-dirty",
+            ".#t1.configgen",
+            "--",
+            f"{args.config}",
+            "-t",
+            f"{args.out_dir}",
+        ]
+        logger.info(f'Run "{" ".join(configgen_args)}"')
+        subprocess.Popen(configgen_args).wait()
+        assert (
+            elaborate_config_path.exists()
+        ), f"cannot find elaborate config in {elaborate_config_path}"
+    logger.info(f"Using RTL config {elaborate_config_path}")
 
     emu_args = None
 

@@ -15,9 +15,11 @@ let
 in
 
 lib.makeScope newScope
-  (self: let
+  (self:
+  let
     _millOutput = self.callPackage ./t1.nix { };
-  in {
+  in
+  {
     inherit allConfigs;
 
     elaborator = _millOutput.elaborator // { meta.mainProgram = "elaborator"; };
@@ -79,6 +81,13 @@ lib.makeScope newScope
 
         mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
+      };
+
+      delivery = innerSelf.callPackage ./delivery {
+        ip-emulator = ip.emu;
+        subsystem-rtl = subsystem.rtl;
+
+        inherit elaborateConfigJson;
       };
     })
   )
