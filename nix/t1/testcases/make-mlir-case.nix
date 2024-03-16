@@ -80,7 +80,7 @@ stdenv.mkDerivation
 
       mkdir -p $out/bin
       cp ${name}.elf $out/bin/
-      cp ${name}.S $out/bin
+      cp ${name}.S $out/bin/
 
       set -x
       jq --null-input \

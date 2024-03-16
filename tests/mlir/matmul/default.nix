@@ -4,5 +4,6 @@ _caseBuilders.mkMlirCase {
   src = ./matmul.mlir;
   linkSrcs = [
     ../../t1_main.S
+    ./matmul.c
   ];
 }

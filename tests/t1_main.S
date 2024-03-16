@@ -9,7 +9,7 @@ _start:
     // no ra to save
     call test
 
-exit:
+    // exit
     li a0, 0x90000000
     li a1, -1
     sw a1, 4(a0)

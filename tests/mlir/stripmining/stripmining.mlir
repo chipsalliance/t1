@@ -1,4 +1,4 @@
-memref.global "private" @gv_i32 : memref<32768xi32>
+memref.global @gv_i32 : memref<32768xi32>
 
 func.func @test() -> i32 {
   %mem_i32 = memref.get_global @gv_i32 : memref<32768xi32>

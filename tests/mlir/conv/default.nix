@@ -4,5 +4,6 @@ _caseBuilders.mkMlirCase {
   src = ./conv.mlir;
   linkSrcs = [
     ../../t1_main.S
+    ./conv.c
   ];
 }
