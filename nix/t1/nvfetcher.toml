@@ -18,6 +18,11 @@ src.git = "https://github.com/chipsalliance/rocket-chip"
 src.branch = "t1-dev"
 fetch.github = "chipsalliance/rocket-chip"
 
+[diplomacy]
+src.git = "https://github.com/chipsalliance/diplomacy"
+src.branch = "master"
+fetch.github = "chipsalliance/diplomacy"
+
 [cde]
 src.git = "https://github.com/chipsalliance/cde"
 src.branch = "master"
