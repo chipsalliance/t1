@@ -1,7 +1,7 @@
 #map0 = affine_map<(d0) -> (d0)>
 #map1 = affine_map<(d0) -> (d0 ceildiv 64)>
 
-memref.global "private" @gv_i32 : memref<4100xi32> // 4100 = 128 * 32 + 4
+memref.global @gv_i32 : memref<4100xi32> // 4100 = 128 * 32 + 4
 
 func.func @test() -> i32 {
   

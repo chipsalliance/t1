@@ -4,5 +4,6 @@ _caseBuilders.mkMlirCase {
   src = ./axpy_masked.mlir;
   linkSrcs = [
     ../../t1_main.S
+    ./axpy_masked.c
   ];
 }

@@ -1,11 +1,13 @@
-memref.global "private" @gv_i32 : memref<32768xi32>
+memref.global @input_A : memref<32768xi32>
+memref.global @input_B : memref<32768xi32>
+memref.global @output : memref<32768xi32>
 
 func.func @test() -> i32 {
   %c0 = arith.constant 0 : index
 
-  %input1 = memref.get_global @gv_i32 : memref<32768xi32>
-  %input2 = memref.get_global @gv_i32 : memref<32768xi32>
-  %output = memref.get_global @gv_i32 : memref<32768xi32>
+  %input1 = memref.get_global @input_A : memref<32768xi32>
+  %input2 = memref.get_global @input_B : memref<32768xi32>
+  %output = memref.get_global @output : memref<32768xi32>
 
   %c0_i32 = arith.constant 0 : i32
   %dim = memref.dim %input1, %c0 : memref<32768xi32>

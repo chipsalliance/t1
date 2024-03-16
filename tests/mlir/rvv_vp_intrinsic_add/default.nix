@@ -4,5 +4,6 @@ _caseBuilders.mkMlirCase {
   src = ./rvv_vp_intrinsic_add.mlir;
   linkSrcs = [
     ../../t1_main.S
+    ./rvv_vp_intrinsic_add.c
   ];
 }

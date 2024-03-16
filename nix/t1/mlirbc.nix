@@ -18,7 +18,7 @@ let
   elaborateArgs = [
     "--ip-config"
     # Can't use `toString` here, or due to some shell escape issue, Java nio cannot find the path
-    "${elaborateConfigJson}/config.json"
+    "${elaborateConfigJson}"
     "--target-dir"
     "elaborate"
   ];
