@@ -1,6 +1,6 @@
-memref.global "private" @gv_input_i32 : memref<128x128xi32>
-memref.global "private" @gv_kernel_i32 : memref<3x3xi32>
-memref.global "private" @gv_output_i32 : memref<126x126xi32>
+memref.global @gv_input_i32 : memref<128x128xi32>
+memref.global @gv_kernel_i32 : memref<3x3xi32>
+memref.global @gv_output_i32 : memref<126x126xi32>
 
 func.func @test() -> i32 {
   %c0 = arith.constant 0 : index

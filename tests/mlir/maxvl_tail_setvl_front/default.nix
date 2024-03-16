@@ -4,5 +4,6 @@ _caseBuilders.mkMlirCase {
   src = ./maxvl_tail_setvl_front.mlir;
   linkSrcs = [
     ../../t1_main.S
+    ./maxvl_tail_setvl_front.c
   ];
 }

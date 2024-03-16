@@ -1,6 +1,6 @@
-memref.global "private" @input_A : memref<1500xi32>
-memref.global "private" @input_B : memref<1500xi32>
-memref.global "private" @output : memref<1500xi32>
+memref.global @input_A : memref<1500xi32>
+memref.global @input_B : memref<1500xi32>
+memref.global @output : memref<1500xi32>
 
 #map_1 = affine_map<(d)[B, N] -> (N*d + B)>
 

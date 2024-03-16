@@ -4,5 +4,6 @@ _caseBuilders.mkMlirCase {
   src = ./vectoradd.mlir;
   linkSrcs = [
     ../../t1_main.S
+    ./vectoradd.c
   ];
 }

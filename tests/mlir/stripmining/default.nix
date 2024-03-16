@@ -4,5 +4,6 @@ _caseBuilders.mkMlirCase {
   src = ./stripmining.mlir;
   linkSrcs = [
     ../../t1_main.S
+    ./stripmining.c
   ];
 }
