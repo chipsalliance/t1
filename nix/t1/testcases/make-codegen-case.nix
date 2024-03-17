@@ -26,13 +26,15 @@ stdenv.mkDerivation (rec {
   ];
 
   configurePhase = ''
-    export vLen=$(jq < ${elaborateConfigJson} .parameter.dLen --exit-status)
+    export vLen=$(jq < ${elaborateConfigJson} .parameter.vLen --exit-status)
 
-    if jq < ${elaborateConfigJson} -r .parameter.extensions[] --exit-status | grep "ve32"; then
+    if jq < ${elaborateConfigJson} -r .parameter.extensions[] --exit-status | grep -q "ve32"; then
       export xLen=32
     else
       export xLen=64
     fi
+
+    echo "Set vLen=$vLen xLen=$xLen"
   '';
 
   buildPhase = ''
@@ -42,7 +44,7 @@ stdenv.mkDerivation (rec {
       -VLEN "$vLen" \
       -XLEN "$xLen" \
       -repeat 16 \
-      -testfloat3level 1 \
+      -testfloat3level 2 \
       -configfile ${rvv-codegen}/configs/${caseName}.toml \
       -outputfile ${caseNameEscaped}.S
 
@@ -56,6 +58,7 @@ stdenv.mkDerivation (rec {
 
     mkdir -p $out/bin
     cp ${name}.elf $out/bin
+    cp ${caseNameEscaped}.S $out/bin  # for debugging
 
     jq --null-input \
       --arg name ${caseNameEscaped} \
