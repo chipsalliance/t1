@@ -24,10 +24,10 @@ class ConsoleSink : public spdlog::sinks::base_sink<std::mutex> {
 private:
   std::set<std::string> whitelist;
   bool enable_sink;
-  bool is_module_enabled(std::string &module);
+  bool is_module_enabled(const std::string &module);
 
 public:
-  explicit ConsoleSink(bool enable);
+  ConsoleSink();
 
 protected:
   void sink_it_(const spdlog::details::log_msg &msg) override;
@@ -46,8 +46,7 @@ public:
     inline LogBuilder &with(const char *key, T value) {
       if (!logger->do_logging) return *this;
 
-      // use '~' to put it the last
-      logContent[key] = value;
+      logContent["_with"][key] = value;
       return *this;
     }
 
@@ -117,7 +116,9 @@ public:
   };
 
   JsonLogger(bool no_logging, bool no_file_logging, bool no_console_logging,
-             const std::optional<std::string> &log_path);
+             const std::string &log_path);
+
+  JsonLogger();  // a fake constructor that do nothing, to allow it to exist as a global variable
 
   ~JsonLogger() = default;
 

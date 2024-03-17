@@ -11,7 +11,7 @@
 #include <verilated.h>
 
 #include "exceptions.h"
-#include "spdlog-ext.h"
+#include "spdlog_ext.h"
 #include "util.h"
 #include "vbridge_impl.h"
 
@@ -214,7 +214,7 @@ static VBridgeImpl vbridgeImplFromArgs() {
   args::Flag no_logging(parser, "no_logging", "Disable all logging utilities.", { "no-logging" });
   args::Flag no_file_logging(parser, "no_file_logging", "Disable file logging utilities.", { "no-file-logging" });
   args::Flag no_console_logging(parser, "no_console_logging", "Disable console logging utilities.", { "no-console-logging" });
-  args::ValueFlag<std::optional<std::string>> log_path(parser, "log path", "Path to store logging file", {"log-path"});
+  args::ValueFlag<std::string> log_path(parser, "log path", "Path to store logging file", {"log-path"});
 
   args::ValueFlag<size_t> vlen(parser, "vlen", "match from RTL config, tobe removed", {"vlen"}, args::Options::Required);
   args::ValueFlag<size_t> dlen(parser, "dlen", "match from RTL config, tobe removed", {"dlen"}, args::Options::Required);
@@ -536,7 +536,8 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
     }
     Log("RTLMemPutReq")
         .with("channel", tlIdx)
-        .with("addr", fmt::format("{:08X}", base_addr))
+        .with("base_addr", fmt::format("{:08X}", base_addr))
+        .with("offset", data_begin_pos)
         .with("size_by_byte", size)
         .with("src", fmt::format("{:04X}", src))
         .with("data",
@@ -545,7 +546,6 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
                                     data.begin() + (long)(data_begin_pos +
                                                           actual_beat_size),
                                     " ")))
-        .with("offset", data_begin_pos)
         .with("mask", fmt::format("{:04b}", *mask))
         .info("<- receive rtl mem put req");
 
@@ -746,7 +746,8 @@ SpikeEvent *VBridgeImpl::find_se_to_issue() {
     }
     return unissued_se;
   } catch (trap_t &trap) {
-    FATAL(fmt::format("spike trapped with {}", trap.name()));
+    FATAL(fmt::format("spike trapped with {} (tval={:X}, tval2={:X}, tinst={:X})",
+      trap.name(), trap.get_tval(), trap.get_tval2(), trap.get_tinst()));
   }
 }
 
@@ -777,7 +778,7 @@ void VBridgeImpl::record_rf_accesses(const VrfWritePeek &rf_write) {
           .with("offset", offset)
           .with("mask", fmt::format("{:04b}", mask))
           .with("data", fmt::format("{:08X}", data))
-          .with("instruction_index", idx)
+          .with("issue_idx", idx)
           .info("rtl detect vrf write");
       add_rtl_write(se_vrf_write, lane_idx, vd, offset, mask, data, idx);
     }
@@ -807,7 +808,7 @@ void VBridgeImpl::record_rf_queue_accesses(
         .with("offset", offset)
         .with("mask", fmt::format("{:04b}", mask))
         .with("data", fmt::format("{:08X}", data))
-        .with("instruction_index", idx)
+        .with("issue_idx", idx)
         .info("rtl detect vrf queue write");
     CHECK_NE(se_vrf_write, nullptr,
              fmt::format("[{}] cannot find se with issue_idx {}", get_t(), idx));

@@ -4,7 +4,7 @@
 
 #include <fmt/core.h>
 
-#include "spdlog-ext.h"
+#include "spdlog_ext.h"
 #include "vbridge_impl.h"
 
 /**
@@ -55,16 +55,19 @@ static std::set<std::string> get_set_from_env(const char *env_name, const char d
   return set;
 }
 
-ConsoleSink::ConsoleSink(bool enable) : enable_sink(enable) {
+ConsoleSink::ConsoleSink() : enable_sink(true) {
   whitelist = get_set_from_env("EMULATOR_WHITELIST_MODULE", ',');
   whitelist.insert("DPIInitCosim");
   whitelist.insert("SpikeStep");
   whitelist.insert("SimulationExit");
   whitelist.insert("DPIPeekIssue");
   whitelist.insert("DPIPokeInst");
+
+  // putting it in JsonLogger::JsonLogger will not work. not knowing why
+  this->set_level(get_level_from_env("EMULATOR_CONSOLE_LOG_LEVEL", spdlog::level::info));
 }
 
-inline bool ConsoleSink::is_module_enabled(std::string &module) {
+inline bool ConsoleSink::is_module_enabled(const std::string &module) {
   return whitelist.empty() || whitelist.find(module) != whitelist.end();
 }
 
@@ -74,23 +77,12 @@ void ConsoleSink::sink_it_(const spdlog::details::log_msg &msg) {
   };
 
   auto data = std::string(msg.payload.data(), msg.payload.size());
-  // Don't touch error message
-  if (msg.level == spdlog::level::info) {
-    std::string module_name;
-    try {
-      json payload = json::parse(data);
-      module_name = payload["_module"];
-    } catch (const json::parse_error &ex) {
-      throw std::runtime_error(
-        fmt::format("Failed to convert msg {} to json: {}", data, ex.what()));
-    } catch (const json::type_error &ex) {
-      throw std::runtime_error(
-        fmt::format("Failed to get field ‘name’ from: {}", data));
-    }
 
-    if (!is_module_enabled(module_name)) {
-      return;
-    }
+  json payload = json::parse(data);
+
+  // filter message matching the current level
+  if (msg.level == this->level()) {
+    if (!is_module_enabled(payload["_module"])) return;
   }
 
   spdlog::memory_buf_t formatted;
@@ -104,17 +96,16 @@ void ConsoleSink::flush_() {
 }
 
 // Constructor
+
 JsonLogger::JsonLogger(bool no_logging, bool no_file_logging, bool no_console_logging,
-                       const std::optional<std::string> &log_path) : do_logging(!no_logging) {
+                       const std::string &log_path) : do_logging(!no_logging) {
   if (no_console_logging && no_file_logging) do_logging = false;
 
   // Both the file and console logger are async, here we create a new write buffer with 8192 size in one thread
   spdlog::init_thread_pool(8192, 1);
 
-  // Initialize the file logger to write log into $EMULATOR_LOG_PATH, with each line a JSON log
   if (do_logging && !no_file_logging) {
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-      log_path.value_or("emulator_log"), /*truncate=*/true);
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path, /*truncate=*/true);
     file_sink->set_pattern("%v");
     file = std::make_shared<spdlog::async_logger>(
       "File", file_sink, spdlog::thread_pool(),
@@ -131,7 +122,7 @@ JsonLogger::JsonLogger(bool no_logging, bool no_file_logging, bool no_console_lo
 
   if (do_logging && !no_console_logging) {
     // Initialize the console logger to output human-readable json log
-    auto console_sink = std::make_shared<ConsoleSink>(do_logging);
+    auto console_sink = std::make_shared<ConsoleSink>();
     console_sink->set_pattern("%v");
     // Combine the console sink and file sink into one logger.
     console = std::make_shared<spdlog::async_logger>(
@@ -140,25 +131,21 @@ JsonLogger::JsonLogger(bool no_logging, bool no_file_logging, bool no_console_lo
     console->set_error_handler([&](const std::string &msg) {
       throw std::runtime_error(fmt::format("Emulator logger internal error: {}", msg));
     });
-    console->set_level(get_level_from_env("EMULATOR_CONSOLE_LOG_LEVEL", spdlog::level::info));
     spdlog::register_logger(console);
   }
 }
 
+JsonLogger::JsonLogger(): do_logging(false) { }
+
 // We can only implement a class method with template inside the class
 // declaration
 void JsonLogger::LogBuilder::do_log(spdlog::level::level_enum level) {
-  logContent["_cycle"] = vbridge_impl_instance.get_t() % 10;
+  logContent["_cycle"] = vbridge_impl_instance.get_t() / 10;
   logContent["_module"] = module_name;
 
-  if (logger->file) {
-    logger->file->log(level, logContent.dump(-1));
-  }
-
-  if (logger->console) {
-    logger->console->log(level, logContent.dump(-1));
-  }
+  if (logger->file) logger->file->log(level, logContent.dump());
+  if (logger->console) logger->console->log(level, logContent.dump());
 }
 
 // Notes: initialization move to vbridege_impl.cc: vbridgeImplFromArgs
-JsonLogger Log(true, true, true, std::nullopt);
+JsonLogger Log;

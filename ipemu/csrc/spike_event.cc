@@ -3,7 +3,7 @@
 #include "disasm.h"
 
 #include "exceptions.h"
-#include "spdlog-ext.h"
+#include "spdlog_ext.h"
 #include "spike_event.h"
 #include "util.h"
 

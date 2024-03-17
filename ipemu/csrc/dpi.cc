@@ -40,7 +40,7 @@ void sigint_handler(int s) {
     terminated = true;                                                         \
     svSetScope(                                                                \
         svGetScopeFromName("TOP.TestBench.verificationModule.dpiError"));      \
-    dpi_error(e.what());                                                       \
+    dpi_error(fmt::format("runtime_error occurs: {}", e.what()).c_str());      \
   }
 
 #if VM_TRACE
