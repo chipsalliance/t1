@@ -607,7 +607,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
 }
 
 void VBridgeImpl::receive_tl_d_ready(const VTlInterface &tl) {
-  int tlIdx = tl.channel_id;
+  uint32_t tlIdx = tl.channel_id;
 
   if (tl.d_ready) {
     // check if there is a response waiting for RTL ready, clear if RTL is ready
