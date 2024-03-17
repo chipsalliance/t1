@@ -11,17 +11,15 @@
 #include <mmu.h>
 
 #ifdef COSIM_VERILATOR
-#include <verilated.h>
-#include <verilated_cov.h>
+  #include <verilated.h>
+  #include <verilated_cov.h>
 
-#if VM_TRACE
-#include <verilated_fst_c.h>
+  #if VM_TRACE
+    #include <verilated_fst_c.h>
+  #endif
 #endif
 
-#include <svdpi.h>
-#endif
-
-#include "dramsim3.h"
+#include <dramsim3.h>
 
 #include "encoding.h"
 #include "simple_sim.h"

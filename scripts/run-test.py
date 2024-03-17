@@ -31,7 +31,7 @@ def main():
     # Add sub-commands
     verilator_args_parser = subparsers.add_parser(
         "ip", help="ip emulator help"
-    )  # TODO: rename to ip
+    )
     subsystem_args_parser = subparsers.add_parser(
         "subsystem", help="subsystem emulator help"
     )
@@ -61,7 +61,7 @@ def main():
         subparser.add_argument(
             "--out-dir",
             default=None,
-            help="path to save results",  # TODO: give a consistent behavior for both verilate and subsystem emulator
+            help="path to save results",
         )
         subparser.add_argument(
             "--base-out-dir",
@@ -170,7 +170,8 @@ def load_elf_from_dir(config, case_name, force_x86):
 
     return case_elf_path
 
-def get_emulator_path(config, emu_type):
+def get_emulator_path(config, emu_type, is_trace):
+    target_name = f"{emu_type}.emu-trace" if is_trace else f"{emu_type}.emu"
     nix_args = [
         "nix",
         "build",
@@ -178,7 +179,7 @@ def get_emulator_path(config, emu_type):
         "--print-out-paths",
         "--no-warn-dirty",
     ]
-    nix_args.append(f".#t1.{config}.{emu_type}.emu")
+    nix_args.append(f".#t1.{config}.{target_name}")
     logger.info(f'Run "{" ".join(nix_args)}"')
     emulator_dir = subprocess.check_output(nix_args).strip().decode("UTF-8")
     return f'{emulator_dir}/bin/emulator'
@@ -231,8 +232,6 @@ def run_test(args):
     assert (
         elaborate_config_path.exists()
     ), f"cannot find elaborate config in {elaborate_config_path}"
-
-    target_name = f"{emu_type}.emu-trace" if args.trace else f"{emu_type}.emu"
 
     emu_args = None
 
@@ -293,7 +292,7 @@ def run_test(args):
         assert False, f"unknown emutype {emu_type}"
 
     # run emulator
-    emulator_path = args.emulator_path or get_emulator_path(args.config, emu_type)
+    emulator_path = args.emulator_path or get_emulator_path(args.config, emu_type, args.trace)
     process_args = [emulator_path] + emu_args
 
     if args.dry_run:
