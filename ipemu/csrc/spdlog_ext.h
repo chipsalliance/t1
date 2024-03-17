@@ -23,7 +23,6 @@ using json = nlohmann::json;
 class ConsoleSink : public spdlog::sinks::base_sink<std::mutex> {
 private:
   std::set<std::string> whitelist;
-  bool enable_sink;
   bool is_module_enabled(const std::string &module);
 
 public:
