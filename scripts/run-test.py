@@ -71,15 +71,16 @@ def main():
         subparser.add_argument(
             "-v", "--verbose", action="store_true", help="set loglevel to debug"
         )
+        subparser.add_argument(
+            "-n", "--dry-run", action="store_true", help="print running commands and quit"
+        )
 
     # Register verilator emulator args
     verilator_args_parser.add_argument(
-        "-d",
         "--dramsim3-cfg",
         help="Enable dramsim3, and specify its configuration file",
     )
     verilator_args_parser.add_argument(
-        "-f",
         "--frequency",
         help="frequency for the vector processor (in MHz)",
         default=2000,
@@ -159,7 +160,6 @@ def load_elf_from_dir(config, case_name, force_x86):
     cases_dir = subprocess.check_output(nix_args).strip().decode("UTF-8")
 
     cases_dir = Path(cases_dir)
-    logger.info(f"Running cases in {cases_dir}")
 
     case_config_path = cases_dir / f"{case_name}.json"
     assert case_config_path.exists(), f"cannot find case config in {case_config_path}"
@@ -170,6 +170,18 @@ def load_elf_from_dir(config, case_name, force_x86):
 
     return case_elf_path
 
+def get_emulator_path(config, emu_type):
+    nix_args = [
+        "nix",
+        "build",
+        "--no-link",
+        "--print-out-paths",
+        "--no-warn-dirty",
+    ]
+    nix_args.append(f".#t1.{config}.{emu_type}.emu")
+    logger.info(f'Run "{" ".join(nix_args)}"')
+    emulator_dir = subprocess.check_output(nix_args).strip().decode("UTF-8")
+    return f'{emulator_dir}/bin/emulator'
 
 def run_test(args):
     emu_type = args.emu_type
@@ -227,6 +239,7 @@ def run_test(args):
     def optionals(cond, items):
         return items if cond else []
 
+    # determine emulator args
     if emu_type == "ip":
         dramsim3_cfg = args.dramsim3_cfg
         rtl_config = json.loads(elaborate_config_path.read_text())
@@ -279,25 +292,24 @@ def run_test(args):
     else:
         assert False, f"unknown emutype {emu_type}"
 
-    process_args = (
-        [args.emulator_path]
-        if args.emulator_path
-        else [
-            "nix",
-            "run",
-            "--no-warn-dirty",
-            f".#t1.{args.config}.{target_name}",
-            "--",
-        ]
-    ) + emu_args
+    # run emulator
+    emulator_path = args.emulator_path or get_emulator_path(args.config, emu_type)
+    process_args = [emulator_path] + emu_args
 
-    logger.info(f'Run "{" ".join(process_args)}"')
-    return_code = subprocess.Popen(process_args).wait()
+    if args.dry_run:
+        logger.info(f'Dry run "{" ".join(process_args)}"')
+    else:
+        logger.info(f'Run "{" ".join(process_args)}"')
+        return_code = subprocess.Popen(process_args).wait()
 
-    if return_code != 0:
-        logger.error(f"Emulator exited with return code {return_code}")
-        exit(return_code)
-    logger.info(f"Emulator logs were saved in {args.out_dir}")
+        if args.with_file_logging:
+            logger.info(f"Emulator logs were saved in {args.out_dir}/emulator.log")
+        if args.trace:
+            logger.info(f"Emulator logs were saved in {args.out_dir}/trace.fst")
+
+        if return_code != 0:
+            logger.error(f"Emulator exited with return code {return_code}")
+            exit(return_code)
 
 
 if __name__ == "__main__":
