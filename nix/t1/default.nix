@@ -1,5 +1,7 @@
 { lib
 , system
+, stdenv
+, useMoldLinker
 , newScope
 
 , rv32-stdenv
@@ -9,6 +11,7 @@
 
 let
   allConfigs = (builtins.fromJSON (builtins.readFile ../../configgen/all-configs.json)).configs;
+  moldStdenv = useMoldLinker stdenv;
 in
 
 lib.makeScope newScope
@@ -35,7 +38,6 @@ lib.makeScope newScope
       # For package name concatenate
       inherit configName;
 
-      # TODO: avoid IFD
       elaborateConfigJson = runCommand "${configName}-config.json" { } ''
         ${self.configgen}/bin/configgen ${configName} -t .
         mv config.json $out
@@ -68,8 +70,8 @@ lib.makeScope newScope
         emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ipemu"; };
         emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.emu-mlirbc; };
 
-        emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; };
-        emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; do-trace = true; };
+        emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; stdenv = moldStdenv; };
+        emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; stdenv = moldStdenv; do-trace = true; };
       };
 
       subsystem = {
