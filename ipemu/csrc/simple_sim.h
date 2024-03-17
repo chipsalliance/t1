@@ -5,7 +5,7 @@
 #include <fmt/core.h>
 
 #include "simif.h"
-#include "spdlog-ext.h"
+#include "spdlog_ext.h"
 #include "uartlite.h"
 
 class simple_sim : public simif_t {

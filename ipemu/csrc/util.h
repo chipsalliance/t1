@@ -6,7 +6,7 @@
 #include <optional>
 
 #include "exceptions.h"
-#include "spdlog-ext.h"
+#include "spdlog_ext.h"
 
 /// @return: binary[a, b]
 inline uint32_t clip(uint32_t binary, int a, int b) {
