@@ -386,7 +386,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
         .with("pc", fmt::format("{:08X}", pc))
         .with("bits", fmt::format("{:08X}", fetch.insn.bits()))
         .with("disasm", proc.get_disassembler()->disassemble(fetch.insn))
-        .info();
+        .info("spike run scalar insn");
     pc = fetch.func(&proc, fetch.insn, state->pc);
   }
 

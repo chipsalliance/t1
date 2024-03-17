@@ -3,6 +3,7 @@
 #include <string>
 
 #include <fmt/core.h>
+#include <fmt/color.h>
 
 #include "spdlog_ext.h"
 #include "vbridge_impl.h"
@@ -55,8 +56,8 @@ static std::set<std::string> get_set_from_env(const char *env_name, const char d
   return set;
 }
 
-ConsoleSink::ConsoleSink() : enable_sink(true) {
-  whitelist = get_set_from_env("EMULATOR_WHITELIST_MODULE", ',');
+ConsoleSink::ConsoleSink() {
+  whitelist = get_set_from_env("EMULATOR_LOG_WHITELIST", ',');
   whitelist.insert("DPIInitCosim");
   whitelist.insert("SpikeStep");
   whitelist.insert("SimulationExit");
@@ -72,23 +73,47 @@ inline bool ConsoleSink::is_module_enabled(const std::string &module) {
 }
 
 void ConsoleSink::sink_it_(const spdlog::details::log_msg &msg) {
-  if (!enable_sink) {
-    return;
-  };
-
-  auto data = std::string(msg.payload.data(), msg.payload.size());
-
-  json payload = json::parse(data);
+  json payload = json::parse(msg.payload);
 
   // filter message matching the current level
   if (msg.level == this->level()) {
     if (!is_module_enabled(payload["_module"])) return;
   }
 
-  spdlog::memory_buf_t formatted;
-  spdlog::sinks::base_sink<std::mutex>::formatter_->format(msg, formatted);
-// stdout will be captured by mill, so we need to print them into stderr
-  std::cerr << fmt::to_string(formatted);
+  fmt::text_style level_color;
+  switch (msg.level) {
+  case spdlog::level::debug:
+  case spdlog::level::trace:
+    level_color = fmt::fg(fmt::color::gray);
+    break;
+  case spdlog::level::info:
+    level_color = fmt::fg(fmt::color::white);
+    break;
+  case spdlog::level::warn:
+    level_color = fmt::fg(fmt::color::yellow);
+    break;
+  case spdlog::level::err:
+    level_color = fmt::fg(fmt::color::red);
+      break;
+  case spdlog::level::critical:
+    level_color = fmt::bg(fmt::color::red) | fmt::fg(fmt::color::white);
+    break;
+  default:
+    level_color = fmt::fg(fmt::color::white);
+    break;
+  }
+
+  std::cerr << fmt::format("{} {}",
+                           fmt::styled(payload["_cycle"].get<int64_t>(), level_color),
+                           fmt::styled(payload["_module"].get<std::string>(), fmt::fg(fmt::color::violet))
+                           );
+  if (payload.contains("_msg")) {
+    std::cerr << fmt::format(" {}", fmt::styled(payload["_msg"].get<std::string>(), fmt::fg(fmt::color::green)));
+  }
+  if (payload.contains("_with")) {
+    std::cerr << fmt::format(" {}", fmt::styled(payload["_with"].dump(), fmt::fg(fmt::color::gray)));
+  }
+  std::cerr << "\n";
 }
 
 void ConsoleSink::flush_() {
