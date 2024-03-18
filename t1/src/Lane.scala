@@ -385,6 +385,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** assert when a instruction is finished in the slot. */
   val instructionFinishedVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
 
+  /** any cross lane write data in slot */
+  val crossWriteDataInSlotVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
+
   /** assert when a instruction will not use mask unit */
   val instructionUnrelatedMaskUnitVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
 
@@ -593,12 +596,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
             tokenReg := tokenReg + tokenUpdate
           }
         }
-        crossWriteDataInSlot := Mux(
-          pipeClear || !decodeResult(Decoder.crossWrite),
-          0.U,
-          indexToOH(record.laneRequest.instructionIndex, parameter.chainingSize)
-        )
       }
+
+      crossWriteDataInSlotVec(index) := Mux(
+        (pipeClear & !slotOccupied(index)) || !decodeResult(Decoder.crossWrite),
+        0.U,
+        indexToOH(record.laneRequest.instructionIndex, parameter.chainingSize)
+      )
 
       stage2.enqueue.valid := stage1.dequeue.valid && executionUnit.enqueue.ready
       stage1.dequeue.ready := stage2.enqueue.ready && executionUnit.enqueue.ready
@@ -1063,6 +1067,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       Mux(topWriteQueue.valid, indexToOH(topWriteQueue.bits.instructionIndex, parameter.chainingSize), 0.U) |
       maskedWriteUnit.maskedWrite1H
   instructionFinished := instructionFinishedVec.reduce(_ | _)
+  crossWriteDataInSlot := crossWriteDataInSlotVec.reduce(_ | _)
   writeReadyForLsu := vrf.writeReadyForLsu
   vrfReadyToStore := vrf.vrfReadyToStore
 
