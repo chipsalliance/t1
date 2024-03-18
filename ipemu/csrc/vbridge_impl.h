@@ -39,7 +39,9 @@ struct Config {
   std::optional<std::string> perf_path;
 
   uint64_t timeout;
+#ifdef VM_TRACE
   uint64_t dump_from_cycle;
+#endif
 
   double tck;
   std::optional<std::string> dramsim3_config_path;
@@ -263,7 +265,9 @@ private:
   /// note: this is not the real system cycles, scalar instructions is evaulated
   /// via spike, which is not recorded.
   const uint64_t timeout;
+#ifdef VM_TRACE
   const uint64_t dump_from_cycle;
+#endif
 
   std::optional<SpikeEvent> create_spike_event(insn_fetch_t fetch);
 
