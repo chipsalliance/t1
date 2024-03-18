@@ -39,6 +39,7 @@ struct Config {
   std::optional<std::string> perf_path;
 
   uint64_t timeout;
+  uint64_t dump_wave_start;
 
   double tck;
   std::optional<std::string> dramsim3_config_path;
@@ -262,6 +263,7 @@ private:
   /// note: this is not the real system cycles, scalar instructions is evaulated
   /// via spike, which is not recorded.
   const uint64_t timeout;
+  const uint64_t dump_wave_start;
 
   std::optional<SpikeEvent> create_spike_event(insn_fetch_t fetch);
 
@@ -300,6 +302,7 @@ private:
 
   double tck;
   uint64_t last_commit_time = 0;
+  bool dump_start = false;
 };
 
 extern VBridgeImpl vbridge_impl_instance;
