@@ -74,6 +74,12 @@ def main():
 
     # Register verilator emulator args
     verilator_args_parser.add_argument(
+        "-D",
+        "--dump-from-cycle",
+        default=0,
+        help="Delay dumping from the given cycle. Default dump wave from cycle 0.",
+    )
+    verilator_args_parser.add_argument(
         "-d",
         "--dramsim3-cfg",
         help="Enable dramsim3, and specify its configuration file",
@@ -268,6 +274,7 @@ def run_test(args):
                     dramsim3_cfg,
                 ],
             )
+            + optionals(args.trace, ["--dump-from-cycle", str(args.dump_from_cycle)])
         )
 
     elif emu_type == "subsystem":
