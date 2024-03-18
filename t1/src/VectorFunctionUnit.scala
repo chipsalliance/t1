@@ -37,7 +37,7 @@ abstract class VFUModule(p: VFUParameter) extends Module {
       responseIO.bits := response.asTypeOf(responseIO.bits)
     } else {
       // todo: Confirm the function of 'Pipe'
-      val pipeResponse: ValidIO[Bundle] = Pipe(responseValid, response.asTypeOf(responseIO.bits), p.latency)
+      val pipeResponse: ValidIO[Bundle] = Pipe(responseValid & requestIO.valid, response.asTypeOf(responseIO.bits), p.latency)
       responseIO.valid := pipeResponse.valid
       responseIO.bits := pipeResponse.bits
     }
