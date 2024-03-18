@@ -235,7 +235,9 @@ static VBridgeImpl vbridgeImplFromArgs() {
   args::ValueFlag<std::string> wave_path(parser, "wave path", "", {"wave"}, args::Options::Required);
   args::ValueFlag<std::optional<std::string>> perf_path(parser, "perf path", "", {"perf"});
   args::ValueFlag<uint64_t> timeout(parser, "timeout", "", {"timeout"}, args::Options::Required);
+#if VM_TRACE
   args::ValueFlag<uint64_t> dump_from_cycle(parser, "dump_from_cycle", "start to dump wave at cycle", {"dump-from-cycle"}, args::Options::Required);
+#endif
   args::ValueFlag<double> tck(parser, "tck", "", {"tck"}, args::Options::Required);
   args::Group dramsim_group(parser, "dramsim config", args::Group::Validators::AllOrNone);
   args::ValueFlag<std::optional<std::string>> dramsim3_config_path(dramsim_group, "config path", "", {"dramsim3-config"});
@@ -258,7 +260,9 @@ static VBridgeImpl vbridgeImplFromArgs() {
     .wave_path = wave_path.Get(),
     .perf_path = perf_path.Get(),
     .timeout = timeout.Get(),
+#if VM_TRACE
     .dump_from_cycle = dump_from_cycle.Get(),
+#endif
     .tck = tck.Get(),
     .dramsim3_config_path = dramsim3_config_path.Get(),
     .dramsim3_result_dir = dramsim3_result_dir.Get(),
@@ -318,7 +322,9 @@ VBridgeImpl::VBridgeImpl(const Config cosim_config)
       wave(config.wave_path),
       perf_path(config.perf_path),
       timeout(config.timeout),
+#ifdef VM_TRACE
       dump_from_cycle(config.dump_from_cycle),
+#endif
       tck(config.tck),
 
 #ifdef COSIM_VERILATOR
