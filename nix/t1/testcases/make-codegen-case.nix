@@ -22,13 +22,16 @@ stdenv.mkDerivation (rec {
     "-fno-PIC"
     "-I${../../../tests/codegen/override_include}"
     "-I${rvv-codegen}/include"
-    "-T" "${linkerScript}"
+    "-T"
+    "${linkerScript}"
   ];
 
   configurePhase = ''
-    export vLen=$(jq < ${elaborateConfigJson} .parameter.vLen --exit-status)
+    export vLen=$(jq --exit-status --raw-output ".parameter.vLen" ${elaborateConfigJson})
 
-    if jq < ${elaborateConfigJson} -r .parameter.extensions[] --exit-status | grep -q "ve32"; then
+    set -e
+    is32BitLen=$(jq -r '.parameter.extensions[] | test("^\\w+ve32\\w*$")' ${elaborateConfigJson})
+    if [[ "$is32BitLen" = "true" ]] ; then
       export xLen=32
     else
       export xLen=64
