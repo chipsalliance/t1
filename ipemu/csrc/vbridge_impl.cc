@@ -21,6 +21,12 @@ inline bool is_pow2(uint32_t n) { return n && !(n & (n - 1)); }
 
 void VBridgeImpl::timeoutCheck() {
   getCoverage();
+#if VM_TRACE
+  if(get_t() >= dump_wave_start && !dump_start) {
+    dpiDumpWave();
+    dump_start = true;
+  }
+#endif
   CHECK_LE(get_t(), timeout + last_commit_time,
            fmt::format("Simulation timeout, last_commit: {}", last_commit_time));
 }
@@ -43,10 +49,6 @@ void VBridgeImpl::dpiInitCosim() {
     .with("timeout", timeout)
     .with("entry", fmt::format("{:08X}", load_result.entry_addr))
     .info("Simulation environment initialized");
-
-#if VM_TRACE
-  dpiDumpWave();
-#endif
 }
 
 /* cosim                          rtl
@@ -233,6 +235,7 @@ static VBridgeImpl vbridgeImplFromArgs() {
   args::ValueFlag<std::string> wave_path(parser, "wave path", "", {"wave"}, args::Options::Required);
   args::ValueFlag<std::optional<std::string>> perf_path(parser, "perf path", "", {"perf"});
   args::ValueFlag<uint64_t> timeout(parser, "timeout", "", {"timeout"}, args::Options::Required);
+  args::ValueFlag<uint64_t> dump_wave_start(parser, "dump_wave_start", "start to dump wave at cycle", {"dump-wave-start"}, args::Options::Required);
   args::ValueFlag<double> tck(parser, "tck", "", {"tck"}, args::Options::Required);
   args::Group dramsim_group(parser, "dramsim config", args::Group::Validators::AllOrNone);
   args::ValueFlag<std::optional<std::string>> dramsim3_config_path(dramsim_group, "config path", "", {"dramsim3-config"});
@@ -255,6 +258,7 @@ static VBridgeImpl vbridgeImplFromArgs() {
     .wave_path = wave_path.Get(),
     .perf_path = perf_path.Get(),
     .timeout = timeout.Get(),
+    .dump_wave_start = dump_wave_start.Get(),
     .tck = tck.Get(),
     .dramsim3_config_path = dramsim3_config_path.Get(),
     .dramsim3_result_dir = dramsim3_result_dir.Get(),
@@ -314,6 +318,7 @@ VBridgeImpl::VBridgeImpl(const Config cosim_config)
       wave(config.wave_path),
       perf_path(config.perf_path),
       timeout(config.timeout),
+      dump_wave_start(config.dump_wave_start),
       tck(config.tck),
 
 #ifdef COSIM_VERILATOR
