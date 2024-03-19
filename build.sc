@@ -270,6 +270,7 @@ trait Elaborator
     t1,
     ipemu,
     subsystem,
+    subsystememu
   )
 
   def mainargsIvy = v.mainargs
@@ -279,7 +280,6 @@ trait Elaborator
   def chiselPluginIvy = None
   def chiselIvy = None
 }
-
 
 /** A simple release flow for T1 generator:
   * package required dependency to flat jar.
@@ -297,4 +297,18 @@ object t1package extends ScalaModule {
   def scalaVersion = T(v.scala)
   def moduleDeps = super.moduleDeps ++ Seq(t1, ipemu, subsystem, panamaconverter)
   override def sourceJar: T[PathRef] = T(Jvm.createJar(T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))().flatten.flatten.map(_.path).filter(os.exists), manifest()))
+}
+
+object subsystememu extends SubsystemEmu
+trait SubsystemEmu
+  extends millbuild.common.SubsystemEmulatorModule {
+  def scalaVersion = T(v.scala)
+
+  def subsystemModule = subsystem
+  def emuHelperModule = emuhelper
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
 }

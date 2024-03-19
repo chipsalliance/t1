@@ -84,6 +84,13 @@ lib.makeScope newScope
         mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; /* use-binder = true; */ };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
       };
+
+      subsystememu = {
+        recurseForDerivations = true;
+
+        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystememu"; };
+        rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystememu.mlirbc; };
+      };
     })
   )
   )
