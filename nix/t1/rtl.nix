@@ -29,16 +29,12 @@ stdenvNoCC.mkDerivation {
     firtool ${mlirbc}/*.mlirbc -o $out ${mfcArgs}
   '' + lib.optionalString fixupFilelist ''
     # For ipemu, there are also some manually generated system verilog file for test bench.
-    # Those files are not correctly handled by firtool.
-    #
-    # Fix file ordering difference introduced in some unknown breaking change between firtool 1.50 -> 1.58
-    # In the previous working version, all files starting with './' should be placed on top of the filelist.f.
-    # However in the latest version, they were placed at the bottom, which breaks the verilator.
-    # Here is an disgusting workaround to make it work. But we need to fix this issue at firtool side.
+    # Those files are now recorded in a individual file list.
+    # However, verilator still expect on "filelist.f" file to record all the system verilog file.
+    # Below is a fix that concat them into one file to make verilator happy.
     echo "Fixing generated filelist.f"
-    grep '^\./' $out/filelist.f > prefixed.f
-    grep -v '^\./' $out/filelist.f > not-prefixed.f
-    cat prefixed.f not-prefixed.f > $out/filelist.f
+    cp $out/filelist.f original.f
+    cat $out/firrtl_black_box_resource_files.f original.f > $out/filelist.f
   '';
 
   meta.description = "All the elaborated system verilog files for ${mlirbc.elaborateTarget} with ${mlirbc.elaborateConfig} config.";
