@@ -1387,6 +1387,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     lane.laneRequest.bits.store := isStoreType
     // let lane know if this is a special instruction, which need group-level synchronization between lane and [[V]]
     lane.laneRequest.bits.special := specialInstruction
+    lane.laneRequest.bits.lsWholeReg :=
+      isLoadStoreType && requestRegDequeue.bits.instruction(27, 26) === 0.U &&
+        requestRegDequeue.bits.instruction(24, 20) === 8.U
     // mask type instruction.
     lane.laneRequest.bits.mask := maskType
     laneReady(index) := lane.laneRequest.ready
