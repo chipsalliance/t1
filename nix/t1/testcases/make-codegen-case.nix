@@ -22,14 +22,11 @@ stdenv.mkDerivation (rec {
     "-fno-PIC"
     "-I${../../../tests/codegen/override_include}"
     "-I${rvv-codegen}/include"
-    "-T"
-    "${linkerScript}"
-  ];
+  ];  # handle linkerScript manually in buildPhase
 
   configurePhase = ''
     export vLen=$(jq --exit-status --raw-output ".parameter.vLen" ${elaborateConfigJson})
 
-    set -e
     is32BitLen=$(jq -r '.parameter.extensions[] | test("^\\w+ve32\\w*$")' ${elaborateConfigJson})
     if [[ "$is32BitLen" = "true" ]] ; then
       export xLen=32
@@ -51,7 +48,14 @@ stdenv.mkDerivation (rec {
       -configfile ${rvv-codegen}/configs/${caseName}.toml \
       -outputfile ${caseNameEscaped}.S
 
-    ${stdenv.targetPlatform.config}-cc ${caseNameEscaped}.S -o ${name}.elf
+    # temporary fix, to be extended later
+    if ${stdenv.targetPlatform.config}-cc ${caseNameEscaped}.S -T ${linkerScript} -o ${name}.elf ; then
+      echo "link with 4M SRAM succeded"
+    else
+      echo "link with 4M SRAM failed, use DDR instead"
+      sed 's/>SRAM/>DDR/' ${linkerScript} > t1-ddr.ld
+      ${stdenv.targetPlatform.config}-cc ${caseNameEscaped}.S -T t1-ddr.ld -o ${name}.elf
+    fi
 
     runHook postBuild
   '';
