@@ -428,21 +428,23 @@ class T1Subsystem(implicit p: Parameters)
   val vectorPorts = InModuleBody {
     vectorMemoryNodes.zipWithIndex.map { case (n, i) => n.makeIOs()(ValName(s"vectorChannel$i")) }
   }
-  val clock = InModuleBody {
+  private val clockreset = InModuleBody {
     val clockInput = clockSource.out.map(_._1).head
     val clock = IO(Input(Clock()))
     val reset = IO(Input(Bool()))
     clockInput.clock := clock
     clockInput.reset := reset
-    clockInput
+    (clock, reset)
   }
+  def clock = clockreset._1
+  def reset = clockreset._2
 }
 
 class T1SubsystemModuleImp[+L <: T1Subsystem](_outer: L)
     extends BareSubsystemModuleImp(_outer)
     with HasHierarchicalElementsRootContextModuleImp {
-  childClock := outer.clock.clock
-  childReset := outer.clock.reset
+  childClock := outer.clock
+  childReset := outer.reset
 
   lazy val outer = _outer
   // IntSyncCrossingSource requires implcit clock

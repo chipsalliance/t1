@@ -254,9 +254,25 @@ trait Elaborator
     t1,
     ipemu,
     subsystem,
+    subsystememu
   )
 
   def mainargsIvy = v.mainargs
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
+object subsystememu extends SubsystemEmu
+
+trait SubsystemEmu
+  extends millbuild.common.SubsystemEmulatorModule {
+  def scalaVersion = T(v.scala)
+
+  def subsystemModule = subsystem
+  def emuHelperModule = emuhelper
 
   def chiselModule = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
