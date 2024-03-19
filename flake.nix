@@ -26,6 +26,7 @@
 
                 python3
                 mill
+                clang
                 ammonite
               ];
             };
