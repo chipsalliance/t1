@@ -266,7 +266,7 @@ def runFailedTests(jobs: String) = {
     val Array(config, caseName) = job.split(",")
     System.err.println(s"[${i+1}/${totalJobs.length}] Running test case with trace $config,$caseName")
     val handle = os
-      .proc("scripts/run-test.py", "ip", "-c", config, "--trace", "--no-log", "--base-out-dir", testRunDir, caseName)
+      .proc("scripts/run-test.py", "ip", "-c", config, "--trace", "-D", "0.9", "--no-log", "--base-out-dir", testRunDir, caseName)
       .call(check=false)
   }}
 }
