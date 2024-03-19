@@ -76,7 +76,7 @@ def main():
     verilator_args_parser.add_argument(
         "-D",
         "--dump-from-cycle",
-        default=0,
+        default=-11.4514,
         help="Delay dumping from the given cycle. Default dump wave from cycle 0.",
     )
     verilator_args_parser.add_argument(
@@ -233,6 +233,53 @@ def run_test(args):
     def optionals(cond, items):
         return items if cond else []
 
+    def resolve_dump_cycle(input):
+        # We don't support resolving cycle for user case
+        if Path(args.case).exists():
+            return input
+
+        ty = type(input)
+
+        # Should be unreachable, but in case for bugs I don't find out
+        if ty is not str:
+            return input
+
+        apply_ratio = False
+        try:
+            input = int(input)
+            if input >= 0:
+                return input
+            else:
+                print("Can't use negative number as cycle")
+                exit(1)
+        except:
+            try:
+                input = float(input)
+                # If nothing else specified, let emulator dump from begining
+                if input == -11.4514:
+                    return 0
+
+                if input > 1.0 or input <= 0.0:
+                    print(f"Got unexpected ratio {input}")
+                    exit(1)
+
+                apply_ratio = True
+            except:
+                print("Illegal dump-from-cycle argument")
+                exit(1)
+
+        cycle_record = json.loads(
+            Path(f"./.github/cases/{args.config}/default.json").read_text()
+        )
+        cycle = cycle_record[args.case]
+
+        if apply_ratio:
+            # Recorded cycle is 10 times less than actual cycle
+            return int(cycle * 10 * input)
+
+        # Should be unreachable
+        return 0
+
     if emu_type == "ip":
         dramsim3_cfg = args.dramsim3_cfg
         rtl_config = json.loads(elaborate_config_path.read_text())
@@ -274,7 +321,10 @@ def run_test(args):
                     dramsim3_cfg,
                 ],
             )
-            + optionals(args.trace, ["--dump-from-cycle", str(args.dump_from_cycle)])
+            + optionals(
+                args.trace,
+                ["--dump-from-cycle", str(resolve_dump_cycle(args.dump_from_cycle))],
+            )
         )
 
     elif emu_type == "subsystem":
