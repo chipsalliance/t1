@@ -142,6 +142,7 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   val issueInst:    Bool = Bool()
   val store:        Bool = Bool()
   val special:      Bool = Bool()
+  val lsWholeReg:   Bool = Bool()
 
   // instruction
   /** vs1 or imm */

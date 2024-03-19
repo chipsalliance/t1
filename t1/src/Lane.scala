@@ -1031,7 +1031,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val lastWriteOH: UInt = scanLeftOr(UIntToOH(writeCount)(parameter.vrfParam.elementSize - 1, 0))
 
   // segment ls type
-  val segmentLS: Bool = laneRequest.bits.loadStore && laneRequest.bits.segment.orR
+  val segmentLS: Bool = laneRequest.bits.loadStore && laneRequest.bits.segment.orR && !laneRequest.bits.lsWholeReg
   // 0 -> 1, 1 -> 2, 2 -> 4, 4 -> 8
   val mul: UInt = Mux(csrInterface.vlmul(2), 0.U, csrInterface.vlmul(1, 0))
   val mul1H: UInt = UIntToOH(mul)
@@ -1045,7 +1045,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     segmentLS,
     segmentMask,
     Mux(
-      laneRequest.bits.decodeResult(Decoder.nr),
+      laneRequest.bits.decodeResult(Decoder.nr) || laneRequest.bits.lsWholeReg,
       nrMask,
       lastWriteOH
     )
