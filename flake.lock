@@ -34,10 +34,27 @@
         "type": "github"
       }
     },
+    "nixpkgs-for-circt": {
+      "locked": {
+        "lastModified": 1710817074,
+        "narHash": "sha256-LeYqqFOre7AoHgGtAV6/7OSdaqu3S3sOFZtfsEQoA+o=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "afa65506cb0b4bed7191223bc693e6779c690a5b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable-small",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-for-circt": "nixpkgs-for-circt"
       }
     },
     "systems": {

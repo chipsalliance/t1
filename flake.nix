@@ -3,10 +3,11 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-for-circt.url = "github:NixOS/nixpkgs/nixos-unstable-small";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }@inputs:
+  outputs = { self, nixpkgs, flake-utils, nixpkgs-for-circt }@inputs:
     let
       overlay = import ./nix/overlay.nix { inherit self; };
     in
