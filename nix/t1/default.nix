@@ -86,6 +86,9 @@ lib.makeScope newScope
 
         mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystememu"; };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystememu.mlirbc; };
+
+        emu = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystememu.rtl; };
+        emu-trace = innerSelf.callPackage ./subsystememu.nix { rtl = innerSelf.subsystememu.rtl; do-trace = true; };
       };
     })
   )
