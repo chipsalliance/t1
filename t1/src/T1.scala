@@ -341,6 +341,8 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   val isLoadStoreType: Bool = !requestRegDequeue.bits.instruction(6) && requestRegDequeue.valid
   val isStoreType:     Bool = !requestRegDequeue.bits.instruction(6) && requestRegDequeue.bits.instruction(5)
   val maskType:        Bool = !requestRegDequeue.bits.instruction(25)
+  val lsWholeReg: Bool = isLoadStoreType && requestRegDequeue.bits.instruction(27, 26) === 0.U &&
+    requestRegDequeue.bits.instruction(24, 20) === 8.U
   // lane 只读不执行的指令
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
@@ -1354,6 +1356,13 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     requestReg.bits.csr.vl
   )
 
+  val vSewForLsu: UInt = Mux(lsWholeReg, 2.U, requestRegDequeue.bits.instruction(13, 12))
+  val evlForLsu: UInt = Mux(
+    lsWholeReg,
+    (requestRegDequeue.bits.instruction(31, 29) +& 1.U) ## 0.U(log2Ceil(parameter.vLen / parameter.datapathWidth).W),
+    requestReg.bits.csr.vl
+  )
+
   /** instantiate lanes.
     * TODO: move instantiate to top of class.
     */
@@ -1387,9 +1396,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     lane.laneRequest.bits.store := isStoreType
     // let lane know if this is a special instruction, which need group-level synchronization between lane and [[V]]
     lane.laneRequest.bits.special := specialInstruction
-    lane.laneRequest.bits.lsWholeReg :=
-      isLoadStoreType && requestRegDequeue.bits.instruction(27, 26) === 0.U &&
-        requestRegDequeue.bits.instruction(24, 20) === 8.U
+    lane.laneRequest.bits.lsWholeReg := lsWholeReg
     // mask type instruction.
     lane.laneRequest.bits.mask := maskType
     laneReady(index) := lane.laneRequest.ready
@@ -1484,7 +1491,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   lsu.request.bits.instructionInformation.lumop := requestRegDequeue.bits.instruction(24, 20)
   lsu.request.bits.instructionInformation.vs3 := requestRegDequeue.bits.instruction(11, 7)
   // (0b000 0b101 0b110 0b111) -> (8, 16, 32, 64)忽略最高位
-  lsu.request.bits.instructionInformation.eew := requestRegDequeue.bits.instruction(13, 12)
+  lsu.request.bits.instructionInformation.eew := vSewForLsu
   lsu.request.bits.instructionInformation.isStore := isStoreType
   lsu.request.bits.instructionInformation.maskedLoadStore := maskType
 
@@ -1492,6 +1499,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     data :=  cutUInt(v0.asUInt, parameter.maskGroupWidth)(index)
   }
   lsu.csrInterface := requestReg.bits.csr
+  lsu.csrInterface.vl := evlForLsu
   lsu.writeReadyForLsu := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
   lsu.vrfReadyToStore := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
 

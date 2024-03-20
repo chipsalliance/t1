@@ -869,7 +869,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     // vl is too small, don't need to use this lane.
     (((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl || maskLogicCompleted) &&
       // for 'nr' type instructions, they will need another complete signal.
-      !laneRequest.bits.decodeResult(Decoder.nr)
+      !(laneRequest.bits.decodeResult(Decoder.nr) || laneRequest.bits.lsWholeReg)
   // indicate if this is the mask type.
   entranceControl.mask.valid := laneRequest.bits.mask
   // assign mask from [[V]]
