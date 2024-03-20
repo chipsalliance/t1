@@ -43,6 +43,9 @@ void VBridgeImpl::PeekMMIOTL(VTlInterfacePeek &peek) {
   // output uart
   while (uart.exist_tx()) {
     char c = uart.getc();
+    if (c == EOF) {
+      finished = true;
+    }
     printf("%c",c);
     fflush(stdout);
   }
@@ -124,6 +127,7 @@ VBridgeImpl::VBridgeImpl(const Config cosim_config)
       bin(config.bin_path),
       wave(config.wave_path),
       timeout(config.timeout),
+      finished(false),
       vector_mem({
         mmio_mem(0x20000000), mmio_mem(0x20000000), mmio_mem(0x20000000),
         mmio_mem(0x20000000),

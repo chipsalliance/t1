@@ -71,6 +71,9 @@ private:
   /// via spike, which is not recorded.
   const uint64_t timeout;
 
+  // finished test
+  bool finished;
+
   // uart
   uartlite uart;
 
