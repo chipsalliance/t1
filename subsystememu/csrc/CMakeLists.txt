@@ -15,7 +15,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 add_executable(emulator
   dpi.cc
-  spdlog-ext.cc
+  spdlog_ext.cc
   vbridge_impl.cc
 )
 
