@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mmio_dev.hpp"
+#include "spdlog_ext.h"
 
 #include <fstream>
 #include <iostream>
@@ -26,32 +27,58 @@ class mmio_mem : public mmio_dev  {
         bool do_read(uint64_t start_addr, uint64_t size, uint8_t* buffer) {
             if (start_addr + size <= mem_size) {
                 memcpy(buffer,&mem[start_addr],size);
+                Log("MMIORead")
+                    .with("start addr", start_addr)
+                    .with("size", size)
+                    .info("mmio read success");
                 return true;
             }
             else if (allow_warp) {
                 start_addr %= mem_size;
                 if (start_addr + size <= mem_size) {
                     memcpy(buffer,&mem[start_addr],size);
+                    Log("MMIORead")
+                        .with("start addr", start_addr)
+                        .with("size", size)
+                        .info("mmio warp read success");
                     return true;
                 }
-                else return false;
             }
-            else return false;
+            else {
+                Log("MMIORead")
+                    .with("start addr", start_addr)
+                    .with("size", size)
+                    .warn("mmio read fail");
+                return false;
+            }
         }
         bool do_write(uint64_t start_addr, uint64_t size, const uint8_t* buffer) {
             if (start_addr + size <= mem_size) {
                 memcpy(&mem[start_addr],buffer,size);
+                Log("MMIOWrite")
+                    .with("start addr", start_addr)
+                    .with("size", size)
+                    .info("mmio write success");
                 return true;
             }
             else if (allow_warp) {
                 start_addr %= mem_size;
                 if (start_addr + size <= mem_size) {
                     memcpy(&mem[start_addr],buffer,size);
+                    Log("MMIOWrite")
+                        .with("start addr", start_addr)
+                        .with("size", size)
+                        .info("mmio warp write success");
                     return true;
                 }
-                else return false;
             }
-            else return false;
+            else {
+                Log("MMIOWrite")
+                    .with("start addr", start_addr)
+                    .with("size", size)
+                    .warn("mmio write fail");
+                return false;
+            }
         }
         void load_binary(uint64_t start_addr, const char *init_file) {
             std::ifstream file(init_file,std::ios::in | std::ios::binary | std::ios::ate);
