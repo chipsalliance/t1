@@ -8,7 +8,7 @@
 #include <spdlog/spdlog.h>
 
 #include "exceptions.h"
-#include "spdlog-ext.h"
+#include "spdlog_ext.h"
 #include "vbridge_impl.h"
 
 static bool terminated = false;

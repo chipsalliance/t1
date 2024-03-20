@@ -8,7 +8,7 @@
 #include <verilated.h>
 
 #include "exceptions.h"
-#include "spdlog-ext.h"
+#include "spdlog_ext.h"
 #include "vbridge_impl.h"
 
 void VBridgeImpl::dpiInitCosim(uint32_t *resetVector) {
@@ -111,7 +111,7 @@ static VBridgeImpl vbridgeImplFromArgs() {
     std::exit(1);
   }
 
-  Log = JsonLogger(no_logging.Get(), no_file_logging.Get(), no_console_logging.Get(), log_path.Get());
+  Log = JsonLogger(no_logging.Get(), no_file_logging.Get(), no_console_logging.Get(), log_path.Get().value_or("soc-emulator-log.txt"));
 
   Config cosim_config {
     .bin_path = bin_path.Get(),
