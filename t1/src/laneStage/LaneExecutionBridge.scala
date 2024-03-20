@@ -389,8 +389,11 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     when(enqueue.fire) {
       // red max min 的第一次不能和上一个指令的reduce结果比, 只能和自己比
       firstRequestFire.foreach { first =>
-        when(first && decodeResult(Decoder.float) && decodeResult(Decoder.fpExecutionType).orR){
-          reduceResult.foreach(_ := enqueue.bits.src(1))
+        when(first && decodeResult(Decoder.float)){
+          reduceResult.foreach {
+            // flot compare compare init as src1 else init as 0
+            _ := Mux(decodeResult(Decoder.fpExecutionType).orR, enqueue.bits.src(1), 0.U)
+          }
         }
       }
     }
