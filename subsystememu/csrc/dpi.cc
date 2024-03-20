@@ -56,6 +56,11 @@ void VBridgeImpl::timeoutCheck() {
       .info("Simulation timeout");
     dpi_finish();
   }
+  else if (finished) {
+    Log("TimeoutCheck")
+      .info("Simulation finished");
+    dpi_finish();
+  }
 }
 
 [[maybe_unused]] void dpi_init_cosim(svBitVecVal *resetVector) {
