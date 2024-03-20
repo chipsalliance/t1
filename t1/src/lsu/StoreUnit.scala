@@ -76,7 +76,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     when(lsuRequest.valid || readPort.fire) {
       segPtr := Mux(
         lsuRequest.valid,
-        lsuRequest.bits.instructionInformation.nf,
+        nfCorrection,
         Mux(
           lastReadPtr,
           lsuRequestReg.instructionInformation.nf,

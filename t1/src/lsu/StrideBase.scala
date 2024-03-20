@@ -33,9 +33,6 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   /** request from LSU. */
   val lsuRequestReg: LSURequest = RegInit(0.U.asTypeOf(lsuRequest.bits))
 
-  val nFiled: UInt = lsuRequest.bits.instructionInformation.nf +& 1.U
-  val nFiledReg: UInt = RegEnable(nFiled, 0.U, lsuRequest.valid)
-
   // pipe csr
   /** the CSR interface from [[V]], latch them here.
    * TODO: merge to [[LSURequest]]
@@ -145,8 +142,11 @@ abstract class StrideBase(param: MSHRParam) extends Module {
 
   val invalidInstruction: Bool = csrInterface.vl === 0.U
   val invalidInstructionNext: Bool = RegNext(invalidInstruction && lsuRequest.valid)
+  val wholeType = lsuRequest.bits.instructionInformation.lumop(3)
+  val nfCorrection: UInt = Mux(wholeType, 0.U, lsuRequest.bits.instructionInformation.nf)
   when(lsuRequest.valid) {
     lsuRequestReg := Mux(invalidInstruction, 0.U.asTypeOf(lsuRequestReg), lsuRequest.bits)
+    lsuRequestReg.instructionInformation.nf := nfCorrection
     // pipe instructionIndex for last report
     lsuRequestReg.instructionIndex := lsuRequest.bits.instructionIndex
   }
@@ -170,7 +170,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
     )
 
   /** How many byte will be accessed by this instruction(write vrf) */
-  val bytePerInstruction = ((nFiled * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
+  val bytePerInstruction = (((nfCorrection +& 1.U) * csrInterface.vl) << lsuRequest.bits.instructionInformation.eew).asUInt
 
   /** access byte + address offset(access memory) */
   val accessMemSize: UInt = bytePerInstruction + lsuRequest.bits.rs1Data(param.cacheLineBits - 1, 0)

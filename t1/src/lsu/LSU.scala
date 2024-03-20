@@ -200,7 +200,12 @@ class LSU(param: LSUParameter) extends Module {
   val unitVec: Seq[Module with LSUPublic] = Seq(loadUnit, storeUnit, otherUnit)
 
   /** Always merge into cache line */
-  val alwaysMerge: Bool = (request.bits.instructionInformation.mop ## request.bits.instructionInformation.lumop) === 0.U
+  val alwaysMerge: Bool = (
+    request.bits.instructionInformation.mop ##
+      // unit stride & whole register
+      request.bits.instructionInformation.lumop(2, 0) ##
+      request.bits.instructionInformation.lumop(4)
+    ) === 0.U
   val useLoadUnit: Bool = alwaysMerge && !request.bits.instructionInformation.isStore
   val useStoreUnit: Bool = alwaysMerge && request.bits.instructionInformation.isStore
   val useOtherUnit: Bool = !alwaysMerge
