@@ -43,7 +43,7 @@ set(VERILATE_ARGS
   TOP_MODULE TestBench
   PREFIX VTestBench
   OPT_FAST
-  THREADS 32
+  THREADS 8
   VERILATOR_ARGS --x-initial unique --output-split 2048 --max-num-width 1048576 --threads-max-mtasks 100000 --main --timing --coverage-user --assert
 )
 
