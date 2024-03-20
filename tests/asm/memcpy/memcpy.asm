@@ -55,7 +55,6 @@ test:
     lw a1, test_dst_start
     li a2, 0x1000
     call memcpy
-<<<<<<< HEAD
 
     lw ra, 0(sp)
     addi sp, sp, 4
@@ -68,16 +67,8 @@ test_src_start:
 test_dst_start:
     .zero 4096
 
-||||||| parent of 3d177db ([cosim] adjust uart addr to 0x10000000 to align with soc)
-exit:
-    li a0, 0x90000000
-    li a1, -1
-    sw a1, 4(a0)
-    csrwi 0x7cc, 0
-=======
 exit:
     li a0, 0x10000000
     li a1, -1
     sw a1, 4(a0)
     csrwi 0x7cc, 0
->>>>>>> 3d177db ([cosim] adjust uart addr to 0x10000000 to align with soc)
