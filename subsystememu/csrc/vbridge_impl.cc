@@ -14,7 +14,7 @@
 void VBridgeImpl::dpiInitCosim(uint32_t *resetVector) {
   ctx = Verilated::threadContextp();
 
-  uint32_t elf_entry = scarlar_mem.load_elf(0x20000000, bin.c_str());
+  uint32_t elf_entry = unified_mem.load_elf(0x0, bin.c_str());
   *resetVector = elf_entry;
 
   Log("DPIInitCosim")
@@ -128,14 +128,7 @@ VBridgeImpl::VBridgeImpl(const Config cosim_config)
       wave(config.wave_path),
       timeout(config.timeout),
       finished(false),
-      vector_mem({
-        mmio_mem(0x20000000), mmio_mem(0x20000000), mmio_mem(0x20000000),
-        mmio_mem(0x20000000),
-        mmio_mem(0x40000), mmio_mem(0x40000), mmio_mem(0x40000),
-        mmio_mem(0x40000), mmio_mem(0x40000), mmio_mem(0x40000),
-        mmio_mem(0x40000), mmio_mem(0x40000)
-      }),
-      scarlar_mem(512*1024*1024),
+      unified_mem(4096ul*1024*1024),
       mem_sigs_ref(mem_sigs),
       mmio_sigs_ref(mmio_sigs),
       vector_sigs_ref({vector_sigs[0], vector_sigs[1], vector_sigs[2],
@@ -147,18 +140,25 @@ VBridgeImpl::VBridgeImpl(const Config cosim_config)
 #endif
 {
   mmio_xbar.add_dev(0x10000000, 32, &uart);
-  mem_xbar.add_dev(0x20000000, 0x20000000, &scarlar_mem);
+  bool canAddMem = mem_xbar.add_dev(0, 4096ul*1024*1024, &unified_mem);
   /*
+      Scarlar Memory (Can be accessed by Vector):
+      1x512M from 512M
       Vector Memory:
       [0-3] 4*512M DDR from 1G step +512M
       [4-11] 8*256K SRAM from 3G step 256K
    */
   for (int i=0;i<4;i++) {
-    vector_xbar[i].add_dev(0x40000000u+0x20000000*i, 0x20000000, &vector_mem[i]);
+    canAddMem &= vector_xbar[i].add_dev(0, 4096ul*1024*1024, &unified_mem);
   }
 
   for (int i=0;i<8;i++) {
-    vector_xbar[i+4].add_dev(0xC0000000u+0x40000*i, 0x40000, &vector_mem[i+4]);
+    canAddMem &= vector_xbar[i+4].add_dev(0, 4096ul*1024*1024, &unified_mem);
+  }
+  if (!canAddMem) {
+    Log("VBridgeImpl")
+      .info("Can not initialize memory.");
+    exit(1);
   }
 }
 
