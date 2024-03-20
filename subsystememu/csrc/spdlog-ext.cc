@@ -18,7 +18,7 @@ JsonLogger::JsonLogger(bool no_logging, bool no_file_logging, bool no_console_lo
 
   // Initialize the file logger to write log into $EMULATOR_LOG_PATH, with each line a JSON log
   if (!no_file_logging) {
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path.value_or("emulator_log"), /*truncate=*/true);
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path.value_or("soc-emulator-log.txt"), /*truncate=*/true);
     file_sink->set_pattern("%v");
     file = std::make_shared<spdlog::async_logger>(
         "File", file_sink, spdlog::thread_pool(),
