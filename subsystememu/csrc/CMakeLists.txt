@@ -15,8 +15,8 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 add_executable(emulator
   dpi.cc
-  vbridge_impl.cc
   spdlog-ext.cc
+  vbridge_impl.cc
 )
 
 option(VERILATE_TRACE "enable verilator trace" OFF)
