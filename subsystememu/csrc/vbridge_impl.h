@@ -78,13 +78,7 @@ private:
   uartlite uart;
 
   // memory
-  /*
-    Vector Memory:
-    [0-3] 4*512M DDR from 1G step +512M
-    [4-11] 8*256K SRAM from 3G step 256K
-   */
-  mmio_mem vector_mem[12];
-  mmio_mem scarlar_mem;
+  mmio_mem unified_mem;
 
   // tilelink
   tilelink <30, 8, 16, 3> mem_sigs;
