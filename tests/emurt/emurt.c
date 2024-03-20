@@ -8,7 +8,7 @@ struct uartlite_regs {
     volatile unsigned int control;
 };
 
-struct uartlite_regs *const ttyUL0 = (struct uartlite_regs *)0x90000000;
+struct uartlite_regs *const ttyUL0 = (struct uartlite_regs *)0x10000000;
 
 void uart_put_c(const char c) {
   while (ttyUL0->status & (1<<3) /* transmit FIFO full */);
