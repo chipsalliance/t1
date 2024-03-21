@@ -24,6 +24,7 @@ stdenv.mkDerivation (rec {
     "-fvisibility=hidden"
     # "-nostdlib"
     "-fno-PIC"
+    "-O3"
 
     "-T" "${linkerScript}"
   ];

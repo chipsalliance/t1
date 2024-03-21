@@ -474,13 +474,21 @@ void softmax(void) {
   rvfdiv_f32(temp, actual, sum, ARRAY_ZIZE);
 }
 
+void *memcpy_vec(void *dst, void *src, size_t n) {
+  void *save = dst;
+  // copy data byte by byte
+  for (size_t vl; n > 0; n -= vl, src += vl, dst += vl) {
+    vl = __riscv_vsetvl_e8m8(n);
+    vuint8m8_t vec_src = __riscv_vle8_v_u8m8(src, vl);
+    __riscv_vse8_v_u8m8(dst, vec_src, vl);
+  }
+  return save;
+}
+
 int test(void) {
-  int i;
   int ret = 0;
 
-  for (i = 0; i < ARRAY_ZIZE; i++) {
-    src_f32[i] = test_data[i];
-  }
+  memcpy_vec(src_f32, test_data, ARRAY_ZIZE);
 
   softmax();
 
