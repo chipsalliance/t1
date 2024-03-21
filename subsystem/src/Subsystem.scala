@@ -13,7 +13,7 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSourceNode, ClockSourceParameters, FixedClockBroadcast, NoResetCrossing}
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.subsystem._
-import freechips.rocketchip.tile.{MaxHartIdBits, XLen}
+import freechips.rocketchip.tile.{FPUParams, MaxHartIdBits, XLen}
 import freechips.rocketchip.tilelink.{BroadcastFilter, HasTLBusParams, TLBusWrapper, TLBusWrapperConnection, TLBusWrapperInstantiationLike, TLBusWrapperTopology, TLEdge, TLFIFOFixer, TLFragmenter, TLInwardNode, TLManagerNode, TLOutwardNode, TLSlaveParameters, TLSlavePortParameters, TLWidthWidget, TLXbar}
 import freechips.rocketchip.util.Location
 import org.chipsalliance.cde.config._
@@ -120,7 +120,7 @@ class T1SubsystemConfig(t1Generator: SerializableModuleGenerator[T1, T1Parameter
                 core = new RocketCoreParams(
                   haveSimTimeout = false,
                   useVM = false,
-                  fpu = None,
+                  fpu = Option.when(t1Generator.parameter.fpuEnable)(FPUParams()),
                   mulDiv = Some(MulDivParams(mulUnroll = 8))
                 ) {
                   // hot fix
