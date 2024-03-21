@@ -371,8 +371,7 @@ def run_test(args):
             + optionals(args.no_console_logging, ["--no-console-logging"])
         )
         if args.trace:
-            trace_file_path = args.trace_out_file or f"{args.out_dir}/trace.fst"
-            emu_args.append(f"+trace_file={trace_file_path}")
+            emu_args.append(f"+trace_file={args.out_dir}/trace.fst")
 
     else:
         assert False, f"unknown emutype {emu_type}"
