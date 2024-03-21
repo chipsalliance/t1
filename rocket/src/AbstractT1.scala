@@ -208,14 +208,17 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
         )
       )
 
+      // vlmax = vlen * lmul / sew
+      val vlmax: UInt = (true.B << (log2Ceil(vlMax) - 3) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
+
       val rs1IsZero = deqInst(19, 15) === 0.U
       val rdIsZero = deqInst(11, 7) === 0.U
       // set vl
       val setVL = Mux1H(
         Seq(
           ((vsetvli || vsetvl) && !rs1IsZero) ->
-            Mux(queue.io.deq.bits.rs1Data > vlMax.U, vlMax.U, queue.io.deq.bits.rs1Data),
-          ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vlMax.U,
+            Mux(queue.io.deq.bits.rs1Data > vlmax, vlmax, queue.io.deq.bits.rs1Data),
+          ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vlmax,
           ((vsetvli || vsetvl) && rs1IsZero && rdIsZero) -> csrReg.vl,
           vsetivli -> deqInst(19, 15)
         )
