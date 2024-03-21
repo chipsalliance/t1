@@ -371,7 +371,7 @@ def run_test(args):
             + optionals(args.no_console_logging, ["--no-console-logging"])
         )
         if args.trace:
-            emu_args.append(f"+trace_file={args.out_dir}/trace.fst")
+            emu_args.append(f"--wave={args.out_dir}/trace.fst")
 
     else:
         assert False, f"unknown emutype {emu_type}"
