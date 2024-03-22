@@ -13,7 +13,7 @@ private:
   char *mem;
   size_t mem_size;
   uartlite uart;
-  reg_t uart_addr = 0x90000000;
+  reg_t uart_addr = 0x10000000;
 
 public:
   explicit simple_sim(size_t mem_size) : mem_size(mem_size) {
