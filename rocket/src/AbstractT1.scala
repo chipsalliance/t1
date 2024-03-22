@@ -181,7 +181,7 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
   outer.t1.map(_.module).foreach { t1Module: AbstractLazyT1ModuleImp =>
     // TODO: make it configurable
     val maxCount: Int = 32
-    val vlMax:    Int = outer.t1.get.t1LSUParameters
+    val vlMax:    Int = outer.t1.get.vlMax
     val xLen:     Int = 32
 
     val instructionQueue: Option[Queue[VectorRequest]] =
