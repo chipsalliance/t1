@@ -7,7 +7,7 @@
   "asm.smoke": 4456,
   "intrinsic.conv2d_less_m2": 1141,
   "intrinsic.linear_normalization": 2569,
-  "intrinsic.softmax": 8025,
+  "intrinsic.softmax": 8047,
   "codegen.vaadd_vv": 81061,
   "codegen.vaadd_vx": 217319,
   "codegen.vaaddu_vv": 81061,
