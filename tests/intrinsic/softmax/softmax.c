@@ -353,6 +353,7 @@ __attribute((section(".vdata"))) float test_data[] = {
     4.970674486803519088,    4.980449657869012725,     4.990224828934506363,
     5.000000000000000000};
 
+__attribute__((noinline))
 void reduce(float *a, float *result_sum, int len) {
   int count = 0;
   uint32_t vblkCnt = len;
@@ -378,6 +379,7 @@ void reduce(float *a, float *result_sum, int len) {
   *result_sum = sum;
 }
 
+__attribute__((noinline))
 void rvfdiv_f32(float *src, float *dest, float divded, int len) {
   uint32_t vblkCnt = len; /* Loop counter */
   size_t l;
@@ -391,6 +393,7 @@ void rvfdiv_f32(float *src, float *dest, float divded, int len) {
   }
 }
 
+__attribute__((noinline))
 void exp_f32_v(float *src, float *dest, int32_t len) {
   uint32_t vblkCnt = len; /* Loop counter */
   size_t l;
@@ -430,6 +433,7 @@ void exp_f32_v(float *src, float *dest, int32_t len) {
   }
 }
 
+__attribute__((noinline))
 void process_max(float *src, float *dest, int32_t len) {
 
   uint32_t vblkCnt = len; /* Loop counter */
@@ -462,6 +466,7 @@ void process_max(float *src, float *dest, int32_t len) {
   }
 }
 
+__attribute__((noinline))
 void softmax(void) {
   float sum;
 
