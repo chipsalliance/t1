@@ -1,3 +1,4 @@
+#ifdef IPEMU
 #pragma once
 
 #include "spdlog_ext.h"
@@ -137,3 +138,4 @@ struct SpikeEvent {
   void record_rd_write(const VRespInterface &v_resp);
   void check_is_ready_for_commit();
 };
+#endif

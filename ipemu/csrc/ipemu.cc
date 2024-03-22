@@ -1,3 +1,4 @@
+#ifdef IPEMU
 #include <filesystem>
 
 #include <fmt/core.h>
@@ -425,14 +426,14 @@ void T1IPEmulator::receive_tl_req(const VTlInterface &tl) {
         .info("<- receive rtl mem get req");
 
     auto emplaced = tl_req_record_of_bank[tlIdx].emplace(
-        get_t(), TLReqRecord{se, get_t(), actual_data, size, base_addr, src,
-                             TLReqRecord::opType::Get, dramsim_burst_size(tlIdx)});
+        get_t(), T1IPEmuTLReqRecord{se, get_t(), actual_data, size, base_addr, src,
+                                    T1IPEmuTLReqRecord::opType::Get, dramsim_burst_size(tlIdx)});
     if(!this->using_dramsim3) emplaced->second.skip();
     break;
   }
 
   case TlOpcode::PutFullData: {
-    TLReqRecord *cur_record = nullptr;
+    T1IPEmuTLReqRecord *cur_record = nullptr;
     // determine if it is a beat of ongoing burst
     if (tl_req_ongoing_burst[tlIdx].has_value()) {
       auto find = tl_req_record_of_bank[tlIdx].find(
@@ -457,8 +458,8 @@ void T1IPEmulator::receive_tl_req(const VTlInterface &tl) {
     if (cur_record == nullptr) {
       auto record = tl_req_record_of_bank[tlIdx].emplace(
           get_t(),
-          TLReqRecord{se, get_t(), std::vector<uint8_t>(size), size, base_addr, src,
-                      TLReqRecord::opType::PutFullData, dramsim_burst_size(tlIdx)});
+          T1IPEmuTLReqRecord{se, get_t(), std::vector<uint8_t>(size), size, base_addr, src,
+                             T1IPEmuTLReqRecord::opType::PutFullData, dramsim_burst_size(tlIdx)});
       cur_record = &record->second;
     }
 
@@ -552,7 +553,7 @@ void T1IPEmulator::receive_tl_d_ready(const VTlInterface &tl) {
         Log("ReceiveTlDReady")
           .with("channel", tlIdx)
           .with("addr", fmt::format("{:08X}", addr))
-          .info(fmt::format("-> tl response for {} reaches d_ready", req_record.op == TLReqRecord::opType::Get ? "Get" : "PutFullData"));
+          .info(fmt::format("-> tl response for {} reaches d_ready", req_record.op == T1IPEmuTLReqRecord::opType::Get ? "Get" : "PutFullData"));
       }
       tl_req_waiting_ready[tlIdx].reset();
 
@@ -603,7 +604,7 @@ void T1IPEmulator::return_tl_response(const VTlInterfacePoke &tl_poke) {
           .with("lsu_idx", record.se->lsu_idx)
           .info("-> send tl response");
 
-      *tl_poke.d_bits_opcode = record.op == TLReqRecord::opType::Get
+      *tl_poke.d_bits_opcode = record.op == T1IPEmuTLReqRecord::opType::Get
                                    ? TlOpcode::AccessAckData
                                    : TlOpcode::AccessAck;
 
@@ -862,3 +863,4 @@ void T1IPEmulator::on_exit() {
 }
 
 T1IPEmulator vbridge_impl_instance = T1IPEmulator(Config());
+#endif

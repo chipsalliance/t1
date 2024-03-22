@@ -1,3 +1,4 @@
+#ifdef IPEMU
 #pragma once
 
 #include <fstream>
@@ -60,3 +61,4 @@ public:
 
   const char *get_symbol(uint64_t addr) override { FATAL("Unimplemented"); }
 };
+#endif

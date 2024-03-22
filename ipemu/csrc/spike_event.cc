@@ -1,3 +1,4 @@
+#ifdef IPEMU
 #include <fmt/core.h>
 
 #include "disasm.h"
@@ -274,3 +275,4 @@ std::pair<uint32_t, uint32_t> SpikeEvent::get_vrf_write_range() const {
     return {vd_bytes_start, is_widening ? len * 2 : len};
   }
 }
+#endif

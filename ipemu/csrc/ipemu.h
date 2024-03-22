@@ -1,3 +1,4 @@
+#ifdef IPEMU
 #pragma once
 
 #include <condition_variable>
@@ -31,7 +32,7 @@
 
 class SpikeEvent;
 
-struct TLReqRecord {
+struct T1IPEmuTLReqRecord {
   std::vector<uint8_t> data;
   size_t t;
   size_t size_by_byte;
@@ -61,8 +62,8 @@ struct TLReqRecord {
   /// when opType set to nil, it means this record is already sent back
   enum class opType { Nil, Get, PutFullData } op;
 
-  TLReqRecord(const SpikeEvent *se, size_t t, std::vector<uint8_t> data, size_t size_by_byte,
-              reg_t addr, uint16_t source, opType op, reg_t burst_size)
+  T1IPEmuTLReqRecord(const SpikeEvent *se, size_t t, std::vector<uint8_t> data, size_t size_by_byte,
+                     reg_t addr, uint16_t source, opType op, reg_t burst_size)
       : se(se), t(t), data(std::move(data)), size_by_byte(size_by_byte), addr(addr),
         source(source), op(op) {
           muxin_read_required = op == opType::PutFullData && size_by_byte < burst_size;
@@ -198,7 +199,7 @@ private:
   simple_sim sim;
   isa_parser_t isa;
   processor_t proc;
-  std::vector<std::multimap<size_t, TLReqRecord>>
+  std::vector<std::multimap<size_t, T1IPEmuTLReqRecord>>
       tl_req_record_of_bank; // indexed by get_t()
   std::vector<std::optional<size_t>>
       tl_req_waiting_ready; // the get_t() of a req response waiting for ready
@@ -279,3 +280,5 @@ private:
 };
 
 extern T1IPEmulator vbridge_impl_instance;
+
+#endif

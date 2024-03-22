@@ -1,5 +1,5 @@
+#ifdef IPEMU
 #pragma once
-
 #include <svdpi.h>
 #include "tilelink.h"
 
@@ -59,3 +59,4 @@ struct VrfWritePeek {
 struct VLsuReqEnqPeek {
   svBitVecVal enq;
 };
+#endif
