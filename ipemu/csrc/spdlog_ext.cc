@@ -6,7 +6,8 @@
 #include <fmt/color.h>
 
 #include "spdlog_ext.h"
-#include "vbridge_impl.h"
+// TODO: unify emu.h?
+#include "ipemu.h"
 
 /**
  * Get environment variable by the given `env_namae` key or fallback to a default

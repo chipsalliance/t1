@@ -158,9 +158,9 @@ struct TLReqRecord {
   }
 };
 
-class VBridgeImpl {
+class T1IPEmulator {
 public:
-  explicit VBridgeImpl(Config cosim_config);
+  explicit T1IPEmulator(Config cosim_config);
 #if VM_TRACE
   void dpiDumpWave();
 #endif
@@ -278,4 +278,4 @@ private:
   bool dump_start = false;
 };
 
-extern VBridgeImpl vbridge_impl_instance;
+extern T1IPEmulator vbridge_impl_instance;

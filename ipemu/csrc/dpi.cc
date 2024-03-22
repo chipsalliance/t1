@@ -10,7 +10,8 @@
 #include "encoding.h"
 #include "exceptions.h"
 #include "svdpi.h"
-#include "vbridge_impl.h"
+// TODO: add macro
+#include "ipemu.h"
 
 static bool terminated = false;
 
@@ -38,7 +39,7 @@ void sigint_handler(int s) {
   }
 
 #if VM_TRACE
-void VBridgeImpl::dpiDumpWave() {
+void T1IPEmulator::dpiDumpWave() {
   TRY({
     svSetScope(
         svGetScopeFromName("TOP.TestBench.verificationModule.dpiDumpWave"));

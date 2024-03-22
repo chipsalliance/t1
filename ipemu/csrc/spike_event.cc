@@ -138,7 +138,7 @@ void SpikeEvent::log_arch_changes() {
 }
 
 SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch,
-                       VBridgeImpl *impl,
+                       T1IPEmulator *impl,
                        // FIXME: dirty
                        size_t lsu_idx
                        )

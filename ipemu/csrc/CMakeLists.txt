@@ -14,19 +14,19 @@ find_package(Threads REQUIRED)
 find_package(dramsim3 REQUIRED)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-add_executable(emulator
+add_executable(ipemu
   spike_event.cc
   spdlog_ext.cc
-  vbridge_impl.cc
+  ipemu.cc
   dpi.cc
   memory.cc
 )
 
 option(VERILATE_TRACE "enable verilator trace" OFF)
 
-target_link_libraries(emulator PUBLIC ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(emulator PUBLIC libspike fmt::fmt spdlog::spdlog nlohmann_json::nlohmann_json dramsim3 taywee::args)
-target_compile_definitions(emulator PRIVATE COSIM_VERILATOR)
+target_link_libraries(ipemu PUBLIC ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(ipemu PUBLIC libspike fmt::fmt spdlog::spdlog nlohmann_json::nlohmann_json dramsim3 taywee::args)
+target_compile_definitions(ipemu PRIVATE COSIM_VERILATOR)
 
 # read VERILATE_SRC_DIR from args, else read from environment
 if (NOT DEFINED VERILATE_SRC_DIR)
@@ -54,10 +54,11 @@ if (${VERILATE_TRACE})
   list(PREPEND VERILATE_ARGS "TRACE_FST")
 endif()
 
-verilate(emulator
+# Guard this with CMake option
+verilate(ipemu
   SOURCES ${VERILATE_SRC_LIST}
   ${VERILATE_ARGS}
 )
 
-install(TARGETS emulator RUNTIME)
+install(TARGETS ipemu RUNTIME)
 

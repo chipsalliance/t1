@@ -12,14 +12,15 @@
 
 #include "exceptions.h"
 #include "util.h"
-#include "vbridge_impl.h"
+// TODO: add macro
+#include "ipemu.h"
 
 /// convert TL style size to size_by_bytes
 inline uint32_t decode_size(uint32_t encoded_size) { return 1 << encoded_size; }
 
 inline bool is_pow2(uint32_t n) { return n && !(n & (n - 1)); }
 
-void VBridgeImpl::timeoutCheck() {
+void T1IPEmulator::timeoutCheck() {
   getCoverage();
 #if VM_TRACE
   if(get_t() >= dump_from_cycle && !dump_start) {
@@ -31,7 +32,7 @@ void VBridgeImpl::timeoutCheck() {
            fmt::format("Simulation timeout, last_commit: {}", last_commit_time));
 }
 
-void VBridgeImpl::dpiInitCosim() {
+void T1IPEmulator::dpiInitCosim() {
   ctx = Verilated::threadContextp();
   proc.reset();
   // TODO: remove this line, and use CSR write in the test code to enable this
@@ -69,13 +70,13 @@ void VBridgeImpl::dpiInitCosim() {
 // posedge (1)
 //==================
 
-void VBridgeImpl::dpiPeekLsuEnq(const VLsuReqEnqPeek &lsu_req_enq) {
+void T1IPEmulator::dpiPeekLsuEnq(const VLsuReqEnqPeek &lsu_req_enq) {
   Log("DPIPeekLSUEnq").trace();
 
   update_lsu_idx(lsu_req_enq);
 }
 
-void VBridgeImpl::dpiPeekVrfWrite(const VrfWritePeek &vrf_write) {
+void T1IPEmulator::dpiPeekVrfWrite(const VrfWritePeek &vrf_write) {
   Log("DPIPeekVRFWrite").trace();
 
   CHECK(0 <= vrf_write.lane_index && vrf_write.lane_index < config.lane_number,
@@ -83,7 +84,7 @@ void VBridgeImpl::dpiPeekVrfWrite(const VrfWritePeek &vrf_write) {
   record_rf_accesses(vrf_write);
 }
 
-void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr,
+void T1IPEmulator::dpiPokeInst(const VInstrInterfacePoke &v_instr,
                               const VCsrInterfacePoke &v_csr,
                               const VRespInterface &v_resp) {
   Log("DPIPokeInst").trace();
@@ -142,7 +143,7 @@ void VBridgeImpl::dpiPokeInst(const VInstrInterfacePoke &v_instr,
   se_to_issue->drive_rtl_csr(v_csr);
 }
 
-void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
+void T1IPEmulator::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
   Log("DPIPokeTL").trace();
   CHECK(0 <= v_tl_resp.channel_id &&
         v_tl_resp.channel_id < config.tl_bank_number,
@@ -157,7 +158,7 @@ void VBridgeImpl::dpiPokeTL(const VTlInterfacePoke &v_tl_resp) {
 // posedge (2)
 //==================
 
-void VBridgeImpl::dpiPeekIssue(svBit ready, svBitVecVal issueIdx) {
+void T1IPEmulator::dpiPeekIssue(svBit ready, svBitVecVal issueIdx) {
   if (ready && !(se_to_issue->is_vfence_insn || se_to_issue->is_exit_insn)) {
     se_to_issue->is_issued = true;
     se_to_issue->issue_idx = issueIdx;
@@ -173,7 +174,7 @@ void VBridgeImpl::dpiPeekIssue(svBit ready, svBitVecVal issueIdx) {
   }
 }
 
-void VBridgeImpl::dpiPeekTL(const VTlInterface &v_tl) {
+void T1IPEmulator::dpiPeekTL(const VTlInterface &v_tl) {
   Log("DPIPeekTL").trace();
   CHECK(0 <= v_tl.channel_id && v_tl.channel_id < config.tl_bank_number,
         "invalid v_tl channel id");
@@ -185,7 +186,7 @@ void VBridgeImpl::dpiPeekTL(const VTlInterface &v_tl) {
 // negedge (1)
 //==================
 
-void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
+void T1IPEmulator::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
   Log("DPIPeekWriteQueue").trace();
   CHECK(0 <= lsu_queue.mshr_index && lsu_queue.mshr_index < config.lane_number,
         "invalid lsu_queue mshr index");
@@ -217,7 +218,7 @@ cfg_t make_spike_cfg(const std::string &varch) {
   return cfg;
 }
 
-VBridgeImpl::VBridgeImpl(Config cosim_config)
+T1IPEmulator::T1IPEmulator(Config cosim_config)
     : config(std::move(cosim_config)),
       varch(fmt::format("vlen:{},elen:{}", config.vlen, config.elen)),
       mem(1l << 32, 0x10000000),
@@ -274,17 +275,17 @@ VBridgeImpl::VBridgeImpl(Config cosim_config)
 }
 
 #ifdef COSIM_VERILATOR
-uint64_t VBridgeImpl::get_t() {
+uint64_t T1IPEmulator::get_t() {
   if (ctx) {
     return ctx->time();
   } else {  // before ctx is initialized
     return 0;
   }
 }
-void VBridgeImpl::getCoverage() { return ctx->coveragep()->write(); }
+void T1IPEmulator::getCoverage() { return ctx->coveragep()->write(); }
 #endif
 
-std::optional<SpikeEvent> VBridgeImpl::spike_step() {
+std::optional<SpikeEvent> T1IPEmulator::spike_step() {
   auto state = proc.get_state();
   reg_t pc = state->pc;
   auto fetch = proc.get_mmu()->load_insn(pc);
@@ -333,7 +334,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   return event;
 }
 
-std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
+std::optional<SpikeEvent> T1IPEmulator::create_spike_event(insn_fetch_t fetch) {
   // create SpikeEvent
   uint32_t opcode = clip(fetch.insn.bits(), 0, 6);
   uint32_t width = clip(fetch.insn.bits(), 12, 14);
@@ -362,11 +363,11 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
   }
 }
 
-uint8_t VBridgeImpl::load(uint64_t address) {
+uint8_t T1IPEmulator::load(uint64_t address) {
   return *sim.addr_to_mem(address);
 }
 
-void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
+void T1IPEmulator::receive_tl_req(const VTlInterface &tl) {
   uint32_t tlIdx = tl.channel_id;
   if (!tl.a_valid)
     return;
@@ -531,7 +532,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
   }
 }
 
-void VBridgeImpl::receive_tl_d_ready(const VTlInterface &tl) {
+void T1IPEmulator::receive_tl_d_ready(const VTlInterface &tl) {
   uint32_t tlIdx = tl.channel_id;
 
   if (tl.d_ready) {
@@ -561,7 +562,7 @@ void VBridgeImpl::receive_tl_d_ready(const VTlInterface &tl) {
   }
 }
 
-void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
+void T1IPEmulator::return_tl_response(const VTlInterfacePoke &tl_poke) {
   // update remaining_cycles
   auto i = tl_poke.channel_id;
   // find a finished request and return
@@ -629,7 +630,7 @@ void VBridgeImpl::return_tl_response(const VTlInterfacePoke &tl_poke) {
   *tl_poke.a_ready = true;
 }
 
-void VBridgeImpl::update_lsu_idx(const VLsuReqEnqPeek &enq) {
+void T1IPEmulator::update_lsu_idx(const VLsuReqEnqPeek &enq) {
   std::vector<uint32_t> lsuReqs(config.mshr_number);
   for (int i = 0; i < config.mshr_number; i++) {
     lsuReqs[i] = (enq.enq >> i) & 1;
@@ -659,7 +660,7 @@ void VBridgeImpl::update_lsu_idx(const VLsuReqEnqPeek &enq) {
   }
 }
 
-SpikeEvent *VBridgeImpl::find_se_to_issue() {
+SpikeEvent *T1IPEmulator::find_se_to_issue() {
   SpikeEvent *unissued_se = nullptr;
 
   // search from tail, until finding an unissued se
@@ -687,7 +688,7 @@ SpikeEvent *VBridgeImpl::find_se_to_issue() {
   }
 }
 
-void VBridgeImpl::record_rf_accesses(const VrfWritePeek &rf_write) {
+void T1IPEmulator::record_rf_accesses(const VrfWritePeek &rf_write) {
   int valid = rf_write.valid;
   uint32_t lane_idx = rf_write.lane_index;
   if (valid) {
@@ -721,7 +722,7 @@ void VBridgeImpl::record_rf_accesses(const VrfWritePeek &rf_write) {
   } // end if(valid)
 }
 
-void VBridgeImpl::record_rf_queue_accesses(
+void T1IPEmulator::record_rf_queue_accesses(
     const VLsuWriteQueuePeek &lsu_queue) {
   bool valid = lsu_queue.write_valid;
   if (valid) {
@@ -752,7 +753,7 @@ void VBridgeImpl::record_rf_queue_accesses(
   }
 }
 
-void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd,
+void T1IPEmulator::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd,
                                 uint32_t offset, uint32_t mask, uint32_t data,
                                 uint32_t idx) {
   uint32_t record_idx_base =
@@ -793,7 +794,7 @@ void VBridgeImpl::add_rtl_write(SpikeEvent *se, uint32_t lane_idx, uint32_t vd,
   }   // end for j
 }
 
-void VBridgeImpl::dramsim_drive(uint32_t channel_id) {
+void T1IPEmulator::dramsim_drive(uint32_t channel_id) {
   auto &[dram, tick] = drams[channel_id];
   const auto target_dram_tick = (double) get_t() * tck / dram.GetTCK();
   while((double) tick < target_dram_tick) {
@@ -826,7 +827,7 @@ void VBridgeImpl::dramsim_drive(uint32_t channel_id) {
   }
 }
 
-void VBridgeImpl::dramsim_resolve(uint32_t channel_id, reg_t addr) {
+void T1IPEmulator::dramsim_resolve(uint32_t channel_id, reg_t addr) {
   if(tl_req_record_of_bank[channel_id].empty())
     FATAL(fmt::format("Response on an idle channel {}", channel_id));
 
@@ -843,12 +844,12 @@ void VBridgeImpl::dramsim_resolve(uint32_t channel_id, reg_t addr) {
     FATAL(fmt::format("dram response no matching request: 0x{:08X}", addr));
 }
 
-size_t VBridgeImpl::dramsim_burst_size(uint32_t channel_id) const {
+size_t T1IPEmulator::dramsim_burst_size(uint32_t channel_id) const {
   if(!using_dramsim3) return 1; // Dummy value, won't be effective whatsoever. 1 is to ensure that no sub-line write is possible
   return drams[channel_id].first.GetBurstLength() * drams[channel_id].first.GetBusBits() / 8;
 }
 
-void VBridgeImpl::on_exit() {
+void T1IPEmulator::on_exit() {
   // TODO: This is used in CI.
   if (perf_path.has_value()) {
     std::ofstream of(perf_path->c_str());
@@ -860,5 +861,4 @@ void VBridgeImpl::on_exit() {
   }
 }
 
-
-VBridgeImpl vbridge_impl_instance = VBridgeImpl(Config());
+T1IPEmulator vbridge_impl_instance = T1IPEmulator(Config());
