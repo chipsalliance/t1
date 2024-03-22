@@ -10,6 +10,8 @@
 
 #include <mmu.h>
 
+#include "config.h"
+
 #ifdef COSIM_VERILATOR
   #include <verilated.h>
   #include <verilated_cov.h>
@@ -28,35 +30,6 @@
 #include "util.h"
 
 class SpikeEvent;
-
-struct Config {
-  std::string bin_path;
-  std::string wave_path;
-  std::optional<std::string> perf_path;
-
-  uint64_t timeout;
-#ifdef VM_TRACE
-  uint64_t dump_from_cycle;
-#endif
-
-  double tck;
-  std::optional<std::string> dramsim3_config_path;
-  std::optional<std::string> dramsim3_result_dir;
-  // TODO: move these configs to compiler time after t1 support OM:
-  // TODO: these are unused parameters
-  size_t vlen;
-  size_t dlen;
-  size_t tl_bank_number;
-
-  size_t datapath_width;
-  size_t lane_number;
-  size_t elen;
-  size_t vreg_number;
-  size_t mshr_number;
-  size_t lsu_idx_default;
-  size_t vlen_in_bytes;
-  size_t datapath_width_in_bytes;
-};
 
 struct TLReqRecord {
   std::vector<uint8_t> data;

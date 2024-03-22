@@ -11,7 +11,6 @@
 #include <verilated.h>
 
 #include "exceptions.h"
-#include "spdlog_ext.h"
 #include "util.h"
 #include "vbridge_impl.h"
 
@@ -198,82 +197,6 @@ void VBridgeImpl::dpiPeekWriteQueue(const VLsuWriteQueuePeek &lsu_queue) {
 //==================
 // end of dpi interfaces
 //==================
-
-static VBridgeImpl vbridgeImplFromArgs() {
-  std::ifstream cmdline("/proc/self/cmdline");
-  std::vector<std::string> arg_vec;
-  for (std::string line; std::getline(cmdline, line, '\0');) {
-    arg_vec.emplace_back(line);
-  }
-  std::vector<const char*> argv;
-  argv.reserve(arg_vec.size());
-  for (const auto& arg: arg_vec) {
-    argv.emplace_back(arg.c_str());
-  }
-
-  args::ArgumentParser parser("emulator for t1");
-
-  args::Flag no_logging(parser, "no_logging", "Disable all logging utilities.", { "no-logging" });
-  args::Flag no_file_logging(parser, "no_file_logging", "Disable file logging utilities.", { "no-file-logging" });
-  args::Flag no_console_logging(parser, "no_console_logging", "Disable console logging utilities.", { "no-console-logging" });
-  args::ValueFlag<std::string> log_path(parser, "log path", "Path to store logging file", {"log-path"});
-
-  args::ValueFlag<size_t> vlen(parser, "vlen", "match from RTL config, tobe removed", {"vlen"}, args::Options::Required);
-  args::ValueFlag<size_t> dlen(parser, "dlen", "match from RTL config, tobe removed", {"dlen"}, args::Options::Required);
-  args::ValueFlag<size_t> tl_bank_number(parser, "tl_bank_number", "match from RTL config, tobe removed", {"tl_bank_number"}, args::Options::Required);
-  args::ValueFlag<size_t> beat_byte(parser, "beat_byte", "match from RTL config, tobe removed", {"beat_byte"}, args::Options::Required);
-
-  args::ValueFlag<std::string> bin_path(parser, "elf path", "", {"elf"}, args::Options::Required);
-  args::ValueFlag<std::string> wave_path(parser, "wave path", "", {"wave"}, args::Options::Required);
-  args::ValueFlag<std::optional<std::string>> perf_path(parser, "perf path", "", {"perf"});
-  args::ValueFlag<uint64_t> timeout(parser, "timeout", "", {"timeout"}, args::Options::Required);
-#if VM_TRACE
-  args::ValueFlag<uint64_t> dump_from_cycle(parser, "dump_from_cycle", "start to dump wave at cycle", {"dump-from-cycle"}, args::Options::Required);
-#endif
-  args::ValueFlag<double> tck(parser, "tck", "", {"tck"}, args::Options::Required);
-  args::Group dramsim_group(parser, "dramsim config", args::Group::Validators::AllOrNone);
-  args::ValueFlag<std::optional<std::string>> dramsim3_config_path(dramsim_group, "config path", "", {"dramsim3-config"});
-  args::ValueFlag<std::optional<std::string>> dramsim3_result_dir(dramsim_group, "result dir", "", {"dramsim-result"});
-
-  try {
-    parser.ParseCLI((int) argv.size(), argv.data());
-  } catch (args::Help&) {
-    std::cerr << parser;
-    std::exit(0);
-  } catch (args::Error& e) {
-    std::cerr << e.what() << std::endl << parser;
-    std::exit(1);
-  }
-
-  Log = JsonLogger(no_logging.Get(), no_file_logging.Get(), no_console_logging.Get(), log_path.Get());
-
-  Config cosim_config {
-    .bin_path = bin_path.Get(),
-    .wave_path = wave_path.Get(),
-    .perf_path = perf_path.Get(),
-    .timeout = timeout.Get(),
-#if VM_TRACE
-    .dump_from_cycle = dump_from_cycle.Get(),
-#endif
-    .tck = tck.Get(),
-    .dramsim3_config_path = dramsim3_config_path.Get(),
-    .dramsim3_result_dir = dramsim3_result_dir.Get(),
-    .vlen = vlen.Get(),
-    .dlen = dlen.Get(),
-    .tl_bank_number = tl_bank_number.Get(),
-    // TODO: clean me up
-    .datapath_width = 32,
-    .lane_number = dlen.Get() / 32,
-    .elen = 32,
-    .vreg_number = 32,
-    .mshr_number = 3,
-    .lsu_idx_default = 255,
-    .vlen_in_bytes = vlen.Get() / 8,
-    .datapath_width_in_bytes = beat_byte.Get(),
-  };
-
-  return VBridgeImpl { cosim_config };
-}
 
 cfg_t make_spike_cfg(const std::string &varch) {
   cfg_t cfg;
@@ -938,4 +861,4 @@ void VBridgeImpl::on_exit() {
 }
 
 
-VBridgeImpl vbridge_impl_instance = vbridgeImplFromArgs();
+VBridgeImpl vbridge_impl_instance = VBridgeImpl(Config());
