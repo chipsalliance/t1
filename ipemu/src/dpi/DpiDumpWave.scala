@@ -8,7 +8,6 @@ import chisel3._
 class DpiDumpWave extends DPIModuleLegacy {
   val isImport: Boolean = false
 
-  // TODO: think about `chisel3.properties.Property`?
   override val exportBody = s"""
      |function $desiredName(input string file);
      |   $$dumpfile(file);

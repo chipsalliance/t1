@@ -8,7 +8,6 @@ import chisel3._
 class DpiError extends DPIModuleLegacy {
   val isImport: Boolean = false
 
-  // TODO: think about `chisel3.properties.Property`?
   override val exportBody = s"""
      |function $desiredName(input string what);
      |   $$error(what);
