@@ -26,7 +26,9 @@ stdenv.mkDerivation {
   # CMakeLists.txt will read the environment
   env.VERILATE_SRC_DIR = toString rtl;
 
-  cmakeFlags = lib.optionals do-trace [
+  cmakeFlags = [
+    "-DIPEMU=ON"
+  ] ++ lib.optionals do-trace [
     "-DVERILATE_TRACE=ON"
   ];
 
