@@ -29,9 +29,7 @@ def main():
     subparsers = parser.add_subparsers(help="sub-commands help", dest="emu_type")
 
     # Add sub-commands
-    verilator_args_parser = subparsers.add_parser(
-        "ip", help="ip emulator help"
-    )
+    verilator_args_parser = subparsers.add_parser("ip", help="ip emulator help")
     subsystem_args_parser = subparsers.add_parser(
         "subsystem", help="subsystem emulator help"
     )
@@ -72,7 +70,26 @@ def main():
             "-v", "--verbose", action="store_true", help="set loglevel to debug"
         )
         subparser.add_argument(
-            "-n", "--dry-run", action="store_true", help="print running commands and quit"
+            "-n",
+            "--dry-run",
+            action="store_true",
+            help="print running commands and quit",
+        )
+        subparser.add_argument(
+            "--no-logging",
+            action="store_true",
+            help="prevent emulator produce log (both console and file)",
+        )
+        subparser.add_argument(
+            "--with-file-logging",
+            action="store_true",
+            help="prevent emulator write log to file",
+        )
+        subparser.add_argument(
+            "-q",
+            "--no-console-logging",
+            action="store_true",
+            help="prevent emulator print log to console",
         )
 
     # Register verilator emulator args
@@ -96,28 +113,17 @@ def main():
     verilator_args_parser.add_argument(
         "--cosim-timeout", default=400000, help="set cosim timeout"
     )
-    verilator_args_parser.add_argument(
-        "--no-logging",
-        action="store_true",
-        help="prevent emulator produce log (both console and file)",
-    )
-    verilator_args_parser.add_argument(
-        "--with-file-logging",
-        action="store_true",
-        help="prevent emulator write log to file",
-    )
-    verilator_args_parser.add_argument(
-        "-q",
-        "--no-console-logging",
-        action="store_true",
-        help="prevent emulator print log to console",
-    )
 
     # Register subsystem emulator args
     subsystem_args_parser.add_argument(
-        "--trace-out-file",
+        "--wave",
         default="None",
         help="path for storing trace file, default to <output-dir>/trace.fst",
+    )
+    subsystem_args_parser.add_argument(
+        "--soc-timeout",
+        default=10000000,
+        help="Timeout for soc simulator, default to 10,000,000",
     )
 
     # Run
@@ -177,6 +183,7 @@ def load_elf_from_dir(config, case_name, force_x86):
 
     return case_elf_path
 
+
 def get_emulator_path(config, emu_type, is_trace):
     target_name = f"{emu_type}.emu-trace" if is_trace else f"{emu_type}.emu"
     nix_args = [
@@ -189,7 +196,8 @@ def get_emulator_path(config, emu_type, is_trace):
     nix_args.append(f".#t1.{config}.{target_name}")
     logger.info(f'Run "{" ".join(nix_args)}"')
     emulator_dir = subprocess.check_output(nix_args).strip().decode("UTF-8")
-    return f'{emulator_dir}/bin/emulator'
+    return f"{emulator_dir}/bin/emulator"
+
 
 def run_test(args):
     emu_type = args.emu_type
@@ -221,24 +229,27 @@ def run_test(args):
         )
     )
 
-    elaborate_config_path = Path(f"{args.out_dir}/config.json")
-    if elaborate_config_path.exists():
-        os.remove(elaborate_config_path)
-    configgen_args = [
-        "nix",
-        "run",
-        "--no-warn-dirty",
-        ".#t1.configgen",
-        "--",
-        f"{args.config}",
-        "-t",
-        f"{args.out_dir}",
-    ]
-    logger.info(f'Run "{" ".join(configgen_args)}"')
-    subprocess.Popen(configgen_args).wait()
-    assert (
-        elaborate_config_path.exists()
-    ), f"cannot find elaborate config in {elaborate_config_path}"
+    elaborate_config_path = Path(args.config)
+    if not elaborate_config_path.exists():
+        elaborate_config_path = Path(f"{args.out_dir}/config.json")
+        if elaborate_config_path.exists():
+            os.remove(elaborate_config_path)
+        configgen_args = [
+            "nix",
+            "run",
+            "--no-warn-dirty",
+            ".#t1.configgen",
+            "--",
+            f"{args.config}",
+            "-t",
+            f"{args.out_dir}",
+        ]
+        logger.info(f'Run "{" ".join(configgen_args)}"')
+        subprocess.Popen(configgen_args).wait()
+        assert (
+            elaborate_config_path.exists()
+        ), f"cannot find elaborate config in {elaborate_config_path}"
+    logger.info(f"Using RTL config {elaborate_config_path}")
 
     emu_args = None
 
@@ -340,16 +351,35 @@ def run_test(args):
         )
 
     elif emu_type == "subsystem":
-        emu_args = [f"+init_file={case_elf_path}"]
+        emu_args = (
+            [
+                "--elf",
+                str(case_elf_path),
+                "--wave",
+                (
+                    str(Path(args.out_dir) / "wave.fst")
+                    if args.wave is None
+                    else args.wave
+                ),
+                "--timeout",
+                str(args.soc_timeout),
+                "--log-path",
+                str(Path(args.out_dir) / "soc-simulator.log"),
+            ]
+            + optionals(args.no_logging, ["--no-logging"])
+            + optionals(not args.with_file_logging, ["--no-file-logging"])
+            + optionals(args.no_console_logging, ["--no-console-logging"])
+        )
         if args.trace:
-            trace_file_path = args.trace_out_file or f"{args.out_dir}/trace.fst"
-            emu_args.append(f"+trace_file={trace_file_path}")
+            emu_args.append(f"--wave={args.out_dir}/trace.fst")
 
     else:
         assert False, f"unknown emutype {emu_type}"
 
     # run emulator
-    emulator_path = args.emulator_path or get_emulator_path(args.config, emu_type, args.trace)
+    emulator_path = args.emulator_path or get_emulator_path(
+        args.config, emu_type, args.trace
+    )
     process_args = [emulator_path] + emu_args
 
     if args.dry_run:
