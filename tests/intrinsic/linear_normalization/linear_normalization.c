@@ -351,6 +351,7 @@ __attribute((section(".vdata"))) float test_data[] = {
     4.970674486803519088,    4.980449657869012725,     4.990224828934506363,
     5.000000000000000000};
 
+__attribute__((noinline))
 void exp_f32_v(float *src, float *dest, int32_t len) {
   uint32_t vblkCnt = len; /* Loop counter */
   size_t l;
@@ -390,11 +391,13 @@ void exp_f32_v(float *src, float *dest, int32_t len) {
   }
 }
 
+__attribute__((noinline))
 void gen_rand_1d(float *a, int n) {
   for (int i = 0; i < n; ++i)
     a[i] = (float)rand() / (float)RAND_MAX + (float)(rand() % 1000);
 }
 
+__attribute__((noinline))
 float process_max(float *src, float *dest, int32_t len) {
 
   uint32_t vblkCnt = len; /* Loop counter */
@@ -421,6 +424,7 @@ float process_max(float *src, float *dest, int32_t len) {
   return max_value;
 }
 
+__attribute__((noinline))
 float process_min(float *src, float *dest, int32_t len) {
 
   uint32_t vblkCnt = len; /* Loop counter */
@@ -448,6 +452,7 @@ float process_min(float *src, float *dest, int32_t len) {
   return min_value;
 }
 
+__attribute__((noinline))
 void process_remain(float *src, float *dest, int32_t len, float min,
                      float mid) {
   uint32_t vblkCnt = len; /* Loop counter */
@@ -463,6 +468,7 @@ void process_remain(float *src, float *dest, int32_t len, float min,
   }
 }
 
+__attribute__((noinline))
 void linear_normalization(void) {
   float sum, sum_golded;
   float max, min, new;
@@ -477,13 +483,22 @@ void linear_normalization(void) {
   process_remain(src_f32, actual, ARRAY_ZIZE, min, new);
 }
 
+void *memcpy_vec(void *dst, void *src, size_t n) {
+  void *save = dst;
+  // copy data byte by byte
+  for (size_t vl; n > 0; n -= vl, src += vl, dst += vl) {
+    vl = __riscv_vsetvl_e8m8(n);
+    vuint8m8_t vec_src = __riscv_vle8_v_u8m8(src, vl);
+    __riscv_vse8_v_u8m8(dst, vec_src, vl);
+  }
+  return save;
+}
+
 int test(void) {
   int i;
   int ret = 0;
 
-  for (i = 0; i < ARRAY_ZIZE; i++) {
-    src_f32[i] = test_data[i];
-  }
+  memcpy_vec(src_f32, test_data, ARRAY_ZIZE);
 
   linear_normalization();
 
