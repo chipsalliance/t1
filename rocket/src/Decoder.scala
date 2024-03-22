@@ -37,13 +37,20 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
   def isVectorCSR = Seq("vsetvl", "vsetivli", "vsetvli").contains(instruction.name)
   def isVectorLSU = instruction.name match {
     // unit stride
-    case s"v${t}e${sz}.v" if (t == "l") || (t == "s") => true
-    case s"v${t}m.v" if (t == "l") || (t == "s")      => true
-    case s"vle${sz}ff.v"                              => true
+    // load/store(t) sz element
+    case s"v${t}e${sz}.v" if (t == "l") || (t == "s")                                       => true
+    // alias to vl(s)e1.v
+    case s"v${t}m.v" if (t == "l") || (t == "s")                                            => true
+    // load/store(t) element w/ first fault
+    case s"v${t}e${sz}ff.v" if (t == "l") || (t == "s")                                     => true
+    // load/store(t) r registers with VLEN/sz bytes
+    case s"v${tr}re${sz}.v" if tr.startsWith("l") || tr.startsWith("s")                     => true
+    // alias to vl(s)szr.v
+    case s"v${tsz}r.v" if tsz.startsWith("l") || tsz.startsWith("s")                        => true
     // stride
-    case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
+    case s"v${t}se${sz}.v" if (t == "l") || (t == "s")                                      => true
     // indexed
-    case s"v${t}${o}xei${sz}.v" if ((t == "l") || (t == "s")) && ((t == "u") || (t == "o")) => true
+    case s"v${to}xei${sz}.v" if (to == "lo" || to == "lu" || to == "so" || to == "su")      => true
     case _                                                                                  => false
   }
   // todo: Incomplete

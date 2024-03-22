@@ -21,6 +21,7 @@ class LazyT1()(implicit p: Parameters) extends AbstractLazyT1 {
   lazy val generator: SerializableModuleGenerator[T1, T1Parameter] = p(T1Generator)
   def uarchName: String = "t1"
   def xLen: Int = generator.parameter.xLen
+  def vlMax: Int = generator.parameter.vLen
   override def t1LSUParameters: T1LSUParameter =
     T1LSUParameter(
       name = generator.parameter.lsuParameters.name,

@@ -124,6 +124,7 @@ case class T1LSUParameter(name: String, banks: Seq[Seq[AddressSet]], sourceIdSiz
 abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
   def module:          AbstractLazyT1ModuleImp
   def xLen:            Int
+  def vlMax:           Int
   def uarchName:       String
   def t1LSUParameters: T1LSUParameter
 
@@ -156,7 +157,7 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
 /** This is a vector interface comply to chipsalliance/t1 project.
   * but is should be configurable module for fitting different vector architectures
   */
-abstract class AbstractLazyT1ModuleImp(outer: AbstractLazyT1)(implicit p: Parameters) extends LazyModuleImp(outer) {
+abstract class AbstractLazyT1ModuleImp(val outer: AbstractLazyT1)(implicit p: Parameters) extends LazyModuleImp(outer) {
   val request:       DecoupledIO[VectorRequest] = outer.requestSinkNode.bundle
   val csr:           CSRInterface = outer.csrSinkNode.bundle
   val response:      ValidIO[VectorResponse] = outer.responseNode.bundle
@@ -177,10 +178,10 @@ trait HasLazyT1 { this: BaseTile =>
 
 trait HasLazyT1Module { this: RocketTileModuleImp =>
 
-  outer.t1.map(_.module).foreach { t1Module =>
+  outer.t1.map(_.module).foreach { t1Module: AbstractLazyT1ModuleImp =>
     // TODO: make it configurable
     val maxCount: Int = 32
-    val vlMax:    Int = 1024
+    val vlMax:    Int = outer.t1.get.vlMax
     val xLen:     Int = 32
 
     val instructionQueue: Option[Queue[VectorRequest]] =
@@ -208,14 +209,17 @@ trait HasLazyT1Module { this: RocketTileModuleImp =>
         )
       )
 
+      // vlmax = vlen * lmul / sew
+      val vlmax: UInt = (true.B << (log2Ceil(vlMax) - 6) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
+
       val rs1IsZero = deqInst(19, 15) === 0.U
       val rdIsZero = deqInst(11, 7) === 0.U
       // set vl
       val setVL = Mux1H(
         Seq(
           ((vsetvli || vsetvl) && !rs1IsZero) ->
-            Mux(queue.io.deq.bits.rs1Data > vlMax.U, vlMax.U, queue.io.deq.bits.rs1Data),
-          ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vlMax.U,
+            Mux(queue.io.deq.bits.rs1Data > vlmax, vlmax, queue.io.deq.bits.rs1Data),
+          ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vlmax,
           ((vsetvli || vsetvl) && rs1IsZero && rdIsZero) -> csrReg.vl,
           vsetivli -> deqInst(19, 15)
         )
