@@ -40,7 +40,7 @@ void VBridgeImpl::dpiInitCosim() {
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() |
                                    SSTATUS_VS | SSTATUS_FS);
 
-  auto load_result = sim.load_elf(bin);
+  auto load_result = mem.load_elf(bin);
 
   proc.get_state()->pc = load_result.entry_addr;
 
@@ -297,7 +297,9 @@ cfg_t make_spike_cfg(const std::string &varch) {
 VBridgeImpl::VBridgeImpl(Config cosim_config)
     : config(std::move(cosim_config)),
       varch(fmt::format("vlen:{},elen:{}", config.vlen, config.elen)),
-      sim(1l << 32), isa("rv32gcv", "M"),
+      mem(1l << 32, 0x10000000),
+      sim(mem),
+      isa("rv32gcv", "M"),
       cfg(make_spike_cfg(varch)),
       proc(
           /*isa*/ &isa,

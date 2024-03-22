@@ -19,7 +19,7 @@ add_executable(emulator
   spdlog_ext.cc
   vbridge_impl.cc
   dpi.cc
-  elf.cc
+  memory.cc
 )
 
 option(VERILATE_TRACE "enable verilator trace" OFF)

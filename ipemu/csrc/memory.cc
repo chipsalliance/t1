@@ -1,9 +1,10 @@
-#include "simple_sim.h"
-
 #include <fmt/core.h>
 #include <linux/elf.h>
+#include <fstream>
+#include "spdlog_ext.h"
+#include "memory.h"
 
-simple_sim::load_elf_result_t simple_sim::load_elf(const std::string &fname) {
+memory::load_elf_result_t memory::load_elf(const std::string &fname) {
   try {
     std::ifstream fs(fname, std::ios::binary);
     fs.exceptions(std::ios::failbit);
@@ -11,7 +12,7 @@ simple_sim::load_elf_result_t simple_sim::load_elf(const std::string &fname) {
     Elf32_Ehdr ehdr;
     fs.read(reinterpret_cast<char *>(&ehdr), sizeof(ehdr));
     CHECK(ehdr.e_machine == EM_RISCV && ehdr.e_type == ET_EXEC &&
-              ehdr.e_ident[EI_CLASS] == ELFCLASS32,
+          ehdr.e_ident[EI_CLASS] == ELFCLASS32,
           "ehdr check failed when loading elf");
     CHECK_EQ(ehdr.e_phentsize, sizeof(elf32_phdr),
              "ehdr.e_phentsize does not equal to elf32_phdr");

@@ -24,6 +24,7 @@
 #include "encoding.h"
 #include "simple_sim.h"
 #include "spike_event.h"
+#include "memory.h"
 #include "util.h"
 
 class SpikeEvent;
@@ -220,6 +221,7 @@ public:
 private:
   std::string varch;
   cfg_t cfg;
+  memory mem;
   simple_sim sim;
   isa_parser_t isa;
   processor_t proc;
