@@ -5,7 +5,7 @@
   "mlir.stripmining": 15081,
   "asm.mmm": 60283,
   "asm.smoke": 3911,
-  "intrinsic.conv2d_less_m2": 44779,
+  "intrinsic.conv2d_less_m2": 3011,
   "codegen.vaadd_vv": 263727,
   "codegen.vaadd_vx": 2067569,
   "codegen.vaaddu_vv": 263727,
