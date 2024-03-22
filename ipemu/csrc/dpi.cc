@@ -9,16 +9,10 @@
 
 #include "encoding.h"
 #include "exceptions.h"
-#include "perf.h"
 #include "svdpi.h"
 #include "vbridge_impl.h"
 
 static bool terminated = false;
-
-VRFPerf vrf_perf;
-ALUPerf alu_perf;
-std::vector<LSUPerf> lsu_perfs;
-ChainingPerf chaining_perf;
 
 void sigint_handler(int s) {
   terminated = true;
@@ -62,7 +56,6 @@ void VBridgeImpl::dpiDumpWave() {
   svSetScope(scope);
   TRY({
     vbridge_impl_instance.dpiInitCosim();
-    lsu_perfs.resize(vbridge_impl_instance.config.tl_bank_number);
   })
 }
 
@@ -101,8 +94,6 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
     vbridge_impl_instance.dpiPeekTL(
         VTlInterface{*channel_id, *a_opcode, *a_param, *a_size, *a_source,
                      *a_address, a_mask, a_data, a_corrupt, a_valid, d_ready});
-    lsu_perfs[*channel_id].peek_tl(a_valid, d_ready);
-    lsu_perfs[*channel_id].step();
   })
 }
 
@@ -116,7 +107,6 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
     vbridge_impl_instance.dpiPokeTL(VTlInterfacePoke{
         *channel_id, d_opcode, d_param, d_size, d_source, d_sink, d_denied,
         d_data, d_corrupt, d_valid, a_ready, d_ready});
-    lsu_perfs[*channel_id].poke_tl(*d_valid, *a_ready);
   })
 }
 
@@ -172,37 +162,4 @@ peek_t_l(const svBitVecVal *channel_id, const svBitVecVal *a_opcode,
 
 [[maybe_unused]] void timeout_check() {
   TRY({ vbridge_impl_instance.timeoutCheck(); })
-}
-
-[[maybe_unused]] void vrf_monitor(const svBitVecVal *lane_idx, svBit valid) {
-  TRY({ vrf_perf.step(*lane_idx, valid); })
-}
-
-[[maybe_unused]] void alu_monitor(const svBitVecVal *lane_idx,
-                                  svBit is_adder_occupied,
-                                  svBit is_shifter_occupied,
-                                  svBit is_multiplier_occupied,
-                                  svBit is_divider_occupied) {
-  TRY({
-    alu_perf.step(*lane_idx, is_adder_occupied, is_shifter_occupied,
-                  is_multiplier_occupied, is_divider_occupied);
-  })
-}
-
-[[maybe_unused]] void chaining_monitor(const svBitVecVal *lane_idx,
-                                       const svBitVecVal *slot_occupied) {
-  TRY({ chaining_perf.step(*lane_idx, slot_occupied); })
-}
-
-void print_perf_summary(std::ostream &os) {
-  // each top cycle is 10 cycles for rtl
-  os << fmt::format("total_cycles: {}\n",
-                    Verilated::threadContextp()->time() / 10);
-
-  vrf_perf.print_summary(os);
-  alu_perf.print_summary(os);
-  for (int i = 0; i < vbridge_impl_instance.config.tl_bank_number; i++) {
-    lsu_perfs[i].print_summary(os, i);
-  }
-  chaining_perf.print_summary(os);
 }
