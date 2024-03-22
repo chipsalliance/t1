@@ -22,7 +22,6 @@ inline uint32_t decode_size(uint32_t encoded_size) { return 1 << encoded_size; }
 inline bool is_pow2(uint32_t n) { return n && !(n & (n - 1)); }
 
 void T1IPEmulator::timeoutCheck() {
-  getCoverage();
 #if VM_TRACE
   if(get_t() >= dump_from_cycle && !dump_start) {
     dpiDumpWave();
@@ -283,7 +282,6 @@ uint64_t T1IPEmulator::get_t() {
     return 0;
   }
 }
-void T1IPEmulator::getCoverage() { return ctx->coveragep()->write(); }
 #endif
 
 std::optional<SpikeEvent> T1IPEmulator::spike_step() {

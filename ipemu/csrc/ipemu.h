@@ -175,7 +175,6 @@ public:
   // Simulator Calls
 #ifdef COSIM_VERILATOR
   uint64_t get_t();
-  void getCoverage();
 #endif
 
   void dpiPokeInst(const VInstrInterfacePoke &v_instr,
