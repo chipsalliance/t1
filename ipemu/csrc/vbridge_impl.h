@@ -26,9 +26,6 @@
 #include "spike_event.h"
 #include "util.h"
 
-// implemented in dpi.cc
-void print_perf_summary(std::ostream &os);
-
 class SpikeEvent;
 
 struct Config {
@@ -255,6 +252,7 @@ private:
   const std::string wave;
 
   /// generated perf report path.
+  /// TODO: remove it?
   const std::optional<std::string> perf_path;
 
   /// RTL timeout cycles

@@ -924,13 +924,16 @@ size_t VBridgeImpl::dramsim_burst_size(uint32_t channel_id) const {
 }
 
 void VBridgeImpl::on_exit() {
+  // TODO: This is used in CI.
   if (perf_path.has_value()) {
     std::ofstream of(perf_path->c_str());
-    print_perf_summary(of);
+    of << fmt::format("total_cycles: {}\n", Verilated::threadContextp()->time() / 10);
+    of.close();
     Log("PrintPerfSummary")
       .with("path", perf_path.value())
       .info("Perf result saved");
   }
 }
+
 
 VBridgeImpl vbridge_impl_instance = vbridgeImplFromArgs();
