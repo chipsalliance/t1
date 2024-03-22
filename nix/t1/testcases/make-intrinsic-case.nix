@@ -24,8 +24,11 @@ stdenv.mkDerivation (rec {
     "-fvisibility=hidden"
     # "-nostdlib"
     "-fno-PIC"
+    "-g"
+    "-O3"
 
-    "-T" "${linkerScript}"
+    "-T"
+    "${linkerScript}"
   ];
 
   nativeBuildInputs = [ jq ];
@@ -34,6 +37,7 @@ stdenv.mkDerivation (rec {
     runHook preBuild
 
     ${stdenv.targetPlatform.config}-cc $srcs -o ${name}.elf
+    ${stdenv.targetPlatform.config}-objdump -S ${name}.elf > ${name}.dump
 
     runHook postBuild
   '';
@@ -43,6 +47,7 @@ stdenv.mkDerivation (rec {
 
     mkdir -p $out/bin
     cp ${name}.elf $out/bin
+    cp ${name}.dump $out/${name}.dump
 
     jq --null-input \
       --arg name ${caseName} \

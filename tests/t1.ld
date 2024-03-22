@@ -16,6 +16,12 @@ SECTIONS {
   .data           : { *(.data .data.*) }
   . = ALIGN(0x1000);
 
+  .sdata          : { *(.sdata .sdata.*) }
+  . = ALIGN(0x1000);
+
+  .srodata          : { *(.srodata .srodata.*) }
+  . = ALIGN(0x1000);
+
   .bss            : { *(.bss .bss.*) }
   _end = .; PROVIDE (end = .);
 

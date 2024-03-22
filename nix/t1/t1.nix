@@ -23,6 +23,7 @@ let
         ./../../common.sc
         ./../../t1
         ./../../subsystem
+        ./../../subsystememu/src
         ./../../rocket
         ./../../emuhelper
         ./../../ipemu/src
