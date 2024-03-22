@@ -1488,7 +1488,7 @@ class CSRFile(
       vsetvl -> io.wbRegRS2.get(7, 0)
     ))
     // vlmax = vlen * lmul / sew
-    val vlmax: UInt = (true.B << (log2Ceil(vLen) - 3) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
+    val vlmax: UInt = (true.B << (log2Ceil(vLen) - 6) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
     // set vl
     val setVL = Mux1H(Seq(
       ((vsetvli || vsetvl) && !rs1IsZero) -> Mux(io.rw.wdata > vlmax, vlmax, io.rw.wdata),
