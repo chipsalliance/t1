@@ -7,10 +7,11 @@
 , rv32-stdenv
 , runCommand
 , pkgsX86
+
+, allConfigs
 }:
 
 let
-  allConfigs = (builtins.fromJSON (builtins.readFile ../../configgen/all-configs.json)).configs;
   moldStdenv = useMoldLinker stdenv;
 in
 
