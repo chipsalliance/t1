@@ -4,6 +4,7 @@
 #include "tilelink.h"
 
 // Write this CSR to end simulation.
+// TODO: no maintaining it anymore? just wait finish
 constexpr uint32_t CSR_MSIMEND = 0x7cc;
 
 struct VCsrInterfacePoke {
@@ -28,11 +29,6 @@ struct VRespInterface {
   svBit valid;
   svBitVecVal data;
   svBit vxsat;
-};
-
-struct VInstrFire {
-  svBit ready;
-  svBitVecVal index;
 };
 
 struct VLsuWriteQueuePeek {

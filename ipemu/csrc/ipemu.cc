@@ -19,8 +19,6 @@
 /// convert TL style size to size_by_bytes
 inline uint32_t decode_size(uint32_t encoded_size) { return 1 << encoded_size; }
 
-inline bool is_pow2(uint32_t n) { return n && !(n & (n - 1)); }
-
 void T1IPEmulator::timeoutCheck() {
 #if VM_TRACE
   if(get_t() >= dump_from_cycle && !dump_start) {
