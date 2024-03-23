@@ -1,3 +1,4 @@
+#ifdef IPEMU
 #pragma once
 
 #include "spdlog_ext.h"
@@ -13,9 +14,9 @@
 
 #include "encoding.h"
 #include "simple_sim.h"
-#include "vbridge_impl.h"
+#include "ipemu.h"
 
-class VBridgeImpl;
+class T1IPEmulator;
 
 inline void clear_state(processor_t &proc) {
   auto *state = proc.get_state();
@@ -25,7 +26,7 @@ inline void clear_state(processor_t &proc) {
 }
 
 struct SpikeEvent {
-  SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl, size_t lsu_idx);
+  SpikeEvent(processor_t &proc, insn_fetch_t &fetch, T1IPEmulator *impl, size_t lsu_idx);
 
   [[nodiscard]] std::string describe_insn() const;
   json jsonify_insn() const;
@@ -48,7 +49,7 @@ struct SpikeEvent {
   uint8_t lsu_idx = 255;
   uint8_t issue_idx = 255;
   processor_t &proc;
-  VBridgeImpl *impl;
+  T1IPEmulator *impl;
   std::string disasm;
 
   bool is_issued;
@@ -137,3 +138,4 @@ struct SpikeEvent {
   void record_rd_write(const VRespInterface &v_resp);
   void check_is_ready_for_commit();
 };
+#endif

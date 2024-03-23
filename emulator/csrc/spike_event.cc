@@ -1,3 +1,4 @@
+#ifdef IPEMU
 #include <fmt/core.h>
 
 #include "disasm.h"
@@ -138,7 +139,7 @@ void SpikeEvent::log_arch_changes() {
 }
 
 SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch,
-                       VBridgeImpl *impl,
+                       T1IPEmulator *impl,
                        // FIXME: dirty
                        size_t lsu_idx
                        )
@@ -274,3 +275,4 @@ std::pair<uint32_t, uint32_t> SpikeEvent::get_vrf_write_range() const {
     return {vd_bytes_start, is_widening ? len * 2 : len};
   }
 }
+#endif

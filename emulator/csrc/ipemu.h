@@ -1,3 +1,4 @@
+#ifdef IPEMU
 #pragma once
 
 #include <condition_variable>
@@ -9,6 +10,8 @@
 #include <utility>
 
 #include <mmu.h>
+
+#include "config.h"
 
 #ifdef COSIM_VERILATOR
   #include <verilated.h>
@@ -24,40 +27,12 @@
 #include "encoding.h"
 #include "simple_sim.h"
 #include "spike_event.h"
+#include "memory.h"
 #include "util.h"
 
 class SpikeEvent;
 
-struct Config {
-  std::string bin_path;
-  std::string wave_path;
-  std::optional<std::string> perf_path;
-
-  uint64_t timeout;
-#ifdef VM_TRACE
-  uint64_t dump_from_cycle;
-#endif
-
-  double tck;
-  std::optional<std::string> dramsim3_config_path;
-  std::optional<std::string> dramsim3_result_dir;
-  // TODO: move these configs to compiler time after t1 support OM:
-  // TODO: these are unused parameters
-  size_t vlen;
-  size_t dlen;
-  size_t tl_bank_number;
-
-  size_t datapath_width;
-  size_t lane_number;
-  size_t elen;
-  size_t vreg_number;
-  size_t mshr_number;
-  size_t lsu_idx_default;
-  size_t vlen_in_bytes;
-  size_t datapath_width_in_bytes;
-};
-
-struct TLReqRecord {
+struct T1IPEmuTLReqRecord {
   std::vector<uint8_t> data;
   size_t t;
   size_t size_by_byte;
@@ -87,8 +62,8 @@ struct TLReqRecord {
   /// when opType set to nil, it means this record is already sent back
   enum class opType { Nil, Get, PutFullData } op;
 
-  TLReqRecord(const SpikeEvent *se, size_t t, std::vector<uint8_t> data, size_t size_by_byte,
-              reg_t addr, uint16_t source, opType op, reg_t burst_size)
+  T1IPEmuTLReqRecord(const SpikeEvent *se, size_t t, std::vector<uint8_t> data, size_t size_by_byte,
+                     reg_t addr, uint16_t source, opType op, reg_t burst_size)
       : se(se), t(t), data(std::move(data)), size_by_byte(size_by_byte), addr(addr),
         source(source), op(op) {
           muxin_read_required = op == opType::PutFullData && size_by_byte < burst_size;
@@ -184,9 +159,9 @@ struct TLReqRecord {
   }
 };
 
-class VBridgeImpl {
+class T1IPEmulator {
 public:
-  explicit VBridgeImpl(Config cosim_config);
+  explicit T1IPEmulator(Config cosim_config);
 #if VM_TRACE
   void dpiDumpWave();
 #endif
@@ -200,7 +175,6 @@ public:
   // Simulator Calls
 #ifdef COSIM_VERILATOR
   uint64_t get_t();
-  void getCoverage();
 #endif
 
   void dpiPokeInst(const VInstrInterfacePoke &v_instr,
@@ -220,10 +194,11 @@ public:
 private:
   std::string varch;
   cfg_t cfg;
+  memory mem;
   simple_sim sim;
   isa_parser_t isa;
   processor_t proc;
-  std::vector<std::multimap<size_t, TLReqRecord>>
+  std::vector<std::multimap<size_t, T1IPEmuTLReqRecord>>
       tl_req_record_of_bank; // indexed by get_t()
   std::vector<std::optional<size_t>>
       tl_req_waiting_ready; // the get_t() of a req response waiting for ready
@@ -303,4 +278,6 @@ private:
   bool dump_start = false;
 };
 
-extern VBridgeImpl vbridge_impl_instance;
+extern T1IPEmulator vbridge_impl_instance;
+
+#endif

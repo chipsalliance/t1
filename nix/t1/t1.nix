@@ -24,8 +24,7 @@ let
         ./../../t1
         ./../../subsystem
         ./../../rocket
-        ./../../emuhelper
-        ./../../ipemu/src
+        ./../../emulator
         ./../../elaborator
         ./../../configgen
       ];
