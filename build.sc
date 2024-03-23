@@ -205,6 +205,8 @@ object emuhelper extends EmuHelper
 
 trait EmuHelper
   extends millbuild.common.EmuHelperModule {
+  override def millSourcePath = os.pwd / "emulator" / "emuhelper"
+
   def scalaVersion = T(v.scala)
 
   def chiselModule = Some(chisel)
@@ -217,6 +219,8 @@ object ipemu extends IPEmulator
 
 trait IPEmulator
   extends millbuild.common.IPEmulatorModule {
+  override def millSourcePath = os.pwd / "emulator" / "ipemu"
+
   def scalaVersion = T(v.scala)
 
   def t1Module = t1
