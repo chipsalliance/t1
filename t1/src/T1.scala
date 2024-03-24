@@ -1390,9 +1390,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /** instantiate lanes.
     * TODO: move instantiate to top of class.
     */
-  val laneVec: Seq[Lane] = Seq.tabulate(parameter.laneNumber) { index =>
+  val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber) { index =>
     // TODO: use D/I
-    val lane: Lane = Module(new Lane(parameter.laneParam))
+    val lane: Instance[Lane] = Instantiate(new Lane(parameter.laneParam))
     // lane.laneRequest.valid -> requestRegDequeue.ready -> lane.laneRequest.ready -> lane.laneRequest.bits
     // TODO: this is harmful for PnR design, since it broadcast ready singal to each lanes, which will significantly
     //       reduce the scalability for large number of lanes.

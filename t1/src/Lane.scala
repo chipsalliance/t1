@@ -140,13 +140,16 @@ case class LaneParameter(
   * - [[VRF]] is designed for store the vector register of the processor.
   * - datapath units: [[MaskedLogic]], [[LaneAdder]], [[LaneShifter]], [[LaneMul]], [[LaneDiv]], [[OtherUnit]]
   */
+@instantiable
 class Lane(val parameter: LaneParameter) extends Module with SerializableModule[LaneParameter] {
   val laneOM: Instance[T1LaneOM] = Instantiate(new T1LaneOM)
   val laneOMClassType: ClassType = laneOM.toDefinition.getClassType
+  @public
   val laneOMOutput: Property[ClassType] = IO(Output(Property[laneOMClassType.Type]()))
   laneOMOutput := laneOM.getPropertyReference
 
   /** laneIndex is a IO constant for D/I and physical implementations. */
+  @public
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
   // constant parameter for physical implementations.
   dontTouch(laneIndex)
@@ -156,6 +159,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * TODO: benchmark the usecase for tuning the Ring Bus width.
     *       find a real world case for using `narrow` and `widen` aggressively.
     */
+  @public
   val readBusPort: Vec[RingPort[ReadBusData]] = IO(Vec(2, new RingPort(new ReadBusData(parameter))))
 
   /** VRF Write Interface.
@@ -163,25 +167,31 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * TODO: benchmark the usecase for tuning the Ring Bus width.
     *       find a real world case for using `narrow` and `widen` aggressively.
     */
+  @public
   val writeBusPort: Vec[RingPort[WriteBusData]] = IO(Vec(2, new RingPort(new WriteBusData(parameter))))
 
   /** request from [[T1.decode]] to [[Lane]]. */
+  @public
   val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(parameter))))
 
   /** CSR Interface.
     * TODO: merge to [[laneRequest]]
     */
+  @public
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.vlMaxBits)))
 
   /** response to [[T1.lsu]] or mask unit in [[T1]] */
+  @public
   val laneResponse: ValidIO[LaneResponse] = IO(Valid(new LaneResponse(parameter)))
 
   /** feedback from [[T1]] to [[Lane]] for [[laneResponse]] */
+  @public
   val laneResponseFeedback: ValidIO[LaneResponseFeedback] = IO(Flipped(Valid(new LaneResponseFeedback(parameter))))
 
   /** for LSU and V accessing lane, this is not a part of ring, but a direct connection.
     * TODO: learn AXI channel, reuse [[vrfReadAddressChannel]] and [[vrfWriteChannel]].
     */
+  @public
   val vrfReadAddressChannel: DecoupledIO[VRFReadRequest] = IO(
     Flipped(
       Decoupled(
@@ -189,7 +199,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       )
     )
   )
+  @public
   val vrfReadDataChannel: UInt = IO(Output(UInt(parameter.datapathWidth.W)))
+  @public
   val vrfWriteChannel: DecoupledIO[VRFWriteRequest] = IO(
     Flipped(
       Decoupled(
@@ -204,48 +216,64 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   )
 
   /** for each instruction in the slot, response to top when instruction is finished in this lane. */
+  @public
   val instructionFinished: UInt = IO(Output(UInt(parameter.chainingSize.W)))
 
   /** V0 update in the lane should also update [[T1.v0]] */
+  @public
   val v0Update: ValidIO[V0Update] = IO(Valid(new V0Update(parameter)))
 
   /** input of mask data */
+  @public
   val maskInput: UInt = IO(Input(UInt(parameter.maskGroupWidth.W)))
 
   /** select which mask group. */
+  @public
   val maskSelect: UInt = IO(Output(UInt(parameter.maskGroupSizeBits.W)))
 
   /** The sew of instruction which is requesting for mask. */
+  @public
   val maskSelectSew: UInt = IO(Output(UInt(2.W)))
 
   /** from [[T1.lsu]] to [[Lane.vrf]], indicate it's the load store is finished, used for chaining.
     * because of load store index EEW, is complicated for lane to calculate whether LSU is finished.
     * let LSU directly tell each lane it is finished.
     */
+  @public
   val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** If lsu changes the mask group, you need to tell vrf */
+  @public
   val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** for RaW, VRF should wait for buffer to be empty. */
+  @public
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** for RaW, VRF should wait for cross write bus to be empty. */
+  @public
   val dataInCrossBus: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** How many dataPath will writ by instruction in this lane */
+  @public
   val writeCount: UInt =
     IO(Input(UInt((parameter.vlMaxBits - log2Ceil(parameter.laneNumber) - log2Ceil(parameter.dataPathByteWidth)).W)))
+  @public
   val writeQueueValid: Bool = IO(Output(Bool()))
+  @public
   val writeReadyForLsu: Bool = IO(Output(Bool()))
+  @public
   val vrfReadyToStore: Bool = IO(Output(Bool()))
+  @public
   val crossWriteDataInSlot: UInt = IO(Output(UInt(parameter.chainingSize.W)))
 
   // TODO: remove
   dontTouch(writeBusPort)
 
   /** VRF instantces. */
-  val vrf: VRF = Module(new VRF(parameter.vrfParam))
+  // TODO: add probe to it.
+  @public
+  val vrf: Instance[VRF] = Instantiate(new VRF(parameter.vrfParam))
 
   /** TODO: review later
     */
@@ -1088,23 +1116,29 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /**
     * probes
     */
+  @public
   val laneRequestValidProbe = IO(Output(Probe(Bool())))
+  @public
   val laneRequestReadyProbe = IO(Output(Probe(Bool())))
   define(laneRequestValidProbe, ProbeValue(laneRequest.valid))
   define(laneRequestReadyProbe, ProbeValue(laneRequest.ready))
 
+  @public
   val lastSlotOccupiedProbe = IO(Output(Probe(Bool())))
   define(lastSlotOccupiedProbe, ProbeValue(slotOccupied.last))
 
+  @public
   val vrfInstructionWriteReportReadyProbe = IO(Output(Probe(Bool())))
   define(vrfInstructionWriteReportReadyProbe, ProbeValue(vrf.instructionWriteReport.ready))
 
+  @public
   val slotOccupiedProbe = slotOccupied.map(occupied => {
     val occupiedProbe = IO(Output(Probe(Bool())))
     define(occupiedProbe, ProbeValue(occupied))
     occupiedProbe
   })
 
+  @public
   val instructionFinishedProbe: UInt = IO(Output(Probe(chiselTypeOf(instructionFinished))))
   define(instructionFinishedProbe, ProbeValue(instructionFinished))
 
