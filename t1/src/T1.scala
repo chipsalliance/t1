@@ -163,16 +163,8 @@ case class T1Parameter(
     */
   val lsuMSHRSize: Int = 3
 
-  /** width of tilelink source id
-    * log2(maskGroupWidth) for offset
-    * 3 for segment index
-    * 2 for 3 MSHR(2 read + 1 write)
-    */
-  val sourceWidth: Int = {
-    log2Ceil(maskGroupWidth) + // offset of mask group
-      3 + // segment index, this is decided by spec.
-      log2Ceil(lsuMSHRSize) // 3 MSHR(2 read + 1 write)
-  }
+  /** 2 for 3 MSHR(read + write + otherUnit) */
+  val sourceWidth: Int = log2Ceil(lsuMSHRSize)
 
   // Read all lanes at once and send the data obtained at once.
   val lsuTransposeSize = datapathWidth * laneNumber / 8
