@@ -6,7 +6,7 @@ package org.chipsalliance.t1.rtl.lsu
 import chisel3._
 import chisel3.util._
 import chisel3.util.experimental.BitSet
-import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, indexToOH, instIndexL}
+import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, firstlastHelper, indexToOH, instIndexL}
 import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelD}
 
 // TODO: need some idea from BankBinder
@@ -89,7 +89,7 @@ case class LSUParameter(
     */
   val vLenBits: Int = log2Ceil(vLen) + 1
 
-  val bankPosition: Int = log2Ceil(transferSize)
+  val sourceQueueSize: Int = vLen * 8 / (transferSize * 8)
 
   def mshrParam: MSHRParam =
     MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, transferSize, memoryBankSize, vrfReadLatency, banks, tlParam)
@@ -312,13 +312,16 @@ class LSU(param: LSUParameter) extends Module {
         )
     )))
   mshrTryToUseTLAChannel.foreach(select => assert(PopCount(select) <= 1.U, "address overlap"))
+  val sourceQueueVec: Seq[Queue[UInt]] =
+    tlPort.map(_ => Module(new Queue(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize)))
   // connect tile link a
   val readyVec: Seq[Bool] = tlPort.zipWithIndex.map { case (tl, index) =>
     val port: DecoupledIO[TLChannelA] = tl.a
     val storeRequest: DecoupledIO[TLChannelA] = storeUnit.tlPortA(index)
+    val sourceQueue: Queue[UInt] = sourceQueueVec(index)
     val portFree: Bool = storeUnit.status.releasePort(index)
     val Seq(loadTryToUse, otherTryToUse) = mshrTryToUseTLAChannel.map(_(index))
-
+    val portReady = port.ready && sourceQueue.io.enq.ready
     /**
      * a 通道的优先级分两种情况:
      *  1. store unit 声明占用时, 无条件给 store unit
@@ -333,15 +336,27 @@ class LSU(param: LSUParameter) extends Module {
       portFree && !loadTryToUse && !storeRequest.valid
     )
     val selectIndex: UInt = OHToUInt(requestSelect)
+    val (_, _, done, _) = param.mshrParam.fistLast(
+      // todo: use param
+      param.transferSize.U,
+      // other no burst
+      !port.bits.opcode(2) && !requestSelect(2),
+      port.fire
+    )
 
     // 选出一个请求连到 a 通道上
     val selectBits = Mux1H(requestSelect, Seq(loadUnit.tlPortA.bits, storeRequest.bits, otherUnit.tlPort.a.bits))
     port.valid := storeRequest.valid || ((loadTryToUse || otherTryToUse) && portFree)
     port.bits := selectBits
-    port.bits.source := selectBits.source ## selectIndex
+    port.bits.source := selectIndex
+
+    // record source id by queue
+    sourceQueue.io.enq.valid := done
+    sourceQueue.io.enq.bits := selectBits.source
+
     // 反连 ready
-    storeRequest.ready := requestSelect(1) && port.ready
-    Seq(requestSelect.head && port.ready, requestSelect.last && port.ready)
+    storeRequest.ready := requestSelect(1) && portReady
+    Seq(requestSelect.head && portReady, requestSelect.last && portReady)
   }.transpose.map(rv => VecInit(rv).asUInt.orR)
   loadUnit.tlPortA.ready := readyVec.head
   otherUnit.tlPort.a.ready := readyVec.last
@@ -351,18 +366,27 @@ class LSU(param: LSUParameter) extends Module {
   tlPort.zipWithIndex.foldLeft(false.B) {case (o, (tl, index)) =>
     val port: DecoupledIO[TLChannelD] = tl.d
     val isAccessAck = port.bits.opcode === 0.U
+    val (_, _, done, _) = param.mshrParam.fistLast(
+      // todo: use param
+      param.transferSize.U,
+      // other no burst
+      port.bits.opcode(0) && !port.bits.source(1),
+      port.fire
+    )
+    val sourceQueue: Queue[UInt] = sourceQueueVec(index)
+    sourceQueue.io.deq.ready := done
     // 0 -> load unit, 0b10 -> other unit
     val responseForOther: Bool = port.bits.source(1)
     loadUnit.tlPortD(index).valid := port.valid && !responseForOther && !isAccessAck
     loadUnit.tlPortD(index).bits := port.bits
-    loadUnit.tlPortD(index).bits.source := port.bits.source >> 2
+    loadUnit.tlPortD(index).bits.source := sourceQueue.io.deq.bits
     port.ready := isAccessAck || Mux(responseForOther, !o && otherUnit.tlPort.d.ready, loadUnit.tlPortD(index).ready)
     tlDFireForOther(index) := !o && responseForOther && port.valid
     o || responseForOther
   }
   otherUnit.tlPort.d.valid := tlDFireForOther.asUInt.orR
   otherUnit.tlPort.d.bits := Mux1H(tlDFireForOther, tlPort.map(_.d.bits))
-  otherUnit.tlPort.d.bits.source := Mux1H(tlDFireForOther, tlPort.map(_.d.bits.source)) >> 2
+  otherUnit.tlPort.d.bits.source := Mux1H(tlDFireForOther, sourceQueueVec.map(_.io.deq.bits))
 
   // index offset connect
   otherUnit.offsetReadResult := offsetReadResult
