@@ -240,8 +240,8 @@ object Main:
       elaborateConfig
         .obj("parameter")
         .obj("lsuBankParameters")
-        .toString()
-        .length()
+        .arr
+        .length
         .toString(),
       "--beat_byte",
       elaborateConfig
@@ -279,10 +279,67 @@ object Main:
 
   @main def subsystememu(
       @arg(
+        name = "case",
         short = 'c',
         doc = "name alias for loading test case"
-      ) testCase: String
-  ) = println("TODO")
+      ) testCase: String,
+      @arg(
+        name = "config",
+        short = 'c',
+        doc = "configuration name"
+      ) config: String,
+      @arg(
+        name = "trace",
+        short = 't',
+        doc = "use emulator with trace support"
+      ) trace: Flag,
+      @arg(
+        name = "trace-file",
+        doc = "Output path of the trace file"
+      ) traceFile: Option[String],
+      @arg(
+        doc = "Force using x86_64 as cross compiling host platform"
+      ) forceX86: Boolean = false,
+      @arg(
+        name = "out-dir",
+        doc = "path to save wave file and perf result file"
+      ) outDir: Option[String],
+      @arg(
+        name = "base-out-dir",
+        doc = "save result files in {base_out_dir}/{config}/{case}/{run_config}"
+      ) baseOutDir: Option[String],
+      @arg(
+        name = "emulator-path",
+        doc = "path to emulator"
+      ) emulatorPath: Option[String]
+  ) = {
+    val caseElfPath = resolveTestElfPath(config, testCase, forceX86)
+    val outputPath =
+      prepareOutputDir(outDir, baseOutDir, config, "subsystem", testCase)
+    val emulator = if (!emulatorPath.isEmpty) {
+      val emuPath = os.Path(emulatorPath.get, os.pwd)
+      if (!os.exists(emuPath)) {
+        sys.error(s"No emulator found at path: ${emulatorPath.get}")
+      }
+      emuPath
+    } else {
+      resolveEmulatorPath(config, "subsystem", trace.value)
+    }
+
+    val emuArgs =
+      Seq(s"+init_file=${caseElfPath}") ++ optionals(
+        trace.value,
+        Seq(s"+trace_file=${
+            if (traceFile.isDefined) os.Path(traceFile.get, os.pwd)
+            else outputPath / "trace.fst"
+          }")
+      )
+    os.proc(emuArgs).call()
+
+    if (trace.value) {
+      Logger.info(s"Trace file save to ${outputPath} / trace.fst")
+    }
+  }
 
   @main def listConfig() = {
     os.proc(
