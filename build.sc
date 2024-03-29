@@ -7,6 +7,7 @@ import mill.define.{Command, TaskModule}
 import mill.scalalib.publish._
 import mill.scalalib.scalafmt._
 import mill.scalalib.TestModule.Utest
+import mill.util.Jvm
 import coursier.maven.MavenRepository
 import $file.dependencies.chisel.build
 import $file.dependencies.arithmetic.common
@@ -277,4 +278,24 @@ trait Elaborator
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
   def chiselPluginIvy = None
   def chiselIvy = None
+}
+
+
+/** A simple release flow for T1 generator:
+  * package required dependency to flat jar.
+  * usage:
+  *   mill t1package.{sourceJar,jar}
+  *   out/t1package/sourceJar.dest/out.jar -> t1package-sources.jar
+  *   out/t1package/jar.dest/out.jar -> t1package.jar
+  * these two jar is enough for this usages:
+  * object somepackagethatdependsont1 extends ScalaModule {
+  *   def unmanagedClasspath = T(Seq(PathRef(os.pwd / "t1package.jar"), PathRef(os.pwd / "t1package-sources.jar")))
+  * }
+  * For Jiuyang's Team, this is used for link T1 to NDA Blackboxes that cannot be open-sourced
+  * */
+object t1package extends ScalaModule {
+  def scalaVersion = T(v.scala)
+  def moduleDeps = super.moduleDeps ++ Seq(t1, ipemu, subsystem)
+  override def sourceJar: T[PathRef] = T(Jvm.createJar(T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))().flatten.flatten.map(_.path).filter(os.exists), manifest()))
+  override def jar: T[PathRef] = T(Jvm.createJar(upstreamAssemblyClasspath().map(_.path).filter(os.exists), manifest()))
 }
