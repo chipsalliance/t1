@@ -27,7 +27,9 @@ object Main:
     @arg(name = "base-out-dir", doc = "save result files in {base_out_dir}/{config}/{case}/{run_config}") baseOutDir: os.Path = os.pwd,
     @arg(name = "emulator-path", doc = "path to emulator") emulatorPath: os.Path = os.pwd,
                 ) = println("TODO")
+
   @main def subsystememu(
     @arg(short = 'c', doc = "name alias for loading test case") testCase: String,
                    ) = println("TODO")
+
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
