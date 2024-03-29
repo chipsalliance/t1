@@ -34,6 +34,8 @@ in
     bintools = rv32_buildPkgs.bintools;
   };
 
+  t1-script = final.callPackage ../script { };
+
   # stdenv for compiling rvv programs, with ilp32f newlib and clang
   rv32-stdenv = rv32_pkgs.stdenv.override {
     cc =
@@ -76,7 +78,7 @@ in
       };
   };
 
-  t1 = final.callPackage ./t1 { 
+  t1 = final.callPackage ./t1 {
     allConfigs = (builtins.fromJSON (builtins.readFile ../configgen/all-configs.json)).configs;
   };
 }

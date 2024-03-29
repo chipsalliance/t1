@@ -22,6 +22,7 @@ let
       export COURSIER_REPOSITORIES="central"
 
       mill -i __.prepareOffline
+      mill -i __.scalaCompilerClasspath
       runHook postBuild
     '';
 
