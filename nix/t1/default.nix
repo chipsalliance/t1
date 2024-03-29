@@ -16,13 +16,16 @@ let
 in
 
 lib.makeScope newScope
-  (self: let
+  (self:
+  let
     _millOutput = self.callPackage ./t1.nix { };
-  in {
+  in
+  {
     inherit allConfigs;
 
     elaborator = _millOutput.elaborator // { meta.mainProgram = "elaborator"; };
     configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
+    t1package = _millOutput.t1package;
 
     submodules = self.callPackage ./submodules.nix { };
 
