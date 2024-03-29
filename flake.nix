@@ -26,9 +26,9 @@
                 gnugrep
                 gnused
 
-                python3
-                mill
+                # To develop T1-script, run nix develop .#t1-script.dev
                 ammonite
+                t1-script
               ];
             };
           };
