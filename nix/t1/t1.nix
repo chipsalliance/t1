@@ -71,10 +71,13 @@ let
 
     env.CIRCT_INSTALL_PATH = circt-full;
 
-    outputs = [ "out" "configgen" "elaborator" ];
+    outputs = [ "out" "configgen" "elaborator" "t1package" ];
 
     buildPhase = ''
       mill -i '__.assembly'
+
+      mill -i t1package.sourceJar
+      mill -i t1package.jar
     '';
 
     installPhase = ''
@@ -85,6 +88,10 @@ let
 
       mv out/configgen/assembly.dest/out.jar $out/share/java/configgen.jar
       mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar
+
+      mkdir -p $t1package/share/java
+      mv out/t1package/sourceJar.dest/out.jar $t1package/share/java/t1package-sources.jar
+      mv out/t1package/jar.dest/out.jar $t1package/share/java/t1package.jar
 
       mkdir -p $configgen/bin $elaborator/bin
       makeWrapper ${jdk21}/bin/java $configgen/bin/configgen --add-flags "-jar $out/share/java/configgen.jar"
