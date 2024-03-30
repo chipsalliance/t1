@@ -43,6 +43,7 @@ class mmio_mem : public mmio_dev  {
                         .info("mmio warp read success");
                     return true;
                 }
+                else return false;
             }
             else {
                 Log("MMIORead")
@@ -71,6 +72,7 @@ class mmio_mem : public mmio_dev  {
                         .info("mmio warp write success");
                     return true;
                 }
+                else return false;
             }
             else {
                 Log("MMIOWrite")
