@@ -7,9 +7,7 @@ import mainargs.{main, arg, ParserForMethods, Leftover, Flag, TokensReader}
 import scala.io.AnsiColor._
 
 object Logger {
-  def info(message: String) = {
-    println(s"${BOLD}${GREEN}[INFO]${RESET} ${message}")
-  }
+  def info(message: String) = println(s"${BOLD}${GREEN}[INFO]${RESET} ${message}")
 }
 
 object Main:
@@ -22,13 +20,13 @@ object Main:
       config: String,
       caseName: String,
       forceX86: Boolean = false
-  ): os.Path = {
+  ): os.Path =
     val casePath = os.Path(caseName, os.pwd)
-    val caseAttrRoot = if (forceX86) "cases-x86" else "cases"
+    val caseAttrRoot = if (forceX86) then "cases-x86" else "cases"
 
-    val finalPath = if (os.exists(casePath)) {
+    val finalPath = if (os.exists(casePath)) then
       casePath
-    } else {
+    else
       val nixArgs = Seq(
         "nix",
         "build",
@@ -41,64 +39,58 @@ object Main:
         s"Running `${nixArgs.mkString(" ")}` to get test case ELF file"
       )
       os.Path(os.proc(nixArgs).call().out.trim()) / "bin" / s"${caseName}.elf"
-    }
 
     Logger.info(s"Using test ELF: ${finalPath}")
     finalPath
-  }
+  end resolveTestElfPath
 
   def resolveEmulatorPath(
       config: String,
       emuType: String,
       isTrace: Boolean = false
-  ): os.Path = {
-    val finalPath = {
-      val target = if (isTrace) s"${emuType}.emu-trace" else s"${emuType}.emu"
-      val nixArgs = Seq(
-        "nix",
-        "build",
-        "--no-link",
-        "--print-out-paths",
-        "--no-warn-dirty",
-        s".#t1.${config}.${target}"
-      )
-      Logger.info(s"Running `${nixArgs.mkString(" ")}` to get emulator")
-      os.Path(os.proc(nixArgs).call().out.trim()) / "bin" / "emulator"
-    }
+  ): os.Path =
+    val target = if (isTrace) then s"${emuType}.emu-trace" else s"${emuType}.emu"
+    val nixArgs = Seq(
+      "nix",
+      "build",
+      "--no-link",
+      "--print-out-paths",
+      "--no-warn-dirty",
+      s".#t1.${config}.${target}"
+    )
+    Logger.info(s"Running `${nixArgs.mkString(" ")}` to get emulator")
 
+    val finalPath = os.Path(os.proc(nixArgs).call().out.trim()) / "bin" / "emulator"
     Logger.info(s"Using emulator: ${finalPath}")
+
     finalPath
-  }
+  end resolveEmulatorPath
 
   def resolveElaborateConfig(
       outputDir: os.Path,
       configName: String
-  ): os.Path = {
-    if (os.exists(outputDir / "config.json")) {
+  ): os.Path =
+    if (os.exists(outputDir / "config.json")) then
       os.remove.all(outputDir / "config.json")
-    }
 
     val cfgPath = os.Path(configName, os.pwd)
-    val finalCfgPath = if (os.exists(cfgPath)) {
-      cfgPath
-    } else {
-      val nixArgs = Seq(
-        "nix",
-        "run",
-        "--no-warn-dirty",
-        ".#t1.configgen",
-        "--",
-        configName,
-        "-t",
-        outputDir.toString
-      )
-      Logger.info(s"Runnning `${nixArgs.mkString(" ")}` to get config")
-      os.proc(nixArgs).call()
-      outputDir / "config.json"
-    }
+    if (os.exists(cfgPath)) then return cfgPath
 
-    finalCfgPath
-  }
+    val nixArgs = Seq(
+      "nix",
+      "run",
+      "--no-warn-dirty",
+      ".#t1.configgen",
+      "--",
+      configName,
+      "-t",
+      outputDir.toString
+    )
+    Logger.info(s"Runnning `${nixArgs.mkString(" ")}` to get config")
+    os.proc(nixArgs).call()
+
+    outputDir / "config.json"
+  end resolveElaborateConfig
 
   def prepareOutputDir(
       outputDir: Option[String],
@@ -106,35 +98,31 @@ object Main:
       config: String,
       emuType: String,
       caseName: String
-  ): os.Path = {
-    val pathTail = if (os.exists(os.Path(caseName, os.pwd))) {
+  ): os.Path =
+    val pathTail = if (os.exists(os.Path(caseName, os.pwd))) then
       // It is hard to canoncalize user specify path, so here we use date time instead
       java.time.LocalDateTime
         .now()
         .format(
           java.time.format.DateTimeFormatter.ofPattern("yy-MM-dd-HH-mm-ss")
         )
-    } else {
+    else
       caseName
-    }
 
-    val path = if (outputDir.isEmpty) {
-      if (outputBaseDir.isEmpty) {
+    val path = if (outputDir.isEmpty) then
+      if (outputBaseDir.isEmpty) then
         os.pwd / "testrun" / s"${emuType}emu" / config / pathTail
-      } else {
+      else
         os.Path(outputBaseDir.get, os.pwd) / config / pathTail
-      }
-    } else {
+    else
       os.Path(outputDir.get)
-    }
 
     os.makeDir.all(path)
     path
-  }
+  end prepareOutputDir
 
-  def optionals(cond: Boolean, input: Seq[String]): Seq[String] = {
-    if (cond) input else Seq()
-  }
+  def optionals(cond: Boolean, input: Seq[String]): Seq[String] =
+    if (cond) then input else Seq()
 
   // Should be configed via Nix
   @main def ipemu(
@@ -203,19 +191,18 @@ object Main:
         name = "cosim-timeout",
         doc = "specify timeout cycle for cosim"
       ) cosimTimeout: Int = 400000
-  ) = {
+  ): Unit =
     val caseElfPath = resolveTestElfPath(config, testCase, forceX86)
     val outputPath =
       prepareOutputDir(outDir, baseOutDir, config, "ip", testCase)
-    val emulator = if (!emulatorPath.isEmpty) {
+    val emulator = if (!emulatorPath.isEmpty) then
       val emuPath = os.Path(emulatorPath.get, os.pwd)
-      if (!os.exists(emuPath)) {
+      if (!os.exists(emuPath)) then
         sys.error(s"No emulator found at path: ${emulatorPath.get}")
-      }
+
       emuPath
-    } else {
+    else
       resolveEmulatorPath(config, "ip", trace.value)
-    }
 
     val elaborateConfig =
       ujson.read(os.read(resolveElaborateConfig(outputPath, config)))
@@ -268,14 +255,12 @@ object Main:
     Logger.info(s"Starting IP emulator: `${processArgs.mkString(" ")}`")
     os.proc(processArgs).call()
 
-    if (!noFileLog.value) {
+    if (!noFileLog.value) then
       Logger.info(s"Emulator log save to ${outputPath / "emulator.log"}")
-    }
 
-    if (trace.value) {
+    if (trace.value) then
       Logger.info(s"Trace file save to ${outputPath} / trace.fst")
-    }
-  }
+  end ipemu
 
   @main def subsystememu(
       @arg(
@@ -312,36 +297,34 @@ object Main:
         name = "emulator-path",
         doc = "path to emulator"
       ) emulatorPath: Option[String]
-  ) = {
+  ): Unit =
     val caseElfPath = resolveTestElfPath(config, testCase, forceX86)
     val outputPath =
       prepareOutputDir(outDir, baseOutDir, config, "subsystem", testCase)
-    val emulator = if (!emulatorPath.isEmpty) {
+    val emulator = if (!emulatorPath.isEmpty) then
       val emuPath = os.Path(emulatorPath.get, os.pwd)
-      if (!os.exists(emuPath)) {
+      if (!os.exists(emuPath)) then
         sys.error(s"No emulator found at path: ${emulatorPath.get}")
-      }
       emuPath
-    } else {
+    else
       resolveEmulatorPath(config, "subsystem", trace.value)
-    }
 
     val emuArgs =
       Seq(s"+init_file=${caseElfPath}") ++ optionals(
         trace.value,
         Seq(s"+trace_file=${
-            if (traceFile.isDefined) os.Path(traceFile.get, os.pwd)
+            if (traceFile.isDefined) then
+              os.Path(traceFile.get, os.pwd)
             else outputPath / "trace.fst"
           }")
       )
     os.proc(emuArgs).call()
 
-    if (trace.value) {
+    if (trace.value) then
       Logger.info(s"Trace file save to ${outputPath} / trace.fst")
-    }
-  }
+  end subsystememu
 
-  @main def listConfig() = {
+  @main def listConfig(): Unit =
     os.proc(
       Seq(
         "nix",
@@ -352,6 +335,5 @@ object Main:
         "listConfigs"
       )
     ).call(cwd = os.pwd, stdout = os.Inherit, stderr = os.Inherit)
-  }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
