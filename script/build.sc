@@ -15,5 +15,6 @@ object v {
 
 object script extends RootModule with ScalaModule {
   def scalaVersion = v.scala3
+  def scalacOptions = Seq("-new-syntax")
   override def ivyDeps = Agg(v.mainargs, v.oslib, v.upickle)
 }
