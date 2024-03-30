@@ -33,13 +33,16 @@ void VBridgeImpl::dpiInitCosim(uint32_t *resetVector) {
 //==================
 
 void VBridgeImpl::PeekVectorTL(uint8_t channel, VTlInterfacePeek &peek) {
+  resizeVectorChannel(channel);
   vector_sigs[channel].update_input_dpi(peek);
-  vector_xbar[channel].tick(vector_sigs_ref[channel]);
+  tilelink_ref<32, 8, 15, 3> ref = vector_sigs[channel];
+  vector_xbar[channel].tick(ref);
 }
 
 void VBridgeImpl::PeekMMIOTL(VTlInterfacePeek &peek) {
   mmio_sigs.update_input_dpi(peek);
-  mmio_xbar.tick(mmio_sigs_ref);
+  tilelink_ref <29, 8, 2, 3> ref = mmio_sigs;
+  mmio_xbar.tick(ref);
   // output uart
   while (uart.exist_tx()) {
     char c = uart.getc();
@@ -53,7 +56,8 @@ void VBridgeImpl::PeekMMIOTL(VTlInterfacePeek &peek) {
 
 void VBridgeImpl::PeekScarlarTL(VTlInterfacePeek &peek) {
   mem_sigs.update_input_dpi(peek);
-  mem_xbar.tick(mem_sigs_ref);
+  tilelink_ref <30, 8, 16, 3> ref = mem_sigs;
+  mem_xbar.tick(ref);
 }
 
 //==================
@@ -61,6 +65,7 @@ void VBridgeImpl::PeekScarlarTL(VTlInterfacePeek &peek) {
 //==================
 
 void VBridgeImpl::PokeVectorTL(uint8_t channel, VTlInterfacePoke &poke) {
+  resizeVectorChannel(channel);
   vector_sigs[channel].update_output_dpi(poke);
 }
 
@@ -129,32 +134,12 @@ VBridgeImpl::VBridgeImpl(const Config cosim_config)
       timeout(config.timeout),
       finished(false),
       unified_mem(4096ul*1024*1024),
-      mem_sigs_ref(mem_sigs),
-      mmio_sigs_ref(mmio_sigs),
-      vector_sigs_ref({vector_sigs[0], vector_sigs[1], vector_sigs[2],
-                       vector_sigs[3], vector_sigs[4], vector_sigs[5],
-                       vector_sigs[6], vector_sigs[7], vector_sigs[8],
-                       vector_sigs[9], vector_sigs[10], vector_sigs[11]}),
 #ifdef COSIM_VERILATOR
       ctx(nullptr)
 #endif
 {
   mmio_xbar.add_dev(0x10000000, 32, &uart);
   bool canAddMem = mem_xbar.add_dev(0, 4096ul*1024*1024, &unified_mem);
-  /*
-      Scarlar Memory (Can be accessed by Vector):
-      1x512M from 512M
-      Vector Memory:
-      [0-3] 4*512M DDR from 1G step +512M
-      [4-11] 8*256K SRAM from 3G step 256K
-   */
-  for (int i=0;i<4;i++) {
-    canAddMem &= vector_xbar[i].add_dev(0, 4096ul*1024*1024, &unified_mem);
-  }
-
-  for (int i=0;i<8;i++) {
-    canAddMem &= vector_xbar[i+4].add_dev(0, 4096ul*1024*1024, &unified_mem);
-  }
   if (!canAddMem) {
     Log("VBridgeImpl")
       .info("Can not initialize memory.");
@@ -164,6 +149,15 @@ VBridgeImpl::VBridgeImpl(const Config cosim_config)
 
 void VBridgeImpl::on_exit() {
   // TODO: output perf summary
+}
+
+void VBridgeImpl::resizeVectorChannel (uint8_t channel) {
+  while (channel >= vector_sigs.size()) {
+    vector_sigs.emplace_back();
+    vector_xbar.emplace_back();
+    bool res = vector_xbar[channel].add_dev(0, 4096ul*1024*1024, &unified_mem);
+    if (!res) printf("Can not initialize memory.\n");
+  }
 }
 
 VBridgeImpl vbridge_impl_instance = vbridgeImplFromArgs();

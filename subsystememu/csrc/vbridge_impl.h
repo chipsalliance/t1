@@ -83,15 +83,13 @@ private:
   // tilelink
   tilelink <30, 8, 16, 3> mem_sigs;
   tilelink <29, 8, 2, 3> mmio_sigs;
-  tilelink <32, 8, 15, 3> vector_sigs[12];
-
-  tilelink_ref <30, 8, 16, 3> mem_sigs_ref;
-  tilelink_ref <29, 8, 2, 3> mmio_sigs_ref;
-  tilelink_ref <32, 8, 15, 3> vector_sigs_ref[12];
+  std::vector < tilelink <32, 8, 15, 3> > vector_sigs;
 
   tilelink_xbar<30, 8, 16, 3> mem_xbar;
   tilelink_xbar<29, 8, 2, 3> mmio_xbar;
-  tilelink_xbar<32, 8, 15, 3> vector_xbar[12];
+  std::vector < tilelink_xbar <32, 8, 15, 3> > vector_xbar;  
+
+  void resizeVectorChannel(uint8_t channel);
 
   // simulator context
 #ifdef COSIM_VERILATOR
