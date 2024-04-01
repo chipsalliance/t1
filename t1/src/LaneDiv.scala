@@ -20,7 +20,7 @@ case class LaneDivParam(datapathWidth: Int, latency: Int) extends VFUParameter w
   override val singleCycle: Boolean = false
 }
 
-class LaneDivRequest(datapathWidth: Int) extends Bundle {
+class LaneDivRequest(datapathWidth: Int) extends VFUPipeBundle {
   val src:  Vec[UInt] = Vec(2, UInt(datapathWidth.W))
   val opcode = UInt(4.W)
   val sign: Bool = Bool()
@@ -30,7 +30,7 @@ class LaneDivRequest(datapathWidth: Int) extends Bundle {
   // val vSew: UInt = UInt(2.W)
 }
 
-class LaneDivResponse(datapathWidth: Int) extends Bundle {
+class LaneDivResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data: UInt = UInt(datapathWidth.W)
   val executeIndex: UInt = UInt(2.W)
   val busy: Bool = Bool()
@@ -38,7 +38,8 @@ class LaneDivResponse(datapathWidth: Int) extends Bundle {
 
 class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with SerializableModule[LaneDivParam] {
   val response: LaneDivResponse = Wire(new LaneDivResponse(parameter.datapathWidth))
-  val request: LaneDivRequest = connectIO(response).asTypeOf(parameter.inputBundle)
+  val responseValid: Bool = Wire(Bool())
+  val request: LaneDivRequest = connectIO(response, responseValid).asTypeOf(parameter.inputBundle)
 
   val wrapper = Module(new SRTWrapper)
   wrapper.input.bits.dividend := request.src.last.asSInt
@@ -53,7 +54,7 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
 
   response.executeIndex := indexReg
   requestIO.ready := wrapper.input.ready
-  responseIO.valid := wrapper.output.valid
+  responseValid := wrapper.output.valid
   response.data := Mux(remReg, wrapper.output.bits.reminder.asUInt, wrapper.output.bits.quotient.asUInt)
 }
 

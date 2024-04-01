@@ -222,7 +222,7 @@ package object rtl {
         Module(new Distributor(
           chiselTypeOf(requestVec.head),
           chiselTypeOf(responseVec.head.bits)
-        )(!gen.parameter.singleCycle)).suggestName(s"${gen.parameter.decodeField.name}Distributor")
+        )(gen.parameter.latency > 0)).suggestName(s"${gen.parameter.decodeField.name}Distributor")
       )
       // 访问仲裁
       val requestArbiter: Arbiter[SlotRequestToVFU] = Module(

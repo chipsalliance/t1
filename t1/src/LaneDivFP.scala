@@ -22,7 +22,7 @@ case class LaneDivFPParam(datapathWidth: Int, latency: Int) extends VFUParameter
   override val singleCycle: Boolean = false
 }
 
-class LaneDivFPRequest(datapathWidth: Int) extends Bundle {
+class LaneDivFPRequest(datapathWidth: Int) extends VFUPipeBundle {
   val src:  Vec[UInt] = Vec(2, UInt(datapathWidth.W))
   val opcode = UInt(4.W)
   val sign: Bool = Bool()
@@ -33,7 +33,7 @@ class LaneDivFPRequest(datapathWidth: Int) extends Bundle {
   val roundingMode = UInt(3.W)
 }
 
-class LaneDivFPResponse(datapathWidth: Int) extends Bundle {
+class LaneDivFPResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data: UInt = UInt(datapathWidth.W)
   val exceptionFlags = UInt(5.W)
   val executeIndex: UInt = UInt(2.W)
@@ -42,7 +42,8 @@ class LaneDivFPResponse(datapathWidth: Int) extends Bundle {
 
 class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with SerializableModule[LaneDivFPParam] {
   val response: LaneDivFPResponse = Wire(new LaneDivFPResponse(parameter.datapathWidth))
-  val request: LaneDivFPRequest = connectIO(response).asTypeOf(parameter.inputBundle)
+  val responseValid: Bool = Wire(Bool())
+  val request: LaneDivFPRequest = connectIO(response, responseValid).asTypeOf(parameter.inputBundle)
 
   val uop = request.opcode
 
@@ -71,7 +72,7 @@ class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with
 
   response.executeIndex   := indexReg
   requestIO.ready         := wrapper.input.ready
-  responseIO.valid        := wrapper.output.valid
+  responseValid        := wrapper.output.valid
   response.data           := wrapper.output.bits.result
   response.exceptionFlags := wrapper.output.bits.exceptionFlags
 }

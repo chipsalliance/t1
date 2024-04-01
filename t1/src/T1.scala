@@ -828,6 +828,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       adderRequest.saturate := false.B
       adderRequest.vxrm := csrRegForMaskUnit.vxrm
       adderRequest.vSew := Mux(popCount, 2.U, OHToUInt(sew1HCorrect))
+      adderRequest.tag := DontCare
       adder.requestIO.bits := adderRequest.asTypeOf(adder.requestIO.bits)
       adder.requestIO.valid := DontCare
       adder.responseIO.ready := DontCare

@@ -21,7 +21,7 @@ case class LaneMulParam(datapathWidth: Int, latency: Int) extends VFUParameter w
   val outputBundle = new LaneMulResponse(this)
 }
 
-class LaneMulReq(parameter: LaneMulParam) extends Bundle {
+class LaneMulReq(parameter: LaneMulParam) extends VFUPipeBundle {
   val src:      Vec[UInt] = Vec(3, UInt(parameter.sourceWidth.W))
   val opcode:   UInt = UInt(4.W)
   val saturate: Bool = Bool()
@@ -33,7 +33,7 @@ class LaneMulReq(parameter: LaneMulParam) extends Bundle {
   val vxrm: UInt = UInt(2.W)
 }
 
-class LaneMulResponse(parameter: LaneMulParam) extends Bundle {
+class LaneMulResponse(parameter: LaneMulParam) extends VFUPipeBundle {
   val data: UInt = UInt(parameter.respWidth.W)
   val vxsat: Bool = Bool()
 }
