@@ -1,5 +1,11 @@
 name: PR
-on: [pull_request]
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 env:
   USER: runner
 
@@ -10,6 +16,7 @@ concurrency:
 
 jobs:
   gen-test-plan:
+    if: '! github.event.pull_request.draft'
     name: "Generate test plan"
     runs-on: [self-hosted, linux, nixos]
     outputs:
@@ -76,6 +83,7 @@ jobs:
         run: nix build '.#t1.${{ matrix.config }}.ip.emu-trace' -L --no-link --cores 64
 
   test-emit:
+    if: '! github.event.pull_request.draft'
     name: "Test elaborate"
     runs-on: [self-hosted, linux, nixos]
     strategy:
