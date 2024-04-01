@@ -7,7 +7,20 @@ import mainargs.{main, arg, ParserForMethods, Leftover, Flag, TokensReader}
 import scala.io.AnsiColor._
 
 object Logger {
-  def info(message: String) = println(s"${BOLD}${GREEN}[INFO]${RESET} ${message}")
+  val level = sys.env.getOrElse("LOG_LEVEL", "INFO") match
+    case "TRACE" | "trace" => 0
+    case "ERROR" | "error" => 1
+    case "WARN" | "warn"   => 2
+    case _                 => 3
+
+  def info(message: String) = println(
+    s"${BOLD}${GREEN}[INFO]${RESET} ${message}"
+  )
+  def trace(message: String) =
+    if level <= 0 then println(s"${BOLD}${GREEN}[TRACE]${RESET} ${message}")
+  def error(message: String) = println(
+    s"${BOLD}${RED}[ERROR]${RESET} ${message}"
+  )
 }
 
 object Main:
@@ -24,23 +37,23 @@ object Main:
     val casePath = os.Path(caseName, os.pwd)
     val caseAttrRoot = if (forceX86) then "cases-x86" else "cases"
 
-    val finalPath = if (os.exists(casePath)) then
-      casePath
-    else
-      val nixArgs = Seq(
-        "nix",
-        "build",
-        "--no-link",
-        "--print-out-paths",
-        "--no-warn-dirty",
-        s".#t1.${config}.${caseAttrRoot}.${caseName}"
-      )
-      Logger.info(
-        s"Running `${nixArgs.mkString(" ")}` to get test case ELF file"
-      )
-      os.Path(os.proc(nixArgs).call().out.trim()) / "bin" / s"${caseName}.elf"
+    val finalPath =
+      if (os.exists(casePath)) then casePath
+      else
+        val nixArgs = Seq(
+          "nix",
+          "build",
+          "--no-link",
+          "--print-out-paths",
+          "--no-warn-dirty",
+          s".#t1.${config}.${caseAttrRoot}.${caseName}"
+        )
+        Logger.trace(
+          s"Running `${nixArgs.mkString(" ")}` to get test case ELF file"
+        )
+        os.Path(os.proc(nixArgs).call().out.trim()) / "bin" / s"${caseName}.elf"
 
-    Logger.info(s"Using test ELF: ${finalPath}")
+    Logger.trace(s"Using test ELF: ${finalPath}")
     finalPath
   end resolveTestElfPath
 
@@ -49,7 +62,8 @@ object Main:
       emuType: String,
       isTrace: Boolean = false
   ): os.Path =
-    val target = if (isTrace) then s"${emuType}.emu-trace" else s"${emuType}.emu"
+    val target =
+      if (isTrace) then s"${emuType}.emu-trace" else s"${emuType}.emu"
     val nixArgs = Seq(
       "nix",
       "build",
@@ -58,10 +72,11 @@ object Main:
       "--no-warn-dirty",
       s".#t1.${config}.${target}"
     )
-    Logger.info(s"Running `${nixArgs.mkString(" ")}` to get emulator")
+    Logger.trace(s"Running `${nixArgs.mkString(" ")}` to get emulator")
 
-    val finalPath = os.Path(os.proc(nixArgs).call().out.trim()) / "bin" / "emulator"
-    Logger.info(s"Using emulator: ${finalPath}")
+    val finalPath =
+      os.Path(os.proc(nixArgs).call().out.trim()) / "bin" / "emulator"
+    Logger.trace(s"Using emulator: ${finalPath}")
 
     finalPath
   end resolveEmulatorPath
@@ -86,7 +101,7 @@ object Main:
       "-t",
       outputDir.toString
     )
-    Logger.info(s"Runnning `${nixArgs.mkString(" ")}` to get config")
+    Logger.trace(s"Runnning `${nixArgs.mkString(" ")}` to get config")
     os.proc(nixArgs).call()
 
     outputDir / "config.json"
@@ -99,23 +114,22 @@ object Main:
       emuType: String,
       caseName: String
   ): os.Path =
-    val pathTail = if (os.exists(os.Path(caseName, os.pwd))) then
-      // It is hard to canoncalize user specify path, so here we use date time instead
-      java.time.LocalDateTime
-        .now()
-        .format(
-          java.time.format.DateTimeFormatter.ofPattern("yy-MM-dd-HH-mm-ss")
-        )
-    else
-      caseName
+    val pathTail =
+      if (os.exists(os.Path(caseName, os.pwd))) then
+        // It is hard to canoncalize user specify path, so here we use date time instead
+        java.time.LocalDateTime
+          .now()
+          .format(
+            java.time.format.DateTimeFormatter.ofPattern("yy-MM-dd-HH-mm-ss")
+          )
+      else caseName
 
-    val path = if (outputDir.isEmpty) then
-      if (outputBaseDir.isEmpty) then
-        os.pwd / "testrun" / s"${emuType}emu" / config / pathTail
-      else
-        os.Path(outputBaseDir.get, os.pwd) / config / pathTail
-    else
-      os.Path(outputDir.get)
+    val path =
+      if (outputDir.isEmpty) then
+        if (outputBaseDir.isEmpty) then
+          os.pwd / "testrun" / s"${emuType}emu" / config / pathTail
+        else os.Path(outputBaseDir.get, os.pwd) / config / pathTail
+      else os.Path(outputDir.get)
 
     os.makeDir.all(path)
     path
@@ -134,7 +148,7 @@ object Main:
         name = "dramsim3-cfg",
         short = 'd',
         doc = "enable dramsim3, and specify its configuration file"
-      ) dramsim3Config: Option[String],
+      ) dramsim3Config: Option[String] = None,
       @arg(
         name = "frequency",
         short = 'f',
@@ -149,16 +163,16 @@ object Main:
         name = "trace",
         short = 't',
         doc = "use emulator with trace support"
-      ) trace: Flag,
+      ) trace: Flag = Flag(false),
       @arg(
         name = "verbose",
         short = 'v',
         doc = "set loglevel to debug"
-      ) verbose: Flag,
+      ) verbose: Flag = Flag(false),
       @arg(
         name = "no-logging",
         doc = "prevent emulator produce log (both console and file)"
-      ) noLog: Flag,
+      ) noLog: Flag = Flag(false),
       @arg(
         name = "no-file-logging",
         doc = "prevent emulator print log to console"
@@ -167,30 +181,42 @@ object Main:
         name = "no-console-logging",
         short = 'q',
         doc = "prevent emulator print log to console"
-      ) noConsoleLog: Flag,
+      ) noConsoleLog: Flag = Flag(false),
+      @arg(
+        name = "emulator-log-level",
+        doc = "Set the EMULATOR_*_LOG_LEVEL env"
+      ) emulatorLogLevel: String = "INFO",
+      @arg(
+        name = "emulator-log-file-path",
+        doc = "Set the logging output path"
+      ) emulatorLogFilePath: Option[os.Path] = None,
       @arg(
         name = "out-dir",
         doc = "path to save wave file and perf result file"
-      ) outDir: Option[String],
+      ) outDir: Option[String] = None,
       @arg(
         name = "base-out-dir",
         doc = "save result files in {base_out_dir}/{config}/{case}/{run_config}"
-      ) baseOutDir: Option[String],
+      ) baseOutDir: Option[String] = None,
       @arg(
         name = "emulator-path",
         doc = "path to emulator"
-      ) emulatorPath: Option[String],
+      ) emulatorPath: Option[String] = None,
       @arg(
         doc = "Force using x86_64 as cross compiling host platform"
       ) forceX86: Boolean = false,
       @arg(
         name = "dump-cycle",
         doc = "Specify the dump starting point"
-      ) dumpCycle: Int = 0,
+      ) dumpCycle: String = "0.0",
       @arg(
         name = "cosim-timeout",
         doc = "specify timeout cycle for cosim"
-      ) cosimTimeout: Int = 400000
+      ) cosimTimeout: Int = 400000,
+      @arg(
+        name = "dry-run",
+        doc = "Print the final emulator command line"
+      ) dryRun: Flag = Flag(false)
   ): Unit =
     val caseElfPath = resolveTestElfPath(config, testCase, forceX86)
     val outputPath =
@@ -201,12 +227,14 @@ object Main:
         sys.error(s"No emulator found at path: ${emulatorPath.get}")
 
       emuPath
-    else
-      resolveEmulatorPath(config, "ip", trace.value)
+    else resolveEmulatorPath(config, "ip", trace.value)
 
     val elaborateConfig =
       ujson.read(os.read(resolveElaborateConfig(outputPath, config)))
     val tck = scala.math.pow(10, 3) / dramsim3Frequency
+    val emulatorLogPath =
+      if emulatorLogFilePath.isDefined then emulatorLogFilePath.get
+      else outputPath / "emulator.log"
     val processArgs = Seq(
       emulator.toString(),
       "--elf",
@@ -237,7 +265,7 @@ object Main:
         .arr(0)
         .obj("beatbyte")
         .toString(),
-      s"--log-path=${outputPath / "emulator.log"}"
+      s"--log-path=${emulatorLogPath}"
     ) ++ optionals(noLog.value, Seq("--no-logging"))
       ++ optionals(noFileLog.value, Seq("--no-file-logging"))
       ++ optionals(noConsoleLog.value, Seq("--no-console-logging"))
@@ -253,10 +281,18 @@ object Main:
       ++ optionals(trace.value, Seq("--dump-from-cycle", dumpCycle.toString()))
 
     Logger.info(s"Starting IP emulator: `${processArgs.mkString(" ")}`")
-    os.proc(processArgs).call()
+    if dryRun.value then return
+
+    os.proc(processArgs)
+      .call(env =
+        Map(
+          "EMULATOR_FILE_LOG_LEVEL" -> emulatorLogLevel,
+          "EMULATOR_CONSOLE_LOG_LEVEL" -> emulatorLogLevel
+        )
+      )
 
     if (!noFileLog.value) then
-      Logger.info(s"Emulator log save to ${outputPath / "emulator.log"}")
+      Logger.info(s"Emulator log save to ${emulatorLogPath}")
 
     if (trace.value) then
       Logger.info(s"Trace file save to ${outputPath} / trace.fst")
@@ -306,15 +342,13 @@ object Main:
       if (!os.exists(emuPath)) then
         sys.error(s"No emulator found at path: ${emulatorPath.get}")
       emuPath
-    else
-      resolveEmulatorPath(config, "subsystem", trace.value)
+    else resolveEmulatorPath(config, "subsystem", trace.value)
 
     val emuArgs =
       Seq(s"+init_file=${caseElfPath}") ++ optionals(
         trace.value,
         Seq(s"+trace_file=${
-            if (traceFile.isDefined) then
-              os.Path(traceFile.get, os.pwd)
+            if (traceFile.isDefined) then os.Path(traceFile.get, os.pwd)
             else outputPath / "trace.fst"
           }")
       )
@@ -335,5 +369,280 @@ object Main:
         "listConfigs"
       )
     ).call(cwd = os.pwd, stdout = os.Inherit, stderr = os.Inherit)
+
+  //
+  // CI
+  //
+  // The below script will try to read all the tests in ../../.github/cases/**/default.json,
+  // arranging them together by their required cycle, and using GitHub "matrix" feature to manage
+  // and separate those test job to multiple machines.
+  //
+  // We define that, the term "bucket" refers to a list of test job, concating by ';' into text.
+  // "Bucket" will be recorded in "matrix" payload field "jobs". Each machine will run a "bucket" of tests.
+  //
+  // Function `generateMatrix` will be used to produce necessary information to feed the GitHub matrix.
+  // Function `runTests` will parse the GitHub matrix, run a "bucket" of tests and generate GitHub CI report.
+  //
+  // The final "matrix" will have json data like: { include: [ { jobs: "taskA;taskB", id: 1 }, { jobs: "taskC;taskD", id: 2 } ] }.
+  //
+
+  // Merge Seq( "A", "B", "C", "D" ) into Seq( "A;B", "C;D" )
+  //
+  // @param allTests The original Seq
+  // @param bucketSize Specify the size of the output Seq
+  def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] =
+    scala.util.Random
+      .shuffle(alltests)
+      .grouped(
+        math.ceil(alltests.size.toDouble / bucketSize).toInt
+      )
+      .toSeq
+      .map(_.mkString(";"))
+
+  case class Bucket(buffer: Seq[String] = Seq(), totalCycle: Int = 0):
+    def cons(data: (String, Int)): Bucket =
+      val (testName, cycle) = data
+      Bucket(buffer ++ Seq(testName), totalCycle + cycle)
+
+    def mkString(sep: String = ";") = buffer.mkString(sep)
+
+  // Read test case and their cycle data from the given paths.
+  // Test cases will be grouped into a single bucket, and then partitioned into given `bucketSize` of sub-bucket.
+  // Each sub-bucket will have similar weight, so that the time cost will be similar between each runners.
+  //
+  // For example:
+  //
+  //   [ {A: 100}, {B: 180}, {C: 300}, {D:200} ] => [[A,C], [B,D]]
+  //
+  // @param allTasksFile List of the default.json file path
+  // @param bucketSize Specify the size of the output Seq
+  def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] =
+    // Produce a list of ("config,testName", cycle) pair
+    val allCycleData = allTasksFile.flatMap: file =>
+      Logger.trace(s"Generate tests from file: $file")
+      val config = file.segments.toSeq.reverse.apply(1)
+      ujson
+        .read(os.read(file))
+        .obj
+        .map { case (caseName, cycle) =>
+          (s"$config,$caseName", cycle.num.toInt)
+        }
+        .toSeq
+
+    // _2 is the cycle number
+    val (unProcessedData, normalData) = allCycleData.partition(_._2 <= 0)
+    // Initialize a list of buckets
+    val cargoInit = (0 until bucketSize).map(_ => Bucket())
+    // Group tests that have cycle data into subset by their cycle size
+    val cargoStaged = normalData
+      .sortBy(_._2)(Ordering[Int].reverse)
+      .foldLeft(cargoInit): (cargo, elem) =>
+        val smallest = cargo.minBy(_.totalCycle)
+        cargo.updated(cargo.indexOf(smallest), smallest.cons(elem))
+
+    // For unprocessed data, just split them into subset that have equal size
+    val cargoFinal = (0 until bucketSize).foldLeft(cargoStaged)((cargo, i) =>
+      val startIdx = i * bucketSize
+      val endIdx = math.min((i + 1) * bucketSize, unProcessedData.length)
+      val newBucket = unProcessedData
+        .slice(startIdx, endIdx)
+        .foldLeft(cargo.apply(i)): (bucket, data) =>
+          bucket.cons(data)
+      cargo.updated(i, newBucket)
+    )
+
+    cargoFinal.map(_.buffer.mkString(";")).toSeq
+  end scheduleTasks
+
+  // Turn Seq( "A;B", "C;D" ) to GitHub Action matrix style json: { "include": [ { "jobs": "A;B", id: 1 }, { "jobs": "C;D", id: 2 } ] }
+  //
+  // @param buckets Seq of String that is already packed into bucket using the `buckets` function
+  // @param outputFile Path to the output json file
+  def toMatrixJson(buckets: Seq[String]) =
+    ujson.Obj("include" -> buckets.zipWithIndex.map: (bucket, i) =>
+      ujson.Obj(
+        "jobs" -> ujson.Str(bucket),
+        "id" -> ujson.Num(i + 1)
+      ))
+
+  // Read default tests information from '.github/cases/default.txt' file, and use that information to generate GitHub CI matrix.
+  // The result will be printed to stdout, and should be pipe into $GITHUB_OUTPUT
+  @main
+  def generateCiMatrix(
+      runnersAmount: Int
+  ) = {
+    val testPlans =
+      os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+    println(toMatrixJson(scheduleTasks(testPlans, runnersAmount)))
+  }
+
+  def writeCycleUpdates(
+      testName: String,
+      testRunDir: os.Path,
+      resultDir: os.Path
+  ): Unit =
+    val isEmulatorTask = raw"([^,]+),([^,]+)".r
+    testName match
+      case isEmulatorTask(e, t) =>
+        val passedFile = os.pwd / os.RelPath(s".github/cases/$e/default.json")
+        val original = ujson.read(os.read(passedFile))
+
+        val perfCycleRegex = raw"total_cycles:\s(\d+)".r
+        val newCycleCount = os.read
+          .lines(testRunDir / os.RelPath(s"$e/$t/perf.txt"))
+          .apply(0) match
+          case perfCycleRegex(cycle) => cycle.toInt
+          case _ =>
+            throw new Exception("perf.txt file is not format as expected")
+
+        val oldCycleCount = original.obj.get(t).map(_.num.toInt).getOrElse(-1)
+        val cycleUpdateFile = resultDir / "cycle-updates.md"
+        Logger.info(f"job '$testName' cycle $oldCycleCount -> $newCycleCount")
+        oldCycleCount match
+          case -1 =>
+            os.write.append(
+              cycleUpdateFile,
+              s"* 🆕 $testName: NaN -> $newCycleCount\n"
+            )
+          case _ =>
+            if oldCycleCount > newCycleCount then
+              os.write.append(
+                cycleUpdateFile,
+                s"* 🚀 $testName: $oldCycleCount -> $newCycleCount\n"
+              )
+            else if oldCycleCount < newCycleCount then
+              os.write.append(
+                cycleUpdateFile,
+                s"* 🐢 $testName: $oldCycleCount -> $newCycleCount\n"
+              )
+
+            val newCycleFile = resultDir / s"${e}_cycle.json"
+            val newCycleRecord =
+              if os.exists(newCycleFile) then ujson.read(os.read(newCycleFile))
+              else ujson.Obj()
+
+            newCycleRecord(t) = newCycleCount
+            os.write.over(newCycleFile, ujson.write(newCycleRecord, indent = 2))
+      case _ => throw new Exception(f"unknown job format '$testName'")
+  end writeCycleUpdates
+
+  // Run jobs and give a brief result report
+  // - Log of tailed tests will be tailed and copied into $resultDir/failed-logs/$testName.log
+  // - List of failed tests will be written into $resultDir/failed-tests.md
+  // - Report of cycle updates will be written into $resultDir/cycle-updates.md
+  // - New cycle file will be written into $resultDir/$config_$runConfig_cycle.json
+  //
+  // @param: jobs A semicolon-separated list of job names of the form $config,$caseName,$runConfig
+  // @param: resultDir output directory of the test results, default to ./test-results
+  // @param: dontBail don't throw exception when test fail. Useful for postpr.
+  @main
+  def runTests(
+      jobs: String,
+      resultDir: Option[os.Path],
+      dontBail: Boolean = false
+  ) =
+    var actualResultDir = resultDir.getOrElse(os.pwd / "test-results")
+    val testRunDir = os.pwd / "testrun"
+    os.makeDir.all(actualResultDir / "failed-logs")
+
+    val allJobs = jobs.split(";")
+    val failed = allJobs.zipWithIndex.foldLeft(Seq[String]()):
+      (allFailedTest, currentTest) =>
+        val (testName, index) = currentTest
+        val Array(config, caseName) = testName.split(",")
+        println()
+        Logger.info(
+          s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Running test case $caseName with config $config"
+        )
+        try
+          ipemu(
+            testCase = caseName,
+            config = config,
+            noLog = Flag(false),
+            noConsoleLog = Flag(true),
+            noFileLog = Flag(false),
+            emulatorLogLevel = "FATAL",
+            emulatorLogFilePath = Some(
+              actualResultDir / "failed-logs" / s"${testName.replaceAll(",", "-")}.txt"
+            ),
+            baseOutDir = Some(testRunDir.toString())
+          )
+          writeCycleUpdates(testName, testRunDir, actualResultDir)
+          allFailedTest
+        catch
+          err =>
+            val outDir = testRunDir / config / caseName
+            Logger.error(s"Test case $testName failed")
+            allFailedTest :+ testName
+
+    os.write.over(
+      actualResultDir / "failed-tests.md",
+      ""
+    ) // touch file, to avoid upload-artifacts warning
+
+    if failed.length > 0 then
+      val listOfFailJobs =
+        failed.map(job => s"* $job").appended("").mkString("\n")
+      os.write.over(actualResultDir / "failed-tests.md", listOfFailJobs)
+      val failedJobsWithError = failed
+        .map(testName =>
+          s"* $testName\n     >>> ERROR SUMMARY <<<\n${os
+              .read(actualResultDir / "failed-logs" / s"${testName.replaceAll(",", "-")}.txt")}"
+        )
+        .appended("")
+        .mkString("\n")
+      Logger.error(
+        s"\n\n${BOLD}${failed.length} tests failed${RESET}:\n${failedJobsWithError}"
+      )
+
+      if !dontBail then
+        Logger.error("Tests failed")
+        System.exit(1)
+    else Logger.info(s"All tests passed")
+
+  end runTests
+
+  @main
+  def mergeCycleData() = {
+    Logger.info("Updating cycle data")
+    val original = os
+      .walk(os.pwd / ".github" / "cases")
+      .filter(_.last == "default.json")
+      .map: path =>
+        val config = path.segments.toSeq.reverse(1)
+        (config, ujson.read(os.read(path)))
+      .toMap
+    os.walk(os.pwd)
+      .filter(_.last.endsWith("_cycle.json"))
+      .map: path =>
+        val config = path.last.split("_")(0)
+        Logger.trace(s"Reading new cycle data from $path")
+        (config, ujson.read(os.read(path)))
+      .foreach:
+        case (name, latest) =>
+          val old = original.apply(name)
+          latest.obj.foreach:
+            case (k, v) => old.update(k, v)
+
+    original.foreach:
+      case (name, data) =>
+        val config = name.split(",")(0)
+        os.write.over(
+          os.pwd / os.RelPath(s".github/cases/$config/default.json"),
+          ujson.write(data, indent = 2)
+        )
+
+    Logger.info("Cycle data updated")
+  }
+
+  @main
+  def generateTestPlan() = {
+    val allCases =
+      os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+    val testPlans = allCases.map: caseFilePath =>
+      caseFilePath.segments.dropWhile(_ != "cases").drop(1).next
+
+    println(ujson.write(Map("config" -> testPlans)))
+  }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
