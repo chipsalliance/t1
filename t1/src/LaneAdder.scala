@@ -28,12 +28,14 @@ class LaneAdderReq(datapathWidth: Int) extends VFUPipeBundle {
   val saturate: Bool = Bool()
   val vxrm:     UInt = UInt(2.W)
   val vSew:     UInt = UInt(2.W)
+  val executeIndex: UInt = UInt(2.W)
 }
 
 class LaneAdderResp(datapathWidth: Int) extends VFUPipeBundle {
   val data:           UInt = UInt(datapathWidth.W)
   val adderMaskResp: UInt = UInt(4.W)
   val vxsat: UInt = UInt(4.W)
+  val executeIndex: UInt = UInt(2.W)
 }
 
 /** 加法器的输出有两个大类：
@@ -271,4 +273,5 @@ class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) with
   response.data := responseSelect.asUInt
   response.adderMaskResp := maskResponseSelect.asUInt
   response.vxsat := overflowVec.asUInt
+  response.executeIndex := request.executeIndex
 }
