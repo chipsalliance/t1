@@ -17,7 +17,6 @@ case class LaneFloatParam(datapathWidth: Int, latency: Int) extends VFUParameter
   val decodeField: BoolField = Decoder.float
   val inputBundle = new LaneFloatRequest(datapathWidth)
   val outputBundle = new LaneFloatResponse(datapathWidth)
-  override val singleCycle = false
   override val NeedSplit: Boolean = false
 }
 
@@ -57,7 +56,7 @@ case class LaneFloatParam(datapathWidth: Int, latency: Int) extends VFUParameter
   * 1101 to uint tr
   *
   */
-class LaneFloatRequest(datapathWidth: Int) extends Bundle{
+class LaneFloatRequest(datapathWidth: Int) extends VFUPipeBundle {
   val sign = Bool()
   val src   = Vec(3, UInt(datapathWidth.W))
   val opcode = UInt(4.W)
@@ -65,15 +64,13 @@ class LaneFloatRequest(datapathWidth: Int) extends Bundle{
   val floatMul = Bool()
   val roundingMode = UInt(3.W)
   val executeIndex: UInt = UInt(2.W)
-  val tag: UInt = UInt(2.W)
 }
 
-class LaneFloatResponse(datapathWidth: Int)  extends Bundle{
+class LaneFloatResponse(datapathWidth: Int)  extends VFUPipeBundle {
   val data = UInt(datapathWidth.W)
   val adderMaskResp: Bool = Bool()
   val exceptionFlags = UInt(5.W)
   val executeIndex: UInt = UInt(2.W)
-  val tag: UInt = UInt(2.W)
 }
 
 class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with SerializableModule[LaneFloatParam]{
@@ -268,7 +265,6 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   response.data := result
   response.exceptionFlags := flags
   response.executeIndex := request.executeIndex
-  response.tag := request.tag
   requestIO.ready := true.B
 }
 

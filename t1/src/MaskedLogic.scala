@@ -16,7 +16,7 @@ case class LogicParam(datapathWidth: Int, latency: Int) extends VFUParameter wit
   val outputBundle = new MaskedLogicResponse(datapathWidth)
 }
 
-class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
+class MaskedLogicRequest(datapathWidth: Int) extends VFUPipeBundle {
 
   /** 0, 1: two operands
    * 2: original data, read from vd, used to write with fine granularity
@@ -33,15 +33,15 @@ class MaskedLogicRequest(datapathWidth: Int) extends Bundle {
   val opcode: UInt = UInt(4.W)
 }
 
-class MaskedLogicResponse(datapathWidth: Int) extends Bundle {
+class MaskedLogicResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data: UInt = UInt(datapathWidth.W)
 }
 
 class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) with SerializableModule[LogicParam] {
-  val response: UInt = Wire(UInt(parameter.datapathWidth.W))
+  val response: MaskedLogicResponse = Wire(new MaskedLogicResponse(parameter.datapathWidth))
   val request: MaskedLogicRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 
-  response := VecInit(request.src.map(_.asBools).transpose.map {
+  response.data := VecInit(request.src.map(_.asBools).transpose.map {
     case Seq(sr0, sr1, sr2, sr3) =>
       val bitCalculate = Module(new LaneBitLogic)
       bitCalculate.src := (request.opcode(2) ^ sr0) ## sr1

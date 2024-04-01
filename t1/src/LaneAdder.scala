@@ -17,7 +17,7 @@ case class LaneAdderParam(datapathWidth: Int, latency: Int) extends VFUParameter
   val outputBundle = new LaneAdderResp(datapathWidth)
 }
 
-class LaneAdderReq(datapathWidth: Int) extends Bundle {
+class LaneAdderReq(datapathWidth: Int) extends VFUPipeBundle {
   val src: Vec[UInt] = Vec(2, UInt(datapathWidth.W))
   // mask for carry or borrow
   val mask:     UInt = UInt(4.W)
@@ -30,7 +30,7 @@ class LaneAdderReq(datapathWidth: Int) extends Bundle {
   val vSew:     UInt = UInt(2.W)
 }
 
-class LaneAdderResp(datapathWidth: Int) extends Bundle {
+class LaneAdderResp(datapathWidth: Int) extends VFUPipeBundle {
   val data:           UInt = UInt(datapathWidth.W)
   val adderMaskResp: UInt = UInt(4.W)
   val vxsat: UInt = UInt(4.W)

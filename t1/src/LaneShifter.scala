@@ -18,7 +18,7 @@ case class LaneShifterParameter(datapathWidth: Int, latency: Int) extends VFUPar
   override val NeedSplit: Boolean = true
 }
 
-class LaneShifterReq(param: LaneShifterParameter) extends Bundle {
+class LaneShifterReq(param: LaneShifterParameter) extends VFUPipeBundle {
   // vec(2, n) 是用来与别的vfu module的输入对齐
   val src:         Vec[UInt] = Vec(2, UInt(param.datapathWidth.W))
   val shifterSize: UInt = UInt(param.shifterSizeBit.W)
@@ -26,13 +26,13 @@ class LaneShifterReq(param: LaneShifterParameter) extends Bundle {
   val vxrm:        UInt = UInt(2.W)
 }
 
-class LaneShifterResponse(datapathWidth: Int) extends Bundle {
+class LaneShifterResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data = UInt(datapathWidth.W)
 }
 
 class LaneShifter(val parameter: LaneShifterParameter)
   extends VFUModule(parameter) with SerializableModule[LaneShifterParameter] {
-  val response: UInt = Wire(UInt(parameter.datapathWidth.W))
+  val response: LaneShifterResponse = Wire(new LaneShifterResponse(parameter.datapathWidth))
   val request: LaneShifterReq = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val shifterSource: UInt = request.src(1)
@@ -54,5 +54,5 @@ class LaneShifter(val parameter: LaneShifterParameter)
   val roundR: Bool =
     Mux1H(UIntToOH(request.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB))) && request.opcode(2)
 
-  response := Mux(request.opcode(0), extendData << request.shifterSize, extendData >> request.shifterSize).asUInt + roundR
+  response.data := Mux(request.opcode(0), extendData << request.shifterSize, extendData >> request.shifterSize).asUInt + roundR
 }

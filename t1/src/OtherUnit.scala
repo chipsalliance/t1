@@ -24,7 +24,7 @@ case class OtherUnitParam(
   override val NeedSplit: Boolean = true
 }
 
-class OtherUnitReq(param: OtherUnitParam) extends Bundle {
+class OtherUnitReq(param: OtherUnitParam) extends VFUPipeBundle {
   val src:     Vec[UInt] = Vec(4, UInt(param.datapathWidth.W))
   val popInit: UInt = UInt(param.vlMaxBits.W)
   val opcode:  UInt = UInt(4.W)
@@ -44,7 +44,7 @@ class OtherUnitReq(param: OtherUnitParam) extends Bundle {
   val narrow: Bool = Bool()
 }
 
-class OtherUnitResp(datapathWidth: Int) extends Bundle {
+class OtherUnitResp(datapathWidth: Int) extends VFUPipeBundle {
   val data:       UInt = UInt(datapathWidth.W)
   val clipFail:   Bool = Bool()
   val ffoSuccess: Bool = Bool()

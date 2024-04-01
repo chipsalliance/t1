@@ -13,31 +13,48 @@ import scala.collection.immutable.SeqMap
 
 trait VFUParameter {
   val decodeField: BoolField
-  val inputBundle: Data
-  val outputBundle: Bundle
+  val inputBundle: VFUPipeBundle
+  val outputBundle: VFUPipeBundle
+  // The execution cycle will not change
   val singleCycle: Boolean = true
   val NeedSplit: Boolean = false
   val latency: Int
 }
 
+class VFUPipeBundle extends Bundle {
+  val tag: UInt = UInt(2.W)
+}
+
 abstract class VFUModule(p: VFUParameter) extends Module {
-  val requestIO: DecoupledIO[Data] = IO(Flipped(Decoupled(p.inputBundle)))
-  val responseIO: DecoupledIO[Bundle] = IO(Decoupled(p.outputBundle))
+  val requestIO: DecoupledIO[VFUPipeBundle] = IO(Flipped(Decoupled(p.inputBundle)))
+  val responseIO: DecoupledIO[VFUPipeBundle] = IO(Decoupled(p.outputBundle))
   // FFUModule is a behavior Module which should be retimed to [[latency]] cycles.
-  val retime: Option[Property[Int]] = Option.when(p.latency > 0)(IO(Property[Int]()))
+  val retime: Option[Property[Int]] = Option.when(p.latency > 1)(IO(Property[Int]()))
   retime.foreach(_ := Property(p.latency))
 
   if (p.singleCycle) {
     requestIO.ready := true.B
-    responseIO.valid := requestIO.valid
   }
 
-  def connectIO(response: Data, responseValid: Bool = true.B): Data = {
-    if (p.singleCycle) {
+  def connectIO(response: VFUPipeBundle, responseValid: Bool = true.B): Data = {
+    response.tag := DontCare
+    if (p.singleCycle && p.latency == 0) {
       responseIO.bits := response.asTypeOf(responseIO.bits)
+      responseIO.valid := requestIO.valid
     } else {
+      val responseWire = WireDefault(response.asTypeOf(responseIO.bits))
+      val responseValidWire: Bool = Wire(Bool())
+      // connect tag
+      if (p.singleCycle) {
+        responseWire.tag := requestIO.bits.tag
+        responseValidWire := requestIO.valid
+      } else {
+        // for div...
+        responseWire.tag := RegEnable(requestIO.bits.tag, 0.U, requestIO.fire)
+        responseValidWire := responseValid
+      }
       // todo: Confirm the function of 'Pipe'
-      val pipeResponse: ValidIO[Bundle] = Pipe(responseValid & requestIO.valid, response.asTypeOf(responseIO.bits), p.latency)
+      val pipeResponse: ValidIO[Bundle] = Pipe(responseValidWire, responseWire, p.latency)
       responseIO.valid := pipeResponse.valid
       responseIO.bits := pipeResponse.bits
     }
