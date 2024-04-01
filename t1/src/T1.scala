@@ -813,6 +813,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
       val sign = !decodeResultReg(Decoder.unsigned1)
       val adderRequest = Wire(LaneAdderParam(parameter.datapathWidth, 0).inputBundle)
+      adderRequest := DontCare
       adderRequest.src := VecInit(
         Seq(
           (aluInput1(parameter.datapathWidth - 1) && sign) ## aluInput1,
@@ -828,7 +829,6 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       adderRequest.saturate := false.B
       adderRequest.vxrm := csrRegForMaskUnit.vxrm
       adderRequest.vSew := Mux(popCount, 2.U, OHToUInt(sew1HCorrect))
-      adderRequest.tag := DontCare
       adder.requestIO.bits := adderRequest.asTypeOf(adder.requestIO.bits)
       adder.requestIO.valid := DontCare
       adder.responseIO.ready := DontCare

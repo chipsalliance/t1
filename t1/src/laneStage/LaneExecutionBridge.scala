@@ -353,12 +353,12 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       state.vSew1H(1, 0),
       Seq(
         FillInterleaved(2, Mux(
-          executionRecord.executeIndex,
+          dataResponse.bits.executeIndex(0),
           recordQueue.io.deq.bits.maskForFilter(3, 2),
           recordQueue.io.deq.bits.maskForFilter(1, 0)
         )),
         FillInterleaved(4, Mux(
-          executionRecord.executeIndex,
+          dataResponse.bits.executeIndex(0),
           recordQueue.io.deq.bits.maskForFilter(1),
           recordQueue.io.deq.bits.maskForFilter(0)
         ))
@@ -406,13 +406,32 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     val nextFoldCount = state.vSew1H(0) && !widenReduce
     val needFold = state.vSew1H(0) || (state.vSew1H(1) && !widenReduce)
     val reduceFoldCount: Bool = RegInit(false.B)
-    val idle :: wLastResponse :: fold :: Nil = Enum(3)
+    val idle :: wLastResponse :: fold :: waitFoldResponse :: Nil = Enum(4)
     val redState = RegInit(idle)
     val stateFold = redState === fold
-    when(enqueue.fire && !enqueue.bits.sSendResponse.get && decodeResult(Decoder.red)) {
-      redState := wLastResponse
+    when(
+      // vfu  request fire
+      vfuRequest.fire &&
+        // is last group for this instruction
+        !recordQueue.io.deq.bits.sSendResponse.get
+        // reduce type
+        && decodeResult(Decoder.red) &&
+        // last execute for this group(widen need 2 execute/group)
+        (!doubleExecution || recordQueue.io.deq.bits.executeIndex) &&
+        (redState === idle)
+    ) {
+      when(responseFinish && dataResponse.valid) {
+        when(needFold) {
+          redState := fold
+          reduceFoldCount := nextFoldCount
+        }.otherwise {
+          redState := idle
+        }
+      } otherwise {
+        redState := wLastResponse
+      }
     }
-    when(redState === wLastResponse && (dataResponse.valid && (!doubleExecution || recordQueue.io.deq.bits.executeIndex))) {
+    when(redState === wLastResponse && dataResponse.valid) {
       when(needFold) {
         redState := fold
         reduceFoldCount := nextFoldCount
@@ -420,17 +439,25 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         redState := idle
       }
     }
-    // todo: && vrfRequest.valid ?
-    when(stateFold && reduceFoldCount === 0.U) {
+    when(stateFold && reduceFoldCount === 0.U && vfuRequest.ready) {
+      // latency = 0
+      when(responseFinish && dataResponse.valid) {
+        redState := idle
+        reduceLastResponse := true.B
+      } otherwise {
+        redState := waitFoldResponse
+      }
+    }
+    when(redState === waitFoldResponse && dataResponse.valid) {
       redState := idle
       reduceLastResponse := true.B
     }
     when(stateFold && dataResponse.valid) {
       reduceFoldCount := false.B
     }
-    sendFoldReduce.get := stateFold
+    sendFoldReduce.get := stateFold || redState === waitFoldResponse
     reduceReady := (stateFold && reduceFoldCount === 0.U) || redState === idle ||
-      (wLastResponse === wLastResponse && !needFold)
+      (redState === wLastResponse && !needFold)
     val reduceDataVec = cutUInt(reduceResult.get, 8)
     // reduceFoldCount = false => abcd -> xxab | xxcd -> mask 0011
     // reduceFoldCount = true =>  abcd -> xaxc | xbxd -> mask 0101
