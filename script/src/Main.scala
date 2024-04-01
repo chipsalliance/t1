@@ -7,7 +7,14 @@ import mainargs.{main, arg, ParserForMethods, Leftover, Flag, TokensReader}
 import scala.io.AnsiColor._
 
 object Logger {
+  // 0: trace
+  // 1: error
+  // 2: warn
+  // 3: info
+  val level = sys.env.getOrElse("LOG_LEVEL", "3").toInt
+
   def info(message: String) = println(s"${BOLD}${GREEN}[INFO]${RESET} ${message}")
+  def trace(message: String) = if level <= 0 then println(s"${BOLD}${GREEN}[INFO]${RESET} ${message}")
 }
 
 object Main:
@@ -335,5 +342,107 @@ object Main:
         "listConfigs"
       )
     ).call(cwd = os.pwd, stdout = os.Inherit, stderr = os.Inherit)
+
+  //
+  // CI
+  //
+  // The below script will try to read all the tests in ../../.github/cases/**/default.json,
+  // arranging them together by their required cycle, and using GitHub "matrix" feature to manage
+  // and separate those test job to multiple machines.
+  //
+  // We define that, the term "bucket" refers to a list of test job, concating by ';' into text.
+  // "Bucket" will be recorded in "matrix" payload field "jobs". Each machine will run a "bucket" of tests.
+  //
+  // Function `generateMatrix` will be used to produce necessary information to feed the GitHub matrix.
+  // Function `runTests` will parse the GitHub matrix, run a "bucket" of tests and generate GitHub CI report.
+  //
+  // The final "matrix" will have json data like: { include: [ { jobs: "taskA;taskB", id: 1 }, { jobs: "taskC;taskD", id: 2 } ] }.
+  //
+
+  // Merge Seq( "A", "B", "C", "D" ) into Seq( "A;B", "C;D" )
+  //
+  // @param allTests The original Seq
+  // @param bucketSize Specify the size of the output Seq
+  def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] =
+    scala.util.Random.shuffle(alltests).grouped(
+      math.ceil(alltests.size.toDouble / bucketSize).toInt
+    ).toSeq.map(_.mkString(";"))
+
+  case class Bucket(buffer: Seq[String] = Seq(), totalCycle: Int = 0):
+    def cons(data: (String, Int)): Bucket =
+      val (testName, cycle) = data
+      Bucket(buffer ++ Seq(testName), totalCycle + cycle)
+
+    def mkString(sep: String = ";") = buffer.mkString(sep)
+
+
+  // Read test case and their cycle data from the given paths.
+  // Test cases will be grouped into a single bucket, and then partitioned into given `bucketSize` of sub-bucket.
+  // Each sub-bucket will have similar weight, so that the time cost will be similar between each runners.
+  //
+  // For example:
+  //
+  //   [ {A: 100}, {B: 180}, {C: 300}, {D:200} ] => [[A,C], [B,D]]
+  //
+  // @param allTasksFile List of the default.json file path
+  // @param bucketSize Specify the size of the output Seq
+  def scheduleTasks(allTasksFile: Seq[os.Path], bucketSize: Int): Seq[String] =
+    // Produce a list of ("config,testName", cycle) pair
+    val allCycleData = allTasksFile.flatMap: file =>
+      Logger.trace(s"Generate tests from file: $file")
+      val config = file.segments.toSeq.reverse.apply(1)
+      ujson
+        .read(os.read(file))
+        .obj
+        .map { case (caseName, cycle) =>
+          (s"$config,$caseName", cycle.num.toInt)
+        }
+        .toSeq
+
+    // _2 is the cycle number
+    val (unProcessedData, normalData) = allCycleData.partition(_._2 <= 0)
+    // Initialize a list of buckets
+    val cargoInit = (0 until bucketSize).map(_ => Bucket())
+    // Group tests that have cycle data into subset by their cycle size
+    val cargoStaged = normalData
+      .sortBy(_._2)(Ordering[Int].reverse)
+      .foldLeft(cargoInit): (cargo, elem) =>
+        val smallest = cargo.minBy(_.totalCycle)
+        cargo.updated(cargo.indexOf(smallest), smallest.cons(elem))
+
+    // For unprocessed data, just split them into subset that have equal size
+    val cargoFinal = (0 until bucketSize).foldLeft(cargoStaged)((cargo, i) =>
+      val startIdx = i * bucketSize
+      val endIdx = math.min((i + 1) * bucketSize, unProcessedData.length)
+      val newBucket = unProcessedData.slice(startIdx, endIdx)
+        .foldLeft(cargo.apply(i)): (bucket, data) =>
+          bucket.cons(data)
+      cargo.updated(i, newBucket)
+    )
+
+    cargoFinal.map(_.buffer.mkString(";")).toSeq
+  end scheduleTasks
+
+  // Turn Seq( "A;B", "C;D" ) to GitHub Action matrix style json: { "include": [ { "jobs": "A;B", id: 1 }, { "jobs": "C;D", id: 2 } ] }
+  //
+  // @param buckets Seq of String that is already packed into bucket using the `buckets` function
+  // @param outputFile Path to the output json file
+  def toMatrixJson(buckets: Seq[String]) =
+    ujson.Obj("include" -> buckets.zipWithIndex.map: (bucket, i) =>
+      ujson.Obj(
+        "jobs" -> ujson.Str(bucket),
+        "id" -> ujson.Num(i + 1)
+      )
+    )
+
+  // Read default tests information from '.github/cases/default.txt' file, and use that information to generate GitHub CI matrix.
+  // The result will be printed to stdout, and should be pipe into $GITHUB_OUTPUT
+  @main
+  def generateCiMatrix(
+      runnersAmount: Int,
+  ) = {
+    val testPlans = os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+    println(toMatrixJson(scheduleTasks(testPlans, runnersAmount)))
+  }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
