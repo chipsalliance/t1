@@ -4,13 +4,20 @@
 package org.chipsalliance.t1.rtl.vfu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.util._
 
+@instantiable
 class VectorMultiplier32Signed extends Module{
+  @public
   val a = IO(Input(UInt(32.W)))
+  @public
   val b = IO(Input(UInt(32.W)))
+  @public
   val z = IO(Output(UInt(64.W)))
+  @public
   val sew = IO(Input(UInt(3.W)))
+  @public
   val unsign = IO(Input(Bool()))
 
   val aAbs = Abs32(a,sew)
@@ -18,7 +25,7 @@ class VectorMultiplier32Signed extends Module{
 
   val zSign = (a(31)^b(31)) ## (a(23)^b(23)) ## (a(15)^b(15)) ## (a(7)^b(7))
 
-  val Mul = Module(new VectorMultiplier32Unsigned)
+  val Mul = Instantiate(new VectorMultiplier32Unsigned)
   Mul.a := Mux(unsign, a, aAbs)
   Mul.b := Mux(unsign, b, bAbs)
   Mul.sew := sew

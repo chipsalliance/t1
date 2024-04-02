@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
@@ -38,6 +39,7 @@ class LaneMulResponse(parameter: LaneMulParam) extends VFUPipeBundle {
   val vxsat: Bool = Bool()
 }
 
+@instantiable
 class LaneMul(val parameter: LaneMulParam) extends VFUModule(parameter) with SerializableModule[LaneMulParam] {
   val response: LaneMulResponse = Wire(new LaneMulResponse(parameter))
   val request: LaneMulReq = connectIO(response).asTypeOf(parameter.inputBundle)
@@ -71,7 +73,7 @@ class LaneMul(val parameter: LaneMulParam) extends VFUModule(parameter) with Ser
     )
   )
 
-  val fusionMultiplier: VectorMultiplier32Unsigned = Module(new VectorMultiplier32Unsigned)
+  val fusionMultiplier: Instance[VectorMultiplier32Unsigned] = Instantiate(new VectorMultiplier32Unsigned)
   fusionMultiplier.a := mul0InputSelect
   fusionMultiplier.b := mul1InputSelect
   fusionMultiplier.sew := sew1H
@@ -138,7 +140,7 @@ class LaneMul(val parameter: LaneMulParam) extends VFUModule(parameter) with Ser
     (csaS, csaC(14, 0) ## pickPreviousCarry)
   }
 
-  val adder64: VectorAdder64 = Module(new VectorAdder64)
+  val adder64: Instance[VectorAdder64] = Instantiate(new VectorAdder64)
   adder64.a := VecInit(adderInput.map(_._1)).asUInt
   adder64.b := VecInit(adderInput.map(_._2)).asUInt
   adder64.cin := 0.U

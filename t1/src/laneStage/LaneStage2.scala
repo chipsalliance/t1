@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lane
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.{LaneExecuteStage, LaneParameter}
@@ -26,11 +27,13 @@ class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 }
 
 // s2 执行
+@instantiable
 class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
   LaneStage(true)(
     new LaneStage2Enqueue(parameter, isLastSlot),
     new LaneStage2Dequeue(parameter, isLastSlot)
   ){
+  @public
   val state: LaneState = IO(Input(new LaneState(parameter)))
 
   val decodeResult: DecodeBundle = state.decodeResult

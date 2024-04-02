@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import division.srt.{SRT, SRTOutput}
@@ -36,12 +37,13 @@ class LaneDivResponse(datapathWidth: Int) extends VFUPipeBundle {
   val busy: Bool = Bool()
 }
 
+@instantiable
 class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with SerializableModule[LaneDivParam] {
   val response: LaneDivResponse = Wire(new LaneDivResponse(parameter.datapathWidth))
   val responseValid: Bool = Wire(Bool())
   val request: LaneDivRequest = connectIO(response, responseValid).asTypeOf(parameter.inputBundle)
 
-  val wrapper = Module(new SRTWrapper)
+  val wrapper = Instantiate(new SRTWrapper)
   wrapper.input.bits.dividend := request.src.last.asSInt
   wrapper.input.bits.divisor := request.src.head.asSInt
   wrapper.input.bits.signIn := request.sign
@@ -84,11 +86,14 @@ class SRTOut extends Bundle {
   * SRT16 post-process logic
   * }}}
   */
+@instantiable
 class SRTWrapper extends Module {
+  @public
   val input = IO(Flipped(DecoupledIO(new SRTIn)))
+  @public
   val output = IO(ValidIO(new SRTOut))
 
-  val abs = Module(new Abs(32))
+  val abs: Instance[Abs] = Instantiate(new Abs(32))
   abs.io.aIn := input.bits.dividend
   abs.io.bIn := input.bits.divisor
   abs.io.signIn := input.bits.signIn
@@ -188,7 +193,9 @@ class SRTWrapper extends Module {
   ).asSInt
 }
 
+@instantiable
 class Abs(n: Int) extends Module {
+  @public
   val io = IO(new Bundle() {
     val aIn = Input(SInt(n.W))
     val bIn = Input(SInt(n.W))

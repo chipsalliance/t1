@@ -5,6 +5,7 @@ package org.chipsalliance.t1.rtl
 
 import chisel3._
 import chisel3.util._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import org.chipsalliance.t1.rtl.vfu.VectorAdder32
 
 class ReduceAdderReq(datapathWidth: Int) extends Bundle {
@@ -17,8 +18,12 @@ class ReduceAdderReq(datapathWidth: Int) extends Bundle {
 class ReduceAdderResponse(datapathWidth: Int) extends Bundle {
   val data: UInt = UInt(datapathWidth.W)
 }
+
+@instantiable
 class ReduceAdder(datapathWidth: Int) extends Module {
+  @public
   val request = IO(Input(new ReduceAdderReq(datapathWidth)))
+  @public
   val response = IO(Output(new ReduceAdderResponse(datapathWidth)))
 
   // todo: decode
@@ -32,7 +37,7 @@ class ReduceAdder(datapathWidth: Int) extends Module {
   val operation2 = Fill(4, isSub)
   val vSew1H = UIntToOH(request.vSew)(2, 0)
 
-  val adder: VectorAdder32 = Module(new VectorAdder32)
+  val adder: Instance[VectorAdder32] = Instantiate(new VectorAdder32)
 
   adder.a := subOperation0
   adder.b := subOperation1

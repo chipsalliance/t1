@@ -4,14 +4,22 @@
 package org.chipsalliance.t1.rtl.vfu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 
+@instantiable
 class VectorMultiplier32Unsigned extends Module{
+  @public
   val a = IO(Input(UInt(32.W)))
+  @public
   val b = IO(Input(UInt(32.W)))
+  @public
   val z = IO(Output(UInt(64.W)))
+  @public
   val sew = IO(Input(UInt(3.W)))
+  @public
   val multiplierSum: UInt = IO(Output(UInt(64.W)))
+  @public
   val multiplierCarry: UInt = IO(Output(UInt(64.W)))
 
   val a0Vec = a(15, 0).asBools

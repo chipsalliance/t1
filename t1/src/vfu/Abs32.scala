@@ -4,15 +4,20 @@
 package org.chipsalliance.t1.rtl.vfu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.util._
 
 /** Banked Abs32
   *
   * Bank width: 8, 16, 32
   */
+@instantiable
 class Abs32 extends Module{
+  @public
   val a: UInt = IO(Input(UInt(32.W)))
+  @public
   val z: UInt = IO(Output(UInt(32.W)))
+  @public
   val sew = IO(Input(UInt(3.W)))
 
   def addOne8Bits(in: Tuple2[UInt, Bool]): (Bool, UInt) = {
@@ -62,7 +67,7 @@ class Abs32 extends Module{
 object Abs32 {
   def apply(a: UInt,
             sew:UInt) = {
-    val Abs = Module(new Abs32)
+    val Abs = Instantiate(new Abs32)
     Abs.a := a
     Abs.sew := sew
     Abs.z

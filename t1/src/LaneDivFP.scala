@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import float._
@@ -56,7 +57,7 @@ class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with
   val divIn0 = Mux(rdiv, request.src(0), request.src(1))
   val divIn1 = Mux(rdiv, request.src(1), request.src(0))
 
-  val wrapper = Module(new SRTFPWrapper(8,24))
+  val wrapper: Instance[SRTFPWrapper] = Instantiate(new SRTFPWrapper(8,24))
   wrapper.input.bits.a       := Mux(fractEn, divIn0.asSInt, request.src(1).asSInt)
   wrapper.input.bits.b       := Mux(fractEn, divIn1.asSInt, request.src(0).asSInt)
   wrapper.input.bits.signIn  := request.sign
@@ -101,6 +102,7 @@ class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with
   *      1           0    1.xxxx>>2       01xxxx    rawExp/2 +1 + bias
   * }}}
   */
+@instantiable
 class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   class SRTIn extends Bundle {
     val a = SInt(32.W)
@@ -117,7 +119,9 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
     val result = UInt(32.W)
     val exceptionFlags = UInt(5.W)
   }
+  @public
   val input = IO(Flipped(DecoupledIO(new SRTIn)))
+  @public
   val output = IO(ValidIO(new SRTOut))
 
   val fpWidth = expWidth + sigWidth
@@ -225,7 +229,7 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
 
   val divIter = Module(new SRT16Iter(fpWidth, fpWidth, fpWidth, 2, 2, 4, 4))
 
-  val abs = Module(new Abs(32))
+  val abs = Instantiate(new Abs(32))
   abs.io.aIn := input.bits.a
   abs.io.bIn := input.bits.b
   abs.io.signIn := input.bits.signIn

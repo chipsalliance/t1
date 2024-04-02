@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lsu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import tilelink.{TLChannelA, TLChannelD}
 import chisel3.probe.{Probe, ProbeValue, define}
@@ -14,16 +15,22 @@ class cacheLineDequeueBundle(param: MSHRParam) extends Bundle {
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
 
-class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
+@instantiable
+class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   /** TileLink Port which will be route to the [[LSU.tlPort]]. */
+  @public
   val tlPortA: DecoupledIO[TLChannelA] = IO(param.tlParam.bundle().a)
+  @public
   val tlPortD: Vec[DecoupledIO[TLChannelD]] = IO(Vec(param.memoryBankSize, param.tlParam.bundle().d))
+  @public
   val status: LSUBaseStatus = IO(Output(new LSUBaseStatus))
+  @public
   val writeReadyForLsu: Bool = IO(Input(Bool()))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
    * see [[LSU.vrfWritePort]]
    */
+  @public
   val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(Vec(param.laneNumber,
     Decoupled(
       new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
@@ -263,31 +270,38 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
     * Internal signals probes
     */
   // Load Unit ready to accpet LSU request
+  @public
   val lsuRequestValidProbe = IO(Output(Probe(Bool())))
   define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
 
   // Load Unit is idle
+  @public
   val idleProbe = IO(Output(Probe(Bool())))
   define(idleProbe, ProbeValue(status.idle))
 
   // Tilelink Channel A decouple IO status
   // ready: channel A is ready to accept signal
   // valid: Load Unit try to send signal to channel A
+  @public
   val tlPortAValidProbe = IO(Output(Probe(Bool())))
   define(tlPortAValidProbe, ProbeValue(tlPortA.valid))
+  @public
   val tlPortAReadyProbe = IO(Output(Probe(Bool())))
   define(tlPortAReadyProbe, ProbeValue(tlPortA.ready))
 
   // Fail to send signal to tilelink Channel A because of address conflict
+  @public
   val addressConflictProbe = IO(Output(Probe(Bool())))
   define(addressConflictProbe, ProbeValue(addressConflict))
 
   // Tilelink used for accepting signal from receive signal from Channel D
+  @public
   val tlPortDValidProbe: Seq[Bool] = tlPortD.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.valid))
     probe
   }).toSeq
+  @public
   val tlPortDReadyProbe: Seq[Bool] = tlPortD.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.ready))
@@ -295,11 +309,13 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   }).toSeq
 
   // Store data from tilelink Channel D, each item corresponding to tlPortD port index
+  @public
   val queueValidProbe = queue.map(io => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(io.valid))
     probe
   })
+  @public
   val queueReadyProbe = queue.map(io => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(io.ready))
@@ -307,11 +323,13 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
   })
 
   // After reading data from tilelink channel D, data is concat into a full form cacheline, then go to lower level through cachelineDequeue
+  @public
   val cacheLineDequeueValidProbe: Seq[Bool] = cacheLineDequeue.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.valid))
     probe
   }).toSeq
+  @public
   val cacheLineDequeueReadyProbe: Seq[Bool] = cacheLineDequeue.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.ready))
@@ -320,28 +338,35 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param)  with LSUPublic {
 
   // After receiving new cacheline from top, or current item is the last cacheline,
   // pop out data and transform it to an aligned cacheline, go through alignedDequeue to next level
+  @public
   val unalignedCacheLineProbe = IO(Output(Probe(Bool())))
   define(unalignedCacheLineProbe, ProbeValue(unalignedCacheLine.valid))
 
   // Used for transmitting data from unalignedCacheline to dataBuffer
+  @public
   val alignedDequeueValidProbe = IO(Output(Probe(Bool())))
   define(alignedDequeueValidProbe, ProbeValue(alignedDequeue.valid))
+  @public
   val alignedDequeueReadyProbe = IO(Output(Probe(Bool())))
   define(alignedDequeueReadyProbe, ProbeValue(alignedDequeue.ready))
 
+  @public
   val bufferEnqueueSelectProbe = IO(Output(Probe(chiselTypeOf(bufferEnqueueSelect))))
   define(bufferEnqueueSelectProbe, ProbeValue(bufferEnqueueSelect))
 
   // Load Unit can write VRF after writeReadyForLSU is true
+  @public
   val writeReadyForLSUProbe: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu))))
   define(writeReadyForLSUProbe, ProbeValue(writeReadyForLsu))
 
   // Write to VRF
+  @public
   val vrfWriteValidProbe: Seq[Bool] = vrfWritePort.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.valid))
     probe
   }).toSeq
+  @public
   val vrfWriteReadyProbe: Seq[Bool] = vrfWritePort.map(port => {
     val probe = IO(Output(Probe(Bool())))
     define(probe, ProbeValue(port.ready))

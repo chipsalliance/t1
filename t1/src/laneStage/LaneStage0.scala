@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lane
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl._
@@ -33,12 +34,15 @@ class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 /** 这一级由 lane slot 里的 maskIndex maskGroupCount 来计算对应的 data group counter
   * 同时也会维护指令的结束与mask的更新
   */
+@instantiable
 class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   LaneStage(true)(
     new LaneStage0Enqueue(parameter),
     new LaneStage0Dequeue(parameter, isLastSlot)
   ) {
+  @public
   val state: LaneState = IO(Input(new LaneState(parameter)))
+  @public
   val updateLaneState: LaneStage0StateUpdate = IO(Output(new LaneStage0StateUpdate(parameter)))
 
   val stageWire: LaneStage0Dequeue = Wire(new LaneStage0Dequeue(parameter, isLastSlot))
