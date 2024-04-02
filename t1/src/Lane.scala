@@ -11,7 +11,7 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lane._
-import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam}
+import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam, VRFProbe}
 
 class LaneSlotProbe extends Bundle {
   // val stage0EnqueueReady: Bool = Bool()
@@ -283,12 +283,15 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val probe: LaneProbe = IO(Output(Probe(new LaneProbe(parameter.chainingSize))))
   val probeWire: LaneProbe = Wire(new LaneProbe(parameter.chainingSize))
   define(probe, ProbeValue(probeWire))
+  @public
+  val vrfProbe = IO(Output(Probe(new VRFProbe)))
 
   // TODO: remove
   dontTouch(writeBusPort)
 
   /** VRF instantces. */
   val vrf: Instance[VRF] = Instantiate(new VRF(parameter.vrfParam))
+  define(vrfProbe, vrf.probe)
 
   /** TODO: review later
     */

@@ -33,11 +33,13 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
 
   // TODO: remove me to connect signals
   chisel3.reflect.DataMirror.modulePorts(dut)
-    .filter(p => p._1 != "laneProbes").foreach(_._2 <> DontCare)
+    .filter(p => !p._1.contains("Probe")).foreach(_._2 <> DontCare)
 
-  val laneProbes = Wire(dut.laneProbes.cloneType)
-  dontTouch(laneProbes)
-  laneProbes :#= probe.read(dut.laneProbes)
+  val laneProbes = dut.laneProbes.zipWithIndex.map{case (p, idx) =>
+    val wire = Wire(p.cloneType).suggestName(s"lane${idx}Probe")
+    wire := probe.read(p)
+  }
+
   // Driver to Scalar Core
   // val pokeInst = Module(new PokeInst(PokeInstParameter(dut.parameter.xLen, dut.parameter.laneParam.vlMaxBits, latPokeInst)))
   // val tlPoke = Seq.fill(dut.parameter.lsuBankParameters.size)(Module(new PokeTL(dut.parameter.tlParam.bundle(), latPokeTL)))

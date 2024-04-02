@@ -265,9 +265,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.lsuBankParameters.size, parameter.tlParam.bundle()))
 
   // TODO: this is an example of adding a new Probe
-  val laneProbes = IO(Probe(Vec(parameter.laneNumber, new LaneProbe(parameter.chainingSize))))
-  val laneProbesWire = Wire(Vec(parameter.laneNumber, new LaneProbe(parameter.chainingSize)))
-  define(laneProbes, ProbeValue(laneProbesWire))
+  val laneProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new LaneProbe(parameter.chainingSize))).suggestName(s"lane${laneIdx}Probe"))
 
   /** the LSU Module */
 
@@ -1475,7 +1473,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       flotReduceValid(index).foreach(d => d := lane.laneResponse.bits.fpReduceValid.get)
     }
     // TODO: add other probes for lane at here.
-    laneProbesWire(index) := probe.read(lane.probe)
+    define(laneProbes(index), lane.probe)
     lane
   }
   writeQueueClearVec := VecInit(laneVec.map(_.writeQueueValid))
