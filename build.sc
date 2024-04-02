@@ -297,5 +297,4 @@ object t1package extends ScalaModule {
   def scalaVersion = T(v.scala)
   def moduleDeps = super.moduleDeps ++ Seq(t1, ipemu, subsystem, panamaconverter)
   override def sourceJar: T[PathRef] = T(Jvm.createJar(T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))().flatten.flatten.map(_.path).filter(os.exists), manifest()))
-  override def jar: T[PathRef] = T(Jvm.createJar(upstreamAssemblyClasspath().map(_.path).filter(os.exists), manifest()))
 }
