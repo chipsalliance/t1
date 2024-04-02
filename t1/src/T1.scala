@@ -14,8 +14,8 @@ import chisel3.probe.ProbeValue
 import chisel3.probe.define
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.decoder.Decoder
-import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter}
-import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam}
+import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
+import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
 
 object T1Parameter {
   implicit def bitSetP:upickle.default.ReadWriter[BitSet] = upickle.default.readwriter[String].bimap[BitSet](
@@ -236,6 +236,10 @@ case class T1Parameter(
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 }
 
+class T1Probe(param: T1Parameter) extends Bundle {
+  val instructionCounter: UInt = UInt(param.instructionIndexBits.W)
+}
+
 /** Top of Vector processor:
   * couple to Rocket Core;
   * instantiate LSU, Decoder, Lane, CSR, Instruction Queue.
@@ -263,6 +267,16 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     * TODO: Multiple LSU support
     */
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.lsuBankParameters.size, parameter.tlParam.bundle()))
+
+  // TODO: this is an example of adding a new Probe
+  val lsuProbe = IO(Probe(new LSUProbe(parameter.lsuParameters)))
+  val laneProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new LaneProbe(parameter.chainingSize))).suggestName(s"lane${laneIdx}Probe"))
+  val laneVrfProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new VRFProbe(
+    parameter.laneParam.vrfParam.regNumBits,
+    parameter.laneParam.vrfOffsetBits,
+    parameter.laneParam.instructionIndexBits,
+    parameter.laneParam.datapathWidth
+  ))).suggestName(s"lane${laneIdx}VrfProbe"))
 
   /** the LSU Module */
 
@@ -1459,8 +1473,13 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       completedVec(index) := lane.laneResponse.bits.ffoSuccess
       flotReduceValid(index).foreach(d => d := lane.laneResponse.bits.fpReduceValid.get)
     }
+    // TODO: add other probes for lane at here.
+    define(laneProbes(index), lane.probe)
+    define(laneVrfProbes(index), lane.vrfProbe)
     lane
   }
+  define(lsuProbe, lsu.probe)
+
   writeQueueClearVec := VecInit(laneVec.map(_.writeQueueValid))
 
   // 连lsu
@@ -1592,15 +1611,21 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /**
     * Probes
     */
+  @public
+  val t1Probe = IO(Output(Probe(new T1Probe(parameter))))
+  val probeWire = Wire(new T1Probe(parameter))
+  define(t1Probe, ProbeValue(probeWire))
+  probeWire.instructionCounter := instructionCounter
+
   // new V Request from core
-  val requestValidProbe: Bool = IO(Output(Probe(Bool())))
-  val requestReadyProbe: Bool = IO(Output(Probe(Bool())))
-  define(requestValidProbe, ProbeValue(request.valid))
-  define(requestReadyProbe, ProbeValue(request.ready))
+  // val requestValidProbe: Bool = IO(Output(Probe(Bool())))
+  // val requestReadyProbe: Bool = IO(Output(Probe(Bool())))
+  // define(requestValidProbe, ProbeValue(request.valid))
+  // define(requestReadyProbe, ProbeValue(request.ready))
 
   // Store decoded request
-  val requestRegValidProbe: Bool = IO(Output(Probe(Bool())))
-  define(requestRegValidProbe, ProbeValue(requestReg.valid))
+  // val requestRegValidProbe: Bool = IO(Output(Probe(Bool())))
+  // define(requestRegValidProbe, ProbeValue(requestReg.valid))
 
   /** Dispatch request from requestReg to lane
    *
@@ -1610,24 +1635,24 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
    *   3. !gatherNeedRead || gatherReadFinish: This is not a instrution which needs to wait for gather
    *   4. instructionRAWReady: This is not instruction which will cause harzard that can not be avoid.
    */
-  val requestRegDequeueValidProbe: Bool = IO(Output(Probe(Bool())))
-  val requestRegDequeueReadyProbe: Bool = IO(Output(Probe(Bool())))
-  define(requestRegDequeueValidProbe, ProbeValue(requestRegDequeue.valid))
-  define(requestRegDequeueReadyProbe, ProbeValue(requestRegDequeue.ready))
+  // val requestRegDequeueValidProbe: Bool = IO(Output(Probe(Bool())))
+  // val requestRegDequeueReadyProbe: Bool = IO(Output(Probe(Bool())))
+  // define(requestRegDequeueValidProbe, ProbeValue(requestRegDequeue.valid))
+  // define(requestRegDequeueReadyProbe, ProbeValue(requestRegDequeue.ready))
 
-  val executionReadyProbe = IO(Output(Probe(Bool())))
-  define(executionReadyProbe, ProbeValue(executionReady))
+  // val executionReadyProbe = IO(Output(Probe(Bool())))
+  // define(executionReadyProbe, ProbeValue(executionReady))
 
-  val slotReadyProbe = IO(Output(Probe(Bool())))
-  define(slotReadyProbe, ProbeValue(slotReady))
+  // val slotReadyProbe = IO(Output(Probe(Bool())))
+  // define(slotReadyProbe, ProbeValue(slotReady))
 
-  val gatherNeedReadProbe = IO(Output(Probe(Bool())))
-  define(gatherNeedReadProbe, ProbeValue(gatherNeedRead))
-  val gatherReadFinishProbe = IO(Output(Probe(Bool())))
-  define(gatherReadFinishProbe, ProbeValue(gatherReadFinish))
+  // val gatherNeedReadProbe = IO(Output(Probe(Bool())))
+  // define(gatherNeedReadProbe, ProbeValue(gatherNeedRead))
+  // val gatherReadFinishProbe = IO(Output(Probe(Bool())))
+  // define(gatherReadFinishProbe, ProbeValue(gatherReadFinish))
 
-  val instructionRAWReadyProbe = IO(Output(Probe(Bool())))
-  define(instructionRAWReadyProbe, ProbeValue(instructionRAWReady))
+  // val instructionRAWReadyProbe = IO(Output(Probe(Bool())))
+  // define(instructionRAWReadyProbe, ProbeValue(instructionRAWReady))
   // End of requestRegDequeueProbe
 
   /**
@@ -1640,17 +1665,16 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     *   3. !slot(n).state.sCommit: This instruction doesn't committed. This is not an important signal so we don't capture it.
     *   4. slot(n).record.instruction Index == responseCounter: current instruction is the oldest insn in V
     */
-  val responseValidProbe: Bool = IO(Output(Probe(Bool())))
-  define(responseValidProbe, ProbeValue(response.valid))
+  // val responseValidProbe: Bool = IO(Output(Probe(Bool())))
+  // define(responseValidProbe, ProbeValue(response.valid))
 
-  val slotStateProbe: Seq[(Bool, Bool, Bool)] = slots.map { inst =>
-    val sMaskUnitProbe = IO(Output(Probe(Bool())))
-    define(sMaskUnitProbe, ProbeValue(inst.state.sMaskUnitExecution))
-    val wLastProbe = IO(Output(Probe(Bool())))
-    define(wLastProbe, ProbeValue(inst.state.wLast))
-    val isLastInstProbe = IO(Output(Probe(Bool())))
-    define(isLastInstProbe, ProbeValue(inst.record.instructionIndex === responseCounter))
-
-    (sMaskUnitProbe, wLastProbe, isLastInstProbe)
-  }
+  //val slotStateProbe: Seq[(Bool, Bool, Bool)] = slots.map { inst =>
+  //  val sMaskUnitProbe = IO(Output(Probe(Bool())))
+  //  define(sMaskUnitProbe, ProbeValue(inst.state.sMaskUnitExecution))
+  //  val wLastProbe = IO(Output(Probe(Bool())))
+  //  define(wLastProbe, ProbeValue(inst.state.wLast))
+  //  val isLastInstProbe = IO(Output(Probe(Bool())))
+  //  define(isLastInstProbe, ProbeValue(inst.record.instructionIndex === responseCounter))
+  //  (sMaskUnitProbe, wLastProbe, isLastInstProbe)
+  //}
 }

@@ -12,14 +12,16 @@ class ClockGen(val parameter: ClockGenParameter)
     with HasExtModuleInline
     with HasExtModuleDefine {
   setInline(s"$desiredName.sv",
-    s"""module $desiredName;
-       |  reg clock = 1'b0;
+    s"""module $desiredName(output reg clock, output reg reset);
+       |  initial begin
+       |    clock = 1'b0;
+       |    reset = 1'b1;
+       |  end
+       |  initial #(${2 * parameter.clockRate + 1}) reset = 1'b0;
        |  always #(${parameter.clockRate}) clock = ~clock;
-       |  reg reset = 1'b1;
-       |  initial #(${2 * parameter.clockRate + 1}) reset = 0;
        |endmodule
        |""".stripMargin
   )
-  val clock = define(RWProbe(Bool()), Seq("ClockGen", "clock"))
-  val reset = define(RWProbe(Bool()), Seq("ClockGen", "reset"))
+  val clock = IO(Output(Bool()))
+  val reset = IO(Output(Bool()))
 }
