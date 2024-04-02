@@ -11,7 +11,33 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lane._
-import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam}
+import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam, VRFProbe}
+
+class LaneSlotProbe extends Bundle {
+  val stage0EnqueueReady: Bool = Bool()
+  val stage0EnqueueValid: Bool = Bool()
+  val changingMaskSet: Bool = Bool()
+  val slotActive: Bool = Bool()
+  val slotOccupied: Bool = Bool()
+  val pipeFinish: Bool = Bool()
+  val slotShiftValid: Bool = Bool()
+  val decodeResultIsCrossReadOrWrite: Bool = Bool()
+  val decodeResultIsScheduler: Bool = Bool()
+  val executionUnitVfuRequestReady: Bool = Bool()
+  val executionUnitVfuRequestValid: Bool = Bool()
+  val stage3VrfWriteReady: Bool = Bool()
+  val stage3VrfWriteValid: Bool = Bool()
+  // val probeStage1: Bool = Bool()
+}
+
+class LaneProbe(slotsSize: Int) extends Bundle {
+  val slots = Vec(slotsSize, new LaneSlotProbe)
+  val laneRequestValid: Bool = Bool()
+  val laneRequestReady: Bool = Bool()
+  val lastSlotOccupied: Bool = Bool()
+  val vrfInstructionWriteReportReady: Bool = Bool()
+  val instructionFinished: UInt = UInt(slotsSize.W)
+}
 
 object LaneParameter {
   implicit def rwP: upickle.default.ReadWriter[LaneParameter] = upickle.default.macroRW
@@ -252,50 +278,25 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val vrfReadyToStore: Bool = IO(Output(Bool()))
   @public
   val crossWriteDataInSlot: UInt = IO(Output(UInt(parameter.chainingSize.W)))
+
   @public
-  val probeStage0EnqueueReady = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage0EnqueueReady"))
+  val probe: LaneProbe = IO(Output(Probe(new LaneProbe(parameter.chainingSize))))
+  val probeWire: LaneProbe = Wire(new LaneProbe(parameter.chainingSize))
+  define(probe, ProbeValue(probeWire))
   @public
-  val probeStage0EnqueueValid = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage0EnqueueValid"))
-  @public
-  val probeChangingMaskSet = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}ChangingMaskSet"))
-  @public
-  val probeSlotActive = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}SlotActive"))
-  @public
-  val probeSlotOccupied = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}SlotOccupied"))
-  @public
-  val probePipeFinish = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}PipeFinish"))
-  @public
-  val probeSlotShiftValid = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}SlotShiftValid"))
-  @public
-  val probeDecodeResultIsCrossReadOrWrite = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}DecodeResultIsCrossReadOrWrite"))
-  @public
-  val probeDecodeResultIsScheduler = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}DecodeResultIsScheduler"))
-  @public
-  val probeExecutionUnitVfuRequestReady = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}ExecutionUnitVfuRequestReady"))
-  @public
-  val probeExecutionUnitVfuRequestValid = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}ExecutionUnitVfuRequestValid"))
-  @public
-  val probeStage3VrfWriteReady = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage3VrfWriteReady"))
-  @public
-  val probeStage3VrfWriteValid = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage3VrfWriteValid"))
-  @public
-  val probeProbeStage1 = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage1Probes"))
-  @public
-  val probeLaneRequestValid = IO(Output(Probe(Bool())))
-  @public
-  val probeLaneRequestReady = IO(Output(Probe(Bool())))
-  @public
-  val probeLastSlotOccupied = IO(Output(Probe(Bool())))
-  @public
-  val probeVrfInstructionWriteReportReady = IO(Output(Probe(Bool())))
-  @public
-  val probeInstructionFinished: UInt = IO(Output(Probe(chiselTypeOf(instructionFinished))))
+  val vrfProbe = IO(Output(Probe(new VRFProbe(
+    parameter.vrfParam.regNumBits,
+    parameter.vrfOffsetBits,
+    parameter.instructionIndexBits,
+    parameter.datapathWidth
+  ))))
 
   // TODO: remove
   dontTouch(writeBusPort)
 
   /** VRF instantces. */
   val vrf: Instance[VRF] = Instantiate(new VRF(parameter.vrfParam))
+  define(vrfProbe, vrf.probe)
 
   /** TODO: review later
     */
@@ -754,19 +755,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage3.vrfWriteRequest.ready := vrfWriteArbiter(index).ready
 
       pipeClear := !Seq(stage0.stageValid, stage1.stageValid, stage2.stageValid, stage3.stageValid, dataInWritePipe).reduce(_ || _)
-      define(probeStage0EnqueueReady(index), ProbeValue(stage0.enqueue.ready))
-      define(probeStage0EnqueueValid(index), ProbeValue(stage0.enqueue.valid))
-      define(probeChangingMaskSet(index), ProbeValue(record.mask.valid || !record.laneRequest.mask))
-      define(probeSlotActive(index), ProbeValue(slotActive(index)))
-      define(probeSlotOccupied(index), ProbeValue(slotOccupied(index)))
-      define(probePipeFinish(index), ProbeValue(pipeFinishVec(index)))
-      define(probeSlotShiftValid(index), ProbeValue(slotShiftValid(index)))
-      define(probeDecodeResultIsCrossReadOrWrite(index), ProbeValue(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)))
-      define(probeDecodeResultIsScheduler(index), ProbeValue(decodeResult(Decoder.scheduler)))
-      define(probeExecutionUnitVfuRequestReady(index), ProbeValue(executionUnit.vfuRequest.ready))
-      define(probeExecutionUnitVfuRequestValid(index), ProbeValue(executionUnit.vfuRequest.valid))
-      define(probeStage3VrfWriteReady(index), ProbeValue(stage3.vrfWriteRequest.ready))
-      define(probeStage3VrfWriteValid(index), ProbeValue(stage3.vrfWriteRequest.valid))
+
+      // probes
+      probeWire.slots(index).stage0EnqueueReady := stage0.enqueue.ready
+      probeWire.slots(index).stage0EnqueueValid := stage0.enqueue.valid
+      probeWire.slots(index).changingMaskSet := record.mask.valid || !record.laneRequest.mask
+      probeWire.slots(index).slotActive := slotActive(index)
+      probeWire.slots(index).slotOccupied := slotOccupied(index)
+      probeWire.slots(index).pipeFinish := pipeFinishVec(index)
+      probeWire.slots(index).slotShiftValid := slotShiftValid(index)
+      probeWire.slots(index).decodeResultIsCrossReadOrWrite := decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)
+      probeWire.slots(index).decodeResultIsScheduler := decodeResult(Decoder.scheduler)
+      probeWire.slots(index).executionUnitVfuRequestReady := executionUnit.vfuRequest.ready
+      probeWire.slots(index).executionUnitVfuRequestValid := executionUnit.vfuRequest.valid
+      probeWire.slots(index).stage3VrfWriteReady := stage3.vrfWriteRequest.ready
+      probeWire.slots(index).stage3VrfWriteValid := stage3.vrfWriteRequest.valid
+      // probeWire.slots(index).probeStage1 := ???
   }
 
 
@@ -1113,9 +1117,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   writeReadyForLsu := vrf.writeReadyForLsu
   vrfReadyToStore := vrf.vrfReadyToStore
 
-  define(probeLaneRequestValid, ProbeValue(laneRequest.valid))
-  define(probeLaneRequestReady, ProbeValue(laneRequest.ready))
-  define(probeLastSlotOccupied, ProbeValue(slotOccupied.last))
-  define(probeVrfInstructionWriteReportReady, ProbeValue(vrf.instructionWriteReport.ready))
-  define(probeInstructionFinished, ProbeValue(instructionFinished))
+  // probe wire
+  probeWire.laneRequestValid := laneRequest.valid
+  probeWire.laneRequestReady := laneRequest.ready
+  probeWire.lastSlotOccupied := slotOccupied.last
+  probeWire.vrfInstructionWriteReportReady := vrf.instructionWriteReport.ready
+  probeWire.instructionFinished := instructionFinished
 }

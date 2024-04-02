@@ -5,6 +5,7 @@ package org.chipsalliance.t1.rtl.lsu
 
 import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
+import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, firstlastHelper, indexToOH, instIndexL}
@@ -106,6 +107,21 @@ case class LSUParameter(
 
   /** see [[LaneParameter.vrfOffsetBits]] */
   val vrfOffsetBits: Int = log2Ceil(singleGroupSize)
+}
+
+class LSUSlotProbe(param: LSUParameter) extends Bundle {
+  val dataVd: UInt = UInt(param.regNumBits.W)
+  val dataOffset: UInt = UInt(param.vrfOffsetBits.W)
+  val dataMask: UInt = UInt((param.datapathWidth / 8).W)
+  val dataData: UInt = UInt(param.datapathWidth.W)
+  val dataInstruction: UInt = UInt(param.instructionIndexBits.W)
+  val writeValid: Bool = Bool()
+  val targetLane: UInt = UInt(param.laneNumber.W)
+}
+
+class LSUProbe(param: LSUParameter) extends Bundle {
+  val slots = Vec(param.laneNumber, new LSUSlotProbe(param))
+  val reqEnq: UInt = UInt(param.lsuMSHRSize.W)
 }
 
 /** Load Store Unit
@@ -253,6 +269,11 @@ class LSU(param: LSUParameter) extends Module {
     Module(new Queue(new LSUWriteQueueBundle(param), param.toVRFWriteQueueSize, flow = true))
   )
 
+  @public
+  val probe = IO(Output(Probe(new LSUProbe(param))))
+  val probeWire = Wire(new LSUProbe(param))
+  define(probe, ProbeValue(probeWire))
+
   // read vrf
   val otherTryReadVrf: UInt = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
   vrfReadDataPorts.zipWithIndex.foreach { case (read, index) =>
@@ -275,7 +296,17 @@ class LSU(param: LSUParameter) extends Module {
     write.io.enq.bits.data := Mux(otherTryToWrite(index), otherUnit.vrfWritePort.bits, loadUnit.vrfWritePort(index).bits)
     write.io.enq.bits.targetLane := (BigInt(1) << index).U
     loadUnit.vrfWritePort(index).ready := write.io.enq.ready && !otherTryToWrite(index)
+
+    // probes
+    probeWire.slots(index).dataVd := write.io.enq.bits.data.vd
+    probeWire.slots(index).dataOffset := write.io.enq.bits.data.offset
+    probeWire.slots(index).dataMask := write.io.enq.bits.data.mask
+    probeWire.slots(index).dataData := write.io.enq.bits.data.data
+    probeWire.slots(index).dataInstruction := write.io.enq.bits.data.instructionIndex
+    probeWire.slots(index).writeValid := write.io.enq.valid
+    probeWire.slots(index).targetLane := write.io.enq.bits.targetLane
   }
+  probeWire.reqEnq := reqEnq.asUInt
 
   vrfWritePort.zip(writeQueueVec).foreach { case (p, q) =>
     p.valid := q.io.deq.valid

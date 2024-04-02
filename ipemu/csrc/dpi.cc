@@ -33,7 +33,7 @@ void sigint_handler(int s) {
   } catch (std::runtime_error & e) {                                           \
     terminated = true;                                                         \
     svSetScope(                                                                \
-        svGetScopeFromName("TOP.TestBench.verificationModule.dpiError"));      \
+        svGetScopeFromName("TOP.TestBench.dpiError"));                         \
     dpi_error(fmt::format("runtime_error occurs: {}", e.what()).c_str());      \
   }
 
@@ -41,17 +41,17 @@ void sigint_handler(int s) {
 void VBridgeImpl::dpiDumpWave() {
   TRY({
     svSetScope(
-        svGetScopeFromName("TOP.TestBench.verificationModule.dpiDumpWave"));
+        svGetScopeFromName("TOP.TestBench.dpiDumpWave"));
     dpi_dump_wave(wave.c_str());
     svSetScope(
-        svGetScopeFromName("TOP.TestBench.verificationModule.dpiFinish"));
+        svGetScopeFromName("TOP.TestBench.dpiFinish"));
   })
 }
 #endif
 
 [[maybe_unused]] void dpi_init_cosim() {
   std::signal(SIGINT, sigint_handler);
-  auto scope = svGetScopeFromName("TOP.TestBench.verificationModule.dpiFinish");
+  auto scope = svGetScopeFromName("TOP.TestBench.dpiFinish");
   CHECK(scope, "Got empty scope");
   svSetScope(scope);
   TRY({
