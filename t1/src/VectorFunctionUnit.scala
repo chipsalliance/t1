@@ -4,7 +4,8 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.{SerializableModuleGenerator}
+import chisel3.experimental.SerializableModuleGenerator
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.properties.Property
 import org.chipsalliance.t1.rtl.decoder.BoolField
 import chisel3.util._
@@ -20,10 +21,14 @@ trait VFUParameter {
   val latency: Int
 }
 
+@instantiable
 abstract class VFUModule(p: VFUParameter) extends Module {
+  @public
   val requestIO: DecoupledIO[Data] = IO(Flipped(Decoupled(p.inputBundle)))
+  @public
   val responseIO: DecoupledIO[Bundle] = IO(Decoupled(p.outputBundle))
   // FFUModule is a behavior Module which should be retimed to [[latency]] cycles.
+  @public
   val retime: Option[Property[Int]] = Option.when(p.latency > 0)(IO(Property[Int]()))
   retime.foreach(_ := Property(p.latency))
 

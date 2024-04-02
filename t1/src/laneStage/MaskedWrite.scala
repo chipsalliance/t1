@@ -4,9 +4,11 @@
 package org.chipsalliance.t1.rtl.lane
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.{LaneParameter, VRFReadRequest, VRFWriteRequest, ffo, indexToOH}
 
+@instantiable
 class MaskedWrite(parameter: LaneParameter) extends Module {
   val vrfWriteBundle: VRFWriteRequest = new VRFWriteRequest(
     parameter.vrfParam.regNumBits,
@@ -14,15 +16,20 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
     parameter.instructionIndexBits,
     parameter.datapathWidth
   )
+  @public
   val enqueue: DecoupledIO[VRFWriteRequest] = IO(Flipped(Decoupled(vrfWriteBundle)))
+  @public
   val dequeue: DecoupledIO[VRFWriteRequest] = IO(Decoupled(vrfWriteBundle))
+  @public
   val vrfReadRequest: DecoupledIO[VRFReadRequest] = IO(Decoupled(
     new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)
   ))
+  @public
   val maskedWrite1H: UInt = IO(Output(UInt(parameter.chainingSize.W)))
   /** VRF read result for each slot,
    * 3 is for [[source1]] [[source2]] [[source3]]
    */
+  @public
   val vrfReadResult: UInt = IO(Input(UInt(parameter.datapathWidth.W)))
   // raw forward
   val hitWrite: Bool = Wire(Bool())

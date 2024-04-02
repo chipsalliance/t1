@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.vrf
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import org.chipsalliance.t1.rtl._
 
@@ -12,11 +13,17 @@ import org.chipsalliance.t1.rtl._
  *  record      : 要做比对的指令的记录
  *              todo: 维护冲突表,免得每次都要算一次
  */
+@instantiable
 class ChainingCheck(val parameter: VRFParam) extends Module {
+  @public
   val read: VRFReadRequest = IO(Input(new VRFReadRequest(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)))
+  @public
   val readRecord: VRFWriteReport = IO(Input(new VRFWriteReport(parameter)))
+  @public
   val record: ValidIO[VRFWriteReport] = IO(Flipped(Valid(new VRFWriteReport(parameter))))
+  @public
   val recordValid: Bool = IO(Input(Bool()))
+  @public
   val checkResult: Bool = IO(Output(Bool()))
 
   // 先看新老

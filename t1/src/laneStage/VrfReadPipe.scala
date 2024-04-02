@@ -4,19 +4,24 @@
 package org.chipsalliance.t1.rtl.lane
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.{LaneParameter, VRFReadQueueEntry, VRFReadRequest}
 
+@instantiable
 class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends Module {
 
   val enqEntryType: VRFReadQueueEntry = new VRFReadQueueEntry(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits)
   // for vs2 | vd
+  @public
   val enqueue: DecoupledIO[VRFReadQueueEntry] = IO(Flipped(Decoupled(enqEntryType)))
 
   // for cross read
+  @public
   val contender: Option[DecoupledIO[VRFReadQueueEntry]] = Option.when(arbitrate)(IO(Flipped(Decoupled(enqEntryType))))
 
   // read port
+  @public
   val vrfReadRequest: DecoupledIO[VRFReadRequest] = IO(
     Decoupled(
       new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)
@@ -24,9 +29,12 @@ class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends 
   )
 
   // read result
+  @public
   val vrfReadResult: UInt = IO(Input(UInt(parameter.datapathWidth.W)))
 
+  @public
   val dequeue: DecoupledIO[UInt] = IO(Decoupled(UInt(parameter.datapathWidth.W)))
+  @public
   val dequeueChoose: Option[Bool] = Option.when(arbitrate)(IO(Output(Bool())))
 
   // arbitrate

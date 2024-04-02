@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
@@ -50,12 +51,13 @@ class OtherUnitResp(datapathWidth: Int) extends Bundle {
   val ffoSuccess: Bool = Bool()
 }
 
+@instantiable
 class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with SerializableModule[OtherUnitParam] {
   val response: OtherUnitResp = Wire(new OtherUnitResp(parameter.datapathWidth))
   val request: OtherUnitReq = connectIO(response).asTypeOf(parameter.inputBundle)
 
-  val ffo:      LaneFFO = Module(new LaneFFO(parameter.datapathWidth))
-  val popCount: LanePopCount = Module(new LanePopCount(parameter.datapathWidth))
+  val ffo: Instance[LaneFFO] = Instantiate(new LaneFFO(parameter.datapathWidth))
+  val popCount: Instance[LanePopCount] = Instantiate(new LanePopCount(parameter.datapathWidth))
   val vSewOH:   UInt = (UIntToOH(request.vSew) >> request.narrow).asUInt(2, 0)
   // ["", "", "", "", "rgather", "merge", "clip", "mv", "pop", "id"]
   val opcodeOH:         UInt = UIntToOH(request.opcode)(9, 0)

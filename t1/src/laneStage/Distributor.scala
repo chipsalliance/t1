@@ -4,18 +4,24 @@
 package org.chipsalliance.t1.rtl.lane
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.{SlotRequestToVFU, VFUResponseToSlot, cutUInt, ffo}
 
+@instantiable
 class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, dequeue: B)
                                                                 (multiCycle: Boolean = false) extends Module {
   // request to vfu
+  @public
   val requestToVfu: DecoupledIO[SlotRequestToVFU] = IO(Decoupled(enqueue))
   // response from vfu
+  @public
   val responseFromVfu: ValidIO[VFUResponseToSlot] = IO(Flipped(Valid(dequeue)))
   // request from LaneExecutionBridge
+  @public
   val requestFromSlot: DecoupledIO[SlotRequestToVFU] = IO(Flipped(Decoupled(enqueue)))
   // response to LaneExecutionBridge
+  @public
   val responseToSlot: ValidIO[VFUResponseToSlot] = IO(Valid(dequeue))
 
   val requestReg: ValidIO[SlotRequestToVFU] = RegInit(0.U.asTypeOf(Valid(enqueue)))

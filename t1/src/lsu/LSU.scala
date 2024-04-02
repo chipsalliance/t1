@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lsu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, firstlastHelper, indexToOH, instIndexL}
@@ -113,6 +114,7 @@ case class LSUParameter(
   * - a bunch of [[MSHR]] to record outstanding memory transactions.
   * - a crossbar to connect memory interface and each lanes.
   */
+@instantiable
 class LSU(param: LSUParameter) extends Module {
 
   /** [[LSURequest]] from Scheduler to LSU
@@ -121,6 +123,7 @@ class LSU(param: LSUParameter) extends Module {
     *  - LSU slots is full.
     *  - memory conflict is detected.
     */
+  @public
   val request: DecoupledIO[LSURequest] = IO(Flipped(Decoupled(new LSURequest(param.datapathWidth))))
 
   /** mask from [[V]]
@@ -128,14 +131,17 @@ class LSU(param: LSUParameter) extends Module {
     *       we should latch it in the LSU, and reduce the IO width.
     *       this needs PnR information.
     */
+  @public
   val maskInput: Vec[UInt] = IO(Input(Vec(param.lsuMSHRSize, UInt(param.maskGroupWidth.W))))
 
   /** the address of the mask group in the [[V]]. */
+  @public
   val maskSelect: Vec[UInt] = IO(Output(Vec(param.lsuMSHRSize, UInt(param.maskGroupSizeBits.W))))
 
   /** TileLink Port to next level memory.
     * TODO: rename to `tlPorts`
     */
+  @public
   val tlPort: Vec[TLBundle] = IO(Vec(param.memoryBankSize, param.tlParam.bundle()))
 
   /** read channel to [[V]], which will redirect it to [[Lane.vrf]].
@@ -144,6 +150,7 @@ class LSU(param: LSUParameter) extends Module {
     *
     * if fire, the next cycle [[vrfReadResults]] should be valid in the next cycle.
     */
+  @public
   val vrfReadDataPorts: Vec[DecoupledIO[VRFReadRequest]] = IO(
     Vec(
       param.laneNumber,
@@ -154,9 +161,11 @@ class LSU(param: LSUParameter) extends Module {
   /** hard wire form Top.
     * TODO: merge to [[vrfReadDataPorts]]
     */
+  @public
   val vrfReadResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]]. */
+  @public
   val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(
     Vec(
       param.laneNumber,
@@ -166,38 +175,48 @@ class LSU(param: LSUParameter) extends Module {
     )
   )
 
+  @public
   val dataInWriteQueue: Vec[UInt] = IO(Output(Vec(param.laneNumber, UInt(param.chainingSize.W))))
 
   /** the CSR interface from [[V]], CSR will be latched in MSHR.
     * TODO: merge to [[LSURequest]]
     */
+  @public
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(param.vLenBits)))
 
   /** offset of indexed load/store instructions. */
+  @public
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
 
   /** which instruction is requesting the offset.
     * TODO: merge to [[offsetReadResult]]
     */
+  @public
   val offsetReadIndex: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.instructionIndexBits.W))))
 
   /** interface to [[V]], indicate a MSHR slots is finished, and corresponding instruction can commit. */
+  @public
   val lastReport: UInt = IO(Output(UInt(param.chainingSize.W)))
 
+  @public
   val lsuMaskGroupChange: UInt = IO(Output(UInt(param.chainingSize.W)))
 
-  /** interface to [[V]], redirect to [[Lane]].
+  /** interface to [[V]], redirect to [[org.chipsalliance.t1.rtl.Lane]].
     * this group of offset is finish, request the next group of offset.
     */
+  @public
   val lsuOffsetRequest: Bool = IO(Output(Bool()))
+  @public
   val writeReadyForLsu: Bool = IO(Input(Bool()))
+  @public
   val vrfReadyToStore: Bool = IO(Input(Bool()))
 
+  // TODO: make it D/I
   val loadUnit: LoadUnit = Module(new LoadUnit(param.mshrParam))
   val storeUnit: StoreUnit = Module(new StoreUnit(param.mshrParam))
   val otherUnit: SimpleAccessUnit = Module(new SimpleAccessUnit(param.mshrParam))
 
-  val unitVec: Seq[Module with LSUPublic] = Seq(loadUnit, storeUnit, otherUnit)
+  val unitVec = Seq(loadUnit, storeUnit, otherUnit)
 
   /** Always merge into cache line */
   val alwaysMerge: Bool = (
@@ -212,7 +231,6 @@ class LSU(param: LSUParameter) extends Module {
   val addressCheck: Bool = otherUnit.status.idle && (!useOtherUnit || (loadUnit.status.idle && storeUnit.status.idle))
   val unitReady: Bool = (useLoadUnit && loadUnit.status.idle) || (useStoreUnit && storeUnit.status.idle) || (useOtherUnit && otherUnit.status.idle)
   request.ready := unitReady && addressCheck
-
   val requestFire = request.fire
   val reqEnq: Vec[Bool] = VecInit(Seq(useLoadUnit && requestFire, useStoreUnit && requestFire, useOtherUnit && requestFire))
 
@@ -230,6 +248,7 @@ class LSU(param: LSUParameter) extends Module {
   /** TileLink D Channel write to VRF queue:
    * TL-D -CrossBar-> MSHR -proxy-> write queue -CrossBar-> VRF
    */
+  @public
   val writeQueueVec: Seq[Queue[LSUWriteQueueBundle]] = Seq.fill(param.laneNumber)(
     Module(new Queue(new LSUWriteQueueBundle(param), param.toVRFWriteQueueSize, flow = true))
   )

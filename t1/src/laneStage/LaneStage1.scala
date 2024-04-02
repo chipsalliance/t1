@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder.Decoder
@@ -30,11 +31,17 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
 /** 这一个stage 分两级流水, 分别是 读vrf 等vrf结果
  * */
+@instantiable
 class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
+  @public
   val enqueue = IO(Flipped(Decoupled(new LaneStage1Enqueue(parameter, isLastSlot))))
+  @public
   val dequeue = IO(Decoupled(new LaneStage1Dequeue(parameter, isLastSlot)))
+  @public
   val stageValid = IO(Output(Bool()))
+  @public
   val state: LaneState = IO(Input(new LaneState(parameter)))
+  @public
   val vrfReadRequest: Vec[DecoupledIO[VRFReadRequest]] = IO(
     Vec(
       3,
@@ -47,14 +54,19 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   /** VRF read result for each slot,
    * 3 is for [[source1]] [[source2]] [[source3]]
    */
+  @public
   val vrfReadResult: Vec[UInt] = IO(Input(Vec(3, UInt(parameter.datapathWidth.W))))
 
+  @public
   val readBusDequeue: Option[Vec[DecoupledIO[ReadBusData]]] = Option.when(isLastSlot)(IO(
     Vec(2, Flipped(Decoupled(new ReadBusData(parameter: LaneParameter))))
   ))
 
+  @public
   val readBusRequest: Option[Vec[DecoupledIO[ReadBusData]]] =
     Option.when(isLastSlot)(IO(Vec(2, Decoupled(new ReadBusData(parameter)))))
+
+  @public
   val readFromScalar: UInt = IO(Input(UInt(parameter.datapathWidth.W)))
 
   val groupCounter: UInt = enqueue.bits.groupCounter
@@ -154,10 +166,10 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   readQueueVec.foreach {q => q.io.enq.bits.groupIndex := enqueue.bits.groupCounter}
 
   // read pipe
-  val readPipe0: VrfReadPipe = Module(new VrfReadPipe(parameter, arbitrate = false))
-  val readPipe1: VrfReadPipe = Module(new VrfReadPipe(parameter, arbitrate = isLastSlot))
-  val readPipe2: VrfReadPipe = Module(new VrfReadPipe(parameter, arbitrate = isLastSlot))
-  val pipeVec: Seq[VrfReadPipe] = Seq(readPipe0, readPipe1, readPipe2)
+  val readPipe0: Instance[VrfReadPipe] = Instantiate(new VrfReadPipe(parameter, arbitrate = false))
+  val readPipe1: Instance[VrfReadPipe] = Instantiate(new VrfReadPipe(parameter, arbitrate = isLastSlot))
+  val readPipe2: Instance[VrfReadPipe] = Instantiate(new VrfReadPipe(parameter, arbitrate = isLastSlot))
+  val pipeVec: Seq[Instance[VrfReadPipe]] = Seq(readPipe0, readPipe1, readPipe2)
 
   readPipe0.enqueue <> readRequestQueueVs1.io.deq
   readPipe1.enqueue <> readRequestQueueVs2.io.deq
@@ -211,7 +223,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val crossReadResultQueue: Option[Queue[UInt]] =
     Option.when(isLastSlot)(Module(new Queue(UInt((parameter.datapathWidth * 2).W), 1)))
   val crossReadStageFree: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
-  val crossReadUnitOp: Option[CrossReadUnit] = Option.when(isLastSlot)(Module(new CrossReadUnit(parameter)))
+  val crossReadUnitOp: Option[Instance[CrossReadUnit]] = Option.when(isLastSlot)(Instantiate(new CrossReadUnit(parameter)))
   if (isLastSlot) {
     val dataGroupQueue: Queue[UInt] =
       Module(new Queue(UInt(parameter.groupNumberBits.W), readRequestQueueSize + dataQueueSize + 2))
@@ -270,38 +282,42 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   stageValid := pipeQueue.io.deq.valid
   val stageFinish = !stageValid
 
-  object stageProbe {
-    def newProbe = () => IO(Output(Probe(Bool())))
+  @public
+  val dequeueReadyProbe = IO(Output(Probe(Bool())))
+  @public
+  val dequeueValidProbe = IO(Output(Probe(Bool())))
+  @public
+  val hasDataOccupiedProbe = IO(Output(Probe(Bool())))
+  @public
+  val stageFinishProbe = IO(Output(Probe(Bool())))
+  @public
+  val readFinishProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  @public
+  val sSendCrossReadResultLSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  @public
+  val sSendCrossReadResultMSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  @public
+  val wCrossReadLSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  @public
+  val wCrossReadMSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  @public
+  val vrfReadRequestProbe: Seq[(Bool, Bool)] = Seq.fill(3)((IO(Output(Probe(Bool()))),IO(Output(Probe(Bool())))))
 
-    val dequeueReadyProbe = newProbe()
-    val dequeueValidProbe = newProbe()
 
-    val hasDataOccupiedProbe = newProbe()
-
-    val stageFinishProbe = newProbe()
-    val readFinishProbe = Option.when(isLastSlot)(newProbe())
-    val sSendCrossReadResultLSBProbe = Option.when(isLastSlot)(newProbe())
-    val sSendCrossReadResultMSBProbe = Option.when(isLastSlot)(newProbe())
-    val wCrossReadLSBProbe = Option.when(isLastSlot)(newProbe())
-    val wCrossReadMSBProbe = Option.when(isLastSlot)(newProbe())
-
-    val vrfReadRequestProbe: Seq[(Bool, Bool)] = Seq.fill(3)((newProbe(),newProbe()))
-  }
-
-  define(stageProbe.dequeueReadyProbe, ProbeValue(dequeue.ready))
-  define(stageProbe.dequeueValidProbe, ProbeValue(dequeue.valid))
-  define(stageProbe.hasDataOccupiedProbe, ProbeValue(stageValid))
-  define(stageProbe.stageFinishProbe, ProbeValue(stageFinish))
+  define(dequeueReadyProbe, ProbeValue(dequeue.ready))
+  define(dequeueValidProbe, ProbeValue(dequeue.valid))
+  define(hasDataOccupiedProbe, ProbeValue(stageValid))
+  define(stageFinishProbe, ProbeValue(stageFinish))
 
   if (isLastSlot) {
-    stageProbe.readFinishProbe.foreach(p => define(p, ProbeValue(dataQueueVs2.io.deq.valid)))
-    stageProbe.sSendCrossReadResultLSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.sSendCrossReadResultLSB)))
-    stageProbe.sSendCrossReadResultMSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.sSendCrossReadResultMSB)))
-    stageProbe.wCrossReadLSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadLSB)))
-    stageProbe.wCrossReadMSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadMSB)))
+    readFinishProbe.foreach(p => define(p, ProbeValue(dataQueueVs2.io.deq.valid)))
+    sSendCrossReadResultLSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.sSendCrossReadResultLSB)))
+    sSendCrossReadResultMSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.sSendCrossReadResultMSB)))
+    wCrossReadLSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadLSB)))
+    wCrossReadMSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadMSB)))
   }
 
-  stageProbe.vrfReadRequestProbe.zipWithIndex.foreach { case((ready, valid), i) =>
+  vrfReadRequestProbe.zipWithIndex.foreach { case((ready, valid), i) =>
     define(ready, ProbeValue(vrfReadRequest(i).ready))
     define(valid, ProbeValue(vrfReadRequest(i).valid))
   }

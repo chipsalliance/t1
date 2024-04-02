@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lane
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl._
@@ -20,7 +21,9 @@ class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val fpReduceValid: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
 }
 
+@instantiable
 class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
+  @public
   val enqueue: DecoupledIO[LaneStage3Enqueue] = IO(Flipped(Decoupled(new LaneStage3Enqueue(parameter, isLastSlot))))
   val vrfWriteBundle: VRFWriteRequest = new VRFWriteRequest(
     parameter.vrfParam.regNumBits,
@@ -28,16 +31,22 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     parameter.instructionIndexBits,
     parameter.datapathWidth
   )
+  @public
   val vrfWriteRequest: DecoupledIO[VRFWriteRequest] = IO(Decoupled(vrfWriteBundle))
 
+  @public
   val state: LaneState = IO(Input(new LaneState(parameter)))
   val pipeEnqueue: Option[LaneStage3Enqueue] = Option.when(isLastSlot)(RegInit(0.U.asTypeOf(enqueue.bits)))
   /** response to [[T1.lsu]] or mask unit in [[T1]] */
+  @public
   val laneResponse: Option[ValidIO[LaneResponse]] = Option.when(isLastSlot)(IO(Valid(new LaneResponse(parameter))))
+  @public
   val stageValid: Bool = IO(Output(Bool()))
   /** feedback from [[T1]] to [[Lane]] for [[laneResponse]] */
+  @public
   val laneResponseFeedback: Option[ValidIO[LaneResponseFeedback]] =
     Option.when(isLastSlot)(IO(Flipped(Valid(new LaneResponseFeedback(parameter)))))
+  @public
   val crossWritePort: Option[Vec[DecoupledIO[WriteBusData]]] =
     Option.when(isLastSlot)(IO(Vec(2, Decoupled(new WriteBusData(parameter)))))
 

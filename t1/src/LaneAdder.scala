@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder._
@@ -45,6 +46,7 @@ class LaneAdderResp(datapathWidth: Int) extends Bundle {
   *     1. carry || borrow
   *     1. 判断大小的结果
   */
+@instantiable
 class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) with SerializableModule[LaneAdderParam] {
   val response:  LaneAdderResp = Wire(new LaneAdderResp(parameter.datapathWidth))
   val request: LaneAdderReq = connectIO(response).asTypeOf(parameter.inputBundle)
@@ -94,7 +96,7 @@ class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) with
       (vSew1H(2) && averageSum(15)) ## averageSum(14, 8) ##
       (!vSew1H(0) && averageSum(7)) ## averageSum(6, 0)
 
-  val adder: VectorAdder32 = Module(new VectorAdder32)
+  val adder: Instance[VectorAdder32] = Instantiate(new VectorAdder32)
 
   adder.a := Mux(request.average, operation0ForAverage, subOperation0)
   adder.b := Mux(request.average, operation1ForAverage, subOperation1)

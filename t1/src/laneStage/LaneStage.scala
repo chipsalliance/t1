@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lane
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.{CSRInterface, LaneParameter}
@@ -43,9 +44,13 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   val skipRead: Bool = Bool()
 }
 
+@instantiable
 abstract class LaneStage[A <: Data, B <:Data](pipe: Boolean)(input: A, output: B) extends Module{
+  @public
   val enqueue: DecoupledIO[A] = IO(Flipped(Decoupled(input)))
+  @public
   val dequeue: DecoupledIO[B] = IO(Decoupled(output))
+  @public
   val stageValid = IO(Output(Bool()))
   val stageFinish: Bool = WireDefault(true.B)
   val stageValidReg: Bool = RegInit(false.B)

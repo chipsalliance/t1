@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lane
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.{LaneParameter, ReadBusData}
 
@@ -13,22 +14,34 @@ class CrossReadState extends Bundle {
   val wCrossReadLSB: Bool = Bool()
   val wCrossReadMSB: Bool = Bool()
 }
+
+@instantiable
 class CrossReadUnit(parameter: LaneParameter) extends Module {
+  @public
   val dataInputLSB: DecoupledIO[UInt] = IO(Flipped(Decoupled(UInt(parameter.datapathWidth.W))))
+  @public
   val dataInputMSB: DecoupledIO[UInt] = IO(Flipped(Decoupled(UInt(parameter.datapathWidth.W))))
+  @public
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
+  @public
   val dataGroup: UInt = IO(Input(UInt(parameter.groupNumberBits.W)))
+  @public
   val currentGroup: UInt = IO(Output(UInt(parameter.groupNumberBits.W)))
 
+  @public
   val readBusDequeue: Vec[DecoupledIO[ReadBusData]] = IO(
     Vec(2, Flipped(Decoupled(new ReadBusData(parameter: LaneParameter)))
   ))
 
+  @public
   val readBusRequest: Vec[DecoupledIO[ReadBusData]] =
     IO(Vec(2, Decoupled(new ReadBusData(parameter))))
 
+  @public
   val crossReadDequeue: DecoupledIO[UInt] = IO(Decoupled(UInt((parameter.datapathWidth * 2).W)))
+  @public
   val crossReadStageFree: Bool = IO(Output(Bool()))
+  @public
   val crossWriteState = IO(Output(new CrossReadState))
 
   val stageValid: Bool = RegInit(false.B)

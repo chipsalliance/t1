@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
 
@@ -37,13 +38,14 @@ class MaskedLogicResponse(datapathWidth: Int) extends Bundle {
   val data: UInt = UInt(datapathWidth.W)
 }
 
+@instantiable
 class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) with SerializableModule[LogicParam] {
   val response: UInt = Wire(UInt(parameter.datapathWidth.W))
   val request: MaskedLogicRequest = connectIO(response).asTypeOf(parameter.inputBundle)
 
   response := VecInit(request.src.map(_.asBools).transpose.map {
     case Seq(sr0, sr1, sr2, sr3) =>
-      val bitCalculate = Module(new LaneBitLogic)
+      val bitCalculate: Instance[LaneBitLogic] = Instantiate(new LaneBitLogic)
       bitCalculate.src := (request.opcode(2) ^ sr0) ## sr1
       bitCalculate.opcode := request.opcode
       Mux(sr3, bitCalculate.resp ^ request.opcode(3), sr2)
