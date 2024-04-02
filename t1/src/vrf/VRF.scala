@@ -6,6 +6,7 @@ package org.chipsalliance.t1.rtl.vrf
 import chisel3._
 import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.{LSUWriteCheck, VRFReadRequest, VRFWriteReport, VRFWriteRequest, ffo, instIndexL, ohCheck}
 
@@ -106,6 +107,15 @@ case class VRFParam(
   val memoryWidth: Int = ramWidth + 4
 }
 
+class VRFProbe(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {
+  val valid: Bool = Bool()
+  val requestVd: UInt = UInt(regNumBits.W)
+  val requestOffset: UInt = UInt(offsetBits.W)
+  val requestMask: UInt = UInt((dataPathWidth / 8).W)
+  val requestData: UInt = UInt(dataPathWidth.W)
+  val requestInstruction: UInt = UInt(instructionIndexSize.W)
+}
+
 /** Vector Register File.
   * contains logic:
   * - RAM as VRF.
@@ -193,6 +203,21 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
   @public
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+
+  @public
+  val probe = IO(Output(Probe(new VRFProbe(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits, parameter.datapathWidth))))
+  val probeWire = Wire(new VRFProbe(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits, parameter.datapathWidth))
+  define(probe, ProbeValue(probeWire))
+
+  probeWire.valid := write.valid
+  probeWire.requestVd := write.bits.vd
+  probeWire.requestOffset := write.bits.offset
+  probeWire.requestMask := write.bits.mask
+  probeWire.requestData := write.bits.data
+  probeWire.requestInstruction := write.bits.instructionIndex
+
+  // TODO: add Chaining Check Probe
+
   // todo: delete
   dontTouch(write)
   val portFireCount: UInt = PopCount(VecInit(readRequests.map(_.fire) :+ write.fire))

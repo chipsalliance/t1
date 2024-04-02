@@ -14,8 +14,8 @@ import chisel3.probe.ProbeValue
 import chisel3.probe.define
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.decoder.Decoder
-import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter}
-import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam}
+import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
+import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
 
 object T1Parameter {
   implicit def bitSetP:upickle.default.ReadWriter[BitSet] = upickle.default.readwriter[String].bimap[BitSet](
@@ -236,6 +236,10 @@ case class T1Parameter(
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 }
 
+class T1Probe(param: T1Parameter) extends Bundle {
+  val instructionCounter: UInt = UInt(param.instructionIndexBits.W)
+}
+
 /** Top of Vector processor:
   * couple to Rocket Core;
   * instantiate LSU, Decoder, Lane, CSR, Instruction Queue.
@@ -265,9 +269,14 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.lsuBankParameters.size, parameter.tlParam.bundle()))
 
   // TODO: this is an example of adding a new Probe
-  val laneProbes = IO(Probe(Vec(parameter.laneNumber, new LaneProbe(parameter.chainingSize))))
-  val laneProbesWire = Wire(Vec(parameter.laneNumber, new LaneProbe(parameter.chainingSize)))
-  define(laneProbes, ProbeValue(laneProbesWire))
+  val lsuProbe = IO(Probe(new LSUProbe(parameter.lsuParameters)))
+  val laneProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new LaneProbe(parameter.chainingSize))).suggestName(s"lane${laneIdx}Probe"))
+  val laneVrfProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new VRFProbe(
+    parameter.laneParam.vrfParam.regNumBits,
+    parameter.laneParam.vrfOffsetBits,
+    parameter.laneParam.instructionIndexBits,
+    parameter.laneParam.datapathWidth
+  ))).suggestName(s"lane${laneIdx}VrfProbe"))
 
   /** the LSU Module */
 
@@ -1475,9 +1484,12 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       flotReduceValid(index).foreach(d => d := lane.laneResponse.bits.fpReduceValid.get)
     }
     // TODO: add other probes for lane at here.
-    laneProbesWire(index) := probe.read(lane.probe)
+    define(laneProbes(index), lane.probe)
+    define(laneVrfProbes(index), lane.vrfProbe)
     lane
   }
+  define(lsuProbe, lsu.probe)
+
   writeQueueClearVec := VecInit(laneVec.map(_.writeQueueValid))
 
   // 连lsu
@@ -1603,6 +1615,12 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /**
     * Probes
     */
+  @public
+  val t1Probe = IO(Output(Probe(new T1Probe(parameter))))
+  val probeWire = Wire(new T1Probe(parameter))
+  define(t1Probe, ProbeValue(probeWire))
+  probeWire.instructionCounter := instructionCounter
+
   // new V Request from core
   // val requestValidProbe: Bool = IO(Output(Probe(Bool())))
   // val requestReadyProbe: Bool = IO(Output(Probe(Bool())))
