@@ -10,14 +10,13 @@ import chisel3.util.{Decoupled, DecoupledIO, Valid, ValidIO}
 import org.chipsalliance.t1.ipemu.dpi._
 import org.chipsalliance.t1.rtl.{CSRInterface, T1, VRequest, VResponse}
 import tilelink.TLBundle
-
+/*
 class VerificationModule(dut: T1) extends RawModule {
   override val desiredName = "VerificationModule"
 
   val clockRate = 5
 
   val latPeekLsuEnq = 1
-  val latPeekVrfWrite = 1
   val latPokeInst = 1
   val latPokeTL = 1
 
@@ -27,7 +26,6 @@ class VerificationModule(dut: T1) extends RawModule {
   val negLatPeekWriteQueue = 1
 
   val clockGen = Module(new ClockGen(ClockGenParameter(clockRate)))
-
   val dpiDumpWave = Module(new DpiDumpWave)
   val dpiFinish = Module(new DpiFinish)
   val dpiError = Module(new DpiError)
@@ -153,3 +151,4 @@ class VerificationModule(dut: T1) extends RawModule {
       bore(bundle.a.ready) := poke.aReady.ref
   }
 }
+*/
