@@ -4,14 +4,21 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 
+@instantiable
 class LaneFFO(datapathWidth: Int) extends Module {
   // Seq(mask, data, destination)
+  @public
   val src:          Vec[UInt] = IO(Input(Vec(4, UInt(datapathWidth.W))))
+  @public
   val resultSelect: UInt = IO(Input(UInt(2.W)))
+  @public
   val resp:         ValidIO[UInt] = IO(Output(Valid(UInt(datapathWidth.W))))
+  @public
   val complete:     Bool = IO(Input(Bool()))
+  @public
   val maskType:     Bool = IO(Input(Bool()))
 
   val truthMask: UInt = Mux(maskType, src.head, -1.S(datapathWidth.W).asUInt)

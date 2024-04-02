@@ -3,6 +3,7 @@
 
 package org.chipsalliance.t1.rtl
 
+import chisel3.experimental.hierarchy.instantiable
 import chisel3.{UInt, _}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
@@ -73,6 +74,7 @@ class LaneFloatResponse(datapathWidth: Int)  extends VFUPipeBundle {
   val executeIndex: UInt = UInt(2.W)
 }
 
+@instantiable
 class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with SerializableModule[LaneFloatParam]{
   val response: LaneFloatResponse = Wire(new LaneFloatResponse(parameter.datapathWidth))
   val request : LaneFloatRequest  = connectIO(response, true.B).asTypeOf(parameter.inputBundle)

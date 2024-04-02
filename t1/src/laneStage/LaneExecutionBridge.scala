@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lane
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.{ExecutionUnitRecord, LaneParameter, SlotRequestToVFU, VFUResponseToSlot, cutUInt}
@@ -36,17 +37,25 @@ class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) 
   val source2: UInt = UInt(parameter.datapathWidth.W)
 }
 
+@instantiable
 class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotIndex: Int) extends Module {
   // request from lane slot
+  @public
   val enqueue: DecoupledIO[LaneExecuteRequest] = IO(Flipped(Decoupled(new LaneExecuteRequest(parameter, isLastSlot))))
   // request from lane slot
+  @public
   val dequeue: DecoupledIO[LaneExecuteResponse] = IO(Decoupled(new LaneExecuteResponse(parameter, isLastSlot)))
   // request to vfu
+  @public
   val vfuRequest: DecoupledIO[SlotRequestToVFU] = IO(Decoupled(new SlotRequestToVFU(parameter)))
   // response from vfu
+  @public
   val dataResponse: ValidIO[VFUResponseToSlot] = IO(Flipped(Valid(new VFUResponseToSlot(parameter))))
+  @public
   val state: LaneState = IO(Input(new LaneState(parameter)))
+  @public
   val ffoByOtherLanes: Bool = IO(Input(Bool()))
+  @public
   val selfCompleted: Bool = IO(Input(Bool()))
 
   val decodeResult: DecodeBundle = state.decodeResult
