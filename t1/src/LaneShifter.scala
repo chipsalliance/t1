@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.instantiable
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
@@ -30,6 +31,7 @@ class LaneShifterResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data = UInt(datapathWidth.W)
 }
 
+@instantiable
 class LaneShifter(val parameter: LaneShifterParameter)
   extends VFUModule(parameter) with SerializableModule[LaneShifterParameter] {
   val response: LaneShifterResponse = Wire(new LaneShifterResponse(parameter.datapathWidth))

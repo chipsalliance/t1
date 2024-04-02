@@ -4,13 +4,20 @@
 package org.chipsalliance.t1.rtl.vfu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 
+@instantiable
 class Multiplier16 extends Module{
+  @public
   val a = IO(Input(UInt(16.W)))
+  @public
   val b = IO(Input(UInt(16.W)))
+  @public
   val sew = IO(Input(UInt(2.W)))
+  @public
   val outCarry = IO(Output(UInt(32.W)))
+  @public
   val outSum   = IO(Output(UInt(32.W)))
 
   val a0Vec = a(7, 0).asBools

@@ -4,16 +4,22 @@
 package org.chipsalliance.t1.rtl.vfu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.util._
 
 /** Banked complement64
   *
   * Bank width: 16, 32, 64
   */
+@instantiable
 class Complement64 extends Module{
+  @public
   val a: UInt = IO(Input(UInt(64.W)))
+  @public
   val z: UInt = IO(Output(UInt(64.W)))
+  @public
   val sew = IO(Input(UInt(3.W)))
+  @public
   val doComplement = IO(Input(UInt(4.W)))
 
   def addOne16Bits(in: Tuple2[UInt, Bool]): (Bool, UInt) = {
@@ -58,7 +64,7 @@ object Complement64 {
   def apply(a: UInt,
             sign:UInt,
             sew:UInt) = {
-    val Complement = Module(new Complement64)
+    val Complement = Instantiate(new Complement64)
     // This need synthesis tool to do constant propagation
     Complement.a := a
     Complement.doComplement := sign

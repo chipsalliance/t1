@@ -4,6 +4,7 @@
 package org.chipsalliance.t1
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.TableGenerator
@@ -216,14 +217,17 @@ package object rtl {
     // 处理vfu
     val vfuResponse: Seq[ValidIO[VFUResponseToSlot]] = parameter.genVec.zipWithIndex.map { case ((gen, slotVec), vfuIndex) =>
       // vfu 模块
-      val vfu = Module(gen.module()).suggestName(gen.parameter.decodeField.name)
+      // TODO: SerializableModuleGenerator should support D/I
+      val vfu: VFUModule = Module(gen.module())
+      vfu.suggestName(gen.parameter.decodeField.name)
       // vfu request distributor
-      val distributor: Option[Distributor[SlotRequestToVFU, VFUResponseToSlot]] = Option.when(gen.parameter.NeedSplit)(
-        Module(new Distributor(
+      val distributor: Option[Instance[Distributor[SlotRequestToVFU, VFUResponseToSlot]]] = Option.when(gen.parameter.NeedSplit)(
+        Instantiate(new Distributor(
           chiselTypeOf(requestVec.head),
           chiselTypeOf(responseVec.head.bits)
-        )(gen.parameter.latency > 0)).suggestName(s"${gen.parameter.decodeField.name}Distributor")
+        )(gen.parameter.latency > 0))
       )
+      distributor.foreach(_.suggestName(s"${gen.parameter.decodeField.name}Distributor"))
       // 访问仲裁
       val requestArbiter: Arbiter[SlotRequestToVFU] = Module(
         new Arbiter(

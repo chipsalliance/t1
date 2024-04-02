@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode._
@@ -265,8 +266,8 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
   /** the LSU Module */
 
-  val lsu: LSU = Module(new LSU(parameter.lsuParameters))
-  val decode: VectorDecoder = Module(new VectorDecoder(parameter.fpuEnable))
+  val lsu: Instance[LSU] = Instantiate(new LSU(parameter.lsuParameters))
+  val decode: Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.fpuEnable))
 
   // TODO: cover overflow
   // TODO: uarch doc about the order of instructions
@@ -805,11 +806,11 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val aluInput2 = Mux1H(UIntToOH(executeCounter), data.map(d => Mux(d.valid, d.bits, 0.U)))
       val skipFlotReduce: Bool = !Mux1H(UIntToOH(executeCounter), flotReduceValid.map(_.getOrElse(false.B)))
       // red alu instance
-      val adder: ReduceAdder = Module(new ReduceAdder(parameter.datapathWidth))
-      val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datapathWidth))
+      val adder: Instance[ReduceAdder] = Instantiate(new ReduceAdder(parameter.datapathWidth))
+      val logicUnit: Instance[LaneLogic] = Instantiate(new LaneLogic(parameter.datapathWidth))
       // option unit for flot reduce
-      val floatAdder: Option[FloatAdder] = Option.when(parameter.fpuEnable)(Module(new FloatAdder(8, 24)))
-      val flotCompare  = Option.when(parameter.fpuEnable)(Module(new FloatCompare(8, 24)))
+      val floatAdder: Option[Instance[FloatAdder]] = Option.when(parameter.fpuEnable)(Instantiate(new FloatAdder(8, 24)))
+      val flotCompare: Option[Instance[FloatCompare]]  = Option.when(parameter.fpuEnable)(Instantiate(new FloatCompare(8, 24)))
 
       val sign = !decodeResultReg(Decoder.unsigned1)
       adder.request.src := VecInit(
@@ -1349,9 +1350,8 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /** instantiate lanes.
     * TODO: move instantiate to top of class.
     */
-  val laneVec: Seq[Lane] = Seq.tabulate(parameter.laneNumber) { index =>
-    // TODO: use D/I
-    val lane: Lane = Module(new Lane(parameter.laneParam))
+  val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber) { index =>
+    val lane: Instance[Lane] = Instantiate(new Lane(parameter.laneParam))
     // lane.laneRequest.valid -> requestRegDequeue.ready -> lane.laneRequest.ready -> lane.laneRequest.bits
     // TODO: this is harmful for PnR design, since it broadcast ready singal to each lanes, which will significantly
     //       reduce the scalability for large number of lanes.

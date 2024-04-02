@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.vrf
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.{LSUWriteCheck, VRFReadRequest, VRFWriteReport, VRFWriteRequest, ffo, instIndexL, ohCheck}
@@ -116,12 +117,14 @@ case class VRFParam(
   * TODO: implement [[parameter.portFactor]] for increasing VRF bandwidth.
   * TODO: probe each ports to benchmark the bandwidth.
   */
+@instantiable
 class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFParam] {
 
   /** VRF read requests
     * ready will couple from valid from [[readRequests]],
     * ready is asserted when higher priority valid is less than 2.
     */
+  @public
   val readRequests: Vec[DecoupledIO[VRFReadRequest]] = IO(
     Vec(
       parameter.vrfReadPort,
@@ -132,6 +135,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   )
 
   /** VRF read results. */
+  @public
   val readResults: Vec[UInt] = IO(Output(Vec(parameter.vrfReadPort, UInt(parameter.datapathWidth.W))))
 
   /** VRF write requests
@@ -139,6 +143,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     * ready is asserted when higher priority valid is less than 2.
     * TODO: rename to `vrfWriteRequests`
     */
+  @public
   val write: DecoupledIO[VRFWriteRequest] = IO(
     Flipped(
       Decoupled(
@@ -152,6 +157,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
   )
 
+  @public
   val writeCheck: Vec[LSUWriteCheck] = IO(Vec(parameter.chainingSize + 3, Input(new LSUWriteCheck(
     parameter.regNumBits,
     parameter.vrfOffsetBits,
@@ -159,24 +165,33 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     parameter.datapathWidth
   ))))
 
+  @public
   val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 3, Output(Bool())))
 
   /** when instruction is fired, record it in the VRF for chaining. */
+  @public
   val instructionWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
 
   /** similar to [[flush]]. */
+  @public
   val instructionLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** data in write queue */
+  @public
   val dataInWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
+  @public
   val dataInCrossBus: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
+  @public
   val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  @public
   val writeReadyForLsu: Bool = IO(Output(Bool()))
+  @public
   val vrfReadyToStore: Bool = IO(Output(Bool()))
 
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
+  @public
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
   // todo: delete
   dontTouch(write)
@@ -219,8 +234,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val checkResult:  Bool =
         recordSelect.zip(recordValidVec).zipWithIndex.map {
           case ((r, f), recordIndex) =>
-            val checkModule = Module(new ChainingCheck(parameter))
-              .suggestName(s"ChainingCheck_readPort${i}_record${recordIndex}")
+            val checkModule = Instantiate(new ChainingCheck(parameter))
+            checkModule.suggestName(s"ChainingCheck_readPort${i}_record${recordIndex}")
             checkModule.read := v.bits
             checkModule.readRecord := readRecord
             checkModule.record := r

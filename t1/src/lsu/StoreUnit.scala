@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lsu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.probe._
 import org.chipsalliance.t1.rtl.{EmptyBundle, VRFReadRequest, cutUInt, multiShifter}
@@ -15,14 +16,18 @@ class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
 
+@instantiable
 class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
+  @public
   val tlPortA: Vec[DecoupledIO[TLChannelA]] = IO(Vec(param.memoryBankSize, param.tlParam.bundle().a))
 
+  @public
   val status: StoreStatus = IO(Output(new StoreStatus(param.memoryBankSize)))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
    * see [[LSU.vrfWritePort]]
    */
+  @public
   val vrfReadDataPorts: Vec[DecoupledIO[VRFReadRequest]] = IO(
     Vec(
       param.laneNumber,
@@ -33,7 +38,9 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   /** hard wire form Top.
    * see [[LSU.vrfReadResults]]
    */
+  @public
   val vrfReadResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
+  @public
   val vrfReadyToStore: Bool = IO(Input(Bool()))
 
   // stage 0, 处理 vl, mask ...
@@ -298,35 +305,45 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     * Probes
     */
   // Store Unit is idle
+  @public
   val idleProbe = IO(Output(Probe(Bool())))
   define(idleProbe, ProbeValue(status.idle))
 
   // lsuRequest is valid
+  @public
   val lsuRequestValidProbe = IO(Output(Probe(Bool())))
   define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
 
+  @public
   val tlPortAIsValidProbe = Seq.fill(param.memoryBankSize)(IO(Output(Probe(Bool()))))
+  @public
   val tlPortAIsReadyProbe = Seq.fill(param.memoryBankSize)(IO(Output(Probe(Bool()))))
   tlPortA.zipWithIndex.foreach({ case(port, i) =>
     define(tlPortAIsValidProbe(i), ProbeValue(port.valid))
     define(tlPortAIsReadyProbe(i), ProbeValue(port.ready))
   })
 
+  @public
   val addressConflictProbe = IO(Output(Probe(Bool())))
   define(addressConflictProbe, ProbeValue(addressConflict))
 
+  @public
   val vrfReadDataPortIsValidProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
+  @public
   val vrfReadDataPortIsReadyProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
   vrfReadDataPorts.zipWithIndex.foreach({ case(port, i) =>
     define(vrfReadDataPortIsValidProbe(i), ProbeValue(port.valid))
     define(vrfReadDataPortIsReadyProbe(i), ProbeValue(port.ready))
   })
 
+  @public
   val vrfReadyToStoreProbe = IO(Output(Probe(Bool())))
   define(vrfReadyToStoreProbe, ProbeValue(vrfReadyToStore))
 
+  @public
   val alignedDequeueValidProbe = IO(Output(Probe(Bool())))
   define(alignedDequeueValidProbe, ProbeValue(alignedDequeue.valid))
+  @public
   val alignedDequeueReadyProbe = IO(Output(Probe(Bool())))
   define(alignedDequeueReadyProbe, ProbeValue(alignedDequeue.ready))
 }

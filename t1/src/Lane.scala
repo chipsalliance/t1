@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
@@ -130,9 +131,11 @@ case class LaneParameter(
   * - [[VRF]] is designed for store the vector register of the processor.
   * - datapath units: [[MaskedLogic]], [[LaneAdder]], [[LaneShifter]], [[LaneMul]], [[LaneDiv]], [[OtherUnit]]
   */
+@instantiable
 class Lane(val parameter: LaneParameter) extends Module with SerializableModule[LaneParameter] {
 
   /** laneIndex is a IO constant for D/I and physical implementations. */
+  @public
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
   // constant parameter for physical implementations.
   dontTouch(laneIndex)
@@ -142,6 +145,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * TODO: benchmark the usecase for tuning the Ring Bus width.
     *       find a real world case for using `narrow` and `widen` aggressively.
     */
+  @public
   val readBusPort: Vec[RingPort[ReadBusData]] = IO(Vec(2, new RingPort(new ReadBusData(parameter))))
 
   /** VRF Write Interface.
@@ -149,25 +153,31 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * TODO: benchmark the usecase for tuning the Ring Bus width.
     *       find a real world case for using `narrow` and `widen` aggressively.
     */
+  @public
   val writeBusPort: Vec[RingPort[WriteBusData]] = IO(Vec(2, new RingPort(new WriteBusData(parameter))))
 
   /** request from [[T1.decode]] to [[Lane]]. */
+  @public
   val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(parameter))))
 
   /** CSR Interface.
     * TODO: merge to [[laneRequest]]
     */
+  @public
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.vlMaxBits)))
 
   /** response to [[T1.lsu]] or mask unit in [[T1]] */
+  @public
   val laneResponse: ValidIO[LaneResponse] = IO(Valid(new LaneResponse(parameter)))
 
   /** feedback from [[T1]] to [[Lane]] for [[laneResponse]] */
+  @public
   val laneResponseFeedback: ValidIO[LaneResponseFeedback] = IO(Flipped(Valid(new LaneResponseFeedback(parameter))))
 
   /** for LSU and V accessing lane, this is not a part of ring, but a direct connection.
     * TODO: learn AXI channel, reuse [[vrfReadAddressChannel]] and [[vrfWriteChannel]].
     */
+  @public
   val vrfReadAddressChannel: DecoupledIO[VRFReadRequest] = IO(
     Flipped(
       Decoupled(
@@ -175,7 +185,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       )
     )
   )
+  @public
   val vrfReadDataChannel: UInt = IO(Output(UInt(parameter.datapathWidth.W)))
+  @public
   val vrfWriteChannel: DecoupledIO[VRFWriteRequest] = IO(
     Flipped(
       Decoupled(
@@ -190,48 +202,100 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   )
 
   /** for each instruction in the slot, response to top when instruction is finished in this lane. */
+  @public
   val instructionFinished: UInt = IO(Output(UInt(parameter.chainingSize.W)))
 
   /** V0 update in the lane should also update [[T1.v0]] */
+  @public
   val v0Update: ValidIO[V0Update] = IO(Valid(new V0Update(parameter)))
 
   /** input of mask data */
+  @public
   val maskInput: UInt = IO(Input(UInt(parameter.maskGroupWidth.W)))
 
   /** select which mask group. */
+  @public
   val maskSelect: UInt = IO(Output(UInt(parameter.maskGroupSizeBits.W)))
 
   /** The sew of instruction which is requesting for mask. */
+  @public
   val maskSelectSew: UInt = IO(Output(UInt(2.W)))
 
   /** from [[T1.lsu]] to [[Lane.vrf]], indicate it's the load store is finished, used for chaining.
     * because of load store index EEW, is complicated for lane to calculate whether LSU is finished.
     * let LSU directly tell each lane it is finished.
     */
+  @public
   val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** If lsu changes the mask group, you need to tell vrf */
+  @public
   val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** for RaW, VRF should wait for buffer to be empty. */
+  @public
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** for RaW, VRF should wait for cross write bus to be empty. */
+  @public
   val dataInCrossBus: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   /** How many dataPath will writ by instruction in this lane */
+  @public
   val writeCount: UInt =
     IO(Input(UInt((parameter.vlMaxBits - log2Ceil(parameter.laneNumber) - log2Ceil(parameter.dataPathByteWidth)).W)))
+  @public
   val writeQueueValid: Bool = IO(Output(Bool()))
+  @public
   val writeReadyForLsu: Bool = IO(Output(Bool()))
+  @public
   val vrfReadyToStore: Bool = IO(Output(Bool()))
+  @public
   val crossWriteDataInSlot: UInt = IO(Output(UInt(parameter.chainingSize.W)))
+  @public
+  val probeStage0EnqueueReady = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage0EnqueueReady"))
+  @public
+  val probeStage0EnqueueValid = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage0EnqueueValid"))
+  @public
+  val probeChangingMaskSet = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}ChangingMaskSet"))
+  @public
+  val probeSlotActive = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}SlotActive"))
+  @public
+  val probeSlotOccupied = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}SlotOccupied"))
+  @public
+  val probePipeFinish = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}PipeFinish"))
+  @public
+  val probeSlotShiftValid = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}SlotShiftValid"))
+  @public
+  val probeDecodeResultIsCrossReadOrWrite = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}DecodeResultIsCrossReadOrWrite"))
+  @public
+  val probeDecodeResultIsScheduler = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}DecodeResultIsScheduler"))
+  @public
+  val probeExecutionUnitVfuRequestReady = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}ExecutionUnitVfuRequestReady"))
+  @public
+  val probeExecutionUnitVfuRequestValid = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}ExecutionUnitVfuRequestValid"))
+  @public
+  val probeStage3VrfWriteReady = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage3VrfWriteReady"))
+  @public
+  val probeStage3VrfWriteValid = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage3VrfWriteValid"))
+  @public
+  val probeProbeStage1 = Seq.tabulate(parameter.chainingSize)(index => IO(Output(Probe(Bool()))).suggestName(s"slot${index}Stage1Probes"))
+  @public
+  val probeLaneRequestValid = IO(Output(Probe(Bool())))
+  @public
+  val probeLaneRequestReady = IO(Output(Probe(Bool())))
+  @public
+  val probeLastSlotOccupied = IO(Output(Probe(Bool())))
+  @public
+  val probeVrfInstructionWriteReportReady = IO(Output(Probe(Bool())))
+  @public
+  val probeInstructionFinished: UInt = IO(Output(Probe(chiselTypeOf(instructionFinished))))
 
   // TODO: remove
   dontTouch(writeBusPort)
 
   /** VRF instantces. */
-  val vrf: VRF = Module(new VRF(parameter.vrfParam))
+  val vrf: Instance[VRF] = Instantiate(new VRF(parameter.vrfParam))
 
   /** TODO: review later
     */
@@ -406,10 +470,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       pipe = true
     )
   ))
-
-  val maskedWriteUnit: MaskedWrite = Module(new MaskedWrite(parameter))
+  val maskedWriteUnit: Instance[MaskedWrite] = Instantiate(new MaskedWrite(parameter))
   val dataInPipeQueue: UInt = Wire(UInt(parameter.chainingSize.W))
-  val slotProbes = slotControl.zipWithIndex.map {
+  slotControl.zipWithIndex.foreach {
     case (record, index) =>
       val decodeResult: DecodeBundle = record.laneRequest.decodeResult
       val isLastSlot: Boolean = index == 0
@@ -466,11 +529,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       }
 
       val laneState: LaneState = Wire(new LaneState(parameter))
-      val stage0: LaneStage0 = Module(new LaneStage0(parameter, isLastSlot))
-      val stage1 = Module(new LaneStage1(parameter, isLastSlot))
-      val stage2 = Module(new LaneStage2(parameter, isLastSlot))
-      val executionUnit: LaneExecutionBridge = Module(new LaneExecutionBridge(parameter, isLastSlot, index))
-      val stage3 = Module(new LaneStage3(parameter, isLastSlot))
+      val stage0: Instance[LaneStage0] = Instantiate(new LaneStage0(parameter, isLastSlot))
+      val stage1: Instance[LaneStage1] = Instantiate(new LaneStage1(parameter, isLastSlot))
+      val stage2: Instance[LaneStage2] = Instantiate(new LaneStage2(parameter, isLastSlot))
+      val executionUnit: Instance[LaneExecutionBridge] = Instantiate(new LaneExecutionBridge(parameter, isLastSlot, index))
+      val stage3: Instance[LaneStage3] = Instantiate(new LaneStage3(parameter, isLastSlot))
 
       // slot state
       laneState.vSew1H := vSew1H
@@ -691,53 +754,19 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage3.vrfWriteRequest.ready := vrfWriteArbiter(index).ready
 
       pipeClear := !Seq(stage0.stageValid, stage1.stageValid, stage2.stageValid, stage3.stageValid, dataInWritePipe).reduce(_ || _)
-
-      // Probes
-      object probe {
-        def newProbe() = IO(Output(Probe(Bool())))
-
-        val stage0EnqueueReady = newProbe().suggestName(s"stage0EnqueueReady${index}")
-        val stage0EnqueueValid = newProbe().suggestName(s"stage0EnqueueValid${index}")
-
-        val changingMaskSet = newProbe().suggestName(s"changingMaskSet${index}")
-
-        val slotActive = newProbe().suggestName(s"slotActive${index}")
-        val slotOccupied = newProbe().suggestName(s"slotOccupied${index}")
-        val pipeFinish = newProbe().suggestName(s"pipeFinish${index}")
-
-        val slotShiftValid = newProbe().suggestName(s"slotShiftValid${index}")
-        val decodeResultIsCrossReadOrWrite = newProbe().suggestName(s"decodeResultIsCrossReadOrWrite${index}")
-        val decodeResultIsScheduler = newProbe().suggestName(s"decodeResultIsScheduler${index}")
-
-        val executionUnitVfuRequestReady = newProbe().suggestName(s"executionUnitVfuRequestReady${index}")
-        val executionUnitVfuRequestValid = newProbe().suggestName(s"executionUnitVfuRequestValid${index}")
-
-        val stage3VrfWriteReady = newProbe().suggestName(s"stage3VrfWriteReady${index}")
-        val stage3VrfWriteValid = newProbe().suggestName(s"stage3VrfWriteValid${index}")
-
-        val stage1Probes = stage1.stageProbe
-      }
-
-      define(probe.stage0EnqueueReady, ProbeValue(stage0.enqueue.ready))
-      define(probe.stage0EnqueueValid, ProbeValue(stage0.enqueue.valid))
-      define(probe.changingMaskSet, ProbeValue(record.mask.valid || !record.laneRequest.mask))
-      define(probe.slotActive, ProbeValue(slotActive(index)))
-
-      // Signals about why slot is stall
-      define(probe.slotOccupied, ProbeValue(slotOccupied(index)))
-      define(probe.pipeFinish, ProbeValue(pipeFinishVec(index)))
-
-      // If this is not the last slot, don't populate probe for these signals
-      define(probe.slotShiftValid, ProbeValue(slotShiftValid(index)))
-      define(probe.decodeResultIsCrossReadOrWrite, ProbeValue(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)))
-      define(probe.decodeResultIsScheduler, ProbeValue(decodeResult(Decoder.scheduler)))
-
-      define(probe.executionUnitVfuRequestReady, ProbeValue(executionUnit.vfuRequest.ready))
-      define(probe.executionUnitVfuRequestValid, ProbeValue(executionUnit.vfuRequest.valid))
-
-      define(probe.stage3VrfWriteReady, ProbeValue(stage3.vrfWriteRequest.ready))
-      define(probe.stage3VrfWriteValid, ProbeValue(stage3.vrfWriteRequest.valid))
-      probe
+      define(probeStage0EnqueueReady(index), ProbeValue(stage0.enqueue.ready))
+      define(probeStage0EnqueueValid(index), ProbeValue(stage0.enqueue.valid))
+      define(probeChangingMaskSet(index), ProbeValue(record.mask.valid || !record.laneRequest.mask))
+      define(probeSlotActive(index), ProbeValue(slotActive(index)))
+      define(probeSlotOccupied(index), ProbeValue(slotOccupied(index)))
+      define(probePipeFinish(index), ProbeValue(pipeFinishVec(index)))
+      define(probeSlotShiftValid(index), ProbeValue(slotShiftValid(index)))
+      define(probeDecodeResultIsCrossReadOrWrite(index), ProbeValue(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)))
+      define(probeDecodeResultIsScheduler(index), ProbeValue(decodeResult(Decoder.scheduler)))
+      define(probeExecutionUnitVfuRequestReady(index), ProbeValue(executionUnit.vfuRequest.ready))
+      define(probeExecutionUnitVfuRequestValid(index), ProbeValue(executionUnit.vfuRequest.valid))
+      define(probeStage3VrfWriteReady(index), ProbeValue(stage3.vrfWriteRequest.ready))
+      define(probeStage3VrfWriteValid(index), ProbeValue(stage3.vrfWriteRequest.valid))
   }
 
 
@@ -1084,26 +1113,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   writeReadyForLsu := vrf.writeReadyForLsu
   vrfReadyToStore := vrf.vrfReadyToStore
 
-  /**
-    * probes
-    */
-  val laneRequestValidProbe = IO(Output(Probe(Bool())))
-  val laneRequestReadyProbe = IO(Output(Probe(Bool())))
-  define(laneRequestValidProbe, ProbeValue(laneRequest.valid))
-  define(laneRequestReadyProbe, ProbeValue(laneRequest.ready))
-
-  val lastSlotOccupiedProbe = IO(Output(Probe(Bool())))
-  define(lastSlotOccupiedProbe, ProbeValue(slotOccupied.last))
-
-  val vrfInstructionWriteReportReadyProbe = IO(Output(Probe(Bool())))
-  define(vrfInstructionWriteReportReadyProbe, ProbeValue(vrf.instructionWriteReport.ready))
-
-  val slotOccupiedProbe = slotOccupied.map(occupied => {
-    val occupiedProbe = IO(Output(Probe(Bool())))
-    define(occupiedProbe, ProbeValue(occupied))
-    occupiedProbe
-  })
-
-  val instructionFinishedProbe: UInt = IO(Output(Probe(chiselTypeOf(instructionFinished))))
-  define(instructionFinishedProbe, ProbeValue(instructionFinished))
+  define(probeLaneRequestValid, ProbeValue(laneRequest.valid))
+  define(probeLaneRequestReady, ProbeValue(laneRequest.ready))
+  define(probeLastSlotOccupied, ProbeValue(slotOccupied.last))
+  define(probeVrfInstructionWriteReportReady, ProbeValue(vrf.instructionWriteReport.ready))
+  define(probeInstructionFinished, ProbeValue(instructionFinished))
 }

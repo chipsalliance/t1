@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.vfu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.util._
 
 /**
@@ -30,11 +31,16 @@ import chisel3.util._
   *}}}
   *
   */
+@instantiable
 class VectorAdder32 extends Module {
   val width = 32
+  @public
   val a: UInt = IO(Input(UInt(width.W)))
+  @public
   val b: UInt = IO(Input(UInt(width.W)))
+  @public
   val z: UInt = IO(Output(UInt(width.W)))
+  @public
   val sew = IO(Input(UInt(3.W)))
 
 
@@ -42,7 +48,9 @@ class VectorAdder32 extends Module {
   val e = indexSeq.map(i => i * 8)
   val s = Seq(7,15,23,31)
 
+  @public
   val cin = IO(Input(UInt(4.W)))
+  @public
   val cout = IO(Output(UInt(4.W)))
 
   // Split up bit vectors into individual bits and reverse it
@@ -166,7 +174,7 @@ object VectorAdder32 {
   def apply(a: UInt,
             b: UInt,
             sew:UInt) = {
-    val adder64 = Module(new VectorAdder32)
+    val adder64 = Instantiate(new VectorAdder32)
     adder64.a := a
     adder64.b := b
     adder64.cin := 0.U

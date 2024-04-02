@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lsu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.{CSRInterface, LSURequest}
 
@@ -15,6 +16,7 @@ trait LSUPublic {
   val status: LSUBaseStatus
 }
 
+@instantiable
 abstract class StrideBase(param: MSHRParam) extends Module {
   // max nField = 8
   val bufferSize: Int = 8
@@ -28,6 +30,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   /** [[LSURequest]] from LSU
    * see [[LSU.request]]
    */
+  @public
   val lsuRequest: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth))))
 
   /** request from LSU. */
@@ -37,6 +40,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   /** the CSR interface from [[V]], latch them here.
    * TODO: merge to [[LSURequest]]
    */
+  @public
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(param.vlMaxBits)))
 
   /** latch CSR.
@@ -49,13 +53,15 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   /** mask from [[V]]
    * see [[LSU.maskInput]]
    */
+  @public
   val maskInput: UInt = IO(Input(UInt(param.maskGroupWidth.W)))
 
   /** the address of the mask group in the [[V]].
    * see [[LSU.maskSelect]]
    */
+  @public
   val maskSelect: ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
-
+  @public
   val addressConflict: Bool = IO(Input(Bool()))
   val requestFireNext: Bool = RegNext(lsuRequest.valid, false.B)
   // always use intermediate from instruction for unit stride.

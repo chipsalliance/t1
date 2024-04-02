@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl.lsu
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.probe._
 import chisel3.util.experimental.BitSet
@@ -138,16 +139,19 @@ case class MSHRParam(
  *
  * tl.d is handled independently.
  */
+@instantiable
 class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
 
   /** [[LSURequest]] from LSU
    * see [[LSU.request]]
    */
+  @public
   val lsuRequest: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth))))
 
   /** read channel to [[V]], which will redirect it to [[Lane.vrf]].
    * see [[LSU.vrfReadDataPorts]]
    */
+  @public
   val vrfReadDataPorts: DecoupledIO[VRFReadRequest] = IO(
     Decoupled(new VRFReadRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits))
   )
@@ -155,27 +159,33 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /** hard wire form Top.
    * see [[LSU.vrfReadResults]]
    */
+  @public
   val vrfReadResults: UInt = IO(Input(UInt(param.datapathWidth.W)))
 
   /** offset of indexed load/store instructions. */
+  @public
   val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
 
   /** mask from [[V]]
    * see [[LSU.maskInput]]
    */
+  @public
   val maskInput: UInt = IO(Input(UInt(param.maskGroupWidth.W)))
 
   /** the address of the mask group in the [[V]].
    * see [[LSU.maskSelect]]
    */
+  @public
   val maskSelect: ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
 
   /** TileLink Port which will be route to the [[LSU.tlPort]]. */
+  @public
   val tlPort: TLBundle = IO(param.tlParam.bundle())
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
    * see [[LSU.vrfWritePort]]
    */
+  @public
   val vrfWritePort: DecoupledIO[VRFWriteRequest] = IO(
     Decoupled(
       new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
@@ -185,9 +195,11 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /** the CSR interface from [[V]], latch them here.
    * TODO: merge to [[LSURequest]]
    */
+  @public
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(param.vlMaxBits)))
 
   /** notify [[LSU]] the status of [[MSHR]] */
+  @public
   val status: SimpleAccessStatus = IO(Output(new SimpleAccessStatus(param.laneNumber)))
 
   val s0Fire: Bool = Wire(Bool())
@@ -1022,48 +1034,66 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /**
    * probes for monitoring internal signal
    */
+  @public
   val lsuRequestValidProbe = IO(Output(Probe(Bool())))
   define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
 
+  @public
   val s0EnqueueValidProbe = IO(Output(Probe(Bool())))
   define(s0EnqueueValidProbe, ProbeValue(s0EnqueueValid))
+  @public
   val stateIsRequestProbe = IO(Output(Probe(Bool())))
   define(stateIsRequestProbe, ProbeValue(stateIsRequest))
+  @public
   val maskCheckProbe = IO(Output(Probe(Bool())))
   define(maskCheckProbe, ProbeValue(maskCheck))
+  @public
   val indexCheckProbe = IO(Output(Probe(Bool())))
   define(indexCheckProbe, ProbeValue(indexCheck))
+  @public
   val fofCheckProbe = IO(Output(Probe(Bool())))
   define(fofCheckProbe, ProbeValue(fofCheck))
 
+  @public
   val s0FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s0Fire))))
   define(s0FireProbe, ProbeValue(s0Fire))
 
+  @public
   val s1FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s1Fire))))
   define(s1FireProbe, ProbeValue(s1Fire))
 
+  @public
   val tlPortAReadyProbe = IO(Output(Probe(Bool())))
   define(tlPortAReadyProbe, ProbeValue(tlPort.a.ready))
+  @public
   val tlPortAValidProbe = IO(Output(Probe(Bool())))
   define(tlPortAValidProbe, ProbeValue(tlPort.a.valid))
+  @public
   val s1ValidProbe = IO(Output(Probe(Bool())))
   define(s1ValidProbe, ProbeValue(s1Valid))
+  @public
   val sourceFreeProbe = IO(Output(Probe(Bool())))
   define(sourceFreeProbe, ProbeValue(sourceFree))
 
+  @public
   val s2FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s2Fire))))
   define(s2FireProbe, ProbeValue(s2Fire))
 
+  @public
   val tlPortDReadyProbe = IO(Output(Probe(Bool())))
   define(tlPortDReadyProbe, ProbeValue(tlPort.d.ready))
+  @public
   val tlPortDValidProbe = IO(Output(Probe(Bool())))
   define(tlPortDValidProbe, ProbeValue(tlPort.d.valid))
 
+  @public
   val stateValueProbe: UInt = IO(Output(Probe(chiselTypeOf(state))))
   define(stateValueProbe, ProbeValue(state))
 
+  @public
   val vrfWritePortIsValidProbe: Bool = IO(Output(Probe(Bool())))
   define(vrfWritePortIsValidProbe, ProbeValue(vrfWritePort.valid))
+  @public
   val vrfWritePortIsReadyProbe: Bool = IO(Output(Probe(Bool())))
   define(vrfWritePortIsReadyProbe, ProbeValue(vrfWritePort.ready))
 }

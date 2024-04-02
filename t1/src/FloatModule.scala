@@ -4,11 +4,14 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.TruthTable
 import hardfloat._
 
+@instantiable
 class FloatAdder(expWidth: Int, sigWidth:Int) extends Module {
+  @public
   val io = IO(new Bundle {
     val a = Input(UInt((expWidth + sigWidth).W))
     val b = Input(UInt((expWidth + sigWidth).W))
@@ -34,7 +37,9 @@ class FloatAdder(expWidth: Int, sigWidth:Int) extends Module {
   *
   * perform a quiet comparing in IEEE-754
   */
+@instantiable
 class FloatCompare(expWidth: Int, sigWidth:Int) extends Module {
+  @public
   val io = IO(new Bundle {
     val a = Input(UInt((expWidth + sigWidth).W))
     val b = Input(UInt((expWidth + sigWidth).W))
