@@ -32,25 +32,26 @@ abstract class VFUModule(p: VFUParameter) extends Module {
   val retime: Option[Property[Int]] = Option.when(p.latency > 1)(IO(Property[Int]()))
   retime.foreach(_ := Property(p.latency))
 
-  if (p.singleCycle) {
-    requestIO.ready := true.B
-  }
+  val vfuRequestReady: Option[Bool] = Option.when(!p.singleCycle)(Wire(Bool()))
+  val requestReg: VFUPipeBundle = RegEnable(requestIO.bits, 0.U.asTypeOf(requestIO.bits), requestIO.fire)
+  val requestRegValid: Bool = RegInit(false.B)
+  val vfuRequestFire: Bool = vfuRequestReady.getOrElse(true.B) && requestRegValid
 
   def connectIO(response: VFUPipeBundle, responseValid: Bool = true.B): Data = {
     response.tag := DontCare
     if (p.singleCycle && p.latency == 0) {
       responseIO.bits := response.asTypeOf(responseIO.bits)
-      responseIO.valid := requestIO.valid
+      responseIO.valid := requestRegValid
     } else {
       val responseWire = WireDefault(response.asTypeOf(responseIO.bits))
       val responseValidWire: Bool = Wire(Bool())
       // connect tag
       if (p.singleCycle) {
-        responseWire.tag := requestIO.bits.tag
-        responseValidWire := requestIO.valid
+        responseWire.tag := requestReg.tag
+        responseValidWire := requestRegValid
       } else {
         // for div...
-        responseWire.tag := RegEnable(requestIO.bits.tag, 0.U, requestIO.fire)
+        responseWire.tag := RegEnable(requestReg.tag, 0.U, vfuRequestFire)
         responseValidWire := responseValid
       }
       // todo: Confirm the function of 'Pipe'
@@ -58,7 +59,18 @@ abstract class VFUModule(p: VFUParameter) extends Module {
       responseIO.valid := pipeResponse.valid
       responseIO.bits := pipeResponse.bits
     }
-    requestIO.bits
+    requestReg
+  }
+
+  // update requestRegValid
+  if (p.singleCycle) {
+    requestIO.ready := true.B
+    requestRegValid := requestIO.fire
+  } else {
+    when(vfuRequestFire ^ requestIO.fire) {
+      requestRegValid := requestIO.fire
+    }
+    requestIO.ready := !requestRegValid || vfuRequestReady.get
   }
 }
 

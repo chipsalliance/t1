@@ -45,15 +45,15 @@ class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with Ser
   wrapper.input.bits.dividend := request.src.last.asSInt
   wrapper.input.bits.divisor := request.src.head.asSInt
   wrapper.input.bits.signIn := request.sign
-  wrapper.input.valid := requestIO.valid
+  wrapper.input.valid := requestRegValid
 
-  val requestFire: Bool = requestIO.fire
+  val requestFire: Bool = vfuRequestFire
   val remReg:   Bool = RegEnable(request.opcode===1.U, false.B, requestFire)
   val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestFire)
   response.busy := RegEnable(requestFire, false.B, requestFire ^ responseIO.valid)
 
   response.executeIndex := indexReg
-  requestIO.ready := wrapper.input.ready
+  vfuRequestReady.foreach(_ := wrapper.input.ready)
   responseValid := wrapper.output.valid
   response.data := Mux(remReg, wrapper.output.bits.reminder.asUInt, wrapper.output.bits.quotient.asUInt)
 }

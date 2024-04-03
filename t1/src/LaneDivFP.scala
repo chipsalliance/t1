@@ -63,15 +63,15 @@ class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with
   wrapper.input.bits.opFloat := fractEn
   wrapper.input.bits.opSqrt    := sqrt
   wrapper.input.bits.opRem     := isRem
-  wrapper.input.valid        := requestIO.valid
+  wrapper.input.valid        := requestRegValid
   wrapper.input.bits.roundingMode := request.roundingMode
 
-  val requestFire: Bool = requestIO.fire
+  val requestFire: Bool = vfuRequestFire
   val indexReg: UInt = RegEnable(request.executeIndex, 0.U, requestFire)
   response.busy := RegEnable(requestFire, false.B, requestFire ^ responseIO.valid)
 
+  vfuRequestReady.foreach(_ := wrapper.input.ready)
   response.executeIndex   := indexReg
-  requestIO.ready         := wrapper.input.ready
   responseValid        := wrapper.output.valid
   response.data           := wrapper.output.bits.result
   response.exceptionFlags := wrapper.output.bits.exceptionFlags
