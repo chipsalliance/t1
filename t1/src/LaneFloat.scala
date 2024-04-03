@@ -265,6 +265,5 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   response.data := result
   response.exceptionFlags := flags
   response.executeIndex := request.executeIndex
-  requestIO.ready := true.B
 }
 
