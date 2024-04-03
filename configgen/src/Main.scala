@@ -95,7 +95,7 @@ object Main {
           (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
         ),
         mulModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 1)), Seq(0, 1, 2, 3))
+          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
         ),
         divModuleParameters = Seq(),
         divfpModuleParameters =
@@ -172,7 +172,7 @@ object Main {
           (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
         ),
         mulModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 1)), Seq(0, 1, 2, 3))
+          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
         ),
         divModuleParameters = Seq(
           (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq(0, 1, 2, 3))
@@ -251,7 +251,7 @@ object Main {
           (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
         ),
         mulModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 1)), Seq(0, 1, 2, 3))
+          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
         ),
         divModuleParameters = Seq(
           (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq(0, 1, 2, 3))
@@ -323,7 +323,7 @@ object Main {
           (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 0)), Seq(0, 1, 2, 3))
         ),
         mulModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 0)), Seq(0, 1, 2, 3))
+          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
         ),
         divModuleParameters = Seq(
           (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
