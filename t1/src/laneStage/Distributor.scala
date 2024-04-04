@@ -18,6 +18,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   // response to LaneExecutionBridge
   val responseToSlot: ValidIO[VFUResponseToSlot] = IO(Valid(dequeue))
 
+  val responseWire: ValidIO[VFUResponseToSlot] = WireDefault(0.U.asTypeOf(responseToSlot))
   val requestReg: ValidIO[SlotRequestToVFU] = RegInit(0.U.asTypeOf(Valid(enqueue)))
   val sendRequestValid: Bool = RegInit(false.B)
   val ffoSuccess: Bool = RegInit(false.B)
@@ -28,7 +29,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   val vSew1HReq: UInt = UIntToOH(requestFromSlot.bits.vSew)(2, 0)
   val vSew1H = UIntToOH(requestReg.bits.vSew)(2, 0)
 
-  when(requestFromSlot.fire ^ responseToSlot.fire) {
+  when(requestFromSlot.fire ^ responseWire.valid) {
     requestReg.valid := requestFromSlot.fire
   }
   val lastRequestFire = Wire(Bool())
@@ -158,10 +159,12 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   }
 
   requestFromSlot.ready := !requestReg.valid || isLastResponse
-  responseToSlot.valid := isLastResponse && requestReg.valid
-  // todo: clipFail ffoSuccess vxsat exceptionFlags?
-  responseToSlot.bits := DontCare
-  responseToSlot.bits.data := resultUpdate
-  responseToSlot.bits.ffoSuccess := updateFFO
-  responseToSlot.bits.tag := requestReg.bits.tag
+
+  responseWire.valid := isLastResponse && requestReg.valid
+  responseWire.bits.data := resultUpdate
+  responseWire.bits.ffoSuccess := updateFFO
+  responseWire.bits.tag := requestReg.bits.tag
+
+  val pipeResponse: ValidIO[VFUResponseToSlot] = RegNext(responseWire, 0.U.asTypeOf(responseToSlot))
+  responseToSlot <> pipeResponse
 }
