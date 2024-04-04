@@ -191,6 +191,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val chainingRecord: Vec[ValidIO[VRFWriteReport]] = RegInit(
     VecInit(Seq.fill(parameter.chainingSize + 1)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
   )
+  val chainingRecordCopy: Vec[ValidIO[VRFWriteReport]] = RegInit(
+    VecInit(Seq.fill(parameter.chainingSize + 1)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
+  )
   val recordValidVec: Seq[Bool] = chainingRecord.map(r => !r.bits.elementMask.andR && r.valid)
 
   // first read
@@ -343,7 +346,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val loadUnitReadPorts: Seq[DecoupledIO[VRFReadRequest]] = Seq(readRequests.last)
   val loadReadOH: Seq[UInt] =
     loadUnitReadPorts.map(p => UIntToOH((p.bits.vs ## p.bits.offset)(parameter.vrfOffsetBits + 3 - 1, 0)))
-  chainingRecord.zipWithIndex.foreach {
+  Seq(chainingRecord, chainingRecordCopy).foreach{ recordVec => recordVec.zipWithIndex.foreach {
     case (record, i) =>
       val dataIndexWriteQueue = ohCheck(dataInWriteQueue, record.bits.instIndex, parameter.chainingSize)
       val dataInLsuQueue = ohCheck(loadDataInLSUWriteQueue, record.bits.instIndex, parameter.chainingSize)
@@ -391,10 +394,10 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       }.elsewhen(elementUpdateValid) {
         record.bits.elementMask := record.bits.elementMask | elementUpdate1H
       }
-  }
+  }}
   // 判断lsu 是否可以写
   val hazardVec: Seq[IndexedSeq[(Bool, Bool)]] = chainingRecord.init.zipWithIndex.map { case (sourceRecord, sourceIndex) =>
-    chainingRecord.drop(sourceIndex + 1).zipWithIndex.map { case (sinkRecord, _) =>
+    chainingRecordCopy.drop(sourceIndex + 1).zipWithIndex.map { case (sinkRecord, _) =>
       val recordSeq: Seq[ValidIO[VRFWriteReport]] = Seq(sourceRecord, sinkRecord)
       val isLoad = recordSeq.map(r => r.valid && r.bits.ls && !r.bits.st)
       val isStore = recordSeq.map(r => r.valid && r.bits.ls && r.bits.st)
@@ -426,7 +429,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   writeCheck.zip(writeAllow).foreach{ case (check, allow) =>
     val checkOH: UInt = UIntToOH((check.vd ## check.offset)(parameter.vrfOffsetBits + 3 - 1, 0))
-    allow := chainingRecord.map { record =>
+    allow := chainingRecordCopy.map { record =>
       // 先看新老
       val older = instIndexL(check.instructionIndex, record.bits.instIndex)
       val sameInst = check.instructionIndex === record.bits.instIndex
