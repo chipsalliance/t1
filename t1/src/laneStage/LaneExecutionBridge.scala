@@ -275,7 +275,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   val recordQueue = Module(
     new Queue(
       new ExecutionBridgeRecordQueue(parameter, isLastSlot),
-      entries = 2 max parameter.vfuInstantiateParameter.maxLatency + 1,
+      entries = 2 max parameter.vfuInstantiateParameter.maxLatency + 2,
       flow = true
     )
   )
