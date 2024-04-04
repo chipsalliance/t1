@@ -87,6 +87,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       readRequestQueueLSB ++ readRequestQueueMSB
   val allReadQueueReady: Bool = readQueueVec.map(_.io.enq.ready).reduce(_ && _)
   val allReadQueueEmpty: Bool = readQueueVec.map(!_.io.deq.valid).reduce(_ && _)
+  readQueueVec.foreach(q => q.io.enq.bits.instructionIndex := state.instructionIndex)
   enqueue.ready := allReadQueueReady && pipeQueue.io.enq.ready
 
   // request enqueue
@@ -170,8 +171,6 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   // read port connect
   vrfReadRequest.zip(pipeVec).foreach { case (port, pipe) => port <> pipe.vrfReadRequest }
   vrfReadResult.zip(pipeVec).foreach { case (result, pipe) => pipe.vrfReadResult := result }
-  // replace instructionIndex
-  vrfReadRequest.foreach(_.bits.instructionIndex := state.instructionIndex)
 
   val dataQueueVs1: DecoupledIO[UInt] = Queue(readPipe0.dequeue, dataQueueSize)
   val dataQueueVs2: Queue[UInt] = Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize))

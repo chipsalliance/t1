@@ -830,7 +830,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     vrf.write <> maskedWriteUnit.dequeue
     readBeforeMaskedWrite <> maskedWriteUnit.vrfReadRequest
     writeQueueValid := maskedWriteUnit.enqueue.valid || maskedWriteUnit.dequeue.valid ||
-      topWriteQueue.valid || vrfWriteChannel.valid ||
+      topWriteQueue.valid || vrfWriteChannel.valid || queueBeforeMaskWrite.io.enq.valid ||
       crossLaneWriteQueue.map(q => q.io.deq.valid || q.io.enq.valid).reduce(_ || _)
 
     //更新v0

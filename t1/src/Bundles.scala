@@ -430,6 +430,8 @@ class VRFReadQueueEntry(regNumBits: Int, offsetBits: Int) extends Bundle {
   // for debug
   val groupIndex: UInt = UInt(4.W)
   val readSource: UInt = UInt(4.W)
+  // Pipe due to fan-out
+  val instructionIndex: UInt = UInt(3.W)
 }
 
 class VRFWriteRequest(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {

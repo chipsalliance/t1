@@ -40,7 +40,7 @@ class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends 
   vrfReadRequest.bits.vs := reqArbitrate.io.out.bits.vs
   vrfReadRequest.bits.readSource := reqArbitrate.io.out.bits.readSource
   vrfReadRequest.bits.offset := reqArbitrate.io.out.bits.offset
-  vrfReadRequest.bits.instructionIndex := DontCare
+  vrfReadRequest.bits.instructionIndex := reqArbitrate.io.out.bits.instructionIndex
   reqArbitrate.io.out.ready := dataStageFree && vrfReadRequest.ready
 
   // read pipe stage1
