@@ -775,6 +775,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   }
 
+  // It’s been a long time since I selected it. Need pipe
+  val queueBeforeMaskWrite: Queue[VRFWriteRequest] =
+    Module(new Queue(chiselTypeOf(maskedWriteUnit.enqueue.bits), entries = 1, pipe = true))
+  val dataInPipeQueue = Mux(
+    queueBeforeMaskWrite.io.deq.valid,
+    indexToOH(queueBeforeMaskWrite.io.deq.bits.instructionIndex, parameter.chainingSize),
+    0.U
+  )
   // 处理 rf
   {
     val readBeforeMaskedWrite: DecoupledIO[VRFReadRequest] = Wire(Decoupled(
@@ -810,12 +818,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       check.instructionIndex := write.bits.instructionIndex
     }
     val checkResult = vrf.writeAllow.asUInt
+
     // Arbiter
     val writeSelect: UInt = ffo(checkResult & VecInit(allVrfWrite.map(_.valid)).asUInt)
-    allVrfWrite.zipWithIndex.foreach{ case (p, i) => p.ready := writeSelect(i) && maskedWriteUnit.enqueue.ready }
-    //
-    maskedWriteUnit.enqueue.valid := writeSelect.orR
-    maskedWriteUnit.enqueue.bits := Mux1H(writeSelect, allVrfWrite.map(_.bits))
+    allVrfWrite.zipWithIndex.foreach{ case (p, i) => p.ready := writeSelect(i) && queueBeforeMaskWrite.io.enq.ready }
+
+    maskedWriteUnit.enqueue <> queueBeforeMaskWrite.io.deq
+    queueBeforeMaskWrite.io.enq.valid := writeSelect.orR
+    queueBeforeMaskWrite.io.enq.bits := Mux1H(writeSelect, allVrfWrite.map(_.bits))
 
     vrf.write <> maskedWriteUnit.dequeue
     readBeforeMaskedWrite <> maskedWriteUnit.vrfReadRequest
@@ -1065,7 +1075,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.dataInWriteQueue :=
     crossLaneWriteQueue.map(q => Mux(q.io.deq.valid, indexToOH(q.io.deq.bits.instructionIndex, parameter.chainingSize), 0.U)).reduce(_ | _)|
       Mux(topWriteQueue.valid, indexToOH(topWriteQueue.bits.instructionIndex, parameter.chainingSize), 0.U) |
-      maskedWriteUnit.maskedWrite1H
+      maskedWriteUnit.maskedWrite1H | dataInPipeQueue
   instructionFinished := instructionFinishedVec.reduce(_ | _)
   crossWriteDataInSlot := crossWriteDataInSlotVec.reduce(_ | _)
   writeReadyForLsu := vrf.writeReadyForLsu
