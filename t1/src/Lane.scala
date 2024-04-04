@@ -778,11 +778,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // It’s been a long time since I selected it. Need pipe
   val queueBeforeMaskWrite: Queue[VRFWriteRequest] =
     Module(new Queue(chiselTypeOf(maskedWriteUnit.enqueue.bits), entries = 1, pipe = true))
-  val dataInPipeQueue = Mux(
+  val dataInPipeQueue: UInt = Mux(
     queueBeforeMaskWrite.io.deq.valid,
     indexToOH(queueBeforeMaskWrite.io.deq.bits.instructionIndex, parameter.chainingSize),
     0.U
   )
+
   // 处理 rf
   {
     val readBeforeMaskedWrite: DecoupledIO[VRFReadRequest] = Wire(Decoupled(
