@@ -805,33 +805,23 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val aluInput2 = Mux1H(UIntToOH(executeCounter), data.map(d => Mux(d.valid, d.bits, 0.U)))
       val skipFlotReduce: Bool = !Mux1H(UIntToOH(executeCounter), flotReduceValid.map(_.getOrElse(false.B)))
       // red alu instance
-      val adder:     LaneAdder = Module(new LaneAdder(parameter.adderParam))
+      val adder: ReduceAdder = Module(new ReduceAdder(parameter.datapathWidth))
       val logicUnit: LaneLogic = Module(new LaneLogic(parameter.datapathWidth))
       // option unit for flot reduce
       val floatAdder: Option[FloatAdder] = Option.when(parameter.fpuEnable)(Module(new FloatAdder(8, 24)))
       val flotCompare  = Option.when(parameter.fpuEnable)(Module(new FloatCompare(8, 24)))
 
       val sign = !decodeResultReg(Decoder.unsigned1)
-      val adderRequest = Wire(LaneAdderParam(parameter.datapathWidth, 0).inputBundle)
-      adderRequest := DontCare
-      adderRequest.src := VecInit(
+      adder.request.src := VecInit(
         Seq(
           (aluInput1(parameter.datapathWidth - 1) && sign) ## aluInput1,
           (aluInput2(parameter.datapathWidth - 1) && sign) ## aluInput2
         )
       )
       // popCount 在top视为reduce add
-      adderRequest.opcode := Mux(popCount, 0.U, decodeResultReg(Decoder.uop))
-      adderRequest.sign := sign
-      adderRequest.mask := false.B
-      adderRequest.reverse := false.B
-      adderRequest.average := false.B
-      adderRequest.saturate := false.B
-      adderRequest.vxrm := csrRegForMaskUnit.vxrm
-      adderRequest.vSew := Mux(popCount, 2.U, OHToUInt(sew1HCorrect))
-      adder.requestIO.bits := adderRequest.asTypeOf(adder.requestIO.bits)
-      adder.requestIO.valid := DontCare
-      adder.responseIO.ready := DontCare
+      adder.request.opcode := Mux(popCount, 0.U, decodeResultReg(Decoder.uop))
+      adder.request.sign := sign
+      adder.request.vSew := Mux(popCount, 2.U, OHToUInt(sew1HCorrect))
 
       floatAdder.foreach { fAdder =>
         fAdder.io.a := aluInput1
@@ -852,7 +842,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       // reduce resultSelect
       val intReduceResult = Mux(
         decodeResultReg(Decoder.adder) || popCount,
-        adder.responseIO.bits.asTypeOf(parameter.adderParam.outputBundle).data,
+        adder.response.data,
         logicUnit.resp
       )
       val flotReduceResult: Option[UInt] = Option.when(parameter.fpuEnable)(
