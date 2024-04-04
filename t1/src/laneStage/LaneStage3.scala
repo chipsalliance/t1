@@ -68,6 +68,12 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   // Used to cut off back pressure forward
   val vrfWriteQueue: Queue[VRFWriteRequest] =
     Module(new Queue(vrfWriteBundle, entries = 4, pipe = false, flow = false))
+  // The load of the pointer is a bit large, copy one
+  val vrfPtrReplica: Queue[UInt] =
+    Module(new Queue(UInt(parameter.vrfParam.vrfOffsetBits.W), entries = 4, pipe = false, flow = false))
+  vrfPtrReplica.io.enq.valid := vrfWriteQueue.io.enq.valid
+  vrfPtrReplica.io.enq.bits := vrfWriteQueue.io.enq.bits.offset
+  vrfPtrReplica.io.deq.ready := vrfWriteQueue.io.deq.ready
 
   /** Write queue ready or not need to write. */
   val vrfWriteReady: Bool = vrfWriteQueue.io.enq.ready || state.decodeResult(Decoder.sWrite)
@@ -161,4 +167,6 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     stageValid := vrfWriteQueue.io.deq.valid
   }
   vrfWriteRequest <> vrfWriteQueue.io.deq
+  vrfWriteRequest.bits.offset := vrfPtrReplica.io.deq.bits
+  vrfWriteRequest.valid := vrfPtrReplica.io.deq.valid
 }
