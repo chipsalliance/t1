@@ -202,7 +202,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
   val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
 
-  val checkSize: Int = readRequests.size + chainingRecord.size + writeCheck.size
+  val checkSize: Int = readRequests.size
   val (firstOccupied, secondOccupied) = readRequests.zipWithIndex.foldLeft(
     (0.U(parameter.rfBankNum.W), 0.U(parameter.rfBankNum.W))
   ) {
@@ -436,9 +436,12 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val older = instIndexL(check.instructionIndex, record.bits.instIndex)
       val sameInst = check.instructionIndex === record.bits.instIndex
 
-      val waw: Bool = record.bits.vd.valid && check.vd(4, 3) === record.bits.vd.bits(4, 3) &&
-        (checkOH & record.bits.elementMask) === 0.U
-      !((!older && waw) && !sameInst && record.valid)
+      // this element in record not execute
+      val notHitMask = (checkOH & record.bits.elementMask) === 0.U
+      val waw: Bool = record.bits.vd.valid && check.vd(4, 3) === record.bits.vd.bits(4, 3) && notHitMask
+      val war1: Bool = record.bits.vs1.valid && check.vd(4, 3) === record.bits.vs1.bits(4, 3) && notHitMask
+      val war2: Bool = check.vd(4, 3) === record.bits.vs2(4, 3) && notHitMask
+      !((!older && (waw || war1 || war2)) && !sameInst && record.valid)
     }.reduce(_ && _)
   }
 }
