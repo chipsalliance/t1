@@ -202,6 +202,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
   val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
 
+  val checkSize: Int = readRequests.size + chainingRecord.size + writeCheck.size
   val (firstOccupied, secondOccupied) = readRequests.zipWithIndex.foldLeft(
     (0.U(parameter.rfBankNum.W), 0.U(parameter.rfBankNum.W))
   ) {
@@ -210,12 +211,13 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     // v: readRequest
     // i: 第几个readRequests
     case ((o, t), (v, i)) =>
+      val recordSelect = if (i < (checkSize / 2)) chainingRecord else chainingRecordCopy
       // 先找到自的record
       val readRecord =
-        Mux1H(chainingRecord.map(_.bits.instIndex === v.bits.instructionIndex), chainingRecord.map(_.bits))
+        Mux1H(recordSelect.map(_.bits.instIndex === v.bits.instructionIndex), recordSelect.map(_.bits))
       val portConflictCheck = Wire(Bool())
       val checkResult:  Bool =
-        chainingRecord.zip(recordValidVec).zipWithIndex.map {
+        recordSelect.zip(recordValidVec).zipWithIndex.map {
           case ((r, f), recordIndex) =>
             val checkModule = Module(new ChainingCheck(parameter))
               .suggestName(s"ChainingCheck_readPort${i}_record${recordIndex}")
@@ -396,7 +398,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       }
   }}
   // 判断lsu 是否可以写
-  val hazardVec: Seq[IndexedSeq[(Bool, Bool)]] = chainingRecord.init.zipWithIndex.map { case (sourceRecord, sourceIndex) =>
+  val hazardVec: Seq[IndexedSeq[(Bool, Bool)]] = chainingRecordCopy.init.zipWithIndex.map { case (sourceRecord, sourceIndex) =>
     chainingRecordCopy.drop(sourceIndex + 1).zipWithIndex.map { case (sinkRecord, _) =>
       val recordSeq: Seq[ValidIO[VRFWriteReport]] = Seq(sourceRecord, sinkRecord)
       val isLoad = recordSeq.map(r => r.valid && r.bits.ls && !r.bits.st)

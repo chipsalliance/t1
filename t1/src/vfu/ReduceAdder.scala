@@ -89,7 +89,7 @@ class ReduceAdder(datapathWidth: Int) extends Module {
     less
   }
 
-  val attributeSelect: Vec[Bool] = Mux1H(
+  val lessVec: Vec[Bool] = Mux1H(
     vSew1H,
     Seq(
       VecInit(attributeVec),
@@ -97,9 +97,6 @@ class ReduceAdder(datapathWidth: Int) extends Module {
       VecInit(attributeVec(3), attributeVec(3), attributeVec(3), attributeVec(3)),
     )
   )
-
-  val lessVec: Vec[Bool] = VecInit(attributeVec)
-
 
   val responseSelect: Vec[UInt] = VecInit(adderResultVec.zipWithIndex.map { case (data, index) =>
     val less = lessVec(index)
