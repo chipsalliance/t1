@@ -229,12 +229,51 @@ object Main:
       emuPath
     else resolveEmulatorPath(config, "ip", trace.value)
 
-    val elaborateConfig =
-      ujson.read(os.read(resolveElaborateConfig(outputPath, config)))
+    import scala.util.chaining._
+    val elaborateConfig = resolveElaborateConfig(outputPath, config)
+      .pipe(os.read)
+      .pipe(text => ujson.read(text))
     val tck = scala.math.pow(10, 3) / dramsim3Frequency
     val emulatorLogPath =
       if emulatorLogFilePath.isDefined then emulatorLogFilePath.get
       else outputPath / "emulator.log"
+    val dumpStartPoint: Int =
+      try
+        val ratio = dumpCycle.toFloat
+        if ratio < 0.0 || ratio > 1.0 then
+          Logger.error(
+            s"Can't use $dumpCycle as ratio, use 0 as waveform dump start point"
+          )
+          0
+        else
+          val cycleRecordFilePath =
+            os.pwd / ".github" / "cases" / config / "default.json"
+          if !os.exists(cycleRecordFilePath) then
+            Logger.error(
+              s"$cycleRecordFilePath not found, please run this script at project root"
+            )
+            sys.exit(1)
+          val cycleRecord = os
+            .read(cycleRecordFilePath)
+            .pipe(raw => ujson.read(raw))
+            .obj(testCase)
+          if cycleRecord.isNull then
+            Logger.error(
+              s"Using ratio to specify ratio is only supported in raw test case name"
+            )
+            sys.exit(1)
+          val cycle = cycleRecord.num
+          scala.math.floor(cycle * 10 * ratio).toInt
+      catch
+        case _ =>
+          try dumpCycle.toInt
+          catch
+            case _ =>
+              Logger.error(
+                s"Unknown cycle $dumpCycle specified, using 0 as fallback"
+              )
+              0
+
     val processArgs = Seq(
       emulator.toString(),
       "--elf",
@@ -278,7 +317,10 @@ object Main:
           dramsim3Config.getOrElse("")
         )
       )
-      ++ optionals(trace.value, Seq("--dump-from-cycle", dumpCycle.toString()))
+      ++ optionals(
+        trace.value,
+        Seq("--dump-from-cycle", dumpStartPoint.toString)
+      )
 
     Logger.info(s"Starting IP emulator: `${processArgs.mkString(" ")}`")
     if dryRun.value then return
