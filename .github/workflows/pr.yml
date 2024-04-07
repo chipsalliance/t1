@@ -6,6 +6,7 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+      - labeled
 env:
   USER: runner
 
