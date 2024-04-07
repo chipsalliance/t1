@@ -84,6 +84,10 @@ lib.makeScope newScope
         mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; /* use-binder = true; */ };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
       };
+
+      release = innerSelf.callPackage ./release {
+        ip-emulator = ip.emu-trace;
+      };
     })
   )
   )
