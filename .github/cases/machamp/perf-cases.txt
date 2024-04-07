@@ -1,3 +1,0 @@
-mlir.conv
-mlir.matmul
-mlir.stripmining
