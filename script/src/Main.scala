@@ -732,6 +732,19 @@ object Main:
           val testName = path.segments.toSeq.last.stripSuffix(".json")
           s"$configName,$testName"
 
+    def getTestPlan(filePat: String): Seq[String] =
+      os.walk(os.pwd / ".github" / "cases")
+        .filter: path =>
+          path.last == filePat
+        .flatMap: path =>
+          val config = path.segments.toSeq.reverse.drop(1).head
+          os.read(path)
+            .pipe(raw => ujson.read(raw))
+            .pipe(json => json.obj.keys.map(testName => s"$config,$testName"))
+
+    val currentTestPlan = getTestPlan("default.json")
+    val perfCases = getTestPlan("perf.json")
+
     // We don't have much information for this tests, so randomly split them into same size buckets
     // Merge Seq( "A", "B", "C", "D" ) into Seq( "A;B", "C;D" )
     def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] =
@@ -743,7 +756,10 @@ object Main:
         .toSeq
         .map(_.mkString(";"))
 
-    println(toMatrixJson(buckets(testPlans, runnersAmount)))
+    val finalTestPlan = (testPlans.toSet -- currentTestPlan.toSet -- perfCases.toSet).toSeq
+    buckets(finalTestPlan, runnersAmount)
+      .pipe(toMatrixJson)
+      .pipe(println)
   end generateRegressionTestPlan
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
