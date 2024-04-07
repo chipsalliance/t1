@@ -115,19 +115,45 @@ jobs:
 
   physical-design-report:
     name: "Request physical design report"
-    if: ${{ success() && contains(github.event.pull_request.labels.*.name, 'Run Physical Design') }}
+    if: |
+      ${{ success()
+          && (
+            contains(github.event.pull_request.labels.*.name, 'PD-Lane')
+            || contains(github.event.pull_request.labels.*.name, 'PD-Lane-DBG')
+          )
+      }}
     runs-on: ubuntu-latest
     needs: [test-emit]
     steps:
       - name: "Request report"
+        env:
+          # Use env key can help us inspect the data
+          JSON_CTX: ${{ toJson(github.event.pull_request.labels.*.name) }}
         run: |
+          # GitHub `toJson` will pretty print JSON and causing multiple line escape issue
+          # So we have to redirect it to file here
+          printf "$JSON_CTX" > _ctx.json
+          pdType=$(jq -r 'map(select(. | test("^PD-Lane.*"))) | .[0]' _ctx.json)
+          if [[ -z "$pdType" ]] || [[ "$pdType" == "null" ]]; then
+            echo "Unable to filter Physical Design type"
+            exit 1
+          fi
+
+          commitSha="${{ github.event.pull_request.head.sha }}"
+          prId="${{ github.event.pull_request.number }}"
+          jq -n \
+            --arg commit_sha "$commitSha" \
+            --arg pr_id "$prId" \
+            --arg pd_type "$pdType" \
+            '{"event_type":"ci_success","client_payload":{"commit_sha": $commit_sha,"pr_id": $pr_id, "pd_type": $pd_type }}' \
+            > payload.json
           curl -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.T1_INHOUSE_PAT }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "${{ secrets.T1_INHOUSE_URL }}" \
-            -d '{"event_type":"ci_success","client_payload":{"commit_sha": "${{ github.event.pull_request.head.sha }}","pr_id": "${{ github.event.pull_request.number }}" }}'
+            -d '@payload.json'
 
   run-testcases:
     name: "Run testcases"
