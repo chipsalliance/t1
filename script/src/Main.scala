@@ -428,19 +428,6 @@ object Main:
   // The final "matrix" will have json data like: { include: [ { jobs: "taskA;taskB", id: 1 }, { jobs: "taskC;taskD", id: 2 } ] }.
   //
 
-  // Merge Seq( "A", "B", "C", "D" ) into Seq( "A;B", "C;D" )
-  //
-  // @param allTests The original Seq
-  // @param bucketSize Specify the size of the output Seq
-  def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] =
-    scala.util.Random
-      .shuffle(alltests)
-      .grouped(
-        math.ceil(alltests.size.toDouble / bucketSize).toInt
-      )
-      .toSeq
-      .map(_.mkString(";"))
-
   case class Bucket(buffer: Seq[String] = Seq(), totalCycle: Int = 0):
     def cons(data: (String, Int)): Bucket =
       val (testName, cycle) = data
@@ -471,8 +458,10 @@ object Main:
         }
         .toSeq
 
-    // _2 is the cycle number
-    val (unProcessedData, normalData) = allCycleData.partition(_._2 <= 0)
+    val (unProcessedData, normalData) =
+      allCycleData.partition:
+        case (_, cycle) => cycle <= 0
+
     // Initialize a list of buckets
     val cargoInit = (0 until bucketSize).map(_ => Bucket())
     // Group tests that have cycle data into subset by their cycle size
@@ -483,15 +472,16 @@ object Main:
         cargo.updated(cargo.indexOf(smallest), smallest.cons(elem))
 
     // For unprocessed data, just split them into subset that have equal size
-    val cargoFinal = (0 until bucketSize).foldLeft(cargoStaged)((cargo, i) =>
-      val startIdx = i * bucketSize
-      val endIdx = math.min((i + 1) * bucketSize, unProcessedData.length)
-      val newBucket = unProcessedData
-        .slice(startIdx, endIdx)
-        .foldLeft(cargo.apply(i)): (bucket, data) =>
-          bucket.cons(data)
-      cargo.updated(i, newBucket)
-    )
+    val chunkSize =
+      math.max(unProcessedData.length.toDouble / bucketSize.toDouble, 1.0)
+    val cargoFinal = unProcessedData
+      .grouped(math.ceil(chunkSize).toInt)
+      .zipWithIndex
+      .foldLeft(cargoStaged): (cargo, chunkWithIndex) =>
+        val (chunk, idx) = chunkWithIndex
+        val newBucket = chunk.foldLeft(cargoStaged.apply(idx)):
+          (bucket, data) => bucket.cons(data)
+        cargo.updated(idx, newBucket)
 
     cargoFinal.map(_.buffer.mkString(";")).toSeq
   end scheduleTasks
@@ -511,10 +501,11 @@ object Main:
   // The result will be printed to stdout, and should be pipe into $GITHUB_OUTPUT
   @main
   def generateCiMatrix(
-      runnersAmount: Int
+      runnersAmount: Int,
+      testPlanFile: String = "default.json"
   ) = {
     val testPlans =
-      os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+      os.walk(os.pwd / ".github" / "cases").filter(_.last == testPlanFile)
     println(toMatrixJson(scheduleTasks(testPlans, runnersAmount)))
   }
 
@@ -582,7 +573,11 @@ object Main:
       jobs: String,
       resultDir: Option[os.Path],
       dontBail: Boolean = false
-  ) =
+  ): Unit =
+    if jobs == "" then
+      Logger.info("No test found, exiting")
+      return
+
     var actualResultDir = resultDir.getOrElse(os.pwd / "test-results")
     val testRunDir = os.pwd / "testrun"
     os.makeDir.all(actualResultDir / "failed-logs")
@@ -645,7 +640,7 @@ object Main:
   end runTests
 
   @main
-  def mergeCycleData() = {
+  def mergeCycleData() =
     Logger.info("Updating cycle data")
     val original = os
       .walk(os.pwd / ".github" / "cases")
@@ -675,16 +670,81 @@ object Main:
         )
 
     Logger.info("Cycle data updated")
-  }
+  end mergeCycleData
 
   @main
-  def generateTestPlan() = {
+  def generateTestPlan() =
     val allCases =
       os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
     val testPlans = allCases.map: caseFilePath =>
       caseFilePath.segments.dropWhile(_ != "cases").drop(1).next
 
     println(ujson.write(Map("config" -> testPlans)))
-  }
+  end generateTestPlan
+
+  @main
+  def generateRegressionTestPlan(runnersAmount: Int): Unit =
+    // Find emulator configs
+    val emulatorConfigs: Seq[String] =
+      os.walk(os.pwd / ".github" / "cases")
+        .filter: path =>
+          path.last == "default.json"
+        .map: path =>
+          // We have a list of pwd/.github/cases/<config>/default.json string,
+          // but all we need is the <config> name.
+          path.segments.toSeq.reverse.drop(1).head
+
+    def nixBuild(attr: String): String =
+      os.proc(
+        "nix",
+        "build",
+        "--no-link",
+        "--no-warn-dirty",
+        "--print-out-paths",
+        attr
+      ).call()
+        .out
+        .trim()
+
+    import scala.util.chaining._
+    val testPlans: Seq[String] = emulatorConfigs.flatMap: configName =>
+      val allCasesPath = nixBuild(s".#t1.$configName.cases.all")
+      // We can't filter it in nix as it will make the whole t1 attribute become IFD(Import From Derivation) attribute.
+      val isFp = nixBuild(s".#t1.$configName.elaborateConfigJson")
+        // We get the elaborate config JSON file [p]ath, read it as [r]aw string
+        .pipe(p => os.read(os.Path(p)))
+        // We get the [r]aw JSON string, parse it to ujson object
+        .pipe(r => ujson.read(r))
+        // We get the u[j]son object, get the first item of the .parameter.extensions field
+        .pipe(j => j.obj("parameter").obj("extensions").arr.head.str)
+        // Now we have the extension, test if it is Zve32f
+        .pipe(ext => ext == "Zve32f")
+      // Now we know that the emulator support FP or not, generate test plan base on this information
+      os.walk(os.Path(allCasesPath) / "configs")
+        .filter: path =>
+          path.ext == "json"
+        .filter: path =>
+          os.read(path)
+            .pipe(raw => ujson.read(raw))
+            .pipe(json => json.obj("fp").bool == isFp)
+        .map: path =>
+          // configs/ directory have a list of <testName>.json files, we need those <testName>
+          val testName = path.segments.toSeq.last.stripSuffix(".json")
+          s"$configName,$testName"
+
+    // We don't have much information for this tests, so randomly split them into same size buckets
+    // Merge Seq( "A", "B", "C", "D" ) into Seq( "A;B", "C;D" )
+    def buckets(alltests: Seq[String], bucketSize: Int): Seq[String] =
+      scala.util.Random
+        .shuffle(alltests)
+        .grouped(
+          math.ceil(alltests.size.toDouble / bucketSize).toInt
+        )
+        .toSeq
+        .map(_.mkString(";"))
+
+    println(toMatrixJson(buckets(testPlans, runnersAmount)))
+  end generateRegressionTestPlan
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
+end Main
