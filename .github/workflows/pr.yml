@@ -116,13 +116,7 @@ jobs:
 
   physical-design-report:
     name: "Request physical design report"
-    if: |
-      ${{ success()
-          && (
-            contains(github.event.pull_request.labels.*.name, 'PD-Lane')
-            || contains(github.event.pull_request.labels.*.name, 'PD-Lane-DBG')
-          )
-      }}
+    if: ${{ success() && (contains(github.event.pull_request.labels.*.name, 'PD-Lane') || contains(github.event.pull_request.labels.*.name, 'PD-Lane-DBG'))}}
     runs-on: ubuntu-latest
     needs: [test-emit]
     steps:
