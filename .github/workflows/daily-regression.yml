@@ -94,6 +94,7 @@ jobs:
           path: |
             test-results-*/failed-tests.md
             test-results-*/cycle-updates.md
+            test-results-*/*_cycle.json
 
   report:
     name: "Report CI result"
@@ -101,11 +102,13 @@ jobs:
     needs: [run-testcases]
     runs-on: [self-hosted, linux, nixos]
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
       - uses: actions/download-artifact@v4
         with:
-          pattern: |
-            test-reports-*
-            perf-reports-*
+          pattern: '*-reports-*'
           merge-multiple: true
       - run: |
           echo -e "\n## Newly passed tests\n" >> "$GITHUB_STEP_SUMMARY"
@@ -115,3 +118,29 @@ jobs:
           echo -e "\n## Still failing tests\n" >> "$GITHUB_STEP_SUMMARY"
           shopt -s nullglob
           cat test-results-*/failed-tests.md >> "$GITHUB_STEP_SUMMARY"
+      - name: "Commit cycle updates"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          nix develop -c t1-helper mergeCycleData
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          changed_cases=$(git diff --name-only '.github/cases/**/perf.json')
+
+          if [ -n "$changed_cases" ]; then
+            echo "changed cases: $changed_cases"
+            currentDate=$(date +%F)
+            branch="cycle-update-$currentDate"
+            git checkout -b "$branch"
+            git add '.github/cases/**/perf.json'
+            git commit -m "[ci] update test case cycle data at $currentDate"
+            git push origin "$branch" --force-with-lease
+            nix run '.#gh' -- \
+              pr create --title "Update perf cycle" --body "Update test cycles."
+          else
+            echo "No cycle change detect"
+          fi
+      - uses: geekyeggo/delete-artifact@v4
+        with:
+          # test-reports has been used, it can be deleted
+          name: test-reports-*
