@@ -1,14 +1,11 @@
+#ifdef IPEMU
 #pragma once
-
 #include <svdpi.h>
+#include "tilelink.h"
 
 // Write this CSR to end simulation.
+// TODO: no maintaining it anymore? just wait finish
 constexpr uint32_t CSR_MSIMEND = 0x7cc;
-
-namespace TlOpcode {
-constexpr int Get = 4, AccessAckData = 1, PutFullData = 0, PutPartialData = 1,
-              AccessAck = 0;
-}
 
 struct VCsrInterfacePoke {
   svBitVecVal *vl;
@@ -19,36 +16,6 @@ struct VCsrInterfacePoke {
   svBit *vta;
   svBit *vma;
   svBit *ignoreException;
-};
-
-struct VTlInterface {
-  uint32_t channel_id;
-  svBitVecVal a_bits_opcode;
-  svBitVecVal a_bits_param;
-  svBitVecVal a_bits_size;
-  svBitVecVal a_bits_source;
-  svBitVecVal a_bits_address;
-  const svBitVecVal *a_bits_mask;
-  const svBitVecVal *a_bits_data;
-  svBit a_corrupt;
-  svBit a_valid;
-  svBit d_ready;
-};
-
-struct VTlInterfacePoke {
-  uint32_t channel_id;
-  svBitVecVal *d_bits_opcode;
-  svBitVecVal *d_bits_param;
-  svBitVecVal *d_bits_size;
-  svBitVecVal *d_bits_source;
-  svBitVecVal *d_bits_sink;
-  svBit *d_bits_denied;
-  svBitVecVal *d_bits_data;
-  svBit *d_corrupt;
-  svBit *d_valid;
-  svBit *a_ready;
-
-  svBit d_ready;
 };
 
 struct VInstrInterfacePoke {
@@ -62,11 +29,6 @@ struct VRespInterface {
   svBit valid;
   svBitVecVal data;
   svBit vxsat;
-};
-
-struct VInstrFire {
-  svBit ready;
-  svBitVecVal index;
 };
 
 struct VLsuWriteQueuePeek {
@@ -93,3 +55,4 @@ struct VrfWritePeek {
 struct VLsuReqEnqPeek {
   svBitVecVal enq;
 };
+#endif

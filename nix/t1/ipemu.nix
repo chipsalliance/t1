@@ -21,12 +21,14 @@
 stdenv.mkDerivation {
   name = "t1-${rtl.elaborateConfig}-ipemu" + lib.optionalString do-trace "-trace";
 
-  src = ../../ipemu/csrc;
+  src = ../../emulator/csrc;
 
   # CMakeLists.txt will read the environment
   env.VERILATE_SRC_DIR = toString rtl;
 
-  cmakeFlags = lib.optionals do-trace [
+  cmakeFlags = [
+    "-DIPEMU=ON"
+  ] ++ lib.optionals do-trace [
     "-DVERILATE_TRACE=ON"
   ];
 
