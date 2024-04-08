@@ -639,11 +639,11 @@ object Main:
   end runTests
 
   @main
-  def mergeCycleData() =
+  def mergeCycleData(filePat: String = "default.json") =
     Logger.info("Updating cycle data")
     val original = os
       .walk(os.pwd / ".github" / "cases")
-      .filter(_.last == "default.json")
+      .filter(_.last == filePat)
       .map: path =>
         val config = path.segments.toSeq.reverse(1)
         (config, ujson.read(os.read(path)))
@@ -664,7 +664,7 @@ object Main:
       case (name, data) =>
         val config = name.split(",")(0)
         os.write.over(
-          os.pwd / os.RelPath(s".github/cases/$config/default.json"),
+          os.pwd / ".github" / "cases" / config / filePat,
           ujson.write(data, indent = 2)
         )
 
