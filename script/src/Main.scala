@@ -463,7 +463,7 @@ object Main:
         case (_, cycle) => cycle <= 0
 
     // Initialize a list of buckets
-    val cargoInit = (0 until bucketSize).map(_ => Bucket())
+    val cargoInit = (0 until math.min(bucketSize, allCycleData.length)).map(_ => Bucket())
     // Group tests that have cycle data into subset by their cycle size
     val cargoStaged = normalData
       .sortBy(_._2)(Ordering[Int].reverse)
@@ -472,8 +472,7 @@ object Main:
         cargo.updated(cargo.indexOf(smallest), smallest.cons(elem))
 
     // For unprocessed data, just split them into subset that have equal size
-    val chunkSize =
-      math.max(unProcessedData.length.toDouble / bucketSize.toDouble, 1.0)
+    val chunkSize = unProcessedData.length.toDouble / bucketSize.toDouble
     val cargoFinal = unProcessedData
       .grouped(math.ceil(chunkSize).toInt)
       .zipWithIndex
