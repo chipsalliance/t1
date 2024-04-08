@@ -11,7 +11,7 @@ jobs:
     env:
       RUNNERS: 70
     outputs:
-      ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
+      test-plan: ${{ steps.gen-matrix.outputs.matrix }}
     steps:
       # actions/checkout will use the "event" commit to checkout repository,
       # which will lead to an unexpected issue that the "event" commit doesn't belongs to the repository,
@@ -30,7 +30,7 @@ jobs:
     needs: [gen-matrix]
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
+      matrix: ${{ fromJSON(needs.gen-matrix.outputs.test-plan) }}
     runs-on: [self-hosted, linux, nixos]
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +39,8 @@ jobs:
       - name: "Run testcases"
         run: |
           nix develop -c t1-helper runTests --jobs "${{ matrix.jobs }}" \
-            --resultDir test-results-$(head -c 10 /dev/urandom | base32)
+            --resultDir test-results-$(head -c 10 /dev/urandom | base32) \
+            --dontBail
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
@@ -55,7 +56,7 @@ jobs:
     env:
       RUNNERS: 70
     outputs:
-      ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
+      perf-plan: ${{ steps.gen-matrix.outputs.matrix }}
     steps:
       # actions/checkout will use the "event" commit to checkout repository,
       # which will lead to an unexpected issue that the "event" commit doesn't belongs to the repository,
@@ -74,7 +75,7 @@ jobs:
     needs: [gen-perf-matrix]
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
+      matrix: ${{ fromJSON(needs.gen-perf-matrix.outputs.perf-plan) }}
     runs-on: [self-hosted, linux, nixos]
     steps:
       - uses: actions/checkout@v4
