@@ -14,13 +14,21 @@ in
 
   # Override "nixpkgs" circt with "nixpkgs-for-circt".
   # To update the "nixpkgs-for-circt" input, run `nix flake lock --update-input nixpkgs-for-circt`.
-  circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt;
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
+
+  circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt.overrideAttrs (oldAttrs: rec {
+    patches = [
+      (prev.fetchpatch {
+        url = "https://github.com/llvm/circt/pull/6893.patch";
+        sha256 = "sha256-PaWMYFtKMaBLVhoqLAHh97lRlolsIwyQcHOAJNTAZFo=";
+      })
+    ];
+  });
 
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {

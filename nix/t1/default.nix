@@ -68,10 +68,10 @@ lib.makeScope newScope
       ip = {
         recurseForDerivations = true;
 
-        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ip"; /* use-binder = true; */ };
+        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ip"; use-binder = true; };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.mlirbc; };
 
-        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ipemu"; /* use-binder = true; */ };
+        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ipemu"; use-binder = true; };
         emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.emu-mlirbc; };
 
         emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; stdenv = moldStdenv; };
@@ -81,7 +81,7 @@ lib.makeScope newScope
       subsystem = {
         recurseForDerivations = true;
 
-        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; /* use-binder = true; */ };
+        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; use-binder = true; };
         rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
       };
     })
