@@ -572,7 +572,7 @@ object Main:
   def runTests(
       jobs: String,
       resultDir: Option[os.Path],
-      dontBail: Boolean = false
+      dontBail: Flag = Flag(false)
   ): Unit =
     if jobs == "" then
       Logger.info("No test found, exiting")
@@ -632,7 +632,7 @@ object Main:
         s"\n\n${BOLD}${failed.length} tests failed${RESET}:\n${failedJobsWithError}"
       )
 
-      if !dontBail then
+      if !dontBail.value then
         Logger.error("Tests failed")
         System.exit(1)
     else Logger.info(s"All tests passed")
