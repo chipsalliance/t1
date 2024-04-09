@@ -13,7 +13,6 @@
 , ip-emulator
 , cases
 , elaborateConfigJson
-, pkgsCross
 }:
 
 lib.makeScope newScope (scope: rec {
@@ -38,9 +37,7 @@ lib.makeScope newScope (scope: rec {
         --add-flags "--emulator-path ${ip-emulator}/bin/emulator"
     '';
 
-  docker-layers = scope.callPackage ./docker-layers.nix {
-    rv32-gcc = pkgsCross.riscv32-embedded.buildPackages.gcc;
-  };
+  docker-layers = scope.callPackage ./docker-layers.nix { };
 
   doc = stdenvNoCC.mkDerivation {
     name = "${configName}-typst-release-doc";

@@ -51,7 +51,7 @@ docker run --name t1 -it -v $PWD:/workspace --rm t1/release:latest /bin/bash
 
 + IP emulator: `/bin/ip-emulator`
 + Softmax/Linear Normalization/Matmul test cases: `/workspace/cases`
-+ RISCV 32 GCC ToolChain
++ RISCV 32 LLVM ToolChain
 
 == How to run workload using IP emulator
 
