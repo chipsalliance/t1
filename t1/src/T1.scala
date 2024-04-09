@@ -1536,6 +1536,12 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /** try to issue instruction to which slot. */
   val slotToEnqueue: UInt = Mux(specialInstruction, true.B ## 0.U((parameter.chainingSize - 1).W), free1H)
 
+  // Identical subscripts lead to incorrect early release of endtag\
+  // If the performance impact is too great, you can lengthen the tag.
+  val instructionIndexFree: Bool = slots.map(
+    s => s.state.idle || s.record.instructionIndex(1, 0) =/= requestReg.bits.instructionIndex(1, 0)
+  ).reduce(_ && _)
+
   /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
   val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
   // - ready to issue instruction
@@ -1546,7 +1552,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   //   we detect the hazard and decide should we issue this slide or
   //   issue the instruction after the slide which already in the slot.
   requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
-    instructionRAWReady
+    instructionRAWReady && instructionIndexFree
 
   // TODO: change to `requestRegDequeue.fire`.
   instructionToSlotOH := Mux(requestRegDequeue.ready, slotToEnqueue, 0.U)
