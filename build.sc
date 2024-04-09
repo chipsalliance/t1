@@ -287,6 +287,7 @@ trait Elaborator
   *   mill t1package.{sourceJar,jar}
   *   out/t1package/sourceJar.dest/out.jar -> t1package-sources.jar
   *   out/t1package/jar.dest/out.jar -> t1package.jar
+  *   out/t1package/chiselPluginJar.dest/out.jar -> chiselPlugin.jar
   * these two jar is enough for this usages:
   * object somepackagethatdependsont1 extends ScalaModule {
   *   def unmanagedClasspath = T(Seq(PathRef(os.pwd / "t1package.jar"), PathRef(os.pwd / "t1package-sources.jar")))
@@ -297,4 +298,9 @@ object t1package extends ScalaModule {
   def scalaVersion = T(v.scala)
   def moduleDeps = super.moduleDeps ++ Seq(t1, ipemu, subsystem, panamaconverter)
   override def sourceJar: T[PathRef] = T(Jvm.createJar(T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))().flatten.flatten.map(_.path).filter(os.exists), manifest()))
+  def chiselPluginJar = T {
+    val jar = T.dest / "out.jar"
+    os.copy(chisel.pluginModule.jar().path, jar)
+    PathRef(jar)
+  }
 }
