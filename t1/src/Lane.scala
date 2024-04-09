@@ -408,6 +408,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   ))
 
   val maskedWriteUnit: MaskedWrite = Module(new MaskedWrite(parameter))
+  val dataInPipeQueue: UInt = Wire(UInt(parameter.chainingSize.W))
   val slotProbes = slotControl.zipWithIndex.map {
     case (record, index) =>
       val decodeResult: DecodeBundle = record.laneRequest.decodeResult
@@ -536,7 +537,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       instructionUnrelatedMaskUnitVec(index) :=
         Mux(decodeResult(Decoder.maskUnit) && decodeResult(Decoder.readOnly), 0.U, instructionIndex1H)
       val dataInWritePipe: Bool =
-        ohCheck(maskedWriteUnit.maskedWrite1H, record.laneRequest.instructionIndex, parameter.chainingSize)
+        ohCheck(maskedWriteUnit.maskedWrite1H, record.laneRequest.instructionIndex, parameter.chainingSize) |
+          ohCheck(dataInPipeQueue, record.laneRequest.instructionIndex, parameter.chainingSize)
       when(slotOccupied(index) && pipeClear && pipeFinishVec(index) && !dataInWritePipe) {
         slotOccupied(index) := false.B
         instructionFinishedVec(index) := instructionIndex1H
@@ -778,7 +780,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // It’s been a long time since I selected it. Need pipe
   val queueBeforeMaskWrite: Queue[VRFWriteRequest] =
     Module(new Queue(chiselTypeOf(maskedWriteUnit.enqueue.bits), entries = 1, pipe = true))
-  val dataInPipeQueue: UInt = Mux(
+  dataInPipeQueue := Mux(
     queueBeforeMaskWrite.io.deq.valid,
     indexToOH(queueBeforeMaskWrite.io.deq.bits.instructionIndex, parameter.chainingSize),
     0.U
