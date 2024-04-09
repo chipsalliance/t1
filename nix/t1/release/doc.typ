@@ -47,13 +47,14 @@ docker pull ghcr.io/chipsalliance/t1:latest
 docker run --name t1 -it -v $PWD:/workspace --rm t1/release:latest /bin/bash
 ```
 
+> It is recommended to build ELF outside of the docker image and bind mount the ELF location into the image.
+
 == What is inside
 
 + IP emulator: `/bin/ip-emulator`
-+ Softmax/Linear Normalization/Matmul test cases: `/workspace/cases`
-+ RISCV 32 LLVM ToolChain
++ Softmax & Linear Normalization & Matmul test cases: `/workspace/cases`
 
-== How to run workload using IP emulator
+== How to run some workload using IP emulator
 
 ```bash
 # There are three cases under the /workspace/cases directory
