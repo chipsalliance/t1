@@ -77,6 +77,7 @@ let
       mill -i '__.assembly'
 
       mill -i t1package.sourceJar
+      mill -i t1package.chiselPluginJar
     '';
 
     installPhase = ''
@@ -86,6 +87,7 @@ let
       strip-nondeterminism out/configgen/assembly.dest/out.jar
       strip-nondeterminism out/t1package/assembly.dest/out.jar
       strip-nondeterminism out/t1package/sourceJar.dest/out.jar
+      strip-nondeterminism out/t1package/chiselPluginJar.dest/out.jar
 
       mv out/configgen/assembly.dest/out.jar $out/share/java/configgen.jar
       mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar
@@ -93,6 +95,7 @@ let
       mkdir -p $t1package/share/java
       mv out/t1package/sourceJar.dest/out.jar $t1package/share/java/t1package-sources.jar
       mv out/t1package/assembly.dest/out.jar $t1package/share/java/t1package.jar
+      mv out/t1package/chiselPluginJar.dest/out.jar $t1package/share/java/chiselPluginJar.jar
 
       mkdir -p $configgen/bin $elaborator/bin
       makeWrapper ${jdk21}/bin/java $configgen/bin/configgen --add-flags "-jar $out/share/java/configgen.jar"
