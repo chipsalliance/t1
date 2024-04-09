@@ -282,7 +282,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       )
     )
   )
-  val topWriteQueue: DecoupledIO[VRFWriteRequest] = Queue(vrfWriteChannel, 2, flow = true)
+  val topWriteQueue: DecoupledIO[VRFWriteRequest] = Queue(vrfWriteChannel, 1, flow = true)
   vrfWriteArbiter(parameter.chainingSize).valid := topWriteQueue.valid
   vrfWriteArbiter(parameter.chainingSize).bits := topWriteQueue.bits
   topWriteQueue.ready := vrfWriteArbiter(parameter.chainingSize).ready
