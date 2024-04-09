@@ -1,0 +1,55 @@
+name: Build Docker Image
+
+# Release on any git tag
+on:
+  push:
+    tags: ['*']
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux, nixos]
+    strategy:
+      matrix:
+        config:
+          - blastoise
+    outputs:
+      cache-key: ${{ steps.build.outputs.cache-key }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Checkout the triggered tag name
+          ref: ${{ github.ref_name }}
+      - name: Build docker image file
+        id: build
+        run: |
+          closure="$(nix build -L '.#t1.${{ matrix.config }}.release.docker-layers.final-image' --no-link --print-out-paths)"
+          echo "path: $closure"
+          cp "$closure/image.tar" /tmp/t1-image.tar
+          echo "cache-key=$(nix hash file --base32 /tmp/t1-image.tar)" > $GITHUB_OUTPUT
+      - name: Upload to cache
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/t1-image.tar
+          key: ${{ steps.build.outputs.cache-key }}
+
+  upload:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Restore from cache
+        uses: actions/cache/restore@v4
+        id: cache
+        with:
+          path: /tmp/t1-image.tar
+          fail-on-cache-miss: true
+          key: ${{ needs.build.outputs.cache-key }}
+      - name: Login to GHCR dot IO
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Load and push
+        run:
+          docker load -i image.tar
+          docker push chipsalliance/t1:latest
