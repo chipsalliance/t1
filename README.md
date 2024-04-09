@@ -64,6 +64,12 @@ For tuning the ideal vector machines, follow these performance-tuning methodolog
 
 We have a IP emulator under the directory `./ipemu`. [Spike](https://github.com/riscv/riscv-isa-sim) is used as the reference scalar core, integrated with the verilated vector IP. Under the online differential-test strategy, the emulator compares the load/store and VRF writes between Spike and T1 to verify T1’s correctness.
 
+### Docker images
+
+```bash
+docker pull ghcr.io/chipsalliance/t1:latest
+```
+
 ### Nix setup
 We use Nix Flake as our primary build system. If you have not installed nix, install it following the [guide](https://nixos.org/manual/nix/stable/installation/installing-binary.html), and enable flake following the [wiki](https://nixos.wiki/wiki/Flakes#Enable_flakes). Or you can try the [installer](https://github.com/DeterminateSystems/nix-installer) provided by Determinate Systems, which enables flake by default.
 
