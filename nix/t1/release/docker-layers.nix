@@ -10,7 +10,7 @@
 , jq
 
   # T1 Stuff
-, rv32-gcc
+, rv32-stdenv
 , emulator-wrapped
 , testCases
 }:
@@ -24,13 +24,13 @@ let
     contents = with dockerTools; [
       usrBinEnv
       binSh
+
       bashInteractive
       which
 
       emulator-wrapped
-      rv32-gcc
     ]
-    ++ stdenv.initialPath;
+    ++ rv32-stdenv.initialPath;
 
     enableFakechroot = true;
     fakeRootCommands = ''
@@ -44,6 +44,8 @@ let
         cp -r "$caseDir" /workspace/cases/"$dirName"
       done
       chmod u+w -R /workspace/cases
+
+      mkdir /tmp
     '';
 
     config = {
