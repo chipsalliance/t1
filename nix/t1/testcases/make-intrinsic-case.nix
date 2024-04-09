@@ -63,6 +63,4 @@ stdenv.mkDerivation (rec {
   '';
 
   meta.description = "Test case '${caseName}', written in C intrinsic.";
-
-  dontFixup = true;
 } // inputs)

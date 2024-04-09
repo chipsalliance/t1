@@ -67,7 +67,8 @@ stdenv.mkDerivation
       "-fvisibility=hidden"
       "-nostdlib"
       "-fno-PIC"
-      "-T" "${linkerScript}"
+      "-T"
+      "${linkerScript}"
     ];
 
     # Set final compile and link step at postBuild, so that user can easily override them
@@ -96,6 +97,4 @@ stdenv.mkDerivation
     '';
 
     meta.description = "Test case '${caseName}', written in MLIR.";
-
-    dontFixup = true;
   } // inputs)
