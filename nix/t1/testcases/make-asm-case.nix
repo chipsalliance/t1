@@ -23,7 +23,8 @@ stdenv.mkDerivation (rec {
     "-fvisibility=hidden"
     "-nostdlib"
     "-fno-PIC"
-    "-T" "${linkerScript}"
+    "-T"
+    "${linkerScript}"
   ];
 
   nativeBuildInputs = [
@@ -58,6 +59,4 @@ stdenv.mkDerivation (rec {
   '';
 
   meta.description = "Test case '${caseName}', written in assembly.";
-
-  dontFixup = true;
 } // inputs)
