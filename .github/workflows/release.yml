@@ -25,24 +25,24 @@ jobs:
           closure="$(nix build -L '.#t1.${{ matrix.config }}.release.docker-layers.final-image' --no-link --print-out-paths)"
           echo "path: $closure"
           cp "$closure/image.tar" /tmp/t1-image.tar
-          echo "cache-key=$(nix hash file --base32 /tmp/t1-image.tar)" > $GITHUB_OUTPUT
+          #echo "cache-key=$(nix hash file --base32 /tmp/t1-image.tar)" > $GITHUB_OUTPUT
       - name: Upload to cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@master
         with:
           path: /tmp/t1-image.tar
-          key: ${{ steps.build.outputs.cache-key }}
+          key: foo
 
   upload:
     runs-on: ubuntu-latest
     needs: [build]
     steps:
       - name: Restore from cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@master
         id: cache
         with:
           path: /tmp/t1-image.tar
           fail-on-cache-miss: true
-          key: ${{ needs.build.outputs.cache-key }}
+          key: foo
       - name: Login to GHCR dot IO
         uses: docker/login-action@v2
         with:
