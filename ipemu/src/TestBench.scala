@@ -48,13 +48,14 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
 
   val t1Probe = probe.read(dut.t1Probe)
 
-  // memory write
-  lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"memoryWrite","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":${mshr.dataMask},"data":${mshr.dataData},"instruction":${mshr.dataInstruction},"lane":${mshr.targetLane}}}""")) }
-  // vrf write
-  laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(cf"""{"event":"vrfWrite","parameter":{"idx":$i,"vd": ${lane.requestVd},"offset": ${lane.requestOffset},"mask": ${lane.requestMask},"data": ${lane.requestData},"instruction": ${lane.requestInstruction}}}""") }
-  // issue
-  when(dut.request.fire)(printf(cf"""{"event":"issue", "parameter":{"idx": ${t1Probe.instructionCounter}}}"""))
-
+  withClockAndReset(clock, reset) {
+    // memory write
+    lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"memoryWrite","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":${mshr.dataMask},"data":${mshr.dataData},"instruction":${mshr.dataInstruction},"lane":${mshr.targetLane}}}""")) }
+    // vrf write
+    laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(cf"""{"event":"vrfWrite","parameter":{"idx":$i,"vd": ${lane.requestVd},"offset": ${lane.requestOffset},"mask": ${lane.requestMask},"data": ${lane.requestData},"instruction": ${lane.requestInstruction}}}""") }
+    // issue
+    when(dut.request.fire)(printf(cf"""{"event":"issue", "parameter":{"idx": ${t1Probe.instructionCounter}}}"""))
+  }
 
   // Monitors
   // TODO: These monitors should be purged out after offline difftest is landed
