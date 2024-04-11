@@ -12,8 +12,13 @@ jobs:
       matrix:
         config:
           - blastoise
+          - machamp
+          - sandslash
     outputs:
-      cache-key: ${{ steps.build.outputs.cache-key }}
+      # I hate copy-paste too, but this is GitHub Action, blame them.
+      cache-key-blastoise: ${{ steps.build.outputs.cache-key-blastoise }}
+      cache-key-machamp: ${{ steps.build.outputs.cache-key-machamp }}
+      cache-key-sandslash: ${{ steps.build.outputs.cache-key-sandslash }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,25 +29,37 @@ jobs:
         run: |
           closure="$(nix build -L '.#t1.${{ matrix.config }}.release.docker-layers.final-image' --no-link --print-out-paths)"
           echo "path: $closure"
-          cp "$closure/image.tar" /tmp/t1-image.tar
-          echo "cache-key=$(nix hash file --base32 /tmp/t1-image.tar)" > $GITHUB_OUTPUT
+          cp "$closure/image.tar" /tmp/t1-${{ matrix.config }}-image.tar
+          echo "cache-key-${{ matrix.config }}=$(nix hash file --base32 $closure/image.tar)" > $GITHUB_OUTPUT
+          nix build -L '.#t1.${{ matrix.config }}.release.doc' --out-link docs
       - name: Upload to cache
         uses: actions/cache/save@v4
         with:
-          path: /tmp/t1-image.tar
-          key: ${{ steps.build.outputs.cache-key }}
+          path: /tmp/t1-${{ matrix.config }}-image.tar
+          key: ${{ steps.build.outputs[format('cache-key-{0}', matrix.config)] }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs-${{ matrix.config }}.pdf
+          path: |
+            docs/*.pdf
 
   upload:
     runs-on: ubuntu-latest
     needs: [build]
+    strategy:
+      matrix:
+        config:
+          - blastoise
+          - machamp
+          - sandslash
     steps:
-      - name: Restore from cache
+      - name: Restore ${{ matrix.config }} from cache
         uses: actions/cache/restore@v4
         id: cache
         with:
-          path: /tmp/t1-image.tar
+          path: /tmp/t1-${{ matrix.config }}-image.tar
           fail-on-cache-miss: true
-          key: ${{ needs.build.outputs.cache-key }}
+          key: ${{ needs.build.outputs[format('cache-key-{0}', matrix.config)] }}
       - name: Login to GHCR dot IO
         uses: docker/login-action@v2
         with:
@@ -51,6 +68,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Load and push
         run: |
-          docker load < /tmp/t1-image.tar
-          docker tag t1/release:latest ghcr.io/chipsalliance/t1:latest
-          docker push ghcr.io/chipsalliance/t1:latest
+          docker load < /tmp/t1-${{ matrix.config }}-image.tar
+          docker tag chipsalliance/t1-${{ matrix.config }}:latest ghcr.io/chipsalliance/t1-${{ matrix.config }}:latest
+          docker push ghcr.io/chipsalliance/t1-${{ matrix.config }}:latest

@@ -115,20 +115,21 @@ object Main:
       caseName: String
   ): os.Path =
     val pathTail =
-      if (os.exists(os.Path(caseName, os.pwd))) then
+      if os.exists(os.Path(caseName, os.pwd)) || os.exists(os.Path(config, os.pwd)) then
         // It is hard to canoncalize user specify path, so here we use date time instead
-        java.time.LocalDateTime
+        val now = java.time.LocalDateTime
           .now()
           .format(
             java.time.format.DateTimeFormatter.ofPattern("yy-MM-dd-HH-mm-ss")
           )
-      else caseName
+        os.RelPath(now)
+      else os.RelPath(s"$config/$caseName")
 
     val path =
       if (outputDir.isEmpty) then
         if (outputBaseDir.isEmpty) then
-          os.pwd / "testrun" / s"${emuType}emu" / config / pathTail
-        else os.Path(outputBaseDir.get, os.pwd) / config / pathTail
+          os.pwd / "testrun" / s"${emuType}emu" / pathTail
+        else os.Path(outputBaseDir.get, os.pwd) / pathTail
       else os.Path(outputDir.get)
 
     os.makeDir.all(path)
@@ -142,6 +143,7 @@ object Main:
   @main def ipemu(
       @arg(
         name = "case",
+        short = 'C',
         doc = "name alias for loading test case"
       ) testCase: String,
       @arg(
@@ -206,7 +208,8 @@ object Main:
         doc = "Force using x86_64 as cross compiling host platform"
       ) forceX86: Boolean = false,
       @arg(
-        name = "dump-cycle",
+        name = "dump-from-cycle",
+        short = 'D',
         doc = "Specify the dump starting point"
       ) dumpCycle: String = "0.0",
       @arg(

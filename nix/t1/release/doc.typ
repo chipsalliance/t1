@@ -4,11 +4,13 @@
   bash: (name: "Bash", icon: none, color: rgb("#CE412B")),
 ))
 
+#let config = json("./config.json")
+
 = T1 Docker Image Manual
 
 == Released IP configs
 
-#let table-json(config) = {
+#{
   let name = config.name
   let param = config.parameter
   let floatSupport = if param.extensions.first() == "Zve32f" [ True ] else [ False ]
@@ -22,8 +24,6 @@
     [*#name*],       [#param.dLen], [#param.vLen], [#floatSupport],   [#VRF],  [#lsuBankCnt bank, #beatByteCnt beatbyte],
   )
 }
-
-#table-json(json("./config.json"))
 
 == Address Range
 
@@ -39,12 +39,14 @@ Scalar core cannot access Vector DDR/SRAM, for, users need to access correspondi
 
 == How to use the Docker image
 
-```bash
+#show raw.where(lang: "t1-docker"): it => {
+  raw(lang: "bash", it.text.replace("${config}", config.name))
+}
+```t1-docker
 # Load the image into docker registry
-docker pull ghcr.io/chipsalliance/t1:latest
-# Run the t1/release:latest image with command /bin/bash, name the running container with name "t1", with [i]nterative shell and a working [t]ty.
-# The directory `/workspace` will be bind mount on the current directory. The container will be automatically [r]e[m]ove at exit.
-docker run --name t1 -it -v $PWD:/workspace --rm t1/release:latest /bin/bash
+docker pull ghcr.io/chipsalliance/t1-${config}:latest
+# Start the bash shell in t1/release:latest image, and bind the current path to /workspace
+docker run --name t1 -it -v $PWD:/workspace --rm ghcr.io/chipsalliance/t1-${config}:latest /bin/bash
 ```
 
 > It is recommended to build ELF outside of the docker image and bind mount the ELF location into the image.
@@ -52,6 +54,7 @@ docker run --name t1 -it -v $PWD:/workspace --rm t1/release:latest /bin/bash
 == What is inside
 
 + IP emulator: `/bin/ip-emulator`
++ IP emulator with trace functionality: `/bin/ip-emulator-trace`
 + Softmax & Linear Normalization & Matmul test cases: `/workspace/cases`
 
 == How to run some workload using IP emulator
@@ -64,5 +67,5 @@ ls /workspace/cases
 ip-emulator --case cases/intrinsic-matmul/bin/intrinsic.matmul.elf
 
 # Get waveform trace file
-ip-emulator --trace --case ...
+ip-emulator-trace --case cases/intrinsic-linear_normalization/bin/intrinsic.linear_normalization.elf
 ```
