@@ -13,12 +13,13 @@
 , rv32-stdenv
 , emulator-wrapped
 , testCases
+, configName
 }:
 
 let
   # Don't use buildImage which relies on KVM feature
   self = dockerTools.streamLayeredImage {
-    name = "t1/release";
+    name = "chipsalliance/t1-${configName}";
     tag = "latest";
 
     contents = with dockerTools; [

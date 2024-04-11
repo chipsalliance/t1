@@ -10,13 +10,13 @@
 
 , configName
 , t1-script
-, ip-emulator
+, ip
 , cases
 , elaborateConfigJson
 }:
 
 lib.makeScope newScope (scope: rec {
-  inherit ip-emulator elaborateConfigJson;
+  inherit elaborateConfigJson configName;
 
   testCases = with cases; [
     intrinsic.matmul
@@ -34,7 +34,13 @@ lib.makeScope newScope (scope: rec {
       makeWrapper ${t1-script}/bin/t1-helper $out/bin/ip-emulator \
         --add-flags "ipemu" \
         --add-flags "--config ${elaborateConfigJson}" \
-        --add-flags "--emulator-path ${ip-emulator}/bin/emulator"
+        --add-flags "--emulator-path ${ip.emu}/bin/emulator"
+
+      makeWrapper ${t1-script}/bin/t1-helper $out/bin/ip-emulator-trace \
+        --add-flags "ipemu" \
+        --add-flags "--config ${elaborateConfigJson}" \
+        --add-flags "--trace" \
+        --add-flags "--emulator-path ${ip.emu-trace}/bin/emulator"
     '';
 
   docker-layers = scope.callPackage ./docker-layers.nix { };

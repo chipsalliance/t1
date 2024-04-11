@@ -67,7 +67,9 @@ We have a IP emulator under the directory `./ipemu`. [Spike](https://github.com/
 ### Docker images
 
 ```bash
-docker pull ghcr.io/chipsalliance/t1:latest
+docker pull ghcr.io/chipsalliance/t1-$config:latest
+# For example, config with dlen 256 vlen 512 support
+docker pull ghcr.io/chipsalliance/t1-blastoise:latest
 ```
 
 ### Nix setup
