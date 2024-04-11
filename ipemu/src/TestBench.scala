@@ -33,20 +33,28 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
   val dut: T1 = withClockAndReset(clock, reset)(Module(generator.module()))
   dut.storeBufferClear := true.B
 
-  val lsuProbe = probe.read(dut.lsuProbe).suggestName("lsuProbe")
-
   val laneProbes = dut.laneProbes.zipWithIndex.map{case (p, idx) =>
     val wire = Wire(p.cloneType).suggestName(s"lane${idx}Probe")
     wire := probe.read(p)
   }
 
-  val laneVrfProbes = dut.laneVrfProbes.zipWithIndex.map{case (p, idx) =>
+  val lsuProbe = probe.read(dut.lsuProbe).suggestName("lsuProbe")
+
+  val laneVrfProbes = dut.laneVrfProbes.zipWithIndex.map{ case (p, idx) =>
     val wire = Wire(p.cloneType).suggestName(s"lane${idx}VrfProbe")
     wire := probe.read(p)
     wire
   }
 
-  val t1Probe = probe.read(dut.t1Probe).suggestName("instructionCountProbe")
+  val t1Probe = probe.read(dut.t1Probe)
+
+  // memory write
+  lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"memoryWrite","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":${mshr.dataMask},"data":${mshr.dataData},"instruction":${mshr.dataInstruction},"lane":${mshr.targetLane}}}""")) }
+  // vrf write
+  laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(cf"""{"event":"vrfWrite","parameter":{"idx":$i,"vd": ${lane.requestVd},"offset": ${lane.requestOffset},"mask": ${lane.requestMask},"data": ${lane.requestData},"instruction": ${lane.requestInstruction}}}""") }
+  // issue
+  when(dut.request.fire)(printf(cf"""{"event":"issue", "parameter":{"idx": ${t1Probe.instructionCounter}}}"""))
+
 
   // Monitors
   // TODO: These monitors should be purged out after offline difftest is landed
@@ -74,7 +82,6 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
       peekWriteQueue.writeValid.ref := mshr.writeValid
       peekWriteQueue.targetLane.ref := mshr.targetLane
   }
-
   laneVrfProbes.zipWithIndex.foreach {
     case (lane, i) =>
       val peekVrfWrite = Module(new PeekVrfWrite(PeekVrfWriteParameter(
@@ -94,6 +101,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
       peekVrfWrite.request_data.ref := lane.requestData
       peekVrfWrite.request_instruction.ref := lane.requestInstruction
   }
+
 
   val pokeInst = Module(new PokeInst(PokeInstParameter(dut.parameter.xLen, dut.parameter.laneParam.vlMaxBits, latPokeInst)))
   pokeInst.clock.ref := clockGen.clock
