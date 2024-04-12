@@ -50,11 +50,15 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
 
   withClockAndReset(clock, reset) {
     // memory write
-    lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"memoryWrite","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":${mshr.dataMask},"data":${mshr.dataData},"instruction":${mshr.dataInstruction},"lane":${mshr.targetLane}}}""")) }
+    lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"vrfWriteFromLsu","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":${mshr.dataMask},"data":${mshr.dataData},"instruction":${mshr.dataInstruction},"lane":${mshr.targetLane}}}\n""")) }
     // vrf write
-    laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(cf"""{"event":"vrfWrite","parameter":{"idx":$i,"vd": ${lane.requestVd},"offset": ${lane.requestOffset},"mask": ${lane.requestMask},"data": ${lane.requestData},"instruction": ${lane.requestInstruction}}}""") }
+    laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(printf(cf"""{"event":"vrfWriteFromLane","parameter":{"idx":$i,"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":${lane.requestMask},"data":${lane.requestData},"instruction":${lane.requestInstruction}}}\n""")) }
     // issue
-    when(dut.request.fire)(printf(cf"""{"event":"issue", "parameter":{"idx": ${t1Probe.instructionCounter}}}"""))
+    when(dut.request.fire)(printf(cf"""{"event":"issue","parameter":{"idx":${t1Probe.instructionCounter}}}\n"""))
+    // inst
+    when(dut.response.valid)(printf(cf"""{"event":"inst","parameter":{"data":${dut.response.bits.data},"vxsat":${dut.response.bits.vxsat},"rd_valid":${dut.response.bits.rd.valid},"rd":${dut.response.bits.rd.bits},"mem":${dut.response.bits.mem}}}\n"""))
+    // peekTL
+    dut.memoryPorts.zipWithIndex.foreach { case (bundle, i) => when(bundle.a.valid)(printf(cf"""{"event":"peekTL","parameter":{"idx":$i,"opcode":${bundle.a.bits.opcode},"param":${bundle.a.bits.param},"size":${bundle.a.bits.size},"source":${bundle.a.bits.source},"address":${bundle.a.bits.address},"mask":${bundle.a.bits.mask},"data":${bundle.a.bits.data},"corrupt":${bundle.a.bits.corrupt},"dReady":${bundle.d.ready}}}\n""")) }
   }
 
   // Monitors
