@@ -361,12 +361,12 @@ void VBridgeImpl::getCoverage() { return ctx->coveragep()->write(); }
 
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
-  reg_t pc = state->pc;
-  auto fetch = proc.get_mmu()->load_insn(pc);
-  //  VLOG(1) << fmt::format("pre-exec (pc={:08X})", state->pc);
+  auto fetch = proc.get_mmu()->load_insn(state->pc);
   auto event = create_spike_event(fetch);
 
   clear_state(proc);
+
+  reg_t new_pc;
   if (event) {
     auto &se = event.value();
     Log("SpikeStep")
@@ -379,29 +379,34 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
         .with("rs2", fmt::format("{:08X}", se.rs2_bits))
         .info("spike run vector insn");
     se.pre_log_arch_changes();
-    pc = fetch.func(&proc, fetch.insn, state->pc);
+    new_pc = fetch.func(&proc, fetch.insn, state->pc);
     se.log_arch_changes();
   } else {
     Log("SpikeStep")
-        .with("pc", fmt::format("{:08X}", pc))
+        .with("pc", fmt::format("{:08X}", state->pc))
         .with("bits", fmt::format("{:08X}", fetch.insn.bits()))
         .with("disasm", proc.get_disassembler()->disassemble(fetch.insn))
         .info("spike run scalar insn");
-    pc = fetch.func(&proc, fetch.insn, state->pc);
+    new_pc = fetch.func(&proc, fetch.insn, state->pc);
   }
 
   // Bypass CSR insns commitlog stuff.
-  if ((pc & 1) == 0) {
-    state->pc = pc;
+  if ((new_pc & 1) == 0) {
+    state->pc = new_pc;
   } else {
-    switch (pc) {
+    Log("SpikeStep")
+      .with("new_pc", fmt::format("{:08X}", new_pc))
+      .with("priv", state->prv)
+      .with("ext", proc.extension_enabled_const('U'))
+      .info("CSR serialize");
+    switch (new_pc) {
     case PC_SERIALIZE_BEFORE:
       state->serialized = true;
       break;
     case PC_SERIALIZE_AFTER:
       break;
     default:
-      FATAL(fmt::format("SpikeStep: invalid pc: {:08X}", pc));
+      FATAL(fmt::format("SpikeStep: invalid new_pc: {:08X}", new_pc));
     }
   }
 
