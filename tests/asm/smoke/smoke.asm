@@ -27,6 +27,9 @@ loop:
     addi a2, a2, -1
     bnez a2, add_test
 
+    # read cycles
+    csrr t0, mcycle
+
     ret
 
 will_not_be_executed:

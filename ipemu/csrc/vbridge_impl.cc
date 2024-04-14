@@ -361,6 +361,7 @@ void VBridgeImpl::getCoverage() { return ctx->coveragep()->write(); }
 
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
+  state->csrmap.at(CSR_MCYCLE)->write(get_t());
   auto fetch = proc.get_mmu()->load_insn(state->pc);
   auto event = create_spike_event(fetch);
 
