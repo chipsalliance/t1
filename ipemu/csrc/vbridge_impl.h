@@ -263,6 +263,8 @@ private:
   const uint64_t dump_from_cycle;
 #endif
 
+  int64_t spike_cycles = 0;
+
   std::optional<SpikeEvent> create_spike_event(insn_fetch_t fetch);
 
   std::optional<SpikeEvent> spike_step();

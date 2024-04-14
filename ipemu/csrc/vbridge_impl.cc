@@ -361,7 +361,9 @@ void VBridgeImpl::getCoverage() { return ctx->coveragep()->write(); }
 
 std::optional<SpikeEvent> VBridgeImpl::spike_step() {
   auto state = proc.get_state();
-  state->csrmap.at(CSR_MCYCLE)->write(get_t());
+
+  state->mcycle->write((int64_t) get_t() + spike_cycles);
+
   auto fetch = proc.get_mmu()->load_insn(state->pc);
   auto event = create_spike_event(fetch);
 
@@ -378,6 +380,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
         .with("pc", fmt::format("{:08X}", se.pc))
         .with("rs1", fmt::format("{:08X}", se.rs1_bits))
         .with("rs2", fmt::format("{:08X}", se.rs2_bits))
+        .with("spike_cycles", spike_cycles)
         .info("spike run vector insn");
     se.pre_log_arch_changes();
     new_pc = fetch.func(&proc, fetch.insn, state->pc);
@@ -387,6 +390,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
         .with("pc", fmt::format("{:08X}", state->pc))
         .with("bits", fmt::format("{:08X}", fetch.insn.bits()))
         .with("disasm", proc.get_disassembler()->disassemble(fetch.insn))
+        .with("spike_cycles", spike_cycles)
         .info("spike run scalar insn");
     new_pc = fetch.func(&proc, fetch.insn, state->pc);
   }
@@ -410,6 +414,9 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
       FATAL(fmt::format("SpikeStep: invalid new_pc: {:08X}", new_pc));
     }
   }
+
+  // spike does not bump mcycle by itself, so do it manually
+  spike_cycles ++;
 
   return event;
 }
