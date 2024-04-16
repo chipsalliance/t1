@@ -20,7 +20,7 @@ abstract class DPIModuleLegacy
     with HasExtModuleInline {
 
   // C Style
-  final override def desiredName: String = "[A-Z\\d]".r.replaceAllIn(super.desiredName, { m =>
+  override def desiredName: String = "[A-Z\\d]".r.replaceAllIn(super.desiredName, { m =>
     (if(m.end(0) == 1) "" else "_") + m.group(0).toLowerCase()
   })
 
