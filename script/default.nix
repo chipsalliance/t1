@@ -4,10 +4,7 @@
 , makeWrapper
 
 , metals
-, gnugrep
-, jre
 , mill
-, strip-nondeterminism
 }:
 
 let
@@ -36,7 +33,8 @@ let
     passthru.dev = self.overrideAttrs (old: {
       nativeBuildInputs = old.nativeBuildInputs ++ [
         metals
-        gnugrep
+        # Metals require java to work correctly
+        mill.passthru.jre
       ];
 
       shellHook = ''
@@ -50,24 +48,21 @@ let
 
     nativeBuildInputs = [
       mill
-      strip-nondeterminism
 
       makeWrapper
       passthru.millDeps.setupHook
     ];
 
     buildPhase = ''
+      echo "Building JAR"
       mill -i assembly
+      echo "Running native-image"
+      native-image --no-fallback -jar out/assembly.dest/out.jar "$name.elf"
     '';
 
     installPhase = ''
-      mkdir -p $out/share/java "$out"/bin
-
-      strip-nondeterminism out/assembly.dest/out.jar
-
-      mv out/assembly.dest/out.jar $out/share/java/"$name".jar
-
-      makeWrapper ${jre}/bin/java "$out"/bin/"$name" --add-flags "-jar $out/share/java/$name.jar"
+      mkdir -p "$out"/bin
+      cp "$name.elf" "$out"/bin/"$name"
     '';
   };
 in
