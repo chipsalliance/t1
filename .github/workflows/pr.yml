@@ -218,17 +218,17 @@ jobs:
           else
             echo "No cycle change detect"
           fi
-      - uses: geekyeggo/delete-artifact@v4
+      - uses: geekyeggo/delete-artifact@v5
         with:
           # test-reports has been used, it can be deleted
           name: test-reports-*
 
   clean-after-cancelled:
-    name: "Clean test reports [CANCELLED]"
+    name: "Clean test reports [ON CANCELLED]"
     if: ${{ cancelled() }}
     runs-on: [self-hosted, linux, nixos]
     needs: [run-testcases]
     steps:
-      - uses: geekyeggo/delete-artifact@v4
+      - uses: geekyeggo/delete-artifact@v5
         with:
           name: test-reports-*

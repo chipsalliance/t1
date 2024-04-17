@@ -13,7 +13,7 @@ let
     "--lowering-options=verifLabels,omitVersionComment"
     "--strip-debug-info"
   ];
-  fixupFilelist = lib.elem mlirbc.elaborateTarget [ "ipemu" ];
+  fixupFilelist = lib.elem mlirbc.elaborateTarget [ "ipemu" "subsystememu" ];
 in
 stdenvNoCC.mkDerivation {
   name = "t1-${mlirbc.elaborateConfig}-${mlirbc.elaborateTarget}-rtl";

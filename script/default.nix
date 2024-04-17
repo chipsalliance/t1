@@ -5,6 +5,7 @@
 
 , metals
 , mill
+, graalvm-ce
 }:
 
 let
@@ -48,6 +49,7 @@ let
 
     nativeBuildInputs = [
       mill
+      graalvm-ce
 
       makeWrapper
       passthru.millDeps.setupHook
