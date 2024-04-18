@@ -17,7 +17,7 @@ import $file.dependencies.rvdecoderdb.common
 import $file.common
 
 object v {
-  val scala = "2.13.12"
+  val scala = "2.13.14"
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"
   val oslib = ivy"com.lihaoyi::os-lib:0.9.1"
