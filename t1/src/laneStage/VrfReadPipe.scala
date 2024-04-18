@@ -6,7 +6,7 @@ package org.chipsalliance.t1.rtl.lane
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
-import org.chipsalliance.t1.rtl.{LaneParameter, VRFReadQueueEntry, VRFReadRequest}
+import org.chipsalliance.t1.rtl.{DataPipeInReadStage, LaneParameter, VRFReadQueueEntry, VRFReadRequest}
 
 @instantiable
 class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends Module {
@@ -42,30 +42,25 @@ class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends 
 
   (Seq(enqueue) ++ contender).zip(reqArbitrate.io.in).foreach { case (source, sink) => sink <> source }
 
-  val dataStageFree = Wire(Bool())
   // access read port
-  vrfReadRequest.valid := reqArbitrate.io.out.valid && dataStageFree
+  vrfReadRequest.valid := reqArbitrate.io.out.valid && dequeue.ready
   vrfReadRequest.bits.vs := reqArbitrate.io.out.bits.vs
   vrfReadRequest.bits.readSource := reqArbitrate.io.out.bits.readSource
   vrfReadRequest.bits.offset := reqArbitrate.io.out.bits.offset
   vrfReadRequest.bits.instructionIndex := reqArbitrate.io.out.bits.instructionIndex
-  reqArbitrate.io.out.ready := dataStageFree && vrfReadRequest.ready
+  reqArbitrate.io.out.ready := dequeue.ready && vrfReadRequest.ready
 
-  // read pipe stage1
-  val readPortFire: Bool = vrfReadRequest.fire
-  val stage1Valid: Bool = RegInit(false.B)
-  val ReadFireNext: Bool = RegNext(readPortFire)
-  val dataReg: UInt = RegEnable(vrfReadResult, 0.U(parameter.datapathWidth.W), ReadFireNext)
-  val stage1Choose: Option[Bool] = Option.when(arbitrate)(RegEnable(enqueue.fire, false.B, readPortFire))
+  val vrfReadLatency = parameter.vrfParam.vrfReadLatency
+  val dataQueue = Module(new Queue(new DataPipeInReadStage(parameter.datapathWidth, arbitrate), vrfReadLatency + 2))
+  val dataResponsePipe = Pipe(vrfReadRequest.fire, enqueue.fire, vrfReadLatency)
 
-  stage1Choose.foreach {d => when(readPortFire) { d := enqueue.fire}}
-  when(readPortFire ^ dequeue.fire) {
-    stage1Valid := readPortFire
-  }
+  dataQueue.io.enq.valid := dataResponsePipe.valid
+  dataQueue.io.enq.bits.data := vrfReadResult
+  dataQueue.io.enq.bits.choose.foreach(_ := dataResponsePipe.bits)
+  assert(!dataQueue.io.enq.valid || dataQueue.io.enq.ready, "queue overflow")
 
-  dataStageFree := !stage1Valid || dequeue.ready
-
-  dequeueChoose.zip(stage1Choose).foreach { case (io, data) => io := data }
-  dequeue.valid := stage1Valid
-  dequeue.bits := Mux(ReadFireNext, vrfReadResult, dataReg)
+  dequeueChoose.foreach { _ := dataQueue.io.deq.bits.choose.get }
+  dequeue.valid := dataQueue.io.deq.valid
+  dequeue.bits := dataQueue.io.deq.bits.data
+  dataQueue.io.deq.ready := dequeue.ready
 }
