@@ -217,8 +217,7 @@ package object rtl {
     // 处理vfu
     val vfuResponse: Seq[ValidIO[VFUResponseToSlot]] = parameter.genVec.zipWithIndex.map { case ((gen, slotVec), vfuIndex) =>
       // vfu 模块
-      // TODO: SerializableModuleGenerator should support D/I
-      val vfu: VFUModule = Module(gen.module())
+      val vfu: Instance[VFUModule] = gen.instance()
       vfu.suggestName(gen.parameter.decodeField.name)
       // vfu request distributor
       val distributor: Option[Instance[Distributor[SlotRequestToVFU, VFUResponseToSlot]]] = Option.when(gen.parameter.NeedSplit)(
