@@ -6,8 +6,17 @@ package org.chipsalliance.t1.rtl.lane
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
-import org.chipsalliance.t1.rtl.{LaneParameter, VRFReadRequest, VRFWriteRequest, ffo, indexToOH}
+import org.chipsalliance.t1.rtl.{LaneParameter, VRFReadRequest, VRFWriteRequest, ffo, indexToOH, maskAnd}
 
+import scala.annotation.unused
+
+/** s0 enqueue read fire
+ * raw check: hit s1, hit s2, hit s3
+ *
+ * s1 wait arbiter(reg)
+ * s2 wait sram read(reg)
+ * s3 dequeu(reg)
+ **/
 @instantiable
 class MaskedWrite(parameter: LaneParameter) extends Module {
   val vrfWriteBundle: VRFWriteRequest = new VRFWriteRequest(
@@ -31,40 +40,117 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
    */
   @public
   val vrfReadResult: UInt = IO(Input(UInt(parameter.datapathWidth.W)))
-  // raw forward
-  val hitWrite: Bool = Wire(Bool())
 
+  def address(req: VRFWriteRequest): UInt = req.vd ## req.offset
+
+  val dequeueWire: DecoupledIO[VRFWriteRequest] = Wire(chiselTypeOf(dequeue))
+  val dequeueQueue: Queue[VRFWriteRequest] = Module(new Queue(chiselTypeOf(dequeue.bits), 1, flow = true))
+  dequeueQueue.io.enq <> dequeueWire
+  val s3Valid: Bool = RegInit(false.B)
+  val s3Pipe: VRFWriteRequest = RegInit(0.U.asTypeOf(enqueue.bits))
+  val s3BypassData: UInt = RegInit(0.U.asTypeOf(UInt(parameter.datapathWidth.W)))
+  val dataInS3: UInt = maskAnd(s3Valid, indexToOH(s3Pipe.instructionIndex, parameter.chainingSize)).asUInt
+  val fwd3: Bool = RegInit(false.B)
+
+  val s2Valid: Bool = RegInit(false.B)
+  val s2Pipe: VRFWriteRequest = RegInit(0.U.asTypeOf(enqueue.bits))
+  val s2BypassData: UInt = RegInit(0.U.asTypeOf(UInt(parameter.datapathWidth.W)))
+  val s2EnqHitS1: Bool = RegInit(false.B)
+  val dataInS2: UInt = maskAnd(s2Valid, indexToOH(s2Pipe.instructionIndex, parameter.chainingSize)).asUInt
+  val fwd2: Bool = RegInit(false.B)
+
+  val s1Valid: Bool = RegInit(false.B)
+  val s1Pipe: VRFWriteRequest = RegInit(0.U.asTypeOf(enqueue.bits))
+  val s1BypassData: UInt = RegInit(0.U.asTypeOf(UInt(parameter.datapathWidth.W)))
+  val s1EnqHitS1: Bool = RegInit(false.B)
+  val s1EnqHitS2: Bool = RegInit(false.B)
+  val dataInS1: UInt = maskAnd(s1Valid, indexToOH(s1Pipe.instructionIndex, parameter.chainingSize)).asUInt
+  val fwd1: Bool = RegInit(false.B)
+
+  val s3EnqReady: Bool = dequeueWire.ready || !s3Valid
+  val s3Fire: Bool = s3EnqReady && s2Valid
+
+  val s2EnqReady: Bool = s3EnqReady || !s2Valid
+  val s2Fire: Bool = s2EnqReady && s1Valid
+
+  val s1EnqReady: Bool = Wire(Bool())
+  enqueue.ready := s1EnqReady
+  val s1Fire: Bool = enqueue.fire
+
+  // raw forward
+  val enqHitS1: Bool = s1Valid && address(enqueue.bits) === address(s1Pipe)
+  val enqHitS2: Bool = s2Valid && address(enqueue.bits) === address(s2Pipe)
+  val enqHitS3: Bool = s3Valid && address(enqueue.bits) === address(s3Pipe)
+  val hitQueue: Bool = dequeueQueue.io.count =/= 0.U &&
+    address(enqueue.bits) === address(dequeueQueue.io.deq.bits)
+  val fwd: Bool = enqHitS1 || enqHitS2 || enqHitS3
+  s1EnqReady := (s2EnqReady || !s1Valid) && !hitQueue
+  val dataInQueue: UInt = maskAnd(dequeueQueue.io.count =/= 0.U,
+    indexToOH(dequeueQueue.io.deq.bits.instructionIndex, parameter.chainingSize)).asUInt
+
+  val enqNeedRead: Bool = !enqueue.bits.mask.andR && !fwd
   // 需要这个读端口完全ready
-  val readBeforeWrite: Bool = enqueue.fire && !enqueue.bits.mask.andR
-  vrfReadRequest.valid := readBeforeWrite && !hitWrite
+  val readBeforeWrite: Bool = enqueue.fire && enqNeedRead
+  vrfReadRequest.valid := readBeforeWrite
   vrfReadRequest.bits.vs := enqueue.bits.vd
   vrfReadRequest.bits.readSource := 2.U
   vrfReadRequest.bits.offset := enqueue.bits.offset
   vrfReadRequest.bits.instructionIndex := enqueue.bits.instructionIndex
-  // latch data
-  val readNext: Bool = RegNext(readBeforeWrite, false.B)
-  val dataFromWrite: Bool = RegNext(hitWrite, false.B)
-  val writeNext: UInt = RegNext(dequeue.bits.data, 0.U)
-  val readDataSelect: UInt = Mux(dataFromWrite, writeNext, vrfReadResult)
-  val dataReg: UInt = RegEnable(readDataSelect, 0.U(parameter.datapathWidth.W), readNext)
-  val latchDataSelect: UInt = Mux(readNext, readDataSelect, dataReg)
 
-  val pipeValid: Bool = RegInit(false.B)
-  val enqueuePipe: VRFWriteRequest = RegEnable(enqueue.bits, 0.U.asTypeOf(enqueue.bits), enqueue.fire)
-  val writeQueue: Queue[VRFWriteRequest] = Module(new Queue(chiselTypeOf(enqueue.bits), entries = 1, flow = true))
-  dequeue <> writeQueue.io.deq
-  writeQueue.io.enq.valid := pipeValid
-  writeQueue.io.enq.bits := enqueuePipe
-  val maskFill: UInt = FillInterleaved(8, enqueuePipe.mask)
-  writeQueue.io.enq.bits.data := enqueuePipe.data & maskFill | (latchDataSelect & (~maskFill))
-  maskedWrite1H :=
-    Mux(writeQueue.io.deq.valid, indexToOH(writeQueue.io.deq.bits.instructionIndex, parameter.chainingSize), 0.U) |
-      Mux(pipeValid, indexToOH(enqueuePipe.instructionIndex, parameter.chainingSize), 0.U)
-  enqueue.ready := !pipeValid || writeQueue.io.enq.ready
-  when(enqueue.fire ^ writeQueue.io.enq.fire) {
-    pipeValid := enqueue.fire
+  val vrfReadPipe: Queue[UInt] = Module(new Queue(
+    UInt(parameter.datapathWidth.W),
+    parameter.vrfParam.vrfReadLatency + 2))
+
+  val readDataValid: Bool = Pipe(
+    readBeforeWrite,
+    false.B,
+    parameter.vrfParam.vrfReadLatency
+  ).valid
+
+  vrfReadPipe.io.enq.valid := readDataValid
+  vrfReadPipe.io.enq.bits := vrfReadResult
+
+  maskedWrite1H := dataInS3 | dataInS2 | dataInS1 | dataInQueue
+
+  val maskFill: UInt = FillInterleaved(8, s3Pipe.mask)
+  val readDataSelect = Mux(fwd3, s3BypassData, vrfReadPipe.io.deq.bits)
+  val s3ReadFromVrf: Bool = !s3Pipe.mask.andR && !fwd3
+  dequeueWire.valid := s3Valid
+  dequeueWire.bits := s3Pipe
+  dequeueWire.bits.data := s3Pipe.data & maskFill | (readDataSelect & (~maskFill))
+  vrfReadPipe.io.deq.ready := dequeueWire.fire && s3ReadFromVrf
+
+  // update s1 reg
+  when(s1Fire) {
+    s1BypassData := dequeueWire.bits.data
+    s1EnqHitS1 := enqHitS1
+    s1EnqHitS2 := enqHitS2
+    fwd1 := fwd
+    s1Pipe := enqueue.bits
   }
-  hitWrite := writeQueue.io.deq.valid &&
-    (writeQueue.io.deq.bits.vd === enqueue.bits.vd) &&
-    (writeQueue.io.deq.bits.offset === enqueue.bits.offset)
+  when(s1Fire ^ s2Fire) {
+    s1Valid := s1Fire
+  }
+
+  // update s2 reg
+  when(s2Fire) {
+    s2BypassData := Mux(s1EnqHitS2, dequeueWire.bits.data, s1BypassData)
+    s2EnqHitS1 := s1EnqHitS1
+    fwd2 := fwd1
+    s2Pipe := s1Pipe
+  }
+  when(s2Fire ^ s3Fire) {
+    s2Valid := s2Fire
+  }
+
+  // update s3 reg
+  when(s3Fire) {
+    s3BypassData := Mux(s2EnqHitS1, dequeueWire.bits.data, s2BypassData)
+    fwd3 := fwd2
+    s3Pipe := s2Pipe
+  }
+  when(s3Fire ^ dequeueWire.fire) {
+    s3Valid := s3Fire
+  }
+  dequeue <> dequeueQueue.io.deq
 }
