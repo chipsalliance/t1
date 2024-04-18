@@ -1,9 +1,9 @@
 {
   "mlir.conv": 0,
   "mlir.matmul": 0,
-  "mlir.stripmining": 21839,
-  "intrinsic.conv2d_less_m2": 1456,
-  "intrinsic.linear_normalization": 2938,
+  "mlir.stripmining": 23396,
+  "intrinsic.conv2d_less_m2": 2003,
+  "intrinsic.linear_normalization": 3072,
   "intrinsic.matmul": 0,
-  "intrinsic.softmax": 8381
+  "intrinsic.softmax": 8424
 }
