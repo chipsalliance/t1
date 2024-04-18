@@ -8,7 +8,7 @@ import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
-import org.chipsalliance.t1.rtl.{LSUWriteCheck, VRFReadRequest, VRFWriteReport, VRFWriteRequest, ffo, instIndexL, ohCheck}
+import org.chipsalliance.t1.rtl.{LSUWriteCheck, VRFReadPipe, VRFReadRequest, VRFWriteReport, VRFWriteRequest, ffo, instIndexL, ohCheck}
 
 sealed trait RamType
 object RamType {
@@ -102,9 +102,11 @@ case class VRFParam(
 
   val elementSize: Int = vLen * 8 / datapathWidth / laneNumber
 
-  val indexBits: Int = log2Ceil(rfDepth)
   // todo: 4 bit for ecc
   val memoryWidth: Int = ramWidth + 4
+
+  // 1: pipe access request + 1: SyncReadMem
+  val vrfReadLatency = 2
 }
 
 class VRFProbe(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {
@@ -242,6 +244,13 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
   val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
 
+  val firstReadPipe: Seq[ValidIO[VRFReadPipe]] = Seq.tabulate(parameter.rfBankNum) { _ => RegInit(0.U.asTypeOf(Valid(new VRFReadPipe(parameter.rfDepth))))}
+  val secondReadPipe: Seq[ValidIO[VRFReadPipe]] = Seq.tabulate(parameter.rfBankNum) { _ => RegInit(0.U.asTypeOf(Valid(new VRFReadPipe(parameter.rfDepth))))}
+  val writePipe: ValidIO[VRFWriteRequest] = RegInit(0.U.asTypeOf(Valid(chiselTypeOf(write.bits))))
+  writePipe.valid := write.fire
+  when(write.fire) { writePipe.bits := write.bits }
+  val writeBankPipe: UInt = RegNext(writeBank)
+
   val checkSize: Int = readRequests.size
   val (firstOccupied, secondOccupied) = readRequests.zipWithIndex.foldLeft(
     (0.U(parameter.rfBankNum.W), 0.U(parameter.rfBankNum.W))
@@ -270,7 +279,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val validCorrect: Bool = if (i == 0) v.valid else v.valid && checkResult
       // select bank
       val bank = if (parameter.rfBankNum == 1) true.B else UIntToOH(v.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
-      val bankNext = RegNext(bank)
+      val pipeBank = Pipe(true.B, bank, parameter.vrfReadLatency).bits
       val bankCorrect = Mux(validCorrect, bank, 0.U(parameter.rfBankNum.W))
       val readPortCheckSelect = parameter.ramType match {
         case RamType.p0rw => o
@@ -280,14 +289,16 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       portConflictCheck := (parameter.ramType match {
         case RamType.p0rw => true.B
         case _ =>
-          !(write.valid && bank === writeBank && write.bits.vd === v.bits.vs && write.bits.offset === v.bits.offset)
+          !((write.valid && bank === writeBank && write.bits.vd === v.bits.vs && write.bits.offset === v.bits.offset) ||
+            (writePipe.valid && bank === writeBankPipe && writePipe.bits.vd === v.bits.vs && writePipe.bits.offset === v.bits.offset))
       })
       // 我选的这个port的第二个read port 没被占用
       v.ready := (bank & (~readPortCheckSelect)).orR && checkResult
       val firstUsed = (bank & o).orR
       bankReadF(i) := bankCorrect & (~o)
       bankReadS(i) := bankCorrect & (~t) & o
-      readResults(i) := Mux(RegNext(firstUsed), Mux1H(bankNext, readResultS), Mux1H(bankNext, readResultF))
+      val pipeFirstUsed = Pipe(true.B, firstUsed, parameter.vrfReadLatency).bits
+      readResults(i) := Mux(pipeFirstUsed, Mux1H(pipeBank, readResultS), Mux1H(pipeBank, readResultF))
       (o | bankCorrect, (bankCorrect & o) | t)
   }
   write.ready := (parameter.ramType match {
@@ -317,49 +328,62 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
        case RamType.p0rwp1rw => 2
       }
     )
+    val writeValid: Bool = writePipe.valid && writeBankPipe(bank)
     parameter.ramType match {
       case RamType.p0rw =>
-        rf.readwritePorts.last.address := Mux(
-          write.fire && writeBank(bank),
-          (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum),
+        firstReadPipe(bank).bits.address :=
           Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+        firstReadPipe(bank).valid := bankReadF.map(_(bank)).reduce(_ || _)
+        rf.readwritePorts.last.address := Mux(
+          writeValid,
+          (writePipe.bits.vd ## writePipe.bits.offset) >> log2Ceil(parameter.rfBankNum),
+          firstReadPipe(bank).bits.address
         )
-        rf.readwritePorts.last.enable := write.fire && writeBank(bank) || bankReadF.map(_(bank)).reduce(_ || _)
-        rf.readwritePorts.last.isWrite := write.fire && writeBank(bank)
-        rf.readwritePorts.last.writeData := write.bits.data
+        rf.readwritePorts.last.enable := writeValid || firstReadPipe(bank).valid
+        rf.readwritePorts.last.isWrite := writeValid
+        rf.readwritePorts.last.writeData := writePipe.bits.data
+        assert(!(writeValid && firstReadPipe(bank).valid), "port conflict")
 
         readResultF(bank) := rf.readwritePorts.head.readData
         readResultS(bank) := DontCare
       case RamType.p0rp1w =>
-        // connect readPorts
-        rf.readPorts.head.address :=
+        firstReadPipe(bank).bits.address :=
           Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
-        rf.readPorts.head.enable := bankReadF.map(_(bank)).reduce(_ || _)
+        firstReadPipe(bank).valid := bankReadF.map(_(bank)).reduce(_ || _)
+        // connect readPorts
+        rf.readPorts.head.address := firstReadPipe(bank).bits.address
+        rf.readPorts.head.enable := firstReadPipe(bank).valid
         readResultF(bank) := rf.readPorts.head.data
         readResultS(bank) := DontCare
 
-        rf.writePorts.head.enable := write.fire && writeBank(bank)
-        rf.writePorts.head.address := (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum)
-        rf.writePorts.head.data := write.bits.data
+        rf.writePorts.head.enable := writeValid
+        rf.writePorts.head.address := (writePipe.bits.vd ## writePipe.bits.offset) >> log2Ceil(parameter.rfBankNum)
+        rf.writePorts.head.data := writePipe.bits.data
       case RamType.p0rwp1rw =>
-        // connect readPorts
-        rf.readwritePorts.head.address :=
+        firstReadPipe(bank).bits.address :=
           Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
-        rf.readwritePorts.head.enable := bankReadF.map(_(bank)).reduce(_ || _)
+        firstReadPipe(bank).valid := bankReadF.map(_(bank)).reduce(_ || _)
+        // connect readPorts
+        rf.readwritePorts.head.address := firstReadPipe(bank).bits.address
+        rf.readwritePorts.head.enable := firstReadPipe(bank).valid
         rf.readwritePorts.head.isWrite := false.B
         rf.readwritePorts.head.writeData := DontCare
 
         readResultF(bank) := rf.readwritePorts.head.readData
         readResultS(bank) := rf.readwritePorts.last.readData
 
-        rf.readwritePorts.last.address := Mux(
-          write.fire && writeBank(bank),
-          (write.bits.vd ## write.bits.offset) >> log2Ceil(parameter.rfBankNum),
+        secondReadPipe(bank).bits.address :=
           Mux1H(bankReadS.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
+        secondReadPipe(bank).valid := bankReadS.map(_(bank)).reduce(_ || _)
+        rf.readwritePorts.last.address := Mux(
+          writeValid,
+          (writePipe.bits.vd ## writePipe.bits.offset) >> log2Ceil(parameter.rfBankNum),
+          secondReadPipe(bank).bits.address
         )
-        rf.readwritePorts.last.enable := write.fire && writeBank(bank) || bankReadS.map(_(bank)).reduce(_ || _)
-        rf.readwritePorts.last.isWrite := write.fire && writeBank(bank)
-        rf.readwritePorts.last.writeData := write.bits.data
+        rf.readwritePorts.last.enable := writeValid || secondReadPipe(bank).valid
+        rf.readwritePorts.last.isWrite := writeValid
+        rf.readwritePorts.last.writeData := writePipe.bits.data
+        assert(!(writeValid && secondReadPipe(bank).valid), "port conflict")
     }
 
     rf
@@ -383,7 +407,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     0.U((parameter.chainingSize + 1).W)
   )
 
-  val writePort: Seq[DecoupledIO[VRFWriteRequest]] = Seq(write)
+  val writePort: Seq[ValidIO[VRFWriteRequest]] = Seq(writePipe)
   val writeOH = writePort.map(p => UIntToOH((p.bits.vd ## p.bits.offset)(parameter.vrfOffsetBits + 3 - 1, 0)))
   val loadUnitReadPorts: Seq[DecoupledIO[VRFReadRequest]] = Seq(readRequests.last)
   val loadReadOH: Seq[UInt] =
