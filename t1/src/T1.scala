@@ -9,9 +9,7 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.experimental.decode._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
-import chisel3.probe.Probe
-import chisel3.probe.ProbeValue
-import chisel3.probe.define
+import chisel3.probe.{Probe, ProbeValue, define, force}
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
@@ -181,7 +179,7 @@ case class T1Parameter(
   val maskWidth: Int = lsuBankParameters.head.beatbyte
 
   // todo
-  val vrfReadLatency = 1
+  val vrfReadLatency = 2
 
   // each element: Each lane will be connected to the other two lanes,
   // and the values are their respective delays.
@@ -480,7 +478,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     RegEnable(
       !requestRegDequeue.fire,
       false.B,
-      (RegNext(maskUnitReadReady) && gatherNeedRead) || requestRegDequeue.fire
+      (RegNext(RegNext(maskUnitReadReady)) && gatherNeedRead) || requestRegDequeue.fire
     )
   val gatherReadDataOffset: UInt = Wire(UInt(5.W))
   val gatherData:           UInt = Mux(gatherOverlap, 0.U, (WARRedResult.bits >> gatherReadDataOffset).asUInt)
@@ -760,7 +758,8 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val lastExecuteForGroup = writeBackCounter.andR
       // 计算正写的这个lane是不是在边界上
       val endOH = UIntToOH(csrRegForMaskUnit.vl(parameter.dataPathWidthBits - 1, 0))
-      val border = lastExecute && dataPathMisaligned && !(decodeResultReg(Decoder.compress))
+      val border = lastExecute && dataPathMisaligned &&
+        !(decodeResultReg(Decoder.compress) || decodeResultReg(Decoder.gather))
       val lastGroupMask = scanRightOr(endOH(parameter.datapathWidth - 1, 1))
       val mvType = decodeResultReg(Decoder.mv)
       val readMv = mvType && decodeResultReg(Decoder.targetRd)
@@ -772,13 +771,17 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val skipLaneData: Bool = decodeResultReg(Decoder.mv)
       mixedUnit := writeMv || readMv
       maskReadLaneSelect.head := UIntToOH(writeBackCounter)
+      maskReadLaneSelect.head := UIntToOH(writeBackCounter)
       maskWriteLaneSelect.head := maskReadLaneSelect.head
       maskUnitReadVec.head.valid := false.B
       maskUnitReadVec.head.bits.vs := Mux(readMv, vs2, Mux(reduce, vs1, vd))
       maskUnitReadVec.head.bits.readSource := Mux(readMv, 1.U, Mux(reduce, 0.U, 2.U))
       maskUnitReadVec.head.bits.offset := groupCounter
       maskUnitRead.bits.instructionIndex := control.record.instructionIndex
-      val readResultSelectResult = Mux1H(RegNext(maskUnitReadSelect), laneReadResult)
+      val readResultSelectResult = Mux1H(
+        Pipe(true.B, maskUnitReadSelect, parameter.vrfReadLatency).bits
+        , laneReadResult
+      )
       // 把mask选出来
       val maskSelect = v0(groupCounter ## writeBackCounter)
       val fullMask: UInt = (-1.S(parameter.datapathWidth.W)).asUInt
@@ -802,8 +805,11 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       maskUnitWriteVec.head.bits.last := control.state.wLast || reduce
       maskUnitWriteVec.head.bits.instructionIndex := control.record.instructionIndex
 
-      val maskUnitReadVrf = maskUnitReadReady && maskUnitReadVec.map(_.valid).reduce(_ || _)
-      when(RegNext(maskUnitReadVrf)) {
+      val waitReadResult: Bool = Wire(Bool())
+      val maskUnitReadVrf = maskUnitReadReady && maskUnitReadVec.map(_.valid).reduce(_ || _) && !waitReadResult
+      val readNext = RegNext(maskUnitReadVrf)
+      waitReadResult := RegNext(readNext) || readNext
+      when(Pipe(maskUnitReadVrf, false.B, parameter.vrfReadLatency).valid) {
         WARRedResult.bits := readResultSelectResult
         WARRedResult.valid := true.B
       }
@@ -993,8 +999,10 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val skipRead = readOverlap || (gather && compareResult) || extend
       val maskUnitWriteVecFire1 = maskUnitReadVec(1).valid && maskUnitReadReady
       val readFireNext1: Bool = RegNext(maskUnitWriteVecFire1)
-      val gatherTryToRead = gatherNeedRead && !VecInit(lsu.vrfReadDataPorts.map(_.valid)).asUInt.orR
-      maskUnitReadVec(1).valid := (readState || gatherTryToRead) && !readFireNext1
+      val readFireNextNext1: Bool = RegNext(readFireNext1)
+      val port1WaitForResult: Bool = readFireNext1 || readFireNextNext1
+      val gatherTryToRead = gatherNeedRead && !VecInit(lsu.vrfReadDataPorts.map(_.valid)).asUInt.orR && !gatherReadFinish
+      maskUnitReadVec(1).valid := (readState || gatherTryToRead) && !port1WaitForResult
       maskUnitReadVec(1).bits.vs := Mux(readState, vs2, requestRegDequeue.bits.instruction(24, 20)) + readGrowth
       maskUnitReadVec(1).bits.readSource := 1.U
       maskUnitReadVec(1).bits.offset := readOffset
@@ -1044,7 +1052,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       }
       when(readState) {
         // 不需要valid,因为这个状态下一定是valid的
-        when(readFireNext1) {
+        when(readFireNextNext1) {
           slideState := sWrite
         }
       }
@@ -1080,7 +1088,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val compressStateWrite = compressState === sWrite1
 
       // compress 用vs1当mask,需要先读vs1
-      val readCompressMaskNext = RegNext(maskUnitReadReady && compressStateRead)
+      val readCompressMaskNext = Pipe(maskUnitReadReady && compressStateRead, false.B, parameter.vrfReadLatency).valid
       when(readCompressMaskNext) {
         maskDataForCompress := readResultSelectResult
       }
@@ -1093,6 +1101,8 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
       val maskUnitReadFire2: Bool = maskUnitReadVec(2).valid && maskUnitReadReady
       val readFireNext2 = RegNext(maskUnitReadFire2)
+      val readFireNextNext2 = RegNext(readFireNext2)
+      val port2WaitForResult = readFireNextNext2 || readFireNext2
 
       /** 计算需要读的mask的相关
         * elementIndexCount -> 11bit
@@ -1102,7 +1112,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         * elementIndexCount(9, 8)作为offset
         */
       // compress read
-      maskUnitReadVec(2).valid := compressStateRead && !readFireNext2
+      maskUnitReadVec(2).valid := compressStateRead && !port2WaitForResult
       maskUnitReadVec(2).bits.vs := vs1
       maskUnitReadVec(2).bits.readSource := 0.U
       maskUnitReadVec(2).bits.offset := elementIndexCount(
@@ -1143,7 +1153,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         compressState := firstState
       }
 
-      when(compressStateRead && readFireNext2) {
+      when(compressStateRead && readFireNextNext2) {
         compressState := sWrite1
       }
 
