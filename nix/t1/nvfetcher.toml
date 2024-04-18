@@ -35,7 +35,7 @@ fetch.github = "chipsalliance/rocket-chip-inclusive-cache"
 
 [chisel]
 src.git = "https://github.com/chipsalliance/chisel"
-src.branch = "main"
+src.branch = "instantiate-class"
 fetch.github = "chipsalliance/chisel"
 
 [rvdecoderdb]
