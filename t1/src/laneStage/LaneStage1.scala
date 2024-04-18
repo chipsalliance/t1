@@ -103,9 +103,9 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   enqueue.ready := allReadQueueReady && pipeQueue.io.enq.ready
 
   // request enqueue
-  readRequestQueueVs1.io.enq.valid := enqueue.valid && allReadQueueReady && state.decodeResult(Decoder.vtype) && !state.skipRead
-  readRequestQueueVs2.io.enq.valid := enqueue.valid && allReadQueueReady && !state.skipRead
-  readRequestQueueVd.io.enq.valid := enqueue.valid && allReadQueueReady && !state.decodeResult(Decoder.sReadVD)
+  readRequestQueueVs1.io.enq.valid := enqueue.fire && state.decodeResult(Decoder.vtype) && !state.skipRead
+  readRequestQueueVs2.io.enq.valid := enqueue.fire && !state.skipRead
+  readRequestQueueVd.io.enq.valid := enqueue.fire && !state.decodeResult(Decoder.sReadVD)
   (readRequestQueueLSB ++ readRequestQueueMSB).foreach { q =>
     q.io.enq.valid := enqueue.valid && allReadQueueReady && state.decodeResult(Decoder.crossRead)
   }

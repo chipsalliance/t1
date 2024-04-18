@@ -1045,7 +1045,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   laneRequest.ready := !slotOccupied.last && vrf.instructionWriteReport.ready
 
   val instructionFinishAndNotReportByTop: Bool =
-    entranceControl.instructionFinished && !laneRequest.bits.decodeResult(Decoder.readOnly)
+    entranceControl.instructionFinished && !laneRequest.bits.decodeResult(Decoder.readOnly) && (writeCount === 0.U)
   val needWaitCrossWrite: Bool = laneRequest.bits.decodeResult(Decoder.crossWrite) && csrInterface.vl.orR
   // normal instruction, LSU instruction will be report to VRF.
   vrf.instructionWriteReport.valid := laneRequest.bits.issueInst && (!instructionFinishAndNotReportByTop || needWaitCrossWrite)
@@ -1113,7 +1113,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       Mux(topWriteQueue.valid, indexToOH(topWriteQueue.bits.instructionIndex, parameter.chainingSize), 0.U) |
       maskedWriteUnit.maskedWrite1H | dataInPipeQueue
   instructionFinished := instructionFinishedVec.reduce(_ | _)
-  crossWriteDataInSlot := crossWriteDataInSlotVec.reduce(_ | _)
+  crossWriteDataInSlot := crossWriteDataInSlotVec.reduce(_ | _) | dataInPipeQueue | maskedWriteUnit.maskedWrite1H
   writeReadyForLsu := vrf.writeReadyForLsu
   vrfReadyToStore := vrf.vrfReadyToStore
 
