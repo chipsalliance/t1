@@ -796,19 +796,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // VFU
   // TODO: reuse logic, adder, multiplier datapath
-  {
-    val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
+  val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
 
-    vfuConnect(parameter.vfuInstantiateParameter)(
-      requestVec,
-      executeEnqueueValid,
-      decodeResultVec,
-      executeEnqueueFire,
-      responseVec,
-      executeOccupied,
-      VFUNotClear
-    )
-  }
+  val vfus: Seq[Instance[VFUModule]] = instantiateVFU(parameter.vfuInstantiateParameter)(
+    requestVec,
+    executeEnqueueValid,
+    decodeResultVec,
+    executeEnqueueFire,
+    responseVec,
+    executeOccupied,
+    VFUNotClear
+  )
 
   // It’s been a long time since I selected it. Need pipe
   val queueBeforeMaskWrite: Queue[VRFWriteRequest] =
