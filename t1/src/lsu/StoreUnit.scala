@@ -116,7 +116,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     assert(!queue.io.enq.valid || queue.io.enq.ready)
 
     vrfReadQueueVec(laneIndex).io.enq <> queue.io.deq
-    stageValid
+    stageValid || RegNext(readPort.fire)
   }.reduce(_ || _)
 
   // stage buffer stage: data before regroup
