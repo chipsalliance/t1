@@ -160,7 +160,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
    * see [[LSU.vrfReadResults]]
    */
   @public
-  val vrfReadResults: UInt = IO(Input(UInt(param.datapathWidth.W)))
+  val vrfReadResults: ValidIO[UInt] = IO(Input(Valid(UInt(param.datapathWidth.W))))
 
   /** offset of indexed load/store instructions. */
   @public
@@ -718,11 +718,13 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   // ask Scheduler to change offset group
   status.offsetGroupEnd := needRequestOffset && requestOffset && !requestOffsetNext
 
+  val s0DequeueFire: Bool = Wire(Bool())
+
   /** valid signal to enqueue to s0. */
   val s0EnqueueValid: Bool = stateReady && !last
 
   /** there exist valid signal inside s0. */
-  val s0Valid: Bool = RegEnable(s0Fire, false.B, s0Fire ^ s1Fire)
+  val s0Valid: Bool = RegEnable(s0Fire, false.B, s0Fire ^ s0DequeueFire)
 
   /** request enqueue to s0. */
   val s0Wire: MSHRStage0Bundle = Wire(new MSHRStage0Bundle(param))
@@ -735,6 +737,10 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
 
   /** element index enqueuing to s0. */
   val s0ElementIndex: UInt = groupIndex ## nextElementForMemoryRequestIndex
+
+  // Reading vrf may take multiple cycles and requires additional information to be stored
+  val s1EnqQueue: Queue[SimpleAccessStage1] = Module(new Queue(new SimpleAccessStage1(param), param.vrfReadLatency + 2))
+  val s1EnqDataQueue: Queue[UInt] = Module(new Queue(UInt(param.datapathWidth.W), param.vrfReadLatency + 2))
 
   /** which byte to access in VRF, e.g.
    * VLEN=1024,datapath=32,laneNumber=8
@@ -789,7 +795,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   // s1 access VRF
   // TODO: perf `lsuRequestReg.instructionInformation.isStore && vrfReadDataPorts.ready` to check the VRF bandwidth
   //       limitation affecting to LSU store.
-  vrfReadDataPorts.valid := s0Valid && lsuRequestReg.instructionInformation.isStore && s1EnqueueReady
+  vrfReadDataPorts.valid := s0Valid && lsuRequestReg.instructionInformation.isStore && s1EnqQueue.io.enq.ready
   vrfReadDataPorts.bits.offset := s0Reg.offsetForVSInLane.getOrElse(DontCare)
   vrfReadDataPorts.bits.vs := s0Reg.readVS
   vrfReadDataPorts.bits.readSource := 2.U
@@ -797,9 +803,6 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
 
   /** ready to read VRF to store to memory. */
   val readReady: Bool = !lsuRequestReg.instructionInformation.isStore || vrfReadDataPorts.ready
-
-  /** valid signal to enqueue to s1 */
-  val s1EnqueueValid: Bool = s0Valid && readReady
 
   /** data is valid in s1 */
   val s1Valid: Bool = RegEnable(s1Fire, false.B, s1Fire ^ s2Fire)
@@ -814,36 +817,35 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   val s2EnqueueReady: Bool = tlPort.a.ready && sourceFree
 
   s1EnqueueReady := s2EnqueueReady || !s1Valid
-  s1Fire := s1EnqueueValid && s1EnqueueReady
 
   /** ready signal to enqueue to s0. */
-  val s0EnqueueReady: Bool = (s1EnqueueReady && readReady) || !s0Valid
+  val s0EnqueueReady: Bool = (s1EnqQueue.io.enq.ready && readReady) || !s0Valid
   s0Fire := s0EnqueueReady && s0EnqueueValid
 
   /** pipeline is flushed. */
-  val pipelineClear: Bool = !s0Valid && !s1Valid
+  val pipelineClear: Bool = !s0Valid && !s1Valid && !s1EnqQueue.io.deq.valid
 
-  s1Wire.address := lsuRequestReg.rs1Data + s0Reg.addressOffset
-  s1Wire.indexInMaskGroup := s0Reg.indexInGroup
-  s1Wire.segmentIndex := s0Reg.segmentIndex
+  s0DequeueFire := s1EnqQueue.io.enq.fire
+  s1EnqQueue.io.enq.valid := s0Valid && readReady
+  s1EnqQueue.io.enq.bits.address := lsuRequestReg.rs1Data + s0Reg.addressOffset
+  s1EnqQueue.io.enq.bits.indexInMaskGroup := s0Reg.indexInGroup
+  s1EnqQueue.io.enq.bits.segmentIndex := s0Reg.segmentIndex
+  s1EnqQueue.io.enq.bits.readData := DontCare
+  // pipe read data
+  s1EnqDataQueue.io.enq.valid := vrfReadResults.valid
+  assert(s1EnqDataQueue.io.enq.ready || !vrfReadResults.valid, "read queue in simple access ")
+  s1EnqDataQueue.io.enq.bits := vrfReadResults.bits
 
-  /** previous cycle sent the VRF read request,
-   * this cycle should got response from each lanes
-   * TODO: I think the latency is too large here.
-   */
-  val readVRFResponseValid: Bool = RegNext(s1Fire) && lsuRequestReg.instructionInformation.isStore
-  // readResult hold unless readNext
-  /** latch from lanes [[vrfReadResults]] */
-  val vrfReadResultsReg: UInt = RegEnable(vrfReadResults, 0.U.asTypeOf(vrfReadResults), readVRFResponseValid)
+  s1Wire.address := s1EnqQueue.io.deq.bits.address
+  s1Wire.indexInMaskGroup := s1EnqQueue.io.deq.bits.indexInMaskGroup
+  s1Wire.segmentIndex := s1EnqQueue.io.deq.bits.segmentIndex
+  s1Wire.readData := s1EnqDataQueue.io.deq.bits
 
-  /** is [[vrfReadResultsReg]] valid or not?
-   * TODO: I think this is bad for timing...
-   */
-  val readDataRegValid: Bool =
-    RegEnable(readVRFResponseValid, false.B, (readVRFResponseValid ^ tlPort.a.fire) || lsuRequest.valid)
-
-  /** mux to select from [[vrfReadResultsReg]] or [[vrfReadResults]] */
-  val readDataResultSelect: UInt = Mux(readDataRegValid, vrfReadResultsReg, vrfReadResults)
+  val s1DataEnqValid: Bool = s1EnqDataQueue.io.deq.valid || !lsuRequestReg.instructionInformation.isStore
+  val s1EnqValid: Bool = s1DataEnqValid && s1EnqQueue.io.deq.valid
+  s1Fire := s1EnqValid && s1EnqueueReady
+  s1EnqQueue.io.deq.ready := s1EnqueueReady && s1DataEnqValid
+  s1EnqDataQueue.io.deq.ready := s1EnqueueReady
 
   val addressInBeatByte: UInt = s1Reg.address(log2Ceil(param.tlParam.a.maskWidth) - 1, 0)
   // 1 -> 1 2 -> 3 4 -> 15
@@ -858,7 +860,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
    * TODO: use Mux1H to select(only 4 cases).
    */
   val storeData: UInt =
-    ((readDataResultSelect << (addressInBeatByte ## 0.U(3.W))) >> (storeOffsetByIndex ## 0.U(3.W))).asUInt
+    ((s1Reg.readData << (addressInBeatByte ## 0.U(3.W))) >> (storeOffsetByIndex ## 0.U(3.W))).asUInt
   // only PutFull / Get for now
   tlPort.a.bits.opcode := !lsuRequestReg.instructionInformation.isStore ## 0.U(2.W)
   tlPort.a.bits.param := 0.U

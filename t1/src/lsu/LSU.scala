@@ -283,7 +283,10 @@ class LSU(param: LSUParameter) extends Module {
     storeUnit.vrfReadResults(index) := vrfReadResults(index)
   }
   otherUnit.vrfReadDataPorts.ready := (otherTryReadVrf & VecInit(vrfReadDataPorts.map(_.ready)).asUInt).orR
-  otherUnit.vrfReadResults := Mux1H(RegNext(otherUnit.status.targetLane), vrfReadResults)
+  val pipeOtherRead: ValidIO[UInt] =
+    Pipe(otherUnit.vrfReadDataPorts.fire, otherUnit.status.targetLane, param.vrfReadLatency)
+  otherUnit.vrfReadResults.bits := Mux1H(pipeOtherRead.bits, vrfReadResults)
+  otherUnit.vrfReadResults.valid := pipeOtherRead.valid
 
   // write vrf
   val otherTryToWrite: UInt = Mux(otherUnit.vrfWritePort.valid, otherUnit.status.targetLane, 0.U)

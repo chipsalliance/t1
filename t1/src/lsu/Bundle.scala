@@ -65,4 +65,5 @@ class SimpleAccessStage1(param: MSHRParam) extends Bundle {
 
   // 访问l2的地址
   val address: UInt = UInt(param.paWidth.W)
+  val readData: UInt = UInt(param.datapathWidth.W)
 }
