@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Definition, Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
-import chisel3.properties.{Class, ClassType, Path, Property}
+import chisel3.properties.{AnyClassType, Class, ClassType, Path, Property}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
@@ -16,11 +16,10 @@ import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam, VRFProbe}
 
 @instantiable
 class LaneOM extends Class {
-  val vfuOMType: ClassType = Definition(new VFUOM).getClassType
   @public
-  val vfus = IO(Output(Property[Seq[vfuOMType.Type]]()))
+  val vfus = IO(Output(Property[Seq[AnyClassType]]()))
   @public
-  val vfusIn = IO(Input(Property[Seq[vfuOMType.Type]]()))
+  val vfusIn = IO(Input(Property[Seq[AnyClassType]]()))
   vfus := vfusIn
 }
 
@@ -823,7 +822,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     executeOccupied,
     VFUNotClear
   )
-  omInstance.vfusIn := Property(vfus.map(_.om.as(Definition(new VFUOM).getClassType)))
+  omInstance.vfusIn := Property(vfus.map(_.om.asAnyClassType))
 
   // It’s been a long time since I selected it. Need pipe
   val queueBeforeMaskWrite: Queue[VRFWriteRequest] =
