@@ -10,7 +10,7 @@ import chisel3.util._
 import chisel3.util.experimental.decode._
 import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
 import chisel3.probe.{Probe, ProbeValue, define, force}
-import chisel3.properties.{Class, ClassType, Property}
+import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
@@ -22,11 +22,10 @@ import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
 //       3. Lane(Retime, VRF memory type, id, multiple instances(does it affect dedup? not for sure))
 @instantiable
 class T1OM extends Class {
-  val laneOMType: ClassType = Definition(new LaneOM).getClassType
   @public
-  val lanes = IO(Output(Property[Seq[laneOMType.Type]]()))
+  val lanes = IO(Output(Property[Seq[AnyClassType]]()))
   @public
-  val lanesIn = IO(Input(Property[Seq[laneOMType.Type]]()))
+  val lanesIn = IO(Input(Property[Seq[AnyClassType]]()))
   lanes := lanesIn
 }
 
@@ -1514,7 +1513,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     lane
   }
 
-  omInstance.lanesIn := Property(laneVec.map(_.om.as(Definition(new LaneOM).getClassType)))
+  omInstance.lanesIn := Property(laneVec.map(_.om.asAnyClassType))
 
   define(lsuProbe, lsu.probe)
 
