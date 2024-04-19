@@ -3,6 +3,7 @@ on:
   schedule:
     # Run this job everyday at 6:30 AM UTC+8
     - cron:  '30 10 * * *'
+  pull_request:
 
 jobs:
   gen-matrix:
@@ -143,3 +144,60 @@ jobs:
         with:
           # test-reports has been used, it can be deleted
           name: test-reports-*
+
+  bump-deps:
+    name: "Bump Chisel"
+    if: ${{ !cancelled() }}
+    runs-on: [self-hosted, linux, nixos]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          #ref: master
+      - name: Bump Chisel
+        run: |
+          cd nix/t1
+          nix run '.#nvfetcher' -- -f '^chisel$'
+      - name: Bump circt
+        run: |
+          nix flake update nixpkgs-for-circt
+      - name: Bump all mill deps
+        run: |
+          oldHash=$(nix derivation show .#t1.elaborator.millDeps | jq -r 'to_entries[0].value.env.outputHash')
+          nix build '.#t1.elaborator.millDeps' --rebuild > t1-milldeps-log.txt 2>&1 || true
+          newHash=$(cat t1-milldeps-log.txt \
+            | grep -P '^\s+got:\s+sha256-.*$' \
+            | cut -d':' -f2 \
+            | xargs)
+          if [ -z "$newHash" ] || [ "$newHash" = "$oldHash" ]; then
+            echo "Original build logs for debug: "
+            cat t1-milldeps-log.txt
+            echo "Hash unchanged, exit"
+            exit 0
+          fi
+          echo "Updating hash $oldHash to $newHash"
+          sed -i "s|$oldHash|$newHash|" nix/t1/t1.nix
+      - name: Commit changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          currentDate=$(date +%F)
+          branch="dependencies-bumping-$currentDate"
+          git checkout -b "$branch"
+
+          git add 'nix/t1'
+          git add 'flake.lock'
+          fileUnchanged() {
+            git diff --quiet --exit-code "$@"
+          }
+
+          if ! git diff --quiet --cached --exit-code; then
+            echo "File changed"
+            git commit -m "[deps] Bump T1 dependencies"
+            git push origin "$branch" --force-with-lease
+            nix run '.#gh' -- \
+              pr create --title "Bump T1 dependencies" --body "Updated: $(git diff --cached --name-only)"
+          fi
