@@ -643,6 +643,7 @@ class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends
   /** groupCounter need use to update `Lane.maskFormatResultForGroup` */
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
+  val crossWrite: Bool = Bool()
 }
 
 class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {

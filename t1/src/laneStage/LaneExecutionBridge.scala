@@ -18,6 +18,7 @@ class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends 
   val maskForFilter: UInt = UInt((parameter.datapathWidth / 8).W)
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
+  val crossWrite: Bool = Bool()
 }
 
 class LaneExecuteResponse(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -87,9 +88,9 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   // Type widenReduce instructions occupy double the data registers because they need to retain the carry bit.
   val widenReduce: Bool = decodeResult(Decoder.widenReduce)
   // Whether cross-lane reading or cross-lane writing requires double execution
-  val doubleExecution = decodeResult(Decoder.crossWrite) || decodeResult(Decoder.crossRead) || widenReduce
+  val doubleExecution = executionRecord.crossWrite || decodeResult(Decoder.crossRead) || widenReduce
   // narrow type
-  val narrow: Bool = !decodeResult(Decoder.crossWrite) && decodeResult(Decoder.crossRead)
+  val narrow: Bool = !executionRecord.crossWrite && decodeResult(Decoder.crossRead)
   // todo: Need to collapse the results of combined calculations
   val reduceReady: Bool = WireDefault(true.B)
   val sendFoldReduce: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
@@ -104,7 +105,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecordValid := enqueue.fire
   }
   if (isLastSlot) {
-    val firstGroupNotExecute = decodeResult(Decoder.crossWrite) && !Mux(
+    val firstGroupNotExecute = enqueue.bits.crossWrite && !Mux(
       state.vSew1H(0),
       // sew = 8, 2 mask bit / group
       enqueue.bits.maskForFilter(1, 0).orR,
@@ -128,6 +129,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecord.crossReadSource.foreach(_ := enqueue.bits.crossReadSource.get)
     executionRecord.sSendResponse.foreach(_ := enqueue.bits.sSendResponse.get)
     executionRecord.groupCounter := enqueue.bits.groupCounter
+    executionRecord.crossWrite := enqueue.bits.crossWrite
   }
 
   /** collapse the dual SEW size operand for cross read.
@@ -170,7 +172,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     )
   val finalSource1: UInt = if (isLastSlot) {
     Mux(
-      decodeResult(Decoder.crossWrite) || narrow,
+      executionRecord.crossWrite || narrow,
       extendSource1,
       normalSource1
     )
@@ -187,7 +189,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       executionRecord.crossReadVS2,
       doubleCollapse.get,
       Mux(
-        decodeResult(Decoder.crossWrite) || (widenReduce && !sendFoldReduce.get),
+        executionRecord.crossWrite || (widenReduce && !sendFoldReduce.get),
         extendSource2,
         Mux(
           sendFoldReduce.get,
@@ -426,6 +428,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         // reduce type
         && decodeResult(Decoder.red) &&
         // last execute for this group(widen need 2 execute/group)
+        // todo: doubleExecution need request.bit.crossWrite?
         (!doubleExecution || recordQueue.io.deq.bits.executeIndex) &&
         (redState === idle)
     ) {

@@ -15,6 +15,7 @@ class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val maskForMaskInput: UInt = UInt((parameter.datapathWidth / 8).W)
   val boundaryMaskCorrection: UInt = UInt((parameter.datapathWidth / 8).W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
+  val crossWrite: Bool = Bool()
 }
 
 class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -27,6 +28,7 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   // read result
   val src: Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
   val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+  val crossWrite: Bool = Bool()
 }
 
 /** 这一个stage 分两级流水, 分别是 读vrf 等vrf结果
@@ -259,6 +261,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.src := VecInit(Seq(source1Select, dataQueueVs2.io.deq.bits, dataQueueVd.io.deq.bits))
   dequeue.bits.crossReadSource.foreach(_ := crossReadResultQueue.get.io.deq.bits)
   dequeue.bits.sSendResponse.foreach(_ := pipeQueue.io.deq.bits.sSendResponse.get)
+  dequeue.bits.crossWrite := pipeQueue.io.deq.bits.crossWrite
 
   dequeue.bits.maskForFilter :=
     (FillInterleaved(4, state.maskNotMaskedElement) | pipeQueue.io.deq.bits.maskForMaskInput) &

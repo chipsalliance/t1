@@ -612,6 +612,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage1.enqueue.valid := stage0.dequeue.valid
       stage0.dequeue.ready := stage1.enqueue.ready
       stage1.enqueue.bits.groupCounter := stage0.dequeue.bits.groupCounter
+      stage1.enqueue.bits.crossWrite := stage0.dequeue.bits.crossWrite
       stage1.enqueue.bits.maskForMaskInput := stage0.dequeue.bits.maskForMaskInput
       stage1.enqueue.bits.boundaryMaskCorrection := stage0.dequeue.bits.boundaryMaskCorrection
       stage1.enqueue.bits.sSendResponse.zip(stage0.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
@@ -691,6 +692,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       executionUnit.enqueue.bits.mask := stage1.dequeue.bits.mask
       executionUnit.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
       executionUnit.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
+      executionUnit.enqueue.bits.crossWrite := stage1.dequeue.bits.crossWrite
       executionUnit.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
         sink := source
       }

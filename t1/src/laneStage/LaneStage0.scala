@@ -9,6 +9,7 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl._
 import org.chipsalliance.t1.rtl.decoder.Decoder
+import upickle.core.Annotator.Checker.Val
 
 // stage 0
 class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
@@ -29,6 +30,7 @@ class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val boundaryMaskCorrection: UInt = UInt((parameter.datapathWidth/8).W)
   val sSendResponse: Option[Bool] =  Option.when(isLastSlot)(Bool())
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
+  val crossWrite: Bool = Bool()
 }
 
 /** 这一级由 lane slot 里的 maskIndex maskGroupCount 来计算对应的 data group counter
@@ -141,6 +143,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   )
 
   stageWire.groupCounter := dataGroupIndex
+  stageWire.crossWrite := state.decodeResult(Decoder.crossWrite)
 
   /** next mask group */
   updateLaneState.maskGroupCount := enqueue.bits.maskGroupCount + maskGroupWillUpdate
