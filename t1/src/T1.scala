@@ -279,7 +279,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /** the LSU Module */
 
   val lsu: Instance[LSU] = Instantiate(new LSU(parameter.lsuParameters))
+  lsu.suggestName("lsu")
   val decode: Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.fpuEnable))
+  decode.suggestName("decoder")
 
   // TODO: cover overflow
   // TODO: uarch doc about the order of instructions
@@ -827,10 +829,14 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val skipFlotReduce: Bool = !Mux1H(UIntToOH(executeCounter), flotReduceValid.map(_.getOrElse(false.B)))
       // red alu instance
       val adder: Instance[ReduceAdder] = Instantiate(new ReduceAdder(parameter.datapathWidth))
+      adder.suggestName(s"slot${index}ReduceAdder")
       val logicUnit: Instance[LaneLogic] = Instantiate(new LaneLogic(parameter.datapathWidth))
+      logicUnit.suggestName(s"slot${index}LogicUnit")
       // option unit for flot reduce
       val floatAdder: Option[Instance[FloatAdder]] = Option.when(parameter.fpuEnable)(Instantiate(new FloatAdder(8, 24)))
+      floatAdder.foreach(_.suggestName(s"slot${index}floatAdder"))
       val flotCompare: Option[Instance[FloatCompare]]  = Option.when(parameter.fpuEnable)(Instantiate(new FloatCompare(8, 24)))
+      floatAdder.foreach(_.suggestName(s"slot${index}flotCompare"))
 
       val sign = !decodeResultReg(Decoder.unsigned1)
       adder.request.src := VecInit(
@@ -1376,6 +1382,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     */
   val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber) { index =>
     val lane: Instance[Lane] = Instantiate(new Lane(parameter.laneParam))
+    lane.suggestName(s"lane$index")
     // lane.laneRequest.valid -> requestRegDequeue.ready -> lane.laneRequest.ready -> lane.laneRequest.bits
     // TODO: this is harmful for PnR design, since it broadcast ready singal to each lanes, which will significantly
     //       reduce the scalability for large number of lanes.

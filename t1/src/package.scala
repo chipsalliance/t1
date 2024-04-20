@@ -219,7 +219,7 @@ package object rtl {
       // vfu 模块
       // TODO: SerializableModuleGenerator should support D/I
       val vfu: VFUModule = Module(gen.module())
-      vfu.suggestName(gen.parameter.decodeField.name)
+      vfu.suggestName(s"slot${slotVec.mkString("_")}_${vfu.desiredName}_$vfuIndex")
       // vfu request distributor
       val distributor: Option[Instance[Distributor[SlotRequestToVFU, VFUResponseToSlot]]] = Option.when(gen.parameter.NeedSplit)(
         Instantiate(new Distributor(
