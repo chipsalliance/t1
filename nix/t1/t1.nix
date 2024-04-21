@@ -8,7 +8,7 @@
 , mill
 , espresso
 , circt-full
-, jextract
+, jextract-21
 , strip-nondeterminism
 
 , submodules
@@ -60,7 +60,7 @@ let
     nativeBuildInputs = [
       mill
       circt-full
-      jextract
+      jextract-21
       strip-nondeterminism
 
       makeWrapper
