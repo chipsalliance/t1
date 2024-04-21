@@ -20,6 +20,8 @@ case class LaneMulParam(datapathWidth: Int, latency: Int) extends VFUParameter w
   val decodeField: BoolField = Decoder.multiplier
   val inputBundle = new LaneMulReq(this)
   val outputBundle = new LaneMulResponse(this)
+  val piped: Boolean = true
+  val useDistributor: Boolean = false
 }
 
 class LaneMulReq(parameter: LaneMulParam) extends VFUPipeBundle {

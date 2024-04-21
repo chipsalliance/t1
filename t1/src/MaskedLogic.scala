@@ -15,6 +15,8 @@ case class LogicParam(datapathWidth: Int, latency: Int) extends VFUParameter wit
   val decodeField: BoolField = Decoder.logic
   val inputBundle = new MaskedLogicRequest(datapathWidth)
   val outputBundle = new MaskedLogicResponse(datapathWidth)
+  val piped: Boolean = true
+  val useDistributor: Boolean = false
 }
 
 class MaskedLogicRequest(datapathWidth: Int) extends VFUPipeBundle {

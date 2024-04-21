@@ -16,10 +16,10 @@ trait VFUParameter {
   val decodeField: BoolField
   val inputBundle: VFUPipeBundle
   val outputBundle: VFUPipeBundle
-  // The execution cycle will not change
-  val singleCycle: Boolean = true
-  val NeedSplit: Boolean = false
+  val piped: Boolean
+  val useDistributor: Boolean
   val latency: Int
+  require(latency > 0, "every unit should have a least one cycle.")
 }
 
 class VFUPipeBundle extends Bundle {
@@ -37,38 +37,33 @@ abstract class VFUModule(p: VFUParameter) extends Module {
   val retime: Option[Property[Int]] = Option.when(p.latency > 1)(IO(Property[Int]()))
   retime.foreach(_ := Property(p.latency))
 
-  val vfuRequestReady: Option[Bool] = Option.when(!p.singleCycle)(Wire(Bool()))
+  val vfuRequestReady: Option[Bool] = Option.when(!p.piped)(Wire(Bool()))
   val requestReg: VFUPipeBundle = RegEnable(requestIO.bits, 0.U.asTypeOf(requestIO.bits), requestIO.fire)
   val requestRegValid: Bool = RegInit(false.B)
   val vfuRequestFire: Bool = vfuRequestReady.getOrElse(true.B) && requestRegValid
 
   def connectIO(response: VFUPipeBundle, responseValid: Bool = true.B): Data = {
     response.tag := DontCare
-    if (p.singleCycle && p.latency == 0) {
-      responseIO.bits := response.asTypeOf(responseIO.bits)
-      responseIO.valid := requestRegValid
+    if (p.piped) {
+      // This implementation consumes too much power, need token+shifter with enable.
+      val responseWire = Wire(Valid(chiselTypeOf(response)))
+      responseWire.valid := requestRegValid
+      responseWire.bits := response
+      responseWire.bits.tag := requestReg.tag
+      val pipeResponse: Seq[ValidIO[VFUPipeBundle]] = ShiftRegisters(responseWire, p.latency)
+      pipeResponse.zipWithIndex.foreach(r => r._1.suggestName(s"retimeShifterBits${r._2}"))
+      responseIO.valid := pipeResponse.last.valid
+      responseIO.bits := pipeResponse.last.bits
     } else {
-      val responseWire = WireDefault(response.asTypeOf(responseIO.bits))
-      val responseValidWire: Bool = Wire(Bool())
-      // connect tag
-      if (p.singleCycle) {
-        responseWire.tag := requestReg.tag
-        responseValidWire := requestRegValid
-      } else {
-        // for div...
-        responseWire.tag := RegEnable(requestReg.tag, 0.U, vfuRequestFire)
-        responseValidWire := responseValid
-      }
-      // todo: Confirm the function of 'Pipe'
-      val pipeResponse: ValidIO[Bundle] = Pipe(responseValidWire, responseWire, p.latency)
-      responseIO.valid := pipeResponse.valid
-      responseIO.bits := pipeResponse.bits
+      responseIO.valid := responseValid
+      responseIO.bits := response
+      responseIO.bits.tag := RegEnable(requestReg.tag, 0.U, vfuRequestFire)
     }
     requestReg
   }
 
   // update requestRegValid
-  if (p.singleCycle) {
+  if (p.piped) {
     requestIO.ready := true.B
     requestRegValid := requestIO.fire
   } else {

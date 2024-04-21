@@ -19,8 +19,8 @@ case class LaneDivFPParam(datapathWidth: Int, latency: Int) extends VFUParameter
   val decodeField: BoolField = Decoder.divider
   val inputBundle  = new LaneDivFPRequest(datapathWidth)
   val outputBundle = new LaneDivFPResponse(datapathWidth)
-  override val NeedSplit: Boolean = true
-  override val singleCycle: Boolean = false
+  val useDistributor: Boolean = true
+  val piped: Boolean = false
 }
 
 class LaneDivFPRequest(datapathWidth: Int) extends VFUPipeBundle {

@@ -16,7 +16,8 @@ case class LaneShifterParameter(datapathWidth: Int, latency: Int) extends VFUPar
   val decodeField: BoolField = Decoder.shift
   val inputBundle = new LaneShifterReq(this)
   val outputBundle = new LaneShifterResponse(datapathWidth)
-  override val NeedSplit: Boolean = true
+  val piped: Boolean = true
+  val useDistributor: Boolean = true
 }
 
 class LaneShifterReq(param: LaneShifterParameter) extends VFUPipeBundle {

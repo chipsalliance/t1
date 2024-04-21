@@ -18,7 +18,8 @@ case class LaneFloatParam(datapathWidth: Int, latency: Int) extends VFUParameter
   val decodeField: BoolField = Decoder.float
   val inputBundle = new LaneFloatRequest(datapathWidth)
   val outputBundle = new LaneFloatResponse(datapathWidth)
-  override val NeedSplit: Boolean = false
+  val piped: Boolean = true
+  val useDistributor: Boolean = false
 }
 
 /** UOP encoding
