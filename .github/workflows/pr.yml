@@ -32,7 +32,7 @@ jobs:
   build-emulators:
     name: "Build Emulators"
     needs: [gen-test-plan]
-    runs-on: [self-hosted, linux, nixos]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
