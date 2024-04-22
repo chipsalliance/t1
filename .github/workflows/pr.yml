@@ -51,7 +51,7 @@ jobs:
   gen-matrix:
     name: "Prepare for running testcases"
     needs: [build-emulators]
-    runs-on: [self-hosted, linux, nixos, "MEM:32"]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
     env:
       RUNNERS: 70
     outputs:
