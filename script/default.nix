@@ -53,6 +53,9 @@ let
 
       makeWrapper
       passthru.millDeps.setupHook
+
+      rs-toolchain
+      pkgs.rust-analyzer-unwrapped
     ];
 
     buildPhase = ''
