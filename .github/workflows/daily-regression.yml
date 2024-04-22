@@ -7,7 +7,7 @@ on:
 jobs:
   gen-matrix:
     name: "Generate test matrix"
-    runs-on: [self-hosted, linux, nixos, "MEM:32"]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
     env:
       RUNNERS: 70
     outputs:
@@ -52,7 +52,7 @@ jobs:
 
   gen-perf-matrix:
     name: "Generate test matrix for perf cases"
-    runs-on: [self-hosted, linux, nixos, "MEM:32"]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
     env:
       RUNNERS: 70
     outputs:
