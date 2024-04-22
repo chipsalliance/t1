@@ -6,6 +6,7 @@ package org.chipsalliance.t1.ipemu
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
 import chisel3.probe._
+import chisel3.util.experimental.BoringUtils.bore
 import org.chipsalliance.t1.ipemu.dpi._
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
@@ -38,6 +39,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
   val laneProbes = dut.laneProbes.zipWithIndex.map{case (p, idx) =>
     val wire = Wire(p.cloneType).suggestName(s"lane${idx}Probe")
     wire := probe.read(p)
+    wire
   }
 
   val laneVrfProbes = dut.laneVrfProbes.zipWithIndex.map{case (p, idx) =>
@@ -47,6 +49,18 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
   }
 
   val t1Probe = probe.read(dut.t1Probe).suggestName("instructionCountProbe")
+
+  // Monitor
+  withClockAndReset(clock, reset)(Module(new Module {
+    // h/t: GrandCentral
+    override def desiredName: String = "XiZhiMen"
+    val lsuProbeMonitor = bore(lsuProbe)
+    dontTouch(lsuProbeMonitor)
+    val laneProbesMonitor = laneProbes.map(bore(_))
+    laneProbesMonitor.foreach(dontTouch(_))
+    val laneVrfProbesMonitor = laneVrfProbes.map(bore(_))
+    laneVrfProbesMonitor.foreach(dontTouch(_))
+  }))
 
   // Monitors
   // TODO: These monitors should be purged out after offline difftest is landed
