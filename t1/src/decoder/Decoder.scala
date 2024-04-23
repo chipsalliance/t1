@@ -278,8 +278,9 @@ object Decoder {
       val isFFO = ffo.value(op)
       // extend read only
       val extendType = Seq(mv, popCount, id)
+      val isMVtoFP = op.special.isDefined && op.special.get.name == "VWFUNARY0"
       val isOtherType: Boolean =
-        (Seq(isGather, isMerge, isClip, isFFO) ++ extendType.map(_.value(op))).reduce(_ || _)
+        !isMVtoFP && (Seq(isGather, isMerge, isClip, isFFO) ++ extendType.map(_.value(op))).reduce(_ || _)
       // ++ffo
       val otherType = Seq(isGather, isMerge, isClip) ++ extendType.map(_.value(op))
       val typeIndex = if (otherType.contains(true)) 4 + otherType.indexOf(true) else 0
@@ -301,8 +302,7 @@ object Decoder {
       !(
         other.value(op) ||
           dontNeedExecuteInLane.value(op) ||
-          slid.value(op) ||
-          mv.value(op) || divider.value(op))
+          slid.value(op) || divider.value(op))
   }
 
   object floatConvertUnsigned extends BoolField {

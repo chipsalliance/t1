@@ -41,6 +41,8 @@ class VectorResponse(xLen: Int) extends Bundle {
     */
   val rd: Valid[UInt] = Valid(UInt(log2Ceil(32).W))
 
+  val float: Bool = Bool()
+
   /** Vector Fixed-Point Saturation Flag, propagate to vcsr in CSR.
     * This is not maintained in the vector coprocessor since it is not used in the Vector processor.
     */

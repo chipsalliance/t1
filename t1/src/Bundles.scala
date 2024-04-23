@@ -44,6 +44,8 @@ class VResponse(xLen: Int) extends Bundle {
     */
   val rd: ValidIO[UInt] = Valid(UInt(log2Ceil(32).W))
 
+  val float: Bool = Bool()
+
   /** when [[mem]] is asserted, indicate the instruction need to access memory.
     * if the vector instruction need to access memory,
     * to maintain the order of memory access:
