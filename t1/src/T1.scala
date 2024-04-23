@@ -632,6 +632,11 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val firstLaneIndex: UInt = OHToUInt(firstLane)(log2Ceil(parameter.laneNumber) - 1, 0)
       response.bits.rd.valid := lastSlotCommit && decodeResultReg(Decoder.targetRd)
       response.bits.rd.bits := vd
+      if (parameter.fpuEnable) {
+        response.bits.float := decodeResultReg(Decoder.float)
+      } else {
+        response.bits.float := false.B
+      }
       when(requestRegDequeue.fire) {
         ffoIndexReg.valid := false.B
         ffoIndexReg.bits := -1.S(parameter.xLen.W).asUInt

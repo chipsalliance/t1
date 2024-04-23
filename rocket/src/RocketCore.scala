@@ -973,8 +973,12 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
         .map {
           case (fpu, fpHazardTargets) =>
             val fpScoreboard = new Scoreboard(32)
-            fpScoreboard.set((wbDcacheMiss && wbRegDecodeOutput(decoder.wfd) || fpu.sboard_set) && wbValid, wbWaddr)
+            fpScoreboard.set(((wbDcacheMiss || wbRegDecodeOutput(decoder.vector)) && wbRegDecodeOutput(decoder.wfd) || fpu.sboard_set) && wbValid, wbWaddr)
             fpScoreboard.clear(dmemResponseReplay && dmemResponseFpu, dmemResponseWaddr)
+            t1Response.foreach { response =>
+              val vectorTryToWriteFP = response.bits.rd.valid && response.bits.float
+              fpScoreboard.clear(response.fire && vectorTryToWriteFP, response.bits.rd.bits)
+            }
             fpScoreboard.clear(fpu.sboard_clr, fpu.sboard_clra)
             checkHazards(fpHazardTargets, fpScoreboard.read)
         }
@@ -1129,12 +1133,24 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
     }
     // todo: vector change csr
     t1Response.foreach { vectorResponse =>
-      val vectorTryToWriteRd = vectorResponse.bits.rd.valid
-      vectorResponse.ready := !(wbWxd || (dmemResponseReplay && dmemResponseXpu)) || !vectorTryToWriteRd
+      val vectorTryToWriteRd = vectorResponse.bits.rd.valid && !vectorResponse.bits.float
+      val vectorTryToWriteFP = vectorResponse.bits.rd.valid && vectorResponse.bits.float
+      vectorResponse.ready := (!(wbWxd || (dmemResponseReplay && dmemResponseXpu)) || !vectorTryToWriteRd) &&
+        (!(dmemResponseReplay && dmemResponseFpu) || !vectorTryToWriteFP)
       when(vectorResponse.fire && vectorTryToWriteRd) {
         longlatencyWdata := vectorResponse.bits.data
         longlatencyWaddress := vectorResponse.bits.rd.bits
         longLatencyWenable := true.B
+      }
+      fpu.foreach { fpu =>
+        when(!(dmemResponseValid && dmemResponseFpu)) {
+          fpu.dmem_resp_val := vectorResponse.fire && vectorTryToWriteFP
+          fpu.dmem_resp_data := vectorResponse.bits.data
+          // todo: 32 bit only
+          fpu.dmem_resp_type := 2.U
+          // todo: connect tag
+          fpu.dmem_resp_tag := 0.U
+        }
       }
     }
 

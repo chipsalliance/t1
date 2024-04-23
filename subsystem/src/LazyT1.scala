@@ -43,6 +43,7 @@ class LazyT1Imp(outer: LazyT1)(implicit p: Parameters) extends AbstractLazyT1Mod
   response.valid := t1.response.valid
   response.bits.data := t1.response.bits.data
   response.bits.rd := t1.response.bits.rd
+  response.bits.float := t1.response.bits.float
   response.bits.vxsat := t1.response.bits.vxsat
   response.bits.mem := t1.response.bits.mem
 
