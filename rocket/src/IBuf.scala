@@ -18,12 +18,15 @@ class Instruction(implicit val p: Parameters) extends ParameterizedBundle with H
   require(coreInstBits == (if (usingCompressed) 16 else 32))
 }
 
+/** handle Cext. */
 class IBuf(implicit p: Parameters) extends CoreModule {
   val io = IO(new Bundle {
+    // 3. Frontend fetched data will input to here.
     val imem = Flipped(Decoupled(new FrontendResp))
     val kill = Input(Bool())
     val pc = Output(UInt(vaddrBitsExtended.W))
     val btb_resp = Output(new BTBResp())
+    // 4. Give out the instruction to Decode.
     val inst = Vec(retireWidth, Decoupled(new Instruction))
   })
 

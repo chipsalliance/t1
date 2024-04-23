@@ -53,7 +53,7 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
     case s"v${to}xei${sz}.v" if (to == "lo" || to == "lu" || to == "so" || to == "su")      => true
     case _                                                                                  => false
   }
-  // todo: Incomplete
+  // todo: unsure.
   def vectorReadRs1: Boolean = isVectorLSU || (instruction.name match {
     // vx type
     case s"v${op}.vx" => true
@@ -598,6 +598,7 @@ class InstructionDecoder(p: InstructionDecoderParameter) {
       case (i, _) if Seq("czero.eqz").contains(i) => UOPALU.czeqz
       case (i, _) if Seq("czero.nez").contains(i) => UOPALU.cznez
       // vector
+      // 7. Vector read RS1 go through ALU rs1 + 0.
       case (_, p) if p.vectorReadRs1 => UOPALU.add
       case _ => UOPALU.dontCare
       // format: on

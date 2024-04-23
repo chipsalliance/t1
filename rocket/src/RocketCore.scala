@@ -321,8 +321,10 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
     val idInstruction:         UInt = idExpandedInstruction.bits
     idDecodeOutput := decoderModule.output
     instructionBuffer.io.kill := takePc
+    // 5. Instruction goes to Rocket Decoder
     decoderModule.instruction := idInstruction
 
+    // Optional circuit: Optional add this circuit for RVE.
     def decodeReg(x: UInt): (Bool, UInt) = (x.extract(x.getWidth - 1, lgNXRegs).asBool, x(lgNXRegs - 1, 0))
     val (idRaddr3Illegal: Bool, idRaddr3: UInt) = decodeReg(idExpandedInstruction.rs3)
     val (idRaddr2Illegal: Bool, idRaddr2: UInt) = decodeReg(idExpandedInstruction.rs2)
@@ -331,9 +333,13 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
 
     val idLoadUse:  Bool = Wire(Bool())
     val idRegFence: Bool = RegInit(false.B)
+    // TODO: T1 needs to access RS1 and RS2 under some instructions.
+    //       FP goes to a different path, decoder.rfs1 is never used...
     val idRen:      Seq[Bool] = IndexedSeq(idDecodeOutput(decoder.rxs1), idDecodeOutput(decoder.rxs2))
     val idRaddr:    Seq[UInt] = IndexedSeq(idRaddr1, idRaddr2)
+    // 6. Read RF out.
     val idRs:       Seq[UInt] = idRaddr.map(rf.read)
+    // instruction get killed at exec stage if true.
     val ctrlKilled: Bool = Wire(Bool())
 
     // TODO: additional decode out?
@@ -368,6 +374,8 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
       fpu.map(fpu => idDecodeOutput(decoder.fp) && (csr.io.decode(0).fpIllegal || fpu.illegal_rm))
     val idDpIllegal: Option[Bool] = Option.when(usingFPU)(idDecodeOutput(decoder.dp) && !csr.io.status.isa('d' - 'a'))
 
+    // TODO: vector illegal:
+    //       - vector is not enabled but a vector instruction is decoded.
     val idIllegalInstruction: Bool =
       !idDecodeOutput(decoder.isLegal) ||
         idRfIllegal ||
@@ -403,6 +411,7 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
           idDecodeOutput(decoder.fenceI) ||
           idRegFence && idDecodeOutput(decoder.mem))
 
+    // TODO: if vector is non-empty, don't take breakpoint.
     breakpointUnit.io.status := csr.io.status
     breakpointUnit.io.bp := csr.io.bp
     breakpointUnit.io.pc := instructionBuffer.io.pc
@@ -693,6 +702,7 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
 
     val dcacheKillMem =
       memRegValid && memRegDecodeOutput(decoder.wxd) && dmem.replay_next // structural hazard on writeback port
+    // TODO: vectorKillMem?
     val fpuKillMem = fpu.map(fpu => memRegValid && memRegDecodeOutput(decoder.fp) && fpu.nack_mem)
     val replayMem = dcacheKillMem || memRegReplay || fpuKillMem.getOrElse(false.B)
     val killmCommon = dcacheKillMem || takePcWb || memRegException || !memRegValid
@@ -778,6 +788,7 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
         Option.when(usingMulDiv)(wbRegDecodeOutput(decoder.div)).getOrElse(false.B) ||
         Option
           .when(usingVector) {
+            // 8. set Int scoreboard
             wbRegDecodeOutput(decoder.wxd) && wbRegDecodeOutput(decoder.vector) && !wbRegDecodeOutput(decoder.vectorCSR)
           }
           .getOrElse(false.B)
@@ -973,6 +984,7 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
         .map {
           case (fpu, fpHazardTargets) =>
             val fpScoreboard = new Scoreboard(32)
+            // 8. set FP scoreboard
             fpScoreboard.set(((wbDcacheMiss || wbRegDecodeOutput(decoder.vector)) && wbRegDecodeOutput(decoder.wfd) || fpu.sboard_set) && wbValid, wbWaddr)
             fpScoreboard.clear(dmemResponseReplay && dmemResponseFpu, dmemResponseWaddr)
             t1Response.foreach { response =>
@@ -998,11 +1010,16 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
       val vectorLSUNotClear =
         (exRegValid && exRegDecodeOutput(decoder.vectorLSU)) ||
           (memRegValid && memRegDecodeOutput(decoder.vectorLSU)) ||
-          (wbRegValid && wbRegDecodeOutput(decoder.vectorLSU)) || !vectorLSUEmpty.get
+          (wbRegValid && wbRegDecodeOutput(decoder.vectorLSU)) ||
+          !vectorLSUEmpty.get
+      // Vector instruction queue is full
+      // TODO: need cover.
       (idDecodeOutput(decoder.vector) && vectorQueueFull.get) ||
+      // There is an outstanding LSU.
       (idDecodeOutput(decoder.mem) && !idDecodeOutput(decoder.vector) && vectorLSUNotClear)
     }
 
+    // TODO: vector stall
     val ctrlStalld: Bool =
       idExHazard || idMemHazard || idWbHazard || idScoreboardHazard || idDoFence || idRegPause ||
         csr.io.csrStall || csr.io.singleStep && (exRegValid || memRegValid || wbRegValid) ||
@@ -1017,12 +1034,17 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
             ) && (!(muldiv.io.req.ready || (muldiv.io.resp.valid && !wbWxd)) || muldiv.io.req.valid)
           )
           .getOrElse(false.B) || // reduce odds of replay
-        vectorStall.getOrElse(false.B)
+       // TODO: vectorStall is large, we may need it to gate the scalar core.
+       vectorStall.getOrElse(false.B)
 
     ctrlKilled :=
+      // IBUF not bubble
       !instructionBuffer.io.inst(0).valid ||
+        // Miss
         instructionBufferOut.bits.replay ||
+        // flush
         takePcMemWb ||
+        //
         ctrlStalld ||
         csr.io.interrupt
 
@@ -1097,6 +1119,7 @@ class Rocket(flushOnFenceI: Boolean, hasBeu: Boolean)(implicit val p: Parameters
     }
 
     t1Request.foreach { t1 =>
+      // Send instruction to T1 when write back.
       t1.valid := wbRegValid && !replayWbCommon && wbRegDecodeOutput(decoder.vector)
       t1.bits.instruction := wbRegInstruction
       t1.bits.rs1Data := wbRegWdata
