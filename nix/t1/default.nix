@@ -77,7 +77,7 @@ lib.makeScope newScope
         emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; stdenv = moldStdenv; };
         emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; stdenv = moldStdenv; do-trace = true; };
 
-        difftest = innerSelf.callPackage ./offline_difftest.nix { rtl = innerSelf.ip.emu-rtl; };
+        difftest = innerSelf.callPackage ../../difftest/offline_difftest/default.nix { rtl = innerSelf.ip.emu-rtl; };
       };
 
       subsystem = {

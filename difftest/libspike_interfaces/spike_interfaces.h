@@ -20,13 +20,13 @@ class sim_t : public simif_t {
   sim_t() {}
   ~sim_t() {}
   char* addr_to_mem(reg_t addr) override { return ffi_addr_to_mem(addr); }
-  bool mmio_load(reg_t addr, size_t len, uint8_t* bytes) override {}
-  bool mmio_store(reg_t addr, size_t len, const uint8_t* bytes) override {}
-  virtual void proc_reset(unsigned id) override {}
-  virtual const char* get_symbol(uint64_t addr) override {}
-  [[nodiscard]] const cfg_t& get_cfg() const override {}
+  bool mmio_load(reg_t addr, size_t len, uint8_t* bytes) override { throw std::logic_error("not implemented"); }
+  bool mmio_store(reg_t addr, size_t len, const uint8_t* bytes) override { throw std::logic_error("not implemented"); }
+  virtual void proc_reset(unsigned id) override { throw std::logic_error("not implemented"); }
+  virtual const char* get_symbol(uint64_t addr) override { throw std::logic_error("not implemented"); }
+  [[nodiscard]] const cfg_t& get_cfg() const override { throw std::logic_error("not implemented"); }
   [[nodiscard]] const std::map<size_t, processor_t*>& get_harts()
-      const override {}
+      const override { throw std::logic_error("not implemented"); }
 };
 
 class Spike {

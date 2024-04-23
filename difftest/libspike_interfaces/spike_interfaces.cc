@@ -103,13 +103,6 @@ void state_set_pc(spike_state_t* state, uint64_t pc) {
   state->s->pc = pc;
 }
 
-
-void destruct(void* ptr) {
-  if (ptr == nullptr)
-    return;
-  delete ptr;
-}
-
 reg_t state_exit(spike_state_t* state) {
   auto& csrmap = state->s->csrmap;
   return csrmap[CSR_MSIMEND]->read();
