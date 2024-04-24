@@ -25,9 +25,9 @@ lib.makeScope newScope
 
     elaborator = _millOutput.elaborator // { meta.mainProgram = "elaborator"; };
     configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
-    omreader = _millOutput.omreader // { meta.mainProgram = "omreader"; };
     t1package = _millOutput.t1package;
 
+    omreader = self.callPackage ./omreader.nix { };
     submodules = self.callPackage ./submodules.nix { };
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;

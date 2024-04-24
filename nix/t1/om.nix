@@ -15,10 +15,10 @@ in
 stdenvNoCC.mkDerivation {
   name = "t1-${mlirbc.elaborateConfig}-${mlirbc.elaborateTarget}-om";
 
-  nativeBuildInputs = [ circt ];
+  nativeBuildInputs = [ circt omreader ];
 
   buildCommand = ''
-    ${omreader}/bin/omreader ${lib.escapeShellArgs omReaderArgs}
+    omreader ${lib.escapeShellArgs omReaderArgs}
   '';
 
   meta.description = "TODO.";
