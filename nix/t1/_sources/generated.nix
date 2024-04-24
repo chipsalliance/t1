@@ -27,51 +27,51 @@
   };
   cde = {
     pname = "cde";
-    version = "52768c97a27b254c0cc0ac9401feb55b29e18c28";
+    version = "2bcaeae2b9914bd25497ce3c6fa62dc5ca80e09f";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "cde";
-      rev = "52768c97a27b254c0cc0ac9401feb55b29e18c28";
+      rev = "2bcaeae2b9914bd25497ce3c6fa62dc5ca80e09f";
       fetchSubmodules = false;
-      sha256 = "sha256-bmiVhuriiuDFFP5gXcP2kKwdrFQ2I0Cfz3N2zed+IyY=";
+      sha256 = "sha256-lhHzdXSaZ54o8P9jB7+Yjg3BWp1O7XLguBZPhAp7Hzg=";
     };
-    date = "2023-08-05";
+    date = "2024-04-25";
   };
   chisel = {
     pname = "chisel";
-    version = "9177535ff1be47ffd99034bf0154c0f1ec637419";
+    version = "17398c1657705a0733a1768f0e84672c39962327";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "9177535ff1be47ffd99034bf0154c0f1ec637419";
+      rev = "17398c1657705a0733a1768f0e84672c39962327";
       fetchSubmodules = false;
-      sha256 = "sha256-smqNuOnmz+MeVGyS7mdIzegniQ/6EJH4CFqK4JntvrI=";
+      sha256 = "sha256-mSUWcORyStuQ6LzonVqkCmTS/hKQ0cn2tqUEhQm/+Ag=";
     };
-    date = "2024-03-27";
+    date = "2024-04-30";
   };
   diplomacy = {
     pname = "diplomacy";
-    version = "edf375300d99a4c260a214d7c1553de0040771d7";
+    version = "055be698f4ad55bf4a90b3d5e31d4344be5f788b";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "diplomacy";
-      rev = "edf375300d99a4c260a214d7c1553de0040771d7";
+      rev = "055be698f4ad55bf4a90b3d5e31d4344be5f788b";
       fetchSubmodules = false;
-      sha256 = "sha256-3WuzrzFaQnVsSEpQTBjO+Xy1z+ouH0TjKI1AS02/bhQ=";
+      sha256 = "sha256-cfLZQ9kjUN0S4M8FoiN0AMZjMTvjgbEUWI6EyGmRLn8=";
     };
-    date = "2024-03-11";
+    date = "2024-04-25";
   };
   riscv-opcodes = {
     pname = "riscv-opcodes";
-    version = "61d2ef45dcb4a276a1e69643880cb75a9ca5ba79";
+    version = "9fa26954e79d4403eedcbe1b35395001bbbeb8b1";
     src = fetchFromGitHub {
       owner = "riscv";
       repo = "riscv-opcodes";
-      rev = "61d2ef45dcb4a276a1e69643880cb75a9ca5ba79";
+      rev = "9fa26954e79d4403eedcbe1b35395001bbbeb8b1";
       fetchSubmodules = false;
-      sha256 = "sha256-jdXKNIigKAqn2bbrMn6HxB61AM8KwSCvFEoL1N604rw=";
+      sha256 = "sha256-Gt3v8/VVNhB4IFL7kud8Y7EnSM2/2H4urV1AmBviP9E=";
     };
-    date = "2023-11-27";
+    date = "2024-04-10";
   };
   rocket-chip = {
     pname = "rocket-chip";

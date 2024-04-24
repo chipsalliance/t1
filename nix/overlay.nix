@@ -22,7 +22,7 @@ in
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
 
-  mill = let jre = final.graalvm-ce; in
+  mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {
       passthru = { inherit jre; };
     });
