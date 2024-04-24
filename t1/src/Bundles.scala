@@ -699,8 +699,3 @@ final class EmptyBundle extends Bundle
 class VRFReadPipe(size: BigInt) extends Bundle {
   val address: UInt = UInt(log2Ceil(size).W)
 }
-
-class DataPipeInReadStage(dataWidth: Int, arbitrate: Boolean) extends Bundle {
-  val data: UInt = UInt(dataWidth.W)
-  val choose: Option[Bool] = Option.when(arbitrate)(Bool())
-}
