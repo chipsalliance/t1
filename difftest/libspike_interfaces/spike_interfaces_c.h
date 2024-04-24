@@ -21,6 +21,7 @@ spike_processor_t* spike_get_proc(spike_t* spike);
 spike_state_t* proc_get_state(spike_processor_t* proc);
 uint64_t proc_func(spike_processor_t* proc, uint64_t pc);
 uint64_t proc_get_insn(spike_processor_t* proc, reg_t pc);
+uint8_t* proc_get_vreg_addr(spike_processor_t* proc);
 uint64_t state_get_pc(spike_state_t* state);
 uint64_t state_handle_pc(spike_state_t* state, uint64_t new_pc);
 void state_set_pc(spike_state_t* state, uint64_t pc);

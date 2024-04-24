@@ -53,6 +53,10 @@ impl Processor {
 	pub fn get_insn(&self, pc: u64) -> u64 {
 		unsafe { proc_get_insn(self.processor, pc) }
 	}
+
+	pub fn get_vreg_addr(&self) -> *mut u8 {
+		unsafe { proc_get_vreg_addr(self.processor) }
+	}
 }
 
 impl Drop for Processor {
@@ -106,6 +110,7 @@ extern "C" {
 	fn proc_get_state(proc: *mut ()) -> *mut ();
 	fn proc_func(proc: *mut (), pc: u64) -> u64;
 	fn proc_get_insn(proc: *mut (), pc: u64) -> u64;
+	fn proc_get_vreg_addr(proc: *mut ()) -> *mut u8;
 	fn proc_destruct(proc: *mut ());
 	fn state_set_pc(state: *mut (), pc: u64);
 	fn state_get_pc(state: *mut ()) -> u64;

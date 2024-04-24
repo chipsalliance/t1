@@ -2,7 +2,7 @@
 
 constexpr uint32_t CSR_MSIMEND = 0x7cc;
 
-cfg_t make_spike_cfg(const std::string &varch) {
+cfg_t make_spike_cfg(const std::string& varch) {
   cfg_t cfg;
   cfg.initrd_bounds = std::make_pair((reg_t)0, (reg_t)0),
   cfg.bootargs = nullptr;
@@ -72,6 +72,10 @@ reg_t proc_get_insn(spike_processor_t* proc, reg_t pc) {
   auto mmu = proc->p->get_mmu();
   auto fetch = mmu->load_insn(pc);
   return fetch.insn.bits();
+}
+
+uint8_t* proc_get_vreg_addr(spike_processor_t* proc) {
+  return &proc->p->VU.elt<uint8_t>(0, 0);
 }
 
 reg_t state_get_pc(spike_state_t* state) {
