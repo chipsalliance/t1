@@ -10,7 +10,7 @@ use tracing::error;
 pub struct Difftest {
 	spike: SpikeHandle,
 	dut: Dut,
-	pub config: Config,
+	config: Config,
 }
 
 #[derive(Deserialize, Debug)]
@@ -88,21 +88,16 @@ fn read_config(path: &Path) -> anyhow::Result<Config> {
 
 impl Difftest {
 	pub fn new(size: usize, elf_file: String, log_file: String, config_file: String) -> Self {
-		let config: Config = read_config(Path::new(&config_file)).unwrap();
-
-		println!("{:?}", config);
-
-		// Return the `User`.
 		Self {
 			spike: SpikeHandle::new(size, Path::new(&elf_file)),
 			dut: Dut::new(Path::new(&log_file)),
-			config,
+			config: read_config(Path::new(&config_file)).unwrap(),
 		}
 	}
 
 	pub fn diff(&mut self) -> anyhow::Result<()> {
 		let event = self.dut.step()?;
-		self.spike.step()?;
+		self.spike.step(&self.config)?;
 
 		match &*event.event {
 			"peekTL" => {
@@ -111,13 +106,6 @@ impl Difftest {
 				let size = event.parameter.size.unwrap();
 				if addr % (1 << size) != 0 {
 					error!("unaligned access (addr={:08X}, size={})", addr, 1 << size)
-				}
-
-				// check opcode
-				match event.parameter.opcode.unwrap() {
-					0 => {}
-					1 => {}
-					_ => {}
 				}
 			}
 			_ => {}
