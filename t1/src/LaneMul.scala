@@ -20,6 +20,8 @@ case class LaneMulParam(datapathWidth: Int, latency: Int) extends VFUParameter w
   val decodeField: BoolField = Decoder.multiplier
   val inputBundle = new LaneMulReq(this)
   val outputBundle = new LaneMulResponse(this)
+  val piped: Boolean = true
+  val useDistributor: Boolean = false
 }
 
 class LaneMulReq(parameter: LaneMulParam) extends VFUPipeBundle {
@@ -44,8 +46,7 @@ class LaneMul(val parameter: LaneMulParam) extends VFUModule(parameter) with Ser
   val response: LaneMulResponse = Wire(new LaneMulResponse(parameter))
   val request: LaneMulReq = connectIO(response).asTypeOf(parameter.inputBundle)
 
-  val sew1H: UInt =
-    RegEnable(UIntToOH(requestIO.bits.asTypeOf(request).vSew)(2, 0), 0.U(3.W), requestIO.fire)
+  val sew1H: UInt = UIntToOH(request.vSew)
   val vxrm1H: UInt = UIntToOH(request.vxrm)
   // ["mul", "ma", "ms", "mh"]
   val opcode1H: UInt = UIntToOH(request.opcode(1, 0))

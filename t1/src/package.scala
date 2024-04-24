@@ -219,9 +219,8 @@ package object rtl {
       // vfu 模块
       // TODO: SerializableModuleGenerator should support D/I
       val vfu: VFUModule = Module(gen.module())
-      vfu.suggestName(gen.parameter.decodeField.name)
-      // vfu request distributor
-      val distributor: Option[Instance[Distributor[SlotRequestToVFU, VFUResponseToSlot]]] = Option.when(gen.parameter.NeedSplit)(
+      vfu.suggestName(s"slot${slotVec.mkString("_")}_${vfu.desiredName}_$vfuIndex")
+      val distributor: Option[Instance[Distributor[SlotRequestToVFU, VFUResponseToSlot]]] = Option.when(gen.parameter.useDistributor)(
         Instantiate(new Distributor(
           chiselTypeOf(requestVec.head),
           chiselTypeOf(responseVec.head.bits)
@@ -239,7 +238,7 @@ package object rtl {
       requestArbiter.io.in.zip(slotVec).foreach { case (arbiterInput, slotIndex) =>
         arbiterInput <> requestVecFromSlot(slotIndex).elements(gen.parameter.decodeField.name)
       }
-      val vfuInput: DecoupledIO[SlotRequestToVFU] = if (gen.parameter.NeedSplit) {
+      val vfuInput: DecoupledIO[SlotRequestToVFU] = if (gen.parameter.useDistributor) {
         distributor.get.requestFromSlot <> requestArbiter.io.out
         distributor.get.requestToVfu
       } else {
@@ -281,7 +280,7 @@ package object rtl {
       }
       executeOccupied(vfuIndex) := vfu.requestIO.fire
       VFUNotClear := vrfIsBusy.asUInt.orR
-      if (gen.parameter.NeedSplit) {
+      if (gen.parameter.useDistributor) {
         distributor.get.responseFromVfu := responseBundle
         distributor.get.responseToSlot
       } else {

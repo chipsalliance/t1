@@ -533,8 +533,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val stage0: Instance[LaneStage0] = Instantiate(new LaneStage0(parameter, isLastSlot))
       val stage1: Instance[LaneStage1] = Instantiate(new LaneStage1(parameter, isLastSlot))
       val stage2: Instance[LaneStage2] = Instantiate(new LaneStage2(parameter, isLastSlot))
-      val executionUnit: Instance[LaneExecutionBridge] = Instantiate(new LaneExecutionBridge(parameter, isLastSlot, index))
+      val executionBridge: Instance[LaneExecutionBridge] = Instantiate(new LaneExecutionBridge(parameter, isLastSlot, index))
       val stage3: Instance[LaneStage3] = Instantiate(new LaneStage3(parameter, isLastSlot))
+      stage0.suggestName(s"slot${index}Stage0")
+      stage1.suggestName(s"slot${index}Stage1")
+      stage2.suggestName(s"slot${index}Stage2")
+      stage3.suggestName(s"slot${index}Stage3")
+      executionBridge.suggestName(s"slot${index}LaneExecutionBridge")
 
       // slot state
       laneState.vSew1H := vSew1H
@@ -670,9 +675,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         indexToOH(record.laneRequest.instructionIndex, parameter.chainingSize)
       )
 
-      stage2.enqueue.valid := stage1.dequeue.valid && executionUnit.enqueue.ready
-      stage1.dequeue.ready := stage2.enqueue.ready && executionUnit.enqueue.ready
-      executionUnit.enqueue.valid := stage1.dequeue.valid && stage2.enqueue.ready
+      stage2.enqueue.valid := stage1.dequeue.valid && executionBridge.enqueue.ready
+      stage1.dequeue.ready := stage2.enqueue.ready && executionBridge.enqueue.ready
+      executionBridge.enqueue.valid := stage1.dequeue.valid && stage2.enqueue.ready
 
       stage2.state := laneState
       stage2.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
@@ -682,35 +687,35 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage2.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
         sink := source
       }
-      stage2.enqueue.bits.bordersForMaskLogic := executionUnit.enqueue.bits.bordersForMaskLogic
+      stage2.enqueue.bits.bordersForMaskLogic := executionBridge.enqueue.bits.bordersForMaskLogic
 
-      executionUnit.state := laneState
-      executionUnit.enqueue.bits.src := stage1.dequeue.bits.src
-      executionUnit.enqueue.bits.bordersForMaskLogic :=
+      executionBridge.state := laneState
+      executionBridge.enqueue.bits.src := stage1.dequeue.bits.src
+      executionBridge.enqueue.bits.bordersForMaskLogic :=
         (stage1.dequeue.bits.groupCounter === record.lastGroupForInstruction && record.isLastLaneForInstruction)
-      executionUnit.enqueue.bits.mask := stage1.dequeue.bits.mask
-      executionUnit.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
-      executionUnit.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
-      executionUnit.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
+      executionBridge.enqueue.bits.mask := stage1.dequeue.bits.mask
+      executionBridge.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
+      executionBridge.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
+      executionBridge.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
         sink := source
       }
-      executionUnit.enqueue.bits.crossReadSource.zip(stage1.dequeue.bits.crossReadSource).foreach { case (sink, source) =>
+      executionBridge.enqueue.bits.crossReadSource.zip(stage1.dequeue.bits.crossReadSource).foreach { case (sink, source) =>
         sink := source
       }
 
-      executionUnit.ffoByOtherLanes := record.ffoByOtherLanes
-      executionUnit.selfCompleted := record.selfCompleted
+      executionBridge.ffoByOtherLanes := record.ffoByOtherLanes
+      executionBridge.selfCompleted := record.selfCompleted
 
       // executionUnit <> vfu
-      requestVec(index) := executionUnit.vfuRequest.bits
-      executeEnqueueValid(index) := executionUnit.vfuRequest.valid
-      executionUnit.vfuRequest.ready := executeEnqueueFire(index)
-      executionUnit.dataResponse := responseVec(index)
+      requestVec(index) := executionBridge.vfuRequest.bits
+      executeEnqueueValid(index) := executionBridge.vfuRequest.valid
+      executionBridge.vfuRequest.ready := executeEnqueueFire(index)
+      executionBridge.dataResponse := responseVec(index)
 
-      when(executionUnit.dequeue.valid)(assert(stage2.dequeue.valid))
-      stage3.enqueue.valid := executionUnit.dequeue.valid
-      executionUnit.dequeue.ready := stage3.enqueue.ready
-      stage2.dequeue.ready := executionUnit.dequeue.fire
+      when(executionBridge.dequeue.valid)(assert(stage2.dequeue.valid))
+      stage3.enqueue.valid := executionBridge.dequeue.valid
+      executionBridge.dequeue.ready := stage3.enqueue.ready
+      stage2.dequeue.ready := executionBridge.dequeue.fire
 
       if (!isLastSlot) {
         stage3.enqueue.bits := DontCare
@@ -720,17 +725,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage3.enqueue.bits.mask := stage2.dequeue.bits.mask
       if (isLastSlot) {
         stage3.enqueue.bits.sSendResponse := stage2.dequeue.bits.sSendResponse.get
-        stage3.enqueue.bits.ffoSuccess := executionUnit.dequeue.bits.ffoSuccess.get
-        stage3.enqueue.bits.fpReduceValid.zip(executionUnit.dequeue.bits.fpReduceValid).foreach {
+        stage3.enqueue.bits.ffoSuccess := executionBridge.dequeue.bits.ffoSuccess.get
+        stage3.enqueue.bits.fpReduceValid.zip(executionBridge.dequeue.bits.fpReduceValid).foreach {
           case (sink, source) => sink := source
         }
       }
-      stage3.enqueue.bits.data := executionUnit.dequeue.bits.data
+      stage3.enqueue.bits.data := executionBridge.dequeue.bits.data
       stage3.enqueue.bits.pipeData := stage2.dequeue.bits.pipeData.getOrElse(DontCare)
-      stage3.enqueue.bits.ffoIndex := executionUnit.dequeue.bits.ffoIndex
-      executionUnit.dequeue.bits.crossWriteData.foreach(data => stage3.enqueue.bits.crossWriteData := data)
+      stage3.enqueue.bits.ffoIndex := executionBridge.dequeue.bits.ffoIndex
+      executionBridge.dequeue.bits.crossWriteData.foreach(data => stage3.enqueue.bits.crossWriteData := data)
       stage2.dequeue.bits.sSendResponse.foreach(_ => stage3.enqueue.bits.sSendResponse := _)
-      executionUnit.dequeue.bits.ffoSuccess.foreach(_ => stage3.enqueue.bits.ffoSuccess := _)
+      executionBridge.dequeue.bits.ffoSuccess.foreach(_ => stage3.enqueue.bits.ffoSuccess := _)
 
       if (isLastSlot){
         when(laneResponseFeedback.valid && slotOccupied(index)) {
@@ -739,7 +744,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           }
         }
         when(stage3.enqueue.fire) {
-          executionUnit.dequeue.bits.ffoSuccess.foreach(record.selfCompleted := _)
+          executionBridge.dequeue.bits.ffoSuccess.foreach(record.selfCompleted := _)
           // This group found means the next group ended early
           record.ffoByOtherLanes := record.ffoByOtherLanes || record.selfCompleted
         }
@@ -766,8 +771,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       probeWire.slots(index).slotShiftValid := slotShiftValid(index)
       probeWire.slots(index).decodeResultIsCrossReadOrWrite := decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)
       probeWire.slots(index).decodeResultIsScheduler := decodeResult(Decoder.scheduler)
-      probeWire.slots(index).executionUnitVfuRequestReady := executionUnit.vfuRequest.ready
-      probeWire.slots(index).executionUnitVfuRequestValid := executionUnit.vfuRequest.valid
+      probeWire.slots(index).executionUnitVfuRequestReady := executionBridge.vfuRequest.ready
+      probeWire.slots(index).executionUnitVfuRequestValid := executionBridge.vfuRequest.valid
       probeWire.slots(index).stage3VrfWriteReady := stage3.vrfWriteRequest.ready
       probeWire.slots(index).stage3VrfWriteValid := stage3.vrfWriteRequest.valid
       // probeWire.slots(index).probeStage1 := ???

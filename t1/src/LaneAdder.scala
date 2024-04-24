@@ -16,6 +16,8 @@ case class LaneAdderParam(datapathWidth: Int, latency: Int) extends VFUParameter
   val decodeField: BoolField = Decoder.adder
   val inputBundle = new LaneAdderReq(datapathWidth)
   val outputBundle = new LaneAdderResp(datapathWidth)
+  val piped: Boolean = true
+  val useDistributor: Boolean = false
 }
 
 class LaneAdderReq(datapathWidth: Int) extends VFUPipeBundle {
