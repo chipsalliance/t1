@@ -6,7 +6,7 @@ package org.chipsalliance.t1.rtl.lane
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
-import org.chipsalliance.t1.rtl.{DataPipeInReadStage, LaneParameter, VRFReadQueueEntry, VRFReadRequest}
+import org.chipsalliance.t1.rtl.{LaneParameter, VRFReadQueueEntry, VRFReadRequest}
 
 @instantiable
 class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends Module {
@@ -34,33 +34,49 @@ class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends 
 
   @public
   val dequeue: DecoupledIO[UInt] = IO(Decoupled(UInt(parameter.datapathWidth.W)))
+
   @public
-  val dequeueChoose: Option[Bool] = Option.when(arbitrate)(IO(Output(Bool())))
+  val contenderDequeue: Option[DecoupledIO[UInt]] =
+    Option.when(arbitrate)(IO(Decoupled(UInt(parameter.datapathWidth.W))))
 
   // arbitrate
   val reqArbitrate = Module(new RRArbiter(enqEntryType, if(arbitrate) 2 else 1))
 
-  (Seq(enqueue) ++ contender).zip(reqArbitrate.io.in).foreach { case (source, sink) => sink <> source }
+  (Seq(enqueue) ++ contender).zip(reqArbitrate.io.in).zip(Seq(dequeue) ++ contenderDequeue).foreach {
+    case ((source, sink), deq) =>
+      sink <> source
+      source.ready := sink.ready && deq.ready
+      sink.valid := source.valid && deq.ready
+  }
 
   // access read port
-  vrfReadRequest.valid := reqArbitrate.io.out.valid && dequeue.ready
+  vrfReadRequest.valid := reqArbitrate.io.out.valid
   vrfReadRequest.bits.vs := reqArbitrate.io.out.bits.vs
   vrfReadRequest.bits.readSource := reqArbitrate.io.out.bits.readSource
   vrfReadRequest.bits.offset := reqArbitrate.io.out.bits.offset
   vrfReadRequest.bits.instructionIndex := reqArbitrate.io.out.bits.instructionIndex
-  reqArbitrate.io.out.ready := dequeue.ready && vrfReadRequest.ready
+  reqArbitrate.io.out.ready := vrfReadRequest.ready
 
   val vrfReadLatency = parameter.vrfParam.vrfReadLatency
-  val dataQueue = Module(new Queue(new DataPipeInReadStage(parameter.datapathWidth, arbitrate), vrfReadLatency + 2))
-  val dataResponsePipe = Pipe(vrfReadRequest.fire, enqueue.fire, vrfReadLatency)
+  val dataQueue: Queue[UInt] = Module(new Queue(UInt(parameter.datapathWidth.W), vrfReadLatency + 2))
+  val contenderDataQueue: Option[Queue[UInt]] = Option.when(arbitrate)(
+    Module(new Queue(UInt(parameter.datapathWidth.W), vrfReadLatency + 2))
+  )
+  val enqFirePipe = Pipe(vrfReadRequest.fire, enqueue.fire, vrfReadLatency)
 
-  dataQueue.io.enq.valid := dataResponsePipe.valid
-  dataQueue.io.enq.bits.data := vrfReadResult
-  dataQueue.io.enq.bits.choose.foreach(_ := dataResponsePipe.bits)
+  dataQueue.io.enq.valid := enqFirePipe.valid && enqFirePipe.bits
+  dataQueue.io.enq.bits := vrfReadResult
   assert(!dataQueue.io.enq.valid || dataQueue.io.enq.ready, "queue overflow")
-
-  dequeueChoose.foreach { _ := dataQueue.io.deq.bits.choose.get }
   dequeue.valid := dataQueue.io.deq.valid
-  dequeue.bits := dataQueue.io.deq.bits.data
+  dequeue.bits := dataQueue.io.deq.bits
   dataQueue.io.deq.ready := dequeue.ready
+
+  contenderDataQueue.foreach { queue =>
+    queue.io.enq.valid := enqFirePipe.valid && !enqFirePipe.bits
+    queue.io.enq.bits := vrfReadResult
+    assert(!queue.io.enq.valid || queue.io.enq.ready, "queue overflow")
+    contenderDequeue.get.valid := queue.io.deq.valid
+    contenderDequeue.get.bits := queue.io.deq.bits
+    queue.io.deq.ready := contenderDequeue.get.ready
+  }
 }

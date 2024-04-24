@@ -146,6 +146,15 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
   )
 
+  // 3 * slot + 2 cross read
+  @public
+  val readCheck: Vec[VRFReadRequest] = IO(Vec(parameter.chainingSize * 3 + 2, Input(
+    new VRFReadRequest(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)
+  )))
+
+  @public
+  val readCheckResult: Vec[Bool] = IO(Vec(parameter.chainingSize * 3 + 2, Output(Bool())))
+
   /** VRF read results. */
   @public
   val readResults: Vec[UInt] = IO(Output(Vec(parameter.vrfReadPort, UInt(parameter.datapathWidth.W))))
@@ -251,6 +260,24 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   when(write.fire) { writePipe.bits := write.bits }
   val writeBankPipe: UInt = RegNext(writeBank)
 
+  // lane chaining check
+  readCheck.zip(readCheckResult).foreach { case (req, res) =>
+    val recordSelect = chainingRecord
+    // 先找到自的record
+    val readRecord =
+      Mux1H(recordSelect.map(_.bits.instIndex === req.instructionIndex), recordSelect.map(_.bits))
+    res :=
+      recordSelect.zip(recordValidVec).zipWithIndex.map {
+        case ((r, f), recordIndex) =>
+          val checkModule = Instantiate(new ChainingCheck(parameter))
+          checkModule.read := req
+          checkModule.readRecord := readRecord
+          checkModule.record := r
+          checkModule.recordValid := f
+          checkModule.checkResult
+      }.reduce(_ && _)
+  }
+
   val checkSize: Int = readRequests.size
   val (firstOccupied, secondOccupied) = readRequests.zipWithIndex.foldLeft(
     (0.U(parameter.rfBankNum.W), 0.U(parameter.rfBankNum.W))
@@ -276,7 +303,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
             checkModule.recordValid := f
             checkModule.checkResult
         }.reduce(_ && _) && portConflictCheck
-      val validCorrect: Bool = if (i == 0) v.valid else v.valid && checkResult
+      val validCorrect: Bool = if (i == (readRequests.size - 1)) v.valid && checkResult else v.valid
       // select bank
       val bank = if (parameter.rfBankNum == 1) true.B else UIntToOH(v.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
       val pipeBank = Pipe(true.B, bank, parameter.vrfReadLatency).bits

@@ -327,4 +327,10 @@ package object rtl {
     }
     (first, last, done, count)
   }
+
+  def blockingHandshake[A <: Bundle](sink: DecoupledIO[A], source: DecoupledIO[A], enable: Bool): Unit = {
+    sink.valid := source.valid && enable
+    sink.bits := source.bits
+    source.ready := sink.ready && enable
+  }
 }

@@ -419,6 +419,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   )
 
+  // 3 * slot + 2 cross read
+  val readCheckRequestVec: Vec[VRFReadRequest] = Wire(Vec(parameter.chainingSize * 3 + 2,
+    new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)
+  ))
+
+  val readCheckResult: Vec[Bool] = Wire(Vec(parameter.chainingSize * 3 + 2, Bool()))
+
   /** signal used for prohibiting slots to access VRF.
     * a slot will become inactive when:
     * 1. cross lane read/write is not finished
@@ -638,6 +645,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage1.readFromScalar := record.laneRequest.readFromScalar
       vrfReadRequest(index).zip(stage1.vrfReadRequest).foreach{ case (sink, source) => sink <> source }
       vrfReadResult(index).zip(stage1.vrfReadResult).foreach{ case (source, sink) => sink := source }
+      // 3: read vs1 vs2 vd
+      // 2: cross read lsb & msb
+      val checkSize = if (isLastSlot) 5 else 3
+      Seq.tabulate(checkSize){ portIndex =>
+        // parameter.chainingSize - index: slot 0 need 5 port, so reverse connection
+        readCheckRequestVec((parameter.chainingSize - index - 1) * 3 + portIndex) := stage1.vrfCheckRequest(portIndex)
+        stage1.checkResult(portIndex) := readCheckResult((parameter.chainingSize - index - 1) * 3 + portIndex)
+      }
       // connect cross read bus
       if(isLastSlot) {
         val tokenSize = parameter.crossLaneVRFWriteEscapeQueueSize
@@ -868,6 +883,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       check.instructionIndex := write.bits.instructionIndex
     }
     val checkResult = vrf.writeAllow.asUInt
+
+    vrf.readCheck.zip(readCheckRequestVec).foreach{case (sink, source) => sink := source}
+    readCheckResult.zip(vrf.readCheckResult).foreach{case (sink, source) => sink := source}
 
     // Arbiter
     val writeSelect: UInt = ffo(checkResult & VecInit(allVrfWrite.map(_.valid)).asUInt)
