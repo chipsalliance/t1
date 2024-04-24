@@ -6,6 +6,7 @@ package org.chipsalliance.t1.omreader
 import mainargs._
 import chisel3.panamalib.option._
 import chisel3.panamaconverter.PanamaCIRCTConverter
+import org.chipsalliance.t1.omreaderlib
 
 object Main {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
@@ -17,6 +18,8 @@ object Main {
   def run(
     @arg(name = "mlirbc-file") mlirbc: os.Path,
   ) = {
+    omreaderlib.Hello()
+
     val cvt = PanamaCIRCTConverter.newWithMlirBc(os.read.bytes(mlirbc))
 
     val pm = cvt.passManager()

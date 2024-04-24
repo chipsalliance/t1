@@ -14,22 +14,27 @@ in
 
   # Override "nixpkgs" circt with "nixpkgs-for-circt".
   # To update the "nixpkgs-for-circt" input, run `nix flake lock --update-input nixpkgs-for-circt`.
-  circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt;
-  # uncomment this to build circt from source.
-  # circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt.overrideAttrs (old: rec {
-  #   version = "1.73.0";
-  #   src = final.fetchFromGitHub {
-  #     owner = "llvm";
-  #     repo = "circt";
-  #     rev = "firtool-${version}";
-  #     sha256 = "sha256-C50PiToXrKf94Vg1yv++3xVhIuCW/KVPs0yLv5Fg0dY=";
-  #     fetchSubmodules = true;
-  #   };
-  #   preConfigure = ''
-  #     find ./test -name '*.mlir' -exec sed -i 's|/usr/bin/env|${final.coreutils}/bin/env|g' {} \;
-  #     substituteInPlace cmake/modules/GenVersionFile.cmake --replace "unknown git version" "nightly"
-  #   '';
-  # });
+  # circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt;
+  circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt.overrideAttrs (old: rec {
+    version = "1.73.0";
+    src = final.fetchFromGitHub {
+      owner = "llvm";
+      repo = "circt";
+      rev = "firtool-${version}";
+      sha256 = "sha256-C50PiToXrKf94Vg1yv++3xVhIuCW/KVPs0yLv5Fg0dY=";
+      fetchSubmodules = true;
+    };
+    preConfigure = ''
+      find ./test -name '*.mlir' -exec sed -i 's|/usr/bin/env|${final.coreutils}/bin/env|g' {} \;
+      substituteInPlace cmake/modules/GenVersionFile.cmake --replace "unknown git version" "nightly"
+    '';
+    patches = [
+      (prev.fetchpatch {
+        url = "https://github.com/SpriteOvO/circt/commit/a12b650b41203c62d448588c41ce5c4636d010d0.patch";
+        sha256 = "sha256-HjY/RcdcItZlNvX+IybkAds197ZiTXEtJJEZ0p5BoYY=";
+      })
+    ];
+  });
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
