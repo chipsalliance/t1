@@ -57,6 +57,50 @@ impl Processor {
 	pub fn get_vreg_addr(&self) -> *mut u8 {
 		unsafe { proc_get_vreg_addr(self.processor) }
 	}
+
+	pub fn get_rs(&self) -> (u32, u32) {
+		let rs: u64 = unsafe { proc_get_rs(self.processor) };
+		((rs >> 32) as u32, rs as u32)
+	}
+
+	pub fn get_rd(&self) -> u32 {
+		unsafe { proc_get_rd(self.processor) }
+	}
+
+	pub fn get_rs_bits(&self) -> (u32, u32) {
+		let rs_bits: u64 = unsafe { proc_get_rs_bits(self.processor) };
+		((rs_bits >> 32) as u32, rs_bits as u32)
+	}
+
+	// vu
+
+	pub fn vu_get_vtype(&self) -> u64 {
+		unsafe { proc_vu_get_vtype(self.processor) }
+	}
+
+	pub fn vu_get_vxrm(&self) -> u32 {
+		unsafe { proc_vu_get_vxrm(self.processor) }
+	}
+
+	pub fn vu_get_vnf(&self) -> u32 {
+		unsafe { proc_vu_get_vnf(self.processor) }
+	}
+
+	pub fn vu_get_vill(&self) -> bool {
+		unsafe { proc_vu_get_vill(self.processor) }
+	}
+
+	pub fn vu_get_vxsat(&self) -> bool {
+		unsafe { proc_vu_get_vxsat(self.processor) }
+	}
+
+	pub fn vu_get_vl(&self) -> u32 {
+		unsafe { proc_vu_get_vl(self.processor) }
+	}
+
+	pub fn vu_get_vstart(&self) -> u16 {
+		unsafe { proc_vu_get_vstart(self.processor) }
+	}
 }
 
 impl Drop for Processor {
@@ -96,7 +140,6 @@ impl Drop for State {
 	}
 }
 
-
 type FfiCallback = extern "C" fn(u64) -> *mut u8;
 
 #[link(name = "spike_interfaces")]
@@ -111,6 +154,18 @@ extern "C" {
 	fn proc_func(proc: *mut ()) -> u64;
 	fn proc_get_insn(proc: *mut ()) -> u64;
 	fn proc_get_vreg_addr(proc: *mut ()) -> *mut u8;
+	fn proc_get_rs(proc: *mut ()) -> u64;
+	fn proc_get_rd(proc: *mut ()) -> u32;
+	fn proc_get_rs_bits(proc: *mut ()) -> u64;
+
+	fn proc_vu_get_vtype(proc: *mut ()) -> u64;
+	fn proc_vu_get_vxrm(proc: *mut ()) -> u32;
+	fn proc_vu_get_vnf(proc: *mut ()) -> u32;
+	fn proc_vu_get_vill(proc: *mut ()) -> bool;
+	fn proc_vu_get_vxsat(proc: *mut ()) -> bool;
+	fn proc_vu_get_vl(proc: *mut ()) -> u32;
+	fn proc_vu_get_vstart(proc: *mut ()) -> u16;
+
 	fn proc_destruct(proc: *mut ());
 	fn state_set_pc(state: *mut (), pc: u64);
 	fn state_get_pc(state: *mut ()) -> u64;

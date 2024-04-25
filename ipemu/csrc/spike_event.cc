@@ -175,8 +175,8 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch,
   vma = clip(vtype, 7, 7);
   vta = clip(vtype, 6, 6);
   vsew = clip(vtype, 3, 5);
-  vlmul = clip(vtype, 0, 2);
-  vill = clip(vtype, 31, 31);
+  // vlmul = clip(vtype, 0, 2);
+  // vill = clip(vtype, 31, 31);
   vxrm = proc.VU.vxrm->read();
   vnf = fetch.insn.v_nf();
 

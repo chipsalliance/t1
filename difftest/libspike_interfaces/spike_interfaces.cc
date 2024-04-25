@@ -90,11 +90,23 @@ inline uint32_t clip(uint32_t binary, int a, int b) {
 }
 
 uint64_t proc_get_rs(spike_processor_t* proc) {
+  auto pc = proc->p->get_state()->pc;
+  auto fetch = proc->p->get_mmu()->load_insn(pc);
+  return (uint64_t)fetch.insn.rs1() << 32 | (uint64_t)fetch.insn.rs2();
+}
+
+uint32_t proc_get_rd(spike_processor_t* proc) {
+  auto pc = proc->p->get_state()->pc;
+  auto fetch = proc->p->get_mmu()->load_insn(pc);
+  return fetch.insn.rd();
+}
+
+uint64_t proc_get_rs_bits(spike_processor_t* proc) {
   auto state = proc->p->get_state();
   auto &xr = state->XPR;
   auto &fr = state->FPR;
-  reg_t pc = state->pc;
-  reg_t inst_bits = proc_get_insn(proc);
+  auto pc = state->pc;
+  auto inst_bits = proc_get_insn(proc);
 
   uint32_t opcode = clip(inst_bits, 0, 6);
   uint32_t width = clip(inst_bits, 12, 14); // also funct3
@@ -110,6 +122,36 @@ uint64_t proc_get_rs(spike_processor_t* proc) {
   }
 
   return (uint64_t)rs1_bits << 32 | (uint64_t)rs2_bits;
+}
+
+uint64_t proc_vu_get_vtype(spike_processor_t* proc) {
+  return proc->p->VU.vtype->read();
+}
+
+uint32_t proc_vu_get_vxrm(spike_processor_t* proc) {
+  return proc->p->VU.vxrm->read();
+}
+
+uint32_t proc_vu_get_vnf(spike_processor_t* proc) {
+  auto pc = proc->p->get_state()->pc;
+  auto fetch = proc->p->get_mmu()->load_insn(pc);
+  return fetch.insn.v_nf();
+}
+
+bool proc_vu_get_vill(spike_processor_t* proc) {
+  return proc->p->VU.vill;
+}
+
+bool proc_vu_get_vxsat(spike_processor_t* proc) {
+  return proc->p->VU.vxsat->read();
+}
+
+uint32_t proc_vu_get_vl(spike_processor_t* proc) {
+  return proc->p->VU.vl->read();
+}
+
+uint16_t proc_vu_get_vstart(spike_processor_t* proc) {
+  return proc->p->VU.vstart->read();
 }
 
 reg_t state_get_pc(spike_state_t* state) {

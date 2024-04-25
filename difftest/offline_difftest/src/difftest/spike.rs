@@ -180,7 +180,7 @@ pub struct SpikeEvent {
 	is_vfence_insn: bool,
 
 	pc: u64,
-	inst_bits: u32,
+	inst_bits: u64,
 
 	// scalar to vector interface(used for driver)
 	rs1_bits: u32,
@@ -213,11 +213,55 @@ pub struct SpikeEvent {
 }
 
 impl SpikeEvent {
-	pub fn new() -> Self {
-		let mut spike_evnet = SpikeEvent::default();
-		spike_evnet.lsu_idx = 255;
-		spike_evnet.issue_idx = 255;
-		spike_evnet
+	pub fn new(spike: &Spike) -> Self {
+		let mut se = SpikeEvent::default();
+		se.lsu_idx = 255;
+		se.issue_idx = 255;
+
+		se.inst_bits = spike.get_proc().get_insn();
+
+		let opcode = clip(se.inst_bits, 0, 6);
+		let width = clip(se.inst_bits, 12, 14); // also funct3
+		let funct6 = clip(se.inst_bits, 26, 31);
+		let mop = clip(se.inst_bits, 26, 27);
+		let lumop = clip(se.inst_bits, 20, 24);
+		let vm = clip(se.inst_bits, 25, 25);
+
+		let proc = spike.get_proc();
+		(se.rs1_bits, se.rs2_bits) = proc.get_rs_bits();
+		let (rs1, rs2) = proc.get_rs();
+		let rd = proc.get_rd();
+
+		se.is_rd_fp =
+			(opcode == 0b1010111) && (rs1 == 0) && (funct6 == 0b010000) && (vm == 1) && (width == 0b001);
+		se.rd_idx = rd;
+
+		se.is_rd_written = false;
+
+		let vtype = proc.vu_get_vtype();
+		se.vlmul = clip(vtype, 0, 2);
+		se.vma = clip(vtype, 7, 7) != 0;
+		se.vta = clip(vtype, 6, 6) != 0;
+		se.vsew = clip(vtype, 3, 5);
+		se.vxrm = proc.vu_get_vxrm();
+		se.vnf = proc.vu_get_vnf();
+
+		se.vill = proc.vu_get_vill();
+		se.vxsat = proc.vu_get_vxsat();
+		se.vl = proc.vu_get_vl();
+		se.vstart = proc.vu_get_vstart();
+
+		se.pc = proc.get_state().get_pc();
+		se.is_load = opcode == 0b0000111;
+		se.is_store = opcode == 0b0100111;
+		se.is_whole = mop == 0 && lumop == 8;
+		se.is_widening = opcode == 0b1010111 && (funct6 >> 4) == 0b11;
+		se.is_mask_vd = opcode == 0b1010111 && (funct6 >> 3 == 0b011 || funct6 == 0b010001);
+		se.is_exit_insn = opcode == 0b1110011;
+		se.is_vfence_insn = false;
+
+		se.is_issued = false;
+		se
 	}
 }
 
@@ -250,7 +294,7 @@ impl SpikeHandle {
 		proc.reset();
 		state.set_pc(entry_addr);
 
-		let spike_event = SpikeEvent::new();
+		let spike_event = SpikeEvent::new(&spike);
 		SpikeHandle { spike, spike_event }
 	}
 
@@ -313,31 +357,44 @@ impl SpikeHandle {
 		}
 	}
 
-	pub fn get_vrf_write_range(&self) -> anyhow::Result<(u32, u32)> {
-		// if self.spike_event.is_store {
-		// 	return {0, 0}; // store will not write vrf
-		// } else if (is_load) {
-		// 	uint32_t vd_bytes_start = rd_idx * impl->config.vlen_in_bytes;
-		// 	if (is_whole) {
-		// 		return {vd_bytes_start, impl->config.vlen_in_bytes * (1 + vnf)};
-		// 	}
-		// 	uint32_t len = vlmul & 0b100
-		// 										? impl->config.vlen_in_bytes * (1 + vnf)
-		// 										: impl->config.vlen_in_bytes * (1 + vnf) << vlmul;
-		// 	return {vd_bytes_start, len};
-		// } else {
-		// 	uint32_t vd_bytes_start = rd_idx * impl->config.vlen_in_bytes;
+	pub fn get_vrf_write_range(&self, vlen_in_bytes: u32) -> anyhow::Result<(u32, u32)> {
+		if self.spike_event.is_store {
+			return Ok((0, 0));
+		}
 
-		// 	if (is_mask_vd) {
-		// 		return {vd_bytes_start, impl->config.vlen_in_bytes};
-		// 	}
+		if self.spike_event.is_load {
+			let vd_bytes_start = self.spike_event.rd_idx * vlen_in_bytes;
+			if self.spike_event.is_whole {
+				return Ok((vd_bytes_start, vlen_in_bytes * (1 + self.spike_event.vnf)));
+			}
+			let len = if self.spike_event.vlmul & 0b100 != 0 {
+				vlen_in_bytes * (1 + self.spike_event.vnf)
+			} else {
+				vlen_in_bytes * (1 + self.spike_event.vnf) << self.spike_event.vlmul
+			};
+			return Ok((vd_bytes_start, len));
+		}
 
-		// 	uint32_t len = vlmul & 0b100 ? impl->config.vlen_in_bytes >> (8 - vlmul)
-		// 															: impl->config.vlen_in_bytes << vlmul;
+		let vd_bytes_start = self.spike_event.rd_idx * vlen_in_bytes;
 
-		// 	return {vd_bytes_start, is_widening ? len * 2 : len};
-		// }
-		Ok((0, 0))
+		if self.spike_event.is_mask_vd {
+			return Ok((vd_bytes_start, vlen_in_bytes));
+		}
+
+		let len = if self.spike_event.vlmul & 0b100 != 0 {
+			vlen_in_bytes >> (8 - self.spike_event.vlmul)
+		} else {
+			vlen_in_bytes << self.spike_event.vlmul
+		};
+
+		return Ok((
+			vd_bytes_start,
+			if self.spike_event.is_widening {
+				len * 2
+			} else {
+				len
+			},
+		));
 	}
 
 	pub fn log_arch_changes(&mut self, config: &Config) -> anyhow::Result<()> {
@@ -347,14 +404,14 @@ impl SpikeHandle {
 		// record vrf writes
 		// note that we do not need log_reg_write to find records, we just decode the
 		// insn and compare bytes
+		let vlen_in_bytes = config.parameter.vLen / 8;
 		let vrf_addr = proc.get_vreg_addr();
-		let (start, len) = self.get_vrf_write_range().unwrap();
+		let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
 		for i in 0..len {
 			let offset = start + i;
 			let origin_byte = self.spike_event.vd_write_record.vd_bytes[i as usize];
 			let cur_byte = unsafe { *vrf_addr.offset(offset as isize) };
 			if origin_byte != cur_byte {
-				let vlen_in_bytes = config.parameter.vLen / 8;
 				// self.spike_event.vrf_access_record.all_writes[offset as usize] = cur_byte;
 				self.spike_event.vrf_access_record.all_writes.insert(
 					offset,
