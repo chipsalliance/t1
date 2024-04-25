@@ -43,7 +43,8 @@ spike_t* spike_new(const char* arch, const char* set, const char* lvl) {
   return new spike_t{new Spike(arch, set, lvl)};
 }
 
-const char* proc_disassemble(spike_processor_t* proc, reg_t pc) {
+const char* proc_disassemble(spike_processor_t* proc) {
+  auto pc = proc->p->get_state()->pc;
   auto mmu = proc->p->get_mmu();
   auto disasm = proc->p->get_disassembler();
   auto fetch = mmu->load_insn(pc);
@@ -62,13 +63,15 @@ spike_state_t* proc_get_state(spike_processor_t* proc) {
   return new spike_state_t{proc->p->get_state()};
 }
 
-reg_t proc_func(spike_processor_t* proc, reg_t pc) {
+reg_t proc_func(spike_processor_t* proc) {
+  auto pc = proc->p->get_state()->pc;
   auto mmu = proc->p->get_mmu();
   auto fetch = mmu->load_insn(pc);
   return fetch.func(proc->p, fetch.insn, pc);
 }
 
-reg_t proc_get_insn(spike_processor_t* proc, reg_t pc) {
+reg_t proc_get_insn(spike_processor_t* proc) {
+  auto pc = proc->p->get_state()->pc;
   auto mmu = proc->p->get_mmu();
   auto fetch = mmu->load_insn(pc);
   return fetch.insn.bits();
@@ -76,6 +79,37 @@ reg_t proc_get_insn(spike_processor_t* proc, reg_t pc) {
 
 uint8_t* proc_get_vreg_addr(spike_processor_t* proc) {
   return &proc->p->VU.elt<uint8_t>(0, 0);
+}
+
+uint32_t extract_f32(freg_t f) { return (uint32_t)f.v[0]; }
+
+inline uint32_t clip(uint32_t binary, int a, int b) {
+  int nbits = b - a + 1;
+  uint32_t mask = nbits >= 32 ? (uint32_t)-1 : (1 << nbits) - 1;
+  return (binary >> a) & mask;
+}
+
+uint64_t proc_get_rs(spike_processor_t* proc) {
+  auto state = proc->p->get_state();
+  auto &xr = state->XPR;
+  auto &fr = state->FPR;
+  reg_t pc = state->pc;
+  reg_t inst_bits = proc_get_insn(proc);
+
+  uint32_t opcode = clip(inst_bits, 0, 6);
+  uint32_t width = clip(inst_bits, 12, 14); // also funct3
+  auto fetch = proc->p->get_mmu()->load_insn(pc);
+  uint32_t rs1_bits, rs2_bits;
+  bool is_fp_operands = opcode == 0b1010111 && (width == 0b101 /* OPFVF */);
+  if (is_fp_operands) {
+    rs1_bits = extract_f32(fr[fetch.insn.rs1()]);
+    rs2_bits = extract_f32(fr[fetch.insn.rs2()]);
+  } else {
+    rs1_bits = xr[fetch.insn.rs1()];
+    rs2_bits = xr[fetch.insn.rs2()];
+  }
+
+  return (uint64_t)rs1_bits << 32 | (uint64_t)rs2_bits;
 }
 
 reg_t state_get_pc(spike_state_t* state) {

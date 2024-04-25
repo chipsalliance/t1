@@ -262,11 +262,11 @@ impl SpikeHandle {
 		let state = proc.get_state();
 
 		let pc = state.get_pc();
-		let disasm = proc.disassemble(pc);
+		let disasm = proc.disassemble();
 
 		info!("pc: 0x{:x}, disasm: {:?}", pc, disasm);
 
-		let new_pc = proc.func(pc);
+		let new_pc = proc.func();
 
 		state.handle_pc(new_pc).unwrap();
 
@@ -286,9 +286,8 @@ impl SpikeHandle {
 
 			let spike = &self.spike;
 			let proc = spike.get_proc();
-			let pc = proc.get_state().get_pc();
 
-			let insn = proc.get_insn(pc);
+			let insn = proc.get_insn();
 
 			let opcode = clip(insn, 0, 6);
 			let width = clip(insn, 12, 14);

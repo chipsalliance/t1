@@ -31,8 +31,8 @@ pub struct Processor {
 }
 
 impl Processor {
-	pub fn disassemble(&self, pc: u64) -> std::borrow::Cow<str> {
-		let bytes = unsafe { proc_disassemble(self.processor, pc) };
+	pub fn disassemble(&self) -> std::borrow::Cow<str> {
+		let bytes = unsafe { proc_disassemble(self.processor) };
 		let c_str = unsafe { CStr::from_ptr(bytes as *mut c_char) };
 		c_str.to_string_lossy()
 	}
@@ -46,12 +46,12 @@ impl Processor {
 		State { state }
 	}
 
-	pub fn func(&self, pc: u64) -> u64 {
-		unsafe { proc_func(self.processor, pc) }
+	pub fn func(&self) -> u64 {
+		unsafe { proc_func(self.processor) }
 	}
 
-	pub fn get_insn(&self, pc: u64) -> u64 {
-		unsafe { proc_get_insn(self.processor, pc) }
+	pub fn get_insn(&self) -> u64 {
+		unsafe { proc_get_insn(self.processor) }
 	}
 
 	pub fn get_vreg_addr(&self) -> *mut u8 {
@@ -105,11 +105,11 @@ extern "C" {
 	fn spike_new(arch: *const c_char, set: *const c_char, lvl: *const c_char) -> *mut ();
 	fn spike_get_proc(spike: *mut ()) -> *mut ();
 	fn spike_destruct(spike: *mut ());
-	fn proc_disassemble(proc: *mut (), pc: u64) -> *mut c_char;
+	fn proc_disassemble(proc: *mut ()) -> *mut c_char;
 	fn proc_reset(proc: *mut ());
 	fn proc_get_state(proc: *mut ()) -> *mut ();
-	fn proc_func(proc: *mut (), pc: u64) -> u64;
-	fn proc_get_insn(proc: *mut (), pc: u64) -> u64;
+	fn proc_func(proc: *mut ()) -> u64;
+	fn proc_get_insn(proc: *mut ()) -> u64;
 	fn proc_get_vreg_addr(proc: *mut ()) -> *mut u8;
 	fn proc_destruct(proc: *mut ());
 	fn state_set_pc(state: *mut (), pc: u64);
