@@ -199,12 +199,35 @@ object Decoder {
     expandedOps.filter(_.tpe != "F" || fpuEnable)
   }
 
+  /** Instruction should use [[org.chipsalliance.t1.rtl.decoder.TableGenerator.LaneDecodeTable.LogicUnit]].
+    * "vand.vi"
+    * "vand.vv"
+    * "vand.vx"
+    * "vmand.mm"
+    * "vmandn.mm"
+    * "vmnand.mm"
+    * "vredand.vs"
+    * "vmnor.mm"
+    * "vmor.mm"
+    * "vmorn.mm"
+    * "vmxnor.mm"
+    * "vmxor.mm"
+    * "vor.vi"
+    * "vor.vv"
+    * "vor.vx"
+    * "vredor.vs"
+    * "vredxor.vs"
+    * "vxor.vi"
+    * "vxor.vv"
+    * "vxor.vx"
+    */
   object logic extends BoolField {
     val subs: Seq[String] = Seq("and", "or")
     // 执行单元现在不做dc,因为会在top判断是否可以chain
     def value(op: Op): Boolean = subs.exists(op.name.contains) && op.tpe != "F"
   }
 
+  /** goes to [[org.chipsalliance.t1.rtl.LaneAdder]]. */
   object adder extends BoolField {
     val subs: Seq[String] = Seq(
       "add",
@@ -225,6 +248,7 @@ object Decoder {
       !(op.tpe == "M" && Seq("vm", "vnm").exists(op.name.startsWith)) && op.tpe != "F"
   }
 
+  /** goes to [[org.chipsalliance.t1.rtl.LaneShifter]]. */
   object shift extends BoolField {
     val subs: Seq[String] = Seq(
       "srl",
@@ -234,6 +258,9 @@ object Decoder {
     def value(op: Op): Boolean = subs.exists(op.name.contains) && op.tpe != "F"
   }
 
+  /** goes to [[org.chipsalliance.t1.rtl.LaneMul]].
+    * only apply to int mul
+    */
   object multiplier extends BoolField {
     val subs: Seq[String] = Seq(
       "mul",
@@ -245,6 +272,9 @@ object Decoder {
     def value(op: Op): Boolean = subs.exists(op.name.contains) && op.tpe != "F"
   }
 
+  /** goes to [[org.chipsalliance.t1.rtl.LaneDiv]] or [[org.chipsalliance.t1.rtl.LaneDivFP]].
+    * if FP exist, all div goes to [[org.chipsalliance.t1.rtl.LaneDivFP]]
+    */
   object divider extends BoolField {
     val intDiv: Seq[String] = Seq(
       "div",
@@ -259,15 +289,18 @@ object Decoder {
     def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
+  /** TODO: remove? only Div or customer */
   object multiCycle extends BoolField {
     def value(op: Op): Boolean = divider.value(op) || float.value(op)
   }
 
+  /** goes to [[org.chipsalliance.t1.rtl.OtherUnit]] */
   object other extends BoolField {
     val subs: Seq[String] = Seq(
       "rgather",
       "merge",
       "mv",
+      // TODO: move to shift
       "clip"
     )
     def getType(op: Op): (Boolean, Int) = {
@@ -292,12 +325,15 @@ object Decoder {
     def value(op: Op): Boolean = getType(op)._1
   }
 
+  /** is a float type.
+    * TODO: remove it.
+    */
   object floatType extends BoolField {
     def value(op: Op): Boolean = op.tpe == "F"
   }
 
+  /** goes to [[org.chipsalliance.t1.rtl.LaneFloat]]. */
   object float extends BoolField {
-    // todo: div 不解析成浮点
     def value(op: Op): Boolean = op.tpe == "F" &&
       !(
         other.value(op) ||
@@ -305,6 +341,7 @@ object Decoder {
           slid.value(op) || divider.value(op))
   }
 
+  /** TODO: remove it. */
   object floatConvertUnsigned extends BoolField {
     override def dontCareCase(op: Op): Boolean = !float.value(op)
     def value(op: Op): Boolean = {
@@ -312,6 +349,9 @@ object Decoder {
     }
   }
 
+  /** uop of FMA,
+    * goes to [[org.chipsalliance.t1.rtl.LaneFloat]] FMA unit.
+    */
   object FMA extends BoolField {
     val adderSubsMap: Seq[(String, Int)] = Seq(
       "vfadd" -> 0,
@@ -349,10 +389,13 @@ object Decoder {
     }
   }
 
+  /** TODO: add op. */
   object floatMul extends BoolField {
     def value(op: Op): Boolean = op.name.contains("vfmul")
   }
 
+  /** don't use it, it's slow, lane read all elements from VRF, send to Top.
+    */
   object orderReduce extends BoolField {
     def value(op: Op): Boolean = op.name.contains("vfredosum")
   }
@@ -368,6 +411,7 @@ object Decoder {
     }
   }
 
+  /** TODO: remove it, but remains attribute. */
   object FCompare extends BoolField {
     val subsMap = Seq(
       "vmfeq" -> 1,
@@ -390,6 +434,10 @@ object Decoder {
     }
   }
 
+  /** designed for Other Unit in FP.
+    * goes to [[org.chipsalliance.t1.rtl.LaneFloat]] OtherUnit.
+    * TODO: perf it.
+    */
   object FOther extends BoolField {
     val unsignedMap = Seq(
       "vfcvt.f.xu.v" -> 8,
@@ -416,13 +464,23 @@ object Decoder {
     }
   }
 
+  /** float uop, goes to [[org.chipsalliance.t1.rtl.LaneFloatRequest.unitSelet]]
+    * TODO: remove FDiv. move to VFU uop
+    */
   object fpExecutionType extends FloatType {
     def genTable(op: Op): BitPat = {
-      val code: Int = if (FDiv.value(op)) 1 else if (FCompare.value(op)) 2 else if (FOther.value(op)) 3 else 0
+      val code: Int = if (FDiv.value(op)) 1 else if (FCompare.value(op)) 2 else if (FOther.value(op)) 3 else 0 /* FMA */
       BitPat("b" + ("00" + code.toBinaryString).takeRight(2))
     }
   }
 
+  /** There are two types of widen:
+    * - vd -> widen.
+    * - vs2, vd -> widen.
+    *
+    * This op will widen vs2.
+    * TODO: remove it as attribute.
+    */
   object firstWiden extends BoolField {
     def value(op: Op): Boolean = {
       val nameWoW = op.name.replace(".wf", ".w").replace(".wx", ".w").replace(".wv", ".w")
@@ -430,11 +488,20 @@ object Decoder {
     }
   }
 
+  /** for vmvnr, move vreg group to another vreg group.
+    * it will ignore lmul, use from instr.
+    * chainable
+    */
   object nr extends BoolField {
     // for instructions `vmv1r.v`,`vmv2r.v`, `vmv4r.v`, `vmv8r.v`
     def value(op: Op): Boolean = Seq("vmv1r.v","vmv2r.v", "vmv4r.v", "vmv8r.v").contains(op.name)
   }
 
+  /** do reduce in each lane.
+    * each element will sequentially executed in each lanes.
+    * after finishing, pop it to Top, and use ALU at top to get the final result and send to element0
+    * TODO: better name.
+    */
   object red extends BoolField {
     // reduce 会影响special, special会极大地影响性能, 所以不能dc
     def value(op: Op): Boolean = op.name.contains("red") || op.name.contains("pop")
@@ -446,10 +513,19 @@ object Decoder {
       ((adder.value(op) && !Seq("min", "max").exists(op.name.contains)) || logic.value(op))
   }
 
+  /** only instruction will switch src.
+    * TODO: send it to uop.
+    */
   object reverse extends BoolField {
     def value(op: Op): Boolean = op.name.contains("vrsub")
   }
 
+  /** dual width of src will be convert to single width to dst.
+    * narrow can be the src of chain.
+    * as the dst of chain, only can be fed with Load.
+    *
+    * TODO: remove it as attribute.
+    */
   object narrow extends BoolField {
     val subs: Seq[String] = Seq(
       "vnsrl",
@@ -461,21 +537,33 @@ object Decoder {
     def value(op:                 Op): Boolean = subs.exists(op.name.contains)
   }
 
+  /** lane should write to another lane
+    */
   object crossWrite extends BoolField {
     override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
     def value(op:                 Op): Boolean = op.name.startsWith("vw") && !op.name.startsWith("vwred")
   }
 
+  /** a special widen, only write dual vd from Top to element0
+    * it doesn't cross.
+    * TODO: better name.
+    */
   object widenReduce extends BoolField {
     override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
     def value(op:                 Op): Boolean = op.name.startsWith("vwred")
   }
 
+  /** For adder, does it need to take care of saturate.
+    * TODO: add to uop
+    */
   object saturate extends BoolField {
     override def dontCareCase(op: Op): Boolean = op.special.nonEmpty
     def value(op:                 Op): Boolean = Seq("vsa", "vss", "vsm").exists(op.name.startsWith)
   }
 
+  /** For adder, does it need to take care of saturate.
+    * TODO: add to uop
+    */
   object average extends BoolField {
     val subs: Seq[String] = Seq(
       "vaa",
@@ -485,6 +573,9 @@ object Decoder {
     def value(op:                 Op): Boolean = subs.exists(op.name.startsWith)
   }
 
+  /** is src0 unsigned?
+    * used everywhere in Lane and VFU.
+    */
   object unsigned0 extends BoolField {
     def value(op: Op): Boolean = {
       val nameWoW = op.name.replace(".vv", "").replace(".vi", "").replace(".vx", "").replace(".vs", "").replace(".wi", "").replace(".wx", "").replace(".wv", "")
@@ -496,6 +587,9 @@ object Decoder {
     }
   }
 
+  /** is src1 unsigned?
+    * used everywhere in Lane and VFU.
+    */
   object unsigned1 extends BoolField {
     def value(op: Op): Boolean = {
       val nameWoW = op.name.replace(".vv", "").replace(".vi", "").replace(".vx", "").replace(".vs", "").replace(".wi", "").replace(".wx", "").replace(".wv", "")
@@ -511,27 +605,41 @@ object Decoder {
     }
   }
 
+  /** src1 is vtype. */
   object vtype extends BoolField {
     def value(op: Op): Boolean = op.tpeOp2 == "V"
   }
 
+  /** src is imm. */
   object itype extends BoolField {
     def value(op: Op): Boolean = op.tpeOp2 == "I"
   }
 
+  /** write rd/fd at scalar core. */
   object targetRd extends BoolField {
     def value(op: Op): Boolean = op.special.isDefined &&
       (op.special.get.name == "VWXUNARY0" || op.special.get.name == "VWFUNARY0")
   }
 
+  /** send element to MaskUnit at top, extend and broadcast to multiple Lanes. */
   object extend extends BoolField {
     def value(op: Op): Boolean = op.special.isDefined && op.special.get.name == "VXUNARY0"
   }
 
+  /** move instruction, v->v s->v x->v,
+    * single element move.
+    * TODO: split them into multiple op since datapath differs
+    */
   object mv extends BoolField {
     def value(op: Op): Boolean = (op.name.startsWith("vmv") || op.name.startsWith("vfmv")) && !nr.value(op)
   }
 
+  /** find first one,
+    * lane will report if 1 is found, Sequencer should decide which is exactly the first 1 in lanes.
+    * after 1 is found, tell each lane, 1 has been found at which the corresponding location.
+    * lane will stale at stage2.
+    * TODO: should split into lane control uop
+    */
   object ffo extends BoolField {
     val subs: Seq[String] = Seq(
       "vfirst.m",
@@ -543,22 +651,51 @@ object Decoder {
     def value(op: Op): Boolean = subs.exists(op.name.contains)
   }
 
+  /** used in Sequencer mask unit, decide which vrf should be read.
+    * send read request to corresponding lane, lane will respond data to Sequencer.
+    * Sequencer will write data to VD.
+    * mask unit is work as the router here.
+    *
+    * TODO: opimize mask unit.
+    */
   object slid extends BoolField {
     def value(op: Op): Boolean = op.name.contains("slid")
   }
 
+  /** lane will read index from vs1, send to Sequencer.
+    * mask unit will calculate vrf address based on the vs1 from lane, and send read request to lanes,
+    * lanes should read it and send vs2 to Sequencer.
+    * Sequencer will write vd at last.
+    * address: 0 -> vlmax(sew decide address width.)
+    */
   object gather extends BoolField {
     def value(op: Op): Boolean = op.name.contains("rgather")
   }
 
+  /** same with [[gather]]
+    * ignore sew, address width is fixed to 16.
+    *
+    * @note
+    * When SEW=8, vrgather.vv can only reference vector elements 0-255.
+    * The vrgatherei16 form can index 64K elements,
+    * and can also be used to reduce the register capacity needed to hold indices when SEW > 16.
+    */
   object gather16 extends BoolField {
     def value(op: Op): Boolean = op.name.contains("rgatherei16")
   }
 
+  /** lane will read data from vs2, send to Sequencer.
+    * then Sequencer will read vs1 for mask.
+    * use mask to compress data in vs2.
+    * and write to vd at last.
+    */
   object compress extends BoolField {
     def value(op: Op): Boolean = op.name.contains("compress")
   }
 
+  /** lane read only instructions.
+    * for these instructions lane will only read vrf and send data back to Sequencer.
+    */
   object readOnly extends BoolField {
     def value(op: Op): Boolean = {
       val vGather:  Boolean = op.name.contains("gather") && vtype.genTable(op) == y
@@ -569,27 +706,49 @@ object Decoder {
     }
   }
 
+  /** count how many 1s in VS2.
+    * lane will use [[org.chipsalliance.t1.rtl.OtherUnit]] to how many 1s locally;
+    * use reduce datapath to accumulate,
+    * send total result to top
+    * top will send result to vd.
+    */
   object popCount extends BoolField {
     def value(op: Op): Boolean = op.name.contains("vcpop")
   }
 
+  /** lane will read vs2 from VRF, send to Top.
+    * Top read v0(at register) calculate the result and write back to VRFs
+    */
   object iota extends BoolField {
     def value(op: Op): Boolean = op.name.contains("viota")
   }
 
+  /** write 0...vlmax to VRF.
+    * Lane other unit should handle it.
+    * TODO: remove it, it's a uop.
+    */
   object id extends BoolField {
     def value(op: Op): Boolean = op.name.contains("vid")
   }
 
+  /** special MAC instruction, MAC use vd as source, it cross read vd.
+    * TODO: cross read vd + mac uop.
+    */
   object vwmacc extends BoolField {
     def value(op: Op): Boolean = op.name.contains("vwmacc")
   }
 
+  /** unmanaged write for VRF. these instructions cannot be chain as source.
+    *
+    * TODO: add an attribute these instruction cannot be the source of chaining.
+    */
   object unOrderWrite extends BoolField {
     def value(op: Op): Boolean = slid.value(op) || iota.value(op) || mv.value(op) || orderReduce.value(op)
   }
 
-  // TODO[2]: uop should be well documented
+  /** VFU uop:
+    * TODO: need full documentation on how to encode it.
+    */
   object uop extends UopField {
     val mul: Seq[String] = Seq(
       "mul",
@@ -652,6 +811,8 @@ object Decoder {
     }
   }
 
+
+  /** uop for mask unit. */
   object topUop extends TopUopField {
     def genTable(op: Op): BitPat = {
       val isSlide = slid.value(op)
@@ -670,6 +831,11 @@ object Decoder {
     }
   }
 
+  /** only one or two operators
+    * src is mask format(one element one bit).
+    * vl should align with src.
+    * if datapath is unaligned, need to take care the tail.
+    */
   object maskLogic extends BoolField {
     def value(op: Op): Boolean = {
       // todo: rename maskLogic -> maskOperation
@@ -679,23 +845,35 @@ object Decoder {
     }
   }
 
+  /** vd is mask format.
+    * execute at lane, send result to Sequencer, regroup it and write to vd.
+    * if datapath is unaligned, need to take care the tail.
+    */
   object maskDestination extends BoolField {
     def value(op: Op): Boolean =
       (op.name.startsWith("vm") && adder.value(op) && !Seq("min", "max").exists(op.name.contains)) ||
         (op.name.startsWith("vm") && floatType.value(op))
   }
 
+  /** three ops. these ops don't use mask. use v0 as third op, read it from duplicate V0.
+    * it will read
+    * use mask(v0) in mask format as source.
+    */
   object maskSource extends BoolField {
     def value(op: Op): Boolean = Seq("vadc", "vsbc", "vmadc", "vmsbc", "vmerge", "vfmerge").exists(op.name.startsWith)
   }
 
+
+  /** TODO: remove it. */
   object indexType extends BoolField {
     override def containsLSU: Boolean = true
     // funct6 的最低位是mop(0)
     def value(op: Op): Boolean = !op.notLSU && op.funct6.endsWith("1")
   }
 
-  // special -> maskUnit || index type load store
+  /** if Sequencer is the router for data from Lane to LSU or Sequencer mask unit.
+    * special -> maskUnit || index type load store
+    */
   object special extends BoolField {
     override def containsLSU: Boolean = true
     def value(op: Op): Boolean = {
@@ -704,6 +882,7 @@ object Decoder {
   }
 
   // mask unit -> red || compress || viota || ffo || slid || maskDestination || gather(v) || mv || popCount || extend
+  /** all instruction in Sequencer mask unit. */
   object maskUnit extends BoolField {
     def value(op: Op): Boolean = {
       Seq(red, compress, iota, ffo, slid, maskDestination, mv, popCount, extend)
@@ -712,12 +891,16 @@ object Decoder {
     }
   }
 
+  /** Read vs2 or vd with cross read channel. */
   // crossRead -> narrow || firstWiden
   object crossRead extends BoolField {
     def value(op: Op): Boolean = Seq(narrow, firstWiden).map(_.value(op)).reduce(_ || _)
   }
 
   //sWrite -> targetRd || readOnly || crossWrite || maskDestination || reduce || loadStore
+  /** instruction will write vd or rd(scalar) from outside of lane.
+    * It will request vrf wait, and lane will not write.
+    */
   object sWrite extends BoolField {
     override def containsLSU: Boolean = true
     def value(op: Op): Boolean =
@@ -725,6 +908,7 @@ object Decoder {
   }
 
   // decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).xorR && !decodeResult(Decoder.vwmacc)
+  /** TODO: remove it. */
   object ma extends BoolField {
     def value(op: Op): Boolean = {
       (multiplier.value(op) && Seq(BitPat("b??01"), BitPat("b??10")).exists(_.cover(uop.genTable(op))) &&
@@ -733,12 +917,14 @@ object Decoder {
   }
 
   // sReadVD -> !(ma || maskLogic)
+  /** instruction need to read vd as operator. */
   object sReadVD extends BoolField {
     def value(op: Op): Boolean = !Seq(ma, maskLogic).map(_.value(op)).reduce(_ || _)
   }
 
   // wScheduler 原来与 sScheduler 如果出错了需要检查一下,真不一样需要说明记录
   //sScheduler -> maskDestination || red || readOnly || ffo || popCount || loadStore
+  /** lane will send request to Sequencer and wait ack from Sequencer. */
   object scheduler extends BoolField {
     override def containsLSU: Boolean = true
     def value(op: Op): Boolean = !(Seq(maskDestination, red, readOnly, ffo, popCount).map(_.value(op)).reduce(_ || _) || !op.notLSU)
@@ -746,6 +932,9 @@ object Decoder {
 
   // sExecute 与 wExecuteRes 也不一样,需要校验
   // sExecute -> readOnly || nr || loadStore
+  /** Lane doesn't need VFU to execute the instruction.
+    * datapath will directly goes to VRF.
+    */
   object dontNeedExecuteInLane extends BoolField {
     override def containsLSU: Boolean = true
     def value(op: Op): Boolean =
@@ -754,11 +943,13 @@ object Decoder {
 
   // lane中只能在slot0中执行的指令
   // specialSlot -> crossRead || crossWrite || maskLogic || maskDestination || maskSource
+  /** instructions schedule to slot0. */
   object specialSlot extends BoolField {
     def value(op: Op): Boolean =
       Seq(crossRead, crossWrite, maskLogic, maskDestination, maskSource).map(_.value(op)).reduce(_ || _)
   }
 
+  // TODO: how to add custom decoder for niche customer: linking.
   def all(fpuEnable: Boolean): Seq[DecodeField[Op, _ >: Bool <: UInt]] = {
     Seq(
       logic,
