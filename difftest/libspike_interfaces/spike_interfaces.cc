@@ -158,6 +158,12 @@ reg_t state_get_pc(spike_state_t* state) {
   return state->s->pc;
 }
 
+void state_clear(spike_state_t* state) {
+  state->s->log_reg_write.clear();
+  state->s->log_mem_read.clear();
+  state->s->log_mem_write.clear();
+}
+
 static void state_set_serialized(spike_state_t* state, bool serialized) {
   state->s->serialized = serialized;
 }

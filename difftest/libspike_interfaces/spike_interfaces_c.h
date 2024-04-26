@@ -38,6 +38,8 @@ uint16_t proc_vu_get_vstart(spike_processor_t* proc);
 uint64_t state_get_pc(spike_state_t* state);
 uint64_t state_handle_pc(spike_state_t* state, uint64_t new_pc);
 void state_set_pc(spike_state_t* state, uint64_t pc);
+void state_clear(spike_state_t* state);
+
 void spike_destruct(spike_t* spike);
 void proc_destruct(spike_processor_t* proc);
 void state_destruct(spike_state_t* state);

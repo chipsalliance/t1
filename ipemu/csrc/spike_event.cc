@@ -138,9 +138,7 @@ void SpikeEvent::log_arch_changes() {
 }
 
 SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch,
-                       VBridgeImpl *impl,
-                       // FIXME: dirty
-                       size_t lsu_idx
+                       VBridgeImpl *impl
                        )
     : proc(proc), impl(impl) {
   auto &xr = proc.get_state()->XPR;
@@ -175,8 +173,6 @@ SpikeEvent::SpikeEvent(processor_t &proc, insn_fetch_t &fetch,
   vma = clip(vtype, 7, 7);
   vta = clip(vtype, 6, 6);
   vsew = clip(vtype, 3, 5);
-  // vlmul = clip(vtype, 0, 2);
-  // vill = clip(vtype, 31, 31);
   vxrm = proc.VU.vxrm->read();
   vnf = fetch.insn.v_nf();
 
