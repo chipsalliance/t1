@@ -704,7 +704,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage1.dequeue.ready := stage2.enqueue.ready && executionUnit.enqueue.ready
       executionUnit.enqueue.valid := stage1.dequeue.valid && stage2.enqueue.ready
 
-      stage2.state := laneState
+      // todo: connect state from stage1
+      stage2.enqueue.bits.elements.foreach { case (k ,d) =>
+        laneState.elements.get(k).foreach(stateData => d := stateData)
+      }
       stage2.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
       stage2.enqueue.bits.mask := stage1.dequeue.bits.mask
       stage2.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
