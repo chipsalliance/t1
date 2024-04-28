@@ -745,7 +745,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       if (!isLastSlot) {
         stage3.enqueue.bits := DontCare
       }
-      stage3.state := laneState
+      // todo: connect state from stage2
+      stage3.enqueue.bits.elements.foreach { case (k ,d) =>
+        laneState.elements.get(k).foreach(stateData => d := stateData)
+      }
       stage3.enqueue.bits.groupCounter := stage2.dequeue.bits.groupCounter
       stage3.enqueue.bits.mask := stage2.dequeue.bits.mask
       if (isLastSlot) {
