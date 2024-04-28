@@ -717,7 +717,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       }
       stage2.enqueue.bits.bordersForMaskLogic := executionUnit.enqueue.bits.bordersForMaskLogic
 
-      executionUnit.state := laneState
+      // todo: connect state from stage1
+      executionUnit.enqueue.bits.elements.foreach { case (k ,d) =>
+        laneState.elements.get(k).foreach(stateData => d := stateData)
+      }
       executionUnit.enqueue.bits.src := stage1.dequeue.bits.src
       executionUnit.enqueue.bits.bordersForMaskLogic :=
         (stage1.dequeue.bits.groupCounter === record.lastGroupForInstruction && record.isLastLaneForInstruction)
