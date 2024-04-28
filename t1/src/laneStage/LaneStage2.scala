@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.t1.rtl.{LaneExecuteStage, LaneParameter}
+import org.chipsalliance.t1.rtl.{CSRInterface, LaneExecuteStage, LaneParameter}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 
 class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -17,6 +17,18 @@ class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val mask: UInt = UInt((parameter.datapathWidth / 8).W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
   val bordersForMaskLogic: Bool = Bool()
+  // pipe state
+  // for stage3
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val ffoByOtherLanes: Bool = Bool()
+  val loadStore: Bool = Bool()
+  /** vd or rd */
+  val vd: UInt = UInt(5.W)
+  // Newly added in stage2
+  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val vSew1H: UInt = UInt(3.W)
+  val maskType: Bool = Bool()
 }
 
 class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -36,7 +48,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
   @public
   val state: LaneState = IO(Input(new LaneState(parameter)))
 
-  val decodeResult: DecodeBundle = state.decodeResult
+  val decodeResult: DecodeBundle = enqueue.bits.decodeResult
 
   val executionQueue: Queue[LaneExecuteStage] =
     Module(new Queue(new LaneExecuteStage(parameter)(isLastSlot), parameter.executionQueueSize))
@@ -46,17 +58,17 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
 
   val bordersCorrectMask: UInt = Mux(
     enqueue.bits.bordersForMaskLogic,
-    (scanRightOr(UIntToOH(state.csr.vl(parameter.datapathWidthBits - 1, 0))) >> 1).asUInt,
+    (scanRightOr(UIntToOH(enqueue.bits.csr.vl(parameter.datapathWidthBits - 1, 0))) >> 1).asUInt,
     -1.S(parameter.datapathWidth.W).asUInt
   )
   val maskTypeMask: UInt = Mux(
-    state.maskType,
+    enqueue.bits.maskType,
     enqueue.bits.src(0),
     -1.S(parameter.datapathWidth.W).asUInt
   )
   val complexMask: UInt = bordersCorrectMask & maskTypeMask
   val ffoCompleteWrite: UInt = Mux(
-    state.maskType || enqueue.bits.bordersForMaskLogic,
+    enqueue.bits.maskType || enqueue.bits.bordersForMaskLogic,
     (~complexMask).asUInt & enqueue.bits.src(2),
     0.U
   )
@@ -72,7 +84,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
   executionQueue.io.enq.bits.sSendResponse.foreach {d => d := enqueue.bits.sSendResponse.get}
   executionQueue.io.enq.bits.groupCounter := enqueue.bits.groupCounter
   executionQueue.io.enq.bits.mask := Mux1H(
-    state.vSew1H,
+    enqueue.bits.vSew1H,
     Seq(
       enqueue.bits.maskForFilter,
       FillInterleaved(2, enqueue.bits.maskForFilter(1, 0)),
