@@ -24,7 +24,6 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   val maskType: Bool = Bool()
   val maskNotMaskedElement: Bool = Bool()
   val maskForMaskGroup: UInt = UInt(parameter.datapathWidth.W)
-  val mask: ValidIO[UInt] = Valid(UInt(parameter.datapathWidth.W))
   val ffoByOtherLanes: Bool = Bool()
 
   /** vs1 or imm */
