@@ -571,7 +571,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.maskNotMaskedElement := !record.laneRequest.mask ||
         record.laneRequest.decodeResult(Decoder.maskSource) ||
         record.laneRequest.decodeResult(Decoder.maskLogic)
-      laneState.mask := record.mask
       laneState.vs1 := record.laneRequest.vs1
       laneState.vs2 := record.laneRequest.vs2
       laneState.vd := record.laneRequest.vd
@@ -587,7 +586,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage0.enqueue.bits.maskIndex := maskIndexVec(index)
       stage0.enqueue.bits.maskForMaskGroup := record.mask.bits
       stage0.enqueue.bits.maskGroupCount := maskGroupCountVec(index)
-      stage0.state := laneState
+      stage1.enqueue.bits.elements.foreach { case (k ,d) =>
+        laneState.elements.get(k).foreach(stateData => d := stateData)
+      }
 
       // update lane state
       when(stage0.enqueue.fire) {
