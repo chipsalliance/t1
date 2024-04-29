@@ -641,7 +641,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       }
       stage1.dequeue.bits.readBusDequeueGroup.foreach(data => readBusDequeueGroup := data)
 
-      stage1.state := laneState
+      // todo: connect state from stage0
+      stage1.enqueue.bits.elements.foreach { case (k ,d) =>
+        laneState.elements.get(k).foreach(stateData => d := stateData)
+      }
       stage1.readFromScalar := record.laneRequest.readFromScalar
       vrfReadRequest(index).zip(stage1.vrfReadRequest).foreach{ case (sink, source) => sink <> source }
       vrfReadResult(index).zip(stage1.vrfReadResult).foreach{ case (source, sink) => sink := source }
