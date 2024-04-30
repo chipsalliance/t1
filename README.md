@@ -131,7 +131,7 @@ Currently under tested configs:
 
 To run testcase on IP emulator, use the following script:
 ```shell
-$ ./scripts/run-test.py ip -c <config-name> <case-name>
+$ nix develop -c t1-helper ipemu -c <config-name> -C <case-name>
 ```
 wheres
 - `<config-name>` is the configuration name;
@@ -139,10 +139,10 @@ wheres
 
 For example:
 ```shell
-./scripts/run-test.py ip --config squirtle conv-mlir
+$ nix develop -c t1-helper ipemu --config blastoise -C intrinsic.linear_normalization
 ```
 
-`run-test.py` provides various command-line options for different use cases. Run `./scripts/run-test.py -h` for help.
+The `t1-helper` is a emulator wrapper that provides various command-line options for different use cases. Run `t1-helper -h` for help.
 
 ### Development
 
@@ -247,8 +247,7 @@ $ nix flake update
 Bump chisel submodule versions:
 ```shell
 $ cd nix/t1
-# Or nix run '.#nvfetcher'
-$ nvfetcher
+$ nix run '.#nvfetcher'
 ```
 
 ## License
