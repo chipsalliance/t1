@@ -2,7 +2,7 @@ name: Daily Regression
 on:
   schedule:
     # Run this job everyday at 6:30 AM UTC+8
-    - cron:  '30 10 * * *'
+    - cron:  '30 22 * * *'
 
 jobs:
   gen-matrix:
