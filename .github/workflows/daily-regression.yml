@@ -178,10 +178,10 @@ jobs:
           sed -i "s|$oldHash|$newHash|" nix/t1/t1.nix
       - name: Commit changes
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.T1_PR_PAT }}
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          git config user.name Avimitin
+          git config user.email dev@avimit.in
 
           currentDate=$(date +%F)
           branch="dependencies-bumping-$currentDate"
