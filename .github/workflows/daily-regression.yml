@@ -194,9 +194,10 @@ jobs:
           }
 
           if ! git diff --quiet --cached --exit-code; then
+            updatedFiles=$(git diff --cached --name-only)
             echo "File changed"
             git commit -m "[deps] Bump T1 dependencies"
             git push origin "$branch" --force-with-lease
             nix run '.#gh' -- \
-              pr create --title "Bump T1 dependencies" --body "Updated: $(git diff --cached --name-only)"
+              pr create --title "Bump T1 dependencies" --body "Updated: $updatedFiles"
           fi
