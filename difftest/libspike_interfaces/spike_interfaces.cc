@@ -189,6 +189,22 @@ void state_set_pc(spike_state_t* state, uint64_t pc) {
   state->s->pc = pc;
 }
 
+uint32_t state_get_mem_write_size(spike_state_t* state) {
+  return state->s->log_mem_write.size();
+}
+
+uint32_t state_get_mem_write_addr(spike_state_t* state, uint32_t index) {
+  return std::get<0>(state->s->log_mem_write[index]) & 0xffffffff;
+}
+
+uint64_t state_get_mem_write_value(spike_state_t* state, uint32_t index) {
+  return std::get<1>(state->s->log_mem_write[index]);
+}
+
+uint8_t state_get_mem_write_size_by_byte(spike_state_t* state, uint32_t index) {
+  return std::get<2>(state->s->log_mem_write[index]);
+}
+
 reg_t state_exit(spike_state_t* state) {
   auto& csrmap = state->s->csrmap;
   return csrmap[CSR_MSIMEND]->read();

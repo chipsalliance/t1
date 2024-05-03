@@ -213,7 +213,7 @@ pub struct SpikeEvent {
 }
 
 impl SpikeEvent {
-	pub fn new(spike: &Spike) -> Self {
+	pub fn new(spike: &Spike) -> Option<Self> {
 		let mut se = SpikeEvent::default();
 		se.lsu_idx = 255;
 		se.issue_idx = 255;
@@ -261,13 +261,13 @@ impl SpikeEvent {
 		se.is_vfence_insn = false;
 
 		se.is_issued = false;
-		se
+		Some(se)
 	}
 }
 
 pub struct SpikeHandle {
 	spike: Spike,
-	spike_event: SpikeEvent,
+	spike_event: Option<SpikeEvent>,
 }
 
 impl SpikeHandle {
@@ -350,6 +350,7 @@ impl SpikeHandle {
 				&& !is_vsetvl
 			{
 				dbg!(format!("{:#x}", insn));
+				self.pre_log_arch_changes(config)?;
 				self.exec()?;
 				self.log_arch_changes(config)?;
 				return Ok(());
@@ -358,48 +359,58 @@ impl SpikeHandle {
 	}
 
 	pub fn get_vrf_write_range(&self, vlen_in_bytes: u32) -> anyhow::Result<(u32, u32)> {
-		if self.spike_event.is_store {
+		let se = self.spike_event.as_ref().unwrap();
+		if se.is_store {
 			return Ok((0, 0));
 		}
 
-		if self.spike_event.is_load {
-			let vd_bytes_start = self.spike_event.rd_idx * vlen_in_bytes;
-			if self.spike_event.is_whole {
-				return Ok((vd_bytes_start, vlen_in_bytes * (1 + self.spike_event.vnf)));
+		if se.is_load {
+			let vd_bytes_start = se.rd_idx * vlen_in_bytes;
+			if se.is_whole {
+				return Ok((vd_bytes_start, vlen_in_bytes * (1 + se.vnf)));
 			}
-			let len = if self.spike_event.vlmul & 0b100 != 0 {
-				vlen_in_bytes * (1 + self.spike_event.vnf)
+			let len = if se.vlmul & 0b100 != 0 {
+				vlen_in_bytes * (1 + se.vnf)
 			} else {
-				vlen_in_bytes * (1 + self.spike_event.vnf) << self.spike_event.vlmul
+				vlen_in_bytes * (1 + se.vnf) << se.vlmul
 			};
 			return Ok((vd_bytes_start, len));
 		}
 
-		let vd_bytes_start = self.spike_event.rd_idx * vlen_in_bytes;
+		let vd_bytes_start = se.rd_idx * vlen_in_bytes;
 
-		if self.spike_event.is_mask_vd {
+		if se.is_mask_vd {
 			return Ok((vd_bytes_start, vlen_in_bytes));
 		}
 
-		let len = if self.spike_event.vlmul & 0b100 != 0 {
-			vlen_in_bytes >> (8 - self.spike_event.vlmul)
+		let len = if se.vlmul & 0b100 != 0 {
+			vlen_in_bytes >> (8 - se.vlmul)
 		} else {
-			vlen_in_bytes << self.spike_event.vlmul
+			vlen_in_bytes << se.vlmul
 		};
 
-		return Ok((
-			vd_bytes_start,
-			if self.spike_event.is_widening {
-				len * 2
-			} else {
-				len
-			},
-		));
+		return Ok((vd_bytes_start, if se.is_widening { len * 2 } else { len }));
+	}
+
+	pub fn pre_log_arch_changes(&mut self, config: &Config) -> anyhow::Result<()> {
+		let se = self.spike_event.as_mut().unwrap();
+		if se.is_rd_fp {
+			se.rd_bits = self.spike.get_proc().get_rd();
+		}
+		let vlen_in_bytes = config.parameter.vLen / 8;
+		let vrf_addr = self.spike.get_proc().get_vreg_addr();
+		let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
+		let vrf_addr = unsafe { std::slice::from_raw_parts(vrf_addr, len as usize) };
+		se.vd_write_record
+			.vd_bytes
+			.copy_from_slice(&vrf_addr[start as usize..(start + len) as usize]);
+		Ok(())
 	}
 
 	pub fn log_arch_changes(&mut self, config: &Config) -> anyhow::Result<()> {
 		let spike = &self.spike;
 		let proc = spike.get_proc();
+		let state = proc.get_state();
 
 		// record vrf writes
 		// note that we do not need log_reg_write to find records, we just decode the
@@ -409,11 +420,12 @@ impl SpikeHandle {
 		let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
 		for i in 0..len {
 			let offset = start + i;
-			let origin_byte = self.spike_event.vd_write_record.vd_bytes[i as usize];
+			let se = self.spike_event.as_mut().unwrap();
+			let origin_byte = se.vd_write_record.vd_bytes[i as usize];
 			let cur_byte = unsafe { *vrf_addr.offset(offset as isize) };
 			if origin_byte != cur_byte {
-				// self.spike_event.vrf_access_record.all_writes[offset as usize] = cur_byte;
-				self.spike_event.vrf_access_record.all_writes.insert(
+				// se.vrf_access_record.all_writes[offset as usize] = cur_byte;
+				se.vrf_access_record.all_writes.insert(
 					offset,
 					SingleVrfWrite {
 						byte: cur_byte,
@@ -429,6 +441,24 @@ impl SpikeHandle {
 				);
 			}
 		}
+
+		let mem_write_size = state.get_mem_write_size();
+		(0..mem_write_size).for_each(|i| {
+			let (addr, value, size) = state.get_mem_write(i);
+			let se = self.spike_event.as_mut().unwrap();
+			se.mem_access_record.all_writes.insert(
+				addr,
+				MemWriteRecord {
+					writes: vec![SingleMemWrite {
+						val: value as u8,
+						executed: false,
+					}],
+					num_completed_writes: 0,
+				},
+			);
+			info!("SpikeMemWrite: addr={:x}, value={:x}, size={}", addr, value, size);
+		});
+		
 		Ok(())
 	}
 }
