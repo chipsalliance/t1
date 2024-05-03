@@ -2,10 +2,12 @@
 
 { caseName, xLen ? 32, vLen ? 1024, fp ? false, ... }@inputs:
 
-stdenv.mkDerivation (rec {
-  name = "intrinsic.${caseName}";
+stdenv.mkDerivation (self: rec {
+  casePrefix = "intrinsic";
+  name = "${self.casePrefix}.${caseName}";
 
   unpackPhase = ''
+    runHook preUnpack
     if [ -z "''${srcs:-}" ]; then
         if [ -z "''${src:-}" ]; then
             echo 'variable $src or $srcs should point to the source'
@@ -13,6 +15,7 @@ stdenv.mkDerivation (rec {
         fi
         srcs="$src"
     fi
+    runHook postUnpack
   '';
 
   NIX_CFLAGS_COMPILE = [
@@ -51,7 +54,7 @@ stdenv.mkDerivation (rec {
 
     jq --null-input \
       --arg name ${caseName} \
-      --arg type intrinsic \
+      --arg type ${self.casePrefix} \
       --argjson xLen ${toString xLen} \
       --argjson vLen ${toString vLen} \
       --argjson fp ${lib.boolToString fp} \
@@ -61,6 +64,8 @@ stdenv.mkDerivation (rec {
 
     runHook postInstall
   '';
+
+  dontFixup = true;
 
   meta.description = "Test case '${caseName}', written in C intrinsic.";
 } // inputs)
