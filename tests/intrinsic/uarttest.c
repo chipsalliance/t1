@@ -1,4 +1,4 @@
-#include "uart.h"
+#include <emurt.h>
 
 void test() {
     uart_put_s("Test Begin from UART!\n");
