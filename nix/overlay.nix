@@ -44,11 +44,14 @@ in
         major = final.lib.versions.major rv32_buildPkgs.${llvmForRVV_attrName}.release_version;
 
         # compiler-rt requires the compilation flag -fforce-enable-int128, only clang provides that
-        compilerrt = rv32_pkgs.${llvmForRVV_attrName}.compiler-rt.override {
+        compilerrt = (rv32_pkgs.${llvmForRVV_attrName}.compiler-rt.override {
           stdenv = rv32_pkgs.overrideCC
             rv32_pkgs.stdenv
             rv32_buildPkgs.${llvmForRVV_attrName}.clangNoCompilerRt;
-        };
+        }).overrideAttrs (oldAttrs: {
+          NIX_DEBUG = 1;
+          env.NIX_CFLAGS_COMPILE = "-march=rv32gcv -mabi=ilp32f";
+        });
 
         # newlib is built with double float point abi by default, override it
         newlib = rv32_pkgs.stdenv.cc.libc.overrideAttrs (oldAttrs: {
