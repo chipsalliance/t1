@@ -31,5 +31,5 @@ SECTIONS {
   .vbss (TYPE = SHT_NOBITS) : { *(.vbss .vbss.*) } >SRAM
 
   __stacktop = ORIGIN(SCALAR) + LENGTH(SCALAR);  /* put stack on the top of SCALAR */
-  __heapbegin = ORIGIN(SCALAR);  /* put heap on the begin of DDR */
+  __heapbegin = ORIGIN(DDR);  /* put heap on the begin of DDR */
 }
