@@ -15,6 +15,12 @@ private:
   uartlite uart;
   reg_t uart_addr = 0x10000000;
 
+  struct function_sym {
+    std::string name;
+    uint8_t info;
+  };
+  std::map<uint32_t, function_sym> function_symtab;
+
 public:
   explicit simple_sim(size_t mem_size) : mem_size(mem_size) {
     mem = new char[mem_size];
@@ -25,7 +31,8 @@ public:
   struct load_elf_result_t {
     uint32_t entry_addr;
   };
-  load_elf_result_t load_elf(const std::string &fname);
+
+  load_elf_result_t load_elf32_little_endian(const std::string &fname);
 
   // should return NULL for MMIO addresses
   char *addr_to_mem(reg_t addr) override {
@@ -71,5 +78,12 @@ public:
     // maybe nothing to do
   }
 
-  const char *get_symbol(uint64_t addr) override { FATAL("Unimplemented"); }
+  const char *get_symbol(uint64_t addr) override {
+    auto find = this->function_symtab.find(addr);
+    if (find != this->function_symtab.end()) {
+      return find->second.name.c_str();
+    } else {
+      return nullptr;
+    }
+  }
 };

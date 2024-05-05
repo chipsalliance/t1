@@ -40,7 +40,7 @@ void VBridgeImpl::dpiInitCosim() {
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() |
                                    SSTATUS_VS | SSTATUS_FS);
 
-  auto load_result = sim.load_elf(bin);
+  auto load_result = sim.load_elf32_little_endian(bin);
 
   proc.get_state()->pc = load_result.entry_addr;
 
@@ -369,6 +369,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
 
   clear_state(proc);
 
+  reg_t old_pc = state->pc;
   reg_t new_pc;
   if (event) {
     auto &se = event.value();
@@ -386,13 +387,39 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
     new_pc = fetch.func(&proc, fetch.insn, state->pc);
     se.log_arch_changes();
   } else {
+    auto disasm = proc.get_disassembler()->disassemble(fetch.insn);
     Log("SpikeStep")
         .with("pc", fmt::format("{:08X}", state->pc))
         .with("bits", fmt::format("{:08X}", fetch.insn.bits()))
-        .with("disasm", proc.get_disassembler()->disassemble(fetch.insn))
+        .with("disasm", disasm)
         .with("spike_cycles", spike_cycles)
         .info("spike run scalar insn");
     new_pc = fetch.func(&proc, fetch.insn, state->pc);
+
+    if (disasm == "ret" && new_pc == frames.back().return_addr) {
+      Log("FunctionCall")
+        .with("old_pc", fmt::format("{:08X}", old_pc))
+        .with("new_pc", fmt::format("{:08X}", new_pc))
+        .with("spike_cycles", spike_cycles)
+        .with("depth", frames.size())
+        .info("return");
+      frames.pop_back();
+    }
+  }
+
+  if (new_pc - state->pc != 2 && new_pc - state->pc != 4) {
+    auto sym_find = sim.get_symbol(new_pc);
+    if (sym_find != nullptr) {
+      Log("FunctionCall")
+        .with("func_name", sym_find)
+        .with("old_pc", fmt::format("{:08X}", old_pc))
+        .with("new_pc", fmt::format("{:08X}", new_pc))
+        .with("spike_cycles", spike_cycles)
+        .with("depth", frames.size())
+        .info("call");
+      reg_t return_addr = state->XPR[1];
+      frames.emplace_back(CallFrame{sym_find, new_pc, return_addr, spike_cycles});
+    }
   }
 
   // Bypass CSR insns commitlog stuff.
