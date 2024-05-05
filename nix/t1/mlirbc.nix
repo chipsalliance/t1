@@ -1,56 +1,28 @@
 { stdenvNoCC
-, lib
-
-, espresso
 , circt
-
-, elaborateConfigJson
-, elaborator
-, configName
-, target
-, use-binder ? false
+, elaborate
 }:
 
-assert lib.assertMsg
-  (lib.elem target [ "ip" "ipemu" "subsystem" "subsystememu" ])
-  "Unknown elaborate target ${target}";
-
 let
-  elaborateArgs = lib.filter (s: s != "") [
-    "--ip-config"
-    # Can't use `toString` here, or due to some shell escape issue, Java nio cannot find the path
-    "${elaborateConfigJson}"
-    "--target-dir"
-    (if use-binder then (placeholder "out") else "elaborate")
-    (lib.optionalString (use-binder) "--binder-mlirbc-out")
-    (lib.optionalString (use-binder) "${target}-${configName}")
-  ];
+  uniqueName = "${elaborate.elaborateTarget}-${elaborate.elaborateConfig}";
 in
 stdenvNoCC.mkDerivation {
-  name = "t1-${target}-${configName}-mlirbc";
+  name = "t1-${uniqueName}-mlirbc";
 
-  nativeBuildInputs = [ espresso circt ];
+  nativeBuildInputs = [ circt ];
 
-  passthru = {
-    elaborateTarget = target;
-    elaborateConfig = configName;
-  };
+  inherit (elaborate) passthru;
 
   buildCommand = ''
-    mkdir -p elaborate $out
+    mkdir $out
 
-    ${elaborator}/bin/elaborator ${target} ${lib.escapeShellArgs elaborateArgs}
-  '' + lib.optionalString (!use-binder) ''
-    firtool elaborate/*.fir \
-      --annotation-file elaborate/*.anno.json \
+    firtool ${elaborate}/${uniqueName}.mlirbc \
+      --emit-bytecode \
       -O=debug \
       --preserve-values=named \
-      --output-annotation-file=mfc.anno.json \
       --lowering-options=verifLabels \
-      --emit-bytecode \
-      --parse-only \
-      -o $out/${target}-${configName}.mlirbc
+      --output-final-mlir=$out/${uniqueName}-lowered.mlirbc
   '';
 
-  meta.description = "Elaborated MLIR Bytecode file for ${target} with config ${configName}.";
+  meta.description = "Lowered MLIR Bytecode file (${uniqueName}).";
 }

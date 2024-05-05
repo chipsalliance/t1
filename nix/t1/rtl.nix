@@ -26,7 +26,8 @@ stdenvNoCC.mkDerivation {
   buildCommand = ''
     mkdir -p $out
 
-    firtool ${mlirbc}/*.mlirbc -o $out ${mfcArgs}
+    firtool ${mlirbc}/${mlirbc.elaborateTarget}-${mlirbc.elaborateConfig}-lowered.mlirbc \
+      -o $out ${mfcArgs}
   '' + lib.optionalString fixupFilelist ''
     # For ipemu, there are also some manually generated system verilog file for test bench.
     # Those files are now recorded in a individual file list.

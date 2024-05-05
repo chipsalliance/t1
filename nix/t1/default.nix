@@ -65,24 +65,27 @@ lib.makeScope newScope
         then self.cases
         else pkgsX86.t1."${configName}".cases;
 
-      ip = {
+      ip = rec {
         recurseForDerivations = true;
 
-        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ip"; /* use-binder = true; */ };
-        rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.mlirbc; };
+        elaborate = innerSelf.callPackage ./elaborate.nix { target = "ip"; /* use-binder = true; */ };
+        mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
+        rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
 
-        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "ipemu"; /* use-binder = true; */ };
-        emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.ip.emu-mlirbc; };
+        emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; /* use-binder = true; */ };
+        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
+        emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = emu-mlirbc; };
 
-        emu = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; stdenv = moldStdenv; };
-        emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = innerSelf.ip.emu-rtl; stdenv = moldStdenv; do-trace = true; };
+        emu = innerSelf.callPackage ./ipemu.nix { rtl = ip.emu-rtl; stdenv = moldStdenv; };
+        emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = emu-rtl; stdenv = moldStdenv; do-trace = true; };
       };
 
-      subsystem = {
+      subsystem = rec {
         recurseForDerivations = true;
 
-        mlirbc = innerSelf.callPackage ./mlirbc.nix { target = "subsystem"; /* use-binder = true; */ };
-        rtl = innerSelf.callPackage ./rtl.nix { mlirbc = innerSelf.subsystem.mlirbc; };
+        elaborate = innerSelf.callPackage ./elaborate.nix { target = "subsystem"; /* use-binder = true; */ };
+        mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
+        rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
       };
 
       release = innerSelf.callPackage ./release { };
