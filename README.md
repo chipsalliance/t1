@@ -176,6 +176,7 @@ The `tests/` contains the testcases. There are four types of testcases:
 - intrinsic
 - mlir
 - codegen
+- perf
 
 To add new testcases for asm/intrinsic/mlir, create a new directory with `default.nix` and source files.
 Refer to the existing code for more information on how to write the nix file.
