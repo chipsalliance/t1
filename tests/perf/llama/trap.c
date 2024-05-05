@@ -1,38 +1,22 @@
-#include "trap.h"
 #include <emurt.h>
+#include <stdio.h>
+
+#include "trap.h"
 
 void __attribute__((aligned(4))) trap_handler() {
     unsigned long mcause, mtval, mepc;
     asm volatile(
-        "csrr %0, mcause"
-        : "=r" (mcause)
+        "csrr %0, mcause\n"
+        "csrr %1, mtval\n"
+        "csrr %2, mepc\n"
+        : "=r" (mcause), "=r" (mtval), "=r" (mepc)
     );
-    asm volatile(
-        "csrr %0, mtval"
-        : "=r" (mtval)
-    );
-    asm volatile(
-        "csrr %0, mepc"
-        : "=r" (mepc)
-    );
-    print_s("Exception: ");
-    print_s("\nmcause: ");
-    dump_hex(mcause);
-    print_s("mtval: ");
-    dump_hex(mtval);
-    print_s("mepc: ");
-    dump_hex(mepc);
+    printf("Exception: mcause=%08lx, mtval=%08lx, mepc=%08lx", mcause, mtval, mepc);
     while(1);
 }
 
 void setup_mtvec() {
     void* ptr = &trap_handler;
-    print_s("setting mtvec to ");
-    dump_hex((unsigned long)ptr);
-    print_s("\n");
-    if (((unsigned long)ptr & 0b11)) {
-        print_s("Error! mtvec does not aligned to 4B\n");
-    }
     asm volatile(
         "csrw mtvec, %0"
         :
@@ -41,16 +25,15 @@ void setup_mtvec() {
 }
 
 void enter_smode() {
-    asm volatile("csrc mstatus, %0" : : "r" (0x1800)); // clear mpp to zero
-    asm volatile("csrs mstatus, %0" : : "r" (0x0800)); // set mpp to s-mode
     asm volatile(
+        "csrc mstatus, %0\n"
+        "csrs mstatus, %1\n"
         ".option arch, -c\n"
-        "auipc a0, 0\n"
-        "addi a0, a0, 16\n"
-        "csrw mepc, a0\n"
+        "auipc %2, 0\n"
+        "addi %2, %2, 16\n"
+        "csrw mepc, %2\n"
         "mret\n"
         :
-        :
-        : "a0"
+        : "r" (0x1800), "r" (0x0800), "r" (0x10)
     );
 }

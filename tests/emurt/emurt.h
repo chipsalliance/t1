@@ -9,12 +9,6 @@ struct uartlite_regs {
     volatile unsigned int control;
 };
 
-void uart_put_c(char c);
-char uart_check_read();
-char uart_get_c();
 void get(char *s, int n);
 void print_s(const char *c);
-void print_long(long x);
-void print_digit(unsigned char x);
-void dump_hex(unsigned long x);
 
