@@ -205,6 +205,18 @@ uint8_t state_get_mem_write_size_by_byte(spike_state_t* state, uint32_t index) {
   return std::get<2>(state->s->log_mem_write[index]);
 }
 
+uint32_t state_get_mem_read_size(spike_state_t* state) {
+  return state->s->log_mem_read.size();
+}
+
+uint32_t state_get_mem_read_addr(spike_state_t* state, uint32_t index) {
+  return std::get<0>(state->s->log_mem_read[index]) & 0xffffffff;
+}
+
+uint8_t state_get_mem_read_size_by_byte(spike_state_t* state, uint32_t index) {
+  return std::get<2>(state->s->log_mem_read[index]);
+}
+
 reg_t state_exit(spike_state_t* state) {
   auto& csrmap = state->s->csrmap;
   return csrmap[CSR_MSIMEND]->read();

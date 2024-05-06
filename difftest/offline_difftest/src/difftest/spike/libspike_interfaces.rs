@@ -139,6 +139,16 @@ impl State {
 		(addr, value, size_by_byte)
 	}
 
+	pub fn get_mem_read_size(&self) -> u32 {
+		unsafe { state_get_mem_read_size(self.state) }
+	}
+
+	pub fn get_mem_read(&self, index: u32) -> (u32, u8) {
+		let addr = unsafe { state_get_mem_read_addr(self.state, index) };
+		let size_by_byte = unsafe { state_get_mem_read_size_by_byte(self.state, index) };
+		(addr, size_by_byte)
+	}
+
 	pub fn clear(&self) {
 		unsafe { state_clear(self.state) }
 	}
@@ -187,6 +197,9 @@ extern "C" {
 	fn state_get_mem_write_addr(state: *mut(), index: u32) -> u32;
 	fn state_get_mem_write_value(state: *mut(), index: u32) -> u64;
 	fn state_get_mem_write_size_by_byte(state: *mut(), index: u32) -> u8;
+	fn state_get_mem_read_size(state: *mut()) -> u32;
+	fn state_get_mem_read_addr(state: *mut(), index: u32) -> u32;
+	fn state_get_mem_read_size_by_byte(state: *mut(), index: u32) -> u8;
 	fn state_handle_pc(state: *mut (), pc: u64) -> u64;
 	fn state_clear(state: *mut ());
 	fn state_destruct(state: *mut ());
