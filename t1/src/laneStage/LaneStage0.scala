@@ -46,6 +46,8 @@ class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
   val additionalRead: Bool = Bool()
   // skip vrf read in stage 1?
   val skipRead: Bool = Bool()
+  // vm will skip element?
+  val skipEnable: Bool = Bool()
 }
 
 class LaneStage0StateUpdate(parameter: LaneParameter) extends Bundle {
@@ -97,9 +99,14 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
     // Filtering data groups
     val groupFilter: UInt = scanLeftOr(UIntToOH(groupIndex)) ## false.B
     // Whether there are element in the data group that have not been masked
+    val maskCorrection = Mux(
+      enqueue.bits.skipEnable,
+      enqueue.bits.maskForMaskGroup,
+      (-1.S(parameter.datapathWidth.W)).asUInt
+    )
     // TODO: use 'record.maskGroupedOrR' & update it
     val maskForDataGroup: UInt =
-    VecInit(enqueue.bits.maskForMaskGroup.asBools.grouped(dataGroupSize).map(_.reduce(_ || _)).toSeq).asUInt
+    VecInit(maskCorrection.asBools.grouped(dataGroupSize).map(_.reduce(_ || _)).toSeq).asUInt
     val groupFilterByMask = maskForDataGroup & groupFilter
     // ffo next group
     val nextDataGroupOH: UInt = ffo(groupFilterByMask)

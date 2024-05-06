@@ -45,8 +45,6 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
     new LaneStage2Enqueue(parameter, isLastSlot),
     new LaneStage2Dequeue(parameter, isLastSlot)
   ){
-  @public
-  val state: LaneState = IO(Input(new LaneState(parameter)))
 
   val decodeResult: DecodeBundle = enqueue.bits.decodeResult
 
