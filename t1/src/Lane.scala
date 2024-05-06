@@ -524,13 +524,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         !record.laneRequest.decodeResult(Decoder.maskLogic) &&
         !alwaysNextGroup
 
-      // mask for current mask group
-      val maskForMaskGroup: UInt = Mux(
-        skipEnable,
-        record.mask.bits,
-        (-1.S(parameter.datapathWidth.W)).asUInt
-      )
-
       // register for s0 enqueue, it will move with the slot
       // 'maskGroupCountVec' 'maskIndexVec' 'pipeFinishVec'
 
@@ -575,7 +568,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.vs2 := record.laneRequest.vs2
       laneState.vd := record.laneRequest.vd
       laneState.instructionIndex := record.laneRequest.instructionIndex
-      laneState.maskForMaskGroup := maskForMaskGroup
+      laneState.skipEnable := skipEnable
       laneState.ffoByOtherLanes := record.ffoByOtherLanes
       laneState.additionalRead := record.additionalRead
       laneState.skipRead := record.laneRequest.decodeResult(Decoder.other) &&
@@ -586,7 +579,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage0.enqueue.bits.maskIndex := maskIndexVec(index)
       stage0.enqueue.bits.maskForMaskGroup := record.mask.bits
       stage0.enqueue.bits.maskGroupCount := maskGroupCountVec(index)
-      stage1.enqueue.bits.elements.foreach { case (k ,d) =>
+      // todo: confirm
+      stage0.enqueue.bits.elements.foreach { case (k ,d) =>
         laneState.elements.get(k).foreach(stateData => d := stateData)
       }
 
