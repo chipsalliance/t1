@@ -396,7 +396,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
         .info("spike run scalar insn");
     new_pc = fetch.func(&proc, fetch.insn, state->pc);
 
-    if (disasm == "ret" && new_pc == frames.back().return_addr) {
+    if (disasm == "ret" && !frames.empty() && new_pc == frames.back().return_addr) {
       Log("FunctionCall")
         .with("old_pc", fmt::format("{:08X}", old_pc))
         .with("new_pc", fmt::format("{:08X}", new_pc))
