@@ -64,7 +64,7 @@ simple_sim::load_elf_result_t simple_sim::load_elf32_little_endian(const std::st
           .with("phdr_offset", fmt::format("{:08X}", phdr.p_offset))
           .with("paddr_range", fmt::format("{:08X}-{:08X}", phdr.p_paddr,
                                            phdr.p_paddr + phdr.p_memsz))
-          .warn();
+          .info();
       }
     }
 
@@ -86,7 +86,6 @@ simple_sim::load_elf_result_t simple_sim::load_elf32_little_endian(const std::st
       auto shdr = read_from_fs<Elf32_Shdr>(fs, shoff + i * shentsize);
       if (from_le(shdr.sh_type) == SHT_STRTAB &&
           std::string(&section_string_table[from_le(shdr.sh_name)]) == ".strtab") {
-        Log("size").with("size", shdr.sh_size).warn();
         string_table.resize(from_le(shdr.sh_size));
         copy_from_fs(fs, from_le(shdr.sh_offset), from_le(shdr.sh_size), string_table.data());
       }

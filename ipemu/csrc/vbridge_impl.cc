@@ -524,7 +524,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         Log("ReceiveTLReq")
             .with("addr", fmt::format("{:08X}", addr))
             .with("insn", se->jsonify_insn())
-            .warn("send falsy data 0xDE for accessing unexpected memory");
+            .info("send falsy data 0xDE for accessing unexpected memory");
         actual_data[offset] = 0xDE; // falsy data
       }
     }
