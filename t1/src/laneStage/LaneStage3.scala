@@ -23,6 +23,7 @@ class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   // pipe state
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  // todo: Need real-time status
   val ffoByOtherLanes: Bool = Bool()
   val loadStore: Bool = Bool()
   /** vd or rd */
@@ -112,7 +113,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     val dataSelect: Option[UInt] = Option.when(isLastSlot) {
       Mux(
         pipeEnqueue.get.decodeResult(Decoder.nr) ||
-          (pipeEnqueue.get.ffoByOtherLanes && pipeEnqueue.get.decodeResult(Decoder.ffo)) ||
+          (enqueue.bits.ffoByOtherLanes && pipeEnqueue.get.decodeResult(Decoder.ffo)) ||
           pipeEnqueue.get.decodeResult(Decoder.dontNeedExecuteInLane),
         pipeEnqueue.get.pipeData,
         pipeEnqueue.get.data

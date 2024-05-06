@@ -141,6 +141,10 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecord.sSendResponse.foreach(_ := enqueue.bits.sSendResponse.get)
     executionRecord.groupCounter := enqueue.bits.groupCounter
     executionRecord.decodeResult := enqueue.bits.decodeResult
+    executionRecord.vSew1H := enqueue.bits.vSew1H
+    executionRecord.csr := enqueue.bits.csr
+    executionRecord.maskType := enqueue.bits.maskType
+    executionRecord.laneIndex := enqueue.bits.laneIndex
   }
 
   /** collapse the dual SEW size operand for cross read.
@@ -314,6 +318,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     case (sink, source) => sink := source
   }
   recordQueue.io.enq.bits.decodeResult := executionRecord.decodeResult
+  recordQueue.io.enq.bits.vSew1H := executionRecord.vSew1H
   //--- vfu <-> write queue start ---
 
   /** same as [[doubleExecutionInRecord]]

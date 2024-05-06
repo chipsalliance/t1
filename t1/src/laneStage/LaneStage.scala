@@ -23,7 +23,7 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   // vm = 0
   val maskType: Bool = Bool()
   val maskNotMaskedElement: Bool = Bool()
-  val maskForMaskGroup: UInt = UInt(parameter.datapathWidth.W)
+  val skipEnable: Bool = Bool()
   val ffoByOtherLanes: Bool = Bool()
 
   /** vs1 or imm */
