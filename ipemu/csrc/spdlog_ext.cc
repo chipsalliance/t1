@@ -58,12 +58,15 @@ static std::set<std::string> get_set_from_env(const char *env_name, const char d
 
 ConsoleSink::ConsoleSink() {
   whitelist = get_set_from_env("EMULATOR_LOG_WHITELIST", ',');
-  whitelist.insert("DPIInitCosim");
-  whitelist.insert("SpikeStep");
-  whitelist.insert("FunctionCall");
-  whitelist.insert("SimulationExit");
-  whitelist.insert("DPIPeekIssue");
-  whitelist.insert("DPIPokeInst");
+  if (whitelist.empty()) {
+    // default set of whitelist
+    whitelist.insert("DPIInitCosim");
+    whitelist.insert("SpikeStep");
+    whitelist.insert("FunctionCall");
+    whitelist.insert("SimulationExit");
+    whitelist.insert("DPIPeekIssue");
+    whitelist.insert("DPIPokeInst");
+  }
 
   // putting it in JsonLogger::JsonLogger will not work. not knowing why
   this->set_level(get_level_from_env("EMULATOR_CONSOLE_LOG_LEVEL", spdlog::level::info));
