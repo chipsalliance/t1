@@ -396,28 +396,56 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
         .info("spike run scalar insn");
     new_pc = fetch.func(&proc, fetch.insn, state->pc);
 
-    if (disasm == "ret" && !frames.empty() && new_pc == frames.back().return_addr) {
-      Log("FunctionCall")
-        .with("old_pc", fmt::format("{:08X}", old_pc))
-        .with("new_pc", fmt::format("{:08X}", new_pc))
-        .with("spike_cycles", spike_cycles)
-        .with("depth", frames.size())
-        .info("return");
-      frames.pop_back();
+    if (disasm == "ret") {
+      // When a function call is at the end of some parent function, the compiler may omit the save-ra process
+      // In this case we need to pop more than one frames when the child function returns
+      // Here we traverse the frames from top to bottom, until find a frame of the corresponding return_address
+      int layers_to_pop = 1;
+      for (; layers_to_pop <= frames.size(); layers_to_pop++) {
+        const auto &frame = frames[frames.size() - layers_to_pop];
+        if (frame.return_addr == new_pc) {
+          Log("FunctionCall")
+            .with("old_pc", fmt::format("{:08X}", old_pc))
+            .with("new_pc", fmt::format("{:08X}", new_pc))
+            .with("spike_cycles", spike_cycles)
+            .with("depth", frames.size())
+            .with("depth after return", frames.size() - layers_to_pop)
+            .info("return");
+          break;
+        }
+      }
+
+      if (layers_to_pop > frames.size()) {
+        // sometimes `ret` is used in inner-function jumping, in this case we cannot find corresponding frame
+        Log("FunctionCall")
+          .with("old_pc", fmt::format("{:08X}", old_pc))
+          .with("new_pc", fmt::format("{:08X}", new_pc))
+          .with("spike_cycles", spike_cycles)
+          .with("depth", frames.size())
+          .warn("cannot find the frame to return");
+      } else for (int j = 0; j < layers_to_pop; j++) {
+        frames.pop_back();
+      }
     }
   }
 
   if (new_pc - state->pc != 2 && new_pc - state->pc != 4) {
     auto sym_find = sim.get_symbol(new_pc);
     if (sym_find != nullptr) {
+      reg_t return_addr = state->XPR[1];
+
+      // handle the case with omitted save-ra, in this case return_addr is set to null since it cannot be returned to
+      if (return_addr - old_pc != 2 && return_addr - old_pc != 4) {
+        return_addr = 0;
+      }
       Log("FunctionCall")
         .with("func_name", sym_find)
         .with("old_pc", fmt::format("{:08X}", old_pc))
         .with("new_pc", fmt::format("{:08X}", new_pc))
+        .with("return_addr", fmt::format("{:08X}", return_addr))
         .with("spike_cycles", spike_cycles)
         .with("depth", frames.size())
         .info("call");
-      reg_t return_addr = state->XPR[1];
       frames.emplace_back(CallFrame{sym_find, new_pc, return_addr, spike_cycles});
     }
   }
