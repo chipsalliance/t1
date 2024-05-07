@@ -444,7 +444,7 @@ std::optional<SpikeEvent> VBridgeImpl::create_spike_event(insn_fetch_t fetch) {
     return {};
   } else if (is_load_type || is_store_type || is_v_type ||
              (is_csr_write && csr == CSR_MSIMEND)) {
-    return SpikeEvent{proc, fetch, this, config.lsu_idx_default };
+    return SpikeEvent{proc, fetch, this };
   } else {
     return {};
   }

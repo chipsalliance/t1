@@ -108,6 +108,10 @@ impl Difftest {
 					error!("unaligned access (addr={:08X}, size={})", addr, 1 << size)
 				}
 			}
+			"issue" => {
+				let idx = event.parameter.idx.unwrap();
+				self.spike.peek_issue(idx).unwrap();
+			}
 			_ => {}
 		}
 

@@ -47,7 +47,7 @@ fn init_memory(size: usize) {
 }
 
 fn ld(addr: usize, len: usize, bytes: Vec<u8>) -> anyhow::Result<()> {
-	info!("ld: addr: 0x{:x}, len: 0x{:x}", addr, len);
+	trace!("ld: addr: 0x{:x}, len: 0x{:x}", addr, len);
 	let mut spike_mem = SPIKE_MEM.lock().unwrap();
 	let spike_ref = spike_mem.as_mut().unwrap();
 
@@ -267,7 +267,7 @@ impl SpikeEvent {
 
 pub struct SpikeHandle {
 	spike: Spike,
-	spike_event: Option<SpikeEvent>,
+	pub spike_event: Option<SpikeEvent>,
 }
 
 impl SpikeHandle {
@@ -409,10 +409,66 @@ impl SpikeHandle {
 		Ok(())
 	}
 
-	pub fn log_arch_changes(&mut self, config: &Config) -> anyhow::Result<()> {
+	fn log_mem_write(&mut self) -> anyhow::Result<()> {
 		let spike = &self.spike;
 		let proc = spike.get_proc();
 		let state = proc.get_state();
+
+		let mem_write_size = state.get_mem_write_size();
+		(0..mem_write_size).for_each(|i| {
+			let (addr, value, size) = state.get_mem_write(i);
+			let se = self.spike_event.as_mut().unwrap();
+			(0..size).for_each(|offset| {
+				se.mem_access_record.all_writes.insert(
+					addr + offset as u32,
+					MemWriteRecord {
+						writes: vec![SingleMemWrite {
+							val: ( value >> offset * 8 ) as u8,
+							executed: false,
+						}],
+						num_completed_writes: 0,
+					},
+				);
+			});
+			info!("SpikeMemWrite: addr={:x}, value={:x}, size={}", addr, value, size);
+		});
+
+		Ok(())
+	}
+
+	fn log_mem_read(&mut self) -> anyhow::Result<()> {
+		let spike = &self.spike;
+		let proc = spike.get_proc();
+		let state = proc.get_state();
+
+		let mem_read_size = state.get_mem_read_size();
+		(0..mem_read_size).for_each(|i| {
+			let (addr, size) = state.get_mem_read(i);
+			let se = self.spike_event.as_mut().unwrap();
+			let mut value = 0;
+			(0..size).for_each(|offset| {
+				let byte = read_mem(addr as usize + offset as usize).unwrap();
+				value |= (byte as u64) << (offset * 8);
+				se.mem_access_record.all_reads.insert(
+					addr + offset as u32,
+					MemReadRecord {
+						reads: vec![SingleMemRead {
+							val: byte,
+							executed: false,
+						}],
+						num_completed_reads: 0,
+					},
+				);
+			});
+			info!("SpikeMemRead: addr={:x}, value={:x}, size={}", addr, value, size);
+		});
+
+		Ok(())
+	}
+
+	pub fn log_arch_changes(&mut self, config: &Config) -> anyhow::Result<()> {
+		let spike = &self.spike;
+		let proc = spike.get_proc();
 
 		// record vrf writes
 		// note that we do not need log_reg_write to find records, we just decode the
@@ -444,47 +500,23 @@ impl SpikeHandle {
 			}
 		}
 
-		let mem_write_size = state.get_mem_write_size();
-		(0..mem_write_size).for_each(|i| {
-			let (addr, value, size) = state.get_mem_write(i);
-			let se = self.spike_event.as_mut().unwrap();
-			(0..size).for_each(|offset| {
-				se.mem_access_record.all_writes.insert(
-					addr + offset as u32,
-					MemWriteRecord {
-						writes: vec![SingleMemWrite {
-							val: ( value >> offset * 8 ) as u8,
-							executed: false,
-						}],
-						num_completed_writes: 0,
-					},
-				);
-			});
-			info!("SpikeMemWrite: addr={:x}, value={:x}, size={}", addr, value, size);
-		});
-
-		let mem_read_size = state.get_mem_read_size();
-		(0..mem_read_size).for_each(|i| {
-			let (addr, size) = state.get_mem_read(i);
-			let se = self.spike_event.as_mut().unwrap();
-			let mut value = 0;
-			(0..size).for_each(|offset| {
-				let byte = read_mem(addr as usize + offset as usize).unwrap();
-				value |= (byte as u64) << (offset * 8);
-				se.mem_access_record.all_reads.insert(
-					addr + offset as u32,
-					MemReadRecord {
-						reads: vec![SingleMemRead {
-							val: byte,
-							executed: false,
-						}],
-						num_completed_reads: 0,
-					},
-				);
-			});
-			info!("SpikeMemRead: addr={:x}, value={:x}, size={}", addr, value, size);
-		});
+		self.log_mem_write().unwrap();
+		self.log_mem_read().unwrap();
 		
+		Ok(())
+	}
+
+	pub fn peek_issue(&mut self, idx: u32) -> anyhow::Result<()> {
+		let se = self.spike_event.as_mut().unwrap();
+		if se.is_vfence_insn || se.is_exit_insn {
+			return Ok(());
+		}
+
+		se.is_issued = true;
+		se.issue_idx = 0;
+
+		info!("PeekIssue: idx={}", idx);
+
 		Ok(())
 	}
 }

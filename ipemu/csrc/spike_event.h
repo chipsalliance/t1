@@ -25,7 +25,7 @@ inline void clear_state(processor_t &proc) {
 }
 
 struct SpikeEvent {
-  SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl, size_t lsu_idx);
+  SpikeEvent(processor_t &proc, insn_fetch_t &fetch, VBridgeImpl *impl);
 
   [[nodiscard]] std::string describe_insn() const;
   json jsonify_insn() const;

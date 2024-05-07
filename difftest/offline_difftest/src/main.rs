@@ -2,18 +2,22 @@ mod difftest;
 
 use clap::Parser;
 use difftest::Difftest;
-use tracing::{info, Level};
+use tracing::Level;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
+/// A simple offline difftest tool
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+	/// Path to the ELF file
 	#[arg(short, long)]
 	elf_file: String,
 
+	/// Path to the log file
 	#[arg(short, long)]
 	log_file: String,
 
+	/// Path to the config file
 	#[arg(short, long)]
 	config_file: String,
 }
@@ -36,5 +40,4 @@ fn main() -> anyhow::Result<()> {
 	loop {
 		diff.diff().unwrap();
 	}
-
 }

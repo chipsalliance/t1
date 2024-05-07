@@ -59,6 +59,8 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
     when(dut.response.valid)(printf(cf"""{"event":"inst","parameter":{"data":${dut.response.bits.data},"vxsat":${dut.response.bits.vxsat},"rd_valid":${dut.response.bits.rd.valid},"rd":${dut.response.bits.rd.bits},"mem":${dut.response.bits.mem}}}\n"""))
     // peekTL
     dut.memoryPorts.zipWithIndex.foreach { case (bundle, i) => when(bundle.a.valid)(printf(cf"""{"event":"peekTL","parameter":{"idx":$i,"opcode":${bundle.a.bits.opcode},"param":${bundle.a.bits.param},"size":${bundle.a.bits.size},"source":${bundle.a.bits.source},"address":${bundle.a.bits.address},"mask":${bundle.a.bits.mask},"data":${bundle.a.bits.data},"corrupt":${bundle.a.bits.corrupt},"dReady":${bundle.d.ready}}}\n""")) }
+    // lsu enq
+    when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"lsuEnq","parameter":{"enq":${lsuProbe.reqEnq}}}\n"""))
   }
 
   // Monitors
