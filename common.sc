@@ -129,3 +129,32 @@ trait ElaboratorModule
     super.forkArgs() ++ Seq("--enable-native-access=ALL-UNNAMED", "--enable-preview", s"-Djava.library.path=${ circtInstallPath().path / "lib"}")
   )
 }
+
+trait OMReaderLibModule
+  extends ScalaModule
+    with HasChisel {
+  def panamaconverterModule: ScalaModule
+  def circtInstallPath: T[PathRef]
+  override def moduleDeps = super.moduleDeps ++ Seq(panamaconverterModule)
+  def mainargsIvy: Dep
+  override def ivyDeps = T(super.ivyDeps() ++ Seq(mainargsIvy))
+  override def javacOptions = T(super.javacOptions() ++ Seq("--enable-preview", "--release", "21"))
+  override def forkArgs: T[Seq[String]] = T(
+    super.forkArgs() ++ Seq("--enable-native-access=ALL-UNNAMED", "--enable-preview", s"-Djava.library.path=${ circtInstallPath().path / "lib"}")
+  )
+}
+
+trait OMReaderModule
+  extends ScalaModule
+    with HasChisel {
+  def panamaconverterModule: ScalaModule
+  def omreaderlibModule: ScalaModule
+  def circtInstallPath: T[PathRef]
+  override def moduleDeps = super.moduleDeps ++ Seq(panamaconverterModule, omreaderlibModule)
+  def mainargsIvy: Dep
+  override def ivyDeps = T(super.ivyDeps() ++ Seq(mainargsIvy))
+  override def javacOptions = T(super.javacOptions() ++ Seq("--enable-preview", "--release", "21"))
+  override def forkArgs: T[Seq[String]] = T(
+    super.forkArgs() ++ Seq("--enable-native-access=ALL-UNNAMED", "--enable-preview", s"-Djava.library.path=${ circtInstallPath().path / "lib"}")
+  )
+}

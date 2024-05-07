@@ -23,6 +23,18 @@ import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
 @instantiable
 class T1OM extends Class {
   @public
+  val vlen = IO(Output(Property[Int]()))
+  @public
+  val vlenIn = IO(Input(Property[Int]()))
+  vlen := vlenIn
+
+  @public
+  val dlen = IO(Output(Property[Int]()))
+  @public
+  val dlenIn = IO(Input(Property[Int]()))
+  dlen := dlenIn
+
+  @public
   val lanes = IO(Output(Property[Seq[AnyClassType]]()))
   @public
   val lanesIn = IO(Input(Property[Seq[AnyClassType]]()))
@@ -263,6 +275,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   @public
   val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
   om := omInstance.getPropertyReference
+
+  omInstance.vlenIn := Property(parameter.vLen)
+  omInstance.dlenIn := Property(parameter.dLen)
 
   /** request from CPU.
     * because the interrupt and exception of previous instruction is unpredictable,

@@ -27,6 +27,7 @@ lib.makeScope newScope
     configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
     t1package = _millOutput.t1package;
 
+    omreader = self.callPackage ./omreader.nix { };
     submodules = self.callPackage ./submodules.nix { };
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
@@ -71,6 +72,7 @@ lib.makeScope newScope
         elaborate = innerSelf.callPackage ./elaborate.nix { target = "ip"; /* use-binder = true; */ };
         mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
         rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
+        omreaderlib = innerSelf.callPackage ./omreaderlib.nix { inherit mlirbc; };
 
         emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; /* use-binder = true; */ };
         emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
