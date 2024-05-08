@@ -240,38 +240,42 @@ object Main:
     val emulatorLogPath =
       if emulatorLogFilePath.isDefined then emulatorLogFilePath.get
       else outputPath / "emulator.log"
+
+    def dumpCycleAsFloat() =
+      val ratio = dumpCycle.toFloat
+      if ratio < 0.0 || ratio > 1.0 then
+        Logger.error(
+          s"Can't use $dumpCycle as ratio, use 0 as waveform dump start point"
+        )
+        0
+      else if ratio == 0.0 then
+        0
+      else
+        val cycleRecordFilePath =
+          os.pwd / ".github" / "cases" / config / "default.json"
+        if !os.exists(cycleRecordFilePath) then
+          Logger.error(
+            s"$cycleRecordFilePath not found, please run this script at project root"
+          )
+          sys.exit(1)
+        val cycleRecord = os
+          .read(cycleRecordFilePath)
+          .pipe(raw => ujson.read(raw))
+          .obj(testCase)
+        if cycleRecord.isNull then
+          Logger.error(
+            s"Using ratio to specify ratio is only supported in raw test case name"
+          )
+          sys.exit(1)
+        val cycle = cycleRecord.num
+        scala.math.floor(cycle * 10 * ratio).toInt
+
     val dumpStartPoint: Int =
       try
-        val ratio = dumpCycle.toFloat
-        if ratio < 0.0 || ratio > 1.0 then
-          Logger.error(
-            s"Can't use $dumpCycle as ratio, use 0 as waveform dump start point"
-          )
-          0
-        else if ratio == 0.0 then
-          0
-        else
-          val cycleRecordFilePath =
-            os.pwd / ".github" / "cases" / config / "default.json"
-          if !os.exists(cycleRecordFilePath) then
-            Logger.error(
-              s"$cycleRecordFilePath not found, please run this script at project root"
-            )
-            sys.exit(1)
-          val cycleRecord = os
-            .read(cycleRecordFilePath)
-            .pipe(raw => ujson.read(raw))
-            .obj(testCase)
-          if cycleRecord.isNull then
-            Logger.error(
-              s"Using ratio to specify ratio is only supported in raw test case name"
-            )
-            sys.exit(1)
-          val cycle = cycleRecord.num
-          scala.math.floor(cycle * 10 * ratio).toInt
+        dumpCycle.toInt
       catch
         case _ =>
-          try dumpCycle.toInt
+          try dumpCycleAsFloat()
           catch
             case _ =>
               Logger.error(
