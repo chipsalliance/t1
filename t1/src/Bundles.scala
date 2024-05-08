@@ -630,6 +630,12 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
 
   // pipe from stage 0
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
+
+  // pipe state for stage3
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val loadStore: Bool = Bool()
+  val vd: UInt = UInt(5.W)
 }
 
 // Record of temporary execution units
