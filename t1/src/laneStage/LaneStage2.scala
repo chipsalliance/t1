@@ -21,7 +21,6 @@ class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   // for stage3
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val ffoByOtherLanes: Bool = Bool()
   val loadStore: Bool = Bool()
   /** vd or rd */
   val vd: UInt = UInt(5.W)
@@ -36,6 +35,12 @@ class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val mask: UInt = UInt((parameter.datapathWidth / 8).W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
   val pipeData: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+
+  // pipe state for stage3
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val loadStore: Bool = Bool()
+  val vd: UInt = UInt(5.W)
 }
 
 // s2 执行
@@ -90,6 +95,10 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
       FillInterleaved(4, enqueue.bits.maskForFilter(0))
     )
   )
+  executionQueue.io.enq.bits.decodeResult := enqueue.bits.decodeResult
+  executionQueue.io.enq.bits.instructionIndex := enqueue.bits.instructionIndex
+  executionQueue.io.enq.bits.loadStore := enqueue.bits.loadStore
+  executionQueue.io.enq.bits.vd := enqueue.bits.vd
   executionQueue.io.enq.valid := enqueue.valid
   enqueue.ready := executionQueue.io.enq.ready
   dequeue.valid := executionQueue.io.deq.valid
@@ -98,6 +107,10 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean) extends
   dequeue.bits.pipeData.foreach(_ := executionQueue.io.deq.bits.pipeData.get)
   dequeue.bits.groupCounter := executionQueue.io.deq.bits.groupCounter
   dequeue.bits.mask := executionQueue.io.deq.bits.mask
+  dequeue.bits.decodeResult := executionQueue.io.deq.bits.decodeResult
+  dequeue.bits.instructionIndex := executionQueue.io.deq.bits.instructionIndex
+  dequeue.bits.loadStore := executionQueue.io.deq.bits.loadStore
+  dequeue.bits.vd := executionQueue.io.deq.bits.vd
   dequeue.bits.sSendResponse.foreach(_ := executionQueue.io.deq.bits.sSendResponse.get)
   stageValid := executionQueue.io.deq.valid
 }

@@ -27,6 +27,12 @@ class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val vd: UInt = UInt(5.W)
   val vSew1H: UInt = UInt(3.W)
   val maskNotMaskedElement: Bool = Bool()
+
+  // pipe state
+  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
+  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val maskType: Bool = Bool()
+  val loadStore: Bool = Bool()
 }
 
 class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -39,6 +45,23 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   // read result
   val src: Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
   val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+
+  // pipe state
+  // for exe stage
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  // todo: pipe from stage0
+  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
+  val vSew1H: UInt = UInt(3.W)
+  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val maskType: Bool = Bool()
+  // Newly added in LaneExecutionBridge
+  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+
+  // for stage3
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val loadStore: Bool = Bool()
+  /** vd or rd */
+  val vd: UInt = UInt(5.W)
 }
 
 /** 这一个stage 分两级流水, 分别是 读vrf 等vrf结果
@@ -339,6 +362,15 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.src := VecInit(Seq(source1Select, dataQueueVs2.io.deq.bits, dataQueueVd.io.deq.bits))
   dequeue.bits.crossReadSource.foreach(_ := crossReadResultQueue.get.io.deq.bits)
   dequeue.bits.sSendResponse.foreach(_ := pipeQueue.io.deq.bits.sSendResponse.get)
+  dequeue.bits.newInstruction.foreach(_ := pipeQueue.io.deq.bits.newInstruction.get)
+  dequeue.bits.decodeResult := pipeQueue.io.deq.bits.decodeResult
+  dequeue.bits.vSew1H := pipeQueue.io.deq.bits.vSew1H
+  dequeue.bits.csr := pipeQueue.io.deq.bits.csr
+  dequeue.bits.maskType := pipeQueue.io.deq.bits.maskType
+  dequeue.bits.laneIndex := pipeQueue.io.deq.bits.laneIndex
+  dequeue.bits.instructionIndex := pipeQueue.io.deq.bits.instructionIndex
+  dequeue.bits.loadStore := pipeQueue.io.deq.bits.loadStore
+  dequeue.bits.vd := pipeQueue.io.deq.bits.vd
 
   dequeue.bits.maskForFilter :=
     (FillInterleaved(4, pipeQueue.io.deq.bits.maskNotMaskedElement) | pipeQueue.io.deq.bits.maskForMaskInput) &
