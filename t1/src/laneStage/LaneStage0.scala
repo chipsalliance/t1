@@ -62,6 +62,24 @@ class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val boundaryMaskCorrection: UInt = UInt((parameter.datapathWidth/8).W)
   val sSendResponse: Option[Bool] =  Option.when(isLastSlot)(Bool())
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
+
+  // pipe state
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+  // skip vrf read in stage 1?
+  val skipRead: Bool = Bool()
+  val vs1: UInt = UInt(5.W)
+  val vs2: UInt = UInt(5.W)
+  val vd: UInt = UInt(5.W)
+  val vSew1H: UInt = UInt(3.W)
+  val maskNotMaskedElement: Bool = Bool()
+
+  // pipe state
+  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
+  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val maskType: Bool = Bool()
+  val loadStore: Bool = Bool()
 }
 
 /** 这一级由 lane slot 里的 maskIndex maskGroupCount 来计算对应的 data group counter
@@ -189,6 +207,18 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
       enqueue.bits.decodeResult(Decoder.maskDestination) && (maskGroupWillUpdate || isTheLastGroup),
       enqueue.bits.decodeResult(Decoder.ffo)
     ) ++ Option.when(parameter.fpuEnable)(enqueue.bits.decodeResult(Decoder.orderReduce))).reduce(_ || _)
+  }
+  // pipe all state
+  stageWire.newInstruction.foreach { data =>
+    data := enqueue.bits.newInstruction.get
+  }
+  stageWire.elements.foreach { case (k ,d) =>
+    enqueue.bits.elements.get(k).foreach( pipeData =>
+      d match {
+        case data: Data => data := pipeData
+        case _ =>
+      }
+    )
   }
   when(enqFire ^ dequeue.fire) {
     stageValidReg := enqFire

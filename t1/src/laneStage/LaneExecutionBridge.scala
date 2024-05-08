@@ -306,7 +306,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     )
   )
   assert(!vfuRequest.fire || recordQueue.io.enq.ready)
-  val enqNotExecute: Bool = enqueue.bits.decodeResult(Decoder.dontNeedExecuteInLane)
+  val enqNotExecute: Bool = executionRecord.decodeResult(Decoder.dontNeedExecuteInLane)
   recordQueueReadyForNoExecute := enqNotExecute && recordQueue.io.enq.ready
   recordQueue.io.enq.valid := executionRecordValid && (vfuRequest.ready || enqNotExecute)
   recordQueue.io.enq.bits.bordersForMaskLogic := executionRecord.bordersForMaskLogic
