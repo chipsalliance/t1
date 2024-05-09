@@ -422,7 +422,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
           .with("new_pc", fmt::format("{:08X}", new_pc))
           .with("spike_cycles", spike_cycles)
           .with("depth", frames.size())
-          .warn("cannot find the frame to return");
+          .info("cannot find the frame to return, maybe due to inner-function ret");
       } else for (int j = 0; j < layers_to_pop; j++) {
         frames.pop_back();
       }
