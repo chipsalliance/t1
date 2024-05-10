@@ -31,9 +31,6 @@ lib.makeScope newScope
     submodules = self.callPackage ./submodules.nix { };
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
-
-    rvv-codegen = self.callPackage ./testcases/rvv-codegen.nix { };
-
   } //
   lib.genAttrs allConfigs (configName:
     # by using makeScope, callPackage can send the following attributes to package parameters
@@ -48,15 +45,14 @@ lib.makeScope newScope
         mv config.json $out
       '';
 
-      _caseBuilders = {
-        mkMlirCase = innerSelf.callPackage ./testcases/make-mlir-case.nix { stdenv = rv32-stdenv; };
-        mkIntrinsicCase = innerSelf.callPackage ./testcases/make-intrinsic-case.nix { stdenv = rv32-stdenv; };
-        mkAsmCase = innerSelf.callPackage ./testcases/make-asm-case.nix { stdenv = rv32-stdenv; };
-        mkCodegenCase = innerSelf.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
-      };
+      _caseBuilders = lib.makeScope innerSelf.newScope (buildersSelf: {
+        mkMlirCase = buildersSelf.callPackage ./testcases/make-mlir-case.nix { stdenv = rv32-stdenv; };
+        mkIntrinsicCase = buildersSelf.callPackage ./testcases/make-intrinsic-case.nix { stdenv = rv32-stdenv; };
+        mkAsmCase = buildersSelf.callPackage ./testcases/make-asm-case.nix { stdenv = rv32-stdenv; };
+        mkCodegenCase = buildersSelf.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
+        mkBenchCase = buildersSelf.callPackage ../../tests/rvv_bench/make-bench-case.nix { stdenv = rv32-stdenv; };
 
-      # Maybe dependent on config later
-      linkerScript = ../../tests/t1.ld;
+      });
 
       cases = innerSelf.callPackage ../../tests { };
 
