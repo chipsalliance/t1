@@ -37,19 +37,79 @@
 
 Scalar core cannot access Vector DDR/SRAM, for, users need to access corresponding memory banks via vector load store instructions.
 
-== How to use the Docker image
+== Installing Docker
+
+Installing prerequisite packages
 
 #show raw.where(lang: "t1-docker"): it => {
   raw(lang: "bash", it.text.replace("${config}", config.name))
-}
+}  
+```t1-docker
+sudo apt install apt-transport-https ca-certificates curl software-properties-common
+```
+
+Add the Docker repository to APT sources
+
+First, add the GPG key for the official Docker repository to your system
+
+```t1-docker
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+```
+
+Then, add the Docker repository to APT sources
+
+```t1-docker
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+```
+
+Update the package database with Docker packages from the newly added repo
+
+```t1-docker
+sudo apt update
+```
+
+Install Docker
+
+```t1-docker
+sudo apt install docker-ce
+```
+
+== How to build the docker image locally
+
+Build the docker image using nix, copy the docker image to “/tmp”, hash the image and then load the docker image into docker
+
+#show raw.where(lang: "t1-docker"): it => {
+  raw(lang: "bash", it.text.replace("${config}", config.name))
+}  
+```t1-docker
+closure="$(nix build -L '.#t1.${config}.release.docker-layers.final-image' --no-link --print-out-paths)"
+echo "path: $closure"
+sudo cp "$closure/image.tar" /tmp/t1-${config}-image.tar
+echo "cache-key-${config}=$(nix hash file --base32 $closure/image.tar)"
+docker load < /tmp/t1-${config}-image.tar
+```
+  
+  Build documentation using Nix
+
+  ```t1-docker
+  nix build -L '.#t1.${config}.release.doc' --out-link docs
+  ```
+
+== How to use the Docker image
+
 ```t1-docker
 # Load the image into docker registry
 docker pull ghcr.io/chipsalliance/t1-${config}:latest
-# Start the bash shell in t1/release:latest image, and bind the current path to /workspace
-docker run --name t1 -it -v $PWD:/workspace --rm ghcr.io/chipsalliance/t1-${config}:latest /bin/bash
+# Start the bash shell in t1/release:latest image
+docker run --name <container-name> -it ghcr.io/chipsalliance/t1-${config}:latest /bin/bash
 ```
 
 > It is recommended to build ELF outside of the docker image and bind mount the ELF location into the image.
+
+=== How to bind the current path to /workspace
+```t1-docker
+docker run --name <container-name> -it -v Path/to/the/directory/to/mount:/workspace --rm ghcr.io/chipsalliance/t1-${config}:latest /bin/bash
+```
 
 == What is inside
 
