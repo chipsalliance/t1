@@ -1,10 +1,10 @@
-use tracing::{ info, trace };
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Mutex;
+use tracing::{info, trace};
 use xmas_elf::{
 	header,
 	program::{ProgramHeader, Type},
@@ -308,7 +308,7 @@ impl SpikeHandle {
 		let pc = state.get_pc();
 		let disasm = proc.disassemble();
 
-		info!("pc: 0x{:x}, disasm: {:?}", pc, disasm);
+		// info!("pc: 0x{:x}, disasm: {:?}", pc, disasm);
 
 		let new_pc = proc.func();
 
@@ -396,10 +396,17 @@ impl SpikeHandle {
 		let vlen_in_bytes = config.parameter.vLen / 8;
 		let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
 		let vrf_addr_raw = self.spike.get_proc().get_vreg_addr();
-		let vrf_addr = unsafe { std::slice::from_raw_parts(vrf_addr_raw.wrapping_add(start as usize), len as usize) };
-		trace!("vrf_addr: {:p}, start: {}, len: {}", vrf_addr_raw, start, len);
+		let vrf_addr = unsafe {
+			std::slice::from_raw_parts(vrf_addr_raw.wrapping_add(start as usize), len as usize)
+		};
+		trace!(
+			"vrf_addr: {:p}, start: {}, len: {}",
+			vrf_addr_raw,
+			start,
+			len
+		);
 		let vd_bytes = vrf_addr[0 as usize..len as usize].to_vec();
-		
+
 		let se = self.spike_event.as_mut().unwrap();
 		if se.is_rd_fp {
 			se.rd_bits = self.spike.get_proc().get_rd();
@@ -423,14 +430,17 @@ impl SpikeHandle {
 					addr + offset as u32,
 					MemWriteRecord {
 						writes: vec![SingleMemWrite {
-							val: ( value >> offset * 8 ) as u8,
+							val: (value >> offset * 8) as u8,
 							executed: false,
 						}],
 						num_completed_writes: 0,
 					},
 				);
 			});
-			info!("SpikeMemWrite: addr={:x}, value={:x}, size={}", addr, value, size);
+			info!(
+				"SpikeMemWrite: addr={:x}, value={:x}, size={}",
+				addr, value, size
+			);
 		});
 
 		Ok(())
@@ -460,7 +470,10 @@ impl SpikeHandle {
 					},
 				);
 			});
-			info!("SpikeMemRead: addr={:x}, value={:x}, size={}", addr, value, size);
+			info!(
+				"SpikeMemRead: addr={:x}, value={:x}, size={}",
+				addr, value, size
+			);
 		});
 
 		Ok(())
@@ -502,7 +515,7 @@ impl SpikeHandle {
 
 		self.log_mem_write().unwrap();
 		self.log_mem_read().unwrap();
-		
+
 		Ok(())
 	}
 

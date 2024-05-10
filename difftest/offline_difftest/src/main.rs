@@ -1,9 +1,9 @@
 mod difftest;
 
 use clap::Parser;
-use std::path::Path;
 use difftest::Difftest;
 use difftest::SpikeHandle;
+use std::path::Path;
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
@@ -40,12 +40,27 @@ fn main() -> anyhow::Result<()> {
 	// dont run difftest
 	if args.log_file.is_none() {
 		let spike = SpikeHandle::new(1usize << 32, Path::new(&args.elf_file));
+		let mut count = 0;
 		loop {
-			spike.exec().unwrap();
+			count += 1;
+			if count % 1000000 == 0 {
+				tracing::info!("count = {}", count);
+			}
+			match spike.exec() {
+				Ok(_) => {}
+				Err(_) => {
+					tracing::info!("Simulation quit ungraceful!!");
+				}
+			};
 		}
 	}
 
-	let mut diff = Difftest::new(1usize << 32, args.elf_file, args.log_file.unwrap(), args.config_file.unwrap());
+	let mut diff = Difftest::new(
+		1usize << 32,
+		args.elf_file,
+		args.log_file.unwrap(),
+		args.config_file.unwrap(),
+	);
 
 	loop {
 		diff.diff().unwrap();
