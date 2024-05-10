@@ -46,11 +46,12 @@ let
     asm = casesSelf.callPackage ./asm { };
     perf = casesSelf.callPackage ./perf { };
     codegen = casesSelf.callPackage ./codegen { };
+    rvv_bench = casesSelf.callPackage ./rvv_bench { };
   }));
 
   # remove non-case attributes in scope
   scopeStripped = {
-    inherit (scope) mlir intrinsic asm perf codegen;
+    inherit (scope) mlir intrinsic asm perf codegen rvv_bench;
   };
 
   all =
