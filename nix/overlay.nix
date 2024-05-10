@@ -22,6 +22,7 @@ in
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
+  rvv-codegen = final.callPackage ./pkgs/rvv-codegen.nix { };
 
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {
