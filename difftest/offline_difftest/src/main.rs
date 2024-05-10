@@ -1,7 +1,9 @@
 mod difftest;
 
 use clap::Parser;
+use std::path::Path;
 use difftest::Difftest;
+use difftest::SpikeHandle;
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
@@ -15,11 +17,11 @@ struct Args {
 
 	/// Path to the log file
 	#[arg(short, long)]
-	log_file: String,
+	log_file: Option<String>,
 
 	/// Path to the config file
 	#[arg(short, long)]
-	config_file: String,
+	config_file: Option<String>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -35,7 +37,15 @@ fn main() -> anyhow::Result<()> {
 
 	let args = Args::parse();
 
-	let mut diff = Difftest::new(1usize << 32, args.elf_file, args.log_file, args.config_file);
+	// dont run difftest
+	if args.log_file.is_none() {
+		let spike = SpikeHandle::new(1usize << 32, Path::new(&args.elf_file));
+		loop {
+			spike.exec().unwrap();
+		}
+	}
+
+	let mut diff = Difftest::new(1usize << 32, args.elf_file, args.log_file.unwrap(), args.config_file.unwrap());
 
 	loop {
 		diff.diff().unwrap();

@@ -3,7 +3,7 @@ mod spike;
 
 use dut::*;
 use serde::Deserialize;
-use spike::SpikeHandle;
+pub use spike::SpikeHandle;
 use std::path::Path;
 use tracing::error;
 
