@@ -95,9 +95,15 @@ impl Difftest {
 		}
 	}
 
+	fn peek_issue(&mut self, idx: u32) -> anyhow::Result<()> {
+		self.spike.peek_issue(idx).unwrap();
+
+		Ok(())
+	}
+
 	pub fn diff(&mut self) -> anyhow::Result<()> {
 		let event = self.dut.step()?;
-		self.spike.step(&self.config)?;
+		self.spike.spike_step(&self.config)?;
 
 		match &*event.event {
 			"peekTL" => {
@@ -110,7 +116,7 @@ impl Difftest {
 			}
 			"issue" => {
 				let idx = event.parameter.idx.unwrap();
-				self.spike.peek_issue(idx).unwrap();
+				self.peek_issue(idx).unwrap();
 			}
 			_ => {}
 		}

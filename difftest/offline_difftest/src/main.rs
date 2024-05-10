@@ -51,7 +51,7 @@ fn main() -> anyhow::Result<()> {
 			match spike.exec() {
 				Ok(_) => {}
 				Err(_) => {
-					info!("total count = {}", count);
+					info!("total v instrucions count = {}", count);
 					info!("Simulation quit graceful");
 					return Ok(());
 				}
