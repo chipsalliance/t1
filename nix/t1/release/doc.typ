@@ -39,40 +39,9 @@ Scalar core cannot access Vector DDR/SRAM, for, users need to access correspondi
 
 == Installing Docker for Debian-based systems.
 
-Installing prerequisite packages
+Refer to the Official Installation Guide for Docker:
 
-#show raw.where(lang: "t1-docker"): it => {
-  raw(lang: "bash", it.text.replace("${config}", config.name))
-}  
-```t1-docker
-sudo apt install apt-transport-https ca-certificates curl software-properties-common
-```
-
-Add the Docker repository to APT sources
-
-First, add the GPG key for the official Docker repository to your system
-
-```t1-docker
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-```
-
-Then, add the Docker repository to APT sources
-
-```t1-docker
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-```
-
-Update the package database with Docker packages from the newly added repo
-
-```t1-docker
-sudo apt update
-```
-
-Install Docker
-
-```t1-docker
-sudo apt install docker-ce
-```
+https://docs.docker.com/engine/install/
 
 == How to build the docker image locally
 
