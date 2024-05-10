@@ -1,138 +1,63 @@
-{ lib, runCommand, callPackage, _caseBuilders, xLen ? 32, vLen ? 1024 }:
+{ lib
+, newScope
+, rv32-stdenv
+, runCommand
+}:
 
 let
-  /* Return true if the given path contains a file called "default.nix";
+  scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
+    makeBuilder = casesSelf.callPackage ./builder.nix { };
 
-     Example:
-        isCallableDir ./testDir => true
+    findAndBuild = dir: build:
+      lib.recurseIntoAttrs (lib.pipe (builtins.readDir dir) [
+        # filter out all non-directory entrires and underscore-prefixed directories
+        (lib.filterAttrs (name: type: type == "directory" && ! lib.hasPrefix "_" name))
+        # prepend path with base directory
+        (lib.mapAttrs (subDirName: _: (lib.path.append dir subDirName)))
+        # build
+        (lib.mapAttrs (caseName: sourcePath:
+          if builtins.pathExists "${sourcePath}/default.nix" then
+            casesSelf.callPackage sourcePath { }
+          else
+            build {
+              inherit caseName sourcePath;
+            })
+        )
+      ]);
+    t1main = ./t1_main.S;
+    linkerScript = ./t1.ld;
 
-     Type:
-       isCallableDir :: Path -> bool
-  */
-  isCallableDir = path:
-    with builtins;
-    let
-      files = lib.filesystem.listFilesRecursive path;
-    in
-    any (f: baseNameOf (toString f) == "default.nix") files;
+    stdenv = rv32-stdenv;
+    xLen = 32;
+    vLen = 1024;
+    fp = false;
 
-  /* Search for callable directory (there is a file default.nix in the directory),
-     and use callPackage to call it. Return an attr set with key as directory basename, value as derivation.
+    mlir = casesSelf.callPackage ./mlir { };
+    intrinsic = casesSelf.callPackage ./intrinsic { };
+    asm = casesSelf.callPackage ./asm { };
+    perf = casesSelf.callPackage ./perf { };
+    codegen = casesSelf.callPackage ./codegen { };
+  }));
 
-     Example:
-        $ ls testDir
-        testDir
-          * A
-            - default.nix
-          * B
-            - default.nix
-          * C
-            - otherStuff
-
-        nix> searchAndCallPackage ./testDir => { A = <derivation>; B = <derivation>; }
-
-     Type:
-       searchAndCallPackage :: Path -> AttrSet
-  */
-  searchAndCallPackage = dir:
-    with builtins;
-    lib.pipe (readDir dir) [
-      # First filter out all non-directory object
-      (lib.filterAttrs (_: type: type == "directory"))
-      # { "A": "directory"; "B": "directory" } => { "A": "/nix/store/.../"; B: "/nix/store/.../"; }
-      (lib.mapAttrs (subDirName: _: (lib.path.append dir subDirName)))
-      # Then filter out those directory that have no file named default.nix
-      (lib.filterAttrs (_: fullPath: isCallableDir fullPath))
-      # { "A": "/nix/store/.../"; B: "/nix/store/.../"; } => { "A": <derivation>; "B": <derivation>; }
-      # TODO: Transfer xLen vLen value from here if these test cases are going to support multiple configuration in future.
-      (lib.mapAttrs (_: fullPath: callPackage fullPath { }))
-    ] // { recurseForDerivations = true; };
-
-  self = {
-    recurseForDerivations = true;
-    # nix build .#t1.cases.<type>.<name>
-    mlir = searchAndCallPackage ./mlir;
-    intrinsic = searchAndCallPackage ./intrinsic;
-    asm = searchAndCallPackage ./asm;
-    perf = searchAndCallPackage ./perf;
-
-    # nix build .#t1.cases.codegen.vaadd-vv -L
-    # codegen case are using xLen=32,vLen=1024 by default
-    codegen =
-      let
-        /* Return an attr set based on given file. File is expected to be a list of codegen case name, separated by "\n".
-           It will turn this file into a set of derivation, with each key as the canonicalized test name, and value as derivation.
-
-           Example:
-             $ cat test.txt
-             v.a
-             v.b
-
-             getTestsFromFile ./test.txt { } => { "v_a": <derivation>; "v_b": <derivation>; }
-             getTestsFromFile ./test.txt { fp = true } => { "v_a": <derivation>; "v_b": <derivation>; }
-
-           Type:
-             getTestsFromFile :: Path -> AttrSet -> AttrSet
-        */
-        getTestsFromFile = file: extra:
-          with lib;
-          let
-            textNames = lib.splitString "\n" (lib.fileContents file);
-            buildSpec = map (caseName: { inherit caseName xLen vLen; } // extra) textNames;
-          in
-          (map
-            (spec: nameValuePair
-              # If we using `.` as key, nix command line will fail to parse our input
-              (replaceStrings [ "." ] [ "_" ] spec.caseName)
-              (_caseBuilders.mkCodegenCase spec)
-            )
-            buildSpec);
-
-        commonTests = getTestsFromFile ./codegen/common.txt { };
-        fpTests = getTestsFromFile ./codegen/fp.txt { fp = true; };
-      in
-      { recurseForDerivations = true; } // builtins.listToAttrs (commonTests ++ fpTests);
-
-    all =
-      let
-        /*
-          Transform the current attribute set into bash script.
-
-          Example:
-            { mlir: { hello: <derivation> } } => ''
-              mkdir -p $out/configs
-              mkdir -p $out/cases/mlir
-              cp /nix/store/xxx/bin/*.elf $out/case/mlir/
-              cp /nix/store/xxx/*.json $out/configs/
-            '';
-
-          Types:
-            annoynomous :: set -> string
-        */
-        script = lib.pipe self [
-          # filter the `all` attr set
-          (lib.filterAttrs (k: _: k != "all"))
-          # filter all the `recurseForDerivation` name value pair
-          (lib.filterAttrsRecursive (k: _: k != "recurseForDerivations"))
-          # turn kkv to k-list, example: { k: { a: v, b: x } } -> { k: [ v, x ] }
-          (lib.mapAttrs (_: drvs: lib.attrValues drvs))
-          # turn the k-list to final bash script
-          # for each k, the value list will be transformed into bash glob path
-          #
-          #   { k: [ /a /b /c ] } -> cp /a/bin/*.elf $out/case/$k/
-          (lib.foldlAttrs
-            (acc: name: drvs:
-              let
-                makeGlobPaths = segment: paths: lib.concatStringsSep " " (map (x: x + segment) paths);
-              in
-              acc + ''
-                mkdir -p $out/cases/${name}
-                cp ${makeGlobPaths "/bin/*.elf" drvs} $out/cases/${name}/
-                cp ${makeGlobPaths "/*.json" drvs} $out/configs/
-              '') "mkdir -p $out/configs \n")
-        ];
-      in
-      runCommand "build-all-testcases" { } script;
+  # remove non-case attributes in scope
+  scopeStripped = {
+    inherit (scope) mlir intrinsic asm perf codegen;
   };
+
+  all =
+    let
+      allCases = lib.filter lib.isDerivation
+        (lib.concatLists (map lib.attrValues (lib.attrValues scopeStripped)));
+      script = ''
+        mkdir -p $out/configs
+      '' + (lib.concatMapStringsSep "\n"
+        (caseDrv: ''
+          mkdir -p $out/cases/${caseDrv.pname}
+          cp ${caseDrv}/bin/${caseDrv.pname}.elf $out/cases/${caseDrv.pname}/
+          cp ${caseDrv}/${caseDrv.pname}.json $out/configs/
+        '')
+        allCases);
+    in
+    runCommand "build-all-testcases" { } script;
 in
-self
+lib.recurseIntoAttrs (scopeStripped // { inherit all; })

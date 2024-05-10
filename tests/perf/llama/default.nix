@@ -1,7 +1,9 @@
 { lib
+, linkerScript
 , emurt
 , fetchurl
-, _caseBuilders
+, makeBuilder
+, t1main
 }:
 
 let
@@ -14,10 +16,11 @@ let
     url = "https://github.com/karpathy/llama2.c/raw/b3c4b6c3c4bbff42e5211293280307019368ccb5/tokenizer.bin";
     sha256 = "sha256-UKUu+CLunoPeXOnQvgoCWnc9AZQ39Ytf+dyvsGPs42E=";
   };
+
+  build = makeBuilder { casePrefix = "perf"; };
 in
 
-_caseBuilders.mkIntrinsicCase {
-  casePrefix = "perf";
+build {
   caseName = "llama";
 
   buildInputs = [ emurt ];
@@ -27,21 +30,24 @@ _caseBuilders.mkIntrinsicCase {
     fileset = fileFilter (file: file.name != "default.nix") ./.;
   };
 
-  unpackPhase = ''
-    cp $src -rT .
-    chmod -R +w .
-  '';
-
   postPatch = ''
     substituteInPlace extern_data.S \
       --replace-fail '{{checkpoint_bin}}' ${checkpoint_bin} \
       --replace-fail '{{tokenizer_bin}}' ${tokenizer_bin}
   '';
 
-  srcs = [
+  csrcs = [
     "run.c"
     "trap.c"
     "extern_data.S"
-    ../../t1_main.S
   ];
+
+  buildPhase = ''
+    runHook preBuild
+
+    $CC -T${linkerScript} $csrcs ${t1main} -o $pname.elf
+
+    runHook postBuild
+  '';
+
 }
