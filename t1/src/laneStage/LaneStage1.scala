@@ -29,7 +29,6 @@ class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val maskNotMaskedElement: Bool = Bool()
 
   // pipe state
-  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
   val maskType: Bool = Bool()
   val loadStore: Bool = Bool()
@@ -49,8 +48,6 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   // pipe state
   // for exe stage
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
-  // todo: pipe from stage0
-  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   val vSew1H: UInt = UInt(3.W)
   val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
   val maskType: Bool = Bool()
@@ -362,7 +359,6 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.src := VecInit(Seq(source1Select, dataQueueVs2.io.deq.bits, dataQueueVd.io.deq.bits))
   dequeue.bits.crossReadSource.foreach(_ := crossReadResultQueue.get.io.deq.bits)
   dequeue.bits.sSendResponse.foreach(_ := pipeQueue.io.deq.bits.sSendResponse.get)
-  dequeue.bits.newInstruction.foreach(_ := pipeQueue.io.deq.bits.newInstruction.get)
   dequeue.bits.decodeResult := pipeQueue.io.deq.bits.decodeResult
   dequeue.bits.vSew1H := pipeQueue.io.deq.bits.vSew1H
   dequeue.bits.csr := pipeQueue.io.deq.bits.csr
