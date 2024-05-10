@@ -573,7 +573,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.additionalRead := record.additionalRead
       laneState.skipRead := record.laneRequest.decodeResult(Decoder.other) &&
         (record.laneRequest.decodeResult(Decoder.uop) === 9.U)
-      laneState.newInstruction.foreach(_ := slot0EnqueueFire)
 
       stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask)
       stage0.enqueue.bits.maskIndex := maskIndexVec(index)
@@ -724,9 +723,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       executionUnit.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
       executionUnit.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
       executionUnit.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
-        sink := source
-      }
-      executionUnit.enqueue.bits.newInstruction.zip(stage1.dequeue.bits.newInstruction).foreach { case (sink, source) =>
         sink := source
       }
       executionUnit.enqueue.bits.crossReadSource.zip(stage1.dequeue.bits.crossReadSource).foreach { case (sink, source) =>

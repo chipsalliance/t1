@@ -20,8 +20,6 @@ class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends 
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
   // pipe state
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
-  // todo: pipe from stage0
-  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   val vSew1H: UInt = UInt(3.W)
   val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
   val maskType: Bool = Bool()
@@ -84,13 +82,18 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
 
   /** mask format result for current `mask group` */
   val maskFormatResultForGroup: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.maskGroupWidth.W)))
-  val firstRequestFire: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot) {Wire(Bool())}
-  val firstRequest: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot) {
-    RegEnable(enqueue.bits.newInstruction.get, false.B, enqueue.bits.newInstruction.get || firstRequestFire.get)
+
+  val waitFirstValidFire: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot) {
+    RegEnable(
+      (enqueue.bits.groupCounter === 0.U) && !enqueue.bits.maskForFilter(0),
+      false.B,
+      enqueue.fire && ((enqueue.bits.groupCounter === 0.U) || enqueue.bits.maskForFilter(0))
+    )
   }
-  firstRequestFire.foreach(d =>
-    d := enqueue.fire && firstRequest.get && enqueue.bits.maskForFilter(0)
-  )
+
+  val firstRequestFire: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot) {
+    enqueue.fire && (enqueue.bits.groupCounter === 0.U || waitFirstValidFire.get) && enqueue.bits.maskForFilter(0)
+  }
 
   // Whether cross-lane reading or cross-lane writing requires double execution
   // data request in executionRecord need double execution
@@ -529,7 +532,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   queue.io.enq.bits.ffoIndex := recordQueue.io.deq.bits.groupCounter ## dataResponse.bits.data(4, 0)
   queue.io.enq.bits.crossWriteData.foreach(_ := VecInit((crossWriteLSB ++ Seq(dataDequeue)).toSeq))
   queue.io.enq.bits.ffoSuccess.foreach(_ := dataResponse.bits.ffoSuccess)
-  queue.io.enq.bits.fpReduceValid.foreach(_ := !firstRequest.get)
+  queue.io.enq.bits.fpReduceValid.foreach(_ := !waitFirstValidFire.get)
   recordQueue.io.deq.ready := dataResponse.valid || (recordNotExecute && queue.io.enq.ready)
   queue.io.enq.valid :=
     (recordQueue.io.deq.valid &&
