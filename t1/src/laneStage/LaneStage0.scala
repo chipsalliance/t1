@@ -41,8 +41,6 @@ class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
   val vd: UInt = UInt(5.W)
 
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  // 为了 flot reduce max min
-  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   val additionalRead: Bool = Bool()
   // skip vrf read in stage 1?
   val skipRead: Bool = Bool()
@@ -76,7 +74,6 @@ class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val maskNotMaskedElement: Bool = Bool()
 
   // pipe state
-  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
   val maskType: Bool = Bool()
   val loadStore: Bool = Bool()
@@ -209,9 +206,6 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
     ) ++ Option.when(parameter.fpuEnable)(enqueue.bits.decodeResult(Decoder.orderReduce))).reduce(_ || _)
   }
   // pipe all state
-  stageWire.newInstruction.foreach { data =>
-    data := enqueue.bits.newInstruction.get
-  }
   stageWire.elements.foreach { case (k ,d) =>
     enqueue.bits.elements.get(k).foreach( pipeData =>
       d match {

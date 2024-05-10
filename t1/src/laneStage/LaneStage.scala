@@ -36,8 +36,6 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   val vd: UInt = UInt(5.W)
 
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  // 为了 flot reduce max min
-  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   val additionalRead: Bool = Bool()
   // skip vrf read in stage 1?
   val skipRead: Bool = Bool()
