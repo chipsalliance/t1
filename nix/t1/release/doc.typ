@@ -37,7 +37,7 @@
 
 Scalar core cannot access Vector DDR/SRAM, for, users need to access corresponding memory banks via vector load store instructions.
 
-== Installing Docker
+== Installing Docker for Debian-based systems.
 
 Installing prerequisite packages
 
