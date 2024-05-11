@@ -6,6 +6,7 @@ package org.chipsalliance.t1.rtl.lane
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
+import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl._
 
@@ -19,6 +20,14 @@ class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val sSendResponse: Bool = Bool()
   val ffoSuccess: Bool = Bool()
   val fpReduceValid: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
+  // pipe state
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  // todo: Need real-time status
+  val ffoByOtherLanes: Bool = Bool()
+  val loadStore: Bool = Bool()
+  /** vd or rd */
+  val vd: UInt = UInt(5.W)
 }
 
 @instantiable
@@ -34,8 +43,6 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   @public
   val vrfWriteRequest: DecoupledIO[VRFWriteRequest] = IO(Decoupled(vrfWriteBundle))
 
-  @public
-  val state: LaneState = IO(Input(new LaneState(parameter)))
   val pipeEnqueue: Option[LaneStage3Enqueue] = Option.when(isLastSlot)(RegInit(0.U.asTypeOf(enqueue.bits)))
   /** response to [[T1.lsu]] or mask unit in [[T1]] */
   @public
@@ -68,9 +75,9 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   // update register
   when(enqueue.fire) {
     pipeEnqueue.foreach(_ := enqueue.bits)
-    (sCrossWriteLSB ++ sCrossWriteMSB).foreach(_ := !state.decodeResult(Decoder.crossWrite))
+    (sCrossWriteLSB ++ sCrossWriteMSB).foreach(_ := !enqueue.bits.decodeResult(Decoder.crossWrite))
     (sSendResponse ++ wResponseFeedback).foreach(
-      _ := state.decodeResult(Decoder.scheduler) || enqueue.bits.sSendResponse
+      _ := enqueue.bits.decodeResult(Decoder.scheduler) || enqueue.bits.sSendResponse
     )
   }
 
@@ -84,10 +91,10 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   vrfPtrReplica.io.enq.bits := vrfWriteQueue.io.enq.bits.offset
   vrfPtrReplica.io.deq.ready := vrfWriteQueue.io.deq.ready
 
-  /** Write queue ready or not need to write. */
-  val vrfWriteReady: Bool = vrfWriteQueue.io.enq.ready || state.decodeResult(Decoder.sWrite)
-
   if (isLastSlot) {
+    /** Write queue ready or not need to write. */
+    val vrfWriteReady: Bool = vrfWriteQueue.io.enq.ready || pipeEnqueue.get.decodeResult(Decoder.sWrite)
+
     // VRF cross write
     val sendState = (sCrossWriteLSB ++ sCrossWriteMSB).toSeq
     crossWritePort.get.zipWithIndex.foreach { case (port, index) =>
@@ -95,7 +102,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       port.bits.mask := pipeEnqueue.get.mask(2 * index + 1, 2 * index)
       port.bits.data := pipeEnqueue.get.crossWriteData(index)
       port.bits.counter := pipeEnqueue.get.groupCounter
-      port.bits.instructionIndex := state.instructionIndex
+      port.bits.instructionIndex := pipeEnqueue.get.instructionIndex
       when(port.fire) {
         sendState(index) := true.B
       }
@@ -105,18 +112,18 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
     val dataSelect: Option[UInt] = Option.when(isLastSlot) {
       Mux(
-        state.decodeResult(Decoder.nr) ||
-          (state.ffoByOtherLanes && state.decodeResult(Decoder.ffo)) ||
-          state.decodeResult(Decoder.dontNeedExecuteInLane),
+        pipeEnqueue.get.decodeResult(Decoder.nr) ||
+          (enqueue.bits.ffoByOtherLanes && pipeEnqueue.get.decodeResult(Decoder.ffo)) ||
+          pipeEnqueue.get.decodeResult(Decoder.dontNeedExecuteInLane),
         pipeEnqueue.get.pipeData,
         pipeEnqueue.get.data
       )
     }
     // mask request
     laneResponse.head.valid := stageValidReg.get && !sSendResponse.get
-    laneResponse.head.bits.data := Mux(state.decodeResult(Decoder.ffo), pipeEnqueue.get.ffoIndex, dataSelect.get)
-    laneResponse.head.bits.toLSU := state.loadStore
-    laneResponse.head.bits.instructionIndex := state.instructionIndex
+    laneResponse.head.bits.data := Mux(pipeEnqueue.get.decodeResult(Decoder.ffo), pipeEnqueue.get.ffoIndex, dataSelect.get)
+    laneResponse.head.bits.toLSU := pipeEnqueue.get.loadStore
+    laneResponse.head.bits.instructionIndex := pipeEnqueue.get.instructionIndex
     laneResponse.head.bits.ffoSuccess := pipeEnqueue.get.ffoSuccess
     laneResponse.head.bits.fpReduceValid.zip(pipeEnqueue.get.fpReduceValid).foreach {case (s, f) => s := f}
 
@@ -128,10 +135,10 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     })
 
     // enqueue write for last slot
-    vrfWriteQueue.io.enq.valid := stageValidReg.get && schedulerFinish && !state.decodeResult(Decoder.sWrite)
+    vrfWriteQueue.io.enq.valid := stageValidReg.get && schedulerFinish && !pipeEnqueue.get.decodeResult(Decoder.sWrite)
 
     // UInt(5.W) + UInt(3.W), use `+` here
-    vrfWriteQueue.io.enq.bits.vd := state.vd + pipeEnqueue.get.groupCounter(
+    vrfWriteQueue.io.enq.bits.vd := pipeEnqueue.get.vd + pipeEnqueue.get.groupCounter(
       parameter.groupNumberBits - 1,
       parameter.vrfOffsetBits
     )
@@ -139,7 +146,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     vrfWriteQueue.io.enq.bits.offset := pipeEnqueue.get.groupCounter
     vrfWriteQueue.io.enq.bits.data := dataSelect.get
     vrfWriteQueue.io.enq.bits.last := DontCare
-    vrfWriteQueue.io.enq.bits.instructionIndex := state.instructionIndex
+    vrfWriteQueue.io.enq.bits.instructionIndex := pipeEnqueue.get.instructionIndex
     vrfWriteQueue.io.enq.bits.mask := pipeEnqueue.get.mask
 
     // Handshake
@@ -159,7 +166,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     vrfWriteQueue.io.enq.valid := enqueue.valid
 
     // UInt(5.W) + UInt(3.W), use `+` here
-    vrfWriteQueue.io.enq.bits.vd := state.vd + enqueue.bits.groupCounter(
+    vrfWriteQueue.io.enq.bits.vd := enqueue.bits.vd + enqueue.bits.groupCounter(
       parameter.groupNumberBits - 1,
       parameter.vrfOffsetBits
     )
@@ -168,7 +175,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
     vrfWriteQueue.io.enq.bits.data := enqueue.bits.data
     vrfWriteQueue.io.enq.bits.last := DontCare
-    vrfWriteQueue.io.enq.bits.instructionIndex := state.instructionIndex
+    vrfWriteQueue.io.enq.bits.instructionIndex := enqueue.bits.instructionIndex
     vrfWriteQueue.io.enq.bits.mask := enqueue.bits.mask
 
     // Handshake

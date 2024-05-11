@@ -7,6 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
+import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lane.{CrossReadUnit, LaneState, VrfReadPipe}
 
@@ -15,6 +16,22 @@ class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val maskForMaskInput: UInt = UInt((parameter.datapathWidth / 8).W)
   val boundaryMaskCorrection: UInt = UInt((parameter.datapathWidth / 8).W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
+  // pipe state
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+  // skip vrf read in stage 1?
+  val skipRead: Bool = Bool()
+  val vs1: UInt = UInt(5.W)
+  val vs2: UInt = UInt(5.W)
+  val vd: UInt = UInt(5.W)
+  val vSew1H: UInt = UInt(3.W)
+  val maskNotMaskedElement: Bool = Bool()
+
+  // pipe state
+  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val maskType: Bool = Bool()
+  val loadStore: Bool = Bool()
 }
 
 class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -27,6 +44,21 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   // read result
   val src: Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
   val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+
+  // pipe state
+  // for exe stage
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val vSew1H: UInt = UInt(3.W)
+  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val maskType: Bool = Bool()
+  // Newly added in LaneExecutionBridge
+  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+
+  // for stage3
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val loadStore: Bool = Bool()
+  /** vd or rd */
+  val vd: UInt = UInt(5.W)
 }
 
 /** 这一个stage 分两级流水, 分别是 读vrf 等vrf结果
@@ -41,8 +73,6 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val dequeue = IO(Decoupled(new LaneStage1Dequeue(parameter, isLastSlot)))
   @public
   val stageValid = IO(Output(Bool()))
-  @public
-  val state: LaneState = IO(Input(new LaneState(parameter)))
   @public
   val vrfReadRequest: Vec[DecoupledIO[VRFReadRequest]] = IO(Vec(3, Decoupled(readRequestType)))
 
@@ -119,7 +149,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       queueAfterCheckLSB ++ queueAfterCheckMSB
   val allReadQueueReady: Bool = beforeCheckQueueVec.map(_.io.enq.ready).reduce(_ && _)
   beforeCheckQueueVec.foreach{ q =>
-    q.io.enq.bits.instructionIndex := state.instructionIndex
+    q.io.enq.bits.instructionIndex := enqueue.bits.instructionIndex
     q.io.enq.bits.groupIndex := enqueue.bits.groupCounter
   }
 
@@ -133,33 +163,33 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     after.io.enq.bits := before.io.deq.bits
   }
   // request enqueue
-  queueBeforeCheck1.io.enq.valid := enqueue.fire && state.decodeResult(Decoder.vtype) && !state.skipRead
-  queueBeforeCheck2.io.enq.valid := enqueue.fire && !state.skipRead
-  queueBeforeCheckVd.io.enq.valid := enqueue.fire && !state.decodeResult(Decoder.sReadVD)
+  queueBeforeCheck1.io.enq.valid := enqueue.fire && enqueue.bits.decodeResult(Decoder.vtype) && !enqueue.bits.skipRead
+  queueBeforeCheck2.io.enq.valid := enqueue.fire && !enqueue.bits.skipRead
+  queueBeforeCheckVd.io.enq.valid := enqueue.fire && !enqueue.bits.decodeResult(Decoder.sReadVD)
   (queueBeforeCheckLSB ++ queueBeforeCheckMSB).foreach { q =>
-    q.io.enq.valid := enqueue.valid && allReadQueueReady && state.decodeResult(Decoder.crossRead)
+    q.io.enq.valid := enqueue.valid && allReadQueueReady && enqueue.bits.decodeResult(Decoder.crossRead)
   }
 
   // calculate vs
   queueBeforeCheck1.io.enq.bits.vs := Mux(
     // encodings with vm=0 are reserved for mask type logic
-    state.decodeResult(Decoder.maskLogic) && !state.decodeResult(Decoder.logic),
+    enqueue.bits.decodeResult(Decoder.maskLogic) && !enqueue.bits.decodeResult(Decoder.logic),
     // read v0 for (15. Vector Mask Instructions)
     0.U,
-    state.vs1 + groupCounter(
+    enqueue.bits.vs1 + groupCounter(
       parameter.groupNumberBits - 1,
       parameter.vrfOffsetBits
     )
   )
   queueBeforeCheck1.io.enq.bits.readSource := Mux(
-    state.decodeResult(Decoder.maskLogic) && !state.decodeResult(Decoder.logic),
+  enqueue.bits.decodeResult(Decoder.maskLogic) && !enqueue.bits.decodeResult(Decoder.logic),
     3.U,
     0.U
   )
-  queueBeforeCheck2.io.enq.bits.vs := state.vs2 +
+  queueBeforeCheck2.io.enq.bits.vs := enqueue.bits.vs2 +
     groupCounter(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
   queueBeforeCheck2.io.enq.bits.readSource := 1.U
-  queueBeforeCheckVd.io.enq.bits.vs := state.vd +
+  queueBeforeCheckVd.io.enq.bits.vs := enqueue.bits.vd +
     groupCounter(parameter.groupNumberBits - 1, parameter.vrfOffsetBits)
   queueBeforeCheckVd.io.enq.bits.readSource := 2.U
 
@@ -171,25 +201,25 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   // cross read enqueue
   queueBeforeCheckLSB.foreach { q =>
     q.io.enq.bits.vs := Mux(
-      state.decodeResult(Decoder.vwmacc),
+      enqueue.bits.decodeResult(Decoder.vwmacc),
       // cross read vd for vwmacc, since it need dual [[dataPathWidth]], use vs2 port to read LSB part of it.
-      state.vd,
+      enqueue.bits.vd,
       // read vs2 for other instruction
-      state.vs2
+      enqueue.bits.vs2
     ) + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
-    q.io.enq.bits.readSource := Mux(state.decodeResult(Decoder.vwmacc), 2.U, 1.U)
+    q.io.enq.bits.readSource := Mux(enqueue.bits.decodeResult(Decoder.vwmacc), 2.U, 1.U)
     q.io.enq.bits.offset := groupCounter(parameter.vrfOffsetBits - 2, 0) ## false.B
   }
 
   queueBeforeCheckMSB.foreach { q =>
     q.io.enq.bits.vs := Mux(
-      state.decodeResult(Decoder.vwmacc),
+      enqueue.bits.decodeResult(Decoder.vwmacc),
       // cross read vd for vwmacc
-      state.vd,
+      enqueue.bits.vd,
       // cross lane access use vs2
-      state.vs2
+      enqueue.bits.vs2
     ) + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
-    q.io.enq.bits.readSource := Mux(state.decodeResult(Decoder.vwmacc), 2.U, 1.U)
+    q.io.enq.bits.readSource := Mux(enqueue.bits.decodeResult(Decoder.vwmacc), 2.U, 1.U)
     q.io.enq.bits.offset := groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B
   }
 
@@ -294,10 +324,12 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
           readRequestQueueSizeBeforeCheck + readRequestQueueSizeBeforeCheck + dataQueueSize + 2
         )
       )
+    // todo: need pipe ?
+    val laneIndexReg = RegInit(enqueue.bits.laneIndex)
     val crossReadUnit = crossReadUnitOp.get
     crossReadUnit.dataInputLSB <> dataQueueLSB.get.io.deq
     crossReadUnit.dataInputMSB <> dataQueueMSB.get.io.deq
-    crossReadUnit.laneIndex := state.laneIndex
+    crossReadUnit.laneIndex := laneIndexReg
     crossReadUnit.dataGroup := dataGroupQueue.io.deq.bits
     readBusRequest.get.zip(crossReadUnit.readBusRequest).foreach { case (sink, source) => sink <> source}
     crossReadUnit.readBusDequeue.zip(readBusDequeue.get).foreach { case (sink, source) => sink <> source}
@@ -305,7 +337,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     crossReadStageFree.get := crossReadUnit.crossReadStageFree
 
     // data group
-    dataGroupQueue.io.enq.valid := enqueue.fire && state.decodeResult(Decoder.crossRead)
+    dataGroupQueue.io.enq.valid := enqueue.fire && enqueue.bits.decodeResult(Decoder.crossRead)
     assert(dataGroupQueue.io.enq.ready || !dataGroupQueue.io.enq.valid)
     dataGroupQueue.io.enq.bits := enqueue.bits.groupCounter
     dataGroupQueue.io.deq.ready := crossReadUnit.dataInputLSB.fire
@@ -313,7 +345,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   }
 
   val scalarDataRepeat: UInt = Mux1H(
-    state.vSew1H,
+    pipeQueue.io.deq.bits.vSew1H,
     Seq(
       Fill(4, readFromScalar(7, 0)),
       Fill(2, readFromScalar(15, 0)),
@@ -321,31 +353,39 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     )
   )
 
-  val source1Select: UInt = Mux(state.decodeResult(Decoder.vtype), dataQueueVs1.bits, scalarDataRepeat)
+  val source1Select: UInt = Mux(pipeQueue.io.deq.bits.decodeResult(Decoder.vtype), dataQueueVs1.bits, scalarDataRepeat)
   dequeue.bits.mask := pipeQueue.io.deq.bits.maskForMaskInput
   dequeue.bits.groupCounter := pipeQueue.io.deq.bits.groupCounter
   dequeue.bits.src := VecInit(Seq(source1Select, dataQueueVs2.io.deq.bits, dataQueueVd.io.deq.bits))
   dequeue.bits.crossReadSource.foreach(_ := crossReadResultQueue.get.io.deq.bits)
   dequeue.bits.sSendResponse.foreach(_ := pipeQueue.io.deq.bits.sSendResponse.get)
+  dequeue.bits.decodeResult := pipeQueue.io.deq.bits.decodeResult
+  dequeue.bits.vSew1H := pipeQueue.io.deq.bits.vSew1H
+  dequeue.bits.csr := pipeQueue.io.deq.bits.csr
+  dequeue.bits.maskType := pipeQueue.io.deq.bits.maskType
+  dequeue.bits.laneIndex := pipeQueue.io.deq.bits.laneIndex
+  dequeue.bits.instructionIndex := pipeQueue.io.deq.bits.instructionIndex
+  dequeue.bits.loadStore := pipeQueue.io.deq.bits.loadStore
+  dequeue.bits.vd := pipeQueue.io.deq.bits.vd
 
   dequeue.bits.maskForFilter :=
-    (FillInterleaved(4, state.maskNotMaskedElement) | pipeQueue.io.deq.bits.maskForMaskInput) &
+    (FillInterleaved(4, pipeQueue.io.deq.bits.maskNotMaskedElement) | pipeQueue.io.deq.bits.maskForMaskInput) &
       pipeQueue.io.deq.bits.boundaryMaskCorrection
   // All required data is ready
   val dataQueueValidVec: Seq[Bool] =
     Seq(
-      dataQueueVs1.valid || !state.decodeResult(Decoder.vtype) || state.skipRead,
-      dataQueueVs2.io.deq.valid || state.skipRead,
-      dataQueueVd.io.deq.valid || (state.decodeResult(Decoder.sReadVD))
+      dataQueueVs1.valid || !pipeQueue.io.deq.bits.decodeResult(Decoder.vtype) || pipeQueue.io.deq.bits.skipRead,
+      dataQueueVs2.io.deq.valid || pipeQueue.io.deq.bits.skipRead,
+      dataQueueVd.io.deq.valid || (pipeQueue.io.deq.bits.decodeResult(Decoder.sReadVD))
     ) ++
-      crossReadResultQueue.map(_.io.deq.valid || !state.decodeResult(Decoder.crossRead))
+      crossReadResultQueue.map(_.io.deq.valid || !pipeQueue.io.deq.bits.decodeResult(Decoder.crossRead))
   val allDataQueueValid: Bool = VecInit(dataQueueValidVec).asUInt.andR
   dequeue.valid := allDataQueueValid && pipeQueue.io.deq.valid
-  dataQueueVs1.ready := allDataQueueValid && dequeue.ready && state.decodeResult(Decoder.vtype)
+  dataQueueVs1.ready := allDataQueueValid && dequeue.ready && pipeQueue.io.deq.bits.decodeResult(Decoder.vtype)
   dataQueueVs2.io.deq.ready := allDataQueueValid && dequeue.ready
   dataQueueVd.io.deq.ready :=
-    allDataQueueValid && dequeue.ready && !state.decodeResult(Decoder.sReadVD)
-  crossReadResultQueue.foreach(_.io.deq.ready := allDataQueueValid && dequeue.ready && state.decodeResult(Decoder.crossRead))
+    allDataQueueValid && dequeue.ready && !pipeQueue.io.deq.bits.decodeResult(Decoder.sReadVD)
+  crossReadResultQueue.foreach(_.io.deq.ready := allDataQueueValid && dequeue.ready && pipeQueue.io.deq.bits.decodeResult(Decoder.crossRead))
   stageValid := pipeQueue.io.deq.valid
   val stageFinish = !stageValid
 

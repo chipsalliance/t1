@@ -4,8 +4,8 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Definition, Instance, Instantiate, instantiable, public}
-import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.experimental.hierarchy._
+import chisel3.experimental._
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.properties.{AnyClassType, Class, ClassType, Path, Property}
 import chisel3.util._
@@ -524,13 +524,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         !record.laneRequest.decodeResult(Decoder.maskLogic) &&
         !alwaysNextGroup
 
-      // mask for current mask group
-      val maskForMaskGroup: UInt = Mux(
-        skipEnable,
-        record.mask.bits,
-        (-1.S(parameter.datapathWidth.W)).asUInt
-      )
-
       // register for s0 enqueue, it will move with the slot
       // 'maskGroupCountVec' 'maskIndexVec' 'pipeFinishVec'
 
@@ -571,23 +564,24 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.maskNotMaskedElement := !record.laneRequest.mask ||
         record.laneRequest.decodeResult(Decoder.maskSource) ||
         record.laneRequest.decodeResult(Decoder.maskLogic)
-      laneState.mask := record.mask
       laneState.vs1 := record.laneRequest.vs1
       laneState.vs2 := record.laneRequest.vs2
       laneState.vd := record.laneRequest.vd
       laneState.instructionIndex := record.laneRequest.instructionIndex
-      laneState.maskForMaskGroup := maskForMaskGroup
+      laneState.skipEnable := skipEnable
       laneState.ffoByOtherLanes := record.ffoByOtherLanes
       laneState.additionalRead := record.additionalRead
       laneState.skipRead := record.laneRequest.decodeResult(Decoder.other) &&
         (record.laneRequest.decodeResult(Decoder.uop) === 9.U)
-      laneState.newInstruction.foreach(_ := slot0EnqueueFire)
 
       stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask)
       stage0.enqueue.bits.maskIndex := maskIndexVec(index)
       stage0.enqueue.bits.maskForMaskGroup := record.mask.bits
       stage0.enqueue.bits.maskGroupCount := maskGroupCountVec(index)
-      stage0.state := laneState
+      // todo: confirm
+      stage0.enqueue.bits.elements.foreach { case (k ,d) =>
+        laneState.elements.get(k).foreach(stateData => d := stateData)
+      }
 
       // update lane state
       when(stage0.enqueue.fire) {
@@ -641,7 +635,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       }
       stage1.dequeue.bits.readBusDequeueGroup.foreach(data => readBusDequeueGroup := data)
 
-      stage1.state := laneState
+      stage1.enqueue.bits.elements.foreach { case (k ,d) =>
+        stage0.dequeue.bits.elements.get(k).foreach(stateData => d := stateData)
+      }
       stage1.readFromScalar := record.laneRequest.readFromScalar
       vrfReadRequest(index).zip(stage1.vrfReadRequest).foreach{ case (sink, source) => sink <> source }
       vrfReadResult(index).zip(stage1.vrfReadResult).foreach{ case (source, sink) => sink := source }
@@ -704,7 +700,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage1.dequeue.ready := stage2.enqueue.ready && executionUnit.enqueue.ready
       executionUnit.enqueue.valid := stage1.dequeue.valid && stage2.enqueue.ready
 
-      stage2.state := laneState
+      // todo: connect state from stage1
+      stage2.enqueue.bits.elements.foreach { case (k ,d) =>
+        stage1.dequeue.bits.elements.get(k).foreach( pipeData => d := pipeData)
+      }
       stage2.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
       stage2.enqueue.bits.mask := stage1.dequeue.bits.mask
       stage2.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
@@ -714,7 +713,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       }
       stage2.enqueue.bits.bordersForMaskLogic := executionUnit.enqueue.bits.bordersForMaskLogic
 
-      executionUnit.state := laneState
+      executionUnit.enqueue.bits.elements.foreach { case (k ,d) =>
+        stage1.dequeue.bits.elements.get(k).foreach( pipeData => d := pipeData)
+      }
       executionUnit.enqueue.bits.src := stage1.dequeue.bits.src
       executionUnit.enqueue.bits.bordersForMaskLogic :=
         (stage1.dequeue.bits.groupCounter === record.lastGroupForInstruction && record.isLastLaneForInstruction)
@@ -745,7 +746,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       if (!isLastSlot) {
         stage3.enqueue.bits := DontCare
       }
-      stage3.state := laneState
+
+      // pipe state from stage0
+      stage3.enqueue.bits.decodeResult := stage2.dequeue.bits.decodeResult
+      stage3.enqueue.bits.instructionIndex := stage2.dequeue.bits.instructionIndex
+      stage3.enqueue.bits.loadStore := stage2.dequeue.bits.loadStore
+      stage3.enqueue.bits.vd := stage2.dequeue.bits.vd
+      stage3.enqueue.bits.ffoByOtherLanes := record.ffoByOtherLanes
       stage3.enqueue.bits.groupCounter := stage2.dequeue.bits.groupCounter
       stage3.enqueue.bits.mask := stage2.dequeue.bits.mask
       if (isLastSlot) {

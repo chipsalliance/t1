@@ -23,8 +23,7 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   // vm = 0
   val maskType: Bool = Bool()
   val maskNotMaskedElement: Bool = Bool()
-  val maskForMaskGroup: UInt = UInt(parameter.datapathWidth.W)
-  val mask: ValidIO[UInt] = Valid(UInt(parameter.datapathWidth.W))
+  val skipEnable: Bool = Bool()
   val ffoByOtherLanes: Bool = Bool()
 
   /** vs1 or imm */
@@ -37,8 +36,6 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   val vd: UInt = UInt(5.W)
 
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  // 为了 flot reduce max min
-  val newInstruction: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   val additionalRead: Bool = Bool()
   // skip vrf read in stage 1?
   val skipRead: Bool = Bool()
