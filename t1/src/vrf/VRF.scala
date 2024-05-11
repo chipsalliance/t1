@@ -320,7 +320,12 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
             (writePipe.valid && bank === writeBankPipe && writePipe.bits.vd === v.bits.vs && writePipe.bits.offset === v.bits.offset))
       })
       // 我选的这个port的第二个read port 没被占用
-      v.ready := (bank & (~readPortCheckSelect)).orR && checkResult
+      val portReady: Bool = if (i == (readRequests.size - 1)) {
+        (bank & (~readPortCheckSelect)).orR && checkResult
+      } else {
+        (bank & (~readPortCheckSelect)).orR
+      }
+      v.ready := portReady
       val firstUsed = (bank & o).orR
       bankReadF(i) := bankCorrect & (~o)
       bankReadS(i) := bankCorrect & (~t) & o
