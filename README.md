@@ -71,6 +71,11 @@ docker pull ghcr.io/chipsalliance/t1-$config:latest
 # For example, config with dlen 256 vlen 512 support
 docker pull ghcr.io/chipsalliance/t1-blastoise:latest
 ```
+Or build the image using nix and load it into docker
+```bash
+nix build -L '.#t1.$config.release.docker-layers.final-image' --no-link --print-out-paths
+docker load < /path/to/t1-$config-image.tar
+```
 
 ### Nix setup
 We use Nix Flake as our primary build system. If you have not installed nix, install it following the [guide](https://nixos.org/manual/nix/stable/installation/installing-binary.html), and enable flake following the [wiki](https://nixos.wiki/wiki/Flakes#Enable_flakes). Or you can try the [installer](https://github.com/DeterminateSystems/nix-installer) provided by Determinate Systems, which enables flake by default.
