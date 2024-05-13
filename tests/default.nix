@@ -1,10 +1,16 @@
 { lib
+, elaborateConfig
 , newScope
 , rv32-stdenv
 , runCommand
 }:
 
 let
+  extension = lib.head elaborateConfig.parameter.extensions;
+  xLen = if lib.hasInfix "ve32" extension then 32 else 64;
+  isFp = lib.hasInfix "f" extension;
+  vLen = elaborateConfig.parameter.vLen;
+
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     makeBuilder = casesSelf.callPackage ./builder.nix { };
 
@@ -14,7 +20,7 @@ let
         (lib.filterAttrs (name: type: type == "directory" && ! lib.hasPrefix "_" name))
         # prepend path with base directory
         (lib.mapAttrs (subDirName: _: (lib.path.append dir subDirName)))
-        # build
+        # build. If {sourcePath}/default.nix exists, call it. Otherwise call the generic builder
         (lib.mapAttrs (caseName: sourcePath:
           if builtins.pathExists "${sourcePath}/default.nix" then
             casesSelf.callPackage sourcePath { }
@@ -23,14 +29,14 @@ let
               inherit caseName sourcePath;
             })
         )
+        (lib.filterAttrs (caseName: caseDrv: assert caseDrv ? isFp; caseDrv.isFp -> isFp))
       ]);
     t1main = ./t1_main.S;
     linkerScript = ./t1.ld;
 
     stdenv = rv32-stdenv;
-    xLen = 32;
-    vLen = 1024;
-    fp = false;
+
+    inherit xLen vLen isFp;
 
     mlir = casesSelf.callPackage ./mlir { };
     intrinsic = casesSelf.callPackage ./intrinsic { };

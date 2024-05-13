@@ -4,17 +4,23 @@
 , useMoldLinker
 , newScope
 
-, rv32-stdenv
-, runCommand
 , pkgsX86
-
-, allConfigs
 }:
 
 let
   moldStdenv = useMoldLinker stdenv;
-in
 
+  configsDirectory = ../../configgen/generated;
+
+  # allConfigs is a (configName -> configJsonPath) map
+  allConfigs = lib.mapAttrs'
+    (fileName: fileType:
+      assert fileType == "regular" && lib.hasSuffix ".json" fileName;
+      lib.nameValuePair
+        (lib.removeSuffix ".json" fileName)
+        (lib.path.append configsDirectory fileName))
+    (builtins.readDir configsDirectory);
+in
 lib.makeScope newScope
   (self:
   let
@@ -32,7 +38,7 @@ lib.makeScope newScope
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
   } //
-  lib.genAttrs allConfigs (configName:
+  lib.mapAttrs (configName: configPath:
     # by using makeScope, callPackage can send the following attributes to package parameters
     lib.makeScope self.newScope (innerSelf: rec {
       recurseForDerivations = true;
@@ -40,19 +46,8 @@ lib.makeScope newScope
       # For package name concatenate
       inherit configName;
 
-      elaborateConfigJson = runCommand "${configName}-config.json" { } ''
-        ${self.configgen}/bin/configgen ${configName} -t .
-        mv config.json $out
-      '';
-
-      _caseBuilders = lib.makeScope innerSelf.newScope (buildersSelf: {
-        mkMlirCase = buildersSelf.callPackage ./testcases/make-mlir-case.nix { stdenv = rv32-stdenv; };
-        mkIntrinsicCase = buildersSelf.callPackage ./testcases/make-intrinsic-case.nix { stdenv = rv32-stdenv; };
-        mkAsmCase = buildersSelf.callPackage ./testcases/make-asm-case.nix { stdenv = rv32-stdenv; };
-        mkCodegenCase = buildersSelf.callPackage ./testcases/make-codegen-case.nix { stdenv = rv32-stdenv; };
-        mkBenchCase = buildersSelf.callPackage ../../tests/rvv_bench/make-bench-case.nix { stdenv = rv32-stdenv; };
-
-      });
+      elaborateConfigJson = configPath;
+      elaborateConfig = builtins.fromJSON (lib.readFile configPath);
 
       cases = innerSelf.callPackage ../../tests { };
 
@@ -90,5 +85,5 @@ lib.makeScope newScope
 
       release = innerSelf.callPackage ./release { };
     })
-  )
+  ) allConfigs
   )

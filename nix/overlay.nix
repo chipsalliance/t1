@@ -85,7 +85,5 @@ in
       };
   };
 
-  t1 = final.callPackage ./t1 {
-    allConfigs = (builtins.fromJSON (builtins.readFile ../configgen/all-configs.json)).configs;
-  };
+  t1 = final.callPackage ./t1 { };
 }

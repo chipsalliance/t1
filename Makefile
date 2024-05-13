@@ -50,5 +50,8 @@ list-testcases:
 
 .PHONY: list-configs
 list-configs:
-	nix run '.#t1.configgen' -- listConfigs | less -R
+	nix run '.#t1.configgen' -- listConfigs
 
+.PHONY: update-configs
+update-configs:
+	nix run '.#t1.configgen' -- listConfigs

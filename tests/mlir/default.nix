@@ -1,4 +1,5 @@
-{ linkerScript
+{ lib
+, linkerScript
 , buddy-mlir
 , makeBuilder
 , findAndBuild
@@ -12,6 +13,8 @@ let
       inherit caseName;
 
       src = sourcePath;
+
+      isFp = lib.pathExists (lib.path.append sourcePath "isFp");
 
       nativeBuildInputs = [ buddy-mlir ];
 
