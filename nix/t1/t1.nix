@@ -9,7 +9,7 @@
 , espresso
 , circt-full
 , jextract-21
-, strip-nondeterminism
+, add-determinism
 
 , submodules
 }:
@@ -61,7 +61,7 @@ let
       mill
       circt-full
       jextract-21
-      strip-nondeterminism
+      add-determinism
 
       makeWrapper
       passthru.millDeps.setupHook
@@ -83,11 +83,11 @@ let
     installPhase = ''
       mkdir -p $out/share/java
 
-      strip-nondeterminism out/elaborator/assembly.dest/out.jar
-      strip-nondeterminism out/configgen/assembly.dest/out.jar
-      strip-nondeterminism out/t1package/assembly.dest/out.jar
-      strip-nondeterminism out/t1package/sourceJar.dest/out.jar
-      strip-nondeterminism out/t1package/chiselPluginJar.dest/out.jar
+      add-determinism out/elaborator/assembly.dest/out.jar
+      add-determinism out/configgen/assembly.dest/out.jar
+      add-determinism out/t1package/assembly.dest/out.jar
+      add-determinism out/t1package/sourceJar.dest/out.jar
+      add-determinism out/t1package/chiselPluginJar.dest/out.jar
 
       mv out/configgen/assembly.dest/out.jar $out/share/java/configgen.jar
       mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar

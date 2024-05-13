@@ -23,6 +23,7 @@ in
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   rvv-codegen = final.callPackage ./pkgs/rvv-codegen.nix { };
+  add-determinism = final.callPackage ./pkgs/add-determinism { };  # faster strip-undetereminism
 
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {
