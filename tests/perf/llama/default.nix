@@ -21,6 +21,8 @@ let
 in
 
 build {
+  isFp = true;
+
   caseName = "llama";
 
   buildInputs = [ emurt ];

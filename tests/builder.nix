@@ -1,7 +1,7 @@
 # args from scope `casesSelf`
 { stdenv
 , jq
-, elaborateConfigJson
+, elaborateConfig
 }:
 
 # args from makeBuilder
@@ -36,21 +36,6 @@ stdenv.mkDerivation (self: rec {
     "-O3"
   ];
 
-  configurePhase = ''
-    export vLen=$(${jqBin} --exit-status --raw-output ".parameter.vLen" ${elaborateConfigJson})
-
-    is32BitLen=$(${jqBin} -r '.parameter.extensions[] | test("ve32")' ${elaborateConfigJson})
-    if [[ "$is32BitLen" = "true" ]] ; then
-      export xLen=32
-    else
-      export xLen=64
-    fi
-
-    isFp=$(${jqBin} -r '.parameter.extensions[] | test("f")' ${elaborateConfigJson})
-
-    echo "Set vLen=$vLen xLen=$xLen isFp=$isFp"
-  '';
-
   installPhase = ''
     runHook preInstall
 
@@ -60,11 +45,8 @@ stdenv.mkDerivation (self: rec {
     ${jqBin} --null-input \
       --arg name ${pname} \
       --arg type ${casePrefix} \
-      --argjson xLen "$xLen" \
-      --argjson vLen "$vLen" \
-      --argjson fp "$isFp" \
       --arg elfPath "$out/bin/${pname}.elf" \
-      '{ "name": $name, "type": $type, "xLen": $xLen, "vLen": $vLen, "fp": $fp, "elf": { "path": $elfPath } }' \
+      '{ "name": $name, "elf": { "path": $elfPath } }' \
       > $out/${pname}.json
 
     runHook postInstall

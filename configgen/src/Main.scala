@@ -18,8 +18,8 @@ object Main {
     def read(strs: Seq[String]): Either[String, os.Path] = Right(os.Path(strs.head, os.pwd))
   }
   implicit class EmitVParameter(p: T1Parameter) {
-    def emit(targetDir: os.Path) = os.write(
-      targetDir / "config.json",
+    def emit(targetFile: os.Path) = os.write(
+      targetFile,
       upickle.default.write(SerializableModuleGenerator(classOf[T1], p), indent = 2)
     )
   }
@@ -44,9 +44,26 @@ object Main {
     )
   }
 
+  @main def updateConfigs(
+    @arg(name = "project-dir", short = 't') projectDir: os.Path = os.pwd
+  ): Unit = {
+    val declaredMethods =
+      Main.getClass().getDeclaredMethods().filter(m => m.getParameterTypes().mkString(", ") == "class os.Path, boolean")
+
+    import scala.io.AnsiColor._
+
+    val generatedDir = projectDir / "configgen" / "generated"
+    os.list(generatedDir).foreach(f => os.remove(f))
+
+    declaredMethods.foreach(configgen => {
+      val configName = configgen.getName()
+      configgen.invoke(Main, generatedDir / s"$configName.json", true)
+    })
+  }
+
   // DLEN256 VLEN256;   FP; VRF p0rw,p1rw bank1; LSU bank8  beatbyte 8
   @main def blastoise(
-    @arg(name = "target-dir", short = 't') targetDir:             os.Path,
+    @arg(name = "target-file", short = 't') targetFile:             os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
     val vLen = 512
@@ -111,13 +128,13 @@ object Main {
           Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3)))
       )
     )
-    if (doEmit) param.emit(targetDir)
+    if (doEmit) param.emit(targetFile)
     param
   }
 
   // DLEN512 VLEN1K ; NOFP; VRF p0r,p1w   bank2; LSU bank8  beatbyte 16
   @main def machamp(
-    @arg(name = "target-dir", short = 't') targetDir:             os.Path,
+    @arg(name = "target-file", short = 't') targetFile:             os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
     val vLen = 1024
@@ -188,13 +205,13 @@ object Main {
         floatModuleParameters = Seq()
       )
     )
-    if (doEmit) param.emit(targetDir)
+    if (doEmit) param.emit(targetFile)
     param
   }
 
   // DLEN1K  VLEN4K ; NOFP; VRF p0rw       bank4; LSU bank16 beatbyte 16
   @main def sandslash(
-    @arg(name = "target-dir", short = 't') targetDir:             os.Path,
+    @arg(name = "target-file", short = 't') targetFile:             os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
     val vLen = 4096
@@ -267,79 +284,7 @@ object Main {
         floatModuleParameters = Seq()
       )
     )
-    if (doEmit) param.emit(targetDir)
-    param
-  }
-
-  // DLEN2K  VLEN16K; NOFP; VRF p0rw      bank8; LSU bank8  beatbyte 64
-  @main def alakazam(
-    @arg(name = "target-dir", short = 't') targetDir:             os.Path,
-    @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
-  ): T1Parameter = {
-    val vLen = 16384
-    val dLen = 2048
-    val param = T1Parameter(
-      vLen,
-      dLen,
-      extensions = Seq("Zve32x"),
-      // banks=8 dLen=2048
-      lsuBankParameters =
-        // scalar bank 0-1G
-        Seq(
-          BitSet(BitPat("b00??????????????????????????????"))
-        ).map(bs => LSUBankParameter("scalar", bs, 8, true)) ++
-          // ddr bank 1G-3G 512M/bank
-          Seq(
-            BitSet(BitPat("b01????????????????????00????????"), BitPat("b10????????????????????00????????")),
-            BitSet(BitPat("b01????????????????????01????????"), BitPat("b10????????????????????01????????")),
-            BitSet(BitPat("b01????????????????????10????????"), BitPat("b10????????????????????10????????")),
-            BitSet(BitPat("b01????????????????????11????????"), BitPat("b10????????????????????11????????"))
-          ).zipWithIndex.map { case (bs: BitSet, idx: Int) => LSUBankParameter(s"ddrBank$idx", bs, 4, false) } ++
-          // sRam bank 3G+ 256K/bank, 8banks
-          Seq(
-            BitSet(BitPat("b11000000000??????????000????????")),
-            BitSet(BitPat("b11000000000??????????001????????")),
-            BitSet(BitPat("b11000000000??????????010????????")),
-            BitSet(BitPat("b11000000000??????????011????????")),
-            BitSet(BitPat("b11000000000??????????100????????")),
-            BitSet(BitPat("b11000000000??????????101????????")),
-            BitSet(BitPat("b11000000000??????????110????????")),
-            BitSet(BitPat("b11000000000??????????111????????"))
-          ).zipWithIndex.map { case (bs: BitSet, idx: Int) => LSUBankParameter(s"sramBank$idx", bs, 4, false) },
-      vrfBankSize = 8,
-      vrfRamType = RamType.p0rw,
-      vfuInstantiateParameter = VFUInstantiateParameter(
-        slotCount = 4,
-        logicModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 0)), Seq(0, 1, 2, 3))
-        ),
-        aluModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(0)),
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(1)),
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(2)),
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 0)), Seq(3))
-        ),
-        shifterModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 0)), Seq(0, 1, 2, 3))
-        ),
-        mulModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
-        ),
-        divModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 0)), Seq(0, 1, 2, 3))
-        ),
-        divfpModuleParameters = Seq(),
-        otherModuleParameters =
-          Seq((
-            SerializableModuleGenerator(
-              classOf[OtherUnit],
-              OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 0)
-            ),
-            Seq(0, 1, 2, 3))),
-        floatModuleParameters = Seq()
-      )
-    )
-    if (doEmit) param.emit(targetDir)
+    if (doEmit) param.emit(targetFile)
     param
   }
 

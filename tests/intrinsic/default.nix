@@ -1,4 +1,5 @@
-{ linkerScript
+{ lib
+, linkerScript
 , makeBuilder
 , findAndBuild
 , t1main
@@ -11,6 +12,8 @@ let
       inherit caseName;
 
       src = sourcePath;
+
+      isFp = lib.pathExists (lib.path.append sourcePath "isFp");
 
       buildPhase = ''
         runHook preBuild
