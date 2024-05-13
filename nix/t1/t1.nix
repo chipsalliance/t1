@@ -29,7 +29,7 @@ let
         ./../../emuhelper
         ./../../ipemu/src
         ./../../elaborator
-        ./../../configgen
+        ./../../configgen/src
       ];
     };
 

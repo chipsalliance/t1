@@ -82,29 +82,9 @@ object Main:
   end resolveEmulatorPath
 
   def resolveElaborateConfig(
-      outputDir: os.Path,
       configName: String
   ): os.Path =
-    if (os.exists(outputDir / "config.json")) then
-      os.remove.all(outputDir / "config.json")
-
-    val cfgPath = os.Path(configName, os.pwd)
-    if (os.exists(cfgPath)) then return cfgPath
-
-    val nixArgs = Seq(
-      "nix",
-      "run",
-      "--no-warn-dirty",
-      ".#t1.configgen",
-      "--",
-      configName,
-      "-t",
-      outputDir.toString
-    )
-    Logger.trace(s"Runnning `${nixArgs.mkString(" ")}` to get config")
-    os.proc(nixArgs).call()
-
-    outputDir / "config.json"
+    os.pwd / "configgen" / "generated" / s"$configName.json"
   end resolveElaborateConfig
 
   def prepareOutputDir(
@@ -233,7 +213,7 @@ object Main:
     else resolveEmulatorPath(config, "ip", trace.value)
 
     import scala.util.chaining._
-    val elaborateConfig = resolveElaborateConfig(outputPath, config)
+    val elaborateConfig = resolveElaborateConfig(config)
       .pipe(os.read)
       .pipe(text => ujson.read(text))
     val tck = scala.math.pow(10, 3) / dramsim3Frequency
@@ -660,24 +640,9 @@ object Main:
     import scala.util.chaining._
     val testPlans: Seq[String] = emulatorConfigs.flatMap: configName =>
       val allCasesPath = nixBuild(s".#t1.$configName.cases.all")
-      // We can't filter it in nix as it will make the whole t1 attribute become IFD(Import From Derivation) attribute.
-      val isFp = nixBuild(s".#t1.$configName.elaborateConfigJson")
-        // We get the elaborate config JSON file [p]ath, read it as [r]aw string
-        .pipe(p => os.read(os.Path(p)))
-        // We get the [r]aw JSON string, parse it to ujson object
-        .pipe(r => ujson.read(r))
-        // We get the u[j]son object, get the first item of the .parameter.extensions field
-        .pipe(j => j.obj("parameter").obj("extensions").arr.head.str)
-        // Now we have the extension, test if it is Zve32f
-        .pipe(ext => ext == "Zve32f")
-      // Now we know that the emulator support FP or not, generate test plan base on this information
       os.walk(os.Path(allCasesPath) / "configs")
         .filter: path =>
           path.ext == "json"
-        .filter: path =>
-          os.read(path)
-            .pipe(raw => ujson.read(raw))
-            .pipe(json => json.obj("fp").bool == isFp)
         .map: path =>
           // configs/ directory have a list of <testName>.json files, we need those <testName>
           val testName = path.segments.toSeq.last.stripSuffix(".json")

@@ -1,0 +1,284 @@
+{
+  "parameter": {
+    "vLen": 4096,
+    "dLen": 1024,
+    "extensions": [
+      "Zve32x"
+    ],
+    "lsuBankParameters": [
+      {
+        "name": "scalar",
+        "region": "b00??????????????????????????????",
+        "beatbyte": 8,
+        "accessScalar": true
+      },
+      {
+        "name": "ddrBank0",
+        "region": "b01?????????????????????00???????\nb10?????????????????????00???????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "ddrBank1",
+        "region": "b01?????????????????????01???????\nb10?????????????????????01???????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "ddrBank2",
+        "region": "b01?????????????????????10???????\nb10?????????????????????10???????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "ddrBank3",
+        "region": "b01?????????????????????11???????\nb10?????????????????????11???????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank0",
+        "region": "b1100000000?????????0000?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank1",
+        "region": "b1100000000?????????0001?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank2",
+        "region": "b1100000000?????????0010?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank3",
+        "region": "b1100000000?????????0011?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank4",
+        "region": "b1100000000?????????0100?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank5",
+        "region": "b1100000000?????????0101?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank6",
+        "region": "b1100000000?????????0110?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank7",
+        "region": "b1100000000?????????0111?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank8",
+        "region": "b1100000000?????????1000?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank9",
+        "region": "b1100000000?????????1001?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank10",
+        "region": "b1100000000?????????1010?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank11",
+        "region": "b1100000000?????????1011?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank12",
+        "region": "b1100000000?????????1100?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank13",
+        "region": "b1100000000?????????1101?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank14",
+        "region": "b1100000000?????????1110?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      },
+      {
+        "name": "sramBank15",
+        "region": "b1100000000?????????1111?????????",
+        "beatbyte": 8,
+        "accessScalar": false
+      }
+    ],
+    "vrfBankSize": 4,
+    "vrfRamType": "org.chipsalliance.t1.rtl.vrf.RamType.p0rw",
+    "vfuInstantiateParameter": {
+      "slotCount": 4,
+      "logicModuleParameters": [
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 1
+            },
+            "generator": "org.chipsalliance.t1.rtl.MaskedLogic"
+          },
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ]
+      ],
+      "aluModuleParameters": [
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 1
+            },
+            "generator": "org.chipsalliance.t1.rtl.LaneAdder"
+          },
+          [
+            0
+          ]
+        ],
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 1
+            },
+            "generator": "org.chipsalliance.t1.rtl.LaneAdder"
+          },
+          [
+            1
+          ]
+        ],
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 1
+            },
+            "generator": "org.chipsalliance.t1.rtl.LaneAdder"
+          },
+          [
+            2
+          ]
+        ],
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 1
+            },
+            "generator": "org.chipsalliance.t1.rtl.LaneAdder"
+          },
+          [
+            3
+          ]
+        ]
+      ],
+      "shifterModuleParameters": [
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 1
+            },
+            "generator": "org.chipsalliance.t1.rtl.LaneShifter"
+          },
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ]
+      ],
+      "mulModuleParameters": [
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 2
+            },
+            "generator": "org.chipsalliance.t1.rtl.LaneMul"
+          },
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ]
+      ],
+      "divModuleParameters": [
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 1
+            },
+            "generator": "org.chipsalliance.t1.rtl.LaneDiv"
+          },
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ]
+      ],
+      "divfpModuleParameters": [],
+      "otherModuleParameters": [
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "vlMaxBits": 13,
+              "groupNumberBits": 5,
+              "laneNumberBits": 5,
+              "dataPathByteWidth": 4,
+              "latency": 1
+            },
+            "generator": "org.chipsalliance.t1.rtl.OtherUnit"
+          },
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ]
+      ],
+      "floatModuleParameters": []
+    }
+  },
+  "generator": "org.chipsalliance.t1.rtl.T1"
+}
