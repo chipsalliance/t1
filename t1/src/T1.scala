@@ -751,6 +751,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         completedVec.foreach(_ := false.B)
         WARRedResult.valid := false.B
         unOrderTypeInstruction := unOrderType
+        dataResult := 0.U.asTypeOf(dataResult)
       }.elsewhen(control.state.wLast && maskUnitIdle) {
         // 如果真需要执行的lane会wScheduler,不会提前发出last确认
         when(!mixedUnit) {
