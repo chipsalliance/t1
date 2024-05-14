@@ -225,7 +225,7 @@ impl SpikeHandle {
 			// inst is load / store/ v / quit
 			Some(mut se) => {
 				info!(
-					"SpikeStep: pc={:#?}, disasm={:?}, spike run vector insn",
+					"SpikeStep: pc={:#x}, disasm={:?}, spike run vector insn",
 					pc, disasm
 				);
 				se.pre_log_arch_changes(config, &self.spike).unwrap();
@@ -234,7 +234,7 @@ impl SpikeHandle {
 			}
 			None => {
 				info!(
-					"SpikeStep: pc={:#?}, disasm={:?}, spike run scalar insn",
+					"SpikeStep: pc={:#x}, disasm={:?}, spike run scalar insn",
 					pc, disasm
 				);
 				new_pc = proc.func();
@@ -259,7 +259,6 @@ impl SpikeHandle {
 		let proc = spike.get_proc();
 
 		let insn = proc.get_insn();
-		trace!("{:#x}", insn);
 
 		let opcode = clip(insn, 0, 6);
 		let width = clip(insn, 12, 14);

@@ -54,8 +54,8 @@ impl Processor {
 		unsafe { proc_get_insn(self.processor) }
 	}
 
-	pub fn get_vreg_addr(&self) -> *mut u8 {
-		unsafe { proc_get_vreg_addr(self.processor) }
+	pub fn get_vreg_data(&self, idx: u32, offset: u32) -> u8 {
+		unsafe { proc_get_vreg_data(self.processor, idx, offset) }
 	}
 
 	pub fn get_rs(&self) -> (u32, u32) {
@@ -177,7 +177,7 @@ extern "C" {
 	fn proc_get_state(proc: *mut ()) -> *mut ();
 	fn proc_func(proc: *mut ()) -> u64;
 	fn proc_get_insn(proc: *mut ()) -> u64;
-	fn proc_get_vreg_addr(proc: *mut ()) -> *mut u8;
+	fn proc_get_vreg_data(proc: *mut (), vreg_idx: u32, vreg_offset: u32) -> u8;
 	fn proc_get_rs(proc: *mut ()) -> u64;
 	fn proc_get_rd(proc: *mut ()) -> u32;
 	fn proc_get_rs_bits(proc: *mut ()) -> u64;

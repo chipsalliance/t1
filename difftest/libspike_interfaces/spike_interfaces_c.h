@@ -22,7 +22,7 @@ spike_state_t* proc_get_state(spike_processor_t* proc);
 
 uint64_t proc_func(spike_processor_t* proc);
 uint64_t proc_get_insn(spike_processor_t* proc);
-uint8_t* proc_get_vreg_addr(spike_processor_t* proc);
+uint8_t proc_get_vreg_data(spike_processor_t* proc, uint32_t vreg_idx, uint32_t vreg_offset);
 uint64_t proc_get_rs(spike_processor_t* proc);
 uint32_t proc_get_rd(spike_processor_t* proc);
 uint64_t proc_get_rs_bits(spike_processor_t* proc);

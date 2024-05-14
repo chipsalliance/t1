@@ -77,8 +77,8 @@ reg_t proc_get_insn(spike_processor_t* proc) {
   return fetch.insn.bits();
 }
 
-uint8_t* proc_get_vreg_addr(spike_processor_t* proc) {
-  return &proc->p->VU.elt<uint8_t>(0, 0);
+uint8_t proc_get_vreg_data(spike_processor_t* proc, uint32_t vreg_idx, uint32_t vreg_offset) {
+  return proc->p->VU.elt<uint8_t>(vreg_idx, vreg_offset);
 }
 
 uint32_t extract_f32(freg_t f) { return (uint32_t)f.v[0]; }

@@ -199,41 +199,46 @@ impl SpikeEvent {
 	pub fn pre_log_arch_changes(&mut self, config: &Config, spike: &Spike) -> anyhow::Result<()> {
 		// record the vrf writes before executing the insn
 		let vlen_in_bytes = config.parameter.vLen / 8;
+
+		let proc = spike.get_proc();
 		let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
-		let vrf_addr_raw = spike.get_proc().get_vreg_addr();
-		let vrf_addr = unsafe {
-			std::slice::from_raw_parts(vrf_addr_raw.wrapping_add(start as usize), len as usize)
-		};
-		trace!(
-			"vrf_addr: {:p}, start: {}, len: {}",
-			vrf_addr_raw,
-			start,
-			len
-		);
-		let vd_bytes = vrf_addr[0 as usize..len as usize].to_vec();
+		self.vd_write_record.vd_bytes.resize(len as usize, 0u8);
+		for i in 0..len {
+			let offset = start + i;
+			let vreg_index = offset / vlen_in_bytes;
+			let vreg_offset = offset % vlen_in_bytes;
+			let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
+			self.vd_write_record.vd_bytes[i as usize] = cur_byte;
+		}
 
 		if self.is_rd_fp {
 			self.rd_bits = spike.get_proc().get_rd();
 		}
-		self.vd_write_record.vd_bytes = vd_bytes;
-
 		Ok(())
 	}
 
 	pub fn log_arch_changes(&mut self, config: &Config, spike: &Spike) -> anyhow::Result<()> {
-		let proc = spike.get_proc();
+		self.log_vrf_write(spike, config).unwrap();
+		self.log_mem_write(spike).unwrap();
+		self.log_mem_read(spike).unwrap();
 
+		Ok(())
+	}
+
+	fn log_vrf_write(&mut self, spike: &Spike, config: &Config) -> anyhow::Result<()> {
+		let proc = spike.get_proc();
 		// record vrf writes
 		// note that we do not need log_reg_write to find records, we just decode the
 		// insn and compare bytes
 		let vlen_in_bytes = config.parameter.vLen / 8;
-		let vrf_addr = proc.get_vreg_addr();
 		let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
-		trace!("vrf_addr: {:p}, start: {}, len: {}", vrf_addr, start, len);
+		trace!("start: {}, len: {}", start, len);
 		for i in 0..len {
 			let offset = start + i;
 			let origin_byte = self.vd_write_record.vd_bytes[i as usize];
-			let cur_byte = unsafe { *vrf_addr.offset(offset as isize) };
+			let vreg_index = offset / vlen_in_bytes;
+			let vreg_offset = offset % vlen_in_bytes;
+			let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
 			if origin_byte != cur_byte {
 				self.vrf_access_record.all_writes.insert(
 					offset,
@@ -251,10 +256,6 @@ impl SpikeEvent {
 				);
 			}
 		}
-
-		self.log_mem_write(spike).unwrap();
-		self.log_mem_read(spike).unwrap();
-
 		Ok(())
 	}
 
