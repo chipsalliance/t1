@@ -806,7 +806,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         csrRegForMaskUnit.vl > csrRegForMaskUnit.vStart
       mvToVRF.foreach(d => when(requestRegDequeue.fire){d := writeMv})
       // 读后写中的读
-      val needWAR = maskTypeInstruction || border || (reduce && !popCount) || readMv
+      val needWAR = (maskTypeInstruction || border || reduce || readMv) && !popCount
       val skipLaneData: Bool = decodeResultReg(Decoder.mv)
       mixedUnit := writeMv || readMv
       maskReadLaneSelect.head := UIntToOH(writeBackCounter)
