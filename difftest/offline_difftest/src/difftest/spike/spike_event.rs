@@ -1,6 +1,5 @@
 use super::Spike;
 use super::{clip, read_mem};
-use crate::difftest::Config;
 use std::collections::HashMap;
 use tracing::{info, trace};
 
@@ -128,7 +127,7 @@ impl SpikeEvent {
 
 		let proc = spike.get_proc();
 		(se.rs1_bits, se.rs2_bits) = proc.get_rs_bits();
-		let (rs1, rs2) = proc.get_rs();
+		let (rs1, _) = proc.get_rs();
 		let rd = proc.get_rd();
 
 		se.is_rd_fp =
@@ -196,9 +195,9 @@ impl SpikeEvent {
 		return Ok((vd_bytes_start, if self.is_widening { len * 2 } else { len }));
 	}
 
-	pub fn pre_log_arch_changes(&mut self, config: &Config, spike: &Spike) -> anyhow::Result<()> {
+	pub fn pre_log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
 		// record the vrf writes before executing the insn
-		let vlen_in_bytes = config.parameter.vLen / 8;
+		let vlen_in_bytes = vlen;
 
 		let proc = spike.get_proc();
 		let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
@@ -217,20 +216,20 @@ impl SpikeEvent {
 		Ok(())
 	}
 
-	pub fn log_arch_changes(&mut self, config: &Config, spike: &Spike) -> anyhow::Result<()> {
-		self.log_vrf_write(spike, config).unwrap();
+	pub fn log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
+		self.log_vrf_write(spike, vlen).unwrap();
 		self.log_mem_write(spike).unwrap();
 		self.log_mem_read(spike).unwrap();
 
 		Ok(())
 	}
 
-	fn log_vrf_write(&mut self, spike: &Spike, config: &Config) -> anyhow::Result<()> {
+	fn log_vrf_write(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
 		let proc = spike.get_proc();
 		// record vrf writes
 		// note that we do not need log_reg_write to find records, we just decode the
 		// insn and compare bytes
-		let vlen_in_bytes = config.parameter.vLen / 8;
+		let vlen_in_bytes = vlen / 8;
 		let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
 		trace!("start: {}, len: {}", start, len);
 		for i in 0..len {

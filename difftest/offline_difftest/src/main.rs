@@ -20,8 +20,8 @@ struct Args {
 	log_file: Option<String>,
 
 	/// Path to the config file
-	#[arg(short, long)]
-	config_file: Option<String>,
+	#[arg(short, long, default_value="1024")]
+	vlen: u32
 }
 
 fn main() -> anyhow::Result<()> {
@@ -42,7 +42,7 @@ fn main() -> anyhow::Result<()> {
 
 	// if there is no log file, just run spike and quit
 	if args.log_file.is_none() {
-		let spike = SpikeHandle::new(1usize << 32, Path::new(&args.elf_file));
+		let spike = SpikeHandle::new(1usize << 32, Path::new(&args.elf_file), args.vlen);
 		loop {
 			count += 1;
 			if count % 1000000 == 0 {
@@ -64,16 +64,14 @@ fn main() -> anyhow::Result<()> {
 		1usize << 32,
 		args.elf_file,
 		args.log_file.unwrap(),
-		args.config_file.unwrap(),
+		args.vlen,
 	);
 
 	loop {
-		count += 1;
 		match diff.diff() {
 			Ok(_) => {}
-			Err(_) => {
-				info!("total count = {}", count);
-				info!("Simulation quit graceful");
+			Err(e) => {
+				info!("Simulation quit/error with {}", e);
 				return Ok(());
 			}
 		}

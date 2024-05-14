@@ -1,9 +1,9 @@
 use lazy_static::lazy_static;
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Mutex;
-use std::collections::VecDeque;
 use tracing::{info, trace};
 use xmas_elf::{
 	header,
@@ -16,8 +16,6 @@ use libspike_interfaces::*;
 
 mod spike_event;
 use spike_event::*;
-
-use super::Config;
 
 // read the addr from spike memory
 // caller should make sure the address is valid
@@ -114,34 +112,6 @@ pub fn clip(binary: u64, a: i32, b: i32) -> u32 {
 	(binary as u32 >> a) & mask
 }
 
-struct Queue<T> {
-	queue: VecDeque<T>,
-}
-
-impl<T> Queue<T> {
-	pub fn new() -> Self {
-		Queue {
-			queue: VecDeque::new(),
-		}
-	}
-
-	pub fn push(&mut self, item: T) {
-		self.queue.push_back(item);
-	}
-
-	pub fn pop(&mut self) -> Option<T> {
-		self.queue.pop_front()
-	}
-
-	pub fn is_empty(&self) -> bool {
-		self.queue.is_empty()
-	}
-
-	pub fn len(&self) -> usize {
-		self.queue.len()
-	}
-}
-
 pub struct SpikeHandle {
 	spike: Spike,
 
@@ -154,11 +124,14 @@ pub struct SpikeHandle {
 	/// consume from this queue, drive signal based on the queue. size of this
 	/// queue should be as big as enough to make rtl free to run, reducing the
 	/// context switch overhead.
-	to_rtl_queue: Queue<SpikeEvent>,
+	to_rtl_queue: VecDeque<SpikeEvent>,
+
+	/// vlen for v extension
+	vlen: u32,
 }
 
 impl SpikeHandle {
-	pub fn new(size: usize, fname: &Path) -> Self {
+	pub fn new(size: usize, fname: &Path, vlen: u32) -> Self {
 		// register the addr_to_mem callback
 		unsafe { spike_register_callback(rs_addr_to_mem) }
 
@@ -185,7 +158,8 @@ impl SpikeHandle {
 		SpikeHandle {
 			spike,
 			se_to_issue,
-			to_rtl_queue: Queue::new(),
+			to_rtl_queue: VecDeque::new(),
+			vlen,
 		}
 	}
 
@@ -208,9 +182,9 @@ impl SpikeHandle {
 		Ok(())
 	}
 
-	// execute the spike processor for one instruction and record 
+	// execute the spike processor for one instruction and record
 	// the spike event for difftest
-	pub fn spike_step(&mut self, config: &Config) -> anyhow::Result<()> {
+	pub fn spike_step(&mut self) -> anyhow::Result<()> {
 		let proc = self.spike.get_proc();
 		let state = proc.get_state();
 
@@ -222,15 +196,15 @@ impl SpikeHandle {
 
 		let new_pc;
 		match event {
-			// inst is load / store/ v / quit
+			// inst is load / store / v / quit
 			Some(mut se) => {
 				info!(
 					"SpikeStep: pc={:#x}, disasm={:?}, spike run vector insn",
 					pc, disasm
 				);
-				se.pre_log_arch_changes(config, &self.spike).unwrap();
+				se.pre_log_arch_changes(&self.spike, self.vlen).unwrap();
 				new_pc = proc.func();
-				se.log_arch_changes(config, &self.spike).unwrap();
+				se.log_arch_changes(&self.spike, self.vlen).unwrap();
 			}
 			None => {
 				info!(
@@ -265,22 +239,35 @@ impl SpikeHandle {
 		let rs1 = clip(insn, 15, 19);
 		let csr = clip(insn, 20, 31);
 
+		// early return vsetvl scalar instruction
+		let is_vsetvl = opcode == 0b1010111 && width == 0b111;
+		if is_vsetvl {
+			return None;
+		}
+
 		let is_load_type = opcode == 0b0000111 && (((width - 1) & 0b100) != 0);
 		let is_store_type = opcode == 0b0100111 && (((width - 1) & 0b100) != 0);
 		let is_v_type = opcode == 0b1010111;
 
 		let is_csr_type = opcode == 0b1110011 && ((width & 0b011) != 0);
 		let is_csr_write = is_csr_type && (((width & 0b100) | rs1) != 0);
-		let is_vsetvl = opcode == 0b1010111 && width == 0b111;
 
 		let is_quit = is_csr_write && csr == 0x7cc;
 
-		if is_vsetvl {
-			return None;
-		}
 		if is_load_type || is_store_type || is_v_type || is_quit {
 			return SpikeEvent::new(spike);
 		}
+		None
+	}
+
+	pub fn find_se_to_issue(&mut self) -> Option<&SpikeEvent> {
+		for se in self.to_rtl_queue.iter() {
+			if !se.is_issued {
+				return Some(se);
+			}
+		}
+
+		let se = self.spike_step().unwrap();
 		None
 	}
 
