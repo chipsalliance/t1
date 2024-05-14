@@ -21,7 +21,7 @@ class LaneFFO(datapathWidth: Int) extends Module {
   @public
   val maskType:     Bool = IO(Input(Bool()))
 
-  val truthMask: UInt = Mux(maskType, src.head, -1.S(datapathWidth.W).asUInt)
+  val truthMask: UInt = Mux(maskType, src.head, -1.S(datapathWidth.W).asUInt) & src(3)
   val srcData:   UInt = truthMask & src(1)
   val notZero:   Bool = srcData.orR
   val lo:        UInt = scanLeftOr(srcData)
