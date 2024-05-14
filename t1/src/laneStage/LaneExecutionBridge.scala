@@ -541,5 +541,8 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         recordNotExecute)) || reduceLastResponse
   assert(!queue.io.enq.valid || queue.io.enq.ready)
   dequeue <> queue.io.deq
-  updateMaskResult.foreach(_ := !recordQueue.io.deq.bits.sSendResponse.get && queue.io.enq.fire)
+  updateMaskResult.foreach(_ :=
+    (!recordQueue.io.deq.bits.sSendResponse.get && queue.io.enq.fire) ||
+      (enqueue.fire && enqueue.bits.groupCounter === 0.U)
+  )
 }
