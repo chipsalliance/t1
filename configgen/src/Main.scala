@@ -37,11 +37,6 @@ object Main {
       println(s"""${BOLD}${MAGENTA_B} ${configgen.getName()} ${RESET}
                  |   ${param.toString()}""".stripMargin)
     })
-
-    os.write.over(
-      projectDir / "configgen" / "all-configs.json",
-      upickle.default.write(Map("configs" -> declaredMethods.map(_.getName()).sorted))
-    )
   }
 
   @main def updateConfigs(
