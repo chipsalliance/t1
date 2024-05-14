@@ -14,10 +14,6 @@ struct Args {
   #[arg(short, long)]
   elf_file: String,
 
-  /// count start of instruction trace
-  #[arg(short, long, default_value = "0")]
-  start: u64,
-
   /// count step of instruction trace
   #[arg(short, long, default_value = "100000")]
   step: u64,
@@ -43,7 +39,7 @@ fn main() -> anyhow::Result<()> {
   let spike = SpikeHandle::new(1usize << 32, Path::new(&args.elf_file));
   loop {
     count += 1;
-    if count > args.start && count % args.step == 0 {
+    if count % args.step == 0 {
       info!(
         "count = {}, pc = {:#x}, inst = {}",
         count,
