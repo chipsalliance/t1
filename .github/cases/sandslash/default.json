@@ -24,7 +24,7 @@
   "codegen.vasubu_vv": 278200,
   "codegen.vasubu_vx": 2090344,
   "codegen.vcompress_vm": 136872,
-  "codegen.vcpop_m": 4955,
+  "codegen.vcpop_m": 4931,
   "codegen.vdiv_vv": 193913,
   "codegen.vdiv_vx": 727252,
   "codegen.vdivu_vv": 193676,
