@@ -93,7 +93,7 @@ pub struct SpikeHandle {
 }
 
 impl SpikeHandle {
-  pub fn new(size: usize, fname: &Path) -> Self {
+  pub fn new(size: usize, fname: &Path, vlen: u32) -> Self {
     // register the addr_to_mem callback
     unsafe { spike_register_callback(rs_addr_to_mem) }
 
@@ -104,8 +104,8 @@ impl SpikeHandle {
     let entry_addr = load_elf(fname).unwrap();
 
     // initialize spike
-    let arch = "vlen:1024,elen:32";
-    let set = "rv32gcv";
+    let arch = &format!("vlen:{},elen:32", vlen);
+    let set = "rv32imacv";
     let lvl = "M";
 
     let spike = Spike::new(arch, set, lvl);

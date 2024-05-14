@@ -183,22 +183,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "offline_difftest"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "lazy_static",
- "libc",
- "libloading",
- "serde",
- "serde_json",
- "tracing",
- "tracing-subscriber",
- "xmas-elf",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -345,6 +329,22 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "t1-simulator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "lazy_static",
+ "libc",
+ "libloading",
+ "serde",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
+ "xmas-elf",
 ]
 
 [[package]]

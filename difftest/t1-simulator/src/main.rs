@@ -15,8 +15,12 @@ struct Args {
   elf_file: String,
 
   /// count step of instruction trace
-  #[arg(short, long, default_value = "100000")]
+  #[arg(long, default_value = "100000")]
   step: u64,
+
+  /// vlen of the vector extension
+  #[arg(long, default_value = "1024")]
+  vlen: u32,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -36,7 +40,7 @@ fn main() -> anyhow::Result<()> {
   let mut count: u64 = 0;
 
   // if there is no log file, just run spike and quit
-  let spike = SpikeHandle::new(1usize << 32, Path::new(&args.elf_file));
+  let spike = SpikeHandle::new(1usize << 32, Path::new(&args.elf_file), args.vlen);
   loop {
     count += 1;
     if count % args.step == 0 {
