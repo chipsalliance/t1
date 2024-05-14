@@ -48,6 +48,8 @@ fn main() -> anyhow::Result<()> {
       );
     }
 
+    // TODO:Thinking about add features to capture exceptions like Illegal Instruction. 
+    // And T1 will add more SoC-level checker, e.g. memory boundary checker.
     match spike.exec() {
       Ok(_) => {}
       Err(e) => {
