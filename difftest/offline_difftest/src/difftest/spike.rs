@@ -115,7 +115,7 @@ pub fn clip(binary: u64, a: i32, b: i32) -> u32 {
 pub struct SpikeHandle {
 	spike: Spike,
 
-	se_to_issue: Option<SpikeEvent>, // se
+	pub se_to_issue: Option<SpikeEvent>, // se
 
 	/// to rtl stack
 	/// in the spike thread, spike should detech if this queue is full, if not
@@ -124,7 +124,7 @@ pub struct SpikeHandle {
 	/// consume from this queue, drive signal based on the queue. size of this
 	/// queue should be as big as enough to make rtl free to run, reducing the
 	/// context switch overhead.
-	to_rtl_queue: VecDeque<SpikeEvent>,
+	pub to_rtl_queue: VecDeque<SpikeEvent>,
 
 	/// vlen for v extension
 	vlen: u32,
@@ -184,20 +184,20 @@ impl SpikeHandle {
 
 	// execute the spike processor for one instruction and record
 	// the spike event for difftest
-	pub fn spike_step(&mut self) -> anyhow::Result<()> {
+	pub fn spike_step(&mut self) -> Option<SpikeEvent> {
 		let proc = self.spike.get_proc();
 		let state = proc.get_state();
 
 		let pc = state.get_pc();
 		let disasm = proc.disassemble();
 
-		let event = self.create_spike_event();
+		let mut event = self.create_spike_event();
 		state.clear();
 
 		let new_pc;
 		match event {
 			// inst is load / store / v / quit
-			Some(mut se) => {
+			Some(ref mut se) => {
 				info!(
 					"SpikeStep: pc={:#x}, disasm={:?}, spike run vector insn",
 					pc, disasm
@@ -217,13 +217,7 @@ impl SpikeHandle {
 
 		state.handle_pc(new_pc).unwrap();
 
-		let ret = state.exit();
-
-		if ret == 0 {
-			return Err(anyhow::anyhow!("simulation finished!"));
-		}
-
-		Ok(())
+		event
 	}
 
 	// step the spike processor until the instruction is load/store/v/quit
@@ -260,15 +254,19 @@ impl SpikeHandle {
 		None
 	}
 
-	pub fn find_se_to_issue(&mut self) -> Option<&SpikeEvent> {
+	pub fn find_se_to_issue(&mut self) -> SpikeEvent {
 		for se in self.to_rtl_queue.iter() {
 			if !se.is_issued {
-				return Some(se);
+				return se.clone();
 			}
 		}
 
-		let se = self.spike_step().unwrap();
-		None
+		loop {
+			if let Some(se) = self.spike_step() {
+				self.to_rtl_queue.push_front(se.clone());
+				return se;
+			}
+		}
 	}
 
 	pub fn peek_issue(&mut self, idx: u32) -> anyhow::Result<()> {

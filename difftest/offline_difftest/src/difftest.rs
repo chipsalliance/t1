@@ -4,7 +4,7 @@ mod spike;
 use dut::*;
 pub use spike::SpikeHandle;
 use std::path::Path;
-use tracing::error;
+use tracing::{error, trace};
 
 pub struct Difftest {
 	spike: SpikeHandle,
@@ -28,7 +28,6 @@ impl Difftest {
 	pub fn diff(&mut self) -> anyhow::Result<()> {
 		let event = self.dut.step()?;
 
-
 		match &*event.event {
 			"peekTL" => {
 				// check align
@@ -43,6 +42,40 @@ impl Difftest {
 				self.peek_issue(idx).unwrap();
 			}
 			_ => {}
+		}
+
+		loop {
+			let se = self.spike.find_se_to_issue();
+			if (se.is_vfence_insn || se.is_exit_insn) && self.spike.to_rtl_queue.len() == 1 {
+				if se.is_exit_insn {
+					error!("Simulation quit graceful");
+					return Err(anyhow::anyhow!("graceful exit"));
+				}
+
+				self.spike.to_rtl_queue.pop_back();
+				self.spike.se_to_issue = Some(se);
+			} else {
+				break;
+			}
+		}
+
+		// TODO: remove these, now just for aligning online difftest
+		if let Some(ref se) = self.spike.se_to_issue {
+			// it is ensured there are some other instruction not committed, thus
+			// se_to_issue should not be issued
+			if se.is_vfence_insn || se.is_exit_insn {
+				assert!(
+					self.spike.to_rtl_queue.len() > 1,
+					"to_rtl_queue are smaller than expected"
+				);
+				if se.is_exit_insn {
+					trace!("DPIPokeInst: exit waiting for fence");
+				} else {
+					trace!("DPIPokeInst: waiting for fence, no issuing new instruction");
+				}
+			} else {
+				trace!("DPIPokeInst: poke instruction")
+			}
 		}
 
 		Ok(())

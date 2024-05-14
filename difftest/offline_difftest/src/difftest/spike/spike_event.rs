@@ -3,67 +3,66 @@ use super::{clip, read_mem};
 use std::collections::HashMap;
 use tracing::{info, trace};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct MemLog {
 	addr: u64,
 	value: u64,
 	size: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SingleMemWrite {
 	val: u8,
 	executed: bool, // set to true when rtl execute this mem access
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SingleMemRead {
 	val: u8,
 	executed: bool, // set to true when rtl execute this mem access
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct MemWriteRecord {
 	writes: Vec<SingleMemWrite>,
 	num_completed_writes: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct MemReadRecord {
 	reads: Vec<SingleMemRead>,
 	num_completed_reads: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SingleVrfWrite {
 	byte: u8,
 	executed: bool, // set to true when rtl execute this mem access
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 struct VdWriteRecord {
 	vd_bytes: Vec<u8>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 struct MemAccessRecord {
 	all_writes: HashMap<u32, MemWriteRecord>,
 	all_reads: HashMap<u32, MemReadRecord>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 struct VrfAccessRecord {
 	all_writes: HashMap<u32, SingleVrfWrite>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct SpikeEvent {
 	// spike mem_read_info_t
 	mem_read_info: Vec<(u32, u64, u8)>,
 
-	// replace with actual struct name
-	log_mem_queue: Vec<MemLog>,
-
+	// // replace with actual struct name
+	// log_mem_queue: Vec<MemLog>,
 	lsu_idx: u8,
 	pub issue_idx: u8,
 
