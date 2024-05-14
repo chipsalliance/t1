@@ -167,7 +167,8 @@ jobs:
           old=$(showCirctClosure)
           nix flake update nixpkgs-for-circt
           new=$(showCirctClosure)
-          if diff -u <(echo $old) <(echo $new); then
+          diff_bin="$(nix build '.#diffutils' --no-link --print-out-paths)/bin/diff"
+          if "$diff_bin" -u <(echo $old) <(echo $new); then
             # if unchanged
             git restore flake.lock
           fi
