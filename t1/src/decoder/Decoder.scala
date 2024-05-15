@@ -37,9 +37,9 @@ case class SpecialAux(name: String, vs: Int, value: String)
 case class SpecialMap(name: String, vs: Int, data: Map[String, String])
 case class SpecialAuxInstr(instrName: String, vs: Int, value: String, name: String)
 case class Op(tpe: String, funct6: String, tpeOp2: String, funct3: String,
-              name: String, special: Option[SpecialAux], notLSU: Boolean) extends DecodePattern {
-  // include 21 bits: funct6 + vm + vs2 + vs1 + funct3 + LSU
-  def bitPat: BitPat = if (notLSU) BitPat(
+              name: String, special: Option[SpecialAux], notLSU: Boolean, vd: String, opcode: String) extends DecodePattern {
+  // include 32 bits: funct6 + vm + vs2 + vs1 + funct3 + vd + opcode
+  def bitPat: BitPat = BitPat(
     "b" +
       // funct6
       funct6 +
@@ -50,8 +50,10 @@ case class Op(tpe: String, funct6: String, tpeOp2: String, funct3: String,
       // vs1
       (if (special.isEmpty || special.get.vs == 2) "?????" else special.get.value) +
       // funct3
-      funct3 + "1"
-  ) else BitPat("b" + funct6 + "?" * 14 + "0")
+      funct3 +
+      vd +
+      opcode
+  )
 }
 
 object Decoder {
@@ -180,7 +182,9 @@ object Decoder {
         val tpeOp2 = if (op2vFunct3.contains(funct3)) "V" else if (op2xFunct3.contains(funct3)) "X" else if (op2iFunct3.contains(funct3)) "I" else if (op2fFunct3.contains(funct3)) "F" else "" // TODO: OPCFG
         val funct6 = insn.encoding.toString.substring(32-31-1, 32-26)
         val special = insnSpec.collectFirst { case s if (insn.name.contains(s.instrName)) => SpecialAux(s.name, s.vs, s.value) }
-        Op(tpe, funct6, tpeOp2, funct3, insn.name, special, notLSU=true)
+        val vd = insn.encoding.toString.substring(32-11-1, 32-7)
+        val opcode = insn.encoding.toString.substring(32-6-1, 32-0)
+        Op(tpe, funct6, tpeOp2, funct3, insn.name, special, notLSU=true, vd, opcode)
       }
       // case of LSU instructions: `opcodeLoadF` and `opcodeStoreF`
       ++ Seq("1", "0").map(fun6End =>
@@ -191,7 +195,22 @@ object Decoder {
           "???",             // funct3
           "lsu",
           None,
-          notLSU = false
+          notLSU = false,
+          "?????",           // vd
+          opcodeLoadF
+        )
+      )
+      ++ Seq("1", "0").map(fun6End =>
+        Op(
+          "I",               // tpe
+          "?????" + fun6End,
+          "?",               // tpeOp2
+          "???",             // funct3
+          "lsu",
+          None,
+          notLSU = false,
+          "?????",           // vd
+          opcodeStoreF
         )
       )
     ).toArray
