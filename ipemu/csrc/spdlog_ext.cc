@@ -58,11 +58,15 @@ static std::set<std::string> get_set_from_env(const char *env_name, const char d
 
 ConsoleSink::ConsoleSink() {
   whitelist = get_set_from_env("EMULATOR_LOG_WHITELIST", ',');
-  whitelist.insert("DPIInitCosim");
-  whitelist.insert("SpikeStep");
-  whitelist.insert("SimulationExit");
-  whitelist.insert("DPIPeekIssue");
-  whitelist.insert("DPIPokeInst");
+  if (whitelist.empty()) {
+    // default set of whitelist
+    whitelist.insert("DPIInitCosim");
+    whitelist.insert("SpikeStep");
+    whitelist.insert("FunctionCall");
+    whitelist.insert("SimulationExit");
+    whitelist.insert("DPIPeekIssue");
+    whitelist.insert("DPIPokeInst");
+  }
 
   // putting it in JsonLogger::JsonLogger will not work. not knowing why
   this->set_level(get_level_from_env("EMULATOR_CONSOLE_LOG_LEVEL", spdlog::level::info));
@@ -75,6 +79,10 @@ inline bool ConsoleSink::is_module_enabled(const std::string &module) {
 void ConsoleSink::sink_it_(const spdlog::details::log_msg &msg) {
   json payload = json::parse(msg.payload);
 
+  if (msg.level < this->level()) {
+    return;
+  }
+
   // filter message matching the current level
   if (msg.level == this->level()) {
     if (!is_module_enabled(payload["_module"])) return;
@@ -82,36 +90,44 @@ void ConsoleSink::sink_it_(const spdlog::details::log_msg &msg) {
 
   fmt::text_style level_color;
   switch (msg.level) {
-  case spdlog::level::debug:
-  case spdlog::level::trace:
-    level_color = fmt::fg(fmt::color::gray);
-    break;
-  case spdlog::level::info:
-    level_color = fmt::fg(fmt::color::white);
-    break;
-  case spdlog::level::warn:
-    level_color = fmt::fg(fmt::color::yellow);
-    break;
-  case spdlog::level::err:
-    level_color = fmt::fg(fmt::color::red);
+    case spdlog::level::debug:
+    case spdlog::level::trace:
+      level_color = fmt::fg(fmt::color::gray);
       break;
-  case spdlog::level::critical:
-    level_color = fmt::bg(fmt::color::red) | fmt::fg(fmt::color::white);
-    break;
-  default:
-    level_color = fmt::fg(fmt::color::white);
-    break;
+    case spdlog::level::info:
+      level_color = fmt::fg(fmt::color::white);
+      break;
+    case spdlog::level::warn:
+      level_color = fmt::fg(fmt::color::yellow);
+      break;
+    case spdlog::level::err:
+      level_color = fmt::fg(fmt::color::red);
+      break;
+    case spdlog::level::critical:
+      level_color = fmt::bg(fmt::color::red) | fmt::fg(fmt::color::white);
+      break;
+    default:
+      level_color = fmt::fg(fmt::color::white);
+      break;
   }
 
   std::cerr << fmt::format("{} {}",
                            fmt::styled(payload["_cycle"].get<int64_t>(), level_color),
                            fmt::styled(payload["_module"].get<std::string>(), fmt::fg(fmt::color::violet))
-                           );
+  );
   if (payload.contains("_msg")) {
     std::cerr << fmt::format(" {}", fmt::styled(payload["_msg"].get<std::string>(), fmt::fg(fmt::color::green)));
   }
   if (payload.contains("_with")) {
     std::cerr << fmt::format(" {}", fmt::styled(payload["_with"].dump(), fmt::fg(fmt::color::gray)));
+  }
+  if (msg.level > spdlog::level::err) {
+    std::cerr << "\n";
+    const auto frames = vbridge_impl_instance.frames;
+    for (auto frame = frames.rbegin(); frame != frames.rend(); frame++) {
+      std::cerr << fmt::format(fmt::fg(fmt::color::gray), "  call by {}(...) at {:08X}\n",
+                               frame->func_name, frame->func_addr);
+    }
   }
   std::cerr << "\n";
 }
@@ -160,7 +176,7 @@ JsonLogger::JsonLogger(bool no_logging, bool no_file_logging, bool no_console_lo
   }
 }
 
-JsonLogger::JsonLogger(): do_logging(false) { }
+JsonLogger::JsonLogger() : do_logging(false) {}
 
 // We can only implement a class method with template inside the class
 // declaration

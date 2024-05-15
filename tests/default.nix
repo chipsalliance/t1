@@ -54,6 +54,7 @@ let
     mlir = searchAndCallPackage ./mlir;
     intrinsic = searchAndCallPackage ./intrinsic;
     asm = searchAndCallPackage ./asm;
+    perf = searchAndCallPackage ./perf;
 
     # nix build .#t1.cases.codegen.vaadd-vv -L
     # codegen case are using xLen=32,vLen=1024 by default

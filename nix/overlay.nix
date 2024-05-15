@@ -18,6 +18,7 @@ in
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
+  libspike_interfaces = final.callPackage ../difftest/libspike_interfaces { };
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
@@ -42,14 +43,18 @@ in
       let
         major = final.lib.versions.major rv32_buildPkgs.${llvmForRVV_attrName}.release_version;
 
+        # By default, compiler-rt and newlib for rv32 are built with double float point abi by default.
+        # We need to override it with `-mabi=ilp32f`
+
         # compiler-rt requires the compilation flag -fforce-enable-int128, only clang provides that
-        compilerrt = rv32_pkgs.${llvmForRVV_attrName}.compiler-rt.override {
+        compilerrt = (rv32_pkgs.${llvmForRVV_attrName}.compiler-rt.override {
           stdenv = rv32_pkgs.overrideCC
             rv32_pkgs.stdenv
             rv32_buildPkgs.${llvmForRVV_attrName}.clangNoCompilerRt;
-        };
+        }).overrideAttrs (oldAttrs: {
+          env.NIX_CFLAGS_COMPILE = "-march=rv32gcv -mabi=ilp32f";
+        });
 
-        # newlib is built with double float point abi by default, override it
         newlib = rv32_pkgs.stdenv.cc.libc.overrideAttrs (oldAttrs: {
           CFLAGS_FOR_TARGET = "-march=rv32gcv -mabi=ilp32f";
         });

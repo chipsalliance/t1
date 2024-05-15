@@ -40,7 +40,7 @@ void VBridgeImpl::dpiInitCosim() {
   proc.get_state()->sstatus->write(proc.get_state()->sstatus->read() |
                                    SSTATUS_VS | SSTATUS_FS);
 
-  auto load_result = sim.load_elf(bin);
+  auto load_result = sim.load_elf32_little_endian(bin);
 
   proc.get_state()->pc = load_result.entry_addr;
 
@@ -369,6 +369,7 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
 
   clear_state(proc);
 
+  reg_t old_pc = state->pc;
   reg_t new_pc;
   if (event) {
     auto &se = event.value();
@@ -386,13 +387,67 @@ std::optional<SpikeEvent> VBridgeImpl::spike_step() {
     new_pc = fetch.func(&proc, fetch.insn, state->pc);
     se.log_arch_changes();
   } else {
+    auto disasm = proc.get_disassembler()->disassemble(fetch.insn);
     Log("SpikeStep")
         .with("pc", fmt::format("{:08X}", state->pc))
         .with("bits", fmt::format("{:08X}", fetch.insn.bits()))
-        .with("disasm", proc.get_disassembler()->disassemble(fetch.insn))
+        .with("disasm", disasm)
         .with("spike_cycles", spike_cycles)
         .info("spike run scalar insn");
     new_pc = fetch.func(&proc, fetch.insn, state->pc);
+
+    if (disasm == "ret") {
+      // When a function call is at the end of some parent function, the compiler may omit the save-ra process
+      // In this case we need to pop more than one frames when the child function returns
+      // Here we traverse the frames from top to bottom, until find a frame of the corresponding return_address
+      int layers_to_pop = 1;
+      for (; layers_to_pop <= frames.size(); layers_to_pop++) {
+        const auto &frame = frames[frames.size() - layers_to_pop];
+        if (frame.return_addr == new_pc) {
+          Log("FunctionCall")
+            .with("old_pc", fmt::format("{:08X}", old_pc))
+            .with("new_pc", fmt::format("{:08X}", new_pc))
+            .with("spike_cycles", spike_cycles)
+            .with("depth", frames.size())
+            .with("depth after return", frames.size() - layers_to_pop)
+            .info("return");
+          break;
+        }
+      }
+
+      if (layers_to_pop > frames.size()) {
+        // sometimes `ret` is used in inner-function jumping, in this case we cannot find corresponding frame
+        Log("FunctionCall")
+          .with("old_pc", fmt::format("{:08X}", old_pc))
+          .with("new_pc", fmt::format("{:08X}", new_pc))
+          .with("spike_cycles", spike_cycles)
+          .with("depth", frames.size())
+          .warn("cannot find the frame to return");
+      } else for (int j = 0; j < layers_to_pop; j++) {
+        frames.pop_back();
+      }
+    }
+  }
+
+  if (new_pc - state->pc != 2 && new_pc - state->pc != 4) {
+    auto sym_find = sim.get_symbol(new_pc);
+    if (sym_find != nullptr) {
+      reg_t return_addr = state->XPR[1];
+
+      // handle the case with omitted save-ra, in this case return_addr is set to null since it cannot be returned to
+      if (return_addr - old_pc != 2 && return_addr - old_pc != 4) {
+        return_addr = 0;
+      }
+      Log("FunctionCall")
+        .with("func_name", sym_find)
+        .with("old_pc", fmt::format("{:08X}", old_pc))
+        .with("new_pc", fmt::format("{:08X}", new_pc))
+        .with("return_addr", fmt::format("{:08X}", return_addr))
+        .with("spike_cycles", spike_cycles)
+        .with("depth", frames.size())
+        .info("call");
+      frames.emplace_back(CallFrame{sym_find, new_pc, return_addr, spike_cycles});
+    }
   }
 
   // Bypass CSR insns commitlog stuff.
@@ -497,7 +552,7 @@ void VBridgeImpl::receive_tl_req(const VTlInterface &tl) {
         Log("ReceiveTLReq")
             .with("addr", fmt::format("{:08X}", addr))
             .with("insn", se->jsonify_insn())
-            .warn("send falsy data 0xDE for accessing unexpected memory");
+            .info("send falsy data 0xDE for accessing unexpected memory");
         actual_data[offset] = 0xDE; // falsy data
       }
     }

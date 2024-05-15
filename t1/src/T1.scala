@@ -751,6 +751,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         completedVec.foreach(_ := false.B)
         WARRedResult.valid := false.B
         unOrderTypeInstruction := unOrderType
+        dataResult := 0.U.asTypeOf(dataResult)
       }.elsewhen(control.state.wLast && maskUnitIdle) {
         // 如果真需要执行的lane会wScheduler,不会提前发出last确认
         when(!mixedUnit) {
@@ -806,7 +807,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         csrRegForMaskUnit.vl > csrRegForMaskUnit.vStart
       mvToVRF.foreach(d => when(requestRegDequeue.fire){d := writeMv})
       // 读后写中的读
-      val needWAR = maskTypeInstruction || border || (reduce && !popCount) || readMv
+      val needWAR = (maskTypeInstruction || border || reduce || readMv) && !popCount
       val skipLaneData: Bool = decodeResultReg(Decoder.mv)
       mixedUnit := writeMv || readMv
       maskReadLaneSelect.head := UIntToOH(writeBackCounter)
@@ -1240,8 +1241,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
           decodeResultReg(Decoder.maskDestination) ||
           decodeResultReg(Decoder.ffo)
       // How many data path(32 bit) will used by maskDestination instruction.
+      val maskDestinationByteSize: Bits = csrRegForMaskUnit.vl(log2Ceil(parameter.dLen) - 1, 0) << csrRegForMaskUnit.vSew
       val maskDestinationUseDataPathSize =
-        (csrRegForMaskUnit.vl(log2Ceil(parameter.dLen) - 1, 0) << csrRegForMaskUnit.vSew >> 2).asUInt
+        (maskDestinationByteSize >> 2).asUInt + maskDestinationByteSize(1, 0).orR
       val lastGroupCountForThisGroup: UInt = maskDestinationUseDataPathSize(log2Ceil(parameter.laneNumber) - 1, 0)
       val counterForMaskDestination: UInt = if(parameter.laneNumber > 1) {
         (lastGroupCountForThisGroup - 1.U) |

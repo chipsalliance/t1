@@ -177,7 +177,7 @@ object Main:
       ) noLog: Flag = Flag(false),
       @arg(
         name = "no-file-logging",
-        doc = "prevent emulator print log to console"
+        doc = "prevent emulator print log to file"
       ) noFileLog: Flag = Flag(true),
       @arg(
         name = "no-console-logging",

@@ -265,6 +265,15 @@ private:
 
   int64_t spike_cycles = 0;
 
+  struct CallFrame {
+    std::string func_name;
+    reg_t func_addr;
+    reg_t return_addr;
+    int64_t spike_cycle;
+  };
+  std::vector<CallFrame> frames;
+  friend class ConsoleSink;
+
   std::optional<SpikeEvent> create_spike_event(insn_fetch_t fetch);
 
   std::optional<SpikeEvent> spike_step();

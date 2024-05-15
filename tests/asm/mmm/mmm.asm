@@ -7,6 +7,7 @@
 .text
 .balign 16
 .globl test
+.type  test, @function
 # assume VLEN >= 512, BN = 256, SEW = 16 * 2 = 32
 # we only support LMUL = 1 for now
 # P, A, B, AB should have 32 elements
