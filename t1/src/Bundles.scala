@@ -459,7 +459,7 @@ class VRFWriteRequest(regNumBits: Int, offsetBits: Int, instructionIndexSize: In
   val instructionIndex: UInt = UInt(instructionIndexSize.W)
 }
 
-class LSUWriteCheck(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {
+class LSUWriteCheck(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int) extends Bundle {
 
   /** address to access VRF.(v0, v1, v2, ...) */
   val vd: UInt = UInt(regNumBits.W)
