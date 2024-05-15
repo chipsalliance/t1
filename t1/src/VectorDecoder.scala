@@ -11,7 +11,7 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 @instantiable
 class VectorDecoder(fpuEnable: Boolean) extends Module {
   @public
-  val decodeInput: UInt = IO(Input(UInt(21.W)))
+  val decodeInput: UInt = IO(Input(UInt(32.W)))
   @public
   val decodeResult: DecodeBundle = IO(Output(new DecodeBundle(Decoder.all(fpuEnable))))
 

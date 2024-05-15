@@ -367,7 +367,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   requestRegDequeue.valid := requestReg.valid
   // TODO: decode the 7 bits in LSB, to get the instruction type.
   //       we only need to use it to find if it's a load/store instruction.
-  decode.decodeInput := (request.bits.instruction >> 12) ## request.bits.instruction(6)
+  decode.decodeInput := request.bits.instruction
 
   /** alias to [[requestReg.bits.decodeResult]], it is commonly used. */
   val decodeResult: DecodeBundle = requestReg.bits.decodeResult
