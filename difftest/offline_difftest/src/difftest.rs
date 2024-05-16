@@ -28,22 +28,6 @@ impl Difftest {
 	pub fn diff(&mut self) -> anyhow::Result<()> {
 		let event = self.dut.step()?;
 
-		match &*event.event {
-			"peekTL" => {
-				// check align
-				let addr = event.parameter.address.unwrap() as u128;
-				let size = event.parameter.size.unwrap();
-				if addr % (1 << size) != 0 {
-					error!("unaligned access (addr={:08X}, size={})", addr, 1 << size)
-				}
-			}
-			"issue" => {
-				let idx = event.parameter.idx.unwrap();
-				self.peek_issue(idx).unwrap();
-			}
-			_ => {}
-		}
-
 		loop {
 			let se = self.spike.find_se_to_issue();
 			if (se.is_vfence_insn || se.is_exit_insn) && self.spike.to_rtl_queue.len() == 1 {
@@ -53,14 +37,13 @@ impl Difftest {
 				}
 
 				self.spike.to_rtl_queue.pop_back();
-				self.spike.se_to_issue = Some(se);
 			} else {
 				break;
 			}
 		}
 
 		// TODO: remove these, now just for aligning online difftest
-		if let Some(ref se) = self.spike.se_to_issue {
+		if let Some(se) = self.spike.to_rtl_queue.get(0) {
 			// it is ensured there are some other instruction not committed, thus
 			// se_to_issue should not be issued
 			if se.is_vfence_insn || se.is_exit_insn {
@@ -76,6 +59,22 @@ impl Difftest {
 			} else {
 				trace!("DPIPokeInst: poke instruction")
 			}
+		}
+
+		match &*event.event {
+			"peekTL" => {
+				// check align
+				let addr = event.parameter.address.unwrap() as u128;
+				let size = event.parameter.size.unwrap();
+				if addr % (1 << size) != 0 {
+					error!("unaligned access (addr={:08X}, size={})", addr, 1 << size)
+				}
+			}
+			"issue" => {
+				let idx = event.parameter.idx.unwrap();
+				self.peek_issue(idx).unwrap();
+			}
+			_ => {}
 		}
 
 		Ok(())

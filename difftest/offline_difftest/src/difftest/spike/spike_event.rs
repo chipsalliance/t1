@@ -58,10 +58,7 @@ struct VrfAccessRecord {
 
 #[derive(Default, Debug, Clone)]
 pub struct SpikeEvent {
-	// spike mem_read_info_t
-	mem_read_info: Vec<(u32, u64, u8)>,
-
-	// // replace with actual struct name
+	// replace with actual struct name
 	// log_mem_queue: Vec<MemLog>,
 	lsu_idx: u8,
 	pub issue_idx: u8,

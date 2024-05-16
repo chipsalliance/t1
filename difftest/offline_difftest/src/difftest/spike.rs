@@ -115,8 +115,6 @@ pub fn clip(binary: u64, a: i32, b: i32) -> u32 {
 pub struct SpikeHandle {
 	spike: Spike,
 
-	pub se_to_issue: Option<SpikeEvent>, // se
-
 	/// to rtl stack
 	/// in the spike thread, spike should detech if this queue is full, if not
 	/// full, execute until a vector instruction, record the behavior of this
@@ -154,10 +152,8 @@ impl SpikeHandle {
 		proc.reset();
 		state.set_pc(entry_addr);
 
-		let se_to_issue = SpikeEvent::new(&spike);
 		SpikeHandle {
 			spike,
-			se_to_issue,
 			to_rtl_queue: VecDeque::new(),
 			vlen,
 		}
@@ -255,7 +251,7 @@ impl SpikeHandle {
 	}
 
 	pub fn find_se_to_issue(&mut self) -> SpikeEvent {
-		for se in self.to_rtl_queue.iter() {
+		for se in &self.to_rtl_queue {
 			if !se.is_issued {
 				return se.clone();
 			}
@@ -270,7 +266,7 @@ impl SpikeHandle {
 	}
 
 	pub fn peek_issue(&mut self, idx: u32) -> anyhow::Result<()> {
-		let se = self.se_to_issue.as_mut().unwrap();
+		let se = &mut self.to_rtl_queue[0];
 		if se.is_vfence_insn || se.is_exit_insn {
 			return Ok(());
 		}
