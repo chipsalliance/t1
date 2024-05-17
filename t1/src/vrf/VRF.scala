@@ -500,7 +500,11 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val isStore = recordSeq.map(r => r.valid && r.bits.ls && r.bits.st)
       val isSlow = recordSeq.map(r => r.valid && r.bits.slow)
       // todo: 重叠而不是相等
-      val samVd = sourceRecord.bits.vd === sinkRecord.bits.vd
+      val samVd =
+        (sourceRecord.bits.vd.valid && sinkRecord.bits.vd.valid) &&
+          (sourceRecord.bits.vd.bits(4, 3) === sinkRecord.bits.vd.bits(4, 3)) &&
+          // Want to write the same datapath(There are 0 in the same position)
+          (~(sourceRecord.bits.elementMask | sinkRecord.bits.elementMask)).asUInt.orR
       val sourceVdEqSinkVs: Bool = sourceRecord.bits.vd.valid && (
         (sourceRecord.bits.vd.bits === sinkRecord.bits.vs2) ||
           ((sourceRecord.bits.vd.bits === sinkRecord.bits.vs1.bits) && sinkRecord.bits.vs1.valid)
