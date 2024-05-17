@@ -31,10 +31,10 @@ pub struct Processor {
 }
 
 impl Processor {
-	pub fn disassemble(&self) -> std::borrow::Cow<str> {
+	pub fn disassemble(&self) -> String {
 		let bytes = unsafe { proc_disassemble(self.processor) };
 		let c_str = unsafe { CStr::from_ptr(bytes as *mut c_char) };
-		c_str.to_string_lossy()
+		format!("{}", c_str.to_string_lossy())
 	}
 
 	pub fn reset(&self) {
