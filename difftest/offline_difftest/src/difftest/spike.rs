@@ -17,6 +17,9 @@ use libspike_interfaces::*;
 mod spike_event;
 use spike_event::*;
 
+const MSHR: usize = 3;
+const LSU_IDX_DEFAULT: u8 = 0xff;
+
 // read the addr from spike memory
 // caller should make sure the address is valid
 #[no_mangle]
@@ -112,6 +115,11 @@ pub fn clip(binary: u64, a: i32, b: i32) -> u32 {
 	(binary as u32 >> a) & mask
 }
 
+pub struct Config {
+	pub vlen: u32,
+	pub dlen: u32,
+}
+
 pub struct SpikeHandle {
 	spike: Spike,
 
@@ -124,12 +132,12 @@ pub struct SpikeHandle {
 	/// context switch overhead.
 	pub to_rtl_queue: VecDeque<SpikeEvent>,
 
-	/// vlen for v extension
-	vlen: u32,
+	/// config for v extension
+	pub config: Config,
 }
 
 impl SpikeHandle {
-	pub fn new(size: usize, fname: &Path, vlen: u32) -> Self {
+	pub fn new(size: usize, fname: &Path, vlen: u32, dlen: u32) -> Self {
 		// register the addr_to_mem callback
 		unsafe { spike_register_callback(rs_addr_to_mem) }
 
@@ -155,7 +163,7 @@ impl SpikeHandle {
 		SpikeHandle {
 			spike,
 			to_rtl_queue: VecDeque::new(),
-			vlen,
+			config: Config { vlen, dlen },
 		}
 	}
 
@@ -198,9 +206,10 @@ impl SpikeHandle {
 					"SpikeStep: pc={:#x}, disasm={:?}, spike run vector insn",
 					pc, disasm
 				);
-				se.pre_log_arch_changes(&self.spike, self.vlen).unwrap();
+				se.pre_log_arch_changes(&self.spike, self.config.vlen)
+					.unwrap();
 				new_pc = proc.func();
-				se.log_arch_changes(&self.spike, self.vlen).unwrap();
+				se.log_arch_changes(&self.spike, self.config.vlen).unwrap();
 			}
 			None => {
 				info!(
@@ -251,7 +260,8 @@ impl SpikeHandle {
 	}
 
 	pub fn find_se_to_issue(&mut self) -> SpikeEvent {
-		for se in &self.to_rtl_queue {
+		// find the first instruction that is not issued from the back
+		for se in self.to_rtl_queue.iter().rev() {
 			if !se.is_issued {
 				return se.clone();
 			}
@@ -274,8 +284,165 @@ impl SpikeHandle {
 		se.is_issued = true;
 		se.issue_idx = 0;
 
-		info!("PeekIssue: idx={}", idx);
+		info!(
+			"SpikePeekIssue: idx={}, pc = {:#x}, inst = {}",
+			idx, se.pc, se.disasm
+		);
 
+		Ok(())
+	}
+
+	pub fn update_lsu_idx(&mut self, enq: u32) -> anyhow::Result<()> {
+		let mut lsu_reqs: Vec<u32> = vec![0; MSHR];
+		for i in 0..MSHR {
+			lsu_reqs[i] = ((enq >> i) & 1) as u32;
+		}
+		for se in self.to_rtl_queue.iter_mut().rev() {
+			if se.is_issued && (se.is_load || se.is_store) && (se.lsu_idx == LSU_IDX_DEFAULT) {
+				let mut index = LSU_IDX_DEFAULT;
+				for i in 0..MSHR {
+					if lsu_reqs[i] == 1 {
+						index = i as u8;
+						break;
+					}
+				}
+				if index == LSU_IDX_DEFAULT {
+					info!("SpikeUpdateLSUIdx: waiting for lsu request to fire");
+					break;
+				}
+				se.lsu_idx = index;
+				info!(
+					"SpikeUpdateLSUIdx: Instruction is allocated with pc: {:#x}, inst: {} and lsu_idx: {}",
+					se.pc, se.disasm, index
+				);
+				break;
+			}
+		}
+		Ok(())
+	}
+
+	pub fn peek_vrf_write_from_lsu(
+		&mut self,
+		idx: u32,
+		vd: u32,
+		offset: u32,
+		mask: u32,
+		data: u32,
+		instruction: u32,
+		lane: u32,
+	) -> anyhow::Result<()> {
+		for se in self.to_rtl_queue.iter_mut().rev() {
+			if se.issue_idx == idx as u8 {
+				info!("SpikePeekVrfWriteFromLsu: idx = {idx}, lane = {lane}, vd = {vd}, offset = {offset}, mask = {:#x}, data = {:#x}, instruction = {instruction}", mask, data);
+
+				let vlen_in_bytes = self.config.vlen / 8;
+				let lane_number = self.config.dlen / 32;
+				let record_idx_base = vd * vlen_in_bytes + (lane + lane_number * offset) * 4;
+
+				for j in 0..(32 / 8) {
+					// 32bit / 1byte
+					if ((mask >> j) & 1) != 0 {
+						let written_byte = ((data >> (8 * j)) & 0xff) as u8;
+						let record_iter = se
+							.vrf_access_record
+							.all_writes
+							.get_mut(&(record_idx_base + j));
+
+						if let Some(record) = record_iter {
+							// if find a spike write record
+							assert_eq!(
+								(record.byte as u8),
+								(written_byte as u8),
+								"{}th byte incorrect ({:02X} != {:02X}) for vrf \
+                            write (lane={}, vd={}, offset={}, mask={:04b}) \
+                            [vrf_idx={}] (lsu_idx={}, {})",
+								j,
+								record.byte,
+								written_byte,
+								lane,
+								vd,
+								offset,
+								mask,
+								record_idx_base + j,
+								se.lsu_idx,
+								format!(
+									"disasm: {}, pc: {:x}, bits: {:#x}",
+									se.disasm, se.pc, se.inst_bits
+								)
+							);
+							record.executed = true;
+						}
+					} // end if mask
+				} // end for j
+				return Ok(());
+			}
+		}
+
+		info!("SpikeRecordRFAccess: index: {idx}, rtl detect vrf write which cannot find se, maybe from committed load insn");
+
+		Ok(())
+	}
+
+	pub fn peek_vrf_write_from_lane(
+		&mut self,
+		lane_idx: u32,
+		vd: u32,
+		offset: u32,
+		mask: u32,
+		data: u32,
+		inst_idx: u32,
+	) -> anyhow::Result<()> {
+		for se in self.to_rtl_queue.iter_mut().rev() {
+			if se.issue_idx == inst_idx as u8 {
+				if se.is_load {
+					info!("SpikeRecordRFAccess: lane: {lane_idx}, vd: {vd}, offset: {offset}, mask: {mask}, data: {data}, instIndex: {inst_idx}");
+
+					let vlen_in_bytes = self.config.vlen / 8;
+					let lane_number = self.config.dlen / 32;
+					let record_idx_base = vd * vlen_in_bytes + (lane_idx + lane_number * offset) * 4;
+
+					for j in 0..(32 / 8) {
+						// 32bit / 1byte
+						if ((mask >> j) & 1) != 0 {
+							let written_byte = ((data >> (8 * j)) & 0xff) as u8;
+							let record_iter = se
+								.vrf_access_record
+								.all_writes
+								.get_mut(&(record_idx_base + j));
+
+							if let Some(record) = record_iter {
+								// if find a spike write record
+								assert_eq!(
+									(record.byte as u8),
+									(written_byte as u8),
+									"{}th byte incorrect ({:02X} != {:02X}) for vrf \
+                            write (lane={}, vd={}, offset={}, mask={:04b}) \
+                            [vrf_idx={}] (lsu_idx={}, {})",
+									j,
+									record.byte,
+									written_byte,
+									lane_idx,
+									vd,
+									offset,
+									mask,
+									record_idx_base + j,
+									se.lsu_idx,
+									format!(
+										"disasm: {}, pc: {:x}, bits: {:#x}",
+										se.disasm, se.pc, se.inst_bits
+									)
+								);
+								record.executed = true;
+							}
+						} // end if mask
+					} // end for j
+				}
+
+				return Ok(());
+			}
+		}
+
+		info!("SpikeRecordRFAccess: lane: {lane_idx}, rtl detect vrf write which cannot find se, maybe from committed load insn");
 		Ok(())
 	}
 }

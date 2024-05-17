@@ -14,6 +14,7 @@ pub enum Opcode {
 #[derive(Deserialize, Debug)]
 pub struct Parameter {
 	pub idx: Option<u32>,
+	pub enq: Option<u32>,
 	pub opcode: Option<u32>,
 	pub param: Option<u32>,
 	pub size: Option<u32>,

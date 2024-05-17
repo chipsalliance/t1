@@ -12,9 +12,9 @@ pub struct Difftest {
 }
 
 impl Difftest {
-	pub fn new(size: usize, elf_file: String, log_file: String, vlen: u32) -> Self {
+	pub fn new(size: usize, elf_file: String, log_file: String, vlen: u32, dlen: u32) -> Self {
 		Self {
-			spike: SpikeHandle::new(size, Path::new(&elf_file), vlen),
+			spike: SpikeHandle::new(size, Path::new(&elf_file), vlen, dlen),
 			dut: Dut::new(Path::new(&log_file)),
 		}
 	}
@@ -25,9 +25,53 @@ impl Difftest {
 		Ok(())
 	}
 
-	pub fn diff(&mut self) -> anyhow::Result<()> {
-		let event = self.dut.step()?;
+	fn update_lsu_idx(&mut self, enq: u32) -> anyhow::Result<()> {
+		self.spike.update_lsu_idx(enq).unwrap();
 
+		Ok(())
+	}
+
+	fn peek_vrf_write_from_lsu(
+		&mut self,
+		idx: u32,
+		vd: u32,
+		offset: u32,
+		mask: u32,
+		data: u32,
+		instruction: u32,
+		lane: u32,
+	) -> anyhow::Result<()> {
+		assert!(lane < self.spike.config.dlen / 32);
+
+		self
+			.spike
+			.peek_vrf_write_from_lsu(idx, vd, offset, mask, data, instruction, lane)
+			.unwrap();
+
+		Ok(())
+	}
+
+	fn peek_vrf_write_from_lane(
+		&mut self,
+		idx: u32,
+		vd: u32,
+		offset: u32,
+		mask: u32,
+		data: u32,
+		instruction: u32,
+	) -> anyhow::Result<()> {
+		// vrf_write.lane_index < config.lane_number
+		assert!(idx < self.spike.config.dlen / 32);
+
+		self
+			.spike
+			.peek_vrf_write_from_lane(idx, vd, offset, mask, data, instruction)
+			.unwrap();
+
+		Ok(())
+	}
+
+	fn poke_inst(&mut self) -> anyhow::Result<()> {
 		loop {
 			let se = self.spike.find_se_to_issue();
 			if (se.is_vfence_insn || se.is_exit_insn) && self.spike.to_rtl_queue.len() == 1 {
@@ -36,7 +80,7 @@ impl Difftest {
 					return Err(anyhow::anyhow!("graceful exit"));
 				}
 
-				self.spike.to_rtl_queue.pop_back();
+				self.spike.to_rtl_queue.pop_front();
 			} else {
 				break;
 			}
@@ -57,10 +101,21 @@ impl Difftest {
 					trace!("DPIPokeInst: waiting for fence, no issuing new instruction");
 				}
 			} else {
-				trace!("DPIPokeInst: poke instruction")
+				trace!(
+					"DPIPokeInst: poke instruction: pc = {:#x}, inst_bits = {:#x}, inst = {}",
+					se.pc,
+					se.inst_bits,
+					se.disasm
+				);
 			}
 		}
+		Ok(())
+	}
 
+	pub fn diff(&mut self) -> anyhow::Result<()> {
+		self.poke_inst()?;
+
+		let event = self.dut.step()?;
 		match &*event.event {
 			"peekTL" => {
 				// check align
@@ -73,6 +128,33 @@ impl Difftest {
 			"issue" => {
 				let idx = event.parameter.idx.unwrap();
 				self.peek_issue(idx).unwrap();
+			}
+			"lsuEnq" => {
+				let enq = event.parameter.enq.unwrap();
+				self.update_lsu_idx(enq).unwrap();
+			}
+			"vrfWriteFromLsu" => {
+				let idx = event.parameter.idx.unwrap();
+				let vd = event.parameter.vd.unwrap();
+				let offset = event.parameter.offset.unwrap();
+				let mask = event.parameter.mask.unwrap();
+				let data = event.parameter.data.unwrap();
+				let instruction = event.parameter.instruction.unwrap();
+				let lane = event.parameter.lane.unwrap();
+				self
+					.peek_vrf_write_from_lsu(idx, vd, offset, mask, data, instruction, lane)
+					.unwrap();
+			}
+			"vrfWriteFromLane" => {
+				let idx = event.parameter.idx.unwrap();
+				let vd = event.parameter.vd.unwrap();
+				let offset = event.parameter.offset.unwrap();
+				let mask = event.parameter.mask.unwrap();
+				let data = event.parameter.data.unwrap();
+				let instruction = event.parameter.instruction.unwrap();
+				self
+					.peek_vrf_write_from_lane(idx, vd, offset, mask, data, instruction)
+					.unwrap();
 			}
 			_ => {}
 		}

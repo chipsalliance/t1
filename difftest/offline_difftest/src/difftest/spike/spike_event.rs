@@ -4,106 +4,107 @@ use std::collections::HashMap;
 use tracing::{info, trace};
 
 #[derive(Debug, Clone)]
-struct MemLog {
+pub struct MemLog {
 	addr: u64,
 	value: u64,
 	size: u8,
 }
 
 #[derive(Debug, Clone)]
-struct SingleMemWrite {
+pub struct SingleMemWrite {
 	val: u8,
 	executed: bool, // set to true when rtl execute this mem access
 }
 
 #[derive(Debug, Clone)]
-struct SingleMemRead {
+pub struct SingleMemRead {
 	val: u8,
 	executed: bool, // set to true when rtl execute this mem access
 }
 
 #[derive(Debug, Clone)]
-struct MemWriteRecord {
+pub struct MemWriteRecord {
 	writes: Vec<SingleMemWrite>,
 	num_completed_writes: i32,
 }
 
 #[derive(Debug, Clone)]
-struct MemReadRecord {
+pub struct MemReadRecord {
 	reads: Vec<SingleMemRead>,
 	num_completed_reads: i32,
 }
 
 #[derive(Debug, Clone)]
-struct SingleVrfWrite {
-	byte: u8,
-	executed: bool, // set to true when rtl execute this mem access
+pub struct SingleVrfWrite {
+	pub byte: u8,
+	pub executed: bool, // set to true when rtl execute this mem access
 }
 
 #[derive(Default, Debug, Clone)]
-struct VdWriteRecord {
+pub struct VdWriteRecord {
 	vd_bytes: Vec<u8>,
 }
 
 #[derive(Default, Debug, Clone)]
-struct MemAccessRecord {
+pub struct MemAccessRecord {
 	all_writes: HashMap<u32, MemWriteRecord>,
 	all_reads: HashMap<u32, MemReadRecord>,
 }
 
 #[derive(Default, Debug, Clone)]
-struct VrfAccessRecord {
-	all_writes: HashMap<u32, SingleVrfWrite>,
+pub struct VrfAccessRecord {
+	pub all_writes: HashMap<u32, SingleVrfWrite>,
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct SpikeEvent {
 	// replace with actual struct name
 	// log_mem_queue: Vec<MemLog>,
-	lsu_idx: u8,
+	pub lsu_idx: u8,
 	pub issue_idx: u8,
 
 	pub is_issued: bool,
 
-	is_load: bool,
-	is_store: bool,
-	is_whole: bool,
-	is_widening: bool,
-	is_mask_vd: bool,
+	pub is_load: bool,
+	pub is_store: bool,
+	pub is_whole: bool,
+	pub is_widening: bool,
+	pub is_mask_vd: bool,
 	pub is_exit_insn: bool,
 	pub is_vfence_insn: bool,
 
-	pc: u64,
-	inst_bits: u64,
+	pub pc: u64,
+	pub inst_bits: u64,
 
 	// scalar to vector interface(used for driver)
-	rs1_bits: u32,
-	rs2_bits: u32,
-	rd_idx: u32,
+	pub rs1_bits: u32,
+	pub rs2_bits: u32,
+	pub rd_idx: u32,
 
 	// vtype
-	vsew: u32,
-	vlmul: u32,
-	vma: bool,
-	vta: bool,
-	vxrm: u32,
-	vnf: u32,
+	pub vsew: u32,
+	pub vlmul: u32,
+	pub vma: bool,
+	pub vta: bool,
+	pub vxrm: u32,
+	pub vnf: u32,
 
 	// other CSR
-	vill: bool,
-	vxsat: bool,
+	pub vill: bool,
+	pub vxsat: bool,
 
-	vl: u32,
-	vstart: u16,
+	pub vl: u32,
+	pub vstart: u16,
+	pub disasm: String,
 
-	vd_write_record: VdWriteRecord,
+	pub vd_write_record: VdWriteRecord,
 
-	is_rd_written: bool,
-	rd_bits: u32,
-	is_rd_fp: bool, // whether rd is a fp register
+	pub is_rd_written: bool,
+	pub rd_bits: u32,
+	pub is_rd_fp: bool, // whether rd is a fp register
 
-	mem_access_record: MemAccessRecord,
-	vrf_access_record: VrfAccessRecord,
+	pub mem_access_record: MemAccessRecord,
+	pub vrf_access_record: VrfAccessRecord,
 }
 
 impl SpikeEvent {
@@ -144,6 +145,7 @@ impl SpikeEvent {
 		se.vxsat = proc.vu_get_vxsat();
 		se.vl = proc.vu_get_vl();
 		se.vstart = proc.vu_get_vstart();
+		se.disasm = spike.get_proc().disassemble();
 
 		se.pc = proc.get_state().get_pc();
 		se.is_load = opcode == 0b0000111;

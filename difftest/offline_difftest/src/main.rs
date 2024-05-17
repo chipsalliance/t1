@@ -19,9 +19,13 @@ struct Args {
 	#[arg(short, long)]
 	log_file: Option<String>,
 
-	/// Path to the config file
-	#[arg(short, long, default_value="1024")]
-	vlen: u32
+	/// vlen config (default blastoise 512)
+	#[arg(short, long, default_value="512")]
+	vlen: u32,
+
+	/// dlen config (default blastoise 256)
+	#[arg(short, long, default_value="256")]
+	dlen: u32
 }
 
 fn main() -> anyhow::Result<()> {
@@ -42,7 +46,7 @@ fn main() -> anyhow::Result<()> {
 
 	// if there is no log file, just run spike and quit
 	if args.log_file.is_none() {
-		let spike = SpikeHandle::new(1usize << 32, Path::new(&args.elf_file), args.vlen);
+		let spike = SpikeHandle::new(1usize << 32, Path::new(&args.elf_file), args.vlen, args.dlen);
 		loop {
 			count += 1;
 			if count % 1000000 == 0 {
@@ -65,6 +69,7 @@ fn main() -> anyhow::Result<()> {
 		args.elf_file,
 		args.log_file.unwrap(),
 		args.vlen,
+		args.dlen,
 	);
 
 	loop {
