@@ -59,8 +59,10 @@ trait T1Module
     with HasRVDecoderDB {
   def arithmeticModule: ScalaModule
   def hardfloatModule: ScalaModule
+  // TODO: remove tilelink in next season
   def tilelinkModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, tilelinkModule)
+  def axi4Module: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, tilelinkModule, axi4Module)
 }
 
 trait ConfigGenModule

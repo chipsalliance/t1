@@ -49,6 +49,18 @@
     };
     date = "2024-05-16";
   };
+  chisel-interface = {
+    pname = "chisel-interface";
+    version = "bafb85a3204f7de46f87655ba21c33143b453378";
+    src = fetchFromGitHub {
+      owner = "chipsalliance";
+      repo = "chisel-interface";
+      rev = "bafb85a3204f7de46f87655ba21c33143b453378";
+      fetchSubmodules = false;
+      sha256 = "sha256-Qv2Ac2vJXaD7T+yRPNgFDQueA4B+XsLkZCzF2mWFvro=";
+    };
+    date = "2024-05-16";
+  };
   diplomacy = {
     pname = "diplomacy";
     version = "055be698f4ad55bf4a90b3d5e31d4344be5f788b";
