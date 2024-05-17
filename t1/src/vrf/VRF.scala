@@ -291,7 +291,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val readRecord =
         Mux1H(recordSelect.map(_.bits.instIndex === v.bits.instructionIndex), recordSelect.map(_.bits))
       val portConflictCheck = Wire(Bool())
-      val checkResult:  Bool =
+      val checkResult: Option[Bool] = Option.when(i == (readRequests.size - 1)) {
         recordSelect.zip(recordValidVec).zipWithIndex.map {
           case ((r, f), recordIndex) =>
             val checkModule = Instantiate(new ChainingCheck(parameter))
@@ -302,7 +302,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
             checkModule.recordValid := f
             checkModule.checkResult
         }.reduce(_ && _) && portConflictCheck
-      val validCorrect: Bool = if (i == (readRequests.size - 1)) v.valid && checkResult else v.valid
+      }
+      val validCorrect: Bool = if (i == (readRequests.size - 1)) v.valid && checkResult.get else v.valid
       // select bank
       val bank = if (parameter.rfBankNum == 1) true.B else UIntToOH(v.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
       val pipeBank = Pipe(true.B, bank, parameter.vrfReadLatency).bits
@@ -320,7 +321,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       })
       // 我选的这个port的第二个read port 没被占用
       val portReady: Bool = if (i == (readRequests.size - 1)) {
-        (bank & (~readPortCheckSelect)).orR && checkResult
+        (bank & (~readPortCheckSelect)).orR && checkResult.get
       } else {
         (bank & (~readPortCheckSelect)).orR
       }
