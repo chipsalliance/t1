@@ -181,7 +181,12 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   val maskCorrect: UInt = Mux(needCorrect, correctMask, 15.U(4.W))
   val crossReadOnlyMask: UInt = Fill(4, !updateLaneState.outOfExecutionRange)
 
-  stageWire.maskForMaskInput := (enqueue.bits.maskForMaskGroup >> enqueue.bits.maskIndex).asUInt(3, 0)
+  stageWire.maskForMaskInput :=
+    Mux(
+      enqueue.bits.maskType,
+      (enqueue.bits.maskForMaskGroup >> enqueue.bits.maskIndex).asUInt(3, 0),
+      0.U(4.W)
+    )
   stageWire.boundaryMaskCorrection := maskCorrect & crossReadOnlyMask
 
   /** The index of next element in this mask group.(0-31) */
