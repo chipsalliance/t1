@@ -314,4 +314,31 @@ impl SpikeEvent {
 
 		Ok(())
 	}
+
+	pub fn record_rd_write(&self, data: u32) -> anyhow::Result<()> {
+		// TODO: rtl should indicate whether resp_bits_data is valid
+		if self.is_rd_written {
+			assert_eq!(
+				data, self.rd_bits,
+				"expect to write rd[{}] = {}, actual {}",
+				self.rd_idx, self.rd_bits, data
+			);
+		}
+
+		Ok(())
+	}
+
+	pub fn check_is_ready_for_commit(&self) -> anyhow::Result<()> {
+		for record in self.mem_access_record.all_writes.values() {
+			assert_eq!(record.num_completed_writes, record.writes.len() as i32);
+		}
+		for record in self.mem_access_record.all_reads.values() {
+			assert_eq!(record.num_completed_reads, record.reads.len() as i32);
+		}
+		for record in self.vrf_access_record.all_writes.values() {
+			assert!(record.executed);
+		}
+
+		Ok(())
+	}
 }

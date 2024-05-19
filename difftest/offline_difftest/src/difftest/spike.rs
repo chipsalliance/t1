@@ -120,7 +120,7 @@ pub struct Config {
 	pub dlen: u32,
 }
 
-pub fn process_se(
+pub fn add_rtl_write(
 	se: &mut SpikeEvent,
 	mask: u32,
 	data: u32,
@@ -319,7 +319,7 @@ impl SpikeHandle {
 	}
 
 	pub fn peek_issue(&mut self, idx: u32) -> anyhow::Result<()> {
-		let se = &mut self.to_rtl_queue[0];
+		let se = self.to_rtl_queue.front_mut().unwrap();
 		if se.is_vfence_insn || se.is_exit_insn {
 			return Ok(());
 		}
@@ -371,24 +371,29 @@ impl SpikeHandle {
 		let lane_number = self.config.dlen / 32;
 		let record_idx_base = (vd * vlen_in_bytes + (lane_idx + lane_number * offset) * 4) as usize;
 
-		self
+		if let Some(se) = self
 			.to_rtl_queue
 			.iter_mut()
 			.rev()
 			.filter(|se| se.issue_idx == instruction as u8 && se.is_load == is_load)
-			.for_each(|se| {
-				process_se(
-					se,
-					mask,
-					data,
-					record_idx_base,
-					lane_idx as usize,
-					vd as usize,
-					offset as usize,
-				);
-			});
+			.next()
+		{
+			info!("SpikeRecordRFAccesses: lane={lane_idx}, vd={vd}, offset={offset}, mask={mask:04b}, data={data:08x}, instruction={instruction}");
 
-		Ok(())
+			add_rtl_write(
+				se,
+				mask,
+				data,
+				record_idx_base,
+				lane_idx as usize,
+				vd as usize,
+				offset as usize,
+			);
+
+			return Ok(());
+		}
+
+		Err(anyhow::anyhow!("cannot find se with issue_idx"))
 	}
 
 	pub fn peek_vrf_write_from_lsu(

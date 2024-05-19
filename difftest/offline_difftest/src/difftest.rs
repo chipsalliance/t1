@@ -107,7 +107,7 @@ impl Difftest {
 	}
 
 	pub fn diff(&mut self) -> anyhow::Result<()> {
-		self.poke_inst()?;
+		self.poke_inst().unwrap();
 
 		let event = self.dut.step()?;
 		match &*event.event {
@@ -149,6 +149,19 @@ impl Difftest {
 				self
 					.peek_vrf_write_from_lane(idx, vd, offset, mask, data, instruction)
 					.unwrap();
+			}
+			"inst" => {
+				let data = event.parameter.data.unwrap();
+				let vxsat = event.parameter.vxsat.unwrap();
+				let rd_valid = event.parameter.rd_valid.unwrap();
+				let rd = event.parameter.rd.unwrap();
+				let mem = event.parameter.mem.unwrap();
+
+				let se = self.spike.to_rtl_queue.back().unwrap();
+				se.record_rd_write(data).unwrap();
+				se.check_is_ready_for_commit().unwrap();
+
+				self.spike.to_rtl_queue.pop_back();
 			}
 			_ => {}
 		}
