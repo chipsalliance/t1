@@ -4,11 +4,22 @@ use std::path::Path;
 
 #[derive(Deserialize, Debug)]
 pub enum Opcode {
-	Get,
-	AccessAckData,
-	PutFullData,
-	PutPartialData,
-	AccessAck,
+	PutFullData = 0,
+	PutPartialData = 1,
+	Get = 4,
+	// AccessAckData = 0,
+	// AccessAck = 0,
+}
+
+impl Opcode {
+	pub fn from_u32(n: u32) -> Self {
+		match n {
+			0 => Opcode::PutFullData,
+			1 => Opcode::PutPartialData,
+			4 => Opcode::Get,
+			_ => panic!("unknown opcode"),
+		}
+	}
 }
 
 #[derive(Deserialize, Debug)]
@@ -23,7 +34,7 @@ pub struct Parameter {
 	pub mask: Option<u32>,
 	pub data: Option<u32>,
 	pub corrupt: Option<u32>,
-	pub dready: Option<u32>,
+	pub dReady: Option<u32>,
 	pub vd: Option<u32>,
 	pub offset: Option<u32>,
 	pub instruction: Option<u32>,
@@ -46,15 +57,18 @@ pub struct JsonEvents {
 // 	pub idx: u32,
 // }
 
-// pub struct PeekTL {
-// 	pub idx: u32,
-// 	pub vd: u32,
-// 	pub offset: u32,
-// 	pub mask: u32,
-// 	pub data: u32,
-// 	pub instruction: u32,
-// 	pub lane: u32,
-// }
+pub struct PeekTL {
+	pub idx: u32,
+	pub opcode: Opcode,
+	pub param: u32,
+	pub size: u32,
+	pub source: u32,
+	pub addr: u32,
+	pub mask: u32,
+	pub data: u32,
+	pub corrupt: u32,
+	pub dready: u32,
+}
 
 // pub struct VrfWrite {
 // 	pub idx: u32,

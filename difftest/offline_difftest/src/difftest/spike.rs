@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Mutex;
-use tracing::{info, trace};
+use tracing::{info, trace, warn};
 use xmas_elf::{
 	header,
 	program::{ProgramHeader, Type},
@@ -16,6 +16,8 @@ use libspike_interfaces::*;
 
 mod spike_event;
 use spike_event::*;
+
+use super::dut::*;
 
 const MSHR: usize = 3;
 const LSU_IDX_DEFAULT: u8 = 0xff;
@@ -328,8 +330,8 @@ impl SpikeHandle {
 		se.issue_idx = 0;
 
 		info!(
-			"SpikePeekIssue: idx={}, pc = {:#x}, inst = {}",
-			idx, se.pc, se.disasm
+			"SpikePeekIssue: idx={idx}, pc = {:#x}, inst = {}",
+			se.pc, se.disasm
 		);
 
 		Ok(())
@@ -375,8 +377,7 @@ impl SpikeHandle {
 			.to_rtl_queue
 			.iter_mut()
 			.rev()
-			.filter(|se| se.issue_idx == instruction as u8 && se.is_load == is_load)
-			.next()
+			.find(|se| se.issue_idx == instruction as u8 && se.is_load == is_load)
 		{
 			info!("SpikeRecordRFAccesses: lane={lane_idx}, vd={vd}, offset={offset}, mask={mask:04b}, data={data:08x}, instruction={instruction}");
 
@@ -393,7 +394,7 @@ impl SpikeHandle {
 			return Ok(());
 		}
 
-		Err(anyhow::anyhow!("cannot find se with issue_idx"))
+		Err(anyhow::anyhow!("cannot find se with issue_idx={lane_idx}"))
 	}
 
 	pub fn peek_vrf_write_from_lsu(
@@ -419,5 +420,56 @@ impl SpikeHandle {
 		instruction: u32,
 	) -> anyhow::Result<()> {
 		self.peek_vrf_write(lane_idx, vd, offset, mask, data, instruction, true)
+	}
+
+	pub fn peek_tl(&mut self, peek_tl: PeekTL) -> anyhow::Result<()> {
+		let base_addr = peek_tl.addr;
+		let size = 1 << peek_tl.size;
+		let lsu_idx = (peek_tl.source & 3) as u8;
+		if let Some(se) = self
+			.to_rtl_queue
+			.iter_mut()
+			.rev()
+			.find(|se| se.issue_idx == lsu_idx)
+		{
+			assert_eq!(
+				base_addr & size - 1,
+				0,
+				"unaligned access (addr={base_addr:08X}, size={size})"
+			);
+
+			match peek_tl.opcode {
+				Opcode::Get => {
+					let mut actual_data = vec![0u8; size as usize];
+					for offset in 0..size {
+						let addr = base_addr + offset as u32;
+						match se.mem_access_record.all_reads.get_mut(&addr) {
+							Some(mem_read) => {
+								let single_mem_read = &mem_read.reads[mem_read.num_completed_reads as usize];
+								mem_read.num_completed_reads += 1;
+								actual_data[offset as usize] = single_mem_read.val;
+							}
+							None => {
+								// TODO: check if the cache line should be accessed
+								warn!("ReceiveTLReq addr: {:08X} insn: {} send falsy data 0xDE for accessing unexpected memory", addr, format!("{:x}", se.inst_bits));
+								actual_data[offset as usize] = 0xDE; // falsy data
+							}
+						}
+					}
+
+					let channel = peek_tl.idx;
+					let mask = peek_tl.mask;
+					let source = peek_tl.source;
+					info!("SpikeReceiveTLReq: <- receive rtl mem get req: channel={channel}, base_addr={base_addr:08X}, size={size}, mask={mask:b}, source={source}, return_data={actual_data:?}")
+				}
+				_ => {
+					panic!("not implemented")
+				}
+			}
+
+			return Ok(());
+		}
+
+		Err(anyhow::anyhow!("cannot find se with issue_idx={lsu_idx}"))
 	}
 }

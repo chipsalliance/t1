@@ -110,14 +110,42 @@ impl Difftest {
 		self.poke_inst().unwrap();
 
 		let event = self.dut.step()?;
+
+		trace!("Spike {}", event.event);
 		match &*event.event {
 			"peekTL" => {
+				let idx = event.parameter.idx.unwrap();
+				// assert!(idx < self.spike.config.dlen / 32);
+				let opcode = event.parameter.opcode.unwrap();
+				let param = event.parameter.param.unwrap();
+				let source = event.parameter.source.unwrap();
+				let mask = event.parameter.mask.unwrap();
+				let data = event.parameter.data.unwrap();
+				let corrupt = event.parameter.corrupt.unwrap();
+				let dready = event.parameter.dReady.unwrap();
 				// check align
-				let addr = event.parameter.address.unwrap() as u128;
+				let addr = event.parameter.address.unwrap();
 				let size = event.parameter.size.unwrap();
 				if addr % (1 << size) != 0 {
 					error!("unaligned access (addr={:08X}, size={})", addr, 1 << size)
 				}
+
+				let opcode = Opcode::from_u32(opcode);
+				self
+					.spike
+					.peek_tl(PeekTL {
+						idx,
+						opcode,
+						param,
+						size,
+						source,
+						addr,
+						mask,
+						data,
+						corrupt,
+						dready,
+					})
+					.unwrap();
 			}
 			"issue" => {
 				let idx = event.parameter.idx.unwrap();
@@ -152,10 +180,10 @@ impl Difftest {
 			}
 			"inst" => {
 				let data = event.parameter.data.unwrap();
-				let vxsat = event.parameter.vxsat.unwrap();
-				let rd_valid = event.parameter.rd_valid.unwrap();
-				let rd = event.parameter.rd.unwrap();
-				let mem = event.parameter.mem.unwrap();
+				// let vxsat = event.parameter.vxsat.unwrap();
+				// let rd_valid = event.parameter.rd_valid.unwrap();
+				// let rd = event.parameter.rd.unwrap();
+				// let mem = event.parameter.mem.unwrap();
 
 				let se = self.spike.to_rtl_queue.back().unwrap();
 				se.record_rd_write(data).unwrap();
@@ -163,7 +191,9 @@ impl Difftest {
 
 				self.spike.to_rtl_queue.pop_back();
 			}
-			_ => {}
+			_ => {
+				panic!("unknown event: {}", event.event)
+			}
 		}
 
 		Ok(())

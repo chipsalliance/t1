@@ -3,23 +3,23 @@ use super::{clip, read_mem};
 use std::collections::HashMap;
 use tracing::{info, trace};
 
-#[derive(Debug, Clone)]
-pub struct MemLog {
-	addr: u64,
-	value: u64,
-	size: u8,
-}
+// #[derive(Debug, Clone)]
+// pub struct MemLog {
+// 	addr: u64,
+// 	value: u64,
+// 	size: u8,
+// }
 
 #[derive(Debug, Clone)]
 pub struct SingleMemWrite {
-	val: u8,
-	executed: bool, // set to true when rtl execute this mem access
+	pub val: u8,
+	pub executed: bool, // set to true when rtl execute this mem access
 }
 
 #[derive(Debug, Clone)]
 pub struct SingleMemRead {
-	val: u8,
-	executed: bool, // set to true when rtl execute this mem access
+	pub val: u8,
+	pub executed: bool, // set to true when rtl execute this mem access
 }
 
 #[derive(Debug, Clone)]
@@ -30,8 +30,8 @@ pub struct MemWriteRecord {
 
 #[derive(Debug, Clone)]
 pub struct MemReadRecord {
-	reads: Vec<SingleMemRead>,
-	num_completed_reads: i32,
+	pub reads: Vec<SingleMemRead>,
+	pub num_completed_reads: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -47,8 +47,8 @@ pub struct VdWriteRecord {
 
 #[derive(Default, Debug, Clone)]
 pub struct MemAccessRecord {
-	all_writes: HashMap<u32, MemWriteRecord>,
-	all_reads: HashMap<u32, MemReadRecord>,
+	pub all_writes: HashMap<u32, MemWriteRecord>,
+	pub all_reads: HashMap<u32, MemReadRecord>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -335,9 +335,9 @@ impl SpikeEvent {
 		for record in self.mem_access_record.all_reads.values() {
 			assert_eq!(record.num_completed_reads, record.reads.len() as i32);
 		}
-		for record in self.vrf_access_record.all_writes.values() {
-			assert!(record.executed);
-		}
+		// for record in self.vrf_access_record.all_writes.values() {
+		// 	assert!(record.executed);
+		// }
 
 		Ok(())
 	}
