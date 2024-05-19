@@ -41,14 +41,11 @@ impl Difftest {
 		instruction: u32,
 		lane: u32,
 	) -> anyhow::Result<()> {
-		assert!(lane < self.spike.config.dlen / 32);
+		assert!(idx < self.spike.config.dlen / 32);
 
 		self
 			.spike
-			.peek_vrf_write_from_lsu(idx, vd, offset, mask, data, instruction, lane)
-			.unwrap();
-
-		Ok(())
+			.peek_vrf_write_from_lsu(lane, vd, offset, mask, data, instruction)
 	}
 
 	fn peek_vrf_write_from_lane(
@@ -66,9 +63,6 @@ impl Difftest {
 		self
 			.spike
 			.peek_vrf_write_from_lane(idx, vd, offset, mask, data, instruction)
-			.unwrap();
-
-		Ok(())
 	}
 
 	fn poke_inst(&mut self) -> anyhow::Result<()> {

@@ -53,7 +53,7 @@ pub struct MemAccessRecord {
 
 #[derive(Default, Debug, Clone)]
 pub struct VrfAccessRecord {
-	pub all_writes: HashMap<u32, SingleVrfWrite>,
+	pub all_writes: HashMap<usize, SingleVrfWrite>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -238,7 +238,7 @@ impl SpikeEvent {
 			let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
 			if origin_byte != cur_byte {
 				self.vrf_access_record.all_writes.insert(
-					offset,
+					offset as usize,
 					SingleVrfWrite {
 						byte: cur_byte,
 						executed: false,
