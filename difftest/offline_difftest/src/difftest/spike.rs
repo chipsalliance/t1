@@ -143,16 +143,10 @@ pub fn add_rtl_write(
         assert_eq!(
           (record.byte as u8),
           (written_byte as u8),
-          "{}th byte incorrect ({:02X} != {:02X}) for vrf \
-						write (lane={}, vd={}, offset={}, mask={:04b}) \
+          "{j}th byte incorrect ({:02X} != {written_byte:02X}) for vrf \
+						write (lane={lane_idx}, vd={vd}, offset={offset}, mask={mask:04b}) \
 						[vrf_idx={}] (lsu_idx={}, {})",
-          j,
           record.byte,
-          written_byte,
-          lane_idx,
-          vd,
-          offset,
-          mask,
           record_idx_base + j,
           se.lsu_idx,
           format!(
@@ -432,12 +426,7 @@ impl SpikeHandle {
       .rev()
       .find(|se| se.issue_idx == lsu_idx)
     {
-      assert_eq!(
-        base_addr & size - 1,
-        0,
-        "unaligned access (addr={base_addr:08X}, size={size})"
-      );
-
+			println!("peekTL: {peek_tl:?}");
       match peek_tl.opcode {
         Opcode::Get => {
           let mut actual_data = vec![0u8; size as usize];

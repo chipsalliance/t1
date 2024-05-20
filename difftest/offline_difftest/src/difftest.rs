@@ -96,10 +96,8 @@ impl Difftest {
         }
       } else {
         trace!(
-          "DPIPokeInst: poke instruction: pc = {:#x}, inst_bits = {:#x}, inst = {}",
-          se.pc,
-          se.inst_bits,
-          se.disasm
+          "DPIPokeInst: poke instruction: pc={:#x}, inst={}",
+          se.pc, se.disasm
         );
       }
     }
@@ -124,9 +122,9 @@ impl Difftest {
         let corrupt = event.parameter.corrupt.unwrap();
         let dready = event.parameter.dReady.unwrap();
         // check align
-        let addr = 1 << event.parameter.address.unwrap();
-        let size = event.parameter.size.unwrap();
-        if addr % (1 << size) != 0 {
+        let addr = event.parameter.address.unwrap();
+        let size = 1 << event.parameter.size.unwrap();
+        if addr % size != 0 {
           error!("unaligned access (addr={addr:08X}, size={size})")
         }
 

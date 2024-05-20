@@ -57,6 +57,7 @@ pub struct JsonEvents {
 // 	pub idx: u32,
 // }
 
+#[derive(Debug)]
 pub struct PeekTL {
   pub idx: u32,
   pub opcode: Opcode,

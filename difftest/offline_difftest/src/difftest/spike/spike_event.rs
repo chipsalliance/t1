@@ -331,10 +331,7 @@ impl SpikeEvent {
           },
         );
       });
-      info!(
-        "SpikeMemRead: addr={:x}, value={:x}, size={}",
-        addr, value, size
-      );
+      info!("SpikeMemRead: addr={addr:x}, value={value:x}, size={size}");
     });
 
     Ok(())
@@ -354,14 +351,28 @@ impl SpikeEvent {
   }
 
   pub fn check_is_ready_for_commit(&self) -> anyhow::Result<()> {
-    for record in self.mem_access_record.all_writes.values() {
-      assert_eq!(record.num_completed_writes, record.writes.len() as i32);
+    for (addr, record) in &self.mem_access_record.all_writes {
+      assert_eq!(
+        record.num_completed_writes,
+        record.writes.len() as i32,
+        "expect to write mem {addr}, not executed when commit ({})",
+        format!("pc={}, inst={}", self.pc, self.disasm)
+      );
     }
-    for record in self.mem_access_record.all_reads.values() {
-      assert_eq!(record.num_completed_reads, record.reads.len() as i32);
+    for (addr, record) in &self.mem_access_record.all_reads {
+      assert_eq!(
+        record.num_completed_reads,
+        record.reads.len() as i32,
+        "expect to read mem {addr}, not executed when commit ({})",
+        format!("pc={}, inst={}", self.pc, self.disasm)
+      );
     }
-    for record in self.vrf_access_record.all_writes.values() {
-      assert!(record.executed);
+    for (idx, record) in &self.vrf_access_record.all_writes {
+      assert!(
+        record.executed,
+        "expect to write vrf {idx}, not executed when commit ({})",
+        format!("pc={}, inst={}", self.pc, self.disasm)
+      );
     }
 
     Ok(())
