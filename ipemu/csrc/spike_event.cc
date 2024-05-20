@@ -69,24 +69,24 @@ void SpikeEvent::log_arch_changes() {
     if ((write_idx & 0xf) == 0b0000) { // scalar rf
       uint32_t new_rd_bits = proc.get_state()->XPR[rd_idx];
       if (new_rd_bits != rd_bits) {
-        rd_bits = new_rd_bits;
-        is_rd_written = true;
         Log("ScalarRFChange")
             .with("rd_index", rd_idx)
             .with("change_from", rd_bits)
             .with("change_to", new_rd_bits)
             .trace("spike detect scalar rf change");
+        rd_bits = new_rd_bits;
+        is_rd_written = true;
       }
     } else if ((write_idx & 0xf) == 0b0001) {
       uint32_t new_fd_bits = extract_f32(proc.get_state()->FPR[rd_idx]);
-      if (new_fd_bits == rd_bits) {
-        rd_bits = new_fd_bits;
-        is_rd_written = true;
+      if (new_fd_bits != rd_bits) {
         Log("FloatRFChange")
             .with("rd_index", rd_idx)
             .with("change_from", rd_bits)
             .with("change_to", new_fd_bits)
             .trace("spike detect float rf change");
+        rd_bits = new_fd_bits;
+        is_rd_written = true;
       }
     } else {
       Log("UnknownRegChange")
