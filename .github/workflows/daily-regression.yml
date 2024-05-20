@@ -159,16 +159,11 @@ jobs:
           nix run '.#nvfetcher' -- -f '^chisel$'
       - name: Bump circt
         run: |
-          showCirctClosure() {
-            nix build '.#circt' --no-link
-            nix path-info --recursive '.#circt'
-          }
-
-          old=$(showCirctClosure)
+          oldFirtool="$(nix build '.#circt' --no-link --print-out-paths)/bin/firtool"
           nix flake update nixpkgs-for-circt
-          new=$(showCirctClosure)
+          newFirtool="$(nix build '.#circt' --no-link --print-out-paths)/bin/firtool"
           diff_bin="$(nix build '.#diffutils' --no-link --print-out-paths)/bin/diff"
-          if "$diff_bin" -u <(echo $old) <(echo $new); then
+          if "$diff_bin" -u <($oldFirtool --version) <($newFirtool --version); then
             # if unchanged
             git restore flake.lock
           fi
