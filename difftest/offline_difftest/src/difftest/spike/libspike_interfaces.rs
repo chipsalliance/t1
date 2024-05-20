@@ -128,6 +128,14 @@ impl State {
 		}
 	}
 
+	pub fn get_reg_write_size(&self) -> u32 {
+		unsafe { state_get_reg_write_size(self.state) }
+	}
+
+	pub fn get_reg_write_data(&self, index: u32, is_fp: bool) -> u32 {
+		unsafe { state_get_reg_write_data(self.state, index, is_fp) }
+	}
+
 	pub fn get_mem_write_size(&self) -> u32 {
 		unsafe { state_get_mem_write_size(self.state) }
 	}
@@ -193,13 +201,15 @@ extern "C" {
 	fn proc_destruct(proc: *mut ());
 	fn state_set_pc(state: *mut (), pc: u64);
 	fn state_get_pc(state: *mut ()) -> u64;
-	fn state_get_mem_write_size(state: *mut()) -> u32;
-	fn state_get_mem_write_addr(state: *mut(), index: u32) -> u32;
-	fn state_get_mem_write_value(state: *mut(), index: u32) -> u64;
-	fn state_get_mem_write_size_by_byte(state: *mut(), index: u32) -> u8;
-	fn state_get_mem_read_size(state: *mut()) -> u32;
-	fn state_get_mem_read_addr(state: *mut(), index: u32) -> u32;
-	fn state_get_mem_read_size_by_byte(state: *mut(), index: u32) -> u8;
+	fn state_get_reg_write_size(state: *mut ()) -> u32;
+	fn state_get_reg_write_data(state: *mut (), index: u32, is_fp: bool) -> u32;
+	fn state_get_mem_write_size(state: *mut ()) -> u32;
+	fn state_get_mem_write_addr(state: *mut (), index: u32) -> u32;
+	fn state_get_mem_write_value(state: *mut (), index: u32) -> u64;
+	fn state_get_mem_write_size_by_byte(state: *mut (), index: u32) -> u8;
+	fn state_get_mem_read_size(state: *mut ()) -> u32;
+	fn state_get_mem_read_addr(state: *mut (), index: u32) -> u32;
+	fn state_get_mem_read_size_by_byte(state: *mut (), index: u32) -> u8;
 	fn state_handle_pc(state: *mut (), pc: u64) -> u64;
 	fn state_clear(state: *mut ());
 	fn state_destruct(state: *mut ());

@@ -216,6 +216,7 @@ impl SpikeEvent {
 
 	pub fn log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
 		self.log_vrf_write(spike, vlen).unwrap();
+		self.log_reg_write(spike).unwrap();
 		self.log_mem_write(spike).unwrap();
 		self.log_mem_read(spike).unwrap();
 
@@ -253,6 +254,35 @@ impl SpikeEvent {
 				);
 			}
 		}
+		Ok(())
+	}
+
+	fn log_reg_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
+		let proc = spike.get_proc();
+		let state = proc.get_state();
+		// in spike, log_reg_write is arrange:
+		// xx0000 <- x
+		// xx0001 <- f
+		// xx0010 <- vreg
+		// xx0011 <- vec
+		// xx0100 <- csr
+		let reg_write_size = state.get_reg_write_size();
+		(0..reg_write_size).for_each(|idx| match idx & 0xf {
+			0b0000 | 0b0001 => {
+				// scalar rf
+				let data = state.get_reg_write_data(idx, idx & 0b1 != 0);
+				if data != self.rd_bits {
+					trace!(
+						"SpikeRegChange: idx={idx}, change_from={}, change_to={data}",
+						self.rd_bits
+					);
+					self.rd_bits = data;
+					self.is_rd_written = true;
+				}
+			}
+			_ => trace!("UnknownRegChange, idx={idx}, spike detect unknown reg change"),
+		});
+
 		Ok(())
 	}
 
@@ -335,10 +365,14 @@ impl SpikeEvent {
 		for record in self.mem_access_record.all_reads.values() {
 			assert_eq!(record.num_completed_reads, record.reads.len() as i32);
 		}
-		// for record in self.vrf_access_record.all_writes.values() {
-		// 	assert!(record.executed);
-		// }
+		for record in self.vrf_access_record.all_writes.values() {
+			assert!(record.executed);
+		}
 
 		Ok(())
+	}
+
+	pub fn insn(&self) -> String {
+		format!("pc={:x}, inst={:x}", self.pc, self.inst_bits)
 	}
 }

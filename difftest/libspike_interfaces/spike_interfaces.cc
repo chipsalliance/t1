@@ -101,6 +101,7 @@ uint32_t proc_get_rd(spike_processor_t* proc) {
   return fetch.insn.rd();
 }
 
+// TODO: refactor this api
 uint64_t proc_get_rs_bits(spike_processor_t* proc) {
   auto state = proc->p->get_state();
   auto &xr = state->XPR;
@@ -187,6 +188,19 @@ uint64_t state_handle_pc(spike_state_t* state, uint64_t new_pc) {
 
 void state_set_pc(spike_state_t* state, uint64_t pc) {
   state->s->pc = pc;
+}
+
+uint32_t state_get_reg_write_size(spike_state_t* state) {
+  return state->s->log_reg_write.size();
+}
+
+uint32_t state_get_reg_write_data(spike_state_t* state, uint32_t index, bool is_fp) {
+  if (is_fp) {
+    auto &fr = state->s->FPR;
+    return extract_f32(fr[index]);
+  } 
+  auto &xr = state->s->XPR;
+  return (uint32_t)xr[index];
 }
 
 uint32_t state_get_mem_write_size(spike_state_t* state) {

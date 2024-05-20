@@ -424,7 +424,7 @@ impl SpikeHandle {
 
 	pub fn peek_tl(&mut self, peek_tl: PeekTL) -> anyhow::Result<()> {
 		let base_addr = peek_tl.addr;
-		let size = 1 << peek_tl.size;
+		let size = peek_tl.size;
 		let lsu_idx = (peek_tl.source & 3) as u8;
 		if let Some(se) = self
 			.to_rtl_queue
@@ -451,7 +451,7 @@ impl SpikeHandle {
 							}
 							None => {
 								// TODO: check if the cache line should be accessed
-								warn!("ReceiveTLReq addr: {:08X} insn: {} send falsy data 0xDE for accessing unexpected memory", addr, format!("{:x}", se.inst_bits));
+								warn!("ReceiveTLReq addr: {addr:08X} insn: {} send falsy data 0xDE for accessing unexpected memory", format!("{:x}", se.inst_bits));
 								actual_data[offset as usize] = 0xDE; // falsy data
 							}
 						}
@@ -460,7 +460,10 @@ impl SpikeHandle {
 					let channel = peek_tl.idx;
 					let mask = peek_tl.mask;
 					let source = peek_tl.source;
-					info!("SpikeReceiveTLReq: <- receive rtl mem get req: channel={channel}, base_addr={base_addr:08X}, size={size}, mask={mask:b}, source={source}, return_data={actual_data:?}")
+					let hex_actual_data = actual_data
+						.iter()
+						.fold(String::new(), |acc, x| acc + &format!("{:02X} ", x));
+					info!("SpikeReceiveTLReq: <- receive rtl mem get req: channel={channel}, base_addr={base_addr:08X}, size={size}, mask={mask:b}, source={source}, return_data={hex_actual_data}");
 				}
 				_ => {
 					panic!("not implemented")

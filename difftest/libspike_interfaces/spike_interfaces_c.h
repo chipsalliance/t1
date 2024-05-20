@@ -38,6 +38,8 @@ uint16_t proc_vu_get_vstart(spike_processor_t* proc);
 uint64_t state_get_pc(spike_state_t* state);
 uint64_t state_handle_pc(spike_state_t* state, uint64_t new_pc);
 void state_set_pc(spike_state_t* state, uint64_t pc);
+uint32_t state_get_reg_write_size(spike_state_t* state);
+uint32_t state_get_reg_write_data(spike_state_t* state, uint32_t index, bool is_fp);
 uint32_t state_get_mem_write_size(spike_state_t* state);
 uint32_t state_get_mem_write_addr(spike_state_t* state, uint32_t index);
 uint64_t state_get_mem_write_value(spike_state_t* state, uint32_t index);

@@ -124,10 +124,10 @@ impl Difftest {
 				let corrupt = event.parameter.corrupt.unwrap();
 				let dready = event.parameter.dReady.unwrap();
 				// check align
-				let addr = event.parameter.address.unwrap();
+				let addr = 1 << event.parameter.address.unwrap();
 				let size = event.parameter.size.unwrap();
 				if addr % (1 << size) != 0 {
-					error!("unaligned access (addr={:08X}, size={})", addr, 1 << size)
+					error!("unaligned access (addr={addr:08X}, size={size})")
 				}
 
 				let opcode = Opcode::from_u32(opcode);

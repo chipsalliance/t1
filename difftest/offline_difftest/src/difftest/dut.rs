@@ -126,15 +126,12 @@ impl Dut {
 	}
 
 	pub fn step(&mut self) -> anyhow::Result<&JsonEvents> {
-		loop {
-			let event = match self.events.get(self.idx as usize) {
-				Some(event) => event,
-				None => return Err(anyhow::anyhow!("no more events")),
-			};
-			self.idx += 1;
-			if event.event != "Issue" {
-				return Ok(event);
-			}
-		}
+		let event = match self.events.get(self.idx as usize) {
+			Some(event) => event,
+			None => return Err(anyhow::anyhow!("no more events")),
+		};
+		self.idx += 1;
+
+		return Ok(event);
 	}
 }
