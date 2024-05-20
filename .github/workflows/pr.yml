@@ -95,7 +95,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Test elaborate"
         run: |
-          configArray=( $(jq -r '.configs[]' configgen/all-configs.json) )
+          configArray=( $(ls configgen/generated | sed 's/\.json$//') )
           for cfg in "${configArray[@]}"; do
             echo "Building .#t1.${cfg}.ip.rtl"
             if ! nix build ".#t1.${cfg}.ip.rtl" -L; then
