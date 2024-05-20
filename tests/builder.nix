@@ -1,7 +1,10 @@
 # args from scope `casesSelf`
 { stdenv
+, lib
 , jq
 , elaborateConfig
+, isFp
+, vLen
 }:
 
 # args from makeBuilder
@@ -24,17 +27,22 @@ stdenv.mkDerivation (self: rec {
 
   CC = "${stdenv.targetPlatform.config}-cc";
 
-  NIX_CFLAGS_COMPILE = [
-    "-mabi=ilp32f"
-    "-march=rv32gcv"
-    "-mno-relax"
-    "-static"
-    "-mcmodel=medany"
-    "-fvisibility=hidden"
-    "-fno-PIC"
-    "-g"
-    "-O3"
-  ];
+  NIX_CFLAGS_COMPILE =
+    let
+      march = (if isFp then "rv32gc_zve32f" else "rv32gc_zve32x")
+        + (if vLen >= 32 then "_zvl${toString (lib.min 1024 vLen)}b" else "");
+    in
+    [
+      "-mabi=ilp32f"
+      "-march=${march}"
+      "-mno-relax"
+      "-static"
+      "-mcmodel=medany"
+      "-fvisibility=hidden"
+      "-fno-PIC"
+      "-g"
+      "-O3"
+    ];
 
   installPhase = ''
     runHook preInstall
