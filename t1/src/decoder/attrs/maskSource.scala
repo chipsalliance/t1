@@ -1,0 +1,22 @@
+
+def maskSource = Seq(
+	"vadc.vim",
+	"vadc.vvm",
+	"vadc.vxm",
+	"vfmerge.vfm",
+	"vmadc.vi",
+	"vmadc.vim",
+	"vmadc.vv",
+	"vmadc.vvm",
+	"vmadc.vx",
+	"vmadc.vxm",
+	"vmerge.vim",
+	"vmerge.vvm",
+	"vmerge.vxm",
+	"vmsbc.vv",
+	"vmsbc.vvm",
+	"vmsbc.vx",
+	"vmsbc.vxm",
+	"vsbc.vvm",
+	"vsbc.vxm",
+)  

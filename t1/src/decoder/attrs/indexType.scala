@@ -1,0 +1,4 @@
+
+def indexType = Seq(
+	"lsu",
+)  

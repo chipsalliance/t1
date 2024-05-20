@@ -1,0 +1,23 @@
+
+def logic = Seq(
+	"vand.vi",
+	"vand.vv",
+	"vand.vx",
+	"vmand.mm",
+	"vmandn.mm",
+	"vmnand.mm",
+	"vmnor.mm",
+	"vmor.mm",
+	"vmorn.mm",
+	"vmxnor.mm",
+	"vmxor.mm",
+	"vor.vi",
+	"vor.vv",
+	"vor.vx",
+	"vredand.vs",
+	"vredor.vs",
+	"vredxor.vs",
+	"vxor.vi",
+	"vxor.vv",
+	"vxor.vx",
+)  

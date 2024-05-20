@@ -1,0 +1,21 @@
+
+def saturate = Seq(
+	"vsadd.vi",
+	"vsadd.vv",
+	"vsadd.vx",
+	"vsaddu.vi",
+	"vsaddu.vv",
+	"vsaddu.vx",
+	"vsmul.vv",
+	"vsmul.vx",
+	"vssra.vi",
+	"vssra.vv",
+	"vssra.vx",
+	"vssrl.vi",
+	"vssrl.vv",
+	"vssrl.vx",
+	"vssub.vv",
+	"vssub.vx",
+	"vssubu.vv",
+	"vssubu.vx",
+)  
