@@ -9,7 +9,10 @@ let
   extension = lib.head elaborateConfig.parameter.extensions;
   xLen = if lib.hasInfix "ve32" extension then 32 else 64;
   isFp = lib.hasInfix "f" extension;
-  vLen = elaborateConfig.parameter.vLen;
+  vLen = let vLen = elaborateConfig.parameter.vLen; in
+    assert builtins.bitAnd vLen (vLen - 1) == 0;  # vLen should be power of 2
+    assert vLen >= 32;
+    vLen;
 
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     makeBuilder = casesSelf.callPackage ./builder.nix { };
