@@ -498,5 +498,16 @@
   "codegen.vfredosum_vs": 143154,
   "codegen.vfredusum_vs": 100760,
   "codegen.vfredmax_vs": 100760,
-  "codegen.vfredmin_vs": 100760
+  "codegen.vfredmin_vs": 100760,
+  "rvv_bench.ascii_to_utf16": 1000000000,
+  "rvv_bench.ascii_to_utf32": 1000000000,
+  "rvv_bench.byteswap": 1000000000,
+  "rvv_bench.chacha20": 1000000000,
+  "rvv_bench.mandelbrot": 1000000000,
+  "rvv_bench.memcpy": 1000000000,
+  "rvv_bench.memset": 1000000000,
+  "rvv_bench.mergelines": 1000000000,
+  "rvv_bench.poly1305": 1000000000,
+  "rvv_bench.strlen": 1000000000,
+  "rvv_bench.utf8_count": 1000000000
 }

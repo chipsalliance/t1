@@ -434,5 +434,15 @@
   "codegen.vxor_vv": 28910,
   "codegen.vxor_vx": 75784,
   "codegen.vzext_vf2": 40117,
-  "codegen.vzext_vf4": 6625
+  "codegen.vzext_vf4": 6625,
+  "rvv_bench.ascii_to_utf16": 1000000000,
+  "rvv_bench.ascii_to_utf32": 1000000000,
+  "rvv_bench.byteswap": 1000000000,
+  "rvv_bench.chacha20": 1000000000,
+  "rvv_bench.memcpy": 1000000000,
+  "rvv_bench.memset": 1000000000,
+  "rvv_bench.mergelines": 1000000000,
+  "rvv_bench.poly1305": 1000000000,
+  "rvv_bench.strlen": 1000000000,
+  "rvv_bench.utf8_count": 1000000000
 }
