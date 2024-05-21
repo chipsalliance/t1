@@ -356,7 +356,7 @@ impl SpikeEvent {
         record.num_completed_writes,
         record.writes.len() as i32,
         "expect to write mem {addr}, not executed when commit ({})",
-        format!("pc={}, inst={}", self.pc, self.disasm)
+        format!("pc={:#x}, inst={}", self.pc, self.disasm)
       );
     }
     for (addr, record) in &self.mem_access_record.all_reads {
@@ -364,14 +364,14 @@ impl SpikeEvent {
         record.num_completed_reads,
         record.reads.len() as i32,
         "expect to read mem {addr}, not executed when commit ({})",
-        format!("pc={}, inst={}", self.pc, self.disasm)
+        format!("pc={:#x}, inst={}", self.pc, self.disasm)
       );
     }
     for (idx, record) in &self.vrf_access_record.all_writes {
       assert!(
         record.executed,
         "expect to write vrf {idx}, not executed when commit ({})",
-        format!("pc={}, inst={}", self.pc, self.disasm)
+        format!("pc={:#x}, inst={}", self.pc, self.disasm)
       );
     }
 
