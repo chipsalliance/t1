@@ -170,8 +170,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
         1.U,
         (1.U << csrInterface.vlmul(1, 0)).asUInt(3, 0)
       ),
-      // TODO: reset to 0.U
-      1.U,
+      0.U,
       lsuRequest.valid
     )
 

@@ -295,8 +295,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
         1.U,
         (1.U << csrInterface.vlmul(1, 0)).asUInt(3, 0)
       ),
-      // TODO: reset to 0.U
-      1.U,
+      0.U,
       lsuRequest.valid
     )
 
@@ -367,7 +366,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
     segmentIndex := Mux(segmentEnd || lsuRequest.valid, 0.U, segmentIndexNext)
   }
 
-  // TODO: why [[!isSegmentLoadStore]]? alias segmentEnd
+  // [[!isSegmentLoadStore]]: segSize = 1 -> always segmentEnd
   val lastElementForSegment = !isSegmentLoadStore || segmentEnd
 
   /** signal indicates this is the last transaction for the element(with handshake) */
@@ -394,11 +393,8 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /** unsent memory transactions to s0. */
   val unsentMemoryRequests: UInt = (~sentMemoryRequests).asUInt
 
-  /** mask [[unsentMemoryRequests]]
-   * TODO: maskFilter = maskReg & unsentMemoryRequests
-   */
-  val maskedUnsentMemoryRequests: UInt = Wire(UInt(param.maskGroupWidth.W))
-  maskedUnsentMemoryRequests := maskReg & unsentMemoryRequests
+  /** mask [[unsentMemoryRequests]] */
+  val maskedUnsentMemoryRequests: UInt = (maskReg & unsentMemoryRequests).asUInt(param.maskGroupWidth - 1, 0)
 
   /** the find the next [[maskedUnsentMemoryRequests]] */
   val findFirstMaskedUnsentMemoryRequests: UInt = ffo(maskedUnsentMemoryRequests)

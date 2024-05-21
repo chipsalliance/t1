@@ -709,7 +709,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage1.dequeue.ready := stage2.enqueue.ready && executionUnit.enqueue.ready
       executionUnit.enqueue.valid := stage1.dequeue.valid && stage2.enqueue.ready
 
-      // todo: connect state from stage1
       stage2.enqueue.bits.elements.foreach { case (k ,d) =>
         stage1.dequeue.bits.elements.get(k).foreach( pipeData => d := pipeData)
       }
@@ -988,8 +987,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.mask.valid := laneRequest.bits.mask
   // assign mask from [[V]]
   entranceControl.mask.bits := maskInput
-  // TODO: remove it.
-  entranceControl.maskGroupedOrR := maskGroupedOrR
   // mask used for VRF write in this group.
   entranceControl.vrfWriteMask := 0.U
 
