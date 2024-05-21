@@ -119,7 +119,6 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
       enqueue.bits.maskForMaskGroup,
       (-1.S(parameter.datapathWidth.W)).asUInt
     )
-    // TODO: use 'record.maskGroupedOrR' & update it
     val maskForDataGroup: UInt =
     VecInit(maskCorrection.asBools.grouped(dataGroupSize).map(_.reduce(_ || _)).toSeq).asUInt
     val groupFilterByMask = maskForDataGroup & groupFilter

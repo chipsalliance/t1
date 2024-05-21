@@ -279,9 +279,6 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
   /** 存 mask */
   val mask: ValidIO[UInt] = Valid(UInt(param.datapathWidth.W))
 
-  /** 把mask按每四个分一个组,然后看orR */
-  val maskGroupedOrR: UInt = UInt((param.datapathWidth / param.sewMin).W)
-
   /** 这一组写vrf的mask */
   val vrfWriteMask: UInt = UInt(4.W)
 }

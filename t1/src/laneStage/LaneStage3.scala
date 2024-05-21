@@ -23,7 +23,7 @@ class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   // pipe state
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  // todo: Need real-time status
+  // Need real-time status, no pipe
   val ffoByOtherLanes: Bool = Bool()
   val loadStore: Bool = Bool()
   /** vd or rd */

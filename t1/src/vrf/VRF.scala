@@ -40,9 +40,6 @@ object VRFParam {
   *   - we can have more memory ports.
   *   - a big VRF memory is split into small memories, the shell of memory contributes more area...
   *
-  * TODO: change to use 32bits memory + mask,
-  *       use portFactor to increase port number
-  *
   * TODO: add ECC cc @sharzyL
   *       8bits -> 5bits
   *       16bits -> 6bits
@@ -126,7 +123,6 @@ class VRFProbe(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, data
   * - out of order chaining hazard detection:
   *   TODO: move to Top.
   *
-  * TODO: implement [[parameter.portFactor]] for increasing VRF bandwidth.
   * TODO: probe each ports to benchmark the bandwidth.
   */
 @instantiable

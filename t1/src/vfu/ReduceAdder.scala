@@ -26,7 +26,6 @@ class ReduceAdder(datapathWidth: Int) extends Module {
   @public
   val response = IO(Output(new ReduceAdderResponse(datapathWidth)))
 
-  // todo: decode
   // ["add", "sub", "slt", "sle", "sgt", "sge", "max", "min", "seq", "sne", "adc", "sbc"]
   val uopOH: UInt = UIntToOH(request.opcode)(11, 0)
   val isSub: Bool = !(uopOH(0) || uopOH(10))

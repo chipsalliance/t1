@@ -76,7 +76,7 @@ case class LSUBankParameter(name: String, region: BitSet, beatbyte: Int, accessS
   *
   * @note
   * Chaining:
-  *  - limited by VRF Memory Port. TODO: add bank in VRF.
+  *  - limited by VRF Memory Port.
   *  - the chaining size is decided by logic units. if the bandwidth is limited by the logic units, we should increase lane size.
   * TODO: sort a machine-readable chaining matrix for test case generation.
   */
@@ -183,9 +183,7 @@ case class T1Parameter(
   /** Used in memory bundle parameter. */
   val memoryDataWidthBytes: Int = lsuBankParameters.head.beatbyte
 
-  /** LSU MSHR Size, from experience, we use 3 for 2R1W，this is also limited by the number of memory ports.
-    * TODO: in vector design, there are some instructions which have 3R1W, this may decrease performance. we need perf it.
-    */
+  /** LSU MSHR Size, Contains a load unit, a store unit and an other unit. */
   val lsuMSHRSize: Int = 3
 
   /** 2 for 3 MSHR(read + write + otherUnit) */
@@ -204,7 +202,6 @@ case class T1Parameter(
   /** for TileLink `mask` element. */
   val maskWidth: Int = lsuBankParameters.head.beatbyte
 
-  // todo
   val vrfReadLatency = 2
 
   // each element: Each lane will be connected to the other two lanes,
@@ -295,9 +292,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /** from CPU LSU, store buffer is cleared, memory can observe memory requests after this is asserted. */
   val storeBufferClear: Bool = IO(Input(Bool()))
 
-  /** TileLink memory ports.
-    * TODO: Multiple LSU support
-    */
+  /** TileLink memory ports. */
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.lsuBankParameters.size, parameter.tlParam.bundle()))
 
   // TODO: this is an example of adding a new Probe
@@ -365,8 +360,6 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   // manually maintain a queue for requestReg.
   requestRegDequeue.bits := requestReg.bits.request
   requestRegDequeue.valid := requestReg.valid
-  // TODO: decode the 7 bits in LSB, to get the instruction type.
-  //       we only need to use it to find if it's a load/store instruction.
   decode.decodeInput := request.bits.instruction
 
   /** alias to [[requestReg.bits.decodeResult]], it is commonly used. */
@@ -554,7 +547,6 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     )
   })
   val dataResult: ValidIO[UInt] = RegInit(0.U.asTypeOf(Valid(UInt(parameter.datapathWidth.W))))
-  // todo: viota & compress & reduce
 
   val executeForLastLaneFire: Bool = WireDefault(false.B)
 
@@ -581,7 +573,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     val lsuFinished: Bool = ohCheck(lsu.lastReport, control.record.instructionIndex, parameter.chainingSize)
     val busClear: Bool = !ohCheck(dataInCrossBus, control.record.instructionIndex, parameter.chainingSize)
     // instruction is allocated to this slot.
-    when(requestRegDequeue.fire && instructionToSlotOH(index)) {
+    when(instructionToSlotOH(index)) {
       // instruction metadata
       control.record.instructionIndex := requestReg.bits.instructionIndex
       // TODO: remove
@@ -725,7 +717,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         (unOrderType && !allSlotFree) ||
         (requestReg.bits.vdIsV0 && existMaskType)) ||
         (vd === 0.U && maskType && slotValid))
-      when(requestRegDequeue.fire && instructionToSlotOH(index)) {
+      when(instructionToSlotOH(index)) {
         writeBackCounter := 0.U
         groupCounter := 0.U
         executeCounter := 0.U
@@ -1323,7 +1315,6 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         val executeFinish: Bool =
           (lastReduceCounter || !(reduce || popCount) || orderedReduce) && maskUnitIdle
         val schedulerWrite = decodeResultReg(Decoder.maskDestination) || (reduce && !popCount) || writeMv
-        // todo: decode
         val groupSync = decodeResultReg(Decoder.ffo)
         // 写回
         when(readFinish && (executeFinish || writeMv || executeFinishReg)) {
@@ -1627,8 +1618,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
     instructionRAWReady && instructionIndexFree
 
-  // TODO: change to `requestRegDequeue.fire`.
-  instructionToSlotOH := Mux(requestRegDequeue.ready, slotToEnqueue, 0.U)
+  instructionToSlotOH := Mux(requestRegDequeue.fire, slotToEnqueue, 0.U)
 
   // instruction commit
   {

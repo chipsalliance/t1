@@ -105,7 +105,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   // data in executionRecord is narrow type
   val narrowInRecord: Bool = !executionRecord.decodeResult(Decoder.crossWrite) &&
     executionRecord.decodeResult(Decoder.crossRead)
-  // todo: Need to collapse the results of combined calculations
+  // reduceReady is false: Need to collapse the results of combined calculations
   val reduceReady: Bool = WireDefault(true.B)
   val sendFoldReduce: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
   val recordQueueReadyForNoExecute = Wire(Bool())
