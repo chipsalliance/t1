@@ -140,6 +140,7 @@ pub fn add_rtl_write(
         .get_mut(&(record_idx_base + j));
 
       if let Some(record) = record_iter {
+        dbg!(&record);
         assert_eq!(
           (record.byte as u8),
           (written_byte as u8),
@@ -321,7 +322,7 @@ impl SpikeHandle {
     }
 
     se.is_issued = true;
-    se.issue_idx = 0;
+    se.issue_idx = idx as u8;
 
     info!(
       "SpikePeekIssue: idx={idx}, pc = {:#x}, inst = {}",
