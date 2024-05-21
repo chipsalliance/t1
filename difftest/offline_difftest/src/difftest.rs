@@ -31,40 +31,6 @@ impl Difftest {
     Ok(())
   }
 
-  fn peek_vrf_write_from_lsu(
-    &mut self,
-    idx: u32,
-    vd: u32,
-    offset: u32,
-    mask: u32,
-    data: u32,
-    instruction: u32,
-    lane: u32,
-  ) -> anyhow::Result<()> {
-    assert!(idx < self.spike.config.dlen / 32);
-
-    self
-      .spike
-      .peek_vrf_write_from_lsu(lane, vd, offset, mask, data, instruction)
-  }
-
-  fn peek_vrf_write_from_lane(
-    &mut self,
-    idx: u32,
-    vd: u32,
-    offset: u32,
-    mask: u32,
-    data: u32,
-    instruction: u32,
-  ) -> anyhow::Result<()> {
-    // vrf_write.lane_index < config.lane_number
-    assert!(idx < self.spike.config.dlen / 32);
-
-    self
-      .spike
-      .peek_vrf_write_from_lane(idx, vd, offset, mask, data, instruction)
-  }
-
   fn poke_inst(&mut self) -> anyhow::Result<()> {
     loop {
       let se = self.spike.find_se_to_issue();
@@ -97,7 +63,8 @@ impl Difftest {
       } else {
         trace!(
           "DPIPokeInst: poke instruction: pc={:#x}, inst={}",
-          se.pc, se.disasm
+          se.pc,
+          se.disasm
         );
       }
     }
@@ -161,8 +128,18 @@ impl Difftest {
         let data = event.parameter.data.unwrap();
         let instruction = event.parameter.instruction.unwrap();
         let lane = event.parameter.lane.unwrap();
+        assert!(idx < self.spike.config.dlen / 32);
+
         self
-          .peek_vrf_write_from_lsu(idx, vd, offset, mask, data, instruction, lane)
+          .spike
+          .peek_vrf_write_from_lsu(VrfWrite {
+            idx: lane.trailing_zeros(),
+            vd,
+            offset,
+            mask,
+            data,
+            instruction,
+          })
           .unwrap();
       }
       "vrfWriteFromLane" => {
@@ -172,8 +149,17 @@ impl Difftest {
         let mask = event.parameter.mask.unwrap();
         let data = event.parameter.data.unwrap();
         let instruction = event.parameter.instruction.unwrap();
+        assert!(idx < self.spike.config.dlen / 32);
         self
-          .peek_vrf_write_from_lane(idx, vd, offset, mask, data, instruction)
+          .spike
+          .peek_vrf_write_from_lane(VrfWrite {
+            idx,
+            vd,
+            offset,
+            mask,
+            data,
+            instruction,
+          })
           .unwrap();
       }
       "inst" => {

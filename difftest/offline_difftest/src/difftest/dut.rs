@@ -71,14 +71,14 @@ pub struct PeekTL {
   pub dready: u32,
 }
 
-// pub struct VrfWrite {
-// 	pub idx: u32,
-// 	pub vd: u32,
-// 	pub offset: u32,
-// 	pub mask: u32,
-// 	pub data: u32,
-// 	pub instruction: u32,
-// }
+pub struct VrfWrite {
+	pub idx: u32,
+	pub vd: u32,
+	pub offset: u32,
+	pub mask: u32,
+	pub data: u32,
+	pub instruction: u32,
+}
 
 // pub struct Inst {
 // 	pub data: u32,

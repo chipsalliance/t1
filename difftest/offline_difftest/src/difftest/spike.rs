@@ -122,36 +122,31 @@ pub struct Config {
   pub dlen: u32,
 }
 
-pub fn add_rtl_write(
-  se: &mut SpikeEvent,
-  mask: u32,
-  data: u32,
-  record_idx_base: usize,
-  lane_idx: usize,
-  vd: usize,
-  offset: usize,
-) {
+pub fn add_rtl_write(se: &mut SpikeEvent, vrf_write: VrfWrite, record_idx_base: usize) {
   (0..4).for_each(|j| {
-    if ((mask >> j) & 1) != 0 {
-      let written_byte = ((data >> (8 * j)) & 0xff) as u8;
+    if ((vrf_write.mask >> j) & 1) != 0 {
+      let written_byte = ((vrf_write.data >> (8 * j)) & 0xff) as u8;
       let record_iter = se
         .vrf_access_record
         .all_writes
         .get_mut(&(record_idx_base + j));
 
       if let Some(record) = record_iter {
-        dbg!(&record);
         assert_eq!(
           (record.byte as u8),
           (written_byte as u8),
           "{j}th byte incorrect ({:02X} != {written_byte:02X}) for vrf \
-						write (lane={lane_idx}, vd={vd}, offset={offset}, mask={mask:04b}) \
+						write (lane={}, vd={}, offset={}, mask={:04b}) \
 						[vrf_idx={}] (lsu_idx={}, {})",
           record.byte,
+          vrf_write.idx,
+          vrf_write.vd,
+          vrf_write.offset,
+          vrf_write.mask,
           record_idx_base + j,
           se.lsu_idx,
           format!(
-            "disasm: {}, pc: {:x}, bits: {:#x}",
+            "disasm: {}, pc: {:#x}, bits: {:#x}",
             se.disasm, se.pc, se.inst_bits
           )
         );
@@ -354,67 +349,38 @@ impl SpikeHandle {
     Ok(())
   }
 
-  pub fn peek_vrf_write(
-    &mut self,
-    lane_idx: u32,
-    vd: u32,
-    offset: u32,
-    mask: u32,
-    data: u32,
-    instruction: u32,
-    is_load: bool,
-  ) -> anyhow::Result<()> {
+  pub fn peek_vrf_write(&mut self, vrf_write: VrfWrite, is_load: bool) -> anyhow::Result<()> {
     let vlen_in_bytes = self.config.vlen / 8;
-    let lane_number = self.config.dlen / 32;
-    let record_idx_base = (vd * vlen_in_bytes + (lane_idx + lane_number * offset) * 4) as usize;
+    let lane_number = self.config.dlen / 8;
+    let record_idx_base = (vrf_write.vd * vlen_in_bytes
+      + (vrf_write.idx + lane_number * vrf_write.offset) * 4) as usize;
 
     if let Some(se) = self
       .to_rtl_queue
       .iter_mut()
       .rev()
-      .find(|se| se.issue_idx == instruction as u8 && se.is_load == is_load)
+      .find(|se| se.issue_idx == vrf_write.instruction as u8 && se.is_load == is_load)
     {
-      info!("SpikeRecordRFAccesses: lane={lane_idx}, vd={vd}, offset={offset}, mask={mask:04b}, data={data:08x}, instruction={instruction}");
+      info!("SpikeRecordRFAccesses: lane={}, vd={}, offset={}, mask={:04b}, data={:08x}, instruction={}"
+    , vrf_write.idx, vrf_write.vd, vrf_write.offset, vrf_write.mask, vrf_write.data, vrf_write.instruction);
 
-      add_rtl_write(
-        se,
-        mask,
-        data,
-        record_idx_base,
-        lane_idx as usize,
-        vd as usize,
-        offset as usize,
-      );
+      add_rtl_write(se, vrf_write, record_idx_base);
 
       return Ok(());
     }
 
-    Err(anyhow::anyhow!("cannot find se with issue_idx={lane_idx}"))
+    Err(anyhow::anyhow!(
+      "cannot find se with issue_idx={}",
+      vrf_write.idx
+    ))
   }
 
-  pub fn peek_vrf_write_from_lsu(
-    &mut self,
-    lane: u32,
-    vd: u32,
-    offset: u32,
-    mask: u32,
-    data: u32,
-    instruction: u32,
-  ) -> anyhow::Result<()> {
-    let lane_idx = lane.trailing_zeros();
-    self.peek_vrf_write(lane_idx, vd, offset, mask, data, instruction, false)
+  pub fn peek_vrf_write_from_lsu(&mut self, vrf_write: VrfWrite) -> anyhow::Result<()> {
+    self.peek_vrf_write(vrf_write, true)
   }
 
-  pub fn peek_vrf_write_from_lane(
-    &mut self,
-    lane_idx: u32,
-    vd: u32,
-    offset: u32,
-    mask: u32,
-    data: u32,
-    instruction: u32,
-  ) -> anyhow::Result<()> {
-    self.peek_vrf_write(lane_idx, vd, offset, mask, data, instruction, true)
+  pub fn peek_vrf_write_from_lane(&mut self, vrf_write: VrfWrite) -> anyhow::Result<()> {
+    self.peek_vrf_write(vrf_write, true)
   }
 
   pub fn peek_tl(&mut self, peek_tl: PeekTL) -> anyhow::Result<()> {
@@ -427,7 +393,7 @@ impl SpikeHandle {
       .rev()
       .find(|se| se.issue_idx == lsu_idx)
     {
-			println!("peekTL: {peek_tl:?}");
+      println!("peekTL: {peek_tl:?}");
       match peek_tl.opcode {
         Opcode::Get => {
           let mut actual_data = vec![0u8; size as usize];
