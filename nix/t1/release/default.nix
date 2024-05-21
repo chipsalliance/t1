@@ -13,13 +13,20 @@
 , ip
 , cases
 , elaborateConfigJson
+, elaborateConfig
 }:
+
+let
+  extension = lib.head elaborateConfig.parameter.extensions;
+  isFp = lib.hasInfix "f" extension;
+in
 
 lib.makeScope newScope (scope: rec {
   inherit elaborateConfigJson configName;
 
   testCases = with cases; [
     intrinsic.matmul
+  ] ++ lib.optionals isFp [
     intrinsic.softmax
     intrinsic.linear_normalization
   ];
