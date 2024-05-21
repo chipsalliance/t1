@@ -349,7 +349,7 @@ impl SpikeHandle {
     Ok(())
   }
 
-  pub fn peek_vrf_write(&mut self, vrf_write: VrfWrite, is_load: bool) -> anyhow::Result<()> {
+  pub fn peek_vrf_write_from_lsu(&mut self, vrf_write: VrfWrite) -> anyhow::Result<()> {
     let vlen_in_bytes = self.config.vlen / 8;
     let lane_number = self.config.dlen / 8;
     let record_idx_base = (vrf_write.vd * vlen_in_bytes
@@ -359,28 +359,39 @@ impl SpikeHandle {
       .to_rtl_queue
       .iter_mut()
       .rev()
-      .find(|se| se.issue_idx == vrf_write.instruction as u8 && se.is_load == is_load)
+      .find(|se| se.issue_idx == vrf_write.instruction as u8)
     {
-      info!("SpikeRecordRFAccesses: lane={}, vd={}, offset={}, mask={:04b}, data={:08x}, instruction={}"
-    , vrf_write.idx, vrf_write.vd, vrf_write.offset, vrf_write.mask, vrf_write.data, vrf_write.instruction);
+      info!("SpikeRecordRFAccesses: lane={}, vd={}, offset={}, mask={:04b}, data={:08x}, instruction={}, rtl detect vrf queue write" , vrf_write.idx, vrf_write.vd, vrf_write.offset, vrf_write.mask, vrf_write.data, vrf_write.instruction);
 
       add_rtl_write(se, vrf_write, record_idx_base);
-
       return Ok(());
     }
 
-    Err(anyhow::anyhow!(
-      "cannot find se with issue_idx={}",
-      vrf_write.idx
-    ))
-  }
-
-  pub fn peek_vrf_write_from_lsu(&mut self, vrf_write: VrfWrite) -> anyhow::Result<()> {
-    self.peek_vrf_write(vrf_write, true)
+    Err(anyhow::anyhow!("cannot find se with issue_idx={}", vrf_write.instruction))
   }
 
   pub fn peek_vrf_write_from_lane(&mut self, vrf_write: VrfWrite) -> anyhow::Result<()> {
-    self.peek_vrf_write(vrf_write, true)
+    let vlen_in_bytes = self.config.vlen / 8;
+    let lane_number = self.config.dlen / 8;
+    let record_idx_base = (vrf_write.vd * vlen_in_bytes
+      + (vrf_write.idx + lane_number * vrf_write.offset) * 4) as usize;
+
+    if let Some(se) = self
+      .to_rtl_queue
+      .iter_mut()
+      .rev()
+      .find(|se| se.issue_idx == vrf_write.instruction as u8)
+    {
+      if !se.is_load {
+        info!("SpikeRecordRFAccesses: lane={}, vd={}, offset={}, mask={:04b}, data={:08x}, instruction={}, rtl detect vrf write", vrf_write.idx, vrf_write.vd, vrf_write.offset, vrf_write.mask, vrf_write.data, vrf_write.instruction);
+  
+        add_rtl_write(se, vrf_write, record_idx_base);
+      }
+      return Ok(());
+    }
+
+    info!("SpikeRecordRFAccess: index={} rtl detect vrf write which cannot find se, maybe from committed load insn", vrf_write.idx);
+    Ok(())
   }
 
   pub fn peek_tl(&mut self, peek_tl: PeekTL) -> anyhow::Result<()> {
