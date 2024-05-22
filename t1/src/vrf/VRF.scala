@@ -142,6 +142,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
   )
 
+  // @todo @Clo91eaf should pull read&write check
+  //                 performance checker, in the difftest, it can observe all previous events, and know should it be stalled?
+  //                 then, we can know the accuracy read&write check hardware signal.
   // 3 * slot + 2 cross read
   @public
   val readCheck: Vec[VRFReadRequest] = IO(Vec(parameter.chainingSize * 3 + 2, Input(
@@ -286,6 +289,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       // 先找到自的record
       val readRecord =
         Mux1H(recordSelect.map(_.bits.instIndex === v.bits.instructionIndex), recordSelect.map(_.bits))
+      // @todo @Clo91eaf read&write in the same cycle.
       val portConflictCheck = Wire(Bool())
       val checkResult: Option[Bool] = Option.when(i == (readRequests.size - 1)) {
         recordSelect.zip(recordValidVec).zipWithIndex.map {
@@ -315,10 +319,11 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           !((write.valid && bank === writeBank && write.bits.vd === v.bits.vs && write.bits.offset === v.bits.offset) ||
             (writePipe.valid && bank === writeBankPipe && writePipe.bits.vd === v.bits.vs && writePipe.bits.offset === v.bits.offset))
       })
-      // 我选的这个port的第二个read port 没被占用
       val portReady: Bool = if (i == (readRequests.size - 1)) {
         (bank & (~readPortCheckSelect)).orR && checkResult.get
       } else {
+        // @todo @Clo91eaf read check port is ready.
+        // if there are additional read port for the bank.
         (bank & (~readPortCheckSelect)).orR
       }
       v.ready := portReady
@@ -329,12 +334,15 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       readResults(i) := Mux(pipeFirstUsed, Mux1H(pipeBank, readResultS), Mux1H(pipeBank, readResultF))
       (o | bankCorrect, (bankCorrect & o) | t)
   }
+  // @todo @Clo91eaf check write port is ready.
   write.ready := (parameter.ramType match {
     case RamType.p0rw => (writeBank & (~firstOccupied)).orR
     case RamType.p0rp1w => true.B
     case RamType.p0rwp1rw => (writeBank & (~secondOccupied)).orR
   })
 
+  // @todo @Clo91eaf VRF write&read singal should be captured here.
+  // @todo           in the future, we need to maintain a layer to trace the original requester to each read&write.
   val rfVec: Seq[SRAMInterface[UInt]] = Seq.tabulate(parameter.rfBankNum) { bank =>
     // rf instant
     val rf: SRAMInterface[UInt] = SRAM(
@@ -420,6 +428,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val initRecord: ValidIO[VRFWriteReport] = WireDefault(0.U.asTypeOf(Valid(new VRFWriteReport(parameter))))
   initRecord.valid := true.B
   initRecord.bits := instructionWriteReport.bits
+  // @todo @Clo91eaf VRF ready signal for performance.
   val freeRecord: UInt = VecInit(chainingRecord.map(!_.valid)).asUInt
   val recordFFO:  UInt = ffo(freeRecord)
   val recordEnq:  UInt = Wire(UInt((parameter.chainingSize + 1).W))
@@ -427,6 +436,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     re => !re.valid || instIndexL(re.bits.instIndex, instructionWriteReport.bits.instIndex)
   ).reduce(_ && _)
   // handle VRF hazard
+  // @todo @Clo91eaf VRF ready signal for performance.
   instructionWriteReport.ready := freeRecord.orR && olderCheck
   recordEnq := Mux(
     // 纯粹的lsu指令的记录不需要ready
@@ -489,7 +499,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         record.bits.elementMask := record.bits.elementMask | elementUpdate1H
       }
   }}
-  // 判断lsu 是否可以写
+  // @todo @qinjun-li DV&RTL, here is a bug, LSU hazard
+  //       @Clo91eaf original of LSU hazard is coming here.
   val hazardVec: Seq[IndexedSeq[(Bool, Bool)]] = chainingRecordCopy.init.zipWithIndex.map { case (sourceRecord, sourceIndex) =>
     chainingRecordCopy.drop(sourceIndex + 1).zipWithIndex.map { case (sinkRecord, _) =>
       val recordSeq: Seq[ValidIO[VRFWriteReport]] = Seq(sourceRecord, sinkRecord)
