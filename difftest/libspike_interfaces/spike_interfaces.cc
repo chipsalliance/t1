@@ -77,8 +77,8 @@ reg_t proc_get_insn(spike_processor_t* proc) {
   return fetch.insn.bits();
 }
 
-uint8_t* proc_get_vreg_addr(spike_processor_t* proc) {
-  return &proc->p->VU.elt<uint8_t>(0, 0);
+uint8_t proc_get_vreg_data(spike_processor_t* proc, uint32_t vreg_idx, uint32_t vreg_offset) {
+  return proc->p->VU.elt<uint8_t>(vreg_idx, vreg_offset);
 }
 
 uint32_t extract_f32(freg_t f) { return (uint32_t)f.v[0]; }
@@ -89,39 +89,22 @@ inline uint32_t clip(uint32_t binary, int a, int b) {
   return (binary >> a) & mask;
 }
 
-uint64_t proc_get_rs(spike_processor_t* proc) {
+uint32_t proc_get_rs1(spike_processor_t* proc) {
   auto pc = proc->p->get_state()->pc;
   auto fetch = proc->p->get_mmu()->load_insn(pc);
-  return (uint64_t)fetch.insn.rs1() << 32 | (uint64_t)fetch.insn.rs2();
+  return (uint32_t)fetch.insn.rs1();
+}
+
+uint32_t proc_get_rs2(spike_processor_t* proc) {
+  auto pc = proc->p->get_state()->pc;
+  auto fetch = proc->p->get_mmu()->load_insn(pc);
+  return (uint32_t)fetch.insn.rs2();
 }
 
 uint32_t proc_get_rd(spike_processor_t* proc) {
   auto pc = proc->p->get_state()->pc;
   auto fetch = proc->p->get_mmu()->load_insn(pc);
   return fetch.insn.rd();
-}
-
-uint64_t proc_get_rs_bits(spike_processor_t* proc) {
-  auto state = proc->p->get_state();
-  auto &xr = state->XPR;
-  auto &fr = state->FPR;
-  auto pc = state->pc;
-  auto inst_bits = proc_get_insn(proc);
-
-  uint32_t opcode = clip(inst_bits, 0, 6);
-  uint32_t width = clip(inst_bits, 12, 14); // also funct3
-  auto fetch = proc->p->get_mmu()->load_insn(pc);
-  uint32_t rs1_bits, rs2_bits;
-  bool is_fp_operands = opcode == 0b1010111 && (width == 0b101 /* OPFVF */);
-  if (is_fp_operands) {
-    rs1_bits = extract_f32(fr[fetch.insn.rs1()]);
-    rs2_bits = extract_f32(fr[fetch.insn.rs2()]);
-  } else {
-    rs1_bits = xr[fetch.insn.rs1()];
-    rs2_bits = xr[fetch.insn.rs2()];
-  }
-
-  return (uint64_t)rs1_bits << 32 | (uint64_t)rs2_bits;
 }
 
 uint64_t proc_vu_get_vtype(spike_processor_t* proc) {
@@ -187,6 +170,19 @@ uint64_t state_handle_pc(spike_state_t* state, uint64_t new_pc) {
 
 void state_set_pc(spike_state_t* state, uint64_t pc) {
   state->s->pc = pc;
+}
+
+uint32_t state_get_reg_write_size(spike_state_t* state) {
+  return state->s->log_reg_write.size();
+}
+
+uint32_t state_get_reg(spike_state_t* state, uint32_t index, bool is_fp) {
+  if (is_fp) {
+    auto &fr = state->s->FPR;
+    return extract_f32(fr[index]);
+  } 
+  auto &xr = state->s->XPR;
+  return (uint32_t)xr[index];
 }
 
 uint32_t state_get_mem_write_size(spike_state_t* state) {

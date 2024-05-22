@@ -31,10 +31,10 @@ pub struct Processor {
 }
 
 impl Processor {
-  pub fn disassemble(&self) -> std::borrow::Cow<str> {
+  pub fn disassemble(&self) -> String {
     let bytes = unsafe { proc_disassemble(self.processor) };
     let c_str = unsafe { CStr::from_ptr(bytes as *mut c_char) };
-    c_str.to_string_lossy()
+    format!("{}", c_str.to_string_lossy())
   }
 
   pub fn reset(&self) {
@@ -54,22 +54,20 @@ impl Processor {
     unsafe { proc_get_insn(self.processor) }
   }
 
-  pub fn get_vreg_addr(&self) -> *mut u8 {
-    unsafe { proc_get_vreg_addr(self.processor) }
+  pub fn get_vreg_data(&self, idx: u32, offset: u32) -> u8 {
+    unsafe { proc_get_vreg_data(self.processor, idx, offset) }
   }
 
-  pub fn get_rs(&self) -> (u32, u32) {
-    let rs: u64 = unsafe { proc_get_rs(self.processor) };
-    ((rs >> 32) as u32, rs as u32)
+  pub fn get_rs1(&self) -> u32 {
+    unsafe { proc_get_rs1(self.processor) }
+  }
+
+  pub fn get_rs2(&self) -> u32 {
+    unsafe { proc_get_rs2(self.processor) }
   }
 
   pub fn get_rd(&self) -> u32 {
     unsafe { proc_get_rd(self.processor) }
-  }
-
-  pub fn get_rs_bits(&self) -> (u32, u32) {
-    let rs_bits: u64 = unsafe { proc_get_rs_bits(self.processor) };
-    ((rs_bits >> 32) as u32, rs_bits as u32)
   }
 
   // vu
@@ -128,6 +126,14 @@ impl State {
     }
   }
 
+  pub fn get_reg_write_size(&self) -> u32 {
+    unsafe { state_get_reg_write_size(self.state) }
+  }
+
+  pub fn get_reg(&self, idx: u32, is_fp: bool) -> u32 {
+    unsafe { state_get_reg(self.state, idx, is_fp) }
+  }
+
   pub fn get_mem_write_size(&self) -> u32 {
     unsafe { state_get_mem_write_size(self.state) }
   }
@@ -177,10 +183,10 @@ extern "C" {
   fn proc_get_state(proc: *mut ()) -> *mut ();
   fn proc_func(proc: *mut ()) -> u64;
   fn proc_get_insn(proc: *mut ()) -> u64;
-  fn proc_get_vreg_addr(proc: *mut ()) -> *mut u8;
-  fn proc_get_rs(proc: *mut ()) -> u64;
+  fn proc_get_vreg_data(proc: *mut (), vreg_idx: u32, vreg_offset: u32) -> u8;
+  fn proc_get_rs1(proc: *mut ()) -> u32;
+  fn proc_get_rs2(proc: *mut ()) -> u32;
   fn proc_get_rd(proc: *mut ()) -> u32;
-  fn proc_get_rs_bits(proc: *mut ()) -> u64;
 
   fn proc_vu_get_vtype(proc: *mut ()) -> u64;
   fn proc_vu_get_vxrm(proc: *mut ()) -> u32;
@@ -193,6 +199,8 @@ extern "C" {
   fn proc_destruct(proc: *mut ());
   fn state_set_pc(state: *mut (), pc: u64);
   fn state_get_pc(state: *mut ()) -> u64;
+  fn state_get_reg(state: *mut (), index: u32, is_fp: bool) -> u32;
+  fn state_get_reg_write_size(state: *mut ()) -> u32;
   fn state_get_mem_write_size(state: *mut ()) -> u32;
   fn state_get_mem_write_addr(state: *mut (), index: u32) -> u32;
   fn state_get_mem_write_value(state: *mut (), index: u32) -> u64;
