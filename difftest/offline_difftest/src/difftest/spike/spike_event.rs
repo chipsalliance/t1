@@ -3,13 +3,6 @@ use super::{clip, read_mem};
 use std::collections::HashMap;
 use tracing::{info, trace};
 
-// #[derive(Debug, Clone)]
-// pub struct MemLog {
-// 	addr: u64,
-// 	value: u64,
-// 	size: u8,
-// }
-
 #[derive(Debug, Clone)]
 pub struct SingleMemWrite {
   pub val: u8,
@@ -58,8 +51,6 @@ pub struct VrfAccessRecord {
 
 #[derive(Default, Debug, Clone)]
 pub struct SpikeEvent {
-  // replace with actual struct name
-  // log_mem_queue: Vec<MemLog>,
   pub lsu_idx: u8,
   pub issue_idx: u8,
 

@@ -19,6 +19,10 @@ struct Args {
   #[arg(short, long)]
   log_file: Option<String>,
 
+  /// Log level: trace, debug, info, warn, error
+  #[arg(short, long, default_value = "trace")]
+  log_level: String,
+
   /// vlen config (default blastoise 512)
   #[arg(short, long, default_value = "512")]
   vlen: u32,
@@ -28,10 +32,40 @@ struct Args {
   dlen: u32,
 }
 
+fn run_spike(args: Args) -> anyhow::Result<()> {
+  let mut count: u64 = 0;
+
+  let spike = SpikeHandle::new(
+    1usize << 32,
+    Path::new(&args.elf_file),
+    args.vlen,
+    args.dlen,
+  );
+  loop {
+    count += 1;
+    if count % 1000000 == 0 {
+      info!("count = {}", count);
+    }
+    match spike.exec() {
+      Ok(_) => {}
+      Err(_) => {
+        info!("total v instrucions count = {}", count);
+        info!("Simulation quit graceful");
+        return Ok(());
+      }
+    };
+  }
+}
+
 fn main() -> anyhow::Result<()> {
+  // parse args
+  let args = Args::parse();
+
+  // setup log
+  let log_level: Level = args.log_level.parse()?;
   let global_logger = FmtSubscriber::builder()
     .with_env_filter(EnvFilter::from_default_env())
-    .with_max_level(Level::TRACE)
+    .with_max_level(log_level)
     .without_time()
     .with_target(false)
     .compact()
@@ -39,33 +73,10 @@ fn main() -> anyhow::Result<()> {
   tracing::subscriber::set_global_default(global_logger)
     .expect("internal error: fail to setup log subscriber");
 
-  let args = Args::parse();
-
-  // count the instruction
-  let mut count: u64 = 0;
-
   // if there is no log file, just run spike and quit
   if args.log_file.is_none() {
-    let spike = SpikeHandle::new(
-      1usize << 32,
-      Path::new(&args.elf_file),
-      args.vlen,
-      args.dlen,
-    );
-    loop {
-      count += 1;
-      if count % 1000000 == 0 {
-        info!("count = {}", count);
-      }
-      match spike.exec() {
-        Ok(_) => {}
-        Err(_) => {
-          info!("total v instrucions count = {}", count);
-          info!("Simulation quit graceful");
-          return Ok(());
-        }
-      };
-    }
+    run_spike(args)?;
+    return Ok(());
   }
 
   // if there is a log file, run difftest
