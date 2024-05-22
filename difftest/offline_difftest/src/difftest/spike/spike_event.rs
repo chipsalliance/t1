@@ -101,11 +101,12 @@ pub struct SpikeEvent {
 impl SpikeEvent {
   pub fn new(spike: &Spike) -> Option<Self> {
     let mut se = SpikeEvent::default();
+    // se default value
     se.lsu_idx = 255;
     se.issue_idx = 255;
 
+    // inst info
     se.inst_bits = spike.get_proc().get_insn();
-
     let opcode = clip(se.inst_bits, 0, 6);
     let width = clip(se.inst_bits, 12, 14); // also funct3
     let funct6 = clip(se.inst_bits, 26, 31);
@@ -113,17 +114,21 @@ impl SpikeEvent {
     let lumop = clip(se.inst_bits, 20, 24);
     let vm = clip(se.inst_bits, 25, 25);
 
+    // rs1
+    let is_rs_fp = opcode == 0b1010111 && width == 0b101/* OPFVF */;
     let proc = spike.get_proc();
-    (se.rs1_bits, se.rs2_bits) = proc.get_rs_bits();
-    let (rs1, _) = proc.get_rs();
-    let rd = proc.get_rd();
+    let state = proc.get_state();
+    let (rs1, rs2 ) = (proc.get_rs1(), proc.get_rs2());
+    se.rs1_bits = state.get_reg(rs1, is_rs_fp);
+    se.rs2_bits = state.get_reg(rs2, is_rs_fp);
 
+    // rd
     se.is_rd_fp =
       (opcode == 0b1010111) && (rs1 == 0) && (funct6 == 0b010000) && (vm == 1) && (width == 0b001);
-    se.rd_idx = rd;
-
+    se.rd_idx = proc.get_rd();
     se.is_rd_written = false;
 
+    // vtype
     let vtype = proc.vu_get_vtype();
     se.vlmul = clip(vtype, 0, 2);
     se.vma = clip(vtype, 7, 7) != 0;
@@ -136,8 +141,9 @@ impl SpikeEvent {
     se.vxsat = proc.vu_get_vxsat();
     se.vl = proc.vu_get_vl();
     se.vstart = proc.vu_get_vstart();
-    se.disasm = spike.get_proc().disassemble();
 
+    // se info
+    se.disasm = spike.get_proc().disassemble();
     se.pc = proc.get_state().get_pc();
     se.is_load = opcode == 0b0000111;
     se.is_store = opcode == 0b0100111;
@@ -259,7 +265,7 @@ impl SpikeEvent {
       0b0000 | 0b0001 => {
         // scalar rf
         let is_fp = idx & 0b1 != 0;
-        let data = state.get_reg_write_data(idx, is_fp);
+        let data = state.get_reg(idx, is_fp);
         if data != self.rd_bits {
           trace!(
             "SpikeRegChange: idx={idx}, change_from={}, change_to={data}",
