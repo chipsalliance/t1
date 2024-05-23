@@ -350,7 +350,7 @@ class LaneResponse(param: LaneParameter) extends Bundle {
   val fpReduceValid: Option[Bool] = Option.when(param.fpuEnable)(Bool())
 
   /** which instruction is the source of this transaction
-    * TODO: for DEBUG use.
+    * @todo @Clo91eaf change it to Probe
     */
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 }
@@ -374,6 +374,7 @@ class WriteBusData(param: LaneParameter) extends Bundle {
   val counter: UInt = UInt(param.groupNumberBits.W)
 }
 
+// @todo change this name:(
 class RingPort[T <: Data](gen: T) extends Bundle {
   val enq: ValidIO[T] = Flipped(Valid(gen))
   val enqRelease: Bool = Output(Bool())
@@ -386,6 +387,7 @@ class LaneResponseFeedback(param: LaneParameter) extends Bundle {
 
   /** which instruction is the source of this transaction
     * TODO: for DEBUG use.
+    * @todo @Clo91eaf change it to Probe
     */
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 

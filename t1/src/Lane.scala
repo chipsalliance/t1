@@ -14,6 +14,10 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lane._
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam, VRFProbe}
 
+// 1. Coverage
+// 2. Performance signal via XMR
+// 3. Arch Review.
+
 @instantiable
 class LaneOM extends Class {
   @public
@@ -42,9 +46,13 @@ class LaneSlotProbe extends Bundle {
 
 class LaneProbe(slotsSize: Int) extends Bundle {
   val slots = Vec(slotsSize, new LaneSlotProbe)
+  // @todo @Clo91eaf remove valid here, add stall := valid & !ready
   val laneRequestValid: Bool = Bool()
+  // @todo remove it.
   val laneRequestReady: Bool = Bool()
+  // @todo @Clo91eaf change to occupied for each slot.
   val lastSlotOccupied: Bool = Bool()
+  // @todo replace it with VRFProbe
   val vrfInstructionWriteReportReady: Bool = Bool()
   val instructionFinished: UInt = UInt(slotsSize.W)
 }
@@ -166,6 +174,7 @@ case class LaneParameter(
 /** Instantiate [[Lane]] from [[T1]],
   * - [[VRF]] is designed for store the vector register of the processor.
   * - datapath units: [[MaskedLogic]], [[LaneAdder]], [[LaneShifter]], [[LaneMul]], [[LaneDiv]], [[OtherUnit]]
+  * @todo @sequencer change it to public module.
   */
 @instantiable
 class Lane(val parameter: LaneParameter) extends Module with SerializableModule[LaneParameter] {
@@ -175,12 +184,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
   om := omInstance.getPropertyReference
 
-  /** laneIndex is a IO constant for D/I and physical implementations. */
+  /** laneIndex is a IO constant for D/I and physical implementations.
+    * @todo @sequencer use Const here to mark this as Const. */
   @public
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
   // constant parameter for physical implementations.
+  // @todo remove it.
   dontTouch(laneIndex)
 
+  // @todo: change io to channels to data, control, etc,
+  //        we need to define the opcode and dependency for these channels
+  //        and eventually use NoC-like interconnect for Lane -> Sequencer -> LSU region.
   /** Cross lane VRF Read Interface.
     * only used for `narrow` an `widen`
     * TODO: benchmark the usecase for tuning the Ring Bus width.
@@ -215,9 +229,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val laneResponseFeedback: ValidIO[LaneResponseFeedback] = IO(Flipped(Valid(new LaneResponseFeedback(parameter))))
 
-  /** for LSU and V accessing lane, this is not a part of ring, but a direct connection.
-    * TODO: learn AXI channel, reuse [[vrfReadAddressChannel]] and [[vrfWriteChannel]].
-    */
+  /** for LSU and V accessing lane, this is not a part of ring, but a direct connection. */
   @public
   val vrfReadAddressChannel: DecoupledIO[VRFReadRequest] = IO(
     Flipped(
@@ -1107,6 +1119,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   slot0EnqueueFire := slotEnqueueFire.head
 
   // handshake
+  // @todo @Clo91eaf lane can take request from Sequencer
   laneRequest.ready := !slotOccupied.last && vrf.instructionWriteReport.ready
 
   val instructionFinishAndNotReportByTop: Bool =
