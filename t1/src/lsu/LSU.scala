@@ -399,7 +399,7 @@ class LSU(param: LSUParameter) extends Module {
 
     // 选出一个请求连到 a 通道上
     val selectBits = Mux1H(requestSelect, Seq(loadUnit.tlPortA.bits, storeRequest.bits, otherUnit.tlPort.a.bits))
-    port.valid := storeRequest.valid || ((loadTryToUse || otherTryToUse) && portFree)
+    port.valid := (storeRequest.valid || ((loadTryToUse || otherTryToUse) && portFree)) && sourceQueue.io.enq.ready
     port.bits := selectBits
     port.bits.source := selectIndex
 
