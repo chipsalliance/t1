@@ -8,8 +8,10 @@ import chisel3.util.{BitPat, log2Ceil}
 import chisel3.util.experimental.BitSet
 import mainargs._
 import org.chipsalliance.t1.rtl._
+import org.chipsalliance.t1.rtl.decoder.T1CustomInstruction
 import org.chipsalliance.t1.rtl.lsu.LSUInstantiateParameter
 import org.chipsalliance.t1.rtl.vrf.RamType
+
 import java.util.LinkedHashMap
 
 object Main {
@@ -67,6 +69,7 @@ object Main {
       vLen,
       dLen,
       extensions = Seq("Zve32f"),
+      t1customInstructions = Nil,
       lsuBankParameters =
         // scalar bank 0-1G
         Seq(
@@ -138,6 +141,7 @@ object Main {
       vLen,
       dLen,
       extensions = Seq("Zve32x"),
+      t1customInstructions = Nil,
       // banks=8 dLen=512 beatbyte16
       lsuBankParameters =
         // scalar bank 0-1G
@@ -215,6 +219,7 @@ object Main {
       vLen,
       dLen,
       extensions = Seq("Zve32x"),
+      t1customInstructions = Nil,
       lsuBankParameters =
         // scalar bank 0-1G
         Seq(

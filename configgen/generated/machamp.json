@@ -5,6 +5,7 @@
     "extensions": [
       "Zve32x"
     ],
+    "t1customInstructions": [],
     "lsuBankParameters": [
       {
         "name": "scalar",
