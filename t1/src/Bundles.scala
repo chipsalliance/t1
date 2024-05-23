@@ -135,7 +135,7 @@ class ExtendInstructionType extends Bundle {
 class LaneRequest(param: LaneParameter) extends Bundle {
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
   // decode
-  val decodeResult: DecodeBundle = Decoder.bundle(param.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(param.decoderParam)
   val loadStore:    Bool = Bool()
   val issueInst:    Bool = Bool()
   val store:        Bool = Bool()
@@ -506,7 +506,7 @@ class InstructionPipeBundle(parameter: T1Parameter) extends Bundle {
   // 原始指令信息
   val request: VRequest = new VRequest(parameter.xLen)
   // decode 的结果
-  val decodeResult: DecodeBundle = new DecodeBundle(Decoder.all(parameter.fpuEnable))
+  val decodeResult: DecodeBundle = new DecodeBundle(Decoder.allFields(parameter.decoderParam))
   // 这条指令被vector分配的index
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
   // 指令的csr信息
@@ -632,7 +632,7 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
 
   // pipe state for stage3
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
   val loadStore: Bool = Bool()
   val vd: UInt = UInt(5.W)
@@ -656,7 +656,7 @@ class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends
   val maskType: Bool = Bool()
   val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
   // pipe state
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
 }
 
 class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {

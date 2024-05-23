@@ -18,7 +18,7 @@ class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
   // pipe state
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
   // skip vrf read in stage 1?
   val skipRead: Bool = Bool()
@@ -49,7 +49,7 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
   // pipe state
   // for exe stage
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val vSew1H: UInt = UInt(3.W)
   val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
   val maskType: Bool = Bool()

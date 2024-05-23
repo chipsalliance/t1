@@ -19,7 +19,7 @@ class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends 
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
   // pipe state
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val vSew1H: UInt = UInt(3.W)
   val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
   val maskType: Bool = Bool()
@@ -43,7 +43,7 @@ class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) 
   val executeIndex: Bool = Bool()
   val source2: UInt = UInt(parameter.datapathWidth.W)
   // pipe state
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val vSew1H: UInt = UInt(3.W)
 }
 
@@ -68,9 +68,9 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   val selfCompleted: Bool = IO(Input(Bool()))
 
   @public
-  val executeDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.fpuEnable)))
+  val executeDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
   @public
-  val responseDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.fpuEnable)))
+  val responseDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
 
   val executionRecord: ExecutionUnitRecord = RegInit(0.U.asTypeOf(new ExecutionUnitRecord(parameter)(isLastSlot)))
   val executionRecordValid = RegInit(false.B)
