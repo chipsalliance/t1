@@ -13,7 +13,7 @@ import chisel3.probe.{Probe, ProbeValue, define, force}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.rvdecoderdb.Instruction
-import org.chipsalliance.t1.rtl.decoder.{Decoder, T1CustomInstruction}
+import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam, T1CustomInstruction}
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
 
@@ -113,8 +113,16 @@ case class T1Parameter(
          |""".stripMargin}}
        |""".stripMargin
 
-  // FIXME
-  def allInstuctions: Set[Instruction] = Set.empty
+  val allInstructions: Seq[Instruction] = {
+    org.chipsalliance.rvdecoderdb.instructions(org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader))
+      .filter(instruction => instruction.instructionSet.name == "rv_v")++
+      t1customInstructions.map(_.instruction)
+  }.toSeq.sortBy(_.instructionSet.name).filter{
+    insn => insn.name match {
+      case s if Seq("vsetivli", "vsetvli", "vsetvl").contains(s) => false
+      case _ => true
+    }
+  }
 
   require(extensions.forall(Seq("Zve32x", "Zve32f").contains), "unsupported extension.")
   // TODO: require bank not overlap
@@ -213,6 +221,8 @@ case class T1Parameter(
   // and the values are their respective delays.
   val crossLaneConnectCycles: Seq[Seq[Int]] = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
 
+  val decoderParam: DecoderParam = DecoderParam(fpuEnable, allInstructions)
+
   /** parameter for TileLink. */
   val tlParam: TLBundleParameter = TLBundleParameter(
     a = TLChannelAParameter(physicalAddressWidth, sourceWidth, memoryDataWidthBytes * 8, sizeWidth, maskWidth),
@@ -233,6 +243,7 @@ case class T1Parameter(
       fpuEnable = fpuEnable,
       portFactor = vrfBankSize,
       vrfRamType = vrfRamType,
+      decoderParam = decoderParam,
       vfuInstantiateParameter = vfuInstantiateParameter
     )
   /** Parameter for each LSU. */
@@ -313,7 +324,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /** the LSU Module */
 
   val lsu: Instance[LSU] = Instantiate(new LSU(parameter.lsuParameters))
-  val decode: Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.fpuEnable))
+  val decode: Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.decoderParam))
 
   // TODO: cover overflow
   // TODO: uarch doc about the order of instructions

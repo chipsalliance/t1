@@ -19,7 +19,7 @@ class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val bordersForMaskLogic: Bool = Bool()
   // pipe state
   // for stage3
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
   val loadStore: Bool = Bool()
   /** vd or rd */
@@ -37,7 +37,7 @@ class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val pipeData: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
 
   // pipe state for stage3
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
   val loadStore: Bool = Bool()
   val vd: UInt = UInt(5.W)

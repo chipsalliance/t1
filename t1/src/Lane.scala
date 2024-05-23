@@ -10,7 +10,7 @@ import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.properties.{AnyClassType, Class, ClassType, Path, Property}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.t1.rtl.decoder.Decoder
+import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
 import org.chipsalliance.t1.rtl.lane._
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam, VRFProbe}
 
@@ -80,6 +80,7 @@ case class LaneParameter(
                           fpuEnable:                        Boolean,
                           portFactor:                       Int,
                           vrfRamType:                       RamType,
+                          decoderParam:                     DecoderParam,
                           vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
 
@@ -469,10 +470,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val requestVec: Vec[SlotRequestToVFU] = Wire(Vec(parameter.chainingSize, new SlotRequestToVFU(parameter)))
 
   /** decode message for [[requestVec]]. */
-  val executeDecodeVec: Vec[DecodeBundle] = Wire(Vec(parameter.chainingSize, Decoder.bundle(parameter.fpuEnable)))
+  val executeDecodeVec: Vec[DecodeBundle] = Wire(Vec(parameter.chainingSize, Decoder.bundle(parameter.decoderParam)))
 
   /** decode message for [[responseVec]]. */
-  val responseDecodeVec: Vec[DecodeBundle] = Wire(Vec(parameter.chainingSize, Decoder.bundle(parameter.fpuEnable)))
+  val responseDecodeVec: Vec[DecodeBundle] = Wire(Vec(parameter.chainingSize, Decoder.bundle(parameter.decoderParam)))
 
   /** response from vfu to slot. */
   val responseVec: Vec[ValidIO[VFUResponseToSlot]] = Wire(Vec(parameter.chainingSize, Valid(new VFUResponseToSlot(parameter))))

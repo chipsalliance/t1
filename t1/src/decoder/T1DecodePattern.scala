@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
 
-package org.chipsalliance.t1.rtl
+package org.chipsalliance.t1.rtl.decoder
 
 import chisel3._
 import chisel3.experimental.hierarchy.core.Definition
-import chisel3.experimental.hierarchy.{instantiable, public, Instantiate}
+import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.properties.{Class, ClassType, Property}
 import chisel3.util.BitPat
 import chisel3.util.experimental.decode.DecodePattern
 import org.chipsalliance.rvdecoderdb.Instruction
+import org.chipsalliance.t1.rtl.T1Parameter
+import org.chipsalliance.t1.rtl.decoder.attribute._
 
 @instantiable
 class T1DecodeAttributeOM extends Class {
@@ -46,136 +48,75 @@ class T1InstructionOM extends Class {
   attributes := attributesIn
 }
 
-/** Attribute that will be encode into object module.
-  * the Attribute is used to provide metadata for verifications.
-  */
-trait DecodeAttribute[T] {
-  val identifier: String = this.getClass.getSimpleName.replace("$", "")
-  val value:       T
-  val description: String
-  // Property of this attribute
-  def om: Property[ClassType] = {
-    val obj = Instantiate(new T1DecodeAttributeOM)
-    obj.identifierIn := Property(identifier)
-    obj.descriptionIn := Property(description)
-    // Use toString to avoid type issues...
-    obj.valueIn := Property(value.toString)
-    obj.getPropertyReference
-  }
-}
-
-trait BooleanDecodeAttribute extends DecodeAttribute[Boolean]
-trait StringDecodeAttribute extends DecodeAttribute[String]
-
-// All Attributes expose to OM,
-case class IsVectorOM(value: Boolean) extends BooleanDecodeAttribute {
-  override val description: String = "This instruction should be decode by T1."
-}
-
-case class UseLaneExecOM(value: String) extends StringDecodeAttribute {
-  require(Seq("logic", "adder", "shift", "multiplier", "divider").contains(value), s"invalid execution type: ${value}")
-  override val description: String =
-    "Types of Execution Unit used in T1, can be logic, adder, shift, multiplier, divider"
-}
-
 /** A case class that should wrap all Vector Instructions.
   * This is used to store the attribute for Vector Instruction under the T1 uArch.
   * It generates [[chisel3.util.experimental.decode.TruthTable]], as well as documentation field.
   */
-case class T1DecodePattern(instruction: Instruction, t1Parameter: T1Parameter) extends DecodePattern {
+case class T1DecodePattern(instruction: Instruction, param: DecoderParam) extends DecodePattern {
   override def bitPat: BitPat = BitPat("b" + instruction.encoding.toString)
 
-  private def documentation: String = InstructionDocumentation(instruction, t1Parameter).toString
+  // use the attribute w/ [[isVector.value]]
+  def isVector: isVector = attribute.isVector(this)
+  def isAdder: isAdder = attribute.isAdder(this)
+  def isAverage: isAverage = attribute.isAverage(this)
+  def isCompress: isCompress = attribute.isCompress(this)
+  def isCrossread: isCrossread = attribute.isCrossread(this)
+  def isCrosswrite: isCrosswrite = attribute.isCrosswrite(this)
+  def isDivider: isDivider = attribute.isDivider(this)
+  def isDontneedexecuteinlane: isDontneedexecuteinlane = attribute.isDontneedexecuteinlane(this)
+  def isExtend: isExtend = attribute.isExtend(this)
+  def isFcompare: isFcompare = attribute.isFcompare(this)
+  def isFfo: isFfo = attribute.isFfo(this)
+  def isFirstwiden: isFirstwiden = attribute.isFirstwiden(this)
+  def isFloatmul: isFloatmul = attribute.isFloatmul(this)
+  def isFloat: isFloat = attribute.isFloat(this)
+  def isFloattype: isFloattype = attribute.isFloattype(this)
+  def isFma: isFma = attribute.isFma(this)
+  def isFother: isFother = attribute.isFother(this)
+  def isGather16: isGather16 = attribute.isGather16(this)
+  def isGather: isGather = attribute.isGather(this)
+  def isId: isId = attribute.isId(this)
+  def isIndextype: isIndextype = attribute.isIndextype(this)
+  def isIota: isIota = attribute.isIota(this)
+  def isItype: isItype = attribute.isItype(this)
+  def isLogic: isLogic = attribute.isLogic(this)
+  def isMa: isMa = attribute.isMa(this)
+  def isMaskdestination: isMaskdestination = attribute.isMaskdestination(this)
+  def isMasklogic: isMasklogic = attribute.isMasklogic(this)
+  def isMasksource: isMasksource = attribute.isMasksource(this)
+  def isMaskunit: isMaskunit = attribute.isMaskunit(this)
+  def isMulticycle: isMulticycle = attribute.isMulticycle(this)
+  def isMultiplier: isMultiplier = attribute.isMultiplier(this)
+  def isMv: isMv = attribute.isMv(this)
+  def isNarrow: isNarrow = attribute.isNarrow(this)
+  def isNr: isNr = attribute.isNr(this)
+  def isOrderreduce: isOrderreduce = attribute.isOrderreduce(this)
+  def isOther: isOther = attribute.isOther(this)
+  def isZero: isZero = attribute.isZero(this)
+  def isPopcount: isPopcount = attribute.isPopcount(this)
+  def isReadonly: isReadonly = attribute.isReadonly(this)
+  def isRed: isRed = attribute.isRed(this)
+  def isReverse: isReverse = attribute.isReverse(this)
+  def isSaturate: isSaturate = attribute.isSaturate(this)
+  def isScheduler: isScheduler = attribute.isScheduler(this)
+  def isShift: isShift = attribute.isShift(this)
+  def isSlid: isSlid = attribute.isSlid(this)
+  def isSpecial: isSpecial = attribute.isSpecial(this)
+  def isSpecialslot: isSpecialslot = attribute.isSpecialslot(this)
+  def isSreadvd: isSreadvd = attribute.isSreadvd(this)
+  def isSwrite: isSwrite = attribute.isSwrite(this)
+  def isTargetrd: isTargetrd = attribute.isTargetrd(this)
+  def isUnorderwrite: isUnorderwrite = attribute.isUnorderwrite(this)
+  def isUnsigned0: isUnsigned0 = attribute.isUnsigned0(this)
+  def isUnsigned1: isUnsigned1 = attribute.isUnsigned1(this)
+  def isVtype: isVtype = attribute.isVtype(this)
+  def isVwmacc: isVwmacc = attribute.isVwmacc(this)
+  def isWidenreduce: isWidenreduce = attribute.isWidenreduce(this)
+  def fpExecutionType: FpExecutionType.Type = attribute.FpExecutionType(this)
+  def topUop: TopUop = attribute.TopUop(this)
+  def decoderUop: DecoderUop = attribute.DecoderUop(this)
 
-  // Below is the Scala in-memory attributes queried from DecodeTable.
-  def isVector = instruction.instructionSet.name == "rv_v"
-
-  /** goes into the [[org.chipsalliance.t1.rtl.decoder.TableGenerator.LaneDecodeTable.LogicUnit]]. */
-  def isLogic = Seq(
-    "vand.vi",
-    "vand.vv",
-    "vand.vx",
-    "vmand.mm",
-    "vmandn.mm",
-    "vmnand.mm",
-    "vredand.vs",
-    "vmnor.mm",
-    "vmor.mm",
-    "vmorn.mm",
-    "vmxnor.mm",
-    "vmxor.mm",
-    "vor.vi",
-    "vor.vv",
-    "vor.vx",
-    "vredor.vs",
-    "vredxor.vs",
-    "vxor.vi",
-    "vxor.vv",
-    "vxor.vx"
-  ).contains(instruction.name)
-
-  def isAdder = Seq(
-    "vaadd.vv",
-    "vaadd.vx",
-    "vaaddu.vv",
-    "vaaddu.vx",
-    "vadd.vi",
-    "vadd.vv",
-    "vadd.vx",
-    "vmadd.vv",
-    "vmadd.vx",
-    "vsadd.vi",
-    "vsadd.vv",
-    "vsadd.vx",
-    "vsaddu.vi",
-    "vsaddu.vv",
-    "vsaddu.vx",
-    "vwadd.vv",
-    "vwadd.vx",
-    "vwadd.wv",
-    "vwadd.wx",
-    "vwaddu.vv",
-    "vwaddu.vx",
-    "vwaddu.wv",
-    "vwaddu.wx",
-    "vasub.vv",
-    "vasub.vx",
-    "vasubu.vv",
-    "vasubu.vx",
-    "vfmsub.vf",
-    "vfmsub.vv",
-    "vfnmsub.vf",
-    "vfnmsub.vv",
-    "vfrsub.vf",
-    "vfsub.vf",
-    "vfsub.vv",
-    "vfwsub.vf",
-    "vfwsub.vv",
-    "vfwsub.wf",
-    "vfwsub.wv",
-    "vnmsub.vv",
-    "vnmsub.vx",
-    "vrsub.vi",
-    "vrsub.vx",
-    "vssub.vv",
-    "vssub.vx",
-    "vssubu.vv",
-    "vssubu.vx",
-    "vsub.vv",
-    "vsub.vx",
-    "vwsub.vv",
-    "vwsub.vx",
-    "vwsub.wv",
-    "vwsub.wx",
-    "vwsubu.vv",
-    "vwsubu.vx",
-    "vwsubu.wv",
-    "vwsubu.wx",
-    "vmslt.vv",
-    "vmslt.vx",
-    "vmsltu.vv",
-    "vmsltu.vx"
-  ).contains(instruction.name)
+  private def documentation: String = InstructionDocumentation(instruction, param).toString
 
   // This is the OM for this instruction
   def om: Property[ClassType] = {
@@ -190,7 +131,61 @@ case class T1DecodePattern(instruction: Instruction, t1Parameter: T1Parameter) e
     // convert in-memory attributes to Chisel Property
     obj.attributesIn :#= Property(
       Seq(
-        IsVectorOM(isVector),
+        isVector,
+        isAdder,
+        isAverage,
+        isCompress,
+        isCrossread,
+        isCrosswrite,
+        isDivider,
+        isDontneedexecuteinlane,
+        isExtend,
+        isFcompare,
+        isFfo,
+        isFirstwiden,
+        isFloatmul,
+        isFloat,
+        isFloattype,
+        isFma,
+        isFother,
+        isGather16,
+        isGather,
+        isId,
+        isIndextype,
+        isIota,
+        isItype,
+        isLogic,
+        isMa,
+        isMaskdestination,
+        isMasklogic,
+        isMasksource,
+        isMaskunit,
+        isMulticycle,
+        isMultiplier,
+        isMv,
+        isNarrow,
+        isNr,
+        isOrderreduce,
+        isOther,
+        isPopcount,
+        isReadonly,
+        isRed,
+        isReverse,
+        isSaturate,
+        isScheduler,
+        isShift,
+        isSlid,
+        isSpecial,
+        isSpecialslot,
+        isSreadvd,
+        isSwrite,
+        isTargetrd,
+        isUnorderwrite,
+        isUnsigned0,
+        isUnsigned1,
+        isVtype,
+        isVwmacc,
+        isWidenreduce,
       ).map(_.om.as(attributeClassTpe))
     )
     obj.getPropertyReference

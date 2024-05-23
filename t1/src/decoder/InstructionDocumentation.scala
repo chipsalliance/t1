@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
 
-package org.chipsalliance.t1.rtl
+package org.chipsalliance.t1.rtl.decoder
 
 import org.chipsalliance.rvdecoderdb.Instruction
 
 /** Generate documentation for each instructions for T1.
   * The documentation should contain the behavior for instruction in a specific configuration in T1.
+  * @todo should it be a post process at omreader?
   */
-case class InstructionDocumentation(instruction: Instruction, t1Parameter: T1Parameter) {
+case class InstructionDocumentation(instruction: Instruction, param: DecoderParam) {
   override def toString: String = instruction.name match {
     case "vaadd.vv" => "TODO!"
     case "vaadd.vx" => "TODO!"

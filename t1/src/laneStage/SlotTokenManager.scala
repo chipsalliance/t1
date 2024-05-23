@@ -11,7 +11,7 @@ import org.chipsalliance.t1.rtl._
 import org.chipsalliance.t1.rtl.decoder.Decoder
 
 class EnqReportBundle(parameter: LaneParameter) extends Bundle {
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
   val sSendResponse: Bool = Bool()
   val mask: UInt = UInt(4.W)

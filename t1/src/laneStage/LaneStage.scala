@@ -14,7 +14,7 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   val vSew1H: UInt = UInt(3.W)
   val loadStore: Bool = Bool()
   val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   /** which group is the last group for instruction. */
   val lastGroupForInstruction: UInt = UInt(parameter.groupNumberBits.W)
   val isLastLaneForInstruction: Bool = Bool()

@@ -6,14 +6,14 @@ package org.chipsalliance.t1.rtl
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util.experimental.decode._
-import org.chipsalliance.t1.rtl.decoder.Decoder
+import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
 
 @instantiable
-class VectorDecoder(fpuEnable: Boolean) extends Module {
+class VectorDecoder(param: DecoderParam) extends Module {
   @public
   val decodeInput: UInt = IO(Input(UInt(32.W)))
   @public
-  val decodeResult: DecodeBundle = IO(Output(new DecodeBundle(Decoder.all(fpuEnable))))
+  val decodeResult: DecodeBundle = IO(Output(new DecodeBundle(Decoder.allFields(param))))
 
-  decodeResult := Decoder.decode(fpuEnable)(decodeInput)
+  decodeResult := Decoder.decode(param)(decodeInput)
 }

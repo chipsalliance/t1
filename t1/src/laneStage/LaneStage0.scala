@@ -21,7 +21,7 @@ class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
   val vSew1H: UInt = UInt(3.W)
   val loadStore: Bool = Bool()
   val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   /** which group is the last group for instruction. */
   val lastGroupForInstruction: UInt = UInt(parameter.groupNumberBits.W)
   val isLastLaneForInstruction: Bool = Bool()
@@ -65,7 +65,7 @@ class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
   // pipe state
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
+  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
   // skip vrf read in stage 1?
   val skipRead: Bool = Bool()
