@@ -12,7 +12,8 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDPar
 import chisel3.probe.{Probe, ProbeValue, define, force}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.experimental.BitSet
-import org.chipsalliance.t1.rtl.decoder.Decoder
+import org.chipsalliance.rvdecoderdb.Instruction
+import org.chipsalliance.t1.rtl.decoder.{Decoder, T1CustomInstruction}
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
 
@@ -84,6 +85,7 @@ case class T1Parameter(
   vLen:                    Int,
   dLen:                    Int,
   extensions:              Seq[String],
+  t1customInstructions:    Seq[T1CustomInstruction],
   // LSU
   lsuBankParameters:       Seq[LSUBankParameter],
   // Lane
@@ -110,6 +112,9 @@ case class T1Parameter(
          |  ${lsuP.region.terms.map(_.rawString).mkString("\n  ")}
          |""".stripMargin}}
        |""".stripMargin
+
+  // FIXME
+  def allInstuctions: Set[Instruction] = Set.empty
 
   require(extensions.forall(Seq("Zve32x", "Zve32f").contains), "unsupported extension.")
   // TODO: require bank not overlap
