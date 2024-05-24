@@ -16,26 +16,50 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   val sSendResponse: Bool = Bool()
 }
 /**
- * stage0.enq             <->   [[enqReports]]         <-> slot token start
- *
- * stage1
- *
- * stage2(executionUnit)
- *
- * stage3                 <-> [[crossWriteReports]]
- *                        <-> [[responseReport]]
- *                        <-> [[responseFeedbackReport]]
- *
- * allVrfWriteAfterCheck  <-> [[slotWriteReport]]
- *
- *    <arbiter>           <-> [[writePipeEnqReport]]          <-> write pipe token start
- *
- * queueBeforeMaskWrite
- *
- * maskedWriteUnit
- *
- * vrf                    <-> [[writePipeDeqReport]]
- * */
+  * For each slot, it has 4 stages:
+  * {{{
+  * stage0.enq             <-> [[enqReports]]         <-> slot token start
+  *   - handle mask
+  *   - choose next datapath group
+  *
+  * stage1:
+  *   - read VRF
+  *     - send VRFRead(vs1,vs2,vd,crossread0,crossread1) task to each pre-queue.
+  *     - pre-queue to post-queue need chaining check.
+  *       @todo @Lucas-Wye add crossreadzk{0,1,2,3} here.
+  *       @note think about using register as L1VRF$, using a wider VRF SRAM for better SRAM Physical design(larger datawidth, less port)
+  *             this take an assumption that most of Lane are synchronized, and can use the larger memory width.
+  *     - task dequeue from post-queue will access VRF read port, then data to read data queue
+  *       - data will go to send cross read port if cross read
+  *       - cross read data from other lane will enqueue to data queue
+  *     - wait all data from the task arrived
+  *     - @todo: ECC check here. if 1-bit recover for datapath，if 2-bit, exception.(TODO: feed to mbist and mrecovery)
+  *
+  * stage2(executionUnit)
+  *   - exec
+  *
+  *
+  * stage3
+  *                        <-> [[crossWriteReports]]: cross lane write
+  *                        <-> [[responseReport]]: - report exec result to Sequencer(Top will exec it later);
+  *                                                - send index load store offset to LSU
+  *                        <-> [[responseFeedbackReport]]
+  *                                                - wait for ack from Sequencer(only slot 0 will wait)
+  *                                                  @todo if don't no wait for data from Sequencer use token to speed up the free speed.
+  *                                                        this can make new instruction enter slot0 faster to increase the bandwidth usage ratio of VRF&EXEC
+  * }}}
+  * VrfWritePipe:
+  *   - vrfWrite + cross write rx + lsu write + Sequencer write -> allVrfWrite
+  *   - do {waw, war} check for allVrfWrite, go to allVrfWriteAfterCheck
+  *   - allVrfWriteAfterCheck -> [[slotWriteReport]]
+  *   - allVrfWriteAfterCheck -> Arbiter -> [[writePipeEnqReport]] -> write pipe token acquire
+  *   - VRF write
+  *     - queueBeforeMaskWrite
+  *     - maskedWriteUnit
+  *     - @todo @qinjun-li ECC encode and write
+  *
+  * vrf -> [[writePipeDeqReport]] -> write  pipe token release
+  * */
 @instantiable
 class SlotTokenManager(parameter: LaneParameter) extends Module {
   // todo: param
