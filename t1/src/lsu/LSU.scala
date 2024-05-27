@@ -8,6 +8,7 @@ import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, publ
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
 import chisel3.util.experimental.BitSet
+import org.chipsalliance.amba.axi4.bundle.AXI4BundleParameter
 import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, firstlastHelper, indexToOH, instIndexL}
 import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelD}
 
@@ -59,6 +60,7 @@ case class LSUParameter(
                          transferSize:         Int,
                          // TODO: refactor to per lane parameter.
                          vrfReadLatency:       Int,
+                         axi4BundleParameter:  AXI4BundleParameter,
                          tlParam:              TLBundleParameter,
                          name: String
                        ) {

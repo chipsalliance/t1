@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.dataview.DataViewable
 import chisel3.experimental.hierarchy.{Definition, Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
@@ -12,6 +13,7 @@ import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDPar
 import chisel3.probe.{Probe, ProbeValue, define, force}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.experimental.BitSet
+import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ChiselBundle, AXI4VerilogBundle}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
@@ -208,6 +210,32 @@ case class T1Parameter(
   // and the values are their respective delays.
   val crossLaneConnectCycles: Seq[Seq[Int]] = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
 
+  /** paraemter for AXI4. */
+  val axi4BundleParameter: AXI4BundleParameter = AXI4BundleParameter(
+      idWidth = sourceWidth,
+      dataWidth = memoryDataWidthBytes * 8,
+      addrWidth = physicalAddressWidth,
+      userReqWidth = 0,
+      userDataWidth = 0,
+      userRespWidth = 0,
+      hasAW = true,
+      hasW = true,
+      hasB = true,
+      hasAR = true,
+      hasR = true,
+      supportId = true,
+      supportRegion = false,
+      supportLen = true,
+      supportSize = true,
+      supportBurst = true,
+      supportLock = false,
+      supportCache = false,
+      supportQos = false,
+      supportStrb = true,
+      supportResp = true,
+      supportProt = false,
+  )
+
   /** parameter for TileLink. */
   val tlParam: TLBundleParameter = TLBundleParameter(
     a = TLChannelAParameter(physicalAddressWidth, sourceWidth, memoryDataWidthBytes * 8, sizeWidth, maskWidth),
@@ -248,7 +276,7 @@ case class T1Parameter(
     toVRFWriteQueueSize = 96,
     transferSize = lsuTransposeSize,
     vrfReadLatency = vrfReadLatency,
-    // TODO: configurable for each LSU
+    axi4BundleParameter = axi4BundleParameter,
     tlParam = tlParam,
     name = "main"
   )
@@ -292,8 +320,13 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   /** from CPU LSU, store buffer is cleared, memory can observe memory requests after this is asserted. */
   val storeBufferClear: Bool = IO(Input(Bool()))
 
-  /** TileLink memory ports. */
+  /** memory ports. */
   val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.lsuBankParameters.size, parameter.tlParam.bundle()))
+  // TODO: expose region name here.
+  val axi4VerilogPorts: Seq[AXI4VerilogBundle] = Seq.tabulate(parameter.lsuBankParameters.size)(index =>
+    IO(org.chipsalliance.amba.axi4.bundle.verilog.irrevocable(parameter.axi4BundleParameter))
+  )
+  val axi4Ports = axi4VerilogPorts.map(_.viewAs[AXI4ChiselBundle])
 
   // TODO: this is an example of adding a new Probe
   val lsuProbe = IO(Probe(new LSUProbe(parameter.lsuParameters)))
