@@ -27,15 +27,16 @@ jobs:
       - name: Build docker image file
         id: build
         run: |
-          closure="$(nix build -L '.#t1.${{ matrix.config }}.release.docker-layers.final-image' --no-link --print-out-paths)"
+          closure="$(nix build -L '.#t1.${{ matrix.config }}.release.docker-image' --no-link --print-out-paths)"
           echo "path: $closure"
-          cp "$closure/image.tar" /tmp/t1-${{ matrix.config }}-image.tar
-          echo "cache-key-${{ matrix.config }}=$(nix hash file --base32 $closure/image.tar)" > $GITHUB_OUTPUT
+          _dest=/tmp/t1-${{ matrix.config }}-image.tar.gz
+          cp "$closure" "$_dest"
+          echo "cache-key-${{ matrix.config }}=$(nix hash file --base32 "$_dest")" > $GITHUB_OUTPUT
           nix build -L '.#t1.${{ matrix.config }}.release.doc' --out-link docs
       - name: Upload to cache
         uses: actions/cache/save@v4
         with:
-          path: /tmp/t1-${{ matrix.config }}-image.tar
+          path: /tmp/t1-${{ matrix.config }}-image.tar.gz
           key: ${{ steps.build.outputs[format('cache-key-{0}', matrix.config)] }}
       - uses: actions/upload-artifact@v4
         with:
@@ -57,7 +58,7 @@ jobs:
         uses: actions/cache/restore@v4
         id: cache
         with:
-          path: /tmp/t1-${{ matrix.config }}-image.tar
+          path: /tmp/t1-${{ matrix.config }}-image.tar.gz
           fail-on-cache-miss: true
           key: ${{ needs.build.outputs[format('cache-key-{0}', matrix.config)] }}
       - name: Login to GHCR dot IO
@@ -68,6 +69,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Load and push
         run: |
-          docker load < /tmp/t1-${{ matrix.config }}-image.tar
+          docker load < /tmp/t1-${{ matrix.config }}-image.tar.gz
           docker tag chipsalliance/t1-${{ matrix.config }}:latest ghcr.io/chipsalliance/t1-${{ matrix.config }}:latest
           docker push ghcr.io/chipsalliance/t1-${{ matrix.config }}:latest
