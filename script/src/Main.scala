@@ -84,7 +84,10 @@ object Main:
   def resolveElaborateConfig(
       configName: String
   ): os.Path =
-    os.pwd / "configgen" / "generated" / s"$configName.json"
+    if os.exists(os.Path(configName, os.pwd)) then
+      os.Path(configName)
+    else
+      os.pwd / "configgen" / "generated" / s"$configName.json"
   end resolveElaborateConfig
 
   def prepareOutputDir(
