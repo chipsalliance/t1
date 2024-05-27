@@ -14,6 +14,7 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.fpuEnable)
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
   val sSendResponse: Bool = Bool()
+  val mask: UInt = UInt(4.W)
 }
 /**
   * For each slot, it has 4 stages:
@@ -40,7 +41,6 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   *
   *
   * stage3
-  *                        <-> [[crossWriteReports]]: cross lane write
   *                        <-> [[responseReport]]: - report exec result to Sequencer(Top will exec it later);
   *                                                - send index load store offset to LSU
   *                        <-> [[responseFeedbackReport]]
@@ -52,6 +52,7 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   *   - vrfWrite + cross write rx + lsu write + Sequencer write -> allVrfWrite
   *   - do {waw, war} check for allVrfWrite, go to allVrfWriteAfterCheck
   *   - allVrfWriteAfterCheck -> [[slotWriteReport]]
+  *                           -> [[crossWriteReports]]: cross lane write
   *   - allVrfWriteAfterCheck -> Arbiter -> [[writePipeEnqReport]] -> write pipe token acquire
   *   - VRF write
   *     - queueBeforeMaskWrite
@@ -73,10 +74,10 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   val crossWriteReports: Vec[ValidIO[UInt]] = IO(Vec(2, Flipped(Valid(UInt(parameter.instructionIndexBits.W)))))
 
   @public
-  val responseReport: ValidIO[UInt] = Flipped(Valid(UInt(parameter.instructionIndexBits.W)))
+  val responseReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
-  val responseFeedbackReport: ValidIO[UInt] = Flipped(Valid(UInt(parameter.instructionIndexBits.W)))
+  val responseFeedbackReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
   val slotWriteReport: Seq[ValidIO[UInt]] = Seq.tabulate(parameter.chainingSize) { _ =>
@@ -84,10 +85,10 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   }
 
   @public
-  val writePipeEnqReport: ValidIO[UInt] = Flipped(Valid(UInt(parameter.instructionIndexBits.W)))
+  val writePipeEnqReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
-  val writePipeDeqReport: ValidIO[UInt] = Flipped(Valid(UInt(parameter.instructionIndexBits.W)))
+  val writePipeDeqReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
   val instructionValid: UInt = IO(Output(UInt(parameter.instructionIndexBits.W)))
