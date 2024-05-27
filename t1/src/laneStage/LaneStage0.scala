@@ -90,7 +90,8 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   ) {
   @public
   val updateLaneState: LaneStage0StateUpdate = IO(Output(new LaneStage0StateUpdate(parameter)))
-
+  @public
+  val tokenReport: ValidIO[EnqReportBundle] = IO(Valid(new EnqReportBundle(parameter)))
   val stageWire: LaneStage0Dequeue = Wire(new LaneStage0Dequeue(parameter, isLastSlot))
   // 这一组如果全被masked了也不压进流水
   val notMaskedAllElement: Bool = Mux1H(enqueue.bits.vSew1H, Seq(
@@ -223,4 +224,10 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   }
 
   dequeue.bits := stageDataReg
+
+  tokenReport.valid := enqFire
+  tokenReport.bits.decodeResult := enqueue.bits.decodeResult
+  tokenReport.bits.instructionIndex := enqueue.bits.instructionIndex
+  tokenReport.bits.sSendResponse := stageWire.sSendResponse.getOrElse(true.B)
+  tokenReport.bits.mask := stageWire.maskForMaskInput
 }

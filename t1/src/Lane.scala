@@ -513,6 +513,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   ))
   val maskedWriteUnit: Instance[MaskedWrite] = Instantiate(new MaskedWrite(parameter))
+  val tokenManager: Instance[SlotTokenManager] = Instantiate(new SlotTokenManager(parameter))
   val dataInPipeQueue: UInt = Wire(UInt(parameter.chainingSize.W))
   // data in allVrfWriteAfterCheck
   val dataInAfterCheck: UInt = Wire(UInt(parameter.chainingSize.W))
@@ -813,6 +814,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       stage3.vrfWriteRequest.ready := vrfWriteArbiter(index).ready
 
       pipeClear := !Seq(stage0.stageValid, stage1.stageValid, stage2.stageValid, stage3.stageValid, dataInWritePipe).reduce(_ || _)
+      tokenManager.enqReports(index) := stage0.tokenReport
 
       // probes
       probeWire.slots(index).stage0EnqueueReady := stage0.enqueue.ready
@@ -1198,6 +1200,27 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     maskedWriteUnit.maskedWrite1H | dataInAfterCheck
   writeReadyForLsu := vrf.writeReadyForLsu
   vrfReadyToStore := vrf.vrfReadyToStore
+  tokenManager.crossWriteReports.zipWithIndex.foreach {case (rpt, rptIndex) =>
+    rpt.valid := afterCheckDequeueFire(parameter.chainingSize + 1 + rptIndex)
+    rpt.bits := allVrfWriteAfterCheck(parameter.chainingSize + 1 + rptIndex).instructionIndex
+  }
+  tokenManager.responseReport.valid := laneResponse.valid
+  tokenManager.responseReport.bits := laneResponse.bits.instructionIndex
+  tokenManager.responseFeedbackReport.valid := laneResponseFeedback.valid
+  tokenManager.responseFeedbackReport.bits := laneResponseFeedback.bits.instructionIndex
+
+  // slot write
+  tokenManager.slotWriteReport.zipWithIndex.foreach {case (rpt, rptIndex) =>
+    rpt.valid := queueBeforeMaskWrite.io.enq.fire && writeSelect(rptIndex)
+    // todo: delete? same as [[tokenManager.writePipeEnqReport.bits]]
+    rpt.bits := queueBeforeMaskWrite.io.enq.bits.instructionIndex
+  }
+
+  tokenManager.writePipeEnqReport.valid := queueBeforeMaskWrite.io.enq.fire
+  tokenManager.writePipeEnqReport.bits := queueBeforeMaskWrite.io.enq.bits.instructionIndex
+
+  tokenManager.writePipeDeqReport.valid := vrf.write.fire
+  tokenManager.writePipeDeqReport.bits := vrf.write.bits.instructionIndex
 
   // probe wire
   probeWire.laneRequestValid := laneRequest.valid
