@@ -1,7 +1,9 @@
 { lib
   # build deps
 , dockerTools
+, buildEnv
 , runCommand
+, runtimeShell
 
   # Runtime deps
 , bashInteractive
@@ -17,24 +19,27 @@
 }:
 
 let
-  # Don't use buildImage which relies on KVM feature
-  self = dockerTools.streamLayeredImage {
+  # dockerTools.buildImage relies on KVM feature, don't run it inside VMs
+  self = dockerTools.buildImage rec {
     name = "chipsalliance/t1-${configName}";
     tag = "latest";
 
-    contents = with dockerTools; [
-      usrBinEnv
-      binSh
+    copyToRoot = buildEnv {
+      name = "${name}.imageroot";
+      paths = with dockerTools; [
+        usrBinEnv
+        binSh
 
-      bashInteractive
-      which
+        bashInteractive
+        which
 
-      emulator-wrapped
-    ]
-    ++ rv32-stdenv.initialPath;
+        emulator-wrapped
+      ] ++ rv32-stdenv.initialPath;
+      pathsToLink = [ "/bin" ];
+    };
 
-    enableFakechroot = true;
-    fakeRootCommands = ''
+    runAsRoot = ''
+      #!${runtimeShell}
       echo "Start finalizing rootfs"
 
       echo "Creating testcase directory"
@@ -46,20 +51,12 @@ let
       done
       chmod u+w -R /workspace/cases
 
-      mkdir /tmp
+      mkdir -p /tmp
     '';
 
     config = {
       # Cmd = [ ];
       WorkingDir = "/workspace";
-    };
-
-    passthru = {
-      final-image = runCommand "convert-layer-to-final-image" { } ''
-        mkdir $out
-
-        ${bashInteractive}/bin/bash ${self} > $out/image.tar
-      '';
     };
   };
 in

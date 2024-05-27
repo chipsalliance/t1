@@ -19,17 +19,23 @@
 let
   extension = lib.head elaborateConfig.parameter.extensions;
   isFp = lib.hasInfix "f" extension;
+
+  # dontFixup is set to true by default for debugging. However it will bring LLVM runtime and clang into the final images.
+  # For docker release, test ELF is for demo usage only, so I don't want those implicit huge dependencies get into the container.
+  stripCase = case: case.overrideAttrs {
+    dontFixup = false;
+  };
 in
 
 lib.makeScope newScope (scope: rec {
   inherit elaborateConfigJson configName;
 
-  testCases = with cases; [
+  testCases = map stripCase (with cases; [
     intrinsic.matmul
   ] ++ lib.optionals isFp [
     intrinsic.softmax
     intrinsic.linear_normalization
-  ];
+  ]);
 
   emulator-wrapped = runCommand "ip-emulator"
     {
@@ -50,7 +56,7 @@ lib.makeScope newScope (scope: rec {
         --add-flags "--emulator-path ${ip.emu-trace}/bin/emulator"
     '';
 
-  docker-layers = scope.callPackage ./docker-layers.nix { };
+  docker-image = scope.callPackage ./docker-image.nix { };
 
   doc = stdenvNoCC.mkDerivation {
     name = "${configName}-typst-release-doc";
