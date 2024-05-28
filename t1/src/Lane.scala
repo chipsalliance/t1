@@ -384,6 +384,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   }
   val afterCheckValid: Seq[Bool] = Seq.tabulate(parameter.chainingSize + 3) { _ => RegInit(false.B)}
   val afterCheckDequeueReady: Vec[Bool] = Wire(Vec(parameter.chainingSize + 3, Bool()))
+  val afterCheckDequeueFire: Seq[Bool] = afterCheckValid.zip(afterCheckDequeueReady).map {case (v, r) => v && r}
 
   /** for each slot, assert when it is asking [[T1]] to change mask */
   val slotMaskRequestVec: Vec[ValidIO[UInt]] = Wire(
@@ -874,6 +875,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     indexToOH(queueBeforeMaskWrite.io.deq.bits.instructionIndex, parameter.chainingSize),
     0.U
   )
+  val writeSelect: UInt = Wire(UInt((parameter.chainingSize + 3).W))
+  val writeCavitation: UInt = VecInit(allVrfWriteAfterCheck.map(_.mask === 0.U)).asUInt
 
   // 处理 rf
   {
@@ -921,7 +924,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       when(enqFire) {
         req := allVrfWrite(i).bits
       }
-      val deqFire = afterCheckDequeueReady(i) && afterCheckValid(i)
+      val deqFire = afterCheckDequeueFire(i)
       when(deqFire ^ enqFire) {
         afterCheckValid(i) := enqFire
       }
@@ -933,9 +936,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     }.reduce(_ | _)
 
     // Arbiter
-    val writeSelect: UInt = ffo(VecInit(afterCheckValid).asUInt)
+    writeSelect := ffo(VecInit(afterCheckValid).asUInt & (~writeCavitation).asUInt)
     afterCheckDequeueReady.zipWithIndex.foreach { case (p, i) =>
-      p := writeSelect(i) && queueBeforeMaskWrite.io.enq.ready
+      p := (writeSelect(i) && queueBeforeMaskWrite.io.enq.ready) || writeCavitation(i)
     }
 
     maskedWriteUnit.enqueue <> queueBeforeMaskWrite.io.deq
