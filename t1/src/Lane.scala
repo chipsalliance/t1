@@ -175,6 +175,8 @@ case class LaneParameter(
   * - [[VRF]] is designed for store the vector register of the processor.
   * - datapath units: [[MaskedLogic]], [[LaneAdder]], [[LaneShifter]], [[LaneMul]], [[LaneDiv]], [[OtherUnit]]
   * @todo @sequencer change it to public module.
+  *
+  * Slot
   */
 @instantiable
 class Lane(val parameter: LaneParameter) extends Module with SerializableModule[LaneParameter] {
@@ -404,6 +406,24 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * TODO: clear [[Decoder.maskDestination]] [[Decoder.maskSource]] [[Decoder.maskLogic]] out from `index == 0`?
     *       we may only need cross lane read/write in `index == 0`
     * the index != 0 slot is used for all other instructions.
+    *
+    * For each instruction, it will be grouped into data group(request with datapath width),
+    *                       and it will allocate a slot to store its execution state.
+    *   For each data group, it will be push to stage0 in its group.
+    *                        if all data group for an instruction is enqueued to stage0, then the slot will be free,
+    *                        then the slot will be filled with the content of next slot(shift),
+    *                        if it is the first slot(slot[3]), then the Lane can take new instruction from Sequencer.
+    *
+    * The datapath of slot is:
+    *   Sequencer -> slot[3] -> slot[2] -> slot[1] -> slot[0]
+    *   each slot can free even next slot is still occupied.
+    *   This need to be carefully covered.
+    *   @todo the read port arbitration is slot[0] > slot[1] > slot[2] > slot[3],
+    *         however if the oldest instruction is not in slot[0], then it will be slow.
+    *         the solution is we need to push the index[recoded] for each instruction to slot,
+    *         and it should be used by arbiter to select the oldest instruction.
+    *  if slot is fixed allocated(no shifting), instruction will be allocated with fixed VFU,
+    *  which will reduce the utility of VFU.
     */
   val slotControl: Vec[InstructionControlRecord] =
     RegInit(
@@ -855,6 +875,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // TODO: reuse logic, adder, multiplier datapath
   val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
 
+  // @todo @clo91eaf need to take care about: VFU usage: which instruction, from which slot,
+  //                 need to perf slot is stall because of specific VFU.
+  //                 it should guide architect to allocate how many and which VFU should be to specific slot.
   val vfus: Seq[Instance[VFUModule]] = instantiateVFU(parameter.vfuInstantiateParameter)(
     requestVec,
     executeEnqueueValid,
