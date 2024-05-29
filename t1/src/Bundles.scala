@@ -248,8 +248,8 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
   /** this is the last lane for mask type instruction */
   val isLastLaneForInstruction: Bool = Bool()
 
-  // Requires an additional set of cross-lane reads
-  val additionalRead: Bool = Bool()
+  // Requires an additional set of cross-lane reads/writes
+  val additionalRW: Bool = Bool()
 
   /** the find first one instruction is finished by other lanes,
     * for example, sbf(set before first)
