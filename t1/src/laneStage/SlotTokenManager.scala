@@ -105,6 +105,19 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
     VecInit(tokenData.map(_ === 0.U)).asUInt
   }
 
+  // todo: Precise feedback
+  def feedbackUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
+    tokenData.zipWithIndex.foreach { case (t, i) =>
+      val e = enqWire(i)
+      val d = deqWire(i)
+      val change = Mux(e, 1.U(tokenWith.W), -1.S(tokenWith.W).asUInt)
+      when((e ^ d) && (e || t =/= 0.U)) {
+        t := t + change
+      }
+    }
+    VecInit(tokenData.map(_ === 0.U)).asUInt
+  }
+
   val instructionInSlot: UInt = enqReports.zipWithIndex.map { case (enqReport, slotIndex) =>
 
     val writeToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
@@ -151,7 +164,8 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
         maskAnd(responseFeedbackReport.valid, indexToOH(responseFeedbackReport.bits, parameter.chainingSize)).asUInt
 
       val pendingResponse = tokenUpdate(responseToken, responseDoEnq, responseDoDeq)
-      val pendingFeedback = tokenUpdate(feedbackToken, responseDoEnq, feedbackDoDeq)
+      // todo: Precise feedback
+      val pendingFeedback = feedbackUpdate(feedbackToken, responseDoEnq, feedbackDoDeq)
       pendingSlotWrite | pendingCrossWriteLSB | pendingCrossWriteMSB | pendingResponse | pendingFeedback
     } else {
       pendingSlotWrite
