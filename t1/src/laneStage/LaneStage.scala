@@ -36,7 +36,7 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   val vd: UInt = UInt(5.W)
 
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val additionalRead: Bool = Bool()
+  val additionalRW: Bool = Bool()
   // skip vrf read in stage 1?
   val skipRead: Bool = Bool()
 }

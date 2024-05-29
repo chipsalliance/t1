@@ -524,11 +524,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
       /** We will ignore the effect of mask since:
         * [[Decoder.crossRead]]: We need to read data to another lane
+        * [[Decoder.crossWrite]]: We need to send cross write report to another lane
         * [[Decoder.scheduler]]: We need to synchronize with [[T1]] every group
         * [[record.laneRequest.loadStore]]: We need to read data to lsu every group
         */
-      val alwaysNextGroup: Bool = decodeResult(Decoder.crossRead) || decodeResult(Decoder.nr) ||
-        !decodeResult(Decoder.scheduler) || record.laneRequest.loadStore
+      val alwaysNextGroup: Bool = decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite) ||
+        decodeResult(Decoder.nr) || !decodeResult(Decoder.scheduler) || record.laneRequest.loadStore
 
       // mask not use for mask element
       val maskNotMaskedElement = !record.laneRequest.mask ||
@@ -592,7 +593,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.instructionIndex := record.laneRequest.instructionIndex
       laneState.skipEnable := skipEnable
       laneState.ffoByOtherLanes := record.ffoByOtherLanes
-      laneState.additionalRead := record.additionalRead
+      laneState.additionalRW := record.additionalRW
       laneState.skipRead := record.laneRequest.decodeResult(Decoder.other) &&
         (record.laneRequest.decodeResult(Decoder.uop) === 9.U)
 
@@ -1076,8 +1077,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     isEndLane && misalignedForOther
   )
 
-  entranceControl.additionalRead :=
-    laneRequest.bits.decodeResult(Decoder.crossRead) &&
+  entranceControl.additionalRW :=
+    (laneRequest.bits.decodeResult(Decoder.crossRead) || laneRequest.bits.decodeResult(Decoder.crossWrite)) &&
       lanePositionLargerThanEndLane && !lastLaneIndex.andR && csrInterface.vl.orR
 
   // slot needs to be moved, try to shifter and stall pipe

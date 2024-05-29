@@ -41,7 +41,7 @@ class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
   val vd: UInt = UInt(5.W)
 
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val additionalRead: Bool = Bool()
+  val additionalRW: Bool = Bool()
   // skip vrf read in stage 1?
   val skipRead: Bool = Bool()
   // vm will skip element?
@@ -101,9 +101,9 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   )) || enqueue.bits.maskNotMaskedElement ||
     enqueue.bits.decodeResult(Decoder.maskDestination) || enqueue.bits.decodeResult(Decoder.red) ||
     enqueue.bits.decodeResult(Decoder.readOnly) ||  enqueue.bits.loadStore || enqueue.bits.decodeResult(Decoder.gather) ||
-    enqueue.bits.decodeResult(Decoder.crossRead)
+    enqueue.bits.decodeResult(Decoder.crossRead) || enqueue.bits.decodeResult(Decoder.crossWrite)
   // 超出范围的一组不压到流水里面去
-  val enqFire: Bool = enqueue.fire && (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRead) && notMaskedAllElement
+  val enqFire: Bool = enqueue.fire && (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRW) && notMaskedAllElement
   val stageDataReg: Data = RegEnable(stageWire, 0.U.asTypeOf(stageWire), enqFire)
   val filterVec: Seq[(Bool, UInt)] = Seq(0, 1, 2).map { filterSew =>
     // The lower 'dataGroupIndexSize' bits represent the offsets in the data group
