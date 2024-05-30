@@ -16,6 +16,10 @@ class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
 
+/** VRFReadDataPorts -> queue(LSU -> VRF back pressure) -> vrfReadQueueVec ->
+  * accessData(8(NF) * DLEN) for regroup -> regroup -> giant crossbar -> dataBuffer(8(NF) * DLEN)
+  * data buffer will be sent to memory in NF transaction.
+  */
 @instantiable
 class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   @public

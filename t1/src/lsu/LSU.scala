@@ -129,6 +129,11 @@ class LSUProbe(param: LSUParameter) extends Bundle {
   * it contains
   * - a bunch of [[MSHR]] to record outstanding memory transactions.
   * - a crossbar to connect memory interface and each lanes.
+  *
+  * Sequencer -> request
+  * maskInput(mask) + SEW -> STRB on the AXI port
+  * vrfReadDataPorts -> AXI W
+  * AXI R -> LoadUnit/SimpleAccessUnit -> writeQueueVec(avoid deadlock) -> vrfWritePort
   */
 @instantiable
 class LSU(param: LSUParameter) extends Module {
@@ -150,7 +155,10 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val maskInput: Vec[UInt] = IO(Input(Vec(param.lsuMSHRSize, UInt(param.maskGroupWidth.W))))
 
-  /** the address of the mask group in the [[V]]. */
+  /** the address of the mask group in the [[V]].
+    * maskSelect -> Sequencer to request mask group
+    * maskSelect is used for address gen.
+    */
   @public
   val maskSelect: Vec[UInt] = IO(Output(Vec(param.lsuMSHRSize, UInt(param.maskGroupSizeBits.W))))
 
