@@ -32,6 +32,7 @@ class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
   val maskType: Bool = Bool()
   val loadStore: Bool = Bool()
+  val readFromScalar: UInt = UInt(parameter.datapathWidth.W)
 }
 
 class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -97,9 +98,6 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   @public
   val readBusRequest: Option[Vec[DecoupledIO[ReadBusData]]] =
     Option.when(isLastSlot)(IO(Vec(2, Decoupled(new ReadBusData(parameter)))))
-
-  @public
-  val readFromScalar: UInt = IO(Input(UInt(parameter.datapathWidth.W)))
 
   val groupCounter: UInt = enqueue.bits.groupCounter
 
@@ -344,16 +342,11 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     dequeue.bits.readBusDequeueGroup.get := crossReadUnitOp.get.currentGroup
   }
 
-  val scalarDataRepeat: UInt = Mux1H(
-    pipeQueue.io.deq.bits.vSew1H,
-    Seq(
-      Fill(4, readFromScalar(7, 0)),
-      Fill(2, readFromScalar(15, 0)),
-      readFromScalar
-    )
+  val source1Select: UInt = Mux(
+    pipeQueue.io.deq.bits.decodeResult(Decoder.vtype),
+    dataQueueVs1.bits,
+    pipeQueue.io.deq.bits.readFromScalar
   )
-
-  val source1Select: UInt = Mux(pipeQueue.io.deq.bits.decodeResult(Decoder.vtype), dataQueueVs1.bits, scalarDataRepeat)
   dequeue.bits.mask := pipeQueue.io.deq.bits.maskForMaskInput
   dequeue.bits.groupCounter := pipeQueue.io.deq.bits.groupCounter
   dequeue.bits.src := VecInit(Seq(source1Select, dataQueueVs2.io.deq.bits, dataQueueVd.io.deq.bits))
