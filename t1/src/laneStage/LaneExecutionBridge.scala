@@ -67,6 +67,11 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   @public
   val selfCompleted: Bool = IO(Input(Bool()))
 
+  @public
+  val executeDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.fpuEnable)))
+  @public
+  val responseDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.fpuEnable)))
+
   val executionRecord: ExecutionUnitRecord = RegInit(0.U.asTypeOf(new ExecutionUnitRecord(parameter)(isLastSlot)))
   val executionRecordValid = RegInit(false.B)
 
@@ -293,6 +298,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
 
   // from float csr
   vfuRequest.bits.roundingMode.foreach(_ := executionRecord.csr.vxrm)
+  executeDecode := executionRecord.decodeResult
 
   vfuRequest.valid := (if (isLastSlot) {
     (executionRecordValid || sendFoldReduce.get) && (responseFinish || !executionRecord.decodeResult(Decoder.red))
@@ -534,6 +540,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   queue.io.enq.bits.ffoSuccess.foreach(_ := dataResponse.bits.ffoSuccess)
   queue.io.enq.bits.fpReduceValid.foreach(_ := !waitFirstValidFire.get)
   recordQueue.io.deq.ready := dataResponse.valid || (recordNotExecute && queue.io.enq.ready)
+  responseDecode := recordQueue.io.deq.bits.decodeResult
   queue.io.enq.valid :=
     (recordQueue.io.deq.valid &&
       ((dataResponse.valid && reduceReady &&

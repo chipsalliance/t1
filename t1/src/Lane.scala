@@ -466,6 +466,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** request from slot to vfu. */
   val requestVec: Vec[SlotRequestToVFU] = Wire(Vec(parameter.chainingSize, new SlotRequestToVFU(parameter)))
 
+  /** decode message for [[requestVec]]. */
+  val executeDecodeVec: Vec[DecodeBundle] = Wire(Vec(parameter.chainingSize, Decoder.bundle(parameter.fpuEnable)))
+
+  /** decode message for [[responseVec]]. */
+  val responseDecodeVec: Vec[DecodeBundle] = Wire(Vec(parameter.chainingSize, Decoder.bundle(parameter.fpuEnable)))
+
   /** response from vfu to slot. */
   val responseVec: Vec[ValidIO[VFUResponseToSlot]] = Wire(Vec(parameter.chainingSize, Valid(new VFUResponseToSlot(parameter))))
 
@@ -726,6 +732,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
       // executionUnit <> vfu
       requestVec(index) := executionUnit.vfuRequest.bits
+      executeDecodeVec(index) := executionUnit.executeDecode
+      responseDecodeVec(index) := executionUnit.responseDecode
       executeEnqueueValid(index) := executionUnit.vfuRequest.valid
       executionUnit.vfuRequest.ready := executeEnqueueFire(index)
       executionUnit.dataResponse := responseVec(index)
@@ -820,17 +828,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     assert(queue.io.enq.ready || !port.enq.valid)
     port.enqRelease := queue.io.deq.fire
   }
-  // convert data types
-
-
-  // VFU
-  // TODO: reuse logic, adder, multiplier datapath
-  val decodeResultVec: Seq[DecodeBundle] = slotControl.map(_.laneRequest.decodeResult)
 
   val vfus: Seq[Instance[VFUModule]] = instantiateVFU(parameter.vfuInstantiateParameter)(
     requestVec,
     executeEnqueueValid,
-    decodeResultVec,
+    executeDecodeVec,
+    responseDecodeVec,
     executeEnqueueFire,
     responseVec,
     executeOccupied,

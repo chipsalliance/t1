@@ -183,7 +183,8 @@ package object rtl {
   def instantiateVFU(parameter: VFUInstantiateParameter)(
     requestVec: Vec[SlotRequestToVFU],
     requestValid: Vec[Bool],
-    decodeResult: Seq[DecodeBundle],
+    requestDecode: Seq[DecodeBundle],
+    responseDecode: Seq[DecodeBundle],
     executeEnqueueFire: Vec[Bool],
     responseVec: Vec[ValidIO[VFUResponseToSlot]],
     executeOccupied: Vec[Bool],
@@ -200,7 +201,7 @@ package object rtl {
       val requestFire = request.elements.map { case (name: String, reqForVfu: DecoupledIO[SlotRequestToVFU]) =>
         // 检测类型
         val requestParameter: VFUParameter = request.parameterMap(name)
-        val typeCheck = decodeResult(slotIndex)(requestParameter.decodeField)
+        val typeCheck = requestDecode(slotIndex)(requestParameter.decodeField)
         // 连接 valid
         reqForVfu.valid := requestValid(slotIndex) && typeCheck
 
@@ -296,7 +297,7 @@ package object rtl {
       // 筛选 response
       val responseFilter: Seq[(Bool, ValidIO[VFUResponseToSlot])] = vfuResponse.zip(parameter.genVec).filter(_._2._2.contains(slotIndex)).map {
         case (resp, (gen, _)) =>
-          (decodeResult(slotIndex)(gen.parameter.decodeField), resp)
+          (responseDecode(slotIndex)(gen.parameter.decodeField), resp)
       }
       val selectResponse: ValidIO[VFUResponseToSlot] = Mux1H(
         responseFilter.map(_._1),
