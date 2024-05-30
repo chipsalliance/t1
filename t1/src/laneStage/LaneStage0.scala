@@ -15,6 +15,7 @@ class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
   val maskIndex: UInt = UInt(log2Ceil(parameter.maskGroupWidth).W)
   val maskForMaskGroup: UInt = UInt(parameter.datapathWidth.W)
   val maskGroupCount: UInt = UInt(parameter.maskGroupSizeBits.W)
+  val readFromScalar: UInt = UInt(parameter.datapathWidth.W)
 
   // pipe all state
   val vSew1H: UInt = UInt(3.W)
@@ -60,6 +61,7 @@ class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val boundaryMaskCorrection: UInt = UInt((parameter.datapathWidth/8).W)
   val sSendResponse: Option[Bool] =  Option.when(isLastSlot)(Bool())
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
+  val readFromScalar: UInt = UInt(parameter.datapathWidth.W)
 
   // pipe state
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
@@ -219,6 +221,16 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
       }
     )
   }
+
+  stageWire.readFromScalar := Mux1H(
+    enqueue.bits.vSew1H,
+    Seq(
+      Fill(4, enqueue.bits.readFromScalar(7, 0)),
+      Fill(2, enqueue.bits.readFromScalar(15, 0)),
+      enqueue.bits.readFromScalar
+    )
+  )
+
   when(enqFire ^ dequeue.fire) {
     stageValidReg := enqFire
   }
