@@ -91,7 +91,16 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   val writePipeDeqReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
+  val topWriteEnq: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+
+  @public
+  val topWriteDeq: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+
+  @public
   val instructionValid: UInt = IO(Output(UInt(parameter.chainingSize.W)))
+
+  @public
+  val dataInWritePipe: UInt = IO(Output(UInt(parameter.chainingSize.W)))
 
   def tokenUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
     tokenData.zipWithIndex.foreach { case (t, i) =>
@@ -172,6 +181,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
     }
   }.reduce(_ | _)
 
+  // write pipe token
   val writePipeToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
   val writePipeEnq: UInt =
     maskAnd(writePipeEnqReport.valid, indexToOH(writePipeEnqReport.bits, parameter.chainingSize)).asUInt
@@ -180,5 +190,16 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
 
   val instructionInWritePipe: UInt = tokenUpdate(writePipeToken, writePipeEnq, writePipeDeq)
 
-  instructionValid := instructionInWritePipe | instructionInSlot
+  // top write token
+  val topWriteToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+  val topWriteDoEnq: UInt =
+    maskAnd(topWriteEnq.valid, indexToOH(topWriteEnq.bits, parameter.chainingSize)).asUInt
+
+  val topWriteDoDeq: UInt =
+    maskAnd(topWriteDeq.valid, indexToOH(topWriteDeq.bits, parameter.chainingSize)).asUInt
+
+  val instructionInTopWritePipe = tokenUpdate(topWriteToken, topWriteDoEnq, topWriteDoDeq)
+
+  dataInWritePipe := instructionInWritePipe | instructionInTopWritePipe
+  instructionValid := dataInWritePipe | instructionInSlot
 }

@@ -1181,7 +1181,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   tokenManager.writePipeDeqReport.valid := vrf.write.fire
   tokenManager.writePipeDeqReport.bits := vrf.write.bits.instructionIndex
-  writeQueueValid := tokenManager.instructionValid
+  writeQueueValid := tokenManager.dataInWritePipe
+
+  tokenManager.topWriteEnq.valid := vrfWriteChannel.fire
+  tokenManager.topWriteEnq.bits := vrfWriteChannel.bits.instructionIndex
+
+  tokenManager.topWriteDeq.valid := afterCheckDequeueFire(parameter.chainingSize)
+  tokenManager.topWriteDeq.bits := allVrfWriteAfterCheck(parameter.chainingSize).instructionIndex
 
   // probe wire
   probeWire.laneRequestValid := laneRequest.valid
