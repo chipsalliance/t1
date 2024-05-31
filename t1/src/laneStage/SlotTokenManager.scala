@@ -91,7 +91,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   val writePipeDeqReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
-  val instructionValid: UInt = IO(Output(UInt(parameter.instructionIndexBits.W)))
+  val instructionValid: UInt = IO(Output(UInt(parameter.chainingSize.W)))
 
   def tokenUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
     tokenData.zipWithIndex.foreach { case (t, i) =>
@@ -102,7 +102,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
         t := t + change
       }
     }
-    VecInit(tokenData.map(_ === 0.U)).asUInt
+    VecInit(tokenData.map(_ =/= 0.U)).asUInt
   }
 
   // todo: Precise feedback
@@ -115,7 +115,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
         t := t + change
       }
     }
-    VecInit(tokenData.map(_ === 0.U)).asUInt
+    VecInit(tokenData.map(_ =/= 0.U)).asUInt
   }
 
   val instructionInSlot: UInt = enqReports.zipWithIndex.map { case (enqReport, slotIndex) =>

@@ -195,12 +195,11 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   @public
   val instructionLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
-  /** data in write queue */
   @public
-  val dataInWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   @public
-  val dataInCrossBus: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  val dataInLane: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
   @public
   val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
@@ -452,7 +451,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     loadUnitReadPorts.map(p => UIntToOH((p.bits.vs ## p.bits.offset)(parameter.vrfOffsetBits + 3 - 1, 0)))
   Seq(chainingRecord, chainingRecordCopy).foreach{ recordVec => recordVec.zipWithIndex.foreach {
     case (record, i) =>
-      val dataIndexWriteQueue = ohCheck(dataInWriteQueue, record.bits.instIndex, parameter.chainingSize)
       val dataInLsuQueue = ohCheck(loadDataInLSUWriteQueue, record.bits.instIndex, parameter.chainingSize)
       // elementMask update by write
       val writeUpdateValidVec: Seq[Bool] = writePort.map( p =>
@@ -467,32 +465,33 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       // all elementMask update
       val elementUpdateValid: Bool = (writeUpdateValidVec ++ loadUpdateValidVec).reduce(_ || _)
       val elementUpdate1H: UInt = (writeUpdate1HVec ++ loadUpdate1HVec).reduce(_ | _)
-      val queueClear = !dataIndexWriteQueue
-      val dataInBusCheck = ohCheck(dataInCrossBus, record.bits.instIndex, parameter.chainingSize)
-      val busClear = !dataInBusCheck || !record.bits.crossWrite
-      when(ohCheck(instructionLastReport, record.bits.instIndex, parameter.chainingSize)) {
-        when(record.bits.ls) {
-          record.bits.stFinish := true.B
-        }.otherwise {
-          record.bits.wWriteQueueClear := true.B
-        }
+      val dataInLaneCheck = ohCheck(dataInLane, record.bits.instIndex, parameter.chainingSize)
+      val laneLastReport = ohCheck(instructionLastReport, record.bits.instIndex, parameter.chainingSize)
+      val lsuFinish = ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)
+      // only wait lane clear
+      val waitLaneClear = record.bits.state.stFinish && record.bits.state.wWriteQueueClear && record.bits.state.wLaneLastReport
+      val stateClear: Bool = waitLaneClear && record.bits.state.wLaneClear
+
+      when(lsuFinish) {
+        record.bits.state.stFinish := true.B
       }
-      when(record.bits.stFinish && (!dataInLsuQueue || record.bits.st) && record.valid) {
-        when(!dataIndexWriteQueue) {
-          record.valid := false.B
-        }
+
+      when(laneLastReport) {
+        record.bits.state.wLaneLastReport := true.B
       }
-      when(record.bits.wWriteQueueClear) {
-        when(busClear) {
-          record.bits.wBusClear := true.B
-        }
-        when((busClear || record.bits.wBusClear) && queueClear) {
-          record.bits.wQueueClear := true.B
-        }
+
+      when(record.bits.state.stFinish && !dataInLsuQueue) {
+        record.bits.state.wWriteQueueClear := true.B
       }
-      when(record.bits.wWriteQueueClear && record.bits.wBusClear && record.bits.wQueueClear) {
+
+      when(waitLaneClear && !dataInLaneCheck) {
+        record.bits.state.wLaneClear := true.B
+      }
+
+      when(stateClear) {
         record.valid := false.B
       }
+
       when(recordEnq(i)) {
         record := initRecord
       }.elsewhen(elementUpdateValid) {
