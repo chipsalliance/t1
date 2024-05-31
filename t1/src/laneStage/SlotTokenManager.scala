@@ -149,6 +149,12 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       val crossWriteTokenLSB: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
       val crossWriteTokenMSB: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
 
+      // Feedback is not accurate (index load/store may have already finished the instruction)
+      val responseIndexQueue = Module(new Queue(UInt(parameter.instructionIndexBits.W), parameter.chainingSize + 1))
+      responseIndexQueue.io.enq.valid := responseReport.valid
+      responseIndexQueue.io.enq.bits := responseReport.bits
+      responseIndexQueue.io.deq.ready := responseFeedbackReport.valid
+
       // cross write update
       val crossWriteDoEnq: UInt =
         maskAnd(enqReport.valid && enqReport.bits.decodeResult(Decoder.crossWrite), enqOH).asUInt
@@ -169,8 +175,13 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       val responseDoDeq: UInt =
         maskAnd(responseReport.valid, indexToOH(responseReport.bits, parameter.chainingSize)).asUInt
 
+      val feedbackIndexSelect = Mux(
+        responseIndexQueue.io.deq.valid,
+        responseIndexQueue.io.deq.bits,
+        responseFeedbackReport.bits
+      )
       val feedbackDoDeq: UInt =
-        maskAnd(responseFeedbackReport.valid, indexToOH(responseFeedbackReport.bits, parameter.chainingSize)).asUInt
+        maskAnd(responseFeedbackReport.valid, indexToOH(feedbackIndexSelect, parameter.chainingSize)).asUInt
 
       val pendingResponse = tokenUpdate(responseToken, responseDoEnq, responseDoDeq)
       // todo: Precise feedback
