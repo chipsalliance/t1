@@ -33,6 +33,7 @@ class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val maskType: Bool = Bool()
   val loadStore: Bool = Bool()
   val readFromScalar: UInt = UInt(parameter.datapathWidth.W)
+  val bordersForMaskLogic: Bool = Bool()
 }
 
 class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -60,6 +61,7 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val loadStore: Bool = Bool()
   /** vd or rd */
   val vd: UInt = UInt(5.W)
+  val bordersForMaskLogic: Bool = Bool()
 }
 
 /** 这一个stage 分两级流水, 分别是 读vrf 等vrf结果
@@ -360,6 +362,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.instructionIndex := pipeQueue.io.deq.bits.instructionIndex
   dequeue.bits.loadStore := pipeQueue.io.deq.bits.loadStore
   dequeue.bits.vd := pipeQueue.io.deq.bits.vd
+  dequeue.bits.bordersForMaskLogic := pipeQueue.io.deq.bits.bordersForMaskLogic
 
   dequeue.bits.maskForFilter :=
     (FillInterleaved(4, pipeQueue.io.deq.bits.maskNotMaskedElement) | pipeQueue.io.deq.bits.maskForMaskInput) &
