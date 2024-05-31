@@ -470,6 +470,14 @@ class LSUWriteCheck(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int)
   val instructionIndex: UInt = UInt(instructionIndexSize.W)
 }
 
+class VRFInstructionState extends Bundle {
+  val stFinish:  Bool = Bool()
+  // execute finish, wait for write queue clear
+  val wWriteQueueClear: Bool = Bool()
+  val wLaneLastReport: Bool = Bool()
+  val wLaneClear: Bool = Bool()
+}
+
 class VRFWriteReport(param: VRFParam) extends Bundle {
   // 8 reg/group; which group?
   val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
@@ -482,15 +490,8 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val crossWrite: Bool = Bool()
   // instruction will cross read
   val crossRead: Bool = Bool()
-  val stFinish:  Bool = Bool()
   // index type lsu
   val indexType: Bool = Bool()
-  // execute finish, wait for write queue clear
-  val wWriteQueueClear: Bool = Bool()
-  // wait cross write bus clear
-  val wBusClear = Bool()
-  // wait cross write queue clear
-  val wQueueClear = Bool()
   // 乘加
   val ma:           Bool = Bool()
   // 慢指令 mask unit
@@ -498,6 +499,7 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   // which element will access(write or store read)
   // true: No access or access has been completed
   val elementMask: UInt = UInt(param.elementSize.W)
+  val state = new VRFInstructionState
 }
 
 /** 为了decode, 指令需要在入口的时候打一拍, 这是需要保存的信息 */

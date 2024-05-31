@@ -451,9 +451,8 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     * - vd is v0
     */
   val specialInstruction: Bool = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
-  val dataInCrossBus = Wire(UInt(parameter.chainingSize.W))
-  val writeQueueClearVec = Wire(Vec(parameter.laneNumber, Bool()))
-  val writeQueueClear: Bool = !writeQueueClearVec.asUInt.orR
+  val dataInWritePipeVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.chainingSize.W)))
+  val dataInWritePipe: Bool = dataInWritePipeVec.reduce(_ | _)
 
   /** designed for unordered instruction(slide),
     * it doesn't go to lane, it has RAW hazzard.
@@ -571,7 +570,8 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       * this signal is used to update the `control.endTag`.
       */
     val lsuFinished: Bool = ohCheck(lsu.lastReport, control.record.instructionIndex, parameter.chainingSize)
-    val busClear: Bool = !ohCheck(dataInCrossBus, control.record.instructionIndex, parameter.chainingSize)
+
+    val dataInWritePipeCheck = ohCheck(dataInWritePipe, control.record.instructionIndex, parameter.chainingSize)
     // instruction is allocated to this slot.
     when(instructionToSlotOH(index)) {
       // instruction metadata
@@ -579,8 +579,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       // TODO: remove
       control.record.isLoadStore := isLoadStoreType
       control.record.maskType := maskType
-      control.record.needWaitWriteQueueClear :=
-        requestReg.bits.decodeResult(Decoder.crossWrite) || requestReg.bits.decodeResult(Decoder.maskUnit)
+      control.record.needWaitWriteQueueClear := requestReg.bits.decodeResult(Decoder.maskUnit)
       // control signals
       control.state.idle := false.B
       control.state.wLast := false.B
@@ -593,13 +592,13 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       // state machine starts here
       .otherwise {
         when(laneAndLSUFinish) {
-          control.state.wLast := !control.record.needWaitWriteQueueClear || (busClear && writeQueueClear)
+          control.state.wLast := !control.record.needWaitWriteQueueClear || !dataInWritePipeCheck
         }
         // TODO: execute first, then commit
         when(responseCounter === control.record.instructionIndex && response.fire) {
           control.state.sCommit := true.B
         }
-        val maskUnitEnd: Bool = (mvToVRF.map(!_ || !writeQueueClearVec.head) ++
+        val maskUnitEnd: Bool = (mvToVRF.map(!_ || !dataInWritePipeCheck) ++
           Seq(control.state.sMaskUnitExecution, control.state.sCommit)).reduce(_ && _)
         // TODO: remove `control.state.sMaskUnitExecution`
         when(maskUnitEnd) {
@@ -1500,7 +1499,6 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
     lane.lsuMaskGroupChange := lsu.lsuMaskGroupChange
     lane.loadDataInLSUWriteQueue := lsu.dataInWriteQueue(index)
-    lane.dataInCrossBus := dataInCrossBus
     // 2 + 3 = 5
     val rowWith: Int = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
     lane.writeCount :=
@@ -1525,7 +1523,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
   define(lsuProbe, lsu.probe)
 
-  writeQueueClearVec := VecInit(laneVec.map(_.writeQueueValid))
+  dataInWritePipeVec := VecInit(laneVec.map(_.writeQueueValid))
 
   // 连lsu
   lsu.request.valid := requestRegDequeue.fire && isLoadStoreType
@@ -1551,8 +1549,8 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   lsu.vrfReadyToStore := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
 
   // 连lane的环
-  dataInCrossBus := parameter.crossLaneConnectCycles.zipWithIndex.map { case (cycles, index) =>
-    cycles.zipWithIndex.map { case (cycle, portIndex) =>
+  parameter.crossLaneConnectCycles.zipWithIndex.foreach { case (cycles, index) =>
+    cycles.zipWithIndex.foreach { case (cycle, portIndex) =>
       // read source <=> write sink
       val readSourceIndex = (2 * index + portIndex) % parameter.laneNumber
       val readSourcePort = (2 * index + portIndex) / parameter.laneNumber
@@ -1574,10 +1572,10 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         0.U.asTypeOf(new EmptyBundle),
         cycle
       ).valid
-      connectWithShifter(cycle, id = Some((a: WriteBusData) => a.instructionIndex))(laneVec(index).writeBusPort(portIndex).deq,
-        laneVec(readSourceIndex).writeBusPort(readSourcePort).enq).get | laneVec(index).crossWriteDataInSlot
-    }.reduce(_ | _)
-  }.reduce(_ | _)
+      connectWithShifter(cycle)(laneVec(index).writeBusPort(portIndex).deq,
+        laneVec(readSourceIndex).writeBusPort(readSourcePort).enq)
+    }
+  }
 
   memoryPorts.zip(lsu.tlPort).foreach {
     case (source, sink) =>
