@@ -452,7 +452,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     */
   val specialInstruction: Bool = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
   val dataInWritePipeVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.chainingSize.W)))
-  val dataInWritePipe: Bool = dataInWritePipeVec.reduce(_ | _)
+  val dataInWritePipe: UInt = dataInWritePipeVec.reduce(_ | _)
 
   /** designed for unordered instruction(slide),
     * it doesn't go to lane, it has RAW hazzard.
@@ -579,11 +579,11 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       // TODO: remove
       control.record.isLoadStore := isLoadStoreType
       control.record.maskType := maskType
-      control.record.needWaitWriteQueueClear := requestReg.bits.decodeResult(Decoder.maskUnit)
       // control signals
       control.state.idle := false.B
       control.state.wLast := false.B
       control.state.sCommit := false.B
+      control.state.wVRFWrite := !requestReg.bits.decodeResult(Decoder.maskUnit)
       // two different initial states for endTag:
       // for load/store instruction, use the last bit to indicate whether it is the last instruction
       // for other instructions, use MSB to indicate whether it is the last instruction
@@ -592,16 +592,18 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       // state machine starts here
       .otherwise {
         when(laneAndLSUFinish) {
-          control.state.wLast := !control.record.needWaitWriteQueueClear || !dataInWritePipeCheck
+          control.state.wLast := true.B
         }
-        // TODO: execute first, then commit
+
+        when(control.state.wLast && control.state.sMaskUnitExecution && !dataInWritePipeCheck) {
+          control.state.wVRFWrite := true.B
+        }
+
         when(responseCounter === control.record.instructionIndex && response.fire) {
           control.state.sCommit := true.B
         }
-        val maskUnitEnd: Bool = (mvToVRF.map(!_ || !dataInWritePipeCheck) ++
-          Seq(control.state.sMaskUnitExecution, control.state.sCommit)).reduce(_ && _)
-        // TODO: remove `control.state.sMaskUnitExecution`
-        when(maskUnitEnd) {
+
+        when(control.state.sCommit && control.state.wVRFWrite && control.state.sMaskUnitExecution) {
           control.state.idle := true.B
         }
 
@@ -1621,7 +1623,16 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   // instruction commit
   {
     val slotCommit: Vec[Bool] = VecInit(slots.map { inst =>
-      inst.state.sMaskUnitExecution && inst.state.wLast && !inst.state.sCommit && inst.record.instructionIndex === responseCounter
+      // mask unit finish
+      inst.state.sMaskUnitExecution &&
+        // lane|lsu finish
+        inst.state.wLast &&
+        // mask unit write finish
+        inst.state.wVRFWrite &&
+        // Ensure that only one cycle is committed
+        !inst.state.sCommit &&
+        // Ensuring commit order
+        inst.record.instructionIndex === responseCounter
     })
     response.valid := slotCommit.asUInt.orR
     response.bits.data := Mux(ffoType, ffoIndexReg.bits, dataResult.bits)
