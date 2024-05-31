@@ -717,8 +717,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         stage1.dequeue.bits.elements.get(k).foreach( pipeData => d := pipeData)
       }
       executionUnit.enqueue.bits.src := stage1.dequeue.bits.src
-      executionUnit.enqueue.bits.bordersForMaskLogic :=
-        (stage1.dequeue.bits.groupCounter === record.lastGroupForInstruction && record.isLastLaneForInstruction)
+      executionUnit.enqueue.bits.bordersForMaskLogic := stage1.dequeue.bits.bordersForMaskLogic
       executionUnit.enqueue.bits.mask := stage1.dequeue.bits.mask
       executionUnit.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
       executionUnit.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter

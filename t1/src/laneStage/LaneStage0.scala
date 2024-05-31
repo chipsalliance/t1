@@ -79,6 +79,7 @@ class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
   val maskType: Bool = Bool()
   val loadStore: Bool = Bool()
+  val bordersForMaskLogic: Bool = Bool()
 }
 
 /** 这一级由 lane slot 里的 maskIndex maskGroupCount 来计算对应的 data group counter
@@ -230,6 +231,10 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
       enqueue.bits.readFromScalar
     )
   )
+
+  stageWire.bordersForMaskLogic :=
+    stageWire.groupCounter === enqueue.bits.lastGroupForInstruction &&
+      enqueue.bits.isLastLaneForInstruction
 
   when(enqFire ^ dequeue.fire) {
     stageValidReg := enqFire
