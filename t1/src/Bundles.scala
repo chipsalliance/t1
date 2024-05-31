@@ -64,13 +64,6 @@ class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
     */
   val instructionIndex: UInt = UInt(instructionIndexWidth.W)
 
-  /** whether instruction need wait for write queue clear,
-    * for instructions has `widen`, it need use cross lane write channel,
-    * but lane will regard the instruction is finished when data is sent to ring,
-    * so we need this bit to record if the ring is cleared.
-    */
-  val needWaitWriteQueueClear: Bool = Bool()
-
   /** whether instruction is load store.
     * it should tell scalar core if this is a load store unit.
     */
@@ -99,6 +92,9 @@ class InstructionState extends Bundle {
 
   /** used for mask unit, schedule mask unit to execute. */
   val sMaskUnitExecution: Bool = Bool()
+
+  /** wait for vrf write finish. */
+  val wVRFWrite: Bool = Bool()
 
   /** used for instruction commit, schedule [[T1]] to commit. */
   val sCommit: Bool = Bool()
