@@ -467,13 +467,16 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val elementUpdate1H: UInt = (writeUpdate1HVec ++ loadUpdate1HVec).reduce(_ | _)
       val dataInLaneCheck = ohCheck(dataInLane, record.bits.instIndex, parameter.chainingSize)
       val laneLastReport = ohCheck(instructionLastReport, record.bits.instIndex, parameter.chainingSize)
-      val lsuFinish = ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)
+      val topLastReport = ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)
       // only wait lane clear
-      val waitLaneClear = record.bits.state.stFinish && record.bits.state.wWriteQueueClear && record.bits.state.wLaneLastReport
+      val waitLaneClear =
+        record.bits.state.stFinish && record.bits.state.wWriteQueueClear &&
+          record.bits.state.wLaneLastReport && record.bits.state.wTopLastReport
       val stateClear: Bool = waitLaneClear && record.bits.state.wLaneClear
 
-      when(lsuFinish) {
+      when(topLastReport) {
         record.bits.state.stFinish := true.B
+        record.bits.state.wTopLastReport := true.B
       }
 
       when(laneLastReport) {

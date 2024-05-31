@@ -473,6 +473,7 @@ class VRFInstructionState extends Bundle {
   // execute finish, wait for write queue clear
   val wWriteQueueClear: Bool = Bool()
   val wLaneLastReport: Bool = Bool()
+  val wTopLastReport: Bool = Bool()
   val wLaneClear: Bool = Bool()
 }
 
