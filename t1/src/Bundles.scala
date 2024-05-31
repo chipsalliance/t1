@@ -231,6 +231,18 @@ class InstGroupState(param: LaneParameter) extends Bundle {
   val sSendCrossReadResultMSB: Bool = Bool()
 }
 
+class FFORecord extends Bundle {
+  /** the find first one instruction is finished by other lanes,
+   * for example, sbf(set before first)
+   */
+  val ffoByOtherLanes: Bool = Bool()
+
+  /** the mask instruction is finished by this group.
+   * the instruction target is finished(but still need to access VRF.)
+   */
+  val selfCompleted: Bool = Bool()
+}
+
 /** Instruction State in [[Lane]]. */
 class InstructionControlRecord(param: LaneParameter) extends Bundle {
 
@@ -250,16 +262,6 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
 
   // Requires an additional set of cross-lane reads/writes
   val additionalRW: Bool = Bool()
-
-  /** the find first one instruction is finished by other lanes,
-    * for example, sbf(set before first)
-    */
-  val ffoByOtherLanes: Bool = Bool()
-
-  /** the mask instruction is finished by this group.
-    * the instruction target is finished(but still need to access VRF.)
-    */
-  val selfCompleted: Bool = Bool()
 
   /** the execution index in group
     * use byte as granularity,
