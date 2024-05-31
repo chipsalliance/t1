@@ -81,9 +81,7 @@ object Main {
     new org.chipsalliance.t1.ipemu.TestBench(ipConfig.generator)
   )
   @main def subsystem(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate { () =>
-    freechips.rocketchip.diplomacy.LazyModule(new org.chipsalliance.t1.subsystem.T1Subsystem()(
-      (new org.chipsalliance.t1.subsystem.T1SubsystemConfig(ipConfig.generator))
-    ))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
+    new org.chipsalliance.t1.subsystem.T1SubsystemTop(ipConfig.parameter)
   }
   // format: on
 

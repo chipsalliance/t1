@@ -24,6 +24,9 @@ import org.chipsalliance.t1.rockettile.BuildT1
 import org.chipsalliance.t1.rtl.{T1, T1OM, T1Parameter}
 import chisel3.properties.{Class, ClassType, Path, Property}
 import chisel3.util.experimental.BoringUtils.bore
+import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4VerilogBundle}
+
+import scala.collection.immutable.SeqMap
 
 
 /** The top OM we need to read. */
@@ -474,4 +477,157 @@ class T1SubsystemModuleImp[+L <: T1Subsystem](_outer: L)
   lazy val outer = _outer
   // IntSyncCrossingSource requires implcit clock
   override def provideImplicitClockToLazyChildren: Boolean = true
+}
+
+class T1Interface(t1Parameter: T1Parameter) extends Record {
+  val clock: Clock = Flipped(Clock())
+  val reset: Bool = Flipped(Bool())
+  val resetVector: UInt = Flipped(UInt(32.W))
+  // used to access ITIM & DTIM
+  val sidebandBus: AXI4VerilogBundle = Flipped(org.chipsalliance.amba.axi4.bundle.verilog.irrevocable(AXI4BundleParameter(
+    // FIXME: align with diplomatic
+    idWidth = 4,
+    // TODO: configurable
+    dataWidth = 64,
+    // TODO: when adding MMU, this will be 34
+    addrWidth = 32,
+    userReqWidth = 0,
+    userDataWidth = 0,
+    userRespWidth = 0,
+    hasAW = true,
+    hasW = true,
+    hasB = true,
+    hasAR = true,
+    hasR = true,
+    supportId = true,
+    supportRegion = false,
+    supportLen = true,
+    supportSize = true,
+    supportBurst = true,
+    supportLock = false,
+    supportCache = false,
+    supportQos = false,
+    supportStrb = false,
+    supportResp = false,
+    supportProt = false,
+  )))
+  // Scalar Port(from I$ and D$)
+  // TODO: in the future, we may need to consider, should we split I$ and D$ into two different ports for SoC integration
+  val scalarBus: AXI4VerilogBundle = org.chipsalliance.amba.axi4.bundle.verilog.irrevocable(AXI4BundleParameter(
+    // FIXME: align with diplomatic
+    idWidth = 4,
+    // TODO: configurable
+    dataWidth = 64,
+    // TODO: when adding MMU, this will be 34
+    addrWidth = 32,
+    userReqWidth = 0,
+    userDataWidth = 0,
+    userRespWidth = 0,
+    hasAW = true,
+    hasW = true,
+    hasB = true,
+    hasAR = true,
+    hasR = true,
+    supportId = true,
+    supportRegion = false,
+    supportLen = true,
+    supportSize = true,
+    supportBurst = true,
+    supportLock = false,
+    supportCache = false,
+    supportQos = false,
+    supportStrb = false,
+    supportResp = false,
+    supportProt = false,
+  ))
+  // Vector Port(DLEN size is for high bandwidth LSU access)
+  val vectorHighBandwidthBus: AXI4VerilogBundle = org.chipsalliance.amba.axi4.bundle.verilog.irrevocable(AXI4BundleParameter(
+    idWidth = 4,
+    dataWidth = t1Parameter.dLen,
+    addrWidth = 32,
+    userReqWidth = 0,
+    userDataWidth = 0,
+    userRespWidth = 0,
+    hasAW = true,
+    hasW = true,
+    hasB = true,
+    hasAR = true,
+    hasR = true,
+    supportId = false,
+    supportRegion = true,
+    supportLen = false,
+    supportSize = false,
+    supportBurst = false,
+    supportLock = false,
+    supportCache = false,
+    supportQos = false,
+    supportStrb = false,
+    supportResp = false,
+    supportProt = false,
+  ))
+  // Vector Port(datapath size is for indexed load store and stride larger than DLEN)
+  val vectorFineGrainedBus: AXI4VerilogBundle = org.chipsalliance.amba.axi4.bundle.verilog.irrevocable(AXI4BundleParameter(
+    idWidth = 4,
+    dataWidth = 32,
+    addrWidth = 32,
+    userReqWidth = 0,
+    userDataWidth = 0,
+    userRespWidth = 0,
+    hasAW = true,
+    hasW = true,
+    hasB = true,
+    hasAR = true,
+    hasR = true,
+    // TODO: disable supportId in the future.
+    supportId = true,
+    supportRegion = true,
+    supportLen = false,
+    supportSize = false,
+    supportBurst = false,
+    supportLock = false,
+    supportCache = false,
+    supportQos = false,
+    supportStrb = false,
+    supportResp = false,
+    supportProt = false,
+  ))
+  // TODO: Interrupt, JTAG
+  override def elements: SeqMap[String, Data] = SeqMap.from(Seq(
+    "clock" -> clock,
+    "reset" -> reset,
+    "resetVector" -> resetVector,
+    "sidebandBus" -> sidebandBus,
+    "scalarBus" -> scalarBus,
+    "vectorHighBandwidthBus" -> vectorHighBandwidthBus,
+    "vectorFineGrainedBus" -> vectorFineGrainedBus,
+  ))
+}
+// The real interface for T1Subsystem
+class T1SubsystemTop(t1Parameter: T1Parameter) extends FixedIORawModule(
+  new T1Interface(t1Parameter)
+) {
+  val ldut =
+    org.chipsalliance.diplomacy.lazymodule.LazyModule(
+      new org.chipsalliance.t1.subsystem.T1Subsystem()(
+        new org.chipsalliance.t1.subsystem.T1SubsystemConfig(
+          chisel3.experimental.SerializableModuleGenerator
+            [org.chipsalliance.t1.rtl.T1, org.chipsalliance.t1.rtl.T1Parameter]
+              (classOf[org.chipsalliance.t1.rtl.T1], t1Parameter))))(
+      org.chipsalliance.diplomacy.ValName("T1Subsystem"),
+      chisel3.experimental.UnlocatableSourceInfo
+    )
+  // evaluate diplomacy(I hate it.)
+  val dut = Module(ldut.module)
+
+  ldut.clock := io.clock
+  ldut.reset := io.reset
+  // FK diplomacy
+  dut.reset_vector.head := io.resetVector
+  ldut.vectorPorts.foreach(_ <> DontCare)
+  ldut.scalarPort <> DontCare
+  ldut.mmioPort <> DontCare
+  io.scalarBus <> DontCare
+  io.sidebandBus <> DontCare
+  io.vectorFineGrainedBus <> DontCare
+  io.vectorHighBandwidthBus <> DontCare
 }
