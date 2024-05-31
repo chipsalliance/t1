@@ -1117,6 +1117,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // load need wait for write queue clear in lsu write queue
   vrf.instructionWriteReport.bits.state.wWriteQueueClear := !(laneRequest.bits.loadStore && !laneRequest.bits.store)
   vrf.instructionWriteReport.bits.state.wLaneLastReport := !laneRequest.valid
+  vrf.instructionWriteReport.bits.state.wTopLastReport := !laneRequest.bits.decodeResult(Decoder.maskUnit)
   vrf.instructionWriteReport.bits.state.wLaneClear := false.B
 
   val elementSizeForOneRegister: Int = parameter.vLen / parameter.datapathWidth / parameter.laneNumber
