@@ -344,6 +344,29 @@ object Main:
       )
     ).call(cwd = os.pwd, stdout = os.Inherit, stderr = os.Inherit)
 
+  @main def subsystemrtl(
+      @arg(
+        name = "config",
+        short = 'c',
+        doc = "Config to be elaborated for the subsystem RTL"
+      ) config: String,
+      @arg(
+        name = "out-link",
+        short = 'o',
+        doc = "Path to be a symlink to the RTL build output, default using $config_subsystem_rtl"
+      ) outLink: Option[String] = None,
+  ): Unit =
+    val finalOutLink = outLink.getOrElse(s"${config}_subsystem_rtl")
+    os.proc(Seq(
+      "nix",
+      "build",
+      "--print-build-logs",
+      s".#t1.${config}.subsystem.rtl",
+      "--out-link",
+      finalOutLink
+    )).call(stdout = os.Inherit, stderr = os.Inherit, stdin = os.Inherit)
+    Logger.info(s"RTLs store in $finalOutLink")
+
   //
   // CI
   //
