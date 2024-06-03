@@ -450,7 +450,8 @@ class LSU(param: LSUParameter) extends Module {
   lsuMaskGroupChange := unitVec.map(
     m => Mux(m.status.changeMaskGroup, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U)
   ).reduce(_ | _)
-  lsuOffsetRequest := otherUnit.status.offsetGroupEnd
+  lsuOffsetRequest := (otherUnit.status.offsetGroupEnd | otherUnit.status.last |
+    (otherUnit.status.idle && offsetReadResult.map(_.valid).reduce(_ | _))) && otherUnit.status.isIndexLS
   loadUnit.writeReadyForLsu := writeReadyForLsu
   storeUnit.vrfReadyToStore := vrfReadyToStore
 
