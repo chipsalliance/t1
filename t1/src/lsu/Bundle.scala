@@ -37,6 +37,8 @@ class SimpleAccessStatus(laneNumber: Int) extends LSUBaseStatus {
 
   // current instruction will not write vrf
   val isStore: Bool = Bool()
+
+  val isIndexLS: Bool = Bool()
 }
 
 class StoreStatus(bankSize: Int) extends LSUBaseStatus {
