@@ -378,7 +378,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val allDataQueueValid: Bool = VecInit(dataQueueValidVec).asUInt.andR
   dequeue.valid := allDataQueueValid && pipeQueue.io.deq.valid
   dataQueueVs1.ready := allDataQueueValid && dequeue.ready && pipeQueue.io.deq.bits.decodeResult(Decoder.vtype)
-  dataQueueVs2.io.deq.ready := allDataQueueValid && dequeue.ready
+  dataQueueVs2.io.deq.ready := allDataQueueValid && dequeue.ready && !pipeQueue.io.deq.bits.skipRead
   dataQueueVd.io.deq.ready :=
     allDataQueueValid && dequeue.ready && !pipeQueue.io.deq.bits.decodeResult(Decoder.sReadVD)
   crossReadResultQueue.foreach(_.io.deq.ready := allDataQueueValid && dequeue.ready && pipeQueue.io.deq.bits.decodeResult(Decoder.crossRead))
