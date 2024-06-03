@@ -27,6 +27,8 @@ let
         ./../../subsystem
         ./../../rocket
         ./../../emuhelper
+        ./../../omreader
+        ./../../omreaderlib
         ./../../ipemu/src
         ./../../elaborator
         ./../../configgen/src
