@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.t1.rtl.decoder.TableGenerator
+import org.chipsalliance.t1.rtl.decoder.{Decoder, TableGenerator}
 import org.chipsalliance.t1.rtl.lane.Distributor
 import tilelink.{TLBundleParameter, TLChannelD}
 
@@ -333,5 +333,17 @@ package object rtl {
     sink.valid := source.valid && enable
     sink.bits := source.bits
     source.ready := sink.ready && enable
+  }
+
+  def getExecuteUnitTag(parameter: LaneParameter)(inputDecode: DecodeBundle): UInt = {
+    val executeList: Seq[Bool] = Seq(
+      inputDecode(Decoder.logic),
+      inputDecode(Decoder.adder),
+      inputDecode(Decoder.shift),
+      inputDecode(Decoder.multiplier),
+      inputDecode(Decoder.divider),
+      inputDecode(Decoder.other),
+    ) ++ Option.when(parameter.fpuEnable)(inputDecode(Decoder.float))
+    VecInit(executeList).asUInt
   }
 }

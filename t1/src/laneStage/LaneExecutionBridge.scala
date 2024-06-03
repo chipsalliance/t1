@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.t1.rtl.{CSRInterface, ExecutionUnitRecord, LaneParameter, SlotRequestToVFU, VFUResponseToSlot, cutUInt}
+import org.chipsalliance.t1.rtl.{CSRInterface, ExecutionUnitRecord, LaneParameter, SlotRequestToVFU, VFUResponseToSlot, cutUInt, getExecuteUnitTag}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 
 class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -137,7 +137,6 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       executionRecord.executeIndex := firstGroupNotExecute || !enqueue.fire
     }
   }
-  enqueue.ready := !executionRecordValid || recordDequeueReady
 
   when(enqueue.fire) {
     executionRecord.crossReadVS2 := enqueue.bits.decodeResult(Decoder.crossRead) && !enqueue.bits.decodeResult(Decoder.vwmacc)
@@ -552,4 +551,8 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     (!recordQueue.io.deq.bits.sSendResponse.get && queue.io.enq.fire) ||
       (enqueue.fire && enqueue.bits.groupCounter === 0.U)
   )
+  val executionTypeInRecord: UInt = getExecuteUnitTag(parameter)(executionRecord.decodeResult)
+  val enqType: UInt = getExecuteUnitTag(parameter)(enqueue.bits.decodeResult)
+  val typeCheck: Bool = (executionTypeInRecord === enqType) || !(executionRecordValid || recordQueue.io.deq.valid)
+  enqueue.ready := (!executionRecordValid || recordDequeueReady) && typeCheck
 }
