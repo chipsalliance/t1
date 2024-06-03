@@ -304,7 +304,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     (executionRecordValid || sendFoldReduce.get) && (responseFinish || !executionRecord.decodeResult(Decoder.red))
   } else {
     executionRecordValid
-  })
+  }) && !executionRecord.decodeResult(Decoder.dontNeedExecuteInLane)
   //--- record <-> vfu end ---
   //                        --- record <-> record pipe queue <-> response stage
   val recordQueue = Module(
