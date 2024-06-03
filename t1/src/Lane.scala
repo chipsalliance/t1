@@ -771,7 +771,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       executionUnit.dequeue.bits.ffoSuccess.foreach(_ => stage3.enqueue.bits.ffoSuccess := _)
 
       if (isLastSlot){
-        when(laneResponseFeedback.valid && slotOccupied(index)) {
+        when(laneResponseFeedback.valid) {
           when(laneResponseFeedback.bits.complete) {
             ffoRecord.ffoByOtherLanes := true.B
           }
