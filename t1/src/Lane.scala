@@ -1039,9 +1039,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       lanePositionLargerThanEndLane && !lastLaneIndex.andR && csrInterface.vl.orR
 
   // slot needs to be moved, try to shifter and stall pipe
-  slotShiftValid := VecInit(Seq.range(0, parameter.chainingSize).map { slotIndex =>
-    if (slotIndex == 0) false.B else !slotOccupied(slotIndex - 1)
-  })
+  val slotFree = slotOccupied.zipWithIndex.foldLeft(false.B) {case (pre, (current, index)) =>
+    slotShiftValid(index) := pre || !current
+    pre || !current
+  }
 
 
   val slotEnqueueFire: Seq[Bool] = Seq.tabulate(parameter.chainingSize) { slotIndex =>
@@ -1051,7 +1052,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     // enqueue from lane request
     if (slotIndex == parameter.chainingSize - 1) {
       enqueueValid := laneRequest.valid
-      enqueueReady := !slotOccupied(slotIndex) && vrf.instructionWriteReport.ready
+      enqueueReady := slotShiftValid(slotIndex) && vrf.instructionWriteReport.ready
       when(enqueueFire) {
         slotControl(slotIndex) := entranceControl
         maskGroupCountVec(slotIndex) := 0.U(parameter.maskGroupSizeBits.W)
@@ -1061,7 +1062,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     } else {
       // shifter for slot
       enqueueValid := slotCanShift(slotIndex + 1) && slotOccupied(slotIndex + 1)
-      enqueueReady := !slotOccupied(slotIndex)
+      enqueueReady := slotShiftValid(slotIndex)
       when(enqueueFire) {
         slotControl(slotIndex) := slotControl(slotIndex + 1)
         maskGroupCountVec(slotIndex) := maskGroupCountVec(slotIndex + 1)
@@ -1089,7 +1090,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // handshake
   // @todo @Clo91eaf lane can take request from Sequencer
-  laneRequest.ready := !slotOccupied.last && vrf.instructionWriteReport.ready
+  laneRequest.ready := slotFree && vrf.instructionWriteReport.ready
 
   val instructionFinishAndNotReportByTop: Bool =
     entranceControl.instructionFinished && !laneRequest.bits.decodeResult(Decoder.readOnly) && (writeCount === 0.U)
