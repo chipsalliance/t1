@@ -28,6 +28,7 @@ lib.makeScope newScope
   in
   {
     inherit allConfigs;
+    recurseForDerivations = true;
 
     elaborator = _millOutput.elaborator // { meta.mainProgram = "elaborator"; };
     configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
@@ -38,52 +39,54 @@ lib.makeScope newScope
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
   } //
-  lib.mapAttrs (configName: configPath:
-    # by using makeScope, callPackage can send the following attributes to package parameters
-    lib.makeScope self.newScope (innerSelf: rec {
-      recurseForDerivations = true;
-
-      # For package name concatenate
-      inherit configName;
-
-      elaborateConfigJson = configPath;
-      elaborateConfig = builtins.fromJSON (lib.readFile configPath);
-
-      cases = innerSelf.callPackage ../../tests { };
-
-      # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
-      cases-x86 =
-        if system == "x86-64-linux"
-        then self.cases
-        else pkgsX86.t1."${configName}".cases;
-
-      ip = rec {
+  lib.mapAttrs
+    (configName: configPath:
+      # by using makeScope, callPackage can send the following attributes to package parameters
+      lib.makeScope self.newScope (innerSelf: rec {
         recurseForDerivations = true;
 
-        elaborate = innerSelf.callPackage ./elaborate.nix { target = "ip"; /* use-binder = true; */ };
-        mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
-        rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
-        omreaderlib = innerSelf.callPackage ./omreaderlib.nix { inherit mlirbc; };
+        # For package name concatenate
+        inherit configName;
 
-        emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; /* use-binder = true; */ };
-        emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
-        emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = emu-mlirbc; };
+        elaborateConfigJson = configPath;
+        elaborateConfig = builtins.fromJSON (lib.readFile configPath);
 
-        emu = innerSelf.callPackage ./ipemu.nix { rtl = ip.emu-rtl; stdenv = moldStdenv; };
-        emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = emu-rtl; stdenv = moldStdenv; do-trace = true; };
+        cases = innerSelf.callPackage ../../tests { };
 
-        t1-simulator = innerSelf.callPackage ../../difftest/t1-simulator/default.nix { rtl = innerSelf.ip.emu-rtl; };
-      };
+        # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
+        cases-x86 =
+          if system == "x86-64-linux"
+          then self.cases
+          else pkgsX86.t1."${configName}".cases;
 
-      subsystem = rec {
-        recurseForDerivations = true;
+        ip = rec {
+          recurseForDerivations = true;
 
-        elaborate = innerSelf.callPackage ./elaborate.nix { target = "subsystem"; /* use-binder = true; */ };
-        mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
-        rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
-      };
+          elaborate = innerSelf.callPackage ./elaborate.nix { target = "ip"; /* use-binder = true; */ };
+          mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
+          rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
+          om = innerSelf.callPackage ./om.nix { inherit mlirbc; };
 
-      release = innerSelf.callPackage ./release { };
-    })
-  ) allConfigs
+          emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; /* use-binder = true; */ };
+          emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
+          emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = emu-mlirbc; };
+
+          emu = innerSelf.callPackage ./ipemu.nix { rtl = ip.emu-rtl; stdenv = moldStdenv; };
+          emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = emu-rtl; stdenv = moldStdenv; do-trace = true; };
+
+          t1-simulator = innerSelf.callPackage ../../difftest/t1-simulator/default.nix { rtl = innerSelf.ip.emu-rtl; };
+        };
+
+        subsystem = rec {
+          recurseForDerivations = true;
+
+          elaborate = innerSelf.callPackage ./elaborate.nix { target = "subsystem"; /* use-binder = true; */ };
+          mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
+          rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
+        };
+
+        release = innerSelf.callPackage ./release { };
+      })
+    )
+    allConfigs
   )

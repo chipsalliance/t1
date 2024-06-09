@@ -15,6 +15,8 @@ let
     vLen;
 
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
+    recurseForDerivations = true;
+
     makeBuilder = casesSelf.callPackage ./builder.nix { };
 
     findAndBuild = dir: build:
