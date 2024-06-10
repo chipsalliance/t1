@@ -8,8 +8,10 @@
 
 let
   omReaderArgs = lib.filter (s: s != "") [
+    "run"
     "--mlirbc-file"
-    "${mlirbc}/${mlirbc.elaborateTarget}-${mlirbc.elaborateConfig}.mlirbc"
+    "${mlirbc}/${mlirbc.elaborateTarget}-${mlirbc.elaborateConfig}-lowered.mlirbc"
+    "--dump-methods"
   ];
 in
 stdenvNoCC.mkDerivation {
@@ -18,7 +20,7 @@ stdenvNoCC.mkDerivation {
   nativeBuildInputs = [ circt omreader ];
 
   buildCommand = ''
-    omreader ${lib.escapeShellArgs omReaderArgs}
+    omreader ${lib.escapeShellArgs omReaderArgs} > $out
   '';
 
   meta.description = "Call CLI dumps OM properties from MLIR bytecodes";
