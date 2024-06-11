@@ -1,12 +1,19 @@
 #pragma once
 
 #include <fstream>
+#include <iostream>
 
 #include <fmt/core.h>
 
 #include "simif.h"
 #include "spdlog_ext.h"
 #include "uartlite.h"
+
+// File that contains program stdout/stderr from MMIO
+// Initialize in vbridge_impl.cc, closed in dpi.cc
+//
+// Require C++ 17 here to have inline keyword feature, so that the compiler can collapse all symbol into one declaration and bypass mold error.
+inline std::ofstream ProgramOutputStoreFile;
 
 class simple_sim : public simif_t {
 private:
@@ -56,8 +63,8 @@ public:
     if (uart_addr <= addr && addr < uart_addr + sizeof(uartlite_regs)) {
       bool res = uart.do_write(addr - uart_addr, len, bytes);
       while (uart.exist_tx()) {
-        std::cerr << uart.getc();
-        std::cerr.flush();
+        ProgramOutputStoreFile << uart.getc();
+        ProgramOutputStoreFile.flush();
       }
       return res;
     }

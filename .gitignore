@@ -21,3 +21,4 @@ __pycache__
 .envrc
 test-results
 target
+.ccls-cache

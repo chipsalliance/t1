@@ -15,6 +15,7 @@
 static bool terminated = false;
 
 void sigint_handler(int s) {
+  ProgramOutputStoreFile.close();
   terminated = true;
   dpi_finish();
 }
@@ -26,12 +27,14 @@ void sigint_handler(int s) {
     }                                                                          \
   } catch (ReturnException & e) {                                              \
     terminated = true;                                                         \
+    ProgramOutputStoreFile.close();                                            \
     Log("SimulationExit")                                                      \
         .info("detect returning instruction, gracefully quit simulation");     \
-    vbridge_impl_instance.on_exit();                                                      \
+    vbridge_impl_instance.on_exit();                                           \
     dpi_finish();                                                              \
   } catch (std::runtime_error & e) {                                           \
     terminated = true;                                                         \
+    ProgramOutputStoreFile.close();                                            \
     svSetScope(                                                                \
         svGetScopeFromName("TOP.TestBench.dpiError"));                         \
     dpi_error(fmt::format("runtime_error occurs: {}", e.what()).c_str());      \

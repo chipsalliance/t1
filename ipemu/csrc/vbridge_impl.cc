@@ -218,6 +218,8 @@ static VBridgeImpl vbridgeImplFromArgs() {
   args::Flag no_console_logging(parser, "no_console_logging", "Disable console logging utilities.", { "no-console-logging" });
   args::ValueFlag<std::string> log_path(parser, "log path", "Path to store logging file", {"log-path"});
 
+  args::ValueFlag<std::string> program_output_path(parser, "program output path", "Path to store stdout/stderr produce by program", {"program-output-path"});
+
   args::ValueFlag<size_t> vlen(parser, "vlen", "match from RTL config, tobe removed", {"vlen"}, args::Options::Required);
   args::ValueFlag<size_t> dlen(parser, "dlen", "match from RTL config, tobe removed", {"dlen"}, args::Options::Required);
   args::ValueFlag<size_t> tl_bank_number(parser, "tl_bank_number", "match from RTL config, tobe removed", {"tl_bank_number"}, args::Options::Required);
@@ -246,6 +248,8 @@ static VBridgeImpl vbridgeImplFromArgs() {
   }
 
   Log = JsonLogger(no_logging.Get(), no_file_logging.Get(), no_console_logging.Get(), log_path.Get());
+
+  ProgramOutputStoreFile.open(program_output_path.Get());
 
   Config cosim_config {
     .bin_path = bin_path.Get(),
