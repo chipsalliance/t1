@@ -181,6 +181,10 @@ object Main:
         doc = "Set the event log path"
       ) eventLogFilePath: Option[os.Path] = None,
       @arg(
+        name = "program-output-path",
+        doc = "Path to store the ELF stdout/stderr"
+      ) programOutputFilePath: Option[os.Path] = None,
+      @arg(
         name = "out-dir",
         doc = "path to save wave file and perf result file"
       ) outDir: Option[String] = None,
@@ -231,6 +235,11 @@ object Main:
     val eventLogPath =
       if eventLogFilePath.isDefined then eventLogFilePath.get
       else outputPath / "rtl-event.log"
+    val programOutputPath =
+      if programOutputFilePath.isDefined then programOutputFilePath.get
+      else outputPath / "mmio-store.txt"
+    if os.exists(programOutputPath) then
+      os.remove(programOutputPath)
 
     def dumpCycleAsFloat() =
       val ratio = dumpCycle.toFloat
@@ -302,7 +311,9 @@ object Main:
         .arr(0)
         .obj("beatbyte")
         .toString(),
-      s"--log-path=${emulatorLogPath}"
+      s"--log-path=${emulatorLogPath}",
+      "--program-output-path",
+      programOutputPath.toString,
     ) ++ optionals(noLog.value, Seq("--no-logging"))
       ++ optionals(noFileLog.value, Seq("--no-file-logging"))
       ++ optionals(noConsoleLog.value, Seq("--no-console-logging"))
