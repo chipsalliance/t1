@@ -4,7 +4,7 @@ mod spike;
 use dut::*;
 pub use spike::SpikeHandle;
 use std::path::Path;
-use tracing::{error, trace};
+use tracing::{info, trace};
 
 pub struct Difftest {
   spike: SpikeHandle,
@@ -43,8 +43,7 @@ impl Difftest {
       let se = self.spike.find_se_to_issue();
       if (se.is_vfence_insn || se.is_exit_insn) && self.spike.to_rtl_queue.len() == 1 {
         if se.is_exit_insn {
-          error!("Simulation quit graceful");
-          return Err(anyhow::anyhow!("graceful exit"));
+          return Ok(());
         }
 
         self.spike.to_rtl_queue.pop_back();
