@@ -3,30 +3,37 @@
 , makeBuilder
 , findAndBuild
 , t1main
+, makeEmuResult
 }:
 
 let
   include = ./_include;
   builder = makeBuilder { casePrefix = "rvv_bench"; };
   build = { caseName, sourcePath }:
-    builder {
-      inherit caseName;
+    let
+      drv = builder
+        {
+          inherit caseName;
 
-      src = sourcePath;
+          src = sourcePath;
 
-      isFp = lib.pathExists (lib.path.append sourcePath "isFp");
+          isFp = lib.pathExists (lib.path.append sourcePath "isFp");
 
-      buildPhase = ''
-        runHook preBuild
+          buildPhase = ''
+            runHook preBuild
 
-        $CC -E -DINC=$PWD/${caseName}.S -E ${include}/template.S -o functions.S
-        $CC -I${include} ${caseName}.c -T${linkerScript} ${t1main} functions.S -o $pname.elf
+            $CC -E -DINC=$PWD/${caseName}.S -E ${include}/template.S -o functions.S
+            $CC -I${include} ${caseName}.c -T${linkerScript} ${t1main} functions.S -o $pname.elf
 
-        runHook postBuild
-      '';
+            runHook postBuild
+          '';
 
-      meta.description = "test case '${caseName}', written in C intrinsic";
-    };
+          meta.description = "test case '${caseName}', written in C intrinsic";
+
+          passthru.emu-result = makeEmuResult drv;
+        };
+    in
+    drv;
 in
-  findAndBuild ./. build
+findAndBuild ./. build
 
