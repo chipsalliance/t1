@@ -24,6 +24,7 @@ import org.chipsalliance.t1.rockettile.BuildT1
 import org.chipsalliance.t1.rtl.{T1, T1OM, T1Parameter}
 import chisel3.properties.{Class, ClassType, Path, Property}
 import chisel3.util.experimental.BoringUtils.bore
+import freechips.rocketchip.amba.axi4.{AXI4MasterNode, AXI4MasterParameters, AXI4MasterPortParameters, AXI4SlaveNode, AXI4SlaveParameters, AXI4SlavePortParameters}
 
 
 /** The top OM we need to read. */
@@ -289,10 +290,6 @@ class T1Subsystem(implicit p: Parameters)
 
   // 512M-1G
   val scalarMemoryRanges = BitSet(BitPat("b001?????????????????????????????"))
-  require(
-    t1Parameter.lsuParameters.banks.filter(_.accessScalar).map(_.region).reduce(_ union _).cover(scalarMemoryRanges),
-    "Vector accessing scalar should include scalarMemory"
-  )
 
   // 256M-512M
   val mmioRanges = BitSet(BitPat("b0001????????????????????????????"))
@@ -319,35 +316,46 @@ class T1Subsystem(implicit p: Parameters)
       .mkString("")
   )
 
-  val vectorMemoryNodes = t1Parameter.lsuParameters.banks.filter(!_.accessScalar).map(bank =>
-    TLManagerNode(
-      Seq(
-        TLSlavePortParameters.v1(
-          Seq(
-            TLSlaveParameters.v1(
-              address = bank.region.terms.map(bitsetToAddressSet).toSeq.flatten,
-              resources = Nil,
-              regionType = RegionType.UNCACHED,
-              executable = true,
-              supportsGet = TransferSizes(1, tlBusWrapperLocationMap(VectorMasterBus).blockBytes),
-              supportsPutPartial = TransferSizes(1, tlBusWrapperLocationMap(VectorMasterBus).blockBytes),
-              supportsPutFull = TransferSizes(1, tlBusWrapperLocationMap(VectorMasterBus).blockBytes),
-              supportsArithmetic = TransferSizes.none,
-              supportsLogical = TransferSizes.none,
-              fifoId = Some(0)
-            )
-          ), // requests are handled in order
-          // align with datapath size
-          beatBytes = tlBusWrapperLocationMap(ScalarMasterBus).beatBytes,
-          minLatency = 1
+  // TODO: no more diplomacy for boring in and out.
+  val vectorHighBandwidthNode = AXI4SlaveNode(Seq(
+    AXI4SlavePortParameters(
+      slaves = Seq(
+        AXI4SlaveParameters(
+          address = Seq(AddressSet.everything),
+          resources = Nil,
+          regionType = RegionType.VOLATILE,
+          executable = false,
+          nodePath = Nil,
+          supportsWrite = TransferSizes(4096),
+          supportsRead = TransferSizes(4096),
+          // TODO: what's this?
+          interleavedId = None,
+          device = None
         )
-      )
+      ),
+        beatBytes = t1Parameter.dLen / 8,
     )
-  )
+  ))
 
-  vectorMemoryNodes.foreach(vectorMemoryNode =>
-    tlBusWrapperLocationMap(VectorMasterBus).coupleTo("VectorPort")(vectorMemoryNode := _)
-  )
+  val vectorIndexedAccessNode = AXI4SlaveNode(Seq(
+    AXI4SlavePortParameters(
+      slaves = Seq(
+        AXI4SlaveParameters(
+          address = Seq(AddressSet.everything),
+          resources = Nil,
+          regionType = RegionType.VOLATILE,
+          executable = false,
+          nodePath = Nil,
+          supportsWrite = TransferSizes(4),
+          supportsRead = TransferSizes(4),
+          // TODO: what's this?
+          interleavedId = None,
+          device = None
+        )
+      ),
+      beatBytes = t1Parameter.dLen / 8,
+    )
+  ))
 
   // T1 is an accelerator. it only have one scalar outwards bank
   val scalarMemoryNode = TLManagerNode(
@@ -450,9 +458,9 @@ class T1Subsystem(implicit p: Parameters)
   }
   val scalarPort = InModuleBody { scalarMemoryNode.makeIOs() }
   val mmioPort = InModuleBody { mmioNode.makeIOs() }
-  val vectorPorts = InModuleBody {
-    vectorMemoryNodes.zipWithIndex.map { case (n, i) => n.makeIOs()(ValName(s"vectorChannel$i")) }
-  }
+  val vectorHighBandwidthPort = InModuleBody { vectorHighBandwidthNode.makeIOs() }
+  val vectorIndexedAccessPort = InModuleBody { vectorIndexedAccessNode.makeIOs() }
+
   private val clockreset = InModuleBody {
     val clockInput = clockSource.out.map(_._1).head
     val clock = IO(Input(Clock()))

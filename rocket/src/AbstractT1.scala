@@ -129,24 +129,10 @@ abstract class AbstractLazyT1()(implicit p: Parameters) extends LazyModule {
   def xLen:            Int
   def vlMax:           Int
   def uarchName:       String
-  def t1LSUParameters: T1LSUParameter
 
   def bitsetToAddressSet(bitset: BitSet): Seq[AddressSet] = bitset.terms.map(bp => AddressSet(bp.value, bp.mask ^ ((BigInt(1) << bp.width) - 1))).toSeq
 
-  val t1LSUNode = TLClientNode(
-    t1LSUParameters.banks.zipWithIndex.map {
-      case (addresses, bank) =>
-        TLMasterPortParameters.v1(
-          Seq(
-            TLMasterParameters.v1(
-              name = s"${uarchName}_bank$bank",
-              sourceId = IdRange(0, (1 << t1LSUParameters.sourceIdSize) - 1),
-              visibility = addresses
-            )
-          )
-        )
-    }
-  )
+  val t1LSUNode: TLClientNode = ???
   val requestSinkNode: BundleBridgeSink[DecoupledIO[VectorRequest]] =
     BundleBridgeSink[DecoupledIO[VectorRequest]]()
   val csrSinkNode: BundleBridgeSink[CSRInterface] =
