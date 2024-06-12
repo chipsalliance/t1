@@ -12,6 +12,7 @@ import coursier.maven.MavenRepository
 import $file.dependencies.chisel.build
 import $file.dependencies.arithmetic.common
 import $file.dependencies.tilelink.common
+import $file.dependencies.`chisel-interface`.common
 import $file.dependencies.`berkeley-hardfloat`.common
 import $file.dependencies.rvdecoderdb.common
 import $file.common
@@ -66,6 +67,20 @@ trait TileLink
   def chiselPluginIvy = None
 }
 
+object axi4 extends AXI4
+
+trait AXI4 extends millbuild.dependencies.`chisel-interface`.common.AXI4Module {
+  override def millSourcePath = os.pwd / "dependencies" / "chisel-interface" / "axi4"
+  def scalaVersion = v.scala
+
+  def mainargsIvy = v.mainargs
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselIvy = None
+  def chiselPluginIvy = None
+}
+
 object hardfloat extends Hardfloat
 
 trait Hardfloat
@@ -98,7 +113,6 @@ trait T1
   def scalaVersion = T(v.scala)
 
   def arithmeticModule = arithmetic
-  def tilelinkModule = tilelink
   def hardfloatModule = hardfloat
   def rvdecoderdbModule = rvdecoderdb
   def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
@@ -195,6 +209,7 @@ trait Rocket
   def rvdecoderdbModule = rvdecoderdb
   def rocketchipModule = rocketchip
   def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
+  def axi4Module = axi4
 
   def chiselModule = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
