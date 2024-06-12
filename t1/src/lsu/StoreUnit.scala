@@ -8,7 +8,6 @@ import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.probe._
 import org.chipsalliance.t1.rtl.{EmptyBundle, VRFReadRequest, cutUInt, multiShifter}
-import tilelink.TLChannelA
 
 class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
   val data: UInt = UInt((param.lsuTransposeSize * 8).W)
@@ -19,10 +18,10 @@ class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
 @instantiable
 class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   @public
-  val tlPortA: Vec[DecoupledIO[TLChannelA]] = IO(Vec(param.memoryBankSize, param.tlParam.bundle().a))
+  val memRequest: DecoupledIO[MemWrite] = IO(Decoupled(new MemWrite(param)))
 
   @public
-  val status: StoreStatus = IO(Output(new StoreStatus(param.memoryBankSize)))
+  val status: LSUBaseStatus = IO(Output(new LSUBaseStatus))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
    * see [[LSU.vrfWritePort]]
@@ -153,15 +152,14 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val maskForBufferData: Vec[UInt] = RegInit(VecInit(Seq.fill(8)(0.U(param.lsuTransposeSize.W))))
   val maskForBufferDequeue: UInt = maskForBufferData(cacheLineIndexInBuffer)
   val tailLeft2: Bool = RegInit(false.B)
-  val alignedDequeue: DecoupledIO[cacheLineEnqueueBundle] = Wire(Decoupled(new cacheLineEnqueueBundle(param)))
-  val alignedDequeueFire: Bool = alignedDequeue.fire
+  val alignedDequeueFire: Bool = memRequest.fire
   // cache 不对齐的时候的上一条残留
   val cacheLineTemp: UInt = RegEnable(dataBuffer.head, 0.U((param.lsuTransposeSize * 8).W), alignedDequeueFire)
   val maskTemp: UInt = RegInit(0.U(param.lsuTransposeSize.W))
   val tailValid: Bool = RegInit(false.B)
   val isLastCacheLineInBuffer: Bool = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
   val bufferWillClear: Bool = alignedDequeueFire && isLastCacheLineInBuffer
-  accessBufferDequeueReady := !bufferValid || (alignedDequeue.ready && isLastCacheLineInBuffer)
+  accessBufferDequeueReady := !bufferValid || (memRequest.ready && isLastCacheLineInBuffer)
   val bufferStageEnqueueData: Vec[UInt] = Mux(bufferFull, accessData, accessDataUpdate)
   // 处理mask, 对于 segment type 来说 一个mask 管 nf 个element
   val fillBySeg: UInt = Mux1H(UIntToOH(lsuRequestReg.instructionInformation.nf), Seq.tabulate(8) { segSize =>
@@ -236,67 +234,25 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   }
 
   // 连接 alignedDequeue
-  alignedDequeue.valid := bufferValid || tailValid
+  memRequest.valid := bufferValid || tailValid
   // aligned
-  alignedDequeue.bits.data :=
+  memRequest.bits.data :=
     multiShifter(right = false, multiSize = 8)(dataBuffer.head ## cacheLineTemp, initOffset) >> cacheLineTemp.getWidth
   val selectMaskForTail: UInt = Mux(bufferValid, maskForBufferDequeue, 0.U(maskTemp.getWidth.W))
-  alignedDequeue.bits.mask := ((selectMaskForTail ## maskTemp) << initOffset) >> maskTemp.getWidth
-  alignedDequeue.bits.index := bufferBaseCacheLineIndex
+  memRequest.bits.mask := ((selectMaskForTail ## maskTemp) << initOffset) >> maskTemp.getWidth
+  memRequest.bits.index := bufferBaseCacheLineIndex
 
   // select by address set
   val alignedDequeueAddress: UInt = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + bufferBaseCacheLineIndex) ##
     0.U(param.cacheLineBits.W)
-  val selectOH: UInt = VecInit(param.banks.map(bs => bs.region.matches(alignedDequeueAddress))).asUInt
-  assert(PopCount(selectOH) === 1.U, "address overlap")
-  val currentAddress: Vec[UInt] = Wire(Vec(param.memoryBankSize, UInt(param.tlParam.a.addressWidth.W)))
-  val sendStageReady: Vec[Bool] = Wire(Vec(param.memoryBankSize, Bool()))
-  // tl 发送单元
-  val readyVec = Seq.tabulate(param.memoryBankSize) { portIndex =>
-    val dataToSend: ValidIO[cacheLineEnqueueBundle] = RegInit(0.U.asTypeOf(Valid(new cacheLineEnqueueBundle(param))))
-    val addressReg: UInt = RegInit(0.U(param.paWidth.W))
-    val port: DecoupledIO[TLChannelA] = tlPortA(portIndex)
-    val portFire: Bool = port.fire
-    val (first, last, done, _) = param.fistLast(param.cacheLineBits.U, true.B, portFire)
-    val enqueueReady: Bool = !dataToSend.valid || (port.ready && !addressConflict && last)
-    val enqueueFire: Bool = enqueueReady && alignedDequeue.valid && selectOH(portIndex)
-    val firstCacheLine = RegEnable(lsuRequest.valid, true.B, lsuRequest.valid || enqueueFire)
-    currentAddress(portIndex) := Mux(firstCacheLine, 0.U, addressReg)
-    status.releasePort(portIndex) := first
-    when(enqueueFire) {
-      dataToSend.bits := alignedDequeue.bits
-      addressReg := alignedDequeueAddress
-    }.elsewhen(portFire) {
-      dataToSend.bits.mask := dataToSend.bits.mask >> param.tlParam.a.maskWidth
-      dataToSend.bits.data := dataToSend.bits.data >> param.tlParam.a.dataWidth
-    }
+  memRequest.bits.address := alignedDequeueAddress
 
-    when(enqueueFire ^ done) {
-      dataToSend.valid := enqueueFire
-    }
-
-    port.valid := dataToSend.valid && !addressConflict
-    port.bits.opcode := 0.U
-    port.bits.param := 0.U
-    port.bits.size := param.cacheLineBits.U
-    port.bits.source := dataToSend.bits.index
-    port.bits.address := addressReg
-    port.bits.mask := dataToSend.bits.mask(param.tlParam.a.maskWidth - 1, 0)
-    port.bits.data := dataToSend.bits.data(param.tlParam.a.dataWidth - 1, 0)
-    port.bits.corrupt := false.B
-    sendStageReady(portIndex) := enqueueReady
-    !dataToSend.valid
-  }
-
-  val sendStageClear: Bool = readyVec.reduce(_ && _)
-  alignedDequeue.ready := (sendStageReady.asUInt & selectOH).orR
-
-  status.idle := sendStageClear && !bufferValid && !readStageValid && readQueueClear && !bufferFull
+  status.idle := !bufferValid && !readStageValid && readQueueClear && !bufferFull
   val idleNext: Bool = RegNext(status.idle, true.B)
   status.last := (!idleNext && status.idle) || invalidInstructionNext
   status.changeMaskGroup := maskSelect.valid && !lsuRequest.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
-  status.startAddress := Mux1H(selectOH, currentAddress)
+  status.startAddress := alignedDequeueAddress
   status.endAddress := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineNumberReg) ##
     0.U(param.cacheLineBits.W)
   dontTouch(status)
@@ -314,14 +270,14 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val lsuRequestValidProbe = IO(Output(Probe(Bool())))
   define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
 
-  @public
+/*  @public
   val tlPortAIsValidProbe = Seq.fill(param.memoryBankSize)(IO(Output(Probe(Bool()))))
   @public
   val tlPortAIsReadyProbe = Seq.fill(param.memoryBankSize)(IO(Output(Probe(Bool()))))
   tlPortA.zipWithIndex.foreach({ case(port, i) =>
     define(tlPortAIsValidProbe(i), ProbeValue(port.valid))
     define(tlPortAIsReadyProbe(i), ProbeValue(port.ready))
-  })
+  })*/
 
   @public
   val addressConflictProbe = IO(Output(Probe(Bool())))
@@ -340,10 +296,10 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val vrfReadyToStoreProbe = IO(Output(Probe(Bool())))
   define(vrfReadyToStoreProbe, ProbeValue(vrfReadyToStore))
 
-  @public
+/*  @public
   val alignedDequeueValidProbe = IO(Output(Probe(Bool())))
   define(alignedDequeueValidProbe, ProbeValue(alignedDequeue.valid))
   @public
   val alignedDequeueReadyProbe = IO(Output(Probe(Bool())))
-  define(alignedDequeueReadyProbe, ProbeValue(alignedDequeue.ready))
+  define(alignedDequeueReadyProbe, ProbeValue(alignedDequeue.ready))*/
 }
