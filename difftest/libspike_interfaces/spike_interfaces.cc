@@ -21,7 +21,7 @@ cfg_t make_spike_cfg(const std::string& varch) {
   return cfg;
 }
 
-Spike::Spike(const char* arch, const char* set, const char* lvl)
+Spike::Spike(const char* arch, const char* set, const char* lvl, size_t lane_number)
     : sim(),
       varch(arch),
       isa(set, lvl),
@@ -34,13 +34,16 @@ Spike::Spike(const char* arch, const char* set, const char* lvl)
           /*halt on reset*/ true,
           /*log_file_t*/ nullptr,
           /*sout*/ std::cerr) {
+  proc.VU.lane_num = lane_number;
+  proc.VU.lane_granularity = 32;
+
   auto& csrmap = proc.get_state()->csrmap;
   csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 1);
   proc.enable_log_commits();
 }
 
-spike_t* spike_new(const char* arch, const char* set, const char* lvl) {
-  return new spike_t{new Spike(arch, set, lvl)};
+spike_t* spike_new(const char* arch, const char* set, const char* lvl, size_t lane_number) {
+  return new spike_t{new Spike(arch, set, lvl, lane_number)};
 }
 
 const char* proc_disassemble(spike_processor_t* proc) {

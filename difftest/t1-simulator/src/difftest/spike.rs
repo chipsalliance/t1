@@ -261,7 +261,7 @@ impl SpikeHandle {
     let arch = &format!("vlen:{vlen},elen:32");
     let lvl = "M";
 
-    let spike = Spike::new(arch, &set, lvl);
+    let spike = Spike::new(arch, &set, lvl, (dlen / 32) as usize);
 
     // initialize processor
     let proc = spike.get_proc();
