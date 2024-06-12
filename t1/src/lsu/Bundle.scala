@@ -41,11 +41,6 @@ class SimpleAccessStatus(laneNumber: Int) extends LSUBaseStatus {
   val isIndexLS: Bool = Bool()
 }
 
-class StoreStatus(bankSize: Int) extends LSUBaseStatus {
-  // cache line 的发送不能被打断
-  val releasePort: Vec[Bool] = Vec(bankSize, Bool())
-}
-
 class MSHRStage0Bundle(param: MSHRParam) extends Bundle {
   // 读的相关
   val readVS: UInt = UInt(param.regNumBits.W)
@@ -68,4 +63,44 @@ class SimpleAccessStage1(param: MSHRParam) extends Bundle {
   // 访问l2的地址
   val address: UInt = UInt(param.paWidth.W)
   val readData: UInt = UInt(param.datapathWidth.W)
+}
+
+class MemRequest(param: MSHRParam) extends Bundle {
+  val src: UInt = UInt(param.cacheLineIndexBits.W)
+  val address: UInt = UInt(param.paWidth.W)
+}
+
+class MemDataBundle(param: MSHRParam) extends Bundle {
+  // todo: DLEN?
+  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
+  val index: UInt = UInt(param.cacheLineIndexBits.W)
+}
+
+class MemWrite(param: MSHRParam) extends Bundle {
+  // todo: DLEN?
+  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
+  val mask: UInt = UInt(param.lsuTransposeSize.W)
+  val index: UInt = UInt(param.cacheLineIndexBits.W)
+  val address: UInt = UInt(param.paWidth.W)
+}
+
+class SimpleMemRequest(param: MSHRParam) extends Bundle {
+  val address: UInt = UInt(param.paWidth.W)
+  val size: UInt = UInt(2.W)
+  val source: UInt = UInt(8.W)
+}
+
+class SimpleMemReadResponse(param: MSHRParam) extends Bundle {
+  // todo: DLEN?
+  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
+  val source: UInt = UInt(8.W)
+}
+
+class SimpleMemWrite(param: MSHRParam) extends Bundle {
+  // todo: DLEN?
+  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
+  val mask: UInt = UInt(param.lsuTransposeSize.W)
+  val source: UInt = UInt(8.W)
+  val address: UInt = UInt(param.paWidth.W)
+  val size: UInt = UInt(2.W)
 }
