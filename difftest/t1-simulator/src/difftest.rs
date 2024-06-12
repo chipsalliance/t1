@@ -4,7 +4,7 @@ mod spike;
 use dut::*;
 pub use spike::SpikeHandle;
 use std::path::Path;
-use tracing::{info, trace};
+use tracing::trace;
 
 pub struct Difftest {
   spike: SpikeHandle,

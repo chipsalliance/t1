@@ -6,11 +6,11 @@ pub struct Spike {
 }
 
 impl Spike {
-  pub fn new(arch: &str, set: &str, lvl: &str) -> Self {
+  pub fn new(arch: &str, set: &str, lvl: &str, lane_number: usize) -> Self {
     let arch = CString::new(arch).unwrap();
     let set = CString::new(set).unwrap();
     let lvl = CString::new(lvl).unwrap();
-    let spike = unsafe { spike_new(arch.as_ptr(), set.as_ptr(), lvl.as_ptr()) };
+    let spike = unsafe { spike_new(arch.as_ptr(), set.as_ptr(), lvl.as_ptr(), lane_number) };
     Spike { spike }
   }
 
@@ -179,7 +179,7 @@ type FfiCallback = extern "C" fn(u64) -> *mut u8;
 #[link(name = "spike_interfaces")]
 extern "C" {
   pub fn spike_register_callback(callback: FfiCallback);
-  fn spike_new(arch: *const c_char, set: *const c_char, lvl: *const c_char) -> *mut ();
+  fn spike_new(arch: *const c_char, set: *const c_char, lvl: *const c_char, lane_number: usize) -> *mut ();
   fn spike_get_proc(spike: *mut ()) -> *mut ();
   fn spike_destruct(spike: *mut ());
   fn proc_disassemble(proc: *mut ()) -> *mut c_char;

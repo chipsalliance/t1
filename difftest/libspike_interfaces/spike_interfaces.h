@@ -31,7 +31,7 @@ class sim_t : public simif_t {
 
 class Spike {
  public:
-  Spike(const char* arch, const char* set, const char* lvl);
+  Spike(const char* arch, const char* set, const char* lvl, size_t lane_number);
   processor_t* get_proc() { return &proc; }
 
  private:
