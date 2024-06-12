@@ -9,7 +9,6 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.{Decoder, TableGenerator}
 import org.chipsalliance.t1.rtl.lane.Distributor
-import tilelink.{TLBundleParameter, TLChannelD}
 
 package object rtl {
   def csa32(s: UInt, c: UInt, a: UInt): (UInt, UInt) = {
