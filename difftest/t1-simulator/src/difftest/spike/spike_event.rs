@@ -291,7 +291,7 @@ impl SpikeEvent {
           self.is_rd_written = true;
         }
       }
-      _ => trace!("UnknownRegChange, idx={idx}, spike detect unknown reg change"),
+      _ => trace!("UnknownRegChange, idx={:08x}, spike detect unknown reg change", state.get_reg_write_index(idx)),
     });
 
     Ok(())
