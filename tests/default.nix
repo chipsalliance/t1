@@ -20,6 +20,8 @@ let
 
     inherit ip-emu;
 
+    makeEmuResult = casesSelf.callPackage ./make-emu-result.nix { };
+
     makeBuilder = casesSelf.callPackage ./builder.nix { };
 
     findAndBuild = dir: build:

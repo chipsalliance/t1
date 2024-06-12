@@ -6,12 +6,7 @@
 , isFp
 , vLen
 
-  # ip-emu here is used for running the simulation to get event log for the specific test case.
-, ip-emu
-  # t1-script contains many decent default for running the emulator, I don't want to replicate those simulation argument here.
-, t1-script
-, runCommand
-, elaborateConfigJson
+, makeEmuResult
 }:
 
 # args from makeBuilder
@@ -68,16 +63,8 @@ let
 
     dontFixup = true;
 
-    passthru.emu-result = runCommand "get-event-log" { } ''
-      ${t1-script}/bin/t1-helper \
-        "ipemu" \
-        --emulator-path ${ip-emu}/bin/emulator \
-        --config ${elaborateConfigJson} \
-        --case ${caseDrv}/bin/${pname}.elf \
-        --no-console-logging \
-        --no-file-logging \
-        --out-dir $out
-    '';
+    passthru.emu-result = makeEmuResult caseDrv;
+
   } // overrides);
 in
 caseDrv
