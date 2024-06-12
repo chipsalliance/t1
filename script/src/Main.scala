@@ -742,7 +742,12 @@ object Main:
         name = "case-attr",
         short = 'C',
         doc = "Specify test case attribute to run diff test"
-      ) caseAttr: String
+      ) caseAttr: String,
+      @arg(
+        name = "log-level",
+        short = 'L',
+        doc = "Specify log level to run diff test"
+      ) logLevel: String
   ): Unit =
     Logger.info("Building simulator")
     val difftest = nixResolvePath(".#t1-simulator")
@@ -773,7 +778,9 @@ object Main:
         "--elf-file",
         s"${caseElf}/bin/${caseAttr}.elf",
         "--log-file",
-        s"${eventLog}/rtl-event.log"
+        s"${eventLog}/rtl-event.log",
+        "--log-level",
+        s"${logLevel}"
       )
     ).call(stdout = os.Inherit, stderr = os.Inherit)
   end difftest
