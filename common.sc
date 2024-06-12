@@ -59,8 +59,8 @@ trait T1Module
     with HasRVDecoderDB {
   def arithmeticModule: ScalaModule
   def hardfloatModule: ScalaModule
-  def tilelinkModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, tilelinkModule)
+  def axi4Module: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, axi4Module)
 }
 
 trait ConfigGenModule
