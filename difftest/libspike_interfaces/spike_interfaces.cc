@@ -144,6 +144,10 @@ reg_t state_get_pc(spike_state_t* state) {
   return state->s->pc;
 }
 
+void state_set_mcycle(spike_state_t* state, size_t mcycle) {
+  state->s->mcycle->write((int64_t)mcycle);
+}
+
 void state_clear(spike_state_t* state) {
   state->s->log_reg_write.clear();
   state->s->log_mem_read.clear();

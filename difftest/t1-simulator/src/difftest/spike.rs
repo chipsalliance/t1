@@ -244,6 +244,12 @@ pub struct SpikeHandle {
 
   /// the get_t() of a req with ongoing burst
   pub tl_req_ongoing_burst: Vec<Option<usize>>,
+
+  /// implement the get_t() for mcycle csr update
+  pub cycle: usize,
+
+  /// for mcycle csr update
+  pub spike_cycle: usize,
 }
 
 impl SpikeHandle {
@@ -277,6 +283,8 @@ impl SpikeHandle {
       tl_req_record_of_bank: (0..13).map(|_| HashMap::new()).collect(),
       tl_req_waiting_ready: vec![None; 13],
       tl_req_ongoing_burst: vec![None; 13],
+      cycle: 0,
+      spike_cycle: 0,
     }
   }
 
@@ -305,6 +313,8 @@ impl SpikeHandle {
     let proc = self.spike.get_proc();
     let state = proc.get_state();
 
+    state.set_mcycle(self.cycle + self.spike_cycle);
+
     let pc = state.get_pc();
     let disasm = proc.disassemble();
 
@@ -316,8 +326,8 @@ impl SpikeHandle {
       // inst is load / store / v / quit
       Some(ref mut se) => {
         info!(
-          "SpikeStep: pc={:#x}, disasm={:?}, spike run vector insn",
-          pc, disasm
+          "[{}] SpikeStep: spike run vector insn, pc={:#x}, disasm={:?}, spike_cycle={:?}",
+          self.cycle, pc, disasm, self.spike_cycle
         );
         se.pre_log_arch_changes(&self.spike, self.config.vlen)
           .unwrap();
@@ -326,14 +336,16 @@ impl SpikeHandle {
       }
       None => {
         info!(
-          "SpikeStep: pc={:#x}, disasm={:?}, spike run scalar insn",
-          pc, disasm
+          "[{}] SpikeStep: spike run scalar insn, pc={:#x}, disasm={:?}, spike_cycle={:?}",
+          self.cycle, pc, disasm, self.spike_cycle
         );
         new_pc = proc.func();
       }
     }
 
     state.handle_pc(new_pc).unwrap();
+
+    self.spike_cycle += 1;
 
     event
   }
