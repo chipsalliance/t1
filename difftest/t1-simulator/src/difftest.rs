@@ -94,6 +94,7 @@ impl Difftest {
         let corrupt = event.parameter.corrupt.unwrap();
         let dready = event.parameter.dready.unwrap() != 0;
         let cycle = event.parameter.cycle.unwrap();
+        self.spike.cycle = cycle;
         // check align
         let addr = event.parameter.address.unwrap();
         let size = (1 << event.parameter.size.unwrap()) as usize;
@@ -124,11 +125,13 @@ impl Difftest {
       "issue" => {
         let idx = event.parameter.idx.unwrap();
         let cycle = event.parameter.cycle.unwrap();
+        self.spike.cycle = cycle;
         self.peek_issue(IssueEvent { idx, cycle }).unwrap();
       }
       "lsuEnq" => {
         let enq = event.parameter.enq.unwrap();
         let cycle = event.parameter.cycle.unwrap();
+        self.spike.cycle = cycle;
         self.update_lsu_idx(LsuEnqEvent { enq, cycle }).unwrap();
       }
       "vrfWriteFromLsu" => {
@@ -140,6 +143,7 @@ impl Difftest {
         let instruction = event.parameter.instruction.unwrap();
         let lane = event.parameter.lane.unwrap();
         let cycle = event.parameter.cycle.unwrap();
+        self.spike.cycle = cycle;
         assert!(idx < self.spike.config.dlen / 32);
 
         self
@@ -163,6 +167,7 @@ impl Difftest {
         let data = event.parameter.data.unwrap();
         let instruction = event.parameter.instruction.unwrap();
         let cycle = event.parameter.cycle.unwrap();
+        self.spike.cycle = cycle;
         assert!(idx < self.spike.config.dlen / 32);
         self
           .spike
@@ -180,6 +185,7 @@ impl Difftest {
       "inst" => {
         let data = event.parameter.data.unwrap() as u32;
         let cycle = event.parameter.cycle.unwrap();
+        self.spike.cycle = cycle;
         // let vxsat = event.parameter.vxsat.unwrap();
         // let rd_valid = event.parameter.rd_valid.unwrap();
         // let rd = event.parameter.rd.unwrap();

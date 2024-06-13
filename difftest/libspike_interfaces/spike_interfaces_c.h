@@ -48,6 +48,7 @@ uint8_t state_get_mem_write_size_by_byte(spike_state_t* state, uint32_t index);
 uint32_t state_get_mem_read_size(spike_state_t* state);
 uint32_t state_get_mem_read_addr(spike_state_t* state, uint32_t index);
 uint8_t state_get_mem_read_size_by_byte(spike_state_t* state, uint32_t index);
+void state_set_mcycle(spike_state_t* state, size_t mcycle);
 void state_clear(spike_state_t* state);
 
 void spike_destruct(spike_t* spike);
