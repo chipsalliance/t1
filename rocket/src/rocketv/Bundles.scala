@@ -59,8 +59,12 @@ class BTBResp(
 }
 
 class BHTResp(bhtHistoryLength: Option[Int], bhtCounterLength: Option[Int]) extends Bundle {
-  val history = bhtHistoryLength.map(i => UInt(i.W))
-  val value = bhtCounterLength.map(i => UInt(i.W))
+  val history = UInt(bhtHistoryLength.getOrElse(1).W)
+  val value = UInt(bhtCounterLength.getOrElse(1).W)
+
+  // @todo: change to:
+  //  val history = bhtHistoryLength.map(i => UInt(i.W))
+  //  val value = bhtCounterLength.map(i => UInt(i.W))
 }
 
 class BTBUpdate(
@@ -564,4 +568,9 @@ class BP(xLen: Int, useBPWatch: Boolean, vaddrBits: Int, mcontextWidth: Int, sco
   val control = new BPControl(xLen, useBPWatch)
   val address = UInt(vaddrBits.W)
   val textra = new TExtra(xLen, mcontextWidth, scontextWidth)
+}
+
+
+class BTBReq(vaddrBits: Int) extends Bundle {
+  val addr = UInt(vaddrBits.W)
 }

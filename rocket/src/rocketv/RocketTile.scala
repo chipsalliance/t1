@@ -8,9 +8,8 @@ import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 
-class RocketTileParameter() extends SerializableModuleParameter {
+case class RocketTileParameter(frontendParameter: FrontendParameter) extends SerializableModuleParameter {
   val rocketParameter: RocketParameter = ???
-  val frontendParameter: FrontendParameter = ???
   val hellaCacheParameter: HellaCacheParameter = ???
   val fpuParameter: FPUParameter = ???
 }

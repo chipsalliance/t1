@@ -8,10 +8,9 @@ import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 
-case class FrontendParameter() extends SerializableModuleParameter {
+case class FrontendParameter(btbParameter: Option[BTBParameter]) extends SerializableModuleParameter {
   val icacheParameter: ICacheParameter = ???
   val tlbParameter: TLBParameter = ???
-  val btbParameter: Option[BTBParameter] = ???
 }
 
 class FrontendInterface(parameter: FrontendParameter) extends Bundle {
