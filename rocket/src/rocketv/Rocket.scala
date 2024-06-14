@@ -117,12 +117,15 @@ case class RocketParameter(
   val maxPAddrBits: Int = ???
   val nPMPs: Int = ???
   val nBreakpoints: Int = ???
+  val useBPWatch: Boolean = ???
+  val mcontextWidth: Int = ???
+  val scontextWidth: Int = ???
 
   //
   val csrParameter: CSRParameter = ???
   val decoderParameter: DecoderParameter = ???
   val iBufParameter: IBufParameter = ???
-  val breakpointUnitParameter: BreakpointUnitParameter = ???
+  val breakpointUnitParameter: BreakpointUnitParameter = BreakpointUnitParameter(nBreakpoints, xLen, useBPWatch, vaddrBits, mcontextWidth, scontextWidth)
   val aluParameter: ALUParameter = ALUParameter(xLen)
   val mulDivParameter: MulDivParameter = ???
   val mulParameter: Option[MulParameter] = ???

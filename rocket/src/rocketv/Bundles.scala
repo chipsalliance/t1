@@ -524,4 +524,44 @@ class BPWatch extends Bundle() {
   val ivalid = Bool()
   val action = UInt(3.W)
 }
+class BPControl(xLen: Int, useBPWatch: Boolean) extends Bundle {
+  val ttype = UInt(4.W)
+  val dmode = Bool()
+  val maskmax = UInt(6.W)
+  val reserved = UInt((xLen - (if (useBPWatch) 26 else 24)).W)
+  val action = UInt((if (useBPWatch) 3 else 1).W)
+  val chain = Bool()
+  val zero = UInt(2.W)
+  val tmatch = UInt(2.W)
+  val m = Bool()
+  val h = Bool()
+  val s = Bool()
+  val u = Bool()
+  val x = Bool()
+  val w = Bool()
+  val r = Bool()
+}
 
+class TExtra(xLen: Int, mcontextWidth: Int, scontextWidth: Int) extends Bundle {
+  // TODO: pass it from parameter
+  def mvalueBits: Int = if (xLen == 32) mcontextWidth.min(6) else mcontextWidth.min(13)
+  def svalueBits: Int = if (xLen == 32) scontextWidth.min(16) else scontextWidth.min(34)
+  def mselectPos: Int = if (xLen == 32) 25 else 50
+  def mvaluePos:  Int = mselectPos + 1
+  def sselectPos: Int = 0
+  def svaluePos:  Int = 2
+
+  val mvalue = UInt(mvalueBits.W)
+  val mselect = Bool()
+  val pad2 = UInt((mselectPos - svalueBits - 2).W)
+  val svalue = UInt(svalueBits.W)
+  val pad1 = UInt(1.W)
+  val sselect = Bool()
+}
+
+
+class BP(xLen: Int, useBPWatch: Boolean, vaddrBits: Int, mcontextWidth: Int, scontextWidth: Int) extends Bundle {
+  val control = new BPControl(xLen, useBPWatch)
+  val address = UInt(vaddrBits.W)
+  val textra = new TExtra(xLen, mcontextWidth, scontextWidth)
+}
