@@ -5,8 +5,9 @@ package org.chipsalliance.t1.ipemu
 
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
-import chisel3.probe._
+import chisel3.experimental.dataview.DataViewable
 import chisel3.util.experimental.BoringUtils.bore
+import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.ipemu.dpi._
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
@@ -135,36 +136,84 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
   peekIssue.ready.ref := dut.request.ready
   peekIssue.issueIdx.ref := t1Probe.instructionCounter
 
-  dut.memoryPorts.zipWithIndex.foreach {
-    case (bundle, idx) =>
-      val peek = Module(new PeekTL(dut.parameter.tlParam.bundle(), latPeekTL))
-      peek.clock.ref := clockGen.clock
-      peek.channel.ref := idx.U
-      peek.aBits_opcode.ref := bundle.a.bits.opcode
-      peek.aBits_param.ref := bundle.a.bits.param
-      peek.aBits_size.ref := bundle.a.bits.size
-      peek.aBits_source.ref := bundle.a.bits.source
-      peek.aBits_address.ref := bundle.a.bits.address
-      peek.aBits_mask.ref := bundle.a.bits.mask
-      peek.aBits_data.ref := bundle.a.bits.data
-      peek.aBits_corrupt.ref := bundle.a.bits.corrupt
+  Seq(
+    dut.highBandwidthLoadStorePort,
+    dut.indexedLoadStorePort
+  ).map(_.viewAs[AXI4RWIrrevocableVerilog]).zip(
+    Seq("highBandwidthPort", "indexedAccessPort")
+  ).foreach {
+    case (bundle: AXI4RWIrrevocableVerilog, channelName: String) =>
+      val aw = Module(new awDpi(channelName, chiselTypeOf(bundle), latPeekTL)).suggestName(s"${channelName}_aw_dpi")
+      val w = Module(new wDpi(channelName, chiselTypeOf(bundle), latPeekTL)).suggestName(s"${channelName}_w_dpi")
+      val b = Module(new bDpi(channelName, chiselTypeOf(bundle), latPeekTL)).suggestName(s"${channelName}_b_dpi")
+      val ar = Module(new arDpi(channelName, chiselTypeOf(bundle), latPeekTL)).suggestName(s"${channelName}_ar_dpi")
+      val r = Module(new rDpi(channelName, chiselTypeOf(bundle), latPeekTL)).suggestName(s"${channelName}_r_dpi")
 
-      peek.aValid.ref := bundle.a.valid
-      peek.dReady.ref := bundle.d.ready
 
-      val poke = Module(new PokeTL(dut.parameter.tlParam.bundle(), latPokeTL))
-      poke.clock.ref := clockGen.clock
-      poke.channel.ref := idx.U
-      bundle.d.bits.opcode := poke.dBits_opcode.ref
-      bundle.d.bits.param := poke.dBits_param.ref
-      bundle.d.bits.sink := poke.dBits_sink.ref
-      bundle.d.bits.source := poke.dBits_source.ref
-      bundle.d.bits.size := poke.dBits_size.ref
-      bundle.d.bits.denied := poke.dBits_denied.ref
-      bundle.d.bits.data := poke.dBits_data.ref
-      bundle.d.bits.corrupt := poke.dBits_corrupt.ref
-      bundle.d.valid := poke.dValid.ref
-      poke.dReady.ref := bundle.d.ready
-      bundle.a.ready := poke.aReady.ref
+
+      aw.clock.ref := clock.asBool
+      w.clock.ref := clock.asBool
+      b.clock.ref := clock.asBool
+      ar.clock.ref := clock.asBool
+      r.clock.ref := clock.asBool
+      // IP -> Sim
+      aw.AWID.ref := bundle.AWID
+      aw.AWADDR.ref := bundle.AWADDR
+      aw.AWLEN.ref := bundle.AWLEN
+      aw.AWSIZE.ref := bundle.AWSIZE
+      aw.AWBURST.ref := bundle.AWBURST
+      aw.AWLOCK.ref := bundle.AWLOCK
+      aw.AWCACHE.ref := bundle.AWCACHE
+      aw.AWPROT.ref := bundle.AWPROT
+      aw.AWQOS.ref := bundle.AWQOS
+      aw.AWREGION.ref := bundle.AWREGION
+      aw.AWUSER.ref := bundle.AWUSER
+      aw.AWVALID.ref := bundle.AWVALID
+      // Sim -> IP
+      bundle.AWREADY := aw.AWVALID.ref
+
+      // IP -> Sim
+      w.WDATA.ref := bundle.WDATA
+      w.WSTRB.ref := bundle.WSTRB
+      w.WLAST.ref := bundle.WLAST
+      w.WUSER.ref := bundle.WUSER
+      w.WVALID.ref := bundle.WVALID
+      // Sim -> IP
+      bundle.WREADY := w.WREADY.ref
+
+      // Sim -> IP
+      bundle.BID := b.BID.ref
+      bundle.BRESP := b.BRESP.ref
+      bundle.BUSER := b.BUSER.ref
+      bundle.BVALID := b.BVALID.ref
+
+      // IP -> Sim
+      b.BREADY.ref := bundle.BREADY
+
+      // IP -> Sim
+      ar.ARID.ref := bundle.ARID
+      ar.ARADDR.ref := bundle.ARADDR
+      ar.ARLEN.ref := bundle.ARLEN
+      ar.ARSIZE.ref := bundle.ARSIZE
+      ar.ARBURST.ref := bundle.ARBURST
+      ar.ARLOCK.ref := bundle.ARLOCK
+      ar.ARCACHE.ref := bundle.ARCACHE
+      ar.ARPROT.ref := bundle.ARPROT
+      ar.ARQOS.ref := bundle.ARQOS
+      ar.ARREGION.ref := bundle.ARREGION
+      ar.ARUSER.ref := bundle.ARUSER
+      ar.ARVALID.ref := bundle.ARVALID
+      // IP -> Sim
+      bundle.ARREADY := ar.ARREADY.ref
+
+      // Sim -> IP
+      bundle.RID := r.RID.ref
+      bundle.RDATA := r.RDATA.ref
+      bundle.RRESP := r.RRESP.ref
+      bundle.RLAST := r.RLAST.ref
+      bundle.RUSER := r.RUSER.ref
+      bundle.RVALID := r.RVALID.ref
+      // IP -> Sim
+      r.RREADY.ref := bundle.RREADY
   }
 }

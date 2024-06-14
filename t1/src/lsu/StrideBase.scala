@@ -20,7 +20,6 @@ trait LSUPublic {
 abstract class StrideBase(param: MSHRParam) extends Module {
   // max nField = 8
   val bufferSize: Int = 8
-  val burstSize: Int = param.lsuTransposeSize * 8 / param.tlParam.d.dataWidth
 
   // 直接维护data group吧
   // (vl * 8) / (datapath * laneNumber)

@@ -8,6 +8,11 @@ src.git = "https://github.com/sequencer/tilelink"
 src.branch = "master"
 fetch.github = "sequencer/tilelink"
 
+[chisel-interface]
+src.git = "https://github.com/chipsalliance/chisel-interface"
+src.branch = "master"
+fetch.github = "chipsalliance/chisel-interface"
+
 [berkeley-hardfloat]
 src.git = "https://github.com/ucb-bar/berkeley-hardfloat"
 src.branch = "master"
