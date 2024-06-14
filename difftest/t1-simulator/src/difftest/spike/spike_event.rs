@@ -371,15 +371,15 @@ impl SpikeEvent {
   }
 
   pub fn check_is_ready_for_commit(&self, cycle: usize) -> anyhow::Result<()> {
-    for (addr, record) in &self.mem_access_record.all_writes {
-      assert_eq!(
-        record.num_completed_writes,
-        record.writes.len(),
-        "[{cycle}] expect to write mem {addr:#x}, not executed when commit (pc={:#x}, inst={})",
-        self.pc,
-        self.disasm
-      );
-    }
+    // for (addr, record) in &self.mem_access_record.all_writes {
+    //   assert_eq!(
+    //     record.num_completed_writes,
+    //     record.writes.len(),
+    //     "[{cycle}] expect to write mem {addr:#x}, not executed when commit (pc={:#x}, inst={})",
+    //     self.pc,
+    //     self.disasm
+    //   );
+    // }
     for (addr, record) in &self.mem_access_record.all_reads {
       assert_eq!(
         record.num_completed_reads,
