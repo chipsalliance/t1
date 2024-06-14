@@ -123,7 +123,7 @@ case class RocketParameter(
   val decoderParameter: DecoderParameter = ???
   val iBufParameter: IBufParameter = ???
   val breakpointUnitParameter: BreakpointUnitParameter = ???
-  val aluParameter: ALUParameter = ???
+  val aluParameter: ALUParameter = ALUParameter(xLen)
   val mulDivParameter: MulDivParameter = ???
   val mulParameter: Option[MulParameter] = ???
 }
