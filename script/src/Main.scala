@@ -582,6 +582,11 @@ object Main:
             ),
             baseOutDir = Some(testRunDir.toString())
           )
+          difftest(
+            config = config,
+            caseAttr = caseName,
+            logLevel = "ERROR"
+          )
           writeCycleUpdates(testName, testRunDir, actualResultDir)
           allFailedTest
         catch
