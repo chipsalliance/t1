@@ -96,6 +96,7 @@ case class RocketParameter(
 
   val fetchWidth: Int = 1
 
+  val resetVectorLen: Int = ???
   val nLocalInterrupts: Int = ???
   val vaddrBitsExtended: Int = ???
   val vaddrBits: Int = ???
@@ -136,7 +137,7 @@ case class RocketParameter(
  */
 class RocketInterface(parameter: RocketParameter) extends Bundle {
   val hartid = IO(Flipped(UInt(parameter.hartIdLen.W)))
-  val interrupts = IO(Flipped(new TileInterrupts(parameter.usingSupervisor, parameter.nLocalInterrupts)))
+  val interrupts = IO(Flipped(new TileInterrupts(parameter.usingSupervisor, parameter.nLocalInterrupts, parameter.usingNMI, parameter.resetVectorLen)))
   val imem = IO(
     new FrontendIO(
       parameter.vaddrBitsExtended,

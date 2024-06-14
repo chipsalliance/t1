@@ -6,15 +6,45 @@ package org.chipsalliance.rocketv
 
 import chisel3._
 import chisel3.util._
-import org.chipsalliance.t1.rockettile.{VectorRequest, VectorResponse}
 
-class TileInterrupts(usingSupervisor: Boolean, nLocalInterrupts: Int) extends Bundle {
+
+class NMI(val w: Int) extends Bundle {
+  val rnmi = Bool()
+  val rnmi_interrupt_vector = UInt(w.W)
+  val rnmi_exception_vector = UInt(w.W)
+}
+
+class TileInterrupts(usingSupervisor: Boolean, nLocalInterrupts: Int, usingNMI: Boolean, resetVectorLen: Int) extends Bundle {
   val debug: Bool = Bool()
   val mtip:  Bool = Bool()
   val msip:  Bool = Bool()
   val meip:  Bool = Bool()
   val seip:  Option[Bool] = Option.when(usingSupervisor)(Bool())
   val lip:   Vec[Bool] = Vec(nLocalInterrupts, Bool())
+  val nmi = Option.when(usingNMI)(new NMI(resetVectorLen))
+}
+
+// TODO: remove BEU
+class CoreInterrupts(usingSupervisor: Boolean, nLocalInterrupts: Int, hasBeu: Boolean, usingNMI: Boolean, resetVectorLen: Int) extends TileInterrupts(usingSupervisor, nLocalInterrupts, usingNMI, resetVectorLen) {
+  val buserror = Option.when(hasBeu)(Bool())
+}
+
+// CSR Interface with decode stage, basically check illegal
+class CSRDecodeIO(iLen: Int) extends Bundle {
+  val inst = Input(UInt(iLen.W))
+  val fpIllegal = Output(Bool())
+  val fpCsr = Output(Bool())
+  val readIllegal = Output(Bool())
+  val writeIllegal = Output(Bool())
+  val writeFlush = Output(Bool())
+  val systemIllegal = Output(Bool())
+  val virtualAccessIllegal = Output(Bool())
+  val virtualSystemIllegal = Output(Bool())
+}
+
+class PerfCounterIO(xLen: Int, retireWidth: Int) extends Bundle {
+  val eventSel = Output(UInt(xLen.W))
+  val inc = Input(UInt(log2Ceil(1 + retireWidth).W))
 }
 
 class FrontendReq(vaddrBitsExtended: Int) extends Bundle {
@@ -334,17 +364,12 @@ class HellaCacheIO(
   val clock_enabled = Input(Bool()) // is D$ currently being clocked?
 }
 
-class PTBR(pgLevels: Int, minPgLevels: Int, xLen: Int, maxPAddrBits: Int, pgIdxBits: Int) extends Bundle {
-  def additionalPgLevels = mode(log2Ceil(pgLevels - minPgLevels + 1) - 1, 0)
-  def pgLevelsToMode(i: Int): Int = (xLen, i) match {
-    case (32, 2)                     => 1
-    case (64, x) if x >= 3 && x <= 6 => x + 5
-  }
+class PTBR(xLen: Int, maxPAddrBits: Int, pgIdxBits: Int) extends Bundle {
+  // @todo move it out.
   val (modeBits, maxASIdBits) = xLen match {
     case 32 => (1, 9)
     case 64 => (4, 16)
   }
-  require(modeBits + maxASIdBits + maxPAddrBits - pgIdxBits == xLen)
 
   val mode: UInt = UInt(modeBits.W)
   val asid = UInt(maxASIdBits.W)
@@ -412,6 +437,63 @@ class HStatus extends Bundle {
   val zero1 = UInt(5.W)
 }
 
+class DCSR extends Bundle {
+  val xdebugver = UInt(2.W)
+  val zero4 = UInt(2.W)
+  val zero3 = UInt(12.W)
+  val ebreakm = Bool()
+  val ebreakh = Bool()
+  val ebreaks = Bool()
+  val ebreaku = Bool()
+  val zero2 = Bool()
+  val stopcycle = Bool()
+  val stoptime = Bool()
+  val cause = UInt(3.W)
+  val v = Bool()
+  val zero1 = UInt(2.W)
+  val step = Bool()
+  val prv = UInt(PRV.SZ.W)
+}
+
+class MIP(nLocalInterrupts: Int) extends Bundle {
+  val lip = Vec(nLocalInterrupts, Bool())
+  val zero1 = Bool()
+  val debug = Bool() // keep in sync with CSR.debugIntCause
+  val sgeip = Bool()
+  val meip = Bool()
+  val vseip = Bool()
+  val seip = Bool()
+  val ueip = Bool()
+  val mtip = Bool()
+  val vstip = Bool()
+  val stip = Bool()
+  val utip = Bool()
+  val msip = Bool()
+  val vssip = Bool()
+  val ssip = Bool()
+  val usip = Bool()
+}
+
+class MNStatus extends Bundle {
+  val mpp = UInt(2.W)
+  val zero3 = UInt(3.W)
+  val mpv = Bool()
+  val zero2 = UInt(3.W)
+  val mie = Bool()
+  val zero1 = UInt(3.W)
+}
+
+class Envcfg extends Bundle {
+  val stce = Bool() // only for menvcfg/henvcfg
+  val pbmte = Bool() // only for menvcfg/henvcfg
+  val zero54 = UInt(54.W)
+  val cbze = Bool()
+  val cbcfe = Bool()
+  val cbie = UInt(2.W)
+  val zero3 = UInt(3.W)
+  val fiom = Bool()
+}
+
 object PMP {
   def lgAlign = 2
 }
@@ -430,6 +512,12 @@ class PMPConfig extends Bundle {
   val w = Bool()
   val r = Bool()
 }
+
+class PMPReg(paddrBits: Int) extends Bundle {
+  val cfg = new PMPConfig
+  val addr = UInt((paddrBits - PMP.lgAlign).W)
+}
+
 
 class PTWPerfEvents extends Bundle {
   val l2miss = Bool()
@@ -465,6 +553,7 @@ class DatapathPTWIO(
   val clock_enabled = Output(Bool())
 }
 
+// TODO: remove me.
 object FPConstants {
   val RM_SZ = 3
   val FLAGS_SZ = 5
