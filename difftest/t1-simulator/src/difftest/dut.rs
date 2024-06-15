@@ -11,17 +11,6 @@ pub enum Opcode {
   // AccessAck = 0,
 }
 
-impl Opcode {
-  pub fn from_u32(n: u32) -> Self {
-    match n {
-      0 => Opcode::PutFullData,
-      1 => Opcode::PutPartialData,
-      4 => Opcode::Get,
-      _ => panic!("unknown opcode"),
-    }
-  }
-}
-
 #[derive(Deserialize, Debug)]
 pub struct Parameter {
   pub idx: Option<u32>,
@@ -59,21 +48,6 @@ pub struct IssueEvent {
 
 pub struct LsuEnqEvent {
   pub enq: u32,
-  pub cycle: usize,
-}
-
-#[derive(Debug)]
-pub struct PeekTLEvent {
-  pub idx: u32,
-  pub opcode: Opcode,
-  pub param: u32,
-  pub size: usize,
-  pub source: u16,
-  pub addr: u32,
-  pub mask: u32,
-  pub data: u64,
-  pub corrupt: u32,
-  pub dready: bool,
   pub cycle: usize,
 }
 
