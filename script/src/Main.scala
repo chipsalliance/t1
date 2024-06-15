@@ -10,17 +10,17 @@ object Logger {
   val level = sys.env.getOrElse("LOG_LEVEL", "INFO") match
     case "TRACE" | "trace" => 0
     case "ERROR" | "error" => 1
-    case "WARN" | "warn"   => 2
-    case _                 => 3
+    case "INFO" | "info"   => 2
+    case _                 => 4
 
-  def info(message: String) = println(
-    s"${BOLD}${GREEN}[INFO]${RESET} ${message}"
-  )
+  def info(message: String) =
+    if level <= 2 then println(s"${BOLD}${GREEN}[INFO]${RESET} ${message}")
+
   def trace(message: String) =
     if level <= 0 then println(s"${BOLD}${GREEN}[TRACE]${RESET} ${message}")
-  def error(message: String) = println(
-    s"${BOLD}${RED}[ERROR]${RESET} ${message}"
-  )
+
+  def error(message: String) =
+    if level <= 2 then println(s"${BOLD}${RED}[ERROR]${RESET} ${message}")
 }
 
 object Main:
@@ -84,10 +84,8 @@ object Main:
   def resolveElaborateConfig(
       configName: String
   ): os.Path =
-    if os.exists(os.Path(configName, os.pwd)) then
-      os.Path(configName)
-    else
-      os.pwd / "configgen" / "generated" / s"$configName.json"
+    if os.exists(os.Path(configName, os.pwd)) then os.Path(configName)
+    else os.pwd / "configgen" / "generated" / s"$configName.json"
   end resolveElaborateConfig
 
   def prepareOutputDir(
@@ -98,7 +96,10 @@ object Main:
       caseName: String
   ): os.Path =
     val pathTail =
-      if os.exists(os.Path(caseName, os.pwd)) || os.exists(os.Path(config, os.pwd)) then
+      if os.exists(os.Path(caseName, os.pwd)) || os.exists(
+          os.Path(config, os.pwd)
+        )
+      then
         // It is hard to canoncalize user specify path, so here we use date time instead
         val now = java.time.LocalDateTime
           .now()
@@ -176,6 +177,10 @@ object Main:
         doc = "Set the logging output path"
       ) emulatorLogFilePath: Option[os.Path] = None,
       @arg(
+        name = "event-log-path",
+        doc = "Set the event log path"
+      ) eventLogFilePath: Option[os.Path] = None,
+      @arg(
         name = "out-dir",
         doc = "path to save wave file and perf result file"
       ) outDir: Option[String] = None,
@@ -223,6 +228,9 @@ object Main:
     val emulatorLogPath =
       if emulatorLogFilePath.isDefined then emulatorLogFilePath.get
       else outputPath / "emulator.log"
+    val eventLogPath =
+      if eventLogFilePath.isDefined then eventLogFilePath.get
+      else outputPath / "rtl-event.log"
 
     def dumpCycleAsFloat() =
       val ratio = dumpCycle.toFloat
@@ -231,8 +239,7 @@ object Main:
           s"Can't use $dumpCycle as ratio, use 0 as waveform dump start point"
         )
         0
-      else if ratio == 0.0 then
-        0
+      else if ratio == 0.0 then 0
       else
         val cycleRecordFilePath =
           os.pwd / ".github" / "cases" / config / "default.json"
@@ -254,8 +261,7 @@ object Main:
         scala.math.floor(cycle * 10 * ratio).toInt
 
     val dumpStartPoint: Int =
-      try
-        dumpCycle.toInt
+      try dumpCycle.toInt
       catch
         case _ =>
           try dumpCycleAsFloat()
@@ -317,13 +323,17 @@ object Main:
     Logger.info(s"Starting IP emulator: `${processArgs.mkString(" ")}`")
     if dryRun.value then return
 
+    if os.exists(eventLogPath) then
+      os.remove(eventLogPath)
     os.proc(processArgs)
-      .call(env =
-        Map(
+      .call(
+        env = Map(
           "EMULATOR_FILE_LOG_LEVEL" -> emulatorLogLevel,
           "EMULATOR_CONSOLE_LOG_LEVEL" -> emulatorLogLevel
-        )
+        ),
+        stderr = eventLogPath,
       )
+    Logger.info(s"RTL event log saved to ${eventLogPath}")
 
     if (!noFileLog.value) then
       Logger.info(s"Emulator log save to ${emulatorLogPath}")
@@ -418,7 +428,8 @@ object Main:
         case (_, cycle) => cycle <= 0
 
     // Initialize a list of buckets
-    val cargoInit = (0 until math.min(bucketSize, allCycleData.length)).map(_ => Bucket())
+    val cargoInit =
+      (0 until math.min(bucketSize, allCycleData.length)).map(_ => Bucket())
     // Group tests that have cycle data into subset by their cycle size
     val cargoStaged = normalData
       .sortBy(_._2)(Ordering[Int].reverse)
@@ -439,8 +450,7 @@ object Main:
           cargo.updated(idx, newBucket)
 
       cargoFinal.map(_.buffer.mkString(";")).toSeq
-    else
-      cargoStaged.map(_.buffer.mkString(";")).toSeq
+    else cargoStaged.map(_.buffer.mkString(";")).toSeq
   end scheduleTasks
 
   // Turn Seq( "A;B", "C;D" ) to GitHub Action matrix style json: { "include": [ { "jobs": "A;B", id: 1 }, { "jobs": "C;D", id: 2 } ] }
@@ -567,6 +577,7 @@ object Main:
           err =>
             val outDir = testRunDir / config / caseName
             Logger.error(s"Test case $testName failed")
+            Logger.error(s"Detail error: $err")
             allFailedTest :+ testName
 
     os.write.over(
@@ -580,8 +591,12 @@ object Main:
       os.write.over(actualResultDir / "failed-tests.md", listOfFailJobs)
       val failedJobsWithError = failed
         .map(testName =>
-          s"* $testName\n     >>> ERROR SUMMARY <<<\n${os
-              .read(actualResultDir / "failed-logs" / s"${testName.replaceAll(",", "-")}.txt")}"
+          val failLogPath =
+            actualResultDir / "failed-logs" / s"${testName.replaceAll(",", "-")}.txt"
+          if os.exists(failLogPath) then
+            s"* $testName\n     >>> ERROR SUMMARY <<<\n${os.read(failLogPath)}"
+          else
+            s"* $testName\nNo error log found, error may not been caught in previous steps"
         )
         .appended("")
         .mkString("\n")
@@ -639,6 +654,18 @@ object Main:
     println(ujson.write(Map("config" -> testPlans)))
   end generateTestPlan
 
+  def nixResolvePath(attr: String): String =
+    os.proc(
+      "nix",
+      "build",
+      "--no-link",
+      "--no-warn-dirty",
+      "--print-out-paths",
+      attr
+    ).call()
+      .out
+      .trim()
+
   @main
   def generateRegressionTestPlan(runnersAmount: Int): Unit =
     // Find emulator configs
@@ -651,21 +678,9 @@ object Main:
           // but all we need is the <config> name.
           path.segments.toSeq.reverse.drop(1).head
 
-    def nixBuild(attr: String): String =
-      os.proc(
-        "nix",
-        "build",
-        "--no-link",
-        "--no-warn-dirty",
-        "--print-out-paths",
-        attr
-      ).call()
-        .out
-        .trim()
-
     import scala.util.chaining._
     val testPlans: Seq[String] = emulatorConfigs.flatMap: configName =>
-      val allCasesPath = nixBuild(s".#t1.$configName.cases.all")
+      val allCasesPath = nixResolvePath(s".#t1.$configName.cases.all")
       os.walk(os.Path(allCasesPath) / "configs")
         .filter: path =>
           path.ext == "json"
@@ -698,11 +713,59 @@ object Main:
         .toSeq
         .map(_.mkString(";"))
 
-    val finalTestPlan = (testPlans.toSet -- currentTestPlan.toSet -- perfCases.toSet).toSeq
+    val finalTestPlan =
+      (testPlans.toSet -- currentTestPlan.toSet -- perfCases.toSet).toSeq
     buckets(finalTestPlan, runnersAmount)
       .pipe(toMatrixJson)
       .pipe(println)
   end generateRegressionTestPlan
+
+  @main
+  def difftest(
+      @arg(
+        name = "config",
+        short = 'c',
+        doc = "specify the elaborate config for running test case"
+      ) config: String,
+      @arg(
+        name = "case-attr",
+        short = 'C',
+        doc = "Specify test case attribute to run diff test"
+      ) caseAttr: String
+  ): Unit =
+    Logger.info("Building simulator")
+    val difftest = nixResolvePath(".#t1-simulator")
+
+    val fullCaseAttr = s".#t1.${config}.cases.${caseAttr}"
+    Logger.info(s"Building cases ${fullCaseAttr}")
+    val caseElf = nixResolvePath(fullCaseAttr)
+
+    import scala.util.chaining._
+    val configJson = nixResolvePath(s".#t1.${config}.elaborateConfigJson")
+      .pipe(p => os.Path(p))
+      .pipe(p => os.read(p))
+      .pipe(text => ujson.read(text))
+    val dLen = configJson.obj("parameter").obj("dLen").num.toInt
+    val vLen = configJson.obj("parameter").obj("vLen").num.toInt
+    Logger.info(s"Using DLEN ${dLen}, VLEN ${vLen}")
+
+    Logger.info(s"Running emulator to get event log")
+    val eventLog = nixResolvePath(s"${fullCaseAttr}.emu-result")
+
+    os.proc(
+      Seq(
+        s"${difftest}/bin/t1-simulator",
+        "--vlen",
+        vLen.toString(),
+        "--dlen",
+        dLen.toString(),
+        "--elf-file",
+        s"${caseElf}/bin/${caseAttr}.elf",
+        "--log-file",
+        s"${eventLog}/rtl-event.log"
+      )
+    ).call(stdout = os.Inherit, stderr = os.Inherit)
+  end difftest
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 end Main

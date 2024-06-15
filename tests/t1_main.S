@@ -10,9 +10,6 @@ _start:
     call test
 
     // exit
-    li a0, 0x10000000
-    li a1, -1
-    sw a1, 4(a0)
     csrwi 0x7cc, 0
 
     .p2align 2

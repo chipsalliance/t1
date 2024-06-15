@@ -51,7 +51,7 @@ lib.makeScope newScope
         elaborateConfigJson = configPath;
         elaborateConfig = builtins.fromJSON (lib.readFile configPath);
 
-        cases = innerSelf.callPackage ../../tests { };
+        cases = innerSelf.callPackage ../../tests { ip-emu = ip.emu; };
 
         # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
         cases-x86 =
