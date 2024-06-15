@@ -160,9 +160,11 @@ object Main:
         doc = "prevent emulator produce log (both console and file)"
       ) noLog: Flag = Flag(false),
       @arg(
-        name = "no-file-logging",
-        doc = "prevent emulator print log to file"
-      ) noFileLog: Flag = Flag(true),
+        name = "with-file-logging",
+        doc = """enable file logging, default is false.
+          |WARN: the emulator will write all the information in each cycle, which will produce a huge file log, use with care.
+          |""".stripMargin
+      ) withFileLog: Flag = Flag(false),
       @arg(
         name = "no-console-logging",
         short = 'q',
@@ -238,8 +240,7 @@ object Main:
     val programOutputPath =
       if programOutputFilePath.isDefined then programOutputFilePath.get
       else outputPath / "mmio-store.txt"
-    if os.exists(programOutputPath) then
-      os.remove(programOutputPath)
+    if os.exists(programOutputPath) then os.remove(programOutputPath)
 
     def dumpCycleAsFloat() =
       val ratio = dumpCycle.toFloat
@@ -313,9 +314,9 @@ object Main:
         .toString(),
       s"--log-path=${emulatorLogPath}",
       "--program-output-path",
-      programOutputPath.toString,
+      programOutputPath.toString
     ) ++ optionals(noLog.value, Seq("--no-logging"))
-      ++ optionals(noFileLog.value, Seq("--no-file-logging"))
+      ++ optionals((!withFileLog.value), Seq("--no-file-logging"))
       ++ optionals(noConsoleLog.value, Seq("--no-console-logging"))
       ++ optionals(
         dramsim3Config.isDefined,
@@ -334,19 +335,18 @@ object Main:
     Logger.info(s"Starting IP emulator: `${processArgs.mkString(" ")}`")
     if dryRun.value then return
 
-    if os.exists(eventLogPath) then
-      os.remove(eventLogPath)
+    if os.exists(eventLogPath) then os.remove(eventLogPath)
     os.proc(processArgs)
       .call(
         env = Map(
           "EMULATOR_FILE_LOG_LEVEL" -> emulatorLogLevel,
           "EMULATOR_CONSOLE_LOG_LEVEL" -> emulatorLogLevel
         ),
-        stderr = eventLogPath,
+        stderr = eventLogPath
       )
     Logger.info(s"RTL event log saved to ${eventLogPath}")
 
-    if (!noFileLog.value) then
+    if (!withFileLog.value) then
       Logger.info(s"Emulator log save to ${emulatorLogPath}")
 
     if (trace.value) then
@@ -374,18 +374,21 @@ object Main:
       @arg(
         name = "out-link",
         short = 'o',
-        doc = "Path to be a symlink to the RTL build output, default using $config_subsystem_rtl"
-      ) outLink: Option[String] = None,
+        doc =
+          "Path to be a symlink to the RTL build output, default using $config_subsystem_rtl"
+      ) outLink: Option[String] = None
   ): Unit =
     val finalOutLink = outLink.getOrElse(s"${config}_subsystem_rtl")
-    os.proc(Seq(
-      "nix",
-      "build",
-      "--print-build-logs",
-      s".#t1.${config}.subsystem.rtl",
-      "--out-link",
-      finalOutLink
-    )).call(stdout = os.Inherit, stderr = os.Inherit, stdin = os.Inherit)
+    os.proc(
+      Seq(
+        "nix",
+        "build",
+        "--print-build-logs",
+        s".#t1.${config}.subsystem.rtl",
+        "--out-link",
+        finalOutLink
+      )
+    ).call(stdout = os.Inherit, stderr = os.Inherit, stdin = os.Inherit)
     Logger.info(s"RTLs store in $finalOutLink")
 
   //
@@ -575,7 +578,7 @@ object Main:
             config = config,
             noLog = Flag(false),
             noConsoleLog = Flag(true),
-            noFileLog = Flag(false),
+            withFileLog = Flag(false),
             emulatorLogLevel = "FATAL",
             emulatorLogFilePath = Some(
               actualResultDir / "failed-logs" / s"${testName.replaceAll(",", "-")}.txt"
