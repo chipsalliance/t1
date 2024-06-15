@@ -1,4 +1,5 @@
 { lib
+, configName
 , elaborateConfig
 , newScope
 , rv32-stdenv
@@ -61,6 +62,27 @@ let
     inherit (scope) mlir intrinsic asm perf codegen rvv_bench;
   };
 
+  # This derivation is for internal use only.
+  # We have a large test suite used in CI, but resolving each test individually is too slow for production.
+  # This "fake" derivation serves as a workaround, making all tests dependencies of this single derivation.
+  # This allows Nix to resolve the path only once, while still pulling all tests into the local Nix store.
+  _allEmuResult =
+    let
+      testPlan = builtins.fromJSON (lib.readFile ../.github/cases/${configName}/default.json);
+      # flattern the attr set to a list of test case derivations
+      # AttrSet (AttrSet Derivation) -> List Derivation
+      allCases = lib.filter (val: lib.isDerivation val && lib.hasAttr val.pname testPlan)
+        (lib.concatLists (map lib.attrValues (lib.attrValues scopeStripped)));
+      script = ''
+        echo "fake-derivation" > $out
+      '' + (lib.concatMapStringsSep "\n"
+        (caseDrv: ''
+          echo ${caseDrv.emu-result} > /dev/null
+        '')
+        allCases);
+    in
+    runCommand "catch-all-emu-result" { } script;
+
   all =
     let
       allCases = lib.filter lib.isDerivation
@@ -77,4 +99,4 @@ let
     in
     runCommand "build-all-testcases" { } script;
 in
-lib.recurseIntoAttrs (scopeStripped // { inherit all; })
+lib.recurseIntoAttrs (scopeStripped // { inherit all _allEmuResult; })
