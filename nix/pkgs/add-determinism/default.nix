@@ -37,6 +37,8 @@ rustPlatform.buildRustPackage {
     pkg-config
   ];
 
+  propagatedBuildInputs = [ pyEnv ];
+
   buildInputs = [
     zlib
   ];
