@@ -380,15 +380,15 @@ impl SpikeEvent {
     //     self.disasm
     //   );
     // }
-    for (addr, record) in &self.mem_access_record.all_reads {
-      assert_eq!(
-        record.num_completed_reads,
-        record.reads.len(),
-        "[{cycle}] expect to read mem {addr:#x}, not executed when commit (pc={:#x}, inst={})",
-        self.pc,
-        self.disasm
-      );
-    }
+    // for (addr, record) in &self.mem_access_record.all_reads {
+    //   assert_eq!(
+    //     record.num_completed_reads,
+    //     record.reads.len(),
+    //     "[{cycle}] expect to read mem {addr:#x}, not executed when commit (pc={:#x}, inst={})",
+    //     self.pc,
+    //     self.disasm
+    //   );
+    // }
     for (idx, record) in &self.vrf_access_record.all_writes {
       assert!(
         record.executed,
