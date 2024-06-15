@@ -83,45 +83,7 @@ impl Difftest {
     let event = self.dut.step()?;
 
     match &*event.event {
-      "peekTL" => {
-        let idx = event.parameter.idx.unwrap();
-        // assert!(idx < self.spike.config.dlen / 32);
-        let opcode = event.parameter.opcode.unwrap();
-        let param = event.parameter.param.unwrap();
-        let source = event.parameter.source.unwrap();
-        let mask = event.parameter.mask.unwrap();
-        let data = event.parameter.data.unwrap();
-        let corrupt = event.parameter.corrupt.unwrap();
-        let dready = event.parameter.dready.unwrap() != 0;
-        let cycle = event.parameter.cycle.unwrap();
-        self.spike.cycle = cycle;
-        // check align
-        let addr = event.parameter.address.unwrap();
-        let size = (1 << event.parameter.size.unwrap()) as usize;
-        assert_eq!(
-          addr as usize % size,
-          0,
-          "[{cycle}] unaligned access (addr={addr:08X}, size={size}"
-        );
-
-        let opcode = Opcode::from_u32(opcode);
-        self
-          .spike
-          .peek_tl(&PeekTLEvent {
-            idx,
-            opcode,
-            param,
-            size,
-            source,
-            addr,
-            mask,
-            data,
-            corrupt,
-            dready,
-            cycle,
-          })
-          .unwrap();
-      }
+      "peekTL" => {}
       "issue" => {
         let idx = event.parameter.idx.unwrap();
         let cycle = event.parameter.cycle.unwrap();

@@ -1,10 +1,10 @@
 use lazy_static::lazy_static;
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Mutex;
-use tracing::{info, trace, warn};
+use tracing::{info, trace};
 use xmas_elf::{
   header,
   program::{ProgramHeader, Type},
@@ -20,7 +20,6 @@ use spike_event::*;
 use super::dut::*;
 
 const LSU_IDX_DEFAULT: u8 = 0xff;
-const DATAPATH_WIDTH_IN_BYTES: usize = 8; // 8 = config.datapath_width_in_bytes = beatbyte = lsuBankParameters(0).beatbyte for blastoise
 
 // read the addr from spike memory
 // caller should make sure the address is valid
@@ -152,75 +151,6 @@ pub fn add_rtl_write(se: &mut SpikeEvent, vrf_write: VrfWriteEvent, record_idx_b
   }) // end for j
 }
 
-#[derive(Debug, Clone)]
-pub struct TLReqRecord {
-  cycle: usize,
-  size_by_byte: usize,
-  addr: u32,
-
-  muxin_read_required: bool,
-
-  // For writes, as soon as the transaction is sent to the controller, the request is resolved, so we don't have to track the number
-  //   of bytes that have been processed by the memory controller
-
-  // Only meaningful for writes, this is the number of bytes written by user.
-  bytes_received: usize,
-
-  // This is the number of bytes(or worth-of transaction for reads) sent to the memory controller
-  bytes_committed: usize,
-
-  // This is the number of bytes that have been processed by the memory controller
-  bytes_processed: usize,
-
-  // For read, number of bytes returned to user
-  bytes_returned: usize,
-
-  op: Opcode,
-}
-
-impl TLReqRecord {
-  pub fn new(cycle: usize, size_by_byte: usize, addr: u32, op: Opcode, burst_size: usize) -> Self {
-    TLReqRecord {
-      cycle,
-      size_by_byte,
-      addr,
-      muxin_read_required: op == Opcode::PutFullData && size_by_byte < burst_size,
-      bytes_received: 0,
-      bytes_committed: 0,
-      bytes_processed: 0,
-      bytes_returned: 0,
-      op,
-    }
-  }
-
-  fn skip(&mut self) {
-    self.muxin_read_required = false;
-    self.bytes_committed = if self.op == Opcode::PutFullData {
-      self.bytes_received
-    } else {
-      self.size_by_byte
-    };
-    self.bytes_processed = self.bytes_committed;
-  }
-
-  fn commit_tl_respones(&mut self, tl_bytes: usize) -> anyhow::Result<()> {
-    self.bytes_returned += tl_bytes;
-
-    Ok(())
-  }
-
-  fn done_return(&mut self) -> anyhow::Result<bool> {
-    if self.muxin_read_required {
-      return Ok(false);
-    }
-    if self.op == Opcode::PutFullData {
-      Ok(self.bytes_returned > 0)
-    } else {
-      Ok(self.bytes_returned >= self.size_by_byte)
-    }
-  }
-}
-
 pub struct SpikeHandle {
   spike: Spike,
 
@@ -235,15 +165,6 @@ pub struct SpikeHandle {
 
   /// config for v extension
   pub config: Config,
-
-  /// tl request record of bank, indexed by issue_idx
-  pub tl_req_record_of_bank: Vec<HashMap<usize, TLReqRecord>>,
-
-  /// the get_t() of a req response waiting for ready
-  pub tl_req_waiting_ready: Vec<Option<usize>>,
-
-  /// the get_t() of a req with ongoing burst
-  pub tl_req_ongoing_burst: Vec<Option<usize>>,
 
   /// implement the get_t() for mcycle csr update
   pub cycle: usize,
@@ -279,10 +200,6 @@ impl SpikeHandle {
       spike,
       to_rtl_queue: VecDeque::new(),
       config: Config { vlen, dlen },
-      // config.tl_bank_number = 13
-      tl_req_record_of_bank: (0..13).map(|_| HashMap::new()).collect(),
-      tl_req_waiting_ready: vec![None; 13],
-      tl_req_ongoing_burst: vec![None; 13],
       cycle: 0,
       spike_cycle: 0,
     }
@@ -483,186 +400,5 @@ impl SpikeHandle {
 
     info!("[{cycle}] RecordRFAccess: index={} rtl detect vrf write which cannot find se, maybe from committed load insn", vrf_write.idx);
     Ok(())
-  }
-
-  pub fn peek_tl(&mut self, peek_tl: &PeekTLEvent) -> anyhow::Result<()> {
-    // config.tl_bank_number
-    assert!(peek_tl.idx < 13);
-    self.receive_tl_d_ready(peek_tl).unwrap();
-    self.receive_tl_req(peek_tl).unwrap();
-    Ok(())
-  }
-
-  pub fn receive_tl_d_ready(&mut self, peek_tl: &PeekTLEvent) -> anyhow::Result<()> {
-    let idx = peek_tl.idx as usize;
-    if !peek_tl.dready {
-      return Ok(());
-    }
-
-    if let Some(addr) = self.tl_req_waiting_ready[idx] {
-      let req_record = self.tl_req_record_of_bank[idx]
-        .get_mut(&addr)
-        .unwrap_or_else(|| panic!("cannot find current request with addr {addr:08X}"));
-
-      req_record
-        .commit_tl_respones(DATAPATH_WIDTH_IN_BYTES)
-        .unwrap();
-
-      if req_record.done_return().unwrap() {
-        info!(
-          "ReceiveTlDReady channel: {idx}, addr: {addr:08x}, -> tl response for {} reaches d_ready",
-          match req_record.op {
-            Opcode::Get => "Get",
-            _ => "PutFullData",
-          }
-        );
-      }
-
-      self.tl_req_waiting_ready[idx] = None;
-
-      // TODO(Meow): add this check back
-      // panic!(format!("unknown opcode {}", req_record.op as i32));
-    }
-    Ok(())
-  }
-  // the info in peek tl should have cycle to debug
-  pub fn receive_tl_req(&mut self, peek_tl: &PeekTLEvent) -> anyhow::Result<()> {
-    let idx = peek_tl.idx as usize;
-    let tl_data = peek_tl.data;
-    let mask = peek_tl.mask;
-    let cycle = peek_tl.cycle;
-    let size = peek_tl.size;
-    let source = peek_tl.source;
-    let base_addr = peek_tl.addr;
-    let lsu_idx = (peek_tl.source & 3) as u8;
-    if let Some(se) = self
-      .to_rtl_queue
-      .iter_mut()
-      .find(|se| se.lsu_idx == lsu_idx)
-    {
-      match peek_tl.opcode {
-        Opcode::Get => {
-          let mut actual_data = vec![0u8; size];
-          for (offset, actual) in actual_data.iter_mut().enumerate().take(size) {
-            let addr = base_addr + offset as u32;
-            match se.mem_access_record.all_reads.get_mut(&addr) {
-              Some(mem_read) => {
-                *actual = mem_read.reads[mem_read.num_completed_reads].val;
-                mem_read.num_completed_reads += 1;
-              }
-              None => {
-                warn!("[{cycle}] ReceiveTLReq addr: {addr:08X} insn: {} send falsy data 0xDE for accessing unexpected memory", format!("{:x}", se.inst_bits));
-                *actual = 0xDE; // falsy data
-              }
-            }
-          }
-
-          let hex_actual_data = actual_data
-            .iter()
-            .fold(String::new(), |acc, x| acc + &format!("{:02X} ", x));
-          info!("[{cycle}] SpikeReceiveTLReq: <- receive rtl mem get req: channel={idx}, base_addr={base_addr:08X}, size={size}, mask={mask:b}, source={source}, return_data={hex_actual_data}");
-
-          self.tl_req_record_of_bank[idx].insert(
-            cycle,
-            TLReqRecord::new(cycle, size, base_addr, Opcode::Get, 1),
-          );
-
-          self.tl_req_record_of_bank[idx]
-            .get_mut(&cycle)
-            .unwrap()
-            .skip();
-        }
-
-        Opcode::PutFullData => {
-          let mut cur_record: Option<&mut TLReqRecord> = None;
-          // determine if it is a beat of ongoing burst
-          // the first Some match the result of get, the second Some match the result determined by if the
-          // tl_req_ongoing_burst[idx] is Some / None
-          if let Some(tl_req_ongoing_burst) = self.tl_req_ongoing_burst[idx] {
-            if let Some(record) = self.tl_req_record_of_bank[idx].get_mut(&tl_req_ongoing_burst) {
-              if record.bytes_received < record.size_by_byte {
-                assert_eq!(record.addr, base_addr, "inconsistent burst addr");
-                assert_eq!(record.size_by_byte, size, "inconsistent burst size");
-                info!(
-                  "[{cycle}] ReceiveTLReq: continue burst, channel: {idx}, base_addr: {base_addr:08X}, offset: {}",
-                  record.bytes_received
-                );
-                cur_record = Some(record);
-              } else {
-                panic!("[{cycle}] invalid record")
-              }
-            }
-          }
-
-          // else create a new record
-          if cur_record.is_none() {
-            // 1 is dummy value, won't be effective whatsoever. 1 is to ensure that no sub-line write is possible
-            // here we do not use dramsim3.
-            let record = TLReqRecord::new(cycle, size, base_addr, Opcode::PutFullData, 1);
-            self.tl_req_record_of_bank[idx].insert(cycle, record);
-
-            // record moved into self.tl_req_record_of_bank, so we should get it from there
-            cur_record = self.tl_req_record_of_bank[idx].get_mut(&cycle);
-          }
-
-          let mut data = vec![0u8; size];
-          let actual_beat_size = std::cmp::min(size, DATAPATH_WIDTH_IN_BYTES); // since tl require alignment
-          let data_begin_pos = cur_record.as_ref().unwrap().bytes_received;
-
-          // receive put data
-          // if actual beat size is bigger than 8, there maybe some problems
-          // TODO: fix this
-          for offset in 0..actual_beat_size {
-            data[data_begin_pos + offset] = (tl_data >> (offset * 8)) as u8;
-          }
-          info!("[{cycle}] RTLMemPutReq: <- receive rtl mem put req, channel: {idx}, base_addr: {base_addr:08X}, offset: {data_begin_pos}, size: {size}, source: {source:04X}, data: {tl_data:08X}, mask: {mask:04X}");
-
-          // compare with spike event record
-          for offset in 0..actual_beat_size {
-            // config.datapath_width_in_bytes - 1 = 3
-            let byte_lane_idx = (base_addr & 3) + offset as u32;
-            // if byte_lane_idx > 32, there maybe some problem
-            if (mask >> byte_lane_idx) & 1 != 0 {
-              let byte_addr =
-                base_addr + cur_record.as_ref().unwrap().bytes_received as u32 + offset as u32;
-              let tl_data_byte = (tl_data >> (8 * byte_lane_idx)) as u8;
-              let mem_write = se
-                .mem_access_record
-                .all_writes
-                .get_mut(&byte_addr)
-                .unwrap_or_else(|| {
-                  panic!("[{cycle}] cannot find mem write of byte_addr {byte_addr:08x}")
-                });
-              assert!(
-                mem_write.num_completed_writes < mem_write.writes.len(),
-                "[{cycle}] written size:{} should be smaller than completed writes:{}",
-                mem_write.writes.len(),
-                mem_write.num_completed_writes
-              );
-              let single_mem_write_val = mem_write.writes[mem_write.num_completed_writes].val;
-              mem_write.num_completed_writes += 1;
-              assert_eq!(single_mem_write_val, tl_data_byte, "[{cycle}] expect mem write of byte {single_mem_write_val:02X}, actual byte {tl_data_byte:02X} (channel={idx}, byte_addr={byte_addr:08X}, pc = {:#x}, disasm = {})", se.pc, se.disasm);
-            }
-          }
-
-          cur_record.as_mut().unwrap().bytes_received += actual_beat_size;
-          cur_record.as_mut().unwrap().skip();
-
-          // update tl_req_ongoing_burst
-          if cur_record.as_ref().unwrap().bytes_received < size {
-            self.tl_req_ongoing_burst[idx] = Some(cur_record.as_ref().unwrap().cycle);
-          } else {
-            self.tl_req_ongoing_burst[idx] = None;
-          }
-        }
-        _ => {
-          panic!("not implemented")
-        }
-      }
-
-      return Ok(());
-    }
-
-    panic!("[{cycle}] cannot find se with lsu_idx={lsu_idx}")
   }
 }
