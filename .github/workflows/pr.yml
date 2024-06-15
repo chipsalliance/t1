@@ -157,26 +157,13 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
     runs-on: [self-hosted, linux, nixos]
-    outputs:
-      result: ${{ steps.ci-run.outputs.result }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Run testcases"
-        id: ci-run
         run: |
-          nix develop -c t1-helper runTests --jobs "${{ matrix.jobs }}" \
-            --resultDir test-results-$(head -c 10 /dev/urandom | base32)
-
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: test-reports-${{ matrix.id }}
-          path: |
-            test-results-*/failed-tests.md
-            test-results-*/cycle-updates.md
-            test-results-*/*_cycle.json
+          nix develop -c t1-helper runTests --jobs "${{ matrix.jobs }}"
 
   report:
     name: "Report CI result"
@@ -191,21 +178,14 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: test-reports-*
-          merge-multiple: true
       - name: "Print step summary"
         run: |
-          echo -e "\n## Failed tests\n" >> $GITHUB_STEP_SUMMARY
-          shopt -s nullglob
-          cat test-results-*/failed-tests.md >> $GITHUB_STEP_SUMMARY
-          echo -e "\n## Cycle updates\n" >> $GITHUB_STEP_SUMMARY
-          shopt -s nullglob
-          cat test-results-*/cycle-updates.md >> $GITHUB_STEP_SUMMARY
+          nix develop -c t1-helper postCI --failed-test-file-path ./failed-test.md --cycle-update-file-path ./cycle-update.md
+          cat ./failed-test.md >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
       - name: "Commit cycle updates"
         run: |
-          nix develop -c t1-helper mergeCycleData
           git config user.name github-actions
           git config user.email github-actions@github.com
           changed_cases=$(git diff --name-only '.github/cases/**/default.json')
@@ -218,17 +198,3 @@ jobs:
           else
             echo "No cycle change detect"
           fi
-      - uses: geekyeggo/delete-artifact@v5
-        with:
-          # test-reports has been used, it can be deleted
-          name: test-reports-*
-
-  clean-after-cancelled:
-    name: "Clean test reports [ON CANCELLED]"
-    if: ${{ cancelled() }}
-    runs-on: [self-hosted, linux, nixos]
-    needs: [run-testcases]
-    steps:
-      - uses: geekyeggo/delete-artifact@v5
-        with:
-          name: test-reports-*

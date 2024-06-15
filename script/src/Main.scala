@@ -494,56 +494,6 @@ object Main:
     println(toMatrixJson(scheduleTasks(testPlans, runnersAmount)))
   }
 
-  def writeCycleUpdates(
-      testName: String,
-      testRunDir: os.Path,
-      resultDir: os.Path
-  ): Unit =
-    val isEmulatorTask = raw"([^,]+),([^,]+)".r
-    testName match
-      case isEmulatorTask(e, t) =>
-        val passedFile = os.pwd / os.RelPath(s".github/cases/$e/default.json")
-        val original = ujson.read(os.read(passedFile))
-
-        val perfCycleRegex = raw"total_cycles:\s(\d+)".r
-        val newCycleCount = os.read
-          .lines(testRunDir / os.RelPath(s"$e/$t/perf.txt"))
-          .apply(0) match
-          case perfCycleRegex(cycle) => cycle.toInt
-          case _ =>
-            throw new Exception("perf.txt file is not format as expected")
-
-        val oldCycleCount = original.obj.get(t).map(_.num.toInt).getOrElse(-1)
-        val cycleUpdateFile = resultDir / "cycle-updates.md"
-        Logger.info(f"job '$testName' cycle $oldCycleCount -> $newCycleCount")
-        oldCycleCount match
-          case -1 =>
-            os.write.append(
-              cycleUpdateFile,
-              s"* 🆕 $testName: NaN -> $newCycleCount\n"
-            )
-          case _ =>
-            if oldCycleCount > newCycleCount then
-              os.write.append(
-                cycleUpdateFile,
-                s"* 🚀 $testName: $oldCycleCount -> $newCycleCount\n"
-              )
-            else if oldCycleCount < newCycleCount then
-              os.write.append(
-                cycleUpdateFile,
-                s"* 🐢 $testName: $oldCycleCount -> $newCycleCount\n"
-              )
-
-            val newCycleFile = resultDir / s"${e}_cycle.json"
-            val newCycleRecord =
-              if os.exists(newCycleFile) then ujson.read(os.read(newCycleFile))
-              else ujson.Obj()
-
-            newCycleRecord(t) = newCycleCount
-            os.write.over(newCycleFile, ujson.write(newCycleRecord, indent = 2))
-      case _ => throw new Exception(f"unknown job format '$testName'")
-  end writeCycleUpdates
-
   // Run jobs and give a brief result report
   // - Log of tailed tests will be tailed and copied into $resultDir/failed-logs/$testName.log
   // - List of failed tests will be written into $resultDir/failed-tests.md
@@ -556,60 +506,57 @@ object Main:
   @main
   def runTests(
       jobs: String,
-      resultDir: Option[os.Path],
       dontBail: Flag = Flag(false)
   ): Unit =
     if jobs == "" then
       Logger.info("No test found, exiting")
       return
 
-    var actualResultDir = resultDir.getOrElse(os.pwd / "test-results")
-    val testRunDir = os.pwd / "testrun"
-    os.makeDir.all(actualResultDir / "failed-logs")
-
     val allJobs = jobs.split(";")
     def findFailedTests() = allJobs.zipWithIndex.foldLeft(Seq[String]()):
       (allFailedTest, currentTest) =>
         val (testName, index) = currentTest
         val Array(config, caseName) = testName.split(",")
-        println()
+        println("\n")
         Logger.info(
           s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Running test case $caseName with config $config"
         )
 
-        val testResultPath = os.Path(nixResolvePath(s".#t1.$config.cases.$caseName.emu-result"))
-        val testSuccess = os.read(testResultPath / "emu-success").trim().toInt == 1
+        val testResultPath =
+          os.Path(nixResolvePath(s".#t1.$config.cases.$caseName.emu-result"))
+        val testSuccess =
+          os.read(testResultPath / "emu-success").trim().toInt == 1
 
-        if ! testSuccess then
+        if !testSuccess then
           Logger.error(s"Test case $testName failed")
           val err = os.read(testResultPath / "emu.log")
           Logger.error(s"Detail error: $err")
 
         Logger.info("Running difftest")
-        val diffTestSuccess = try
-          difftest(
-            config = config,
-            caseAttr = caseName,
-            logLevel = "ERROR"
-          )
-          true
-        catch
-          err =>
-            Logger.error(s"difftest run failed: $err")
-            false
+        val diffTestSuccess =
+          try
+            difftest(
+              config = config,
+              caseAttr = caseName,
+              logLevel = "ERROR"
+            )
+            true
+          catch
+            err =>
+              Logger.error(s"difftest run failed: $err")
+              false
 
         if diffTestSuccess != testSuccess then
-          Logger.fatal("Got different online and offline difftest result, please check this test manually. CI aborted.")
+          Logger.fatal(
+            "Got different online and offline difftest result, please check this test manually. CI aborted."
+          )
 
-        if ! testSuccess then
-          allFailedTest :+ s"t1.$config.cases.$caseName"
-        else
-          allFailedTest
+        if !testSuccess then allFailedTest :+ s"t1.$config.cases.$caseName"
+        else allFailedTest
     end findFailedTests
 
     val failedTests = findFailedTests()
-    if failedTests.isEmpty then
-      Logger.info(s"All tests passed")
+    if failedTests.isEmpty then Logger.info(s"All tests passed")
     else
       val listOfFailJobs =
         failedTests.map(job => s"* $job").appended("").mkString("\n")
@@ -635,38 +582,90 @@ object Main:
         )
   end runTests
 
+  // PostCI do the below four things:
+  //   * read default.json at .github/cases/$config/default.json
+  //   * generate case information for each entry in default.json (cycle, run success)
+  //   * collect and report failed tests
+  //   * collect and report cycle update
   @main
-  def mergeCycleData(filePat: String = "default.json") =
-    Logger.info("Updating cycle data")
-    val original = os
-      .walk(os.pwd / ".github" / "cases")
-      .filter(_.last == filePat)
-      .map: path =>
-        val config = path.segments.toSeq.reverse(1)
-        (config, ujson.read(os.read(path)))
-      .toMap
-    os.walk(os.pwd)
-      .filter(_.last.endsWith("_cycle.json"))
-      .map: path =>
-        val config = path.last.split("_")(0)
-        Logger.trace(s"Reading new cycle data from $path")
-        (config, ujson.read(os.read(path)))
-      .foreach:
-        case (name, latest) =>
-          val old = original.apply(name)
-          latest.obj.foreach:
-            case (k, v) => old.update(k, v)
+  def postCI(
+      @arg(
+        name = "failed-test-file-path",
+        doc = "specify the failed test markdown file output path"
+      ) failedTestsFilePath: String,
+      @arg(
+        name = "cycle-update-file-path",
+        doc = "specify the cycle update markdown file output path"
+      ) cycleUpdateFilePath: String
+  ) =
+    case class CaseStatus(
+        caseName: String,
+        isFailed: Boolean,
+        oldCycle: Int,
+        newCycle: Int
+    )
 
-    original.foreach:
-      case (name, data) =>
-        val config = name.split(",")(0)
-        os.write.over(
-          os.pwd / ".github" / "cases" / config / filePat,
-          ujson.write(data, indent = 2)
-        )
+    def collectCaseStatus(
+        config: String,
+        caseName: String,
+        cycle: Int
+    ): CaseStatus =
+      val emuResultPath = os.Path(nixResolvePath(s".#t1.$config.cases.$caseName.emu-result"))
+      val testFail = os.read(emuResultPath / "emu-success") == "0"
 
-    Logger.info("Cycle data updated")
-  end mergeCycleData
+      val perfCycleRegex = raw"total_cycles:\s(\d+)".r
+      val newCycle = os.read
+        .lines(emuResultPath / "perf.txt")
+        .apply(0) match
+        case perfCycleRegex(cycle) => cycle.toInt
+        case _ =>
+          throw new Exception("perf.txt file is not format as expected")
+      CaseStatus(
+        caseName = caseName,
+        isFailed = testFail,
+        oldCycle = cycle,
+        newCycle = newCycle
+      )
+    end collectCaseStatus
+
+    val allCycleRecords =
+      os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+    allCycleRecords.foreach: file =>
+      val config = file.segments.toSeq.reverse.apply(1)
+      var cycleRecord = ujson.read(os.read(file))
+
+      nixResolvePath(s".#t1.$config.cases._allEmuResult")
+
+      val allCaseStatus = cycleRecord.obj.map(rec =>
+        rec match {
+          case (caseName, cycle) =>
+            collectCaseStatus(config, caseName, cycle.num.toInt)
+        }
+      )
+
+      val failedCases = allCaseStatus
+        .filter(c => c.isFailed)
+        .map(c => s"* `.#t1.${config}.cases.${c.caseName}`")
+      val failedTestsRecordFile = os.Path(failedTestsFilePath, os.pwd)
+      os.write.over(failedTestsRecordFile, "## Failed tests\n")
+      os.write.append(failedTestsRecordFile, failedCases)
+
+      val cycleUpdateRecordFile = os.Path(cycleUpdateFilePath, os.pwd)
+      os.write.over(cycleUpdateRecordFile, "## Cycle Update\n")
+      val allCycleUpdates = allCaseStatus
+        .filter(c => c.oldCycle != c.newCycle)
+        .map: caseStatus =>
+          caseStatus match
+            case CaseStatus(caseName, _, oldCycle, newCycle) =>
+              cycleRecord(caseName) = newCycle
+              if oldCycle == -1 then s"* 🆕 ${caseName}: NaN -> ${newCycle}"
+              else if oldCycle > newCycle then
+                s"* 🚀 $caseName: $oldCycle -> $newCycle"
+              else s"* 🐢 $caseName: $oldCycle -> $newCycle"
+      os.write.append(cycleUpdateRecordFile, allCycleUpdates.mkString("\n"))
+
+      os.write.over(file, ujson.write(cycleRecord, indent = 2))
+  end postCI
 
   @main
   def generateTestPlan() =
