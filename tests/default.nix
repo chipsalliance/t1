@@ -3,6 +3,7 @@
 , newScope
 , rv32-stdenv
 , runCommand
+, ip-emu
 }:
 
 let
@@ -16,6 +17,8 @@ let
 
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
+
+    inherit ip-emu;
 
     makeBuilder = casesSelf.callPackage ./builder.nix { };
 

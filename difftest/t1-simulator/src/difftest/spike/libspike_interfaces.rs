@@ -15,7 +15,7 @@ impl Spike {
   }
 
   pub fn get_proc(&self) -> Processor {
-    let processor = unsafe { spike_get_proc(self.spike as *mut ()) };
+    let processor = unsafe { spike_get_proc(self.spike) };
     Processor { processor }
   }
 }
@@ -126,12 +126,16 @@ impl State {
     }
   }
 
+  pub fn get_reg(&self, idx: u32, is_fp: bool) -> u32 {
+    unsafe { state_get_reg(self.state, idx, is_fp) }
+  }
+
   pub fn get_reg_write_size(&self) -> u32 {
     unsafe { state_get_reg_write_size(self.state) }
   }
 
-  pub fn get_reg(&self, idx: u32, is_fp: bool) -> u32 {
-    unsafe { state_get_reg(self.state, idx, is_fp) }
+  pub fn get_reg_write_index(&self, index: u32) -> u32 {
+    unsafe { state_get_reg_write_index(self.state) >> (index * 4) }
   }
 
   pub fn get_mem_write_size(&self) -> u32 {
@@ -201,6 +205,7 @@ extern "C" {
   fn state_get_pc(state: *mut ()) -> u64;
   fn state_get_reg(state: *mut (), index: u32, is_fp: bool) -> u32;
   fn state_get_reg_write_size(state: *mut ()) -> u32;
+  fn state_get_reg_write_index(state: *mut ()) -> u32;
   fn state_get_mem_write_size(state: *mut ()) -> u32;
   fn state_get_mem_write_addr(state: *mut (), index: u32) -> u32;
   fn state_get_mem_write_value(state: *mut (), index: u32) -> u64;

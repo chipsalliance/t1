@@ -22,8 +22,8 @@
             # TODO: The dev shell will only depends on the T1 script package, let it manage different dev/ci/release flows.
             default = pkgs.mkShell {
               buildInputs = with pkgs; [
-                # To develop T1-script, run nix develop .#t1-script.dev
                 ammonite
+                # To develop T1-script, run nix develop .#t1-script.withLsp
                 t1-script
               ];
             };

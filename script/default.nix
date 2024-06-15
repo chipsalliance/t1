@@ -31,7 +31,7 @@ let
       millDepsHash = "sha256-J8bBgM/F+8x8EQ1DR6Va/ZY2hnsjkkzk4a+ctDMKK3k=";
     };
 
-    passthru.dev = self.overrideAttrs (old: {
+    passthru.withLsp = self.overrideAttrs (old: {
       nativeBuildInputs = old.nativeBuildInputs ++ [
         metals
         # Metals require java to work correctly

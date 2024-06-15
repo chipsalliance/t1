@@ -40,6 +40,7 @@ uint64_t state_handle_pc(spike_state_t* state, uint64_t new_pc);
 void state_set_pc(spike_state_t* state, uint64_t pc);
 uint32_t state_get_reg(spike_state_t* state, uint32_t index, bool is_fp);
 uint32_t state_get_reg_write_size(spike_state_t* state);
+uint32_t state_get_reg_write_index(spike_state_t* state);
 uint32_t state_get_mem_write_size(spike_state_t* state);
 uint32_t state_get_mem_write_addr(spike_state_t* state, uint32_t index);
 uint64_t state_get_mem_write_value(spike_state_t* state, uint32_t index);

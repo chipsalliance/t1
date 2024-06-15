@@ -6,7 +6,6 @@ package org.chipsalliance.t1.ipemu
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
 import chisel3.probe._
-import chisel3.util.experimental.BoringUtils.bore
 import org.chipsalliance.t1.ipemu.dpi._
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
@@ -34,33 +33,39 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
   val dut: T1 = withClockAndReset(clock, reset)(Module(generator.module()))
   dut.storeBufferClear := true.B
 
-  val lsuProbe = probe.read(dut.lsuProbe).suggestName("lsuProbe")
-
   val laneProbes = dut.laneProbes.zipWithIndex.map{case (p, idx) =>
     val wire = Wire(p.cloneType).suggestName(s"lane${idx}Probe")
     wire := probe.read(p)
-    wire
   }
 
-  val laneVrfProbes = dut.laneVrfProbes.zipWithIndex.map{case (p, idx) =>
+  val lsuProbe = probe.read(dut.lsuProbe).suggestName("lsuProbe")
+
+  val laneVrfProbes = dut.laneVrfProbes.zipWithIndex.map{ case (p, idx) =>
     val wire = Wire(p.cloneType).suggestName(s"lane${idx}VrfProbe")
     wire := probe.read(p)
     wire
   }
 
-  val t1Probe = probe.read(dut.t1Probe).suggestName("instructionCountProbe")
+  val t1Probe = probe.read(dut.t1Probe)
 
-  // Monitor
-  withClockAndReset(clock, reset)(Module(new Module {
-    // h/t: GrandCentral
-    override def desiredName: String = "XiZhiMen"
-    val lsuProbeMonitor = bore(lsuProbe)
-    dontTouch(lsuProbeMonitor)
-    val laneProbesMonitor = laneProbes.map(bore(_))
-    laneProbesMonitor.foreach(dontTouch(_))
-    val laneVrfProbesMonitor = laneVrfProbes.map(bore(_))
-    laneVrfProbesMonitor.foreach(dontTouch(_))
-  }))
+  withClockAndReset(clock, reset) {
+    // count cycle for peek tl
+    val cycleCounter = RegInit(0.U(64.W))
+    cycleCounter := cycleCounter + 1.U
+
+    // memory write
+    lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"vrfWriteFromLsu","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":${mshr.dataMask},"data":${mshr.dataData},"instruction":${mshr.dataInstruction},"lane":${mshr.targetLane},"cycle": ${cycleCounter}}}\n""")) }
+    // vrf write
+    laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(printf(cf"""{"event":"vrfWriteFromLane","parameter":{"idx":$i,"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":${lane.requestMask},"data":${lane.requestData},"instruction":${lane.requestInstruction},"cycle": ${cycleCounter}}}\n""")) }
+    // issue
+    when(dut.request.fire)(printf(cf"""{"event":"issue","parameter":{"idx":${t1Probe.instructionCounter},"cycle": ${cycleCounter}}}\n"""))
+    // inst
+    when(dut.response.valid)(printf(cf"""{"event":"inst","parameter":{"data":${dut.response.bits.data},"vxsat":${dut.response.bits.vxsat},"rd_valid":${dut.response.bits.rd.valid},"rd":${dut.response.bits.rd.bits},"mem":${dut.response.bits.mem},"cycle": ${cycleCounter}}}\n"""))
+    // peekTL
+    dut.memoryPorts.zipWithIndex.foreach { case (bundle, i) => when(bundle.a.valid)(printf(cf"""{"event":"peekTL","parameter":{"idx":$i,"opcode":${bundle.a.bits.opcode},"param":${bundle.a.bits.param},"size":${bundle.a.bits.size},"source":${bundle.a.bits.source},"address":${bundle.a.bits.address},"mask":${bundle.a.bits.mask},"data":${bundle.a.bits.data},"corrupt":${bundle.a.bits.corrupt},"dready":${bundle.d.ready},"cycle": ${cycleCounter}}}\n""")) }
+    // lsu enq
+    when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"lsuEnq","parameter":{"enq":${lsuProbe.reqEnq},"cycle": ${cycleCounter}}}\n"""))
+  }
 
   // Monitors
   // TODO: These monitors should be purged out after offline difftest is landed

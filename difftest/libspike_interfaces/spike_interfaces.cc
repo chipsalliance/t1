@@ -172,10 +172,6 @@ void state_set_pc(spike_state_t* state, uint64_t pc) {
   state->s->pc = pc;
 }
 
-uint32_t state_get_reg_write_size(spike_state_t* state) {
-  return state->s->log_reg_write.size();
-}
-
 uint32_t state_get_reg(spike_state_t* state, uint32_t index, bool is_fp) {
   if (is_fp) {
     auto &fr = state->s->FPR;
@@ -183,6 +179,20 @@ uint32_t state_get_reg(spike_state_t* state, uint32_t index, bool is_fp) {
   } 
   auto &xr = state->s->XPR;
   return (uint32_t)xr[index];
+}
+
+uint32_t state_get_reg_write_size(spike_state_t* state) {
+  return state->s->log_reg_write.size();
+}
+
+uint32_t state_get_reg_write_index(spike_state_t* state) {
+  int vec_idx = 0;
+  int i = 0;
+  for (auto [idx, data] : state->s->log_reg_write) {
+    vec_idx |= (idx & 0xf) << (i * 4);
+    i++;
+  }
+  return vec_idx;
 }
 
 uint32_t state_get_mem_write_size(spike_state_t* state) {
