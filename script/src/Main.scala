@@ -21,6 +21,10 @@ object Logger {
 
   def error(message: String) =
     if level <= 2 then println(s"${BOLD}${RED}[ERROR]${RESET} ${message}")
+
+  def fatal(message: String) =
+    println(s"${BOLD}${RED}[FATAL]${RESET} ${message}")
+    sys.exit(1)
 }
 
 object Main:
@@ -564,7 +568,7 @@ object Main:
     os.makeDir.all(actualResultDir / "failed-logs")
 
     val allJobs = jobs.split(";")
-    val failed = allJobs.zipWithIndex.foldLeft(Seq[String]()):
+    def findFailedTests() = allJobs.zipWithIndex.foldLeft(Seq[String]()):
       (allFailedTest, currentTest) =>
         val (testName, index) = currentTest
         val Array(config, caseName) = testName.split(",")
@@ -572,62 +576,63 @@ object Main:
         Logger.info(
           s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Running test case $caseName with config $config"
         )
-        try
-          ipemu(
-            testCase = caseName,
-            config = config,
-            noLog = Flag(false),
-            noConsoleLog = Flag(true),
-            withFileLog = Flag(false),
-            emulatorLogLevel = "FATAL",
-            emulatorLogFilePath = Some(
-              actualResultDir / "failed-logs" / s"${testName.replaceAll(",", "-")}.txt"
-            ),
-            baseOutDir = Some(testRunDir.toString())
-          )
+
+        val testResultPath = os.Path(nixResolvePath(s".#t1.$config.cases.$caseName.emu-result"))
+        val testSuccess = os.read(testResultPath / "emu-success").trim().toInt == 1
+
+        if ! testSuccess then
+          Logger.error(s"Test case $testName failed")
+          val err = os.read(testResultPath / "emu.log")
+          Logger.error(s"Detail error: $err")
+
+        Logger.info("Running difftest")
+        val diffTestSuccess = try
           difftest(
             config = config,
             caseAttr = caseName,
             logLevel = "ERROR"
           )
-          writeCycleUpdates(testName, testRunDir, actualResultDir)
-          allFailedTest
+          true
         catch
           err =>
-            val outDir = testRunDir / config / caseName
-            Logger.error(s"Test case $testName failed")
-            Logger.error(s"Detail error: $err")
-            allFailedTest :+ testName
+            Logger.error(s"difftest run failed: $err")
+            false
 
-    os.write.over(
-      actualResultDir / "failed-tests.md",
-      ""
-    ) // touch file, to avoid upload-artifacts warning
+        if diffTestSuccess != testSuccess then
+          Logger.fatal("Got different online and offline difftest result, please check this test manually. CI aborted.")
 
-    if failed.length > 0 then
+        if ! testSuccess then
+          allFailedTest :+ s"t1.$config.cases.$caseName"
+        else
+          allFailedTest
+    end findFailedTests
+
+    val failedTests = findFailedTests()
+    if failedTests.isEmpty then
+      Logger.info(s"All tests passed")
+    else
       val listOfFailJobs =
-        failed.map(job => s"* $job").appended("").mkString("\n")
-      os.write.over(actualResultDir / "failed-tests.md", listOfFailJobs)
-      val failedJobsWithError = failed
+        failedTests.map(job => s"* $job").appended("").mkString("\n")
+      val failedJobsWithError = failedTests
         .map(testName =>
-          val failLogPath =
-            actualResultDir / "failed-logs" / s"${testName.replaceAll(",", "-")}.txt"
-          if os.exists(failLogPath) then
-            s"* $testName\n     >>> ERROR SUMMARY <<<\n${os.read(failLogPath)}"
+          val testResult = os.Path(nixResolvePath(s".#$testName.emu-result"))
+          val emuLog = os.read(testResult / "emu.log")
+          if emuLog.nonEmpty then
+            s"* $testName\n     >>> ERROR SUMMARY <<<\n${emuLog}"
           else
-            s"* $testName\nNo error log found, error may not been caught in previous steps"
+            s"* $testName\n     >>> OTHER ERROR   <<<\n${os.read(testResult / "emu.journal")}"
         )
         .appended("")
         .mkString("\n")
-      Logger.error(
-        s"\n\n${BOLD}${failed.length} tests failed${RESET}:\n${failedJobsWithError}"
-      )
 
-      if !dontBail.value then
-        Logger.error("Tests failed")
-        System.exit(1)
-    else Logger.info(s"All tests passed")
-
+      if dontBail.value then
+        Logger.error(
+          s"${BOLD}${failedTests.length} tests failed${RESET}:\n${failedJobsWithError}"
+        )
+      else
+        Logger.fatal(
+          s"${BOLD}${failedTests.length} tests failed${RESET}:\n${failedJobsWithError}"
+        )
   end runTests
 
   @main
