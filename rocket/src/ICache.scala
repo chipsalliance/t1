@@ -42,7 +42,8 @@ class ICacheErrors(implicit p: Parameters) extends CoreBundle()(p) with HasL1ICa
   * Optional Features:
   *           Prefetch
   *           ECC
-  *           Instruction Tightly Integrated Memory(ITIM)}}}
+  *           Instruction Tightly Integrated Memory(ITIM)
+  * }}}
   * {{{
   * PipeLine:
   *   Stage 0 : access data and tag SRAM in parallel
@@ -50,7 +51,8 @@ class ICacheErrors(implicit p: Parameters) extends CoreBundle()(p) with HasL1ICa
   *             compare tag and paddr when the entry is valid
   *             if hit : pick up the target instruction
   *             if miss : start refilling in stage 2
-  *   Stage 2 : respond to CPU or start a refill}}}
+  *   Stage 2 : respond to CPU or start a refill
+  * }}}
   * {{{
   * Note: Page size = 4KB thus paddr[11:0] = vaddr[11:0]
   *       considering sets = 64, cachelineBytes =64
@@ -168,7 +170,9 @@ class ICache(val icacheParams: ICacheParams)(implicit p: Parameters)
 
 class ICacheResp(outer: ICache) extends Bundle {
 
-  /** data to CPU. */
+  /** data to CPU.
+    * @todo why 4 instructions?
+    */
   val data = UInt((outer.icacheParams.fetchBytes * 8).W)
 
   /** ask CPU to replay fetch when tag or data ECC error happened. */
@@ -191,11 +195,25 @@ class ICacheBundle(val outer: ICache) extends CoreBundle()(outer.p) {
 
   /** first cycle requested from CPU. */
   val req = Flipped(Decoupled(new ICacheReq))
+  /** from TLB. */
   val s1_paddr = Input(UInt(paddrBits.W)) // delayed one cycle w.r.t. req
+  /** from frontend, pipe from s0.
+    * @todo why vaddr?
+    */
   val s2_vaddr = Input(UInt(vaddrBits.W)) // delayed two cycles w.r.t. req
+  /** - instruction jmp away(at S2).
+    * - if TLB not valid, kill it.
+    * - S2 replay
+    */
   val s1_kill = Input(Bool()) // delayed one cycle w.r.t. req
+  /** @todo s2_kill only kill refill?
+    * - S2 speculative access(refill?) cannot access non-cacheable address? why?
+    * - S2 exception (PF, AF)
+    */
   val s2_kill = Input(Bool()) // delayed two cycles; prevents I$ miss emission
+  /** should L2 cache line on a miss? */
   val s2_cacheable = Input(Bool()) // should L2 cache line on a miss?
+  /** should I$ prefetch next line on a miss? */
   val s2_prefetch = Input(Bool()) // should I$ prefetch next line on a miss?
   /** response to CPU. */
   val resp = Valid(new ICacheResp(outer))
@@ -205,9 +223,7 @@ class ICacheBundle(val outer: ICache) extends CoreBundle()(outer.p) {
     */
   val invalidate = Input(Bool())
 
-  /** I$ has error, notify to bus.
-    * TODO: send to BPU.
-    */
+  /** I$ has error, notify to bus. */
   val errors = new ICacheErrors
 
   /** for performance counting. */
