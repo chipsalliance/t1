@@ -25,6 +25,7 @@
                 ammonite
                 # To develop T1-script, run nix develop .#t1-script.withLsp
                 t1-script
+                zstd
               ];
             };
           };

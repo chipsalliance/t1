@@ -745,27 +745,25 @@ object Main:
 
   @main
   def difftest(
-      @arg(
-        name = "config",
-        short = 'c',
-        doc = "specify the elaborate config for running test case"
-      ) config: String,
-      @arg(
-        name = "case-attr",
-        short = 'C',
-        doc = "Specify test case attribute to run diff test"
-      ) caseAttr: String,
-      @arg(
-        name = "log-level",
-        short = 'L',
-        doc = "Specify log level to run diff test"
-      ) logLevel: String
+    @arg(
+      name = "config",
+      short = 'c',
+      doc = "specify the elaborate config for running test case"
+    ) config: String,
+    @arg(
+      name = "case-attr",
+      short = 'C',
+      doc = "Specify test case attribute to run diff test"
+    ) caseAttr: String,
+    @arg(
+      name = "log-level",
+      short = 'L',
+      doc = "Specify log level to run diff test"
+    ) logLevel: String = "ERROR"
   ): Unit =
-    Logger.info("Building simulator")
     val difftest = nixResolvePath(".#t1-simulator")
 
     val fullCaseAttr = s".#t1.${config}.cases.${caseAttr}"
-    Logger.info(s"Building cases ${fullCaseAttr}")
     val caseElf = nixResolvePath(fullCaseAttr)
 
     import scala.util.chaining._
@@ -775,11 +773,20 @@ object Main:
       .pipe(text => ujson.read(text))
     val dLen = configJson.obj("parameter").obj("dLen").num.toInt
     val vLen = configJson.obj("parameter").obj("vLen").num.toInt
-    Logger.info(s"Using DLEN ${dLen}, VLEN ${vLen}")
 
-    Logger.info(s"Running emulator to get event log")
+    Logger.trace(s"Running emulator to get event log")
     val eventLog = nixResolvePath(s"${fullCaseAttr}.emu-result")
 
+    Logger.trace("Running zstd to get event log")
+    os.proc(Seq(
+      "zstd",
+      "--decompress",
+      "-f",
+      s"${eventLog}/rtl-event.log.zstd",
+      "-o",
+      s"${config}-${caseAttr}.event.log"
+    )).call(stdout = os.Inherit, stderr = os.Inherit)
+    Logger.info(s"Starting t1-simulator with DLEN ${dLen}, VLEN ${vLen} for ${fullCaseAttr}")
     os.proc(
       Seq(
         s"${difftest}/bin/t1-simulator",
@@ -790,7 +797,7 @@ object Main:
         "--elf-file",
         s"${caseElf}/bin/${caseAttr}.elf",
         "--log-file",
-        s"${eventLog}/rtl-event.log",
+        s"${config}-${caseAttr}.event.log",
         "--log-level",
         s"${logLevel}"
       )

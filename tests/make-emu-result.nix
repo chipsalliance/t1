@@ -1,5 +1,6 @@
 # CallPackage args
 { runCommand
+, zstd
 , t1-script
 , ip-emu
 , elaborateConfigJson
@@ -8,7 +9,7 @@
 # makeEmuResult arg
 testCase:
 
-runCommand "get-emu-result" { } ''
+runCommand "get-emu-result" { nativeBuildInputs = [ zstd ]; } ''
   echo "[NIX] Running test case ${testCase.pname}"
 
   mkdir -p "$out"
@@ -30,4 +31,7 @@ runCommand "get-emu-result" { } ''
   else
     printf "1" > $out/emu-success
   fi
+
+  zstd $out/rtl-event.log -o $out/rtl-event.log.zstd
+  rm $out/rtl-event.log
 ''
