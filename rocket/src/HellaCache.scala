@@ -72,19 +72,25 @@ trait HasCoreMemOp extends HasL1HellaCacheParameters {
 }
 
 trait HasCoreData extends HasCoreParameters {
+  /** CPU <-> Dcache data */
   val data = UInt(coreDataBits.W)
+  /** CPU <-> Dcache mask */
   val mask = UInt(coreDataBytes.W)
 }
 
 class HellaCacheReqInternal(implicit p: Parameters) extends CoreBundle()(p) with HasCoreMemOp {
+  /** this request is for paddr. */
   val phys = Bool()
+  /** @todo nerver be true? */
   val no_alloc = Bool()
+  /** scratch pad don't raise exception */
   val no_xcpt = Bool()
 }
 
 class HellaCacheReq(implicit p: Parameters) extends HellaCacheReqInternal()(p) with HasCoreData
 
 class HellaCacheResp(implicit p: Parameters) extends CoreBundle()(p) with HasCoreMemOp with HasCoreData {
+  /** ask cpu to replay at uncached response coming. */
   val replay = Bool()
   val has_data = Bool()
   val data_word_bypass = UInt(coreDataBits.W)
@@ -120,22 +126,52 @@ class HellaCachePerfEvents extends Bundle {
 }
 
 // interface between D$ and processor/DTLB
+/** CPU -> Cache */
 class HellaCacheIO(implicit p: Parameters) extends CoreBundle()(p) {
+  /** handshake from CPU.
+    * CPU/PTW wont send data at first cycle
+    */
   val req = Decoupled(new HellaCacheReq)
+  /** kill request */
   val s1_kill = Output(Bool()) // kill previous cycle's req
+  /** @todo mux(???, s0, s1)*/
   val s1_data = Output(new HellaCacheWriteData()) // data for previous cycle's req
+  /** reject:
+    * @todo:
+    *   - cacheable: if not hit, ask for reply
+    *   - uncacheable: dont ask for reply
+    */
   val s2_nack = Input(Bool()) // req from two cycles ago is rejected
+  /** @todo
+    * doesn't use?
+    */
   val s2_nack_cause_raw = Input(Bool()) // reason for nack is store-load RAW hazard (performance hint)
+  /** @todo: never kill??? */
   val s2_kill = Output(Bool()) // kill req from two cycles ago
+
+  /** @todo:
+    * cpu doesn't use.
+    */
   val s2_uncached = Input(Bool()) // advisory signal that the access is MMIO
+
+  /** @todo:
+    * cpu doesn't use.
+    */
   val s2_paddr = Input(UInt(paddrBits.W)) // translated address
 
+  /** send as S2. */
   val resp = Flipped(Valid(new HellaCacheResp))
+  /** ask CPU to replay. */
   val replay_next = Input(Bool())
+  /** tell CPU is exception. */
   val s2_xcpt = Input(new HellaCacheExceptions)
+  /** use for H est. */
   val s2_gpa = Input(UInt(vaddrBitsExtended.W))
+  /** use for H est. */
   val s2_gpa_is_pte = Input(Bool())
+  /** @todo WTF? */
   val uncached_resp = tileParams.dcache.get.separateUncachedResp.option(Flipped(Decoupled(new HellaCacheResp)))
+  /** store buffer clear is cleared? */
   val ordered = Input(Bool())
   val perf = Input(new HellaCachePerfEvents())
 

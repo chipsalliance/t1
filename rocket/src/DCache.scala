@@ -93,6 +93,13 @@ class DCacheTLBPort(implicit p: Parameters) extends CoreBundle()(p) {
   val s2_kill = Input(Bool())
 }
 
+/**
+  * S0: request from CPU, PTW, ScratchPad.
+  * S1:
+  * S2:
+  *
+  *
+  */
 class DCacheModule(outer: DCache) extends HellaCacheModule(outer) {
   val tlb_port = IO(new DCacheTLBPort)
 
