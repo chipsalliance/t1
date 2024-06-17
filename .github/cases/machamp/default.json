@@ -1,6 +1,6 @@
 {
   "mlir.rvv_vp_intrinsic_add": 410,
-  "mlir.rvv_vp_intrinsic_add_scalable": 626,
+  "mlir.rvv_vp_intrinsic_add_scalable": 596,
   "mlir.hello": 95,
   "mlir.stripmining": 14447,
   "asm.mmm": 91473,
@@ -435,14 +435,14 @@
   "codegen.vxor_vx": 74636,
   "codegen.vzext_vf2": 39984,
   "codegen.vzext_vf4": 6585,
-  "rvv_bench.ascii_to_utf16": 1464354,
-  "rvv_bench.ascii_to_utf32": 629517,
+  "rvv_bench.ascii_to_utf16": 1464627,
+  "rvv_bench.ascii_to_utf32": 629781,
   "rvv_bench.byteswap": 3294942,
   "rvv_bench.chacha20": 0,
-  "rvv_bench.memcpy": 1576831,
-  "rvv_bench.memset": 287462,
-  "rvv_bench.mergelines": 3092453,
+  "rvv_bench.memcpy": 1822850,
+  "rvv_bench.memset": 287111,
+  "rvv_bench.mergelines": 3128950,
   "rvv_bench.poly1305": 0,
-  "rvv_bench.strlen": 711050,
-  "rvv_bench.utf8_count": 5726377
+  "rvv_bench.strlen": 711138,
+  "rvv_bench.utf8_count": 5726147
 }
