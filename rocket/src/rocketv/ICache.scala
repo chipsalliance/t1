@@ -196,11 +196,13 @@ class ICache(val parameter: ICacheParameter)
   def scratchpadLine(addr: UInt) = addr(untagBits + log2Ceil(nWays) - 1, blockOffBits)
 
   /** scratchpad access valid in stage N */
-//  val s0_slaveValid = tl_in.map(_.a.fire).getOrElse(false.B)
-  val s0_slaveValid = io.itimAXI.map(_.aw.fire).getOrElse(false.B)
+  val s0_slaveValid = io.itimAXI.map(axi => axi.w.fire || axi.ar.fire).getOrElse(false.B)
+  val s0_slaveWriteValid = io.itimAXI.map(axi => axi.w.fire).getOrElse(false.B)
 
   val s1_slaveValid = RegNext(s0_slaveValid, false.B)
+  val s1_slaveWriteValid = RegNext(s0_slaveWriteValid, false.B)
   val s2_slaveValid = RegNext(s1_slaveValid, false.B)
+  val s2_slaveWriteValid = RegNext(s1_slaveWriteValid, false.B)
   val s3_slaveValid = RegNext(false.B)
 
   /** valid signal for CPU accessing cache in stage 0. */
@@ -280,14 +282,15 @@ class ICache(val parameter: ICacheParameter)
   s1_valid := s0_valid
 
   //  val (_, _, d_done, refill_cnt) = edge_out.count(tl_out.d)
-  val d_done: Bool = ???
-  val refill_cnt: UInt = ???
+  val d_done: Bool = io.instructionFetchAXI.r.valid && io.instructionFetchAXI.r.bits.last
+  // todo: burst index always == 0?
+  val refill_cnt: UInt = 0.U
 
   /** at last beat of `tl_out.d.fire`, finish refill. */
   val refill_done = refill_one_beat && d_done
 
   /** scratchpad is writing data. block refill. */
-  //  tl_out.d.ready := !s3_slaveValid
+  io.instructionFetchAXI.r.ready := !s3_slaveValid
   //  require(edge_out.manager.minLatency > 0)
 
   /** way to be replaced, implemented with a hardcoded random replacement algorithm */
@@ -323,8 +326,8 @@ class ICache(val parameter: ICacheParameter)
   val accruedRefillError = Reg(Bool())
 
   /** wire indicates the ongoing GetAckData transaction is corrupted. */
-//  val refillError = tl_out.d.bits.corrupt || (refill_cnt > 0.U && accruedRefillError)
-  val refillError: Bool = ???
+  //  todo: tl_out.d.bits.corrupt -> false.B
+  val refillError: Bool = false.B || (refill_cnt > 0.U && accruedRefillError)
   when(refill_done) {
     // For AccessAckData, denied => corrupt
     /** data written to [[tag_array]].
@@ -336,8 +339,8 @@ class ICache(val parameter: ICacheParameter)
 //    ccover(refillError, "D_CORRUPT", "I$ D-channel corrupt")
   }
   // notify CPU, I$ has corrupt.
-//  io.errors.bus.valid := tl_out.d.fire && (tl_out.d.bits.denied || tl_out.d.bits.corrupt)
-  io.errors.bus.valid := ???
+  // flase.B ->  (tl_out.d.bits.denied || tl_out.d.bits.corrupt)
+  io.errors.bus.valid := io.instructionFetchAXI.r.fire && false.B
   io.errors.bus.bits := (refill_paddr >> blockOffBits) << blockOffBits
 
   /** true indicate this cacheline is valid,
@@ -434,8 +437,7 @@ class ICache(val parameter: ICacheParameter)
     !(s1_valid || s1_slaveValid) || PopCount(s1_tag_hit.zip(s1_tag_disparity).map { case (h, d) => h && !d }) <= 1.U
   )
 
-//  require(tl_out.d.bits.data.getWidth % wordBits == 0)
-  require(???)
+  require(io.instructionFetchAXI.r.bits.data.getWidth % wordBits == 0)
 
   /** Data SRAM
     *
@@ -477,9 +479,7 @@ class ICache(val parameter: ICacheParameter)
   for ((data_array, i) <- data_arrays.zipWithIndex) {
 
     /** bank match (vaddr[2]) */
-//    def wordMatch(addr: UInt) =
-//      addr.extract(log2Ceil(tl_out.d.bits.data.getWidth / 8) - 1, log2Ceil(wordBits / 8)) === i.U
-    def wordMatch(addr: UInt): Bool = ???
+    def wordMatch(addr: UInt): Bool = addr.extract(log2Ceil(io.instructionFetchAXI.r.bits.data.getWidth / 8) - 1, log2Ceil(wordBits / 8)) === i.U
     // TODO: if we have last? do we need refillCycles?
     def row(addr: UInt) = addr(untagBits - 1, blockOffBits - log2Ceil(refillCycles))
 
@@ -512,8 +512,7 @@ class ICache(val parameter: ICacheParameter)
       )
     when(wen) {
       //wr_data
-//      val data = Mux(s3_slaveValid, s1s3_slaveData, tl_out.d.bits.data(wordBits * (i + 1) - 1, wordBits * i))
-      val data: UInt = ???
+      val data: UInt = Mux(s3_slaveValid, s1s3_slaveData, io.instructionFetchAXI.r.bits.data(wordBits * (i + 1) - 1, wordBits * i))
       //the way to be replaced/written
       val way = Mux(s3_slaveValid, scratchpadWay(s1s3_slaveAddr), repl_way)
 //      data_array.write(mem_idx, VecInit(Seq.fill(nWays) { dECC.encode(data) }), (0 until nWays).map(way === _.U))
@@ -620,49 +619,47 @@ class ICache(val parameter: ICacheParameter)
       }
 
       // ITIM access
-      io.itimAXI.map { axi =>
+      io.itimAXI.foreach { axi =>
         /** valid signal for D channel. */
         val respValid = RegInit(false.B)
         // ITIM access is unpipelined
-        tl.a.ready := !(tl_out.d.valid || s1_slaveValid || s2_slaveValid || s3_slaveValid || respValid || !io.clock_enabled)
+        axi.ar.ready := !(io.instructionFetchAXI.r.valid || s1_slaveValid || s2_slaveValid || s3_slaveValid || respValid || !io.clock_enabled)
         /** register used to latch TileLink request for one cycle. */
-        val s1_a = RegEnable(tl.a.bits, s0_slaveValid)
+        val s1_a = RegEnable(axi.ar.bits, s0_slaveValid)
+        val s1_aw = RegEnable(axi.aw.bits, axi.aw.fire)
+        val s1_w = RegEnable(axi.w.bits, axi.w.fire)
         // Write Data(Put / PutPartial all mask is 1)
-        s1s2_full_word_write := edge_in.get.hasData(s1_a) && s1_a.mask.andR
+        s1s2_full_word_write := axi.w.bits.strb.andR
         // (de)allocate ITIM
-        when(s0_slaveValid) {
-          val a = tl.a.bits
+        when(axi.w.fire) {
           // address
-          s1s3_slaveAddr := tl.a.bits.address
+          s1s3_slaveAddr := s1_aw.addr
           // store Put/PutP data
-          s1s3_slaveData := tl.a.bits.data
+          s1s3_slaveData := axi.w.bits.data
           // S0
-          when(edge_in.get.hasData(a)) {
-            // access data in 0 -> way - 2 allocate and enable, access data in way - 1(last way), deallocate.
-            val enable = scratchpadWayValid(scratchpadWay(a.address))
-            //The address isn't in range,
-            when(!lineInScratchpad(scratchpadLine(a.address))) {
-              scratchpadMax.get := scratchpadLine(a.address)
-              invalidate := true.B
-            }
-            scratchpadOn := enable
-
-            val itim_allocated = !scratchpadOn && enable
-            val itim_deallocated = scratchpadOn && !enable
-            val itim_increase = scratchpadOn && enable && scratchpadLine(a.address) > scratchpadMax.get
-            val refilling = refill_valid && refill_cnt > 0.U
+          // access data in 0 -> way - 2 allocate and enable, access data in way - 1(last way), deallocate.
+          val enable = scratchpadWayValid(scratchpadWay(s1_aw.addr))
+          //The address isn't in range,
+          when(!lineInScratchpad(scratchpadLine(s1_aw.addr))) {
+            scratchpadMax.get := scratchpadLine(s1_aw.addr)
+            invalidate := true.B
+          }
+          scratchpadOn := enable
+//            val itim_allocated = !scratchpadOn && enable
+//            val itim_deallocated = scratchpadOn && !enable
+//            val itim_increase = scratchpadOn && enable && scratchpadLine(a.address) > scratchpadMax.get
+//            val refilling = refill_valid && refill_cnt > 0.U
 //            ccover(itim_allocated, "ITIM_ALLOCATE", "ITIM allocated")
 //            ccover(itim_allocated && refilling, "ITIM_ALLOCATE_WHILE_REFILL", "ITIM allocated while I$ refill")
 //            ccover(itim_deallocated, "ITIM_DEALLOCATE", "ITIM deallocated")
 //            ccover(itim_deallocated && refilling, "ITIM_DEALLOCATE_WHILE_REFILL", "ITIM deallocated while I$ refill")
 //            ccover(itim_increase, "ITIM_SIZE_INCREASE", "ITIM size increased")
 //            ccover(itim_increase && refilling, "ITIM_SIZE_INCREASE_WHILE_REFILL", "ITIM size increased while I$ refill")
-          }
         }
 
         assert(!s2_valid || RegNext(RegNext(s0_vaddr)) === io.s2_vaddr)
         when(
-          !(tl.a.valid || s1_slaveValid || s2_slaveValid || respValid)
+          !(axi.w.valid || s1_slaveValid || s2_slaveValid || respValid)
             && s2_valid && s2_data_decoded.error && !s2_tag_disparity
         ) {
           // handle correctable errors on CPU accesses to the scratchpad.
@@ -676,43 +673,43 @@ class ICache(val parameter: ICacheParameter)
 
         // back pressure is allowed on the [[tl]]
         // pull up [[respValid]] when [[s2_slaveValid]] until [[tl.d.fire]]
-        respValid := s2_slaveValid || (respValid && !tl.d.ready)
+        respValid := s2_slaveValid || (respValid && !axi.r.ready)
         // if [[s2_full_word_write]] will overwrite data, and [[s2_data_decoded.uncorrectable]] can be ignored.
         val respError =
           RegEnable(s2_scratchpad_hit && s2_data_decoded.uncorrectable && !s1s2_full_word_write, s2_slaveValid)
         when(s2_slaveValid) {
           // need stage 3 if Put or correct decoding.
           // @todo if uncorrectable [[s2_data_decoded]]?
-          when(edge_in.get.hasData(s1_a) || s2_data_decoded.error) { s3_slaveValid := true.B }
+          when(s2_slaveWriteValid || s2_data_decoded.error) { s3_slaveValid := true.B }
 
           /** data not masked by the TileLink PutData/PutPartialData.
             * means data is stored at [[s1s3_slaveData]] which was read at stage 1.
             */
-          def byteEn(i: Int) = !(edge_in.get.hasData(s1_a) && s1_a.mask(i))
+          def byteEn(i: Int) = !axi.w.bits.strb(i)
           // write [[s1s3_slaveData]] based on index of wordBits.
           // @todo seems a problem here?
           //       granularity of CPU fetch is `wordBits/8`,
           //       granularity of TileLink access is `TLBundleParameters.dataBits/8`
           //       these two granularity can be different.
           // store data read from RAM
-          s1s3_slaveData := (0 until wordBits / 8)
+          s1s3_slaveData := VecInit((0 until wordBits / 8)
             .map(i => Mux(byteEn(i), s2_data_decoded.corrected, s1s3_slaveData)(8 * (i + 1) - 1, 8 * i))
-            .asUInt
+            ).asUInt
         }
 
-        tl.d.valid := respValid
-        tl.d.bits := Mux(
-          edge_in.get.hasData(s1_a),
-          // PutData/PutPartialData -> AccessAck
-          edge_in.get.AccessAck(s1_a),
-          // Get -> AccessAckData
-          edge_in.get.AccessAck(s1_a, 0.U, denied = false.B, corrupt = respError)
-        )
-        tl.d.bits.data := s1s3_slaveData
+        axi.r.valid := respValid
+//        tl.d.bits := Mux(
+//          edge_in.get.hasData(s1_a),
+//          // PutData/PutPartialData -> AccessAck
+//          edge_in.get.AccessAck(s1_a),
+//          // Get -> AccessAckData
+//          edge_in.get.AccessAck(s1_a, 0.U, denied = false.B, corrupt = respError)
+//        )
+        axi.r.bits := DontCare
+        axi.r.bits.data := s1s3_slaveData
+        axi.r.bits.last := true.B
         // Tie off unused channels
-        tl.b.valid := false.B
-        tl.c.ready := true.B
-        tl.e.ready := true.B
+        axi.b.valid := false.B
 
 //        ccover(s0_valid && s1_slaveValid, "CONCURRENT_ITIM_ACCESS_1", "ITIM accessed, then I$ accessed next cycle")
 //        ccover(
@@ -725,12 +722,13 @@ class ICache(val parameter: ICacheParameter)
       }
   }
 
-  //tl_out.a.valid := s2_request_refill
-  //tl_out.a.bits := edge_out
-  //  .Get(fromSource = 0.U, toAddress = (refill_paddr >> blockOffBits) << blockOffBits, lgSize = lgCacheBlockBytes.U)
-  //  ._2
   io.instructionFetchAXI.ar.valid := s2_request_refill
-  io.instructionFetchAXI.ar.bits := ???
+  io.instructionFetchAXI.ar.bits := DontCare
+  io.instructionFetchAXI.ar.bits.id := 0.U
+  io.instructionFetchAXI.ar.bits.addr := (refill_paddr >> blockOffBits) << blockOffBits
+  io.instructionFetchAXI.ar.bits.size := log2Up(parameter.blockBytes).U
+  io.instructionFetchAXI.ar.bits.len := 0.U
+  io.instructionFetchAXI.ar.bits.burst := 1.U
 
   // prefetch when next-line access does not cross a page
   if (cacheParams.prefetch) {
@@ -786,7 +784,9 @@ class ICache(val parameter: ICacheParameter)
 //    ccover(tl_out.a.fire && hint_outstanding, "PREFETCH_D_AFTER_MISS_A", "I$ prefetch resolves after second miss")
   }
   // Drive APROT information
-  io.instructionFetchAXI := ???
+  // bufferable ## modifiable ## readalloc ## writealloc ## privileged ## secure ## fetch
+  io.instructionFetchAXI.ar.bits.user := true.B ## true.B ## io.s2_cacheable ## io.s2_cacheable ##
+    true.B ## true.B ## true.B
   // tl_out.a.bits.user.lift(AMBAProt).foreach { x =>
   //   // Rocket caches all fetch requests, and it's difficult to differentiate privileged/unprivileged on
   //   // cached data, so mark as privileged
@@ -801,7 +801,7 @@ class ICache(val parameter: ICacheParameter)
   // tl_out.b.ready := true.B
   // tl_out.c.valid := false.B
   // tl_out.e.valid := false.B
-  // assert(!(tl_out.a.valid && addrMaybeInScratchpad(tl_out.a.bits.address)))
+   assert(!(io.instructionFetchAXI.ar.valid && addrMaybeInScratchpad(io.instructionFetchAXI.ar.bits.addr)))
 
   // if there is an outstanding refill, cannot flush I$.
   when(!refill_valid) { invalidated := false.B }
@@ -810,12 +810,14 @@ class ICache(val parameter: ICacheParameter)
 
   io.perf.acquire := refill_fire
   // don't gate I$ clock since there are outstanding transcations.
-  //io.keep_clock_enabled :=
-  //  tl_in
-  //    .map(tl => tl.a.valid || tl.d.valid || s1_slaveValid || s2_slaveValid || s3_slaveValid)
-  //    .getOrElse(false.B) || // ITIM
-  //    s1_valid || s2_valid || refill_valid || send_hint || hint_outstanding // I$
-  io.keep_clock_enabled := ???
+  io.keep_clock_enabled :=
+    io.itimAXI
+      .map(axi =>
+        axi.ar.valid || axi.aw.valid || axi.w.valid // tl.a.valid
+          || axi.r.valid                            //tl.d.valid
+          || s1_slaveValid || s2_slaveValid || s3_slaveValid)
+      .getOrElse(false.B) || // ITIM
+      s1_valid || s2_valid || refill_valid || send_hint || hint_outstanding // I$
 
   /** index to access [[data_arrays]] and [[tag_array]].
     * @note
