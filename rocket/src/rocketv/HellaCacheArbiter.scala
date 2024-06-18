@@ -11,11 +11,11 @@ import chisel3.experimental.hierarchy.Instance
 
 case class HellaCacheArbiterParameter() extends SerializableModuleParameter
 
-class HellaCacheArbiterInterface(parameter: RocketParameter) extends Bundle {
+class HellaCacheArbiterInterface(parameter: HellaCacheArbiterParameter) extends Bundle {
 
 }
 
-class HellaCacheArbiter(val parameter: RocketParameter)
+class HellaCacheArbiter(val parameter: HellaCacheArbiterParameter)
   extends FixedIORawModule(new HellaCacheArbiterInterface(parameter))
-    with SerializableModule[RocketParameter] {
+    with SerializableModule[HellaCacheArbiterParameter] {
 }

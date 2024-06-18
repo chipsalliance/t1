@@ -537,9 +537,9 @@ class DatapathPTWIO(
   nPMPs:        Int,
   paddrBits:    Int)
     extends Bundle {
-  val ptbr = Input(new PTBR(pgLevels, minPgLevels, xLen, maxPAddrBits, pgIdxBits))
-  val hgatp = Input(new PTBR(pgLevels, minPgLevels, xLen, maxPAddrBits, pgIdxBits))
-  val vsatp = Input(new PTBR(pgLevels, minPgLevels, xLen, maxPAddrBits, pgIdxBits))
+  val ptbr = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val hgatp = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val vsatp = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
   val sfence = Flipped(Valid(new SFenceReq(vaddrBits, asidBits)))
   val status = Input(new MStatus())
   val hstatus = Input(new HStatus())
@@ -695,4 +695,214 @@ class ICacheErrors(hasCorrectable: Boolean, hasUncorrectable: Boolean, paddrBits
 
 class ICachePerfEvents extends Bundle {
   val acquire = Bool()
+}
+
+
+/** IO between TLB and PTW
+  *
+  * PTW receives :
+  *   - PTE request
+  *   - CSRs info
+  *   - pmp results from PMP(in TLB)
+  */
+class TLBPTWIO(nPMPs: Int, vpnBits: Int, paddrBits: Int, vaddrBits: Int, pgLevels: Int, xLen: Int, maxPAddrBits: Int, pgIdxBits: Int) extends Bundle {
+  val req = Decoupled(Valid(new PTWReq(vpnBits)))
+  val resp = Flipped(Valid(new PTWResp(vaddrBits, pgLevels)))
+  val ptbr = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val hgatp = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val vsatp = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val status = Input(new MStatus)
+  val hstatus = Input(new HStatus)
+  val gstatus = Input(new MStatus)
+  val pmp = Input(Vec(nPMPs, new PMP(paddrBits)))
+  // No customCSR for the first time refactor.
+  //  val customCSRs = Flipped(coreParams.customCSRs)
+}
+
+class PTWReq(vpnBits: Int) extends Bundle {
+  val addr = UInt(vpnBits.W)
+  val need_gpa = Bool()
+  val vstage1 = Bool()
+  val stage2 = Bool()
+}
+
+/** PTE info from L2TLB to TLB
+  *
+  * containing: target PTE, exceptions, two-satge tanslation info
+  */
+class PTWResp(vaddrBits: Int, pgLevels: Int) extends Bundle {
+
+  /** ptw access exception */
+  val ae_ptw = Bool()
+
+  /** final access exception */
+  val ae_final = Bool()
+
+  /** page fault */
+  val pf = Bool()
+
+  /** guest page fault */
+  val gf = Bool()
+
+  /** hypervisor read */
+  val hr = Bool()
+
+  /** hypervisor write */
+  val hw = Bool()
+
+  /** hypervisor execute */
+  val hx = Bool()
+
+  /** PTE to refill L1TLB
+    *
+    * source: L2TLB
+    */
+  val pte = new PTE
+
+  /** pte pglevel */
+  val level = UInt(log2Ceil(pgLevels).W)
+
+  /** fragmented_superpage support */
+  val fragmented_superpage = Bool()
+
+  /** homogeneous for both pma and pmp */
+  val homogeneous = Bool()
+  val gpa = Valid(UInt(vaddrBits.W))
+  val gpa_is_pte = Bool()
+}
+
+
+/** PTE template for transmission
+  *
+  * contains useful methods to check PTE attributes
+  * @see RV-priv spec 4.3.1 for pgae table entry format
+  */
+class PTE extends Bundle {
+  val reserved_for_future = UInt(10.W)
+  val ppn = UInt(44.W)
+  val reserved_for_software = Bits(2.W)
+
+  /** dirty bit */
+  val d = Bool()
+
+  /** access bit */
+  val a = Bool()
+
+  /** global mapping */
+  val g = Bool()
+
+  /** user mode accessible */
+  val u = Bool()
+
+  /** whether the page is executable */
+  val x = Bool()
+
+  /** whether the page is writable */
+  val w = Bool()
+
+  /** whether the page is readable */
+  val r = Bool()
+
+  /** valid bit */
+  val v = Bool()
+}
+
+class DCacheErrors(hasCorrectable: Boolean, hasUncorrectable: Boolean, paddrBits: Int) extends Bundle {
+  val correctable = Option.when(hasCorrectable)(Valid(UInt(paddrBits.W)))
+  val uncorrectable = Option.when(hasUncorrectable)(Valid(UInt(paddrBits.W)))
+  val bus = Valid(UInt(paddrBits.W))
+}
+
+class DCacheTLBPort(paddrBits: Int, vaddrBitsExtended: Int, coreDataBytes: Int) extends Bundle {
+  val req = Flipped(Decoupled(new TLBReq(log2Ceil(coreDataBytes), vaddrBitsExtended)))
+  val s1_resp = Output(new TLBResp(paddrBits, vaddrBitsExtended))
+  val s2_kill = Input(Bool())
+}
+
+class TLBReq(lgMaxSize: Int, vaddrBitsExtended: Int)() extends Bundle {
+  // TODO: remove it.
+  val M_SZ = 5
+
+  /** request address from CPU. */
+  val vaddr = UInt(vaddrBitsExtended.W)
+
+  /** don't lookup TLB, bypass vaddr as paddr */
+  val passthrough = Bool()
+
+  /** granularity */
+  val size = UInt(log2Ceil(lgMaxSize + 1).W)
+
+  /** memory command. */
+  val cmd = Bits(M_SZ.W)
+  val prv = UInt(PRV.SZ.W)
+
+  /** virtualization mode */
+  val v = Bool()
+
+}
+
+
+class TLBResp(paddrBits: Int, vaddrBitsExtended: Int) extends Bundle {
+  // lookup responses
+  val miss = Bool()
+
+  /** physical address */
+  val paddr = UInt(paddrBits.W)
+  val gpa = UInt(vaddrBitsExtended.W)
+  val gpa_is_pte = Bool()
+
+  /** page fault exception */
+  val pf = new TLBExceptions
+
+  /** guest page fault exception */
+  val gf = new TLBExceptions
+
+  /** access exception */
+  val ae = new TLBExceptions
+
+  /** misaligned access exception */
+  val ma = new TLBExceptions
+
+  /** if this address is cacheable */
+  val cacheable = Bool()
+
+  /** if caches must allocate this address */
+  val must_alloc = Bool()
+
+  /** if this address is prefetchable for caches */
+  val prefetchable = Bool()
+}
+
+class TLBExceptions extends Bundle {
+  val ld = Bool()
+  val st = Bool()
+  val inst = Bool()
+}
+
+class DCacheMetadataReq(vaddrBitsExtended: Int, idxBits: Int, nWays: Int, dataWidth: Int) extends Bundle {
+  val write = Bool()
+  val addr = UInt(vaddrBitsExtended.W)
+  val idx = UInt(idxBits.W)
+  val way_en = UInt(nWays.W)
+  val data = UInt(dataWidth.W)
+}
+
+class L1Metadata(tagBits:Int) extends Bundle {
+  val coh = new ClientMetadata
+  val tag = UInt(tagBits.W)
+}
+
+class ClientMetadata extends Bundle {
+//  val state = UInt(ClientStates.width.W)
+  /** L1 non-coherent: MI bits */
+  val state = UInt(2.W)
+}
+
+class DCacheDataReq(untagBits: Int, encBits: Int, rowBytes: Int, eccBytes: Int, subWordBytes: Int, wordBytes: Int, nWays: Int) extends Bundle {
+  val addr = UInt(untagBits.W)
+  val write = Bool()
+  val wdata = UInt((encBits * rowBytes / eccBytes).W)
+  val wordMask = UInt((rowBytes / subWordBytes).W)
+  val eccMask = UInt((wordBytes / eccBytes).W)
+  val way_en = UInt(nWays.W)
 }
