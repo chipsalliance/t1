@@ -496,6 +496,109 @@ class Envcfg extends Bundle {
 
 object PMP {
   def lgAlign = 2
+  private def UIntToOH1(x: UInt, width: Int): UInt = ~((-1).S(width.W).asUInt << x)(width - 1, 0)
+
+  // For PMPReg
+  def reset(pmp: PMP): Unit = {
+    pmp.cfg.a := 0.U
+    pmp.cfg.l := 0.U
+  }
+  def readAddr(pmp: PMP, pmpGranularity: Int) =
+    if (log2Ceil(pmpGranularity) == PMP.lgAlign)
+      pmp.addr
+    else {
+      val mask = ((BigInt(1) << (log2Ceil(pmpGranularity) - PMP.lgAlign)) - 1).U
+      Mux(napot(pmp), pmp.addr | (mask >> 1), ~(~pmp.addr | mask))
+  }
+  def napot(pmp: PMP) = pmp.cfg.a(1)
+  def torNotNAPOT(pmp: PMP) = pmp.cfg.a(0)
+  def tor(pmp: PMP) = !napot(pmp) && torNotNAPOT(pmp)
+  def cfgLocked(pmp: PMP) = pmp.cfg.l
+  def addrLocked(pmp: PMP, next: PMP) = cfgLocked(pmp) || cfgLocked(next) && tor(next)
+  // PMP
+  def computeMask(pmp: PMP, pmpGranularity: Int): UInt = {
+    val base = Cat(pmp.addr, pmp.cfg.a(0)) | ((pmpGranularity - 1).U >> lgAlign)
+    Cat(base & ~(base + 1.U), ((1 << lgAlign) - 1).U)
+  }
+  private def comparand(pmp: PMP, pmpGranularity: Int): UInt = ~(~(pmp.addr << lgAlign) | (pmpGranularity - 1).U)
+
+  private def pow2Match(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, pmpGranularity: Int): Bool = {
+    def eval(a: UInt, b: UInt, m: UInt) = ((a ^ b) & ~m) === 0.U
+    if (lgMaxSize <= log2Ceil(pmpGranularity)) {
+      eval(x, comparand(pmp, pmpGranularity), pmp.mask)
+    } else {
+      // break up the circuit; the MSB part will be CSE'd
+      val lsbMask = pmp.mask | UIntToOH1(lgSize, lgMaxSize)
+      val msbMatch: Bool = eval(x >> lgMaxSize, comparand(pmp, pmpGranularity) >> lgMaxSize, pmp.mask >> lgMaxSize)
+      val lsbMatch: Bool = eval(x(lgMaxSize - 1, 0), comparand(pmp, pmpGranularity)(lgMaxSize - 1, 0), lsbMask(lgMaxSize - 1, 0))
+      msbMatch && lsbMatch
+    }
+  }
+
+  private def boundMatch(pmp: PMP, x: UInt, lsbMask: UInt, lgMaxSize: Int, pmpGranularity: Int): Bool = {
+    if (lgMaxSize <= log2Ceil(pmpGranularity)) {
+      x < comparand(pmp, pmpGranularity)
+    } else {
+      // break up the circuit; the MSB part will be CSE'd
+      val msbsLess: Bool = (x >> lgMaxSize) < (comparand(pmp, pmpGranularity) >> lgMaxSize)
+      val msbsEqual: Bool = ((x >> lgMaxSize) ^ (comparand(pmp, pmpGranularity) >> lgMaxSize)) === 0.U
+      val lsbsLess: Bool = (x(lgMaxSize - 1, 0) | lsbMask) < comparand(pmp, pmpGranularity)(lgMaxSize - 1, 0)
+      msbsLess || (msbsEqual && lsbsLess)
+    }
+  }
+
+  private def lowerBoundMatch(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, pmpGranularity: Int): Bool =
+    !boundMatch(pmp: PMP, x, UIntToOH1(lgSize, lgMaxSize), lgMaxSize, pmpGranularity: Int)
+
+  private def upperBoundMatch(pmp: PMP, x: UInt, lgMaxSize: Int, pmpGranularity: Int): Bool =
+    boundMatch(pmp, x, 0.U, lgMaxSize, pmpGranularity)
+
+  private def rangeMatch(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, prev: PMP, pmpGranularity: Int) =
+    lowerBoundMatch(prev, x, lgSize, lgMaxSize, pmpGranularity) && upperBoundMatch(pmp, x, lgMaxSize, pmpGranularity)
+
+  private def pow2Homogeneous(pmp: PMP, x: UInt, pgLevel: UInt, paddrBits: Int, pgLevels: Int, pgIdxBits: Int, pgLevelBits: Int): Bool = {
+    val maskHomogeneous = VecInit(pgLevelMap(pgLevels, pgIdxBits, pgLevelBits) { idxBits => if (idxBits > paddrBits) false.B else pmp.mask(idxBits - 1) })(pgLevel)
+    maskHomogeneous || VecInit(pgLevelMap(pgLevels, pgIdxBits, pgLevelBits) { idxBits => (((x ^ comparand) >> idxBits) =/= 0.U: UInt) })(pgLevel)
+  }
+
+  private def pgLevelMap[T](pgLevels: Int, pgIdxBits: Int, pgLevelBits: Int)(f: Int => T): Seq[T] = (0 until pgLevels).map { i =>
+    f(pgIdxBits + (pgLevels - 1 - i) * pgLevelBits)
+  }
+
+  private def rangeHomogeneous(pmp: PMP, x: UInt, pgLevel: UInt, prev: PMP, paddrBits: Int, pmpGranularity: Int, pgLevels: Int, pgIdxBits: Int, pgLevelBits: Int) = {
+    val beginsAfterLower = !(x < comparand(prev, pmpGranularity))
+    val beginsAfterUpper = !(x < comparand(pmp, pmpGranularity))
+
+    val pgMask = VecInit(pgLevelMap(pgLevels, pgIdxBits, pgLevelBits) { idxBits => (((BigInt(1) << paddrBits) - (BigInt(1) << idxBits)).max(0)).U })(pgLevel)
+    val endsBeforeLower = (x & pgMask) < (comparand(prev, pmpGranularity) & pgMask)
+    val endsBeforeUpper = (x & pgMask) < (comparand(pmp, pmpGranularity) & pgMask)
+
+    endsBeforeLower || beginsAfterUpper || (beginsAfterLower && endsBeforeUpper)
+  }
+
+  // returns whether this PMP completely contains, or contains none of, a page
+  def homogeneous(pmp: PMP, x: UInt, pgLevel: UInt, prev: PMP, paddrBits: Int, pmpGranularity: Int, pgLevels: Int, pgIdxBits: Int, pgLevelBits: Int): Bool =
+    Mux(napot(pmp), pow2Homogeneous(pmp, x, pgLevel, paddrBits, pgLevels, pgIdxBits, pgLevelBits), !torNotNAPOT(pmp) || rangeHomogeneous(pmp, x, pgLevel, prev, paddrBits, pmpGranularity, pgLevels, pgIdxBits, pgLevelBits))
+
+  // returns whether this matching PMP fully contains the access
+  def aligned(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, prev: PMP, pmpGranularity: Int): Bool = if (lgMaxSize <= log2Ceil(pmpGranularity)) true.B
+  else {
+    val lsbMask = UIntToOH1(lgSize, lgMaxSize)
+    val straddlesLowerBound: Bool =
+      ((x >> lgMaxSize) ^ (comparand(prev, pmpGranularity) >> lgMaxSize)) === 0.U &&
+        (comparand(prev, pmpGranularity)(lgMaxSize - 1, 0) & ~x(lgMaxSize - 1, 0)) =/= 0.U
+    val straddlesUpperBound: Bool =
+      ((x >> lgMaxSize) ^ (comparand(pmp, pmpGranularity) >> lgMaxSize)) === 0.U &&
+        (comparand(pmp, pmpGranularity)(lgMaxSize - 1, 0) & (x(lgMaxSize - 1, 0) | lsbMask)) =/= 0.U
+    val rangeAligned = !(straddlesLowerBound || straddlesUpperBound)
+    val pow2Aligned = (lsbMask & ~pmp.mask(lgMaxSize - 1, 0)) === 0.U
+    Mux(napot(pmp), pow2Aligned, rangeAligned)
+  }
+
+  // returns whether this PMP matches at least one byte of the access
+  def hit(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, prev: PMP, pmpGranularity: Int): Bool =
+    Mux(napot(pmp), pow2Match(pmp, x, lgSize, lgMaxSize, pmpGranularity), torNotNAPOT(pmp) && rangeMatch(pmp, x, lgSize, lgMaxSize, prev, pmpGranularity))
+
 }
 
 class PMP(paddrBits: Int) extends Bundle {
@@ -527,8 +630,6 @@ class PTWPerfEvents extends Bundle {
 }
 
 class DatapathPTWIO(
-  pgLevels:     Int,
-  minPgLevels:  Int,
   xLen:         Int,
   maxPAddrBits: Int,
   pgIdxBits:    Int,
@@ -771,6 +872,26 @@ class PTWResp(vaddrBits: Int, pgLevels: Int) extends Bundle {
   val gpa_is_pte = Bool()
 }
 
+object PTE {
+  /** return true if find a pointer to next level page table */
+  def table(pte: PTE) = pte.v && !pte.r && !pte.w && !pte.x && !pte.d && !pte.a && !pte.u && pte.reserved_for_future === 0.U
+  /** return true if find a leaf PTE */
+  def leaf(pte: PTE) = pte.v && (pte.r || (pte.x && !pte.w)) && pte.a
+  /** user read */
+  def ur(pte: PTE) = sr(pte) && pte.u
+  /** user write*/
+  def uw(pte: PTE) = sw(pte) && pte.u
+  /** user execute */
+  def ux(pte: PTE) = sx(pte) && pte.u
+  /** supervisor read */
+  def sr(pte: PTE) = leaf(pte) && pte.r
+  /** supervisor write */
+  def sw(pte: PTE) = leaf(pte) && pte.w && pte.d
+  /** supervisor execute */
+  def sx(pte: PTE) = leaf(pte) && pte.x
+  /** full permission: writable and executable in user mode */
+  def isFullPerm(pte: PTE) = uw(pte) && ux(pte)
+}
 
 /** PTE template for transmission
   *
@@ -905,4 +1026,36 @@ class DCacheDataReq(untagBits: Int, encBits: Int, rowBytes: Int, eccBytes: Int, 
   val wordMask = UInt((rowBytes / subWordBytes).W)
   val eccMask = UInt((wordBytes / eccBytes).W)
   val way_en = UInt(nWays.W)
+}
+
+/** L2TLB PTE template
+  *
+  * contains tag bits
+  * @param nSets number of sets in L2TLB
+  * @see RV-priv spec 4.3.1 for page table entry format
+  */
+class L2TLBEntry(nSets: Int, ppnBits: Int, maxSVAddrBits: Int, pgIdxBits: Int, usingHypervisor: Boolean) extends Bundle {
+  val idxBits = log2Ceil(nSets)
+  val tagBits = maxSVAddrBits - pgIdxBits - idxBits + (if (usingHypervisor) 1 else 0)
+  val tag = UInt(tagBits.W)
+  val ppn = UInt(ppnBits.W)
+
+  /** dirty bit */
+  val d = Bool()
+
+  /** access bit */
+  val a = Bool()
+
+  /** user mode accessible */
+  val u = Bool()
+
+  /** whether the page is executable */
+  val x = Bool()
+
+  /** whether the page is writable */
+  val w = Bool()
+
+  /** whether the page is readable */
+  val r = Bool()
+
 }

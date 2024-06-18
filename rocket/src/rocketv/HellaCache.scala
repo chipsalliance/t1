@@ -119,6 +119,7 @@ class HellaCache(val parameter: HellaCacheParameter)
   val pmaChecker: Instance[PMAChecker] = Instantiate(new PMAChecker(parameter.pmaCheckerParameter))
   val arbiter:    Instance[HellaCacheArbiter] = Instantiate(new HellaCacheArbiter(parameter.arbiterParameter))
   val amoalu:     Instance[AMOALU] = Instantiate(new AMOALU(parameter.amoaluParameter))
+  val ptw = Module(new PTW(outer.nPTWPorts)(outer.dcache.node.edges.out(0), outer.p))
 
   // compatibility layers
   object cacheParams {

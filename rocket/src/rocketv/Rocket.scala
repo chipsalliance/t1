@@ -214,8 +214,6 @@ class RocketInterface(parameter: RocketParameter) extends Bundle {
   val ptw = IO(
     Flipped(
       new DatapathPTWIO(
-        parameter.pgLevels,
-        parameter.minPgLevels,
         parameter.xLen,
         parameter.maxPAddrBits,
         parameter.pgIdxBits: Int,
