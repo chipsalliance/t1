@@ -10,34 +10,59 @@ import chisel3.util.random.LFSR
 import chisel3.util._
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
 
-case class ICacheParameter() extends SerializableModuleParameter {
-  val vaddrBits: Int = ???
-  val paddrBits: Int = ???
-  val fetchBytes: Int = ???
-  val latency: Int = ???
-  //  (cacheParams.itimAddr.nonEmpty && cacheParams.dataCode.canDetect).option(Valid(UInt(paddrBits.W)))
-  val prefetch: Boolean = ???
-  val hasUncorrectable: Boolean = ???
-  //  (cacheParams.tagCode.canDetect || cacheParams.dataCode.canDetect).option(Valid(UInt(paddrBits.W)))
-  val hasCorrectable: Boolean = ???
-  val instructionFetchParameter: AXI4BundleParameter = ???
-  val itimParameter: Option[AXI4BundleParameter] = ???
-  val itimBaseAddr: Option[BigInt] = ???
+case class ICacheParameter(vaddrBits: Int, paddrBits: Int) extends SerializableModuleParameter {
+  val fetchBytes: Int = 4
+  val latency: Int = 2
+  val prefetch: Boolean = false
+  val itimParameter: Option[AXI4BundleParameter] = None
+  val itimBaseAddr: Option[BigInt] = None
   val usingITIM: Boolean = itimParameter.isDefined
-  val usingVM: Boolean = ???
-  val refillCycles: Int = ???
-  val tagCode: Code = ???
-  val dataCode: Code = ???
-  val nSets: Int = ???
-  val nWays: Int = ???
+  val usingVM: Boolean = true
+  val tagECC: Option[String] = None
+  val dataECC: Option[String] = None
+  val tagCode: Code = Code.fromString(tagECC)
+  val dataCode: Code = Code.fromString(dataECC)
+  //  (cacheParams.itimAddr.nonEmpty && cacheParams.dataCode.canDetect).option(Valid(UInt(paddrBits.W)))
+  val hasUncorrectable: Boolean = Option.when(itimBaseAddr.nonEmpty && dataCode.canDetect)(Valid(UInt(paddrBits.W)))
+  //  (cacheParams.tagCode.canDetect || cacheParams.dataCode.canDetect).option(Valid(UInt(paddrBits.W)))
+  val hasCorrectable: Option[ValidIO[UInt]] = Option.when(tagCode.canDetect || dataCode.canDetect)(Valid(UInt(paddrBits.W)))
+  val nSets: Int = 64
+  val nWays: Int = 4
   val isDM: Boolean = nWays == 1
-  val blockOffBits: Int = ???
-  val idxBits: Int = ???
-  val pgUntagBits: Int = ???
-  val tagBits: Int = ???
-  val pgIdxBits: Int = ???
-  val untagBits: Int = ???
-  val blockBytes: Int = ???
+  val blockBytes: Int = 64
+  // axi data with
+  val rowBits: Int = blockBytes * 8
+  val refillCycles: Int = blockBytes * 8 / rowBits
+  val blockOffBits: Int = log2Up(blockBytes)
+  val idxBits: Int = log2Up(nSets)
+  val pgIdxBits: Int = 12
+  val untagBits: Int = blockOffBits + idxBits
+  val pgUntagBits: Int = if (usingVM) untagBits min pgIdxBits else untagBits
+  val tagBits: Int = paddrBits - pgUntagBits
+  val instructionFetchParameter: AXI4BundleParameter = AXI4BundleParameter(
+    idWidth = 1,
+    dataWidth = rowBits,
+    addrWidth = paddrBits,
+    userReqWidth = 0,
+    userDataWidth = 0,
+    userRespWidth = 0,
+    hasAW = false,
+    hasW = false,
+    hasB = false,
+    hasAR = true,
+    hasR = true,
+    supportId = true,
+    supportRegion = false,
+    supportLen = true,
+    supportSize = true,
+    supportBurst = true,
+    supportLock = false,
+    supportCache = false,
+    supportQos = false,
+    supportStrb = false,
+    supportResp = false,
+    supportProt = false,
+  )
 }
 
 class ICacheInterface(parameter: ICacheParameter) extends Bundle {
