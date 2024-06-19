@@ -8,7 +8,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter, SourceInfo}
 import chisel3.util.experimental.InlineInstance
-import chisel3.util.{PriorityMux, PriorityEncoderOH, Arbiter, Cat, Enum, Fill, FillInterleaved, Mux1H, PriorityEncoder, RegEnable, SRAMInterface, UIntToOH, log2Ceil}
+import chisel3.util.{Arbiter, Cat, Enum, Fill, FillInterleaved, Mux1H, PriorityEncoder, PriorityEncoderOH, PriorityMux, RegEnable, SRAM, SRAMInterface, UIntToOH, log2Ceil}
 import freechips.rocketchip.util.UIntIsOneOf
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ChiselBundle, AXI4ROIrrevocable, AXI4RWIrrevocable}
 
@@ -72,6 +72,7 @@ case class HellaCacheParameter() extends SerializableModuleParameter {
   val blockOffBits: Int
   val usingDataScratchpad: Boolean
   val usingAtomics: Boolean
+  val cacheBlockBytes: Int = 64
   val rowBits: Int
   val firstMMIO: Int
   val lrscBackoff: Int
@@ -244,19 +245,25 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     val metaArb = Module(new Arbiter(new DCacheMetadataReq(vaddrBitsExtended, idxBits, nWays, cacheParams.tagCode.width(new L1Metadata(tagBits).getWidth)), 8) with InlineInstance)
 
-    // val tag_array = DescribedSRAM(
-    //   name = "tag_array",
-    //   desc = "DCache Tag Array",
-    //   size = nSets,
-    //   data = Vec(nWays, chiselTypeOf(metaArb.io.out.bits.data))
-    // )
-    val tag_array: SRAMInterface[Vec[UInt]] = ???
+    val tag_array: SRAMInterface[Vec[UInt]] = SRAM.masked(
+      size = nSets,
+      tpe = Vec(nWays, chiselTypeOf(metaArb.io.out.bits.data)),
+      numReadPorts = 0,
+      numWritePorts = 0,
+      numReadwritePorts = 1
+    )
 
     // data
     //    val data = Module(new DCacheDataArray)
     // no more DCacheDataArray module for better PD experience
     // Vec(nWays, req.bits.wdata)
-    val data: SRAMInterface[Vec[UInt]] = ???
+    val dataArrays = Seq.tabulate(rowBits / subWordBits) { i => SRAM.masked(
+      size = nSets * cacheBlockBytes / rowBytes,
+      tpe = Vec(nWays * (subWordBits / eccBits), UInt(encBits.W)),
+      numReadPorts = 0,
+      numWritePorts = 0,
+      numReadwritePorts = 1
+    )}
 
     /** Data Arbiter
       * 0: data from pending store buffer
@@ -267,11 +274,31 @@ class HellaCache(val parameter: HellaCacheParameter)
     val dataArb = Module(new Arbiter(new DCacheDataReq(untagBits, encBits, rowBytes, eccBytes, subWordBytes, wordBytes, nWays), 4) with InlineInstance)
 
     dataArb.io.in.tail.foreach(_.bits.wdata := dataArb.io.in.head.bits.wdata) // tie off write ports by default
-    // data.io.req.bits <> dataArb.io.out.bits
-    // data.io.req.valid := dataArb.io.out.valid
-    ???
     dataArb.io.out.ready := true.B
     metaArb.io.out.ready := clock_en_reg
+
+    val rdata = dataArrays.zipWithIndex.map { case (array, i) =>
+      // todo
+      def grouped(x: UInt, width: Int): Seq[UInt] =
+        (0 until x.getWidth by width).map(base => x(base + width - 1, base))
+      val valid = dataArb.io.out.valid && ((dataArrays.size == 1).B || dataArb.io.out.bits.wordMask(i))
+      val dataEccMask = if (eccBits == subWordBits) Seq(true.B) else dataArb.io.out.bits.eccMask.asBools
+      val wMask = if (nWays == 1) dataEccMask else (0 until nWays).flatMap(i => dataEccMask.map(_ && dataArb.io.out.bits.way_en(i)))
+      val wWords = grouped(dataArb.io.out.bits.wdata, encBits * (subWordBits / eccBits))
+      val addr = (dataArb.io.out.bits.addr >> rowOffBits).asUInt
+      val wData = VecInit(grouped(wWords(i), encBits))
+      val wMaskSlice: Seq[Bool] = (0 until wMask.size)
+        .filter(j => i % (wordBytes * 8 / subWordBits) == (j % (wordBytes / eccBytes)) / (subWordBytes / eccBytes))
+        .map(wMask(_))
+      array.readwritePorts.foreach {arrayPort =>
+        arrayPort.enable := valid
+        arrayPort.isWrite := dataArb.io.out.bits.write
+        arrayPort.address := addr
+        arrayPort.writeData := wData
+        arrayPort.mask.foreach(_ := VecInit(wMaskSlice))
+      }
+      VecInit(grouped(array.readwritePorts.head.readData, subWordBits / eccBits).map(_.asUInt))
+    }
 
     // val tl_out_a = Wire(chiselTypeOf(tl_out.a))
     // tl_out.a <> {
@@ -459,13 +486,15 @@ class HellaCache(val parameter: HellaCacheParameter)
       } else {
         val metaReq = metaArb.io.out
         val metaIdx = metaReq.bits.idx
-        when(metaReq.valid && metaReq.bits.write) {
-          val wmask = if (nWays == 1) Seq(true.B) else metaReq.bits.way_en.asBools
-//          tag_array.write(metaIdx, VecInit(Seq.fill(nWays)(metaReq.bits.data)), wmask)
-          tag_array.writePorts := ???
+        val wmask = if (nWays == 1) Seq(true.B) else metaReq.bits.way_en.asBools
+        tag_array.readwritePorts.foreach { tagPort =>
+          tagPort.enable := metaReq.valid
+          tagPort.isWrite := metaReq.bits.write
+          tagPort.address := metaIdx
+          tagPort.writeData := VecInit(Seq.fill(nWays)(metaReq.bits.data))
+          tagPort.mask.foreach(_ := VecInit(wmask))
         }
-//        val s1_meta = tag_array.read(metaIdx, metaReq.valid && !metaReq.bits.write)
-        val s1_meta: Seq[UInt] = ???
+        val s1_meta: Seq[UInt] = tag_array.readwritePorts.head.readData
         val s1_meta_uncorrected: Seq[L1Metadata] = s1_meta.map(tECC.decode(_).uncorrected.asTypeOf(new L1Metadata(tagBits)))
         val s1_tag: UInt = s1_paddr >> tagLSB
         val s1_meta_hit_way = VecInit(s1_meta_uncorrected.map(r => ClientMetadata.isValid(r.coh) && r.tag === s1_tag)).asUInt
@@ -479,7 +508,7 @@ class HellaCache(val parameter: HellaCacheParameter)
 //    val tl_d_data_encoded = Wire(chiselTypeOf(encodeData(tl_out.d.bits.data, false.B)))
     val tl_d_data_encoded = Wire(chiselTypeOf(encodeData(io.loadStoreAXI.r.bits.data, false.B)))
 //    val s1_all_data_ways = VecInit(data.io.resp ++ (!cacheParams.separateUncachedResp).option(tl_d_data_encoded))
-    val s1_all_data_ways: Vec[UInt] = ???
+    val s1_all_data_ways: Vec[UInt] = VecInit(rdata ++ Option.when(!cacheParams.separateUncachedResp)(tl_d_data_encoded))
     val s1_mask_xwr = new StoreGen(s1_req.size, s1_req.addr, 0.U, wordBytes).mask
     val s1_mask = Mux(s1_req.cmd === M_PWR, io.cpu.s1_data.mask, s1_mask_xwr)
     // for partial writes, s1_data.mask must be a subset of s1_mask_xwr

@@ -8,7 +8,7 @@ import chisel3.Module.clock
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.circt.ClockGate
-import chisel3.util.{Arbiter, Cat, Enum, Mux1H, OHToUInt, PopCount, PriorityEncoder, PriorityEncoderOH, RegEnable, SRAMInterface, UIntToOH, Valid, is, isPow2, log2Ceil, switch}
+import chisel3.util.{Arbiter, Cat, Enum, Mux1H, OHToUInt, PopCount, PriorityEncoder, PriorityEncoderOH, RegEnable, SRAM, SRAMInterface, UIntToOH, Valid, is, isPow2, log2Ceil, switch}
 
 case class PTWParameter() extends SerializableModuleParameter {
   val pmpCheckerParameter: PMPCheckerParameter = ???
@@ -444,13 +444,13 @@ class PTW(val parameter: PTWParameter)
 
         val l2_plru = new SetAssocLRU(nL2TLBSets, coreParams.nL2TLBWays, "plru")
 
-        // val ram = DescribedSRAM(
-        //   name = "l2_tlb_ram",
-        //   desc = "L2 TLB",
-        //   size = nL2TLBSets,
-        //   data = Vec(coreParams.nL2TLBWays, UInt(code.width(new L2TLBEntry(nL2TLBSets).getWidth).W))
-        // )
-        val ram: SRAMInterface[Vec[UInt]] = ???
+        val ram: SRAMInterface[Vec[UInt]] = SRAM.masked(
+          size = nL2TLBSets,
+          tpe = Vec(coreParams.nL2TLBWays, UInt(code.width(new L2TLBEntry(nL2TLBSets).getWidth).W)),
+          numReadPorts = 0,
+          numWritePorts = 0,
+          numReadwritePorts = 1
+        )
 
         val g = Reg(Vec(coreParams.nL2TLBWays, UInt(nL2TLBSets.W)))
         val valid = RegInit(VecInit(Seq.fill(coreParams.nL2TLBWays)(0.U(nL2TLBSets.W))))
@@ -465,32 +465,27 @@ class PTW(val parameter: PTWParameter)
         // replacement way
         r_l2_plru_way := (if (coreParams.nL2TLBWays > 1) l2_plru.way(r_idx) else 0.U)
         // refill with r_pte(leaf pte)
-        when(l2_refill && !invalidated) {
-          val entry = Wire(new L2TLBEntry(nL2TLBSets, ppnBits, maxSVAddrBits, pgIdxBits, usingHypervisor))
-          entry.ppn := r_pte.ppn
-          entry.d := r_pte.d
-          entry.a := r_pte.a
-          entry.u := r_pte.u
-          entry.x := r_pte.x
-          entry.w := r_pte.w
-          entry.r := r_pte.r
-          entry.tag := r_tag
-          // if all the way are valid, use plru to select one way to be replaced,
-          // otherwise use PriorityEncoderOH to select one
-          val wmask =
-            if (coreParams.nL2TLBWays > 1)
-              Mux(r_valid_vec_q.andR, UIntToOH(r_l2_plru_way, coreParams.nL2TLBWays), PriorityEncoderOH(~r_valid_vec_q))
-            else 1.U(1.W)
+        val entry = Wire(new L2TLBEntry(nL2TLBSets, ppnBits, maxSVAddrBits, pgIdxBits, usingHypervisor))
+        entry.ppn := r_pte.ppn
+        entry.d := r_pte.d
+        entry.a := r_pte.a
+        entry.u := r_pte.u
+        entry.x := r_pte.x
+        entry.w := r_pte.w
+        entry.r := r_pte.r
+        entry.tag := r_tag
+        // if all the way are valid, use plru to select one way to be replaced,
+        // otherwise use PriorityEncoderOH to select one
+        val wmask =
+          if (coreParams.nL2TLBWays > 1)
+            Mux(r_valid_vec_q.andR, UIntToOH(r_l2_plru_way, coreParams.nL2TLBWays), PriorityEncoderOH(~r_valid_vec_q))
+          else 1.U(1.W)
 
-//          ram.write(r_idx, VecInit(Seq.fill(coreParams.nL2TLBWays)(code.encode(entry.asUInt))), wmask.asBools)
-          ram.readPorts := ???
-
-          val mask = UIntToOH(r_idx)
-          for (way <- 0 until coreParams.nL2TLBWays) {
-            when(wmask(way)) {
-              valid(way) := valid(way) | mask
-              g(way) := Mux(r_pte.g, g(way) | mask, g(way) & ~mask)
-            }
+        val mask = UIntToOH(r_idx)
+        for (way <- 0 until coreParams.nL2TLBWays) {
+          when(wmask(way)) {
+            valid(way) := valid(way) | mask
+            g(way) := Mux(r_pte.g, g(way) | mask, g(way) & ~mask)
           }
         }
         // sfence happens
@@ -511,13 +506,20 @@ class PTW(val parameter: PTWParameter)
         val s1_valid = RegNext(s0_valid && s0_suitable && arb.io.out.bits.valid)
         val s2_valid = RegNext(s1_valid)
         // read from tlb idx
-//        val s1_rdata = ram.read(arb.io.out.bits.bits.addr(idxBits - 1, 0), s0_valid)
         val s1_rdata = ram.readwritePorts.head.readData
         val s2_rdata = s1_rdata.map(s1_rdway => code.decode(RegEnable(s1_rdway, s1_valid)))
         val s2_valid_vec = RegEnable(r_valid_vec, s1_valid)
         val s2_g_vec = RegEnable(VecInit(g.map(_(r_idx))), s1_valid)
         val s2_error = VecInit((0 until coreParams.nL2TLBWays).map(way => s2_valid_vec(way) && s2_rdata(way).error)).asUInt.orR
         when(s2_valid && s2_error) { valid.foreach { _ := 0.U } }
+        // ram connect
+        ram.readwritePorts.foreach { ramPort =>
+          ramPort.enable := (l2_refill && !invalidated) || s0_valid
+          ramPort.isWrite := (l2_refill && !invalidated)
+          ramPort.address := Mux(l2_refill && !invalidated, r_idx, arb.io.out.bits.bits.addr(idxBits - 1, 0))
+          ramPort.writeData := VecInit(Seq.fill(coreParams.nL2TLBWays)(code.encode(entry.asUInt)))
+          ramPort.mask.foreach(_ := VecInit(wmask.asBools))
+        }
         // decode
         val s2_entry_vec = s2_rdata.map(_.uncorrected.asTypeOf(new L2TLBEntry(nL2TLBSets, ppnBits, maxSVAddrBits, pgIdxBits, usingHypervisor)))
         val s2_hit_vec =

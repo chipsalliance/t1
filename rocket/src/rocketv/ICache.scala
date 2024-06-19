@@ -336,16 +336,17 @@ class ICache(val parameter: ICacheParameter)
   /**  Tag SRAM, indexed with virtual memory,
     *   content with `refillError ## tag[19:0]` after ECC
     */
-//  val tag_array = DescribedSRAM(
-//    name = "tag_array",
-//    desc = "ICache Tag Array",
-//    size = nSets,
-//    data = Vec(nWays, UInt(tECC.width(1 + tagBits).W))
-//  )
-  val tag_array: SRAMInterface[Vec[UInt]] = ???
+  val tag_array: SRAMInterface[Vec[UInt]] = SRAM.masked(
+    size = parameter.nSets,
+    tpe = Vec(nWays, UInt(tECC.width(1 + tagBits).W)),
+    numReadPorts = 0,
+    numWritePorts = 0,
+    numReadwritePorts = 1
+  )
 
   //  val tag_rdata = tag_array.read(s0_vaddr(untagBits - 1, blockOffBits), !refill_done && s0_valid)
-  val tag_rdata: Vec[UInt] = ???
+  // todo: read req
+  val tag_rdata: Vec[UInt] = tag_array.readwritePorts.head.readData
 
   /** register indicates the ongoing GetAckData transaction is corrupted. */
   val accruedRefillError = Reg(Bool())
@@ -353,16 +354,15 @@ class ICache(val parameter: ICacheParameter)
   /** wire indicates the ongoing GetAckData transaction is corrupted. */
   //  todo: tl_out.d.bits.corrupt -> false.B
   val refillError: Bool = false.B || (refill_cnt > 0.U && accruedRefillError)
-  when(refill_done) {
-    // For AccessAckData, denied => corrupt
-    /** data written to [[tag_array]].
-      *  ECC encoded `refillError ## refill_tag`
-      */
-    val enc_tag = tECC.encode(Cat(refillError, refill_tag))
-   //    tag_array.write(refill_idx, VecInit(Seq.fill(nWays) { enc_tag }), Seq.tabulate(nWays)(repl_way === _.U))
-    tag_array.writePorts := ???
-//    ccover(refillError, "D_CORRUPT", "I$ D-channel corrupt")
+  val enc_tag = tECC.encode(Cat(refillError, refill_tag))
+  tag_array.readwritePorts.foreach {ramPort =>
+    ramPort.enable := s0_valid || refill_done
+    ramPort.isWrite := refill_done
+    ramPort.address := Mux(refill_done, refill_idx, s0_vaddr(untagBits - 1, blockOffBits))
+    ramPort.writeData := VecInit(Seq.fill(nWays) { enc_tag })
+    ramPort.mask.foreach(_  := VecInit(Seq.tabulate(nWays)(repl_way === _.U)))
   }
+  //    ccover(refillError, "D_CORRUPT", "I$ D-channel corrupt")
   // notify CPU, I$ has corrupt.
   // flase.B ->  (tl_out.d.bits.denied || tl_out.d.bits.corrupt)
   io.errors.bus.valid := io.instructionFetchAXI.r.fire && false.B
@@ -491,20 +491,20 @@ class ICache(val parameter: ICacheParameter)
     *    It takes 8 beats to refill 16 instruction in each refilling cycle.
     *    Data_array receives data[63:0](2 instructions) at once,they will be allocated in deferent bank according to vaddr[2]
     */
-//  val data_arrays = Seq.tabulate(tl_out.d.bits.data.getWidth / wordBits) { i =>
-//    DescribedSRAM(
-//      name = s"data_arrays_${i}",
-//      desc = "ICache Data Array",
-//      size = nSets * refillCycles,
-//      data = Vec(nWays, UInt(dECC.width(wordBits).W))
-//    )
-//  }
-  val data_arrays: Seq[SRAMInterface[Vec[UInt]]] = ???
+  val data_arrays: Seq[SRAMInterface[Vec[UInt]]] = Seq.tabulate(io.instructionFetchAXI.r.bits.data.getWidth / wordBits) { i =>
+    SRAM.masked(
+      size = nSets * refillCycles,
+      tpe = Vec(nWays, UInt(dECC.width(wordBits).W)),
+      numReadPorts = 0,
+      numWritePorts = 0,
+      numReadwritePorts = 1
+    )
+  }
 
   for ((data_array, i) <- data_arrays.zipWithIndex) {
 
     /** bank match (vaddr[2]) */
-    def wordMatch(addr: UInt): Bool = addr.extract(log2Ceil(io.instructionFetchAXI.r.bits.data.getWidth / 8) - 1, log2Ceil(wordBits / 8)) === i.U
+    def wordMatch(addr: UInt): Bool = addr(log2Ceil(io.instructionFetchAXI.r.bits.data.getWidth / 8) - 1, log2Ceil(wordBits / 8)) === i.U
     // TODO: if we have last? do we need refillCycles?
     def row(addr: UInt) = addr(untagBits - 1, blockOffBits - log2Ceil(refillCycles))
 
@@ -535,18 +535,20 @@ class ICache(val parameter: ICacheParameter)
           )
         )
       )
-    when(wen) {
-      //wr_data
-      val data: UInt = Mux(s3_slaveValid, s1s3_slaveData, io.instructionFetchAXI.r.bits.data(wordBits * (i + 1) - 1, wordBits * i))
-      //the way to be replaced/written
-      val way = Mux(s3_slaveValid, scratchpadWay(s1s3_slaveAddr), repl_way)
-//      data_array.write(mem_idx, VecInit(Seq.fill(nWays) { dECC.encode(data) }), (0 until nWays).map(way === _.U))
-      data_array.writePorts := ???
+    val data: UInt = Mux(s3_slaveValid, s1s3_slaveData, io.instructionFetchAXI.r.bits.data(wordBits * (i + 1) - 1, wordBits * i))
+    //the way to be replaced/written
+    val way = Mux(s3_slaveValid, scratchpadWay(s1s3_slaveAddr), repl_way)
+    data_array.readwritePorts.foreach { dataPort =>
+      dataPort.enable := wen || s0_ren
+      dataPort.isWrite := wen
+      dataPort.address := mem_idx
+      dataPort.writeData := VecInit(Seq.fill(nWays) { dECC.encode(data) })
+      dataPort.mask.foreach(_ := VecInit((0 until nWays).map(way === _.U)))
     }
+
     // write access
     /** data read from [[data_array]]. */
-//    val dout = data_array.read(mem_idx, !wen && s0_ren)
-    val dout: Vec[UInt] = ???
+    val dout: Vec[UInt] = data_array.readwritePorts.head.readData
     // Mux to select a way to [[s1_dout]]
     when(wordMatch(Mux(s1_slaveValid, s1s3_slaveAddr, io.s1_paddr))) {
       s1_dout := dout
