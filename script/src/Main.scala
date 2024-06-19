@@ -598,73 +598,54 @@ object Main:
         doc = "specify the cycle update markdown file output path"
       ) cycleUpdateFilePath: String
   ) =
-    case class CaseStatus(
-        caseName: String,
-        isFailed: Boolean,
-        oldCycle: Int,
-        newCycle: Int
-    )
+    os.walk(os.pwd / ".github" / "cases")
+      .filter(_.last == "default.json")
+      .foreach: file =>
+        val config = file.segments.toSeq.reverse.apply(1)
+        var cycleRecord = ujson.read(os.read(file))
 
-    def collectCaseStatus(
-        config: String,
-        caseName: String,
-        cycle: Int
-    ): CaseStatus =
-      val emuResultPath = os.Path(nixResolvePath(s".#t1.$config.cases.$caseName.emu-result"))
-      val testFail = os.read(emuResultPath / "emu-success") == "0"
+        Logger.info("Fetching CI results")
+        val emuResultPath =
+          os.Path(nixResolvePath(s".#t1.$config.cases._allEmuResult"))
 
-      val perfCycleRegex = raw"total_cycles:\s(\d+)".r
-      val newCycle = os.read
-        .lines(emuResultPath / "perf.txt")
-        .apply(0) match
-        case perfCycleRegex(cycle) => cycle.toInt
-        case _ =>
-          throw new Exception("perf.txt file is not format as expected")
-      CaseStatus(
-        caseName = caseName,
-        isFailed = testFail,
-        oldCycle = cycle,
-        newCycle = newCycle
-      )
-    end collectCaseStatus
+        Logger.info("Collecting failed cases")
+        val failedCases = os
+          .walk(emuResultPath)
+          .filter(path => path.last == "emu-success")
+          .filter(path => os.read(path) == "0")
+          .map(path => path.segments.toSeq.reverse.drop(1).head)
+          .map(caseName => s"* `.#t1.${config}.cases.${caseName}`")
+        val failedTestsRecordFile = os.Path(failedTestsFilePath, os.pwd)
+        os.write.over(failedTestsRecordFile, "## Failed tests\n")
+        os.write.append(failedTestsRecordFile, failedCases)
 
-    val allCycleRecords =
-      os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
-    allCycleRecords.foreach: file =>
-      val config = file.segments.toSeq.reverse.apply(1)
-      var cycleRecord = ujson.read(os.read(file))
-
-      nixResolvePath(s".#t1.$config.cases._allEmuResult")
-
-      val allCaseStatus = cycleRecord.obj.map(rec =>
-        rec match {
-          case (caseName, cycle) =>
-            collectCaseStatus(config, caseName, cycle.num.toInt)
-        }
-      )
-
-      val failedCases = allCaseStatus
-        .filter(c => c.isFailed)
-        .map(c => s"* `.#t1.${config}.cases.${c.caseName}`")
-      val failedTestsRecordFile = os.Path(failedTestsFilePath, os.pwd)
-      os.write.over(failedTestsRecordFile, "## Failed tests\n")
-      os.write.append(failedTestsRecordFile, failedCases)
-
-      val cycleUpdateRecordFile = os.Path(cycleUpdateFilePath, os.pwd)
-      os.write.over(cycleUpdateRecordFile, "## Cycle Update\n")
-      val allCycleUpdates = allCaseStatus
-        .filter(c => c.oldCycle != c.newCycle)
-        .map: caseStatus =>
-          caseStatus match
-            case CaseStatus(caseName, _, oldCycle, newCycle) =>
+        Logger.info("Collecting cycle update info")
+        val cycleUpdateRecordFile = os.Path(cycleUpdateFilePath, os.pwd)
+        os.write.over(cycleUpdateRecordFile, "## Cycle Update\n")
+        val perfCycleRegex = raw"total_cycles:\s(\d+)".r
+        val allCycleUpdates = os
+          .walk(emuResultPath)
+          .filter(path => path.last == "perf.txt")
+          .map(path => {
+            val cycle = os.read.lines(path).head match
+              case perfCycleRegex(cycle) => cycle.toInt
+              case _ =>
+                throw new Exception("perf.txt file is not format as expected")
+            val caseName = path.segments.toSeq.reverse.drop(1).head
+            (caseName, cycle, cycleRecord.obj(caseName).num.toInt)
+          })
+          .filter((_, newCycle, oldCycle) => newCycle != oldCycle)
+          .map:
+            case (caseName, newCycle, oldCycle) =>
               cycleRecord(caseName) = newCycle
               if oldCycle == -1 then s"* 🆕 ${caseName}: NaN -> ${newCycle}"
               else if oldCycle > newCycle then
                 s"* 🚀 $caseName: $oldCycle -> $newCycle"
               else s"* 🐢 $caseName: $oldCycle -> $newCycle"
-      os.write.append(cycleUpdateRecordFile, allCycleUpdates.mkString("\n"))
 
-      os.write.over(file, ujson.write(cycleRecord, indent = 2))
+        os.write.append(cycleUpdateRecordFile, allCycleUpdates.mkString("\n"))
+
+        os.write.over(file, ujson.write(cycleRecord, indent = 2))
   end postCI
 
   @main
@@ -745,21 +726,21 @@ object Main:
 
   @main
   def difftest(
-    @arg(
-      name = "config",
-      short = 'c',
-      doc = "specify the elaborate config for running test case"
-    ) config: String,
-    @arg(
-      name = "case-attr",
-      short = 'C',
-      doc = "Specify test case attribute to run diff test"
-    ) caseAttr: String,
-    @arg(
-      name = "log-level",
-      short = 'L',
-      doc = "Specify log level to run diff test"
-    ) logLevel: String = "ERROR"
+      @arg(
+        name = "config",
+        short = 'c',
+        doc = "specify the elaborate config for running test case"
+      ) config: String,
+      @arg(
+        name = "case-attr",
+        short = 'C',
+        doc = "Specify test case attribute to run diff test"
+      ) caseAttr: String,
+      @arg(
+        name = "log-level",
+        short = 'L',
+        doc = "Specify log level to run diff test"
+      ) logLevel: String = "ERROR"
   ): Unit =
     val difftest = nixResolvePath(".#t1-simulator")
 
@@ -778,15 +759,19 @@ object Main:
     val eventLog = nixResolvePath(s"${fullCaseAttr}.emu-result")
 
     Logger.trace("Running zstd to get event log")
-    os.proc(Seq(
-      "zstd",
-      "--decompress",
-      "-f",
-      s"${eventLog}/rtl-event.log.zstd",
-      "-o",
-      s"${config}-${caseAttr}.event.log"
-    )).call(stdout = os.Inherit, stderr = os.Inherit)
-    Logger.info(s"Starting t1-simulator with DLEN ${dLen}, VLEN ${vLen} for ${fullCaseAttr}")
+    os.proc(
+      Seq(
+        "zstd",
+        "--decompress",
+        "-f",
+        s"${eventLog}/rtl-event.log.zstd",
+        "-o",
+        s"${config}-${caseAttr}.event.log"
+      )
+    ).call(stdout = os.Inherit, stderr = os.Inherit)
+    Logger.info(
+      s"Starting t1-simulator with DLEN ${dLen}, VLEN ${vLen} for ${fullCaseAttr}"
+    )
     os.proc(
       Seq(
         s"${difftest}/bin/t1-simulator",

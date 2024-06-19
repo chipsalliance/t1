@@ -9,7 +9,7 @@
 # makeEmuResult arg
 testCase:
 
-runCommand "get-emu-result" { nativeBuildInputs = [ zstd ]; } ''
+runCommand "get-${testCase.pname}-emu-result" { nativeBuildInputs = [ zstd ]; } ''
   echo "[NIX] Running test case ${testCase.pname}"
 
   mkdir -p "$out"
