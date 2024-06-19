@@ -1,10 +1,10 @@
 {
-  "mlir.rvv_vp_intrinsic_add": 410,
-  "mlir.rvv_vp_intrinsic_add_scalable": 596,
+  "mlir.rvv_vp_intrinsic_add": 411,
+  "mlir.rvv_vp_intrinsic_add_scalable": 597,
   "mlir.hello": 95,
   "mlir.stripmining": 14447,
   "asm.mmm": 91473,
-  "asm.smoke": 5374,
+  "asm.smoke": 5244,
   "intrinsic.conv2d_less_m2": 2209,
   "codegen.vaadd_vv": 114527,
   "codegen.vaadd_vx": 297285,
@@ -441,7 +441,7 @@
   "rvv_bench.chacha20": 0,
   "rvv_bench.memcpy": 1822850,
   "rvv_bench.memset": 287111,
-  "rvv_bench.mergelines": 3128950,
+  "rvv_bench.mergelines": 3127165,
   "rvv_bench.poly1305": 0,
   "rvv_bench.strlen": 711138,
   "rvv_bench.utf8_count": 5726147
