@@ -11,6 +11,7 @@ import chisel3.experimental.hierarchy.{Instance, Instantiate}
 case class RocketTileParameter(frontendParameter: FrontendParameter) extends SerializableModuleParameter {
   val rocketParameter: RocketParameter = ???
   val hellaCacheParameter: HellaCacheParameter = ???
+  val ptwParameter: PTWParameter = ???
   val fpuParameter: FPUParameter = ???
 }
 
@@ -33,5 +34,6 @@ class RocketTile(val parameter: RocketTileParameter)
   val rocket: Instance[Rocket] = Instantiate(new Rocket(parameter.rocketParameter))
   val frontend: Instance[Frontend] = Instantiate(new Frontend(parameter.frontendParameter))
   val hellaCache: Instance[HellaCache] = Instantiate(new HellaCache(parameter.hellaCacheParameter))
+  val ptw: Instance[PTW] = Instantiate(new PTW(parameter.ptwParameter))
   val fpu: Instance[FPU] = Instantiate(new FPU(parameter.fpuParameter))
 }

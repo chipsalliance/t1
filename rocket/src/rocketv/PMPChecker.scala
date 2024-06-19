@@ -5,6 +5,7 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.log2Ceil
 
@@ -25,6 +26,7 @@ class PMPCheckerInterface(parameter: PMPCheckerParameter) extends Bundle {
   val x = Output(Bool())
 }
 
+@instantiable
 class PMPChecker(val parameter: PMPCheckerParameter)
     extends FixedIORawModule(new PMPCheckerInterface(parameter))
     with SerializableModule[PMPCheckerParameter] {

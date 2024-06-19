@@ -22,6 +22,7 @@ case class HellaCacheParameter() extends SerializableModuleParameter {
   val usingVM:              Boolean = ???
   val untagBits:            Int = ???
   val pgIdxBits:            Int = ???
+  val pgLevelBits:            Int = ???
   val dcacheReqTagBits:     Int = ???
   val dcacheArbPorts:       Int = ???
   val coreDataBytes:        Int = ???
@@ -59,10 +60,12 @@ case class HellaCacheParameter() extends SerializableModuleParameter {
   val rowBytes: Int
   val subWordBytes: Int
   val rowOffBits: Int
+  val beatOffBits: Int
   val wordBytes: Int
   val usingAtomicsInCache: Boolean
   val nWays: Int
   val nSets: Int
+  val cacheBlockBytes: Int
   val maxUncachedInFlight: Int
   val tagBits: Int
   val idxBits: Int
@@ -119,7 +122,6 @@ class HellaCache(val parameter: HellaCacheParameter)
   val pmaChecker: Instance[PMAChecker] = Instantiate(new PMAChecker(parameter.pmaCheckerParameter))
   val arbiter:    Instance[HellaCacheArbiter] = Instantiate(new HellaCacheArbiter(parameter.arbiterParameter))
   val amoalu:     Instance[AMOALU] = Instantiate(new AMOALU(parameter.amoaluParameter))
-  val ptw = Module(new PTW(outer.nPTWPorts)(outer.dcache.node.edges.out(0), outer.p))
 
   // compatibility layers
   object cacheParams {
@@ -140,7 +142,7 @@ class HellaCache(val parameter: HellaCacheParameter)
   def idxLSB = parameter.idxLSB
   def subWordBits = parameter.subWordBits
   def eccBits = parameter.eccBits
-  def eccBytes = parameter.eccBits
+  def eccBytes = parameter.eccBytes
   def coreMaxAddrBits = parameter.coreMaxAddrBits
   def usingVM = parameter.usingVM
   def pgIdxBits = parameter.pgIdxBits
