@@ -39,9 +39,9 @@ src.branch = "mill"
 fetch.github = "chipsalliance/rocket-chip-inclusive-cache"
 
 [chisel]
-src.git = "https://github.com/chipsalliance/chisel"
-src.branch = "main"
-fetch.github = "chipsalliance/chisel"
+src.git = "https://github.com/uenoku/chisel"
+src.branch = "dev/hidetou/dpi"
+fetch.github = "uenoku/chisel"
 
 [rvdecoderdb]
 src.git = "https://github.com/sequencer/rvdecoderdb"

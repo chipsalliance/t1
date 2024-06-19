@@ -39,27 +39,27 @@
   };
   chisel = {
     pname = "chisel";
-    version = "0baa8fdf9b3688236d81797f5105bed45e06bdb5";
+    version = "7ce8e5bd99fb2dfe93d5192040a39152ad73c1e6";
     src = fetchFromGitHub {
-      owner = "chipsalliance";
+      owner = "uenoku";
       repo = "chisel";
-      rev = "0baa8fdf9b3688236d81797f5105bed45e06bdb5";
+      rev = "7ce8e5bd99fb2dfe93d5192040a39152ad73c1e6";
       fetchSubmodules = false;
-      sha256 = "sha256-EQnlT4aB5XPa+fDTosVEHMjC/MhcC3I7cnfv0Ixzcx8=";
+      sha256 = "sha256-CAgdLwPFBg24/tpVjCC04+fLquXUSk8gsqOitYGlvs4=";
     };
-    date = "2024-06-20";
+    date = "2024-06-12";
   };
   chisel-interface = {
     pname = "chisel-interface";
-    version = "63cce4387bff24e6a56c6c966268e65cf1c08926";
+    version = "79703e44fb6010a535e6750249f6be0471fa0046";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel-interface";
-      rev = "63cce4387bff24e6a56c6c966268e65cf1c08926";
+      rev = "79703e44fb6010a535e6750249f6be0471fa0046";
       fetchSubmodules = false;
-      sha256 = "sha256-VeHtRI0GnIvW4NmPwa5XCi0jdzCLUBjHb2WbNiJeVmA=";
+      sha256 = "sha256-1VTN2OfsauJvf+JM/j0uhvixD0+aCnyGOoO74YrCFPA=";
     };
-    date = "2024-06-11";
+    date = "2024-06-17";
   };
   diplomacy = {
     pname = "diplomacy";
