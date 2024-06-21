@@ -73,11 +73,11 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "chisel",
-            "rev": "0baa8fdf9b3688236d81797f5105bed45e06bdb5",
-            "sha256": "sha256-EQnlT4aB5XPa+fDTosVEHMjC/MhcC3I7cnfv0Ixzcx8=",
+            "rev": "00c7a6288386b237be45fe471e67d9b9cc3192a4",
+            "sha256": "sha256-GNIauw0GB0rZvxaTQ3w7LobM9CbWoXQV+/KAA2NzsT8=",
             "type": "github"
         },
-        "version": "0baa8fdf9b3688236d81797f5105bed45e06bdb5"
+        "version": "00c7a6288386b237be45fe471e67d9b9cc3192a4"
     },
     "diplomacy": {
         "cargoLocks": null,
