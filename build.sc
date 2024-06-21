@@ -283,8 +283,7 @@ trait Elaborator
 
   def generators = Seq(
     t1,
-    ipemu,
-    subsystem,
+    ipemu
   )
 
   def mainargsIvy = v.mainargs
@@ -347,7 +346,7 @@ trait OMReader
   * */
 object t1package extends ScalaModule {
   def scalaVersion = T(v.scala)
-  def moduleDeps = super.moduleDeps ++ Seq(t1, ipemu, subsystem, panamaconverter, omreaderlib)
+  def moduleDeps = super.moduleDeps ++ Seq(t1, ipemu, panamaconverter, omreaderlib)
   override def sourceJar: T[PathRef] = T(Jvm.createJar(T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))().flatten.flatten.map(_.path).filter(os.exists), manifest()))
   def chiselPluginJar = T {
     val jar = T.dest / "out.jar"
