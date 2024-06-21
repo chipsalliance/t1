@@ -9,7 +9,7 @@ import chisel3.experimental.dataview.DataViewable
 import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawClockedVoidFunctionCall, RawUnlockedNonVoidFunctionCall}
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.ipemu.dpi._
-import org.chipsalliance.t1.rtl.{CSRInterface, T1, T1Parameter, VRequest}
+import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
 class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends RawModule {
   val clockGen = Module(new ClockGen)
@@ -26,12 +26,12 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
   withClockAndReset(clock, reset) {
     // TODO: this initial way cannot happen before reset...
     val initFlag = RegInit(true.B)
-    val callInit: Bool = RawUnlockedNonVoidFunctionCall("cosim_init", Bool())(initFlag)
+    val callInit = RawUnlockedNonVoidFunctionCall("cosim_init", Bool())(initFlag).asInstanceOf[Bool]
     when(callInit) {
       initFlag := false.B
       printf(cf"""{"event":"simulationStart","parameter":{"cycle": ${simulationTime}}}\n""")
     }
-    val watchdog: UInt = RawUnlockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime.tail(10) === 0.U)
+    val watchdog = RawUnlockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime.tail(10) === 0.U).asInstanceOf[UInt]
     when(watchdog =/= 0.U) {
       stop(cf"""{"event":"simulationStop","parameter":{"reason": ${watchdog},"cycle": ${simulationTime}}}\n""")
     }
@@ -39,46 +39,74 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
 
   // Instruction Drivers
   withClockAndReset(clock, reset) {
-    // Instantiate a counter to avoid sending instruction for each cycle.
-    // by recording a scoreboard in the TB
-    val outstandingInstructions: UInt = RegInit(0.U)
-    outstandingInstructions := outstandingInstructions + dut.request.fire.asUInt - dut.response.fire.asUInt
-
+    // uint32_t -> svBitVecVal -> reference type with 7 length.
     class Issue extends Bundle {
-      val request = new VRequest(32)
-      val csr = new CSRInterface(dut.parameter.laneParam.vlMaxBits)
+      val instruction: UInt = UInt(32.W)
+      val src1Data: UInt = UInt(32.W)
+      val src2Data: UInt = UInt(32.W)
+      // mstatus, vstatus?
+      val vtype: UInt = UInt(32.W)
+      val vl: UInt = UInt(32.W)
+      // vlenb
+      val vstart: UInt = UInt(32.W)
+      // vxrm, vxsat are merged to vcsr
+      val vcsr: UInt = UInt(32.W)
     }
+    class Retire extends Bundle {
+      val rd: UInt = UInt(32.W)
+      val data: UInt = UInt(32.W)
+      val writeRd: UInt = UInt(32.W)
+      val vxsat: UInt = UInt(32.W)
+    }
+    // TODO: don't issue for each cycle.
+    //       maintain a queue, issue at queue size < chainingSize, sending an issue package to it.
     val issue: Issue = RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
-      clock, outstandingInstructions <= dut.parameter.chainingSize.U,
-    )
-    // always valid to speed up simulation.
-    dut.request.bits := issue.request
-    dut.csrInterface := issue.csr
+      clock, dut.request.ready,
+    ).asInstanceOf[Issue]
+    dut.request.bits.instruction := issue.instruction
+    dut.request.bits.src1Data := issue.src1Data
+    dut.request.bits.src2Data := issue.src2Data
+    dut.csrInterface.vlmul := issue.vtype(2, 0)
+    dut.csrInterface.vSew := issue.vtype(5, 3)
+    dut.csrInterface.vta := issue.vtype(6)
+    dut.csrInterface.vma := issue.vtype(7)
+    dut.csrInterface.vl := issue.vl
+    dut.csrInterface.vStart := issue.vstart
+    dut.csrInterface.vxrm := issue.vcsr(2, 1)
+
+    dut.csrInterface.ignoreException := 0.U
     dut.storeBufferClear := true.B
+    // always valid to speed up simulation.
     dut.request.valid := true.B
-    RawClockedVoidFunctionCall("retire_vector_instruction")(clock, dut.response.valid, dut.response.bits)
+    val retire = Wire(new Retire)
+    retire.rd := dut.response.bits.rd.bits
+    retire.data := dut.response.bits.data
+    retire.writeRd := dut.response.bits.rd.valid
+    retire.vxsat := dut.response.bits.vxsat
+    RawClockedVoidFunctionCall("retire_vector_instruction")(clock, dut.response.valid, retire)
   }
 
   // Memory Drivers
   Seq(
     dut.highBandwidthLoadStorePort,
     dut.indexedLoadStorePort
-  ).map(_.viewAs[AXI4RWIrrevocableVerilog]).zip(
+  ).map(_.viewAs[AXI4RWIrrevocableVerilog]).lazyZip(
     Seq("highBandwidthPort", "indexedAccessPort")
-  ).foreach {
-    case (bundle: AXI4RWIrrevocableVerilog, channelName: String) =>
+  ).zipWithIndex.foreach {
+    case ((bundle: AXI4RWIrrevocableVerilog, channelName: String), index: Int) =>
       val agent = Module(new AXI4SlaveAgent(
         AXI4SlaveAgentParameter(
           name= channelName,
           axiParameter = bundle.parameter,
           outstanding = 4
         )
-      ))
+      )).suggestName(s"axi4_channel${index}_${channelName}")
       agent.io.channel match {
         case io: AXI4RWIrrevocableVerilog => io :<>= bundle
       }
       agent.io.clock := clock
       agent.io.reset := reset
+      agent.io.channelId := index.U
   }
 
   // Events for difftest and performance modeling

@@ -12,33 +12,24 @@ import org.chipsalliance.amba.axi4.bundle.{ARChannel, ARFlowControl, AWChannel, 
 case class AXI4SlaveAgentParameter(name: String, axiParameter: AXI4BundleParameter, outstanding: Int)
 
 class AXI4SlaveAgentInterface(parameter: AXI4SlaveAgentParameter) extends Bundle {
-  val clock: Clock = Input(Clock())
-  val reset: Reset = Input(Reset())
+  val clock:     Clock = Input(Clock())
+  val reset:     Reset = Input(Reset())
+  val channelId: UInt =  Input(Const(UInt(64.W)))
   val channel = Flipped(
     org.chipsalliance.amba.axi4.bundle.verilog.irrevocable(parameter.axiParameter)
   )
 }
 
-class AXIControl extends Bundle {
-  val id:     UInt = UInt(16.W)
-  val addr:   UInt = UInt(64.W)
-  val len:    UInt = UInt(8.W)
-  val size:   UInt = UInt(3.W)
-  val burst:  UInt = UInt(2.W)
-  val lock:   Bool = Bool()
-  val cache:  UInt = UInt(4.W)
-  val prot:   UInt = UInt(3.W)
-  val qos:    UInt = UInt(4.W)
-  val region: UInt = UInt(4.W)
-}
-
 class WritePayload(dataWidth: Int) extends Bundle {
-  val control = new AXIControl
   val data = Vec(256, UInt(dataWidth.W))
   val strb = Vec(256, UInt((dataWidth / 8).W))
 }
 
 class ReadPayload(dataWidth: Int) extends Bundle {
+  require(
+    Seq(8, 16, 32, 64, 128, 256, 512, 1024).contains(dataWidth),
+    "A1.2.1: The data bus, which can be 8, 16, 32, 64, 128, 256, 512, or 1024 bits wide. A read response signal indicating the completion status of the read transaction."
+  )
   val data = Vec(256, UInt(dataWidth.W))
   val beats = UInt(8.W)
 }
@@ -46,6 +37,7 @@ class ReadPayload(dataWidth: Int) extends Bundle {
 // consume transaction from DPI, drive RTL signal
 class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
     extends FixedIORawModule[AXI4SlaveAgentInterface](new AXI4SlaveAgentInterface(parameter)) {
+  dontTouch(io)
   io.channel match {
     case channel: AXI4RWIrrevocableVerilog =>
       new WriteManager(channel)
@@ -61,29 +53,36 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
     withClockAndReset(io.clock, io.reset) {
       val valid = RegInit(0.U.asTypeOf(Bool()))
       val writePayload = RegInit(0.U.asTypeOf(new WritePayload(parameter.axiParameter.dataWidth)))
+      val writeId = RegInit(0.U(16.W))
       val writeIdx = RegInit(0.U.asTypeOf(UInt(8.W)))
       val last = RegInit(0.U.asTypeOf(Bool()))
       channel.AWREADY := !valid
       channel.WREADY := true.B
       channel.BVALID := last
-      channel.BID := writePayload.control.id
+      channel.BID := writeId
       channel.BRESP := 0.U(2.W) // OK
       channel.BUSER := DontCare
 
-      RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(io.clock, last, WireDefault(writePayload))
+      RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(
+        io.clock,
+        last,
+        io.channelId,
+        channel.AWID.asTypeOf(UInt(64.W)),
+        channel.AWADDR.asTypeOf(UInt(64.W)),
+        channel.AWLEN.asTypeOf(UInt(64.W)),
+        channel.AWSIZE.asTypeOf(UInt(64.W)),
+        channel.AWBURST.asTypeOf(UInt(64.W)),
+        channel.AWLOCK.asTypeOf(UInt(64.W)),
+        channel.AWCACHE.asTypeOf(UInt(64.W)),
+        channel.AWPROT.asTypeOf(UInt(64.W)),
+        channel.AWQOS.asTypeOf(UInt(64.W)),
+        channel.AWREGION.asTypeOf(UInt(64.W)),
+        WireDefault(writePayload)
+      )
 
       when(channel.AWREADY && channel.AWVALID) {
-        writePayload.control.id := channel.AWID
-        writePayload.control.addr := channel.AWADDR
-        writePayload.control.len := channel.AWLEN
-        writePayload.control.size := channel.AWSIZE
-        writePayload.control.burst := channel.AWBURST
-        writePayload.control.lock := channel.AWLOCK
-        writePayload.control.cache := channel.AWCACHE
-        writePayload.control.prot := channel.AWPROT
-        writePayload.control.qos := channel.AWQOS
-        writePayload.control.region := channel.AWREGION
         assert(valid === false.B)
+        writeId := channel.AWID
         valid := true.B
         writeIdx := 0.U
       }
@@ -107,8 +106,8 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       // CAM to maintain order and valid. This is maintained as FIFO: ffo for allocate, flo for free
       // idx -> AxID
       val cam = RegInit(0.U.asTypeOf(Vec(parameter.outstanding, Valid(UInt(16.W)))))
-      def flo(input: UInt): UInt = Reverse(ffo(input))
-      def ffo(input: UInt): UInt = ((~(scanLeftOr(input) << 1)).asUInt & input)(input.getWidth - 1, 0)
+      def flo(input:      UInt): UInt = Reverse(ffo(input))
+      def ffo(input:      UInt): UInt = ((~(scanLeftOr(input) << 1)).asUInt & input)(input.getWidth - 1, 0)
       def firstEmpty(cam: Vec[Valid[UInt]]): UInt = OHToUInt(
         ffo(VecInit(cam.map(!_.valid)).asUInt)
       )
@@ -121,25 +120,25 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       // index to read payload for each outstandings
       val readIndex = RegInit(0.U.asTypeOf(Vec(parameter.outstanding, UInt(8.W))))
       val currentReadIndexes = readIndex(currentIdx)
-      val readPayloads = RegInit(0.U.asTypeOf(Vec(parameter.outstanding, new ReadPayload(parameter.axiParameter.dataWidth))))
+      val readPayloads =
+        RegInit(0.U.asTypeOf(Vec(parameter.outstanding, new ReadPayload(parameter.axiParameter.dataWidth))))
       val currentReadPayload = readPayloads(currentIdx)
 
-      val readControl = Wire(new AXIControl)
-      readControl.id := channel.ARID
-      readControl.addr := channel.ARADDR
-      readControl.len := channel.ARLEN
-      readControl.size := channel.ARSIZE
-      readControl.burst := channel.ARBURST
-      readControl.lock := channel.ARLOCK
-      readControl.cache := channel.ARCACHE
-      readControl.prot := channel.ARPROT
-      readControl.qos := channel.ARQOS
-      readControl.region := channel.ARREGION
-      val readPayload: ReadPayload =
+      val readPayload =
         RawClockedNonVoidFunctionCall(s"axi_read_${parameter.name}", new ReadPayload(parameter.axiParameter.dataWidth))(
           io.clock,
           channel.ARVALID && channel.ARREADY,
-          readControl
+          io.channelId,
+          channel.ARID.asTypeOf(UInt(64.W)),
+          channel.ARADDR.asTypeOf(UInt(64.W)),
+          channel.ARLEN.asTypeOf(UInt(64.W)),
+          channel.ARSIZE.asTypeOf(UInt(64.W)),
+          channel.ARBURST.asTypeOf(UInt(64.W)),
+          channel.ARLOCK.asTypeOf(UInt(64.W)),
+          channel.ARCACHE.asTypeOf(UInt(64.W)),
+          channel.ARPROT.asTypeOf(UInt(64.W)),
+          channel.ARQOS.asTypeOf(UInt(64.W)),
+          channel.ARREGION.asTypeOf(UInt(64.W))
         )
 
       channel.ARREADY := VecInit(cam.map(!_.valid)).asUInt.andR // valid not all 1
