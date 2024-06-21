@@ -33,6 +33,7 @@ class AXIControl extends Bundle {
 }
 
 class WritePayload(dataWidth: Int) extends Bundle {
+  val control = new AXIControl
   val data = Vec(256, UInt(dataWidth.W))
   val strb = Vec(256, UInt((dataWidth / 8).W))
 }
@@ -59,38 +60,37 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
     channel: AWChannel with AWFlowControl with WChannel with WFlowControl with BChannel with BFlowControl) {
     withClockAndReset(io.clock, io.reset) {
       val valid = RegInit(0.U.asTypeOf(Bool()))
-      val writeControl = RegInit(0.U.asTypeOf(new AXIControl))
-      val w = RegInit(0.U.asTypeOf(new WritePayload(parameter.axiParameter.dataWidth)))
+      val writePayload = RegInit(0.U.asTypeOf(new WritePayload(parameter.axiParameter.dataWidth)))
       val writeIdx = RegInit(0.U.asTypeOf(UInt(8.W)))
       val last = RegInit(0.U.asTypeOf(Bool()))
       channel.AWREADY := !valid
       channel.WREADY := true.B
       channel.BVALID := last
-      channel.BID := writeControl.id
+      channel.BID := writePayload.control.id
       channel.BRESP := 0.U(2.W) // OK
       channel.BUSER := DontCare
 
-      RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(io.clock, last, w, writeControl)
+      RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(io.clock, last, WireDefault(writePayload))
 
       when(channel.AWREADY && channel.AWVALID) {
-        writeControl.id := channel.AWID
-        writeControl.addr := channel.AWADDR
-        writeControl.len := channel.AWLEN
-        writeControl.size := channel.AWSIZE
-        writeControl.burst := channel.AWBURST
-        writeControl.lock := channel.AWLOCK
-        writeControl.cache := channel.AWCACHE
-        writeControl.prot := channel.AWPROT
-        writeControl.qos := channel.AWQOS
-        writeControl.region := channel.AWREGION
+        writePayload.control.id := channel.AWID
+        writePayload.control.addr := channel.AWADDR
+        writePayload.control.len := channel.AWLEN
+        writePayload.control.size := channel.AWSIZE
+        writePayload.control.burst := channel.AWBURST
+        writePayload.control.lock := channel.AWLOCK
+        writePayload.control.cache := channel.AWCACHE
+        writePayload.control.prot := channel.AWPROT
+        writePayload.control.qos := channel.AWQOS
+        writePayload.control.region := channel.AWREGION
         assert(valid === false.B)
         valid := true.B
         writeIdx := 0.U
       }
 
       when(channel.WVALID && channel.WREADY) {
-        w.data(writeIdx) := channel.WDATA
-        w.strb(writeIdx) := channel.WSTRB
+        writePayload.data(writeIdx) := channel.WDATA
+        writePayload.strb(writeIdx) := channel.WSTRB
         writeIdx := writeIdx + 1.U
         last := channel.WLAST
       }
