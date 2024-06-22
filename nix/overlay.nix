@@ -7,7 +7,7 @@ let
   rv32_pkgs = final.pkgsCross.riscv32-embedded;
   rv32_buildPkgs = rv32_pkgs.buildPackages;
 in
-{
+rec {
   pkgsX86 = self.legacyPackages."x86_64-linux";
 
   inherit rv32_pkgs rv32_buildPkgs; # for easier inspection
@@ -40,6 +40,7 @@ in
   };
 
   t1-script = final.callPackage ../script { };
+  inherit (t1-script) t1-helper ci-helper;
 
   # stdenv for compiling rvv programs, with ilp32f newlib and clang
   rv32-stdenv = rv32_pkgs.stdenv.override {
