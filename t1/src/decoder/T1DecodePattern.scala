@@ -6,7 +6,7 @@ package org.chipsalliance.t1.rtl.decoder
 import chisel3._
 import chisel3.experimental.hierarchy.core.Definition
 import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
-import chisel3.properties.{Class, ClassType, Property}
+import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.BitPat
 import chisel3.util.experimental.decode.DecodePattern
 import org.chipsalliance.rvdecoderdb.Instruction
@@ -28,19 +28,15 @@ class T1DecodeAttributeOM extends Class {
 
 @instantiable
 class T1InstructionOM extends Class {
-  // get type of [[T1DecodeAttributeOM]]
-  val attributeClass = Instantiate.definition(new T1DecodeAttributeOM)
-  val attributeClassTpe = attributeClass.getClassType
-
   val instructionName = IO(Output(Property[String]()))
   val documentation = IO(Output(Property[String]()))
   val bitPat = IO(Output(Property[String]()))
-  val attributes = IO(Output(Property[Seq[attributeClassTpe.Type]]))
+  val attributes = IO(Output(Property[Seq[AnyClassType]]))
 
   @public val instructionNameIn = IO(Input(Property[String]()))
   @public val documentationIn = IO(Input(Property[String]()))
   @public val bitPatIn = IO(Input(Property[String]()))
-  @public val attributesIn = IO(Input(Property[Seq[attributeClassTpe.Type]]))
+  @public val attributesIn = IO(Input(Property[Seq[AnyClassType]]))
 
   instructionName := instructionNameIn
   documentation := documentationIn
@@ -121,14 +117,11 @@ case class T1DecodePattern(instruction: Instruction, param: DecoderParam) extend
   // This is the OM for this instruction
   def om: Property[ClassType] = {
     val obj = Instantiate(new T1InstructionOM)
-    // get type of [[T1DecodeAttributeOM]]
-    val attributeClass = Definition(new T1DecodeAttributeOM)
-    val attributeClassTpe = attributeClass.getClassType
-
     obj.instructionNameIn := Property(instruction.name)
     obj.bitPatIn := Property(bitPat.rawString)
     obj.documentationIn := Property(documentation)
     // convert in-memory attributes to Chisel Property
+    // get type of [[T1DecodeAttributeOM]]
     obj.attributesIn :#= Property(
       Seq(
         isVector,
@@ -186,7 +179,7 @@ case class T1DecodePattern(instruction: Instruction, param: DecoderParam) extend
         isVtype,
         isVwmacc,
         isWidenreduce,
-      ).map(_.om.as(attributeClassTpe))
+      ).map(_.om.asAnyClassType)
     )
     obj.getPropertyReference
   }
