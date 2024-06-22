@@ -68,6 +68,8 @@ let
           mkdir -p "$out"/bin
           cp "$name.elf" "$out"/bin/"${outName}"
         '';
+
+        meta.mainProgram = toString outName;
       };
     in
     self;

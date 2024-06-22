@@ -1,7 +1,7 @@
 # CallPackage args
 { runCommand
 , zstd
-, t1-script
+, t1-helper
 , ip-emu
 , elaborateConfigJson
 }:
@@ -15,7 +15,7 @@ runCommand "get-${testCase.pname}-emu-result" { nativeBuildInputs = [ zstd ]; } 
   mkdir -p "$out"
 
   set +e
-  ${t1-script}/bin/t1-helper \
+  ${t1-helper}/bin/t1-helper \
     "ipemu" \
     --emulator-path ${ip-emu}/bin/emulator \
     --config ${elaborateConfigJson} \
