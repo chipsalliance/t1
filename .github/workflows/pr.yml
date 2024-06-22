@@ -27,7 +27,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - id: "get-all-configs"
-        run: echo "out=$(nix develop -c t1-helper generateTestPlan)" > $GITHUB_OUTPUT
+        run: echo "out=$(nix run .#ci-helper generateTestPlan)" > $GITHUB_OUTPUT
 
   build-emulators:
     name: "Build Emulators"
@@ -67,7 +67,7 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix develop -c t1-helper generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   build-trace-emulators:
     name: "Build trace emulator"
@@ -163,7 +163,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Run testcases"
         run: |
-          nix develop -c t1-helper runTests --jobs "${{ matrix.jobs }}"
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}"
 
   report:
     name: "Report CI result"
@@ -180,7 +180,7 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: "Print step summary"
         run: |
-          nix develop -c t1-helper postCI --failed-test-file-path ./failed-test.md --cycle-update-file-path ./cycle-update.md
+          nix run ".#ci-helper" -- postCI --failed-test-file-path ./failed-test.md --cycle-update-file-path ./cycle-update.md
           cat ./failed-test.md >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY

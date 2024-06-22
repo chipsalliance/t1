@@ -23,8 +23,8 @@
             default = pkgs.mkShell {
               buildInputs = with pkgs; [
                 ammonite
-                # To develop T1-script, run nix develop .#t1-script.withLsp
-                t1-script
+                # To develop t1-helper, run nix develop .#t1-helper.withLsp
+                t1-helper
                 zstd
               ];
             };
