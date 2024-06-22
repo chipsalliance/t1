@@ -10,7 +10,7 @@
 testCase:
 
 runCommand "get-${testCase.pname}-emu-result" { nativeBuildInputs = [ zstd ]; } ''
-  echo "[NIX] Running test case ${testCase.pname}"
+  echo "[nix] Running test case ${testCase.pname}"
 
   mkdir -p "$out"
 
@@ -32,6 +32,17 @@ runCommand "get-${testCase.pname}-emu-result" { nativeBuildInputs = [ zstd ]; } 
     printf "1" > $out/emu-success
   fi
 
+  if [ ! -r $out/rtl-event.log ]; then
+    echo "[nix] no rtl-event.log found in output"
+    echo "[nix] showing helper journal and exit"
+    echo
+    cat $out/emu-wrapper.journal
+    exit 1
+  fi
+
+  echo "[nix] compressing event log"
   zstd $out/rtl-event.log -o $out/rtl-event.log.zstd
   rm $out/rtl-event.log
+
+  echo "[nix] emu done"
 ''
