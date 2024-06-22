@@ -5,11 +5,27 @@ package org.chipsalliance.t1.ipemu
 
 import chisel3._
 import chisel3.experimental.SerializableModuleGenerator
-import chisel3.probe._
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
+import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import org.chipsalliance.t1.ipemu.dpi._
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
+@instantiable
+class TestBenchOM extends Class {
+  @public
+  val t1 = IO(Output(Property[AnyClassType]()))
+  @public
+  val t1In = IO(Input(Property[AnyClassType]()))
+  t1 := t1In
+}
+
 class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends RawModule {
+  val omInstance: Instance[TestBenchOM] = Instantiate(new TestBenchOM)
+  val omType: ClassType = omInstance.toDefinition.getClassType
+  @public
+  val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
+  om := omInstance.getPropertyReference
+
   // Scheduler to schedule different DPI calls for online difftest,
   // TODO: after switching to offline version, everything should be cleaned up.
   val clockRate = 5
@@ -32,6 +48,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
 
   val dut: T1 = withClockAndReset(clock, reset)(Module(generator.module()))
   dut.storeBufferClear := true.B
+  omInstance.t1In := Property(dut.om.asAnyClassType)
 
   val laneProbes = dut.laneProbes.zipWithIndex.map{case (p, idx) =>
     val wire = Wire(p.cloneType).suggestName(s"lane${idx}Probe")

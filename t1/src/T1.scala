@@ -40,6 +40,12 @@ class T1OM extends Class {
   @public
   val lanesIn = IO(Input(Property[Seq[AnyClassType]]()))
   lanes := lanesIn
+
+  @public
+  val decoder = IO(Output(Property[AnyClassType]()))
+  @public
+  val decoderIn = IO(Input(Property[AnyClassType]()))
+  decoder := decoderIn
 }
 
 object T1Parameter {
@@ -325,6 +331,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
   val lsu: Instance[LSU] = Instantiate(new LSU(parameter.lsuParameters))
   val decode: Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.decoderParam))
+  omInstance.decoderIn := Property(decode.om.asAnyClassType)
 
   // TODO: cover overflow
   // TODO: uarch doc about the order of instructions
