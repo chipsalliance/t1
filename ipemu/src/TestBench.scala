@@ -52,12 +52,6 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
       // vxrm, vxsat are merged to vcsr
       val vcsr: UInt = UInt(32.W)
     }
-    class Retire extends Bundle {
-      val rd: UInt = UInt(32.W)
-      val data: UInt = UInt(32.W)
-      val writeRd: UInt = UInt(32.W)
-      val vxsat: UInt = UInt(32.W)
-    }
     // TODO: don't issue for each cycle.
     //       maintain a queue, issue at queue size < chainingSize, sending an issue package to it.
     val issue: Issue = RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
@@ -78,12 +72,6 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
     dut.storeBufferClear := true.B
     // always valid to speed up simulation.
     dut.request.valid := true.B
-    val retire = Wire(new Retire)
-    retire.rd := dut.response.bits.rd.bits
-    retire.data := dut.response.bits.data
-    retire.writeRd := dut.response.bits.rd.valid
-    retire.vxsat := dut.response.bits.vxsat
-    RawClockedVoidFunctionCall("retire_vector_instruction")(clock, dut.response.valid, retire)
   }
 
   // Memory Drivers
