@@ -24,7 +24,6 @@ let
         ./../../build.sc
         ./../../common.sc
         ./../../t1
-        ./../../subsystem
         ./../../rocket
         ./../../emuhelper
         ./../../omreader
