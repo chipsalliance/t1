@@ -44,6 +44,31 @@ class T1Reader private[omreaderlib](evaluator: PanamaCIRCTOMEvaluator, basePath:
 
   def vlen: Long = t1.field("vlen").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer
   def dlen: Long = t1.field("dlen").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer
+  private def decoderInstructionsJsonImpl: ujson.Value = {
+    val decoder = t1.field("decoder").asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
+    val instructions = decoder.field("instructions").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
+
+    instructions.elements.map(instruction => {
+      val instr = instruction.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
+      val attributes = instr.field("attributes").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
+
+      ujson.Obj(
+        "attributes" -> attributes.elements.map(attribute => {
+          val attr = attribute.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
+          val description = attr.field("description").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString
+          val identifier = attr.field("identifier").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString
+          val value = attr.field("value").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString
+          ujson.Obj(
+            "description" -> description,
+            "identifier" -> identifier,
+            "value" -> value
+          )
+        })
+      )
+    })
+  }
+  def decoderInstructionsJson: String = ujson.write(decoderInstructionsJsonImpl)
+  def decoderInstructionsJsonPretty: String = ujson.write(decoderInstructionsJsonImpl, 2)
 
   def dumpMethods(): Unit = {
     val mirror = runtimeMirror(getClass.getClassLoader).reflect(this)
@@ -52,7 +77,13 @@ class T1Reader private[omreaderlib](evaluator: PanamaCIRCTOMEvaluator, basePath:
     )
     methods.foreach(method => {
       if (!method.name.toString.startsWith("dump")) {
-        val value = mirror.reflectMethod(method.asMethod)()
+        var value = mirror.reflectMethod(method.asMethod)().toString.replace("\n", "\\n")
+
+        val displayLength = 80
+        if (value.length > displayLength) {
+          value = value.take(displayLength) + s" (... ${value.length - displayLength} characters)"
+        }
+
         println(s"${method.name} = $value")
       }
     })
