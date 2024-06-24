@@ -47,6 +47,16 @@ object Main {
     println(simplyGetT1Reader(mlirbcFile).dlen)
   }
 
+  @main
+  def decoderInstructionsJson(@arg(name = "mlirbc-file") mlirbcFile: os.Path) = {
+    println(simplyGetT1Reader(mlirbcFile).decoderInstructionsJson)
+  }
+
+  @main
+  def decoderInstructionsJsonPretty(@arg(name = "mlirbc-file") mlirbcFile: os.Path) = {
+    println(simplyGetT1Reader(mlirbcFile).decoderInstructionsJsonPretty)
+  }
+
   def simplyGetT1Reader(mlirbcFile: os.Path) = OMReader.fromFile(mlirbcFile).t1Reader
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
