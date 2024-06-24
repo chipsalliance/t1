@@ -34,7 +34,7 @@ lib.makeScope newScope
     configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
     t1package = _millOutput.t1package;
 
-    omreader = self.callPackage ./omreader.nix { };
+    omreader-unwrapped = self.callPackage ./omreader.nix { };
     submodules = self.callPackage ./submodules.nix { };
 
     riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
@@ -65,10 +65,14 @@ lib.makeScope newScope
           elaborate = innerSelf.callPackage ./elaborate.nix { target = "ip"; /* use-binder = true; */ };
           mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
           rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
+
+          omreader = self.omreader-unwrapped.mkWrapper { inherit mlirbc; };
+
           om = innerSelf.callPackage ./om.nix { inherit mlirbc; };
 
           emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; /* use-binder = true; */ };
           emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
+          emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
           emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = emu-mlirbc; };
 
           emu = innerSelf.callPackage ./ipemu.nix { rtl = ip.emu-rtl; stdenv = moldStdenv; };
