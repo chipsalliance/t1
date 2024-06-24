@@ -163,7 +163,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Run testcases"
         run: |
-          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}"
+          nix develop -c t1-helper runTests --jobs "${{ matrix.jobs }}"
+      - name: "Run OM tests"
+        run: |
+          nix develop -c t1-helper runOMTests --jobs "${{ matrix.jobs }}"
 
   report:
     name: "Report CI result"
