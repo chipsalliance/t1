@@ -1,5 +1,6 @@
 { lib
 , stdenv
+, runCommand
 , fetchMillDeps
 , makeWrapper
 , jdk21
@@ -41,12 +42,22 @@ let
       nativeBuildInputs = [ submodules.setupHook ];
     };
 
-    passthru.editable = self.overrideAttrs (_: {
-      shellHook = ''
-        setupSubmodulesEditable
-        mill mill.bsp.BSP/install 0
-      '';
-    });
+    passthru = {
+      editable = self.overrideAttrs (_: {
+        shellHook = ''
+          setupSubmodulesEditable
+          mill mill.bsp.BSP/install 0
+        '';
+      });
+
+      mkWrapper = { mlirbc }: runCommand "wrap-omreader"
+        { nativeBuildInputs = [ makeWrapper ]; meta.mainProgram = "omreader"; }
+        ''
+          mkdir -p "$out/bin"
+          mlirbc=$(find ${mlirbc}/ -type f)
+          makeWrapper ${self}/bin/omreader "$out/bin/omreader" --append-flags "--mlirbc-file $mlirbc"
+        '';
+    };
 
     shellHook = ''
       setupSubmodules
