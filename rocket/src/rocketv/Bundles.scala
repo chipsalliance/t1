@@ -81,8 +81,8 @@ class BTBResp(
     extends Bundle {
   val cfiType = CFIType()
   val taken = Bool()
-  val mask = Bits(fetchWidth.W)
-  val bridx = Bits(log2Up(fetchWidth).W)
+  val mask = UInt(fetchWidth.W)
+  val bridx = UInt(log2Up(fetchWidth).W)
   val target = UInt(vaddrBits.W)
   val entry = UInt(log2Up(entries + 1).W)
   val bht = new BHTResp(bhtHistoryLength, bhtCounterLength)
@@ -126,7 +126,7 @@ class FrontendResp(
   val btb = new BTBResp(fetchWidth, vaddrBits, entries, bhtHistoryLength: Option[Int], bhtCounterLength: Option[Int])
   val pc = UInt(vaddrBitsExtended.W) // ID stage PC
   val data = UInt((fetchWidth * coreInstBits).W)
-  val mask = Bits(fetchWidth.W)
+  val mask = UInt(fetchWidth.W)
   val xcpt = new FrontendExceptions
   val replay = Bool()
 }
@@ -873,16 +873,16 @@ class FPUCoreIO(hartIdLen: Int, xLen: Int, fLen: Int) extends Bundle {
   val inst = Input(UInt(32.W))
   val fromint_data = Input(UInt(xLen.W))
 
-  val fcsr_rm = Input(Bits(FPConstants.RM_SZ.W))
-  val fcsr_flags = Valid(Bits(FPConstants.FLAGS_SZ.W))
+  val fcsr_rm = Input(UInt(FPConstants.RM_SZ.W))
+  val fcsr_flags = Valid(UInt(FPConstants.FLAGS_SZ.W))
 
-  val store_data = Output(Bits(fLen.W))
-  val toint_data = Output(Bits(xLen.W))
+  val store_data = Output(UInt(fLen.W))
+  val toint_data = Output(UInt(xLen.W))
 
   val dmem_resp_val = Input(Bool())
-  val dmem_resp_type = Input(Bits(3.W))
+  val dmem_resp_type = Input(UInt(3.W))
   val dmem_resp_tag = Input(UInt(5.W))
-  val dmem_resp_data = Input(Bits(fLen.W))
+  val dmem_resp_data = Input(UInt(fLen.W))
 
   val valid = Input(Bool())
   val fcsr_rdy = Output(Bool())
@@ -1088,7 +1088,7 @@ object PTE {
 class PTE extends Bundle {
   val reserved_for_future = UInt(10.W)
   val ppn = UInt(44.W)
-  val reserved_for_software = Bits(2.W)
+  val reserved_for_software = UInt(2.W)
 
   /** dirty bit */
   val d = Bool()
@@ -1141,7 +1141,7 @@ class TLBReq(lgMaxSize: Int, vaddrBitsExtended: Int)() extends Bundle {
   val size = UInt(log2Ceil(lgMaxSize + 1).W)
 
   /** memory command. */
-  val cmd = Bits(M_SZ.W)
+  val cmd = UInt(M_SZ.W)
   val prv = UInt(PRV.SZ.W)
 
   /** virtualization mode */
@@ -1244,5 +1244,41 @@ class L2TLBEntry(nSets: Int, ppnBits: Int, maxSVAddrBits: Int, pgIdxBits: Int, u
 
   /** whether the page is readable */
   val r = Bool()
+}
 
+class FPUIO(hartIdLen: Int, xLen: Int, fLen: Int) extends Bundle {
+  val coreIO = new FPUCoreIO(hartIdLen, xLen, fLen)
+  val cp_req = Flipped(Decoupled(new FPInput(fLen)))
+  val cp_resp = Decoupled(new FPResult(fLen))
+}
+
+class FPInput(fLen: Int) extends Bundle {
+  val fpuControl = new FPUCtrlSigs
+  val rm = UInt(FPConstants.RM_SZ.W)
+  val fmaCmd = UInt(2.W)
+  val typ = UInt(2.W)
+  val fmt = UInt(2.W)
+  val in1 = UInt((fLen+1).W)
+  val in2 = UInt((fLen+1).W)
+  val in3 = UInt((fLen+1).W)
+}
+
+class IntToFPInput(xLen: Int) extends Bundle {
+  val fpuControl = new FPUCtrlSigs
+  val rm = UInt(FPConstants.RM_SZ.W)
+  val typ = UInt(2.W)
+  val in1 = UInt(xLen.W)
+}
+
+class FPToIntOutput(fLen: Int, xLen: Int) extends Bundle {
+  val in = new FPInput(fLen)
+  val lt = Bool()
+  val store = UInt(fLen.W)
+  val toint = UInt(xLen.W)
+  val exc = UInt(FPConstants.FLAGS_SZ.W)
+}
+
+class FPResult(fLen: Int) extends Bundle {
+  val data = UInt((fLen+1).W)
+  val exc = UInt(FPConstants.FLAGS_SZ.W)
 }
