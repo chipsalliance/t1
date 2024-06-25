@@ -1282,3 +1282,21 @@ class FPResult(fLen: Int) extends Bundle {
   val data = UInt((fLen+1).W)
   val exc = UInt(FPConstants.FLAGS_SZ.W)
 }
+
+class Instruction extends Bundle {
+  val xcpt0 = new FrontendExceptions // exceptions on first half of instruction
+  val xcpt1 = new FrontendExceptions // exceptions on second half of instruction
+  val replay = Bool()
+  val rvc = Bool()
+  val inst = new ExpandedInstruction
+  val raw = UInt(32.W)
+}
+
+class ExpandedInstruction extends Bundle {
+  val bits = UInt(32.W)
+  val rd = UInt(5.W)
+  val rs1 = UInt(5.W)
+  val rs2 = UInt(5.W)
+  val rs3 = UInt(5.W)
+}
+
