@@ -1300,3 +1300,16 @@ class ExpandedInstruction extends Bundle {
   val rs3 = UInt(5.W)
 }
 
+class MultiplierReq(dataBits: Int, tagBits: Int, uopWidth: Int) extends Bundle {
+  val fn = Bits(uopWidth.W)
+  val dw = Bool()
+  val in1 = Bits(dataBits.W)
+  val in2 = Bits(dataBits.W)
+  val tag = UInt(tagBits.W)
+}
+
+class MultiplierResp(dataBits: Int, tagBits: Int) extends Bundle {
+  val data = Bits(dataBits.W)
+  val full_data = Bits((2*dataBits).W)
+  val tag = UInt(tagBits.W)
+}
