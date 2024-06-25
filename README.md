@@ -152,7 +152,18 @@ For example:
 $ nix develop -c t1-helper ipemu --config blastoise -C intrinsic.linear_normalization
 ```
 
-The `t1-helper` is a emulator wrapper that provides various command-line options for different use cases. Run `t1-helper -h` for help.
+To get waveform, add `--trace` at the end of the above command:
+
+```console
+$ nix develop -c t1-helper ipemu --config blastoise -C intrinsic.linear_normalization --trace
+```
+
+The `t1-helper` is a emulator wrapper that provides various command-line options for different use cases.
+To get all available options, run:
+
+```console
+$ nix develop -c t1-helper --help
+```
 
 ### Development
 
