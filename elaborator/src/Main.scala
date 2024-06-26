@@ -44,11 +44,6 @@ object Main {
           case _: chisel3.panamaconverter.stage.FirtoolOptionsAnnotation  => None
           case _: chisel3.stage.DesignAnnotation[_]                       => None
           case _: chisel3.stage.ChiselCircuitAnnotation                   => None
-          case _: freechips.rocketchip.util.ParamsAnnotation              => None
-          case _: freechips.rocketchip.util.RegFieldDescMappingAnnotation => None
-          case _: freechips.rocketchip.util.AddressMapAnnotation          => None
-          case _: freechips.rocketchip.util.ParamsAnnotation              => None
-          case _: freechips.rocketchip.util.SRAMAnnotation                => None
           case a => Some(a)
         }
 
@@ -80,11 +75,6 @@ object Main {
   @main def ipemu(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
     new org.chipsalliance.t1.ipemu.TestBench(ipConfig.generator)
   )
-  @main def subsystem(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate { () =>
-    freechips.rocketchip.diplomacy.LazyModule(new org.chipsalliance.t1.subsystem.T1Subsystem()(
-      (new org.chipsalliance.t1.subsystem.T1SubsystemConfig(ipConfig.generator))
-    ))(freechips.rocketchip.diplomacy.ValName("T1Subsystem"), chisel3.experimental.UnlocatableSourceInfo).module
-  }
   // format: on
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)

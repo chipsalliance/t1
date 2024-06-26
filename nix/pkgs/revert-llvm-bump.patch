@@ -1,0 +1,66 @@
+commit 0c621a4d56d10a12d54a4a163611ec1ddfb354b0
+Author: Jiuyang Liu <liu@jiuyang.me>
+Date:   Thu Jun 20 01:49:37 2024 +0800
+
+    Revert "Bump llvm (#7167)"
+    
+    This reverts commit f32a5a196cda8fcd11fbd95f2347d6ece31facb0.
+
+diff --git a/lib/Conversion/HandshakeToDC/HandshakeToDC.cpp b/lib/Conversion/HandshakeToDC/HandshakeToDC.cpp
+index cbc0171eb..8cd287872 100644
+--- a/lib/Conversion/HandshakeToDC/HandshakeToDC.cpp
++++ b/lib/Conversion/HandshakeToDC/HandshakeToDC.cpp
+@@ -605,7 +605,7 @@ public:
+       TypeConverter::SignatureConversion result(moduleRegion.getNumArguments());
+       (void)getTypeConverter()->convertSignatureArgs(
+           TypeRange(moduleRegion.getArgumentTypes()), result);
+-      rewriter.applySignatureConversion(hwModule.getBodyBlock(), result);
++      rewriter.applySignatureConversion(&moduleRegion, result);
+     }
+ 
+     rewriter.eraseOp(op);
+diff --git a/lib/Conversion/LLHDToLLVM/LLHDToLLVM.cpp b/lib/Conversion/LLHDToLLVM/LLHDToLLVM.cpp
+index 8d88faa44..ee85c1b77 100644
+--- a/lib/Conversion/LLHDToLLVM/LLHDToLLVM.cpp
++++ b/lib/Conversion/LLHDToLLVM/LLHDToLLVM.cpp
+@@ -623,7 +623,7 @@ struct EntityOpConversion : public ConvertToLLVMPattern {
+         std::array<Type, 3>({voidPtrTy, voidPtrTy, voidPtrTy}));
+     for (size_t i = 0, e = entityOp.getNumArguments(); i < e; ++i)
+       intermediate.addInputs(i, voidTy);
+-    rewriter.applySignatureConversion(entityOp.getBodyBlock(), intermediate,
++    rewriter.applySignatureConversion(&entityOp.getBody(), intermediate,
+                                       typeConverter);
+ 
+     OpBuilder bodyBuilder =
+@@ -646,7 +646,7 @@ struct EntityOpConversion : public ConvertToLLVMPattern {
+       final.remapInput(i + 3, gep.getResult());
+     }
+ 
+-    rewriter.applySignatureConversion(entityOp.getBodyBlock(), final,
++    rewriter.applySignatureConversion(&entityOp.getBody(), final,
+                                       typeConverter);
+ 
+     // Get the converted entity signature.
+@@ -718,7 +718,7 @@ struct ProcOpConversion : public ConvertToLLVMPattern {
+     intermediate.addInputs(procArgTys);
+     for (size_t i = 0, e = procOp.getNumArguments(); i < e; ++i)
+       intermediate.addInputs(i, voidTy);
+-    rewriter.applySignatureConversion(&procOp.getBlocks().front(), intermediate,
++    rewriter.applySignatureConversion(&procOp.getBody(), intermediate,
+                                       typeConverter);
+ 
+     // Get the final signature conversion.
+diff --git a/lib/Dialect/HW/ConversionPatterns.cpp b/lib/Dialect/HW/ConversionPatterns.cpp
+index 7f1452de0..3e1fecbbc 100644
+--- a/lib/Dialect/HW/ConversionPatterns.cpp
++++ b/lib/Dialect/HW/ConversionPatterns.cpp
+@@ -85,8 +85,7 @@ LogicalResult circt::doTypeConversion(Operation *op, ValueRange operands,
+             newRegion->getArgumentTypes(), result)))
+       return rewriter.notifyMatchFailure(op->getLoc(),
+                                          "type conversion failed");
+-    if (failed(rewriter.convertRegionTypes(newRegion, *typeConverter, &result)))
+-      return failure();
++    rewriter.applySignatureConversion(newRegion, result, typeConverter);
+   }
+   rewriter.finalizeOpModification(newOp);
+ 

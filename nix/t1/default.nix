@@ -71,6 +71,10 @@ lib.makeScope newScope
           emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
           emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = emu-mlirbc; };
 
+          verilated = innerSelf.callPackage ./verilated.nix { rtl = emu-rtl; };
+          # FIXME: replace this emu with this derivation when axi and cosim functions implemented
+          pseudo-emu = innerSelf.callPackage ./pseudo-emu.nix { inherit verilated; };
+
           emu = innerSelf.callPackage ./ipemu.nix { rtl = ip.emu-rtl; stdenv = moldStdenv; };
           emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = emu-rtl; stdenv = moldStdenv; do-trace = true; };
 
