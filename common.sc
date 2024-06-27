@@ -70,6 +70,30 @@ trait ConfigGenModule
   override def ivyDeps = T(super.ivyDeps() ++ Seq(mainargsIvy))
 }
 
+// T1 forked version of RocketCore
+trait RocketModule
+  extends ScalaModule
+    with HasChisel
+    with HasRVDecoderDB {
+  def rocketchipModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(rocketchipModule)
+}
+
+// The next generation of purely standalone Rocket Core w/ AXI/CHI.
+trait RocketVModule
+  extends ScalaModule
+    with HasChisel
+    with HasRVDecoderDB {
+  def axi4Module: ScalaModule
+  def hardfloatModule: ScalaModule
+
+  def moduleDeps = super.moduleDeps ++ Seq(axi4Module, hardfloatModule)
+}
+
+trait EmuHelperModule
+  extends ScalaModule
+    with HasChisel
+
 trait IPEmulatorModule
   extends ScalaModule
     with HasChisel {
