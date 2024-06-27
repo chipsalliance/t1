@@ -1,69 +1,72 @@
-// See LICENSE.SiFive for license details.
-// See LICENSE.Berkeley for license details.
-
-package org.chipsalliance.t1.rocketcore
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2012-2014 The Regents of the University of California
+// SPDX-FileCopyrightText: 2016-2017 SiFive, Inc
+// SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
+package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.util.{BitPat, Cat, Fill, Reverse}
-import org.chipsalliance.cde.config.Parameters
-import freechips.rocketchip.tile.CoreModule
+import chisel3.experimental.hierarchy.instantiable
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.util.{Cat, Fill, Reverse}
 
-class ALUFN {
-  val SZ_ALU_FN = 4
-  def FN_X = BitPat("b????")
-  def FN_ADD = 0.U
-  def FN_SL = 1.U
-  def FN_SEQ = 2.U
-  def FN_SNE = 3.U
-  def FN_XOR = 4.U
-  def FN_SR = 5.U
-  def FN_OR = 6.U
-  def FN_AND = 7.U
-  def FN_CZEQZ = 8.U
-  def FN_CZNEZ = 9.U
-  def FN_SUB = 10.U
-  def FN_SRA = 11.U
-  def FN_SLT = 12.U
-  def FN_SGE = 13.U
-  def FN_SLTU = 14.U
-  def FN_SGEU = 15.U
+object ALUParameter {
+  implicit def rwP: upickle.default.ReadWriter[ALUParameter] = upickle.default.macroRW[ALUParameter]
+}
 
-  // Mul/div reuse some integer FNs
-  def FN_DIV = FN_XOR
-  def FN_DIVU = FN_SR
-  def FN_REM = FN_OR
-  def FN_REMU = FN_AND
+case class ALUParameter(xLen: Int) extends SerializableModuleParameter {
+  val uopSize: Int = 4
+  // static to false for now
+  val usingConditionalZero = false
 
-  def FN_MUL = FN_ADD
-  def FN_MULH = FN_SL
-  def FN_MULHSU = FN_SEQ
-  def FN_MULHU = FN_SNE
+  // TODO:move these to decoder.
+  val FN_ADD = 0.U
+  val FN_SL = 1.U
+  val FN_SEQ = 2.U
+  val FN_SNE = 3.U
+  val FN_XOR = 4.U
+  val FN_SR = 5.U
+  val FN_OR = 6.U
+  val FN_AND = 7.U
+  val FN_CZEQZ = 8.U
+  val FN_CZNEZ = 9.U
+  val FN_SUB = 10.U
+  val FN_SRA = 11.U
+  val FN_SLT = 12.U
 
-  def isMulFN(fn:      UInt, cmp: UInt) = fn(1, 0) === cmp(1, 0)
   def isSub(cmd:       UInt) = cmd(3)
   def isCmp(cmd:       UInt) = cmd >= FN_SLT
   def cmpUnsigned(cmd: UInt) = cmd(1)
   def cmpInverted(cmd: UInt) = cmd(0)
   def cmpEq(cmd:       UInt) = !cmd(3)
+
+  def DW_32 = false.B
+  def DW_64 = true.B
 }
 
-object ALUFN {
-  def apply() = new ALUFN
+class ALUInterface(parameter: ALUParameter) extends Bundle {
+  val dw = Input(UInt(1.W))
+  val fn = Input(UInt(parameter.uopSize.W))
+  val in2 = Input(UInt(parameter.xLen.W))
+  val in1 = Input(UInt(parameter.xLen.W))
+  val out = Output(UInt(parameter.xLen.W))
+  val adder_out = Output(UInt(parameter.xLen.W))
+  val cmp_out = Output(Bool())
 }
 
-abstract class AbstractALU[T <: ALUFN](val aluFn: T)(implicit p: Parameters) extends CoreModule()(p) {
-  val io = IO(new Bundle {
-    val dw = Input(UInt(SZ_DW.W))
-    val fn = Input(UInt(aluFn.SZ_ALU_FN.W))
-    val in2 = Input(UInt(xLen.W))
-    val in1 = Input(UInt(xLen.W))
-    val out = Output(UInt(xLen.W))
-    val adder_out = Output(UInt(xLen.W))
-    val cmp_out = Output(Bool())
-  })
-}
+@instantiable
+class ALU(val parameter: ALUParameter)
+  extends FixedIORawModule(new ALUInterface(parameter))
+    with SerializableModule[ALUParameter] {
+  // compatibility layer
+  val aluFn = parameter
+  val xLen = parameter.xLen
+  val DW_64 = parameter.DW_64
+  val usingConditionalZero = parameter.usingConditionalZero
+  val DW_32 = parameter.DW_32
 
-class ALU(implicit p: Parameters) extends AbstractALU(new ALUFN)(p) {
+
+  // Original implementation
+
   // ADD, SUB
   val in2_inv = Mux(aluFn.isSub(io.fn), ~io.in2, io.in2)
   val in1_xor_in2 = io.in1 ^ in2_inv
