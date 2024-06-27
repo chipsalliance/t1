@@ -136,6 +136,23 @@ trait ConfigGen
   def mainargsIvy = v.mainargs
 }
 
+object rocketv extends RocketV
+
+trait RocketV
+  extends millbuild.common.RocketVModule
+    with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+  def rvdecoderdbModule = rvdecoderdb
+  def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
+  def axi4Module = axi4
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
+
 // SoC demostration, not the real dependencies for the vector project
 import $file.dependencies.`cde`.common
 import $file.dependencies.`diplomacy`.common

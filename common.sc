@@ -80,6 +80,15 @@ trait RocketModule
   def moduleDeps = super.moduleDeps ++ Seq(rocketchipModule)
 }
 
+// The next generation of purely standalone Rocket Core w/ AXI/CHI.
+trait RocketVModule
+  extends ScalaModule
+    with HasChisel
+    with HasRVDecoderDB {
+  def axi4Module: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(axi4Module)
+}
+
 trait EmuHelperModule
   extends ScalaModule
     with HasChisel
