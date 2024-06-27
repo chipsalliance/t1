@@ -35,7 +35,7 @@ trait Chisel
 
 object arithmetic extends Arithmetic
 
-trait Arithmetic 
+trait Arithmetic
   extends millbuild.dependencies.arithmetic.common.ArithmeticModule {
   override def millSourcePath = os.pwd / "dependencies" / "arithmetic" / "arithmetic"
   def scalaVersion = T(v.scala)
@@ -116,6 +116,23 @@ trait ConfigGen
   def t1Module = t1
 
   def mainargsIvy = v.mainargs
+}
+
+object rocketv extends RocketV
+
+trait RocketV
+  extends millbuild.common.RocketVModule
+    with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+  def rvdecoderdbModule = rvdecoderdb
+  def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
+  def hardfloatModule = hardfloat
+  def axi4Module = axi4
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
 }
 
 object ipemu extends IPEmulator
