@@ -1,70 +1,56 @@
-// See LICENSE.SiFive for license details.
-// See LICENSE.Berkeley for license details.
-
-package org.chipsalliance.t1.rocketcore
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2012-2014 The Regents of the University of California
+// SPDX-FileCopyrightText: 2016-2017 SiFive, Inc
+// SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
+package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.util._
-import org.chipsalliance.cde.config.Parameters
+import chisel3.experimental.hierarchy.instantiable
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.util.{FillInterleaved, PriorityMux, log2Ceil}
 
-class StoreGen(typ: UInt, addr: UInt, dat: UInt, maxSize: Int) {
-  val size = Wire(UInt(log2Up(log2Up(maxSize) + 1).W))
-  size := typ
-  def misaligned: Bool =
-    (addr & ((1.U << size) - 1.U)(log2Up(maxSize) - 1, 0)).orR
-
-  def mask = {
-    var res = 1.U
-    for (i <- 0 until log2Up(maxSize)) {
-      val upper = Mux(addr(i), res, 0.U) | Mux(size >= (i + 1).U, ((BigInt(1) << (1 << i)) - 1).U, 0.U)
-      val lower = Mux(addr(i), 0.U, res)
-      res = Cat(upper, lower)
-    }
-    res
-  }
-
-  protected def genData(i: Int): UInt =
-    if (i >= log2Up(maxSize)) dat
-    else Mux(size === i.U, Fill(1 << (log2Up(maxSize) - i), dat((8 << i) - 1, 0)), genData(i + 1))
-
-  def data = genData(0)
-  def wordData = genData(2)
+object AMOALUParameter {
+  implicit def rwP: upickle.default.ReadWriter[AMOALUParameter] = upickle.default.macroRW[AMOALUParameter]
 }
 
-class LoadGen(typ: UInt, signed: Bool, addr: UInt, dat: UInt, zero: Bool, maxSize: Int) {
-  private val size = new StoreGen(typ, addr, dat, maxSize).size
-
-  private def genData(logMinSize: Int): UInt = {
-    var res = dat
-    for (i <- log2Up(maxSize) - 1 to logMinSize by -1) {
-      val pos = 8 << i
-      val shifted = Mux(addr(i), res(2 * pos - 1, pos), res(pos - 1, 0))
-      val doZero = (i == 0).B && zero
-      val zeroed = Mux(doZero, 0.U, shifted)
-      res = Cat(
-        Mux(size === i.U || doZero, Fill(8 * maxSize - pos, signed && zeroed(pos - 1)), res(8 * maxSize - 1, pos)),
-        zeroed
-      )
-    }
-    res
-  }
-
-  def wordData = genData(2)
-  def data = genData(0)
+case class AMOALUParameter(operandBits: Int) extends SerializableModuleParameter {
+  val uopSize: Int = 4
+  def M_XA_ADD = "b01000".U
+  def M_XA_XOR = "b01001".U
+  def M_XA_OR = "b01010".U
+  def M_XA_AND = "b01011".U
+  def M_XA_MIN = "b01100".U
+  def M_XA_MAX = "b01101".U
+  def M_XA_MINU = "b01110".U
+  def M_XA_MAXU = "b01111".U
 }
 
-class AMOALU(operandBits: Int)(implicit p: Parameters) extends Module {
+class AMOALUInterface(parameter: AMOALUParameter) extends Bundle {
+  val mask = Input(UInt((parameter.operandBits / 8).W))
+  val cmd = Input(UInt(parameter.uopSize.W))
+  val lhs = Input(UInt(parameter.operandBits.W))
+  val rhs = Input(UInt(parameter.operandBits.W))
+  val out = Output(UInt(parameter.operandBits.W))
+  val out_unmasked = Output(UInt(parameter.operandBits.W))
+}
+
+@instantiable
+class AMOALU(val parameter: AMOALUParameter)
+  extends FixedIORawModule(new AMOALUInterface(parameter))
+    with SerializableModule[AMOALUParameter] {
+  val M_XA_MAX = parameter.M_XA_MAX
+  val M_XA_MAXU = parameter.M_XA_MAXU
+  val M_XA_MIN = parameter.M_XA_MIN
+  val M_XA_MINU = parameter.M_XA_MINU
+  val M_XA_ADD = parameter.M_XA_ADD
+  val M_XA_OR = parameter.M_XA_OR
+  val M_XA_AND = parameter.M_XA_AND
+  val M_XA_XOR = parameter.M_XA_XOR
+  val operandBits = parameter.operandBits
   val minXLen = 32
   val widths = (0 to log2Ceil(operandBits / minXLen)).map(minXLen << _)
 
-  val io = IO(new Bundle {
-    val mask = Input(UInt((operandBits / 8).W))
-    val cmd = Input(UInt(M_SZ.W))
-    val lhs = Input(UInt(operandBits.W))
-    val rhs = Input(UInt(operandBits.W))
-    val out = Output(UInt(operandBits.W))
-    val out_unmasked = Output(UInt(operandBits.W))
-  })
+  // Original implementation
 
   val max = io.cmd === M_XA_MAX || io.cmd === M_XA_MAXU
   val min = io.cmd === M_XA_MIN || io.cmd === M_XA_MINU
