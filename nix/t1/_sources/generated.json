@@ -79,6 +79,26 @@
         },
         "version": "0baa8fdf9b3688236d81797f5105bed45e06bdb5"
     },
+    "chisel-interface": {
+        "cargoLocks": null,
+        "date": "2024-06-17",
+        "extract": null,
+        "name": "chisel-interface",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "chipsalliance",
+            "repo": "chisel-interface",
+            "rev": "79703e44fb6010a535e6750249f6be0471fa0046",
+            "sha256": "sha256-1VTN2OfsauJvf+JM/j0uhvixD0+aCnyGOoO74YrCFPA=",
+            "type": "github"
+        },
+        "version": "79703e44fb6010a535e6750249f6be0471fa0046"
+    },
     "diplomacy": {
         "cargoLocks": null,
         "date": "2024-04-25",
