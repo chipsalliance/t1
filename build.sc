@@ -300,6 +300,7 @@ trait Elaborator
   def generators = Seq(
     t1,
     ipemu,
+    rocketv,
     subsystem,
   )
 
