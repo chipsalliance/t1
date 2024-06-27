@@ -5,23 +5,21 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.util.Cat
+import chisel3.util.{Cat, log2Ceil}
 
 // This file defines Bundle shared in the project.
 // all Bundle only have datatype without any helper or functions, while they only exist in the companion Bundle.
 
-object MStatus {
-  object PRV {
-    val SZ = 2
-    val U = 0
-    val S = 1
-    val H = 2
-    val M = 3
-  }
+// TODO: make it Enum
+object PRV {
+  val SZ = 2
+  val U = 0
+  val S = 1
+  val H = 2
+  val M = 3
 }
 
 class MStatus extends Bundle {
-  import MStatus._
   // not truly part of mstatus, but convenient
   val debug = Bool()
   val cease = Bool()
@@ -67,12 +65,11 @@ class MStatus extends Bundle {
 object BP {
   def contextMatch(bp: BP, mcontext: UInt, scontext: UInt, xLen: Int, mcontextWidth: Int, scontextWidth: Int): Bool =
     (if (mcontextWidth > 0)
-      !bp.textra.mselect || (mcontext(TExtra.mvalueBits(xLen, mcontextWidth) - 1, 0) === bp.textra.mvalue)
-    else true.B) &&
+       !bp.textra.mselect || (mcontext(TExtra.mvalueBits(xLen, mcontextWidth) - 1, 0) === bp.textra.mvalue)
+     else true.B) &&
       (if (scontextWidth > 0)
-        !bp.textra.sselect || (scontext(TExtra.svalueBits(xLen, scontextWidth) - 1, 0) === bp.textra.svalue)
-      else true.B
-        )
+         !bp.textra.sselect || (scontext(TExtra.svalueBits(xLen, scontextWidth) - 1, 0) === bp.textra.svalue)
+       else true.B)
 
   def addressMatch(bp: BP, x: UInt) = {
     def rangeAddressMatch(x: UInt) =
@@ -97,7 +94,8 @@ class BP(xLen: Int, useBPWatch: Boolean, vaddrBits: Int, mcontextWidth: Int, sco
 }
 
 object BPControl {
-  def enabled(bpControl: BPControl, mstatus: MStatus): Bool = !mstatus.debug && Cat(bpControl.m, bpControl.h, bpControl.s, bpControl.u)(mstatus.prv)
+  def enabled(bpControl: BPControl, mstatus: MStatus): Bool =
+    !mstatus.debug && Cat(bpControl.m, bpControl.h, bpControl.s, bpControl.u)(mstatus.prv)
 }
 
 class BPControl(xLen: Int, useBPWatch: Boolean) extends Bundle {
@@ -145,4 +143,79 @@ class BPWatch extends Bundle() {
   val wvalid = Bool()
   val ivalid = Bool()
   val action = UInt(3.W)
+}
+
+class BTBReq(vaddrBits: Int) extends Bundle {
+  val addr = UInt(vaddrBits.W)
+}
+
+class BTBResp(
+  vaddrBits:        Int,
+  entries:          Int,
+  fetchWidth:       Int,
+  bhtHistoryLength: Option[Int],
+  bhtCounterLength: Option[Int])
+    extends Bundle {
+
+  val cfiType = UInt(CFIType.width.W)
+  val taken = Bool()
+  val mask = UInt(fetchWidth.W)
+  val bridx = UInt(log2Ceil(fetchWidth).W)
+  val target = UInt(vaddrBits.W)
+  val entry = UInt(log2Ceil(entries + 1).W)
+  // @todo make it optional with bhtHistoryLength and bhtCounterLength
+  val bht = new BHTResp(bhtHistoryLength, bhtCounterLength)
+}
+
+object BHTResp {
+  def taken(bht: BHTResp): Bool = bht.value(0)
+}
+
+class BHTResp(bhtHistoryLength: Option[Int], bhtCounterLength: Option[Int]) extends Bundle {
+  val history = UInt(bhtHistoryLength.getOrElse(1).W)
+  val value = UInt(bhtCounterLength.getOrElse(1).W)
+
+  // @todo: change to:
+  //  val history = bhtHistoryLength.map(i => UInt(i.W))
+  //  val value = bhtCounterLength.map(i => UInt(i.W))
+}
+
+class BTBUpdate(
+  vaddrBits:        Int,
+  entries:          Int,
+  fetchWidth:       Int,
+  bhtHistoryLength: Option[Int],
+  bhtCounterLength: Option[Int])
+    extends Bundle {
+  def fetchWidth: Int = 1
+
+  val prediction = new BTBResp(vaddrBits, entries, fetchWidth, bhtHistoryLength, bhtCounterLength)
+  val pc = UInt(vaddrBits.W)
+  val target = UInt(vaddrBits.W)
+  val taken = Bool()
+  val isValid = Bool()
+  val br_pc = UInt(vaddrBits.W)
+  val cfiType = UInt(CFIType.width.W)
+}
+
+class BHTUpdate(bhtHistoryLength: Option[Int], bhtCounterLength: Option[Int], vaddrBits: Int) extends Bundle {
+  val prediction = new BHTResp(bhtHistoryLength, bhtCounterLength)
+  val pc = UInt(vaddrBits.W)
+  val branch = Bool()
+  val taken = Bool()
+  val mispredict = Bool()
+}
+
+class RASUpdate(vaddrBits: Int) extends Bundle {
+  val cfiType = UInt(CFIType.width.W)
+  val returnAddr = UInt(vaddrBits.W)
+}
+
+// TODO: make it Enum
+object CFIType {
+  def width = 2
+  def branch = 0.U
+  def jump = 1.U
+  def call = 2.U
+  def ret = 3.U
 }
