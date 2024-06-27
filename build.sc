@@ -174,6 +174,7 @@ trait Elaborator
   def generators = Seq(
     t1,
     ipemu,
+    rocketv,
   )
 
   def mainargsIvy = v.mainargs
