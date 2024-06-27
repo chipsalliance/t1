@@ -38,6 +38,11 @@ src.git = "https://github.com/chipsalliance/chisel"
 src.branch = "main"
 fetch.github = "chipsalliance/chisel"
 
+[chisel-interface]
+src.git = "https://github.com/chipsalliance/chisel-interface"
+src.branch = "master"
+fetch.github = "chipsalliance/chisel-interface"
+
 [rvdecoderdb]
 src.git = "https://github.com/sequencer/rvdecoderdb"
 src.branch = "master"
