@@ -957,3 +957,35 @@ class L2TLBEntry(nSets: Int, ppnBits: Int, maxSVAddrBits: Int, pgIdxBits: Int, u
   /** whether the page is readable */
   val r = Bool()
 }
+
+class ICacheReq(vaddrBits: Int) extends Bundle {
+  val addr = UInt(vaddrBits.W)
+}
+
+class ICacheResp(fetchBytes: Int) extends Bundle {
+
+  /** data to CPU.
+   * @todo why 4 instructions?
+   */
+  val data = UInt((fetchBytes * 8).W)
+
+  /** ask CPU to replay fetch when tag or data ECC error happened. */
+  val replay = Bool()
+
+  /** access exception:
+   * indicate CPU an tag ECC error happened.
+   * if [[outer.icacheParams.latency]] is 1, tie 0.
+   */
+  val ae = Bool()
+
+}
+
+class ICacheErrors(hasCorrectable: Boolean, hasUncorrectable: Boolean, paddrBits: Int) extends Bundle {
+  val correctable = Option.when(hasCorrectable)(Valid(UInt(paddrBits.W)))
+  val uncorrectable = Option.when(hasUncorrectable)(Valid(UInt(paddrBits.W)))
+  val bus = Valid(UInt(paddrBits.W))
+}
+
+class ICachePerfEvents extends Bundle {
+  val acquire = Bool()
+}
