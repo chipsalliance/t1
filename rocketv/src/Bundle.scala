@@ -219,3 +219,313 @@ object CFIType {
   def call = 2.U
   def ret = 3.U
 }
+
+class CustomCSRIO(xLen: Int) extends Bundle {
+  val ren = Output(Bool())          // set by CSRFile, indicates an instruction is reading the CSR
+  val wen = Output(Bool())          // set by CSRFile, indicates an instruction is writing the CSR
+  val wdata = Output(UInt(xLen.W))  // wdata provided by instruction writing CSR
+  val value = Output(UInt(xLen.W))  // current value of CSR in CSRFile
+
+  val stall = Input(Bool())         // reads and writes to this CSR should stall (must be bounded)
+
+  val set = Input(Bool())           // set/sdata enables external agents to set the value of this CSR
+  val sdata = Input(UInt(xLen.W))
+}
+
+class CustomCSRs(xLen: Int) extends Bundle {
+  val csrs = Vec(decls.size, new CustomCSRIO(xLen))
+
+  // Not all cores have these CSRs, but those that do should follow the same
+  // numbering conventions.  So we list them here but default them to None.
+  protected def bpmCSRId = 0x7c0
+  protected def bpmCSR: Option[CustomCSR] = None
+  protected def chickenCSRId = 0x7c1
+  protected def chickenCSR: Option[CustomCSR] = None
+  // If you override this, you'll want to concatenate super.decls
+  def decls: Seq[CustomCSR] = bpmCSR.toSeq ++ chickenCSR
+  def flushBTB = getOrElse(bpmCSR, _.wen, false.B)
+  def bpmStatic = getOrElse(bpmCSR, _.value(0), false.B)
+  def disableDCacheClockGate = getOrElse(chickenCSR, _.value(0), false.B)
+  def disableICacheClockGate = getOrElse(chickenCSR, _.value(1), false.B)
+  def disableCoreClockGate = getOrElse(chickenCSR, _.value(2), false.B)
+  def disableSpeculativeICacheRefill = getOrElse(chickenCSR, _.value(3), false.B)
+  def suppressCorruptOnGrantData = getOrElse(chickenCSR, _.value(9), false.B)
+  protected def getByIdOrElse[T](id: Int, f: CustomCSRIO => T, alt: T): T = {
+    val idx = decls.indexWhere(_.id == id)
+    if (idx < 0) alt else f(csrs(idx))
+  }
+
+  protected def getOrElse[T](csr: Option[CustomCSR], f: CustomCSRIO => T, alt: T): T =
+    csr.map(c => getByIdOrElse(c.id, f, alt)).getOrElse(alt)
+}
+
+class TileInterrupts(usingSupervisor: Boolean, nLocalInterrupts: Int, usingNMI: Boolean, resetVectorLen: Int) extends Bundle {
+  val debug: Bool = Bool()
+  val mtip:  Bool = Bool()
+  val msip:  Bool = Bool()
+  val meip:  Bool = Bool()
+  val seip:  Option[Bool] = Option.when(usingSupervisor)(Bool())
+  val lip:   Vec[Bool] = Vec(nLocalInterrupts, Bool())
+  val nmi = Option.when(usingNMI)(new NMI(resetVectorLen))
+}
+
+class NMI(w: Int) extends Bundle {
+  val rnmi = Bool()
+  val rnmi_interrupt_vector = UInt(w.W)
+  val rnmi_exception_vector = UInt(w.W)
+}
+
+class CoreInterrupts(usingSupervisor: Boolean, nLocalInterrupts: Int, hasBeu: Boolean, usingNMI: Boolean, resetVectorLen: Int) extends Bundle {
+  val tileInterrupts = new TileInterrupts(usingSupervisor, nLocalInterrupts, usingNMI, resetVectorLen)
+  val buserror = Option.when(hasBeu)(Bool())
+}
+
+class HStatus extends Bundle {
+  val zero6 = UInt(30.W)
+  val vsxl = UInt(2.W)
+  val zero5 = UInt(9.W)
+  val vtsr = Bool()
+  val vtw = Bool()
+  val vtvm = Bool()
+  val zero3 = UInt(2.W)
+  val vgein = UInt(6.W)
+  val zero2 = UInt(2.W)
+  val hu = Bool()
+  val spvp = Bool()
+  val spv = Bool()
+  val gva = Bool()
+  val vsbe = Bool()
+  val zero1 = UInt(5.W)
+}
+
+class CSRDecodeIO(iLen: Int) extends Bundle {
+  val inst = Input(UInt(iLen.W))
+  val fpIllegal = Output(Bool())
+  val fpCsr = Output(Bool())
+  val readIllegal = Output(Bool())
+  val writeIllegal = Output(Bool())
+  val writeFlush = Output(Bool())
+  val systemIllegal = Output(Bool())
+  val virtualAccessIllegal = Output(Bool())
+  val virtualSystemIllegal = Output(Bool())
+}
+
+object PTBR {
+  def additionalPgLevels(ptbr: PTBR, pgLevels: Int, minPgLevels: Int) = ptbr.mode(log2Ceil(pgLevels - minPgLevels + 1) - 1, 0)
+  def modeBits(xLen: Int) = xLen match {
+    case 32 => 1
+    case 64 => 4
+  }
+  def maxASIdBits(xLen: Int) = xLen match {
+    case 32 => 9
+    case 64 => 16
+  }
+}
+
+class PTBR(xLen: Int, maxPAddrBits: Int, pgIdxBits: Int) extends Bundle {
+  val mode: UInt = UInt(PTBR.modeBits(xLen).W)
+  val asid = UInt(PTBR.maxASIdBits(xLen).W)
+  val ppn = UInt((maxPAddrBits - pgIdxBits).W)
+}
+
+// TODO: remove me.
+object FPConstants {
+  val RM_SZ = 3
+  val FLAGS_SZ = 5
+}
+
+
+object PMP {
+  def lgAlign = 2
+  private def UIntToOH1(x: UInt, width: Int): UInt = ~((-1).S(width.W).asUInt << x)(width - 1, 0)
+
+  // For PMPReg
+  def reset(pmp: PMP): Unit = {
+    pmp.cfg.a := 0.U
+    pmp.cfg.l := 0.U
+  }
+  def readAddr(pmp: PMP, pmpGranularity: Int) =
+    if (log2Ceil(pmpGranularity) == PMP.lgAlign)
+      pmp.addr
+    else {
+      val mask = ((BigInt(1) << (log2Ceil(pmpGranularity) - PMP.lgAlign)) - 1).U
+      Mux(napot(pmp), pmp.addr | (mask >> 1), ~(~pmp.addr | mask))
+    }
+  def napot(pmp: PMP) = pmp.cfg.a(1)
+  def napot(pmp: PMPReg) = pmp.cfg.a(1)
+  def torNotNAPOT(pmp: PMP) = pmp.cfg.a(0)
+  def tor(pmp: PMP) = !napot(pmp) && torNotNAPOT(pmp)
+  def cfgLocked(pmp: PMP) = pmp.cfg.l
+  def addrLocked(pmp: PMP, next: PMP) = cfgLocked(pmp) || cfgLocked(next) && tor(next)
+  // PMP
+  def computeMask(pmp: PMP, pmpGranularity: Int): UInt = {
+    val base = Cat(pmp.addr, pmp.cfg.a(0)) | ((pmpGranularity - 1).U >> lgAlign)
+    Cat(base & ~(base + 1.U), ((1 << lgAlign) - 1).U)
+  }
+  private def comparand(pmp: PMP, pmpGranularity: Int): UInt = ~(~(pmp.addr << lgAlign) | (pmpGranularity - 1).U)
+
+  private def pow2Match(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, pmpGranularity: Int): Bool = {
+    def eval(a: UInt, b: UInt, m: UInt) = ((a ^ b) & ~m) === 0.U
+    if (lgMaxSize <= log2Ceil(pmpGranularity)) {
+      eval(x, comparand(pmp, pmpGranularity), pmp.mask)
+    } else {
+      // break up the circuit; the MSB part will be CSE'd
+      val lsbMask = pmp.mask | UIntToOH1(lgSize, lgMaxSize)
+      val msbMatch: Bool = eval(x >> lgMaxSize, comparand(pmp, pmpGranularity) >> lgMaxSize, pmp.mask >> lgMaxSize)
+      val lsbMatch: Bool = eval(x(lgMaxSize - 1, 0), comparand(pmp, pmpGranularity)(lgMaxSize - 1, 0), lsbMask(lgMaxSize - 1, 0))
+      msbMatch && lsbMatch
+    }
+  }
+
+  private def boundMatch(pmp: PMP, x: UInt, lsbMask: UInt, lgMaxSize: Int, pmpGranularity: Int): Bool = {
+    if (lgMaxSize <= log2Ceil(pmpGranularity)) {
+      x < comparand(pmp, pmpGranularity)
+    } else {
+      // break up the circuit; the MSB part will be CSE'd
+      val msbsLess: Bool = (x >> lgMaxSize) < (comparand(pmp, pmpGranularity) >> lgMaxSize)
+      val msbsEqual: Bool = ((x >> lgMaxSize) ^ (comparand(pmp, pmpGranularity) >> lgMaxSize)) === 0.U
+      val lsbsLess: Bool = (x(lgMaxSize - 1, 0) | lsbMask) < comparand(pmp, pmpGranularity)(lgMaxSize - 1, 0)
+      msbsLess || (msbsEqual && lsbsLess)
+    }
+  }
+
+  private def lowerBoundMatch(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, pmpGranularity: Int): Bool =
+    !boundMatch(pmp: PMP, x, UIntToOH1(lgSize, lgMaxSize), lgMaxSize, pmpGranularity: Int)
+
+  private def upperBoundMatch(pmp: PMP, x: UInt, lgMaxSize: Int, pmpGranularity: Int): Bool =
+    boundMatch(pmp, x, 0.U, lgMaxSize, pmpGranularity)
+
+  private def rangeMatch(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, prev: PMP, pmpGranularity: Int) =
+    lowerBoundMatch(prev, x, lgSize, lgMaxSize, pmpGranularity) && upperBoundMatch(pmp, x, lgMaxSize, pmpGranularity)
+
+  private def pow2Homogeneous(pmp: PMP, x: UInt, pgLevel: UInt, paddrBits: Int, pmpGranularity: Int, pgLevels: Int, pgIdxBits: Int, pgLevelBits: Int): Bool = {
+    val maskHomogeneous = VecInit(pgLevelMap(pgLevels, pgIdxBits, pgLevelBits) { idxBits => if (idxBits > paddrBits) false.B else pmp.mask(idxBits - 1) })(pgLevel)
+    maskHomogeneous || VecInit(pgLevelMap(pgLevels, pgIdxBits, pgLevelBits) { idxBits => ((x ^ comparand(pmp, pmpGranularity)) >> idxBits) =/= 0.U })(pgLevel)
+  }
+
+  private def pgLevelMap[T](pgLevels: Int, pgIdxBits: Int, pgLevelBits: Int)(f: Int => T): Seq[T] = (0 until pgLevels).map { i =>
+    f(pgIdxBits + (pgLevels - 1 - i) * pgLevelBits)
+  }
+
+  private def rangeHomogeneous(pmp: PMP, x: UInt, pgLevel: UInt, prev: PMP, paddrBits: Int, pmpGranularity: Int, pgLevels: Int, pgIdxBits: Int, pgLevelBits: Int) = {
+    val beginsAfterLower = !(x < comparand(prev, pmpGranularity))
+    val beginsAfterUpper = !(x < comparand(pmp, pmpGranularity))
+
+    val pgMask = VecInit(pgLevelMap(pgLevels, pgIdxBits, pgLevelBits) { idxBits => (((BigInt(1) << paddrBits) - (BigInt(1) << idxBits)).max(0)).U })(pgLevel)
+    val endsBeforeLower = (x & pgMask) < (comparand(prev, pmpGranularity) & pgMask)
+    val endsBeforeUpper = (x & pgMask) < (comparand(pmp, pmpGranularity) & pgMask)
+
+    endsBeforeLower || beginsAfterUpper || (beginsAfterLower && endsBeforeUpper)
+  }
+
+  // returns whether this PMP completely contains, or contains none of, a page
+  def homogeneous(pmp: PMP, x: UInt, pgLevel: UInt, prev: PMP, paddrBits: Int, pmpGranularity: Int, pgLevels: Int, pgIdxBits: Int, pgLevelBits: Int): Bool =
+    Mux(napot(pmp), pow2Homogeneous(pmp, x, pgLevel, paddrBits, pmpGranularity, pgLevels, pgIdxBits, pgLevelBits), !torNotNAPOT(pmp) || rangeHomogeneous(pmp, x, pgLevel, prev, paddrBits, pmpGranularity, pgLevels, pgIdxBits, pgLevelBits))
+
+  // returns whether this matching PMP fully contains the access
+  def aligned(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, prev: PMP, pmpGranularity: Int): Bool = if (lgMaxSize <= log2Ceil(pmpGranularity)) true.B
+  else {
+    val lsbMask = UIntToOH1(lgSize, lgMaxSize)
+    val straddlesLowerBound: Bool =
+      ((x >> lgMaxSize) ^ (comparand(prev, pmpGranularity) >> lgMaxSize)) === 0.U &&
+        (comparand(prev, pmpGranularity)(lgMaxSize - 1, 0) & ~x(lgMaxSize - 1, 0)) =/= 0.U
+    val straddlesUpperBound: Bool =
+      ((x >> lgMaxSize) ^ (comparand(pmp, pmpGranularity) >> lgMaxSize)) === 0.U &&
+        (comparand(pmp, pmpGranularity)(lgMaxSize - 1, 0) & (x(lgMaxSize - 1, 0) | lsbMask)) =/= 0.U
+    val rangeAligned = !(straddlesLowerBound || straddlesUpperBound)
+    val pow2Aligned = (lsbMask & ~pmp.mask(lgMaxSize - 1, 0)) === 0.U
+    Mux(napot(pmp), pow2Aligned, rangeAligned)
+  }
+
+  // returns whether this PMP matches at least one byte of the access
+  def hit(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, prev: PMP, pmpGranularity: Int): Bool =
+    Mux(napot(pmp), pow2Match(pmp, x, lgSize, lgMaxSize, pmpGranularity), torNotNAPOT(pmp) && rangeMatch(pmp, x, lgSize, lgMaxSize, prev, pmpGranularity))
+
+}
+
+class PMP(paddrBits: Int) extends Bundle {
+  val mask = UInt(paddrBits.W)
+  val cfg = new PMPConfig
+  val addr = UInt((paddrBits - PMP.lgAlign).W)
+}
+
+class PMPConfig extends Bundle {
+  val l = Bool()
+  val res = UInt(2.W)
+  val a = UInt(2.W)
+  val x = Bool()
+  val w = Bool()
+  val r = Bool()
+}
+
+class PerfCounterIO(xLen: Int, retireWidth: Int) extends Bundle {
+  val eventSel = Output(UInt(xLen.W))
+  val inc = Input(UInt(log2Ceil(1 + retireWidth).W))
+}
+
+class Envcfg extends Bundle {
+  val stce = Bool() // only for menvcfg/henvcfg
+  val pbmte = Bool() // only for menvcfg/henvcfg
+  val zero54 = UInt(54.W)
+  val cbze = Bool()
+  val cbcfe = Bool()
+  val cbie = UInt(2.W)
+  val zero3 = UInt(3.W)
+  val fiom = Bool()
+}
+
+class DCSR extends Bundle {
+  val xdebugver = UInt(2.W)
+  val zero4 = UInt(2.W)
+  val zero3 = UInt(12.W)
+  val ebreakm = Bool()
+  val ebreakh = Bool()
+  val ebreaks = Bool()
+  val ebreaku = Bool()
+  val zero2 = Bool()
+  val stopcycle = Bool()
+  val stoptime = Bool()
+  val cause = UInt(3.W)
+  val v = Bool()
+  val zero1 = UInt(2.W)
+  val step = Bool()
+  val prv = UInt(PRV.SZ.W)
+}
+
+class MIP(nLocalInterrupts: Int) extends Bundle {
+  val lip = Vec(nLocalInterrupts, Bool())
+  val zero1 = Bool()
+  val debug = Bool() // keep in sync with CSR.debugIntCause
+  val sgeip = Bool()
+  val meip = Bool()
+  val vseip = Bool()
+  val seip = Bool()
+  val ueip = Bool()
+  val mtip = Bool()
+  val vstip = Bool()
+  val stip = Bool()
+  val utip = Bool()
+  val msip = Bool()
+  val vssip = Bool()
+  val ssip = Bool()
+  val usip = Bool()
+}
+
+object PMPReg {
+  def napot(pmp: PMPReg) = pmp.cfg.a(1)
+}
+
+class PMPReg(paddrBits: Int) extends Bundle {
+  val cfg = new PMPConfig
+  val addr = UInt((paddrBits - PMP.lgAlign).W)
+}
+
+class MNStatus extends Bundle {
+  val mpp = UInt(2.W)
+  val zero3 = UInt(3.W)
+  val mpv = Bool()
+  val zero2 = UInt(3.W)
+  val mie = Bool()
+  val zero1 = UInt(3.W)
+}
+
