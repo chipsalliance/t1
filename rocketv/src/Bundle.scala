@@ -10,18 +10,16 @@ import chisel3.util.{Cat, log2Ceil}
 // This file defines Bundle shared in the project.
 // all Bundle only have datatype without any helper or functions, while they only exist in the companion Bundle.
 
-object MStatus {
-  object PRV {
-    val SZ = 2
-    val U = 0
-    val S = 1
-    val H = 2
-    val M = 3
-  }
+// TODO: make it Enum
+object PRV {
+  val SZ = 2
+  val U = 0
+  val S = 1
+  val H = 2
+  val M = 3
 }
 
 class MStatus extends Bundle {
-  import MStatus._
   // not truly part of mstatus, but convenient
   val debug = Bool()
   val cease = Bool()
