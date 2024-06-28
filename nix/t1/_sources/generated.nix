@@ -63,14 +63,14 @@
   };
   rvdecoderdb = {
     pname = "rvdecoderdb";
-    version = "d65525e7e18004b0877d8fbe2c435296ab986f44";
+    version = "b90db1a8f582dff4aa91a5f0a85feb29d27a95e4";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "rvdecoderdb";
-      rev = "d65525e7e18004b0877d8fbe2c435296ab986f44";
+      rev = "b90db1a8f582dff4aa91a5f0a85feb29d27a95e4";
       fetchSubmodules = false;
-      sha256 = "sha256-MzEoFjyUgarR62ux4ngYNFOgvAoeasdr1EVhaCvuh+Q=";
+      sha256 = "sha256-1ix9qJYKd6YqfLfdCm8KopCAhsBJ4qr6yqtqhchgeeU=";
     };
-    date = "2024-01-28";
+    date = "2024-06-28";
   };
 }
