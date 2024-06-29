@@ -1,39 +1,70 @@
-// See LICENSE.Berkeley for license details.
-// See LICENSE.SiFive for license details.
-
-package org.chipsalliance.t1.rocketcore
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2012-2014 The Regents of the University of California
+// SPDX-FileCopyrightText: 2016-2017 SiFive, Inc
+// SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
+package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.util.{log2Ceil, log2Floor, log2Up, Cat, Decoupled, Enum, Fill, Log2, Pipe, Valid}
-import freechips.rocketchip.util._
-// TODO: remove it
-import freechips.rocketchip.rocket.{DecodeLogic, MulDivParams}
+import chisel3.experimental.hierarchy.instantiable
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.util.{BitPat, Cat, Decoupled, Enum, Fill, Log2, log2Ceil, log2Floor}
 
-class MultiplierReq(dataBits: Int, tagBits: Int, aluFn: ALUFN = new ALUFN) extends Bundle {
-  val fn = Bits(aluFn.SZ_ALU_FN.W)
-  val dw = Bits(SZ_DW.W)
-  val in1 = Bits(dataBits.W)
-  val in2 = Bits(dataBits.W)
-  val tag = UInt(tagBits.W)
+object MulDivParameter {
+  implicit def rwP: upickle.default.ReadWriter[MulDivParameter] = upickle.default.macroRW[MulDivParameter]
 }
 
-class MultiplierResp(dataBits: Int, tagBits: Int) extends Bundle {
-  val data = Bits(dataBits.W)
-  val tag = UInt(tagBits.W)
-}
+case class MulDivParameter(useAsyncReset: Boolean,
+                           latency: Int,
+                           xLen: Int,
+                           divUnroll: Int,
+                           divEarlyOut: Boolean,
+                           divEarlyOutGranularity: Int,
+                           mulUnroll: Int,
+                           mulEarlyOut: Boolean)
+  extends SerializableModuleParameter {
+  // optional to 16 when rve?
+  val nXpr:     Int = 32
+  val uopWidth: Int = 4
 
-class MultiplierIO(val dataBits: Int, val tagBits: Int, aluFn: ALUFN = new ALUFN) extends Bundle {
-  val req = Flipped(Decoupled(new MultiplierReq(dataBits, tagBits, aluFn)))
+  def FN_MUL = 1.U(4.W)
+  def FN_MULH = 2.U(4.W)
+  def FN_MULHU = 3.U(4.W)
+  def FN_MULHSU = 4.U(4.W)
+  def FN_DIV = 4.U(4.W)
+  def FN_REM = 5.U(4.W)
+  def FN_DIVU = 6.U(4.W)
+  def FN_REMU = 7.U(4.W)
+  def DW_32 = false.B
+}
+class MulDivInterface(parameter: MulDivParameter) extends Bundle {
+  val clock = Input(Clock())
+  val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
+  val req = Flipped(Decoupled(new MultiplierReq(parameter.xLen, log2Ceil(parameter.nXpr), parameter.uopWidth)))
   val kill = Input(Bool())
-  val resp = Decoupled(new MultiplierResp(dataBits, tagBits))
+  val resp = Decoupled(new MultiplierResp(parameter.xLen, log2Ceil(parameter.nXpr)))
 }
 
-class MulDiv(cfg: MulDivParams, width: Int, nXpr: Int = 32, aluFn: ALUFN = new ALUFN) extends Module {
-  private def minDivLatency = (cfg.divUnroll > 0).option(if (cfg.divEarlyOut) 3 else 1 + w / cfg.divUnroll)
-  private def minMulLatency = (cfg.mulUnroll > 0).option(if (cfg.mulEarlyOut) 2 else w / cfg.mulUnroll)
-  def minLatency: Int = (minDivLatency ++ minMulLatency).min
+@instantiable
+class MulDiv(val parameter: MulDivParameter)
+    extends FixedIORawModule(new MulDivInterface(parameter))
+    with SerializableModule[MulDivParameter]
+    with ImplicitClock
+    with ImplicitReset {
+  override protected def implicitClock: Clock = io.clock
+  override protected def implicitReset: Reset = io.reset
 
-  val io = IO(new MultiplierIO(width, log2Up(nXpr), aluFn))
+  object cfg {
+    val divUnroll = parameter.divUnroll
+    val divEarlyOut = parameter.divEarlyOut
+    val divEarlyOutGranularity = parameter.divEarlyOutGranularity
+    val mulUnroll = parameter.mulUnroll
+    val mulEarlyOut = parameter.mulEarlyOut
+  }
+
+  def N = BitPat.N()
+  def Y = BitPat.N()
+  def X = BitPat.dontCare(1)
+
   val w = io.req.bits.in1.getWidth
   val mulw = if (cfg.mulUnroll == 0) w else (w + cfg.mulUnroll - 1) / cfg.mulUnroll * cfg.mulUnroll
   val fastMulW = if (cfg.mulUnroll == 0) false else w / 2 > cfg.mulUnroll && w % (2 * cfg.mulUnroll) == 0
@@ -45,29 +76,30 @@ class MulDiv(cfg: MulDivParams, width: Int, nXpr: Int = 32, aluFn: ALUFN = new A
   val count = Reg(
     UInt(
       log2Ceil(
-        ((cfg.divUnroll != 0).option(w / cfg.divUnroll + 1).toSeq ++
-          (cfg.mulUnroll != 0).option(mulw / cfg.mulUnroll)).reduce(_ max _)
+        (Option.when(cfg.divUnroll != 0)(w / cfg.divUnroll + 1).toSeq ++
+          Option.when(cfg.mulUnroll != 0)(mulw / cfg.mulUnroll)).reduce(_ max _)
       ).W
     )
   )
   val neg_out = Reg(Bool())
   val isHi = Reg(Bool())
   val resHi = Reg(Bool())
-  val divisor = Reg(Bits((w + 1).W)) // div only needs w bits
-  val remainder = Reg(Bits((2 * mulw + 2).W)) // div only needs 2*w+1 bits
+  val divisor = Reg(UInt((w + 1).W)) // div only needs w bits
+  val remainder = Reg(UInt((2 * mulw + 2).W)) // div only needs 2*w+1 bits
 
   val mulDecode = List(
-    aluFn.FN_MUL -> List(Y, N, X, X),
-    aluFn.FN_MULH -> List(Y, Y, Y, Y),
-    aluFn.FN_MULHU -> List(Y, Y, N, N),
-    aluFn.FN_MULHSU -> List(Y, Y, Y, N)
+    parameter.FN_MUL -> List(Y, N, X, X),
+    parameter.FN_MULH -> List(Y, Y, Y, Y),
+    parameter.FN_MULHU -> List(Y, Y, N, N),
+    parameter.FN_MULHSU -> List(Y, Y, Y, N)
   )
   val divDecode = List(
-    aluFn.FN_DIV -> List(N, N, Y, Y),
-    aluFn.FN_REM -> List(N, Y, Y, Y),
-    aluFn.FN_DIVU -> List(N, N, N, N),
-    aluFn.FN_REMU -> List(N, Y, N, N)
+    parameter.FN_DIV -> List(N, N, Y, Y),
+    parameter.FN_REM -> List(N, Y, Y, Y),
+    parameter.FN_DIVU -> List(N, N, N, N),
+    parameter.FN_REMU -> List(N, Y, N, N)
   )
+  // TODO: move these decoding to Decoder.
   val cmdMul :: cmdHi :: lhsSigned :: rhsSigned :: Nil =
     DecodeLogic(
       io.req.bits.fn,
@@ -76,7 +108,7 @@ class MulDiv(cfg: MulDivParams, width: Int, nXpr: Int = 32, aluFn: ALUFN = new A
     ).map(_.asBool)
 
   require(w == 32 || w == 64)
-  def halfWidth(req: MultiplierReq) = (w > 32).B && req.dw === DW_32
+  def halfWidth(req: MultiplierReq) = (w > 32).B && req.dw === parameter.DW_32
 
   def sext(x: Bits, halfW: Bool, signed: Bool) = {
     val sign = signed && Mux(halfW, x(w / 2 - 1), x(w - 1))
@@ -114,10 +146,10 @@ class MulDiv(cfg: MulDivParams, width: Int, nXpr: Int = 32, aluFn: ALUFN = new A
     val nextMulReg = Cat(prod, mplier(mulw - 1, cfg.mulUnroll))
     val nextMplierSign = count === (mulw / cfg.mulUnroll - 2).U && neg_out
 
-    val eOutMask = ((BigInt(-1) << mulw).S >> (count * cfg.mulUnroll.U)(log2Up(mulw) - 1, 0))(mulw - 1, 0)
+    val eOutMask = ((BigInt(-1) << mulw).S >> (count * cfg.mulUnroll.U)(log2Ceil(mulw) - 1, 0))(mulw - 1, 0)
     val eOut = (cfg.mulEarlyOut).B && count =/= (mulw / cfg.mulUnroll - 1).U && count =/= 0.U &&
       !isHi && (mplier & ~eOutMask) === 0.U
-    val eOutRes = (mulReg >> (mulw.U - count * cfg.mulUnroll.U)(log2Up(mulw) - 1, 0))
+    val eOutRes = (mulReg >> (mulw.U - count * cfg.mulUnroll.U)(log2Ceil(mulw) - 1, 0))
     val nextMulReg1 = Cat(nextMulReg(2 * mulw, mulw), Mux(eOut, eOutRes, nextMulReg)(mulw - 1, 0))
     remainder := Cat(nextMulReg1 >> w, nextMplierSign, nextMulReg1(w - 1, 0))
 
@@ -182,38 +214,7 @@ class MulDiv(cfg: MulDivParams, width: Int, nXpr: Int = 32, aluFn: ALUFN = new A
   io.resp.bits.tag := req.tag
 
   io.resp.bits.data := Cat(hiOut, loOut)
+  io.resp.bits.full_data := Cat(remainder(2*w, w+1), remainder(w-1, 0))
   io.resp.valid := (state === s_done_mul || state === s_done_div)
   io.req.ready := state === s_ready
-}
-
-class PipelinedMultiplier(width: Int, latency: Int, nXpr: Int = 32, aluFn: ALUFN = new ALUFN)
-    extends Module
-    with ShouldBeRetimed {
-  val io = IO(new Bundle {
-    val req = Flipped(Valid(new MultiplierReq(width, log2Ceil(nXpr), aluFn)))
-    val resp = Valid(new MultiplierResp(width, log2Ceil(nXpr)))
-  })
-
-  val in = Pipe(io.req)
-
-  val decode = List(
-    aluFn.FN_MUL -> List(N, X, X),
-    aluFn.FN_MULH -> List(Y, Y, Y),
-    aluFn.FN_MULHU -> List(Y, N, N),
-    aluFn.FN_MULHSU -> List(Y, Y, N)
-  )
-  val cmdHi :: lhsSigned :: rhsSigned :: Nil =
-    DecodeLogic(in.bits.fn, List(X, X, X), decode).map(_.asBool)
-  val cmdHalf = (width > 32).B && in.bits.dw === DW_32
-
-  val lhs = Cat(lhsSigned && in.bits.in1(width - 1), in.bits.in1).asSInt
-  val rhs = Cat(rhsSigned && in.bits.in2(width - 1), in.bits.in2).asSInt
-  val prod = lhs * rhs
-  val muxed =
-    Mux(cmdHi, prod(2 * width - 1, width), Mux(cmdHalf, prod(width / 2 - 1, 0).sextTo(width), prod(width - 1, 0)))
-
-  val resp = Pipe(in, latency - 1)
-  io.resp.valid := resp.valid
-  io.resp.bits.tag := resp.bits.tag
-  io.resp.bits.data := Pipe(in.valid, muxed, latency - 1).bits
 }
