@@ -528,3 +528,10 @@ class MNStatus extends Bundle {
   val zero1 = UInt(3.W)
 }
 
+class ExpandedInstruction extends Bundle {
+  val bits = UInt(32.W)
+  val rd = UInt(5.W)
+  val rs1 = UInt(5.W)
+  val rs2 = UInt(5.W)
+  val rs3 = UInt(5.W)
+}
