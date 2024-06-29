@@ -535,3 +535,35 @@ class ExpandedInstruction extends Bundle {
   val rs2 = UInt(5.W)
   val rs3 = UInt(5.W)
 }
+
+class FrontendResp(
+                    vaddrBits:         Int,
+                    entries:           Int,
+                    bhtHistoryLength:  Option[Int],
+                    bhtCounterLength:  Option[Int],
+                    vaddrBitsExtended: Int,
+                    coreInstBits:      Int)
+  extends Bundle {
+  def fetchWidth = 1
+  val btb = new BTBResp(vaddrBits, entries, bhtHistoryLength: Option[Int], bhtCounterLength: Option[Int])
+  val pc = UInt(vaddrBitsExtended.W) // ID stage PC
+  val data = UInt((fetchWidth * coreInstBits).W)
+  val mask = UInt(fetchWidth.W)
+  val xcpt = new FrontendExceptions
+  val replay = Bool()
+}
+
+class FrontendExceptions extends Bundle {
+  val pf = Bool()
+  val gf = Bool()
+  val ae = Bool()
+}
+
+class Instruction extends Bundle {
+  val xcpt0 = new FrontendExceptions // exceptions on first half of instruction
+  val xcpt1 = new FrontendExceptions // exceptions on second half of instruction
+  val replay = Bool()
+  val rvc = Bool()
+  val inst = new ExpandedInstruction
+  val raw = UInt(32.W)
+}
