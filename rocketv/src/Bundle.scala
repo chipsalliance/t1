@@ -581,3 +581,14 @@ class MultiplierResp(dataBits: Int, tagBits: Int) extends Bundle {
   val full_data = Bits((2 * dataBits).W)
   val tag = UInt(tagBits.W)
 }
+
+class PMACheckerResponse extends Bundle {
+  val cacheable = Bool()
+  val r = Bool()
+  val w = Bool()
+  val pp = Bool()
+  val al = Bool()
+  val aa = Bool()
+  val x = Bool()
+  val eff = Bool()
+}
