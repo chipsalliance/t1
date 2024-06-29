@@ -1,50 +1,54 @@
-// See LICENSE.SiFive for license details.
-// See LICENSE.Berkeley for license details.
-
-package freechips.rocketchip.rocket
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2012-2014 The Regents of the University of California
+// SPDX-FileCopyrightText: 2016-2017 SiFive, Inc
+// SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
+package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.util._
+import chisel3.experimental.hierarchy.instantiable
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.util.experimental.BitSet
 
-import org.chipsalliance.cde.config.{Field, Parameters}
-import freechips.rocketchip.subsystem.CacheBlockBytes
-import freechips.rocketchip.diplomacy.RegionType
-import freechips.rocketchip.tile.{CoreModule, CoreBundle}
-import freechips.rocketchip.tilelink._
-import freechips.rocketchip.util._
-import freechips.rocketchip.util.property
-import freechips.rocketchip.devices.debug.DebugModuleKey
-import chisel3.experimental.SourceInfo
+object PMACheckerParameter {
+  implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
+    .readwriter[String]
+    .bimap[BitSet](
+      bs => bs.terms.map("b" + _.rawString).mkString("\n"),
+      str => if(str.isEmpty) BitSet.empty else BitSet.fromString(str)
+    )
+  implicit def rwP: upickle.default.ReadWriter[PMACheckerParameter] = upickle.default.macroRW[PMACheckerParameter]
+}
 
-class PMAChecker(manager: TLSlavePortParameters)(implicit p: Parameters) extends CoreModule()(p) {
-  val io = IO(new Bundle {
-    val paddr = Input(UInt())
+case class PMACheckerParameter(
+  paddrBits:   Int,
+  legal:       BitSet,
+  cacheable:   BitSet,
+  read:        BitSet,
+  write:       BitSet,
+  putPartial:  BitSet,
+  logic:       BitSet,
+  arithmetic:  BitSet,
+  exec:        BitSet,
+  sideEffects: BitSet)
+    extends SerializableModuleParameter
 
-    val resp = Output(new Bundle {
-      val cacheable = Bool()
-      val r = Bool()
-      val w = Bool()
-      val pp = Bool()
-      val al = Bool()
-      val aa = Bool()
-      val x = Bool()
-      val eff = Bool()
-    })
-  })
+class PMACheckerInterface(parameter: PMACheckerParameter) extends Bundle {
+  val paddr = Input(UInt(parameter.paddrBits.W))
+  val resp = Output(new PMACheckerResponse)
+}
 
-  // PMA
+@instantiable
+class PMAChecker(val parameter: PMACheckerParameter)
+    extends FixedIORawModule(new PMACheckerInterface(parameter))
+    with SerializableModule[PMACheckerParameter] {
   // check exist a slave can consume this address.
-  val legal_address = manager.findSafe(io.paddr).reduce(_||_)
-  // check utility to help check SoC property.
-  def fastCheck(member: TLManagerParameters => Boolean) =
-    legal_address && manager.fastProperty(io.paddr, member, (b:Boolean) => b.B)
-
-  io.resp.cacheable := fastCheck(_.supportsAcquireB)
-  io.resp.r := fastCheck(_.supportsGet)
-  io.resp.w := fastCheck(_.supportsPutFull)
-  io.resp.pp := fastCheck(_.supportsPutPartial)
-  io.resp.al := fastCheck(_.supportsLogical)
-  io.resp.aa := fastCheck(_.supportsArithmetic)
-  io.resp.x := fastCheck(_.executable)
-  io.resp.eff := fastCheck(Seq(RegionType.PUT_EFFECTS, RegionType.GET_EFFECTS) contains _.regionType)
+  val legal_address = parameter.legal.matches(io.paddr)
+  io.resp.cacheable := legal_address && (if(parameter.cacheable.isEmpty) false.B else parameter.cacheable.matches(io.paddr))
+  io.resp.r := legal_address && (if(parameter.read.isEmpty) false.B else parameter.read.matches(io.paddr))
+  io.resp.w := legal_address && (if(parameter.write.isEmpty) false.B else parameter.write.matches(io.paddr))
+  io.resp.pp := legal_address && (if(parameter.putPartial.isEmpty) false.B else parameter.putPartial.matches(io.paddr))
+  io.resp.al := legal_address && (if(parameter.logic.isEmpty) false.B else parameter.logic.matches(io.paddr))
+  io.resp.aa := legal_address && (if(parameter.arithmetic.isEmpty) false.B else parameter.arithmetic.matches(io.paddr))
+  io.resp.x := legal_address && (if(parameter.exec.isEmpty) false.B else parameter.exec.matches(io.paddr))
+  io.resp.eff := legal_address && (if(parameter.sideEffects.isEmpty) false.B else parameter.sideEffects.matches(io.paddr))
 }
