@@ -1,21 +1,14 @@
-// See LICENSE.SiFive for license details.
-
-package org.chipsalliance.t1.rocketcore
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2016-2017 SiFive, Inc
+// SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
+package org.chipsalliance.rocketv
 
 import chisel3._
+import chisel3.experimental.hierarchy.instantiable
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
-import org.chipsalliance.cde.config.Parameters
-import freechips.rocketchip.tile._
-import freechips.rocketchip.util._
 
-class ExpandedInstruction extends Bundle {
-  val bits = UInt(32.W)
-  val rd = UInt(5.W)
-  val rs1 = UInt(5.W)
-  val rs2 = UInt(5.W)
-  val rs3 = UInt(5.W)
-}
-
+// TODO: add a clear documentation on this...
 class RVCDecoder(x: UInt, xLen: Int, useAddiForMv: Boolean = false) {
   def inst(bits: UInt, rd: UInt = x(11, 7), rs1: UInt = x(19, 15), rs2: UInt = x(24, 20), rs3: UInt = x(31, 27)) = {
     val res = Wire(new ExpandedInstruction)
@@ -99,12 +92,12 @@ class RVCDecoder(x: UInt, xLen: Int, useAddiForMv: Boolean = false) {
       def srai = srli | (1 << 30).U
       def andi = Cat(addiImm, rs1p, 7.U(3.W), rs1p, 0x13.U(7.W))
       def rtype = {
-        val funct = Seq(0.U, 4.U, 6.U, 7.U, 0.U, 0.U, 2.U, 3.U)(Cat(x(12), x(6, 5)))
+        val funct = VecInit(Seq(0.U, 4.U, 6.U, 7.U, 0.U, 0.U, 2.U, 3.U))(Cat(x(12), x(6, 5)))
         val sub = Mux(x(6, 5) === 0.U, (1 << 30).U, 0.U)
         val opc = Mux(x(12), 0x3b.U(7.W), 0x33.U(7.W))
         Cat(rs2p, rs1p, funct, rs1p, opc) | sub
       }
-      inst(Seq(srli, srai, andi, rtype)(x(11, 10)), rs1p, rs1p, rs2p)
+      inst(VecInit(Seq(srli, srai, andi, rtype))(x(11, 10)), rs1p, rs1p, rs2p)
     }
     Seq(addi, jal, li, lui, arith, j, beqz, bnez)
   }
@@ -151,22 +144,39 @@ class RVCDecoder(x: UInt, xLen: Int, useAddiForMv: Boolean = false) {
 
   def decode = {
     val s = q0 ++ q1 ++ q2 ++ q3
-    s(Cat(x(1, 0), x(15, 13)))
+    VecInit(s)(Cat(x(1, 0), x(15, 13)))
   }
 }
 
-class RVCExpander(useAddiForMv: Boolean = false)(implicit val p: Parameters) extends Module with HasCoreParameters {
-  val io = IO(new Bundle {
-    val in = Input(UInt(32.W))
-    val out = Output(new ExpandedInstruction)
-    val rvc = Output(Bool())
-  })
+object RVCExpanderParameter {
+  implicit def rwP: upickle.default.ReadWriter[RVCExpanderParameter] = upickle.default.macroRW[RVCExpanderParameter]
+}
 
+case class RVCExpanderParameter(
+  xLen:            Int,
+  usingCompressed: Boolean)
+    extends SerializableModuleParameter {
+  val useAddiForMv: Boolean = false
+}
+
+class RVCExpanderInterface(parameter: RVCExpanderParameter) extends Bundle {
+  val in = Input(UInt(32.W))
+  val out = Output(new ExpandedInstruction)
+  val rvc = Output(Bool())
+}
+
+@instantiable
+class RVCExpander(val parameter: RVCExpanderParameter)
+    extends FixedIORawModule(new RVCExpanderInterface(parameter))
+    with SerializableModule[RVCExpanderParameter] {
+  val usingCompressed = parameter.usingCompressed
+  val useAddiForMv = parameter.useAddiForMv
+  val xLen = parameter.xLen
   if (usingCompressed) {
     io.rvc := io.in(1, 0) =/= 3.U
-    io.out := new RVCDecoder(io.in, p(XLen), useAddiForMv).decode
+    io.out := new RVCDecoder(io.in, xLen, useAddiForMv).decode
   } else {
     io.rvc := false.B
-    io.out := new RVCDecoder(io.in, p(XLen), useAddiForMv).passthrough
+    io.out := new RVCDecoder(io.in, xLen, useAddiForMv).passthrough
   }
 }
