@@ -5,7 +5,7 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.util.{Cat, log2Ceil}
+import chisel3.util.{Cat, Decoupled, Valid, isPow2, log2Ceil}
 
 // This file defines Bundle shared in the project.
 // all Bundle only have datatype without any helper or functions, while they only exist in the companion Bundle.
@@ -592,4 +592,368 @@ class PMACheckerResponse extends Bundle {
   val aa = Bool()
   val x = Bool()
   val eff = Bool()
+}
+
+
+/** IO between TLB and PTW
+  *
+  * PTW receives :
+  *   - PTE request
+  *   - CSRs info
+  *   - pmp results from PMP(in TLB)
+  */
+class TLBPTWIO(nPMPs: Int, vpnBits: Int, paddrBits: Int, vaddrBits: Int, pgLevels: Int, xLen: Int, maxPAddrBits: Int, pgIdxBits: Int) extends Bundle {
+  val req = Decoupled(Valid(new PTWReq(vpnBits)))
+  val resp = Flipped(Valid(new PTWResp(vaddrBits, pgLevels)))
+  val ptbr = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val hgatp = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val vsatp = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val status = Input(new MStatus)
+  val hstatus = Input(new HStatus)
+  val gstatus = Input(new MStatus)
+  val pmp = Input(Vec(nPMPs, new PMP(paddrBits)))
+  // No customCSR for the first time refactor.
+  //  val customCSRs = Flipped(coreParams.customCSRs)
+}
+
+class PTWReq(vpnBits: Int) extends Bundle {
+  val addr = UInt(vpnBits.W)
+  val need_gpa = Bool()
+  val vstage1 = Bool()
+  val stage2 = Bool()
+}
+
+/** PTE info from L2TLB to TLB
+  *
+  * containing: target PTE, exceptions, two-satge tanslation info
+  */
+class PTWResp(vaddrBits: Int, pgLevels: Int) extends Bundle {
+
+  /** ptw access exception */
+  val ae_ptw = Bool()
+
+  /** final access exception */
+  val ae_final = Bool()
+
+  /** page fault */
+  val pf = Bool()
+
+  /** guest page fault */
+  val gf = Bool()
+
+  /** hypervisor read */
+  val hr = Bool()
+
+  /** hypervisor write */
+  val hw = Bool()
+
+  /** hypervisor execute */
+  val hx = Bool()
+
+  /** PTE to refill L1TLB
+    *
+    * source: L2TLB
+    */
+  val pte = new PTE
+
+  /** pte pglevel */
+  val level = UInt(log2Ceil(pgLevels).W)
+
+  /** fragmented_superpage support */
+  val fragmented_superpage = Bool()
+
+  /** homogeneous for both pma and pmp */
+  val homogeneous = Bool()
+  val gpa = Valid(UInt(vaddrBits.W))
+  val gpa_is_pte = Bool()
+}
+
+object PTE {
+  /** return true if find a pointer to next level page table */
+  def table(pte: PTE) = pte.v && !pte.r && !pte.w && !pte.x && !pte.d && !pte.a && !pte.u && pte.reserved_for_future === 0.U
+  /** return true if find a leaf PTE */
+  def leaf(pte: PTE) = pte.v && (pte.r || (pte.x && !pte.w)) && pte.a
+  /** user read */
+  def ur(pte: PTE) = sr(pte) && pte.u
+  /** user write*/
+  def uw(pte: PTE) = sw(pte) && pte.u
+  /** user execute */
+  def ux(pte: PTE) = sx(pte) && pte.u
+  /** supervisor read */
+  def sr(pte: PTE) = leaf(pte) && pte.r
+  /** supervisor write */
+  def sw(pte: PTE) = leaf(pte) && pte.w && pte.d
+  /** supervisor execute */
+  def sx(pte: PTE) = leaf(pte) && pte.x
+  /** full permission: writable and executable in user mode */
+  def isFullPerm(pte: PTE) = uw(pte) && ux(pte)
+}
+
+/** PTE template for transmission
+  *
+  * contains useful methods to check PTE attributes
+  * @see RV-priv spec 4.3.1 for pgae table entry format
+  */
+class PTE extends Bundle {
+  val reserved_for_future = UInt(10.W)
+  val ppn = UInt(44.W)
+  val reserved_for_software = UInt(2.W)
+
+  /** dirty bit */
+  val d = Bool()
+
+  /** access bit */
+  val a = Bool()
+
+  /** global mapping */
+  val g = Bool()
+
+  /** user mode accessible */
+  val u = Bool()
+
+  /** whether the page is executable */
+  val x = Bool()
+
+  /** whether the page is writable */
+  val w = Bool()
+
+  /** whether the page is readable */
+  val r = Bool()
+
+  /** valid bit */
+  val v = Bool()
+}
+
+
+class HellaCacheIO(
+                    coreMaxAddrBits:      Int,
+                    usingVM:              Boolean,
+                    untagBits:            Int,
+                    pgIdxBits:            Int,
+                    dcacheReqTagBits:     Int,
+                    dcacheArbPorts:       Int,
+                    coreDataBytes:        Int,
+                    paddrBits:            Int,
+                    vaddrBitsExtended:    Int,
+                    separateUncachedResp: Boolean)
+  extends Bundle {
+  val req = Decoupled(
+    new HellaCacheReq(coreMaxAddrBits, usingVM, untagBits, pgIdxBits, dcacheReqTagBits, dcacheArbPorts, coreDataBytes)
+  )
+  val s1_kill = Output(Bool()) // kill previous cycle's req
+  val s1_data = Output(new HellaCacheWriteData(coreDataBytes)) // data for previous cycle's req
+  val s2_nack = Input(Bool()) // req from two cycles ago is rejected
+  val s2_nack_cause_raw = Input(Bool()) // reason for nack is store-load RAW hazard (performance hint)
+  val s2_kill = Output(Bool()) // kill req from two cycles ago
+  val s2_uncached = Input(Bool()) // advisory signal that the access is MMIO
+  val s2_paddr = Input(UInt(paddrBits.W)) // translated address
+
+  val resp = Flipped(
+    Valid(
+      new HellaCacheResp(
+        coreMaxAddrBits,
+        usingVM,
+        untagBits,
+        pgIdxBits,
+        dcacheReqTagBits,
+        dcacheArbPorts,
+        coreDataBytes
+      )
+    )
+  )
+  val replay_next = Input(Bool())
+  val s2_xcpt = Input(new HellaCacheExceptions)
+  val s2_gpa = Input(UInt(vaddrBitsExtended.W))
+  val s2_gpa_is_pte = Input(Bool())
+  val uncached_resp = Option.when(separateUncachedResp)(
+    Flipped(
+      Decoupled(
+        new HellaCacheResp(
+          coreMaxAddrBits,
+          usingVM,
+          untagBits,
+          pgIdxBits,
+          dcacheReqTagBits,
+          dcacheArbPorts,
+          coreDataBytes
+        )
+      )
+    )
+  )
+  val ordered = Input(Bool())
+  val perf = Input(new HellaCachePerfEvents())
+
+  val keep_clock_enabled = Output(Bool()) // should D$ avoid clock-gating itself?
+  val clock_enabled = Input(Bool()) // is D$ currently being clocked?
+}
+
+class HellaCacheReq(
+                     coreMaxAddrBits:  Int,
+                     usingVM:          Boolean,
+                     untagBits:        Int,
+                     pgIdxBits:        Int,
+                     dcacheReqTagBits: Int,
+                     dcacheArbPorts:   Int,
+                     coreDataBytes:    Int)
+  extends Bundle {
+  require(isPow2(coreDataBytes))
+  val coreDataBits: Int = coreDataBytes * 8
+  val M_SZ = 5
+
+  val phys = Bool()
+  val no_alloc = Bool()
+  val no_xcpt = Bool()
+
+  val addr = UInt(coreMaxAddrBits.W)
+  val idx = Option.when(usingVM && untagBits > pgIdxBits)(UInt(coreMaxAddrBits.W))
+  val tag = UInt((dcacheReqTagBits + log2Ceil(dcacheArbPorts)).W)
+  // TODO: handle this uop
+  val cmd = UInt(M_SZ.W)
+  val size = UInt(log2Ceil(log2Ceil(coreDataBytes) + 1).W)
+  val signed = Bool()
+  // TODO: handle this uop
+  val dprv = UInt(PRV.SZ.W)
+  val dv = Bool()
+
+  val data = UInt(coreDataBits.W)
+  val mask = UInt(coreDataBytes.W)
+}
+
+
+class HellaCacheWriteData(coreDataBytes: Int) extends Bundle {
+  require(isPow2(coreDataBytes))
+  val coreDataBits: Int = coreDataBytes * 8
+
+  val data = UInt(coreDataBits.W)
+  val mask = UInt(coreDataBytes.W)
+}
+
+
+class HellaCacheResp(
+                      coreMaxAddrBits:  Int,
+                      usingVM:          Boolean,
+                      untagBits:        Int,
+                      pgIdxBits:        Int,
+                      dcacheReqTagBits: Int,
+                      dcacheArbPorts:   Int,
+                      coreDataBytes:    Int)
+  extends Bundle {
+  require(isPow2(coreDataBytes))
+  val coreDataBits: Int = coreDataBytes * 8
+  val M_SZ = 5
+
+  val replay = Bool()
+  val has_data = Bool()
+  val data_word_bypass = UInt(coreDataBits.W)
+  val data_raw = UInt(coreDataBits.W)
+  val store_data = UInt(coreDataBits.W)
+
+  val addr = UInt(coreMaxAddrBits.W)
+  val idx = Option.when(usingVM && untagBits > pgIdxBits)(UInt(coreMaxAddrBits.W))
+  val tag = UInt((dcacheReqTagBits + log2Ceil(dcacheArbPorts)).W)
+  val cmd = UInt(M_SZ.W)
+  val size = UInt(log2Ceil(log2Ceil(coreDataBytes) + 1).W)
+  val signed = Bool()
+  val dprv = UInt(PRV.SZ.W)
+  val dv = Bool()
+
+  val data = UInt(coreDataBits.W)
+  val mask = UInt(coreDataBytes.W)
+}
+
+class HellaCacheExceptions extends Bundle {
+  val ma = new AlignmentExceptions
+  val pf = new AlignmentExceptions
+  val gf = new AlignmentExceptions
+  val ae = new AlignmentExceptions
+}
+
+class AlignmentExceptions extends Bundle {
+  val ld = Bool()
+  val st = Bool()
+}
+
+class HellaCachePerfEvents extends Bundle {
+  val acquire = Bool()
+  val release = Bool()
+  val grant = Bool()
+  val tlbMiss = Bool()
+  val blocked = Bool()
+  val canAcceptStoreThenLoad = Bool()
+  val canAcceptStoreThenRMW = Bool()
+  val canAcceptLoadThenLoad = Bool()
+  val storeBufferEmptyAfterLoad = Bool()
+  val storeBufferEmptyAfterStore = Bool()
+}
+
+class DatapathPTWIO(
+                     xLen:         Int,
+                     maxPAddrBits: Int,
+                     pgIdxBits:    Int,
+                     vaddrBits:    Int,
+                     asidBits:     Int,
+                     nPMPs:        Int,
+                     paddrBits:    Int)
+  extends Bundle {
+  val ptbr = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val hgatp = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val vsatp = Input(new PTBR(xLen, maxPAddrBits, pgIdxBits))
+  val sfence = Flipped(Valid(new SFenceReq(vaddrBits, asidBits)))
+  val status = Input(new MStatus())
+  val hstatus = Input(new HStatus())
+  val gstatus = Input(new MStatus())
+  val pmp = Input(Vec(nPMPs, new PMP(paddrBits)))
+  val perf = Output(new PTWPerfEvents())
+  // No customCSR for the first time refactor.
+  // val customCSRs = Flipped(coreParams.customCSRs)
+
+  /** enable clock generated by ptw */
+  val clock_enabled = Output(Bool())
+}
+
+class SFenceReq(vaddrBits: Int, asidBits: Int) extends Bundle {
+  val rs1 = Bool()
+  val rs2 = Bool()
+  val addr = UInt(vaddrBits.W)
+  val asid = UInt(asidBits.W)
+  val hv = Bool()
+  val hg = Bool()
+}
+
+class PTWPerfEvents extends Bundle {
+  val l2miss = Bool()
+  val l2hit = Bool()
+  val pte_miss = Bool()
+  val pte_hit = Bool()
+}
+
+/** L2TLB PTE template
+  *
+  * contains tag bits
+  * @param nSets number of sets in L2TLB
+  * @see RV-priv spec 4.3.1 for page table entry format
+  */
+class L2TLBEntry(nSets: Int, ppnBits: Int, maxSVAddrBits: Int, pgIdxBits: Int, usingHypervisor: Boolean) extends Bundle {
+  val idxBits = log2Ceil(nSets)
+  val tagBits = maxSVAddrBits - pgIdxBits - idxBits + (if (usingHypervisor) 1 else 0)
+  val tag = UInt(tagBits.W)
+  val ppn = UInt(ppnBits.W)
+
+  /** dirty bit */
+  val d = Bool()
+
+  /** access bit */
+  val a = Bool()
+
+  /** user mode accessible */
+  val u = Bool()
+
+  /** whether the page is executable */
+  val x = Bool()
+
+  /** whether the page is writable */
+  val w = Bool()
+
+  /** whether the page is readable */
+  val r = Bool()
 }
