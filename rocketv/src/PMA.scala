@@ -5,6 +5,7 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
+import chisel3.experimental.hierarchy.instantiable
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.experimental.BitSet
 
@@ -36,6 +37,7 @@ class PMACheckerInterface(parameter: PMACheckerParameter) extends Bundle {
   val resp = Output(new PMACheckerResponse)
 }
 
+@instantiable
 class PMAChecker(val parameter: PMACheckerParameter)
     extends FixedIORawModule(new PMACheckerInterface(parameter))
     with SerializableModule[PMACheckerParameter] {
