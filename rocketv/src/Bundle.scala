@@ -989,3 +989,87 @@ class ICacheErrors(hasCorrectable: Boolean, hasUncorrectable: Boolean, paddrBits
 class ICachePerfEvents extends Bundle {
   val acquire = Bool()
 }
+
+class FPInput(fLen: Int) extends Bundle {
+  val fpuControl = new FPUCtrlSigs
+  val rm = UInt(FPConstants.RM_SZ.W)
+  val fmaCmd = UInt(2.W)
+  val typ = UInt(2.W)
+  val fmt = UInt(2.W)
+  val in1 = UInt((fLen+1).W)
+  val in2 = UInt((fLen+1).W)
+  val in3 = UInt((fLen+1).W)
+}
+
+// @todo DecodeBundle
+class FPUCtrlSigs extends Bundle {
+  val ldst = Bool()
+  val wen = Bool()
+  val ren1 = Bool()
+  val ren2 = Bool()
+  val ren3 = Bool()
+  val swap12 = Bool()
+  val swap23 = Bool()
+  val typeTagIn = UInt(2.W)
+  val typeTagOut = UInt(2.W)
+  val fromint = Bool()
+  val toint = Bool()
+  val fastpipe = Bool()
+  val fma = Bool()
+  val div = Bool()
+  val sqrt = Bool()
+  val wflags = Bool()
+}
+
+class FPResult(fLen: Int) extends Bundle {
+  val data = UInt((fLen+1).W)
+  val exc = UInt(FPConstants.FLAGS_SZ.W)
+}
+
+class FPToIntOutput(fLen: Int, xLen: Int) extends Bundle {
+  val in = new FPInput(fLen)
+  val lt = Bool()
+  val store = UInt(fLen.W)
+  val toint = UInt(xLen.W)
+  val exc = UInt(FPConstants.FLAGS_SZ.W)
+}
+
+class IntToFPInput(xLen: Int) extends Bundle {
+  val fpuControl = new FPUCtrlSigs
+  val rm = UInt(FPConstants.RM_SZ.W)
+  val typ = UInt(2.W)
+  val in1 = UInt(xLen.W)
+}
+
+
+class FPUCoreIO(hartIdLen: Int, xLen: Int, fLen: Int) extends Bundle {
+  val hartid = Input(UInt(hartIdLen.W))
+  val time = Input(UInt(xLen.W))
+
+  val inst = Input(UInt(32.W))
+  val fromint_data = Input(UInt(xLen.W))
+
+  val fcsr_rm = Input(UInt(FPConstants.RM_SZ.W))
+  val fcsr_flags = Valid(UInt(FPConstants.FLAGS_SZ.W))
+
+  val store_data = Output(UInt(fLen.W))
+  val toint_data = Output(UInt(xLen.W))
+
+  val dmem_resp_val = Input(Bool())
+  val dmem_resp_type = Input(UInt(3.W))
+  val dmem_resp_tag = Input(UInt(5.W))
+  val dmem_resp_data = Input(UInt(fLen.W))
+
+  val valid = Input(Bool())
+  val fcsr_rdy = Output(Bool())
+  val nack_mem = Output(Bool())
+  val illegal_rm = Output(Bool())
+  val killx = Input(Bool())
+  val killm = Input(Bool())
+  val dec = Output(new FPUCtrlSigs())
+  val sboard_set = Output(Bool())
+  val sboard_clr = Output(Bool())
+  val sboard_clra = Output(UInt(5.W))
+
+  val keep_clock_enabled = Input(Bool())
+}
