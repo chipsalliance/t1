@@ -119,8 +119,18 @@ class LSUSlotProbe(param: LSUParameter) extends Bundle {
   val targetLane: UInt = UInt(param.laneNumber.W)
 }
 
+class MemoryWriteProbe(param: MSHRParam) extends Bundle {
+  val valid: Bool = Bool()
+  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
+  val mask: UInt = UInt(param.lsuTransposeSize.W)
+  val index: UInt = UInt(param.cacheLineIndexBits.W)
+  val address: UInt = UInt(param.paWidth.W)
+}
+
 class LSUProbe(param: LSUParameter) extends Bundle {
   val slots = Vec(param.laneNumber, new LSUSlotProbe(param))
+  val storeUnitProbe = new MemoryWriteProbe(param.mshrParam)
+  val otherUnitProbe = new MemoryWriteProbe(param.mshrParam)
   val reqEnq: UInt = UInt(param.lsuMSHRSize.W)
 }
 
@@ -270,9 +280,9 @@ class LSU(param: LSUParameter) extends Module {
   )
 
   @public
-  val probe = IO(Output(Probe(new LSUProbe(param))))
+  val _probe = IO(Output(Probe(new LSUProbe(param))))
   val probeWire = Wire(new LSUProbe(param))
-  define(probe, ProbeValue(probeWire))
+  define(_probe, ProbeValue(probeWire))
 
   // read vrf
   val otherTryReadVrf: UInt = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
@@ -310,6 +320,9 @@ class LSU(param: LSUParameter) extends Module {
     probeWire.slots(index).targetLane := write.io.enq.bits.targetLane
   }
   probeWire.reqEnq := reqEnq.asUInt
+
+  probeWire.storeUnitProbe := probe.read(storeUnit.probe)
+  probeWire.otherUnitProbe := probe.read(otherUnit.probe)
 
   vrfWritePort.zip(writeQueueVec).foreach { case (p, q) =>
     p.valid := q.io.deq.valid

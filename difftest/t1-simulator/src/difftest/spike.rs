@@ -401,4 +401,42 @@ impl SpikeHandle {
     info!("[{cycle}] RecordRFAccess: index={} rtl detect vrf write which cannot find se, maybe from committed load insn", vrf_write.idx);
     Ok(())
   }
+
+  pub fn peek_memory_write(&mut self, memory_write: MemoryWriteEvent) -> anyhow::Result<()> {
+    let mut mask = memory_write.mask;
+    mask.resize(self.config.dlen as usize / 8, false);
+    let mut data = memory_write.data;
+    data.resize(self.config.dlen as usize / 8, 0u8);
+    let cycle = memory_write.cycle;
+    let base_addr = memory_write.address;
+    let source = memory_write.source;
+
+    if let Some(se) = self
+      .to_rtl_queue
+      .iter_mut()
+      .find(|se| se.lsu_idx == source)
+    {
+      info!("[{cycle}] MemoryWrite: address={base_addr:08x}, size={}, data={data:?}, mask={mask:?}, pc = {:#x}, disasm = {}", data.len(), se.pc, se.disasm);
+      // compare with spike event record
+      for offset in 0..data.len() {
+        if mask[offset] {
+          let byte_addr = base_addr + offset as u32;
+          let data_byte = data[offset];
+          let mem_write = se
+            .mem_access_record
+            .all_writes
+            .get_mut(&byte_addr)
+            .unwrap_or_else(|| {
+              panic!("[{cycle}] cannot find mem write of byte_addr {byte_addr:08x}")
+            });
+          let single_mem_write_val = mem_write.writes[mem_write.num_completed_writes].val;
+          mem_write.num_completed_writes += 1;
+          assert_eq!(single_mem_write_val, data_byte, "[{cycle}] expect mem write of byte {single_mem_write_val:02X}, actual byte {data_byte:02X} (byte_addr={byte_addr:08X}, pc = {:#x}, disasm = {})", se.pc, se.disasm);
+        }
+      }
+      return Ok(());
+    }
+
+    panic!("[{cycle}] cannot find se with instruction source={source}")
+  }
 }

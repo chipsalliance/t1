@@ -10,6 +10,7 @@ import chisel3.probe._
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, VRFReadRequest, VRFWriteRequest, ffo, firstlastHelper}
 import tilelink.{TLBundle, TLBundleParameter}
+import org.chipsalliance.t1.rtl.lsu.MemoryWriteProbe
 
 /**
  * @param datapathWidth ELEN
@@ -201,6 +202,12 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /** notify [[LSU]] the status of [[MSHR]] */
   @public
   val status: SimpleAccessStatus = IO(Output(new SimpleAccessStatus(param.laneNumber)))
+
+  // other unit probe
+  @public
+  val probe = IO(Output(Probe(new MemoryWriteProbe(param))))
+  val probeWire = Wire(new MemoryWriteProbe(param))
+  define(probe, ProbeValue(probeWire))
 
   val s0Fire: Bool = Wire(Bool())
   val s1Fire: Bool = Wire(Bool())
@@ -1033,6 +1040,14 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /**
    * probes for monitoring internal signal
    */
+  val dataOffset = (s1EnqQueue.io.deq.bits.indexInMaskGroup << dataEEW)(1, 0) ## 0.U(3.W)
+
+  probeWire.valid := s1EnqDataQueue.io.deq.fire
+  probeWire.index := 2.U
+  probeWire.data := s1EnqDataQueue.io.deq.bits >> dataOffset
+  probeWire.mask := dataEEWOH(2) ## dataEEWOH(2) ## !dataEEWOH(0) ## true.B
+  probeWire.address := s1EnqQueue.io.deq.bits.address
+
   @public
   val lsuRequestValidProbe = IO(Output(Probe(Bool())))
   define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))

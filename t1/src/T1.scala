@@ -1546,7 +1546,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
   omInstance.lanesIn := Property(laneVec.map(_.om.asAnyClassType))
 
-  define(lsuProbe, lsu.probe)
+  define(lsuProbe, lsu._probe)
 
   dataInWritePipeVec := VecInit(laneVec.map(_.writeQueueValid))
 

@@ -9,6 +9,7 @@ import chisel3.util._
 import chisel3.probe._
 import org.chipsalliance.t1.rtl.{EmptyBundle, VRFReadRequest, cutUInt, multiShifter}
 import tilelink.TLChannelA
+import org.chipsalliance.t1.rtl.lsu.MemoryWriteProbe
 
 class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
   val data: UInt = UInt((param.lsuTransposeSize * 8).W)
@@ -42,6 +43,12 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val vrfReadResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
   @public
   val vrfReadyToStore: Bool = IO(Input(Bool()))
+
+  // store unit probe
+  @public
+  val probe = IO(Output(Probe(new MemoryWriteProbe(param))))
+  val probeWire = Wire(new MemoryWriteProbe(param))
+  define(probe, ProbeValue(probeWire))
 
   // stage 0, 处理 vl, mask ...
   val dataGroupByteSize: Int = param.datapathWidth * param.laneNumber / 8
@@ -285,6 +292,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     port.bits.data := dataToSend.bits.data(param.tlParam.a.dataWidth - 1, 0)
     port.bits.corrupt := false.B
     sendStageReady(portIndex) := enqueueReady
+
     !dataToSend.valid
   }
 
@@ -304,6 +312,12 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   /**
     * Probes
     */
+  probeWire.valid := alignedDequeueFire
+  probeWire.index := 1.U
+  probeWire.data := alignedDequeue.bits.data
+  probeWire.mask := alignedDequeue.bits.mask
+  probeWire.address := alignedDequeueAddress
+
   // Store Unit is idle
   @public
   val idleProbe = IO(Output(Probe(Bool())))
