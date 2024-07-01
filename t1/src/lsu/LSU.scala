@@ -10,6 +10,7 @@ import chisel3.util._
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, firstlastHelper, indexToOH, instIndexL}
 import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelD}
+import org.chipsalliance.t1.rtl.lsu.StoreUnitProbe
 
 // TODO: need some idea from BankBinder
 object LSUInstantiateParameter {
@@ -121,6 +122,7 @@ class LSUSlotProbe(param: LSUParameter) extends Bundle {
 
 class LSUProbe(param: LSUParameter) extends Bundle {
   val slots = Vec(param.laneNumber, new LSUSlotProbe(param))
+  val storeUnitProbe = new StoreUnitProbe(param.mshrParam)
   val reqEnq: UInt = UInt(param.lsuMSHRSize.W)
 }
 
@@ -270,9 +272,9 @@ class LSU(param: LSUParameter) extends Module {
   )
 
   @public
-  val probe = IO(Output(Probe(new LSUProbe(param))))
+  val _probe = IO(Output(Probe(new LSUProbe(param))))
   val probeWire = Wire(new LSUProbe(param))
-  define(probe, ProbeValue(probeWire))
+  define(_probe, ProbeValue(probeWire))
 
   // read vrf
   val otherTryReadVrf: UInt = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
@@ -310,6 +312,8 @@ class LSU(param: LSUParameter) extends Module {
     probeWire.slots(index).targetLane := write.io.enq.bits.targetLane
   }
   probeWire.reqEnq := reqEnq.asUInt
+
+  probeWire.storeUnitProbe := probe.read(storeUnit.probe)
 
   vrfWritePort.zip(writeQueueVec).foreach { case (p, q) =>
     p.valid := q.io.deq.valid

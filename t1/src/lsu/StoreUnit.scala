@@ -16,6 +16,17 @@ class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
 
+class StoreUnitProbeSlot(param: MSHRParam) extends Bundle {
+  val data: UInt = UInt(param.tlParam.a.dataWidth.W)
+  val mask: UInt = UInt(param.tlParam.a.maskWidth.W)
+  val index: UInt = UInt(param.cacheLineIndexBits.W)
+  val address: UInt = UInt(param.paWidth.W)
+}
+
+class StoreUnitProbe(param: MSHRParam) extends Bundle {
+  val slots = Vec(param.memoryBankSize, ValidIO(new StoreUnitProbeSlot(param)))
+}
+
 @instantiable
 class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   @public
@@ -42,6 +53,12 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val vrfReadResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
   @public
   val vrfReadyToStore: Bool = IO(Input(Bool()))
+
+  // store unit probe
+  @public
+  val probe = IO(Output(Probe(new StoreUnitProbe(param))))
+  val probeWire = Wire(new StoreUnitProbe(param))
+  define(probe, ProbeValue(probeWire))
 
   // stage 0, 处理 vl, mask ...
   val dataGroupByteSize: Int = param.datapathWidth * param.laneNumber / 8
@@ -285,6 +302,13 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     port.bits.data := dataToSend.bits.data(param.tlParam.a.dataWidth - 1, 0)
     port.bits.corrupt := false.B
     sendStageReady(portIndex) := enqueueReady
+
+    probeWire.slots(portIndex).valid := enqueueFire
+    probeWire.slots(portIndex).bits.index := dataToSend.bits.index
+    probeWire.slots(portIndex).bits.data := dataToSend.bits.data
+    probeWire.slots(portIndex).bits.mask := dataToSend.bits.mask
+    probeWire.slots(portIndex).bits.address := addressReg
+
     !dataToSend.valid
   }
 
