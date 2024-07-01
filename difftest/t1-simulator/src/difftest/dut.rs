@@ -11,20 +11,32 @@ where
   let opt: Option<&str> = Option::deserialize(deserializer)?;
   match opt {
     Some(s) => {
-      let bigint = BigUint::from_str(s.trim_start_matches(' ')).map_err(serde::de::Error::custom)?;
+      let bigint =
+        BigUint::from_str(s.trim_start_matches(' ')).map_err(serde::de::Error::custom)?;
       Ok(Some(bigint.to_bytes_le()))
     }
     None => Ok(None),
   }
 }
 
-#[derive(Deserialize, Debug, PartialEq, Clone)]
-pub enum Opcode {
-  PutFullData = 0,
-  PutPartialData = 1,
-  Get = 4,
-  // AccessAckData = 0,
-  // AccessAck = 0,
+fn bigint_to_vec_bool<'de, D>(deserializer: D) -> Result<Option<Vec<bool>>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  let opt: Option<&str> = Option::deserialize(deserializer)?;
+  match opt {
+    Some(s) => {
+      let bigint =
+        BigUint::from_str(s.trim_start_matches(' ')).map_err(serde::de::Error::custom)?;
+      let bytes = bigint.to_bytes_le();
+      let bools = bytes
+        .iter()
+        .flat_map(|byte| (0..8).map(move |i| (byte >> i) & 1 == 1))
+        .collect();
+      Ok(Some(bools))
+    }
+    None => Ok(None),
+  }
 }
 
 #[derive(Deserialize, Debug)]
@@ -36,7 +48,8 @@ pub struct Parameter {
   pub size: Option<usize>,
   pub source: Option<u16>,
   pub address: Option<u32>,
-  pub mask: Option<u32>,
+  #[serde(deserialize_with = "bigint_to_vec_bool", default)]
+  pub mask: Option<Vec<bool>>,
   #[serde(deserialize_with = "bigint_to_vec_u8", default)]
   pub data: Option<Vec<u8>>,
   pub corrupt: Option<u32>,
@@ -70,7 +83,7 @@ pub struct LsuEnqEvent {
 
 pub struct MemoryWriteEvent {
   pub idx: u32,
-  pub mask: u32,
+  pub mask: Vec<bool>,
   pub data: Vec<u8>,
   pub source: u16,
   pub address: u32,
@@ -81,7 +94,7 @@ pub struct VrfWriteEvent {
   pub idx: u32,
   pub vd: u32,
   pub offset: u32,
-  pub mask: u32,
+  pub mask: u8,
   pub data: u64,
   pub instruction: u32,
   pub cycle: usize,

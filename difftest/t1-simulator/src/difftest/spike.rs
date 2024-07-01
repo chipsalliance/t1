@@ -404,8 +404,10 @@ impl SpikeHandle {
 
   pub fn peek_memory_write(&mut self, memory_write: MemoryWriteEvent) -> anyhow::Result<()> {
     let idx = memory_write.idx as usize;
-    let mask = memory_write.mask;
-    let data = memory_write.data;
+    let mut mask = memory_write.mask;
+    mask.resize(self.config.dlen as usize / 8, false);
+    let mut data = memory_write.data;
+    data.resize(self.config.dlen as usize / 8, 0u8);
     let cycle = memory_write.cycle;
     let base_addr = memory_write.address;
     let lsu_idx = (memory_write.source & 3) as u8;
@@ -416,7 +418,7 @@ impl SpikeHandle {
     {
       // compare with spike event record
       for offset in 0..data.len() {
-        if (mask >> offset) & 1 != 0 {
+        if mask[offset] {
           let byte_addr = base_addr + offset as u32;
           let data_byte = data[offset];
           let mem_write = se
