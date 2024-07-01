@@ -1040,7 +1040,6 @@ class IntToFPInput(xLen: Int) extends Bundle {
   val in1 = UInt(xLen.W)
 }
 
-
 class FPUCoreIO(hartIdLen: Int, xLen: Int, fLen: Int) extends Bundle {
   val hartid = Input(UInt(hartIdLen.W))
   val time = Input(UInt(xLen.W))
@@ -1071,4 +1070,246 @@ class FPUCoreIO(hartIdLen: Int, xLen: Int, fLen: Int) extends Bundle {
   val sboard_clra = Output(UInt(5.W))
 
   val keep_clock_enabled = Input(Bool())
+}
+
+class TLBReq(lgMaxSize: Int, vaddrBitsExtended: Int)() extends Bundle {
+  // TODO: remove it.
+  val M_SZ = 5
+
+  /** request address from CPU. */
+  val vaddr = UInt(vaddrBitsExtended.W)
+
+  /** don't lookup TLB, bypass vaddr as paddr */
+  val passthrough = Bool()
+
+  /** granularity */
+  val size = UInt(log2Ceil(lgMaxSize + 1).W)
+
+  /** memory command. */
+  val cmd = UInt(M_SZ.W)
+  val prv = UInt(PRV.SZ.W)
+
+  /** virtualization mode */
+  val v = Bool()
+
+}
+
+class TLBResp(paddrBits: Int, vaddrBitsExtended: Int) extends Bundle {
+  // lookup responses
+  val miss = Bool()
+
+  /** physical address */
+  val paddr = UInt(paddrBits.W)
+  val gpa = UInt(vaddrBitsExtended.W)
+  val gpa_is_pte = Bool()
+
+  /** page fault exception */
+  val pf = new TLBExceptions
+
+  /** guest page fault exception */
+  val gf = new TLBExceptions
+
+  /** access exception */
+  val ae = new TLBExceptions
+
+  /** misaligned access exception */
+  val ma = new TLBExceptions
+
+  /** if this address is cacheable */
+  val cacheable = Bool()
+
+  /** if caches must allocate this address */
+  val must_alloc = Bool()
+
+  /** if this address is prefetchable for caches */
+  val prefetchable = Bool()
+}
+
+class TLBExceptions extends Bundle {
+  val ld = Bool()
+  val st = Bool()
+  val inst = Bool()
+}
+
+object TLBEntry {
+
+  /** returns all entry data in this entry */
+  def entry_data(tlbEntry: TLBEntry) = tlbEntry.data.map(_.asTypeOf(new TLBEntryData(tlbEntry.ppnBits)))
+
+  /** returns the index of sector */
+  private def sectorIdx(tlbEntry: TLBEntry, vpn: UInt) = vpn(log2Ceil(tlbEntry.nSectors) - 1, 0)
+
+  /** returns the entry data matched with this vpn */
+  def getData(tlbEntry: TLBEntry, vpn: UInt) = tlbEntry.data(sectorIdx(tlbEntry, vpn)).asTypeOf(new TLBEntryData(tlbEntry.ppnBits))
+
+  /** returns whether a sector hits */
+  def sectorHit(tlbEntry: TLBEntry, vpn: UInt, virtual: Bool) = tlbEntry.valid.asUInt.orR && sectorTagMatch(tlbEntry, vpn, virtual)
+
+  /** returns whether tag matches vpn */
+  def sectorTagMatch(tlbEntry: TLBEntry, vpn: UInt, virtual: Bool) = (((tlbEntry.tag_vpn ^ vpn) >> log2Ceil(tlbEntry.nSectors)) === 0.U) && (tlbEntry.tag_v === virtual)
+
+  /** returns hit signal */
+  def hit(tlbEntry: TLBEntry, vpn: UInt, virtual: Bool, usingVM: Boolean, pgLevelBits: Int, hypervisorExtraAddrBits: Int, superpage: Boolean, superpageOnly: Boolean): Bool = {
+    if (superpage && usingVM) {
+      var tagMatch = tlbEntry.valid.head && (tlbEntry.tag_v === virtual)
+      for (j <- 0 until tlbEntry.pgLevels) {
+        val base = (tlbEntry.pgLevels - 1 - j) * pgLevelBits
+        val n = pgLevelBits + (if (j == 0) hypervisorExtraAddrBits else 0)
+        val ignore = tlbEntry.level < j.U || (superpageOnly && (j == (tlbEntry.pgLevels - 1))).B
+        tagMatch = tagMatch && (ignore || (tlbEntry.tag_vpn ^ vpn)(base + n - 1, base) === 0.U)
+      }
+      tagMatch
+    } else {
+      val idx = sectorIdx(tlbEntry, vpn)
+      tlbEntry.valid(idx) && sectorTagMatch(tlbEntry, vpn, virtual)
+    }
+  }
+
+  /** returns the ppn of the input TLBEntryData */
+  def ppn(tlbEntry: TLBEntry, vpn: UInt, data: TLBEntryData, usingVM: Boolean, pgLevelBits: Int, superpage: Boolean, superpageOnly: Boolean) = {
+    val supervisorVPNBits = tlbEntry.pgLevels * pgLevelBits
+    if (superpage && usingVM) {
+      var res = data.ppn >> pgLevelBits * (tlbEntry.pgLevels - 1)
+      for (j <- 1 until tlbEntry.pgLevels) {
+        val ignore = tlbEntry.level < j.U || (superpageOnly && j == tlbEntry.pgLevels - 1).B
+        res = Cat(
+          res,
+          (Mux(ignore, vpn, 0.U) | data.ppn)(
+            supervisorVPNBits - j * pgLevelBits - 1,
+            supervisorVPNBits - (j + 1) * pgLevelBits
+          )
+        )
+      }
+      res
+    } else {
+      data.ppn
+    }
+  }
+
+  /** does the refill
+    *
+    * find the target entry with vpn tag
+    * and replace the target entry with the input entry data
+    */
+  def insert(tlbEntry: TLBEntry, vpn: UInt, virtual: Bool, level: UInt, entry: TLBEntryData, superpageOnly: Boolean): Unit = {
+    tlbEntry.tag_vpn := vpn
+    tlbEntry.tag_v := virtual
+    tlbEntry.level := level(log2Ceil(tlbEntry.pgLevels - (if (superpageOnly) 1 else 0)) - 1, 0)
+
+    val idx = sectorIdx(tlbEntry, vpn)
+    tlbEntry.valid(idx) := true.B
+    tlbEntry.data(idx) := entry.asUInt
+  }
+
+  def invalidate(tlbEntry: TLBEntry): Unit = { tlbEntry.valid.foreach(_ := false.B) }
+  def invalidate(tlbEntry: TLBEntry, virtual: Bool): Unit = {
+    for ((v, e) <- tlbEntry.valid.zip(entry_data(tlbEntry)))
+      when(tlbEntry.tag_v === virtual) { v := false.B }
+  }
+  def invalidateVPN(tlbEntry: TLBEntry, vpn: UInt, virtual: Bool, usingVM: Boolean, pgLevelBits: Int, hypervisorExtraAddrBits: Int, superpage: Boolean, superpageOnly: Boolean): Unit = {
+    if (superpage) {
+      when(hit(tlbEntry, vpn, virtual, usingVM, pgLevelBits, hypervisorExtraAddrBits, superpage, superpageOnly)) { invalidate(tlbEntry) }
+    } else {
+      when(sectorTagMatch(tlbEntry, vpn, virtual)) {
+        for (((v, e), i) <- (tlbEntry.valid.zip(entry_data(tlbEntry))).zipWithIndex)
+          when(tlbEntry.tag_v === virtual && i.U === sectorIdx(tlbEntry, vpn)) { v := false.B }
+      }
+    }
+    // For fragmented superpage mappings, we assume the worst (largest)
+    // case, and zap entries whose most-significant VPNs match
+    when(((tlbEntry.tag_vpn ^ vpn) >> (pgLevelBits * (tlbEntry.pgLevels - 1))) === 0.U) {
+      for ((v, e) <- tlbEntry.valid.zip(entry_data(tlbEntry)))
+        when(tlbEntry.tag_v === virtual && e.fragmented_superpage) { v := false.B }
+    }
+  }
+  def invalidateNonGlobal(tlbEntry: TLBEntry, virtual: Bool): Unit = {
+    for ((v, e) <- tlbEntry.valid.zip(entry_data(tlbEntry)))
+      when(tlbEntry.tag_v === virtual && !e.g) { v := false.B }
+  }
+}
+
+class TLBEntry(val nSectors: Int, val pgLevels: Int, vpnBits: Int, val ppnBits: Int) extends Bundle {
+
+  val level = UInt(log2Ceil(pgLevels).W)
+
+  /** use vpn as tag */
+  val tag_vpn = UInt(vpnBits.W)
+
+  /** tag in vitualization mode */
+  val tag_v = Bool()
+
+  /** entry data */
+  val data = Vec(nSectors, UInt(new TLBEntryData(ppnBits).getWidth.W))
+
+  /** valid bit */
+  val valid = Vec(nSectors, Bool())
+}
+
+class TLBEntryData(ppnBits: Int) extends Bundle {
+  val ppn = UInt(ppnBits.W)
+
+  /** pte.u user */
+  val u = Bool()
+
+  /** pte.g global */
+  val g = Bool()
+
+  /** access exception.
+    * D$ -> PTW -> TLB AE
+    * Alignment failed.
+    */
+  val ae_ptw = Bool()
+  val ae_final = Bool()
+  val ae_stage2 = Bool()
+
+  /** page fault */
+  val pf = Bool()
+
+  /** guest page fault */
+  val gf = Bool()
+
+  /** supervisor write */
+  val sw = Bool()
+
+  /** supervisor execute */
+  val sx = Bool()
+
+  /** supervisor read */
+  val sr = Bool()
+
+  /** hypervisor write */
+  val hw = Bool()
+
+  /** hypervisor excute */
+  val hx = Bool()
+
+  /** hypervisor read */
+  val hr = Bool()
+
+  /** prot_w */
+  val pw = Bool()
+
+  /** prot_x */
+  val px = Bool()
+
+  /** prot_r */
+  val pr = Bool()
+
+  /** PutPartial */
+  val ppp = Bool()
+
+  /** AMO logical */
+  val pal = Bool()
+
+  /** AMO arithmetic */
+  val paa = Bool()
+
+  /** get/put effects */
+  val eff = Bool()
+
+  /** cacheable */
+  val c = Bool()
+
+  /** fragmented_superpage support */
+  val fragmented_superpage = Bool()
 }
