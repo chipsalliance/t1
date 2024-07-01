@@ -1,6 +1,22 @@
-use serde::Deserialize;
+use num_bigint::BigUint;
+use serde::{Deserialize, Deserializer};
 use std::io::BufRead;
 use std::path::Path;
+use std::str::FromStr;
+
+fn bigint_to_vec_u8<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  let opt: Option<&str> = Option::deserialize(deserializer)?;
+  match opt {
+    Some(s) => {
+      let bigint = BigUint::from_str(s.trim_start_matches(' ')).map_err(serde::de::Error::custom)?;
+      Ok(Some(bigint.to_bytes_le()))
+    }
+    None => Ok(None),
+  }
+}
 
 #[derive(Deserialize, Debug, PartialEq, Clone)]
 pub enum Opcode {
@@ -21,7 +37,8 @@ pub struct Parameter {
   pub source: Option<u16>,
   pub address: Option<u32>,
   pub mask: Option<u32>,
-  pub data: Option<u64>,
+  #[serde(deserialize_with = "bigint_to_vec_u8", default)]
+  pub data: Option<Vec<u8>>,
   pub corrupt: Option<u32>,
   pub dready: Option<u8>,
   pub vd: Option<u32>,
@@ -48,6 +65,15 @@ pub struct IssueEvent {
 
 pub struct LsuEnqEvent {
   pub enq: u32,
+  pub cycle: usize,
+}
+
+pub struct MemoryWriteEvent {
+  pub idx: u32,
+  pub mask: u32,
+  pub data: Vec<u8>,
+  pub source: u16,
+  pub address: u32,
   pub cycle: usize,
 }
 
