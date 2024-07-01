@@ -17,8 +17,8 @@ class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
 }
 
 class StoreUnitProbeSlot(param: MSHRParam) extends Bundle {
-  val data: UInt = UInt(param.tlParam.a.dataWidth.W)
-  val mask: UInt = UInt(param.tlParam.a.maskWidth.W)
+  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
+  val mask: UInt = UInt(param.lsuTransposeSize.W)
   val index: UInt = UInt(param.cacheLineIndexBits.W)
   val address: UInt = UInt(param.paWidth.W)
 }
