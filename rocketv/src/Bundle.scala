@@ -5,7 +5,7 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.util.{Cat, Decoupled, Valid, isPow2, log2Ceil}
+import chisel3.util.{Cat, Decoupled, DecoupledIO, Valid, isPow2, log2Ceil}
 
 // This file defines Bundle shared in the project.
 // all Bundle only have datatype without any helper or functions, while they only exist in the companion Bundle.
@@ -1312,4 +1312,55 @@ class TLBEntryData(ppnBits: Int) extends Bundle {
 
   /** fragmented_superpage support */
   val fragmented_superpage = Bool()
+}
+
+class DCacheErrors(hasCorrectable: Boolean, hasUncorrectable: Boolean, paddrBits: Int) extends Bundle {
+  val correctable: Option[Valid[UInt]] = Option.when(hasCorrectable)(Valid(UInt(paddrBits.W)))
+  val uncorrectable: Option[Valid[UInt]] = Option.when(hasUncorrectable)(Valid(UInt(paddrBits.W)))
+  val bus: Valid[UInt] = Valid(UInt(paddrBits.W))
+}
+
+class DCacheTLBPort(paddrBits: Int, vaddrBitsExtended: Int)  extends Bundle {
+  val req: DecoupledIO[TLBReq] = Flipped(Decoupled(new TLBReq(paddrBits, vaddrBitsExtended)))
+  val s1_resp: TLBResp = Output(new TLBResp(paddrBits, vaddrBitsExtended))
+  val s2_kill: Bool = Input(Bool())
+}
+
+object ClientStates {
+  val width = 2
+
+  def Nothing = 0.U(width.W)
+  def Branch  = 1.U(width.W)
+  def Trunk   = 2.U(width.W)
+  def Dirty   = 3.U(width.W)
+
+  def hasReadPermission(state: UInt): Bool = state > Nothing
+  def hasWritePermission(state: UInt): Bool = state > Branch
+}
+
+class ClientMetadata extends Bundle {
+  /** Actual state information stored in this bundle */
+  val state = UInt(ClientStates.width.W)
+}
+
+class L1Metadata(tagBits: Int) extends Bundle {
+  val coh = new ClientMetadata
+  val tag = UInt(tagBits.W)
+}
+
+class DCacheMetadataReq(vaddrBitsExtended: Int, idxBits: Int, nWays: Int, dataWidth: Int) extends Bundle {
+  val write: Bool = Bool()
+  val addr: UInt = UInt(vaddrBitsExtended.W)
+  val idx: UInt = UInt(idxBits.W)
+  val way_en: UInt = UInt(nWays.W)
+  val data: UInt = UInt(dataWidth.W)
+}
+
+class DCacheDataReq(untagBits: Int, encBits: Int, rowBytes: Int, eccBytes: Int, subWordBytes: Int, wordBytes: Int, nWays: Int) extends Bundle {
+  val addr: UInt = UInt(untagBits.W)
+  val write: Bool = Bool()
+  val wdata: UInt = UInt((encBits * rowBytes / eccBytes).W)
+  val wordMask: UInt = UInt((rowBytes / subWordBytes).W)
+  val eccMask: UInt = UInt((wordBytes / eccBytes).W)
+  val way_en: UInt = UInt(nWays.W)
 }
