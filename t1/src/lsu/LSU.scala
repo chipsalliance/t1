@@ -407,6 +407,9 @@ class LSU(param: LSUParameter) extends Module {
     port.bits := selectBits
     port.bits.source := selectIndex
 
+    // probe source should use selectIndex
+    probeWire.storeUnitProbe.slots(index).bits.index := selectIndex
+
     // record source id by queue
     sourceQueue.io.enq.valid := done
     sourceQueue.io.enq.bits := selectBits.source
