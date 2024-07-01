@@ -77,12 +77,12 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
       // when enqueueFire is true, probe it once
       val storeUnitProbeValidReg = RegNext(mshr.valid)
       val storeUnitProbeValid = RegNext(mshr.valid && !storeUnitProbeValidReg)
-      when(storeUnitProbeValid)(printf(cf"""{"event":"memoryWrite","parameter":{"idx":$i,"mask":${mshr.bits.mask},"data":"${mshr.bits.data}","source":${mshr.bits.index},"address":${mshr.bits.address},"cycle": ${cycleCounter}}}\n""")) 
+      when(storeUnitProbeValid)(printf(cf"""{"event":"memoryWrite","parameter":{"idx":$i,"mask":"${mshr.bits.mask}","data":"${mshr.bits.data}","source":${mshr.bits.index},"address":${mshr.bits.address},"cycle": ${cycleCounter}}}\n""")) 
     }
     // vrf write from lsu
-    lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"vrfWriteFromLsu","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":${mshr.dataMask},"data":"${mshr.dataData}","instruction":${mshr.dataInstruction},"lane":${mshr.targetLane},"cycle": ${cycleCounter}}}\n""")) }
+    lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"vrfWriteFromLsu","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":"${mshr.dataMask}","data":"${mshr.dataData}","instruction":${mshr.dataInstruction},"lane":${mshr.targetLane},"cycle": ${cycleCounter}}}\n""")) }
     // vrf write from lane
-    laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(printf(cf"""{"event":"vrfWriteFromLane","parameter":{"idx":$i,"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":${lane.requestMask},"data":"${lane.requestData}","instruction":${lane.requestInstruction},"cycle": ${cycleCounter}}}\n""")) }
+    laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(printf(cf"""{"event":"vrfWriteFromLane","parameter":{"idx":$i,"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":"${lane.requestMask}","data":"${lane.requestData}","instruction":${lane.requestInstruction},"cycle": ${cycleCounter}}}\n""")) }
     // issue
     when(dut.request.fire)(printf(cf"""{"event":"issue","parameter":{"idx":${t1Probe.instructionCounter},"cycle": ${cycleCounter}}}\n"""))
     // inst
