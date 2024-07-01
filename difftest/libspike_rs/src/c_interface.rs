@@ -1,26 +1,69 @@
 use libc::c_char;
 use std::ffi::{CStr, CString};
+use tracing::trace;
 
-pub struct Spike {
+pub struct SpikeCHandler {
   spike: *mut (),
+  pub mem: Vec<u8>,
+  pub size: usize,
 }
 
-impl Spike {
-  pub fn new(arch: &str, set: &str, lvl: &str, lane_number: usize) -> Self {
+extern "C" fn default_addr_to_mem(target: *mut (), addr: u64) -> *mut u8 {
+  let spike = target as *mut SpikeCHandler;
+  let addr = addr as usize;
+  unsafe { (*spike).mem[addr] as *mut u8 }
+}
+
+type FfiCallback = extern "C" fn(*mut (), u64) -> *mut u8;
+
+impl SpikeCHandler {
+  // we need to have a boxed SpikeCObject, since its pointer will be passed to C to perform FFI call
+  pub fn new(arch: &str, set: &str, lvl: &str, lane_number: usize, mem_size: usize) -> Box<Self> {
     let arch = CString::new(arch).unwrap();
     let set = CString::new(set).unwrap();
     let lvl = CString::new(lvl).unwrap();
     let spike = unsafe { spike_new(arch.as_ptr(), set.as_ptr(), lvl.as_ptr(), lane_number) };
-    Spike { spike }
+    let mut self_: Box<SpikeCHandler> = Box::new(SpikeCHandler {
+      spike,
+      mem: vec![0; mem_size],
+      size: mem_size,
+    });
+
+    // TODO: support customized ffi
+    let ffi_target: *mut SpikeCHandler = &mut *self_;
+    unsafe { spike_register_callback(ffi_target as *mut (), default_addr_to_mem); }
+
+    self_
   }
 
   pub fn get_proc(&self) -> Processor {
     let processor = unsafe { spike_get_proc(self.spike) };
     Processor { processor }
   }
+
+  pub fn load_bytes_to_mem(
+    &mut self,
+    addr: usize,
+    len: usize,
+    bytes: Vec<u8>,
+  ) -> anyhow::Result<()> {
+    trace!("ld: addr: 0x{:x}, len: 0x{:x}", addr, len);
+    assert!(addr + len <= self.size);
+
+    let dst = &mut self.mem[addr..addr + len];
+    for (i, byte) in bytes.iter().enumerate() {
+      dst[i] = *byte;
+    }
+
+    Ok(())
+  }
+
+  pub fn mem_byte_on_addr(&self, addr: usize) -> anyhow::Result<u8> {
+    Ok(self.mem[addr])
+  }
 }
 
-impl Drop for Spike {
+impl Drop for SpikeCHandler {
   fn drop(&mut self) {
     unsafe { spike_destruct(self.spike) }
   }
@@ -178,12 +221,15 @@ impl Drop for State {
   }
 }
 
-type FfiCallback = extern "C" fn(u64) -> *mut u8;
-
 #[link(name = "spike_interfaces")]
 extern "C" {
-  pub fn spike_register_callback(callback: FfiCallback);
-  fn spike_new(arch: *const c_char, set: *const c_char, lvl: *const c_char, lane_number: usize) -> *mut ();
+  pub fn spike_register_callback(target: *mut (), callback: FfiCallback);
+  fn spike_new(
+    arch: *const c_char,
+    set: *const c_char,
+    lvl: *const c_char,
+    lane_number: usize,
+  ) -> *mut ();
   fn spike_get_proc(spike: *mut ()) -> *mut ();
   fn spike_destruct(spike: *mut ());
   fn proc_disassemble(proc: *mut ()) -> *mut c_char;

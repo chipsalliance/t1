@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = [
+  "libspike_rs",
+  "offline",
+  "online_drive",
+]

@@ -1,81 +1,20 @@
-use lazy_static::lazy_static;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::sync::Mutex;
-use tracing::{info, trace};
-use xmas_elf::{
-  header,
-  program::{ProgramHeader, Type},
-  ElfFile,
-};
+use tracing::info;
+use xmas_elf::program::{ProgramHeader, Type};
+use xmas_elf::{header, ElfFile};
 
-mod libspike_interfaces;
-use libspike_interfaces::*;
+use libspike_rs::c_interface::SpikeCHandler;
+use libspike_rs::clip;
+use libspike_rs::spike_event::SpikeEvent;
 
-mod spike_event;
-use spike_event::*;
-
-use super::dut::*;
+use crate::dut::{IssueEvent, LsuEnqEvent, VrfWriteEvent};
 
 const LSU_IDX_DEFAULT: u8 = 0xff;
 
-// read the addr from spike memory
-// caller should make sure the address is valid
-#[no_mangle]
-pub extern "C" fn rs_addr_to_mem(addr: u64) -> *mut u8 {
-  let addr = addr as usize;
-  let mut spike_mem = SPIKE_MEM.lock().unwrap();
-  let spike_mut = spike_mem.as_mut().unwrap();
-  &mut spike_mut.mem[addr] as *mut u8
-}
-
-pub struct SpikeMem {
-  pub mem: Vec<u8>,
-  pub size: usize,
-}
-
-lazy_static! {
-  static ref SPIKE_MEM: Mutex<Option<Box<SpikeMem>>> = Mutex::new(None);
-}
-
-fn init_memory(size: usize) {
-  let mut spike_mem = SPIKE_MEM.lock().unwrap();
-  if spike_mem.is_none() {
-    info!("Creating SpikeMem with size: 0x{:x}", size);
-    *spike_mem = Some(Box::new(SpikeMem {
-      mem: vec![0; size],
-      size,
-    }));
-  }
-}
-
-fn ld(addr: usize, len: usize, bytes: Vec<u8>) -> anyhow::Result<()> {
-  trace!("ld: addr: 0x{:x}, len: 0x{:x}", addr, len);
-  let mut spike_mem = SPIKE_MEM.lock().unwrap();
-  let spike_ref = spike_mem.as_mut().unwrap();
-
-  assert!(addr + len <= spike_ref.size);
-
-  let dst = &mut spike_ref.mem[addr..addr + len];
-  for (i, byte) in bytes.iter().enumerate() {
-    dst[i] = *byte;
-  }
-
-  Ok(())
-}
-
-fn read_mem(addr: usize) -> anyhow::Result<u8> {
-  let mut spike_mem = SPIKE_MEM.lock().unwrap();
-  let spike_ref = spike_mem.as_mut().unwrap();
-
-  let dst = &mut spike_ref.mem[addr];
-
-  Ok(*dst)
-}
-
-fn load_elf(fname: &Path) -> anyhow::Result<u64> {
+fn load_elf(spike: &mut SpikeCHandler, fname: &Path) -> anyhow::Result<u64> {
   let mut file = File::open(fname).unwrap();
   let mut buffer = Vec::new();
   file.read_to_end(&mut buffer).unwrap();
@@ -94,23 +33,12 @@ fn load_elf(fname: &Path) -> anyhow::Result<u64> {
         let addr = ph.virtual_addr as usize;
 
         let slice = &buffer[offset..offset + size];
-        ld(addr, size, slice.to_vec()).unwrap();
+        spike.load_bytes_to_mem(addr, size, slice.to_vec()).unwrap();
       }
     }
   }
 
   Ok(header.pt2.entry_point())
-}
-
-pub fn clip(binary: u64, a: i32, b: i32) -> u32 {
-  assert!(a <= b, "a should be less than or equal to b");
-  let nbits = b - a + 1;
-  let mask = if nbits >= 32 {
-    u32::MAX
-  } else {
-    (1 << nbits) - 1
-  };
-  (binary as u32 >> a) & mask
 }
 
 pub struct Config {
@@ -132,8 +60,8 @@ pub fn add_rtl_write(se: &mut SpikeEvent, vrf_write: VrfWriteEvent, record_idx_b
           record.byte,
           written_byte,
           "{j}th byte incorrect ({:02X} != {written_byte:02X}) for vrf \
-						write (lane={}, vd={}, offset={}, mask={:04b}) \
-						[vrf_idx={}] (lsu_idx={}, disasm: {}, pc: {:#x}, bits: {:#x})",
+            write (lane={}, vd={}, offset={}, mask={:04b}) \
+            [vrf_idx={}] (lsu_idx={}, disasm: {}, pc: {:#x}, bits: {:#x})",
           record.byte,
           vrf_write.idx,
           vrf_write.vd,
@@ -151,8 +79,8 @@ pub fn add_rtl_write(se: &mut SpikeEvent, vrf_write: VrfWriteEvent, record_idx_b
   }) // end for j
 }
 
-pub struct SpikeHandle {
-  spike: Spike,
+pub struct SpikeRunner {
+  spike: Box<SpikeCHandler>,
 
   /// to rtl stack
   /// in the spike thread, spike should detech if this queue is full, if not
@@ -173,22 +101,16 @@ pub struct SpikeHandle {
   pub spike_cycle: usize,
 }
 
-impl SpikeHandle {
+impl SpikeRunner {
   pub fn new(size: usize, fname: &Path, vlen: u32, dlen: u32, set: String) -> Self {
-    // register the addr_to_mem callback
-    unsafe { spike_register_callback(rs_addr_to_mem) }
-
-    // create a new spike memory instance
-    init_memory(size);
-
     // load the elf file
-    let entry_addr = load_elf(fname).unwrap();
-
     // initialize spike
     let arch = &format!("vlen:{vlen},elen:32");
     let lvl = "M";
 
-    let spike = Spike::new(arch, &set, lvl, (dlen / 32) as usize);
+    let mut spike = SpikeCHandler::new(arch, &set, lvl, (dlen / 32) as usize, size);
+
+    let entry_addr = load_elf(&mut spike, fname).unwrap();
 
     // initialize processor
     let proc = spike.get_proc();
@@ -196,7 +118,7 @@ impl SpikeHandle {
     proc.reset();
     state.set_pc(entry_addr);
 
-    SpikeHandle {
+    SpikeRunner {
       spike,
       to_rtl_queue: VecDeque::new(),
       config: Config { vlen, dlen },

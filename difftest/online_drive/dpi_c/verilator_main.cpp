@@ -1,9 +1,9 @@
 #include "VTestBench.h"
-#include "verilated.h"
+#include "dpi.h"
 
 class VTestBench;
 
-int main(int argc, char **argv, char **) {
+int verilator_main(int argc, char **argv) {
   // Setup context, defaults, and parse command line
   Verilated::debug(0);
   const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};

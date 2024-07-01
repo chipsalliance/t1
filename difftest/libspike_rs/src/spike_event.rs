@@ -1,7 +1,8 @@
-use super::Spike;
-use super::{clip, read_mem};
 use std::collections::HashMap;
 use tracing::{info, trace};
+
+use crate::c_interface::{SpikeCHandler};
+use crate::clip;
 
 #[derive(Debug, Clone)]
 pub struct SingleMemWrite {
@@ -99,7 +100,7 @@ pub struct SpikeEvent {
 }
 
 impl SpikeEvent {
-  pub fn new(spike: &Spike) -> Option<Self> {
+  pub fn new(spike: &SpikeCHandler) -> Option<Self> {
     let inst_bits = spike.get_proc().get_insn();
     // inst info
     let opcode = clip(inst_bits, 0, 6);
@@ -195,7 +196,7 @@ impl SpikeEvent {
     Ok((vd_bytes_start, if self.is_widening { len * 2 } else { len }))
   }
 
-  pub fn pre_log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
+  pub fn pre_log_arch_changes(&mut self, spike: &SpikeCHandler, vlen: u32) -> anyhow::Result<()> {
     self.rd_bits = spike.get_proc().get_rd();
 
     // record the vrf writes before executing the insn
@@ -215,7 +216,7 @@ impl SpikeEvent {
     Ok(())
   }
 
-  pub fn log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
+  pub fn log_arch_changes(&mut self, spike: &SpikeCHandler, vlen: u32) -> anyhow::Result<()> {
     self.log_vrf_write(spike, vlen).unwrap();
     self.log_reg_write(spike).unwrap();
     self.log_mem_write(spike).unwrap();
@@ -224,7 +225,7 @@ impl SpikeEvent {
     Ok(())
   }
 
-  fn log_vrf_write(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
+  fn log_vrf_write(&mut self, spike: &SpikeCHandler, vlen: u32) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     // record vrf writes
     // note that we do not need log_reg_write to find records, we just decode the
@@ -256,7 +257,7 @@ impl SpikeEvent {
     Ok(())
   }
 
-  fn log_reg_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
+  fn log_reg_write(&mut self, spike: &SpikeCHandler) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     let state = proc.get_state();
     // in spike, log_reg_write is arrange:
@@ -297,7 +298,7 @@ impl SpikeEvent {
     Ok(())
   }
 
-  fn log_mem_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
+  fn log_mem_write(&mut self, spike: &SpikeCHandler) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     let state = proc.get_state();
 
@@ -325,7 +326,7 @@ impl SpikeEvent {
     Ok(())
   }
 
-  fn log_mem_read(&mut self, spike: &Spike) -> anyhow::Result<()> {
+  fn log_mem_read(&mut self, spike: &SpikeCHandler) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     let state = proc.get_state();
 
@@ -334,7 +335,7 @@ impl SpikeEvent {
       let (addr, size) = state.get_mem_read(i);
       let mut value = 0;
       (0..size).for_each(|offset| {
-        let byte = read_mem(addr as usize + offset as usize).unwrap();
+        let byte = spike.mem_byte_on_addr(addr as usize + offset as usize).unwrap();
         value |= (byte as u64) << (offset * 8);
         // record the read
         self

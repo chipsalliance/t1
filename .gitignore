@@ -13,7 +13,7 @@ coverage.dat
 .ammonite
 .cache
 build
-/result*
+result*
 /dependencies
 __pycache__
 /testrun

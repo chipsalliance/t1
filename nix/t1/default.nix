@@ -59,27 +59,25 @@ lib.makeScope newScope
           then self.cases
           else pkgsX86.t1."${configName}".cases;
 
-        ip = rec {
+        ip = lib.makeScope innerSelf.newScope (ipSelf: rec {
           recurseForDerivations = true;
 
-          elaborate = innerSelf.callPackage ./elaborate.nix { target = "ip"; /* use-binder = true; */ };
-          mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
-          rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
-          om = innerSelf.callPackage ./om.nix { inherit mlirbc; };
+          elaborate = ipSelf.callPackage ./elaborate.nix { target = "ip"; /* use-binder = true; */ };
+          mlirbc = ipSelf.callPackage ./mlirbc.nix { inherit elaborate; };
+          rtl = ipSelf.callPackage ./rtl.nix { inherit mlirbc; };
+          om = ipSelf.callPackage ./om.nix { inherit mlirbc; };
 
-          emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; /* use-binder = true; */ };
-          emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
-          emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = emu-mlirbc; };
+          emu-elaborate = ipSelf.callPackage ./elaborate.nix { target = "ipemu"; /* use-binder = true; */ };
+          emu-mlirbc = ipSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
+          emu-rtl = ipSelf.callPackage ./rtl.nix { mlirbc = emu-mlirbc; };
 
-          verilated = innerSelf.callPackage ./verilated.nix { rtl = emu-rtl; };
-          # FIXME: replace this emu with this derivation when axi and cosim functions implemented
-          pseudo-emu = innerSelf.callPackage ./pseudo-emu.nix { inherit verilated; };
+          verilated = ipSelf.callPackage ./verilated.nix { rtl = emu-rtl; };
 
-          emu = innerSelf.callPackage ./ipemu.nix { rtl = ip.emu-rtl; stdenv = moldStdenv; };
-          emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = emu-rtl; stdenv = moldStdenv; do-trace = true; };
+          emu = ipSelf.callPackage ./ipemu.nix { rtl = ip.emu-rtl; stdenv = moldStdenv; };
+          emu-trace = ipSelf.callPackage ./ipemu.nix { rtl = emu-rtl; stdenv = moldStdenv; do-trace = true; };
 
-          t1-simulator = innerSelf.callPackage ../../difftest/t1-simulator/default.nix { rtl = innerSelf.ip.emu-rtl; };
-        };
+          difftest = ipSelf.callPackage ../../difftest { inherit verilated; };
+        });
 
         subsystem = rec {
           recurseForDerivations = true;

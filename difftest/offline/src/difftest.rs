@@ -1,13 +1,10 @@
-mod dut;
-mod spike;
-
-use dut::*;
-pub use spike::SpikeHandle;
+use crate::spike_handle::SpikeRunner;
+use crate::dut::{Dut, IssueEvent, LsuEnqEvent, VrfWriteEvent};
 use std::path::Path;
 use tracing::trace;
 
 pub struct Difftest {
-  spike: SpikeHandle,
+  spike: SpikeRunner,
   dut: Dut,
 }
 
@@ -21,7 +18,7 @@ impl Difftest {
     set: String,
   ) -> Self {
     Self {
-      spike: SpikeHandle::new(size, Path::new(&elf_file), vlen, dlen, set),
+      spike: SpikeRunner::new(size, Path::new(&elf_file), vlen, dlen, set),
       dut: Dut::new(Path::new(&log_file)),
     }
   }
@@ -52,7 +49,7 @@ impl Difftest {
       }
     }
 
-    // TODO: remove these, now just for aligning online difftest
+    // TODO: remove these, now just for aligning online_drive difftest
     if let Some(se) = self.spike.to_rtl_queue.front() {
       // it is ensured there are some other instruction not committed, thus
       // se_to_issue should not be issued

@@ -1,11 +1,14 @@
 mod difftest;
+mod dut;
+mod spike_handle;
 
 use clap::Parser;
-use difftest::Difftest;
-use difftest::SpikeHandle;
 use std::path::Path;
 use tracing::{info, Level};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
+
+use crate::difftest::Difftest;
+use crate::spike_handle::SpikeRunner;
 
 /// A simple offline difftest tool
 #[derive(Parser, Debug)]
@@ -39,7 +42,7 @@ struct Args {
 fn run_spike(args: Args) -> anyhow::Result<()> {
   let mut count: u64 = 0;
 
-  let spike = SpikeHandle::new(
+  let spike = SpikeRunner::new(
     1usize << 32,
     Path::new(&args.elf_file),
     args.vlen,

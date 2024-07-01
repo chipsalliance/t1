@@ -1,0 +1,11 @@
+[package]
+name = "online_drive"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libspike_rs = { path = "../libspike_rs" }
+log = "0.4.22"
+
+[build-dependencies]
+cmake = "0.1.50"

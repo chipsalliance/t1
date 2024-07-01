@@ -14,12 +14,13 @@ extern "C" {
 #endif
 
 ffi_callback ffi_addr_to_mem;
+extern void *ffi_target;
 
 class sim_t : public simif_t {
  public:
   sim_t() {}
   ~sim_t() {}
-  char* addr_to_mem(reg_t addr) override { return ffi_addr_to_mem(addr); }
+  char* addr_to_mem(reg_t addr) override { return ffi_addr_to_mem(ffi_target, addr); }
   bool mmio_load(reg_t addr, size_t len, uint8_t* bytes) override { throw std::logic_error("not implemented"); }
   bool mmio_store(reg_t addr, size_t len, const uint8_t* bytes) override { throw std::logic_error("not implemented"); }
   virtual void proc_reset(unsigned id) override { }

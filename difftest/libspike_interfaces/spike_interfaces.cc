@@ -2,6 +2,8 @@
 
 constexpr uint32_t CSR_MSIMEND = 0x7cc;
 
+void *ffi_target;
+
 cfg_t make_spike_cfg(const std::string& varch) {
   cfg_t cfg;
   cfg.initrd_bounds = std::make_pair((reg_t)0, (reg_t)0),
@@ -235,8 +237,9 @@ reg_t state_exit(spike_state_t* state) {
   return csrmap[CSR_MSIMEND]->read();
 }
 
-void spike_register_callback(ffi_callback callback) {
+void spike_register_callback(void *ffi_target_, ffi_callback callback) {
   ffi_addr_to_mem = callback;
+  ffi_target = ffi_target_;
 
   return;
 }
