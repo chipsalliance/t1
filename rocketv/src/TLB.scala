@@ -5,7 +5,7 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Instance, Instantiate}
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.{Cat, Decoupled, Enum, Fill, Mux1H, OHToUInt, PopCount, PriorityEncoder, UIntToOH, Valid, log2Ceil}
 
@@ -118,6 +118,7 @@ class TLBInterface(parameter: TLBParameter) extends Bundle {
   val kill = Input(Bool())
 }
 
+@instantiable
 class TLB(val parameter: TLBParameter)
   extends FixedIORawModule(new TLBInterface(parameter))
     with SerializableModule[TLBParameter]
