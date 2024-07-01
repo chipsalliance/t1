@@ -1,14 +1,59 @@
-// See LICENSE.Berkeley for license details.
-// See LICENSE.SiFive for license details.
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2012-2014 The Regents of the University of California
+// SPDX-FileCopyrightText: 2016-2017 SiFive, Inc
+// SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
+package org.chipsalliance.rocketv
 
+// TODO: inline and remove this Module
 import chisel3._
-import chisel3.util.{Cat, log2Up}
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.util.{Cat, log2Ceil}
 
-class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module {
-  val io = IO(new Bundle {
-    val requestor = Flipped(Vec(n, new HellaCacheIO))
-    val mem = new HellaCacheIO
-  })
+case class HellaCacheArbiterParameter(
+                                       dcacheArbPorts: Int,
+                                       coreMaxAddrBits: Int,
+                                       usingVM: Boolean,
+                                       untagBits: Int,
+                                       pgIdxBits: Int,
+                                       dcacheReqTagBits: Int,
+                                       coreDataBytes: Int,
+                                       paddrBits: Int,
+                                       vaddrBitsExtended: Int,
+                                       separateUncachedResp: Boolean
+                                     ) extends SerializableModuleParameter
+
+class HellaCacheArbiterInterface(parameter: HellaCacheArbiterParameter) extends Bundle {
+  val requestor = Flipped(Vec(parameter.dcacheArbPorts, new HellaCacheIO(
+    parameter.coreMaxAddrBits,
+    parameter.usingVM,
+    parameter.untagBits,
+    parameter.pgIdxBits,
+    parameter.dcacheReqTagBits,
+    parameter.dcacheArbPorts,
+    parameter.coreDataBytes,
+    parameter.paddrBits,
+    parameter.vaddrBitsExtended,
+    parameter.separateUncachedResp
+  )))
+  val mem = new HellaCacheIO(
+    parameter.coreMaxAddrBits,
+    parameter.usingVM,
+    parameter.untagBits,
+    parameter.pgIdxBits,
+    parameter.dcacheReqTagBits,
+    parameter.dcacheArbPorts,
+    parameter.coreDataBytes,
+    parameter.paddrBits,
+    parameter.vaddrBitsExtended,
+    parameter.separateUncachedResp
+  )
+}
+
+class HellaCacheArbiter(val parameter: HellaCacheArbiterParameter)
+  extends FixedIORawModule(new HellaCacheArbiterInterface(parameter))
+    with SerializableModule[HellaCacheArbiterParameter] {
+
+  val n = parameter.dcacheArbPorts
 
   if (n == 1) {
     io.mem <> io.requestor.head
@@ -27,7 +72,7 @@ class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module {
       val req = io.requestor(i).req
       def connect_s0() = {
         io.mem.req.bits := req.bits
-        io.mem.req.bits.tag := Cat(req.bits.tag, i.U(log2Up(n).W))
+        io.mem.req.bits.tag := Cat(req.bits.tag, i.U(log2Ceil(n).W))
         s1_id := i.U
       }
       def connect_s1() = {
@@ -53,7 +98,7 @@ class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module {
 
     for (i <- 0 until n) {
       val resp = io.requestor(i).resp
-      val tag_hit = io.mem.resp.bits.tag(log2Up(n) - 1, 0) === i.U
+      val tag_hit = io.mem.resp.bits.tag(log2Ceil(n) - 1, 0) === i.U
       resp.valid := io.mem.resp.valid && tag_hit
       io.requestor(i).s2_xcpt := io.mem.s2_xcpt
       io.requestor(i).s2_gpa := io.mem.s2_gpa
@@ -66,18 +111,18 @@ class HellaCacheArbiter(n: Int)(implicit p: Parameters) extends Module {
       io.requestor(i).s2_paddr := io.mem.s2_paddr
       io.requestor(i).clock_enabled := io.mem.clock_enabled
       resp.bits := io.mem.resp.bits
-      resp.bits.tag := io.mem.resp.bits.tag >> log2Up(n)
+      resp.bits.tag := io.mem.resp.bits.tag >> log2Ceil(n)
 
       io.requestor(i).replay_next := io.mem.replay_next
 
-      io.requestor(i).uncached_resp.map { uncached_resp =>
-        val uncached_tag_hit = io.mem.uncached_resp.get.bits.tag(log2Up(n) - 1, 0) === i.U
+      io.requestor(i).uncached_resp.foreach { uncached_resp =>
+        val uncached_tag_hit = io.mem.uncached_resp.get.bits.tag(log2Ceil(n) - 1, 0) === i.U
         uncached_resp.valid := io.mem.uncached_resp.get.valid && uncached_tag_hit
         when(uncached_resp.ready && uncached_tag_hit) {
           io.mem.uncached_resp.get.ready := true.B
         }
         uncached_resp.bits := io.mem.uncached_resp.get.bits
-        uncached_resp.bits.tag := io.mem.uncached_resp.get.bits.tag >> log2Up(n)
+        uncached_resp.bits.tag := io.mem.uncached_resp.get.bits.tag >> log2Ceil(n)
       }
     }
   }
