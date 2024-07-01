@@ -165,6 +165,40 @@ To get all available options, run:
 $ nix develop -c t1-helper --help
 ```
 
+#### Export RTL Properties
+
+```shell
+$ nix run .#t1.<config-name>.ip.omreader <key> # export the contents of the specified key
+$ nix run .#t1.<config-name>.ip.emu-omreader <key> # export the contents of the specified key with emulation support
+```
+
+To dump all available keys and preview their contents:
+
+```shell
+$ nix run .#t1.<config-name>.ip.omreader -- run --dump-methods
+$ nix run .#t1.<config-name>.ip.emu-omreader -- run --dump-methods
+```
+
+<details>
+  <summary>Schema</summary>
+
+  ##### `vlen` : Integer
+
+  ##### `dlen` : Integer
+
+  ##### `decoderInstructionsJson` | `decoderInstructionsJsonPretty` : Json
+
+  | Field                           | Type   |
+  |---------------------------------|--------|
+  | `[*]`                           | array  |
+  | `[*].attributes`                | object |
+  | `[*].attributes[*]`             | array  |
+  | `[*].attributes[*].description` | string |
+  | `[*].attributes[*].identifier`  | string |
+  | `[*].attributes[*].value`       | string |
+
+</details>
+
 ### Development
 
 #### Developing Elaborator (Chisel-only)
