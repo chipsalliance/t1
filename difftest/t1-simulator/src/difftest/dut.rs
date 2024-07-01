@@ -1,14 +1,43 @@
-use serde::Deserialize;
+use num_bigint::BigUint;
+use serde::{Deserialize, Deserializer};
 use std::io::BufRead;
 use std::path::Path;
+use std::str::FromStr;
 
-#[derive(Deserialize, Debug, PartialEq, Clone)]
-pub enum Opcode {
-  PutFullData = 0,
-  PutPartialData = 1,
-  Get = 4,
-  // AccessAckData = 0,
-  // AccessAck = 0,
+fn bigint_to_vec_u8<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  let opt: Option<&str> = Option::deserialize(deserializer)?;
+  match opt {
+    Some(s) => {
+      let bigint =
+        BigUint::from_str(s.trim_start_matches(' ')).map_err(serde::de::Error::custom)?;
+      Ok(Some(bigint.to_bytes_le()))
+    }
+    None => Ok(None),
+  }
+}
+
+fn bigint_to_vec_bool<'de, D>(deserializer: D) -> Result<Option<Vec<bool>>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  let opt: Option<&str> = Option::deserialize(deserializer)?;
+  match opt {
+    Some(s) => {
+      let bigint =
+        BigUint::from_str(s.trim_start_matches(' ')).map_err(serde::de::Error::custom)?;
+      let bytes = bigint.to_bytes_le();
+      let bools = bytes
+        .iter()
+        .flat_map(|byte| (0..8).map(move |i| (byte >> i) & 1 == 1))
+        .collect();
+
+      Ok(Some(bools))
+    }
+    None => Ok(None),
+  }
 }
 
 #[derive(Deserialize, Debug)]
@@ -18,15 +47,17 @@ pub struct Parameter {
   pub opcode: Option<u32>,
   pub param: Option<u32>,
   pub size: Option<usize>,
-  pub source: Option<u16>,
+  pub source: Option<u8>,
   pub address: Option<u32>,
-  pub mask: Option<u32>,
-  pub data: Option<u64>,
+  #[serde(deserialize_with = "bigint_to_vec_bool", default)]
+  pub mask: Option<Vec<bool>>,
+  #[serde(deserialize_with = "bigint_to_vec_u8", default)]
+  pub data: Option<Vec<u8>>,
   pub corrupt: Option<u32>,
   pub dready: Option<u8>,
   pub vd: Option<u32>,
   pub offset: Option<u32>,
-  pub instruction: Option<u32>,
+  pub instruction: Option<u8>,
   pub lane: Option<u32>,
   pub vxsat: Option<u32>,
   pub rd_valid: Option<u32>,
@@ -51,13 +82,21 @@ pub struct LsuEnqEvent {
   pub cycle: usize,
 }
 
+pub struct MemoryWriteEvent {
+  pub mask: Vec<bool>,
+  pub data: Vec<u8>,
+  pub source: u8,
+  pub address: u32,
+  pub cycle: usize,
+}
+
 pub struct VrfWriteEvent {
   pub idx: u32,
   pub vd: u32,
   pub offset: u32,
-  pub mask: u32,
-  pub data: u64,
-  pub instruction: u32,
+  pub mask: u8,
+  pub data: u32,
+  pub instruction: u8,
   pub cycle: usize,
 }
 

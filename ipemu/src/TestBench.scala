@@ -63,6 +63,9 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
     wire
   }
 
+  val storeUnitProbe = lsuProbe.storeUnitProbe.suggestName("storeUnitProbe")
+  val otherUnitProbe = lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
+
   val t1Probe = probe.read(dut.t1Probe)
 
   withClockAndReset(clock, reset) {
@@ -70,16 +73,18 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
     val cycleCounter = RegInit(0.U(64.W))
     cycleCounter := cycleCounter + 1.U
 
-    // memory write
-    lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"vrfWriteFromLsu","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":${mshr.dataMask},"data":${mshr.dataData},"instruction":${mshr.dataInstruction},"lane":${mshr.targetLane},"cycle": ${cycleCounter}}}\n""")) }
-    // vrf write
-    laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(printf(cf"""{"event":"vrfWriteFromLane","parameter":{"idx":$i,"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":${lane.requestMask},"data":${lane.requestData},"instruction":${lane.requestInstruction},"cycle": ${cycleCounter}}}\n""")) }
+    // vrf write from lsu
+    lsuProbe.slots.zipWithIndex.foreach { case (mshr, i) => when(mshr.writeValid)(printf(cf"""{"event":"vrfWriteFromLsu","parameter":{"idx":$i,"vd":${mshr.dataVd},"offset":${mshr.dataOffset},"mask":"${mshr.dataMask}","data":"${mshr.dataData}","instruction":${mshr.dataInstruction},"lane":${mshr.targetLane},"cycle": ${cycleCounter}}}\n""")) }
+    // vrf write from lane
+    laneVrfProbes.zipWithIndex.foreach { case (lane, i) => when(lane.valid)(printf(cf"""{"event":"vrfWriteFromLane","parameter":{"idx":$i,"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":"${lane.requestMask}","data":"${lane.requestData}","instruction":${lane.requestInstruction},"cycle": ${cycleCounter}}}\n""")) }
+    // memory write from store unit
+    when(storeUnitProbe.valid)(printf(cf"""{"event":"memoryWrite","parameter":{"mask":"${storeUnitProbe.mask}","data":"${storeUnitProbe.data}","address":${storeUnitProbe.address},"source":${storeUnitProbe.index},"cycle": ${cycleCounter}}}\n""")) 
+    // memory write from other unit
+    when(otherUnitProbe.valid)(printf(cf"""{"event":"memoryWrite","parameter":{"mask":"${otherUnitProbe.mask}","data":"${otherUnitProbe.data}","address":${otherUnitProbe.address},"source":${otherUnitProbe.index},"cycle": ${cycleCounter}}}\n""")) 
     // issue
     when(dut.request.fire)(printf(cf"""{"event":"issue","parameter":{"idx":${t1Probe.instructionCounter},"cycle": ${cycleCounter}}}\n"""))
     // inst
-    when(dut.response.valid)(printf(cf"""{"event":"inst","parameter":{"data":${dut.response.bits.data},"vxsat":${dut.response.bits.vxsat},"rd_valid":${dut.response.bits.rd.valid},"rd":${dut.response.bits.rd.bits},"mem":${dut.response.bits.mem},"cycle": ${cycleCounter}}}\n"""))
-    // peekTL
-    dut.memoryPorts.zipWithIndex.foreach { case (bundle, i) => when(bundle.a.valid)(printf(cf"""{"event":"peekTL","parameter":{"idx":$i,"opcode":${bundle.a.bits.opcode},"param":${bundle.a.bits.param},"size":${bundle.a.bits.size},"source":${bundle.a.bits.source},"address":${bundle.a.bits.address},"mask":${bundle.a.bits.mask},"data":${bundle.a.bits.data},"corrupt":${bundle.a.bits.corrupt},"dready":${bundle.d.ready},"cycle": ${cycleCounter}}}\n""")) }
+    when(dut.response.valid)(printf(cf"""{"event":"inst","parameter":{"data":"${dut.response.bits.data}","vxsat":${dut.response.bits.vxsat},"rd_valid":${dut.response.bits.rd.valid},"rd":${dut.response.bits.rd.bits},"mem":${dut.response.bits.mem},"cycle": ${cycleCounter}}}\n"""))
     // lsu enq
     when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"lsuEnq","parameter":{"enq":${lsuProbe.reqEnq},"cycle": ${cycleCounter}}}\n"""))
   }
