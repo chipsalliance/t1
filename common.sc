@@ -86,7 +86,9 @@ trait RocketVModule
     with HasChisel
     with HasRVDecoderDB {
   def axi4Module: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(axi4Module)
+  def hardfloatModule: ScalaModule
+
+  def moduleDeps = super.moduleDeps ++ Seq(axi4Module, hardfloatModule)
 }
 
 trait EmuHelperModule

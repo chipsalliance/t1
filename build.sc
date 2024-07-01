@@ -144,6 +144,7 @@ trait RocketV
   def scalaVersion = T(v.scala)
   def rvdecoderdbModule = rvdecoderdb
   def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
+  def hardfloatModule = hardfloat
   def axi4Module = axi4
 
   def chiselModule = Some(chisel)
