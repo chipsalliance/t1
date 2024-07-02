@@ -4,62 +4,204 @@
 // SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
 package org.chipsalliance.rocketv
 
+import chisel3._
 import chisel3.experimental.hierarchy.Instantiate
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.circt.ClockGate
-import chisel3.{FixedIORawModule, ImplicitClock, ImplicitReset, withClock, withReset, _}
+import chisel3.util.experimental.BitSet
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
 
 object FrontendParameter {
+  implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
+    .readwriter[String]
+    .bimap[BitSet](
+      bs => bs.terms.map("b" + _.rawString).mkString("\n"),
+      str => if(str.isEmpty) BitSet.empty else BitSet.fromString(str)
+    )
+
   implicit def rwP: upickle.default.ReadWriter[FrontendParameter] = upickle.default.macroRW[FrontendParameter]
 }
 
-case class FrontendParameter() extends SerializableModuleParameter {
-  val vaddrBitsExtended: Int = ???
-  val vaddrBits: Int = ???
-  val asidBits: Int = ???
-  val entries: Int = ???
-  val coreInstBits: Int = ???
-  val nPMPs: Int = ???
-  val vpnBits: Int = ???
-  val paddrBits: Int = ???
-  val pgLevels: Int = ???
-  val xLen: Int = ???
-  val maxPAddrBits: Int = ???
-  val pgIdxBits: Int = ???
-  val fetchWidth: Int = ???
-  val fetchBytes: Int = ???
-  val coreInstBytes: Int = ???
-  val hasCorrectable: Boolean = ???
-  val hasUncorrectable: Boolean = ???
-  val useAsyncReset: Boolean = ???
-  val usingBTB: Boolean = ???
-  val usingCompressed: Boolean = ???
-  val clockGate: Boolean = ???
-  val resetVectorBits: Int = ???
-  val itimParameter: Option[AXI4BundleParameter] = ???
-  val instructionFetchParameter: AXI4BundleParameter = ???
-  val icacheParameter: ICacheParameter = ???
-  //        new TLB(
-  //        true,
-  //        log2Ceil(fetchBytes),
-  //        TLBConfig(nTLBSets, nTLBWays, outer.icacheParams.nTLBBasePageSectors, outer.icacheParams.nTLBSuperpages)
-  //      )
-  val tlbParameter: TLBParameter = ???
-  val btbParameter: Option[BTBParameter] = ???
-  // entry = 5
-  val fetchQueueParameter: FetchQueueParameter = ???
-  val bhtHistoryLength: Option[Int] = ???
-  val bhtCounterLength: Option[Int] = ???
+case class FrontendParameter(
+                              // must be false, since resetVector will be aligned here.
+                              useAsyncReset: Boolean,
+                              clockGate: Boolean,
+                              xLen: Int,
+                              usingAtomics: Boolean,
+                              usingDataScratchpad: Boolean,
+                              usingVM: Boolean,
+                              usingCompressed: Boolean,
+                              usingBTB: Boolean,
+                              itlbNSets: Int,
+                              itlbNWays: Int,
+                              itlbNSectors: Int,
+                              itlbNSuperpageEntries: Int,
+                              blockBytes: Int,
+                              iCacheNSets: Int,
+                              iCacheNWays: Int,
+                              iCachePrefetch: Boolean,
+                              btbEntries: Int,
+                              btbNMatchBits: Int,
+                              btbUpdatesOutOfOrder: Boolean,
+                              nPages: Int,
+                              nRAS: Int,
+                              nPMPs: Int,
+                              paddrBits: Int,
+                              pgLevels: Int,
+                              asidBits: Int,
+                              bhtParameter: Option[BHTParameter],
+                              legal: BitSet,
+                              cacheable: BitSet,
+                              read: BitSet,
+                              write: BitSet,
+                              putPartial: BitSet,
+                              logic: BitSet,
+                              arithmetic: BitSet,
+                              exec: BitSet,
+                              sideEffects: BitSet
+                            ) extends SerializableModuleParameter {
+  // static now
+  def hasCorrectable: Boolean = false
+  def usingHypervisor: Boolean = false
+  def hasUncorrectable: Boolean = false
+  def usingAtomicsOnlyForIO: Boolean = false
+  def itimParameter: Option[AXI4BundleParameter] = None
 
-  require(fetchWidth * coreInstBytes == fetchBytes)
+  // calculate
+  def bhtHistoryLength: Option[Int] = bhtParameter.map(_.historyLength)
+  def bhtCounterLength: Option[Int] = bhtParameter.map(_.counterLength)
+  def usingAtomicsInCache: Boolean = usingAtomics && !usingAtomicsOnlyForIO
+  private def vpnBitsExtended: Int = vpnBits + (if (vaddrBits < xLen) 1 + (if (usingHypervisor) 1 else 0) else 0)
+  def vaddrBitsExtended: Int = vpnBitsExtended + pgIdxBits
+  def maxHypervisorExtraAddrBits: Int = 2
+  def hypervisorExtraAddrBits: Int = if (usingHypervisor) maxHypervisorExtraAddrBits else 0
+  def pgLevelBits: Int = 10 - log2Ceil(xLen / 32)
+  def maxSVAddrBits: Int = pgIdxBits + pgLevels * pgLevelBits
+  def maxHVAddrBits: Int = maxSVAddrBits + hypervisorExtraAddrBits
+  def vaddrBits: Int = if (usingVM) {
+    val v = maxHVAddrBits
+    require(v == xLen || xLen > v && v > paddrBits)
+    v
+  } else {
+    // since virtual addresses sign-extend but physical addresses
+    // zero-extend, make room for a zero sign bit for physical addresses
+    (paddrBits + 1).min(xLen)
+  }
+  def entries: Int = btbEntries
+  def coreInstBits: Int = if (usingCompressed) 16 else 32
+  def vpnBits: Int = vaddrBits - pgIdxBits
+  def maxPAddrBits: Int = xLen match {
+    case 32 => 34
+    case 64 => 56
+  }
+  def pgIdxBits: Int = 12
+  val fetchWidth: Int = if (usingCompressed) 2 else 1
+  def fetchBytes: Int = 4
+  val coreInstBytes = (if (usingCompressed) 16 else 32) / 8
+  def resetVectorBits: Int = paddrBits
+  def pmaCheckerParameter: PMACheckerParameter = PMACheckerParameter(
+    paddrBits = paddrBits,
+    legal = legal,
+    cacheable = cacheable,
+    read = read,
+    write = write,
+    putPartial = putPartial,
+    logic = logic,
+    arithmetic = arithmetic,
+    exec = exec,
+    sideEffects = sideEffects,
+  )
+  val rowBits: Int = blockBytes * 8
+  val instructionFetchParameter: AXI4BundleParameter = AXI4BundleParameter(
+    idWidth = 1,
+    dataWidth = rowBits,
+    addrWidth = paddrBits,
+    userReqWidth = 0,
+    userDataWidth = 0,
+    userRespWidth = 0,
+    hasAW = false,
+    hasW = false,
+    hasB = false,
+    hasAR = true,
+    hasR = true,
+    supportId = true,
+    supportRegion = false,
+    supportLen = true,
+    supportSize = true,
+    supportBurst = true,
+    supportLock = false,
+    supportCache = false,
+    supportQos = false,
+    supportStrb = false,
+    supportResp = false,
+    supportProt = false,
+  )
+
+  def icacheParameter: ICacheParameter = ICacheParameter(
+    useAsyncReset = useAsyncReset,
+    prefetch = iCachePrefetch,
+    nSets = iCacheNSets,
+    nWays = iCacheNWays,
+    blockBytes = blockBytes,
+    usingVM = usingVM,
+    vaddrBits = vaddrBits,
+    paddrBits = paddrBits
+  )
+
+  def tlbParameter: TLBParameter = TLBParameter(
+    useAsyncReset = useAsyncReset,
+    xLen = xLen,
+    nSets = itlbNSets,
+    nWays = itlbNWays,
+    nSectors = itlbNSectors,
+    nSuperpageEntries = itlbNSuperpageEntries,
+    asidBits = asidBits,
+    pgLevels = pgLevels,
+    usingHypervisor = usingHypervisor,
+    usingAtomics = usingAtomics,
+    usingDataScratchpad = usingDataScratchpad,
+    usingAtomicsOnlyForIO = usingAtomicsOnlyForIO,
+    usingVM = usingVM,
+    usingAtomicsInCache = usingAtomicsInCache,
+    nPMPs = nPMPs,
+    pmaCheckerParameter = pmaCheckerParameter,
+    paddrBits = paddrBits,
+    isITLB = false,
+  )
+  def btbParameter: Option[BTBParameter] = Option.when(usingBTB)(BTBParameter(
+    useAsyncReset = useAsyncReset,
+    fetchBytes = fetchBytes,
+    vaddrBits = vaddrBits,
+    entries = btbEntries,
+    nMatchBits = btbNMatchBits,
+    nPages = nPages,
+    nRAS = nRAS,
+    cacheBlockBytes = blockBytes,
+    iCacheSet = iCacheNSets,
+    useCompressed = usingCompressed,
+    updatesOutOfOrder = btbUpdatesOutOfOrder,
+    bhtParameter = bhtParameter
+  ))
+
+  // entry = 5
+  def fetchQueueParameter: FetchQueueParameter = FetchQueueParameter(
+    // static to be false.
+    useAsyncReset = false,
+    entries = 5,
+    vaddrBits = vaddrBits,
+    respEntries = entries,
+    bhtHistoryLength = bhtHistoryLength,
+    bhtCounterLength = bhtCounterLength,
+    vaddrBitsExtended = vaddrBitsExtended,
+    coreInstBits = coreInstBits,
+  )
 }
 
 class FrontendInterface(parameter: FrontendParameter) extends Bundle {
   val clock = Input(Clock())
   val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
-  val resetVector = Input(UInt(parameter.resetVectorBits.W))
+  val resetVector = Input(Const(UInt(parameter.resetVectorBits.W)))
   val nonDiplomatic = new FrontendBundle(
     parameter.vaddrBitsExtended,
     parameter.vaddrBits,
@@ -115,27 +257,36 @@ class Frontend(val parameter: FrontendParameter)
   }
 
   object Instructions {
-    def BEQ:    BitPat = ???
-    def JAL:    BitPat = ???
-    def JALR:   BitPat = ???
-    def C_BEQZ: BitPat = ???
-    def C_BNEZ: BitPat = ???
-    def C_J:    BitPat = ???
-    def C_ADD:  BitPat = ???
-    def C_MV:   BitPat = ???
-  }
-  object Instructions32 {
-    def C_JAL: BitPat = ???
+    def BEQ: BitPat = BitPat("b?????????????????000?????1100011")
+
+    def JAL = BitPat("b?????????????????????????1101111")
+
+    def JALR = BitPat("b?????????????????000?????1100111")
+
+    def C_BEQZ = BitPat("b????????????????110???????????01")
+
+    def C_BNEZ = BitPat("b????????????????111???????????01")
+
+    def C_J = BitPat("b????????????????101???????????01")
+
+    def C_ADD = BitPat("b????????????????1001??????????10")
+
+    def C_MV = BitPat("b????????????????1000??????????10")
   }
 
-  val gated_clock =
+  object Instructions32 {
+    def C_JAL = BitPat("b????????????????001???????????01")
+  }
+
+  val clock_en_reg: Bool = Reg(Bool())
+  val clock_en: Bool = clock_en_reg || io.nonDiplomatic.cpu.might_request
+  val gated_clock: Clock =
     if (!rocketParams.clockGate) clock
     else ClockGate(clock, clock_en)
-  val clock_en_reg = Reg(Bool())
-  val clock_en = clock_en_reg || io.nonDiplomatic.cpu.might_request
 
   val icache = Instantiate(new ICache(parameter.icacheParameter))
   icache.io.clock := gated_clock
+  icache.io.reset := io.reset
   icache.io.clock_enabled := clock_en
   (icache.io.itimAXI zip io.itimAXI).foreach{ case (frontend, itim) => itim :<>= frontend }
   io.instructionFetchAXI :<>= icache.io.instructionFetchAXI
@@ -260,7 +411,9 @@ class Frontend(val parameter: FrontendParameter)
     fq.io.enq.bits.replay := (icache.io.resp.bits.replay || icache.io.s2_kill && !icache.io.resp.valid && !s2_xcpt) || (s2_kill_speculative_tlb_refill && s2_tlb_resp.miss)
     fq.io.enq.bits.btb := s2_btb_resp_bits
     fq.io.enq.bits.btb.taken := s2_btb_taken
-    fq.io.enq.bits.xcpt := s2_tlb_resp
+    fq.io.enq.bits.xcpt.ae := s2_tlb_resp.ae.inst
+    fq.io.enq.bits.xcpt.gf := s2_tlb_resp.gf.inst
+    fq.io.enq.bits.xcpt.pf := s2_tlb_resp.pf.inst
 //    assert(
 //      !(s2_speculative && io.ptw.customCSRs
 //        .asInstanceOf[RocketCustomCSRs]
