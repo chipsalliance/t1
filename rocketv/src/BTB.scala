@@ -36,7 +36,6 @@ case class BTBParameter(
     extends SerializableModuleParameter {
   def fetchWidth:      Int = 1
   val nEntries:        Int = entries
-  val CacheBlockBytes: Int = cacheBlockBytes
 }
 
 class BTBInterface(parameter: BTBParameter) extends Bundle {
@@ -97,7 +96,7 @@ class BTB(val parameter: BTBParameter)
   // compatibility layer
   val entries = parameter.entries
   val nMatchBits = parameter.nMatchBits
-  val matchBits = parameter.nMatchBits.max(log2Ceil(parameter.CacheBlockBytes * parameter.iCacheSet))
+  val matchBits = parameter.nMatchBits.max(log2Ceil(parameter.cacheBlockBytes * parameter.iCacheSet))
   val coreInstBytes = (if (parameter.useCompressed) 16 else 32) / 8
   val nPages = (parameter.nPages + 1) / 2 * 2 // control logic assumes 2 divides pages
   val vaddrBits = parameter.vaddrBits
