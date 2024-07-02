@@ -11,28 +11,32 @@ import chisel3.util.random.LFSR
 import chisel3.util._
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
 
-case class ICacheParameter(vaddrBits: Int, paddrBits: Int) extends SerializableModuleParameter {
-  // todo: param?
-  val useAsyncReset: Boolean = false
-  val fetchBytes: Int = 4
+case class ICacheParameter(useAsyncReset: Boolean,
+                           prefetch: Boolean,
+                           nSets: Int,
+                           nWays: Int,
+                           blockBytes: Int,
+                           usingVM: Boolean,
+                           vaddrBits: Int,
+                           paddrBits: Int
+                          ) extends SerializableModuleParameter {
+  // static for now
   val latency: Int = 2
-  val prefetch: Boolean = false
-  val itimParameter: Option[AXI4BundleParameter] = None
+  val itimAXIParameter: Option[AXI4BundleParameter] = None
   val itimBaseAddr: Option[BigInt] = None
-  val usingITIM: Boolean = itimParameter.isDefined
-  val usingVM: Boolean = true
   val tagECC: Option[String] = None
   val dataECC: Option[String] = None
+  // calculated
+  // todo: param?
+  val fetchBytes: Int = 4
+  val usingITIM: Boolean = itimAXIParameter.isDefined
   val tagCode: Code = Code.fromString(tagECC)
   val dataCode: Code = Code.fromString(dataECC)
   //  (cacheParams.tagCode.canDetect || cacheParams.dataCode.canDetect).option(Valid(UInt(paddrBits.W)))
   val hasCorrectable: Boolean = tagCode.canDetect || dataCode.canDetect
   //  (cacheParams.itimAddr.nonEmpty && cacheParams.dataCode.canDetect).option(Valid(UInt(paddrBits.W)))
   val hasUncorrekoctable: Boolean = itimBaseAddr.nonEmpty && dataCode.canDetect
-  val nSets: Int = 64
-  val nWays: Int = 4
   val isDM: Boolean = nWays == 1
-  val blockBytes: Int = 64
   // axi data with
   val rowBits: Int = blockBytes * 8
   val refillCycles: Int = blockBytes * 8 / rowBits
@@ -117,7 +121,7 @@ class ICacheInterface(parameter: ICacheParameter) extends Bundle {
 
   val instructionFetchAXI: AXI4ROIrrevocable = org.chipsalliance.amba.axi4.bundle.AXI4ROIrrevocable(parameter.instructionFetchParameter)
 
-  val itimAXI: Option[AXI4RWIrrevocable] = parameter.itimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
+  val itimAXI: Option[AXI4RWIrrevocable] = parameter.itimAXIParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
 }
 
 @instantiable
@@ -627,7 +631,7 @@ class ICache(val parameter: ICacheParameter)
     case 1 =>
       require(tECC.isInstanceOf[IdentityCode])
       require(dECC.isInstanceOf[IdentityCode])
-      require(parameter.itimParameter.isEmpty)
+      require(parameter.itimAXIParameter.isEmpty)
       // reply data to CPU at stage 2. no replay.
       io.resp.bits.data := Mux1H(s1_tag_hit, s1_dout)
       io.resp.bits.ae := s1_tl_error.asUInt.orR
