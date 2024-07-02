@@ -5,6 +5,7 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
+import chisel3.experimental.hierarchy.instantiable
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.random.LFSR
 import chisel3.util._
@@ -119,6 +120,7 @@ class ICacheInterface(parameter: ICacheParameter) extends Bundle {
   val itimAXI: Option[AXI4RWIrrevocable] = parameter.itimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
 }
 
+@instantiable
 class ICache(val parameter: ICacheParameter)
   extends FixedIORawModule(new ICacheInterface(parameter))
     with SerializableModule[ICacheParameter]
