@@ -8,7 +8,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter, SourceInfo}
 import chisel3.util.experimental.{BitSet, InlineInstance}
-import chisel3.util.{Arbiter, BitPat, Cat, Enum, Fill, FillInterleaved, Mux1H, MuxLookup, OHToUInt, PriorityEncoder, PriorityEncoderOH, PriorityMux, RegEnable, SRAM, SRAMInterface, UIntToOH, isPow2, log2Ceil}
+import chisel3.util.{Arbiter, BitPat, Cat, Enum, Fill, FillInterleaved, Mux1H, MuxLookup, OHToUInt, PriorityEncoder, PriorityEncoderOH, PriorityMux, Queue, RegEnable, SRAM, SRAMInterface, UIntToOH, isPow2, log2Ceil}
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ChiselBundle, AXI4ROIrrevocable, AXI4RWIrrevocable, R, W}
 
 case class HellaCacheParameter(
@@ -249,7 +249,6 @@ class HellaCacheInterface(parameter: HellaCacheParameter) extends Bundle {
     parameter.pgIdxBits
   )
   val errors = new DCacheErrors(parameter.hasCorrectable, parameter.hasUncorrectable, parameter.paddrBits)
-  val tlb_port = new DCacheTLBPort(parameter.paddrBits, parameter.vaddrBitsExtended)
   val loadStoreAXI: AXI4RWIrrevocable = org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.instructionFetchParameter)
   val dtimAXI: Option[AXI4RWIrrevocable] = parameter.dtimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
 }
@@ -371,7 +370,6 @@ class HellaCache(val parameter: HellaCacheParameter)
 
   val clock = io.clock
   val reset = io.reset
-  val tlb_port = io.tlb_port
   val pma_checker = pmaChecker
 
   val tECC = cacheParams.tagCode
@@ -441,7 +439,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     dataArb.io.out.ready := true.B
     metaArb.io.out.ready := clock_en_reg
 
-    val rdata = dataArrays.zipWithIndex.map { case (array, i) =>
+    val readData: Seq[Seq[UInt]] = dataArrays.zipWithIndex.map { case (array, i) =>
       val valid = dataArb.io.out.valid && ((dataArrays.size == 1).B || dataArb.io.out.bits.wordMask(i))
       val dataEccMask = if (eccBits == subWordBits) Seq(true.B) else dataArb.io.out.bits.eccMask.asBools
       val wMask = if (nWays == 1) dataEccMask else (0 until nWays).flatMap(i => dataEccMask.map(_ && dataArb.io.out.bits.way_en(i)))
@@ -459,21 +457,19 @@ class HellaCache(val parameter: HellaCacheParameter)
         arrayPort.mask.foreach(_ := VecInit(wMaskSlice))
       }
       val data: Vec[UInt] = array.readwritePorts.head.readData
-      // todo: uncertain
       // data.grouped(subWordBits / eccBits).map(_.asUInt).toSeq
-      VecInit(grouped(data, subWordBits / eccBits).map(_.asUInt)).asUInt
+      grouped(data, subWordBits / eccBits).map(_.asUInt)
     }
+    // (io.resp.zip(rdata.transpose)).foreach { case (resp, data) => resp := data.asUInt }
+    val rdata = readData.transpose.map(ds => VecInit(ds).asUInt)
 
-    // todo: write queue
-    val release_queue_empty = true.B
+    val release_queue_empty =Wire(Bool())
 
     val s1_valid = RegNext(io.cpu.req.fire, false.B)
     val releaseAddress = RegInit(0.U(parameter.paddrBits.W))
     val s1_nack = WireDefault(false.B)
     val s1_valid_masked = s1_valid && !io.cpu.s1_kill
     val s1_valid_not_nacked = s1_valid && !s1_nack
-    val s1_tlb_req_valid = RegNext(tlb_port.req.fire, false.B)
-    val s2_tlb_req_valid = RegNext(s1_tlb_req_valid, false.B)
     val s0_clk_en = metaArb.io.out.valid && !metaArb.io.out.bits.write
 
     val s0_req = WireInit(io.cpu.req.bits)
@@ -483,16 +479,14 @@ class HellaCache(val parameter: HellaCacheParameter)
     val s1_req = RegEnable(s0_req, s0_clk_en)
     val s1_vaddr = Cat(s1_req.idx.getOrElse(s1_req.addr) >> tagLSB, s1_req.addr(tagLSB - 1, 0))
 
-    val s0_tlb_req = WireInit(tlb_port.req.bits)
-    when(!tlb_port.req.fire) {
-      s0_tlb_req.passthrough := s0_req.phys
-      s0_tlb_req.vaddr := s0_req.addr
-      s0_tlb_req.size := s0_req.size
-      s0_tlb_req.cmd := s0_req.cmd
-      s0_tlb_req.prv := s0_req.dprv
-      s0_tlb_req.v := s0_req.dv
-    }
-    val s1_tlb_req = RegEnable(s0_tlb_req, s0_clk_en || tlb_port.req.valid)
+    val s0_tlb_req: TLBReq = Wire(new TLBReq(paddrBits, vaddrBitsExtended))
+    s0_tlb_req.passthrough := s0_req.phys
+    s0_tlb_req.vaddr := s0_req.addr
+    s0_tlb_req.size := s0_req.size
+    s0_tlb_req.cmd := s0_req.cmd
+    s0_tlb_req.prv := s0_req.dprv
+    s0_tlb_req.v := s0_req.dv
+    val s1_tlb_req = RegEnable(s0_tlb_req, s0_clk_en)
 
     val s1_read = isRead(s1_req.cmd)
     val s1_write = isWrite(s1_req.cmd)
@@ -521,6 +515,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     val awState = release_state === s_voluntary_aw
     val releaseWay = Wire(UInt())
     io.cpu.req.ready := (release_state === s_ready) && !cached_grant_wait && !s1_nack
+    release_queue_empty := release_state =/= s_voluntary_writeback
 
     // I/O MSHRs
     val uncachedInFlight = RegInit(VecInit(Seq.fill(maxUncachedInFlight)(false.B)))
@@ -581,11 +576,11 @@ class HellaCache(val parameter: HellaCacheParameter)
     // address translation
     val s1_cmd_uses_tlb = s1_readwrite || s1_flush_line || s1_req.cmd === M_WOK
     io.ptw <> tlb.io.ptw
-    tlb.io.kill := io.cpu.s2_kill || s2_tlb_req_valid && tlb_port.s2_kill
-    tlb.io.req.valid := s1_tlb_req_valid || s1_valid && !io.cpu.s1_kill && s1_cmd_uses_tlb
+    tlb.io.kill := io.cpu.s2_kill
+    tlb.io.req.valid := s1_valid && !io.cpu.s1_kill && s1_cmd_uses_tlb
     tlb.io.req.bits := s1_tlb_req
     when(!tlb.io.req.ready && !tlb.io.ptw.resp.valid && !io.cpu.req.bits.phys) { io.cpu.req.ready := false.B }
-    when(!s1_tlb_req_valid && s1_valid && s1_cmd_uses_tlb && tlb.io.resp.miss) { s1_nack := true.B }
+    when(s1_valid && s1_cmd_uses_tlb && tlb.io.resp.miss) { s1_nack := true.B }
 
     tlb.io.sfence.valid := s1_valid && !io.cpu.s1_kill && s1_sfence
     tlb.io.sfence.bits.rs1 := s1_req.size(0)
@@ -595,16 +590,8 @@ class HellaCache(val parameter: HellaCacheParameter)
     tlb.io.sfence.bits.hv := s1_req.cmd === M_HFENCEV
     tlb.io.sfence.bits.hg := s1_req.cmd === M_HFENCEG
 
-    tlb_port.req.ready := clock_en_reg
-    tlb_port.s1_resp := tlb.io.resp
-    when(s1_tlb_req_valid && s1_valid && !(s1_req.phys && s1_req.no_xcpt)) { s1_nack := true.B }
+    val s1_paddr = Cat(tlb.io.resp.paddr >> pgIdxBits, s1_req.addr(pgIdxBits - 1, 0))
 
-    val s1_paddr = Cat(
-      Mux(s1_tlb_req_valid, s1_req.addr(paddrBits - 1, pgIdxBits), tlb.io.resp.paddr >> pgIdxBits),
-      s1_req.addr(pgIdxBits - 1, 0)
-    )
-
-    pma_checker.io <> DontCare
     //    pma_checker.io.req.bits.passthrough := true.B
     //    pma_checker.io.req.bits.vaddr := s1_req.addr
     //    pma_checker.io.req.bits.size := s1_req.size
@@ -618,8 +605,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       if (usingDataScratchpad) {
 //        val baseAddr =
 //          p(LookupByHartId)(_.dcache.flatMap(_.scratch.map(_.U)), io_hartid.get) | io_mmio_address_prefix.get
-        // @todo: from IO.
-        val baseAddr: UInt = ???
+        val baseAddr: UInt = parameter.scratch.getOrElse(BigInt(0)).U
         val inScratchpad = s1_paddr >= baseAddr && s1_paddr < baseAddr + (nSets * cacheBlockBytes).U
         val hitState = Mux(inScratchpad, ClientMetadata(3.U), ClientMetadata(0.U))
         val dummyMeta = L1Metadata(0.U, ClientMetadata(0.U))
@@ -672,11 +658,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       s2_req := s1_req
       s2_req.addr := s1_paddr
       s2_tlb_xcpt := tlb.io.resp
-      val pmaResponseTypeChange: TLBResp = WireDefault(tlb.io.resp)
-      pmaResponseTypeChange.cacheable := pma_checker.io.resp.cacheable
-      // todo: must_alloc is randomly connected
-      pmaResponseTypeChange.must_alloc := pma_checker.io.resp.al
-      s2_pma := Mux(s1_tlb_req_valid, pmaResponseTypeChange, tlb.io.resp)
+      s2_pma := tlb.io.resp
     }
     val s2_vaddr = Cat(RegEnable(s1_vaddr, s1_valid_not_nacked || s1_flush_valid) >> tagLSB, s2_req.addr(tagLSB - 1, 0))
     val s2_read = isRead(s2_req.cmd)
@@ -944,9 +926,11 @@ class HellaCache(val parameter: HellaCacheParameter)
             idxLSB
           ) === 0.U) &&
           (cacheParams.acquireBeforeRelease.B && !release_ack_wait && release_queue_empty || !s2_victim_dirty)))
+    // !s2_uncached -> read cache line
+    val accessWillRead: Bool = !s2_uncached || !s2_write
     // If no managers support atomics, assert fail if processor asks for them
     assert(!(memAccessValid && s2_read && s2_write && s2_uncached))
-    io.loadStoreAXI.ar.valid := memAccessValid && s2_read
+    io.loadStoreAXI.ar.valid := memAccessValid && accessWillRead
     io.loadStoreAXI.ar.bits := DontCare
     io.loadStoreAXI.ar.bits.addr := access_address
     io.loadStoreAXI.ar.bits.len := 0.U
@@ -954,15 +938,19 @@ class HellaCache(val parameter: HellaCacheParameter)
     io.loadStoreAXI.ar.bits.id := a_source
     io.loadStoreAXI.ar.bits.user := s2_uncached
 
-    // todo: write from release
-    io.loadStoreAXI.aw.valid := memAccessValid && s2_write
+    io.loadStoreAXI.aw.valid := memAccessValid && !accessWillRead
     io.loadStoreAXI.aw.bits := DontCare
     io.loadStoreAXI.aw.bits.addr := access_address
     io.loadStoreAXI.aw.bits.len := 0.U
     io.loadStoreAXI.aw.bits.size := a_size
 
-    // todo: pipe data & state
-    io.loadStoreAXI.w <> DontCare
+    val dataQueue: Queue[W] = Module(new Queue(chiselTypeOf(io.loadStoreAXI.w.bits), cacheDataBeats))
+    dataQueue.io.enq.valid := memAccessValid && !accessWillRead
+    dataQueue.io.enq.bits.data := a_data
+    dataQueue.io.enq.bits.strb := a_mask
+    dataQueue.io.enq.bits.last := true.B
+    dataQueue.io.enq.bits.user := true.B // always uc
+    io.loadStoreAXI.w <> dataQueue.io.deq
 
 //    // Drive APROT Bits
 //    tl_out_a.bits.user.lift(AMBAProt).foreach { x =>
@@ -1423,8 +1411,8 @@ class HellaCache(val parameter: HellaCacheParameter)
       metaArb.io.out.valid || // subsumes resetting || flushing
       //s1Release || s2_release ||
       s1_valid || s2_valid ||
-      tlb_port.req.valid ||
-      s1_tlb_req_valid || s2_tlb_req_valid ||
+      // tlb_port.req.valid ||
+      // s1_tlb_req_valid || s2_tlb_req_valid ||
       pstore1_held || pstore2_valid ||
       release_state =/= s_ready ||
       release_ack_wait || !release_queue_empty ||
