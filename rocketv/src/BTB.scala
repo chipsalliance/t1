@@ -5,6 +5,7 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
+import chisel3.experimental.hierarchy.instantiable
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 
@@ -84,6 +85,7 @@ class BTBInterface(parameter: BTBParameter) extends Bundle {
   val flush = Input(Bool())
 }
 
+@instantiable
 class BTB(val parameter: BTBParameter)
     extends FixedIORawModule(new BTBInterface(parameter))
     with SerializableModule[BTBParameter]
