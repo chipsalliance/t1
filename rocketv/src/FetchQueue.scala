@@ -38,7 +38,7 @@ class FetchQueueInterface(parameter: FetchQueueParameter) extends Bundle {
   val clock = Input(Clock())
   val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
   val enq = Flipped(Decoupled(parameter.gen))
-  val deq = Flipped(Decoupled(parameter.gen))
+  val deq = Decoupled(parameter.gen)
   val mask = Output(UInt(parameter.entries.W))
 }
 
