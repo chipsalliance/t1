@@ -411,6 +411,8 @@ impl SpikeHandle {
     let cycle = memory_write.cycle;
     let base_addr = memory_write.address;
     let lsu_idx = (memory_write.source & 3) as u8;
+
+    info!("[{cycle}] MemoryWrite: idx={idx}, address={base_addr:08x}, size={}, data={data:?}, mask={mask:?}", data.len());
     if let Some(se) = self
       .to_rtl_queue
       .iter_mut()

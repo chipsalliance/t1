@@ -33,6 +33,7 @@ where
         .iter()
         .flat_map(|byte| (0..8).map(move |i| (byte >> i) & 1 == 1))
         .collect();
+
       Ok(Some(bools))
     }
     None => Ok(None),
@@ -95,7 +96,7 @@ pub struct VrfWriteEvent {
   pub vd: u32,
   pub offset: u32,
   pub mask: u8,
-  pub data: u64,
+  pub data: u32,
   pub instruction: u32,
   pub cycle: usize,
 }

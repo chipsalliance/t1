@@ -118,13 +118,18 @@ impl Difftest {
         let lane = event.parameter.lane.unwrap();
         assert!(idx < self.spike.config.dlen / 32);
 
-        assert!(data.len() <= 8, "data length should be less than 8");
-        assert!(mask.len() <= 8, "mask length should be less than 8");
-        let mut data_array = [0u8; 8];
-        data.iter().enumerate().for_each(|(i, &byte)| data_array[i] = byte);
-        let data = u64::from_le_bytes(data_array);
+        assert!(data.len() <= 4, "data length should be less than 4");
+        let mut data_array = [0u8; 4];
+        data
+          .iter()
+          .enumerate()
+          .for_each(|(i, &byte)| data_array[i] = byte);
+        let data = u32::from_le_bytes(data_array);
         // convert mask to u8
-        let mask = mask.iter().fold(0, |acc, &bit| (acc << 1) | bit as u8);
+        let mask = mask
+          .iter()
+          .rev()
+          .fold(0, |acc, &bit| (acc << 1) | bit as u8);
 
         self.spike.peek_vrf_write_from_lsu(VrfWriteEvent {
           idx: lane.trailing_zeros(),
@@ -145,12 +150,18 @@ impl Difftest {
         let instruction = event.parameter.instruction.unwrap();
         assert!(idx < self.spike.config.dlen / 32);
 
-        assert!(data.len() <= 8, "data length should be less than 8");
-        let mut array = [0u8; 8];
-        data.iter().enumerate().for_each(|(i, &byte)| array[i] = byte);
-        let data = u64::from_le_bytes(array);
+        assert!(data.len() <= 4, "data length should be less than 4");
+        let mut array = [0u8; 4];
+        data
+          .iter()
+          .enumerate()
+          .for_each(|(i, &byte)| array[i] = byte);
+        let data = u32::from_le_bytes(array);
         // convert mask to u8
-        let mask = mask.iter().fold(0, |acc, &bit| (acc << 1) | bit as u8);
+        let mask = mask
+          .iter()
+          .rev()
+          .fold(0, |acc, &bit| (acc << 1) | bit as u8);
 
         self.spike.peek_vrf_write_from_lane(VrfWriteEvent {
           idx,
@@ -171,7 +182,10 @@ impl Difftest {
 
         assert!(data.len() <= 4, "data length should be less than 4");
         let mut array = [0u8; 4];
-        data.iter().enumerate().for_each(|(i, &byte)| array[i] = byte);
+        data
+          .iter()
+          .enumerate()
+          .for_each(|(i, &byte)| array[i] = byte);
         let data = u32::from_le_bytes(array);
 
         let se = self.spike.to_rtl_queue.back().unwrap();
