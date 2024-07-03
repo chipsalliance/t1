@@ -6,7 +6,6 @@
 , rust-analyzer
 , rust-bindgen
 
-, libspike
 , verilator
 , verilated
 , cmake
@@ -14,7 +13,7 @@
 }:
 
 let
-  libspike_interfaces = callPackage ./libspike_interfaces { };
+  spike_interfaces = callPackage ./spike_interfaces { };
   # verilated = callPackage ./verilated { };
 
   self = rustPlatform.buildRustPackage {
@@ -22,17 +21,17 @@ let
     src = with lib.fileset; toSource {
       root = ./.;
       fileset = unions [
-        ./libspike_rs
+        ./spike_rs
         ./offline
         ./online_drive
+        ./test_common
         ./Cargo.lock
         ./Cargo.toml
       ];
     };
 
     buildInputs = [
-      libspike
-      libspike_interfaces
+      spike_interfaces
       verilated
     ];
 
@@ -60,7 +59,7 @@ let
           clang-tools
         ];
       });
-      inherit libspike_interfaces;
+      inherit spike_interfaces;
     };
   };
 in

@@ -2,12 +2,12 @@
 resolver = "2"
 members = [
     "test_common",
-    "libspike_rs",
+    "spike_rs",
     "offline",
     "online_drive",
 ]
 exclude = [
-    "libspike_interfaces"
+    "spike_interfaces"
 ]
 
 [workspace.package]

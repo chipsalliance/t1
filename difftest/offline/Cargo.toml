@@ -15,4 +15,4 @@ libloading = "0.8.1"
 xmas-elf = "0.9.1"
 
 common = { path = "../test_common" }
-libspike_rs = { path = "../libspike_rs" }
+spike_rs = { path = "../spike_rs" }

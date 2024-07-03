@@ -1,7 +1,7 @@
 { lib, stdenv, cmake, libspike }:
 
 stdenv.mkDerivation {
-  name = "libspike_interfaces";
+  name = "spike_interfaces";
   src = with lib.fileset; toSource {
     root = ./.;
     fileset = fileFilter (file: file.name != "default.nix") ./.;

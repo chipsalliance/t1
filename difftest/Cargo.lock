@@ -139,7 +139,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "libspike_rs",
+ "spike_rs",
  "tracing",
  "tracing-subscriber",
 ]
@@ -182,16 +182,6 @@ checksum = "e310b3a6b5907f99202fcdb4960ff45b93735d7c7d96b760fcff8db2dc0e103d"
 dependencies = [
  "cfg-if",
  "windows-targets",
-]
-
-[[package]]
-name = "libspike_rs"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "libc",
- "tracing",
- "xmas-elf",
 ]
 
 [[package]]
@@ -238,7 +228,7 @@ dependencies = [
  "clap",
  "cmake",
  "common",
- "libspike_rs",
+ "spike_rs",
  "tracing",
 ]
 
@@ -369,6 +359,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
+name = "spike_rs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "libc",
+ "tracing",
+ "xmas-elf",
+]
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -393,9 +393,9 @@ dependencies = [
  "clap",
  "common",
  "libloading",
- "libspike_rs",
  "serde",
  "serde_json",
+ "spike_rs",
  "tracing",
  "tracing-subscriber",
  "xmas-elf",

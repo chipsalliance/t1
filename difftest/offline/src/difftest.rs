@@ -35,8 +35,8 @@ impl Difftest {
   fn poke_inst(&mut self) -> anyhow::Result<()> {
     loop {
       let se = self.runner.find_se_to_issue();
-      if (se.is_vfence_insn || se.is_exit_insn) && self.runner.to_rtl_queue.len() == 1 {
-        if se.is_exit_insn {
+      if (se.is_vfence_insn() || se.is_exit_insn()) && self.runner.to_rtl_queue.len() == 1 {
+        if se.is_exit_insn() {
           return Ok(());
         }
 
@@ -50,12 +50,12 @@ impl Difftest {
     if let Some(se) = self.runner.to_rtl_queue.front() {
       // it is ensured there are some other instruction not committed, thus
       // se_to_issue should not be issued
-      if se.is_vfence_insn || se.is_exit_insn {
+      if se.is_vfence_insn() || se.is_exit_insn() {
         assert!(
           self.runner.to_rtl_queue.len() > 1,
           "to_rtl_queue are smaller than expected"
         );
-        if se.is_exit_insn {
+        if se.is_exit_insn() {
           trace!("DPIPokeInst: exit waiting for fence");
         } else {
           trace!("DPIPokeInst: waiting for fence, no issuing new instruction");

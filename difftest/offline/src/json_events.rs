@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use common::spike_runner::SpikeRunner;
-use libspike_rs::spike_event::{LSU_IDX_DEFAULT, SpikeEvent};
+use spike_rs::spike_event::{LSU_IDX_DEFAULT, SpikeEvent};
 use tracing::info;
 
 #[derive(Deserialize, Debug, PartialEq, Clone)]

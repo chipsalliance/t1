@@ -3,7 +3,7 @@ use clap::Parser;
 use anyhow::Result;
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
-use libspike_rs::Spike;
+use spike_rs::Spike;
 
 pub mod spike_runner;
 

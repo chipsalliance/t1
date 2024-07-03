@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 use std::path::Path;
 use tracing::info;
 
-use libspike_rs::spike_event::SpikeEvent;
-use libspike_rs::util::load_elf;
-use libspike_rs::{clip, Spike};
+use spike_rs::spike_event::SpikeEvent;
+use spike_rs::util::load_elf;
+use spike_rs::{clip, Spike};
 
 use crate::TestArgs;
 

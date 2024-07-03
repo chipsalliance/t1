@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 common = { path = "../test_common" }
-libspike_rs = { path = "../libspike_rs" }
+spike_rs = { path = "../spike_rs" }
 clap = { workspace = true }
 tracing = { workspace = true }
 

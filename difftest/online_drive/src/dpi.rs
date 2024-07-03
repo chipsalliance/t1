@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use clap::Parser;
-use std::ffi::{c_char, c_int, c_longlong, CStr, CString};
+use std::ffi::{c_char, c_int, c_longlong, CString};
 use std::ptr;
 
 use common::TestArgs;
