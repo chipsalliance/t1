@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use common::spike_runner::SpikeRunner;
-use libspike_rs::spike_event::SpikeEvent;
+use libspike_rs::spike_event::{LSU_IDX_DEFAULT, SpikeEvent};
 use tracing::info;
 
 #[derive(Deserialize, Debug, PartialEq, Clone)]
@@ -61,8 +61,6 @@ pub struct VrfWriteEvent {
   pub instruction: u32,
   pub cycle: usize,
 }
-const LSU_IDX_DEFAULT: u8 = 0xff;
-
 pub fn add_rtl_write(se: &mut SpikeEvent, vrf_write: VrfWriteEvent, record_idx_base: usize) {
   (0..4).for_each(|j| {
     if ((vrf_write.mask >> j) & 1) != 0 {
@@ -106,7 +104,7 @@ pub(crate) trait JsonEventRunner {
 impl JsonEventRunner for SpikeRunner {
   fn peek_issue(&mut self, issue: IssueEvent) -> anyhow::Result<()> {
     let se = self.to_rtl_queue.front_mut().unwrap();
-    if se.is_vfence_insn || se.is_exit_insn {
+    if se.is_vfence_insn() || se.is_exit_insn() {
       return Ok(());
     }
 
@@ -130,7 +128,7 @@ impl JsonEventRunner for SpikeRunner {
       .to_rtl_queue
       .iter_mut()
       .rev()
-      .find(|se| se.is_issued && (se.is_load || se.is_store) && se.lsu_idx == LSU_IDX_DEFAULT)
+      .find(|se| se.is_issued && (se.is_load() || se.is_store()) && se.lsu_idx == LSU_IDX_DEFAULT)
     {
       let index = enq.trailing_zeros() as u8;
       se.lsu_idx = index;
@@ -190,7 +188,7 @@ impl JsonEventRunner for SpikeRunner {
       .rev()
       .find(|se| se.issue_idx == vrf_write.instruction as u8)
     {
-      if !se.is_load {
+      if !se.is_load() {
         info!(
           "[{cycle}] RecordRFAccesses: lane={}, vd={}, offset={}, mask={:04b}, data={:08x}, \
           instruction={}, rtl detect vrf write",

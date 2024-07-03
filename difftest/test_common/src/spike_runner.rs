@@ -178,8 +178,8 @@ impl SpikeRunner {
   pub fn pop_se_to_issue(&mut self) -> Option<SpikeEvent> {
     loop {
       let se = self.find_se_to_issue();
-      if (se.is_vfence_insn || se.is_exit_insn) && self.to_rtl_queue.len() == 1 {
-        if se.is_exit_insn {
+      if (se.is_vfence_insn() || se.is_exit_insn()) && self.to_rtl_queue.len() == 1 {
+        if se.is_exit_insn() {
           return None;
         }
         // for fence-like instruction, consume them when possible

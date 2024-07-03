@@ -1,3 +1,5 @@
+#include <iomanip>
+
 #include "spike_interfaces.h"
 
 constexpr uint32_t CSR_MSIMEND = 0x7cc;
@@ -72,7 +74,15 @@ reg_t proc_func(spike_processor_t* proc) {
   auto pc = proc->p->get_state()->pc;
   auto mmu = proc->p->get_mmu();
   auto fetch = mmu->load_insn(pc);
-  return fetch.func(proc->p, fetch.insn, pc);
+  try {
+    return fetch.func(proc->p, fetch.insn, pc);
+  } catch (trap_t &trap) {
+    std::cerr << "Error: spike trapped with " << trap.name() << " (tval="
+      << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << trap.get_tval() << ", tval2="
+      << std::setw(8) << std::hex << trap.get_tval2() << ", tinst="
+      << std::setw(8) << std::hex << trap.get_tinst() << ")" << std::endl;
+    throw trap;
+  }
 }
 
 reg_t proc_get_insn(spike_processor_t* proc) {

@@ -193,8 +193,7 @@ extern "C" fn cosim_init_rs(call_init: *mut SvBit) -> *mut () {
 #[no_mangle]
 unsafe extern "C" fn cosim_watchdog_rs(target: *mut (), reason: *mut c_char) {
   let driver = &mut *(target as *mut Driver);
-  let reason = CStr::from_ptr(reason).to_str().unwrap();
-  driver.watchdog(reason);
+  *reason = driver.watchdog() as c_char
 }
 
 #[no_mangle]

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use tracing::trace;
 use Default;
 
-use crate::Spike;
 use crate::clip;
+use crate::Spike;
 
 #[derive(Debug, Clone)]
 pub struct SingleMemWrite {
@@ -51,25 +51,25 @@ pub struct VrfAccessRecord {
   pub all_writes: HashMap<usize, SingleVrfWrite>,
 }
 
+pub const LSU_IDX_DEFAULT: u8 = 0xff;
+pub const ISSUE_IDX_DEFAULT: u8 = 0xff;
+
 #[derive(Default, Debug, Clone)]
 pub struct SpikeEvent {
+  pub do_log_vrf: bool,
+
+  // index
   pub lsu_idx: u8,
   pub issue_idx: u8,
 
-  pub is_issued: bool,
-
-  pub is_load: bool,
-  pub is_store: bool,
-  pub is_whole: bool,
-  pub is_widening: bool,
-  pub is_mask_vd: bool,
-  pub is_exit_insn: bool,
-  pub is_vfence_insn: bool,
-
+  // instruction
+  pub disasm: String,
   pub pc: u64,
   pub inst_bits: u32,
 
   // scalar to vector interface(used for driver)
+  pub rs1: u32,
+  pub rs2: u32,
   pub rs1_bits: u32,
   pub rs2_bits: u32,
   pub rd_idx: u32,
@@ -82,16 +82,15 @@ pub struct SpikeEvent {
   // other CSR
   pub vill: bool,
   pub vxsat: bool,
-
   pub vl: u32,
   pub vstart: u16,
-  pub disasm: String,
 
-  pub is_rd_written: bool,
+  // rd
   pub rd_bits: u32,
-  pub is_rd_fp: bool, // whether rd is a fp register
 
-  pub do_log_vrf: bool,
+  // mutable states
+  pub is_issued: bool,
+  pub is_rd_written: bool,
   pub vd_write_record: VdWriteRecord,
   pub mem_access_record: MemAccessRecord,
   pub vrf_access_record: VrfAccessRecord,
@@ -100,67 +99,106 @@ pub struct SpikeEvent {
 impl SpikeEvent {
   pub fn new(spike: &Spike, do_log_vrf: bool) -> Option<Self> {
     let inst_bits = spike.get_proc().get_insn();
-    // inst info
-    let opcode = clip(inst_bits, 0, 6);
-    let width = clip(inst_bits, 12, 14); // also funct3
-    let funct6 = clip(inst_bits, 26, 31);
-    let mop = clip(inst_bits, 26, 27);
-    let lumop = clip(inst_bits, 20, 24);
-    let vm = clip(inst_bits, 25, 25);
-
     // rs1, rs2
-    let is_rs_fp = opcode == 0b1010111 && width == 0b101/* OPFVF */;
+    let is_rs_fp = clip(inst_bits, 0, 6) /* opcode */ == 0b1010111
+        && clip(inst_bits, 12, 14) /* width */ == 0b101/* OPFVF */;
     let proc = spike.get_proc();
     let state = proc.get_state();
     let (rs1, rs2) = (proc.get_rs1(), proc.get_rs2());
 
     Some(SpikeEvent {
-      lsu_idx: 255,
-      issue_idx: 255,
+      do_log_vrf,
+
+      lsu_idx: LSU_IDX_DEFAULT,
+      issue_idx: ISSUE_IDX_DEFAULT,
+
+      disasm: spike.get_proc().disassemble(),
+      pc: proc.get_state().get_pc(),
       inst_bits,
+
+      rs1,
+      rs2,
       rs1_bits: state.get_reg(rs1, is_rs_fp),
       rs2_bits: state.get_reg(rs2, is_rs_fp),
-      // rd
-      is_rd_fp: (opcode == 0b1010111)
-        && (rs1 == 0)
-        && (funct6 == 0b010000)
-        && (vm == 1)
-        && (width == 0b001),
       rd_idx: proc.get_rd(),
-      is_rd_written: false,
 
-      // vtype
       vtype: proc.vu_get_vtype(),
+      vxrm: proc.vu_get_vxrm(),
       vnf: proc.vu_get_vnf(),
 
       vill: proc.vu_get_vill(),
-
-      vxrm: proc.vu_get_vxrm(),
       vxsat: proc.vu_get_vxsat(),
-
       vl: proc.vu_get_vl(),
       vstart: proc.vu_get_vstart(),
 
-      // se info
-      disasm: spike.get_proc().disassemble(),
-      pc: proc.get_state().get_pc(),
-      is_load: opcode == 0b0000111,
-      is_store: opcode == 0b0100111,
-      is_whole: mop == 0 && lumop == 8,
-      is_widening: opcode == 0b1010111 && (funct6 >> 4) == 0b11,
-      is_mask_vd: opcode == 0b1010111 && (funct6 >> 3 == 0b011 || funct6 == 0b010001),
-      is_exit_insn: opcode == 0b1110011,
-      is_vfence_insn: false,
-
-      is_issued: false,
-
       rd_bits: Default::default(),
 
-      do_log_vrf,
+      is_issued: false,
+      is_rd_written: false,
       vd_write_record: Default::default(),
       mem_access_record: Default::default(),
       vrf_access_record: Default::default(),
     })
+  }
+
+  pub fn opcode(&self) -> u32 {
+    clip(self.inst_bits, 0, 6)
+  }
+
+  pub fn width(&self) -> u32 {
+    clip(self.inst_bits, 12, 14)
+  }
+
+  pub fn funct6(&self) -> u32 {
+    clip(self.inst_bits, 26, 31)
+  }
+
+  pub fn mop(&self) -> u32 {
+    clip(self.inst_bits, 26, 27)
+  }
+
+  pub fn lumop(&self) -> u32 {
+    clip(self.inst_bits, 20, 24)
+  }
+
+  pub fn vm(&self) -> bool {
+    clip(self.inst_bits, 25, 25) != 0
+  }
+
+  pub fn is_load(&self) -> bool {
+    self.opcode() == 0b0000111
+  }
+
+  pub fn is_store(&self) -> bool {
+    self.opcode() == 0b0100111
+  }
+
+  pub fn is_whole(&self) -> bool {
+    self.mop() == 0 && self.lumop() == 8
+  }
+
+  pub fn is_widening(&self) -> bool {
+    self.opcode() == 0b1010111 && (self.funct6() >> 4) == 0b11
+  }
+
+  pub fn is_mask_vd(&self) -> bool {
+    self.opcode() == 0b1010111 && (self.funct6() >> 4) == 0b11
+  }
+
+  pub fn is_exit_insn(&self) -> bool {
+    self.opcode() == 0b1110011
+  }
+
+  pub fn is_vfence_insn(&self) -> bool {
+    false
+  }
+
+  pub fn is_rd_fp(&self) -> bool {
+    (self.opcode() == 0b1010111)
+      && (self.rs1 == 0)
+      && (self.funct6() == 0b010000)
+      && self.vm()
+      && (self.width() == 0b001)
   }
 
   pub fn vlmul(&self) -> u32 {
@@ -184,13 +222,13 @@ impl SpikeEvent {
   }
 
   pub fn get_vrf_write_range(&self, vlen_in_bytes: u32) -> anyhow::Result<(u32, u32)> {
-    if self.is_store {
+    if self.is_store() {
       return Ok((0, 0));
     }
 
-    if self.is_load {
+    if self.is_load() {
       let vd_bytes_start = self.rd_idx * vlen_in_bytes;
-      if self.is_whole {
+      if self.is_whole() {
         return Ok((vd_bytes_start, vlen_in_bytes * (1 + self.vnf)));
       }
       let len = if self.vlmul() & 0b100 != 0 {
@@ -203,7 +241,7 @@ impl SpikeEvent {
 
     let vd_bytes_start = self.rd_idx * vlen_in_bytes;
 
-    if self.is_mask_vd {
+    if self.is_mask_vd() {
       return Ok((vd_bytes_start, vlen_in_bytes));
     }
 
@@ -213,7 +251,7 @@ impl SpikeEvent {
       vlen_in_bytes << self.vlmul()
     };
 
-    Ok((vd_bytes_start, if self.is_widening { len * 2 } else { len }))
+    Ok((vd_bytes_start, if self.is_widening() { len * 2 } else { len }))
   }
 
   pub fn pre_log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
@@ -299,7 +337,8 @@ impl SpikeEvent {
         if data != self.rd_bits {
           trace!(
             "ScalarRFChange: idx={}, change_from={}, change_to={data}",
-            self.rd_idx, self.rd_bits
+            self.rd_idx,
+            self.rd_bits
           );
           self.rd_bits = data;
           self.is_rd_written = true;
@@ -310,13 +349,17 @@ impl SpikeEvent {
         if data != self.rd_bits {
           trace!(
             "FloatRFChange: idx={}, change_from={}, change_to={data}",
-            self.rd_idx, self.rd_bits
+            self.rd_idx,
+            self.rd_bits
           );
           self.rd_bits = data;
           self.is_rd_written = true;
         }
       }
-      _ => trace!("UnknownRegChange, idx={:08x}, spike detect unknown reg change", state.get_reg_write_index(idx)),
+      _ => trace!(
+        "UnknownRegChange, idx={:08x}, spike detect unknown reg change",
+        state.get_reg_write_index(idx)
+      ),
     });
 
     Ok(())
@@ -359,7 +402,9 @@ impl SpikeEvent {
       let (addr, size) = state.get_mem_read(i);
       let mut value = 0;
       (0..size).for_each(|offset| {
-        let byte = spike.mem_byte_on_addr(addr as usize + offset as usize).unwrap();
+        let byte = spike
+          .mem_byte_on_addr(addr as usize + offset as usize)
+          .unwrap();
         value |= (byte as u64) << (offset * 8);
         // record the read
         self
