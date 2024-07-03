@@ -1,8 +1,8 @@
-use crate::dpi_bind::verilator_main_wrapped;
+use crate::dpi::verilator_main_wrapped;
 
-mod dpi_bind;
+mod dpi;
+mod drive;
 
 fn main() {
   verilator_main_wrapped();
-  println!("Hello, world!");
 }

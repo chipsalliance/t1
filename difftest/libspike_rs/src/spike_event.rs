@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use tracing::{info, trace};
+use tracing::trace;
+use Default;
 
-use crate::c_interface::{SpikeCHandler};
+use crate::Spike;
 use crate::clip;
 
 #[derive(Debug, Clone)]
@@ -66,7 +67,7 @@ pub struct SpikeEvent {
   pub is_vfence_insn: bool,
 
   pub pc: u64,
-  pub inst_bits: u64,
+  pub inst_bits: u32,
 
   // scalar to vector interface(used for driver)
   pub rs1_bits: u32,
@@ -74,10 +75,7 @@ pub struct SpikeEvent {
   pub rd_idx: u32,
 
   // vtype
-  pub vsew: u32,
-  pub vlmul: u32,
-  pub vma: bool,
-  pub vta: bool,
+  pub vtype: u32,
   pub vxrm: u32,
   pub vnf: u32,
 
@@ -89,18 +87,18 @@ pub struct SpikeEvent {
   pub vstart: u16,
   pub disasm: String,
 
-  pub vd_write_record: VdWriteRecord,
-
   pub is_rd_written: bool,
   pub rd_bits: u32,
   pub is_rd_fp: bool, // whether rd is a fp register
 
+  pub do_log_vrf: bool,
+  pub vd_write_record: VdWriteRecord,
   pub mem_access_record: MemAccessRecord,
   pub vrf_access_record: VrfAccessRecord,
 }
 
 impl SpikeEvent {
-  pub fn new(spike: &SpikeCHandler) -> Option<Self> {
+  pub fn new(spike: &Spike, do_log_vrf: bool) -> Option<Self> {
     let inst_bits = spike.get_proc().get_insn();
     // inst info
     let opcode = clip(inst_bits, 0, 6);
@@ -115,9 +113,6 @@ impl SpikeEvent {
     let proc = spike.get_proc();
     let state = proc.get_state();
     let (rs1, rs2) = (proc.get_rs1(), proc.get_rs2());
-
-    // vtype
-    let vtype = proc.vu_get_vtype();
 
     Some(SpikeEvent {
       lsu_idx: 255,
@@ -135,15 +130,14 @@ impl SpikeEvent {
       is_rd_written: false,
 
       // vtype
-      vlmul: clip(vtype, 0, 2),
-      vma: clip(vtype, 7, 7) != 0,
-      vta: clip(vtype, 6, 6) != 0,
-      vsew: clip(vtype, 3, 5),
-      vxrm: proc.vu_get_vxrm(),
+      vtype: proc.vu_get_vtype(),
       vnf: proc.vu_get_vnf(),
 
       vill: proc.vu_get_vill(),
+
+      vxrm: proc.vu_get_vxrm(),
       vxsat: proc.vu_get_vxsat(),
+
       vl: proc.vu_get_vl(),
       vstart: proc.vu_get_vstart(),
 
@@ -159,8 +153,34 @@ impl SpikeEvent {
       is_vfence_insn: false,
 
       is_issued: false,
-      ..Default::default()
+
+      rd_bits: Default::default(),
+
+      do_log_vrf,
+      vd_write_record: Default::default(),
+      mem_access_record: Default::default(),
+      vrf_access_record: Default::default(),
     })
+  }
+
+  pub fn vlmul(&self) -> u32 {
+    clip(self.vtype, 0, 2)
+  }
+
+  pub fn vma(&self) -> bool {
+    clip(self.vtype, 7, 7) != 0
+  }
+
+  pub fn vta(&self) -> bool {
+    clip(self.vtype, 6, 6) != 0
+  }
+
+  pub fn vsew(&self) -> u32 {
+    clip(self.vtype, 3, 5)
+  }
+
+  pub fn vcsr(&self) -> u32 {
+    self.vxsat as u32 | self.vxrm << 1
   }
 
   pub fn get_vrf_write_range(&self, vlen_in_bytes: u32) -> anyhow::Result<(u32, u32)> {
@@ -173,10 +193,10 @@ impl SpikeEvent {
       if self.is_whole {
         return Ok((vd_bytes_start, vlen_in_bytes * (1 + self.vnf)));
       }
-      let len = if self.vlmul & 0b100 != 0 {
+      let len = if self.vlmul() & 0b100 != 0 {
         vlen_in_bytes * (1 + self.vnf)
       } else {
-        (vlen_in_bytes * (1 + self.vnf)) << self.vlmul
+        (vlen_in_bytes * (1 + self.vnf)) << self.vlmul()
       };
       return Ok((vd_bytes_start, len));
     }
@@ -187,45 +207,49 @@ impl SpikeEvent {
       return Ok((vd_bytes_start, vlen_in_bytes));
     }
 
-    let len = if self.vlmul & 0b100 != 0 {
-      vlen_in_bytes >> (8 - self.vlmul)
+    let len = if self.vlmul() & 0b100 != 0 {
+      vlen_in_bytes >> (8 - self.vlmul())
     } else {
-      vlen_in_bytes << self.vlmul
+      vlen_in_bytes << self.vlmul()
     };
 
     Ok((vd_bytes_start, if self.is_widening { len * 2 } else { len }))
   }
 
-  pub fn pre_log_arch_changes(&mut self, spike: &SpikeCHandler, vlen: u32) -> anyhow::Result<()> {
-    self.rd_bits = spike.get_proc().get_rd();
+  pub fn pre_log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
+    if self.do_log_vrf {
+      self.rd_bits = spike.get_proc().get_rd();
 
-    // record the vrf writes before executing the insn
-    let vlen_in_bytes = vlen;
+      // record the vrf writes before executing the insn
+      let vlen_in_bytes = vlen;
 
-    let proc = spike.get_proc();
-    let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
-    self.vd_write_record.vd_bytes.resize(len as usize, 0u8);
-    for i in 0..len {
-      let offset = start + i;
-      let vreg_index = offset / vlen_in_bytes;
-      let vreg_offset = offset % vlen_in_bytes;
-      let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
-      self.vd_write_record.vd_bytes[i as usize] = cur_byte;
+      let proc = spike.get_proc();
+      let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
+      self.vd_write_record.vd_bytes.resize(len as usize, 0u8);
+      for i in 0..len {
+        let offset = start + i;
+        let vreg_index = offset / vlen_in_bytes;
+        let vreg_offset = offset % vlen_in_bytes;
+        let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
+        self.vd_write_record.vd_bytes[i as usize] = cur_byte;
+      }
     }
 
     Ok(())
   }
 
-  pub fn log_arch_changes(&mut self, spike: &SpikeCHandler, vlen: u32) -> anyhow::Result<()> {
-    self.log_vrf_write(spike, vlen).unwrap();
-    self.log_reg_write(spike).unwrap();
+  pub fn log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
+    if self.do_log_vrf {
+      self.log_vrf_write(spike, vlen).unwrap();
+      self.log_reg_write(spike).unwrap();
+    }
     self.log_mem_write(spike).unwrap();
     self.log_mem_read(spike).unwrap();
 
     Ok(())
   }
 
-  fn log_vrf_write(&mut self, spike: &SpikeCHandler, vlen: u32) -> anyhow::Result<()> {
+  fn log_vrf_write(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     // record vrf writes
     // note that we do not need log_reg_write to find records, we just decode the
@@ -257,7 +281,7 @@ impl SpikeEvent {
     Ok(())
   }
 
-  fn log_reg_write(&mut self, spike: &SpikeCHandler) -> anyhow::Result<()> {
+  fn log_reg_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     let state = proc.get_state();
     // in spike, log_reg_write is arrange:
@@ -298,7 +322,7 @@ impl SpikeEvent {
     Ok(())
   }
 
-  fn log_mem_write(&mut self, spike: &SpikeCHandler) -> anyhow::Result<()> {
+  fn log_mem_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     let state = proc.get_state();
 
@@ -320,13 +344,13 @@ impl SpikeEvent {
             executed: false,
           });
       });
-      info!("SpikeMemWrite: addr={addr:x}, value={value:x}, size={size}");
+      trace!("SpikeMemWrite: addr={addr:x}, value={value:x}, size={size}");
     });
 
     Ok(())
   }
 
-  fn log_mem_read(&mut self, spike: &SpikeCHandler) -> anyhow::Result<()> {
+  fn log_mem_read(&mut self, spike: &Spike) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     let state = proc.get_state();
 
@@ -352,7 +376,7 @@ impl SpikeEvent {
             executed: false,
           });
       });
-      info!("SpikeMemRead: addr={addr:x}, value={value:x}, size={size}");
+      trace!("SpikeMemRead: addr={addr:08x}, value={value:08x}, size={size}");
     });
 
     Ok(())

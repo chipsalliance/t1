@@ -8,7 +8,12 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 add_library(dpi_c
   STATIC
-  verilator_main.cpp
+  dpi.cc
+)
+
+add_library(verilator_main
+  STATIC
+  verilator_main.cc
 )
 
 if (NOT DEFINED VERILATED_LIB_DIR)
@@ -25,19 +30,16 @@ if (NOT DEFINED VERILATED_INC_DIR)
   endif()
 endif()
 
-# link against verilated libs
+# include verilated headers
 target_include_directories(dpi_c PUBLIC ${VERILATED_INC_DIR})
 target_include_directories(dpi_c PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-file(GLOB_RECURSE VERILATED_LIBS "${VERILATED_LIB_DIR}/*.a")
-target_link_libraries(dpi_c PUBLIC ${VERILATED_LIBS})
 
+# include verilator headers
 find_package(verilator REQUIRED)
-message(STATUS "Found verilator: ${verilator_DIR}, link with libs ${VERILATED_LIBS}")
+message(STATUS "Found verilator: ${verilator_DIR}")
 target_include_directories(dpi_c PUBLIC ${verilator_DIR}/include)
 target_include_directories(dpi_c PUBLIC ${verilator_DIR}/include/vltstd)
+target_include_directories(verilator_main PUBLIC ${verilator_DIR}/include)
+target_include_directories(verilator_main PUBLIC ${verilator_DIR}/include/vltstd)
 
-target_link_libraries(dpi_c PUBLIC ${CMAKE_THREAD_LIBS_INIT})
-
-target_compile_definitions(dpi_c PRIVATE COSIM_VERILATOR)
-
-install(TARGETS dpi_c ARCHIVE)
+install(TARGETS dpi_c verilator_main ARCHIVE)

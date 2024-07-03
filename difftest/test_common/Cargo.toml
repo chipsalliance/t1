@@ -1,13 +1,11 @@
 [package]
-name = "online_drive"
-version = "0.1.0"
+name = "common"
+version.workspace = true
 edition = "2021"
 
 [dependencies]
-common = { path = "../test_common" }
 libspike_rs = { path = "../libspike_rs" }
 clap = { workspace = true }
 tracing = { workspace = true }
-
-[build-dependencies]
-cmake = "0.1.50"
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }

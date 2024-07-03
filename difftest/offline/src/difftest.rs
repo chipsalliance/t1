@@ -1,61 +1,58 @@
-use crate::spike_handle::SpikeRunner;
-use crate::dut::{Dut, IssueEvent, LsuEnqEvent, VrfWriteEvent};
+use common::spike_runner::SpikeRunner;
 use std::path::Path;
 use tracing::trace;
 
+use common::TestArgs;
+
+use crate::json_events::*;
+use crate::dut::Dut;
+
 pub struct Difftest {
-  spike: SpikeRunner,
+  runner: SpikeRunner,
   dut: Dut,
 }
 
 impl Difftest {
-  pub fn new(
-    size: usize,
-    elf_file: String,
-    log_file: String,
-    vlen: u32,
-    dlen: u32,
-    set: String,
-  ) -> Self {
+  pub fn new(args: TestArgs) -> Self {
     Self {
-      spike: SpikeRunner::new(size, Path::new(&elf_file), vlen, dlen, set),
-      dut: Dut::new(Path::new(&log_file)),
+      runner: SpikeRunner::new(&args, true),
+      dut: Dut::new(Path::new(&args.log_file.expect("difftest must be run with a log file"))),
     }
   }
 
   fn peek_issue(&mut self, issue: IssueEvent) -> anyhow::Result<()> {
-    self.spike.peek_issue(issue).unwrap();
+    self.runner.peek_issue(issue).unwrap();
 
     Ok(())
   }
 
   fn update_lsu_idx(&mut self, lsu_enq: LsuEnqEvent) -> anyhow::Result<()> {
-    self.spike.update_lsu_idx(lsu_enq).unwrap();
+    self.runner.update_lsu_idx(lsu_enq).unwrap();
 
     Ok(())
   }
 
   fn poke_inst(&mut self) -> anyhow::Result<()> {
     loop {
-      let se = self.spike.find_se_to_issue();
-      if (se.is_vfence_insn || se.is_exit_insn) && self.spike.to_rtl_queue.len() == 1 {
+      let se = self.runner.find_se_to_issue();
+      if (se.is_vfence_insn || se.is_exit_insn) && self.runner.to_rtl_queue.len() == 1 {
         if se.is_exit_insn {
           return Ok(());
         }
 
-        self.spike.to_rtl_queue.pop_back();
+        self.runner.to_rtl_queue.pop_back();
       } else {
         break;
       }
     }
 
     // TODO: remove these, now just for aligning online_drive difftest
-    if let Some(se) = self.spike.to_rtl_queue.front() {
+    if let Some(se) = self.runner.to_rtl_queue.front() {
       // it is ensured there are some other instruction not committed, thus
       // se_to_issue should not be issued
       if se.is_vfence_insn || se.is_exit_insn {
         assert!(
-          self.spike.to_rtl_queue.len() > 1,
+          self.runner.to_rtl_queue.len() > 1,
           "to_rtl_queue are smaller than expected"
         );
         if se.is_exit_insn {
@@ -84,13 +81,13 @@ impl Difftest {
       "issue" => {
         let idx = event.parameter.idx.unwrap();
         let cycle = event.parameter.cycle.unwrap();
-        self.spike.cycle = cycle;
+        self.runner.cycle = cycle;
         self.peek_issue(IssueEvent { idx, cycle }).unwrap();
       }
       "lsuEnq" => {
         let enq = event.parameter.enq.unwrap();
         let cycle = event.parameter.cycle.unwrap();
-        self.spike.cycle = cycle;
+        self.runner.cycle = cycle;
         self.update_lsu_idx(LsuEnqEvent { enq, cycle }).unwrap();
       }
       "vrfWriteFromLsu" => {
@@ -102,11 +99,11 @@ impl Difftest {
         let instruction = event.parameter.instruction.unwrap();
         let lane = event.parameter.lane.unwrap();
         let cycle = event.parameter.cycle.unwrap();
-        self.spike.cycle = cycle;
-        assert!(idx < self.spike.config.dlen / 32);
+        self.runner.cycle = cycle;
+        assert!(idx < self.runner.dlen / 32);
 
         self
-          .spike
+          .runner
           .peek_vrf_write_from_lsu(VrfWriteEvent {
             idx: lane.trailing_zeros(),
             vd,
@@ -126,10 +123,10 @@ impl Difftest {
         let data = event.parameter.data.unwrap();
         let instruction = event.parameter.instruction.unwrap();
         let cycle = event.parameter.cycle.unwrap();
-        self.spike.cycle = cycle;
-        assert!(idx < self.spike.config.dlen / 32);
+        self.runner.cycle = cycle;
+        assert!(idx < self.runner.dlen / 32);
         self
-          .spike
+          .runner
           .peek_vrf_write_from_lane(VrfWriteEvent {
             idx,
             vd,
@@ -144,17 +141,17 @@ impl Difftest {
       "inst" => {
         let data = event.parameter.data.unwrap() as u32;
         let cycle = event.parameter.cycle.unwrap();
-        self.spike.cycle = cycle;
+        self.runner.cycle = cycle;
         // let vxsat = event.parameter.vxsat.unwrap();
         // let rd_valid = event.parameter.rd_valid.unwrap();
         // let rd = event.parameter.rd.unwrap();
         // let mem = event.parameter.mem.unwrap();
 
-        let se = self.spike.to_rtl_queue.back().unwrap();
+        let se = self.runner.to_rtl_queue.back().unwrap();
         se.record_rd_write(data).unwrap();
         se.check_is_ready_for_commit(cycle).unwrap();
 
-        self.spike.to_rtl_queue.pop_back();
+        self.runner.to_rtl_queue.pop_back();
       }
       _ => {
         panic!("unknown event: {}", event.event)

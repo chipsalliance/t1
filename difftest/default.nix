@@ -10,6 +10,7 @@
 , verilator
 , verilated
 , cmake
+, clang-tools
 }:
 
 let
@@ -56,6 +57,7 @@ let
         nativeBuildInputs = old.nativeBuildInputs ++ [
           rust-analyzer
           rust-bindgen
+          clang-tools
         ];
       });
       inherit libspike_interfaces;
