@@ -51,6 +51,12 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
       val vstart: UInt = UInt(32.W)
       // vxrm, vxsat are merged to vcsr
       val vcsr: UInt = UInt(32.W)
+      // meta is used to control the simulation.
+      // 0 is reserved, aka not valid
+      // 1 is normal, it's a valid instruction
+      // 2 is fence, it will request
+      // others are exit, will end the simulation immediately
+      val meta: UInt = UInt(32.W)
     }
     class Retire extends Bundle {
       val rd: UInt = UInt(32.W)
@@ -58,10 +64,12 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
       val writeRd: UInt = UInt(32.W)
       val vxsat: UInt = UInt(32.W)
     }
-    // TODO: don't issue for each cycle.
-    //       maintain a queue, issue at queue size < chainingSize, sending an issue package to it.
-    val issue: Issue = RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
-      clock, dut.request.ready,
+    val issue = WireDefault(0.U.asTypeOf(new Issue))
+    val fence = RegInit(false.B)
+    val doIssue: Bool = dut.request.ready && (!fence || dut.response.valid)
+    issue := RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
+      clock,
+      doIssue,
     ).asInstanceOf[Issue]
     dut.request.bits.instruction := issue.instruction
     dut.request.bits.src1Data := issue.src1Data
@@ -76,8 +84,11 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
 
     dut.csrInterface.ignoreException := 0.U
     dut.storeBufferClear := true.B
-    // always valid to speed up simulation.
-    dut.request.valid := true.B
+    dut.request.valid := issue.meta === 1.U
+    fence := Mux(doIssue, issue.meta === 2.U, fence)
+    when(issue.meta =/= 0.U && issue.meta =/= 1.U && issue.meta =/= 2.U) {
+      stop(cf"""{"event":"simulationStop","parameter":{"reason": ${issue.meta},"cycle": ${simulationTime}}}\n""")
+    }
     val retire = Wire(new Retire)
     retire.rd := dut.response.bits.rd.bits
     retire.data := dut.response.bits.data
