@@ -9,7 +9,7 @@ pub mod spike_runner;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-pub struct TestArgs {
+pub struct CommonArgs {
   /// Path to the ELF file
   #[arg(short, long)]
   pub elf_file: PathBuf,
@@ -37,7 +37,7 @@ pub struct TestArgs {
 
 static MEM_SIZE: usize = 1usize << 32;
 
-impl TestArgs {
+impl CommonArgs {
   pub fn to_spike_c_handler(&self) -> Box<Spike> {
     let arch = &format!("vlen:{},elen:32", self.vlen);
     let lvl = "M";

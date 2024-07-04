@@ -5,10 +5,11 @@ use clap::Parser;
 use std::ffi::{c_char, c_int, c_longlong, CString};
 use std::ptr;
 
-use common::TestArgs;
-use tracing::trace;
+use common::CommonArgs;
+use tracing::{info, trace, warn};
 
 use crate::drive::Driver;
+use crate::OfflineArgs;
 
 pub type SvScalar = u8;
 pub type SvBit = SvScalar;
@@ -74,22 +75,31 @@ unsafe fn fill_axi_read_payload(dst: *mut SvBitVecVal, dlen: u32, payload: AxiRe
 }
 
 #[repr(C, packed)]
+#[derive(Default)]
 pub(crate) struct IssueData {
-  pub instruction_bits: u32,
-  pub src1_bits: u32,
-  pub src2_bits: u32,
-  pub vtype: u32,
-  pub vl: u32,
-  pub vstart: u32,
+  pub meta: u32,
   pub vcsr: u32,
+  pub vstart: u32,
+  pub vl: u32,
+  pub vtype: u32,
+  pub src2_bits: u32,
+  pub src1_bits: u32,
+  pub instruction_bits: u32,
 }
+
+pub static ISSUE_VALID: u32 = 1;
+pub static ISSUE_FENCE: u32 = 2;
+pub static ISSUE_EXIT: u32 = 3;
+
+pub static WATCHDOG_CONTINUE: u8 = 0;
+pub static WATCHDOG_TIMEOUT: u8 = 1;
 
 #[repr(C, packed)]
 pub(crate) struct Retire {
-  pub rd: u32,
-  pub data: u32,
-  pub write_rd: u32,
   pub vxsat: u32,
+  pub write_rd: u32,
+  pub data: u32,
+  pub rd: u32,
 }
 
 //----------------------
@@ -181,19 +191,26 @@ unsafe extern "C" fn axi_write_indexedAccessPort_rs(
 }
 
 #[no_mangle]
-extern "C" fn cosim_init_rs(call_init: *mut SvBit) -> *mut () {
-  let args = TestArgs::parse();
-  args.setup_logger().unwrap();
+unsafe extern "C" fn cosim_init_rs(call_init: *mut SvBit) -> *mut () {
+  let args = OfflineArgs::parse();
+  args.common_args.setup_logger().unwrap();
 
-  unsafe { *call_init = 1 };
+  *call_init = 1;
+  init_wave();
   let driver = Box::new(Driver::new(&args));
   Box::into_raw(driver) as *mut ()
 }
 
 #[no_mangle]
 unsafe extern "C" fn cosim_watchdog_rs(target: *mut (), reason: *mut c_char) {
-  let driver = &mut *(target as *mut Driver);
-  *reason = driver.watchdog() as c_char
+  // watchdog dpi call would be called before initialization, guard on null target
+  if !target.is_null() {
+    info!("watchdog");
+    let driver = &mut *(target as *mut Driver);
+    *reason = driver.watchdog() as c_char
+  } else {
+    warn!("null target")
+  }
 }
 
 #[no_mangle]
@@ -213,6 +230,10 @@ unsafe extern "C" fn retire_vector_instruction_rs(target: *mut (), retire_src: *
 
 extern "C" {
   fn verilator_main(argc: c_int, argv: *mut *mut c_char) -> c_int;
+
+  fn dump_wave(path: *const c_char);
+
+  fn init_wave();
 }
 
 pub(crate) fn verilator_main_wrapped() {
@@ -231,5 +252,13 @@ pub(crate) fn verilator_main_wrapped() {
 
   unsafe {
     verilator_main(argc, argv);
+  }
+}
+
+pub(crate) fn dump_wave_wrapped(path: &str) {
+  let path_cstring = CString::new(path).unwrap();
+  let path_ptr:  *const c_char = path_cstring.as_ptr();
+  unsafe {
+    dump_wave(path_ptr);
   }
 }

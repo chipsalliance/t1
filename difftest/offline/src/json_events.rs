@@ -104,11 +104,10 @@ pub(crate) trait JsonEventRunner {
 impl JsonEventRunner for SpikeRunner {
   fn peek_issue(&mut self, issue: IssueEvent) -> anyhow::Result<()> {
     let se = self.to_rtl_queue.front_mut().unwrap();
-    if se.is_vfence_insn() || se.is_exit_insn() {
+    if se.is_vfence_insn() {
       return Ok(());
     }
 
-    se.is_issued = true;
     se.issue_idx = issue.idx as u8;
 
     info!(
@@ -128,7 +127,7 @@ impl JsonEventRunner for SpikeRunner {
       .to_rtl_queue
       .iter_mut()
       .rev()
-      .find(|se| se.is_issued && (se.is_load() || se.is_store()) && se.lsu_idx == LSU_IDX_DEFAULT)
+      .find(|se| (se.is_load() || se.is_store()) && se.lsu_idx == LSU_IDX_DEFAULT)
     {
       let index = enq.trailing_zeros() as u8;
       se.lsu_idx = index;

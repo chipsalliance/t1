@@ -1,3 +1,5 @@
+// This file includes DPI call implementatitons
+
 #include "svdpi.h"
 
 #include "dpi.h"
@@ -89,7 +91,4 @@ void retire_vector_instruction(const svBitVecVal* retire) {
     retire_vector_instruction_rs(dpi_call_target, retire);
 }
 
-
 } // extern "C"
-
-int verilator_main(int argc, char **argv);

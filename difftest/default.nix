@@ -14,7 +14,6 @@
 
 let
   spike_interfaces = callPackage ./spike_interfaces { };
-  # verilated = callPackage ./verilated { };
 
   self = rustPlatform.buildRustPackage {
     name = "t1-simulator";

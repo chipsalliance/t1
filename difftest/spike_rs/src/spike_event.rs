@@ -89,7 +89,6 @@ pub struct SpikeEvent {
   pub rd_bits: u32,
 
   // mutable states
-  pub is_issued: bool,
   pub is_rd_written: bool,
   pub vd_write_record: VdWriteRecord,
   pub mem_access_record: MemAccessRecord,
@@ -133,7 +132,6 @@ impl SpikeEvent {
 
       rd_bits: Default::default(),
 
-      is_issued: false,
       is_rd_written: false,
       vd_write_record: Default::default(),
       mem_access_record: Default::default(),
@@ -190,7 +188,7 @@ impl SpikeEvent {
   }
 
   pub fn is_vfence_insn(&self) -> bool {
-    false
+    self.is_exit_insn()  // only exit instruction is treated as fence now
   }
 
   pub fn is_rd_fp(&self) -> bool {

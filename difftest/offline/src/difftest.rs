@@ -2,7 +2,7 @@ use common::spike_runner::SpikeRunner;
 use std::path::Path;
 use tracing::trace;
 
-use common::TestArgs;
+use common::CommonArgs;
 
 use crate::json_events::*;
 use crate::dut::Dut;
@@ -13,7 +13,7 @@ pub struct Difftest {
 }
 
 impl Difftest {
-  pub fn new(args: TestArgs) -> Self {
+  pub fn new(args: CommonArgs) -> Self {
     Self {
       runner: SpikeRunner::new(&args, true),
       dut: Dut::new(Path::new(&args.log_file.expect("difftest must be run with a log file"))),

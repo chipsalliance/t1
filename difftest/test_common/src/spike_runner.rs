@@ -6,7 +6,7 @@ use spike_rs::spike_event::SpikeEvent;
 use spike_rs::util::load_elf;
 use spike_rs::{clip, Spike};
 
-use crate::TestArgs;
+use crate::CommonArgs;
 
 pub struct SpikeRunner {
   spike: Box<Spike>,
@@ -18,6 +18,10 @@ pub struct SpikeRunner {
   /// consume from this queue, drive signal based on the queue. size of this
   /// queue should be as big as enough to make rtl free to run, reducing the
   /// context switch overhead.
+  /// Note:
+  /// - The event issued earliest is at the back of the queue
+  /// - The queue may contain at most one unissued event. If so, the unissued event must be at the
+  ///   front of the queue, and it must be a fence
   pub to_rtl_queue: VecDeque<SpikeEvent>,
 
   /// config for v extension
@@ -25,16 +29,16 @@ pub struct SpikeRunner {
   pub dlen: u32,
 
   /// implement the get_t() for mcycle csr update
-  pub cycle: usize,
+  pub cycle: u64,
 
   /// for mcycle csr update
-  pub spike_cycle: usize,
+  pub spike_cycle: u64,
 
   pub do_log_vrf: bool,
 }
 
 impl SpikeRunner {
-  pub fn new(args: &TestArgs, do_log_vrf: bool) -> Self {
+  pub fn new(args: &CommonArgs, do_log_vrf: bool) -> Self {
     // load the elf file
     // initialize spike
     let mut spike = args.to_spike_c_handler();
@@ -87,7 +91,7 @@ impl SpikeRunner {
     let proc = self.spike.get_proc();
     let state = proc.get_state();
 
-    state.set_mcycle(self.cycle + self.spike_cycle);
+    state.set_mcycle((self.cycle + self.spike_cycle) as usize);
 
     let pc = state.get_pc();
     let disasm = proc.disassemble();
@@ -159,33 +163,14 @@ impl SpikeRunner {
   }
 
   pub fn find_se_to_issue(&mut self) -> SpikeEvent {
-    // find the first instruction that is not issued from the back
-    for se in self.to_rtl_queue.iter().rev() {
-      if !se.is_issued {
-        return se.clone();
-      }
-    }
-
-    loop {
-      if let Some(se) = self.spike_step() {
-        self.to_rtl_queue.push_front(se.clone());
-        return se;
-      }
-    }
-  }
-
-  /// returns none means exit
-  pub fn pop_se_to_issue(&mut self) -> Option<SpikeEvent> {
-    loop {
-      let se = self.find_se_to_issue();
-      if (se.is_vfence_insn() || se.is_exit_insn()) && self.to_rtl_queue.len() == 1 {
-        if se.is_exit_insn() {
-          return None;
+    if !self.to_rtl_queue.is_empty() && self.to_rtl_queue.back().unwrap().is_vfence_insn() {
+      self.to_rtl_queue.back().unwrap().clone()
+    } else {
+      loop {
+        if let Some(se) = self.spike_step() {
+          self.to_rtl_queue.push_front(se.clone());
+          break self.to_rtl_queue.front().unwrap().clone();
         }
-        // for fence-like instruction, consume them when possible
-        self.to_rtl_queue.pop_back();
-      } else {
-        break Some(se);
       }
     }
   }

@@ -1,5 +1,7 @@
-#include "VTestBench.h"
-#include "dpi.h"
+#include <VTestBench.h>
+#include <VTestBench__Dpi.h>
+
+#include "dpi_pre_link.h"
 
 class VTestBench;
 
@@ -30,3 +32,13 @@ int verilator_main(int argc, char **argv) {
   topp->final();
   return 0;
 }
+
+void dump_wave(char *path) {
+    svSetScope(svGetScopeFromName("TOP.TestBench.DumpWave"));
+    DumpWave(path);
+}
+
+void init_wave() {
+  Verilated::traceEverOn(true);
+}
+

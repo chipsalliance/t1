@@ -1,8 +1,8 @@
+// This file includes DPI calls to be implemented in Rust
+
+#pragma once
+
 #include "svdpi.h"
-
-#ifndef T1_DPI_H
-#define T1_DPI_H
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -86,10 +86,6 @@ extern void retire_vector_instruction_rs(
     void *dpi_call_target,
     const svBitVecVal *retire);
 
-int verilator_main(int argc, char **argv);
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif // T1_DPI_H

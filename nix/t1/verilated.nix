@@ -1,7 +1,10 @@
-{ stdenv
+{ lib
+, stdenv
 , configName
 , rtl
 , verilator
+, enable-trace ? true
+, zlib
 }:
 stdenv.mkDerivation {
   name = "${configName}-verilated";
@@ -10,11 +13,13 @@ stdenv.mkDerivation {
 
   nativeBuildInputs = [ verilator ];
 
+  propagatedBuildInputs = lib.optionals enable-trace [ zlib ];
+
   buildPhase = ''
     runHook preBuild
 
     echo "[nix] running verilator"
-    verilator --timing --cc TestBench
+    verilator ${lib.optionalString enable-trace "--trace-fst"} --timing --cc TestBench
 
     echo "[nix] building verilated C lib"
 
@@ -28,6 +33,10 @@ stdenv.mkDerivation {
 
     runHook postBuild
   '';
+
+  passthru = {
+    inherit enable-trace;
+  };
 
   installPhase = ''
     runHook preInstall
