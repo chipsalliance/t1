@@ -1,217 +1,476 @@
-// See LICENSE.SiFive for license details.
-// See LICENSE.Berkeley for license details.
-
-package freechips.rocketchip.tile
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
+package org.chipsalliance.rocketv
 
 import chisel3._
-import org.chipsalliance.cde.config._
-import freechips.rocketchip.devices.tilelink._
-import freechips.rocketchip.diplomacy._
-import freechips.rocketchip.interrupts._
-import freechips.rocketchip.tilelink._
-import freechips.rocketchip.rocket._
-import freechips.rocketchip.subsystem.HierarchicalElementCrossingParamsLike
-import freechips.rocketchip.util._
-import freechips.rocketchip.prci.{ClockSinkParameters}
+import chisel3.experimental.hierarchy.{Instance, Instantiate}
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.util.experimental.BitSet
+import chisel3.util.log2Ceil
+import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
+import org.chipsalliance.rvdecoderdb.Instruction
 
-case class RocketTileBoundaryBufferParams(force: Boolean = false)
+object RocketTileParameter {
+  implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
+    .readwriter[String]
+    .bimap[BitSet](
+      bs => bs.terms.map("b" + _.rawString).mkString("\n"),
+      str => if (str.isEmpty) BitSet.empty else BitSet.fromString(str)
+    )
 
-case class RocketTileParams(
-    core: RocketCoreParams = RocketCoreParams(),
-    icache: Option[ICacheParams] = Some(ICacheParams()),
-    dcache: Option[DCacheParams] = Some(DCacheParams()),
-    btb: Option[BTBParams] = Some(BTBParams()),
-    dataScratchpadBytes: Int = 0,
-    tileId: Int = 0,
-    beuAddr: Option[BigInt] = None,
-    blockerCtrlAddr: Option[BigInt] = None,
-    clockSinkParams: ClockSinkParameters = ClockSinkParameters(),
-    boundaryBuffers: Option[RocketTileBoundaryBufferParams] = None
-    ) extends InstantiableTileParams[RocketTile] {
-  require(icache.isDefined)
-  require(dcache.isDefined)
-  val baseName = "rockettile"
-  val uniqueName = s"${baseName}_$tileId"
-  def instantiate(crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): RocketTile = {
-    new RocketTile(this, crossing, lookup)
-  }
+  implicit def rwP: upickle.default.ReadWriter[RocketTileParameter] = upickle.default.macroRW[RocketTileParameter]
 }
 
-class RocketTile private(
-      val rocketParams: RocketTileParams,
-      crossing: ClockCrossingType,
-      lookup: LookupByHartIdImpl,
-      q: Parameters)
-    extends BaseTile(rocketParams, crossing, lookup, q)
-    with SinksExternalInterrupts
-    with SourcesExternalNotifications
-    with HasLazyRoCC  // implies CanHaveSharedFPU with CanHavePTW with HasHellaCache
-    with HasHellaCache
-    with HasICacheFrontend
-{
-  // Private constructor ensures altered LazyModule.p is used implicitly
-  def this(params: RocketTileParams, crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters) =
-    this(params, crossing.crossingType, lookup, p)
+/**
+  * Core:
+  * isa: parse from isa string
+  * vlen: parse from isa string, e.g. rv32imfd_zvl64b_zve32f
+  * priv: m|s|u
+  *
+  * Memory:
+  * AXI width
+  * PMA config
+  *
+  * uarch:
+  * - clockGate: sync
+  * - hartIdLen: log2 hart size, 1
+  * - fenceIFlushDCache: flush DCache on fence.i: true
+  * - nPMPs: pmp region size, 8
+  * - asidBits: ASID length, 0
+  * - nBreakpoints: todo, 0
+  * - useBPWatch: todo, false
+  * - mcontextWidth: todo, 0
+  * - scontextWidth: todo, 0
+  * - hasBeu: has bus error unit, false
+  *
+  * - fastLoadByte: todo, true
+  * - fastLoadWord: todo, false
+  *   - if (fastLoadByte) io.dmem.resp.bits.data(xLen-1, 0)
+  *   - else if (fastLoadWord) io.dmem.resp.bits.data_word_bypass(xLen-1, 0)
+  *   - else wb_reg_wdata
+  *
+  * - mulDivLatency:
+  * - divUnroll:
+  * - divEarlyOut:
+  * - divEarlyOutGranularity:
+  * - mulUnroll:
+  * - mulEarlyOut:
+  *
+  * - itlbNSets: ???
+  * - itlbNWays: ???
+  * - itlbNSectors: ???
+  * - itlbNSuperpageEntries: ???
+  *
+  * - usingBTB:
+  *   - btbEntries: 28
+  *   - btbNMatchBits: 14
+  *   - btbUpdatesOutOfOrder: false
+  *   - nPages: 6
+  *   - nRAS: 6
+  * - usingBHT:
+  *   - nEntries: 512
+  *   - counterLength: 1
+  *   - historyLength: 8
+  *   - historyBits: 3
+  *
+  * - icache/dcache size: 16K, 32K
+  * - cacheBlockBytes: 32
+  * - cache way: 4
+  * - cache banksize: 32
+  * - iCachePrefetch: false, todo, AXI Hint.
+  */
+case class RocketTileParameter(
+  useAsyncReset:          Boolean,
+  clockGate:              Boolean,
+  instructionSets:        Set[String],
+  priv:                   String,
+  hartIdLen:              Int,
+  useBPWatch:             Boolean,
+  mcontextWidth:          Int,
+  scontextWidth:          Int,
+  asidBits:               Int,
+  resetVectorBits:        Int,
+  nBreakpoints:           Int,
+  dtlbNWays:              Int,
+  dtlbNSets:              Int,
+  itlbNSets:              Int,
+  itlbNWays:              Int,
+  itlbNSectors:           Int,
+  itlbNSuperpageEntries:  Int,
+  nPTECacheEntries:       Int,
+  nL2TLBWays:             Int,
+  nL2TLBEntries:          Int,
+  paddrBits:              Int,
+  cacheBlockBytes:        Int,
+  nPMPs:                  Int,
+  legal:                  BitSet,
+  cacheable:              BitSet,
+  read:                   BitSet,
+  write:                  BitSet,
+  putPartial:             BitSet,
+  logic:                  BitSet,
+  arithmetic:             BitSet,
+  exec:                   BitSet,
+  sideEffects:            BitSet,
+  btbEntries:             Int,
+  btbNMatchBits:          Int,
+  btbUpdatesOutOfOrder:   Boolean,
+  nPages:                 Int,
+  nRAS:                   Int,
+  bhtParameter:           Option[BHTParameter],
+  mulDivLatency:         Int,
+  divUnroll:              Int,
+  divEarlyOut:            Boolean,
+  divEarlyOutGranularity: Int,
+  mulUnroll:              Int,
+  mulEarlyOut:            Boolean,
+  sfmaLatency:            Int,
+  dfmaLatency:            Int,
+  divSqrt:                Boolean,
+  flushOnFenceI:          Boolean,
+  fastLoadByte:           Boolean,
+  fastLoadWord:           Boolean,
+  dcacheNSets:            Int,
+  dcacheNWays:            Int,
+  dcacheRowBits:          Int,
+  maxUncachedInFlight:    Int,
+  separateUncachedResp:   Boolean,
+  iCacheNSets:            Int,
+  iCacheNWays:            Int,
+  iCachePrefetch:         Boolean)
+    extends SerializableModuleParameter {
 
-  val intOutwardNode = rocketParams.beuAddr map { _ => IntIdentityNode() }
-  val slaveNode = TLIdentityNode()
-  val masterNode = visibilityNode
+  // calculate
+  def usingUser: Boolean = priv.contains("u")
 
-  val dtim_adapter = tileParams.dcache.flatMap { d => d.scratch.map { s =>
-    LazyModule(new ScratchpadSlavePort(AddressSet.misaligned(s, d.dataScratchpadBytes), lazyCoreParamsView.coreDataBytes, tileParams.core.useAtomics && !tileParams.core.useAtomicsOnlyForIO))
-  }}
-  dtim_adapter.foreach(lm => connectTLSlave(lm.node, lm.node.portParams.head.beatBytes))
+  def usingSupervisor: Boolean = priv.contains("s")
 
-  val bus_error_unit = rocketParams.beuAddr map { a =>
-    val beu = LazyModule(new BusErrorUnit(new L1BusErrors, BusErrorUnitParams(a)))
-    intOutwardNode.get := beu.intNode
-    connectTLSlave(beu.node, xBytes)
-    beu
+  def vLen: Option[Int] = instructionSets.collectFirst {
+    case s"zvl${vlen}b" => vlen.toInt
   }
 
-  val tile_master_blocker =
-    tileParams.blockerCtrlAddr
-      .map(BasicBusBlockerParams(_, xBytes, masterPortBeatBytes, deadlock = true))
-      .map(bp => LazyModule(new BasicBusBlocker(bp)))
-
-  tile_master_blocker.foreach(lm => connectTLSlave(lm.controlNode, xBytes))
-
-  // TODO: this doesn't block other masters, e.g. RoCCs
-  tlOtherMastersNode := tile_master_blocker.map { _.node := tlMasterXbar.node } getOrElse { tlMasterXbar.node }
-  masterNode :=* tlOtherMastersNode
-  DisableMonitors { implicit p => tlSlaveXbar.node :*= slaveNode }
-
-  nDCachePorts += 1 /*core */ + (dtim_adapter.isDefined).toInt
-
-  val dtimProperty = dtim_adapter.map(d => Map(
-    "sifive,dtim" -> d.device.asProperty)).getOrElse(Nil)
-
-  val itimProperty = frontend.icache.itimProperty.toSeq.flatMap(p => Map("sifive,itim" -> p))
-
-  val beuProperty = bus_error_unit.map(d => Map(
-          "sifive,buserror" -> d.device.asProperty)).getOrElse(Nil)
-
-  val cpuDevice: SimpleDevice = new SimpleDevice("cpu", Seq("sifive,rocket0", "riscv")) {
-    override def parent = Some(ResourceAnchors.cpus)
-    override def describe(resources: ResourceBindings): Description = {
-      val Description(name, mapping) = super.describe(resources)
-      Description(name, mapping ++ cpuProperties ++ nextLevelCacheProperty
-                  ++ tileProperties ++ dtimProperty ++ itimProperty ++ beuProperty)
+  // static for now
+  def hasBeu:              Boolean = false
+  def usingNMI:            Boolean = false
+  def usingHypervisor:     Boolean = false
+  def usingDataScratchpad: Boolean = false
+  def nLocalInterrupts:    Int = 0
+  def dcacheArbPorts:      Int = 2
+  def tagECC:              Option[String] = None
+  def dataECC:             Option[String] = None
+  def pgLevelBits:         Int = 10 - log2Ceil(xLen / 32)
+  def instructions: Seq[Instruction] =
+    org.chipsalliance.rvdecoderdb
+      .instructions(
+        org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader)
+      )
+      .filter(instruction =>
+        (
+          instructionSets ++
+            // Four mandatory instruction sets.
+            Seq("rv_i", "rv_zicsr", "rv_zifencei", "rv_system")
+        ).contains(instruction.instructionSet.name)
+      )
+      .toSeq
+      .filter {
+        // special case for rv32 pseudo from rv64
+        case i if i.pseudoFrom.isDefined && Seq("slli", "srli", "srai").contains(i.name) => true
+        case i if i.pseudoFrom.isDefined                                                 => false
+        case _                                                                           => true
+      }
+      .sortBy(i => (i.instructionSet.name, i.name))
+  private def hasInstructionSet(setName: String): Boolean =
+    instructions.flatMap(_.instructionSets.map(_.name)).contains(setName)
+  def usingBTB: Boolean = btbEntries > 0
+  def xLen: Int =
+    (hasInstructionSet("rv32_i"), hasInstructionSet("rv64_i")) match {
+      case (true, true)   => throw new Exception("cannot support both rv32 and rv64 together")
+      case (true, false)  => 32
+      case (false, true)  => 64
+      case (false, false) => throw new Exception("no basic instruction found.")
     }
-  }
-
-  ResourceBinding {
-    Resource(cpuDevice, "reg").bind(ResourceAddress(tileId))
-  }
-
-  override lazy val module = new RocketTileModuleImp(this)
-
-  override def makeMasterBoundaryBuffers(crossing: ClockCrossingType)(implicit p: Parameters) = (rocketParams.boundaryBuffers, crossing) match {
-    case (Some(RocketTileBoundaryBufferParams(true )), _)                   => TLBuffer()
-    case (Some(RocketTileBoundaryBufferParams(false)), _: RationalCrossing) => TLBuffer(BufferParams.none, BufferParams.flow, BufferParams.none, BufferParams.flow, BufferParams(1))
-    case _ => TLBuffer(BufferParams.none)
-  }
-
-  override def makeSlaveBoundaryBuffers(crossing: ClockCrossingType)(implicit p: Parameters) = (rocketParams.boundaryBuffers, crossing) match {
-    case (Some(RocketTileBoundaryBufferParams(true )), _)                   => TLBuffer()
-    case (Some(RocketTileBoundaryBufferParams(false)), _: RationalCrossing) => TLBuffer(BufferParams.flow, BufferParams.none, BufferParams.none, BufferParams.none, BufferParams.none)
-    case _ => TLBuffer(BufferParams.none)
-  }
-}
-
-class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
-    with HasFpuOpt
-    with HasLazyRoCCModule
-    with HasICacheFrontendModule {
-  Annotated.params(this, outer.rocketParams)
-
-  val core = Module(new Rocket(outer)(outer.p))
-
-  // reset vector is connected in the Frontend to s2_pc
-  core.io.reset_vector := DontCare
-
-  // Report unrecoverable error conditions; for now the only cause is cache ECC errors
-  outer.reportHalt(List(outer.dcache.module.io.errors))
-
-  // Report when the tile has ceased to retire instructions; for now the only cause is clock gating
-  outer.reportCease(outer.rocketParams.core.clockGate.option(
-    !outer.dcache.module.io.cpu.clock_enabled &&
-    !outer.frontend.module.io.cpu.clock_enabled &&
-    !ptw.io.dpath.clock_enabled &&
-    core.io.cease))
-
-  outer.reportWFI(Some(core.io.wfi))
-
-  outer.decodeCoreInterrupts(core.io.interrupts) // Decode the interrupt vector
-
-  outer.bus_error_unit.foreach { beu =>
-    core.io.interrupts.buserror.get := beu.module.io.interrupt
-    beu.module.io.errors.dcache := outer.dcache.module.io.errors
-    beu.module.io.errors.icache := outer.frontend.module.io.errors
-  }
-
-  core.io.interrupts.nmi.foreach { nmi => nmi := outer.nmiSinkNode.get.bundle }
-
-  // Pass through various external constants and reports that were bundle-bridged into the tile
-  outer.traceSourceNode.bundle <> core.io.trace
-  core.io.traceStall := outer.traceAuxSinkNode.bundle.stall
-  outer.bpwatchSourceNode.bundle <> core.io.bpwatch
-  core.io.hartid := outer.hartIdSinkNode.bundle
-  require(core.io.hartid.getWidth >= outer.hartIdSinkNode.bundle.getWidth,
-    s"core hartid wire (${core.io.hartid.getWidth}b) truncates external hartid wire (${outer.hartIdSinkNode.bundle.getWidth}b)")
-
-  // Connect the core pipeline to other intra-tile modules
-  outer.frontend.module.io.cpu <> core.io.imem
-  dcachePorts += core.io.dmem // TODO outer.dcachePorts += () => module.core.io.dmem ??
-  fpuOpt foreach { fpu =>
-    core.io.fpu :<>= fpu.io.waiveAs[FPUCoreIO](_.cp_req, _.cp_resp)
-    fpu.io.cp_req := DontCare
-    fpu.io.cp_resp := DontCare
-  }
-  if (fpuOpt.isEmpty) {
-    core.io.fpu := DontCare
-  }
-  core.io.ptw <> ptw.io.dpath
-
-  // Connect the coprocessor interfaces
-  if (outer.roccs.size > 0) {
-    cmdRouter.get.io.in <> core.io.rocc.cmd
-    outer.roccs.foreach{ lm =>
-      lm.module.io.exception := core.io.rocc.exception
-      lm.module.io.fpu_req.ready := DontCare
-      lm.module.io.fpu_resp.valid := DontCare
-      lm.module.io.fpu_resp.bits.data := DontCare
-      lm.module.io.fpu_resp.bits.exc := DontCare
+  def fLen: Option[Int] =
+    (
+      hasInstructionSet("rv_f") || hasInstructionSet("rv64_f"),
+      hasInstructionSet("rv_d") || hasInstructionSet("rv64_d")
+    ) match {
+      case (false, false) => None
+      case (true, false)  => Some(32)
+      case (false, true)  => Some(64)
+      case (true, true)   => Some(64)
     }
-    core.io.rocc.resp <> respArb.get.io.out
-    core.io.rocc.busy <> (cmdRouter.get.io.busy || outer.roccs.map(_.module.io.busy).reduce(_ || _))
-    core.io.rocc.interrupt := outer.roccs.map(_.module.io.interrupt).reduce(_ || _)
-    (core.io.rocc.csrs zip roccCSRIOs.flatten).foreach { t => t._2 <> t._1 }
-  } else {
-    // tie off
-    core.io.rocc.cmd.ready := false.B
-    core.io.rocc.resp.valid := false.B
-    core.io.rocc.resp.bits := DontCare
-    core.io.rocc.busy := DontCare
-    core.io.rocc.interrupt := DontCare
+
+  def usingVM = hasInstructionSet("sfence.vma")
+
+  def pgLevels: Int = xLen match {
+    case 32 => 2
+    case 64 => 3
   }
-  // Dont care mem since not all RoCC need accessing memory
-  core.io.rocc.mem := DontCare
 
-  // Rocket has higher priority to DTIM than other TileLink clients
-  outer.dtim_adapter.foreach { lm => dcachePorts += lm.module.io.dmem }
+  def usingAtomics = hasInstructionSet("rv_a") || hasInstructionSet("rv64_a")
 
-  // TODO eliminate this redundancy
-  val h = dcachePorts.size
-  val c = core.dcacheArbPorts
-  val o = outer.nDCachePorts
-  require(h == c, s"port list size was $h, core expected $c")
-  require(h == o, s"port list size was $h, outer counted $o")
-  // TODO figure out how to move the below into their respective mix-ins
-  dcacheArb.io.requestor <> dcachePorts.toSeq
-  ptw.io.requestor <> ptwPorts.toSeq
+  def usingCompressed = hasInstructionSet("rv_c")
+
+  def minFLen: Option[Int] =
+    if (hasInstructionSet("rv_zfh") || hasInstructionSet("rv64_zfh") || hasInstructionSet("rv_d_zfh"))
+      Some(16)
+    else
+      fLen
+
+  def rocketParameter: RocketParameter = RocketParameter(
+    useAsyncReset,
+    clockGate,
+    instructionSets,
+    vLen.getOrElse(0),
+    usingUser,
+    hartIdLen,
+    nPMPs,
+    asidBits,
+    nBreakpoints,
+    usingBTB,
+    useBPWatch,
+    mcontextWidth,
+    scontextWidth,
+    mulDivLatency,
+    divUnroll,
+    divEarlyOut,
+    divEarlyOutGranularity,
+    mulUnroll,
+    mulEarlyOut,
+    paddrBits,
+    cacheBlockBytes,
+    hasBeu,
+    fastLoadByte,
+    fastLoadWord,
+    dcacheNSets,
+    flushOnFenceI
+  )
+
+  def hellaCacheParameter: HellaCacheParameter = HellaCacheParameter(
+    useAsyncReset:        Boolean,
+    clockGate:            Boolean,
+    xLen:                 Int,
+    fLen.getOrElse(0):    Int,
+    usingVM:              Boolean,
+    paddrBits:            Int,
+    cacheBlockBytes:      Int,
+    dcacheNWays:          Int,
+    dcacheNSets:          Int,
+    dcacheRowBits:        Int,
+    dtlbNSets:            Int,
+    dtlbNWays:            Int,
+    tagECC:               Option[String],
+    dataECC:              Option[String],
+    maxUncachedInFlight:  Int,
+    separateUncachedResp: Boolean,
+    legal:                BitSet,
+    cacheable:            BitSet,
+    read:                 BitSet,
+    write:                BitSet,
+    putPartial:           BitSet,
+    logic:                BitSet,
+    arithmetic:           BitSet,
+    exec:                 BitSet,
+    sideEffects:          BitSet
+  )
+
+  def hellaCacheArbiterParameter: HellaCacheArbiterParameter = HellaCacheArbiterParameter(
+    useAsyncReset:        Boolean,
+    xLen:                 Int,
+    fLen.getOrElse(0):    Int,
+    paddrBits:            Int,
+    cacheBlockBytes:      Int,
+    dcacheNSets:          Int,
+    usingVM:              Boolean,
+    separateUncachedResp: Boolean
+  )
+
+  def ptwParameter: PTWParameter = PTWParameter(
+    useAsyncReset:     Boolean,
+    clockGate:         Boolean,
+    usingVM:           Boolean,
+    usingHypervisor:   Boolean,
+    xLen:              Int,
+    fLen.getOrElse(0): Int,
+    paddrBits:         Int,
+    asidBits:          Int,
+    pgLevels:          Int,
+    nPTECacheEntries:  Int,
+    nL2TLBWays:        Int,
+    nL2TLBEntries:     Int,
+    nPMPs:             Int
+  )
+
+  def frontendParameter: FrontendParameter = FrontendParameter(
+    useAsyncReset:         Boolean,
+    clockGate:             Boolean,
+    xLen:                  Int,
+    usingAtomics:          Boolean,
+    usingDataScratchpad:   Boolean,
+    usingVM:               Boolean,
+    usingCompressed:       Boolean,
+    usingBTB:              Boolean,
+    itlbNSets:             Int,
+    itlbNWays:             Int,
+    itlbNSectors:          Int,
+    itlbNSuperpageEntries: Int,
+    cacheBlockBytes:       Int,
+    iCacheNSets:           Int,
+    iCacheNWays:           Int,
+    iCachePrefetch:        Boolean,
+    btbEntries:            Int,
+    btbNMatchBits:         Int,
+    btbUpdatesOutOfOrder:  Boolean,
+    nPages:                Int,
+    nRAS:                  Int,
+    nPMPs:                 Int,
+    paddrBits:             Int,
+    pgLevels:              Int,
+    asidBits:              Int,
+    bhtParameter:          Option[BHTParameter],
+    legal:                 BitSet,
+    cacheable:             BitSet,
+    read:                  BitSet,
+    write:                 BitSet,
+    putPartial:            BitSet,
+    logic:                 BitSet,
+    arithmetic:            BitSet,
+    exec:                  BitSet,
+    sideEffects:           BitSet
+  )
+
+  def fpuParameter: Option[FPUParameter] = fLen.zip(minFLen).map {
+    case (fLen, minFLen) =>
+      FPUParameter(
+        useAsyncReset: Boolean,
+        clockGate:     Boolean,
+        xLen:          Int,
+        fLen:          Int,
+        minFLen:       Int,
+        sfmaLatency:   Int,
+        dfmaLatency:   Int,
+        divSqrt:       Boolean,
+        hartIdLen:     Int
+      )
+  }
+
+  def instructionFetchParameter: AXI4BundleParameter = frontendParameter.instructionFetchParameter
+
+  def itimParameter: Option[AXI4BundleParameter] = frontendParameter.itimParameter
+
+  def loadStoreParameter: AXI4BundleParameter = hellaCacheParameter.loadStoreParameter
+
+  def dtimParameter: Option[AXI4BundleParameter] = hellaCacheParameter.dtimParameter
 }
 
-trait HasFpuOpt { this: RocketTileModuleImp =>
-  val fpuOpt = outer.tileParams.core.fpu.map(params => Module(new FPU(params)(outer.p)))
+class RocketTileInterface(parameter: RocketTileParameter) extends Bundle {
+  val clock = Input(Clock())
+  val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
+  // todo: Const
+  val hartid = Flipped(UInt(parameter.hartIdLen.W))
+  val resetVector = Input(Const(UInt(parameter.resetVectorBits.W)))
+
+  val debug: Bool = Input(Bool())
+  val mtip:  Bool = Input(Bool())
+  val msip:  Bool = Input(Bool())
+  val meip:  Bool = Input(Bool())
+  val seip:  Option[Bool] = Option.when(parameter.usingSupervisor)(Bool())
+  val lip:   Vec[Bool] = Vec(parameter.nLocalInterrupts, Bool())
+  val nmi = Option.when(parameter.usingNMI)(Bool())
+  val nmiInterruptVector = Option.when(parameter.usingNMI)(UInt(parameter.resetVectorBits.W))
+  val nmiIxceptionVector = Option.when(parameter.usingNMI)(UInt(parameter.resetVectorBits.W))
+  // TODO: buserror should be handled by NMI
+  val buserror: Bool = Input(Bool())
+  val wfi:      Bool = Output(Bool())
+  val halt:     Bool = Output(Bool())
+
+  val instructionFetchAXI: AXI4ROIrrevocable =
+    org.chipsalliance.amba.axi4.bundle.AXI4ROIrrevocable(parameter.instructionFetchParameter)
+  val itimAXI: Option[AXI4RWIrrevocable] =
+    parameter.itimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
+
+  val loadStoreAXI: AXI4RWIrrevocable =
+    org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.loadStoreParameter)
+  val dtimAXI: Option[AXI4RWIrrevocable] =
+    parameter.dtimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
+}
+
+class RocketTile(val parameter: RocketTileParameter)
+    extends FixedIORawModule(new RocketTileInterface(parameter))
+    with SerializableModule[RocketTileParameter] {
+  val rocket:     Instance[Rocket] = Instantiate(new Rocket(parameter.rocketParameter))
+  val frontend:   Instance[Frontend] = Instantiate(new Frontend(parameter.frontendParameter))
+  val hellaCache: Instance[HellaCache] = Instantiate(new HellaCache(parameter.hellaCacheParameter))
+  val hellaCacheArbiter: Instance[HellaCacheArbiter] = Instantiate(
+    new HellaCacheArbiter(parameter.hellaCacheArbiterParameter)
+  )
+  val ptw: Instance[PTW] = Instantiate(new PTW(parameter.ptwParameter))
+  val fpu: Option[Instance[FPU]] = parameter.fpuParameter.map(fpuParameter => Instantiate(new FPU(fpuParameter)))
+
+  rocket.io.clock := io.clock
+  rocket.io.reset := io.reset
+  rocket.io.hartid := io.hartid
+  rocket.io.interrupts.debug := io.debug
+  rocket.io.interrupts.mtip := io.mtip
+  rocket.io.interrupts.msip := io.msip
+  rocket.io.interrupts.meip := io.meip
+  rocket.io.interrupts.seip.foreach(_ := io.seip.get)
+  rocket.io.interrupts.lip := io.lip
+  rocket.io.interrupts.nmi.foreach { nmi =>
+    nmi.rnmi := io.nmi.get
+    nmi.rnmi_interrupt_vector := io.nmiInterruptVector.get
+    nmi.rnmi_exception_vector := io.nmiIxceptionVector.get
+  }
+  // @todo make it optional
+  rocket.io.buserror := io.buserror
+  io.wfi := rocket.io.wfi
+  io.loadStoreAXI <> hellaCache.io.loadStoreAXI
+  io.dtimAXI.zip(hellaCache.io.dtimAXI).foreach { case (io, hellaCache) => io <> hellaCache }
+  io.instructionFetchAXI <> frontend.io.instructionFetchAXI
+  io.itimAXI.zip(frontend.io.itimAXI).foreach { case (io, frontend) => io <> frontend }
+  // design for halt and beu, only use the halt function for now.
+  io.halt := Seq(frontend.io.nonDiplomatic.errors.uncorrectable, hellaCache.io.errors.uncorrectable)
+    .flatMap(_.map(_.valid))
+    .foldLeft(false.B)(_ || _)
+
+  // rocket core io
+  rocket.io.imem <> frontend.io.nonDiplomatic.cpu
+  hellaCacheArbiter.io.requestor(0) <> rocket.io.dmem
+  rocket.io.ptw <> ptw.io.dpath
+  rocket.io.fpu.zip(fpu.map(_.io.core)).foreach { case (core, fpu) => core <> fpu }
+  // used by trace module
+  rocket.io.bpwatch := DontCare
+  // don't use for now, this is design for report the custom cease status.
+  // rocket.io.cease
+  // it will be used in the future w/ trace support.
+  rocket.io.traceStall := false.B
+
+  // frontend io
+  frontend.io.clock := io.clock
+  frontend.io.reset := io.reset
+  frontend.io.resetVector := io.resetVector
+  ptw.io.requestor(0) <> frontend.io.nonDiplomatic.ptw
+
+  // hellacache io
+  hellaCache.io.clock := io.clock
+  hellaCache.io.reset := io.reset
+  ptw.io.requestor(1) <> hellaCache.io.ptw
+  hellaCache.io.cpu <> hellaCacheArbiter.io.mem
+
+  // ptw io
+  ptw.io.clock := io.clock
+  ptw.io.reset := io.reset
+  hellaCacheArbiter.io.requestor(1) <> ptw.io.mem
+
+  // hellacache arbiter io
+  hellaCacheArbiter.io.clock := io.clock
+  hellaCacheArbiter.io.reset := io.reset
+
+  fpu.foreach { fpu =>
+    fpu.io.clock := io.clock
+    fpu.io.reset := io.reset
+    // @todo: remove it from FPU.
+    fpu.io.cp_req <> DontCare
+    fpu.io.cp_resp <> DontCare
+  }
 }
