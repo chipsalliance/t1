@@ -19,7 +19,12 @@ stdenv.mkDerivation {
     runHook preBuild
 
     echo "[nix] running verilator"
-    verilator ${lib.optionalString enable-trace "--trace-fst"} --timing --cc TestBench
+    verilator \
+      ${lib.optionalString enable-trace "--trace-fst"} \
+      --timing \
+      --threads 8 \
+      -O3 \
+      --cc TestBench
 
     echo "[nix] building verilated C lib"
 
@@ -29,7 +34,7 @@ stdenv.mkDerivation {
 
     # We can't use -C here because VTestBench.mk is generated with relative path
     cd obj_dir
-    make -j $(nproc) -f VTestBench.mk libVTestBench
+    make -j "$NIX_BUILD_CORES" -f VTestBench.mk libVTestBench
 
     runHook postBuild
   '';

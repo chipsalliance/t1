@@ -149,7 +149,7 @@ impl Difftest {
 
         let se = self.runner.to_rtl_queue.back().unwrap();
         se.record_rd_write(data).unwrap();
-        se.check_is_ready_for_commit(cycle).unwrap();
+        se.check_is_ready_for_commit(cycle as usize).unwrap();
 
         self.runner.to_rtl_queue.pop_back();
       }

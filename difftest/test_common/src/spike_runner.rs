@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::path::Path;
-use tracing::info;
+use tracing::{info, trace};
 
 use spike_rs::spike_event::SpikeEvent;
 use spike_rs::util::load_elf;
@@ -102,7 +102,7 @@ impl SpikeRunner {
     let new_pc = match event {
       // inst is load / store / v / quit
       Some(ref mut se) => {
-        info!(
+        trace!(
           "[{}] SpikeStep: spike run vector insn, pc={:#x}, disasm={:?}, spike_cycle={:?}",
           self.cycle, pc, disasm, self.spike_cycle
         );
@@ -112,7 +112,7 @@ impl SpikeRunner {
         new_pc_
       }
       None => {
-        info!(
+        trace!(
           "[{}] SpikeStep: spike run scalar insn, pc={:#x}, disasm={:?}, spike_cycle={:?}",
           self.cycle, pc, disasm, self.spike_cycle
         );

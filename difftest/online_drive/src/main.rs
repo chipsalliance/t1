@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use crate::dpi::verilator_main_wrapped;
 use clap::Parser;
 use common::CommonArgs;

@@ -15,6 +15,7 @@ pub(crate) struct Driver {
 
   // driver state
   last_commit_cycle: u64,
+  issued: u64,
 }
 
 impl Driver {
@@ -26,6 +27,8 @@ impl Driver {
       vlen: args.common_args.vlen,
       timeout: args.timeout,
       last_commit_cycle: 0,
+
+      issued: 0,
     };
     self_.spike_runner.load_elf(&args.common_args.elf_file).unwrap();
     self_.start_dump_wave();
@@ -95,6 +98,7 @@ impl Driver {
         "issuing {} (pc={:08x}, bits={:08x})",
         se.disasm, se.pc, se.inst_bits
       );
+      self.issued += 1;
       // not a fence, issue it
       IssueData {
         instruction_bits: se.inst_bits,

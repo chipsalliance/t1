@@ -33,7 +33,7 @@ pub struct EventParameter {
   pub rd_valid: Option<u32>,
   pub rd: Option<u32>,
   pub mem: Option<u32>,
-  pub cycle: Option<usize>,
+  pub cycle: Option<u64>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -44,12 +44,12 @@ pub struct JsonEvents {
 
 pub struct IssueEvent {
   pub idx: u32,
-  pub cycle: usize,
+  pub cycle: u64,
 }
 
 pub struct LsuEnqEvent {
   pub enq: u32,
-  pub cycle: usize,
+  pub cycle: u64,
 }
 
 pub struct VrfWriteEvent {
@@ -59,7 +59,7 @@ pub struct VrfWriteEvent {
   pub mask: u32,
   pub data: u64,
   pub instruction: u32,
-  pub cycle: usize,
+  pub cycle: u64,
 }
 pub fn add_rtl_write(se: &mut SpikeEvent, vrf_write: VrfWriteEvent, record_idx_base: usize) {
   (0..4).for_each(|j| {

@@ -5,7 +5,6 @@ use clap::Parser;
 use std::ffi::{c_char, c_int, c_longlong, CString};
 use std::ptr;
 
-use common::CommonArgs;
 use tracing::{info, trace, warn};
 
 use crate::drive::Driver;
