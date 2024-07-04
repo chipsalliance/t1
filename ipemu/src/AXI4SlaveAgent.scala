@@ -51,35 +51,21 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
   private class WriteManager(
     channel: AWChannel with AWFlowControl with WChannel with WFlowControl with BChannel with BFlowControl) {
     withClockAndReset(io.clock, io.reset) {
+      /** There is an valid write transaction. */
       val valid = RegInit(0.U.asTypeOf(Bool()))
+      /** memory to store the write payload
+        * @todo limit the payload size based on the RTL configuration.
+        */
       val writePayload = RegInit(0.U.asTypeOf(new WritePayload(parameter.axiParameter.dataWidth)))
+      /** AWID, latch at AW fire, used at B fire. */
       val writeId = RegInit(0.U(16.W))
+      /** index the payload, used to write [[writePayload]] */
       val writeIdx = RegInit(0.U.asTypeOf(UInt(8.W)))
+      /** indicate W is finished, used to wake up B channel. */
       val last = RegInit(0.U.asTypeOf(Bool()))
+
+      // AW
       channel.AWREADY := !valid
-      channel.WREADY := true.B
-      channel.BVALID := last
-      channel.BID := writeId
-      channel.BRESP := 0.U(2.W) // OK
-      channel.BUSER := DontCare
-
-      RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(
-        io.clock,
-        last,
-        io.channelId,
-        channel.AWID.asTypeOf(UInt(64.W)),
-        channel.AWADDR.asTypeOf(UInt(64.W)),
-        channel.AWLEN.asTypeOf(UInt(64.W)),
-        channel.AWSIZE.asTypeOf(UInt(64.W)),
-        channel.AWBURST.asTypeOf(UInt(64.W)),
-        channel.AWLOCK.asTypeOf(UInt(64.W)),
-        channel.AWCACHE.asTypeOf(UInt(64.W)),
-        channel.AWPROT.asTypeOf(UInt(64.W)),
-        channel.AWQOS.asTypeOf(UInt(64.W)),
-        channel.AWREGION.asTypeOf(UInt(64.W)),
-        WireDefault(writePayload)
-      )
-
       when(channel.AWREADY && channel.AWVALID) {
         assert(valid === false.B)
         writeId := channel.AWID
@@ -87,13 +73,38 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         writeIdx := 0.U
       }
 
+      // W
+      channel.WREADY := true.B
       when(channel.WVALID && channel.WREADY) {
         writePayload.data(writeIdx) := channel.WDATA
         writePayload.strb(writeIdx) := channel.WSTRB
         writeIdx := writeIdx + 1.U
-        last := channel.WLAST
+        when(channel.WLAST) {
+          last := true.B
+          RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(
+            io.clock,
+            when.cond,
+            io.channelId,
+            channel.AWID.asTypeOf(UInt(64.W)),
+            channel.AWADDR.asTypeOf(UInt(64.W)),
+            channel.AWLEN.asTypeOf(UInt(64.W)),
+            channel.AWSIZE.asTypeOf(UInt(64.W)),
+            channel.AWBURST.asTypeOf(UInt(64.W)),
+            channel.AWLOCK.asTypeOf(UInt(64.W)),
+            channel.AWCACHE.asTypeOf(UInt(64.W)),
+            channel.AWPROT.asTypeOf(UInt(64.W)),
+            channel.AWQOS.asTypeOf(UInt(64.W)),
+            channel.AWREGION.asTypeOf(UInt(64.W)),
+            WireDefault(writePayload)
+          )
+        }
       }
 
+      // B
+      channel.BVALID := last
+      channel.BID := writeId
+      channel.BRESP := 0.U(2.W) // OK
+      channel.BUSER := DontCare
       when(channel.BVALID && channel.BREADY) {
         assert(valid === true.B)
         valid := false.B
@@ -101,33 +112,39 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       }
     }
   }
+
   private class ReadManager(channel: ARChannel with ARFlowControl with RChannel with RFlowControl) {
     withClockAndReset(io.clock, io.reset) {
-      // CAM to maintain order and valid. This is maintained as FIFO: ffo for allocate, flo for free
-      // idx -> AxID
-      val cam = RegInit(0.U.asTypeOf(Vec(parameter.outstanding, Valid(UInt(16.W)))))
-      def flo(input:      UInt): UInt = Reverse(ffo(input))
-      def ffo(input:      UInt): UInt = ((~(scanLeftOr(input) << 1)).asUInt & input)(input.getWidth - 1, 0)
-      def firstEmpty(cam: Vec[Valid[UInt]]): UInt = OHToUInt(
-        ffo(VecInit(cam.map(!_.valid)).asUInt)
-      )
-      def lastOccupied(cam: Vec[Valid[UInt]], id: UInt): UInt = OHToUInt(
-        flo(VecInit(cam.map(content => (content.bits === id) && content.valid)).asUInt)
-      )
-      // AxID sending currently
-      val currentId = RegInit(0.U.asTypeOf(UInt(16.W)))
-      def currentIdx = cam(lastOccupied(cam, currentId)).valid
-      // index to read payload for each outstandings
-      val readIndex = RegInit(0.U.asTypeOf(Vec(parameter.outstanding, UInt(8.W))))
-      val currentReadIndexes = readIndex(currentIdx)
-      val readPayloads =
-        RegInit(0.U.asTypeOf(Vec(parameter.outstanding, new ReadPayload(parameter.axiParameter.dataWidth))))
-      val currentReadPayload = readPayloads(currentIdx)
+      class CAMValue extends Bundle {
+        val arid = UInt(16.W)
+        val readPayload = new ReadPayload(parameter.axiParameter.dataWidth)
+        val readPayloadIndex = UInt(8.W)
+        val valid = Bool()
+      }
+      /** CAM to maintain order of read requests. This is maintained as FIFO. */
+      val cam: Vec[CAMValue] = RegInit(0.U.asTypeOf(Vec(parameter.outstanding, new CAMValue)))
+      /** find first one circuit. */
+      def ffo(input: UInt): UInt = ((~(scanLeftOr(input) << 1)).asUInt & input)(input.getWidth - 1, 0)
+      /** find first non-valid slot in [[cam]] */
+      val firstEmpty: UInt = OHToUInt(ffo(VecInit(cam.map(!_.valid)).asUInt))
+      /** there are no outstanding read requests. */
+      val camIsEmpty = VecInit(cam.map(content => !content.valid)).asUInt.andR
+      /** find oldest read. */
+      val oldest = OHToUInt(ffo(VecInit(cam.map(content => content.valid)).asUInt))
+      /** index to select value from [[cam]]
+        * if cam empty, always select the next allocate value.
+        * if cam non-empty, update to oldest at each transaction end, this can be changed to random response with LFSR.
+        * @todo in the future, we can provide a fine-grand control to this index to provide out-of-order return.
+        */
+      val rIndex = RegInit(0.U.asTypeOf(UInt(16.W)))
 
-      val readPayload =
-        RawClockedNonVoidFunctionCall(s"axi_read_${parameter.name}", new ReadPayload(parameter.axiParameter.dataWidth))(
+      // AR
+      channel.ARREADY := VecInit(cam.map(!_.valid)).asUInt.andR
+      when(channel.ARREADY && channel.ARVALID) {
+        cam(firstEmpty).arid := channel.ARID
+        cam(firstEmpty).readPayload := RawClockedNonVoidFunctionCall(s"axi_read_${parameter.name}", new ReadPayload(parameter.axiParameter.dataWidth))(
           io.clock,
-          channel.ARVALID && channel.ARREADY,
+          when.cond,
           io.channelId,
           channel.ARID.asTypeOf(UInt(64.W)),
           channel.ARADDR.asTypeOf(UInt(64.W)),
@@ -139,26 +156,33 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
           channel.ARPROT.asTypeOf(UInt(64.W)),
           channel.ARQOS.asTypeOf(UInt(64.W)),
           channel.ARREGION.asTypeOf(UInt(64.W))
-        )
-
-      channel.ARREADY := VecInit(cam.map(!_.valid)).asUInt.andR // valid not all 1
-      channel.RVALID := VecInit(cam.map(_.valid)).asUInt.orR // valid not all 0
-      channel.RID := currentId
-      channel.RDATA := currentReadPayload.data(currentReadIndexes)
-      channel.RRESP := 0.U // OK
-      channel.RLAST := currentReadPayload.beats === readIndex(currentId)
-      channel.RUSER := DontCare
-
-      when(channel.ARREADY && channel.ARVALID) {
-        readPayloads(firstEmpty(cam)) := readPayload
-        cam(firstEmpty(cam)).valid := true.B
-        cam(firstEmpty(cam)).bits := channel.ARID
-        readIndex(firstEmpty(cam)) := 0.U
+        ).asInstanceOf[ReadPayload]
+        cam(firstEmpty).readPayloadIndex := 0.U
+        cam(firstEmpty).valid := true.B
       }
+
+      // R
+      rIndex := Mux(
+        camIsEmpty,
+        firstEmpty, // if cam empty, always select the next allocate value.
+        Mux(
+          channel.RREADY && channel.RVALID && channel.RLAST,
+          oldest, // if cam non-empty, update to oldest at each transaction end, this can be changed to random response with LFSR.
+          rIndex
+        )
+      )
+
+      channel.RVALID := VecInit(cam.map(_.valid)).asUInt.orR
+      channel.RID := cam(rIndex).arid
+      channel.RDATA := cam(rIndex).readPayload.data(cam(rIndex).readPayloadIndex)
+      channel.RRESP := 0.U // OK
+      channel.RLAST := cam(rIndex).readPayload.beats === cam(rIndex).readPayloadIndex
+      channel.RUSER := DontCare
       when(channel.RREADY && channel.RVALID) {
-        currentReadIndexes := currentReadIndexes + 1.U
+        // increase index
+        cam(rIndex).readPayloadIndex := cam(rIndex).readPayloadIndex + 1.U
         when(channel.RLAST) {
-          cam(lastOccupied(cam, channel.RID)).valid := false.B
+          cam(rIndex).valid := false.B
         }
       }
     }
