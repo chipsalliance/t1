@@ -31,7 +31,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
       initFlag := false.B
       printf(cf"""{"event":"simulationStart","parameter":{"cycle": ${simulationTime}}}\n""")
     }
-    val watchdog = RawUnlockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime.tail(10) === 0.U).asInstanceOf[UInt]
+    val watchdog = RawUnlockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime(9, 0) === 0.U).asInstanceOf[UInt]
     when(watchdog =/= 0.U) {
       stop(cf"""{"event":"simulationStop","parameter":{"reason": ${watchdog},"cycle": ${simulationTime}}}\n""")
     }
