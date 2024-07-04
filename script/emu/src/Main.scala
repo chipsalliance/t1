@@ -810,6 +810,8 @@ object Main:
         s"${caseElf}/bin/${caseAttr}.elf",
         "--log-file",
         s"${config}-${caseAttr}.event.log",
+        "--timeout",
+        "40000",
         "--log-level",
         s"${logLevel}"
       )

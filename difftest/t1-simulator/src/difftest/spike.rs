@@ -116,6 +116,7 @@ pub fn clip(binary: u64, a: i32, b: i32) -> u32 {
 pub struct Config {
   pub vlen: u32,
   pub dlen: u32,
+  pub timeout: usize,
 }
 
 pub fn add_rtl_write(se: &mut SpikeEvent, vrf_write: VrfWriteEvent, record_idx_base: usize) {
@@ -171,10 +172,13 @@ pub struct SpikeHandle {
 
   /// for mcycle csr update
   pub spike_cycle: usize,
+
+  /// timeout check
+  pub last_commit_time: usize,
 }
 
 impl SpikeHandle {
-  pub fn new(size: usize, fname: &Path, vlen: u32, dlen: u32, set: String) -> Self {
+  pub fn new(size: usize, fname: &Path, vlen: u32, dlen: u32, timeout:usize, set: String) -> Self {
     // register the addr_to_mem callback
     unsafe { spike_register_callback(rs_addr_to_mem) }
 
@@ -199,9 +203,10 @@ impl SpikeHandle {
     SpikeHandle {
       spike,
       to_rtl_queue: VecDeque::new(),
-      config: Config { vlen, dlen },
+      config: Config { vlen, dlen, timeout },
       cycle: 0,
       spike_cycle: 0,
+      last_commit_time: 0,
     }
   }
 
@@ -438,5 +443,50 @@ impl SpikeHandle {
     }
 
     panic!("[{cycle}] cannot find se with instruction source={source}")
+  }
+
+  pub fn poke_inst(&mut self) -> anyhow::Result<()> {
+    loop {
+      let se = self.find_se_to_issue();
+      if (se.is_vfence_insn || se.is_exit_insn) && self.to_rtl_queue.len() == 1 {
+        if se.is_exit_insn {
+          return Ok(());
+        }
+
+        self.to_rtl_queue.pop_back();
+      } else {
+        break;
+      }
+    }
+
+    // TODO: remove these, now just for aligning online difftest
+    if let Some(se) = self.to_rtl_queue.front() {
+      // it is ensured there are some other instruction not committed, thus
+      // se_to_issue should not be issued
+      if se.is_vfence_insn || se.is_exit_insn {
+        assert!(
+          self.to_rtl_queue.len() > 1,
+          "to_rtl_queue are smaller than expected"
+        );
+        if se.is_exit_insn {
+          trace!("DPIPokeInst: exit waiting for fence");
+        } else {
+          trace!("DPIPokeInst: waiting for fence, no issuing new instruction");
+        }
+      } else {
+        trace!(
+          "DPIPokeInst: poke instruction: pc={:#x}, inst={}",
+          se.pc,
+          se.disasm
+        );
+      }
+    }
+    Ok(())
+  }
+
+  pub fn timeout_check(&self) {
+    if self.cycle >= self.config.timeout + self.last_commit_time {
+      panic!("Simulation timeout, last_commit: {}", self.last_commit_time);
+    }
   }
 }

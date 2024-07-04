@@ -4,7 +4,6 @@ mod spike;
 use dut::*;
 pub use spike::SpikeHandle;
 use std::path::Path;
-use tracing::trace;
 
 pub struct Difftest {
   spike: SpikeHandle,
@@ -18,72 +17,24 @@ impl Difftest {
     log_file: String,
     vlen: u32,
     dlen: u32,
+    timeout: usize,
     set: String,
   ) -> Self {
     Self {
-      spike: SpikeHandle::new(size, Path::new(&elf_file), vlen, dlen, set),
+      spike: SpikeHandle::new(size, Path::new(&elf_file), vlen, dlen, timeout, set),
       dut: Dut::new(Path::new(&log_file)),
     }
   }
 
-  fn peek_issue(&mut self, issue: IssueEvent) -> anyhow::Result<()> {
-    self.spike.peek_issue(issue).unwrap();
-
-    Ok(())
-  }
-
-  fn update_lsu_idx(&mut self, lsu_enq: LsuEnqEvent) -> anyhow::Result<()> {
-    self.spike.update_lsu_idx(lsu_enq).unwrap();
-
-    Ok(())
-  }
-
-  fn poke_inst(&mut self) -> anyhow::Result<()> {
-    loop {
-      let se = self.spike.find_se_to_issue();
-      if (se.is_vfence_insn || se.is_exit_insn) && self.spike.to_rtl_queue.len() == 1 {
-        if se.is_exit_insn {
-          return Ok(());
-        }
-
-        self.spike.to_rtl_queue.pop_back();
-      } else {
-        break;
-      }
-    }
-
-    // TODO: remove these, now just for aligning online difftest
-    if let Some(se) = self.spike.to_rtl_queue.front() {
-      // it is ensured there are some other instruction not committed, thus
-      // se_to_issue should not be issued
-      if se.is_vfence_insn || se.is_exit_insn {
-        assert!(
-          self.spike.to_rtl_queue.len() > 1,
-          "to_rtl_queue are smaller than expected"
-        );
-        if se.is_exit_insn {
-          trace!("DPIPokeInst: exit waiting for fence");
-        } else {
-          trace!("DPIPokeInst: waiting for fence, no issuing new instruction");
-        }
-      } else {
-        trace!(
-          "DPIPokeInst: poke instruction: pc={:#x}, inst={}",
-          se.pc,
-          se.disasm
-        );
-      }
-    }
-    Ok(())
-  }
-
   pub fn diff(&mut self) -> anyhow::Result<()> {
-    self.poke_inst().unwrap();
+    self.spike.poke_inst().unwrap();
 
     let event = self.dut.step()?;
 
     let cycle = event.parameter.cycle.unwrap();
     self.spike.cycle = cycle;
+    self.spike.timeout_check();
+
     match &*event.event {
       "memoryWrite" => {
         let data = event.parameter.data.clone().unwrap();
@@ -100,11 +51,11 @@ impl Difftest {
       }
       "issue" => {
         let idx = event.parameter.idx.unwrap();
-        self.peek_issue(IssueEvent { idx, cycle })
+        self.spike.peek_issue(IssueEvent { idx, cycle })
       }
       "lsuEnq" => {
         let enq = event.parameter.enq.unwrap();
-        self.update_lsu_idx(LsuEnqEvent { enq, cycle })
+        self.spike.update_lsu_idx(LsuEnqEvent { enq, cycle })
       }
       "vrfWriteFromLsu" => {
         let idx = event.parameter.idx.unwrap();
@@ -190,6 +141,7 @@ impl Difftest {
         se.record_rd_write(data).unwrap();
         se.check_is_ready_for_commit(cycle).unwrap();
 
+        self.spike.last_commit_time = cycle;
         self.spike.to_rtl_queue.pop_back();
         Ok(())
       }

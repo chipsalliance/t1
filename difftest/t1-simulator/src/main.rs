@@ -12,27 +12,31 @@ use tracing_subscriber::{EnvFilter, FmtSubscriber};
 #[command(author, version, about, long_about = None)]
 struct Args {
   /// Path to the ELF file
-  #[arg(short, long)]
+  #[arg(long)]
   elf_file: String,
 
   /// Path to the log file
-  #[arg(short, long)]
+  #[arg(long)]
   log_file: Option<String>,
 
   /// Log level: trace, debug, info, warn, error
-  #[arg(short, long, default_value = "info")]
+  #[arg(long, default_value = "info")]
   log_level: String,
 
-  /// vlen config (default blastoise 512)
-  #[arg(short, long)]
+  /// vlen config
+  #[arg(long)]
   vlen: u32,
 
-  /// dlen config (default blastoise 256)
-  #[arg(short, long)]
+  /// dlen config
+  #[arg(long)]
   dlen: u32,
 
+  /// timeout config
+  #[arg(long)]
+  timeout: usize,
+
   /// ISA config
-  #[arg(short, long, default_value = "rv32gcv")]
+  #[arg(long, default_value = "rv32gcv")]
   set: String,
 }
 
@@ -44,6 +48,7 @@ fn run_spike(args: Args) -> anyhow::Result<()> {
     Path::new(&args.elf_file),
     args.vlen,
     args.dlen,
+    args.timeout,
     args.set,
   );
   loop {
@@ -91,6 +96,7 @@ fn main() -> anyhow::Result<()> {
     args.log_file.unwrap(),
     args.vlen,
     args.dlen,
+    args.timeout,
     args.set,
   );
 
