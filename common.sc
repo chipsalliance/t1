@@ -27,7 +27,6 @@ trait HasChisel
   override def scalacPluginIvyDeps: T[Agg[Dep]] = T(super.scalacPluginIvyDeps() ++ chiselPluginIvy.map(Agg(_)).getOrElse(Agg.empty[Dep]))
 }
 
-
 trait HasRVDecoderDB extends ScalaModule {
   def rvdecoderdbModule: ScalaModule
   def riscvOpcodesPath: T[PathRef]
@@ -59,8 +58,8 @@ trait T1Module
     with HasRVDecoderDB {
   def arithmeticModule: ScalaModule
   def hardfloatModule: ScalaModule
-  def tilelinkModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, tilelinkModule)
+  def axi4Module: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, axi4Module)
 }
 
 trait ConfigGenModule
@@ -71,48 +70,11 @@ trait ConfigGenModule
   override def ivyDeps = T(super.ivyDeps() ++ Seq(mainargsIvy))
 }
 
-// T1 forked version of RocketCore
-trait RocketModule
-  extends ScalaModule
-    with HasChisel
-    with HasRVDecoderDB {
-  def rocketchipModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(rocketchipModule)
-}
-
-trait EmuHelperModule
-  extends ScalaModule
-    with HasChisel
-
 trait IPEmulatorModule
   extends ScalaModule
     with HasChisel {
   def t1Module: ScalaModule
-  def emuHelperModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(t1Module, emuHelperModule)
-}
-
-trait SubsystemModule
-  extends ScalaModule
-    with HasChisel {
-  def t1Module: ScalaModule
-  def rocketModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(t1Module, rocketModule)
-}
-
-trait SubsystemEmulatorModule
-  extends ScalaModule
-    with HasChisel {
-  def subsystemModule: ScalaModule
-  def emuHelperModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(subsystemModule, emuHelperModule)
-}
-
-trait FPGAModule
-  extends ScalaModule
-    with HasChisel {
-  def subsystemModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(subsystemModule)
+  def moduleDeps = super.moduleDeps ++ Seq(t1Module)
 }
 
 trait ElaboratorModule
