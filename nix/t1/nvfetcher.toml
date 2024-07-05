@@ -3,35 +3,10 @@ src.git = "https://github.com/sequencer/arithmetic"
 src.branch = "master"
 fetch.github = "sequencer/arithmetic"
 
-[tilelink]
-src.git = "https://github.com/sequencer/tilelink"
-src.branch = "master"
-fetch.github = "sequencer/tilelink"
-
 [berkeley-hardfloat]
 src.git = "https://github.com/ucb-bar/berkeley-hardfloat"
 src.branch = "master"
 fetch.github = "ucb-bar/berkeley-hardfloat"
-
-[rocket-chip]
-src.git = "https://github.com/chipsalliance/rocket-chip"
-src.branch = "t1-dev"
-fetch.github = "chipsalliance/rocket-chip"
-
-[diplomacy]
-src.git = "https://github.com/chipsalliance/diplomacy"
-src.branch = "master"
-fetch.github = "chipsalliance/diplomacy"
-
-[cde]
-src.git = "https://github.com/chipsalliance/cde"
-src.branch = "master"
-fetch.github = "chipsalliance/cde"
-
-[rocket-chip-inclusive-cache]
-src.git = "https://github.com/chipsalliance/rocket-chip-inclusive-cache"
-src.branch = "mill"
-fetch.github = "chipsalliance/rocket-chip-inclusive-cache"
 
 [chisel]
 src.git = "https://github.com/chipsalliance/chisel"

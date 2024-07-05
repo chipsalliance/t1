@@ -25,18 +25,6 @@
     };
     date = "2023-10-25";
   };
-  cde = {
-    pname = "cde";
-    version = "2bcaeae2b9914bd25497ce3c6fa62dc5ca80e09f";
-    src = fetchFromGitHub {
-      owner = "chipsalliance";
-      repo = "cde";
-      rev = "2bcaeae2b9914bd25497ce3c6fa62dc5ca80e09f";
-      fetchSubmodules = false;
-      sha256 = "sha256-lhHzdXSaZ54o8P9jB7+Yjg3BWp1O7XLguBZPhAp7Hzg=";
-    };
-    date = "2024-04-25";
-  };
   chisel = {
     pname = "chisel";
     version = "ae5434977a0c0ede55a46847bfcbc8dbf2286c35";
@@ -61,18 +49,6 @@
     };
     date = "2024-06-17";
   };
-  diplomacy = {
-    pname = "diplomacy";
-    version = "055be698f4ad55bf4a90b3d5e31d4344be5f788b";
-    src = fetchFromGitHub {
-      owner = "chipsalliance";
-      repo = "diplomacy";
-      rev = "055be698f4ad55bf4a90b3d5e31d4344be5f788b";
-      fetchSubmodules = false;
-      sha256 = "sha256-cfLZQ9kjUN0S4M8FoiN0AMZjMTvjgbEUWI6EyGmRLn8=";
-    };
-    date = "2024-04-25";
-  };
   riscv-opcodes = {
     pname = "riscv-opcodes";
     version = "9fa26954e79d4403eedcbe1b35395001bbbeb8b1";
@@ -85,30 +61,6 @@
     };
     date = "2024-04-10";
   };
-  rocket-chip = {
-    pname = "rocket-chip";
-    version = "10f7d9e247d1547465b0dd70596496fbcd6a50f7";
-    src = fetchFromGitHub {
-      owner = "chipsalliance";
-      repo = "rocket-chip";
-      rev = "10f7d9e247d1547465b0dd70596496fbcd6a50f7";
-      fetchSubmodules = false;
-      sha256 = "sha256-ODEtLuszeb/v5ZM9v0fmUYh2jaJiHC5+vJuJMiy/X3c=";
-    };
-    date = "2024-03-11";
-  };
-  rocket-chip-inclusive-cache = {
-    pname = "rocket-chip-inclusive-cache";
-    version = "7f391c5e4cba3cdd4388efb778bd80da35d5574a";
-    src = fetchFromGitHub {
-      owner = "chipsalliance";
-      repo = "rocket-chip-inclusive-cache";
-      rev = "7f391c5e4cba3cdd4388efb778bd80da35d5574a";
-      fetchSubmodules = false;
-      sha256 = "sha256-mr3PA/wlXkC/Cu/H5T6l1xtBrK9KQQmGOfL3TMxq5T4=";
-    };
-    date = "2023-08-15";
-  };
   rvdecoderdb = {
     pname = "rvdecoderdb";
     version = "d65525e7e18004b0877d8fbe2c435296ab986f44";
@@ -120,17 +72,5 @@
       sha256 = "sha256-MzEoFjyUgarR62ux4ngYNFOgvAoeasdr1EVhaCvuh+Q=";
     };
     date = "2024-01-28";
-  };
-  tilelink = {
-    pname = "tilelink";
-    version = "cd177e4636eb4a20326795a66e9ab502f9b2500a";
-    src = fetchFromGitHub {
-      owner = "sequencer";
-      repo = "tilelink";
-      rev = "cd177e4636eb4a20326795a66e9ab502f9b2500a";
-      fetchSubmodules = false;
-      sha256 = "sha256-PIPLdZSCNKHBbho0YWGODSEM8toRBlOYC2gcbh+gqIY=";
-    };
-    date = "2023-08-11";
   };
 }

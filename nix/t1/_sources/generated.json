@@ -19,46 +19,6 @@
         },
         "version": "4a81e23e1794844b36c53385d343475d4d7eca49"
     },
-    "berkeley-hardfloat": {
-        "cargoLocks": null,
-        "date": "2023-10-25",
-        "extract": null,
-        "name": "berkeley-hardfloat",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "ucb-bar",
-            "repo": "berkeley-hardfloat",
-            "rev": "b3c8a38c286101973b3bc071f7918392343faba7",
-            "sha256": "sha256-3j6K/qFuH8PqJT6zHVTIphq9HWxmSGoIqDo9GV1bxmU=",
-            "type": "github"
-        },
-        "version": "b3c8a38c286101973b3bc071f7918392343faba7"
-    },
-    "cde": {
-        "cargoLocks": null,
-        "date": "2024-04-25",
-        "extract": null,
-        "name": "cde",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "chipsalliance",
-            "repo": "cde",
-            "rev": "2bcaeae2b9914bd25497ce3c6fa62dc5ca80e09f",
-            "sha256": "sha256-lhHzdXSaZ54o8P9jB7+Yjg3BWp1O7XLguBZPhAp7Hzg=",
-            "type": "github"
-        },
-        "version": "2bcaeae2b9914bd25497ce3c6fa62dc5ca80e09f"
-    },
     "chisel": {
         "cargoLocks": null,
         "date": "2024-07-12",
@@ -99,26 +59,6 @@
         },
         "version": "79703e44fb6010a535e6750249f6be0471fa0046"
     },
-    "diplomacy": {
-        "cargoLocks": null,
-        "date": "2024-04-25",
-        "extract": null,
-        "name": "diplomacy",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "chipsalliance",
-            "repo": "diplomacy",
-            "rev": "055be698f4ad55bf4a90b3d5e31d4344be5f788b",
-            "sha256": "sha256-cfLZQ9kjUN0S4M8FoiN0AMZjMTvjgbEUWI6EyGmRLn8=",
-            "type": "github"
-        },
-        "version": "055be698f4ad55bf4a90b3d5e31d4344be5f788b"
-    },
     "riscv-opcodes": {
         "cargoLocks": null,
         "date": "2024-04-10",
@@ -138,46 +78,6 @@
             "type": "github"
         },
         "version": "9fa26954e79d4403eedcbe1b35395001bbbeb8b1"
-    },
-    "rocket-chip": {
-        "cargoLocks": null,
-        "date": "2024-03-11",
-        "extract": null,
-        "name": "rocket-chip",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "chipsalliance",
-            "repo": "rocket-chip",
-            "rev": "10f7d9e247d1547465b0dd70596496fbcd6a50f7",
-            "sha256": "sha256-ODEtLuszeb/v5ZM9v0fmUYh2jaJiHC5+vJuJMiy/X3c=",
-            "type": "github"
-        },
-        "version": "10f7d9e247d1547465b0dd70596496fbcd6a50f7"
-    },
-    "rocket-chip-inclusive-cache": {
-        "cargoLocks": null,
-        "date": "2023-08-15",
-        "extract": null,
-        "name": "rocket-chip-inclusive-cache",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "chipsalliance",
-            "repo": "rocket-chip-inclusive-cache",
-            "rev": "7f391c5e4cba3cdd4388efb778bd80da35d5574a",
-            "sha256": "sha256-mr3PA/wlXkC/Cu/H5T6l1xtBrK9KQQmGOfL3TMxq5T4=",
-            "type": "github"
-        },
-        "version": "7f391c5e4cba3cdd4388efb778bd80da35d5574a"
     },
     "rvdecoderdb": {
         "cargoLocks": null,
@@ -199,24 +99,4 @@
         },
         "version": "d65525e7e18004b0877d8fbe2c435296ab986f44"
     },
-    "tilelink": {
-        "cargoLocks": null,
-        "date": "2023-08-11",
-        "extract": null,
-        "name": "tilelink",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "sequencer",
-            "repo": "tilelink",
-            "rev": "cd177e4636eb4a20326795a66e9ab502f9b2500a",
-            "sha256": "sha256-PIPLdZSCNKHBbho0YWGODSEM8toRBlOYC2gcbh+gqIY=",
-            "type": "github"
-        },
-        "version": "cd177e4636eb4a20326795a66e9ab502f9b2500a"
-    }
 }
