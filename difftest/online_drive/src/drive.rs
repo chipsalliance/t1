@@ -1,6 +1,5 @@
 use common::spike_runner::SpikeRunner;
-use common::CommonArgs;
-use tracing::{info, info_span, trace};
+use tracing::{debug, info, info_span, trace};
 
 use crate::dpi::*;
 use crate::OfflineArgs;
@@ -80,7 +79,7 @@ impl Driver {
         // earlier instructions are committed
         if se.is_exit_insn() {
           info!(
-            "Seeing an exit instruction on {:08x}, sending ISSUE_EXIT",
+            "seeing an exit instruction on {:08x}, sending ISSUE_EXIT",
             se.pc
           );
           self.spike_runner.to_rtl_queue.pop_back();
@@ -90,6 +89,10 @@ impl Driver {
           self.issue_instruction() // pop and continue
         }
       } else {
+        debug!(
+          "waiting for queue being cleared to issue the fence, len={}",
+          self.spike_runner.to_rtl_queue.len()
+        );
         // waiting for earlier instructions to be committed
         IssueData { meta: ISSUE_FENCE, ..Default::default() }
       }

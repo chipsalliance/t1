@@ -219,6 +219,10 @@ impl SpikeEvent {
     self.vxsat as u32 | self.vxrm << 1
   }
 
+  pub fn describe_insn(&self) -> String {
+    format!("pc={:#x}, disasm={}, bits={:#x}", self.pc, self.disasm, self.inst_bits)
+  }
+
   pub fn get_vrf_write_range(&self, vlen_in_bytes: u32) -> anyhow::Result<(u32, u32)> {
     if self.is_store() {
       return Ok((0, 0));

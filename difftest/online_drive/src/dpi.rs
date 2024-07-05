@@ -5,7 +5,7 @@ use clap::Parser;
 use std::ffi::{c_char, c_int, c_longlong, CString};
 use std::ptr;
 
-use tracing::{info, trace, warn};
+use tracing::{info, warn};
 
 use crate::drive::Driver;
 use crate::OfflineArgs;
@@ -223,7 +223,6 @@ unsafe extern "C" fn issue_vector_instruction_rs(target: *mut (), issue_dst: *mu
 unsafe extern "C" fn retire_vector_instruction_rs(target: *mut (), retire_src: *const SvBitVecVal) {
   let driver = &mut *(target as *mut Driver);
   let retire = &*(retire_src as *const Retire);
-  trace!("retire_vector_instruction");
   driver.retire_instruction(retire)
 }
 

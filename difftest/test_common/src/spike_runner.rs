@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::path::Path;
-use tracing::{info, trace};
+use tracing::debug;
 
 use spike_rs::spike_event::SpikeEvent;
 use spike_rs::util::load_elf;
@@ -95,6 +95,7 @@ impl SpikeRunner {
 
     let pc = state.get_pc();
     let disasm = proc.disassemble();
+    let insn_bits = proc.get_insn();
 
     let mut event = self.create_spike_event();
     state.clear();
@@ -102,9 +103,9 @@ impl SpikeRunner {
     let new_pc = match event {
       // inst is load / store / v / quit
       Some(ref mut se) => {
-        trace!(
-          "[{}] SpikeStep: spike run vector insn, pc={:#x}, disasm={:?}, spike_cycle={:?}",
-          self.cycle, pc, disasm, self.spike_cycle
+        debug!(
+          "[{}] SpikeStep: spike run vector insn ({}), is_vfence={}",
+          self.cycle, se.describe_insn(), se.is_vfence_insn(),
         );
         se.pre_log_arch_changes(&self.spike, self.vlen).unwrap();
         let new_pc_ = proc.func();
@@ -112,9 +113,9 @@ impl SpikeRunner {
         new_pc_
       }
       None => {
-        trace!(
-          "[{}] SpikeStep: spike run scalar insn, pc={:#x}, disasm={:?}, spike_cycle={:?}",
-          self.cycle, pc, disasm, self.spike_cycle
+        debug!(
+          "[{}] SpikeStep: spike run scalar insn, (pc={:#x}, disasm={}, bits={:#x})",
+          self.cycle, pc, disasm, insn_bits,
         );
         proc.func()
       }
@@ -146,7 +147,6 @@ impl SpikeRunner {
       return None;
     }
 
-    //
     let is_load_type = opcode == 0b0000111 && (width.wrapping_sub(1) & 0b100 != 0);
     let is_store_type = opcode == 0b0100111 && (width.wrapping_sub(1) & 0b100 != 0);
     let is_v_type = opcode == 0b1010111;
@@ -163,9 +163,11 @@ impl SpikeRunner {
   }
 
   pub fn find_se_to_issue(&mut self) -> SpikeEvent {
-    if !self.to_rtl_queue.is_empty() && self.to_rtl_queue.back().unwrap().is_vfence_insn() {
-      self.to_rtl_queue.back().unwrap().clone()
+    if !self.to_rtl_queue.is_empty() && self.to_rtl_queue.front().unwrap().is_vfence_insn() {
+      // if the front (latest) se is a vfence, return the vfence
+      self.to_rtl_queue.front().unwrap().clone()
     } else {
+      // else, loop until find a se, and push the se to the front
       loop {
         if let Some(se) = self.spike_step() {
           self.to_rtl_queue.push_front(se.clone());
