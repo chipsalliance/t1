@@ -11,7 +11,6 @@ import mill.util.Jvm
 import coursier.maven.MavenRepository
 import $file.dependencies.chisel.build
 import $file.dependencies.arithmetic.common
-import $file.dependencies.tilelink.common
 import $file.dependencies.`chisel-interface`.common
 import $file.dependencies.`berkeley-hardfloat`.common
 import $file.dependencies.rvdecoderdb.common
@@ -20,12 +19,8 @@ import $file.common
 object v {
   val scala = "2.13.14"
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
-  val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"
   val oslib = ivy"com.lihaoyi::os-lib:0.9.1"
   val upickle = ivy"com.lihaoyi::upickle:3.1.3"
-  val sourcecode = ivy"com.lihaoyi::sourcecode:0.3.1"
-  val scalaReflect = ivy"org.scala-lang:scala-reflect:${scala}"
-  val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
   val spire = ivy"org.typelevel::spire:latest.integration"
   val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
 }
@@ -52,19 +47,6 @@ trait Arithmetic
 
   def spireIvy: T[Dep] = v.spire
   def evilplotIvy: T[Dep] = v.evilplot
-}
-
-object tilelink extends TileLink
-
-trait TileLink
-  extends millbuild.dependencies.tilelink.common.TileLinkModule {
-  override def millSourcePath = os.pwd / "dependencies" / "tilelink" / "tilelink"
-  def scalaVersion = T(v.scala)
- 
-  def chiselModule = Some(chisel)
-  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
-  def chiselIvy = None
-  def chiselPluginIvy = None
 }
 
 object axi4 extends AXI4
@@ -113,7 +95,7 @@ trait T1
   def scalaVersion = T(v.scala)
 
   def arithmeticModule = arithmetic
-  def tilelinkModule = tilelink
+  def axi4Module = axi4
   def hardfloatModule = hardfloat
   def rvdecoderdbModule = rvdecoderdb
   def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
@@ -136,98 +118,6 @@ trait ConfigGen
   def mainargsIvy = v.mainargs
 }
 
-// SoC demostration, not the real dependencies for the vector project
-import $file.dependencies.`cde`.common
-import $file.dependencies.`diplomacy`.common
-import $file.dependencies.`rocket-chip`.common
-
-object cde extends CDE
-
-trait CDE
-  extends millbuild.dependencies.cde.common.CDEModule {
-  override def millSourcePath = os.pwd / "dependencies" / "cde" / "cde"
-  def scalaVersion = T(v.scala)
-}
-
-object diplomacy extends Diplomacy
-
-trait Diplomacy
-    extends millbuild.dependencies.diplomacy.common.DiplomacyModule {
-  override def millSourcePath = os.pwd / "dependencies" / "diplomacy" / "diplomacy"
-  def scalaVersion = T(v.scala)
-
-  def chiselModule = Some(chisel)
-  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
-  def chiselIvy = None
-  def chiselPluginIvy = None
-
-  def cdeModule = cde
-
-  def sourcecodeIvy = v.sourcecode
-}
-
-
-object rocketchip extends RocketChip
-
-trait RocketChip
-  extends millbuild.dependencies.`rocket-chip`.common.RocketChipModule {
-  override def millSourcePath = os.pwd / "dependencies" / "rocket-chip"
-  def scalaVersion = T(v.scala)
-
-  def chiselModule = Some(chisel)
-  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
-  def chiselIvy = None
-  def chiselPluginIvy = None
-
-  def macrosModule = macros
-  def hardfloatModule = hardfloat
-  def cdeModule = cde
-  def diplomacyModule = diplomacy
-  def mainargsIvy = v.mainargs
-  def json4sJacksonIvy = v.json4sJackson
-}
-
-object macros extends Macros
-
-trait Macros
-  extends millbuild.dependencies.`rocket-chip`.common.MacrosModule {
-
-  override def millSourcePath = os.pwd / "dependencies" / "rocket-chip" / "macros"
-  def scalaVersion: T[String] = T(v.scala)
-
-  def scalaReflectIvy = v.scalaReflect
-}
-
-// we maintain our own Rocket for T1
-object rocket extends Rocket
-
-trait Rocket
-  extends millbuild.common.RocketModule
-    with ScalafmtModule {
-  def scalaVersion = T(v.scala)
-
-  def rvdecoderdbModule = rvdecoderdb
-  def rocketchipModule = rocketchip
-  def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
-
-  def chiselModule = Some(chisel)
-  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
-  def chiselPluginIvy = None
-  def chiselIvy = None
-}
-
-object emuhelper extends EmuHelper
-
-trait EmuHelper
-  extends millbuild.common.EmuHelperModule {
-  def scalaVersion = T(v.scala)
-
-  def chiselModule = Some(chisel)
-  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
-  def chiselPluginIvy = None
-  def chiselIvy = None
-}
-
 object ipemu extends IPEmulator
 
 trait IPEmulator
@@ -235,22 +125,6 @@ trait IPEmulator
   def scalaVersion = T(v.scala)
 
   def t1Module = t1
-  def emuHelperModule = emuhelper
-
-  def chiselModule = Some(chisel)
-  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
-  def chiselPluginIvy = None
-  def chiselIvy = None
-}
-
-object subsystem extends Subsystem
-
-trait Subsystem
-  extends millbuild.common.SubsystemModule {
-  def scalaVersion = T(v.scala)
-
-  def t1Module = t1
-  def rocketModule = rocket
 
   def chiselModule = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
@@ -283,7 +157,6 @@ trait Elaborator
   def generators = Seq(
     t1,
     ipemu,
-    subsystem,
   )
 
   def mainargsIvy = v.mainargs
@@ -346,7 +219,7 @@ trait OMReader
   * */
 object t1package extends ScalaModule {
   def scalaVersion = T(v.scala)
-  def moduleDeps = super.moduleDeps ++ Seq(t1, ipemu, subsystem, panamaconverter, omreaderlib)
+  def moduleDeps = super.moduleDeps ++ Seq(t1, ipemu, panamaconverter, omreaderlib)
   override def sourceJar: T[PathRef] = T(Jvm.createJar(T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))().flatten.flatten.map(_.path).filter(os.exists), manifest()))
   def chiselPluginJar = T {
     val jar = T.dest / "out.jar"
