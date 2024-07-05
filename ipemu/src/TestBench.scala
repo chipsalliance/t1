@@ -113,7 +113,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter]) extends
         )
       )).suggestName(s"axi4_channel${index}_${channelName}")
       agent.io.channel match {
-        case io: AXI4RWIrrevocableVerilog => io :<>= bundle
+        case io: AXI4RWIrrevocableVerilog => io <> bundle
       }
       agent.io.clock := clock
       agent.io.reset := reset
