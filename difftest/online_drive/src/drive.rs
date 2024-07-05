@@ -1,5 +1,5 @@
 use common::spike_runner::SpikeRunner;
-use tracing::{debug, error, info, info_span, trace};
+use tracing::{debug, error, info, info_span, trace, warn};
 
 use crate::dpi::*;
 use crate::OfflineArgs;
@@ -33,30 +33,29 @@ impl Driver {
   }
 
   pub(crate) fn axi_write_high_bandwidth(&mut self, _: &AxiWritePayload) {
-    info_span!("axi_write_high_bandwidth");
+    info!("[{}] axi_write_high_bandwidth", get_t());
     // TODO:
   }
 
   pub(crate) fn axi_read_high_bandwidth(&mut self) -> AxiReadPayload {
     // TODO:
-    info!("axi_read_high_bandwidth");
+    info!("[{}] axi_read_high_bandwidth", get_t());
     AxiReadPayload { data: vec![], beats: 0 }
   }
 
   pub(crate) fn axi_write_indexed(&mut self, _: &AxiWriteIndexedPayload) {
-    info_span!("axi_write_indexed");
+    info!("[{}] axi_write_indexed", get_t());
     // TODO:
   }
 
   pub(crate) fn axi_read_indexed(&mut self) -> AxiReadIndexedPayload {
-    info_span!("axi_read_indexed");
+    info!("[{}] axi_read_indexed", get_t());
     // TODO:
     AxiReadIndexedPayload { data: [0; 256 * 4], beats: 0 }
   }
 
   pub(crate) fn watchdog(&mut self) -> u8 {
-    self.spike_runner.spike_cycle += 1024;
-    if self.spike_runner.spike_cycle - self.last_commit_cycle > self.timeout {
+    if get_t() - self.last_commit_cycle > self.timeout {
       error!(
         "[{}] watchdog timeout (last_commit_cycle={})",
         get_t(),
@@ -134,6 +133,6 @@ impl Driver {
       queue.back().unwrap().inst_bits,
     );
     queue.pop_back();
-    self.last_commit_cycle = self.spike_runner.cycle;
+    self.last_commit_cycle = get_t();
   }
 }
