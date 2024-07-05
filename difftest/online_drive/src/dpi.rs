@@ -5,8 +5,6 @@ use clap::Parser;
 use std::ffi::{c_char, c_int, c_longlong, CString};
 use std::ptr;
 
-use tracing::{info, warn};
-
 use crate::drive::Driver;
 use crate::OfflineArgs;
 
@@ -19,22 +17,30 @@ pub type SvBitVecVal = u32;
 // --------------------------
 
 pub(crate) struct AxiWritePayload {
+  #[allow(dead_code)]
   pub(crate) data: Vec<u8>,
+  #[allow(dead_code)]
   pub(crate) strb: Vec<u8>,
 }
 
 pub(crate) struct AxiReadPayload {
+  #[allow(dead_code)]
   pub(crate) data: Vec<u8>,
+  #[allow(dead_code)]
   pub(crate) beats: u8,
 }
 
 pub(crate) struct AxiReadIndexedPayload {
+  #[allow(dead_code)]
   pub(crate) data: [u8; 256 * 4],
+  #[allow(dead_code)]
   pub(crate) beats: u8,
 }
 
 pub(crate) struct AxiWriteIndexedPayload {
+  #[allow(dead_code)]
   pub(crate) data: [u8; 256 * 4],
+  #[allow(dead_code)]
   pub(crate) beats: [u8; 128],
 }
 
@@ -195,7 +201,6 @@ unsafe extern "C" fn cosim_init_rs(call_init: *mut SvBit) -> *mut () {
   args.common_args.setup_logger().unwrap();
 
   *call_init = 1;
-  init_wave();
   let driver = Box::new(Driver::new(&args));
   Box::into_raw(driver) as *mut ()
 }
@@ -204,11 +209,8 @@ unsafe extern "C" fn cosim_init_rs(call_init: *mut SvBit) -> *mut () {
 unsafe extern "C" fn cosim_watchdog_rs(target: *mut (), reason: *mut c_char) {
   // watchdog dpi call would be called before initialization, guard on null target
   if !target.is_null() {
-    info!("watchdog");
     let driver = &mut *(target as *mut Driver);
     *reason = driver.watchdog() as c_char
-  } else {
-    warn!("null target")
   }
 }
 
@@ -226,15 +228,24 @@ unsafe extern "C" fn retire_vector_instruction_rs(target: *mut (), retire_src: *
   driver.retire_instruction(retire)
 }
 
+//--------------------------------
+// import functions and wrappers
+//--------------------------------
+
+#[link(name = "dpi_pre_link")]
 extern "C" {
-  fn verilator_main(argc: c_int, argv: *mut *mut c_char) -> c_int;
+  fn verilator_main_c(argc: c_int, argv: *mut *mut c_char) -> c_int;
 
-  fn dump_wave(path: *const c_char);
+  fn dump_wave_c(path: *const c_char);
 
-  fn init_wave();
+  fn get_t_c() -> u64;
 }
 
-pub(crate) fn verilator_main_wrapped() {
+pub(crate) fn get_t() -> u64 {
+  unsafe { get_t_c() / 10 }
+}
+
+pub(crate) fn verilator_main() {
   let mut c_args_ptr: Vec<*mut c_char> = std::env::args()
     .collect::<Vec<String>>()
     .iter()
@@ -249,14 +260,14 @@ pub(crate) fn verilator_main_wrapped() {
   let argv = c_args_ptr.as_mut_ptr();
 
   unsafe {
-    verilator_main(argc, argv);
+    verilator_main_c(argc, argv);
   }
 }
 
-pub(crate) fn dump_wave_wrapped(path: &str) {
+pub(crate) fn dump_wave(path: &str) {
   let path_cstring = CString::new(path).unwrap();
   let path_ptr:  *const c_char = path_cstring.as_ptr();
   unsafe {
-    dump_wave(path_ptr);
+    dump_wave_c(path_ptr);
   }
 }

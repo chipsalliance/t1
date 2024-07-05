@@ -5,15 +5,17 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int verilator_main(int argc, char **argv);
+int verilator_main_c(int argc, char **argv);
 
-void dump_wave(char *path);
+void dump_wave_c(char *path);
 
-void init_wave();
+uint64_t get_t_c();
 
 #ifdef __cplusplus
 }

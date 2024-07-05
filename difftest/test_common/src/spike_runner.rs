@@ -104,8 +104,8 @@ impl SpikeRunner {
       // inst is load / store / v / quit
       Some(ref mut se) => {
         debug!(
-          "[{}] SpikeStep: spike run vector insn ({}), is_vfence={}",
-          self.cycle, se.describe_insn(), se.is_vfence_insn(),
+          "SpikeStep: spike run vector insn ({}), is_vfence={}",
+          se.describe_insn(), se.is_vfence_insn(),
         );
         se.pre_log_arch_changes(&self.spike, self.vlen).unwrap();
         let new_pc_ = proc.func();
@@ -114,8 +114,8 @@ impl SpikeRunner {
       }
       None => {
         debug!(
-          "[{}] SpikeStep: spike run scalar insn, (pc={:#x}, disasm={}, bits={:#x})",
-          self.cycle, pc, disasm, insn_bits,
+          "SpikeStep: spike run scalar insn, (pc={:#x}, disasm={}, bits={:#x})",
+          pc, disasm, insn_bits,
         );
         proc.func()
       }

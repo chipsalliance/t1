@@ -1,4 +1,4 @@
-use crate::dpi::verilator_main_wrapped;
+use crate::dpi::verilator_main;
 use clap::Parser;
 use common::CommonArgs;
 
@@ -18,5 +18,5 @@ pub(crate) struct OfflineArgs {
 }
 
 fn main() {
-  verilator_main_wrapped();
+  verilator_main();
 }

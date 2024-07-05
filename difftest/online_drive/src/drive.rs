@@ -1,5 +1,5 @@
 use common::spike_runner::SpikeRunner;
-use tracing::{debug, info, info_span, trace};
+use tracing::{debug, error, info, info_span, trace};
 
 use crate::dpi::*;
 use crate::OfflineArgs;
@@ -8,7 +8,6 @@ pub(crate) struct Driver {
   spike_runner: SpikeRunner,
   wave_path: String,
   pub(crate) dlen: u32,
-  pub(crate) vlen: u32,
 
   timeout: u64,
 
@@ -23,7 +22,6 @@ impl Driver {
       spike_runner: SpikeRunner::new(&args.common_args, false),
       wave_path: args.wave_path.to_owned(),
       dlen: args.common_args.dlen,
-      vlen: args.common_args.vlen,
       timeout: args.timeout,
       last_commit_cycle: 0,
 
@@ -59,16 +57,20 @@ impl Driver {
   pub(crate) fn watchdog(&mut self) -> u8 {
     self.spike_runner.spike_cycle += 1024;
     if self.spike_runner.spike_cycle - self.last_commit_cycle > self.timeout {
-      info!("watchdog timeout");
+      error!(
+        "[{}] watchdog timeout (last_commit_cycle={})",
+        get_t(),
+        self.last_commit_cycle
+      );
       WATCHDOG_TIMEOUT
     } else {
-      trace!("watchdog continue");
+      trace!("[{}] watchdog continue", get_t());
       WATCHDOG_CONTINUE
     }
   }
 
   fn start_dump_wave(&mut self) {
-    dump_wave_wrapped(&self.wave_path);
+    dump_wave(&self.wave_path);
   }
 
   pub(crate) fn issue_instruction(&mut self) -> IssueData {
@@ -79,7 +81,8 @@ impl Driver {
         // earlier instructions are committed
         if se.is_exit_insn() {
           info!(
-            "seeing an exit instruction on {:08x}, sending ISSUE_EXIT",
+            "[{}] seeing an exit instruction on {:08x}, sending ISSUE_EXIT",
+            get_t(),
             se.pc
           );
           self.spike_runner.to_rtl_queue.pop_back();
@@ -90,7 +93,8 @@ impl Driver {
         }
       } else {
         debug!(
-          "waiting for queue being cleared to issue the fence, len={}",
+          "[{}] waiting for queue being cleared to issue the fence, len={}",
+          get_t(),
           self.spike_runner.to_rtl_queue.len()
         );
         // waiting for earlier instructions to be committed
@@ -98,8 +102,11 @@ impl Driver {
       }
     } else {
       info!(
-        "issuing {} (pc={:08x}, bits={:08x})",
-        se.disasm, se.pc, se.inst_bits
+        "[{}] issuing {} (pc={:08x}, bits={:08x})",
+        get_t(),
+        se.disasm,
+        se.pc,
+        se.inst_bits
       );
       self.issued += 1;
       // not a fence, issue it
@@ -120,7 +127,8 @@ impl Driver {
     let queue = &mut self.spike_runner.to_rtl_queue;
     assert!(!queue.is_empty() && !queue.back().unwrap().is_vfence_insn());
     info!(
-      "retire_instruction {} (pc={:08x}, bits={:08x})",
+      "[{}] retire_instruction {} (pc={:08x}, bits={:08x})",
+      get_t(),
       queue.back().unwrap().disasm,
       queue.back().unwrap().pc,
       queue.back().unwrap().inst_bits,

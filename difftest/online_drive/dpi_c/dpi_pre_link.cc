@@ -5,14 +5,18 @@
 
 class VTestBench;
 
-int verilator_main(int argc, char **argv) {
+std::unique_ptr<VerilatedContext> contextp;
+std::unique_ptr<VTestBench> topp;
+;
+
+int verilator_main_c(int argc, char **argv) {
   // Setup context, defaults, and parse command line
   Verilated::debug(0);
-  const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
+  contextp = std::make_unique<VerilatedContext>();
   contextp->commandArgs(argc, argv);
 
   // Construct the Verilated model, from Vtop.h generated from Verilating
-  const std::unique_ptr<VTestBench> topp{new VTestBench{contextp.get()}};
+  topp = std::make_unique<VTestBench>(contextp.get());
 
   // Simulate until $finish
   while (!contextp->gotFinish()) {
@@ -33,12 +37,16 @@ int verilator_main(int argc, char **argv) {
   return 0;
 }
 
-void dump_wave(char *path) {
-    svSetScope(svGetScopeFromName("TOP.TestBench.DumpWave"));
-    DumpWave(path);
-}
-
-void init_wave() {
+void dump_wave_c(char *path) {
   Verilated::traceEverOn(true);
+  svSetScope(svGetScopeFromName("TOP.TestBench.DumpWave"));
+  DumpWave(path);
 }
 
+uint64_t get_t_c() {
+  if (contextp) {
+    return contextp->time();
+  } else { // before ctx is initialized
+    return 0;
+  }
+}
