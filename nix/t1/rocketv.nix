@@ -76,9 +76,9 @@ let
     '';
 
     installPhase = ''
-      mkdir -p $out/share/rocketv
+      mkdir -p $out
 
-      mv RocketTile.{sv,anno.json,fir} $out/share/rocketv/
+      mv RocketTile.{sv,anno.json,fir} $out/
     '';
   };
 in
