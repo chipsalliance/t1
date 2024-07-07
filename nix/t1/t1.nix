@@ -29,6 +29,8 @@ let
         ./../../ipemu/src
         ./../../elaborator
         ./../../configgen/src
+        ./../../rocketv
+        ./../../rocketemu/src
       ];
     };
 
