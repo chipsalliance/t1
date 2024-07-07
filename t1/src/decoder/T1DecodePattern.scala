@@ -76,7 +76,6 @@ case class T1DecodePattern(instruction: Instruction, param: DecoderParam) extend
   def isIota: isIota = attribute.isIota(this)
   def isItype: isItype = attribute.isItype(this)
   def isLogic: isLogic = attribute.isLogic(this)
-  def isMa: isMa = attribute.isMa(this)
   def isMaskdestination: isMaskdestination = attribute.isMaskdestination(this)
   def isMasklogic: isMasklogic = attribute.isMasklogic(this)
   def isMasksource: isMasksource = attribute.isMasksource(this)
@@ -148,7 +147,6 @@ case class T1DecodePattern(instruction: Instruction, param: DecoderParam) extend
         isIota,
         isItype,
         isLogic,
-        isMa,
         isMaskdestination,
         isMasklogic,
         isMasksource,
