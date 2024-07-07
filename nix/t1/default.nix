@@ -35,6 +35,7 @@ lib.makeScope newScope
     t1package = _millOutput.t1package;
 
     rocketv = self.callPackage ./rocketv.nix { };
+    rocketv-mlirbc = self.callPackage ./rocketv-mlirbc.nix { };
 
     omreader-unwrapped = self.callPackage ./omreader.nix { };
     submodules = self.callPackage ./submodules.nix { };
