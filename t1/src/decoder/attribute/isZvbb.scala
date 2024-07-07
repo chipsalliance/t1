@@ -5,21 +5,34 @@ package org.chipsalliance.t1.rtl.decoder.attribute
 
 import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 
-object isPopcount {
-  def apply(t1DecodePattern: T1DecodePattern): isPopcount =
+object isZvbb {
+  def apply(t1DecodePattern: T1DecodePattern): isZvbb =
     Seq(
       y _ -> Y,
       n _ -> N,
       dc _ -> DC
     ).collectFirst {
-      case (fn, tri) if fn(t1DecodePattern) => isPopcount(tri)
+      case (fn, tri) if fn(t1DecodePattern) => isZvbb(tri)
     }.get
 
   def y(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = Seq(
-      "vcpop.m",
-      "vcpop.v",
-    )
+    val allMatched = if(t1DecodePattern.param.zvbbEnable) Seq(
+      "vandn.vv",
+      "vandn.vx",
+      "vbrev.v",
+      "vbrev8.v",
+      "vrev8.v",
+      "vclz.v",
+      "vctz.v",
+      "vrol.vv",
+      "vrol.vx",
+      "vror.vv",
+      "vror.vx",
+      "vror.vi",
+      "vwsll.vv",
+      "vwsll.vx",
+      "vwsll.vi",
+    ) else Seq()
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
@@ -32,6 +45,6 @@ object isPopcount {
   def dc(t1DecodePattern: T1DecodePattern): Boolean = false
 }
 
-case class isPopcount(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = " count how many 1s in VS2. lane will use [[org.chipsalliance.t1.rtl.OtherUnit]] to how many 1s locally; use reduce datapath to accumulate, send total result to top top will send result to vd. "
+case class isZvbb(value: TriState) extends BooleanDecodeAttribute {
+  override val description: String = "goes to [[org.chipsalliance.t1.rtl.LaneZvbb]]."
 }

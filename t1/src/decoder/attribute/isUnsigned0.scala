@@ -130,6 +130,22 @@ object isUnsigned0 {
       "vzext.vf2",
       "vzext.vf4",
       "vzext.vf8",
+      // rv_zvbb
+      "vandn.vv",
+      "vandn.vx",
+      "vbrev.v",
+      "vbrev8.v",
+      "vrev8.v",
+      "vclz.v",
+      "vctz.v",
+      "vrol.vv",
+      "vrol.vx",
+      "vror.vv",
+      "vror.vx",
+      "vror.vi",
+      "vwsll.vv",
+      "vwsll.vx",
+      "vwsll.vi",
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }

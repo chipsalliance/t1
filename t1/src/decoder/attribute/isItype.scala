@@ -51,6 +51,9 @@ object isItype {
       "vssra.vi",
       "vssrl.vi",
       "vxor.vi",
+      // rv_zvbb
+      "vror.vi",
+      "vwsll.vi",
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }

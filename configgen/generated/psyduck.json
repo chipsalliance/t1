@@ -3,7 +3,8 @@
     "vLen": 512,
     "dLen": 256,
     "extensions": [
-      "Zve32f"
+      "Zve32f",
+      "Zvbb"
     ],
     "t1customInstructions": [],
     "vrfBankSize": 1,
@@ -167,7 +168,23 @@
           ]
         ]
       ],
-      "zvbbModuleParameters": []
+      "zvbbModuleParameters": [
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 3
+            },
+            "generator": "org.chipsalliance.t1.rtl.LaneZvbb"
+          },
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ]
+      ]
     }
   },
   "generator": "org.chipsalliance.t1.rtl.T1"

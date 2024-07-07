@@ -105,7 +105,8 @@ case class VFUInstantiateParameter(
                                     divModuleParameters: Seq[(SerializableModuleGenerator[LaneDiv, LaneDivParam], Seq[Int])],
                                     divfpModuleParameters: Seq[(SerializableModuleGenerator[LaneDivFP, LaneDivFPParam], Seq[Int])],
                                     otherModuleParameters: Seq[(SerializableModuleGenerator[OtherUnit, OtherUnitParam], Seq[Int])],
-                                    floatModuleParameters: Seq[(SerializableModuleGenerator[LaneFloat, LaneFloatParam], Seq[Int])]
+                                    floatModuleParameters: Seq[(SerializableModuleGenerator[LaneFloat, LaneFloatParam], Seq[Int])],
+                                    zvbbModuleParameters: Seq[(SerializableModuleGenerator[LaneZvbb, LaneZvbbParam], Seq[Int])]
                                   ) {
   val genVec: Seq[(SerializableModuleGenerator[_ <: VFUModule, _ <: VFUParameter], Seq[Int])] =
     logicModuleParameters ++
@@ -115,7 +116,8 @@ case class VFUInstantiateParameter(
       divModuleParameters ++
       divfpModuleParameters ++
       otherModuleParameters ++
-      floatModuleParameters
+      floatModuleParameters ++
+      zvbbModuleParameters      
   genVec.foreach {
     case (_, connect) =>
       connect.foreach(connectIndex => require(connectIndex < slotCount))
