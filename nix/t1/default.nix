@@ -36,6 +36,7 @@ lib.makeScope newScope
 
     rocketv = self.callPackage ./rocketv.nix { };
     rocketv-mlirbc = self.callPackage ./rocketv-mlirbc.nix { };
+    rocketv-rtl = self.callPackage ./rocketv-rtl.nix { };
 
     omreader-unwrapped = self.callPackage ./omreader.nix { };
     submodules = self.callPackage ./submodules.nix { };
