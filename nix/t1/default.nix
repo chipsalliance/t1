@@ -34,6 +34,8 @@ lib.makeScope newScope
     configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
     t1package = _millOutput.t1package;
 
+    rocketv = self.callPackage ./rocketv.nix { };
+
     omreader-unwrapped = self.callPackage ./omreader.nix { };
     submodules = self.callPackage ./submodules.nix { };
 
