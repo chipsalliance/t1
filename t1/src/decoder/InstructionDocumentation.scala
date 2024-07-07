@@ -422,5 +422,22 @@ case class InstructionDocumentation(instruction: Instruction, param: DecoderPara
     case "vzext.vf2" => "TODO!"
     case "vzext.vf4" => "TODO!"
     case "vzext.vf8" => "TODO!"
+    // rv_zvbb
+    case "vandn.vv" => "TODO!"
+    case "vandn.vx" => "TODO!"
+    case "vbrev.v" => "TODO!"
+    case "vbrev8.v" => "TODO!"
+    case "vrev8.v" => "TODO!"
+    case "vclz.v" => "TODO!"
+    case "vctz.v" => "TODO!"
+    case "vcpop.v" => "TODO!"
+    case "vrol.vv" => "TODO!"
+    case "vrol.vx" => "TODO!"
+    case "vror.vv" => "TODO!"
+    case "vror.vx" => "TODO!"
+    case "vror.vi" => "TODO!"
+    case "vwsll.vv" => "TODO!"
+    case "vwsll.vx" => "TODO!"
+    case "vwsll.vi" => "TODO!"
   }
 }

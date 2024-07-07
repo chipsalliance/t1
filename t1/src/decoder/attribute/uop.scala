@@ -15,7 +15,8 @@ object DecoderUop {
       isLogic.y(t1DecodePattern) -> LogicUop(t1DecodePattern),
       isShift.y(t1DecodePattern) -> ShiftUop(t1DecodePattern),
       isOther.y(t1DecodePattern) -> OtherUop(t1DecodePattern),
-      isZero.y(t1DecodePattern) -> ZeroUOP(t1DecodePattern) 
+      isZero.y(t1DecodePattern) -> ZeroUOP(t1DecodePattern), 
+      isZvbb.y(t1DecodePattern) -> ZvbbUOP(t1DecodePattern),
     ).collectFirst {
       case (fn, tpe) if fn => DecoderUop(tpe)
     }

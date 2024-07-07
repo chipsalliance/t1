@@ -107,6 +107,7 @@ case class T1DecodePattern(instruction: Instruction, param: DecoderParam) extend
   def isVtype: isVtype = attribute.isVtype(this)
   def isVwmacc: isVwmacc = attribute.isVwmacc(this)
   def isWidenreduce: isWidenreduce = attribute.isWidenreduce(this)
+  def isZvbb: isZvbb = attribute.isZvbb(this)
   def fpExecutionType: FpExecutionType.Type = attribute.FpExecutionType(this)
   def topUop: TopUop = attribute.TopUop(this)
   def decoderUop: DecoderUop = attribute.DecoderUop(this)

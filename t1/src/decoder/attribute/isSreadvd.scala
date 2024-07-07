@@ -307,5 +307,5 @@ object isSreadvd {
 }
 
 case class isSreadvd(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "sReadVD -> !(ma || maskLogic) instruction need to read vd as operator. "
+  override val description: String = "sReadVD -> !(ma || maskLogic): instructions that need to read vd as the operator. "
 }

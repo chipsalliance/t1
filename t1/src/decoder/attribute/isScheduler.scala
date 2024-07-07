@@ -274,5 +274,5 @@ object isScheduler {
 }
 
 case class isScheduler(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "lane will send request to Sequencer and wait ack from Sequencer. */ "
+  override val description: String = "lane will send request to Sequencer and wait ack from Sequencer. Instructions that will communicate with T1 top module.*/ "
 }
