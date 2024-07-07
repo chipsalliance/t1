@@ -4,38 +4,11 @@
 package org.chipsalliance.t1.rtl.lsu
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
+import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
-import chisel3.util.experimental.BitSet
-import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, firstlastHelper, indexToOH, instIndexL}
-import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelD}
-
-// TODO: need some idea from BankBinder
-object LSUInstantiateParameter {
-  implicit def bitSetP:upickle.default.ReadWriter[BitSet] = upickle.default.readwriter[String].bimap[BitSet](
-    _.toString,
-    BitSet.fromString
-  )
-
-  implicit def rwP: upickle.default.ReadWriter[LSUInstantiateParameter] = upickle.default.macroRW
-}
-
-/** Public LSU parameter expose to upper level. */
-case class LSUInstantiateParameter(name: String, base: BigInt, size: BigInt, banks: Int) {
-  // TODO: uarch tuning for different LSUs to reduce segment overhead.
-  //       these tweaks should only be applied to some special MMIO LSU, e.g. systolic array, etc
-  val supportStride: Boolean = true
-  val supportSegment: Set[Int] = Seq.tabulate(8)(_ + 1).toSet
-  val supportMask: Boolean = true
-  // TODO: support MMU for linux.
-  val supportMMU: Boolean = false
-
-  // used for add latency from LSU to corresponding lanes, it should be managed by floorplan
-  val latencyToLanes: Seq[Int] = Seq(1)
-  // used for add queue for avoid dead lock on memory.
-  val maxLatencyToEndpoint: Int = 96
-}
+import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4RWIrrevocable}
+import org.chipsalliance.t1.rtl._
 
 /**
   * @param datapathWidth ELEN
@@ -53,23 +26,14 @@ case class LSUParameter(
                          sourceWidth:          Int,
                          sizeWidth:            Int,
                          maskWidth:            Int,
-                         banks:                Seq[LSUBankParameter],
                          lsuMSHRSize:          Int,
                          toVRFWriteQueueSize:  Int,
                          transferSize:         Int,
                          // TODO: refactor to per lane parameter.
                          vrfReadLatency:       Int,
-                         tlParam:              TLBundleParameter,
+                         axi4BundleParameter:  AXI4BundleParameter,
                          name: String
                        ) {
-  val memoryBankSize: Int = banks.size
-
-  banks.zipWithIndex.foreach { case (bs, i) =>
-    Seq.tabulate(banks.size) { bankIndex =>
-      require(i == bankIndex || !banks(bankIndex).region.overlap(bs.region))
-    }
-  }
-
   val sewMin: Int = 8
 
   /** the maximum address offsets number can be accessed from lanes for one time. */
@@ -94,7 +58,7 @@ case class LSUParameter(
   val sourceQueueSize: Int = vLen * 8 / (transferSize * 8)
 
   def mshrParam: MSHRParam =
-    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, transferSize, memoryBankSize, vrfReadLatency, banks, tlParam)
+    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, transferSize, vrfReadLatency)
 
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)
@@ -164,11 +128,11 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val maskSelect: Vec[UInt] = IO(Output(Vec(param.lsuMSHRSize, UInt(param.maskGroupSizeBits.W))))
 
-  /** TileLink Port to next level memory.
-    * TODO: rename to `tlPorts`
-    */
   @public
-  val tlPort: Vec[TLBundle] = IO(Vec(param.memoryBankSize, param.tlParam.bundle()))
+  val axi4Port: AXI4RWIrrevocable = IO(new AXI4RWIrrevocable(param.axi4BundleParameter))
+
+  @public
+  val simpleAccessPorts: AXI4RWIrrevocable = IO(new AXI4RWIrrevocable(param.axi4BundleParameter.copy(dataWidth=32)))
 
   /** read channel to [[V]], which will redirect it to [[Lane.vrf]].
     * [[vrfReadDataPorts.head.ready]] will be deasserted if there are VRF hazards.
@@ -367,94 +331,89 @@ class LSU(param: LSUParameter) extends Module {
     }
   }
 
-  val accessPortA: Seq[DecoupledIO[TLChannelA]] = Seq(loadUnit.tlPortA, otherUnit.tlPort.a)
-  val mshrTryToUseTLAChannel: Vec[UInt] =
-    WireInit(VecInit(accessPortA.map(
-      p =>
-        Mux(
-          p.valid,
-          VecInit(param.banks.map(bs => bs.region.matches(p.bits.address))).asUInt,
-          0.U
-        )
-    )))
-  mshrTryToUseTLAChannel.foreach(select => assert(PopCount(select) <= 1.U, "address overlap"))
-  val sourceQueueVec: Seq[Queue[UInt]] =
-    tlPort.map(_ => Module(new Queue(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize)))
-  // connect tile link a
-  val readyVec: Seq[Bool] = tlPort.zipWithIndex.map { case (tl, index) =>
-    val port: DecoupledIO[TLChannelA] = tl.a
-    val storeRequest: DecoupledIO[TLChannelA] = storeUnit.tlPortA(index)
-    val sourceQueue: Queue[UInt] = sourceQueueVec(index)
-    val portFree: Bool = storeUnit.status.releasePort(index)
-    val Seq(loadTryToUse, otherTryToUse) = mshrTryToUseTLAChannel.map(_(index))
-    val portReady = port.ready && sourceQueue.io.enq.ready
-    /**
-     * a 通道的优先级分两种情况:
-     *  1. store unit 声明占用时, 无条件给 store unit
-     *  1. 不声明占用时, load > store > other
-     * */
-    val requestSelect = Seq(
-      // select load unit
-      portFree && loadTryToUse,
-      // select store unit
-      !portFree || (!loadTryToUse && storeRequest.valid),
-      // select otherUnit
-      portFree && !loadTryToUse && !storeRequest.valid
-    )
-    val selectIndex: UInt = OHToUInt(requestSelect)
-    val (_, _, done, _) = param.mshrParam.fistLast(
-      // todo: use param
-      param.transferSize.U,
-      // other no burst
-      !port.bits.opcode(2) && !requestSelect(2),
-      port.fire
-    )
+  val sourceQueue = Module(new Queue(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize))
+  // load unit connect
+  axi4Port.ar.valid := loadUnit.memRequest.valid && sourceQueue.io.enq.ready
+  axi4Port.ar.bits <> DontCare
+  axi4Port.ar.bits.addr := loadUnit.memRequest.bits.address
+  axi4Port.ar.bits.len := 0.U
+  axi4Port.ar.bits.size := param.mshrParam.cacheLineBits.U
+  axi4Port.ar.bits.burst := 1.U //INCR
+  loadUnit.memRequest.ready := sourceQueue.io.enq.ready && axi4Port.ar.ready
 
-    // 选出一个请求连到 a 通道上
-    val selectBits = Mux1H(requestSelect, Seq(loadUnit.tlPortA.bits, storeRequest.bits, otherUnit.tlPort.a.bits))
-    port.valid := (storeRequest.valid || ((loadTryToUse || otherTryToUse) && portFree)) && sourceQueue.io.enq.ready
-    port.bits := selectBits
-    port.bits.source := selectIndex
+  loadUnit.memResponse.valid := axi4Port.r.valid
+  loadUnit.memResponse.bits.data := axi4Port.r.bits.data
+  loadUnit.memResponse.bits.index := sourceQueue.io.deq.bits
+  axi4Port.r.ready := loadUnit.memResponse.ready
 
-    // record source id by queue
-    sourceQueue.io.enq.valid := done
-    sourceQueue.io.enq.bits := selectBits.source
+  sourceQueue.io.enq.valid := loadUnit.memRequest.valid && axi4Port.ar.ready
+  sourceQueue.io.enq.bits := loadUnit.memRequest.bits.src
+  sourceQueue.io.deq.ready := axi4Port.r.fire
 
-    // 反连 ready
-    storeRequest.ready := requestSelect(1) && portReady
-    Seq(requestSelect.head && portReady, requestSelect.last && portReady)
-  }.transpose.map(rv => VecInit(rv).asUInt.orR)
-  loadUnit.tlPortA.ready := readyVec.head
-  otherUnit.tlPort.a.ready := readyVec.last
+  // store unit <> axi
+  val dataQueue: Queue[MemWrite] = Module(new Queue(chiselTypeOf(storeUnit.memRequest.bits), 2))
+  axi4Port.aw.valid := storeUnit.memRequest.valid && dataQueue.io.enq.ready
+  axi4Port.aw.bits <> DontCare
+  axi4Port.aw.bits.len := 0.U
+  axi4Port.aw.bits.burst := 1.U //INCR
+  axi4Port.aw.bits.size := param.mshrParam.cacheLineBits.U
+  axi4Port.aw.bits.addr := storeUnit.memRequest.bits.address
+  axi4Port.aw.bits.id := storeUnit.memRequest.bits.index
+  storeUnit.memRequest.ready := axi4Port.aw.ready && dataQueue.io.enq.ready
 
-  // connect tile link D
-  val tlDFireForOther: Vec[Bool] = Wire(Vec(param.memoryBankSize, Bool()))
-  tlPort.zipWithIndex.foldLeft(false.B) {case (o, (tl, index)) =>
-    val port: DecoupledIO[TLChannelD] = tl.d
-    val isAccessAck = port.bits.opcode === 0.U
-    val (_, _, done, _) = param.mshrParam.fistLast(
-      // todo: use param
-      param.transferSize.U,
-      // other no burst
-      port.bits.opcode(0) && !port.bits.source(1),
-      port.fire
-    )
-    val sourceQueue: Queue[UInt] = sourceQueueVec(index)
-    sourceQueue.io.deq.ready := done
-    // 0 -> load unit, 0b10 -> other unit
-    val responseForOther: Bool = port.bits.source(1)
-    loadUnit.tlPortD(index).valid := port.valid && !responseForOther && !isAccessAck
-    loadUnit.tlPortD(index).bits := port.bits
-    loadUnit.tlPortD(index).bits.source := sourceQueue.io.deq.bits
-    port.ready := isAccessAck || Mux(responseForOther, !o && otherUnit.tlPort.d.ready, loadUnit.tlPortD(index).ready)
-    tlDFireForOther(index) := !o && responseForOther && port.valid
-    o || responseForOther
-  }
-  otherUnit.tlPort.d.valid := tlDFireForOther.asUInt.orR
-  otherUnit.tlPort.d.bits := Mux1H(tlDFireForOther, tlPort.map(_.d.bits))
-  otherUnit.tlPort.d.bits.source := Mux1H(tlDFireForOther, sourceQueueVec.map(_.io.deq.bits))
+  dataQueue.io.enq.valid := storeUnit.memRequest.valid && axi4Port.aw.ready
+  dataQueue.io.enq.bits := storeUnit.memRequest.bits
 
-  // index offset connect
+  axi4Port.w.valid := dataQueue.io.deq.valid
+  axi4Port.w.bits <> DontCare
+  axi4Port.w.bits.data := dataQueue.io.deq.bits.data
+  axi4Port.w.bits.strb := dataQueue.io.deq.bits.mask
+  axi4Port.w.bits.last := true.B
+  dataQueue.io.deq.ready := axi4Port.w.ready
+
+  // todo: add write token ?
+  axi4Port.b.ready := true.B
+  simpleAccessPorts.b.ready := true.B
+
+  // other unit <> axi
+  val simpleSourceQueue: Queue[UInt] = Module(new Queue(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize))
+  simpleAccessPorts.ar.valid := otherUnit.memReadRequest.valid && simpleSourceQueue.io.enq.ready
+  simpleAccessPorts.ar.bits <> DontCare
+  simpleAccessPorts.ar.bits.addr := otherUnit.memReadRequest.bits.address
+  simpleAccessPorts.ar.bits.len := 0.U
+  simpleAccessPorts.ar.bits.size := otherUnit.memReadRequest.bits.size
+  simpleAccessPorts.ar.bits.burst := 1.U //INCR
+  otherUnit.memReadRequest.ready := simpleSourceQueue.io.enq.ready && simpleAccessPorts.ar.ready
+
+  otherUnit.memReadResponse.valid := simpleAccessPorts.r.valid
+  otherUnit.memReadResponse.bits.data := simpleAccessPorts.r.bits.data
+  otherUnit.memReadResponse.bits.source := simpleSourceQueue.io.deq.bits
+  simpleAccessPorts.r.ready := otherUnit.memReadResponse.ready
+
+  simpleSourceQueue.io.enq.valid := otherUnit.memReadResponse.valid && simpleAccessPorts.ar.ready
+  simpleSourceQueue.io.enq.bits := otherUnit.memReadResponse.bits.source
+  simpleSourceQueue.io.deq.ready := simpleAccessPorts.r.fire
+
+  val simpleDataQueue: Queue[SimpleMemWrite] = Module(new Queue(chiselTypeOf(otherUnit.memWriteRequest.bits), 2))
+  simpleAccessPorts.aw.valid := storeUnit.memRequest.valid && dataQueue.io.enq.ready
+  simpleAccessPorts.aw.bits <> DontCare
+  simpleAccessPorts.aw.bits.len := 0.U
+  simpleAccessPorts.aw.bits.burst := 1.U //INCR
+  simpleAccessPorts.aw.bits.size := otherUnit.memWriteRequest.bits.size
+  simpleAccessPorts.aw.bits.addr := otherUnit.memWriteRequest.bits.address
+  simpleAccessPorts.aw.bits.id := otherUnit.memWriteRequest.bits.source
+  otherUnit.memWriteRequest.ready := simpleAccessPorts.aw.ready && simpleDataQueue.io.enq.ready
+
+  simpleDataQueue.io.enq.valid := otherUnit.memWriteRequest.valid && simpleAccessPorts.aw.ready
+  simpleDataQueue.io.enq.bits := otherUnit.memWriteRequest.bits
+
+  simpleAccessPorts.w.valid := simpleDataQueue.io.deq.valid
+  simpleAccessPorts.w.bits <> DontCare
+  simpleAccessPorts.w.bits.data := simpleDataQueue.io.deq.bits.data
+  simpleAccessPorts.w.bits.strb := simpleDataQueue.io.deq.bits.mask
+  simpleAccessPorts.w.bits.last := true.B
+  simpleDataQueue.io.deq.ready := simpleAccessPorts.w.ready
+
   otherUnit.offsetReadResult := offsetReadResult
 
   // gather last signal from all MSHR to notify LSU

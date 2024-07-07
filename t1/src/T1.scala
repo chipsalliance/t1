@@ -4,16 +4,16 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Definition, Instance, Instantiate, instantiable, public}
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
-import chisel3.util._
-import chisel3.util.experimental.decode._
-import tilelink.{TLBundle, TLBundleParameter, TLChannelAParameter, TLChannelDParameter}
-import chisel3.probe.{Probe, ProbeValue, define, force}
+import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
+import chisel3.util._
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.rvdecoderdb.Instruction
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam, T1CustomInstruction}
+import chisel3.util.experimental.decode._
+import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4RWIrrevocable}
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
 
@@ -57,16 +57,6 @@ object T1Parameter {
   implicit def rwP: upickle.default.ReadWriter[T1Parameter] = upickle.default.macroRW
 }
 
-object LSUBankParameter{
-  implicit def bitSetP:upickle.default.ReadWriter[BitSet] = upickle.default.readwriter[String].bimap[BitSet](
-    bs => bs.terms.map("b" + _.rawString).mkString("\n"),
-    str => BitSet.fromString(str)
-  )
-
-  implicit def rwP: upickle.default.ReadWriter[LSUBankParameter] = upickle.default.macroRW
-}
-case class LSUBankParameter(name: String, region: BitSet, beatbyte: Int, accessScalar: Boolean)
-
 /**
   * @param xLen XLEN
   * @param vLen VLEN
@@ -92,8 +82,6 @@ case class T1Parameter(
   dLen:                    Int,
   extensions:              Seq[String],
   t1customInstructions:    Seq[T1CustomInstruction],
-  // LSU
-  lsuBankParameters:       Seq[LSUBankParameter],
   // Lane
   vrfBankSize:             Int,
   vrfRamType:              RamType,
@@ -112,11 +100,6 @@ case class T1Parameter(
         case RamType.p0rp1w => "First Port Read, Second Port Write."
         case RamType.p0rwp1rw => "Dual Ports Read Write."
       }}
-       |LSU:
-       |${lsuBankParameters.zipWithIndex.map{case (lsuP, idx) =>
-      s"""BANK${idx}W${lsuP.beatbyte * 8}b ${if(lsuP.accessScalar) "can" else "can't"} access scalar memory
-         |  ${lsuP.region.terms.map(_.rawString).mkString("\n  ")}
-         |""".stripMargin}}
        |""".stripMargin
 
   val allInstructions: Seq[Instruction] = {
@@ -198,10 +181,6 @@ case class T1Parameter(
   /** the hardware width of [[groupNumberMax]]. */
   val groupNumberMaxBits: Int = log2Ceil(groupNumberMax)
 
-  require(lsuBankParameters.map(_.beatbyte).toSet.size == 1, "The width is temporarily unified")
-  /** Used in memory bundle parameter. */
-  val memoryDataWidthBytes: Int = lsuBankParameters.head.beatbyte
-
   /** LSU MSHR Size, Contains a load unit, a store unit and an other unit. */
   val lsuMSHRSize: Int = 3
 
@@ -218,9 +197,6 @@ case class T1Parameter(
     */
   val sizeWidth: Int = log2Ceil(log2Ceil(lsuTransposeSize))
 
-  /** for TileLink `mask` element. */
-  val maskWidth: Int = lsuBankParameters.head.beatbyte
-
   val vrfReadLatency = 2
 
   // each element: Each lane will be connected to the other two lanes,
@@ -229,13 +205,30 @@ case class T1Parameter(
 
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, allInstructions)
 
-  /** parameter for TileLink. */
-  val tlParam: TLBundleParameter = TLBundleParameter(
-    a = TLChannelAParameter(physicalAddressWidth, sourceWidth, memoryDataWidthBytes * 8, sizeWidth, maskWidth),
-    b = None,
-    c = None,
-    d = TLChannelDParameter(sourceWidth, sourceWidth, memoryDataWidthBytes * 8, sizeWidth),
-    e = None
+  /** paraemter for AXI4. */
+  val axi4BundleParameter: AXI4BundleParameter = AXI4BundleParameter(
+      idWidth = sourceWidth,
+      dataWidth = dLen,
+      addrWidth = physicalAddressWidth,
+      userReqWidth = 0,
+      userDataWidth = 0,
+      userRespWidth = 0,
+      hasAW = true,
+      hasW = true,
+      hasB = true,
+      hasAR = true,
+      hasR = true,
+      supportId = true,
+      supportRegion = false,
+      supportLen = true,
+      supportSize = true,
+      supportBurst = true,
+      supportLock = false,
+      supportCache = false,
+      supportQos = false,
+      supportStrb = true,
+      supportResp = true,
+      supportProt = false,
   )
 
   /** Parameter for [[Lane]] */
@@ -263,15 +256,13 @@ case class T1Parameter(
     sourceWidth = sourceWidth,
     sizeWidth = sizeWidth,
     // TODO: configurable for each LSU [[p.supportMask]]
-    maskWidth = maskWidth,
-    banks = lsuBankParameters,
+    maskWidth = dLen / 32,
     lsuMSHRSize = lsuMSHRSize,
     // TODO: make it configurable for each lane
     toVRFWriteQueueSize = 96,
     transferSize = lsuTransposeSize,
     vrfReadLatency = vrfReadLatency,
-    // TODO: configurable for each LSU
-    tlParam = tlParam,
+    axi4BundleParameter = axi4BundleParameter,
     name = "main"
   )
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
@@ -303,23 +294,28 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     * and the `kill` logic in Vector processor is too high,
     * thus the request should come from commit stage to avoid any interrupt or excepiton.
     */
+  @public
   val request: DecoupledIO[VRequest] = IO(Flipped(Decoupled(new VRequest(parameter.xLen))))
-
   /** response to CPU. */
+  @public
   val response: ValidIO[VResponse] = IO(Valid(new VResponse(parameter.xLen)))
-
   /** CSR interface from CPU. */
+  @public
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.laneParam.vlMaxBits)))
-
   /** from CPU LSU, store buffer is cleared, memory can observe memory requests after this is asserted. */
+  @public
   val storeBufferClear: Bool = IO(Input(Bool()))
-
-  /** TileLink memory ports. */
-  val memoryPorts: Vec[TLBundle] = IO(Vec(parameter.lsuBankParameters.size, parameter.tlParam.bundle()))
-
+  // TODO: expose region name here.
+  @public
+  val highBandwidthLoadStorePort: AXI4RWIrrevocable = IO(new AXI4RWIrrevocable(parameter.axi4BundleParameter))
+  @public
+  val indexedLoadStorePort: AXI4RWIrrevocable = IO(new AXI4RWIrrevocable(parameter.axi4BundleParameter.copy(dataWidth=32)))
   // TODO: this is an example of adding a new Probe
+  @public
   val lsuProbe = IO(Probe(new LSUProbe(parameter.lsuParameters)))
+  @public
   val laneProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new LaneProbe(parameter.chainingSize))).suggestName(s"lane${laneIdx}Probe"))
+  @public
   val laneVrfProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new VRFProbe(
     parameter.laneParam.vrfParam.regNumBits,
     parameter.laneParam.vrfOffsetBits,
@@ -1602,12 +1598,8 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     }
   }
 
-  memoryPorts.zip(lsu.tlPort).foreach {
-    case (source, sink) =>
-      val dBuffer = Queue(source.d, 1, flow = true)
-      sink <> source
-      sink.d <> dBuffer
-  }
+  highBandwidthLoadStorePort <> lsu.axi4Port
+  indexedLoadStorePort <> lsu.simpleAccessPorts
   // 暂时直接连lsu的写,后续需要处理scheduler的写
   vrfWrite.zip(lsu.vrfWritePort).foreach { case (sink, source) => sink <> source }
 
