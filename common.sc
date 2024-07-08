@@ -144,3 +144,10 @@ trait OMReaderModule
     super.forkArgs() ++ Seq("--enable-native-access=ALL-UNNAMED", "--enable-preview", s"-Djava.library.path=${ circtInstallPath().path / "lib"}")
   )
 }
+
+trait RocketEmulatorModule
+  extends ScalaModule
+    with HasChisel {
+  def rocketVModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(rocketVModule)
+}
