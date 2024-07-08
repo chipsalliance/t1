@@ -5,6 +5,7 @@ package org.chipsalliance.t1.elaborator
 
 import mainargs._
 import org.chipsalliance.t1.rtl.T1Parameter
+import org.chipsalliance.rocketv.RocketTileParameter
 import chisel3.panamalib.option._
 
 object Main {
@@ -66,7 +67,15 @@ object Main {
     def parameter: T1Parameter = generator.parameter
   }
 
+  case class RocketConfig(
+    @arg(name = "rocket-config", short = 'c') rocketConfig: os.Path) {
+    def generator = upickle.default
+      .read[chisel3.experimental.SerializableModuleGenerator[org.chipsalliance.rocketv.RocketTile, org.chipsalliance.rocketv.RocketTileParameter]](ujson.read(os.read(rocketConfig)))
+    def parameter: RocketTileParameter = generator.parameter
+  }
+
   implicit def ipConfig: ParserForClass[IPConfig] = ParserForClass[IPConfig]
+  implicit def rocketConfig: ParserForClass[RocketConfig] = ParserForClass[RocketConfig]
 
   // format: off
   @main def ip(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
@@ -74,6 +83,9 @@ object Main {
   )
   @main def ipemu(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
     new org.chipsalliance.t1.ipemu.TestBench(ipConfig.generator)
+  )
+  @main def rocketemu(elaborateConfig: ElaborateConfig, rocketConfig: RocketConfig): Unit = elaborateConfig.elaborate(() =>
+    new org.chipsalliance.t1.rocketv.TestBench(rocketConfig.generator)
   )
   // format: on
 
