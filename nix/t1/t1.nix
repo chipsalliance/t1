@@ -63,6 +63,7 @@ let
       circt-full
       jextract-21
       add-determinism
+      espresso
 
       makeWrapper
       passthru.millDeps.setupHook
