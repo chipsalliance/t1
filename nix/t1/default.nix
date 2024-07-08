@@ -36,7 +36,6 @@ lib.makeScope newScope
     t1package = _millOutput.t1package;
 
     # FIXME: move all the rocketv file to an individual directory and put all attribute into one scope.
-    rocketv = self.callPackage ./rocketv.nix { };
     rocketv-mlirbc = self.callPackage ./rocketv-mlirbc.nix { };
     rocketv-rtl = self.callPackage ./rocketv-rtl.nix { };
     rocketv-verilated-csrc = self.callPackage ./rocketv-verilated-csrc.nix { };
