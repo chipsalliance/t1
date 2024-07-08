@@ -3,16 +3,18 @@
 , espresso
 , circt
 
-, rocketv
+, elaborator
 }:
 stdenvNoCC.mkDerivation {
   name = "t1-rocketv-elaborated.mlirbc";
 
-  nativeBuildInputs = [ espresso circt ];
+  nativeBuildInputs = [ elaborator espresso circt ];
 
   buildCommand = ''
-    firtool ${rocketv}/*.fir \
-      --annotation-file ${rocketv}/*.anno.json \
+    mkdir elaborate
+    elaborator rocketemu --target-dir elaborate --rocket-config ${../../rocketv/configs/RocketTile.json}
+    firtool elaborate/*.fir \
+      --annotation-file elaborate/*.anno.json \
       --emit-bytecode \
       --parse-only \
       -o $out
