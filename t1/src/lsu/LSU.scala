@@ -128,6 +128,7 @@ class MemoryWriteProbe(param: MSHRParam) extends Bundle {
 }
 
 class LSUProbe(param: LSUParameter) extends Bundle {
+  // lsu write queue enq probe
   val slots = Vec(param.laneNumber, new LSUSlotProbe(param))
   val storeUnitProbe = new MemoryWriteProbe(param.mshrParam)
   val otherUnitProbe = new MemoryWriteProbe(param.mshrParam)

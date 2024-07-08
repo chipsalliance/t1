@@ -27,7 +27,7 @@ class LaneOM extends Class {
   vfus := vfusIn
 }
 
-class LaneSlotProbe extends Bundle {
+class LaneSlotProbe(instructionIndexBit: Int) extends Bundle {
   val stage0EnqueueReady: Bool = Bool()
   val stage0EnqueueValid: Bool = Bool()
   val changingMaskSet: Bool = Bool()
@@ -41,11 +41,14 @@ class LaneSlotProbe extends Bundle {
   val executionUnitVfuRequestValid: Bool = Bool()
   val stage3VrfWriteReady: Bool = Bool()
   val stage3VrfWriteValid: Bool = Bool()
-  // val probeStage1: Bool = Bool()
+
+  // write queue enq for lane
+  val writeQueueEnq: Bool = Bool()
+  val writeTag: UInt = UInt(instructionIndexBit.W)
 }
 
-class LaneProbe(slotsSize: Int) extends Bundle {
-  val slots = Vec(slotsSize, new LaneSlotProbe)
+class LaneProbe(slotsSize: Int, instructionIndexBit: Int) extends Bundle {
+  val slots = Vec(slotsSize, new LaneSlotProbe(instructionIndexBit))
   // @todo @Clo91eaf remove valid here, add stall := valid & !ready
   val laneRequestValid: Bool = Bool()
   // @todo remove it.
@@ -302,8 +305,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val vrfReadyToStore: Bool = IO(Output(Bool()))
 
   @public
-  val probe: LaneProbe = IO(Output(Probe(new LaneProbe(parameter.chainingSize))))
-  val probeWire: LaneProbe = Wire(new LaneProbe(parameter.chainingSize))
+  val probe: LaneProbe = IO(Output(Probe(new LaneProbe(parameter.chainingSize, parameter.instructionIndexBits))))
+  val probeWire: LaneProbe = Wire(new LaneProbe(parameter.chainingSize, parameter.instructionIndexBits))
   define(probe, ProbeValue(probeWire))
   @public
   val vrfProbe = IO(Output(Probe(new VRFProbe(
@@ -809,6 +812,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       probeWire.slots(index).executionUnitVfuRequestValid := executionUnit.vfuRequest.valid
       probeWire.slots(index).stage3VrfWriteReady := stage3.vrfWriteRequest.ready
       probeWire.slots(index).stage3VrfWriteValid := stage3.vrfWriteRequest.valid
+      probeWire.slots(index).writeQueueEnq := stage3.vrfWriteRequest.fire
+      probeWire.slots(index).writeTag := stage3.vrfWriteRequest.bits.instructionIndex
       // probeWire.slots(index).probeStage1 := ???
   }
 
