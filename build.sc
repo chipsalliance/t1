@@ -149,6 +149,18 @@ trait IPEmulator
   def chiselIvy = None
 }
 
+object rocketemu extends RocketEmulator
+trait RocketEmulator extends millbuild.common.RocketEmulatorModule {
+  def scalaVersion = T(v.scala)
+
+  def rocketVModule = rocketv
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
 object panamaconverter extends PanamaConverter
 
 trait PanamaConverter
@@ -175,6 +187,7 @@ trait Elaborator
     t1,
     ipemu,
     rocketv,
+    rocketemu,
   )
 
   def mainargsIvy = v.mainargs
