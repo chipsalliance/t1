@@ -58,6 +58,7 @@ class LaneProbe(slotsSize: Int, instructionIndexBit: Int) extends Bundle {
   // @todo replace it with VRFProbe
   val vrfInstructionWriteReportReady: Bool = Bool()
   val instructionFinished: UInt = UInt(slotsSize.W)
+  val instructionValid: UInt = UInt(slotsSize.W)
 }
 
 object LaneParameter {
@@ -1213,4 +1214,5 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   probeWire.lastSlotOccupied := slotOccupied.last
   probeWire.vrfInstructionWriteReportReady := vrf.instructionWriteReport.ready
   probeWire.instructionFinished := instructionFinished
+  probeWire.instructionValid := instructionValid
 }

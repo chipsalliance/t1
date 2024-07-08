@@ -283,6 +283,8 @@ class T1Probe(param: T1Parameter) extends Bundle {
   val instructionCounter: UInt = UInt(param.instructionIndexBits.W)
   // write queue enq for mask unit
   val writeQueueEnq: ValidIO[UInt] = Valid(UInt(param.instructionIndexBits.W))
+  // mask unit instruction valid
+  val instructionValid: UInt = UInt(param.chainingSize.W)
 }
 
 /** Top of Vector processor:
@@ -1697,6 +1699,9 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   // maskUnitWrite maskUnitWriteReady
   probeWire.writeQueueEnq.valid := maskUnitWrite.valid && maskUnitWriteReady
   probeWire.writeQueueEnq.bits := maskUnitWrite.bits.instructionIndex
+  instructionValid := maskAnd(
+    !slots.last.state.sMaskUnitExecution && !slots.last.state.idle,
+    indexToOH(slots.last.record.instructionIndex, parameter.chainingSize)).asUInt
 
   // new V Request from core
   // val requestValidProbe: Bool = IO(Output(Probe(Bool())))

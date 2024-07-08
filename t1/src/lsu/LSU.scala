@@ -8,7 +8,7 @@ import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, publ
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
 import chisel3.util.experimental.BitSet
-import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, firstlastHelper, indexToOH, instIndexL}
+import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, LSUWriteQueueBundle, VRFReadRequest, VRFWriteRequest, firstlastHelper, indexToOH, instIndexL, maskAnd}
 import tilelink.{TLBundle, TLBundleParameter, TLChannelA, TLChannelD}
 
 // TODO: need some idea from BankBinder
@@ -133,6 +133,7 @@ class LSUProbe(param: LSUParameter) extends Bundle {
   val storeUnitProbe = new MemoryWriteProbe(param.mshrParam)
   val otherUnitProbe = new MemoryWriteProbe(param.mshrParam)
   val reqEnq: UInt = UInt(param.lsuMSHRSize.W)
+  val lsuInstructionValid: UInt = UInt(param.chainingSize.W)
 }
 
 /** Load Store Unit
@@ -324,6 +325,10 @@ class LSU(param: LSUParameter) extends Module {
 
   probeWire.storeUnitProbe := probe.read(storeUnit.probe)
   probeWire.otherUnitProbe := probe.read(otherUnit.probe)
+  probeWire.lsuInstructionValid :=
+    maskAnd(!loadUnit.status.idle, indexToOH(loadUnit.status.instructionIndex, param.chainingSize)).asUInt |
+      maskAnd(!storeUnit.status.idle, indexToOH(storeUnit.status.instructionIndex, param.chainingSize)).asUInt |
+      maskAnd(!otherUnit.status.idle, indexToOH(otherUnit.status.instructionIndex, param.chainingSize)).asUInt
 
   vrfWritePort.zip(writeQueueVec).foreach { case (p, q) =>
     p.valid := q.io.deq.valid
