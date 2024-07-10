@@ -1,0 +1,4 @@
+{ lib
+, callPackage
+}:
+callPackage ./dpi { }
