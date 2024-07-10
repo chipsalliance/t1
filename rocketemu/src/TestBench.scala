@@ -36,7 +36,7 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
   dut.io.msip := 0.U
   dut.io.buserror := 0.U
 
-  dut.io.resetVector := 10000000.U
+  dut.io.resetVector := 10000.U
 
   val simulationTime = withClockAndReset(clock, reset)(RegInit(0.U(64.W)))
   simulationTime := simulationTime + 1.U
