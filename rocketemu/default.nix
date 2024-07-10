@@ -1,4 +1,7 @@
 { lib
-, callPackage
+, newScope
 }:
-callPackage ./dpi { }
+lib.makeScope newScope (scope: {
+  c-dpi-lib = scope.callPackage ./dpi { };
+  driver = scope.callPackage ./driver { };
+})
