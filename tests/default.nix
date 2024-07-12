@@ -45,6 +45,11 @@ let
         builtins.fromJSON (lib.fileContents extraFeatures)
       else [ ];
 
+    filterByFeatures = caseName: caseDrv:
+      assert lib.assertMsg (caseDrv ? featuresRequired) "${caseName} doesn't have features specified";
+      # Test the case required extensions is supported by rtl design
+      isSubsetOf currentFeatures caseDrv.featuresRequired;
+
     findAndBuild = dir: build:
       lib.recurseIntoAttrs (lib.pipe (builtins.readDir dir) [
         # filter out all non-directory entrires and underscore-prefixed directories
@@ -60,10 +65,7 @@ let
               inherit caseName sourcePath;
             })
         )
-        (lib.filterAttrs (caseName: caseDrv:
-          assert lib.assertMsg (caseDrv ? featuresRequired) "${caseName} doesn't have features specified";
-          # Test the case required extensions is supported by rtl design
-          isSubsetOf currentFeatures caseDrv.featuresRequired))
+        (lib.filterAttrs casesSelf.filterByFeatures)
       ]);
     t1main = ./t1_main.S;
     linkerScript = ./t1.ld;
