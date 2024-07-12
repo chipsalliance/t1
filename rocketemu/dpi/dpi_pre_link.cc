@@ -40,11 +40,13 @@ int verilator_main_c(int argc, char **argv) {
   return 0;
 }
 
+#ifdef VM_TRACE
 void dump_wave_c(char *path) {
   Verilated::traceEverOn(true);
-  svSetScope(svGetScopeFromName("TOP.TestBench.DumpWave"));
-  DumpWave(path);
+  svSetScope(svGetScopeFromName("TOP.TestBench.clockGen"));
+  dump_wave(path);
 }
+#endif
 
 uint64_t get_t_c() {
   if (contextp) {

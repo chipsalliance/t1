@@ -28,7 +28,6 @@ if (NOT DEFINED VERILATED_INC_DIR)
   if (VERILATED_INC_DIR STREQUAL "")
     message(FATAL_ERROR "You should specify verilated libs via -DVERILATED_INC_DIR or environment variable VERILATED_INC_DIR, but it seems not")
   endif()
-  message("Using VERILATED_INC_DIR ${VERILATED_INC_DIR}")
 endif()
 
 # include verilated headers
@@ -44,5 +43,10 @@ target_include_directories(dpi PUBLIC ${verilator_DIR}/include)
 target_include_directories(dpi PUBLIC ${verilator_DIR}/include/vltstd)
 target_include_directories(dpi_pre_link PUBLIC ${verilator_DIR}/include)
 target_include_directories(dpi_pre_link PUBLIC ${verilator_DIR}/include/vltstd)
+
+if(DEFINED VM_TRACE)
+  target_compile_definitions(dpi PRIVATE VM_TRACE=1)
+  target_compile_definitions(dpi_pre_link PRIVATE VM_TRACE=1)
+endif()
 
 install(TARGETS dpi dpi_pre_link ARCHIVE)

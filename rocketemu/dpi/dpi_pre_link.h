@@ -13,7 +13,9 @@ extern "C" {
 
 int verilator_main_c(int argc, char **argv);
 
+#ifdef VM_TRACE
 void dump_wave_c(char *path);
+#endif
 
 uint64_t get_t_c();
 
