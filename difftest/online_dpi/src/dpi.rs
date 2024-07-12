@@ -47,7 +47,7 @@ unsafe fn load_from_payload<'a>(
   let data = &byte_vec[strb_width_in_byte..];
 
   let strb_width_in_bit = std::cmp::min(8, data_width_in_byte);
-  let mut masks: Vec<bool> = strobe
+  let masks: Vec<bool> = strobe
     .into_iter()
     .flat_map(|strb| {
       let mask: Vec<bool> = (0..strb_width_in_bit).map(|i| (strb & (1 << i)) != 0).collect();
