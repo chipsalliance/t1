@@ -1,0 +1,102 @@
+diff --git a/bench/bench.h b/bench/bench.h
+index af1c839..661e8df 100644
+--- a/bench/bench.h
++++ b/bench/bench.h
+@@ -120,45 +120,11 @@ static void
+ bench_run(Bench *benches, size_t nBenches)
+ {
+ 	for (Bench *b = benches; b != benches + nBenches; ++b) {
+-		print("{\ntitle: \"")(s,b->name)("\",\n");
+-		print("labels: [\"0\",");
+-		for (size_t i = 0; i < b->nImpls; ++i)
+-			print("\"")(s,b->impls[i].name)("\",");
+-		print("],\n");
+-
+ 		size_t N = b->N;
+-		print("data: [\n[");
+-		for (size_t n = 1; n < N; n = BENCH_NEXT(n))
+-			print(u,n)(",");
+-		print("],\n")(flush,);
+ 
+ 		for (Impl *i = b->impls; i != b->impls + b->nImpls; ++i) {
+-			print("[");
+-			for (size_t n = 1; n < N; n = BENCH_NEXT(n)) {
+-				ux si = 0, s0 = 0;
+-
+-#if VALIDATE
+-				if (i != b->impls) {
+-					URand seed = randState;
+-					(void)b->func(i->func, n);
+-					si = checksum(n);
+-
+-					randState = seed;
+-					(void)b->func(b->impls[0].func, n);
+-					s0 = checksum(n);
+-				}
+-
+-				if (si != s0) {
+-					print("ERROR: ")(s,i->name)(" in ")(s,b->name)(" at ")(u,n)(flush,);
+-					exit(EXIT_FAILURE);
+-				}
+-#endif
+-
+-				print(f,bench_time(n, *i, *b))(",")(flush,);
+-			}
+-			print("],\n")(flush,);
++			bench_time(N, *i, *b);
+ 		}
+-		print("]\n},\n");
+ 	}
+ }
+ 
+diff --git a/bench/config.h b/bench/config.h
+index 0078049..a7a8cf6 100644
+--- a/bench/config.h
++++ b/bench/config.h
+@@ -3,14 +3,14 @@
+ #define HAS_F16 0
+ 
+ /* the maximum number of bytes to allocate, minimum of 4096 */
+-#define MAX_MEM (1024*1024*32)
++#define MAX_MEM (1024*4)
+ /* the byte count for the next run */
+ #define NEXT(c) (c + c/7 + 3)
+ 
+ /* minimum number of repeats, to sample median from */
+-#define MIN_REPEATS 10
++#define MIN_REPEATS 1
+ /* maxium number of repeats, executed until more than STOP_TIME has elapsed */
+-#define MAX_REPEATS 64
++#define MAX_REPEATS 1
+ 
+ /* stop repeats early afer this many cycles have elapsed */
+ #define STOP_CYCLES (1024*1024*500)
+diff --git a/nolibc.h b/nolibc.h
+index 94d4235..06f2c0f 100644
+--- a/nolibc.h
++++ b/nolibc.h
+@@ -64,7 +64,7 @@ memread(void *ptr, size_t len)
+ 	return fread(ptr, 1, len, stdin);
+ }
+ #ifndef ENABLE_RDCYCLE_HACK
+-int main(void) {
++int test(void) {
+ 	int x = nolibc_main();
+ 	print_flush();
+ 	exit(x);
+@@ -158,13 +158,8 @@ void _start(void) {
+ static inline ux
+ rv_cycles(void)
+ {
+-	ux cycle;
+-#ifdef READ_MCYCLE
+-	__asm volatile ("csrr %0, mcycle" : "=r"(cycle));
+-#else
+-	__asm volatile ("csrr %0, cycle" : "=r"(cycle));
+-#endif
+-	return cycle;
++	// TODO: support cycle
++	return 0;
+ }
+ 
+ 
