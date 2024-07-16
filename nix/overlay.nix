@@ -14,27 +14,7 @@ rec {
 
   # Override "nixpkgs" circt with "nixpkgs-for-circt".
   # To update the "nixpkgs-for-circt" input, run `nix flake lock --update-input nixpkgs-for-circt`.
-  circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt.overrideAttrs (old: rec {
-    version = "nightly";
-    src = final.fetchFromGitHub {
-      owner = "llvm";
-      repo = "circt";
-      rev = "1f6c29fb6465877d86c65d9ac2c6eeaa8f1e9044";
-      sha256 = "sha256-1tfClDKtVAp8j0+Aku5+2QTriqmsr3sjIReg7ekKZx0=";
-      fetchSubmodules = true;
-    };
-    preConfigure = ''
-      find ./test -name '*.mlir' -exec sed -i 's|/usr/bin/env|${final.coreutils}/bin/env|g' {} \;
-      substituteInPlace cmake/modules/GenVersionFile.cmake --replace "unknown git version" "nightly"
-    '';
-    patches = [
-      (final.fetchpatch {
-        url = "https://patch-diff.githubusercontent.com/raw/llvm/circt/pull/7210.diff";
-        sha256 = "sha256-eAWIcBgn+TDfZN/mi2IdoKNa9j6In864lTu88rFv2/o=";
-      })
-      ./pkgs/revert-llvm-bump.patch
-    ];
-  });
+  circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt;
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
