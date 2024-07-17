@@ -281,6 +281,10 @@ case class T1Parameter(
 
 class T1Probe(param: T1Parameter) extends Bundle {
   val instructionCounter: UInt = UInt(param.instructionIndexBits.W)
+  // write queue enq for mask unit
+  val writeQueueEnq: ValidIO[UInt] = Valid(UInt(param.instructionIndexBits.W))
+  // mask unit instruction valid
+  val instructionValid: UInt = UInt(param.chainingSize.W)
 }
 
 /** Top of Vector processor:
@@ -319,7 +323,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
   // TODO: this is an example of adding a new Probe
   val lsuProbe = IO(Probe(new LSUProbe(parameter.lsuParameters)))
-  val laneProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new LaneProbe(parameter.chainingSize))).suggestName(s"lane${laneIdx}Probe"))
+  val laneProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new LaneProbe(parameter.chainingSize, parameter.instructionIndexBits))).suggestName(s"lane${laneIdx}Probe"))
   val laneVrfProbes = Seq.tabulate(parameter.laneNumber)(laneIdx => IO(Probe(new VRFProbe(
     parameter.laneParam.vrfParam.regNumBits,
     parameter.laneParam.vrfOffsetBits,
@@ -1692,6 +1696,12 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   val probeWire = Wire(new T1Probe(parameter))
   define(t1Probe, ProbeValue(probeWire))
   probeWire.instructionCounter := instructionCounter
+  // maskUnitWrite maskUnitWriteReady
+  probeWire.writeQueueEnq.valid := maskUnitWrite.valid && maskUnitWriteReady
+  probeWire.writeQueueEnq.bits := maskUnitWrite.bits.instructionIndex
+  instructionValid := maskAnd(
+    !slots.last.state.sMaskUnitExecution && !slots.last.state.idle,
+    indexToOH(slots.last.record.instructionIndex, parameter.chainingSize)).asUInt
 
   // new V Request from core
   // val requestValidProbe: Bool = IO(Output(Probe(Bool())))
