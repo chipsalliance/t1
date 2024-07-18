@@ -51,7 +51,7 @@ lib.makeScope newScope
         elaborateConfigJson = configPath;
         elaborateConfig = builtins.fromJSON (lib.readFile configPath);
 
-        cases = innerSelf.callPackage ../../tests { ip-emu = ip.emu; };
+        cases = innerSelf.callPackage ../../tests { difftest = ip.difftest; difftest-trace = ip.difftest-trace; };
 
         # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
         cases-x86 =
@@ -75,10 +75,14 @@ lib.makeScope newScope
           emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
           emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = emu-mlirbc; };
 
+          verilated = innerSelf.callPackage ./verilated.nix { rtl = emu-rtl; };
+          verilated-trace = innerSelf.callPackage ./verilated.nix { rtl = emu-rtl; enable-trace = true; };
+
           emu = innerSelf.callPackage ./ipemu.nix { rtl = ip.emu-rtl; stdenv = moldStdenv; };
           emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = emu-rtl; stdenv = moldStdenv; do-trace = true; };
 
-          t1-simulator = innerSelf.callPackage ../../difftest/t1-simulator/default.nix { rtl = innerSelf.ip.emu-rtl; };
+          difftest = innerSelf.callPackage ../../difftest/default.nix { inherit verilated; };
+          difftest-trace = innerSelf.callPackage ../../difftest/default.nix { verilated = verilated-trace; };
         };
 
         subsystem = rec {

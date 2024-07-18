@@ -24,8 +24,6 @@ rec {
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   rvv-codegen = final.callPackage ./pkgs/rvv-codegen.nix { };
   add-determinism = final.callPackage ./pkgs/add-determinism { }; # faster strip-undetereminism
-  # difftest simulator
-  t1-simulator = final.callPackage ../difftest/t1-simulator { };
 
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {

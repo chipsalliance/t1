@@ -1,48 +1,102 @@
 # CallPackage args
-{ runCommand
+{ lib
+, stdenvNoCC
+, jq
 , zstd
-, t1-helper
-, ip-emu
+, difftest
+, difftest-trace
 , elaborateConfigJson
 }:
 
 # makeEmuResult arg
 testCase:
 
-runCommand "get-${testCase.pname}-emu-result" { nativeBuildInputs = [ zstd ]; } ''
-  echo "[nix] Running test case ${testCase.pname}"
+let
+  self = stdenvNoCC.mkDerivation {
+    name = "${testCase.pname}-emu-result";
 
-  mkdir -p "$out"
+    nativeBuildInputs = [ zstd jq ];
 
-  set +e
-  ${t1-helper}/bin/t1-helper \
-    "ipemu" \
-    --emulator-path ${ip-emu}/bin/emulator \
-    --config ${elaborateConfigJson} \
-    --case ${testCase}/bin/${testCase.pname}.elf \
-    --no-console-logging \
-    --with-file-logging \
-    --emulator-log-level "FATAL" \
-    --emulator-log-file-path "$out/emu.log" \
-    --out-dir $out &> $out/emu-wrapper.journal
+    dontUnpack = true;
 
-  if (( $? )); then
-    printf "0" > $out/emu-success
-  else
-    printf "1" > $out/emu-success
-  fi
+    difftestDriver = "${difftest}/bin/online_drive";
+    difftestArgs = [
+      "--elf-file"
+      "${testCase}/bin/${testCase.pname}.elf"
+      "--log-file"
+      "${placeholder "out"}/emu.log"
+      "--log-level"
+      "ERROR"
+    ];
 
-  if [ ! -r $out/rtl-event.log ]; then
-    echo "[nix] no rtl-event.log found in output"
-    echo "[nix] showing helper journal and exit"
-    echo
-    cat $out/emu-wrapper.journal
-    exit 1
-  fi
+    buildPhase = ''
+      runHook preBuild
 
-  echo "[nix] compressing event log"
-  zstd $out/rtl-event.log -o $out/rtl-event.log.zstd
-  rm $out/rtl-event.log
+      mkdir -p "$out"
 
-  echo "[nix] emu done"
-''
+      echo "[nix] Running test case ${testCase.pname} with args $difftestArgs"
+
+      RUST_BACKTRACE=full "$difftestDriver" $difftestArgs 2> $out/rtl-event.jsonl
+
+      echo "[nix] online driver done"
+
+      runHook postBuild
+    '';
+
+    doCheck = true;
+    checkPhase = ''
+      runHook preCheck
+
+      if [ ! -r $out/rtl-event.jsonl ]; then
+        echo -e "[nix] \033[0;31mInternal Error\033[0m: no rtl-event.jsonl found in output"
+        exit 1
+      fi
+
+      if ! jq --stream -c -e '.[]' "$out/rtl-event.jsonl" >/dev/null 2>&1; then
+        echo -e "[nix] \033[0;31mInternal Error\033[0m: invalid JSON file rtl-event.jsonl, showing original file:"
+        echo "--------------------------------------------"
+        cat $out/rtl-event.jsonl
+        echo "--------------------------------------------"
+        exit 1
+      fi
+
+      runHook postCheck
+    '';
+
+    installPhase = ''
+      runHook preInstall
+
+      echo "[nix] compressing event log"
+      zstd $out/rtl-event.jsonl -o $out/rtl-event.jsonl.zstd
+      rm $out/rtl-event.jsonl
+
+      mv perf.txt $out/
+
+      runHook postInstall
+    '';
+
+    passthru.with-trace = self.overrideAttrs (old: {
+      difftestDriver = "${difftest-trace}/bin/online_drive";
+      difftestArgs = old.difftestArgs ++ [ "--wave-path" "${placeholder "out"}/wave.fst" ];
+      postCheck = ''
+        if [ ! -r "$out/wave.fst" ]; then
+          echo -e "[nix] \033[0;31mInternal Error\033[0m: waveform not found in output"
+          exit 1
+        fi
+      '';
+    });
+
+    passthru.with-offline = self.overrideAttrs (old: {
+      preInstall = ''
+        set +e
+        "${difftest}/bin/offline" \
+          --elf-file ${testCase}/bin/${testCase.pname}.elf \
+          --log-file $out/rtl-event.jsonl \
+          --log-level ERROR &> $out/offline-check-journal
+        printf "$?" > $out/offline-check-status
+        set -e
+      '';
+    });
+  };
+in
+self

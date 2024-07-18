@@ -42,7 +42,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build verilator emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.ip.emu' -L --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.ip.difftest' -L --no-link --cores 64
       - name: "Build all testcases"
         run: |
           # Build testcases with vlen 1024 and vlen 4096
@@ -81,7 +81,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build verilator emulator with trace"
-        run: nix build '.#t1.${{ matrix.config }}.ip.emu-trace' -L --no-link --cores 64
+        run: nix build '.#t1.${{ matrix.config }}.ip.difftest-trace' -L --no-link --cores 64
 
   test-emit:
     if: '! github.event.pull_request.draft'
@@ -163,10 +163,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Run testcases"
         run: |
-          nix develop -c t1-helper runTests --jobs "${{ matrix.jobs }}"
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}"
       - name: "Run OM tests"
         run: |
-          nix develop -c t1-helper runOMTests --jobs "${{ matrix.jobs }}"
+          nix run ".#ci-helper" -- runOMTests --jobs "${{ matrix.jobs }}"
 
   report:
     name: "Report CI result"
@@ -183,9 +183,8 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: "Print step summary"
         run: |
-          nix run ".#ci-helper" -- postCI --failed-test-file-path ./failed-test.md --cycle-update-file-path ./cycle-update.md
-          cat ./failed-test.md >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
+          nix run ".#ci-helper" -- postCI --failed-tests-file-path ./failed-tests.md --cycle-update-file-path ./cycle-update.md
+          cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
       - name: "Commit cycle updates"
         run: |
