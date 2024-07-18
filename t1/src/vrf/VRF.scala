@@ -8,7 +8,7 @@ import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
-import org.chipsalliance.t1.rtl.{LSUWriteCheck, VRFReadPipe, VRFReadRequest, VRFWriteReport, VRFWriteRequest, ffo, instIndexL, ohCheck}
+import org.chipsalliance.t1.rtl.{LSUWriteCheck, VRFReadPipe, VRFReadRequest, VRFWriteReport, VRFWriteRequest, ffo, instIndexL, instIndexLE, ohCheck}
 
 sealed trait RamType
 object RamType {
@@ -524,7 +524,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           ((sinkRecord.bits.vd.bits === sourceRecord.bits.vs1.bits) && sourceRecord.bits.vs1.valid)
       )
       // source更新
-      val older = instIndexL(sinkRecord.bits.instIndex, sourceRecord.bits.instIndex)
+      val older = instIndexLE(sinkRecord.bits.instIndex, sourceRecord.bits.instIndex)
       val hazardForeLoad = Mux(older, isLoad.head && isSlow.last, isLoad.last && isSlow.head) && (
         // waw
         samVd ||

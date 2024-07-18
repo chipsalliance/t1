@@ -5,12 +5,9 @@ package org.chipsalliance.t1.rtl.lsu
 
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
-import chisel3.util._
 import chisel3.probe._
-import chisel3.util.experimental.BitSet
-import org.chipsalliance.t1.rtl.{CSRInterface, LSUBankParameter, LSURequest, VRFReadRequest, VRFWriteRequest, ffo, firstlastHelper}
-import tilelink.{TLBundle, TLBundleParameter}
-import org.chipsalliance.t1.rtl.lsu.MemoryWriteProbe
+import chisel3.util._
+import org.chipsalliance.t1.rtl._
 
 /**
  * @param datapathWidth ELEN
@@ -51,10 +48,7 @@ case class MSHRParam(
                       laneNumber:       Int,
                       paWidth:          Int,
                       lsuTransposeSize: Int,
-                      memoryBankSize:   Int,
-                      vrfReadLatency:   Int,
-                      banks:            Seq[LSUBankParameter],
-                      outerTLParam:     TLBundleParameter) {
+                      vrfReadLatency:   Int) {
 
   /** see [[LaneParameter.lmulMax]] */
   val lmulMax: Int = 8
@@ -101,12 +95,6 @@ case class MSHRParam(
   /** The hardware length of [[maskGroupSize]] */
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
 
-  /** override [[LSUParameter.tlParam]] to purge the MSHR source. */
-  val tlParam: TLBundleParameter = outerTLParam.copy(
-    a = outerTLParam.a.copy(sourceWidth = sourceWidth),
-    d = outerTLParam.d.copy(sourceWidth = sourceWidth)
-  )
-
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)
 
@@ -126,9 +114,6 @@ case class MSHRParam(
    * +1 Corresponding unaligned case
    * */
   val cacheLineIndexBits: Int = log2Ceil(vLen/lsuTransposeSize + 1)
-
-  val fistLast: (UInt, Bool, Bool) => (Bool, Bool, Bool, UInt) =
-    firstlastHelper(lsuTransposeSize, tlParam.a.dataWidth / 8)
 }
 
 /** Miss Status Handler Register
@@ -179,9 +164,12 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   @public
   val maskSelect: ValidIO[UInt] = IO(Valid(UInt(param.maskGroupSizeBits.W)))
 
-  /** TileLink Port which will be route to the [[LSU.tlPort]]. */
   @public
-  val tlPort: TLBundle = IO(param.tlParam.bundle())
+  val memReadRequest: DecoupledIO[SimpleMemRequest] = IO(Decoupled(new SimpleMemRequest(param)))
+  @public
+  val memReadResponse: DecoupledIO[SimpleMemReadResponse] = IO(Flipped(Decoupled(new SimpleMemReadResponse(param))))
+  @public
+  val memWriteRequest: DecoupledIO[SimpleMemWrite] = IO(Decoupled(new SimpleMemWrite(param)))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
    * see [[LSU.vrfWritePort]]
@@ -211,7 +199,8 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
 
   val s0Fire: Bool = Wire(Bool())
   val s1Fire: Bool = Wire(Bool())
-  val s2Fire: Bool = Wire(Bool())
+  val memRequestFire: Bool = memReadRequest.fire || memWriteRequest.fire
+  val s2Fire: Bool = memRequestFire
 
   /** request from LSU. */
   val lsuRequestReg: LSURequest = RegEnable(lsuRequest.bits, 0.U.asTypeOf(lsuRequest.bits), lsuRequest.valid)
@@ -621,7 +610,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   }
 
   /** onehot version of LSB of `tlPort.a.bits.source` */
-  val memoryRequestSourceOH: UInt = UIntToOH(tlPort.a.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0))
+  val memoryRequestSourceOH: UInt = Wire(UInt(param.maxOffsetPerLaneAccess.W))
 
   /** detect the case segment load store hazard. */
   val sourceFree: Bool = !(memoryRequestSourceOH & outstandingTLDMessages).orR
@@ -690,14 +679,14 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
 
   // handle fault only first
   /** the current TileLink message in A Channel is the first transaction in this instruction. */
-  val firstMemoryRequestOfInstruction: Bool = RegEnable(lsuRequest.valid, false.B, lsuRequest.valid || tlPort.a.fire)
+  val firstMemoryRequestOfInstruction: Bool = RegEnable(lsuRequest.valid, false.B, lsuRequest.valid || memReadRequest.fire)
 
   /** if assert, need to wait for memory response, this is used for fault only first instruction. */
   val waitFirstMemoryResponseForFaultOnlyFirst: Bool =
     RegEnable(
       lsuRequest.valid && lsuRequest.bits.instructionInformation.fof,
       false.B,
-      lsuRequest.valid || tlPort.d.fire
+      lsuRequest.valid || memReadResponse.fire
     )
 
   /** signal to check the the first memory request is responded for fault only first instruction. */
@@ -816,8 +805,9 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /** request inside s1. */
   val s1Reg: SimpleAccessStage1 = RegEnable(s1Wire, 0.U.asTypeOf(s1Wire), s1Fire)
 
+  val memRequestReady = Mux(lsuRequestReg.instructionInformation.isStore, memWriteRequest.ready, memReadRequest.ready)
   /** ready to enqueue to s2. */
-  val s2EnqueueReady: Bool = tlPort.a.ready && sourceFree
+  val s2EnqueueReady: Bool = memRequestReady && sourceFree
 
   s1EnqueueReady := s2EnqueueReady || !s1Valid
 
@@ -850,14 +840,16 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   s1EnqQueue.io.deq.ready := s1EnqueueReady && s1DataEnqValid
   s1EnqDataQueue.io.deq.ready := s1EnqueueReady
 
-  val addressInBeatByte: UInt = s1Reg.address(log2Ceil(param.tlParam.a.maskWidth) - 1, 0)
+  val addressInBeatByte: UInt = s1Reg.address(log2Ceil(param.datapathWidth / 8) - 1, 0)
   // 1 -> 1 2 -> 3 4 -> 15
   val baseMask: UInt = dataEEWOH(2) ## dataEEWOH(2) ## !dataEEWOH(0) ## true.B
   /** compute the mask for store transaction. */
-  val storeMask: UInt = (baseMask << addressInBeatByte).asUInt(param.tlParam.a.maskWidth - 1, 0)
+  val storeMask: UInt = (baseMask << addressInBeatByte).asUInt(param.datapathWidth / 8 - 1, 0)
 
   /** offset caused by element index(byte level) in the datapath. */
   val storeOffsetByIndex: UInt = (s1Reg.indexInMaskGroup(1, 0) << dataEEW).asUInt(1, 0)
+
+  val addressOffSetForDataPath: Int = log2Ceil(param.datapathWidth / 8)
 
   /** align the VRF index in datapath and memory.
    * TODO: use Mux1H to select(only 4 cases).
@@ -865,9 +857,6 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   val storeData: UInt =
     ((s1Reg.readData << (addressInBeatByte ## 0.U(3.W))) >> (storeOffsetByIndex ## 0.U(3.W))).asUInt
   // only PutFull / Get for now
-  tlPort.a.bits.opcode := !lsuRequestReg.instructionInformation.isStore ## 0.U(2.W)
-  tlPort.a.bits.param := 0.U
-  tlPort.a.bits.size := dataEEW
 
   /** source for memory request
    * make volatile field LSB to reduce the source conflict.
@@ -877,20 +866,25 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
     s1Reg.indexInMaskGroup ## s1Reg.segmentIndex,
     s1Reg.indexInMaskGroup
   )
+  memoryRequestSourceOH := UIntToOH(memoryRequestSource(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0))
   // offset index + segment index
   // log(32)-> 5    log(8) -> 3
-  tlPort.a.bits.source := memoryRequestSource
-  tlPort.a.bits.address := s1Reg.address
-  tlPort.a.bits.mask := storeMask
-  tlPort.a.bits.data := storeData
-  tlPort.a.bits.corrupt := false.B
-  tlPort.a.valid := s1Valid && sourceFree
-  s2Fire := tlPort.a.fire
+  memReadRequest.bits.source := memoryRequestSource
+  memReadRequest.bits.address := (s1Reg.address >> addressOffSetForDataPath) << addressOffSetForDataPath
+  memReadRequest.bits.size := 2.U
+  memReadRequest.valid := s1Valid && sourceFree && !lsuRequestReg.instructionInformation.isStore
 
-  val offsetRecord = RegInit(VecInit(Seq.fill(memoryRequestSourceOH.getWidth)(0.U(log2Ceil(param.tlParam.a.maskWidth).W))))
+  memWriteRequest.valid := s1Valid && sourceFree && lsuRequestReg.instructionInformation.isStore
+  memWriteRequest.bits.address := (s1Reg.address >> addressOffSetForDataPath) << addressOffSetForDataPath
+  memWriteRequest.bits.size := dataEEW
+  memWriteRequest.bits.data := storeData
+  memWriteRequest.bits.mask := storeMask
+  memWriteRequest.bits.source := memoryRequestSource
+
+  val offsetRecord = RegInit(VecInit(Seq.fill(memoryRequestSourceOH.getWidth)(0.U(log2Ceil(param.datapathWidth / 8).W))))
 
   offsetRecord.zipWithIndex.foreach { case (d, i) =>
-    when(tlPort.a.fire && memoryRequestSourceOH(i)) {
+    when(memReadRequest.fire && memoryRequestSourceOH(i)) {
       d := s1Reg.address
     }
   }
@@ -900,23 +894,23 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   /** extract `indexInMaskGroup` from response. */
   val indexInMaskGroupResponse: UInt = Mux(
     isSegmentLoadStore,
-    (tlPort.d.bits.source >> 3).asUInt,
-    tlPort.d.bits.source
+    (memReadResponse.bits.source >> 3).asUInt,
+    memReadResponse.bits.source
   )(param.maxOffsetPerLaneAccessBits - 1, 0)
 
   /** the LSB(maskGroupWidth) for response, MSHR only maintains maskGroupWidth of request. */
-  val responseSourceLSBOH: UInt = UIntToOH(tlPort.d.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0))
+  val responseSourceLSBOH: UInt = UIntToOH(memReadResponse.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0))
 
   /** which byte to access in VRF for load instruction.
    * see [[storeBaseByteOffset]]
    */
   val loadBaseByteOffset: UInt = ((groupIndex ## indexInMaskGroupResponse) << dataEEW)
-  vrfWritePort.valid := tlPort.d.valid && !lsuRequestReg.instructionInformation.isStore
-  val addressOffset = offsetRecord(tlPort.d.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0)) ## 0.U(3.W)
-  tlPort.d.ready := vrfWritePort.ready
+  vrfWritePort.valid := memReadResponse.valid
+  val addressOffset = offsetRecord(memReadResponse.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0)) ## 0.U(3.W)
+  memReadResponse.ready := vrfWritePort.ready
 
   // TODO: handle alignment for VRF and memory
-  vrfWritePort.bits.data := (((tlPort.d.bits.data >> addressOffset) << (loadBaseByteOffset(1, 0) ## 0.U(3.W)))).asUInt
+  vrfWritePort.bits.data := (((memReadResponse.bits.data >> addressOffset) << (loadBaseByteOffset(1, 0) ## 0.U(3.W)))).asUInt
   vrfWritePort.bits.last := last
   vrfWritePort.bits.instructionIndex := lsuRequestReg.instructionIndex
   vrfWritePort.bits.mask := Mux1H(
@@ -934,7 +928,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
       // vd offset for segment instructions
       Mux(
         isSegmentLoadStore,
-        tlPort.d.bits.source(2, 0) * segmentInstructionIndexInterval,
+        memReadResponse.bits.source(2, 0) * segmentInstructionIndexInterval,
         0.U
       ) +
       // vd offset for element index
@@ -955,18 +949,18 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   vrfWritePort.bits.offset := writeOffset
 
   // update [[outstandingTLDMessages]]
-  when((tlPort.d.fire || tlPort.a.fire) && !lsuRequestReg.instructionInformation.isStore) {
+  when((memReadResponse.fire || memReadRequest.fire) && !lsuRequestReg.instructionInformation.isStore) {
     // 同时进出得让相应被拉高
     outstandingTLDMessages := (outstandingTLDMessages &
       // free outstanding source since got response from memory.
       ~Mux(
-        tlPort.d.fire,
+        memReadResponse.fire,
         responseSourceLSBOH,
         0.U(param.maxOffsetPerLaneAccess.W)
       ): UInt) |
       // allocate outstanding source since corresponding memory request has been issued.
       Mux(
-        tlPort.a.fire,
+        memReadRequest.fire,
         memoryRequestSourceOH,
         0.U(param.maxOffsetPerLaneAccess.W)
       )
@@ -982,7 +976,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   when(
     state === wResponse && noOutstandingMessages && pipelineClear
       // TODO: cosim bug for multiple response for same request!!!
-      && !tlPort.d.valid
+      && !memReadResponse.valid
   ) {
     // switch state to idle
     when(last) {
@@ -1042,11 +1036,11 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
    */
   val dataOffset = (s1EnqQueue.io.deq.bits.indexInMaskGroup << dataEEW)(1, 0) ## 0.U(3.W)
 
-  probeWire.valid := s1EnqDataQueue.io.deq.fire
+  probeWire.valid := memWriteRequest.fire
   probeWire.index := 2.U
-  probeWire.data := s1EnqDataQueue.io.deq.bits >> dataOffset
-  probeWire.mask := dataEEWOH(2) ## dataEEWOH(2) ## !dataEEWOH(0) ## true.B
-  probeWire.address := s1EnqQueue.io.deq.bits.address
+  probeWire.data := memWriteRequest.bits.data
+  probeWire.mask := memWriteRequest.bits.mask
+  probeWire.address := memWriteRequest.bits.address
 
   @public
   val lsuRequestValidProbe = IO(Output(Probe(Bool())))
@@ -1076,12 +1070,13 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   val s1FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s1Fire))))
   define(s1FireProbe, ProbeValue(s1Fire))
 
-  @public
-  val tlPortAReadyProbe = IO(Output(Probe(Bool())))
-  define(tlPortAReadyProbe, ProbeValue(tlPort.a.ready))
-  @public
-  val tlPortAValidProbe = IO(Output(Probe(Bool())))
-  define(tlPortAValidProbe, ProbeValue(tlPort.a.valid))
+//  @public
+//  val tlPortAReadyProbe = IO(Output(Probe(Bool())))
+//  define(tlPortAReadyProbe, ProbeValue(tlPort.a.ready))
+//  @public
+//  val tlPortAValidProbe = IO(Output(Probe(Bool())))
+//  define(tlPortAValidProbe, ProbeValue(tlPort.a.valid))
+
   @public
   val s1ValidProbe = IO(Output(Probe(Bool())))
   define(s1ValidProbe, ProbeValue(s1Valid))
@@ -1093,12 +1088,13 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   val s2FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s2Fire))))
   define(s2FireProbe, ProbeValue(s2Fire))
 
-  @public
-  val tlPortDReadyProbe = IO(Output(Probe(Bool())))
-  define(tlPortDReadyProbe, ProbeValue(tlPort.d.ready))
-  @public
-  val tlPortDValidProbe = IO(Output(Probe(Bool())))
-  define(tlPortDValidProbe, ProbeValue(tlPort.d.valid))
+//  @public
+//  val tlPortDReadyProbe = IO(Output(Probe(Bool())))
+//  define(tlPortDReadyProbe, ProbeValue(tlPort.d.ready))
+//  @public
+//  val tlPortDValidProbe = IO(Output(Probe(Bool())))
+//  define(tlPortDValidProbe, ProbeValue(tlPort.d.valid))
+
 
   @public
   val stateValueProbe: UInt = IO(Output(Probe(chiselTypeOf(state))))

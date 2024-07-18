@@ -27,7 +27,7 @@ class ChainingCheck(val parameter: VRFParam) extends Module {
   val checkResult: Bool = IO(Output(Bool()))
 
   // 先看新老
-  val older: Bool = instIndexL(read.instructionIndex, record.bits.instIndex)
+  val older: Bool = instIndexLE(read.instructionIndex, record.bits.instIndex)
   val sameInst: Bool = read.instructionIndex === record.bits.instIndex
 
   // 3: 8 register

@@ -150,7 +150,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       val crossWriteTokenMSB: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
 
       // Feedback is not accurate (index load/store may have already finished the instruction)
-      val responseIndexQueue = Module(new Queue(UInt(parameter.instructionIndexBits.W), parameter.chainingSize + 1))
+      val responseIndexQueue = Module(new Queue(UInt(parameter.instructionIndexBits.W), parameter.chainingSize + 1, flow = true))
       responseIndexQueue.io.enq.valid := responseReport.valid
       responseIndexQueue.io.enq.bits := responseReport.bits
       responseIndexQueue.io.deq.ready := responseFeedbackReport.valid
