@@ -1622,6 +1622,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
 
   /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
   val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
+  val vrfAllocate: Bool = VecInit(laneVec.map(_.vrfAllocateIssue)).asUInt.andR
   // - ready to issue instruction
   // - for vi and vx type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
   //   and convert it to mv instruction.
@@ -1630,7 +1631,7 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   //   we detect the hazard and decide should we issue this slide or
   //   issue the instruction after the slide which already in the slot.
   requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
-    instructionRAWReady && instructionIndexFree
+    instructionRAWReady && instructionIndexFree && vrfAllocate
 
   instructionToSlotOH := Mux(requestRegDequeue.fire, slotToEnqueue, 0.U)
 

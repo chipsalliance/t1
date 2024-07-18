@@ -208,6 +208,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   @public
   val vrfReadyToStore: Bool = IO(Output(Bool()))
 
+  @public
+  val vrfAllocateIssue: Bool = IO(Output(Bool()))
+
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
   @public
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
@@ -443,6 +446,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     recordFFO,
     0.U((parameter.chainingSize + 1).W)
   )
+  vrfAllocateIssue := freeRecord.orR && olderCheck
 
   val writePort: Seq[ValidIO[VRFWriteRequest]] = Seq(writePipe)
   val writeOH = writePort.map(p => UIntToOH((p.bits.vd ## p.bits.offset)(parameter.vrfOffsetBits + 3 - 1, 0)))
