@@ -1,22 +1,81 @@
+pub mod spike_event;
+pub mod util;
+
 use libc::c_char;
 use std::ffi::{CStr, CString};
+use tracing::trace;
+
+pub fn clip(binary: u32, a: i32, b: i32) -> u32 {
+  assert!(a <= b, "a should be less than or equal to b");
+  let nbits = b - a + 1;
+  let mask = if nbits >= 32 {
+    u32::MAX
+  } else {
+    (1 << nbits) - 1
+  };
+  (binary >> a) & mask
+}
 
 pub struct Spike {
   spike: *mut (),
+  pub mem: Vec<u8>,
+  pub size: usize,
 }
 
+extern "C" fn default_addr_to_mem(target: *mut (), addr: u64) -> *mut u8 {
+  let spike = target as *mut Spike;
+  let addr = addr as usize;
+  unsafe {
+    let spike: &mut Spike = &mut *spike;
+    let ptr = spike.mem.as_mut_ptr().offset(addr as isize);
+    ptr
+  }
+}
+
+type FfiCallback = extern "C" fn(*mut (), u64) -> *mut u8;
+
 impl Spike {
-  pub fn new(arch: &str, set: &str, lvl: &str, lane_number: usize) -> Self {
+  // we need to have a boxed SpikeCObject, since its pointer will be passed to C to perform FFI call
+  pub fn new(arch: &str, set: &str, lvl: &str, lane_number: usize, mem_size: usize) -> Box<Self> {
     let arch = CString::new(arch).unwrap();
     let set = CString::new(set).unwrap();
     let lvl = CString::new(lvl).unwrap();
     let spike = unsafe { spike_new(arch.as_ptr(), set.as_ptr(), lvl.as_ptr(), lane_number) };
-    Spike { spike }
+    let mut self_: Box<Spike> = Box::new(Spike { spike, mem: vec![0; mem_size], size: mem_size });
+
+    // TODO: support customized ffi
+    let ffi_target: *mut Spike = &mut *self_;
+    unsafe {
+      spike_register_callback(ffi_target as *mut (), default_addr_to_mem);
+    }
+
+    self_
   }
 
   pub fn get_proc(&self) -> Processor {
     let processor = unsafe { spike_get_proc(self.spike) };
     Processor { processor }
+  }
+
+  pub fn load_bytes_to_mem(
+    &mut self,
+    addr: usize,
+    len: usize,
+    bytes: Vec<u8>,
+  ) -> anyhow::Result<()> {
+    trace!("ld: addr: 0x{:x}, len: 0x{:x}", addr, len);
+    assert!(addr + len <= self.size);
+
+    let dst = &mut self.mem[addr..addr + len];
+    for (i, byte) in bytes.iter().enumerate() {
+      dst[i] = *byte;
+    }
+
+    Ok(())
+  }
+
+  pub fn mem_byte_on_addr(&self, addr: usize) -> anyhow::Result<u8> {
+    Ok(self.mem[addr])
   }
 }
 
@@ -50,8 +109,8 @@ impl Processor {
     unsafe { proc_func(self.processor) }
   }
 
-  pub fn get_insn(&self) -> u64 {
-    unsafe { proc_get_insn(self.processor) }
+  pub fn get_insn(&self) -> u32 {
+    unsafe { proc_get_insn(self.processor) as u32 }
   }
 
   pub fn get_vreg_data(&self, idx: u32, offset: u32) -> u8 {
@@ -71,8 +130,8 @@ impl Processor {
   }
 
   // vu
-  pub fn vu_get_vtype(&self) -> u64 {
-    unsafe { proc_vu_get_vtype(self.processor) }
+  pub fn vu_get_vtype(&self) -> u32 {
+    unsafe { proc_vu_get_vtype(self.processor) as u32 }
   }
 
   pub fn vu_get_vxrm(&self) -> u32 {
@@ -135,7 +194,7 @@ impl State {
   }
 
   pub fn get_reg_write_index(&self, index: u32) -> u32 {
-    unsafe { state_get_reg_write_index(self.state) >> (index * 4) }
+    unsafe { state_get_reg_write_index(self.state, index) }
   }
 
   pub fn get_mem_write_size(&self) -> u32 {
@@ -178,12 +237,15 @@ impl Drop for State {
   }
 }
 
-type FfiCallback = extern "C" fn(u64) -> *mut u8;
-
 #[link(name = "spike_interfaces")]
 extern "C" {
-  pub fn spike_register_callback(callback: FfiCallback);
-  fn spike_new(arch: *const c_char, set: *const c_char, lvl: *const c_char, lane_number: usize) -> *mut ();
+  pub fn spike_register_callback(target: *mut (), callback: FfiCallback);
+  fn spike_new(
+    arch: *const c_char,
+    set: *const c_char,
+    lvl: *const c_char,
+    lane_number: usize,
+  ) -> *mut ();
   fn spike_get_proc(spike: *mut ()) -> *mut ();
   fn spike_destruct(spike: *mut ());
   fn proc_disassemble(proc: *mut ()) -> *mut c_char;
@@ -209,7 +271,7 @@ extern "C" {
   fn state_get_pc(state: *mut ()) -> u64;
   fn state_get_reg(state: *mut (), index: u32, is_fp: bool) -> u32;
   fn state_get_reg_write_size(state: *mut ()) -> u32;
-  fn state_get_reg_write_index(state: *mut ()) -> u32;
+  fn state_get_reg_write_index(state: *mut (), index: u32) -> u32;
   fn state_get_mem_write_size(state: *mut ()) -> u32;
   fn state_get_mem_write_addr(state: *mut (), index: u32) -> u32;
   fn state_get_mem_write_value(state: *mut (), index: u32) -> u64;
