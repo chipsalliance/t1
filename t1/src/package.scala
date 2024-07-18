@@ -9,7 +9,6 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.{Decoder, TableGenerator}
 import org.chipsalliance.t1.rtl.lane.Distributor
-import tilelink.{TLBundleParameter, TLChannelD}
 
 package object rtl {
   def csa32(s: UInt, c: UInt, a: UInt): (UInt, UInt) = {
@@ -25,7 +24,12 @@ package object rtl {
 
   def instIndexL(a: UInt, b: UInt): Bool = {
     require(a.getWidth == b.getWidth)
-    a === b || ((a(a.getWidth - 2, 0) < b(b.getWidth - 2, 0)) ^ a(a.getWidth - 1) ^ b(b.getWidth - 1))
+    (a(a.getWidth - 2, 0) < b(b.getWidth - 2, 0)) ^ a(a.getWidth - 1) ^ b(b.getWidth - 1)
+  }
+
+  def instIndexLE(a: UInt, b: UInt): Bool = {
+    require(a.getWidth == b.getWidth)
+    a === b ||  instIndexL(a, b)
   }
 
   def ffo(input: UInt): UInt = {

@@ -25,7 +25,7 @@ class WriteCheck(val parameter: VRFParam) extends Module {
   val checkResult: Bool = IO(Output(Bool()))
 
   // 先看新老
-  val older: Bool = instIndexL(check.instructionIndex, record.bits.instIndex)
+  val older: Bool = instIndexLE(check.instructionIndex, record.bits.instIndex)
   val sameInst: Bool = check.instructionIndex === record.bits.instIndex
   val checkOH: UInt = UIntToOH((check.vd ## check.offset)(parameter.vrfOffsetBits + 3 - 1, 0))
 

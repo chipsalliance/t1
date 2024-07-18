@@ -41,7 +41,11 @@ class LaneSlotProbe extends Bundle {
   val executionUnitVfuRequestValid: Bool = Bool()
   val stage3VrfWriteReady: Bool = Bool()
   val stage3VrfWriteValid: Bool = Bool()
-  // val probeStage1: Bool = Bool()
+
+  // write queue enq for lane
+  val writeQueueEnq: Bool = Bool()
+  val writeTag: UInt = UInt(instructionIndexBit.W)
+  val writeMask: UInt = UInt(4.W)
 }
 
 class LaneProbe(slotsSize: Int) extends Bundle {
