@@ -272,6 +272,15 @@ case class T1Parameter(
 
 class T1Probe(param: T1Parameter) extends Bundle {
   val instructionCounter: UInt = UInt(param.instructionIndexBits.W)
+  val instructionIssue: Bool = Bool()
+  val issueTag: UInt = UInt(param.instructionIndexBits.W)
+  // write queue enq for mask unit
+  val writeQueueEnq: ValidIO[UInt] = Valid(UInt(param.instructionIndexBits.W))
+  val writeQueueEnqMask: UInt = UInt((param.datapathWidth / 8).W)
+  // mask unit instruction valid
+  val instructionValid: UInt = UInt((param.chainingSize * 2).W)
+  // instruction index for check rd
+  val responseCounter: UInt = UInt(param.instructionIndexBits.W)
 }
 
 /** Top of Vector processor:
@@ -1684,6 +1693,17 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
   val probeWire = Wire(new T1Probe(parameter))
   define(t1Probe, ProbeValue(probeWire))
   probeWire.instructionCounter := instructionCounter
+  probeWire.instructionIssue := requestRegDequeue.fire
+  probeWire.issueTag := requestReg.bits.instructionIndex
+  // maskUnitWrite maskUnitWriteReady
+  probeWire.writeQueueEnq.valid := maskUnitWrite.valid && maskUnitWriteReady
+  probeWire.writeQueueEnq.bits := maskUnitWrite.bits.instructionIndex
+  probeWire.writeQueueEnqMask := maskUnitWrite.bits.mask
+  probeWire.instructionValid := maskAnd(
+    !slots.last.state.sMaskUnitExecution && !slots.last.state.idle,
+    indexToOH(slots.last.record.instructionIndex, parameter.chainingSize * 2)).asUInt
+  probeWire.responseCounter := responseCounter
+
 
   // new V Request from core
   // val requestValidProbe: Bool = IO(Output(Probe(Bool())))

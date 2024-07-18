@@ -215,18 +215,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   @public
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
-  @public
-  val probe = IO(Output(Probe(new VRFProbe(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits, parameter.datapathWidth))))
-  val probeWire = Wire(new VRFProbe(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits, parameter.datapathWidth))
-  define(probe, ProbeValue(probeWire))
-
-  probeWire.valid := write.valid
-  probeWire.requestVd := write.bits.vd
-  probeWire.requestOffset := write.bits.offset
-  probeWire.requestMask := write.bits.mask
-  probeWire.requestData := write.bits.data
-  probeWire.requestInstruction := write.bits.instructionIndex
-
   // TODO: add Chaining Check Probe
 
   // todo: delete
@@ -551,4 +539,19 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       checkModule.checkResult
     }.reduce(_ && _)
   }
+
+  /* 
+  * Probe
+  */
+  @public
+  val probe = IO(Output(Probe(new VRFProbe(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits, parameter.datapathWidth))))
+  val probeWire = Wire(new VRFProbe(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits, parameter.datapathWidth))
+  define(probe, ProbeValue(probeWire))
+
+  probeWire.valid := writePipe.valid
+  probeWire.requestVd := writePipe.bits.vd
+  probeWire.requestOffset := writePipe.bits.offset
+  probeWire.requestMask := writePipe.bits.mask
+  probeWire.requestData := writePipe.bits.data
+  probeWire.requestInstruction := writePipe.bits.instructionIndex
 }
