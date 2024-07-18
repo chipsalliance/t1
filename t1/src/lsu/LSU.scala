@@ -80,7 +80,7 @@ class LSUSlotProbe(param: LSUParameter) extends Bundle {
   val dataData: UInt = UInt(param.datapathWidth.W)
   val dataInstruction: UInt = UInt(param.instructionIndexBits.W)
   val writeValid: Bool = Bool()
-  val targetLane: UInt = UInt(param.laneNumber.W)
+  val targetLane: UInt = UInt(log2Ceil(param.laneNumber).W)
 }
 
 class MemoryWriteProbe(param: MSHRParam) extends Bundle {
@@ -92,10 +92,12 @@ class MemoryWriteProbe(param: MSHRParam) extends Bundle {
 }
 
 class LSUProbe(param: LSUParameter) extends Bundle {
+  // lsu write queue enq probe
   val slots = Vec(param.laneNumber, new LSUSlotProbe(param))
   val storeUnitProbe = new MemoryWriteProbe(param.mshrParam)
   val otherUnitProbe = new MemoryWriteProbe(param.mshrParam)
   val reqEnq: UInt = UInt(param.lsuMSHRSize.W)
+  val lsuInstructionValid: UInt = UInt((param.chainingSize * 2).W)
 }
 
 /** Load Store Unit
@@ -281,12 +283,18 @@ class LSU(param: LSUParameter) extends Module {
     probeWire.slots(index).dataData := write.io.enq.bits.data.data
     probeWire.slots(index).dataInstruction := write.io.enq.bits.data.instructionIndex
     probeWire.slots(index).writeValid := write.io.enq.valid
-    probeWire.slots(index).targetLane := write.io.enq.bits.targetLane
+    probeWire.slots(index).targetLane := OHToUInt(write.io.enq.bits.targetLane)
   }
   probeWire.reqEnq := reqEnq.asUInt
 
   probeWire.storeUnitProbe := probe.read(storeUnit.probe)
   probeWire.otherUnitProbe := probe.read(otherUnit.probe)
+  probeWire.lsuInstructionValid :=
+    // The load unit becomes idle when it writes vrf for the last time.
+    maskAnd(!loadUnit.status.idle || VecInit(loadUnit.vrfWritePort.map(_.valid)).asUInt.orR,
+      indexToOH(loadUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt |
+      maskAnd(!storeUnit.status.idle, indexToOH(storeUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt |
+      maskAnd(!otherUnit.status.idle, indexToOH(otherUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt
 
   vrfWritePort.zip(writeQueueVec).foreach { case (p, q) =>
     p.valid := q.io.deq.valid

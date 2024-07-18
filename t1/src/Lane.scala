@@ -27,7 +27,7 @@ class LaneOM extends Class {
   vfus := vfusIn
 }
 
-class LaneSlotProbe extends Bundle {
+class LaneSlotProbe(instructionIndexBit: Int) extends Bundle {
   val stage0EnqueueReady: Bool = Bool()
   val stage0EnqueueValid: Bool = Bool()
   val changingMaskSet: Bool = Bool()
@@ -48,8 +48,13 @@ class LaneSlotProbe extends Bundle {
   val writeMask: UInt = UInt(4.W)
 }
 
-class LaneProbe(slotsSize: Int) extends Bundle {
-  val slots = Vec(slotsSize, new LaneSlotProbe)
+class LaneWriteProbe(instructionIndexBit: Int) extends Bundle {
+  val writeTag: UInt = UInt(instructionIndexBit.W)
+  val writeMask: UInt = UInt(4.W)
+}
+
+class LaneProbe(slotsSize: Int, instructionIndexBit: Int) extends Bundle {
+  val slots = Vec(slotsSize, new LaneSlotProbe(instructionIndexBit))
   // @todo @Clo91eaf remove valid here, add stall := valid & !ready
   val laneRequestValid: Bool = Bool()
   // @todo remove it.
@@ -59,6 +64,9 @@ class LaneProbe(slotsSize: Int) extends Bundle {
   // @todo replace it with VRFProbe
   val vrfInstructionWriteReportReady: Bool = Bool()
   val instructionFinished: UInt = UInt(slotsSize.W)
+  val instructionValid: UInt = UInt(slotsSize.W)
+
+  val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] = Vec(2, Valid(new LaneWriteProbe(instructionIndexBit)))
 }
 
 object LaneParameter {
@@ -306,8 +314,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val vrfReadyToStore: Bool = IO(Output(Bool()))
 
   @public
-  val probe: LaneProbe = IO(Output(Probe(new LaneProbe(parameter.chainingSize))))
-  val probeWire: LaneProbe = Wire(new LaneProbe(parameter.chainingSize))
+  val probe: LaneProbe = IO(Output(Probe(new LaneProbe(parameter.chainingSize, parameter.instructionIndexBits))))
+  val probeWire: LaneProbe = Wire(new LaneProbe(parameter.chainingSize, parameter.instructionIndexBits))
   define(probe, ProbeValue(probeWire))
   @public
   val vrfProbe = IO(Output(Probe(new VRFProbe(
@@ -816,6 +824,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       probeWire.slots(index).executionUnitVfuRequestValid := executionUnit.vfuRequest.valid
       probeWire.slots(index).stage3VrfWriteReady := stage3.vrfWriteRequest.ready
       probeWire.slots(index).stage3VrfWriteValid := stage3.vrfWriteRequest.valid
+      probeWire.slots(index).writeQueueEnq := stage3.vrfWriteRequest.fire
+      probeWire.slots(index).writeTag := stage3.vrfWriteRequest.bits.instructionIndex
+      probeWire.slots(index).writeMask := stage3.vrfWriteRequest.bits.mask
       // probeWire.slots(index).probeStage1 := ???
   }
 
@@ -1216,4 +1227,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   probeWire.lastSlotOccupied := slotOccupied.last
   probeWire.vrfInstructionWriteReportReady := vrf.instructionWriteReport.ready
   probeWire.instructionFinished := instructionFinished
+  probeWire.instructionValid := instructionValid
+  probeWire.crossWriteProbe.zip(writeBusPort).foreach {case (pb, port) =>
+    pb.valid := port.deq.valid
+    pb.bits.writeTag := port.deq.bits.instructionIndex
+    pb.bits.writeMask := port.deq.bits.mask
+  }
 }
