@@ -317,6 +317,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     parameter.datapathWidth
   ))))
 
+  @public
+  val vrfAllocateIssue: Bool = IO(Output(Bool()))
+
   // TODO: remove
   dontTouch(writeBusPort)
 
@@ -1124,6 +1127,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.state.wLaneLastReport := !laneRequest.valid
   vrf.instructionWriteReport.bits.state.wTopLastReport := !laneRequest.bits.decodeResult(Decoder.maskUnit)
   vrf.instructionWriteReport.bits.state.wLaneClear := false.B
+  vrfAllocateIssue := vrf.vrfAllocateIssue
 
   val elementSizeForOneRegister: Int = parameter.vLen / parameter.datapathWidth / parameter.laneNumber
   val nrMask: UInt = VecInit(Seq.tabulate(8){ i =>
