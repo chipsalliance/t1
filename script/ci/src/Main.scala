@@ -161,85 +161,102 @@ object Main:
         )
 
         val testResultPath =
-          os.Path(nixResolvePath(s".#t1.$config.cases.$caseName.emu-result"))
+          try
+            os.Path(
+              nixResolvePath(
+                s".#t1.$config.cases.$caseName.emu-result.with-offline"
+              )
+            )
+          catch
+            case _ =>
+              Logger.error(s"Emulation for config $config, case $caseName fail")
+              println("-" * 50)
+              println(
+                os.proc(
+                  "nix",
+                  "log",
+                  s".#t1.$config.cases.$caseName.emu-result"
+                ).call()
+                  .out
+              )
+              println("-" * 50)
+              Logger.fatal("Got error from emulation, exiting CI")
+
+        Logger.info("Checking RTL event with offline difftest")
         val testSuccess =
-          os.read(testResultPath / "emu-success").trim().toInt == 1
-
+          os.read(testResultPath / "offline-check-status").trim() == "0"
         if !testSuccess then
-          Logger.error(s"Test case $testName failed")
-          val err = os.read(testResultPath / "emu.log")
-          Logger.error(s"Detail error: $err")
-
-        Logger.info("Running difftest")
-        val handle = os.proc(
-          "nix",
-          "run",
-          ".#t1-helper",
-          "--",
-          "difftest",
-          "--config",
-          config,
-          "--case-attr",
-          caseName,
-          "--log-level",
-          "ERROR"
-        ).call(stdout = os.Inherit, stderr = os.Inherit, check = false)
-        val diffTestSuccess = handle.exitCode == 0
-        if !diffTestSuccess then
-          Logger.error("difftest run failed")
-
-        if diffTestSuccess != testSuccess then
-          Logger.fatal(
-            "Got different online and offline difftest result, please check this test manually. CI aborted."
-          )
-
-        if !testSuccess then allFailedTest :+ s"t1.$config.cases.$caseName"
+          Logger.error(s"Offline check for $caseName ($config) failed")
+          allFailedTest :+ s"t1.$config.cases.$caseName"
         else allFailedTest
     end findFailedTests
 
     val failedTests = findFailedTests()
     if failedTests.isEmpty then Logger.info(s"All tests passed")
+    else if dontBail.value then
+      Logger.error(
+        s"${BOLD}${failedTests.length} tests failed${RESET}"
+      )
     else
-      val listOfFailJobs =
-        failedTests.map(job => s"* $job").appended("").mkString("\n")
-      val failedJobsWithError = failedTests
-        .map(testName =>
-          val testResult = os.Path(nixResolvePath(s".#$testName.emu-result"))
-          val emuLog = os.read(testResult / "emu.log")
-          if emuLog.nonEmpty then
-            s"* $testName\n     >>> ERROR SUMMARY <<<\n${emuLog}"
-          else
-            s"* $testName\n     >>> OTHER ERROR   <<<\n${os.read(testResult / "emu.journal")}"
-        )
-        .appended("")
-        .mkString("\n")
-
-      if dontBail.value then
-        Logger.error(
-          s"${BOLD}${failedTests.length} tests failed${RESET}:\n${failedJobsWithError}"
-        )
-      else
-        Logger.fatal(
-          s"${BOLD}${failedTests.length} tests failed${RESET}:\n${failedJobsWithError}"
-        )
+      Logger.fatal(
+        s"${BOLD}${failedTests.length} tests failed${RESET}"
+      )
   end runTests
+
+  @main
+  def runOMTests(
+      jobs: String
+  ): Unit =
+    val configs = jobs.split(";").map(_.split(",")(0))
+    configs.distinct.foreach: config =>
+      Seq("omreader", "emu-omreader").foreach: target =>
+        val command = Seq(
+          "nix",
+          "run",
+          s".#t1.$config.ip.$target",
+          "--",
+          "run",
+          "--dump-methods"
+        )
+        println("\n")
+        Logger.info(
+          s"Running OM test with command $BOLD'${command.mkString(" ")}'$RESET"
+        )
+        val outputs = os.proc(command).call().out.trim()
+        Logger.trace(s"Outputs:\n${outputs}")
+
+        Seq("vlen =", "dlen =").foreach: keyword =>
+          if outputs.contains(keyword) then
+            Logger.info(
+              s"Keyword $BOLD'$keyword'$RESET found - ${GREEN}Pass!$RESET"
+            )
+          else
+            Logger.fatal(
+              s"Keyword $BOLD'$keyword'$RESET not found - ${RED}Fail!$RESET"
+            )
+  end runOMTests
 
   // PostCI do the below four things:
   //   * read default.json at .github/cases/$config/default.json
   //   * generate case information for each entry in default.json (cycle, run success)
-  //   * collect and report failed tests
   //   * collect and report cycle update
   @main
   def postCI(
       @arg(
-        name = "failed-test-file-path",
-        doc = "specify the failed test markdown file output path"
+        name = "failed-tests-file-path",
+        doc = "specify the failed tests markdown file output path"
       ) failedTestsFilePath: String,
       @arg(
         name = "cycle-update-file-path",
         doc = "specify the cycle update markdown file output path"
       ) cycleUpdateFilePath: String
   ) =
+    val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
+    os.write.over(failedTestsFile, "## Failed Tests\n")
+
+    val cycleUpdateRecordFile = os.Path(cycleUpdateFilePath, os.pwd)
+    os.write.over(cycleUpdateRecordFile, "## Cycle Update\n")
+
     os.walk(os.pwd / ".github" / "cases")
       .filter(_.last == "default.json")
       .foreach: file =>
@@ -250,20 +267,18 @@ object Main:
         val emuResultPath =
           os.Path(nixResolvePath(s".#t1.$config.cases._allEmuResult"))
 
-        Logger.info("Collecting failed cases")
-        val failedCases = os
-          .walk(emuResultPath)
-          .filter(path => path.last == "emu-success")
-          .filter(path => os.read(path) == "0")
-          .map(path => path.segments.toSeq.reverse.drop(1).head)
-          .map(caseName => s"* `.#t1.${config}.cases.${caseName}`")
-        val failedTestsRecordFile = os.Path(failedTestsFilePath, os.pwd)
-        os.write.over(failedTestsRecordFile, "## Failed tests\n")
-        os.write.append(failedTestsRecordFile, failedCases)
+        Logger.info("Collecting failed tests")
+        os.walk(emuResultPath)
+          .filter(path => path.last == "offline-check-status")
+          .filter(path => os.read(path).trim() != "0")
+          .map(path => {
+            val caseName = path.segments.toSeq.reverse.drop(1).head
+            val journal = os.read(path / os.up / "offline-check-journal")
+            os.write.append(failedTestsFile, s"* ${config} - ${caseName}\n")
+            os.write.append(failedTestsFile, s"```text\n${journal}\n```\n")
+          })
 
         Logger.info("Collecting cycle update info")
-        val cycleUpdateRecordFile = os.Path(cycleUpdateFilePath, os.pwd)
-        os.write.over(cycleUpdateRecordFile, "## Cycle Update\n")
         val perfCycleRegex = raw"total_cycles:\s(\d+)".r
         val allCycleUpdates = os
           .walk(emuResultPath)
@@ -280,12 +295,13 @@ object Main:
           .map:
             case (caseName, newCycle, oldCycle) =>
               cycleRecord(caseName) = newCycle
-              if oldCycle == -1 then s"* 🆕 ${caseName}: NaN -> ${newCycle}"
+              if oldCycle == -1 then s"* 🆕 ${caseName}($config): NaN -> ${newCycle}"
               else if oldCycle > newCycle then
-                s"* 🚀 $caseName: $oldCycle -> $newCycle"
-              else s"* 🐢 $caseName: $oldCycle -> $newCycle"
+                s"* 🚀 $caseName($config): $oldCycle -> $newCycle"
+              else s"* 🐢 $caseName($config): $oldCycle -> $newCycle"
 
         os.write.append(cycleUpdateRecordFile, allCycleUpdates.mkString("\n"))
+        os.write.append(cycleUpdateRecordFile, "\n")
 
         os.write.over(file, ujson.write(cycleRecord, indent = 2))
   end postCI

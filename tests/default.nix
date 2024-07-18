@@ -4,7 +4,8 @@
 , newScope
 , rv32-stdenv
 , runCommand
-, ip-emu
+, difftest
+, difftest-trace
 }:
 
 let
@@ -19,7 +20,7 @@ let
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
 
-    inherit ip-emu;
+    inherit difftest difftest-trace;
 
     makeEmuResult = casesSelf.callPackage ./make-emu-result.nix { };
 
@@ -79,8 +80,9 @@ let
         (caseDrv: ''
           _caseOutDir=$out/${caseDrv.pname}
           mkdir -p "$_caseOutDir"
-          cp ${caseDrv.emu-result}/perf.txt "$_caseOutDir"/
-          cp ${caseDrv.emu-result}/emu-success "$_caseOutDir"/
+          cp ${caseDrv.emu-result.with-offline}/perf.txt "$_caseOutDir"/
+          cp ${caseDrv.emu-result.with-offline}/offline-check-status "$_caseOutDir"/
+          cp ${caseDrv.emu-result.with-offline}/offline-check-journal "$_caseOutDir"/
         '')
         allCases);
     in
