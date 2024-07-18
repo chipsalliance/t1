@@ -22,7 +22,7 @@ object v {
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"
   val oslib = ivy"com.lihaoyi::os-lib:0.9.1"
-  val upickle = ivy"com.lihaoyi::upickle:3.1.3"
+  val upickle = ivy"com.lihaoyi::upickle:3.3.1"
   val sourcecode = ivy"com.lihaoyi::sourcecode:0.3.1"
   val scalaReflect = ivy"org.scala-lang:scala-reflect:${scala}"
   val bc = ivy"org.bouncycastle:bcprov-jdk15to18:latest.integration"
