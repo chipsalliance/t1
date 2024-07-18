@@ -1,0 +1,4 @@
+hard_tabs = false
+tab_spaces = 2
+chain_width = 100
+struct_lit_width = 50

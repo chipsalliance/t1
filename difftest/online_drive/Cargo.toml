@@ -1,0 +1,17 @@
+[package]
+name = "online_drive"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../test_common" }
+spike_rs = { path = "../spike_rs" }
+clap = { workspace = true }
+tracing = { workspace = true }
+hex = "0.4.3"
+
+[build-dependencies]
+cmake = "0.1.50"
+
+[features]
+trace = []
