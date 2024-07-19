@@ -1,4 +1,4 @@
-use crate::dpi::get_t;
+use crate::dpi::{dump_wave, get_t};
 
 use clap::{arg, Parser};
 use std::collections::HashMap;
@@ -39,6 +39,50 @@ pub struct SimulationArgs {
   /// The timeout value
   #[arg(long, default_value_t = 1_0000)]
   pub timeout: u64,
+
+  #[cfg(feature = "trace")]
+  #[arg(long)]
+  pub wave_path: String,
+
+  #[cfg(feature = "trace")]
+  #[arg(long, default_value = "")]
+  pub dump_range: String,
+}
+
+impl SimulationArgs {
+  #[cfg(feature = "trace")]
+  fn parse_range(&self) -> (u64, u64) {
+    let input = &self.dump_range;
+
+    if input.is_empty() {
+      return (0, 0);
+    }
+
+    let parts: Vec<&str> = input.split(",").collect();
+
+    if parts.len() != 1 && parts.len() != 2 {
+      error!("invalid dump wave range: `{input}` was given");
+      return (0, 0);
+    }
+
+    const INVALID_NUMBER: &'static str = "invalid number";
+
+    if parts.len() == 1 {
+      return (parts[0].parse().expect(INVALID_NUMBER), 0);
+    }
+
+    if parts[0].is_empty() {
+      return (0, parts[1].parse().expect(INVALID_NUMBER));
+    }
+
+    let start = parts[0].parse().expect(INVALID_NUMBER);
+    let end = parts[1].parse().expect(INVALID_NUMBER);
+    if start > end {
+      panic!("dump start is larger than end: `{input}`");
+    }
+
+    (start, end)
+  }
 }
 
 // FIXME: fix FunctionSym
@@ -62,6 +106,15 @@ pub struct Simulator {
   pub(crate) fn_sym_tab: FunctionSymTab,
   pub(crate) dlen: u32,
   pub(crate) timeout: u64,
+
+  #[cfg(feature = "trace")]
+  wave_path: String,
+  #[cfg(feature = "trace")]
+  dump_start: u64,
+  #[cfg(feature = "trace")]
+  dump_end: u64,
+  #[cfg(feature = "trace")]
+  dump_started: bool,
 }
 
 pub static WATCHDOG_CONTINUE: u8 = 0;
@@ -85,6 +138,9 @@ impl Simulator {
     let (_FIXME_e_entry, mem, fn_sym_tab) =
       Self::load_elf(&args.elf_file).expect("fail creating simulator");
 
+    #[cfg(feature = "trace")]
+    let (dump_start, dump_end) = args.parse_range();
+
     Self {
       mem,
       fn_sym_tab,
@@ -92,6 +148,15 @@ impl Simulator {
       dlen: option_env!("DESIGN_DLEN")
         .map(|dlen| dlen.parse().expect("fail to parse dlen into u32 digit"))
         .unwrap_or(256),
+
+      #[cfg(feature = "trace")]
+      wave_path: args.wave_path.to_owned(),
+      #[cfg(feature = "trace")]
+      dump_start,
+      #[cfg(feature = "trace")]
+      dump_end,
+      #[cfg(feature = "trace")]
+      dump_started: false,
     }
   }
 
@@ -251,10 +316,7 @@ impl Simulator {
     } else {
       #[cfg(feature = "trace")]
       if self.dump_end != 0 && tick > self.dump_end {
-        info!(
-          "[{tick}] run to dump end, exiting (last_commit_cycle={})",
-          self.last_commit_cycle
-        );
+        info!("[{tick}] run to dump end, exiting",);
         return WATCHDOG_TIMEOUT;
       }
 
@@ -267,6 +329,11 @@ impl Simulator {
       trace!("[{}] watchdog continue", get_t());
       WATCHDOG_CONTINUE
     }
+  }
+
+  #[cfg(feature = "trace")]
+  fn start_dump_wave(&mut self) {
+    dump_wave(&self.wave_path);
   }
 }
 
