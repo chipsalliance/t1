@@ -51,12 +51,10 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
   private class WriteManager(
     channel: AWChannel with AWFlowControl with WChannel with WFlowControl with BChannel with BFlowControl) {
     withClockAndReset(io.clock, io.reset) {
-      /** indicate AW is issued. */
-      val awIssued = RegInit(0.U.asTypeOf(Bool()))
-      /** indicate W is finished, used to wake up B channel. */
-      val last = RegInit(0.U.asTypeOf(Bool()))
-      /** indicate there is an ongoing write transaction. */
-      val busy = RegInit(0.U.asTypeOf(Bool()))
+      /** There is an aw in the register. */
+      val awIssued = RegInit(false.B)
+      /** There is a w in the register. */
+      val last = RegInit(false.B)
 
       /** memory to store the write payload
         * @todo limit the payload size based on the RTL configuration.
@@ -73,15 +71,19 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       val awprot = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWPROT)))
       val awqos = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWQOS)))
       val awregion = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWREGION)))
+      val awuser = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWUSER)))
 
       /** index the payload, used to write [[writePayload]] */
       val writeIdx = RegInit(0.U.asTypeOf(UInt(8.W)))
+      val bFire = channel.BREADY && channel.BVALID
+      val awFire = channel.AWREADY && channel.AWVALID
+      val wLastFire = channel.WVALID && channel.WREADY && channel.WLAST
+      val awExist = channel.AWVALID || awIssued
+      val wExist = channel.WVALID && channel.WLAST || last
 
       // AW
-      channel.AWREADY := !busy || (busy && !awIssued)
+      channel.AWREADY := !awIssued || (wExist && channel.BREADY)
       when(channel.AWREADY && channel.AWVALID) {
-        awIssued := true.B
-        busy := true.B
         awid := channel.AWID
         awaddr := channel.AWADDR
         awlen := channel.AWLEN
@@ -92,46 +94,52 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         awprot := channel.AWPROT
         awqos := channel.AWQOS
         awregion := channel.AWREGION
+        awuser := channel.AWUSER
+      }
+      when(awFire ^ bFire) {
+        awIssued := awFire
       }
 
       // W
-      channel.WREADY := !busy || (busy && !last)
+      val writePayloadUpdate = WireDefault(writePayload)
+      channel.WREADY := !last || (awExist && channel.BREADY)
       when(channel.WVALID && channel.WREADY) {
-        busy := true.B
         writePayload.data(writeIdx) := channel.WDATA
+        writePayloadUpdate.data(writeIdx) := channel.WDATA
         writePayload.strb(writeIdx) := channel.WSTRB.pad(writePayload.strb.getWidth)
+        writePayloadUpdate.strb(writeIdx) := channel.WSTRB.pad(writePayload.strb.getWidth)
         writeIdx := writeIdx + 1.U
         when(channel.WLAST) {
-          last := true.B
+          writeIdx := 0.U
         }
+      }
+      when(wLastFire ^ bFire) {
+        last := wLastFire
       }
 
       // B
-      channel.BVALID := last && awIssued
-      channel.BID := awid
+      channel.BVALID := awExist && wExist
+      channel.BID := Mux(awIssued, awid, channel.AWID)
       channel.BRESP := 0.U(2.W) // OK
-      channel.BUSER := DontCare
+      channel.BUSER := Mux(awIssued, awuser, channel.AWUSER)
       when(channel.BVALID && channel.BREADY) {
         RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(
           io.clock,
           when.cond && !io.gateWrite,
           io.channelId,
           // handle AW and W at same beat.
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWID, awid.asTypeOf(UInt(64.W))),
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWADDR, awaddr.asTypeOf(UInt(64.W))),
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWLEN, awlen.asTypeOf(UInt(64.W))),
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWSIZE, awsize.asTypeOf(UInt(64.W))),
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWBURST, awburst.asTypeOf(UInt(64.W))),
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWLOCK, awlock.asTypeOf(UInt(64.W))),
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWCACHE, awcache.asTypeOf(UInt(64.W))),
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWPROT, awprot.asTypeOf(UInt(64.W))),
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWQOS, awqos.asTypeOf(UInt(64.W))),
-          Mux(channel.AWREADY && channel.AWVALID, channel.AWREGION, awregion.asTypeOf(UInt(64.W))),
-          WireDefault(writePayload)
+          Mux(awIssued, awid.asTypeOf(UInt(64.W)), channel.AWID),
+          Mux(awIssued, awaddr.asTypeOf(UInt(64.W)), channel.AWADDR),
+          Mux(awIssued, awlen.asTypeOf(UInt(64.W)), channel.AWLEN),
+          Mux(awIssued, awsize.asTypeOf(UInt(64.W)), channel.AWSIZE),
+          Mux(awIssued, awburst.asTypeOf(UInt(64.W)), channel.AWBURST),
+          Mux(awIssued, awlock.asTypeOf(UInt(64.W)), channel.AWLOCK),
+          Mux(awIssued, awcache.asTypeOf(UInt(64.W)), channel.AWCACHE),
+          Mux(awIssued, awprot.asTypeOf(UInt(64.W)), channel.AWPROT),
+          Mux(awIssued, awqos.asTypeOf(UInt(64.W)), channel.AWQOS),
+          Mux(awIssued, awregion.asTypeOf(UInt(64.W)), channel.AWREGION),
+          writePayloadUpdate
         )
-        awIssued := false.B
-        last := false.B
-        writeIdx := 0.U
       }
     }
   }
