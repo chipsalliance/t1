@@ -178,8 +178,8 @@ unsafe extern "C" fn cosim_watchdog_rs(target: *mut (), reason: *mut c_char) {
 extern "C" {
   fn verilator_main_c(argc: c_int, argv: *mut *mut c_char) -> c_int;
 
-  // FIXME: support waveform
-  //fn dump_wave_c(path: *const c_char);
+  #[cfg(feature = "trace")]
+  fn dump_wave_c(path: *const c_char);
 
   fn get_t_c() -> u64;
 }
@@ -209,10 +209,11 @@ pub(crate) fn verilator_main() {
   }
 }
 
-/* pub(crate) fn dump_wave(path: &str) {
+#[cfg(feature = "trace")]
+pub(crate) fn dump_wave(path: &str) {
   let path_cstring = CString::new(path).unwrap();
   let path_ptr: *const c_char = path_cstring.as_ptr();
   unsafe {
     dump_wave_c(path_ptr);
   }
-} */
+}

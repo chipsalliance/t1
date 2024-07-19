@@ -2,6 +2,7 @@
 , verilator
 , stdenv
 , cmake
+, ninja
 , rocketv-verilated-csrc
 }:
 stdenv.mkDerivation {
@@ -11,7 +12,12 @@ stdenv.mkDerivation {
 
   nativeBuildInputs = [
     cmake
+    ninja
     verilator
+  ];
+
+  cmakeFlags = lib.optionals rocketv-verilated-csrc.enable-trace [
+    "-DVM_TRACE=ON"
   ];
 
   env = {
