@@ -97,5 +97,31 @@ rec {
       };
   };
 
+  riscv-tests = final.pkgsCross.riscv64-embedded.stdenv.mkDerivation rec {
+    pname = "riscv-tests";
+    version = "7878085d2546af0eb7af72a1df00996d5d8c43fb";
+    src = final.fetchgit {
+      url = "https://github.com/riscv-software-src/riscv-tests.git";
+      rev = "${version}";
+      fetchSubmodules = true;
+      hash = "sha256-3SUfmUHwvEG4Fi6YWLLhzMhASyL07euMmkIoc9leYFE=";
+    };
+
+    enableParallelBuilding = true;
+
+    configureFlags = [
+      # to match rocket-tools path
+      "--prefix=${placeholder "out"}/riscv64-unknown-elf"
+    ];
+    buildPhase = "make RISCV_PREFIX=riscv64-none-elf-";
+    installPhase = ''
+      runHook preInstall
+      make install
+      mkdir -p $out/debug/
+      cp debug/*.py $out/debug/
+      runHook postInstall
+    '';
+  };
+
   t1 = final.callPackage ./t1 { };
 }
