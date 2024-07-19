@@ -15,9 +15,6 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
     extends RawModule
     with ImplicitClock
     with ImplicitReset {
-  override protected def implicitClock: Clock = clockGen.clock.asClock
-  override protected def implicitReset: Reset = clockGen.reset
-
   val clockGen = Module(new ExtModule with HasExtModuleInline {
     override def desiredName = "ClockGen"
     setInline(
@@ -44,8 +41,12 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
     val reset = IO(Output(Bool()))
   })
 
-  val clock:          Clock = clockGen.clock.asClock
-  val reset:          Bool = clockGen.reset
+  val clock: Clock = clockGen.clock.asClock
+  val reset: Bool = clockGen.reset
+
+  override protected def implicitClock: Clock = clockGen.clock.asClock
+  override protected def implicitReset: Reset = clockGen.reset
+
   val simulationTime: UInt = withClockAndReset(clock, reset)(RegInit(0.U(64.W)))
   simulationTime := simulationTime + 1.U
 
@@ -59,7 +60,8 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
   dut.io.msip := 0.U
   dut.io.buserror := 0.U
 
-  dut.io.resetVector := 10000.U
+  // FIXME: get resetVector from simulator instead of hard code here
+  dut.io.resetVector := (BigInt(1) << 31).U
 
   // Memory Drivers
   val instFetchAXI = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
@@ -81,7 +83,7 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
   instFetchAgent.io.reset := reset
   instFetchAgent.io.channelId := 0.U
   instFetchAgent.io.gateRead := false.B
-  instFetchAgent.io.gateWrite := true.B
+  instFetchAgent.io.gateWrite := false.B
 
   val loadStoreAXI = dut.io.loadStoreAXI.viewAs[AXI4RWIrrevocableVerilog]
   val loadStoreAgent = Module(
@@ -102,5 +104,5 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
   loadStoreAgent.io.reset := reset
   loadStoreAgent.io.channelId := 0.U
   loadStoreAgent.io.gateRead := false.B
-  loadStoreAgent.io.gateWrite := true.B
+  loadStoreAgent.io.gateWrite := false.B
 }

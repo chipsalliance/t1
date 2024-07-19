@@ -1,11 +1,13 @@
+use crate::dpi::get_t;
+
 use clap::{arg, Parser};
-use tracing::{info, debug, trace};
 use std::collections::HashMap;
 use std::os::unix::fs::FileExt;
 use std::{
   fs,
   path::{Path, PathBuf},
 };
+use tracing::{debug, error, info, trace};
 
 use anyhow::Context;
 use elf::abi::STT_FUNC;
@@ -33,6 +35,10 @@ pub struct SimulationArgs {
   /// Log level: trace, debug, info, warn, error
   #[arg(long, default_value = "info")]
   pub log_level: String,
+
+  /// The timeout value
+  #[arg(long, default_value_t = 1_0000)]
+  pub timeout: u64,
 }
 
 // FIXME: fix FunctionSym
@@ -46,8 +52,8 @@ pub struct FunctionSym {
 }
 pub type FunctionSymTab = HashMap<u64, FunctionSym>;
 
+// NOTE: make it configurable from cmd line?
 const SIM_MEM_SIZE: usize = 1usize << 32;
-const RESET_VECTOR_ADDR: usize = 10_000;
 
 #[derive(Debug)]
 pub struct Simulator {
@@ -55,6 +61,7 @@ pub struct Simulator {
   #[allow(dead_code)]
   pub(crate) fn_sym_tab: FunctionSymTab,
   pub(crate) dlen: u32,
+  pub(crate) timeout: u64,
 }
 
 pub static WATCHDOG_CONTINUE: u8 = 0;
@@ -62,11 +69,26 @@ pub static WATCHDOG_TIMEOUT: u8 = 1;
 
 impl Simulator {
   pub fn new(args: SimulationArgs) -> Self {
-    let (mem, fn_sym_tab) = Self::load_elf(&args.elf_file).expect("fail creating simulator");
+    let log_level: tracing::Level = args.log_level.parse().expect("fail to parse LOG level");
+    let global_logger = tracing_subscriber::FmtSubscriber::builder()
+      .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+      .with_max_level(log_level)
+      .without_time()
+      .with_target(false)
+      .with_ansi(true)
+      .compact()
+      .finish();
+    tracing::subscriber::set_global_default(global_logger)
+      .expect("internal error: fail to setup log subscriber");
+
+    // FIXME: pass e_entry to rocket
+    let (_FIXME_e_entry, mem, fn_sym_tab) =
+      Self::load_elf(&args.elf_file).expect("fail creating simulator");
 
     Self {
       mem,
       fn_sym_tab,
+      timeout: args.timeout,
       dlen: option_env!("DESIGN_DLEN")
         .map(|dlen| dlen.parse().expect("fail to parse dlen into u32 digit"))
         .unwrap_or(256),
@@ -76,7 +98,7 @@ impl Simulator {
   // FIXME: In current implementation, all the ELF sections are read without considering bytes order.
   // We might want to take care of those information with lenntoho to convert them into host byte.
   // The *elf* crate hopefully will handle this for us, but I don't do further investigation yet. (assign to @Avimitin)
-  pub fn load_elf(path: &Path) -> anyhow::Result<(Vec<u8>, FunctionSymTab)> {
+  pub fn load_elf(path: &Path) -> anyhow::Result<(u64, Vec<u8>, FunctionSymTab)> {
     let file = fs::File::open(path).with_context(|| "reading ELF file")?;
     let mut elf: ElfStream<LittleEndian, _> =
       ElfStream::open_stream(&file).with_context(|| "parsing ELF file")?;
@@ -93,17 +115,26 @@ impl Simulator {
       anyhow::bail!("ELF has zero size program header");
     }
 
+    debug!("ELF entry: 0x{:x}", elf.ehdr.e_entry);
     // FIXME:
-    // 1. If we use reduce map instead of manipulating mutable memory, does it affect
-    // runtime overhead? Does rustc help us optimize this operation?
-    // 2. The default ProgramHeader us u64 for Elf32_phdr and Elf64_phdr.
+    // 1. If we use reduce map, collecting spartial memory into a whole big one,
+    //    instead of manipulating mutable memory, does it affect runtime overhead?
+    //    Does rustc help us optimize this operation?
+    // 2. The default ProgramHeader use u64 for Elf32_phdr and Elf64_phdr, can we optimize this or
+    //    just let it go.
     let mut mem: Vec<u8> = vec![0; SIM_MEM_SIZE];
     elf.segments().iter().filter(|phdr| phdr.p_type == PT_LOAD).for_each(|phdr| {
       let vaddr: usize = phdr.p_vaddr.try_into().expect("fail converting vaddr(u64) to usize");
-      let addr = RESET_VECTOR_ADDR + vaddr;
       let filesz: usize = phdr.p_filesz.try_into().expect("fail converting p_filesz(u64) to usize");
+      debug!(
+        "Read loadable segments 0x{:x}..0x{:x} to memory 0x{:x}",
+        phdr.p_offset,
+        phdr.p_offset + filesz as u64,
+        vaddr
+      );
+      // Load file start from offset into given mem slice
       // The `offset` of the read_at method is relative to the start of the file and thus independent from the current cursor.
-      file.read_at(&mut mem[addr..addr + filesz], phdr.p_offset).unwrap_or_else(|err| {
+      file.read_at(&mut mem[vaddr..vaddr + filesz], phdr.p_offset).unwrap_or_else(|err| {
         panic!(
           "fail reading ELF into mem with vaddr={}, filesz={}, offset={}. Error detail: {}",
           vaddr, filesz, phdr.p_offset, err
@@ -133,7 +164,7 @@ impl Simulator {
       debug!("load_elf: symtab not found");
     };
 
-    Ok((mem, fn_sym_tab))
+    Ok((elf.ehdr.e_entry, mem, fn_sym_tab))
   }
 
   fn write_mem(&mut self, addr: u32, alignment_bytes: u32, masks: &[bool], data: &[u8]) {
@@ -213,19 +244,56 @@ impl Simulator {
   }
 
   pub(crate) fn watchdog(&mut self) -> u8 {
-    trace!("watchdog continue");
-    WATCHDOG_CONTINUE
+    let tick = get_t();
+    if tick > self.timeout {
+      error!("[{}] watchdog timeout", get_t());
+      WATCHDOG_TIMEOUT
+    } else {
+      #[cfg(feature = "trace")]
+      if self.dump_end != 0 && tick > self.dump_end {
+        info!(
+          "[{tick}] run to dump end, exiting (last_commit_cycle={})",
+          self.last_commit_cycle
+        );
+        return WATCHDOG_TIMEOUT;
+      }
+
+      #[cfg(feature = "trace")]
+      if !self.dump_started && tick >= self.dump_start {
+        self.start_dump_wave();
+        self.dump_started = true;
+      }
+
+      trace!("[{}] watchdog continue", get_t());
+      WATCHDOG_CONTINUE
+    }
   }
 }
 
 #[cfg(test)]
 mod test {
   use super::*;
+  use std::process::Command;
 
   #[test]
   fn test_load_elf() {
-    let _ = Simulator::load_elf(Path::new("./result/bin/codegen.vsseg4e8_v.elf")).unwrap();
-    // TODO: verify address and bit
+    let output = Command::new("nix")
+      .args([
+        "build",
+        "--no-warn-dirty",
+        "--print-out-paths",
+        "--no-link",
+        ".#riscv-tests",
+      ])
+      .output()
+      .expect("fail to get riscv-test path");
+    if !output.status.success() {
+      panic!("fail to build riscv-test");
+    }
+
+    let test_path = String::from_utf8_lossy(&output.stdout).to_string();
+
+    Simulator::load_elf(Path::new(&test_path)).unwrap();
   }
 
   #[test]
