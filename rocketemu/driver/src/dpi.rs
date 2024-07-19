@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
 #![allow(unused_variables)]
 
+use clap::Parser;
 use std::ffi::{c_char, c_int, c_longlong, CString};
 use std::ptr;
-use clap::Parser;
 use tracing::debug;
 
 use crate::sim::{SimulationArgs, Simulator};
@@ -22,19 +22,21 @@ pub type SvBitVecVal = u32;
 unsafe fn load_from_payload(
   payload: &*const SvBitVecVal,
   aw_size: c_longlong,
-  dlen: u32,
+  data_width: u32,
 ) -> (Vec<bool>, &[u8]) {
   let src = *payload as *mut u8;
-  let strb_width_in_byte = (dlen / 8 / 8) as usize;
-  let payload_size_in_byte = (1 << aw_size as usize) + strb_width_in_byte;
+  let data_width_in_byte = (data_width / 8) as usize;
+  let strb_width_in_byte = data_width_in_byte.div_ceil(8); // ceil divide by 8 to get byte width
+  let payload_size_in_byte = strb_width_in_byte + data_width_in_byte; // data width in byte
   let byte_vec = std::slice::from_raw_parts(src, payload_size_in_byte);
   let strobe = &byte_vec[0..strb_width_in_byte];
   let data = &byte_vec[strb_width_in_byte..];
 
+  let strb_width_in_bit = std::cmp::min(8, data_width_in_byte);
   let masks: Vec<bool> = strobe
     .into_iter()
     .flat_map(|strb| {
-      let mask: Vec<bool> = (0..8).map(|i| (strb & (1 << i)) != 0).collect();
+      let mask: Vec<bool> = (0..strb_width_in_bit).map(|i| (strb & (1 << i)) != 0).collect();
       mask
     })
     .collect();
@@ -52,7 +54,6 @@ unsafe fn load_from_payload(
 
   (masks, data)
 }
-
 
 fn write_to_pointer(dst: *mut u8, data: &[u8], n: usize) {
   unsafe {
@@ -96,7 +97,7 @@ unsafe extern "C" fn axi_write_loadStoreAXI_rs(
   );
 
   let sim = &mut *(target as *mut Simulator);
-  let (strobe, data) = load_from_payload(&payload, 1 << awsize, 256);
+  let (strobe, data) = load_from_payload(&payload, 1 << awsize, sim.dlen);
   sim.axi_write(awaddr as u32, &strobe, data);
 }
 
@@ -164,8 +165,8 @@ unsafe extern "C" fn cosim_init_rs(call_init: *mut SvBit) -> *mut () {
 unsafe extern "C" fn cosim_watchdog_rs(target: *mut (), reason: *mut c_char) {
   // watchdog dpi call would be called before initialization, guard on null target
   if !target.is_null() {
-      let sim = &mut *(target as *mut Simulator);
-      *reason = sim.watchdog() as c_char
+    let sim = &mut *(target as *mut Simulator);
+    *reason = sim.watchdog() as c_char
   }
 }
 
@@ -180,13 +181,14 @@ extern "C" {
   // FIXME: support waveform
   //fn dump_wave_c(path: *const c_char);
 
-  // FIXME: get cycle from simulationTime
-  //fn get_t_c() -> u64;
+  fn get_t_c() -> u64;
 }
 
-/* pub(crate) fn get_t() -> u64 {
+// FIXME: currently we are using verilator context_p as simulation time.
+// But we should implement read cycle at TestBench top
+pub(crate) fn get_t() -> u64 {
   unsafe { get_t_c() / 10 }
-} */
+}
 
 pub(crate) fn verilator_main() {
   let mut c_args_ptr: Vec<*mut c_char> = std::env::args()
