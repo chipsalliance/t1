@@ -232,6 +232,43 @@ If using clion,
 $ nix develop .#t1.<config-name>.ip.emu -c clion ipemu/csrc
 ```
 
+#### Rocket emulator
+
+Rocket emulator contains multiple build phrase: RTL -> MLIR Bytecode ->
+system verilog -> verilated C sources -> Rust emulator.
+
+Most of the developer doesn't need to care about MLIR, system verilog and verilate detail.
+To develop the Rocket-chip RTL, run:
+
+```bash
+# This command provide a environment that contains mill, circt, espresso... development tools.
+nix develop '.#t1.elaborator'
+```
+
+> Metals LSP users are recommended to switch to mill-bsp mode instead of the default bloop mode.
+
+To elaborate the RTLs, run mill or use the nix chroot:
+
+```bash
+# for development
+mill -i elaborator.runMain org.chipsalliance.t1.elaborator.Main
+# for clean build
+nix build .#t1.rocketv-mlirbc
+```
+
+To develop the emulator, use the below nix environment:
+
+```bash
+nix develop .#t1.rocketv-emu.driver.devShell
+```
+
+This will setup the verilated C src in environment, download rust-analyzer.
+
+```bash
+cd rocketemu/driver
+cargo build --release
+```
+
 #### Developing Testcases
 The `tests/` contains the testcases. There are four types of testcases:
 
