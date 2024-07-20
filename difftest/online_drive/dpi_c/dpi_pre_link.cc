@@ -1,19 +1,20 @@
 #include <VTestBench.h>
 #include <VTestBench__Dpi.h>
 
-#include "dpi_pre_link.h"
-
 class VTestBench;
 
-VerilatedContext *contextp;
-VTestBench *topp;
+static VerilatedContext *contextp;
+static VTestBench *topp;
 
-int verilator_main_c(int argc, char **argv) {
+extern "C" int verilator_main_c(int argc, char **argv) {
   // Setup context, defaults, and parse command line
   Verilated::debug(0);
   contextp = new VerilatedContext();
   contextp->fatalOnError(false);
   contextp->commandArgs(argc, argv);
+#ifdef VM_TRACE
+  contextp->traceEverOn(true);
+#endif
 
   // Construct the Verilated model, from Vtop.h generated from Verilating
   topp = new VTestBench(contextp);
@@ -42,14 +43,13 @@ int verilator_main_c(int argc, char **argv) {
 }
 
 #ifdef VM_TRACE
-void dump_wave_c(char *path) {
-  Verilated::traceEverOn(true);
+extern "C" void dump_wave_c(char *path) {
   svSetScope(svGetScopeFromName("TOP.TestBench.clockGen"));
   dump_wave(path);
 }
 #endif
 
-uint64_t get_t_c() {
+extern "C" uint64_t get_t_c() {
   if (contextp) {
     return contextp->time();
   } else { // before ctx is initialized

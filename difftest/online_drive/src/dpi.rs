@@ -4,6 +4,7 @@
 use clap::Parser;
 use std::ffi::{c_char, c_int, c_longlong, CString};
 use std::ptr;
+use std::sync::Mutex;
 use tracing::debug;
 
 use crate::drive::Driver;
@@ -14,6 +15,8 @@ pub type SvBitVecVal = u32;
 // --------------------------
 // preparing data structures
 // --------------------------
+
+static DPI_TARGET: Mutex<Option<Box<Driver>>> = Mutex::new(None);
 
 pub(crate) struct AxiReadPayload {
   pub(crate) data: Vec<u8>,
@@ -104,9 +107,9 @@ pub(crate) struct Retire {
 // dpi functions
 //----------------------
 
+/// evaluate after AW and W is finished at corresponding channel_id.
 #[no_mangle]
-unsafe extern "C" fn axi_write_highBandwidthPort_rs(
-  target: *mut (),
+unsafe extern "C" fn axi_write_highBandwidthPort(
   channel_id: c_longlong,
   awid: c_longlong,
   awaddr: c_longlong,
@@ -118,6 +121,8 @@ unsafe extern "C" fn axi_write_highBandwidthPort_rs(
   awprot: c_longlong,
   awqos: c_longlong,
   awregion: c_longlong,
+  // struct packed {bit [255:0][DLEN:0] data;
+  // bit [255:0][DLEN/8:0] strb; } payload
   payload: *const SvBitVecVal,
 ) {
   debug!(
@@ -125,14 +130,15 @@ unsafe extern "C" fn axi_write_highBandwidthPort_rs(
   awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
-  let driver = &mut *(target as *mut Driver);
+  let mut driver = DPI_TARGET.lock().unwrap();
+  let driver = driver.as_mut().unwrap();
   let (strobe, data) = load_from_payload(&payload, awsize, driver.dlen);
   driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, &strobe, data);
 }
 
+/// evaluate at AR fire at corresponding channel_id.
 #[no_mangle]
-unsafe extern "C" fn axi_read_highBandwidthPort_rs(
-  target: *mut (),
+unsafe extern "C" fn axi_read_highBandwidthPort(
   channel_id: c_longlong,
   arid: c_longlong,
   araddr: c_longlong,
@@ -144,6 +150,7 @@ unsafe extern "C" fn axi_read_highBandwidthPort_rs(
   arprot: c_longlong,
   arqos: c_longlong,
   arregion: c_longlong,
+  // struct packed {bit [255:0][DLEN:0] data; byte beats; } payload
   payload: *mut SvBitVecVal,
 ) {
   debug!(
@@ -151,14 +158,15 @@ unsafe extern "C" fn axi_read_highBandwidthPort_rs(
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
-  let driver = &mut *(target as *mut Driver);
+  let mut driver = DPI_TARGET.lock().unwrap();
+  let driver = driver.as_mut().unwrap();
   let response = driver.axi_read_high_bandwidth(araddr as u32, arsize as u64);
   fill_axi_read_payload(payload, driver.dlen, &response);
 }
 
+/// evaluate at AR fire at corresponding channel_id.
 #[no_mangle]
-unsafe extern "C" fn axi_read_indexedAccessPort_rs(
-  target: *mut (),
+unsafe extern "C" fn axi_read_indexedAccessPort(
   channel_id: c_longlong,
   arid: c_longlong,
   araddr: c_longlong,
@@ -170,6 +178,7 @@ unsafe extern "C" fn axi_read_indexedAccessPort_rs(
   arprot: c_longlong,
   arqos: c_longlong,
   arregion: c_longlong,
+  // struct packed {bit [255:0][DLEN:0] data; byte beats; } payload
   payload: *mut SvBitVecVal,
 ) {
   debug!(
@@ -177,14 +186,15 @@ unsafe extern "C" fn axi_read_indexedAccessPort_rs(
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
-  let driver = &mut *(target as *mut Driver);
+  let mut driver = DPI_TARGET.lock().unwrap();
+  let driver = driver.as_mut().unwrap();
   let response = driver.axi_read_indexed(araddr as u32, arsize as u64);
   fill_axi_read_payload(payload, driver.dlen, &response);
 }
 
+/// evaluate after AW and W is finished at corresponding channel_id.
 #[no_mangle]
-unsafe extern "C" fn axi_write_indexedAccessPort_rs(
-  target: *mut (),
+unsafe extern "C" fn axi_write_indexedAccessPort(
   channel_id: c_longlong,
   awid: c_longlong,
   awaddr: c_longlong,
@@ -196,6 +206,7 @@ unsafe extern "C" fn axi_write_indexedAccessPort_rs(
   awprot: c_longlong,
   awqos: c_longlong,
   awregion: c_longlong,
+  // struct packed {bit [255:0][32:0] data; bit [255:0][4:0] strb; } payload
   payload: *const SvBitVecVal,
 ) {
   debug!(
@@ -203,46 +214,56 @@ unsafe extern "C" fn axi_write_indexedAccessPort_rs(
   awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
-  let driver = &mut *(target as *mut Driver);
+  let mut driver = DPI_TARGET.lock().unwrap();
+  let driver = driver.as_mut().unwrap();
   let (strobe, data) = load_from_payload(&payload, awsize, 32);
   driver.axi_write_indexed_access_port(awaddr as u32, awsize as u64, &strobe, data);
 }
 
 #[no_mangle]
-unsafe extern "C" fn cosim_init_rs() -> *mut () {
+unsafe extern "C" fn cosim_init() {
   let args = OfflineArgs::parse();
   args.common_args.setup_logger().unwrap();
 
   let driver = Box::new(Driver::new(&args));
-  Box::into_raw(driver) as *mut ()
+  let mut dpi_target = DPI_TARGET.lock().unwrap();
+  assert!(dpi_target.is_none(), "cosim_init should be called only once");
+  *dpi_target = Some(driver); 
 }
 
+/// evaluate at every 1024 cycles, return reason = 0 to continue simulation,
+/// other value is used as error code.
 #[no_mangle]
-unsafe extern "C" fn cosim_watchdog_rs(target: *mut (), reason: *mut c_char) {
+unsafe extern "C" fn cosim_watchdog(reason: *mut c_char) {
   // watchdog dpi call would be called before initialization, guard on null target
-  if !target.is_null() {
-    let driver = &mut *(target as *mut Driver);
+  let mut driver = DPI_TARGET.lock().unwrap();
+  if let Some(driver) = driver.as_mut() {
     *reason = driver.watchdog() as c_char
   }
 }
 
+/// evaluate at instruction queue is not empty
+/// arg issue will be type cast from a struct to svBitVecVal*(uint32_t*)
 #[no_mangle]
-unsafe extern "C" fn issue_vector_instruction_rs(target: *mut (), issue_dst: *mut SvBitVecVal) {
-  let driver = &mut *(target as *mut Driver);
+unsafe extern "C" fn issue_vector_instruction(issue_dst: *mut SvBitVecVal) {
+  let mut driver = DPI_TARGET.lock().unwrap();
+  let driver = driver.as_mut().unwrap();
   let issue = driver.issue_instruction();
   *(issue_dst as *mut IssueData) = issue;
 }
 
 #[no_mangle]
-unsafe extern "C" fn retire_vector_instruction_rs(target: *mut (), retire_src: *const SvBitVecVal) {
-  let driver = &mut *(target as *mut Driver);
+unsafe extern "C" fn retire_vector_instruction(retire_src: *const SvBitVecVal) {
+  let mut driver = DPI_TARGET.lock().unwrap();
+  let driver = driver.as_mut().unwrap();
   let retire = &*(retire_src as *const Retire);
   driver.retire_instruction(retire)
 }
 
 #[no_mangle]
-unsafe extern "C" fn retire_vector_mem_rs(target: *mut ()) {
-  let driver = &mut *(target as *mut Driver);
+unsafe extern "C" fn retire_vector_mem(dummy: *const SvBitVecVal) {
+  let mut driver = DPI_TARGET.lock().unwrap();
+  let driver = driver.as_mut().unwrap();
   driver.retire_memory();
 }
 
@@ -265,18 +286,13 @@ pub(crate) fn get_t() -> u64 {
 }
 
 pub(crate) fn verilator_main() {
-  let mut c_args_ptr: Vec<*mut c_char> = std::env::args()
-    .collect::<Vec<String>>()
-    .iter()
-    .map(|arg| CString::new(arg.as_str()).unwrap())
-    .map(|arg| arg.as_ptr() as *mut c_char)
-    .collect();
+  let c_args: Vec<CString> = std::env::args().map(|arg| CString::new(arg).unwrap()).collect();
 
-  c_args_ptr.push(ptr::null_mut());
+  let mut c_args_ptr: Vec<*const c_char> = c_args.iter().map(|arg| arg.as_ptr()).collect();
+  c_args_ptr.push(ptr::null());
 
-  let argc = std::env::args().len() as c_int;
-
-  let argv = c_args_ptr.as_mut_ptr();
+  let argc = c_args.len() as c_int;
+  let argv = c_args_ptr.as_ptr() as *mut *mut c_char;
 
   unsafe {
     verilator_main_c(argc, argv);
