@@ -266,7 +266,7 @@ unsafe extern "C" fn retire_vector_mem(dummy: *const SvBitVecVal) {
 // import functions and wrappers
 //--------------------------------
 
-#[link(name = "dpi_pre_link")]
+#[link(name = "verilator_shim")]
 extern "C" {
   fn verilator_main_c(argc: c_int, argv: *mut *mut c_char) -> c_int;
 
