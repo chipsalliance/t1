@@ -22,6 +22,8 @@ pub struct Spike {
   pub size: usize,
 }
 
+unsafe impl Send for Spike {}
+
 extern "C" fn default_addr_to_mem(target: *mut (), addr: u64) -> *mut u8 {
   let spike = target as *mut Spike;
   let addr = addr as usize;

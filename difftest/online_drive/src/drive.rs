@@ -261,7 +261,7 @@ impl Driver {
   pub(crate) fn issue_instruction(&mut self) -> IssueData {
     loop {
       let se = self.step();
-  
+
       return if se.is_vfence() {
         if self.spike_runner.commit_queue.len() == 1 {
           // earlier instructions are committed
@@ -307,7 +307,7 @@ impl Driver {
         if se.is_vload() || se.is_vstore() {
           self.vector_lsu_count += 1;
         }
-  
+
         info!(
           "[{}] issue vector ({}), count={} ",
           get_t(),
@@ -315,7 +315,7 @@ impl Driver {
           self.vector_lsu_count,
         );
         self.issued += 1;
-  
+
         IssueData {
           instruction_bits: se.inst_bits,
           src1_bits: se.rs1_bits,
@@ -326,7 +326,7 @@ impl Driver {
           vcsr: se.vcsr(),
           meta: ISSUE_VALID,
         }
-      }
+      };
     }
   }
 

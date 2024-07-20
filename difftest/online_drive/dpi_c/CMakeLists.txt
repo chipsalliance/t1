@@ -6,11 +6,6 @@ message(STATUS "Project '${PROJECT_NAME}' build type: ${CMAKE_BUILD_TYPE}")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-add_library(dpi
-  STATIC
-  dpi.cc
-)
-
 add_library(dpi_pre_link
   STATIC
   dpi_pre_link.cc
@@ -30,21 +25,14 @@ if (NOT DEFINED VERILATED_INC_DIR)
   endif()
 endif()
 
-# include verilated headers
-target_include_directories(dpi PUBLIC ${VERILATED_INC_DIR})
-target_include_directories(dpi PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
 # include verilator headers
 find_package(verilator REQUIRED)
 message(STATUS "Found verilator: ${verilator_DIR}")
-target_include_directories(dpi PUBLIC ${verilator_DIR}/include)
-target_include_directories(dpi PUBLIC ${verilator_DIR}/include/vltstd)
 target_include_directories(dpi_pre_link PUBLIC ${verilator_DIR}/include)
 target_include_directories(dpi_pre_link PUBLIC ${verilator_DIR}/include/vltstd)
 
 if(DEFINED VM_TRACE)
-  target_compile_definitions(dpi PRIVATE VM_TRACE=1)
   target_compile_definitions(dpi_pre_link PRIVATE VM_TRACE=1)
 endif()
 
-install(TARGETS dpi dpi_pre_link ARCHIVE)
+install(TARGETS dpi_pre_link ARCHIVE)
