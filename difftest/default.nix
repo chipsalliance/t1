@@ -26,6 +26,7 @@ let
         ./offline
         ./online_dpi
         ./online_drive
+        ./online_vcs
         ./test_common
         ./Cargo.lock
         ./Cargo.toml
@@ -43,6 +44,7 @@ let
     ];
 
     buildFeatures = lib.optionals verilated.enable-trace [ "trace" ];
+    buildAndTestSubdir = "./online_drive";
 
     env = {
       VERILATED_INC_DIR = "${verilated}/include";

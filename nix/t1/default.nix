@@ -62,27 +62,63 @@ lib.makeScope newScope
         ip = rec {
           recurseForDerivations = true;
 
-          elaborate = innerSelf.callPackage ./elaborate.nix { target = "ip"; /* use-binder = true; */ };
+          # T1 RTL.
+          elaborate = innerSelf.callPackage ./elaborate.nix { target = "ip"; };
           mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
-          rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
-
+          rtl = innerSelf.callPackage ./rtl.nix {
+            inherit mlirbc;
+            mfcArgs = lib.escapeShellArgs [
+              "-O=release"
+              "--disable-all-randomization"
+              "--split-verilog"
+              "--preserve-values=all"
+              "--strip-debug-info"
+              "--strip-fir-debug-info"
+              "--verification-flavor=sva"
+              "--lowering-options=verifLabels,omitVersionComment,emittedLineLength=240,locationInfoStyle=none"
+            ];
+          };
           omreader = self.omreader-unwrapped.mkWrapper { inherit mlirbc; };
-
           om = innerSelf.callPackage ./om.nix { inherit mlirbc; };
 
-          emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; /* use-binder = true; */ };
+          emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; };
           emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
-          emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
-          emu-rtl = innerSelf.callPackage ./rtl.nix { mlirbc = emu-mlirbc; };
 
-          verilated = innerSelf.callPackage ./verilated.nix { rtl = emu-rtl; };
-          verilated-trace = innerSelf.callPackage ./verilated.nix { rtl = emu-rtl; enable-trace = true; };
+          # T1 Verilator Emulator
+          verilator-emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
+          verilator-emu-rtl = innerSelf.callPackage ./rtl.nix {
+            mlirbc = emu-mlirbc;
+            mfcArgs = lib.escapeShellArgs [
+              "-O=release"
+              "--split-verilog"
+              "--preserve-values=all"
+              "--verification-flavor=if-else-fatal"
+              "--lowering-options=verifLabels,omitVersionComment"
+              "--strip-debug-info"
+            ];
+          };
+          verilator-emu-rtl-verilated = innerSelf.callPackage ./verilated.nix { rtl = verilator-emu-rtl; stdenv = moldStdenv; };
+          verilator-emu-rtl-verilated-trace = innerSelf.callPackage ./verilated.nix { rtl = verilator-emu-rtl; stdenv = moldStdenv; enable-trace = true; };
+          verilator-emu = innerSelf.callPackage ../../difftest/default.nix { verilated = verilator-emu-rtl-verilated; };
+          verilator-emu-trace = innerSelf.callPackage ../../difftest/default.nix { verilated = verilator-emu-rtl-verilated-trace; };
 
-          emu = innerSelf.callPackage ./ipemu.nix { rtl = ip.emu-rtl; stdenv = moldStdenv; };
-          emu-trace = innerSelf.callPackage ./ipemu.nix { rtl = emu-rtl; stdenv = moldStdenv; do-trace = true; };
-
-          difftest = innerSelf.callPackage ../../difftest/default.nix { inherit verilated; };
-          difftest-trace = innerSelf.callPackage ../../difftest/default.nix { verilated = verilated-trace; };
+          # T1 VCS Emulator
+          vcs-emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
+          vcs-emu-rtl = innerSelf.callPackage ./rtl.nix {
+            mlirbc = emu-mlirbc;
+            mfcArgs = lib.escapeShellArgs [
+              "-O=release"
+              "--split-verilog"
+              "--preserve-values=all"
+              "--verification-flavor=sva"
+              "--lowering-options=verifLabels,omitVersionComment"
+              "--strip-debug-info"
+            ];
+          };
+          vcs-emu-compiled = innerSelf.callPackage ./vcs.nix { rtl = vcs-emu-rtl; };
+          vcs-emu-compiled-trace = innerSelf.callPackage ./vcs.nix { rtl = vcs-emu-rtl; enable-trace = true; };
+          vcs-emu = innerSelf.callPackage ../../difftest/vcs-emu.nix { vcs-lib = vcs-emu-compiled; vcStaticInstallPath = builtins.getEnv "VC_STATIC_HOME"; };
+          vcs-emu-trace = innerSelf.callPackage ../../difftest/vcs-emu.nix { vcs-lib = vcs-emu-compiled-trace; vcStaticInstallPath = builtins.getEnv "VC_STATIC_HOME"; };
         };
 
         subsystem = rec {

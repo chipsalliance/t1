@@ -1,19 +1,12 @@
 { stdenvNoCC
 , lib
-
+, mfcArgs
 , circt
 , mlirbc
 }:
 
 let
-  mfcArgs = lib.escapeShellArgs [
-    "-O=debug"
-    "--split-verilog"
-    "--preserve-values=named"
-    "--lowering-options=verifLabels,omitVersionComment"
-    "--strip-debug-info"
-  ];
-  fixupFilelist = lib.elem mlirbc.elaborateTarget [ "ipemu" "subsystememu" ];
+  fixupFilelist = lib.elem mlirbc.elaborateTarget [ "ipemu" ];
 in
 stdenvNoCC.mkDerivation {
   name = "t1-${mlirbc.elaborateConfig}-${mlirbc.elaborateTarget}-rtl";
