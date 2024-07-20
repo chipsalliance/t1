@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
-project(dpi_c)
+project(verilator_shim)
 set(CMAKE_CXX_STANDARD 17)
 
 message(STATUS "Project '${PROJECT_NAME}' build type: ${CMAKE_BUILD_TYPE}")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-add_library(dpi_pre_link
+add_library(verilator_shim
   STATIC
-  dpi_pre_link.cc
+  verilator_shim.cc
 )
 
 if (NOT DEFINED VERILATED_LIB_DIR)
@@ -28,11 +28,11 @@ endif()
 # include verilator headers
 find_package(verilator REQUIRED)
 message(STATUS "Found verilator: ${verilator_DIR}")
-target_include_directories(dpi_pre_link PUBLIC ${verilator_DIR}/include)
-target_include_directories(dpi_pre_link PUBLIC ${verilator_DIR}/include/vltstd)
+target_include_directories(verilator_shim PUBLIC ${verilator_DIR}/include)
+target_include_directories(verilator_shim PUBLIC ${verilator_DIR}/include/vltstd)
 
 if(DEFINED VM_TRACE)
-  target_compile_definitions(dpi_pre_link PRIVATE VM_TRACE=1)
+  target_compile_definitions(verilator_shim PRIVATE VM_TRACE=1)
 endif()
 
-install(TARGETS dpi_pre_link ARCHIVE)
+install(TARGETS verilator_shim ARCHIVE)
