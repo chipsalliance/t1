@@ -33,7 +33,7 @@ pub fn load_elf(spike: &mut Spike, fname: &Path) -> anyhow::Result<u64> {
 }
 
 // todo: unify load_elf and load_elf_to_buffer
-pub fn load_elf_to_buffer(mem: &mut Vec<u8>, fname: &Path) -> anyhow::Result<u64> {
+pub fn load_elf_to_buffer(mem: &mut [u8], fname: &Path) -> anyhow::Result<u64> {
   let mut file = File::open(fname).unwrap();
   let mut buffer = Vec::new();
   file.read_to_end(&mut buffer).unwrap();

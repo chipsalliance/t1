@@ -22,28 +22,23 @@ pub(crate) struct AxiReadPayload {
   pub(crate) data: Vec<u8>,
 }
 
-fn write_to_pointer(dst: *mut u8, data: &Vec<u8>, n: usize) {
-  unsafe {
-    for i in 0..n {
-      ptr::write(dst.add(i), data[i]);
-    }
-  }
+unsafe fn write_to_pointer(dst: *mut u8, data: &[u8]) {
+  let dst = std::slice::from_raw_parts_mut(dst, data.len());
+  dst.copy_from_slice(data);
 }
 
 unsafe fn fill_axi_read_payload(dst: *mut SvBitVecVal, dlen: u32, payload: &AxiReadPayload) {
   let data_len = 256 * (dlen / 8) as usize;
   assert!(payload.data.len() <= data_len);
-  let dst = dst as *mut u8;
-  write_to_pointer(dst, &payload.data, payload.data.len());
+  write_to_pointer(dst as *mut u8, &payload.data);
 }
 
 // Return (strobe in bit, data in byte)
-unsafe fn load_from_payload(
-  payload: &*const SvBitVecVal,
-  aw_size: c_longlong,
+unsafe fn load_from_payload<'a>(
+  payload: *const SvBitVecVal,
   data_width: u32,
-) -> (Vec<bool>, &[u8]) {
-  let src = *payload as *mut u8;
+) -> (Vec<bool>, &'a [u8]) {
+  let src = payload as *mut u8;
   let data_width_in_byte = (data_width / 8) as usize;
   let strb_width_in_byte = data_width_in_byte.div_ceil(8); // ceil divide by 8 to get byte width
   let payload_size_in_byte = strb_width_in_byte + data_width_in_byte; // data width in byte
@@ -132,7 +127,7 @@ unsafe extern "C" fn axi_write_highBandwidthPort(
   );
   let mut driver = DPI_TARGET.lock().unwrap();
   let driver = driver.as_mut().unwrap();
-  let (strobe, data) = load_from_payload(&payload, awsize, driver.dlen);
+  let (strobe, data) = load_from_payload(payload, driver.dlen);
   driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, &strobe, data);
 }
 
@@ -216,7 +211,7 @@ unsafe extern "C" fn axi_write_indexedAccessPort(
   );
   let mut driver = DPI_TARGET.lock().unwrap();
   let driver = driver.as_mut().unwrap();
-  let (strobe, data) = load_from_payload(&payload, awsize, 32);
+  let (strobe, data) = load_from_payload(payload, 32);
   driver.axi_write_indexed_access_port(awaddr as u32, awsize as u64, &strobe, data);
 }
 

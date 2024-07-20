@@ -8,6 +8,91 @@ use tracing::{debug, error, info, trace};
 use crate::dpi::*;
 use crate::OfflineArgs;
 
+struct ShadowMem {
+  mem: Vec<u8>,
+}
+
+impl ShadowMem {
+  pub fn new() -> Self {
+    Self { mem: vec![0; MEM_SIZE] }
+  }
+  pub fn apply_writes(&mut self, records: &MemAccessRecord) {
+    for (&addr, record) in &records.all_writes {
+      if let Some(write) = record.writes.last() {
+        self.mem[addr as usize] = write.val;
+      }
+    }
+  }
+
+  pub fn read_mem(&self, addr: u32, size: u32) -> &[u8] {
+    let start = addr as usize;
+    let end = (addr + size) as usize;
+    &self.mem[start..end]
+  }
+
+  // size: 1 << arsize
+  // bus_size: AXI bus width in bytes
+  // return: Vec<u8> with len=bus_size
+  // if size < bus_size, the result is padded due to AXI narrow transfer rules
+  pub fn read_mem_axi(&self, addr: u32, size: u32, bus_size: u32) -> Vec<u8> {
+    assert!(
+      addr % size == 0 && bus_size % size == 0,
+      "unaligned access addr={addr:#x} size={size}B dlen={bus_size}B"
+    );
+
+    let data = self.read_mem(addr, size);
+    if size < bus_size {
+      // narrow
+      let mut data_padded = vec![0; bus_size as usize];
+      let start = (addr % bus_size) as usize;
+      let end = start + data.len();
+      data_padded[start..end].copy_from_slice(data);
+
+      data_padded
+    } else {
+      // normal
+      data.to_vec()
+    }
+  }
+
+  // size: 1 << awsize
+  // bus_size: AXI bus width in bytes
+  // masks: write strokes, len=bus_size
+  // data: write data, len=bus_size
+  pub fn write_mem_axi(
+    &mut self,
+    addr: u32,
+    size: u32,
+    bus_size: u32,
+    masks: &[bool],
+    data: &[u8],
+  ) {
+    assert!(
+      addr % size == 0 && bus_size % size == 0,
+      "unaligned write access addr={addr:#x} size={size}B dlen={bus_size}B"
+    );
+
+    // handle strb=0 AXI payload
+    if !masks.iter().any(|&x| x) {
+      trace!("Mask 0 write detect");
+      return;
+    }
+
+    // TODO: we do not check strobe is compatible with (addr, awsize)
+    let addr_align = addr & ((!bus_size) + 1);
+
+    let bus_size = bus_size as usize;
+    assert_eq!(bus_size, masks.len());
+    assert_eq!(bus_size, data.len());
+
+    for i in 0..bus_size {
+      if masks[i] {
+        self.mem[addr_align as usize + i] = data[i];
+      }
+    }
+  }
+}
+
 pub(crate) struct Driver {
   spike_runner: SpikeRunner,
 
@@ -29,7 +114,7 @@ pub(crate) struct Driver {
   issued: u64,
   vector_lsu_count: u8,
 
-  shadow_mem: Vec<u8>,
+  shadow_mem: ShadowMem,
 }
 
 #[cfg(feature = "trace")]
@@ -87,70 +172,17 @@ impl Driver {
 
       issued: 0,
       vector_lsu_count: 0,
-      shadow_mem: vec![0; MEM_SIZE],
+      shadow_mem: ShadowMem::new(),
     };
     self_.spike_runner.load_elf(&args.common_args.elf_file).unwrap();
 
-    load_elf_to_buffer(&mut self_.shadow_mem, &args.common_args.elf_file).unwrap();
+    load_elf_to_buffer(&mut self_.shadow_mem.mem, &args.common_args.elf_file).unwrap();
     self_
-  }
-
-  fn apply_to_shadow_mem(&mut self, record: &MemAccessRecord) {
-    for (addr, record) in &record.all_writes {
-      for write in &record.writes {
-        self.shadow_mem[*addr as usize] = write.val;
-      }
-    }
-  }
-
-  fn read_mem(&mut self, addr: u32, size: u32, alignment_bytes: u32) -> Vec<u8> {
-    assert!(
-      addr % size == 0 || addr % alignment_bytes == 0,
-      "unaligned access addr={addr:#x} size={size}bytes dlen={alignment_bytes}bytes"
-    );
-    let residue_addr = addr % alignment_bytes;
-    let aligned_addr = addr - residue_addr;
-    if size < alignment_bytes {
-      // narrow
-      (0..alignment_bytes)
-        .map(|i| {
-          let i_addr = aligned_addr + i;
-          if addr <= i_addr && i_addr < addr + size {
-            self.shadow_mem[i_addr as usize]
-          } else {
-            0
-          }
-        })
-        .collect()
-    } else {
-      // normal
-      (0..size).map(|i| self.shadow_mem[(addr + i) as usize]).collect()
-    }
-  }
-
-  fn write_mem(&mut self, addr: u32, alignment_bytes: u32, masks: &[bool], data: &[u8]) {
-    // handle strb=0 AXI payload
-    if !masks.iter().any(|&x| x) {
-      trace!("Mask 0 write detect");
-      return;
-    }
-
-    let size = data.len() as u32;
-    debug!("write mem: size={size}, addr={addr:#x}");
-
-    assert!(
-      addr % size == 0 || addr % alignment_bytes == 0,
-      "unaligned write access addr={addr:#x} size={size}bytes dlen={alignment_bytes}bytes"
-    );
-
-    masks.iter().enumerate().filter(|(_, &m)| m).for_each(|(i, _)| {
-      self.shadow_mem[addr as usize + i] = data[i];
-    });
   }
 
   pub(crate) fn axi_read_high_bandwidth(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
-    let data = self.read_mem(addr, size, self.dlen / 8);
+    let data = self.shadow_mem.read_mem_axi(addr, size, self.dlen / 8);
     let data_hex = hex::encode(&data);
     trace!(
       "[{}] axi_read_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
@@ -168,7 +200,7 @@ impl Driver {
   ) {
     let size = 1 << awsize;
 
-    self.write_mem(addr, self.dlen / 8, &strobe, data);
+    self.shadow_mem.write_mem_axi(addr, size, self.dlen / 8, &strobe, data);
     let data_hex = hex::encode(data);
     trace!(
       "[{}] axi_write_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
@@ -179,7 +211,7 @@ impl Driver {
   pub(crate) fn axi_read_indexed(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
     assert!(size <= 4);
-    let data = self.read_mem(addr, size, 4);
+    let data = self.shadow_mem.read_mem_axi(addr, size, 4);
     let data_hex = hex::encode(&data);
     trace!(
       "[{}] axi_read_indexed (addr={addr:#x}, size={size}, data={data_hex})",
@@ -196,7 +228,7 @@ impl Driver {
     data: &[u8],
   ) {
     let size = 1 << awsize;
-    self.write_mem(addr, 4, strobe, data);
+    self.shadow_mem.write_mem_axi(addr, size, 4, strobe, data);
     let data_hex = hex::encode(data);
     trace!(
       "[{}] axi_write_indexed_access_port (addr={addr:#x}, size={size}, data={data_hex})",
@@ -296,7 +328,7 @@ impl Driver {
         );
         if self.vector_lsu_count == 0 {
           // issue scalar load / store
-          self.apply_to_shadow_mem(&se.mem_access_record);
+          self.shadow_mem.apply_writes(&se.mem_access_record);
           self.spike_runner.commit_queue.pop_front();
           continue;
         } else {
@@ -333,10 +365,8 @@ impl Driver {
   pub(crate) fn retire_instruction(&mut self, _: &Retire) {
     let se = self.spike_runner.commit_queue.back().unwrap();
 
-    // we make a copy of mem_access_record to circumvent the borrow checker
     // todo: filter all vector instruction.
-    let mem_access_record = se.mem_access_record.to_owned();
-    self.apply_to_shadow_mem(&mem_access_record);
+    self.shadow_mem.apply_writes(&se.mem_access_record);
 
     self.spike_runner.commit_queue.pop_back();
     self.last_commit_cycle = get_t();
