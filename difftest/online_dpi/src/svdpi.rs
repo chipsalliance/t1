@@ -3,10 +3,17 @@ use std::{ffi::CString, ptr};
 pub mod sys;
 
 /// get current simulation time in _simulation time unit_
+#[cfg(feature = "sv2023")]
 pub fn get_time() -> u64 {
-  let mut time = sys::svTimeVal { type_: 0, high: 0, low: 0, real: 0.0 };
+  let mut time = sys::svTimeVal {
+    type_: sys::sv_sim_time as i32,
+    high: 0,
+    low: 0,
+    real: 0.0,
+  };
   unsafe {
-    sys::svGetTime(ptr::null_mut(), &mut time);
+    let ret = sys::svGetTime(ptr::null_mut(), &mut time);
+    assert!(ret == 0, "svGetTime failed");
   }
 
   ((time.high as u64) << 32) + (time.low as u64)

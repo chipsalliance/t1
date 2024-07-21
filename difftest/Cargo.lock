@@ -298,6 +298,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "online_vcs"
+version = "0.1.0"
+dependencies = [
+ "online_dpi",
+]
+
+[[package]]
 name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
