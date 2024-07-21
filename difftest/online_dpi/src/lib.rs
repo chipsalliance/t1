@@ -1,9 +1,9 @@
 use clap::Parser;
 use common::CommonArgs;
 
-pub mod svdpi;
 pub mod dpi;
 pub mod drive;
+pub mod svdpi;
 
 #[derive(Parser)]
 pub(crate) struct OfflineArgs {
@@ -20,4 +20,12 @@ pub(crate) struct OfflineArgs {
 
   #[arg(long, default_value_t = 1000000)]
   pub timeout: u64,
+}
+
+// keep in sync with TestBench.ClockGen
+pub const CYCLE_PERIOD: u64 = 20;
+
+/// get cycle
+pub fn get_t() -> u64 {
+  svdpi::get_time() / CYCLE_PERIOD
 }

@@ -3,13 +3,10 @@
 
 class VTestBench;
 
-static VerilatedContext *contextp;
-static VTestBench *topp;
-
 extern "C" int verilator_main_c(int argc, char **argv) {
   // Setup context, defaults, and parse command line
   Verilated::debug(0);
-  contextp = new VerilatedContext();
+  VerilatedContext* contextp = new VerilatedContext();
   contextp->fatalOnError(false);
   contextp->commandArgs(argc, argv);
 #ifdef VM_TRACE
@@ -17,7 +14,7 @@ extern "C" int verilator_main_c(int argc, char **argv) {
 #endif
 
   // Construct the Verilated model, from Vtop.h generated from Verilating
-  topp = new VTestBench(contextp);
+  VTestBench* topp = new VTestBench(contextp);
 
   // Simulate until $finish
   while (!contextp->gotFinish()) {
@@ -40,19 +37,4 @@ extern "C" int verilator_main_c(int argc, char **argv) {
   delete contextp;
 
   return 0;
-}
-
-#ifdef VM_TRACE
-extern "C" void dump_wave_c(char *path) {
-  svSetScope(svGetScopeFromName("TOP.TestBench.clockGen"));
-  dump_wave(path);
-}
-#endif
-
-extern "C" uint64_t get_t_c() {
-  if (contextp) {
-    return contextp->time();
-  } else { // before ctx is initialized
-    return 0;
-  }
 }
