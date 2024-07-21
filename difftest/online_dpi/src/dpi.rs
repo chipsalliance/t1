@@ -215,7 +215,7 @@ unsafe extern "C" fn axi_write_indexedAccessPort(
 }
 
 #[no_mangle]
-unsafe extern "C" fn cosim_init() {
+unsafe extern "C" fn t1_cosim_init() {
   let args = OfflineArgs::parse();
   args.common_args.setup_logger().unwrap();
 
@@ -223,7 +223,7 @@ unsafe extern "C" fn cosim_init() {
   let mut dpi_target = DPI_TARGET.lock().unwrap();
   assert!(
     dpi_target.is_none(),
-    "cosim_init should be called only once"
+    "t1_cosim_init should be called only once"
   );
   *dpi_target = Some(driver);
 }
