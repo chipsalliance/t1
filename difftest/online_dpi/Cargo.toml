@@ -13,4 +13,6 @@ tracing = { workspace = true }
 hex = "0.4.3"
 
 [features]
+sv2023 = []
+svvpi = []
 trace = []
