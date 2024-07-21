@@ -24,6 +24,7 @@ let
       fileset = unions [
         ./spike_rs
         ./offline
+        ./online_dpi
         ./online_drive
         ./test_common
         ./Cargo.lock

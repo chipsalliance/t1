@@ -279,15 +279,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
-name = "online_drive"
+name = "online_dpi"
 version = "0.1.0"
 dependencies = [
  "clap",
- "cmake",
  "common",
  "hex",
  "spike_rs",
  "tracing",
+]
+
+[[package]]
+name = "online_drive"
+version = "0.1.0"
+dependencies = [
+ "cmake",
+ "online_dpi",
 ]
 
 [[package]]
