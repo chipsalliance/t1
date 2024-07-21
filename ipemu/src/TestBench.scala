@@ -45,9 +45,9 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
          |    $$dumpvars(0);
          |  endfunction;
          |
-         |  import "DPI-C" function void cosim_init();
+         |  import "DPI-C" function void t1_cosim_init();
          |  initial begin
-         |    cosim_init();
+         |    t1_cosim_init();
          |    clock = 1'b0;
          |    reset = 1'b1;
          |  end
