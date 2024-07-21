@@ -222,8 +222,11 @@ unsafe extern "C" fn cosim_init() {
 
   let driver = Box::new(Driver::new(&args));
   let mut dpi_target = DPI_TARGET.lock().unwrap();
-  assert!(dpi_target.is_none(), "cosim_init should be called only once");
-  *dpi_target = Some(driver); 
+  assert!(
+    dpi_target.is_none(),
+    "cosim_init should be called only once"
+  );
+  *dpi_target = Some(driver);
 }
 
 /// evaluate at every 1024 cycles, return reason = 0 to continue simulation,
@@ -266,35 +269,15 @@ unsafe extern "C" fn retire_vector_mem(dummy: *const SvBitVecVal) {
 // import functions and wrappers
 //--------------------------------
 
-#[link(name = "verilator_shim")]
 extern "C" {
-  fn verilator_main_c(argc: c_int, argv: *mut *mut c_char) -> c_int;
-
   #[cfg(feature = "trace")]
   fn dump_wave_c(path: *const c_char);
 
   fn get_t_c() -> u64;
 }
 
-pub(crate) fn get_t() -> u64 {
+pub fn get_t() -> u64 {
   unsafe { get_t_c() / 20 }
-}
-
-pub(crate) fn verilator_main() {
-  let c_args: Vec<CString> = std::env::args().map(|arg| CString::new(arg).unwrap()).collect();
-
-  let mut c_args_ptr: Vec<*const c_char> = c_args.iter().map(|arg| arg.as_ptr()).collect();
-  c_args_ptr.push(ptr::null());
-
-  let argc = c_args.len() as c_int;
-  let argv = c_args_ptr.as_ptr() as *mut *mut c_char;
-
-  unsafe {
-    verilator_main_c(argc, argv);
-  }
-
-  std::fs::write("perf.txt", format!("total_cycles: {}", get_t()))
-    .expect("fail to write into perf.txt");
 }
 
 #[cfg(feature = "trace")]

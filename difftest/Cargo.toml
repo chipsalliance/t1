@@ -4,6 +4,7 @@ members = [
     "test_common",
     "spike_rs",
     "offline",
+    "online_dpi",
     "online_drive",
 ]
 exclude = [
