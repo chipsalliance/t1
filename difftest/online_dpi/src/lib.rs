@@ -4,6 +4,7 @@ use common::CommonArgs;
 pub mod dpi;
 pub mod drive;
 pub mod svdpi;
+pub mod svvpi;
 
 #[derive(Parser)]
 pub(crate) struct OfflineArgs {
