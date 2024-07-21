@@ -1,6 +1,7 @@
 use clap::Parser;
 use common::CommonArgs;
 
+pub mod svdpi;
 pub mod dpi;
 pub mod drive;
 
