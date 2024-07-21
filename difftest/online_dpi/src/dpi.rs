@@ -2,8 +2,7 @@
 #![allow(unused_variables)]
 
 use clap::Parser;
-use std::ffi::{c_char, c_int, c_longlong, CString};
-use std::ptr;
+use std::ffi::{c_char, c_longlong, CString};
 use std::sync::Mutex;
 use tracing::debug;
 
@@ -269,22 +268,22 @@ unsafe extern "C" fn retire_vector_mem(dummy: *const SvBitVecVal) {
 // import functions and wrappers
 //--------------------------------
 
-extern "C" {
-  #[cfg(feature = "trace")]
-  fn dump_wave_c(path: *const c_char);
-
-  fn get_t_c() -> u64;
-}
-
-pub fn get_t() -> u64 {
-  unsafe { get_t_c() / 20 }
+mod dpi_export {
+  use std::ffi::c_char;
+  extern "C" {
+    #[cfg(feature = "trace")]
+    /// `export "DPI-C" function dump_wave(input string file)`
+    pub fn dump_wave(path: *const c_char);
+  }
 }
 
 #[cfg(feature = "trace")]
 pub(crate) fn dump_wave(path: &str) {
+  use crate::svdpi;
   let path_cstring = CString::new(path).unwrap();
-  let path_ptr: *const c_char = path_cstring.as_ptr();
+
+  svdpi::set_scope_by_name("TOP.TestBench.clockGen");
   unsafe {
-    dump_wave_c(path_ptr);
+    dpi_export::dump_wave(path_cstring.as_ptr());
   }
 }

@@ -21,7 +21,7 @@ fn main() {
 
   std::fs::write(
     "perf.txt",
-    format!("total_cycles: {}", online_dpi::dpi::get_t()),
+    format!("total_cycles: {}", online_dpi::get_t()),
   )
   .expect("fail to write into perf.txt");
 }
