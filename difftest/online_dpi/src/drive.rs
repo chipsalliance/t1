@@ -6,6 +6,7 @@ use spike_rs::util::load_elf_to_buffer;
 use tracing::{debug, error, info, trace};
 
 use crate::dpi::*;
+use crate::get_t;
 use crate::OfflineArgs;
 
 struct ShadowMem {

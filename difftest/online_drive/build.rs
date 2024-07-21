@@ -9,13 +9,12 @@ fn main() {
 
   println!("cargo::rustc-link-search=native={}/lib", dst.display());
 
-  // link order matters!
+  // link order matters! so we use +whole-archive here
   // verilator_main <- VTestBench <-- verilated <- verilator_shim <- stdc++
   // verilated <- libz
-  // that's why we must split verilator_main and verilator_shim
-  println!("cargo::rustc-link-lib=static=verilator_shim");
-  println!("cargo::rustc-link-lib=static=VTestBench");
-  println!("cargo::rustc-link-lib=static=verilated");
+  println!("cargo::rustc-link-lib=static:+whole-archive=verilator_shim");
+  println!("cargo::rustc-link-lib=static:+whole-archive=VTestBench");
+  println!("cargo::rustc-link-lib=static:+whole-archive=verilated");
   println!("cargo::rustc-link-lib=stdc++");
   println!("cargo::rustc-link-lib=z");
   println!("cargo::rerun-if-env-changed=VERILATED_LIB_DIR");
