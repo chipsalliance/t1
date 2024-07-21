@@ -485,12 +485,15 @@ extern "C" {
 extern "C" {
     pub fn svAckDisabledState();
 }
+#[cfg(feature = "sv2023")]
 extern "C" {
     pub fn svGetTime(scope: svScope, time: *mut svTimeVal) -> ::std::os::raw::c_int;
 }
+#[cfg(feature = "sv2023")]
 extern "C" {
     pub fn svGetTimeUnit(scope: svScope, time_unit: *mut i32) -> ::std::os::raw::c_int;
 }
+#[cfg(feature = "sv2023")]
 extern "C" {
     pub fn svGetTimePrecision(scope: svScope, time_precision: *mut i32) -> ::std::os::raw::c_int;
 }
