@@ -190,13 +190,21 @@ $ nix run .#t1.<config-name>.ip.emu-omreader -- run --dump-methods
 
   | Field                           | Type   |
   |---------------------------------|--------|
-  | `[*]`                           | array  |
-  | `[*].attributes`                | object |
-  | `[*].attributes[*]`             | array  |
+  | `[*]`                           | object |
+  | `[*].attributes[*]`             | object |
   | `[*].attributes[*].description` | string |
   | `[*].attributes[*].identifier`  | string |
   | `[*].attributes[*].value`       | string |
 
+  ##### `lanesJson` | `lanesJson` : Json
+
+  | Field                           | Type    |
+  |---------------------------------|---------|
+  | `[*]`                           | object  |
+  | `[*].vfus[*]`                   | object  |
+  | `[*].vfus[*].cycles`            | integer |
+  | `[*].vrf`                       | object  |
+  | `[*].vrf.vrfSram[*]`            | string  |
 </details>
 
 ### Development

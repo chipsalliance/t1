@@ -60,6 +60,16 @@ object Main {
     println(simplyGetT1Reader(mlirbcFile).decoderInstructionsJsonPretty)
   }
 
+  @main
+  def lanesJson(@arg(name = "mlirbc-file") mlirbcFile: os.Path) = {
+    println(simplyGetT1Reader(mlirbcFile).lanesJson)
+  }
+
+  @main
+  def lanesJsonPretty(@arg(name = "mlirbc-file") mlirbcFile: os.Path) = {
+    println(simplyGetT1Reader(mlirbcFile).lanesJsonPretty)
+  }
+
   def simplyGetT1Reader(mlirbcFile: os.Path) = OMReader.fromFile(mlirbcFile).t1Reader
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)

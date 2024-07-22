@@ -69,6 +69,29 @@ class T1Reader private[omreaderlib](evaluator: PanamaCIRCTOMEvaluator, basePath:
   }
   def decoderInstructionsJson: String = ujson.write(decoderInstructionsJsonImpl)
   def decoderInstructionsJsonPretty: String = ujson.write(decoderInstructionsJsonImpl, 2)
+  private def lanesJsonImpl: ujson.Value = {
+    val lanes = t1.field("lanes").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
+    lanes.elements.map(lane => {
+      val laneObj = lane.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
+      val vfus = laneObj.field("vfus").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
+
+      val vrf = laneObj.field("vrf").asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
+      val vrfSram = vrf.field("vrfSram").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
+
+      ujson.Obj(
+        "vfus" -> vfus.elements.map(vfu => {
+          val vfuObj = vfu.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
+          val cycles = vfuObj.field("cycles").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer
+          ujson.Obj("cycles" -> ujson.Num(cycles))
+        }),
+        "vrf" -> ujson.Obj(
+          "vrfSram" -> vrfSram.elements.map(sram => sram.asInstanceOf[PanamaCIRCTOMEvaluatorValuePath].toString),
+        )
+      )
+    })
+  }
+  def lanesJson: String = ujson.write(lanesJsonImpl)
+  def lanesJsonPretty: String = ujson.write(lanesJsonImpl, 2)
 
   def dumpHierarchy(): Unit = {
     def dumpHierarchyImpl(value: PanamaCIRCTOMEvaluatorValue, indent: Int): Unit = {
