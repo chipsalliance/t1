@@ -58,7 +58,6 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val lastDataGroupReg: UInt = RegEnable(lastDataGroupForInstruction, 0.U, lsuRequest.valid)
   val nextDataGroup: UInt = Mux(lsuRequest.valid, 0.U, dataGroup + 1.U)
   val isLastRead: Bool = dataGroup === lastDataGroupReg
-  val lastGroupAndNeedAlign: Bool = initOffset.orR && isLastRead
 
   // stage1, 读vrf
   // todo: need hazardCheck?
@@ -159,12 +158,12 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // 存每条cache 的mask, 也许能优化, 暂时先这样
   val maskForBufferData: Vec[UInt] = RegInit(VecInit(Seq.fill(8)(0.U(param.lsuTransposeSize.W))))
   val maskForBufferDequeue: UInt = maskForBufferData(cacheLineIndexInBuffer)
-  val tailLeft2: Bool = RegInit(false.B)
+  val lastDataGroupInDataBuffer: Bool = RegInit(false.B)
   val alignedDequeueFire: Bool = memRequest.fire
   // cache 不对齐的时候的上一条残留
   val cacheLineTemp: UInt = RegEnable(dataBuffer.head, 0.U((param.lsuTransposeSize * 8).W), alignedDequeueFire)
   val maskTemp: UInt = RegInit(0.U(param.lsuTransposeSize.W))
-  val tailValid: Bool = RegInit(false.B)
+  val canSendTail: Bool = RegInit(false.B)
   val isLastCacheLineInBuffer: Bool = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
   val bufferWillClear: Bool = alignedDequeueFire && isLastCacheLineInBuffer
   accessBufferDequeueReady := !bufferValid || (memRequest.ready && isLastCacheLineInBuffer)
@@ -176,7 +175,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // 把数据regroup, 然后放去 [[dataBuffer]]
   when(accessBufferDequeueFire) {
     maskForBufferData := cutUInt(fillBySeg, param.lsuTransposeSize)
-    tailLeft2 := lastGroupAndNeedAlign
+    lastDataGroupInDataBuffer := isLastRead
     // todo: 只是因为参数恰好是一个方形的, 需要写一个反的
     dataBuffer := Mux1H(dataEEWOH, Seq.tabulate(3) { sewSize =>
       // 每个数据块 2 ** sew byte
@@ -238,11 +237,12 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   when(lsuRequest.valid || alignedDequeueFire) {
     maskTemp := Mux(lsuRequest.valid, 0.U, maskForBufferDequeue)
-    tailValid := Mux(lsuRequest.valid, false.B, bufferValid && tailLeft2 && isLastCacheLineInBuffer)
+    canSendTail := !lsuRequest.valid && bufferValid && isLastCacheLineInBuffer && lastDataGroupInDataBuffer
   }
 
   // 连接 alignedDequeue
-  memRequest.valid := bufferValid || tailValid
+  val needSendTail: Bool = bufferBaseCacheLineIndex === cacheLineNumberReg
+  memRequest.valid := bufferValid || (canSendTail && needSendTail)
   // aligned
   memRequest.bits.data :=
     multiShifter(right = false, multiSize = 8)(dataBuffer.head ## cacheLineTemp, initOffset) >> cacheLineTemp.getWidth
