@@ -10,7 +10,7 @@ fetch.github = "ucb-bar/berkeley-hardfloat"
 
 [chisel]
 src.git = "https://github.com/chipsalliance/chisel"
-src.branch = "main"
+src.branch = "sequencer/t1"
 fetch.github = "chipsalliance/chisel"
 
 [chisel-interface]
