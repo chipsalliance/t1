@@ -7,6 +7,7 @@ import chisel3._
 import chisel3.experimental.{ExtModule, SerializableModuleGenerator}
 import chisel3.experimental.dataview.DataViewable
 import chisel3.util.{log2Ceil, HasExtModuleInline, PopCount, UIntToOH, Valid}
+import chisel3.util.circt.dpi.RawUnclockedNonVoidFunctionCall
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.rocketv.dpi._
 import org.chipsalliance.rocketv.{RocketTile, RocketTileParameter}
@@ -49,6 +50,13 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
 
   val simulationTime: UInt = withClockAndReset(clock, reset)(RegInit(0.U(64.W)))
   simulationTime := simulationTime + 1.U
+
+  withClockAndReset(clock, reset) {
+    val watchdog = RawUnclockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime(9, 0) === 0.U)
+    when(watchdog =/= 0.U) {
+      stop(cf"""{"event":"SimulationStop","reason": ${watchdog},"cycle":${simulationTime}}\n""")
+    }
+  }
 
   val dut: RocketTile = withClockAndReset(clock, reset)(Module(generator.module()))
   dut.io.clock := clockGen.clock.asClock
