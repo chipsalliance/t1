@@ -260,48 +260,20 @@ impl Simulator {
     self.write_mem(addr, self.dlen / 8, strobe, data);
   }
 
-  fn read_mem(&mut self, addr: u32, size: u32, alignment_bytes: u32) -> Vec<u8> {
+  fn read_mem(&mut self, addr: u32, size: u32) -> Vec<u8> {
     assert!(
-      addr % size == 0 || addr % alignment_bytes == 0,
-      "unaligned access addr={addr} size={size}bytes dlen={alignment_bytes}bytes"
+      addr % size == 0,
+      "unaligned access addr={addr} size={size}bytes"
     );
-    let residue_addr = addr % alignment_bytes;
-    let aligned_addr = addr - residue_addr;
-    if size < alignment_bytes {
-      // narrow
-      (0..alignment_bytes)
-        .map(|i| {
-          let i_addr = aligned_addr + i;
-          if addr <= i_addr && i_addr < addr + size {
-            self.mem[i_addr as usize]
-          } else {
-            0
-          }
-        })
-        .collect()
-    } else {
-      // normal
-      (0..size).map(|i| self.mem[(addr + i) as usize]).collect()
-    }
+    (0..size).map(|i| self.mem[(addr + i) as usize]).collect()
   }
 
-  pub fn axi_read_instruction(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
+  pub fn axi_read(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize; // size in bytes
-    let data = self.read_mem(addr, size, 4);
+    let data = self.read_mem(addr, size);
     let data_hex = hex::encode(&data);
     info!(
-      "[{}] axi_read_indexed (addr={addr:#x}, size={size}, data={data_hex})",
-      0
-    );
-    AxiReadPayload { data }
-  }
-
-  pub(crate) fn axi_read_load_store(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
-    let size = 1 << arsize; // size in bytes
-    let data = self.read_mem(addr, size, self.dlen / 8);
-    let data_hex = hex::encode(&data);
-    info!(
-      "[{}] axi_read_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
+      "[{}] axi_read (addr={addr:#x}, size={size}, data={data_hex})",
       0
     );
     AxiReadPayload { data }

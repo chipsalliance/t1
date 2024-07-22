@@ -91,7 +91,7 @@ unsafe extern "C" fn axi_write_loadStoreAXI_rs(
   payload: *const SvBitVecVal,
 ) {
   debug!(
-    "axi_write_loadStore (channel_id={channel_id}, awid={awid}, awaddr={awaddr:#x}, \
+    "axi_write_loadStoreAXI (channel_id={channel_id}, awid={awid}, awaddr={awaddr:#x}, \
   awlen={awlen}, awsize=2^{awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
@@ -118,12 +118,12 @@ unsafe extern "C" fn axi_read_loadStoreAXI_rs(
   payload: *mut SvBitVecVal,
 ) {
   debug!(
-    "axi_read_highBandwidth (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
+    "axi_read_loadStoreAXI (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
   let sim = &mut *(target as *mut Simulator);
-  let response = sim.axi_read_load_store(araddr as u32, arsize as u64);
+  let response = sim.axi_read(araddr as u32, arsize as u64);
   fill_axi_read_payload(payload, sim.dlen, &response.data);
 }
 
@@ -144,21 +144,21 @@ unsafe extern "C" fn axi_read_instructionFetchAXI_rs(
   payload: *mut SvBitVecVal,
 ) {
   debug!(
-    "axi_read_indexed (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
+    "axi_read_instructionFetchAXI (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
-  let driver = &mut *(target as *mut Simulator);
-  let response = driver.axi_read_instruction(araddr as u32, arsize as u64);
-  fill_axi_read_payload(payload, driver.dlen, &response.data);
+  let sim = &mut *(target as *mut Simulator);
+  let response = sim.axi_read(araddr as u32, arsize as u64);
+  fill_axi_read_payload(payload, sim.dlen, &response.data);
 }
 
 #[no_mangle]
 unsafe extern "C" fn cosim_init_rs(call_init: *mut SvBit) -> *mut () {
   let args = SimulationArgs::parse();
   *call_init = 1;
-  let driver = Box::new(Simulator::new(args));
-  Box::into_raw(driver) as *mut ()
+  let sim = Box::new(Simulator::new(args));
+  Box::into_raw(sim) as *mut ()
 }
 
 #[no_mangle]
