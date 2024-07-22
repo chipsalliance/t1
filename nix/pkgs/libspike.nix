@@ -7,7 +7,7 @@ stdenv.mkDerivation {
   env.cmakeConfig = ''
     add_library(libspike STATIC IMPORTED GLOBAL)
     set_target_properties(libspike PROPERTIES
-      IMPORTED_LOCATION "${placeholder "out"}/lib/libriscv.so")
+      IMPORTED_LOCATION "${placeholder "out"}/lib/libriscv.a")
     target_include_directories(libspike AFTER INTERFACE
       "${placeholder "out"}/include"
       "${placeholder "out"}/include/riscv"
@@ -37,6 +37,7 @@ stdenv.mkDerivation {
     cp softfloat/*.h $out/include/softfloat
     cp config.h $out/include
     cp *.so $out/lib
+    cp *.a $out/lib
     echo "$cmakeConfig" > $out/lib/cmake/libspike/libspike-config.cmake
     runHook postInstall
   '';
