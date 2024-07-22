@@ -1,4 +1,5 @@
 { lib
+, libspike
 , callPackage
 , elaborateConfig
 
@@ -45,6 +46,8 @@ let
     env = {
       VERILATED_INC_DIR = "${verilated}/include";
       VERILATED_LIB_DIR = "${verilated}/lib";
+      SPIKE_LIB_DIR = "${libspike}/lib";
+      SPIKE_INTERFACES_LIB_DIR = "${spike_interfaces}/lib";
       DESIGN_VLEN = elaborateConfig.parameter.vLen;
       DESIGN_DLEN = elaborateConfig.parameter.dLen;
     };
