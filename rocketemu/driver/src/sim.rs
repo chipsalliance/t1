@@ -286,8 +286,7 @@ impl Simulator {
   }
 
   pub fn axi_read_instruction(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
-    let size = 1 << arsize;
-    assert!(size <= 4);
+    let size = 1 << arsize; // size in bytes
     let data = self.read_mem(addr, size, 4);
     let data_hex = hex::encode(&data);
     info!(
@@ -298,7 +297,7 @@ impl Simulator {
   }
 
   pub(crate) fn axi_read_load_store(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
-    let size = 1 << arsize;
+    let size = 1 << arsize; // size in bytes
     let data = self.read_mem(addr, size, self.dlen / 8);
     let data_hex = hex::encode(&data);
     info!(
