@@ -33,7 +33,7 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
          |    clock = 1'b0;
          |    reset = 1'b1;
          |  end
-         |  initial #(11) reset = 1'b0;
+         |  initial #(101) reset = 1'b0;
          |  always #10 clock = ~clock;
          |endmodule
          |""".stripMargin
