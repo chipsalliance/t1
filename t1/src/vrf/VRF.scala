@@ -4,11 +4,22 @@
 package org.chipsalliance.t1.rtl.vrf
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
-import org.chipsalliance.t1.rtl.{LSUWriteCheck, VRFReadPipe, VRFReadRequest, VRFWriteReport, VRFWriteRequest, ffo, instIndexL, instIndexLE, ohCheck}
+import chisel3.properties.{Class, ClassType, Path, Property}
+import org.chipsalliance.t1.rtl.{LSUWriteCheck, LaneOM, VRFReadPipe, VRFReadRequest, VRFWriteReport, VRFWriteRequest, ffo, instIndexL, instIndexLE, ohCheck}
+
+
+@instantiable
+class VRFOM extends Class {
+  @public
+  val vrfSram = IO(Output(Property[Seq[Path]]()))
+  @public
+  val vrfSramIn = IO(Input(Property[Seq[Path]]()))
+  vrfSram := vrfSramIn
+}
 
 sealed trait RamType
 object RamType {
@@ -127,6 +138,12 @@ class VRFProbe(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, data
   */
 @instantiable
 class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFParam] {
+
+  val omInstance: Instance[VRFOM] = Instantiate(new VRFOM)
+  val omType: ClassType = omInstance.toDefinition.getClassType
+  @public
+  val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
+  om := omInstance.getPropertyReference
 
   /** VRF read requests
     * ready will couple from valid from [[readRequests]],
@@ -414,6 +431,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
     rf
   }
+
+  omInstance.vrfSramIn := Property(rfVec.map{vrf => Path(vrf.underlying.get, true)})
 
   val initRecord: ValidIO[VRFWriteReport] = WireDefault(0.U.asTypeOf(Valid(new VRFWriteReport(parameter))))
   initRecord.valid := true.B
