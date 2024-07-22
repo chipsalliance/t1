@@ -17,6 +17,7 @@ object Main {
   @main
   def run(
     @arg(name = "mlirbc-file") mlirbcFile: Option[os.Path],
+    @arg(name = "dump-hierarchy") dumpHierarchy: Flag,
     @arg(name = "dump-methods") dumpMethods: Flag,
     @arg(name = "eval") eval: Option[String],
   ) = {
@@ -30,6 +31,8 @@ object Main {
 
     if (eval.nonEmpty) {
       println(SimpleInputEval(t1Reader.entry, eval.get))
+    } else if (dumpHierarchy.value) {
+      t1Reader.dumpHierarchy()
     } else if (dumpMethods.value) {
       t1Reader.dumpMethods()
     } else {

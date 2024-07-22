@@ -70,6 +70,29 @@ class T1Reader private[omreaderlib](evaluator: PanamaCIRCTOMEvaluator, basePath:
   def decoderInstructionsJson: String = ujson.write(decoderInstructionsJsonImpl)
   def decoderInstructionsJsonPretty: String = ujson.write(decoderInstructionsJsonImpl, 2)
 
+  def dumpHierarchy(): Unit = {
+    def dumpHierarchyImpl(value: PanamaCIRCTOMEvaluatorValue, indent: Int): Unit = {
+      value match {
+        case obj: PanamaCIRCTOMEvaluatorValueObject =>
+          obj.foreachField((name, next) => {
+            println(s"${"  " * indent}$name")
+            dumpHierarchyImpl(next, indent + 1)
+          })
+        case list: PanamaCIRCTOMEvaluatorValueList =>
+          if (list.numElements > 0) {
+            println(s"${"  " * indent}[")
+            dumpHierarchyImpl(list.getElement(0), indent + 1)
+            println(s"${"  " * indent}]")
+          } else {
+            // TODO: FIXME, there should be a way to get the element type without accessing the first element
+            println(s"${"  " * indent}[???]")
+          }
+        case _ => {}
+      }
+    }
+    dumpHierarchyImpl(entry, 0)
+  }
+
   def dumpMethods(): Unit = {
     val mirror = runtimeMirror(getClass.getClassLoader).reflect(this)
     val methods = typeOf[T1Reader].decls.toList.filter(
