@@ -237,9 +237,11 @@ reset_vector:                                                           \
 // End Macro
 //-----------------------------------------------------------------------
 
-#define EXIT_CODE 0x04000000
+#define EXIT_POS 0x04000000
+#define EXIT_CODE 0xDEADBEEF
 #define RVTEST_CODE_END                                                 \
-        sw EXIT_CODE, 0xDEADBEEF;
+        li t0, EXIT_CODE;
+        sw t0, 0(EXIT_POS);
 
 //-----------------------------------------------------------------------
 // Pass/Fail Macro
