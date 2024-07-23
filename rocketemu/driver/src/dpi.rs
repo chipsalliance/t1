@@ -187,7 +187,7 @@ extern "C" {
 // FIXME: currently we are using verilator context_p as simulation time.
 // But we should implement read cycle at TestBench top
 pub(crate) fn get_t() -> u64 {
-  unsafe { get_t_c() / 10 }
+  unsafe { get_t_c() / 20 }
 }
 
 pub(crate) fn verilator_main() {
