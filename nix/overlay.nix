@@ -100,12 +100,17 @@ rec {
   riscv-tests = final.pkgsCross.riscv32-embedded.stdenv.mkDerivation rec {
     pname = "riscv-tests";
     version = "7878085d2546af0eb7af72a1df00996d5d8c43fb";
-    src = final.fetchgit {
-      url = "https://github.com/riscv-software-src/riscv-tests.git";
+    src = final.fetchFromGitHub {
+      owner = "riscv-software-src";
+      repo = "riscv-tests";
       rev = "${version}";
-      fetchSubmodules = true;
-      hash = "sha256-3SUfmUHwvEG4Fi6YWLLhzMhASyL07euMmkIoc9leYFE=";
+      hash = "sha256-CruSrXVO5Qlk63HPBVbwzl/RdxAAl2bknWawDHJwEKY=";
     };
+
+    postUnpack = ''
+      rm -rf $sourceRoot/env
+      cp -r ${../tests/riscv-test-env} $sourceRoot/env
+    '';
 
     enableParallelBuilding = true;
 
