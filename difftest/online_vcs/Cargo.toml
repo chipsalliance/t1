@@ -3,6 +3,9 @@ name = "online_vcs"
 edition = "2021"
 version.workspace = true
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
 online_dpi = { path = "../online_dpi", features = ["svvpi"] }
 

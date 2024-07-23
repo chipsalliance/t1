@@ -44,8 +44,8 @@ let
     DESIGN_DLEN = elaborateConfig.parameter.dLen;
   };
 
-  online-dpi-static-lib = rustPlatform.buildRustPackage {
-    name = "online-dpi-static-lib";
+  online-dpi-lib = rustPlatform.buildRustPackage {
+    name = "online-dpi-lib";
 
     inherit src env;
 
@@ -53,8 +53,8 @@ let
       lockFile = ./Cargo.lock;
     };
 
-    buildFeatures = [ "svvpi" ];
-    buildAndTestSubdir = "./online_dpi";
+    buildFeatures = lib.optionals verilated.enable-trace [ "trace" ];
+    buildAndTestSubdir = "./online_vcs";
   };
 
   self = rustPlatform.buildRustPackage {
@@ -88,7 +88,7 @@ let
           clang-tools
         ];
       });
-      inherit spike_interfaces online-dpi-static-lib;
+      inherit spike_interfaces online-dpi-lib;
     };
   };
 in
