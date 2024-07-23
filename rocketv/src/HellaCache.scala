@@ -1004,12 +1004,13 @@ class HellaCache(val parameter: HellaCacheParameter)
       0.U,
       (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
     )
-    io.loadStoreAXI.ar.bits.size := Mux(s2_uncached, 0.U, parameter.lgCacheBlockBytes.U)
+    io.loadStoreAXI.ar.bits.size := Mux(s2_uncached, a_size, parameter.lgCacheBlockBytes.U)
     io.loadStoreAXI.ar.bits.id := a_source
     io.loadStoreAXI.ar.bits.user := s2_uncached
 
     io.loadStoreAXI.aw.valid := memAccessValid && !accessWillRead
     io.loadStoreAXI.aw.bits := DontCare
+    io.loadStoreAXI.aw.bits.burst := 1.U
     io.loadStoreAXI.aw.bits.addr := access_address
     io.loadStoreAXI.aw.bits.len := 0.U
     io.loadStoreAXI.aw.bits.size := a_size
@@ -1247,10 +1248,9 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     when(awState) {
       io.loadStoreAXI.aw.valid := true.B
-      io.loadStoreAXI.aw.bits := DontCare
-      io.loadStoreAXI.aw.bits.addr := releaseAddress
-      io.loadStoreAXI.aw.bits.len := 0.U
-      io.loadStoreAXI.aw.bits.size := a_size
+      io.loadStoreAXI.aw.bits.addr := releaseAddress >> parameter.lgCacheBlockBytes << parameter.lgCacheBlockBytes
+      io.loadStoreAXI.aw.bits.len := (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
+      io.loadStoreAXI.aw.bits.size := parameter.lgCacheBlockBytes.U
       io.loadStoreAXI.aw.bits.id := (mmioOffset - 1).U
     }
 
