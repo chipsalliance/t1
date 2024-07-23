@@ -993,9 +993,18 @@ class HellaCache(val parameter: HellaCacheParameter)
     assert(!(memAccessValid && s2_read && s2_write && s2_uncached))
     io.loadStoreAXI.ar.valid := memAccessValid && accessWillRead
     io.loadStoreAXI.ar.bits := DontCare
-    io.loadStoreAXI.ar.bits.addr := access_address
-    io.loadStoreAXI.ar.bits.len := 0.U
-    io.loadStoreAXI.ar.bits.size := a_size
+    io.loadStoreAXI.ar.bits.burst := 1.U
+    io.loadStoreAXI.ar.bits.addr := Mux(
+      s2_uncached,
+      access_address,
+      access_address >> parameter.lgCacheBlockBytes << parameter.lgCacheBlockBytes
+    )
+    io.loadStoreAXI.ar.bits.len := Mux(
+      s2_uncached,
+      0.U,
+      (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
+    )
+    io.loadStoreAXI.ar.bits.size := Mux(s2_uncached, 0.U, parameter.lgCacheBlockBytes.U)
     io.loadStoreAXI.ar.bits.id := a_source
     io.loadStoreAXI.ar.bits.user := s2_uncached
 
@@ -1093,7 +1102,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     when(blockProbeAfterGrantCount > 0.U) { blockProbeAfterGrantCount := blockProbeAfterGrantCount - 1.U }
     // !release_state.isOneOf(s_voluntary_writeback, s_voluntary_write_meta, s_voluntary_aw)
     val canAcceptCachedGrant = !Seq(s_voluntary_writeback, s_voluntary_write_meta, s_voluntary_aw).map(_ === release_state).reduce(_ || _)
-    io.loadStoreAXI.r.ready := Mux(grantIsCached, !d_first && canAcceptCachedGrant, true.B)
+    io.loadStoreAXI.r.ready := Mux(grantIsCached, canAcceptCachedGrant, true.B)
     val uncachedRespIdxOH = (UIntToOH(io.loadStoreAXI.r.bits.id, maxUncachedInFlight + mmioOffset) >> mmioOffset).asUInt
     uncachedResp := Mux1H(uncachedRespIdxOH, uncachedReqs)
     when(io.loadStoreAXI.r.fire) {
