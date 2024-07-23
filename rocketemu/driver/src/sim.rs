@@ -1,4 +1,6 @@
-use crate::dpi::{dump_wave, get_t};
+#[cfg(feature = "trace")]
+use crate::dpi::dump_wave;
+use crate::dpi::get_t;
 
 use clap::{arg, Parser};
 use std::collections::HashMap;
