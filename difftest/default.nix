@@ -1,7 +1,5 @@
 { lib
-, enableDebugging
 , libspike
-, libspike_interfaces
 , callPackage
 , elaborateConfig
 
@@ -17,24 +15,54 @@
 }:
 
 let
-  self = rustPlatform.buildRustPackage {
-    name = "difftest";
-    src = with lib.fileset; toSource {
-      root = ./.;
-      fileset = unions [
-        ./spike_rs
-        ./offline
-        ./online_dpi
-        ./online_drive
-        ./online_vcs
-        ./test_common
-        ./Cargo.lock
-        ./Cargo.toml
-      ];
+  spike_interfaces = callPackage ./spike_interfaces { };
+
+  src = with lib.fileset; toSource {
+    root = ./.;
+    fileset = unions [
+      ./spike_rs
+      ./offline
+      ./online_dpi
+      ./online_drive
+      ./online_vcs
+      ./test_common
+      ./Cargo.lock
+      ./Cargo.toml
+    ];
+  };
+
+  env = {
+    VERILATED_INC_DIR = "${verilated}/include";
+    VERILATED_LIB_DIR = "${verilated}/lib";
+    SPIKE_LIB_DIR = "${libspike}/lib";
+    SPIKE_INTERFACES_LIB_DIR = "${spike_interfaces}/lib";
+    SPIKE_ISA_STRING =
+      "rv32gc" +
+      (builtins.concatStringsSep "_" elaborateConfig.parameter.extensions)
+      + "_Zvl${toString elaborateConfig.parameter.vLen}b";
+    DESIGN_VLEN = elaborateConfig.parameter.vLen;
+    DESIGN_DLEN = elaborateConfig.parameter.dLen;
+  };
+
+  online-dpi-static-lib = rustPlatform.buildRustPackage {
+    name = "online-dpi-static-lib";
+
+    inherit src env;
+
+    cargoLock = {
+      lockFile = ./Cargo.lock;
     };
 
+    buildFeatures = [ "svvpi" ];
+    buildAndTestSubdir = "./online_dpi";
+  };
+
+  self = rustPlatform.buildRustPackage {
+    name = "verilator-emu" + (lib.optionalString verilated.enable-trace "-trace");
+    inherit src env;
+
     buildInputs = [
-      libspike_interfaces
+      spike_interfaces
       verilated
     ];
 
@@ -45,19 +73,6 @@ let
 
     buildFeatures = lib.optionals verilated.enable-trace [ "trace" ];
     buildAndTestSubdir = "./online_drive";
-
-    env = {
-      VERILATED_INC_DIR = "${verilated}/include";
-      VERILATED_LIB_DIR = "${verilated}/lib";
-      SPIKE_LIB_DIR = "${libspike}/lib";
-      SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
-      SPIKE_ISA_STRING =
-        "rv32gc" +
-        (builtins.concatStringsSep "_" elaborateConfig.parameter.extensions)
-        + "_Zvl${toString elaborateConfig.parameter.vLen}b";
-      DESIGN_VLEN = elaborateConfig.parameter.vLen;
-      DESIGN_DLEN = elaborateConfig.parameter.dLen;
-    };
 
     cargoLock = {
       lockFile = ./Cargo.lock;
@@ -73,17 +88,7 @@ let
           clang-tools
         ];
       });
-      inherit libspike_interfaces;
-
-      # enable debug info for difftest itself and libspike
-      withDebug = self.overrideAttrs (old: {
-        cargoBuildType = "debug";
-        doCheck = false;
-        env = old.env // {
-          SPIKE_LIB_DIR = "${enableDebugging libspike}/lib";
-        };
-        dontStrip = true;
-      });
+      inherit spike_interfaces online-dpi-static-lib;
     };
   };
 in

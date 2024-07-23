@@ -51,7 +51,7 @@ lib.makeScope newScope
         elaborateConfigJson = configPath;
         elaborateConfig = builtins.fromJSON (lib.readFile configPath);
 
-        cases = innerSelf.callPackage ../../tests { difftest = ip.difftest; difftest-trace = ip.difftest-trace; };
+        cases = innerSelf.callPackage ../../tests { verilator-emu = ip.verilator-emu; verilator-emu-trace = ip.verilator-emu-trace; };
 
         # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
         cases-x86 =
