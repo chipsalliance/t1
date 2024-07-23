@@ -30,6 +30,7 @@ class WritePayload(length: Int, dataWidth: Int) extends Bundle {
   val strb = Vec(length, UInt(math.max(8, dataWidth / 8).W))
 }
 
+// TODO: consider adding the latency of the read transaction
 class ReadPayload(length: Int,dataWidth: Int) extends Bundle {
   val data = Vec(length, UInt(dataWidth.W))
 }
@@ -121,7 +122,8 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       channel.BVALID := awExist && wExist
       channel.BID := Mux(awIssued, awid, channel.AWID)
       channel.BRESP := 0.U(2.W) // OK
-      channel.BUSER := Mux(awIssued, awuser, channel.AWUSER)
+      channel.BUSER := DontCare
+      // TODO: add latency to the write transaction reply
       when(channel.BVALID && channel.BREADY) {
         RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(
           io.clock,
