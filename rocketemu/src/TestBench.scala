@@ -100,8 +100,8 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
         name = "loadStoreAXI",
         axiParameter = loadStoreAXI.parameter,
         outstanding = 4,
-        readPayloadSize = 1,
-        writePayloadSize = 1
+        readPayloadSize = 8, // todo: align with parameter in the future
+        writePayloadSize = 8
       )
     ).suggestName("axi4_channel1_loadStoreAXI")
   )

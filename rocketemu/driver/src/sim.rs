@@ -238,8 +238,7 @@ impl Simulator {
       return;
     }
     let size = data.len() as u32;
-    debug!("write mem: size={size}, addr={addr:#x}");
-
+    // debug!("[{}] write_mem: size={size}, addr={addr:#x}", get_t());
     assert!(
       (addr % size == 0 || addr % alignment_bytes == 0) && size >= alignment_bytes,
       "unaligned write access addr={addr} size={size}bytes dlen={alignment_bytes}bytes"
@@ -255,8 +254,15 @@ impl Simulator {
     assert_eq!(
       strobe.len(),
       data.len(),
-      "write_mem: strobe size is not equal to data size"
+      "[{}] axi_write: strobe size is not equal to data size",
+      get_t()
     );
+    let data_hex = hex::encode(data);
+    info!(
+      "[{}] axi_write (addr={addr:#x}, data={data_hex})",
+      get_t()
+    );
+
     self.write_mem(addr, self.dlen / 8, strobe, data);
   }
 
@@ -265,6 +271,8 @@ impl Simulator {
       addr % size == 0,
       "unaligned access addr={addr} size={size}bytes"
     );
+    // debug!("[{}] read_mem: size={size}, addr={addr:#x}", get_t());
+
     (0..size).map(|i| self.mem[(addr + i) as usize]).collect()
   }
 
@@ -274,7 +282,7 @@ impl Simulator {
     let data_hex = hex::encode(&data);
     info!(
       "[{}] axi_read (addr={addr:#x}, size={size}, data={data_hex})",
-      0
+      get_t()
     );
     AxiReadPayload { data }
   }
