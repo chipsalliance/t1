@@ -30,6 +30,7 @@ let
         ./../../elaborator
         ./../../configgen/src
         ./../../rocketv
+        ./../../t1rocketv
         ./../../rocketemu/src
       ];
     };

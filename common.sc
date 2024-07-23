@@ -90,6 +90,16 @@ trait RocketVModule
   def moduleDeps = super.moduleDeps ++ Seq(axi4Module, hardfloatModule)
 }
 
+// Link T1 example: RocketV+T1
+trait T1RocketVModule
+  extends ScalaModule
+    with HasChisel {
+  def rocketvModule: ScalaModule
+  def t1Module: ScalaModule
+
+  def moduleDeps = super.moduleDeps ++ Seq(rocketvModule, t1Module)
+}
+
 trait EmuHelperModule
   extends ScalaModule
     with HasChisel
