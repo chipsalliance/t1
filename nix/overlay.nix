@@ -97,7 +97,7 @@ rec {
       };
   };
 
-  riscv-tests = final.pkgsCross.riscv64-embedded.stdenv.mkDerivation rec {
+  riscv-tests = final.pkgsCross.riscv32-embedded.stdenv.mkDerivation rec {
     pname = "riscv-tests";
     version = "7878085d2546af0eb7af72a1df00996d5d8c43fb";
     src = final.fetchgit {
@@ -111,9 +111,9 @@ rec {
 
     configureFlags = [
       # to match rocket-tools path
-      "--prefix=${placeholder "out"}/riscv64-unknown-elf"
+      "--prefix=${placeholder "out"}/riscv32-unknown-elf"
     ];
-    buildPhase = "make RISCV_PREFIX=riscv64-none-elf-";
+    buildPhase = "make RISCV_PREFIX=riscv32-none-elf-";
     installPhase = ''
       runHook preInstall
       make install
