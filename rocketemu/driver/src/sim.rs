@@ -1,6 +1,7 @@
 #[cfg(feature = "trace")]
 use crate::dpi::dump_wave;
 use crate::dpi::get_t;
+use crate::dpi::quit;
 
 use clap::{arg, Parser};
 use std::collections::HashMap;
@@ -22,6 +23,9 @@ use elf::{
 pub(crate) struct AxiReadPayload {
   pub(crate) data: Vec<u8>,
 }
+
+const EXIT_POS: u32 = 0x4000_0000;
+const EXIT_CODE: u32 = 0xdead_beef;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -262,10 +266,16 @@ impl Simulator {
       get_t()
     );
     let data_hex = hex::encode(data);
-    info!(
-      "[{}] axi_write (addr={addr:#x}, data={data_hex})",
-      get_t()
-    );
+    info!("[{}] axi_write (addr={addr:#x}, data={data_hex})", get_t());
+
+    if addr == EXIT_POS && data.len() >= 4 {
+      let exit_code = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
+      if exit_code == EXIT_CODE {
+        info!("exit with code: {:x?}", exit_code);
+        quit();
+        return;
+      }
+    }
 
     self.write_mem(addr, self.dlen / 8, strobe, data);
   }

@@ -238,7 +238,7 @@ reset_vector:                                                           \
 //-----------------------------------------------------------------------
 
 #define EXIT_POS 0x40000000;
-#define EXIT_CODE 0xdeadbeaf;
+#define EXIT_CODE 0xdeadbeef;
 #define RVTEST_CODE_END                                                 \
         li x1, EXIT_POS;                                                \
         li x2, EXIT_CODE;                                               \
@@ -253,7 +253,6 @@ reset_vector:                                                           \
         li TESTNUM, 1;                                                  \
         li a7, 93;                                                      \
         li a0, 0;                                                       \
-        ecall
 
 #define TESTNUM gp
 #define RVTEST_FAIL                                                     \
@@ -263,7 +262,6 @@ reset_vector:                                                           \
         or TESTNUM, TESTNUM, 1;                                         \
         li a7, 93;                                                      \
         addi a0, TESTNUM, 0;                                            \
-        ecall
 
 //-----------------------------------------------------------------------
 // Data Section Macro
