@@ -178,6 +178,8 @@ unsafe extern "C" fn cosim_watchdog_rs(target: *mut (), reason: *mut c_char) {
 extern "C" {
   fn verilator_main_c(argc: c_int, argv: *mut *mut c_char) -> c_int;
 
+  fn quit_c();
+
   #[cfg(feature = "trace")]
   fn dump_wave_c(path: *const c_char);
 
@@ -188,6 +190,12 @@ extern "C" {
 // But we should implement read cycle at TestBench top
 pub(crate) fn get_t() -> u64 {
   unsafe { get_t_c() / 20 }
+}
+
+pub(crate) fn quit() {
+  unsafe {
+    quit_c();
+  }
 }
 
 pub(crate) fn verilator_main() {
