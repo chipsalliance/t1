@@ -8,6 +8,12 @@ class VTestBench;
 VerilatedContext *contextp;
 VTestBench *topp;
 
+bool quit;
+
+void quit_c() {
+  quit = true;
+}
+
 int verilator_main_c(int argc, char **argv) {
   // Setup context, defaults, and parse command line
   Verilated::debug(0);
@@ -15,11 +21,14 @@ int verilator_main_c(int argc, char **argv) {
   contextp->fatalOnError(false);
   contextp->commandArgs(argc, argv);
 
+  // Set quit flag, true means quit
+  quit = false;
+
   // Construct the Verilated model, from Vtop.h generated from Verilating
   topp = new VTestBench(contextp);
 
   // Simulate until $finish
-  while (!contextp->gotFinish()) {
+  while (!contextp->gotFinish() && !quit) {
     // Evaluate model
     topp->eval();
     // Advance time
