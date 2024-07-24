@@ -244,7 +244,8 @@ case class RocketTileParameter(
     fastLoadByte,
     fastLoadWord,
     dcacheNSets,
-    flushOnFenceI
+    flushOnFenceI,
+    usingT1 = false
   )
 
   def hellaCacheParameter: HellaCacheParameter = HellaCacheParameter(
