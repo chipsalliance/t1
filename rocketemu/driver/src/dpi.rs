@@ -164,6 +164,14 @@ unsafe extern "C" fn cosim_init_rs(call_init: *mut SvBit) -> *mut () {
 }
 
 #[no_mangle]
+unsafe extern "C" fn get_resetvector_rs(target: *mut (), resetvector: *mut c_longlong) {
+  if !target.is_null() {
+    let sim = &mut *(target as *mut Simulator);
+    *resetvector = sim.e_entry as c_longlong
+  }
+}
+
+#[no_mangle]
 unsafe extern "C" fn cosim_watchdog_rs(target: *mut (), reason: *mut c_char) {
   // watchdog dpi call would be called before initialization, guard on null target
   if !target.is_null() {

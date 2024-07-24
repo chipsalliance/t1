@@ -43,6 +43,9 @@ extern void axi_read_instructionFetchAXI_rs(
 /// true. returns dpi call target
 extern void *cosim_init_rs();
 
+/// evaluate after reset, return the reset vector
+extern void *get_resetvector_rs(void *dpi_call_target, long long *resetvector);
+
 /// evaluate at every 1024 cycles, return reason = 0 to continue simulation,
 /// other value is used as error code.
 extern void cosim_watchdog_rs(void *dpi_call_target, char *reason);

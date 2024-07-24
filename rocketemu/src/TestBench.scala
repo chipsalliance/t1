@@ -69,8 +69,8 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
   dut.io.msip := 0.U
   dut.io.buserror := 0.U
 
-  // FIXME: get resetVector from simulator instead of hard code here
-  dut.io.resetVector := (BigInt(1) << 31).U
+  // get resetVector from simulator
+  dut.io.resetVector := RawUnclockedNonVoidFunctionCall("get_resetvector", Const(UInt(64.W)))(simulationTime === 0.U)
 
   // output probes
   val rocketProbe = probe.read(dut.io.rocketProbe)

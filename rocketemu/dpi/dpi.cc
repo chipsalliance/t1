@@ -50,6 +50,11 @@ void axi_read_instructionFetchAXI(
 /// true.
 void cosim_init() { dpi_call_target = cosim_init_rs(); }
 
+/// dynamically set resetvector according to the payload
+void get_resetvector(long long *resetvector) { 
+  get_resetvector_rs(dpi_call_target, resetvector); 
+}
+
 /// evaluate at every 1024 cycles, return reason = 0 to continue simulation,
 /// other value is used as error code.
 void cosim_watchdog(char *reason) {
