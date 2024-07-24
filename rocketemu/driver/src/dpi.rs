@@ -22,17 +22,18 @@ pub type SvBitVecVal = u32;
 unsafe fn load_from_payload(
   payload: &*const SvBitVecVal,
   aw_size: c_longlong,
-  data_width: u32,
+  data_width: usize,
+  dlen: usize,
 ) -> (Vec<bool>, &[u8]) {
   let src = *payload as *mut u8;
-  let data_width_in_byte = (data_width / 8) as usize;
-  let strb_width_in_byte = data_width_in_byte.div_ceil(8); // ceil divide by 8 to get byte width
+  let data_width_in_byte = dlen / 8;
+  let strb_width_in_byte = dlen / data_width;
   let payload_size_in_byte = strb_width_in_byte + data_width_in_byte; // data width in byte
   let byte_vec = std::slice::from_raw_parts(src, payload_size_in_byte);
   let strobe = &byte_vec[0..strb_width_in_byte];
   let data = &byte_vec[strb_width_in_byte..];
 
-  let strb_width_in_bit = std::cmp::min(8, data_width_in_byte);
+  let strb_width_in_bit = data_width / 8;
   let masks: Vec<bool> = strobe
     .into_iter()
     .flat_map(|strb| {
@@ -97,7 +98,8 @@ unsafe extern "C" fn axi_write_loadStoreAXI_rs(
   );
 
   let sim = &mut *(target as *mut Simulator);
-  let (strobe, data) = load_from_payload(&payload, 1 << awsize, sim.dlen);
+  let data_width = 32; // TODO: get from sim
+  let (strobe, data) = load_from_payload(&payload, 1 << awsize, data_width, sim.dlen as usize);
   sim.axi_write(awaddr as u32, &strobe, data);
 }
 
