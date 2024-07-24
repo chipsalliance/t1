@@ -108,6 +108,7 @@ pub struct Simulator {
   pub(crate) fn_sym_tab: FunctionSymTab,
   pub(crate) dlen: u32,
   pub(crate) timeout: u64,
+  pub(crate) e_entry: u64
 
   #[cfg(feature = "trace")]
   wave_path: String,
@@ -136,8 +137,8 @@ impl Simulator {
     tracing::subscriber::set_global_default(global_logger)
       .expect("internal error: fail to setup log subscriber");
 
-    // FIXME: pass e_entry to rocket
-    let (_FIXME_e_entry, mem, fn_sym_tab) =
+    // pass e_entry to rocket
+    let (e_entry, mem, fn_sym_tab) =
       Self::load_elf(&args.elf_file).expect("fail creating simulator");
 
     #[cfg(feature = "trace")]
@@ -150,6 +151,7 @@ impl Simulator {
       dlen: option_env!("DESIGN_DLEN")
         .map(|dlen| dlen.parse().expect("fail to parse dlen into u32 digit"))
         .unwrap_or(256),
+      e_entry: e_entry,
 
       #[cfg(feature = "trace")]
       wave_path: args.wave_path.to_owned(),
