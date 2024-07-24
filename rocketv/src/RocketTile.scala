@@ -368,7 +368,7 @@ case class RocketTileParameter(
 class RocketTileInterface(parameter: RocketTileParameter) extends Bundle {
   val clock = Input(Clock())
   val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
-  // todo: Const
+
   val hartid = Flipped(UInt(parameter.hartIdLen.W))
   val resetVector = Input(Const(UInt(parameter.resetVectorBits.W)))
 
