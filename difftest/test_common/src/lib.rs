@@ -24,11 +24,11 @@ pub struct CommonArgs {
   pub log_level: String,
 
   /// vlen config
-  #[arg(long, default_value = option_env!("DESIGN_VLEN").unwrap_or("0"))]
+  #[arg(long, default_value = env!("DESIGN_VLEN"))]
   pub vlen: u32,
 
   /// dlen config
-  #[arg(long, default_value = option_env!("DESIGN_DLEN").unwrap_or("0"))]
+  #[arg(long, default_value = env!("DESIGN_DLEN"))]
   pub dlen: u32,
 
   /// ISA config

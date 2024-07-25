@@ -1,4 +1,5 @@
 { lib
+, elaborateConfig
 , rustPlatform
 , libspike
 , spike_interfaces
@@ -29,6 +30,8 @@ rustPlatform.buildRustPackage {
     VCS_LIB_DIR = "${vcStaticHome}/vcs-mx/linux64/lib";
     SPIKE_LIB_DIR = "${libspike}/lib";
     SPIKE_INTERFACES_LIB_DIR = "${spike_interfaces}/lib";
+    DESIGN_VLEN = elaborateConfig.parameter.vLen;
+    DESIGN_DLEN = elaborateConfig.parameter.dLen;
   };
 
   cargoLock = {
