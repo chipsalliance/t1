@@ -115,10 +115,10 @@ lib.makeScope newScope
               "--strip-debug-info"
             ];
           };
-          vcs-emu-compiled = innerSelf.callPackage ./vcs.nix { rtl = vcs-emu-rtl; };
-          vcs-emu-compiled-trace = innerSelf.callPackage ./vcs.nix { rtl = vcs-emu-rtl; enable-trace = true; };
-          vcs-dpi-lib = innerSelf.callPackage ../../difftest/online_vcs { vcStaticInstallPath = builtins.getEnv "VC_STATIC_HOME"; };
+          vcs-dpi-lib = innerSelf.callPackage ../../difftest/online_vcs { };
           vcs-dpi-lib-trace = vcs-dpi-lib.override { enable-trace = true; };
+          vcs-emu-compiled = innerSelf.callPackage ./vcs.nix { inherit vcs-dpi-lib; rtl = vcs-emu-rtl; };
+          vcs-emu-compiled-trace = innerSelf.callPackage ./vcs.nix { vcs-dpi-lib = vcs-dpi-lib-trace; rtl = vcs-emu-rtl; };
         };
 
         subsystem = rec {

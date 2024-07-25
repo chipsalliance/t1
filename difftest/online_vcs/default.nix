@@ -2,8 +2,8 @@
 , rustPlatform
 , libspike
 , spike_interfaces
-, vcStaticInstallPath
 , enable-trace ? false
+, vcStaticHome
 }:
 
 rustPlatform.buildRustPackage {
@@ -26,7 +26,7 @@ rustPlatform.buildRustPackage {
   buildAndTestSubdir = "./online_vcs";
 
   env = {
-    VCS_LIB_DIR = "${vcStaticInstallPath}/vcs-mx/linux64/lib";
+    VCS_LIB_DIR = "${vcStaticHome}/vcs-mx/linux64/lib";
     SPIKE_LIB_DIR = "${libspike}/lib";
     SPIKE_INTERFACES_LIB_DIR = "${spike_interfaces}/lib";
   };

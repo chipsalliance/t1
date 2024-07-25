@@ -1,31 +1,40 @@
 { buildFHSEnv
-  # e.g. /opt/synopsys/vc_static/V-2023.12
-, vcStaticInstallPath
-  # e.g. port@addr
-, snpsLicenseFile
+, vcStaticHome
+, snpslmdLicenseFile
 }:
 buildFHSEnv {
   name = "vcs-fhs-env";
+
   profile = ''
+    [ ! -d "${vcStaticHome}"  ] && echo "VC HOME not set" && exit 1
+    [ -z "${snpslmdLicenseFile}"  ] && echo "SNPS LICENSE not set" && exit 1
+    export VC_STATIC_HOME=${vcStaticHome}
+
     export TCL_TZ=UTC
-    export VC_STATIC_HOME=${vcStaticInstallPath}
-    export VCS_HOME=${vcStaticInstallPath}/vcs-mx
+    export VC_STATIC_HOME=$VC_STATIC_HOME
+    export VCS_HOME=$VC_STATIC_HOME/vcs-mx
     export VCS_TARGET_ARCH=amd64
     export VCS_ARCH_OVERRIDE=linux
-    export VERDI_HOME=${vcStaticInstallPath}/verdi
-    export NOVAS_HOME=${vcStaticInstallPath}/verdi
-    export SPYGLASS_HOME=${vcStaticInstallPath}/SG_COMPAT/SPYGLASS_HOME
+    export VERDI_HOME=$VC_STATIC_HOME/verdi
+    export NOVAS_HOME=$VC_STATIC_HOME/verdi
+    export SPYGLASS_HOME=$VC_STATIC_HOME/SG_COMPAT/SPYGLASS_HOME
     export SNPS_VERDI_CBUG_LCA=1
-    export SNPSLMD_LICENSE_FILE=${snpsLicenseFile}
+    export SNPSLMD_LICENSE_FILE=${snpslmdLicenseFile}
 
-    export PATH=${vcStaticInstallPath}/bin:$PATH
-    export PATH=${vcStaticInstallPath}/verdi/bin:$PATH
-    export PATH=${vcStaticInstallPath}/vcs-mx/bin:$PATH
-    export PATH=${vcStaticInstallPath}/SG_COMPAT/SPYGLASS_HOME/bin:$PATH
+    export PATH=$VC_STATIC_HOME/bin:$PATH
+    export PATH=$VC_STATIC_HOME/verdi/bin:$PATH
+    export PATH=$VC_STATIC_HOME/vcs-mx/bin:$PATH
+    export PATH=$VC_STATIC_HOME/SG_COMPAT/SPYGLASS_HOME/bin:$PATH
 
     export LD_LIBRARY_PATH=/usr/lib64/
-    export LD_LIBRARY_PATH=${vcStaticInstallPath}/verdi/share/PLI/lib/LINUX64:$LD_LIBRARY_PATH
-    export LD_LIBRARY_PATH=${vcStaticInstallPath}/verdi/share/NPI/lib/LINUX64:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$VC_STATIC_HOME/verdi/share/PLI/lib/LINUX64:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$VC_STATIC_HOME/verdi/share/NPI/lib/LINUX64:$LD_LIBRARY_PATH
+
+    export _oldVcsEnvPath="$PATH"
+    preHook() {
+      PATH="$PATH:$_oldVcsEnvPath"
+    }
+    export -f preHook
   '';
   targetPkgs = (ps: with ps; [
     libGL
