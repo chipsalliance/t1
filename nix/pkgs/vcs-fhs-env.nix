@@ -81,6 +81,7 @@ buildFHSEnv {
     keyutils
     graphite2
     libpulseaudio
+    libxml2
     gcc
     gnumake
     xorg.libX11
