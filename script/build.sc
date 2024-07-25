@@ -10,7 +10,7 @@ trait ScriptModule extends ScalaModule {
   val scala3 = "3.3.3"
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val oslib = ivy"com.lihaoyi::os-lib:0.10.0"
-  val upickle = ivy"com.lihaoyi::upickle:3.1.3"
+  val upickle = ivy"com.lihaoyi::upickle:3.3.1"
 
   def scalaVersion = scala3
   def scalacOptions = Seq("-new-syntax")
