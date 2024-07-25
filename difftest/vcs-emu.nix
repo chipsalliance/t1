@@ -1,69 +1,41 @@
 { lib
-, callPackage
-, elaborateConfig
-
 , rustPlatform
-
-, rust-analyzer
-, rust-bindgen
-
+, libspike
+, spike_interfaces
 , vcStaticInstallPath
-, vcs-lib
-
-, cmake
-, clang-tools
+, enable-trace ? false
 }:
 
-let
-  spike_interfaces = callPackage ./spike_interfaces { };
-
-  self = rustPlatform.buildRustPackage {
-    name = "t1-vcs-emu";
-    src = with lib.fileset; toSource {
-      root = ./.;
-      fileset = unions [
-        ./spike_rs
-        ./offline
-        ./online_dpi
-        ./online_drive
-        ./online_vcs
-        ./test_common
-        ./Cargo.lock
-        ./Cargo.toml
-      ];
-    };
-
-    buildInputs = [
-      spike_interfaces
-      vcs-lib
+rustPlatform.buildRustPackage {
+  name = "vcs-dpi-lib";
+  src = with lib.fileset; toSource {
+    root = ./.;
+    fileset = unions [
+      ./spike_rs
+      ./offline
+      ./online_dpi
+      ./online_drive
+      ./online_vcs
+      ./test_common
+      ./Cargo.lock
+      ./Cargo.toml
     ];
-
-    buildFeatures = lib.optionals vcs-lib.enable-trace [ "trace" ];
-    buildAndTestSubdir = "./online_vcs";
-
-    env = {
-      VCS_LIB_DIR = "${vcStaticInstallPath}/vcs-mx/linux64/lib";
-      VCS_COMPILED_LIB_DIR = "${vcs-lib}/lib";
-      DESIGN_VLEN = elaborateConfig.parameter.vLen;
-      DESIGN_DLEN = elaborateConfig.parameter.dLen;
-    };
-
-    cargoLock = {
-      lockFile = ./Cargo.lock;
-    };
-
-    dontUseCmakeConfigure = true;
-
-    passthru = {
-      devShell = self.overrideAttrs (old: {
-        nativeBuildInputs = old.nativeBuildInputs ++ [
-          rust-analyzer
-          rust-bindgen
-          clang-tools
-        ];
-      });
-      inherit spike_interfaces;
-    };
   };
-in
-self
+
+  buildFeatures = lib.optionals enable-trace [ "trace" ];
+  buildAndTestSubdir = "./online_vcs";
+
+  env = {
+    VCS_LIB_DIR = "${vcStaticInstallPath}/vcs-mx/linux64/lib";
+    SPIKE_LIB_DIR = "${libspike}/lib";
+    SPIKE_INTERFACES_LIB_DIR = "${spike_interfaces}/lib";
+  };
+
+  cargoLock = {
+    lockFile = ./Cargo.lock;
+  };
+
+  passthru = {
+    inherit enable-trace;
+  };
+}
