@@ -112,40 +112,38 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   val issue = WireDefault(0.U.asTypeOf(new Issue))
   val fence = RegInit(false.B)
   val outstanding = RegInit(0.U(4.W))
-  val doIssue: Bool = dut.io.request.ready && !fence
-  outstanding := outstanding + (doIssue && (issue.meta === 1.U)) - dut.io.response.valid
-  fence := Mux(doIssue, issue.meta === 2.U, fence && !dut.io.response.valid && !(outstanding === 0.U))
+  val doIssue: Bool = dut.io.issue.ready && !fence
+  outstanding := outstanding + (doIssue && (issue.meta === 1.U)) - dut.io.issue.valid
+  // TODO: refactor driver to spawn 3 scoreboards for record different retirement.
+  val t1Probe = probe.read(dut.io.t1Probe)
+  fence := Mux(doIssue, issue.meta === 2.U, fence && !t1Probe.retireValid && !(outstanding === 0.U))
 
   issue := RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
     clock,
     doIssue
   )
-  dut.io.request.bits.instruction := issue.instruction
-  dut.io.request.bits.src1Data := issue.src1Data
-  dut.io.request.bits.src2Data := issue.src2Data
-  dut.io.csrInterface.vlmul := issue.vtype(2, 0)
-  dut.io.csrInterface.vSew := issue.vtype(5, 3)
-  dut.io.csrInterface.vta := issue.vtype(6)
-  dut.io.csrInterface.vma := issue.vtype(7)
-  dut.io.csrInterface.vl := issue.vl
-  dut.io.csrInterface.vStart := issue.vstart
-  dut.io.csrInterface.vxrm := issue.vcsr(2, 1)
-
-  dut.io.csrInterface.ignoreException := 0.U
-  dut.io.storeBufferClear := true.B
-  dut.io.request.valid := issue.meta === 1.U
+  dut.io.issue.bits.instruction := issue.instruction
+  dut.io.issue.bits.rs1Data := issue.src1Data
+  dut.io.issue.bits.rs2Data := issue.src2Data
+  dut.io.issue.bits.vtype := issue.vtype
+  dut.io.issue.bits.vl := issue.vl
+  dut.io.issue.bits.vstart := issue.vstart
+  dut.io.issue.bits.vcsr := issue.vcsr
+  dut.io.issue.valid := issue.meta === 1.U
   when(issue.meta =/= 0.U && issue.meta =/= 1.U && issue.meta =/= 2.U) {
     stop(cf"""{"event":"SimulationStop","reason": ${issue.meta},"cycle":${simulationTime}}\n""")
   }
   val retire = Wire(new Retire)
-  retire.rd := dut.io.response.bits.rd.bits
-  retire.data := dut.io.response.bits.data
-  retire.writeRd := dut.io.response.bits.rd.valid
-  retire.vxsat := dut.io.response.bits.vxsat
-  RawClockedVoidFunctionCall("retire_vector_instruction")(clock, dut.io.response.valid, retire)
+  retire.rd := dut.io.retire.rd.bits.rdAddress
+  retire.data := dut.io.retire.rd.bits.rdData
+  retire.writeRd := dut.io.retire.rd.valid
+  retire.vxsat := dut.io.retire.csr.bits.vxsat
+  // TODO:
+  //  retire.fflag := dut.io.retire.csr.bits.fflag
+  RawClockedVoidFunctionCall("retire_vector_instruction")(clock, t1Probe.retireValid, retire)
   val dummy = Wire(Bool())
   dummy := false.B
-  RawClockedVoidFunctionCall("retire_vector_mem")(clock, dut.io.response.bits.mem && dut.io.response.valid, dummy)
+  RawClockedVoidFunctionCall("retire_vector_mem")(clock, dut.io.retire.mem.valid, dummy)
 
   // Memory Drivers
   Seq(
@@ -201,8 +199,6 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
       wire
   }
 
-  val t1Probe = probe.read(dut.io.t1Probe)
-
   // vrf write
   laneVrfProbes.zipWithIndex.foreach {
     case (lane, i) =>
@@ -225,13 +221,13 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
     )
   )
   // issue
-  when(dut.io.request.fire)(
+  when(dut.io.issue.fire)(
     printf(cf"""{"event":"Issue","idx":${t1Probe.instructionCounter},"cycle":${simulationTime}}\n""")
   )
   // check rd
-  when(dut.io.response.bits.rd.valid)(
+  when(dut.io.retire.rd.valid)(
     printf(
-      cf"""{"event":"CheckRd","data":"${dut.io.response.bits.data}%x","issue_idx":${t1Probe.responseCounter},"cycle":${simulationTime}}\n"""
+      cf"""{"event":"CheckRd","data":"${dut.io.retire.rd.bits.rdData}%x","issue_idx":${t1Probe.responseCounter},"cycle":${simulationTime}}\n"""
     )
   )
   // lsu enq

@@ -276,6 +276,7 @@ class T1Probe(param: T1Parameter) extends Bundle {
   val instructionCounter: UInt = UInt(param.instructionIndexBits.W)
   val instructionIssue: Bool = Bool()
   val issueTag: UInt = UInt(param.instructionIndexBits.W)
+  val retireValid: Bool = Bool()
   // write queue enq for mask unit
   val writeQueueEnq: ValidIO[UInt] = Valid(UInt(param.instructionIndexBits.W))
   val writeQueueEnqMask: UInt = UInt((param.datapathWidth / 8).W)
@@ -288,34 +289,22 @@ class T1Probe(param: T1Parameter) extends Bundle {
 class T1Interface(parameter: T1Parameter) extends Record {
   def clock = elements("clock").asInstanceOf[Clock]
   def reset = elements("reset").asInstanceOf[Bool]
-  /** request from CPU.
-    * because the interrupt and exception of previous instruction is unpredictable,
-    * and the `kill` logic in Vector processor is too high,
-    * thus the request should come from commit stage to avoid any interrupt or excepiton.
-    */
-  def request = elements("request").asInstanceOf[DecoupledIO[VRequest]]
-  /** response to CPU. */
-  def response: ValidIO[VResponse] = elements("response").asInstanceOf[ValidIO[VResponse]]
-  /** CSR interface from CPU. */
-  def csrInterface: CSRInterface = elements("csrInterface").asInstanceOf[CSRInterface]
-  /** from CPU LSU, store buffer is cleared, memory can observe memory requests after this is asserted. */
-  def storeBufferClear: Bool = elements("storeBufferClear").asInstanceOf[Bool]
+  def issue = elements("issue").asInstanceOf[DecoupledIO[T1Issue]]
+  def retire = elements("retire").asInstanceOf[T1Retire]
   def highBandwidthLoadStorePort: AXI4RWIrrevocable = elements("highBandwidthLoadStorePort").asInstanceOf[AXI4RWIrrevocable]
   def indexedLoadStorePort: AXI4RWIrrevocable = elements("indexedLoadStorePort").asInstanceOf[AXI4RWIrrevocable]
   def om: Property[ClassType] = elements("om").asInstanceOf[Property[ClassType]]
+  // TODO: refactor to an single Probe to avoid using Record on the [[T1Interface]].
   def lsuProbe: LSUProbe = elements("lsuProbe").asInstanceOf[LSUProbe]
   def t1Probe: T1Probe = elements("t1Probe").asInstanceOf[T1Probe]
   def laneProbes: Seq[LaneProbe] = Seq.tabulate(parameter.laneNumber)(i => elements(s"lane${i}Probe").asInstanceOf[LaneProbe])
   def laneVrfProbes: Seq[VRFProbe] = Seq.tabulate(parameter.laneNumber)(i => elements(s"lane${i}VrfProbe").asInstanceOf[VRFProbe])
-
   val elements: SeqMap[String, Data] = SeqMap.from(
     Seq(
       "clock" -> Input(Clock()),
       "reset" -> Input(Bool()),
-      "request" -> Flipped(Decoupled(new VRequest(parameter.xLen))),
-      "response" -> Valid(new VResponse(parameter.xLen)),
-      "csrInterface" -> Input(new CSRInterface(parameter.laneParam.vlMaxBits)),
-      "storeBufferClear" -> Input(Bool()),
+      "issue" -> Flipped(Decoupled(new T1Issue(parameter.xLen, parameter.vLen))),
+      "retire" -> new T1Retire(parameter.xLen),
       "highBandwidthLoadStorePort" -> new AXI4RWIrrevocable(parameter.axi4BundleParameter),
       "indexedLoadStorePort" -> new AXI4RWIrrevocable(parameter.axi4BundleParameter.copy(dataWidth=32)),
       "om" -> Output(Property[AnyClassType]()),
@@ -362,39 +351,46 @@ class T1(val parameter: T1Parameter)
   // TODO: uarch doc about the order of instructions
   val instructionCounter:     UInt = RegInit(0.U(parameter.instructionIndexBits.W))
   val nextInstructionCounter: UInt = instructionCounter + 1.U
-  when(io.request.fire) { instructionCounter := nextInstructionCounter }
+  when(io.issue.fire) { instructionCounter := nextInstructionCounter }
 
+  val retire = WireDefault(false.B)
   // todo: handle waw
   val responseCounter:     UInt = RegInit(0.U(parameter.instructionIndexBits.W))
   val nextResponseCounter: UInt = responseCounter + 1.U
-  when(io.response.fire) { responseCounter := nextResponseCounter }
+  when(retire) { responseCounter := nextResponseCounter }
 
   // maintained a 1 depth queue for VRequest.
   // TODO: directly maintain a `ready` signal
   /** register to latch instruction. */
   val requestReg: ValidIO[InstructionPipeBundle] = RegInit(0.U.asTypeOf(Valid(new InstructionPipeBundle(parameter))))
-
+  val requestRegCSR: CSRInterface = WireDefault(0.U.asTypeOf(new CSRInterface(parameter.laneParam.vlMaxBits)))
+  requestRegCSR.vlmul := requestReg.bits.issue.vtype(2, 0)
+  requestRegCSR.vSew := requestReg.bits.issue.vtype(5, 3)
+  requestRegCSR.vta := requestReg.bits.issue.vtype(6)
+  requestRegCSR.vma := requestReg.bits.issue.vtype(7)
+  requestRegCSR.vl := requestReg.bits.issue.vl
+  requestRegCSR.vStart := requestReg.bits.issue.vstart
+  requestRegCSR.vxrm := requestReg.bits.issue.vcsr(2, 1)
   /** maintain a [[DecoupleIO]] for [[requestReg]]. */
-  val requestRegDequeue = Wire(Decoupled(new VRequest(parameter.xLen)))
+  val requestRegDequeue = Wire(Decoupled(new T1Issue(parameter.xLen, parameter.vLen)))
   // latch instruction, csr, decode result and instruction index to requestReg.
-  when(io.request.fire) {
+  when(io.issue.fire) {
     // The LSU only need to know the instruction, and don't need information from decoder.
     // Thus we latch the request here, and send it to LSU.
-    requestReg.bits.request := io.request.bits
+    requestReg.bits.issue := io.issue.bits
     requestReg.bits.decodeResult := decode.decodeResult
-    requestReg.bits.csr := io.csrInterface
     requestReg.bits.instructionIndex := instructionCounter
     // vd === 0 && not store type
-    requestReg.bits.vdIsV0 := (io.request.bits.instruction(11, 7) === 0.U) &&
-      (io.request.bits.instruction(6) || !io.request.bits.instruction(5))
+    requestReg.bits.vdIsV0 := (io.issue.bits.instruction(11, 7) === 0.U) &&
+      (io.issue.bits.instruction(6) || !io.issue.bits.instruction(5))
     requestReg.bits.writeByte := Mux(
       decode.decodeResult(Decoder.red),
       // Must be smaller than dataPath
       1.U,
       Mux(
         decode.decodeResult(Decoder.maskDestination),
-        (io.csrInterface.vl >> 3).asUInt + io.csrInterface.vl(2, 0).orR,
-        io.csrInterface.vl << (io.csrInterface.vSew + decode.decodeResult(Decoder.crossWrite))
+        (io.issue.bits.vl >> 3).asUInt + io.issue.bits.vl(2, 0).orR,
+        io.issue.bits.vl << (T1Issue.vsew(io.issue.bits) + decode.decodeResult(Decoder.crossWrite))
       )
     )
   }
@@ -402,17 +398,16 @@ class T1(val parameter: T1Parameter)
   // 0 1 -> update to false
   // 1 0 -> update to true
   // 1 1 -> don't update
-  requestReg.valid := Mux(io.request.fire ^ requestRegDequeue.fire, io.request.fire, requestReg.valid)
+  requestReg.valid := Mux(io.issue.fire ^ requestRegDequeue.fire, io.issue.fire, requestReg.valid)
   // ready when requestReg is free or it will be free in this cycle.
-  io.request.ready := !requestReg.valid || requestRegDequeue.ready
+  io.issue.ready := !requestReg.valid || requestRegDequeue.ready
   // manually maintain a queue for requestReg.
-  requestRegDequeue.bits := requestReg.bits.request
+  requestRegDequeue.bits := requestReg.bits.issue
   requestRegDequeue.valid := requestReg.valid
-  decode.decodeInput := io.request.bits.instruction
+  decode.decodeInput := io.issue.bits.instruction
 
   /** alias to [[requestReg.bits.decodeResult]], it is commonly used. */
   val decodeResult: DecodeBundle = requestReg.bits.decodeResult
-  // 这是当前正在mask unit 里面的那一条指令的csr信息,用来计算mask unit的控制信号
   val csrRegForMaskUnit: CSRInterface = RegInit(0.U.asTypeOf(new CSRInterface(parameter.laneParam.vlMaxBits)))
   val vSewOHForMask: UInt = UIntToOH(csrRegForMaskUnit.vSew)(2, 0)
 
@@ -428,26 +423,26 @@ class T1(val parameter: T1Parameter)
   // 只进mask unit的指令
   val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv))
   val skipLastFromLane: Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
-  val instructionValid: Bool = requestReg.bits.csr.vl > requestReg.bits.csr.vStart
+  val instructionValid: Bool = requestReg.bits.issue.vl > requestReg.bits.issue.vstart
 
   // TODO: these should be decoding results
   /** load store that don't read offset. */
   val noOffsetReadLoadStore: Bool = isLoadStoreType && (!requestRegDequeue.bits.instruction(26))
 
-  val vSew1H: UInt = UIntToOH(requestReg.bits.csr.vSew)
+  val vSew1H: UInt = UIntToOH(T1Issue.vsew(requestReg.bits.issue))
   val source1Extend: UInt = Mux1H(
     vSew1H(2, 0),
     Seq(
-      Fill(parameter.datapathWidth - 8, requestRegDequeue.bits.src1Data(7) && !decodeResult(Decoder.unsigned0))
-        ## requestRegDequeue.bits.src1Data(7, 0),
-      Fill(parameter.datapathWidth - 16, requestRegDequeue.bits.src1Data(15) && !decodeResult(Decoder.unsigned0))
-        ## requestRegDequeue.bits.src1Data(15, 0),
-      requestRegDequeue.bits.src1Data(31, 0)
+      Fill(parameter.datapathWidth - 8, requestRegDequeue.bits.rs1Data(7) && !decodeResult(Decoder.unsigned0))
+        ## requestRegDequeue.bits.rs1Data(7, 0),
+      Fill(parameter.datapathWidth - 16, requestRegDequeue.bits.rs1Data(15) && !decodeResult(Decoder.unsigned0))
+        ## requestRegDequeue.bits.rs1Data(15, 0),
+      requestRegDequeue.bits.rs1Data(31, 0)
     )
   )
   /** src1 from scalar core is a signed number. */
   val src1IsSInt: Bool = !requestReg.bits.decodeResult(Decoder.unsigned0)
-  val imm: UInt = requestReg.bits.request.instruction(19, 15)
+  val imm: UInt = requestReg.bits.issue.instruction(19, 15)
   // todo: spec 10.1: imm 默认是 sign-extend,但是有特殊情况
   val immSignExtend: UInt = Fill(16, imm(4) && (vSew1H(2) || src1IsSInt)) ##
     Fill(8, imm(4) && (vSew1H(1) || vSew1H(2) || src1IsSInt)) ##
@@ -647,7 +642,7 @@ class T1(val parameter: T1Parameter)
           control.state.wVRFWrite := true.B
         }
 
-        when(responseCounter === control.record.instructionIndex && io.response.fire) {
+        when(responseCounter === control.record.instructionIndex && retire) {
           control.state.sCommit := true.B
         }
 
@@ -705,12 +700,12 @@ class T1(val parameter: T1Parameter)
       // first type instruction
       val firstLane = ffo(completedVec.asUInt)
       val firstLaneIndex: UInt = OHToUInt(firstLane)(log2Ceil(parameter.laneNumber) - 1, 0)
-      io.response.bits.rd.valid := lastSlotCommit && decodeResultReg(Decoder.targetRd)
-      io.response.bits.rd.bits := vd
+      io.retire.rd.valid := lastSlotCommit && decodeResultReg(Decoder.targetRd)
+      io.retire.rd.bits.rdAddress := vd
       if (parameter.fpuEnable) {
-        io.response.bits.float := decodeResultReg(Decoder.float)
+        io.retire.rd.bits.isFp := decodeResultReg(Decoder.float)
       } else {
-        io.response.bits.float := false.B
+        io.retire.rd.bits.isFp := false.B
       }
       when(requestRegDequeue.fire) {
         ffoIndexReg.valid := false.B
@@ -733,7 +728,7 @@ class T1(val parameter: T1Parameter)
         * lmul - sew <- [-5, 3]
         * 选择信号 +5 -> lmul - sew + 5 <- [0, 8]
         */
-      def largeThanVLMax(source: UInt, advance: Bool = false.B, csrInput:CSRInterface): Bool = {
+      def largeThanVLMax(source: UInt, advance: Bool = false.B, lmul: UInt, sew: UInt): Bool = {
         val vlenLog2 = log2Ceil(parameter.vLen) // 10
         val cut =
           if (source.getWidth >= vlenLog2) source(vlenLog2 - 1, vlenLog2 - 9)
@@ -745,15 +740,15 @@ class T1(val parameter: T1Parameter)
             largeList(i) := a
             a || b
         }
-        val extendVlmul = csrInput.vlmul(2) ## csrInput.vlmul
-        val selectWire = UIntToOH(5.U(4.W) + extendVlmul - csrInput.vSew)(8, 0).asBools.reverse
+        val extendVlmul = lmul(2) ## lmul
+        val selectWire = UIntToOH(5.U(4.W) + extendVlmul - sew)(8, 0).asBools.reverse
         Mux1H(selectWire, largeList)
       }
       // 算req上面的分开吧
       val gatherWire =
-        Mux(decodeResult(Decoder.itype), requestRegDequeue.bits.instruction(19, 15), requestRegDequeue.bits.src1Data)
+        Mux(decodeResult(Decoder.itype), requestRegDequeue.bits.instruction(19, 15), requestRegDequeue.bits.rs1Data)
       val gatherAdvance = (gatherWire >> log2Ceil(parameter.vLen)).asUInt.orR
-      gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance, requestReg.bits.csr)
+      gatherOverlap := largeThanVLMax(gatherWire, gatherAdvance, T1Issue.vlmul(requestReg.bits.issue), T1Issue.vsew(requestReg.bits.issue))
       val slotValid = !control.state.idle
       val storeAfterSlide = isStoreType && (requestRegDequeue.bits.instruction(11, 7) === vd)
       instructionRAWReady := !((unOrderTypeInstruction && slotValid &&
@@ -783,9 +778,9 @@ class T1(val parameter: T1Parameter)
         vs2 := requestRegDequeue.bits.instruction(24, 20)
         vm := requestRegDequeue.bits.instruction(25)
         executeFinishReg := false.B
-        rs1 := requestRegDequeue.bits.src1Data
+        rs1 := requestRegDequeue.bits.rs1Data
         decodeResultReg := decodeResult
-        csrRegForMaskUnit := requestReg.bits.csr
+        csrRegForMaskUnit := requestRegCSR
         // todo: decode need execute
         control.state.sMaskUnitExecution := !maskUnitType
         maskTypeInstruction := maskType && !decodeResult(Decoder.maskSource)
@@ -987,7 +982,7 @@ class T1(val parameter: T1Parameter)
 
       val compareWire = Mux(decodeResultReg(Decoder.slid), rs1, maskUnitData)
       val compareAdvance: Bool = (compareWire >> log2Ceil(parameter.vLen)).asUInt.orR
-      val compareResult:  Bool = largeThanVLMax(compareWire, compareAdvance, csrRegForMaskUnit)
+      val compareResult:  Bool = largeThanVLMax(compareWire, compareAdvance, csrRegForMaskUnit.vlmul, csrRegForMaskUnit.vSew)
       // 正在被gather使用的数据在data的那个组里
       val gatherDataSelect = UIntToOH((false.B ## maskUnitDataOffset)(5 + (log2Ceil(parameter.laneNumber) max 1) - 1, 5))
       val dataTail = Mux1H(UIntToOH(maskUnitEEW)(1, 0), Seq(3.U(2.W), 2.U(2.W)))
@@ -1072,7 +1067,7 @@ class T1(val parameter: T1Parameter)
       // index >= vlMax 是写0
       val overlapVlMax: Bool = !slideUp && (signBit || srcOversize)
       // select csr
-      val csrSelect = Mux(control.state.idle, requestReg.bits.csr, csrRegForMaskUnit)
+      val csrSelect = Mux(control.state.idle, requestRegCSR, csrRegForMaskUnit)
       // slid read
       val (_, readDataOffset, readLane, readOffset, readGrowth, lmulOverlap) = indexAnalysis(readIndex, csrSelect)
       gatherReadDataOffset := readDataOffset
@@ -1434,7 +1429,7 @@ class T1(val parameter: T1Parameter)
     Mux(
       decodeResult(Decoder.nr) || decodeResult(Decoder.maskLogic),
       2.U,
-      Mux(gather16, 1.U, Mux(decodeResult(Decoder.extend), extendDataEEW, requestReg.bits.csr.vSew))
+      Mux(gather16, 1.U, Mux(decodeResult(Decoder.extend), extendDataEEW, T1Issue.vsew(requestReg.bits.issue)))
     )
   )
 
@@ -1442,14 +1437,14 @@ class T1(val parameter: T1Parameter)
     decodeResult(Decoder.nr),
     // evl for Whole Vector Register Move ->  vs1 * (vlen / datapathWidth)
     (requestRegDequeue.bits.instruction(17, 15) +& 1.U) ## 0.U(log2Ceil(parameter.vLen / parameter.datapathWidth).W),
-    requestReg.bits.csr.vl
+    requestReg.bits.issue.vl
   )
 
   val vSewForLsu: UInt = Mux(lsWholeReg, 2.U, requestRegDequeue.bits.instruction(13, 12))
   val evlForLsu: UInt = Mux(
     lsWholeReg,
     (requestRegDequeue.bits.instruction(31, 29) +& 1.U) ## 0.U(log2Ceil(parameter.vLen / parameter.datapathWidth).W),
-    requestReg.bits.csr.vl
+    requestReg.bits.issue.vl
   )
 
   /** instantiate lanes.
@@ -1489,7 +1484,7 @@ class T1(val parameter: T1Parameter)
     lane.laneRequest.bits.mask := maskType
     laneReady(index) := lane.laneRequest.ready
 
-    lane.csrInterface := requestReg.bits.csr
+    lane.csrInterface := requestRegCSR
     // index type EEW Decoded in the instruction
     lane.csrInterface.vSew := vSewSelect
     lane.csrInterface.vl := evlForLane
@@ -1580,8 +1575,8 @@ class T1(val parameter: T1Parameter)
   // 连lsu
   lsu.request.valid := requestRegDequeue.fire && isLoadStoreType
   lsu.request.bits.instructionIndex := requestReg.bits.instructionIndex
-  lsu.request.bits.rs1Data := requestRegDequeue.bits.src1Data
-  lsu.request.bits.rs2Data := requestRegDequeue.bits.src2Data
+  lsu.request.bits.rs1Data := requestRegDequeue.bits.rs1Data
+  lsu.request.bits.rs2Data := requestRegDequeue.bits.rs2Data
   lsu.request.bits.instructionInformation.nf := requestRegDequeue.bits.instruction(31, 29)
   lsu.request.bits.instructionInformation.mew := requestRegDequeue.bits.instruction(28)
   lsu.request.bits.instructionInformation.mop := requestRegDequeue.bits.instruction(27, 26)
@@ -1595,7 +1590,7 @@ class T1(val parameter: T1Parameter)
   lsu.maskInput.zip(lsu.maskSelect).foreach { case (data, index) =>
     data :=  cutUInt(v0.asUInt, parameter.maskGroupWidth)(index)
   }
-  lsu.csrInterface := requestReg.bits.csr
+  lsu.csrInterface := requestRegCSR
   lsu.csrInterface.vl := evlForLsu
   lsu.writeReadyForLsu := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
   lsu.vrfReadyToStore := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
@@ -1681,10 +1676,13 @@ class T1(val parameter: T1Parameter)
         // Ensuring commit order
         inst.record.instructionIndex === responseCounter
     })
-    io.response.valid := slotCommit.asUInt.orR
-    io.response.bits.data := Mux(ffoType, ffoIndexReg.bits, dataResult.bits)
-    io.response.bits.vxsat := DontCare
-    io.response.bits.mem := (slotCommit.asUInt & VecInit(slots.map(_.record.isLoadStore)).asUInt).orR
+    retire := slotCommit.asUInt.orR
+    io.retire.rd.bits.rdData := Mux(ffoType, ffoIndexReg.bits, dataResult.bits)
+    // TODO: csr retire.
+    io.retire.csr.bits.vxsat := DontCare
+    io.retire.csr.bits.fflag := DontCare
+    io.retire.csr.valid := false.B
+    io.retire.mem.valid := (slotCommit.asUInt & VecInit(slots.map(_.record.isLoadStore)).asUInt).orR
     lastSlotCommit := slotCommit.last
   }
 
@@ -1716,6 +1714,7 @@ class T1(val parameter: T1Parameter)
   probeWire.instructionCounter := instructionCounter
   probeWire.instructionIssue := requestRegDequeue.fire
   probeWire.issueTag := requestReg.bits.instructionIndex
+  probeWire.retireValid := retire
   // maskUnitWrite maskUnitWriteReady
   probeWire.writeQueueEnq.valid := maskUnitWrite.valid && maskUnitWriteReady
   probeWire.writeQueueEnq.bits := maskUnitWrite.bits.instructionIndex

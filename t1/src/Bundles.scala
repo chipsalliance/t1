@@ -10,23 +10,6 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.LSUParameter
 import org.chipsalliance.t1.rtl.vrf.VRFParam
 
-/** Interface from CPU. */
-class VRequest(xLen: Int) extends Bundle {
-
-  /** instruction fetched by scalar processor. */
-  val instruction: UInt = UInt(32.W)
-
-  /** data read from scalar RF RS1.
-    * TODO: rename to rs1Data
-    */
-  val src1Data: UInt = UInt(xLen.W)
-
-  /** data read from scalar RF RS2.
-    * TODO: rename to rs2Data
-    */
-  val src2Data: UInt = UInt(xLen.W)
-}
-
 /** Interface to CPU. */
 class VResponse(xLen: Int) extends Bundle {
 
@@ -325,9 +308,6 @@ class CSRInterface(vlWidth: Int) extends Bundle {
     * we always keep the undisturbed behavior, since there is no rename here.
     */
   val vma: Bool = Bool()
-
-  /** TODO: remove it. */
-  val ignoreException: Bool = Bool()
 }
 
 /** [[Lane]] -> [[T1]], response for [[LaneRequest]] */
@@ -501,20 +481,11 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val state = new VRFInstructionState
 }
 
-/** 为了decode, 指令需要在入口的时候打一拍, 这是需要保存的信息 */
 class InstructionPipeBundle(parameter: T1Parameter) extends Bundle {
-  // 原始指令信息
-  val request: VRequest = new VRequest(parameter.xLen)
-  // decode 的结果
+  val issue: T1Issue = new T1Issue(parameter.xLen, parameter.vLen)
   val decodeResult: DecodeBundle = new DecodeBundle(Decoder.allFields(parameter.decoderParam))
-  // 这条指令被vector分配的index
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  // 指令的csr信息
-  val csr = new CSRInterface(parameter.laneParam.vlMaxBits)
-  // 有写v0的风险
   val vdIsV0: Bool = Bool()
-
-  // How many bytes of registers will be written by one instruction?
   val writeByte: UInt = UInt(parameter.laneParam.vlMaxBits.W)
 }
 
@@ -710,4 +681,45 @@ final class EmptyBundle extends Bundle
 
 class VRFReadPipe(size: BigInt) extends Bundle {
   val address: UInt = UInt(log2Ceil(size).W)
+}
+
+class T1Issue(xLen: Int, vlWidth: Int) extends Bundle {
+
+  /** instruction fetched by scalar processor. */
+  val instruction: UInt = UInt(32.W)
+
+  /** data read from scalar RF RS1. */
+  val rs1Data: UInt = UInt(xLen.W)
+
+  /** data read from scalar RF RS2. */
+  val rs2Data: UInt = UInt(xLen.W)
+  val vtype: UInt = UInt(32.W)
+  val vl:    UInt = UInt(32.W)
+  val vstart: UInt = UInt(32.W)
+  val vcsr: UInt = UInt(32.W)
+}
+
+object T1Issue {
+  def vlmul(issue: T1Issue) = issue.vtype(2, 0)
+  def vsew(issue: T1Issue) = issue.vtype(5, 3)
+  def vta(issue: T1Issue) = issue.vtype(6)
+  def vma(issue: T1Issue) = issue.vtype(7)
+  def vxrm(issue: T1Issue) = issue.vcsr(2, 1)
+}
+
+class T1RdRetire(xLen: Int) extends Bundle {
+  val rdAddress: UInt = UInt(5.W)
+  val rdData:    UInt = UInt(xLen.W)
+  val isFp:      Bool = Bool()
+}
+
+class T1CSRRetire extends Bundle {
+  val vxsat: UInt = UInt(32.W)
+  val fflag: UInt = UInt(32.W)
+}
+
+class T1Retire(xLen: Int) extends Bundle {
+  val rd:  ValidIO[T1RdRetire] = Valid(new T1RdRetire(xLen))
+  val csr: ValidIO[T1CSRRetire] = Valid(new T1CSRRetire)
+  val mem: ValidIO[EmptyBundle] = Valid(new EmptyBundle)
 }
