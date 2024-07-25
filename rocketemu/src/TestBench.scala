@@ -6,6 +6,7 @@ package org.chipsalliance.t1.rocketv
 import chisel3._
 import chisel3.experimental.{ExtModule, SerializableModuleGenerator}
 import chisel3.experimental.dataview.DataViewable
+import chisel3.probe.{Probe, define}
 import chisel3.util.{log2Ceil, HasExtModuleInline, PopCount, UIntToOH, Valid}
 import chisel3.util.circt.dpi.RawUnclockedNonVoidFunctionCall
 import org.chipsalliance.amba.axi4.bundle._
@@ -70,6 +71,10 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
 
   // FIXME: get resetVector from simulator instead of hard code here
   dut.io.resetVector := (BigInt(1) << 31).U
+
+  // output probes
+  val rocketProbe = probe.read(dut.io.rocketProbe)
+  when(rocketProbe.rfWen)(printf(cf"""{"event":"RegWrite","addr":${rocketProbe.rfWaddr},"data":${rocketProbe.rfWdata},"cycle":${simulationTime}}\n"""))
 
   // Memory Drivers
   val instFetchAXI = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
