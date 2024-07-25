@@ -1,7 +1,7 @@
 { lib
+, bash
 , stdenv
 , configName
-, makeWrapper
 , rtl
 , vcs-dpi-lib
 , vcs-fhs-env
@@ -14,10 +14,6 @@ stdenv.mkDerivation {
   __noChroot = true;
 
   src = rtl;
-
-  nativeBuildInputs = [
-    makeWrapper
-  ];
 
   buildPhase = ''
     runHook preBuild
@@ -57,9 +53,14 @@ stdenv.mkDerivation {
     cp t1-vcs-simulator $out/lib
     cp -r t1-vcs-simulator.daidir $out/lib
 
-    makeWrapper "${vcs-fhs-env}/bin/vcs-fhs-env" $out/bin/t1-vcs-simulator \
-      --add-flags "-c $out/bin/t1-vcs-simulator" \
-      --prefix LD_LIBRARY_PATH : $out/lib/t1-vcs-simulator.daidir
+    # We need to carefully handle string escape here, so don't use makeWrapper
+    tee $out/bin/t1-vcs-simulator <<EOF
+    #!${bash}/bin/bash
+    export LD_LIBRARY_PATH="$out/lib/t1-vcs-simulator.daidir:\$LD_LIBRARY_PATH"
+    _argv="\$@"
+    ${vcs-fhs-env}/bin/vcs-fhs-env -c "$out/lib/t1-vcs-simulator \$_argv"
+    EOF
+    chmod +x $out/bin/t1-vcs-simulator
 
     runHook postInstall
   '';
