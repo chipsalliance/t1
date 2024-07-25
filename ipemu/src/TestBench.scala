@@ -33,7 +33,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
   om := omInstance.getPropertyReference
 
-  lazy val clockGen = Module(new ExtModule with HasExtModuleInline {
+  val clockGen = Module(new ExtModule with HasExtModuleInline {
 
     override def desiredName = "ClockGen"
     setInline(
