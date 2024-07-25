@@ -18,7 +18,7 @@ rec {
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
-  libspike_interfaces = final.callPackage ../difftest/spike_interfaces { };
+  spike_interfaces = final.callPackage ../difftest/spike_interfaces { };
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };

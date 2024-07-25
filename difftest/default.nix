@@ -1,5 +1,6 @@
 { lib
 , libspike
+, spike_interfaces
 , callPackage
 , elaborateConfig
 
@@ -15,51 +16,35 @@
 }:
 
 let
-  spike_interfaces = callPackage ./spike_interfaces { };
+  self = rustPlatform.buildRustPackage {
+    name = "verilator-emu" + (lib.optionalString verilated.enable-trace "-trace");
 
-  src = with lib.fileset; toSource {
-    root = ./.;
-    fileset = unions [
-      ./spike_rs
-      ./offline
-      ./online_dpi
-      ./online_drive
-      ./online_vcs
-      ./test_common
-      ./Cargo.lock
-      ./Cargo.toml
-    ];
-  };
+    src = with lib.fileset; toSource {
+      root = ./.;
+      fileset = unions [
+        ./spike_rs
+        ./offline
+        ./online_dpi
+        ./online_drive
+        ./online_vcs
+        ./test_common
+        ./Cargo.lock
+        ./Cargo.toml
+      ];
+    };
 
-  env = {
-    VERILATED_INC_DIR = "${verilated}/include";
-    VERILATED_LIB_DIR = "${verilated}/lib";
-    SPIKE_LIB_DIR = "${libspike}/lib";
-    SPIKE_INTERFACES_LIB_DIR = "${spike_interfaces}/lib";
+    env = {
+      VERILATED_INC_DIR = "${verilated}/include";
+      VERILATED_LIB_DIR = "${verilated}/lib";
+      SPIKE_LIB_DIR = "${libspike}/lib";
+      SPIKE_INTERFACES_LIB_DIR = "${spike_interfaces}/lib";
     SPIKE_ISA_STRING =
       "rv32gc" +
       (builtins.concatStringsSep "_" elaborateConfig.parameter.extensions)
       + "_Zvl${toString elaborateConfig.parameter.vLen}b";
-    DESIGN_VLEN = elaborateConfig.parameter.vLen;
-    DESIGN_DLEN = elaborateConfig.parameter.dLen;
-  };
-
-  online-vcs = rustPlatform.buildRustPackage {
-    name = "online-dpi-lib";
-
-    inherit src env;
-
-    cargoLock = {
-      lockFile = ./Cargo.lock;
+      DESIGN_VLEN = elaborateConfig.parameter.vLen;
+      DESIGN_DLEN = elaborateConfig.parameter.dLen;
     };
-
-    buildFeatures = lib.optionals verilated.enable-trace [ "trace" ];
-    buildAndTestSubdir = "./online_vcs";
-  };
-
-  self = rustPlatform.buildRustPackage {
-    name = "verilator-emu" + (lib.optionalString verilated.enable-trace "-trace");
-    inherit src env;
 
     buildInputs = [
       spike_interfaces
@@ -88,7 +73,7 @@ let
           clang-tools
         ];
       });
-      inherit spike_interfaces online-vcs;
+      inherit spike_interfaces;
     };
   };
 in

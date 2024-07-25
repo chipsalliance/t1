@@ -28,10 +28,12 @@ stdenv.mkDerivation {
       -sverilog \
       -full64 \
       -timescale=1ns/1ps \
-      ${lib.optionalString enable-trace "--trace-fst"} \
-      ${lib.optionalString enable-trace "-P $VERDI_HOME/share/PLI/VCS/LINUX64/novas.tab $VERDI_HOME/share/PLI/VCS/LINUX64/pli.a"} \
-      ${lib.optionalString enable-trace "-debug_access+pp+dmptf+thread"} \
-      ${lib.optionalString enable-trace "-kdb=common_elab,hgldd_all"} \
+      ${lib.optionalString enable-trace ''
+        --trace-fst \
+        -P $VERDI_HOME/share/PLI/VCS/LINUX64/novas.tab $VERDI_HOME/share/PLI/VCS/LINUX64/pli.a \
+        -debug_access+pp+dmptf+thread \
+        -kdb=common_elab,hgldd_all \
+      ''}
       -file filelist.f \
       ${dpi-lib}/lib/libdpi.a \
       -o t1-vcs-simulator
