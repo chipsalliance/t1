@@ -5,6 +5,7 @@ package org.chipsalliance.rocketv
 import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.probe.{Probe, define}
 import chisel3.util.experimental.BitSet
 import chisel3.util.log2Ceil
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
@@ -394,6 +395,8 @@ class RocketTileInterface(parameter: RocketTileParameter) extends Bundle {
     org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.loadStoreParameter)
   val dtimAXI: Option[AXI4RWIrrevocable] =
     parameter.dtimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
+
+  val rocketProbe = Output(Probe(new RocketProbe(parameter.rocketParameter)))
 }
 
 class RocketTile(val parameter: RocketTileParameter)
@@ -474,4 +477,7 @@ class RocketTile(val parameter: RocketTileParameter)
     fpu.io.cp_req <> DontCare
     fpu.io.cp_resp <> DontCare
   }
+
+  // probe
+  define(io.rocketProbe, rocket.io.rocketProbe)
 }
