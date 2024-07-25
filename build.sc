@@ -20,7 +20,7 @@ object v {
   val scala = "2.13.14"
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val oslib = ivy"com.lihaoyi::os-lib:0.9.1"
-  val upickle = ivy"com.lihaoyi::upickle:3.1.3"
+  val upickle = ivy"com.lihaoyi::upickle:3.3.1"
   val spire = ivy"org.typelevel::spire:latest.integration"
   val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
 }
