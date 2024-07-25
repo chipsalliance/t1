@@ -9,16 +9,16 @@
 rustPlatform.buildRustPackage {
   name = "vcs-dpi-lib";
   src = with lib.fileset; toSource {
-    root = ./.;
+    root = ../.;
     fileset = unions [
-      ./spike_rs
-      ./offline
-      ./online_dpi
-      ./online_drive
-      ./online_vcs
-      ./test_common
-      ./Cargo.lock
-      ./Cargo.toml
+      ../spike_rs
+      ../offline
+      ../online_dpi
+      ../online_drive
+      ../online_vcs
+      ../test_common
+      ../Cargo.lock
+      ../Cargo.toml
     ];
   };
 
@@ -32,7 +32,7 @@ rustPlatform.buildRustPackage {
   };
 
   cargoLock = {
-    lockFile = ./Cargo.lock;
+    lockFile = ../Cargo.lock;
   };
 
   passthru = {

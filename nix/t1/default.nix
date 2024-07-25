@@ -117,8 +117,8 @@ lib.makeScope newScope
           };
           vcs-emu-compiled = innerSelf.callPackage ./vcs.nix { rtl = vcs-emu-rtl; };
           vcs-emu-compiled-trace = innerSelf.callPackage ./vcs.nix { rtl = vcs-emu-rtl; enable-trace = true; };
-          vcs-emu = innerSelf.callPackage ../../difftest/vcs-emu.nix { vcs-lib = vcs-emu-compiled; vcStaticInstallPath = builtins.getEnv "VC_STATIC_HOME"; };
-          vcs-emu-trace = innerSelf.callPackage ../../difftest/vcs-emu.nix { vcs-lib = vcs-emu-compiled-trace; vcStaticInstallPath = builtins.getEnv "VC_STATIC_HOME"; };
+          vcs-dpi-lib = innerSelf.callPackage ../../difftest/online_vcs { vcStaticInstallPath = builtins.getEnv "VC_STATIC_HOME"; };
+          vcs-dpi-lib-trace = vcs-dpi-lib.override { enable-trace = true; };
         };
 
         subsystem = rec {
