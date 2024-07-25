@@ -7,11 +7,19 @@ package org.chipsalliance.rocketv
 import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util.circt.ClockGate
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{BitPat, Cat, Fill, MuxLookup, PriorityEncoder, PriorityMux, RegEnable, log2Ceil}
 import org.chipsalliance.rocketv.rvdecoderdbcompat.Causes
 import org.chipsalliance.rvdecoderdb.Instruction
+
+class RocketProbe(param: RocketParameter) extends Bundle {
+  // reg file
+  val rfWen = Bool()
+  val rfWaddr = UInt(param.lgNXRegs.W)
+  val rfWdata = UInt(param.xLen.W)
+}
 
 object RocketParameter {
   implicit def rwP: upickle.default.ReadWriter[RocketParameter] = upickle.default.macroRW[RocketParameter]
@@ -313,6 +321,7 @@ class RocketInterface(parameter: RocketParameter) extends Bundle {
   val cease = Output(Bool())
   val wfi = Output(Bool())
   val traceStall = Input(Bool())
+  val rocketProbe = Output(Probe(new RocketProbe(parameter)))
 }
 
 /** The [[Rocket]] is the next version of the RocketCore,
@@ -1438,6 +1447,13 @@ class Rocket(val parameter: RocketParameter)
     val icacheBlocked = !(io.imem.resp.valid || RegNext(io.imem.resp.valid))
     // todo: perfEvents here.
 //    csr.io.counters.foreach { c => c.inc := RegNext(perfEvents.evaluate(c.eventSel)) }
+
+    // probe xrf write
+    val probeWire = Wire(new RocketProbe(parameter))
+    define(io.rocketProbe, ProbeValue(probeWire))
+    probeWire.rfWen := rfWen
+    probeWire.rfWaddr := rfWaddr
+    probeWire.rfWdata := rfWdata
   }
 
   def checkExceptions(x: Seq[(Bool, UInt)]) =
