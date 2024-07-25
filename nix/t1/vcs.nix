@@ -12,6 +12,7 @@ stdenv.mkDerivation {
 
   # require license
   __noChroot = true;
+  dontPatchELF = true;
 
   src = rtl;
 

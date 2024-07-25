@@ -53,15 +53,7 @@ buildFHSEnv {
     cyrus_sasl
     expat
     sqlite
-    (nssmdns.overrideAttrs rec {
-      version = "0.14.1";
-      src = fetchFromGitHub {
-        owner = "avahi";
-        repo = "nss-mdns";
-        rev = "v${version}";
-        hash = "sha256-7RqV0hyfcZ168QfeHVtCJpyP4pI6cMeekJ2hDHNurdA=";
-      };
-    })
+    nssmdns
     (libkrb5.overrideAttrs rec {
       version = "1.18.2";
       src = fetchurl {
@@ -93,5 +85,6 @@ buildFHSEnv {
     xorg.libXrender
     xorg.libXcomposite
     xorg.libXi
+    zlib
   ]);
 }
