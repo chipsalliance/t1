@@ -1,3 +1,4 @@
+#[rustfmt::skip]
 pub mod sys;
 
 use std::ptr;

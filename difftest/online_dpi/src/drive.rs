@@ -7,6 +7,7 @@ use tracing::{debug, error, info, trace};
 
 use crate::dpi::*;
 use crate::get_t;
+use crate::svdpi::SvScope;
 use crate::OfflineArgs;
 
 struct ShadowMem {
@@ -97,6 +98,9 @@ impl ShadowMem {
 pub(crate) struct Driver {
   spike_runner: SpikeRunner,
 
+  // SvScope from t1_cosim_init
+  scope: SvScope,
+
   #[cfg(feature = "trace")]
   wave_path: String,
   #[cfg(feature = "trace")]
@@ -151,12 +155,13 @@ fn parse_range(input: &str) -> (u64, u64) {
 }
 
 impl Driver {
-  pub(crate) fn new(args: &OfflineArgs) -> Self {
+  pub(crate) fn new(scope: SvScope, args: &OfflineArgs) -> Self {
     #[cfg(feature = "trace")]
     let (dump_start, dump_end) = parse_range(&args.dump_range);
 
     let mut self_ = Self {
       spike_runner: SpikeRunner::new(&args.common_args, false),
+      scope,
 
       #[cfg(feature = "trace")]
       wave_path: args.wave_path.to_owned(),
@@ -269,7 +274,7 @@ impl Driver {
 
   #[cfg(feature = "trace")]
   fn start_dump_wave(&mut self) {
-    dump_wave(&self.wave_path);
+    dump_wave(self.scope, &self.wave_path);
   }
 
   pub(crate) fn step(&mut self) -> SpikeEvent {
