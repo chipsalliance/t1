@@ -282,7 +282,8 @@ pub(crate) fn dump_wave(path: &str) {
   use crate::svdpi;
   let path_cstring = CString::new(path).unwrap();
 
-  svdpi::set_scope_by_name("TOP.TestBench.clockGen");
+  // TODO: use vcs/verialtor/... feature to select features, verilator always has a TOP scope
+  svdpi::set_scope_by_name("TestBench.clockGen");
   unsafe {
     dpi_export::dump_wave(path_cstring.as_ptr());
   }
