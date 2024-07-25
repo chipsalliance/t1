@@ -711,3 +711,20 @@ final class EmptyBundle extends Bundle
 class VRFReadPipe(size: BigInt) extends Bundle {
   val address: UInt = UInt(log2Ceil(size).W)
 }
+
+class T1RdRetire extends Bundle {
+  val rd:      UInt = UInt(5.W)
+  val data:    UInt = UInt(32.W)
+  val fp:      Bool = Bool()
+}
+
+class T1CSRRetire extends Bundle {
+  val vxsat:   UInt = UInt(32.W)
+  val fflag:   UInt = UInt(32.W)
+}
+
+class T1Retire extends Bundle {
+  val rd = Valid(new T1RdRetire)
+  val csr = Valid(new T1CSRRetire)
+  val mem = Valid(new Bundle {})
+}

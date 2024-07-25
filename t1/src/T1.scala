@@ -305,9 +305,11 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
     */
   @public
   val request: DecoupledIO[VRequest] = IO(Flipped(Decoupled(new VRequest(parameter.xLen))))
-  /** response to CPU. */
+  /** response to CPU. todo: delete since retire by [[retire]] */
   @public
   val response: ValidIO[VResponse] = IO(Valid(new VResponse(parameter.xLen)))
+  @public
+  val retire: T1Retire = IO(new T1Retire)
   /** CSR interface from CPU. */
   @public
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.laneParam.vlMaxBits)))
@@ -686,10 +688,14 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
       val firstLaneIndex: UInt = OHToUInt(firstLane)(log2Ceil(parameter.laneNumber) - 1, 0)
       response.bits.rd.valid := lastSlotCommit && decodeResultReg(Decoder.targetRd)
       response.bits.rd.bits := vd
+      retire.rd.valid := lastSlotCommit && decodeResultReg(Decoder.targetRd)
+      retire.rd.bits.rd := vd
       if (parameter.fpuEnable) {
         response.bits.float := decodeResultReg(Decoder.float)
+        retire.rd.bits.fp := decodeResultReg(Decoder.float)
       } else {
         response.bits.float := false.B
+        retire.rd.bits.fp := false.B
       }
       when(requestRegDequeue.fire) {
         ffoIndexReg.valid := false.B
@@ -1658,6 +1664,11 @@ class T1(val parameter: T1Parameter) extends Module with SerializableModule[T1Pa
         // Ensuring commit order
         inst.record.instructionIndex === responseCounter
     })
+    retire.rd.bits.data := Mux(ffoType, ffoIndexReg.bits, dataResult.bits)
+    // todo: connect csr
+    retire.csr.valid := false.B
+    retire.csr.bits := DontCare
+    retire.mem.valid := (slotCommit.asUInt & VecInit(slots.map(_.record.isLoadStore)).asUInt).orR
     response.valid := slotCommit.asUInt.orR
     response.bits.data := Mux(ffoType, ffoIndexReg.bits, dataResult.bits)
     response.bits.vxsat := DontCare
