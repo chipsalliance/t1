@@ -33,8 +33,7 @@ case class TLBParameter(
                          paddrBits: Int,
                          isITLB: Boolean
                        ) extends SerializableModuleParameter {
-
-  require(nWays != nSectors, "some random limitation to be figure out.")
+  require(nWays > nSectors, s"nWays: ${nWays} > nSectors: ${nSectors}")
   // D$: log2Ceil(coreDataBytes), I$: log2Ceil(fetchBytes)
   def lgMaxSize = log2Ceil(xLen / 8)
 
