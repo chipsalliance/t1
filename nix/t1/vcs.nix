@@ -27,7 +27,6 @@ stdenv.mkDerivation {
       -full64 \
       -timescale=1ns/1ps \
       ${lib.optionalString vcs-dpi-lib.enable-trace ''
-        --trace-fst \
         -P $VERDI_HOME/share/PLI/VCS/LINUX64/novas.tab $VERDI_HOME/share/PLI/VCS/LINUX64/pli.a \
         -debug_access+pp+dmptf+thread \
         -kdb=common_elab,hgldd_all''} \
