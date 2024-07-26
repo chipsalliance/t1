@@ -223,7 +223,7 @@ case class HellaCacheParameter(
     nPMPs,
     pmaCheckerParameter,
     paddrBits,
-    isITLB = true
+    isITLB = false
   )
 
   def amoaluParameter: Option[AMOALUParameter] = Option.when(eccBytes > 1 || usingAtomicsInCache)(AMOALUParameter(xLen))
