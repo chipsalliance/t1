@@ -279,6 +279,7 @@ class CSRInterface(parameter: CSRParameter) extends Bundle {
   val fiom = Output(Bool())
   val vectorCsr = Option.when(parameter.usingVector)(Input(Bool()))
   val wbRegRS2 = Option.when(parameter.usingVector)(Input(UInt(parameter.xLen.W)))
+  val csrToVector = Option.when(parameter.usingVector)(Output(new VCSR))
   // @todo custom CSR
   val customCSRs = Vec(parameter.customCSRSize, new CustomCSRIO(parameter.xLen))
 }
@@ -1678,6 +1679,16 @@ class CSR(val parameter: CSRParameter)
 
   // update csr for vector
   if (usingVector) {
+    // connect csr for vector
+    val vtype = vector.get.states("vill") ## 0.U(23.W) ## vector.get.states("vma") ##
+      vector.get.states("vta") ## vector.get.states("vsew") ## vector.get.states("vlmul")
+    val vcsr = vector.get.states("vxrm") ## vector.get.states("vxsat")
+    io.csrToVector.foreach {v =>
+      v.vtype := vtype
+      v.vl := vector.get.states("vl")
+      v.vcsr := vcsr
+      v.vstart := vector.get.states("vstart")
+    }
     // set vl type
     val vsetvli = !io.inst(0)(31)
     val vsetivli = io.inst(0)(31, 30).andR

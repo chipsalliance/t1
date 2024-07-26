@@ -1353,6 +1353,10 @@ class Rocket(val parameter: RocketParameter)
       t1IssueQueue.io.enq.bits.instruction := wbRegInstruction
       t1IssueQueue.io.enq.bits.rs1Data := wbRegWdata
       t1IssueQueue.io.enq.bits.rs2Data := wbRegRS2
+      t1IssueQueue.io.enq.bits.vtype := csr.io.csrToVector.get.vtype
+      t1IssueQueue.io.enq.bits.vl := csr.io.csrToVector.get.vl
+      t1IssueQueue.io.enq.bits.vstart := csr.io.csrToVector.get.vstart
+      t1IssueQueue.io.enq.bits.vcsr := csr.io.csrToVector.get.vcsr
       t1.issue.valid := t1IssueQueue.io.deq.valid
       t1.issue.bits := t1IssueQueue.io.deq.bits
       t1IssueQueue.io.deq.ready := t1.issue.ready

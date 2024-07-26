@@ -492,6 +492,14 @@ class DCSR extends Bundle {
   val prv = UInt(PRV.SZ.W)
 }
 
+class VCSR extends Bundle {
+  val vtype: UInt = UInt(32.W)
+  val vl:    UInt = UInt(32.W)
+  val vcsr: UInt = UInt(32.W)
+  val vstart: UInt = UInt(32.W)
+}
+
+
 class MIP(nLocalInterrupts: Int) extends Bundle {
   val lip = Vec(nLocalInterrupts, Bool())
   val zero1 = Bool()
