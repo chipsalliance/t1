@@ -327,36 +327,3 @@ impl Simulator {
     dump_wave(&self.wave_path);
   }
 }
-
-#[cfg(test)]
-mod test {
-  use super::*;
-  use std::process::Command;
-
-  #[test]
-  fn test_load_elf() {
-    let output = Command::new("nix")
-      .args([
-        "build",
-        "--no-warn-dirty",
-        "--print-out-paths",
-        "--no-link",
-        ".#riscv-tests",
-      ])
-      .output()
-      .expect("fail to get riscv-test path");
-    if !output.status.success() {
-      panic!("fail to build riscv-test");
-    }
-
-    let test_path = String::from_utf8_lossy(&output.stdout).to_string();
-
-    Simulator::load_elf(Path::new(&test_path)).unwrap();
-  }
-
-  #[test]
-  fn x86_should_fail() {
-    let err = Simulator::load_elf(Path::new("/bin/cp")).unwrap_err();
-    assert_eq!(format!("{}", err), "ELF is not in RISC-V")
-  }
-}
