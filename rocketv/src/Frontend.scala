@@ -167,7 +167,7 @@ case class FrontendParameter(
     nPMPs = nPMPs,
     pmaCheckerParameter = pmaCheckerParameter,
     paddrBits = paddrBits,
-    isITLB = false,
+    isITLB = true,
   )
   def btbParameter: Option[BTBParameter] = Option.when(usingBTB)(BTBParameter(
     useAsyncReset = useAsyncReset,
@@ -461,7 +461,8 @@ class Frontend(val parameter: FrontendParameter)
         def insnIsRVC(bits: UInt) = bits(1, 0) =/= 3.U
         val prevRVI = prevValid && !insnIsRVC(prevBits)
         val valid = fq.io.enq.bits.mask(idx) && !prevRVI
-        val bits = fq.io.enq.bits.data(coreInstBits * (idx + 1) - 1, coreInstBits * idx)
+        val bits = if (coreInstBits * (idx + 1) == coreInstBits * idx) 0.U else
+          fq.io.enq.bits.data(coreInstBits * (idx + 1) - 1, coreInstBits * idx)
         val rvc = insnIsRVC(bits)
         val rviBits = Cat(bits, prevBits)
         val rviBranch = rviBits(6, 0) === Instructions.BEQ.value.U(6, 0)
