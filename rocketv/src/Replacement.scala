@@ -213,7 +213,7 @@ class PseudoLRU(n_ways: Int) extends ReplacementPolicy {
       val right_nways: Int = 1 << (log2Ceil(tree_nways) - 1)  // number of ways in the right sub-tree
       val left_nways:  Int = tree_nways - right_nways         // number of ways in the left sub-tree
       val set_left_older      = !touch_way(log2Ceil(tree_nways)-1)
-      val left_subtree_state  = state(tree_nways-3, right_nways-1)
+      val left_subtree_state  = if(tree_nways - 1 == right_nways) 0.U else state(tree_nways-3, right_nways-1)
       val right_subtree_state = state(right_nways-2, 0)
 
       if (left_nways > 1) {
@@ -265,7 +265,7 @@ class PseudoLRU(n_ways: Int) extends ReplacementPolicy {
       val right_nways: Int = 1 << (log2Ceil(tree_nways) - 1)  // number of ways in the right sub-tree
       val left_nways:  Int = tree_nways - right_nways         // number of ways in the left sub-tree
       val left_subtree_older  = state(tree_nways-2)
-      val left_subtree_state  = state(tree_nways-3, right_nways-1)
+      val left_subtree_state  = if(tree_nways - 1 == right_nways) 0.U else state(tree_nways-3, right_nways-1)
       val right_subtree_state = state(right_nways-2, 0)
 
       if (left_nways > 1) {
