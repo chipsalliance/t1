@@ -3,7 +3,7 @@ fn main() {
   SEARCH_DIRS.iter().for_each(|env| {
     let dir =
       std::env::var(env).unwrap_or_else(|_| panic!("ERROR: {} environment variable not set", &env));
-    println!("cargo:rustc-link-search=native={}/lib", &dir);
+    println!("cargo:rustc-link-search=native={}", &dir);
     println!("cargo:rerun-if-env-changed={}", env);
   });
 
