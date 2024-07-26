@@ -22,7 +22,8 @@ case class FetchQueueParameter(
   bhtHistoryLength:  Option[Int],
   bhtCounterLength:  Option[Int],
   vaddrBitsExtended: Int,
-  coreInstBits:      Int)
+  coreInstBits:      Int,
+  fetchWidth:        Int)
     extends SerializableModuleParameter {
   def gen = new FrontendResp(
     vaddrBits,
@@ -30,7 +31,8 @@ case class FetchQueueParameter(
     bhtHistoryLength,
     bhtCounterLength,
     vaddrBitsExtended,
-    coreInstBits
+    coreInstBits,
+    fetchWidth
   )
 }
 

@@ -146,7 +146,7 @@ case class RocketParameter(
   def usingVector = hasInstructionSet("rv_v")
 
   // calculated parameter
-  def fetchWidth: Int = 1
+  def fetchWidth: Int = if (usingCompressed) 2 else 1
 
   def resetVectorLen: Int = {
     val externalLen = paddrBits
@@ -246,7 +246,8 @@ case class RocketParameter(
     btbEntries,
     vaddrBitsExtended,
     bhtHistoryLength,
-    bhtCounterLength
+    bhtCounterLength,
+    fetchWidth
   )
   val breakpointUnitParameter: BreakpointUnitParameter = BreakpointUnitParameter(
     nBreakpoints,
@@ -289,7 +290,8 @@ class RocketInterface(parameter: RocketParameter) extends Bundle {
     parameter.btbEntries,
     parameter.bhtHistoryLength,
     parameter.bhtCounterLength,
-    parameter.coreInstBits
+    parameter.coreInstBits,
+    parameter.fetchWidth
   )
 
   val dmem = new HellaCacheIO(

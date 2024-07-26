@@ -195,6 +195,7 @@ case class FrontendParameter(
     bhtCounterLength = bhtCounterLength,
     vaddrBitsExtended = vaddrBitsExtended,
     coreInstBits = coreInstBits,
+    fetchWidth = fetchWidth
   )
 }
 
@@ -218,7 +219,8 @@ class FrontendInterface(parameter: FrontendParameter) extends Bundle {
     parameter.maxPAddrBits,
     parameter.pgIdxBits,
     parameter.hasCorrectable,
-    parameter.hasUncorrectable
+    parameter.hasUncorrectable,
+    parameter.fetchWidth
   )
   val instructionFetchAXI: AXI4ROIrrevocable =
     org.chipsalliance.amba.axi4.bundle.AXI4ROIrrevocable(parameter.instructionFetchParameter)
