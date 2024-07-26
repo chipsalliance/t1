@@ -11,10 +11,10 @@ buildGoModule {
   pname = "riscv-vector-test";
   version = "unstable-2023-04-12";
   src = fetchFromGitHub {
-    owner = "ksco";
+    owner = "chipsalliance";
     repo = "riscv-vector-tests";
-    rev = "bafa717d37b9bef3e80b66a50b01c22f532306bc";
-    hash = "sha256-C91HUDyMykS3qM9h+rJ2uKAJcKHkoakw9I+wwtco0m8=";
+    rev = "caae5c8fcf465be73266f9b3bd672f71a362548e";
+    hash = "sha256-388MKOO+g4PjR3BcxiA8vNY7itDcIhz88vZmMZkbsj8=";
   };
   doCheck = false;
   vendorHash = "sha256-9cQlivpHg6IDYpmgBp34n6BR/I0FIYnmrXCuiGmAhNE=";
