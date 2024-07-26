@@ -21,9 +21,9 @@ case class IBufParameter(
                           // TODO: have a better way to calculate it, like what we did in the CSR...
                           vaddrBitsExtended: Int,
                           bhtHistoryLength:  Option[Int],
-                          bhtCounterLength:  Option[Int]
+                          bhtCounterLength:  Option[Int],
+                          fetchWidth:        Int
                         ) extends SerializableModuleParameter {
-  val fetchWidth: Int = 1
   val retireWidth: Int = 1
   val coreInstBits: Int = if (usingCompressed) 16 else 32
   val coreInstBytes: Int = coreInstBits / 8
@@ -40,7 +40,8 @@ class IBufInterface(parameter: IBufParameter) extends Bundle {
         parameter.bhtHistoryLength,
         parameter.bhtCounterLength,
         parameter.vaddrBitsExtended,
-        parameter.coreInstBits
+        parameter.coreInstBits,
+        parameter.fetchWidth
       )
     )
   )

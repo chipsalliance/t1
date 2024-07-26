@@ -16,7 +16,8 @@ object IBuf extends Elaborator {
     @arg(name = "entries") entries:                     Int,
     @arg(name = "vaddrBitsExtended") vaddrBitsExtended: Int,
     @arg(name = "bhtHistoryLength") bhtHistoryLength:   Option[Int],
-    @arg(name = "bhtCounterLength") bhtCounterLength:   Option[Int]) {
+    @arg(name = "bhtCounterLength") bhtCounterLength:   Option[Int],
+    @arg(name = "fetchWidth") fetchWidth:               Int) {
     def convert: IBufParameter = IBufParameter(
       useAsyncReset,
       xLen,
@@ -25,7 +26,8 @@ object IBuf extends Elaborator {
       entries,
       vaddrBitsExtended,
       bhtHistoryLength,
-      bhtCounterLength
+      bhtCounterLength,
+      fetchWidth
     )
   }
 
