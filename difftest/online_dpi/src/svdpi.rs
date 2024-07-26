@@ -1,5 +1,6 @@
-use std::{ffi::CString, ptr};
+use std::{ffi::{c_void, CString}, ptr::{self, NonNull}};
 
+#[rustfmt::skip]
 pub mod sys;
 
 /// get current simulation time in _simulation time unit_
@@ -25,5 +26,25 @@ pub fn set_scope_by_name(name: &str) {
     let scope = sys::svGetScopeFromName(name_cstr.as_ptr());
     assert!(!scope.is_null(), "unrecognized scope `{name}`");
     sys::svSetScope(scope);
+  }
+}
+
+pub fn set_scope(scope: SvScope) {
+  unsafe {
+    sys::svSetScope(scope.ptr.as_ptr());
+  }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SvScope {
+  ptr: NonNull<c_void>,
+}
+
+unsafe impl Send for SvScope {}
+
+impl SvScope {
+  pub fn get_current() -> Option<Self> {
+    let ptr = unsafe { sys::svGetScope() };
+    NonNull::new(ptr).map(|ptr| Self { ptr })
   }
 }

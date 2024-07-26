@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use tracing::debug;
 
 use crate::drive::Driver;
+use crate::svdpi::SvScope;
 use crate::OfflineArgs;
 
 pub type SvBitVecVal = u32;
@@ -219,7 +220,9 @@ unsafe extern "C" fn t1_cosim_init() {
   let args = OfflineArgs::parse();
   args.common_args.setup_logger().unwrap();
 
-  let driver = Box::new(Driver::new(&args));
+  let scope = SvScope::get_current().expect("failed to get scope in t1_cosim_init");
+
+  let driver = Box::new(Driver::new(scope, &args));
   let mut dpi_target = DPI_TARGET.lock().unwrap();
   assert!(
     dpi_target.is_none(),
@@ -278,12 +281,11 @@ mod dpi_export {
 }
 
 #[cfg(feature = "trace")]
-pub(crate) fn dump_wave(path: &str) {
+pub(crate) fn dump_wave(scope: crate::svdpi::SvScope, path: &str) {
   use crate::svdpi;
   let path_cstring = CString::new(path).unwrap();
 
-  // TODO: use vcs/verialtor/... feature to select features, verilator always has a TOP scope
-  svdpi::set_scope_by_name("TestBench.clockGen");
+  svdpi::set_scope(scope);
   unsafe {
     dpi_export::dump_wave(path_cstring.as_ptr());
   }
