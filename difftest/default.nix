@@ -1,5 +1,6 @@
 { lib
 , libspike
+, libspike_interfaces
 , callPackage
 , elaborateConfig
 
@@ -15,8 +16,6 @@
 }:
 
 let
-  spike_interfaces = callPackage ./spike_interfaces { };
-
   self = rustPlatform.buildRustPackage {
     name = "difftest";
     src = with lib.fileset; toSource {
@@ -32,7 +31,7 @@ let
     };
 
     buildInputs = [
-      spike_interfaces
+      libspike_interfaces
       verilated
     ];
 
@@ -47,7 +46,7 @@ let
       VERILATED_INC_DIR = "${verilated}/include";
       VERILATED_LIB_DIR = "${verilated}/lib";
       SPIKE_LIB_DIR = "${libspike}/lib";
-      SPIKE_INTERFACES_LIB_DIR = "${spike_interfaces}/lib";
+      SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
       DESIGN_VLEN = elaborateConfig.parameter.vLen;
       DESIGN_DLEN = elaborateConfig.parameter.dLen;
     };
@@ -66,7 +65,7 @@ let
           clang-tools
         ];
       });
-      inherit spike_interfaces;
+      inherit libspike_interfaces;
     };
   };
 in
