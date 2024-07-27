@@ -95,6 +95,8 @@ pub struct SpikeEvent {
   pub vd_write_record: VdWriteRecord,
   pub mem_access_record: MemAccessRecord,
   pub vrf_access_record: VrfAccessRecord,
+
+  pub exit: bool,
 }
 
 impl SpikeEvent {
@@ -143,6 +145,8 @@ impl SpikeEvent {
       vd_write_record: Default::default(),
       mem_access_record: Default::default(),
       vrf_access_record: Default::default(),
+
+      exit: false,
     }
   }
 
@@ -210,6 +214,10 @@ impl SpikeEvent {
     self.opcode() == 0b0100011 || self.is_cw()
   }
 
+  pub fn is_rd_written(&self) -> bool {
+    self.is_rd_written
+  }
+
   pub fn is_whole(&self) -> bool {
     self.mop() == 0 && self.lumop() == 8
   }
@@ -223,14 +231,7 @@ impl SpikeEvent {
   }
 
   pub fn is_exit(&self) -> bool {
-    let is_csr_type = self.opcode() == 0b1110011 && ((self.width() & 0b011) != 0);
-    let is_csr_write = is_csr_type && (((self.width() & 0b100) | self.rs1()) != 0);
-
-    is_csr_write && self.csr() == 0x7cc
-  }
-
-  pub fn is_vfence(&self) -> bool {
-    self.is_exit() // only exit instruction is treated as fence now
+    self.exit
   }
 
   pub fn is_rd_fp(&self) -> bool {
@@ -282,114 +283,11 @@ impl SpikeEvent {
   pub fn describe_insn(&self) -> String {
     format!(
       "pc={:#x}, disasm='{}', bits={:#x}",
-      self.pc, self.disasm, self.inst_bits
+      self.pc as u32, self.disasm, self.inst_bits
     )
   }
 
-  pub fn get_vrf_write_range(&self, vlen_in_bytes: u32) -> anyhow::Result<(u32, u32)> {
-    if self.is_vstore() {
-      return Ok((0, 0));
-    }
-
-    if self.is_vload() {
-      let vd_bytes_start = self.rd_idx * vlen_in_bytes;
-      if self.is_whole() {
-        return Ok((vd_bytes_start, vlen_in_bytes * (1 + self.vnf)));
-      }
-      let len = if self.vlmul() & 0b100 != 0 {
-        vlen_in_bytes * (1 + self.vnf)
-      } else {
-        (vlen_in_bytes * (1 + self.vnf)) << self.vlmul()
-      };
-      return Ok((vd_bytes_start, len));
-    }
-
-    let vd_bytes_start = self.rd_idx * vlen_in_bytes;
-
-    if self.is_mask_vd() {
-      return Ok((vd_bytes_start, vlen_in_bytes));
-    }
-
-    let len = if self.vlmul() & 0b100 != 0 {
-      vlen_in_bytes >> (8 - self.vlmul())
-    } else {
-      vlen_in_bytes << self.vlmul()
-    };
-
-    Ok((
-      vd_bytes_start,
-      if self.is_widening() { len * 2 } else { len },
-    ))
-  }
-
-  pub fn pre_log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
-    if self.do_log_vrf {
-      self.rd_bits = spike.get_proc().get_rd();
-
-      // record the vrf writes before executing the insn
-      let vlen_in_bytes = vlen;
-
-      let proc = spike.get_proc();
-      let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
-      self.vd_write_record.vd_bytes.resize(len as usize, 0u8);
-      for i in 0..len {
-        let offset = start + i;
-        let vreg_index = offset / vlen_in_bytes;
-        let vreg_offset = offset % vlen_in_bytes;
-        let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
-        self.vd_write_record.vd_bytes[i as usize] = cur_byte;
-      }
-    }
-
-    Ok(())
-  }
-
-  pub fn log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
-    if self.do_log_vrf {
-      self.log_vrf_write(spike, vlen).unwrap();
-      self.log_reg_write(spike).unwrap();
-    }
-    self.log_mem_write(spike).unwrap();
-    self.log_mem_read(spike).unwrap();
-
-    Ok(())
-  }
-
-  fn log_vrf_write(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
-    let proc = spike.get_proc();
-    // record vrf writes
-    // note that we do not need log_reg_write to find records, we just decode the
-    // insn and compare bytes
-    let vlen_in_bytes = vlen / 8;
-    let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
-    trace!("vrf write range: start: {start}, len: {len}");
-    for i in 0..len {
-      let offset = start + i;
-      let origin_byte = self.vd_write_record.vd_bytes[i as usize];
-      let vreg_index = offset / vlen_in_bytes;
-      let vreg_offset = offset % vlen_in_bytes;
-      let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
-      if origin_byte != cur_byte {
-        self
-          .vrf_access_record
-          .all_writes
-          .entry(offset as usize)
-          .or_insert(SingleVrfWrite { byte: cur_byte, executed: false });
-        trace!(
-          "SpikeVRFChange: vrf={:?}, change_from={origin_byte}, change_to={cur_byte}, vrf_idx={offset}",
-          vec![offset / vlen_in_bytes, offset % vlen_in_bytes],
-        );
-      } else {
-        trace!(
-          "SpikeVRFChange: vrf={:?}, change_from={origin_byte}, not changed, vrf_idx={offset}",
-          vec![offset / vlen_in_bytes, offset % vlen_in_bytes],
-        );
-      }
-    }
-    Ok(())
-  }
-
-  fn log_reg_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
+  pub fn log_reg_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     let state = proc.get_state();
     // in spike, log_reg_write is arrange:
@@ -405,29 +303,17 @@ impl SpikeEvent {
         // scalar rf
         let data = state.get_reg(self.rd_idx, false);
         self.is_rd_written = true;
-        if data != self.rd_bits {
-          trace!(
-            "ScalarRFChange: idx={}, change_from={}, change_to={data}",
-            self.rd_idx,
-            self.rd_bits
-          );
-          self.rd_bits = data;
-        }
+        self.rd_bits = data;
+        trace!("ScalarRFChange: idx={:02x}, data={:08x}", self.rd_idx, self.rd_bits);
       }
       0b0001 => {
         let data = state.get_reg(self.rd_idx, true);
         self.is_rd_written = true;
-        if data != self.rd_bits {
-          trace!(
-            "FloatRFChange: idx={}, change_from={}, change_to={data}",
-            self.rd_idx,
-            self.rd_bits
-          );
-          self.rd_bits = data;
-        }
+        self.rd_bits = data;
+        trace!("FloatRFChange: idx={:02x}, data={:08x}", self.rd_idx, self.rd_bits);
       }
       _ => trace!(
-        "UnknownRegChange, idx={}, spike detect unknown reg change",
+        "UnknownRegChange, idx={:02x}, spike detect unknown reg change",
         state.get_reg_write_index(idx)
       ),
     });
@@ -455,68 +341,11 @@ impl SpikeEvent {
           });
       });
       trace!("SpikeMemWrite: addr={addr:x}, value={value:x}, size={size}");
+      if addr == 0x4000_0000 && value == 0xdead_beef && size == 4 {
+        self.exit = true;
+        return;
+      }
     });
-
-    Ok(())
-  }
-
-  fn log_mem_read(&mut self, spike: &Spike) -> anyhow::Result<()> {
-    let proc = spike.get_proc();
-    let state = proc.get_state();
-
-    let mem_read_size = state.get_mem_read_size();
-    (0..mem_read_size).for_each(|i| {
-      let (addr, size) = state.get_mem_read(i);
-      let mut value = 0;
-      (0..size).for_each(|offset| {
-        let byte = spike.mem_byte_on_addr(addr as usize + offset as usize).unwrap();
-        value |= (byte as u64) << (offset * 8);
-        // record the read
-        self
-          .mem_access_record
-          .all_reads
-          .entry(addr + offset as u32)
-          .or_insert(MemReadRecord { reads: vec![], num_completed_reads: 0 })
-          .reads
-          .push(SingleMemRead { val: byte, executed: false });
-      });
-      trace!("SpikeMemRead: addr={addr:08x}, value={value:08x}, size={size}");
-    });
-
-    Ok(())
-  }
-
-  pub fn check_rd(&self, data: u32) -> anyhow::Result<()> {
-    // TODO: rtl should indicate whether resp_bits_data is valid
-    if self.is_rd_written {
-      assert_eq!(
-        data, self.rd_bits,
-        "expect to write rd[{}] = {}, actual {}",
-        self.rd_idx, self.rd_bits, data
-      );
-    }
-
-    Ok(())
-  }
-
-  pub fn check_is_ready_for_commit(&self, cycle: u64) -> anyhow::Result<()> {
-    for (addr, record) in &self.mem_access_record.all_writes {
-      assert_eq!(
-        record.num_completed_writes,
-        record.writes.len(),
-        "[{cycle}] expect to write mem {addr:#x}, not executed when commit, issue_idx={} ({})",
-        self.issue_idx,
-        self.describe_insn(),
-      );
-    }
-    for (idx, record) in &self.vrf_access_record.all_writes {
-      assert!(
-        record.executed,
-        "[{cycle}] expect to write vrf {idx}, not executed when commit, issue_idx={} ({})",
-        self.issue_idx,
-        self.describe_insn()
-      );
-    }
 
     Ok(())
   }
