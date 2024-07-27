@@ -1,7 +1,7 @@
 { stdenv, dtc, fetchFromGitHub }:
 
 stdenv.mkDerivation {
-  version = "unstable-2024-02-20";
+  version = "unstable-2024-07-03";
   pname = "libspike";
 
   env.cmakeConfig = ''
@@ -17,11 +17,12 @@ stdenv.mkDerivation {
   '';
   nativeBuildInputs = [ dtc ];
   enableParallelBuilding = true;
+  separateDebugInfo = true;
   src = fetchFromGitHub {
     owner = "riscv";
     repo = "riscv-isa-sim";
-    rev = "a22119e562c4185275a10eb11ca4ba568d09a570";
-    sha256 = "sha256-FR+so/kFbdSdlAQ6/P4WlD+wr18R4LXCwaNSTlki8mk=";
+    rev = "4a2da916671d49d9ab82f702f50995c19110c2a3";
+    hash = "sha256-c+yYuz2Z2/MwGmHYcv/gPIJQluzBjw8uUlOXsf9Bz28=";
   };
   configureFlags = [
     "--enable-commitlog"
