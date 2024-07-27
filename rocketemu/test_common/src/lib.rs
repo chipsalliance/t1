@@ -41,7 +41,7 @@ pub static MEM_SIZE: usize = 1usize << 32;
 impl CommonArgs {
   pub fn to_spike_c_handler(&self) -> Box<Spike> {
     let arch = &format!("vlen:{},elen:32", self.vlen);
-    let lvl = "M";
+    let lvl = "MSU";
 
     Spike::new(arch, &self.set, lvl, (self.dlen / 32) as usize, MEM_SIZE)
   }

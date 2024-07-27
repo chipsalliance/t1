@@ -1,6 +1,5 @@
 use common::spike_runner::SpikeRunner;
 use std::path::Path;
-use tracing::info;
 
 use common::rtl_config::RTLConfig;
 use common::CommonArgs;
@@ -29,61 +28,26 @@ impl Difftest {
   }
 
   pub fn diff(&mut self) -> anyhow::Result<()> {
-    self.runner.check_and_clear_fence();
+    loop {
+      let se = self.runner.spike_step();
+      if se.is_exit() {
+        return Err(anyhow::anyhow!("exit detected"));
+      }
+      if se.is_rd_written() && se.rd_idx != 0 {
+        let event = self.dut.step()?;
 
-    let event = self.dut.step()?;
-
-    match event {
-      JsonEvents::SimulationStart { cycle } => {
-        self.runner.cycle = *cycle;
-        Ok(())
-      }
-      JsonEvents::SimulationStop { reason, cycle } => {
-        info!("simulation stopped at cycle {}, reason {}", cycle, reason);
-        self.runner.cycle = *cycle;
-        Ok(())
-      }
-      JsonEvents::Issue { idx, cycle } => {
-        self.runner.cycle = *cycle;
-        self.runner.peek_issue(&IssueEvent { idx: *idx, cycle: *cycle })
-      }
-      JsonEvents::MemoryWrite { mask, data, lsu_idx, address, cycle } => {
-        self.runner.cycle = *cycle;
-        self.runner.peek_memory_write(&MemoryWriteEvent {
-          mask: mask.clone(),
-          data: data.clone(),
-          lsu_idx: *lsu_idx,
-          address: *address,
-          cycle: *cycle,
-        })
-      }
-      JsonEvents::LsuEnq { enq, cycle } => {
-        self.runner.cycle = *cycle;
-        self.runner.update_lsu_idx(&LsuEnqEvent { enq: *enq, cycle: *cycle })
-      }
-      JsonEvents::VrfWrite { issue_idx, vd, offset, mask, data, lane, cycle } => {
-        self.runner.cycle = *cycle;
-        self.runner.peek_vrf_write(&VrfWriteEvent {
-          issue_idx: *issue_idx,
-          vd: *vd,
-          offset: *offset,
-          mask: mask.clone(),
-          data: data.clone(),
-          lane: *lane,
-          cycle: *cycle,
-        })
-      }
-      JsonEvents::CheckRd { data, issue_idx, cycle } => {
-        self.runner.cycle = *cycle;
-        self.runner.check_rd(&CheckRdEvent { data: *data, issue_idx: *issue_idx, cycle: *cycle })
-      }
-      JsonEvents::VrfScoreboardReport { count, issue_idx, cycle } => {
-        self.runner.cycle = *cycle;
-        self.runner.vrf_scoreboard_report(&VrfScoreboardReportEvent {
-          count: *count,
-          issue_idx: *issue_idx,
-          cycle: *cycle,
-        })
+        match event {
+          JsonEvents::RegWrite { addr, data, cycle } => {
+            self.runner.cycle = *cycle;
+            self.runner.check_reg_write(
+              &RegWriteEvent { addr: *addr, data: *data, cycle: *cycle },
+              &se,
+            )?
+          }
+          JsonEvents::SimulationStop { reason, cycle } => {
+            return Err(anyhow::anyhow!("[{}] simulation stop: {}", *cycle, *reason));
+          }
+        }
       }
     }
   }
