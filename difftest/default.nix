@@ -48,6 +48,10 @@ let
       VERILATED_LIB_DIR = "${verilated}/lib";
       SPIKE_LIB_DIR = "${libspike}/lib";
       SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
+      SPIKE_ISA_STRING =
+        "rv32gc" +
+        (builtins.concatStringsSep "_" elaborateConfig.parameter.extensions)
+        + "_Zvl${toString elaborateConfig.parameter.vLen}b";
       DESIGN_VLEN = elaborateConfig.parameter.vLen;
       DESIGN_DLEN = elaborateConfig.parameter.dLen;
     };
