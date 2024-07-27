@@ -1,4 +1,5 @@
 { lib
+, enableDebugging
 , libspike
 , libspike_interfaces
 , callPackage
@@ -66,6 +67,16 @@ let
         ];
       });
       inherit libspike_interfaces;
+
+      # enable debug info for difftest itself and libspike
+      withDebug = self.overrideAttrs (old: {
+        cargoBuildType = "debug";
+        doCheck = false;
+        env = old.env // {
+          SPIKE_LIB_DIR = "${enableDebugging libspike}/lib";
+        };
+        dontStrip = true;
+      });
     };
   };
 in
