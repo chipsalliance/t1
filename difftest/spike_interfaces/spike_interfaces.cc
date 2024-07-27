@@ -6,13 +6,12 @@ constexpr uint32_t CSR_MSIMEND = 0x7cc;
 
 void *ffi_target;
 
-cfg_t make_spike_cfg(const std::string &varch) {
+cfg_t make_spike_cfg() {
   cfg_t cfg;
   cfg.initrd_bounds = std::make_pair((reg_t)0, (reg_t)0),
   cfg.bootargs = nullptr;
   cfg.isa = DEFAULT_ISA;
   cfg.priv = DEFAULT_PRIV;
-  cfg.varch = varch.data();
   cfg.misaligned = false;
   cfg.endianness = endianness_little;
   cfg.pmpregions = 16;
@@ -25,9 +24,9 @@ cfg_t make_spike_cfg(const std::string &varch) {
   return cfg;
 }
 
-Spike::Spike(const char *arch, const char *set, const char *lvl,
+Spike::Spike(const char *set, const char *lvl,
              size_t lane_number)
-    : sim(), varch(arch), isa(set, lvl), cfg(make_spike_cfg(varch)),
+    : sim(), isa(set, lvl), cfg(make_spike_cfg()),
       proc(
           /*isa*/ &isa,
           /*cfg*/ &cfg,
@@ -44,9 +43,9 @@ Spike::Spike(const char *arch, const char *set, const char *lvl,
   proc.enable_log_commits();
 }
 
-spike_t *spike_new(const char *arch, const char *set, const char *lvl,
+spike_t *spike_new(const char *set, const char *lvl,
                    size_t lane_number) {
-  return new spike_t{new Spike(arch, set, lvl, lane_number)};
+  return new spike_t{new Spike(set, lvl, lane_number)};
 }
 
 const char *proc_disassemble(spike_processor_t *proc) {

@@ -40,10 +40,9 @@ pub static MEM_SIZE: usize = 1usize << 32;
 
 impl CommonArgs {
   pub fn to_spike_c_handler(&self) -> Box<Spike> {
-    let arch = &format!("vlen:{},elen:32", self.vlen);
     let lvl = "M";
 
-    Spike::new(arch, &self.set, lvl, (self.dlen / 32) as usize, MEM_SIZE)
+    Spike::new(&self.set, lvl, (self.dlen / 32) as usize, MEM_SIZE)
   }
 
   pub fn setup_logger(&self) -> Result<()> {

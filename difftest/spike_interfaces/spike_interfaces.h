@@ -45,11 +45,10 @@ public:
 
 class Spike {
 public:
-  Spike(const char *arch, const char *set, const char *lvl, size_t lane_number);
+  Spike(const char *set, const char *lvl, size_t lane_number);
   processor_t *get_proc() { return &proc; }
 
 private:
-  std::string varch;
   cfg_t cfg;
   sim_t sim;
   isa_parser_t isa;
