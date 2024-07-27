@@ -32,7 +32,7 @@ pub struct CommonArgs {
   pub dlen: u32,
 
   /// ISA config
-  #[arg(long, default_value = "rv32gcv")]
+  #[arg(long, default_value = env!("SPIKE_ISA_STRING"))]
   pub set: String,
 }
 
