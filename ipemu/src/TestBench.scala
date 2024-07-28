@@ -119,7 +119,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   val issue = WireDefault(0.U.asTypeOf(new Issue))
   val fence = RegInit(false.B)
   val outstanding = RegInit(0.U(4.W))
-  val doIssue: Bool = dut.io.issue.ready && !fence
+  val doIssue: Bool = dut.io.issue.ready && !fence && !reset
   outstanding := outstanding + (doIssue && (issue.meta === 1.U)) - dut.io.issue.valid
   // used to gate Xprop when DPI hasn't issued yet.
   val didIssue = RegNext(doIssue, false.B)
