@@ -24,6 +24,10 @@ rec {
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   rvv-codegen = final.callPackage ./pkgs/rvv-codegen.nix { };
   add-determinism = final.callPackage ./pkgs/add-determinism { }; # faster strip-undetereminism
+  # Using VCS need to set VC_STATIC_HOME and SNPSLMD_LICENSE_FILE to impure env, and add sandbox dir to VC_STATIC_HOME
+  vcStaticHome = builtins.getEnv "VC_STATIC_HOME";
+  snpslmdLicenseFile = builtins.getEnv "SNPSLMD_LICENSE_FILE";
+  vcs-fhs-env = final.callPackage ./pkgs/vcs-fhs-env.nix { };
 
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {

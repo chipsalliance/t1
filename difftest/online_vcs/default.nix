@@ -2,7 +2,7 @@
 , elaborateConfig
 , rustPlatform
 , libspike
-, spike_interfaces
+, libspike_interfaces
 , enable-trace ? false
 , vcStaticHome
 }:
@@ -29,9 +29,13 @@ rustPlatform.buildRustPackage {
   env = {
     VCS_LIB_DIR = "${vcStaticHome}/vcs-mx/linux64/lib";
     SPIKE_LIB_DIR = "${libspike}/lib";
-    SPIKE_INTERFACES_LIB_DIR = "${spike_interfaces}/lib";
+    SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
     DESIGN_VLEN = elaborateConfig.parameter.vLen;
     DESIGN_DLEN = elaborateConfig.parameter.dLen;
+    SPIKE_ISA_STRING =
+      "rv32gc" +
+      (builtins.concatStringsSep "_" elaborateConfig.parameter.extensions)
+      + "_Zvl${toString elaborateConfig.parameter.vLen}b";
   };
 
   cargoLock = {

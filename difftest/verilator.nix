@@ -18,7 +18,8 @@
 
 let
   self = rustPlatform.buildRustPackage {
-    name = "difftest";
+    name = "verilator-emu" + (lib.optionalString verilated.enable-trace "-trace");
+
     src = with lib.fileset; toSource {
       root = ./.;
       fileset = unions [
