@@ -34,7 +34,6 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   om := omInstance.getPropertyReference
 
   val clockGen = Module(new ExtModule with HasExtModuleInline {
-
     override def desiredName = "ClockGen"
     setInline(
       s"$desiredName.sv",
@@ -247,7 +246,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"LsuEnq","enq":${lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
 
   // allocate 2 * chainingSize scoreboards
-  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * generator.parameter.chainingSize) { _ =>
+  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * dut.parameter.chainingSize) { _ =>
     RegInit(0.U.asTypeOf(Valid(UInt(16.W))))
   }
   vrfWriteScoreboard.foreach(scoreboard => dontTouch(scoreboard))
@@ -255,7 +254,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
     (laneProbes.map(laneProbe => laneProbe.instructionValid ## laneProbe.instructionValid) :+
       lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
   val scoreboardEnq =
-    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * generator.parameter.chainingSize).W))
+    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * dut.parameter.chainingSize).W))
   vrfWriteScoreboard.zipWithIndex.foreach {
     case (scoreboard, tag) =>
       val writeEnq: UInt = VecInit(
