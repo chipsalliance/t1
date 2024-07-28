@@ -215,6 +215,14 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   @public
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
+  // reset sram
+  val sramReady: Bool = RegInit(false.B)
+  val sramResetCount: UInt = RegInit(0.U(log2Ceil(parameter.rfDepth).W))
+  val resetValid: Bool = !sramReady
+  when(resetValid) {
+    sramResetCount := sramResetCount + 1.U
+    when(sramResetCount.andR) { sramReady := true.B }
+  }
   // TODO: add Chaining Check Probe
 
   // todo: delete
@@ -316,7 +324,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         // if there are additional read port for the bank.
         (bank & (~readPortCheckSelect)).orR
       }
-      v.ready := portReady
+      v.ready := portReady && sramReady
       val firstUsed = (bank & o).orR
       bankReadF(i) := bankCorrect & (~o)
       bankReadS(i) := bankCorrect & (~t) & o
@@ -325,12 +333,19 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       (o | bankCorrect, (bankCorrect & o) | t)
   }
   // @todo @Clo91eaf check write port is ready.
-  write.ready := (parameter.ramType match {
+  write.ready := sramReady && (parameter.ramType match {
     case RamType.p0rw => (writeBank & (~firstOccupied)).orR
     case RamType.p0rp1w => true.B
     case RamType.p0rwp1rw => (writeBank & (~secondOccupied)).orR
   })
 
+  val writeData: UInt = Mux(resetValid, 0.U(parameter.datapathWidth.W), writePipe.bits.data)
+  val writeAddress: UInt =
+    Mux(
+      resetValid,
+      sramResetCount,
+      ((writePipe.bits.vd ## writePipe.bits.offset) >> log2Ceil(parameter.rfBankNum)).asUInt
+    )
   // @todo @Clo91eaf VRF write&read singal should be captured here.
   // @todo           in the future, we need to maintain a layer to trace the original requester to each read&write.
   val rfVec: Seq[SRAMInterface[UInt]] = Seq.tabulate(parameter.rfBankNum) { bank =>
@@ -354,20 +369,21 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
        case RamType.p0rwp1rw => 2
       }
     )
-    val writeValid: Bool = writePipe.valid && writeBankPipe(bank)
+    val writeValid = writePipe.valid && writeBankPipe(bank)
+    val ramWriteValid: Bool = writeValid || resetValid
     parameter.ramType match {
       case RamType.p0rw =>
         firstReadPipe(bank).bits.address :=
           Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
         firstReadPipe(bank).valid := bankReadF.map(_(bank)).reduce(_ || _)
         rf.readwritePorts.last.address := Mux(
-          writeValid,
-          (writePipe.bits.vd ## writePipe.bits.offset) >> log2Ceil(parameter.rfBankNum),
+          ramWriteValid,
+          writeAddress,
           firstReadPipe(bank).bits.address
         )
-        rf.readwritePorts.last.enable := writeValid || firstReadPipe(bank).valid
-        rf.readwritePorts.last.isWrite := writeValid
-        rf.readwritePorts.last.writeData := writePipe.bits.data
+        rf.readwritePorts.last.enable := ramWriteValid || firstReadPipe(bank).valid
+        rf.readwritePorts.last.isWrite := ramWriteValid
+        rf.readwritePorts.last.writeData := writeData
         assert(!(writeValid && firstReadPipe(bank).valid), "port conflict")
 
         readResultF(bank) := rf.readwritePorts.head.readData
@@ -382,9 +398,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         readResultF(bank) := rf.readPorts.head.data
         readResultS(bank) := DontCare
 
-        rf.writePorts.head.enable := writeValid
-        rf.writePorts.head.address := (writePipe.bits.vd ## writePipe.bits.offset) >> log2Ceil(parameter.rfBankNum)
-        rf.writePorts.head.data := writePipe.bits.data
+        rf.writePorts.head.enable := ramWriteValid
+        rf.writePorts.head.address := writeAddress
+        rf.writePorts.head.data := writeData
       case RamType.p0rwp1rw =>
         firstReadPipe(bank).bits.address :=
           Mux1H(bankReadF.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
@@ -402,13 +418,13 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           Mux1H(bankReadS.map(_(bank)), readRequests.map(r => (r.bits.vs ## r.bits.offset) >> log2Ceil(parameter.rfBankNum)))
         secondReadPipe(bank).valid := bankReadS.map(_(bank)).reduce(_ || _)
         rf.readwritePorts.last.address := Mux(
-          writeValid,
-          (writePipe.bits.vd ## writePipe.bits.offset) >> log2Ceil(parameter.rfBankNum),
+          ramWriteValid,
+          writeAddress,
           secondReadPipe(bank).bits.address
         )
-        rf.readwritePorts.last.enable := writeValid || secondReadPipe(bank).valid
-        rf.readwritePorts.last.isWrite := writeValid
-        rf.readwritePorts.last.writeData := writePipe.bits.data
+        rf.readwritePorts.last.enable := ramWriteValid || secondReadPipe(bank).valid
+        rf.readwritePorts.last.isWrite := ramWriteValid
+        rf.readwritePorts.last.writeData := writeData
         assert(!(writeValid && secondReadPipe(bank).valid), "port conflict")
     }
 
