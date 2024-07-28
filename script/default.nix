@@ -30,7 +30,7 @@ let
               ./build.sc
             ];
           };
-          millDepsHash = "sha256-89K7QEq3k50gvs4sbXu7rHajC4tmnQCqB4m5ybBTn6k=";
+          millDepsHash = "sha256-IXQURecgch/8xUvVefC9fhPP0YCSNp/KwbG8bjRJBwY=";
         };
 
         passthru.withLsp = self.overrideAttrs (old: {
