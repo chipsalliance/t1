@@ -5,7 +5,7 @@ use clap::Parser;
 use std::ffi::{c_char, c_int, c_longlong, CString};
 use std::ptr;
 use std::sync::Mutex;
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::drive::Driver;
 use crate::OfflineArgs;
@@ -280,7 +280,7 @@ pub(crate) fn get_t() -> u64 {
   unsafe { get_t_c() / 20 }
 }
 
-pub(crate) fn verilator_main() {
+pub(crate) fn verilator_main() -> i32 {
   let c_args: Vec<CString> = std::env::args().map(|arg| CString::new(arg).unwrap()).collect();
 
   let mut c_args_ptr: Vec<*const c_char> = c_args.iter().map(|arg| arg.as_ptr()).collect();
@@ -289,12 +289,16 @@ pub(crate) fn verilator_main() {
   let argc = c_args.len() as c_int;
   let argv = c_args_ptr.as_ptr() as *mut *mut c_char;
 
-  unsafe {
-    verilator_main_c(argc, argv);
+  let verilator_ret = unsafe { verilator_main_c(argc, argv) };
+
+  if verilator_ret == 0 {
+    std::fs::write("perf.txt", format!("total_cycles: {}", get_t()))
+      .expect("fail to write into perf.txt");
+  } else {
+    error!("verilator_main_c return unexpectedly");
   }
 
-  std::fs::write("perf.txt", format!("total_cycles: {}", get_t()))
-    .expect("fail to write into perf.txt");
+  verilator_ret
 }
 
 #[cfg(feature = "trace")]
