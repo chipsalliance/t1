@@ -116,18 +116,24 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
     val writeRd: UInt = UInt(32.W)
     val vxsat:   UInt = UInt(32.W)
   }
+  // X gated by didIssue
   val issue = WireDefault(0.U.asTypeOf(new Issue))
   val fence = RegInit(false.B)
   val outstanding = RegInit(0.U(4.W))
   val doIssue: Bool = dut.io.issue.ready && !fence
   outstanding := outstanding + (doIssue && (issue.meta === 1.U)) - dut.io.issue.valid
+  // used to gate Xprop when DPI hasn't issued yet.
+  val didIssue = RegNext(doIssue, false.B)
   // TODO: refactor driver to spawn 3 scoreboards for record different retirement.
   val t1Probe = probe.read(dut.io.t1Probe)
   fence := Mux(doIssue, issue.meta === 2.U, fence && !t1Probe.retireValid && !(outstanding === 0.U))
 
-  issue := RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
-    clock,
-    doIssue
+  issue := Mux(didIssue,
+    RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
+      clock,
+      doIssue,
+    ),
+    0.U.asTypeOf(new Issue)
   )
   dut.io.issue.bits.instruction := issue.instruction
   dut.io.issue.bits.rs1Data := issue.src1Data
