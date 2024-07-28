@@ -3,8 +3,8 @@
 , stdenvNoCC
 , jq
 , zstd
-, difftest
-, difftest-trace
+, verilator-emu
+, verilator-emu-trace
 , elaborateConfigJson
 }:
 
@@ -19,7 +19,7 @@ let
 
     dontUnpack = true;
 
-    difftestDriver = "${difftest}/bin/online_drive";
+    difftestDriver = "${verilator-emu}/bin/online_drive";
     difftestArgs = [
       "--elf-file"
       "${testCase}/bin/${testCase.pname}.elf"
@@ -76,7 +76,7 @@ let
     '';
 
     passthru.with-trace = self.overrideAttrs (old: {
-      difftestDriver = "${difftest-trace}/bin/online_drive";
+      difftestDriver = "${verilator-emu-trace}/bin/online_drive";
       difftestArgs = old.difftestArgs ++ [ "--wave-path" "${placeholder "out"}/wave.fst" ];
       postCheck = ''
         if [ ! -r "$out/wave.fst" ]; then
@@ -89,7 +89,7 @@ let
     passthru.with-offline = self.overrideAttrs (old: {
       preInstall = ''
         set +e
-        "${difftest}/bin/offline" \
+        "${verilator-emu}/bin/offline" \
           --elf-file ${testCase}/bin/${testCase.pname}.elf \
           --log-file $out/rtl-event.jsonl \
           --log-level ERROR &> $out/offline-check-journal

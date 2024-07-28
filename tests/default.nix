@@ -4,8 +4,8 @@
 , newScope
 , rv32-stdenv
 , runCommand
-, difftest
-, difftest-trace
+, verilator-emu
+, verilator-emu-trace
 }:
 
 let
@@ -20,7 +20,7 @@ let
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
 
-    inherit difftest difftest-trace;
+    inherit verilator-emu verilator-emu-trace;
 
     makeEmuResult = casesSelf.callPackage ./make-emu-result.nix { };
 
