@@ -42,7 +42,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build verilator emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.ip.difftest' -L --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.ip.verilator-emu' -L --no-link --cores 64
       - name: "Build all testcases"
         run: |
           # Build testcases with vlen 1024 and vlen 4096
@@ -81,7 +81,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build verilator emulator with trace"
-        run: nix build '.#t1.${{ matrix.config }}.ip.difftest-trace' -L --no-link --cores 64
+        run: nix build '.#t1.${{ matrix.config }}.ip.verilator-emu-trace' -L --no-link --cores 64
 
   test-emit:
     if: '! github.event.pull_request.draft'
