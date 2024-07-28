@@ -69,6 +69,12 @@ class T1Reader private[omreaderlib](evaluator: PanamaCIRCTOMEvaluator, basePath:
   }
   def decoderInstructionsJson: String = ujson.write(decoderInstructionsJsonImpl)
   def decoderInstructionsJsonPretty: String = ujson.write(decoderInstructionsJsonImpl, 2)
+  def extensionsJson: String = {
+    val extensions = t1.field("extensions").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
+    val j = extensions.elements.map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString)
+    ujson.write(j)
+  }
+  def march: String = t1.field("march").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString
 
   def dumpMethods(): Unit = {
     val mirror = runtimeMirror(getClass.getClassLoader).reflect(this)

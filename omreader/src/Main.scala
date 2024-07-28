@@ -48,6 +48,16 @@ object Main {
   }
 
   @main
+  def march(@arg(name = "mlirbc-file") mlirbcFile: os.Path) = {
+    println(simplyGetT1Reader(mlirbcFile).march)
+  }
+
+  @main
+  def extensionsJson(@arg(name = "mlirbc-file") mlirbcFile: os.Path) = {
+    println(simplyGetT1Reader(mlirbcFile).extensionsJson)
+  }
+
+  @main
   def decoderInstructionsJson(@arg(name = "mlirbc-file") mlirbcFile: os.Path) = {
     println(simplyGetT1Reader(mlirbcFile).decoderInstructionsJson)
   }

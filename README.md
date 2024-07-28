@@ -186,6 +186,14 @@ $ nix run .#t1.<config-name>.ip.emu-omreader -- run --dump-methods
 
   ##### `dlen` : Integer
 
+  ##### `extensionsJson` : Json
+
+  | Field                           | Type   |
+  |---------------------------------|--------|
+  | `[*]`                           | string |
+
+  ##### `march` : String
+
   ##### `decoderInstructionsJson` | `decoderInstructionsJsonPretty` : Json
 
   | Field                           | Type   |

@@ -38,6 +38,18 @@ class T1OM extends Class {
   dlen := dlenIn
 
   @public
+  val extensions = IO(Output(Property[Seq[String]]()))
+  @public
+  val extensionsIn = IO(Input(Property[Seq[String]]()))
+  extensions := extensionsIn
+
+  @public
+  val march = IO(Output(Property[String]()))
+  @public
+  val marchIn = IO(Input(Property[String]()))
+  march := marchIn
+
+  @public
   val lanes = IO(Output(Property[Seq[AnyClassType]]()))
   @public
   val lanesIn = IO(Input(Property[Seq[AnyClassType]]()))
@@ -340,6 +352,8 @@ class T1(val parameter: T1Parameter)
 
   omInstance.vlenIn := Property(parameter.vLen)
   omInstance.dlenIn := Property(parameter.dLen)
+  omInstance.extensionsIn := Property(parameter.extensions)
+  omInstance.marchIn := Property(s"rv32gc_${parameter.extensions.mkString("_").toLowerCase}_zvl${parameter.vLen}b")
 
   /** the LSU Module */
 
