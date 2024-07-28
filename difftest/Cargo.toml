@@ -6,6 +6,7 @@ members = [
     "offline",
     "online_dpi",
     "online_drive",
+    "online_vcs",
 ]
 exclude = [
     "spike_interfaces"
