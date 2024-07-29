@@ -499,15 +499,15 @@
   "codegen.vfredusum_vs": 122332,
   "codegen.vfredmax_vs": 122332,
   "codegen.vfredmin_vs": 122332,
-  "rvv_bench.ascii_to_utf16": 1583717,
-  "rvv_bench.ascii_to_utf32": 704008,
+  "rvv_bench.ascii_to_utf16": 1583519,
+  "rvv_bench.ascii_to_utf32": 704038,
   "rvv_bench.byteswap": 3353190,
   "rvv_bench.chacha20": 2,
   "rvv_bench.mandelbrot": 4056017,
-  "rvv_bench.memcpy": 2131958,
-  "rvv_bench.memset": 438601,
-  "rvv_bench.mergelines": 3337924,
+  "rvv_bench.memcpy": 2072895,
+  "rvv_bench.memset": 438920,
+  "rvv_bench.mergelines": 3347920,
   "rvv_bench.poly1305": 2,
-  "rvv_bench.strlen": 877595,
-  "rvv_bench.utf8_count": 6340810
+  "rvv_bench.strlen": 877645,
+  "rvv_bench.utf8_count": 6339104
 }
