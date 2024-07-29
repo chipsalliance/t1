@@ -33,7 +33,7 @@ impl Difftest {
       if se.is_exit() {
         return Err(anyhow::anyhow!("exit detected"));
       }
-      if se.is_rd_written() {
+      if se.is_rd_written() && se.rd_idx != 0 {
         let event = self.dut.step()?;
 
         match event {
