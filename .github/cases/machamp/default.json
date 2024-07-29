@@ -435,14 +435,14 @@
   "codegen.vxor_vx": 63114,
   "codegen.vzext_vf2": 39423,
   "codegen.vzext_vf4": 6444,
-  "rvv_bench.ascii_to_utf16": 1460100,
-  "rvv_bench.ascii_to_utf32": 631209,
+  "rvv_bench.ascii_to_utf16": 1460027,
+  "rvv_bench.ascii_to_utf32": 631198,
   "rvv_bench.byteswap": 3259012,
   "rvv_bench.chacha20": 2,
-  "rvv_bench.memcpy": 1875735,
-  "rvv_bench.memset": 244343,
-  "rvv_bench.mergelines": 3137781,
+  "rvv_bench.memcpy": 1816404,
+  "rvv_bench.memset": 244393,
+  "rvv_bench.mergelines": 3170081,
   "rvv_bench.poly1305": 2,
-  "rvv_bench.strlen": 710445,
-  "rvv_bench.utf8_count": 5729743
+  "rvv_bench.strlen": 710643,
+  "rvv_bench.utf8_count": 5727933
 }
