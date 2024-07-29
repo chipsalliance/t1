@@ -110,12 +110,14 @@
 #define INIT_RNMI                                                       \
   la t0, 1f;                                                            \
   csrw mtvec, t0;                                                       \
+  csrwi CSR_MNSTATUS, MNSTATUS_NMIE;                                    \
   .align 2;                                                             \
 1:
 
 #define INIT_SATP                                                      \
   la t0, 1f;                                                            \
   csrw mtvec, t0;                                                       \
+  csrwi satp, 0;                                                       \
   .align 2;                                                             \
 1:
 
@@ -123,6 +125,8 @@
   csrwi mie, 0;                                                         \
   la t0, 1f;                                                            \
   csrw mtvec, t0;                                                       \
+  csrwi medeleg, 0;                                                     \
+  csrwi mideleg, 0;                                                     \
   .align 2;                                                             \
 1:
 
