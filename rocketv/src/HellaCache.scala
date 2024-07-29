@@ -1074,7 +1074,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     }
 
     // grant
-    val (d_first, d_last, d_done, d_address_inc) = axiHelper(io.loadStoreAXI.r.bits, io.loadStoreAXI.r.fire)
+    val (d_first, d_last, d_done, d_refill_count) = axiHelper(io.loadStoreAXI.r.bits, io.loadStoreAXI.r.fire)
 //    val (d_opc, grantIsUncached, grantIsUncachedData) = {
 //      val uncachedGrantOpcodesSansData = Seq(AccessAck, HintAck)
 //      val uncachedGrantOpcodesWithData = Seq(AccessAckData)
@@ -1167,7 +1167,9 @@ class HellaCache(val parameter: HellaCacheParameter)
     }
     if (!usingDataScratchpad) {
       dataArb.io.in(1).bits.write := true.B
-      dataArb.io.in(1).bits.addr := (s2_vaddr >> idxLSB) << idxLSB | d_address_inc
+      dataArb.io.in(1).bits.addr :=
+        (s2_vaddr >> idxLSB) << idxLSB |
+          (d_refill_count << log2Ceil(parameter.loadStoreParameter.dataWidth / 8))
       dataArb.io.in(1).bits.way_en := refill_way
       dataArb.io.in(1).bits.wdata := tl_d_data_encoded
       dataArb.io.in(1).bits.wordMask := ~0.U((rowBytes / subWordBytes).W)
