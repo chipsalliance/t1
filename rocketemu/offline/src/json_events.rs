@@ -7,6 +7,7 @@ use tracing::info;
 #[serde(tag = "event")]
 pub(crate) enum JsonEvents {
   RegWrite { addr: u32, data: u32, cycle: u64 },
+  SimulationStop { reason: u8, cycle: u64 },
 }
 
 pub struct RegWriteEvent {
