@@ -32,10 +32,6 @@ impl JsonEventRunner for SpikeRunner {
       se.rd_idx, se.rd_bits
     );
     assert_eq!(addr, se.rd_idx, "addr should be equal to se.rd_idx");
-    if addr == 0 {
-      // ignore x0
-      return Ok(());
-    }
     assert_eq!(data, se.rd_bits, "data should be equal to se.rd_bits");
 
     Ok(())
