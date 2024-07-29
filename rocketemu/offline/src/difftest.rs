@@ -44,6 +44,9 @@ impl Difftest {
               &se,
             )?
           }
+          JsonEvents::SimulationStop { reason, cycle } => {
+            return Err(anyhow::anyhow!("[{}] simulation stop: {}", *cycle, *reason));
+          }
         }
       }
     }
