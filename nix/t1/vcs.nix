@@ -39,6 +39,7 @@ stdenv.mkDerivation {
 
   passthru = {
     inherit (vcs-dpi-lib) enable-trace;
+    inherit vcs-fhs-env;
   };
 
   shellHook = ''

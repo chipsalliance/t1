@@ -51,7 +51,9 @@ lib.makeScope newScope
         elaborateConfigJson = configPath;
         elaborateConfig = builtins.fromJSON (lib.readFile configPath);
 
-        cases = innerSelf.callPackage ../../tests { verilator-emu = ip.verilator-emu; verilator-emu-trace = ip.verilator-emu-trace; };
+        cases = innerSelf.callPackage ../../tests {
+          inherit (ip) verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace;
+        };
 
         # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
         cases-x86 =
@@ -117,8 +119,8 @@ lib.makeScope newScope
           };
           vcs-dpi-lib = innerSelf.callPackage ../../difftest/online_vcs { };
           vcs-dpi-lib-trace = vcs-dpi-lib.override { enable-trace = true; };
-          vcs-emu-compiled = innerSelf.callPackage ./vcs.nix { inherit vcs-dpi-lib; rtl = vcs-emu-rtl; };
-          vcs-emu-compiled-trace = innerSelf.callPackage ./vcs.nix { vcs-dpi-lib = vcs-dpi-lib-trace; rtl = vcs-emu-rtl; };
+          vcs-emu = innerSelf.callPackage ./vcs.nix { inherit vcs-dpi-lib; rtl = vcs-emu-rtl; };
+          vcs-emu-trace = innerSelf.callPackage ./vcs.nix { vcs-dpi-lib = vcs-dpi-lib-trace; rtl = vcs-emu-rtl; };
         };
 
         subsystem = rec {

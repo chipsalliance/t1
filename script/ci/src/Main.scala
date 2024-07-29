@@ -144,7 +144,7 @@ object Main:
   @main
   def runTests(
       jobs: String,
-      dontBail: Flag = Flag(false)
+      testType: String = "verilator"
   ): Unit =
     if jobs == "" then
       Logger.info("No test found, exiting")
@@ -157,32 +157,31 @@ object Main:
         val Array(config, caseName) = testName.split(",")
         println("\n")
         Logger.info(
-          s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Running test case $caseName with config $config"
+          s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Running VCS for test case $caseName with config $config"
         )
 
+        val testAttr = testType.toLowerCase() match
+          case "verilator" =>
+            s".#t1.$config.cases.$caseName.emu-result.with-offline"
+          case "vcs" => s".#t1.$config.cases.$caseName.emu-result.with-vcs"
+          case _     => Logger.fatal(s"Invalid test type ${testType}")
         val testResultPath =
           try
             os.Path(
               nixResolvePath(
-                s".#t1.$config.cases.$caseName.emu-result.with-offline"
+                testAttr,
+                if testType == "vcs" then Seq("--impure") else Seq()
               )
             )
           catch
             case _ =>
-              Logger.error(s"Emulation for config $config, case $caseName fail")
+              Logger.error(s"VCS emulation for config $config, case $caseName fail")
               println("-" * 50)
-              println(
-                os.proc(
-                  "nix",
-                  "log",
-                  s".#t1.$config.cases.$caseName.emu-result"
-                ).call()
-                  .out
-              )
+              println(os.proc("nix", "log", testAttr).call().out)
               println("-" * 50)
               Logger.fatal("Got error from emulation, exiting CI")
 
-        Logger.info("Checking RTL event with offline difftest")
+        Logger.info("Checking RTL event from VCS")
         val testSuccess =
           os.read(testResultPath / "offline-check-status").trim() == "0"
         if !testSuccess then
@@ -193,10 +192,6 @@ object Main:
 
     val failedTests = findFailedTests()
     if failedTests.isEmpty then Logger.info(s"All tests passed")
-    else if dontBail.value then
-      Logger.error(
-        s"${BOLD}${failedTests.length} tests failed${RESET}"
-      )
     else
       Logger.fatal(
         s"${BOLD}${failedTests.length} tests failed${RESET}"
@@ -249,13 +244,17 @@ object Main:
       @arg(
         name = "cycle-update-file-path",
         doc = "specify the cycle update markdown file output path"
-      ) cycleUpdateFilePath: String
+      ) cycleUpdateFilePath: Option[String],
+      emuType: String = "verilator"
   ) =
     val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
     os.write.over(failedTestsFile, "## Failed Tests\n")
 
-    val cycleUpdateRecordFile = os.Path(cycleUpdateFilePath, os.pwd)
-    os.write.over(cycleUpdateRecordFile, "## Cycle Update\n")
+    if cycleUpdateFilePath.nonEmpty then
+      os.write.over(
+        os.Path(cycleUpdateFilePath.get, os.pwd),
+        "## Cycle Update\n"
+      )
 
     os.walk(os.pwd / ".github" / "cases")
       .filter(_.last == "default.json")
@@ -264,6 +263,11 @@ object Main:
         var cycleRecord = ujson.read(os.read(file))
 
         Logger.info("Fetching CI results")
+        val resultAttr = emuType.toLowerCase() match
+          case "verilator" =>
+            s".#t1.$config.cases._allEmuResult"
+          case "vcs" => s".#t1.$config.cases._allVCSEmuResult"
+          case _     => Logger.fatal(s"Invalid test type ${emuType}")
         val emuResultPath =
           os.Path(nixResolvePath(s".#t1.$config.cases._allEmuResult"))
 
@@ -278,30 +282,34 @@ object Main:
             os.write.append(failedTestsFile, s"```text\n${journal}\n```\n")
           })
 
-        Logger.info("Collecting cycle update info")
-        val perfCycleRegex = raw"total_cycles:\s(\d+)".r
-        val allCycleUpdates = os
-          .walk(emuResultPath)
-          .filter(path => path.last == "perf.txt")
-          .map(path => {
-            val cycle = os.read.lines(path).head match
-              case perfCycleRegex(cycle) => cycle.toInt
-              case _ =>
-                throw new Exception("perf.txt file is not format as expected")
-            val caseName = path.segments.toSeq.reverse.drop(1).head
-            (caseName, cycle, cycleRecord.obj(caseName).num.toInt)
-          })
-          .filter((_, newCycle, oldCycle) => newCycle != oldCycle)
-          .map:
-            case (caseName, newCycle, oldCycle) =>
-              cycleRecord(caseName) = newCycle
-              if oldCycle == -1 then s"* 🆕 ${caseName}($config): NaN -> ${newCycle}"
-              else if oldCycle > newCycle then
-                s"* 🚀 $caseName($config): $oldCycle -> $newCycle"
-              else s"* 🐢 $caseName($config): $oldCycle -> $newCycle"
+        if cycleUpdateFilePath.nonEmpty then
+          Logger.info("Collecting cycle update info")
+          val perfCycleRegex = raw"total_cycles:\s(\d+)".r
+          val allCycleUpdates = os
+            .walk(emuResultPath)
+            .filter(path => path.last == "perf.txt")
+            .map(path => {
+              val cycle = os.read.lines(path).head match
+                case perfCycleRegex(cycle) => cycle.toInt
+                case _ =>
+                  throw new Exception("perf.txt file is not format as expected")
+              val caseName = path.segments.toSeq.reverse.drop(1).head
+              (caseName, cycle, cycleRecord.obj(caseName).num.toInt)
+            })
+            .filter((_, newCycle, oldCycle) => newCycle != oldCycle)
+            .map:
+              case (caseName, newCycle, oldCycle) =>
+                cycleRecord(caseName) = newCycle
+                if oldCycle == -1 then
+                  s"* 🆕 ${caseName}($config): NaN -> ${newCycle}"
+                else if oldCycle > newCycle then
+                  s"* 🚀 $caseName($config): $oldCycle -> $newCycle"
+                else s"* 🐢 $caseName($config): $oldCycle -> $newCycle"
 
-        os.write.append(cycleUpdateRecordFile, allCycleUpdates.mkString("\n"))
-        os.write.append(cycleUpdateRecordFile, "\n")
+          os.write.append(
+            os.Path(cycleUpdateFilePath.get, os.pwd),
+            allCycleUpdates.mkString("\n") + "\n"
+          )
 
         os.write.over(file, ujson.write(cycleRecord, indent = 2))
   end postCI
@@ -316,14 +324,16 @@ object Main:
     println(ujson.write(Map("config" -> testPlans)))
   end generateTestPlan
 
-  def nixResolvePath(attr: String): String =
+  def nixResolvePath(attr: String, extraArgs: Seq[String] = Seq()): String =
     os.proc(
-      "nix",
-      "build",
-      "--no-link",
-      "--no-warn-dirty",
-      "--print-out-paths",
-      attr
+      Seq(
+        "nix",
+        "build",
+        "--no-link",
+        "--no-warn-dirty",
+        "--print-out-paths",
+        attr
+      ) ++ extraArgs
     ).call()
       .out
       .trim()
