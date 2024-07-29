@@ -6,6 +6,8 @@
 , runCommand
 , verilator-emu
 , verilator-emu-trace
+, vcs-emu
+, vcs-emu-trace
 }:
 
 let
@@ -20,7 +22,7 @@ let
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
 
-    inherit verilator-emu verilator-emu-trace;
+    inherit xLen vLen isFp verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace;
 
     makeEmuResult = casesSelf.callPackage ./make-emu-result.nix { };
 
@@ -47,8 +49,6 @@ let
     linkerScript = ./t1.ld;
 
     stdenv = rv32-stdenv;
-
-    inherit xLen vLen isFp;
 
     mlir = casesSelf.callPackage ./mlir { };
     intrinsic = casesSelf.callPackage ./intrinsic { };
@@ -88,6 +88,25 @@ let
     in
     runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
 
+  _allVCSEmuResult =
+    let
+      testPlan = builtins.fromJSON (lib.readFile ../.github/cases/${configName}/default.json);
+      # flattern the attr set to a list of test case derivations
+      # AttrSet (AttrSet Derivation) -> List Derivation
+      allCases = lib.filter (val: lib.isDerivation val && lib.hasAttr val.pname testPlan)
+        (lib.concatLists (map lib.attrValues (lib.attrValues scopeStripped)));
+      script = ''
+        mkdir -p $out
+      '' + (lib.concatMapStringsSep "\n"
+        (caseDrv: ''
+          _caseOutDir=$out/${caseDrv.pname}
+          mkdir -p "$_caseOutDir"
+          cp ${caseDrv.emu-result.with-vcs}/offline-check-* "$_caseOutDir"/
+        '')
+        allCases);
+    in
+    runCommand "catch-${configName}-all-vcs-emu-result-for-ci" { } script;
+
   all =
     let
       allCases = lib.filter lib.isDerivation
@@ -104,4 +123,4 @@ let
     in
     runCommand "build-all-testcases" { } script;
 in
-lib.recurseIntoAttrs (scopeStripped // { inherit all _allEmuResult; })
+lib.recurseIntoAttrs (scopeStripped // { inherit all _allEmuResult _allVCSEmuResult; })
