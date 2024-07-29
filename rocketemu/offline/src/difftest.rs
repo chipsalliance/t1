@@ -1,6 +1,5 @@
 use common::spike_runner::SpikeRunner;
 use std::path::Path;
-use tracing::info;
 
 use common::rtl_config::RTLConfig;
 use common::CommonArgs;
@@ -29,7 +28,8 @@ impl Difftest {
   }
 
   pub fn diff(&mut self) -> anyhow::Result<()> {
-    while let se = self.runner.spike_step() {
+    loop {
+      let se = self.runner.spike_step();
       if se.is_exit() {
         return Err(anyhow::anyhow!("exit detected"));
       }
@@ -50,6 +50,5 @@ impl Difftest {
         }
       }
     }
-    Ok(())
   }
 }
