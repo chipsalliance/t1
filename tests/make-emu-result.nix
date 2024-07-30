@@ -117,6 +117,7 @@ let
 
         RUST_BACKTRACE=full "${vcs-emu}/bin/t1-vcs-simulator" \
           --elf-file ${testCase}/bin/${testCase.pname}.elf \
+          -fgp=num_threads:7 \
           1> /dev/null \
           2> $rtlEventOutPath
 
@@ -152,6 +153,7 @@ let
         RUST_BACKTRACE=full "${vcs-emu-trace}/bin/t1-vcs-simulator" \
           --elf-file ${testCase}/bin/${testCase.pname}.elf \
           --wave-path ${testCase.pname}.fsdb \
+          -fgp=num_threads:6,num_fsdb_threads:1 \
           1> /dev/null \
           2> $rtlEventOutPath
 

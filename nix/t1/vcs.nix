@@ -24,6 +24,7 @@ stdenv.mkDerivation {
     VERDI_HOME=$("$fhsBash" -c "printenv VERDI_HOME")
     "$fhsBash" vcs \
       -sverilog \
+      -fgp \
       -full64 \
       -timescale=1ns/1ps \
       -P $VERDI_HOME/share/PLI/VCS/LINUX64/novas.tab $VERDI_HOME/share/PLI/VCS/LINUX64/pli.a \
