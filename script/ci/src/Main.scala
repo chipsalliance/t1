@@ -175,13 +175,13 @@ object Main:
             )
           catch
             case _ =>
-              Logger.error(s"VCS emulation for config $config, case $caseName fail")
+              Logger.error(s"emulation for config $config, case $caseName fail")
               println("-" * 50)
               println(os.proc("nix", "log", testAttr).call().out)
               println("-" * 50)
               Logger.fatal("Got error from emulation, exiting CI")
 
-        Logger.info("Checking RTL event from VCS")
+        Logger.info("Checking RTL event from event log")
         val testSuccess =
           os.read(testResultPath / "offline-check-status").trim() == "0"
         if !testSuccess then
