@@ -89,11 +89,8 @@ impl SpikeRunner {
     let proc = self.spike.get_proc();
     let state = proc.get_state();
 
-    state.set_mcycle((self.cycle + self.spike_cycle) as usize);
-
-    let pc = state.get_pc();
-    let disasm = proc.disassemble();
-    let insn_bits = proc.get_insn();
+    let mcycle = (self.cycle + self.spike_cycle) as usize;
+    state.set_mcycle(0);
 
     let mut event = SpikeEvent::new(spike, self.do_log_vrf);
     state.clear();
@@ -101,9 +98,8 @@ impl SpikeRunner {
     let new_pc = if event.is_v() || event.is_exit() {
       // inst is v / quit
       debug!(
-        "SpikeStep: spike run vector insn ({}), is_vfence={}",
+        "SpikeStep: spike run vector insn ({}), mcycle={mcycle}",
         event.describe_insn(),
-        event.is_vfence(),
       );
       event.pre_log_arch_changes(spike, self.vlen).unwrap();
       let new_pc_ = proc.func();
@@ -112,8 +108,8 @@ impl SpikeRunner {
     } else {
       // inst is scalar
       debug!(
-        "SpikeStep: spike run scalar insn (pc={:#x}, disasm={}, bits={:#x})",
-        pc, disasm, insn_bits,
+        "SpikeStep: spike run scalar insn ({}), mcycle={mcycle}",
+        event.describe_insn(),
       );
       let new_pc_ = proc.func();
       event.log_mem_write(spike).unwrap();
