@@ -1,4 +1,4 @@
-name: PR
+name: Verilator Test
 on:
   pull_request:
     types:
@@ -69,87 +69,6 @@ jobs:
           echo -n matrix= >> "$GITHUB_OUTPUT"
           nix run ".#ci-helper" -- generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
-  build-trace-emulators:
-    name: "Build trace emulator"
-    needs: [gen-test-plan]
-    runs-on: [self-hosted, linux, nixos]
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: "Build verilator emulator with trace"
-        run: nix build '.#t1.${{ matrix.config }}.ip.verilator-emu-trace' -L --no-link --cores 64
-
-  test-emit:
-    if: '! github.event.pull_request.draft'
-    name: "Test elaborate"
-    runs-on: [self-hosted, linux, nixos]
-    strategy:
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: "Test elaborate"
-        run: |
-          configArray=( $(ls configgen/generated | sed 's/\.json$//') )
-          for cfg in "${configArray[@]}"; do
-            echo "Building .#t1.${cfg}.ip.rtl"
-            if ! nix build ".#t1.${cfg}.ip.rtl" -L; then
-              failed_rtl_configs+=("${cfg}.ip")
-            fi
-            echo "Building .#t1.${cfg}.subsystem.rtl"
-            if ! nix build ".#t1.${cfg}.subsystem.rtl" -L; then
-              failed_rtl_configs+=("${cfg}.subsystem")
-            fi
-          done
-          if [ -n "${failed_rtl_configs[*]}"  ]; then
-            echo -e "## Failed RTL\n" >> "$GITHUB_STEP_SUMMARY"
-            for cfg in "${failed_rtl_configs[@]}"; do
-              echo "* ${cfg}" >> $GITHUB_STEP_SUMMARY
-            done
-            printf "\n" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  physical-design-report:
-    name: "Request physical design report"
-    if: ${{ success() && (contains(github.event.pull_request.labels.*.name, 'PD-Lane') || contains(github.event.pull_request.labels.*.name, 'PD-Lane-DBG'))}}
-    runs-on: ubuntu-latest
-    needs: [test-emit]
-    steps:
-      - name: "Request report"
-        env:
-          # Use env key can help us inspect the data
-          JSON_CTX: ${{ toJson(github.event.pull_request.labels.*.name) }}
-        run: |
-          # GitHub `toJson` will pretty print JSON and causing multiple line escape issue
-          # So we have to redirect it to file here
-          printf "$JSON_CTX" > _ctx.json
-          pdType=$(jq -r 'map(select(. | test("^PD-Lane.*"))) | .[0]' _ctx.json)
-          if [[ -z "$pdType" ]] || [[ "$pdType" == "null" ]]; then
-            echo "Unable to filter Physical Design type"
-            exit 1
-          fi
-
-          commitSha="${{ github.event.pull_request.head.sha }}"
-          prId="${{ github.event.pull_request.number }}"
-          jq -n \
-            --arg commit_sha "$commitSha" \
-            --arg pr_id "$prId" \
-            --arg pd_type "$pdType" \
-            '{"event_type":"ci_success","client_payload":{"commit_sha": $commit_sha,"pr_id": $pr_id, "pd_type": $pd_type }}' \
-            > payload.json
-          curl -L \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.T1_INHOUSE_PAT }}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "${{ secrets.T1_INHOUSE_URL }}" \
-            -d '@payload.json'
-
   run-testcases:
     name: "Run testcases"
     needs: [gen-matrix]
@@ -164,9 +83,6 @@ jobs:
       - name: "Run testcases"
         run: |
           nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}"
-      - name: "Run OM tests"
-        run: |
-          nix run ".#ci-helper" -- runOMTests --jobs "${{ matrix.jobs }}"
 
   report:
     name: "Report CI result"

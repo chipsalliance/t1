@@ -200,35 +200,33 @@ object Main:
 
   @main
   def runOMTests(
-      jobs: String
+      config: String
   ): Unit =
-    val configs = jobs.split(";").map(_.split(",")(0))
-    configs.distinct.foreach: config =>
-      Seq("omreader", "emu-omreader").foreach: target =>
-        val command = Seq(
-          "nix",
-          "run",
-          s".#t1.$config.ip.$target",
-          "--",
-          "run",
-          "--dump-methods"
-        )
-        println("\n")
-        Logger.info(
-          s"Running OM test with command $BOLD'${command.mkString(" ")}'$RESET"
-        )
-        val outputs = os.proc(command).call().out.trim()
-        Logger.trace(s"Outputs:\n${outputs}")
+    Seq("omreader", "verilator-emu-omreader", "vcs-emu-omreader").foreach: target =>
+      val command = Seq(
+        "nix",
+        "run",
+        s".#t1.$config.ip.$target",
+        "--",
+        "run",
+        "--dump-methods"
+      )
+      println("\n")
+      Logger.info(
+        s"Running OM test with command $BOLD'${command.mkString(" ")}'$RESET"
+      )
+      val outputs = os.proc(command).call().out.trim()
+      Logger.trace(s"Outputs:\n${outputs}")
 
-        Seq("vlen =", "dlen =").foreach: keyword =>
-          if outputs.contains(keyword) then
-            Logger.info(
-              s"Keyword $BOLD'$keyword'$RESET found - ${GREEN}Pass!$RESET"
-            )
-          else
-            Logger.fatal(
-              s"Keyword $BOLD'$keyword'$RESET not found - ${RED}Fail!$RESET"
-            )
+      Seq("vlen =", "dlen =").foreach: keyword =>
+        if outputs.contains(keyword) then
+          Logger.info(
+            s"Keyword $BOLD'$keyword'$RESET found - ${GREEN}Pass!$RESET"
+          )
+        else
+          Logger.fatal(
+            s"Keyword $BOLD'$keyword'$RESET not found - ${RED}Fail!$RESET"
+          )
   end runOMTests
 
   // PostCI do the below four things:

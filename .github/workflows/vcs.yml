@@ -1,4 +1,4 @@
-name: VCS
+name: VCS Test
 on:
   pull_request:
     types:
