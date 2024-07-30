@@ -157,7 +157,7 @@ object Main:
         val Array(config, caseName) = testName.split(",")
         println("\n")
         Logger.info(
-          s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Running VCS for test case $caseName with config $config"
+          s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Simulating test case $caseName with config $config"
         )
 
         val testAttr = testType.toLowerCase() match
@@ -175,7 +175,7 @@ object Main:
             )
           catch
             case _ =>
-              Logger.error(s"emulation for config $config, case $caseName fail")
+              Logger.error(s"Emulation for config $config, case $caseName fail")
               println("-" * 50)
               println(os.proc("nix", "log", testAttr).call().out)
               println("-" * 50)
@@ -185,9 +185,11 @@ object Main:
         val testSuccess =
           os.read(testResultPath / "offline-check-status").trim() == "0"
         if !testSuccess then
-          Logger.error(s"Offline check for $caseName ($config) failed")
+          Logger.error(s"Offline check FAILED for $caseName ($config)")
           allFailedTest :+ s"t1.$config.cases.$caseName"
-        else allFailedTest
+        else
+          Logger.info(s"Offline check PASS for $caseName ($config)")
+          allFailedTest
     end findFailedTests
 
     val failedTests = findFailedTests()
@@ -200,35 +202,33 @@ object Main:
 
   @main
   def runOMTests(
-      jobs: String
+      config: String
   ): Unit =
-    val configs = jobs.split(";").map(_.split(",")(0))
-    configs.distinct.foreach: config =>
-      Seq("omreader", "emu-omreader").foreach: target =>
-        val command = Seq(
-          "nix",
-          "run",
-          s".#t1.$config.ip.$target",
-          "--",
-          "run",
-          "--dump-methods"
-        )
-        println("\n")
-        Logger.info(
-          s"Running OM test with command $BOLD'${command.mkString(" ")}'$RESET"
-        )
-        val outputs = os.proc(command).call().out.trim()
-        Logger.trace(s"Outputs:\n${outputs}")
+    Seq("omreader", "verilator-emu-omreader", "vcs-emu-omreader").foreach: target =>
+      val command = Seq(
+        "nix",
+        "run",
+        s".#t1.$config.ip.$target",
+        "--",
+        "run",
+        "--dump-methods"
+      )
+      println("\n")
+      Logger.info(
+        s"Running OM test with command $BOLD'${command.mkString(" ")}'$RESET"
+      )
+      val outputs = os.proc(command).call().out.trim()
+      Logger.trace(s"Outputs:\n${outputs}")
 
-        Seq("vlen =", "dlen =").foreach: keyword =>
-          if outputs.contains(keyword) then
-            Logger.info(
-              s"Keyword $BOLD'$keyword'$RESET found - ${GREEN}Pass!$RESET"
-            )
-          else
-            Logger.fatal(
-              s"Keyword $BOLD'$keyword'$RESET not found - ${RED}Fail!$RESET"
-            )
+      Seq("vlen =", "dlen =").foreach: keyword =>
+        if outputs.contains(keyword) then
+          Logger.info(
+            s"Keyword $BOLD'$keyword'$RESET found - ${GREEN}Pass!$RESET"
+          )
+        else
+          Logger.fatal(
+            s"Keyword $BOLD'$keyword'$RESET not found - ${RED}Fail!$RESET"
+          )
   end runOMTests
 
   // PostCI do the below four things:
@@ -245,7 +245,10 @@ object Main:
         name = "cycle-update-file-path",
         doc = "specify the cycle update markdown file output path"
       ) cycleUpdateFilePath: Option[String],
-      emuType: String = "verilator"
+      @arg(
+        name = "emu-type",
+        doc = "Specify emulation type"
+      ) emuType: String = "verilator"
   ) =
     val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
     os.write.over(failedTestsFile, "## Failed Tests\n")
@@ -268,8 +271,12 @@ object Main:
             s".#t1.$config.cases._allEmuResult"
           case "vcs" => s".#t1.$config.cases._allVCSEmuResult"
           case _     => Logger.fatal(s"Invalid test type ${emuType}")
-        val emuResultPath =
-          os.Path(nixResolvePath(s".#t1.$config.cases._allEmuResult"))
+        val emuResultPath = os.Path(nixResolvePath(
+          resultAttr,
+          if emuType.toLowerCase() == "vcs" then
+            Seq("--impure")
+          else Seq()
+        ))
 
         Logger.info("Collecting failed tests")
         os.walk(emuResultPath)

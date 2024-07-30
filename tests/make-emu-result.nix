@@ -163,11 +163,17 @@ let
       postCheck = ''
         set +e
 
+        echo "[nix] Checking VCS event log"
         "${verilator-emu}/bin/offline" \
           --elf-file ${testCase}/bin/${testCase.pname}.elf \
           --log-file $rtlEventOutPath \
           --log-level ERROR &> $out/offline-check-journal
         printf "$?" > $out/offline-check-status
+        if [ "$(cat $out/offline-check-status)" == "0" ]; then
+          echo "[nix] VCS difftest PASS"
+        else
+          echo "[nix] VCS difftest FAIL"
+        fi
 
         set -e
       '';

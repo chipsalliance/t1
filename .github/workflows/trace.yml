@@ -1,0 +1,60 @@
+name: Compile Wave Trace
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+env:
+  USER: runner
+
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gen-test-plan:
+    if: '! github.event.pull_request.draft'
+    name: "Generate test plan"
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      testplan: ${{ steps.get-all-configs.outputs.out }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: "get-all-configs"
+        run: echo "out=$(nix run .#ci-helper generateTestPlan)" > $GITHUB_OUTPUT
+
+  build-vcs-emulators:
+    name: "Build VCS trace emulators"
+    needs: [gen-test-plan]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build vcs emulator"
+        run: |
+          nix build '.#t1.${{ matrix.config }}.ip.vcs-emu-trace' --impure --no-link --cores 64
+
+  # In the future, we may choose Verdi for trace, and left verilator trace only for performance evaluation
+  build-verilator-trace-emulators:
+    name: "Build verilator trace emulators"
+    needs: [gen-test-plan]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build verilator emulator with trace"
+        run: nix build '.#t1.${{ matrix.config }}.ip.verilator-emu-trace' -L --no-link --cores 64

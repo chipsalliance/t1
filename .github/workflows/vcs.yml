@@ -1,4 +1,4 @@
-name: VCS
+name: VCS Test
 on:
   pull_request:
     types:
@@ -100,5 +100,5 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: "Print step summary"
         run: |
-          nix run ".#ci-helper" -- postCI --failed-tests-file-path ./failed-tests.md --emuType vcs
+          nix run ".#ci-helper" -- postCI --failed-tests-file-path ./failed-tests.md --emu-type vcs
           cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY

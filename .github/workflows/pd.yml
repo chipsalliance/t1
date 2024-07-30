@@ -1,0 +1,87 @@
+name: Trigger Physical Design Workflow
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+env:
+  USER: runner
+
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test-emit:
+    if: '! github.event.pull_request.draft'
+    name: "Test elaborate"
+    runs-on: [self-hosted, linux, nixos]
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Test elaborate"
+        run: |
+          configArray=( $(ls configgen/generated | sed 's/\.json$//') )
+          for cfg in "${configArray[@]}"; do
+            echo "Building .#t1.${cfg}.ip.rtl"
+            if ! nix build ".#t1.${cfg}.ip.rtl" -L; then
+              failed_rtl_configs+=("${cfg}.ip")
+            fi
+            if ! nix run ".#ci-helper" -- runOMTests --config ${cfg}; then
+              failed_om+=("${cfg}")
+            fi
+          done
+          if [ -n "${failed_rtl_configs[*]}"  ]; then
+            echo -e "## Failed RTL\n" >> "$GITHUB_STEP_SUMMARY"
+            for cfg in "${failed_rtl_configs[@]}"; do
+              echo "* ${cfg}" >> $GITHUB_STEP_SUMMARY
+            done
+            echo -e "## Failed RTL\n" >> "$GITHUB_STEP_SUMMARY"
+            for cfg in "${failed_om[@]}"; do
+              echo "* ${cfg}" >> $GITHUB_STEP_SUMMARY
+            done
+            printf "\n" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  physical-design-report:
+    name: "Request physical design report"
+    if: ${{ success() && (contains(github.event.pull_request.labels.*.name, 'PD-Lane') || contains(github.event.pull_request.labels.*.name, 'PD-Lane-DBG'))}}
+    runs-on: ubuntu-latest
+    needs: [test-emit]
+    steps:
+      - name: "Request report"
+        env:
+          # Use env key can help us inspect the data
+          JSON_CTX: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          # GitHub `toJson` will pretty print JSON and causing multiple line escape issue
+          # So we have to redirect it to file here
+          printf "$JSON_CTX" > _ctx.json
+          pdType=$(jq -r 'map(select(. | test("^PD-Lane.*"))) | .[0]' _ctx.json)
+          if [[ -z "$pdType" ]] || [[ "$pdType" == "null" ]]; then
+            echo "Unable to filter Physical Design type"
+            exit 1
+          fi
+
+          commitSha="${{ github.event.pull_request.head.sha }}"
+          prId="${{ github.event.pull_request.number }}"
+          jq -n \
+            --arg commit_sha "$commitSha" \
+            --arg pr_id "$prId" \
+            --arg pd_type "$pdType" \
+            '{"event_type":"ci_success","client_payload":{"commit_sha": $commit_sha,"pr_id": $pr_id, "pd_type": $pd_type }}' \
+            > payload.json
+          curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.T1_INHOUSE_PAT }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${{ secrets.T1_INHOUSE_URL }}" \
+            -d '@payload.json'
