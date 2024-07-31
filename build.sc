@@ -135,6 +135,21 @@ trait RocketV
   def chiselIvy = None
 }
 
+object t1rocketv extends T1RocketV
+
+trait T1RocketV
+  extends millbuild.common.T1RocketVModule
+    with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+  def rocketvModule = rocketv
+  def t1Module = t1
+
+  def chiselModule = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselPluginIvy = None
+  def chiselIvy = None
+}
+
 object ipemu extends IPEmulator
 
 trait IPEmulator
@@ -188,6 +203,7 @@ trait Elaborator
     ipemu,
     rocketv,
     rocketemu,
+    t1rocketv,
   )
 
   def mainargsIvy = v.mainargs
