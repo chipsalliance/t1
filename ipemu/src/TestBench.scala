@@ -117,32 +117,32 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
     val vxsat:   UInt = UInt(32.W)
   }
   // X gated by didIssue
-  val issue = WireDefault(0.U.asTypeOf(new Issue))
+  val issue0 = WireDefault(0.U.asTypeOf(new Issue))
   val fence = RegInit(false.B)
   val outstanding = RegInit(0.U(4.W))
   val hasBeenReset = RegNext(true.B, false.B)
   val doIssue: Bool = dut.io.issue.ready && !fence && hasBeenReset
-  outstanding := outstanding + (RegNext(doIssue) && (issue.meta === 1.U)) - dut.io.issue.valid
+  outstanding := outstanding + (RegNext(doIssue) && (issue0.meta === 1.U)) - dut.io.issue.valid
   // TODO: refactor driver to spawn 3 scoreboards for record different retirement.
   val t1Probe = probe.read(dut.io.t1Probe)
-  fence := Mux(RegNext(doIssue), issue.meta === 2.U, fence && !t1Probe.retireValid && !(outstanding === 0.U))
-  issue := Mux(doIssue,
+  fence := Mux(RegNext(doIssue), issue0.meta === 2.U, fence && !t1Probe.retireValid && !(outstanding === 0.U))
+  issue0 := Mux(doIssue,
     RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
       clock,
       doIssue,
     ),
     0.U.asTypeOf(new Issue)
   )
-  dut.io.issue.bits.instruction := issue.instruction
-  dut.io.issue.bits.rs1Data := issue.src1Data
-  dut.io.issue.bits.rs2Data := issue.src2Data
-  dut.io.issue.bits.vtype := issue.vtype
-  dut.io.issue.bits.vl := issue.vl
-  dut.io.issue.bits.vstart := issue.vstart
-  dut.io.issue.bits.vcsr := issue.vcsr
-  dut.io.issue.valid := issue.meta === 1.U
-  when(issue.meta =/= 0.U && issue.meta =/= 1.U && issue.meta =/= 2.U) {
-    stop(cf"""{"event":"SimulationStop","reason": ${issue.meta},"cycle":${simulationTime}}\n""")
+  dut.io.issue.bits.instruction := issue0.instruction
+  dut.io.issue.bits.rs1Data := issue0.src1Data
+  dut.io.issue.bits.rs2Data := issue0.src2Data
+  dut.io.issue.bits.vtype := issue0.vtype
+  dut.io.issue.bits.vl := issue0.vl
+  dut.io.issue.bits.vstart := issue0.vstart
+  dut.io.issue.bits.vcsr := issue0.vcsr
+  dut.io.issue.valid := issue0.meta === 1.U
+  when(issue0.meta =/= 0.U && issue0.meta =/= 1.U && issue0.meta =/= 2.U) {
+    stop(cf"""{"event":"SimulationStop","reason": ${issue0.meta},"cycle":${simulationTime}}\n""")
   }
   val retire = Wire(new Retire)
   retire.rd := dut.io.retire.rd.bits.rdAddress
