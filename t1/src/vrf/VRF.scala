@@ -329,7 +329,11 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       bankReadF(i) := bankCorrect & (~o)
       bankReadS(i) := bankCorrect & (~t) & o
       val pipeFirstUsed = Pipe(true.B, firstUsed, parameter.vrfReadLatency).bits
-      readResults(i) := Mux(pipeFirstUsed, Mux1H(pipeBank, readResultS), Mux1H(pipeBank, readResultF))
+      val pipeFire = Pipe(true.B, v.fire, parameter.vrfReadLatency).bits
+      readResults(i) := Mux1H(Seq(
+        (!pipeFirstUsed && pipeFire, Mux1H(pipeBank, readResultF)),
+        (pipeFirstUsed && pipeFire, Mux1H(pipeBank, readResultS)),
+      ))
       (o | bankCorrect, (bankCorrect & o) | t)
   }
   // @todo @Clo91eaf check write port is ready.
