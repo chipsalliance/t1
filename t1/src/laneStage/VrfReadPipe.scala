@@ -40,7 +40,7 @@ class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends 
     Option.when(arbitrate)(IO(Decoupled(UInt(parameter.datapathWidth.W))))
 
   // arbitrate
-  val reqArbitrate = Module(new RRArbiter(enqEntryType, if(arbitrate) 2 else 1))
+  val reqArbitrate = Module(new ReadStageRRArbiter(enqEntryType, if(arbitrate) 2 else 1))
 
   (Seq(enqueue) ++ contender).zip(reqArbitrate.io.in).zip(Seq(dequeue) ++ contenderDequeue).foreach {
     case ((source, sink), deq) =>
