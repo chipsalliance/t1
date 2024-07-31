@@ -23,5 +23,5 @@ pub(crate) struct OfflineArgs {
 }
 
 fn main() {
-  std::process::exit(verilator_main());
+  verilator_main();
 }

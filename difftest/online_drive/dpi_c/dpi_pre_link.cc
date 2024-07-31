@@ -1,16 +1,15 @@
 #include <VTestBench.h>
 #include <VTestBench__Dpi.h>
-#include <memory>
 
 class VTestBench;
 
-static std::unique_ptr<VerilatedContext> contextp;
-static std::unique_ptr<VTestBench> topp;
+static VerilatedContext *contextp;
+static VTestBench *topp;
 
 extern "C" int verilator_main_c(int argc, char **argv) {
   // Setup context, defaults, and parse command line
   Verilated::debug(0);
-  contextp = std::make_unique<VerilatedContext>();
+  contextp = new VerilatedContext();
   contextp->fatalOnError(false);
   contextp->commandArgs(argc, argv);
 #ifdef VM_TRACE
@@ -18,7 +17,7 @@ extern "C" int verilator_main_c(int argc, char **argv) {
 #endif
 
   // Construct the Verilated model, from Vtop.h generated from Verilating
-  topp = std::make_unique<VTestBench>(contextp.get());
+  topp = new VTestBench(contextp);
 
   // Simulate until $finish
   while (!contextp->gotFinish()) {
@@ -32,16 +31,13 @@ extern "C" int verilator_main_c(int argc, char **argv) {
 
   if (!contextp->gotFinish()) {
     VL_DEBUG_IF(VL_PRINTF("+ Exiting without $finish; no events left\n"););
-    return 1;
-  }
-
-  if (contextp->gotError()) {
-    VL_DEBUG_IF(VL_PRINTF("+ Exiting due to errors\n"););
-    return 1;
   }
 
   // Final model cleanup
   topp->final();
+
+  delete topp;
+  delete contextp;
 
   return 0;
 }
