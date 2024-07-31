@@ -2,9 +2,7 @@
 { stdenv
 , lib
 , jq
-, elaborateConfig
-, isFp
-, vLen
+, rtlDesignMetadata
 
 , makeEmuResult
 }:
@@ -28,22 +26,17 @@ let
 
     CC = "${stdenv.targetPlatform.config}-cc";
 
-    NIX_CFLAGS_COMPILE =
-      let
-        march = (if isFp then "rv32gc_zve32f" else "rv32gc_zve32x")
-          + "_zvl${toString (lib.min 1024 vLen)}b";
-      in
-      [
-        "-mabi=ilp32f"
-        "-march=${march}"
-        "-mno-relax"
-        "-static"
-        "-mcmodel=medany"
-        "-fvisibility=hidden"
-        "-fno-PIC"
-        "-g"
-        "-O3"
-      ];
+    NIX_CFLAGS_COMPILE = [
+      "-mabi=ilp32f"
+      "-march=${rtlDesignMetadata.march}"
+      "-mno-relax"
+      "-static"
+      "-mcmodel=medany"
+      "-fvisibility=hidden"
+      "-fno-PIC"
+      "-g"
+      "-O3"
+    ];
 
     installPhase = ''
       runHook preInstall
@@ -63,7 +56,10 @@ let
 
     dontFixup = true;
 
-    passthru.emu-result = makeEmuResult caseDrv;
+    passthru = {
+      inherit rtlDesignMetadata;
+      emu-result = makeEmuResult caseDrv;
+    };
 
   } // overrides);
 in

@@ -1,4 +1,5 @@
 { lib
+, getTestRequiredFeatures
 , linkerScript
 , makeBuilder
 , findAndBuild
@@ -13,7 +14,7 @@ let
 
       src = sourcePath;
 
-      isFp = lib.pathExists (lib.path.append sourcePath "isFp");
+      featuresRequired = getTestRequiredFeatures sourcePath;
 
       buildPhase = ''
         runHook preBuild
@@ -29,5 +30,5 @@ let
       meta.description = "test case '${caseName}', written in C intrinsic";
     };
 in
-  findAndBuild ./. build
+findAndBuild ./. build
 

@@ -1,8 +1,8 @@
-{ lib
-, linkerScript
+{ linkerScript
 , buddy-mlir
 , makeBuilder
 , findAndBuild
+, getTestRequiredFeatures
 , t1main
 }:
 
@@ -14,7 +14,7 @@ let
 
       src = sourcePath;
 
-      isFp = lib.pathExists (lib.path.append sourcePath "isFp");
+      featuresRequired = getTestRequiredFeatures sourcePath;
 
       nativeBuildInputs = [ buddy-mlir ];
 
@@ -60,4 +60,4 @@ let
       meta.description = "testcase '${caseName}', written in MLIR";
     };
 in
-  findAndBuild ./. build
+findAndBuild ./. build

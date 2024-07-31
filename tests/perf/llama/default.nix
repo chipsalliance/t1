@@ -21,7 +21,7 @@ let
 in
 
 build {
-  isFp = true;
+  featuresRequired = [ "zve32f" ];
 
   caseName = "llama";
 

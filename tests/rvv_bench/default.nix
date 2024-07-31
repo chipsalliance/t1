@@ -1,4 +1,5 @@
 { lib
+, getTestRequiredFeatures
 , linkerScript
 , makeBuilder
 , findAndBuild
@@ -17,7 +18,7 @@ let
 
           src = sourcePath;
 
-          isFp = lib.pathExists (lib.path.append sourcePath "isFp");
+          featuresRequired = getTestRequiredFeatures sourcePath;
 
           buildPhase = ''
             runHook preBuild
