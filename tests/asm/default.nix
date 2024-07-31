@@ -3,6 +3,7 @@
 , makeBuilder
 , findAndBuild
 , t1main
+, getTestRequiredFeatures
 }:
 
 let
@@ -13,6 +14,7 @@ let
 
       src = sourcePath;
 
+      featuresRequired = getTestRequiredFeatures sourcePath;
       isFp = lib.pathExists (lib.path.append sourcePath "isFp");
 
       buildPhase = ''
@@ -29,5 +31,5 @@ let
       meta.description = "test case '${caseName}', written in C assembly";
     };
 in
-  findAndBuild ./. build
+findAndBuild ./. build
 

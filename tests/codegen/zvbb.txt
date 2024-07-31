@@ -1,0 +1,16 @@
+vandn.vv
+vandn.vx
+vbrev.v
+vbreav8.v
+vclz.v
+vcpop.v
+vctz.v
+vrev8.v
+vrol.vv
+vrol.vx
+vror.vi
+vror.vv
+vror.vx
+vwsll.vi
+vwsll.vv
+vwsll.vx

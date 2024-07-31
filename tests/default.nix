@@ -1,6 +1,6 @@
 { lib
 , configName
-, elaborateConfig
+, rtlDesignMetadata
 , newScope
 , rv32-stdenv
 , runCommand
@@ -11,22 +11,42 @@
 }:
 
 let
-  extension = lib.head elaborateConfig.parameter.extensions;
-  xLen = if lib.hasInfix "ve32" extension then 32 else 64;
-  isFp = lib.hasInfix "f" extension;
-  vLen = let vLen = elaborateConfig.parameter.vLen; in
-    assert builtins.bitAnd vLen (vLen - 1) == 0;  # vLen should be power of 2
-    assert vLen >= 32;
-    vLen;
+  hasExt = cmp: lib.any (ext: cmp == (lib.toLower ext)) rtlDesignMetadata.extensions;
+
+  # Add an extra abstract layer between test case and RTL design, so that we can have clean and organized way
+  # for developer to specify their required features without the need to parse ISA string themselves.
+  currentFeatures = [
+    "vlen:${rtlDesignMetadata.vlen}"
+    "dlen:${rtlDesignMetadata.dlen}"
+    "xlen:${if (lib.hasPrefix "rv32" rtlDesignMetadata.march) then "32" else "64"}"
+  ]
+  ++ lib.optionals (hasExt "zve32f") [ "zve32f" ]
+  ++ lib.optionals (hasExt "zvbb") [ "zvbb" ];
+
+  # isSubSetOf m n: n is subset of m
+  isSubsetOf = m: n: lib.all (x: lib.elem x m) n;
 
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
 
-    inherit xLen vLen isFp verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace;
+    inherit verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace rtlDesignMetadata currentFeatures;
 
     makeEmuResult = casesSelf.callPackage ./make-emu-result.nix { };
 
     makeBuilder = casesSelf.callPackage ./builder.nix { };
+
+    # Read casePath/features-required.json to get extra feature information.
+    # Like the requirement of zve32f, or requirement for higher vlen.
+    # Empty list means no extra requirement for RTL design, then the baseline zve32x will be used.
+    #
+    # TODO: check user specified features are correct or not
+    getTestRequiredFeatures = sourcePath:
+      let
+        extraFeatures = lib.path.append sourcePath "features-required.json";
+      in
+      if lib.pathExists extraFeatures then
+        builtins.fromJSON (lib.fileContents extraFeatures)
+      else [ ];
 
     findAndBuild = dir: build:
       lib.recurseIntoAttrs (lib.pipe (builtins.readDir dir) [
@@ -43,7 +63,10 @@ let
               inherit caseName sourcePath;
             })
         )
-        (lib.filterAttrs (caseName: caseDrv: assert caseDrv ? isFp; caseDrv.isFp -> isFp))
+        (lib.filterAttrs (caseName: caseDrv:
+          assert lib.assertMsg (caseDrv ? featuresRequired) "${caseName} doesn't have features specified";
+          # Test the case required extensions is supported by rtl design
+          isSubsetOf currentFeatures caseDrv.featuresRequired))
       ]);
     t1main = ./t1_main.S;
     linkerScript = ./t1.ld;
@@ -69,10 +92,12 @@ let
   # This allows Nix to resolve the path only once, while still pulling all tests into the local Nix store.
   _allEmuResult =
     let
-      testPlan = builtins.fromJSON (lib.readFile ../.github/cases/${configName}/default.json);
+      testPlan = builtins.fromJSON
+        (lib.readFile ../.github/cases/${configName}/default.json);
       # flattern the attr set to a list of test case derivations
       # AttrSet (AttrSet Derivation) -> List Derivation
-      allCases = lib.filter (val: lib.isDerivation val && lib.hasAttr val.pname testPlan)
+      allCases = lib.filter
+        (val: lib.isDerivation val && lib.hasAttr val.pname testPlan)
         (lib.concatLists (map lib.attrValues (lib.attrValues scopeStripped)));
       script = ''
         mkdir -p $out
@@ -86,7 +111,10 @@ let
         '')
         allCases);
     in
-    runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
+    runCommand
+      "catch-${configName}-all-emu-result-for-ci"
+      { }
+      script;
 
   _allVCSEmuResult =
     let
@@ -109,7 +137,8 @@ let
 
   all =
     let
-      allCases = lib.filter lib.isDerivation
+      allCases = lib.filter
+        lib.isDerivation
         (lib.concatLists (map lib.attrValues (lib.attrValues scopeStripped)));
       script = ''
         mkdir -p $out/configs
@@ -121,6 +150,9 @@ let
         '')
         allCases);
     in
-    runCommand "build-all-testcases" { } script;
+    runCommand
+      "build-all-testcases"
+      { }
+      script;
 in
 lib.recurseIntoAttrs (scopeStripped // { inherit all _allEmuResult _allVCSEmuResult; })

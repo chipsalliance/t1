@@ -34,7 +34,7 @@ jobs:
       - name: "Build all testcases"
         run: |
           # Build testcases with vlen 1024 and vlen 4096
-          nix build ".#t1.${{ matrix.config }}.cases.all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.${{ matrix.config }}.ip.cases.all" --max-jobs auto -L --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"

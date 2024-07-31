@@ -3,6 +3,7 @@
 , stdenv
 , useMoldLinker
 , newScope
+, runCommand
 
 , pkgsX86
 }:
@@ -51,16 +52,6 @@ lib.makeScope newScope
         elaborateConfigJson = configPath;
         elaborateConfig = builtins.fromJSON (lib.readFile configPath);
 
-        cases = innerSelf.callPackage ../../tests {
-          inherit (ip) verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace;
-        };
-
-        # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
-        cases-x86 =
-          if system == "x86-64-linux"
-          then self.cases
-          else pkgsX86.t1."${configName}".cases;
-
         ip = rec {
           recurseForDerivations = true;
 
@@ -80,8 +71,31 @@ lib.makeScope newScope
               "--lowering-options=verifLabels,omitVersionComment,emittedLineLength=240,locationInfoStyle=none"
             ];
           };
-          omreader = self.omreader-unwrapped.mkWrapper { inherit mlirbc; };
+
           om = innerSelf.callPackage ./om.nix { inherit mlirbc; };
+          omreader = self.omreader-unwrapped.mkWrapper { inherit mlirbc; };
+
+          emu-om = innerSelf.callPackage ./om.nix { mlirbc = emu-mlirbc; };
+          emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
+          omGet = args: lib.fileContents (runCommand "get-${args}" { } ''
+            ${emu-omreader}/bin/omreader ${args} > $out
+          '');
+          rtlDesignMetadata = {
+            march = omGet "march";
+            extensions = builtins.fromJSON (omGet "extensionsJson");
+            vlen = omGet "vlen";
+            dlen = omGet "dlen";
+          };
+
+          cases = innerSelf.callPackage ../../tests {
+            inherit (ip) verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace rtlDesignMetadata;
+          };
+
+          # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
+          cases-x86 =
+            if system == "x86-64-linux"
+            then self.cases
+            else pkgsX86.t1."${configName}".cases;
 
           emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; };
           emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
