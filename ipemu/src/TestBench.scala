@@ -113,16 +113,13 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   val issue = WireDefault(0.U.asTypeOf(new Issue))
   val fence = RegInit(false.B)
   val outstanding = RegInit(0.U(4.W))
-  val doIssue: Bool = dut.io.issue.ready && !fence && !reset
-  outstanding := outstanding + (doIssue && (issue.meta === 1.U)) - dut.io.issue.valid
-  // used to gate Xprop when DPI hasn't issued yet.
-  val didIssue = RegInit(false.B)
-  didIssue := doIssue || didIssue
+  val hasBeenReset = RegNext(true.B, false.B)
+  val doIssue: Bool = dut.io.issue.ready && !fence && hasBeenReset
+  outstanding := outstanding + (RegNext(doIssue) && (issue.meta === 1.U)) - dut.io.issue.valid
   // TODO: refactor driver to spawn 3 scoreboards for record different retirement.
   val t1Probe = probe.read(dut.io.t1Probe)
-  fence := Mux(doIssue, issue.meta === 2.U, fence && !t1Probe.retireValid && !(outstanding === 0.U))
-
-  issue := Mux(didIssue || doIssue,
+  fence := Mux(RegNext(doIssue), issue.meta === 2.U, fence && !t1Probe.retireValid && !(outstanding === 0.U))
+  issue := Mux(doIssue,
     RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
       clock,
       doIssue,
