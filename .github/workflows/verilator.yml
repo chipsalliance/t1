@@ -1,23 +1,11 @@
-name: Verilator Test
+name: Verilator Daily Regression
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
-env:
-  USER: runner
-
-# Cancel the current workflow when new commit pushed
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  schedule:
+    # Run this job everyday at 6:30 AM UTC+8
+    - cron:  '30 22 * * *'
 
 jobs:
   gen-test-plan:
-    if: '! github.event.pull_request.draft'
     name: "Generate test plan"
     runs-on: [self-hosted, linux, nixos]
     outputs:
@@ -30,7 +18,7 @@ jobs:
         run: echo "out=$(nix run .#ci-helper generateTestPlan)" > $GITHUB_OUTPUT
 
   build-emulators:
-    name: "Build Emulators"
+    name: "Build Verilator Emulators"
     needs: [gen-test-plan]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
@@ -104,17 +92,3 @@ jobs:
           nix run ".#ci-helper" -- postCI --failed-tests-file-path ./failed-tests.md --cycle-update-file-path ./cycle-update.md
           cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
-      - name: "Commit cycle updates"
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          changed_cases=$(git diff --name-only '.github/cases/**/default.json')
-
-          if [ -n "$changed_cases" ]; then
-            echo "changed cases: $changed_cases"
-            git add '.github/cases/**/default.json'
-            git commit -m "[ci] update test case cycle data"
-            git push origin ${{ github.head_ref }}
-          else
-            echo "No cycle change detect"
-          fi
