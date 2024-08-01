@@ -26,17 +26,25 @@ let
 
     CC = "${stdenv.targetPlatform.config}-cc";
 
-    NIX_CFLAGS_COMPILE = [
-      "-mabi=ilp32f"
-      "-march=${rtlDesignMetadata.march}"
-      "-mno-relax"
-      "-static"
-      "-mcmodel=medany"
-      "-fvisibility=hidden"
-      "-fno-PIC"
-      "-g"
-      "-O3"
-    ];
+    NIX_CFLAGS_COMPILE =
+      let
+        march = lib.pipe rtlDesignMetadata.march [
+          (lib.splitString "_")
+          (map (ext: if ext == "zvbb" then "zvbb1" else ext))
+          (lib.concatStringsSep "_")
+        ];
+      in
+      [
+        "-mabi=ilp32f"
+        "-march=${march}"
+        "-mno-relax"
+        "-static"
+        "-mcmodel=medany"
+        "-fvisibility=hidden"
+        "-fno-PIC"
+        "-g"
+        "-O3"
+      ] ++ lib.optionals (lib.elem "zvbb" (lib.splitString "_" rtlDesignMetadata.march)) [ "-menable-experimental-extensions" ];
 
     installPhase = ''
       runHook preInstall

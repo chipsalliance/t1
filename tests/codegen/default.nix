@@ -74,11 +74,10 @@ let
   commonTests = buildTestsFromFile ./common.txt { featuresRequired = [ ]; };
   fpTests = buildTestsFromFile ./fp.txt { featuresRequired = [ "zve32f" ]; };
   zvbbTests = buildTestsFromFile ./zvbb.txt { featuresRequired = [ "zvbb" ]; };
-  hasFeature = feat: lib.any (f: feat == f) currentFeatures;
 in
 lib.recurseIntoAttrs (
   commonTests //
-  lib.optionalAttrs (hasFeature "zve32f") fpTests //
-  lib.optionalAttrs (hasFeature "zvbb") zvbbTests
+  lib.optionalAttrs (lib.elem "zve32f" currentFeatures) fpTests //
+  lib.optionalAttrs (lib.elem "zvbb" currentFeatures) zvbbTests
 )
 

@@ -1,7 +1,7 @@
 vandn.vv
 vandn.vx
 vbrev.v
-vbreav8.v
+vbrev8.v
 vclz.v
 vcpop.v
 vctz.v

@@ -11,8 +11,6 @@
 }:
 
 let
-  hasExt = cmp: lib.any (ext: cmp == (lib.toLower ext)) rtlDesignMetadata.extensions;
-
   # Add an extra abstract layer between test case and RTL design, so that we can have clean and organized way
   # for developer to specify their required features without the need to parse ISA string themselves.
   currentFeatures = [
@@ -20,8 +18,7 @@ let
     "dlen:${rtlDesignMetadata.dlen}"
     "xlen:${if (lib.hasPrefix "rv32" rtlDesignMetadata.march) then "32" else "64"}"
   ]
-  ++ lib.optionals (hasExt "zve32f") [ "zve32f" ]
-  ++ lib.optionals (hasExt "zvbb") [ "zvbb" ];
+  ++ (lib.splitString "_" rtlDesignMetadata.march);
 
   # isSubSetOf m n: n is subset of m
   isSubsetOf = m: n: lib.all (x: lib.elem x m) n;
