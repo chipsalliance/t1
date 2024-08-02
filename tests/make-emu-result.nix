@@ -108,6 +108,7 @@ let
     passthru.with-vcs = self.overrideAttrs (old: {
       name = old.name + "-with-vcs";
       __noChroot = true;
+      dontPatchELF = true;
 
       buildPhase = ''
         runHook preBuild
@@ -143,6 +144,7 @@ let
     passthru.with-vcs-trace = self.overrideAttrs (old: {
       name = old.name + "-with-vcs-trace";
       __noChroot = true;
+      dontPatchELF = true;
       buildPhase = ''
         runHook preBuild
 
