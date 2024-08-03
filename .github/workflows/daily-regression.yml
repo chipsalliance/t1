@@ -9,6 +9,8 @@ jobs:
     name: "Bump Chisel and CIRCT"
     if: ${{ !cancelled() }}
     runs-on: [self-hosted, linux, nixos]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
