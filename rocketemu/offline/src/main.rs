@@ -10,7 +10,7 @@ use common::CommonArgs;
 
 use crate::difftest::Difftest;
 
-fn run_spike(args: &CommonArgs) -> anyhow::Result<()> {
+fn run_spike(args: &mut CommonArgs) -> anyhow::Result<()> {
   let mut count: u64 = 0;
 
   let spike = SpikeRunner::new(args, true);
@@ -32,13 +32,13 @@ fn run_spike(args: &CommonArgs) -> anyhow::Result<()> {
 
 fn main() -> anyhow::Result<()> {
   // parse args
-  let args = CommonArgs::parse();
+  let mut args = CommonArgs::parse();
 
   args.setup_logger()?;
 
   // if there is no log file, just run spike and quit
   if args.log_file.is_none() {
-    run_spike(&args)?;
+    run_spike(&mut args)?;
     return Ok(());
   }
 

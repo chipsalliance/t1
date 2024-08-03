@@ -38,11 +38,10 @@ type FfiCallback = extern "C" fn(*mut (), u64) -> *mut u8;
 
 impl Spike {
   // we need to have a boxed SpikeCObject, since its pointer will be passed to C to perform FFI call
-  pub fn new(arch: &str, set: &str, lvl: &str, lane_number: usize, mem_size: usize) -> Box<Self> {
-    let arch = CString::new(arch).unwrap();
+  pub fn new(set: &str, lvl: &str, lane_number: usize, mem_size: usize) -> Box<Self> {
     let set = CString::new(set).unwrap();
     let lvl = CString::new(lvl).unwrap();
-    let spike = unsafe { spike_new(arch.as_ptr(), set.as_ptr(), lvl.as_ptr(), lane_number) };
+    let spike = unsafe { spike_new(set.as_ptr(), lvl.as_ptr(), lane_number) };
     let mut self_: Box<Spike> = Box::new(Spike { spike, mem: vec![0; mem_size], size: mem_size });
 
     // TODO: support customized ffi
@@ -243,7 +242,6 @@ impl Drop for State {
 extern "C" {
   pub fn spike_register_callback(target: *mut (), callback: FfiCallback);
   fn spike_new(
-    arch: *const c_char,
     set: *const c_char,
     lvl: *const c_char,
     lane_number: usize,
