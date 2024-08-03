@@ -7,6 +7,7 @@ import mainargs._
 import org.chipsalliance.t1.rtl.T1Parameter
 import org.chipsalliance.rocketv.RocketTileParameter
 import chisel3.panamalib.option._
+import org.chipsalliance.t1.tile.T1RocketTileParameter
 
 object Main {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
@@ -74,6 +75,13 @@ object Main {
     def parameter: RocketTileParameter = generator.parameter
   }
 
+  case class T1RocketConfig(
+                           @arg(name = "t1rocket-config", short = 'c') rocketConfig: os.Path) {
+    def generator = upickle.default
+      .read[chisel3.experimental.SerializableModuleGenerator[org.chipsalliance.t1.tile.T1RocketTile, org.chipsalliance.t1.tile.T1RocketTileParameter]](ujson.read(os.read(rocketConfig)))
+    def parameter: T1RocketTileParameter = generator.parameter
+  }
+
   implicit def ipConfig: ParserForClass[IPConfig] = ParserForClass[IPConfig]
   implicit def rocketConfig: ParserForClass[RocketConfig] = ParserForClass[RocketConfig]
 
@@ -86,6 +94,9 @@ object Main {
   )
   @main def rocketemu(elaborateConfig: ElaborateConfig, rocketConfig: RocketConfig): Unit = elaborateConfig.elaborate(() =>
     new org.chipsalliance.t1.rocketv.TestBench(rocketConfig.generator)
+  )
+  @main def t1rocketemu(elaborateConfig: ElaborateConfig, t1rocketConfig: T1RocketConfig): Unit = elaborateConfig.elaborate(() =>
+    new org.chipsalliance.t1.t1rocketemu.TestBench(t1rocketConfig.generator)
   )
   // format: on
 
