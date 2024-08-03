@@ -24,7 +24,7 @@ pub struct SpikeRunner {
 }
 
 impl SpikeRunner {
-  pub fn new(args: &CommonArgs, do_log_vrf: bool) -> Self {
+  pub fn new(args: &mut CommonArgs, do_log_vrf: bool) -> Self {
     // load the elf file
     // initialize spike
     let mut spike = args.to_spike_c_handler();
