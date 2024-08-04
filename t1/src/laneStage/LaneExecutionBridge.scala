@@ -105,6 +105,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   val doubleExecutionInRecord: Bool =
     executionRecord.decodeResult(Decoder.crossWrite) ||
       executionRecord.decodeResult(Decoder.crossRead) ||
+      // Type widenReduce instructions occupy double the data registers because they need to retain the carry bit.
       executionRecord.decodeResult(Decoder.widenReduce)
 
   // data in executionRecord is narrow type
