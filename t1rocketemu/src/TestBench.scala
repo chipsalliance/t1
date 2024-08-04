@@ -3,9 +3,13 @@
 
 package org.chipsalliance.t1.t1rocketemu
 
+import chisel3._
 import chisel3.experimental.{BaseModule, ExtModule, SerializableModuleGenerator}
+import chisel3.experimental.dataview.DataViewable
+import chisel3.util.circt.dpi.RawUnclockedNonVoidFunctionCall
 import chisel3.util.HasExtModuleInline
-import chisel3.{Bool, ImplicitClock, ImplicitReset, Module, Output, RawModule}
+import org.chipsalliance.amba.axi4.bundle._
+import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
 
 class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTileParameter])
@@ -13,7 +17,6 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
     with ImplicitClock
     with ImplicitReset {
   val clockGen = Module(new ExtModule with HasExtModuleInline {
-
     override def desiredName = "ClockGen"
     setInline(
       s"$desiredName.sv",
@@ -31,9 +34,9 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
          |`endif
          |  endfunction;
          |
-         |  import "DPI-C" context function void t1_cosim_init();
+         |  import "DPI-C" context function void cosim_init();
          |  initial begin
-         |    t1_cosim_init();
+         |    cosim_init();
          |    clock = 1'b0;
          |    reset = 1'b1;
          |  end
@@ -53,6 +56,9 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   dut.io.clock := clock
   dut.io.reset := reset
 
+  val simulationTime: UInt = withClockAndReset(clock, reset)(RegInit(0.U(64.W)))
+  simulationTime := simulationTime + 1.U
+
   // get resetVector from simulator
   dut.io.resetVector := RawUnclockedNonVoidFunctionCall("get_resetvector", Const(UInt(64.W)))(simulationTime === 0.U)
 
@@ -62,15 +68,17 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   dut.io.msip := 0.U
   dut.io.meip := 0.U
   dut.io.buserror := 0.U
+  dut.io.lip := 0.U
+  dut.io.wfi := 0.U
+  dut.io.halt := 0.U
 
   // memory driver
   Seq(
-    dut.io.instructionFetchAXI, // index 0
-    dut.io.highBandwidthAXI, // index 1
-    dut.io.highOutstandingAXI // index 2
+    dut.io.highBandwidthAXI, // index 0
+    dut.io.highOutstandingAXI // index 1
   ).map(_.viewAs[AXI4RWIrrevocableVerilog])
     .lazyZip(
-      Seq("instructionFetchAXI", "highBandwidthAXI", "highOutstandingAXI")
+      Seq("highBandwidthAXI", "highOutstandingAXI")
     )
     .zipWithIndex
     .foreach {
@@ -95,6 +103,27 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
         agent.io.gateRead := false.B
         agent.io.gateWrite := false.B
     }
+
+  val instFetchAXI = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
+  val instFetchAgent = Module(
+    new AXI4SlaveAgent(
+      AXI4SlaveAgentParameter(
+        name = "instructionFetchAXI",
+        axiParameter = instFetchAXI.parameter,
+        outstanding = 4,
+        readPayloadSize = 1,
+        writePayloadSize = 1
+      )
+    ).suggestName("axi4_channel2_instructionFetchAXI")
+  )
+  instFetchAgent.io.channel match {
+    case io: AXI4ROIrrevocableVerilog => io <> instFetchAXI
+  }
+  instFetchAgent.io.clock := clock
+  instFetchAgent.io.reset := reset
+  instFetchAgent.io.channelId := 0.U
+  instFetchAgent.io.gateRead := false.B
+  instFetchAgent.io.gateWrite := false.B
 
   val loadStoreAXI = dut.io.loadStoreAXI.viewAs[AXI4RWIrrevocableVerilog]
   val loadStoreAgent = Module(
