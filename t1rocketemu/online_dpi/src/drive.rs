@@ -1,4 +1,9 @@
 use common::MEM_SIZE;
+use elf::{
+  abi::{EM_RISCV, ET_EXEC, PT_LOAD, STT_FUNC},
+  endian::LittleEndian,
+  ElfStream,
+};
 use spike_rs::util::load_elf_to_buffer;
 use tracing::{debug, error, info, trace};
 
@@ -182,13 +187,7 @@ impl Driver {
     }
 
     debug!("ELF entry: 0x{:x}", elf.ehdr.e_entry);
-    // FIXME:
-    // 1. If we use reduce map, collecting spartial memory into a whole big one,
-    //    instead of manipulating mutable memory, does it affect runtime overhead?
-    //    Does rustc help us optimize this operation?
-    // 2. The default ProgramHeader use u64 for Elf32_phdr and Elf64_phdr, can we optimize this or
-    //    just let it go.
-    let mut mem: Vec<u8> = vec![0; SIM_MEM_SIZE];
+    let mut mem = ShadowMem::new();
     elf.segments().iter().filter(|phdr| phdr.p_type == PT_LOAD).for_each(|phdr| {
       let vaddr: usize = phdr.p_vaddr.try_into().expect("fail converting vaddr(u64) to usize");
       let filesz: usize = phdr.p_filesz.try_into().expect("fail converting p_filesz(u64) to usize");
@@ -198,9 +197,11 @@ impl Driver {
         phdr.p_offset + filesz as u64,
         vaddr
       );
+
       // Load file start from offset into given mem slice
       // The `offset` of the read_at method is relative to the start of the file and thus independent from the current cursor.
-      file.read_at(&mut mem[vaddr..vaddr + filesz], phdr.p_offset).unwrap_or_else(|err| {
+      let mem_slice = &mut mem.mem[vaddr..vaddr + filesz];
+      file.read_at(mem_slice, phdr.p_offset).unwrap_or_else(|err| {
         panic!(
           "fail reading ELF into mem with vaddr={}, filesz={}, offset={}. Error detail: {}",
           vaddr, filesz, phdr.p_offset, err
@@ -230,7 +231,7 @@ impl Driver {
       debug!("load_elf: symtab not found");
     };
 
-    Ok((elf.ehdr.e_entry, ShadowMem { mem }, fn_sym_tab))
+    Ok((elf.ehdr.e_entry, mem, fn_sym_tab))
   }
 
   pub(crate) fn axi_read_high_bandwidth(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
