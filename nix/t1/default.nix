@@ -37,6 +37,8 @@ lib.makeScope newScope
 
     rocketv = self.callPackage ../../rocketemu { };
 
+    t1rocketemu = self.callPackage ../../t1rocketemu { };
+
     omreader-unwrapped = self.callPackage ./omreader.nix { };
     submodules = self.callPackage ./submodules.nix { };
 
