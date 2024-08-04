@@ -34,20 +34,21 @@ unsafe fn fill_axi_read_payload(dst: *mut SvBitVecVal, dlen: u32, payload: &AxiR
 }
 
 // Return (strobe in bit, data in byte)
-unsafe fn load_from_payload<'a>(
-  payload: *const SvBitVecVal,
-  data_width: u32,
-) -> (Vec<bool>, &'a [u8]) {
-  let src = payload as *mut u8;
-  let data_width_in_byte = (data_width / 8) as usize;
-  let strb_width_in_byte = data_width_in_byte.div_ceil(8); // ceil divide by 8 to get byte width
+unsafe fn load_from_payload(
+  payload: &*const SvBitVecVal,
+  data_width: usize,
+  dlen: usize,
+) -> (&[u8], &[u8]) {
+  let src = *payload as *mut u8;
+  let data_width_in_byte = dlen / 8;
+  let strb_width_in_byte = dlen / data_width;
   let payload_size_in_byte = strb_width_in_byte + data_width_in_byte; // data width in byte
   let byte_vec = std::slice::from_raw_parts(src, payload_size_in_byte);
   let strobe = &byte_vec[0..strb_width_in_byte];
   let data = &byte_vec[strb_width_in_byte..];
 
-  let strb_width_in_bit = std::cmp::min(8, data_width_in_byte);
-  let mut masks: Vec<bool> = strobe
+  let strb_width_in_bit = data_width / 8;
+  let masks: Vec<bool> = strobe
     .into_iter()
     .flat_map(|strb| {
       let mask: Vec<bool> = (0..strb_width_in_bit).map(|i| (strb & (1 << i)) != 0).collect();
@@ -66,7 +67,7 @@ unsafe fn load_from_payload<'a>(
     hex::encode(data),
   );
 
-  (masks, data)
+  (&masks, data)
 }
 
 //----------------------
@@ -98,8 +99,9 @@ unsafe extern "C" fn axi_write_highBandwidthAXI(
   );
   let mut driver = DPI_TARGET.lock().unwrap();
   let driver = driver.as_mut().unwrap();
-  let (strobe, data) = load_from_payload(payload, driver.dlen);
-  driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, &strobe, data);
+  let data_width = 32; // TODO: get from driver
+  let (strobe, data) = load_from_payload(&payload, 32, driver.dlen);
+  driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, strobe, data);
 }
 
 /// evaluate at AR fire at corresponding channel_id.
@@ -144,7 +146,7 @@ unsafe extern "C" fn axi_write_indexedAccessAXI(
   awprot: c_longlong,
   awqos: c_longlong,
   awregion: c_longlong,
-  // struct packed {bit [255:0][32:0] data; bit [255:0][4:0] strb; } payload
+  // struct packed {bit [255:0][31:0] data; bit [255:0][3:0] strb; } payload
   payload: *const SvBitVecVal,
 ) {
   debug!(
@@ -154,8 +156,9 @@ unsafe extern "C" fn axi_write_indexedAccessAXI(
   );
   let mut driver = DPI_TARGET.lock().unwrap();
   let driver = driver.as_mut().unwrap();
-  let (strobe, data) = load_from_payload(payload, 32);
-  driver.axi_write_indexed_access(awaddr as u32, awsize as u64, &strobe, data);
+  let data_width = 32; // TODO: get from driver
+  let (strobe, data) = load_from_payload(&payload, data_width, 32);
+  driver.axi_write_indexed_access(awaddr as u32, awsize as u64, strobe, data);
 }
 
 /// evaluate at AR fire at corresponding channel_id.
@@ -210,8 +213,8 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
   let mut driver = DPI_TARGET.lock().unwrap();
   let driver = driver.as_mut().unwrap();
   let data_width = 32; // TODO: get from sim
-  let (strobe, data) = load_from_payload(&payload, 1 << awsize, data_width, driver.dlen as usize);
-  driver.axi_write_load_store(awaddr as u32, &strobe, data);
+  let (strobe, data) = load_from_payload(&payload, data_width, driver.dlen as usize);
+  driver.axi_write_load_store(awaddr as u32, awsize, strobe, data);
 }
 
 #[no_mangle]

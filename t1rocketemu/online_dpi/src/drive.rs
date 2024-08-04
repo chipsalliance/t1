@@ -161,7 +161,7 @@ impl Driver {
       e_entry,
 
       shadow_mem,
-    };
+    }
   }
 
   pub fn load_elf(path: &Path) -> anyhow::Result<(u64, ShadowMem, FunctionSymTab)> {
