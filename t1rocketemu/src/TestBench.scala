@@ -3,17 +3,20 @@
 
 package org.chipsalliance.t1.t1rocketemu
 
+import chisel3._
 import chisel3.experimental.{BaseModule, ExtModule, SerializableModuleGenerator}
+import chisel3.experimental.dataview.DataViewable
+import chisel3.util.circt.dpi.RawUnclockedNonVoidFunctionCall
 import chisel3.util.HasExtModuleInline
-import chisel3.{Bool, ImplicitClock, ImplicitReset, Module, Output, RawModule}
+import org.chipsalliance.amba.axi4.bundle._
+import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
 
 class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTileParameter])
-  extends RawModule
+    extends RawModule
     with ImplicitClock
     with ImplicitReset {
   val clockGen = Module(new ExtModule with HasExtModuleInline {
-
     override def desiredName = "ClockGen"
     setInline(
       s"$desiredName.sv",
@@ -31,9 +34,9 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
          |`endif
          |  endfunction;
          |
-         |  import "DPI-C" context function void t1_cosim_init();
+         |  import "DPI-C" context function void cosim_init();
          |  initial begin
-         |    t1_cosim_init();
+         |    cosim_init();
          |    clock = 1'b0;
          |    reset = 1'b1;
          |  end
@@ -52,25 +55,95 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   val dut: T1RocketTile with BaseModule = Module(generator.module())
   dut.io.clock := clock
   dut.io.reset := reset
-  dut.io.hartid
-  dut.io.resetVector
-  dut.io.debug
-  dut.io.mtip
-  dut.io.msip
-  dut.io.meip
-  dut.io.seip
-  dut.io.lip
-  dut.io.nmi
-  dut.io.nmiInterruptVector
-  dut.io.nmiIxceptionVector
-  dut.io.buserror
-  dut.io.wfi
-  dut.io.halt
-  dut.io.instructionFetchAXI
-  dut.io.itimAXI
-  dut.io.loadStoreAXI
-  dut.io.dtimAXI
-  dut.io.dtimAXI
-  dut.io.highBandwidthAXI
-  dut.io.highOutstandingAXI
+
+  val simulationTime: UInt = withClockAndReset(clock, reset)(RegInit(0.U(64.W)))
+  simulationTime := simulationTime + 1.U
+
+  // get resetVector from simulator
+  dut.io.resetVector := RawUnclockedNonVoidFunctionCall("get_resetvector", Const(UInt(64.W)))(simulationTime === 0.U)
+
+  dut.io.hartid := 0.U
+  dut.io.debug := 0.U
+  dut.io.mtip := 0.U
+  dut.io.msip := 0.U
+  dut.io.meip := 0.U
+  dut.io.buserror := 0.U
+  dut.io.lip := 0.U
+  dut.io.wfi := 0.U
+  dut.io.halt := 0.U
+
+  // memory driver
+  Seq(
+    dut.io.highBandwidthAXI, // index 0
+    dut.io.highOutstandingAXI // index 1
+  ).map(_.viewAs[AXI4RWIrrevocableVerilog])
+    .lazyZip(
+      Seq("highBandwidthAXI", "highOutstandingAXI")
+    )
+    .zipWithIndex
+    .foreach {
+      case ((bundle: AXI4RWIrrevocableVerilog, channelName: String), index: Int) =>
+        val agent = Module(
+          new AXI4SlaveAgent(
+            AXI4SlaveAgentParameter(
+              name = channelName,
+              axiParameter = bundle.parameter,
+              outstanding = 4,
+              readPayloadSize = 1,
+              writePayloadSize = 1
+            )
+          )
+        ).suggestName(s"axi4_channel${index}_${channelName}")
+        agent.io.channel match {
+          case io: AXI4RWIrrevocableVerilog => io <> bundle
+        }
+        agent.io.clock := clock
+        agent.io.reset := reset
+        agent.io.channelId := index.U
+        agent.io.gateRead := false.B
+        agent.io.gateWrite := false.B
+    }
+
+  val instFetchAXI = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
+  val instFetchAgent = Module(
+    new AXI4SlaveAgent(
+      AXI4SlaveAgentParameter(
+        name = "instructionFetchAXI",
+        axiParameter = instFetchAXI.parameter,
+        outstanding = 4,
+        readPayloadSize = 1,
+        writePayloadSize = 1
+      )
+    ).suggestName("axi4_channel2_instructionFetchAXI")
+  )
+  instFetchAgent.io.channel match {
+    case io: AXI4ROIrrevocableVerilog => io <> instFetchAXI
+  }
+  instFetchAgent.io.clock := clock
+  instFetchAgent.io.reset := reset
+  instFetchAgent.io.channelId := 0.U
+  instFetchAgent.io.gateRead := false.B
+  instFetchAgent.io.gateWrite := false.B
+
+  val loadStoreAXI = dut.io.loadStoreAXI.viewAs[AXI4RWIrrevocableVerilog]
+  val loadStoreAgent = Module(
+    new AXI4SlaveAgent(
+      AXI4SlaveAgentParameter(
+        name = "loadStoreAXI",
+        axiParameter = loadStoreAXI.parameter,
+        outstanding = 4,
+        // TODO: add payloadSize config to parameter
+        readPayloadSize = 8, // todo: align with parameter in the future
+        writePayloadSize = 8
+      )
+    ).suggestName("axi4_channel3_loadStoreAXI")
+  )
+  loadStoreAgent.io.channel match {
+    case io: AXI4RWIrrevocableVerilog => io <> loadStoreAXI
+  }
+  loadStoreAgent.io.clock := clock
+  loadStoreAgent.io.reset := reset
+  loadStoreAgent.io.channelId := 3.U
+  loadStoreAgent.io.gateRead := false.B
+  loadStoreAgent.io.gateWrite := false.B
 }
