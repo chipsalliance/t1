@@ -59,6 +59,13 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   val simulationTime: UInt = withClockAndReset(clock, reset)(RegInit(0.U(64.W)))
   simulationTime := simulationTime + 1.U
 
+  withClockAndReset(clock, reset) {
+    val watchdog = RawUnclockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime(9, 0) === 0.U)
+    when(watchdog =/= 0.U) {
+      stop(cf"""{"event":"SimulationStop","reason": ${watchdog},"cycle":${simulationTime}}\n""")
+    }
+  }
+
   // get resetVector from simulator
   dut.io.resetVector := RawUnclockedNonVoidFunctionCall("get_resetvector", Const(UInt(64.W)))(simulationTime === 0.U)
 
