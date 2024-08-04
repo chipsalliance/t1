@@ -13,7 +13,7 @@ lib.makeScope newScope (scope: rec {
   verilated-c-lib = scope.callPackage ./nix/verilated-c-lib.nix { };
 
   emu = rustPlatform.buildRustPackage {
-    name = "rocketemu";
+    name = "t1rocketemu";
 
     src = with lib.fileset; toSource {
       root = ./.;

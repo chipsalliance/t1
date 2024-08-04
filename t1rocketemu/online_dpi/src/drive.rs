@@ -1,16 +1,22 @@
+use crate::dpi::*;
+use crate::get_t;
+use crate::svdpi::SvScope;
+use crate::OfflineArgs;
+
+use anyhow::Context;
 use common::MEM_SIZE;
 use elf::{
   abi::{EM_RISCV, ET_EXEC, PT_LOAD, STT_FUNC},
   endian::LittleEndian,
   ElfStream,
 };
-use spike_rs::util::load_elf_to_buffer;
+use std::collections::HashMap;
+use std::os::unix::fs::FileExt;
+use std::{
+  fs,
+  path::{Path, PathBuf},
+};
 use tracing::{debug, error, info, trace};
-
-use crate::dpi::*;
-use crate::get_t;
-use crate::svdpi::SvScope;
-use crate::OfflineArgs;
 
 struct ShadowMem {
   mem: Vec<u8>,
@@ -90,8 +96,18 @@ impl ShadowMem {
   }
 }
 
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct FunctionSym {
+  #[allow(dead_code)]
+  pub(crate) name: String,
+  #[allow(dead_code)]
+  pub(crate) info: u8,
+}
+pub type FunctionSymTab = HashMap<u64, FunctionSym>;
+
 pub(crate) struct Driver {
-  // SvScope from t1_cosim_init
+  // SvScope from t1rocket_cosim_init
   scope: SvScope,
 
   #[cfg(feature = "trace")]
@@ -105,6 +121,9 @@ pub(crate) struct Driver {
 
   pub(crate) dlen: u32,
   pub(crate) e_entry: u64,
+
+  timeout: u64,
+  last_commit_cycle: u64,
 
   shadow_mem: ShadowMem,
 }
@@ -147,7 +166,7 @@ impl Driver {
     let (dump_start, dump_end) = parse_range(&args.dump_range);
 
     // pass e_entry to rocket
-    let (e_entry, shadow_mem, fn_sym_tab) =
+    let (e_entry, shadow_mem, _fn_sym_tab) =
       Self::load_elf(&args.common_args.elf_file).expect("fail creating simulator");
 
     Self {
@@ -164,6 +183,9 @@ impl Driver {
 
       dlen: args.common_args.dlen,
       e_entry,
+
+      timeout: args.timeout,
+      last_commit_cycle: 0,
 
       shadow_mem,
     }
@@ -328,6 +350,39 @@ impl Driver {
       get_t()
     );
     AxiReadPayload { data }
+  }
+
+  pub(crate) fn watchdog(&mut self) -> u8 {
+    const WATCHDOG_CONTINUE: u8 = 0;
+    const WATCHDOG_TIMEOUT: u8 = 1;
+
+    let tick = get_t();
+    if tick - self.last_commit_cycle > self.timeout {
+      error!(
+        "[{}] watchdog timeout (last_commit_cycle={})",
+        get_t(),
+        self.last_commit_cycle
+      );
+      WATCHDOG_TIMEOUT
+    } else {
+      #[cfg(feature = "trace")]
+      if self.dump_end != 0 && tick > self.dump_end {
+        info!(
+          "[{tick}] run to dump end, exiting (last_commit_cycle={})",
+          self.last_commit_cycle
+        );
+        return WATCHDOG_TIMEOUT;
+      }
+
+      #[cfg(feature = "trace")]
+      if !self.dump_started && tick >= self.dump_start {
+        self.start_dump_wave();
+        self.dump_started = true;
+      }
+
+      trace!("[{}] watchdog continue", get_t());
+      WATCHDOG_CONTINUE
+    }
   }
 
   #[cfg(feature = "trace")]

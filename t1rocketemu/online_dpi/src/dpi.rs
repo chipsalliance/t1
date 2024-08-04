@@ -38,7 +38,7 @@ unsafe fn load_from_payload(
   payload: &*const SvBitVecVal,
   data_width: usize,
   dlen: usize,
-) -> (&[u8], &[u8]) {
+) -> (Vec<bool>, &[u8]) {
   let src = *payload as *mut u8;
   let data_width_in_byte = dlen / 8;
   let strb_width_in_byte = dlen / data_width;
@@ -67,7 +67,7 @@ unsafe fn load_from_payload(
     hex::encode(data),
   );
 
-  (&masks, data)
+  (masks, data)
 }
 
 //----------------------
@@ -100,8 +100,8 @@ unsafe extern "C" fn axi_write_highBandwidthAXI(
   let mut driver = DPI_TARGET.lock().unwrap();
   let driver = driver.as_mut().unwrap();
   let data_width = 32; // TODO: get from driver
-  let (strobe, data) = load_from_payload(&payload, 32, driver.dlen);
-  driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, strobe, data);
+  let (strobe, data) = load_from_payload(&payload, 32, driver.dlen as usize);
+  driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, &strobe, data);
 }
 
 /// evaluate at AR fire at corresponding channel_id.
@@ -158,7 +158,7 @@ unsafe extern "C" fn axi_write_indexedAccessAXI(
   let driver = driver.as_mut().unwrap();
   let data_width = 32; // TODO: get from driver
   let (strobe, data) = load_from_payload(&payload, data_width, 32);
-  driver.axi_write_indexed_access(awaddr as u32, awsize as u64, strobe, data);
+  driver.axi_write_indexed_access(awaddr as u32, awsize as u64, &strobe, data);
 }
 
 /// evaluate at AR fire at corresponding channel_id.
@@ -214,7 +214,7 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
   let driver = driver.as_mut().unwrap();
   let data_width = 32; // TODO: get from sim
   let (strobe, data) = load_from_payload(&payload, data_width, driver.dlen as usize);
-  driver.axi_write_load_store(awaddr as u32, awsize, strobe, data);
+  driver.axi_write_load_store(awaddr as u32, awsize as u64, &strobe, data);
 }
 
 #[no_mangle]
@@ -241,7 +241,7 @@ unsafe extern "C" fn axi_read_loadStoreAXI(
   let mut driver = DPI_TARGET.lock().unwrap();
   let driver = driver.as_mut().unwrap();
   let response = driver.axi_read_load_store(araddr as u32, arsize as u64);
-  fill_axi_read_payload(payload, driver.dlen, &response.data);
+  fill_axi_read_payload(payload, driver.dlen, &response);
 }
 
 #[no_mangle]
@@ -268,23 +268,34 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
   let mut driver = DPI_TARGET.lock().unwrap();
   let driver = driver.as_mut().unwrap();
   let response = driver.axi_read_instruction_fetch(araddr as u32, arsize as u64);
-  fill_axi_read_payload(payload, driver.dlen, &response.data);
+  fill_axi_read_payload(payload, driver.dlen, &response);
 }
 
 #[no_mangle]
-unsafe extern "C" fn cosim_init() {
+unsafe extern "C" fn t1rocket_cosim_init() {
   let args = OfflineArgs::parse();
   args.common_args.setup_logger().unwrap();
 
-  let scope = SvScope::get_current().expect("failed to get scope in cosim_init");
+  let scope = SvScope::get_current().expect("failed to get scope in t1rocket_cosim_init");
 
   let driver = Box::new(Driver::new(scope, &args));
   let mut dpi_target = DPI_TARGET.lock().unwrap();
   assert!(
     dpi_target.is_none(),
-    "cosim_init should be called only once"
+    "t1rocket_cosim_init should be called only once"
   );
   *dpi_target = Some(driver);
+}
+
+/// evaluate at every 1024 cycles, return reason = 0 to continue simulation,
+/// other value is used as error code.
+#[no_mangle]
+unsafe extern "C" fn cosim_watchdog(reason: *mut c_char) {
+  // watchdog dpi call would be called before initialization, guard on null target
+  let mut driver = DPI_TARGET.lock().unwrap();
+  if let Some(driver) = driver.as_mut() {
+    *reason = driver.watchdog() as c_char
+  }
 }
 
 #[no_mangle]

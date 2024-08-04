@@ -34,9 +34,9 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
          |`endif
          |  endfunction;
          |
-         |  import "DPI-C" context function void cosim_init();
+         |  import "DPI-C" context function void t1rocket_cosim_init();
          |  initial begin
-         |    cosim_init();
+         |    t1rocket_cosim_init();
          |    clock = 1'b0;
          |    reset = 1'b1;
          |  end
@@ -56,8 +56,20 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   dut.io.clock := clock
   dut.io.reset := reset
 
-  val simulationTime: UInt = withClockAndReset(clock, reset)(RegInit(0.U(64.W)))
+  // control simulation
+  val simulationTime: UInt = RegInit(0.U(64.W))
   simulationTime := simulationTime + 1.U
+
+  // TODO: this initial way cannot happen before reset...
+  val initFlag = RegInit(false.B)
+  when(!initFlag) {
+    initFlag := true.B
+    printf(cf"""{"event":"SimulationStart","cycle":${simulationTime}}\n""")
+  }
+  val watchdog = RawUnclockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime(9, 0) === 0.U)
+  when(watchdog =/= 0.U) {
+    stop(cf"""{"event":"SimulationStop","reason": ${watchdog},"cycle":${simulationTime}}\n""")
+  }
 
   // get resetVector from simulator
   dut.io.resetVector := RawUnclockedNonVoidFunctionCall("get_resetvector", Const(UInt(64.W)))(simulationTime === 0.U)
@@ -68,9 +80,6 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   dut.io.msip := 0.U
   dut.io.meip := 0.U
   dut.io.buserror := 0.U
-  dut.io.lip := 0.U
-  dut.io.wfi := 0.U
-  dut.io.halt := 0.U
 
   // memory driver
   Seq(
@@ -146,4 +155,6 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   loadStoreAgent.io.channelId := 3.U
   loadStoreAgent.io.gateRead := false.B
   loadStoreAgent.io.gateWrite := false.B
+
+  // probes
 }
