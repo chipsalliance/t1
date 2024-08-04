@@ -84,6 +84,7 @@ object Main {
 
   implicit def ipConfig: ParserForClass[IPConfig] = ParserForClass[IPConfig]
   implicit def rocketConfig: ParserForClass[RocketConfig] = ParserForClass[RocketConfig]
+  implicit def t1RocketConfig: ParserForClass[T1RocketConfig] = ParserForClass[T1RocketConfig]
 
   // format: off
   @main def ip(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit = elaborateConfig.elaborate(() =>
