@@ -314,7 +314,6 @@ impl Driver {
 
   pub(crate) fn axi_read_load_store(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
-    assert!(size <= 4);
     let data = self.shadow_mem.read_mem_axi(addr, size, 4);
     let data_hex = hex::encode(&data);
     trace!(
@@ -342,8 +341,7 @@ impl Driver {
 
   pub(crate) fn axi_read_instruction_fetch(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
-    assert!(size <= 4);
-    let data = self.shadow_mem.read_mem_axi(addr, size, 4);
+    let data = self.shadow_mem.read_mem_axi(addr, size, 32);
     let data_hex = hex::encode(&data);
     trace!(
       "[{}] axi_read_instruction_fetch (addr={addr:#x}, size={size}, data={data_hex})",
