@@ -191,7 +191,6 @@ unsafe extern "C" fn axi_read_highOutstandingAXI(
 
 #[no_mangle]
 unsafe extern "C" fn axi_write_loadStoreAXI(
-  target: *mut (),
   channel_id: c_longlong,
   awid: c_longlong,
   awaddr: c_longlong,
@@ -219,7 +218,6 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
 
 #[no_mangle]
 unsafe extern "C" fn axi_read_loadStoreAXI(
-  target: *mut (),
   channel_id: c_longlong,
   arid: c_longlong,
   araddr: c_longlong,
@@ -246,7 +244,6 @@ unsafe extern "C" fn axi_read_loadStoreAXI(
 
 #[no_mangle]
 unsafe extern "C" fn axi_read_instructionFetchAXI(
-  target: *mut (),
   channel_id: c_longlong,
   arid: c_longlong,
   araddr: c_longlong,
