@@ -122,6 +122,9 @@ pub(crate) struct Driver {
   pub(crate) dlen: u32,
   pub(crate) e_entry: u64,
 
+  timeout: u64,
+  last_commit_cycle: u64,
+
   shadow_mem: ShadowMem,
 }
 
@@ -180,6 +183,9 @@ impl Driver {
 
       dlen: args.common_args.dlen,
       e_entry,
+
+      timeout: args.timeout,
+      last_commit_cycle: 0,
 
       shadow_mem,
     }
@@ -347,6 +353,9 @@ impl Driver {
   }
 
   pub(crate) fn watchdog(&mut self) -> u8 {
+    const WATCHDOG_CONTINUE: u8 = 0;
+    const WATCHDOG_TIMEOUT: u8 = 1;
+
     let tick = get_t();
     if tick - self.last_commit_cycle > self.timeout {
       error!(
