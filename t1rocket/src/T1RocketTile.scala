@@ -7,13 +7,16 @@ import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleGenerator, SerializableModuleParameter}
 import chisel3.util.experimental.BitSet
 import chisel3.util.log2Ceil
+import chisel3.probe.{Probe, ProbeValue, define}
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
-import org.chipsalliance.rocketv.{BHTParameter, FPU, FPUParameter, Frontend, FrontendParameter, HellaCache, HellaCacheArbiter, HellaCacheArbiterParameter, HellaCacheParameter, PTW, PTWParameter, Rocket, RocketParameter, RocketTileParameter}
+import org.chipsalliance.rocketv.{BHTParameter, FPU, FPUParameter, Frontend, FrontendParameter, HellaCache, HellaCacheArbiter, HellaCacheArbiterParameter, HellaCacheParameter, PTW, PTWParameter, Rocket, RocketParameter, RocketTileParameter, RocketProbe}
 import org.chipsalliance.rvdecoderdb.Instruction
 import org.chipsalliance.t1.rtl.decoder.T1CustomInstruction
 import org.chipsalliance.t1.rtl.vrf.RamType
 import org.chipsalliance.t1.rtl.vrf.RamType.{p0rp1w, p0rw, p0rwp1rw}
-import org.chipsalliance.t1.rtl.{LaneAdder, LaneAdderParam, LaneDiv, LaneDivFP, LaneDivFPParam, LaneDivParam, LaneFloat, LaneFloatParam, LaneMul, LaneMulParam, LaneShifter, LaneShifterParameter, LogicParam, MaskedLogic, OtherUnit, OtherUnitParam, T1, T1Parameter, VFUInstantiateParameter}
+import org.chipsalliance.t1.rtl.lsu.LSUProbe
+import org.chipsalliance.t1.rtl.vrf.VRFProbe
+import org.chipsalliance.t1.rtl.{LaneAdder, LaneAdderParam, LaneDiv, LaneDivFP, LaneDivFPParam, LaneDivParam, LaneFloat, LaneFloatParam, LaneMul, LaneMulParam, LaneShifter, LaneShifterParameter, LogicParam, MaskedLogic, OtherUnit, OtherUnitParam, T1, T1Parameter, VFUInstantiateParameter, T1Probe, LaneProbe}
 
 object T1RocketTileParameter {
   implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
@@ -452,6 +455,22 @@ class T1RocketTileInterface(parameter: T1RocketTileParameter) extends Bundle {
 
   val highBandwidthAXI: AXI4RWIrrevocable = org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.t1HighBandwidthParameter)
   val highOutstandingAXI: AXI4RWIrrevocable = org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.t1HightOutstandingParameter)
+
+  val rocketProbe: RocketProbe = Output(Probe(new RocketProbe(parameter.rocketParameter)))
+  val t1Probe: T1Probe = Output(Probe(new T1Probe(parameter.t1Parameter)))
+  val lsuProbe: LSUProbe = Output(Probe(new LSUProbe(parameter.t1Parameter.lsuParameters)))
+  val laneProbes: Vec[LaneProbe] = Vec(parameter.t1Parameter.laneNumber, Output(Probe(new LaneProbe(
+      parameter.t1Parameter.laneParam.chainingSize, 
+      parameter.t1Parameter.laneParam.instructionIndexBits
+    )))
+  )
+  val laneVrfProbes: Vec[VRFProbe] = Vec(parameter.t1Parameter.laneNumber, Output(Probe(new VRFProbe(
+      parameter.t1Parameter.laneParam.vrfParam.regNumBits, 
+      parameter.t1Parameter.laneParam.vrfParam.vrfOffsetBits, 
+      parameter.t1Parameter.laneParam.vrfParam.instructionIndexBits, 
+      parameter.t1Parameter.laneParam.vrfParam.datapathWidth
+    )))
+  )
 }
 
 class T1RocketTile(val parameter: T1RocketTileParameter)
@@ -540,4 +559,11 @@ class T1RocketTile(val parameter: T1RocketTileParameter)
   t1.io.reset := io.reset
   io.highBandwidthAXI <> t1.io.highBandwidthLoadStorePort
   io.highOutstandingAXI <> t1.io.indexedLoadStorePort
+
+  // probe
+  define(io.rocketProbe, rocket.io.rocketProbe)
+  define(io.t1Probe, t1.io.t1Probe)
+  define(io.lsuProbe, t1.io.lsuProbe)
+  io.laneProbes.zipWithIndex.foreach { case (io, index) => define(io, t1.io.laneProbes(index)) }
+  io.laneVrfProbes.zipWithIndex.foreach { case (io, index) => define(io, t1.io.laneVrfProbes(index)) }
 }
