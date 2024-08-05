@@ -284,19 +284,19 @@ impl Driver {
     );
   }
 
-  pub(crate) fn axi_read_indexed(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
+  pub(crate) fn axi_read_high_outstanding(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
     assert!(size <= 4);
     let data = self.shadow_mem.read_mem_axi(addr, size, 4);
     let data_hex = hex::encode(&data);
     trace!(
-      "[{}] axi_read_indexed (addr={addr:#x}, size={size}, data={data_hex})",
+      "[{}] axi_read_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
     );
     AxiReadPayload { data }
   }
 
-  pub(crate) fn axi_write_indexed_access(
+  pub(crate) fn axi_write_high_outstanding(
     &mut self,
     addr: u32,
     awsize: u64,
@@ -307,7 +307,7 @@ impl Driver {
     self.shadow_mem.write_mem_axi(addr, size, 4, strobe, data);
     let data_hex = hex::encode(data);
     trace!(
-      "[{}] axi_write_indexed_access (addr={addr:#x}, size={size}, data={data_hex})",
+      "[{}] axi_write_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
     );
   }

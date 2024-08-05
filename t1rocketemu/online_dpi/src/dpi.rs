@@ -134,7 +134,7 @@ unsafe extern "C" fn axi_read_highBandwidthAXI(
 
 /// evaluate after AW and W is finished at corresponding channel_id.
 #[no_mangle]
-unsafe extern "C" fn axi_write_indexedAccessAXI(
+unsafe extern "C" fn axi_write_highOutstandingAXI(
   channel_id: c_longlong,
   awid: c_longlong,
   awaddr: c_longlong,
@@ -150,7 +150,7 @@ unsafe extern "C" fn axi_write_indexedAccessAXI(
   payload: *const SvBitVecVal,
 ) {
   debug!(
-    "axi_write_indexed (channel_id={channel_id}, awid={awid}, awaddr={awaddr:#x}, \
+    "axi_write_high_outstanding (channel_id={channel_id}, awid={awid}, awaddr={awaddr:#x}, \
   awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
@@ -158,12 +158,12 @@ unsafe extern "C" fn axi_write_indexedAccessAXI(
   let driver = driver.as_mut().unwrap();
   let data_width = 32; // TODO: get from driver
   let (strobe, data) = load_from_payload(&payload, data_width, 32);
-  driver.axi_write_indexed_access(awaddr as u32, awsize as u64, &strobe, data);
+  driver.axi_write_high_outstanding(awaddr as u32, awsize as u64, &strobe, data);
 }
 
 /// evaluate at AR fire at corresponding channel_id.
 #[no_mangle]
-unsafe extern "C" fn axi_read_indexedAccessAXI(
+unsafe extern "C" fn axi_read_highOutstandingAXI(
   channel_id: c_longlong,
   arid: c_longlong,
   araddr: c_longlong,
@@ -179,13 +179,13 @@ unsafe extern "C" fn axi_read_indexedAccessAXI(
   payload: *mut SvBitVecVal,
 ) {
   debug!(
-    "axi_read_indexed (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
+    "axi_read_high_outstanding (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
   let mut driver = DPI_TARGET.lock().unwrap();
   let driver = driver.as_mut().unwrap();
-  let response = driver.axi_read_indexed(araddr as u32, arsize as u64);
+  let response = driver.axi_read_high_outstanding(araddr as u32, arsize as u64);
   fill_axi_read_payload(payload, driver.dlen, &response);
 }
 
