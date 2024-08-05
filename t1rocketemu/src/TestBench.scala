@@ -34,9 +34,9 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
          |`endif
          |  endfunction;
          |
-         |  import "DPI-C" context function void cosim_init();
+         |  import "DPI-C" context function void t1rocket_cosim_init();
          |  initial begin
-         |    cosim_init();
+         |    t1rocket_cosim_init();
          |    clock = 1'b0;
          |    reset = 1'b1;
          |  end
@@ -57,7 +57,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   dut.io.reset := reset
 
   // control simulation
-  val simulationTime: UInt = withClockAndReset(clock, reset)(RegInit(0.U(64.W)))
+  val simulationTime: UInt = RegInit(0.U(64.W))
   simulationTime := simulationTime + 1.U
 
   // TODO: this initial way cannot happen before reset...
