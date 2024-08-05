@@ -4,16 +4,7 @@ use serde::{Deserialize, Deserializer};
 use spike_rs::spike_event::LSU_IDX_DEFAULT;
 use tracing::{debug, info};
 
-#[derive(Deserialize, Debug, PartialEq, Clone)]
-pub enum Opcode {
-  PutFullData = 0,
-  PutPartialData = 1,
-  Get = 4,
-  // AccessAckData = 0,
-  // AccessAck = 0,
-}
-
-fn bigint_to_vec_u8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+fn str_to_vec_u8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
   D: Deserializer<'de>,
 {
@@ -23,7 +14,7 @@ where
   Ok(bigint.to_bytes_le())
 }
 
-fn bigint_to_vec_bool<'de, D>(deserializer: D) -> Result<Vec<bool>, D::Error>
+fn str_to_vec_bool<'de, D>(deserializer: D) -> Result<Vec<bool>, D::Error>
 where
   D: Deserializer<'de>,
 {
@@ -36,7 +27,7 @@ where
   Ok(bools)
 }
 
-fn hex_to_u32<'de, D>(deserializer: D) -> Result<u32, D::Error>
+fn str_to_u32<'de, D>(deserializer: D) -> Result<u32, D::Error>
 where
   D: Deserializer<'de>,
 {
@@ -73,30 +64,30 @@ pub(crate) enum JsonEvents {
     issue_idx: u8,
     vd: u32,
     offset: u32,
-    #[serde(deserialize_with = "bigint_to_vec_bool", default)]
+    #[serde(deserialize_with = "str_to_vec_bool", default)]
     mask: Vec<bool>,
-    #[serde(deserialize_with = "bigint_to_vec_u8", default)]
+    #[serde(deserialize_with = "str_to_vec_u8", default)]
     data: Vec<u8>,
     lane: u32,
     cycle: u64,
   },
   MemoryWrite {
-    #[serde(deserialize_with = "bigint_to_vec_bool", default)]
+    #[serde(deserialize_with = "str_to_vec_bool", default)]
     mask: Vec<bool>,
-    #[serde(deserialize_with = "bigint_to_vec_u8", default)]
+    #[serde(deserialize_with = "str_to_vec_u8", default)]
     data: Vec<u8>,
     lsu_idx: u8,
-    #[serde(deserialize_with = "hex_to_u32", default)]
+    #[serde(deserialize_with = "str_to_u32", default)]
     address: u32,
     cycle: u64,
   },
   CheckRd {
-    #[serde(deserialize_with = "hex_to_u32", default)]
+    #[serde(deserialize_with = "str_to_u32", default)]
     data: u32,
     issue_idx: u8,
     cycle: u64,
   },
-  VrfScoreboardReport {
+  VrfScoreboard {
     count: u32,
     issue_idx: u8,
     cycle: u64,
@@ -131,7 +122,7 @@ pub struct MemoryWriteEvent {
   pub cycle: u64,
 }
 
-pub struct VrfScoreboardReportEvent {
+pub struct VrfScoreboardEvent {
   pub count: u32,
   pub issue_idx: u8,
   pub cycle: u64,
@@ -150,7 +141,7 @@ pub(crate) trait JsonEventRunner {
 
   fn peek_vrf_write(&mut self, vrf_write: &VrfWriteEvent) -> anyhow::Result<()>;
 
-  fn vrf_scoreboard_report(&mut self, report: &VrfScoreboardReportEvent) -> anyhow::Result<()>;
+  fn vrf_scoreboard(&mut self, vrf_scoreboard: &VrfScoreboardEvent) -> anyhow::Result<()>;
 
   fn peek_memory_write(&mut self, memory_write: &MemoryWriteEvent) -> anyhow::Result<()>;
 
@@ -323,10 +314,10 @@ impl JsonEventRunner for SpikeRunner {
     panic!("[{cycle}] cannot find se with instruction lsu_idx={lsu_idx}")
   }
 
-  fn vrf_scoreboard_report(&mut self, report: &VrfScoreboardReportEvent) -> anyhow::Result<()> {
-    let count = report.count;
-    let issue_idx = report.issue_idx;
-    let cycle = report.cycle;
+  fn vrf_scoreboard(&mut self, vrf_scoreboard: &VrfScoreboardEvent) -> anyhow::Result<()> {
+    let count = vrf_scoreboard.count;
+    let issue_idx = vrf_scoreboard.issue_idx;
+    let cycle = vrf_scoreboard.cycle;
 
     let mut should_retire: Option<u8> = None;
 

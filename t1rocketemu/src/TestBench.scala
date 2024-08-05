@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.{BaseModule, ExtModule, SerializableModuleGenerator}
 import chisel3.experimental.dataview.DataViewable
 import chisel3.util.circt.dpi.RawUnclockedNonVoidFunctionCall
-import chisel3.util.HasExtModuleInline
+import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
@@ -60,13 +60,13 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   val simulationTime: UInt = RegInit(0.U(64.W))
   simulationTime := simulationTime + 1.U
 
-  // TODO: this initial way cannot happen before reset...
-  val initFlag = RegInit(false.B)
+  // this initial way cannot happen before reset
+  val initFlag: Bool = RegInit(false.B)
   when(!initFlag) {
     initFlag := true.B
     printf(cf"""{"event":"SimulationStart","cycle":${simulationTime}}\n""")
   }
-  val watchdog = RawUnclockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime(9, 0) === 0.U)
+  val watchdog: UInt = RawUnclockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime(9, 0) === 0.U)
   when(watchdog =/= 0.U) {
     stop(cf"""{"event":"SimulationStop","reason": ${watchdog},"cycle":${simulationTime}}\n""")
   }
@@ -157,4 +157,107 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   loadStoreAgent.io.gateWrite := false.B
 
   // probes
+  val rocketProbe = probe.read(dut.io.rocketProbe).suggestName(s"rocketProbe")
+  val t1Probe = probe.read(dut.io.t1Probe).suggestName(s"t1Probe")
+  val lsuProbe = probe.read(dut.io.lsuProbe).suggestName(s"lsuProbe")
+  val laneProbes = dut.io.laneProbes.zipWithIndex.map {
+    case (p, idx) =>
+      val wire = Wire(p.cloneType).suggestName(s"lane${idx}Probe")
+      wire := probe.read(p)
+      wire
+  }
+  val laneVrfProbes = dut.io.laneVrfProbes.zipWithIndex.map {
+    case (p, idx) =>
+      val wire = Wire(p.cloneType).suggestName(s"lane${idx}VrfProbe")
+      wire := probe.read(p)
+      wire
+  }
+  val storeUnitProbe = lsuProbe.storeUnitProbe.suggestName("storeUnitProbe")
+  val otherUnitProbe = lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
+
+  // output the probes
+  // rocket reg write
+  when(rocketProbe.rfWen)(
+    printf(
+      cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
+    )
+  )
+
+  // t1 vrf write
+  laneVrfProbes.zipWithIndex.foreach {
+    case (lane, i) =>
+      when(lane.valid)(
+        printf(
+          cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
+        )
+      )
+  }
+
+  // t1 memory write from store unit
+  when(storeUnitProbe.valid)(
+    printf(
+      cf"""{"event":"MemoryWrite","lsu_idx":${storeUnitProbe.index},"mask":"${storeUnitProbe.mask}%x","data":"${storeUnitProbe.data}%x","address":"${storeUnitProbe.address}%x","cycle":${simulationTime}}\n"""
+    )
+  )
+
+  // t1 memory write from other unit
+  when(otherUnitProbe.valid)(
+    printf(
+      cf"""{"event":"MemoryWrite","lsu_idx":${otherUnitProbe.index},"mask":"${otherUnitProbe.mask}%x","data":"${otherUnitProbe.data}%x","address":"${otherUnitProbe.address}%x","cycle":${simulationTime}}\n"""
+    )
+  )
+
+  // t1 issue
+  when(t1Probe.issue.valid)(
+    printf(cf"""{"event":"Issue","idx":${t1Probe.issue.bits},"cycle":${simulationTime}}\n""")
+  )
+
+  // t1 retire
+  when(t1Probe.retire.valid)(
+    printf(
+      cf"""{"event":"CheckRd","data":"${t1Probe.retire.bits}%x","issue_idx":${t1Probe.responseCounter},"cycle":${simulationTime}}\n"""
+    )
+  )
+
+  // t1 lsu enq
+  when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"LsuEnq","enq":${lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
+
+  // t1 vrf scoreboard
+  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * generator.parameter.t1Parameter.chainingSize) { _ =>
+    RegInit(0.U.asTypeOf(Valid(UInt(16.W))))
+  }
+  vrfWriteScoreboard.foreach(scoreboard => dontTouch(scoreboard))
+  val instructionValid =
+    (laneProbes.map(laneProbe => laneProbe.instructionValid ## laneProbe.instructionValid) :+
+      lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
+  val scoreboardEnq =
+    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * generator.parameter.t1Parameter.chainingSize).W))
+  vrfWriteScoreboard.zipWithIndex.foreach {
+    case (scoreboard, tag) =>
+      val writeEnq: UInt = VecInit(
+        // vrf write from lane
+        laneProbes.flatMap(laneProbe =>
+          laneProbe.slots.map(slot => slot.writeTag === tag.U && slot.writeQueueEnq && slot.writeMask.orR)
+        ) ++ laneProbes.flatMap(laneProbe =>
+          laneProbe.crossWriteProbe.map(cp => cp.bits.writeTag === tag.U && cp.valid && cp.bits.writeMask.orR)
+        ) ++
+          // vrf write from lsu
+          lsuProbe.slots.map(slot => slot.dataInstruction === tag.U && slot.writeValid && slot.dataMask.orR) ++
+          // vrf write from Sequencer
+          Some(t1Probe.writeQueueEnq.bits === tag.U && t1Probe.writeQueueEnq.valid && t1Probe.writeQueueEnqMask.orR)
+      ).asUInt
+      // always equal to array index
+      scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
+      when(scoreboard.valid && !instructionValid(tag)) {
+        printf(
+          cf"""{"event":"VrfScoreboard","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
+        )
+        scoreboard.valid := false.B
+      }
+      when(scoreboardEnq(tag)) {
+        scoreboard.valid := true.B
+        assert(!scoreboard.valid)
+        scoreboard.bits := 0.U
+      }
+  }
 }
