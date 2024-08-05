@@ -299,10 +299,9 @@ unsafe extern "C" fn cosim_watchdog(reason: *mut c_char) {
 }
 
 #[no_mangle]
-unsafe extern "C" fn get_resetvector(target: *mut (), resetvector: *mut c_longlong) {
-  if !target.is_null() {
-    let mut driver = DPI_TARGET.lock().unwrap();
-    let driver = driver.as_mut().unwrap();
+unsafe extern "C" fn get_resetvector(resetvector: *mut c_longlong) {
+  let mut driver = DPI_TARGET.lock().unwrap();
+  if let Some(driver) = driver.as_mut() {
     *resetvector = driver.e_entry as c_longlong
   }
 }
