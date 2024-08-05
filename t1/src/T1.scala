@@ -307,6 +307,8 @@ class T1Probe(parameter: T1Parameter) extends Bundle {
   // probes
   val lsuProbe: LSUProbe = new LSUProbe(parameter.lsuParameters)
   val laneProbes: Vec[LaneProbe] = Vec(parameter.laneNumber, new LaneProbe(parameter.laneParam))
+  val issue: ValidIO[UInt] = Valid(UInt(parameter.instructionIndexBits.W))
+  val retire: ValidIO[UInt] = Valid(UInt(parameter.xLen.W))
 }
 
 class T1Interface(parameter: T1Parameter) extends Record {
@@ -1741,6 +1743,10 @@ class T1(val parameter: T1Parameter)
     probeWire.responseCounter := responseCounter
     probeWire.laneProbes.zip(laneVec).foreach { case (p, l) => p := probe.read(l.laneProbe) }
     probeWire.lsuProbe := probe.read(lsu.lsuProbe)
+    probeWire.issue.valid := io.issue.fire
+    probeWire.issue.bits := instructionCounter
+    probeWire.retire.valid := io.retire.rd.valid
+    probeWire.retire.bits := io.retire.rd.bits.rdData
   }
 
   // new V Request from core
