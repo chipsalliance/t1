@@ -272,17 +272,17 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
 }
 
 #[no_mangle]
-unsafe extern "C" fn cosim_init() {
+unsafe extern "C" fn t1rocket_cosim_init() {
   let args = OfflineArgs::parse();
   args.common_args.setup_logger().unwrap();
 
-  let scope = SvScope::get_current().expect("failed to get scope in cosim_init");
+  let scope = SvScope::get_current().expect("failed to get scope in t1rocket_cosim_init");
 
   let driver = Box::new(Driver::new(scope, &args));
   let mut dpi_target = DPI_TARGET.lock().unwrap();
   assert!(
     dpi_target.is_none(),
-    "cosim_init should be called only once"
+    "t1rocket_cosim_init should be called only once"
   );
   *dpi_target = Some(driver);
 }

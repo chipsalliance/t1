@@ -107,7 +107,7 @@ pub struct FunctionSym {
 pub type FunctionSymTab = HashMap<u64, FunctionSym>;
 
 pub(crate) struct Driver {
-  // SvScope from t1_cosim_init
+  // SvScope from t1rocket_cosim_init
   scope: SvScope,
 
   #[cfg(feature = "trace")]
