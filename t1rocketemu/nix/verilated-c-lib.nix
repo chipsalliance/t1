@@ -1,7 +1,7 @@
 { lib
 , fetchgit
 , stdenv
-, rocketv-rtl
+, rtl
 , verilator
 , enable-trace ? true
 , zlib
@@ -19,9 +19,9 @@ let
   };
 in
 stdenv.mkDerivation {
-  name = "t1-rocketv-verilated";
+  name = "t1rocket-verilated";
 
-  src = rocketv-rtl;
+  src = rtl;
 
   nativeBuildInputs = [ verilator ];
 
