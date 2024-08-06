@@ -2,7 +2,7 @@
 , lib
 
 , circt
-, rocketv-mlirbc
+, mlirbc
 }:
 
 let
@@ -21,6 +21,6 @@ stdenvNoCC.mkDerivation {
   buildCommand = ''
     mkdir -p $out
 
-    firtool ${rocketv-mlirbc} ${mfcArgs} -o $out
+    firtool ${mlirbc} ${mfcArgs} -o $out
   '';
 }

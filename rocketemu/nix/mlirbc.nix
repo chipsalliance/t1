@@ -4,6 +4,7 @@
 , circt
 
 , elaborator
+, rocket-config
 }:
 stdenvNoCC.mkDerivation {
   name = "t1-rocketv-elaborated.mlirbc";
@@ -12,7 +13,7 @@ stdenvNoCC.mkDerivation {
 
   buildCommand = ''
     mkdir elaborate
-    elaborator rocketemu --target-dir elaborate --rocket-config ${../../rocketv/configs/RocketTile.json}
+    elaborator rocketemu --target-dir elaborate --rocket-config ${rocket-config}
     firtool elaborate/*.fir \
       --annotation-file elaborate/*.anno.json \
       --emit-bytecode \
