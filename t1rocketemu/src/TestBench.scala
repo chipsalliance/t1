@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.{BaseModule, ExtModule, SerializableModuleGenerator}
 import chisel3.experimental.dataview.DataViewable
 import chisel3.util.circt.dpi.RawUnclockedNonVoidFunctionCall
-import chisel3.util.HasExtModuleInline
+import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
@@ -60,7 +60,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   val simulationTime: UInt = RegInit(0.U(64.W))
   simulationTime := simulationTime + 1.U
 
-  // TODO: this initial way cannot happen before reset...
+  // this initial way cannot happen before reset
   val initFlag: Bool = RegInit(false.B)
   when(!initFlag) {
     initFlag := true.B
@@ -221,4 +221,43 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
 
   // t1 lsu enq
   when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"LsuEnq","enq":${lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
+
+  // t1 vrf scoreboard
+  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * generator.parameter.t1Parameter.chainingSize) { _ =>
+    RegInit(0.U.asTypeOf(Valid(UInt(16.W))))
+  }
+  vrfWriteScoreboard.foreach(scoreboard => dontTouch(scoreboard))
+  val instructionValid =
+    (laneProbes.map(laneProbe => laneProbe.instructionValid ## laneProbe.instructionValid) :+
+      lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
+  val scoreboardEnq =
+    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * generator.parameter.t1Parameter.chainingSize).W))
+  vrfWriteScoreboard.zipWithIndex.foreach {
+    case (scoreboard, tag) =>
+      val writeEnq: UInt = VecInit(
+        // vrf write from lane
+        laneProbes.flatMap(laneProbe =>
+          laneProbe.slots.map(slot => slot.writeTag === tag.U && slot.writeQueueEnq && slot.writeMask.orR)
+        ) ++ laneProbes.flatMap(laneProbe =>
+          laneProbe.crossWriteProbe.map(cp => cp.bits.writeTag === tag.U && cp.valid && cp.bits.writeMask.orR)
+        ) ++
+          // vrf write from lsu
+          lsuProbe.slots.map(slot => slot.dataInstruction === tag.U && slot.writeValid && slot.dataMask.orR) ++
+          // vrf write from Sequencer
+          Some(t1Probe.writeQueueEnq.bits === tag.U && t1Probe.writeQueueEnq.valid && t1Probe.writeQueueEnqMask.orR)
+      ).asUInt
+      // always equal to array index
+      scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
+      when(scoreboard.valid && !instructionValid(tag)) {
+        printf(
+          cf"""{"event":"VrfScoreboard","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
+        )
+        scoreboard.valid := false.B
+      }
+      when(scoreboardEnq(tag)) {
+        scoreboard.valid := true.B
+        assert(!scoreboard.valid)
+        scoreboard.bits := 0.U
+      }
+  }
 }
