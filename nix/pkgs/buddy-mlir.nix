@@ -17,8 +17,8 @@ stdenv.mkDerivation {
   src = fetchFromGitHub {
     owner = "buddy-compiler";
     repo = "buddy-mlir";
-    rev = "ec8a17969b645f0a0c1a822ffb04192b236b5c88";
-    hash = "sha256-3ecxei/nkx8sjgVkeQvZMaxr1CQXwhTz8aY1e0I3zBA=";
+    rev = "be2811cde9158faa0c08ad90801edf5ebfcf8e0e";
+    hash = "sha256-5ZFqDZZjMbVoqbEZ1mt1RXY2oR+VSQ6wJ1dQJCGrRC4=";
   };
   unpackPhase = ''
     # We can only use one-step build now...buddy-mlir have bad build system that always
@@ -33,15 +33,6 @@ stdenv.mkDerivation {
   sourceRoot = "llvm-project";
 
   nativeBuildInputs = [ cmake ninja python3 bintools ];
-
-  prePatch = "pushd ../buddy-mlir";
-  patches = [
-    (fetchpatch {
-      url = "https://github.com/buddy-compiler/buddy-mlir/pull/357.patch";
-      hash = "sha256-ysPcHAkrFJDtHmWVo35Wz6ullIGsP1EedYdJCq4fRX4=";
-    })
-  ];
-  postPatch = "popd";
 
   cmakeDir = "../llvm";
   cmakeFlags = [
