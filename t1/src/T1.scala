@@ -292,18 +292,18 @@ case class T1Parameter(
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 }
 
-class T1Probe(param: T1Parameter) extends Bundle {
-  val instructionCounter: UInt = UInt(param.instructionIndexBits.W)
+class T1Probe(parameter: T1Parameter) extends Bundle {
+  val instructionCounter: UInt = UInt(parameter.instructionIndexBits.W)
   val instructionIssue: Bool = Bool()
-  val issueTag: UInt = UInt(param.instructionIndexBits.W)
+  val issueTag: UInt = UInt(parameter.instructionIndexBits.W)
   val retireValid: Bool = Bool()
   // write queue enq for mask unit
-  val writeQueueEnq: ValidIO[UInt] = Valid(UInt(param.instructionIndexBits.W))
-  val writeQueueEnqMask: UInt = UInt((param.datapathWidth / 8).W)
+  val writeQueueEnq: ValidIO[UInt] = Valid(UInt(parameter.instructionIndexBits.W))
+  val writeQueueEnqMask: UInt = UInt((parameter.datapathWidth / 8).W)
   // mask unit instruction valid
-  val instructionValid: UInt = UInt((param.chainingSize * 2).W)
+  val instructionValid: UInt = UInt((parameter.chainingSize * 2).W)
   // instruction index for check rd
-  val responseCounter: UInt = UInt(param.instructionIndexBits.W)
+  val responseCounter: UInt = UInt(parameter.instructionIndexBits.W)
 }
 
 class T1Interface(parameter: T1Parameter) extends Record {
@@ -332,10 +332,10 @@ class T1Interface(parameter: T1Parameter) extends Record {
       "t1Probe" -> Output(Probe(new T1Probe(parameter))),
     ) ++
       Seq.tabulate(parameter.laneNumber)(
-        i => s"lane${i}Probe" -> Output(Probe(new LaneProbe(parameter.chainingSize, parameter.instructionIndexBits)))
+        i => s"lane${i}Probe" -> Output(Probe(new LaneProbe(parameter.laneParam)))
       ) ++
       Seq.tabulate(parameter.laneNumber)(
-        i => s"lane${i}VrfProbe" -> Output(Probe(new VRFProbe(parameter.laneParam.vrfParam.regNumBits, parameter.laneParam.vrfOffsetBits, parameter.laneParam.instructionIndexBits, parameter.laneParam.datapathWidth)))
+        i => s"lane${i}VrfProbe" -> Output(Probe(new VRFProbe(parameter.laneParam.vrfParam)))
       )
   )
 }
