@@ -3,7 +3,7 @@
 , stdenv
 , cmake
 , ninja
-, rocketv-verilated-csrc
+, verilated-csrc
 }:
 stdenv.mkDerivation {
   name = "rocketv-emulator";
@@ -16,12 +16,12 @@ stdenv.mkDerivation {
     verilator
   ];
 
-  cmakeFlags = lib.optionals rocketv-verilated-csrc.enable-trace [
+  cmakeFlags = lib.optionals verilated-csrc.enable-trace [
     "-DVM_TRACE=ON"
   ];
 
   env = {
-    VERILATED_INC_DIR = "${rocketv-verilated-csrc}/include";
-    VERILATED_LIB_DIR = "${rocketv-verilated-csrc}/lib";
+    VERILATED_INC_DIR = "${verilated-csrc}/include";
+    VERILATED_LIB_DIR = "${verilated-csrc}/lib";
   };
 }
