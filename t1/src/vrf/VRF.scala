@@ -564,9 +564,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   * Probe
   */
   @public
-  val probe = IO(Output(Probe(new VRFProbe(parameter))))
+  val vrfProbe = IO(Output(Probe(new VRFProbe(parameter))))
   val probeWire = Wire(new VRFProbe(parameter))
-  define(probe, ProbeValue(probeWire))
+  define(vrfProbe, ProbeValue(probeWire))
 
   probeWire.valid := writePipe.valid
   probeWire.requestVd := writePipe.bits.vd

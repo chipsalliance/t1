@@ -190,32 +190,24 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
 
   // Events for difftest and performance modeling
 
-  val laneProbes = dut.io.laneProbes.zipWithIndex.map {
-    case (p, idx) =>
-      val wire = Wire(p.cloneType).suggestName(s"lane${idx}Probe")
-      wire := probe.read(p)
-      wire
+  // Probes
+  val laneProbes = t1Probe.laneProbes.zipWithIndex.map {
+    case (lane, i) => lane.suggestName(s"lane${i}Probe")
   }
 
-  val lsuProbe = probe.read(dut.io.lsuProbe).suggestName("lsuProbe")
+  val lsuProbe = t1Probe.lsuProbe.suggestName("lsuProbe")
 
   val storeUnitProbe = lsuProbe.storeUnitProbe.suggestName("storeUnitProbe")
 
   val otherUnitProbe = lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
 
-  val laneVrfProbes = dut.io.laneVrfProbes.zipWithIndex.map {
-    case (p, idx) =>
-      val wire = Wire(p.cloneType).suggestName(s"lane${idx}VrfProbe")
-      wire := probe.read(p)
-      wire
-  }
-
   // vrf write
-  laneVrfProbes.zipWithIndex.foreach {
+  laneProbes.zipWithIndex.foreach {
     case (lane, i) =>
-      when(lane.valid)(
+      val vrf = lane.vrfProbe.suggestName(s"lane${i}VrfProbe")
+      when(vrf.valid)(
         printf(
-          cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
+          cf"""{"event":"VrfWrite","issue_idx":${vrf.requestInstruction},"vd":${vrf.requestVd},"offset":${vrf.requestOffset},"mask":"${vrf.requestMask}%x","data":"${vrf.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
         )
       )
   }

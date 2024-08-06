@@ -55,18 +55,15 @@ class LaneWriteProbe(instructionIndexBits: Int) extends Bundle {
 
 class LaneProbe(parameter: LaneParameter) extends Bundle {
   val slots = Vec(parameter.chainingSize, new LaneSlotProbe(parameter.instructionIndexBits))
-  // @todo @Clo91eaf remove valid here, add stall := valid & !ready
-  val laneRequestValid: Bool = Bool()
-  // @todo remove it.
-  val laneRequestReady: Bool = Bool()
+  val laneRequestStall: Bool = Bool()
   // @todo @Clo91eaf change to occupied for each slot.
   val lastSlotOccupied: Bool = Bool()
-  // @todo replace it with VRFProbe
-  val vrfInstructionWriteReportReady: Bool = Bool()
   val instructionFinished: UInt = UInt(parameter.chainingSize.W)
   val instructionValid: UInt = UInt(parameter.chainingSize.W)
 
   val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] = Vec(2, Valid(new LaneWriteProbe(parameter.instructionIndexBits)))
+
+  val vrfProbe: VRFProbe = new VRFProbe(parameter.vrfParam)
 }
 
 object LaneParameter {
@@ -314,11 +311,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val vrfReadyToStore: Bool = IO(Output(Bool()))
 
   @public
-  val probe: LaneProbe = IO(Output(Probe(new LaneProbe(parameter))))
-  val probeWire: LaneProbe = Wire(new LaneProbe(parameter))
-  define(probe, ProbeValue(probeWire))
-  @public
-  val vrfProbe = IO(Output(Probe(new VRFProbe(parameter.vrfParam))))
+  val laneProbe = IO(Output(Probe(new LaneProbe(parameter))))
+  val probeWire = Wire(new LaneProbe(parameter))
+  define(laneProbe, ProbeValue(probeWire))
 
   @public
   val vrfAllocateIssue: Bool = IO(Output(Bool()))
@@ -328,7 +323,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** VRF instantces. */
   val vrf: Instance[VRF] = Instantiate(new VRF(parameter.vrfParam))
-  define(vrfProbe, vrf.probe)
 
   /** TODO: review later
     */
@@ -1217,10 +1211,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   tokenManager.topWriteDeq.bits := allVrfWriteAfterCheck(parameter.chainingSize).instructionIndex
 
   // probe wire
-  probeWire.laneRequestValid := laneRequest.valid
-  probeWire.laneRequestReady := laneRequest.ready
+  probeWire.laneRequestStall := laneRequest.valid && !laneRequest.ready
   probeWire.lastSlotOccupied := slotOccupied.last
-  probeWire.vrfInstructionWriteReportReady := vrf.instructionWriteReport.ready
   probeWire.instructionFinished := instructionFinished
   probeWire.instructionValid := instructionValid
   probeWire.crossWriteProbe.zip(writeBusPort).foreach {case (pb, port) =>
@@ -1228,4 +1220,5 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     pb.bits.writeTag := port.deq.bits.instructionIndex
     pb.bits.writeMask := port.deq.bits.mask
   }
+  probeWire.vrfProbe := probe.read(vrf.vrfProbe)
 }
