@@ -52,6 +52,12 @@ pub(crate) enum JsonEvents {
     reason: u8,
     cycle: u64,
   },
+  RegWrite {
+    idx: u8,
+    #[serde(deserialize_with = "str_to_u32", default)]
+    data: u32,
+    cycle: u64,
+  },
   Issue {
     idx: u8,
     cycle: u64,
@@ -92,6 +98,12 @@ pub(crate) enum JsonEvents {
     issue_idx: u8,
     cycle: u64,
   },
+}
+
+pub struct RegWriteEvent {
+  pub idx: u8,
+  pub data: u32,
+  pub cycle: u64,
 }
 
 pub struct IssueEvent {
@@ -135,6 +147,8 @@ pub struct CheckRdEvent {
 }
 
 pub(crate) trait JsonEventRunner {
+  fn peek_reg_write(&mut self, reg_write: &RegWriteEvent) -> anyhow::Result<()>;
+
   fn peek_issue(&mut self, issue: &IssueEvent) -> anyhow::Result<()>;
 
   fn update_lsu_idx(&mut self, lsu_enq: &LsuEnqEvent) -> anyhow::Result<()>;
@@ -153,6 +167,23 @@ pub(crate) trait JsonEventRunner {
 }
 
 impl JsonEventRunner for SpikeRunner {
+  fn peek_reg_write(&mut self, reg_write: &RegWriteEvent) -> anyhow::Result<()> {
+    let cycle = reg_write.cycle;
+    let idx = reg_write.idx;
+    let data = reg_write.data;
+
+    let se = self.find_reg_write();
+
+    info!(
+      "[{cycle}] RegWrite: inst ({}) check reg write idx={idx}, data={data:08x}",
+      se.describe_insn()
+    );
+
+    assert_eq!(idx as u32, se.rd_idx, "idx should be equal to se.rd_idx");
+    assert_eq!(data, se.rd_bits, "data should be equal to se.rd_bits");
+    Ok(())
+  }
+
   fn peek_issue(&mut self, issue: &IssueEvent) -> anyhow::Result<()> {
     self.find_v_se_to_issue(); // ensure the front of queue is a new un-issued se
     let se = self.commit_queue.front_mut().unwrap();
@@ -163,7 +194,7 @@ impl JsonEventRunner for SpikeRunner {
     se.issue_idx = issue.idx as u8;
 
     info!(
-      "[{}] SpikePeekIssue: issue_idx={}, pc={:#x}, inst={}",
+      "[{}] Issue: issue_idx={}, pc={:#x}, inst={}",
       issue.cycle, issue.idx, se.pc, se.disasm
     );
 
