@@ -260,6 +260,7 @@ impl Driver {
     let size = 1 << arsize;
     let data = self.shadow_mem.read_mem_axi(addr, size, self.dlen / 8);
     let data_hex = hex::encode(&data);
+    self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_read_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
@@ -275,9 +276,9 @@ impl Driver {
     data: &[u8],
   ) {
     let size = 1 << awsize;
-
     self.shadow_mem.write_mem_axi(addr, size, self.dlen / 8, &strobe, data);
     let data_hex = hex::encode(data);
+    self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_write_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
@@ -289,6 +290,7 @@ impl Driver {
     assert!(size <= 4);
     let data = self.shadow_mem.read_mem_axi(addr, size, 4);
     let data_hex = hex::encode(&data);
+    self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_read_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
@@ -306,6 +308,7 @@ impl Driver {
     let size = 1 << awsize;
     self.shadow_mem.write_mem_axi(addr, size, 4, strobe, data);
     let data_hex = hex::encode(data);
+    self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_write_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
@@ -316,6 +319,7 @@ impl Driver {
     let size = 1 << arsize;
     let data = self.shadow_mem.read_mem_axi(addr, size, 4);
     let data_hex = hex::encode(&data);
+    self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_read_load_store (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
@@ -333,6 +337,7 @@ impl Driver {
     let size = 1 << awsize;
     self.shadow_mem.write_mem_axi(addr, size, 4, strobe, data);
     let data_hex = hex::encode(data);
+    self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_write_load_store (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
