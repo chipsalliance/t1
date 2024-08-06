@@ -27,7 +27,7 @@ class LaneOM extends Class {
   vfus := vfusIn
 }
 
-class LaneSlotProbe(instructionIndexBit: Int) extends Bundle {
+class LaneSlotProbe(instructionIndexBits: Int) extends Bundle {
   val stage0EnqueueReady: Bool = Bool()
   val stage0EnqueueValid: Bool = Bool()
   val changingMaskSet: Bool = Bool()
@@ -44,17 +44,17 @@ class LaneSlotProbe(instructionIndexBit: Int) extends Bundle {
 
   // write queue enq for lane
   val writeQueueEnq: Bool = Bool()
-  val writeTag: UInt = UInt(instructionIndexBit.W)
+  val writeTag: UInt = UInt(instructionIndexBits.W)
   val writeMask: UInt = UInt(4.W)
 }
 
-class LaneWriteProbe(instructionIndexBit: Int) extends Bundle {
-  val writeTag: UInt = UInt(instructionIndexBit.W)
+class LaneWriteProbe(instructionIndexBits: Int) extends Bundle {
+  val writeTag: UInt = UInt(instructionIndexBits.W)
   val writeMask: UInt = UInt(4.W)
 }
 
-class LaneProbe(slotsSize: Int, instructionIndexBit: Int) extends Bundle {
-  val slots = Vec(slotsSize, new LaneSlotProbe(instructionIndexBit))
+class LaneProbe(parameter: LaneParameter) extends Bundle {
+  val slots = Vec(parameter.chainingSize, new LaneSlotProbe(parameter.instructionIndexBits))
   // @todo @Clo91eaf remove valid here, add stall := valid & !ready
   val laneRequestValid: Bool = Bool()
   // @todo remove it.
@@ -63,10 +63,10 @@ class LaneProbe(slotsSize: Int, instructionIndexBit: Int) extends Bundle {
   val lastSlotOccupied: Bool = Bool()
   // @todo replace it with VRFProbe
   val vrfInstructionWriteReportReady: Bool = Bool()
-  val instructionFinished: UInt = UInt(slotsSize.W)
-  val instructionValid: UInt = UInt(slotsSize.W)
+  val instructionFinished: UInt = UInt(parameter.chainingSize.W)
+  val instructionValid: UInt = UInt(parameter.chainingSize.W)
 
-  val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] = Vec(2, Valid(new LaneWriteProbe(instructionIndexBit)))
+  val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] = Vec(2, Valid(new LaneWriteProbe(parameter.instructionIndexBits)))
 }
 
 object LaneParameter {
@@ -314,16 +314,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val vrfReadyToStore: Bool = IO(Output(Bool()))
 
   @public
-  val probe: LaneProbe = IO(Output(Probe(new LaneProbe(parameter.chainingSize, parameter.instructionIndexBits))))
-  val probeWire: LaneProbe = Wire(new LaneProbe(parameter.chainingSize, parameter.instructionIndexBits))
+  val probe: LaneProbe = IO(Output(Probe(new LaneProbe(parameter))))
+  val probeWire: LaneProbe = Wire(new LaneProbe(parameter))
   define(probe, ProbeValue(probeWire))
   @public
-  val vrfProbe = IO(Output(Probe(new VRFProbe(
-    parameter.vrfParam.regNumBits,
-    parameter.vrfOffsetBits,
-    parameter.instructionIndexBits,
-    parameter.datapathWidth
-  ))))
+  val vrfProbe = IO(Output(Probe(new VRFProbe(parameter.vrfParam))))
 
   @public
   val vrfAllocateIssue: Bool = IO(Output(Bool()))

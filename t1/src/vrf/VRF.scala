@@ -106,13 +106,13 @@ case class VRFParam(
   val vrfReadLatency = 2
 }
 
-class VRFProbe(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {
+class VRFProbe(parameter: VRFParam) extends Bundle {
   val valid: Bool = Bool()
-  val requestVd: UInt = UInt(regNumBits.W)
-  val requestOffset: UInt = UInt(offsetBits.W)
-  val requestMask: UInt = UInt((dataPathWidth / 8).W)
-  val requestData: UInt = UInt(dataPathWidth.W)
-  val requestInstruction: UInt = UInt(instructionIndexSize.W)
+  val requestVd: UInt = UInt(parameter.regNumBits.W)
+  val requestOffset: UInt = UInt(parameter.vrfOffsetBits.W)
+  val requestMask: UInt = UInt((parameter.datapathWidth / 8).W)
+  val requestData: UInt = UInt(parameter.datapathWidth.W)
+  val requestInstruction: UInt = UInt(parameter.instructionIndexBits.W)
 }
 
 /** Vector Register File.
@@ -564,8 +564,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   * Probe
   */
   @public
-  val probe = IO(Output(Probe(new VRFProbe(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits, parameter.datapathWidth))))
-  val probeWire = Wire(new VRFProbe(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits, parameter.datapathWidth))
+  val probe = IO(Output(Probe(new VRFProbe(parameter))))
+  val probeWire = Wire(new VRFProbe(parameter))
   define(probe, ProbeValue(probeWire))
 
   probeWire.valid := writePipe.valid
