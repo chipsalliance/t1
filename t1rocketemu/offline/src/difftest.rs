@@ -77,9 +77,9 @@ impl Difftest {
         self.runner.cycle = *cycle;
         self.runner.check_rd(&CheckRdEvent { data: *data, issue_idx: *issue_idx, cycle: *cycle })
       }
-      JsonEvents::VrfScoreboardReport { count, issue_idx, cycle } => {
+      JsonEvents::VrfScoreboard { count, issue_idx, cycle } => {
         self.runner.cycle = *cycle;
-        self.runner.vrf_scoreboard_report(&VrfScoreboardReportEvent {
+        self.runner.vrf_scoreboard(&VrfScoreboardEvent {
           count: *count,
           issue_idx: *issue_idx,
           cycle: *cycle,
