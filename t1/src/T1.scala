@@ -304,6 +304,9 @@ class T1Probe(parameter: T1Parameter) extends Bundle {
   val instructionValid: UInt = UInt((parameter.chainingSize * 2).W)
   // instruction index for check rd
   val responseCounter: UInt = UInt(parameter.instructionIndexBits.W)
+  // probes
+  val lsuProbe: LSUProbe = new LSUProbe(parameter.lsuParameters)
+  val laneProbes: Vec[LaneProbe] = Vec(parameter.laneNumber, new LaneProbe(parameter.laneParam))
 }
 
 class T1Interface(parameter: T1Parameter) extends Record {
@@ -314,11 +317,7 @@ class T1Interface(parameter: T1Parameter) extends Record {
   def highBandwidthLoadStorePort: AXI4RWIrrevocable = elements("highBandwidthLoadStorePort").asInstanceOf[AXI4RWIrrevocable]
   def indexedLoadStorePort: AXI4RWIrrevocable = elements("indexedLoadStorePort").asInstanceOf[AXI4RWIrrevocable]
   def om: Property[ClassType] = elements("om").asInstanceOf[Property[ClassType]]
-  // TODO: refactor to an single Probe to avoid using Record on the [[T1Interface]].
-  def lsuProbe: LSUProbe = elements("lsuProbe").asInstanceOf[LSUProbe]
   def t1Probe: T1Probe = elements("t1Probe").asInstanceOf[T1Probe]
-  def laneProbes: Seq[LaneProbe] = Seq.tabulate(parameter.laneNumber)(i => elements(s"lane${i}Probe").asInstanceOf[LaneProbe])
-  def laneVrfProbes: Seq[VRFProbe] = Seq.tabulate(parameter.laneNumber)(i => elements(s"lane${i}VrfProbe").asInstanceOf[VRFProbe])
   val elements: SeqMap[String, Data] = SeqMap.from(
     Seq(
       "clock" -> Input(Clock()),
@@ -328,15 +327,8 @@ class T1Interface(parameter: T1Parameter) extends Record {
       "highBandwidthLoadStorePort" -> new AXI4RWIrrevocable(parameter.axi4BundleParameter),
       "indexedLoadStorePort" -> new AXI4RWIrrevocable(parameter.axi4BundleParameter.copy(dataWidth=32)),
       "om" -> Output(Property[AnyClassType]()),
-      "lsuProbe" -> Output(Probe(new LSUProbe(parameter.lsuParameters))),
       "t1Probe" -> Output(Probe(new T1Probe(parameter))),
-    ) ++
-      Seq.tabulate(parameter.laneNumber)(
-        i => s"lane${i}Probe" -> Output(Probe(new LaneProbe(parameter.laneParam)))
-      ) ++
-      Seq.tabulate(parameter.laneNumber)(
-        i => s"lane${i}VrfProbe" -> Output(Probe(new VRFProbe(parameter.laneParam.vrfParam)))
-      )
+    ) 
   )
 }
 
@@ -1583,15 +1575,7 @@ class T1(val parameter: T1Parameter)
     lane
   }
 
-  laneVec.zipWithIndex.foreach { case (lane, index) =>
-    define(io.laneProbes(index), lane.probe)
-    define(io.laneVrfProbes(index), lane.vrfProbe)
-  }
-
   omInstance.lanesIn := Property(laneVec.map(_.om.asAnyClassType))
-
-  define(io.lsuProbe, lsu._probe)
-
   dataInWritePipeVec := VecInit(laneVec.map(_.writeQueueValid))
 
   // 连lsu
@@ -1745,6 +1729,8 @@ class T1(val parameter: T1Parameter)
     !slots.last.state.sMaskUnitExecution && !slots.last.state.idle,
     indexToOH(slots.last.record.instructionIndex, parameter.chainingSize * 2)).asUInt
   probeWire.responseCounter := responseCounter
+  probeWire.laneProbes.zip(laneVec).foreach { case (p, l) => p := probe.read(l.laneProbe) }
+  probeWire.lsuProbe := probe.read(lsu.lsuProbe)
 
 
   // new V Request from core

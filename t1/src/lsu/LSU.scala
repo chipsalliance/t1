@@ -246,9 +246,9 @@ class LSU(param: LSUParameter) extends Module {
   )
 
   @public
-  val _probe = IO(Output(Probe(new LSUProbe(param))))
+  val lsuProbe = IO(Output(Probe(new LSUProbe(param))))
   val probeWire = Wire(new LSUProbe(param))
-  define(_probe, ProbeValue(probeWire))
+  define(lsuProbe, ProbeValue(probeWire))
 
   // read vrf
   val otherTryReadVrf: UInt = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
