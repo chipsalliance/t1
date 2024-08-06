@@ -12,10 +12,7 @@ use elf::{
 };
 use std::collections::HashMap;
 use std::os::unix::fs::FileExt;
-use std::{
-  fs,
-  path::{Path, PathBuf},
-};
+use std::{fs, path::Path};
 use tracing::{debug, error, info, trace};
 
 struct ShadowMem {
