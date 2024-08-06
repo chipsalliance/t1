@@ -5,7 +5,7 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.util.{Cat, Decoupled, DecoupledIO, Valid, isPow2, log2Ceil}
+import chisel3.util.{Cat, Decoupled, DecoupledIO, Valid, ValidIO, isPow2, log2Ceil}
 
 // This file defines Bundle shared in the project.
 // all Bundle only have datatype without any helper or functions, while they only exist in the companion Bundle.
@@ -492,6 +492,14 @@ class DCSR extends Bundle {
   val step = Bool()
   val prv = UInt(PRV.SZ.W)
 }
+
+class VCSR extends Bundle {
+  val vtype: UInt = UInt(32.W)
+  val vl:    UInt = UInt(32.W)
+  val vcsr: UInt = UInt(32.W)
+  val vstart: UInt = UInt(32.W)
+}
+
 
 class MIP(nLocalInterrupts: Int) extends Bundle {
   val lip = Vec(nLocalInterrupts, Bool())
@@ -1398,4 +1406,45 @@ class FrontendBundle(vaddrBitsExtended: Int, vaddrBits: Int, asidBits: Int, entr
   val cpu = Flipped(new FrontendIO(vaddrBitsExtended, vaddrBits, asidBits, entries, bhtHistoryLength, bhtCounterLength, coreInstBits, fetchWidth))
   val ptw = new TLBPTWIO(nPMPs, vpnBits, paddrBits, vaddrBits, pgLevels, xLen, maxPAddrBits, pgIdxBits)
   val errors = new ICacheErrors(hasCorrectable, hasUncorrectable, paddrBits)
+}
+
+// Interface between T1 <> Rocket integration
+class RocketCoreToT1(xLen: Int, vlWidth: Int) extends Bundle {
+  val issue: DecoupledIO[T1Issue] = Decoupled(new T1Issue(xLen, vlWidth))
+  val retire: T1Retire = Flipped(new T1Retire(xLen))
+}
+
+class T1Issue(xLen: Int, vlWidth: Int) extends Bundle {
+  val instruction: UInt = UInt(32.W)
+  val rs1Data: UInt = UInt(xLen.W)
+  val rs2Data: UInt = UInt(xLen.W)
+  val vtype: UInt = UInt(32.W)
+  val vl:    UInt = UInt(32.W)
+  val vstart: UInt = UInt(32.W)
+  val vcsr: UInt = UInt(32.W)
+}
+
+object T1Issue {
+  def vlmul(issue: T1Issue): UInt = issue.vtype(2, 0)
+  def vsew(issue: T1Issue): UInt = issue.vtype(5, 3)
+  def vta(issue: T1Issue): Bool = issue.vtype(6)
+  def vma(issue: T1Issue): Bool = issue.vtype(7)
+  def vxrm(issue: T1Issue): UInt = issue.vcsr(2, 1)
+}
+
+class T1RdRetire(xLen: Int) extends Bundle {
+  val rdAddress: UInt = UInt(5.W)
+  val rdData:    UInt = UInt(xLen.W)
+  val isFp:      Bool = Bool()
+}
+
+class T1CSRRetire extends Bundle {
+  val vxsat: UInt = UInt(32.W)
+  val fflag: UInt = UInt(32.W)
+}
+
+class T1Retire(xLen: Int) extends Bundle {
+  val rd:  Valid[T1RdRetire] = Valid(new T1RdRetire(xLen))
+  val csr: Valid[T1CSRRetire] = Valid(new T1CSRRetire)
+  val mem: Valid[Bundle] = Valid(new Bundle {})
 }
