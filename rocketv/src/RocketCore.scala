@@ -9,7 +9,7 @@ import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.circt.ClockGate
 import chisel3.util.experimental.decode.DecodeBundle
-import chisel3.util.{BitPat, Cat, Fill, MuxLookup, PriorityEncoder, PriorityMux, RegEnable, log2Ceil}
+import chisel3.util.{BitPat, Cat, DecoupledIO, Fill, MuxLookup, PriorityEncoder, PriorityMux, Queue, RegEnable, log2Ceil, log2Up}
 import org.chipsalliance.rocketv.rvdecoderdbcompat.Causes
 import org.chipsalliance.rvdecoderdb.Instruction
 
@@ -43,9 +43,12 @@ case class RocketParameter(
                             fastLoadByte: Boolean,
                             fastLoadWord: Boolean,
                             dcacheNSets: Int,
-                            flushOnFenceI: Boolean
+                            flushOnFenceI: Boolean,
+                            usingT1: Boolean
                           )
   extends SerializableModuleParameter {
+  // interface to T1
+  def usingVector = hasInstructionSet("rv_v")
 
   // fixed for now
   def usingRVE = false
@@ -134,8 +137,6 @@ case class RocketParameter(
 
   // static to false for now
   def usingNMI = hasInstructionSet("rv_smrnmi")
-
-  def usingVector = hasInstructionSet("rv_v")
 
   // calculated parameter
   def fetchWidth: Int = if (usingCompressed) 2 else 1
@@ -311,6 +312,7 @@ class RocketInterface(parameter: RocketParameter) extends Bundle {
     )
   )
   val fpu = parameter.fLen.map(fLen => Flipped(new FPUCoreIO(parameter.hartIdLen, parameter.xLen, fLen)))
+  val t1 = Option.when(parameter.usingT1)(new RocketCoreToT1(parameter.xLen, parameter.vLen))
   val bpwatch = Output(Vec(parameter.nBreakpoints, new BPWatch))
   val cease = Output(Bool())
   val wfi = Output(Bool())
@@ -1201,6 +1203,7 @@ class Rocket(val parameter: RocketParameter)
             // 8. set FP scoreboard
             fpScoreboard.set(((wbDcacheMiss || Option.when(usingVector)(wbRegDecodeOutput(parameter.decoderParameter.vector)).getOrElse(false.B)) && wbRegDecodeOutput(parameter.decoderParameter.wfd) || fpu.sboard_set) && wbValid, wbWaddr)
             fpScoreboard.clear(dmemResponseReplay && dmemResponseFpu, dmemResponseWaddr)
+            io.t1.foreach(t1 => fpScoreboard.clear(t1.retire.rd.valid && t1.retire.rd.bits.isFp, t1.retire.rd.bits.rdAddress))
             fpScoreboard.clear(fpu.sboard_clr, fpu.sboard_clra)
             checkHazards(fpHazardTargets, fpScoreboard.read)
         }
@@ -1327,6 +1330,87 @@ class Rocket(val parameter: RocketParameter)
       fpu.dmem_resp_tag := dmemResponseWaddr
 //      fpu.keep_clock_enabled := io.ptw.customCSRs.disableCoreClockGate
       fpu.keep_clock_enabled := false.B
+    }
+
+    // TODO: T1 only logic
+    io.t1.foreach { t1 =>
+      // T1 Issue
+      val maxCount: Int = 32
+      val t1IssueQueue = Module(new Queue(chiselTypeOf(t1.issue.bits), maxCount))
+      t1IssueQueue.io.enq.valid := wbRegValid && !replayWbCommon && wbRegDecodeOutput(parameter.decoderParameter.vector)
+      t1IssueQueue.io.enq.bits.instruction := wbRegInstruction
+      t1IssueQueue.io.enq.bits.rs1Data := wbRegWdata
+      t1IssueQueue.io.enq.bits.rs2Data := wbRegRS2
+      t1IssueQueue.io.enq.bits.vtype := csr.io.csrToVector.get.vtype
+      t1IssueQueue.io.enq.bits.vl := csr.io.csrToVector.get.vl
+      t1IssueQueue.io.enq.bits.vstart := csr.io.csrToVector.get.vstart
+      t1IssueQueue.io.enq.bits.vcsr := csr.io.csrToVector.get.vcsr
+      t1.issue.valid := t1IssueQueue.io.deq.valid
+      t1.issue.bits := t1IssueQueue.io.deq.bits
+      t1IssueQueue.io.deq.ready := t1.issue.ready
+      // For each different retirements, it should maintain different scoreboard
+      val t1CSRRetireQueue: Queue[T1CSRRetire] = Module(new Queue(chiselTypeOf(t1.retire.csr.bits), maxCount))
+      val t1XRDRetireQueue: Queue[T1RdRetire] = Module(new Queue(chiselTypeOf(t1.retire.rd.bits), maxCount))
+
+      val countWidth = log2Up(maxCount)
+      def counterManagement(size: Int, margin: Int = 0)(grant: Bool, release: Bool, flush: Option[Bool] = None) = {
+        val counter: UInt = RegInit(0.U(size.W))
+        val nextCount = counter + Mux(grant, 1.U(size.W), (-1.S(size.W)).asUInt)
+        val updateCounter = grant ^ release
+        when(updateCounter) {
+          counter := nextCount
+        }
+        flush.foreach(f => when(f)(counter := 0.U))
+        val empty = (updateCounter && nextCount === 0.U) || counter === 0.U
+        val fullCounter: Int = (1 << size) - 1 - margin
+        val full = (updateCounter && nextCount >= fullCounter.U) || counter >= fullCounter.U
+        (empty, full)
+      }
+      // T1 Memory Scoreboard
+      val t1MemoryGrant:   Bool = t1IssueQueue.io.enq.valid && wbRegDecodeOutput(parameter.decoderParameter.vectorLSU)
+      val t1MemoryRelease: Bool = t1.retire.mem.fire
+      // todo: handle vector lsu in pipe
+      // +1: There are instructions that will enter t1
+      val (lsuEmpty, _) = counterManagement(countWidth + 1)(t1MemoryGrant, t1MemoryRelease)
+      // T1 CSR Scoreboard
+      // todo: add wbRegDecodeOutput(vectorWriteCsr)
+      val t1CSRGrant:   Bool = false.B
+      val t1CSRRelease: Bool = false.B // t1CSRRetireQueue.io.deq.fire
+      val (t1CSREmpty, _) = counterManagement(countWidth + 1)(t1CSRGrant, t1CSRRelease)
+      // T1 XRD Scoreboard?
+
+      // Maintain vector counter
+      // There may be 4 instructions in the pipe
+      val (_, vectorFull) = counterManagement(countWidth, 4)(t1IssueQueue.io.enq.valid, t1.issue.fire)
+      vectorLSUEmpty.foreach(_ := lsuEmpty)
+      vectorQueueFull.foreach(_ := vectorFull)
+
+      t1XRDRetireQueue.io.enq.valid := t1.retire.rd.valid
+      t1XRDRetireQueue.io.enq.bits := t1.retire.rd.bits
+      t1CSRRetireQueue.io.enq.valid := t1.retire.csr.valid
+      t1CSRRetireQueue.io.enq.bits := t1.retire.csr.bits
+      // todo: write csr here
+      t1CSRRetireQueue.io.deq.ready := true.B
+
+      val vectorTryToWriteRd = t1XRDRetireQueue.io.deq.valid && !t1XRDRetireQueue.io.deq.bits.isFp
+      val vectorTryToWriteFP = t1XRDRetireQueue.io.deq.valid && t1XRDRetireQueue.io.deq.bits.isFp
+      t1XRDRetireQueue.io.deq.ready := (!(wbWxd || (dmemResponseReplay && dmemResponseXpu)) || !vectorTryToWriteRd) && (!(dmemResponseReplay && dmemResponseFpu) || !vectorTryToWriteFP)
+
+      when(t1.retire.rd.fire && vectorTryToWriteRd) {
+        longlatencyWdata := t1.retire.rd.bits.rdData
+        longlatencyWaddress := t1.retire.rd.bits.rdAddress
+        longLatencyWenable := true.B
+      }
+      io.fpu.foreach { fpu =>
+        when(!(dmemResponseValid && dmemResponseFpu)) {
+          fpu.dmem_resp_val := t1.retire.mem.fire && vectorTryToWriteFP
+          fpu.dmem_resp_data := t1.retire.rd.bits.rdData
+          // todo: 32 bit only
+          fpu.dmem_resp_type := 2.U
+          // todo: connect tag
+          fpu.dmem_resp_tag := 0.U
+        }
+      }
     }
 
     io.dmem.req.valid := exRegValid && exRegDecodeOutput(parameter.decoderParameter.mem)
