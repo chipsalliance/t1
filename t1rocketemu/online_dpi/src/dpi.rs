@@ -206,7 +206,7 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
 ) {
   debug!(
     "axi_write_loadStore (channel_id={channel_id}, awid={awid}, awaddr={awaddr:#x}, \
-  awlen={awlen}, awsize=2^{awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
+  awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
   let mut driver = DPI_TARGET.lock().unwrap();
