@@ -19,7 +19,14 @@ rec {
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
   libspike_interfaces = final.callPackage ../difftest/spike_interfaces { };
-  buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { };
+
+  # DynamoCompiler doesn't support python 3.12+ yet
+  buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { python3 = final.python311; };
+  buddy-mlir-pyenv = final.buddy-mlir.pythonModule.withPackages (ps: [
+    final.buddy-mlir
+    ps.torch
+  ]);
+
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   rvv-codegen = final.callPackage ./pkgs/rvv-codegen.nix { };
