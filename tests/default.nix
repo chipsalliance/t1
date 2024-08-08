@@ -76,11 +76,12 @@ let
     perf = casesSelf.callPackage ./perf { };
     codegen = casesSelf.callPackage ./codegen { };
     rvv_bench = casesSelf.callPackage ./rvv_bench { };
+    pytorch = casesSelf.callPackage ./pytorch { };
   }));
 
   # remove non-case attributes in scope
   scopeStripped = {
-    inherit (scope) mlir intrinsic asm perf codegen rvv_bench;
+    inherit (scope) mlir intrinsic asm perf codegen rvv_bench pytorch;
   };
 
   # This derivation is for internal CI use only.
