@@ -368,7 +368,7 @@ class CSR(val parameter: CSRParameter)
     case (32, 2)                     => 1
     case (64, x) if x >= 3 && x <= 6 => x + 5
   }
-  def write(fiom: Envcfg, wdata: UInt) {
+  def write(fiom: Bool, wdata: UInt) {
     val new_envcfg = wdata.asTypeOf(new Envcfg)
     fiom := new_envcfg.fiom // only FIOM is writable currently
   }
@@ -1528,7 +1528,7 @@ class CSR(val parameter: CSRParameter)
       when(decoded_addr(CSRs.mideleg)) { reg_mideleg := wdata }
       when(decoded_addr(CSRs.medeleg)) { reg_medeleg := wdata }
       when(decoded_addr(CSRs.scounteren)) { reg_scounteren := wdata }
-      when(decoded_addr(CSRs.senvcfg)) { write(reg_senvcfg, wdata) }
+      when(decoded_addr(CSRs.senvcfg)) { write(reg_senvcfg.fiom, wdata) }
     }
 
     if (usingHypervisor) {
@@ -1603,11 +1603,11 @@ class CSR(val parameter: CSRParameter)
       when(decoded_addr(CSRs.vstvec)) { reg_vstvec := wdata }
       when(decoded_addr(CSRs.vscause)) { reg_vscause := wdata & scause_mask }
       when(decoded_addr(CSRs.vstval)) { reg_vstval := wdata }
-      when(decoded_addr(CSRs.henvcfg)) { write(reg_henvcfg, wdata) }
+      when(decoded_addr(CSRs.henvcfg)) { write(reg_henvcfg.fiom, wdata) }
     }
     if (usingUser) {
       when(decoded_addr(CSRs.mcounteren)) { reg_mcounteren := wdata }
-      when(decoded_addr(CSRs.menvcfg)) { write(reg_menvcfg, wdata) }
+      when(decoded_addr(CSRs.menvcfg)) { write(reg_menvcfg.fiom, wdata) }
     }
     if (nBreakpoints > 0) {
       when(decoded_addr(CSRs.tselect)) { reg_tselect := wdata }
