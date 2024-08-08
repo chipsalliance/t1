@@ -21,8 +21,8 @@ let
 
     dontUnpack = true;
 
-    difftestDriver = "${verilator-emu}/bin/online_drive";
-    difftestArgs = [
+    emuDriver = "${verilator-emu}/bin/online_drive";
+    emuDriverArgs = [
       "--elf-file"
       "${testCase}/bin/${testCase.pname}.elf"
       "--log-file"
@@ -37,9 +37,9 @@ let
 
       mkdir -p "$out"
 
-      echo "[nix] Running test case ${testCase.pname} with args $difftestArgs"
+      echo "[nix] Running test case ${testCase.pname} with args $emuDriverArgs"
 
-      RUST_BACKTRACE=full "$difftestDriver" $difftestArgs 2> "$rtlEventOutPath"
+      RUST_BACKTRACE=full "$emuDriver" $emuDriverArgs 2> "$rtlEventOutPath"
 
       echo "[nix] online driver done"
 
@@ -83,7 +83,7 @@ let
     passthru.with-trace = self.overrideAttrs (old: {
       name = old.name + "-with-trace";
       emuDriver = "${verilator-emu-trace}/bin/online_drive";
-      emuDriverArgs = old.emuDriverArgs ++ [ "--wave-path" "${placeholder "out"}/wave.fst" ];
+      emuDriverArgs = old.emuDriverArgs or [ ] ++ [ "--wave-path" "${placeholder "out"}/wave.fst" ];
       postCheck = ''
         if [ ! -r "$out/wave.fst" ]; then
           echo -e "[nix] \033[0;31mInternal Error\033[0m: waveform not found in output"
