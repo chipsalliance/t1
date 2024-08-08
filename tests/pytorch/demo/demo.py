@@ -10,10 +10,8 @@ def foo(x, y):
     return x * y + x
 
 # Define the input data.
-float32_in1 = torch.randn(10).to(torch.float32)
-float32_in2 = torch.randn(10).to(torch.float32)
-int32_in1 = torch.randint(0, 10, (10,)).to(torch.int32)
-int32_in2 = torch.randint(0, 10, (10,)).to(torch.int32)
+float32_in1 = torch.randn(512).to(torch.float32)
+float32_in2 = torch.randn(512).to(torch.float32)
 
 # Initialize the dynamo compiler.
 dynamo_compiler = DynamoCompiler(
@@ -28,4 +26,5 @@ graphs = dynamo_compiler.importer(foo, *(float32_in1, float32_in2))
 graph = graphs[0]
 graph.lower_to_top_level_ir()
 
-print(graph._imported_module)
+with open("forward.mlir", "w") as mlir_module:
+    print(graph._imported_module, file = mlir_module)
