@@ -9,7 +9,7 @@
 
 let
 
-  builder = makeBuilder { casePrefix = "mlir"; };
+  builder = makeBuilder { casePrefix = "pytorch"; };
   build = { caseName, sourcePath }:
     let
       buddyBuildConfig = import (sourcePath + "/config.nix");
