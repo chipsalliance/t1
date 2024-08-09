@@ -67,6 +67,7 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
   dut.io.mtip := 0.U
   dut.io.meip := 0.U
   dut.io.msip := 0.U
+  dut.io.seip.foreach(_ := 0.U)
   dut.io.buserror := 0.U
 
   // get resetVector from simulator
