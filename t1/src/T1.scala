@@ -122,6 +122,14 @@ case class T1Parameter(
         instruction => instruction.instructionSet.name match {
           case "rv_v" => true
           case "rv_zvbb" => if (zvbbEnable) true else false
+          // Zvk
+          case "rv_zvkg"   => if (zvkEnable) true else false
+          // case "rv_zvkn"   => if (zvkEnable) true else false // TODO: no implementations for SEW=64
+          case "rv_zvkned" => if (zvkEnable) true else false
+          case "rv_zvknha" => if (zvkEnable) true else false
+          // case "rv_zvknhb" => if (zvkEnable) true else false // TODO: no implementations for SEW=64
+          case "rv_zvksed" => if (zvkEnable) true else false
+          case "rv_zvksh"  => if (zvkEnable) true else false
           case _ => false
       }} ++
       t1customInstructions.map(_.instruction)
@@ -149,8 +157,11 @@ case class T1Parameter(
   /** does t1 has floating datapath? */
   val fpuEnable: Boolean = extensions.contains("Zve32f")
 
-  /** support of zvbb */
+  /** support of Zvbb */
   lazy val zvbbEnable: Boolean = extensions.contains("Zvbb")
+
+  /** support of Zvk */
+  lazy val zvkEnable: Boolean = extensions.contains("Zvk")
 
   /** how many chaining does T1 support, this is not a parameter yet. */
   val chainingSize: Int = 4
@@ -225,7 +236,7 @@ case class T1Parameter(
   // and the values are their respective delays.
   val crossLaneConnectCycles: Seq[Seq[Int]] = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
 
-  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
+  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, zvkEnable, allInstructions)
 
   /** paraemter for AXI4. */
   val axi4BundleParameter: AXI4BundleParameter = AXI4BundleParameter(

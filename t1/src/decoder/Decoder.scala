@@ -13,7 +13,7 @@ import org.chipsalliance.t1.rtl.decoder.attribute._
 object DecoderParam {
   implicit def rwP: upickle.default.ReadWriter[DecoderParam] = upickle.default.macroRW
 }
-case class DecoderParam(fpuEnable: Boolean, zvbbEnable: Boolean, allInstructions: Seq[Instruction])
+case class DecoderParam(fpuEnable: Boolean, zvbbEnable: Boolean, zvkEnable: Boolean, allInstructions: Seq[Instruction])
 
 trait T1DecodeFiled[D <: Data] extends DecodeField[T1DecodePattern, D] with FieldName
 
@@ -225,6 +225,10 @@ object Decoder {
     override def getTriState(pattern: T1DecodePattern): TriState = pattern.isZvbb.value
   }
 
+  object zvk extends BoolField {
+    override def getTriState(pattern: T1DecodePattern): TriState = pattern.isZvk.value
+  }
+
   object topUop extends T1TopUopField {
     override def genTable(pattern: T1DecodePattern): BitPat = pattern.topUop.value match {
       case _: TopT0.type => BitPat("b000")
@@ -420,6 +424,12 @@ object Decoder {
     if (param.zvbbEnable)
       Seq(
         zvbb,
+      )
+    else Seq()
+  } ++ {
+    if (param.zvkEnable)
+      Seq(
+        zvk,
       )
     else Seq()
   }

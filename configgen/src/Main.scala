@@ -100,7 +100,8 @@ object Main {
             Seq(0, 1, 2, 3))),
         floatModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
-        zvbbModuleParameters = Seq()
+        zvbbModuleParameters = Seq(),
+        zvkModuleParameters = Seq(),
       )
     )
     if (doEmit) param.emit(targetFile)
@@ -151,7 +152,9 @@ object Main {
         floatModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
         zvbbModuleParameters =
-          Seq((SerializableModuleGenerator(classOf[LaneZvbb], LaneZvbbParam(32, 3)), Seq(0, 1, 2, 3)))
+          Seq((SerializableModuleGenerator(classOf[LaneZvbb], LaneZvbbParam(32, 3)), Seq(0, 1, 2, 3))),
+        zvkModuleParameters =
+          Seq((SerializableModuleGenerator(classOf[LaneZvk], LaneZvkParam(32, 3)), Seq(0, 1, 2, 3))),
       )
     )
     if (doEmit) param.emit(targetFile)
@@ -201,7 +204,8 @@ object Main {
             ),
             Seq(0, 1, 2, 3))),
         floatModuleParameters = Seq(),
-        zvbbModuleParameters = Seq() // TODO
+        zvbbModuleParameters = Seq(),
+        zvkModuleParameters = Seq(),
       )
     )
     if (doEmit) param.emit(targetFile)
@@ -251,7 +255,8 @@ object Main {
             ),
             Seq(0, 1, 2, 3))),
         floatModuleParameters = Seq(),
-        zvbbModuleParameters = Seq() // TODO
+        zvbbModuleParameters = Seq(),
+        zvkModuleParameters = Seq(),
       )
     )
     if (doEmit) param.emit(targetFile)

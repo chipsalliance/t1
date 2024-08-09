@@ -184,6 +184,23 @@
             3
           ]
         ]
+      ],
+      "zvkModuleParameters": [
+        [
+          {
+            "parameter": {
+              "datapathWidth": 32,
+              "latency": 3
+            },
+            "generator": "org.chipsalliance.t1.rtl.LaneZvk"
+          },
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ]
       ]
     }
   },

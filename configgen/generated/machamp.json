@@ -151,7 +151,8 @@
         ]
       ],
       "floatModuleParameters": [],
-      "zvbbModuleParameters": []
+      "zvbbModuleParameters": [],
+      "zvkModuleParameters": []
     }
   },
   "generator": "org.chipsalliance.t1.rtl.T1"
