@@ -62,7 +62,7 @@ object Main:
           "--no-link",
           "--print-out-paths",
           "--no-warn-dirty",
-          s".#t1.${config}.${caseAttrRoot}.${caseName}"
+          s".#t1.${config}.ip.${caseAttrRoot}.${caseName}"
         )
         Logger.trace(
           s"Running `${nixArgs.mkString(" ")}` to get test case ELF file"
@@ -80,7 +80,7 @@ object Main:
   ): os.Path =
     // FIXME: replace with actual trace emulator here
     val target =
-      if (isTrace) then s"${emuType}.difftest" else s"${emuType}.difftest"
+      if (isTrace) then s"${emuType}.verilator-emu" else s"${emuType}.verilator-emu"
     val nixArgs = Seq(
       "nix",
       "build",
