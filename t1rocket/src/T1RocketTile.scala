@@ -365,7 +365,8 @@ case class T1RocketTileParameter(
           ),
           Seq(0, 1, 2, 3))),
       floatModuleParameters =
-        Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3)))
+        Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
+      zvbbModuleParameters = Seq()
     ) else
     VFUInstantiateParameter(
       slotCount = 4,
@@ -395,7 +396,8 @@ case class T1RocketTileParameter(
             OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
           ),
           Seq(0, 1, 2, 3))),
-      floatModuleParameters = Seq()
+      floatModuleParameters = Seq(),
+      zvbbModuleParameters = Seq()
     )
 
   def t1Parameter: T1Parameter = T1Parameter(
@@ -420,6 +422,11 @@ case class T1RocketTileParameter(
   def t1HighBandwidthParameter: AXI4BundleParameter = t1Parameter.axi4BundleParameter
 
   def t1HightOutstandingParameter: AXI4BundleParameter = t1Parameter.axi4BundleParameter.copy(dataWidth = 32)
+}
+
+class T1RocketProbe(parameter: T1RocketTileParameter) extends Bundle {
+  val rocketProbe: RocketProbe = Output(Probe(new RocketProbe(parameter.rocketParameter)))
+  val t1Probe: T1Probe = Output(Probe(new T1Probe(parameter.t1Parameter)))
 }
 
 class T1RocketTileInterface(parameter: T1RocketTileParameter) extends Bundle {
@@ -456,21 +463,8 @@ class T1RocketTileInterface(parameter: T1RocketTileParameter) extends Bundle {
   val highBandwidthAXI: AXI4RWIrrevocable = org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.t1HighBandwidthParameter)
   val highOutstandingAXI: AXI4RWIrrevocable = org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.t1HightOutstandingParameter)
 
-  val rocketProbe: RocketProbe = Output(Probe(new RocketProbe(parameter.rocketParameter)))
-  val t1Probe: T1Probe = Output(Probe(new T1Probe(parameter.t1Parameter)))
-  val lsuProbe: LSUProbe = Output(Probe(new LSUProbe(parameter.t1Parameter.lsuParameters)))
-  val laneProbes: Vec[LaneProbe] = Vec(parameter.t1Parameter.laneNumber, Output(Probe(new LaneProbe(
-      parameter.t1Parameter.laneParam.chainingSize, 
-      parameter.t1Parameter.laneParam.instructionIndexBits
-    )))
-  )
-  val laneVrfProbes: Vec[VRFProbe] = Vec(parameter.t1Parameter.laneNumber, Output(Probe(new VRFProbe(
-      parameter.t1Parameter.laneParam.vrfParam.regNumBits, 
-      parameter.t1Parameter.laneParam.vrfParam.vrfOffsetBits, 
-      parameter.t1Parameter.laneParam.vrfParam.instructionIndexBits, 
-      parameter.t1Parameter.laneParam.vrfParam.datapathWidth
-    )))
-  )
+  // TODO: merge it.
+  val t1RocketProbe: T1RocketProbe = Output(Probe(new T1RocketProbe(parameter)))
 }
 
 class T1RocketTile(val parameter: T1RocketTileParameter)
@@ -561,9 +555,8 @@ class T1RocketTile(val parameter: T1RocketTileParameter)
   io.highOutstandingAXI <> t1.io.indexedLoadStorePort
 
   // probe
-  define(io.rocketProbe, rocket.io.rocketProbe)
-  define(io.t1Probe, t1.io.t1Probe)
-  define(io.lsuProbe, t1.io.lsuProbe)
-  io.laneProbes.zipWithIndex.foreach { case (io, index) => define(io, t1.io.laneProbes(index)) }
-  io.laneVrfProbes.zipWithIndex.foreach { case (io, index) => define(io, t1.io.laneVrfProbes(index)) }
+  val probeWire = Wire(new T1RocketProbe(parameter))
+  define(io.t1RocketProbe, ProbeValue(probeWire))
+  probeWire.rocketProbe := probe.read(rocket.io.rocketProbe)
+  probeWire.t1Probe := probe.read(t1.io.t1Probe)
 }
