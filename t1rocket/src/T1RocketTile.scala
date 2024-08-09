@@ -425,8 +425,8 @@ case class T1RocketTileParameter(
 }
 
 class T1RocketProbe(parameter: T1RocketTileParameter) extends Bundle {
-  val rocketProbe: RocketProbe = Output(Probe(new RocketProbe(parameter.rocketParameter)))
-  val t1Probe: T1Probe = Output(Probe(new T1Probe(parameter.t1Parameter)))
+  val rocketProbe: RocketProbe = Output(new RocketProbe(parameter.rocketParameter))
+  val t1Probe: T1Probe = Output(new T1Probe(parameter.t1Parameter))
 }
 
 class T1RocketTileInterface(parameter: T1RocketTileParameter) extends Bundle {
