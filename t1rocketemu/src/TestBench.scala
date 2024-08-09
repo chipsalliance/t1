@@ -159,18 +159,16 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   // probes
   val t1RocketProbe = probe.read(dut.io.t1RocketProbe)
   val rocketProbe = t1RocketProbe.rocketProbe.suggestName(s"rocketProbe")
-  val t1Probe = t1RocketProbe.t1Probe
-  val lsuProbe = t1Probe.lsuProbe
+  val t1Probe = t1RocketProbe.t1Probe.suggestName(s"t1Probe")
+  val lsuProbe = t1Probe.lsuProbe.suggestName(s"t1LSUProbe")
   val laneProbes = t1Probe.laneProbes.zipWithIndex.map {
     case (p, idx) =>
-      val wire = Wire(p.cloneType).suggestName(s"lane${idx}Probe")
-      wire := probe.read(p)
+      val wire = WireDefault(p).suggestName(s"lane${idx}Probe")
       wire
   }
   val laneVrfProbes = t1Probe.laneProbes.map(_.vrfProbe).zipWithIndex.map {
     case (p, idx) =>
-      val wire = Wire(p.cloneType).suggestName(s"lane${idx}VrfProbe")
-      wire := probe.read(p)
+      val wire = WireDefault(p).suggestName(s"lane${idx}VrfProbe")
       wire
   }
   val storeUnitProbe = t1Probe.lsuProbe.storeUnitProbe.suggestName("storeUnitProbe")
