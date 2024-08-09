@@ -8,7 +8,7 @@ Assuming that the new PyTorch test have project name call `demo`, let's create t
 cd tests/pytorch
 mkdir -p demo
 cd demo
-touch demo.c demo.py config.nix
+touch demo.cc demo.py config.nix
 ```
 
 Developers should put their PyTorch implementation into "<project-name>.py" file.
@@ -25,30 +25,26 @@ For each PyTorch tests, developers should call the MLIR model from "<project-nam
 In our case, here is an example "demo.c" file:
 
 ```c
-// 1. Include the MemRef wrapper
-#include "memref.h"
+// 1. include the memref C++ wrapper.
+#include "memref.hpp"
 
-// 2. Create corresponding MemRef struct with data type `float` and one dimension.
-NEW_MEMREF(float, 1);
+// 2. Declare the MLIR C interface, the argument layout can be guess from the generated MLIR model.
+extern "C" void _mlir_ciface_forward(MemRef<float, 1> *output,
+                                     MemRef<float, 1> *arg1,
+                                     MemRef<float, 1> *arg2);
 
-// 3. Declare the MLIR model interface
-extern void _mlir_ciface_forward(struct MemRef_float_dim1 *output,
-                                 struct MemRef_float_dim1 *arg1,
-                                 struct MemRef_float_dim1 *arg2);
+// 3. Declare the data sizes, here we use a vector that is one-dimension, with length 512.
+static const int32_t sizes[1] = {512};
 
-// 4. Create example data array. The ".vdata" attribute will help emulator load the data into correct memory.
-__attribute((section(".vdata"))) float input_float_0[512] = {1, 2, 3};
-struct MemRef_float_dim1 input1 = {
-    .allocatedPtr = input_float_0,
-    .alignedPtr = input_float_0,
-    .offset = 0,
-    .sizes = {512},
-    .strides = {1},
-};
+// 4. Declare a static data and add ".vdata" annotation. This can indicate the emulator to put these data to correct memory.
+__attribute((section(".vdata"))) float input_float_1[512] = {1, 2, 3};
 
-// 5. Declare the main entry. In t1 all tests entry should be `int test()` instead of main().
-int test() {
-  _mlir_ciface_forward(&output, &input1, &input2);
+// 5. Declare a one dimension MemRef with float data type.
+MemRef<float, 1> input1(input_float_1, sizes);
+
+// 6. Mark the test function as extern "C", so that the linker can link it with our main function.
+extern "C" int test() {
+  // call _mlir_ciface_forward(...)
   return 0;
 }
 ```
@@ -61,7 +57,7 @@ file to indicate our build system to find and build the test case:
   # Tell our build system to include the memref.h header.
   # Developer could add extra headers here.
   includes = [
-    ../memref.h
+    ../memref.hpp
   ];
 
   # Tell the build system to run buddy-opt with three phrase, with arguments to run in each phrase
