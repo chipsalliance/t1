@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use clap::Parser;
-use std::ffi::{c_char, c_longlong, CString};
+use std::ffi::{c_char, c_longlong};
 use std::sync::Mutex;
 use tracing::debug;
 
@@ -271,10 +271,10 @@ unsafe extern "C" fn retire_vector_mem(dummy: *const SvBitVecVal) {
 // import functions and wrappers
 //--------------------------------
 
+#[cfg(feature = "trace")]
 mod dpi_export {
   use std::ffi::c_char;
   extern "C" {
-    #[cfg(feature = "trace")]
     /// `export "DPI-C" function dump_wave(input string file)`
     pub fn dump_wave(path: *const c_char);
   }
@@ -283,6 +283,7 @@ mod dpi_export {
 #[cfg(feature = "trace")]
 pub(crate) fn dump_wave(scope: crate::svdpi::SvScope, path: &str) {
   use crate::svdpi;
+  use std::ffi::CString;
   let path_cstring = CString::new(path).unwrap();
 
   svdpi::set_scope(scope);
