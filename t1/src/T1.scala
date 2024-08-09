@@ -307,8 +307,8 @@ class T1Probe(parameter: T1Parameter) extends Bundle {
   // probes
   val lsuProbe: LSUProbe = new LSUProbe(parameter.lsuParameters)
   val laneProbes: Vec[LaneProbe] = Vec(parameter.laneNumber, new LaneProbe(parameter.laneParam))
-  val issue: ValidIO[UInt] = Valid(UInt(param.instructionIndexBits.W))
-  val retire: ValidIO[UInt] = Valid(UInt(param.xLen.W))
+  val issue: ValidIO[UInt] = Valid(UInt(parameter.instructionIndexBits.W))
+  val retire: ValidIO[UInt] = Valid(UInt(parameter.xLen.W))
 }
 
 class T1Interface(parameter: T1Parameter) extends Record {
