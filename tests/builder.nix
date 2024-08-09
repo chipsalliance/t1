@@ -25,6 +25,7 @@ let
     name = pname;
 
     CC = "${stdenv.targetPlatform.config}-cc";
+    CXX = "${stdenv.targetPlatform.config}-c++";
 
     NIX_CFLAGS_COMPILE =
       let

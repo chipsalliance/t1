@@ -86,9 +86,9 @@ let
         buddy-llc forward.ll $buddyLLCArgs --filetype=obj -o forward.o
 
         echo "Using include dir $buddyIncludeDir"
+        $CXX -nostdlib -I$buddyIncludeDir -c ${caseName}.cc -o host.o
         $CC -T${linkerScript} \
-          -I$buddyIncludeDir \
-          ${caseName}.c forward.o ${t1main} \
+          host.o forward.o ${t1main} \
           -o $pname.elf
 
         runHook postBuild

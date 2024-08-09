@@ -1,6 +1,6 @@
 {
   includes = [
-    ../memref.h
+    ../memref.hpp
   ];
 
   buddyOptArgs = [
