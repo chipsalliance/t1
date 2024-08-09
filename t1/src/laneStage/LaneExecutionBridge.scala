@@ -23,6 +23,8 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
   val src:                 Vec[UInt]    = Vec(3, UInt(parameter.datapathWidth.W))
   val crossReadSource:     Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+  val zvkCrossReadSource:  Option[UInt] =
+    Option.when(isLastSlot && parameter.zvkEnable)(UInt((parameter.datapathWidth * 4).W))
   val bordersForMaskLogic: Bool         = Bool()
   val mask:                UInt         = UInt((parameter.datapathWidth / 8).W)
   val maskForFilter:       UInt         = UInt((parameter.datapathWidth / 8).W)
@@ -39,11 +41,13 @@ class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends 
 }
 
 class LaneExecuteResponse(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
-  val data:           UInt              = UInt(parameter.datapathWidth.W)
-  val ffoIndex:       UInt              = UInt(log2Ceil(parameter.vLen / 8).W)
-  val crossWriteData: Option[Vec[UInt]] = Option.when(isLastSlot)(Vec(2, UInt(parameter.datapathWidth.W)))
-  val ffoSuccess:     Option[Bool]      = Option.when(isLastSlot)(Bool())
-  val fpReduceValid:  Option[Bool]      = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
+  val data:              UInt              = UInt(parameter.datapathWidth.W)
+  val ffoIndex:          UInt              = UInt(log2Ceil(parameter.vLen / 8).W)
+  val crossWriteData:    Option[Vec[UInt]] = Option.when(isLastSlot)(Vec(2, UInt(parameter.datapathWidth.W)))
+  val zvkCrossWriteData: Option[Vec[UInt]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Vec(4, UInt(parameter.datapathWidth.W)))
+  val ffoSuccess:        Option[Bool]      = Option.when(isLastSlot)(Bool())
+  val fpReduceValid:     Option[Bool]      = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
 }
 
 class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -94,6 +98,12 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   // execution result from execute unit
   val executionResult = RegInit(0.U(parameter.datapathWidth.W))
   val crossWriteLSB:          Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+  val zvkCrossWriteLSB0:      Option[UInt] =
+    Option.when(isLastSlot && parameter.zvkEnable)(RegInit(0.U(parameter.datapathWidth.W)))
+  val zvkCrossWriteLSB1:      Option[UInt] =
+    Option.when(isLastSlot && parameter.zvkEnable)(RegInit(0.U(parameter.datapathWidth.W)))
+  val zvkCrossWriteLSB2:      Option[UInt] =
+    Option.when(isLastSlot && parameter.zvkEnable)(RegInit(0.U(parameter.datapathWidth.W)))
   val outStandingRequestSize: Int          = 4.max(parameter.vfuInstantiateParameter.maxLatency + 3)
   val outStanding:            UInt         = RegInit(0.U(log2Ceil(outStandingRequestSize).W))
   val outStandingUpdate:      UInt         = Mux(vfuRequest.fire, 1.U(outStanding.getWidth.W), (-1.S(outStanding.getWidth.W)).asUInt)
@@ -166,6 +176,9 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecord.maskForFilter       := enqueue.bits.maskForFilter
     executionRecord.source              := enqueue.bits.src
     executionRecord.crossReadSource.foreach(_ := enqueue.bits.crossReadSource.get)
+    if (parameter.zvkEnable) {
+      executionRecord.zvkCrossReadSource.foreach(_ := enqueue.bits.zvkCrossReadSource.get)
+    }
     executionRecord.sSendResponse.foreach(_ := enqueue.bits.sSendResponse.get)
     executionRecord.groupCounter        := enqueue.bits.groupCounter
     executionRecord.decodeResult        := enqueue.bits.decodeResult
@@ -178,9 +191,21 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
 
   /** collapse the dual SEW size operand for cross read. it can be vd or src2.
     */
-  val doubleCollapse: Option[UInt] = Option.when(isLastSlot) {
+  val doubleCollapse:    Option[UInt] = Option.when(isLastSlot) {
     val cutCrossReadData: Vec[UInt] = cutUInt(executionRecord.crossReadSource.get, parameter.datapathWidth)
     Mux(executionRecord.executeIndex, cutCrossReadData(1), cutCrossReadData(0))
+  }
+  val quadrupleCollapse: Option[UInt] = Option.when(isLastSlot && parameter.zvkEnable) {
+    val cutCrossReadData: Vec[UInt] = cutUInt(executionRecord.zvkCrossReadSource.get, parameter.datapathWidth)
+    Mux1H(
+      UIntToOH(executionRecord.zvkExecuteIndex.get),
+      Seq(
+        cutCrossReadData(0),
+        cutCrossReadData(1),
+        cutCrossReadData(2),
+        cutCrossReadData(3)
+      )
+    )
   }
 
   // For cross read, extend 32 bit source1 to 64 bit, then select by executeIndex
@@ -221,7 +246,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     )
   } else {
     normalSource1
-  }
+  } // TODO: vs1 cross
 
   val reduceFoldSource2: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
 
@@ -229,8 +254,13 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     */
   val finalSource2: UInt = if (isLastSlot) {
     Mux(
-      executionRecord.crossReadVS2,
-      doubleCollapse.get,
+      executionRecord.crossReadVS2, {
+        if (parameter.zvkEnable) {
+          Mux(executionRecord.decodeResult(Decoder.zvk), quadrupleCollapse.get, doubleCollapse.get)
+        } else {
+          doubleCollapse.get
+        }
+      },
       Mux(
         executionRecord.decodeResult(Decoder.crossWrite) || (executionRecord.decodeResult(
           Decoder.widenReduce
@@ -388,6 +418,17 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
 
     crossWriteLSB.foreach { crossWriteData =>
       crossWriteData := dataDequeue
+    }
+    if (parameter.zvkEnable) {
+      zvkCrossWriteLSB0.foreach { crossWriteData =>
+        crossWriteData := dataDequeue
+      }
+      zvkCrossWriteLSB1.zip(zvkCrossWriteLSB0).foreach { case (zvkCrossWriteData1, zvkCrossWriteData0) =>
+        zvkCrossWriteData1 := zvkCrossWriteData0
+      }
+      zvkCrossWriteLSB2.zip(zvkCrossWriteLSB1).foreach { case (zvkCrossWriteData2, zvkCrossWriteData1) =>
+        zvkCrossWriteData2 := zvkCrossWriteData1
+      }
     }
   }
 
@@ -576,6 +617,10 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   }
   queue.io.enq.bits.ffoIndex := recordQueue.io.deq.bits.groupCounter ## dataResponse.bits.data(4, 0)
   queue.io.enq.bits.crossWriteData.foreach(_ := VecInit((crossWriteLSB ++ Seq(dataDequeue)).toSeq))
+  if (parameter.zvkEnable) {
+    queue.io.enq.bits.zvkCrossWriteData
+      .foreach(_ := VecInit((zvkCrossWriteLSB0 ++ zvkCrossWriteLSB1 ++ zvkCrossWriteLSB2 ++ Seq(dataDequeue)).toSeq))
+  }
   queue.io.enq.bits.ffoSuccess.foreach(_ := dataResponse.bits.ffoSuccess)
   queue.io.enq.bits.fpReduceValid.foreach(_ := !waitFirstValidFire.get)
   recordQueue.io.deq.ready := dataResponse.valid || (recordNotExecute && queue.io.enq.ready)

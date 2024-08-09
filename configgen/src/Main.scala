@@ -102,14 +102,15 @@ object Main {
         ),
         floatModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
-        zvbbModuleParameters = Seq()
+        zvbbModuleParameters = Seq(),
+        zvkModuleParameters = Seq(),
       )
     )
     if (doEmit) param.emit(targetFile)
     param
   }
 
-  // DLEN256 VLEN256;   FP; VRF p0rw,p1rw bank1; LSU bank8  beatbyte 8; Zvbb
+  // DLEN256 VLEN256;   FP; VRF p0rw,p1rw bank1; LSU bank8  beatbyte 8; Zvbb; Zvk
   @main def psyduck(
     @arg(name = "target-file", short = 't') targetFile:           os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
@@ -119,7 +120,7 @@ object Main {
     val param = T1Parameter(
       vLen,
       dLen,
-      extensions = Seq("Zve32f", "Zvbb"),
+      extensions = Seq("Zve32f", "Zvbb", "Zvk"),
       t1customInstructions = Nil,
       vrfBankSize = 1,
       vrfRamType = RamType.p0rwp1rw,
@@ -155,7 +156,9 @@ object Main {
         floatModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
         zvbbModuleParameters =
-          Seq((SerializableModuleGenerator(classOf[LaneZvbb], LaneZvbbParam(32, 3)), Seq(0, 1, 2, 3)))
+          Seq((SerializableModuleGenerator(classOf[LaneZvbb], LaneZvbbParam(32, 3)), Seq(0, 1, 2, 3))),
+        zvkModuleParameters =
+          Seq((SerializableModuleGenerator(classOf[LaneZvk], LaneZvkParam(128, 3)), Seq(0, 1, 2, 3)), (SerializableModuleGenerator(classOf[LaneZvk256], LaneZvkParam(256, 3)), Seq(0, 1, 2, 3))),
       )
     )
     if (doEmit) param.emit(targetFile)
@@ -207,7 +210,8 @@ object Main {
           )
         ),
         floatModuleParameters = Seq(),
-        zvbbModuleParameters = Seq() // TODO
+        zvbbModuleParameters = Seq(),
+        zvkModuleParameters = Seq(),
       )
     )
     if (doEmit) param.emit(targetFile)
@@ -259,7 +263,8 @@ object Main {
           )
         ),
         floatModuleParameters = Seq(),
-        zvbbModuleParameters = Seq() // TODO
+        zvbbModuleParameters = Seq(),
+        zvkModuleParameters = Seq(),
       )
     )
     if (doEmit) param.emit(targetFile)

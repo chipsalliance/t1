@@ -53,7 +53,14 @@ object isItype {
       "vxor.vi",
       // rv_zvbb
       "vror.vi",
-      "vwsll.vi"
+      "vwsll.vi",
+      // rv_zvkned
+      "vaeskf1.vi",
+      "vaeskf2.vi",
+      // rv_zvksed
+      "vsm4k.vi",
+      // rv_zvksh
+      "vsm3c.vi"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }

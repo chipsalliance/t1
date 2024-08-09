@@ -408,7 +408,8 @@ case class T1RocketTileParameter(
         ),
         floatModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
-        zvbbModuleParameters = Seq()
+        zvbbModuleParameters = Seq(),
+        zvkModuleParameters = Seq()
       )
     else
       VFUInstantiateParameter(
@@ -442,7 +443,8 @@ case class T1RocketTileParameter(
           )
         ),
         floatModuleParameters = Seq(),
-        zvbbModuleParameters = Seq()
+        zvbbModuleParameters = Seq(),
+        zvkModuleParameters = Seq()
       )
 
   def t1Parameter: T1Parameter = T1Parameter(

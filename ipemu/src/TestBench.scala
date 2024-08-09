@@ -260,7 +260,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
         laneProbes.flatMap(laneProbe =>
           laneProbe.slots.map(slot => slot.writeTag === tag.U && slot.writeQueueEnq && slot.writeMask.orR)
         ) ++ laneProbes.flatMap(laneProbe =>
-          laneProbe.crossWriteProbe.map(cp => cp.bits.writeTag === tag.U && cp.valid && cp.bits.writeMask.orR)
+          laneProbe.crossWriteProbe.map(cp => cp.bits.writeTag === tag.U && cp.valid && cp.bits.writeMask.orR) // TODO: zvkCrossWriteProbe
         ) ++
           // vrf write from lsu
           lsuProbe.slots.map(slot => slot.dataInstruction === tag.U && slot.writeValid && slot.dataMask.orR) ++

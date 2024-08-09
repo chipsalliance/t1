@@ -13,7 +13,7 @@ import org.chipsalliance.t1.rtl.decoder.attribute._
 object DecoderParam {
   implicit def rwP: upickle.default.ReadWriter[DecoderParam] = upickle.default.macroRW
 }
-case class DecoderParam(fpuEnable: Boolean, zvbbEnable: Boolean, allInstructions: Seq[Instruction])
+case class DecoderParam(fpuEnable: Boolean, zvbbEnable: Boolean, zvkEnable: Boolean, allInstructions: Seq[Instruction])
 
 trait T1DecodeFiled[D <: Data] extends DecodeField[T1DecodePattern, D] with FieldName
 
@@ -225,6 +225,18 @@ object Decoder {
     override def getTriState(pattern: T1DecodePattern): TriState = pattern.isZvbb.value
   }
 
+  object zvk extends BoolField {
+    override def getTriState(pattern: T1DecodePattern): TriState = pattern.isZvk.value
+  }
+
+  object zvk128 extends BoolField {
+    override def getTriState(pattern: T1DecodePattern): TriState = pattern.isZvk128.value
+  }
+
+  object zvk256 extends BoolField {
+    override def getTriState(pattern: T1DecodePattern): TriState = pattern.isZvk256.value
+  }
+
   object topUop extends T1TopUopField {
     override def genTable(pattern: T1DecodePattern): BitPat = pattern.topUop.value match {
       case _: TopT0.type => BitPat("b000")
@@ -346,6 +358,24 @@ object Decoder {
           case _: zvbbUop9.type => BitPat("b1001") // pop
           case _ => BitPat.dontCare(4)
         }
+      case zvkCase:   ZvkUOPType   =>
+        zvkCase match {
+          case _: zvkUop0.type  => BitPat("b0000") // vghsh / vsm3c
+          case _: zvkUop1.type  => BitPat("b0001") // vgmul / vsm3me
+          case _: zvkUop2.type  => BitPat("b0010") // vaesdf
+          case _: zvkUop3.type  => BitPat("b0011") // vaesdm
+          case _: zvkUop4.type  => BitPat("b0100") // vaesef
+          case _: zvkUop5.type  => BitPat("b0101") // vaesem
+          case _: zvkUop6.type  => BitPat("b0110") // vaesz
+          case _: zvkUop7.type  => BitPat("b0111") // vaeskf1
+          case _: zvkUop8.type  => BitPat("b1000") // vaeskf2
+          case _: zvkUop9.type  => BitPat("b1001") // vsha2ms
+          case _: zvkUop10.type => BitPat("b1010") // vsha2ch
+          case _: zvkUop11.type => BitPat("b1011") // vsm4k
+          case _: zvkUop12.type => BitPat("b1100") // vsm4r
+          case _: zvkUop13.type => BitPat("b1101") // vsha2cl
+          case _ => BitPat.dontCare(4)
+        }
       case _ => BitPat.dontCare(4)
     }
   }
@@ -421,6 +451,14 @@ object Decoder {
     if (param.zvbbEnable)
       Seq(
         zvbb
+      )
+    else Seq()
+  } ++ {
+    if (param.zvkEnable)
+      Seq(
+        zvk,
+        zvk128,
+        zvk256
       )
     else Seq()
   }
