@@ -99,6 +99,7 @@ pub(crate) struct Driver {
   spike_runner: SpikeRunner,
 
   // SvScope from t1_cosim_init
+  #[cfg(feature = "trace")]
   scope: SvScope,
 
   #[cfg(feature = "trace")]
@@ -161,8 +162,9 @@ impl Driver {
 
     let mut self_ = Self {
       spike_runner: SpikeRunner::new(&args.common_args, false),
-      scope,
 
+      #[cfg(feature = "trace")]
+      scope,
       #[cfg(feature = "trace")]
       wave_path: args.wave_path.to_owned(),
       #[cfg(feature = "trace")]
