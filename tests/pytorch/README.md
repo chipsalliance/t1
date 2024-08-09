@@ -121,7 +121,7 @@ nix build '.#t1.blastoise.ip.cases.pytorch.demo.emu-result.with-trace' -L
 * How to debug the PyTorch code
 
 ```bash
-nix run '.#buddy-mlir-pyenv' -- demo.py
+nix run '.#buddy-mlir.pyenv' -- demo.py
 ```
 
 * How to run buddy compiler tools manually

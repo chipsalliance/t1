@@ -1,7 +1,6 @@
 { lib
 , linkerScript
 , buddy-mlir
-, buddy-mlir-pyenv
 , makeBuilder
 , findAndBuild
 , getTestRequiredFeatures
@@ -29,7 +28,7 @@ let
 
       featuresRequired = getTestRequiredFeatures sourcePath;
 
-      nativeBuildInputs = [ buddy-mlir-pyenv buddy-mlir ];
+      nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
 
       pythonArgs = buddyBuildConfig.pythonArgs or [ ];
       buddyTranslateArgs = buddyBuildConfig.buddyTranslateArgs or defaultBuddyTranslateArgs;
