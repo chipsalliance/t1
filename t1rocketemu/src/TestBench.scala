@@ -157,23 +157,24 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   loadStoreAgent.io.gateWrite := false.B
 
   // probes
-  val rocketProbe = probe.read(dut.io.rocketProbe).suggestName(s"rocketProbe")
-  val t1Probe = probe.read(dut.io.t1Probe).suggestName(s"t1Probe")
-  val lsuProbe = probe.read(dut.io.lsuProbe).suggestName(s"lsuProbe")
-  val laneProbes = dut.io.laneProbes.zipWithIndex.map {
+  val t1RocketProbe = probe.read(dut.io.t1RocketProbe)
+  val rocketProbe = t1RocketProbe.rocketProbe.suggestName(s"rocketProbe")
+  val t1Probe = t1RocketProbe.t1Probe
+  val lsuProbe = t1Probe.lsuProbe
+  val laneProbes = t1Probe.laneProbes.zipWithIndex.map {
     case (p, idx) =>
       val wire = Wire(p.cloneType).suggestName(s"lane${idx}Probe")
       wire := probe.read(p)
       wire
   }
-  val laneVrfProbes = dut.io.laneVrfProbes.zipWithIndex.map {
+  val laneVrfProbes = t1Probe.laneProbes.map(_.vrfProbe).zipWithIndex.map {
     case (p, idx) =>
       val wire = Wire(p.cloneType).suggestName(s"lane${idx}VrfProbe")
       wire := probe.read(p)
       wire
   }
-  val storeUnitProbe = lsuProbe.storeUnitProbe.suggestName("storeUnitProbe")
-  val otherUnitProbe = lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
+  val storeUnitProbe = t1Probe.lsuProbe.storeUnitProbe.suggestName("storeUnitProbe")
+  val otherUnitProbe = t1Probe.lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
 
   // output the probes
   // rocket reg write
@@ -220,7 +221,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   )
 
   // t1 lsu enq
-  when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"LsuEnq","enq":${lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
+  when(t1Probe.lsuProbe.reqEnq.orR)(printf(cf"""{"event":"LsuEnq","enq":${t1Probe.lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
 
   // t1 vrf scoreboard
   val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * generator.parameter.t1Parameter.chainingSize) { _ =>
