@@ -89,7 +89,8 @@ case class CSRParameter(
                          usingAtomics: Boolean,
                          usingDebug: Boolean,
                          usingMulDiv: Boolean,
-                         usingVector: Boolean)
+                         usingVector: Boolean,
+                         usingNMI: Boolean)
   extends SerializableModuleParameter {
 
   def pgLevels: Int = xLen match {
@@ -129,7 +130,6 @@ case class CSRParameter(
   def vaddrBitsExtended:       Int = vpnBitsExtended + pgIdxBits
   def hasBeu = false
   def usingHypervisor = false
-  def usingNMI = false
   def haveCFlush = false
   def retireWidth:                Int = 1
   private def pgLevelBits:        Int = 10 - log2Ceil(xLen / 32)

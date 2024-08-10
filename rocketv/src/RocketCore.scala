@@ -140,7 +140,6 @@ case class RocketParameter(
   // static to false for now
   def haveCease = hasInstruction("cease")
 
-  // static to false for now
   def usingNMI = hasInstructionSet("rv_smrnmi")
 
   def usingVector = hasInstructionSet("rv_v")
@@ -231,7 +230,8 @@ case class RocketParameter(
     usingAtomics: Boolean,
     usingDebug: Boolean,
     usingMulDiv: Boolean,
-    usingVector: Boolean
+    usingVector: Boolean,
+    usingNMI: Boolean
   )
   val decoderParameter = DecoderParameter(
     instructionSets,

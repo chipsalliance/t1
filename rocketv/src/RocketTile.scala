@@ -152,7 +152,6 @@ case class RocketTileParameter(
 
   // static for now
   def hasBeu:              Boolean = false
-  def usingNMI:            Boolean = false
   def usingHypervisor:     Boolean = false
   def usingDataScratchpad: Boolean = false
   def nLocalInterrupts:    Int = 0
@@ -202,6 +201,7 @@ case class RocketTileParameter(
     }
 
   def usingVM = hasInstructionSet("sfence.vma")
+  def usingNMI = hasInstructionSet("rv_smrnmi")
 
   def pgLevels: Int = xLen match {
     case 32 => 2
