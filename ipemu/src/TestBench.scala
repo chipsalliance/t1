@@ -4,6 +4,7 @@
 package org.chipsalliance.t1.ipemu
 
 import chisel3._
+import chisel3.choice.ModuleChoice
 import chisel3.experimental.dataview.DataViewable
 import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{ExtModule, SerializableModuleGenerator}
@@ -168,25 +169,26 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
     .zipWithIndex
     .foreach {
       case ((bundle: AXI4RWIrrevocableVerilog, channelName: String), index: Int) =>
-        val agent = Module(
-          new AXI4SlaveAgent(
-            AXI4SlaveAgentParameter(
-              name = channelName,
-              axiParameter = bundle.parameter,
-              outstanding = 4,
-              readPayloadSize = 1,
-              writePayloadSize = 1
-            )
-          )
-        ).suggestName(s"axi4_channel${index}_${channelName}")
-        agent.io.channel match {
+        val agentParameter = AXI4SlaveAgentParameter(
+          name = channelName,
+          axiParameter = bundle.parameter,
+          outstanding = 4,
+          readPayloadSize = 1,
+          writePayloadSize = 1
+        )
+        val agent = ModuleChoice(new EmptyAXI4SlaveAgent(agentParameter))(Seq(
+          AXI4SlaveAgent.EmptyAXI4SlaveAgent -> new EmptyAXI4SlaveAgent(agentParameter),
+          AXI4SlaveAgent.PreciseAXI4SlaveAgent -> new PreciseAXI4SlaveAgent(agentParameter),
+          AXI4SlaveAgent.SimpleAXI4SlaveAgent -> new SimpleAXI4SlaveAgent(agentParameter),
+        ))
+        agent.channel match {
           case io: AXI4RWIrrevocableVerilog => io <> bundle
         }
-        agent.io.clock := clock
-        agent.io.reset := reset
-        agent.io.channelId := index.U
-        agent.io.gateRead := false.B
-        agent.io.gateWrite := false.B
+        agent.clock := clock
+        agent.reset := reset
+        agent.channelId := index.U
+        agent.gateRead := false.B
+        agent.gateWrite := false.B
     }
 
   // Events for difftest and performance modeling
