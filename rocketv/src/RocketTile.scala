@@ -224,6 +224,7 @@ case class RocketTileParameter(
     instructionSets,
     vLen.getOrElse(0),
     usingUser,
+    usingSupervisor,
     hartIdLen,
     nPMPs,
     asidBits,

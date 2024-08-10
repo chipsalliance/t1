@@ -31,6 +31,7 @@ case class RocketParameter(
                             instructionSets: Set[String],
                             vLen: Int,
                             usingUser: Boolean,
+                            usingSupervisor: Boolean,
                             hartIdLen: Int,
                             nPMPs: Int,
                             asidBits: Int,
@@ -125,8 +126,6 @@ case class RocketParameter(
   def usingAtomics = hasInstructionSet("rv_a") || hasInstructionSet("rv64_a")
 
   def usingVM = hasInstructionSet("sfence.vma")
-
-  def usingSupervisor = hasInstruction("sret")
 
   // static to false for now
   def usingHypervisor = hasInstructionSet("rv_h") || hasInstructionSet("rv64_h")
