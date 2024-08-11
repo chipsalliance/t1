@@ -866,7 +866,7 @@ class CSR(val parameter: CSRParameter)
     sgeip_mask.sgeip := true.B
     read_mideleg & ~(hs_delegable_interrupts | sgeip_mask.asUInt)
   }
-  if (usingSupervisor) {
+  if (true) {
     val read_sie = reg_mie & sie_mask
     val read_sip = read_mip & sie_mask
     val read_sstatus = WireDefault(0.U.asTypeOf(new MStatus))

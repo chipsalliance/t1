@@ -2,7 +2,7 @@
   "parameter": {
     "useAsyncReset": false,
     "clockGate": true,
-    "instructionSets": ["rv32_i", "rv_smrnmi"],
+    "instructionSets": ["rv32_i", "rv_smrnmi", "sfence.vma"],
     "priv": "msu",
     "hartIdLen": 4,
     "useBPWatch": false,
