@@ -38,11 +38,12 @@ stdenv.mkDerivation {
       -I"$rocketChipVSrc" \
       ${lib.optionalString enable-trace "--trace-fst"} \
       --timing \
-      --threads 8 \
-      --threads-max-mtasks 8000 \
+      --threads 4 \
+      --threads-max-mtasks 4000 \
       -O1 \
       -Wno-WIDTHEXPAND \
       -Wno-LATCH \
+      -Wno-UNOPTTHREADS \
       --cc TestBench
 
     echo "[nix] building verilated C lib"
