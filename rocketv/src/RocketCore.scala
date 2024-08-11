@@ -125,7 +125,7 @@ case class RocketParameter(
 
   def usingAtomics = hasInstructionSet("rv_a") || hasInstructionSet("rv64_a")
 
-  def usingVM = hasInstructionSet("sfence.vma")
+  def usingVM = hasInstruction("sfence.vma")
 
   // static to false for now
   def usingHypervisor = hasInstructionSet("rv_h") || hasInstructionSet("rv64_h")
