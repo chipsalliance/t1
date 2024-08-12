@@ -62,9 +62,9 @@ let
         )
         rawCaseNames));
 
-  commonTests = buildTestsFromFile ./common.txt { featuresRequired = { extensions = [ ]; }; };
-  fpTests = buildTestsFromFile ./fp.txt { featuresRequired = { extensions = [ "zve32f" ]; }; };
-  zvbbTests = buildTestsFromFile ./zvbb.txt { featuresRequired = { extensions = [ "zvbb" ]; }; };
+  commonTests = buildTestsFromFile ./common.txt { passthru.featuresRequired = { extensions = [ ]; }; };
+  fpTests = buildTestsFromFile ./fp.txt { passthru.featuresRequired = { extensions = [ "zve32f" ]; }; };
+  zvbbTests = buildTestsFromFile ./zvbb.txt { passthru.featuresRequired = { extensions = [ "zvbb" ]; }; };
 in
 lib.recurseIntoAttrs (
   commonTests //

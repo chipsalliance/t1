@@ -1,13 +1,19 @@
 { lib
-, configName
-, rtlDesignMetadata
 , newScope
 , rv32-stdenv
 , runCommand
-, verilator-emu
-, verilator-emu-trace
-, vcs-emu
-, vcs-emu-trace
+
+, configName
+, rtlDesignMetadata
+
+, t1rocket-emu ? null
+, t1rocket-emu-trace ? null
+
+, verilator-emu ? null
+, verilator-emu-trace ? null
+
+, vcs-emu ? null
+, vcs-emu-trace ? null
 }:
 
 let
@@ -15,10 +21,9 @@ let
     let
       val = builtins.tryEval
         (lib.toInt
-          (lib.toLower
-            (lib.removeSuffix "b"
-              (lib.removePrefix "zvl"
-                (lib.toLower ext)))));
+          (lib.removeSuffix "b"
+            (lib.removePrefix "zvl"
+              (lib.toLower ext))));
     in
     if val.success then
       val.value
@@ -66,7 +71,15 @@ let
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
 
-    inherit verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace rtlDesignMetadata featuresSet;
+    inherit
+      verilator-emu
+      verilator-emu-trace
+      vcs-emu
+      vcs-emu-trace
+      t1rocket-emu
+      t1rocket-emu-trace
+      rtlDesignMetadata
+      featuresSet;
 
     makeEmuResult = casesSelf.callPackage ./make-emu-result.nix { };
 
@@ -83,7 +96,7 @@ let
       in
       if lib.pathExists extraFeatures then
         builtins.fromJSON (lib.fileContents extraFeatures)
-      else [ ];
+      else { };
 
     filterByFeatures = caseName: caseDrv:
       assert lib.assertMsg (caseDrv ? featuresRequired) "${caseName} doesn't have features specified";
@@ -175,7 +188,7 @@ let
     in
     runCommand "catch-${configName}-all-vcs-emu-result-for-ci" { } script;
 
-  all =
+  _all =
     let
       allCases = lib.filter
         lib.isDerivation
@@ -195,4 +208,4 @@ let
       { }
       script;
 in
-lib.recurseIntoAttrs (scopeStripped // { inherit all _allEmuResult _allVCSEmuResult; })
+lib.recurseIntoAttrs (scopeStripped // { inherit _all _allEmuResult _allVCSEmuResult; })
