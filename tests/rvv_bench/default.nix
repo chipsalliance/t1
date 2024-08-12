@@ -43,7 +43,7 @@ let
 
           patches = [ ./t1_runtime.patch ];
 
-          featuresRequired = lib.optionals (lib.elem caseName fpCases) [ "zve32f" ];
+          featuresRequired = lib.optionals (lib.elem caseName fpCases) { extensions = [ "zve32f" ]; };
 
           buildPhase = ''
             runHook preBuild
