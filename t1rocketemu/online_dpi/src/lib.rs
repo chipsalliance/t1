@@ -24,6 +24,10 @@ pub(crate) struct OfflineArgs {
   pub timeout: u64,
 }
 
+// quit signal
+const EXIT_POS: u32 = 0x4000_0000;
+const EXIT_CODE: u32 = 0xdead_beef;
+
 // keep in sync with TestBench.ClockGen
 pub const CYCLE_PERIOD: u64 = 20;
 
