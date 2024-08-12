@@ -1,5 +1,5 @@
 use crate::dpi::*;
-use crate::get_t;
+use crate::{ get_t, EXIT_CODE, EXIT_POS };
 use crate::svdpi::SvScope;
 use crate::OfflineArgs;
 
@@ -335,6 +335,14 @@ impl Driver {
     self.shadow_mem.write_mem_axi(addr, size, 32, strobe, data);
     let data_hex = hex::encode(data);
     self.last_commit_cycle = get_t();
+
+    // exit with code
+    if addr == EXIT_POS && data.len() == 4 && data == &EXIT_CODE.to_le_bytes() {
+      info!("exit successfully");
+      quit();
+      return;
+    }
+
     trace!(
       "[{}] axi_write_load_store (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
