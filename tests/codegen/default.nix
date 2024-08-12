@@ -4,21 +4,12 @@
 , makeBuilder
   # Instead of testing feature is supported on TOP level,
   # codegen case are always generated with supported code.
-, currentFeatures
+, featuresSet
 }:
 
 let
   builder = makeBuilder { casePrefix = "codegen"; };
   makeCaseName = lib.replaceStrings [ "." ] [ "_" ];
-  extraValueFromFeatures = pattern:
-    lib.last
-      (lib.splitString ":"
-        (lib.head
-          (lib.filter
-            (lib.hasPrefix pattern)
-            currentFeatures)));
-  vlen = extraValueFromFeatures "vlen";
-  xlen = extraValueFromFeatures "xlen";
 
   build = { rawCaseName, extra }:
     builder
@@ -36,8 +27,8 @@ let
           runHook preBuild
 
           ${rvv-codegen}/bin/single \
-            -VLEN "${vlen}" \
-            -XLEN "${xlen}" \
+            -VLEN "${featuresSet.vlen}" \
+            -XLEN "${featuresSet.xlen}" \
             -repeat 16 \
             -testfloat3level 2 \
             -configfile ${rvv-codegen}/configs/${rawCaseName}.toml \
@@ -71,13 +62,13 @@ let
         )
         rawCaseNames));
 
-  commonTests = buildTestsFromFile ./common.txt { featuresRequired = [ ]; };
-  fpTests = buildTestsFromFile ./fp.txt { featuresRequired = [ "zve32f" ]; };
-  zvbbTests = buildTestsFromFile ./zvbb.txt { featuresRequired = [ "zvbb" ]; };
+  commonTests = buildTestsFromFile ./common.txt { featuresRequired = { extensions = [ ]; }; };
+  fpTests = buildTestsFromFile ./fp.txt { featuresRequired = { extensions = [ "zve32f" ]; }; };
+  zvbbTests = buildTestsFromFile ./zvbb.txt { featuresRequired = { extensions = [ "zvbb" ]; }; };
 in
 lib.recurseIntoAttrs (
   commonTests //
-  lib.optionalAttrs (lib.elem "zve32f" currentFeatures) fpTests //
-  lib.optionalAttrs (lib.elem "zvbb" currentFeatures) zvbbTests
+  lib.optionalAttrs (lib.elem "zve32f" featuresSet.extensions) fpTests //
+  lib.optionalAttrs (lib.elem "zvbb" featuresSet.extensions) zvbbTests
 )
 

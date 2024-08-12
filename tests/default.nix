@@ -11,22 +11,62 @@
 }:
 
 let
-  # Add an extra abstract layer between test case and RTL design, so that we can have clean and organized way
-  # for developer to specify their required features without the need to parse ISA string themselves.
-  currentFeatures = [
-    "vlen:${rtlDesignMetadata.vlen}"
-    "dlen:${rtlDesignMetadata.dlen}"
-    "xlen:${if (lib.hasPrefix "rv32" rtlDesignMetadata.march) then "32" else "64"}"
-  ]
-  ++ (lib.splitString "_" rtlDesignMetadata.march);
+  getVLen = ext:
+    let
+      val = builtins.tryEval
+        (lib.toInt
+          (lib.toLower
+            (lib.removeSuffix "b"
+              (lib.removePrefix "zvl"
+                (lib.toLower ext)))));
+    in
+    if val.success then
+      val.value
+    else
+      throw "Invalid vlen extension `${ext}` specify, expect Zvl{N}b";
+
+  featuresSet = {
+    extensions = lib.splitString "_" rtlDesignMetadata.march;
+    xlen = if (lib.hasPrefix "rv32" rtlDesignMetadata.march) then 32 else 64;
+    vlen = getVLen (lib.last
+      (lib.filter
+        (x: lib.hasPrefix "zvl"
+          (lib.toLower x))));
+    inherit (rtlDesignMetadata) dlen;
+  };
 
   # isSubSetOf m n: n is subset of m
   isSubsetOf = m: n: lib.all (x: lib.elem x m) n;
 
+  # Return true if attribute in first argument exists in second argument, and the value is also equal.
+  #
+  # Example:
+  #
+  # hasIntersect { } { a = [1 2 3]; b = 4; }                 # true
+  # hasIntersect { a = [1]; } { a = [1 2 3]; b = 4; }        # true
+  # hasIntersect { a = [1]; b = 4; } { a = [1 2 3]; b = 4; } # true
+  # hasIntersect { a = [4]; } { a = [1 2 3]; b = 4; }        # false
+  # hasIntersect { c = 4; } { a = [1 2 3]; b = 4; }          # false
+  #
+  # hasIntersect :: AttrSet -> AttrSet -> Bool
+  hasIntersect = ma: na: with builtins; let
+    keysMa = attrNames ma;
+    keysNa = attrNames na;
+    intersectKeys = lib.filter (n: lib.elem n keysNa) (attrNames ma);
+    intersectValEquality = map
+      (key:
+        if typeOf (ma.${key}) == "list" then
+          isSubsetOf na.${key} ma.${key}
+        else ma.${key} == na.${key})
+      intersectKeys;
+  in
+  (length keysMa == 0) ||
+  ((length intersectKeys > 0) && all (isEqual: isEqual) intersectValEquality);
+
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
 
-    inherit verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace rtlDesignMetadata currentFeatures;
+    inherit verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace rtlDesignMetadata featuresSet;
 
     makeEmuResult = casesSelf.callPackage ./make-emu-result.nix { };
 
@@ -48,7 +88,7 @@ let
     filterByFeatures = caseName: caseDrv:
       assert lib.assertMsg (caseDrv ? featuresRequired) "${caseName} doesn't have features specified";
       # Test the case required extensions is supported by rtl design
-      isSubsetOf currentFeatures caseDrv.featuresRequired;
+      hasIntersect caseDrv.featuresRequired featuresSet;
 
     findAndBuild = dir: build:
       lib.recurseIntoAttrs (lib.pipe (builtins.readDir dir) [
