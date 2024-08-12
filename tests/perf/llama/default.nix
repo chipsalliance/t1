@@ -21,7 +21,7 @@ let
 in
 
 build {
-  featuresRequired = {
+  passthru.featuresRequired = {
     extensions = [ "zve32f" ];
   };
 

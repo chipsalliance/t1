@@ -45,7 +45,7 @@ jobs:
           nix build '.#t1.${{ matrix.config }}.ip.vcs-emu' --impure --no-link --cores 64
       - name: "Build all testcases"
         run: |
-          nix build ".#t1.${{ matrix.config }}.ip.cases.all" --max-jobs auto --no-link --cores 64
+          nix build ".#t1.${{ matrix.config }}.ip.cases._all" --max-jobs auto --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
