@@ -359,7 +359,7 @@ object Main:
 
     import scala.util.chaining._
     val testPlans: Seq[String] = emulatorConfigs.flatMap: configName =>
-      val allCasesPath = nixResolvePath(s".#t1.$configName.ip.cases.all")
+      val allCasesPath = nixResolvePath(s".#t1.$configName.ip.cases._all")
       os.walk(os.Path(allCasesPath) / "configs")
         .filter: path =>
           path.ext == "json"

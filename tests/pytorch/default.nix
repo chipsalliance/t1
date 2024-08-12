@@ -26,7 +26,7 @@ let
 
       src = sourcePath;
 
-      featuresRequired = getTestRequiredFeatures sourcePath;
+      passthru.featuresRequired = getTestRequiredFeatures sourcePath;
 
       nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
 
