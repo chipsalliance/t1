@@ -60,6 +60,7 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
   }
 
   val dut: RocketTile = withClockAndReset(clock, reset)(Module(generator.module()))
+  val resetVector = RawUnclockedNonVoidFunctionCall("get_resetvector", UInt(64.W))(simulationTime === 0.U)
   dut.io.clock := clockGen.clock.asClock
   dut.io.reset := clockGen.reset
   dut.io.hartid := 0.U
@@ -68,10 +69,13 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
   dut.io.meip := 0.U
   dut.io.msip := 0.U
   dut.io.seip.foreach(_ := 0.U)
+  dut.io.nmi.foreach(_ := false.B)
+  dut.io.nmiInterruptVector.foreach(_ := resetVector)
+  dut.io.nmiIxceptionVector.foreach(_ := resetVector)
   dut.io.buserror := 0.U
 
   // get resetVector from simulator
-  dut.io.resetVector := RawUnclockedNonVoidFunctionCall("get_resetvector", Const(UInt(64.W)))(simulationTime === 0.U)
+  dut.io.resetVector := resetVector
 
   // output probes
   val rocketProbe = probe.read(dut.io.rocketProbe)

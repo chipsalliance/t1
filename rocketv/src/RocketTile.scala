@@ -372,7 +372,7 @@ class RocketTileInterface(parameter: RocketTileParameter) extends Bundle {
   val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
 
   val hartid = Flipped(UInt(parameter.hartIdLen.W))
-  val resetVector = Input(Const(UInt(parameter.resetVectorBits.W)))
+  val resetVector = Input(UInt(parameter.resetVectorBits.W))
 
   val debug: Bool = Input(Bool())
   val mtip:  Bool = Input(Bool())

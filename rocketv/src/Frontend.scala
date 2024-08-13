@@ -202,7 +202,7 @@ case class FrontendParameter(
 class FrontendInterface(parameter: FrontendParameter) extends Bundle {
   val clock = Input(Clock())
   val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
-  val resetVector = Input(Const(UInt(parameter.resetVectorBits.W)))
+  val resetVector = Input(UInt(parameter.resetVectorBits.W))
   val nonDiplomatic = new FrontendBundle(
     parameter.vaddrBitsExtended,
     parameter.vaddrBits,
