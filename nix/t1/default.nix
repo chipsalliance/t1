@@ -37,7 +37,7 @@ lib.makeScope newScope
 
     rocketv = self.callPackage ../../rocketemu { };
 
-    t1rocketemu = self.callPackage ../../t1rocketemu { };
+    t1rocket = self.callPackage ../../t1rocketemu { };
 
     omreader-unwrapped = self.callPackage ./omreader.nix { };
     submodules = self.callPackage ./submodules.nix { };
@@ -84,22 +84,13 @@ lib.makeScope newScope
           omGet = args: lib.fileContents (runCommand "get-${args}" { } ''
             ${emu-omreader}/bin/omreader ${args} > $out
           '');
-          rtlDesignMetadata = {
+          rtlDesignMetadata = rec {
             march = omGet "march";
             extensions = builtins.fromJSON (omGet "extensionsJson");
             vlen = omGet "vlen";
             dlen = omGet "dlen";
+            xlen = if (lib.hasPrefix "rv32" march) then 32 else 64;
           };
-
-          cases = innerSelf.callPackage ../../tests {
-            inherit (ip) verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace rtlDesignMetadata;
-          };
-
-          # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
-          cases-x86 =
-            if system == "x86-64-linux"
-            then self.cases
-            else pkgsX86.t1."${configName}".cases;
 
           emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; };
           emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
@@ -119,8 +110,9 @@ lib.makeScope newScope
           };
           verilator-emu-rtl-verilated = innerSelf.callPackage ./verilated.nix { rtl = verilator-emu-rtl; stdenv = moldStdenv; };
           verilator-emu-rtl-verilated-trace = innerSelf.callPackage ./verilated.nix { rtl = verilator-emu-rtl; stdenv = moldStdenv; enable-trace = true; };
-          verilator-emu = innerSelf.callPackage ../../difftest/verilator.nix { verilated = verilator-emu-rtl-verilated; };
-          verilator-emu-trace = innerSelf.callPackage ../../difftest/verilator.nix { verilated = verilator-emu-rtl-verilated-trace; };
+
+          verilator-emu = innerSelf.callPackage ../../difftest/verilator.nix { inherit rtlDesignMetadata; verilated = verilator-emu-rtl-verilated; };
+          verilator-emu-trace = innerSelf.callPackage ../../difftest/verilator.nix { inherit rtlDesignMetadata; verilated = verilator-emu-rtl-verilated-trace; };
 
           # T1 VCS Emulator
           vcs-emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
@@ -137,8 +129,8 @@ lib.makeScope newScope
           };
           vcs-dpi-lib = innerSelf.callPackage ../../difftest/online_vcs { };
           vcs-dpi-lib-trace = vcs-dpi-lib.override { enable-trace = true; };
-          vcs-emu = innerSelf.callPackage ./vcs.nix { inherit vcs-dpi-lib; rtl = vcs-emu-rtl; };
-          vcs-emu-trace = innerSelf.callPackage ./vcs.nix { vcs-dpi-lib = vcs-dpi-lib-trace; rtl = vcs-emu-rtl; };
+          vcs-emu = innerSelf.callPackage ./vcs.nix { inherit vcs-dpi-lib rtlDesignMetadata; rtl = vcs-emu-rtl; };
+          vcs-emu-trace = innerSelf.callPackage ./vcs.nix { inherit rtlDesignMetadata; vcs-dpi-lib = vcs-dpi-lib-trace; rtl = vcs-emu-rtl; };
         };
 
         subsystem = rec {

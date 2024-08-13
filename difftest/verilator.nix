@@ -14,6 +14,8 @@
 , verilated
 , cmake
 , clang-tools
+
+, rtlDesignMetadata
 }:
 
 let
@@ -73,7 +75,9 @@ let
           clang-tools
         ];
       });
-      inherit libspike_interfaces;
+
+      inherit libspike_interfaces rtlDesignMetadata;
+      inherit (verilated) enable-trace;
 
       # enable debug info for difftest itself and libspike
       withDebug = self.overrideAttrs (old: {
@@ -84,6 +88,18 @@ let
         };
         dontStrip = true;
       });
+
+      # Here is an curry function:
+      #
+      #   * run-emulator.nix return type
+      #   run-emulator :: { callPackage Args... } -> emulatorDerivation -> testCase -> runCommandDerivation
+      #
+      #   * runEmulation attribute type:
+      #   runEmulation :: testCase -> runCommandDerivation
+      #
+      runEmulation = (callPackage ./run-emulator.nix { }) self;
+
+      cases = callPackage ../tests { emulator = self; };
     };
   };
 in
