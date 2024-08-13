@@ -89,7 +89,8 @@ case class CSRParameter(
                          usingAtomics: Boolean,
                          usingDebug: Boolean,
                          usingMulDiv: Boolean,
-                         usingVector: Boolean)
+                         usingVector: Boolean,
+                         usingNMI: Boolean)
   extends SerializableModuleParameter {
 
   def pgLevels: Int = xLen match {
@@ -129,7 +130,6 @@ case class CSRParameter(
   def vaddrBitsExtended:       Int = vpnBitsExtended + pgIdxBits
   def hasBeu = false
   def usingHypervisor = false
-  def usingNMI = false
   def haveCFlush = false
   def retireWidth:                Int = 1
   private def pgLevelBits:        Int = 10 - log2Ceil(xLen / 32)
@@ -786,10 +786,10 @@ class CSR(val parameter: CSRParameter)
     if (!usingNMI) mutable.LinkedHashMap()
     else
       mutable.LinkedHashMap[Int, Bits](
-        CustomCSRs.mnscratch -> reg_mnscratch,
-        CustomCSRs.mnepc -> sextTo(readEPC(reg_mnepc), xLen),
-        CustomCSRs.mncause -> reg_mncause,
-        CustomCSRs.mnstatus -> read_mnstatus.asUInt
+        CSRs.mnscratch -> reg_mnscratch,
+        CSRs.mnepc -> sextTo(readEPC(reg_mnepc), xLen),
+        CSRs.mncause -> reg_mncause,
+        CSRs.mnstatus -> read_mnstatus.asUInt
       )
 
   val context_csrs = mutable.LinkedHashMap[Int, Bits]() ++
@@ -1445,10 +1445,10 @@ class CSR(val parameter: CSRParameter)
 
     if (usingNMI) {
       val new_mnstatus = wdata.asTypeOf(new MNStatus())
-      when(decoded_addr(CustomCSRs.mnscratch)) { reg_mnscratch := wdata }
-      when(decoded_addr(CustomCSRs.mnepc)) { reg_mnepc := formEPC(wdata) }
-      when(decoded_addr(CustomCSRs.mncause)) { reg_mncause := wdata & ((BigInt(1) << (xLen - 1)) + BigInt(3)).U }
-      when(decoded_addr(CustomCSRs.mnstatus)) {
+      when(decoded_addr(CSRs.mnscratch)) { reg_mnscratch := wdata }
+      when(decoded_addr(CSRs.mnepc)) { reg_mnepc := formEPC(wdata) }
+      when(decoded_addr(CSRs.mncause)) { reg_mncause := wdata & ((BigInt(1) << (xLen - 1)) + BigInt(3)).U }
+      when(decoded_addr(CSRs.mnstatus)) {
         reg_mnstatus.mpp := legalizePrivilege(new_mnstatus.mpp)
         reg_mnstatus.mpv := usingHypervisor.B && new_mnstatus.mpv
         reg_rnmie := reg_rnmie | new_mnstatus.mie // mnie bit settable but not clearable from software
