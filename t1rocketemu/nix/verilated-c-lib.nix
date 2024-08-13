@@ -25,7 +25,7 @@ stdenv.mkDerivation {
 
   nativeBuildInputs = [ verilator ];
 
-  propagatedBuildInputs = lib.optionals enable-trace [ zlib ];
+  propagatedBuildInputs = [ zlib ];
 
   env.rocketChipVSrc = "${rocket-chip-v-src}/src/main/resources/vsrc/";
 

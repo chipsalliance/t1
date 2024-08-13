@@ -162,8 +162,9 @@ object Main:
 
         val testAttr = testType.toLowerCase() match
           case "verilator" =>
-            s".#t1.$config.ip.cases.$caseName.emu-result.with-offline"
-          case "vcs" => s".#t1.$config.ip.cases.$caseName.emu-result.with-vcs"
+            s".#t1.$config.ip.cases.$caseName.emu-result.verilator-check"
+          case "vcs" => s".#t1.$config.ip.cases.$caseName.emu-result.vcs-check"
+          case "t1rocket" => s".#t1.t1rocketemu.cases.$caseName.emu-result.t1rocket-check"
           case _     => Logger.fatal(s"Invalid test type ${testType}")
         val testResultPath =
           try

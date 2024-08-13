@@ -4,41 +4,24 @@
 , runCommand
 
 , configName
-, rtlDesignMetadata
 
-, t1rocket-emu ? null
-, t1rocket-emu-trace ? null
-
-, verilator-emu ? null
-, verilator-emu-trace ? null
-
-, vcs-emu ? null
-, vcs-emu-trace ? null
+, emulator
 }:
 
-let
-  getVLen = ext:
-    let
-      val = builtins.tryEval
-        (lib.toInt
-          (lib.removeSuffix "b"
-            (lib.removePrefix "zvl"
-              (lib.toLower ext))));
-    in
-    if val.success then
-      val.value
-    else
-      throw "Invalid vlen extension `${ext}` specify, expect Zvl{N}b";
+assert lib.assertMsg (lib.isDerivation emulator) "emulator in malform, expect an derivation";
+assert lib.assertMsg (emulator ? runEmulation) "emulator ${emulator.name} doesn't contains `runEmulation` hooks";
+assert lib.assertMsg (builtins.typeOf emulator.runEmulation == "lambda") "emulator ${emulator.name} have wrong `runEmulation` hook";
 
-  featuresSet = rec {
-    extensions = lib.splitString "_" rtlDesignMetadata.march;
-    xlen = if (lib.hasPrefix "rv32" rtlDesignMetadata.march) then 32 else 64;
-    vlen = getVLen (lib.last
-      (lib.filter
-        (x: lib.hasPrefix "zvl"
-          (lib.toLower x))
-        extensions));
-    inherit (rtlDesignMetadata) dlen;
+let
+  # TODO
+  # In next PR, I would love to have `featureSet` became same as the `rtlDesignMetadata`,
+  # which is populate from OM data.
+  # Keep it here now, for compatibility so that we can do fast code iteraction.
+  #
+  # Assignee @Avimitin.
+  featuresSet = {
+    extensions = lib.splitString "_" emulator.rtlDesignMetadata.march;
+    inherit (emulator.rtlDesignMetadata) march xlen vlen dlen;
   };
 
   # isSubSetOf m n: n is subset of m
@@ -58,7 +41,7 @@ let
   hasIntersect = ma: na: with builtins; let
     keysMa = attrNames ma;
     keysNa = attrNames na;
-    intersectKeys = lib.filter (n: lib.elem n keysNa) (attrNames ma);
+    intersectKeys = lib.filter (m: lib.elem m keysNa) keysMa;
     intersectValEquality = map
       (key:
         if typeOf (ma.${key}) == "list" then
@@ -72,17 +55,7 @@ let
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
 
-    inherit
-      verilator-emu
-      verilator-emu-trace
-      vcs-emu
-      vcs-emu-trace
-      t1rocket-emu
-      t1rocket-emu-trace
-      rtlDesignMetadata
-      featuresSet;
-
-    makeEmuResult = casesSelf.callPackage ./make-emu-result.nix { };
+    inherit emulator featuresSet;
 
     makeBuilder = casesSelf.callPackage ./builder.nix { };
 
@@ -159,9 +132,9 @@ let
         (caseDrv: ''
           _caseOutDir=$out/${caseDrv.pname}
           mkdir -p "$_caseOutDir"
-          cp ${caseDrv.emu-result.with-offline}/perf.txt "$_caseOutDir"/
-          cp ${caseDrv.emu-result.with-offline}/offline-check-status "$_caseOutDir"/
-          cp ${caseDrv.emu-result.with-offline}/offline-check-journal "$_caseOutDir"/
+          cp ${caseDrv.emu-result}/perf.txt "$_caseOutDir"/
+          cp ${caseDrv.emu-result}/offline-check-status "$_caseOutDir"/
+          cp ${caseDrv.emu-result}/offline-check-journal "$_caseOutDir"/
         '')
         allCases);
     in
@@ -183,7 +156,7 @@ let
         (caseDrv: ''
           _caseOutDir=$out/${caseDrv.pname}
           mkdir -p "$_caseOutDir"
-          cp ${caseDrv.emu-result.with-vcs}/offline-check-* "$_caseOutDir"/
+          cp ${caseDrv.emu-result}/offline-check-* "$_caseOutDir"/
         '')
         allCases);
     in

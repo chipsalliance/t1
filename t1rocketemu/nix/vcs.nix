@@ -1,17 +1,15 @@
 { lib
-, callPackage
 , bash
 , stdenv
-, configName
 , rtl
+, callPackage
 , vcs-dpi-lib
 , vcs-fhs-env
-, rtlDesignMetadata
 }:
 
 let
   self = stdenv.mkDerivation {
-    name = "${configName}-vcs";
+    name = "t1rocket-vcs";
 
     # require license
     __noChroot = true;
@@ -42,19 +40,14 @@ let
 
     passthru = {
       inherit (vcs-dpi-lib) enable-trace;
-      inherit vcs-fhs-env rtlDesignMetadata;
+      inherit vcs-fhs-env;
 
-      # Here is an curry function:
-      #
-      #   * run-emulator.nix return type
-      #   run-emulator :: { callPackage Args... } -> emulatorDerivation -> testCase -> runCommandDerivation
-      #
-      #   * runEmulation attribute type:
-      #   runEmulation :: testCase -> runCommandDerivation
-      #
+      cases = callPackage ../../tests {
+        configName = "t1rocket";
+        emulator = self;
+      };
+
       runEmulation = (callPackage ./run-vcs-emulation.nix { }) self;
-
-      cases = callPackage ../../tests { emulator = self; };
     };
 
     shellHook = ''

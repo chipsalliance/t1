@@ -1,42 +1,42 @@
 { lib
 , enableDebugging
-, libspike
-, libspike_interfaces
 , callPackage
-, elaborateConfig
-
 , rustPlatform
+, cmake
+, clang-tools
 
 , rust-analyzer
 , rust-bindgen
 
+, libspike
+, libspike_interfaces
 , verilator
-, verilated
-, cmake
-, clang-tools
+, verilated-c-lib
+
+, rtlDesignMetadata
 }:
 
 let
   self = rustPlatform.buildRustPackage {
-    name = "verilator-emu" + (lib.optionalString verilated.enable-trace "-trace");
+    name = "t1rocket-verilator-emu" + (lib.optionalString verilated-c-lib.enable-trace "-trace");
 
     src = with lib.fileset; toSource {
-      root = ./.;
+      root = ../.;
       fileset = unions [
-        ./spike_rs
-        ./offline
-        ./online_dpi
-        ./online_drive
-        ./online_vcs
-        ./test_common
-        ./Cargo.lock
-        ./Cargo.toml
+        ../spike_rs
+        ../offline
+        ../online_dpi
+        ../online_drive
+        ../online_vcs
+        ../test_common
+        ../Cargo.lock
+        ../Cargo.toml
       ];
     };
 
     buildInputs = [
       libspike_interfaces
-      verilated
+      verilated-c-lib
     ];
 
     nativeBuildInputs = [
@@ -44,23 +44,20 @@ let
       cmake
     ];
 
-    buildFeatures = lib.optionals verilated.enable-trace [ "trace" ];
+    buildFeatures = lib.optionals verilated-c-lib.enable-trace [ "trace" ];
 
     env = {
-      VERILATED_INC_DIR = "${verilated}/include";
-      VERILATED_LIB_DIR = "${verilated}/lib";
+      VERILATED_INC_DIR = "${verilated-c-lib}/include";
+      VERILATED_LIB_DIR = "${verilated-c-lib}/lib";
       SPIKE_LIB_DIR = "${libspike}/lib";
       SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
-      SPIKE_ISA_STRING =
-        "rv32gc" +
-        (builtins.concatStringsSep "_" elaborateConfig.parameter.extensions)
-        + "_Zvl${toString elaborateConfig.parameter.vLen}b";
-      DESIGN_VLEN = elaborateConfig.parameter.vLen;
-      DESIGN_DLEN = elaborateConfig.parameter.dLen;
+      SPIKE_ISA_STRING = rtlDesignMetadata.march;
+      DESIGN_VLEN = rtlDesignMetadata.vlen;
+      DESIGN_DLEN = rtlDesignMetadata.dlen;
     };
 
     cargoLock = {
-      lockFile = ./Cargo.lock;
+      lockFile = ../Cargo.lock;
     };
 
     dontUseCmakeConfigure = true;
@@ -73,7 +70,9 @@ let
           clang-tools
         ];
       });
-      inherit libspike_interfaces;
+
+      inherit (verilated-c-lib) enable-trace;
+      inherit libspike_interfaces rtlDesignMetadata;
 
       # enable debug info for difftest itself and libspike
       withDebug = self.overrideAttrs (old: {
@@ -84,6 +83,13 @@ let
         };
         dontStrip = true;
       });
+
+      cases = callPackage ../../tests {
+        configName = "t1rocket";
+        emulator = self;
+      };
+
+      runEmulation = (callPackage ./run-emulator.nix { }) self;
     };
   };
 in
