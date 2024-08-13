@@ -1010,10 +1010,12 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     io.loadStoreAXI.aw.valid := memAccessValid && !accessWillRead
     io.loadStoreAXI.aw.bits := DontCare
+    io.loadStoreAXI.aw.bits.id := a_source
     io.loadStoreAXI.aw.bits.burst := 1.U
     io.loadStoreAXI.aw.bits.addr := access_address
     io.loadStoreAXI.aw.bits.len := 0.U
     io.loadStoreAXI.aw.bits.size := a_size
+    io.loadStoreAXI.aw.bits.user := s2_uncached
 
     val dataQueue: Queue[W] = Module(new Queue(chiselTypeOf(io.loadStoreAXI.w.bits), cacheDataBeats))
     dataQueue.io.enq.valid := memAccessValid && !accessWillRead
@@ -1051,10 +1053,11 @@ class HellaCache(val parameter: HellaCacheParameter)
               r.cmd := Mux(s2_write, Mux(s2_req.cmd === M_PWR, M_PWR, M_XWR), M_XRD)
             }
         }
-      }.otherwise {
-        cached_grant_wait := true.B
-        refill_way := s2_victim_or_hit_way
       }
+    }
+    when(io.loadStoreAXI.ar.fire && !s2_uncached) {
+      cached_grant_wait := true.B
+      refill_way := s2_victim_or_hit_way
     }
 
     def axiHelper(x: AXI4ChiselBundle, fire: Bool): (Bool, Bool, Bool, UInt) = {
@@ -1143,12 +1146,24 @@ class HellaCache(val parameter: HellaCacheParameter)
     }
 
     io.loadStoreAXI.b.ready := true.B
+    val writeAckUC: Bool = io.loadStoreAXI.b.bits.user(0)
+    val UCWriteAckIndex: UInt =
+      (UIntToOH(io.loadStoreAXI.b.bits.id, maxUncachedInFlight + mmioOffset) >> mmioOffset).asUInt
     when(io.loadStoreAXI.b.fire) {
       assert(
         release_ack_wait,
         "A ReleaseAck was unexpected by the dcache."
       ) // TODO should handle Ack coming back on same cycle!
       release_ack_wait := false.B
+      when(writeAckUC) {
+        (UCWriteAckIndex.asBools.zip(uncachedInFlight)).foreach {
+          case (s, f) =>
+            when(s) {
+              assert(f, "An AccessAck was unexpected by the dcache.") // TODO must handle Ack coming back on same cycle!
+              f := false.B
+            }
+        }
+      }
     }
 
     // Finish TileLink transaction by issuing a GrantAck
