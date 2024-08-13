@@ -56,14 +56,13 @@ lib.makeScope newScope
         elaborateConfigJson = configPath;
         elaborateConfig = builtins.fromJSON (lib.readFile configPath);
 
-        ip = rec {
+        ip = lib.makeScope innerSelf.newScope (ipSelf: {
           recurseForDerivations = true;
 
           # T1 RTL.
-          elaborate = innerSelf.callPackage ./elaborate.nix { target = "ip"; };
-          mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
-          rtl = innerSelf.callPackage ./rtl.nix {
-            inherit mlirbc;
+          elaborate = ipSelf.callPackage ./elaborate.nix { target = "ip"; };
+          mlirbc = ipSelf.callPackage ./mlirbc.nix { };
+          rtl = ipSelf.callPackage ./rtl.nix {
             mfcArgs = lib.escapeShellArgs [
               "-O=release"
               "--disable-all-randomization"
@@ -76,15 +75,15 @@ lib.makeScope newScope
             ];
           };
 
-          om = innerSelf.callPackage ./om.nix { inherit mlirbc; };
-          omreader = self.omreader-unwrapped.mkWrapper { inherit mlirbc; };
+          om = ipSelf.callPackage ./om.nix { };
+          omreader = self.omreader-unwrapped.mkWrapper { };
 
-          emu-om = innerSelf.callPackage ./om.nix { mlirbc = emu-mlirbc; };
-          emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
+          emu-om = ipSelf.callPackage ./om.nix { mlirbc = ipSelf.emu-mlirbc; };
+          emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = ipSelf.emu-mlirbc; };
           omGet = args: lib.fileContents (runCommand "get-${args}" { } ''
-            ${emu-omreader}/bin/omreader ${args} > $out
+            ${ipSelf.emu-omreader}/bin/omreader ${args} > $out
           '');
-          rtlDesignMetadata = rec {
+          rtlDesignMetadata = with ipSelf; rec {
             march = omGet "march";
             extensions = builtins.fromJSON (omGet "extensionsJson");
             vlen = omGet "vlen";
@@ -92,13 +91,13 @@ lib.makeScope newScope
             xlen = if (lib.hasPrefix "rv32" march) then 32 else 64;
           };
 
-          emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; };
-          emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
+          emu-elaborate = ipSelf.callPackage ./elaborate.nix { target = "ipemu"; };
+          emu-mlirbc = ipSelf.callPackage ./mlirbc.nix { elaborate = ipSelf.emu-elaborate; };
 
           # T1 Verilator Emulator
-          verilator-emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
-          verilator-emu-rtl = innerSelf.callPackage ./rtl.nix {
-            mlirbc = emu-mlirbc;
+          verilator-emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = ipSelf.emu-mlirbc; };
+          verilator-emu-rtl = ipSelf.callPackage ./rtl.nix {
+            mlirbc = ipSelf.emu-mlirbc;
             mfcArgs = lib.escapeShellArgs [
               "-O=release"
               "--split-verilog"
@@ -108,16 +107,16 @@ lib.makeScope newScope
               "--strip-debug-info"
             ];
           };
-          verilator-emu-rtl-verilated = innerSelf.callPackage ./verilated.nix { rtl = verilator-emu-rtl; stdenv = moldStdenv; };
-          verilator-emu-rtl-verilated-trace = innerSelf.callPackage ./verilated.nix { rtl = verilator-emu-rtl; stdenv = moldStdenv; enable-trace = true; };
+          verilator-emu-rtl-verilated = ipSelf.callPackage ./verilated.nix { stdenv = moldStdenv; };
+          verilator-emu-rtl-verilated-trace = ipSelf.callPackage ./verilated.nix { stdenv = moldStdenv; enable-trace = true; };
 
-          verilator-emu = innerSelf.callPackage ../../difftest/verilator.nix { inherit rtlDesignMetadata; verilated = verilator-emu-rtl-verilated; };
-          verilator-emu-trace = innerSelf.callPackage ../../difftest/verilator.nix { inherit rtlDesignMetadata; verilated = verilator-emu-rtl-verilated-trace; };
+          verilator-emu = ipSelf.callPackage ../../difftest/verilator.nix { };
+          verilator-emu-trace = ipSelf.callPackage ../../difftest/verilator.nix { verilator-emu-rtl-verilated = ipSelf.verilator-emu-rtl-verilated-trace; };
 
           # T1 VCS Emulator
-          vcs-emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
-          vcs-emu-rtl = innerSelf.callPackage ./rtl.nix {
-            mlirbc = emu-mlirbc;
+          vcs-emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = ipSelf.emu-mlirbc; };
+          vcs-emu-rtl = ipSelf.callPackage ./rtl.nix {
+            mlirbc = ipSelf.emu-mlirbc;
             mfcArgs = lib.escapeShellArgs [
               "-O=release"
               "--split-verilog"
@@ -127,12 +126,12 @@ lib.makeScope newScope
               "--strip-debug-info"
             ];
           };
-          vcs-dpi-lib = innerSelf.callPackage ../../difftest/online_vcs { };
-          vcs-dpi-lib-trace = vcs-dpi-lib.override { enable-trace = true; };
+          vcs-dpi-lib = ipSelf.callPackage ../../difftest/online_vcs { };
+          vcs-dpi-lib-trace = ipSelf.vcs-dpi-lib.override { enable-trace = true; };
           # FIXME: vcs-emu should have offline check instead of using verilator one
-          vcs-emu = innerSelf.callPackage ./vcs.nix { inherit vcs-dpi-lib verilator-emu rtlDesignMetadata; rtl = vcs-emu-rtl; };
-          vcs-emu-trace = innerSelf.callPackage ./vcs.nix { inherit verilator-emu rtlDesignMetadata; vcs-dpi-lib = vcs-dpi-lib-trace; rtl = vcs-emu-rtl; };
-        };
+          vcs-emu = ipSelf.callPackage ./vcs.nix { };
+          vcs-emu-trace = ipSelf.callPackage ./vcs.nix { vcs-dpi-lib = ipSelf.vcs-dpi-lib-trace; };
+        });
 
         subsystem = rec {
           recurseForDerivations = true;

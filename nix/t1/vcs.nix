@@ -3,7 +3,7 @@
 , bash
 , stdenv
 , configName
-, rtl
+, vcs-emu-rtl
 , vcs-dpi-lib
 , vcs-fhs-env
 , rtlDesignMetadata
@@ -17,7 +17,7 @@ let
     __noChroot = true;
     dontPatchELF = true;
 
-    src = rtl;
+    src = vcs-emu-rtl;
 
     buildPhase = ''
       runHook preBuild
