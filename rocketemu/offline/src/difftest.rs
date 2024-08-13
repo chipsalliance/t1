@@ -16,10 +16,10 @@ pub struct Difftest {
 }
 
 impl Difftest {
-  pub fn new(args: CommonArgs) -> Self {
+  pub fn new(mut args: CommonArgs) -> Self {
     let config = RTLConfig { vlen: args.vlen, dlen: args.dlen };
     Self {
-      runner: SpikeRunner::new(&args, true),
+      runner: SpikeRunner::new(&mut args, true),
       dut: Dut::new(Path::new(
         &args.log_file.expect("difftest must be run with a log file"),
       )),
