@@ -1144,10 +1144,6 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     io.loadStoreAXI.b.ready := true.B
     when(io.loadStoreAXI.b.fire) {
-      assert(
-        release_ack_wait,
-        "A ReleaseAck was unexpected by the dcache."
-      ) // TODO should handle Ack coming back on same cycle!
       release_ack_wait := false.B
     }
 
