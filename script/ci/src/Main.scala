@@ -201,37 +201,6 @@ object Main:
       )
   end runTests
 
-  @main
-  def runOMTests(
-      config: String
-  ): Unit =
-    Seq("omreader", "verilator-emu-omreader", "vcs-emu-omreader").foreach: target =>
-      val command = Seq(
-        "nix",
-        "run",
-        s".#t1.$config.ip.$target",
-        "--",
-        "run",
-        "--dump-methods"
-      )
-      println("\n")
-      Logger.info(
-        s"Running OM test with command $BOLD'${command.mkString(" ")}'$RESET"
-      )
-      val outputs = os.proc(command).call().out.trim()
-      Logger.trace(s"Outputs:\n${outputs}")
-
-      Seq("vlen =", "dlen =").foreach: keyword =>
-        if outputs.contains(keyword) then
-          Logger.info(
-            s"Keyword $BOLD'$keyword'$RESET found - ${GREEN}Pass!$RESET"
-          )
-        else
-          Logger.fatal(
-            s"Keyword $BOLD'$keyword'$RESET not found - ${RED}Fail!$RESET"
-          )
-  end runOMTests
-
   // PostCI do the below four things:
   //   * read default.json at .github/cases/$config/default.json
   //   * generate case information for each entry in default.json (cycle, run success)
