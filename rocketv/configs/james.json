@@ -2,7 +2,7 @@
   "parameter": {
     "useAsyncReset": false,
     "clockGate": true,
-    "instructionSets": ["rv32_i"],
+    "instructionSets": ["rv32_i", "rv_a", "rv_s", "rv_smrnmi"],
     "priv": "msu",
     "hartIdLen": 4,
     "useBPWatch": false,
