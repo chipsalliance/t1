@@ -25,6 +25,11 @@ class LaneOM extends Class {
   @public
   val vfusIn = IO(Input(Property[Seq[AnyClassType]]()))
   vfus := vfusIn
+  @public
+  val vrf = IO(Output(Property[AnyClassType]()))
+  @public
+  val vrfIn = IO(Input(Property[AnyClassType]()))
+  vrf := vrfIn
 }
 
 class LaneSlotProbe(instructionIndexBits: Int) extends Bundle {
@@ -325,6 +330,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** VRF instantces. */
   val vrf: Instance[VRF] = Instantiate(new VRF(parameter.vrfParam))
+  omInstance.vrfIn := Property(vrf.om.asAnyClassType)
 
   /** TODO: review later
     */
