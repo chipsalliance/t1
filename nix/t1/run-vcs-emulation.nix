@@ -1,4 +1,5 @@
-{ lib, runCommand, zstd, jq }:
+# FIXME: we should have offline check for VCS, importing offline check from verilator-emu is weird
+{ lib, runCommand, zstd, jq, verilator-emu }:
 emulator:
 testCase:
 
@@ -47,7 +48,7 @@ runCommand "run-${emulator.name}-for-${testCase.pname}"
   fi
 
   set +e
-  "${emulator}/bin/offline" \
+  "${verilator-emu}/bin/offline" \
     --elf-file ${testCase}/bin/${testCase.pname}.elf \
     --log-file $rtlEventOutPath \
     --log-level ERROR &> $out/offline-check-journal

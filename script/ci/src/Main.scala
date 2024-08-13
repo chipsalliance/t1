@@ -162,9 +162,8 @@ object Main:
 
         val testAttr = testType.toLowerCase() match
           case "verilator" =>
-            s".#t1.$config.ip.cases.$caseName.emu-result.verilator-check"
-          case "vcs" => s".#t1.$config.ip.cases.$caseName.emu-result.vcs-check"
-          case "t1rocket" => s".#t1.t1rocketemu.cases.$caseName.emu-result.t1rocket-check"
+            s".#t1.$config.ip.verilator-emu.cases.$caseName.emu-result"
+          case "vcs" => s".#t1.$config.ip.vcs-emu.cases.$caseName.emu-result"
           case _     => Logger.fatal(s"Invalid test type ${testType}")
         val testResultPath =
           try
@@ -187,7 +186,7 @@ object Main:
           os.read(testResultPath / "offline-check-status").trim() == "0"
         if !testSuccess then
           Logger.error(s"Offline check FAILED for $caseName ($config)")
-          allFailedTest :+ s"t1.$config.ip.cases.$caseName"
+          allFailedTest :+ testAttr
         else
           Logger.info(s"Offline check PASS for $caseName ($config)")
           allFailedTest
@@ -238,8 +237,8 @@ object Main:
         Logger.info("Fetching CI results")
         val resultAttr = emuType.toLowerCase() match
           case "verilator" =>
-            s".#t1.$config.ip.cases._allEmuResult"
-          case "vcs" => s".#t1.$config.ip.cases._allVCSEmuResult"
+            s".#t1.$config.ip.verilator-emu.cases._allEmuResult"
+          case "vcs" => s".#t1.$config.ip.vcs-emu.cases._allVCSEmuResult"
           case _     => Logger.fatal(s"Invalid test type ${emuType}")
         val emuResultPath = os.Path(nixResolvePath(
           resultAttr,
@@ -329,7 +328,7 @@ object Main:
 
     import scala.util.chaining._
     val testPlans: Seq[String] = emulatorConfigs.flatMap: configName =>
-      val allCasesPath = nixResolvePath(s".#t1.$configName.ip.cases._all")
+      val allCasesPath = nixResolvePath(s".#t1.$configName.verilator-emu.ip.cases._all")
       os.walk(os.Path(allCasesPath) / "configs")
         .filter: path =>
           path.ext == "json"

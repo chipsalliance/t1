@@ -1,5 +1,4 @@
 { lib
-, fetchgit
 , stdenv
 , rtl
 , verilator
@@ -7,17 +6,6 @@
 , zlib
 }:
 
-let
-  rocket-chip-v-src = fetchgit {
-    url = "https://github.com/chipsalliance/rocket-chip.git";
-    rev = "833385404d9c722bdfad3e453c19a3ac6f40dbf0";
-    fetchSubmodules = false;
-    sparseCheckout = [
-      "src/main/resources/vsrc"
-    ];
-    hash = "sha256-CUq9VDwb7ZtclosgOWfDZMOpH+U/yBjL5CNiXZRiB80=";
-  };
-in
 stdenv.mkDerivation {
   name = "t1rocket-verilated";
 
@@ -27,22 +15,17 @@ stdenv.mkDerivation {
 
   propagatedBuildInputs = [ zlib ];
 
-  env.rocketChipVSrc = "${rocket-chip-v-src}/src/main/resources/vsrc/";
-
   buildPhase = ''
     runHook preBuild
 
     echo "[nix] running verilator"
     # FIXME: fix all the warning and remove -Wno-<msg> flag here
     verilator \
-      -I"$rocketChipVSrc" \
       ${lib.optionalString enable-trace "--trace-fst"} \
       --timing \
       --threads 8 \
       --threads-max-mtasks 8000 \
       -O1 \
-      -Wno-WIDTHEXPAND \
-      -Wno-LATCH \
       --cc TestBench
 
     echo "[nix] building verilated C lib"
@@ -63,7 +46,7 @@ stdenv.mkDerivation {
   hardeningDisable = [ "fortify" ];
 
   passthru = {
-    inherit enable-trace rocket-chip-v-src;
+    inherit enable-trace;
   };
 
   installPhase = ''

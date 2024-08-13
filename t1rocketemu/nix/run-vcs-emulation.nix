@@ -1,4 +1,5 @@
-{ lib, runCommand, zstd, jq }:
+# FIXME: this is not a correct design, we should have offline check command in VCS emulator
+{ lib, runCommand, zstd, jq, verilator-emu }:
 emulator:
 testCase:
 
@@ -47,7 +48,7 @@ runCommand "run-${emulator.name}-for-${testCase.pname}"
   fi
 
   set +e
-  "${emulator}/bin/offline" \
+  "${verilator-emu}/bin/offline" \
     --elf-file ${testCase}/bin/${testCase.pname}.elf \
     --log-file $rtlEventOutPath \
     --log-level ERROR &> $out/offline-check-journal
