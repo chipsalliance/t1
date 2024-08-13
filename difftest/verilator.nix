@@ -11,7 +11,7 @@
 , rust-bindgen
 
 , verilator
-, verilated
+, verilator-emu-rtl-verilated
 , cmake
 , clang-tools
 
@@ -20,7 +20,7 @@
 
 let
   self = rustPlatform.buildRustPackage {
-    name = "verilator-emu" + (lib.optionalString verilated.enable-trace "-trace");
+    name = "verilator-emu" + (lib.optionalString verilator-emu-rtl-verilated.enable-trace "-trace");
 
     src = with lib.fileset; toSource {
       root = ./.;
@@ -38,7 +38,7 @@ let
 
     buildInputs = [
       libspike_interfaces
-      verilated
+      verilator-emu-rtl-verilated
     ];
 
     nativeBuildInputs = [
@@ -46,11 +46,11 @@ let
       cmake
     ];
 
-    buildFeatures = lib.optionals verilated.enable-trace [ "trace" ];
+    buildFeatures = lib.optionals verilator-emu-rtl-verilated.enable-trace [ "trace" ];
 
     env = {
-      VERILATED_INC_DIR = "${verilated}/include";
-      VERILATED_LIB_DIR = "${verilated}/lib";
+      VERILATED_INC_DIR = "${verilator-emu-rtl-verilated}/include";
+      VERILATED_LIB_DIR = "${verilator-emu-rtl-verilated}/lib";
       SPIKE_LIB_DIR = "${libspike}/lib";
       SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
       SPIKE_ISA_STRING =
@@ -77,7 +77,7 @@ let
       });
 
       inherit libspike_interfaces rtlDesignMetadata;
-      inherit (verilated) enable-trace;
+      inherit (verilator-emu-rtl-verilated) enable-trace;
 
       # enable debug info for difftest itself and libspike
       withDebug = self.overrideAttrs (old: {

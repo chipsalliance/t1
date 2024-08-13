@@ -1,7 +1,7 @@
 { lib
 , stdenv
 , configName
-, rtl
+, verilator-emu-rtl
 , verilator
 , enable-trace ? false
 , zlib
@@ -9,7 +9,7 @@
 stdenv.mkDerivation {
   name = "${configName}-verilated";
 
-  src = rtl;
+  src = verilator-emu-rtl;
 
   nativeBuildInputs = [ verilator ];
 
