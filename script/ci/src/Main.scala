@@ -252,9 +252,7 @@ object Main:
           .filter(path => os.read(path).trim() != "0")
           .map(path => {
             val caseName = path.segments.toSeq.reverse.drop(1).head
-            val journal = os.read(path / os.up / "offline-check-journal")
-            os.write.append(failedTestsFile, s"* ${config} - ${caseName}\n")
-            os.write.append(failedTestsFile, s"```text\n${journal}\n```\n")
+            os.write.append(failedTestsFile, s"* ${config} - ${caseName}: `nix build .#t1.$config.ip.$emuType-emu.cases.$caseName.emu-result -L`\n")
           })
 
         if cycleUpdateFilePath.nonEmpty then
