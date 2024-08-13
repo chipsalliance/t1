@@ -152,7 +152,6 @@ case class RocketTileParameter(
 
   // static for now
   def hasBeu:              Boolean = false
-  def usingNMI:            Boolean = false
   def usingHypervisor:     Boolean = false
   def usingDataScratchpad: Boolean = false
   def nLocalInterrupts:    Int = 0
@@ -182,6 +181,8 @@ case class RocketTileParameter(
       .sortBy(i => (i.instructionSet.name, i.name))
   private def hasInstructionSet(setName: String): Boolean =
     instructions.flatMap(_.instructionSets.map(_.name)).contains(setName)
+  private def hasInstruction(instName: String): Boolean = instructions.map(_.name).contains(instName)
+
   def usingBTB: Boolean = btbEntries > 0
   def xLen: Int =
     (hasInstructionSet("rv32_i"), hasInstructionSet("rv64_i")) match {
@@ -201,7 +202,8 @@ case class RocketTileParameter(
       case (true, true)   => Some(64)
     }
 
-  def usingVM = hasInstructionSet("sfence.vma")
+  def usingVM = hasInstruction("sfence.vma")
+  def usingNMI = hasInstructionSet("rv_smrnmi")
 
   def pgLevels: Int = xLen match {
     case 32 => 2
@@ -224,6 +226,7 @@ case class RocketTileParameter(
     instructionSets,
     vLen.getOrElse(0),
     usingUser,
+    usingSupervisor,
     hartIdLen,
     nPMPs,
     asidBits,
