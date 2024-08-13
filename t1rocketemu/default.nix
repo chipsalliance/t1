@@ -41,7 +41,7 @@
       #
       # Although the string is already hard-coded in lower case, the toLower function call here is to remind developer that,
       # when we switch OM, we should always ensure the march input is lower case.
-      march = lib.toLower "rv32imafcv_zve32x_zvl1024b";
+      march = lib.toLower "rv32imafcv_zve32f_zvl1024b";
       dlen = scope.designConfig.dLen;
       xlen = if (lib.hasPrefix "rv32" march) then 32 else 64;
 

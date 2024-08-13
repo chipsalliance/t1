@@ -2,6 +2,7 @@
 , bash
 , stdenv
 , rtl
+, rtlDesignMetadata
 , callPackage
 , vcs-dpi-lib
 , vcs-fhs-env
@@ -40,7 +41,7 @@ let
 
     passthru = {
       inherit (vcs-dpi-lib) enable-trace;
-      inherit vcs-fhs-env;
+      inherit vcs-fhs-env rtlDesignMetadata;
 
       cases = callPackage ../../tests {
         configName = "t1rocket";

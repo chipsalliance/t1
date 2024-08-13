@@ -129,8 +129,9 @@ lib.makeScope newScope
           };
           vcs-dpi-lib = innerSelf.callPackage ../../difftest/online_vcs { };
           vcs-dpi-lib-trace = vcs-dpi-lib.override { enable-trace = true; };
-          vcs-emu = innerSelf.callPackage ./vcs.nix { inherit vcs-dpi-lib rtlDesignMetadata; rtl = vcs-emu-rtl; };
-          vcs-emu-trace = innerSelf.callPackage ./vcs.nix { inherit rtlDesignMetadata; vcs-dpi-lib = vcs-dpi-lib-trace; rtl = vcs-emu-rtl; };
+          # FIXME: vcs-emu should have offline check instead of using verilator one
+          vcs-emu = innerSelf.callPackage ./vcs.nix { inherit vcs-dpi-lib verilator-emu rtlDesignMetadata; rtl = vcs-emu-rtl; };
+          vcs-emu-trace = innerSelf.callPackage ./vcs.nix { inherit verilator-emu rtlDesignMetadata; vcs-dpi-lib = vcs-dpi-lib-trace; rtl = vcs-emu-rtl; };
         };
 
         subsystem = rec {
