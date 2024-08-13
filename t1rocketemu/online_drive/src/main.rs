@@ -15,15 +15,16 @@ fn main() {
   let argc = c_args.len() as c_int;
   let argv = c_args_ptr.as_ptr() as *mut *mut c_char;
 
-  unsafe {
-    verilator_main_c(argc, argv);
+  let verilator_ret = unsafe { verilator_main_c(argc, argv) };
+
+  if verilator_ret == 0 {
+    std::fs::write("perf.txt", format!("total_cycles: {}", online_dpi::get_t()))
+      .expect("fail to write into perf.txt");
+  } else {
+    eprintln!("verilator_main_c return unexpectedly");
   }
 
-  std::fs::write(
-    "perf.txt",
-    format!("total_cycles: {}", online_dpi::get_t()),
-  )
-  .expect("fail to write into perf.txt");
+  std::process::exit(verilator_ret);
 }
 
 extern "C" {
