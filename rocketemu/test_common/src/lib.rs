@@ -39,11 +39,14 @@ pub struct CommonArgs {
 pub static MEM_SIZE: usize = 1usize << 32;
 
 impl CommonArgs {
-  pub fn to_spike_c_handler(&self) -> Box<Spike> {
-    let arch = &format!("vlen:{},elen:32", self.vlen);
+  pub fn to_spike_c_handler(&mut self) -> Box<Spike> {
     let lvl = "MSU";
 
-    Spike::new(arch, &self.set, lvl, (self.dlen / 32) as usize, MEM_SIZE)
+    if self.vlen != 0 {
+      self.set.push_str(&("_zvl".to_owned()+&self.vlen.to_string()+"b_"+"zve32f"));
+    }
+
+    Spike::new(&self.set, lvl, (self.dlen / 32) as usize, MEM_SIZE)
   }
 
   pub fn setup_logger(&self) -> Result<()> {
