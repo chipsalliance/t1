@@ -31,6 +31,7 @@ case class RocketParameter(
                             instructionSets: Set[String],
                             vLen: Int,
                             usingUser: Boolean,
+                            usingSupervisor: Boolean,
                             hartIdLen: Int,
                             nPMPs: Int,
                             asidBits: Int,
@@ -124,9 +125,7 @@ case class RocketParameter(
 
   def usingAtomics = hasInstructionSet("rv_a") || hasInstructionSet("rv64_a")
 
-  def usingVM = hasInstructionSet("sfence.vma")
-
-  def usingSupervisor = hasInstruction("sret")
+  def usingVM = hasInstruction("sfence.vma")
 
   // static to false for now
   def usingHypervisor = hasInstructionSet("rv_h") || hasInstructionSet("rv64_h")
@@ -140,7 +139,6 @@ case class RocketParameter(
   // static to false for now
   def haveCease = hasInstruction("cease")
 
-  // static to false for now
   def usingNMI = hasInstructionSet("rv_smrnmi")
 
   def usingVector = hasInstructionSet("rv_v")
@@ -209,29 +207,30 @@ case class RocketParameter(
     xLen match { case 32 => 34; case 64 => 56 }
   }
 
-  val csrParameter: CSRParameter = CSRParameter(
-    useAsyncReset: Boolean,
-    vLen: Int,
-    xLen: Int,
-    fLen.getOrElse(0): Int,
-    hartIdLen: Int,
-    mcontextWidth: Int,
-    scontextWidth: Int,
-    asidBits: Int,
-    vmidBits: Int,
-    nPMPs: Int,
-    nPerfCounters: Int,
-    paddrBits: Int,
-    nBreakpoints: Int,
-    usingSupervisor: Boolean,
-    usingFPU: Boolean,
-    usingUser: Boolean,
-    usingVM: Boolean,
-    usingCompressed: Boolean,
-    usingAtomics: Boolean,
-    usingDebug: Boolean,
-    usingMulDiv: Boolean,
-    usingVector: Boolean
+  val csrParameter = CSRParameter(
+    useAsyncReset,
+    vLen,
+    xLen,
+    fLen.getOrElse(0),
+    hartIdLen,
+    mcontextWidth,
+    scontextWidth,
+    asidBits,
+    vmidBits,
+    nPMPs,
+    nPerfCounters,
+    paddrBits,
+    nBreakpoints,
+    usingSupervisor,
+    usingFPU,
+    usingUser,
+    usingVM,
+    usingCompressed,
+    usingAtomics,
+    usingDebug,
+    usingMulDiv,
+    usingVector,
+    usingNMI
   )
   val decoderParameter = DecoderParameter(
     instructionSets,
