@@ -16,9 +16,12 @@ import org.chipsalliance.rvdecoderdb.Instruction
 
 class RocketProbe(param: RocketParameter) extends Bundle {
   // reg file
-  val rfWen = Bool()
-  val rfWaddr = UInt(param.lgNXRegs.W)
-  val rfWdata = UInt(param.xLen.W)
+  val rfWen: Bool = Bool()
+  val rfWaddr: UInt = UInt(param.lgNXRegs.W)
+  val rfWdata: UInt = UInt(param.xLen.W)
+
+  // rocket is idle
+  val idle: Bool = Bool()
 }
 
 object RocketParameter {
@@ -411,6 +414,10 @@ class Rocket(val parameter: RocketParameter)
   def fetchWidth: Int = parameter.fetchWidth
   def minFLen: Int = parameter.minFLen.getOrElse(0)
   def hasDataECC: Boolean = parameter.hasDataECC
+
+  // probe defination
+  val probeWire = Wire(new RocketProbe(parameter))
+  define(io.rocketProbe, ProbeValue(probeWire))
 
   // Signal outside from internal clock domain.
 
@@ -1063,6 +1070,10 @@ class Rocket(val parameter: RocketParameter)
     )
     when(rfWen) { rf.write(rfWaddr, rfWdata) }
 
+    probeWire.rfWen := rfWen
+    probeWire.rfWaddr := rfWaddr
+    probeWire.rfWdata := rfWdata
+
     // hook up control/status regfile
     csr.io.ungatedClock := io.clock
     csr.io.decode(0).inst := idInstruction
@@ -1392,9 +1403,10 @@ class Rocket(val parameter: RocketParameter)
 
       // Maintain vector counter
       // There may be 4 instructions in the pipe
-      val (_, vectorFull) = counterManagement(countWidth, 4)(t1IssueQueue.io.enq.valid, t1.issue.fire)
+      val (vectorEmpty, vectorFull) = counterManagement(countWidth, 4)(t1IssueQueue.io.enq.valid, t1.issue.fire)
       vectorLSUEmpty.foreach(_ := lsuEmpty)
       vectorQueueFull.foreach(_ := vectorFull)
+      probeWire.idle := vectorEmpty
 
       t1XRDRetireQueue.io.enq.valid := t1.retire.rd.valid
       t1XRDRetireQueue.io.enq.bits := t1.retire.rd.bits
@@ -1475,12 +1487,6 @@ class Rocket(val parameter: RocketParameter)
     // todo: perfEvents here.
 //    csr.io.counters.foreach { c => c.inc := RegNext(perfEvents.evaluate(c.eventSel)) }
 
-    // probe xrf write
-    val probeWire = Wire(new RocketProbe(parameter))
-    define(io.rocketProbe, ProbeValue(probeWire))
-    probeWire.rfWen := rfWen
-    probeWire.rfWaddr := rfWaddr
-    probeWire.rfWdata := rfWdata
   }
 
   def checkExceptions(x: Seq[(Bool, UInt)]) =
