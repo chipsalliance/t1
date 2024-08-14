@@ -1346,7 +1346,9 @@ class Rocket(val parameter: RocketParameter)
       // T1 Issue
       val maxCount: Int = 32
       val t1IssueQueue = Module(new Queue(chiselTypeOf(t1.issue.bits), maxCount))
-      t1IssueQueue.io.enq.valid := wbRegValid && !replayWbCommon && wbRegDecodeOutput(parameter.decoderParameter.vector)
+      t1IssueQueue.io.enq.valid :=
+        wbRegValid && !replayWbCommon && wbRegDecodeOutput(parameter.decoderParameter.vector) &&
+          !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
       t1IssueQueue.io.enq.bits.instruction := wbRegInstruction
       t1IssueQueue.io.enq.bits.rs1Data := wbRegWdata
       t1IssueQueue.io.enq.bits.rs2Data := wbRegRS2
