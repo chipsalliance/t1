@@ -113,6 +113,7 @@ impl SpikeRunner {
       );
       let new_pc_ = proc.func();
       event.log_mem_write(spike).unwrap();
+      event.log_reg_write(spike).unwrap();
       new_pc_
     };
 
