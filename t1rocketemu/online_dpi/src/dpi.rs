@@ -330,7 +330,10 @@ pub(crate) fn dump_wave(scope: crate::svdpi::SvScope, path: &str) {
   }
 }
 
-pub(crate) fn quit() {
+pub(crate) fn quit(scope: crate::svdpi::SvScope) {
+  use crate::svdpi;
+
+  svdpi::set_scope(scope);
   unsafe {
     dpi_export::quit();
   }
