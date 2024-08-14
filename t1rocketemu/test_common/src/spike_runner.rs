@@ -107,6 +107,7 @@ impl SpikeRunner {
       );
       let new_pc_ = proc.func();
       event.log_mem_write(spike).unwrap();
+      event.log_reg_write(spike).unwrap();
       new_pc_
     };
 
@@ -120,7 +121,7 @@ impl SpikeRunner {
   pub fn find_reg_write(&mut self) -> SpikeEvent {
     loop {
       let se = self.spike_step();
-      if se.is_scalar() && se.is_rd_written {
+      if se.is_scalar() && se.is_rd_written && se.rd_idx != 0 {
         return se;
       }
     }
