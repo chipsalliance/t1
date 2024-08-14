@@ -406,29 +406,25 @@ impl SpikeEvent {
         // scalar rf
         let data = state.get_reg(self.rd_idx, false);
         self.is_rd_written = true;
-        if data != self.rd_bits {
-          trace!(
-            "ScalarRFChange: idx={}, change_from={}, change_to={data}",
-            self.rd_idx,
-            self.rd_bits
-          );
-          self.rd_bits = data;
-        }
+        self.rd_bits = data;
+        trace!(
+          "ScalarRFChange: idx={:02x}, data={:08x}",
+          self.rd_idx,
+          self.rd_bits
+        );
       }
       0b0001 => {
         let data = state.get_reg(self.rd_idx, true);
         self.is_rd_written = true;
-        if data != self.rd_bits {
-          trace!(
-            "FloatRFChange: idx={}, change_from={}, change_to={data}",
-            self.rd_idx,
-            self.rd_bits
-          );
-          self.rd_bits = data;
-        }
+        self.rd_bits = data;
+        trace!(
+          "FloatRFChange: idx={:02x}, data={:08x}",
+          self.rd_idx,
+          self.rd_bits
+        );
       }
       _ => trace!(
-        "UnknownRegChange, idx={}, spike detect unknown reg change",
+        "UnknownRegChange, idx={:02x}, spike detect unknown reg change",
         state.get_reg_write_index(idx)
       ),
     });

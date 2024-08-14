@@ -127,7 +127,7 @@ impl SpikeRunner {
   pub fn find_reg_write(&mut self) -> SpikeEvent {
     loop {
       let se = self.spike_step();
-      if se.is_scalar() && se.is_rd_written {
+      if se.is_scalar() && se.is_rd_written && se.rd_idx != 0 {
         return se;
       }
     }

@@ -181,7 +181,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
 
   // output the probes
   // rocket reg write
-  when(rocketProbe.rfWen)(
+  when(rocketProbe.rfWen && rocketProbe.rfWaddr =/= 0.U)(
     printf(
       cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
     )
