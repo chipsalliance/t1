@@ -49,7 +49,7 @@ fn main() -> anyhow::Result<()> {
     match diff.diff() {
       Ok(_) => {}
       Err(e) => {
-        info!("Simulation quit/error with {}", e);
+        info!("{}", e);
         return Ok(());
       }
     }

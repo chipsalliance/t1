@@ -1,7 +1,7 @@
 use crate::dpi::*;
-use crate::{ get_t, EXIT_CODE, EXIT_POS };
 use crate::svdpi::SvScope;
 use crate::OfflineArgs;
+use crate::{get_t, EXIT_CODE, EXIT_POS};
 
 use anyhow::Context;
 use common::MEM_SIZE;
@@ -123,6 +123,8 @@ pub(crate) struct Driver {
   last_commit_cycle: u64,
 
   shadow_mem: ShadowMem,
+
+  pub(crate) quit: bool,
 }
 
 #[cfg(feature = "trace")]
@@ -185,6 +187,8 @@ impl Driver {
       last_commit_cycle: 0,
 
       shadow_mem,
+
+      quit: false
     }
   }
 
@@ -336,17 +340,19 @@ impl Driver {
     let data_hex = hex::encode(data);
     self.last_commit_cycle = get_t();
 
-    // exit with code
-    if addr == EXIT_POS && data.len() == 4 && data == &EXIT_CODE.to_le_bytes() {
-      info!("exit successfully");
-      quit();
-      return;
-    }
-
     trace!(
       "[{}] axi_write_load_store (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
     );
+
+    // check exit with code
+    if addr == EXIT_POS {
+      let exit_data_slice = data[..4].try_into().expect("slice with incorrect length");
+      if u32::from_le_bytes(exit_data_slice) == EXIT_CODE {
+        info!("driver is ready to quit");
+        self.quit = true;
+      }
+    }
   }
 
   pub(crate) fn axi_read_instruction_fetch(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {

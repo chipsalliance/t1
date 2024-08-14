@@ -295,6 +295,16 @@ unsafe extern "C" fn cosim_watchdog(reason: *mut c_char) {
   }
 }
 
+/// evaluate at every cycle, return quit_flag = false to continue simulation,
+#[no_mangle]
+unsafe extern "C" fn cosim_quit(quit_flag: *mut bool) {
+  // watchdog dpi call would be called before initialization, guard on null target
+  let mut driver = DPI_TARGET.lock().unwrap();
+  if let Some(driver) = driver.as_mut() {
+    *quit_flag = driver.quit as bool
+  }
+}
+
 #[no_mangle]
 unsafe extern "C" fn get_resetvector(resetvector: *mut c_longlong) {
   let mut driver = DPI_TARGET.lock().unwrap();
@@ -313,9 +323,6 @@ mod dpi_export {
     #[cfg(feature = "trace")]
     /// `export "DPI-C" function dump_wave(input string file)`
     pub fn dump_wave(path: *const c_char);
-
-    /// 'export "DPI-C" function quit()'
-    pub fn quit();
   }
 }
 
@@ -327,11 +334,5 @@ pub(crate) fn dump_wave(scope: crate::svdpi::SvScope, path: &str) {
   svdpi::set_scope(scope);
   unsafe {
     dpi_export::dump_wave(path_cstring.as_ptr());
-  }
-}
-
-pub(crate) fn quit() {
-  unsafe {
-    dpi_export::quit();
   }
 }
