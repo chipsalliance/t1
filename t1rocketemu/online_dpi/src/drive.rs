@@ -123,6 +123,8 @@ pub(crate) struct Driver {
   last_commit_cycle: u64,
 
   shadow_mem: ShadowMem,
+
+  pub(crate) quit: bool,
 }
 
 #[cfg(feature = "trace")]
@@ -185,6 +187,8 @@ impl Driver {
       last_commit_cycle: 0,
 
       shadow_mem,
+
+      quit: false
     }
   }
 
@@ -345,8 +349,8 @@ impl Driver {
     if addr == EXIT_POS {
       let exit_data_slice = data[..4].try_into().expect("slice with incorrect length");
       if u32::from_le_bytes(exit_data_slice) == EXIT_CODE {
-        info!("exit successfully");
-        self.quit()
+        info!("driver is ready to quit");
+        self.quit = true;
       }
     }
   }
@@ -398,9 +402,5 @@ impl Driver {
   #[cfg(feature = "trace")]
   fn start_dump_wave(&mut self) {
     dump_wave(self.scope, &self.wave_path);
-  }
-
-  fn quit(&mut self) {
-    quit(self.scope)
   }
 }

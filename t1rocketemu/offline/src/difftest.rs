@@ -39,9 +39,10 @@ impl Difftest {
         Ok(())
       }
       JsonEvents::SimulationStop { reason, cycle } => {
-        info!("simulation stopped at cycle {}, reason {}", cycle, reason);
-        self.runner.cycle = *cycle;
-        Ok(())
+        anyhow::bail!("error: simulation stopped at cycle {}, reason {}", cycle, reason)
+      }
+      JsonEvents::SimulationEnd { cycle } => {
+        anyhow::bail!("simulation quit successfullly cycle {}", cycle);
       }
       JsonEvents::RegWrite { idx, data, cycle } => {
         self.runner.cycle = *cycle;

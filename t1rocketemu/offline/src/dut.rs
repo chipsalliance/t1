@@ -39,7 +39,7 @@ impl Dut {
   pub fn step(&mut self) -> anyhow::Result<&JsonEvents> {
     let event = match self.events.get(self.idx as usize) {
       Some(event) => event,
-      None => return Err(anyhow::anyhow!("no more events")),
+      None => anyhow::bail!("error: simulation stopped with no more events"),
     };
     self.idx += 1;
 

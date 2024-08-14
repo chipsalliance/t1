@@ -6,7 +6,7 @@ package org.chipsalliance.t1.t1rocketemu
 import chisel3._
 import chisel3.experimental.{BaseModule, ExtModule, SerializableModuleGenerator}
 import chisel3.experimental.dataview.DataViewable
-import chisel3.util.circt.dpi.RawUnclockedNonVoidFunctionCall
+import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
 import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1rocketemu.dpi._
@@ -32,11 +32,6 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
          |    $$dumpfile(file);
          |    $$dumpvars(0);
          |`endif
-         |  endfunction;
-         |
-         |  export "DPI-C" function quit;
-         |  function quit();
-         |    $$finish;
          |  endfunction;
          |
          |  import "DPI-C" context function void t1rocket_cosim_init();
@@ -224,7 +219,9 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   )
 
   // t1 lsu enq
-  when(t1Probe.lsuProbe.reqEnq.orR)(printf(cf"""{"event":"LsuEnq","enq":${t1Probe.lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
+  when(t1Probe.lsuProbe.reqEnq.orR)(
+    printf(cf"""{"event":"LsuEnq","enq":${t1Probe.lsuProbe.reqEnq},"cycle":${simulationTime}}\n""")
+  )
 
   // t1 vrf scoreboard
   val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * generator.parameter.t1Parameter.chainingSize) { _ =>
@@ -263,5 +260,12 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
         assert(!scoreboard.valid)
         scoreboard.bits := 0.U
       }
+  }
+
+  // t1 quit
+  val quitFlag: Bool = RegInit(false.B)
+  quitFlag := RawClockedNonVoidFunctionCall("cosim_quit", Bool())(clock, !quitFlag)
+  when(quitFlag && t1Probe.idle && rocketProbe.idle) {
+    stop(cf"""{"event":"SimulationEnd", "cycle":${simulationTime}}\n""")
   }
 }
