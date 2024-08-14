@@ -95,6 +95,8 @@ pub struct SpikeEvent {
   pub vd_write_record: VdWriteRecord,
   pub mem_access_record: MemAccessRecord,
   pub vrf_access_record: VrfAccessRecord,
+
+  pub is_quit_inst: bool,
 }
 
 impl SpikeEvent {
@@ -143,6 +145,8 @@ impl SpikeEvent {
       vd_write_record: Default::default(),
       mem_access_record: Default::default(),
       vrf_access_record: Default::default(),
+
+      is_quit_inst: false,
     }
   }
 
@@ -223,10 +227,7 @@ impl SpikeEvent {
   }
 
   pub fn is_exit(&self) -> bool {
-    let is_csr_type = self.opcode() == 0b1110011 && ((self.width() & 0b011) != 0);
-    let is_csr_write = is_csr_type && (((self.width() & 0b100) | self.rs1()) != 0);
-
-    is_csr_write && self.csr() == 0x7cc
+    self.is_quit_inst
   }
 
   pub fn is_vfence(&self) -> bool {
@@ -389,7 +390,7 @@ impl SpikeEvent {
     Ok(())
   }
 
-  fn log_reg_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
+  pub fn log_reg_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     let state = proc.get_state();
     // in spike, log_reg_write is arrange:
@@ -454,6 +455,10 @@ impl SpikeEvent {
             executed: false,
           });
       });
+      if addr == 0x4000_0000 && value == 0xdead_beef {
+        self.is_quit_inst = true;
+        trace!("SpikeQuit: detected quit instruction");
+      }
       trace!("SpikeMemWrite: addr={addr:x}, value={value:x}, size={size}");
     });
 
