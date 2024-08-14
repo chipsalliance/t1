@@ -18,9 +18,16 @@ let
     src = fetchFromGitHub {
       owner = "buddy-compiler";
       repo = "buddy-mlir";
-      rev = "d7d90a488ac0d6fc1e700e932f842c7b2bcad816";
-      hash = "sha256-MhykCa6Z7Z8PpAlNh+vMuWYEOZZDyWhtMzMnFlNbGIk=";
+      rev = "ee64045e8966b79538603c4f2dd5866d22e0afe7";
+      hash = "sha256-f0rbD1CHWz4flEK7igZszDWtAr37UVGX026cI0EHB7w=";
     };
+
+    patches = [
+      (fetchpatch {
+        url = "https://github.com/buddy-compiler/buddy-mlir/pull/367.diff";
+        hash = "sha256-1ThvhxM12dxWoQf8wbc6Hv09UuquJg00V+f9U4ExEN4=";
+      })
+    ];
 
     nativeBuildInputs = [ cmake ninja bintools ];
     buildInputs = [

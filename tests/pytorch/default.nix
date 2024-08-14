@@ -94,6 +94,12 @@ let
         runHook postBuild
       '';
 
+      postInstall = ''
+        mkdir $out/share
+        cp -v *.mlir $out/share
+        cp -v *.ll $out/share
+      '';
+
       meta.description = "testcase '${caseName}', written in MLIR";
     };
 in
