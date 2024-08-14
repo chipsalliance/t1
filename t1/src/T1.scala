@@ -309,6 +309,7 @@ class T1Probe(parameter: T1Parameter) extends Bundle {
   val laneProbes: Vec[LaneProbe] = Vec(parameter.laneNumber, new LaneProbe(parameter.laneParam))
   val issue: ValidIO[UInt] = Valid(UInt(parameter.instructionIndexBits.W))
   val retire: ValidIO[UInt] = Valid(UInt(parameter.xLen.W))
+  val idle: Bool = Bool()
 }
 
 class T1Interface(parameter: T1Parameter) extends Record {
@@ -1747,6 +1748,7 @@ class T1(val parameter: T1Parameter)
     probeWire.issue.bits := instructionCounter
     probeWire.retire.valid := io.retire.rd.valid
     probeWire.retire.bits := io.retire.rd.bits.rdData
+    probeWire.idle := slots.map(_.state.idle).reduce(_ && _)
   }
 
   // new V Request from core
