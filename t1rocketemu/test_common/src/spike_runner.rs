@@ -21,6 +21,14 @@ pub struct SpikeRunner {
   ///   front of the queue, and it must be a fence
   pub commit_queue: VecDeque<SpikeEvent>,
 
+  /// vector queue to arrange the order of vector instructions, because of the register write
+  /// dependency, the vector instruction should be issued in order.
+  pub vector_queue: VecDeque<SpikeEvent>,
+
+  /// vector queue to arrange the order of vector instructions, because of the register write
+  /// dependency, the vector instruction should be issued in order.
+  pub scalar_queue: VecDeque<SpikeEvent>,
+
   /// config for v extension
   pub vlen: u32,
   pub dlen: u32,
@@ -51,6 +59,8 @@ impl SpikeRunner {
     SpikeRunner {
       spike,
       commit_queue: VecDeque::new(),
+      vector_queue: VecDeque::new(),
+      scalar_queue: VecDeque::new(),
       vlen: args.vlen,
       dlen: args.dlen,
       cycle: 0,
@@ -118,26 +128,35 @@ impl SpikeRunner {
     event
   }
 
-  pub fn find_reg_write(&mut self) -> SpikeEvent {
-    loop {
-      let se = self.spike_step();
-      if se.is_scalar() && se.is_rd_written && se.rd_idx != 0 {
-        return se;
-      }
-    }
-  }
-
-  pub fn find_v_se_to_issue(&mut self) -> SpikeEvent {
-    if !self.commit_queue.is_empty() && self.commit_queue.front().unwrap().is_vfence() {
-      // if the front (latest) se is a vfence, return the vfence
-      self.commit_queue.front().unwrap().clone()
+  pub fn find_rf_se(&mut self) -> SpikeEvent {
+    if !self.scalar_queue.is_empty() {
+      // return the back (oldest) scalar insn
+      self.scalar_queue.pop_back().unwrap()
     } else {
       // else, loop until find a se, and push the se to the front
       loop {
         let se = self.spike_step();
-        if se.is_v() {
-          self.commit_queue.push_front(se.clone());
-          break se.clone();
+        if se.is_scalar() && se.is_rd_written && se.rd_idx != 0 {
+          return se;
+        } else if se.is_v() {
+          self.vector_queue.push_front(se.clone());
+        }
+      }
+    }
+  }
+
+  pub fn find_v_se(&mut self) -> SpikeEvent {
+    if !self.vector_queue.is_empty() {
+      // return the back (oldest) vector insn
+      self.vector_queue.pop_back().unwrap()
+    } else {
+      // else, loop until find a se, and push the se to the front
+      loop {
+        let se = self.spike_step();
+        if se.is_scalar() && se.is_rd_written && se.rd_idx != 0 {
+          self.scalar_queue.push_front(se.clone());
+        } else if se.is_v() {
+          return se;
         }
       }
     }
