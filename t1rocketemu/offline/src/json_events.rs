@@ -175,7 +175,7 @@ impl JsonEventRunner for SpikeRunner {
     let idx = reg_write.idx;
     let data = reg_write.data;
 
-    let se = self.find_reg_write();
+    let se = self.find_rf_se();
 
     info!(
       "[{cycle}] RegWrite: inst ({}) check reg write idx={idx}, data={data:08x}",
@@ -184,22 +184,21 @@ impl JsonEventRunner for SpikeRunner {
 
     assert_eq!(idx as u32, se.rd_idx, "idx should be equal to se.rd_idx");
     assert_eq!(data, se.rd_bits, "data should be equal to se.rd_bits");
+
     Ok(())
   }
 
   fn peek_issue(&mut self, issue: &IssueEvent) -> anyhow::Result<()> {
-    self.find_v_se_to_issue(); // ensure the front of queue is a new un-issued se
-    let se = self.commit_queue.front_mut().unwrap();
-    if se.is_vfence() {
-      return Ok(());
-    }
+    let mut se = self.find_v_se(); // ensure the front of queue is a new un-issued se
 
-    se.issue_idx = issue.idx as u8;
+    let cycle = issue.cycle;
+    let idx = issue.idx;
 
-    info!(
-      "[{}] Issue: issue_idx={}, pc={:#x}, inst={}",
-      issue.cycle, issue.idx, se.pc, se.disasm
-    );
+    se.issue_idx = idx as u8;
+
+    info!("[{cycle}] Issue: issue_idx={idx} ({})", se.describe_insn());
+
+    self.commit_queue.push_front(se);
 
     Ok(())
   }
