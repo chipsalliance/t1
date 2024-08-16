@@ -130,5 +130,5 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with
   )
   response.data := result
   response.ffoSuccess := ffo.resp.valid && isffo
-  response.clipFail := DontCare
+  response.clipFail := roundResultOverlap || differentSign
 }

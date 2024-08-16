@@ -496,6 +496,9 @@ class T1(val parameter: T1Parameter)
     */
   val instructionFinished: Vec[Vec[Bool]] = Wire(Vec(parameter.laneNumber, Vec(parameter.chainingSize, Bool())))
 
+  val vxsatReportVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.chainingSize.W)))
+  val vxsatReport = vxsatReportVec.reduce(_ | _)
+
   // todo: 把lsu也放decode里去
   val maskUnitType: Bool = decodeResult(Decoder.maskUnit) && requestRegDequeue.bits.instruction(6)
   val maskDestination = decodeResult(Decoder.maskDestination)
@@ -627,6 +630,7 @@ class T1(val parameter: T1Parameter)
       * this signal is used to update the `control.endTag`.
       */
     val lsuFinished: Bool = ohCheck(lsu.lastReport, control.record.instructionIndex, parameter.chainingSize)
+    val vxsatUpdate = ohCheck(vxsatReport, control.record.instructionIndex, parameter.chainingSize)
 
     val dataInWritePipeCheck = ohCheck(dataInWritePipe, control.record.instructionIndex, parameter.chainingSize)
     // instruction is allocated to this slot.
@@ -641,6 +645,7 @@ class T1(val parameter: T1Parameter)
       control.state.wLast := false.B
       control.state.sCommit := false.B
       control.state.wVRFWrite := !requestReg.bits.decodeResult(Decoder.maskUnit)
+      control.vxsat := false.B
       // two different initial states for endTag:
       // for load/store instruction, use the last bit to indicate whether it is the last instruction
       // for other instructions, use MSB to indicate whether it is the last instruction
@@ -667,6 +672,9 @@ class T1(val parameter: T1Parameter)
         // endTag update logic from slot and lsu to instructionFinished.
         control.endTag.zip(instructionFinished.map(_(index)) :+ lsuFinished).foreach {
           case (d, c) => d := d || c
+        }
+        when(vxsatUpdate) {
+          control.vxsat := true.B
         }
       }
     // logic like mask&reduce will be put to last slot
@@ -1546,6 +1554,7 @@ class T1(val parameter: T1Parameter)
     instructionFinished(index).zip(slots.map(_.record.instructionIndex)).foreach {
       case (d, f) => d := (UIntToOH(f(parameter.instructionIndexBits - 2, 0)) & lane.instructionFinished).orR
     }
+    vxsatReportVec(index) := lane.vxsatReport
     val v0ForThisLane: Seq[UInt] = regroupV0.map(rv => cutUInt(rv, parameter.vLen / parameter.laneNumber)(index))
     val v0SelectBySew = Mux1H(UIntToOH(lane.maskSelectSew)(2, 0), v0ForThisLane)
     lane.maskInput := cutUInt(v0SelectBySew, parameter.datapathWidth)(lane.maskSelect)
@@ -1685,7 +1694,7 @@ class T1(val parameter: T1Parameter)
     retire := slotCommit.asUInt.orR
     io.retire.rd.bits.rdData := Mux(ffoType, ffoIndexReg.bits, dataResult.bits)
     // TODO: csr retire.
-    io.retire.csr.bits.vxsat := DontCare
+    io.retire.csr.bits.vxsat := (slotCommit.asUInt & VecInit(slots.map(_.vxsat)).asUInt).orR
     io.retire.csr.bits.fflag := DontCare
     io.retire.csr.valid := false.B
     io.retire.mem.valid := (slotCommit.asUInt & VecInit(slots.map(_.record.isLoadStore)).asUInt).orR

@@ -50,7 +50,7 @@ class V(vlen: Int, hypervisor: Boolean) {
     case "vlenb"       => UInt(vlenbWidth.W)
     case "vstart"      => UInt(vlWidth.W)
     case "vxrm"        => UInt(2.W)
-    case "vxsat"       => UInt(2.W)
+    case "vxsat"       => Bool()
   }
   // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#311-state-of-vector-extension-at-reset
   def reset(content: String): Option[UInt] = content match {
