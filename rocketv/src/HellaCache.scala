@@ -256,7 +256,7 @@ case class HellaCacheParameter(
   }
 
   def loadStoreParameter: AXI4BundleParameter = AXI4BundleParameter(
-    idWidth = 1,
+    idWidth = log2Ceil(firstMMIO + maxUncachedInFlight),
     dataWidth = rowBits,
     addrWidth = paddrBits,
     userReqWidth = 1,
@@ -1010,6 +1010,8 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     io.loadStoreAXI.aw.valid := memAccessValid && !accessWillRead
     io.loadStoreAXI.aw.bits := DontCare
+    io.loadStoreAXI.aw.bits.id := a_source
+    io.loadStoreAXI.aw.bits.user := s2_uncached
     io.loadStoreAXI.aw.bits.burst := 1.U
     io.loadStoreAXI.aw.bits.addr := access_address
     io.loadStoreAXI.aw.bits.len := 0.U
@@ -1105,6 +1107,11 @@ class HellaCache(val parameter: HellaCacheParameter)
     val canAcceptCachedGrant = !Seq(s_voluntary_writeback, s_voluntary_write_meta, s_voluntary_aw).map(_ === release_state).reduce(_ || _)
     io.loadStoreAXI.r.ready := Mux(grantIsCached, canAcceptCachedGrant, true.B)
     val uncachedRespIdxOH = (UIntToOH(io.loadStoreAXI.r.bits.id, maxUncachedInFlight + mmioOffset) >> mmioOffset).asUInt
+    val uncachedReadAckIndex = Mux(
+      io.loadStoreAXI.r.fire && io.loadStoreAXI.r.bits.user(0),
+      uncachedRespIdxOH,
+      0.U
+    )
     uncachedResp := Mux1H(uncachedRespIdxOH, uncachedReqs)
     when(io.loadStoreAXI.r.fire) {
       when(grantIsCached) {
@@ -1117,13 +1124,6 @@ class HellaCache(val parameter: HellaCacheParameter)
           replacer.miss
         }
       }.otherwise  {
-        (uncachedRespIdxOH.asBools.zip(uncachedInFlight)).foreach {
-          case (s, f) =>
-            when(s && d_last) {
-              assert(f, "An AccessAck was unexpected by the dcache.") // TODO must handle Ack coming back on same cycle!
-              f := false.B
-            }
-        }
         // r always has data
         if (!cacheParams.separateUncachedResp) {
           if (!cacheParams.pipelineWayMux)
@@ -1143,6 +1143,20 @@ class HellaCache(val parameter: HellaCacheParameter)
     }
 
     io.loadStoreAXI.b.ready := true.B
+    val uncachedWriteIdxOH = (UIntToOH(io.loadStoreAXI.b.bits.id, maxUncachedInFlight + mmioOffset) >> mmioOffset).asUInt
+    val uncachedwriteAckIndex = Mux(
+      io.loadStoreAXI.b.fire && io.loadStoreAXI.b.bits.user(0),
+      uncachedWriteIdxOH,
+      0.U
+    )
+    val uncachedAckIndex = uncachedwriteAckIndex | uncachedReadAckIndex
+    uncachedAckIndex.asBools.zip(uncachedInFlight).foreach {
+      case (s, f) =>
+        when(s) {
+          assert(f, "An uncached AccessAck was unexpected by the dcache.") // TODO must handle Ack coming back on same cycle!
+          f := false.B
+        }
+    }
     when(io.loadStoreAXI.b.fire) {
       // assert(
       //   release_ack_wait,
@@ -1252,6 +1266,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       io.loadStoreAXI.aw.bits.len := (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
       io.loadStoreAXI.aw.bits.size := parameter.lgCacheBlockBytes.U
       io.loadStoreAXI.aw.bits.id := (mmioOffset - 1).U
+      io.loadStoreAXI.aw.bits.user := false.B
     }
 
     when(s2_release_data_valid) {
