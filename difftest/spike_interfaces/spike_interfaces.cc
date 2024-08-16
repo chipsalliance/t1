@@ -56,6 +56,13 @@ const char *proc_disassemble(spike_processor_t *proc) {
   return strdup(disasm->disassemble(fetch.insn).c_str());
 }
 
+const char *proc_disassemble_with_pc(spike_processor_t *proc, reg_t pc) {
+  auto mmu = proc->p->get_mmu();
+  auto disasm = proc->p->get_disassembler();
+  auto fetch = mmu->load_insn(pc);
+  return strdup(disasm->disassemble(fetch.insn).c_str());
+}
+
 spike_processor_t *spike_get_proc(spike_t *spike) {
   return new spike_processor_t{spike->s->get_proc()};
 }
@@ -76,7 +83,7 @@ reg_t proc_func(spike_processor_t *proc) {
     fetch = mmu->load_insn(pc);
     res = fetch.func(proc->p, fetch.insn, pc);
   } catch (trap_t &trap) {
-    printf("catch exception\n");
+    //printf("catch exception\n");
     unsigned max_xlen = proc->p->get_const_xlen();
     state_t* state = proc->p->get_state();
     reg_t hsdeleg = (state->prv <= PRV_S) ? state->medeleg->read() : 0;
@@ -148,6 +155,12 @@ reg_t proc_get_insn(spike_processor_t *proc) {
   return fetch.insn.bits();
 }
 
+reg_t proc_get_insn_with_pc(spike_processor_t *proc, reg_t pc) {
+  auto mmu = proc->p->get_mmu();
+  auto fetch = mmu->load_insn(pc);
+  return fetch.insn.bits();
+}
+
 uint8_t proc_get_vreg_data(spike_processor_t *proc, uint32_t vreg_idx,
                            uint32_t vreg_offset) {
   return proc->p->VU.elt<uint8_t>(vreg_idx, vreg_offset);
@@ -167,14 +180,29 @@ uint32_t proc_get_rs1(spike_processor_t *proc) {
   return (uint32_t)fetch.insn.rs1();
 }
 
+uint32_t proc_get_rs1_with_pc(spike_processor_t *proc, reg_t pc) {
+  auto fetch = proc->p->get_mmu()->load_insn(pc);
+  return (uint32_t)fetch.insn.rs1();
+}
+
 uint32_t proc_get_rs2(spike_processor_t *proc) {
   auto pc = proc->p->get_state()->pc;
   auto fetch = proc->p->get_mmu()->load_insn(pc);
   return (uint32_t)fetch.insn.rs2();
 }
 
+uint32_t proc_get_rs2_with_pc(spike_processor_t *proc, reg_t pc) {
+  auto fetch = proc->p->get_mmu()->load_insn(pc);
+  return (uint32_t)fetch.insn.rs2();
+}
+
 uint32_t proc_get_rd(spike_processor_t *proc) {
   auto pc = proc->p->get_state()->pc;
+  auto fetch = proc->p->get_mmu()->load_insn(pc);
+  return fetch.insn.rd();
+}
+
+uint32_t proc_get_rd_with_pc(spike_processor_t *proc, reg_t pc) {
   auto fetch = proc->p->get_mmu()->load_insn(pc);
   return fetch.insn.rd();
 }

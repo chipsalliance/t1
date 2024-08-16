@@ -78,15 +78,20 @@ impl SpikeRunner {
     let state = proc.get_state();
 
     state.set_mcycle((self.cycle + self.spike_cycle) as usize);
-
+    
     let mut event = SpikeEvent::new_with_pc(state.get_pc(), self.do_log_vrf);
-    state.clear();
+    //state.clear();
+
+    let new_pc = proc.func();
+
+    // fill the SpikeEvent
+    //event.fill_event(spike);
 
     // inst is scalar
     debug!("SpikeStep: spike run scalar insn ({})", event.describe_insn());
-    let new_pc = proc.func();
-    event.log_mem_write(spike).unwrap();
-    event.log_reg_write(spike).unwrap();
+
+    //event.log_mem_write(spike).unwrap();
+    //event.log_reg_write(spike).unwrap();
 
     state.handle_pc(new_pc).unwrap();
 

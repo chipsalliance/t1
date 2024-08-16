@@ -100,7 +100,6 @@ pub struct SpikeEvent {
 }
 
 impl SpikeEvent {
-  
   pub fn new_with_pc(pc: u64, do_log_vrf: bool) -> Self {
     SpikeEvent {
       do_log_vrf,
@@ -186,6 +185,29 @@ impl SpikeEvent {
 
       exit: false,
     }
+  }
+
+  pub fn fill_event(&mut self, spike: &Spike) {
+    let pc = self.pc;
+    let proc = spike.get_proc();
+    let state = proc.get_state();
+
+    let insn_bits = proc.get_insn_with_pc(pc);
+    let opcode = clip(insn_bits, 0, 6);
+    let width = clip(insn_bits, 12, 14);
+
+    let is_rs_fp = opcode == 0b1010111 && width == 0b101/* OPFVF */;
+
+    let rs1 = proc.get_rs1_with_pc(pc);
+    let rs2 = proc.get_rs2_with_pc(pc);
+
+    self.disasm = proc.disassemble_with_pc(pc);
+    self.inst_bits = insn_bits;
+    self.rs1 = rs1;
+    self.rs2 = rs2;
+    self.rs1_bits = state.get_reg(rs1, is_rs_fp);
+    self.rs2_bits = state.get_reg(rs2, is_rs_fp);
+    self.rd_idx = proc.get_rd_with_pc(pc);
   }
 
   pub fn opcode(&self) -> u32 {

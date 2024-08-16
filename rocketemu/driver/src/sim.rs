@@ -43,7 +43,7 @@ pub struct SimulationArgs {
   pub log_level: String,
 
   /// The timeout value
-  #[arg(long, default_value_t = 1_0000)]
+  #[arg(long, default_value_t = 1_00000)]
   pub timeout: u64,
 
   #[cfg(feature = "trace")]

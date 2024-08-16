@@ -35,7 +35,7 @@ impl Difftest {
       }
       if se.is_rd_written() && se.rd_idx != 0 {
         let event = self.dut.step()?;
-
+        
         match event {
           JsonEvents::RegWrite { addr, data, cycle } => {
             self.runner.cycle = *cycle;
