@@ -79,7 +79,7 @@ impl SpikeRunner {
 
     state.set_mcycle((self.cycle + self.spike_cycle) as usize);
 
-    let mut event = SpikeEvent::new(spike, self.do_log_vrf);
+    let mut event = SpikeEvent::new_with_pc(state.get_pc(), self.do_log_vrf);
     state.clear();
 
     // inst is scalar

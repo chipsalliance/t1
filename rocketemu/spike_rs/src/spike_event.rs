@@ -100,6 +100,44 @@ pub struct SpikeEvent {
 }
 
 impl SpikeEvent {
+  
+  pub fn new_with_pc(pc: u64, do_log_vrf: bool) -> Self {
+    SpikeEvent {
+      do_log_vrf,
+      
+      lsu_idx: LSU_IDX_DEFAULT,
+      issue_idx: ISSUE_IDX_DEFAULT,
+
+      disasm: "".to_string(),
+      pc: pc,
+      inst_bits: 0, 
+
+      rs1: 0,
+      rs2: 0,
+      rs1_bits: 0,
+      rs2_bits: 0,
+      rd_idx: 0,
+
+      vtype: 0,
+      vxrm: 0,
+      vnf: 0,
+
+      vill: false,
+      vxsat: false,
+      vl: 0,
+      vstart: 0,
+
+      rd_bits: 0,
+
+      is_rd_written: false,
+      vd_write_record: Default::default(),
+      mem_access_record: Default::default(),
+      vrf_access_record: Default::default(),
+
+      exit: false,
+    }
+  }
+
   pub fn new(spike: &Spike, do_log_vrf: bool) -> Self {
     let proc = spike.get_proc();
     let state = proc.get_state();
