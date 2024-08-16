@@ -7,8 +7,9 @@ import chisel3._
 import chisel3.experimental.{BaseModule, ExtModule, SerializableModuleGenerator}
 import chisel3.experimental.dataview.DataViewable
 import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
-import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
+import chisel3.util.{HasExtModuleInline, Mux1H, PopCount, Queue, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
+import org.chipsalliance.rocketv.RocketROB
 import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
 
@@ -176,25 +177,37 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
 
   // output the probes
   // rocket reg write rob
-
-  // FIXME: just fake code, wip
-  val robQueue = Module(new Queue(new RocketROB(generator.parameter.rocketParameter), 16))
+  val robQueue = Module(new Queue(new RocketROB(generator.parameter.rocketParameter), 32))
+  val robWriteDataValid = RegInit(0.U(32.W))
+  val robWriteData: Seq[UInt] = Seq.tabulate(32){ _ => RegInit(0.U(generator.parameter.xLen.W))}
   // push queue
-  robQueue.io.enq.valid := rocketProbe.rob.commit
+  robQueue.io.enq.valid := rocketProbe.rob.commit && rocketProbe.rob.shouldWb
   robQueue.io.enq.bits := rocketProbe.rob
 
-  // modify rob trace
-  robQueue.foreach { elem =>
-    when(elem.tag == rocketProbe.trace.rfWaddr && rocketProbe.trace.rfWen) {
-      elem.trace := rocketProbe.trace
-    }
+  // update rob write
+  val doEnqSelect: UInt = Mux(rocketProbe.rob.longLatencyWrite, UIntToOH(rocketProbe.rob.trace.rfWaddr), 0.U(32.W))
+  val doDeqSelect = Wire(UInt(32.W))
+  robWriteDataValid := (doEnqSelect | robWriteDataValid) & (~doDeqSelect).asUInt
+  robWriteData.zip(doEnqSelect.asBools).foreach {case (d, s) =>
+    d := Mux(s, rocketProbe.rob.trace.rfWdata, d)
   }
 
   // pop queue and output trace
-  robQueue.io.deq.ready := robQueue.last.valid // fixme
-  when(robQueue.io.deq.fire && robQueue.io.deq.bits.rob.trace.rfWen && robQueue.io.deq.bits.rob.trace.rfWaddr =/= 0.U)(
+  val deqLongLatency: Bool = robQueue.io.deq.bits.wbSetScoreboard
+  robQueue.io.deq.ready :=
+    // Normal writing
+    !deqLongLatency ||
+      // Long latency data is ready
+      (robWriteDataValid & UIntToOH(robQueue.io.deq.bits.tag)).orR
+  val writeData: UInt = Mux(
+    deqLongLatency,
+    Mux1H(UIntToOH(robQueue.io.deq.bits.tag), robWriteData),
+    robQueue.io.deq.bits.trace.rfWdata
+  )
+  doDeqSelect := Mux(robQueue.io.deq.fire && deqLongLatency, UIntToOH(robQueue.io.deq.bits.tag), 0.U(32.W))
+  when(robQueue.io.deq.fire)(
     printf(
-      cf"""{"event":"RegWrite","idx":${robQueue.io.deq.bits.rob.trace.rfWaddr},"data":"${robQueue.io.deq.bits.rob.trace.rfWdata}%x","cycle":${simulationTime}}\n"""
+      cf"""{"event":"RegWrite","idx":${robQueue.io.deq.bits.tag},"data":"${writeData}%x","cycle":${simulationTime}}\n"""
     )
   )
 
