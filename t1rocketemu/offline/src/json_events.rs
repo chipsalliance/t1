@@ -178,7 +178,9 @@ impl JsonEventRunner for SpikeRunner {
     let se = self.find_rf_se();
 
     info!(
-      "[{cycle}] RegWrite: inst ({}) check reg write idx={idx}, data={data:08x}",
+      "[{cycle}] RegWrite: rtl idx={idx}, data={data:08x}; se idx={}, data={:08x} ({})",
+      se.rd_idx,
+      se.rd_bits,
       se.describe_insn()
     );
 
