@@ -25,6 +25,7 @@ class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends 
   val maskType: Bool = Bool()
   // Newly added in LaneExecutionBridge
   val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
 }
 
 class LaneExecuteResponse(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -45,6 +46,7 @@ class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) 
   // pipe state
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val vSew1H: UInt = UInt(3.W)
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
 }
 
 @instantiable
@@ -71,6 +73,8 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   val executeDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
   @public
   val responseDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
+  @public
+  val responseIndex: UInt = IO(Output(UInt(parameter.instructionIndexBits.W)))
 
   val executionRecord: ExecutionUnitRecord = RegInit(0.U.asTypeOf(new ExecutionUnitRecord(parameter)(isLastSlot)))
   val executionRecordValid = RegInit(false.B)
@@ -152,6 +156,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecord.csr := enqueue.bits.csr
     executionRecord.maskType := enqueue.bits.maskType
     executionRecord.laneIndex := enqueue.bits.laneIndex
+    executionRecord.instructionIndex := enqueue.bits.instructionIndex
   }
 
   /** collapse the dual SEW size operand for cross read.
@@ -327,6 +332,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   }
   recordQueue.io.enq.bits.decodeResult := executionRecord.decodeResult
   recordQueue.io.enq.bits.vSew1H := executionRecord.vSew1H
+  recordQueue.io.enq.bits.instructionIndex := executionRecord.instructionIndex
   //--- vfu <-> write queue start ---
 
   /** same as [[doubleExecutionInRecord]]
@@ -540,6 +546,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   queue.io.enq.bits.fpReduceValid.foreach(_ := !waitFirstValidFire.get)
   recordQueue.io.deq.ready := dataResponse.valid || (recordNotExecute && queue.io.enq.ready)
   responseDecode := recordQueue.io.deq.bits.decodeResult
+  responseIndex := recordQueue.io.deq.bits.instructionIndex
   queue.io.enq.valid :=
     (recordQueue.io.deq.valid &&
       ((dataResponse.valid && reduceReady &&

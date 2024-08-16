@@ -267,6 +267,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** for each instruction in the slot, response to top when instruction is finished in this lane. */
   @public
   val instructionFinished: UInt = IO(Output(UInt(parameter.chainingSize.W)))
+  @public
+  val vxsatReport: UInt = IO(Output(UInt(parameter.chainingSize.W)))
 
   /** V0 update in the lane should also update [[T1.v0]] */
   @public
@@ -495,6 +497,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** assert when a instruction is valid in the slot. */
   val instructionValid: UInt = Wire(UInt(parameter.chainingSize.W))
   val instructionValidNext: UInt = RegNext(instructionValid, 0.U)
+
+  val vxsatResult: UInt = RegInit(0.U(parameter.chainingSize.W))
+  vxsatReport := vxsatResult
+
+  // Overflow occurs
+  val vxsatEnq: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
+  // vxsatEnq and instructionFinished cannot happen at the same time
+  vxsatResult := (vxsatEnq.reduce(_ | _) | vxsatResult) & (~instructionFinished).asUInt
 
   /** assert when a instruction will not use mask unit */
   val instructionUnrelatedMaskUnitVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
@@ -744,6 +754,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       executionUnit.vfuRequest.ready := executeEnqueueFire(index)
       executionUnit.dataResponse := responseVec(index)
 
+      vxsatEnq(index) := Mux(
+        executionUnit.dataResponse.valid &&
+          (executionUnit.dataResponse.bits.clipFail ## executionUnit.dataResponse.bits.vxsat).orR,
+        UIntToOH(executionUnit.responseIndex(parameter.instructionIndexBits - 2, 0)),
+        0.U(parameter.chainingSize.W)
+      )
       when(executionUnit.dequeue.valid)(assert(stage2.dequeue.valid))
       stage3.enqueue.valid := executionUnit.dequeue.valid
       executionUnit.dequeue.ready := stage3.enqueue.ready

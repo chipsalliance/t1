@@ -104,6 +104,8 @@ class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
     * TODO: move to `state`.
     */
   val endTag: Vec[Bool] = Vec(laneSize + 1, Bool())
+
+  val vxsat: Bool = Bool()
 }
 
 class ExtendInstructionType extends Bundle {
@@ -628,6 +630,7 @@ class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends
   val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
   // pipe state
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
+  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
 }
 
 class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
