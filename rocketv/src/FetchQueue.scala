@@ -53,9 +53,16 @@ class FetchQueue(val parameter: FetchQueueParameter)
   override protected def implicitClock: Clock = io.clock
   override protected def implicitReset: Reset = io.reset
 
+  /* Queue Structure:
+  *  | (v_0, entry_0) | (v_1, entry_1) | ... | (v_n, entry_n) |
+  *        ^                                          ^
+  *        |                                          |
+  *       Deq                                        Enq
+  */
   private val valid = RegInit(VecInit(Seq.fill(parameter.entries) { false.B }))
   private val elts = Reg(Vec(parameter.entries, parameter.gen))
 
+  /* Move entry_(n+1) -> entry_n, and enqueue the last entry. (The valid entry will be contingous.)*/
   for (i <- 0 until parameter.entries) {
     def paddedValid(i: Int) = if (i == -1) true.B else if (i == parameter.entries) false.B else valid(i)
 
@@ -80,7 +87,8 @@ class FetchQueue(val parameter: FetchQueueParameter)
   io.enq.ready := !valid(parameter.entries - 1)
   io.deq.valid := valid(0)
   io.deq.bits := elts.head
-
+  
+  /* Dequeue the instruction that just enqueue */
   when(io.enq.valid) { io.deq.valid := true.B }
   when(!valid(0)) { io.deq.bits := io.enq.bits }
 
