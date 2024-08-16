@@ -24,12 +24,12 @@ class RocketROB(param: RocketParameter) extends Bundle {
   val commit: Bool = Bool()
   val trace: RocketRF = new RocketRF(param)
   val shouldWb: Bool = Bool()
-  val hasWb: Bool = Bool()
-  val tag: UInt = UInt(param.xLen.W)
+  val tag: UInt = UInt(5.W)
+  val wbSetScoreboard: Bool = Bool()
+  val longLatencyWrite: Bool = Bool()
 }
 
 class RocketProbe(param: RocketParameter) extends Bundle {
-  val trace: RocketRF = new RocketRF(param)
   val rob: RocketROB = new RocketROB(param)
   // rocket is idle
   val idle: Bool = Bool()
@@ -1081,15 +1081,15 @@ class Rocket(val parameter: RocketParameter)
     )
     when(rfWen) { rf.write(rfWaddr, rfWdata) }
 
-    probeWire.trace.rfWen := rfWen
-    probeWire.trace.rfWaddr := rfWaddr
-    probeWire.trace.rfWdata := rfWdata
+    probeWire.rob.trace.rfWen := rfWen
+    probeWire.rob.trace.rfWaddr := rfWaddr
+    probeWire.rob.trace.rfWdata := rfWdata
     // FIXME: vectorCSR
     probeWire.rob.commit := wbValid
-    probeWire.rob.trace := probeWire.trace
-    probeWire.rob.shouldWb := (wbRegDecodeOutput(parameter.decoderParameter.wfd) || (wbWxd && wbWaddr =/= 0.U)) && !wbException
-    probeWire.rob.hasWb := wbWxd && wbWen // FIXME: && !wb_set_sboard
-    probeWire.rob.tag := wbWaddr + Mux(wbRegDecodeOutput(parameter.decoderParameter.wfd), 32.U, 0.U)
+    probeWire.rob.shouldWb := wbWxd && wbWaddr =/= 0.U && !wbException
+    probeWire.rob.tag := wbWaddr
+    probeWire.rob.wbSetScoreboard := wbSetSboard && wbWen
+    probeWire.rob.longLatencyWrite := longLatencyWenable
 
     // hook up control/status regfile
     csr.io.ungatedClock := io.clock
@@ -1443,12 +1443,11 @@ class Rocket(val parameter: RocketParameter)
       }
       io.fpu.foreach { fpu =>
         when(!(dmemResponseValid && dmemResponseFpu)) {
-          fpu.dmem_resp_val := t1.retire.mem.fire && vectorTryToWriteFP
-          fpu.dmem_resp_data := t1.retire.rd.bits.rdData
+          fpu.dmem_resp_val := t1XRDRetireQueue.io.deq.valid && vectorTryToWriteFP
+          fpu.dmem_resp_data := t1XRDRetireQueue.io.deq.bits.rdData
           // todo: 32 bit only
           fpu.dmem_resp_type := 2.U
-          // todo: connect tag
-          fpu.dmem_resp_tag := 0.U
+          fpu.dmem_resp_tag := t1XRDRetireQueue.io.deq.bits.rdAddress
         }
       }
     }
