@@ -5,10 +5,17 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
+import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
 import chisel3.experimental.{BaseModule, SerializableModule, SerializableModuleParameter}
+import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.util._
 import chisel3.util.circt.ClockGate
+
+class FPUProbe(param: FPUParameter) extends Bundle {
+  val rfWen:   Bool = Bool()
+  val rfWaddr: UInt = UInt(5.W)
+  val rfWdata: UInt = UInt((param.fLen + 1).W)
+}
 
 object FPUParameter {
   implicit def rwP: upickle.default.ReadWriter[FPUParameter] = upickle.default.macroRW[FPUParameter]
@@ -32,6 +39,7 @@ class FPUInterface(parameter: FPUParameter) extends Bundle {
   val core = new FPUCoreIO(parameter.hartIdLen, parameter.xLen, parameter.fLen)
   val cp_req = Flipped(Decoupled(new FPInput(parameter.fLen))) //cp doesn't pay attn to kill sigs
   val cp_resp = Decoupled(new FPResult(parameter.fLen))
+  val fpuProbe = Output(Probe(new FPUProbe(parameter)))
 }
 
 // TODO: all hardfloat module can be replaced by DWBB?
@@ -414,6 +422,14 @@ class FPU(val parameter: FPUParameter)
       wb_reg_valid || wb_cp_valid || // WB stage
       wen.orR || divSqrt_inFlight || // post-WB stage
       io.core.dmem_resp_val // load writeback
+
+    // probe defination
+    val probeWire = Wire(new FPUProbe(parameter))
+    define(io.fpuProbe, ProbeValue(probeWire))
+
+    probeWire.rfWen := load_wb || (!wbInfo(0).cp && wen(0)) || divSqrt_wen
+    probeWire.rfWaddr := Mux(load_wb, load_wb_tag, waddr)
+    probeWire.rfWdata := Mux(load_wb, recode(load_wb_data, load_wb_typeTag), wdata)
 
   } // leaving gated-clock domain
   val fpuImpl = withClockAndReset(gated_clock, io.reset) { new FPUImpl }
