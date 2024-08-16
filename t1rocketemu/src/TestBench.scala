@@ -175,10 +175,26 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   val otherUnitProbe = t1Probe.lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
 
   // output the probes
-  // rocket reg write
-  when(rocketProbe.rfWen && rocketProbe.rfWaddr =/= 0.U)(
+  // rocket reg write rob
+
+  // FIXME: just fake code, wip
+  val robQueue = Module(new Queue(new RocketROB(generator.parameter.rocketParameter), 16))
+  // push queue
+  robQueue.io.enq.valid := rocketProbe.rob.commit
+  robQueue.io.enq.bits := rocketProbe.rob
+
+  // modify rob trace
+  robQueue.foreach { elem =>
+    when(elem.tag == rocketProbe.trace.rfWaddr && rocketProbe.trace.rfWen) {
+      elem.trace := rocketProbe.trace
+    }
+  }
+
+  // pop queue and output trace
+  robQueue.io.deq.ready := robQueue.last.valid // fixme
+  when(robQueue.io.deq.fire && robQueue.io.deq.bits.rob.trace.rfWen && robQueue.io.deq.bits.rob.trace.rfWaddr =/= 0.U)(
     printf(
-      cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
+      cf"""{"event":"RegWrite","idx":${robQueue.io.deq.bits.rob.trace.rfWaddr},"data":"${robQueue.io.deq.bits.rob.trace.rfWdata}%x","cycle":${simulationTime}}\n"""
     )
   )
 
