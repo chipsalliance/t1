@@ -55,7 +55,7 @@ impl Spike {
 
   pub fn get_proc(&self) -> Processor {
     let processor = unsafe { spike_get_proc(self.spike) };
-    Processor { processor }
+    Processor { processor: processor, is_exception: false }
   }
 
   pub fn load_bytes_to_mem(
@@ -88,6 +88,7 @@ impl Drop for Spike {
 
 pub struct Processor {
   processor: *mut (),
+  is_exception: bool,
 }
 
 impl Processor {
@@ -179,6 +180,14 @@ impl Processor {
 
   pub fn vu_get_vstart(&self) -> u16 {
     unsafe { proc_vu_get_vstart(self.processor) }
+  }
+
+  pub fn is_exception(&self) -> bool {
+    self.is_exception
+  }
+
+  pub fn reset_exception(&mut self) {
+    self.is_exception = false
   }
 }
 

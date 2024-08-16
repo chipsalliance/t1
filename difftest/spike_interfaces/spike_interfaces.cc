@@ -142,6 +142,7 @@ reg_t proc_func(spike_processor_t *proc) {
     //          << ", tinst=" << std::setw(8) << std::hex << trap.get_tinst()
     //          << ")" << std::endl;
     //throw trap;
+    proc->is_exception = true;
     res = state->pc;
   } 
 
@@ -156,9 +157,13 @@ reg_t proc_get_insn(spike_processor_t *proc) {
 }
 
 reg_t proc_get_insn_with_pc(spike_processor_t *proc, reg_t pc) {
-  auto mmu = proc->p->get_mmu();
-  auto fetch = mmu->load_insn(pc);
-  return fetch.insn.bits();
+  try {
+    auto mmu = proc->p->get_mmu();
+    auto fetch = mmu->load_insn(pc);
+    return fetch.insn.bits();
+  } catch(...) {
+    return 0;
+  }
 }
 
 uint8_t proc_get_vreg_data(spike_processor_t *proc, uint32_t vreg_idx,
@@ -181,8 +186,12 @@ uint32_t proc_get_rs1(spike_processor_t *proc) {
 }
 
 uint32_t proc_get_rs1_with_pc(spike_processor_t *proc, reg_t pc) {
-  auto fetch = proc->p->get_mmu()->load_insn(pc);
-  return (uint32_t)fetch.insn.rs1();
+  try{
+    auto fetch = proc->p->get_mmu()->load_insn(pc);
+    return (uint32_t)fetch.insn.rs1();
+  } catch(...) {
+    return 0;
+  }
 }
 
 uint32_t proc_get_rs2(spike_processor_t *proc) {
@@ -192,8 +201,12 @@ uint32_t proc_get_rs2(spike_processor_t *proc) {
 }
 
 uint32_t proc_get_rs2_with_pc(spike_processor_t *proc, reg_t pc) {
-  auto fetch = proc->p->get_mmu()->load_insn(pc);
-  return (uint32_t)fetch.insn.rs2();
+  try{
+    auto fetch = proc->p->get_mmu()->load_insn(pc);
+    return (uint32_t)fetch.insn.rs2();
+  } catch(...) {
+    return 0;
+  }
 }
 
 uint32_t proc_get_rd(spike_processor_t *proc) {
@@ -203,8 +216,12 @@ uint32_t proc_get_rd(spike_processor_t *proc) {
 }
 
 uint32_t proc_get_rd_with_pc(spike_processor_t *proc, reg_t pc) {
-  auto fetch = proc->p->get_mmu()->load_insn(pc);
-  return fetch.insn.rd();
+  try {
+    auto fetch = proc->p->get_mmu()->load_insn(pc);
+    return fetch.insn.rd();
+  } catch(...) {
+    return 0;
+  }
 }
 
 uint64_t proc_vu_get_vtype(spike_processor_t *proc) {

@@ -5,6 +5,8 @@ use Default;
 use crate::clip;
 use crate::Spike;
 
+use tracing::debug;
+
 #[derive(Debug, Clone)]
 pub struct SingleMemWrite {
   pub val: u8,
@@ -193,6 +195,9 @@ impl SpikeEvent {
     let state = proc.get_state();
 
     let insn_bits = proc.get_insn_with_pc(pc);
+    if insn_bits == 0 {
+      return ;
+    }
     let opcode = clip(insn_bits, 0, 6);
     let width = clip(insn_bits, 12, 14);
 
