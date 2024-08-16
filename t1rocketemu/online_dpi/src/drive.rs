@@ -82,8 +82,9 @@ impl ShadowMem {
     let addr_align = addr & ((!bus_size) + 1);
 
     let bus_size = bus_size as usize;
-    assert_eq!(bus_size, masks.len());
-    assert_eq!(bus_size, data.len());
+    // should not check this, in scalar narrow write, bus_size is not equal to data.len()
+    // assert_eq!(bus_size, masks.len());
+    // assert_eq!(bus_size, data.len());
 
     for i in 0..bus_size {
       if masks[i] {
@@ -318,7 +319,8 @@ impl Driver {
 
   pub(crate) fn axi_read_load_store(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
-    let data = self.shadow_mem.read_mem_axi(addr, size, 32);
+    let bus_size = if size == 32 { 32 } else { 4 };
+    let data = self.shadow_mem.read_mem_axi(addr, size, bus_size);
     let data_hex = hex::encode(&data);
     self.last_commit_cycle = get_t();
     trace!(
@@ -336,7 +338,8 @@ impl Driver {
     data: &[u8],
   ) {
     let size = 1 << awsize;
-    self.shadow_mem.write_mem_axi(addr, size, 32, strobe, data);
+    let bus_size = if size == 32 { 32 } else { 4 };
+    self.shadow_mem.write_mem_axi(addr, size, bus_size, strobe, data);
     let data_hex = hex::encode(data);
     self.last_commit_cycle = get_t();
 
