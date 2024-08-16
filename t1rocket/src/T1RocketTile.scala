@@ -9,7 +9,7 @@ import chisel3.util.experimental.BitSet
 import chisel3.util.log2Ceil
 import chisel3.probe.{Probe, ProbeValue, define}
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
-import org.chipsalliance.rocketv.{BHTParameter, FPU, FPUParameter, Frontend, FrontendParameter, HellaCache, HellaCacheArbiter, HellaCacheArbiterParameter, HellaCacheParameter, PTW, PTWParameter, Rocket, RocketParameter, RocketTileParameter, RocketProbe}
+import org.chipsalliance.rocketv.{BHTParameter, FPU, FPUParameter, Frontend, FrontendParameter, HellaCache, HellaCacheArbiter, HellaCacheArbiterParameter, HellaCacheParameter, PTW, PTWParameter, Rocket, RocketParameter, RocketTileParameter, RocketProbe, FPUProbe}
 import org.chipsalliance.rvdecoderdb.Instruction
 import org.chipsalliance.t1.rtl.decoder.T1CustomInstruction
 import org.chipsalliance.t1.rtl.vrf.RamType
@@ -426,6 +426,7 @@ case class T1RocketTileParameter(
 
 class T1RocketProbe(parameter: T1RocketTileParameter) extends Bundle {
   val rocketProbe: RocketProbe = Output(new RocketProbe(parameter.rocketParameter))
+  val fpuProbe: Option[FPUProbe] = parameter.fpuParameter.map(param => Output(new FPUProbe(param)))
   val t1Probe: T1Probe = Output(new T1Probe(parameter.t1Parameter))
 }
 
@@ -559,4 +560,7 @@ class T1RocketTile(val parameter: T1RocketTileParameter)
   define(io.t1RocketProbe, ProbeValue(probeWire))
   probeWire.rocketProbe := probe.read(rocket.io.rocketProbe)
   probeWire.t1Probe := probe.read(t1.io.t1Probe)
+  probeWire.fpuProbe.foreach { fpuProbe =>
+    fpuProbe := probe.read(fpu.get.io.fpuProbe)
+  }
 }

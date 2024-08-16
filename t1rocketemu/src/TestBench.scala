@@ -211,6 +211,15 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
     )
   )
 
+  // [[option]] rocket fpu reg write 
+  t1RocketProbe.fpuProbe.foreach { fpu =>
+    when(fpu.rfWen)(
+      printf(
+        cf"""{"event":"RegWrite","idx":${fpu.rfWaddr},"data":"${fpu.rfWdata}%x","cycle":${simulationTime}}\n"""
+      )
+    )
+  }
+
   // t1 vrf write
   laneVrfProbes.zipWithIndex.foreach {
     case (lane, i) =>
