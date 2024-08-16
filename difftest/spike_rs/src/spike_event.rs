@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use tracing::trace;
+use tracing::{info, trace};
 use Default;
 
 use crate::clip;
@@ -95,6 +95,9 @@ pub struct SpikeEvent {
   pub vd_write_record: VdWriteRecord,
   pub mem_access_record: MemAccessRecord,
   pub vrf_access_record: VrfAccessRecord,
+
+  // exit
+  pub is_exit: bool,
 }
 
 impl SpikeEvent {
@@ -143,6 +146,8 @@ impl SpikeEvent {
       vd_write_record: Default::default(),
       mem_access_record: Default::default(),
       vrf_access_record: Default::default(),
+
+      is_exit: false,
     }
   }
 
@@ -223,10 +228,7 @@ impl SpikeEvent {
   }
 
   pub fn is_exit(&self) -> bool {
-    let is_csr_type = self.opcode() == 0b1110011 && ((self.width() & 0b011) != 0);
-    let is_csr_write = is_csr_type && (((self.width() & 0b100) | self.rs1()) != 0);
-
-    is_csr_write && self.csr() == 0x7cc
+    self.is_exit
   }
 
   pub fn is_vfence(&self) -> bool {
@@ -455,6 +457,13 @@ impl SpikeEvent {
           });
       });
       trace!("SpikeMemWrite: addr={addr:x}, value={value:x}, size={size}");
+
+      if addr == 0x4000_0000 && value == 0xdead_beef {
+        info!("SpikeExit: exit by writing 0xdeadbeef to 0x40000000");
+        self.is_exit = true;
+
+        return;
+      }
     });
 
     Ok(())
