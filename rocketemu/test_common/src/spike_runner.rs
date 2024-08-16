@@ -1,5 +1,5 @@
 use std::path::Path;
-use tracing::debug;
+use tracing::{debug, info};
 
 use spike_rs::spike_event::SpikeEvent;
 use spike_rs::util::load_elf;
@@ -58,7 +58,7 @@ impl SpikeRunner {
     let state = proc.get_state();
 
     let new_pc = proc.func();
-
+    
     state.handle_pc(new_pc).unwrap();
 
     let ret = state.exit();
