@@ -56,6 +56,13 @@ const char *proc_disassemble(spike_processor_t *proc) {
   return strdup(disasm->disassemble(fetch.insn).c_str());
 }
 
+const char *proc_disassemble_with_pc(spike_processor_t *proc, reg_t pc) {
+  auto mmu = proc->p->get_mmu();
+  auto disasm = proc->p->get_disassembler();
+  auto fetch = mmu->load_insn(pc);
+  return strdup(disasm->disassemble(fetch.insn).c_str());
+}
+
 spike_processor_t *spike_get_proc(spike_t *spike) {
   return new spike_processor_t{spike->s->get_proc()};
 }
@@ -67,20 +74,79 @@ spike_state_t *proc_get_state(spike_processor_t *proc) {
 }
 
 reg_t proc_func(spike_processor_t *proc) {
-  auto pc = proc->p->get_state()->pc;
-  auto mmu = proc->p->get_mmu();
-  auto fetch = mmu->load_insn(pc);
-  try {
-    return fetch.func(proc->p, fetch.insn, pc);
+  reg_t pc = proc->p->get_state()->pc;
+  mmu_t* mmu = proc->p->get_mmu();
+  insn_fetch_t fetch;
+  reg_t res;
+  // todo: consider interrupt
+  try { 
+    fetch = mmu->load_insn(pc);
+    res = fetch.func(proc->p, fetch.insn, pc);
   } catch (trap_t &trap) {
-    std::cerr << "Error: spike trapped with " << trap.name()
-              << " (tval=" << std::uppercase << std::setfill('0')
-              << std::setw(8) << std::hex << trap.get_tval()
-              << ", tval2=" << std::setw(8) << std::hex << trap.get_tval2()
-              << ", tinst=" << std::setw(8) << std::hex << trap.get_tinst()
-              << ")" << std::endl;
-    throw trap;
-  }
+    //printf("catch exception\n");
+    unsigned max_xlen = proc->p->get_const_xlen();
+    state_t* state = proc->p->get_state();
+    reg_t hsdeleg = (state->prv <= PRV_S) ? state->medeleg->read() : 0;
+    bool curr_virt = state->v;
+    reg_t bit = trap.cause();
+
+    if (state->prv <= PRV_S && bit < max_xlen && ((hsdeleg >> bit) & 1)) {
+      reg_t vector = (state->nonvirtual_stvec->read() & 1) ? 4 * bit : 0;
+      state->pc = (state->nonvirtual_stvec->read() & ~(reg_t)1) + vector;
+      state->nonvirtual_scause->write(trap.cause());
+      state->nonvirtual_sepc->write(pc);
+      state->nonvirtual_stval->write(trap.get_tval());
+      state->htval->write(trap.get_tval2());
+      state->htinst->write(trap.get_tinst());
+
+      reg_t s = state->nonvirtual_sstatus->read();
+      s = set_field(s, MSTATUS_SPIE, get_field(s, MSTATUS_SIE));
+      s = set_field(s, MSTATUS_SPP, state->prv);
+      s = set_field(s, MSTATUS_SIE, 0);
+      s = set_field(s, MSTATUS_SPELP, state->elp);
+      state->elp = elp_t::NO_LP_EXPECTED;
+      state->nonvirtual_sstatus->write(s);
+      proc->p->set_privilege(PRV_S, false);
+    } else {
+      const reg_t vector = (state->mtvec->read() & 1) ? 4 * bit : 0;
+      const reg_t trap_handler_address = (state->mtvec->read() & ~(reg_t)1) + vector;
+
+      // todo: consider nmi  
+      //const reg_t rnmi_trap_handler_address = 0;
+      //const bool nmie = !(state->mnstatus && !get_field(state->mnstatus->read(), MNSTATUS_NMIE));
+      //state->pc = !nmie ? rnmi_trap_handler_address : trap_handler_address;
+      state->pc = trap_handler_address;
+      state->mepc->write(pc);
+      state->mcause->write(trap.cause());
+      state->mtval->write(trap.get_tval());
+      state->mtval2->write(trap.get_tval2());
+      state->mtinst->write(trap.get_tinst());
+
+      reg_t s = state->mstatus->read();
+      s = set_field(s, MSTATUS_MPIE, get_field(s, MSTATUS_MIE));
+      s = set_field(s, MSTATUS_MPP, state->prv);
+      s = set_field(s, MSTATUS_MIE, 0);
+      s = set_field(s, MSTATUS_MPV, curr_virt);
+      s = set_field(s, MSTATUS_GVA, trap.has_gva());
+      s = set_field(s, MSTATUS_MPELP, state->elp);
+      state->elp = elp_t::NO_LP_EXPECTED;
+      state->mstatus->write(s);
+      if (state->mstatush) state->mstatush->write(s >> 32);
+      //state->tcontrol->write((state->tcontrol->read() & CSR_TCONTROL_MTE) ? CSR_TCONTROL_MPTE : 0);
+      proc->p->set_privilege(PRV_M, false);
+    }
+    //std::cerr << "Error: spike trapped with " << trap.name()
+    //          << " (tval=" << std::uppercase << std::setfill('0')
+    //          << std::setw(8) << std::hex << trap.get_tval()
+    //          << ", tval2=" << std::setw(8) << std::hex << trap.get_tval2()
+    //          << ", tinst=" << std::setw(8) << std::hex << trap.get_tinst()
+    //          << ")" << std::endl;
+    //throw trap;
+    proc->is_exception = true;
+    res = state->pc;
+  } 
+
+  return res;
 }
 
 reg_t proc_get_insn(spike_processor_t *proc) {
@@ -88,6 +154,16 @@ reg_t proc_get_insn(spike_processor_t *proc) {
   auto mmu = proc->p->get_mmu();
   auto fetch = mmu->load_insn(pc);
   return fetch.insn.bits();
+}
+
+reg_t proc_get_insn_with_pc(spike_processor_t *proc, reg_t pc) {
+  try {
+    auto mmu = proc->p->get_mmu();
+    auto fetch = mmu->load_insn(pc);
+    return fetch.insn.bits();
+  } catch(...) {
+    return 0;
+  }
 }
 
 uint8_t proc_get_vreg_data(spike_processor_t *proc, uint32_t vreg_idx,
@@ -109,16 +185,43 @@ uint32_t proc_get_rs1(spike_processor_t *proc) {
   return (uint32_t)fetch.insn.rs1();
 }
 
+uint32_t proc_get_rs1_with_pc(spike_processor_t *proc, reg_t pc) {
+  try{
+    auto fetch = proc->p->get_mmu()->load_insn(pc);
+    return (uint32_t)fetch.insn.rs1();
+  } catch(...) {
+    return 0;
+  }
+}
+
 uint32_t proc_get_rs2(spike_processor_t *proc) {
   auto pc = proc->p->get_state()->pc;
   auto fetch = proc->p->get_mmu()->load_insn(pc);
   return (uint32_t)fetch.insn.rs2();
 }
 
+uint32_t proc_get_rs2_with_pc(spike_processor_t *proc, reg_t pc) {
+  try{
+    auto fetch = proc->p->get_mmu()->load_insn(pc);
+    return (uint32_t)fetch.insn.rs2();
+  } catch(...) {
+    return 0;
+  }
+}
+
 uint32_t proc_get_rd(spike_processor_t *proc) {
   auto pc = proc->p->get_state()->pc;
   auto fetch = proc->p->get_mmu()->load_insn(pc);
   return fetch.insn.rd();
+}
+
+uint32_t proc_get_rd_with_pc(spike_processor_t *proc, reg_t pc) {
+  try {
+    auto fetch = proc->p->get_mmu()->load_insn(pc);
+    return fetch.insn.rd();
+  } catch(...) {
+    return 0;
+  }
 }
 
 uint64_t proc_vu_get_vtype(spike_processor_t *proc) {

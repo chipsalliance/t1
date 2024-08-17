@@ -17,17 +17,22 @@ void spike_register_callback(void *ffi_target, ffi_callback callback);
 spike_t *spike_new(const char *set, const char *lvl,
                    size_t lane_number);
 const char *proc_disassemble(spike_processor_t *proc);
+const char *proc_disassemble_with_pc(spike_processor_t *proc, reg_t pc);
 void proc_reset(spike_processor_t *proc);
 spike_processor_t *spike_get_proc(spike_t *spike);
 spike_state_t *proc_get_state(spike_processor_t *proc);
 
 uint64_t proc_func(spike_processor_t *proc);
 uint64_t proc_get_insn(spike_processor_t *proc);
+uint64_t proc_get_insn_with_pc(spike_processor_t *proc, reg_t pc);
 uint8_t proc_get_vreg_data(spike_processor_t *proc, uint32_t vreg_idx,
                            uint32_t vreg_offset);
 uint32_t proc_get_rs1(spike_processor_t *proc);
+uint32_t proc_get_rs1_with_pc(spike_processor_t *proc, reg_t pc);
 uint32_t proc_get_rs2(spike_processor_t *proc);
+uint32_t proc_get_rs2_with_pc(spike_processor_t *proc, reg_t pc);
 uint32_t proc_get_rd(spike_processor_t *proc);
+uint32_t proc_get_rd_with_pc(spike_processor_t *proc, reg_t pc); 
 
 uint64_t proc_vu_get_vtype(spike_processor_t *proc);
 uint32_t proc_vu_get_vxrm(spike_processor_t *proc);

@@ -61,6 +61,7 @@ struct spike_t {
 };
 struct spike_processor_t {
   processor_t *p;
+  bool is_exception;
 };
 struct spike_state_t {
   state_t *s;

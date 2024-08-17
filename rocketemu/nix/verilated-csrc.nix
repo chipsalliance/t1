@@ -43,6 +43,7 @@ stdenv.mkDerivation {
       -O1 \
       -Wno-WIDTHEXPAND \
       -Wno-LATCH \
+      -Wno-UNOPTTHREADS \
       --cc TestBench
 
     echo "[nix] building verilated C lib"

@@ -55,7 +55,7 @@ impl Spike {
 
   pub fn get_proc(&self) -> Processor {
     let processor = unsafe { spike_get_proc(self.spike) };
-    Processor { processor }
+    Processor { processor: processor, is_exception: false }
   }
 
   pub fn load_bytes_to_mem(
@@ -88,11 +88,18 @@ impl Drop for Spike {
 
 pub struct Processor {
   processor: *mut (),
+  is_exception: bool,
 }
 
 impl Processor {
   pub fn disassemble(&self) -> String {
     let bytes = unsafe { proc_disassemble(self.processor) };
+    let c_str = unsafe { CStr::from_ptr(bytes as *mut c_char) };
+    format!("{}", c_str.to_string_lossy())
+  }
+
+  pub fn disassemble_with_pc(&self, pc: u64) -> String {
+    let bytes = unsafe { proc_disassemble_with_pc(self.processor, pc) };
     let c_str = unsafe { CStr::from_ptr(bytes as *mut c_char) };
     format!("{}", c_str.to_string_lossy())
   }
@@ -114,6 +121,10 @@ impl Processor {
     unsafe { proc_get_insn(self.processor) as u32 }
   }
 
+  pub fn get_insn_with_pc(&self, pc: u64) -> u32 {
+    unsafe { proc_get_insn_with_pc(self.processor, pc) as u32 }
+  }
+
   pub fn get_vreg_data(&self, idx: u32, offset: u32) -> u8 {
     unsafe { proc_get_vreg_data(self.processor, idx, offset) }
   }
@@ -122,12 +133,24 @@ impl Processor {
     unsafe { proc_get_rs1(self.processor) }
   }
 
+  pub fn get_rs1_with_pc(&self, pc: u64) -> u32 {
+    unsafe { proc_get_rs1_with_pc(self.processor, pc) }
+  }
+
   pub fn get_rs2(&self) -> u32 {
     unsafe { proc_get_rs2(self.processor) }
   }
 
+  pub fn get_rs2_with_pc(&self, pc: u64) -> u32 {
+    unsafe { proc_get_rs2_with_pc(self.processor, pc) }
+  }
+
   pub fn get_rd(&self) -> u32 {
     unsafe { proc_get_rd(self.processor) }
+  }
+
+  pub fn get_rd_with_pc(&self, pc: u64) -> u32 {
+    unsafe { proc_get_rd_with_pc(self.processor, pc) }
   }
 
   // vu
@@ -157,6 +180,14 @@ impl Processor {
 
   pub fn vu_get_vstart(&self) -> u16 {
     unsafe { proc_vu_get_vstart(self.processor) }
+  }
+
+  pub fn is_exception(&self) -> bool {
+    self.is_exception
+  }
+
+  pub fn reset_exception(&mut self) {
+    self.is_exception = false
   }
 }
 
@@ -249,14 +280,19 @@ extern "C" {
   fn spike_get_proc(spike: *mut ()) -> *mut ();
   fn spike_destruct(spike: *mut ());
   fn proc_disassemble(proc: *mut ()) -> *mut c_char;
+  fn proc_disassemble_with_pc(proc: *mut(), pc: u64) -> *mut c_char;
   fn proc_reset(proc: *mut ());
   fn proc_get_state(proc: *mut ()) -> *mut ();
   fn proc_func(proc: *mut ()) -> u64;
   fn proc_get_insn(proc: *mut ()) -> u64;
+  fn proc_get_insn_with_pc(proc: *mut(), pc: u64) -> u64; 
   fn proc_get_vreg_data(proc: *mut (), vreg_idx: u32, vreg_offset: u32) -> u8;
   fn proc_get_rs1(proc: *mut ()) -> u32;
+  fn proc_get_rs1_with_pc(proc: *mut(), pc: u64) -> u32;
   fn proc_get_rs2(proc: *mut ()) -> u32;
+  fn proc_get_rs2_with_pc(proc: *mut(), pc: u64) -> u32;
   fn proc_get_rd(proc: *mut ()) -> u32;
+  fn proc_get_rd_with_pc(proc: *mut(), pc: u64) -> u32;
 
   fn proc_vu_get_vtype(proc: *mut ()) -> u64;
   fn proc_vu_get_vxrm(proc: *mut ()) -> u32;

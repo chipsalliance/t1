@@ -1,5 +1,5 @@
 use std::path::Path;
-use tracing::debug;
+use tracing::{debug, info};
 
 use spike_rs::spike_event::SpikeEvent;
 use spike_rs::util::load_elf;
@@ -58,7 +58,7 @@ impl SpikeRunner {
     let state = proc.get_state();
 
     let new_pc = proc.func();
-
+    
     state.handle_pc(new_pc).unwrap();
 
     let ret = state.exit();
@@ -74,19 +74,29 @@ impl SpikeRunner {
   // the spike event for difftest
   pub fn spike_step(&mut self) -> SpikeEvent {
     let spike = &self.spike;
-    let proc = self.spike.get_proc();
+    let mut proc = self.spike.get_proc();
     let state = proc.get_state();
 
-    state.set_mcycle((self.cycle + self.spike_cycle) as usize);
+    proc.reset_exception();
 
-    let mut event = SpikeEvent::new(spike, self.do_log_vrf);
+    state.set_mcycle((self.cycle + self.spike_cycle) as usize);
+    
+    let mut event = SpikeEvent::new_with_pc(state.get_pc(), self.do_log_vrf);
     state.clear();
 
-    // inst is scalar
-    debug!("SpikeStep: spike run scalar insn ({})", event.describe_insn());
+    debug!("{:x}", state.get_pc());
     let new_pc = proc.func();
-    event.log_mem_write(spike).unwrap();
-    event.log_reg_write(spike).unwrap();
+
+    // fill the SpikeEvent
+    if(!proc.is_exception()) {
+      event.fill_event(spike);
+
+      // inst is scalar
+      debug!("SpikeStep: spike run scalar insn ({})", event.describe_insn());
+
+      event.log_mem_write(spike).unwrap();
+      event.log_reg_write(spike).unwrap();
+    }
 
     state.handle_pc(new_pc).unwrap();
 
