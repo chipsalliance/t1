@@ -311,7 +311,6 @@ impl Driver {
               get_t(),
               se.pc
             );
-            self.spike_runner.commit_queue.pop_back();
             IssueData { meta: ISSUE_EXIT, ..Default::default() }
           } else {
             self.spike_runner.commit_queue.pop_back();
