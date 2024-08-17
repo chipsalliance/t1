@@ -152,6 +152,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         val readPayload = new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth)
         val readPayloadIndex = UInt(8.W)
         val valid = Bool()
+        val user: UInt = UInt(channel.ARUSER.getWidth.W)
       }
       /** CAM to maintain order of read requests. This is maintained as FIFO. */
       val cam: Vec[CAMValue] = RegInit(0.U.asTypeOf(Vec(parameter.outstanding, new CAMValue)))
@@ -164,6 +165,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       when(channel.ARREADY && channel.ARVALID) {
         cam(arPtr).arid := channel.ARID
         cam(arPtr).arlen := channel.ARLEN
+        cam(arPtr).user := channel.ARUSER
         cam(arPtr).readPayload := RawUnclockedNonVoidFunctionCall(s"axi_read_${parameter.name}", new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth))(
           when.cond && !io.gateRead,
           io.channelId,
@@ -189,7 +191,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       channel.RDATA := cam(rPtr).readPayload.data(cam(rPtr).readPayloadIndex)
       channel.RRESP := 0.U // OK
       channel.RLAST := (cam(rPtr).arlen === cam(rPtr).readPayloadIndex) && cam(rPtr).valid
-      channel.RUSER := DontCare
+      channel.RUSER := cam(rPtr).user
       when(channel.RREADY && channel.RVALID) {
         // increase index
         cam(rPtr).readPayloadIndex := cam(rPtr).readPayloadIndex + 1.U
