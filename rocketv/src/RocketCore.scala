@@ -1440,7 +1440,7 @@ class Rocket(val parameter: RocketParameter)
       val vectorTryToWriteFP = t1XRDRetireQueue.io.deq.valid && t1XRDRetireQueue.io.deq.bits.isFp
       t1XRDRetireQueue.io.deq.ready := (!(wbWxd || (dmemResponseReplay && dmemResponseXpu)) || !vectorTryToWriteRd) && (!(dmemResponseReplay && dmemResponseFpu) || !vectorTryToWriteFP)
 
-      when(t1.retire.rd.fire && vectorTryToWriteRd) {
+      when(t1XRDRetireQueue.io.deq.fire && vectorTryToWriteRd) {
         longlatencyWdata := t1.retire.rd.bits.rdData
         longlatencyWaddress := t1.retire.rd.bits.rdAddress
         longLatencyWenable := true.B
