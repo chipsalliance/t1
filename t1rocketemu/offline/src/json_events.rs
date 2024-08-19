@@ -184,8 +184,8 @@ impl JsonEventRunner for SpikeRunner {
       se.describe_insn()
     );
 
-    assert_eq!(idx as u32, se.rd_idx, "idx should be equal to se.rd_idx");
-    assert_eq!(data, se.rd_bits, "data should be equal to se.rd_bits");
+    assert!(idx as u32 == se.rd_idx, "rtl idx({:#x}) should be equal to spike idx({:#x})", idx, se.rd_idx);
+    assert!(data == se.rd_bits, "rtl data({:#x}) should be equal to spike data({:#x})", data, se.rd_bits);
 
     Ok(())
   }
