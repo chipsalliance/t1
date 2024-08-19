@@ -120,7 +120,7 @@ let
   _allEmuResult =
     let
       testPlan = builtins.fromJSON
-        (lib.readFile ../.github/cases/${configName}/default.json);
+        (lib.readFile ../.github/${if configName == "t1rocket" then "t1rocket-cases" else "cases"}/${configName}/default.json);
       # flattern the attr set to a list of test case derivations
       # AttrSet (AttrSet Derivation) -> List Derivation
       allCases = lib.filter
@@ -132,35 +132,16 @@ let
         (caseDrv: ''
           _caseOutDir=$out/${caseDrv.pname}
           mkdir -p "$_caseOutDir"
-          cp ${caseDrv.emu-result}/perf.txt "$_caseOutDir"/
-          cp ${caseDrv.emu-result}/offline-check-status "$_caseOutDir"/
-          cp ${caseDrv.emu-result}/offline-check-journal "$_caseOutDir"/
-        '')
-        allCases);
-    in
-    runCommand
-      "catch-${configName}-all-emu-result-for-ci"
-      { }
-      script;
 
-  _allVCSEmuResult =
-    let
-      testPlan = builtins.fromJSON (lib.readFile ../.github/cases/${configName}/default.json);
-      # flattern the attr set to a list of test case derivations
-      # AttrSet (AttrSet Derivation) -> List Derivation
-      allCases = lib.filter (val: lib.isDerivation val && lib.hasAttr val.pname testPlan)
-        (lib.concatLists (map lib.attrValues (lib.attrValues scopeStripped)));
-      script = ''
-        mkdir -p $out
-      '' + (lib.concatMapStringsSep "\n"
-        (caseDrv: ''
-          _caseOutDir=$out/${caseDrv.pname}
-          mkdir -p "$_caseOutDir"
-          cp ${caseDrv.emu-result}/offline-check-* "$_caseOutDir"/
+          if [ -r ${caseDrv.emu-result}/perf.txt ]; then
+            cp -v ${caseDrv.emu-result}/perf.txt "$_caseOutDir"/
+          fi
+
+          cp -v ${caseDrv.emu-result}/offline-check-* "$_caseOutDir"/
         '')
         allCases);
     in
-    runCommand "catch-${configName}-all-vcs-emu-result-for-ci" { } script;
+    runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
 
   _all =
     let
@@ -182,4 +163,4 @@ let
       { }
       script;
 in
-lib.recurseIntoAttrs (scopeStripped // { inherit _all _allEmuResult _allVCSEmuResult; })
+lib.recurseIntoAttrs (scopeStripped // { inherit _all _allEmuResult; })
