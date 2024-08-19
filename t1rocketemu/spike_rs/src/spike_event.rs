@@ -401,32 +401,38 @@ impl SpikeEvent {
     // xx0100 <- csr
     let reg_write_size = state.get_reg_write_size();
     // TODO: refactor it.
-    (0..reg_write_size).for_each(|idx| match state.get_reg_write_index(idx) & 0xf {
-      0b0000 => {
-        // scalar rf
-        let data = state.get_reg(self.rd_idx, false);
-        self.is_rd_written = true;
-        self.rd_bits = data;
-        trace!(
-          "ScalarRFChange: idx={:02x}, data={:08x}",
-          self.rd_idx,
-          self.rd_bits
-        );
+    (0..reg_write_size).for_each(|idx| {
+      let rd_idx_type = state.get_reg_write_index(idx);
+      self.rd_idx = rd_idx_type >> 4;
+      match rd_idx_type & 0xf {
+        0b0000 => {
+          // scalar rf
+          if self.rd_idx != 0 {
+            let data = state.get_reg(self.rd_idx, false);
+            self.is_rd_written = true;
+            self.rd_bits = data;
+            trace!(
+              "ScalarRFChange: idx={:02x}, data={:08x}",
+              self.rd_idx,
+              self.rd_bits
+            );
+          }
+        }
+        0b0001 => {
+          let data = state.get_reg(self.rd_idx, true);
+          self.is_rd_written = true;
+          self.rd_bits = data;
+          trace!(
+            "FloatRFChange: idx={:02x}, data={:08x}",
+            self.rd_idx,
+            self.rd_bits
+          );
+        }
+        _ => trace!(
+          "UnknownRegChange, idx={:02x}, spike detect unknown reg change",
+          self.rd_idx
+        ),
       }
-      0b0001 => {
-        let data = state.get_reg(self.rd_idx, true);
-        self.is_rd_written = true;
-        self.rd_bits = data;
-        trace!(
-          "FloatRFChange: idx={:02x}, data={:08x}",
-          self.rd_idx,
-          self.rd_bits
-        );
-      }
-      _ => trace!(
-        "UnknownRegChange, idx={:02x}, spike detect unknown reg change",
-        state.get_reg_write_index(idx)
-      ),
     });
 
     Ok(())
