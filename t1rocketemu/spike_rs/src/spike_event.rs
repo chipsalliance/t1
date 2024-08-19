@@ -403,10 +403,10 @@ impl SpikeEvent {
     // TODO: refactor it.
     (0..reg_write_size).for_each(|idx| {
       let rd_idx_type = state.get_reg_write_index(idx);
-      self.rd_idx = rd_idx_type >> 4;
       match rd_idx_type & 0xf {
         0b0000 => {
           // scalar rf
+          self.rd_idx = rd_idx_type >> 4;
           if self.rd_idx != 0 {
             let data = state.get_reg(self.rd_idx, false);
             self.is_rd_written = true;
@@ -419,6 +419,7 @@ impl SpikeEvent {
           }
         }
         0b0001 => {
+          self.rd_idx = rd_idx_type >> 4;
           let data = state.get_reg(self.rd_idx, true);
           self.is_rd_written = true;
           self.rd_bits = data;
