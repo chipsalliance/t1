@@ -125,10 +125,11 @@ object Main:
   @main
   def generateCiMatrix(
       runnersAmount: Int,
+      caseDir: String = "cases",
       testPlanFile: String = "default.json"
   ) = {
     val testPlans =
-      os.walk(os.pwd / ".github" / "cases").filter(_.last == testPlanFile)
+      os.walk(os.pwd / ".github" / caseDir).filter(_.last == testPlanFile)
     println(toMatrixJson(scheduleTasks(testPlans, runnersAmount)))
   }
 
@@ -217,7 +218,11 @@ object Main:
       @arg(
         name = "emu-type",
         doc = "Specify emulation type"
-      ) emuType: String = "verilator"
+      ) emuType: String = "verilator",
+      @arg(
+        name = "case-dir",
+        doc = "Specify case directory"
+      ) caseDir: String = "cases"
   ) =
     val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
     os.write.over(failedTestsFile, "## Failed Tests\n")
@@ -228,24 +233,20 @@ object Main:
         "## Cycle Update\n"
       )
 
-    os.walk(os.pwd / ".github" / "cases")
+    os.walk(os.pwd / ".github" / caseDir)
       .filter(_.last == "default.json")
       .foreach: file =>
         val config = file.segments.toSeq.reverse.apply(1)
         var cycleRecord = ujson.read(os.read(file))
 
         Logger.info("Fetching CI results")
-        val resultAttr = emuType.toLowerCase() match
-          case "verilator" =>
-            s".#t1.$config.ip.verilator-emu.cases._allEmuResult"
-          case "vcs" => s".#t1.$config.ip.vcs-emu.cases._allVCSEmuResult"
-          case _     => Logger.fatal(s"Invalid test type ${emuType}")
-        val emuResultPath = os.Path(nixResolvePath(
-          resultAttr,
-          if emuType.toLowerCase() == "vcs" then
-            Seq("--impure")
-          else Seq()
-        ))
+        val emuResultPath = os.Path(
+          nixResolvePath(
+            s".#t1.$config.ip.$emuType-emu.cases._allEmuResult",
+            if emuType.toLowerCase() == "vcs" then Seq("--impure")
+            else Seq()
+          )
+        )
 
         Logger.info("Collecting failed tests")
         os.walk(emuResultPath)
@@ -291,11 +292,17 @@ object Main:
   end postCI
 
   @main
-  def generateTestPlan() =
-    val allCases =
-      os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+  def generateTestPlan(testType: String = "") =
+    val casePath = testType match
+      case "t1rocket" => os.pwd / ".github" / "t1rocket-cases"
+      case _          => os.pwd / ".github" / "cases"
+
+    val allCases = os.walk(casePath).filter(_.last == "default.json")
     val testPlans = allCases.map: caseFilePath =>
-      caseFilePath.segments.dropWhile(_ != "cases").drop(1).next
+      caseFilePath.segments
+        .dropWhile(!Seq("cases", "t1rocket-cases").contains(_))
+        .drop(1)
+        .next
 
     println(ujson.write(Map("config" -> testPlans)))
   end generateTestPlan
@@ -328,7 +335,8 @@ object Main:
 
     import scala.util.chaining._
     val testPlans: Seq[String] = emulatorConfigs.flatMap: configName =>
-      val allCasesPath = nixResolvePath(s".#t1.$configName.verilator-emu.ip.cases._all")
+      val allCasesPath =
+        nixResolvePath(s".#t1.$configName.verilator-emu.ip.cases._all")
       os.walk(os.Path(allCasesPath) / "configs")
         .filter: path =>
           path.ext == "json"

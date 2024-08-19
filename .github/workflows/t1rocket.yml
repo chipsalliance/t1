@@ -1,0 +1,107 @@
+name: VCS Test (T1 w/ Rocket)
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+env:
+  USER: runner
+
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gen-test-plan:
+    if: '! github.event.pull_request.draft'
+    name: "Generate test plan"
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      testplan: ${{ steps.get-all-configs.outputs.out }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: "get-all-configs"
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --testType t1rocket)" > $GITHUB_OUTPUT
+
+  build-emulators:
+    name: "Build VCS Emulators w/ Rocket"
+    needs: [gen-test-plan]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build vcs emulator"
+        run: |
+          nix build '.#t1.${{ matrix.config }}.ip.vcs-emu' --impure --no-link --cores 64
+      - name: "Build all testcases"
+        run: |
+          nix build ".#t1.${{ matrix.config }}.ip.vcs-emu.cases._all" --max-jobs auto --no-link --cores 64
+
+  gen-matrix:
+    name: "Prepare for running testcases"
+    needs: [build-emulators]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    env:
+      RUNNERS: 70
+    outputs:
+      ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
+    steps:
+      # actions/checkout will use the "event" commit to checkout repository,
+      # which will lead to an unexpected issue that the "event" commit doesn't belongs to the repository,
+      # and causing the derivation build output cannot be cache correctly.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: gen-matrix
+        name: "Generate test matrix"
+        run: |
+          echo -n matrix= >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix --caseDir t1rocket-cases --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+
+  run-testcases:
+    name: "Run VCS w/ Rocket"
+    needs: [gen-matrix]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
+    runs-on: [self-hosted, linux, nixos]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Run testcases"
+        run: |
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --testType "vcs"
+
+  report:
+    name: "Report VCS (w/ Rocket) CI result"
+    # Don't run report when:
+    #   - user cancel ( we don't need report at this case )
+    #   - PR from outside repository ( we don't have permission to push commit into fork repository )
+    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+    needs: [run-testcases]
+    runs-on: [self-hosted, linux, nixos]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+      - name: "Print step summary"
+        run: |
+          nix run ".#ci-helper" -- postCI \
+            --case-dir t1rocket-cases \
+            --failed-tests-file-path ./failed-tests.md \
+            --emu-type vcs
+          cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
