@@ -226,10 +226,6 @@ impl State {
   pub fn clear(&self) {
     unsafe { state_clear(self.state) }
   }
-
-  pub fn exit(&self) -> u64 {
-    unsafe { state_exit(self.state) }
-  }
 }
 
 impl Drop for State {
@@ -241,11 +237,7 @@ impl Drop for State {
 #[link(name = "spike_interfaces")]
 extern "C" {
   pub fn spike_register_callback(target: *mut (), callback: FfiCallback);
-  fn spike_new(
-    set: *const c_char,
-    lvl: *const c_char,
-    lane_number: usize,
-  ) -> *mut ();
+  fn spike_new(set: *const c_char, lvl: *const c_char, lane_number: usize) -> *mut ();
   fn spike_get_proc(spike: *mut ()) -> *mut ();
   fn spike_destruct(spike: *mut ());
   fn proc_disassemble(proc: *mut ()) -> *mut c_char;
@@ -283,5 +275,4 @@ extern "C" {
   fn state_set_mcycle(state: *mut (), mcycle: usize);
   fn state_clear(state: *mut ());
   fn state_destruct(state: *mut ());
-  fn state_exit(state: *mut ()) -> u64;
 }

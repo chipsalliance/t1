@@ -56,7 +56,6 @@ void state_clear(spike_state_t *state);
 void spike_destruct(spike_t *spike);
 void proc_destruct(spike_processor_t *proc);
 void state_destruct(spike_state_t *state);
-uint64_t state_exit(spike_state_t *state);
 
 #ifdef __cplusplus
 }

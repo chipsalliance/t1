@@ -83,12 +83,6 @@ impl SpikeRunner {
 
     state.handle_pc(new_pc).unwrap();
 
-    let ret = state.exit();
-
-    if ret == 0 {
-      return Err(anyhow::anyhow!("simulation finished!"));
-    }
-
     Ok(())
   }
 

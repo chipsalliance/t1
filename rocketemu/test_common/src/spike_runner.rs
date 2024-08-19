@@ -61,12 +61,6 @@ impl SpikeRunner {
 
     state.handle_pc(new_pc).unwrap();
 
-    let ret = state.exit();
-
-    if ret == 0 {
-      return Err(anyhow::anyhow!("simulation finished!"));
-    }
-
     Ok(())
   }
 
@@ -83,7 +77,10 @@ impl SpikeRunner {
     state.clear();
 
     // inst is scalar
-    debug!("SpikeStep: spike run scalar insn ({})", event.describe_insn());
+    debug!(
+      "SpikeStep: spike run scalar insn ({})",
+      event.describe_insn()
+    );
     let new_pc = proc.func();
     event.log_mem_write(spike).unwrap();
     event.log_reg_write(spike).unwrap();
