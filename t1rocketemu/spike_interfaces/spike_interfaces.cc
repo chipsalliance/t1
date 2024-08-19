@@ -2,8 +2,6 @@
 
 #include "spike_interfaces.h"
 
-constexpr uint32_t CSR_MSIMEND = 0x7cc;
-
 void *ffi_target;
 
 cfg_t make_spike_cfg() {
@@ -38,8 +36,6 @@ Spike::Spike(const char *set, const char *lvl,
   proc.VU.lane_num = lane_number;
   proc.VU.lane_granularity = 32;
 
-  auto &csrmap = proc.get_state()->csrmap;
-  csrmap[CSR_MSIMEND] = std::make_shared<basic_csr_t>(&proc, CSR_MSIMEND, 1);
   proc.enable_log_commits();
 }
 
@@ -231,11 +227,6 @@ uint32_t state_get_mem_read_addr(spike_state_t *state, uint32_t index) {
 
 uint8_t state_get_mem_read_size_by_byte(spike_state_t *state, uint32_t index) {
   return std::get<2>(state->s->log_mem_read[index]);
-}
-
-reg_t state_exit(spike_state_t *state) {
-  auto &csrmap = state->s->csrmap;
-  return csrmap[CSR_MSIMEND]->read();
 }
 
 void spike_register_callback(void *ffi_target_, ffi_callback callback) {
