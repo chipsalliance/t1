@@ -176,11 +176,9 @@ object Main:
             )
           catch
             case _ =>
-              Logger.error(s"Emulation for config $config, case $caseName fail")
-              println("-" * 50)
-              println(os.proc("nix", "log", testAttr).call().out)
-              println("-" * 50)
-              Logger.fatal("Got error from emulation, exiting CI")
+              Logger.error(s"Online driver for config $config, case $caseName fail, please check manually on local machine")
+              Logger.error(s"nix build $testAttr" ++ (if testType == "vcs" then " --impure" else ""))
+              Logger.fatal("Online Drive run fail, exiting CI")
 
         Logger.info("Checking RTL event from event log")
         val testSuccess =
