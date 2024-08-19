@@ -27,7 +27,9 @@ case class HellaCacheArbiterParameter(useAsyncReset: Boolean,
 
   def idxBits: Int = log2Ceil(dcacheNSets)
 
-  def dcacheArbPorts: Int = 2
+  def scratch: Option[BigInt] = None
+  def usingDataScratchpad: Boolean = scratch.isDefined
+  def dcacheArbPorts: Int = 1 + (if (usingVM) 1 else 0) + (if (usingDataScratchpad) 1 else 0)
 
   def untagBits: Int = blockOffBits + idxBits
 
