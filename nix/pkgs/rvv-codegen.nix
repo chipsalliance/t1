@@ -21,13 +21,9 @@ buildGoModule {
   # Get rid of copying the whole source
   postInstall = ''
     cp -r $src/configs $out/configs
-    mkdir $out/include
-    cp $src/macros/sequencer-vector/* $out/include
-    cp $src/env/sequencer-vector/* $out/include
 
+    mkdir $out/include
     cp ${riscv-test-env}/encoding.h $out/include
-    # Let riscv_test.h find the encoding.h file correctly
-    sed -i 's/^#include "..\/encoding.h"$/#include "encoding.h"/' $out/include/riscv_test.h
   '';
 }
 
