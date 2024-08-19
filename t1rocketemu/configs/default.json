@@ -1,6 +1,6 @@
 {
   "parameter": {
-    "instructionSets": ["rv32_i", "rv_m", "rv_f", "rv_a", "rv_v", "Zve32x", "zvl1024b", "rv_c"],
+    "instructionSets": ["rv32_i", "rv_m", "rv_f", "rv_a", "rv_v", "Zve32f", "zvl1024b", "rv_c"],
     "cacheBlockBytes": 32,
     "nPMPs": 8,
     "cacheable": "b1???????????????????????????????",
