@@ -281,7 +281,9 @@ case class RocketParameter(
     divEarlyOut:            Boolean,
     divEarlyOutGranularity: Int,
     mulUnroll:              Int,
-    mulEarlyOut:            Boolean)
+    mulEarlyOut:            Boolean,
+    decoderParameter:       DecoderParameter
+  )
   val mulParameter: Option[PipelinedMultiplierParameter] = Option.when(usingMulDiv && mulUnroll == xLen)(PipelinedMultiplierParameter(
     useAsyncReset: Boolean,
     2,
