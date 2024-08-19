@@ -17,7 +17,7 @@ let
         caseName = makeCaseName rawCaseName;
 
         includeArgs = [
-          "-I${./override_include}"
+          "-I${./include}"
           "-I${rvv-codegen}/include"
         ];
 
