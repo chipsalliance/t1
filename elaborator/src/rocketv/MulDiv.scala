@@ -3,7 +3,7 @@
 package org.chipsalliance.t1.elaborator.rocketv
 
 import mainargs._
-import org.chipsalliance.rocketv.{MulDiv, MulDivParameter}
+import org.chipsalliance.rocketv.{DecoderParameter, MulDiv, MulDivParameter}
 import org.chipsalliance.t1.elaborator.Elaborator
 
 object MulDiv extends Elaborator {
@@ -16,7 +16,15 @@ object MulDiv extends Elaborator {
     @arg(name = "divEarlyOut") divEarlyOut:                       Boolean,
     @arg(name = "divEarlyOutGranularity") divEarlyOutGranularity: Int,
     @arg(name = "mulUnroll") mulUnroll:                           Int,
-    @arg(name = "mulEarlyOut") mulEarlyOut:                       Boolean) {
+    @arg(name = "mulEarlyOut") mulEarlyOut:                       Boolean,
+    @arg(name = "instructionSets") instructionSets:     Set[String],
+    @arg(name = "pipelinedMul") pipelinedMul:           Boolean,
+    @arg(name = "fenceIFlushDCache") fenceIFlushDCache: Boolean) {
+    def decodeParam: DecoderParameter = DecoderParameter(
+      instructionSets,
+      pipelinedMul,
+      fenceIFlushDCache
+    )
     def convert: MulDivParameter = MulDivParameter(
       useAsyncReset,
       latency,
@@ -25,7 +33,8 @@ object MulDiv extends Elaborator {
       divEarlyOut,
       divEarlyOutGranularity,
       mulUnroll,
-      mulEarlyOut
+      mulEarlyOut,
+      decodeParam
     )
   }
 

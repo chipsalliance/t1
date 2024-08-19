@@ -20,20 +20,21 @@ case class MulDivParameter(useAsyncReset: Boolean,
                            divEarlyOut: Boolean,
                            divEarlyOutGranularity: Int,
                            mulUnroll: Int,
-                           mulEarlyOut: Boolean)
+                           mulEarlyOut: Boolean,
+                           decoderParameter: DecoderParameter)
   extends SerializableModuleParameter {
   // optional to 16 when rve?
   val nXpr:     Int = 32
   val uopWidth: Int = 4
 
-  def FN_MUL = 1.U(4.W)
-  def FN_MULH = 2.U(4.W)
-  def FN_MULHU = 3.U(4.W)
-  def FN_MULHSU = 4.U(4.W)
-  def FN_DIV = 4.U(4.W)
-  def FN_REM = 5.U(4.W)
-  def FN_DIVU = 6.U(4.W)
-  def FN_REMU = 7.U(4.W)
+  def FN_MUL = decoderParameter.UOPALU.mul
+  def FN_MULH = decoderParameter.UOPALU.mulh
+  def FN_MULHU = decoderParameter.UOPALU.mulhu
+  def FN_MULHSU = decoderParameter.UOPALU.mulhsu
+  def FN_DIV = decoderParameter.UOPALU.div
+  def FN_REM = decoderParameter.UOPALU.rem
+  def FN_DIVU = decoderParameter.UOPALU.divu
+  def FN_REMU = decoderParameter.UOPALU.remu
   def DW_32 = false.B
 }
 class MulDivInterface(parameter: MulDivParameter) extends Bundle {
@@ -62,7 +63,7 @@ class MulDiv(val parameter: MulDivParameter)
   }
 
   def N = BitPat.N()
-  def Y = BitPat.N()
+  def Y = BitPat.Y()
   def X = BitPat.dontCare(1)
 
   val w = io.req.bits.in1.getWidth
