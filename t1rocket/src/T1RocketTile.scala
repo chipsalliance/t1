@@ -537,7 +537,11 @@ class T1RocketTile(val parameter: T1RocketTileParameter)
   // ptw io
   ptw.io.clock := io.clock
   ptw.io.reset := io.reset
-  hellaCacheArbiter.io.requestor(1) <> ptw.io.mem
+  if (hellaCacheArbiter.io.requestor.size > 1) {
+    hellaCacheArbiter.io.requestor(1) <> ptw.io.mem
+  } else {
+    ptw.io.mem <> DontCare
+  }
 
   // hellacache arbiter io
   hellaCacheArbiter.io.clock := io.clock
