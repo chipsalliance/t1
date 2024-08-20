@@ -729,6 +729,8 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
     case s"v${op}.vx" => true
     case s"v${op}.v.x" => true
     case s"v${op}.wx" => true
+    case s"v${op}.vxm" => true
+    case s"v${op}.s.x" => true
     // set vl
     case s"vsetvl${i}" => true
     case _ => false
