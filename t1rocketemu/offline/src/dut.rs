@@ -41,6 +41,7 @@ impl Dut {
       Some(event) => event,
       None => anyhow::bail!("error: simulation stopped with no more events"),
     };
+
     self.idx += 1;
 
     Ok(event)

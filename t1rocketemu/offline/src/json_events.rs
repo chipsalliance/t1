@@ -178,14 +178,22 @@ impl JsonEventRunner for SpikeRunner {
     let se = self.find_rf_se();
 
     info!(
-      "[{cycle}] RegWrite: rtl idx={idx}, data={data:08x}; se idx={}, data={:08x} ({})",
+      "[{cycle}] RegWrite: rtl idx={idx}, data={data:#08x}; se idx={}, data={:#08x} ({})",
       se.rd_idx,
       se.rd_bits,
       se.describe_insn()
     );
 
-    assert!(idx as u32 == se.rd_idx, "rtl idx({:#x}) should be equal to spike idx({:#x})", idx, se.rd_idx);
-    assert!(data == se.rd_bits, "rtl data({:#x}) should be equal to spike data({:#x})", data, se.rd_bits);
+    assert!(
+      idx as u32 == se.rd_idx,
+      "rtl idx({idx:#x}) should be equal to spike idx({:#x})",
+      se.rd_idx
+    );
+    assert!(
+      data == se.rd_bits,
+      "rtl data({data:#x}) should be equal to spike data({:#x})",
+      se.rd_bits
+    );
 
     Ok(())
   }
@@ -274,7 +282,7 @@ impl JsonEventRunner for SpikeRunner {
           assert_eq!(
             record.byte,
             written_byte,
-            "[{}] {offset}th byte incorrect ({:02x} record != {written_byte:02x} written) \
+            "[{}] {offset}th byte incorrect ({:#02x} record != {written_byte:#02x} written) \
               for vrf write (lane={}, vd={}, offset={}, mask={}, data={:x?}) \
               issue_idx={} [vrf_idx={}] (disasm: {}, pc: {:#x}, bits: {:#x})",
             vrf_write.cycle,
@@ -328,7 +336,7 @@ impl JsonEventRunner for SpikeRunner {
     let lsu_idx = memory_write.lsu_idx;
 
     if let Some(se) = self.commit_queue.iter_mut().find(|se| se.lsu_idx == lsu_idx) {
-      info!("[{cycle}] MemoryWrite: address={base_addr:08x}, size={}, data={data:x?}, mask={}, pc = {:#x}, disasm = {}", data.len(), mask_display(&mask), se.pc, se.disasm);
+      info!("[{cycle}] MemoryWrite: address={base_addr:#08x}, size={}, data={data:x?}, mask={}, pc = {:#x}, disasm = {}", data.len(), mask_display(&mask), se.pc, se.disasm);
       // compare with spike event record
       mask.iter().enumerate()
         .filter(|(_, &mask)| mask)
@@ -337,11 +345,11 @@ impl JsonEventRunner for SpikeRunner {
           let data_byte = *data.get(offset).unwrap_or(&0);
           let mem_write =
             se.mem_access_record.all_writes.get_mut(&byte_addr).unwrap_or_else(|| {
-              panic!("[{cycle}] cannot find mem write of byte_addr {byte_addr:08x}")
+              panic!("[{cycle}] cannot find mem write of byte_addr {byte_addr:#08x}")
             });
           let single_mem_write_val = mem_write.writes[mem_write.num_completed_writes].val;
           mem_write.num_completed_writes += 1;
-          assert_eq!(single_mem_write_val, data_byte, "[{cycle}] expect mem write of byte {single_mem_write_val:02X}, actual byte {data_byte:02X} (byte_addr={byte_addr:08X}, pc = {:#x}, disasm = {})", se.pc, se.disasm);
+          assert_eq!(single_mem_write_val, data_byte, "[{cycle}] expect mem write of byte {single_mem_write_val:#02x}, actual byte {data_byte:#02x} (byte_addr={byte_addr:#08x}, pc = {:#x}, disasm = {})", se.pc, se.disasm);
         });
       return Ok(());
     }
