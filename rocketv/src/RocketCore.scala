@@ -27,6 +27,7 @@ class RocketROB(param: RocketParameter) extends Bundle {
   val tag: UInt = UInt(5.W)
   val wbSetScoreboard: Bool = Bool()
   val longLatencyWrite: Bool = Bool()
+  val isVector: Bool = Bool()
 }
 
 class RocketProbe(param: RocketParameter) extends Bundle {
@@ -1092,6 +1093,9 @@ class Rocket(val parameter: RocketParameter)
     probeWire.rob.tag := wbWaddr
     probeWire.rob.wbSetScoreboard := wbSetSboard && wbWen
     probeWire.rob.longLatencyWrite := longLatencyWenable
+    probeWire.rob.isVector := io.t1.map { t1 =>
+      wbRegDecodeOutput(parameter.decoderParameter.vector) && !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
+    }.getOrElse(false.B)
 
     // hook up control/status regfile
     csr.io.ungatedClock := io.clock
