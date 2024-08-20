@@ -1201,7 +1201,8 @@ class Rocket(val parameter: RocketParameter)
         exRegDecodeOutput(parameter.decoderParameter.mem) ||
         Option.when(usingMulDiv && pipelinedMul)(exRegDecodeOutput(parameter.decoderParameter.mul)).getOrElse(false.B) ||
         Option.when(usingMulDiv)(exRegDecodeOutput(parameter.decoderParameter.div)).getOrElse(false.B) ||
-        Option.when(usingFPU)(exRegDecodeOutput(parameter.decoderParameter.fp)).getOrElse(false.B)
+        Option.when(usingFPU)(exRegDecodeOutput(parameter.decoderParameter.fp)).getOrElse(false.B) ||
+        Option.when(usingVector)(exRegDecodeOutput(parameter.decoderParameter.vector)).getOrElse(false.B)
     val dataHazardEx: Bool = exRegDecodeOutput(parameter.decoderParameter.wxd) && checkHazards(hazardTargets, _ === exWaddr)
     val fpDataHazardEx: Option[Bool] = fpHazardTargets.map(fpHazardTargets =>
       idDecodeOutput(parameter.decoderParameter.fp) && exRegDecodeOutput(parameter.decoderParameter.wfd) && checkHazards(fpHazardTargets, _ === exWaddr)
@@ -1218,7 +1219,8 @@ class Rocket(val parameter: RocketParameter)
         memRegDecodeOutput(parameter.decoderParameter.mem) && memMemCmdBh ||
         Option.when(usingMulDiv && pipelinedMul)(memRegDecodeOutput(parameter.decoderParameter.mul)).getOrElse(false.B) ||
         Option.when(usingMulDiv)(memRegDecodeOutput(parameter.decoderParameter.div)).getOrElse(false.B) ||
-        Option.when(usingFPU)(memRegDecodeOutput(parameter.decoderParameter.fp)).getOrElse(false.B)
+        Option.when(usingFPU)(memRegDecodeOutput(parameter.decoderParameter.fp)).getOrElse(false.B) ||
+        Option.when(usingVector)(memRegDecodeOutput(parameter.decoderParameter.vector)).getOrElse(false.B)
     val dataHazardMem: Bool = memRegDecodeOutput(parameter.decoderParameter.wxd) && checkHazards(hazardTargets, _ === memWaddr)
     val fpDataHazardMem: Option[Bool] = fpHazardTargets.map(fpHazardTargets =>
       idDecodeOutput(parameter.decoderParameter.fp) &&
