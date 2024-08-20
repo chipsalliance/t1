@@ -786,9 +786,9 @@ class Rocket(val parameter: RocketParameter)
         val bypassSource = PriorityEncoder(idBypassSources(i))
         exRegRsBypass(i) := doBypass
         exRegRsLSB(i) := bypassSource
+        exRegRsMSB(i) := idRs(i) >> log2Ceil(bypassSources.size)
         when(idRen(i) && !doBypass) {
           exRegRsLSB(i) := idRs(i)(log2Ceil(bypassSources.size) - 1, 0)
-          exRegRsMSB(i) := idRs(i) >> log2Ceil(bypassSources.size)
         }
       }
       when(idIllegalInstruction || idVirtualInstruction) {
