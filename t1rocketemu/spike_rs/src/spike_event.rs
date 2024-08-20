@@ -325,18 +325,15 @@ impl SpikeEvent {
 
   pub fn pre_log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
     if self.do_log_vrf {
-      self.rd_bits = spike.get_proc().get_rd();
-
       // record the vrf writes before executing the insn
-      let vlen_in_bytes = vlen;
-
       let proc = spike.get_proc();
-      let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
+      self.rd_bits = proc.get_state().get_reg(self.rd_idx, false);
+      let (start, len) = self.get_vrf_write_range(vlen).unwrap();
       self.vd_write_record.vd_bytes.resize(len as usize, 0u8);
       for i in 0..len {
         let offset = start + i;
-        let vreg_index = offset / vlen_in_bytes;
-        let vreg_offset = offset % vlen_in_bytes;
+        let vreg_index = offset / vlen;
+        let vreg_offset = offset % vlen;
         let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
         self.vd_write_record.vd_bytes[i as usize] = cur_byte;
       }
@@ -412,7 +409,7 @@ impl SpikeEvent {
             self.is_rd_written = true;
             self.rd_bits = data;
             trace!(
-              "ScalarRFChange: idx={:02x}, data={:08x}",
+              "ScalarRFChange: idx={:#02x}, data={:08x}",
               self.rd_idx,
               self.rd_bits
             );
@@ -424,13 +421,13 @@ impl SpikeEvent {
           self.is_rd_written = true;
           self.rd_bits = data;
           trace!(
-            "FloatRFChange: idx={:02x}, data={:08x}",
+            "FloatRFChange: idx={:#02x}, data={:08x}",
             self.rd_idx,
             self.rd_bits
           );
         }
         _ => trace!(
-          "UnknownRegChange, idx={:02x}, spike detect unknown reg change",
+          "UnknownRegChange, idx={:#02x}, spike detect unknown reg change",
           self.rd_idx
         ),
       }
