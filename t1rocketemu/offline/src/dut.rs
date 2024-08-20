@@ -41,7 +41,17 @@ impl Dut {
       Some(event) => event,
       None => anyhow::bail!("error: simulation stopped with no more events"),
     };
-    self.idx += 1;
+
+    // skip the next event with vector reg write
+    // TODO: fix this in rtl
+    match event {
+      JsonEvents::CheckRd { .. } => {
+        self.idx += 2;
+      }
+      _ => {
+        self.idx += 1;
+      }
+    }
 
     Ok(event)
   }
