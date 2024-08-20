@@ -205,7 +205,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
     robQueue.io.deq.bits.trace.rfWdata
   )
   doDeqSelect := Mux(robQueue.io.deq.fire && deqLongLatency, UIntToOH(robQueue.io.deq.bits.tag), 0.U(32.W))
-  when(robQueue.io.deq.fire)(
+  when(robQueue.io.deq.fire & !robQueue.io.deq.bits.isVector)(
     printf(
       cf"""{"event":"RegWrite","idx":${robQueue.io.deq.bits.tag},"data":"${writeData}%x","cycle":${simulationTime}}\n"""
     )
