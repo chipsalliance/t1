@@ -7,6 +7,8 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.probe._
 import chisel3.util._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 import org.chipsalliance.t1.rtl._
 
 /**
@@ -824,7 +826,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
   s1EnqQueue.io.enq.bits.readData := DontCare
   // pipe read data
   s1EnqDataQueue.io.enq.valid := vrfReadResults.valid
-  assert(s1EnqDataQueue.io.enq.ready || !vrfReadResults.valid, "read queue in simple access ")
+  AssertProperty(BoolSequence(s1EnqDataQueue.io.enq.ready || !vrfReadResults.valid))
   s1EnqDataQueue.io.enq.bits := vrfReadResults.bits
 
   s1Wire.address := s1EnqQueue.io.deq.bits.address

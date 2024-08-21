@@ -7,6 +7,8 @@ import chisel3.experimental.hierarchy.instantiable
 import chisel3.{UInt, _}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 import hardfloat._
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
 
@@ -162,7 +164,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val hasNaN = raw0.isNaN ||  raw1.isNaN
   val differentZeros = compareModule.io.eq && (request.src(1)(31) ^ request.src(0)(31))
 
-  assert(!unitSeleOH(2) || (uop === "b0001".U || uop === "b0000".U || uop === "b0010".U || uop === "b0011".U || uop === "b0100".U || uop === "b0101".U || uop === "b1000".U || uop === "b1100".U))
+  AssertProperty(BoolSequence(!unitSeleOH(2) || (uop === "b0001".U || uop === "b0000".U || uop === "b0010".U || uop === "b0011".U || uop === "b0100".U || uop === "b0101".U || uop === "b1000".U || uop === "b1100".U)))
   compareResult := Mux(uop === BitPat("b1?00") && hasNaN ,compareNaN,
     Mux(uop === BitPat("b1?00"), Mux((!uop(2) && compareModule.io.lt) || (uop(2) && compareModule.io.gt) || (differentZeros && (uop(2) ^ request.src(1)(31))), request.src(1), request.src(0)),
      Mux(uop === "b0011".U, compareModule.io.lt || compareModule.io.eq,
