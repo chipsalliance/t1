@@ -7,6 +7,8 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lane.{CrossReadUnit, LaneState, VrfReadPipe}
@@ -338,7 +340,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
     // data group
     dataGroupQueue.io.enq.valid := enqueue.fire && enqueue.bits.decodeResult(Decoder.crossRead)
-    assert(dataGroupQueue.io.enq.ready || !dataGroupQueue.io.enq.valid)
+    AssertProperty(BoolSequence(dataGroupQueue.io.enq.ready || !dataGroupQueue.io.enq.valid))
     dataGroupQueue.io.enq.bits := enqueue.bits.groupCounter
     dataGroupQueue.io.deq.ready := crossReadUnit.dataInputLSB.fire
     dequeue.bits.readBusDequeueGroup.get := crossReadUnitOp.get.currentGroup

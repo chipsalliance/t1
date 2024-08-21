@@ -7,6 +7,8 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 import org.chipsalliance.t1.rtl.{CSRInterface, ExecutionUnitRecord, LaneParameter, SlotRequestToVFU, VFUResponseToSlot, cutUInt, getExecuteUnitTag}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 
@@ -318,7 +320,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       flow = true
     )
   )
-  assert(!vfuRequest.fire || recordQueue.io.enq.ready)
+  AssertProperty(BoolSequence(!vfuRequest.fire || recordQueue.io.enq.ready))
   val enqNotExecute: Bool = executionRecord.decodeResult(Decoder.dontNeedExecuteInLane)
   recordQueueReadyForNoExecute := enqNotExecute && recordQueue.io.enq.ready
   recordQueue.io.enq.valid := executionRecordValid && (vfuRequest.ready || enqNotExecute)
@@ -552,7 +554,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       ((dataResponse.valid && reduceReady &&
         (!doubleExecutionInQueue || recordQueue.io.deq.bits.executeIndex)) ||
         recordNotExecute)) || reduceLastResponse
-  assert(!queue.io.enq.valid || queue.io.enq.ready)
+  AssertProperty(BoolSequence(!queue.io.enq.valid || queue.io.enq.ready))
   dequeue <> queue.io.deq
   updateMaskResult.foreach(_ :=
     (!recordQueue.io.deq.bits.sSendResponse.get && queue.io.enq.fire) ||

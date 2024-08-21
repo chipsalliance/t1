@@ -7,6 +7,8 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.probe._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 import org.chipsalliance.t1.rtl.{EmptyBundle, VRFReadRequest, cutUInt, multiShifter}
 
 class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
@@ -119,8 +121,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     // latency queue enq
     queue.io.enq.valid := readResultFire
     queue.io.enq.bits := vrfReadResults(laneIndex)
-    assert(!queue.io.enq.valid || queue.io.enq.ready)
-
+    AssertProperty(BoolSequence(!queue.io.enq.valid || queue.io.enq.ready))
     vrfReadQueueVec(laneIndex).io.enq <> queue.io.deq
     stageValid || RegNext(readPort.fire)
   }.reduce(_ || _)

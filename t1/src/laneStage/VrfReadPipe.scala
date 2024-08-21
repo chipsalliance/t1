@@ -6,6 +6,9 @@ package org.chipsalliance.t1.rtl.lane
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
+
 import org.chipsalliance.t1.rtl.{LaneParameter, VRFReadQueueEntry, VRFReadRequest}
 
 @instantiable
@@ -66,7 +69,7 @@ class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends 
 
   dataQueue.io.enq.valid := enqFirePipe.valid && enqFirePipe.bits
   dataQueue.io.enq.bits := vrfReadResult
-  assert(!dataQueue.io.enq.valid || dataQueue.io.enq.ready, "queue overflow")
+  AssertProperty(BoolSequence(!dataQueue.io.enq.valid || dataQueue.io.enq.ready))
   dequeue.valid := dataQueue.io.deq.valid
   dequeue.bits := dataQueue.io.deq.bits
   dataQueue.io.deq.ready := dequeue.ready
@@ -74,7 +77,7 @@ class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends 
   contenderDataQueue.foreach { queue =>
     queue.io.enq.valid := enqFirePipe.valid && !enqFirePipe.bits
     queue.io.enq.bits := vrfReadResult
-    assert(!queue.io.enq.valid || queue.io.enq.ready, "queue overflow")
+    AssertProperty(BoolSequence(!queue.io.enq.valid || queue.io.enq.ready))
     contenderDequeue.get.valid := queue.io.deq.valid
     contenderDequeue.get.bits := queue.io.deq.bits
     queue.io.deq.ready := contenderDequeue.get.ready
