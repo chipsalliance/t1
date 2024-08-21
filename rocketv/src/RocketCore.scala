@@ -252,7 +252,10 @@ case class RocketParameter(
   val decoderParameter = DecoderParameter(
     instructionSets,
     pipelinedMul,
-    flushOnFenceI
+    flushOnFenceI,
+    // todo: default = 16?
+    minFLen.getOrElse(16),
+    xLen
   )
   val iBufParameter: IBufParameter = IBufParameter(
     useAsyncReset,
@@ -366,6 +369,7 @@ class Rocket(val parameter: RocketParameter)
   override protected def implicitReset: Reset = io.reset
   val csr: Instance[CSR] = Instantiate(new CSR(parameter.csrParameter))
   val decoder: Instance[Decoder] = Instantiate(new Decoder(parameter.decoderParameter))
+  val fpuDecoder: Option[Instance[FPUDecoder]] = Option.when(usingFPU)(Instantiate(new FPUDecoder(parameter.decoderParameter)))
   val instructionBuffer: Instance[IBuf] = Instantiate(new IBuf(parameter.iBufParameter))
   val breakpointUnit: Instance[BreakpointUnit] = Instantiate(new BreakpointUnit(parameter.breakpointUnitParameter))
   val alu: Instance[ALU] = Instantiate(new ALU(parameter.aluParameter))
@@ -1364,6 +1368,8 @@ class Rocket(val parameter: RocketParameter)
     io.imem.ras_update := DontCare
 
     io.fpu.foreach { fpu =>
+      fpuDecoder.get.io.instruction := idInstruction
+      fpu.dec := fpuDecoder.get.io.output
       fpu.valid := !ctrlKilled && idDecodeOutput(parameter.decoderParameter.fp)
       fpu.killx := ctrlKillx
       fpu.killm := killmCommon
