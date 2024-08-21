@@ -54,7 +54,9 @@ object DecoderParameter {
 case class DecoderParameter(
   instructionSets:   Set[String],
   pipelinedMul:      Boolean,
-  fenceIFlushDCache: Boolean)
+  fenceIFlushDCache: Boolean,
+  minFLen:           Int = 16,
+  xLen:              Int = 32)
     extends SerializableModuleParameter {
   val instructions: Seq[Instruction] =
     org.chipsalliance.rvdecoderdb
@@ -122,9 +124,33 @@ case class DecoderParameter(
   private val Y = BitPat.Y()
   private val N = BitPat.N()
 
+  private val FPUDecodeFields: Seq[DecodeField[RocketDecodePattern, _ <: Data]] = Seq(
+    fldst,
+    fwen,
+    fren1,
+    fren2,
+    fren3,
+    fswap12,
+    fswap23,
+    ftypeTagIn,
+    ftypeTagOut,
+    ffromint,
+    ftoint,
+    ffastpipe,
+    ffma,
+    fdiv,
+    fsqrt,
+    fwflags
+  )
+
   val table: DecodeTable[RocketDecodePattern] = new DecodeTable[RocketDecodePattern](
     instructionDecodePatterns,
     instructionDecodeFields
+  )
+
+  val floatTable: DecodeTable[RocketDecodePattern] = new DecodeTable[RocketDecodePattern](
+    instructionDecodePatterns,
+    FPUDecodeFields
   )
 
   object isLegal extends BoolDecodeField[RocketDecodePattern] {
@@ -693,11 +719,184 @@ case class DecoderParameter(
 
     override def genTable(op: RocketDecodePattern): BitPat = if (op.isVectorCSR) Y else N
   }
+
+  // fpu decode
+  object fldst extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "ldst"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("flh", "fsh", "flw", "fsw", "fld", "fsd").contains(i) => y
+      case i if Seq("fmv.h.x", "fcvt.h.w", "fcvt.h.wu", "fcvt.h.l", "fcvt.h.lu", "fmv.x.h", "fclass.h", "fcvt.w.h", "fcvt.wu.h", "fcvt.l.h", "fcvt.lu.h", "fcvt.s.h", "fcvt.h.s", "feq.h", "flt.h", "fle.h", "fsgnj.h", "fsgnjn.h", "fsgnjx.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fdiv.h", "fsqrt.h", "fmv.w.x", "fcvt.s.w", "fcvt.s.wu", "fcvt.s.l", "fcvt.s.lu", "fmv.x.w", "fclass.s", "fcvt.w.s", "fcvt.wu.s", "fcvt.l.s", "fcvt.lu.s", "feq.s", "flt.s", "fle.s", "fsgnj.s", "fsgnjn.s", "fsgnjx.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fdiv.s", "fsqrt.s", "fmv.d.x", "fcvt.d.w", "fcvt.d.wu", "fcvt.d.l", "fcvt.d.lu", "fmv.x.d", "fclass.d", "fcvt.w.d", "fcvt.wu.d", "fcvt.l.d", "fcvt.lu.d", "fcvt.s.d", "fcvt.d.s", "feq.d", "flt.d", "fle.d", "fsgnj.d", "fsgnjn.d", "fsgnjx.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fdiv.d", "fsqrt.d", "fcvt.h.d", "fcvt.d.h").contains(i) => n
+      // todo: dc
+      case _ => n
+    }
+  }
+
+  object fwen extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "wen"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("flh", "fmv.h.x", "fcvt.h.w", "fcvt.h.wu", "fcvt.h.l", "fcvt.h.lu", "fcvt.s.h", "fcvt.h.s", "fsgnj.h", "fsgnjn.h", "fsgnjx.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fdiv.h", "fsqrt.h", "flw", "fmv.w.x", "fcvt.s.w", "fcvt.s.wu", "fcvt.s.l", "fcvt.s.lu", "fsgnj.s", "fsgnjn.s", "fsgnjx.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fdiv.s", "fsqrt.s", "fld", "fmv.d.x", "fcvt.d.w", "fcvt.d.wu", "fcvt.d.l", "fcvt.d.lu", "fcvt.s.d", "fcvt.d.s", "fsgnj.d", "fsgnjn.d", "fsgnjx.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fdiv.d", "fsqrt.d", "fcvt.h.d", "fcvt.d.h").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object fren1 extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "ren1"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fmv.x.h", "fclass.h", "fcvt.w.h", "fcvt.wu.h", "fcvt.l.h", "fcvt.lu.h", "fcvt.s.h", "fcvt.h.s", "feq.h", "flt.h", "fle.h", "fsgnj.h", "fsgnjn.h", "fsgnjx.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fdiv.h", "fsqrt.h", "fmv.x.w", "fclass.s", "fcvt.w.s", "fcvt.wu.s", "fcvt.l.s", "fcvt.lu.s", "feq.s", "flt.s", "fle.s", "fsgnj.s", "fsgnjn.s", "fsgnjx.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fdiv.s", "fsqrt.s", "fmv.x.d", "fclass.d", "fcvt.w.d", "fcvt.wu.d", "fcvt.l.d", "fcvt.lu.d", "fcvt.s.d", "fcvt.d.s", "feq.d", "flt.d", "fle.d", "fsgnj.d", "fsgnjn.d", "fsgnjx.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fdiv.d", "fsqrt.d", "fcvt.h.d", "fcvt.d.h").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object fren2 extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "ren2"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fsh", "feq.h", "flt.h", "fle.h", "fsgnj.h", "fsgnjn.h", "fsgnjx.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fdiv.h", "fsw", "feq.s", "flt.s", "fle.s", "fsgnj.s", "fsgnjn.s", "fsgnjx.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fdiv.s", "fsd", "feq.d", "flt.d", "fle.d", "fsgnj.d", "fsgnjn.d", "fsgnjx.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fdiv.d").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object fren3 extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "ren3"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object fswap12 extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "swap12"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fsh", "fsw", "fsd").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object fswap23 extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "swap23"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fadd.h", "fsub.h", "fadd.s", "fsub.s", "fadd.d", "fsub.d").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object UOPFType extends UOP {
+    val helper = new FPUHelper(minFLen, minFLen, xLen)
+    // TODO: wtf here.
+    def H = BitPat(helper.H)
+    def I = BitPat(helper.I)
+    def D = BitPat(helper.D)
+    def S = BitPat(helper.S)
+    def width = D.getWidth
+    def X2 = BitPat.dontCare(width)
+  }
+
+  object ftypeTagIn extends UOPDecodeField[RocketDecodePattern] {
+    override def name: String = "typeTagIn"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fsh", "fmv.x.h", "fsw", "fmv.x.w", "fsd", "fmv.x.d").contains(i) => UOPFType.I
+      case i if Seq("fmv.h.x", "fcvt.h.w", "fcvt.h.wu", "fcvt.h.l", "fcvt.h.lu", "fclass.h", "fcvt.w.h", "fcvt.wu.h", "fcvt.l.h", "fcvt.lu.h", "fcvt.s.h", "feq.h", "flt.h", "fle.h", "fsgnj.h", "fsgnjn.h", "fsgnjx.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fdiv.h", "fsqrt.h", "fcvt.d.h").contains(i) => UOPFType.H
+      case i if Seq("fcvt.h.s", "fmv.w.x", "fcvt.s.w", "fcvt.s.wu", "fcvt.s.l", "fcvt.s.lu", "fclass.s", "fcvt.w.s", "fcvt.wu.s", "fcvt.l.s", "fcvt.lu.s", "feq.s", "flt.s", "fle.s", "fsgnj.s", "fsgnjn.s", "fsgnjx.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fdiv.s", "fsqrt.s", "fcvt.d.s").contains(i) => UOPFType.S
+      case i if Seq("fmv.d.x", "fcvt.d.w", "fcvt.d.wu", "fcvt.d.l", "fcvt.d.lu", "fclass.d", "fcvt.w.d", "fcvt.wu.d", "fcvt.l.d", "fcvt.lu.d", "fcvt.s.d", "feq.d", "flt.d", "fle.d", "fsgnj.d", "fsgnjn.d", "fsgnjx.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fdiv.d", "fsqrt.d", "fcvt.h.d").contains(i) => UOPFType.D
+      case _ => UOPFType.X2
+    }
+
+    override def uopType: UOPFType.type = UOPFType
+  }
+
+  object ftypeTagOut extends UOPDecodeField[RocketDecodePattern] {
+    override def name: String = "typeTagOut"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fmv.h.x", "fmv.w.x", "fmv.d.x").contains(i) => UOPFType.I
+      case i if Seq("fsh", "fcvt.h.w", "fcvt.h.wu", "fcvt.h.l", "fcvt.h.lu", "fmv.x.h", "fclass.h", "fcvt.h.s", "feq.h", "flt.h", "fle.h", "fsgnj.h", "fsgnjn.h", "fsgnjx.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fdiv.h", "fsqrt.h", "fcvt.h.d").contains(i) => UOPFType.H
+      case i if Seq("fcvt.s.h", "fsw", "fcvt.s.w", "fcvt.s.wu", "fcvt.s.l", "fcvt.s.lu", "fmv.x.w", "fclass.s", "feq.s", "flt.s", "fle.s", "fsgnj.s", "fsgnjn.s", "fsgnjx.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fdiv.s", "fsqrt.s", "fcvt.s.d").contains(i) => UOPFType.S
+      case i if Seq("fsd", "fcvt.d.w", "fcvt.d.wu", "fcvt.d.l", "fcvt.d.lu", "fmv.x.d", "fclass.d", "fcvt.d.s", "feq.d", "flt.d", "fle.d", "fsgnj.d", "fsgnjn.d", "fsgnjx.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fdiv.d", "fsqrt.d", "fcvt.d.h").contains(i) => UOPFType.D
+      case _ => UOPFType.X2
+    }
+
+    override def uopType: UOPFType.type = UOPFType
+  }
+
+  object ffromint extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "fromint"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fmv.h.x", "fcvt.h.w", "fcvt.h.wu", "fcvt.h.l", "fcvt.h.lu", "fmv.w.x", "fcvt.s.w", "fcvt.s.wu", "fcvt.s.l", "fcvt.s.lu", "fmv.d.x", "fcvt.d.w", "fcvt.d.wu", "fcvt.d.l", "fcvt.d.lu").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object ftoint extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "toint"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fsh", "fmv.x.h", "fclass.h", "fcvt.w.h", "fcvt.wu.h", "fcvt.l.h", "fcvt.lu.h", "feq.h", "flt.h", "fle.h", "fsw", "fmv.x.w", "fclass.s", "fcvt.w.s", "fcvt.wu.s", "fcvt.l.s", "fcvt.lu.s", "feq.s", "flt.s", "fle.s", "fsd", "fmv.x.d", "fclass.d", "fcvt.w.d", "fcvt.wu.d", "fcvt.l.d", "fcvt.lu.d", "feq.d", "flt.d", "fle.d").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object ffastpipe extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "fastpipe"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fcvt.s.h", "fcvt.h.s", "fsgnj.h", "fsgnjn.h", "fsgnjx.h", "fmin.h", "fmax.h", "fsgnj.s", "fsgnjn.s", "fsgnjx.s", "fmin.s", "fmax.s", "fcvt.s.d", "fcvt.d.s", "fsgnj.d", "fsgnjn.d", "fsgnjx.d", "fmin.d", "fmax.d", "fcvt.h.d", "fcvt.d.h").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object ffma extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "fma"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object fdiv extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "div"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fdiv.h", "fdiv.s", "fdiv.d").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object fsqrt extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "sqrt"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fsqrt.h", "fsqrt.s", "fsqrt.d").contains(i) => y
+      case _ => n
+    }
+  }
+
+  object fwflags extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "wflags"
+
+    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
+      case i if Seq("fcvt.h.w", "fcvt.h.wu", "fcvt.h.l", "fcvt.h.lu", "fcvt.w.h", "fcvt.wu.h", "fcvt.l.h", "fcvt.lu.h", "fcvt.s.h", "fcvt.h.s", "feq.h", "flt.h", "fle.h", "fmin.h", "fmax.h", "fadd.h", "fsub.h", "fmul.h", "fmadd.h", "fmsub.h", "fnmadd.h", "fnmsub.h", "fdiv.h", "fsqrt.h", "fcvt.s.w", "fcvt.s.wu", "fcvt.s.l", "fcvt.s.lu", "fcvt.w.s", "fcvt.wu.s", "fcvt.l.s", "fcvt.lu.s", "feq.s", "flt.s", "fle.s", "fmin.s", "fmax.s", "fadd.s", "fsub.s", "fmul.s", "fmadd.s", "fmsub.s", "fnmadd.s", "fnmsub.s", "fdiv.s", "fsqrt.s", "fcvt.d.w", "fcvt.d.wu", "fcvt.d.l", "fcvt.d.lu", "fcvt.w.d", "fcvt.wu.d", "fcvt.l.d", "fcvt.lu.d", "fcvt.s.d", "fcvt.d.s", "feq.d", "flt.d", "fle.d", "fmin.d", "fmax.d", "fadd.d", "fsub.d", "fmul.d", "fmadd.d", "fmsub.d", "fnmadd.d", "fnmsub.d", "fdiv.d", "fsqrt.d", "fcvt.h.d", "fcvt.d.h").contains(i) => y
+      case _ => n
+    }
+  }
 }
 
 class DecoderInterface(parameter: DecoderParameter) extends Bundle {
   val instruction = Input(UInt(32.W))
   val output = Output(parameter.table.bundle)
+}
+
+class FPUDecoderInterface(parameter: DecoderParameter) extends Bundle {
+  val instruction = Input(UInt(32.W))
+  val output = Output(parameter.floatTable.bundle)
 }
 
 /** DecodePattern for an RISC-V instruction */
@@ -749,4 +948,11 @@ class Decoder(val parameter: DecoderParameter)
   extends FixedIORawModule(new DecoderInterface(parameter))
     with SerializableModule[DecoderParameter] {
   io.output := parameter.table.decode(io.instruction)
+}
+
+@instantiable
+class FPUDecoder(val parameter: DecoderParameter)
+  extends FixedIORawModule(new FPUDecoderInterface(parameter))
+    with SerializableModule[DecoderParameter] {
+  io.output := parameter.floatTable.decode(io.instruction)
 }
