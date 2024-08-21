@@ -1074,7 +1074,7 @@ class FPUCoreIO(hartIdLen: Int, xLen: Int, fLen: Int) extends Bundle {
   val illegal_rm = Output(Bool())
   val killx = Input(Bool())
   val killm = Input(Bool())
-  val dec = Output(new FPUCtrlSigs())
+  val dec = Input(new FPUCtrlSigs())
   val sboard_set = Output(Bool())
   val sboard_clr = Output(Bool())
   val sboard_clra = Output(UInt(5.W))
