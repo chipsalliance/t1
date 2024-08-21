@@ -8,6 +8,8 @@ import chisel3.experimental.hierarchy.{Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 import org.chipsalliance.t1.rtl.{LSUWriteCheck, VRFReadPipe, VRFReadRequest, VRFWriteReport, VRFWriteRequest, ffo, instIndexL, instIndexLE, ohCheck}
 
 sealed trait RamType
@@ -391,8 +393,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         rf.readwritePorts.last.enable := ramWriteValid || firstReadPipe(bank).valid
         rf.readwritePorts.last.isWrite := ramWriteValid
         rf.readwritePorts.last.writeData := writeData
-        assert(!(writeValid && firstReadPipe(bank).valid), "port conflict")
-
+        AssertProperty(BoolSequence(!(writeValid && firstReadPipe(bank).valid)))
         readResultF(bank) := rf.readwritePorts.head.readData
         readResultS(bank) := DontCare
       case RamType.p0rp1w =>
@@ -432,7 +433,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         rf.readwritePorts.last.enable := ramWriteValid || secondReadPipe(bank).valid
         rf.readwritePorts.last.isWrite := ramWriteValid
         rf.readwritePorts.last.writeData := writeData
-        assert(!(writeValid && secondReadPipe(bank).valid), "port conflict")
+        AssertProperty(BoolSequence(!(writeValid && secondReadPipe(bank).valid)))
     }
 
     rf

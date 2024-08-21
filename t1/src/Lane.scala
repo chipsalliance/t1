@@ -6,6 +6,8 @@ package org.chipsalliance.t1.rtl
 import chisel3._
 import chisel3.experimental.hierarchy._
 import chisel3.experimental._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.properties.{AnyClassType, Class, ClassType, Path, Property}
 import chisel3.util._
@@ -689,7 +691,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         queue.io.enq.valid := readPort.enq.valid
         queue.io.enq.bits := readPort.enq.bits
         readPort.enqRelease := queue.io.deq.fire
-        assert(queue.io.enq.ready || !readPort.enq.valid)
+        AssertProperty(BoolSequence(queue.io.enq.ready || !readPort.enq.valid))
         // dequeue to cross read unit
         stage1.readBusDequeue.get(portIndex) <> queue.io.deq
       }
@@ -758,7 +760,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       UIntToOH(executionUnit.responseIndex(parameter.instructionIndexBits - 2, 0)),
       0.U(parameter.chainingSize.W)
     )
-    when(executionUnit.dequeue.valid)(assert(stage2.dequeue.valid))
+    AssertProperty(BoolSequence(!executionUnit.dequeue.valid || stage2.dequeue.valid))
     stage3.enqueue.valid := executionUnit.dequeue.valid
     executionUnit.dequeue.ready := stage3.enqueue.ready
     stage2.dequeue.ready := executionUnit.dequeue.fire
