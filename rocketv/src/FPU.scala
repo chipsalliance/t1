@@ -11,10 +11,15 @@ import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.util._
 import chisel3.util.circt.ClockGate
 
-class FPUProbe(param: FPUParameter) extends Bundle {
+class FPUWrite(param: FPUParameter) extends Bundle {
   val rfWen:   Bool = Bool()
   val rfWaddr: UInt = UInt(5.W)
-  val rfWdata: UInt = UInt((param.fLen + 1).W)
+  val rfWdata: UInt = UInt(param.fLen.W)
+}
+
+class FPUProbe(param: FPUParameter) extends Bundle {
+  val pipeWrite = new FPUWrite(param)
+  val loadOrVectorWrite = new FPUWrite(param)
 }
 
 object FPUParameter {
@@ -423,10 +428,12 @@ class FPU(val parameter: FPUParameter)
     val probeWire = Wire(new FPUProbe(parameter))
     define(io.fpuProbe, ProbeValue(probeWire))
 
-    probeWire.rfWen := load_wb || (!wbInfo(0).cp && wen(0)) || divSqrt_wen
-    probeWire.rfWaddr := Mux(load_wb, load_wb_tag, waddr)
-    probeWire.rfWdata := Mux(load_wb, recode(load_wb_data, load_wb_typeTag), wdata)
-
+    probeWire.loadOrVectorWrite.rfWen := load_wb
+    probeWire.loadOrVectorWrite.rfWaddr := load_wb_tag
+    probeWire.loadOrVectorWrite.rfWdata := recode(load_wb_data, load_wb_typeTag)
+    probeWire.pipeWrite.rfWen := (!wbInfo(0).cp && wen(0)) || divSqrt_wen
+    probeWire.pipeWrite.rfWaddr := waddr
+    probeWire.pipeWrite.rfWdata := wdata
   } // leaving gated-clock domain
   val fpuImpl = withClockAndReset(gated_clock, io.reset) { new FPUImpl }
 }

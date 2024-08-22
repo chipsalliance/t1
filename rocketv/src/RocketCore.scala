@@ -10,30 +10,32 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util.circt.ClockGate
 import chisel3.util.experimental.decode.DecodeBundle
-import chisel3.util.{BitPat, Cat, DecoupledIO, Fill, MuxLookup, PriorityEncoder, PriorityMux, Queue, RegEnable, log2Ceil, log2Up}
+import chisel3.util.{BitPat, Cat, DecoupledIO, Fill, MuxLookup, PriorityEncoder, PriorityMux, Queue, RegEnable, Valid, log2Ceil, log2Up}
 import org.chipsalliance.rocketv.rvdecoderdbcompat.Causes
 import org.chipsalliance.rvdecoderdb.Instruction
 
-class RocketRF(param: RocketParameter) extends Bundle {
-  val rfWen: Bool = Bool()
-  val rfWaddr: UInt = UInt(param.lgNXRegs.W)
-  val rfWdata: UInt = UInt(param.xLen.W)
-}
+class FPUScoreboardProbe extends Bundle {
+  val fpuSetScoreBoard: Bool = Bool()
+  val vectorSetScoreBoard: Bool = Bool()
+  val memSetScoreBoard: Bool = Bool()
+  val scoreBoardSetAddress: UInt = UInt(5.W)
 
-class RocketROB(param: RocketParameter) extends Bundle {
-  val commit: Bool = Bool()
-  val trace: RocketRF = new RocketRF(param)
-  val shouldWb: Bool = Bool()
-  val tag: UInt = UInt(5.W)
-  val wbSetScoreboard: Bool = Bool()
-  val longLatencyWrite: Bool = Bool()
-  val isVector: Bool = Bool()
+  val fpuClearScoreBoard: Valid[UInt] = Valid(UInt(5.W))
+  val vectorClearScoreBoard: Valid[UInt] = Valid(UInt(5.W))
+  val memClearScoreBoard: Valid[UInt] = Valid(UInt(5.W))
 }
 
 class RocketProbe(param: RocketParameter) extends Bundle {
-  val rob: RocketROB = new RocketROB(param)
+  val rfWen: Bool = Bool()
+  val rfWaddr: UInt = UInt(param.lgNXRegs.W)
+  val rfWdata: UInt = UInt(param.xLen.W)
   // rocket is idle
+  val waitWen: Bool = new Bool()
+  val waitWaddr: UInt = UInt(param.lgNXRegs.W)
+  val isVector: Bool = Bool()
   val idle: Bool = Bool()
+  // fpu score board
+  val fpuScoreboard: Option[FPUScoreboardProbe] = Option.when(param.usingFPU)(new FPUScoreboardProbe)
 }
 
 object RocketParameter {
@@ -375,6 +377,7 @@ class Rocket(val parameter: RocketParameter)
   val alu: Instance[ALU] = Instantiate(new ALU(parameter.aluParameter))
   val mulDiv: Instance[MulDiv] = Instantiate(new MulDiv(parameter.mulDivParameter))
   val mul: Option[Instance[PipelinedMultiplier]] = parameter.mulParameter.map(p => Instantiate(new PipelinedMultiplier(p)))
+  val t1RetireQueue: Option[Queue[T1RdRetire]] = io.t1.map(t1 => Module(new Queue(chiselTypeOf(t1.retire.rd.bits), 32)))
 
   // compatibility mode.
   object rocketParams {
@@ -1088,16 +1091,16 @@ class Rocket(val parameter: RocketParameter)
     )
     when(rfWen) { rf.write(rfWaddr, rfWdata) }
 
-    probeWire.rob.trace.rfWen := rfWen
-    probeWire.rob.trace.rfWaddr := rfWaddr
-    probeWire.rob.trace.rfWdata := rfWdata
+    probeWire.rfWen := rfWen
+    probeWire.rfWaddr := rfWaddr
+    probeWire.rfWdata := rfWdata
+
+    // TODO: add wait enable
+    probeWire.waitWen := wbSetSboard && wbWen
+    probeWire.waitWaddr := wbWaddr
+
     // FIXME: vectorCSR
-    probeWire.rob.commit := wbValid
-    probeWire.rob.shouldWb := wbWxd && wbWaddr =/= 0.U && !wbException
-    probeWire.rob.tag := wbWaddr
-    probeWire.rob.wbSetScoreboard := wbSetSboard && wbWen
-    probeWire.rob.longLatencyWrite := longLatencyWenable
-    probeWire.rob.isVector := io.t1.map { t1 =>
+    probeWire.isVector := io.t1.map { t1 =>
       wbRegDecodeOutput(parameter.decoderParameter.vector) && !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
     }.getOrElse(false.B)
 
@@ -1252,8 +1255,23 @@ class Rocket(val parameter: RocketParameter)
             // 8. set FP scoreboard
             fpScoreboard.set(((wbDcacheMiss || Option.when(usingVector)(wbRegDecodeOutput(parameter.decoderParameter.vector)).getOrElse(false.B)) && wbRegDecodeOutput(parameter.decoderParameter.wfd) || fpu.sboard_set) && wbValid, wbWaddr)
             fpScoreboard.clear(dmemResponseReplay && dmemResponseFpu, dmemResponseWaddr)
-            io.t1.foreach(t1 => fpScoreboard.clear(t1.retire.rd.valid && t1.retire.rd.bits.isFp, t1.retire.rd.bits.rdAddress))
+            t1RetireQueue.foreach(q => fpScoreboard.clear(q.io.deq.fire && q.io.deq.bits.isFp, q.io.deq.bits.rdAddress))
             fpScoreboard.clear(fpu.sboard_clr, fpu.sboard_clra)
+            probeWire.fpuScoreboard.foreach { case fpProbe =>
+              fpProbe.memSetScoreBoard := wbValid && wbDcacheMiss && wbRegDecodeOutput(parameter.decoderParameter.wfd)
+              fpProbe.vectorSetScoreBoard :=wbValid && wbRegDecodeOutput(parameter.decoderParameter.wfd) && Option.when(usingVector)(wbRegDecodeOutput(parameter.decoderParameter.vector)).getOrElse(false.B)
+              fpProbe.fpuSetScoreBoard := wbValid && wbRegDecodeOutput(parameter.decoderParameter.wfd) && fpu.sboard_set
+              fpProbe.scoreBoardSetAddress := wbWaddr
+
+              fpProbe.fpuClearScoreBoard.valid := fpu.sboard_clr
+              fpProbe.fpuClearScoreBoard.bits := fpu.sboard_clra
+
+              fpProbe.vectorClearScoreBoard.valid := t1RetireQueue.map(q => q.io.deq.fire && q.io.deq.bits.isFp).getOrElse(false.B)
+              fpProbe.vectorClearScoreBoard.bits := t1RetireQueue.map(q => q.io.deq.bits.rdAddress).getOrElse(0.U)
+
+              fpProbe.memClearScoreBoard.valid := dmemResponseReplay && dmemResponseFpu
+              fpProbe.memClearScoreBoard.bits := dmemResponseWaddr
+            }
             checkHazards(fpHazardTargets, fpScoreboard.read)
         }
         .getOrElse(false.B)
@@ -1403,7 +1421,7 @@ class Rocket(val parameter: RocketParameter)
       t1IssueQueue.io.deq.ready := t1.issue.ready
       // For each different retirements, it should maintain different scoreboard
       val t1CSRRetireQueue: Queue[T1CSRRetire] = Module(new Queue(chiselTypeOf(t1.retire.csr.bits), maxCount))
-      val t1XRDRetireQueue: Queue[T1RdRetire] = Module(new Queue(chiselTypeOf(t1.retire.rd.bits), maxCount))
+      val t1XRDRetireQueue: Queue[T1RdRetire] = t1RetireQueue.get
 
       val countWidth = log2Up(maxCount)
       def counterManagement(size: Int, margin: Int = 0)(grant: Bool, release: Bool, flush: Option[Bool] = None) = {
