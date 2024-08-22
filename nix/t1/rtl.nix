@@ -22,13 +22,11 @@ stdenvNoCC.mkDerivation {
     firtool ${mlirbc}/${mlirbc.elaborateTarget}-${mlirbc.elaborateConfig}-lowered.mlirbc \
       -o $out ${mfcArgs}
   '' + lib.optionalString fixupFilelist ''
-    # For ipemu, there are also some manually generated system verilog file for test bench.
-    # Those files are now recorded in a individual file list.
-    # However, verilator still expect on "filelist.f" file to record all the system verilog file.
-    # Below is a fix that concat them into one file to make verilator happy.
+    # FIXME: https://github.com/llvm/circt/pull/7543
     echo "Fixing generated filelist.f"
-    cp $out/filelist.f original.f
-    cat $out/firrtl_black_box_resource_files.f original.f > $out/filelist.f
+    pushd $out
+    find . -mindepth 1 -name '*.sv' -type f > $out/filelist.f
+    popd
   '';
 
   meta.description = "All the elaborated system verilog files for ${mlirbc.elaborateTarget} with ${mlirbc.elaborateConfig} config.";
