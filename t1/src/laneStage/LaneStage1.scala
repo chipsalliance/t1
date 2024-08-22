@@ -385,43 +385,45 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   stageValid := pipeQueue.io.deq.valid
   val stageFinish = !stageValid
 
+  // TODO: gather these logic into a Probe Bundle
   @public
-  val dequeueReadyProbe = IO(Output(Probe(Bool())))
+  val dequeueReadyProbe = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val dequeueValidProbe = IO(Output(Probe(Bool())))
+  val dequeueValidProbe = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val hasDataOccupiedProbe = IO(Output(Probe(Bool())))
+  val hasDataOccupiedProbe = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val stageFinishProbe = IO(Output(Probe(Bool())))
+  val stageFinishProbe = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val readFinishProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  val readFinishProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val sSendCrossReadResultLSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  val sSendCrossReadResultLSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val sSendCrossReadResultMSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  val sSendCrossReadResultMSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val wCrossReadLSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  val wCrossReadLSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val wCrossReadMSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool()))))
+  val wCrossReadMSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val vrfReadRequestProbe: Seq[(Bool, Bool)] = Seq.fill(3)((IO(Output(Probe(Bool()))),IO(Output(Probe(Bool())))))
+  val vrfReadRequestProbe: Seq[(Bool, Bool)] = Seq.fill(3)((IO(Output(Probe(Bool(), layers.Verification))),IO(Output(Probe(Bool(), layers.Verification)))))
 
+  layer.block(layers.Verification) {
+    define(dequeueReadyProbe, ProbeValue(dequeue.ready))
+    define(dequeueValidProbe, ProbeValue(dequeue.valid))
+    define(hasDataOccupiedProbe, ProbeValue(stageValid))
+    define(stageFinishProbe, ProbeValue(stageFinish))
 
-  define(dequeueReadyProbe, ProbeValue(dequeue.ready))
-  define(dequeueValidProbe, ProbeValue(dequeue.valid))
-  define(hasDataOccupiedProbe, ProbeValue(stageValid))
-  define(stageFinishProbe, ProbeValue(stageFinish))
+    if (isLastSlot) {
+      readFinishProbe.foreach(p => define(p, ProbeValue(dataQueueVs2.io.deq.valid)))
+      sSendCrossReadResultLSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.sSendCrossReadResultLSB)))
+      sSendCrossReadResultMSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.sSendCrossReadResultMSB)))
+      wCrossReadLSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadLSB)))
+      wCrossReadMSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadMSB)))
+    }
 
-  if (isLastSlot) {
-    readFinishProbe.foreach(p => define(p, ProbeValue(dataQueueVs2.io.deq.valid)))
-    sSendCrossReadResultLSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.sSendCrossReadResultLSB)))
-    sSendCrossReadResultMSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.sSendCrossReadResultMSB)))
-    wCrossReadLSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadLSB)))
-    wCrossReadMSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadMSB)))
-  }
-
-  vrfReadRequestProbe.zipWithIndex.foreach { case((ready, valid), i) =>
-    define(ready, ProbeValue(vrfReadRequest(i).ready))
-    define(valid, ProbeValue(vrfReadRequest(i).valid))
+    vrfReadRequestProbe.zipWithIndex.foreach { case ((ready, valid), i) =>
+      define(ready, ProbeValue(vrfReadRequest(i).ready))
+      define(valid, ProbeValue(vrfReadRequest(i).valid))
+    }
   }
 }

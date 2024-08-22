@@ -215,6 +215,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   @public
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
 
+  @public
+  val vrfProbe = IO(Output(Probe(new VRFProbe(parameter), layers.Verification)))
+
   // reset sram
   val sramReady: Bool = RegInit(false.B)
   val sramResetCount: UInt = RegInit(0.U(log2Ceil(parameter.rfDepth).W))
@@ -560,18 +563,15 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     }.reduce(_ && _)
   }
 
-  /* 
-  * Probe
-  */
-  @public
-  val vrfProbe = IO(Output(Probe(new VRFProbe(parameter))))
-  val probeWire = Wire(new VRFProbe(parameter))
-  define(vrfProbe, ProbeValue(probeWire))
+  layer.block(layers.Verification) {
+    val probeWire = Wire(new VRFProbe(parameter))
+    define(vrfProbe, ProbeValue(probeWire))
 
-  probeWire.valid := writePipe.valid
-  probeWire.requestVd := writePipe.bits.vd
-  probeWire.requestOffset := writePipe.bits.offset
-  probeWire.requestMask := writePipe.bits.mask
-  probeWire.requestData := writePipe.bits.data
-  probeWire.requestInstruction := writePipe.bits.instructionIndex
+    probeWire.valid := writePipe.valid
+    probeWire.requestVd := writePipe.bits.vd
+    probeWire.requestOffset := writePipe.bits.offset
+    probeWire.requestMask := writePipe.bits.mask
+    probeWire.requestData := writePipe.bits.data
+    probeWire.requestInstruction := writePipe.bits.instructionIndex
+  }
 }

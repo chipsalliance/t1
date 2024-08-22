@@ -327,7 +327,7 @@ class T1Interface(parameter: T1Parameter) extends Record {
       "highBandwidthLoadStorePort" -> new AXI4RWIrrevocable(parameter.axi4BundleParameter),
       "indexedLoadStorePort" -> new AXI4RWIrrevocable(parameter.axi4BundleParameter.copy(dataWidth=32)),
       "om" -> Output(Property[AnyClassType]()),
-      "t1Probe" -> Output(Probe(new T1Probe(parameter))),
+      "t1Probe" -> Output(Probe(new T1Probe(parameter), layers.Verification)),
     ) 
   )
 }
@@ -1721,26 +1721,27 @@ class T1(val parameter: T1Parameter)
   // don't care有可能会导致先读后写失败
   maskUnitReadVec.foreach(_.bits.instructionIndex := slots.last.record.instructionIndex)
 
-  /**
-    * Probes
-    */
-  val probeWire = Wire(new T1Probe(parameter))
-  define(io.t1Probe, ProbeValue(probeWire))
-  probeWire.instructionCounter := instructionCounter
-  probeWire.instructionIssue := requestRegDequeue.fire
-  probeWire.issueTag := requestReg.bits.instructionIndex
-  probeWire.retireValid := retire
-  // maskUnitWrite maskUnitWriteReady
-  probeWire.writeQueueEnq.valid := maskUnitWrite.valid && maskUnitWriteReady
-  probeWire.writeQueueEnq.bits := maskUnitWrite.bits.instructionIndex
-  probeWire.writeQueueEnqMask := maskUnitWrite.bits.mask
-  probeWire.instructionValid := maskAnd(
-    !slots.last.state.sMaskUnitExecution && !slots.last.state.idle,
-    indexToOH(slots.last.record.instructionIndex, parameter.chainingSize * 2)).asUInt
-  probeWire.responseCounter := responseCounter
-  probeWire.laneProbes.zip(laneVec).foreach { case (p, l) => p := probe.read(l.laneProbe) }
-  probeWire.lsuProbe := probe.read(lsu.lsuProbe)
-
+  layer.block(layers.Verification) {
+    /**
+      * Probes
+      */
+    val probeWire = Wire(new T1Probe(parameter))
+    define(io.t1Probe, ProbeValue(probeWire))
+    probeWire.instructionCounter := instructionCounter
+    probeWire.instructionIssue := requestRegDequeue.fire
+    probeWire.issueTag := requestReg.bits.instructionIndex
+    probeWire.retireValid := retire
+    // maskUnitWrite maskUnitWriteReady
+    probeWire.writeQueueEnq.valid := maskUnitWrite.valid && maskUnitWriteReady
+    probeWire.writeQueueEnq.bits := maskUnitWrite.bits.instructionIndex
+    probeWire.writeQueueEnqMask := maskUnitWrite.bits.mask
+    probeWire.instructionValid := maskAnd(
+      !slots.last.state.sMaskUnitExecution && !slots.last.state.idle,
+      indexToOH(slots.last.record.instructionIndex, parameter.chainingSize * 2)).asUInt
+    probeWire.responseCounter := responseCounter
+    probeWire.laneProbes.zip(laneVec).foreach { case (p, l) => p := probe.read(l.laneProbe) }
+    probeWire.lsuProbe := probe.read(lsu.lsuProbe)
+  }
 
   // new V Request from core
   // val requestValidProbe: Bool = IO(Output(Probe(Bool())))
