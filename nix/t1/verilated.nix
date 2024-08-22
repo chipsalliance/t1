@@ -22,10 +22,12 @@ stdenv.mkDerivation {
     echo "[nix] running verilator"
     verilator \
       ${lib.optionalString enable-trace "--trace-fst"} \
+      --cc \
       --timing \
       --threads 8 \
       -O1 \
-      --cc TestBench
+      -F filelist.f \
+      --top TestBench
 
     echo "[nix] building verilated C lib"
 
