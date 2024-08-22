@@ -217,28 +217,23 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     */
   // Load Unit ready to accpet LSU request
   @public
-  val lsuRequestValidProbe = IO(Output(Probe(Bool())))
-  define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
+  val lsuRequestValidProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   // Load Unit is idle
   @public
-  val idleProbe = IO(Output(Probe(Bool())))
-  define(idleProbe, ProbeValue(status.idle))
+  val idleProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   // Tilelink Channel A decouple IO status
   // ready: channel A is ready to accept signal
   // valid: Load Unit try to send signal to channel A
   @public
-  val tlPortAValidProbe = IO(Output(Probe(Bool())))
-  define(tlPortAValidProbe, ProbeValue(memRequest.valid))
+  val tlPortAValidProbe = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val tlPortAReadyProbe = IO(Output(Probe(Bool())))
-  define(tlPortAReadyProbe, ProbeValue(memRequest.ready))
+  val tlPortAReadyProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   // Fail to send signal to tilelink Channel A because of address conflict
   @public
-  val addressConflictProbe = IO(Output(Probe(Bool())))
-  define(addressConflictProbe, ProbeValue(addressConflict))
+  val addressConflictProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   //  // Tilelink used for accepting signal from receive signal from Channel D
   //  @public
@@ -285,37 +280,52 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // After receiving new cacheline from top, or current item is the last cacheline,
   // pop out data and transform it to an aligned cacheline, go through alignedDequeue to next level
   @public
-  val unalignedCacheLineProbe = IO(Output(Probe(Bool())))
-  define(unalignedCacheLineProbe, ProbeValue(unalignedCacheLine.valid))
+  val unalignedCacheLineProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   // Used for transmitting data from unalignedCacheline to dataBuffer
   @public
-  val alignedDequeueValidProbe = IO(Output(Probe(Bool())))
-  define(alignedDequeueValidProbe, ProbeValue(alignedDequeue.valid))
-  @public
-  val alignedDequeueReadyProbe = IO(Output(Probe(Bool())))
-  define(alignedDequeueReadyProbe, ProbeValue(alignedDequeue.ready))
+  val alignedDequeueValidProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   @public
-  val bufferEnqueueSelectProbe = IO(Output(Probe(chiselTypeOf(bufferEnqueueSelect))))
-  define(bufferEnqueueSelectProbe, ProbeValue(bufferEnqueueSelect))
+  val alignedDequeueReadyProbe = IO(Output(Probe(Bool(), layers.Verification)))
+
+  @public
+  val bufferEnqueueSelectProbe = IO(Output(Probe(chiselTypeOf(bufferEnqueueSelect), layers.Verification)))
 
   // Load Unit can write VRF after writeReadyForLSU is true
   @public
-  val writeReadyForLSUProbe: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu))))
-  define(writeReadyForLSUProbe, ProbeValue(writeReadyForLsu))
+  val writeReadyForLSUProbe: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu), layers.Verification)))
+
 
   // Write to VRF
   @public
   val vrfWriteValidProbe: Seq[Bool] = vrfWritePort.map(port => {
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(port.valid))
+    val probe = IO(Output(Probe(Bool(), layers.Verification)))
+    layer.block(layers.Verification) {
+      define(probe, ProbeValue(port.valid))
+    }
     probe
-  }).toSeq
+  })
   @public
   val vrfWriteReadyProbe: Seq[Bool] = vrfWritePort.map(port => {
-    val probe = IO(Output(Probe(Bool())))
-    define(probe, ProbeValue(port.ready))
+    val probe = IO(Output(Probe(Bool(), layers.Verification)))
+    layer.block(layers.Verification) {
+      define(probe, ProbeValue(port.ready))
+      }
     probe
   }).toSeq
+
+  layer.block(layers.Verification) {
+    define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
+    define(idleProbe, ProbeValue(status.idle))
+    define(tlPortAValidProbe, ProbeValue(memRequest.valid))
+    define(tlPortAReadyProbe, ProbeValue(memRequest.ready))
+    define(addressConflictProbe, ProbeValue(addressConflict))
+    define(unalignedCacheLineProbe, ProbeValue(unalignedCacheLine.valid))
+    define(alignedDequeueValidProbe, ProbeValue(alignedDequeue.valid))
+    define(alignedDequeueReadyProbe, ProbeValue(alignedDequeue.ready))
+    define(bufferEnqueueSelectProbe, ProbeValue(bufferEnqueueSelect))
+    define(writeReadyForLSUProbe, ProbeValue(writeReadyForLsu))
+  }
+
 }

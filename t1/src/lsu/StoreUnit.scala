@@ -46,9 +46,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   // store unit probe
   @public
-  val probe = IO(Output(Probe(new MemoryWriteProbe(param))))
-  val probeWire = Wire(new MemoryWriteProbe(param))
-  define(probe, ProbeValue(probeWire))
+  val probe = IO(Output(Probe(new MemoryWriteProbe(param), layers.Verification)))
 
   // stage 0, 处理 vl, mask ...
   val dataGroupByteSize: Int = param.datapathWidth * param.laneNumber / 8
@@ -272,24 +270,13 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     0.U(param.cacheLineBits.W)
   dontTouch(status)
 
-  /**
-    * Probes
-    */
-  probeWire.valid := alignedDequeueFire
-  probeWire.index := 1.U
-  probeWire.data := memRequest.bits.data
-  probeWire.mask := memRequest.bits.mask
-  probeWire.address := alignedDequeueAddress
-
   // Store Unit is idle
   @public
-  val idleProbe = IO(Output(Probe(Bool())))
-  define(idleProbe, ProbeValue(status.idle))
+  val idleProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   // lsuRequest is valid
   @public
-  val lsuRequestValidProbe = IO(Output(Probe(Bool())))
-  define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
+  val lsuRequestValidProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
 //  @public
 //  val tlPortAIsValidProbe = Seq.fill(param.memoryBankSize)(IO(Output(Probe(Bool()))))
@@ -301,19 +288,32 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 //  })
 
   @public
-  val addressConflictProbe = IO(Output(Probe(Bool())))
-  define(addressConflictProbe, ProbeValue(addressConflict))
+  val addressConflictProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   @public
-  val vrfReadDataPortIsValidProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
+  val vrfReadDataPortIsValidProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val vrfReadDataPortIsReadyProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool()))))
-  vrfReadDataPorts.zipWithIndex.foreach({ case(port, i) =>
-    define(vrfReadDataPortIsValidProbe(i), ProbeValue(port.valid))
-    define(vrfReadDataPortIsReadyProbe(i), ProbeValue(port.ready))
-  })
+  val vrfReadDataPortIsReadyProbe = Seq.fill(param.laneNumber)(IO(Output(Probe(Bool(), layers.Verification))))
 
   @public
-  val vrfReadyToStoreProbe = IO(Output(Probe(Bool())))
-  define(vrfReadyToStoreProbe, ProbeValue(vrfReadyToStore))
+  val vrfReadyToStoreProbe = IO(Output(Probe(Bool(), layers.Verification)))
+
+  layer.block(layers.Verification) {
+    val probeWire = Wire(new MemoryWriteProbe(param))
+    define(probe, ProbeValue(probeWire))
+    probeWire.valid := alignedDequeueFire
+    probeWire.index := 1.U
+    probeWire.data := memRequest.bits.data
+    probeWire.mask := memRequest.bits.mask
+    probeWire.address := alignedDequeueAddress
+
+    define(idleProbe, ProbeValue(status.idle))
+    define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
+    define(addressConflictProbe, ProbeValue(addressConflict))
+    vrfReadDataPorts.zipWithIndex.foreach({ case(port, i) =>
+      define(vrfReadDataPortIsValidProbe(i), ProbeValue(port.valid))
+      define(vrfReadDataPortIsReadyProbe(i), ProbeValue(port.ready))
+    })
+    define(vrfReadyToStoreProbe, ProbeValue(vrfReadyToStore))
+  }
 }

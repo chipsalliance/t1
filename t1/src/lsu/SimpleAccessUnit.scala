@@ -193,9 +193,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
 
   // other unit probe
   @public
-  val probe = IO(Output(Probe(new MemoryWriteProbe(param))))
-  val probeWire = Wire(new MemoryWriteProbe(param))
-  define(probe, ProbeValue(probeWire))
+  val probe = IO(Output(Probe(new MemoryWriteProbe(param), layers.Verification)))
 
   val s0Fire: Bool = Wire(Bool())
   val s1Fire: Bool = Wire(Bool())
@@ -1036,39 +1034,25 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
    */
   val dataOffset = (s1EnqQueue.io.deq.bits.indexInMaskGroup << dataEEW)(1, 0) ## 0.U(3.W)
 
-  probeWire.valid := memWriteRequest.fire
-  probeWire.index := 2.U
-  probeWire.data := memWriteRequest.bits.data
-  probeWire.mask := memWriteRequest.bits.mask
-  probeWire.address := memWriteRequest.bits.address
+  @public
+  val lsuRequestValidProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   @public
-  val lsuRequestValidProbe = IO(Output(Probe(Bool())))
-  define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
+  val s0EnqueueValidProbe = IO(Output(Probe(Bool(), layers.Verification)))
+  @public
+  val stateIsRequestProbe = IO(Output(Probe(Bool(), layers.Verification)))
+  @public
+  val maskCheckProbe = IO(Output(Probe(Bool(), layers.Verification)))
+  @public
+  val indexCheckProbe = IO(Output(Probe(Bool(), layers.Verification)))
+  @public
+  val fofCheckProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   @public
-  val s0EnqueueValidProbe = IO(Output(Probe(Bool())))
-  define(s0EnqueueValidProbe, ProbeValue(s0EnqueueValid))
-  @public
-  val stateIsRequestProbe = IO(Output(Probe(Bool())))
-  define(stateIsRequestProbe, ProbeValue(stateIsRequest))
-  @public
-  val maskCheckProbe = IO(Output(Probe(Bool())))
-  define(maskCheckProbe, ProbeValue(maskCheck))
-  @public
-  val indexCheckProbe = IO(Output(Probe(Bool())))
-  define(indexCheckProbe, ProbeValue(indexCheck))
-  @public
-  val fofCheckProbe = IO(Output(Probe(Bool())))
-  define(fofCheckProbe, ProbeValue(fofCheck))
+  val s0FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s0Fire), layers.Verification)))
 
   @public
-  val s0FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s0Fire))))
-  define(s0FireProbe, ProbeValue(s0Fire))
-
-  @public
-  val s1FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s1Fire))))
-  define(s1FireProbe, ProbeValue(s1Fire))
+  val s1FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s1Fire), layers.Verification)))
 
 //  @public
 //  val tlPortAReadyProbe = IO(Output(Probe(Bool())))
@@ -1078,15 +1062,12 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
 //  define(tlPortAValidProbe, ProbeValue(tlPort.a.valid))
 
   @public
-  val s1ValidProbe = IO(Output(Probe(Bool())))
-  define(s1ValidProbe, ProbeValue(s1Valid))
+  val s1ValidProbe = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val sourceFreeProbe = IO(Output(Probe(Bool())))
-  define(sourceFreeProbe, ProbeValue(sourceFree))
+  val sourceFreeProbe = IO(Output(Probe(Bool(), layers.Verification)))
 
   @public
-  val s2FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s2Fire))))
-  define(s2FireProbe, ProbeValue(s2Fire))
+  val s2FireProbe: Bool = IO(Output(Probe(chiselTypeOf(s2Fire), layers.Verification)))
 
 //  @public
 //  val tlPortDReadyProbe = IO(Output(Probe(Bool())))
@@ -1097,13 +1078,35 @@ class SimpleAccessUnit(param: MSHRParam) extends Module  with LSUPublic {
 
 
   @public
-  val stateValueProbe: UInt = IO(Output(Probe(chiselTypeOf(state))))
-  define(stateValueProbe, ProbeValue(state))
+  val stateValueProbe: UInt = IO(Output(Probe(chiselTypeOf(state), layers.Verification)))
 
   @public
-  val vrfWritePortIsValidProbe: Bool = IO(Output(Probe(Bool())))
-  define(vrfWritePortIsValidProbe, ProbeValue(vrfWritePort.valid))
+  val vrfWritePortIsValidProbe: Bool = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val vrfWritePortIsReadyProbe: Bool = IO(Output(Probe(Bool())))
-  define(vrfWritePortIsReadyProbe, ProbeValue(vrfWritePort.ready))
+  val vrfWritePortIsReadyProbe: Bool = IO(Output(Probe(Bool(), layers.Verification)))
+
+  layer.block(layers.Verification) {
+    val probeWire = Wire(new MemoryWriteProbe(param))
+    define(probe, ProbeValue(probeWire))
+    probeWire.valid := memWriteRequest.fire
+    probeWire.index := 2.U
+    probeWire.data := memWriteRequest.bits.data
+    probeWire.mask := memWriteRequest.bits.mask
+    probeWire.address := memWriteRequest.bits.address
+    define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))
+    define(s0EnqueueValidProbe, ProbeValue(s0EnqueueValid))
+    define(stateIsRequestProbe, ProbeValue(stateIsRequest))
+    define(maskCheckProbe, ProbeValue(maskCheck))
+    define(indexCheckProbe, ProbeValue(indexCheck))
+    define(fofCheckProbe, ProbeValue(fofCheck))
+    define(s0FireProbe, ProbeValue(s0Fire))
+    define(s1FireProbe, ProbeValue(s1Fire))
+    define(s1ValidProbe, ProbeValue(s1Valid))
+    define(sourceFreeProbe, ProbeValue(sourceFree))
+    define(s2FireProbe, ProbeValue(s2Fire))
+    define(stateValueProbe, ProbeValue(state))
+    define(vrfWritePortIsValidProbe, ProbeValue(vrfWritePort.valid))
+    define(vrfWritePortIsReadyProbe, ProbeValue(vrfWritePort.ready))
+  }
+
 }
