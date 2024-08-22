@@ -74,7 +74,7 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
 
   // output probes
   val rocketProbe = probe.read(dut.io.rocketProbe)
-  when(rocketProbe.rob.trace.rfWen && rocketProbe.rob.trace.rfWaddr =/= 0.U)(printf(cf"""{"event":"RegWrite","addr":${rocketProbe.rob.trace.rfWaddr},"data":${rocketProbe.rob.trace.rfWdata},"cycle":${simulationTime}}\n"""))
+  when(rocketProbe.rfWen && rocketProbe.rfWaddr =/= 0.U)(printf(cf"""{"event":"RegWrite","addr":${rocketProbe.rfWaddr},"data":${rocketProbe.rfWdata},"cycle":${simulationTime}}\n"""))
 
   // Memory Drivers
   val instFetchAXI = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
