@@ -40,7 +40,7 @@ unsafe fn load_from_payload(
   size: usize,
 ) -> (Vec<bool>, &[u8]) {
   let src = *payload as *mut u8;
-  let data_width_in_byte = size;
+  let data_width_in_byte = std::cmp::max(size, 4);
   let strb_width_per_byte = if data_width < 64 { 4 } else { 8 };
   let strb_width_in_byte = size.div_ceil(strb_width_per_byte);
 
