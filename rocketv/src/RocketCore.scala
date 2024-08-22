@@ -14,25 +14,14 @@ import chisel3.util.{BitPat, Cat, DecoupledIO, Fill, MuxLookup, PriorityEncoder,
 import org.chipsalliance.rocketv.rvdecoderdbcompat.Causes
 import org.chipsalliance.rvdecoderdb.Instruction
 
-class RocketRF(param: RocketParameter) extends Bundle {
+class RocketProbe(param: RocketParameter) extends Bundle {
   val rfWen: Bool = Bool()
   val rfWaddr: UInt = UInt(param.lgNXRegs.W)
   val rfWdata: UInt = UInt(param.xLen.W)
-}
-
-class RocketROB(param: RocketParameter) extends Bundle {
-  val commit: Bool = Bool()
-  val trace: RocketRF = new RocketRF(param)
-  val shouldWb: Bool = Bool()
-  val tag: UInt = UInt(5.W)
-  val wbSetScoreboard: Bool = Bool()
-  val longLatencyWrite: Bool = Bool()
-  val isVector: Bool = Bool()
-}
-
-class RocketProbe(param: RocketParameter) extends Bundle {
-  val rob: RocketROB = new RocketROB(param)
   // rocket is idle
+  val waitWen: Bool = new Bool()
+  val waitWaddr: UInt = UInt(param.lgNXRegs.W)
+  val isVector: Bool = Bool()
   val idle: Bool = Bool()
 }
 
@@ -1088,16 +1077,16 @@ class Rocket(val parameter: RocketParameter)
     )
     when(rfWen) { rf.write(rfWaddr, rfWdata) }
 
-    probeWire.rob.trace.rfWen := rfWen
-    probeWire.rob.trace.rfWaddr := rfWaddr
-    probeWire.rob.trace.rfWdata := rfWdata
+    probeWire.rfWen := rfWen
+    probeWire.rfWaddr := rfWaddr
+    probeWire.rfWdata := rfWdata
+
+    // TODO: add wait enable
+    // probeWire.waitEn := 
+    // probeWire.waitAddr := 
+
     // FIXME: vectorCSR
-    probeWire.rob.commit := wbValid
-    probeWire.rob.shouldWb := wbWxd && wbWaddr =/= 0.U && !wbException
-    probeWire.rob.tag := wbWaddr
-    probeWire.rob.wbSetScoreboard := wbSetSboard && wbWen
-    probeWire.rob.longLatencyWrite := longLatencyWenable
-    probeWire.rob.isVector := io.t1.map { t1 =>
+    probeWire.isVector := io.t1.map { t1 =>
       wbRegDecodeOutput(parameter.decoderParameter.vector) && !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
     }.getOrElse(false.B)
 

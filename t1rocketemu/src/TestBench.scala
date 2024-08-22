@@ -176,48 +176,34 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   val otherUnitProbe = t1Probe.lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
 
   // output the probes
-  // rocket reg write rob
-  val robQueue = Module(new Queue(new RocketROB(generator.parameter.rocketParameter), 32))
-  val robWriteDataValid = RegInit(0.U(32.W))
-  val robWriteData: Seq[UInt] = Seq.tabulate(32){ _ => RegInit(0.U(generator.parameter.xLen.W))}
-  // push queue
-  robQueue.io.enq.valid := rocketProbe.rob.commit && rocketProbe.rob.shouldWb
-  robQueue.io.enq.bits := rocketProbe.rob
-
-  // update rob write
-  val doEnqSelect: UInt = Mux(rocketProbe.rob.longLatencyWrite, UIntToOH(rocketProbe.rob.trace.rfWaddr), 0.U(32.W))
-  val doDeqSelect = Wire(UInt(32.W))
-  robWriteDataValid := (doEnqSelect | robWriteDataValid) & (~doDeqSelect).asUInt
-  robWriteData.zip(doEnqSelect.asBools).foreach {case (d, s) =>
-    d := Mux(s, rocketProbe.rob.trace.rfWdata, d)
-  }
-
-  // pop queue and output trace
-  val deqLongLatency: Bool = robQueue.io.deq.bits.wbSetScoreboard
-  robQueue.io.deq.ready :=
-    // Normal writing
-    !deqLongLatency ||
-      // Long latency data is ready
-      (robWriteDataValid & UIntToOH(robQueue.io.deq.bits.tag)).orR
-  val writeData: UInt = Mux(
-    deqLongLatency,
-    Mux1H(UIntToOH(robQueue.io.deq.bits.tag), robWriteData),
-    robQueue.io.deq.bits.trace.rfWdata
-  )
-  doDeqSelect := Mux(robQueue.io.deq.fire && deqLongLatency, UIntToOH(robQueue.io.deq.bits.tag), 0.U(32.W))
-  when(robQueue.io.deq.fire & !robQueue.io.deq.bits.isVector)(
+  // rocket reg write
+  when(rocketProbe.rfWen && !rocketProbe.isVector)(
     printf(
-      cf"""{"event":"RegWrite","idx":${robQueue.io.deq.bits.tag},"data":"${writeData}%x","cycle":${simulationTime}}\n"""
+      cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
     )
   )
+
+  // TODO: refactor this wait logic
+  // when(rocketProbe.waitWen && !rocketProbe.isVector)( // should this judge vector?
+  //   printf(
+  //     cf"""{"event":"RegWriteWait","idx":${rocketProbe.waitWaddr},"cycle":${simulationTime}}\n"""
+  //   )
+  // )
 
   // [[option]] rocket fpu reg write 
   t1RocketProbe.fpuProbe.foreach { fpu =>
     when(fpu.rfWen)(
       printf(
-        cf"""{"event":"RegWrite","idx":${fpu.rfWaddr},"data":"${fpu.rfWdata}%x","cycle":${simulationTime}}\n"""
+        cf"""{"event":"FregWrite","idx":${fpu.rfWaddr},"data":"${fpu.rfWdata}%x","cycle":${simulationTime}}\n"""
       )
     )
+
+  // TODO: refactor this wait logic
+  // when(fpu.waitWen && !fpu.isVector)( // should this judge vector?
+  //   printf(
+  //     cf"""{"event":"FregWriteWait","idx":${fpu.waitWaddr},"cycle":${simulationTime}}\n"""
+  //   )
+  // )
   }
 
   // t1 vrf write
