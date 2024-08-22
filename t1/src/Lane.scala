@@ -313,9 +313,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val vrfReadyToStore: Bool = IO(Output(Bool()))
 
   @public
-  val laneProbe = IO(Output(Probe(new LaneProbe(parameter))))
-  val probeWire = Wire(new LaneProbe(parameter))
-  define(laneProbe, ProbeValue(probeWire))
+  val laneProbe = IO(Output(Probe(new LaneProbe(parameter), layers.Verification)))
 
   @public
   val vrfAllocateIssue: Bool = IO(Output(Bool()))
@@ -526,315 +524,298 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   ))
   val maskedWriteUnit: Instance[MaskedWrite] = Instantiate(new MaskedWrite(parameter))
   val tokenManager: Instance[SlotTokenManager] = Instantiate(new SlotTokenManager(parameter))
-  slotControl.zipWithIndex.foreach {
-    case (record, index) =>
-      val decodeResult: DecodeBundle = record.laneRequest.decodeResult
-      val isLastSlot: Boolean = index == 0
+  // TODO: do we need to expose the slot to a module?
+  class Slot(val record: InstructionControlRecord, val index: Int) {
+    val decodeResult: DecodeBundle = record.laneRequest.decodeResult
+    val isLastSlot: Boolean = index == 0
 
-      /** We will ignore the effect of mask since:
-        * [[Decoder.crossRead]]: We need to read data to another lane
-        * [[Decoder.crossWrite]]: We need to send cross write report to another lane
-        * [[Decoder.scheduler]]: We need to synchronize with [[T1]] every group
-        * [[record.laneRequest.loadStore]]: We need to read data to lsu every group
-        */
-      val alwaysNextGroup: Bool = decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite) ||
-        decodeResult(Decoder.nr) || !decodeResult(Decoder.scheduler) || record.laneRequest.loadStore
+    /** We will ignore the effect of mask since:
+      * [[Decoder.crossRead]]: We need to read data to another lane
+      * [[Decoder.crossWrite]]: We need to send cross write report to another lane
+      * [[Decoder.scheduler]]: We need to synchronize with [[T1]] every group
+      * [[record.laneRequest.loadStore]]: We need to read data to lsu every group
+      */
+    val alwaysNextGroup: Bool = decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite) ||
+      decodeResult(Decoder.nr) || !decodeResult(Decoder.scheduler) || record.laneRequest.loadStore
 
-      // mask not use for mask element
-      val maskNotMaskedElement = !record.laneRequest.mask ||
-        record.laneRequest.decodeResult(Decoder.maskSource) ||
-        record.laneRequest.decodeResult(Decoder.maskLogic)
+    // mask not use for mask element
+    val maskNotMaskedElement = !record.laneRequest.mask ||
+      record.laneRequest.decodeResult(Decoder.maskSource) ||
+      record.laneRequest.decodeResult(Decoder.maskLogic)
 
-      /** onehot value of SEW. */
-      val vSew1H: UInt = UIntToOH(record.csr.vSew)(2, 0)
+    /** onehot value of SEW. */
+    val vSew1H: UInt = UIntToOH(record.csr.vSew)(2, 0)
 
-      /** if asserted, the element won't be executed.
-        * adc: vm = 0; madc: vm = 0 -> s0 + s1 + c, vm = 1 -> s0 + s1
-        */
-      val skipEnable: Bool = record.laneRequest.mask &&
-        !record.laneRequest.decodeResult(Decoder.maskSource) &&
-        !record.laneRequest.decodeResult(Decoder.maskLogic) &&
-        !alwaysNextGroup
+    /** if asserted, the element won't be executed.
+      * adc: vm = 0; madc: vm = 0 -> s0 + s1 + c, vm = 1 -> s0 + s1
+      */
+    val skipEnable: Bool = record.laneRequest.mask &&
+      !record.laneRequest.decodeResult(Decoder.maskSource) &&
+      !record.laneRequest.decodeResult(Decoder.maskLogic) &&
+      !alwaysNextGroup
 
-      // register for s0 enqueue, it will move with the slot
-      // 'maskGroupCountVec' 'maskIndexVec' 'pipeFinishVec'
+    // register for s0 enqueue, it will move with the slot
+    // 'maskGroupCountVec' 'maskIndexVec' 'pipeFinishVec'
 
-      if (isLastSlot) {
-        // todo: Reach vfu
-        slotActive(index) := slotOccupied(index)
-      } else {
-        slotActive(index) := slotOccupied(index) && !slotShiftValid(index) &&
-          !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite) || decodeResult(Decoder.widenReduce)) &&
-          decodeResult(Decoder.scheduler)
+    if (isLastSlot) {
+      // todo: Reach vfu
+      slotActive(index) := slotOccupied(index)
+    } else {
+      slotActive(index) := slotOccupied(index) && !slotShiftValid(index) &&
+        !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite) || decodeResult(Decoder.widenReduce)) &&
+        decodeResult(Decoder.scheduler)
+    }
+
+    if(isLastSlot) {
+      slotCanShift(index) := !slotOccupied(index)
+    } else {
+      slotCanShift(index) := true.B
+    }
+
+    val laneState: LaneState = Wire(new LaneState(parameter))
+    val stage0: Instance[LaneStage0] = Instantiate(new LaneStage0(parameter, isLastSlot))
+    val stage1: Instance[LaneStage1] = Instantiate(new LaneStage1(parameter, isLastSlot))
+    val stage2: Instance[LaneStage2] = Instantiate(new LaneStage2(parameter, isLastSlot))
+    val executionUnit: Instance[LaneExecutionBridge] = Instantiate(new LaneExecutionBridge(parameter, isLastSlot, index))
+    val stage3: Instance[LaneStage3] = Instantiate(new LaneStage3(parameter, isLastSlot))
+
+    // slot state
+    laneState.vSew1H := vSew1H
+    laneState.loadStore := record.laneRequest.loadStore
+    laneState.laneIndex := laneIndex
+    laneState.decodeResult := record.laneRequest.decodeResult
+    laneState.lastGroupForInstruction := record.lastGroupForInstruction
+    laneState.isLastLaneForInstruction := record.isLastLaneForInstruction
+    laneState.instructionFinished := record.instructionFinished
+    laneState.csr := record.csr
+    laneState.maskType := record.laneRequest.mask
+    laneState.maskNotMaskedElement := !record.laneRequest.mask ||
+      record.laneRequest.decodeResult(Decoder.maskSource) ||
+      record.laneRequest.decodeResult(Decoder.maskLogic)
+    laneState.vs1 := record.laneRequest.vs1
+    laneState.vs2 := record.laneRequest.vs2
+    laneState.vd := record.laneRequest.vd
+    laneState.instructionIndex := record.laneRequest.instructionIndex
+    laneState.skipEnable := skipEnable
+    laneState.ffoByOtherLanes := ffoRecord.ffoByOtherLanes
+    laneState.additionalRW := record.additionalRW
+    laneState.skipRead := record.laneRequest.decodeResult(Decoder.other) &&
+      (record.laneRequest.decodeResult(Decoder.uop) === 9.U)
+
+    stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask)
+    stage0.enqueue.bits.maskIndex := maskIndexVec(index)
+    stage0.enqueue.bits.maskForMaskGroup := record.mask.bits
+    stage0.enqueue.bits.maskGroupCount := maskGroupCountVec(index)
+    // todo: confirm
+    stage0.enqueue.bits.elements.foreach { case (k ,d) =>
+      laneState.elements.get(k).foreach(stateData => d := stateData)
+    }
+
+    // update lane state
+    when(stage0.enqueue.fire) {
+      maskGroupCountVec(index) := stage0.updateLaneState.maskGroupCount
+      // todo: handle all elements in first group are masked
+      maskIndexVec(index) := stage0.updateLaneState.maskIndex
+      when(stage0.updateLaneState.outOfExecutionRange) {
+        slotOccupied(index) := false.B
+      }
+    }
+
+    // update mask todo: handle maskRequestFireOH
+    slotMaskRequestVec(index).valid :=
+      record.laneRequest.mask &&
+        ((stage0.enqueue.fire && stage0.updateLaneState.maskExhausted) || !record.mask.valid)
+    slotMaskRequestVec(index).bits := stage0.updateLaneState.maskGroupCount
+    // There are new masks
+    val maskUpdateFire: Bool = slotMaskRequestVec(index).valid && maskRequestFireOH(index)
+    // The old mask is used up
+    val maskFailure: Bool = stage0.updateLaneState.maskExhausted && stage0.enqueue.fire
+    // update mask register
+    when(maskUpdateFire) {
+      record.mask.bits := maskInput
+    }
+    when(maskUpdateFire ^ maskFailure) {
+      record.mask.valid := maskUpdateFire
+    }
+
+    val instructionIndex1H: UInt = UIntToOH(
+      record.laneRequest.instructionIndex(parameter.instructionIndexBits - 2, 0)
+    )
+    instructionUnrelatedMaskUnitVec(index) :=
+      Mux(decodeResult(Decoder.maskUnit) && decodeResult(Decoder.readOnly), 0.U, instructionIndex1H)
+
+    // stage 1: read stage
+    stage1.enqueue.valid := stage0.dequeue.valid
+    stage0.dequeue.ready := stage1.enqueue.ready
+    stage1.enqueue.bits.groupCounter := stage0.dequeue.bits.groupCounter
+    stage1.enqueue.bits.maskForMaskInput := stage0.dequeue.bits.maskForMaskInput
+    stage1.enqueue.bits.boundaryMaskCorrection := stage0.dequeue.bits.boundaryMaskCorrection
+    stage1.enqueue.bits.sSendResponse.zip(stage0.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
+      sink := source
+    }
+    stage1.dequeue.bits.readBusDequeueGroup.foreach(data => readBusDequeueGroup := data)
+
+    stage1.enqueue.bits.elements.foreach { case (k ,d) =>
+      stage0.dequeue.bits.elements.get(k).foreach(stateData => d := stateData)
+    }
+    stage0.enqueue.bits.readFromScalar := record.laneRequest.readFromScalar
+    vrfReadRequest(index).zip(stage1.vrfReadRequest).foreach{ case (sink, source) => sink <> source }
+    vrfReadResult(index).zip(stage1.vrfReadResult).foreach{ case (source, sink) => sink := source }
+    // 3: read vs1 vs2 vd
+    // 2: cross read lsb & msb
+    val checkSize = if (isLastSlot) 5 else 3
+    Seq.tabulate(checkSize){ portIndex =>
+      // parameter.chainingSize - index: slot 0 need 5 port, so reverse connection
+      readCheckRequestVec((parameter.chainingSize - index - 1) * 3 + portIndex) := stage1.vrfCheckRequest(portIndex)
+      stage1.checkResult(portIndex) := readCheckResult((parameter.chainingSize - index - 1) * 3 + portIndex)
+    }
+    // connect cross read bus
+    if(isLastSlot) {
+      val tokenSize = parameter.crossLaneVRFWriteEscapeQueueSize
+      readBusPort.zipWithIndex.foreach {case (readPort, portIndex) =>
+        // tx
+        val tokenReg = RegInit(0.U(log2Ceil(tokenSize + 1).W))
+        val tokenReady: Bool = tokenReg =/= tokenSize.U
+        stage1.readBusRequest.get(portIndex).ready := tokenReady
+        readPort.deq.valid := stage1.readBusRequest.get(portIndex).valid && tokenReady
+        readPort.deq.bits := stage1.readBusRequest.get(portIndex).bits
+        val tokenUpdate = Mux(readPort.deq.valid, 1.U, -1.S(tokenReg.getWidth.W).asUInt)
+        when(readPort.deq.valid ^ readPort.deqRelease) {
+          tokenReg := tokenReg + tokenUpdate
+        }
+        // rx
+        // rx queue
+        val queue = Module(new Queue(chiselTypeOf(readPort.deq.bits), tokenSize, pipe=true))
+        queue.io.enq.valid := readPort.enq.valid
+        queue.io.enq.bits := readPort.enq.bits
+        readPort.enqRelease := queue.io.deq.fire
+        assert(queue.io.enq.ready || !readPort.enq.valid)
+        // dequeue to cross read unit
+        stage1.readBusDequeue.get(portIndex) <> queue.io.deq
       }
 
-      if(isLastSlot) {
-        slotCanShift(index) := !slotOccupied(index)
-      } else {
-        slotCanShift(index) := true.B
-      }
+      // cross write
+      writeBusPort.zipWithIndex.foreach {case (writePort, portIndex) =>
+        val tokenReg = RegInit(0.U(log2Ceil(tokenSize + 1).W))
+        val tokenReady: Bool = tokenReg =/= tokenSize.U
+        writePort.deq.valid := stage3.crossWritePort.get(portIndex).valid && tokenReady
+        writePort.deq.bits := stage3.crossWritePort.get(portIndex).bits
+        stage3.crossWritePort.get(portIndex).ready := tokenReady
 
-      val laneState: LaneState = Wire(new LaneState(parameter))
-      val stage0: Instance[LaneStage0] = Instantiate(new LaneStage0(parameter, isLastSlot))
-      val stage1: Instance[LaneStage1] = Instantiate(new LaneStage1(parameter, isLastSlot))
-      val stage2: Instance[LaneStage2] = Instantiate(new LaneStage2(parameter, isLastSlot))
-      val executionUnit: Instance[LaneExecutionBridge] = Instantiate(new LaneExecutionBridge(parameter, isLastSlot, index))
-      val stage3: Instance[LaneStage3] = Instantiate(new LaneStage3(parameter, isLastSlot))
-
-      // slot state
-      laneState.vSew1H := vSew1H
-      laneState.loadStore := record.laneRequest.loadStore
-      laneState.laneIndex := laneIndex
-      laneState.decodeResult := record.laneRequest.decodeResult
-      laneState.lastGroupForInstruction := record.lastGroupForInstruction
-      laneState.isLastLaneForInstruction := record.isLastLaneForInstruction
-      laneState.instructionFinished := record.instructionFinished
-      laneState.csr := record.csr
-      laneState.maskType := record.laneRequest.mask
-      laneState.maskNotMaskedElement := !record.laneRequest.mask ||
-        record.laneRequest.decodeResult(Decoder.maskSource) ||
-        record.laneRequest.decodeResult(Decoder.maskLogic)
-      laneState.vs1 := record.laneRequest.vs1
-      laneState.vs2 := record.laneRequest.vs2
-      laneState.vd := record.laneRequest.vd
-      laneState.instructionIndex := record.laneRequest.instructionIndex
-      laneState.skipEnable := skipEnable
-      laneState.ffoByOtherLanes := ffoRecord.ffoByOtherLanes
-      laneState.additionalRW := record.additionalRW
-      laneState.skipRead := record.laneRequest.decodeResult(Decoder.other) &&
-        (record.laneRequest.decodeResult(Decoder.uop) === 9.U)
-
-      stage0.enqueue.valid := slotActive(index) && (record.mask.valid || !record.laneRequest.mask)
-      stage0.enqueue.bits.maskIndex := maskIndexVec(index)
-      stage0.enqueue.bits.maskForMaskGroup := record.mask.bits
-      stage0.enqueue.bits.maskGroupCount := maskGroupCountVec(index)
-      // todo: confirm
-      stage0.enqueue.bits.elements.foreach { case (k ,d) =>
-        laneState.elements.get(k).foreach(stateData => d := stateData)
-      }
-
-      // update lane state
-      when(stage0.enqueue.fire) {
-        maskGroupCountVec(index) := stage0.updateLaneState.maskGroupCount
-        // todo: handle all elements in first group are masked
-        maskIndexVec(index) := stage0.updateLaneState.maskIndex
-        when(stage0.updateLaneState.outOfExecutionRange) {
-          slotOccupied(index) := false.B
+        // update token
+        val tokenUpdate = Mux(writePort.deq.valid, 1.U, -1.S(tokenReg.getWidth.W).asUInt)
+        when(writePort.deq.valid ^ writePort.deqRelease) {
+          tokenReg := tokenReg + tokenUpdate
         }
       }
+    }
 
-      // update mask todo: handle maskRequestFireOH
-      slotMaskRequestVec(index).valid :=
-        record.laneRequest.mask &&
-          ((stage0.enqueue.fire && stage0.updateLaneState.maskExhausted) || !record.mask.valid)
-      slotMaskRequestVec(index).bits := stage0.updateLaneState.maskGroupCount
-      // There are new masks
-      val maskUpdateFire: Bool = slotMaskRequestVec(index).valid && maskRequestFireOH(index)
-      // The old mask is used up
-      val maskFailure: Bool = stage0.updateLaneState.maskExhausted && stage0.enqueue.fire
-      // update mask register
-      when(maskUpdateFire) {
-        record.mask.bits := maskInput
+    stage2.enqueue.valid := stage1.dequeue.valid && executionUnit.enqueue.ready
+    stage1.dequeue.ready := stage2.enqueue.ready && executionUnit.enqueue.ready
+    executionUnit.enqueue.valid := stage1.dequeue.valid && stage2.enqueue.ready
+
+    stage2.enqueue.bits.elements.foreach { case (k ,d) =>
+      stage1.dequeue.bits.elements.get(k).foreach( pipeData => d := pipeData)
+    }
+    stage2.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
+    stage2.enqueue.bits.mask := stage1.dequeue.bits.mask
+    stage2.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
+    stage2.enqueue.bits.src := stage1.dequeue.bits.src
+    stage2.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
+      sink := source
+    }
+    stage2.enqueue.bits.bordersForMaskLogic := executionUnit.enqueue.bits.bordersForMaskLogic
+
+    executionUnit.enqueue.bits.elements.foreach { case (k ,d) =>
+      stage1.dequeue.bits.elements.get(k).foreach( pipeData => d := pipeData)
+    }
+    executionUnit.enqueue.bits.src := stage1.dequeue.bits.src
+    executionUnit.enqueue.bits.bordersForMaskLogic := stage1.dequeue.bits.bordersForMaskLogic
+    executionUnit.enqueue.bits.mask := stage1.dequeue.bits.mask
+    executionUnit.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
+    executionUnit.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
+    executionUnit.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
+      sink := source
+    }
+    executionUnit.enqueue.bits.crossReadSource.zip(stage1.dequeue.bits.crossReadSource).foreach { case (sink, source) =>
+      sink := source
+    }
+
+    executionUnit.ffoByOtherLanes := ffoRecord.ffoByOtherLanes
+    executionUnit.selfCompleted := ffoRecord.selfCompleted
+
+    // executionUnit <> vfu
+    requestVec(index) := executionUnit.vfuRequest.bits
+    executeDecodeVec(index) := executionUnit.executeDecode
+    responseDecodeVec(index) := executionUnit.responseDecode
+    executeEnqueueValid(index) := executionUnit.vfuRequest.valid
+    executionUnit.vfuRequest.ready := executeEnqueueFire(index)
+    executionUnit.dataResponse := responseVec(index)
+
+    vxsatEnq(index) := Mux(
+      executionUnit.dataResponse.valid &&
+        (executionUnit.dataResponse.bits.clipFail ## executionUnit.dataResponse.bits.vxsat).orR,
+      UIntToOH(executionUnit.responseIndex(parameter.instructionIndexBits - 2, 0)),
+      0.U(parameter.chainingSize.W)
+    )
+    when(executionUnit.dequeue.valid)(assert(stage2.dequeue.valid))
+    stage3.enqueue.valid := executionUnit.dequeue.valid
+    executionUnit.dequeue.ready := stage3.enqueue.ready
+    stage2.dequeue.ready := executionUnit.dequeue.fire
+
+    if (!isLastSlot) {
+      stage3.enqueue.bits := DontCare
+    }
+
+    // pipe state from stage0
+    stage3.enqueue.bits.decodeResult := stage2.dequeue.bits.decodeResult
+    stage3.enqueue.bits.instructionIndex := stage2.dequeue.bits.instructionIndex
+    stage3.enqueue.bits.loadStore := stage2.dequeue.bits.loadStore
+    stage3.enqueue.bits.vd := stage2.dequeue.bits.vd
+    stage3.enqueue.bits.ffoByOtherLanes := ffoRecord.ffoByOtherLanes
+    stage3.enqueue.bits.groupCounter := stage2.dequeue.bits.groupCounter
+    stage3.enqueue.bits.mask := stage2.dequeue.bits.mask
+    if (isLastSlot) {
+      stage3.enqueue.bits.sSendResponse := stage2.dequeue.bits.sSendResponse.get
+      stage3.enqueue.bits.ffoSuccess := executionUnit.dequeue.bits.ffoSuccess.get
+      stage3.enqueue.bits.fpReduceValid.zip(executionUnit.dequeue.bits.fpReduceValid).foreach {
+        case (sink, source) => sink := source
       }
-      when(maskUpdateFire ^ maskFailure) {
-        record.mask.valid := maskUpdateFire
-      }
+    }
+    stage3.enqueue.bits.data := executionUnit.dequeue.bits.data
+    stage3.enqueue.bits.pipeData := stage2.dequeue.bits.pipeData.getOrElse(DontCare)
+    stage3.enqueue.bits.ffoIndex := executionUnit.dequeue.bits.ffoIndex
+    executionUnit.dequeue.bits.crossWriteData.foreach(data => stage3.enqueue.bits.crossWriteData := data)
+    stage2.dequeue.bits.sSendResponse.foreach(_ => stage3.enqueue.bits.sSendResponse := _)
+    executionUnit.dequeue.bits.ffoSuccess.foreach(_ => stage3.enqueue.bits.ffoSuccess := _)
 
-      val instructionIndex1H: UInt = UIntToOH(
-        record.laneRequest.instructionIndex(parameter.instructionIndexBits - 2, 0)
-      )
-      instructionUnrelatedMaskUnitVec(index) :=
-        Mux(decodeResult(Decoder.maskUnit) && decodeResult(Decoder.readOnly), 0.U, instructionIndex1H)
-
-      // stage 1: read stage
-      stage1.enqueue.valid := stage0.dequeue.valid
-      stage0.dequeue.ready := stage1.enqueue.ready
-      stage1.enqueue.bits.groupCounter := stage0.dequeue.bits.groupCounter
-      stage1.enqueue.bits.maskForMaskInput := stage0.dequeue.bits.maskForMaskInput
-      stage1.enqueue.bits.boundaryMaskCorrection := stage0.dequeue.bits.boundaryMaskCorrection
-      stage1.enqueue.bits.sSendResponse.zip(stage0.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
-        sink := source
-      }
-      stage1.dequeue.bits.readBusDequeueGroup.foreach(data => readBusDequeueGroup := data)
-
-      stage1.enqueue.bits.elements.foreach { case (k ,d) =>
-        stage0.dequeue.bits.elements.get(k).foreach(stateData => d := stateData)
-      }
-      stage0.enqueue.bits.readFromScalar := record.laneRequest.readFromScalar
-      vrfReadRequest(index).zip(stage1.vrfReadRequest).foreach{ case (sink, source) => sink <> source }
-      vrfReadResult(index).zip(stage1.vrfReadResult).foreach{ case (source, sink) => sink := source }
-      // 3: read vs1 vs2 vd
-      // 2: cross read lsb & msb
-      val checkSize = if (isLastSlot) 5 else 3
-      Seq.tabulate(checkSize){ portIndex =>
-        // parameter.chainingSize - index: slot 0 need 5 port, so reverse connection
-        readCheckRequestVec((parameter.chainingSize - index - 1) * 3 + portIndex) := stage1.vrfCheckRequest(portIndex)
-        stage1.checkResult(portIndex) := readCheckResult((parameter.chainingSize - index - 1) * 3 + portIndex)
-      }
-      // connect cross read bus
-      if(isLastSlot) {
-        val tokenSize = parameter.crossLaneVRFWriteEscapeQueueSize
-        readBusPort.zipWithIndex.foreach {case (readPort, portIndex) =>
-          // tx
-          val tokenReg = RegInit(0.U(log2Ceil(tokenSize + 1).W))
-          val tokenReady: Bool = tokenReg =/= tokenSize.U
-          stage1.readBusRequest.get(portIndex).ready := tokenReady
-          readPort.deq.valid := stage1.readBusRequest.get(portIndex).valid && tokenReady
-          readPort.deq.bits := stage1.readBusRequest.get(portIndex).bits
-          val tokenUpdate = Mux(readPort.deq.valid, 1.U, -1.S(tokenReg.getWidth.W).asUInt)
-          when(readPort.deq.valid ^ readPort.deqRelease) {
-            tokenReg := tokenReg + tokenUpdate
-          }
-          // rx
-          // rx queue
-          val queue = Module(new Queue(chiselTypeOf(readPort.deq.bits), tokenSize, pipe=true))
-          queue.io.enq.valid := readPort.enq.valid
-          queue.io.enq.bits := readPort.enq.bits
-          readPort.enqRelease := queue.io.deq.fire
-          assert(queue.io.enq.ready || !readPort.enq.valid)
-          // dequeue to cross read unit
-          stage1.readBusDequeue.get(portIndex) <> queue.io.deq
-        }
-
-        // cross write
-        writeBusPort.zipWithIndex.foreach {case (writePort, portIndex) =>
-          val tokenReg = RegInit(0.U(log2Ceil(tokenSize + 1).W))
-          val tokenReady: Bool = tokenReg =/= tokenSize.U
-          writePort.deq.valid := stage3.crossWritePort.get(portIndex).valid && tokenReady
-          writePort.deq.bits := stage3.crossWritePort.get(portIndex).bits
-          stage3.crossWritePort.get(portIndex).ready := tokenReady
-
-          // update token
-          val tokenUpdate = Mux(writePort.deq.valid, 1.U, -1.S(tokenReg.getWidth.W).asUInt)
-          when(writePort.deq.valid ^ writePort.deqRelease) {
-            tokenReg := tokenReg + tokenUpdate
-          }
+    if (isLastSlot){
+      when(laneResponseFeedback.valid) {
+        when(laneResponseFeedback.bits.complete) {
+          ffoRecord.ffoByOtherLanes := true.B
         }
       }
-
-      stage2.enqueue.valid := stage1.dequeue.valid && executionUnit.enqueue.ready
-      stage1.dequeue.ready := stage2.enqueue.ready && executionUnit.enqueue.ready
-      executionUnit.enqueue.valid := stage1.dequeue.valid && stage2.enqueue.ready
-
-      stage2.enqueue.bits.elements.foreach { case (k ,d) =>
-        stage1.dequeue.bits.elements.get(k).foreach( pipeData => d := pipeData)
-      }
-      stage2.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
-      stage2.enqueue.bits.mask := stage1.dequeue.bits.mask
-      stage2.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
-      stage2.enqueue.bits.src := stage1.dequeue.bits.src
-      stage2.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
-        sink := source
-      }
-      stage2.enqueue.bits.bordersForMaskLogic := executionUnit.enqueue.bits.bordersForMaskLogic
-
-      executionUnit.enqueue.bits.elements.foreach { case (k ,d) =>
-        stage1.dequeue.bits.elements.get(k).foreach( pipeData => d := pipeData)
-      }
-      executionUnit.enqueue.bits.src := stage1.dequeue.bits.src
-      executionUnit.enqueue.bits.bordersForMaskLogic := stage1.dequeue.bits.bordersForMaskLogic
-      executionUnit.enqueue.bits.mask := stage1.dequeue.bits.mask
-      executionUnit.enqueue.bits.maskForFilter := stage1.dequeue.bits.maskForFilter
-      executionUnit.enqueue.bits.groupCounter := stage1.dequeue.bits.groupCounter
-      executionUnit.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
-        sink := source
-      }
-      executionUnit.enqueue.bits.crossReadSource.zip(stage1.dequeue.bits.crossReadSource).foreach { case (sink, source) =>
-        sink := source
+      when(stage3.enqueue.fire) {
+        executionUnit.dequeue.bits.ffoSuccess.foreach(ffoRecord.selfCompleted := _)
+        // This group found means the next group ended early
+        ffoRecord.ffoByOtherLanes := ffoRecord.ffoByOtherLanes || ffoRecord.selfCompleted
       }
 
-      executionUnit.ffoByOtherLanes := ffoRecord.ffoByOtherLanes
-      executionUnit.selfCompleted := ffoRecord.selfCompleted
+      laneResponse <> stage3.laneResponse.get
+      stage3.laneResponseFeedback.get <> laneResponseFeedback
+    }
 
-      // executionUnit <> vfu
-      requestVec(index) := executionUnit.vfuRequest.bits
-      executeDecodeVec(index) := executionUnit.executeDecode
-      responseDecodeVec(index) := executionUnit.responseDecode
-      executeEnqueueValid(index) := executionUnit.vfuRequest.valid
-      executionUnit.vfuRequest.ready := executeEnqueueFire(index)
-      executionUnit.dataResponse := responseVec(index)
+    // --- stage 3 end & stage 4 start ---
+    // vrfWriteQueue try to write vrf
+    vrfWriteArbiter(index).valid := stage3.vrfWriteRequest.valid
+    vrfWriteArbiter(index).bits := stage3.vrfWriteRequest.bits
+    stage3.vrfWriteRequest.ready := vrfWriteArbiter(index).ready
 
-      vxsatEnq(index) := Mux(
-        executionUnit.dataResponse.valid &&
-          (executionUnit.dataResponse.bits.clipFail ## executionUnit.dataResponse.bits.vxsat).orR,
-        UIntToOH(executionUnit.responseIndex(parameter.instructionIndexBits - 2, 0)),
-        0.U(parameter.chainingSize.W)
-      )
-      when(executionUnit.dequeue.valid)(assert(stage2.dequeue.valid))
-      stage3.enqueue.valid := executionUnit.dequeue.valid
-      executionUnit.dequeue.ready := stage3.enqueue.ready
-      stage2.dequeue.ready := executionUnit.dequeue.fire
-
-      if (!isLastSlot) {
-        stage3.enqueue.bits := DontCare
-      }
-
-      // pipe state from stage0
-      stage3.enqueue.bits.decodeResult := stage2.dequeue.bits.decodeResult
-      stage3.enqueue.bits.instructionIndex := stage2.dequeue.bits.instructionIndex
-      stage3.enqueue.bits.loadStore := stage2.dequeue.bits.loadStore
-      stage3.enqueue.bits.vd := stage2.dequeue.bits.vd
-      stage3.enqueue.bits.ffoByOtherLanes := ffoRecord.ffoByOtherLanes
-      stage3.enqueue.bits.groupCounter := stage2.dequeue.bits.groupCounter
-      stage3.enqueue.bits.mask := stage2.dequeue.bits.mask
-      if (isLastSlot) {
-        stage3.enqueue.bits.sSendResponse := stage2.dequeue.bits.sSendResponse.get
-        stage3.enqueue.bits.ffoSuccess := executionUnit.dequeue.bits.ffoSuccess.get
-        stage3.enqueue.bits.fpReduceValid.zip(executionUnit.dequeue.bits.fpReduceValid).foreach {
-          case (sink, source) => sink := source
-        }
-      }
-      stage3.enqueue.bits.data := executionUnit.dequeue.bits.data
-      stage3.enqueue.bits.pipeData := stage2.dequeue.bits.pipeData.getOrElse(DontCare)
-      stage3.enqueue.bits.ffoIndex := executionUnit.dequeue.bits.ffoIndex
-      executionUnit.dequeue.bits.crossWriteData.foreach(data => stage3.enqueue.bits.crossWriteData := data)
-      stage2.dequeue.bits.sSendResponse.foreach(_ => stage3.enqueue.bits.sSendResponse := _)
-      executionUnit.dequeue.bits.ffoSuccess.foreach(_ => stage3.enqueue.bits.ffoSuccess := _)
-
-      if (isLastSlot){
-        when(laneResponseFeedback.valid) {
-          when(laneResponseFeedback.bits.complete) {
-            ffoRecord.ffoByOtherLanes := true.B
-          }
-        }
-        when(stage3.enqueue.fire) {
-          executionUnit.dequeue.bits.ffoSuccess.foreach(ffoRecord.selfCompleted := _)
-          // This group found means the next group ended early
-          ffoRecord.ffoByOtherLanes := ffoRecord.ffoByOtherLanes || ffoRecord.selfCompleted
-        }
-
-        laneResponse <> stage3.laneResponse.get
-        stage3.laneResponseFeedback.get <> laneResponseFeedback
-      }
-
-      // --- stage 3 end & stage 4 start ---
-      // vrfWriteQueue try to write vrf
-      vrfWriteArbiter(index).valid := stage3.vrfWriteRequest.valid
-      vrfWriteArbiter(index).bits := stage3.vrfWriteRequest.bits
-      stage3.vrfWriteRequest.ready := vrfWriteArbiter(index).ready
-
-      tokenManager.enqReports(index) := stage0.tokenReport
-
-      // probes
-      probeWire.slots(index).stage0EnqueueReady := stage0.enqueue.ready
-      probeWire.slots(index).stage0EnqueueValid := stage0.enqueue.valid
-      probeWire.slots(index).changingMaskSet := record.mask.valid || !record.laneRequest.mask
-      probeWire.slots(index).slotActive := slotActive(index)
-      probeWire.slots(index).slotOccupied := slotOccupied(index)
-      probeWire.slots(index).pipeFinish := !slotOccupied(index)
-      probeWire.slots(index).slotShiftValid := slotShiftValid(index)
-      probeWire.slots(index).decodeResultIsCrossReadOrWrite := decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite)
-      probeWire.slots(index).decodeResultIsScheduler := decodeResult(Decoder.scheduler)
-      probeWire.slots(index).executionUnitVfuRequestReady := executionUnit.vfuRequest.ready
-      probeWire.slots(index).executionUnitVfuRequestValid := executionUnit.vfuRequest.valid
-      probeWire.slots(index).stage3VrfWriteReady := stage3.vrfWriteRequest.ready
-      probeWire.slots(index).stage3VrfWriteValid := stage3.vrfWriteRequest.valid
-      probeWire.slots(index).writeQueueEnq := stage3.vrfWriteRequest.fire
-      probeWire.slots(index).writeTag := stage3.vrfWriteRequest.bits.instructionIndex
-      probeWire.slots(index).writeMask := stage3.vrfWriteRequest.bits.mask
-      // probeWire.slots(index).probeStage1 := ???
+    tokenManager.enqReports(index) := stage0.tokenReport
   }
-
+  val slots = slotControl.zipWithIndex.map {
+    case (record: InstructionControlRecord, index: Int) => new Slot(record, index)
+  }
 
   // cross write bus <> write queue
   crossLaneWriteQueue.zipWithIndex.foreach {case (queue, index) =>
@@ -1226,15 +1207,43 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   tokenManager.topWriteDeq.valid := afterCheckDequeueFire(parameter.chainingSize)
   tokenManager.topWriteDeq.bits := allVrfWriteAfterCheck(parameter.chainingSize).instructionIndex
 
-  // probe wire
-  probeWire.laneRequestStall := laneRequest.valid && !laneRequest.ready
-  probeWire.lastSlotOccupied := slotOccupied.last
-  probeWire.instructionFinished := instructionFinished
-  probeWire.instructionValid := instructionValid
-  probeWire.crossWriteProbe.zip(writeBusPort).foreach {case (pb, port) =>
-    pb.valid := port.deq.valid
-    pb.bits.writeTag := port.deq.bits.instructionIndex
-    pb.bits.writeMask := port.deq.bits.mask
+  layer.block(layers.Verification) {
+    val probeWire = Wire(new LaneProbe(parameter))
+    define(laneProbe, ProbeValue(probeWire))
+    slots.foreach { slot =>
+      slots.map { slot: Slot =>
+        probeWire.slots(slot.index).stage0EnqueueReady := slot.stage0.enqueue.ready
+        probeWire.slots(slot.index).stage0EnqueueValid := slot.stage0.enqueue.valid
+        probeWire.slots(slot.index).changingMaskSet := slot.record.mask.valid || !slot.record.laneRequest.mask
+        probeWire.slots(slot.index).slotActive := slotActive(slot.index)
+        probeWire.slots(slot.index).slotOccupied := slotOccupied(slot.index)
+        probeWire.slots(slot.index).pipeFinish := !slotOccupied(slot.index)
+        probeWire.slots(slot.index).slotShiftValid := slotShiftValid(slot.index)
+        probeWire.slots(slot.index).decodeResultIsCrossReadOrWrite := slot.decodeResult(Decoder.crossRead) || slot.decodeResult(Decoder.crossWrite)
+        probeWire.slots(slot.index).decodeResultIsScheduler := slot.decodeResult(Decoder.scheduler)
+        probeWire.slots(slot.index).executionUnitVfuRequestReady := slot.executionUnit.vfuRequest.ready
+        probeWire.slots(slot.index).executionUnitVfuRequestValid := slot.executionUnit.vfuRequest.valid
+        probeWire.slots(slot.index).stage3VrfWriteReady := slot.stage3.vrfWriteRequest.ready
+        probeWire.slots(slot.index).stage3VrfWriteValid := slot.stage3.vrfWriteRequest.valid
+        probeWire.slots(slot.index).writeQueueEnq := slot.stage3.vrfWriteRequest.fire
+        probeWire.slots(slot.index).writeTag := slot.stage3.vrfWriteRequest.bits.instructionIndex
+        probeWire.slots(slot.index).writeMask := slot.stage3.vrfWriteRequest.bits.mask
+
+      }
+      // probes
+
+    }
+    // probe wire
+    probeWire.laneRequestStall := laneRequest.valid && !laneRequest.ready
+    probeWire.lastSlotOccupied := slotOccupied.last
+    probeWire.instructionFinished := instructionFinished
+    probeWire.instructionValid := instructionValid
+    probeWire.crossWriteProbe.zip(writeBusPort).foreach {case (pb, port) =>
+      pb.valid := port.deq.valid
+      pb.bits.writeTag := port.deq.bits.instructionIndex
+      pb.bits.writeMask := port.deq.bits.mask
+    }
+    probeWire.vrfProbe := probe.read(vrf.vrfProbe)
   }
-  probeWire.vrfProbe := probe.read(vrf.vrfProbe)
+
 }

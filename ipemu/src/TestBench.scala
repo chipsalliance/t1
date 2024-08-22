@@ -27,6 +27,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
     extends RawModule
     with ImplicitClock
     with ImplicitReset {
+  layer.enable(layers.Verification)
   val omInstance: Instance[TestBenchOM] = Instantiate(new TestBenchOM)
   val omType:     ClassType = omInstance.toDefinition.getClassType
   @public

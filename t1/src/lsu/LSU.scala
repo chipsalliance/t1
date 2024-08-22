@@ -246,9 +246,7 @@ class LSU(param: LSUParameter) extends Module {
   )
 
   @public
-  val lsuProbe = IO(Output(Probe(new LSUProbe(param))))
-  val probeWire = Wire(new LSUProbe(param))
-  define(lsuProbe, ProbeValue(probeWire))
+  val lsuProbe = IO(Output(Probe(new LSUProbe(param), layers.Verification)))
 
   // read vrf
   val otherTryReadVrf: UInt = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
@@ -275,26 +273,31 @@ class LSU(param: LSUParameter) extends Module {
     write.io.enq.bits.data := Mux(otherTryToWrite(index), otherUnit.vrfWritePort.bits, loadUnit.vrfWritePort(index).bits)
     write.io.enq.bits.targetLane := (BigInt(1) << index).U
     loadUnit.vrfWritePort(index).ready := write.io.enq.ready && !otherTryToWrite(index)
-
-    // probes
-    probeWire.slots(index).dataVd := write.io.enq.bits.data.vd
-    probeWire.slots(index).dataOffset := write.io.enq.bits.data.offset
-    probeWire.slots(index).dataMask := write.io.enq.bits.data.mask
-    probeWire.slots(index).dataData := write.io.enq.bits.data.data
-    probeWire.slots(index).dataInstruction := write.io.enq.bits.data.instructionIndex
-    probeWire.slots(index).writeValid := write.io.enq.valid
-    probeWire.slots(index).targetLane := OHToUInt(write.io.enq.bits.targetLane)
   }
-  probeWire.reqEnq := reqEnq.asUInt
 
-  probeWire.storeUnitProbe := probe.read(storeUnit.probe)
-  probeWire.otherUnitProbe := probe.read(otherUnit.probe)
-  probeWire.lsuInstructionValid :=
-    // The load unit becomes idle when it writes vrf for the last time.
-    maskAnd(!loadUnit.status.idle || VecInit(loadUnit.vrfWritePort.map(_.valid)).asUInt.orR,
-      indexToOH(loadUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt |
-      maskAnd(!storeUnit.status.idle, indexToOH(storeUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt |
-      maskAnd(!otherUnit.status.idle, indexToOH(otherUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt
+  layer.block(layers.Verification) {
+    val probeWire = Wire(new LSUProbe(param))
+    define(lsuProbe, ProbeValue(probeWire))
+    writeQueueVec.zipWithIndex.foreach { case (write, index) =>
+      probeWire.slots(index).dataVd := write.io.enq.bits.data.vd
+      probeWire.slots(index).dataOffset := write.io.enq.bits.data.offset
+      probeWire.slots(index).dataMask := write.io.enq.bits.data.mask
+      probeWire.slots(index).dataData := write.io.enq.bits.data.data
+      probeWire.slots(index).dataInstruction := write.io.enq.bits.data.instructionIndex
+      probeWire.slots(index).writeValid := write.io.enq.valid
+      probeWire.slots(index).targetLane := OHToUInt(write.io.enq.bits.targetLane)
+    }
+    probeWire.reqEnq := reqEnq.asUInt
+
+    probeWire.storeUnitProbe := probe.read(storeUnit.probe)
+    probeWire.otherUnitProbe := probe.read(otherUnit.probe)
+    probeWire.lsuInstructionValid :=
+      // The load unit becomes idle when it writes vrf for the last time.
+      maskAnd(!loadUnit.status.idle || VecInit(loadUnit.vrfWritePort.map(_.valid)).asUInt.orR,
+        indexToOH(loadUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt |
+        maskAnd(!storeUnit.status.idle, indexToOH(storeUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt |
+        maskAnd(!otherUnit.status.idle, indexToOH(otherUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt
+  }
 
   vrfWritePort.zip(writeQueueVec).foreach { case (p, q) =>
     p.valid := q.io.deq.valid
