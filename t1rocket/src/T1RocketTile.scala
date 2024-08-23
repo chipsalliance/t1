@@ -465,7 +465,7 @@ class T1RocketTileInterface(parameter: T1RocketTileParameter) extends Bundle {
   val highOutstandingAXI: AXI4RWIrrevocable = org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.t1HightOutstandingParameter)
 
   // TODO: merge it.
-  val t1RocketProbe: T1RocketProbe = Output(Probe(new T1RocketProbe(parameter)))
+  val t1RocketProbe: T1RocketProbe = Output(Probe(new T1RocketProbe(parameter), layers.Verification))
 }
 
 class T1RocketTile(val parameter: T1RocketTileParameter)
@@ -560,11 +560,13 @@ class T1RocketTile(val parameter: T1RocketTileParameter)
   io.highOutstandingAXI <> t1.io.indexedLoadStorePort
 
   // probe
-  val probeWire = Wire(new T1RocketProbe(parameter))
-  define(io.t1RocketProbe, ProbeValue(probeWire))
-  probeWire.rocketProbe := probe.read(rocket.io.rocketProbe)
-  probeWire.t1Probe := probe.read(t1.io.t1Probe)
-  probeWire.fpuProbe.foreach { fpuProbe =>
-    fpuProbe := probe.read(fpu.get.io.fpuProbe)
+  layer.block(layers.Verification) {
+    val probeWire = Wire(new T1RocketProbe(parameter))
+    define(io.t1RocketProbe, ProbeValue(probeWire))
+    probeWire.rocketProbe := probe.read(rocket.io.rocketProbe)
+    probeWire.t1Probe := probe.read(t1.io.t1Probe)
+    probeWire.fpuProbe.foreach { fpuProbe =>
+      fpuProbe := probe.read(fpu.get.io.fpuProbe)
+    }
   }
 }
