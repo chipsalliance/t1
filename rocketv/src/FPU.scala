@@ -10,6 +10,8 @@ import chisel3.experimental.{BaseModule, SerializableModule, SerializableModuleP
 import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.util._
 import chisel3.util.circt.ClockGate
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 
 class FPUWrite(param: FPUParameter) extends Bundle {
   val rfWen:   Bool = Bool()
@@ -129,7 +131,7 @@ class FPU(val parameter: FPUParameter)
     when(load_wb) {
       val wdata = recode(load_wb_data, load_wb_typeTag)
       regfile(load_wb_tag) := wdata
-      assert(consistent(wdata))
+      AssertProperty(BoolSequence(consistent(wdata)))
     }
 
     val ex_rs = ex_ra.map(a => regfile(a))
@@ -346,7 +348,7 @@ class FPU(val parameter: FPUParameter)
     val wdata = box(Mux(divSqrt_wen, divSqrt_wdata, VecInit(pipes.map(_.res.data))(wbInfo(0).pipeid)), wtypeTag)
     val wexc = VecInit(pipes.map(_.res.exc))(wbInfo(0).pipeid)
     when((!wbInfo(0).cp && wen(0)) || divSqrt_wen) {
-      assert(consistent(wdata))
+      AssertProperty(BoolSequence(consistent(wdata)))
       regfile(waddr) := wdata
     }
 

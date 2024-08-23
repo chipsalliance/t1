@@ -9,6 +9,8 @@ import chisel3.experimental.hierarchy.instantiable
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.random.LFSR
 import chisel3.util._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
 
 case class ICacheParameter(useAsyncReset: Boolean,
@@ -345,7 +347,7 @@ class ICache(val parameter: ICacheParameter)
         val mask = nWays - (BigInt(1) << (i + 1))
         v = v | (lineInScratchpad(Cat(v0 | mask.U, refill_idx)) << i)
       }
-      assert(!lineInScratchpad(Cat(v, refill_idx)))
+      AssertProperty(BoolSequence(!lineInScratchpad(Cat(v, refill_idx))))
       v
     }
 
@@ -700,7 +702,7 @@ class ICache(val parameter: ICacheParameter)
           //            ccover(itim_increase && refilling, "ITIM_SIZE_INCREASE_WHILE_REFILL", "ITIM size increased while I$ refill")
         }
 
-        assert(!s2_valid || RegNext(RegNext(s0_vaddr)) === io.s2_vaddr)
+        AssertProperty(BoolSequence(!s2_valid || RegNext(RegNext(s0_vaddr)) === io.s2_vaddr))
         when(
           !(axi.w.valid || s1_slaveValid || s2_slaveValid || respValid)
             && s2_valid && s2_data_decoded.error && !s2_tag_disparity
@@ -844,7 +846,7 @@ class ICache(val parameter: ICacheParameter)
   // tl_out.b.ready := true.B
   // tl_out.c.valid := false.B
   // tl_out.e.valid := false.B
-  assert(!(io.instructionFetchAXI.ar.valid && addrMaybeInScratchpad(io.instructionFetchAXI.ar.bits.addr)))
+  AssertProperty(BoolSequence(!(io.instructionFetchAXI.ar.valid && addrMaybeInScratchpad(io.instructionFetchAXI.ar.bits.addr))))
 
   // if there is an outstanding refill, cannot flush I$.
   when(!refill_valid) { invalidated := false.B }

@@ -9,6 +9,8 @@ import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter, SourceInfo}
 import chisel3.util.experimental.{BitSet, InlineInstance}
 import chisel3.util.{Arbiter, BitPat, Cat, Enum, Fill, FillInterleaved, Mux1H, MuxLookup, OHToUInt, PriorityEncoder, PriorityEncoderOH, PriorityMux, Queue, RegEnable, SRAM, SRAMInterface, UIntToOH, isPow2, log2Ceil}
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ChiselBundle, AXI4ROIrrevocable, AXI4RWIrrevocable, R, W}
 
 object HellaCacheParameter {
@@ -698,7 +700,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     val s1_mask_xwr = new StoreGen(s1_req.size, s1_req.addr, 0.U, wordBytes).mask
     val s1_mask = Mux(s1_req.cmd === M_PWR, io.cpu.s1_data.mask, s1_mask_xwr)
     // for partial writes, s1_data.mask must be a subset of s1_mask_xwr
-    assert(!(s1_valid_masked && s1_req.cmd === M_PWR) || (s1_mask_xwr | ~io.cpu.s1_data.mask).andR)
+    AssertProperty(BoolSequence(!(s1_valid_masked && s1_req.cmd === M_PWR) || (s1_mask_xwr | ~io.cpu.s1_data.mask).andR))
 
     val s2_valid = RegNext(s1_valid_masked && !s1_sfence, init = false.B)
     val s2_valid_no_xcpt = s2_valid && !io.cpu.s2_xcpt.asUInt.orR
@@ -889,7 +891,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     val pstore1_valid = s2_store_valid || pstore1_held
     any_pstore_valid := pstore1_held || pstore2_valid
     val pstore_drain_structural = pstore1_valid_likely && pstore2_valid && ((s1_valid && s1_write) || pstore1_rmw)
-    assert(pstore1_rmw || pstore1_valid_not_rmw(io.cpu.s2_kill) === pstore1_valid)
+    AssertProperty(BoolSequence(pstore1_rmw || pstore1_valid_not_rmw(io.cpu.s2_kill) === pstore1_valid))
     ccover(pstore_drain_structural, "STORE_STRUCTURAL_HAZARD", "D$ read-modify-write structural hazard")
     ccover(pstore1_valid && pstore_drain_on_miss, "STORE_DRAIN_ON_MISS", "D$ store buffer drain on miss")
     ccover(s1_valid_not_nacked && s1_waw_hazard, "WAW_HAZARD", "D$ write-after-write hazard")
@@ -990,7 +992,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     // !s2_uncached -> read cache line
     val accessWillRead: Bool = !s2_uncached || !s2_write
     // If no managers support atomics, assert fail if processor asks for them
-    assert(!(memAccessValid && s2_read && s2_write && s2_uncached))
+    AssertProperty(BoolSequence(!(memAccessValid && s2_read && s2_write && s2_uncached)))
     io.loadStoreAXI.ar.valid := memAccessValid && accessWillRead
     io.loadStoreAXI.ar.bits := DontCare
     io.loadStoreAXI.ar.bits.burst := 1.U
@@ -1116,7 +1118,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     when(io.loadStoreAXI.r.fire) {
       when(grantIsCached) {
         grantInProgress := true.B
-        assert(cached_grant_wait, "A GrantData was unexpected by the dcache.")
+        AssertProperty(BoolSequence(cached_grant_wait))
         when(d_last) {
           cached_grant_wait := false.B
           grantInProgress := false.B
@@ -1153,7 +1155,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     uncachedAckIndex.asBools.zip(uncachedInFlight).foreach {
       case (s, f) =>
         when(s) {
-          assert(f, "An uncached AccessAck was unexpected by the dcache.") // TODO must handle Ack coming back on same cycle!
+          AssertProperty(BoolSequence(f)) // TODO must handle Ack coming back on same cycle!
           f := false.B
         }
     }
@@ -1168,7 +1170,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     // Finish TileLink transaction by issuing a GrantAck
     // tl_out.e.valid := tl_out.d.valid && d_first && grantIsCached && canAcceptCachedGrant
     // tl_out.e.bits := edge.GrantAck(tl_out.d.bits)
-    // assert(tl_out.e.fire === (tl_out.d.fire && d_first && grantIsCached))
+    // AssertProperty(BoolSequence(tl_out.e.fire === (tl_out.d.fire && d_first && grantIsCached)))
 
     // data refill
     // note this ready-valid signaling ignores E-channel backpressure, which
@@ -1283,7 +1285,7 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     if (!usingDataScratchpad) {
       when(s2_victimize) {
-        assert(s2_valid_flush_line || s2_flush_valid || io.cpu.s2_nack)
+        AssertProperty(BoolSequence(s2_valid_flush_line || s2_flush_valid || io.cpu.s2_nack))
         val discard_line = s2_valid_flush_line && s2_req.size(1) || s2_flush_valid && flushing_req.size(1)
         release_state := Mux(
           s2_victim_dirty && !discard_line,
@@ -1344,7 +1346,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     io.cpu.s2_xcpt := Mux(RegNext(s1_xcpt_valid), s2_tlb_xcpt, 0.U.asTypeOf(s2_tlb_xcpt))
 
     if (usingDataScratchpad) {
-      assert(!(s2_valid_masked && (s2_req.cmd === M_XLR || s2_req.cmd === M_XSC)))
+      AssertProperty(BoolSequence(!(s2_valid_masked && (s2_req.cmd === M_XLR || s2_req.cmd === M_XSC))))
     } else {
       // ccover(tl_out.b.valid && !tl_out.b.ready, "BLOCK_B", "D$ B-channel blocked")
     }
@@ -1360,7 +1362,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     io.cpu.resp.valid := (s2_valid_hit_pre_data_ecc || doUncachedResp) && !s2_data_error
     io.cpu.replay_next := io.loadStoreAXI.r.fire && grantIsUncachedData && !cacheParams.separateUncachedResp.B
     when(doUncachedResp) {
-      assert(!s2_valid_hit)
+      AssertProperty(BoolSequence(!s2_valid_hit))
       io.cpu.resp.bits.replay := true.B
       io.cpu.resp.bits.addr := s2_uncached_resp_addr
     }
@@ -1412,7 +1414,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       })
     }.getOrElse {
       if (!usingAtomics) {
-        assert(!(s1_valid_masked && s1_read && s1_write), "unsupported D$ operation")
+        AssertProperty(BoolSequence(!(s1_valid_masked && s1_read && s1_write)))
       }
     }
 
@@ -1627,7 +1629,7 @@ class HellaCache(val parameter: HellaCacheParameter)
   def likelyNeedsRead(req: HellaCacheReq): Bool = {
     // req.cmd.isOneOf(M_XWR, M_PFW)
     val res = !Seq(M_XWR, M_PFW).map(_ === req.cmd).reduce(_ ||_) || req.size < log2Ceil(eccBytes).U
-    assert(!needsRead(req) || res)
+    AssertProperty(BoolSequence(!needsRead(req) || res))
     res
   }
 
