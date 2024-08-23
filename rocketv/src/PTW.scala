@@ -325,7 +325,7 @@ class PTW(val parameter: PTWParameter)
     val mem_resp_valid = RegNext(io.mem.resp.valid)
     val mem_resp_data = RegNext(io.mem.resp.bits.data)
     io.mem.uncached_resp.map { resp =>
-      AssertProperty(BoolSequence(!(resp.valid && io.mem.resp.valid)))
+      AssertProperty(BoolSequence(!(resp.valid && io.mem.resp.valid)), clock = gated_clock)
       resp.ready := true.B
       when(resp.valid) {
         mem_resp_valid := true.B
@@ -572,7 +572,7 @@ class PTW(val parameter: PTWParameter)
         io.dpath.perf.l2hit := s2_hit
         when(s2_hit) {
           l2_plru.access(r_idx, OHToUInt(s2_hit_vec))
-          AssertProperty(BoolSequence((PopCount(s2_hit_vec) === 1.U) || s2_error))
+          AssertProperty(BoolSequence((PopCount(s2_hit_vec) === 1.U) || s2_error), clock = gated_clock)
         }
 
         val s2_pte = Wire(new PTE)
@@ -708,7 +708,7 @@ class PTW(val parameter: PTWParameter)
           resp_fragmented_superpage := false.B
           r_hgatp := io.dpath.hgatp
 
-          AssertProperty(BoolSequence(!arb.io.out.bits.bits.need_gpa || arb.io.out.bits.bits.stage2))
+          AssertProperty(BoolSequence(!arb.io.out.bits.bits.need_gpa || arb.io.out.bits.bits.stage2), clock = gated_clock)
         }
       }
       is(s_req) {
@@ -814,13 +814,13 @@ class PTW(val parameter: PTWParameter)
     )
 
     when(l2_hit && !l2_error) {
-      AssertProperty(BoolSequence(state === s_req || state === s_wait1))
+      AssertProperty(BoolSequence(state === s_req || state === s_wait1), clock = gated_clock)
       next_state := s_ready
       resp_valid(r_req_dest) := true.B
       count := (pgLevels - 1).U
     }
     when(mem_resp_valid) {
-      AssertProperty(BoolSequence(state === s_wait3))
+      AssertProperty(BoolSequence(state === s_wait3), clock = gated_clock)
       next_state := s_req
       when(traverse) {
         when(do_both_stages && !stage2) { do_switch := true.B }
@@ -866,7 +866,7 @@ class PTW(val parameter: PTWParameter)
       }
     }
     when(io.mem.s2_nack) {
-      AssertProperty(BoolSequence(state === s_wait2))
+      AssertProperty(BoolSequence(state === s_wait2), clock = gated_clock)
       next_state := s_req
     }
 
