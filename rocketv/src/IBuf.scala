@@ -7,6 +7,8 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 
 object IBufParameter {
   implicit def rwP: upickle.default.ReadWriter[IBufParameter] = upickle.default.macroRW[IBufParameter]
@@ -142,7 +144,7 @@ class IBuf(val parameter: IBufParameter)
   val xcpt = (0 until bufMask.getWidth).map(i => Mux(bufMask(i), buf.xcpt, io.imem.bits.xcpt))
   val buf_replay = Mux(buf.replay, bufMask, 0.U)
   val ic_replay = buf_replay | Mux(io.imem.bits.replay, valid & ~bufMask, 0.U)
-  assert(!io.imem.valid || !io.imem.bits.btb.taken || io.imem.bits.btb.bridx >= pcWordBits)
+  AssertProperty(BoolSequence(!io.imem.valid || !io.imem.bits.btb.taken || io.imem.bits.btb.bridx >= pcWordBits))
 
   io.btb_resp := io.imem.bits.btb
   io.pc := Mux(nBufValid > 0.U, buf.pc, io.imem.bits.pc)

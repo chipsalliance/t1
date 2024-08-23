@@ -8,6 +8,8 @@ import chisel3._
 import chisel3.experimental.hierarchy.instantiable
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
+import chisel3.ltl._
+import chisel3.ltl.Sequence._
 // @todo: remove me
 import org.chipsalliance.rocketv.rvdecoderdbcompat._
 
@@ -1175,8 +1177,8 @@ class CSR(val parameter: CSRParameter)
 
   when(io.retire(0) || exception) { reg_singleStepped := true.B }
   when(!io.singleStep) { reg_singleStepped := false.B }
-  assert(!io.singleStep || io.retire <= 1.U)
-  assert(!reg_singleStepped || io.retire === 0.U)
+  AssertProperty(BoolSequence(!io.singleStep || io.retire <= 1.U))
+  AssertProperty(BoolSequence(!reg_singleStepped || io.retire === 0.U))
 
   val epc = formEPC(io.pc)
   val tval = Mux(insn_break, epc, io.tval)
@@ -1349,7 +1351,7 @@ class CSR(val parameter: CSRParameter)
   val set_fs_dirty = WireDefault(io.setFsDirty.getOrElse(false.B))
   if (coreParams.haveFSDirty) {
     when(set_fs_dirty) {
-      assert(reg_mstatus.fs > 0.U)
+      AssertProperty(BoolSequence(reg_mstatus.fs > 0.U))
       when(reg_mstatus.v) { reg_vsstatus.fs := 3.U }
       reg_mstatus.fs := 3.U
     }
