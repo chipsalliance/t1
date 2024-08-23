@@ -25,9 +25,11 @@ pub struct SpikeRunner {
   /// dependency, the vector instruction should be issued in order.
   pub vector_queue: VecDeque<SpikeEvent>,
 
-  /// vector queue to arrange the order of vector instructions, because of the register write
-  /// dependency, the vector instruction should be issued in order.
+  /// scalar queue to arrange the order of scalar reg / freg write instructions
   pub scalar_queue: VecDeque<SpikeEvent>,
+
+  /// scalar queue to arrange the order of scalar reg / freg write instructions
+  pub float_queue: VecDeque<SpikeEvent>,
 
   /// config for v extension
   pub vlen: u32,
@@ -37,6 +39,8 @@ pub struct SpikeRunner {
   pub cycle: u64,
 
   pub do_log_vrf: bool,
+
+  pub rf_board: Vec<Option<u32>>,
 }
 
 impl SpikeRunner {
@@ -58,10 +62,12 @@ impl SpikeRunner {
       commit_queue: VecDeque::new(),
       vector_queue: VecDeque::new(),
       scalar_queue: VecDeque::new(),
+      float_queue: VecDeque::new(),
       vlen: args.vlen,
       dlen: args.dlen,
       cycle: 0,
       do_log_vrf,
+      rf_board: vec![None; 32],
     }
   }
 
@@ -122,7 +128,7 @@ impl SpikeRunner {
     event
   }
 
-  pub fn find_rf_se(&mut self) -> SpikeEvent {
+  pub fn find_reg_se(&mut self) -> SpikeEvent {
     if !self.scalar_queue.is_empty() {
       // return the back (oldest) scalar insn
       self.scalar_queue.pop_back().unwrap()
@@ -130,7 +136,28 @@ impl SpikeRunner {
       // else, loop until find a se, and push the se to the front
       loop {
         let se = self.spike_step();
-        if se.is_scalar() && se.is_rd_written && se.rd_idx != 0 {
+        if se.is_scalar() && se.is_rd_written {
+          return se;
+        } else if se.is_fd_written {
+          self.float_queue.push_front(se.clone());
+        } else if se.is_v() {
+          self.vector_queue.push_front(se.clone());
+        }
+      }
+    }
+  }
+
+  pub fn find_freg_se(&mut self) -> SpikeEvent {
+    if !self.float_queue.is_empty() {
+      // return the back (oldest) float insn
+      self.float_queue.pop_back().unwrap()
+    } else {
+      // else, loop until find a se, and push the se to the front
+      loop {
+        let se = self.spike_step();
+        if se.is_scalar() && se.is_rd_written {
+          self.scalar_queue.push_front(se.clone());
+        } else if se.is_fd_written {
           return se;
         } else if se.is_v() {
           self.vector_queue.push_front(se.clone());
@@ -147,8 +174,10 @@ impl SpikeRunner {
       // else, loop until find a se, and push the se to the front
       loop {
         let se = self.spike_step();
-        if se.is_scalar() && se.is_rd_written && se.rd_idx != 0 {
+        if se.is_scalar() && se.is_rd_written {
           self.scalar_queue.push_front(se.clone());
+        } else if se.is_fd_written {
+          self.float_queue.push_front(se.clone());
         } else if se.is_v() {
           return se;
         }

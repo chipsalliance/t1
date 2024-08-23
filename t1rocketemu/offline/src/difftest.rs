@@ -1,6 +1,5 @@
 use common::spike_runner::SpikeRunner;
 use std::path::Path;
-use tracing::info;
 
 use common::rtl_config::RTLConfig;
 use common::CommonArgs;
@@ -47,6 +46,14 @@ impl Difftest {
       JsonEvents::RegWrite { idx, data, cycle } => {
         self.runner.cycle = *cycle;
         self.runner.peek_reg_write(&RegWriteEvent { idx: *idx, data: *data, cycle: *cycle })
+      }
+      JsonEvents::RegWriteWait { idx, cycle } => {
+        self.runner.cycle = *cycle;
+        self.runner.peek_reg_write_wait(&RegWriteWaitEvent { idx: *idx, cycle: *cycle })
+      }
+      JsonEvents::FregWrite { idx, data, cycle } => {
+        self.runner.cycle = *cycle;
+        self.runner.peek_freg_write(&RegWriteEvent { idx: *idx, data: *data, cycle: *cycle })
       }
       JsonEvents::Issue { idx, cycle } => {
         self.runner.cycle = *cycle;

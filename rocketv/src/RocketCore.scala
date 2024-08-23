@@ -1096,8 +1096,8 @@ class Rocket(val parameter: RocketParameter)
     probeWire.rfWdata := rfWdata
 
     // TODO: add wait enable
-    // probeWire.waitEn := 
-    // probeWire.waitAddr := 
+    probeWire.waitWen := wbSetSboard && wbWen
+    probeWire.waitWaddr := wbWaddr
 
     // FIXME: vectorCSR
     probeWire.isVector := io.t1.map { t1 =>

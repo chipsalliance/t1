@@ -92,6 +92,7 @@ pub struct SpikeEvent {
 
   // mutable states
   pub is_rd_written: bool,
+  pub is_fd_written: bool,
   pub vd_write_record: VdWriteRecord,
   pub mem_access_record: MemAccessRecord,
   pub vrf_access_record: VrfAccessRecord,
@@ -142,6 +143,7 @@ impl SpikeEvent {
       rd_bits: Default::default(),
 
       is_rd_written: false,
+      is_fd_written: false,
       vd_write_record: Default::default(),
       mem_access_record: Default::default(),
       vrf_access_record: Default::default(),
@@ -418,7 +420,7 @@ impl SpikeEvent {
         0b0001 => {
           self.rd_idx = rd_idx_type >> 4;
           let data = state.get_reg(self.rd_idx, true);
-          self.is_rd_written = true;
+          self.is_fd_written = true;
           self.rd_bits = data;
           trace!(
             "FloatRFChange: idx={:#02x}, data={:08x}",
