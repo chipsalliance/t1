@@ -349,7 +349,7 @@ class RocketInterface(parameter: RocketParameter) extends Bundle {
   val cease = Output(Bool())
   val wfi = Output(Bool())
   val traceStall = Input(Bool())
-  val rocketProbe = Output(Probe(new RocketProbe(parameter)))
+  val rocketProbe = Output(Probe(new RocketProbe(parameter), layers.Verification))
 }
 
 /** The [[Rocket]] is the next version of the RocketCore,
@@ -437,10 +437,6 @@ class Rocket(val parameter: RocketParameter)
   def fetchWidth: Int = parameter.fetchWidth
   def minFLen: Int = parameter.minFLen.getOrElse(0)
   def hasDataECC: Boolean = parameter.hasDataECC
-
-  // probe defination
-  val probeWire = Wire(new RocketProbe(parameter))
-  define(io.rocketProbe, ProbeValue(probeWire))
 
   // Signal outside from internal clock domain.
 
@@ -1093,19 +1089,6 @@ class Rocket(val parameter: RocketParameter)
     )
     when(rfWen) { rf.write(rfWaddr, rfWdata) }
 
-    probeWire.rfWen := rfWen
-    probeWire.rfWaddr := rfWaddr
-    probeWire.rfWdata := rfWdata
-
-    // TODO: add wait enable
-    probeWire.waitWen := wbSetSboard && wbWen
-    probeWire.waitWaddr := wbWaddr
-
-    // FIXME: vectorCSR
-    probeWire.isVector := io.t1.map { t1 =>
-      wbRegDecodeOutput(parameter.decoderParameter.vector) && !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
-    }.getOrElse(false.B)
-
     // hook up control/status regfile
     csr.io.ungatedClock := io.clock
     csr.io.decode(0).inst := idInstruction
@@ -1259,21 +1242,7 @@ class Rocket(val parameter: RocketParameter)
             fpScoreboard.clear(dmemResponseReplay && dmemResponseFpu, dmemResponseWaddr)
             t1RetireQueue.foreach(q => fpScoreboard.clear(q.io.deq.fire && q.io.deq.bits.isFp, q.io.deq.bits.rdAddress))
             fpScoreboard.clear(fpu.sboard_clr, fpu.sboard_clra)
-            probeWire.fpuScoreboard.foreach { case fpProbe =>
-              fpProbe.memSetScoreBoard := wbValid && wbDcacheMiss && wbRegDecodeOutput(parameter.decoderParameter.wfd)
-              fpProbe.vectorSetScoreBoard :=wbValid && wbRegDecodeOutput(parameter.decoderParameter.wfd) && Option.when(usingVector)(wbRegDecodeOutput(parameter.decoderParameter.vector)).getOrElse(false.B)
-              fpProbe.fpuSetScoreBoard := wbValid && wbRegDecodeOutput(parameter.decoderParameter.wfd) && fpu.sboard_set
-              fpProbe.scoreBoardSetAddress := wbWaddr
 
-              fpProbe.fpuClearScoreBoard.valid := fpu.sboard_clr
-              fpProbe.fpuClearScoreBoard.bits := fpu.sboard_clra
-
-              fpProbe.vectorClearScoreBoard.valid := t1RetireQueue.map(q => q.io.deq.fire && q.io.deq.bits.isFp).getOrElse(false.B)
-              fpProbe.vectorClearScoreBoard.bits := t1RetireQueue.map(q => q.io.deq.bits.rdAddress).getOrElse(0.U)
-
-              fpProbe.memClearScoreBoard.valid := dmemResponseReplay && dmemResponseFpu
-              fpProbe.memClearScoreBoard.bits := dmemResponseWaddr
-            }
             checkHazards(fpHazardTargets, fpScoreboard.read)
         }
         .getOrElse(false.B)
@@ -1457,7 +1426,6 @@ class Rocket(val parameter: RocketParameter)
       val (vectorEmpty, vectorFull) = counterManagement(countWidth, 4)(t1IssueQueue.io.enq.valid, t1.issue.fire)
       vectorLSUEmpty.foreach(_ := lsuEmpty)
       vectorQueueFull.foreach(_ := vectorFull)
-      probeWire.idle := vectorEmpty
 
       t1XRDRetireQueue.io.enq.valid := t1.retire.rd.valid
       t1XRDRetireQueue.io.enq.bits := t1.retire.rd.bits
@@ -1482,6 +1450,42 @@ class Rocket(val parameter: RocketParameter)
           // todo: 32 bit only
           fpu.dmem_resp_type := 2.U
           fpu.dmem_resp_tag := t1XRDRetireQueue.io.deq.bits.rdAddress
+        }
+      }
+
+      // probe defination
+      layer.block(layers.Verification) {
+        val probeWire = Wire(new RocketProbe(parameter))
+        define(io.rocketProbe, ProbeValue(probeWire))
+
+        probeWire.rfWen := rfWen
+        probeWire.rfWaddr := rfWaddr
+        probeWire.rfWdata := rfWdata
+
+        probeWire.waitWen := wbSetSboard && wbWen
+        probeWire.waitWaddr := wbWaddr
+        // FIXME: vectorCSR
+        probeWire.isVector := io.t1.map { t1 =>
+          wbRegDecodeOutput(parameter.decoderParameter.vector) && !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
+        }.getOrElse(false.B)
+        probeWire.idle := vectorEmpty
+
+        probeWire.fpuScoreboard.foreach { case fpProbe =>
+          fpProbe.memSetScoreBoard := wbValid && wbDcacheMiss && wbRegDecodeOutput(parameter.decoderParameter.wfd)
+          fpProbe.vectorSetScoreBoard := wbValid && wbRegDecodeOutput(parameter.decoderParameter.wfd) && Option.when(usingVector)(wbRegDecodeOutput(parameter.decoderParameter.vector)).getOrElse(false.B)
+          fpProbe.scoreBoardSetAddress := wbWaddr
+
+          io.fpu.map { fpu =>
+            fpProbe.fpuSetScoreBoard := wbValid && wbRegDecodeOutput(parameter.decoderParameter.wfd) && fpu.sboard_set
+            fpProbe.fpuClearScoreBoard.valid := fpu.sboard_clr
+            fpProbe.fpuClearScoreBoard.bits := fpu.sboard_clra
+          }
+
+          fpProbe.vectorClearScoreBoard.valid := t1RetireQueue.map(q => q.io.deq.fire && q.io.deq.bits.isFp).getOrElse(false.B)
+          fpProbe.vectorClearScoreBoard.bits := t1RetireQueue.map(q => q.io.deq.bits.rdAddress).getOrElse(0.U)
+
+          fpProbe.memClearScoreBoard.valid := dmemResponseReplay && dmemResponseFpu
+          fpProbe.memClearScoreBoard.bits := dmemResponseWaddr
         }
       }
     }
@@ -1572,7 +1576,6 @@ class Rocket(val parameter: RocketParameter)
       when(ens) { _r := _next }
     }
   }
-
 }
 
 class RegFile(n: Int, w: Int, zero: Boolean = false) {

@@ -396,7 +396,7 @@ class RocketTileInterface(parameter: RocketTileParameter) extends Bundle {
   val dtimAXI: Option[AXI4RWIrrevocable] =
     parameter.dtimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
 
-  val rocketProbe = Output(Probe(new RocketProbe(parameter.rocketParameter)))
+  val rocketProbe = Output(Probe(new RocketProbe(parameter.rocketParameter), layers.Verification))
 }
 
 class RocketTile(val parameter: RocketTileParameter)
@@ -478,6 +478,8 @@ class RocketTile(val parameter: RocketTileParameter)
     fpu.io.cp_resp <> DontCare
   }
 
-  // probe
-  define(io.rocketProbe, rocket.io.rocketProbe)
+  /* Probes */
+  layer.block(layers.Verification) {
+    define(io.rocketProbe, rocket.io.rocketProbe)
+  }
 }

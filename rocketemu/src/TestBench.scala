@@ -17,6 +17,7 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
     extends RawModule
     with ImplicitClock
     with ImplicitReset {
+  layer.enable(layers.Verification)
   val clockGen = Module(new ExtModule with HasExtModuleInline {
     override def desiredName = "ClockGen"
     setInline(

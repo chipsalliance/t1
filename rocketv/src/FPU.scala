@@ -46,7 +46,7 @@ class FPUInterface(parameter: FPUParameter) extends Bundle {
   val core = new FPUCoreIO(parameter.hartIdLen, parameter.xLen, parameter.fLen)
   val cp_req = Flipped(Decoupled(new FPInput(parameter.fLen))) //cp doesn't pay attn to kill sigs
   val cp_resp = Decoupled(new FPResult(parameter.fLen))
-  val fpuProbe = Output(Probe(new FPUProbe(parameter)))
+  val fpuProbe = Output(Probe(new FPUProbe(parameter), layers.Verification))
 }
 
 // TODO: all hardfloat module can be replaced by DWBB?
@@ -426,16 +426,19 @@ class FPU(val parameter: FPUParameter)
       wen.orR || divSqrt_inFlight || // post-WB stage
       io.core.dmem_resp_val // load writeback
 
-    // probe defination
-    val probeWire = Wire(new FPUProbe(parameter))
-    define(io.fpuProbe, ProbeValue(probeWire))
+    /* Probes */
+    layer.block(layers.Verification) {
+      val probeWire = Wire(new FPUProbe(parameter))
+      define(io.fpuProbe, ProbeValue(probeWire))
 
-    probeWire.loadOrVectorWrite.rfWen := load_wb
-    probeWire.loadOrVectorWrite.rfWaddr := load_wb_tag
-    probeWire.loadOrVectorWrite.rfWdata := recode(load_wb_data, load_wb_typeTag)
-    probeWire.pipeWrite.rfWen := (!wbInfo(0).cp && wen(0)) || divSqrt_wen
-    probeWire.pipeWrite.rfWaddr := waddr
-    probeWire.pipeWrite.rfWdata := wdata
+      probeWire.loadOrVectorWrite.rfWen := load_wb
+      probeWire.loadOrVectorWrite.rfWaddr := load_wb_tag
+      probeWire.loadOrVectorWrite.rfWdata := recode(load_wb_data, load_wb_typeTag)
+      probeWire.pipeWrite.rfWen := (!wbInfo(0).cp && wen(0)) || divSqrt_wen
+      probeWire.pipeWrite.rfWaddr := waddr
+      probeWire.pipeWrite.rfWdata := wdata
+    }
+
   } // leaving gated-clock domain
   val fpuImpl = withClockAndReset(gated_clock, io.reset) { new FPUImpl }
 }
