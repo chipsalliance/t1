@@ -7,8 +7,8 @@ use tracing::{debug, error, info, trace};
 
 use crate::dpi::*;
 use crate::get_t;
-use crate::svdpi::SvScope;
 use crate::OfflineArgs;
+use svdpi::SvScope;
 
 struct ShadowMem {
   mem: Vec<u8>,

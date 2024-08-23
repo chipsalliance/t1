@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-online_dpi = { path = "../online_dpi", features = ["sv2023"] }
+online_dpi = { path = "../online_dpi" }
+svdpi = { workspace = true, features = ["sv2023"] }
 
 [build-dependencies]
 cmake = "0.1.50"

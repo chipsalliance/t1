@@ -3,9 +3,6 @@ use common::CommonArgs;
 
 pub mod dpi;
 pub mod drive;
-pub mod svdpi;
-#[cfg(feature = "svvpi")]
-pub mod svvpi;
 
 #[derive(Parser)]
 pub(crate) struct OfflineArgs {
@@ -28,17 +25,7 @@ pub(crate) struct OfflineArgs {
 pub const CYCLE_PERIOD: u64 = 20;
 
 /// get cycle
-#[cfg(any(feature = "sv2023", feature = "svvpi"))]
 pub fn get_t() -> u64 {
-  get_time() / CYCLE_PERIOD
+  svdpi::get_time() / CYCLE_PERIOD
 }
 
-#[cfg(feature = "sv2023")]
-pub fn get_time() -> u64 {
-  svdpi::get_time()
-}
-
-#[cfg(all(not(feature = "sv2023"), feature = "svvpi"))]
-pub fn get_time() -> u64 {
-  svvpi::get_time()
-}

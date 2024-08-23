@@ -8,7 +8,8 @@ crate-type = ["staticlib"]
 name = "dpi"
 
 [dependencies]
-online_dpi = { path = "../online_dpi", features = ["svvpi"] }
+online_dpi = { path = "../online_dpi" }
+svdpi = { workspace = true, features = ["vpi"] }
 
 [features]
 trace = ["online_dpi/trace"]

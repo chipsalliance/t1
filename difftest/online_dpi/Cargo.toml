@@ -10,9 +10,8 @@ common = { path = "../test_common" }
 spike_rs = { path = "../spike_rs" }
 clap = { workspace = true }
 tracing = { workspace = true }
+svdpi = { workspace = true }
 hex = "0.4.3"
 
 [features]
-sv2023 = []
-svvpi = []
 trace = []
