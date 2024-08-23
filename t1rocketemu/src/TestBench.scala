@@ -9,7 +9,6 @@ import chisel3.experimental.dataview.DataViewable
 import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
 import chisel3.util.{HasExtModuleInline, Mux1H, PopCount, Queue, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
-import org.chipsalliance.rocketv.RocketROB
 import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
 
@@ -177,33 +176,30 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
 
   // output the probes
   // rocket reg write
-  when(rocketProbe.rfWen && !rocketProbe.isVector)(
+  when(rocketProbe.rfWen && !rocketProbe.isVector && rocketProbe.rfWaddr =/= 0.U)(
     printf(
       cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
     )
   )
 
-  // TODO: refactor this wait logic
-  // when(rocketProbe.waitWen && !rocketProbe.isVector)( // should this judge vector?
-  //   printf(
-  //     cf"""{"event":"RegWriteWait","idx":${rocketProbe.waitWaddr},"cycle":${simulationTime}}\n"""
-  //   )
-  // )
+  when(rocketProbe.waitWen && !rocketProbe.isVector && rocketProbe.waitWaddr =/= 0.U)( // should this judge vector?
+    printf(
+      cf"""{"event":"RegWriteWait","idx":${rocketProbe.waitWaddr},"cycle":${simulationTime}}\n"""
+    )
+  )
 
   // [[option]] rocket fpu reg write 
   t1RocketProbe.fpuProbe.foreach { fpu =>
-    when(fpu.rfWen)(
+    when(fpu.pipeWrite.rfWen)(
       printf(
-        cf"""{"event":"FregWrite","idx":${fpu.rfWaddr},"data":"${fpu.rfWdata}%x","cycle":${simulationTime}}\n"""
+        cf"""{"event":"FregWrite","idx":${fpu.pipeWrite.rfWaddr},"data":"${fpu.pipeWrite.rfWdata}%x","cycle":${simulationTime}}\n"""
       )
     )
-
-  // TODO: refactor this wait logic
-  // when(fpu.waitWen && !fpu.isVector)( // should this judge vector?
-  //   printf(
-  //     cf"""{"event":"FregWriteWait","idx":${fpu.waitWaddr},"cycle":${simulationTime}}\n"""
-  //   )
-  // )
+    when(fpu.loadOrVectorWrite.rfWen && !rocketProbe.isVector)(
+      printf(
+        cf"""{"event":"FregWrite","idx":${fpu.loadOrVectorWrite.rfWaddr},"data":"${fpu.loadOrVectorWrite.rfWdata}%x","cycle":${simulationTime}}\n"""
+      )
+    )
   }
 
   // t1 vrf write

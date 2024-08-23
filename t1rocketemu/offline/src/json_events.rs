@@ -61,6 +61,17 @@ pub(crate) enum JsonEvents {
     data: u32,
     cycle: u64,
   },
+  RegWriteWait {
+    idx: u8,
+    cycle: u64,
+  },
+  FregWrite {
+    idx: u8,
+    #[serde(deserialize_with = "str_to_u32", default)]
+    data: u32,
+    cycle: u64,
+  },
+
   Issue {
     idx: u8,
     cycle: u64,
@@ -109,6 +120,11 @@ pub struct RegWriteEvent {
   pub cycle: u64,
 }
 
+pub struct RegWriteWaitEvent {
+  pub idx: u8,
+  pub cycle: u64,
+}
+
 pub struct IssueEvent {
   pub idx: u8,
   pub cycle: u64,
@@ -152,6 +168,10 @@ pub struct CheckRdEvent {
 pub(crate) trait JsonEventRunner {
   fn peek_reg_write(&mut self, reg_write: &RegWriteEvent) -> anyhow::Result<()>;
 
+  fn peek_reg_write_wait(&mut self, reg_write: &RegWriteWaitEvent) -> anyhow::Result<()>;
+
+  fn peek_freg_write(&mut self, reg_write: &RegWriteEvent) -> anyhow::Result<()>;
+
   fn peek_issue(&mut self, issue: &IssueEvent) -> anyhow::Result<()>;
 
   fn update_lsu_idx(&mut self, lsu_enq: &LsuEnqEvent) -> anyhow::Result<()>;
@@ -175,10 +195,75 @@ impl JsonEventRunner for SpikeRunner {
     let idx = reg_write.idx;
     let data = reg_write.data;
 
-    let se = self.find_rf_se();
+    if let Some(board_data) = self.rf_board[idx as usize] {
+      info!(
+        "[{cycle}] RegWrite: Hit board! idx={idx}, rtl data={data:#08x}, board data={board_data:#08x}",
+      );
+
+      assert!(
+        data == board_data,
+        "rtl data({data:#x}) should be equal to board data({board_data:#x})"
+      );
+
+      return Ok(());
+    }
+
+    let se = self.find_reg_se();
 
     info!(
       "[{cycle}] RegWrite: rtl idx={idx}, data={data:#08x}; se idx={}, data={:#08x} ({})",
+      se.rd_idx,
+      se.rd_bits,
+      se.describe_insn()
+    );
+
+    assert!(
+      idx as u32 == se.rd_idx,
+      "rtl idx({idx:#x}) should be equal to spike idx({:#x})",
+      se.rd_idx
+    );
+    assert!(
+      data == se.rd_bits,
+      "rtl data({data:#x}) should be equal to spike data({:#x})",
+      se.rd_bits
+    );
+
+    Ok(())
+  }
+
+  fn peek_reg_write_wait(&mut self, reg_write: &RegWriteWaitEvent) -> anyhow::Result<()> {
+    let cycle = reg_write.cycle;
+    let idx = reg_write.idx;
+
+    let se = self.find_reg_se();
+
+    info!(
+      "[{cycle}] RegWriteWait: rtl idx={idx}; se idx={}, data={:#08x} ({})",
+      se.rd_idx,
+      se.rd_bits,
+      se.describe_insn()
+    );
+
+    assert!(
+      idx as u32 == se.rd_idx,
+      "rtl idx({idx:#x}) should be equal to spike idx({:#x})",
+      se.rd_idx
+    );
+
+    self.rf_board[idx as usize] = Some(se.rd_bits);
+
+    Ok(())
+  }
+
+  fn peek_freg_write(&mut self, reg_write: &RegWriteEvent) -> anyhow::Result<()> {
+    let cycle = reg_write.cycle;
+    let idx = reg_write.idx;
+    let data = reg_write.data;
+
+    let se = self.find_freg_se();
+
+    info!(
+      "[{cycle}] FregWrite: rtl idx={idx}, data={data:#08x}; se idx={}, data={:#08x} ({})",
       se.rd_idx,
       se.rd_bits,
       se.describe_insn()
