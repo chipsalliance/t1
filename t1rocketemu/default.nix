@@ -13,8 +13,8 @@
     verilator-emu = scope.callPackage ./nix/verilator.nix { };
     verilator-emu-trace = scope.callPackage ./nix/verilator.nix { verilated-c-lib = scope.verilated-c-lib-trace; };
 
-    vcs-dpi-lib = scope.callPackage ./online_vcs { };
-    vcs-dpi-lib-trace = scope.vcs-dpi-lib.override { enable-trace = true; };
+    vcs-rust-package = scope.callPackage ./online_vcs { };
+    inherit (scope.vcs-rust-package) vcs-dpi-lib vcs-dpi-lib-trace vcs-offline-checker;
 
     vcs-emu = scope.callPackage ./nix/vcs.nix { };
     vcs-emu-trace = scope.callPackage ./nix/vcs.nix { vcs-dpi-lib = scope.vcs-dpi-lib-trace; };
