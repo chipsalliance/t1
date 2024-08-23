@@ -311,7 +311,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     val probe = IO(Output(Probe(Bool(), layers.Verification)))
     layer.block(layers.Verification) {
       define(probe, ProbeValue(port.ready))
-      }
+    }
     probe
   }).toSeq
 
