@@ -1,5 +1,5 @@
 # FIXME: this is not a correct design, we should have offline check command in VCS emulator
-{ lib, stdenvNoCC, zstd, jq, verilator-emu }:
+{ lib, stdenvNoCC, zstd, jq, vcs-offline-checker }:
 emulator:
 testCase:
 
@@ -70,7 +70,7 @@ stdenvNoCC.mkDerivation (finalAttr: {
     )
     offlineCheckArgs="''${offlineCheckArgsArray[@]}"
     echo -e "[nix] running offline check: \033[0;34m${emulator}/bin/offline $offlineCheckArgs\033[0m"
-    "${verilator-emu}/bin/offline" $offlineCheckArgs &> $out/offline-check-journal
+    "${vcs-offline-checker}/bin/offline" $offlineCheckArgs &> $out/offline-check-journal
 
     printf "$?" > $out/offline-check-status
     if [ "$(cat $out/offline-check-status)" != "0" ]; then
