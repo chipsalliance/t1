@@ -74,10 +74,10 @@ lib.makeScope newScope
             ];
           };
 
-          om = innerSelf.callPackage ./om.nix { inherit mlirbc; };
+          om = innerSelf.callPackage ./om.nix { inherit mlirbc omreader; };
           omreader = self.omreader-unwrapped.mkWrapper { inherit mlirbc; };
 
-          emu-om = innerSelf.callPackage ./om.nix { mlirbc = emu-mlirbc; };
+          emu-om = innerSelf.callPackage ./om.nix { omreader = emu-omreader; mlirbc = emu-mlirbc; };
           emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = emu-mlirbc; };
           omGet = args: lib.fileContents (runCommand "get-${args}" { } ''
             ${emu-omreader}/bin/omreader ${args} > $out
@@ -92,12 +92,6 @@ lib.makeScope newScope
           cases = innerSelf.callPackage ../../tests {
             inherit (ip) verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace rtlDesignMetadata;
           };
-
-          # for the convenience to use x86 cases on non-x86 machines, avoiding the extra build time
-          cases-x86 =
-            if system == "x86-64-linux"
-            then self.cases
-            else pkgsX86.t1."${configName}".cases;
 
           emu-elaborate = innerSelf.callPackage ./elaborate.nix { target = "ipemu"; };
           emu-mlirbc = innerSelf.callPackage ./mlirbc.nix { elaborate = emu-elaborate; };
