@@ -22,8 +22,11 @@ stdenvNoCC.mkDerivation {
     mkdir -p $out
 
     firtool ${mlirbc} ${mfcArgs} -o $out
+
+    # FIXME: https://github.com/llvm/circt/pull/7543
     echo "Fixing generated filelist.f"
-    cp $out/filelist.f original.f
-    cat $out/firrtl_black_box_resource_files.f original.f > $out/filelist.f
+    pushd $out
+    find . -mindepth 1 -name '*.sv' -type f > $out/filelist.f
+    popd
   '';
 }
