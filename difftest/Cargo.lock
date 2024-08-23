@@ -286,6 +286,7 @@ dependencies = [
  "common",
  "hex",
  "spike_rs",
+ "svdpi",
  "tracing",
 ]
 
@@ -295,6 +296,7 @@ version = "0.1.0"
 dependencies = [
  "cmake",
  "online_dpi",
+ "svdpi",
 ]
 
 [[package]]
@@ -302,6 +304,7 @@ name = "online_vcs"
 version = "0.1.0"
 dependencies = [
  "online_dpi",
+ "svdpi",
 ]
 
 [[package]]
@@ -445,6 +448,12 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+
+[[package]]
+name = "svdpi"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9248c35a9b58d508b60d40b6f5ab8173760b32445d055e90822f57f09b9d0f58"
 
 [[package]]
 name = "syn"

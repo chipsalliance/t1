@@ -7,8 +7,8 @@ use std::sync::Mutex;
 use tracing::debug;
 
 use crate::drive::Driver;
-use crate::svdpi::SvScope;
 use crate::OfflineArgs;
+use svdpi::SvScope;
 
 pub type SvBitVecVal = u32;
 
@@ -281,8 +281,7 @@ mod dpi_export {
 }
 
 #[cfg(feature = "trace")]
-pub(crate) fn dump_wave(scope: crate::svdpi::SvScope, path: &str) {
-  use crate::svdpi;
+pub(crate) fn dump_wave(scope: svdpi::SvScope, path: &str) {
   use std::ffi::CString;
   let path_cstring = CString::new(path).unwrap();
 
