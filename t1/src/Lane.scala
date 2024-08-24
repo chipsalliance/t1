@@ -15,8 +15,6 @@ import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
 import org.chipsalliance.t1.rtl.lane._
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam, VRFProbe}
-import chisel3.ltl._
-import chisel3.ltl.Sequence._
 
 // 1. Coverage
 // 2. Performance signal via XMR
@@ -835,7 +833,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     queue.io.enq.bits.last := DontCare
     queue.io.enq.bits.instructionIndex := port.enq.bits.instructionIndex
     queue.io.enq.bits.mask := FillInterleaved(2, port.enq.bits.mask)
-    AssertProperty(BoolSequence(queue.io.enq.ready || !port.enq.valid))
+    assert(queue.io.enq.ready || !port.enq.valid)
     port.enqRelease := queue.io.deq.fire
   }
 

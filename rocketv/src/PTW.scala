@@ -9,8 +9,6 @@ import chisel3.experimental.hierarchy.instantiable
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.circt.ClockGate
 import chisel3.util.{Arbiter, Cat, Enum, Mux1H, OHToUInt, PopCount, PriorityEncoder, PriorityEncoderOH, RegEnable, SRAM, SRAMInterface, UIntToOH, Valid, is, isPow2, log2Ceil, switch}
-import chisel3.ltl._
-import chisel3.ltl.Sequence._
 
 object PTWParameter {
   implicit def rwP: upickle.default.ReadWriter[PTWParameter] = upickle.default.macroRW[PTWParameter]
@@ -325,7 +323,7 @@ class PTW(val parameter: PTWParameter)
     val mem_resp_valid = RegNext(io.mem.resp.valid)
     val mem_resp_data = RegNext(io.mem.resp.bits.data)
     io.mem.uncached_resp.map { resp =>
-      AssertProperty(BoolSequence(!(resp.valid && io.mem.resp.valid)))
+      assert(!(resp.valid && io.mem.resp.valid))
       resp.ready := true.B
       when(resp.valid) {
         mem_resp_valid := true.B
@@ -572,7 +570,7 @@ class PTW(val parameter: PTWParameter)
         io.dpath.perf.l2hit := s2_hit
         when(s2_hit) {
           l2_plru.access(r_idx, OHToUInt(s2_hit_vec))
-          AssertProperty(BoolSequence((PopCount(s2_hit_vec) === 1.U) || s2_error))
+          assert((PopCount(s2_hit_vec) === 1.U) || s2_error, "L2 TLB multi-hit")
         }
 
         val s2_pte = Wire(new PTE)
@@ -708,7 +706,7 @@ class PTW(val parameter: PTWParameter)
           resp_fragmented_superpage := false.B
           r_hgatp := io.dpath.hgatp
 
-          AssertProperty(BoolSequence(!arb.io.out.bits.bits.need_gpa || arb.io.out.bits.bits.stage2))
+          assert(!arb.io.out.bits.bits.need_gpa || arb.io.out.bits.bits.stage2)
         }
       }
       is(s_req) {
@@ -814,13 +812,13 @@ class PTW(val parameter: PTWParameter)
     )
 
     when(l2_hit && !l2_error) {
-      AssertProperty(BoolSequence(state === s_req || state === s_wait1))
+      assert(state === s_req || state === s_wait1)
       next_state := s_ready
       resp_valid(r_req_dest) := true.B
       count := (pgLevels - 1).U
     }
     when(mem_resp_valid) {
-      AssertProperty(BoolSequence(state === s_wait3))
+      assert(state === s_wait3)
       next_state := s_req
       when(traverse) {
         when(do_both_stages && !stage2) { do_switch := true.B }
@@ -866,7 +864,7 @@ class PTW(val parameter: PTWParameter)
       }
     }
     when(io.mem.s2_nack) {
-      AssertProperty(BoolSequence(state === s_wait2))
+      assert(state === s_wait2)
       next_state := s_req
     }
 

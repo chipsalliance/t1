@@ -11,8 +11,6 @@ import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.util.circt.ClockGate
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{BitPat, Cat, DecoupledIO, Fill, MuxLookup, PriorityEncoder, PriorityMux, Queue, RegEnable, Valid, log2Ceil, log2Up}
-import chisel3.ltl._
-import chisel3.ltl.Sequence._
 import org.chipsalliance.rocketv.rvdecoderdbcompat.Causes
 import org.chipsalliance.rvdecoderdb.Instruction
 
@@ -1132,7 +1130,7 @@ class Rocket(val parameter: RocketParameter)
     csr.io.htval := {
       val htvalValidImem = wbRegException && wbRegCause === Causes.fetch_guest_page_fault.U
       val htvalImem = Mux(htvalValidImem, io.imem.gpa.bits, 0.U)
-      AssertProperty(BoolSequence(!htvalValidImem || io.imem.gpa.valid))
+      assert(!htvalValidImem || io.imem.gpa.valid)
 
       val htvalValidDmem =
         wbException && tvalDmemAddr && io.dmem.s2_xcpt.gf.asUInt.orR && !io.dmem.s2_xcpt.pf.asUInt.orR
@@ -1542,7 +1540,7 @@ class Rocket(val parameter: RocketParameter)
           io.dmem.replay_next || // long-latency load replaying
           (!longLatencyStall && (instructionBufferOut.valid || io.imem.resp.valid)) // instruction pending
 
-      AssertProperty(BoolSequence(!(exPcValid || memPcValid || wbPcValid) || clockEnable))
+      assert(!(exPcValid || memPcValid || wbPcValid) || clockEnable)
     }
 
     // evaluate performance counters
