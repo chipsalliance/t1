@@ -14,9 +14,10 @@ import chisel3.ltl._
 import chisel3.ltl.Sequence._
 
 class FPUWrite(param: FPUParameter) extends Bundle {
-  val rfWen:   Bool = Bool()
-  val rfWaddr: UInt = UInt(5.W)
-  val rfWdata: UInt = UInt(param.fLen.W)
+  val rfWen:      Bool = Bool()
+  val rfWaddr:    UInt = UInt(5.W)
+  val rfWdata:    UInt = UInt((param.fLen + 1).W)
+  val rfWtypeTag: UInt = UInt(2.W)
 }
 
 class FPUProbe(param: FPUParameter) extends Bundle {
@@ -434,11 +435,12 @@ class FPU(val parameter: FPUParameter)
       probeWire.loadOrVectorWrite.rfWen := load_wb
       probeWire.loadOrVectorWrite.rfWaddr := load_wb_tag
       probeWire.loadOrVectorWrite.rfWdata := recode(load_wb_data, load_wb_typeTag)
+      probeWire.loadOrVectorWrite.rfWtypeTag := load_wb_typeTag
       probeWire.pipeWrite.rfWen := (!wbInfo(0).cp && wen(0)) || divSqrt_wen
       probeWire.pipeWrite.rfWaddr := waddr
       probeWire.pipeWrite.rfWdata := wdata
+      probeWire.pipeWrite.rfWtypeTag := wtypeTag
     }
-
   } // leaving gated-clock domain
   val fpuImpl = withClockAndReset(gated_clock, io.reset) { new FPUImpl }
 }
