@@ -970,7 +970,12 @@ class Rocket(val parameter: RocketParameter)
           Mux(
             !memRegException && memRegDecodeOutput(parameter.decoderParameter.fp) && memRegDecodeOutput(parameter.decoderParameter.wxd),
             fpu.toint_data,
-            memIntWdata
+            Mux(
+              !memRegException && Option.when(usingVector)(memRegDecodeOutput(parameter.decoderParameter.vectorReadFRs1)).getOrElse(false.B),
+              fpu.store_data,
+              memIntWdata
+            )
+
           )
         )
         .getOrElse(memIntWdata)
@@ -1357,7 +1362,11 @@ class Rocket(val parameter: RocketParameter)
     io.fpu.foreach { fpu =>
       fpuDecoder.get.io.instruction := idInstruction
       fpu.dec := fpuDecoder.get.io.output
-      fpu.valid := !ctrlKilled && idDecodeOutput(parameter.decoderParameter.fp)
+      fpu.valid := !ctrlKilled && (
+        idDecodeOutput(parameter.decoderParameter.fp) ||
+          // vector read frs1
+          (fpu.dec.ren1 && idDecodeOutput(parameter.decoderParameter.vector))
+      )
       fpu.killx := ctrlKillx
       fpu.killm := killmCommon
       fpu.inst := idInstruction
