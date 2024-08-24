@@ -16,7 +16,7 @@ let
         ({
           inherit caseName;
 
-          featuresRequired = getTestRequiredFeatures sourcePath;
+          passthru.featuresRequired = getTestRequiredFeatures sourcePath;
 
           nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
 
