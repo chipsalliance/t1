@@ -7,6 +7,7 @@
 template <typename T, size_t N> class MemRef {
 public:
   constexpr MemRef(T *data, const int32_t sizes[N]);
+  constexpr MemRef(T *data, T init, const int32_t sizes[N]);
 
 protected:
   inline void setStrides();
@@ -19,8 +20,8 @@ protected:
   int32_t strides[N];
 };
 
-template <typename T, std::size_t N> constexpr
-MemRef<T, N>::MemRef(T *data, const int32_t sizes[N]) {
+template <typename T, std::size_t N>
+constexpr MemRef<T, N>::MemRef(T *data, const int32_t sizes[N]) {
   for (size_t i = 0; i < N; i++) {
     this->sizes[i] = sizes[i];
   }
@@ -29,6 +30,20 @@ MemRef<T, N>::MemRef(T *data, const int32_t sizes[N]) {
 
   allocated = data;
   aligned = data;
+}
+
+template <typename T, std::size_t N>
+constexpr MemRef<T, N>::MemRef(T *data, T init, const int32_t sizes[N])
+    : MemRef(data, sizes) {
+
+  int32_t total_size = 0;
+  for (size_t i = 0; i < N; i++) {
+    total_size += sizes[i];
+  }
+
+  for (int32_t i = 0; i < total_size; i++) {
+    aligned[i] = init;
+  }
 }
 
 template <typename T, std::size_t N> inline void MemRef<T, N>::setStrides() {
