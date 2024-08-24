@@ -192,17 +192,30 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   )
 
   // [[option]] rocket fpu reg write 
-  t1RocketProbe.fpuProbe.foreach { fpu =>
-    when(fpu.pipeWrite.rfWen)(
-      printf(
-        cf"""{"event":"FregWrite","idx":${fpu.pipeWrite.rfWaddr},"data":"${fpu.pipeWrite.rfWdata}%x","cycle":${simulationTime}}\n"""
-      )
-    )
-    when(fpu.loadOrVectorWrite.rfWen && !rocketProbe.isVector)(
-      printf(
-        cf"""{"event":"FregWrite","idx":${fpu.loadOrVectorWrite.rfWaddr},"data":"${fpu.loadOrVectorWrite.rfWdata}%x","cycle":${simulationTime}}\n"""
-      )
-    )
+  generator.parameter.fpuParameter.zip(t1RocketProbe.fpuProbe).map {
+    case(fpuParameter, fpu) => {
+      val fpToIEEE = Module(new FPToIEEE(FPToIEEEParameter(
+        fpuParameter.useAsyncReset,
+        fpuParameter.xLen,
+        fpuParameter.fLen,
+        fpuParameter.minFLen
+      )))
+
+      fpToIEEE.io.clock := clock
+      fpToIEEE.io.reset := reset
+      fpToIEEE.io.in.valid := fpu.pipeWrite.rfWen || (fpu.loadOrVectorWrite.rfWen && !rocketProbe.isVector)
+      fpToIEEE.io.in.bits.data := Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWdata, fpu.loadOrVectorWrite.rfWdata)
+      fpToIEEE.io.in.bits.typeTag := Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWtypeTag, fpu.loadOrVectorWrite.rfWtypeTag)
+
+      val rfWen = fpToIEEE.io.out.valid
+      val rfWaddr = Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWaddr, fpu.loadOrVectorWrite.rfWaddr)
+      val rfWdata = fpToIEEE.io.out.bits
+      when(rfWen) {
+        printf(
+          cf"""{"event":"FregWrite","idx":$rfWaddr,"data":"$rfWdata%x","cycle":$simulationTime}\n"""
+        )
+      }
+    }
   }
 
   // t1 vrf write
