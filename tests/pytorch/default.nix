@@ -15,15 +15,16 @@ let
       buildBuddyE2ETest = { optPhase, ... }@overrides: builder
         ({
           inherit caseName;
-          configurePhase = ''
-            declare -A optArtifacts translateArtifacts llcArtifacts
-          '';
 
           featuresRequired = getTestRequiredFeatures sourcePath;
 
           nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
 
           src = sourcePath;
+
+          configurePhase = ''
+            declare -A optArtifacts translateArtifacts llcArtifacts
+          '';
 
           translatePhase = ''
             if [[ -z "$optArtifacts" ]]; then
