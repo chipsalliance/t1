@@ -5,96 +5,87 @@
 , findAndBuild
 , getTestRequiredFeatures
 , t1main
+, callPackage
 }:
 
 let
-
-  builder = makeBuilder { casePrefix = "mlir"; };
+  builder = makeBuilder { casePrefix = "pytorch"; };
   build = { caseName, sourcePath }:
-    let
-      buddyBuildConfig = import (sourcePath + "/config.nix");
-      defaultBuddyTranslateArgs = [ "--buddy-to-llvmir" ];
-      defaultBuddyLLCArgs = [
-        "-mtriple=riscv32"
-        "-target-abi=ilp32f"
-        "-mattr=+m,+f,+zve32f"
-        "-riscv-v-vector-bits-min=128"
-      ];
-    in
-    builder rec {
-      inherit caseName;
+    callPackage (sourcePath + "/build.nix") {
+      buildBuddyE2ETest = { optPhase, ... }@overrides: builder
+        ({
+          inherit caseName;
+          configurePhase = ''
+            declare -A optArtifacts translateArtifacts llcArtifacts
+          '';
 
-      src = sourcePath;
+          featuresRequired = getTestRequiredFeatures sourcePath;
 
-      featuresRequired = getTestRequiredFeatures sourcePath;
+          nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
 
-      nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
+          src = sourcePath;
 
-      pythonArgs = buddyBuildConfig.pythonArgs or [ ];
-      buddyTranslateArgs = buddyBuildConfig.buddyTranslateArgs or defaultBuddyTranslateArgs;
-      buddyLLCArgs = buddyBuildConfig.buddyLLCArgs or defaultBuddyLLCArgs;
-      buddyIncludes = buddyBuildConfig.includes or [ ];
+          translatePhase = ''
+            if [[ -z "$optArtifacts" ]]; then
+              echo "optPhase doesn't produce optArtifacts, abort" >&2
+              exit 1
+            fi
 
-      postUnpack = ''
-        buddyIncludeDir="."
-        if [ "x$buddyIncludes" != "x" ]; then
-          mkdir -p buddyInclude
-          _buddyHeaderArray=( $buddyIncludes )
-          for h in "''${_buddyHeaderArray}"; do
-            cp -v "$h" buddyInclude/"$(stripHash $h)"
-          done
+            for mlir in ''${optArtifacts[@]}; do
+              echo "Translating $mlir"
+              buddy-translate --buddy-to-llvmir "$mlir" -o "$mlir.ll"
 
-          buddyIncludeDir=$PWD/buddyInclude
-        fi
-      '';
+              translateArtifacts+=("$mlir.ll")
+            done
+          '';
 
-      buildPhase = ''
-        runHook preBuild
+          llcPhase = ''
+            if [[ -z "$translateArtifacts" ]]; then
+              echo "translatePhase doesn't produce translateArtifacts, abort" >&2
+              exit 1
+            fi
 
-        echo "Running python with args $pythonArgs"
-        python $pythonArgs ${caseName}.py
+            for llvmir in ''${translateArtifacts[@]}; do
+              echo "Compiling $llvmir"
+              buddy-llc "$llvmir" \
+                -mtriple=riscv32 \
+                -target-abi=ilp32f \
+                -mattr=+m,+f,+zve32f \
+                -riscv-v-vector-bits-min=128 \
+                --filetype=obj \
+                -o "$llvmir.o"
 
-        # Generate multiple buddy-opt call, each will read input from former pipeline
-        # For example, for buddyOptArgs = [ [ "--arg-a" ], [ "--arg-b" ], [ "--arg-c" ] ]
-        # This will generate
-        #
-        #   echo "..."
-        #   buddy-opt forward.mlir --arg-a -o forward-1.mlir
-        #   echo "..."
-        #   buddy-opt forward-1.mlir --arg-b -o forward-2.mlir
-        #   echo "..."
-        #   buddy-opt forward-2.mlir --arg-c -o forward-3.mlir
-        #
-        ${lib.concatStringsSep "\n" (
-          lib.imap0
-          (idx: args: ''
-            echo "Running buddy-opt with args ${lib.escapeShellArgs args}"
-            buddy-opt \
-              forward${if idx == 0 then "" else "-${toString idx}"}.mlir \
-              ${lib.escapeShellArgs args} \
-              -o forward-${toString (idx+1)}.mlir
-          '')
-          buddyBuildConfig.buddyOptArgs
-        )}
+              llcArtifacts+=("$llvmir.o")
+            done
+          '';
 
-        # Pick up the last optimized MLIR file
-        echo "Running buddy-translate with args $buddyTranslateArgs"
-        buddy-translate forward-${with builtins; toString (length buddyBuildConfig.buddyOptArgs)}.mlir \
-          $buddyTranslateArgs -o forward.ll
+          linkPhase = ''
+            if [[ -z "$llcArtifacts" ]]; then
+              echo "llcPhase doesn't produce any llcArtifacts" >&2
+              exit 1
+            fi
 
-        echo "Running buddy-llc with args $buddyLLCArgs"
-        buddy-llc forward.ll $buddyLLCArgs --filetype=obj -o forward.o
+            echo "Building final binary"
+            mkdir -p _include
+            cp ${./memref.hpp} _include/memref.hpp
 
-        echo "Using include dir $buddyIncludeDir"
-        $CXX -nostdlib -I$buddyIncludeDir -c ${caseName}.cc -o host.o
-        $CC -T${linkerScript} \
-          host.o forward.o ${t1main} \
-          -o $pname.elf
+            $CXX -nostdlib -I _include -c ${caseName}.cc -o host.o
+            $CC -T${linkerScript} \
+              host.o ''${llcArtifacts[@]} ${t1main} \
+              -o $pname.elf
+          '';
 
-        runHook postBuild
-      '';
+          buildPhase = ''
+            runHook preBuild
 
-      meta.description = "testcase '${caseName}', written in MLIR";
+            runPhase optPhase
+            runPhase translatePhase
+            runPhase llcPhase
+            runPhase linkPhase
+
+            runHook postBuild
+          '';
+        } // overrides);
     };
 in
 findAndBuild ./. build
