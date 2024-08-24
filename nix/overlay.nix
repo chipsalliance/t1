@@ -30,9 +30,7 @@ rec {
   # Using VCS need to set VC_STATIC_HOME and SNPSLMD_LICENSE_FILE to impure env, and add sandbox dir to VC_STATIC_HOME
   vcStaticHome = builtins.getEnv "VC_STATIC_HOME";
   snpslmdLicenseFile = builtins.getEnv "SNPSLMD_LICENSE_FILE";
-  vcs-fhs-env = assert final.lib.assertMsg (final.vcStaticHome != "") "No $VC_STATIC_HOME or '--impure' applied";
-    assert final.lib.assertMsg (final.snpslmdLicenseFile != "") "No $SNPSLMD_LICENSE_FILE or '--impure' applied";
-    final.callPackage ./pkgs/vcs-fhs-env.nix { };
+  vcs-fhs-env = final.callPackage ./pkgs/vcs-fhs-env.nix { };
 
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {
@@ -48,6 +46,7 @@ rec {
 
   t1-script = final.callPackage ../script { };
   inherit (t1-script) t1-helper ci-helper;
+  dev-mode = final.callPackage ./pkgs/dev-mode { };
 
   # stdenv for compiling rvv programs, with ilp32f newlib and clang
   rv32-stdenv = rv32_pkgs.stdenv.override {
