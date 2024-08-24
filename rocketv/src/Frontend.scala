@@ -10,8 +10,6 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.util.circt.ClockGate
 import chisel3.util.experimental.BitSet
-import chisel3.ltl._
-import chisel3.ltl.Sequence._
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
 
 object FrontendParameter {
@@ -312,7 +310,7 @@ class Frontend(val parameter: FrontendParameter)
   fq.io.clock := io.clock
   fq.io.reset := io.reset.asBool || io.nonDiplomatic.cpu.req.valid
 
-  AssertProperty(BoolSequence(!(io.nonDiplomatic.cpu.req.valid || io.nonDiplomatic.cpu.sfence.valid || io.nonDiplomatic.cpu.flush_icache || io.nonDiplomatic.cpu.bht_update.valid || io.nonDiplomatic.cpu.btb_update.valid) || io.nonDiplomatic.cpu.might_request))
+  assert(!(io.nonDiplomatic.cpu.req.valid || io.nonDiplomatic.cpu.sfence.valid || io.nonDiplomatic.cpu.flush_icache || io.nonDiplomatic.cpu.bht_update.valid || io.nonDiplomatic.cpu.btb_update.valid) || io.nonDiplomatic.cpu.might_request)
 
   withClock(gated_clock) { // entering gated-clock domain
     val s1_valid = Reg(Bool())
@@ -584,7 +582,7 @@ class Frontend(val parameter: FrontendParameter)
         }
       }
 
-      AssertProperty(BoolSequence(!s2_partial_insn_valid || fq.io.enq.bits.mask(0)))
+      assert(!s2_partial_insn_valid || fq.io.enq.bits.mask(0))
       when(s2_redirect) { s2_partial_insn_valid := false.B }
       when(io.nonDiplomatic.cpu.req.valid) { wrong_path := false.B }
     }
