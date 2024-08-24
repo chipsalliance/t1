@@ -815,8 +815,7 @@ class CSR(val parameter: CSRParameter)
       CSRs.vxrm -> v.states("vxrm"),
       CSRs.vcsr -> v.states("vxrm") ## v.states("vxsat"),
       CSRs.vstart -> v.states("vstart"),
-      CSRs.vtype -> v.states("vlmul") ## v.states("vsew") ## v.states("vta") ## v.states("vma") ## 0.U(23.W) ## v
-        .states("vill"),
+      CSRs.vtype -> v.states("vill") ## 0.U(23.W) ## v.states("vma") ## v.states("vta") ## v.states("vsew") ## v.states("vlmul"),
       CSRs.vl -> v.states("vl"),
       CSRs.vlenb -> v.constants("vlenb")
     )
@@ -1702,6 +1701,9 @@ class CSR(val parameter: CSRParameter)
         vsetvl -> io.wbRegRS2.get(7, 0)
       )
     )
+    // todo: xLen -> vector.elen
+    val vlmulIllList = Seq(0.U, 1.U, 2.U, 3.U)++ Option.when(xLen>=16)(7.U) ++ Option.when(xLen>=32)(6.U) ++ Option.when(xLen>=64)(5.U)
+    val vlmulIll: Bool = vlmulIllList.map(_ === newVType(2, 0)).reduce(_ || _)
     // vlmax = vlen * lmul / sew
     val vlmax: UInt = (true.B << (log2Ceil(vLen) - 6) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
     // set vl
@@ -1713,13 +1715,23 @@ class CSR(val parameter: CSRParameter)
         vsetivli -> io.inst(0)(19, 15)
       )
     )
-    setVlReadData := Mux(io.retire(0) && io.vectorCsr.getOrElse(false.B), setVL, 0.U)
+    setVlReadData := Mux(io.retire(0) && io.vectorCsr.getOrElse(false.B) && vlmulIll, setVL, 0.U)
     when(io.retire(0) && io.vectorCsr.get) {
-      vector.get.states("vl") := setVL
-      vector.get.states("vlmul") := newVType(2, 0)
-      vector.get.states("vsew") := newVType(5, 3)
-      vector.get.states("vta") := newVType(6)
-      vector.get.states("vma") := newVType(7)
+      when(vlmulIll) {
+        vector.get.states("vl") := setVL
+        vector.get.states("vlmul") := newVType(2, 0)
+        vector.get.states("vsew") := newVType(5, 3)
+        vector.get.states("vta") := newVType(6)
+        vector.get.states("vma") := newVType(7)
+        vector.get.states("vill") := false.B
+      } otherwise {
+        vector.get.states("vl") := 0.U
+        vector.get.states("vlmul") := 0.U
+        vector.get.states("vsew") := 0.U
+        vector.get.states("vta") := 0.U
+        vector.get.states("vma") := 0.U
+        vector.get.states("vill") := true.B
+      }
     }
   } else {
     setVlReadData := 0.U
