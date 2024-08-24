@@ -10,8 +10,6 @@ import chisel3.experimental.{ExtModule, SerializableModuleGenerator}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawClockedVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
 import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
-import chisel3.ltl._
-import chisel3.ltl.Sequence._
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.ipemu.dpi._
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
@@ -273,7 +271,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
       }
       when(scoreboardEnq(tag)) {
         scoreboard.valid := true.B
-        AssertProperty(BoolSequence(!scoreboard.valid))
+        assert(!scoreboard.valid)
         scoreboard.bits := 0.U
       }
   }

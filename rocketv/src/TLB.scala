@@ -8,8 +8,6 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.{Cat, Decoupled, Enum, Fill, Mux1H, OHToUInt, PopCount, PriorityEncoder, UIntToOH, Valid, log2Ceil}
-import chisel3.ltl._
-import chisel3.ltl.Sequence._
 
 object TLBParameter {
   implicit def rwP: upickle.default.ReadWriter[TLBParameter] = upickle.default.macroRW[TLBParameter]
@@ -621,7 +619,7 @@ class TLB(val parameter: TLBParameter)
     when(state === s_request) {
       // SFENCE.VMA will kill TLB entries based on rs1 and rs2. It will take 1 cycle.
       when(sfence) { state := s_ready }
-      // here should be io.ptw.req.fire, but AssertProperty(BoolSequence(io.ptw.req.ready === true.B))
+      // here should be io.ptw.req.fire, but assert(io.ptw.req.ready === true.B)
       // fire -> s_wait
       when(io.ptw.req.ready) { state := Mux(sfence, s_wait_invalidate, s_wait) }
       // If CPU kills request(frontend.s2_redirect)
@@ -638,7 +636,7 @@ class TLB(val parameter: TLBParameter)
 
     // SFENCE processing logic.
     when(sfence) {
-      AssertProperty(BoolSequence(!io.sfence.bits.rs1 || (io.sfence.bits.addr >> pgIdxBits) === vpn))
+      assert(!io.sfence.bits.rs1 || (io.sfence.bits.addr >> pgIdxBits) === vpn)
       val hv = usingHypervisor.B && io.sfence.bits.hv
       val hg = usingHypervisor.B && io.sfence.bits.hg
       sectored_entries.flatten.foreach{ e =>

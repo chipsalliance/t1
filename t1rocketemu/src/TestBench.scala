@@ -11,8 +11,6 @@ import chisel3.util.{HasExtModuleInline, Mux1H, PopCount, Queue, UIntToOH, Valid
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
-import chisel3.ltl._
-import chisel3.ltl.Sequence._
 
 class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTileParameter])
     extends RawModule
@@ -293,7 +291,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
       }
       when(scoreboardEnq(tag)) {
         scoreboard.valid := true.B
-        AssertProperty(BoolSequence(!scoreboard.valid))
+        assert(!scoreboard.valid)
         scoreboard.bits := 0.U
       }
   }
