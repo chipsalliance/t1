@@ -177,13 +177,13 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
 
   // output the probes
   // rocket reg write
-  when(rocketProbe.rfWen && !rocketProbe.isVector && rocketProbe.rfWaddr =/= 0.U)(
+  when(rocketProbe.rfWen && !rocketProbe.isVector && rocketProbe.rfWaddr =/= 0.U && !(rocketProbe.waitWen && rocketProbe.waitWaddr =/= 0.U))(
     printf(
       cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
     )
   )
 
-  when(rocketProbe.waitWen && !rocketProbe.isVector && rocketProbe.waitWaddr =/= 0.U)( // should this judge vector?
+  when(rocketProbe.waitWen && !rocketProbe.isVector && rocketProbe.waitWaddr =/= 0.U)(
     printf(
       cf"""{"event":"RegWriteWait","idx":${rocketProbe.waitWaddr},"cycle":${simulationTime}}\n"""
     )

@@ -205,6 +205,8 @@ impl JsonEventRunner for SpikeRunner {
         "rtl data({data:#x}) should be equal to board data({board_data:#x})"
       );
 
+      self.rf_board[idx as usize] = None;
+
       return Ok(());
     }
 
