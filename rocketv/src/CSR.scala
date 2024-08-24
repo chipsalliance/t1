@@ -1320,7 +1320,10 @@ class CSR(val parameter: CSRParameter)
   }
 
   val setVlReadData: UInt = Wire(UInt(xLen.W))
-  io.rw.rdata := Mux1H(for ((k, v) <- read_mapping) yield decoded_addr(k) -> v).asUInt | setVlReadData
+  val cseReadData: UInt = Mux1H(for ((k, v) <- read_mapping) yield decoded_addr(k) -> v).asUInt
+  io.rw.rdata := io.vectorCsr.map(s =>
+    Mux(s, setVlReadData, cseReadData)
+  ).getOrElse(cseReadData)
 
   // cover access to register
   val coverable_counters = read_mapping.filterNot {
@@ -1731,6 +1734,12 @@ class CSR(val parameter: CSRParameter)
         vector.get.states("vta") := 0.U
         vector.get.states("vma") := 0.U
         vector.get.states("vill") := true.B
+      }
+    }
+    // v csr write
+    when(csr_wen) {
+      when(decoded_addr(CSRs.vxrm)) {
+        vector.get.states("vxrm") := wdata
       }
     }
   } else {
