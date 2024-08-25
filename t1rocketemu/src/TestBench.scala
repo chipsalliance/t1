@@ -191,7 +191,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
 
   // [[option]] rocket fpu reg write 
   generator.parameter.fpuParameter.zip(t1RocketProbe.fpuProbe).zip(rocketProbe.fpuScoreboard).map {
-    case(fpuParameter, fpu, fpuScoreboard) => {
+    case((fpuParameter, fpu), fpuScoreboard) => {
       val fpToIEEE = Module(new FPToIEEE(FPToIEEEParameter(
         fpuParameter.useAsyncReset,
         fpuParameter.xLen,
