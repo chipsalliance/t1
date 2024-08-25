@@ -18,8 +18,8 @@ let
     src = fetchFromGitHub {
       owner = "buddy-compiler";
       repo = "buddy-mlir";
-      rev = "d7d90a488ac0d6fc1e700e932f842c7b2bcad816";
-      hash = "sha256-MhykCa6Z7Z8PpAlNh+vMuWYEOZZDyWhtMzMnFlNbGIk=";
+      rev = "802cefe91199c0935122546d463e400bee8635a6";
+      hash = "sha256-d8e/VM5LrsEwsC7NyNy/kdBp0fpY/CWeItrk4adOK0A=";
     };
 
     nativeBuildInputs = [ cmake ninja bintools ];
