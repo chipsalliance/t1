@@ -354,6 +354,7 @@ case class DecoderParameter(
     override def genTable(op: RocketDecodePattern): BitPat = op.instruction.name match {
       // format: off
       case i if Seq("fmin.d", "fsgnj.d", "fnmsub.d", "fadd.d", "fmsub.d", "fld", "fmul.d", "fmax.d", "fcvt.d.wu", "fnmadd.d", "fcvt.d.s", "fcvt.s.d", "fmadd.d", "fsgnjx.d", "fsgnjn.d", "fsub.d", "fsqrt.d", "fcvt.d.w", "fdiv.d", "fcvt.d.lu", "fmv.d.x", "fcvt.d.l", "fcvt.d.h", "fcvt.h.d", "fnmsub.s", "fsgnjx.s", "fmsub.s", "fsgnjn.s", "fdiv.s", "fmin.s", "fsqrt.s", "fmax.s", "fcvt.s.wu", "fmv.w.x", "fmadd.s", "fsgnj.s", "fadd.s", "fnmadd.s", "fcvt.s.w", "flw", "fmul.s", "fsub.s", "fcvt.s.lu", "fcvt.s.l", "fsgnjx.h", "fcvt.h.s", "fdiv.h", "fsgnj.h", "fmul.h", "fsub.h", "flh", "fadd.h", "fmax.h", "fsgnjn.h", "fcvt.s.h", "fcvt.h.wu", "fcvt.h.w", "fmsub.h", "fmin.h", "fsqrt.h", "fnmadd.h", "fmadd.h", "fnmsub.h", "fmv.h.x", "fcvt.h.lu", "fcvt.h.l").contains(i) => y
+      case i if Seq("vfmv.f.s").contains(i) => y
       case _ => n
       // format: on
     }
