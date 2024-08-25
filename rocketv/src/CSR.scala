@@ -658,7 +658,8 @@ class CSR(val parameter: CSRParameter)
   val reg_wfi = withClock(io.ungatedClock) { RegInit(false.B) }
 
   val reg_fflags = Reg(UInt(5.W))
-  val reg_frm = Reg(UInt(3.W))
+  // todo: need init?
+  val reg_frm = RegInit(0.U(3.W))
 
   val reg_mcountinhibit = RegInit(0.U((CSR.firstHPM + nPerfCounters).W))
   io.inhibitCycle := reg_mcountinhibit(0)
@@ -1740,6 +1741,10 @@ class CSR(val parameter: CSRParameter)
     when(csr_wen) {
       when(decoded_addr(CSRs.vxrm)) {
         vector.get.states("vxrm") := wdata
+      }
+      when(decoded_addr(CSRs.vcsr)) {
+        vector.get.states("vxrm") := wdata(2, 1)
+        vector.get.states("vxsat") := wdata(0)
       }
     }
   } else {
