@@ -86,9 +86,12 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   // execution result from execute unit
   val executionResult = RegInit(0.U(parameter.datapathWidth.W))
   val crossWriteLSB: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
-  val responseFinish: Bool = RegInit(true.B)
+  val outStandingRequestSize: Int = 4 max parameter.vfuInstantiateParameter.maxLatency + 3
+  val outStanding: UInt = RegInit(0.U(log2Ceil(outStandingRequestSize).W))
+  val outStandingUpdate: UInt = Mux(vfuRequest.fire, 1.U(outStanding.getWidth.W), (-1.S(outStanding.getWidth.W)).asUInt)
+  val responseFinish: Bool = outStanding === 0.U
   when(vfuRequest.fire ^ dataResponse.fire) {
-    responseFinish := dataResponse.fire
+    outStanding := outStanding + outStandingUpdate
   }
 
   /** mask format result for current `mask group` */
