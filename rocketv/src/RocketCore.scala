@@ -1473,7 +1473,8 @@ class Rocket(val parameter: RocketParameter)
         probeWire.waitWaddr := wbWaddr
         // vector commit || vector write rd
         probeWire.isVector := io.t1.map { t1 =>
-          wbRegDecodeOutput(parameter.decoderParameter.vector) && !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
+          wbRegValid && wbRegDecodeOutput(parameter.decoderParameter.vector) &&
+            !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
         }.getOrElse(false.B) || t1RetireQueue.map(q => q.io.deq.fire).getOrElse(false.B)
         probeWire.idle := vectorEmpty
 
