@@ -55,6 +55,10 @@ impl Difftest {
         self.runner.cycle = *cycle;
         self.runner.peek_freg_write(&RegWriteEvent { idx: *idx, data: *data, cycle: *cycle })
       }
+      JsonEvents::FregWriteWait { idx, cycle } => {
+        self.runner.cycle = *cycle;
+        self.runner.peek_freg_write_wait(&RegWriteWaitEvent { idx: *idx, cycle: *cycle })
+      }
       JsonEvents::Issue { idx, cycle } => {
         self.runner.cycle = *cycle;
         self.runner.peek_issue(&IssueEvent { idx: *idx, cycle: *cycle })

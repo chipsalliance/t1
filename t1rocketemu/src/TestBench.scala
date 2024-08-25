@@ -190,8 +190,8 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   )
 
   // [[option]] rocket fpu reg write 
-  generator.parameter.fpuParameter.zip(t1RocketProbe.fpuProbe).map {
-    case(fpuParameter, fpu) => {
+  generator.parameter.fpuParameter.zip(t1RocketProbe.fpuProbe).zip(rocketProbe.fpuScoreboard).map {
+    case(fpuParameter, fpu, fpuScoreboard) => {
       val fpToIEEE = Module(new FPToIEEE(FPToIEEEParameter(
         fpuParameter.useAsyncReset,
         fpuParameter.xLen,
@@ -211,6 +211,17 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
       when(rfWen) {
         printf(
           cf"""{"event":"FregWrite","idx":$rfWaddr,"data":"$rfWdata%x","cycle":$simulationTime}\n"""
+        )
+      }
+
+      when(fpuScoreboard.fpuSetScoreBoard && !rfWen) {
+        printf(
+          cf"""{"event":"FregWriteWait","idx":${fpuScoreboard.scoreBoardSetAddress},"cycle":${simulationTime}}\n"""
+        )
+      }
+      when(fpuScoreboard.memSetScoreBoard && !rfWen) {
+        printf(
+          cf"""{"event":"FregWriteWait","idx":${fpuScoreboard.scoreBoardSetAddress},"cycle":${simulationTime}}\n"""
         )
       }
     }

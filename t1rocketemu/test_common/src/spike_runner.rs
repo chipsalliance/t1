@@ -40,7 +40,10 @@ pub struct SpikeRunner {
 
   pub do_log_vrf: bool,
 
+  // register file scoreboard
   pub rf_board: Vec<Option<u32>>,
+  // float reg file scoreboard
+  pub frf_board: Vec<Option<u32>>,
 }
 
 impl SpikeRunner {
@@ -68,6 +71,7 @@ impl SpikeRunner {
       cycle: 0,
       do_log_vrf,
       rf_board: vec![None; 32],
+      frf_board: vec![None; 32],
     }
   }
 

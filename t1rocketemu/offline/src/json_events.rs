@@ -71,7 +71,10 @@ pub(crate) enum JsonEvents {
     data: u32,
     cycle: u64,
   },
-
+  FregWriteWait {
+    idx: u8,
+    cycle: u64,
+  },
   Issue {
     idx: u8,
     cycle: u64,
@@ -172,6 +175,8 @@ pub(crate) trait JsonEventRunner {
 
   fn peek_freg_write(&mut self, reg_write: &RegWriteEvent) -> anyhow::Result<()>;
 
+  fn peek_freg_write_wait(&mut self, reg_write: &RegWriteWaitEvent) -> anyhow::Result<()>;
+
   fn peek_issue(&mut self, issue: &IssueEvent) -> anyhow::Result<()>;
 
   fn update_lsu_idx(&mut self, lsu_enq: &LsuEnqEvent) -> anyhow::Result<()>;
@@ -264,6 +269,21 @@ impl JsonEventRunner for SpikeRunner {
 
     let se = self.find_freg_se();
 
+    if let Some(board_data) = self.frf_board[idx as usize] {
+      info!(
+        "[{cycle}] FregWrite: Hit board! idx={idx}, rtl data={data:#08x}, board data={board_data:#08x}",
+      );
+
+      assert!(
+        data == board_data,
+        "rtl data({data:#x}) should be equal to board data({board_data:#x})"
+      );
+
+      self.frf_board[idx as usize] = None;
+
+      return Ok(());
+    }
+
     info!(
       "[{cycle}] FregWrite: rtl idx={idx}, data={data:#08x}; se idx={}, data={:#08x} ({})",
       se.rd_idx,
@@ -281,6 +301,30 @@ impl JsonEventRunner for SpikeRunner {
       "rtl data({data:#x}) should be equal to spike data({:#x})",
       se.rd_bits
     );
+
+    Ok(())
+  }
+
+  fn peek_freg_write_wait(&mut self, reg_write: &RegWriteWaitEvent) -> anyhow::Result<()> {
+    let cycle = reg_write.cycle;
+    let idx = reg_write.idx;
+
+    let se = self.find_freg_se();
+
+    info!(
+      "[{cycle}] RegWriteWait: rtl idx={idx}; se idx={}, data={:#08x} ({})",
+      se.rd_idx,
+      se.rd_bits,
+      se.describe_insn()
+    );
+
+    assert!(
+      idx as u32 == se.rd_idx,
+      "rtl idx({idx:#x}) should be equal to spike idx({:#x})",
+      se.rd_idx
+    );
+
+    self.frf_board[idx as usize] = Some(se.rd_bits);
 
     Ok(())
   }
