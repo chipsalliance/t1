@@ -1471,10 +1471,10 @@ class Rocket(val parameter: RocketParameter)
 
         probeWire.waitWen := wbSetSboard && wbWen
         probeWire.waitWaddr := wbWaddr
-        // FIXME: vectorCSR
+        // vector commit || vector write rd
         probeWire.isVector := io.t1.map { t1 =>
           wbRegDecodeOutput(parameter.decoderParameter.vector) && !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
-        }.getOrElse(false.B)
+        }.getOrElse(false.B) || t1RetireQueue.map(q => q.io.deq.fire).getOrElse(false.B)
         probeWire.idle := vectorEmpty
 
         probeWire.fpuScoreboard.foreach { case fpProbe =>
