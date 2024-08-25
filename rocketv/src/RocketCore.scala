@@ -1279,7 +1279,7 @@ class Rocket(val parameter: RocketParameter)
         csr.io.csrStall || csr.io.singleStep && (exRegValid || memRegValid || wbRegValid) ||
         idCsrEn && csr.io.decode(0).fpCsr && !io.fpu.map(_.fcsr_rdy).getOrElse(false.B) || io.traceStall ||
         !clockEnable ||
-        Option.when(usingFPU)(idDecodeOutput(parameter.decoderParameter.fp) && idStallFpu).getOrElse(false.B) ||
+        Option.when(usingFPU)((idDecodeOutput(parameter.decoderParameter.fp) || idDecodeOutput(parameter.decoderParameter.vectorReadFRs1)) && idStallFpu).getOrElse(false.B) ||
         idDecodeOutput(parameter.decoderParameter.mem) && dcacheBlocked || // reduce activity during D$ misses
         Option
           .when(usingMulDiv)(
