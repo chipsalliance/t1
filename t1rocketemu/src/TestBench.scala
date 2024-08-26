@@ -35,6 +35,11 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
          |`endif
          |  endfunction;
          |
+         |  export "DPI-C" function quit;
+         |  function quit();
+         |    $$finish;
+         |  endfunction;
+         |
          |  import "DPI-C" context function void t1rocket_cosim_init();
          |  initial begin
          |    t1rocket_cosim_init();

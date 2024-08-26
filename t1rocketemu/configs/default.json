@@ -1,0 +1,19 @@
+{
+  "parameter": {
+    "instructionSets": ["rv32_i", "rv_m", "rv_f", "rv_a", "rv_v", "Zve32f", "zvl1024b", "rv_c"],
+    "cacheBlockBytes": 32,
+    "nPMPs": 8,
+    "cacheable": "b1???????????????????????????????",
+    "sideEffects": "b000?????????????????????????????",
+    "dcacheNSets": 64,
+    "dcacheNWays": 4,
+    "dcacheRowBits": 32,
+    "iCacheNSets": 32,
+    "iCacheNWays": 4,
+    "iCachePrefetch": false,
+    "dLen": 256,
+    "vrfBankSize": 2,
+    "vrfRamType": "org.chipsalliance.t1.rtl.vrf.RamType.p0rp1w"
+  },
+  "generator": "org.chipsalliance.t1.tile.T1RocketTile"
+}

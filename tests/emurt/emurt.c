@@ -54,7 +54,9 @@ int _write(int file, char* ptr, int len) {
 }
 
 void _exit(int code) {
-  __asm__("csrwi 0x7cc, 0");
+  __asm__("li x1, 0x40000000");
+  __asm__("li x2, 0xdeadbeef");
+  __asm__("sw x2, 0(x1)");
   __builtin_unreachable();
 }
 
