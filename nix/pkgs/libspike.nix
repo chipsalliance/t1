@@ -28,7 +28,10 @@ stdenv.mkDerivation {
     "--enable-commitlog"
   ];
 
-  patches = [ ../patches/spike/0001-enforce-lanewise-order-for-unordered-reduce.patch ];
+  patches = [
+    ../patches/spike/0001-enforce-lanewise-order-for-unordered-reduce.patch
+    ../patches/spike/0002-disable-NaN-normalization.patch
+  ];
 
   installPhase = ''
     runHook preInstall
