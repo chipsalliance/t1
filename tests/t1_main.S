@@ -10,6 +10,8 @@ _start:
     call test
 
     // exit
-    csrwi 0x7cc, 0
+    li x1, 0x40000000
+    li x2, 0xdeadbeef
+    sw x2, 0(x1)
 
     .p2align 2

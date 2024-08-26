@@ -33,7 +33,7 @@ rustPlatform.buildRustPackage {
     DESIGN_VLEN = elaborateConfig.parameter.vLen;
     DESIGN_DLEN = elaborateConfig.parameter.dLen;
     SPIKE_ISA_STRING =
-      "rv32gc_" +
+      "rv32gc" +
       (builtins.concatStringsSep "_" elaborateConfig.parameter.extensions)
       + "_Zvl${toString elaborateConfig.parameter.vLen}b";
   };

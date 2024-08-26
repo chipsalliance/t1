@@ -227,10 +227,6 @@ impl State {
   pub fn clear(&self) {
     unsafe { state_clear(self.state) }
   }
-
-  pub fn exit(&self) -> u64 {
-    unsafe { state_exit(self.state) }
-  }
 }
 
 impl Drop for State {
@@ -285,5 +281,4 @@ extern "C" {
   fn state_set_mcycle(state: *mut (), mcycle: usize);
   fn state_clear(state: *mut ());
   fn state_destruct(state: *mut ());
-  fn state_exit(state: *mut ()) -> u64;
 }

@@ -117,6 +117,15 @@ impl SpikeRunner {
     event
   }
 
+  pub fn find_reg_write(&mut self) -> SpikeEvent {
+    loop {
+      let se = self.spike_step();
+      if se.is_scalar() && se.is_rd_written {
+        return se;
+      }
+    }
+  }
+
   pub fn find_v_se_to_issue(&mut self) -> SpikeEvent {
     if !self.commit_queue.is_empty() && self.commit_queue.front().unwrap().is_vfence() {
       // if the front (latest) se is a vfence, return the vfence
