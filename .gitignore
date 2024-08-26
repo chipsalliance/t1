@@ -14,6 +14,7 @@ coverage.dat
 .cache
 build
 /result*
+*/result*
 /dependencies
 __pycache__
 /testrun

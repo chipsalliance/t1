@@ -21,7 +21,9 @@ let
 in
 
 build {
-  featuresRequired = [ "zve32f" ];
+  passthru.featuresRequired = {
+    extensions = [ "zve32f" ];
+  };
 
   caseName = "llama";
 

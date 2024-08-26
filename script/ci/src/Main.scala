@@ -125,10 +125,11 @@ object Main:
   @main
   def generateCiMatrix(
       runnersAmount: Int,
+      caseDir: String = "cases",
       testPlanFile: String = "default.json"
   ) = {
     val testPlans =
-      os.walk(os.pwd / ".github" / "cases").filter(_.last == testPlanFile)
+      os.walk(os.pwd / ".github" / caseDir).filter(_.last == testPlanFile)
     println(toMatrixJson(scheduleTasks(testPlans, runnersAmount)))
   }
 
@@ -162,8 +163,8 @@ object Main:
 
         val testAttr = testType.toLowerCase() match
           case "verilator" =>
-            s".#t1.$config.ip.cases.$caseName.emu-result.with-offline"
-          case "vcs" => s".#t1.$config.ip.cases.$caseName.emu-result.with-vcs"
+            s".#t1.$config.ip.verilator-emu.cases.$caseName.emu-result"
+          case "vcs" => s".#t1.$config.ip.vcs-emu.cases.$caseName.emu-result"
           case _     => Logger.fatal(s"Invalid test type ${testType}")
         val testResultPath =
           try
@@ -175,18 +176,16 @@ object Main:
             )
           catch
             case _ =>
-              Logger.error(s"Emulation for config $config, case $caseName fail")
-              println("-" * 50)
-              println(os.proc("nix", "log", testAttr).call().out)
-              println("-" * 50)
-              Logger.fatal("Got error from emulation, exiting CI")
+              Logger.error(s"Online driver for config $config, case $caseName fail, please check manually on local machine")
+              Logger.error(s"nix build $testAttr" ++ (if testType == "vcs" then " --impure" else ""))
+              Logger.fatal("Online Drive run fail, exiting CI")
 
         Logger.info("Checking RTL event from event log")
         val testSuccess =
           os.read(testResultPath / "offline-check-status").trim() == "0"
         if !testSuccess then
           Logger.error(s"Offline check FAILED for $caseName ($config)")
-          allFailedTest :+ s"t1.$config.ip.cases.$caseName"
+          allFailedTest :+ testAttr
         else
           Logger.info(s"Offline check PASS for $caseName ($config)")
           allFailedTest
@@ -199,37 +198,6 @@ object Main:
         s"${BOLD}${failedTests.length} tests failed${RESET}"
       )
   end runTests
-
-  @main
-  def runOMTests(
-      config: String
-  ): Unit =
-    Seq("omreader", "verilator-emu-omreader", "vcs-emu-omreader").foreach: target =>
-      val command = Seq(
-        "nix",
-        "run",
-        s".#t1.$config.ip.$target",
-        "--",
-        "run",
-        "--dump-methods"
-      )
-      println("\n")
-      Logger.info(
-        s"Running OM test with command $BOLD'${command.mkString(" ")}'$RESET"
-      )
-      val outputs = os.proc(command).call().out.trim()
-      Logger.trace(s"Outputs:\n${outputs}")
-
-      Seq("vlen =", "dlen =").foreach: keyword =>
-        if outputs.contains(keyword) then
-          Logger.info(
-            s"Keyword $BOLD'$keyword'$RESET found - ${GREEN}Pass!$RESET"
-          )
-        else
-          Logger.fatal(
-            s"Keyword $BOLD'$keyword'$RESET not found - ${RED}Fail!$RESET"
-          )
-  end runOMTests
 
   // PostCI do the below four things:
   //   * read default.json at .github/cases/$config/default.json
@@ -248,7 +216,11 @@ object Main:
       @arg(
         name = "emu-type",
         doc = "Specify emulation type"
-      ) emuType: String = "verilator"
+      ) emuType: String = "verilator",
+      @arg(
+        name = "case-dir",
+        doc = "Specify case directory"
+      ) caseDir: String = "cases"
   ) =
     val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
     os.write.over(failedTestsFile, "## Failed Tests\n")
@@ -259,24 +231,20 @@ object Main:
         "## Cycle Update\n"
       )
 
-    os.walk(os.pwd / ".github" / "cases")
+    os.walk(os.pwd / ".github" / caseDir)
       .filter(_.last == "default.json")
       .foreach: file =>
         val config = file.segments.toSeq.reverse.apply(1)
         var cycleRecord = ujson.read(os.read(file))
 
         Logger.info("Fetching CI results")
-        val resultAttr = emuType.toLowerCase() match
-          case "verilator" =>
-            s".#t1.$config.ip.cases._allEmuResult"
-          case "vcs" => s".#t1.$config.ip.cases._allVCSEmuResult"
-          case _     => Logger.fatal(s"Invalid test type ${emuType}")
-        val emuResultPath = os.Path(nixResolvePath(
-          resultAttr,
-          if emuType.toLowerCase() == "vcs" then
-            Seq("--impure")
-          else Seq()
-        ))
+        val emuResultPath = os.Path(
+          nixResolvePath(
+            s".#t1.$config.ip.$emuType-emu.cases._allEmuResult",
+            if emuType.toLowerCase() == "vcs" then Seq("--impure")
+            else Seq()
+          )
+        )
 
         Logger.info("Collecting failed tests")
         os.walk(emuResultPath)
@@ -322,11 +290,17 @@ object Main:
   end postCI
 
   @main
-  def generateTestPlan() =
-    val allCases =
-      os.walk(os.pwd / ".github" / "cases").filter(_.last == "default.json")
+  def generateTestPlan(testType: String = "") =
+    val casePath = testType match
+      case "t1rocket" => os.pwd / ".github" / "t1rocket-cases"
+      case _          => os.pwd / ".github" / "cases"
+
+    val allCases = os.walk(casePath).filter(_.last == "default.json")
     val testPlans = allCases.map: caseFilePath =>
-      caseFilePath.segments.dropWhile(_ != "cases").drop(1).next
+      caseFilePath.segments
+        .dropWhile(!Seq("cases", "t1rocket-cases").contains(_))
+        .drop(1)
+        .next
 
     println(ujson.write(Map("config" -> testPlans)))
   end generateTestPlan
@@ -359,7 +333,8 @@ object Main:
 
     import scala.util.chaining._
     val testPlans: Seq[String] = emulatorConfigs.flatMap: configName =>
-      val allCasesPath = nixResolvePath(s".#t1.$configName.ip.cases.all")
+      val allCasesPath =
+        nixResolvePath(s".#t1.$configName.verilator-emu.ip.cases._all")
       os.walk(os.Path(allCasesPath) / "configs")
         .filter: path =>
           path.ext == "json"

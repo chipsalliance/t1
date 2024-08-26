@@ -1,19 +1,18 @@
 { lib
 , stdenv
-, configName
-, verilator-emu-rtl
+, rtl
 , verilator
-, enable-trace ? false
+, enable-trace ? true
 , zlib
 }:
-stdenv.mkDerivation {
-  name = "${configName}-verilated";
 
-  src = verilator-emu-rtl;
+stdenv.mkDerivation {
+  name = "t1rocket-verilated";
+
+  src = rtl;
 
   nativeBuildInputs = [ verilator ];
 
-  # zlib is required for Rust to link against
   propagatedBuildInputs = [ zlib ];
 
   buildPhase = ''
@@ -25,6 +24,7 @@ stdenv.mkDerivation {
       --cc \
       --timing \
       --threads 8 \
+      --threads-max-mtasks 8000 \
       -O1 \
       -F filelist.f \
       --top TestBench
@@ -35,12 +35,16 @@ stdenv.mkDerivation {
     mkdir -p $out/share
     cp -r obj_dir $out/share/verilated_src
 
+    rm $out/share/verilated_src/*.dat
+
     # We can't use -C here because VTestBench.mk is generated with relative path
     cd obj_dir
     make -j "$NIX_BUILD_CORES" -f VTestBench.mk libVTestBench
 
     runHook postBuild
   '';
+
+  hardeningDisable = [ "fortify" ];
 
   passthru = {
     inherit enable-trace;
@@ -55,9 +59,4 @@ stdenv.mkDerivation {
 
     runHook postInstall
   '';
-
-  # nix fortify hardening add `-O2` gcc flag,
-  # we'd like verilator to controll optimization flags, so disable it.
-  # `-O2` will make gcc build time in verilating extremely long
-  hardeningDisable = [ "fortify" ];
 }
