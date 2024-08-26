@@ -1,4 +1,4 @@
-name: VCS Test
+name: VCS Test (T1 w/ Rocket)
 on:
   pull_request:
     types:
@@ -27,10 +27,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - id: "get-all-configs"
-        run: echo "out=$(nix run .#ci-helper generateTestPlan)" > $GITHUB_OUTPUT
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --testType t1rocket)" > $GITHUB_OUTPUT
 
   build-emulators:
-    name: "Build VCS Emulators"
+    name: "Build VCS Emulators w/ Rocket"
     needs: [gen-test-plan]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
@@ -66,10 +66,10 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix run ".#ci-helper" -- generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix --caseDir t1rocket-cases --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
-    name: "Run VCS"
+    name: "Run VCS w/ Rocket"
     needs: [gen-matrix]
     strategy:
       fail-fast: false
@@ -84,7 +84,7 @@ jobs:
           nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --testType "vcs"
 
   report:
-    name: "Report VCS CI result"
+    name: "Report VCS (w/ Rocket) CI result"
     # Don't run report when:
     #   - user cancel ( we don't need report at this case )
     #   - PR from outside repository ( we don't have permission to push commit into fork repository )
@@ -100,5 +100,8 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: "Print step summary"
         run: |
-          nix run ".#ci-helper" -- postCI --failed-tests-file-path ./failed-tests.md --emu-type vcs
+          nix run ".#ci-helper" -- postCI \
+            --case-dir t1rocket-cases \
+            --failed-tests-file-path ./failed-tests.md \
+            --emu-type vcs
           cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY

@@ -1,48 +1,53 @@
 { lib
-, elaborateConfig
 , rustPlatform
 , libspike
 , libspike_interfaces
-, enable-trace ? false
+, rtlDesignMetadata
 , vcStaticHome
 }:
 
-rustPlatform.buildRustPackage {
-  name = "vcs-dpi-lib";
-  src = with lib.fileset; toSource {
-    root = ../.;
-    fileset = unions [
-      ../spike_rs
-      ../offline
-      ../online_dpi
-      ../online_drive
-      ../online_vcs
-      ../test_common
-      ../Cargo.lock
-      ../Cargo.toml
-    ];
-  };
+let
+  build = { name, buildAndTestSubdir, enable-trace ? false }:
+    rustPlatform.buildRustPackage
+      {
+        inherit name buildAndTestSubdir;
 
-  buildFeatures = lib.optionals enable-trace [ "trace" ];
-  buildAndTestSubdir = "./online_vcs";
+        src = with lib.fileset; toSource {
+          root = ../.;
+          fileset = unions [
+            ../spike_rs
+            ../offline
+            ../online_dpi
+            ../online_drive
+            ../online_vcs
+            ../test_common
+            ../Cargo.lock
+            ../Cargo.toml
+          ];
+        };
 
-  env = {
-    VCS_LIB_DIR = "${vcStaticHome}/vcs-mx/linux64/lib";
-    SPIKE_LIB_DIR = "${libspike}/lib";
-    SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
-    DESIGN_VLEN = elaborateConfig.parameter.vLen;
-    DESIGN_DLEN = elaborateConfig.parameter.dLen;
-    SPIKE_ISA_STRING =
-      "rv32gc" +
-      (builtins.concatStringsSep "_" elaborateConfig.parameter.extensions)
-      + "_Zvl${toString elaborateConfig.parameter.vLen}b";
-  };
+        buildFeatures = lib.optionals enable-trace [ "trace" ];
 
-  cargoLock = {
-    lockFile = ../Cargo.lock;
-  };
+        env = {
+          VCS_LIB_DIR = "${vcStaticHome}/vcs-mx/linux64/lib";
+          SPIKE_LIB_DIR = "${libspike}/lib";
+          SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
+          DESIGN_VLEN = rtlDesignMetadata.vlen;
+          DESIGN_DLEN = rtlDesignMetadata.dlen;
+          SPIKE_ISA_STRING = rtlDesignMetadata.march;
+        };
 
-  passthru = {
-    inherit enable-trace;
-  };
+        cargoLock = {
+          lockFile = ../Cargo.lock;
+        };
+
+        passthru = {
+          inherit enable-trace;
+        };
+      };
+in
+{
+  vcs-dpi-lib = build { name = "vcs-dpi-lib"; buildAndTestSubdir = "./online_vcs"; };
+  vcs-dpi-lib-trace = build { name = "vcs-dpi-lib"; buildAndTestSubdir = "./online_vcs"; enable-trace = true; };
+  vcs-offline-checker = build { name = "vcs-offline-checker"; buildAndTestSubdir = "./offline"; };
 }

@@ -43,6 +43,18 @@
       # when we switch OM, we should always ensure the march input is lower case.
       march = lib.toLower "rv32gc_zve32f_zvl1024b";
       dlen = scope.designConfig.dLen;
+      xlen = if (lib.hasPrefix "rv32" march) then 32 else 64;
+
+      # Find "Zvl{N}b" string in march and parse it to vlen.
+      # Extract earlier so that downstream derivation that relies on this value doesn't have to parse the string multiple times.
+      vlen = lib.pipe (march) [
+        (lib.splitString "_")
+        (lib.filter (x: lib.hasPrefix "zvl" x))
+        (lib.last)
+        (lib.removePrefix "zvl")
+        (lib.removeSuffix "b")
+        (lib.toInt)
+      ];
     };
-  };
-})
+  });
+}

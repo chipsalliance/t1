@@ -1,34 +1,61 @@
 { lib
-, configName
-, rtlDesignMetadata
 , newScope
 , rv32-stdenv
 , runCommand
-, verilator-emu
-, verilator-emu-trace
-, vcs-emu
-, vcs-emu-trace
+
+, configName
+
+, emulator
 }:
 
+assert lib.assertMsg (lib.isDerivation emulator) "emulator in malform, expect an derivation";
+assert lib.assertMsg (emulator ? runEmulation) "emulator ${emulator.name} doesn't contains `runEmulation` hooks";
+assert lib.assertMsg (builtins.typeOf emulator.runEmulation == "lambda") "emulator ${emulator.name} have wrong `runEmulation` hook";
+
 let
-  # Add an extra abstract layer between test case and RTL design, so that we can have clean and organized way
-  # for developer to specify their required features without the need to parse ISA string themselves.
-  currentFeatures = [
-    "vlen:${rtlDesignMetadata.vlen}"
-    "dlen:${rtlDesignMetadata.dlen}"
-    "xlen:${if (lib.hasPrefix "rv32" rtlDesignMetadata.march) then "32" else "64"}"
-  ]
-  ++ (lib.splitString "_" rtlDesignMetadata.march);
+  # TODO
+  # In next PR, I would love to have `featureSet` became same as the `rtlDesignMetadata`,
+  # which is populate from OM data.
+  # Keep it here now, for compatibility so that we can do fast code iteraction.
+  #
+  # Assignee @Avimitin.
+  featuresSet = {
+    extensions = lib.splitString "_" emulator.rtlDesignMetadata.march;
+    inherit (emulator.rtlDesignMetadata) march xlen vlen dlen;
+  };
 
   # isSubSetOf m n: n is subset of m
   isSubsetOf = m: n: lib.all (x: lib.elem x m) n;
 
+  # Return true if attribute in first argument exists in second argument, and the value is also equal.
+  #
+  # Example:
+  #
+  # hasIntersect { } { a = [1 2 3]; b = 4; }                 # true
+  # hasIntersect { a = [1]; } { a = [1 2 3]; b = 4; }        # true
+  # hasIntersect { a = [1]; b = 4; } { a = [1 2 3]; b = 4; } # true
+  # hasIntersect { a = [4]; } { a = [1 2 3]; b = 4; }        # false
+  # hasIntersect { c = 4; } { a = [1 2 3]; b = 4; }          # false
+  #
+  # hasIntersect :: AttrSet -> AttrSet -> Bool
+  hasIntersect = ma: na: with builtins; let
+    keysMa = attrNames ma;
+    keysNa = attrNames na;
+    intersectKeys = lib.filter (m: lib.elem m keysNa) keysMa;
+    intersectValEquality = map
+      (key:
+        if typeOf (ma.${key}) == "list" then
+          isSubsetOf na.${key} ma.${key}
+        else ma.${key} == na.${key})
+      intersectKeys;
+  in
+  (length keysMa == 0) ||
+  ((length intersectKeys > 0) && all (isEqual: isEqual) intersectValEquality);
+
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
 
-    inherit verilator-emu verilator-emu-trace vcs-emu vcs-emu-trace rtlDesignMetadata currentFeatures;
-
-    makeEmuResult = casesSelf.callPackage ./make-emu-result.nix { };
+    inherit emulator featuresSet;
 
     makeBuilder = casesSelf.callPackage ./builder.nix { };
 
@@ -43,12 +70,12 @@ let
       in
       if lib.pathExists extraFeatures then
         builtins.fromJSON (lib.fileContents extraFeatures)
-      else [ ];
+      else { };
 
     filterByFeatures = caseName: caseDrv:
       assert lib.assertMsg (caseDrv ? featuresRequired) "${caseName} doesn't have features specified";
       # Test the case required extensions is supported by rtl design
-      isSubsetOf currentFeatures caseDrv.featuresRequired;
+      hasIntersect caseDrv.featuresRequired featuresSet;
 
     findAndBuild = dir: build:
       lib.recurseIntoAttrs (lib.pipe (builtins.readDir dir) [
@@ -93,7 +120,7 @@ let
   _allEmuResult =
     let
       testPlan = builtins.fromJSON
-        (lib.readFile ../.github/cases/${configName}/default.json);
+        (lib.readFile ../.github/${if configName == "t1rocket" then "t1rocket-cases" else "cases"}/${configName}/default.json);
       # flattern the attr set to a list of test case derivations
       # AttrSet (AttrSet Derivation) -> List Derivation
       allCases = lib.filter
@@ -105,37 +132,18 @@ let
         (caseDrv: ''
           _caseOutDir=$out/${caseDrv.pname}
           mkdir -p "$_caseOutDir"
-          cp ${caseDrv.emu-result.with-offline}/perf.txt "$_caseOutDir"/
-          cp ${caseDrv.emu-result.with-offline}/offline-check-status "$_caseOutDir"/
-          cp ${caseDrv.emu-result.with-offline}/offline-check-journal "$_caseOutDir"/
+
+          if [ -r ${caseDrv.emu-result}/perf.txt ]; then
+            cp -v ${caseDrv.emu-result}/perf.txt "$_caseOutDir"/
+          fi
+
+          cp -v ${caseDrv.emu-result}/offline-check-* "$_caseOutDir"/
         '')
         allCases);
     in
-    runCommand
-      "catch-${configName}-all-emu-result-for-ci"
-      { }
-      script;
+    runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
 
-  _allVCSEmuResult =
-    let
-      testPlan = builtins.fromJSON (lib.readFile ../.github/cases/${configName}/default.json);
-      # flattern the attr set to a list of test case derivations
-      # AttrSet (AttrSet Derivation) -> List Derivation
-      allCases = lib.filter (val: lib.isDerivation val && lib.hasAttr val.pname testPlan)
-        (lib.concatLists (map lib.attrValues (lib.attrValues scopeStripped)));
-      script = ''
-        mkdir -p $out
-      '' + (lib.concatMapStringsSep "\n"
-        (caseDrv: ''
-          _caseOutDir=$out/${caseDrv.pname}
-          mkdir -p "$_caseOutDir"
-          cp ${caseDrv.emu-result.with-vcs}/offline-check-* "$_caseOutDir"/
-        '')
-        allCases);
-    in
-    runCommand "catch-${configName}-all-vcs-emu-result-for-ci" { } script;
-
-  all =
+  _all =
     let
       allCases = lib.filter
         lib.isDerivation
@@ -155,4 +163,4 @@ let
       { }
       script;
 in
-lib.recurseIntoAttrs (scopeStripped // { inherit all _allEmuResult _allVCSEmuResult; })
+lib.recurseIntoAttrs (scopeStripped // { inherit _all _allEmuResult; })

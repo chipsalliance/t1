@@ -1,23 +1,22 @@
 { lib
-, callPackage
 , bash
 , stdenv
-, configName
-, vcs-emu-rtl
+, rtl
+, rtlDesignMetadata
+, callPackage
 , vcs-dpi-lib
 , vcs-fhs-env
-, rtlDesignMetadata
 }:
 
 let
   self = stdenv.mkDerivation {
-    name = "${configName}-vcs";
+    name = "t1rocket-vcs";
 
     # require license
     __noChroot = true;
     dontPatchELF = true;
 
-    src = vcs-emu-rtl;
+    src = rtl;
 
     buildPhase = ''
       runHook preBuild
@@ -44,17 +43,12 @@ let
       inherit (vcs-dpi-lib) enable-trace;
       inherit vcs-fhs-env rtlDesignMetadata;
 
-      # Here is an curry function:
-      #
-      #   * run-emulator.nix return type
-      #   run-emulator :: { callPackage Args... } -> emulatorDerivation -> testCase -> runCommandDerivation
-      #
-      #   * runEmulation attribute type:
-      #   runEmulation :: testCase -> runCommandDerivation
-      #
-      runEmulation = (callPackage ./run-vcs-emulation.nix { }) self;
+      cases = callPackage ../../tests {
+        configName = "t1rocket";
+        emulator = self;
+      };
 
-      cases = callPackage ../../tests { emulator = self; };
+      runEmulation = (callPackage ./run-vcs-emulation.nix { }) self;
     };
 
     shellHook = ''

@@ -14,7 +14,7 @@ let
 
       src = sourcePath;
 
-      featuresRequired = getTestRequiredFeatures sourcePath;
+      passthru.featuresRequired = getTestRequiredFeatures sourcePath;
       isFp = lib.pathExists (lib.path.append sourcePath "isFp");
 
       buildPhase = ''
