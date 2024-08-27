@@ -67,10 +67,7 @@ let
             fi
 
             echo "Building final binary"
-            mkdir -p _include
-            cp ${./memref.hpp} _include/memref.hpp
-
-            $CXX -nostdlib -I _include -c ${caseName}.cc -o host.o
+            $CXX -nostdlib -I${./include} -c ${caseName}.cc -o host.o
             $CC -T${linkerScript} \
               host.o ''${llcArtifacts[@]} ${t1main} \
               -o $pname.elf

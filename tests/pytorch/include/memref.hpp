@@ -56,4 +56,4 @@ template <typename T, std::size_t N> inline void MemRef<T, N>::setStrides() {
   }
 }
 
-#endif
+#endif // MEMREF_H
