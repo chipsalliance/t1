@@ -344,6 +344,7 @@ class T1Interface(parameter: T1Parameter) extends Record {
 class T1(val parameter: T1Parameter)
   extends FixedIORawModule(new T1Interface(parameter))
     with SerializableModule[T1Parameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   def implicitClock: Clock = io.clock

@@ -233,6 +233,7 @@ class FrontendInterface(parameter: FrontendParameter) extends Bundle {
 class Frontend(val parameter: FrontendParameter)
     extends FixedIORawModule(new FrontendInterface(parameter))
     with SerializableModule[FrontendParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

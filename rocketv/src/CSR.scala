@@ -288,6 +288,7 @@ class CSRInterface(parameter: CSRParameter) extends Bundle {
 class CSR(val parameter: CSRParameter)
     extends FixedIORawModule(new CSRInterface(parameter))
     with SerializableModule[CSRParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

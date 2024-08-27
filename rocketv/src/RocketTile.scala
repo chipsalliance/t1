@@ -401,7 +401,8 @@ class RocketTileInterface(parameter: RocketTileParameter) extends Bundle {
 
 class RocketTile(val parameter: RocketTileParameter)
     extends FixedIORawModule(new RocketTileInterface(parameter))
-    with SerializableModule[RocketTileParameter] {
+    with SerializableModule[RocketTileParameter]
+    with Public {
   val rocket:     Instance[Rocket] = Instantiate(new Rocket(parameter.rocketParameter))
   val frontend:   Instance[Frontend] = Instantiate(new Frontend(parameter.frontendParameter))
   val hellaCache: Instance[HellaCache] = Instantiate(new HellaCache(parameter.hellaCacheParameter))

@@ -32,7 +32,8 @@ class BreakpointUnitInterface(parameter: BreakpointUnitParameter) extends Bundle
 @instantiable
 class BreakpointUnit(val parameter: BreakpointUnitParameter)
   extends FixedIORawModule(new BreakpointUnitInterface(parameter))
-    with SerializableModule[BreakpointUnitParameter] {
+    with SerializableModule[BreakpointUnitParameter]
+    with Public {
   io.xcpt_if := false.B
   io.xcpt_ld := false.B
   io.xcpt_st := false.B

@@ -56,7 +56,8 @@ class ALUInterface(parameter: ALUParameter) extends Bundle {
 @instantiable
 class ALU(val parameter: ALUParameter)
   extends FixedIORawModule(new ALUInterface(parameter))
-    with SerializableModule[ALUParameter] {
+    with SerializableModule[ALUParameter]
+    with Public {
   // compatibility layer
   val aluFn = parameter
   val xLen = parameter.xLen

@@ -40,7 +40,8 @@ class PMACheckerInterface(parameter: PMACheckerParameter) extends Bundle {
 @instantiable
 class PMAChecker(val parameter: PMACheckerParameter)
     extends FixedIORawModule(new PMACheckerInterface(parameter))
-    with SerializableModule[PMACheckerParameter] {
+    with SerializableModule[PMACheckerParameter]
+    with Public {
   // check exist a slave can consume this address.
   val legal_address = parameter.legal.matches(io.paddr)
   io.resp.cacheable := legal_address && (if(parameter.cacheable.isEmpty) false.B else parameter.cacheable.matches(io.paddr))

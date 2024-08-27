@@ -963,7 +963,8 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
 @instantiable
 class Decoder(val parameter: DecoderParameter)
   extends FixedIORawModule(new DecoderInterface(parameter))
-    with SerializableModule[DecoderParameter] {
+    with SerializableModule[DecoderParameter]
+    with Public {
   io.output := parameter.table.decode(io.instruction)
 }
 

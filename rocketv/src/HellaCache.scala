@@ -317,6 +317,7 @@ class HellaCacheInterface(parameter: HellaCacheParameter) extends Bundle {
 class HellaCache(val parameter: HellaCacheParameter)
     extends FixedIORawModule(new HellaCacheInterface(parameter))
     with SerializableModule[HellaCacheParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

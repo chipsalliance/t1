@@ -42,6 +42,7 @@ class PipelinedMultiplierInterface(parameter: PipelinedMultiplierParameter) exte
 class PipelinedMultiplier(val parameter: PipelinedMultiplierParameter)
     extends FixedIORawModule(new PipelinedMultiplierInterface(parameter))
     with SerializableModule[PipelinedMultiplierParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

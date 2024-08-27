@@ -49,6 +49,7 @@ class MulDivInterface(parameter: MulDivParameter) extends Bundle {
 class MulDiv(val parameter: MulDivParameter)
     extends FixedIORawModule(new MulDivInterface(parameter))
     with SerializableModule[MulDivParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

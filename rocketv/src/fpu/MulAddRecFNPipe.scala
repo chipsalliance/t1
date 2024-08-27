@@ -41,6 +41,7 @@ class MulAddRecFNPipeInterface(parameter: MulAddRecFNPipeParameter) extends Bund
 class MulAddRecFNPipe(val parameter: MulAddRecFNPipeParameter)
     extends FixedIORawModule(new MulAddRecFNPipeInterface(parameter))
     with SerializableModule[MulAddRecFNPipeParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

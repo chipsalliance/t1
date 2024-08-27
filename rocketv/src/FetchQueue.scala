@@ -48,6 +48,7 @@ class FetchQueueInterface(parameter: FetchQueueParameter) extends Bundle {
 class FetchQueue(val parameter: FetchQueueParameter)
     extends FixedIORawModule(new FetchQueueInterface(parameter))
     with SerializableModule[FetchQueueParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

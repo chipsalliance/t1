@@ -122,6 +122,7 @@ class TLBInterface(parameter: TLBParameter) extends Bundle {
 class TLB(val parameter: TLBParameter)
   extends FixedIORawModule(new TLBInterface(parameter))
     with SerializableModule[TLBParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock
