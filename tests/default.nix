@@ -80,7 +80,7 @@ let
     findAndBuild = dir: build:
       lib.recurseIntoAttrs (lib.pipe (builtins.readDir dir) [
         # filter out all non-directory entrires and underscore-prefixed directories
-        (lib.filterAttrs (name: type: type == "directory" && ! lib.hasPrefix "_" name))
+        (lib.filterAttrs (name: type: type == "directory" && ! (lib.hasPrefix "_" name) && name != "include"))
         # prepend path with base directory
         (lib.mapAttrs (subDirName: _: (lib.path.append dir subDirName)))
         # build. If {sourcePath}/default.nix exists, call it. Otherwise call the generic builder
