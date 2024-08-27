@@ -13,77 +13,79 @@ let
   build = { caseName, sourcePath }:
     callPackage (sourcePath + "/build.nix") {
       buildBuddyE2ETest = { optPhase, ... }@overrides: builder
-        ({
-          inherit caseName;
+        (lib.recursiveUpdate
+          {
+            inherit caseName;
 
-          passthru.featuresRequired = getTestRequiredFeatures sourcePath;
+            passthru.featuresRequired = getTestRequiredFeatures sourcePath;
 
-          nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
+            nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
 
-          src = sourcePath;
+            src = sourcePath;
 
-          configurePhase = ''
-            declare -A optArtifacts translateArtifacts llcArtifacts
-          '';
+            configurePhase = ''
+              declare -A optArtifacts translateArtifacts llcArtifacts
+            '';
 
-          translatePhase = ''
-            if [[ -z "$optArtifacts" ]]; then
-              echo "optPhase doesn't produce optArtifacts, abort" >&2
-              exit 1
-            fi
+            translatePhase = ''
+              if [[ -z "$optArtifacts" ]]; then
+                echo "optPhase doesn't produce optArtifacts, abort" >&2
+                exit 1
+              fi
 
-            for mlir in ''${optArtifacts[@]}; do
-              echo "Translating $mlir"
-              buddy-translate --buddy-to-llvmir "$mlir" -o "$mlir.ll"
+              for mlir in ''${optArtifacts[@]}; do
+                echo "Translating $mlir"
+                buddy-translate --buddy-to-llvmir "$mlir" -o "$mlir.ll"
 
-              translateArtifacts+=("$mlir.ll")
-            done
-          '';
+                translateArtifacts+=("$mlir.ll")
+              done
+            '';
 
-          llcPhase = ''
-            if [[ -z "$translateArtifacts" ]]; then
-              echo "translatePhase doesn't produce translateArtifacts, abort" >&2
-              exit 1
-            fi
+            llcPhase = ''
+              if [[ -z "$translateArtifacts" ]]; then
+                echo "translatePhase doesn't produce translateArtifacts, abort" >&2
+                exit 1
+              fi
 
-            for llvmir in ''${translateArtifacts[@]}; do
-              echo "Compiling $llvmir"
-              buddy-llc "$llvmir" \
-                -mtriple=riscv32 \
-                -target-abi=ilp32f \
-                -mattr=+m,+f,+zve32f \
-                -riscv-v-vector-bits-min=128 \
-                --filetype=obj \
-                -o "$llvmir.o"
+              for llvmir in ''${translateArtifacts[@]}; do
+                echo "Compiling $llvmir"
+                buddy-llc "$llvmir" \
+                  -mtriple=riscv32 \
+                  -target-abi=ilp32f \
+                  -mattr=+m,+f,+zve32f \
+                  -riscv-v-vector-bits-min=128 \
+                  --filetype=obj \
+                  -o "$llvmir.o"
 
-              llcArtifacts+=("$llvmir.o")
-            done
-          '';
+                llcArtifacts+=("$llvmir.o")
+              done
+            '';
 
-          linkPhase = ''
-            if [[ -z "$llcArtifacts" ]]; then
-              echo "llcPhase doesn't produce any llcArtifacts" >&2
-              exit 1
-            fi
+            linkPhase = ''
+              if [[ -z "$llcArtifacts" ]]; then
+                echo "llcPhase doesn't produce any llcArtifacts" >&2
+                exit 1
+              fi
 
-            echo "Building final binary"
-            $CXX -nostdlib -I${./include} -c ${caseName}.cc -o host.o
-            $CC -T${linkerScript} \
-              host.o ''${llcArtifacts[@]} ${t1main} \
-              -o $pname.elf
-          '';
+              echo "Building final binary"
+              $CXX -nostdlib -I${./include} -c ${caseName}.cc -o host.o
+              $CC -T${linkerScript} \
+                host.o ''${llcArtifacts[@]} ${t1main} \
+                -o $pname.elf
+            '';
 
-          buildPhase = ''
-            runHook preBuild
+            buildPhase = ''
+              runHook preBuild
 
-            runPhase optPhase
-            runPhase translatePhase
-            runPhase llcPhase
-            runPhase linkPhase
+              runPhase optPhase
+              runPhase translatePhase
+              runPhase llcPhase
+              runPhase linkPhase
 
-            runHook postBuild
-          '';
-        } // overrides);
+              runHook postBuild
+            '';
+          }
+          overrides);
     };
 in
 findAndBuild ./. build
