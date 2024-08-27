@@ -2,6 +2,7 @@
   "pytorch.demo": -1,
   "pytorch.lenet": -1,
   "pytorch.matmul": -1,
+  "pytorch.mobilenet": -1,
   "mlir.rvv_vp_intrinsic_add": 436,
   "mlir.rvv_vp_intrinsic_add_scalable": 584,
   "mlir.hello": 146,
