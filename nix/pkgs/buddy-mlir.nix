@@ -57,6 +57,7 @@ let
       pyenv = python3.withPackages (ps: [
         self
         ps.torch
+        ps.torchvision
       ]);
     };
   };
