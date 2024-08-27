@@ -57,7 +57,13 @@ let
       pyenv = python3.withPackages (ps: [
         self
         ps.torch
+
+        # mobilenet
         ps.torchvision
+
+        # tinyllama
+        ps.transformers
+        ps.accelerate
       ]);
     };
   };
