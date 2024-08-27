@@ -1,3 +1,15 @@
+//===- CRunnerUtils.cpp - Utils for MLIR execution ------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Modified to basic data type for linkage usage only.
+//
+//===----------------------------------------------------------------------===//
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>

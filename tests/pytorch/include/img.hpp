@@ -15,7 +15,9 @@
 //===----------------------------------------------------------------------===//
 //
 // original source from https://github.com/buddy-compiler/buddy-mlir
+// Modified for embedded environment.
 //
+//===----------------------------------------------------------------------===//
 
 #ifndef IMG_H
 #define IMG_H
