@@ -168,7 +168,8 @@ class RVCExpanderInterface(parameter: RVCExpanderParameter) extends Bundle {
 @instantiable
 class RVCExpander(val parameter: RVCExpanderParameter)
     extends FixedIORawModule(new RVCExpanderInterface(parameter))
-    with SerializableModule[RVCExpanderParameter] {
+    with SerializableModule[RVCExpanderParameter]
+    with Public {
   val usingCompressed = parameter.usingCompressed
   val useAddiForMv = parameter.useAddiForMv
   val xLen = parameter.xLen

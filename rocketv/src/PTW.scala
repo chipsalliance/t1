@@ -170,7 +170,8 @@ class PTW(val parameter: PTWParameter)
     extends FixedIORawModule(new PTWInterface(parameter))
     with SerializableModule[PTWParameter]
       with ImplicitClock
-      with ImplicitReset {
+      with ImplicitReset
+      with Public {
   override protected def implicitClock: Clock = io.clock
   override protected def implicitReset: Reset = io.reset
 

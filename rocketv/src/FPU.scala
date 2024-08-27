@@ -53,6 +53,7 @@ class FPUInterface(parameter: FPUParameter) extends Bundle {
 class FPU(val parameter: FPUParameter)
     extends FixedIORawModule(new FPUInterface(parameter))
     with SerializableModule[FPUParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

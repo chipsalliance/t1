@@ -109,6 +109,7 @@ class HellaCacheArbiterInterface(parameter: HellaCacheArbiterParameter) extends 
 class HellaCacheArbiter(val parameter: HellaCacheArbiterParameter)
   extends FixedIORawModule(new HellaCacheArbiterInterface(parameter))
     with SerializableModule[HellaCacheArbiterParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

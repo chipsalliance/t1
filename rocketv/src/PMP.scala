@@ -34,7 +34,8 @@ class PMPCheckerInterface(parameter: PMPCheckerParameter) extends Bundle {
 @instantiable
 class PMPChecker(val parameter: PMPCheckerParameter)
     extends FixedIORawModule(new PMPCheckerInterface(parameter))
-    with SerializableModule[PMPCheckerParameter] {
+    with SerializableModule[PMPCheckerParameter]
+    with Public {
 
   val paddrBits = parameter.paddrBits
   val pmpGranularity = parameter.pmpGranularity

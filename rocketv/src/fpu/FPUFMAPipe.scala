@@ -35,6 +35,7 @@ class FPUFMAPipeInterface(parameter: FPUFMAPipeParameter) extends Bundle {
 class FPUFMAPipe(val parameter: FPUFMAPipeParameter)
     extends FixedIORawModule(new FPUFMAPipeInterface(parameter))
     with SerializableModule[FPUFMAPipeParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

@@ -33,6 +33,7 @@ class IntToFPInterface(parameter: IntToFPParameter) extends Bundle {
 class IntToFP(val parameter: IntToFPParameter)
     extends FixedIORawModule(new IntToFPInterface(parameter))
     with SerializableModule[IntToFPParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

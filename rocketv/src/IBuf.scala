@@ -64,6 +64,7 @@ class IBufInterface(parameter: IBufParameter) extends Bundle {
 class IBuf(val parameter: IBufParameter)
   extends FixedIORawModule(new IBufInterface(parameter))
     with SerializableModule[IBufParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

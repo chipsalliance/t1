@@ -128,6 +128,7 @@ class ICacheInterface(parameter: ICacheParameter) extends Bundle {
 class ICache(val parameter: ICacheParameter)
   extends FixedIORawModule(new ICacheInterface(parameter))
     with SerializableModule[ICacheParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

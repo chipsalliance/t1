@@ -91,6 +91,7 @@ class BTBInterface(parameter: BTBParameter) extends Bundle {
 class BTB(val parameter: BTBParameter)
     extends FixedIORawModule(new BTBInterface(parameter))
     with SerializableModule[BTBParameter]
+    with Public
     with ImplicitClock
     with ImplicitReset {
   override protected def implicitClock: Clock = io.clock

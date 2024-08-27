@@ -37,7 +37,8 @@ class AMOALUInterface(parameter: AMOALUParameter) extends Bundle {
 @instantiable
 class AMOALU(val parameter: AMOALUParameter)
   extends FixedIORawModule(new AMOALUInterface(parameter))
-    with SerializableModule[AMOALUParameter] {
+    with SerializableModule[AMOALUParameter]
+    with Public {
   val M_XA_MAX = parameter.M_XA_MAX
   val M_XA_MAXU = parameter.M_XA_MAXU
   val M_XA_MIN = parameter.M_XA_MIN

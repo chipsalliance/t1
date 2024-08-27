@@ -366,7 +366,8 @@ class Rocket(val parameter: RocketParameter)
   extends FixedIORawModule(new RocketInterface(parameter))
     with SerializableModule[RocketParameter]
     with ImplicitClock
-    with ImplicitReset {
+    with ImplicitReset
+    with Public {
   override protected def implicitClock: Clock = io.clock
   override protected def implicitReset: Reset = io.reset
   val csr: Instance[CSR] = Instantiate(new CSR(parameter.csrParameter))
