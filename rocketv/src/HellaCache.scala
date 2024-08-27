@@ -259,9 +259,9 @@ case class HellaCacheParameter(
     idWidth = log2Ceil(firstMMIO + maxUncachedInFlight),
     dataWidth = rowBits,
     addrWidth = paddrBits,
-    userReqWidth = 1,
+    userReqWidth = 0,
     userDataWidth = 0,
-    userRespWidth = 1,
+    userRespWidth = 0,
     hasAW = true,
     hasW = true,
     hasB = true,
@@ -1005,13 +1005,11 @@ class HellaCache(val parameter: HellaCacheParameter)
       (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
     )
     io.loadStoreAXI.ar.bits.size := Mux(s2_uncached, a_size, parameter.lgCacheBlockBytes.U)
-    io.loadStoreAXI.ar.bits.id := a_source
-    io.loadStoreAXI.ar.bits.user := s2_uncached
+    io.loadStoreAXI.ar.bits.id := Mux(s2_uncached, a_source, 0.U)
 
     io.loadStoreAXI.aw.valid := memAccessValid && !accessWillRead
     io.loadStoreAXI.aw.bits := DontCare
-    io.loadStoreAXI.aw.bits.id := a_source
-    io.loadStoreAXI.aw.bits.user := s2_uncached
+    io.loadStoreAXI.aw.bits.id := Mux(s2_uncached, a_source, 0.U)
     io.loadStoreAXI.aw.bits.burst := 1.U
     io.loadStoreAXI.aw.bits.addr := access_address
     io.loadStoreAXI.aw.bits.len := 0.U
@@ -1019,10 +1017,10 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     val dataQueue: Queue[W] = Module(new Queue(chiselTypeOf(io.loadStoreAXI.w.bits), cacheDataBeats))
     dataQueue.io.enq.valid := memAccessValid && !accessWillRead
+    dataQueue.io.enq.bits := DontCare
     dataQueue.io.enq.bits.data := a_data
     dataQueue.io.enq.bits.strb := a_mask
     dataQueue.io.enq.bits.last := true.B
-    dataQueue.io.enq.bits.user := true.B // always uc
     io.loadStoreAXI.w <> dataQueue.io.deq
 
 //    // Drive APROT Bits
@@ -1097,8 +1095,9 @@ class HellaCache(val parameter: HellaCacheParameter)
       // tl_out.d.bits.corrupt && !io.ptw.customCSRs.suppressCorruptOnGrantData && !grantIsUncached
       false.B
     )
-    val grantIsUncachedData = io.loadStoreAXI.r.bits.user(0)
-    val grantIsCached = !io.loadStoreAXI.r.bits.user(0)
+    val uncachedRespIdxOH = (UIntToOH(io.loadStoreAXI.r.bits.id, maxUncachedInFlight + mmioOffset) >> mmioOffset).asUInt
+    val grantIsUncachedData = uncachedRespIdxOH.orR
+    val grantIsCached = !grantIsUncachedData
     val grantIsRefill = grantIsCached // Writes the data array
     val grantInProgress = RegInit(false.B)
     val blockProbeAfterGrantCount = RegInit(0.U)
@@ -1106,9 +1105,8 @@ class HellaCache(val parameter: HellaCacheParameter)
     // !release_state.isOneOf(s_voluntary_writeback, s_voluntary_write_meta, s_voluntary_aw)
     val canAcceptCachedGrant = !Seq(s_voluntary_writeback, s_voluntary_write_meta, s_voluntary_aw).map(_ === release_state).reduce(_ || _)
     io.loadStoreAXI.r.ready := Mux(grantIsCached, canAcceptCachedGrant, true.B)
-    val uncachedRespIdxOH = (UIntToOH(io.loadStoreAXI.r.bits.id, maxUncachedInFlight + mmioOffset) >> mmioOffset).asUInt
     val uncachedReadAckIndex = Mux(
-      io.loadStoreAXI.r.fire && io.loadStoreAXI.r.bits.user(0),
+      io.loadStoreAXI.r.fire,
       uncachedRespIdxOH,
       0.U
     )
@@ -1144,8 +1142,9 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     io.loadStoreAXI.b.ready := true.B
     val uncachedWriteIdxOH = (UIntToOH(io.loadStoreAXI.b.bits.id, maxUncachedInFlight + mmioOffset) >> mmioOffset).asUInt
+    val writeAckUnCached: Bool = uncachedWriteIdxOH.orR
     val uncachedwriteAckIndex = Mux(
-      io.loadStoreAXI.b.fire && io.loadStoreAXI.b.bits.user(0),
+      io.loadStoreAXI.b.fire,
       uncachedWriteIdxOH,
       0.U
     )
@@ -1157,7 +1156,8 @@ class HellaCache(val parameter: HellaCacheParameter)
           f := false.B
         }
     }
-    when(io.loadStoreAXI.b.fire) {
+    when(io.loadStoreAXI.b.fire && !writeAckUnCached) {
+      assert(release_ack_wait, "An release ack was unexpected by the dcache.")
       release_ack_wait := false.B
     }
 
@@ -1262,7 +1262,6 @@ class HellaCache(val parameter: HellaCacheParameter)
       io.loadStoreAXI.aw.bits.len := (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
       io.loadStoreAXI.aw.bits.size := parameter.lgCacheBlockBytes.U
       io.loadStoreAXI.aw.bits.id := (mmioOffset - 1).U
-      io.loadStoreAXI.aw.bits.user := false.B
     }
 
     when(s2_release_data_valid) {
