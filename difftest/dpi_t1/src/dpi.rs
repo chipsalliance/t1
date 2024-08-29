@@ -1,13 +1,14 @@
 #![allow(non_snake_case)]
 #![allow(unused_variables)]
 
-use clap::Parser;
+use dpi_common::dump::DumpControl;
+use dpi_common::plusarg::PlusArgMatcher;
+use dpi_common::DpiTarget;
 use std::ffi::{c_char, c_longlong};
-use std::sync::Mutex;
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::drive::Driver;
-use crate::OfflineArgs;
+use crate::OnlineArgs;
 use svdpi::SvScope;
 
 pub type SvBitVecVal = u32;
@@ -16,7 +17,7 @@ pub type SvBitVecVal = u32;
 // preparing data structures
 // --------------------------
 
-static DPI_TARGET: Mutex<Option<Box<Driver>>> = Mutex::new(None);
+static TARGET: DpiTarget<Driver> = DpiTarget::new();
 
 pub(crate) struct AxiReadPayload {
   pub(crate) data: Vec<u8>,
@@ -125,10 +126,10 @@ unsafe extern "C" fn axi_write_highBandwidthPort(
   awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
-  let mut driver = DPI_TARGET.lock().unwrap();
-  let driver = driver.as_mut().unwrap();
-  let (strobe, data) = load_from_payload(payload, driver.dlen);
-  driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, &strobe, data);
+  TARGET.with(|driver| {
+    let (strobe, data) = load_from_payload(payload, driver.dlen);
+    driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, &strobe, data);
+  });
 }
 
 /// evaluate at AR fire at corresponding channel_id.
@@ -153,10 +154,10 @@ unsafe extern "C" fn axi_read_highBandwidthPort(
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
-  let mut driver = DPI_TARGET.lock().unwrap();
-  let driver = driver.as_mut().unwrap();
-  let response = driver.axi_read_high_bandwidth(araddr as u32, arsize as u64);
-  fill_axi_read_payload(payload, driver.dlen, &response);
+  TARGET.with(|driver| {
+    let response = driver.axi_read_high_bandwidth(araddr as u32, arsize as u64);
+    fill_axi_read_payload(payload, driver.dlen, &response);
+  });
 }
 
 /// evaluate at AR fire at corresponding channel_id.
@@ -181,10 +182,10 @@ unsafe extern "C" fn axi_read_indexedAccessPort(
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
-  let mut driver = DPI_TARGET.lock().unwrap();
-  let driver = driver.as_mut().unwrap();
-  let response = driver.axi_read_indexed(araddr as u32, arsize as u64);
-  fill_axi_read_payload(payload, driver.dlen, &response);
+  TARGET.with(|driver| {
+    let response = driver.axi_read_indexed(araddr as u32, arsize as u64);
+    fill_axi_read_payload(payload, driver.dlen, &response);
+  });
 }
 
 /// evaluate after AW and W is finished at corresponding channel_id.
@@ -209,26 +210,23 @@ unsafe extern "C" fn axi_write_indexedAccessPort(
   awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
-  let mut driver = DPI_TARGET.lock().unwrap();
-  let driver = driver.as_mut().unwrap();
   let (strobe, data) = load_from_payload(payload, 32);
-  driver.axi_write_indexed_access_port(awaddr as u32, awsize as u64, &strobe, data);
+  TARGET.with(|driver| {
+    driver.axi_write_indexed_access_port(awaddr as u32, awsize as u64, &strobe, data);
+  });
 }
 
 #[no_mangle]
 unsafe extern "C" fn t1_cosim_init() {
-  let args = OfflineArgs::parse();
-  args.common_args.setup_logger().unwrap();
+  let plusargs = PlusArgMatcher::from_args();
+  let args = OnlineArgs::from_plusargs(&plusargs);
+
+  dpi_common::setup_logger();
 
   let scope = SvScope::get_current().expect("failed to get scope in t1_cosim_init");
+  let dump_control = DumpControl::from_plusargs(scope, &plusargs);
 
-  let driver = Box::new(Driver::new(scope, &args));
-  let mut dpi_target = DPI_TARGET.lock().unwrap();
-  assert!(
-    dpi_target.is_none(),
-    "t1_cosim_init should be called only once"
-  );
-  *dpi_target = Some(driver);
+  TARGET.init(|| Driver::new(scope, dump_control, &args));
 }
 
 /// evaluate at every 1024 cycles, return reason = 0 to continue simulation,
@@ -236,57 +234,38 @@ unsafe extern "C" fn t1_cosim_init() {
 #[no_mangle]
 unsafe extern "C" fn cosim_watchdog(reason: *mut c_char) {
   // watchdog dpi call would be called before initialization, guard on null target
-  let mut driver = DPI_TARGET.lock().unwrap();
-  if let Some(driver) = driver.as_mut() {
-    *reason = driver.watchdog() as c_char
-  }
+  TARGET.with_optional(|driver| {
+    if let Some(driver) = driver {
+      *reason = driver.watchdog() as c_char
+    }
+  });
 }
 
 /// evaluate at instruction queue is not empty
 /// arg issue will be type cast from a struct to svBitVecVal*(uint32_t*)
 #[no_mangle]
 unsafe extern "C" fn issue_vector_instruction(issue_dst: *mut SvBitVecVal) {
-  let mut driver = DPI_TARGET.lock().unwrap();
-  let driver = driver.as_mut().unwrap();
-  let issue = driver.issue_instruction();
-  *(issue_dst as *mut IssueData) = issue;
+  TARGET.with(|driver| {
+    let issue = driver.issue_instruction();
+    *(issue_dst as *mut IssueData) = issue;
+  });
 }
 
 #[no_mangle]
 unsafe extern "C" fn retire_vector_instruction(retire_src: *const SvBitVecVal) {
-  let mut driver = DPI_TARGET.lock().unwrap();
-  let driver = driver.as_mut().unwrap();
   let retire = &*(retire_src as *const Retire);
-  driver.retire_instruction(retire)
+  TARGET.with(|driver| {
+    driver.retire_instruction(retire);
+  });
 }
 
 #[no_mangle]
 unsafe extern "C" fn retire_vector_mem(dummy: *const SvBitVecVal) {
-  let mut driver = DPI_TARGET.lock().unwrap();
-  let driver = driver.as_mut().unwrap();
-  driver.retire_memory();
+  TARGET.with(|driver| {
+    driver.retire_memory();
+  });
 }
 
 //--------------------------------
 // import functions and wrappers
 //--------------------------------
-
-#[cfg(feature = "trace")]
-mod dpi_export {
-  use std::ffi::c_char;
-  extern "C" {
-    /// `export "DPI-C" function dump_wave(input string file)`
-    pub fn dump_wave(path: *const c_char);
-  }
-}
-
-#[cfg(feature = "trace")]
-pub(crate) fn dump_wave(scope: svdpi::SvScope, path: &str) {
-  use std::ffi::CString;
-  let path_cstring = CString::new(path).unwrap();
-
-  svdpi::set_scope(scope);
-  unsafe {
-    dpi_export::dump_wave(path_cstring.as_ptr());
-  }
-}
