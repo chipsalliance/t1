@@ -33,7 +33,7 @@ let
           -debug_access+pp+dmptf+thread \
           -kdb=common_elab,hgldd_all''} \
         -file filelist.f \
-        ${vcs-dpi-lib}/lib/libdpi.a \
+        ${vcs-dpi-lib}/lib/libdpi_t1rocket.a \
         -o t1-vcs-simulator
 
       runHook postBuild
