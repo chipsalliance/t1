@@ -126,11 +126,13 @@ lib.makeScope newScope
               "--strip-debug-info"
             ];
           };
-          vcs-dpi-lib = ipSelf.callPackage ../../difftest/online_vcs { };
+          vcs-dpi-lib = ipSelf.callPackage ../../difftest/vcs.nix { };
           vcs-dpi-lib-trace = ipSelf.vcs-dpi-lib.override { enable-trace = true; };
           # FIXME: vcs-emu should have offline check instead of using verilator one
           vcs-emu = ipSelf.callPackage ./vcs.nix { };
           vcs-emu-trace = ipSelf.callPackage ./vcs.nix { vcs-dpi-lib = ipSelf.vcs-dpi-lib-trace; };
+
+          offline = ipSelf.callPackage ../../difftest/offline.nix { };
         });
 
         subsystem = rec {

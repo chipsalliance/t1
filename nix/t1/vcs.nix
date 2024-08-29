@@ -29,12 +29,12 @@ let
         -sverilog \
         -full64 \
         -timescale=1ns/1ps \
-        -P $VERDI_HOME/share/PLI/VCS/LINUX64/novas.tab $VERDI_HOME/share/PLI/VCS/LINUX64/pli.a \
         ${lib.optionalString vcs-dpi-lib.enable-trace ''
+          +define+T1_ENABLE_TRACE \
           -debug_access+pp+dmptf+thread \
           -kdb=common_elab,hgldd_all''} \
         -file filelist.f \
-        ${vcs-dpi-lib}/lib/libdpi.a \
+        ${vcs-dpi-lib}/lib/libdpi_t1.a \
         -o t1-vcs-simulator
 
       runHook postBuild

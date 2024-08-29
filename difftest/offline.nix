@@ -3,12 +3,10 @@
 , rustPlatform
 , libspike
 , libspike_interfaces
-, enable-trace ? false
-, vcStaticHome
 }:
 
 rustPlatform.buildRustPackage {
-  name = "vcs-dpi-lib";
+  name = "offline";
   src = with lib.fileset; toSource {
     root = ./.;
     fileset = unions [
@@ -22,11 +20,10 @@ rustPlatform.buildRustPackage {
     ];
   };
 
-  buildFeatures = ["dpi_common/vcs"] ++ lib.optionals enable-trace [ "dpi_common/trace" ];
-  buildAndTestSubdir = "./dpi_t1";
+  buildFeatures = [];
+  buildAndTestSubdir = "./offline";
 
   env = {
-    VCS_LIB_DIR = "${vcStaticHome}/vcs-mx/linux64/lib";
     SPIKE_LIB_DIR = "${libspike}/lib";
     SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
     DESIGN_VLEN = elaborateConfig.parameter.vLen;
@@ -39,9 +36,5 @@ rustPlatform.buildRustPackage {
 
   cargoLock = {
     lockFile = ./Cargo.lock;
-  };
-
-  passthru = {
-    inherit enable-trace;
   };
 }
