@@ -4,9 +4,7 @@ members = [
     "test_common",
     "spike_rs",
     "offline",
-    "online_dpi",
-    "online_drive",
-    "online_vcs",
+    "dpi_common",
 ]
 exclude = [
     "spike_interfaces"

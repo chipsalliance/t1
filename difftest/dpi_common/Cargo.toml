@@ -1,0 +1,14 @@
+[package]
+name = "dpi_common"
+edition = "2021"
+version.workspace = true
+
+[dependencies]
+svdpi = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[features]
+vcs = ["svdpi/vpi"]
+verilator = ["svdpi/sv2023"]
+trace = []
