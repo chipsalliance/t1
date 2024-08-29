@@ -73,12 +73,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 
 [[package]]
-name = "cc"
-version = "1.0.101"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac367972e516d45567c7eafc73d24e1c193dcf200a8d94e9db7b3d38b349572d"
-
-[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -125,15 +119,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b82cf0babdbd58558212896d1a4272303a57bdb245c2bf1147185fb45640e70"
 
 [[package]]
-name = "cmake"
-version = "0.1.50"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a31c789563b815f77f4250caee12365734369f942439b7defd71e18a48197130"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -148,6 +133,26 @@ dependencies = [
  "spike_rs",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "dpi_common"
+version = "0.1.0"
+dependencies = [
+ "svdpi",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "dpi_t1"
+version = "0.1.0"
+dependencies = [
+ "dpi_common",
+ "hex",
+ "spike_rs",
+ "svdpi",
+ "tracing",
 ]
 
 [[package]]
@@ -277,35 +282,6 @@ name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
-
-[[package]]
-name = "online_dpi"
-version = "0.1.0"
-dependencies = [
- "clap",
- "common",
- "hex",
- "spike_rs",
- "svdpi",
- "tracing",
-]
-
-[[package]]
-name = "online_drive"
-version = "0.1.0"
-dependencies = [
- "cmake",
- "online_dpi",
- "svdpi",
-]
-
-[[package]]
-name = "online_vcs"
-version = "0.1.0"
-dependencies = [
- "online_dpi",
- "svdpi",
-]
 
 [[package]]
 name = "overload"

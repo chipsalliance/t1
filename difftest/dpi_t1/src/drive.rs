@@ -1,5 +1,6 @@
-use common::spike_runner::SpikeRunner;
-use common::MEM_SIZE;
+use dpi_common::dump::{DumpControl, DumpEndError};
+use spike_rs::runner::SpikeRunner;
+use spike_rs::runner::{SpikeArgs, MEM_SIZE};
 use spike_rs::spike_event::MemAccessRecord;
 use spike_rs::spike_event::SpikeEvent;
 use spike_rs::util::load_elf_to_buffer;
@@ -7,7 +8,7 @@ use tracing::{debug, error, info, trace};
 
 use crate::dpi::*;
 use crate::get_t;
-use crate::OfflineArgs;
+use crate::OnlineArgs;
 use svdpi::SvScope;
 
 struct ShadowMem {
@@ -99,17 +100,9 @@ pub(crate) struct Driver {
   spike_runner: SpikeRunner,
 
   // SvScope from t1_cosim_init
-  #[cfg(feature = "trace")]
   scope: SvScope,
 
-  #[cfg(feature = "trace")]
-  wave_path: String,
-  #[cfg(feature = "trace")]
-  dump_start: u64,
-  #[cfg(feature = "trace")]
-  dump_end: u64,
-  #[cfg(feature = "trace")]
-  dump_started: bool,
+  dump_control: DumpControl,
 
   pub(crate) dlen: u32,
 
@@ -123,58 +116,24 @@ pub(crate) struct Driver {
   shadow_mem: ShadowMem,
 }
 
-#[cfg(feature = "trace")]
-fn parse_range(input: &str) -> (u64, u64) {
-  if input.is_empty() {
-    return (0, 0);
-  }
-
-  let parts: Vec<&str> = input.split(",").collect();
-
-  if parts.len() != 1 && parts.len() != 2 {
-    error!("invalid dump wave range: `{input}` was given");
-    return (0, 0);
-  }
-
-  const INVALID_NUMBER: &'static str = "invalid number";
-
-  if parts.len() == 1 {
-    return (parts[0].parse().expect(INVALID_NUMBER), 0);
-  }
-
-  if parts[0].is_empty() {
-    return (0, parts[1].parse().expect(INVALID_NUMBER));
-  }
-
-  let start = parts[0].parse().expect(INVALID_NUMBER);
-  let end = parts[1].parse().expect(INVALID_NUMBER);
-  if start > end {
-    panic!("dump start is larger than end: `{input}`");
-  }
-
-  (start, end)
-}
-
 impl Driver {
-  pub(crate) fn new(scope: SvScope, args: &OfflineArgs) -> Self {
-    #[cfg(feature = "trace")]
-    let (dump_start, dump_end) = parse_range(&args.dump_range);
-
+  pub(crate) fn new(scope: SvScope, dump_control: DumpControl, args: &OnlineArgs) -> Self {
     let mut self_ = Self {
-      spike_runner: SpikeRunner::new(&args.common_args, false),
+      spike_runner: SpikeRunner::new(
+        &SpikeArgs {
+          elf_file: args.elf_file.clone(),
+          log_file: args.log_file.clone(),
+          vlen: args.vlen,
+          dlen: args.dlen,
+          set: args.set.clone(),
+        },
+        false,
+      ),
 
-      #[cfg(feature = "trace")]
       scope,
-      #[cfg(feature = "trace")]
-      wave_path: args.wave_path.to_owned(),
-      #[cfg(feature = "trace")]
-      dump_start,
-      #[cfg(feature = "trace")]
-      dump_end,
-      #[cfg(feature = "trace")]
-      dump_started: false,
+      dump_control,
 
-      dlen: args.common_args.dlen,
+      dlen: args.dlen,
       timeout: args.timeout,
       last_commit_cycle: 0,
 
@@ -182,9 +141,9 @@ impl Driver {
       vector_lsu_count: 0,
       shadow_mem: ShadowMem::new(),
     };
-    self_.spike_runner.load_elf(&args.common_args.elf_file).unwrap();
+    self_.spike_runner.load_elf(&args.elf_file).unwrap();
 
-    load_elf_to_buffer(&mut self_.shadow_mem.mem, &args.common_args.elf_file).unwrap();
+    load_elf_to_buffer(&mut self_.shadow_mem.mem, &args.elf_file).unwrap();
     self_
   }
 
@@ -254,29 +213,20 @@ impl Driver {
       );
       WATCHDOG_TIMEOUT
     } else {
-      #[cfg(feature = "trace")]
-      if self.dump_end != 0 && tick > self.dump_end {
-        info!(
-          "[{tick}] run to dump end, exiting (last_commit_cycle={})",
-          self.last_commit_cycle
-        );
-        return WATCHDOG_TIMEOUT;
-      }
-
-      #[cfg(feature = "trace")]
-      if !self.dump_started && tick >= self.dump_start {
-        self.start_dump_wave();
-        self.dump_started = true;
+      match self.dump_control.trigger_watchdog(tick) {
+        Ok(()) => {}
+        Err(DumpEndError) => {
+          info!(
+            "[{tick}] run to dump end, exiting (last_commit_cycle={})",
+            self.last_commit_cycle
+          );
+          return WATCHDOG_TIMEOUT;
+        }
       }
 
       trace!("[{}] watchdog continue", get_t());
       WATCHDOG_CONTINUE
     }
-  }
-
-  #[cfg(feature = "trace")]
-  fn start_dump_wave(&mut self) {
-    dump_wave(self.scope, &self.wave_path);
   }
 
   pub(crate) fn step(&mut self) -> SpikeEvent {
