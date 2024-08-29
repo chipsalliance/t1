@@ -40,6 +40,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
     setInline(
       s"$desiredName.sv",
       s"""module $desiredName(output reg clock, output reg reset);
+         |`ifdef T1_ENABLE_TRACE
          |  export "DPI-C" function dump_wave;
          |  function dump_wave(input string file);
          |`ifdef VCS
@@ -52,6 +53,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
          |    $$dumpvars(0);
          |`endif
          |  endfunction;
+         |`endif
          |
          |  import "DPI-C" context function void t1_cosim_init();
          |  initial begin
