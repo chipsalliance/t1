@@ -17,10 +17,8 @@ stdenvNoCC.mkDerivation (finalAttr: {
     mkdir -p "$out"
 
     emuDriverArgsArray=(
-      "--elf-file"
-      "${testCase}/bin/${testCase.pname}.elf"
-      ${lib.optionalString emulator.enable-trace "--wave-path"}
-      ${lib.optionalString emulator.enable-trace "${testCase.pname}.fsdb"}
+      "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+      ${lib.optionalString emulator.enable-trace "+t1_wave_path=${testCase.pname}.fsdb"}
     )
     emuDriverArgs="''${emuDriverArgsArray[@]}"
     emuDriver="${emulator}/bin/t1-vcs-simulator"
