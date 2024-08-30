@@ -2,13 +2,30 @@
 , ninja
 , llvmPackages_17
 , fetchFromGitHub
-, fetchpatch
+, fetchurl
 , python3
 , callPackage
 }:
 let
   stdenv = llvmPackages_17.stdenv;
   bintools = llvmPackages_17.bintools;
+
+  downgradedPyPkgs = python3.override {
+    packageOverrides = final: prev: {
+      tokenizers = (final.callPackage ./tokenizer-013.nix { });
+
+      transformers = (prev.transformers.overridePythonAttrs (old: rec {
+        version = "4.33.1";
+
+        src = fetchFromGitHub {
+          owner = "huggingface";
+          repo = "transformers";
+          rev = "refs/tags/v${version}";
+          hash = "sha256-Z78I9S8g9WexoX6HhxwbOD0K0awCTzsqW1ZiWObQNw0=";
+        };
+      }));
+    };
+  };
 
   buddy-llvm = callPackage ./buddy-llvm.nix { inherit stdenv python3; };
   self = stdenv.mkDerivation {
@@ -49,12 +66,12 @@ let
       llvm = buddy-llvm;
 
       # Below three fields are black magic that allow site-packages automatically imported with nixpkgs hooks
-      pythonModule = python3;
+      pythonModule = downgradedPyPkgs;
       pythonPath = [ ];
       requiredPythonModules = [ ];
 
       # nix run buddy-mlir.pyenv to start a python with PyTorch/LLVM MLIR/Buddy Frontend support
-      pyenv = python3.withPackages (ps: [
+      pyenv = downgradedPyPkgs.withPackages (ps: [
         self
         ps.torch
 
