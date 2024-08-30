@@ -53,7 +53,6 @@ let
                   -mtriple=riscv32 \
                   -target-abi=ilp32f \
                   -mattr=+m,+f,+zve32f \
-                  -riscv-v-vector-bits-min=128 \
                   --filetype=obj \
                   -o "$llvmir.o"
 
