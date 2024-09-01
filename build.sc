@@ -27,16 +27,14 @@ object v {
 
 object chisel extends Chisel
 
-trait Chisel 
-  extends millbuild.dependencies.chisel.build.Chisel {
+trait Chisel extends millbuild.dependencies.chisel.build.Chisel {
   def crossValue = v.scala
   override def millSourcePath = os.pwd / "dependencies" / "chisel"
 }
 
 object arithmetic extends Arithmetic
 
-trait Arithmetic
-  extends millbuild.dependencies.arithmetic.common.ArithmeticModule {
+trait Arithmetic extends millbuild.dependencies.arithmetic.common.ArithmeticModule {
   override def millSourcePath = os.pwd / "dependencies" / "arithmetic" / "arithmetic"
   def scalaVersion = T(v.scala)
 
@@ -45,7 +43,7 @@ trait Arithmetic
   def chiselIvy = None
   def chiselPluginIvy = None
 
-  def spireIvy: T[Dep] = v.spire
+  def spireIvy:    T[Dep] = v.spire
   def evilplotIvy: T[Dep] = v.evilplot
 }
 
@@ -65,8 +63,7 @@ trait AXI4 extends millbuild.dependencies.`chisel-interface`.common.AXI4Module {
 
 object hardfloat extends Hardfloat
 
-trait Hardfloat
-  extends millbuild.dependencies.`berkeley-hardfloat`.common.HardfloatModule {
+trait Hardfloat extends millbuild.dependencies.`berkeley-hardfloat`.common.HardfloatModule {
   override def millSourcePath = os.pwd / "dependencies" / "berkeley-hardfloat" / "hardfloat"
   def scalaVersion = T(v.scala)
 
@@ -78,9 +75,7 @@ trait Hardfloat
 
 object rvdecoderdb extends RVDecoderDB
 
-trait RVDecoderDB
-  extends millbuild.dependencies.rvdecoderdb.common.RVDecoderDBJVMModule
-    with ScalaModule {
+trait RVDecoderDB extends millbuild.dependencies.rvdecoderdb.common.RVDecoderDBJVMModule with ScalaModule {
   def scalaVersion = T(v.scala)
   def osLibIvy = v.oslib
   def upickleIvy = v.upickle
@@ -89,9 +84,7 @@ trait RVDecoderDB
 
 object t1 extends T1
 
-trait T1
-  extends millbuild.common.T1Module
-  with ScalafmtModule {
+trait T1 extends millbuild.common.T1Module with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
   def arithmeticModule = arithmetic
@@ -108,9 +101,7 @@ trait T1
 
 object configgen extends ConfigGen
 
-trait ConfigGen
-  extends millbuild.common.ConfigGenModule
-    with ScalafmtModule {
+trait ConfigGen extends millbuild.common.ConfigGenModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
   def t1Module = t1
@@ -120,9 +111,7 @@ trait ConfigGen
 
 object rocketv extends RocketV
 
-trait RocketV
-  extends millbuild.common.RocketVModule
-    with ScalafmtModule {
+trait RocketV extends millbuild.common.RocketVModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
   def rvdecoderdbModule = rvdecoderdb
   def riscvOpcodesPath = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
@@ -137,9 +126,7 @@ trait RocketV
 
 object t1rocket extends T1Rocket
 
-trait T1Rocket
-  extends millbuild.common.T1RocketModule
-    with ScalafmtModule {
+trait T1Rocket extends millbuild.common.T1RocketModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
   def rocketModule = rocketv
   def t1Module = t1
@@ -152,8 +139,7 @@ trait T1Rocket
 
 object ipemu extends IPEmulator
 
-trait IPEmulator
-  extends millbuild.common.IPEmulatorModule {
+trait IPEmulator extends millbuild.common.IPEmulatorModule {
   def scalaVersion = T(v.scala)
 
   def t1Module = t1
@@ -178,8 +164,7 @@ trait RocketEmulator extends millbuild.common.RocketEmulatorModule {
 
 object t1rocketemu extends T1RocketEmulator
 
-trait T1RocketEmulator
-  extends millbuild.common.T1RocketEmulatorModule {
+trait T1RocketEmulator extends millbuild.common.T1RocketEmulatorModule {
   def scalaVersion = T(v.scala)
 
   def t1rocketModule = t1rocket
@@ -192,8 +177,7 @@ trait T1RocketEmulator
 
 object panamaconverter extends PanamaConverter
 
-trait PanamaConverter
-  extends millbuild.dependencies.chisel.build.PanamaConverter {
+trait PanamaConverter extends millbuild.dependencies.chisel.build.PanamaConverter {
   def crossValue = v.scala
 
   override def millSourcePath = os.pwd / "dependencies" / "chisel" / "panamaconverter"
@@ -204,8 +188,7 @@ trait PanamaConverter
 // Module to generate RTL from json config
 object elaborator extends Elaborator
 
-trait Elaborator
-  extends millbuild.common.ElaboratorModule {
+trait Elaborator extends millbuild.common.ElaboratorModule {
   def scalaVersion = T(v.scala)
 
   def panamaconverterModule = panamaconverter
@@ -218,7 +201,7 @@ trait Elaborator
     rocketv,
     rocketemu,
     t1rocket,
-    t1rocketemu,
+    t1rocketemu
   )
 
   def mainargsIvy = v.mainargs
@@ -231,8 +214,7 @@ trait Elaborator
 
 object omreaderlib extends OMReaderLib
 
-trait OMReaderLib
-  extends millbuild.common.OMReaderLibModule {
+trait OMReaderLib extends millbuild.common.OMReaderLibModule {
   def scalaVersion = T(v.scala)
 
   def panamaconverterModule = panamaconverter
@@ -249,8 +231,7 @@ trait OMReaderLib
 
 object omreader extends OMReader
 
-trait OMReader
-  extends millbuild.common.OMReaderModule {
+trait OMReader extends millbuild.common.OMReaderModule {
   def scalaVersion = T(v.scala)
 
   def panamaconverterModule = panamaconverter
@@ -278,14 +259,42 @@ trait OMReader
   *   def unmanagedClasspath = T(Seq(PathRef(os.pwd / "t1package.jar"), PathRef(os.pwd / "t1package-sources.jar")))
   * }
   * For Jiuyang's Team, this is used for link T1 to NDA Blackboxes that cannot be open-sourced
-  * */
+  */
 object t1package extends ScalaModule {
   def scalaVersion = T(v.scala)
   def moduleDeps = super.moduleDeps ++ Seq(t1, ipemu, panamaconverter, omreaderlib)
-  override def sourceJar: T[PathRef] = T(Jvm.createJar(T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))().flatten.flatten.map(_.path).filter(os.exists), manifest()))
+  override def sourceJar: T[PathRef] = T(
+    Jvm.createJar(
+      T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))()
+        .flatten
+        .flatten
+        .map(_.path)
+        .filter(os.exists),
+      manifest()
+    )
+  )
   def chiselPluginJar = T {
     val jar = T.dest / "out.jar"
     os.copy(chisel.pluginModule.jar().path, jar)
     PathRef(jar)
   }
+}
+
+trait ScriptModule extends ScalaModule {
+  val scala3 = "3.3.3"
+  val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
+  val oslib = ivy"com.lihaoyi::os-lib:0.10.0"
+  val upickle = ivy"com.lihaoyi::upickle:3.3.1"
+
+  def scalaVersion = scala3
+  def scalacOptions = Seq("-new-syntax")
+  override def ivyDeps = Agg(mainargs, oslib, upickle)
+  override def millSourcePath = os.pwd / "script"
+}
+
+object emuHelper extends ScriptModule {
+  override def millSourcePath = super.millSourcePath / "emu"
+}
+object ciHelper extends ScriptModule {
+  override def millSourcePath = super.millSourcePath / "ci"
 }
