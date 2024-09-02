@@ -16,7 +16,7 @@ stdenv.mkDerivation {
     verilator
   ];
 
-  cmakeFlags = lib.optionals verilated-csrc.enable-trace [
+  cmakeFlags = lib.optionals verilated-csrc.enableTrace [
     "-DVM_TRACE=ON"
   ];
 

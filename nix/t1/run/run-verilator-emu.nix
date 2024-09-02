@@ -1,31 +1,26 @@
-{ lib, stdenvNoCC, zstd, jq, offline }:
+{ lib, stdenvNoCC, zstd, jq, offline-checker }:
 emulator:
 testCase:
 
 stdenvNoCC.mkDerivation (finalAttr: {
-
-  name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enable-trace "-trace");
+  name = "${emulator.name}-${testCase.pname}-emu-result" + lib.optionalString emulator.enableTrace "-trace";
   nativeBuildInputs = [ zstd jq ];
-  __noChroot = true;
 
-  offlineLogLevel = "ERROR";
-  # Don't use true/false here, some version of nix will ignore it and cause empty env
-  vcsDoLog = 0;
-  passthru.debug = finalAttr.finalPackage.overrideAttrs { offlineLogLevel = "TRACE"; vcsDoLog = true; };
+  passthru.caseName = testCase.pname;
 
   buildCommand = ''
     mkdir -p "$out"
 
     emuDriverArgsArray=(
       "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-      ${lib.optionalString emulator.enable-trace "+t1_wave_path=${testCase.pname}.fsdb"}
+      ${lib.optionalString emulator.enableTrace "+t1_wave_path=$out/wave.fst"}
     )
     emuDriverArgs="''${emuDriverArgsArray[@]}"
-    emuDriver="${emulator}/bin/t1-vcs-simulator"
+    emuDriver="${emulator}/bin/${emulator.mainProgram}"
 
     rtlEventOutPath="$out/${testCase.pname}-rtl-event.jsonl"
 
-    echo "[nix] Running VCS ${testCase.pname} with args $emuDriverArgs"
+    echo "[nix] Running test case ${testCase.pname} with args $emuDriverArgs"
 
     printError() {
       echo -e "\033[0;31m[nix]\033[0m: online driver run failed"
@@ -34,15 +29,9 @@ stdenvNoCC.mkDerivation (finalAttr: {
       exit 1
     }
 
-    export RUST_BACKTRACE=full
+    "$emuDriver" $emuDriverArgs 1>$out/online-drive-journal 2> "$rtlEventOutPath" || printError
 
-    if (( ! $vcsDoLog )); then
-      "$emuDriver" $emuDriverArgs 1>/dev/null 2>$rtlEventOutPath || printError
-    else
-      "$emuDriver" $emuDriverArgs 1>$out/online-drive-emu-journal 2>$rtlEventOutPath || printError
-    fi
-
-    echo "[nix] VCS run done"
+    echo "[nix] t1rocket run done"
 
     if [ ! -r "$rtlEventOutPath" ]; then
       echo -e "[nix] \033[0;31mInternal Error\033[0m: no $rtlEventOutPath found in output"
@@ -64,11 +53,11 @@ stdenvNoCC.mkDerivation (finalAttr: {
       "--log-file"
       "$rtlEventOutPath"
       "--log-level"
-      "$offlineLogLevel"
+      "info"
     )
     offlineCheckArgs="''${offlineCheckArgsArray[@]}"
-    echo -e "[nix] running offline check: \033[0;34m${emulator}/bin/offline $offlineCheckArgs\033[0m"
-    "${offline}/bin/offline" $offlineCheckArgs &> $out/offline-check-journal
+    echo -e "[nix] running offline check: \033[0;34m${offline-checker}/bin/offline $offlineCheckArgs\033[0m"
+    "${offline-checker}/bin/offline" $offlineCheckArgs &> $out/offline-check-journal
 
     printf "$?" > $out/offline-check-status
     if [ "$(cat $out/offline-check-status)" != "0" ]; then
@@ -86,9 +75,11 @@ stdenvNoCC.mkDerivation (finalAttr: {
       mv perf.txt $out/
     fi
 
-    ${lib.optionalString emulator.enable-trace ''
-      cp -v ${testCase.pname}.fsdb "$out"
-      cp -vr ${emulator}/lib/t1-vcs-simulator.daidir "$out"
+    ${lib.optionalString emulator.enableTrace ''
+      if [ ! -r "$out/wave.fst" ]; then
+        echo -e "[nix] \033[0;31mInternal Error\033[0m: waveform not found in output"
+        exit 1
+      fi
     ''}
   '';
 })

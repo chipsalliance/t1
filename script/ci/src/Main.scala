@@ -3,7 +3,7 @@
 
 package org.chipsalliance.t1.script
 
-import mainargs.{main, arg, ParserForMethods, Leftover, Flag, TokensReader}
+import mainargs.{arg, main, Flag, Leftover, ParserForMethods, TokensReader}
 import scala.io.AnsiColor._
 
 object Logger {
@@ -84,7 +84,7 @@ object Main:
         case (_, cycle) => cycle <= 0
 
     // Initialize a list of buckets
-    val cargoInit =
+    val cargoInit   =
       (0 until math.min(bucketSize, allCycleData.length)).map(_ => Bucket())
     // Group tests that have cycle data into subset by their cycle size
     val cargoStaged = normalData
@@ -95,14 +95,14 @@ object Main:
 
     // For unprocessed data, just split them into subset that have equal size
     if unProcessedData.nonEmpty then
-      val chunkSize = unProcessedData.length.toDouble / bucketSize.toDouble
+      val chunkSize  = unProcessedData.length.toDouble / bucketSize.toDouble
       val cargoFinal = unProcessedData
         .grouped(math.ceil(chunkSize).toInt)
         .zipWithIndex
         .foldLeft(cargoStaged): (cargo, chunkWithIndex) =>
           val (chunk, idx) = chunkWithIndex
-          val newBucket = chunk.foldLeft(cargoStaged.apply(idx)):
-            (bucket, data) => bucket.cons(data)
+          val newBucket    = chunk.foldLeft(cargoStaged.apply(idx)): (bucket, data) =>
+            bucket.cons(data)
           cargo.updated(idx, newBucket)
 
       cargoFinal.map(_.buffer.mkString(";")).toSeq
@@ -117,16 +117,16 @@ object Main:
     ujson.Obj("include" -> buckets.zipWithIndex.map: (bucket, i) =>
       ujson.Obj(
         "jobs" -> ujson.Str(bucket),
-        "id" -> ujson.Num(i + 1)
+        "id"   -> ujson.Num(i + 1)
       ))
 
   // Read default tests information from '.github/cases/default.txt' file, and use that information to generate GitHub CI matrix.
   // The result will be printed to stdout, and should be pipe into $GITHUB_OUTPUT
   @main
   def generateCiMatrix(
-      runnersAmount: Int,
-      caseDir: String = "cases",
-      testPlanFile: String = "default.json"
+    runnersAmount: Int,
+    caseDir:       String = "cases",
+    testPlanFile:  String = "default.json"
   ) = {
     val testPlans =
       os.walk(os.pwd / ".github" / caseDir).filter(_.last == testPlanFile)
@@ -144,51 +144,52 @@ object Main:
   // @param: dontBail don't throw exception when test fail. Useful for postpr.
   @main
   def runTests(
-      jobs: String,
-      testType: String = "verilator"
+    jobs:     String,
+    testType: String = "verilator"
   ): Unit =
     if jobs == "" then
       Logger.info("No test found, exiting")
       return
 
-    val allJobs = jobs.split(";")
-    def findFailedTests() = allJobs.zipWithIndex.foldLeft(Seq[String]()):
-      (allFailedTest, currentTest) =>
-        val (testName, index) = currentTest
-        val Array(config, caseName) = testName.split(",")
-        println("\n")
-        Logger.info(
-          s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Simulating test case $caseName with config $config"
-        )
+    val allJobs           = jobs.split(";")
+    def findFailedTests() = allJobs.zipWithIndex.foldLeft(Seq[String]()): (allFailedTest, currentTest) =>
+      val (testName, index)       = currentTest
+      val Array(config, caseName) = testName.split(",")
+      println("\n")
+      Logger.info(
+        s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Simulating test case $caseName with config $config"
+      )
 
-        val testAttr = testType.toLowerCase() match
-          case "verilator" =>
-            s".#t1.$config.ip.verilator-emu.cases.$caseName.emu-result"
-          case "vcs" => s".#t1.$config.ip.vcs-emu.cases.$caseName.emu-result"
-          case _     => Logger.fatal(s"Invalid test type ${testType}")
-        val testResultPath =
-          try
-            os.Path(
-              nixResolvePath(
-                testAttr,
-                if testType == "vcs" then Seq("--impure") else Seq()
-              )
+      val testAttr       = testType.toLowerCase() match
+        case "verilator" =>
+          s".#t1.$config.ip.run.$caseName.verilator-emu"
+        case "vcs"       => s".#t1.$config.ip.run.$caseName.vcs-emu"
+        case _           => Logger.fatal(s"Invalid test type ${testType}")
+      val testResultPath =
+        try
+          os.Path(
+            nixResolvePath(
+              testAttr,
+              if testType == "vcs" then Seq("--impure") else Seq()
             )
-          catch
-            case _ =>
-              Logger.error(s"Online driver for config $config, case $caseName fail, please check manually on local machine")
-              Logger.error(s"nix build $testAttr" ++ (if testType == "vcs" then " --impure" else ""))
-              Logger.fatal("Online Drive run fail, exiting CI")
+          )
+        catch
+          case _ =>
+            Logger.error(
+              s"Online driver for config $config, case $caseName fail, please check manually on local machine"
+            )
+            Logger.error(s"nix build $testAttr" ++ (if testType == "vcs" then " --impure" else ""))
+            Logger.fatal("Online Drive run fail, exiting CI")
 
-        Logger.info("Checking RTL event from event log")
-        val testSuccess =
-          os.read(testResultPath / "offline-check-status").trim() == "0"
-        if !testSuccess then
-          Logger.error(s"Offline check FAILED for $caseName ($config)")
-          allFailedTest :+ testAttr
-        else
-          Logger.info(s"Offline check PASS for $caseName ($config)")
-          allFailedTest
+      Logger.info("Checking RTL event from event log")
+      val testSuccess =
+        os.read(testResultPath / "offline-check-status").trim() == "0"
+      if !testSuccess then
+        Logger.error(s"Offline check FAILED for $caseName ($config)")
+        allFailedTest :+ testAttr
+      else
+        Logger.info(s"Offline check PASS for $caseName ($config)")
+        allFailedTest
     end findFailedTests
 
     val failedTests = findFailedTests()
@@ -205,22 +206,22 @@ object Main:
   //   * collect and report cycle update
   @main
   def postCI(
-      @arg(
-        name = "failed-tests-file-path",
-        doc = "specify the failed tests markdown file output path"
-      ) failedTestsFilePath: String,
-      @arg(
-        name = "cycle-update-file-path",
-        doc = "specify the cycle update markdown file output path"
-      ) cycleUpdateFilePath: Option[String],
-      @arg(
-        name = "emu-type",
-        doc = "Specify emulation type"
-      ) emuType: String = "verilator",
-      @arg(
-        name = "case-dir",
-        doc = "Specify case directory"
-      ) caseDir: String = "cases"
+    @arg(
+      name = "failed-tests-file-path",
+      doc = "specify the failed tests markdown file output path"
+    ) failedTestsFilePath: String,
+    @arg(
+      name = "cycle-update-file-path",
+      doc = "specify the cycle update markdown file output path"
+    ) cycleUpdateFilePath: Option[String],
+    @arg(
+      name = "emu-type",
+      doc = "Specify emulation type"
+    ) emuType:             String = "verilator",
+    @arg(
+      name = "case-dir",
+      doc = "Specify case directory"
+    ) caseDir:             String = "cases"
   ) =
     val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
     os.write.over(failedTestsFile, "## Failed Tests\n")
@@ -234,13 +235,13 @@ object Main:
     os.walk(os.pwd / ".github" / caseDir)
       .filter(_.last == "default.json")
       .foreach: file =>
-        val config = file.segments.toSeq.reverse.apply(1)
+        val config      = file.segments.toSeq.reverse.apply(1)
         var cycleRecord = ujson.read(os.read(file))
 
         Logger.info("Fetching CI results")
         val emuResultPath = os.Path(
           nixResolvePath(
-            s".#t1.$config.ip.$emuType-emu.cases._allEmuResult",
+            s".#t1.$config.ip.run._${emuType}EmuResult",
             if emuType.toLowerCase() == "vcs" then Seq("--impure")
             else Seq()
           )
@@ -252,19 +253,22 @@ object Main:
           .filter(path => os.read(path).trim() != "0")
           .map(path => {
             val caseName = path.segments.toSeq.reverse.drop(1).head
-            os.write.append(failedTestsFile, s"* ${config} - ${caseName}: `nix build .#t1.$config.ip.$emuType-emu.cases.$caseName.emu-result -L`\n")
+            os.write.append(
+              failedTestsFile,
+              s"* ${config} - ${caseName}: `nix build .#t1.$config.ip.$caseName.$emuType-emu -L --impure`\n"
+            )
           })
 
         if cycleUpdateFilePath.nonEmpty then
           Logger.info("Collecting cycle update info")
-          val perfCycleRegex = raw"total_cycles:\s(\d+)".r
+          val perfCycleRegex  = raw"total_cycles:\s(\d+)".r
           val allCycleUpdates = os
             .walk(emuResultPath)
             .filter(path => path.last == "perf.txt")
             .map(path => {
-              val cycle = os.read.lines(path).head match
+              val cycle    = os.read.lines(path).head match
                 case perfCycleRegex(cycle) => cycle.toInt
-                case _ =>
+                case _                     =>
                   throw new Exception("perf.txt file is not format as expected")
               val caseName = path.segments.toSeq.reverse.drop(1).head
               (caseName, cycle, cycleRecord.obj(caseName).num.toInt)
@@ -273,10 +277,8 @@ object Main:
             .map:
               case (caseName, newCycle, oldCycle) =>
                 cycleRecord(caseName) = newCycle
-                if oldCycle == -1 then
-                  s"* 🆕 ${caseName}($config): NaN -> ${newCycle}"
-                else if oldCycle > newCycle then
-                  s"* 🚀 $caseName($config): $oldCycle -> $newCycle"
+                if oldCycle == -1 then s"* 🆕 ${caseName}($config): NaN -> ${newCycle}"
+                else if oldCycle > newCycle then s"* 🚀 $caseName($config): $oldCycle -> $newCycle"
                 else s"* 🐢 $caseName($config): $oldCycle -> $newCycle"
 
           os.write.append(
@@ -293,7 +295,7 @@ object Main:
       case "t1rocket" => os.pwd / ".github" / "t1rocket-cases"
       case _          => os.pwd / ".github" / "cases"
 
-    val allCases = os.walk(casePath).filter(_.last == "default.json")
+    val allCases  = os.walk(casePath).filter(_.last == "default.json")
     val testPlans = allCases.map: caseFilePath =>
       caseFilePath.segments
         .dropWhile(!Seq("cases", "t1rocket-cases").contains(_))
@@ -332,7 +334,7 @@ object Main:
     import scala.util.chaining._
     val testPlans: Seq[String] = emulatorConfigs.flatMap: configName =>
       val allCasesPath =
-        nixResolvePath(s".#t1.$configName.verilator-emu.ip.cases._all")
+        nixResolvePath(s".#t1.$configName.ip.cases._all")
       os.walk(os.Path(allCasesPath) / "configs")
         .filter: path =>
           path.ext == "json"
@@ -352,7 +354,7 @@ object Main:
             .pipe(json => json.obj.keys.map(testName => s"$config,$testName"))
 
     val currentTestPlan = getTestPlan("default.json")
-    val perfCases = getTestPlan("perf.json")
+    val perfCases       = getTestPlan("perf.json")
 
     // We don't have much information for this tests, so randomly split them into same size buckets
     // Merge Seq( "A", "B", "C", "D" ) into Seq( "A;B", "C;D" )

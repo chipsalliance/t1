@@ -1,17 +1,14 @@
 { lib
-, system
 , stdenv
 , useMoldLinker
 , newScope
 , runCommand
-
-, pkgsX86
 }:
 
 let
   moldStdenv = useMoldLinker stdenv;
 
-  configsDirectory = ../../configgen/generated;
+  t1ConfigsDir = ../../configgen/generated;
 
   # allConfigs is a (configName -> configJsonPath) map
   allConfigs = lib.mapAttrs'
@@ -19,132 +16,85 @@ let
       assert fileType == "regular" && lib.hasSuffix ".json" fileName;
       lib.nameValuePair
         (lib.removeSuffix ".json" fileName)
-        (lib.path.append configsDirectory fileName))
-    (builtins.readDir configsDirectory);
+        (lib.path.append t1ConfigsDir fileName))
+    (builtins.readDir t1ConfigsDir);
 in
 lib.makeScope newScope
-  (self:
-  let
-    _millOutput = self.callPackage ./t1.nix { };
-  in
+  (t1Scope:
   {
     inherit allConfigs;
     recurseForDerivations = true;
 
-    elaborator = _millOutput.elaborator // { meta.mainProgram = "elaborator"; };
-    configgen = _millOutput.configgen // { meta.mainProgram = "configgen"; };
-    t1package = _millOutput.t1package;
+    dependencies = t1Scope.callPackage ./dependencies { };
 
-    rocketv = self.callPackage ../../rocketemu { };
+    # ---------------------------------------------------------------------------------
+    # Compile the T1 mill modules into one big derivation and split them to different derivation
+    # ---------------------------------------------------------------------------------
+    _t1MillModules = t1Scope.callPackage ./mill-modules.nix { };
+    elaborator = t1Scope._t1MillModules.elaborator // { meta.mainProgram = "elaborator"; };
+    configgen = t1Scope._t1MillModules.configgen // { meta.mainProgram = "configgen"; };
+    t1package = t1Scope._t1MillModules.t1package;
 
-    t1rocket = self.callPackage ../../t1rocketemu { };
+    # ---------------------------------------------------------------------------------
+    # Lowering utilities
+    # ---------------------------------------------------------------------------------
 
-    omreader-unwrapped = self.callPackage ./omreader.nix { };
-    submodules = self.callPackage ./submodules.nix { };
+    # chisel-to-mlirbc :: { outputName :: String, elaboratorArgs :: List<String> } -> Derivation
+    #
+    # chisel-to-mlirbc accept outputName as output mlirbc file name, and elaboratorArgs for elaborator to run.
+    # Return a derivation with the parsed mlirbc file as output.
+    chisel-to-mlirbc = t1Scope.callPackage ./conversion/chisel-to-mlirbc.nix { };
 
-    riscv-opcodes-src = self.submodules.sources.riscv-opcodes.src;
-  } //
-  lib.mapAttrs
-    (configName: configPath:
-      # by using makeScope, callPackage can send the following attributes to package parameters
-      lib.makeScope self.newScope (innerSelf: rec {
-        recurseForDerivations = true;
+    # finalize-mlirbc :: { outputName :: String, mlirbc :: Derivation } -> Derivation
+    #
+    # finalize-mlirbc will run actual firtool lowering to the MLIRBC file
+    #
+    # Default using below lowering command line arguments.
+    # Can be override with optional argument `loweringArgs`.
+    #
+    #  * --emit-bytecode
+    #  * -O=debug
+    #  * --preserve-values=named
+    #  * --lowering-options=verifLabels
+    finalize-mlirbc = t1Scope.callPackage ./conversion/finalize-mlirbc.nix { };
 
-        # For package name concatenate
-        inherit configName;
+    # mlirbc-to-sv :: { outputName :: String, mlirbc :: Derivation, mfcArgs :: List<String> } -> Derivation
+    #
+    # mlirbc-to-sv will convert pass-in mlirbc to system verilog, using the circt toolchains.
+    # Returning derivation contains system verilog and a filelist.f demostrate the verilog hierarchy.
+    mlirbc-to-sv = t1Scope.callPackage ./conversion/mlirbc-to-sv.nix { };
 
-        elaborateConfigJson = configPath;
-        elaborateConfig = builtins.fromJSON (lib.readFile configPath);
+    # sv-to-verilated-lib :: { mainProgram :: String, rtl :: Derivation, enableTrace :: Bool, extraVerilatorArgs :: List<String> } -> Derivation
+    #
+    # sv-to-verilated-lib use verilator to codegen C and link them with dpi library to generate the final emulator.
+    # Default using 8 thread for verilator.
+    #
+    # This function also accept the below arguments to override the default:
+    #
+    # * verilatorFilelist: filename of the filelist.f file, default using "filelist.f"
+    # * verilatorTop: Top module of the system verilog, default using "TestBench"
+    # * verilatorThreads: Threads for final verilating, default using 8
+    # * verilatorArgs: Final arguments that pass to the verilator.
+    sv-to-verilator-emulator = t1Scope.callPackage ./conversion/sv-to-verilator-emulator.nix { stdenv = moldStdenv; };
 
-        ip = lib.makeScope innerSelf.newScope (ipSelf: {
-          recurseForDerivations = true;
+    # sv-to-vcs-simulator :: { mainProgram :: String, rtl :: Derivation, enableTrace :: Bool, vcsLinkLibs :: List<String> } -> Derivation
+    #
+    # sv-to-vcs-simulator will compile the given rtl, link with path specified in vcsLinksLibs to produce a VCS emulator.
+    # enableTrace is false by default;
+    sv-to-vcs-simulator = t1Scope.callPackage ./conversion/sv-to-vcs-simulator.nix { };
 
-          # T1 RTL.
-          elaborate = ipSelf.callPackage ./elaborate.nix { target = "ip"; };
-          mlirbc = ipSelf.callPackage ./mlirbc.nix { };
-          rtl = ipSelf.callPackage ./rtl.nix {
-            mfcArgs = lib.escapeShellArgs [
-              "-O=release"
-              "--disable-all-randomization"
-              "--split-verilog"
-              "--preserve-values=all"
-              "--strip-debug-info"
-              "--strip-fir-debug-info"
-              "--verification-flavor=sva"
-              "--lowering-options=verifLabels,omitVersionComment,emittedLineLength=240,locationInfoStyle=none"
-            ];
-          };
+    # ---------------------------------------------------------------------------------
+    # Grouped emulator packages
+    # ---------------------------------------------------------------------------------
+    # Nix specification for t1rocket (with rocket-chip as Scalar core) emulator
+    t1rocket = t1Scope.callPackage ./t1rocket { };
+    # Nix specification for rocket (rocket-chip only) emulator
+    rocketv = t1Scope.callPackage ../../rocketemu { };
 
-          om = ipSelf.callPackage ./om.nix { };
-          omreader = self.omreader-unwrapped.mkWrapper { };
-
-          emu-om = ipSelf.callPackage ./om.nix { mlirbc = ipSelf.emu-mlirbc; };
-          emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = ipSelf.emu-mlirbc; };
-          omGet = args: lib.fileContents (runCommand "get-${args}" { } ''
-            ${ipSelf.emu-omreader}/bin/omreader ${args} > $out
-          '');
-          rtlDesignMetadata = with ipSelf; rec {
-            march = omGet "march";
-            extensions = builtins.fromJSON (omGet "extensionsJson");
-            vlen = omGet "vlen";
-            dlen = omGet "dlen";
-            xlen = if (lib.hasPrefix "rv32" march) then 32 else 64;
-          };
-
-          emu-elaborate = ipSelf.callPackage ./elaborate.nix { target = "ipemu"; };
-          emu-mlirbc = ipSelf.callPackage ./mlirbc.nix { elaborate = ipSelf.emu-elaborate; };
-
-          # T1 Verilator Emulator
-          verilator-emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = ipSelf.emu-mlirbc; };
-          verilator-emu-rtl = ipSelf.callPackage ./rtl.nix {
-            mlirbc = ipSelf.emu-mlirbc;
-            mfcArgs = lib.escapeShellArgs [
-              "-O=release"
-              "--split-verilog"
-              "--preserve-values=all"
-              "--verification-flavor=if-else-fatal"
-              "--lowering-options=verifLabels,omitVersionComment"
-              "--strip-debug-info"
-            ];
-          };
-          verilator-emu-rtl-verilated = ipSelf.callPackage ./verilated.nix { stdenv = moldStdenv; };
-          verilator-emu-rtl-verilated-trace = ipSelf.callPackage ./verilated.nix { stdenv = moldStdenv; enable-trace = true; };
-
-          verilator-emu = ipSelf.callPackage ../../difftest/verilator.nix { };
-          verilator-emu-trace = ipSelf.callPackage ../../difftest/verilator.nix { verilator-emu-rtl-verilated = ipSelf.verilator-emu-rtl-verilated-trace; };
-
-          # T1 VCS Emulator
-          vcs-emu-omreader = self.omreader-unwrapped.mkWrapper { mlirbc = ipSelf.emu-mlirbc; };
-          vcs-emu-rtl = ipSelf.callPackage ./rtl.nix {
-            mlirbc = ipSelf.emu-mlirbc;
-            mfcArgs = lib.escapeShellArgs [
-              "-O=release"
-              "--split-verilog"
-              "--preserve-values=all"
-              "--verification-flavor=sva"
-              "--lowering-options=verifLabels,omitVersionComment"
-              "--strip-debug-info"
-            ];
-          };
-          vcs-dpi-lib = ipSelf.callPackage ../../difftest/vcs.nix { };
-          vcs-dpi-lib-trace = ipSelf.vcs-dpi-lib.override { enable-trace = true; };
-          # FIXME: vcs-emu should have offline check instead of using verilator one
-          vcs-emu = ipSelf.callPackage ./vcs.nix { };
-          vcs-emu-trace = ipSelf.callPackage ./vcs.nix { vcs-dpi-lib = ipSelf.vcs-dpi-lib-trace; };
-
-          offline = ipSelf.callPackage ../../difftest/offline.nix { };
-        });
-
-        subsystem = rec {
-          recurseForDerivations = true;
-
-          elaborate = innerSelf.callPackage ./elaborate.nix { target = "subsystem"; /* use-binder = true; */ };
-          mlirbc = innerSelf.callPackage ./mlirbc.nix { inherit elaborate; };
-          rtl = innerSelf.callPackage ./rtl.nix { inherit mlirbc; };
-        };
-
-        release = innerSelf.callPackage ./release { };
-      })
-    )
-    allConfigs
+    omreader-unwrapped = t1Scope.callPackage ./omreader.nix { };
+  }
+    # Nix specification for t1 (with spike only) emulator
+    # We don't expect extra scope for t1 stuff, so here we merge the t1 at t1Scope level.
+    # Note: Don't use callPackage here, or t1Scope will fall into recursive search.
+    // ((import ./t1.nix) { inherit lib allConfigs t1Scope runCommand; })
   )

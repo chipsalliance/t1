@@ -2,7 +2,7 @@
 { stdenv
 , lib
 , jq
-, emulator
+, rtlDesignMetadata
 }:
 
 # args from makeBuilder
@@ -28,7 +28,7 @@ let
 
       NIX_CFLAGS_COMPILE =
         let
-          march = lib.pipe emulator.rtlDesignMetadata.march [
+          march = lib.pipe rtlDesignMetadata.march [
             (lib.splitString "_")
             (map (ext: if ext == "zvbb" then "zvbb1" else ext))
             (lib.concatStringsSep "_")
@@ -44,7 +44,7 @@ let
           "-fno-PIC"
           "-g"
           "-O3"
-        ] ++ lib.optionals (lib.elem "zvbb" (lib.splitString "_" emulator.rtlDesignMetadata.march)) [ "-menable-experimental-extensions" ];
+        ] ++ lib.optionals (lib.elem "zvbb" (lib.splitString "_" rtlDesignMetadata.march)) [ "-menable-experimental-extensions" ];
 
       installPhase = ''
         runHook preInstall
@@ -65,8 +65,7 @@ let
       dontFixup = true;
 
       passthru = {
-        inherit (emulator) rtlDesignMetadata;
-        emu-result = emulator.runEmulation caseDrv;
+        inherit rtlDesignMetadata;
       };
     }
     overrides); # end of recursiveUpdate

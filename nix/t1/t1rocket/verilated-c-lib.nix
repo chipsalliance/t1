@@ -2,7 +2,7 @@
 , stdenv
 , rtl
 , verilator
-, enable-trace ? true
+, enableTrace ? true
 , zlib
 }:
 
@@ -20,7 +20,7 @@ stdenv.mkDerivation {
 
     echo "[nix] running verilator"
     verilator \
-      ${lib.optionalString enable-trace "--trace-fst"} \
+      ${lib.optionalString enableTrace "--trace-fst"} \
       --cc \
       --timing \
       --threads 8 \
@@ -47,7 +47,7 @@ stdenv.mkDerivation {
   hardeningDisable = [ "fortify" ];
 
   passthru = {
-    inherit enable-trace;
+    inherit enableTrace;
   };
 
   installPhase = ''

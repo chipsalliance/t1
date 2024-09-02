@@ -1,13 +1,21 @@
 { lib
+, rustPlatform
 , libspike
 , libspike_interfaces
-, rustPlatform
 , rtlDesignMetadata
-, enable-trace ? false
 }:
 
+{ outputName
+, emuType
+, buildType
+, enableTrace ? false
+}:
+
+assert lib.assertMsg (lib.elem emuType [ "verilator" "vcs" ]) "emuType is either 'vcs' nor 'verilator'";
+assert lib.assertMsg (lib.elem buildType [ "t1" "t1rocket" ]) "emuType is either 't1' nor 't1rocket'";
+
 rustPlatform.buildRustPackage {
-  name = "vcs-dpi-lib";
+  name = outputName;
   src = with lib.fileset; toSource {
     root = ./.;
     fileset = unions [
@@ -22,8 +30,8 @@ rustPlatform.buildRustPackage {
     ];
   };
 
-  buildFeatures = ["dpi_common/vcs"] ++ lib.optionals enable-trace [ "dpi_common/trace" ];
-  buildAndTestSubdir = "./dpi_t1rocket";
+  buildFeatures = [ "dpi_common/${emuType}" ] ++ lib.optionals enableTrace [ "dpi_common/trace" ];
+  buildAndTestSubdir = "./dpi_${buildType}";
 
   env = {
     SPIKE_LIB_DIR = "${libspike}/lib";
@@ -38,6 +46,7 @@ rustPlatform.buildRustPackage {
   };
 
   passthru = {
-    inherit enable-trace;
+    dpiLibPath = "/lib/libdpi_${buildType}.a";
+    inherit enableTrace;
   };
 }
