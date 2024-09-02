@@ -1,12 +1,12 @@
 { lib
-, elaborateConfig
 , rustPlatform
 , libspike
 , libspike_interfaces
+, rtlDesignMetadata
 }:
 
 rustPlatform.buildRustPackage {
-  name = "offline";
+  name = "offline-checker";
   src = with lib.fileset; toSource {
     root = ./.;
     fileset = unions [
@@ -21,18 +21,15 @@ rustPlatform.buildRustPackage {
     ];
   };
 
-  buildFeatures = [];
+  buildFeatures = [ ];
   buildAndTestSubdir = "./offline";
 
   env = {
     SPIKE_LIB_DIR = "${libspike}/lib";
     SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
-    DESIGN_VLEN = elaborateConfig.parameter.vLen;
-    DESIGN_DLEN = elaborateConfig.parameter.dLen;
-    SPIKE_ISA_STRING =
-      "rv32gc_" +
-      (builtins.concatStringsSep "_" elaborateConfig.parameter.extensions)
-      + "_Zvl${toString elaborateConfig.parameter.vLen}b";
+    DESIGN_VLEN = rtlDesignMetadata.vlen;
+    DESIGN_DLEN = rtlDesignMetadata.dlen;
+    SPIKE_ISA_STRING = rtlDesignMetadata.march;
   };
 
   cargoLock = {

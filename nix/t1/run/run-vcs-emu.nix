@@ -1,27 +1,23 @@
-# FIXME: this is not a correct design, we should have offline check command in VCS emulator
-{ lib, stdenvNoCC, zstd, jq, vcs-offline-checker }:
+{ lib, stdenvNoCC, zstd, jq, offline-checker }:
 emulator:
 testCase:
 
 stdenvNoCC.mkDerivation (finalAttr: {
-  name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enable-trace "-trace");
+  name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enableTrace "-trace");
   nativeBuildInputs = [ zstd jq ];
   __noChroot = true;
 
-  offlineLogLevel = "ERROR";
-  # Don't use true/false here, some version of nix will ignore it and cause empty env
-  vcsDoLog = 0;
-  passthru.debug = finalAttr.finalPackage.overrideAttrs { offlineLogLevel = "TRACE"; vcsDoLog = true; };
+  passthru.caseName = testCase.pname;
 
   buildCommand = ''
     mkdir -p "$out"
 
     emuDriverArgsArray=(
       "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-      ${lib.optionalString emulator.enable-trace "+t1_wave_path=${testCase.pname}.fsdb"}
+      ${lib.optionalString emulator.enableTrace "+t1_wave_path=${testCase.pname}.fsdb"}
     )
     emuDriverArgs="''${emuDriverArgsArray[@]}"
-    emuDriver="${emulator}/bin/t1-vcs-simulator"
+    emuDriver="${emulator}/bin/${emulator.mainProgram}"
 
     rtlEventOutPath="$out/${testCase.pname}-rtl-event.jsonl"
 
@@ -36,11 +32,7 @@ stdenvNoCC.mkDerivation (finalAttr: {
 
     export RUST_BACKTRACE=full
 
-    if (( ! $vcsDoLog )); then
-      "$emuDriver" $emuDriverArgs 1>/dev/null 2>$rtlEventOutPath || printError
-    else
-      "$emuDriver" $emuDriverArgs 1>$out/online-drive-emu-journal 2>$rtlEventOutPath || printError
-    fi
+    "$emuDriver" $emuDriverArgs 1>$out/online-drive-emu-journal 2>$rtlEventOutPath || printError
 
     echo "[nix] VCS run done"
 
@@ -64,11 +56,11 @@ stdenvNoCC.mkDerivation (finalAttr: {
       "--log-file"
       "$rtlEventOutPath"
       "--log-level"
-      "$offlineLogLevel"
+      "ERROR"
     )
     offlineCheckArgs="''${offlineCheckArgsArray[@]}"
     echo -e "[nix] running offline check: \033[0;34m${emulator}/bin/offline $offlineCheckArgs\033[0m"
-    "${vcs-offline-checker}/bin/offline" $offlineCheckArgs &> $out/offline-check-journal
+    "${offline-checker}/bin/offline" $offlineCheckArgs &> $out/offline-check-journal
 
     printf "$?" > $out/offline-check-status
     if [ "$(cat $out/offline-check-status)" != "0" ]; then
@@ -82,13 +74,13 @@ stdenvNoCC.mkDerivation (finalAttr: {
     zstd $rtlEventOutPath -o $rtlEventOutPath.zstd
     rm $rtlEventOutPath
 
-    if [ -r perf.txt ]; then
-      mv perf.txt $out/
+    if [ -r perf.json ]; then
+      mv perf.json $out/
     fi
 
-    ${lib.optionalString emulator.enable-trace ''
+    ${lib.optionalString emulator.enableTrace ''
       cp -v ${testCase.pname}.fsdb "$out"
-      cp -vr ${emulator}/lib/t1-vcs-simulator.daidir "$out"
+      cp -vr ${emulator}/lib/${emulator.mainProgram}.daidir "$out"
     ''}
   '';
 })

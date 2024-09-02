@@ -12,7 +12,7 @@
 , jextract-21
 , strip-nondeterminism
 
-, submodules
+, dependencies
 }:
 
 let
@@ -39,7 +39,7 @@ let
         ];
       };
       millDepsHash = "sha256-Wkp2nLl6941F2ja3uQOpjB3S79vbDTAXStnDU1C6u3s=";
-      nativeBuildInputs = [ submodules.setupHook ];
+      nativeBuildInputs = [ dependencies.setupHook ];
     };
 
     passthru = {
@@ -72,7 +72,7 @@ let
       makeWrapper
       passthru.millDeps.setupHook
 
-      submodules.setupHook
+      dependencies.setupHook
     ];
 
     env = {

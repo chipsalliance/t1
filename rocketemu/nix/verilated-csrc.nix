@@ -3,7 +3,7 @@
 , stdenv
 , rtl
 , verilator
-, enable-trace ? true
+, enableTrace ? true
 , zlib
 }:
 
@@ -25,7 +25,7 @@ stdenv.mkDerivation {
 
   nativeBuildInputs = [ verilator ];
 
-  propagatedBuildInputs = lib.optionals enable-trace [ zlib ];
+  propagatedBuildInputs = lib.optionals enableTrace [ zlib ];
 
   env.rocketChipVSrc = "${rocket-chip-v-src}/src/main/resources/vsrc/";
 
@@ -36,7 +36,7 @@ stdenv.mkDerivation {
     # FIXME: fix all the warning and remove -Wno-<msg> flag here
     verilator \
       -I"$rocketChipVSrc" \
-      ${lib.optionalString enable-trace "--trace-fst"} \
+      ${lib.optionalString enableTrace "--trace-fst"} \
       --timing \
       --threads 8 \
       --threads-max-mtasks 8000 \
@@ -63,7 +63,7 @@ stdenv.mkDerivation {
   hardeningDisable = [ "fortify" ];
 
   passthru = {
-    inherit enable-trace rocket-chip-v-src;
+    inherit enableTrace rocket-chip-v-src;
   };
 
   installPhase = ''

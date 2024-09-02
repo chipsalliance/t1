@@ -128,5 +128,4 @@ rec {
   };
 
   t1 = final.callPackage ./t1 { };
-  t1-rocket = final.callPackage ../t1rocketemu { };
 }

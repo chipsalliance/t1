@@ -4,7 +4,7 @@
 , makeBuilder
   # Instead of testing feature is supported on TOP level,
   # codegen case are always generated with supported code.
-, featuresSet
+, rtlDesignMetadata
 }:
 
 let
@@ -27,8 +27,8 @@ let
           runHook preBuild
 
           ${rvv-codegen}/bin/single \
-            -VLEN "${builtins.toString featuresSet.vlen}" \
-            -XLEN "${builtins.toString featuresSet.xlen}" \
+            -VLEN "${builtins.toString rtlDesignMetadata.vlen}" \
+            -XLEN "${builtins.toString rtlDesignMetadata.xlen}" \
             -repeat 16 \
             -testfloat3level 2 \
             -configfile ${rvv-codegen}/configs/${rawCaseName}.toml \
@@ -68,7 +68,7 @@ let
 in
 lib.recurseIntoAttrs (
   commonTests //
-  lib.optionalAttrs (lib.elem "zve32f" featuresSet.extensions) fpTests //
-  lib.optionalAttrs (lib.elem "zvbb" featuresSet.extensions) zvbbTests
+  lib.optionalAttrs (lib.elem "zve32f" rtlDesignMetadata.extensions) fpTests //
+  lib.optionalAttrs (lib.elem "zvbb" rtlDesignMetadata.extensions) zvbbTests
 )
 

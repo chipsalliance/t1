@@ -3,27 +3,10 @@
 , rv32-stdenv
 , runCommand
 
-, configName
-
-, emulator
+, rtlDesignMetadata
 }:
 
-assert lib.assertMsg (lib.isDerivation emulator) "emulator in malform, expect an derivation";
-assert lib.assertMsg (emulator ? runEmulation) "emulator ${emulator.name} doesn't contains `runEmulation` hooks";
-assert lib.assertMsg (builtins.typeOf emulator.runEmulation == "lambda") "emulator ${emulator.name} have wrong `runEmulation` hook";
-
 let
-  # TODO
-  # In next PR, I would love to have `featureSet` became same as the `rtlDesignMetadata`,
-  # which is populate from OM data.
-  # Keep it here now, for compatibility so that we can do fast code iteraction.
-  #
-  # Assignee @Avimitin.
-  featuresSet = {
-    extensions = lib.splitString "_" emulator.rtlDesignMetadata.march;
-    inherit (emulator.rtlDesignMetadata) march xlen vlen dlen;
-  };
-
   # isSubSetOf m n: n is subset of m
   isSubsetOf = m: n: lib.all (x: lib.elem x m) n;
 
@@ -55,7 +38,7 @@ let
   scope = lib.recurseIntoAttrs (lib.makeScope newScope (casesSelf: {
     recurseForDerivations = true;
 
-    inherit emulator featuresSet;
+    inherit rtlDesignMetadata;
 
     makeBuilder = casesSelf.callPackage ./builder.nix { };
 
@@ -75,7 +58,7 @@ let
     filterByFeatures = caseName: caseDrv:
       assert lib.assertMsg (caseDrv ? featuresRequired) "${caseName} doesn't have features specified";
       # Test the case required extensions is supported by rtl design
-      hasIntersect caseDrv.featuresRequired featuresSet;
+      hasIntersect caseDrv.featuresRequired rtlDesignMetadata;
 
     findAndBuild = dir: build:
       lib.recurseIntoAttrs (lib.pipe (builtins.readDir dir) [
@@ -117,32 +100,6 @@ let
   # We have a large test suite used in CI, but resolving each test individually is too slow for production.
   # This "fake" derivation serves as a workaround, making all tests dependencies of this single derivation.
   # This allows Nix to resolve the path only once, while still pulling all tests into the local Nix store.
-  _allEmuResult =
-    let
-      testPlan = builtins.fromJSON
-        (lib.readFile ../.github/${if configName == "t1rocket" then "t1rocket-cases" else "cases"}/${configName}/default.json);
-      # flattern the attr set to a list of test case derivations
-      # AttrSet (AttrSet Derivation) -> List Derivation
-      allCases = lib.filter
-        (val: lib.isDerivation val && lib.hasAttr val.pname testPlan)
-        (lib.concatLists (map lib.attrValues (lib.attrValues scopeStripped)));
-      script = ''
-        mkdir -p $out
-      '' + (lib.concatMapStringsSep "\n"
-        (caseDrv: ''
-          _caseOutDir=$out/${caseDrv.pname}
-          mkdir -p "$_caseOutDir"
-
-          if [ -r ${caseDrv.emu-result}/perf.txt ]; then
-            cp -v ${caseDrv.emu-result}/perf.txt "$_caseOutDir"/
-          fi
-
-          cp -v ${caseDrv.emu-result}/offline-check-* "$_caseOutDir"/
-        '')
-        allCases);
-    in
-    runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
-
   _all =
     let
       allCases = lib.filter
@@ -163,4 +120,4 @@ let
       { }
       script;
 in
-lib.recurseIntoAttrs (scopeStripped // { inherit _all _allEmuResult; })
+lib.recurseIntoAttrs (scopeStripped // { inherit _all; })
