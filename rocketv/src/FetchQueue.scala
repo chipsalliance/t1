@@ -39,9 +39,9 @@ case class FetchQueueParameter(
 class FetchQueueInterface(parameter: FetchQueueParameter) extends Bundle {
   val clock = Input(Clock())
   val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
-  val enq = Flipped(Decoupled(parameter.gen))
-  val deq = Decoupled(parameter.gen)
-  val mask = Output(UInt(parameter.entries.W))
+  val enq   = Flipped(Decoupled(parameter.gen))
+  val deq   = Decoupled(parameter.gen)
+  val mask  = Output(UInt(parameter.entries.W))
 }
 
 @instantiable
@@ -55,14 +55,14 @@ class FetchQueue(val parameter: FetchQueueParameter)
   override protected def implicitReset: Reset = io.reset
 
   private val valid = RegInit(VecInit(Seq.fill(parameter.entries) { false.B }))
-  private val elts = Reg(Vec(parameter.entries, parameter.gen))
+  private val elts  = Reg(Vec(parameter.entries, parameter.gen))
 
   for (i <- 0 until parameter.entries) {
     def paddedValid(i: Int) = if (i == -1) true.B else if (i == parameter.entries) false.B else valid(i)
 
-    val flow = true
+    val flow  = true
     val wdata = if (i == parameter.entries - 1) io.enq.bits else Mux(valid(i + 1), elts(i + 1), io.enq.bits)
-    val wen =
+    val wen   =
       Mux(
         io.deq.ready,
         paddedValid(i + 1) || io.enq.fire && valid(i),
@@ -80,7 +80,7 @@ class FetchQueue(val parameter: FetchQueueParameter)
 
   io.enq.ready := !valid(parameter.entries - 1)
   io.deq.valid := valid(0)
-  io.deq.bits := elts.head
+  io.deq.bits  := elts.head
 
   when(io.enq.valid) { io.deq.valid := true.B }
   when(!valid(0)) { io.deq.bits := io.enq.bits }

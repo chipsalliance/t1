@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isReadonly {
   def apply(t1DecodePattern: T1DecodePattern): isReadonly =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isReadonly(tri)
@@ -26,14 +26,12 @@ object isReadonly {
       "vsext.vf8",
       "vzext.vf2",
       "vzext.vf4",
-      "vzext.vf8",
+      "vzext.vf8"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -41,5 +39,6 @@ object isReadonly {
 }
 
 case class isReadonly(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "lane read only instructions. for these instructions lane will only read vrf and send data back to Sequencer. "
+  override val description: String =
+    "lane read only instructions. for these instructions lane will only read vrf and send data back to Sequencer. "
 }

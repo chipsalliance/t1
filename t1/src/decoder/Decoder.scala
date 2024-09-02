@@ -22,8 +22,8 @@ trait BoolField extends T1DecodeFiled[Bool] with BoolDecodeField[T1DecodePattern
 
   override def genTable(pattern: T1DecodePattern): BitPat =
     getTriState(pattern) match {
-      case attribute.Y => y
-      case attribute.N => n
+      case attribute.Y  => y
+      case attribute.N  => n
       case attribute.DC => dc
     }
 }
@@ -240,46 +240,46 @@ object Decoder {
 
   object uop extends T1UopField {
     override def genTable(pattern: T1DecodePattern): BitPat = pattern.decoderUop.value match {
-      case addCase: AdderUOPType =>
+      case addCase:   AdderUOPType =>
         addCase match {
-          case _: addUop0.type => BitPat("b0000")
-          case _: addUop1.type => BitPat("b0001")
+          case _: addUop0.type  => BitPat("b0000")
+          case _: addUop1.type  => BitPat("b0001")
           case _: addUop10.type => BitPat("b1010")
           case _: addUop11.type => BitPat("b1011")
-          case _: addUop2.type => BitPat("b0010")
-          case _: addUop3.type => BitPat("b0011")
-          case _: addUop4.type => BitPat("b0100")
-          case _: addUop6.type => BitPat("b0110")
-          case _: addUop7.type => BitPat("b0111")
-          case _: addUop8.type => BitPat("b1000")
-          case _: addUop9.type => BitPat("b1001")
+          case _: addUop2.type  => BitPat("b0010")
+          case _: addUop3.type  => BitPat("b0011")
+          case _: addUop4.type  => BitPat("b0100")
+          case _: addUop6.type  => BitPat("b0110")
+          case _: addUop7.type  => BitPat("b0111")
+          case _: addUop8.type  => BitPat("b1000")
+          case _: addUop9.type  => BitPat("b1001")
           case _ => BitPat.dontCare(4)
         }
-      case divCase: DivUOPType =>
+      case divCase:   DivUOPType   =>
         divCase match {
-          case _: divUop0.type => BitPat("b0000")
-          case _: divUop1.type => BitPat("b0001")
+          case _: divUop0.type  => BitPat("b0000")
+          case _: divUop1.type  => BitPat("b0001")
           case _: divUop10.type => BitPat("b1010")
-          case _: divUop8.type => BitPat("b1000")
-          case _: divUop9.type => BitPat("b1001")
+          case _: divUop8.type  => BitPat("b1000")
+          case _: divUop9.type  => BitPat("b1001")
           case _ => BitPat.dontCare(4)
         }
       case floatCase: FloatUopType =>
         floatCase match {
-          case _: FUT0.type => BitPat("b0000")
-          case _: FUT1.type => BitPat("b0001")
+          case _: FUT0.type  => BitPat("b0000")
+          case _: FUT1.type  => BitPat("b0001")
           case _: FUT10.type => BitPat("b1010")
           case _: FUT12.type => BitPat("b1100")
           case _: FUT13.type => BitPat("b1101")
           case _: FUT14.type => BitPat("b1110")
-          case _: FUT2.type => BitPat("b0010")
-          case _: FUT3.type => BitPat("b0011")
-          case _: FUT4.type => BitPat("b0100")
-          case _: FUT5.type => BitPat("b0101")
-          case _: FUT6.type => BitPat("b0110")
-          case _: FUT7.type => BitPat("b0111")
-          case _: FUT8.type => BitPat("b1000")
-          case _: FUT9.type => BitPat("b1001")
+          case _: FUT2.type  => BitPat("b0010")
+          case _: FUT3.type  => BitPat("b0011")
+          case _: FUT4.type  => BitPat("b0100")
+          case _: FUT5.type  => BitPat("b0101")
+          case _: FUT6.type  => BitPat("b0110")
+          case _: FUT7.type  => BitPat("b0111")
+          case _: FUT8.type  => BitPat("b1000")
+          case _: FUT9.type  => BitPat("b1001")
           case _ => BitPat.dontCare(4)
         }
       case logicCase: LogicUopType =>
@@ -294,14 +294,14 @@ object Decoder {
           case _: logicUop9.type => BitPat("b1001")
           case _ => BitPat.dontCare(4)
         }
-      case mulCase: MulUOPType =>
+      case mulCase:   MulUOPType   =>
         mulCase match {
-          case _: mulUop0.type => BitPat("b0000")
-          case _: mulUop1.type => BitPat("b0001")
+          case _: mulUop0.type  => BitPat("b0000")
+          case _: mulUop1.type  => BitPat("b0001")
           case _: mulUop10.type => BitPat("b1010")
           case _: mulUop14.type => BitPat("b1110")
-          case _: mulUop3.type => BitPat("b0011")
-          case _: mulUop5.type => BitPat("b0101")
+          case _: mulUop3.type  => BitPat("b0011")
+          case _: mulUop5.type  => BitPat("b0101")
           case _ => BitPat.dontCare(4)
         }
       case otherCase: OtherUopType =>
@@ -327,12 +327,12 @@ object Decoder {
           case _: shiftUop6.type => BitPat("b0110")
           case _ => BitPat.dontCare(4)
         }
-      case zeroCase: ZeroUOPType =>
+      case zeroCase:  ZeroUOPType  =>
         zeroCase match {
-          case _: zeroUop0.type =>  BitPat("b0000")
+          case _: zeroUop0.type => BitPat("b0000")
           case _ => BitPat.dontCare(4)
         }
-      case zvbbCase: ZvbbUOPType =>
+      case zvbbCase:  ZvbbUOPType  =>
         zvbbCase match {
           case _: zvbbUop0.type => BitPat("b0000") // brev
           case _: zvbbUop1.type => BitPat("b0001") // brev8
@@ -352,13 +352,13 @@ object Decoder {
   object fpExecutionType extends T1fpExecutionTypeUopField {
     override def genTable(pattern: T1DecodePattern): BitPat = pattern.fpExecutionType match {
       case FpExecutionType.Compare => BitPat("b10")
-      case FpExecutionType.MA => BitPat("b00")
-      case FpExecutionType.Other => BitPat("b11")
-      case FpExecutionType.Nil => BitPat.dontCare(2)
+      case FpExecutionType.MA      => BitPat("b00")
+      case FpExecutionType.Other   => BitPat("b11")
+      case FpExecutionType.Nil     => BitPat.dontCare(2)
     }
   }
 
-  def allFields(param: DecoderParam): Seq[T1DecodeFiled[_ >: Bool <: UInt]] = Seq(
+  def allFields(param: DecoderParam):        Seq[T1DecodeFiled[_ >: Bool <: UInt]] = Seq(
     logic,
     adder,
     shift,
@@ -380,9 +380,9 @@ object Decoder {
     compress,
     unOrderWrite,
     // top uop
-    extend, // top uop
-    mv, // top uop
-    iota, // top uop
+    extend,   // top uop
+    mv,       // top uop
+    iota,     // top uop
     uop,
     maskLogic,
     maskDestination,
@@ -396,14 +396,14 @@ object Decoder {
     crossRead,
     // state
     sWrite,
-    //sRead1 -> vType
+    // sRead1 -> vType
     vtype,
     sReadVD,
     scheduler,
     dontNeedExecuteInLane,
-    reverse, // uop
-    average, // uop
-    ffo, // todo: add mask select -> top uop
+    reverse,  // uop
+    average,  // uop
+    ffo,      // todo: add mask select -> top uop
     popCount, // top uop add, red, uop popCount
     topUop,
     specialSlot
@@ -419,16 +419,18 @@ object Decoder {
   } ++ {
     if (param.zvbbEnable)
       Seq(
-        zvbb,
+        zvbb
       )
     else Seq()
   }
-  def allDecodePattern(param: DecoderParam): Seq[T1DecodePattern] = param.allInstructions.map(T1DecodePattern(_, param)).toSeq.sortBy(_.instruction.name)
+  def allDecodePattern(param: DecoderParam): Seq[T1DecodePattern]                  =
+    param.allInstructions.map(T1DecodePattern(_, param)).toSeq.sortBy(_.instruction.name)
 
-  def decodeTable(param: DecoderParam): DecodeTable[T1DecodePattern] = new DecodeTable[T1DecodePattern](allDecodePattern(param), allFields(param)   )
+  def decodeTable(param: DecoderParam): DecodeTable[T1DecodePattern] =
+    new DecodeTable[T1DecodePattern](allDecodePattern(param), allFields(param))
 
   def decode(param: DecoderParam): UInt => DecodeBundle = decodeTable(param).decode
-  def bundle(param: DecoderParam): DecodeBundle = decodeTable(param).bundle
+  def bundle(param: DecoderParam): DecodeBundle         = decodeTable(param).bundle
 }
 
 trait FieldName {
@@ -438,8 +440,17 @@ trait FieldName {
 case class SpecialAux(name: String, vs: Int, value: String)
 case class SpecialMap(name: String, vs: Int, data: Map[String, String])
 case class SpecialAuxInstr(instrName: String, vs: Int, value: String, name: String)
-case class Op(tpe: String, funct6: String, tpeOp2: String, funct3: String,
-              name: String, special: Option[SpecialAux], notLSU: Boolean, vd: String, opcode: String) extends DecodePattern {
+case class Op(
+  tpe:     String,
+  funct6:  String,
+  tpeOp2:  String,
+  funct3:  String,
+  name:    String,
+  special: Option[SpecialAux],
+  notLSU:  Boolean,
+  vd:      String,
+  opcode:  String)
+    extends DecodePattern {
   // include 32 bits: funct6 + vm + vs2 + vs1 + funct3 + vd + opcode
   def bitPat: BitPat = BitPat(
     "b" +

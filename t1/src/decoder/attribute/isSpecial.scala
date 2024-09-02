@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isSpecial {
   def apply(t1DecodePattern: T1DecodePattern): isSpecial =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isSpecial(tri)
@@ -131,14 +131,12 @@ object isSpecial {
       "vwredsumu.vs",
       "vzext.vf2",
       "vzext.vf4",
-      "vzext.vf8",
+      "vzext.vf8"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -146,5 +144,6 @@ object isSpecial {
 }
 
 case class isSpecial(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "if Sequencer is the router for data from Lane to LSU or Sequencer mask unit. special -> maskUnit || index type load store "
+  override val description: String =
+    "if Sequencer is the router for data from Lane to LSU or Sequencer mask unit. special -> maskUnit || index type load store "
 }

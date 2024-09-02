@@ -5,7 +5,7 @@ package org.chipsalliance.t1.rtl
 
 import chisel3._
 import chisel3.util.experimental.decode.DecodeBundle
-import chisel3.util.{Valid, ValidIO, log2Ceil}
+import chisel3.util.{log2Ceil, Valid, ValidIO}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.LSUParameter
 import org.chipsalliance.t1.rtl.vrf.VRFParam
@@ -16,24 +16,21 @@ class VResponse(xLen: Int) extends Bundle {
   /** data write to scalar rd. */
   val data: UInt = UInt(xLen.W)
 
-  /** Vector Fixed-Point Saturation Flag, propagate to vcsr in CSR.
-    * This is not maintained in the vector coprocessor since it is not used in the Vector processor.
+  /** Vector Fixed-Point Saturation Flag, propagate to vcsr in CSR. This is not maintained in the vector coprocessor
+    * since it is not used in the Vector processor.
     */
   val vxsat: Bool = Bool()
 
-  /** assert of [[rd.valid]] indicate vector need to write rd,
-    * the [[rd.bits]] is the index of rd
-    * TODO: merge [[data]] to rd.
+  /** assert of [[rd.valid]] indicate vector need to write rd, the [[rd.bits]] is the index of rd TODO: merge [[data]]
+    * to rd.
     */
   val rd: ValidIO[UInt] = Valid(UInt(log2Ceil(32).W))
 
   val float: Bool = Bool()
 
-  /** when [[mem]] is asserted, indicate the instruction need to access memory.
-    * if the vector instruction need to access memory,
-    * to maintain the order of memory access:
-    * the scalar core maintains a counter of vector memory access,
-    * if the counter is not zero, the memory access instruction of scalar core will stall until the counter is zero.
+  /** when [[mem]] is asserted, indicate the instruction need to access memory. if the vector instruction need to access
+    * memory, to maintain the order of memory access: the scalar core maintains a counter of vector memory access, if
+    * the counter is not zero, the memory access instruction of scalar core will stall until the counter is zero.
     *
     * TODO: rename to `memAccess`
     */
@@ -42,31 +39,26 @@ class VResponse(xLen: Int) extends Bundle {
 
 class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
 
-  /** record the index of this instruction,
-    * this is maintained by [[T1.instructionCounter]]
+  /** record the index of this instruction, this is maintained by [[T1.instructionCounter]]
     */
   val instructionIndex: UInt = UInt(instructionIndexWidth.W)
 
-  /** whether instruction is load store.
-    * it should tell scalar core if this is a load store unit.
+  /** whether instruction is load store. it should tell scalar core if this is a load store unit.
     */
   val isLoadStore: Bool = Bool()
 
-  /** whether instruction is mask type instruction.
-   * Need to stall instructions which will write v0.
-   */
+  /** whether instruction is mask type instruction. Need to stall instructions which will write v0.
+    */
   val maskType: Bool = Bool()
 }
 
-/** context for state machine:
-  * w: passive, s: initiative
-  * assert: don't need execute or is executed.
-  * deassert: need execute.
+/** context for state machine: w: passive, s: initiative assert: don't need execute or is executed. deassert: need
+  * execute.
   */
 class InstructionState extends Bundle {
 
-  /** wait for last signal from each lanes and [[LSU]].
-    * TODO: remove wLast. last = control.endTag.asUInt.andR & (!control.record.widen || busClear)
+  /** wait for last signal from each lanes and [[LSU]]. TODO: remove wLast. last = control.endTag.asUInt.andR &
+    * (!control.record.widen || busClear)
     */
   val wLast: Bool = Bool()
 
@@ -100,8 +92,7 @@ class InstructionControl(instIndexWidth: Int, laneSize: Int) extends Bundle {
   /** control state to record the current execution state. */
   val state: InstructionState = new InstructionState
 
-  /** tag for recording each lane and lsu is finished for this instruction.
-    * TODO: move to `state`.
+  /** tag for recording each lane and lsu is finished for this instruction. TODO: move to `state`.
     */
   val endTag: Vec[Bool] = Vec(laneSize + 1, Bool())
 
@@ -118,14 +109,14 @@ class ExtendInstructionType extends Bundle {
 
 /** interface from [[T1]] to [[Lane]]. */
 class LaneRequest(param: LaneParameter) extends Bundle {
-  val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
+  val instructionIndex: UInt         = UInt(param.instructionIndexBits.W)
   // decode
-  val decodeResult: DecodeBundle = Decoder.bundle(param.decoderParam)
-  val loadStore:    Bool = Bool()
-  val issueInst:    Bool = Bool()
-  val store:        Bool = Bool()
-  val special:      Bool = Bool()
-  val lsWholeReg:   Bool = Bool()
+  val decodeResult:     DecodeBundle = Decoder.bundle(param.decoderParam)
+  val loadStore:        Bool         = Bool()
+  val issueInst:        Bool         = Bool()
+  val store:            Bool         = Bool()
+  val special:          Bool         = Bool()
+  val lsWholeReg:       Bool         = Bool()
 
   // instruction
   /** vs1 or imm */
@@ -213,14 +204,13 @@ class InstGroupState(param: LaneParameter) extends Bundle {
 }
 
 class FFORecord extends Bundle {
-  /** the find first one instruction is finished by other lanes,
-   * for example, sbf(set before first)
-   */
+
+  /** the find first one instruction is finished by other lanes, for example, sbf(set before first)
+    */
   val ffoByOtherLanes: Bool = Bool()
 
-  /** the mask instruction is finished by this group.
-   * the instruction target is finished(but still need to access VRF.)
-   */
+  /** the mask instruction is finished by this group. the instruction target is finished(but still need to access VRF.)
+    */
   val selfCompleted: Bool = Bool()
 }
 
@@ -230,8 +220,7 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
   /** Store request from [[T1]]. */
   val laneRequest: LaneRequest = new LaneRequest(param)
 
-  /** csr follows the instruction.
-    * TODO: move to [[laneRequest]]
+  /** csr follows the instruction. TODO: move to [[laneRequest]]
     */
   val csr: CSRInterface = new CSRInterface(param.vlMaxBits)
 
@@ -244,18 +233,11 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
   // Requires an additional set of cross-lane reads/writes
   val additionalRW: Bool = Bool()
 
-  /** the execution index in group
-    * use byte as granularity,
-    * SEW
-    * 0 -> 00 01 10 11
-    * 1 -> 00    10
-    * 2 -> 00
-    * TODO: 3(64 only)
+  /** the execution index in group use byte as granularity, SEW 0 -> 00 01 10 11 1 -> 00 10 2 -> 00 TODO: 3(64 only)
     */
   val executeIndex: UInt = UInt(log2Ceil(param.dataPathByteWidth).W)
 
-  /** used for indicating the instruction is finished.
-    * for small vl, lane might not be used.
+  /** used for indicating the instruction is finished. for small vl, lane might not be used.
     */
   val instructionFinished: Bool = Bool()
 
@@ -269,43 +251,41 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
 /** CSR Interface from Scalar Core. */
 class CSRInterface(vlWidth: Int) extends Bundle {
 
-  /** Vector Length Register `vl`,
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#35-vector-length-register-vl]]
+  /** Vector Length Register `vl`, see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#35-vector-length-register-vl]]
     */
   val vl: UInt = UInt(vlWidth.W)
 
-  /** Vector Start Index CSR `vstart`,
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#37-vector-start-index-csr-vstart]]
+  /** Vector Start Index CSR `vstart`, see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#37-vector-start-index-csr-vstart]]
     * TODO: rename to `vstart`
     */
   val vStart: UInt = UInt(vlWidth.W)
 
-  /** Vector Register Grouping `vlmul[2:0]`
-    * subfield of `vtype`
-    * see table in [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#342-vector-register-grouping-vlmul20]]
+  /** Vector Register Grouping `vlmul[2:0]` subfield of `vtype` see table in
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#342-vector-register-grouping-vlmul20]]
     */
   val vlmul: UInt = UInt(3.W)
 
-  /** Vector Register Grouping (vlmul[2:0])
-    * subfield of `vtype``
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#341-vector-selected-element-width-vsew20]]
+  /** Vector Register Grouping (vlmul[2:0]) subfield of `vtype`` see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#341-vector-selected-element-width-vsew20]]
     */
   val vSew: UInt = UInt(2.W)
 
-  /** Rounding mode register
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
+  /** Rounding mode register see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
     */
   val vxrm: UInt = UInt(2.W)
 
-  /** Vector Tail Agnostic
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
+  /** Vector Tail Agnostic see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
     *
     * we always keep the undisturbed behavior, since there is no rename here.
     */
   val vta: Bool = Bool()
 
-  /** Vector Mask Agnostic
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
+  /** Vector Mask Agnostic see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
     *
     * we always keep the undisturbed behavior, since there is no rename here.
     */
@@ -318,8 +298,8 @@ class LaneResponse(param: LaneParameter) extends Bundle {
   /** data sending to [[T1]]. */
   val data: UInt = UInt(param.datapathWidth.W)
 
-  /** if [[toLSU]] is asserted, this field is used to indicate the data is sending to LSU,
-    * otherwise, it is for mask unit
+  /** if [[toLSU]] is asserted, this field is used to indicate the data is sending to LSU, otherwise, it is for mask
+    * unit
     */
   val toLSU: Bool = Bool()
 
@@ -330,17 +310,20 @@ class LaneResponse(param: LaneParameter) extends Bundle {
   val fpReduceValid: Option[Bool] = Option.when(param.fpuEnable)(Bool())
 
   /** which instruction is the source of this transaction
-    * @todo @Clo91eaf change it to Probe
+    * @todo
+    *   \@Clo91eaf change it to Probe
     */
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 }
 
 class ReadBusData(param: LaneParameter) extends Bundle {
+
   /** data field of the bus. */
   val data: UInt = UInt(param.datapathWidth.W)
 }
 
 class WriteBusData(param: LaneParameter) extends Bundle {
+
   /** data field of the bus. */
   val data: UInt = UInt(param.datapathWidth.W)
 
@@ -356,26 +339,25 @@ class WriteBusData(param: LaneParameter) extends Bundle {
 
 // @todo change this name:(
 class RingPort[T <: Data](gen: T) extends Bundle {
-  val enq: ValidIO[T] = Flipped(Valid(gen))
-  val enqRelease: Bool = Output(Bool())
-  val deq: ValidIO[T] = Valid(gen)
-  val deqRelease: Bool = Input(Bool())
+  val enq:        ValidIO[T] = Flipped(Valid(gen))
+  val enqRelease: Bool       = Output(Bool())
+  val deq:        ValidIO[T] = Valid(gen)
+  val deqRelease: Bool       = Input(Bool())
 }
 
 /** [[T1]] -> [[Lane]], ack of [[LaneResponse]] */
 class LaneResponseFeedback(param: LaneParameter) extends Bundle {
 
-  /** which instruction is the source of this transaction
-    * TODO: for DEBUG use.
-    * @todo @Clo91eaf change it to Probe
+  /** which instruction is the source of this transaction TODO: for DEBUG use.
+    * @todo
+    *   \@Clo91eaf change it to Probe
     */
   val instructionIndex: UInt = UInt(param.instructionIndexBits.W)
 
-  /** for instructions that might finish in other lanes,
-    * use [[complete]] to tell the target lane
-    * - LSU indexed type load store is finished in LSU.
-    * - find first one is found by other lanes.
-    * - the VRF read operation of mask unit is finished.
+  /** for instructions that might finish in other lanes, use [[complete]] to tell the target lane
+    *   - LSU indexed type load store is finished in LSU.
+    *   - find first one is found by other lanes.
+    *   - the VRF read operation of mask unit is finished.
     */
   val complete: Bool = Bool()
 }
@@ -384,7 +366,7 @@ class V0Update(param: LaneParameter) extends Bundle {
   val data:   UInt = UInt(param.datapathWidth.W)
   val offset: UInt = UInt(param.vrfOffsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
-  val mask: UInt = UInt(4.W)
+  val mask:   UInt = UInt(4.W)
 }
 
 /** Request to access VRF in each lanes. */
@@ -396,8 +378,7 @@ class VRFReadRequest(regNumBits: Int, offsetBits: Int, instructionIndexBits: Int
   /** read vs1 vs2 vd? */
   val readSource: UInt = UInt(2.W)
 
-  /** the offset of VRF access.
-    * TODO: rename to offsetForVSInLane
+  /** the offset of VRF access. TODO: rename to offsetForVSInLane
     */
   val offset: UInt = UInt(offsetBits.W)
 
@@ -406,11 +387,11 @@ class VRFReadRequest(regNumBits: Int, offsetBits: Int, instructionIndexBits: Int
 }
 
 class VRFReadQueueEntry(regNumBits: Int, offsetBits: Int) extends Bundle {
-  val vs: UInt = UInt(regNumBits.W)
-  val offset: UInt = UInt(offsetBits.W)
+  val vs:               UInt = UInt(regNumBits.W)
+  val offset:           UInt = UInt(offsetBits.W)
   // for debug
-  val groupIndex: UInt = UInt(4.W)
-  val readSource: UInt = UInt(4.W)
+  val groupIndex:       UInt = UInt(4.W)
+  val readSource:       UInt = UInt(4.W)
   // Pipe due to fan-out
   val instructionIndex: UInt = UInt(3.W)
 }
@@ -429,8 +410,7 @@ class VRFWriteRequest(regNumBits: Int, offsetBits: Int, instructionIndexSize: In
   /** data to write to VRF. */
   val data: UInt = UInt(dataPathWidth.W)
 
-  /** this is the last write of this instruction
-    * TODO: rename to isLast.
+  /** this is the last write of this instruction TODO: rename to isLast.
     */
   val last: Bool = Bool()
 
@@ -451,63 +431,63 @@ class LSUWriteCheck(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int)
 }
 
 class VRFInstructionState extends Bundle {
-  val stFinish:  Bool = Bool()
+  val stFinish:         Bool = Bool()
   // execute finish, wait for write queue clear
   val wWriteQueueClear: Bool = Bool()
-  val wLaneLastReport: Bool = Bool()
-  val wTopLastReport: Bool = Bool()
-  val wLaneClear: Bool = Bool()
+  val wLaneLastReport:  Bool = Bool()
+  val wTopLastReport:   Bool = Bool()
+  val wLaneClear:       Bool = Bool()
 }
 
 class VRFWriteReport(param: VRFParam) extends Bundle {
   // 8 reg/group; which group?
-  val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
-  val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
-  val vs2:       UInt = UInt(param.regNumBits.W)
-  val instIndex: UInt = UInt(param.instructionIndexBits.W)
-  val ls:        Bool = Bool()
-  val st:        Bool = Bool()
+  val vd:          ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs1:         ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs2:         UInt          = UInt(param.regNumBits.W)
+  val instIndex:   UInt          = UInt(param.instructionIndexBits.W)
+  val ls:          Bool          = Bool()
+  val st:          Bool          = Bool()
   // instruction will cross write
-  val crossWrite: Bool = Bool()
+  val crossWrite:  Bool          = Bool()
   // instruction will cross read
-  val crossRead: Bool = Bool()
+  val crossRead:   Bool          = Bool()
   // index type lsu
-  val indexType: Bool = Bool()
+  val indexType:   Bool          = Bool()
   // 乘加
-  val ma:           Bool = Bool()
+  val ma:          Bool          = Bool()
   // 慢指令 mask unit
-  val slow: Bool = Bool()
+  val slow:        Bool          = Bool()
   // which element will access(write or store read)
   // true: No access or access has been completed
-  val elementMask: UInt = UInt(param.elementSize.W)
+  val elementMask: UInt          = UInt(param.elementSize.W)
   val state = new VRFInstructionState
 }
 
 class InstructionPipeBundle(parameter: T1Parameter) extends Bundle {
-  val issue: T1Issue = new T1Issue(parameter.xLen, parameter.vLen)
-  val decodeResult: DecodeBundle = new DecodeBundle(Decoder.allFields(parameter.decoderParam))
-  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val vdIsV0: Bool = Bool()
-  val writeByte: UInt = UInt(parameter.laneParam.vlMaxBits.W)
+  val issue:            T1Issue      = new T1Issue(parameter.xLen, parameter.vLen)
+  val decodeResult:     DecodeBundle = new DecodeBundle(Decoder.allFields(parameter.decoderParam))
+  val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
+  val vdIsV0:           Bool         = Bool()
+  val writeByte:        UInt         = UInt(parameter.laneParam.vlMaxBits.W)
 }
 
 class LSUWriteQueueBundle(param: LSUParameter) extends Bundle {
-  val data: VRFWriteRequest =
+  val data:       VRFWriteRequest =
     new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
-  val targetLane: UInt = UInt(param.laneNumber.W)
+  val targetLane: UInt            = UInt(param.laneNumber.W)
 }
 
 class LSUInstructionInformation extends Bundle {
 
-  /** specifies the number of fields in each segment, for segment load/stores
-    * NFIELDS = nf + 1
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]] and
+  /** specifies the number of fields in each segment, for segment load/stores NFIELDS = nf + 1 see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]]
+    * and
     * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#78-vector-loadstore-segment-instructions]]
     */
   val nf: UInt = UInt(3.W)
 
-  /** extended memory element width
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#sec-vector-loadstore-width-encoding]]
+  /** extended memory element width see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#sec-vector-loadstore-width-encoding]]
     *
     * this field is always tied to 0, since spec is reserved for future use.
     *
@@ -515,45 +495,40 @@ class LSUInstructionInformation extends Bundle {
     */
   val mew: Bool = Bool()
 
-  /** specifies memory addressing mode
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#72-vector-loadstore-addressing-modes]]
+  /** specifies memory addressing mode see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#72-vector-loadstore-addressing-modes]]
     * table 7, and table 8
     *
-    * - 00: unit stride
-    * - 01: indexed unordered
-    * - 10: stride
-    * - 11: indexed ordered
+    *   - 00: unit stride
+    *   - 01: indexed unordered
+    *   - 10: stride
+    *   - 11: indexed ordered
     */
   val mop: UInt = UInt(2.W)
 
-  /** additional field encoding variants of unit-stride instructions
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]]
-    * and [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#72-vector-loadstore-addressing-modes]]
+  /** additional field encoding variants of unit-stride instructions see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]]
+    * and
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#72-vector-loadstore-addressing-modes]]
     * table 9 and table 10
     *
-    * 0b00000 -> unit stride
-    * 0b01000 -> whole register
-    * 0b01011 -> mask, eew = 8
-    *   Additional unit-stride mask load and store instructions are provided to transfer mask values to/from memory.
-    * 0b10000 -> fault only first (load)
+    * 0b00000 -> unit stride 0b01000 -> whole register 0b01011 -> mask, eew = 8 Additional unit-stride mask load and
+    * store instructions are provided to transfer mask values to/from memory. 0b10000 -> fault only first (load)
     */
   val lumop: UInt = UInt(5.W)
 
-  /** specifies size of memory elements, and distinguishes from FP scalar
-    * MSB is ignored, which is used in FP.
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]]
-    * and [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#73-vector-loadstore-width-encoding]]
+  /** specifies size of memory elements, and distinguishes from FP scalar MSB is ignored, which is used in FP. see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]]
+    * and
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#73-vector-loadstore-width-encoding]]
     * table 11
     *
-    * 00 -> 8
-    * 01 -> 16
-    * 10 -> 32
-    * 11 -> 64
+    * 00 -> 8 01 -> 16 10 -> 32 11 -> 64
     */
   val eew: UInt = UInt(2.W)
 
-  /** specifies v register holding store data
-    * see [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]]
+  /** specifies v register holding store data see
+    * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#71-vector-loadstore-instruction-encoding]]
     */
   val vs3: UInt = UInt(5.W)
 
@@ -563,8 +538,7 @@ class LSUInstructionInformation extends Bundle {
   /** indicate if this instruction use mask. */
   val maskedLoadStore: Bool = Bool()
 
-  /** fault only first element
-    * TODO: extract it
+  /** fault only first element TODO: extract it
     */
   def fof: Bool = mop === 0.U && lumop(4) && !isStore
 }
@@ -581,8 +555,7 @@ class LSURequest(dataWidth: Int) extends Bundle {
   /** data from rs2 in scalar core, if necessary. */
   val rs2Data: UInt = UInt(dataWidth.W)
 
-  /** tag from [[T1]] to record instruction.
-    * TODO: parameterize it.
+  /** tag from [[T1]] to record instruction. TODO: parameterize it.
     */
   val instructionIndex: UInt = UInt(3.W)
 }
@@ -595,9 +568,8 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
   // mask for this execute group
   val mask: UInt = UInt(4.W)
 
-  /** Store some data that will be used later. e.g:
-    * ffo Write VRF By OtherLanes: What should be written into vrf if ffo end by other lanes. pipe from s0
-    * read result of vs2, for instructions that are not executed, pipe from s1
+  /** Store some data that will be used later. e.g: ffo Write VRF By OtherLanes: What should be written into vrf if ffo
+    * end by other lanes. pipe from s0 read result of vs2, for instructions that are not executed, pipe from s1
     */
   val pipeData: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
 
@@ -605,82 +577,82 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
   val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
 
   // pipe state for stage3
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
-  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val loadStore: Bool = Bool()
-  val vd: UInt = UInt(5.W)
+  val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
+  val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
+  val loadStore:        Bool         = Bool()
+  val vd:               UInt         = UInt(5.W)
 }
 
 // Record of temporary execution units
 class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends Bundle {
-  val crossReadVS2: Bool = Bool()
-  val bordersForMaskLogic: Bool = Bool()
-  val maskForMaskInput: UInt = UInt(4.W)
-  val maskForFilter: UInt = UInt(4.W)
+  val crossReadVS2:        Bool         = Bool()
+  val bordersForMaskLogic: Bool         = Bool()
+  val maskForMaskInput:    UInt         = UInt(4.W)
+  val maskForFilter:       UInt         = UInt(4.W)
   // false -> lsb of cross read group
-  val executeIndex: Bool = Bool()
-  val source: Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
-  val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+  val executeIndex:        Bool         = Bool()
+  val source:              Vec[UInt]    = Vec(3, UInt(parameter.datapathWidth.W))
+  val crossReadSource:     Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+
   /** groupCounter need use to update `Lane.maskFormatResultForGroup` */
-  val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
-  val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
-  val vSew1H: UInt = UInt(3.W)
-  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
-  val maskType: Bool = Bool()
-  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+  val groupCounter:     UInt         = UInt(parameter.groupNumberBits.W)
+  val sSendResponse:    Option[Bool] = Option.when(isLastSlot)(Bool())
+  val vSew1H:           UInt         = UInt(3.W)
+  val csr:              CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val maskType:         Bool         = Bool()
+  val laneIndex:        UInt         = UInt(parameter.laneNumberBits.W)
   // pipe state
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
-  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
+  val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
 }
 
 class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
-  val src: Vec[UInt] = Vec(4, UInt((parameter.datapathWidth + 1).W))
-  val opcode: UInt = UInt(4.W)
+  val src:          Vec[UInt]    = Vec(4, UInt((parameter.datapathWidth + 1).W))
+  val opcode:       UInt         = UInt(4.W)
   // mask for carry or borrow
-  val mask: UInt = UInt(4.W)
+  val mask:         UInt         = UInt(4.W)
   // mask for execute
-  val executeMask: UInt = UInt(4.W)
+  val executeMask:  UInt         = UInt(4.W)
   // eg: vwmaccus, vwmulsu
-  val sign0: Bool = Bool()
-  val sign: Bool = Bool()
-  val reverse: Bool = Bool()
-  val average: Bool = Bool()
-  val saturate: Bool = Bool()
-  val vxrm: UInt = UInt(2.W)
-  val vSew: UInt = UInt(2.W)
-  val shifterSize: UInt = UInt((log2Ceil(parameter.datapathWidth) * 4).W)
-  val rem:  Bool = Bool()
-  val executeIndex: UInt = UInt(2.W)
-  val popInit: UInt = UInt(parameter.vlMaxBits.W)
-  val groupIndex: UInt = UInt(parameter.groupNumberBits.W)
-  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
-  val complete:     Bool = Bool()
+  val sign0:        Bool         = Bool()
+  val sign:         Bool         = Bool()
+  val reverse:      Bool         = Bool()
+  val average:      Bool         = Bool()
+  val saturate:     Bool         = Bool()
+  val vxrm:         UInt         = UInt(2.W)
+  val vSew:         UInt         = UInt(2.W)
+  val shifterSize:  UInt         = UInt((log2Ceil(parameter.datapathWidth) * 4).W)
+  val rem:          Bool         = Bool()
+  val executeIndex: UInt         = UInt(2.W)
+  val popInit:      UInt         = UInt(parameter.vlMaxBits.W)
+  val groupIndex:   UInt         = UInt(parameter.groupNumberBits.W)
+  val laneIndex:    UInt         = UInt(parameter.laneNumberBits.W)
+  val complete:     Bool         = Bool()
   // vm = 0
-  val maskType: Bool = Bool()
-  val narrow: Bool = Bool()
+  val maskType:     Bool         = Bool()
+  val narrow:       Bool         = Bool()
   // for float
-  val unitSelet: Option[UInt] = Option.when(parameter.fpuEnable)(UInt(2.W))
-  val floatMul: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
+  val unitSelet:    Option[UInt] = Option.when(parameter.fpuEnable)(UInt(2.W))
+  val floatMul:     Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   // float rounding mode
   val roundingMode: Option[UInt] = Option.when(parameter.fpuEnable)(UInt(3.W))
-  val tag: UInt = UInt(log2Ceil(parameter.chainingSize).W)
+  val tag:          UInt         = UInt(log2Ceil(parameter.chainingSize).W)
 }
 
 class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
-  val data: UInt = UInt(parameter.datapathWidth.W)
-  val executeIndex: UInt = UInt(2.W)
-  val clipFail: Bool = Bool()
-  val ffoSuccess: Bool = Bool()
-  val divBusy: Bool = Bool()
-  val adderMaskResp: UInt = UInt(4.W)
-  val vxsat: UInt = UInt(4.W)
+  val data:           UInt = UInt(parameter.datapathWidth.W)
+  val executeIndex:   UInt = UInt(2.W)
+  val clipFail:       Bool = Bool()
+  val ffoSuccess:     Bool = Bool()
+  val divBusy:        Bool = Bool()
+  val adderMaskResp:  UInt = UInt(4.W)
+  val vxsat:          UInt = UInt(4.W)
   // float flag
   val exceptionFlags: UInt = UInt(5.W)
-  val tag: UInt = UInt(log2Ceil(parameter.chainingSize).W)
+  val tag:            UInt = UInt(log2Ceil(parameter.chainingSize).W)
 }
 
 final class EmptyBundle extends Bundle
-
 
 class VRFReadPipe(size: BigInt) extends Bundle {
   val address: UInt = UInt(log2Ceil(size).W)
@@ -696,18 +668,18 @@ class T1Issue(xLen: Int, vlWidth: Int) extends Bundle {
 
   /** data read from scalar RF RS2. */
   val rs2Data: UInt = UInt(xLen.W)
-  val vtype: UInt = UInt(32.W)
-  val vl:    UInt = UInt(32.W)
-  val vstart: UInt = UInt(32.W)
-  val vcsr: UInt = UInt(32.W)
+  val vtype:   UInt = UInt(32.W)
+  val vl:      UInt = UInt(32.W)
+  val vstart:  UInt = UInt(32.W)
+  val vcsr:    UInt = UInt(32.W)
 }
 
 object T1Issue {
   def vlmul(issue: T1Issue) = issue.vtype(2, 0)
-  def vsew(issue: T1Issue) = issue.vtype(5, 3)
-  def vta(issue: T1Issue) = issue.vtype(6)
-  def vma(issue: T1Issue) = issue.vtype(7)
-  def vxrm(issue: T1Issue) = issue.vcsr(2, 1)
+  def vsew(issue:  T1Issue) = issue.vtype(5, 3)
+  def vta(issue:   T1Issue) = issue.vtype(6)
+  def vma(issue:   T1Issue) = issue.vtype(7)
+  def vxrm(issue:  T1Issue) = issue.vcsr(2, 1)
 }
 
 class T1RdRetire(xLen: Int) extends Bundle {
@@ -722,7 +694,7 @@ class T1CSRRetire extends Bundle {
 }
 
 class T1Retire(xLen: Int) extends Bundle {
-  val rd:  ValidIO[T1RdRetire] = Valid(new T1RdRetire(xLen))
+  val rd:  ValidIO[T1RdRetire]  = Valid(new T1RdRetire(xLen))
   val csr: ValidIO[T1CSRRetire] = Valid(new T1CSRRetire)
   val mem: ValidIO[EmptyBundle] = Valid(new EmptyBundle)
 }

@@ -13,13 +13,14 @@ import org.chipsalliance.t1.rtl.lane.Distributor
 package object rtl {
   def csa32(s: UInt, c: UInt, a: UInt): (UInt, UInt) = {
     val xor = s ^ c
-    val so = xor ^ a
-    val co = (xor & a) | (s & c)
+    val so  = xor ^ a
+    val co  = (xor & a) | (s & c)
     (so, co)
   }
 
   def bankSelect(vs: UInt, eew: UInt, groupIndex: UInt, readValid: Bool): UInt = {
-    chisel3.util.experimental.decode.decoder.qmc(readValid ## eew(1, 0) ## vs(1, 0) ## groupIndex(1, 0), TableGenerator.BankEnableTable.res)
+    chisel3.util.experimental.decode.decoder
+      .qmc(readValid ## eew(1, 0) ## vs(1, 0) ## groupIndex(1, 0), TableGenerator.BankEnableTable.res)
   }
 
   def instIndexL(a: UInt, b: UInt): Bool = {
@@ -29,7 +30,7 @@ package object rtl {
 
   def instIndexLE(a: UInt, b: UInt): Bool = {
     require(a.getWidth == b.getWidth)
-    a === b ||  instIndexL(a, b)
+    a === b || instIndexL(a, b)
   }
 
   def ffo(input: UInt): UInt = {
@@ -49,13 +50,21 @@ package object rtl {
   }
 
   def multiShifter(right: Boolean, multiSize: Int)(data: UInt, shifterSize: UInt): UInt = {
-    VecInit(data.asBools.grouped(multiSize).toSeq.transpose.map { dataGroup =>
-      if (right) {
-        (VecInit(dataGroup).asUInt >> shifterSize).asBools
-      } else {
-        (VecInit(dataGroup).asUInt << shifterSize).asBools
-      }
-    }.transpose.map(VecInit(_).asUInt)).asUInt
+    VecInit(
+      data.asBools
+        .grouped(multiSize)
+        .toSeq
+        .transpose
+        .map { dataGroup =>
+          if (right) {
+            (VecInit(dataGroup).asUInt >> shifterSize).asBools
+          } else {
+            (VecInit(dataGroup).asUInt << shifterSize).asBools
+          }
+        }
+        .transpose
+        .map(VecInit(_).asUInt)
+    ).asUInt
   }
 
   def cutUInt(data: UInt, width: Int): Vec[UInt] = {
@@ -65,11 +74,17 @@ package object rtl {
     })
   }
 
-  def calculateSegmentWriteMask(datapath: Int, laneNumber: Int, elementSizeForOneRegister: Int)
-                               (seg1H: UInt, mul1H: UInt, lastWriteOH: UInt): UInt = {
+  def calculateSegmentWriteMask(
+    datapath:                  Int,
+    laneNumber:                Int,
+    elementSizeForOneRegister: Int
+  )(seg1H:                     UInt,
+    mul1H:                     UInt,
+    lastWriteOH:               UInt
+  ): UInt = {
     // not access for register -> na
     val notAccessForRegister = Fill(elementSizeForOneRegister, true.B)
-    val writeOHGroup = cutUInt(lastWriteOH, elementSizeForOneRegister)
+    val writeOHGroup         = cutUInt(lastWriteOH, elementSizeForOneRegister)
     // writeOHGroup: d7 ## d6 ## d5 ## d4 ## d3 ## d2 ## d1 ## d0
     // seg1: 2 reg group
     //  mul0    na ## na ## na ## na ## na ## na ## d0 ## d0
@@ -89,8 +104,8 @@ package object rtl {
     //  mul0    na ## d0 ## d0 ## d0 ## d0 ## d0 ## d0 ## d0
     // seg7: 8 reg group
     //  mul0    d0 ## d0 ## d0 ## d0 ## d0 ## d0 ## d0 ## d0
-    val segMask0 = writeOHGroup(0)
-    val segMask1 = Mux(
+    val segMask0             = writeOHGroup(0)
+    val segMask1             = Mux(
       ((mul1H(2) || mul1H(1)) && seg1H(1)) || (mul1H(1) && (seg1H(2) || seg1H(3))),
       writeOHGroup(1),
       writeOHGroup(0)
@@ -168,12 +183,13 @@ package object rtl {
     segMask7 ## segMask6 ## segMask5 ## segMask4 ## segMask3 ## segMask2 ## segMask1 ## segMask0
   }
 
-  def connectWithShifter[T <: Data](latency: Int, id: Option[T => UInt] = None)(source: Valid[T], sink: Valid[T]): Option[UInt] = {
+  def connectWithShifter[T <: Data](latency: Int, id: Option[T => UInt] = None)(source: Valid[T], sink: Valid[T])
+    : Option[UInt] = {
     val tpe = Vec(latency, chiselTypeOf(source))
-    val shifterReg: Vec[ValidIO[T]] = RegInit(0.U.asTypeOf(tpe))
-    val shifterValid: Bool = (shifterReg.map(_.valid) :+ source.valid).reduce(_ || _)
+    val shifterReg:   Vec[ValidIO[T]] = RegInit(0.U.asTypeOf(tpe))
+    val shifterValid: Bool            = (shifterReg.map(_.valid) :+ source.valid).reduce(_ || _)
     when(shifterValid) {
-      shifterReg.zipWithIndex.foreach {case (d, i) =>
+      shifterReg.zipWithIndex.foreach { case (d, i) =>
         i match {
           case 0 => d := source
           case _ => d := shifterReg(i - 1)
@@ -184,15 +200,16 @@ package object rtl {
     id.map(f => (shifterReg :+ source).map(p => Mux(p.valid, indexToOH(f(p.bits), 4), 0.U)).reduce(_ | _))
   }
 
-  def instantiateVFU(parameter: VFUInstantiateParameter)(
-    requestVec: Vec[SlotRequestToVFU],
-    requestValid: Vec[Bool],
-    requestDecode: Seq[DecodeBundle],
-    responseDecode: Seq[DecodeBundle],
+  def instantiateVFU(
+    parameter:          VFUInstantiateParameter
+  )(requestVec:         Vec[SlotRequestToVFU],
+    requestValid:       Vec[Bool],
+    requestDecode:      Seq[DecodeBundle],
+    responseDecode:     Seq[DecodeBundle],
     executeEnqueueFire: Vec[Bool],
-    responseVec: Vec[ValidIO[VFUResponseToSlot]],
-    executeOccupied: Vec[Bool],
-    VFUNotClear: Bool
+    responseVec:        Vec[ValidIO[VFUResponseToSlot]],
+    executeOccupied:    Vec[Bool],
+    VFUNotClear:        Bool
   ): Seq[Instance[VFUModule]] = {
 
     // 声明 vfu 的入口
@@ -226,116 +243,121 @@ package object rtl {
       vfu
     }
 
-    val vfuResponse: Seq[ValidIO[VFUResponseToSlot]] = (parameter.genVec zip vfus).zipWithIndex.map { case (((gen, slotVec), vfu), vfuIndex) =>
-      // vfu request distributor
-      val distributor: Option[Instance[Distributor[SlotRequestToVFU, VFUResponseToSlot]]] = Option.when(gen.parameter.NeedSplit)(
-        Instantiate(new Distributor(
-          chiselTypeOf(requestVec.head),
-          chiselTypeOf(responseVec.head.bits)
-        )(gen.parameter.latency > 0))
-      )
-      distributor.foreach(_.suggestName(s"${gen.parameter.decodeField.name}Distributor"))
-      // 访问仲裁
-      val requestArbiter: Arbiter[SlotRequestToVFU] = Module(
-        new Arbiter(
-          chiselTypeOf(requestVecFromSlot(slotVec.head).elements(gen.parameter.decodeField.name).bits),
-          slotVec.size
-        )
-      ).suggestName(s"${gen.parameter.decodeField.name}Arbiter")
+    val vfuResponse: Seq[ValidIO[VFUResponseToSlot]] =
+      (parameter.genVec.zip(vfus)).zipWithIndex.map { case (((gen, slotVec), vfu), vfuIndex) =>
+        // vfu request distributor
+        val distributor:    Option[Instance[Distributor[SlotRequestToVFU, VFUResponseToSlot]]] =
+          Option.when(gen.parameter.NeedSplit)(
+            Instantiate(
+              new Distributor(
+                chiselTypeOf(requestVec.head),
+                chiselTypeOf(responseVec.head.bits)
+              )(gen.parameter.latency > 0)
+            )
+          )
+        distributor.foreach(_.suggestName(s"${gen.parameter.decodeField.name}Distributor"))
+        // 访问仲裁
+        val requestArbiter: Arbiter[SlotRequestToVFU]                                          = Module(
+          new Arbiter(
+            chiselTypeOf(requestVecFromSlot(slotVec.head).elements(gen.parameter.decodeField.name).bits),
+            slotVec.size
+          )
+        ).suggestName(s"${gen.parameter.decodeField.name}Arbiter")
 
-      requestArbiter.io.in.zip(slotVec).foreach { case (arbiterInput, slotIndex) =>
-        arbiterInput <> requestVecFromSlot(slotIndex).elements(gen.parameter.decodeField.name)
-      }
-      val vfuInput: DecoupledIO[SlotRequestToVFU] = if (gen.parameter.NeedSplit) {
-        distributor.get.requestFromSlot <> requestArbiter.io.out
-        distributor.get.requestToVfu
-      } else {
-        requestArbiter.io.out
-      }
-      vfu.requestIO.valid := vfuInput.valid
-      vfuInput.ready := vfu.requestIO.ready
-      vfu.requestIO.bits match {
-        case req: Bundle =>
-          req.elements.foreach { case (s, d) =>
-            d match {
-              // src 不等长,所以要特别连
-              case src: Vec[Data] =>
-                src.zipWithIndex.foreach { case (sd, si) => sd := vfuInput.bits.src(si) }
-              case _ => d := vfuInput.bits.elements(s)
+        requestArbiter.io.in.zip(slotVec).foreach { case (arbiterInput, slotIndex) =>
+          arbiterInput <> requestVecFromSlot(slotIndex).elements(gen.parameter.decodeField.name)
+        }
+        val vfuInput: DecoupledIO[SlotRequestToVFU] = if (gen.parameter.NeedSplit) {
+          distributor.get.requestFromSlot <> requestArbiter.io.out
+          distributor.get.requestToVfu
+        } else {
+          requestArbiter.io.out
+        }
+        vfu.requestIO.valid := vfuInput.valid
+        vfuInput.ready      := vfu.requestIO.ready
+        vfu.requestIO.bits match {
+          case req: Bundle =>
+            req.elements.foreach { case (s, d) =>
+              d match {
+                // src 不等长,所以要特别连
+                case src: Vec[Data] =>
+                  src.zipWithIndex.foreach { case (sd, si) => sd := vfuInput.bits.src(si) }
+                case _ => d := vfuInput.bits.elements(s)
+              }
             }
+        }
+
+        if (vfu.responseIO.bits.elements.contains("busy")) {
+          vrfIsBusy(vfuIndex) := vfu.responseIO.bits.elements("busy").asInstanceOf[Bool] // || !vfu.requestIO.ready
+        } else {
+          vrfIsBusy(vfuIndex) := false.B // !vfu.requestIO.ready
+        }
+
+        // 处理 output
+        val responseBundle: ValidIO[VFUResponseToSlot] = WireDefault(0.U.asTypeOf(responseVec.head))
+
+        // 暂时不会有 response 握手
+        responseBundle.valid    := vfu.responseIO.valid
+        vfu.responseIO.ready    := true.B
+        responseBundle.bits.tag := vfuInput.bits.tag
+
+        // 把 vfu的 response 类型转换过来
+        responseBundle.bits.elements.foreach { case (name, data) =>
+          if (vfu.responseIO.bits.elements.contains(name)) {
+            data := vfu.responseIO.bits.elements(name)
           }
-      }
-
-      if (vfu.responseIO.bits.elements.contains("busy")) {
-        vrfIsBusy(vfuIndex) := vfu.responseIO.bits.elements("busy").asInstanceOf[Bool] // || !vfu.requestIO.ready
-      } else {
-        vrfIsBusy(vfuIndex) := false.B // !vfu.requestIO.ready
-      }
-
-      // 处理 output
-      val responseBundle: ValidIO[VFUResponseToSlot] = WireDefault(0.U.asTypeOf(responseVec.head))
-
-      // 暂时不会有 response 握手
-      responseBundle.valid := vfu.responseIO.valid
-      vfu.responseIO.ready := true.B
-      responseBundle.bits.tag := vfuInput.bits.tag
-
-      // 把 vfu的 response 类型转换过来
-      responseBundle.bits.elements.foreach { case (name, data) =>
-        if (vfu.responseIO.bits.elements.contains(name)) {
-          data := vfu.responseIO.bits.elements(name)
+        }
+        executeOccupied(vfuIndex) := vfu.requestIO.fire
+        VFUNotClear               := vrfIsBusy.asUInt.orR
+        if (gen.parameter.NeedSplit) {
+          distributor.get.responseFromVfu := responseBundle
+          distributor.get.responseToSlot
+        } else {
+          responseBundle
         }
       }
-      executeOccupied(vfuIndex) := vfu.requestIO.fire
-      VFUNotClear := vrfIsBusy.asUInt.orR
-      if (gen.parameter.NeedSplit) {
-        distributor.get.responseFromVfu := responseBundle
-        distributor.get.responseToSlot
-      } else {
-        responseBundle
-      }
-    }
 
     // 把response丢给slot
-    responseVec.zipWithIndex.foreach{ case (data, slotIndex) =>
+    responseVec.zipWithIndex.foreach { case (data, slotIndex) =>
       // 筛选 response
-      val responseFilter: Seq[(Bool, ValidIO[VFUResponseToSlot])] = vfuResponse.zip(parameter.genVec).filter(_._2._2.contains(slotIndex)).map {
-        case (resp, (gen, _)) =>
+      val responseFilter: Seq[(Bool, ValidIO[VFUResponseToSlot])] =
+        vfuResponse.zip(parameter.genVec).filter(_._2._2.contains(slotIndex)).map { case (resp, (gen, _)) =>
           (responseDecode(slotIndex)(gen.parameter.decodeField), resp)
-      }
-      val selectResponse: ValidIO[VFUResponseToSlot] = Mux1H(
+        }
+      val selectResponse: ValidIO[VFUResponseToSlot]              = Mux1H(
         responseFilter.map(_._1),
-        responseFilter.map(_._2),
+        responseFilter.map(_._2)
       )
       data.valid := selectResponse.valid && (selectResponse.bits.tag === slotIndex.U)
-      data.bits := selectResponse.bits
+      data.bits  := selectResponse.bits
     }
     vfus
   }
 
-  def UIntToOH1(x: UInt, width: Int): UInt = (~((-1).S(width.W).asUInt << x)).asUInt(width-1, 0)
+  def UIntToOH1(x: UInt, width: Int): UInt = (~((-1).S(width.W).asUInt << x)).asUInt(width - 1, 0)
   def numBeats1(maxTransferSize: Int, beatBytes: Int)(size: UInt, hasData: Bool): UInt = {
     val decode = (UIntToOH1(size, log2Ceil(maxTransferSize)) >> log2Ceil(beatBytes)).asUInt
     Mux(hasData, decode, 0.U)
   }
 
-  def firstlastHelper(maxTransferSize: Int, beatBytes: Int)(size: UInt, hasData: Bool, fire: Bool): (Bool, Bool, Bool, UInt) = {
+  def firstlastHelper(maxTransferSize: Int, beatBytes: Int)(size: UInt, hasData: Bool, fire: Bool)
+    : (Bool, Bool, Bool, UInt) = {
     val beats1   = numBeats1(maxTransferSize, beatBytes)(size, hasData)
     val counter  = RegInit(0.U(log2Up(maxTransferSize / beatBytes).W))
     val counter1 = counter - 1.U
-    val first = counter === 0.U
-    val last  = counter === 1.U || beats1 === 0.U
-    val done  = last && fire
-    val count = beats1 & (~counter1).asUInt
-    when (fire) {
+    val first    = counter === 0.U
+    val last     = counter === 1.U || beats1 === 0.U
+    val done     = last && fire
+    val count    = beats1 & (~counter1).asUInt
+    when(fire) {
       counter := Mux(first, beats1, counter1)
     }
     (first, last, done, count)
   }
 
   def blockingHandshake[A <: Bundle](sink: DecoupledIO[A], source: DecoupledIO[A], enable: Bool): Unit = {
-    sink.valid := source.valid && enable
-    sink.bits := source.bits
+    sink.valid   := source.valid && enable
+    sink.bits    := source.bits
     source.ready := sink.ready && enable
   }
 
@@ -346,7 +368,7 @@ package object rtl {
       inputDecode(Decoder.shift),
       inputDecode(Decoder.multiplier),
       inputDecode(Decoder.divider),
-      inputDecode(Decoder.other),
+      inputDecode(Decoder.other)
     ) ++ Option.when(parameter.fpuEnable)(inputDecode(Decoder.float))
     VecInit(executeList).asUInt
   }

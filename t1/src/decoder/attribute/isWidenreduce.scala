@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isWidenreduce {
   def apply(t1DecodePattern: T1DecodePattern): isWidenreduce =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isWidenreduce(tri)
@@ -18,14 +18,12 @@ object isWidenreduce {
   def y(t1DecodePattern: T1DecodePattern): Boolean = {
     val allMatched = Seq(
       "vwredsum.vs",
-      "vwredsumu.vs",
+      "vwredsumu.vs"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -72,12 +70,13 @@ object isWidenreduce {
       "vsext.vf8",
       "vzext.vf2",
       "vzext.vf4",
-      "vzext.vf8",
+      "vzext.vf8"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
 }
 
 case class isWidenreduce(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "a special widen, only write dual vd from Top to element0 it doesn't cross. TODO: better name. "
+  override val description: String =
+    "a special widen, only write dual vd from Top to element0 it doesn't cross. TODO: better name. "
 }

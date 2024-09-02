@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isSreadvd {
   def apply(t1DecodePattern: T1DecodePattern): isSreadvd =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isSreadvd(tri)
@@ -292,14 +292,12 @@ object isSreadvd {
       "vxor.vx",
       "vzext.vf2",
       "vzext.vf4",
-      "vzext.vf8",
+      "vzext.vf8"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -307,5 +305,6 @@ object isSreadvd {
 }
 
 case class isSreadvd(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "sReadVD -> !(ma || maskLogic): instructions that need to read vd as the operator. "
+  override val description: String =
+    "sReadVD -> !(ma || maskLogic): instructions that need to read vd as the operator. "
 }

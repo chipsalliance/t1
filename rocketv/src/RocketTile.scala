@@ -5,7 +5,7 @@ package org.chipsalliance.rocketv
 import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
-import chisel3.probe.{Probe, define}
+import chisel3.probe.{define, Probe}
 import chisel3.util.experimental.BitSet
 import chisel3.util.log2Ceil
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
@@ -22,63 +22,57 @@ object RocketTileParameter {
   implicit def rwP: upickle.default.ReadWriter[RocketTileParameter] = upickle.default.macroRW[RocketTileParameter]
 }
 
-/**
-  * Core:
-  * isa: parse from isa string
-  * vlen: parse from isa string, e.g. rv32imfd_zvl64b_zve32f
-  * priv: m|s|u
+/** Core: isa: parse from isa string vlen: parse from isa string, e.g. rv32imfd_zvl64b_zve32f priv: m|s|u
   *
-  * Memory:
-  * AXI width
-  * PMA config
+  * Memory: AXI width PMA config
   *
   * uarch:
-  * - clockGate: sync
-  * - hartIdLen: log2 hart size, 1
-  * - fenceIFlushDCache: flush DCache on fence.i: true
-  * - nPMPs: pmp region size, 8
-  * - asidBits: ASID length, 0
-  * - nBreakpoints: todo, 0
-  * - useBPWatch: todo, false
-  * - mcontextWidth: todo, 0
-  * - scontextWidth: todo, 0
-  * - hasBeu: has bus error unit, false
+  *   - clockGate: sync
+  *   - hartIdLen: log2 hart size, 1
+  *   - fenceIFlushDCache: flush DCache on fence.i: true
+  *   - nPMPs: pmp region size, 8
+  *   - asidBits: ASID length, 0
+  *   - nBreakpoints: todo, 0
+  *   - useBPWatch: todo, false
+  *   - mcontextWidth: todo, 0
+  *   - scontextWidth: todo, 0
+  *   - hasBeu: has bus error unit, false
   *
-  * - fastLoadByte: todo, true
-  * - fastLoadWord: todo, false
-  *   - if (fastLoadByte) io.dmem.resp.bits.data(xLen-1, 0)
-  *   - else if (fastLoadWord) io.dmem.resp.bits.data_word_bypass(xLen-1, 0)
-  *   - else wb_reg_wdata
+  *   - fastLoadByte: todo, true
+  *   - fastLoadWord: todo, false
+  *     - if (fastLoadByte) io.dmem.resp.bits.data(xLen-1, 0)
+  *     - else if (fastLoadWord) io.dmem.resp.bits.data_word_bypass(xLen-1, 0)
+  *     - else wb_reg_wdata
   *
-  * - mulDivLatency:
-  * - divUnroll:
-  * - divEarlyOut:
-  * - divEarlyOutGranularity:
-  * - mulUnroll:
-  * - mulEarlyOut:
+  *   - mulDivLatency:
+  *   - divUnroll:
+  *   - divEarlyOut:
+  *   - divEarlyOutGranularity:
+  *   - mulUnroll:
+  *   - mulEarlyOut:
   *
-  * - itlbNSets: ???
-  * - itlbNWays: ???
-  * - itlbNSectors: ???
-  * - itlbNSuperpageEntries: ???
+  *   - itlbNSets: ???
+  *   - itlbNWays: ???
+  *   - itlbNSectors: ???
+  *   - itlbNSuperpageEntries: ???
   *
-  * - usingBTB:
-  *   - btbEntries: 28
-  *   - btbNMatchBits: 14
-  *   - btbUpdatesOutOfOrder: false
-  *   - nPages: 6
-  *   - nRAS: 6
-  * - usingBHT:
-  *   - nEntries: 512
-  *   - counterLength: 1
-  *   - historyLength: 8
-  *   - historyBits: 3
+  *   - usingBTB:
+  *     - btbEntries: 28
+  *     - btbNMatchBits: 14
+  *     - btbUpdatesOutOfOrder: false
+  *     - nPages: 6
+  *     - nRAS: 6
+  *   - usingBHT:
+  *     - nEntries: 512
+  *     - counterLength: 1
+  *     - historyLength: 8
+  *     - historyBits: 3
   *
-  * - icache/dcache size: 16K, 32K
-  * - cacheBlockBytes: 32
-  * - cache way: 4
-  * - cache banksize: 32
-  * - iCachePrefetch: false, todo, AXI Hint.
+  *   - icache/dcache size: 16K, 32K
+  *   - cacheBlockBytes: 32
+  *   - cache way: 4
+  *   - cache banksize: 32
+  *   - iCachePrefetch: false, todo, AXI Hint.
   */
 case class RocketTileParameter(
   useAsyncReset:          Boolean,
@@ -119,7 +113,7 @@ case class RocketTileParameter(
   nPages:                 Int,
   nRAS:                   Int,
   bhtParameter:           Option[BHTParameter],
-  mulDivLatency:         Int,
+  mulDivLatency:          Int,
   divUnroll:              Int,
   divEarlyOut:            Boolean,
   divEarlyOutGranularity: Int,
@@ -146,21 +140,21 @@ case class RocketTileParameter(
 
   def usingSupervisor: Boolean = priv.contains("s")
 
-  def vLen: Option[Int] = instructionSets.collectFirst {
-    case s"zvl${vlen}b" => vlen.toInt
+  def vLen: Option[Int] = instructionSets.collectFirst { case s"zvl${vlen}b" =>
+    vlen.toInt
   }
 
   // static for now
-  def hasBeu:              Boolean = false
-  def usingNMI:            Boolean = false
-  def usingHypervisor:     Boolean = false
-  def usingDataScratchpad: Boolean = false
-  def nLocalInterrupts:    Int = 0
-  def dcacheArbPorts:      Int = 2
-  def tagECC:              Option[String] = None
-  def dataECC:             Option[String] = None
-  def pgLevelBits:         Int = 10 - log2Ceil(xLen / 32)
-  def instructions: Seq[Instruction] =
+  def hasBeu:                                     Boolean          = false
+  def usingNMI:                                   Boolean          = false
+  def usingHypervisor:                            Boolean          = false
+  def usingDataScratchpad:                        Boolean          = false
+  def nLocalInterrupts:                           Int              = 0
+  def dcacheArbPorts:                             Int              = 2
+  def tagECC:                                     Option[String]   = None
+  def dataECC:                                    Option[String]   = None
+  def pgLevelBits:                                Int              = 10 - log2Ceil(xLen / 32)
+  def instructions:                               Seq[Instruction] =
     org.chipsalliance.rvdecoderdb
       .instructions(
         org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader)
@@ -180,17 +174,17 @@ case class RocketTileParameter(
         case _                                                                           => true
       }
       .sortBy(i => (i.instructionSet.name, i.name))
-  private def hasInstructionSet(setName: String): Boolean =
+  private def hasInstructionSet(setName: String): Boolean          =
     instructions.flatMap(_.instructionSets.map(_.name)).contains(setName)
-  def usingBTB: Boolean = btbEntries > 0
-  def xLen: Int =
+  def usingBTB:                                   Boolean          = btbEntries > 0
+  def xLen:                                       Int              =
     (hasInstructionSet("rv32_i"), hasInstructionSet("rv64_i")) match {
       case (true, true)   => throw new Exception("cannot support both rv32 and rv64 together")
       case (true, false)  => 32
       case (false, true)  => 64
       case (false, false) => throw new Exception("no basic instruction found.")
     }
-  def fLen: Option[Int] =
+  def fLen:                                       Option[Int]      =
     (
       hasInstructionSet("rv_f") || hasInstructionSet("rv64_f"),
       hasInstructionSet("rv_d") || hasInstructionSet("rv64_d")
@@ -341,19 +335,18 @@ case class RocketTileParameter(
     sideEffects:           BitSet
   )
 
-  def fpuParameter: Option[FPUParameter] = fLen.zip(minFLen).map {
-    case (fLen, minFLen) =>
-      FPUParameter(
-        useAsyncReset: Boolean,
-        clockGate:     Boolean,
-        xLen:          Int,
-        fLen:          Int,
-        minFLen:       Int,
-        sfmaLatency:   Int,
-        dfmaLatency:   Int,
-        divSqrt:       Boolean,
-        hartIdLen:     Int
-      )
+  def fpuParameter: Option[FPUParameter] = fLen.zip(minFLen).map { case (fLen, minFLen) =>
+    FPUParameter(
+      useAsyncReset: Boolean,
+      clockGate:     Boolean,
+      xLen:          Int,
+      fLen:          Int,
+      minFLen:       Int,
+      sfmaLatency:   Int,
+      dfmaLatency:   Int,
+      divSqrt:       Boolean,
+      hartIdLen:     Int
+    )
   }
 
   def instructionFetchParameter: AXI4BundleParameter = frontendParameter.instructionFetchParameter
@@ -369,16 +362,16 @@ class RocketTileInterface(parameter: RocketTileParameter) extends Bundle {
   val clock = Input(Clock())
   val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
 
-  val hartid = Flipped(UInt(parameter.hartIdLen.W))
+  val hartid      = Flipped(UInt(parameter.hartIdLen.W))
   val resetVector = Input(Const(UInt(parameter.resetVectorBits.W)))
 
-  val debug: Bool = Input(Bool())
-  val mtip:  Bool = Input(Bool())
-  val msip:  Bool = Input(Bool())
-  val meip:  Bool = Input(Bool())
+  val debug: Bool         = Input(Bool())
+  val mtip:  Bool         = Input(Bool())
+  val msip:  Bool         = Input(Bool())
+  val meip:  Bool         = Input(Bool())
   val seip:  Option[Bool] = Option.when(parameter.usingSupervisor)(Bool())
-  val lip:   Vec[Bool] = Vec(parameter.nLocalInterrupts, Bool())
-  val nmi = Option.when(parameter.usingNMI)(Bool())
+  val lip:   Vec[Bool]    = Vec(parameter.nLocalInterrupts, Bool())
+  val nmi                = Option.when(parameter.usingNMI)(Bool())
   val nmiInterruptVector = Option.when(parameter.usingNMI)(UInt(parameter.resetVectorBits.W))
   val nmiIxceptionVector = Option.when(parameter.usingNMI)(UInt(parameter.resetVectorBits.W))
   // TODO: buserror should be handled by NMI
@@ -386,14 +379,14 @@ class RocketTileInterface(parameter: RocketTileParameter) extends Bundle {
   val wfi:      Bool = Output(Bool())
   val halt:     Bool = Output(Bool())
 
-  val instructionFetchAXI: AXI4ROIrrevocable =
+  val instructionFetchAXI: AXI4ROIrrevocable         =
     org.chipsalliance.amba.axi4.bundle.AXI4ROIrrevocable(parameter.instructionFetchParameter)
-  val itimAXI: Option[AXI4RWIrrevocable] =
+  val itimAXI:             Option[AXI4RWIrrevocable] =
     parameter.itimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
 
-  val loadStoreAXI: AXI4RWIrrevocable =
+  val loadStoreAXI: AXI4RWIrrevocable         =
     org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.loadStoreParameter)
-  val dtimAXI: Option[AXI4RWIrrevocable] =
+  val dtimAXI:      Option[AXI4RWIrrevocable] =
     parameter.dtimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
 
   val rocketProbe = Output(Probe(new RocketProbe(parameter.rocketParameter), layers.Verification))
@@ -403,38 +396,38 @@ class RocketTile(val parameter: RocketTileParameter)
     extends FixedIORawModule(new RocketTileInterface(parameter))
     with SerializableModule[RocketTileParameter]
     with Public {
-  val rocket:     Instance[Rocket] = Instantiate(new Rocket(parameter.rocketParameter))
-  val frontend:   Instance[Frontend] = Instantiate(new Frontend(parameter.frontendParameter))
-  val hellaCache: Instance[HellaCache] = Instantiate(new HellaCache(parameter.hellaCacheParameter))
+  val rocket:            Instance[Rocket]            = Instantiate(new Rocket(parameter.rocketParameter))
+  val frontend:          Instance[Frontend]          = Instantiate(new Frontend(parameter.frontendParameter))
+  val hellaCache:        Instance[HellaCache]        = Instantiate(new HellaCache(parameter.hellaCacheParameter))
   val hellaCacheArbiter: Instance[HellaCacheArbiter] = Instantiate(
     new HellaCacheArbiter(parameter.hellaCacheArbiterParameter)
   )
-  val ptw: Instance[PTW] = Instantiate(new PTW(parameter.ptwParameter))
-  val fpu: Option[Instance[FPU]] = parameter.fpuParameter.map(fpuParameter => Instantiate(new FPU(fpuParameter)))
+  val ptw:               Instance[PTW]               = Instantiate(new PTW(parameter.ptwParameter))
+  val fpu:               Option[Instance[FPU]]       = parameter.fpuParameter.map(fpuParameter => Instantiate(new FPU(fpuParameter)))
 
-  rocket.io.clock := io.clock
-  rocket.io.reset := io.reset
-  rocket.io.hartid := io.hartid
+  rocket.io.clock            := io.clock
+  rocket.io.reset            := io.reset
+  rocket.io.hartid           := io.hartid
   rocket.io.interrupts.debug := io.debug
-  rocket.io.interrupts.mtip := io.mtip
-  rocket.io.interrupts.msip := io.msip
-  rocket.io.interrupts.meip := io.meip
+  rocket.io.interrupts.mtip  := io.mtip
+  rocket.io.interrupts.msip  := io.msip
+  rocket.io.interrupts.meip  := io.meip
   rocket.io.interrupts.seip.foreach(_ := io.seip.get)
-  rocket.io.interrupts.lip := io.lip
+  rocket.io.interrupts.lip   := io.lip
   rocket.io.interrupts.nmi.foreach { nmi =>
-    nmi.rnmi := io.nmi.get
+    nmi.rnmi                  := io.nmi.get
     nmi.rnmi_interrupt_vector := io.nmiInterruptVector.get
     nmi.rnmi_exception_vector := io.nmiIxceptionVector.get
   }
   // @todo make it optional
-  rocket.io.buserror := io.buserror
-  io.wfi := rocket.io.wfi
+  rocket.io.buserror         := io.buserror
+  io.wfi                     := rocket.io.wfi
   io.loadStoreAXI <> hellaCache.io.loadStoreAXI
   io.dtimAXI.zip(hellaCache.io.dtimAXI).foreach { case (io, hellaCache) => io <> hellaCache }
   io.instructionFetchAXI <> frontend.io.instructionFetchAXI
   io.itimAXI.zip(frontend.io.itimAXI).foreach { case (io, frontend) => io <> frontend }
   // design for halt and beu, only use the halt function for now.
-  io.halt := Seq(frontend.io.nonDiplomatic.errors.uncorrectable, hellaCache.io.errors.uncorrectable)
+  io.halt                    := Seq(frontend.io.nonDiplomatic.errors.uncorrectable, hellaCache.io.errors.uncorrectable)
     .flatMap(_.map(_.valid))
     .foldLeft(false.B)(_ || _)
 
@@ -444,15 +437,15 @@ class RocketTile(val parameter: RocketTileParameter)
   rocket.io.ptw <> ptw.io.dpath
   rocket.io.fpu.zip(fpu.map(_.io.core)).foreach { case (core, fpu) => core <> fpu }
   // used by trace module
-  rocket.io.bpwatch := DontCare
+  rocket.io.bpwatch    := DontCare
   // don't use for now, this is design for report the custom cease status.
   // rocket.io.cease
   // it will be used in the future w/ trace support.
   rocket.io.traceStall := false.B
 
   // frontend io
-  frontend.io.clock := io.clock
-  frontend.io.reset := io.reset
+  frontend.io.clock       := io.clock
+  frontend.io.reset       := io.reset
   frontend.io.resetVector := io.resetVector
   ptw.io.requestor(0) <> frontend.io.nonDiplomatic.ptw
 

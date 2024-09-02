@@ -21,7 +21,7 @@ class T1TokenManager(parameter: T1Parameter) extends Module {
   // v0 write token
   val v0WriteValidVec: Seq[UInt] = Seq.tabulate(parameter.laneNumber) { laneIndex =>
     val update: ValidIO[UInt] = writeV0(laneIndex)
-    val clear: UInt = instructionFinish(laneIndex)
+    val clear:  UInt          = instructionFinish(laneIndex)
     val updateOH = maskAnd(update.valid, indexToOH(update.bits, parameter.chainingSize)).asUInt
     VecInit(Seq.tabulate(parameter.chainingSize) { chainingIndex =>
       val res = RegInit(false.B)

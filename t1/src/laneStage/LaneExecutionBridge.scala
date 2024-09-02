@@ -9,74 +9,82 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.ltl._
 import chisel3.ltl.Sequence._
-import org.chipsalliance.t1.rtl.{CSRInterface, ExecutionUnitRecord, LaneParameter, SlotRequestToVFU, VFUResponseToSlot, cutUInt, getExecuteUnitTag}
+import org.chipsalliance.t1.rtl.{
+  cutUInt,
+  getExecuteUnitTag,
+  CSRInterface,
+  ExecutionUnitRecord,
+  LaneParameter,
+  SlotRequestToVFU,
+  VFUResponseToSlot
+}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 
 class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
-  val src: Vec[UInt] = Vec(3, UInt(parameter.datapathWidth.W))
-  val crossReadSource: Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
-  val bordersForMaskLogic: Bool = Bool()
-  val mask: UInt = UInt((parameter.datapathWidth / 8).W)
-  val maskForFilter: UInt = UInt((parameter.datapathWidth / 8).W)
-  val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
-  val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
+  val src:                 Vec[UInt]    = Vec(3, UInt(parameter.datapathWidth.W))
+  val crossReadSource:     Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+  val bordersForMaskLogic: Bool         = Bool()
+  val mask:                UInt         = UInt((parameter.datapathWidth / 8).W)
+  val maskForFilter:       UInt         = UInt((parameter.datapathWidth / 8).W)
+  val groupCounter:        UInt         = UInt(parameter.groupNumberBits.W)
+  val sSendResponse:       Option[Bool] = Option.when(isLastSlot)(Bool())
   // pipe state
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
-  val vSew1H: UInt = UInt(3.W)
-  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
-  val maskType: Bool = Bool()
+  val decodeResult:        DecodeBundle = Decoder.bundle(parameter.decoderParam)
+  val vSew1H:              UInt         = UInt(3.W)
+  val csr:                 CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val maskType:            Bool         = Bool()
   // Newly added in LaneExecutionBridge
-  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
-  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val laneIndex:           UInt         = UInt(parameter.laneNumberBits.W)
+  val instructionIndex:    UInt         = UInt(parameter.instructionIndexBits.W)
 }
 
 class LaneExecuteResponse(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
-  val data: UInt = UInt(parameter.datapathWidth.W)
-  val ffoIndex: UInt = UInt(log2Ceil(parameter.vLen / 8).W)
+  val data:           UInt              = UInt(parameter.datapathWidth.W)
+  val ffoIndex:       UInt              = UInt(log2Ceil(parameter.vLen / 8).W)
   val crossWriteData: Option[Vec[UInt]] = Option.when(isLastSlot)(Vec(2, UInt(parameter.datapathWidth.W)))
-  val ffoSuccess: Option[Bool] = Option.when(isLastSlot)(Bool())
-  val fpReduceValid: Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
+  val ffoSuccess:     Option[Bool]      = Option.when(isLastSlot)(Bool())
+  val fpReduceValid:  Option[Bool]      = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
 }
 
 class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
-  val bordersForMaskLogic: Bool = Bool()
-  val maskForFilter: UInt = UInt((parameter.datapathWidth / 8).W)
-  val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
-  val sSendResponse: Option[Bool] = Option.when(isLastSlot)(Bool())
-  val executeIndex: Bool = Bool()
-  val source2: UInt = UInt(parameter.datapathWidth.W)
+  val bordersForMaskLogic: Bool         = Bool()
+  val maskForFilter:       UInt         = UInt((parameter.datapathWidth / 8).W)
+  val groupCounter:        UInt         = UInt(parameter.groupNumberBits.W)
+  val sSendResponse:       Option[Bool] = Option.when(isLastSlot)(Bool())
+  val executeIndex:        Bool         = Bool()
+  val source2:             UInt         = UInt(parameter.datapathWidth.W)
   // pipe state
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
-  val vSew1H: UInt = UInt(3.W)
-  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
+  val decodeResult:        DecodeBundle = Decoder.bundle(parameter.decoderParam)
+  val vSew1H:              UInt         = UInt(3.W)
+  val instructionIndex:    UInt         = UInt(parameter.instructionIndexBits.W)
 }
 
 @instantiable
 class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotIndex: Int) extends Module {
   // request from lane slot
   @public
-  val enqueue: DecoupledIO[LaneExecuteRequest] = IO(Flipped(Decoupled(new LaneExecuteRequest(parameter, isLastSlot))))
+  val enqueue:      DecoupledIO[LaneExecuteRequest]  = IO(Flipped(Decoupled(new LaneExecuteRequest(parameter, isLastSlot))))
   // request from lane slot
   @public
-  val dequeue: DecoupledIO[LaneExecuteResponse] = IO(Decoupled(new LaneExecuteResponse(parameter, isLastSlot)))
+  val dequeue:      DecoupledIO[LaneExecuteResponse] = IO(Decoupled(new LaneExecuteResponse(parameter, isLastSlot)))
   // request to vfu
   @public
-  val vfuRequest: DecoupledIO[SlotRequestToVFU] = IO(Decoupled(new SlotRequestToVFU(parameter)))
+  val vfuRequest:   DecoupledIO[SlotRequestToVFU]    = IO(Decoupled(new SlotRequestToVFU(parameter)))
   // response from vfu
   @public
-  val dataResponse: ValidIO[VFUResponseToSlot] = IO(Flipped(Valid(new VFUResponseToSlot(parameter))))
+  val dataResponse: ValidIO[VFUResponseToSlot]       = IO(Flipped(Valid(new VFUResponseToSlot(parameter))))
 
   @public
   val ffoByOtherLanes: Bool = IO(Input(Bool()))
   @public
-  val selfCompleted: Bool = IO(Input(Bool()))
+  val selfCompleted:   Bool = IO(Input(Bool()))
 
   @public
-  val executeDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
+  val executeDecode:  DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
   @public
   val responseDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
   @public
-  val responseIndex: UInt = IO(Output(UInt(parameter.instructionIndexBits.W)))
+  val responseIndex:  UInt         = IO(Output(UInt(parameter.instructionIndexBits.W)))
 
   val executionRecord: ExecutionUnitRecord = RegInit(0.U.asTypeOf(new ExecutionUnitRecord(parameter)(isLastSlot)))
   val executionRecordValid = RegInit(false.B)
@@ -85,11 +93,11 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   val reduceResult: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
   // execution result from execute unit
   val executionResult = RegInit(0.U(parameter.datapathWidth.W))
-  val crossWriteLSB: Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
-  val outStandingRequestSize: Int = 4 max parameter.vfuInstantiateParameter.maxLatency + 3
-  val outStanding: UInt = RegInit(0.U(log2Ceil(outStandingRequestSize).W))
-  val outStandingUpdate: UInt = Mux(vfuRequest.fire, 1.U(outStanding.getWidth.W), (-1.S(outStanding.getWidth.W)).asUInt)
-  val responseFinish: Bool = outStanding === 0.U
+  val crossWriteLSB:          Option[UInt] = Option.when(isLastSlot)(RegInit(0.U(parameter.datapathWidth.W)))
+  val outStandingRequestSize: Int          = 4.max(parameter.vfuInstantiateParameter.maxLatency + 3)
+  val outStanding:            UInt         = RegInit(0.U(log2Ceil(outStandingRequestSize).W))
+  val outStandingUpdate:      UInt         = Mux(vfuRequest.fire, 1.U(outStanding.getWidth.W), (-1.S(outStanding.getWidth.W)).asUInt)
+  val responseFinish:         Bool         = outStanding === 0.U
   when(vfuRequest.fire ^ dataResponse.fire) {
     outStanding := outStanding + outStandingUpdate
   }
@@ -117,18 +125,18 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       executionRecord.decodeResult(Decoder.widenReduce)
 
   // data in executionRecord is narrow type
-  val narrowInRecord: Bool = !executionRecord.decodeResult(Decoder.crossWrite) &&
+  val narrowInRecord: Bool         = !executionRecord.decodeResult(Decoder.crossWrite) &&
     executionRecord.decodeResult(Decoder.crossRead)
   // reduceReady is false: Need to collapse the results of combined calculations
-  val reduceReady: Bool = WireDefault(true.B)
+  val reduceReady:    Bool         = WireDefault(true.B)
   val sendFoldReduce: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
   val recordQueueReadyForNoExecute = Wire(Bool())
   val recordDequeueReady: Bool = (if (isLastSlot) {
-    vfuRequest.ready && (!doubleExecutionInRecord || executionRecord.executeIndex)
-  } else {
-    vfuRequest.ready
-  }) || recordQueueReadyForNoExecute
-  val recordDequeueFire: Bool = executionRecordValid && recordDequeueReady
+                                    vfuRequest.ready && (!doubleExecutionInRecord || executionRecord.executeIndex)
+                                  } else {
+                                    vfuRequest.ready
+                                  }) || recordQueueReadyForNoExecute
+  val recordDequeueFire:  Bool = executionRecordValid && recordDequeueReady
   when(enqueue.fire ^ recordDequeueFire) {
     executionRecordValid := enqueue.fire
   }
@@ -148,25 +156,28 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   }
 
   when(enqueue.fire) {
-    executionRecord.crossReadVS2 := enqueue.bits.decodeResult(Decoder.crossRead) && !enqueue.bits.decodeResult(Decoder.vwmacc)
-    executionRecord.bordersForMaskLogic := enqueue.bits.bordersForMaskLogic && enqueue.bits.decodeResult(Decoder.maskLogic)
-    executionRecord.maskForMaskInput := enqueue.bits.mask
-    executionRecord.maskForFilter := enqueue.bits.maskForFilter
-    executionRecord.source := enqueue.bits.src
+    executionRecord.crossReadVS2        := enqueue.bits.decodeResult(Decoder.crossRead) && !enqueue.bits.decodeResult(
+      Decoder.vwmacc
+    )
+    executionRecord.bordersForMaskLogic := enqueue.bits.bordersForMaskLogic && enqueue.bits.decodeResult(
+      Decoder.maskLogic
+    )
+    executionRecord.maskForMaskInput    := enqueue.bits.mask
+    executionRecord.maskForFilter       := enqueue.bits.maskForFilter
+    executionRecord.source              := enqueue.bits.src
     executionRecord.crossReadSource.foreach(_ := enqueue.bits.crossReadSource.get)
     executionRecord.sSendResponse.foreach(_ := enqueue.bits.sSendResponse.get)
-    executionRecord.groupCounter := enqueue.bits.groupCounter
-    executionRecord.decodeResult := enqueue.bits.decodeResult
-    executionRecord.vSew1H := enqueue.bits.vSew1H
-    executionRecord.csr := enqueue.bits.csr
-    executionRecord.maskType := enqueue.bits.maskType
-    executionRecord.laneIndex := enqueue.bits.laneIndex
-    executionRecord.instructionIndex := enqueue.bits.instructionIndex
+    executionRecord.groupCounter        := enqueue.bits.groupCounter
+    executionRecord.decodeResult        := enqueue.bits.decodeResult
+    executionRecord.vSew1H              := enqueue.bits.vSew1H
+    executionRecord.csr                 := enqueue.bits.csr
+    executionRecord.maskType            := enqueue.bits.maskType
+    executionRecord.laneIndex           := enqueue.bits.laneIndex
+    executionRecord.instructionIndex    := enqueue.bits.instructionIndex
   }
 
-  /** collapse the dual SEW size operand for cross read.
-   * it can be vd or src2.
-   */
+  /** collapse the dual SEW size operand for cross read. it can be vd or src2.
+    */
   val doubleCollapse: Option[UInt] = Option.when(isLastSlot) {
     val cutCrossReadData: Vec[UInt] = cutUInt(executionRecord.crossReadSource.get, parameter.datapathWidth)
     Mux(executionRecord.executeIndex, cutCrossReadData(1), cutCrossReadData(0))
@@ -176,7 +187,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   def dataExtend(data: UInt, sign: Bool): UInt = {
     val dataVec: Vec[UInt] = cutUInt(data, 8)
     val signVec: Seq[UInt] = dataVec.map(d => Fill(8, d(7) && sign))
-    val sewIsZero = executionRecord.vSew1H(0)
+    val sewIsZero    = executionRecord.vSew1H(0)
     // sew = 0 把source1里的每一个 element 从 8bit 扩展成16bit
     //  -> s3 ## d3 ## s2 ## d2 ## s1 ## d1 ## s0 ## d0
     // sew = 1 把source1里的每一个 element 从 16bit 扩展成32bit
@@ -191,18 +202,18 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       cutUInt(sourceExtend, 32)(0)
     )
   }
-  val extendSource1: UInt = dataExtend(executionRecord.source.head, !executionRecord.decodeResult(Decoder.unsigned0))
-  val extendSource2: UInt = dataExtend(executionRecord.source(1), !executionRecord.decodeResult(Decoder.unsigned1))
-  /** src1 for the execution
-   * src1 has three types: V, I, X.
-   */
+  val extendSource1:                      UInt = dataExtend(executionRecord.source.head, !executionRecord.decodeResult(Decoder.unsigned0))
+  val extendSource2:                      UInt = dataExtend(executionRecord.source(1), !executionRecord.decodeResult(Decoder.unsigned1))
+
+  /** src1 for the execution src1 has three types: V, I, X.
+    */
   val normalSource1: UInt =
     Mux(
       executionRecord.decodeResult(Decoder.red) && !executionRecord.decodeResult(Decoder.maskLogic),
       reduceResult.getOrElse(0.U),
       executionRecord.source.head
     )
-  val finalSource1: UInt = if (isLastSlot) {
+  val finalSource1:  UInt = if (isLastSlot) {
     Mux(
       executionRecord.decodeResult(Decoder.crossWrite) || narrowInRecord,
       extendSource1,
@@ -213,15 +224,17 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   }
 
   val reduceFoldSource2: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
-  /** src2 for the execution,
-   * need to take care of cross read.
-   */
+
+  /** src2 for the execution, need to take care of cross read.
+    */
   val finalSource2: UInt = if (isLastSlot) {
     Mux(
       executionRecord.crossReadVS2,
       doubleCollapse.get,
       Mux(
-        executionRecord.decodeResult(Decoder.crossWrite) || (executionRecord.decodeResult(Decoder.widenReduce) && !sendFoldReduce.get),
+        executionRecord.decodeResult(Decoder.crossWrite) || (executionRecord.decodeResult(
+          Decoder.widenReduce
+        ) && !sendFoldReduce.get),
         extendSource2,
         Mux(
           sendFoldReduce.get,
@@ -234,13 +247,12 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecord.source(1)
   }
 
-  /** source3 有两种：adc & ma, c等处理mask的时候再处理
-   * two types of source3:
-   * - multiplier accumulate
-   * - the third input of add with carry
-   *
-   * this line only handle the first type.
-   */
+  /** source3 有两种：adc & ma, c等处理mask的时候再处理 two types of source3:
+    *   - multiplier accumulate
+    *   - the third input of add with carry
+    *
+    * this line only handle the first type.
+    */
   val finalSource3: UInt = if (isLastSlot) {
     Mux(
       executionRecord.decodeResult(Decoder.vwmacc),
@@ -251,20 +263,25 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     executionRecord.source(2)
   }
 
-  /** use mask to fix the case that `vl` is not in the multiple of [[parameter.datapathWidth]].
-   * it will fill the LSB of mask to `0`, mask it to not execute those elements.
-   */
+  /** use mask to fix the case that `vl` is not in the multiple of [[parameter.datapathWidth]]. it will fill the LSB of
+    * mask to `0`, mask it to not execute those elements.
+    */
   val lastGroupMask: Bits = scanRightOr(UIntToOH(executionRecord.csr.vl(parameter.datapathWidthBits - 1, 0))) >> 1
 
   val fullMask: UInt = (-1.S(parameter.datapathWidth.W)).asUInt
-  /** if [[executionRecord.bordersForMaskLogic]],
-   * use [[lastGroupMask]] to mask the result otherwise use [[fullMask]]. */
+
+  /** if [[executionRecord.bordersForMaskLogic]], use [[lastGroupMask]] to mask the result otherwise use [[fullMask]].
+    */
   val maskCorrect: Bits = Mux(executionRecord.bordersForMaskLogic, lastGroupMask, fullMask)
 
-  val maskExtend = Mux(executionRecord.vSew1H(1), FillInterleaved(2, executionRecord.maskForMaskInput(1, 0)), executionRecord.maskForMaskInput)
-  vfuRequest.bits.src := VecInit(Seq(finalSource1, finalSource2, finalSource3, maskCorrect))
-  vfuRequest.bits.opcode := executionRecord.decodeResult(Decoder.uop)
-  vfuRequest.bits.mask := Mux(
+  val maskExtend = Mux(
+    executionRecord.vSew1H(1),
+    FillInterleaved(2, executionRecord.maskForMaskInput(1, 0)),
+    executionRecord.maskForMaskInput
+  )
+  vfuRequest.bits.src         := VecInit(Seq(finalSource1, finalSource2, finalSource3, maskCorrect))
+  vfuRequest.bits.opcode      := executionRecord.decodeResult(Decoder.uop)
+  vfuRequest.bits.mask        := Mux(
     executionRecord.decodeResult(Decoder.adder),
     Mux(executionRecord.decodeResult(Decoder.maskSource), executionRecord.maskForMaskInput, 0.U(4.W)),
     maskExtend | Fill(4, !executionRecord.maskType)
@@ -274,89 +291,94 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     0.U(2.W) ## executionRecord.maskForFilter(3, 2),
     executionRecord.maskForFilter
   )
-  vfuRequest.bits.sign0 := !executionRecord.decodeResult(Decoder.unsigned0)
-  vfuRequest.bits.sign := !executionRecord.decodeResult(Decoder.unsigned1)
-  vfuRequest.bits.reverse := executionRecord.decodeResult(Decoder.reverse)
-  vfuRequest.bits.average := executionRecord.decodeResult(Decoder.average)
-  vfuRequest.bits.saturate := executionRecord.decodeResult(Decoder.saturate)
-  vfuRequest.bits.vxrm := executionRecord.csr.vxrm
-  vfuRequest.bits.vSew := Mux(
+  vfuRequest.bits.sign0       := !executionRecord.decodeResult(Decoder.unsigned0)
+  vfuRequest.bits.sign        := !executionRecord.decodeResult(Decoder.unsigned1)
+  vfuRequest.bits.reverse     := executionRecord.decodeResult(Decoder.reverse)
+  vfuRequest.bits.average     := executionRecord.decodeResult(Decoder.average)
+  vfuRequest.bits.saturate    := executionRecord.decodeResult(Decoder.saturate)
+  vfuRequest.bits.vxrm        := executionRecord.csr.vxrm
+  vfuRequest.bits.vSew        := Mux(
     doubleExecutionInRecord,
     executionRecord.csr.vSew + 1.U,
     executionRecord.csr.vSew
   )
   val shifterSizeBit = Mux(executionRecord.crossReadVS2, executionRecord.vSew1H(1, 0), executionRecord.vSew1H(2, 1))
-  vfuRequest.bits.shifterSize := VecInit(cutUInt(finalSource1, 8).map(data =>
-    Mux1H(
-      shifterSizeBit,
-      Seq(false.B ## data(3), data(4, 3))
-    ) ## data(2, 0)
-  )).asUInt
+  vfuRequest.bits.shifterSize := VecInit(
+    cutUInt(finalSource1, 8).map(data =>
+      Mux1H(
+        shifterSizeBit,
+        Seq(false.B ## data(3), data(4, 3))
+      ) ## data(2, 0)
+    )
+  ).asUInt
 
-  vfuRequest.bits.rem := executionRecord.decodeResult(Decoder.uop)(0)
+  vfuRequest.bits.rem          := executionRecord.decodeResult(Decoder.uop)(0)
   vfuRequest.bits.executeIndex := executionRecord.executeIndex
-  vfuRequest.bits.popInit := reduceResult.getOrElse(0.U)
-  vfuRequest.bits.groupIndex := executionRecord.groupCounter
-  vfuRequest.bits.laneIndex := executionRecord.laneIndex
-  vfuRequest.bits.complete := ffoByOtherLanes || selfCompleted
-  vfuRequest.bits.maskType := executionRecord.maskType
-  vfuRequest.bits.narrow := narrowInRecord
+  vfuRequest.bits.popInit      := reduceResult.getOrElse(0.U)
+  vfuRequest.bits.groupIndex   := executionRecord.groupCounter
+  vfuRequest.bits.laneIndex    := executionRecord.laneIndex
+  vfuRequest.bits.complete     := ffoByOtherLanes || selfCompleted
+  vfuRequest.bits.maskType     := executionRecord.maskType
+  vfuRequest.bits.narrow       := narrowInRecord
   vfuRequest.bits.unitSelet.foreach(_ := executionRecord.decodeResult(Decoder.fpExecutionType))
   vfuRequest.bits.floatMul.foreach(_ := executionRecord.decodeResult(Decoder.floatMul))
-  vfuRequest.bits.tag := slotIndex.U
+  vfuRequest.bits.tag          := slotIndex.U
 
   // from float csr
   vfuRequest.bits.roundingMode.foreach(_ := executionRecord.csr.vxrm)
   executeDecode := executionRecord.decodeResult
 
   vfuRequest.valid := (if (isLastSlot) {
-    (executionRecordValid || sendFoldReduce.get) && (responseFinish || !executionRecord.decodeResult(Decoder.red))
-  } else {
-    executionRecordValid
-  }) && !executionRecord.decodeResult(Decoder.dontNeedExecuteInLane)
-  //--- record <-> vfu end ---
+                         (executionRecordValid || sendFoldReduce.get) && (responseFinish || !executionRecord
+                           .decodeResult(Decoder.red))
+                       } else {
+                         executionRecordValid
+                       }) && !executionRecord.decodeResult(Decoder.dontNeedExecuteInLane)
+  // --- record <-> vfu end ---
   //                        --- record <-> record pipe queue <-> response stage
   val recordQueue = Module(
     new Queue(
       new ExecutionBridgeRecordQueue(parameter, isLastSlot),
-      entries = 4 max parameter.vfuInstantiateParameter.maxLatency + 3,
+      entries = 4.max(parameter.vfuInstantiateParameter.maxLatency + 3),
       flow = true
     )
   )
   AssertProperty(BoolSequence(!vfuRequest.fire || recordQueue.io.enq.ready))
   val enqNotExecute: Bool = executionRecord.decodeResult(Decoder.dontNeedExecuteInLane)
-  recordQueueReadyForNoExecute := enqNotExecute && recordQueue.io.enq.ready
-  recordQueue.io.enq.valid := executionRecordValid && (vfuRequest.ready || enqNotExecute)
+  recordQueueReadyForNoExecute                := enqNotExecute && recordQueue.io.enq.ready
+  recordQueue.io.enq.valid                    := executionRecordValid && (vfuRequest.ready || enqNotExecute)
   recordQueue.io.enq.bits.bordersForMaskLogic := executionRecord.bordersForMaskLogic
-  recordQueue.io.enq.bits.maskForFilter := executionRecord.maskForFilter
-  recordQueue.io.enq.bits.groupCounter := executionRecord.groupCounter
-  recordQueue.io.enq.bits.executeIndex := executionRecord.executeIndex
-  recordQueue.io.enq.bits.source2 := executionRecord.source(1)
-  recordQueue.io.enq.bits.sSendResponse.zip(executionRecord.sSendResponse).foreach {
-    case (sink, source) => sink := source
+  recordQueue.io.enq.bits.maskForFilter       := executionRecord.maskForFilter
+  recordQueue.io.enq.bits.groupCounter        := executionRecord.groupCounter
+  recordQueue.io.enq.bits.executeIndex        := executionRecord.executeIndex
+  recordQueue.io.enq.bits.source2             := executionRecord.source(1)
+  recordQueue.io.enq.bits.sSendResponse.zip(executionRecord.sSendResponse).foreach { case (sink, source) =>
+    sink := source
   }
-  recordQueue.io.enq.bits.decodeResult := executionRecord.decodeResult
-  recordQueue.io.enq.bits.vSew1H := executionRecord.vSew1H
-  recordQueue.io.enq.bits.instructionIndex := executionRecord.instructionIndex
-  //--- vfu <-> write queue start ---
+  recordQueue.io.enq.bits.decodeResult        := executionRecord.decodeResult
+  recordQueue.io.enq.bits.vSew1H              := executionRecord.vSew1H
+  recordQueue.io.enq.bits.instructionIndex    := executionRecord.instructionIndex
+  // --- vfu <-> write queue start ---
 
-  /** same as [[doubleExecutionInRecord]]
-    * data request in [[recordQueue.io.deq]] need double execution
-    **/
+  /** same as [[doubleExecutionInRecord]] data request in [[recordQueue.io.deq]] need double execution
+    */
   val doubleExecutionInQueue: Bool =
     recordQueue.io.deq.bits.decodeResult(Decoder.crossWrite) ||
       recordQueue.io.deq.bits.decodeResult(Decoder.crossRead) ||
       recordQueue.io.deq.bits.decodeResult(Decoder.widenReduce)
   val recordNotExecute = recordQueue.io.deq.bits.decodeResult(Decoder.dontNeedExecuteInLane)
+
   /** select from VFU, send to [[executionResult]], [[crossWriteLSB]], [[crossWriteMSB]]. */
   val dataDequeue: UInt = Mux(recordNotExecute, recordQueue.io.deq.bits.source2, dataResponse.bits.data)
   val deqVec = cutUInt(dataDequeue, 8)
 
   // vsew = 8     -> d2 ## d0
   // vasew = 16   -> d1 ## d0
-  val narrowUpdate = (Mux(recordQueue.io.deq.bits.vSew1H(0), deqVec(2), deqVec(1)) ## deqVec(0) ## executionResult) >> (parameter.datapathWidth / 2)
+  val narrowUpdate = (Mux(recordQueue.io.deq.bits.vSew1H(0), deqVec(2), deqVec(1)) ## deqVec(
+    0
+  ) ## executionResult) >> (parameter.datapathWidth / 2)
   // data group in recordQueue.io.deq is narrow type
-  val narrowInQueue: Bool = !recordQueue.io.deq.bits.decodeResult(Decoder.crossWrite) &&
+  val narrowInQueue:      Bool = !recordQueue.io.deq.bits.decodeResult(Decoder.crossWrite) &&
     recordQueue.io.deq.bits.decodeResult(Decoder.crossRead)
   val lastSlotDataUpdate: UInt = Mux(narrowInQueue, narrowUpdate.asUInt, dataDequeue)
   // update execute result
@@ -373,14 +395,14 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   val maskFormatResultUpdate: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
 
   val updateReduceResult: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
-  val updateMaskResult: Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
+  val updateMaskResult:   Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
   val reduceLastResponse = WireDefault(false.B)
   // update mask result
   if (isLastSlot) {
     val maskResult: UInt = dataResponse.bits.adderMaskResp
-    /** update value for [[maskFormatResultUpdate]],
-     * it comes from ALU.
-     */
+
+    /** update value for [[maskFormatResultUpdate]], it comes from ALU.
+      */
     val elementMaskFormatResult = Mux1H(
       recordQueue.io.deq.bits.vSew1H(2, 0),
       Seq(
@@ -408,19 +430,25 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         FillInterleaved(4, recordQueue.io.deq.bits.maskForFilter(0))
       )
     )
-    val widenReduceMask = Mux1H(
+    val widenReduceMask  = Mux1H(
       recordQueue.io.deq.bits.vSew1H(1, 0),
       Seq(
-        FillInterleaved(2, Mux(
-          dataResponse.bits.executeIndex(0),
-          recordQueue.io.deq.bits.maskForFilter(3, 2),
-          recordQueue.io.deq.bits.maskForFilter(1, 0)
-        )),
-        FillInterleaved(4, Mux(
-          dataResponse.bits.executeIndex(0),
-          recordQueue.io.deq.bits.maskForFilter(1),
-          recordQueue.io.deq.bits.maskForFilter(0)
-        ))
+        FillInterleaved(
+          2,
+          Mux(
+            dataResponse.bits.executeIndex(0),
+            recordQueue.io.deq.bits.maskForFilter(3, 2),
+            recordQueue.io.deq.bits.maskForFilter(1, 0)
+          )
+        ),
+        FillInterleaved(
+          4,
+          Mux(
+            dataResponse.bits.executeIndex(0),
+            recordQueue.io.deq.bits.maskForFilter(1),
+            recordQueue.io.deq.bits.maskForFilter(0)
+          )
+        )
       )
     )
     // masked element don't update 'reduceResult'
@@ -428,9 +456,9 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       Mux(recordQueue.io.deq.bits.decodeResult(Decoder.widenReduce), widenReduceMask, normalReduceMask)
     val foldUpdateMask = Wire(UInt(4.W))
     updateReduceResult.get := {
-      val dataVec = cutUInt(dataDequeue, 8)
+      val dataVec   = cutUInt(dataDequeue, 8)
       val ResultVec = cutUInt(reduceResult.get, 8)
-      VecInit(dataVec.zipWithIndex.map {case (d, i) =>
+      VecInit(dataVec.zipWithIndex.map { case (d, i) =>
         Mux1H(
           Seq(
             Mux(sendFoldReduce.get, foldUpdateMask(i), reduceUpdateByteMask(i)),
@@ -448,7 +476,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     when(enqueue.fire) {
       // red max min 的第一次不能和上一个指令的reduce结果比, 只能和自己比
       firstRequestFire.foreach { first =>
-        when(first && enqueue.bits.decodeResult(Decoder.float)){
+        when(first && enqueue.bits.decodeResult(Decoder.float)) {
           reduceResult.foreach {
             // flot compare compare init as src1 else init as 0
             _ := Mux(enqueue.bits.decodeResult(Decoder.fpExecutionType).orR, enqueue.bits.src(1), 0.U)
@@ -463,11 +491,12 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     // sew = 16       0         -
     // sew = 32       -         -
     val nextFoldCount = recordQueue.io.deq.bits.vSew1H(0) && !recordQueue.io.deq.bits.decodeResult(Decoder.widenReduce)
-    val needFold = recordQueue.io.deq.bits.vSew1H(0) || (recordQueue.io.deq.bits.vSew1H(1) && !recordQueue.io.deq.bits.decodeResult(Decoder.widenReduce))
+    val needFold      = recordQueue.io.deq.bits
+      .vSew1H(0) || (recordQueue.io.deq.bits.vSew1H(1) && !recordQueue.io.deq.bits.decodeResult(Decoder.widenReduce))
     val reduceFoldCount: Bool = RegInit(false.B)
     val idle :: wLastResponse :: fold :: waitFoldResponse :: Nil = Enum(4)
-    val redState = RegInit(idle)
-    val stateFold = redState === fold
+    val redState                                                 = RegInit(idle)
+    val stateFold                                                = redState === fold
     when(
       // vfu  request fire
       vfuRequest.fire &&
@@ -481,18 +510,18 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     ) {
       when(responseFinish && dataResponse.valid) {
         when(needFold) {
-          redState := fold
+          redState        := fold
           reduceFoldCount := nextFoldCount
         }.otherwise {
           redState := idle
         }
-      } otherwise {
+      }.otherwise {
         redState := wLastResponse
       }
     }
     when(redState === wLastResponse && dataResponse.valid) {
       when(needFold) {
-        redState := fold
+        redState        := fold
         reduceFoldCount := nextFoldCount
       }.otherwise {
         redState := idle
@@ -501,14 +530,14 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     when(stateFold && reduceFoldCount === 0.U && vfuRequest.ready) {
       // latency = 0
       when(responseFinish && dataResponse.valid) {
-        redState := idle
+        redState           := idle
         reduceLastResponse := true.B
-      } otherwise {
+      }.otherwise {
         redState := waitFoldResponse
       }
     }
     when(redState === waitFoldResponse && dataResponse.valid) {
-      redState := idle
+      redState           := idle
       reduceLastResponse := true.B
     }
     when(stateFold && dataResponse.valid) {
@@ -550,8 +579,8 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   queue.io.enq.bits.ffoSuccess.foreach(_ := dataResponse.bits.ffoSuccess)
   queue.io.enq.bits.fpReduceValid.foreach(_ := !waitFirstValidFire.get)
   recordQueue.io.deq.ready := dataResponse.valid || (recordNotExecute && queue.io.enq.ready)
-  responseDecode := recordQueue.io.deq.bits.decodeResult
-  responseIndex := recordQueue.io.deq.bits.instructionIndex
+  responseDecode     := recordQueue.io.deq.bits.decodeResult
+  responseIndex      := recordQueue.io.deq.bits.instructionIndex
   queue.io.enq.valid :=
     (recordQueue.io.deq.valid &&
       ((dataResponse.valid && reduceReady &&
@@ -559,12 +588,13 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         recordNotExecute)) || reduceLastResponse
   AssertProperty(BoolSequence(!queue.io.enq.valid || queue.io.enq.ready))
   dequeue <> queue.io.deq
-  updateMaskResult.foreach(_ :=
-    (!recordQueue.io.deq.bits.sSendResponse.get && queue.io.enq.fire) ||
-      (enqueue.fire && enqueue.bits.groupCounter === 0.U)
+  updateMaskResult.foreach(
+    _ :=
+      (!recordQueue.io.deq.bits.sSendResponse.get && queue.io.enq.fire) ||
+        (enqueue.fire && enqueue.bits.groupCounter === 0.U)
   )
   val executionTypeInRecord: UInt = getExecuteUnitTag(parameter)(executionRecord.decodeResult)
-  val enqType: UInt = getExecuteUnitTag(parameter)(enqueue.bits.decodeResult)
+  val enqType:   UInt = getExecuteUnitTag(parameter)(enqueue.bits.decodeResult)
   val typeCheck: Bool = (executionTypeInRecord === enqType) || !(executionRecordValid || recordQueue.io.deq.valid)
   enqueue.ready := (!executionRecordValid || recordDequeueReady) && typeCheck
 }

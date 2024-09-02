@@ -6,45 +6,45 @@ package org.chipsalliance.t1.rtl.decoder.attribute
 import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 
 trait FloatUopType extends Uop
-object FUT0 extends FloatUopType
-object FUT1 extends FloatUopType
-object FUT2 extends FloatUopType
-object FUT3 extends FloatUopType
-object FUT4 extends FloatUopType
-object FUT5 extends FloatUopType
-object FUT6 extends FloatUopType
-object FUT7 extends FloatUopType
-object FUT8 extends FloatUopType
-object FUT9 extends FloatUopType
-object FUT10 extends FloatUopType
-object FUT12 extends FloatUopType
-object FUT13 extends FloatUopType
-object FUT14 extends FloatUopType
+object FUT0        extends FloatUopType
+object FUT1        extends FloatUopType
+object FUT2        extends FloatUopType
+object FUT3        extends FloatUopType
+object FUT4        extends FloatUopType
+object FUT5        extends FloatUopType
+object FUT6        extends FloatUopType
+object FUT7        extends FloatUopType
+object FUT8        extends FloatUopType
+object FUT9        extends FloatUopType
+object FUT10       extends FloatUopType
+object FUT12       extends FloatUopType
+object FUT13       extends FloatUopType
+object FUT14       extends FloatUopType
 
 object FloatUop {
   def apply(t1DecodePattern: T1DecodePattern) = {
     Seq(
-      t0 _ -> FUT0,
-      t1 _ -> FUT1,
-      t2 _ -> FUT2,
-      t3 _ -> FUT3,
-      t4 _ -> FUT4,
-      t5 _ -> FUT5,
-      t6 _ -> FUT6,
-      t7 _ -> FUT7,
-      t8 _ -> FUT8,
-      t9 _ -> FUT9,
+      t0 _  -> FUT0,
+      t1 _  -> FUT1,
+      t2 _  -> FUT2,
+      t3 _  -> FUT3,
+      t4 _  -> FUT4,
+      t5 _  -> FUT5,
+      t6 _  -> FUT6,
+      t7 _  -> FUT7,
+      t8 _  -> FUT8,
+      t9 _  -> FUT9,
       t10 _ -> FUT10,
       t12 _ -> FUT12,
       t13 _ -> FUT13,
-      t14 _ -> FUT14,
+      t14 _ -> FUT14
     ).collectFirst {
       case (fn, tpe) if fn(t1DecodePattern) => tpe
     }.getOrElse(UopDC)
   }
   def t0(t1DecodePattern: T1DecodePattern): Boolean = {
     val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(t1(t1DecodePattern) 
+      !(t1(t1DecodePattern)
         || t2(t1DecodePattern)
         || t3(t1DecodePattern)
         || t4(t1DecodePattern)
@@ -56,8 +56,7 @@ object FloatUop {
         || t10(t1DecodePattern)
         || t12(t1DecodePattern)
         || t13(t1DecodePattern)
-        || t14(t1DecodePattern)
-      )
+        || t14(t1DecodePattern))
     )
     allMatched.contains(t1DecodePattern.instruction)
   }
@@ -68,7 +67,7 @@ object FloatUop {
       "vfsgnj.vf",
       "vfsgnj.vv",
       "vmfeq.vf",
-      "vmfeq.vv",
+      "vmfeq.vv"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
@@ -79,7 +78,7 @@ object FloatUop {
       "vfsgnjn.vf",
       "vfsgnjn.vv",
       "vmflt.vf",
-      "vmflt.vv",
+      "vmflt.vv"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
@@ -90,7 +89,7 @@ object FloatUop {
       "vfsgnjx.vf",
       "vfsgnjx.vv",
       "vmfle.vf",
-      "vmfle.vv",
+      "vmfle.vv"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
@@ -99,7 +98,7 @@ object FloatUop {
       "vfclass.v",
       "vfmadd.vf",
       "vfmadd.vv",
-      "vmfgt.vf",
+      "vmfgt.vf"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
@@ -107,7 +106,7 @@ object FloatUop {
     val allMatched: Seq[String] = Seq(
       "vfmsub.vf",
       "vfmsub.vv",
-      "vmfge.vf",
+      "vmfge.vf"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
@@ -115,7 +114,7 @@ object FloatUop {
     val allMatched: Seq[String] = Seq(
       "vfnmsub.vf",
       "vfnmsub.vv",
-      "vfrec7.v",
+      "vfrec7.v"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
@@ -123,7 +122,7 @@ object FloatUop {
     val allMatched: Seq[String] = Seq(
       "vfnmadd.vf",
       "vfnmadd.vv",
-      "vfrsqrt7.v",
+      "vfrsqrt7.v"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
@@ -137,7 +136,7 @@ object FloatUop {
       "vfmin.vv",
       "vfredmin.vs",
       "vfredosum.vs",
-      "vfredusum.vs",
+      "vfredusum.vs"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
@@ -145,13 +144,13 @@ object FloatUop {
     val allMatched: Seq[String] = Seq(
       "vfcvt.xu.f.v",
       "vfsub.vf",
-      "vfsub.vv",
+      "vfsub.vv"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
-  }  
+  }
   def t10(t1DecodePattern: T1DecodePattern): Boolean = {
     val allMatched: Seq[String] = Seq(
-      "vfcvt.x.f.v",
+      "vfcvt.x.f.v"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
@@ -159,20 +158,20 @@ object FloatUop {
     val allMatched: Seq[String] = Seq(
       "vfmax.vf",
       "vfmax.vv",
-      "vfredmax.vs",
+      "vfredmax.vs"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
-  }  
+  }
   def t13(t1DecodePattern: T1DecodePattern): Boolean = {
     val allMatched: Seq[String] = Seq(
       "vfcvt.rtz.xu.f.v",
-      "vfrsub.vf",
+      "vfrsub.vf"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
-  }  
+  }
   def t14(t1DecodePattern: T1DecodePattern): Boolean = {
     val allMatched: Seq[String] = Seq(
-      "vfcvt.rtz.x.f.v",
+      "vfcvt.rtz.x.f.v"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }

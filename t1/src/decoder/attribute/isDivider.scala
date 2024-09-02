@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isDivider {
   def apply(t1DecodePattern: T1DecodePattern): isDivider =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isDivider(tri)
@@ -28,14 +28,12 @@ object isDivider {
       "vrem.vv",
       "vrem.vx",
       "vremu.vv",
-      "vremu.vx",
+      "vremu.vx"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -43,5 +41,6 @@ object isDivider {
 }
 
 case class isDivider(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "goes to [[org.chipsalliance.t1.rtl.LaneDiv]] or [[org.chipsalliance.t1.rtl.LaneDivFP]]. if FP exist, all div goes to [[org.chipsalliance.t1.rtl.LaneDivFP]]"
+  override val description: String =
+    "goes to [[org.chipsalliance.t1.rtl.LaneDiv]] or [[org.chipsalliance.t1.rtl.LaneDivFP]]. if FP exist, all div goes to [[org.chipsalliance.t1.rtl.LaneDivFP]]"
 }

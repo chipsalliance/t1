@@ -12,25 +12,26 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 
 // stage 0
 class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
-  val maskIndex: UInt = UInt(log2Ceil(parameter.maskGroupWidth).W)
+  val maskIndex:        UInt = UInt(log2Ceil(parameter.maskGroupWidth).W)
   val maskForMaskGroup: UInt = UInt(parameter.datapathWidth.W)
-  val maskGroupCount: UInt = UInt(parameter.maskGroupSizeBits.W)
-  val readFromScalar: UInt = UInt(parameter.datapathWidth.W)
+  val maskGroupCount:   UInt = UInt(parameter.maskGroupSizeBits.W)
+  val readFromScalar:   UInt = UInt(parameter.datapathWidth.W)
 
   // pipe all state
-  val vSew1H: UInt = UInt(3.W)
-  val loadStore: Bool = Bool()
-  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+  val vSew1H:       UInt         = UInt(3.W)
+  val loadStore:    Bool         = Bool()
+  val laneIndex:    UInt         = UInt(parameter.laneNumberBits.W)
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
+
   /** which group is the last group for instruction. */
-  val lastGroupForInstruction: UInt = UInt(parameter.groupNumberBits.W)
-  val isLastLaneForInstruction: Bool = Bool()
-  val instructionFinished: Bool = Bool()
-  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val lastGroupForInstruction:  UInt         = UInt(parameter.groupNumberBits.W)
+  val isLastLaneForInstruction: Bool         = Bool()
+  val instructionFinished:      Bool         = Bool()
+  val csr:                      CSRInterface = new CSRInterface(parameter.vlMaxBits)
   // vm = 0
-  val maskType: Bool = Bool()
-  val maskNotMaskedElement: Bool = Bool()
-  val ffoByOtherLanes: Bool = Bool()
+  val maskType:                 Bool         = Bool()
+  val maskNotMaskedElement:     Bool         = Bool()
+  val ffoByOtherLanes:          Bool         = Bool()
 
   /** vs1 or imm */
   val vs1: UInt = UInt(5.W)
@@ -42,79 +43,84 @@ class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
   val vd: UInt = UInt(5.W)
 
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val additionalRW: Bool = Bool()
+  val additionalRW:     Bool = Bool()
   // skip vrf read in stage 1?
-  val skipRead: Bool = Bool()
+  val skipRead:         Bool = Bool()
   // vm will skip element?
-  val skipEnable: Bool = Bool()
+  val skipEnable:       Bool = Bool()
 }
 
 class LaneStage0StateUpdate(parameter: LaneParameter) extends Bundle {
-  val maskGroupCount: UInt = UInt(parameter.maskGroupSizeBits.W)
-  val maskIndex: UInt = UInt(log2Ceil(parameter.maskGroupWidth).W)
+  val maskGroupCount:      UInt = UInt(parameter.maskGroupSizeBits.W)
+  val maskIndex:           UInt = UInt(log2Ceil(parameter.maskGroupWidth).W)
   val outOfExecutionRange: Bool = Bool()
-  val maskExhausted: Bool = Bool()
+  val maskExhausted:       Bool = Bool()
 }
 
 class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
-  val maskForMaskInput: UInt = UInt((parameter.datapathWidth/8).W)
-  val boundaryMaskCorrection: UInt = UInt((parameter.datapathWidth/8).W)
-  val sSendResponse: Option[Bool] =  Option.when(isLastSlot)(Bool())
-  val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
-  val readFromScalar: UInt = UInt(parameter.datapathWidth.W)
+  val maskForMaskInput:       UInt         = UInt((parameter.datapathWidth / 8).W)
+  val boundaryMaskCorrection: UInt         = UInt((parameter.datapathWidth / 8).W)
+  val sSendResponse:          Option[Bool] = Option.when(isLastSlot)(Bool())
+  val groupCounter:           UInt         = UInt(parameter.groupNumberBits.W)
+  val readFromScalar:         UInt         = UInt(parameter.datapathWidth.W)
 
   // pipe state
-  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
-  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+  val instructionIndex:     UInt         = UInt(parameter.instructionIndexBits.W)
+  val decodeResult:         DecodeBundle = Decoder.bundle(parameter.decoderParam)
+  val laneIndex:            UInt         = UInt(parameter.laneNumberBits.W)
   // skip vrf read in stage 1?
-  val skipRead: Bool = Bool()
-  val vs1: UInt = UInt(5.W)
-  val vs2: UInt = UInt(5.W)
-  val vd: UInt = UInt(5.W)
-  val vSew1H: UInt = UInt(3.W)
-  val maskNotMaskedElement: Bool = Bool()
+  val skipRead:             Bool         = Bool()
+  val vs1:                  UInt         = UInt(5.W)
+  val vs2:                  UInt         = UInt(5.W)
+  val vd:                   UInt         = UInt(5.W)
+  val vSew1H:               UInt         = UInt(3.W)
+  val maskNotMaskedElement: Bool         = Bool()
 
   // pipe state
-  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
-  val maskType: Bool = Bool()
-  val loadStore: Bool = Bool()
-  val bordersForMaskLogic: Bool = Bool()
+  val csr:                 CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val maskType:            Bool         = Bool()
+  val loadStore:           Bool         = Bool()
+  val bordersForMaskLogic: Bool         = Bool()
 }
 
-/** 这一级由 lane slot 里的 maskIndex maskGroupCount 来计算对应的 data group counter
-  * 同时也会维护指令的结束与mask的更新
+/** 这一级由 lane slot 里的 maskIndex maskGroupCount 来计算对应的 data group counter 同时也会维护指令的结束与mask的更新
   */
 @instantiable
-class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
-  LaneStage(true)(
-    new LaneStage0Enqueue(parameter),
-    new LaneStage0Dequeue(parameter, isLastSlot)
-  ) {
+class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
+    extends LaneStage(true)(
+      new LaneStage0Enqueue(parameter),
+      new LaneStage0Dequeue(parameter, isLastSlot)
+    ) {
   @public
-  val updateLaneState: LaneStage0StateUpdate = IO(Output(new LaneStage0StateUpdate(parameter)))
+  val updateLaneState:     LaneStage0StateUpdate    = IO(Output(new LaneStage0StateUpdate(parameter)))
   @public
-  val tokenReport: ValidIO[EnqReportBundle] = IO(Valid(new EnqReportBundle(parameter)))
-  val stageWire: LaneStage0Dequeue = Wire(new LaneStage0Dequeue(parameter, isLastSlot))
+  val tokenReport:         ValidIO[EnqReportBundle] = IO(Valid(new EnqReportBundle(parameter)))
+  val stageWire:           LaneStage0Dequeue        = Wire(new LaneStage0Dequeue(parameter, isLastSlot))
   // 这一组如果全被masked了也不压进流水
-  val notMaskedAllElement: Bool = Mux1H(enqueue.bits.vSew1H, Seq(
-    stageWire.maskForMaskInput.orR,
-    stageWire.maskForMaskInput(1, 0).orR,
-    stageWire.maskForMaskInput(0),
-  )) || enqueue.bits.maskNotMaskedElement ||
+  val notMaskedAllElement: Bool                     = Mux1H(
+    enqueue.bits.vSew1H,
+    Seq(
+      stageWire.maskForMaskInput.orR,
+      stageWire.maskForMaskInput(1, 0).orR,
+      stageWire.maskForMaskInput(0)
+    )
+  ) || enqueue.bits.maskNotMaskedElement ||
     enqueue.bits.decodeResult(Decoder.maskDestination) || enqueue.bits.decodeResult(Decoder.red) ||
-    enqueue.bits.decodeResult(Decoder.readOnly) ||  enqueue.bits.loadStore || enqueue.bits.decodeResult(Decoder.gather) ||
+    enqueue.bits.decodeResult(Decoder.readOnly) || enqueue.bits.loadStore || enqueue.bits.decodeResult(
+      Decoder.gather
+    ) ||
     enqueue.bits.decodeResult(Decoder.crossRead) || enqueue.bits.decodeResult(Decoder.crossWrite)
   // 超出范围的一组不压到流水里面去
-  val enqFire: Bool = enqueue.fire && (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRW) && notMaskedAllElement
-  val stageDataReg: Data = RegEnable(stageWire, 0.U.asTypeOf(stageWire), enqFire)
-  val filterVec: Seq[(Bool, UInt)] = Seq(0, 1, 2).map { filterSew =>
+  val enqFire:             Bool                     =
+    enqueue.fire && (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRW) && notMaskedAllElement
+  val stageDataReg:        Data                     = RegEnable(stageWire, 0.U.asTypeOf(stageWire), enqFire)
+  val filterVec:           Seq[(Bool, UInt)]        = Seq(0, 1, 2).map { filterSew =>
     // The lower 'dataGroupIndexSize' bits represent the offsets in the data group
     val dataGroupIndexSize: Int = 2 - filterSew
     // each group has '2 ** dataGroupIndexSize' elements
     val dataGroupSize = 1 << dataGroupIndexSize
     // The data group index of last data group
-    val groupIndex = (enqueue.bits.maskIndex >> dataGroupIndexSize).asUInt
+    val groupIndex    = (enqueue.bits.maskIndex >> dataGroupIndexSize).asUInt
     // Filtering data groups
     val groupFilter: UInt = scanLeftOr(UIntToOH(groupIndex)) ## false.B
     // Whether there are element in the data group that have not been masked
@@ -124,7 +130,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
       (-1.S(parameter.datapathWidth.W)).asUInt
     )
     val maskForDataGroup: UInt =
-    VecInit(maskCorrection.asBools.grouped(dataGroupSize).map(_.reduce(_ || _)).toSeq).asUInt
+      VecInit(maskCorrection.asBools.grouped(dataGroupSize).map(_.reduce(_ || _)).toSeq).asUInt
     val groupFilterByMask = maskForDataGroup & groupFilter
     // ffo next group
     val nextDataGroupOH: UInt = ffo(groupFilterByMask)
@@ -163,28 +169,28 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
   val isTheLastGroup: Bool = dataGroupIndex === enqueue.bits.lastGroupForInstruction
 
   // Correct the mask on the boundary line
-  val vlNeedCorrect: Bool = Mux1H(
+  val vlNeedCorrect:     Bool = Mux1H(
     enqueue.bits.vSew1H(1, 0),
     Seq(
       enqueue.bits.csr.vl(1, 0).orR,
       enqueue.bits.csr.vl(0)
     )
   )
-  val correctMask: UInt = Mux1H(
+  val correctMask:       UInt = Mux1H(
     enqueue.bits.vSew1H(1, 0),
     Seq(
       (scanRightOr(UIntToOH(enqueue.bits.csr.vl(1, 0))) >> 1).asUInt,
       1.U(4.W)
     )
   )
-  val needCorrect: Bool =
+  val needCorrect:       Bool =
     isTheLastGroup &&
       enqueue.bits.isLastLaneForInstruction &&
       vlNeedCorrect
-  val maskCorrect: UInt = Mux(needCorrect, correctMask, 15.U(4.W))
+  val maskCorrect:       UInt = Mux(needCorrect, correctMask, 15.U(4.W))
   val crossReadOnlyMask: UInt = Fill(4, !updateLaneState.outOfExecutionRange)
 
-  stageWire.maskForMaskInput :=
+  stageWire.maskForMaskInput       :=
     Mux(
       enqueue.bits.maskType,
       (enqueue.bits.maskForMaskGroup >> enqueue.bits.maskIndex).asUInt(3, 0),
@@ -214,13 +220,15 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
     ) ++ Option.when(parameter.fpuEnable)(enqueue.bits.decodeResult(Decoder.orderReduce))).reduce(_ || _)
   }
   // pipe all state
-  stageWire.elements.foreach { case (k ,d) =>
-    enqueue.bits.elements.get(k).foreach( pipeData =>
-      d match {
-        case data: Data => data := pipeData
-        case _ =>
-      }
-    )
+  stageWire.elements.foreach { case (k, d) =>
+    enqueue.bits.elements
+      .get(k)
+      .foreach(pipeData =>
+        d match {
+          case data: Data => data := pipeData
+          case _ =>
+        }
+      )
   }
 
   stageWire.readFromScalar := Mux1H(
@@ -242,9 +250,9 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean) extends
 
   dequeue.bits := stageDataReg
 
-  tokenReport.valid := enqFire
-  tokenReport.bits.decodeResult := enqueue.bits.decodeResult
+  tokenReport.valid                 := enqFire
+  tokenReport.bits.decodeResult     := enqueue.bits.decodeResult
   tokenReport.bits.instructionIndex := enqueue.bits.instructionIndex
-  tokenReport.bits.sSendResponse := stageWire.sSendResponse.getOrElse(true.B)
-  tokenReport.bits.mask := stageWire.maskForMaskInput
+  tokenReport.bits.sSendResponse    := stageWire.sSendResponse.getOrElse(true.B)
+  tokenReport.bits.mask             := stageWire.maskForMaskInput
 }

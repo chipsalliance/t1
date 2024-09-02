@@ -6,60 +6,67 @@ package org.chipsalliance.t1.rtl.lsu
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
-import chisel3.probe.{Probe, ProbeValue, define}
-import org.chipsalliance.t1.rtl.{VRFWriteRequest, cutUInt, multiShifter}
+import chisel3.probe.{define, Probe, ProbeValue}
+import org.chipsalliance.t1.rtl.{cutUInt, multiShifter, VRFWriteRequest}
 
 @instantiable
 class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
+
   /** TileLink Port which will be route to the [[LSU.tlPort]]. */
   @public
-  val memRequest: DecoupledIO[MemRequest] = IO(Decoupled(new MemRequest(param)))
+  val memRequest:       DecoupledIO[MemRequest]    = IO(Decoupled(new MemRequest(param)))
   @public
-  val memResponse: DecoupledIO[MemDataBundle] = IO(Flipped(Decoupled(new MemDataBundle(param))))
+  val memResponse:      DecoupledIO[MemDataBundle] = IO(Flipped(Decoupled(new MemDataBundle(param))))
   @public
-  val status: LSUBaseStatus = IO(Output(new LSUBaseStatus))
+  val status:           LSUBaseStatus              = IO(Output(new LSUBaseStatus))
   @public
-  val writeReadyForLsu: Bool = IO(Input(Bool()))
+  val writeReadyForLsu: Bool                       = IO(Input(Bool()))
 
-  /** write channel to [[V]], which will redirect it to [[Lane.vrf]].
-   * see [[LSU.vrfWritePort]]
-   */
+  /** write channel to [[V]], which will redirect it to [[Lane.vrf]]. see [[LSU.vrfWritePort]]
+    */
   @public
-  val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(Vec(param.laneNumber,
-    Decoupled(
-      new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
+  val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(
+    Vec(
+      param.laneNumber,
+      Decoupled(
+        new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
+      )
     )
-  ))
+  )
 
   val nextCacheLineIndex = Wire(UInt(param.cacheLineIndexBits.W))
-  val cacheLineIndex = RegEnable(Mux(lsuRequest.valid, 0.U, nextCacheLineIndex), memRequest.fire || lsuRequest.valid)
+  val cacheLineIndex     = RegEnable(Mux(lsuRequest.valid, 0.U, nextCacheLineIndex), memRequest.fire || lsuRequest.valid)
   nextCacheLineIndex := cacheLineIndex + 1.U
 
   val validInstruction = !invalidInstruction && lsuRequest.valid
   val lastRequest: Bool = cacheLineNumberReg === cacheLineIndex
   val sendRequest: Bool =
-    RegEnable(lsuRequest.valid && (csrInterface.vl > 0.U), false.B, validInstruction || (memRequest.fire && lastRequest))
+    RegEnable(
+      lsuRequest.valid && (csrInterface.vl > 0.U),
+      false.B,
+      validInstruction || (memRequest.fire && lastRequest)
+    )
 
   val requestAddress = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineIndex) ##
     0.U(param.cacheLineBits.W)
   val writeReadyReg: Bool =
     RegEnable(writeReadyForLsu && !lsuRequest.valid, false.B, lsuRequest.valid || writeReadyForLsu)
 
-  memRequest.bits.src := cacheLineIndex
+  memRequest.bits.src     := cacheLineIndex
   memRequest.bits.address := requestAddress
-  memRequest.valid := sendRequest && !addressConflict
+  memRequest.valid        := sendRequest && !addressConflict
 
   val anyLastCacheLineAck: Bool = memResponse.fire && (memResponse.bits.index === cacheLineNumberReg)
 
   // 接收拼凑出来的cache line
   // 对齐
-  val alignedDequeue: DecoupledIO[MemDataBundle] = Wire(Decoupled(new MemDataBundle(param)))
-  val unalignedCacheLine: ValidIO[MemDataBundle] = RegInit(0.U.asTypeOf(Valid(new MemDataBundle(param))))
-  val unalignedEnqueueReady: Bool = alignedDequeue.ready || !unalignedCacheLine.valid
+  val alignedDequeue:        DecoupledIO[MemDataBundle] = Wire(Decoupled(new MemDataBundle(param)))
+  val unalignedCacheLine:    ValidIO[MemDataBundle]     = RegInit(0.U.asTypeOf(Valid(new MemDataBundle(param))))
+  val unalignedEnqueueReady: Bool                       = alignedDequeue.ready || !unalignedCacheLine.valid
 
   memResponse.ready := unalignedEnqueueReady
-  val nextIndex: UInt = Mux(unalignedCacheLine.valid, unalignedCacheLine.bits.index + 1.U, 0.U)
-  val dataValid: Bool = memResponse.valid
+  val nextIndex:            UInt = Mux(unalignedCacheLine.valid, unalignedCacheLine.bits.index + 1.U, 0.U)
+  val dataValid:            Bool = memResponse.valid
   val unalignedEnqueueFire: Bool = memResponse.fire
 
   val alignedDequeueValid: Bool =
@@ -67,7 +74,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       (dataValid || (unalignedCacheLine.bits.index === cacheLineNumberReg && lastCacheNeedPush))
   // update unalignedCacheLine
   when(unalignedEnqueueFire) {
-    unalignedCacheLine.bits.data := memResponse.bits.data
+    unalignedCacheLine.bits.data  := memResponse.bits.data
     unalignedCacheLine.bits.index := nextIndex
   }
 
@@ -75,16 +82,16 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     unalignedCacheLine.valid := unalignedEnqueueFire
   }
 
-  alignedDequeue.valid := alignedDequeueValid
-  alignedDequeue.bits.data :=
+  alignedDequeue.valid      := alignedDequeueValid
+  alignedDequeue.bits.data  :=
     multiShifter(right = true, multiSize = 8)(memResponse.bits.data ## unalignedCacheLine.bits.data, initOffset)
   alignedDequeue.bits.index := unalignedCacheLine.bits.index
 
-  val bufferFull: Bool = RegInit(false.B)
-  val bufferTailFire: Bool = Wire(Bool())
+  val bufferFull:         Bool = RegInit(false.B)
+  val bufferTailFire:     Bool = Wire(Bool())
   val bufferDequeueValid: Bool = bufferFull || bufferTailFire
   val bufferDequeueReady: Bool = Wire(Bool())
-  val bufferDequeueFire: Bool = bufferDequeueReady && bufferDequeueValid
+  val bufferDequeueFire:  Bool = bufferDequeueReady && bufferDequeueValid
 
   alignedDequeue.ready := !bufferFull
   val bufferEnqueueSelect: UInt = Mux(
@@ -93,13 +100,13 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     0.U
   )
 
-  val dataBufferUpdate: Vec[UInt] = VecInit(dataBuffer.zipWithIndex.map {case (d, i) =>
-    when(bufferEnqueueSelect(i)) {d := alignedDequeue.bits.data}
+  val dataBufferUpdate:          Vec[UInt] = VecInit(dataBuffer.zipWithIndex.map { case (d, i) =>
+    when(bufferEnqueueSelect(i)) { d := alignedDequeue.bits.data }
     Mux(bufferEnqueueSelect(i), alignedDequeue.bits.data, d)
   })
-  val dataSelect: Vec[UInt] = Mux(bufferFull, dataBuffer, dataBufferUpdate)
-  val lastCacheLineForThisGroup: Bool = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
-  val lastCacheLineForInst: Bool = alignedDequeue.bits.index === lastWriteVrfIndexReg
+  val dataSelect:                Vec[UInt] = Mux(bufferFull, dataBuffer, dataBufferUpdate)
+  val lastCacheLineForThisGroup: Bool      = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
+  val lastCacheLineForInst:      Bool      = alignedDequeue.bits.index === lastWriteVrfIndexReg
   bufferTailFire := alignedDequeue.fire && (lastCacheLineForThisGroup || lastCacheLineForInst)
   // update cacheLineIndexInBuffer
   when(alignedDequeue.fire || bufferDequeueFire) {
@@ -118,8 +125,8 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   when(bufferDequeueFire) {
     dataGroup := Mux(waitForFirstDataGroup, 0.U, dataGroup + 1.U)
   }
-  val lastPtr: Bool = accessPtr === 0.U
-  val writeStageReady: Bool = lastPtr && accessStateCheck
+  val lastPtr:               Bool = accessPtr === 0.U
+  val writeStageReady:       Bool = lastPtr && accessStateCheck
 
   bufferDequeueReady := writeStageReady
 
@@ -136,32 +143,38 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       maskSelect.valid := true.B
       maskGroupCounter := nextMaskGroup
     }
-    accessData := Mux1H(dataEEWOH, Seq.tabulate(3) { sewSize =>
-      Mux1H(UIntToOH(lsuRequestReg.instructionInformation.nf), Seq.tabulate(8) { segSize =>
-        // 32 byte
-        // 每个数据块 2 ** sew byte
-        val dataBlockSize = 1 << sewSize
-        // 总共需要32byte数据, 会有 32/dataBlockSize 个数据块
-        val blockSize = (param.datapathWidth * param.laneNumber / 8) / dataBlockSize
-        val nFiled = segSize + 1
-        // 一次element会用掉多少 byte 数据
-        val elementSize = dataBlockSize * nFiled
-        VecInit(Seq.tabulate(8) { segIndex =>
-          val res = Wire(UInt((param.lsuTransposeSize * 8).W))
-          if (segIndex > segSize) {
-            // todo: 优化这个 DontCare
-            res := DontCare
-          } else {
-            val dataGroup: Seq[UInt] = Seq.tabulate(blockSize) { elementIndex =>
-              val basePtr = elementSize * elementIndex + dataBlockSize * segIndex
-              dataSelect.asUInt((basePtr + dataBlockSize) * 8 - 1, basePtr * 8)
-            }
-            res := VecInit(dataGroup).asUInt
+    accessData := Mux1H(
+      dataEEWOH,
+      Seq.tabulate(3) { sewSize =>
+        Mux1H(
+          UIntToOH(lsuRequestReg.instructionInformation.nf),
+          Seq.tabulate(8) { segSize =>
+            // 32 byte
+            // 每个数据块 2 ** sew byte
+            val dataBlockSize = 1 << sewSize
+            // 总共需要32byte数据, 会有 32/dataBlockSize 个数据块
+            val blockSize     = (param.datapathWidth * param.laneNumber / 8) / dataBlockSize
+            val nFiled        = segSize + 1
+            // 一次element会用掉多少 byte 数据
+            val elementSize   = dataBlockSize * nFiled
+            VecInit(Seq.tabulate(8) { segIndex =>
+              val res = Wire(UInt((param.lsuTransposeSize * 8).W))
+              if (segIndex > segSize) {
+                // todo: 优化这个 DontCare
+                res := DontCare
+              } else {
+                val dataGroup: Seq[UInt] = Seq.tabulate(blockSize) { elementIndex =>
+                  val basePtr = elementSize * elementIndex + dataBlockSize * segIndex
+                  dataSelect.asUInt((basePtr + dataBlockSize) * 8 - 1, basePtr * 8)
+                }
+                res := VecInit(dataGroup).asUInt
+              }
+              res
+            }).asUInt.suggestName(s"regroupLoadData_${sewSize}_$segSize")
           }
-          res
-        }).asUInt.suggestName(s"regroupLoadData_${sewSize}_$segSize")
-      })
-    }).asTypeOf(accessData)
+        )
+      }
+    ).asTypeOf(accessData)
   }
 
   when(bufferDequeueFire) {
@@ -171,29 +184,29 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // 往vrf写数据
   Seq.tabulate(param.laneNumber) { laneIndex =>
     val writePort: DecoupledIO[VRFWriteRequest] = vrfWritePort(laneIndex)
-    writePort.valid := accessState(laneIndex) && writeReadyReg
-    writePort.bits.mask := cutUInt(maskForGroup, param.datapathWidth / 8)(laneIndex)
-    writePort.bits.data := cutUInt(Mux1H(UIntToOH(accessPtr), accessData), param.datapathWidth)(laneIndex)
-    writePort.bits.offset := dataGroup
-    writePort.bits.vd :=
+    writePort.valid                 := accessState(laneIndex) && writeReadyReg
+    writePort.bits.mask             := cutUInt(maskForGroup, param.datapathWidth / 8)(laneIndex)
+    writePort.bits.data             := cutUInt(Mux1H(UIntToOH(accessPtr), accessData), param.datapathWidth)(laneIndex)
+    writePort.bits.offset           := dataGroup
+    writePort.bits.vd               :=
       lsuRequestReg.instructionInformation.vs3 + accessPtr * segmentInstructionIndexInterval + (dataGroup >> writePort.bits.offset.getWidth).asUInt
-    writePort.bits.last := DontCare
+    writePort.bits.last             := DontCare
     writePort.bits.instructionIndex := lsuRequestReg.instructionIndex
     when(writePort.fire) {
-      accessState(laneIndex) := false.B
+      accessState(laneIndex)       := false.B
       accessStateUpdate(laneIndex) := false.B
     }
   }
   val sendStateReg = RegEnable(initSendState, 0.U.asTypeOf(initSendState), bufferDequeueFire)
   when(bufferDequeueFire || (accessStateCheck && !lastPtr)) {
     accessState := Mux(bufferDequeueFire, initSendState, sendStateReg)
-    accessPtr := Mux(bufferDequeueFire, lsuRequestReg.instructionInformation.nf, accessPtr - 1.U)
+    accessPtr   := Mux(bufferDequeueFire, lsuRequestReg.instructionInformation.nf, accessPtr - 1.U)
   }
 
-  val lastCacheRequest: Bool = lastRequest && memRequest.fire
+  val lastCacheRequest:    Bool = lastRequest && memRequest.fire
   val lastCacheRequestReg: Bool = RegEnable(lastCacheRequest, true.B, lastCacheRequest || validInstruction)
   val lastCacheLineAckReg: Bool = RegEnable(anyLastCacheLineAck, true.B, anyLastCacheLineAck || validInstruction)
-  val bufferClear: Bool =
+  val bufferClear:         Bool =
     !(
       memResponse.valid ||
         // 对齐的空了
@@ -201,19 +214,18 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
         bufferFull ||
         // 发送单元结束
         !writeStageReady
-      )
+    )
   status.idle := lastCacheRequestReg && lastCacheLineAckReg && bufferClear && !sendRequest
   val idleNext: Bool = RegNext(status.idle, true.B)
-  status.last := (!idleNext && status.idle) || invalidInstructionNext
-  status.changeMaskGroup := maskSelect.valid && !lsuRequest.valid
+  status.last             := (!idleNext && status.idle) || invalidInstructionNext
+  status.changeMaskGroup  := maskSelect.valid && !lsuRequest.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
-  status.startAddress := requestAddress
-  status.endAddress := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineNumberReg) ##
+  status.startAddress     := requestAddress
+  status.endAddress       := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineNumberReg) ##
     0.U(param.cacheLineBits.W)
   dontTouch(status)
 
-  /**
-    * Internal signals probes
+  /** Internal signals probes
     */
   // Load Unit ready to accpet LSU request
   @public
@@ -296,7 +308,6 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   @public
   val writeReadyForLSUProbe: Bool = IO(Output(Probe(chiselTypeOf(writeReadyForLsu), layers.Verification)))
 
-
   // Write to VRF
   @public
   val vrfWriteValidProbe: Seq[Bool] = vrfWritePort.map(port => {
@@ -307,13 +318,15 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
     probe
   })
   @public
-  val vrfWriteReadyProbe: Seq[Bool] = vrfWritePort.map(port => {
-    val probe = IO(Output(Probe(Bool(), layers.Verification)))
-    layer.block(layers.Verification) {
-      define(probe, ProbeValue(port.ready))
-    }
-    probe
-  }).toSeq
+  val vrfWriteReadyProbe: Seq[Bool] = vrfWritePort
+    .map(port => {
+      val probe = IO(Output(Probe(Bool(), layers.Verification)))
+      layer.block(layers.Verification) {
+        define(probe, ProbeValue(port.ready))
+      }
+      probe
+    })
+    .toSeq
 
   layer.block(layers.Verification) {
     define(lsuRequestValidProbe, ProbeValue(lsuRequest.valid))

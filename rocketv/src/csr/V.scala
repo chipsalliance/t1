@@ -11,7 +11,7 @@ class V(vlen: Int, hypervisor: Boolean) {
   require(Module.currentModule.isDefined)
   def vlWidth: Int = log2Ceil(vlen) + 1
   def vlenbWidth = log2Ceil(vlen / 8)
-  val contents: Seq[String] = Seq(
+  val contents:                    Seq[String]  = Seq(
     "misa.V",
     // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#32-vector-context-status-in-mstatus
     "mstatus.VS",
@@ -37,7 +37,7 @@ class V(vlen: Int, hypervisor: Boolean) {
     // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#39-vector-fixed-point-saturation-flag-vxsat
     "vxsat"
   )
-  def chiselType(content: String): Data = content match {
+  def chiselType(content: String): Data         = content match {
     case "misa.V"      => Bool()
     case "mstatus.VS"  => UInt(2.W)
     case "vsstatus.VS" => UInt(2.W)
@@ -53,21 +53,21 @@ class V(vlen: Int, hypervisor: Boolean) {
     case "vxsat"       => Bool()
   }
   // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#311-state-of-vector-extension-at-reset
-  def reset(content: String): Option[UInt] = content match {
+  def reset(content: String):      Option[UInt] = content match {
     // 1 -> Initial; 2 -> Clean; 3 -> Dirty
     case "mstatus.VS" => Some(0.U)
     //  It is recommended that at reset, vtype.vill is set, the remaining bits in vtype are zero, and vl is set to zero.
-    case "vlmul" => Some(0.U)
-    case "vsew"  => Some(0.U)
-    case "vta"   => Some(false.B)
-    case "vma"   => Some(false.B)
-    case "vill"  => Some(true.B)
+    case "vlmul"      => Some(0.U)
+    case "vsew"       => Some(0.U)
+    case "vta"        => Some(false.B)
+    case "vma"        => Some(false.B)
+    case "vill"       => Some(true.B)
     // The vector extension must have a consistent state at reset. In particular, vtype and vl must have values that can be read and then restored with a single vsetvl instruction.
-    case "vl" => Some(0.U)
+    case "vl"         => Some(0.U)
     // The vstart, vxrm, vxsat CSRs can have arbitrary values at reset.
-    case _ => None
+    case _            => None
   }
-  def constant(content: String): Option[UInt] = content match {
+  def constant(content: String):   Option[UInt] = content match {
     // MISA in Rocket is not writable.
     case "misa.V" => Some(true.B)
     case "vlenb"  => Some((vlen / 8).U)
