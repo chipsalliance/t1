@@ -38,7 +38,7 @@ let
           ./../../common.sc
         ];
       };
-      millDepsHash = "sha256-Wkp2nLl6941F2ja3uQOpjB3S79vbDTAXStnDU1C6u3s=";
+      millDepsHash = "sha256-DQeKTqf+MES5ubORu+SMJEiqpOCXsS7VgxUnSqG12Bs=";
       nativeBuildInputs = [ dependencies.setupHook ];
     };
 
