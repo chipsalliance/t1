@@ -12,7 +12,7 @@ crate-type = ["staticlib"]
 dpi_common = { path = "../dpi_common" }
 spike_rs = { path = "../spike_rs" }
 tracing = { workspace = true }
-svdpi = { workspace = true }
+svdpi = { workspace = true, features = [ "sv2023" ] }
 anyhow = { workspace = true }
 hex = "0.4.3"
 elf = "0.7.4"
