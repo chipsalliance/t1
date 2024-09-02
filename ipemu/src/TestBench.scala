@@ -56,10 +56,14 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
          |`endif
          |
          |  import "DPI-C" context function void t1_cosim_init();
+         |  import "DPI-C" context function void t1_cosim_final();
          |  initial begin
          |    t1_cosim_init();
          |    clock = 1'b0;
          |    reset = 1'b1;
+         |  end
+         |  final begin
+         |    t1_cosim_final();
          |  end
          |  initial #(11) reset = 1'b0;
          |  always #10 clock = ~clock;
