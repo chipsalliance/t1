@@ -3,7 +3,7 @@
 
 package org.chipsalliance.t1.script
 
-import mainargs.{main, arg, ParserForMethods, Leftover, Flag, TokensReader}
+import mainargs.{arg, main, Flag, Leftover, ParserForMethods, TokensReader}
 import scala.io.AnsiColor._
 
 object Logger {
@@ -33,466 +33,297 @@ object Main:
 
     def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
 
-  def nixResolvePath(attr: String): String =
-    os.proc(
+  def resolveNixPath(attr: String, extraArgs: Seq[String] = Seq()): String =
+    Logger.trace(s"Running nix build ${attr}")
+    val args = Seq(
       "nix",
       "build",
       "--no-link",
       "--no-warn-dirty",
       "--print-out-paths",
       attr
-    ).call()
-      .out
-      .trim()
+    ) ++ extraArgs
+    os.proc(args).call().out.trim()
 
   def resolveTestElfPath(
-      config: String,
-      caseName: String,
-      forceX86: Boolean = false
+    config:   String,
+    caseName: String,
+    forceX86: Boolean = false
   ): os.Path =
     val casePath = os.Path(caseName, os.pwd)
-    val caseAttrRoot = if (forceX86) then "cases-x86" else "cases"
+    if (os.exists(casePath)) then return casePath
 
-    val finalPath =
-      if (os.exists(casePath)) then casePath
-      else
-        val nixArgs = Seq(
-          "nix",
-          "build",
-          "--no-link",
-          "--print-out-paths",
-          "--no-warn-dirty",
-          s".#t1.${config}.ip.${caseAttrRoot}.${caseName}"
-        )
-        Logger.trace(
-          s"Running `${nixArgs.mkString(" ")}` to get test case ELF file"
-        )
-        os.Path(os.proc(nixArgs).call().out.trim()) / "bin" / s"${caseName}.elf"
+    val caseAttrRoot =
+      if (forceX86) then ".#legacyPackages.x86_64-linux."
+      else ".#"
 
-    Logger.trace(s"Using test ELF: ${finalPath}")
-    finalPath
+    val nixStorePath = resolveNixPath(
+      s"${caseAttrRoot}t1.${config}.ip.cases.${caseName}"
+    )
+    val elfFilePath  = os.Path(nixStorePath) / "bin" / s"${caseName}.elf"
+
+    elfFilePath
   end resolveTestElfPath
 
-  def resolveEmulatorPath(
-      config: String,
-      emuType: String,
-      isTrace: Boolean = false
+  def resolveTestBenchPath(
+    config:  String,
+    emuType: String
   ): os.Path =
-    // FIXME: replace with actual trace emulator here
-    val target =
-      if (isTrace) then s"${emuType}.verilator-emu" else s"${emuType}.verilator-emu"
-    val nixArgs = Seq(
-      "nix",
-      "build",
-      "--no-link",
-      "--print-out-paths",
-      "--no-warn-dirty",
-      s".#t1.${config}.${target}"
-    )
-    Logger.trace(s"Running `${nixArgs.mkString(" ")}` to get emulator")
+    val emuPath = os.Path(emuType, os.pwd)
+    if (os.exists(emuPath)) then return emuPath
 
-    val finalPath =
-      os.Path(os.proc(nixArgs).call().out.trim()) / "bin" / "online_drive"
-    Logger.trace(s"Using emulator: ${finalPath}")
+    val nixStorePath =
+      if emuType.contains("vcs-") then resolveNixPath(s".#t1.${config}.ip.${emuType}", Seq("--impure"))
+      else resolveNixPath(s".#t1.${config}.ip.${emuType}")
 
-    finalPath
-  end resolveEmulatorPath
+    val elfFilePath = os
+      .walk(os.Path(nixStorePath) / "bin")
+      .filter(path => os.isFile(path))
+      .lastOption
+      .getOrElse(Logger.fatal("no simulator found in given attribute"))
 
-  def resolveElaborateConfig(
-      configName: String
-  ): os.Path =
-    if os.exists(os.Path(configName, os.pwd)) then os.Path(configName)
-    else os.pwd / "configgen" / "generated" / s"$configName.json"
-  end resolveElaborateConfig
+    elfFilePath
+  end resolveTestBenchPath
 
   def prepareOutputDir(
-      outputDir: Option[String],
-      outputBaseDir: Option[String],
-      config: String,
-      emuType: String,
-      caseName: String
+    outputDir: String
   ): os.Path =
-    val pathTail =
-      if os.exists(os.Path(caseName, os.pwd)) || os.exists(
-          os.Path(config, os.pwd)
-        )
-      then
-        // It is hard to canoncalize user specify path, so here we use date time instead
-        val now = java.time.LocalDateTime
-          .now()
-          .format(
-            java.time.format.DateTimeFormatter.ofPattern("yy-MM-dd-HH-mm-ss")
-          )
-        os.RelPath(now)
-      else os.RelPath(s"$config/$caseName")
+    val outputPath  = os.Path(outputDir, os.pwd)
+    val currentDate = java.time.LocalDateTime
+      .now()
+      .format(
+        java.time.format.DateTimeFormatter.ofPattern("yy-MM-dd-HH-mm-ss")
+      )
+    val resultPath  = outputPath / "all" / currentDate
 
-    val path =
-      if (outputDir.isEmpty) then
-        if (outputBaseDir.isEmpty) then
-          os.pwd / "testrun" / s"${emuType}emu" / pathTail
-        else os.Path(outputBaseDir.get, os.pwd) / pathTail
-      else os.Path(outputDir.get)
+    os.makeDir.all(resultPath)
 
-    os.makeDir.all(path)
-    path
+    val userPath = outputPath / "result"
+    os.remove(userPath, checkExists = false)
+    os.symlink(userPath, resultPath)
+
+    userPath
   end prepareOutputDir
+
+  // naive case validation
+  def isValidCaseName(caseName: String): Boolean =
+    caseName.split("\\.").toSeq.length == 2
+
+  def tryRestoreFromCache(key: String, value: Option[String]): Option[String] =
+    val xdgDir  = sys.env.get("XDG_CACHE_HOME")
+    val homeDir = sys.env.get("HOME")
+
+    val cacheDir =
+      if xdgDir != None then os.Path(xdgDir.get) / "chipsalliance-t1"
+      else if homeDir != None then os.Path(homeDir.get) / ".cache" / "chipsalliance-t1"
+      else os.pwd / ".cache"
+
+    os.makeDir.all(cacheDir)
+
+    val cacheFile = cacheDir / "helper-cache.json"
+    val cache     =
+      if os.exists(cacheFile) then ujson.read(os.read(cacheFile))
+      else ujson.Obj()
+
+    val ret = if value.isDefined then
+      cache(key) = value.get
+      value
+    else cache.obj.get(key).map(v => v.str)
+
+    os.write.over(cacheFile, ujson.write(cache))
+
+    ret
+  end tryRestoreFromCache
 
   def optionals(cond: Boolean, input: Seq[String]): Seq[String] =
     if (cond) then input else Seq()
 
-  // Should be configed via Nix
-  @main def ipemu(
-      @arg(
-        name = "case",
-        short = 'C',
-        doc = "name alias for loading test case"
-      ) testCase: String,
-      @arg(
-        name = "dramsim3-cfg",
-        short = 'd',
-        doc = "enable dramsim3, and specify its configuration file"
-      ) dramsim3Config: Option[String] = None,
-      @arg(
-        name = "frequency",
-        short = 'f',
-        doc = "frequency for the vector processor (in MHz)"
-      ) dramsim3Frequency: Double = 2000,
-      @arg(
-        name = "config",
-        short = 'c',
-        doc = "configuration name"
-      ) config: String,
-      @arg(
-        name = "trace",
-        short = 't',
-        doc = "use emulator with trace support"
-      ) trace: Flag = Flag(false),
-      @arg(
-        name = "verbose",
-        short = 'v',
-        doc = "set loglevel to debug"
-      ) verbose: Flag = Flag(false),
-      @arg(
-        name = "no-logging",
-        doc = "prevent emulator produce log (both console and file)"
-      ) noLog: Flag = Flag(false),
-      @arg(
-        name = "with-file-logging",
-        doc = """enable file logging, default is false.
-          |WARN: the emulator will write all the information in each cycle, which will produce a huge file log, use with care.
-          |""".stripMargin
-      ) withFileLog: Flag = Flag(false),
-      @arg(
-        name = "no-console-logging",
-        short = 'q',
-        doc = "prevent emulator print log to console"
-      ) noConsoleLog: Flag = Flag(false),
-      @arg(
-        name = "emulator-log-level",
-        doc = "Set the EMULATOR_*_LOG_LEVEL env"
-      ) emulatorLogLevel: String = "INFO",
-      @arg(
-        name = "emulator-log-file-path",
-        doc = "Set the logging output path"
-      ) emulatorLogFilePath: Option[os.Path] = None,
-      @arg(
-        name = "event-log-path",
-        doc = "Set the event log path"
-      ) eventLogFilePath: Option[os.Path] = None,
-      @arg(
-        name = "program-output-path",
-        doc = "Path to store the ELF stdout/stderr"
-      ) programOutputFilePath: Option[os.Path] = None,
-      @arg(
-        name = "out-dir",
-        doc = "path to save wave file and perf result file"
-      ) outDir: Option[String] = None,
-      @arg(
-        name = "base-out-dir",
-        doc = "save result files in {base_out_dir}/{config}/{case}/{run_config}"
-      ) baseOutDir: Option[String] = None,
-      @arg(
-        name = "emulator-path",
-        doc = "path to emulator"
-      ) emulatorPath: Option[String] = None,
-      @arg(
-        doc = "Force using x86_64 as cross compiling host platform"
-      ) forceX86: Boolean = false,
-      @arg(
-        name = "dump-from-cycle",
-        short = 'D',
-        doc = "Specify the dump starting point"
-      ) dumpCycle: String = "0.0",
-      @arg(
-        name = "cosim-timeout",
-        doc = "specify timeout cycle for cosim"
-      ) cosimTimeout: Int = 400000,
-      @arg(
-        name = "dry-run",
-        doc = "Print the final emulator command line"
-      ) dryRun: Flag = Flag(false)
+  def optionalMap[K, V](cond: Boolean, input: Map[K, V]): Map[K, V] =
+    if (cond) then input else null
+
+  @main def run(
+    @arg(
+      name = "emu",
+      short = 'e',
+      doc = "Type for emulator, Eg. vcs-emu, verilator-emu-trace"
+    ) emuType:  Option[String],
+    @arg(
+      name = "config",
+      short = 'c',
+      doc = "configuration name"
+    ) config:   Option[String],
+    @arg(
+      name = "verbose",
+      short = 'v',
+      doc = "set loglevel to debug"
+    ) verbose:  Flag = Flag(false),
+    @arg(
+      name = "out-dir",
+      doc = "path to save wave file and perf result file"
+    ) outDir:   Option[String] = None,
+    @arg(
+      doc = "Cross compile RISC-V test case with x86-64 host tools"
+    ) forceX86: Boolean = false,
+    @arg(
+      name = "dry-run",
+      doc = "Print the final emulator command line and exit"
+    ) dryRun:   Flag = Flag(false),
+    leftOver:   Leftover[String]
   ): Unit =
-    val caseElfPath = resolveTestElfPath(config, testCase, forceX86)
-    val outputPath =
-      prepareOutputDir(outDir, baseOutDir, config, "ip", testCase)
-    val emulator = if (!emulatorPath.isEmpty) then
-      val emuPath = os.Path(emulatorPath.get, os.pwd)
-      if (!os.exists(emuPath)) then
-        sys.error(s"No emulator found at path: ${emulatorPath.get}")
+    if leftOver.value.isEmpty then Logger.fatal("No test case name")
+    val caseName = leftOver.value.head
+    if !isValidCaseName(caseName) then Logger.fatal(s"invalid caseName '$caseName', expect 'A.B'")
 
-      emuPath
-    else resolveEmulatorPath(config, "ip", trace.value)
+    val finalEmuType = tryRestoreFromCache("emulator", emuType)
+    if finalEmuType.isEmpty then
+      Logger.fatal(
+        s"No cached emulator selection nor --emu argument was provided"
+      )
 
-    import scala.util.chaining._
-    val elaborateConfig = resolveElaborateConfig(config)
-      .pipe(os.read)
-      .pipe(text => ujson.read(text))
-    val tck = scala.math.pow(10, 3) / dramsim3Frequency
-    val emulatorLogPath =
-      if emulatorLogFilePath.isDefined then emulatorLogFilePath.get
-      else outputPath / "emulator.log"
-    val eventLogPath =
-      if eventLogFilePath.isDefined then eventLogFilePath.get
-      else outputPath / "rtl-event.jsonl"
-    val programOutputPath =
-      if programOutputFilePath.isDefined then programOutputFilePath.get
-      else outputPath / "mmio-store.txt"
-    if os.exists(programOutputPath) then os.remove(programOutputPath)
+    val isTrace = finalEmuType.get.endsWith("-trace")
 
-    def dumpCycleAsFloat() =
-      val ratio = dumpCycle.toFloat
-      if ratio < 0.0 || ratio > 1.0 then
-        Logger.error(
-          s"Can't use $dumpCycle as ratio, use 0 as waveform dump start point"
-        )
-        0
-      else if ratio == 0.0 then 0
-      else
-        val cycleRecordFilePath =
-          os.pwd / ".github" / "cases" / config / "default.json"
-        if !os.exists(cycleRecordFilePath) then
-          Logger.error(
-            s"$cycleRecordFilePath not found, please run this script at project root"
-          )
-          sys.exit(1)
-        val cycleRecord = os
-          .read(cycleRecordFilePath)
-          .pipe(raw => ujson.read(raw))
-          .obj(testCase)
-        if cycleRecord.isNull then
-          Logger.error(
-            s"Using ratio to specify ratio is only supported in raw test case name"
-          )
-          sys.exit(1)
-        val cycle = cycleRecord.num
-        scala.math.floor(cycle * 10 * ratio).toInt
+    val finalConfig = tryRestoreFromCache("config", config)
+    if finalConfig.isEmpty then
+      Logger.fatal(
+        s"No cached config selection nor --config argument was provided"
+      )
 
-    val dumpStartPoint: Int =
-      try dumpCycle.toInt
-      catch
-        case _ =>
-          try dumpCycleAsFloat()
-          catch
-            case _ =>
-              Logger.error(
-                s"Unknown cycle $dumpCycle specified, using 0 as fallback"
-              )
-              0
+    Logger.info(
+      s"Using config=${BOLD}${finalConfig.get}${RESET} emulator=${BOLD}${finalEmuType.get}${RESET} case=${BOLD}$caseName${RESET}"
+    )
+
+    val caseElfPath =
+      resolveTestElfPath(finalConfig.get, caseName, forceX86)
+    val outputPath  = prepareOutputDir(outDir.getOrElse("t1-sim-result"))
+    val emulator    = resolveTestBenchPath(finalConfig.get, finalEmuType.get)
+
+    val leftOverArguments = leftOver.value.dropWhile(arg => arg != "--")
 
     val processArgs = Seq(
       emulator.toString(),
-      "--elf-file",
-      caseElfPath.toString(),
-      "--wave-path",
-      (outputPath / "wave.fst").toString(),
-      "--timeout",
-      cosimTimeout.toString(),
-      s"--log-file=${emulatorLogPath}",
-      s"--log-level=${emulatorLogLevel}",
-      "--vlen",
-      elaborateConfig.obj("parameter").obj("vLen").toString(),
-      "--dlen",
-      elaborateConfig.obj("parameter").obj("dLen").toString()
-      // "--tck",
-      // tck.toString(),
-      // "--perf",
-      // (outputPath / "perf.txt").toString(),
-      // "--tl_bank_number",
-      // elaborateConfig
-      //   .obj("parameter")
-      //   .obj("lsuBankParameters")
-      //   .arr
-      //   .length
-      //   .toString(),
-      // "--beat_byte",
-      // elaborateConfig
-      //   .obj("parameter")
-      //   .obj("lsuBankParameters")
-      //   .arr(0)
-      //   .obj("beatbyte")
-      //   .toString(),
-      // "--program-output-path",
-      // programOutputPath.toString
+      s"+t1_elf_file=${caseElfPath}"
     )
-    // ++ optionals(noLog.value, Seq("--no-logging"))
-    // ++ optionals((!withFileLog.value), Seq("--no-file-logging"))
-    // ++ optionals(noConsoleLog.value, Seq("--no-console-logging"))
-    // ++ optionals(
-    //   dramsim3Config.isDefined,
-    //   Seq(
-    //     "--dramsim3-result",
-    //     (outputPath / "dramsim3-logs").toString(),
-    //     "--dramsim3-config",
-    //     dramsim3Config.getOrElse("")
-    //   )
-    // )
-    // ++ optionals(
-    //   trace.value,
-    //   Seq("--dump-from-cycle", dumpStartPoint.toString)
-    // )
+      ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
+      ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)
 
     Logger.info(s"Starting IP emulator: `${processArgs.mkString(" ")}`")
     if dryRun.value then return
 
-    if os.exists(eventLogPath) then os.remove(eventLogPath)
-    os.proc(processArgs)
-      .call(
-        stderr = eventLogPath
+    val rtlEventPath = outputPath / "rtl-event.jsonl.zst"
+    val journalPath  = outputPath / "online-drive-emu-journal"
+    val driverProc   = os
+      .proc(processArgs)
+      .spawn(
+        stdout = journalPath,
+        stderr = os.Pipe,
+        env = optionalMap(verbose.value, Map("RUST_LOG" -> "TRACE"))
       )
-    Logger.info(s"RTL event log saved to ${eventLogPath}")
-
-    // if (!withFileLog.value) then
-    //   Logger.info(s"Emulator log save to ${emulatorLogPath}")
-    //
-    // if (trace.value) then
-    //   Logger.info(s"Trace file save to ${outputPath}/wave.fst")
-  end ipemu
-
-  @main def listConfig(): Unit =
-    os.proc(
-      Seq(
-        "nix",
-        "run",
-        "--no-warn-dirty",
-        ".#t1.configgen",
-        "--",
-        "listConfigs"
+    val zstdProc     = os
+      .proc(Seq("zstd", "-o", s"${rtlEventPath}"))
+      .spawn(
+        stdin = driverProc.stderr,
+        stdout = os.Inherit,
+        stderr = os.Inherit
       )
-    ).call(cwd = os.pwd, stdout = os.Inherit, stderr = os.Inherit)
 
-  @main def subsystemrtl(
-      @arg(
-        name = "config",
-        short = 'c',
-        doc = "Config to be elaborated for the subsystem RTL"
-      ) config: String,
-      @arg(
-        name = "out-link",
-        short = 'o',
-        doc =
-          "Path to be a symlink to the RTL build output, default using $config_subsystem_rtl"
-      ) outLink: Option[String] = None
-  ): Unit =
-    val finalOutLink = outLink.getOrElse(s"${config}_subsystem_rtl")
-    os.proc(
-      Seq(
-        "nix",
-        "build",
-        "--print-build-logs",
-        s".#t1.${config}.subsystem.rtl",
-        "--out-link",
-        finalOutLink
+    zstdProc.join(-1)
+    driverProc.join(-1)
+    if zstdProc.exitCode() != 0 then Logger.fatal("fail to compress data")
+    if driverProc.exitCode() != 0 then Logger.fatal("fail to compress data")
+
+    val statePath = outputPath / "driver-state.json"
+    os.write(
+      statePath,
+      ujson.write(
+        ujson.Obj(
+          "config" -> finalConfig.get,
+          "elf"    -> caseElfPath.toString,
+          "event"  -> rtlEventPath.toString
+        )
       )
-    ).call(stdout = os.Inherit, stderr = os.Inherit, stdin = os.Inherit)
-    Logger.info(s"RTLs store in $finalOutLink")
+    )
+    Logger.info(s"Output saved under ${outputPath}")
+  end run
 
   @main
-  def difftest(
-      @arg(
-        name = "config",
-        short = 'c',
-        doc = "specify the elaborate config for running test case"
-      ) config: String,
-      @arg(
-        name = "case-attr",
-        short = 'C',
-        doc = "Specify test case attribute to run diff test"
-      ) caseAttr: String,
-      @arg(
-        name = "log-level",
-        short = 'L',
-        doc = "Specify log level to run diff test"
-      ) logLevel: String = "ERROR",
-      @arg(
-        name = "event-path",
-        short = 'e',
-        doc = "Specify the event log path to examinate"
-      ) eventPath: Option[String],
-      @arg(
-        name = "trace",
-        short = 'T',
-        doc = "Use trace emulator result"
-      ) trace: Flag
+  def offline(
+    @arg(
+      name = "config",
+      short = 'c',
+      doc = "specify the elaborate config for running test case"
+    ) config:    Option[String],
+    @arg(
+      name = "case-attr",
+      short = 'C',
+      doc = "Specify test case attribute to run diff test"
+    ) caseAttr:  Option[String],
+    @arg(
+      name = "event-path",
+      short = 'e',
+      doc = "Specify the event log path to examinate"
+    ) eventPath: Option[String],
+    @arg(
+      name = "verbose",
+      short = 'v',
+      doc = "Verbose output"
+    ) verbose:   Flag = Flag(false),
+    @arg(
+      name = "out-dir",
+      doc = "path to save wave file and perf result file"
+    ) outDir:    Option[String] = None
   ): Unit =
-    val difftest = if trace.value then
-      nixResolvePath(s".#t1.${config}.ip.difftest-trace")
-    else
-      nixResolvePath(s".#t1.${config}.ip.difftest")
+    val logLevel =
+      if verbose.value then "trace"
+      else "info"
 
-    val fullCaseAttr = s".#t1.${config}.cases.${caseAttr}"
-    val caseElf = nixResolvePath(fullCaseAttr)
+    val resultPath =
+      os.Path(outDir.getOrElse("t1-sim-result"), os.pwd) / "result"
+    val lastState  =
+      if os.exists(resultPath) then ujson.read(os.read(resultPath / "driver-state.json"))
+      else ujson.Obj()
 
-    import scala.util.chaining._
-    val configJson = nixResolvePath(s".#t1.${config}.elaborateConfigJson")
-      .pipe(p => os.Path(p))
-      .pipe(p => os.read(p))
-      .pipe(text => ujson.read(text))
-    val dLen = configJson.obj("parameter").obj("dLen").num.toInt
-    val vLen = configJson.obj("parameter").obj("vLen").num.toInt
-
-    Logger.trace(s"Running emulator to get event log")
-    val eventLog = if eventPath.isDefined then
-      eventPath.get
-    else
-      if trace.value then
-        nixResolvePath(s"${fullCaseAttr}.emu-result.with-trace")
+    val finalConfig =
+      if config.isDefined then config.get
       else
-        nixResolvePath(s"${fullCaseAttr}.emu-result")
+        lastState.obj
+          .get("config")
+          .getOrElse(Logger.fatal("No driver-state.json nor --config"))
+          .str
 
-    Logger.trace("Running zstd to get event log")
-    os.proc(
+    val offlineChecker = os.Path(
+      resolveNixPath(s".#t1.${finalConfig}.ip.offline-checker")
+    ) / "bin" / "offline"
+
+    val elfFile =
+      if caseAttr.isDefined then resolveTestElfPath(finalConfig, caseAttr.get).toString
+      else
+        lastState.obj
+          .get("elf")
+          .getOrElse(Logger.fatal("No driver-state.json nor --case-attr"))
+          .str
+
+    val eventFile    =
+      if eventPath.isDefined then os.Path(eventPath.get, os.pwd)
+      else os.Path(lastState.obj.get("event").getOrElse(Logger.fatal("")).str)
+    val decEventFile = resultPath / "rtl-event.jsonl"
+    Logger.info(s"Decompressing ${eventFile}")
+    os.proc("zstd", s"${eventFile}", "-d", "-f", "-o", s"${decEventFile}")
+      .call()
+
+    val driverArgs: Seq[String] =
       Seq(
-        "zstd",
-        "--decompress",
-        "-f",
-        s"${eventLog}/rtl-event.jsonl.zstd",
-        "-o",
-        s"${config}-${caseAttr}.event.jsonl"
-      )
-    ).call(stdout = os.Inherit, stderr = os.Inherit)
-    Logger.info(
-      s"Starting difftest with DLEN ${dLen}, VLEN ${vLen} for ${fullCaseAttr}"
-    )
-    os.proc(
-      Seq(
-        s"${difftest}/bin/offline",
-        "--vlen",
-        vLen.toString(),
-        "--dlen",
-        dLen.toString(),
+        offlineChecker.toString,
         "--elf-file",
-        s"${caseElf}/bin/${caseAttr}.elf",
-        "--log-file",
-        s"${config}-${caseAttr}.event.jsonl",
-        // FIXME: offline difftest doesn't support timeout argument RN
-        // "--timeout",
-        // "40000",
+        elfFile,
         "--log-level",
-        s"${logLevel}"
+        logLevel,
+        "--log-file",
+        decEventFile.toString
       )
-    ).call(stdout = os.Inherit, stderr = os.Inherit)
-    Logger.info(s"PASS: ${caseAttr} (${config})")
-  end difftest
+    Logger.info(s"Running offline checker: ${driverArgs.mkString(" ")}")
+
+    os.proc(driverArgs).call(stdout = os.Inherit, stderr = os.Inherit)
+  end offline
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 end Main
