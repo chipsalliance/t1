@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isUnorderwrite {
   def apply(t1DecodePattern: T1DecodePattern): isUnorderwrite =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isUnorderwrite(tri)
@@ -30,14 +30,12 @@ object isUnorderwrite {
       "vslidedown.vi",
       "vslidedown.vx",
       "vslideup.vi",
-      "vslideup.vx",
+      "vslideup.vx"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -45,5 +43,6 @@ object isUnorderwrite {
 }
 
 case class isUnorderwrite(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "unmanaged write for VRF. these instructions cannot be chain as source. TODO: add an attribute these instruction cannot be the source of chaining. "
+  override val description: String =
+    "unmanaged write for VRF. these instructions cannot be chain as source. TODO: add an attribute these instruction cannot be the source of chaining. "
 }

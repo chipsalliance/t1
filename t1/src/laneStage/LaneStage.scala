@@ -11,20 +11,21 @@ import org.chipsalliance.t1.rtl.{CSRInterface, LaneParameter}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 
 class LaneState(parameter: LaneParameter) extends Bundle {
-  val vSew1H: UInt = UInt(3.W)
-  val loadStore: Bool = Bool()
-  val laneIndex: UInt = UInt(parameter.laneNumberBits.W)
+  val vSew1H:       UInt         = UInt(3.W)
+  val loadStore:    Bool         = Bool()
+  val laneIndex:    UInt         = UInt(parameter.laneNumberBits.W)
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
+
   /** which group is the last group for instruction. */
-  val lastGroupForInstruction: UInt = UInt(parameter.groupNumberBits.W)
-  val isLastLaneForInstruction: Bool = Bool()
-  val instructionFinished: Bool = Bool()
-  val csr: CSRInterface = new CSRInterface(parameter.vlMaxBits)
+  val lastGroupForInstruction:  UInt         = UInt(parameter.groupNumberBits.W)
+  val isLastLaneForInstruction: Bool         = Bool()
+  val instructionFinished:      Bool         = Bool()
+  val csr:                      CSRInterface = new CSRInterface(parameter.vlMaxBits)
   // vm = 0
-  val maskType: Bool = Bool()
-  val maskNotMaskedElement: Bool = Bool()
-  val skipEnable: Bool = Bool()
-  val ffoByOtherLanes: Bool = Bool()
+  val maskType:                 Bool         = Bool()
+  val maskNotMaskedElement:     Bool         = Bool()
+  val skipEnable:               Bool         = Bool()
+  val ffoByOtherLanes:          Bool         = Bool()
 
   /** vs1 or imm */
   val vs1: UInt = UInt(5.W)
@@ -36,29 +37,29 @@ class LaneState(parameter: LaneParameter) extends Bundle {
   val vd: UInt = UInt(5.W)
 
   val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val additionalRW: Bool = Bool()
+  val additionalRW:     Bool = Bool()
   // skip vrf read in stage 1?
-  val skipRead: Bool = Bool()
+  val skipRead:         Bool = Bool()
 }
 
 @instantiable
-abstract class LaneStage[A <: Data, B <:Data](pipe: Boolean)(input: A, output: B) extends Module{
+abstract class LaneStage[A <: Data, B <: Data](pipe: Boolean)(input: A, output: B) extends Module {
   @public
   val enqueue: DecoupledIO[A] = IO(Flipped(Decoupled(input)))
   @public
   val dequeue: DecoupledIO[B] = IO(Decoupled(output))
   @public
   val stageValid = IO(Output(Bool()))
-  val stageFinish: Bool = WireDefault(true.B)
+  val stageFinish:   Bool = WireDefault(true.B)
   val stageValidReg: Bool = RegInit(false.B)
   dontTouch(enqueue)
   dontTouch(dequeue)
-  if(pipe) {
+  if (pipe) {
     enqueue.ready := !stageValidReg || (dequeue.ready && stageFinish)
   } else {
     enqueue.ready := !stageValidReg
   }
 
   dequeue.valid := stageValidReg && stageFinish
-  stageValid := stageValidReg
+  stageValid    := stageValidReg
 }

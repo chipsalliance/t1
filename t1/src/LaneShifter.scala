@@ -8,13 +8,15 @@ import chisel3.experimental.hierarchy.instantiable
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
-object LaneShifterParameter {
+object LaneShifterParameter          {
   implicit def rw: upickle.default.ReadWriter[LaneShifterParameter] = upickle.default.macroRW
 }
-case class LaneShifterParameter(datapathWidth: Int, latency: Int) extends VFUParameter with SerializableModuleParameter {
-  val shifterSizeBit: Int = log2Ceil(datapathWidth)
-  val decodeField: BoolField = Decoder.shift
-  val inputBundle = new LaneShifterReq(this)
+case class LaneShifterParameter(datapathWidth: Int, latency: Int)
+    extends VFUParameter
+    with SerializableModuleParameter {
+  val shifterSizeBit: Int       = log2Ceil(datapathWidth)
+  val decodeField:    BoolField = Decoder.shift
+  val inputBundle  = new LaneShifterReq(this)
   val outputBundle = new LaneShifterResponse(datapathWidth)
   override val NeedSplit: Boolean = true
 }
@@ -22,9 +24,9 @@ case class LaneShifterParameter(datapathWidth: Int, latency: Int) extends VFUPar
 class LaneShifterReq(param: LaneShifterParameter) extends VFUPipeBundle {
   // vec(2, n) 是用来与别的vfu module的输入对齐
   val src:         Vec[UInt] = Vec(2, UInt(param.datapathWidth.W))
-  val shifterSize: UInt = UInt(param.shifterSizeBit.W)
-  val opcode:      UInt = UInt(3.W)
-  val vxrm:        UInt = UInt(2.W)
+  val shifterSize: UInt      = UInt(param.shifterSizeBit.W)
+  val opcode:      UInt      = UInt(3.W)
+  val vxrm:        UInt      = UInt(2.W)
 }
 
 class LaneShifterResponse(datapathWidth: Int) extends VFUPipeBundle {
@@ -33,28 +35,34 @@ class LaneShifterResponse(datapathWidth: Int) extends VFUPipeBundle {
 
 @instantiable
 class LaneShifter(val parameter: LaneShifterParameter)
-  extends VFUModule(parameter) with SerializableModule[LaneShifterParameter] {
+    extends VFUModule(parameter)
+    with SerializableModule[LaneShifterParameter] {
   val response: LaneShifterResponse = Wire(new LaneShifterResponse(parameter.datapathWidth))
-  val request: LaneShifterReq = connectIO(response).asTypeOf(parameter.inputBundle)
+  val request:  LaneShifterReq      = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val shifterSource: UInt = request.src(1)
   // arithmetic
-  val extend:     UInt = Fill(parameter.datapathWidth, request.opcode(1) && shifterSource(parameter.datapathWidth - 1))
-  val extendData: UInt = extend ## shifterSource
+  val extend:        UInt = Fill(parameter.datapathWidth, request.opcode(1) && shifterSource(parameter.datapathWidth - 1))
+  val extendData:    UInt = extend ## shifterSource
 
   val roundTail: UInt = (1.U << request.shifterSize).asUInt
   val lostMSB:   UInt = (roundTail >> 1).asUInt
   val roundMask: UInt = roundTail - 1.U
 
   // v[d - 1]
-  val vds1: Bool = (lostMSB & shifterSource).orR
+  val vds1:     Bool = (lostMSB & shifterSource).orR
   // v[d -2 : 0]
   val vLostLSB: Bool = ((roundMask >> 1).asUInt & shifterSource).orR
   // v[d]
-  val vd: Bool = (roundTail & shifterSource).orR
+  val vd:       Bool = (roundTail & shifterSource).orR
   // r
-  val roundR: Bool =
-    Mux1H(UIntToOH(request.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB))) && request.opcode(2)
+  val roundR:   Bool =
+    Mux1H(UIntToOH(request.vxrm), Seq(vds1, vds1 & (vLostLSB | vd), false.B, !vd & (vds1 | vLostLSB))) && request
+      .opcode(2)
 
-  response.data := Mux(request.opcode(0), extendData << request.shifterSize, extendData >> request.shifterSize).asUInt + roundR
+  response.data := Mux(
+    request.opcode(0),
+    extendData << request.shifterSize,
+    extendData >> request.shifterSize
+  ).asUInt + roundR
 }

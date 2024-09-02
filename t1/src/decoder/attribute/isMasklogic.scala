@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isMasklogic {
   def apply(t1DecodePattern: T1DecodePattern): isMasklogic =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isMasklogic(tri)
@@ -30,14 +30,12 @@ object isMasklogic {
       "vmsif.m",
       "vmsof.m",
       "vmxnor.mm",
-      "vmxor.mm",
+      "vmxor.mm"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -45,5 +43,6 @@ object isMasklogic {
 }
 
 case class isMasklogic(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "only one or two operators src is mask format(one element one bit). vl should align with src. if datapath is unaligned, need to take care the tail. "
+  override val description: String =
+    "only one or two operators src is mask format(one element one bit). vl should align with src. if datapath is unaligned, need to take care the tail. "
 }

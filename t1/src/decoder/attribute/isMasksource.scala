@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isMasksource {
   def apply(t1DecodePattern: T1DecodePattern): isMasksource =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isMasksource(tri)
@@ -39,14 +39,12 @@ object isMasksource {
       "vmsbc.vx",
       "vmsbc.vxm",
       "vsbc.vvm",
-      "vsbc.vxm",
+      "vsbc.vxm"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -54,5 +52,6 @@ object isMasksource {
 }
 
 case class isMasksource(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "three ops. these ops don't use mask. use v0 as third op, read it from duplicate V0. it will read use mask(v0) in mask format as source. "
+  override val description: String =
+    "three ops. these ops don't use mask. use v0 as third op, read it from duplicate V0. it will read use mask(v0) in mask format as source. "
 }

@@ -11,13 +11,13 @@ import org.chipsalliance.t1.rtl._
 import org.chipsalliance.t1.rtl.decoder.Decoder
 
 class EnqReportBundle(parameter: LaneParameter) extends Bundle {
-  val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
-  val instructionIndex: UInt = UInt(parameter.instructionIndexBits.W)
-  val sSendResponse: Bool = Bool()
-  val mask: UInt = UInt(4.W)
+  val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
+  val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
+  val sSendResponse:    Bool         = Bool()
+  val mask:             UInt         = UInt(4.W)
 }
-/**
-  * For each slot, it has 4 stages:
+
+/** For each slot, it has 4 stages:
   * {{{
   * stage0.enq             <-> [[enqReports]]         <-> slot token start
   *   - handle mask
@@ -51,16 +51,15 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   * VrfWritePipe:
   *   - vrfWrite + cross write rx + lsu write + Sequencer write -> allVrfWrite
   *   - do {waw, war} check for allVrfWrite, go to allVrfWriteAfterCheck
-  *   - allVrfWriteAfterCheck -> [[slotWriteReport]]
-  *                           -> [[crossWriteReports]]: cross lane write
+  *   - allVrfWriteAfterCheck -> [[slotWriteReport]] -> [[crossWriteReports]]: cross lane write
   *   - allVrfWriteAfterCheck -> Arbiter -> [[writePipeEnqReport]] -> write pipe token acquire
   *   - VRF write
   *     - queueBeforeMaskWrite
   *     - maskedWriteUnit
-  *     - @todo @qinjun-li ECC encode and write
+  *     - \@todo @qinjun-li ECC encode and write
   *
-  * vrf -> [[writePipeDeqReport]] -> write  pipe token release
-  * */
+  * vrf -> [[writePipeDeqReport]] -> write pipe token release
+  */
 @instantiable
 class SlotTokenManager(parameter: LaneParameter) extends Module {
   // todo: param
@@ -104,8 +103,8 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
 
   def tokenUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
     tokenData.zipWithIndex.foreach { case (t, i) =>
-      val e = enqWire(i)
-      val d = deqWire(i)
+      val e      = enqWire(i)
+      val d      = deqWire(i)
       val change = Mux(e, 1.U(tokenWith.W), -1.S(tokenWith.W).asUInt)
       when(e ^ d) {
         t := t + change
@@ -117,8 +116,8 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   // todo: Precise feedback
   def feedbackUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
     tokenData.zipWithIndex.foreach { case (t, i) =>
-      val e = enqWire(i)
-      val d = deqWire(i)
+      val e      = enqWire(i)
+      val d      = deqWire(i)
       val change = Mux(e, 1.U(tokenWith.W), -1.S(tokenWith.W).asUInt)
       when((e ^ d) && (e || t =/= 0.U)) {
         t := t + change
@@ -128,7 +127,6 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   }
 
   val instructionInSlot: UInt = enqReports.zipWithIndex.map { case (enqReport, slotIndex) =>
-
     val writeToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
 
     val enqOH = indexToOH(enqReport.bits.instructionIndex, parameter.chainingSize)
@@ -139,20 +137,22 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
     val writeDoDeq: UInt =
       maskAnd(
         slotWriteReport(slotIndex).valid,
-        indexToOH(slotWriteReport(slotIndex).bits, parameter.chainingSize)).asUInt
+        indexToOH(slotWriteReport(slotIndex).bits, parameter.chainingSize)
+      ).asUInt
 
     val pendingSlotWrite = tokenUpdate(writeToken, writeDoEnq, writeDoDeq)
 
     if (slotIndex == 0) {
-      val responseToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-      val feedbackToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val responseToken:      Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val feedbackToken:      Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
       val crossWriteTokenLSB: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
       val crossWriteTokenMSB: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
 
       // Feedback is not accurate (index load/store may have already finished the instruction)
-      val responseIndexQueue = Module(new Queue(UInt(parameter.instructionIndexBits.W), parameter.chainingSize + 1, flow = true))
+      val responseIndexQueue =
+        Module(new Queue(UInt(parameter.instructionIndexBits.W), parameter.chainingSize + 1, flow = true))
       responseIndexQueue.io.enq.valid := responseReport.valid
-      responseIndexQueue.io.enq.bits := responseReport.bits
+      responseIndexQueue.io.enq.bits  := responseReport.bits
       responseIndexQueue.io.deq.ready := responseFeedbackReport.valid
 
       // cross write update
@@ -194,16 +194,16 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
 
   // write pipe token
   val writePipeToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-  val writePipeEnq: UInt =
+  val writePipeEnq:   UInt      =
     maskAnd(writePipeEnqReport.valid, indexToOH(writePipeEnqReport.bits, parameter.chainingSize)).asUInt
-  val writePipeDeq: UInt =
+  val writePipeDeq:   UInt      =
     maskAnd(writePipeDeqReport.valid, indexToOH(writePipeDeqReport.bits, parameter.chainingSize)).asUInt
 
   val instructionInWritePipe: UInt = tokenUpdate(writePipeToken, writePipeEnq, writePipeDeq)
 
   // top write token
   val topWriteToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-  val topWriteDoEnq: UInt =
+  val topWriteDoEnq: UInt      =
     maskAnd(topWriteEnq.valid, indexToOH(topWriteEnq.bits, parameter.chainingSize)).asUInt
 
   val topWriteDoDeq: UInt =
@@ -211,6 +211,6 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
 
   val instructionInTopWritePipe = tokenUpdate(topWriteToken, topWriteDoEnq, topWriteDoDeq)
 
-  dataInWritePipe := instructionInWritePipe | instructionInTopWritePipe
+  dataInWritePipe  := instructionInWritePipe | instructionInTopWritePipe
   instructionValid := dataInWritePipe | instructionInSlot
 }

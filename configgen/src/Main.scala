@@ -4,7 +4,7 @@
 package org.chipsalliance.t1.configgen
 
 import chisel3.experimental.SerializableModuleGenerator
-import chisel3.util.{BitPat, log2Ceil}
+import chisel3.util.{log2Ceil, BitPat}
 import chisel3.util.experimental.BitSet
 import mainargs._
 import org.chipsalliance.t1.rtl._
@@ -59,11 +59,11 @@ object Main {
 
   // DLEN256 VLEN256;   FP; VRF p0rw,p1rw bank1; LSU bank8  beatbyte 8
   @main def blastoise(
-    @arg(name = "target-file", short = 't') targetFile:             os.Path,
+    @arg(name = "target-file", short = 't') targetFile:           os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
-    val vLen = 512
-    val dLen = 256
+    val vLen  = 512
+    val dLen  = 256
     val param = T1Parameter(
       vLen,
       dLen,
@@ -91,13 +91,15 @@ object Main {
         divModuleParameters = Seq(),
         divfpModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq(0, 1, 2, 3))),
-        otherModuleParameters =
-          Seq((
+        otherModuleParameters = Seq(
+          (
             SerializableModuleGenerator(
               classOf[OtherUnit],
               OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
             ),
-            Seq(0, 1, 2, 3))),
+            Seq(0, 1, 2, 3)
+          )
+        ),
         floatModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
         zvbbModuleParameters = Seq()
@@ -109,11 +111,11 @@ object Main {
 
   // DLEN256 VLEN256;   FP; VRF p0rw,p1rw bank1; LSU bank8  beatbyte 8; Zvbb
   @main def psyduck(
-    @arg(name = "target-file", short = 't') targetFile:             os.Path,
+    @arg(name = "target-file", short = 't') targetFile:           os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
-    val vLen = 512
-    val dLen = 256
+    val vLen  = 512
+    val dLen  = 256
     val param = T1Parameter(
       vLen,
       dLen,
@@ -141,13 +143,15 @@ object Main {
         divModuleParameters = Seq(),
         divfpModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq(0, 1, 2, 3))),
-        otherModuleParameters =
-          Seq((
+        otherModuleParameters = Seq(
+          (
             SerializableModuleGenerator(
               classOf[OtherUnit],
               OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
             ),
-            Seq(0, 1, 2, 3))),
+            Seq(0, 1, 2, 3)
+          )
+        ),
         floatModuleParameters =
           Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
         zvbbModuleParameters =
@@ -160,11 +164,11 @@ object Main {
 
   // DLEN512 VLEN1K ; NOFP; VRF p0r,p1w   bank2; LSU bank8  beatbyte 16
   @main def machamp(
-    @arg(name = "target-file", short = 't') targetFile:             os.Path,
+    @arg(name = "target-file", short = 't') targetFile:           os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
-    val vLen = 1024
-    val dLen = 512
+    val vLen  = 1024
+    val dLen  = 512
     val param = T1Parameter(
       vLen,
       dLen,
@@ -193,13 +197,15 @@ object Main {
           (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq(0, 1, 2, 3))
         ),
         divfpModuleParameters = Seq(),
-        otherModuleParameters =
-          Seq((
+        otherModuleParameters = Seq(
+          (
             SerializableModuleGenerator(
               classOf[OtherUnit],
               OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
             ),
-            Seq(0, 1, 2, 3))),
+            Seq(0, 1, 2, 3)
+          )
+        ),
         floatModuleParameters = Seq(),
         zvbbModuleParameters = Seq() // TODO
       )
@@ -210,11 +216,11 @@ object Main {
 
   // DLEN1K  VLEN4K ; NOFP; VRF p0rw       bank4; LSU bank16 beatbyte 16
   @main def sandslash(
-    @arg(name = "target-file", short = 't') targetFile:             os.Path,
+    @arg(name = "target-file", short = 't') targetFile:           os.Path,
     @arg(name = "emit", short = 'e', doc = "emit config") doEmit: Boolean = true
   ): T1Parameter = {
-    val vLen = 4096
-    val dLen = 1024
+    val vLen  = 4096
+    val dLen  = 1024
     val param = T1Parameter(
       vLen,
       dLen,
@@ -243,13 +249,15 @@ object Main {
           (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq(0, 1, 2, 3))
         ),
         divfpModuleParameters = Seq(),
-        otherModuleParameters =
-          Seq((
+        otherModuleParameters = Seq(
+          (
             SerializableModuleGenerator(
               classOf[OtherUnit],
               OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
             ),
-            Seq(0, 1, 2, 3))),
+            Seq(0, 1, 2, 3)
+          )
+        ),
         floatModuleParameters = Seq(),
         zvbbModuleParameters = Seq() // TODO
       )

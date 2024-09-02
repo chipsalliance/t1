@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isScheduler {
   def apply(t1DecodePattern: T1DecodePattern): isScheduler =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isScheduler(tri)
@@ -259,14 +259,12 @@ object isScheduler {
       "vwsubu.wx",
       "vxor.vi",
       "vxor.vv",
-      "vxor.vx",
+      "vxor.vx"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -274,5 +272,6 @@ object isScheduler {
 }
 
 case class isScheduler(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "lane will send request to Sequencer and wait ack from Sequencer. Instructions that will communicate with T1 top module.*/ "
+  override val description: String =
+    "lane will send request to Sequencer and wait ack from Sequencer. Instructions that will communicate with T1 top module.*/ "
 }

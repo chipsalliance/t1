@@ -7,11 +7,13 @@ import chisel3._
 import chisel3.util._
 
 class LSUBaseStatus extends Bundle {
+
   /** indicate this MSHR is idle. */
   val idle: Bool = Bool()
 
   /** indicate this is the last cycle for a MSHR */
   val last: Bool = Bool()
+
   /** the current instruction in this MSHR. */
 
   /** the current instruction in this MSHR. */
@@ -20,13 +22,13 @@ class LSUBaseStatus extends Bundle {
   val changeMaskGroup: Bool = Bool()
 
   val startAddress: UInt = UInt(32.W)
-  val endAddress: UInt = UInt(32.W)
+  val endAddress:   UInt = UInt(32.W)
 }
 
 class SimpleAccessStatus(laneNumber: Int) extends LSUBaseStatus {
-  /** the MSHR finished the current offset group,
-   * need to notify Scheduler for next index group.
-   */
+
+  /** the MSHR finished the current offset group, need to notify Scheduler for next index group.
+    */
   val offsetGroupEnd: Bool = Bool()
 
   /** the current lane that this MSHR is accessing. */
@@ -43,7 +45,7 @@ class SimpleAccessStatus(laneNumber: Int) extends LSUBaseStatus {
 
 class MSHRStage0Bundle(param: MSHRParam) extends Bundle {
   // 读的相关
-  val readVS: UInt = UInt(param.regNumBits.W)
+  val readVS:            UInt         = UInt(param.regNumBits.W)
   // 访问寄存器的 offset, 代表第几个32bit
   val offsetForVSInLane: Option[UInt] = Option.when(param.vrfOffsetBits > 0)(UInt(param.vrfOffsetBits.W))
 
@@ -61,44 +63,44 @@ class SimpleAccessStage1(param: MSHRParam) extends Bundle {
   val segmentIndex:     UInt = UInt(3.W)
 
   // 访问l2的地址
-  val address: UInt = UInt(param.paWidth.W)
+  val address:  UInt = UInt(param.paWidth.W)
   val readData: UInt = UInt(param.datapathWidth.W)
 }
 
 class MemRequest(param: MSHRParam) extends Bundle {
-  val src: UInt = UInt(param.cacheLineIndexBits.W)
+  val src:     UInt = UInt(param.cacheLineIndexBits.W)
   val address: UInt = UInt(param.paWidth.W)
 }
 
 class MemDataBundle(param: MSHRParam) extends Bundle {
   // todo: DLEN?
-  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
+  val data:  UInt = UInt((param.lsuTransposeSize * 8).W)
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
 
 class MemWrite(param: MSHRParam) extends Bundle {
   // todo: DLEN?
-  val data: UInt = UInt((param.lsuTransposeSize * 8).W)
-  val mask: UInt = UInt(param.lsuTransposeSize.W)
-  val index: UInt = UInt(param.cacheLineIndexBits.W)
+  val data:    UInt = UInt((param.lsuTransposeSize * 8).W)
+  val mask:    UInt = UInt(param.lsuTransposeSize.W)
+  val index:   UInt = UInt(param.cacheLineIndexBits.W)
   val address: UInt = UInt(param.paWidth.W)
 }
 
 class SimpleMemRequest(param: MSHRParam) extends Bundle {
   val address: UInt = UInt(param.paWidth.W)
-  val size: UInt = UInt(2.W)
-  val source: UInt = UInt(param.sourceWidth.W)
+  val size:    UInt = UInt(2.W)
+  val source:  UInt = UInt(param.sourceWidth.W)
 }
 
 class SimpleMemReadResponse(param: MSHRParam) extends Bundle {
-  val data: UInt = UInt(param.datapathWidth.W)
+  val data:   UInt = UInt(param.datapathWidth.W)
   val source: UInt = UInt(param.sourceWidth.W)
 }
 
 class SimpleMemWrite(param: MSHRParam) extends Bundle {
-  val data: UInt = UInt(param.datapathWidth.W)
-  val mask: UInt = UInt((param.datapathWidth / 8).W)
-  val source: UInt = UInt(8.W)
+  val data:    UInt = UInt(param.datapathWidth.W)
+  val mask:    UInt = UInt((param.datapathWidth / 8).W)
+  val source:  UInt = UInt(8.W)
   val address: UInt = UInt(param.paWidth.W)
-  val size: UInt = UInt(2.W)
+  val size:    UInt = UInt(2.W)
 }

@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isDontneedexecuteinlane {
   def apply(t1DecodePattern: T1DecodePattern): isDontneedexecuteinlane =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isDontneedexecuteinlane(tri)
@@ -124,14 +124,12 @@ object isDontneedexecuteinlane {
       "vsuxei8.v",
       "vzext.vf2",
       "vzext.vf4",
-      "vzext.vf8",
+      "vzext.vf8"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -139,5 +137,6 @@ object isDontneedexecuteinlane {
 }
 
 case class isDontneedexecuteinlane(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "Lane doesn't need VFU to execute the instruction. datapath will directly goes to VRF.     "
+  override val description: String =
+    "Lane doesn't need VFU to execute the instruction. datapath will directly goes to VRF.     "
 }

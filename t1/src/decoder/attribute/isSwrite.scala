@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isSwrite {
   def apply(t1DecodePattern: T1DecodePattern): isSwrite =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isSwrite(tri)
@@ -213,14 +213,12 @@ object isSwrite {
       // rv_zvbb
       "vwsll.vv",
       "vwsll.vx",
-      "vwsll.vi",
+      "vwsll.vi"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -228,5 +226,6 @@ object isSwrite {
 }
 
 case class isSwrite(value: TriState) extends BooleanDecodeAttribute {
-  override val description: String = "sWrite -> targetRd || readOnly || crossWrite || maskDestination || reduce || loadStore instruction will write vd or rd(scalar) from outside of lane. It will request vrf wait, and lane will not write. No write to vd when isSwrite is True!!!"
+  override val description: String =
+    "sWrite -> targetRd || readOnly || crossWrite || maskDestination || reduce || loadStore instruction will write vd or rd(scalar) from outside of lane. It will request vrf wait, and lane will not write. No write to vd when isSwrite is True!!!"
 }

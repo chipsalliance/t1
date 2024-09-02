@@ -93,12 +93,12 @@ case class DecoderParameter(
 
   private def fLen64: Boolean = hasAnySetIn("rv_d", "rv32_d", "rv64_d")
 
-  private val useFPU = !fLen0
+  private val useFPU    = !fLen0
   private val useMulDiv = hasAnySetIn("rv_m", "rv64_m")
   private val useVector = hasAnySetIn("rv_v")
 
-  private val instructionDecodePatterns: Seq[RocketDecodePattern] = instructions.map(RocketDecodePattern.apply)
-  private val instructionDecodeFields: Seq[DecodeField[RocketDecodePattern, _ <: Data]] = Seq(
+  private val instructionDecodePatterns: Seq[RocketDecodePattern]                         = instructions.map(RocketDecodePattern.apply)
+  private val instructionDecodeFields:   Seq[DecodeField[RocketDecodePattern, _ <: Data]] = Seq(
     isLegal,
     isBranch,
     isJal,

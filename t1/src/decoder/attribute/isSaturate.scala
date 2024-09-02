@@ -8,8 +8,8 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 object isSaturate {
   def apply(t1DecodePattern: T1DecodePattern): isSaturate =
     Seq(
-      y _ -> Y,
-      n _ -> N,
+      y _  -> Y,
+      n _  -> N,
       dc _ -> DC
     ).collectFirst {
       case (fn, tri) if fn(t1DecodePattern) => isSaturate(tri)
@@ -34,14 +34,12 @@ object isSaturate {
       "vssub.vv",
       "vssub.vx",
       "vssubu.vv",
-      "vssubu.vx",
+      "vssubu.vx"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = t1DecodePattern.param.allInstructions.filter(i =>
-      !(y(t1DecodePattern) || dc(t1DecodePattern))
-    )
+    val allMatched = t1DecodePattern.param.allInstructions.filter(i => !(y(t1DecodePattern) || dc(t1DecodePattern)))
     allMatched.contains(t1DecodePattern.instruction)
   }
 
@@ -88,7 +86,7 @@ object isSaturate {
       "vsext.vf8",
       "vzext.vf2",
       "vzext.vf4",
-      "vzext.vf8",
+      "vzext.vf8"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
