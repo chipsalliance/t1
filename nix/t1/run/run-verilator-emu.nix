@@ -71,8 +71,8 @@ stdenvNoCC.mkDerivation (finalAttr: {
     zstd $rtlEventOutPath -o $rtlEventOutPath.zstd
     rm $rtlEventOutPath
 
-    if [ -r perf.txt ]; then
-      mv perf.txt $out/
+    if [ -r perf.json ]; then
+      mv perf.json $out/
     fi
 
     ${lib.optionalString emulator.enableTrace ''
