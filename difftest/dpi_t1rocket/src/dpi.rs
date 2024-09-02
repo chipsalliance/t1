@@ -282,6 +282,11 @@ unsafe extern "C" fn t1rocket_cosim_init() {
   TARGET.init(|| Driver::new(scope, dump_control, &args));
 }
 
+#[no_mangle]
+unsafe extern "C" fn t1rocket_cosim_final() {
+  dpi_common::util::write_perf_json(crate::get_t());
+}
+
 /// evaluate at every 1024 cycles, return reason = 0 to continue simulation,
 /// other value is used as error code.
 #[no_mangle]

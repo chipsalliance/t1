@@ -45,7 +45,8 @@ impl OnlineArgs {
 }
 
 // keep in sync with TestBench.ClockGen
-pub const CYCLE_PERIOD: u64 = 20;
+// the value is measured in simulation time unit
+pub const CYCLE_PERIOD: u64 = 20000;
 
 /// get cycle
 pub fn get_t() -> u64 {

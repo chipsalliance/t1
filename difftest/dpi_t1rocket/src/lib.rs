@@ -36,7 +36,8 @@ const EXIT_POS: u32 = 0x4000_0000;
 const EXIT_CODE: u32 = 0xdead_beef;
 
 // keep in sync with TestBench.ClockGen
-pub const CYCLE_PERIOD: u64 = 20;
+// the value is measured in simulation time unit
+pub const CYCLE_PERIOD: u64 = 20000;
 
 /// get cycle
 pub fn get_t() -> u64 {

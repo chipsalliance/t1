@@ -1,6 +1,7 @@
 pub mod dpi_target;
 pub mod dump;
 pub mod plusarg;
+pub mod util;
 
 pub use dpi_target::DpiTarget;
 
