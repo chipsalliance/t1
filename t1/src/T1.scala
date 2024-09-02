@@ -365,6 +365,8 @@ class T1(val parameter: T1Parameter)
   val decode: Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.decoderParam))
   omInstance.decoderIn := Property(decode.om.asAnyClassType)
 
+  val tokenManager: Instance[T1TokenManager] = Instantiate(new T1TokenManager(parameter))
+
   // TODO: cover overflow
   // TODO: uarch doc about the order of instructions
   val instructionCounter:     UInt = RegInit(0.U(parameter.instructionIndexBits.W))
@@ -629,6 +631,8 @@ class T1(val parameter: T1Parameter)
       */
     val laneAndLSUFinish: Bool = control.endTag.asUInt.andR
 
+    val v0WriteFinish = !ohCheck(tokenManager.v0WriteValid, control.record.instructionIndex, parameter.chainingSize)
+
     /** lsu is finished when report bits matched corresponding slot
       * lsu send `lastReport` to [[T1]], this check if the report contains this slot.
       * this signal is used to update the `control.endTag`.
@@ -657,7 +661,7 @@ class T1(val parameter: T1Parameter)
     }
       // state machine starts here
       .otherwise {
-        when(laneAndLSUFinish) {
+        when(laneAndLSUFinish && v0WriteFinish) {
           control.state.wLast := true.B
         }
 
@@ -1585,6 +1589,12 @@ class T1(val parameter: T1Parameter)
       completedVec(index) := lane.laneResponse.bits.ffoSuccess
       flotReduceValid(index).foreach(d => d := lane.laneResponse.bits.fpReduceValid.get)
     }
+
+    // token manager
+    tokenManager.writeV0(index).valid := lane.vrfWriteChannel.fire && (lane.vrfWriteChannel.bits.vd === 0.U)
+    tokenManager.writeV0(index).bits := lane.vrfWriteChannel.bits.instructionIndex
+    tokenManager.instructionFinish(index) := lane.instructionFinished
+
     lane
   }
 
