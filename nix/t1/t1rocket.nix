@@ -11,15 +11,15 @@
 {
   ip = lib.makeScope newScope (scope: {
 
-    cases = scope.callPackage ../../../tests { };
-    run = scope.callPackage ../run { configName = "t1rocket"; };
+    cases = scope.callPackage ../../tests { };
+    run = scope.callPackage ./run { configName = "t1rocket"; };
 
     mlirbc = chisel-to-mlirbc {
       outputName = "t1rocketemu-parsed.mlirbc";
       elaboratorArgs = [
         "t1rocketemu"
         "--t1rocket-config"
-        "${../../../t1rocketemu/configs/default.json}"
+        "${../../t1rocketemu/configs/default.json}"
       ];
     };
 
@@ -41,7 +41,7 @@
       ];
     };
 
-    makeDPI = scope.callPackage ../../../difftest { };
+    makeDPI = scope.callPackage ../../difftest { };
     verilator-dpi-lib = scope.makeDPI {
       outputName = "t1rocket-verilator-dpi-lib";
       buildType = "t1rocket";
@@ -72,7 +72,7 @@
       ];
     };
 
-    offline-checker = scope.callPackage ../../../t1rocketemu/offline { };
+    offline-checker = scope.callPackage ../../t1rocketemu/offline { };
 
     vcs-dpi-lib = scope.makeDPI {
       outputName = "t1rocket-vcs-dpi-lib";
@@ -87,12 +87,12 @@
     };
 
     vcs-emu = sv-to-vcs-simulator {
-      mainProgram = "t1-vcs-simulator";
+      mainProgram = "t1rocket-vcs-simulator";
       rtl = scope.rtl;
       vcsLinkLibs = [ "${scope.vcs-dpi-lib}/lib/libdpi_t1rocket.a" ];
     };
     vcs-emu-trace = sv-to-vcs-simulator {
-      mainProgram = "t1-vcs-trace-simulator";
+      mainProgram = "t1rocket-vcs-trace-simulator";
       rtl = scope.rtl;
       enableTrace = true;
       vcsLinkLibs = [ "${scope.vcs-dpi-lib-trace}/lib/libdpi_t1rocket.a" ];
@@ -112,7 +112,7 @@
         throw "Invalid vlen extension `${ext}` specify, expect Zvl{N}b";
 
     # TODO: designConfig should be read from OM
-    designConfig = with builtins; (fromJSON (readFile ../../../t1rocketemu/configs/default.json)).parameter;
+    designConfig = with builtins; (fromJSON (readFile ../../t1rocketemu/configs/default.json)).parameter;
 
     # TODO: We should have a type define, to keep t1 and t1rocket feeds same `rtlDesignMetadata` data structure.
     rtlDesignMetadata = rec {

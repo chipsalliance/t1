@@ -100,6 +100,24 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: "Print step summary"
         run: |
-          nix run ".#ci-helper" -- postCI --failed-tests-file-path ./failed-tests.md --emu-type vcs --cycle-update-file-path ./cycle-update.md
-          cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
+          nix run ".#ci-helper" -- postCI \
+            --cycle-update-file-path ./cycle-update.md \
+            --failed-tests-file-path ./failed-tests.md \
+            --emu-type vcs
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
+      - name: "Commit cycle updates"
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          changed_cases=$(git diff --name-only '.github/**/default.json')
+
+          if [ -n "$changed_cases" ]; then
+            echo "changed cases: $changed_cases"
+            git add '.github/**/default.json'
+            git commit -m "[ci] update test case cycle data"
+            git push origin ${{ github.head_ref }}
+          else
+            echo "No cycle change detect"
+          fi

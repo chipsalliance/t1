@@ -229,7 +229,7 @@ object Main:
     zstdProc.join(-1)
     driverProc.join(-1)
     if zstdProc.exitCode() != 0 then Logger.fatal("fail to compress data")
-    if driverProc.exitCode() != 0 then Logger.fatal("fail to compress data")
+    if driverProc.exitCode() != 0 then Logger.fatal("online driver run failed")
 
     val statePath = outputPath / "driver-state.json"
     os.write(
@@ -332,7 +332,8 @@ object Main:
       )
     Logger.info(s"Running offline checker: ${driverArgs.mkString(" ")}")
 
-    os.proc(driverArgs).call(stdout = os.Inherit, stderr = os.Inherit)
+    val ret = os.proc(driverArgs).call(stdout = os.Inherit, stderr = os.Inherit, check = false)
+    if (ret.exitCode != 0) then Logger.fatal("offline checker run failed")
   end offline
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)

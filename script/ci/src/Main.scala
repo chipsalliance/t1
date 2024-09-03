@@ -213,7 +213,7 @@ object Main:
     @arg(
       name = "cycle-update-file-path",
       doc = "specify the cycle update markdown file output path"
-    ) cycleUpdateFilePath: Option[String],
+    ) cycleUpdateFilePath: String,
     @arg(
       name = "emu-type",
       doc = "Specify emulation type"
@@ -226,11 +226,10 @@ object Main:
     val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
     os.write.over(failedTestsFile, "## Failed Tests\n")
 
-    if cycleUpdateFilePath.nonEmpty then
-      os.write.over(
-        os.Path(cycleUpdateFilePath.get, os.pwd),
-        "## Cycle Update\n"
-      )
+    os.write.over(
+      os.Path(cycleUpdateFilePath, os.pwd),
+      "## Cycle Update\n"
+    )
 
     os.walk(os.pwd / ".github" / caseDir)
       .filter(_.last == "default.json")
@@ -261,15 +260,11 @@ object Main:
 
         if cycleUpdateFilePath.nonEmpty then
           Logger.info("Collecting cycle update info")
-          val perfCycleRegex  = raw"total_cycles:\s(\d+)".r
           val allCycleUpdates = os
             .walk(emuResultPath)
-            .filter(path => path.last == "perf.txt")
+            .filter(path => path.last == "perf.json")
             .map(path => {
-              val cycle    = os.read.lines(path).head match
-                case perfCycleRegex(cycle) => cycle.toInt
-                case _                     =>
-                  throw new Exception("perf.txt file is not format as expected")
+              val cycle    = ujson.read(os.read(path)).obj("total_cycles").num.toInt
               val caseName = path.segments.toSeq.reverse.drop(1).head
               (caseName, cycle, cycleRecord.obj(caseName).num.toInt)
             })
@@ -282,7 +277,7 @@ object Main:
                 else s"* 🐢 $caseName($config): $oldCycle -> $newCycle"
 
           os.write.append(
-            os.Path(cycleUpdateFilePath.get, os.pwd),
+            os.Path(cycleUpdateFilePath, os.pwd),
             allCycleUpdates.mkString("\n") + "\n"
           )
 
