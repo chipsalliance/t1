@@ -15,7 +15,7 @@ import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam, T1CustomInstruct
 import chisel3.util.experimental.decode._
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4RWIrrevocable}
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
-import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
+import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParameter, VRFProbe}
 
 import scala.collection.immutable.{ListMap, SeqMap}
 
@@ -287,7 +287,7 @@ case class T1Parameter(
     axi4BundleParameter = axi4BundleParameter,
     name = "main"
   )
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
+  def vrfParam: VRFParameter = VRFParameter(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
   require(xLen == datapathWidth)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 }

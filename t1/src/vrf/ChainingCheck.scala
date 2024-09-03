@@ -14,7 +14,7 @@ import org.chipsalliance.t1.rtl._
  *              todo: 维护冲突表,免得每次都要算一次
  */
 @instantiable
-class ChainingCheck(val parameter: VRFParam) extends Module {
+class ChainingCheck(val parameter: VRFParameter) extends Module {
   @public
   val read: VRFReadRequest = IO(Input(new VRFReadRequest(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)))
   @public

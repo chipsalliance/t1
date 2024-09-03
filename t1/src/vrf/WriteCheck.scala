@@ -10,7 +10,7 @@ import org.chipsalliance.t1.rtl._
 
 
 @instantiable
-class WriteCheck(val parameter: VRFParam) extends Module {
+class WriteCheck(val parameter: VRFParameter) extends Module {
   @public
   val check = IO(Input(new LSUWriteCheck(
     parameter.regNumBits,

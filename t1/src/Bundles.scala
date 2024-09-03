@@ -8,7 +8,7 @@ import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{Valid, ValidIO, log2Ceil}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl.lsu.LSUParameter
-import org.chipsalliance.t1.rtl.vrf.VRFParam
+import org.chipsalliance.t1.rtl.vrf.VRFParameter
 
 /** Interface to CPU. */
 class VResponse(xLen: Int) extends Bundle {
@@ -459,7 +459,7 @@ class VRFInstructionState extends Bundle {
   val wLaneClear: Bool = Bool()
 }
 
-class VRFWriteReport(param: VRFParam) extends Bundle {
+class VRFWriteReport(param: VRFParameter) extends Bundle {
   // 8 reg/group; which group?
   val vd:        ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
   val vs1:       ValidIO[UInt] = Valid(UInt(param.regNumBits.W))

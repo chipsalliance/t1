@@ -14,7 +14,7 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
 import org.chipsalliance.t1.rtl.lane._
-import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam, VRFProbe}
+import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParameter, VRFProbe}
 
 // 1. Coverage
 // 2. Performance signal via XMR
@@ -27,6 +27,11 @@ class LaneOM extends Class {
   @public
   val vfusIn = IO(Input(Property[Seq[AnyClassType]]()))
   vfus := vfusIn
+  @public
+  val vrf = IO(Output(Property[Seq[AnyClassType]]()))
+  @public
+  val vrfIn = IO(Input(Property[Seq[AnyClassType]]()))
+  vrf := vrfIn
 }
 
 class LaneSlotProbe(instructionIndexBits: Int) extends Bundle {
@@ -180,7 +185,7 @@ case class LaneParameter(
   val executionQueueSize: Int = 4
 
   /** Parameter for [[VRF]] */
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor, vrfRamType)
+  def vrfParam: VRFParameter = VRFParameter(vLen, laneNumber, datapathWidth, chainingSize, portFactor, vrfRamType)
 }
 
 /** Instantiate [[Lane]] from [[T1]],
@@ -325,6 +330,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** VRF instantces. */
   val vrf: Instance[VRF] = Instantiate(new VRF(parameter.vrfParam))
+  omInstance.vrfIn := Property(vrf.om.asAnyClassType)
 
   /** TODO: review later
     */
