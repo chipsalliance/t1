@@ -28,15 +28,15 @@ pub(crate) struct OnlineArgs {
 const TIMEOUT_DEFAULT: u64 = 1000000;
 
 impl OnlineArgs {
-  pub fn from_plusargs(marcher: &PlusArgMatcher) -> Self {
+  pub fn from_plusargs(matcher: &PlusArgMatcher) -> Self {
     Self {
-      elf_file: marcher.match_("t1_elf_file").into(),
-      log_file: marcher.try_match("t1_log_file").map(|x| x.into()),
+      elf_file: matcher.match_("t1_elf_file").into(),
+      log_file: matcher.try_match("t1_log_file").map(|x| x.into()),
 
       vlen: env!("DESIGN_VLEN").parse().unwrap(),
       dlen: env!("DESIGN_DLEN").parse().unwrap(),
       set: env!("SPIKE_ISA_STRING").parse().unwrap(),
-      timeout: marcher
+      timeout: matcher
         .try_match("t1_timeout")
         .map(|x| x.parse().unwrap())
         .unwrap_or(TIMEOUT_DEFAULT),

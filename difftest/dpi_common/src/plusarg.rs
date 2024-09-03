@@ -23,7 +23,7 @@ impl PlusArgMatcher {
   pub fn match_(&self, arg_name: &str) -> &str {
     self.try_match(arg_name).unwrap_or_else(|| {
       tracing::error!("required plusarg '+{arg_name}=' not found");
-      panic!("failed to march '+{arg_name}='");
+      panic!("failed to match '+{arg_name}='");
     })
   }
 }

@@ -54,9 +54,9 @@ impl RealDumpControl {
     }
   }
 
-  pub fn from_plusargs(svscope: SvScope, marcher: &PlusArgMatcher) -> Self {
-    let wave_path = marcher.match_("t1_wave_path");
-    let dump_range = marcher.try_match("t1_dump_range").unwrap_or("");
+  pub fn from_plusargs(svscope: SvScope, matcher: &PlusArgMatcher) -> Self {
+    let wave_path = matcher.match_("t1_wave_path");
+    let dump_range = matcher.try_match("t1_dump_range").unwrap_or("");
     Self::new(svscope, wave_path, dump_range)
   }
 
@@ -82,10 +82,10 @@ impl RealDumpControl {
 
 pub struct EmptyDumpControl {}
 impl EmptyDumpControl {
-  pub fn from_plusargs(svscope: SvScope, marcher: &PlusArgMatcher) -> Self {
+  pub fn from_plusargs(svscope: SvScope, matcher: &PlusArgMatcher) -> Self {
     // do nothing
     let _ = svscope;
-    let _ = marcher;
+    let _ = matcher;
     Self {}
   }
   pub fn start(&mut self) {
