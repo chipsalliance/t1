@@ -1,7 +1,7 @@
 From 09a503dc94382798a1ee2f23b4b6894a12bc8207 Mon Sep 17 00:00:00 2001
 From: SharzyL <me@sharzy.in>
 Date: Mon, 26 Aug 2024 20:08:47 +0800
-Subject: [PATCH 2/2] disable NaN normalization
+Subject: [PATCH 2/3] disable NaN normalization
 
 ---
  riscv/v_ext_macros.h | 6 +++---

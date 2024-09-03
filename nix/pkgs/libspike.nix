@@ -31,6 +31,7 @@ stdenv.mkDerivation {
   patches = [
     ../patches/spike/0001-enforce-lanewise-order-for-unordered-reduce.patch
     ../patches/spike/0002-disable-NaN-normalization.patch
+    ../patches/spike/0003-relax-vsew-vlmul-ELEN-check.patch
   ];
 
   installPhase = ''
