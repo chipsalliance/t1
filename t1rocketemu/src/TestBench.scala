@@ -22,6 +22,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
     setInline(
       s"$desiredName.sv",
       s"""module $desiredName(output reg clock, output reg reset);
+         |`ifdef T1_ENABLE_TRACE
          |  export "DPI-C" function dump_wave;
          |  function dump_wave(input string file);
          |`ifdef VCS
@@ -34,6 +35,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
          |    $$dumpvars(0);
          |`endif
          |  endfunction;
+         |`endif
          |
          |  export "DPI-C" function quit;
          |  function quit();
