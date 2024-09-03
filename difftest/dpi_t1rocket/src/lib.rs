@@ -19,11 +19,11 @@ pub(crate) struct OnlineArgs {
 const TIMEOUT_DEFAULT: u64 = 1000000;
 
 impl OnlineArgs {
-  pub fn from_plusargs(marcher: &PlusArgMatcher) -> Self {
+  pub fn from_plusargs(matcher: &PlusArgMatcher) -> Self {
     Self {
-      elf_file: marcher.match_("t1_elf_file").into(),
+      elf_file: matcher.match_("t1_elf_file").into(),
       dlen: env!("DESIGN_DLEN").parse().unwrap(),
-      timeout: marcher
+      timeout: matcher
         .try_match("t1_timeout")
         .map(|x| x.parse().unwrap())
         .unwrap_or(TIMEOUT_DEFAULT),
