@@ -3,8 +3,9 @@
 package org.chipsalliance.t1.tile
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Instance, Instantiate}
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleGenerator, SerializableModuleParameter}
+import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.experimental.BitSet
 import chisel3.util.log2Ceil
 import chisel3.probe.{define, Probe, ProbeValue}
@@ -28,7 +29,6 @@ import org.chipsalliance.rocketv.{
   RocketTileParameter
 }
 import org.chipsalliance.rvdecoderdb.Instruction
-import org.chipsalliance.t1.rtl.decoder.T1CustomInstruction
 import org.chipsalliance.t1.rtl.vrf.RamType
 import org.chipsalliance.t1.rtl.vrf.RamType.{p0rp1w, p0rw, p0rwp1rw}
 import org.chipsalliance.t1.rtl.lsu.LSUProbe
@@ -469,6 +469,20 @@ case class T1RocketTileParameter(
   def t1HightOutstandingParameter: AXI4BundleParameter = t1Parameter.axi4BundleParameter.copy(dataWidth = 32)
 }
 
+@instantiable
+class T1RocketTileOM extends Class {
+  @public
+  val rocket   = IO(Output(Property[AnyClassType]()))
+  @public
+  val rocketIn = IO(Input(Property[AnyClassType]()))
+  @public
+  val t1       = IO(Output(Property[AnyClassType]()))
+  @public
+  val t1In     = IO(Input(Property[AnyClassType]()))
+  rocket := rocketIn
+  t1     := t1In
+}
+
 class T1RocketProbe(parameter: T1RocketTileParameter) extends Bundle {
   val rocketProbe: RocketProbe      = Output(new RocketProbe(parameter.rocketParameter))
   val fpuProbe:    Option[FPUProbe] = parameter.fpuParameter.map(param => Output(new FPUProbe(param)))
@@ -511,8 +525,9 @@ class T1RocketTileInterface(parameter: T1RocketTileParameter) extends Bundle {
   val highOutstandingAXI: AXI4RWIrrevocable =
     org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.t1HightOutstandingParameter)
 
+  val om:            Property[ClassType] = Output(Property[AnyClassType]())
   // TODO: merge it.
-  val t1RocketProbe: T1RocketProbe = Output(Probe(new T1RocketProbe(parameter), layers.Verification))
+  val t1RocketProbe: T1RocketProbe       = Output(Probe(new T1RocketProbe(parameter), layers.Verification))
 }
 
 class T1RocketTile(val parameter: T1RocketTileParameter)
@@ -528,6 +543,10 @@ class T1RocketTile(val parameter: T1RocketTileParameter)
   val ptw:               Instance[PTW]               = Instantiate(new PTW(parameter.ptwParameter))
   val fpu:               Option[Instance[FPU]]       = parameter.fpuParameter.map(fpuParameter => Instantiate(new FPU(fpuParameter)))
   val t1:                Instance[T1]                = Instantiate(new T1(parameter.t1Parameter))
+  val omInstance:        Instance[T1RocketTileOM]    = Instantiate(new T1RocketTileOM)
+  io.om               := omInstance.getPropertyReference.asAnyClassType
+  omInstance.rocketIn := Property(rocket.io.om.asAnyClassType)
+  omInstance.t1In     := Property(t1.io.om.asAnyClassType)
 
   rocket.io.clock            := io.clock
   rocket.io.reset            := io.reset

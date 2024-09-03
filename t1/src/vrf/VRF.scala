@@ -4,12 +4,14 @@
 package org.chipsalliance.t1.rtl.vrf
 
 import chisel3._
+import chisel3.experimental.hierarchy.Instance
 import chisel3.experimental.hierarchy.{instantiable, public, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.util._
 import chisel3.ltl._
 import chisel3.ltl.Sequence._
+import chisel3.properties.{AnyClassType, Class, ClassType, Path, Property}
 import org.chipsalliance.t1.rtl.{
   ffo,
   instIndexL,
@@ -23,7 +25,7 @@ import org.chipsalliance.t1.rtl.{
 }
 
 sealed trait RamType
-object RamType  {
+object RamType      {
   implicit val rwP: upickle.default.ReadWriter[RamType] = upickle.default.ReadWriter.merge(
     upickle.default.macroRW[p0rw.type],
     upickle.default.macroRW[p0rp1w.type],
@@ -36,8 +38,8 @@ object RamType  {
 
   case object p0rwp1rw extends RamType
 }
-object VRFParam {
-  implicit val rwP: upickle.default.ReadWriter[VRFParam] = upickle.default.macroRW
+object VRFParameter {
+  implicit val rwP: upickle.default.ReadWriter[VRFParameter] = upickle.default.macroRW
 }
 
 /** Parameter for [[Lane]].
@@ -59,7 +61,7 @@ object VRFParam {
   *
   * TODO: add ECC cc @sharzyL 8bits -> 5bits 16bits -> 6bits 32bits -> 7bits
   */
-case class VRFParam(
+case class VRFParameter(
   vLen:          Int,
   laneNumber:    Int,
   datapathWidth: Int,
@@ -117,7 +119,16 @@ case class VRFParam(
   val vrfReadLatency = 2
 }
 
-class VRFProbe(parameter: VRFParam) extends Bundle {
+@instantiable
+class VRFOM extends Class {
+  val srams = IO(Output(Property[Seq[AnyClassType]]()))
+
+  @public
+  val sramsIn = IO(Input(Property[Seq[AnyClassType]]()))
+  srams := sramsIn
+}
+
+class VRFProbe(parameter: VRFParameter) extends Bundle {
   val valid:              Bool = Bool()
   val requestVd:          UInt = UInt(parameter.regNumBits.W)
   val requestOffset:      UInt = UInt(parameter.vrfOffsetBits.W)
@@ -135,7 +146,7 @@ class VRFProbe(parameter: VRFParam) extends Bundle {
   * TODO: probe each ports to benchmark the bandwidth.
   */
 @instantiable
-class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFParam] {
+class VRF(val parameter: VRFParameter) extends Module with SerializableModule[VRFParameter] {
 
   /** VRF read requests ready will couple from valid from [[readRequests]], ready is asserted when higher priority valid
     * is less than 2.
@@ -235,6 +246,12 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   @public
   val vrfProbe = IO(Output(Probe(new VRFProbe(parameter), layers.Verification)))
+
+  val omInstance: Instance[VRFOM]     = Instantiate(new VRFOM)
+  val omType:     ClassType           = omInstance.toDefinition.getClassType
+  @public
+  val om:         Property[ClassType] = IO(Output(Property[omType.Type]()))
+  om := omInstance.getPropertyReference
 
   // reset sram
   val sramReady:      Bool = RegInit(false.B)
@@ -478,6 +495,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
     rf
   }
+
+  omInstance.sramsIn := Property(rfVec.map(_.description.get.asAnyClassType))
 
   val initRecord: ValidIO[VRFWriteReport] = WireDefault(0.U.asTypeOf(Valid(new VRFWriteReport(parameter))))
   initRecord.valid := true.B
