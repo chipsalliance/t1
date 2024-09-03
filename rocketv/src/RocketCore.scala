@@ -5,9 +5,10 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable}
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{Probe, ProbeValue, define}
+import chisel3.properties.{AnyClassType, ClassType, Property, Class}
 import chisel3.util.circt.ClockGate
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{BitPat, Cat, DecoupledIO, Fill, MuxLookup, PriorityEncoder, PriorityMux, Queue, RegEnable, Valid, log2Ceil, log2Up}
@@ -347,8 +348,15 @@ class RocketInterface(parameter: RocketParameter) extends Bundle {
   val cease = Output(Bool())
   val wfi = Output(Bool())
   val traceStall = Input(Bool())
+  val om: Property[ClassType] = Output(Property[AnyClassType]())
   val rocketProbe = Output(Probe(new RocketProbe(parameter), layers.Verification))
 }
+
+@instantiable
+class RocketOM extends Class {
+
+}
+
 
 /** The [[Rocket]] is the next version of the RocketCore,
  * All micro architectures are from the original RocketCore.
@@ -370,6 +378,10 @@ class Rocket(val parameter: RocketParameter)
     with Public {
   override protected def implicitClock: Clock = io.clock
   override protected def implicitReset: Reset = io.reset
+
+  val omInstance: Instance[RocketOM] = Instantiate(new RocketOM)
+  io.om := omInstance.getPropertyReference.asAnyClassType
+
   val csr: Instance[CSR] = Instantiate(new CSR(parameter.csrParameter))
   val decoder: Instance[Decoder] = Instantiate(new Decoder(parameter.decoderParameter))
   val fpuDecoder: Option[Instance[FPUDecoder]] = Option.when(usingFPU)(Instantiate(new FPUDecoder(parameter.decoderParameter)))
