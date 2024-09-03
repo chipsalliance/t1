@@ -1701,17 +1701,20 @@ class CSR(val parameter: CSRParameter)
     val newVType     = Mux1H(
       Seq(
         (vsetvli || vsetivli) -> io.inst(0)(27, 20),
-        vsetvl                -> io.wbRegRS2.get(7, 0)
+        vsetvl                -> io.wbRegRS2.get
       )
     )
+    val newTypMSBValid: Bool = (newVType >> 8).asUInt.orR
     // todo: xLen -> vector.elen
-    val vlmulIllList =
-      Seq(0.U, 1.U, 2.U, 3.U) ++ Option.when(xLen >= 16)(7.U) ++ Option.when(xLen >= 32)(6.U) ++ Option.when(
-        xLen >= 64
-      )(5.U)
+    val vlmulIllList = Seq(0.U, 1.U, 2.U, 3.U) ++ Option.when(xLen >= 16)(7.U) ++
+      Option.when(xLen >= 32)(6.U) ++ Option.when(xLen >= 64)(5.U)
     val vlmulIll: Bool = vlmulIllList.map(_ === newVType(2, 0)).reduce(_ || _)
+    val vSewIllList = Seq(0.U) ++ Option.when(xLen >= 16)(1.U) ++
+      Option.when(xLen >= 32)(2.U) ++ Option.when(xLen >= 64)(3.U)
+    val vsewIll     = vSewIllList.map(_ === newVType(5, 3)).reduce(_ || _)
+    val vsetIll     = vlmulIll && !newTypMSBValid && vsewIll
     // vlmax = vlen * lmul / sew
-    val vlmax:    UInt = (true.B << (log2Ceil(vLen) - 6) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
+    val vlmax: UInt = (true.B << (log2Ceil(vLen) - 6) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
     // set vl
     val setVL = Mux1H(
       Seq(
@@ -1721,9 +1724,9 @@ class CSR(val parameter: CSRParameter)
         vsetivli                                        -> io.inst(0)(19, 15)
       )
     )
-    setVlReadData := Mux(io.retire(0) && io.vectorCsr.getOrElse(false.B) && vlmulIll, setVL, 0.U)
+    setVlReadData := Mux(io.retire(0) && io.vectorCsr.getOrElse(false.B) && vsetIll, setVL, 0.U)
     when(io.retire(0) && io.vectorCsr.get) {
-      when(vlmulIll) {
+      when(vsetIll) {
         vector.get.states("vl")    := setVL
         vector.get.states("vlmul") := newVType(2, 0)
         vector.get.states("vsew")  := newVType(5, 3)
@@ -1743,6 +1746,9 @@ class CSR(val parameter: CSRParameter)
     when(csr_wen) {
       when(decoded_addr(CSRs.vxrm)) {
         vector.get.states("vxrm") := wdata
+      }
+      when(decoded_addr(CSRs.vxsat)) {
+        vector.get.states("vxsat") := wdata
       }
       when(decoded_addr(CSRs.vcsr)) {
         vector.get.states("vxrm")  := wdata(2, 1)
