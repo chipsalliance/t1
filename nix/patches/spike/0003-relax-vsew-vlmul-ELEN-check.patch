@@ -1,0 +1,26 @@
+From cbf79540b42a56df47df541848d47b34a0d04128 Mon Sep 17 00:00:00 2001
+From: SharzyL <me@sharzy.in>
+Date: Tue, 3 Sep 2024 15:33:33 +0800
+Subject: [PATCH 3/3] relax 'vsew > vlmul * ELEN' check
+
+---
+ riscv/vector_unit.cc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/riscv/vector_unit.cc b/riscv/vector_unit.cc
+index 08adc616..8fbbe16d 100644
+--- a/riscv/vector_unit.cc
++++ b/riscv/vector_unit.cc
+@@ -39,7 +39,8 @@ reg_t vectorUnit_t::vectorUnit_t::set_vl(int rd, int rs1, reg_t reqVL, reg_t new
+     vma = extract64(newType, 7, 1);
+ 
+     vill = !(vflmul >= 0.125 && vflmul <= 8)
+-           || vsew > std::min(vflmul, 1.0f) * ELEN
++           || vsew > ELEN
++           || vflmul < ((float) /* vsew_min */ 8 / ELEN)
+            || (newType >> 8) != 0;
+ 
+     if (vill) {
+-- 
+2.43.0
+
