@@ -189,7 +189,7 @@ impl Driver {
 
       shadow_mem,
 
-      quit: false
+      quit: false,
     }
   }
 

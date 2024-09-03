@@ -1,4 +1,7 @@
-use std::{ffi::{c_void, CString}, ptr::{self, NonNull}};
+use std::{
+  ffi::{c_void, CString},
+  ptr::{self, NonNull},
+};
 
 #[rustfmt::skip]
 pub mod sys;

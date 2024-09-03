@@ -57,7 +57,8 @@ unsafe fn load_from_payload(
     })
     .collect();
   assert_eq!(
-    masks.len(), data.len(),
+    masks.len(),
+    data.len(),
     "strobe bit width is not aligned with data byte width"
   );
 
