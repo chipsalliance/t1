@@ -34,7 +34,7 @@ jobs:
       - name: "Build all testcases"
         run: |
           # Build testcases with vlen 1024 and vlen 4096
-          nix build ".#t1.${{ matrix.config }}.ip.verilator-emu.cases._all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.${{ matrix.config }}.ip.cases._all" --max-jobs auto -L --no-link --cores 64
 
   # In the future, we may choose Verdi for trace, and left verilator trace only for performance evaluation
   build-verilator-trace-emulators:
@@ -104,6 +104,8 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: "Print step summary"
         run: |
-          nix run ".#ci-helper" -- postCI --failed-tests-file-path ./failed-tests.md --cycle-update-file-path ./cycle-update.md
+          nix run ".#ci-helper" -- postCI \
+            --failed-tests-file-path ./failed-tests.md \
+            --cycle-update-file-path ./cycle-update.md
           cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY

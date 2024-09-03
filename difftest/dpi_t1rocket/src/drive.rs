@@ -1,7 +1,7 @@
 use crate::dpi::*;
-use svdpi::SvScope;
 use crate::OnlineArgs;
 use crate::{get_t, EXIT_CODE, EXIT_POS};
+use svdpi::SvScope;
 
 use anyhow::Context;
 use dpi_common::dump::{DumpControl, DumpEndError};
@@ -141,7 +141,7 @@ impl Driver {
 
       shadow_mem,
 
-      quit: false
+      quit: false,
     }
   }
 
@@ -335,7 +335,7 @@ impl Driver {
       WATCHDOG_TIMEOUT
     } else {
       match self.dump_control.trigger_watchdog(tick) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(DumpEndError) => {
           info!(
             "[{tick}] run to dump end, exiting (last_commit_cycle={})",

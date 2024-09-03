@@ -100,5 +100,6 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: "Print step summary"
         run: |
-          nix run ".#ci-helper" -- postCI --failed-tests-file-path ./failed-tests.md --emu-type vcs
+          nix run ".#ci-helper" -- postCI --failed-tests-file-path ./failed-tests.md --emu-type vcs --cycle-update-file-path ./cycle-update.md
           cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
+          cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY

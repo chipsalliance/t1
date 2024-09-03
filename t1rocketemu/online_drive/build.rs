@@ -2,8 +2,11 @@ use cmake::Config;
 
 fn main() {
   #[cfg(feature = "trace")]
-  let dst =
-    Config::new("verilator_shim").define("VM_TRACE", "1").very_verbose(true).always_configure(true).build();
+  let dst = Config::new("verilator_shim")
+    .define("VM_TRACE", "1")
+    .very_verbose(true)
+    .always_configure(true)
+    .build();
   #[cfg(not(feature = "trace"))]
   let dst = Config::new("verilator_shim").very_verbose(true).always_configure(true).build();
 

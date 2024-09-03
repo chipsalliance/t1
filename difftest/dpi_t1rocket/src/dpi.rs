@@ -4,8 +4,8 @@
 use dpi_common::dump::DumpControl;
 use dpi_common::plusarg::PlusArgMatcher;
 use dpi_common::DpiTarget;
-use svdpi::SvScope;
 use std::ffi::{c_char, c_longlong};
+use svdpi::SvScope;
 use tracing::debug;
 
 use crate::drive::Driver;
@@ -58,7 +58,8 @@ unsafe fn load_from_payload(
     })
     .collect();
   assert_eq!(
-    masks.len(), data.len(),
+    masks.len(),
+    data.len(),
     "strobe bit width is not aligned with data byte width"
   );
 
@@ -316,4 +317,3 @@ unsafe extern "C" fn get_resetvector(resetvector: *mut c_longlong) {
 //--------------------------------
 // import functions and wrappers
 //--------------------------------
-
