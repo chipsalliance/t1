@@ -87,7 +87,7 @@ lib.makeScope newScope
     # Grouped emulator packages
     # ---------------------------------------------------------------------------------
     # Nix specification for t1rocket (with rocket-chip as Scalar core) emulator
-    t1rocket = t1Scope.callPackage ./t1rocket { };
+    t1rocket = t1Scope.callPackage ./t1rocket.nix { };
     # Nix specification for rocket (rocket-chip only) emulator
     rocketv = t1Scope.callPackage ../../rocketemu { };
 
