@@ -242,6 +242,16 @@ object Main:
         )
       )
     )
+
+    if finalEmuType.get == "vcs-emu-trace" then
+      val libPath    = emulator / os.up / os.up / "lib"
+      val daidirPath =
+        os.walk(libPath)
+          .filter(path => os.isDir(path))
+          .filter(path => path.segments.toSeq.last.endsWith(".daidir"))
+          .last
+      os.copy.into(daidirPath, outputPath, followLinks = true)
+
     Logger.info(s"Output saved under ${outputPath}")
   end run
 
