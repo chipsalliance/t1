@@ -250,7 +250,8 @@ object Main:
           .filter(path => os.isDir(path))
           .filter(path => path.segments.toSeq.last.endsWith(".daidir"))
           .last
-      os.copy.into(daidirPath, outputPath, followLinks = true)
+      val daidirName = daidirPath.segments.toSeq.last
+      os.symlink(outputPath / daidirName, daidirPath)
 
     Logger.info(s"Output saved under ${outputPath}")
   end run
