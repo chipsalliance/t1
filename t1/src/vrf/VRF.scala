@@ -529,7 +529,11 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val dataInLsuQueue = ohCheck(loadDataInLSUWriteQueue, record.bits.instIndex, parameter.chainingSize)
       // elementMask update by write
       val writeUpdateValidVec: Seq[Bool] =
-        writePort.map(p => p.fire && p.bits.instructionIndex === record.bits.instIndex && p.bits.mask(3))
+        writePort.map(p =>
+          p.fire && p.bits.instructionIndex === record.bits.instIndex &&
+            // Only index load will split the datapath into separate parts.
+            (p.bits.mask(3) || !record.bits.ls)
+        )
       val writeUpdate1HVec:    Seq[UInt] = writeOH.zip(writeUpdateValidVec).map { case (oh, v) => Mux(v, oh, 0.U) }
       // elementMask update by read of store instruction
       val loadUpdateValidVec =
@@ -545,7 +549,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val waitLaneClear   =
         record.bits.state.stFinish && record.bits.state.wWriteQueueClear &&
           record.bits.state.wLaneLastReport && record.bits.state.wTopLastReport
-      val stateClear: Bool = waitLaneClear && record.bits.state.wLaneClear
+      val stateClear: Bool = waitLaneClear && record.bits.state.wLaneClear || record.bits.elementMask.andR
 
       when(topLastReport) {
         record.bits.state.stFinish       := true.B
@@ -607,7 +611,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
             Mux(older, sourceVdEqSinkVs, sinkVdEqSourceVs)
         )
         val rawForeStore   = Mux(older, isStore.head && isSlow.last, isStore.last && isSlow.head) && samVd
-        (hazardForeLoad, rawForeStore)
+        // (hazardForeLoad, rawForeStore) todo: need check hazard?
+        (false.B, false.B)
       }
   }
   writeReadyForLsu := !hazardVec.map(_.map(_._1).reduce(_ || _)).reduce(_ || _)
