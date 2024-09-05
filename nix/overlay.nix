@@ -48,7 +48,6 @@ rec {
 
   t1-script = final.callPackage ../script { };
   inherit (t1-script) t1-helper ci-helper;
-  dev-mode = final.callPackage ./pkgs/dev-mode { };
 
   # stdenv for compiling rvv programs, with ilp32f newlib and clang
   rv32-stdenv = rv32_pkgs.stdenv.override {

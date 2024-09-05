@@ -258,6 +258,10 @@ object Main:
     if driverProc.exitCode() != 0 then Logger.fatal("online driver run failed")
 
     Logger.info("Driver finished")
+
+    if os.exists(os.pwd / "perf.json") then
+      os.move(os.pwd / "perf.json", outputPath / "perf.json", replaceExisting = true)
+
     Logger.info(s"Output saved under ${outputPath}")
   end run
 
