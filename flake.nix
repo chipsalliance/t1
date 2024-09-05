@@ -19,11 +19,10 @@
         {
           legacyPackages = pkgs;
           devShells = {
-            # TODO: The dev shell will only depends on the T1 script package, let it manage different dev/ci/release flows.
             default = pkgs.mkShell {
               buildInputs = with pkgs; [
                 ammonite
-                # To develop t1-helper, run nix develop .#t1-helper.withLsp
+                mill
                 t1-helper
                 zstd
               ];
