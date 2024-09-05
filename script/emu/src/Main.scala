@@ -266,7 +266,7 @@ object Main:
   end run
 
   @main
-  def offline(
+  def check(
     @arg(
       name = "config",
       short = 'c',
@@ -344,7 +344,48 @@ object Main:
 
     val ret = os.proc(driverArgs).call(stdout = os.Inherit, stderr = os.Inherit, check = false)
     if (ret.exitCode != 0) then Logger.fatal("offline checker run failed")
-  end offline
+  end check
+
+  @main
+  def listCases(
+    @arg(
+      name = "config",
+      short = 'c',
+      doc = "specify the config for test cases"
+    ) config: String,
+    pattern:  Leftover[String]
+  ): Unit =
+    if pattern.value.length != 1 then
+      Logger.fatal("invalid pattern was given, plz run 't1-helper listCases -c <config> <regexp>'")
+
+    val regexp = pattern.value.head.r
+    Logger.info("Fetching current test cases")
+    val args   = Seq(
+      "nix",
+      "--no-warn-dirty",
+      "eval",
+      s".#t1.${config}.ip.cases",
+      "--apply",
+      """cases: with builtins;
+        | (map
+        |   (drv: drv.pname)
+        |   (filter
+        |     (drv: drv ? type && drv.type == "derivation" && drv ? pname)
+        |     (concatMap attrValues
+        |       (filter
+        |         (v: typeOf v == "set")
+        |         (attrValues cases)))))""".stripMargin,
+      "--json"
+    )
+    val output = os.proc(args).call().out.trim()
+    println()
+    ujson
+      .read(output)
+      .arr
+      .map(v => v.str)
+      .filter(eachCase => regexp.findAllIn(eachCase).nonEmpty)
+      .foreach(p => println(s"* ${p}"))
+  end listCases
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 end Main
