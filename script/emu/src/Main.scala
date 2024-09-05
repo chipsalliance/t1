@@ -206,19 +206,45 @@ object Main:
       ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
       ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)
 
-    Logger.info(s"Starting IP emulator: `${processArgs.mkString(" ")}`")
     if dryRun.value then return
 
     val rtlEventPath = outputPath / "rtl-event.jsonl.zst"
     val journalPath  = outputPath / "online-drive-emu-journal"
-    val driverProc   = os
+    val statePath    = outputPath / "driver-state.json"
+
+    // Save information of this run, so that user can start offline check without arguments
+    os.write(
+      statePath,
+      ujson.write(
+        ujson.Obj(
+          "config" -> finalConfig.get,
+          "elf"    -> caseElfPath.toString,
+          "event"  -> rtlEventPath.toString
+        )
+      )
+    )
+
+    // For vcs trace simulator, we need daidir keep at same directory as the wave.fsdb file
+    if finalEmuType.get == "vcs-emu-trace" then
+      val libPath    = emulator / os.up / os.up / "lib"
+      val daidirPath =
+        os.walk(libPath)
+          .filter(path => os.isDir(path))
+          .filter(path => path.segments.toSeq.last.endsWith(".daidir"))
+          .last
+      val daidirName = daidirPath.segments.toSeq.last
+      os.symlink(outputPath / daidirName, daidirPath)
+
+    Logger.info(s"Starting IP emulator: `${processArgs.mkString(" ")}`")
+
+    val driverProc = os
       .proc(processArgs)
       .spawn(
         stdout = journalPath,
         stderr = os.Pipe,
         env = optionalMap(verbose.value, Map("RUST_LOG" -> "TRACE"))
       )
-    val zstdProc     = os
+    val zstdProc   = os
       .proc(Seq("zstd", "-o", s"${rtlEventPath}"))
       .spawn(
         stdin = driverProc.stderr,
@@ -231,28 +257,7 @@ object Main:
     if zstdProc.exitCode() != 0 then Logger.fatal("fail to compress data")
     if driverProc.exitCode() != 0 then Logger.fatal("online driver run failed")
 
-    val statePath = outputPath / "driver-state.json"
-    os.write(
-      statePath,
-      ujson.write(
-        ujson.Obj(
-          "config" -> finalConfig.get,
-          "elf"    -> caseElfPath.toString,
-          "event"  -> rtlEventPath.toString
-        )
-      )
-    )
-
-    if finalEmuType.get == "vcs-emu-trace" then
-      val libPath    = emulator / os.up / os.up / "lib"
-      val daidirPath =
-        os.walk(libPath)
-          .filter(path => os.isDir(path))
-          .filter(path => path.segments.toSeq.last.endsWith(".daidir"))
-          .last
-      val daidirName = daidirPath.segments.toSeq.last
-      os.symlink(outputPath / daidirName, daidirPath)
-
+    Logger.info("Driver finished")
     Logger.info(s"Output saved under ${outputPath}")
   end run
 
