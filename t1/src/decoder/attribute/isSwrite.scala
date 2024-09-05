@@ -134,8 +134,6 @@ object isSwrite {
       "vredor.vs",
       "vredsum.vs",
       "vredxor.vs",
-      "vrgather.vv",
-      "vrgatherei16.vv",
       "vs1r.v",
       "vs2r.v",
       "vs4r.v",

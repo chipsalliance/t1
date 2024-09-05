@@ -234,13 +234,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.vlMaxBits)))
 
-  /** response to [[T1.lsu]] or mask unit in [[T1]] */
   @public
-  val laneResponse: ValidIO[LaneResponse] = IO(Valid(new LaneResponse(parameter)))
+  val maskUnitRequest: DecoupledIO[MaskUnitExeReq] = IO(Decoupled(new MaskUnitExeReq(parameter)))
 
-  /** feedback from [[T1]] to [[Lane]] for [[laneResponse]] */
   @public
-  val laneResponseFeedback: ValidIO[LaneResponseFeedback] = IO(Flipped(Valid(new LaneResponseFeedback(parameter))))
+  val maskRequestToLSU: Bool = IO(Output(Bool()))
+
+  @public
+  val maskUnitResponse: ValidIO[MaskUnitExeResponse] = IO(Flipped(Valid(new MaskUnitExeResponse(parameter))))
 
   /** for LSU and V accessing lane, this is not a part of ring, but a direct connection. */
   @public
@@ -570,14 +571,25 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       slotCanShift(index) := true.B
     }
 
-    val laneState:     LaneState                     = Wire(new LaneState(parameter))
-    val stage0:        Instance[LaneStage0]          = Instantiate(new LaneStage0(parameter, isLastSlot))
-    val stage1:        Instance[LaneStage1]          = Instantiate(new LaneStage1(parameter, isLastSlot))
-    val stage2:        Instance[LaneStage2]          = Instantiate(new LaneStage2(parameter, isLastSlot))
-    val executionUnit: Instance[LaneExecutionBridge] = Instantiate(
+    val laneState:       LaneState                          = Wire(new LaneState(parameter))
+    val stage0:          Instance[LaneStage0]               = Instantiate(new LaneStage0(parameter, isLastSlot))
+    val stage1:          Instance[LaneStage1]               = Instantiate(new LaneStage1(parameter, isLastSlot))
+    val stage2:          Instance[LaneStage2]               = Instantiate(new LaneStage2(parameter, isLastSlot))
+    val executionUnit:   Instance[LaneExecutionBridge]      = Instantiate(
       new LaneExecutionBridge(parameter, isLastSlot, index)
     )
-    val stage3:        Instance[LaneStage3]          = Instantiate(new LaneStage3(parameter, isLastSlot))
+    val maskStage:       Option[Instance[MaskExchangeUnit]] =
+      Option.when(isLastSlot)(Instantiate(new MaskExchangeUnit(parameter)))
+    val stage3:          Instance[LaneStage3]               = Instantiate(new LaneStage3(parameter, isLastSlot))
+    val stage3EnqWire:   DecoupledIO[LaneStage3Enqueue]     = Wire(Decoupled(new LaneStage3Enqueue(parameter, isLastSlot)))
+    val stage3EnqSelect: DecoupledIO[LaneStage3Enqueue]     = maskStage.map { mask =>
+      mask.enqueue <> stage3EnqWire
+      maskUnitRequest <> mask.maskReq
+      maskRequestToLSU <> mask.maskRequestToLSU
+      mask.maskUnitResponse := maskUnitResponse
+      mask.dequeue
+    }.getOrElse(stage3EnqWire)
+    stage3.enqueue <> stage3EnqSelect
 
     // slot state
     laneState.vSew1H                   := vSew1H
@@ -759,50 +771,47 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       0.U(parameter.chainingSize.W)
     )
     AssertProperty(BoolSequence(!executionUnit.dequeue.valid || stage2.dequeue.valid))
-    stage3.enqueue.valid        := executionUnit.dequeue.valid
-    executionUnit.dequeue.ready := stage3.enqueue.ready
+    stage3EnqWire.valid         := executionUnit.dequeue.valid
+    executionUnit.dequeue.ready := stage3EnqWire.ready
     stage2.dequeue.ready        := executionUnit.dequeue.fire
 
     if (!isLastSlot) {
-      stage3.enqueue.bits := DontCare
+      stage3EnqWire.bits := DontCare
     }
 
     // pipe state from stage0
-    stage3.enqueue.bits.decodeResult     := stage2.dequeue.bits.decodeResult
-    stage3.enqueue.bits.instructionIndex := stage2.dequeue.bits.instructionIndex
-    stage3.enqueue.bits.loadStore        := stage2.dequeue.bits.loadStore
-    stage3.enqueue.bits.vd               := stage2.dequeue.bits.vd
-    stage3.enqueue.bits.ffoByOtherLanes  := ffoRecord.ffoByOtherLanes
-    stage3.enqueue.bits.groupCounter     := stage2.dequeue.bits.groupCounter
-    stage3.enqueue.bits.mask             := stage2.dequeue.bits.mask
+    stage3EnqWire.bits.decodeResult     := stage2.dequeue.bits.decodeResult
+    stage3EnqWire.bits.instructionIndex := stage2.dequeue.bits.instructionIndex
+    stage3EnqWire.bits.loadStore        := stage2.dequeue.bits.loadStore
+    stage3EnqWire.bits.vd               := stage2.dequeue.bits.vd
+    stage3EnqWire.bits.ffoByOtherLanes  := ffoRecord.ffoByOtherLanes
+    stage3EnqWire.bits.groupCounter     := stage2.dequeue.bits.groupCounter
+    stage3EnqWire.bits.mask             := stage2.dequeue.bits.mask
     if (isLastSlot) {
-      stage3.enqueue.bits.sSendResponse := stage2.dequeue.bits.sSendResponse.get
-      stage3.enqueue.bits.ffoSuccess    := executionUnit.dequeue.bits.ffoSuccess.get
-      stage3.enqueue.bits.fpReduceValid.zip(executionUnit.dequeue.bits.fpReduceValid).foreach { case (sink, source) =>
+      stage3EnqWire.bits.sSendResponse := stage2.dequeue.bits.sSendResponse.get
+      stage3EnqWire.bits.ffoSuccess    := executionUnit.dequeue.bits.ffoSuccess.get
+      stage3EnqWire.bits.fpReduceValid.zip(executionUnit.dequeue.bits.fpReduceValid).foreach { case (sink, source) =>
         sink := source
       }
     }
-    stage3.enqueue.bits.data             := executionUnit.dequeue.bits.data
-    stage3.enqueue.bits.pipeData         := stage2.dequeue.bits.pipeData.getOrElse(DontCare)
-    stage3.enqueue.bits.ffoIndex         := executionUnit.dequeue.bits.ffoIndex
-    executionUnit.dequeue.bits.crossWriteData.foreach(data => stage3.enqueue.bits.crossWriteData := data)
-    stage2.dequeue.bits.sSendResponse.foreach(_ => stage3.enqueue.bits.sSendResponse := _)
-    executionUnit.dequeue.bits.ffoSuccess.foreach(_ => stage3.enqueue.bits.ffoSuccess := _)
+    stage3EnqWire.bits.data             := executionUnit.dequeue.bits.data
+    stage3EnqWire.bits.pipeData         := stage2.dequeue.bits.pipeData.getOrElse(DontCare)
+    stage3EnqWire.bits.ffoIndex         := executionUnit.dequeue.bits.ffoIndex
+    executionUnit.dequeue.bits.crossWriteData.foreach(data => stage3EnqWire.bits.crossWriteData := data)
+    stage2.dequeue.bits.sSendResponse.foreach(_ => stage3EnqWire.bits.sSendResponse := _)
+    executionUnit.dequeue.bits.ffoSuccess.foreach(_ => stage3EnqWire.bits.ffoSuccess := _)
 
     if (isLastSlot) {
-      when(laneResponseFeedback.valid) {
-        when(laneResponseFeedback.bits.complete) {
+      when(maskUnitResponse.valid) {
+        when(maskUnitResponse.bits.ffoByOther) {
           ffoRecord.ffoByOtherLanes := true.B
         }
       }
-      when(stage3.enqueue.fire) {
+      when(stage3EnqWire.fire) {
         executionUnit.dequeue.bits.ffoSuccess.foreach(ffoRecord.selfCompleted := _)
         // This group found means the next group ended early
         ffoRecord.ffoByOtherLanes := ffoRecord.ffoByOtherLanes || ffoRecord.selfCompleted
       }
-
-      laneResponse <> stage3.laneResponse.get
-      stage3.laneResponseFeedback.get <> laneResponseFeedback
     }
 
     // --- stage 3 end & stage 4 start ---
@@ -1175,10 +1184,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     rpt.bits  := allVrfWriteAfterCheck(parameter.chainingSize + 1 + rptIndex).instructionIndex
   }
   // todo: add mask unit write token
-  tokenManager.responseReport.valid         := laneResponse.valid
-  tokenManager.responseReport.bits          := laneResponse.bits.instructionIndex
-  tokenManager.responseFeedbackReport.valid := laneResponseFeedback.valid
-  tokenManager.responseFeedbackReport.bits  := laneResponseFeedback.bits.instructionIndex
+  tokenManager.responseReport.valid         := maskUnitRequest.valid
+  tokenManager.responseReport.bits          := maskUnitRequest.bits.index
+  tokenManager.responseFeedbackReport.valid := maskUnitResponse.valid
+  tokenManager.responseFeedbackReport.bits  := maskUnitResponse.bits.index
   val instInSlot: UInt = slotControl
     .zip(slotOccupied)
     .map { case (slotState, occupied) =>
@@ -1210,6 +1219,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   tokenManager.topWriteDeq.valid := afterCheckDequeueFire(parameter.chainingSize)
   tokenManager.topWriteDeq.bits  := allVrfWriteAfterCheck(parameter.chainingSize).instructionIndex
+
+  tokenManager.maskUnitLastReport := lsuLastReport
 
   layer.block(layers.Verification) {
     val probeWire = Wire(new LaneProbe(parameter))

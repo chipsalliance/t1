@@ -101,6 +101,9 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   @public
   val dataInWritePipe: UInt = IO(Output(UInt(parameter.chainingSize.W)))
 
+  @public
+  val maskUnitLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+
   def tokenUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
     tokenData.zipWithIndex.foreach { case (t, i) =>
       val e      = enqWire(i)
@@ -114,12 +117,15 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   }
 
   // todo: Precise feedback
-  def feedbackUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
+  def feedbackUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt, clear: UInt): UInt = {
     tokenData.zipWithIndex.foreach { case (t, i) =>
       val e      = enqWire(i)
       val d      = deqWire(i)
+      val c      = clear(i)
       val change = Mux(e, 1.U(tokenWith.W), -1.S(tokenWith.W).asUInt)
-      when((e ^ d) && (e || t =/= 0.U)) {
+      when(c) {
+        t := 0.U
+      }.elsewhen((e ^ d) && (e || t =/= 0.U)) {
         t := t + change
       }
     }
@@ -132,7 +138,11 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
     val enqOH = indexToOH(enqReport.bits.instructionIndex, parameter.chainingSize)
 
     val writeDoEnq: UInt =
-      maskAnd(enqReport.valid && !enqReport.bits.decodeResult(Decoder.sWrite), enqOH).asUInt
+      maskAnd(
+        enqReport.valid && !enqReport.bits.decodeResult(Decoder.sWrite) &&
+          !enqReport.bits.decodeResult(Decoder.maskUnit),
+        enqOH
+      ).asUInt
 
     val writeDoDeq: UInt =
       maskAnd(
@@ -140,7 +150,9 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
         indexToOH(slotWriteReport(slotIndex).bits, parameter.chainingSize)
       ).asUInt
 
-    val pendingSlotWrite = tokenUpdate(writeToken, writeDoEnq, writeDoDeq)
+    val writeEnqSelect: UInt = Wire(UInt(parameter.chainingSize.W))
+
+    val pendingSlotWrite = tokenUpdate(writeToken, writeEnqSelect, writeDoDeq)
 
     if (slotIndex == 0) {
       val responseToken:      Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
@@ -181,13 +193,16 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
         responseFeedbackReport.bits
       )
       val feedbackDoDeq: UInt =
-        maskAnd(responseFeedbackReport.valid, indexToOH(feedbackIndexSelect, parameter.chainingSize)).asUInt
+        maskAnd(responseFeedbackReport.valid, indexToOH(responseFeedbackReport.bits, parameter.chainingSize)).asUInt
+
+      writeEnqSelect := writeDoEnq | feedbackDoDeq
 
       val pendingResponse = tokenUpdate(responseToken, responseDoEnq, responseDoDeq)
       // todo: Precise feedback
-      val pendingFeedback = feedbackUpdate(feedbackToken, responseDoEnq, feedbackDoDeq)
+      val pendingFeedback = feedbackUpdate(feedbackToken, responseDoEnq, feedbackDoDeq, maskUnitLastReport)
       pendingSlotWrite | pendingCrossWriteLSB | pendingCrossWriteMSB | pendingResponse | pendingFeedback
     } else {
+      writeEnqSelect := writeDoEnq
       pendingSlotWrite
     }
   }.reduce(_ | _)

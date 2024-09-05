@@ -46,18 +46,11 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
   val pipeEnqueue: Option[LaneStage3Enqueue] = Option.when(isLastSlot)(RegInit(0.U.asTypeOf(enqueue.bits)))
 
-  /** response to [[T1.lsu]] or mask unit in [[T1]] */
   @public
-  val laneResponse: Option[ValidIO[LaneResponse]] = Option.when(isLastSlot)(IO(Valid(new LaneResponse(parameter))))
-  @public
-  val stageValid:   Bool                          = IO(Output(Bool()))
+  val stageValid: Bool = IO(Output(Bool()))
 
-  /** feedback from [[T1]] to [[Lane]] for [[laneResponse]] */
   @public
-  val laneResponseFeedback: Option[ValidIO[LaneResponseFeedback]]  =
-    Option.when(isLastSlot)(IO(Flipped(Valid(new LaneResponseFeedback(parameter)))))
-  @public
-  val crossWritePort:       Option[Vec[DecoupledIO[WriteBusData]]] =
+  val crossWritePort: Option[Vec[DecoupledIO[WriteBusData]]] =
     Option.when(isLastSlot)(IO(Vec(2, Decoupled(new WriteBusData(parameter)))))
 
   val stageValidReg: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
@@ -68,20 +61,10 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   /** schedule cross lane write MSB */
   val sCrossWriteMSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
 
-  // state for response to scheduler
-  /** schedule send [[LaneResponse]] to scheduler */
-  val sSendResponse: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
-
-  /** wait scheduler send [[LaneResponseFeedback]] */
-  val wResponseFeedback: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
-
   // update register
   when(enqueue.fire) {
     pipeEnqueue.foreach(_ := enqueue.bits)
     (sCrossWriteLSB ++ sCrossWriteMSB).foreach(_ := !enqueue.bits.decodeResult(Decoder.crossWrite))
-    (sSendResponse ++ wResponseFeedback).foreach(
-      _ := enqueue.bits.decodeResult(Decoder.scheduler) || enqueue.bits.sSendResponse
-    )
   }
 
   // Used to cut off back pressure forward
@@ -111,43 +94,18 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
         sendState(index) := true.B
       }
     }
-    // scheduler synchronization
-    val schedulerFinish: Bool = (sSendResponse ++ wResponseFeedback).reduce(_ && _)
 
     val dataSelect: Option[UInt] = Option.when(isLastSlot) {
       Mux(
         pipeEnqueue.get.decodeResult(Decoder.nr) ||
-          (enqueue.bits.ffoByOtherLanes && pipeEnqueue.get.decodeResult(Decoder.ffo)) ||
-          pipeEnqueue.get.decodeResult(Decoder.dontNeedExecuteInLane),
+          (enqueue.bits.ffoByOtherLanes && pipeEnqueue.get.decodeResult(Decoder.ffo)),
         pipeEnqueue.get.pipeData,
         pipeEnqueue.get.data
       )
     }
-    // mask request
-    laneResponse.head.valid                 := stageValidReg.get && !sSendResponse.get
-    laneResponse.head.bits.data             := Mux(
-      pipeEnqueue.get.decodeResult(Decoder.ffo),
-      pipeEnqueue.get.ffoIndex,
-      dataSelect.get
-    )
-    laneResponse.head.bits.toLSU            := pipeEnqueue.get.loadStore
-    laneResponse.head.bits.instructionIndex := pipeEnqueue.get.instructionIndex
-    laneResponse.head.bits.ffoSuccess       := pipeEnqueue.get.ffoSuccess
-    laneResponse.head.bits.fpReduceValid.zip(pipeEnqueue.get.fpReduceValid).foreach { case (s, f) => s := f }
-
-    sSendResponse.foreach(state =>
-      when(laneResponse.head.valid) {
-        state := true.B
-      }
-    )
-    wResponseFeedback.foreach(state =>
-      when(laneResponseFeedback.head.valid) {
-        state := true.B
-      }
-    )
 
     // enqueue write for last slot
-    vrfWriteQueue.io.enq.valid := stageValidReg.get && schedulerFinish && !pipeEnqueue.get.decodeResult(Decoder.sWrite)
+    vrfWriteQueue.io.enq.valid := stageValidReg.get && !pipeEnqueue.get.decodeResult(Decoder.sWrite)
 
     // UInt(5.W) + UInt(3.W), use `+` here
     vrfWriteQueue.io.enq.bits.vd := pipeEnqueue.get.vd + pipeEnqueue.get.groupCounter(
@@ -165,8 +123,8 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     /** Cross-lane writing is over */
     val CrossLaneWriteOver: Bool = (sCrossWriteLSB ++ sCrossWriteMSB).reduce(_ && _)
 
-    enqueue.ready := !stageValidReg.get || (CrossLaneWriteOver && schedulerFinish && vrfWriteReady)
-    val dequeueFire = stageValidReg.get && CrossLaneWriteOver && schedulerFinish && vrfWriteReady
+    enqueue.ready := !stageValidReg.get || (CrossLaneWriteOver && vrfWriteReady)
+    val dequeueFire = stageValidReg.get && CrossLaneWriteOver && vrfWriteReady
     stageValidReg.foreach { data =>
       when(dequeueFire ^ enqueue.fire) {
         data := enqueue.fire
