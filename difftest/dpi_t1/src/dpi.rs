@@ -231,7 +231,9 @@ unsafe extern "C" fn t1_cosim_init() {
 
 #[no_mangle]
 unsafe extern "C" fn t1_cosim_final() {
-  dpi_common::util::write_perf_json(crate::get_t());
+  TARGET.with(|driver| {
+    dpi_common::util::write_perf_json(crate::get_t(), driver.success);
+  })
 }
 
 /// evaluate at every 1024 cycles, return reason = 0 to continue simulation,

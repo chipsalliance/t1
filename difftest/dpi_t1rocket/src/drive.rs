@@ -121,6 +121,7 @@ pub(crate) struct Driver {
   shadow_mem: ShadowMem,
 
   pub(crate) quit: bool,
+  pub(crate) success: bool,
 }
 
 impl Driver {
@@ -142,6 +143,7 @@ impl Driver {
       shadow_mem,
 
       quit: false,
+      success: false,
     }
   }
 
@@ -305,6 +307,7 @@ impl Driver {
       let exit_data_slice = data[..4].try_into().expect("slice with incorrect length");
       if u32::from_le_bytes(exit_data_slice) == EXIT_CODE {
         info!("driver is ready to quit");
+        self.success = true;
         self.quit = true;
       }
     }

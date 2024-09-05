@@ -103,6 +103,7 @@ pub(crate) struct Driver {
   scope: SvScope,
 
   dump_control: DumpControl,
+  pub(crate) success: bool,
 
   pub(crate) dlen: u32,
 
@@ -132,6 +133,7 @@ impl Driver {
 
       scope,
       dump_control,
+      success: false,
 
       dlen: args.dlen,
       timeout: args.timeout,
@@ -261,6 +263,7 @@ impl Driver {
               get_t(),
               se.pc
             );
+            self.success = true;
             IssueData { meta: ISSUE_EXIT, ..Default::default() }
           } else {
             self.spike_runner.commit_queue.pop_back();
