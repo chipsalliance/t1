@@ -20,6 +20,8 @@ stdenv.mkDerivation rec {
 
   # require license
   __noChroot = true;
+  # Require nix feature `impure-derivation`
+  __impure = true;
   dontPatchELF = true;
 
   src = rtl;

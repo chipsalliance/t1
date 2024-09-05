@@ -6,6 +6,12 @@ let
   llvmForRVV_attrName = "llvmPackages_17"; # brand new clang with v0.12 rvv intrinsic support
   rv32_pkgs = final.pkgsCross.riscv32-embedded;
   rv32_buildPkgs = rv32_pkgs.buildPackages;
+  impureGetEnv = env: final.runCommand "get-env-${env}" { __impure = true; impureEnvVars = [ env ]; } ''
+    _innerEnv=$(printenv ${env} \
+      || (echo "[ERROR] ${env} not found, possibly forget to set or forget --impure arg" >&2 && exit 1))
+
+    printf "$_innerEnv" > $out
+  '';
 in
 rec {
   pkgsX86 = self.legacyPackages."x86_64-linux";
@@ -28,11 +34,9 @@ rec {
   rvv-codegen = final.callPackage ./pkgs/rvv-codegen.nix { };
   add-determinism = final.callPackage ./pkgs/add-determinism { }; # faster strip-undetereminism
   # Using VCS need to set VC_STATIC_HOME and SNPSLMD_LICENSE_FILE to impure env, and add sandbox dir to VC_STATIC_HOME
-  vcStaticHome = builtins.getEnv "VC_STATIC_HOME";
-  snpslmdLicenseFile = builtins.getEnv "SNPSLMD_LICENSE_FILE";
-  vcs-fhs-env = assert final.lib.assertMsg (final.vcStaticHome != "") "No $VC_STATIC_HOME or '--impure' applied";
-    assert final.lib.assertMsg (final.snpslmdLicenseFile != "") "No $SNPSLMD_LICENSE_FILE or '--impure' applied";
-    final.callPackage ./pkgs/vcs-fhs-env.nix { };
+  vcStaticHome = builtins.readFile (impureGetEnv "VC_STATIC_HOME");
+  snpslmdLicenseFile = builtins.readFile (impureGetEnv "SNPSLMD_LICENSE_FILE");
+  vcs-fhs-env = final.callPackage ./pkgs/vcs-fhs-env.nix { };
 
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {

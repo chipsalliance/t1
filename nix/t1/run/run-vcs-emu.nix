@@ -6,6 +6,8 @@ stdenvNoCC.mkDerivation (finalAttr: {
   name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enableTrace "-trace");
   nativeBuildInputs = [ zstd jq ];
   __noChroot = true;
+  # Require nix feature `impure-derivation`
+  __impure = true;
 
   passthru.caseName = testCase.pname;
 

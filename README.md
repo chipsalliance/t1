@@ -64,26 +64,13 @@ For tuning the ideal vector machines, follow these performance-tuning methodolog
 
 We have a IP emulator under the directory `./ipemu`. [Spike](https://github.com/riscv/riscv-isa-sim) is used as the reference scalar core, integrated with the verilated vector IP. Under the online differential-test strategy, the emulator compares the load/store and VRF writes between Spike and T1 to verify T1’s correctness.
 
-### Docker images
-
-```bash
-docker pull ghcr.io/chipsalliance/t1-$config:latest
-# For example, config with dlen 256 vlen 512 support
-docker pull ghcr.io/chipsalliance/t1-blastoise:latest
-```
-
-Or build the image using nix and load it into docker
-
-```bash
-nix build -L ".#t1.$config.release.docker-image" --out-link docker-image.tar.gz
-docker load -i ./docker-image.tar.gz
-```
-
-> Using nix to build docker-image required KVM feature, so this derivation might not be available
-> for some platform that has no QEMU/KVM support.
-
 ### Nix setup
 We use Nix Flake as our primary build system. If you have not installed nix, install it following the [guide](https://nixos.org/manual/nix/stable/installation/installing-binary.html), and enable flake following the [wiki](https://nixos.wiki/wiki/Flakes#Enable_flakes). Or you can try the [installer](https://github.com/DeterminateSystems/nix-installer) provided by Determinate Systems, which enables flake by default.
+
+***Requirement***
+
+* nix: 2.24+
+* nix features: `nix-command`, `flakes`, `pipe-operators`, `impure-derivations`
 
 ### Build
 
@@ -312,6 +299,24 @@ Build tests:
 $ nix build .#t1.<config-name>.cases.ip.intrinsic.matmul -L
 $ ls -al ./result
 ```
+
+### Docker images
+
+```bash
+docker pull ghcr.io/chipsalliance/t1-$config:latest
+# For example, config with dlen 256 vlen 512 support
+docker pull ghcr.io/chipsalliance/t1-blastoise:latest
+```
+
+Or build the image using nix and load it into docker
+
+```bash
+nix build -L ".#t1.$config.release.docker-image" --out-link docker-image.tar.gz
+docker load -i ./docker-image.tar.gz
+```
+
+> Using nix to build docker-image required KVM feature, so this derivation might not be available
+> for some platform that has no QEMU/KVM support.
 
 ### Bump Dependencies
 Bump nixpkgs:

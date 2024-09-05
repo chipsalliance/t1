@@ -166,19 +166,13 @@ object Main:
         case "vcs"       => s".#t1.$config.ip.run.$caseName.vcs-emu"
         case _           => Logger.fatal(s"Invalid test type ${testType}")
       val testResultPath =
-        try
-          os.Path(
-            nixResolvePath(
-              testAttr,
-              if testType == "vcs" then Seq("--impure") else Seq()
-            )
-          )
+        try os.Path(nixResolvePath(testAttr))
         catch
           case _ =>
             Logger.error(
               s"Online driver for config $config, case $caseName fail, please check manually on local machine"
             )
-            Logger.error(s"nix build $testAttr" ++ (if testType == "vcs" then " --impure" else ""))
+            Logger.error(s"nix build $testAttr")
             Logger.fatal("Online Drive run fail, exiting CI")
 
       Logger.info("Checking RTL event from event log")
@@ -239,11 +233,7 @@ object Main:
 
         Logger.info("Fetching CI results")
         val emuResultPath = os.Path(
-          nixResolvePath(
-            s".#t1.$config.ip.run._${emuType}EmuResult",
-            if emuType.toLowerCase() == "vcs" then Seq("--impure")
-            else Seq()
-          )
+          nixResolvePath(s".#t1.$config.ip.run._${emuType}EmuResult")
         )
 
         Logger.info("Collecting failed tests")
@@ -254,7 +244,7 @@ object Main:
             val caseName = path.segments.toSeq.reverse.drop(1).head
             os.write.append(
               failedTestsFile,
-              s"* ${config} - ${caseName}: `nix build .#t1.$config.ip.$caseName.$emuType-emu -L --impure`\n"
+              s"* ${config} - ${caseName}: `nix build .#t1.$config.ip.$caseName.$emuType-emu -L`\n"
             )
           })
 
