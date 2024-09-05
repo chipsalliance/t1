@@ -88,6 +88,18 @@ buildBuddyE2ETest {
 Here you can think `optPhase` as a bash function. Developers can write their own pass in this function.
 Each `optPhase` should modify the `optArtifacts` array, to indicate our build system about the final output.
 
+Some cases might require `memrefCopy` symbol, you can add this into optPhase too:
+
+```bash
+# ...
+    echo "Compiling memrefCopy library"
+    $CXX -nostdlib -c ${../lib/MemrefCopy.cc} -o memrefCopy.o
+    llcArtifacts+=(
+      memrefCopy.o
+    )
+# ...
+```
+
 The `caseName` and `optPhase` attribute is always required.
 We also offer the below attribute for you to override:
 

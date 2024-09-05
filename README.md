@@ -111,22 +111,23 @@ T1 includes a hardware design written in Chisel and an emulator powered by a ver
 Users can add their own pokemon to `configgen/src/Main.scala` to add configurations with different variations.
 
 You can build its components with the following commands:
+
 ```shell
 $ nix build .#t1.elaborator  # the wrapped jar file of the Chisel elaborator
 
 $ nix build .#t1.<config-name>.ip.rtl  # the elaborated IP core .sv files
 $ nix build .#t1.<config-name>.ip.emu-rtl  # the elaborated IP core .sv files with emulation support
-$ nix build .#t1.<config-name>.ip.emu  # build the IP core emulator
-$ nix build .#t1.<config-name>.ip.emu-trace  # build the IP core emulator with trace support
+$ nix build .#t1.<config-name>.ip.verilator-emu  # build the IP core emulator using verilator
+$ nix build .#t1.<config-name>.ip.vcs-emu  # build the IP core emulator using VCS
+$ nix build .#t1.<config-name>.ip.vcs-emu-trace  # build the IP core emulator using VCS w/ trace support
 
 $ nix build .#t1.<config-name>.subsystem.rtl  # the elaborated soc .sv files
 $ nix build .#t1.<config-name>.subsystem.emu-rtl  # the elaborated soc .sv files with emulation support
 $ nix build .#t1.<config-name>.subsystem.emu  # build the soc emulator
 $ nix build .#t1.<config-name>.subsystem.emu-trace  # build the soc emulator with trace support
-
-$ nix build .#t1.<config-name>.cases.all  # the testcases
 ```
-where `<config-name>` should be replaced with a configuration name, e.g. `bulbasaur`. The build output will be put in `./result` directory by default.
+
+where `<config-name>` should be replaced with a configuration name, e.g. `blastoise`. The build output will be put in `./result` directory by default.
 
 Currently under tested configs:
 
@@ -137,33 +138,59 @@ Currently under tested configs:
 | **Sandslash** | `DLEN1K  VLEN4K ; NOFP; VRF p0rw      bank4; LSU bank16 beatbyte 16` |
 | **Alakazam**  | `DLEN2K  VLEN16K; NOFP; VRF p0rw      bank8; LSU bank8  beatbyte 64` |
 
+The `<config-name>` could also be `t1rocket`,
+this is special configuration name that enable rocket-chip support for scalar instruction.
+
 #### Run Testcases
 
 To run testcase on IP emulator, use the following script:
 ```shell
-$ nix develop -c t1-helper ipemu -c <config-name> -C <case-name>
+$ nix develop -c t1-helper run -c <config-name> -e <emulator-type> <case-name>
 ```
 wheres
 - `<config-name>` is the configuration name;
-- `<case-name>` is the name of a testcase, you can resolve runnable test cases by command: `make list-testcases`;
+- `<emulator-type>` is one of the `verilator-emu`, `verilator-emu-trace`, `vcs-emu`, `vcs-emu-trace`
+- `<case-name>` is the name of a testcase, you can resolve runnable test cases by command: `t1-helper listCases -c <config-name> <regexp>`;
 
 For example:
+
 ```shell
-$ nix develop -c t1-helper ipemu --config blastoise -C intrinsic.linear_normalization
+$ nix develop -c t1-helper run -c blastoise -e vcs-emu intrinsic.linear_normalization
 ```
 
-To get waveform, add `--trace` at the end of the above command:
+To get waveform, use the trace emulator
 
 ```console
-$ nix develop -c t1-helper ipemu --config blastoise -C intrinsic.linear_normalization --trace
+$ nix develop -c t1-helper run -c blastoise -e vcs-emu-trace intrinsic.linear_normalization
 ```
 
-The `t1-helper` is a emulator wrapper that provides various command-line options for different use cases.
-To get all available options, run:
+The `<config-name>` and `<emulator-type>` option will be cached under `$XDG_CONFIG_HOME`,
+so if you want to test multiple test case with the same emulator,
+you don't need to add `-c` and `-e` option every time.
+
+For example:
 
 ```console
-$ nix develop -c t1-helper --help
+$ nix develop -c t1-helper run -c blastoise -e vcs-emu-trace intrinsic.linear_normalization
+$ nix develop -c t1-helper run pytorch.llama
 ```
+
+To get verbose logging, add the `-v` option
+
+```console
+$ nix develop -c t1-helper run -v pytorch.lenet
+```
+
+The `t1-helper run` subcommand only run the driver without validating internal status.
+To run design verification, use the `t1-helper check` subcommand:
+
+```console
+$ nix develop -c t1-helper run -c blastoise -e vcs-emu mlir.hello
+$ nix develop -c t1-helper check
+```
+
+The `t1-helper check` subcommand will read RTL event produced in `run` stage,
+so make sure you `run` a test before `check`.
 
 #### Export RTL Properties
 
@@ -218,126 +245,73 @@ $ nix develop .#t1.elaborator.editable  # or if you want submodules editable
 $ mill -i elaborator  # build and run elaborator
 ```
 
-#### Developing Emulator
+#### Developing DPI
 ```shell
-$ nix develop .#t1.<config-name>.ip.emu  # replace <config-name> with your configuration name
+$ nix develop .#t1.<config-name>.ip.vcs-dpi-lib  # replace <config-name> with your configuration name
 $ cd ipemu/csrc
-$ cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Debug
-$ cmake --build build
-$ cd ..; ./scripts/run-test.py verilate --emulator-path=ipemu/csrc/build/emulator conv-mlir
-```
-
-If using clion,
-```shell
-$ nix develop .#t1.<config-name>.ip.emu -c clion ipemu/csrc
-```
-
-#### Rocket emulator
-
-Rocket emulator contains multiple build phrase: RTL -> MLIR Bytecode ->
-system verilog -> verilated C sources -> Rust emulator.
-
-Most of the developer doesn't need to care about MLIR, system verilog and verilate detail.
-To develop the Rocket-chip RTL, run:
-
-```bash
-# This command provide a environment that contains mill, circt, espresso... development tools.
-nix develop '.#t1.elaborator'
-```
-
-> Metals LSP users are recommended to switch to mill-bsp mode instead of the default bloop mode.
-
-To elaborate the RTLs, run mill or use the nix chroot:
-
-```bash
-# for development
-mill -i elaborator.runMain org.chipsalliance.t1.elaborator.Main
-# for clean build
-nix build .#t1.rocketv-mlirbc
-```
-
-To develop the emulator, use the below nix environment:
-
-```bash
-nix develop .#t1.rocketv-emu.driver.devShell
-```
-
-This will setup the verilated C src in environment, download rust-analyzer.
-
-```bash
-cd rocketemu/driver
-cargo build --release
+$ cargo build --feature dpicommon/vcs
 ```
 
 #### Developing Testcases
-The `tests/` contains the testcases. There are four types of testcases:
+The `tests/` directory contains all the testcases.
 
 - asm
+- codegen
 - intrinsic
 - mlir
-- codegen
 - perf
+- pytorch
+- rvv_bench
 
-To add new testcases for asm/intrinsic/mlir, create a new directory with `default.nix` and source files.
-Refer to the existing code for more information on how to write the nix file.
-
-To add new testcases for codegen type cases, add new entry in `codegen/*.txt`, then our nix macro will automatically populate new testcases to build.
-
-To view what is available to ran, use the `nix search` sub command:
+To view what is available to run, use the `t1-helper listCases` sub command:
 
 ```console
-$ nix search .#t1 <regexp>
+$ t1-helper listCases -c <config-name> <regexp>
 ```
 
 For example,
 ```console
-$ nix search .#t1 asm
-* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.fpsmoke
-  Test case 'fpsmoke', written in assembly.
+$ t1-helper listCases -c blastoise mlir
+[INFO] Fetching current test cases
 
-* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.memcpy
-  Test case 'memcpy', written in assembly.
+* mlir.axpy_masked
+* mlir.conv
+* mlir.hello
+* mlir.matmul
+* mlir.maxvl_tail_setvl_front
+* mlir.rvv_vp_intrinsic_add
+* mlir.rvv_vp_intrinsic_add_scalable
+* mlir.stripmining
+* mlir.vectoradd
 
-* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.mmm
-  Test case 'mmm', written in assembly.
+$ t1-helper listCases -c blastoise '.*vslid.*'
+[INFO] Fetching current test cases
 
-* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.smoke
-  Test case 'smoke', written in assembly.
-
-* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.strlen
-  Test case 'strlen', written in assembly.
-
-* legacyPackages.x86_64-linux.t1.<config-name>.cases.asm.utf8-count
-  Test case 'utf8-count', written in assembly.
-
-# Then ignore the `legacyPackage.x86_64-linux` attribute, build the testcase like below:
-$ nix build .#t1.<config-name>.cases.asm.smoke
+* codegen.vslide1down_vx
+* codegen.vslide1up_vx
+* codegen.vslidedown_vi
+* codegen.vslidedown_vx
+* codegen.vslideup_vi
+* codegen.vslideup_vx
 ```
 
 To develop a specific testcases, enter the development shell:
 
 ```shell
-# nix develop .#t1.<config-name>.cases.<type>.<name>
+# nix develop .#t1.<config-name>.ip.cases.<type>.<name>
 #
 # For example:
 
-$ nix develop .#t1.<config-name>.cases.asm.smoke
+$ nix develop .#t1.blastoise.ip.cases.pytorch.llama
 ```
 
 Build tests:
 
 ```shell
 # build a single test
-$ nix build .#t1.<config-name>.cases.intrinsic.matmul -L
-$ ls -al ./result
-
-# build all tests
-$ nix build .#t1.<config-name>.cases.all --max-jobs $(nproc)
+$ nix build .#t1.<config-name>.cases.ip.intrinsic.matmul -L
 $ ls -al ./result
 ```
-
-> [!TIP]
-> All the `mk*Case` expression are defined in `./nix/t1/default.nix`.
 
 ### Bump Dependencies
 Bump nixpkgs:
@@ -347,7 +321,7 @@ $ nix flake update
 
 Bump chisel submodule versions:
 ```shell
-$ cd nix/t1
+$ cd nix/t1/dependencies
 $ nix run '.#nvfetcher'
 ```
 
