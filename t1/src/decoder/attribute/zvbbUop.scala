@@ -15,6 +15,7 @@ object zvbbUop5   extends ZvbbUOPType // rol
 object zvbbUop6   extends ZvbbUOPType // ror
 object zvbbUop7   extends ZvbbUOPType // wsll
 object zvbbUop8   extends ZvbbUOPType // andn
+object zvbbUop9   extends ZvbbUOPType // pop
 
 object ZvbbUOP {
   def apply(t1DecodePattern: T1DecodePattern): Uop     = {
@@ -27,7 +28,8 @@ object ZvbbUOP {
       t5 _ -> zvbbUop5,
       t6 _ -> zvbbUop6,
       t7 _ -> zvbbUop7,
-      t8 _ -> zvbbUop8
+      t8 _ -> zvbbUop8,
+      t9 _ -> zvbbUop9
     ).collectFirst {
       case (fn, tpe) if fn(t1DecodePattern) => tpe
     }.getOrElse(UopDC)
@@ -89,6 +91,12 @@ object ZvbbUOP {
     val allMatched: Seq[String] = Seq(
       "vandn.vv",
       "vandn.vx"
+    )
+    allMatched.contains(t1DecodePattern.instruction.name)
+  }
+  def t9(t1DecodePattern: T1DecodePattern):    Boolean = {
+    val allMatched: Seq[String] = Seq(
+      "vcpop.v"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }

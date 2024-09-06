@@ -343,6 +343,7 @@ object Decoder {
           case _: zvbbUop6.type => BitPat("b0110") // ror
           case _: zvbbUop7.type => BitPat("b0111") // wsll
           case _: zvbbUop8.type => BitPat("b1000") // andn
+          case _: zvbbUop9.type => BitPat("b1001") // pop
           case _ => BitPat.dontCare(4)
         }
       case _ => BitPat.dontCare(4)
