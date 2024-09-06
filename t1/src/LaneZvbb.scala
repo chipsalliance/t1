@@ -177,6 +177,21 @@ class LaneZvbb(val parameter: LaneZvbbParam) extends VFUModule(parameter) with S
 
   val zvbbANDN = zvbbSrc & (~zvbbRs)
 
+  val zvbbPOP = {
+    val zvbbPOP8a = 0.U(4.W) ## PopCount(zvbbSrc8a).asUInt(3, 0)
+    val zvbbPOP8b = 0.U(4.W) ## PopCount(zvbbSrc8b).asUInt(3, 0)
+    val zvbbPOP8c = 0.U(4.W) ## PopCount(zvbbSrc8c).asUInt(3, 0)
+    val zvbbPOP8d = 0.U(4.W) ## PopCount(zvbbSrc8d).asUInt(3, 0)
+    Mux1H(
+      vSew,
+      Seq(
+        zvbbPOP8a ## zvbbPOP8b ## zvbbPOP8c ## zvbbPOP8d,
+        0.U(8.W) ## (zvbbPOP8a + zvbbPOP8b).asUInt(7, 0) ## 0.U(8.W) ## (zvbbPOP8c + zvbbPOP8d).asUInt(7, 0),
+        0.U(24.W) ## (zvbbPOP8a + zvbbPOP8b + zvbbPOP8c + zvbbPOP8d).asUInt(7, 0)
+      )
+    )
+  }
+
   response.data := Mux1H(
     UIntToOH(request.opcode),
     Seq(
@@ -188,7 +203,8 @@ class LaneZvbb(val parameter: LaneZvbbParam) extends VFUModule(parameter) with S
       zvbbROL,
       zvbbROR,
       zvbbSLL,
-      zvbbANDN
+      zvbbANDN,
+      zvbbPOP
     )
   )
 }

@@ -17,8 +17,7 @@ object isPopcount {
 
   def y(t1DecodePattern: T1DecodePattern): Boolean = {
     val allMatched = Seq(
-      "vcpop.m",
-      "vcpop.v"
+      "vcpop.m"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }

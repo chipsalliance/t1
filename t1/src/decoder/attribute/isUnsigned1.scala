@@ -110,6 +110,7 @@ object isUnsigned1 {
       "vrev8.v",
       "vclz.v",
       "vctz.v",
+      "vcpop.v",
       "vrol.vv",
       "vrol.vx",
       "vror.vv",
