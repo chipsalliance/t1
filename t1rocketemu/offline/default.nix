@@ -15,9 +15,6 @@ rustPlatform.buildRustPackage {
     fileset = unions [
       ../spike_rs
       ../offline
-      ../online_dpi
-      ../online_drive
-      ../online_vcs
       ../test_common
       ../Cargo.lock
       ../Cargo.toml
