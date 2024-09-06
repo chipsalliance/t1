@@ -26,7 +26,7 @@ let
         ./../../t1
         ./../../omreader
         ./../../omreaderlib
-        ./../../ipemu/src
+        ./../../t1emu/src
         ./../../elaborator
         ./../../configgen/src
         ./../../rocketv

@@ -45,12 +45,12 @@ lib.makeScope newScope (scope: rec {
       mkdir -p $out/bin
 
       makeWrapper ${t1-helper}/bin/t1-helper $out/bin/ip-emulator \
-        --add-flags "ipemu" \
+        --add-flags "t1emu" \
         --add-flags "--config ${elaborateConfigJson}" \
         --add-flags "--emulator-path ${ip.emu}/bin/emulator"
 
       makeWrapper ${t1-helper}/bin/t1-helper $out/bin/ip-emulator-trace \
-        --add-flags "ipemu" \
+        --add-flags "t1emu" \
         --add-flags "--config ${elaborateConfigJson}" \
         --add-flags "--trace" \
         --add-flags "--emulator-path ${ip.emu-trace}/bin/emulator"

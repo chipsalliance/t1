@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2022-2024 Jiuyang Liu <liu@jiuyang.me>
 
-package org.chipsalliance.t1.ipemu.dpi
+package org.chipsalliance.t1.t1emu.dpi
 
 // TODO: upstream to AMBA as VIP
 import chisel3._

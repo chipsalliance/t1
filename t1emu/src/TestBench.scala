@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
 
-package org.chipsalliance.t1.ipemu
+package org.chipsalliance.t1.t1emu
 
 import chisel3._
 import chisel3.experimental.dataview.DataViewable
@@ -11,7 +11,7 @@ import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawClockedVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
 import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
-import org.chipsalliance.t1.ipemu.dpi._
+import org.chipsalliance.t1.t1emu.dpi._
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 
 @instantiable

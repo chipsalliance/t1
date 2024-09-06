@@ -61,7 +61,7 @@ lib.mapAttrs
       # ---------------------------------------------------------------------------------
       emu-mlirbc = t1Scope.chisel-to-mlirbc {
         outputName = "t1-emu.mlirbc";
-        elaboratorArgs = [ "ipemu" "--ip-config" "${elaborateConfigJson}" ];
+        elaboratorArgs = [ "t1emu" "--ip-config" "${elaborateConfigJson}" ];
       };
 
       lowered-emu-mlirbc = t1Scope.finalize-mlirbc {
