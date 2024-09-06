@@ -137,9 +137,9 @@ trait T1Rocket extends millbuild.common.T1RocketModule with ScalafmtModule {
   def chiselIvy       = None
 }
 
-object ipemu extends IPEmulator
+object t1emu extends T1Emulator
 
-trait IPEmulator extends millbuild.common.IPEmulatorModule {
+trait T1Emulator extends millbuild.common.T1EmulatorModule {
   def scalaVersion = T(v.scala)
 
   def t1Module = t1
@@ -197,7 +197,7 @@ trait Elaborator extends millbuild.common.ElaboratorModule {
 
   def generators = Seq(
     t1,
-    ipemu,
+    t1emu,
     rocketv,
     rocketemu,
     t1rocket,
@@ -256,7 +256,7 @@ trait OMReader extends millbuild.common.OMReaderModule {
   */
 object t1package extends ScalaModule {
   def scalaVersion = T(v.scala)
-  def moduleDeps   = super.moduleDeps ++ Seq(t1, ipemu, panamaconverter, omreaderlib)
+  def moduleDeps   = super.moduleDeps ++ Seq(t1, t1emu, panamaconverter, omreaderlib)
   override def sourceJar: T[PathRef] = T(
     Jvm.createJar(
       T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))()

@@ -8,7 +8,7 @@ T1 supports standard `Zve32f` and `Zve32x`, and `VLEN`/`DLEN` can be increased u
 
 T1 ships important vector machine features, e.g., lanes, chaining, and large LSU outstanding by default, but it can also be a general platform for MMIO DSA(Domain-Specific-Accelerators).
 
-T1 is designed with [Chisel](https://github.com/chipsalliance/chisel) and releasing `IPEmulator` to users.
+T1 is designed with [Chisel](https://github.com/chipsalliance/chisel) and releasing `T1Emulator` to users.
 
 T1 uses a forked version of the Rocket Core as the scalar part of T1. But we don't officially support it for now; it can be replaced by any other RISC-V Scalar CPU.
 
@@ -58,11 +58,11 @@ For tuning the ideal vector machines, follow these performance-tuning methodolog
 - Matching bandwidth for VRF, VFU, and LSU.
 - Based on your workload, determine the required VLEN as it dictates the VRF memory area.
 - Choose the memory type for the VRF, which will determine the chip frequency.
-- Run the IPEmulator and PnR for your workloads to tune micro-architecture.
+- Run the T1Emulator and PnR for your workloads to tune micro-architecture.
 
 ## Development Guide
 
-We have a IP emulator under the directory `./ipemu`. [Spike](https://github.com/riscv/riscv-isa-sim) is used as the reference scalar core, integrated with the verilated vector IP. Under the online differential-test strategy, the emulator compares the load/store and VRF writes between Spike and T1 to verify T1’s correctness.
+We have a IP emulator under the directory `./t1emu`. [Spike](https://github.com/riscv/riscv-isa-sim) is used as the reference scalar core, integrated with the verilated vector IP. Under the online differential-test strategy, the emulator compares the load/store and VRF writes between Spike and T1 to verify T1’s correctness.
 
 ### Docker images
 
@@ -248,7 +248,7 @@ $ mill -i elaborator  # build and run elaborator
 #### Developing DPI
 ```shell
 $ nix develop .#t1.<config-name>.ip.vcs-dpi-lib  # replace <config-name> with your configuration name
-$ cd ipemu/csrc
+$ cd t1emu/csrc
 $ cargo build --feature dpicommon/vcs
 ```
 

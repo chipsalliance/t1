@@ -104,7 +104,7 @@ trait EmuHelperModule
   extends ScalaModule
     with HasChisel
 
-trait IPEmulatorModule
+trait T1EmulatorModule
   extends ScalaModule
     with HasChisel {
   def t1Module: ScalaModule

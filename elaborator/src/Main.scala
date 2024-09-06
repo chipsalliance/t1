@@ -102,8 +102,8 @@ object Main {
   @main def ip(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit =
     elaborateConfig.elaborate(() => ipConfig.generator.module())
 
-  @main def ipemu(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit =
-    elaborateConfig.elaborate(() => new org.chipsalliance.t1.ipemu.TestBench(ipConfig.generator))
+  @main def t1emu(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit =
+    elaborateConfig.elaborate(() => new org.chipsalliance.t1.t1emu.TestBench(ipConfig.generator))
 
   @main def rocketemu(elaborateConfig: ElaborateConfig, rocketConfig: RocketConfig): Unit =
     elaborateConfig.elaborate(() => new org.chipsalliance.t1.rocketv.TestBench(rocketConfig.generator))
