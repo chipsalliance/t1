@@ -65,6 +65,7 @@ case class VRFParam(
   datapathWidth: Int,
   chainingSize:  Int,
   portFactor:    Int,
+  zvkEnable:     Boolean,
   ramType:       RamType)
     extends SerializableModuleParameter {
 
@@ -155,7 +156,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   //                 then, we can know the accuracy read&write check hardware signal.
   // 3 * slot + 2 cross read
   @public
-  val readCheck: Vec[VRFReadRequest] = IO(
+  val readCheck:    Vec[VRFReadRequest]         = IO(
     Vec(
       parameter.chainingSize * 3 + 2,
       Input(
@@ -163,9 +164,23 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       )
     )
   )
+  @public
+  val zvkReadCheck: Option[Vec[VRFReadRequest]] = Option.when(parameter.zvkEnable)(
+    IO(
+      Vec(
+        parameter.chainingSize * 3 + 4,
+        Input(
+          new VRFReadRequest(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)
+        )
+      )
+    )
+  )
 
   @public
-  val readCheckResult: Vec[Bool] = IO(Vec(parameter.chainingSize * 3 + 2, Output(Bool())))
+  val readCheckResult:    Vec[Bool]         = IO(Vec(parameter.chainingSize * 3 + 2, Output(Bool())))
+  @public
+  val zvkReadCheckResult: Option[Vec[Bool]] =
+    Option.when(parameter.zvkEnable)(IO(Vec(parameter.chainingSize * 3 + 4, Output(Bool()))))
 
   /** VRF read results. */
   @public
@@ -300,6 +315,27 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           checkModule.checkResult
         }
         .reduce(_ && _)
+  }
+
+  if (parameter.zvkEnable) {
+    zvkReadCheck.get.zip(zvkReadCheckResult.get).foreach { case (req, res) =>
+      val recordSelect = chainingRecord
+      val readRecord   =
+        Mux1H(recordSelect.map(_.bits.instIndex === req.instructionIndex), recordSelect.map(_.bits))
+      res :=
+        recordSelect
+          .zip(recordValidVec)
+          .zipWithIndex
+          .map { case ((r, f), recordIndex) =>
+            val checkModule = Instantiate(new ChainingCheck(parameter))
+            checkModule.read        := req
+            checkModule.readRecord  := readRecord
+            checkModule.record      := r
+            checkModule.recordValid := f
+            checkModule.checkResult
+          }
+          .reduce(_ && _)
+    }
   }
 
   val checkSize: Int = readRequests.size

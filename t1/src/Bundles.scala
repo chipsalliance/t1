@@ -591,8 +591,11 @@ class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends
   val maskForFilter:       UInt         = UInt(4.W)
   // false -> lsb of cross read group
   val executeIndex:        Bool         = Bool()
+  val zvkExecuteIndex:     Option[UInt] = Option.when(parameter.zvkEnable)(UInt(2.W))
   val source:              Vec[UInt]    = Vec(3, UInt(parameter.datapathWidth.W))
   val crossReadSource:     Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+  val zvkCrossReadSource:  Option[UInt] =
+    Option.when(isLastSlot && parameter.zvkEnable)(UInt((parameter.datapathWidth * 4).W))
 
   /** groupCounter need use to update `Lane.maskFormatResultForGroup` */
   val groupCounter:     UInt         = UInt(parameter.groupNumberBits.W)

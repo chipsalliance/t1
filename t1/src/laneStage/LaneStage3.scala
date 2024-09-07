@@ -11,21 +11,22 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl._
 
 class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
-  val groupCounter:     UInt         = UInt(parameter.groupNumberBits.W)
-  val data:             UInt         = UInt(parameter.datapathWidth.W)
-  val pipeData:         UInt         = UInt(parameter.datapathWidth.W)
-  val mask:             UInt         = UInt((parameter.datapathWidth / 8).W)
-  val ffoIndex:         UInt         = UInt(log2Ceil(parameter.vLen / 8).W)
-  val crossWriteData:   Vec[UInt]    = Vec(2, UInt(parameter.datapathWidth.W))
-  val sSendResponse:    Bool         = Bool()
-  val ffoSuccess:       Bool         = Bool()
-  val fpReduceValid:    Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
+  val groupCounter:      UInt              = UInt(parameter.groupNumberBits.W)
+  val data:              UInt              = UInt(parameter.datapathWidth.W)
+  val pipeData:          UInt              = UInt(parameter.datapathWidth.W)
+  val mask:              UInt              = UInt((parameter.datapathWidth / 8).W)
+  val ffoIndex:          UInt              = UInt(log2Ceil(parameter.vLen / 8).W)
+  val crossWriteData:    Vec[UInt]         = Vec(2, UInt(parameter.datapathWidth.W))
+  val zvkCrossWriteData: Option[Vec[UInt]] = Option.when(parameter.zvkEnable)(Vec(4, UInt(parameter.datapathWidth.W)))
+  val sSendResponse:     Bool              = Bool()
+  val ffoSuccess:        Bool              = Bool()
+  val fpReduceValid:     Option[Bool]      = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
   // pipe state
-  val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
-  val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
+  val decodeResult:      DecodeBundle      = Decoder.bundle(parameter.decoderParam)
+  val instructionIndex:  UInt              = UInt(parameter.instructionIndexBits.W)
   // Need real-time status, no pipe
-  val ffoByOtherLanes:  Bool         = Bool()
-  val loadStore:        Bool         = Bool()
+  val ffoByOtherLanes:   Bool              = Bool()
+  val loadStore:         Bool              = Bool()
 
   /** vd or rd */
   val vd: UInt = UInt(5.W)
@@ -59,6 +60,9 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   @public
   val crossWritePort:       Option[Vec[DecoupledIO[WriteBusData]]] =
     Option.when(isLastSlot)(IO(Vec(2, Decoupled(new WriteBusData(parameter)))))
+  @public
+  val zvkCrossWritePort:    Option[Vec[DecoupledIO[WriteBusData]]] =
+    Option.when(isLastSlot & parameter.zvkEnable)(IO(Vec(4, Decoupled(new WriteBusData(parameter)))))
 
   val stageValidReg: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
 
@@ -67,6 +71,11 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
   /** schedule cross lane write MSB */
   val sCrossWriteMSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
+
+  val sZvkCrossWriteLSBLSB: Option[Bool] = Option.when(isLastSlot && parameter.zvkEnable)(RegInit(true.B))
+  val sZvkCrossWriteLSBMSB: Option[Bool] = Option.when(isLastSlot && parameter.zvkEnable)(RegInit(true.B))
+  val sZvkCrossWriteMSBLSB: Option[Bool] = Option.when(isLastSlot && parameter.zvkEnable)(RegInit(true.B))
+  val sZvkCrossWriteMSBMSB: Option[Bool] = Option.when(isLastSlot && parameter.zvkEnable)(RegInit(true.B))
 
   // state for response to scheduler
   /** schedule send [[LaneResponse]] to scheduler */
@@ -79,6 +88,10 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   when(enqueue.fire) {
     pipeEnqueue.foreach(_ := enqueue.bits)
     (sCrossWriteLSB ++ sCrossWriteMSB).foreach(_ := !enqueue.bits.decodeResult(Decoder.crossWrite))
+    if (parameter.zvkEnable) {
+      (sZvkCrossWriteLSBLSB ++ sZvkCrossWriteLSBMSB ++ sZvkCrossWriteMSBLSB ++ sZvkCrossWriteMSBMSB)
+        .foreach(_ := !(enqueue.bits.decodeResult(Decoder.crossWrite) & enqueue.bits.decodeResult(Decoder.zvk)))
+    }
     (sSendResponse ++ wResponseFeedback).foreach(
       _ := enqueue.bits.decodeResult(Decoder.scheduler) || enqueue.bits.sSendResponse
     )
@@ -109,6 +122,20 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       port.bits.instructionIndex := pipeEnqueue.get.instructionIndex
       when(port.fire) {
         sendState(index) := true.B
+      }
+    }
+    if (parameter.zvkEnable) {
+      val zvkSendState =
+        (sZvkCrossWriteLSBLSB ++ sZvkCrossWriteLSBMSB ++ sZvkCrossWriteMSBLSB ++ sZvkCrossWriteMSBMSB).toSeq
+      zvkCrossWritePort.get.zipWithIndex.foreach { case (port, index) =>
+        port.valid                 := stageValidReg.get && !zvkSendState(index)
+        port.bits.mask             := 0.U((parameter.datapathWidth / 2 / 8).W) // Note: leave it for empty
+        port.bits.data             := pipeEnqueue.get.zvkCrossWriteData.get(index)
+        port.bits.counter          := pipeEnqueue.get.groupCounter
+        port.bits.instructionIndex := pipeEnqueue.get.instructionIndex
+        when(port.fire) {
+          zvkSendState(index) := true.B
+        }
       }
     }
     // scheduler synchronization
@@ -163,7 +190,9 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
     // Handshake
     /** Cross-lane writing is over */
-    val CrossLaneWriteOver: Bool = (sCrossWriteLSB ++ sCrossWriteMSB).reduce(_ && _)
+    val CrossLaneWriteOver: Bool = (sCrossWriteLSB ++ sCrossWriteMSB ++
+      sZvkCrossWriteLSBLSB ++ sZvkCrossWriteLSBMSB ++
+      sZvkCrossWriteMSBLSB ++ sZvkCrossWriteMSBMSB).reduce(_ && _)
 
     enqueue.ready := !stageValidReg.get || (CrossLaneWriteOver && schedulerFinish && vrfWriteReady)
     val dequeueFire = stageValidReg.get && CrossLaneWriteOver && schedulerFinish && vrfWriteReady

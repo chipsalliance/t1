@@ -127,9 +127,17 @@ case class T1Parameter(
       .instructions(org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader))
       .filter { instruction =>
         instruction.instructionSet.name match {
-          case "rv_v"    => true
-          case "rv_zvbb" => if (zvbbEnable) true else false
-          case _         => false
+          case "rv_v"      => true
+          case "rv_zvbb"   => if (zvbbEnable) true else false
+          // Zvk
+          case "rv_zvkg"   => if (zvkEnable) true else false
+          // case "rv_zvkn"   => if (zvkEnable) true else false // TODO: no implementations for SEW=64
+          case "rv_zvkned" => if (zvkEnable) true else false
+          case "rv_zvknha" => if (zvkEnable) true else false
+          // case "rv_zvknhb" => if (zvkEnable) true else false // TODO: no implementations for SEW=64
+          case "rv_zvksed" => if (zvkEnable) true else false
+          case "rv_zvksh"  => if (zvkEnable) true else false
+          case _           => false
         }
       } ++
       t1customInstructions.map(_.instruction)
@@ -140,7 +148,7 @@ case class T1Parameter(
     }
   }
 
-  require(extensions.forall(Seq("Zve32x", "Zve32f", "Zvbb").contains), "unsupported extension.")
+  require(extensions.forall(Seq("Zve32x", "Zve32f", "Zvbb", "Zvk").contains), "unsupported extension.")
   // TODO: require bank not overlap
   /** xLen of T1, we currently only support 32. */
   val xLen: Int = 32
@@ -151,14 +159,18 @@ case class T1Parameter(
   /** TODO: configure it. */
   val instructionQueueSize: Int = 4
 
-  /** crosslane write token size */
-  val vrfWriteQueueSize: Int = 4
+  /** crosslane write token size, unclear how many would be good */
+  val vrfWriteQueueSize:    Int = 4
+  val vrfWriteZvkQueueSize: Int = 8
 
   /** does t1 has floating datapath? */
   val fpuEnable: Boolean = extensions.contains("Zve32f")
 
-  /** support of zvbb */
+  /** support of Zvbb */
   lazy val zvbbEnable: Boolean = extensions.contains("Zvbb")
+
+  /** support of Zvk */
+  lazy val zvkEnable: Boolean = extensions.contains("Zvk")
 
   /** how many chaining does T1 support, this is not a parameter yet. */
   val chainingSize: Int = 4
@@ -227,9 +239,11 @@ case class T1Parameter(
 
   // each element: Each lane will be connected to the other two lanes,
   // and the values are their respective delays.
-  val crossLaneConnectCycles: Seq[Seq[Int]] = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
+  val crossLaneConnectCycles:    Seq[Seq[Int]]         = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
+  val zvkCrossLaneConnectCycles: Option[Seq[Seq[Int]]] =
+    Option.when(zvkEnable)(Seq.tabulate(laneNumber)(_ => Seq(1, 1, 1, 1)))
 
-  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
+  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, zvkEnable, allInstructions)
 
   /** paraemter for AXI4. */
   val axi4BundleParameter: AXI4BundleParameter = AXI4BundleParameter(
@@ -265,7 +279,9 @@ case class T1Parameter(
       laneNumber = laneNumber,
       chainingSize = chainingSize,
       crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize,
+      crossLaneVRFWriteEscapeZvkQueueSize = vrfWriteZvkQueueSize,
       fpuEnable = fpuEnable,
+      zvkEnable = zvkEnable,
       portFactor = vrfBankSize,
       vrfRamType = vrfRamType,
       decoderParam = decoderParam,
@@ -292,7 +308,7 @@ case class T1Parameter(
     axi4BundleParameter = axi4BundleParameter,
     name = "main"
   )
-  def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
+  def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, zvkEnable, vrfRamType)
   require(xLen == datapathWidth)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 }
@@ -1657,6 +1673,39 @@ class T1(val parameter: T1Parameter)
         laneVec(index).writeBusPort(portIndex).deq,
         laneVec(readSourceIndex).writeBusPort(readSourcePort).enq
       )
+    }
+  }
+
+  if (parameter.zvkEnable) {
+    parameter.zvkCrossLaneConnectCycles.get.zipWithIndex.foreach { case (cycles, index) =>
+      cycles.zipWithIndex.foreach { case (cycle, portIndex) =>
+        // read source <=> write sink
+        val readSourceIndex = (4 * index + portIndex) % parameter.laneNumber
+        val readSourcePort  = (4 * index + portIndex) / parameter.laneNumber
+        // println("testing", readSourcePort)
+
+        // read connect
+        laneVec(readSourceIndex).zvkReadBusPort.get(readSourcePort).deqRelease := Pipe(
+          laneVec(index).zvkReadBusPort.get(portIndex).enqRelease,
+          0.U.asTypeOf(new EmptyBundle),
+          cycle
+        ).valid
+        connectWithShifter(cycle)(
+          laneVec(readSourceIndex).zvkReadBusPort.get(readSourcePort).deq,
+          laneVec(index).zvkReadBusPort.get(portIndex).enq
+        )
+
+        // write connect
+        laneVec(index).zvkWriteBusPort.get(portIndex).deqRelease := Pipe(
+          laneVec(readSourceIndex).zvkWriteBusPort.get(readSourcePort).enqRelease,
+          0.U.asTypeOf(new EmptyBundle),
+          cycle
+        ).valid
+        connectWithShifter(cycle)(
+          laneVec(index).zvkWriteBusPort.get(portIndex).deq,
+          laneVec(readSourceIndex).zvkWriteBusPort.get(readSourcePort).enq
+        )
+      }
     }
   }
 

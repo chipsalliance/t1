@@ -73,6 +73,10 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   val crossWriteReports: Vec[ValidIO[UInt]] = IO(Vec(2, Flipped(Valid(UInt(parameter.instructionIndexBits.W)))))
 
   @public
+  val zvkCrossWriteReports: Option[Vec[ValidIO[UInt]]] =
+    Option.when(parameter.zvkEnable)(IO(Vec(4, Flipped(Valid(UInt(parameter.instructionIndexBits.W))))))
+
+  @public
   val responseReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
@@ -143,10 +147,18 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
     val pendingSlotWrite = tokenUpdate(writeToken, writeDoEnq, writeDoDeq)
 
     if (slotIndex == 0) {
-      val responseToken:      Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-      val feedbackToken:      Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-      val crossWriteTokenLSB: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-      val crossWriteTokenMSB: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val responseToken:            Seq[UInt]         = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val feedbackToken:            Seq[UInt]         = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val crossWriteTokenLSB:       Seq[UInt]         = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val crossWriteTokenMSB:       Seq[UInt]         = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val zvkCrossWriteTokenLSBLSB: Option[Seq[UInt]] =
+        Option.when(parameter.zvkEnable)(Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W))))
+      val zvkCrossWriteTokenLSBMSB: Option[Seq[UInt]] =
+        Option.when(parameter.zvkEnable)(Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W))))
+      val zvkCrossWriteTokenMSBLSB: Option[Seq[UInt]] =
+        Option.when(parameter.zvkEnable)(Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W))))
+      val zvkCrossWriteTokenMSBMSB: Option[Seq[UInt]] =
+        Option.when(parameter.zvkEnable)(Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W))))
 
       // Feedback is not accurate (index load/store may have already finished the instruction)
       val responseIndexQueue =
@@ -165,8 +177,50 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       val crossWriteDeqMSB =
         maskAnd(crossWriteReports.last.valid, indexToOH(crossWriteReports.last.bits, parameter.chainingSize)).asUInt
 
+      val zvkCrossWriteDeqLSBLSB =
+        Option.when(parameter.zvkEnable)(
+          maskAnd(
+            zvkCrossWriteReports.get.head.valid,
+            indexToOH(zvkCrossWriteReports.get.head.bits, parameter.chainingSize)
+          ).asUInt
+        )
+      val zvkCrossWriteDeqLSBMSB =
+        Option.when(parameter.zvkEnable)(
+          maskAnd(
+            zvkCrossWriteReports.get.head.valid,
+            indexToOH(zvkCrossWriteReports.get.head.bits, parameter.chainingSize)
+          ).asUInt
+        )
+      val zvkCrossWriteDeqMSBLSB =
+        Option.when(parameter.zvkEnable)(
+          maskAnd(
+            zvkCrossWriteReports.get.head.valid,
+            indexToOH(zvkCrossWriteReports.get.head.bits, parameter.chainingSize)
+          ).asUInt
+        )
+      val zvkCrossWriteDeqMSBMSB =
+        Option.when(parameter.zvkEnable)(
+          maskAnd(
+            zvkCrossWriteReports.get.last.valid,
+            indexToOH(zvkCrossWriteReports.get.last.bits, parameter.chainingSize)
+          ).asUInt
+        )
+
       val pendingCrossWriteLSB = tokenUpdate(crossWriteTokenLSB, crossWriteDoEnq, crossWriteDeqLSB)
       val pendingCrossWriteMSB = tokenUpdate(crossWriteTokenMSB, crossWriteDoEnq, crossWriteDeqMSB)
+
+      val zvkPendingCrossWriteLSBLSB = Option.when(parameter.zvkEnable)(
+        tokenUpdate(zvkCrossWriteTokenLSBLSB.get, crossWriteDoEnq, zvkCrossWriteDeqLSBLSB.get)
+      )
+      val zvkPendingCrossWriteLSBMSB = Option.when(parameter.zvkEnable)(
+        tokenUpdate(zvkCrossWriteTokenLSBMSB.get, crossWriteDoEnq, zvkCrossWriteDeqLSBMSB.get)
+      )
+      val zvkPendingCrossWriteMSBLSB = Option.when(parameter.zvkEnable)(
+        tokenUpdate(zvkCrossWriteTokenMSBLSB.get, crossWriteDoEnq, zvkCrossWriteDeqMSBLSB.get)
+      )
+      val zvkPendingCrossWriteMSBMSB = Option.when(parameter.zvkEnable)(
+        tokenUpdate(zvkCrossWriteTokenMSBMSB.get, crossWriteDoEnq, zvkCrossWriteDeqMSBMSB.get)
+      )
 
       // response & feedback update
       val responseDoEnq: UInt =
@@ -186,7 +240,11 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       val pendingResponse = tokenUpdate(responseToken, responseDoEnq, responseDoDeq)
       // todo: Precise feedback
       val pendingFeedback = feedbackUpdate(feedbackToken, responseDoEnq, feedbackDoDeq)
-      pendingSlotWrite | pendingCrossWriteLSB | pendingCrossWriteMSB | pendingResponse | pendingFeedback
+      if (parameter.zvkEnable) {
+        pendingSlotWrite | pendingCrossWriteLSB | pendingCrossWriteMSB | zvkPendingCrossWriteLSBLSB.get | zvkPendingCrossWriteLSBMSB.get | zvkPendingCrossWriteMSBLSB.get | zvkPendingCrossWriteMSBMSB.get | pendingResponse | pendingFeedback
+      } else {
+        pendingSlotWrite | pendingCrossWriteLSB | pendingCrossWriteMSB | pendingResponse | pendingFeedback
+      }
     } else {
       pendingSlotWrite
     }

@@ -11,7 +11,7 @@ import chisel3.ltl._
 import chisel3.ltl.Sequence._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
-import org.chipsalliance.t1.rtl.lane.{CrossReadUnit, LaneState, VrfReadPipe}
+import org.chipsalliance.t1.rtl.lane.{CrossReadUnit, LaneState, VrfReadPipe, ZvkCrossReadUnit}
 
 class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
   val groupCounter:           UInt         = UInt(parameter.groupNumberBits.W)
@@ -49,6 +49,8 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   // read result
   val src:                 Vec[UInt]    = Vec(3, UInt(parameter.datapathWidth.W))
   val crossReadSource:     Option[UInt] = Option.when(isLastSlot)(UInt((parameter.datapathWidth * 2).W))
+  val zvkCrossReadSource:  Option[UInt] =
+    Option.when(isLastSlot && parameter.zvkEnable)(UInt((parameter.datapathWidth * 4).W))
 
   // pipe state
   // for exe stage
@@ -87,8 +89,15 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   @public
   val vrfCheckRequest: Vec[VRFReadRequest] = IO(Vec(readCheckSize, Output(readRequestType)))
 
+  val zvkReadCheckSize:   Int                         = if (isLastSlot && parameter.zvkEnable) 7 else 3
   @public
-  val checkResult: Vec[Bool] = IO(Vec(readCheckSize, Input(Bool())))
+  val zvkVrfCheckRequest: Option[Vec[VRFReadRequest]] =
+    Option.when(parameter.zvkEnable)(IO(Vec(zvkReadCheckSize, Output(readRequestType))))
+
+  @public
+  val checkResult:    Vec[Bool]         = IO(Vec(readCheckSize, Input(Bool())))
+  @public
+  val zvkCheckResult: Option[Vec[Bool]] = Option.when(parameter.zvkEnable)(IO(Vec(zvkReadCheckSize, Input(Bool()))))
 
   /** VRF read result for each slot, 3 is for [[source1]] [[source2]] [[source3]]
     */
@@ -96,15 +105,25 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val vrfReadResult: Vec[UInt] = IO(Input(Vec(3, UInt(parameter.datapathWidth.W))))
 
   @public
-  val readBusDequeue: Option[Vec[DecoupledIO[ReadBusData]]] = Option.when(isLastSlot)(
+  val readBusDequeue:    Option[Vec[DecoupledIO[ReadBusData]]] = Option.when(isLastSlot)(
     IO(
       Vec(2, Flipped(Decoupled(new ReadBusData(parameter: LaneParameter))))
+    )
+  )
+  @public
+  val zvkReadBusDequeue: Option[Vec[DecoupledIO[ReadBusData]]] = Option.when(isLastSlot & parameter.zvkEnable)(
+    IO(
+      Vec(4, Flipped(Decoupled(new ReadBusData(parameter: LaneParameter))))
     )
   )
 
   @public
   val readBusRequest: Option[Vec[DecoupledIO[ReadBusData]]] =
     Option.when(isLastSlot)(IO(Vec(2, Decoupled(new ReadBusData(parameter)))))
+
+  @public
+  val zvkReadBusRequest: Option[Vec[DecoupledIO[ReadBusData]]] =
+    Option.when(isLastSlot & parameter.zvkEnable)(IO(Vec(4, Decoupled(new ReadBusData(parameter)))))
 
   val groupCounter: UInt = enqueue.bits.groupCounter
 
@@ -132,11 +151,29 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val queueAfterCheckMSB: Option[Queue[VRFReadQueueEntry]] =
     Option.when(isLastSlot)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeAfterCheck)))
 
+  val queueAfterCheckZvkLSBLSB: Option[Queue[VRFReadQueueEntry]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeAfterCheck)))
+  val queueAfterCheckZvkLSBMSB: Option[Queue[VRFReadQueueEntry]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeAfterCheck)))
+  val queueAfterCheckZvkMSBLSB: Option[Queue[VRFReadQueueEntry]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeAfterCheck)))
+  val queueAfterCheckZvkMSBMSB: Option[Queue[VRFReadQueueEntry]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeAfterCheck)))
+
   // read request queue for cross read lsb & msb
   val queueBeforeCheckLSB: Option[Queue[VRFReadQueueEntry]] =
     Option.when(isLastSlot)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeBeforeCheck)))
   val queueBeforeCheckMSB: Option[Queue[VRFReadQueueEntry]] =
     Option.when(isLastSlot)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeBeforeCheck)))
+
+  val queueBeforeCheckZvkLSBLSB: Option[Queue[VRFReadQueueEntry]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeBeforeCheck)))
+  val queueBeforeCheckZvkLSBMSB: Option[Queue[VRFReadQueueEntry]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeBeforeCheck)))
+  val queueBeforeCheckZvkMSBLSB: Option[Queue[VRFReadQueueEntry]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeBeforeCheck)))
+  val queueBeforeCheckZvkMSBMSB: Option[Queue[VRFReadQueueEntry]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(vrfReadEntryType, readRequestQueueSizeBeforeCheck)))
 
   // pipe from enqueue
   val pipeQueue: Queue[LaneStage1Enqueue] =
@@ -156,10 +193,34 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val afterCheckQueueVec:  Seq[Queue[VRFReadQueueEntry]] =
     Seq(queueAfterCheck1, queueAfterCheck2, queueAfterCheckVd) ++
       queueAfterCheckLSB ++ queueAfterCheckMSB
-  val allReadQueueReady:   Bool                          = beforeCheckQueueVec.map(_.io.enq.ready).reduce(_ && _)
+
+  val beforeCheckZvkQueueVec: Seq[Queue[VRFReadQueueEntry]] =
+    Seq(queueBeforeCheck1, queueBeforeCheck2, queueBeforeCheckVd) ++
+      queueBeforeCheckZvkLSBLSB ++ queueBeforeCheckZvkLSBMSB ++
+      queueBeforeCheckZvkMSBLSB ++ queueBeforeCheckZvkMSBMSB
+  val afterCheckZvkQueueVec:  Seq[Queue[VRFReadQueueEntry]] =
+    Seq(queueAfterCheck1, queueAfterCheck2, queueAfterCheckVd) ++
+      queueAfterCheckZvkLSBLSB ++ queueAfterCheckZvkLSBMSB ++
+      queueAfterCheckZvkMSBLSB ++ queueAfterCheckZvkMSBMSB
+
+  val allReadQueueReady: Bool = {
+    val ready = beforeCheckQueueVec.map(_.io.enq.ready).reduce(_ && _)
+    if (parameter.zvkEnable) {
+      val zvkReady = beforeCheckZvkQueueVec.map(_.io.enq.ready).reduce(_ && _)
+      Mux(enqueue.bits.decodeResult(Decoder.crossRead) & enqueue.bits.decodeResult(Decoder.zvk), zvkReady, ready)
+    } else {
+      ready
+    }
+  }
   beforeCheckQueueVec.foreach { q =>
     q.io.enq.bits.instructionIndex := enqueue.bits.instructionIndex
     q.io.enq.bits.groupIndex       := enqueue.bits.groupCounter
+  }
+  if (parameter.zvkEnable) {
+    beforeCheckZvkQueueVec.foreach { q =>
+      q.io.enq.bits.instructionIndex := enqueue.bits.instructionIndex
+      q.io.enq.bits.groupIndex       := enqueue.bits.groupCounter
+    }
   }
 
   enqueue.ready := allReadQueueReady && pipeQueue.io.enq.ready
@@ -171,12 +232,28 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     after.io.enq.valid  := before.io.deq.valid && checkResult(i)
     after.io.enq.bits   := before.io.deq.bits
   }
+  if (parameter.zvkEnable) {
+    beforeCheckZvkQueueVec.zip(afterCheckZvkQueueVec).zipWithIndex.foreach { case ((before, after), i) =>
+      zvkVrfCheckRequest.get(i) := before.io.deq.bits
+      before.io.deq.ready       := after.io.enq.ready && zvkCheckResult.get(i)
+      after.io.enq.valid        := before.io.deq.valid && zvkCheckResult.get(i)
+      after.io.enq.bits         := before.io.deq.bits
+    }
+  }
   // request enqueue
   queueBeforeCheck1.io.enq.valid  := enqueue.fire && enqueue.bits.decodeResult(Decoder.vtype) && !enqueue.bits.skipRead
   queueBeforeCheck2.io.enq.valid  := enqueue.fire && !enqueue.bits.skipRead
   queueBeforeCheckVd.io.enq.valid := enqueue.fire && !enqueue.bits.decodeResult(Decoder.sReadVD)
   (queueBeforeCheckLSB ++ queueBeforeCheckMSB).foreach { q =>
     q.io.enq.valid := enqueue.valid && allReadQueueReady && enqueue.bits.decodeResult(Decoder.crossRead)
+  }
+  if (parameter.zvkEnable) {
+    (queueBeforeCheckZvkLSBLSB ++ queueBeforeCheckZvkLSBMSB ++ queueBeforeCheckZvkMSBLSB ++ queueBeforeCheckZvkMSBMSB).foreach {
+      q =>
+        q.io.enq.valid := enqueue.valid && allReadQueueReady && enqueue.bits.decodeResult(
+          Decoder.crossRead
+        ) && enqueue.bits.decodeResult(Decoder.zvk)
+    }
   }
 
   // calculate vs
@@ -232,6 +309,29 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     q.io.enq.bits.offset     := groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B
   }
 
+  if (parameter.zvkEnable) { // TODO: check here
+    queueBeforeCheckZvkLSBLSB.foreach { q =>
+      q.io.enq.bits.vs         := enqueue.bits.vs2 + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
+      q.io.enq.bits.readSource := 1.U
+      q.io.enq.bits.offset     := groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B
+    }
+    queueBeforeCheckZvkLSBMSB.foreach { q =>
+      q.io.enq.bits.vs         := enqueue.bits.vs2 + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
+      q.io.enq.bits.readSource := 1.U
+      q.io.enq.bits.offset     := groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B
+    }
+    queueBeforeCheckZvkMSBLSB.foreach { q =>
+      q.io.enq.bits.vs         := enqueue.bits.vs2 + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
+      q.io.enq.bits.readSource := 1.U
+      q.io.enq.bits.offset     := groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B
+    }
+    queueBeforeCheckZvkMSBMSB.foreach { q =>
+      q.io.enq.bits.vs         := enqueue.bits.vs2 + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
+      q.io.enq.bits.readSource := 1.U
+      q.io.enq.bits.offset     := groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B
+    }
+  }
+
   // read pipe
   val readPipe0: Instance[VrfReadPipe]      = Instantiate(new VrfReadPipe(parameter, arbitrate = false))
   val readPipe1: Instance[VrfReadPipe]      = Instantiate(new VrfReadPipe(parameter, arbitrate = isLastSlot))
@@ -247,8 +347,18 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val dataQueueVd:  Queue[UInt]       = Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize))
 
   // cross lane queue
-  val dataQueueLSB = Option.when(isLastSlot)(Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize)))
-  val dataQueueMSB = Option.when(isLastSlot)(Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize)))
+  val dataQueueLSB       = Option.when(isLastSlot)(Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize)))
+  val dataQueueMSB       = Option.when(isLastSlot)(Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize)))
+  val dataQueueZvkLSBLSB =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize)))
+  val dataQueueZvkLSBMSB = Option.when(isLastSlot && parameter.zvkEnable)(
+    Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize))
+  ) // TODO
+  val dataQueueZvkMSBLSB = Option.when(isLastSlot && parameter.zvkEnable)(
+    Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize))
+  ) // TODO
+  val dataQueueZvkMSBMSB =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(UInt(parameter.datapathWidth.W), dataQueueSize)))
 
   val dataQueueNotFull2: Bool = {
     val counterReg  = RegInit(0.U(log2Ceil(dataQueueSize + 1).W))
@@ -304,17 +414,80 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     blockingHandshake(port, queue.io.deq, dataQueueNotFullMSB)
   }
 
+  if (parameter.zvkEnable) {
+    readPipe1.contender.zip(queueAfterCheckZvkLSBLSB).foreach { case (port, queue) =>
+      val dataQueueNotFullLSBLSB: Bool = {
+        val counterReg  = RegInit(0.U(log2Ceil(dataQueueSize + 1).W))
+        val doEnq       = queue.io.deq.fire
+        val doDeq       = dataQueueZvkLSBLSB.get.io.deq.fire
+        val countChange = Mux(doEnq, 1.U, -1.S(log2Ceil(dataQueueSize + 1).W).asUInt)
+        when(doEnq ^ doDeq) {
+          counterReg := counterReg + countChange
+        }
+        !counterReg(log2Ceil(dataQueueSize))
+      }
+      blockingHandshake(port, queue.io.deq, dataQueueNotFullLSBLSB)
+    }
+    readPipe1.contender.zip(queueAfterCheckZvkLSBMSB).foreach { case (port, queue) =>
+      val dataQueueNotFullLSBMSB: Bool = {
+        val counterReg  = RegInit(0.U(log2Ceil(dataQueueSize + 1).W))
+        val doEnq       = queue.io.deq.fire
+        val doDeq       = dataQueueZvkLSBMSB.get.io.deq.fire
+        val countChange = Mux(doEnq, 1.U, -1.S(log2Ceil(dataQueueSize + 1).W).asUInt)
+        when(doEnq ^ doDeq) {
+          counterReg := counterReg + countChange
+        }
+        !counterReg(log2Ceil(dataQueueSize))
+      }
+      blockingHandshake(port, queue.io.deq, dataQueueNotFullLSBMSB)
+    }
+    readPipe2.contender.zip(queueAfterCheckZvkMSBLSB).foreach { case (port, queue) =>
+      val dataQueueNotFullMSBLSB: Bool = {
+        val counterReg  = RegInit(0.U(log2Ceil(dataQueueSize + 1).W))
+        val doEnq       = queue.io.deq.fire
+        val doDeq       = dataQueueZvkMSBLSB.get.io.deq.fire
+        val countChange = Mux(doEnq, 1.U, -1.S(log2Ceil(dataQueueSize + 1).W).asUInt)
+        when(doEnq ^ doDeq) {
+          counterReg := counterReg + countChange
+        }
+        !counterReg(log2Ceil(dataQueueSize))
+      }
+      blockingHandshake(port, queue.io.deq, dataQueueNotFullMSBLSB)
+    }
+    readPipe2.contender.zip(queueAfterCheckZvkMSBMSB).foreach { case (port, queue) =>
+      val dataQueueNotFullMSBMSB: Bool = {
+        val counterReg  = RegInit(0.U(log2Ceil(dataQueueSize + 1).W))
+        val doEnq       = queue.io.deq.fire
+        val doDeq       = dataQueueZvkMSBMSB.get.io.deq.fire
+        val countChange = Mux(doEnq, 1.U, -1.S(log2Ceil(dataQueueSize + 1).W).asUInt)
+        when(doEnq ^ doDeq) {
+          counterReg := counterReg + countChange
+        }
+        !counterReg(log2Ceil(dataQueueSize))
+      }
+      blockingHandshake(port, queue.io.deq, dataQueueNotFullMSBMSB)
+    }
+  }
+
   // data: pipe <-> queue
   if (isLastSlot) {
     // pipe1 <-> dataQueueVs2
     dataQueueVs2.io.enq <> readPipe1.dequeue
     // pipe1 <> dataQueueLSB
     dataQueueLSB.zip(readPipe1.contenderDequeue).foreach { case (sink, source) => sink.io.enq <> source }
+    if (parameter.zvkEnable) {
+      dataQueueZvkLSBLSB.zip(readPipe1.contenderDequeue).foreach { case (sink, source) => sink.io.enq <> source }
+      dataQueueZvkLSBMSB.zip(readPipe1.contenderDequeue).foreach { case (sink, source) => sink.io.enq <> source }
+    }
 
     // pipe2 <-> dataQueueVd
     dataQueueVd.io.enq <> readPipe2.dequeue
     // pipe2 <-> dataQueueMSB
     dataQueueMSB.zip(readPipe2.contenderDequeue).foreach { case (sink, source) => sink.io.enq <> source }
+    if (parameter.zvkEnable) {
+      dataQueueZvkMSBLSB.zip(readPipe2.contenderDequeue).foreach { case (sink, source) => sink.io.enq <> source }
+      dataQueueZvkMSBMSB.zip(readPipe2.contenderDequeue).foreach { case (sink, source) => sink.io.enq <> source }
+    }
   } else {
     dataQueueVs2.io.enq <> readPipe1.dequeue
     dataQueueVd.io.enq <> readPipe2.dequeue
@@ -326,6 +499,13 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val crossReadStageFree:   Option[Bool]                    = Option.when(isLastSlot)(Wire(Bool()))
   val crossReadUnitOp:      Option[Instance[CrossReadUnit]] =
     Option.when(isLastSlot)(Instantiate(new CrossReadUnit(parameter)))
+
+  val zvkCrossReadResultQueue: Option[Queue[UInt]]                =
+    Option.when(isLastSlot && parameter.zvkEnable)(Module(new Queue(UInt((parameter.datapathWidth * 4).W), 1)))
+  val zvkCrossReadStageFree:   Option[Bool]                       = Option.when(isLastSlot && parameter.zvkEnable)(Wire(Bool()))
+  val zvkCrossReadUnitOp:      Option[Instance[ZvkCrossReadUnit]] =
+    Option.when(isLastSlot && parameter.zvkEnable)(Instantiate(new ZvkCrossReadUnit(parameter)))
+
   if (isLastSlot) {
     val dataGroupQueue: Queue[UInt] =
       Module(
@@ -351,7 +531,34 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     AssertProperty(BoolSequence(dataGroupQueue.io.enq.ready || !dataGroupQueue.io.enq.valid))
     dataGroupQueue.io.enq.bits           := enqueue.bits.groupCounter
     dataGroupQueue.io.deq.ready          := crossReadUnit.dataInputLSB.fire
-    dequeue.bits.readBusDequeueGroup.get := crossReadUnitOp.get.currentGroup
+    dequeue.bits.readBusDequeueGroup.get := crossReadUnitOp.get.currentGroup // TODO: readBusDequeueGroup is currently unused
+
+    if (parameter.zvkEnable) {
+      val zvkDataGroupQueue: Queue[UInt] =
+        Module(
+          new Queue(
+            UInt(parameter.groupNumberBits.W),
+            readRequestQueueSizeBeforeCheck + readRequestQueueSizeBeforeCheck + dataQueueSize + 2
+          )
+        )
+      val zvkCrossReadUnit = zvkCrossReadUnitOp.get
+      zvkCrossReadUnit.dataInputLSBLSB <> dataQueueZvkLSBLSB.get.io.deq
+      zvkCrossReadUnit.dataInputLSBMSB <> dataQueueZvkLSBMSB.get.io.deq
+      zvkCrossReadUnit.dataInputMSBLSB <> dataQueueZvkMSBLSB.get.io.deq
+      zvkCrossReadUnit.dataInputMSBMSB <> dataQueueZvkMSBMSB.get.io.deq
+      zvkCrossReadUnit.laneIndex := laneIndexReg
+      zvkCrossReadUnit.dataGroup := zvkDataGroupQueue.io.deq.bits
+      zvkReadBusRequest.get.zip(zvkCrossReadUnit.readBusRequest.get).foreach { case (sink, source) => sink <> source }
+      zvkCrossReadUnit.readBusDequeue.get.zip(zvkReadBusDequeue.get).foreach { case (sink, source) => sink <> source }
+      zvkCrossReadResultQueue.get.io.enq <> zvkCrossReadUnit.crossReadDequeue
+      zvkCrossReadStageFree.get  := zvkCrossReadUnit.crossReadStageFree
+
+      // data group
+      zvkDataGroupQueue.io.enq.valid := enqueue.fire && enqueue.bits.decodeResult(Decoder.crossRead)
+      assert(zvkDataGroupQueue.io.enq.ready || !zvkDataGroupQueue.io.enq.valid)
+      zvkDataGroupQueue.io.enq.bits  := enqueue.bits.groupCounter
+      zvkDataGroupQueue.io.deq.ready := zvkCrossReadUnit.dataInputLSBLSB.fire
+    }
   }
 
   val source1Select: UInt = Mux(
@@ -363,6 +570,9 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.groupCounter        := pipeQueue.io.deq.bits.groupCounter
   dequeue.bits.src                 := VecInit(Seq(source1Select, dataQueueVs2.io.deq.bits, dataQueueVd.io.deq.bits))
   dequeue.bits.crossReadSource.foreach(_ := crossReadResultQueue.get.io.deq.bits)
+  if (parameter.zvkEnable) {
+    dequeue.bits.zvkCrossReadSource.foreach(_ := zvkCrossReadResultQueue.get.io.deq.bits)
+  }
   dequeue.bits.sSendResponse.foreach(_ := pipeQueue.io.deq.bits.sSendResponse.get)
   dequeue.bits.decodeResult        := pipeQueue.io.deq.bits.decodeResult
   dequeue.bits.vSew1H              := pipeQueue.io.deq.bits.vSew1H
@@ -384,7 +594,15 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       dataQueueVs2.io.deq.valid || pipeQueue.io.deq.bits.skipRead,
       dataQueueVd.io.deq.valid || (pipeQueue.io.deq.bits.decodeResult(Decoder.sReadVD))
     ) ++
-      crossReadResultQueue.map(_.io.deq.valid || !pipeQueue.io.deq.bits.decodeResult(Decoder.crossRead))
+      crossReadResultQueue.map(_.io.deq.valid || !pipeQueue.io.deq.bits.decodeResult(Decoder.crossRead)) ++ {
+        if (parameter.zvkEnable)
+          zvkCrossReadResultQueue.map(
+            _.io.deq.valid ||
+              (!pipeQueue.io.deq.bits.decodeResult(Decoder.crossRead) &&
+                !pipeQueue.io.deq.bits.decodeResult(Decoder.zvk))
+          )
+        else Seq()
+      }
   val allDataQueueValid: Bool      = VecInit(dataQueueValidVec).asUInt.andR
   dequeue.valid             := allDataQueueValid && pipeQueue.io.deq.valid
   dataQueueVs1.ready        := allDataQueueValid && dequeue.ready && pipeQueue.io.deq.bits.decodeResult(Decoder.vtype)
@@ -394,28 +612,59 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   crossReadResultQueue.foreach(
     _.io.deq.ready := allDataQueueValid && dequeue.ready && pipeQueue.io.deq.bits.decodeResult(Decoder.crossRead)
   )
+  if (parameter.zvkEnable) {
+    zvkCrossReadResultQueue.foreach(
+      _.io.deq.ready := allDataQueueValid && dequeue.ready && (pipeQueue.io.deq.bits
+        .decodeResult(Decoder.crossRead) && pipeQueue.io.deq.bits.decodeResult(Decoder.zvk))
+    )
+  }
   stageValid                := pipeQueue.io.deq.valid
   val stageFinish = !stageValid
 
   // TODO: gather these logic into a Probe Bundle
   @public
-  val dequeueReadyProbe            = IO(Output(Probe(Bool(), layers.Verification)))
+  val dequeueReadyProbe                  = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val dequeueValidProbe            = IO(Output(Probe(Bool(), layers.Verification)))
+  val dequeueValidProbe                  = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val hasDataOccupiedProbe         = IO(Output(Probe(Bool(), layers.Verification)))
+  val hasDataOccupiedProbe               = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val stageFinishProbe             = IO(Output(Probe(Bool(), layers.Verification)))
+  val stageFinishProbe                   = IO(Output(Probe(Bool(), layers.Verification)))
   @public
-  val readFinishProbe              = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
+  val readFinishProbe                    = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val sSendCrossReadResultLSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
+  val sSendCrossReadResultLSBProbe       = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val sSendCrossReadResultMSBProbe = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
+  val sSendCrossReadResultMSBProbe       = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val wCrossReadLSBProbe           = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
+  val sSendZvkCrossReadResultLSBLSBProbe =
+    Option.when(isLastSlot && parameter.zvkEnable)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
-  val wCrossReadMSBProbe           = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
+  val sSendZvkCrossReadResultLSBMSBProbe =
+    Option.when(isLastSlot && parameter.zvkEnable)(IO(Output(Probe(Bool(), layers.Verification))))
+  @public
+  val sSendZvkCrossReadResultMSBLSBProbe =
+    Option.when(isLastSlot && parameter.zvkEnable)(IO(Output(Probe(Bool(), layers.Verification))))
+  @public
+  val sSendZvkCrossReadResultMSBMSBProbe =
+    Option.when(isLastSlot && parameter.zvkEnable)(IO(Output(Probe(Bool(), layers.Verification))))
+
+  @public
+  val wCrossReadLSBProbe       = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
+  @public
+  val wCrossReadMSBProbe       = Option.when(isLastSlot)(IO(Output(Probe(Bool(), layers.Verification))))
+  @public
+  val wZvkCrossReadLSBLSBProbe =
+    Option.when(isLastSlot && parameter.zvkEnable)(IO(Output(Probe(Bool(), layers.Verification))))
+  @public
+  val wZvkCrossReadLSBMSBProbe =
+    Option.when(isLastSlot && parameter.zvkEnable)(IO(Output(Probe(Bool(), layers.Verification))))
+  @public
+  val wZvkCrossReadMSBLSBProbe =
+    Option.when(isLastSlot && parameter.zvkEnable)(IO(Output(Probe(Bool(), layers.Verification))))
+  @public
+  val wZvkCrossReadMSBMSBProbe =
+    Option.when(isLastSlot && parameter.zvkEnable)(IO(Output(Probe(Bool(), layers.Verification))))
   @public
   val vrfReadRequestProbe: Seq[(Bool, Bool)] =
     Seq.fill(3)((IO(Output(Probe(Bool(), layers.Verification))), IO(Output(Probe(Bool(), layers.Verification)))))
@@ -436,6 +685,33 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       )
       wCrossReadLSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadLSB)))
       wCrossReadMSBProbe.foreach(p => define(p, ProbeValue(crossReadUnitOp.get.crossWriteState.wCrossReadMSB)))
+
+      if (parameter.zvkEnable) {
+        sSendZvkCrossReadResultLSBLSBProbe.foreach(p =>
+          define(p, ProbeValue(zvkCrossReadUnitOp.get.crossWriteState.sSendCrossReadResult(0)))
+        )
+        sSendZvkCrossReadResultLSBMSBProbe.foreach(p =>
+          define(p, ProbeValue(zvkCrossReadUnitOp.get.crossWriteState.sSendCrossReadResult(1)))
+        )
+        sSendZvkCrossReadResultMSBLSBProbe.foreach(p =>
+          define(p, ProbeValue(zvkCrossReadUnitOp.get.crossWriteState.sSendCrossReadResult(2)))
+        )
+        sSendZvkCrossReadResultMSBMSBProbe.foreach(p =>
+          define(p, ProbeValue(zvkCrossReadUnitOp.get.crossWriteState.sSendCrossReadResult(3)))
+        )
+        wZvkCrossReadLSBLSBProbe.foreach(p =>
+          define(p, ProbeValue(zvkCrossReadUnitOp.get.crossWriteState.wCrossRead(0)))
+        )
+        wZvkCrossReadLSBMSBProbe.foreach(p =>
+          define(p, ProbeValue(zvkCrossReadUnitOp.get.crossWriteState.wCrossRead(1)))
+        )
+        wZvkCrossReadMSBLSBProbe.foreach(p =>
+          define(p, ProbeValue(zvkCrossReadUnitOp.get.crossWriteState.wCrossRead(2)))
+        )
+        wZvkCrossReadMSBMSBProbe.foreach(p =>
+          define(p, ProbeValue(zvkCrossReadUnitOp.get.crossWriteState.wCrossRead(3)))
+        )
+      }
     }
 
     vrfReadRequestProbe.zipWithIndex.foreach { case ((ready, valid), i) =>
