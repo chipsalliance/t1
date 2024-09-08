@@ -6,13 +6,17 @@
 }:
 
 { outputName
-, emuType
-, buildType
+, emuType ? ""
+, moduleType
 , enableTrace ? false
 }:
 
-assert lib.assertMsg (lib.elem emuType [ "verilator" "vcs" ]) "emuType is either 'vcs' nor 'verilator'";
-assert lib.assertMsg (lib.elem buildType [ "t1" "t1rocket" ]) "emuType is either 't1' nor 't1rocket'";
+assert let
+  available = [ "dpi_t1" "dpi_t1rocket" "offline_t1" "offline_t1rocket" ];
+in
+lib.assertMsg (lib.elem moduleType available) "emuType is not in ${lib.concatStringsSep ", " available}";
+# if emuType is empty, then moduleType must be offline-*, or user should give valid emuType
+assert lib.assertMsg ((emuType == "" && lib.hasPrefix "offline" moduleType) || (lib.elem emuType [ "verilator" "vcs" ])) "emuType is either 'vcs' nor 'verilator'";
 
 rustPlatform.buildRustPackage {
   name = outputName;
@@ -31,8 +35,8 @@ rustPlatform.buildRustPackage {
     ];
   };
 
-  buildFeatures = [ "dpi_common/${emuType}" ] ++ lib.optionals enableTrace [ "dpi_common/trace" ];
-  buildAndTestSubdir = "./dpi_${buildType}";
+  buildFeatures = [ ] ++ lib.optionals (lib.hasPrefix "dpi" moduleType) [ "dpi_common/${emuType}" ] ++ lib.optionals enableTrace [ "dpi_common/trace" ];
+  buildAndTestSubdir = "./${moduleType}";
 
   env = {
     SPIKE_LIB_DIR = "${libspike}/lib";
@@ -47,7 +51,7 @@ rustPlatform.buildRustPackage {
   };
 
   passthru = {
-    dpiLibPath = "/lib/libdpi_${buildType}.a";
+    dpiLibPath = "/lib/libdpi_${moduleType}.a";
     inherit enableTrace;
   };
 }

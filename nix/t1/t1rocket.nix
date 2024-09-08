@@ -41,14 +41,14 @@
       ];
     };
 
-    makeDPI = scope.callPackage ../../difftest { };
-    verilator-dpi-lib = scope.makeDPI {
+    makeDifftest = scope.callPackage ../../difftest { };
+    verilator-dpi-lib = scope.makeDifftest {
       outputName = "t1rocket-verilator-dpi-lib";
-      buildType = "t1rocket";
+      moduleType = "dpi_t1rocket";
     };
-    verilator-dpi-lib-trace = scope.makeDPI {
+    verilator-dpi-lib-trace = scope.makeDifftest {
       outputName = "t1rocket-verilator-trace-dpi-lib";
-      buildType = "t1rocket";
+      moduleType = "dpi_t1rocket";
       enableTrace = true;
     };
 
@@ -72,18 +72,21 @@
       ];
     };
 
-    offline-checker = scope.callPackage ../../difftest/offline-checker-t1rocket { };
-
-    vcs-dpi-lib = scope.makeDPI {
+    vcs-dpi-lib = scope.makeDifftest {
       outputName = "t1rocket-vcs-dpi-lib";
-      buildType = "t1rocket";
+      moduleType = "dpi_t1rocket";
       emuType = "vcs";
     };
-    vcs-dpi-lib-trace = scope.makeDPI {
+    vcs-dpi-lib-trace = scope.makeDifftest {
       outputName = "t1rocket-vcs-dpi-trace-lib";
-      buildType = "t1rocket";
+      moduleType = "dpi_t1rocket";
       emuType = "vcs";
       enableTrace = true;
+    };
+
+    offline-checker = scope.makeDifftest {
+      outputName = "t1rocket-offline-checker";
+      moduleType = "offline_t1rocket";
     };
 
     vcs-emu = sv-to-vcs-simulator {

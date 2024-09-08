@@ -97,17 +97,17 @@ lib.mapAttrs
       # ---------------------------------------------------------------------------------
       # VERILATOR
       # ---------------------------------------------------------------------------------
-      makeDPI = ipScope.callPackage ../../difftest { };
+      makeDifftest = ipScope.callPackage ../../difftest { };
 
-      verilator-dpi-lib = ipScope.makeDPI {
+      verilator-dpi-lib = ipScope.makeDifftest {
         outputName = "t1-verilator-dpi-lib";
         emuType = "verilator";
-        buildType = "t1";
+        moduleType = "dpi_t1";
       };
-      verilator-dpi-lib-trace = ipScope.makeDPI {
+      verilator-dpi-lib-trace = ipScope.makeDifftest {
         outputName = "t1-verilator-trace-dpi-lib";
         emuType = "verilator";
-        buildType = "t1";
+        moduleType = "dpi_t1";
         enableTrace = true;
       };
 
@@ -126,16 +126,21 @@ lib.mapAttrs
       # ---------------------------------------------------------------------------------
       # VCS
       # ---------------------------------------------------------------------------------
-      vcs-dpi-lib = ipScope.makeDPI {
+      vcs-dpi-lib = ipScope.makeDifftest {
         outputName = "t1-vcs-dpi-lib";
         emuType = "vcs";
-        buildType = "t1";
+        moduleType = "dpi_t1";
       };
-      vcs-dpi-lib-trace = ipScope.makeDPI {
+      vcs-dpi-lib-trace = ipScope.makeDifftest {
         outputName = "t1-vcs-dpi-trace-lib";
         emuType = "vcs";
         enableTrace = true;
-        buildType = "t1";
+        moduleType = "dpi_t1";
+      };
+
+      offline-checker = ipScope.makeDifftest {
+        outputName = "t1-offline-checker";
+        moduleType = "offline_t1";
       };
 
       vcs-emu = t1Scope.sv-to-vcs-simulator {
@@ -149,8 +154,6 @@ lib.mapAttrs
         enableTrace = true;
         vcsLinkLibs = [ "${ipScope.vcs-dpi-lib-trace}/lib/libdpi_t1.a" ];
       };
-
-      offline-checker = ipScope.callPackage ../../difftest/offline-checker-t1.nix { };
 
       run = ipScope.callPackage ./run { };
     }); # end of ipScope
