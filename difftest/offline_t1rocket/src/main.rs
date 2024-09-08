@@ -5,12 +5,11 @@ mod json_events;
 use clap::Parser;
 use tracing::info;
 
-use common::spike_runner::SpikeRunner;
-use common::CommonArgs;
+use spike_rs::runner::{SpikeArgs, SpikeRunner};
 
 use crate::difftest::Difftest;
 
-fn run_spike(args: &CommonArgs) -> anyhow::Result<()> {
+fn run_spike(args: &SpikeArgs) -> anyhow::Result<()> {
   let mut count: u64 = 0;
 
   let spike = SpikeRunner::new(args, true);
@@ -32,7 +31,7 @@ fn run_spike(args: &CommonArgs) -> anyhow::Result<()> {
 
 fn main() -> anyhow::Result<()> {
   // parse args
-  let args = CommonArgs::parse();
+  let args = SpikeArgs::parse();
 
   args.setup_logger()?;
 

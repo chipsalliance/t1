@@ -29,7 +29,6 @@ rustPlatform.buildRustPackage {
       ./dpi_common
       ./dpi_t1
       ./dpi_t1rocket
-      ./test_common
       ./Cargo.lock
       ./Cargo.toml
     ];

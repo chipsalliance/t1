@@ -1,17 +1,8 @@
-use common::spike_runner::SpikeRunner;
 use num_bigint::BigUint;
 use serde::{Deserialize, Deserializer};
+use spike_rs::runner::SpikeRunner;
 use spike_rs::spike_event::LSU_IDX_DEFAULT;
 use tracing::{debug, info};
-
-#[derive(Deserialize, Debug, PartialEq, Clone)]
-pub enum Opcode {
-  PutFullData = 0,
-  PutPartialData = 1,
-  Get = 4,
-  // AccessAckData = 0,
-  // AccessAck = 0,
-}
 
 fn bigint_to_vec_u8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where

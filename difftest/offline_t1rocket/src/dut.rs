@@ -1,4 +1,3 @@
-use anyhow::Context;
 use std::io::BufRead;
 use std::path::Path;
 

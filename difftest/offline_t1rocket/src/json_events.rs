@@ -1,6 +1,6 @@
-use common::spike_runner::SpikeRunner;
 use num_bigint::BigUint;
 use serde::{Deserialize, Deserializer};
+use spike_rs::runner::SpikeRunner;
 use spike_rs::spike_event::LSU_IDX_DEFAULT;
 use tracing::{debug, info};
 

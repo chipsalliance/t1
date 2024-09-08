@@ -1,9 +1,5 @@
-use common::spike_runner::SpikeRunner;
+use spike_rs::runner::*;
 use std::path::Path;
-use tracing::info;
-
-use common::rtl_config::RTLConfig;
-use common::CommonArgs;
 
 use crate::dut::Dut;
 use crate::json_events::*;
@@ -11,20 +7,15 @@ use crate::json_events::*;
 pub struct Difftest {
   runner: SpikeRunner,
   dut: Dut,
-
-  #[allow(dead_code)]
-  config: RTLConfig,
 }
 
 impl Difftest {
-  pub fn new(args: CommonArgs) -> Self {
-    let config = RTLConfig { vlen: args.vlen, dlen: args.dlen };
+  pub fn new(args: SpikeArgs) -> Self {
     Self {
       runner: SpikeRunner::new(&args, true),
       dut: Dut::new(Path::new(
         &args.log_file.expect("difftest must be run with a log file"),
       )),
-      config,
     }
   }
 
@@ -39,9 +30,7 @@ impl Difftest {
         Ok(())
       }
       JsonEvents::SimulationStop { reason, cycle } => {
-        info!("simulation stopped at cycle {}, reason {}", cycle, reason);
-        self.runner.cycle = *cycle;
-        Ok(())
+        anyhow::bail!("stop: simulation stopped at cycle {cycle}, reason {reason}")
       }
       JsonEvents::Issue { idx, cycle } => {
         self.runner.cycle = *cycle;
