@@ -72,7 +72,7 @@
       ];
     };
 
-    offline-checker = scope.callPackage ../../t1rocketemu/offline { };
+    offline-checker = scope.callPackage ../../difftest/offline-checker-t1rocket { };
 
     vcs-dpi-lib = scope.makeDPI {
       outputName = "t1rocket-vcs-dpi-lib";
