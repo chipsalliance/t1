@@ -329,7 +329,7 @@ impl JsonEventRunner for SpikeRunner {
       );
 
       // if instruction writes rd, it will retire in check_rd()
-      if count == se.vrf_access_record.retired_writes && !se.is_rd_written {
+      if count == se.vrf_access_record.retired_writes && !se.is_rd_written && !se.is_fd_written {
         should_retire = Some(issue_idx);
       }
       // if all writes are committed, retire the se
