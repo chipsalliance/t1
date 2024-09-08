@@ -6,12 +6,12 @@
 }:
 
 rustPlatform.buildRustPackage {
-  name = "offline-checker";
+  name = "offline-checker-t1";
   src = with lib.fileset; toSource {
     root = ./.;
     fileset = unions [
       ./spike_rs
-      ./offline
+      ./offline_t1
       ./dpi_common
       ./dpi_t1
       ./dpi_t1rocket
@@ -22,7 +22,7 @@ rustPlatform.buildRustPackage {
   };
 
   buildFeatures = [ ];
-  buildAndTestSubdir = "./offline";
+  buildAndTestSubdir = "./offline_t1";
 
   env = {
     SPIKE_LIB_DIR = "${libspike}/lib";

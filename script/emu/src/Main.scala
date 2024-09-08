@@ -312,7 +312,7 @@ object Main:
 
     val offlineChecker = os.Path(
       resolveNixPath(s".#t1.${finalConfig}.ip.offline-checker")
-    ) / "bin" / "offline"
+    ) / "bin" / "offline_t1"
 
     val elfFile =
       if caseAttr.isDefined then resolveTestElfPath(finalConfig, caseAttr.get).toString
