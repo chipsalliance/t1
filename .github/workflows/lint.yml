@@ -53,11 +53,6 @@ jobs:
           warnOnFileChanged "* Cargo format fail, please run 'cd difftest; cargo -- format'"
           popd
 
-          pushd t1rocketemu
-          nix shell '.#cargo' '.#rustfmt' -c cargo fmt
-          warnOnFileChanged "* Cargo format fail, please run 'cd t1rocketemu; cargo fmt'"
-          popd
-
           # Disable for now
           # if nix run '.#ripgrep' -- '\p{Script=Han}' t1 > zh-hans.txt; then
           #   RET=1
