@@ -21,6 +21,16 @@ pub struct SpikeRunner {
   ///   front of the queue, and it must be a fence
   pub commit_queue: VecDeque<SpikeEvent>,
 
+  /// vector queue to arrange the order of vector instructions, because of the register write
+  /// dependency, the vector instruction should be issued in order.
+  pub vector_queue: VecDeque<SpikeEvent>,
+
+  /// scalar queue to arrange the order of scalar reg write instructions
+  pub scalar_queue: VecDeque<SpikeEvent>,
+
+  /// float queue to arrange the order of scalar freg write instructions
+  pub float_queue: VecDeque<SpikeEvent>,
+
   /// config for v extension
   pub vlen: u32,
   pub dlen: u32,
@@ -32,6 +42,11 @@ pub struct SpikeRunner {
   pub spike_cycle: u64,
 
   pub do_log_vrf: bool,
+
+  // register file scoreboard
+  pub rf_board: Vec<Option<u32>>,
+  // float reg file scoreboard
+  pub frf_board: Vec<Option<u32>>,
 }
 
 #[derive(Parser, Debug)]
@@ -105,11 +120,16 @@ impl SpikeRunner {
     SpikeRunner {
       spike,
       commit_queue: VecDeque::new(),
+      vector_queue: VecDeque::new(),
+      scalar_queue: VecDeque::new(),
+      float_queue: VecDeque::new(),
       vlen: args.vlen,
       dlen: args.dlen,
       cycle: 0,
       spike_cycle: 0,
       do_log_vrf,
+      rf_board: vec![None; 32],
+      frf_board: vec![None; 32],
     }
   }
 
@@ -161,6 +181,7 @@ impl SpikeRunner {
       );
       let new_pc_ = proc.func();
       event.log_mem_write(spike).unwrap();
+      event.log_reg_write(spike).unwrap();
       new_pc_
     };
 
@@ -182,6 +203,63 @@ impl SpikeRunner {
         if se.is_v() {
           self.commit_queue.push_front(se.clone());
           break se.clone();
+        }
+      }
+    }
+  }
+
+  pub fn find_reg_se(&mut self) -> SpikeEvent {
+    if !self.scalar_queue.is_empty() {
+      // return the back (oldest) scalar insn
+      self.scalar_queue.pop_back().unwrap()
+    } else {
+      // else, loop until find a se, and push the se to the front
+      loop {
+        let se = self.spike_step();
+        if se.is_scalar() && se.is_rd_written {
+          return se;
+        } else if se.is_scalar() && se.is_fd_written {
+          self.float_queue.push_front(se.clone());
+        } else if se.is_v() {
+          self.vector_queue.push_front(se.clone());
+        }
+      }
+    }
+  }
+
+  pub fn find_freg_se(&mut self) -> SpikeEvent {
+    if !self.float_queue.is_empty() {
+      // return the back (oldest) float insn
+      self.float_queue.pop_back().unwrap()
+    } else {
+      // else, loop until find a se, and push the se to the front
+      loop {
+        let se = self.spike_step();
+        if se.is_scalar() && se.is_rd_written {
+          self.scalar_queue.push_front(se.clone());
+        } else if se.is_scalar() && se.is_fd_written {
+          return se;
+        } else if se.is_v() {
+          self.vector_queue.push_front(se.clone());
+        }
+      }
+    }
+  }
+
+  pub fn find_v_se(&mut self) -> SpikeEvent {
+    if !self.vector_queue.is_empty() {
+      // return the back (oldest) vector insn
+      self.vector_queue.pop_back().unwrap()
+    } else {
+      // else, loop until find a se, and push the se to the front
+      loop {
+        let se = self.spike_step();
+        if se.is_scalar() && se.is_rd_written {
+          self.scalar_queue.push_front(se.clone());
+        } else if se.is_scalar() && se.is_fd_written {
+          self.float_queue.push_front(se.clone());
+        } else if se.is_v() {
+          return se;
         }
       }
     }
