@@ -21,6 +21,7 @@ rustPlatform.buildRustPackage {
     fileset = unions [
       ./spike_rs
       ./offline_t1
+      ./offline_t1rocket
       ./dpi_common
       ./dpi_t1
       ./dpi_t1rocket
