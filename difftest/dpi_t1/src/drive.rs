@@ -124,6 +124,7 @@ impl Driver {
         &SpikeArgs {
           elf_file: args.elf_file.clone(),
           log_file: args.log_file.clone(),
+          log_level: "info".to_string(),
           vlen: args.vlen,
           dlen: args.dlen,
           set: args.set.clone(),

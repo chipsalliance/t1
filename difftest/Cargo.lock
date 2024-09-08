@@ -125,17 +125,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b6a852b24ab71dffc585bcb46eaf7959d175cb865a7152e35b348d1b2960422"
 
 [[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "spike_rs",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "dpi_common"
 version = "0.1.0"
 dependencies = [
@@ -285,7 +274,22 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "common",
+ "libloading",
+ "num-bigint",
+ "serde",
+ "serde_json",
+ "spike_rs",
+ "tracing",
+ "tracing-subscriber",
+ "xmas-elf",
+]
+
+[[package]]
+name = "offline_t1rocket"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
  "libloading",
  "num-bigint",
  "serde",
@@ -433,8 +437,10 @@ name = "spike_rs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "libc",
  "tracing",
+ "tracing-subscriber",
  "xmas-elf",
 ]
 

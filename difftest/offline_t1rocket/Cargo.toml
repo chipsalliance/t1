@@ -15,5 +15,4 @@ num-bigint = { workspace = true }
 libloading = "0.8.1"
 xmas-elf = "0.9.1"
 
-common = { path = "../test_common" }
 spike_rs = { path = "../spike_rs" }

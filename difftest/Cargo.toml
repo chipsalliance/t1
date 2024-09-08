@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "test_common",
     "spike_rs",
     "offline_t1",
+    "offline_t1rocket",
     "dpi_t1",
     "dpi_t1rocket",
     "dpi_common",

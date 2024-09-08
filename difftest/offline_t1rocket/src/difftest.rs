@@ -1,8 +1,5 @@
-use common::spike_runner::SpikeRunner;
+use spike_rs::spike_runner::{SpikeArgs, SpikeRunner};
 use std::path::Path;
-
-use common::rtl_config::RTLConfig;
-use common::CommonArgs;
 
 use crate::dut::Dut;
 use crate::json_events::*;
@@ -10,20 +7,15 @@ use crate::json_events::*;
 pub struct Difftest {
   runner: SpikeRunner,
   dut: Dut,
-
-  #[allow(dead_code)]
-  config: RTLConfig,
 }
 
 impl Difftest {
-  pub fn new(args: CommonArgs) -> Self {
-    let config = RTLConfig { vlen: args.vlen, dlen: args.dlen };
+  pub fn new(args: SpikeArgs) -> Self {
     Self {
       runner: SpikeRunner::new(&args, true),
       dut: Dut::new(Path::new(
         &args.log_file.expect("difftest must be run with a log file"),
       )),
-      config,
     }
   }
 
