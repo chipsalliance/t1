@@ -150,7 +150,7 @@ lib.mapAttrs
         vcsLinkLibs = [ "${ipScope.vcs-dpi-lib-trace}/lib/libdpi_t1.a" ];
       };
 
-      offline-checker = ipScope.callPackage ../../difftest/offline-checker.nix { };
+      offline-checker = ipScope.callPackage ../../difftest/offline-checker-t1.nix { };
 
       run = ipScope.callPackage ./run { };
     }); # end of ipScope
