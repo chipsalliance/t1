@@ -1,4 +1,4 @@
-use spike_rs::spike_runner::{SpikeArgs, SpikeRunner};
+use spike_rs::runner::{SpikeArgs, SpikeRunner};
 use std::path::Path;
 
 use crate::dut::Dut;

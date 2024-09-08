@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use tracing::{info, trace};
+use tracing::trace;
 use Default;
 
 use crate::clip;
@@ -92,6 +92,7 @@ pub struct SpikeEvent {
 
   // mutable states
   pub is_rd_written: bool,
+  pub is_fd_written: bool,
   pub vd_write_record: VdWriteRecord,
   pub mem_access_record: MemAccessRecord,
   pub vrf_access_record: VrfAccessRecord,
@@ -143,6 +144,7 @@ impl SpikeEvent {
       rd_bits: Default::default(),
 
       is_rd_written: false,
+      is_fd_written: false,
       vd_write_record: Default::default(),
       mem_access_record: Default::default(),
       vrf_access_record: Default::default(),
@@ -326,18 +328,15 @@ impl SpikeEvent {
 
   pub fn pre_log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
     if self.do_log_vrf {
-      self.rd_bits = spike.get_proc().get_rd();
-
       // record the vrf writes before executing the insn
-      let vlen_in_bytes = vlen;
-
       let proc = spike.get_proc();
-      let (start, len) = self.get_vrf_write_range(vlen_in_bytes).unwrap();
+      self.rd_bits = proc.get_state().get_reg(self.rd_idx, false);
+      let (start, len) = self.get_vrf_write_range(vlen).unwrap();
       self.vd_write_record.vd_bytes.resize(len as usize, 0u8);
       for i in 0..len {
         let offset = start + i;
-        let vreg_index = offset / vlen_in_bytes;
-        let vreg_offset = offset % vlen_in_bytes;
+        let vreg_index = offset / vlen;
+        let vreg_offset = offset % vlen;
         let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
         self.vd_write_record.vd_bytes[i as usize] = cur_byte;
       }
@@ -391,7 +390,7 @@ impl SpikeEvent {
     Ok(())
   }
 
-  fn log_reg_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
+  pub fn log_reg_write(&mut self, spike: &Spike) -> anyhow::Result<()> {
     let proc = spike.get_proc();
     let state = proc.get_state();
     // in spike, log_reg_write is arrange:
@@ -402,36 +401,39 @@ impl SpikeEvent {
     // xx0100 <- csr
     let reg_write_size = state.get_reg_write_size();
     // TODO: refactor it.
-    (0..reg_write_size).for_each(|idx| match state.get_reg_write_index(idx) & 0xf {
-      0b0000 => {
-        // scalar rf
-        let data = state.get_reg(self.rd_idx, false);
-        self.is_rd_written = true;
-        if data != self.rd_bits {
+    (0..reg_write_size).for_each(|idx| {
+      let rd_idx_type = state.get_reg_write_index(idx);
+      match rd_idx_type & 0xf {
+        0b0000 => {
+          // scalar rf
+          self.rd_idx = rd_idx_type >> 4;
+          if self.rd_idx != 0 {
+            let data = state.get_reg(self.rd_idx, false);
+            self.is_rd_written = true;
+            self.rd_bits = data;
+            trace!(
+              "ScalarRFChange: idx={:#02x}, data={:08x}",
+              self.rd_idx,
+              self.rd_bits
+            );
+          }
+        }
+        0b0001 => {
+          self.rd_idx = rd_idx_type >> 4;
+          let data = state.get_reg(self.rd_idx, true);
+          self.is_fd_written = true;
+          self.rd_bits = data;
           trace!(
-            "ScalarRFChange: idx={}, change_from={}, change_to={data}",
+            "FloatRFChange: idx={:#02x}, data={:08x}",
             self.rd_idx,
             self.rd_bits
           );
-          self.rd_bits = data;
         }
+        _ => trace!(
+          "UnknownRegChange, idx={:#02x}, spike detect unknown reg change",
+          self.rd_idx
+        ),
       }
-      0b0001 => {
-        let data = state.get_reg(self.rd_idx, true);
-        self.is_rd_written = true;
-        if data != self.rd_bits {
-          trace!(
-            "FloatRFChange: idx={}, change_from={}, change_to={data}",
-            self.rd_idx,
-            self.rd_bits
-          );
-          self.rd_bits = data;
-        }
-      }
-      _ => trace!(
-        "UnknownRegChange, idx={}, spike detect unknown reg change",
-        state.get_reg_write_index(idx)
-      ),
     });
 
     Ok(())
@@ -459,7 +461,7 @@ impl SpikeEvent {
       trace!("SpikeMemWrite: addr={addr:x}, value={value:x}, size={size}");
 
       if addr == 0x4000_0000 && value == 0xdead_beef {
-        info!("SpikeExit: exit by writing 0xdeadbeef to 0x40000000");
+        trace!("SpikeExit: exit by writing 0xdeadbeef to 0x40000000");
         self.is_exit = true;
 
         return;
