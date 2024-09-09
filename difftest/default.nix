@@ -49,6 +49,11 @@ rustPlatform.buildRustPackage {
     lockFile = ./Cargo.lock;
   };
 
+  postInstall = lib.optionalString (lib.hasPrefix "offline" moduleType) ''
+    exe=$(find $out/bin -type f -name 'offline_*')
+    ln -s "$exe" $out/bin/offline
+  '';
+
   passthru = {
     dpiLibPath = "/lib/libdpi_${moduleType}.a";
     inherit enableTrace;
