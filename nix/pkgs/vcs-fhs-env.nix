@@ -55,13 +55,19 @@ buildFHSEnv {
     expat
     sqlite
     nssmdns
-    (libkrb5.overrideAttrs rec {
+    (krb5.overrideAttrs rec {
       version = "1.18.2";
       src = fetchurl {
         url = "https://kerberos.org/dist/krb5/${lib.versions.majorMinor version}/krb5-${version}.tar.gz";
         hash = "sha256-xuTJ7BqYFBw/XWbd8aE1VJBQyfq06aRiDumyIIWHOuA=";
       };
       sourceRoot = "krb5-${version}/src";
+      # error: assignment discards 'const' qualifier from pointer target type:
+      #   https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wdiscarded-qualifiers-Werror=discarded-qualifiers8
+      #
+      # Error when compiling with OpenSSL header, should be fixed in new version.
+      # But we need to keep at 1.18.2, so here is the dirty workaround.
+      env.NIX_CFLAGS_COMPILE = "-Wno-discarded-qualifiers";
     })
     (gnugrep.overrideAttrs rec {
       version = "3.1";
