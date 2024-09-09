@@ -59,8 +59,8 @@ stdenvNoCC.mkDerivation (finalAttr: {
       "ERROR"
     )
     offlineCheckArgs="''${offlineCheckArgsArray[@]}"
-    echo -e "[nix] running offline check: \033[0;34m${emulator}/bin/offline_t1 $offlineCheckArgs\033[0m"
-    "${offline-checker}/bin/offline_t1" $offlineCheckArgs &> >(tee $out/offline-check-journal)
+    echo -e "[nix] running offline check: \033[0;34m${emulator}/bin/offline $offlineCheckArgs\033[0m"
+    "${offline-checker}/bin/offline" $offlineCheckArgs &> >(tee $out/offline-check-journal)
 
     printf "$?" > $out/offline-check-status
     if [ "$(cat $out/offline-check-status)" != "0" ]; then
