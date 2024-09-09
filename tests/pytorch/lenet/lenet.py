@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch._inductor.decomposition import decompositions as inductor_decomp
+import torch._inductor.lowering
 
 from buddy.compiler.frontend import DynamoCompiler
 from buddy.compiler.graph import GraphDriver
