@@ -76,6 +76,7 @@ let
     ];
 
     env = {
+      JEXTRACT_INSTALL_PATH = jextract-21;
       CIRCT_INSTALL_PATH = circt-full;
       JAVA_TOOL_OPTIONS = "--enable-preview";
     };
