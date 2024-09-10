@@ -51,6 +51,10 @@ class RocketProbe(param: RocketParameter) extends Bundle {
   val idle:           Bool                       = Bool()
   // fpu score board
   val fpuScoreboard:  Option[FPUScoreboardProbe] = Option.when(param.usingFPU)(new FPUScoreboardProbe)
+
+  val wbRegPc:    UInt                         = UInt(param.iBufParameter.vaddrBitsExtended.W)
+  val t1IssueEnq: Option[DecoupledIO[T1Issue]] =
+    Option.when(param.usingT1)(DecoupledIO(new T1Issue(param.xLen, param.vLen)))
 }
 
 object RocketParameter {
@@ -1635,6 +1639,11 @@ class Rocket(val parameter: RocketParameter)
         }.getOrElse(false.B)
         probeWire.isVectorWrite  := t1RetireQueue.map(q => q.deq.fire).getOrElse(false.B)
         probeWire.idle           := vectorEmpty
+
+        probeWire.wbRegPc := wbRegPc
+        probeWire.t1IssueEnq.foreach { case t1IssueEnq =>
+          t1IssueEnq := t1IssueQueue.enq
+        }
 
         probeWire.fpuScoreboard.foreach { case fpProbe =>
           fpProbe.memSetScoreBoard     := wbValid && wbDcacheMiss && wbRegDecodeOutput(parameter.decoderParameter.wfd)

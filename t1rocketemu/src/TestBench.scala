@@ -14,6 +14,8 @@ import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
+import org.chipsalliance.t1.rtl.T1Probe
+import org.chipsalliance.t1.tile.T1RocketProbe
 
 @instantiable
 class TestBenchOM extends Class {
@@ -352,5 +354,29 @@ class TestBench(val parameter: T1RocketTileParameter)
   quitFlag := RawClockedNonVoidFunctionCall("cosim_quit", Bool())(clock, !quitFlag)
   when(quitFlag && t1Probe.idle && rocketProbe.idle) {
     stop(cf"""{"event":"SimulationEnd", "cycle":${simulationTime}}\n""")
+  }
+
+  // t1rocket ProfData
+  layer.block(layers.Verification) {
+    val profData = Module(new Module {
+      override def desiredName: String = "ProfData"
+      val probe = IO(Input(new T1RocketProbe(parameter)))
+
+      val t1IssueEnqPc       = WireInit(probe.rocketProbe.wbRegPc)
+      val t1IssueEnq         = WireInit(probe.rocketProbe.t1IssueEnq.get)
+      val t1IssueDeq         = WireInit(probe.t1IssueDeq)
+      val t1IssueRegDeq      = WireInit(probe.t1Probe.requestReg)
+      val t1IssueRegDeqReady = WireInit(probe.t1Probe.requestRegReady)
+      val t1Retire           = WireInit(probe.t1Retire)
+
+      dontTouch(this.clock)
+      dontTouch(this.reset)
+      dontTouch(t1IssueEnq)
+      dontTouch(t1IssueDeq)
+      dontTouch(t1IssueRegDeq)
+      dontTouch(t1IssueRegDeqReady)
+      dontTouch(t1Retire)
+    })
+    profData.probe := t1RocketProbe
   }
 }
