@@ -11,6 +11,8 @@ import chisel3.util.{HasExtModuleInline, Mux1H, PopCount, Queue, UIntToOH, Valid
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
+import org.chipsalliance.t1.rtl.T1Probe
+import org.chipsalliance.t1.tile.T1RocketProbe
 
 class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTileParameter])
     extends RawModule
@@ -325,5 +327,18 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   quitFlag := RawClockedNonVoidFunctionCall("cosim_quit", Bool())(clock, !quitFlag)
   when(quitFlag && t1Probe.idle && rocketProbe.idle) {
     stop(cf"""{"event":"SimulationEnd", "cycle":${simulationTime}}\n""")
+  }
+
+  // t1rocket ProfData
+  layer.block(layers.Verification) {
+    val profData = Module(new Module {
+      override def desiredName: String = "ProfData"
+      val probe = IO(Input(new T1RocketProbe(generator.parameter)))
+
+      dontTouch(this.clock)
+      dontTouch(this.reset)
+      dontTouch(probe)
+    })
+    profData.probe := t1RocketProbe
   }
 }
