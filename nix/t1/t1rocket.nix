@@ -45,10 +45,12 @@
     verilator-dpi-lib = scope.makeDifftest {
       outputName = "t1rocket-verilator-dpi-lib";
       moduleType = "dpi_t1rocket";
+      emuType = "verilator";
     };
     verilator-dpi-lib-trace = scope.makeDifftest {
       outputName = "t1rocket-verilator-trace-dpi-lib";
       moduleType = "dpi_t1rocket";
+      emuType = "verilator";
       enableTrace = true;
     };
 
