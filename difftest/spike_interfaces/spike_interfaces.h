@@ -17,10 +17,10 @@ ffi_callback ffi_addr_to_mem;
 extern void *ffi_target;
 std::vector<uint32_t> reg_write_index_vec;
 
-class sim_t : public simif_t {
+class t1_sim_t : public simif_t {
 public:
-  sim_t() {}
-  ~sim_t() {}
+  t1_sim_t() {}
+  ~t1_sim_t() {}
   char *addr_to_mem(reg_t addr) override {
     return ffi_addr_to_mem(ffi_target, addr);
   }
@@ -50,7 +50,7 @@ public:
 
 private:
   cfg_t cfg;
-  sim_t sim;
+  t1_sim_t sim;
   isa_parser_t isa;
   processor_t proc;
 };
