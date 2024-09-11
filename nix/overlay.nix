@@ -37,6 +37,8 @@ rec {
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {
       passthru = { inherit jre; };
+      # --interactive implies --no-server
+      postInstall = ''wrapProgram $out/bin/mill --add-flags "--interactive"'';
     });
 
   # some symbols in newlib libgloss uses ecall, which does not work in emulator
