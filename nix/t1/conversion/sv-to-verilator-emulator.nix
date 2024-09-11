@@ -40,7 +40,10 @@ rec {
     verilatorTop
   ]
   ++ extraVerilatorArgs
-  ++ lib.optionals (enableTrace) [ "--trace-fst" ];
+  ++ lib.optionals (enableTrace) [
+    "+define+T1_ENABLE_TRACE"
+    "--trace-fst"
+  ];
 
   buildPhase = ''
     runHook preBuild
