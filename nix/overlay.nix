@@ -20,6 +20,8 @@ rec {
   libspike = final.callPackage ./pkgs/libspike.nix { };
   libspike_interfaces = final.callPackage ../difftest/spike_interfaces { };
 
+  sail-riscv-c-model = final.callPackage ./pkgs/sail-riscv-c-model.nix { };
+
   # DynamoCompiler doesn't support python 3.12+ yet
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { python3 = final.python311; };
 
@@ -37,6 +39,11 @@ rec {
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {
       passthru = { inherit jre; };
+      # Using mill without "-i/--interactive" or "--no-server" will run a mill
+      # build server automatically. The build server doesn't inherit or update
+      # environment when user invoke mill at command-line, which is hard for
+      # developers to debug.
+      #
       # --interactive implies --no-server
       postInstall = ''wrapProgram $out/bin/mill --add-flags "--interactive"'';
     });
