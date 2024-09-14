@@ -64,6 +64,7 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
 class SlotTokenManager(parameter: LaneParameter) extends Module {
   // todo: param
   val tokenWith = 5
+  // enq token
   @public
   val enqReports: Seq[ValidIO[EnqReportBundle]] = Seq.tabulate(parameter.chainingSize) { _ =>
     IO(Flipped(Valid(new EnqReportBundle(parameter))))
@@ -89,6 +90,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   @public
   val writePipeDeqReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
+  // top write enq
   @public
   val topWriteEnq: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
@@ -131,6 +133,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
 
     val enqOH = indexToOH(enqReport.bits.instructionIndex, parameter.chainingSize)
 
+    // write enq?
     val writeDoEnq: UInt =
       maskAnd(enqReport.valid && !enqReport.bits.decodeResult(Decoder.sWrite), enqOH).asUInt
 

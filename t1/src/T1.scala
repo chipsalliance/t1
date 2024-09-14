@@ -320,6 +320,7 @@ class T1Probe(parameter: T1Parameter) extends Bundle {
 class T1Interface(parameter: T1Parameter) extends Record {
   def clock  = elements("clock").asInstanceOf[Clock]
   def reset  = elements("reset").asInstanceOf[Bool]
+  // issue io
   def issue  = elements("issue").asInstanceOf[DecoupledIO[T1Issue]]
   def retire = elements("retire").asInstanceOf[T1Retire]
   def highBandwidthLoadStorePort: AXI4RWIrrevocable    =
@@ -386,6 +387,7 @@ class T1(val parameter: T1Parameter)
   // maintained a 1 depth queue for VRequest.
   // TODO: directly maintain a `ready` signal
   /** register to latch instruction. */
+    // requestReg
   val requestReg:    ValidIO[InstructionPipeBundle] = RegInit(0.U.asTypeOf(Valid(new InstructionPipeBundle(parameter))))
   val requestRegCSR: CSRInterface                   = WireDefault(0.U.asTypeOf(new CSRInterface(parameter.laneParam.vlMaxBits)))
   requestRegCSR.vlmul  := requestReg.bits.issue.vtype(2, 0)
@@ -399,6 +401,7 @@ class T1(val parameter: T1Parameter)
   /** maintain a [[DecoupleIO]] for [[requestReg]]. */
   val requestRegDequeue = Wire(Decoupled(new T1Issue(parameter.xLen, parameter.vLen)))
   // latch instruction, csr, decode result and instruction index to requestReg.
+  // reg
   when(io.issue.fire) {
     // The LSU only need to know the instruction, and don't need information from decoder.
     // Thus we latch the request here, and send it to LSU.
@@ -425,6 +428,7 @@ class T1(val parameter: T1Parameter)
   // 1 1 -> don't update
   requestReg.valid := Mux(io.issue.fire ^ requestRegDequeue.fire, io.issue.fire, requestReg.valid)
   // ready when requestReg is free or it will be free in this cycle.
+  // requestReg backpr ....
   io.issue.ready          := !requestReg.valid || requestRegDequeue.ready
   // manually maintain a queue for requestReg.
   requestRegDequeue.bits  := requestReg.bits.issue
@@ -622,6 +626,7 @@ class T1(val parameter: T1Parameter)
 
   val executeForLastLaneFire: Bool = WireDefault(false.B)
 
+  // instruction state register
   /** state machine register for each instruction. */
   val slots: Seq[InstructionControl] = Seq.tabulate(parameter.chainingSize) { index =>
     /** the control register in the slot. */
@@ -1693,9 +1698,11 @@ class T1(val parameter: T1Parameter)
   // - for slide instruction, it is unordered, and may have RAW hazard,
   //   we detect the hazard and decide should we issue this slide or
   //   issue the instruction after the slide which already in the slot.
+  // reg deq
   requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || gatherReadFinish) &&
     instructionRAWReady && instructionIndexFree && vrfAllocate
 
+  // slot 1H
   instructionToSlotOH := Mux(requestRegDequeue.fire, slotToEnqueue, 0.U)
 
   // instruction commit

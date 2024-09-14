@@ -555,6 +555,7 @@ class Rocket(val parameter: RocketParameter)
     val wbRegFlushPipe = Reg(Bool())
     val wbRegCause     = Reg(UInt())
     val wbRegSfence    = Reg(Bool())
+    // pc, (issue queue fire)
     val wbRegPc        = Reg(UInt())
     val wbRegDecodeOutput: DecodeBundle = Reg(chiselTypeOf(decoder.io.output))
     val wbRegMemSize        = Reg(UInt())
@@ -1388,6 +1389,8 @@ class Rocket(val parameter: RocketParameter)
     // vector stall
     val vectorLSUEmpty:  Option[Bool] = Option.when(usingVector)(Wire(Bool()))
     val vectorQueueFull: Option[Bool] = Option.when(usingVector)(Wire(Bool()))
+    // stall
+    // vector stall
     val vectorStall:     Option[Bool] = Option.when(usingVector) {
       val vectorLSUNotClear =
         (exRegValid && exRegDecodeOutput(parameter.decoderParameter.vectorLSU)) ||
@@ -1528,8 +1531,10 @@ class Rocket(val parameter: RocketParameter)
 
     // TODO: T1 only logic
     io.t1.foreach { t1 =>
+      // 0: t1 issue
       // T1 Issue
       val maxCount: Int = 32
+      // t1 issue queue
       val t1IssueQueue = Module(new Queue(chiselTypeOf(t1.issue.bits), maxCount))
       t1IssueQueue.io.enq.valid            :=
         wbRegValid && !replayWbCommon && wbRegDecodeOutput(parameter.decoderParameter.vector) &&
@@ -1563,6 +1568,7 @@ class Rocket(val parameter: RocketParameter)
         (empty, full)
       }
       // T1 Memory Scoreboard
+      // mem Scoreboard
       val t1MemoryGrant: Bool = t1IssueQueue.io.enq.valid && wbRegDecodeOutput(parameter.decoderParameter.vectorLSU)
       val t1MemoryRelease: Bool = t1.retire.mem.fire
       // todo: handle vector lsu in pipe
@@ -1570,12 +1576,14 @@ class Rocket(val parameter: RocketParameter)
       val (lsuEmpty, _) = counterManagement(countWidth + 1)(t1MemoryGrant, t1MemoryRelease)
       // T1 CSR Scoreboard
       // todo: add wbRegDecodeOutput(vectorWriteCsr)
+      // csr Scoreboard
       val t1CSRGrant:   Bool = false.B
       val t1CSRRelease: Bool = false.B // t1CSRRetireQueue.io.deq.fire
       val (t1CSREmpty, _) = counterManagement(countWidth + 1)(t1CSRGrant, t1CSRRelease)
       // T1 XRD Scoreboard?
 
       // Maintain vector counter
+      // issue scoreboard
       // There may be 4 instructions in the pipe
       val (vectorEmpty, vectorFull) = counterManagement(countWidth, 4)(t1IssueQueue.io.enq.valid, t1.issue.fire)
       vectorLSUEmpty.foreach(_ := lsuEmpty)

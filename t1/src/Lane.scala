@@ -390,6 +390,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   /** which slot wins the arbitration for requesting mask. */
   val maskRequestFireOH: UInt = Wire(UInt(parameter.chainingSize.W))
 
+  // lane slot
   /** FSM control for each slot. if index == 0,
     *   - slot can support write v0 in mask type, see [[Decoder.maskDestination]] [[Decoder.maskSource]]
     *     [[Decoder.maskLogic]]
@@ -1041,6 +1042,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     pre || !current
   }
 
+  // slot enq
   val slotEnqueueFire: Seq[Bool] = Seq.tabulate(parameter.chainingSize) { slotIndex =>
     val enqueueReady: Bool = Wire(Bool())
     val enqueueValid: Bool = Wire(Bool())
@@ -1086,6 +1088,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // handshake
   // @todo @Clo91eaf lane can take request from Sequencer
+  // enq lane back...
   laneRequest.ready := slotFree && vrf.instructionWriteReport.ready
 
   val instructionFinishAndNotReportByTop: Bool =

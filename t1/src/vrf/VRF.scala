@@ -137,6 +137,7 @@ class VRFProbe(parameter: VRFParam) extends Bundle {
 @instantiable
 class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFParam] {
 
+  // vrf read req
   /** VRF read requests ready will couple from valid from [[readRequests]], ready is asserted when higher priority valid
     * is less than 2.
     */
@@ -348,6 +349,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           !((write.valid && bank === writeBank && write.bits.vd === v.bits.vs && write.bits.offset === v.bits.offset) ||
             (writePipe.valid && bank === writeBankPipe && writePipe.bits.vd === v.bits.vs && writePipe.bits.offset === v.bits.offset))
       })
+      // bank ready: (bank & (~readPortCheckSelect)).orR
       val portReady: Bool = if (i == (readRequests.size - 1)) {
         (bank & (~readPortCheckSelect)).orR && checkResult.get
       } else {
@@ -355,6 +357,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         // if there are additional read port for the bank.
         (bank & (~readPortCheckSelect)).orR
       }
+      // read back...
       v.ready := portReady && sramReady
       val firstUsed = (bank & o).orR
       bankReadF(i) := bankCorrect & (~o)
@@ -370,6 +373,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       (o | bankCorrect, (bankCorrect & o) | t)
   }
   // @todo @Clo91eaf check write port is ready.
+  // write back...
   write.ready := sramReady && (parameter.ramType match {
     case RamType.p0rw     => (writeBank & (~firstOccupied)).orR
     case RamType.p0rp1w   => true.B

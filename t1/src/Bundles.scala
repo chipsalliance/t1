@@ -109,6 +109,7 @@ class ExtendInstructionType extends Bundle {
 
 /** interface from [[T1]] to [[Lane]]. */
 class LaneRequest(param: LaneParameter) extends Bundle {
+  // inst tag
   val instructionIndex: UInt         = UInt(param.instructionIndexBits.W)
   // decode
   val decodeResult:     DecodeBundle = Decoder.bundle(param.decoderParam)

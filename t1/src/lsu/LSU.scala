@@ -127,6 +127,7 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val maskSelect: Vec[UInt] = IO(Output(Vec(param.lsuMSHRSize, UInt(param.maskGroupSizeBits.W))))
 
+  // axi back...
   @public
   val axi4Port: AXI4RWIrrevocable = IO(new AXI4RWIrrevocable(param.axi4BundleParameter))
 
@@ -179,6 +180,8 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val offsetReadIndex: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.instructionIndexBits.W))))
 
+  // lsu instruction finish
+  // 0b0001 -> 0 | 4, 0b0010-> 1 | 5, 0b0100-> 2 | 6, b1000 -> 3 | 7
   /** interface to [[V]], indicate a MSHR slots is finished, and corresponding instruction can commit. */
   @public
   val lastReport: UInt = IO(Output(UInt(param.chainingSize.W)))
@@ -216,6 +219,7 @@ class LSU(param: LSUParameter) extends Module {
   val addressCheck: Bool = otherUnit.status.idle && (!useOtherUnit || (loadUnit.status.idle && storeUnit.status.idle))
   val unitReady:    Bool =
     (useLoadUnit && loadUnit.status.idle) || (useStoreUnit && storeUnit.status.idle) || (useOtherUnit && otherUnit.status.idle)
+  // lsu back...
   request.ready := unitReady && addressCheck
   val requestFire = request.fire
   val reqEnq: Vec[Bool] = VecInit(
@@ -453,6 +457,7 @@ class LSU(param: LSUParameter) extends Module {
   val stallLoad:  Bool = !unitOrder && loadAddressConflict && !storeUnit.status.idle
   val stallStore: Bool = unitOrder && storeAddressConflict && !loadUnit.status.idle
 
+  // address Conflict
   loadUnit.addressConflict  := stallLoad
   storeUnit.addressConflict := stallStore
 }
