@@ -1,8 +1,25 @@
-{ buildFHSEnv
-, vcStaticHome
+# This is a bit dirty.
+# Since VCS are close source toolchains, we have no way to fix it for environment changes.
+# So here we have to lock the whole nixpkgs to a working version.
+#
+# For convenience, we still use the nixpkgs defined in flake to "callPackage" this derivation.
+# But the buildFHSEnv, targetPkgs is still from the locked nixpkgs.
+{ vcStaticHome
 , snpslmdLicenseFile
+, fetchFromGitHub
 }:
-buildFHSEnv {
+let
+  nixpkgsSrcs = fetchFromGitHub {
+    owner = "NixOS";
+    repo = "nixpkgs";
+    "rev" = "574d1eac1c200690e27b8eb4e24887f8df7ac27c";
+    "hash" = "sha256-v3rIhsJBOMLR8e/RNWxr828tB+WywYIoajrZKFM+0Gg=";
+  };
+
+  # The vcs we have only support x86-64_linux
+  lockedPkgs = import nixpkgsSrcs { system = "x86_64-linux"; };
+in
+lockedPkgs.buildFHSEnv {
   name = "vcs-fhs-env";
 
   profile = ''
