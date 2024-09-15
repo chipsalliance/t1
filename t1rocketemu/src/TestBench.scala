@@ -331,13 +331,22 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
 
   // t1rocket ProfData
   layer.block(layers.Verification) {
+    val param = generator.parameter
     val profData = Module(new Module {
       override def desiredName: String = "ProfData"
-      val probe = IO(Input(new T1RocketProbe(generator.parameter)))
+      val probe = IO(Input(new T1RocketProbe(param)))
+
+      val t1IssueEnqPc = WireInit(probe.rocketProbe.wbRegPc)
+      val t1IssueEnq = WireInit(probe.rocketProbe.t1IssueEnq.get)
+      val t1IssueDeq = WireInit(probe.t1IssueDeq)
+      val t1Retire = WireInit(probe.t1Retire)
 
       dontTouch(this.clock)
       dontTouch(this.reset)
-      dontTouch(probe)
+      dontTouch(t1IssueEnq)
+      dontTouch(t1IssueEnq)
+      dontTouch(t1IssueDeq)
+      dontTouch(t1Retire)
     })
     profData.probe := t1RocketProbe
   }
