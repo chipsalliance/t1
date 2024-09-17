@@ -165,14 +165,15 @@ case class DecoderParameter(
   object fp extends BoolDecodeField[RocketDecodePattern] {
     override def name: String = "fp"
 
-    override def genTable(op: RocketDecodePattern): BitPat = op.instruction.instructionSet.name match {
+    override def genTable(op: RocketDecodePattern): BitPat = (op.instruction.instructionSet.name, op) match {
       // format: off
-      case s if Seq(
+      case (s, _) if Seq(
         "rv_d", "rv64_d",
         "rv_f", "rv64_f",
         "rv_q", "rv64_q",
         "rv_zfh", "rv64_zfh", "rv_d_zfh", "rv_q_zfh",
       ).contains(s) => y
+      case (_, p) if p.vectorReadFRegFile => y
       case _ => n
       // format: on
     }
