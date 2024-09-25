@@ -30,6 +30,8 @@ import chisel3.util.{
   UIntToOH
 }
 import org.chipsalliance.amba.axi4.bundle.{
+  AR,
+  AW,
   AXI4BundleParameter,
   AXI4ChiselBundle,
   AXI4ROIrrevocable,
@@ -521,6 +523,10 @@ class HellaCache(val parameter: HellaCacheParameter)
         with InlineInstance
     )
 
+    val awQueue: Queue[AW] = Module(new Queue(chiselTypeOf(io.loadStoreAXI.aw.bits), 1, flow = true))
+
+    val arQueue: Queue[AR] = Module(new Queue(chiselTypeOf(io.loadStoreAXI.ar.bits), 1, flow = true))
+
     dataArb.io.in.tail.foreach(_.bits.wdata := dataArb.io.in.head.bits.wdata) // tie off write ports by default
     dataArb.io.out.ready := true.B
     metaArb.io.out.ready := clock_en_reg
@@ -868,7 +874,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     val s2_victim_dirty       = s2_victim_state.state === 3.U
     dontTouch(s2_victim_dirty)
     val s2_update_meta        = s2_hit_state.state =/= s2_new_hit_state.state
-    val s2_dont_nack_uncached = s2_valid_uncached_pending && io.loadStoreAXI.aw.ready
+    val s2_dont_nack_uncached = s2_valid_uncached_pending && awQueue.io.enq.ready
     val s2_dont_nack_misc     = s2_valid_masked && !s2_meta_error &&
       (supports_flush.B && s2_cmd_flush_all && flushed && !flushing ||
         supports_flush.B && s2_cmd_flush_line && !s2_hit ||
@@ -1041,29 +1047,31 @@ class HellaCache(val parameter: HellaCacheParameter)
     val accessWillRead: Bool = !s2_uncached || !s2_write
     // If no managers support atomics, assert fail if processor asks for them
     assert(!(memAccessValid && s2_read && s2_write && s2_uncached))
-    io.loadStoreAXI.ar.valid      := memAccessValid && accessWillRead
-    io.loadStoreAXI.ar.bits       := DontCare
-    io.loadStoreAXI.ar.bits.burst := 1.U
-    io.loadStoreAXI.ar.bits.addr  := Mux(
+    arQueue.io.enq.valid      := memAccessValid && accessWillRead
+    arQueue.io.enq.bits       := DontCare
+    arQueue.io.enq.bits.burst := 1.U
+    arQueue.io.enq.bits.addr  := Mux(
       s2_uncached,
       access_address,
       access_address >> parameter.lgCacheBlockBytes << parameter.lgCacheBlockBytes
     )
-    io.loadStoreAXI.ar.bits.len   := Mux(
+    arQueue.io.enq.bits.len   := Mux(
       s2_uncached,
       0.U,
       (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
     )
-    io.loadStoreAXI.ar.bits.size  := Mux(s2_uncached, a_size, parameter.lgCacheBlockBytes.U)
-    io.loadStoreAXI.ar.bits.id    := Mux(s2_uncached, a_source, 0.U)
+    arQueue.io.enq.bits.size  := Mux(s2_uncached, a_size, parameter.lgCacheBlockBytes.U)
+    arQueue.io.enq.bits.id    := Mux(s2_uncached, a_source, 0.U)
+    io.loadStoreAXI.ar <> arQueue.io.deq
 
-    io.loadStoreAXI.aw.valid      := memAccessValid && !accessWillRead
-    io.loadStoreAXI.aw.bits       := DontCare
-    io.loadStoreAXI.aw.bits.id    := Mux(s2_uncached, a_source, 0.U)
-    io.loadStoreAXI.aw.bits.burst := 1.U
-    io.loadStoreAXI.aw.bits.addr  := access_address
-    io.loadStoreAXI.aw.bits.len   := 0.U
-    io.loadStoreAXI.aw.bits.size  := a_size
+    awQueue.io.enq.valid      := memAccessValid && !accessWillRead
+    awQueue.io.enq.bits       := DontCare
+    awQueue.io.enq.bits.id    := Mux(s2_uncached, a_source, 0.U)
+    awQueue.io.enq.bits.burst := 1.U
+    awQueue.io.enq.bits.addr  := access_address
+    awQueue.io.enq.bits.len   := 0.U
+    awQueue.io.enq.bits.size  := a_size
+    io.loadStoreAXI.aw <> awQueue.io.deq
 
     val dataQueue: Queue[W] = Module(new Queue(chiselTypeOf(io.loadStoreAXI.w.bits), cacheDataBeats))
     dataQueue.io.enq.valid     := memAccessValid && !accessWillRead
@@ -1091,7 +1099,7 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     // Set pending bits for outstanding TileLink transaction
     val a_sel = UIntToOH(a_source, maxUncachedInFlight + mmioOffset) >> mmioOffset
-    when(io.loadStoreAXI.ar.fire || io.loadStoreAXI.aw.fire) {
+    when(arQueue.io.enq.fire || awQueue.io.enq.fire) {
       when(s2_uncached) {
         (a_sel.asBools.zip(uncachedInFlight.zip(uncachedReqs))).foreach { case (s, (f, r)) =>
           when(s) {
@@ -1310,11 +1318,11 @@ class HellaCache(val parameter: HellaCacheParameter)
     val s2_release_last: Bool = RegEnable(s1_release_last, s1_release_data_valid && !releaseRejected)
 
     when(awState) {
-      io.loadStoreAXI.aw.valid     := true.B
-      io.loadStoreAXI.aw.bits.addr := releaseAddress >> parameter.lgCacheBlockBytes << parameter.lgCacheBlockBytes
-      io.loadStoreAXI.aw.bits.len  := (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
-      io.loadStoreAXI.aw.bits.size := parameter.lgCacheBlockBytes.U
-      io.loadStoreAXI.aw.bits.id   := (mmioOffset - 1).U
+      awQueue.io.enq.valid     := true.B
+      awQueue.io.enq.bits.addr := releaseAddress >> parameter.lgCacheBlockBytes << parameter.lgCacheBlockBytes
+      awQueue.io.enq.bits.len  := (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
+      awQueue.io.enq.bits.size := parameter.lgCacheBlockBytes.U
+      awQueue.io.enq.bits.id   := (mmioOffset - 1).U
     }
 
     when(s2_release_data_valid) {
@@ -1342,7 +1350,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       }
 
       when(awState) {
-        when(io.loadStoreAXI.aw.ready) {
+        when(awQueue.io.enq.ready) {
           release_state    := s_voluntary_writeback
           release_ack_wait := true.B
           release_ack_addr := releaseAddress
@@ -1502,7 +1510,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       }
 
       // when(tl_out_a.fire && !s2_uncached) { flushed := false.B }
-      when(io.loadStoreAXI.aw.fire && !s2_uncached) { flushed := false.B }
+      when(awQueue.io.enq.fire && !s2_uncached) { flushed := false.B }
       when(flushing) {
         s1_victim_way := flushCounter >> log2Ceil(nSets)
         when(s2_flush_valid) {
