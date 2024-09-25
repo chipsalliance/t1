@@ -256,6 +256,7 @@ class ICache(val parameter: ICacheParameter)
   val s2_slaveValid      = RegNext(s1_slaveValid, false.B)
   val s2_slaveWriteValid = RegNext(s1_slaveWriteValid, false.B)
   val s3_slaveValid      = RegNext(false.B)
+  val arQueue            = Module(new Queue(chiselTypeOf(io.instructionFetchAXI.ar.bits), 1, flow = true))
 
   /** valid signal for CPU accessing cache in stage 0. */
   val s0_valid = io.req.fire
@@ -304,7 +305,7 @@ class ICache(val parameter: ICacheParameter)
 
   /** indicate [[tl_out]] is performing a refill. */
   //  val refill_fire = tl_out.a.fire && !send_hint
-  val refill_fire = io.instructionFetchAXI.ar.fire && !send_hint
+  val refill_fire = arQueue.io.enq.fire && !send_hint
 
   /** register to indicate there is a outstanding hint. */
   val hint_outstanding = RegInit(false.B)
@@ -771,13 +772,14 @@ class ICache(val parameter: ICacheParameter)
       }
   }
 
-  io.instructionFetchAXI.ar.valid      := s2_request_refill
-  io.instructionFetchAXI.ar.bits       := DontCare
-  io.instructionFetchAXI.ar.bits.id    := 0.U
-  io.instructionFetchAXI.ar.bits.addr  := (refill_paddr >> blockOffBits) << blockOffBits
-  io.instructionFetchAXI.ar.bits.size  := log2Up(parameter.blockBytes).U
-  io.instructionFetchAXI.ar.bits.len   := 0.U
-  io.instructionFetchAXI.ar.bits.burst := 1.U
+  arQueue.io.enq.valid      := s2_request_refill
+  arQueue.io.enq.bits       := DontCare
+  arQueue.io.enq.bits.id    := 0.U
+  arQueue.io.enq.bits.addr  := (refill_paddr >> blockOffBits) << blockOffBits
+  arQueue.io.enq.bits.size  := log2Up(parameter.blockBytes).U
+  arQueue.io.enq.bits.len   := 0.U
+  arQueue.io.enq.bits.burst := 1.U
+  io.instructionFetchAXI.ar <> arQueue.io.deq
 
   // prefetch when next-line access does not cross a page
   if (cacheParams.prefetch) {
@@ -832,7 +834,7 @@ class ICache(val parameter: ICacheParameter)
   }
   // Drive APROT information
   // bufferable ## modifiable ## readalloc ## writealloc ## privileged ## secure ## fetch
-  io.instructionFetchAXI.ar.bits.user := true.B ## true.B ## io.s2_cacheable ## io.s2_cacheable ##
+  arQueue.io.enq.bits.user := true.B ## true.B ## io.s2_cacheable ## io.s2_cacheable ##
     true.B ## true.B ## true.B
   // tl_out.a.bits.user.lift(AMBAProt).foreach { x =>
   //   // Rocket caches all fetch requests, and it's difficult to differentiate privileged/unprivileged on
@@ -848,7 +850,7 @@ class ICache(val parameter: ICacheParameter)
   // tl_out.b.ready := true.B
   // tl_out.c.valid := false.B
   // tl_out.e.valid := false.B
-  assert(!(io.instructionFetchAXI.ar.valid && addrMaybeInScratchpad(io.instructionFetchAXI.ar.bits.addr)))
+  assert(!(arQueue.io.enq.valid && addrMaybeInScratchpad(arQueue.io.enq.bits.addr)))
 
   // if there is an outstanding refill, cannot flush I$.
   when(!refill_valid) { invalidated := false.B }
