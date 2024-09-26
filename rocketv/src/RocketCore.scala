@@ -39,16 +39,17 @@ class FPUScoreboardProbe extends Bundle {
 }
 
 class RocketProbe(param: RocketParameter) extends Bundle {
-  val rfWen:         Bool                       = Bool()
-  val rfWaddr:       UInt                       = UInt(param.lgNXRegs.W)
-  val rfWdata:       UInt                       = UInt(param.xLen.W)
+  val rfWen:          Bool                       = Bool()
+  val rfWaddr:        UInt                       = UInt(param.lgNXRegs.W)
+  val rfWdata:        UInt                       = UInt(param.xLen.W)
   // rocket is idle
-  val waitWen:       Bool                       = new Bool()
-  val waitWaddr:     UInt                       = UInt(param.lgNXRegs.W)
-  val isVector:      Bool                       = Bool()
-  val idle:          Bool                       = Bool()
+  val waitWen:        Bool                       = new Bool()
+  val waitWaddr:      UInt                       = UInt(param.lgNXRegs.W)
+  val isVectorCommit: Bool                       = Bool()
+  val isVectorWrite:  Bool                       = Bool()
+  val idle:           Bool                       = Bool()
   // fpu score board
-  val fpuScoreboard: Option[FPUScoreboardProbe] = Option.when(param.usingFPU)(new FPUScoreboardProbe)
+  val fpuScoreboard:  Option[FPUScoreboardProbe] = Option.when(param.usingFPU)(new FPUScoreboardProbe)
 }
 
 object RocketParameter {
@@ -1616,14 +1617,15 @@ class Rocket(val parameter: RocketParameter)
         probeWire.rfWaddr := rfWaddr
         probeWire.rfWdata := rfWdata
 
-        probeWire.waitWen   := wbSetSboard && wbWen
-        probeWire.waitWaddr := wbWaddr
+        probeWire.waitWen        := wbSetSboard && wbWen
+        probeWire.waitWaddr      := wbWaddr
         // vector commit || vector write rd
-        probeWire.isVector  := io.t1.map { t1 =>
+        probeWire.isVectorCommit := io.t1.map { t1 =>
           wbRegValid && wbRegDecodeOutput(parameter.decoderParameter.vector) &&
           !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
-        }.getOrElse(false.B) || t1RetireQueue.map(q => q.io.deq.fire).getOrElse(false.B)
-        probeWire.idle      := vectorEmpty
+        }.getOrElse(false.B)
+        probeWire.isVectorWrite  := t1RetireQueue.map(q => q.io.deq.fire).getOrElse(false.B)
+        probeWire.idle           := vectorEmpty
 
         probeWire.fpuScoreboard.foreach { case fpProbe =>
           fpProbe.memSetScoreBoard     := wbValid && wbDcacheMiss && wbRegDecodeOutput(parameter.decoderParameter.wfd)

@@ -189,13 +189,13 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
 
   // output the probes
   // rocket reg write
-  when(rocketProbe.rfWen && !rocketProbe.isVector && rocketProbe.rfWaddr =/= 0.U && !(rocketProbe.waitWen && rocketProbe.waitWaddr =/= 0.U))(
+  when(rocketProbe.rfWen && !rocketProbe.isVectorWrite && rocketProbe.rfWaddr =/= 0.U && !(rocketProbe.waitWen && rocketProbe.waitWaddr =/= 0.U))(
     printf(
       cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
     )
   )
 
-  when(rocketProbe.waitWen && !rocketProbe.isVector && rocketProbe.waitWaddr =/= 0.U)(
+  when(rocketProbe.waitWen && !rocketProbe.isVectorCommit && rocketProbe.waitWaddr =/= 0.U)(
     printf(
       cf"""{"event":"RegWriteWait","idx":${rocketProbe.waitWaddr},"cycle":${simulationTime}}\n"""
     )
@@ -210,7 +210,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
         fpuParameter.fLen,
         fpuParameter.minFLen
       )))
-      val isVectorForLLWrite = RegNext(rocketProbe.isVector, false.B)
+      val isVectorForLLWrite = RegNext(rocketProbe.isVectorWrite, false.B)
 
       fpToIEEE.io.clock := clock
       fpToIEEE.io.reset := reset
