@@ -1,14 +1,52 @@
-use std::collections::HashMap;
+use std::{cell::OnceCell, collections::HashMap, rc::Rc};
 
 use vcd::IdCode;
 
+pub enum SignalData {
+    Scalar {
+        data: Rc<Vec<ValueRecord<bool>>>,
+    },
+    Vector {
+        width: u32,
+        data: Rc<Vec<ValueRecord<u64>>>,
+    },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ValueRecord<T: Copy> {
+    pub cycle: u32,
+    pub is_x: bool,
+    pub value: T,
+}
+
 pub struct SVar {
     code: IdCode,
+    record: OnceCell<Rc<Vec<ValueRecord<bool>>>>,
+}
+
+impl SVar {
+    pub fn debug_print(&self) {
+        match self.record.get() {
+            None => println!("signal {} not set", self.code),
+            Some(record) => {
+                println!("signal {}:", self.code);
+                for r in &record[..] {
+                    let value = match (r.is_x, r.value) {
+                        (true, _) => "x",
+                        (false, true) => "1",
+                        (false, false) => "0",
+                    };
+                    println!("- {} : {}", r.cycle, value);
+                }
+            }
+        }
+    }
 }
 
 pub struct VVar {
     code: IdCode,
     width: u32,
+    record: OnceCell<Rc<Vec<ValueRecord<u64>>>>,
 }
 
 fn s(vars: &HashMap<String, (IdCode, Option<u32>)>, name: &str) -> SVar {
@@ -17,7 +55,10 @@ fn s(vars: &HashMap<String, (IdCode, Option<u32>)>, name: &str) -> SVar {
         .unwrap_or_else(|| panic!("unable to find var '{name}'"));
     assert!(width.is_none());
 
-    SVar { code }
+    SVar {
+        code,
+        record: OnceCell::new(),
+    }
 }
 
 fn v(vars: &HashMap<String, (IdCode, Option<u32>)>, name: &str, width: u32) -> VVar {
@@ -26,7 +67,11 @@ fn v(vars: &HashMap<String, (IdCode, Option<u32>)>, name: &str, width: u32) -> V
         .unwrap_or_else(|| panic!("unable to find var '{name}'"));
     assert_eq!(width_, Some(width));
 
-    VVar { code, width }
+    VVar {
+        code,
+        width,
+        record: OnceCell::new(),
+    }
 }
 
 fn ct<'a>(c: &mut VarCollector<'a>, s: &'a impl Collect) {
@@ -51,8 +96,32 @@ impl<'a> VarCollector<'a> {
             })
             .collect()
     }
+    pub fn set_with_signal_map(&self, signal_map: &HashMap<IdCode, SignalData>) {
+        for &var in &self.vars {
+            match var {
+                VarRef::SVar(var) => match &signal_map[&var.code] {
+                    SignalData::Scalar { data } => {
+                        var.record
+                            .set(data.clone())
+                            .expect("signal record already set");
+                    }
+                    SignalData::Vector { .. } => unreachable!(),
+                },
+                VarRef::VVar(var) => match &signal_map[&var.code] {
+                    SignalData::Vector { width, data } => {
+                        assert_eq!(*width, var.width);
+                        var.record
+                            .set(data.clone())
+                            .expect("signal record already set");
+                    }
+                    SignalData::Scalar { .. } => unreachable!(),
+                },
+            }
+        }
+    }
 }
 
+#[derive(Clone, Copy)]
 enum VarRef<'a> {
     SVar(&'a SVar),
     VVar(&'a VVar),
@@ -75,7 +144,7 @@ impl Collect for VVar {
 }
 
 pub struct InputVars {
-    issue_enq: IssueEnq,
+    pub issue_enq: IssueEnq,
 }
 
 impl Collect for InputVars {
@@ -85,12 +154,12 @@ impl Collect for InputVars {
 }
 
 pub struct IssueEnq {
-    valid: SVar,
-    ready: SVar,
-    pc: VVar,
-    inst: VVar,
-    rs1: VVar,
-    rs2: VVar,
+    pub valid: SVar,
+    pub ready: SVar,
+    pub pc: VVar,
+    pub inst: VVar,
+    pub rs1: VVar,
+    pub rs2: VVar,
 }
 
 impl Collect for IssueEnq {

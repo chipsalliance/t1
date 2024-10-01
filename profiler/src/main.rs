@@ -5,13 +5,18 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::{anyhow, bail, ensure};
+use anyhow::{anyhow, ensure};
 use clap::Parser;
-use input_hier::{InputVars, VarCollector};
-use vcd::{IdCode, ScopeItem};
+use input_hier::InputVars;
+use vcd::IdCode;
+use vcd_util::{
+    collect_vars, process_signal_map, process_vcd, time_to_cycle, ProcessReport, RawValueRecord,
+    Value, FIRST_CYCLE, RESET_DEASSERT_TIME,
+};
 
 mod input_hier;
-use input_hier::Collect as _;
+
+mod vcd_util;
 
 #[derive(Parser)]
 struct Cli {
@@ -20,6 +25,7 @@ struct Cli {
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    env_logger::builder().format_timestamp(None).init();
 
     let input = File::open(cli.input_vcd)?;
 
@@ -34,131 +40,92 @@ fn main() -> anyhow::Result<()> {
 
     // Though `Scope` has `find_var` method, however it uses linear search.
     // Collect to a hashmap to avoid quadratic behavior.
-    let vars = collect_vars(&prof_scope);
+    let vars = collect_vars(prof_scope);
 
     let input_vars = InputVars::from_vars(&vars);
     let c = input_vars.collect();
 
-    let mut signal_map = HashMap::<IdCode, Option<u32>>::new();
+    let clock = vars["clock"];
+    let reset = vars["reset"];
+    let mut clock_values = vec![];
+    let mut reset_values = vec![];
+    assert_eq!(clock.1, None);
+    assert_eq!(reset.1, None);
+
+    let mut signal_map = HashMap::<IdCode, (Option<u32>, Vec<RawValueRecord>)>::new();
     for (code, width) in c.id_list() {
         match signal_map.entry(code) {
-            hash_map::Entry::Occupied(e) => assert_eq!(*e.get(), width),
+            hash_map::Entry::Occupied(e) => assert_eq!(e.get().0, width),
             hash_map::Entry::Vacant(e) => {
-                e.insert(width);
+                e.insert((width, vec![]));
             }
         }
     }
 
-    process(&mut input, |time, code, value| {
-        if signal_map.contains_key(&code) {
-            println!("[T={time}] {value:?}");
+    let ProcessReport { max_time } = process_vcd(&mut input, |time, code, value| {
+        if code == clock.0 {
+            match value {
+                Value::Scalar(value) => clock_values.push(RawValueRecord {
+                    time,
+                    is_x: value.is_none(),
+                    value: value.unwrap_or(false) as u32,
+                }),
+                _ => unreachable!(),
+            }
+        }
+
+        if code == reset.0 {
+            match value {
+                Value::Scalar(value) => reset_values.push(RawValueRecord {
+                    time,
+                    is_x: value.is_none(),
+                    value: value.unwrap_or(false) as u32,
+                }),
+                _ => unreachable!(),
+            }
+        }
+
+        if let Some(v) = signal_map.get_mut(&code) {
+            match value {
+                Value::Scalar(value) => {
+                    assert_eq!(v.0, None);
+                    v.1.push(RawValueRecord {
+                        time,
+                        is_x: value.is_none(),
+                        value: value.unwrap_or(false) as u32,
+                    });
+                }
+                Value::Vector { width, data } => {
+                    assert_eq!(v.0, Some(width as u32));
+                    v.1.push(RawValueRecord {
+                        time,
+                        is_x: data.is_none(),
+                        value: data.unwrap_or(0),
+                    });
+                }
+            }
         }
     })?;
 
-    Ok(())
-}
+    let max_cycle = time_to_cycle(max_time);
+    log::info!("first_cycle = {FIRST_CYCLE}");
+    log::info!("max_cycle = {max_cycle}");
 
-fn collect_vars(scope: &vcd::Scope) -> HashMap<String, (IdCode, Option<u32>)> {
-    let mut signals = HashMap::new();
-    for item in &scope.items {
-        match item {
-            ScopeItem::Var(var) => {
-                let name = &var.reference;
-                let width = match var.index {
-                    None => {
-                        // scalar
-                        assert_eq!(var.size, 1);
-                        None
-                    }
-                    Some(index) => {
-                        // vector
-                        assert_eq!(index, vcd::ReferenceIndex::Range(var.size as i32 - 1, 0));
-                        Some(var.size)
-                    }
-                };
-
-                signals.insert(name.into(), (var.code, width));
-            }
-            ScopeItem::Scope(_) => {
-                // ignore subscopes
-            }
-            _ => {}
+    assert_eq!(reset_values.len(), 2);
+    assert_eq!(
+        reset_values[1],
+        RawValueRecord {
+            time: RESET_DEASSERT_TIME,
+            is_x: false,
+            value: 0,
         }
-    }
+    );
 
-    signals
-}
+    let signal_map = process_signal_map(signal_map);
 
-#[derive(Debug)]
-enum Value {
-    Scalar(Option<bool>),
-    Vector { width: u8, data: Option<u32> },
-}
+    c.set_with_signal_map(&signal_map);
 
-impl Value {
-    fn from_scalar(value: vcd::Value) -> Self {
-        let value = match value {
-            vcd::Value::V1 => Some(true),
-            vcd::Value::V0 => Some(false),
-            _ => None,
-        };
-        Value::Scalar(value)
-    }
+    // input_vars.issue_enq.valid.debug_print();
 
-    fn from_vector(value: vcd::Vector) -> Self {
-        let width = value.len().try_into().unwrap();
-        assert!(1 <= width && width <= 32);
-
-        let mut data: u32 = 0;
-
-        // value[0] is MSB, value[width-1] is LSB
-        // here we reverse the bit order
-        for s in &value {
-            match s {
-                vcd::Value::V1 => {
-                    data = (data << 1) + 1;
-                }
-                vcd::Value::V0 => {
-                    data = data << 1;
-                }
-                _ => return Value::Vector { width, data: None },
-            }
-        }
-
-        Value::Vector {
-            width,
-            data: Some(data),
-        }
-    }
-}
-
-fn process<T: BufRead, Callback>(
-    vcd: &mut vcd::Parser<T>,
-    mut callback: Callback,
-) -> anyhow::Result<()>
-where
-    Callback: FnMut(u64, vcd::IdCode, Value),
-{
-    let mut time: u64 = 0;
-    while let Some(cmd) = vcd.next().transpose()? {
-        // println!("{cmd:?}");
-        match cmd {
-            vcd::Command::Begin(_) | vcd::Command::End(_) => {
-                // ignored
-            }
-            vcd::Command::Timestamp(new_time) => {
-                time = new_time;
-            }
-            vcd::Command::ChangeScalar(id, value) => {
-                callback(time, id, Value::from_scalar(value));
-            }
-            vcd::Command::ChangeVector(id, value) => {
-                callback(time, id, Value::from_vector(value));
-            }
-            _ => {
-                unreachable!("unexpected command: {cmd:?}")
-            }
-        }
-    }
     Ok(())
 }
