@@ -118,8 +118,8 @@ $ nix build .#t1.elaborator  # the wrapped jar file of the Chisel elaborator
 $ nix build .#t1.<config-name>.ip.rtl  # the elaborated IP core .sv files
 $ nix build .#t1.<config-name>.ip.emu-rtl  # the elaborated IP core .sv files with emulation support
 $ nix build .#t1.<config-name>.ip.verilator-emu  # build the IP core emulator using verilator
-$ nix build .#t1.<config-name>.ip.vcs-emu  # build the IP core emulator using VCS
-$ nix build .#t1.<config-name>.ip.vcs-emu-trace  # build the IP core emulator using VCS w/ trace support
+$ nix build .#t1.<config-name>.ip.vcs-emu --impure  # build the IP core emulator using VCS w/ VCS environment locally
+$ nix build .#t1.<config-name>.ip.vcs-emu-trace --impure  # build the IP core emulator using VCS w/ trace support
 
 $ nix build .#t1.<config-name>.subsystem.rtl  # the elaborated soc .sv files
 $ nix build .#t1.<config-name>.subsystem.emu-rtl  # the elaborated soc .sv files with emulation support
