@@ -56,6 +56,9 @@ import org.chipsalliance.t1.rtl.{
   T1Probe,
   VFUInstantiateParameter
 }
+import chisel3.util.DecoupledIO
+import org.chipsalliance.t1.rtl.T1Issue
+import org.chipsalliance.rocketv.T1Retire
 
 object T1RocketTileParameter {
   implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
@@ -473,6 +476,9 @@ class T1RocketProbe(parameter: T1RocketTileParameter) extends Bundle {
   val rocketProbe: RocketProbe      = Output(new RocketProbe(parameter.rocketParameter))
   val fpuProbe:    Option[FPUProbe] = parameter.fpuParameter.map(param => Output(new FPUProbe(param)))
   val t1Probe:     T1Probe          = Output(new T1Probe(parameter.t1Parameter))
+
+  val t1IssueDeq: DecoupledIO[T1Issue] = DecoupledIO(new T1Issue(parameter.xLen, parameter.vLen))
+  val t1Retire:   T1Retire             = Output(new T1Retire(parameter.xLen))
 }
 
 class T1RocketTileInterface(parameter: T1RocketTileParameter) extends Bundle {
@@ -616,5 +622,8 @@ class T1RocketTile(val parameter: T1RocketTileParameter)
     probeWire.fpuProbe.foreach { fpuProbe =>
       fpuProbe := probe.read(fpu.get.io.fpuProbe)
     }
+
+    probeWire.t1IssueDeq := t1.io.issue
+    probeWire.t1Retire   := t1.io.retire
   }
 }
