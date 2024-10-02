@@ -1,5 +1,6 @@
 use std::{cell::OnceCell, collections::HashMap, ops::Range, rc::Rc};
 
+use itertools::izip;
 use vcd::IdCode;
 
 pub enum SignalData {
@@ -89,6 +90,22 @@ impl VVar {
         } else {
             Some(r.value)
         }
+    }
+
+    #[track_caller]
+    pub fn get_u8(&self, cycle: u32) -> u8 {
+        assert_eq!(self.width, 8);
+        let r = self.get_record(cycle);
+        assert!(!r.is_x, "signal '{}' is X at cycle={cycle}", self.name);
+        r.value as u8
+    }
+
+    #[track_caller]
+    pub fn get_u8_w(&self, cycle: u32, width: u32) -> u8 {
+        assert_eq!(self.width, width);
+        let r = self.get_record(cycle);
+        assert!(!r.is_x, "signal '{}' is X at cycle={cycle}", self.name);
+        r.value as u8
     }
 
     #[track_caller]
@@ -203,12 +220,14 @@ impl Collect for VVar {
 pub struct InputVars {
     pub issue_enq: IssueEnq,
     pub issue_deq: IssueDeq,
+    pub issue_req_deq: IssueRegDeq,
 }
 
 impl Collect for InputVars {
     fn collect_to<'a>(&'a self, c: &mut VarCollector<'a>) {
         ct(c, &self.issue_enq);
         ct(c, &self.issue_deq);
+        ct(c, &self.issue_req_deq);
     }
 }
 
@@ -250,6 +269,26 @@ impl Collect for IssueDeq {
     }
 }
 
+pub struct IssueRegDeq {
+    pub valid: SVar,
+    pub ready: SVar,
+    pub inst_idx: VVar,
+    pub inst: VVar,
+    pub rs1: VVar,
+    pub rs2: VVar,
+}
+
+impl Collect for IssueRegDeq {
+    fn collect_to<'a>(&'a self, c: &mut VarCollector<'a>) {
+        ct(c, &self.valid);
+        ct(c, &self.ready);
+        ct(c, &self.inst_idx);
+        ct(c, &self.inst);
+        ct(c, &self.rs1);
+        ct(c, &self.rs2);
+    }
+}
+
 impl InputVars {
     pub fn from_vars(vars: &HashMap<String, (IdCode, Option<u32>)>) -> Self {
         InputVars {
@@ -268,6 +307,14 @@ impl InputVars {
                 rs1: v(vars, "t1IssueDeq_bits_rs1Data", 32),
                 rs2: v(vars, "t1IssueDeq_bits_rs2Data", 32),
             },
+            issue_req_deq: IssueRegDeq {
+                valid: s(vars, "t1IssueRegDeq_valid"),
+                ready: s(vars, "t1IssueRegDeqReady"),
+                inst_idx: v(vars, "t1IssueRegDeq_bits_instructionIndex", 3),
+                inst: v(vars, "t1IssueRegDeq_bits_issue_instruction", 32),
+                rs1: v(vars, "t1IssueRegDeq_bits_issue_rs1Data", 32),
+                rs2: v(vars, "t1IssueRegDeq_bits_issue_rs2Data", 32),
+            },
         }
     }
 
@@ -276,6 +323,17 @@ impl InputVars {
         self.collect_to(&mut c);
         c
     }
+}
+
+pub trait CompatibleWith<U> {
+    fn compatible_with(&self, u: &U);
+}
+
+pub fn compatible<T, U>(t: &T, u: &U)
+where
+    T: CompatibleWith<U>,
+{
+    t.compatible_with(u);
 }
 
 pub struct IssueEnqData {
@@ -293,9 +351,38 @@ pub struct IssueDeqData {
     rs2: u32,
 }
 
+pub struct IssueRegDeqData {
+    cycle: u32,
+    inst_idx: u8,
+    inst: u32,
+    rs1: u32,
+    rs2: u32,
+}
+
+impl CompatibleWith<IssueDeqData> for IssueEnqData {
+    fn compatible_with(&self, u: &IssueDeqData) {
+        let t = self;
+        assert_eq!(t.inst, u.inst);
+        assert_eq!(t.rs1, u.rs1);
+        assert_eq!(t.rs2, u.rs2);
+        assert!(t.cycle < u.cycle);
+    }
+}
+
+impl CompatibleWith<IssueRegDeqData> for IssueDeqData {
+    fn compatible_with(&self, u: &IssueRegDeqData) {
+        let t = self;
+        assert_eq!(t.inst, u.inst);
+        assert_eq!(t.rs1, u.rs1);
+        assert_eq!(t.rs2, u.rs2);
+        assert!(t.cycle < u.cycle);
+    }
+}
 pub struct IssueData {
-    enq_cycle: u32,
-    deq_cycle: u32,
+    cycle_enq: u32,
+    cycle_deq: u32,
+    cycle_reg_deq: u32,
+    inst_idx: u8,
     pc: u32,
     inst: u32,
     rs1: u32,
@@ -305,31 +392,21 @@ pub struct IssueData {
 pub fn process(vars: &InputVars, range: Range<u32>) {
     let enq_data = process_issue_enq(&vars.issue_enq, range.clone());
     let deq_data = process_issue_deq(&vars.issue_deq, range.clone());
+    let reg_deq_data = process_issue_reg_deq(&vars.issue_req_deq, range.clone());
     assert_eq!(enq_data.len(), deq_data.len());
+    assert_eq!(enq_data.len(), reg_deq_data.len());
 
     // combine IssueEnq and IssueDeq
     let mut issue_data = vec![];
-    for (enq, deq) in enq_data.iter().zip(deq_data.iter()) {
-        assert_eq!(
-            enq.inst, deq.inst,
-            "enq.cycle={}, deq.cycle={}",
-            enq.cycle, deq.cycle
-        );
-        assert_eq!(
-            enq.rs1, deq.rs1,
-            "enq.cycle={}, deq.cycle={}",
-            enq.cycle, deq.cycle
-        );
-        assert_eq!(
-            enq.rs2, deq.rs2,
-            "enq.cycle={}, deq.cycle={}",
-            enq.cycle, deq.cycle
-        );
-        assert!(enq.cycle < deq.cycle);
+    for (enq, deq, reg_deq) in izip!(&enq_data, &deq_data, &reg_deq_data) {
+        compatible(enq, deq);
+        compatible(deq, reg_deq);
 
         issue_data.push(IssueData {
-            enq_cycle: enq.cycle,
-            deq_cycle: deq.cycle,
+            cycle_enq: enq.cycle,
+            cycle_deq: deq.cycle,
+            cycle_reg_deq: reg_deq.cycle,
+            inst_idx: reg_deq.inst_idx,
             pc: enq.pc,
             inst: enq.inst,
             rs1: enq.rs1,
@@ -337,8 +414,20 @@ pub fn process(vars: &InputVars, range: Range<u32>) {
         })
     }
 
-    for x in &issue_data {
-        println!("- enq={:5}, deq-enq={:3} pc = 0x{:08x}, inst = 0x{:08x}, rs1 = 0x{:08x}, rs2 = 0x{:08x}", x.enq_cycle, x.deq_cycle - x.enq_cycle, x.pc, x.inst, x.rs1, x.rs2);
+    for &IssueData {
+        cycle_enq,
+        cycle_deq,
+        cycle_reg_deq,
+        inst_idx,
+        pc,
+        inst,
+        rs1,
+        rs2,
+    } in &issue_data
+    {
+        let diff_deq_enq = cycle_deq - cycle_enq;
+        let diff_reg_deq_enq = cycle_reg_deq - cycle_enq;
+        println!("- enq={cycle_enq:5}, idx={inst_idx}, deq-enq={diff_deq_enq:3}, reg_deq-enq={diff_reg_deq_enq:3}, pc = 0x{pc:08x}, inst = 0x{inst:08x}, rs1 = 0x{rs1:08x}, rs2 = 0x{rs2:08x}");
     }
 }
 
@@ -375,6 +464,29 @@ fn process_issue_deq(vars: &IssueDeq, range: Range<u32>) -> Vec<IssueDeqData> {
                 let rs2 = vars.rs2.get_u32(cycle);
                 data.push(IssueDeqData {
                     cycle,
+                    inst,
+                    rs1,
+                    rs2,
+                });
+            }
+            (_, _) => {}
+        }
+    }
+    data
+}
+
+fn process_issue_reg_deq(vars: &IssueRegDeq, range: Range<u32>) -> Vec<IssueRegDeqData> {
+    let mut data = vec![];
+    for cycle in range {
+        match (vars.valid.get(cycle), vars.ready.get(cycle)) {
+            (true, true) => {
+                let inst_idx = vars.inst_idx.get_u8_w(cycle, 3);
+                let inst = vars.inst.get_u32(cycle);
+                let rs1 = vars.rs1.get_u32(cycle);
+                let rs2 = vars.rs2.get_u32(cycle);
+                data.push(IssueRegDeqData {
+                    cycle,
+                    inst_idx,
                     inst,
                     rs1,
                     rs2,
