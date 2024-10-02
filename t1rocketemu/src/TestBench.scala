@@ -339,13 +339,16 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
       val t1IssueEnqPc = WireInit(probe.rocketProbe.wbRegPc)
       val t1IssueEnq = WireInit(probe.rocketProbe.t1IssueEnq.get)
       val t1IssueDeq = WireInit(probe.t1IssueDeq)
+      val t1IssueRegDeq = WireInit(probe.t1Probe.requestReg)
+      val t1IssueRegDeqReady = WireInit(probe.t1Probe.requestRegReady)
       val t1Retire = WireInit(probe.t1Retire)
 
       dontTouch(this.clock)
       dontTouch(this.reset)
       dontTouch(t1IssueEnq)
-      dontTouch(t1IssueEnq)
       dontTouch(t1IssueDeq)
+      dontTouch(t1IssueRegDeq)
+      dontTouch(t1IssueRegDeqReady)
       dontTouch(t1Retire)
     })
     profData.probe := t1RocketProbe

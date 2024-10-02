@@ -477,8 +477,8 @@ class T1RocketProbe(parameter: T1RocketTileParameter) extends Bundle {
   val fpuProbe:    Option[FPUProbe] = parameter.fpuParameter.map(param => Output(new FPUProbe(param)))
   val t1Probe:     T1Probe          = Output(new T1Probe(parameter.t1Parameter))
 
-  val t1IssueDeq:  DecoupledIO[T1Issue] = DecoupledIO(new T1Issue(parameter.xLen, parameter.vLen))
-  val t1Retire:    T1Retire         = Output(new T1Retire(parameter.xLen))
+  val t1IssueDeq: DecoupledIO[T1Issue] = DecoupledIO(new T1Issue(parameter.xLen, parameter.vLen))
+  val t1Retire:   T1Retire             = Output(new T1Retire(parameter.xLen))
 }
 
 class T1RocketTileInterface(parameter: T1RocketTileParameter) extends Bundle {
@@ -624,6 +624,6 @@ class T1RocketTile(val parameter: T1RocketTileParameter)
     }
 
     probeWire.t1IssueDeq := t1.io.issue
-    probeWire.t1Retire := t1.io.retire
+    probeWire.t1Retire   := t1.io.retire
   }
 }
