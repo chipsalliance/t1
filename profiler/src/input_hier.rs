@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, collections::HashMap, rc::Rc};
+use std::{cell::OnceCell, collections::HashMap, ops::Range, rc::Rc};
 
 use vcd::IdCode;
 
@@ -21,10 +21,35 @@ pub struct ValueRecord<T: Copy> {
 
 pub struct SVar {
     code: IdCode,
+    name: String,
     record: OnceCell<Rc<Vec<ValueRecord<bool>>>>,
 }
 
 impl SVar {
+    fn get_record(&self, cycle: u32) -> &ValueRecord<bool> {
+        let records = self.records();
+        let idx = records.partition_point(|c| c.cycle <= cycle);
+        assert!(idx > 0, "cycle={cycle} is before FIRST_CYCLE");
+        &records[idx - 1]
+    }
+    pub fn get_may_x(&self, cycle: u32) -> Option<bool> {
+        let r = self.get_record(cycle);
+        if r.is_x {
+            None
+        } else {
+            Some(r.value)
+        }
+    }
+
+    #[track_caller]
+    pub fn get(&self, cycle: u32) -> bool {
+        let r = self.get_record(cycle);
+        assert!(!r.is_x, "signal '{}' is X at cycle={cycle}", self.name);
+        r.value
+    }
+    pub fn records(&self) -> &[ValueRecord<bool>] {
+        self.record.get().expect("record not set")
+    }
     pub fn debug_print(&self) {
         match self.record.get() {
             None => println!("signal {} not set", self.code),
@@ -45,8 +70,38 @@ impl SVar {
 
 pub struct VVar {
     code: IdCode,
+    name: String,
     width: u32,
-    record: OnceCell<Rc<Vec<ValueRecord<u64>>>>,
+    records: OnceCell<Rc<Vec<ValueRecord<u64>>>>,
+}
+
+impl VVar {
+    fn get_record(&self, cycle: u32) -> &ValueRecord<u64> {
+        let records = self.records();
+        let idx = records.partition_point(|c| c.cycle <= cycle);
+        assert!(idx > 0, "cycle={cycle} is before FIRST_CYCLE");
+        &records[idx - 1]
+    }
+    pub fn get(&self, cycle: u32) -> Option<u64> {
+        let r = self.get_record(cycle);
+        if r.is_x {
+            None
+        } else {
+            Some(r.value)
+        }
+    }
+
+    #[track_caller]
+    pub fn get_u32(&self, cycle: u32) -> u32 {
+        assert_eq!(self.width, 32);
+        let r = self.get_record(cycle);
+        assert!(!r.is_x, "signal '{}' is X at cycle={cycle}", self.name);
+        r.value as u32
+    }
+
+    pub fn records(&self) -> &[ValueRecord<u64>] {
+        self.records.get().expect("record not set")
+    }
 }
 
 fn s(vars: &HashMap<String, (IdCode, Option<u32>)>, name: &str) -> SVar {
@@ -57,6 +112,7 @@ fn s(vars: &HashMap<String, (IdCode, Option<u32>)>, name: &str) -> SVar {
 
     SVar {
         code,
+        name: name.into(),
         record: OnceCell::new(),
     }
 }
@@ -69,8 +125,9 @@ fn v(vars: &HashMap<String, (IdCode, Option<u32>)>, name: &str, width: u32) -> V
 
     VVar {
         code,
+        name: name.into(),
         width,
-        record: OnceCell::new(),
+        records: OnceCell::new(),
     }
 }
 
@@ -110,7 +167,7 @@ impl<'a> VarCollector<'a> {
                 VarRef::VVar(var) => match &signal_map[&var.code] {
                     SignalData::Vector { width, data } => {
                         assert_eq!(*width, var.width);
-                        var.record
+                        var.records
                             .set(data.clone())
                             .expect("signal record already set");
                     }
@@ -145,11 +202,13 @@ impl Collect for VVar {
 
 pub struct InputVars {
     pub issue_enq: IssueEnq,
+    pub issue_deq: IssueDeq,
 }
 
 impl Collect for InputVars {
     fn collect_to<'a>(&'a self, c: &mut VarCollector<'a>) {
         ct(c, &self.issue_enq);
+        ct(c, &self.issue_deq);
     }
 }
 
@@ -173,6 +232,24 @@ impl Collect for IssueEnq {
     }
 }
 
+pub struct IssueDeq {
+    pub valid: SVar,
+    pub ready: SVar,
+    pub inst: VVar,
+    pub rs1: VVar,
+    pub rs2: VVar,
+}
+
+impl Collect for IssueDeq {
+    fn collect_to<'a>(&'a self, c: &mut VarCollector<'a>) {
+        ct(c, &self.valid);
+        ct(c, &self.ready);
+        ct(c, &self.inst);
+        ct(c, &self.rs1);
+        ct(c, &self.rs2);
+    }
+}
+
 impl InputVars {
     pub fn from_vars(vars: &HashMap<String, (IdCode, Option<u32>)>) -> Self {
         InputVars {
@@ -184,6 +261,13 @@ impl InputVars {
                 rs1: v(vars, "t1IssueEnq_bits_rs1Data", 32),
                 rs2: v(vars, "t1IssueEnq_bits_rs2Data", 32),
             },
+            issue_deq: IssueDeq {
+                valid: s(vars, "t1IssueDeq_valid"),
+                ready: s(vars, "t1IssueDeq_ready"),
+                inst: v(vars, "t1IssueDeq_bits_instruction", 32),
+                rs1: v(vars, "t1IssueDeq_bits_rs1Data", 32),
+                rs2: v(vars, "t1IssueDeq_bits_rs2Data", 32),
+            },
         }
     }
 
@@ -191,5 +275,124 @@ impl InputVars {
         let mut c = VarCollector::new();
         self.collect_to(&mut c);
         c
+    }
+}
+
+pub struct IssueEnqData {
+    cycle: u32,
+    pc: u32,
+    inst: u32,
+    rs1: u32,
+    rs2: u32,
+}
+
+pub struct IssueDeqData {
+    cycle: u32,
+    inst: u32,
+    rs1: u32,
+    rs2: u32,
+}
+
+pub struct IssueData {
+    enq_cycle: u32,
+    deq_cycle: u32,
+    pc: u32,
+    inst: u32,
+    rs1: u32,
+    rs2: u32,
+}
+
+pub fn process(vars: &InputVars, range: Range<u32>) {
+    let enq_data = process_issue_enq(&vars.issue_enq, range.clone());
+    let deq_data = process_issue_deq(&vars.issue_deq, range.clone());
+    assert_eq!(enq_data.len(), deq_data.len());
+
+    // combine IssueEnq and IssueDeq
+    let mut issue_data = vec![];
+    for (enq, deq) in enq_data.iter().zip(deq_data.iter()) {
+        assert_eq!(
+            enq.inst, deq.inst,
+            "enq.cycle={}, deq.cycle={}",
+            enq.cycle, deq.cycle
+        );
+        assert_eq!(
+            enq.rs1, deq.rs1,
+            "enq.cycle={}, deq.cycle={}",
+            enq.cycle, deq.cycle
+        );
+        assert_eq!(
+            enq.rs2, deq.rs2,
+            "enq.cycle={}, deq.cycle={}",
+            enq.cycle, deq.cycle
+        );
+        assert!(enq.cycle < deq.cycle);
+
+        issue_data.push(IssueData {
+            enq_cycle: enq.cycle,
+            deq_cycle: deq.cycle,
+            pc: enq.pc,
+            inst: enq.inst,
+            rs1: enq.rs1,
+            rs2: enq.rs2,
+        })
+    }
+
+    for x in &issue_data {
+        println!("- enq={:5}, deq-enq={:3} pc = 0x{:08x}, inst = 0x{:08x}, rs1 = 0x{:08x}, rs2 = 0x{:08x}", x.enq_cycle, x.deq_cycle - x.enq_cycle, x.pc, x.inst, x.rs1, x.rs2);
+    }
+}
+
+fn process_issue_enq(vars: &IssueEnq, range: Range<u32>) -> Vec<IssueEnqData> {
+    let mut data = vec![];
+    for cycle in range {
+        match (vars.valid.get(cycle), vars.ready.get(cycle)) {
+            (true, true) => {
+                let pc = vars.pc.get_u32(cycle);
+                let inst = vars.inst.get_u32(cycle);
+                let rs1 = vars.rs1.get_u32(cycle);
+                let rs2 = vars.rs2.get_u32(cycle);
+                data.push(IssueEnqData {
+                    cycle,
+                    pc,
+                    inst,
+                    rs1,
+                    rs2,
+                });
+            }
+            (_, _) => {}
+        }
+    }
+    data
+}
+
+fn process_issue_deq(vars: &IssueDeq, range: Range<u32>) -> Vec<IssueDeqData> {
+    let mut data = vec![];
+    for cycle in range {
+        match (vars.valid.get(cycle), vars.ready.get(cycle)) {
+            (true, true) => {
+                let inst = vars.inst.get_u32(cycle);
+                let rs1 = vars.rs1.get_u32(cycle);
+                let rs2 = vars.rs2.get_u32(cycle);
+                data.push(IssueDeqData {
+                    cycle,
+                    inst,
+                    rs1,
+                    rs2,
+                });
+            }
+            (_, _) => {}
+        }
+    }
+    data
+}
+
+mod op {
+    pub fn and(op1: Option<bool>, op2: Option<bool>) -> Option<bool> {
+        match (op1, op2) {
+            (Some(true), Some(true)) => Some(true),
+            (Some(false), _) => Some(false),
+            (_, Some(false)) => Some(false),
+            _ => None,
+        }
     }
 }

@@ -125,7 +125,7 @@ fn main() -> anyhow::Result<()> {
 
     c.set_with_signal_map(&signal_map);
 
-    // input_vars.issue_enq.valid.debug_print();
+    let _ = input_hier::process(&input_vars, FIRST_CYCLE..max_cycle + 1);
 
     Ok(())
 }

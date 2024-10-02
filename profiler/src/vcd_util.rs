@@ -22,32 +22,74 @@ pub fn process_signal_map(
         .map(|(code, (width, data))| {
             let data = match width {
                 None => {
+                    let mut started = false;
+                    let mut last_value = (true, 0);
                     let mut data2 = vec![];
                     for x in data {
                         if x.time >= RESET_DEASSERT_TIME {
                             let cycle = time_to_cycle(x.time);
+                            if !started {
+                                started = true;
+                                if cycle > FIRST_CYCLE {
+                                    data2.push(ValueRecord {
+                                        cycle: FIRST_CYCLE,
+                                        is_x: last_value.0,
+                                        value: last_value.1 != 0,
+                                    });
+                                }
+                            }
                             data2.push(ValueRecord {
                                 cycle,
                                 is_x: x.is_x,
                                 value: x.value != 0,
                             });
+                        } else {
+                            last_value = (x.is_x, x.value);
                         }
+                    }
+                    if !started {
+                        data2.push(ValueRecord {
+                            cycle: FIRST_CYCLE,
+                            is_x: last_value.0,
+                            value: last_value.1 != 0,
+                        });
                     }
                     SignalData::Scalar {
                         data: Rc::new(data2),
                     }
                 }
                 Some(width) => {
+                    let mut started = false;
+                    let mut last_value = (true, 0);
                     let mut data2 = vec![];
                     for x in data {
                         if x.time >= RESET_DEASSERT_TIME {
                             let cycle = time_to_cycle(x.time);
+                            if !started {
+                                started = true;
+                                if cycle > FIRST_CYCLE {
+                                    data2.push(ValueRecord {
+                                        cycle: FIRST_CYCLE,
+                                        is_x: last_value.0,
+                                        value: last_value.1 as u64,
+                                    });
+                                }
+                            }
                             data2.push(ValueRecord {
                                 cycle,
                                 is_x: x.is_x,
                                 value: x.value as u64,
                             });
+                        } else {
+                            last_value = (x.is_x, x.value);
                         }
+                    }
+                    if !started {
+                        data2.push(ValueRecord {
+                            cycle: FIRST_CYCLE,
+                            is_x: last_value.0,
+                            value: last_value.1 as u64,
+                        });
                     }
                     SignalData::Vector {
                         width,
