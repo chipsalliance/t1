@@ -33,5 +33,9 @@ object t1om {
   def march(@arg(name = "mlirbc-file") mlirbcFile: os.Path) =
     println(new T1OMReader(os.read.bytes(mlirbcFile)).march)
 
+  @main
+  def vrfs(@arg(name = "mlirbc-file") mlirbcFile: os.Path) =
+    println(upickle.default.write(new T1OMReader(os.read.bytes(mlirbcFile)).vrfs))
+
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 }

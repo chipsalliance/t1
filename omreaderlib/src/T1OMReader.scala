@@ -45,5 +45,26 @@ class T1OMReader(val mlirbc: Array[Byte]) extends OMReader {
     val extensions = t1.field("extensions").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
     extensions.elements().map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString)
   }
+  def vrfs:         Seq[Obj]                          = {
+    t1.field("lanes")
+      .asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
+      .elements()
+      .map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject].field("vrf"))
+      .flatMap { vrf =>
+        val srams = vrf.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject].field("srams").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
+        srams.elements().map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]).map { sram =>
+          ujson.Obj(
+          "depth" -> sram.field("depth").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer,
+          "width" -> sram.field("width").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer,
+          // "masked" -> sram.field("masked").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer,
+          "read" -> sram.field("read").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer,
+          "write" -> sram.field("write").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer,
+          "readwrite" -> sram.field("readwrite").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer,
+          "maskGranularity" -> sram.field("maskGranularity").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer,
+          "hierarchy" -> sram.field("hierarchy").asInstanceOf[PanamaCIRCTOMEvaluatorValuePath].toString
+          )
+        }
+      }
+  }
   def march:        String                            = t1.field("march").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString
 }
