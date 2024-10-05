@@ -21,6 +21,9 @@ let
       # Use "https://repo1.maven.org/maven2/" only to keep dependencies integrity
       export COURSIER_REPOSITORIES="central"
 
+      mkdir -p "$TMPDIR/.mill/ammonite"
+      touch "$TMPDIR/.mill/ammonite/rt-${mill-rt-version}.jar"
+
       mill -i __.prepareOffline
       mill -i __.scalaCompilerClasspath
 
