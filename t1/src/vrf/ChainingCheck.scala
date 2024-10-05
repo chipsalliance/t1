@@ -11,7 +11,7 @@ import org.chipsalliance.t1.rtl._
 /** read : 发起读请求的相应信息 readRecord : 发起读请求的指令的记录 record : 要做比对的指令的记录 todo: 维护冲突表,免得每次都要算一次
   */
 @instantiable
-class ChainingCheck(val parameter: VRFParam) extends Module {
+class ChainingCheck(val parameter: VRFParameter) extends Module {
   @public
   val read:        VRFReadRequest          = IO(
     Input(new VRFReadRequest(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits))
