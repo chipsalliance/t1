@@ -12,7 +12,7 @@ object BTB extends Elaborator {
     @arg(name = "nEntries") nEntries:           Int,
     @arg(name = "counterLength") counterLength: Int,
     @arg(name = "historyLength") historyLength: Int,
-    @arg(name = "historyBits") historyBits:     Int) {
+    @arg(name = "historyBits") historyBits: Int) {
     def convert: BHTParameter = BHTParameter(
       nEntries,
       counterLength,
@@ -39,8 +39,7 @@ object BTB extends Elaborator {
     @arg(name = "bht-counterLength") counterLength:     Option[Int],
     @arg(name = "bht-historyLength") historyLength:     Option[Int],
     @arg(name = "bht-historyBits") historyBits:         Option[Int],
-    @arg(name = "fetchWidth") fetchWidth:               Int,
-                             ) {
+    @arg(name = "fetchWidth") fetchWidth: Int) {
     def convert: BTBParameter = BTBParameter(
       useAsyncReset,
       fetchBytes,
@@ -58,9 +57,8 @@ object BTB extends Elaborator {
         .lazyZip(counterLength)
         .lazyZip(historyLength)
         .lazyZip(historyBits))
-        .map {
-          case (nEntries, counterLength, historyLength, historyBits) =>
-            BHTParameter(nEntries, counterLength, historyLength, historyBits)
+        .map { case (nEntries, counterLength, historyLength, historyBits) =>
+          BHTParameter(nEntries, counterLength, historyLength, historyBits)
         }
         .headOption
     )

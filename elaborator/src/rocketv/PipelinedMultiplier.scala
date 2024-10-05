@@ -9,9 +9,9 @@ import org.chipsalliance.t1.elaborator.Elaborator
 object PipelinedMultiplier extends Elaborator {
   @main
   case class PipelinedMultiplierParameterMain(
-    @arg(name = "useAsyncReset") useAsyncReset:                   Boolean,
-    @arg(name = "latency") latency:                               Int,
-    @arg(name = "width") width:                                   Int) {
+    @arg(name = "useAsyncReset") useAsyncReset: Boolean,
+    @arg(name = "latency") latency:             Int,
+    @arg(name = "width") width: Int) {
     def convert: PipelinedMultiplierParameter = PipelinedMultiplierParameter(
       useAsyncReset: Boolean,
       latency:       Int,
@@ -19,7 +19,8 @@ object PipelinedMultiplier extends Elaborator {
     )
   }
 
-  implicit def PipelinedMultiplierParameterMainParser: ParserForClass[PipelinedMultiplierParameterMain] = ParserForClass[PipelinedMultiplierParameterMain]
+  implicit def PipelinedMultiplierParameterMainParser: ParserForClass[PipelinedMultiplierParameterMain] =
+    ParserForClass[PipelinedMultiplierParameterMain]
 
   @main
   def config(@arg(name = "parameter") parameter: PipelinedMultiplierParameterMain) = configImpl(parameter.convert)

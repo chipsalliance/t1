@@ -10,7 +10,7 @@ import org.chipsalliance.t1.elaborator.Elaborator
 
 object DCache extends Elaborator {
   implicit object BitSetRead extends TokensReader.Simple[BitSet] {
-    def shortName = "bitset"
+    def shortName               = "bitset"
     def read(strs: Seq[String]) = {
       Right(
         strs.head
@@ -19,13 +19,13 @@ object DCache extends Elaborator {
             if (opt.contains("-")) {
               val range = opt.split("-")
               require(range.size == 2)
-              val from = BigInt(range.head, 16)
-              val to = BigInt(range.last, 16) + 1
+              val from  = BigInt(range.head, 16)
+              val to    = BigInt(range.last, 16) + 1
               BitSet.fromRange(from, to - from, range.head.length * 4)
             } else if (opt.contains("+")) {
-              val range = opt.split("\\+")
+              val range  = opt.split("\\+")
               require(range.size == 2)
-              val from = BigInt(range.head, 16)
+              val from   = BigInt(range.head, 16)
               val length = BigInt(range.last, 16)
               BitSet.fromRange(from, length, range.head.length * 4)
             } else {
@@ -63,7 +63,7 @@ object DCache extends Elaborator {
     @arg(name = "logic") logic:                               BitSet,
     @arg(name = "arithmetic") arithmetic:                     BitSet,
     @arg(name = "exec") exec:                                 BitSet,
-    @arg(name = "sideEffects") sideEffects:                   BitSet) {
+    @arg(name = "sideEffects") sideEffects: BitSet) {
     def convert: HellaCacheParameter = HellaCacheParameter(
       useAsyncReset,
       clockGate,

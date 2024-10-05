@@ -12,7 +12,7 @@ object MulAddRecFNPipe extends Elaborator {
     @arg(name = "useAsyncReset") useAsyncReset: Boolean,
     @arg(name = "latency") latency:             Int,
     @arg(name = "expWidth") expWidth:           Int,
-    @arg(name = "sigWidth") sigWidth:           Int) {
+    @arg(name = "sigWidth") sigWidth: Int) {
     def convert: MulAddRecFNPipeParameter = MulAddRecFNPipeParameter(useAsyncReset, latency, expWidth, sigWidth)
   }
 

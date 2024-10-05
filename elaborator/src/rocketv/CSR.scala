@@ -30,7 +30,7 @@ object CSR extends Elaborator {
     @arg(name = "usingAtomics") usingAtomics:       Boolean,
     @arg(name = "usingDebug") usingDebug:           Boolean,
     @arg(name = "usingMulDiv") usingMulDiv:         Boolean,
-    @arg(name = "usingVector") usingVector:         Boolean) {
+    @arg(name = "usingVector") usingVector: Boolean) {
     def convert: CSRParameter = CSRParameter(
       useAsyncReset:   Boolean,
       vLen:            Int,

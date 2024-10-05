@@ -13,7 +13,7 @@ object IntToFP extends Elaborator {
     @arg(name = "latency") latency:             Int,
     @arg(name = "fLen") fLen:                   Int,
     @arg(name = "xLen") xLen:                   Int,
-    @arg(name = "minFLen") minFLen:             Int) {
+    @arg(name = "minFLen") minFLen: Int) {
     def convert: IntToFPParameter = IntToFPParameter(
       useAsyncReset,
       latency,

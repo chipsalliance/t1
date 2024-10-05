@@ -14,7 +14,7 @@ object FPUFMAPipe extends Elaborator {
     xLen:          Int,
     fLen:          Int,
     minFLen:       Int,
-    t:             String) {
+    t: String) {
 
     def convert: FPUFMAPipeParameter = FPUFMAPipeParameter(
       useAsyncReset,

@@ -9,7 +9,7 @@ import org.chipsalliance.t1.elaborator.Elaborator
 object RVCExpander extends Elaborator {
   @main
   case class RVCExpanderParameterMain(
-    @arg(name = "xLen") xLen:                       Int,
+    @arg(name = "xLen") xLen: Int,
     @arg(name = "usingCompressed") usingCompressed: Boolean) {
     def convert: RVCExpanderParameter = RVCExpanderParameter(
       xLen,

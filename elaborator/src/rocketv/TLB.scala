@@ -10,7 +10,7 @@ import org.chipsalliance.t1.elaborator.Elaborator
 
 object TLB extends Elaborator {
   implicit object BitSetRead extends TokensReader.Simple[BitSet] {
-    def shortName = "bitset"
+    def shortName               = "bitset"
     def read(strs: Seq[String]) = {
       Right(
         strs.head
@@ -19,13 +19,13 @@ object TLB extends Elaborator {
             if (opt.contains("-")) {
               val range = opt.split("-")
               require(range.size == 2)
-              val from = BigInt(range.head, 16)
-              val to = BigInt(range.last, 16) + 1
+              val from  = BigInt(range.head, 16)
+              val to    = BigInt(range.last, 16) + 1
               BitSet.fromRange(from, to - from, range.head.length * 4)
             } else if (opt.contains("+")) {
-              val range = opt.split("\\+")
+              val range  = opt.split("\\+")
               require(range.size == 2)
-              val from = BigInt(range.head, 16)
+              val from   = BigInt(range.head, 16)
               val length = BigInt(range.last, 16)
               BitSet.fromRange(from, length, range.head.length * 4)
             } else {
@@ -64,7 +64,7 @@ object TLB extends Elaborator {
     @arg(name = "arithmetic") arithmetic:                       Seq[BitSet],
     @arg(name = "exec") exec:                                   Seq[BitSet],
     @arg(name = "sideEffects") sideEffects:                     Seq[BitSet],
-    @arg(name = "isITLB") isITLB:                               Boolean) {
+    @arg(name = "isITLB") isITLB: Boolean) {
     def convert: TLBParameter = TLBParameter(
       useAsyncReset,
       xLen,
@@ -81,18 +81,20 @@ object TLB extends Elaborator {
       usingVM,
       usingAtomicsInCache,
       nPMPs,
-      PMAChecker.PMACheckerParameterMain(
-        paddrBits,
-        legal,
-        cacheable,
-        read,
-        write,
-        putPartial,
-        logic,
-        arithmetic,
-        exec,
-        sideEffects
-      ).convert,
+      PMAChecker
+        .PMACheckerParameterMain(
+          paddrBits,
+          legal,
+          cacheable,
+          read,
+          write,
+          putPartial,
+          logic,
+          arithmetic,
+          exec,
+          sideEffects
+        )
+        .convert,
       paddrBits,
       isITLB
     )

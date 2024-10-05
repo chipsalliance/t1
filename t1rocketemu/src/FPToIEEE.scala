@@ -14,7 +14,7 @@ object FPToIEEEParameter {
   implicit def rwP: upickle.default.ReadWriter[FPToIEEEParameter] = upickle.default.macroRW[FPToIEEEParameter]
 }
 
-class FPToIEEEInput(fLen: Int) extends Bundle {
+class FPToIEEEInput(fLen: Int)                        extends Bundle {
   val typeTag = UInt(2.W)
   val data    = UInt((fLen + 1).W)
 }
@@ -28,8 +28,8 @@ case class FPToIEEEParameter(
 class FPToIEEEInterface(parameter: FPToIEEEParameter) extends Bundle {
   val clock = Input(Clock())
   val reset = Input(if (parameter.useAsyncReset) AsyncReset() else Bool())
-  val in = Flipped(Valid(new FPToIEEEInput(parameter.fLen)))
-  val out = Valid(UInt(parameter.fLen.W))
+  val in    = Flipped(Valid(new FPToIEEEInput(parameter.fLen)))
+  val out   = Valid(UInt(parameter.fLen.W))
 }
 
 @instantiable
@@ -44,16 +44,16 @@ class FPToIEEE(val parameter: FPToIEEEParameter)
   val minFLen: Int = parameter.minFLen
   val fLen:    Int = parameter.fLen
   val xLen:    Int = parameter.xLen
-  val helper = new FPUHelper(minFLen, fLen, xLen)
+  val helper      = new FPUHelper(minFLen, fLen, xLen)
   val maxExpWidth = helper.maxExpWidth
   val maxSigWidth = helper.maxSigWidth
-  val floatTypes = helper.floatTypes
-  val maxType = helper.maxType
-  val minXLen = helper.minXLen
-  val nIntTypes = helper.nIntTypes
+  val floatTypes  = helper.floatTypes
+  val maxType     = helper.maxType
+  val minXLen     = helper.minXLen
+  val nIntTypes   = helper.nIntTypes
   def ieee(x: UInt, t: FType = maxType) = helper.ieee(x, t)
 
-  val in = io.in.bits
+  val in    = io.in.bits
   val valid = io.in.valid
 
   def sextTo(x: UInt, n: Int): UInt = {
@@ -70,5 +70,5 @@ class FPToIEEE(val parameter: FPToIEEEParameter)
   )(in.typeTag)
 
   io.out.valid := valid
-  io.out.bits := store
+  io.out.bits  := store
 }

@@ -17,15 +17,15 @@ object MulDiv extends Elaborator {
     @arg(name = "divEarlyOutGranularity") divEarlyOutGranularity: Int,
     @arg(name = "mulUnroll") mulUnroll:                           Int,
     @arg(name = "mulEarlyOut") mulEarlyOut:                       Boolean,
-    @arg(name = "instructionSets") instructionSets:     Set[String],
-    @arg(name = "pipelinedMul") pipelinedMul:           Boolean,
+    @arg(name = "instructionSets") instructionSets:               Set[String],
+    @arg(name = "pipelinedMul") pipelinedMul:                     Boolean,
     @arg(name = "fenceIFlushDCache") fenceIFlushDCache: Boolean) {
     def decodeParam: DecoderParameter = DecoderParameter(
       instructionSets,
       pipelinedMul,
       fenceIFlushDCache
     )
-    def convert: MulDivParameter = MulDivParameter(
+    def convert:     MulDivParameter  = MulDivParameter(
       useAsyncReset,
       latency,
       width,

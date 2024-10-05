@@ -7,18 +7,38 @@ package org.chipsalliance.t1.t1rocketemu.dpi
 import chisel3._
 import chisel3.util.circt.dpi.{RawClockedVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
 import chisel3.util.{isPow2, log2Ceil}
-import org.chipsalliance.amba.axi4.bundle.{ARChannel, ARFlowControl, AWChannel, AWFlowControl, AXI4BundleParameter, AXI4ROIrrevocableVerilog, AXI4RWIrrevocableVerilog, AXI4WOIrrevocableVerilog, BChannel, BFlowControl, RChannel, RFlowControl, WChannel, WFlowControl}
+import org.chipsalliance.amba.axi4.bundle.{
+  ARChannel,
+  ARFlowControl,
+  AWChannel,
+  AWFlowControl,
+  AXI4BundleParameter,
+  AXI4ROIrrevocableVerilog,
+  AXI4RWIrrevocableVerilog,
+  AXI4WOIrrevocableVerilog,
+  BChannel,
+  BFlowControl,
+  RChannel,
+  RFlowControl,
+  WChannel,
+  WFlowControl
+}
 
-case class AXI4SlaveAgentParameter(name: String, axiParameter: AXI4BundleParameter, outstanding: Int, readPayloadSize: Int, writePayloadSize: Int)
+case class AXI4SlaveAgentParameter(
+  name:             String,
+  axiParameter:     AXI4BundleParameter,
+  outstanding:      Int,
+  readPayloadSize:  Int,
+  writePayloadSize: Int)
 
 class AXI4SlaveAgentInterface(parameter: AXI4SlaveAgentParameter) extends Bundle {
   val clock:     Clock = Input(Clock())
   val reset:     Reset = Input(Reset())
-  val channelId: UInt =  Input(Const(UInt(64.W)))
+  val channelId: UInt  = Input(Const(UInt(64.W)))
   // don't issue read DPI
-  val gateRead: Bool = Input(Bool())
+  val gateRead:  Bool  = Input(Bool())
   // don't issue write DPI
-  val gateWrite: Bool = Input(Bool())
+  val gateWrite: Bool  = Input(Bool())
   val channel = Flipped(
     org.chipsalliance.amba.axi4.bundle.verilog.irrevocable(parameter.axiParameter)
   )
@@ -30,7 +50,7 @@ class WritePayload(length: Int, dataWidth: Int) extends Bundle {
   val strb = Vec(length, UInt(math.max(8, dataWidth / 8).W))
 }
 
-class ReadPayload(length: Int,dataWidth: Int) extends Bundle {
+class ReadPayload(length: Int, dataWidth: Int) extends Bundle {
   val data = Vec(length, UInt(dataWidth.W))
 }
 
@@ -51,50 +71,55 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
   private class WriteManager(
     channel: AWChannel with AWFlowControl with WChannel with WFlowControl with BChannel with BFlowControl) {
     withClockAndReset(io.clock, io.reset) {
+
       /** There is an aw in the register. */
       val awIssued = RegInit(false.B)
+
       /** There is a w in the register. */
       val last = RegInit(false.B)
 
       /** memory to store the write payload
-        * @todo limit the payload size based on the RTL configuration.
+        * @todo
+        *   limit the payload size based on the RTL configuration.
         */
-      val writePayload = RegInit(0.U.asTypeOf(new WritePayload(parameter.writePayloadSize, parameter.axiParameter.dataWidth)))
+      val writePayload =
+        RegInit(0.U.asTypeOf(new WritePayload(parameter.writePayloadSize, parameter.axiParameter.dataWidth)))
+
       /** AWID, latch at AW fire, used at B fire. */
-      val awid = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWID)))
-      val awaddr = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWADDR)))
-      val awlen = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWLEN)))
-      val awsize = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWSIZE)))
-      val awburst = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWBURST)))
-      val awlock = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWLOCK)))
-      val awcache = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWCACHE)))
-      val awprot = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWPROT)))
-      val awqos = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWQOS)))
+      val awid     = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWID)))
+      val awaddr   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWADDR)))
+      val awlen    = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWLEN)))
+      val awsize   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWSIZE)))
+      val awburst  = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWBURST)))
+      val awlock   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWLOCK)))
+      val awcache  = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWCACHE)))
+      val awprot   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWPROT)))
+      val awqos    = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWQOS)))
       val awregion = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWREGION)))
-      val awuser = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWUSER)))
+      val awuser   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWUSER)))
 
       /** index the payload, used to write [[writePayload]] */
-      val writeIdx = RegInit(0.U.asTypeOf(UInt(8.W)))
-      val bFire = channel.BREADY && channel.BVALID
-      val awFire = channel.AWREADY && channel.AWVALID
+      val writeIdx  = RegInit(0.U.asTypeOf(UInt(8.W)))
+      val bFire     = channel.BREADY && channel.BVALID
+      val awFire    = channel.AWREADY && channel.AWVALID
       val wLastFire = channel.WVALID && channel.WREADY && channel.WLAST
-      val awExist = channel.AWVALID || awIssued
-      val wExist = channel.WVALID && channel.WLAST || last
+      val awExist   = channel.AWVALID || awIssued
+      val wExist    = channel.WVALID && channel.WLAST || last
 
       // AW
       channel.AWREADY := !awIssued || (wExist && channel.BREADY)
       when(channel.AWREADY && channel.AWVALID) {
-        awid := channel.AWID
-        awaddr := channel.AWADDR
-        awlen := channel.AWLEN
-        awsize := channel.AWSIZE
-        awburst := channel.AWBURST
-        awlock := channel.AWLOCK
-        awcache := channel.AWCACHE
-        awprot := channel.AWPROT
-        awqos := channel.AWQOS
+        awid     := channel.AWID
+        awaddr   := channel.AWADDR
+        awlen    := channel.AWLEN
+        awsize   := channel.AWSIZE
+        awburst  := channel.AWBURST
+        awlock   := channel.AWLOCK
+        awcache  := channel.AWCACHE
+        awprot   := channel.AWPROT
+        awqos    := channel.AWQOS
         awregion := channel.AWREGION
-        awuser := channel.AWUSER
+        awuser   := channel.AWUSER
       }
       when(awFire ^ bFire) {
         awIssued := awFire
@@ -104,11 +129,11 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       val writePayloadUpdate = WireDefault(writePayload)
       channel.WREADY := !last || (awExist && channel.BREADY)
       when(channel.WVALID && channel.WREADY) {
-        writePayload.data(writeIdx) := channel.WDATA
+        writePayload.data(writeIdx)       := channel.WDATA
         writePayloadUpdate.data(writeIdx) := channel.WDATA
-        writePayload.strb(writeIdx) := channel.WSTRB.pad(writePayload.strb.getWidth)
+        writePayload.strb(writeIdx)       := channel.WSTRB.pad(writePayload.strb.getWidth)
         writePayloadUpdate.strb(writeIdx) := channel.WSTRB.pad(writePayload.strb.getWidth)
-        writeIdx := writeIdx + 1.U
+        writeIdx                          := writeIdx + 1.U
         when(channel.WLAST) {
           writeIdx := 0.U
         }
@@ -119,9 +144,9 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
 
       // B
       channel.BVALID := awExist && wExist
-      channel.BID := Mux(awIssued, awid, channel.AWID)
-      channel.BRESP := 0.U(2.W) // OK
-      channel.BUSER := Mux(awIssued, awuser, channel.AWUSER)
+      channel.BID    := Mux(awIssued, awid, channel.AWID)
+      channel.BRESP  := 0.U(2.W) // OK
+      channel.BUSER  := Mux(awIssued, awuser, channel.AWUSER)
       when(channel.BVALID && channel.BREADY) {
         RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(
           io.clock,
@@ -147,26 +172,30 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
   private class ReadManager(channel: ARChannel with ARFlowControl with RChannel with RFlowControl) {
     withClockAndReset(io.clock, io.reset) {
       class CAMValue extends Bundle {
-        val arid = UInt(16.W)
-        val arlen = UInt(8.W)
-        val readPayload = new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth)
+        val arid             = UInt(16.W)
+        val arlen            = UInt(8.W)
+        val readPayload      = new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth)
         val readPayloadIndex = UInt(8.W)
-        val valid = Bool()
+        val valid            = Bool()
         val user: UInt = UInt(channel.ARUSER.getWidth.W)
       }
+
       /** CAM to maintain order of read requests. This is maintained as FIFO. */
       val cam: Vec[CAMValue] = RegInit(0.U.asTypeOf(Vec(parameter.outstanding, new CAMValue)))
       require(isPow2(parameter.outstanding), "Need to handle pointers")
       val arPtr = RegInit(0.U.asTypeOf(UInt(log2Ceil(parameter.outstanding).W)))
-      val rPtr = RegInit(0.U.asTypeOf(UInt(log2Ceil(parameter.outstanding).W)))
+      val rPtr  = RegInit(0.U.asTypeOf(UInt(log2Ceil(parameter.outstanding).W)))
 
       // AR
       channel.ARREADY := !cam(arPtr).valid
       when(channel.ARREADY && channel.ARVALID) {
-        cam(arPtr).arid := channel.ARID
-        cam(arPtr).arlen := channel.ARLEN
-        cam(arPtr).user := channel.ARUSER
-        cam(arPtr).readPayload := RawUnclockedNonVoidFunctionCall(s"axi_read_${parameter.name}", new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth))(
+        cam(arPtr).arid             := channel.ARID
+        cam(arPtr).arlen            := channel.ARLEN
+        cam(arPtr).user             := channel.ARUSER
+        cam(arPtr).readPayload      := RawUnclockedNonVoidFunctionCall(
+          s"axi_read_${parameter.name}",
+          new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth)
+        )(
           when.cond && !io.gateRead,
           io.channelId,
           channel.ARID.asTypeOf(UInt(64.W)),
@@ -181,23 +210,23 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
           channel.ARREGION.asTypeOf(UInt(64.W))
         )
         cam(arPtr).readPayloadIndex := 0.U
-        cam(arPtr).valid := true.B
-        arPtr := arPtr + 1.U
+        cam(arPtr).valid            := true.B
+        arPtr                       := arPtr + 1.U
       }
 
       // R
       channel.RVALID := cam(rPtr).valid
-      channel.RID := cam(rPtr).arid
-      channel.RDATA := cam(rPtr).readPayload.data(cam(rPtr).readPayloadIndex)
-      channel.RRESP := 0.U // OK
-      channel.RLAST := (cam(rPtr).arlen === cam(rPtr).readPayloadIndex) && cam(rPtr).valid
-      channel.RUSER := cam(rPtr).user
+      channel.RID    := cam(rPtr).arid
+      channel.RDATA  := cam(rPtr).readPayload.data(cam(rPtr).readPayloadIndex)
+      channel.RRESP  := 0.U // OK
+      channel.RLAST  := (cam(rPtr).arlen === cam(rPtr).readPayloadIndex) && cam(rPtr).valid
+      channel.RUSER  := cam(rPtr).user
       when(channel.RREADY && channel.RVALID) {
         // increase index
         cam(rPtr).readPayloadIndex := cam(rPtr).readPayloadIndex + 1.U
         when(channel.RLAST) {
           cam(rPtr).valid := false.B
-          rPtr := rPtr + 1.U
+          rPtr            := rPtr + 1.U
         }
       }
     }

@@ -9,8 +9,8 @@ import org.chipsalliance.t1.elaborator.Elaborator
 object Decoder extends Elaborator {
   @main
   case class DecoderParameterMain(
-    @arg(name = "instructionSets") instructionSets:     Set[String],
-    @arg(name = "pipelinedMul") pipelinedMul:           Boolean,
+    @arg(name = "instructionSets") instructionSets: Set[String],
+    @arg(name = "pipelinedMul") pipelinedMul:       Boolean,
     @arg(name = "fenceIFlushDCache") fenceIFlushDCache: Boolean) {
     def convert: DecoderParameter = DecoderParameter(
       instructionSets,

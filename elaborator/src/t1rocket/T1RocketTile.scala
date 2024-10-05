@@ -13,7 +13,7 @@ import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
 // --instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --instructionSets Zve32x --instructionSets zvl1024b --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 256 --vrfBankSize 2 --vrfRamType p0rp1w
 object T1RocketTile extends Elaborator {
   implicit object BitSetRead extends TokensReader.Simple[BitSet] {
-    def shortName = "bitset"
+    def shortName               = "bitset"
     def read(strs: Seq[String]) = {
       Right(
         strs.head
@@ -22,13 +22,13 @@ object T1RocketTile extends Elaborator {
             if (opt.contains("-")) {
               val range = opt.split("-")
               require(range.size == 2)
-              val from = BigInt(range.head, 16)
-              val to = BigInt(range.last, 16) + 1
+              val from  = BigInt(range.head, 16)
+              val to    = BigInt(range.last, 16) + 1
               BitSet.fromRange(from, to - from, range.head.length * 4)
             } else if (opt.contains("+")) {
-              val range = opt.split("\\+")
+              val range  = opt.split("\\+")
               require(range.size == 2)
-              val from = BigInt(range.head, 16)
+              val from   = BigInt(range.head, 16)
               val length = BigInt(range.last, 16)
               BitSet.fromRange(from, length, range.head.length * 4)
             } else {
@@ -41,12 +41,12 @@ object T1RocketTile extends Elaborator {
   }
 
   implicit object RamTypeRead extends TokensReader.Simple[RamType] {
-    def shortName = "ramtype"
+    def shortName               = "ramtype"
     def read(strs: Seq[String]) = {
       Right(
         strs.head match {
-          case "p0rw" => p0rw
-          case "p0rp1w" => p0rp1w
+          case "p0rw"     => p0rw
+          case "p0rp1w"   => p0rp1w
           case "p0rwp1rw" => p0rwp1rw
         }
       )
@@ -55,36 +55,35 @@ object T1RocketTile extends Elaborator {
 
   @main
   case class T1RocketTileParameterMain(
-                                        @arg(name = "instructionSets") instructionSets: Seq[String],
-                                        @arg(name = "cacheBlockBytes") cacheBlockBytes: Int,
-                                        @arg(name = "nPMPs") nPMPs: Int,
-                                        @arg(name = "cacheable") cacheable: BitSet,
-                                        @arg(name = "sideEffects") sideEffects: BitSet,
-                                        @arg(name = "dcacheNSets") dcacheNSets: Int,
-                                        @arg(name = "dcacheNWays") dcacheNWays: Int,
-                                        @arg(name = "dcacheRowBits") dcacheRowBits: Int,
-                                        @arg(name = "iCacheNSets") iCacheNSets: Int,
-                                        @arg(name = "iCacheNWays") iCacheNWays: Int,
-                                        @arg(name = "iCachePrefetch") iCachePrefetch: Boolean,
-                                        @arg(name = "dLen") dLen: Int,
-                                        @arg(name = "vrfBankSize") vrfBankSize: Int,
-                                        @arg(name = "vrfRamType") vrfRamType: RamType
-                                      ) {
+    @arg(name = "instructionSets") instructionSets: Seq[String],
+    @arg(name = "cacheBlockBytes") cacheBlockBytes: Int,
+    @arg(name = "nPMPs") nPMPs:                     Int,
+    @arg(name = "cacheable") cacheable:             BitSet,
+    @arg(name = "sideEffects") sideEffects:         BitSet,
+    @arg(name = "dcacheNSets") dcacheNSets:         Int,
+    @arg(name = "dcacheNWays") dcacheNWays:         Int,
+    @arg(name = "dcacheRowBits") dcacheRowBits:     Int,
+    @arg(name = "iCacheNSets") iCacheNSets:         Int,
+    @arg(name = "iCacheNWays") iCacheNWays:         Int,
+    @arg(name = "iCachePrefetch") iCachePrefetch:   Boolean,
+    @arg(name = "dLen") dLen:                       Int,
+    @arg(name = "vrfBankSize") vrfBankSize:         Int,
+    @arg(name = "vrfRamType") vrfRamType: RamType) {
     def convert: T1RocketTileParameter = T1RocketTileParameter(
       instructionSets: Seq[String],
       cacheBlockBytes: Int,
-      nPMPs: Int,
-      cacheable: BitSet,
-      sideEffects: BitSet,
-      dcacheNSets: Int,
-      dcacheNWays: Int,
-      dcacheRowBits: Int,
-      iCacheNSets: Int,
-      iCacheNWays: Int,
-      iCachePrefetch: Boolean,
-      dLen: Int,
-      vrfBankSize: Int,
-      vrfRamType: RamType
+      nPMPs:           Int,
+      cacheable:       BitSet,
+      sideEffects:     BitSet,
+      dcacheNSets:     Int,
+      dcacheNWays:     Int,
+      dcacheRowBits:   Int,
+      iCacheNSets:     Int,
+      iCacheNWays:     Int,
+      iCachePrefetch:  Boolean,
+      dLen:            Int,
+      vrfBankSize:     Int,
+      vrfRamType:      RamType
     )
   }
 

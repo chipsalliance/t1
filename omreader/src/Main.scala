@@ -16,13 +16,13 @@ object Main {
 
   @main
   def run(
-    @arg(name = "mlirbc-file") mlirbcFile: Option[os.Path],
+    @arg(name = "mlirbc-file") mlirbcFile:   Option[os.Path],
     @arg(name = "dump-methods") dumpMethods: Flag,
-    @arg(name = "eval") eval: Option[String],
+    @arg(name = "eval") eval:                Option[String]
   ) = {
     val t1Reader = (mlirbcFile match {
       case Some(path) => OMReader.fromFile(path)
-      case None =>
+      case None       =>
         val stdin = new BufferedInputStream(System.in)
         val bytes = Stream.continually(stdin.read).takeWhile(_ != -1).map(_.toByte).toArray
         OMReader.fromBytes(bytes)
@@ -74,13 +74,12 @@ object Main {
 
 object SimpleInputEval {
   def apply(entry: PanamaCIRCTOMEvaluatorValue, input: String): PanamaCIRCTOMEvaluatorValue = {
-    input.split("\\.").foldLeft(entry) {
-      case (obj, field) =>
-        if (field.forall(_.isDigit)) {
-          obj.asInstanceOf[PanamaCIRCTOMEvaluatorValueList].getElement(field.toLong)
-        } else {
-          obj.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject].field(field)
-        }
+    input.split("\\.").foldLeft(entry) { case (obj, field) =>
+      if (field.forall(_.isDigit)) {
+        obj.asInstanceOf[PanamaCIRCTOMEvaluatorValueList].getElement(field.toLong)
+      } else {
+        obj.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject].field(field)
+      }
     }
   }
 }
