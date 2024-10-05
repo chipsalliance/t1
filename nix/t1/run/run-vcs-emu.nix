@@ -15,6 +15,7 @@ stdenvNoCC.mkDerivation (finalAttr: {
     emuDriverArgsArray=(
       "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
       ${lib.optionalString emulator.enableTrace "+t1_wave_path=${testCase.pname}.fsdb"}
+      "-cm assert"
     )
     emuDriverArgs="''${emuDriverArgsArray[@]}"
     emuDriver="${emulator}/bin/${emulator.mainProgram}"
@@ -77,6 +78,9 @@ stdenvNoCC.mkDerivation (finalAttr: {
     if [ -r perf.json ]; then
       mv perf.json $out/
     fi
+
+    cp -v cm.log "$out"
+    cp -vr cm.vdb "$out"
 
     ${lib.optionalString emulator.enableTrace ''
       cp -v ${testCase.pname}.fsdb "$out"

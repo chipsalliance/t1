@@ -180,7 +180,8 @@ object Main:
         s"No cached emulator selection nor --emu argument was provided"
       )
 
-    val isTrace = finalEmuType.get.endsWith("-trace")
+    val isTrace = finalEmuType.get.contains("-trace")
+    val isCover = isTrace
 
     val finalConfig = tryRestoreFromCache("config", config)
     if finalConfig.isEmpty then
@@ -204,6 +205,7 @@ object Main:
       s"+t1_elf_file=${caseElfPath}"
     )
       ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
+      ++ optionals(isCover, Seq(s"-cm assert"))
       ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)
 
     if dryRun.value then return
@@ -258,6 +260,14 @@ object Main:
     if driverProc.exitCode() != 0 then Logger.fatal("online driver run failed")
 
     Logger.info("Driver finished")
+
+    if isCover then
+      if os.exists(os.pwd / "cm.vdb") && os.exists(os.pwd / "cm.log") then
+        os.move(os.pwd / "cm.vdb", outputPath / "cm.vdb", replaceExisting = true)
+        os.move(os.pwd / "cm.log", outputPath / "cm.log", replaceExisting = true)
+        Logger.info(s"Coverage database saved under ${outputPath}/cm.vdb")
+      else 
+        Logger.error("No cm.vdb cm.log found")
 
     if os.exists(os.pwd / "perf.json") then
       os.move(os.pwd / "perf.json", outputPath / "perf.json", replaceExisting = true)

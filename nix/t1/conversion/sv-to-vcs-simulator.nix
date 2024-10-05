@@ -30,6 +30,10 @@ stdenv.mkDerivation rec {
     "-timescale=1ns/1ps"
     "-file"
     "filelist.f"
+    "-cm"
+    "line+cond+fsm+tgl+branch+assert"
+    "-cm_dir"
+    "./cm"
   ]
   ++ lib.optionals (enableTrace) [
     "+define+T1_ENABLE_TRACE"
@@ -65,13 +69,16 @@ stdenv.mkDerivation rec {
     mkdir -p $out/bin $out/lib
     cp $mainProgram $out/lib
     cp -r $mainProgram.daidir $out/lib
+    cp -r ./cm.vdb $out/lib
 
     # We need to carefully handle string escape here, so don't use makeWrapper
     tee $out/bin/$mainProgram <<EOF
     #!${bash}/bin/bash
     export LD_LIBRARY_PATH="$out/lib/$mainProgram.daidir:\$LD_LIBRARY_PATH"
     _argv="\$@"
-    ${vcs-fhs-env}/bin/vcs-fhs-env -c "$out/lib/$mainProgram \$_argv"
+    cp -r $out/lib/cm.vdb ./cm.vdb
+    chmod +w -R ./cm.vdb
+    ${vcs-fhs-env}/bin/vcs-fhs-env -c "$out/lib/$mainProgram -cm_dir ./cm.vdb \$_argv"
     EOF
     chmod +x $out/bin/$mainProgram
 
