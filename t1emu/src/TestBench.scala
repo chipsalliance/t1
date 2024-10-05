@@ -13,10 +13,12 @@ import chisel3.util.circt.dpi.{
   RawClockedVoidFunctionCall,
   RawUnclockedNonVoidFunctionCall
 }
-import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
+import chisel3.util.{BitPat, HasExtModuleInline, PopCount, UIntToOH, Valid}
+import chisel3.ltl.{CoverProperty, Sequence}
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1emu.dpi._
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
+import org.chipsalliance.rvdecoderdb.Instruction
 
 @instantiable
 class TestBenchOM extends Class {
@@ -282,5 +284,9 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
       assert(!scoreboard.valid)
       scoreboard.bits  := 0.U
     }
+  }
+  generator.parameter.decoderParam.allInstructions.map { instruction: Instruction =>
+    val issueMatch = Sequence.BoolSequence(issue.instruction === BitPat("b" + instruction.encoding.toString))
+    CoverProperty(issueMatch, label = Some(s"t1_cover_issue_${instruction.name}"))
   }
 }
