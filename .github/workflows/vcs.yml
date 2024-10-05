@@ -101,9 +101,12 @@ jobs:
       - name: "Print step summary"
         run: |
           nix run ".#ci-helper" -- postCI \
+            --urg-report-file-path ./urg-report.md \
             --cycle-update-file-path ./cycle-update.md \
             --failed-tests-file-path ./failed-tests.md \
             --emu-type vcs
+          cat ./urg-report.md >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
