@@ -72,9 +72,21 @@ let
           fi
 
           cp -v ${caseDrv}/offline-check-* "$_caseOutDir"/
+
+          if [ -d ${caseDrv}/cm.vdb ]; then
+            cp -vr ${caseDrv}/cm.vdb "$_caseOutDir"/
+          fi
         '')
         allCasesResult);
     in
     runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
+
+  _vcsEmuResult = runCommand "get-vcs-emu-result" { __noChroot = true; emuOutput = _getAllResult "vcs-emu"; } ''
+    cp -vr $emuOutput $out
+    chmod -R u+w $out
+
+    ${vcs-emu.vcs-fhs-env}/bin/vcs-fhs-env -c "urg -dir $emuOutput/*/cm.vdb -format text"
+    cp -vr urgReport $out/
+  '';
 in
-emuAttrs // { _vcsEmuResult = _getAllResult "vcs-emu"; }
+emuAttrs // { inherit _vcsEmuResult; }
