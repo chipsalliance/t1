@@ -6,7 +6,7 @@ package org.chipsalliance.t1.rocketv
 import chisel3._
 import chisel3.experimental.{ExtModule, SerializableModuleGenerator}
 import chisel3.experimental.dataview.DataViewable
-import chisel3.probe.{Probe, define}
+import chisel3.probe.{define, Probe}
 import chisel3.util.{log2Ceil, HasExtModuleInline, PopCount, UIntToOH, Valid}
 import chisel3.util.circt.dpi.RawUnclockedNonVoidFunctionCall
 import org.chipsalliance.amba.axi4.bundle._
@@ -40,12 +40,12 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
          |endmodule
          |""".stripMargin
     )
-    val clock = IO(Output(Bool()))
-    val reset = IO(Output(Bool()))
+    val clock                = IO(Output(Bool()))
+    val reset                = IO(Output(Bool()))
   })
 
   val clock: Clock = clockGen.clock.asClock
-  val reset: Bool = clockGen.reset
+  val reset: Bool  = clockGen.reset
 
   override protected def implicitClock: Clock = clockGen.clock.asClock
   override protected def implicitReset: Reset = clockGen.reset
@@ -61,13 +61,13 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
   }
 
   val dut: RocketTile = withClockAndReset(clock, reset)(Module(generator.module()))
-  dut.io.clock := clockGen.clock.asClock
-  dut.io.reset := clockGen.reset
-  dut.io.hartid := 0.U
-  dut.io.debug := 0.U
-  dut.io.mtip := 0.U
-  dut.io.meip := 0.U
-  dut.io.msip := 0.U
+  dut.io.clock    := clockGen.clock.asClock
+  dut.io.reset    := clockGen.reset
+  dut.io.hartid   := 0.U
+  dut.io.debug    := 0.U
+  dut.io.mtip     := 0.U
+  dut.io.meip     := 0.U
+  dut.io.msip     := 0.U
   dut.io.buserror := 0.U
 
   // get resetVector from simulator
@@ -75,10 +75,14 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
 
   // output probes
   val rocketProbe = probe.read(dut.io.rocketProbe)
-  when(rocketProbe.rfWen && rocketProbe.rfWaddr =/= 0.U)(printf(cf"""{"event":"RegWrite","addr":${rocketProbe.rfWaddr},"data":${rocketProbe.rfWdata},"cycle":${simulationTime}}\n"""))
+  when(rocketProbe.rfWen && rocketProbe.rfWaddr =/= 0.U)(
+    printf(
+      cf"""{"event":"RegWrite","addr":${rocketProbe.rfWaddr},"data":${rocketProbe.rfWdata},"cycle":${simulationTime}}\n"""
+    )
+  )
 
   // Memory Drivers
-  val instFetchAXI = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
+  val instFetchAXI   = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
   val instFetchAgent = Module(
     new AXI4SlaveAgent(
       AXI4SlaveAgentParameter(
@@ -94,12 +98,12 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
     case io: AXI4ROIrrevocableVerilog => io <> instFetchAXI
   }
   instFetchAgent.io.clock := clock
-  instFetchAgent.io.reset := reset
+  instFetchAgent.io.reset     := reset
   instFetchAgent.io.channelId := 0.U
-  instFetchAgent.io.gateRead := false.B
+  instFetchAgent.io.gateRead  := false.B
   instFetchAgent.io.gateWrite := false.B
 
-  val loadStoreAXI = dut.io.loadStoreAXI.viewAs[AXI4RWIrrevocableVerilog]
+  val loadStoreAXI   = dut.io.loadStoreAXI.viewAs[AXI4RWIrrevocableVerilog]
   val loadStoreAgent = Module(
     new AXI4SlaveAgent(
       AXI4SlaveAgentParameter(
@@ -115,8 +119,8 @@ class TestBench(generator: SerializableModuleGenerator[RocketTile, RocketTilePar
     case io: AXI4RWIrrevocableVerilog => io <> loadStoreAXI
   }
   loadStoreAgent.io.clock := clock
-  loadStoreAgent.io.reset := reset
+  loadStoreAgent.io.reset     := reset
   loadStoreAgent.io.channelId := 0.U
-  loadStoreAgent.io.gateRead := false.B
+  loadStoreAgent.io.gateRead  := false.B
   loadStoreAgent.io.gateWrite := false.B
 }

@@ -35,7 +35,7 @@ object Rocket extends Elaborator {
     @arg(name = "fastLoadWord") fastLoadWord:                     Boolean,
     @arg(name = "dcacheNSets") dcacheNSets:                       Int,
     @arg(name = "flushOnFenceI") flushOnFenceI:                   Boolean,
-    @arg(name = "usingT1") usingT1:                               Boolean) {
+    @arg(name = "usingT1") usingT1: Boolean) {
     def convert: RocketParameter = RocketParameter(
       useAsyncReset,
       clockGate,

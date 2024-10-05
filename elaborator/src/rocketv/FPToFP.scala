@@ -13,7 +13,7 @@ object FPToFP extends Elaborator {
     latency:       Int,
     xLen:          Int,
     fLen:          Int,
-    minFLen:       Int) {
+    minFLen: Int) {
     def convert: FPToFPParameter = FPToFPParameter(
       useAsyncReset,
       latency,

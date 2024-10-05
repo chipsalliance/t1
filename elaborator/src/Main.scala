@@ -20,7 +20,7 @@ object Main {
     @arg(name = "target-dir", short = 't') targetDir: os.Path,
     @arg(name = "binder-mlirbc-out") binderMlirbcOut: Option[String] = None) {
     def elaborate(gen: () => chisel3.RawModule): Unit = {
-      var fir:                  firrtl.ir.Circuit = null
+      var fir:                  firrtl.ir.Circuit                            = null
       var panamaCIRCTConverter: chisel3.panamaconverter.PanamaCIRCTConverter = null
 
       val annos = Seq(
@@ -41,7 +41,7 @@ object Main {
         ): firrtl.AnnotationSeq
       ) { case (annos, stage) => stage.transform(annos) }
         .flatMap {
-          case firrtl.stage.FirrtlCircuitAnnotation(circuit) =>
+          case firrtl.stage.FirrtlCircuitAnnotation(circuit)                           =>
             if (binderMlirbcOut.isEmpty) fir = circuit
             None
           case chisel3.panamaconverter.stage.PanamaCIRCTConverterAnnotation(converter) =>
@@ -56,7 +56,7 @@ object Main {
       binderMlirbcOut match {
         case Some(outFile) =>
           os.write(targetDir / s"$outFile.mlirbc", panamaCIRCTConverter.mlirBytecodeStream)
-        case None =>
+        case None          =>
           os.write(targetDir / s"${fir.main}.fir", fir.serialize)
           os.write(targetDir / s"${fir.main}.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
       }
@@ -95,8 +95,8 @@ object Main {
     def parameter: T1RocketTileParameter = generator.parameter
   }
 
-  implicit def ipConfig:       ParserForClass[IPConfig] = ParserForClass[IPConfig]
-  implicit def rocketConfig:   ParserForClass[RocketConfig] = ParserForClass[RocketConfig]
+  implicit def ipConfig:       ParserForClass[IPConfig]       = ParserForClass[IPConfig]
+  implicit def rocketConfig:   ParserForClass[RocketConfig]   = ParserForClass[RocketConfig]
   implicit def t1RocketConfig: ParserForClass[T1RocketConfig] = ParserForClass[T1RocketConfig]
 
   @main def ip(elaborateConfig: ElaborateConfig, ipConfig: IPConfig): Unit =

@@ -9,9 +9,9 @@ import org.chipsalliance.t1.elaborator.Elaborator
 object PMPChecker extends Elaborator {
   @main
   case class PMPCheckerParameterMain(
-    @arg(name = "nPMPs") nPMPs:                   Int,
-    @arg(name = "paddrBits") paddrBits:           Int,
-    @arg(name = "lgMaxSize") lgMaxSize:           Int,
+    @arg(name = "nPMPs") nPMPs:         Int,
+    @arg(name = "paddrBits") paddrBits: Int,
+    @arg(name = "lgMaxSize") lgMaxSize: Int,
     @arg(name = "pmpGranularity") pmpGranularity: Int) {
     def convert: PMPCheckerParameter = PMPCheckerParameter(
       nPMPs:          Int,

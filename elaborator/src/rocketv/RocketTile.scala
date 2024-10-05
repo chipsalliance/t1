@@ -12,7 +12,7 @@ import org.chipsalliance.t1.elaborator.Elaborator
 
 object RocketTile extends Elaborator {
   implicit object BitSetRead extends TokensReader.Simple[BitSet] {
-    def shortName = "bitset"
+    def shortName               = "bitset"
     def read(strs: Seq[String]) = {
       Right(
         strs.head
@@ -21,13 +21,13 @@ object RocketTile extends Elaborator {
             if (opt.contains("-")) {
               val range = opt.split("-")
               require(range.size == 2)
-              val from = BigInt(range.head, 16)
-              val to = BigInt(range.last, 16) + 1
+              val from  = BigInt(range.head, 16)
+              val to    = BigInt(range.last, 16) + 1
               BitSet.fromRange(from, to - from, range.head.length * 4)
             } else if (opt.contains("+")) {
-              val range = opt.split("\\+")
+              val range  = opt.split("\\+")
               require(range.size == 2)
-              val from = BigInt(range.head, 16)
+              val from   = BigInt(range.head, 16)
               val length = BigInt(range.last, 16)
               BitSet.fromRange(from, length, range.head.length * 4)
             } else {
@@ -101,45 +101,45 @@ object RocketTile extends Elaborator {
     @arg(name = "separateUncachedResp") separateUncachedResp:     Boolean,
     @arg(name = "iCacheNSets") iCacheNSets:                       Int,
     @arg(name = "iCacheNWays") iCacheNWays:                       Int,
-    @arg(name = "iCachePrefetch") iCachePrefetch:                 Boolean) {
+    @arg(name = "iCachePrefetch") iCachePrefetch: Boolean) {
     def convert: RocketTileParameter = RocketTileParameter(
-      useAsyncReset:         Boolean,
-      clockGate:             Boolean,
-      instructionSets:       Set[String],
-      priv:                  String,
-      hartIdLen:             Int,
-      useBPWatch:            Boolean,
-      mcontextWidth:         Int,
-      scontextWidth:         Int,
-      asidBits:              Int,
-      resetVectorBits:       Int,
-      nBreakpoints:          Int,
-      dtlbNWays:             Int,
-      dtlbNSets:             Int,
-      itlbNSets:             Int,
-      itlbNWays:             Int,
-      itlbNSectors:          Int,
-      itlbNSuperpageEntries: Int,
-      nPTECacheEntries:      Int,
-      nL2TLBWays:            Int,
-      nL2TLBEntries:         Int,
-      paddrBits:             Int,
-      cacheBlockBytes:       Int,
-      nPMPs:                 Int,
-      legal:                 BitSet,
-      cacheable:             BitSet,
-      read:                  BitSet,
-      write:                 BitSet,
-      putPartial:            BitSet,
-      logic:                 BitSet,
-      arithmetic:            BitSet,
-      exec:                  BitSet,
-      sideEffects:           BitSet,
-      btbEntries:            Int,
-      btbNMatchBits:         Int,
-      btbUpdatesOutOfOrder:  Boolean,
-      nPages:                Int,
-      nRAS:                  Int,
+      useAsyncReset:          Boolean,
+      clockGate:              Boolean,
+      instructionSets:        Set[String],
+      priv:                   String,
+      hartIdLen:              Int,
+      useBPWatch:             Boolean,
+      mcontextWidth:          Int,
+      scontextWidth:          Int,
+      asidBits:               Int,
+      resetVectorBits:        Int,
+      nBreakpoints:           Int,
+      dtlbNWays:              Int,
+      dtlbNSets:              Int,
+      itlbNSets:              Int,
+      itlbNWays:              Int,
+      itlbNSectors:           Int,
+      itlbNSuperpageEntries:  Int,
+      nPTECacheEntries:       Int,
+      nL2TLBWays:             Int,
+      nL2TLBEntries:          Int,
+      paddrBits:              Int,
+      cacheBlockBytes:        Int,
+      nPMPs:                  Int,
+      legal:                  BitSet,
+      cacheable:              BitSet,
+      read:                   BitSet,
+      write:                  BitSet,
+      putPartial:             BitSet,
+      logic:                  BitSet,
+      arithmetic:             BitSet,
+      exec:                   BitSet,
+      sideEffects:            BitSet,
+      btbEntries:             Int,
+      btbNMatchBits:          Int,
+      btbUpdatesOutOfOrder:   Boolean,
+      nPages:                 Int,
+      nRAS:                   Int,
       bhtNEntries
         .lazyZip(bhtCounterLength)
         .lazyZip(bhtHistoryLength)

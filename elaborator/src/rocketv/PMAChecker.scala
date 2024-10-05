@@ -11,38 +11,43 @@ import org.chipsalliance.t1.elaborator.Elaborator
 object PMAChecker extends Elaborator {
 
   implicit object BitSetRead extends TokensReader.Simple[BitSet] {
-    def shortName = "bitset"
+    def shortName               = "bitset"
     def read(strs: Seq[String]) = {
-      Right(strs.head.split(",").map{ opt =>
-        if (opt.contains("-")) {
-          val range = opt.split("-")
-          require(range.size == 2)
-          val from = BigInt(range.head, 16)
-          val to = BigInt(range.last, 16) + 1
-          BitSet.fromRange(from, to - from, range.head.length * 4)
-        } else if (opt.contains("+")) {
-          val range = opt.split("\\+")
-          require(range.size == 2)
-          val from = BigInt(range.head, 16)
-          val length = BigInt(range.last, 16)
-          BitSet.fromRange(from, length, range.head.length * 4)
-        } else {
-          BitPat(s"b$opt")
-        }
-      }.reduce(_.union(_)))
+      Right(
+        strs.head
+          .split(",")
+          .map { opt =>
+            if (opt.contains("-")) {
+              val range = opt.split("-")
+              require(range.size == 2)
+              val from  = BigInt(range.head, 16)
+              val to    = BigInt(range.last, 16) + 1
+              BitSet.fromRange(from, to - from, range.head.length * 4)
+            } else if (opt.contains("+")) {
+              val range  = opt.split("\\+")
+              require(range.size == 2)
+              val from   = BigInt(range.head, 16)
+              val length = BigInt(range.last, 16)
+              BitSet.fromRange(from, length, range.head.length * 4)
+            } else {
+              BitPat(s"b$opt")
+            }
+          }
+          .reduce(_.union(_))
+      )
     }
   }
   @main
   case class PMACheckerParameterMain(
-    paddrBits:   Int,
-    legal:       Seq[BitSet],
-    cacheable:   Seq[BitSet],
-    read:        Seq[BitSet],
-    write:       Seq[BitSet],
-    putPartial:  Seq[BitSet],
-    logic:       Seq[BitSet],
-    arithmetic:  Seq[BitSet],
-    exec:        Seq[BitSet],
+    paddrBits:  Int,
+    legal:      Seq[BitSet],
+    cacheable:  Seq[BitSet],
+    read:       Seq[BitSet],
+    write:      Seq[BitSet],
+    putPartial: Seq[BitSet],
+    logic:      Seq[BitSet],
+    arithmetic: Seq[BitSet],
+    exec:       Seq[BitSet],
     sideEffects: Seq[BitSet]) {
     def convert: PMACheckerParameter = PMACheckerParameter(
       paddrBits,

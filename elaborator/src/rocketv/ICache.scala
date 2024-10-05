@@ -16,7 +16,7 @@ object ICache extends Elaborator {
     @arg(name = "blockBytes") blockBytes:       Int,
     @arg(name = "usingVM") usingVM:             Boolean,
     @arg(name = "vaddrBits") vaddrBits:         Int,
-    @arg(name = "paddrBits") paddrBits:         Int) {
+    @arg(name = "paddrBits") paddrBits: Int) {
     def convert: ICacheParameter = ICacheParameter(
       useAsyncReset,
       prefetch,

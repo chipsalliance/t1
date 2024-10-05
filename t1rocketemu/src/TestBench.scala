@@ -17,7 +17,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
     with ImplicitClock
     with ImplicitReset {
   layer.enable(layers.Verification)
-  val clockGen = Module(new ExtModule with HasExtModuleInline {
+  val clockGen               = Module(new ExtModule with HasExtModuleInline {
     override def desiredName = "ClockGen"
     setInline(
       s"$desiredName.sv",
@@ -58,11 +58,11 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
          |endmodule
          |""".stripMargin
     )
-    val clock = IO(Output(Bool()))
-    val reset = IO(Output(Bool()))
+    val clock                = IO(Output(Bool()))
+    val reset                = IO(Output(Bool()))
   })
-  def clock = clockGen.clock.asClock
-  def reset = clockGen.reset
+  def clock                  = clockGen.clock.asClock
+  def reset                  = clockGen.reset
   override def implicitClock = clockGen.clock.asClock
   override def implicitReset = clockGen.reset
   val dut: T1RocketTile with BaseModule = Module(generator.module())
@@ -87,46 +87,45 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   // get resetVector from simulator
   dut.io.resetVector := RawUnclockedNonVoidFunctionCall("get_resetvector", Const(UInt(64.W)))(simulationTime === 0.U)
 
-  dut.io.hartid := 0.U
-  dut.io.debug := 0.U
-  dut.io.mtip := 0.U
-  dut.io.msip := 0.U
-  dut.io.meip := 0.U
+  dut.io.hartid   := 0.U
+  dut.io.debug    := 0.U
+  dut.io.mtip     := 0.U
+  dut.io.msip     := 0.U
+  dut.io.meip     := 0.U
   dut.io.buserror := 0.U
 
   // memory driver
   Seq(
-    dut.io.highBandwidthAXI, // index 0
+    dut.io.highBandwidthAXI,  // index 0
     dut.io.highOutstandingAXI // index 1
   ).map(_.viewAs[AXI4RWIrrevocableVerilog])
     .lazyZip(
       Seq("highBandwidthAXI", "highOutstandingAXI")
     )
     .zipWithIndex
-    .foreach {
-      case ((bundle: AXI4RWIrrevocableVerilog, channelName: String), index: Int) =>
-        val agent = Module(
-          new AXI4SlaveAgent(
-            AXI4SlaveAgentParameter(
-              name = channelName,
-              axiParameter = bundle.parameter,
-              outstanding = 4,
-              readPayloadSize = 1,
-              writePayloadSize = 1
-            )
+    .foreach { case ((bundle: AXI4RWIrrevocableVerilog, channelName: String), index: Int) =>
+      val agent = Module(
+        new AXI4SlaveAgent(
+          AXI4SlaveAgentParameter(
+            name = channelName,
+            axiParameter = bundle.parameter,
+            outstanding = 4,
+            readPayloadSize = 1,
+            writePayloadSize = 1
           )
-        ).suggestName(s"axi4_channel${index}_${channelName}")
-        agent.io.channel match {
-          case io: AXI4RWIrrevocableVerilog => io <> bundle
-        }
-        agent.io.clock := clock
-        agent.io.reset := reset
-        agent.io.channelId := index.U
-        agent.io.gateRead := false.B
-        agent.io.gateWrite := false.B
+        )
+      ).suggestName(s"axi4_channel${index}_${channelName}")
+      agent.io.channel match {
+        case io: AXI4RWIrrevocableVerilog => io <> bundle
+      }
+      agent.io.clock := clock
+      agent.io.reset     := reset
+      agent.io.channelId := index.U
+      agent.io.gateRead  := false.B
+      agent.io.gateWrite := false.B
     }
 
-  val instFetchAXI = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
+  val instFetchAXI   = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
   val instFetchAgent = Module(
     new AXI4SlaveAgent(
       AXI4SlaveAgentParameter(
@@ -142,12 +141,12 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
     case io: AXI4ROIrrevocableVerilog => io <> instFetchAXI
   }
   instFetchAgent.io.clock := clock
-  instFetchAgent.io.reset := reset
+  instFetchAgent.io.reset     := reset
   instFetchAgent.io.channelId := 0.U
-  instFetchAgent.io.gateRead := false.B
+  instFetchAgent.io.gateRead  := false.B
   instFetchAgent.io.gateWrite := false.B
 
-  val loadStoreAXI = dut.io.loadStoreAXI.viewAs[AXI4RWIrrevocableVerilog]
+  val loadStoreAXI   = dut.io.loadStoreAXI.viewAs[AXI4RWIrrevocableVerilog]
   val loadStoreAgent = Module(
     new AXI4SlaveAgent(
       AXI4SlaveAgentParameter(
@@ -164,32 +163,32 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
     case io: AXI4RWIrrevocableVerilog => io <> loadStoreAXI
   }
   loadStoreAgent.io.clock := clock
-  loadStoreAgent.io.reset := reset
+  loadStoreAgent.io.reset     := reset
   loadStoreAgent.io.channelId := 3.U
-  loadStoreAgent.io.gateRead := false.B
+  loadStoreAgent.io.gateRead  := false.B
   loadStoreAgent.io.gateWrite := false.B
 
   // probes
-  val t1RocketProbe = probe.read(dut.io.t1RocketProbe)
-  val rocketProbe = t1RocketProbe.rocketProbe.suggestName(s"rocketProbe")
-  val t1Probe = t1RocketProbe.t1Probe.suggestName(s"t1Probe")
-  val lsuProbe = t1Probe.lsuProbe.suggestName(s"t1LSUProbe")
-  val laneProbes = t1Probe.laneProbes.zipWithIndex.map {
-    case (p, idx) =>
-      val wire = WireDefault(p).suggestName(s"lane${idx}Probe")
-      wire
+  val t1RocketProbe  = probe.read(dut.io.t1RocketProbe)
+  val rocketProbe    = t1RocketProbe.rocketProbe.suggestName(s"rocketProbe")
+  val t1Probe        = t1RocketProbe.t1Probe.suggestName(s"t1Probe")
+  val lsuProbe       = t1Probe.lsuProbe.suggestName(s"t1LSUProbe")
+  val laneProbes     = t1Probe.laneProbes.zipWithIndex.map { case (p, idx) =>
+    val wire = WireDefault(p).suggestName(s"lane${idx}Probe")
+    wire
   }
-  val laneVrfProbes = t1Probe.laneProbes.map(_.vrfProbe).zipWithIndex.map {
-    case (p, idx) =>
-      val wire = WireDefault(p).suggestName(s"lane${idx}VrfProbe")
-      wire
+  val laneVrfProbes  = t1Probe.laneProbes.map(_.vrfProbe).zipWithIndex.map { case (p, idx) =>
+    val wire = WireDefault(p).suggestName(s"lane${idx}VrfProbe")
+    wire
   }
   val storeUnitProbe = t1Probe.lsuProbe.storeUnitProbe.suggestName("storeUnitProbe")
   val otherUnitProbe = t1Probe.lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
 
   // output the probes
   // rocket reg write
-  when(rocketProbe.rfWen && !rocketProbe.isVectorWrite && rocketProbe.rfWaddr =/= 0.U && !(rocketProbe.waitWen && rocketProbe.waitWaddr =/= 0.U))(
+  when(
+    rocketProbe.rfWen && !rocketProbe.isVectorWrite && rocketProbe.rfWaddr =/= 0.U && !(rocketProbe.waitWen && rocketProbe.waitWaddr =/= 0.U)
+  )(
     printf(
       cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
     )
@@ -201,24 +200,32 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
     )
   )
 
-  // [[option]] rocket fpu reg write 
+  // [[option]] rocket fpu reg write
   generator.parameter.fpuParameter.zip(t1RocketProbe.fpuProbe).zip(rocketProbe.fpuScoreboard).map {
-    case((fpuParameter, fpu), fpuScoreboard) => {
-      val fpToIEEE = Module(new FPToIEEE(FPToIEEEParameter(
-        fpuParameter.useAsyncReset,
-        fpuParameter.xLen,
-        fpuParameter.fLen,
-        fpuParameter.minFLen
-      )))
+    case ((fpuParameter, fpu), fpuScoreboard) => {
+      val fpToIEEE           = Module(
+        new FPToIEEE(
+          FPToIEEEParameter(
+            fpuParameter.useAsyncReset,
+            fpuParameter.xLen,
+            fpuParameter.fLen,
+            fpuParameter.minFLen
+          )
+        )
+      )
       val isVectorForLLWrite = RegNext(rocketProbe.isVectorWrite, false.B)
 
-      fpToIEEE.io.clock := clock
-      fpToIEEE.io.reset := reset
-      fpToIEEE.io.in.valid := fpu.pipeWrite.rfWen || (fpu.loadOrVectorWrite.rfWen && !isVectorForLLWrite)
-      fpToIEEE.io.in.bits.data := Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWdata, fpu.loadOrVectorWrite.rfWdata)
-      fpToIEEE.io.in.bits.typeTag := Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWtypeTag, fpu.loadOrVectorWrite.rfWtypeTag)
+      fpToIEEE.io.clock           := clock
+      fpToIEEE.io.reset           := reset
+      fpToIEEE.io.in.valid        := fpu.pipeWrite.rfWen || (fpu.loadOrVectorWrite.rfWen && !isVectorForLLWrite)
+      fpToIEEE.io.in.bits.data    := Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWdata, fpu.loadOrVectorWrite.rfWdata)
+      fpToIEEE.io.in.bits.typeTag := Mux(
+        fpu.pipeWrite.rfWen,
+        fpu.pipeWrite.rfWtypeTag,
+        fpu.loadOrVectorWrite.rfWtypeTag
+      )
 
-      val rfWen = fpToIEEE.io.out.valid
+      val rfWen   = fpToIEEE.io.out.valid
       val rfWaddr = Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWaddr, fpu.loadOrVectorWrite.rfWaddr)
       val rfWdata = fpToIEEE.io.out.bits
       when(rfWen) {
@@ -241,13 +248,12 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   }
 
   // t1 vrf write
-  laneVrfProbes.zipWithIndex.foreach {
-    case (lane, i) =>
-      when(lane.valid)(
-        printf(
-          cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
-        )
+  laneVrfProbes.zipWithIndex.foreach { case (lane, i) =>
+    when(lane.valid)(
+      printf(
+        cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
       )
+    )
   }
 
   // t1 memory write from store unit
@@ -289,35 +295,34 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   val instructionValid =
     (laneProbes.map(laneProbe => laneProbe.instructionValid ## laneProbe.instructionValid) :+
       lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
-  val scoreboardEnq =
+  val scoreboardEnq    =
     Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * generator.parameter.t1Parameter.chainingSize).W))
-  vrfWriteScoreboard.zipWithIndex.foreach {
-    case (scoreboard, tag) =>
-      val writeEnq: UInt = VecInit(
-        // vrf write from lane
-        laneProbes.flatMap(laneProbe =>
-          laneProbe.slots.map(slot => slot.writeTag === tag.U && slot.writeQueueEnq && slot.writeMask.orR)
-        ) ++ laneProbes.flatMap(laneProbe =>
-          laneProbe.crossWriteProbe.map(cp => cp.bits.writeTag === tag.U && cp.valid && cp.bits.writeMask.orR)
-        ) ++
-          // vrf write from lsu
-          lsuProbe.slots.map(slot => slot.dataInstruction === tag.U && slot.writeValid && slot.dataMask.orR) ++
-          // vrf write from Sequencer
-          Some(t1Probe.writeQueueEnq.bits === tag.U && t1Probe.writeQueueEnq.valid && t1Probe.writeQueueEnqMask.orR)
-      ).asUInt
-      // always equal to array index
-      scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
-      when(scoreboard.valid && !instructionValid(tag)) {
-        printf(
-          cf"""{"event":"VrfScoreboard","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
-        )
-        scoreboard.valid := false.B
-      }
-      when(scoreboardEnq(tag)) {
-        scoreboard.valid := true.B
-        assert(!scoreboard.valid)
-        scoreboard.bits := 0.U
-      }
+  vrfWriteScoreboard.zipWithIndex.foreach { case (scoreboard, tag) =>
+    val writeEnq: UInt = VecInit(
+      // vrf write from lane
+      laneProbes.flatMap(laneProbe =>
+        laneProbe.slots.map(slot => slot.writeTag === tag.U && slot.writeQueueEnq && slot.writeMask.orR)
+      ) ++ laneProbes.flatMap(laneProbe =>
+        laneProbe.crossWriteProbe.map(cp => cp.bits.writeTag === tag.U && cp.valid && cp.bits.writeMask.orR)
+      ) ++
+        // vrf write from lsu
+        lsuProbe.slots.map(slot => slot.dataInstruction === tag.U && slot.writeValid && slot.dataMask.orR) ++
+        // vrf write from Sequencer
+        Some(t1Probe.writeQueueEnq.bits === tag.U && t1Probe.writeQueueEnq.valid && t1Probe.writeQueueEnqMask.orR)
+    ).asUInt
+    // always equal to array index
+    scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
+    when(scoreboard.valid && !instructionValid(tag)) {
+      printf(
+        cf"""{"event":"VrfScoreboard","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
+      )
+      scoreboard.valid := false.B
+    }
+    when(scoreboardEnq(tag)) {
+      scoreboard.valid := true.B
+      assert(!scoreboard.valid)
+      scoreboard.bits  := 0.U
+    }
   }
 
   // t1 quit

@@ -5,10 +5,14 @@ package org.chipsalliance.t1.t1emu
 
 import chisel3._
 import chisel3.experimental.dataview.DataViewable
-import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{ExtModule, SerializableModuleGenerator}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
-import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawClockedVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
+import chisel3.util.circt.dpi.{
+  RawClockedNonVoidFunctionCall,
+  RawClockedVoidFunctionCall,
+  RawUnclockedNonVoidFunctionCall
+}
 import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1emu.dpi._
@@ -17,7 +21,7 @@ import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 @instantiable
 class TestBenchOM extends Class {
   @public
-  val t1 = IO(Output(Property[AnyClassType]()))
+  val t1   = IO(Output(Property[AnyClassType]()))
   @public
   val t1In = IO(Input(Property[AnyClassType]()))
   t1 := t1In
@@ -29,9 +33,9 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
     with ImplicitReset {
   layer.enable(layers.Verification)
   val omInstance: Instance[TestBenchOM] = Instantiate(new TestBenchOM)
-  val omType:     ClassType = omInstance.toDefinition.getClassType
+  val omType:     ClassType             = omInstance.toDefinition.getClassType
   @public
-  val om: Property[ClassType] = IO(Output(Property[omType.Type]()))
+  val om:         Property[ClassType]   = IO(Output(Property[omType.Type]()))
   om := omInstance.getPropertyReference
 
   val clockGen = Module(new ExtModule with HasExtModuleInline {
@@ -70,11 +74,11 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
          |endmodule
          |""".stripMargin
     )
-    val clock = IO(Output(Bool()))
-    val reset = IO(Output(Bool()))
+    val clock                = IO(Output(Bool()))
+    val reset                = IO(Output(Bool()))
   })
-  def clock = clockGen.clock.asClock
-  def reset = clockGen.reset
+  def clock                  = clockGen.clock.asClock
+  def reset                  = clockGen.reset
   override def implicitClock = clockGen.clock.asClock
   override def implicitReset = clockGen.reset
   val dut: Instance[T1] = generator.instance()
@@ -82,8 +86,8 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   val simulationTime: UInt = RegInit(0.U(64.W))
   simulationTime := simulationTime + 1.U
 
-  dut.io.clock := clockGen.clock.asClock
-  dut.io.reset := clockGen.reset
+  dut.io.clock    := clockGen.clock.asClock
+  dut.io.reset    := clockGen.reset
   omInstance.t1In := Property(dut.io.om.asAnyClassType)
   // Instruction Drivers
 
@@ -99,23 +103,23 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   }
 
   // uint32_t -> svBitVecVal -> reference type with 7 length.
-  class Issue extends Bundle {
+  class Issue  extends Bundle {
     val instruction: UInt = UInt(32.W)
     val src1Data:    UInt = UInt(32.W)
     val src2Data:    UInt = UInt(32.W)
     // mstatus, vstatus?
-    val vtype: UInt = UInt(32.W)
-    val vl:    UInt = UInt(32.W)
+    val vtype:       UInt = UInt(32.W)
+    val vl:          UInt = UInt(32.W)
     // vlenb
-    val vstart: UInt = UInt(32.W)
+    val vstart:      UInt = UInt(32.W)
     // vxrm, vxsat are merged to vcsr
-    val vcsr: UInt = UInt(32.W)
+    val vcsr:        UInt = UInt(32.W)
     // meta is used to control the simulation.
     // 0 is reserved, aka not valid
     // 1 is normal, it's a valid instruction
     // 2 is fence, it will request
     // others are exit, will end the simulation immediately
-    val meta: UInt = UInt(32.W)
+    val meta:        UInt = UInt(32.W)
   }
   class Retire extends Bundle {
     val rd:      UInt = UInt(32.W)
@@ -125,37 +129,38 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   }
   // X gated by didIssue
   val issue = WireDefault(0.U.asTypeOf(new Issue))
-  val fence = RegInit(false.B)
-  val outstanding = RegInit(0.U(4.W))
+  val fence        = RegInit(false.B)
+  val outstanding  = RegInit(0.U(4.W))
   val hasBeenReset = RegNext(true.B, false.B)
   val doIssue: Bool = dut.io.issue.ready && !fence && hasBeenReset
   outstanding := outstanding + (RegNext(doIssue) && (issue.meta === 1.U)) - dut.io.issue.valid
   // TODO: refactor driver to spawn 3 scoreboards for record different retirement.
   val t1Probe = probe.read(dut.io.t1Probe)
-  fence := Mux(RegNext(doIssue), issue.meta === 2.U, fence && !t1Probe.retireValid && !(outstanding === 0.U))
-  issue := Mux(doIssue,
+  fence                         := Mux(RegNext(doIssue), issue.meta === 2.U, fence && !t1Probe.retireValid && !(outstanding === 0.U))
+  issue                         := Mux(
+    doIssue,
     RawClockedNonVoidFunctionCall("issue_vector_instruction", new Issue)(
       clock,
-      doIssue,
+      doIssue
     ),
     0.U.asTypeOf(new Issue)
   )
   dut.io.issue.bits.instruction := issue.instruction
-  dut.io.issue.bits.rs1Data := issue.src1Data
-  dut.io.issue.bits.rs2Data := issue.src2Data
-  dut.io.issue.bits.vtype := issue.vtype
-  dut.io.issue.bits.vl := issue.vl
-  dut.io.issue.bits.vstart := issue.vstart
-  dut.io.issue.bits.vcsr := issue.vcsr
-  dut.io.issue.valid := issue.meta === 1.U
+  dut.io.issue.bits.rs1Data     := issue.src1Data
+  dut.io.issue.bits.rs2Data     := issue.src2Data
+  dut.io.issue.bits.vtype       := issue.vtype
+  dut.io.issue.bits.vl          := issue.vl
+  dut.io.issue.bits.vstart      := issue.vstart
+  dut.io.issue.bits.vcsr        := issue.vcsr
+  dut.io.issue.valid            := issue.meta === 1.U
   when(issue.meta =/= 0.U && issue.meta =/= 1.U && issue.meta =/= 2.U) {
     stop(cf"""{"event":"SimulationStop","reason": ${issue.meta},"cycle":${simulationTime}}\n""")
   }
   val retire = Wire(new Retire)
-  retire.rd := dut.io.retire.rd.bits.rdAddress
-  retire.data := dut.io.retire.rd.bits.rdData
+  retire.rd      := dut.io.retire.rd.bits.rdAddress
+  retire.data    := dut.io.retire.rd.bits.rdData
   retire.writeRd := dut.io.retire.rd.valid
-  retire.vxsat := dut.io.retire.csr.bits.vxsat
+  retire.vxsat   := dut.io.retire.csr.bits.vxsat
   // TODO:
   //  retire.fflag := dut.io.retire.csr.bits.fflag
   RawClockedVoidFunctionCall("retire_vector_instruction")(clock, t1Probe.retireValid, retire)
@@ -172,34 +177,33 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
       Seq("highBandwidthPort", "indexedAccessPort")
     )
     .zipWithIndex
-    .foreach {
-      case ((bundle: AXI4RWIrrevocableVerilog, channelName: String), index: Int) =>
-        val agent = Module(
-          new AXI4SlaveAgent(
-            AXI4SlaveAgentParameter(
-              name = channelName,
-              axiParameter = bundle.parameter,
-              outstanding = 4,
-              readPayloadSize = 1,
-              writePayloadSize = 1
-            )
+    .foreach { case ((bundle: AXI4RWIrrevocableVerilog, channelName: String), index: Int) =>
+      val agent = Module(
+        new AXI4SlaveAgent(
+          AXI4SlaveAgentParameter(
+            name = channelName,
+            axiParameter = bundle.parameter,
+            outstanding = 4,
+            readPayloadSize = 1,
+            writePayloadSize = 1
           )
-        ).suggestName(s"axi4_channel${index}_${channelName}")
-        agent.io.channel match {
-          case io: AXI4RWIrrevocableVerilog => io <> bundle
-        }
-        agent.io.clock := clock
-        agent.io.reset := reset
-        agent.io.channelId := index.U
-        agent.io.gateRead := false.B
-        agent.io.gateWrite := false.B
+        )
+      ).suggestName(s"axi4_channel${index}_${channelName}")
+      agent.io.channel match {
+        case io: AXI4RWIrrevocableVerilog => io <> bundle
+      }
+      agent.io.clock := clock
+      agent.io.reset     := reset
+      agent.io.channelId := index.U
+      agent.io.gateRead  := false.B
+      agent.io.gateWrite := false.B
     }
 
   // Events for difftest and performance modeling
 
   // Probes
-  val laneProbes = t1Probe.laneProbes.zipWithIndex.map {
-    case (lane, i) => lane.suggestName(s"lane${i}Probe")
+  val laneProbes = t1Probe.laneProbes.zipWithIndex.map { case (lane, i) =>
+    lane.suggestName(s"lane${i}Probe")
   }
 
   val lsuProbe = t1Probe.lsuProbe.suggestName("lsuProbe")
@@ -209,14 +213,13 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   val otherUnitProbe = lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
 
   // vrf write
-  laneProbes.zipWithIndex.foreach {
-    case (lane, i) =>
-      val vrf = lane.vrfProbe.suggestName(s"lane${i}VrfProbe")
-      when(vrf.valid)(
-        printf(
-          cf"""{"event":"VrfWrite","issue_idx":${vrf.requestInstruction},"vd":${vrf.requestVd},"offset":${vrf.requestOffset},"mask":"${vrf.requestMask}%x","data":"${vrf.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
-        )
+  laneProbes.zipWithIndex.foreach { case (lane, i) =>
+    val vrf = lane.vrfProbe.suggestName(s"lane${i}VrfProbe")
+    when(vrf.valid)(
+      printf(
+        cf"""{"event":"VrfWrite","issue_idx":${vrf.requestInstruction},"vd":${vrf.requestVd},"offset":${vrf.requestOffset},"mask":"${vrf.requestMask}%x","data":"${vrf.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
       )
+    )
   }
   // memory write from store unit
   when(storeUnitProbe.valid)(
@@ -251,34 +254,33 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   val instructionValid =
     (laneProbes.map(laneProbe => laneProbe.instructionValid ## laneProbe.instructionValid) :+
       lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
-  val scoreboardEnq =
+  val scoreboardEnq    =
     Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * generator.parameter.chainingSize).W))
-  vrfWriteScoreboard.zipWithIndex.foreach {
-    case (scoreboard, tag) =>
-      val writeEnq: UInt = VecInit(
-        // vrf write from lane
-        laneProbes.flatMap(laneProbe =>
-          laneProbe.slots.map(slot => slot.writeTag === tag.U && slot.writeQueueEnq && slot.writeMask.orR)
-        ) ++ laneProbes.flatMap(laneProbe =>
-          laneProbe.crossWriteProbe.map(cp => cp.bits.writeTag === tag.U && cp.valid && cp.bits.writeMask.orR)
-        ) ++
-          // vrf write from lsu
-          lsuProbe.slots.map(slot => slot.dataInstruction === tag.U && slot.writeValid && slot.dataMask.orR) ++
-          // vrf write from Sequencer
-          Some(t1Probe.writeQueueEnq.bits === tag.U && t1Probe.writeQueueEnq.valid && t1Probe.writeQueueEnqMask.orR)
-      ).asUInt
-      // always equal to array index
-      scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
-      when(scoreboard.valid && !instructionValid(tag)) {
-        printf(
-          cf"""{"event":"VrfScoreboardReport","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
-        )
-        scoreboard.valid := false.B
-      }
-      when(scoreboardEnq(tag)) {
-        scoreboard.valid := true.B
-        assert(!scoreboard.valid)
-        scoreboard.bits := 0.U
-      }
+  vrfWriteScoreboard.zipWithIndex.foreach { case (scoreboard, tag) =>
+    val writeEnq: UInt = VecInit(
+      // vrf write from lane
+      laneProbes.flatMap(laneProbe =>
+        laneProbe.slots.map(slot => slot.writeTag === tag.U && slot.writeQueueEnq && slot.writeMask.orR)
+      ) ++ laneProbes.flatMap(laneProbe =>
+        laneProbe.crossWriteProbe.map(cp => cp.bits.writeTag === tag.U && cp.valid && cp.bits.writeMask.orR)
+      ) ++
+        // vrf write from lsu
+        lsuProbe.slots.map(slot => slot.dataInstruction === tag.U && slot.writeValid && slot.dataMask.orR) ++
+        // vrf write from Sequencer
+        Some(t1Probe.writeQueueEnq.bits === tag.U && t1Probe.writeQueueEnq.valid && t1Probe.writeQueueEnqMask.orR)
+    ).asUInt
+    // always equal to array index
+    scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
+    when(scoreboard.valid && !instructionValid(tag)) {
+      printf(
+        cf"""{"event":"VrfScoreboardReport","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
+      )
+      scoreboard.valid := false.B
+    }
+    when(scoreboardEnq(tag)) {
+      scoreboard.valid := true.B
+      assert(!scoreboard.valid)
+      scoreboard.bits  := 0.U
+    }
   }
 }

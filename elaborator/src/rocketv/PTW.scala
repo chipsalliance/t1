@@ -21,7 +21,7 @@ object PTW extends Elaborator {
     @arg(name = "nPTECacheEntries") nPTECacheEntries: Int,
     @arg(name = "nL2TLBWays") nL2TLBWays:             Int,
     @arg(name = "nL2TLBEntries") nL2TLBEntries:       Int,
-    @arg(name = "nPMPs") nPMPs:                       Int) {
+    @arg(name = "nPMPs") nPMPs: Int) {
     def convert: PTWParameter = PTWParameter(
       useAsyncReset,
       hasClockGate,

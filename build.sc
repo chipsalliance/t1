@@ -142,7 +142,7 @@ trait T1Rocket extends millbuild.common.T1RocketModule with ScalafmtModule {
 
 object t1emu extends T1Emulator
 
-trait T1Emulator extends millbuild.common.T1EmulatorModule {
+trait T1Emulator extends millbuild.common.T1EmulatorModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
   def t1Module = t1
@@ -153,7 +153,7 @@ trait T1Emulator extends millbuild.common.T1EmulatorModule {
   def chiselIvy       = None
 }
 
-object rocketemu     extends RocketEmulator
+object rocketemu extends RocketEmulator
 
 trait RocketEmulator extends millbuild.common.RocketEmulatorModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
@@ -168,7 +168,7 @@ trait RocketEmulator extends millbuild.common.RocketEmulatorModule with Scalafmt
 
 object t1rocketemu extends T1RocketEmulator
 
-trait T1RocketEmulator extends millbuild.common.T1RocketEmulatorModule {
+trait T1RocketEmulator extends millbuild.common.T1RocketEmulatorModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
   def t1rocketModule = t1rocket
@@ -192,7 +192,7 @@ trait PanamaConverter extends millbuild.dependencies.chisel.build.PanamaConverte
 // Module to generate RTL from json config
 object elaborator extends Elaborator
 
-trait Elaborator extends millbuild.common.ElaboratorModule {
+trait Elaborator extends millbuild.common.ElaboratorModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
   def panamaconverterModule = panamaconverter
@@ -218,7 +218,7 @@ trait Elaborator extends millbuild.common.ElaboratorModule {
 
 object omreaderlib extends OMReaderLib
 
-trait OMReaderLib extends millbuild.common.OMReaderLibModule {
+trait OMReaderLib extends millbuild.common.OMReaderLibModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
   def panamaconverterModule = panamaconverter
@@ -235,7 +235,7 @@ trait OMReaderLib extends millbuild.common.OMReaderLibModule {
 
 object omreader extends OMReader
 
-trait OMReader extends millbuild.common.OMReaderModule {
+trait OMReader extends millbuild.common.OMReaderModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
   def panamaconverterModule = panamaconverter

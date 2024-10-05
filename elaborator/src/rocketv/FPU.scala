@@ -17,7 +17,7 @@ object FPU extends Elaborator {
     @arg(name = "sfmaLatency") sfmaLatency:       Int,
     @arg(name = "dfmaLatency") dfmaLatency:       Int,
     @arg(name = "divSqrt") divSqrt:               Boolean,
-    @arg(name = "hartIdLen") hartIdLen:           Int) {
+    @arg(name = "hartIdLen") hartIdLen: Int) {
     def convert: FPUParameter = FPUParameter(
       useAsyncReset,
       useClockGating,

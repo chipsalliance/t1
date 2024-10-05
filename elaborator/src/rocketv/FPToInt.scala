@@ -12,7 +12,7 @@ object FPToInt extends Elaborator {
     @arg(name = "useAsyncReset") useAsyncReset: Boolean,
     @arg(name = "xLen") xLen:                   Int,
     @arg(name = "fLen") fLen:                   Int,
-    @arg(name = "minFLen") minFLen:             Int) {
+    @arg(name = "minFLen") minFLen: Int) {
     def convert: FPToIntParameter = FPToIntParameter(
       useAsyncReset,
       xLen,
