@@ -23,6 +23,14 @@ let
 
       mill -i __.prepareOffline
       mill -i __.scalaCompilerClasspath
+
+      # mill doesn't put scalafmt version into module ivy deps.
+      # It downloads scalafmt only when checkFormat/reformat is explicitly trigger.
+      # And we don't want to wait too long for a dependencies task, so here is the solution:
+      # "checkFormat" the "build.sc" file so that mill will download scalafmt for us,
+      # and we don't need to wait too long for formatting.
+      mill -i mill.scalalib.scalafmt.ScalafmtModule/checkFormatAll buildSources
+
       runHook postBuild
     '';
 

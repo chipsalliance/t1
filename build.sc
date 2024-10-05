@@ -16,6 +16,9 @@ import $file.dependencies.`berkeley-hardfloat`.common
 import $file.dependencies.rvdecoderdb.common
 import $file.common
 
+// Required for scalafmt to recognize which file to format
+def buildSources = T.sources(os.pwd / "build.sc")
+
 object v {
   val scala    = "2.13.14"
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
@@ -151,7 +154,8 @@ trait T1Emulator extends millbuild.common.T1EmulatorModule {
 }
 
 object rocketemu     extends RocketEmulator
-trait RocketEmulator extends millbuild.common.RocketEmulatorModule {
+
+trait RocketEmulator extends millbuild.common.RocketEmulatorModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
   def rocketVModule = rocketv

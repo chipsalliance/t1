@@ -33,6 +33,7 @@ let
         ./../../t1rocket/src
         ./../../t1rocketemu/src
         ./../../rocketemu/src
+        ./../../.scalafmt.conf
       ];
     };
 
@@ -43,9 +44,10 @@ let
         fileset = unions [
           ./../../build.sc
           ./../../common.sc
+          ./../../.scalafmt.conf
         ];
       };
-      millDepsHash = "sha256-ZK3m6VKG3PChoj6U2b6bVd+Z2/xkZrPxqaLRVvj7QgQ=";
+      millDepsHash = "sha256-gBxEO6pGD0A1RxZW2isjPcHDf+b9Sr++7eq6Ezngiio=";
       nativeBuildInputs = [ dependencies.setupHook ];
     };
 
@@ -80,11 +82,42 @@ let
 
     outputs = [ "out" "configgen" "elaborator" "t1package" ];
 
+    # Check code format before starting build, so that we can enforce all developer run reformat before build.
+    configurePhase = ''
+      runHook preConfigure
+
+      _targetsToCheck=(
+        "configgen"
+        "elaborator"
+        "omreader"
+        "omreaderlib"
+        "rocketemu"
+        "rocketv"
+        "t1"
+        "t1emu"
+        "t1rocket"
+        "t1rocketemu"
+      )
+      for _t in ''${_targetsToCheck[@]}; do
+        if ! mill -i "$_t".checkFormat; then
+          echo "[ERROR] Please run 'mill -i $_t.reformat' before elaborate!" >&2
+          exit 1
+        fi
+      done
+      unset _targetsToCheck
+
+      runHook postConfigure
+    '';
+
     buildPhase = ''
+      runHook preBuild
+
       mill -i '__.assembly'
 
       mill -i t1package.sourceJar
       mill -i t1package.chiselPluginJar
+
+      runHook postBuild
     '';
 
     installPhase = ''
