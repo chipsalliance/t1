@@ -21,6 +21,7 @@ rec {
   libspike_interfaces = final.callPackage ../difftest/spike_interfaces { };
 
   sail-riscv-c-model = final.callPackage ./pkgs/sail-riscv-c-model.nix { };
+  sail-riscv-rust-emu = final.callPackage ../sail-riscv { };
 
   # DynamoCompiler doesn't support python 3.12+ yet
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { python3 = final.python311; };
