@@ -588,7 +588,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
             Mux(older, sourceVdEqSinkVs, sinkVdEqSourceVs)
         )
         val rawForeStore   = Mux(older, isStore.head && isSlow.last, isStore.last && isSlow.head) && samVd
-        (hazardForeLoad, rawForeStore)
+        // (hazardForeLoad, rawForeStore) todo: need check hazard?
+        (false.B, false.B)
       }
   }
   writeReadyForLsu := !hazardVec.map(_.map(_._1).reduce(_ || _)).reduce(_ || _)
