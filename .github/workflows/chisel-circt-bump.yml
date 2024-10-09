@@ -3,6 +3,7 @@ on:
   schedule:
     # Run this job everyday at 5:30 AM UTC+8
     - cron:  '30 21 * * *'
+  workflow_dispatch:
 
 jobs:
   bump-deps:
