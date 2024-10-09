@@ -293,17 +293,26 @@ object Main:
           Logger.info("Filtering urg report")
           val finalMdPath     = os.Path(urgReportFilePath.get, os.pwd)
           val urgAssertFile   = emuResultPath / "urgReport" / "asserts.txt"
-          val heading         = "^Summary for Cover Properties$".r
+          val summaryHeading  = "^Summary for Cover Properties$".r
           val coverSummaryStr =
             os.read(urgAssertFile)
               .lines()
-              .dropWhile(!heading.matches(_))
+              .dropWhile(!summaryHeading.matches(_))
               .takeWhile(_.distinct != "-")
+              .toArray
+              .mkString("\n")
+          val detailHeading   = "^Detail Report for Cover Properties$".r
+          val coverDetailStr  =
+            os.read(urgAssertFile)
+              .lines()
+              .dropWhile(!detailHeading.matches(_))
               .toArray
               .mkString("\n")
           os.write.append(finalMdPath, s"### Coverage for $config \n")
           os.write.append(finalMdPath, "```text\n")
           os.write.append(finalMdPath, coverSummaryStr)
+          os.write.append(finalMdPath, "----------------------\n")
+          os.write.append(finalMdPath, coverDetailStr)
           os.write.append(finalMdPath, "\n```\n")
 
         os.write.over(file, ujson.write(cycleRecord, indent = 2))
