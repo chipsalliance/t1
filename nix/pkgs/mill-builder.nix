@@ -12,11 +12,21 @@ let
       mill
     ] ++ (args.nativeBuildInputs or [ ]);
 
-    impureEnvVars = [ "JAVA_OPTS" ];
+    impureEnvVars = [ "https_proxy" "JAVA_OPTS" ];
 
     buildPhase = ''
       runHook preBuild
+
       export JAVA_OPTS="-Duser.home=$TMPDIR $JAVA_OPTS"
+
+      if [[ -z "$https_proxy" && ! "proxyHost" =~ "$JAVA_OPTS" ]]; then
+        _https_proxy="''${https_proxy#http://}"
+        _https_proxy="''${_https_proxy#https://}"
+        _https_proxy_parts=(''${_https_proxy//:/ })
+        _host=''${_https_proxy_parts[0]}
+        _port=''${_https_proxy_parts[1]}
+        export JAVA_OPTS="$JAVA_OPTS -Dhttp.proxyHost=$_host -Dhttp.proxyPort=$_port -Dhttps.proxyHost=$_host -Dhttps.proxyPort=$_port"
+      fi
 
       # Use "https://repo1.maven.org/maven2/" only to keep dependencies integrity
       export COURSIER_REPOSITORIES="central"
