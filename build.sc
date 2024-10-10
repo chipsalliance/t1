@@ -20,7 +20,7 @@ import $file.common
 def buildSources = T.sources(os.pwd / "build.sc")
 
 object v {
-  val scala    = "2.13.14"
+  val scala    = "2.13.15"
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val oslib    = ivy"com.lihaoyi::os-lib:0.9.1"
   val upickle  = ivy"com.lihaoyi::upickle:3.3.1"
