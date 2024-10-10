@@ -30,6 +30,8 @@ rec {
     "--cc"
     "--main"
     "--exe"
+    "--timescale"
+    "1ns/1ps"
     "--timing"
     "--threads"
     (toString verilatorThreads)
