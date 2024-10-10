@@ -6,6 +6,7 @@
 
   # chisel deps
 , mill
+, git
 , espresso
 , circt-full
 , jextract-21
@@ -47,7 +48,7 @@ let
           ./../../.scalafmt.conf
         ];
       };
-      millDepsHash = "sha256-gBxEO6pGD0A1RxZW2isjPcHDf+b9Sr++7eq6Ezngiio=";
+      millDepsHash = "sha256-pixG96IxJsYlgIU+DVxGHky6G5nMfHXphEq5A/xLP7Q=";
       nativeBuildInputs = [ dependencies.setupHook ];
     };
 
@@ -68,6 +69,7 @@ let
       jextract-21
       add-determinism
       espresso
+      git
 
       makeWrapper
       passthru.millDeps.setupHook
