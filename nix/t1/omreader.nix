@@ -7,7 +7,7 @@
 
   # chisel deps
 , mill
-, espresso
+, git
 , circt-full
 , jextract-21
 , strip-nondeterminism
@@ -36,9 +36,10 @@ let
         fileset = unions [
           ./../../build.sc
           ./../../common.sc
+          ./../../.scalafmt.conf
         ];
       };
-      millDepsHash = "sha256-ZK3m6VKG3PChoj6U2b6bVd+Z2/xkZrPxqaLRVvj7QgQ=";
+      millDepsHash = "sha256-pixG96IxJsYlgIU+DVxGHky6G5nMfHXphEq5A/xLP7Q=";
       nativeBuildInputs = [ dependencies.setupHook ];
     };
 
@@ -68,6 +69,7 @@ let
       jextract-21
       strip-nondeterminism
       circt-full
+      git
 
       makeWrapper
       passthru.millDeps.setupHook
