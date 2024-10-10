@@ -168,6 +168,10 @@ object Main:
       name = "dry-run",
       doc = "Print the final emulator command line and exit"
     ) dryRun:   Flag = Flag(false),
+    @arg(
+      name = "timeout",
+      doc = "Specify maximum cycle count limit"
+    ) timeout:  Option[Int] = None,
     leftOver:   Leftover[String]
   ): Unit =
     if leftOver.value.isEmpty then Logger.fatal("No test case name")
@@ -204,6 +208,7 @@ object Main:
       emulator.toString(),
       s"+t1_elf_file=${caseElfPath}"
     )
+      ++ optionals(timeout.isDefined, Seq(s"+t1_timeout=${timeout.getOrElse("unreachable")}"))
       ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
       ++ optionals(isCover, Seq(s"-cm assert"))
       ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)
@@ -266,7 +271,7 @@ object Main:
         os.move(os.pwd / "cm.vdb", outputPath / "cm.vdb", replaceExisting = true)
         os.move(os.pwd / "cm.log", outputPath / "cm.log", replaceExisting = true)
         Logger.info(s"Coverage database saved under ${outputPath}/cm.vdb")
-      else Logger.error("No cm.vdb cm.log found")
+      else if !finalEmuType.get.startsWith("verilator-emu") then Logger.error("No cm.vdb cm.log found")
 
     if os.exists(os.pwd / "perf.json") then
       os.move(os.pwd / "perf.json", outputPath / "perf.json", replaceExisting = true)
