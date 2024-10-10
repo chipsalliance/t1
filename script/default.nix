@@ -19,6 +19,7 @@ let
           fileset = unions [
             scriptSrc
             ./build.sc
+            ./.scalafmt.conf
           ];
         };
 
@@ -28,9 +29,10 @@ let
             root = ./.;
             fileset = unions [
               ./build.sc
+              ./.scalafmt.conf
             ];
           };
-          millDepsHash = "sha256-QQ5gCbvovC55t9MmfCNTvNFdD6FcNqmLmfhT9qJhQQc=";
+          millDepsHash = "sha256-y8tAFwctiU6ehghuf7KP73DuWCGCnAAdIXOIPwT+QOo=";
         };
 
         passthru.withLsp = self.overrideAttrs (old: {
@@ -58,15 +60,26 @@ let
         ];
 
         buildPhase = ''
+          runHook preBuild
+
+          echo "Checking format"
+          mill -i ${moduleName}.checkFormat
+
           echo "Building JAR"
           mill -i ${moduleName}.assembly
           echo "Running native-image"
           native-image --no-fallback -jar out/${moduleName}/assembly.dest/out.jar "$name.elf"
+
+          runHook postBuild
         '';
 
         installPhase = ''
+          runHook preInstall
+
           mkdir -p "$out"/bin
           cp "$name.elf" "$out"/bin/"${outName}"
+
+          runHook postInstall
         '';
 
         meta.mainProgram = toString outName;

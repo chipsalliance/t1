@@ -266,8 +266,7 @@ object Main:
         os.move(os.pwd / "cm.vdb", outputPath / "cm.vdb", replaceExisting = true)
         os.move(os.pwd / "cm.log", outputPath / "cm.log", replaceExisting = true)
         Logger.info(s"Coverage database saved under ${outputPath}/cm.vdb")
-      else 
-        Logger.error("No cm.vdb cm.log found")
+      else Logger.error("No cm.vdb cm.log found")
 
     if os.exists(os.pwd / "perf.json") then
       os.move(os.pwd / "perf.json", outputPath / "perf.json", replaceExisting = true)
