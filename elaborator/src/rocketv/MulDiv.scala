@@ -2,11 +2,21 @@
 // SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
 package org.chipsalliance.t1.elaborator.rocketv
 
+import chisel3.experimental.util.SerializableModuleElaborator
 import mainargs._
 import org.chipsalliance.rocketv.{DecoderParameter, MulDiv, MulDivParameter}
-import org.chipsalliance.t1.elaborator.Elaborator
 
-object MulDiv extends Elaborator {
+object MulDiv extends SerializableModuleElaborator {
+  implicit object PathRead extends TokensReader.Simple[os.Path] {
+    def shortName = "path"
+    def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
+  }
+
+  val className: String = getClass.getSimpleName.replace("$", "")
+  type D = MulDiv
+  type P = MulDivParameter
+  type M = MulDivParameterMain
+
   @main
   case class MulDivParameterMain(
     @arg(name = "useAsyncReset") useAsyncReset:                   Boolean,
@@ -41,11 +51,15 @@ object MulDiv extends Elaborator {
   implicit def MulDivParameterMainParser: ParserForClass[MulDivParameterMain] = ParserForClass[MulDivParameterMain]
 
   @main
-  def config(@arg(name = "parameter") parameter: MulDivParameterMain) = configImpl(parameter.convert)
+  def config(@arg(name = "parameter") parameter: M) =
+    os.write.over(os.pwd / s"${className}.json", configImpl(parameter.convert))
 
   @main
-  def design(@arg(name = "parameter") parameter: os.Path, @arg(name = "run-firtool") runFirtool: mainargs.Flag) =
-    designImpl[MulDiv, MulDivParameter](parameter, runFirtool.value)
+  def design(@arg(name = "parameter") parameter: os.Path) = {
+    val (firrtl, annos) = designImpl[D, P](os.read.stream(parameter))
+    os.write.over(os.pwd / s"$className.fir", firrtl)
+    os.write.over(os.pwd / s"$className.json", annos)
+  }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 }
