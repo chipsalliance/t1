@@ -2,11 +2,21 @@
 // SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
 package org.chipsalliance.t1.elaborator.rocketv
 
+import chisel3.experimental.util.SerializableModuleElaborator
 import mainargs._
 import org.chipsalliance.rocketv.{BHTParameter, BTB, BTBParameter}
-import org.chipsalliance.t1.elaborator.Elaborator
 
-object BTB extends Elaborator {
+object BTB extends SerializableModuleElaborator {
+  implicit object PathRead extends TokensReader.Simple[os.Path] {
+    def shortName = "path"
+    def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
+  }
+
+  val className: String = getClass.getSimpleName.replace("$", "")
+  type D = BTB
+  type P = BTBParameter
+  type M = BTBParameterMain
+
   @main
   case class BHTParameterMain(
     @arg(name = "nEntries") nEntries:           Int,
@@ -67,11 +77,15 @@ object BTB extends Elaborator {
   implicit def BTBParameterMainParser: ParserForClass[BTBParameterMain] = ParserForClass[BTBParameterMain]
 
   @main
-  def config(@arg(name = "parameter") parameter: BTBParameterMain) = configImpl(parameter.convert)
+  def config(@arg(name = "parameter") parameter: M) =
+    os.write.over(os.pwd / s"${className}.json", configImpl(parameter.convert))
 
   @main
-  def design(@arg(name = "parameter") parameter: os.Path, @arg(name = "run-firtool") runFirtool: mainargs.Flag) =
-    designImpl[BTB, BTBParameter](parameter, runFirtool.value)
+  def design(@arg(name = "parameter") parameter: os.Path) = {
+    val (firrtl, annos) = designImpl[D, P](os.read.stream(parameter))
+    os.write.over(os.pwd / s"$className.fir", firrtl)
+    os.write.over(os.pwd / s"$className.json", annos)
+  }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 }

@@ -2,13 +2,22 @@
 // SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
 package org.chipsalliance.t1.elaborator.rocketv
 
+import chisel3.experimental.util.SerializableModuleElaborator
 import chisel3.util.BitPat
 import chisel3.util.experimental.BitSet
 import mainargs._
 import org.chipsalliance.rocketv.{PMAChecker, PMACheckerParameter}
-import org.chipsalliance.t1.elaborator.Elaborator
 
-object PMAChecker extends Elaborator {
+object PMAChecker extends SerializableModuleElaborator {
+  implicit object PathRead extends TokensReader.Simple[os.Path] {
+    def shortName = "path"
+    def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
+  }
+
+  val className: String = getClass.getSimpleName.replace("$", "")
+  type D = PMAChecker
+  type P = PMACheckerParameter
+  type M = PMACheckerParameterMain
 
   implicit object BitSetRead extends TokensReader.Simple[BitSet] {
     def shortName               = "bitset"
@@ -67,11 +76,15 @@ object PMAChecker extends Elaborator {
     ParserForClass[PMACheckerParameterMain]
 
   @main
-  def config(@arg(name = "parameter") parameter: PMACheckerParameterMain) = configImpl(parameter.convert)
+  def config(@arg(name = "parameter") parameter: M) =
+    os.write.over(os.pwd / s"${className}.json", configImpl(parameter.convert))
 
   @main
-  def design(@arg(name = "parameter") parameter: os.Path, @arg(name = "run-firtool") runFirtool: mainargs.Flag) =
-    designImpl[PMAChecker, PMACheckerParameter](parameter, runFirtool.value)
+  def design(@arg(name = "parameter") parameter: os.Path) = {
+    val (firrtl, annos) = designImpl[D, P](os.read.stream(parameter))
+    os.write.over(os.pwd / s"$className.fir", firrtl)
+    os.write.over(os.pwd / s"$className.json", annos)
+  }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 }

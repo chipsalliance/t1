@@ -2,15 +2,25 @@
 // SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
 package org.chipsalliance.t1.elaborator.rocketv
 
+import chisel3.experimental.util.SerializableModuleElaborator
 import chisel3.util.BitPat
 import chisel3.util.experimental.BitSet
 import mainargs._
 import org.chipsalliance.rocketv.{BHTParameter, RocketTile, RocketTileParameter}
-import org.chipsalliance.t1.elaborator.Elaborator
 
 //  --useAsyncReset true --clockGate true --instructionSets rv32_i --priv m --hartIdLen 4 --useBPWatch false --mcontextWidth 0 --scontextWidth 0 --asidBits 0 --resetVectorBits 32 --nBreakpoints 0 --dtlbNWays 0 --dtlbNSets 0 --itlbNSets 0 --itlbNWays 0 --itlbNSectors 0 --itlbNSuperpageEntries 0 --nPTECacheEntries 0 --nL2TLBWays 0 --nL2TLBEntries 0 --paddrBits 32 --cacheBlockBytes 32 --nPMPs 8 --legal 00000000-ffffffff --cacheable 80000000-ffffffff --read 00000000-ffffffff --write 00000000-ffffffff --putPartial 00000000-ffffffff --logic 0 --arithmetic 0 --exec 80000000-ffffffff --sideEffects 00000000-3fffffff --btbEntries 28 --btbNMatchBits 14 --btbUpdatesOutOfOrder false --nPages 6 --nRAS 6 --bhtNEntries 512 --bhtCounterLength 1 --bhtHistoryLength 8 --bhtHistoryBits 3 --mulDivLatency 2 --divUnroll 1 --divEarlyOut false --divEarlyOutGranularity 0 --mulUnroll 1 --mulEarlyOut false --sfmaLatency 3 --dfmaLatency 3 --divSqrt true --flushOnFenceI true --fastLoadByte false --fastLoadWord false --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --maxUncachedInFlight 1 --separateUncachedResp false --iCacheNSets 64 --iCacheNWays 4 --iCachePrefetch false
 
-object RocketTile extends Elaborator {
+object RocketTile extends SerializableModuleElaborator {
+  implicit object PathRead extends TokensReader.Simple[os.Path] {
+    def shortName = "path"
+    def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
+  }
+
+  val className: String = getClass.getSimpleName.replace("$", "")
+  type D = RocketTile
+  type P = RocketTileParameter
+  type M = RocketTileParameterMain
+
   implicit object BitSetRead extends TokensReader.Simple[BitSet] {
     def shortName               = "bitset"
     def read(strs: Seq[String]) = {
@@ -181,11 +191,15 @@ object RocketTile extends Elaborator {
     ParserForClass[RocketTileParameterMain]
 
   @main
-  def config(@arg(name = "parameter") parameter: RocketTileParameterMain) = configImpl(parameter.convert)
+  def config(@arg(name = "parameter") parameter: M) =
+    os.write.over(os.pwd / s"${className}.json", configImpl(parameter.convert))
 
   @main
-  def design(@arg(name = "parameter") parameter: os.Path, @arg(name = "run-firtool") runFirtool: mainargs.Flag) =
-    designImpl[RocketTile, RocketTileParameter](parameter, runFirtool.value)
+  def design(@arg(name = "parameter") parameter: os.Path) = {
+    val (firrtl, annos) = designImpl[D, P](os.read.stream(parameter))
+    os.write.over(os.pwd / s"$className.fir", firrtl)
+    os.write.over(os.pwd / s"$className.json", annos)
+  }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 }
