@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2024 Jiuyang Liu <liu@jiuyang.me>
-package org.chipsalliance.t1.elaborator.t1rocketv
+package org.chipsalliance.t1.elaborator.t1rocketemu
 
 import chisel3.experimental.util.SerializableModuleElaborator
 import chisel3.util.BitPat
@@ -9,7 +9,8 @@ import mainargs._
 import org.chipsalliance.t1.rtl.VFUInstantiateParameter
 import org.chipsalliance.t1.rtl.vrf.RamType
 import org.chipsalliance.t1.rtl.vrf.RamType.{p0rp1w, p0rw, p0rwp1rw}
-import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
+import org.chipsalliance.t1.t1rocketemu.TestBench
+import org.chipsalliance.t1.tile.T1RocketTileParameter
 
 // --instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --instructionSets Zve32x --instructionSets zvl1024b --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 256 --vrfBankSize 2 --vrfRamType p0rp1w
 object T1RocketTile extends SerializableModuleElaborator {
@@ -19,7 +20,7 @@ object T1RocketTile extends SerializableModuleElaborator {
   }
 
   val className: String = getClass.getSimpleName.replace("$", "")
-  type D = T1RocketTile
+  type D = TestBench
   type P = T1RocketTileParameter
   type M = T1RocketTileParameterMain
 
