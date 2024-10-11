@@ -4,10 +4,10 @@ package org.chipsalliance.t1.tile
 
 import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
-import chisel3.experimental.{SerializableModule, SerializableModuleGenerator, SerializableModuleParameter}
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.util.experimental.BitSet
 import chisel3.util.log2Ceil
-import chisel3.probe.{define, Probe, ProbeValue}
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
 import org.chipsalliance.rocketv.{
   BHTParameter,
@@ -24,38 +24,12 @@ import org.chipsalliance.rocketv.{
   PTWParameter,
   Rocket,
   RocketParameter,
-  RocketProbe,
-  RocketTileParameter
+  RocketProbe
 }
 import org.chipsalliance.rvdecoderdb.Instruction
-import org.chipsalliance.t1.rtl.decoder.T1CustomInstruction
 import org.chipsalliance.t1.rtl.vrf.RamType
 import org.chipsalliance.t1.rtl.vrf.RamType.{p0rp1w, p0rw, p0rwp1rw}
-import org.chipsalliance.t1.rtl.lsu.LSUProbe
-import org.chipsalliance.t1.rtl.vrf.VRFProbe
-import org.chipsalliance.t1.rtl.{
-  LaneAdder,
-  LaneAdderParam,
-  LaneDiv,
-  LaneDivFP,
-  LaneDivFPParam,
-  LaneDivParam,
-  LaneFloat,
-  LaneFloatParam,
-  LaneMul,
-  LaneMulParam,
-  LaneProbe,
-  LaneShifter,
-  LaneShifterParameter,
-  LogicParam,
-  MaskedLogic,
-  OtherUnit,
-  OtherUnitParam,
-  T1,
-  T1Parameter,
-  T1Probe,
-  VFUInstantiateParameter
-}
+import org.chipsalliance.t1.rtl.{T1, T1Parameter, T1Probe, VFUInstantiateParameter}
 
 object T1RocketTileParameter {
   implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
@@ -75,22 +49,23 @@ object T1RocketTileParameter {
 }
 
 case class T1RocketTileParameter(
-  instructionSets: Seq[String],
-  cacheBlockBytes: Int,
-  nPMPs:           Int,
-  cacheable:       BitSet,
-  sideEffects:     BitSet,
-  dcacheNSets:     Int,
-  dcacheNWays:     Int,
-  dcacheRowBits:   Int,
-  iCacheNSets:     Int,
-  iCacheNWays:     Int,
-  iCachePrefetch:  Boolean,
-  dLen:            Int,
-  vrfBankSize:     Int,
-  vrfRamType:      RamType)
+  instructionSets:         Seq[String],
+  cacheBlockBytes:         Int,
+  nPMPs:                   Int,
+  cacheable:               BitSet,
+  sideEffects:             BitSet,
+  dcacheNSets:             Int,
+  dcacheNWays:             Int,
+  dcacheRowBits:           Int,
+  iCacheNSets:             Int,
+  iCacheNWays:             Int,
+  iCachePrefetch:          Boolean,
+  dLen:                    Int,
+  vrfBankSize:             Int,
+  vrfRamType:              RamType,
+  vfuInstantiateParameter: VFUInstantiateParameter)
     extends SerializableModuleParameter {
-  require(instructionSets.count(Seq("Zve32x", "Zve32f").contains) == 1, "at least support one Zve32x or Zve32f")
+  require(instructionSets.count(Seq("zve32x", "zve32f").contains) == 1, "at least support one Zve32x or Zve32f")
 
   val useAsyncReset: Boolean = false
   val clockGate:     Boolean = false
@@ -375,82 +350,14 @@ case class T1RocketTileParameter(
     )
   }
 
-  val vfuInstantiateParameter =
-    if (instructionSets.contains("Zve32f"))
-      VFUInstantiateParameter(
-        slotCount = 4,
-        logicModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0, 1, 2, 3))
-        ),
-        aluModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0)),
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(1)),
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(2)),
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(3))
-        ),
-        shifterModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
-        ),
-        mulModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
-        ),
-        divModuleParameters = Seq(),
-        divfpModuleParameters =
-          Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq(0, 1, 2, 3))),
-        otherModuleParameters = Seq(
-          (
-            SerializableModuleGenerator(
-              classOf[OtherUnit],
-              OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-            ),
-            Seq(0, 1, 2, 3)
-          )
-        ),
-        floatModuleParameters =
-          Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
-        zvbbModuleParameters = Seq()
-      )
-    else
-      VFUInstantiateParameter(
-        slotCount = 4,
-        logicModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0, 1, 2, 3))
-        ),
-        aluModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0)),
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(1)),
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(2)),
-          (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(3))
-        ),
-        shifterModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
-        ),
-        mulModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
-        ),
-        divModuleParameters = Seq(
-          (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq(0, 1, 2, 3))
-        ),
-        divfpModuleParameters = Seq(),
-        otherModuleParameters = Seq(
-          (
-            SerializableModuleGenerator(
-              classOf[OtherUnit],
-              OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-            ),
-            Seq(0, 1, 2, 3)
-          )
-        ),
-        floatModuleParameters = Seq(),
-        zvbbModuleParameters = Seq()
-      )
-
   def t1Parameter: T1Parameter = T1Parameter(
-    vLen = vLen,
     dLen = dLen,
-    extensions = instructionSets.filter(Seq("Zve32x", "Zve32f").contains),
-    // empty for now.
-    t1customInstructions = Seq(),
+    extensions = instructionSets.filter {
+      case i if i.startsWith("zve") => true
+      case i if i.startsWith("zvl") => true
+      case i if i == "zvbb"         => true
+      case _                        => false
+    },
     vrfBankSize = vrfBankSize,
     vrfRamType = vrfRamType,
     vfuInstantiateParameter = vfuInstantiateParameter
