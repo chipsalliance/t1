@@ -6,7 +6,8 @@ package org.chipsalliance.t1.t1emu
 import chisel3._
 import chisel3.experimental.dataview.DataViewable
 import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
-import chisel3.experimental.{ExtModule, SerializableModuleGenerator}
+import chisel3.experimental.{ExtModule, SerializableModule, SerializableModuleGenerator}
+import chisel3.ltl.{CoverProperty, Sequence}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.circt.dpi.{
   RawClockedNonVoidFunctionCall,
@@ -14,11 +15,10 @@ import chisel3.util.circt.dpi.{
   RawUnclockedNonVoidFunctionCall
 }
 import chisel3.util.{BitPat, HasExtModuleInline, PopCount, UIntToOH, Valid}
-import chisel3.ltl.{CoverProperty, Sequence}
 import org.chipsalliance.amba.axi4.bundle._
-import org.chipsalliance.t1.t1emu.dpi._
-import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 import org.chipsalliance.rvdecoderdb.Instruction
+import org.chipsalliance.t1.rtl.{T1, T1Parameter}
+import org.chipsalliance.t1.t1emu.dpi._
 
 @instantiable
 class TestBenchOM extends Class {
@@ -29,8 +29,9 @@ class TestBenchOM extends Class {
   t1 := t1In
 }
 
-class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
+class TestBench(val parameter: T1Parameter)
     extends RawModule
+    with SerializableModule[T1Parameter]
     with ImplicitClock
     with ImplicitReset {
   layer.enable(layers.Verification)
@@ -83,7 +84,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   def reset                  = clockGen.reset
   override def implicitClock = clockGen.clock.asClock
   override def implicitReset = clockGen.reset
-  val dut: Instance[T1] = generator.instance()
+  val dut: Instance[T1] = SerializableModuleGenerator(classOf[T1], parameter).instance()
 
   val simulationTime: UInt = RegInit(0.U(64.W))
   simulationTime := simulationTime + 1.U
@@ -249,7 +250,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
   when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"LsuEnq","enq":${lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
 
   // allocate 2 * chainingSize scoreboards
-  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * generator.parameter.chainingSize) { _ =>
+  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * parameter.chainingSize) { _ =>
     RegInit(0.U.asTypeOf(Valid(UInt(16.W))))
   }
   vrfWriteScoreboard.foreach(scoreboard => dontTouch(scoreboard))
@@ -257,7 +258,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
     (laneProbes.map(laneProbe => laneProbe.instructionValid ## laneProbe.instructionValid) :+
       lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
   val scoreboardEnq    =
-    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * generator.parameter.chainingSize).W))
+    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * parameter.chainingSize).W))
   vrfWriteScoreboard.zipWithIndex.foreach { case (scoreboard, tag) =>
     val writeEnq: UInt = VecInit(
       // vrf write from lane
@@ -285,7 +286,7 @@ class TestBench(generator: SerializableModuleGenerator[T1, T1Parameter])
       scoreboard.bits  := 0.U
     }
   }
-  generator.parameter.decoderParam.allInstructions.map { instruction: Instruction =>
+  parameter.decoderParam.allInstructions.map { instruction: Instruction =>
     val issueMatch = Sequence.BoolSequence(issue.instruction === BitPat("b" + instruction.encoding.toString))
     CoverProperty(issueMatch, label = Some(s"t1_cover_issue_${instruction.name}"))
   }
