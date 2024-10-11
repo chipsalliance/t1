@@ -4,16 +4,18 @@
 package org.chipsalliance.t1.t1rocketemu
 
 import chisel3._
-import chisel3.experimental.{BaseModule, ExtModule, SerializableModuleGenerator}
 import chisel3.experimental.dataview.DataViewable
+import chisel3.experimental.hierarchy.Instance
+import chisel3.experimental.{ExtModule, SerializableModule, SerializableModuleGenerator}
 import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
-import chisel3.util.{HasExtModuleInline, Mux1H, PopCount, Queue, UIntToOH, Valid}
+import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
 
-class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTileParameter])
+class TestBench(val parameter: T1RocketTileParameter)
     extends RawModule
+    with SerializableModule[T1RocketTileParameter]
     with ImplicitClock
     with ImplicitReset {
   layer.enable(layers.Verification)
@@ -65,7 +67,8 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   def reset                  = clockGen.reset
   override def implicitClock = clockGen.clock.asClock
   override def implicitReset = clockGen.reset
-  val dut: T1RocketTile with BaseModule = Module(generator.module())
+  val dut: Instance[T1RocketTile] = SerializableModuleGenerator(classOf[T1RocketTile], parameter).instance()
+
   dut.io.clock := clock
   dut.io.reset := reset
 
@@ -201,7 +204,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   )
 
   // [[option]] rocket fpu reg write
-  generator.parameter.fpuParameter.zip(t1RocketProbe.fpuProbe).zip(rocketProbe.fpuScoreboard).map {
+  parameter.fpuParameter.zip(t1RocketProbe.fpuProbe).zip(rocketProbe.fpuScoreboard).map {
     case ((fpuParameter, fpu), fpuScoreboard) => {
       val fpToIEEE           = Module(
         new FPToIEEE(
@@ -288,7 +291,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
   )
 
   // t1 vrf scoreboard
-  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * generator.parameter.t1Parameter.chainingSize) { _ =>
+  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * parameter.t1Parameter.chainingSize) { _ =>
     RegInit(0.U.asTypeOf(Valid(UInt(16.W))))
   }
   vrfWriteScoreboard.foreach(scoreboard => dontTouch(scoreboard))
@@ -296,7 +299,7 @@ class TestBench(generator: SerializableModuleGenerator[T1RocketTile, T1RocketTil
     (laneProbes.map(laneProbe => laneProbe.instructionValid ## laneProbe.instructionValid) :+
       lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
   val scoreboardEnq    =
-    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * generator.parameter.t1Parameter.chainingSize).W))
+    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * parameter.t1Parameter.chainingSize).W))
   vrfWriteScoreboard.zipWithIndex.foreach { case (scoreboard, tag) =>
     val writeEnq: UInt = VecInit(
       // vrf write from lane
