@@ -6,7 +6,7 @@ import chisel3.experimental.util.SerializableModuleElaborator
 import chisel3.util.BitPat
 import chisel3.util.experimental.BitSet
 import mainargs._
-import org.chipsalliance.t1.elaborator.Elaborator
+import org.chipsalliance.t1.rtl.VFUInstantiateParameter
 import org.chipsalliance.t1.rtl.vrf.RamType
 import org.chipsalliance.t1.rtl.vrf.RamType.{p0rp1w, p0rw, p0rwp1rw}
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
@@ -79,23 +79,43 @@ object T1RocketTile extends SerializableModuleElaborator {
     @arg(name = "iCachePrefetch") iCachePrefetch:   Boolean,
     @arg(name = "dLen") dLen:                       Int,
     @arg(name = "vrfBankSize") vrfBankSize:         Int,
-    @arg(name = "vrfRamType") vrfRamType: RamType) {
-    def convert: T1RocketTileParameter = T1RocketTileParameter(
-      instructionSets: Seq[String],
-      cacheBlockBytes: Int,
-      nPMPs:           Int,
-      cacheable:       BitSet,
-      sideEffects:     BitSet,
-      dcacheNSets:     Int,
-      dcacheNWays:     Int,
-      dcacheRowBits:   Int,
-      iCacheNSets:     Int,
-      iCacheNWays:     Int,
-      iCachePrefetch:  Boolean,
-      dLen:            Int,
-      vrfBankSize:     Int,
-      vrfRamType:      RamType
-    )
+    @arg(name = "vrfRamType") vrfRamType:           RamType,
+    @arg(name = "vfuInstantiateParameter") vfuInstantiateParameter: String) {
+    def convert: T1RocketTileParameter = {
+      val vLen = instructionSets.collectFirst { case s"zvl${vlen}b" =>
+        vlen.toInt
+      }.get
+      val fp   = instructionSets.contains("zve32f")
+      val zvbb = instructionSets.contains("zvbb")
+      if (zvbb) require(vfuInstantiateParameter == "zvbb")
+      T1RocketTileParameter(
+        instructionSets: Seq[String],
+        cacheBlockBytes: Int,
+        nPMPs:           Int,
+        cacheable:       BitSet,
+        sideEffects:     BitSet,
+        dcacheNSets:     Int,
+        dcacheNWays:     Int,
+        dcacheRowBits:   Int,
+        iCacheNSets:     Int,
+        iCacheNWays:     Int,
+        iCachePrefetch:  Boolean,
+        dLen:            Int,
+        vrfBankSize:     Int,
+        vrfRamType:      RamType,
+        vfuInstantiateParameter match {
+          case "minimal" =>
+            if (fp) VFUInstantiateParameter.minimalFP(vLen, dLen) else VFUInstantiateParameter.minimalInt(vLen, dLen)
+          case "small"   =>
+            if (fp) VFUInstantiateParameter.smallFP(vLen, dLen) else VFUInstantiateParameter.smallInt(vLen, dLen)
+          case "medium"  =>
+            if (fp) VFUInstantiateParameter.mediumFP(vLen, dLen) else VFUInstantiateParameter.smallInt(vLen, dLen)
+          case "large"   =>
+            if (fp) VFUInstantiateParameter.largeFP(vLen, dLen) else VFUInstantiateParameter.smallInt(vLen, dLen)
+          case "zvbb"    => VFUInstantiateParameter.zvbb(vLen, dLen)
+        }
+      )
+    }
   }
 
   implicit def T1RocketTileParameterMainParser: ParserForClass[T1RocketTileParameterMain] =

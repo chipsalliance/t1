@@ -4,20 +4,36 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, public, Definition, Instance, Instantiate}
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
-import chisel3.util.{Decoupled, _}
 import chisel3.util.experimental.BitSet
+import chisel3.util.experimental.decode.DecodeBundle
+import chisel3.util.{
+  log2Ceil,
+  scanLeftOr,
+  scanRightOr,
+  Decoupled,
+  DecoupledIO,
+  Enum,
+  Fill,
+  FillInterleaved,
+  Mux1H,
+  OHToUInt,
+  Pipe,
+  RegEnable,
+  UIntToOH,
+  Valid,
+  ValidIO
+}
+import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4RWIrrevocable}
 import org.chipsalliance.rvdecoderdb.Instruction
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam, T1CustomInstruction}
-import chisel3.util.experimental.decode._
-import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4RWIrrevocable}
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
-import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam, VRFProbe}
+import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam}
 
-import scala.collection.immutable.{ListMap, SeqMap}
+import scala.collection.immutable.SeqMap
 
 // TODO: this should be a object model. There should 3 object model here:
 //       1. T1SubsystemOM(T1(OM), MemoryRegion, Cache configuration)
@@ -99,10 +115,8 @@ object T1Parameter {
   *     lane size. TODO: sort a machine-readable chaining matrix for test case generation.
   */
 case class T1Parameter(
-  vLen:                    Int,
   dLen:                    Int,
   extensions:              Seq[String],
-  t1customInstructions:    Seq[T1CustomInstruction],
   // Lane
   vrfBankSize:             Int,
   vrfRamType:              RamType,
@@ -111,16 +125,21 @@ case class T1Parameter(
     extends SerializableModuleParameter {
   // TODO: expose it with the Property API
   override def toString: String =
-    s"""T1-VLEN$vLen-DLEN$dLen-${extensions.mkString(",")}(${dLen / 32} lanes)
-       |Lane:
-       |  VRF:
-       |    Banks: ${vrfBankSize}
-       |    RAMType: ${vrfRamType match {
+    s"""T1-${extensions.mkString(",")}
+       |${dLen / 32} Lanes
+       |VRF Banks: ${vrfBankSize}
+       |VRFRAMType: ${vrfRamType match {
         case RamType.p0rw     => "Single Port."
         case RamType.p0rp1w   => "First Port Read, Second Port Write."
         case RamType.p0rwp1rw => "Dual Ports Read Write."
       }}
        |""".stripMargin
+
+  def t1customInstructions: Seq[T1CustomInstruction] = Nil
+
+  def vLen: Int = extensions.collectFirst { case s"zvl${vlen}b" =>
+    vlen.toInt
+  }.get
 
   val allInstructions: Seq[Instruction] = {
     org.chipsalliance.rvdecoderdb
@@ -133,14 +152,20 @@ case class T1Parameter(
         }
       } ++
       t1customInstructions.map(_.instruction)
-  }.toSeq.sortBy(_.instructionSet.name).filter { insn =>
+  }.toSeq.filter { insn =>
     insn.name match {
       case s if Seq("vsetivli", "vsetvli", "vsetvl").contains(s) => false
       case _                                                     => true
     }
-  }
+  }.sortBy(_.instructionSet.name)
 
-  require(extensions.forall(Seq("Zve32x", "Zve32f", "Zvbb").contains), "unsupported extension.")
+  require(
+    extensions.forall(
+      (Seq("zve32x", "zve32f", "zvbb") ++
+        Seq(128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536).map(vlen => s"zvl${vlen}b")).contains
+    ),
+    "unsupported extension."
+  )
   // TODO: require bank not overlap
   /** xLen of T1, we currently only support 32. */
   val xLen: Int = 32
@@ -155,10 +180,10 @@ case class T1Parameter(
   val vrfWriteQueueSize: Int = 4
 
   /** does t1 has floating datapath? */
-  val fpuEnable: Boolean = extensions.contains("Zve32f")
+  val fpuEnable: Boolean = extensions.contains("zve32f")
 
   /** support of zvbb */
-  lazy val zvbbEnable: Boolean = extensions.contains("Zvbb")
+  lazy val zvbbEnable: Boolean = extensions.contains("zvbb")
 
   /** how many chaining does T1 support, this is not a parameter yet. */
   val chainingSize: Int = 4
@@ -361,7 +386,7 @@ class T1(val parameter: T1Parameter)
   omInstance.vlenIn       := Property(parameter.vLen)
   omInstance.dlenIn       := Property(parameter.dLen)
   omInstance.extensionsIn := Property(parameter.extensions)
-  omInstance.marchIn      := Property(s"rv32gc_${parameter.extensions.mkString("_").toLowerCase}_zvl${parameter.vLen}b")
+  omInstance.marchIn      := Property(s"rv32gc_${parameter.extensions.mkString("_").toLowerCase}")
 
   /** the LSU Module */
 
