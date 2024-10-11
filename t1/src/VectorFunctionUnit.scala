@@ -100,30 +100,30 @@ object VFUInstantiateParameter {
     case "minimal" =>
       (fp, zvbb) match {
         case (false, false) => VFUInstantiateParameter.minimalInt(vLen, dLen)
-        case (true, false) => VFUInstantiateParameter.minimalFP(vLen, dLen)
-        case (false, true) => VFUInstantiateParameter.zvbb(vLen, dLen)
-        case (true, true) => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+        case (true, false)  => VFUInstantiateParameter.minimalFP(vLen, dLen)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
       }
     case "small"   =>
       (fp, zvbb) match {
         case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen)
-        case (true, false) => VFUInstantiateParameter.smallFP(vLen, dLen)
-        case (false, true) => VFUInstantiateParameter.zvbb(vLen, dLen)
-        case (true, true) => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+        case (true, false)  => VFUInstantiateParameter.smallFP(vLen, dLen)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
       }
     case "medium"  =>
       (fp, zvbb) match {
         case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen)
-        case (true, false) => VFUInstantiateParameter.mediumFP(vLen, dLen)
-        case (false, true) => VFUInstantiateParameter.zvbb(vLen, dLen)
-        case (true, true) => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+        case (true, false)  => VFUInstantiateParameter.mediumFP(vLen, dLen)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
       }
     case "large"   =>
       (fp, zvbb) match {
         case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen)
-        case (true, false) => VFUInstantiateParameter.largeFP(vLen, dLen)
-        case (false, true) => VFUInstantiateParameter.zvbb(vLen, dLen)
-        case (true, true) => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+        case (true, false)  => VFUInstantiateParameter.largeFP(vLen, dLen)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
       }
   }
 
