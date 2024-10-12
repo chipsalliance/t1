@@ -8,16 +8,35 @@
 let
   moldStdenv = useMoldLinker stdenv;
 
-  t1ConfigsDir = ../../configgen/generated;
+  t1DesignsConfigsDir = ../../designs;
 
-  # allConfigs is a (configName -> configJsonPath) map
-  allConfigs = lib.mapAttrs'
-    (fileName: fileType:
-      assert fileType == "regular" && lib.hasSuffix ".json" fileName;
-      lib.nameValuePair
-        (lib.removeSuffix ".json" fileName)
-        (lib.path.append t1ConfigsDir fileName))
-    (builtins.readDir t1ConfigsDir);
+  allConfigs = lib.pipe t1DesignsConfigsDir [
+    builtins.readDir
+    # => { "filename" -> "filetype" }
+    (lib.mapAttrs'
+      (fileName: fileType:
+        assert fileType == "regular" && lib.hasSuffix ".toml" fileName;
+        lib.nameValuePair
+          (lib.removeSuffix ".toml" fileName)
+          (lib.path.append t1DesignsConfigsDir fileName)))
+    # => { "filename without .toml suffix, use as generator className" -> "realpath to config" }
+    (lib.mapAttrs
+      (_: filePath: with builtins; fromTOML (readFile filePath)))
+    # => { "generator className" -> { "elaborator configName" -> "elaborator cmd opt" } }
+    lib.attrsToList
+    # => [ { name: "generator className", value: { "configName": { "cmd opt": <string> } } }, ... ]
+    (map
+      (kv: lib.mapAttrs'
+        (configName: configData:
+          lib.nameValuePair configName { "${kv.name}" = configData; })
+        kv.value))
+    # => [ { "configName": { "generator className" = { cmdopt: <string>; }; } }, ... ]
+    (lib.foldl
+      (accum: item:
+        lib.recursiveUpdate accum item)
+      { })
+    # => { "configName A": { "generator A" = { cmdopt }, "generator B" = { cmdopt } }; "configName B" = ...; ... }
+  ];
 in
 lib.makeScope newScope
   (t1Scope:

@@ -2,171 +2,132 @@
 
 # return attribute set with following hierarchy:
 # {
-#   "blastoise": { ip = { mlirbc = ...; vcs-emu = ...; ... } }
-#   "...": { ip = { mlirbc = ...; vcs-emu = ...; ... } }
+#   "blastoise": { generatorName = { mlirbc = ...; vcs-emu = ...; ... } }
+#   "...": { generatorName = { mlirbc = ...; vcs-emu = ...; ... } }
 # }
 lib.mapAttrs
-  (configName: configPath:
-  # by using makeScope, callPackage can send the following attributes to package parameters
-  lib.makeScope t1Scope.newScope (cfgScope: rec {
-    recurseForDerivations = true;
+  (configName: allGenerators:
+  let
+    strippedGeneratorData = lib.mapAttrs'
+      (fullClassName: origData:
+        lib.nameValuePair
+          (lib.head (lib.splitString "." (lib.removePrefix "org.chipsalliance.t1.elaborator." fullClassName)))
+          (origData // { inherit fullClassName; }))
+      allGenerators;
+  in
+  lib.mapAttrs
+    (shortName: generator:
+    lib.makeScope t1Scope.newScope
+      (mostInnerScope:
+      lib.recurseIntoAttrs {
+        inherit configName;
 
-    # For package name concatenate
-    inherit configName;
+        cases = mostInnerScope.callPackage ../../tests { };
 
-    elaborateConfigJson = configPath;
-    elaborateConfig = builtins.fromJSON (lib.readFile configPath);
+        mlirbc = t1Scope.chisel-to-mlirbc {
+          outputName = "${generator.fullClassName}.mlirbc";
+          generatorClassName = generator.fullClassName;
+          elaboratorArgs = "config ${generator.cmdopt}";
+        };
 
-    ip = lib.makeScope cfgScope.newScope (ipScope: {
-      recurseForDerivations = true;
+        lowered-mlirbc = t1Scope.finalize-mlirbc {
+          outputName = "lowered-" + mostInnerScope.mlirbc.name;
+          mlirbc = mostInnerScope.mlirbc;
+        };
 
-      cases = ipScope.callPackage ../../tests { };
+        rtl = t1Scope.mlirbc-to-sv {
+          outputName = "${generator.fullClassName}-rtl";
+          mlirbc = mostInnerScope.lowered-mlirbc;
+          mfcArgs = [
+            "-O=release"
+            "--disable-all-randomization"
+            "--split-verilog"
+            "--preserve-values=all"
+            "--strip-debug-info"
+            "--strip-fir-debug-info"
+            "--verification-flavor=sva"
+            "--lowering-options=verifLabels,omitVersionComment,emittedLineLength=240,locationInfoStyle=none"
+          ];
+        };
 
-      # ---------------------------------------------------------------------------------
-      # T1 only, without test bench
-      # ---------------------------------------------------------------------------------
-      mlirbc = t1Scope.chisel-to-mlirbc {
-        outputName = "t1-non-testbench.mlirbc";
-        elaboratorArgs = [
-          "ip"
-          "--ip-config"
-          "${elaborateConfigJson}"
-        ];
-      };
+        omGet = args: lib.toLower (lib.fileContents (runCommand "get-${args}" { } ''
+          ${t1Scope.omreader-unwrapped}/bin/omreader \
+            ${args} \
+            --mlirbc-file ${mostInnerScope.lowered-mlirbc}/${mostInnerScope.lowered-mlirbc.name} \
+            > $out
+        ''));
+        rtlDesignMetadata = with mostInnerScope; rec {
+          march = omGet "march";
+          extensions = builtins.fromJSON (omGet "extensionsJson");
+          vlen = omGet "vlen";
+          dlen = omGet "dlen";
+          xlen = if (lib.hasPrefix "rv32" march) then 32 else 64;
+        };
 
-      lowered-mlirbc = t1Scope.finalize-mlirbc {
-        outputName = "lowered-" + ipScope.mlirbc.name;
-        mlirbc = ipScope.mlirbc;
-      };
+        # ---------------------------------------------------------------------------------
+        # VERILATOR
+        # ---------------------------------------------------------------------------------
+        makeDifftest = mostInnerScope.callPackage ../../difftest { };
 
-      rtl = t1Scope.mlirbc-to-sv {
-        outputName = "t1-non-testbench-rtl";
-        mlirbc = ipScope.lowered-mlirbc;
-        mfcArgs = [
-          "-O=release"
-          "--disable-all-randomization"
-          "--split-verilog"
-          "--preserve-values=all"
-          "--strip-debug-info"
-          "--strip-fir-debug-info"
-          "--verification-flavor=sva"
-          "--lowering-options=verifLabels,omitVersionComment,emittedLineLength=240,locationInfoStyle=none"
-        ];
-      };
+        verilator-dpi-lib = mostInnerScope.makeDifftest {
+          outputName = "${shortName}-verilator-dpi-lib";
+          emuType = "verilator";
+          moduleType = "dpi_t1";
+        };
+        verilator-dpi-lib-trace = mostInnerScope.makeDifftest {
+          outputName = "${shortName}-verilator-trace-dpi-lib";
+          emuType = "verilator";
+          moduleType = "dpi_t1";
+          enableTrace = true;
+        };
 
-      omreader = t1Scope.omreader-unwrapped.mkWrapper { mlirbc = ipScope.lowered-mlirbc; };
+        verilator-emu = t1Scope.sv-to-verilator-emulator {
+          mainProgram = "${shortName}-verilated-simulator";
+          rtl = mostInnerScope.rtl;
+          extraVerilatorArgs = [ "${mostInnerScope.verilator-dpi-lib}/lib/libdpi_t1.a" ];
+        };
+        verilator-emu-trace = t1Scope.sv-to-verilator-emulator {
+          mainProgram = "${shortName}-verilated-trace-simulator";
+          rtl = mostInnerScope.rtl;
+          enableTrace = true;
+          extraVerilatorArgs = [ "${mostInnerScope.verilator-dpi-lib-trace}/lib/libdpi_t1.a" ];
+        };
 
-      # ---------------------------------------------------------------------------------
-      # T1 with test bench
-      # ---------------------------------------------------------------------------------
-      emu-mlirbc = t1Scope.chisel-to-mlirbc {
-        outputName = "t1-emu.mlirbc";
-        elaboratorArgs = [ "t1emu" "--ip-config" "${elaborateConfigJson}" ];
-      };
+        # ---------------------------------------------------------------------------------
+        # VCS
+        # ---------------------------------------------------------------------------------
+        vcs-dpi-lib = mostInnerScope.makeDifftest {
+          outputName = "${shortName}-vcs-dpi-lib";
+          emuType = "vcs";
+          moduleType = "dpi_t1";
+        };
+        vcs-dpi-lib-trace = mostInnerScope.makeDifftest {
+          outputName = "${shortName}-vcs-dpi-trace-lib";
+          emuType = "vcs";
+          enableTrace = true;
+          moduleType = "dpi_t1";
+        };
 
-      lowered-emu-mlirbc = t1Scope.finalize-mlirbc {
-        outputName = "lowered" + ipScope.emu-mlirbc.outputName;
-        mlirbc = ipScope.emu-mlirbc;
-      };
+        offline-checker = mostInnerScope.makeDifftest {
+          outputName = "${shortName}-offline-checker";
+          moduleType = "offline_t1";
+        };
 
-      emu-rtl = t1Scope.mlirbc-to-sv {
-        outputName = "t1-emu-rtl";
-        mlirbc = ipScope.lowered-emu-mlirbc;
-        mfcArgs = [
-          "-O=release"
-          "--split-verilog"
-          "--preserve-values=all"
-          "--verification-flavor=if-else-fatal"
-          "--lowering-options=verifLabels,omitVersionComment"
-          "--strip-debug-info"
-        ];
-      };
+        vcs-emu = t1Scope.sv-to-vcs-simulator {
+          mainProgram = "${shortName}-vcs-simulator";
+          rtl = mostInnerScope.rtl;
+          vcsLinkLibs = [ "${mostInnerScope.vcs-dpi-lib}/lib/libdpi_t1.a" ];
+        };
+        vcs-emu-trace = t1Scope.sv-to-vcs-simulator {
+          mainProgram = "${shortName}-vcs-trace-simulator";
+          rtl = mostInnerScope.rtl;
+          enableTrace = true;
+          vcsLinkLibs = [ "${mostInnerScope.vcs-dpi-lib-trace}/lib/libdpi_t1.a" ];
+        };
 
-      emu-omreader = t1Scope.omreader-unwrapped.mkWrapper { mlirbc = ipScope.lowered-emu-mlirbc; };
-      omGet = args: lib.toLower (lib.fileContents (runCommand "get-${args}" { } ''
-        ${ipScope.emu-omreader}/bin/omreader ${args} > $out
-      ''));
-      rtlDesignMetadata = with ipScope; rec {
-        march = omGet "march";
-        extensions = builtins.fromJSON (omGet "extensionsJson");
-        vlen = omGet "vlen";
-        dlen = omGet "dlen";
-        xlen = if (lib.hasPrefix "rv32" march) then 32 else 64;
-      };
-
-      # ---------------------------------------------------------------------------------
-      # VERILATOR
-      # ---------------------------------------------------------------------------------
-      makeDifftest = ipScope.callPackage ../../difftest { };
-
-      verilator-dpi-lib = ipScope.makeDifftest {
-        outputName = "t1-verilator-dpi-lib";
-        emuType = "verilator";
-        moduleType = "dpi_t1";
-      };
-      verilator-dpi-lib-trace = ipScope.makeDifftest {
-        outputName = "t1-verilator-trace-dpi-lib";
-        emuType = "verilator";
-        moduleType = "dpi_t1";
-        enableTrace = true;
-      };
-
-      verilator-emu = t1Scope.sv-to-verilator-emulator {
-        mainProgram = "t1-verilated-simulator";
-        rtl = ipScope.emu-rtl;
-        extraVerilatorArgs = [ "${ipScope.verilator-dpi-lib}/lib/libdpi_t1.a" ];
-      };
-      verilator-emu-trace = t1Scope.sv-to-verilator-emulator {
-        mainProgram = "t1-verilated-trace-simulator";
-        rtl = ipScope.emu-rtl;
-        enableTrace = true;
-        extraVerilatorArgs = [ "${ipScope.verilator-dpi-lib-trace}/lib/libdpi_t1.a" ];
-      };
-
-      # ---------------------------------------------------------------------------------
-      # VCS
-      # ---------------------------------------------------------------------------------
-      vcs-dpi-lib = ipScope.makeDifftest {
-        outputName = "t1-vcs-dpi-lib";
-        emuType = "vcs";
-        moduleType = "dpi_t1";
-      };
-      vcs-dpi-lib-trace = ipScope.makeDifftest {
-        outputName = "t1-vcs-dpi-trace-lib";
-        emuType = "vcs";
-        enableTrace = true;
-        moduleType = "dpi_t1";
-      };
-
-      offline-checker = ipScope.makeDifftest {
-        outputName = "t1-offline-checker";
-        moduleType = "offline_t1";
-      };
-
-      vcs-emu = t1Scope.sv-to-vcs-simulator {
-        mainProgram = "t1-vcs-simulator";
-        rtl = ipScope.emu-rtl;
-        vcsLinkLibs = [ "${ipScope.vcs-dpi-lib}/lib/libdpi_t1.a" ];
-      };
-      vcs-emu-trace = t1Scope.sv-to-vcs-simulator {
-        mainProgram = "t1-vcs-trace-simulator";
-        rtl = ipScope.emu-rtl;
-        enableTrace = true;
-        vcsLinkLibs = [ "${ipScope.vcs-dpi-lib-trace}/lib/libdpi_t1.a" ];
-      };
-
-      run = ipScope.callPackage ./run { };
-    }); # end of ipScope
-
-    subsystem = rec {
-      recurseForDerivations = true;
-
-      elaborate = cfgScope.callPackage ./elaborate.nix { target = "subsystem"; /* use-binder = true; */ };
-      mlirbc = cfgScope.callPackage ./mlirbc.nix { inherit elaborate; };
-      rtl = cfgScope.callPackage ./rtl.nix { inherit mlirbc; };
-    };
-
-    release = cfgScope.callPackage ./release { };
-  }) # end of cfgScope
+        run = mostInnerScope.callPackage ./run { };
+      })
+    )
+    strippedGeneratorData
   ) # end of anonymous lambda
   allConfigs # end of lib.mapAttrs

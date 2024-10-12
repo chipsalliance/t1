@@ -146,8 +146,6 @@ let
         --add-flags "--enable-preview -Djava.library.path=${circt-full}/lib -cp $out/share/java/elaborator.jar"
       makeWrapper ${jdk21}/bin/java "$omreader"/bin/omreader \
         --add-flags "--enable-preview --enable-native-access=ALL-UNNAMED -Djava.library.path=${circt-full}/lib -jar $out/share/java/omreader.jar"
-      # omreader will print unwanted stuff to stderr, here we just wrap the redirect for users
-      echo "$(cat "$omreader"/bin/omreader) 2> /dev/null" > "$omreader"/bin/omreader
     '';
   };
 in
