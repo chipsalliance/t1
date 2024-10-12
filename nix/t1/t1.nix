@@ -72,25 +72,25 @@ lib.mapAttrs
         verilator-dpi-lib = mostInnerScope.makeDifftest {
           outputName = "${shortName}-verilator-dpi-lib";
           emuType = "verilator";
-          moduleType = "dpi_t1";
+          moduleType = "dpi_${shortName}";
         };
         verilator-dpi-lib-trace = mostInnerScope.makeDifftest {
           outputName = "${shortName}-verilator-trace-dpi-lib";
           emuType = "verilator";
-          moduleType = "dpi_t1";
+          moduleType = "dpi_${shortName}";
           enableTrace = true;
         };
 
         verilator-emu = t1Scope.sv-to-verilator-emulator {
           mainProgram = "${shortName}-verilated-simulator";
           rtl = mostInnerScope.rtl;
-          extraVerilatorArgs = [ "${mostInnerScope.verilator-dpi-lib}/lib/libdpi_t1.a" ];
+          extraVerilatorArgs = [ "${mostInnerScope.verilator-dpi-lib}/lib/libdpi_${shortName}.a" ];
         };
         verilator-emu-trace = t1Scope.sv-to-verilator-emulator {
           mainProgram = "${shortName}-verilated-trace-simulator";
           rtl = mostInnerScope.rtl;
           enableTrace = true;
-          extraVerilatorArgs = [ "${mostInnerScope.verilator-dpi-lib-trace}/lib/libdpi_t1.a" ];
+          extraVerilatorArgs = [ "${mostInnerScope.verilator-dpi-lib-trace}/lib/libdpi_${shortName}.a" ];
         };
 
         # ---------------------------------------------------------------------------------
@@ -99,30 +99,30 @@ lib.mapAttrs
         vcs-dpi-lib = mostInnerScope.makeDifftest {
           outputName = "${shortName}-vcs-dpi-lib";
           emuType = "vcs";
-          moduleType = "dpi_t1";
+          moduleType = "dpi_${shortName}";
         };
         vcs-dpi-lib-trace = mostInnerScope.makeDifftest {
           outputName = "${shortName}-vcs-dpi-trace-lib";
           emuType = "vcs";
           enableTrace = true;
-          moduleType = "dpi_t1";
+          moduleType = "dpi_${shortName}";
         };
 
         offline-checker = mostInnerScope.makeDifftest {
           outputName = "${shortName}-offline-checker";
-          moduleType = "offline_t1";
+          moduleType = "offline_${shortName}";
         };
 
         vcs-emu = t1Scope.sv-to-vcs-simulator {
           mainProgram = "${shortName}-vcs-simulator";
           rtl = mostInnerScope.rtl;
-          vcsLinkLibs = [ "${mostInnerScope.vcs-dpi-lib}/lib/libdpi_t1.a" ];
+          vcsLinkLibs = [ "${mostInnerScope.vcs-dpi-lib}/lib/libdpi_${shortName}.a" ];
         };
         vcs-emu-trace = t1Scope.sv-to-vcs-simulator {
           mainProgram = "${shortName}-vcs-trace-simulator";
           rtl = mostInnerScope.rtl;
           enableTrace = true;
-          vcsLinkLibs = [ "${mostInnerScope.vcs-dpi-lib-trace}/lib/libdpi_t1.a" ];
+          vcsLinkLibs = [ "${mostInnerScope.vcs-dpi-lib-trace}/lib/libdpi_${shortName}.a" ];
         };
 
         run = mostInnerScope.callPackage ./run { };

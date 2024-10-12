@@ -13,7 +13,7 @@
 }:
 
 assert let
-  available = [ "dpi_t1" "dpi_t1rocket" "offline_t1" "offline_t1rocket" ];
+  available = [ "dpi_t1emu" "dpi_t1rocketemu" "offline_t1emu" "offline_t1rocketemu" ];
 in
 lib.assertMsg (lib.elem moduleType available) "emuType is not in ${lib.concatStringsSep ", " available}";
 # if emuType is empty, then moduleType must be offline-*, or user should give valid emuType
@@ -25,11 +25,11 @@ rustPlatform.buildRustPackage {
     root = ./.;
     fileset = unions [
       ./spike_rs
-      ./offline_t1
-      ./offline_t1rocket
+      ./offline_t1emu
+      ./offline_t1rocketemu
       ./dpi_common
-      ./dpi_t1
-      ./dpi_t1rocket
+      ./dpi_t1emu
+      ./dpi_t1rocketemu
       ./Cargo.lock
       ./Cargo.toml
       ./.rustfmt.toml

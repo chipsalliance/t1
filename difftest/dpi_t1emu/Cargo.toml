@@ -1,5 +1,5 @@
 [package]
-name = "dpi_t1"
+name = "dpi_t1emu"
 edition = "2021"
 version.workspace = true
 

@@ -1,5 +1,5 @@
 [package]
-name = "dpi_t1rocket"
+name = "dpi_t1rocketemu"
 edition = "2021"
 version.workspace = true
 
