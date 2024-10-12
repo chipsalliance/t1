@@ -120,7 +120,7 @@ jobs:
 
           if [ -n "$changed_cases" ]; then
             echo "changed cases: $changed_cases"
-            git add '.github/**/default.json'
+            git add '.github/designs/**/*.json'
             git commit -m "[ci] update t1 test case cycle data"
             git push origin ${{ github.head_ref }}
           else
