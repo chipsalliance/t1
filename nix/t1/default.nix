@@ -101,14 +101,6 @@ lib.makeScope newScope
     # sv-to-vcs-simulator will compile the given rtl, link with path specified in vcsLinksLibs to produce a VCS emulator.
     # enableTrace is false by default;
     sv-to-vcs-simulator = t1Scope.callPackage ./conversion/sv-to-vcs-simulator.nix { };
-
-    # ---------------------------------------------------------------------------------
-    # Grouped emulator packages
-    # ---------------------------------------------------------------------------------
-    # Nix specification for t1rocket (with rocket-chip as Scalar core) emulator
-    t1rocket = t1Scope.callPackage ./t1rocket.nix { };
-    # Nix specification for rocket (rocket-chip only) emulator
-    rocketv = t1Scope.callPackage ../../rocketemu { };
   }
     # Nix specification for t1 (with spike only) emulator
     # We don't expect extra scope for t1 stuff, so here we merge the t1 at t1Scope level.
