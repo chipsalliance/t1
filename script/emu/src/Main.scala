@@ -46,6 +46,7 @@ object Main:
     os.proc(args).call().out.trim()
 
   def resolveTestElfPath(
+    ip:       String,
     config:   String,
     caseName: String,
     forceX86: Boolean = false
@@ -58,7 +59,7 @@ object Main:
       else ".#"
 
     val nixStorePath = resolveNixPath(
-      s"${caseAttrRoot}t1.${config}.ip.cases.${caseName}"
+      s"${caseAttrRoot}t1.${config}.${ip}.cases.${caseName}"
     )
     val elfFilePath  = os.Path(nixStorePath) / "bin" / s"${caseName}.elf"
 
@@ -66,6 +67,7 @@ object Main:
   end resolveTestElfPath
 
   def resolveTestBenchPath(
+    ip:      String,
     config:  String,
     emuType: String
   ): os.Path =
@@ -73,8 +75,8 @@ object Main:
     if (os.exists(emuPath)) then return emuPath
 
     val nixStorePath =
-      if emuType.contains("vcs-") then resolveNixPath(s".#t1.${config}.ip.${emuType}", Seq("--impure"))
-      else resolveNixPath(s".#t1.${config}.ip.${emuType}")
+      if emuType.contains("vcs-") then resolveNixPath(s".#t1.${config}.${ip}.${emuType}", Seq("--impure"))
+      else resolveNixPath(s".#t1.${config}.${ip}.${emuType}")
 
     val elfFilePath = os
       .walk(os.Path(nixStorePath) / "bin")
@@ -143,6 +145,11 @@ object Main:
 
   @main def run(
     @arg(
+      name = "ip",
+      short = 'i',
+      doc = "IP type for emulator, Eg. t1emu, t1rocketemu"
+    ) ip:       Option[String],
+    @arg(
       name = "emu",
       short = 'e',
       doc = "Type for emulator, Eg. vcs-emu, verilator-emu-trace"
@@ -178,6 +185,12 @@ object Main:
     val caseName = leftOver.value.head
     if !isValidCaseName(caseName) then Logger.fatal(s"invalid caseName '$caseName', expect 'A.B'")
 
+    val finalIp = tryRestoreFromCache("ip", ip)
+    if finalIp.isEmpty then
+      Logger.fatal(
+        s"No cached IP selection nor --ip argument was provided"
+      )
+
     val finalEmuType = tryRestoreFromCache("emulator", emuType)
     if finalEmuType.isEmpty then
       Logger.fatal(
@@ -198,9 +211,9 @@ object Main:
     )
 
     val caseElfPath =
-      resolveTestElfPath(finalConfig.get, caseName, forceX86)
+      resolveTestElfPath(finalIp.get, finalConfig.get, caseName, forceX86)
     val outputPath  = prepareOutputDir(outDir.getOrElse("t1-sim-result"))
-    val emulator    = resolveTestBenchPath(finalConfig.get, finalEmuType.get)
+    val emulator    = resolveTestBenchPath(finalIp.get, finalConfig.get, finalEmuType.get)
 
     val leftOverArguments = leftOver.value.dropWhile(arg => arg != "--")
 
@@ -226,7 +239,8 @@ object Main:
         ujson.Obj(
           "config" -> finalConfig.get,
           "elf"    -> caseElfPath.toString,
-          "event"  -> rtlEventPath.toString
+          "event"  -> rtlEventPath.toString,
+          "ip"     -> finalIp.get
         )
       )
     )
@@ -282,6 +296,11 @@ object Main:
   @main
   def check(
     @arg(
+      name = "ip",
+      short = 'i',
+      doc = "IP type for emulator, Eg. t1emu, t1rocketemu"
+    ) ip:        Option[String],
+    @arg(
       name = "config",
       short = 'c',
       doc = "specify the elaborate config for running test case"
@@ -316,6 +335,14 @@ object Main:
       if os.exists(resultPath) then ujson.read(os.read(resultPath / "driver-state.json"))
       else ujson.Obj()
 
+    val finalIp =
+      if ip.isDefined then ip.get
+      else
+        lastState.obj
+          .get("ip")
+          .getOrElse(Logger.fatal("No driver-state.json nor --ip"))
+          .str
+
     val finalConfig =
       if config.isDefined then config.get
       else
@@ -325,11 +352,11 @@ object Main:
           .str
 
     val offlineChecker = os.Path(
-      resolveNixPath(s".#t1.${finalConfig}.ip.offline-checker")
+      resolveNixPath(s".#t1.${finalConfig}.${finalIp}.offline-checker")
     ) / "bin" / "offline"
 
     val elfFile =
-      if caseAttr.isDefined then resolveTestElfPath(finalConfig, caseAttr.get).toString
+      if caseAttr.isDefined then resolveTestElfPath(finalIp, finalConfig, caseAttr.get).toString
       else
         lastState.obj
           .get("elf")
@@ -363,6 +390,11 @@ object Main:
   @main
   def listCases(
     @arg(
+      name = "ip",
+      short = 'i',
+      doc = "specify the IP, such as t1emu, t1rocketemu"
+    ) ip:     String,
+    @arg(
       name = "config",
       short = 'c',
       doc = "specify the config for test cases"
@@ -378,7 +410,7 @@ object Main:
       "nix",
       "--no-warn-dirty",
       "eval",
-      s".#t1.${config}.ip.cases",
+      s".#t1.${config}.${ip}.cases",
       "--apply",
       """cases: with builtins;
         | (map
