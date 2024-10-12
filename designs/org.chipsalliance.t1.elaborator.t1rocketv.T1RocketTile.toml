@@ -1,0 +1,2 @@
+[t1rocket]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_m --instructionSets rv_a --instructionSets rv_c --instructionSets rv_f --instructionSets rv_v --instructionSets zve32f --instructionSets zvl1024b --cacheBlockBytes 32 --nPMPs 8 --cacheable 11111111111111111111111111111111 --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 256 --vrfBankSize 2 --vrfRamType p0rp1w --vfuInstantiateParameter small"
