@@ -15,7 +15,7 @@
 assert let
   available = [ "dpi_t1emu" "dpi_t1rocketemu" "offline_t1emu" "offline_t1rocketemu" ];
 in
-lib.assertMsg (lib.elem moduleType available) "emuType is not in ${lib.concatStringsSep ", " available}";
+lib.assertMsg (lib.elem moduleType available) "moduleType is not in ${lib.concatStringsSep ", " available}";
 # if emuType is empty, then moduleType must be offline-*, or user should give valid emuType
 assert lib.assertMsg ((emuType == "" && lib.hasPrefix "offline" moduleType) || (lib.elem emuType [ "verilator" "vcs" ])) "emuType is either 'vcs' nor 'verilator'";
 

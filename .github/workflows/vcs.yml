@@ -1,4 +1,4 @@
-name: VCS Test
+name: T1 VCS Emulator Test
 on:
   pull_request:
     types:
@@ -42,10 +42,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build vcs emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.ip.vcs-emu' --impure --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.t1emu.vcs-emu' --impure --no-link
       - name: "Build all testcases"
         run: |
-          nix build ".#t1.${{ matrix.config }}.ip.cases._all" --max-jobs auto --no-link --cores 64
+          nix build ".#t1.${{ matrix.config }}.t1emu.cases._all" --max-jobs auto --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
@@ -81,7 +81,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Run testcases"
         run: |
-          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --testType "vcs"
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --testType "vcs" --testIp "t1emu"
 
   report:
     name: "Report VCS CI result"

@@ -1,4 +1,4 @@
-name: VCS Test (T1 w/ Rocket)
+name: T1 Rocket VCS Emulator Test
 on:
   pull_request:
     types:
@@ -27,7 +27,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - id: "get-all-configs"
-        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --testType t1rocket)" > $GITHUB_OUTPUT
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan)" > $GITHUB_OUTPUT
 
   build-emulators:
     name: "Build VCS Emulators w/ Rocket"
@@ -42,10 +42,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build vcs emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.ip.vcs-emu' --impure --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.t1rocketemu.vcs-emu' --impure --no-link
       - name: "Build all testcases"
         run: |
-          nix build ".#t1.${{ matrix.config }}.ip.cases._all" --max-jobs auto --no-link --cores 64
+          nix build ".#t1.${{ matrix.config }}.t1rocketemu.cases._all" --max-jobs auto --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
@@ -66,7 +66,7 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix run ".#ci-helper" -- generateCiMatrix --caseDir t1rocket-cases --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
     name: "Run VCS w/ Rocket"
@@ -81,7 +81,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Run testcases"
         run: |
-          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --testType "vcs"
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --testType "vcs" --testIp "t1rocketemu"
 
   report:
     name: "Report VCS (w/ Rocket) CI result"

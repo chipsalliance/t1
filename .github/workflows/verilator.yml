@@ -30,11 +30,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build verilator emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.ip.verilator-emu' -L --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.t1emu.verilator-emu' -L --no-link --cores 64
       - name: "Build all testcases"
         run: |
           # Build testcases with vlen 1024 and vlen 4096
-          nix build ".#t1.${{ matrix.config }}.ip.cases._all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.${{ matrix.config }}.t1emu.cases._all" --max-jobs auto -L --no-link --cores 64
 
   # In the future, we may choose Verdi for trace, and left verilator trace only for performance evaluation
   build-verilator-trace-emulators:
@@ -49,7 +49,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build verilator emulator with trace"
-        run: nix build '.#t1.${{ matrix.config }}.ip.verilator-emu-trace' -L --no-link --cores 64
+        run: nix build '.#t1.${{ matrix.config }}.t1emu.verilator-emu-trace' -L --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
@@ -85,7 +85,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Run testcases"
         run: |
-          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}"
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --testType "verilator" --testIp "t1emu"
 
   report:
     name: "Report CI result"
