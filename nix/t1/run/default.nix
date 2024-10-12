@@ -41,7 +41,7 @@ let
   _getAllResult = emuType:
     let
       testPlan = builtins.fromJSON
-        (lib.readFile ../../../.github/${if configName == "t1rocket" then "t1rocket-cases" else "cases"}/${configName}/default.json);
+        (lib.readFile ../../../.github/${configName}/default.json);
       # flattern the attr set to a list of test case derivations
       # AttrSet (AttrSet Derivation) -> List Derivation
       allCasesResult = lib.pipe emuAttrs [
