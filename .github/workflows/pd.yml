@@ -28,15 +28,18 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Test elaborate"
         run: |
-          configArray=( $(ls configgen/generated | sed 's/\.json$//') )
+          configArray=( $(ls .github/designs) )
+          ipArray=( "t1emu" "t1rocketemu" )
           for cfg in "${configArray[@]}"; do
-            echo "Building .#t1.${cfg}.ip.rtl"
-            if ! nix build ".#t1.${cfg}.ip.rtl" -L; then
-              failed_rtl_configs+=("${cfg}.ip")
-            fi
-            if ! nix run ".#ci-helper" -- runOMTests --config ${cfg}; then
-              failed_om+=("${cfg}")
-            fi
+            for ip in "${ipArray[@]}"; do
+              echo "Building .#t1.${cfg}.${ip}.rtl"
+              if ! nix build ".#t1.${cfg}.${ip}.rtl" -L; then
+                failed_rtl_configs+=("${cfg}.${ip}")
+              fi
+              if ! nix run ".#ci-helper" -- runOMTests --config ${cfg}; then
+                failed_om+=("${cfg}")
+              fi
+            done
           done
           if [ -n "${failed_rtl_configs[*]}"  ]; then
             echo -e "## Failed RTL\n" >> "$GITHUB_STEP_SUMMARY"

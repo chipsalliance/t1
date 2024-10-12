@@ -125,7 +125,7 @@ object Main:
   @main
   def generateCiMatrix(
     runnersAmount: Int,
-    caseDir:       String = "cases",
+    caseDir:       String = "designs",
     testPlanFile:  String = "default.json"
   ) = {
     val testPlans =
@@ -145,7 +145,8 @@ object Main:
   @main
   def runTests(
     jobs:     String,
-    testType: String = "verilator"
+    testIp:   String,
+    testType: String
   ): Unit =
     if jobs == "" then
       Logger.info("No test found, exiting")
@@ -162,8 +163,8 @@ object Main:
 
       val testAttr       = testType.toLowerCase() match
         case "verilator" =>
-          s".#t1.$config.ip.run.$caseName.verilator-emu"
-        case "vcs"       => s".#t1.$config.ip.run.$caseName.vcs-emu"
+          s".#t1.$config.$testIp.run.$caseName.verilator-emu"
+        case "vcs"       => s".#t1.$config.$testIp.run.$caseName.vcs-emu"
         case _           => Logger.fatal(s"Invalid test type ${testType}")
       val testResultPath =
         try
@@ -308,17 +309,11 @@ object Main:
   end postCI
 
   @main
-  def generateTestPlan(testType: String = "") =
-    val casePath = testType match
-      case "t1rocket" => os.pwd / ".github" / "t1rocket-cases"
-      case _          => os.pwd / ".github" / "cases"
-
-    val allCases  = os.walk(casePath).filter(_.last == "default.json")
-    val testPlans = allCases.map: caseFilePath =>
-      caseFilePath.segments
-        .dropWhile(!Seq("cases", "t1rocket-cases").contains(_))
-        .drop(1)
-        .next
+  def generateTestPlan() =
+    val testPlans = os
+      .walk(os.pwd / ".github" / "designs")
+      .filter(_.last == "default.json")
+      .map(path => path.segments.toSeq.reverse.drop(1).head)
 
     println(ujson.write(Map("config" -> testPlans)))
   end generateTestPlan

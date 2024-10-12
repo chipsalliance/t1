@@ -42,4 +42,5 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build vcs emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.ip.vcs-emu-trace' --impure --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.t1emu.vcs-emu-trace' --impure --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.t1rocketemu.vcs-emu-trace' --impure --no-link --cores 64
