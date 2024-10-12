@@ -32,7 +32,7 @@ lib.makeScope newScope
     # ---------------------------------------------------------------------------------
     _t1MillModules = t1Scope.callPackage ./mill-modules.nix { };
     elaborator = t1Scope._t1MillModules.elaborator // { meta.mainProgram = "elaborator"; };
-    configgen = t1Scope._t1MillModules.configgen // { meta.mainProgram = "configgen"; };
+    omreader-unwrapped = t1Scope._t1MillModules.omreader // { meta.mainProgram = "omreader"; };
     t1package = t1Scope._t1MillModules.t1package;
 
     # ---------------------------------------------------------------------------------
@@ -90,8 +90,6 @@ lib.makeScope newScope
     t1rocket = t1Scope.callPackage ./t1rocket.nix { };
     # Nix specification for rocket (rocket-chip only) emulator
     rocketv = t1Scope.callPackage ../../rocketemu { };
-
-    omreader-unwrapped = t1Scope.callPackage ./omreader.nix { };
   }
     # Nix specification for t1 (with spike only) emulator
     # We don't expect extra scope for t1 stuff, so here we merge the t1 at t1Scope level.

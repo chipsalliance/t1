@@ -29,7 +29,6 @@ let
         ./../../omreaderlib
         ./../../t1emu/src
         ./../../elaborator
-        ./../../configgen/src
         ./../../rocketv
         ./../../t1rocket/src
         ./../../t1rocketemu/src
@@ -80,16 +79,16 @@ let
     env = {
       CIRCT_INSTALL_PATH = circt-full;
       JEXTRACT_INSTALL_PATH = jextract-21;
+      JAVA_TOOL_OPTIONS = "--enable-preview";
     };
 
-    outputs = [ "out" "configgen" "elaborator" "t1package" ];
+    outputs = [ "out" "omreader" "elaborator" "t1package" ];
 
     # Check code format before starting build, so that we can enforce all developer run reformat before build.
     configurePhase = ''
       runHook preConfigure
 
       _targetsToCheck=(
-        "configgen"
         "elaborator"
         "omreader"
         "omreaderlib"
@@ -129,22 +128,26 @@ let
         add-determinism $@ >/dev/null
       }
       add-determinism-q out/elaborator/assembly.dest/out.jar
-      add-determinism-q out/configgen/assembly.dest/out.jar
+      add-determinism-q out/omreader/assembly.dest/out.jar
       add-determinism-q out/t1package/assembly.dest/out.jar
       add-determinism-q out/t1package/sourceJar.dest/out.jar
       add-determinism-q out/t1package/chiselPluginJar.dest/out.jar
 
-      mv out/configgen/assembly.dest/out.jar $out/share/java/configgen.jar
       mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar
+      mv out/omreader/assembly.dest/out.jar "$out"/share/java/omreader.jar
 
       mkdir -p $t1package/share/java
       mv out/t1package/sourceJar.dest/out.jar $t1package/share/java/t1package-sources.jar
       mv out/t1package/assembly.dest/out.jar $t1package/share/java/t1package.jar
       mv out/t1package/chiselPluginJar.dest/out.jar $t1package/share/java/chiselPluginJar.jar
 
-      mkdir -p $configgen/bin $elaborator/bin
-      makeWrapper ${jdk21}/bin/java $configgen/bin/configgen --add-flags "-jar $out/share/java/configgen.jar"
-      makeWrapper ${jdk21}/bin/java $elaborator/bin/elaborator --add-flags "--enable-preview -Djava.library.path=${circt-full}/lib -cp $out/share/java/elaborator.jar org.chipsalliance.t1.elaborator.Main"
+      mkdir -p $omreader/bin $elaborator/bin
+      makeWrapper ${jdk21}/bin/java $elaborator/bin/elaborator \
+        --add-flags "--enable-preview -Djava.library.path=${circt-full}/lib -cp $out/share/java/elaborator.jar"
+      makeWrapper ${jdk21}/bin/java "$omreader"/bin/omreader \
+        --add-flags "--enable-preview --enable-native-access=ALL-UNNAMED -Djava.library.path=${circt-full}/lib -jar $out/share/java/omreader.jar"
+      # omreader will print unwanted stuff to stderr, here we just wrap the redirect for users
+      echo "$(cat "$omreader"/bin/omreader) 2> /dev/null" > "$omreader"/bin/omreader
     '';
   };
 in
