@@ -11,18 +11,20 @@ lib.mapAttrs
     strippedGeneratorData = lib.mapAttrs'
       (fullClassName: origData:
         lib.nameValuePair
-          (lib.head (lib.splitString "." (lib.removePrefix "org.chipsalliance.t1.elaborator." fullClassName)))
+          (lib.head
+            (lib.splitString "."
+              (lib.removePrefix "org.chipsalliance.t1.elaborator." fullClassName)))
           (origData // { inherit fullClassName; }))
       allGenerators;
   in
   lib.mapAttrs
-    (shortName: generator:
+    (topName: generator:
     lib.makeScope t1Scope.newScope
-      (mostInnerScope:
+      (innerMostScope:
       lib.recurseIntoAttrs {
-        inherit configName;
+        inherit configName topName;
 
-        cases = mostInnerScope.callPackage ../../tests { };
+        cases = innerMostScope.callPackage ../../tests { };
 
         mlirbc = t1Scope.chisel-to-mlirbc {
           outputName = "${generator.fullClassName}.mlirbc";
@@ -31,13 +33,13 @@ lib.mapAttrs
         };
 
         lowered-mlirbc = t1Scope.finalize-mlirbc {
-          outputName = "lowered-" + mostInnerScope.mlirbc.name;
-          mlirbc = mostInnerScope.mlirbc;
+          outputName = "lowered-" + innerMostScope.mlirbc.name;
+          mlirbc = innerMostScope.mlirbc;
         };
 
         rtl = t1Scope.mlirbc-to-sv {
           outputName = "${generator.fullClassName}-rtl";
-          mlirbc = mostInnerScope.lowered-mlirbc;
+          mlirbc = innerMostScope.lowered-mlirbc;
           mfcArgs = [
             "-O=release"
             "--disable-all-randomization"
@@ -53,10 +55,10 @@ lib.mapAttrs
         omGet = args: lib.toLower (lib.fileContents (runCommand "get-${args}" { } ''
           ${t1Scope.omreader-unwrapped}/bin/omreader \
             ${args} \
-            --mlirbc-file ${mostInnerScope.lowered-mlirbc}/${mostInnerScope.lowered-mlirbc.name} \
+            --mlirbc-file ${innerMostScope.lowered-mlirbc}/${innerMostScope.lowered-mlirbc.name} \
             > $out
         ''));
-        rtlDesignMetadata = with mostInnerScope; rec {
+        rtlDesignMetadata = with innerMostScope; rec {
           march = omGet "march";
           extensions = builtins.fromJSON (omGet "extensionsJson");
           vlen = omGet "vlen";
@@ -67,65 +69,65 @@ lib.mapAttrs
         # ---------------------------------------------------------------------------------
         # VERILATOR
         # ---------------------------------------------------------------------------------
-        makeDifftest = mostInnerScope.callPackage ../../difftest { };
+        makeDifftest = innerMostScope.callPackage ../../difftest { };
 
-        verilator-dpi-lib = mostInnerScope.makeDifftest {
-          outputName = "${shortName}-verilator-dpi-lib";
+        verilator-dpi-lib = innerMostScope.makeDifftest {
+          outputName = "${topName}-verilator-dpi-lib";
           emuType = "verilator";
-          moduleType = "dpi_${shortName}";
+          moduleType = "dpi_${topName}";
         };
-        verilator-dpi-lib-trace = mostInnerScope.makeDifftest {
-          outputName = "${shortName}-verilator-trace-dpi-lib";
+        verilator-dpi-lib-trace = innerMostScope.makeDifftest {
+          outputName = "${topName}-verilator-trace-dpi-lib";
           emuType = "verilator";
-          moduleType = "dpi_${shortName}";
+          moduleType = "dpi_${topName}";
           enableTrace = true;
         };
 
         verilator-emu = t1Scope.sv-to-verilator-emulator {
-          mainProgram = "${shortName}-verilated-simulator";
-          rtl = mostInnerScope.rtl;
-          extraVerilatorArgs = [ "${mostInnerScope.verilator-dpi-lib}/lib/libdpi_${shortName}.a" ];
+          mainProgram = "${topName}-verilated-simulator";
+          rtl = innerMostScope.rtl;
+          extraVerilatorArgs = [ "${innerMostScope.verilator-dpi-lib}/lib/libdpi_${topName}.a" ];
         };
         verilator-emu-trace = t1Scope.sv-to-verilator-emulator {
-          mainProgram = "${shortName}-verilated-trace-simulator";
-          rtl = mostInnerScope.rtl;
+          mainProgram = "${topName}-verilated-trace-simulator";
+          rtl = innerMostScope.rtl;
           enableTrace = true;
-          extraVerilatorArgs = [ "${mostInnerScope.verilator-dpi-lib-trace}/lib/libdpi_${shortName}.a" ];
+          extraVerilatorArgs = [ "${innerMostScope.verilator-dpi-lib-trace}/lib/libdpi_${topName}.a" ];
         };
 
         # ---------------------------------------------------------------------------------
         # VCS
         # ---------------------------------------------------------------------------------
-        vcs-dpi-lib = mostInnerScope.makeDifftest {
-          outputName = "${shortName}-vcs-dpi-lib";
+        vcs-dpi-lib = innerMostScope.makeDifftest {
+          outputName = "${topName}-vcs-dpi-lib";
           emuType = "vcs";
-          moduleType = "dpi_${shortName}";
+          moduleType = "dpi_${topName}";
         };
-        vcs-dpi-lib-trace = mostInnerScope.makeDifftest {
-          outputName = "${shortName}-vcs-dpi-trace-lib";
+        vcs-dpi-lib-trace = innerMostScope.makeDifftest {
+          outputName = "${topName}-vcs-dpi-trace-lib";
           emuType = "vcs";
           enableTrace = true;
-          moduleType = "dpi_${shortName}";
+          moduleType = "dpi_${topName}";
         };
 
-        offline-checker = mostInnerScope.makeDifftest {
-          outputName = "${shortName}-offline-checker";
-          moduleType = "offline_${shortName}";
+        offline-checker = innerMostScope.makeDifftest {
+          outputName = "${topName}-offline-checker";
+          moduleType = "offline_${topName}";
         };
 
         vcs-emu = t1Scope.sv-to-vcs-simulator {
-          mainProgram = "${shortName}-vcs-simulator";
-          rtl = mostInnerScope.rtl;
-          vcsLinkLibs = [ "${mostInnerScope.vcs-dpi-lib}/lib/libdpi_${shortName}.a" ];
+          mainProgram = "${topName}-vcs-simulator";
+          rtl = innerMostScope.rtl;
+          vcsLinkLibs = [ "${innerMostScope.vcs-dpi-lib}/lib/libdpi_${topName}.a" ];
         };
         vcs-emu-trace = t1Scope.sv-to-vcs-simulator {
-          mainProgram = "${shortName}-vcs-trace-simulator";
-          rtl = mostInnerScope.rtl;
+          mainProgram = "${topName}-vcs-trace-simulator";
+          rtl = innerMostScope.rtl;
           enableTrace = true;
-          vcsLinkLibs = [ "${mostInnerScope.vcs-dpi-lib-trace}/lib/libdpi_${shortName}.a" ];
+          vcsLinkLibs = [ "${innerMostScope.vcs-dpi-lib-trace}/lib/libdpi_${topName}.a" ];
         };
 
-        run = mostInnerScope.callPackage ./run { };
+        run = innerMostScope.callPackage ./run { };
       })
     )
     strippedGeneratorData

@@ -1,5 +1,7 @@
 {
   "pytorch.demo": 31505,
+  "pytorch.lenet": 38661294,
+  "pytorch.matmul": 69716,
   "mlir.rvv_vp_intrinsic_add": 468,
   "mlir.rvv_vp_intrinsic_add_scalable": 696,
   "mlir.hello": 140,

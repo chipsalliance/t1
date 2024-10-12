@@ -2,7 +2,6 @@
   "pytorch.demo": 76,
   "pytorch.lenet": 394687,
   "pytorch.matmul": 14497,
-  "pytorch.mobilenet": 15139469,
   "mlir.rvv_vp_intrinsic_add": 435,
   "mlir.rvv_vp_intrinsic_add_scalable": 583,
   "mlir.hello": 145,
