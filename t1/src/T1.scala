@@ -8,12 +8,14 @@ import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantia
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
+import chisel3.ltl.{CoverProperty, Sequence}
 import chisel3.util.experimental.BitSet
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{
   log2Ceil,
   scanLeftOr,
   scanRightOr,
+  BitPat,
   Decoupled,
   DecoupledIO,
   Enum,
@@ -1792,6 +1794,60 @@ class T1(val parameter: T1Parameter)
     probeWire.retire.valid        := io.retire.rd.valid
     probeWire.retire.bits         := io.retire.rd.bits.rdData
     probeWire.idle                := slots.map(_.state.idle).reduce(_ && _)
+  }
+
+  // coverage
+  // unsupported 64-bit instructions for 32-bit xlen
+  val zve32f = Seq(
+    // format: off
+    "vfadd.vf", "vfadd.vv", "vfclass.v", "vfcvt.f.x.v", 
+    "vfcvt.f.xu.v", "vfcvt.rtz.x.f.v", "vfcvt.rtz.xu.f.v", "vfcvt.x.f.v", 
+    "vfcvt.xu.f.v", "vfdiv.vf", "vfdiv.vv", "vfmacc.vf",
+    "vfmacc.vv", "vfmadd.vf", "vfmadd.vv", "vfmax.vf",
+    "vfmax.vv", "vfmerge.vfm", "vfmin.vf", "vfmin.vv",
+    "vfmsac.vf", "vfmsac.vv", "vfmsub.vf", "vfmsub.vv",
+    "vfmul.vf", "vfmul.vv", "vfmv.f.s", "vfmv.s.f",
+    "vfmv.v.f", "vfnmacc.vf", "vfnmacc.vv", "vfnmadd.vf",
+    "vfnmadd.vv", "vfnmsac.vf", "vfnmsac.vv", "vfnmsub.vf",
+    "vfnmsub.vv", "vfrdiv.vf", "vfrec7.v", "vfredmax.vs",
+    "vfredmin.vs", "vfredosum.vs", "vfredusum.vs", "vfrsqrt7.v",
+    "vfrsub.vf", "vfsgnj.vf", "vfsgnj.vv", "vfsgnjn.vf",
+    "vfsgnjn.vv", "vfsgnjx.vf", "vfsgnjx.vv", "vfsqrt.v",
+    "vfsub.vf", "vfsub.vv", "vmfeq.vf", "vmfeq.vv",
+    "vmfge.vf", "vmfgt.vf", "vmfle.vf", "vmfle.vv", 
+    "vmflt.vf", "vmflt.vv", "vmfne.vf", "vmfne.vv"
+    // format: on
+  )
+  val zve64f = Seq(
+    // format: off
+    "vfncvt.f.f.w", "vfncvt.f.x.w", "vfncvt.f.xu.w", "vfncvt.rod.f.f.w", "vfncvt.rtz.x.f.w", "vfncvt.rtz.xu.f.w", "vfncvt.x.f.w", "vfncvt.xu.f.w",
+    "vfslide1down.vf", "vfslide1up.vf",
+    "vfwadd.vf", "vfwadd.vv", "vfwadd.wf", "vfwadd.wv",
+    "vfwcvt.f.f.v", "vfwcvt.f.x.v", "vfwcvt.f.xu.v", "vfwcvt.rtz.x.f.v", "vfwcvt.rtz.xu.f.v", "vfwcvt.x.f.v", "vfwcvt.xu.f.v",
+    "vfwmacc.vf", "vfwmacc.vv", "vfwmsac.vf", "vfwmsac.vv",
+    "vfwmul.vf", "vfwmul.vv", "vfwnmacc.vf", "vfwnmacc.vv",
+    "vfwnmsac.vf", "vfwnmsac.vv", "vfwredosum.vs", "vfwredusum.vs",
+    "vfwsub.vf", "vfwsub.vv", "vfwsub.wf", "vfwsub.wv", 
+    // format: on
+  )
+  val zve64x = Seq(
+    // format: off
+    "vl1re64.v", "vl2re64.v", "vl4re64.v", "vl8re64.v", 
+    "vle64.v", "vle64ff.v", "vloxei64.v", "vlse64.v", "vluxei64.v",
+    "vse64.v", "vsoxei64.v", "vsse64.v", "vsuxei64.v", 
+    "vsext.vf8", "vzext.vf8"
+    // format: on
+  )
+  parameter.decoderParam.allInstructions.filter { instruction: Instruction =>
+    // format: off
+    !(zve64x.contains(instruction.name) && parameter.xLen == 32) &&
+    !(zve64f.contains(instruction.name) && parameter.xLen == 32 && parameter.fpuEnable) &&
+    !((zve32f ++ zve64f).contains(instruction.name) && !parameter.fpuEnable)
+    // format: on
+  }.map { instruction: Instruction =>
+    val issueMatch =
+      Sequence.BoolSequence(requestReg.bits.issue.instruction === BitPat("b" + instruction.encoding.toString))
+    CoverProperty(issueMatch, label = Some(s"t1_cover_issue_${instruction.name}"))
   }
 
   // new V Request from core

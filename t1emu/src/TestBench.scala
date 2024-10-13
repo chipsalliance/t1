@@ -7,16 +7,14 @@ import chisel3._
 import chisel3.experimental.dataview.DataViewable
 import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{ExtModule, SerializableModule, SerializableModuleGenerator}
-import chisel3.ltl.{CoverProperty, Sequence}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.circt.dpi.{
   RawClockedNonVoidFunctionCall,
   RawClockedVoidFunctionCall,
   RawUnclockedNonVoidFunctionCall
 }
-import chisel3.util.{BitPat, HasExtModuleInline, PopCount, UIntToOH, Valid}
+import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
-import org.chipsalliance.rvdecoderdb.Instruction
 import org.chipsalliance.t1.rtl.{T1, T1Parameter}
 import org.chipsalliance.t1.t1emu.dpi._
 
@@ -285,9 +283,5 @@ class TestBench(val parameter: T1Parameter)
       assert(!scoreboard.valid)
       scoreboard.bits  := 0.U
     }
-  }
-  parameter.decoderParam.allInstructions.map { instruction: Instruction =>
-    val issueMatch = Sequence.BoolSequence(issue.instruction === BitPat("b" + instruction.encoding.toString))
-    CoverProperty(issueMatch, label = Some(s"t1_cover_issue_${instruction.name}"))
   }
 }
