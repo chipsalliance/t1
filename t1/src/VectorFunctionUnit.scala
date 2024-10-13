@@ -34,6 +34,11 @@ class VFUOM extends Class {
   @public
   val cyclesIn = IO(Input(Property[Int]()))
   cycles := cyclesIn
+  @public
+  val clock   = IO(Output(Property[Path]))
+  @public
+  val clockIn = IO(Input(Property[Path]))
+  clock := clockIn
 }
 
 @instantiable
@@ -48,7 +53,9 @@ abstract class VFUModule(p: VFUParameter) extends Module {
   @public
   val responseIO: DecoupledIO[VFUPipeBundle] = IO(Decoupled(p.outputBundle))
   om                  := omInstance.getPropertyReference
-  omInstance.cyclesIn := Property(p.latency)
+  // I don't under the parameter of VFU, dirty hack
+  omInstance.cyclesIn := Property(if (p.singleCycle) 1 else 0)
+  omInstance.clockIn  := Property(Path(clock))
 
   val vfuRequestReady: Option[Bool]  = Option.when(!p.singleCycle)(Wire(Bool()))
   val requestReg:      VFUPipeBundle = RegEnable(requestIO.bits, 0.U.asTypeOf(requestIO.bits), requestIO.fire)
