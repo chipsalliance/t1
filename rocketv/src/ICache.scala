@@ -5,8 +5,9 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.experimental.hierarchy.instantiable
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.random.LFSR
 import chisel3.util._
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
@@ -130,8 +131,18 @@ class ICacheInterface(parameter: ICacheParameter) extends Bundle {
 
   val itimAXI: Option[AXI4RWIrrevocable] =
     parameter.itimAXIParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
+
+  val om: Property[ClassType] = Output(Property[AnyClassType]())
 }
 
+@instantiable
+class ICacheOM extends Class {
+  val srams = IO(Output(Property[Seq[AnyClassType]]()))
+
+  @public
+  val sramsIn = IO(Input(Property[Seq[AnyClassType]]()))
+  srams := sramsIn
+}
 @instantiable
 class ICache(val parameter: ICacheParameter)
     extends FixedIORawModule(new ICacheInterface(parameter))
@@ -139,8 +150,10 @@ class ICache(val parameter: ICacheParameter)
     with Public
     with ImplicitClock
     with ImplicitReset {
-  override protected def implicitClock: Clock = io.clock
-  override protected def implicitReset: Reset = io.reset
+  override protected def implicitClock: Clock              = io.clock
+  override protected def implicitReset: Reset              = io.reset
+  val omInstance:                       Instance[ICacheOM] = Instantiate(new ICacheOM)
+  io.om := omInstance.getPropertyReference.asAnyClassType
 
   // compatiblity mode
   object Split {
@@ -523,6 +536,7 @@ class ICache(val parameter: ICacheParameter)
         numReadwritePorts = 1
       )
     }
+  omInstance.sramsIn := Property((data_arrays ++ Some(tag_array)).map(_.description.get.asAnyClassType))
 
   for ((data_array, i) <- data_arrays.zipWithIndex) {
 
