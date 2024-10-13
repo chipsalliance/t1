@@ -134,7 +134,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dpi_t1"
+name = "dpi_t1emu"
 version = "0.1.0"
 dependencies = [
  "dpi_common",
@@ -145,7 +145,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dpi_t1rocket"
+name = "dpi_t1rocketemu"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -269,7 +269,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "offline_t1"
+name = "offline_t1emu"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -285,7 +285,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "offline_t1rocket"
+name = "offline_t1rocketemu"
 version = "0.1.0"
 dependencies = [
  "anyhow",
