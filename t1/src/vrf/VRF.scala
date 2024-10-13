@@ -4,12 +4,14 @@
 package org.chipsalliance.t1.rtl.vrf
 
 import chisel3._
+import chisel3.experimental.hierarchy.Instance
 import chisel3.experimental.hierarchy.{instantiable, public, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.util._
 import chisel3.ltl._
 import chisel3.ltl.Sequence._
+import chisel3.properties.{AnyClassType, Class, ClassType, Path, Property}
 import org.chipsalliance.t1.rtl.{
   ffo,
   instIndexL,
@@ -115,6 +117,15 @@ case class VRFParam(
 
   // 1: pipe access request + 1: SyncReadMem
   val vrfReadLatency = 2
+}
+
+@instantiable
+class VRFOM extends Class {
+  val srams = IO(Output(Property[Seq[AnyClassType]]()))
+
+  @public
+  val sramsIn = IO(Input(Property[Seq[AnyClassType]]()))
+  srams := sramsIn
 }
 
 class VRFProbe(parameter: VRFParam) extends Bundle {
@@ -235,6 +246,12 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   @public
   val vrfProbe = IO(Output(Probe(new VRFProbe(parameter), layers.Verification)))
+
+  val omInstance: Instance[VRFOM]     = Instantiate(new VRFOM)
+  val omType:     ClassType           = omInstance.toDefinition.getClassType
+  @public
+  val om:         Property[ClassType] = IO(Output(Property[AnyClassType]()))
+  om := omInstance.getPropertyReference.asAnyClassType
 
   // reset sram
   val sramReady:      Bool = RegInit(false.B)
@@ -478,6 +495,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
     rf
   }
+
+  omInstance.sramsIn := Property(rfVec.map(_.description.get.asAnyClassType))
 
   val initRecord: ValidIO[VRFWriteReport] = WireDefault(0.U.asTypeOf(Valid(new VRFWriteReport(parameter))))
   initRecord.valid := true.B
