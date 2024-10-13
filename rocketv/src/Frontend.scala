@@ -5,8 +5,9 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, Instantiate}
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util._
 import chisel3.util.circt.ClockGate
 import chisel3.util.experimental.BitSet
@@ -229,8 +230,17 @@ class FrontendInterface(parameter: FrontendParameter) extends Bundle {
     org.chipsalliance.amba.axi4.bundle.AXI4ROIrrevocable(parameter.instructionFetchParameter)
   val itimAXI:             Option[AXI4RWIrrevocable] =
     parameter.itimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
+  val om:                  Property[ClassType]       = Output(Property[AnyClassType]())
 }
 
+@instantiable
+class FrontendOM extends Class {
+  @public
+  val icache   = IO(Output(Property[AnyClassType]()))
+  @public
+  val icacheIn = IO(Input(Property[AnyClassType]()))
+  icache := icacheIn
+}
 @instantiable
 class Frontend(val parameter: FrontendParameter)
     extends FixedIORawModule(new FrontendInterface(parameter))
@@ -238,8 +248,10 @@ class Frontend(val parameter: FrontendParameter)
     with Public
     with ImplicitClock
     with ImplicitReset {
-  override protected def implicitClock: Clock = io.clock
-  override protected def implicitReset: Reset = io.reset
+  override protected def implicitClock: Clock                = io.clock
+  override protected def implicitReset: Reset                = io.reset
+  val omInstance:                       Instance[FrontendOM] = Instantiate(new FrontendOM)
+  io.om := omInstance.getPropertyReference.asAnyClassType
 
   def xLen              = parameter.xLen
   def fetchWidth        = parameter.fetchWidth
@@ -292,6 +304,8 @@ class Frontend(val parameter: FrontendParameter)
     else ClockGate(clock, clock_en)
 
   val icache = Instantiate(new ICache(parameter.icacheParameter))
+  omInstance.icacheIn := Property(icache.io.om.asAnyClassType)
+
   icache.io.clock                    := gated_clock
   icache.io.reset                    := io.reset
   icache.io.clock_enabled            := clock_en
