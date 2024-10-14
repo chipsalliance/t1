@@ -54,6 +54,7 @@ lib.mapAttrs
 
         omGet = args: lib.toLower (lib.fileContents (runCommand "get-${args}" { } ''
           ${t1Scope.omreader-unwrapped}/bin/omreader \
+            ${lib.replaceStrings ["elaborator"] ["omreader"] generator.fullClassName} \
             ${args} \
             --mlirbc-file ${mostInnerScope.lowered-mlirbc}/${mostInnerScope.lowered-mlirbc.name} \
             > $out
