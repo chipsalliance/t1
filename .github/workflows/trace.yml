@@ -16,9 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  gen-test-plan:
+  gen-test-plan-for-t1emu:
     if: '! github.event.pull_request.draft'
-    name: "Generate test plan"
+    name: "[T1EMU] Generate test plan"
     runs-on: [self-hosted, linux, nixos]
     outputs:
       testplan: ${{ steps.get-all-configs.outputs.out }}
@@ -27,20 +27,47 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - id: "get-all-configs"
-        run: echo "out=$(nix run .#ci-helper generateTestPlan)" > $GITHUB_OUTPUT
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top t1emu)" > $GITHUB_OUTPUT
 
-  build-vcs-emulators:
-    name: "Build VCS trace emulators"
-    needs: [gen-test-plan]
+  build-t1emu-vcs-emulators:
+    name: "[T1EMU] Build VCS trace emulators"
+    needs: [gen-test-plan-for-t1emu]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
+      matrix: ${{ fromJSON(needs.gen-test-plan-for-t1emu.outputs.testplan) }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: "Build vcs emulator"
+      - name: "Build T1Emu vcs emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.t1emu.vcs-emu-trace' --impure --no-link --cores 64
+
+  gen-test-plan-for-t1rocketemu:
+    if: '! github.event.pull_request.draft'
+    name: "[T1ROCKETEMU] Generate test plan"
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      testplan: ${{ steps.get-all-configs.outputs.out }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: "get-all-configs"
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top t1rocketemu)" > $GITHUB_OUTPUT
+
+  build-t1rocketemu-vcs-emulators:
+    name: "[T1EMU] Build VCS trace emulators"
+    needs: [gen-test-plan-for-t1rocketemu]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan-for-t1rocketemu.outputs.testplan) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build T1RocketEmu vcs emulator"
+        run: |
           nix build '.#t1.${{ matrix.config }}.t1rocketemu.vcs-emu-trace' --impure --no-link --cores 64

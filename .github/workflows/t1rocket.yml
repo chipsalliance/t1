@@ -1,4 +1,4 @@
-name: T1 Rocket VCS Emulator Test
+name: T1RocketEmu VCS Test
 on:
   pull_request:
     types:
@@ -9,6 +9,7 @@ on:
       - labeled
 env:
   USER: runner
+  EMU_TOP: t1rocketemu
 
 # Cancel the current workflow when new commit pushed
 concurrency:
@@ -27,10 +28,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - id: "get-all-configs"
-        run: echo "out=$(nix run .#ci-helper -- generateTestPlan)" > $GITHUB_OUTPUT
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
 
   build-emulators:
-    name: "Build VCS Emulators w/ Rocket"
+    name: "Build VCS Emulators"
     needs: [gen-test-plan]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
@@ -42,10 +43,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build vcs emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.t1rocketemu.vcs-emu' --impure --no-link
+          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.vcs-emu' --impure --no-link
       - name: "Build all testcases"
         run: |
-          nix build ".#t1.${{ matrix.config }}.t1rocketemu.cases._all" --max-jobs auto --no-link --cores 64
+          nix build ".#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.cases._all" --max-jobs auto --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
@@ -66,10 +67,10 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix run ".#ci-helper" -- generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
-    name: "Run VCS w/ Rocket"
+    name: "Run VCS"
     needs: [gen-matrix]
     strategy:
       fail-fast: false
@@ -81,10 +82,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Run testcases"
         run: |
-          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --testType "vcs" --testIp "t1rocketemu"
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --emuLib "vcs" --top ${{ env.EMU_TOP }}
 
   report:
-    name: "Report VCS (w/ Rocket) CI result"
+    name: "Report VCS CI result"
     # Don't run report when:
     #   - user cancel ( we don't need report at this case )
     #   - PR from outside repository ( we don't have permission to push commit into fork repository )
@@ -101,23 +102,26 @@ jobs:
       - name: "Print step summary"
         run: |
           nix run ".#ci-helper" -- postCI \
-            --case-dir t1rocket-cases \
-            --failed-tests-file-path ./failed-tests.md \
+            --urg-report-file-path ./urg-report.md \
             --cycle-update-file-path ./cycle-update.md \
-            --emu-type vcs
-          cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
+            --failed-tests-file-path ./failed-tests.md \
+            --emu-lib "vcs" \
+            --top ${{ env.EMU_TOP }}
+          cat ./urg-report.md >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
       - name: "Commit cycle updates"
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          changed_cases=$(git diff --name-only '.github/**/default.json')
+          changed_cases=$(git diff --name-only '.github/designs/**/*.json')
 
           if [ -n "$changed_cases" ]; then
             echo "changed cases: $changed_cases"
             git add '.github/**/default.json'
-            git commit -m "[ci] update t1rocket test case cycle data"
+            git commit -m "[ci] update t1 test case cycle data"
             git push origin ${{ github.head_ref }}
           else
             echo "No cycle change detect"
