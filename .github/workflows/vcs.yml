@@ -1,4 +1,4 @@
-name: T1 VCS Emulator Test
+name: T1Emu VCS Test
 on:
   pull_request:
     types:
@@ -9,6 +9,7 @@ on:
       - labeled
 env:
   USER: runner
+  EMU_TOP: t1emu
 
 # Cancel the current workflow when new commit pushed
 concurrency:
@@ -27,7 +28,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - id: "get-all-configs"
-        run: echo "out=$(nix run .#ci-helper generateTestPlan)" > $GITHUB_OUTPUT
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
 
   build-emulators:
     name: "Build VCS Emulators"
@@ -42,10 +43,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build vcs emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.t1emu.vcs-emu' --impure --no-link
+          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.vcs-emu' --impure --no-link
       - name: "Build all testcases"
         run: |
-          nix build ".#t1.${{ matrix.config }}.t1emu.cases._all" --max-jobs auto --no-link --cores 64
+          nix build ".#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.cases._all" --max-jobs auto --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
@@ -66,7 +67,7 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix run ".#ci-helper" -- generateCiMatrix --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
     name: "Run VCS"
@@ -81,7 +82,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Run testcases"
         run: |
-          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --testType "vcs" --testIp "t1emu"
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --emuLib "vcs" --top ${{ env.EMU_TOP }}
 
   report:
     name: "Report VCS CI result"
@@ -104,7 +105,8 @@ jobs:
             --urg-report-file-path ./urg-report.md \
             --cycle-update-file-path ./cycle-update.md \
             --failed-tests-file-path ./failed-tests.md \
-            --emu-type vcs
+            --emu-lib "vcs" \
+            --top ${{ env.EMU_TOP }}
           cat ./urg-report.md >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
@@ -114,7 +116,7 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          changed_cases=$(git diff --name-only '.github/**/default.json')
+          changed_cases=$(git diff --name-only '.github/designs/**/*.json')
 
           if [ -n "$changed_cases" ]; then
             echo "changed cases: $changed_cases"
