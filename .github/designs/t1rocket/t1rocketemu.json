@@ -502,6 +502,8 @@
   "codegen.vfredusum_vs": 142775,
   "codegen.vfredmax_vs": 142775,
   "codegen.vfredmin_vs": 142775,
+  "codegen.vmfle_vf": 0,
+  "codegen.vmfle_vv": 0,
   "rvv_bench.ascii_to_utf16": 702249,
   "rvv_bench.ascii_to_utf32": 232728,
   "rvv_bench.byteswap": 489291,
