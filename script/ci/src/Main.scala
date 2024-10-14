@@ -227,6 +227,10 @@ object Main:
     @arg(
       name = "top",
       doc = "Specify emulator ip top, Eg. t1rocketemu/t1emu..."
+    ) top:                 String,
+    @arg(
+      name = "top",
+      doc = "Specify emulator ip top, Eg. t1rocketemu/t1emu..."
     ) top:                 String
   ) =
     val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
