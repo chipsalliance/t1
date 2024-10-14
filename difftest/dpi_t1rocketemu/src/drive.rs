@@ -1,3 +1,4 @@
+use crate::bus::ShadowBus;
 use crate::dpi::*;
 use crate::OnlineArgs;
 use crate::{get_t, EXIT_CODE, EXIT_POS};
@@ -14,87 +15,6 @@ use std::collections::HashMap;
 use std::os::unix::fs::FileExt;
 use std::{fs, path::Path};
 use tracing::{debug, error, info, trace};
-
-struct ShadowMem {
-  mem: Vec<u8>,
-}
-
-const MEM_SIZE: usize = 1 << 32;
-
-impl ShadowMem {
-  pub fn new() -> Self {
-    Self { mem: vec![0; MEM_SIZE] }
-  }
-
-  pub fn read_mem(&self, addr: u32, size: u32) -> &[u8] {
-    let start = addr as usize;
-    let end = (addr + size) as usize;
-    &self.mem[start..end]
-  }
-
-  // size: 1 << arsize
-  // bus_size: AXI bus width in bytes
-  // return: Vec<u8> with len=bus_size
-  // if size < bus_size, the result is padded due to AXI narrow transfer rules
-  pub fn read_mem_axi(&self, addr: u32, size: u32, bus_size: u32) -> Vec<u8> {
-    assert!(
-      addr % size == 0 && bus_size % size == 0,
-      "unaligned access addr={addr:#x} size={size}B dlen={bus_size}B"
-    );
-
-    let data = self.read_mem(addr, size);
-    if size < bus_size {
-      // narrow
-      let mut data_padded = vec![0; bus_size as usize];
-      let start = (addr % bus_size) as usize;
-      let end = start + data.len();
-      data_padded[start..end].copy_from_slice(data);
-
-      data_padded
-    } else {
-      // normal
-      data.to_vec()
-    }
-  }
-
-  // size: 1 << awsize
-  // bus_size: AXI bus width in bytes
-  // masks: write strokes, len=bus_size
-  // data: write data, len=bus_size
-  pub fn write_mem_axi(
-    &mut self,
-    addr: u32,
-    size: u32,
-    bus_size: u32,
-    masks: &[bool],
-    data: &[u8],
-  ) {
-    assert!(
-      addr % size == 0 && bus_size % size == 0,
-      "unaligned write access addr={addr:#x} size={size}B dlen={bus_size}B"
-    );
-
-    // handle strb=0 AXI payload
-    if !masks.iter().any(|&x| x) {
-      trace!("Mask 0 write detect");
-      return;
-    }
-
-    // TODO: we do not check strobe is compatible with (addr, awsize)
-    let addr_align = addr & ((!bus_size) + 1);
-
-    let bus_size = bus_size as usize;
-    // should not check this, in scalar narrow write, bus_size is not equal to data.len()
-    // assert_eq!(bus_size, masks.len());
-    // assert_eq!(bus_size, data.len());
-
-    for i in 0..bus_size {
-      if masks[i] {
-        self.mem[addr_align as usize + i] = data[i];
-      }
-    }
-  }
-}
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -118,7 +38,7 @@ pub(crate) struct Driver {
   timeout: u64,
   last_commit_cycle: u64,
 
-  shadow_mem: ShadowMem,
+  shadow_bus: ShadowBus,
 
   pub(crate) quit: bool,
   pub(crate) success: bool,
@@ -127,7 +47,7 @@ pub(crate) struct Driver {
 impl Driver {
   pub(crate) fn new(scope: SvScope, dump_control: DumpControl, args: &OnlineArgs) -> Self {
     // pass e_entry to rocket
-    let (e_entry, shadow_mem, _fn_sym_tab) =
+    let (e_entry, shadow_bus, _fn_sym_tab) =
       Self::load_elf(&args.elf_file).expect("fail creating simulator");
 
     Self {
@@ -140,14 +60,14 @@ impl Driver {
       timeout: args.timeout,
       last_commit_cycle: 0,
 
-      shadow_mem,
+      shadow_bus,
 
       quit: false,
       success: false,
     }
   }
 
-  pub fn load_elf(path: &Path) -> anyhow::Result<(u64, ShadowMem, FunctionSymTab)> {
+  pub fn load_elf(path: &Path) -> anyhow::Result<(u64, ShadowBus, FunctionSymTab)> {
     let file = fs::File::open(path).with_context(|| "reading ELF file")?;
     let mut elf: ElfStream<LittleEndian, _> =
       ElfStream::open_stream(&file).with_context(|| "parsing ELF file")?;
@@ -165,7 +85,8 @@ impl Driver {
     }
 
     debug!("ELF entry: 0x{:x}", elf.ehdr.e_entry);
-    let mut mem = ShadowMem::new();
+    let mut mem = ShadowBus::new();
+    let mut load_buffer = Vec::new();
     elf.segments().iter().filter(|phdr| phdr.p_type == PT_LOAD).for_each(|phdr| {
       let vaddr: usize = phdr.p_vaddr.try_into().expect("fail converting vaddr(u64) to usize");
       let filesz: usize = phdr.p_filesz.try_into().expect("fail converting p_filesz(u64) to usize");
@@ -178,13 +99,14 @@ impl Driver {
 
       // Load file start from offset into given mem slice
       // The `offset` of the read_at method is relative to the start of the file and thus independent from the current cursor.
-      let mem_slice = &mut mem.mem[vaddr..vaddr + filesz];
-      file.read_at(mem_slice, phdr.p_offset).unwrap_or_else(|err| {
+      load_buffer.resize(filesz, 0u8);
+      file.read_at(load_buffer.as_mut_slice(), phdr.p_offset).unwrap_or_else(|err| {
         panic!(
           "fail reading ELF into mem with vaddr={}, filesz={}, offset={}. Error detail: {}",
           vaddr, filesz, phdr.p_offset, err
         )
       });
+      mem.load_mem_seg(vaddr, load_buffer.as_mut_slice());
     });
 
     // FIXME: now the symbol table doesn't contain any function value
@@ -214,7 +136,7 @@ impl Driver {
 
   pub(crate) fn axi_read_high_bandwidth(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
-    let data = self.shadow_mem.read_mem_axi(addr, size, self.dlen / 8);
+    let data = self.shadow_bus.read_mem_axi(addr, size, self.dlen / 8);
     let data_hex = hex::encode(&data);
     self.last_commit_cycle = get_t();
     trace!(
@@ -232,7 +154,7 @@ impl Driver {
     data: &[u8],
   ) {
     let size = 1 << awsize;
-    self.shadow_mem.write_mem_axi(addr, size, self.dlen / 8, &strobe, data);
+    self.shadow_bus.write_mem_axi(addr, size, self.dlen / 8, &strobe, data);
     let data_hex = hex::encode(data);
     self.last_commit_cycle = get_t();
     trace!(
@@ -244,7 +166,7 @@ impl Driver {
   pub(crate) fn axi_read_high_outstanding(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
     assert!(size <= 4);
-    let data = self.shadow_mem.read_mem_axi(addr, size, 4);
+    let data = self.shadow_bus.read_mem_axi(addr, size, 4);
     let data_hex = hex::encode(&data);
     self.last_commit_cycle = get_t();
     trace!(
@@ -262,7 +184,7 @@ impl Driver {
     data: &[u8],
   ) {
     let size = 1 << awsize;
-    self.shadow_mem.write_mem_axi(addr, size, 4, strobe, data);
+    self.shadow_bus.write_mem_axi(addr, size, 4, strobe, data);
     let data_hex = hex::encode(data);
     self.last_commit_cycle = get_t();
     trace!(
@@ -274,7 +196,7 @@ impl Driver {
   pub(crate) fn axi_read_load_store(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
     let bus_size = if size == 32 { 32 } else { 4 };
-    let data = self.shadow_mem.read_mem_axi(addr, size, bus_size);
+    let data = self.shadow_bus.read_mem_axi(addr, size, bus_size);
     let data_hex = hex::encode(&data);
     self.last_commit_cycle = get_t();
     trace!(
@@ -293,7 +215,7 @@ impl Driver {
   ) {
     let size = 1 << awsize;
     let bus_size = if size == 32 { 32 } else { 4 };
-    self.shadow_mem.write_mem_axi(addr, size, bus_size, strobe, data);
+    self.shadow_bus.write_mem_axi(addr, size, bus_size, strobe, data);
     let data_hex = hex::encode(data);
     self.last_commit_cycle = get_t();
 
@@ -315,7 +237,7 @@ impl Driver {
 
   pub(crate) fn axi_read_instruction_fetch(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
-    let data = self.shadow_mem.read_mem_axi(addr, size, 32);
+    let data = self.shadow_bus.read_mem_axi(addr, size, 32);
     let data_hex = hex::encode(&data);
     trace!(
       "[{}] axi_read_instruction_fetch (addr={addr:#x}, size={size}, data={data_hex})",
