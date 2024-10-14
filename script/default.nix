@@ -51,6 +51,8 @@ let
           '';
         });
 
+        passthru.debug = self.overrideAttrs { enableNativeExe = false; };
+
         nativeBuildInputs = [
           mill
           graalvm-ce
@@ -59,16 +61,24 @@ let
           passthru.millDeps.setupHook
         ];
 
+        enableNativeExe = true;
+
         buildPhase = ''
           runHook preBuild
 
-          echo "Checking format"
-          mill -i ${moduleName}.checkFormat
+          # Not debug build, check source format
+          if (( $enableNativeExe )); then
+            echo "Checking format"
+            mill -i ${moduleName}.checkFormat
+          fi
 
           echo "Building JAR"
           mill -i ${moduleName}.assembly
-          echo "Running native-image"
-          native-image --no-fallback -jar out/${moduleName}/assembly.dest/out.jar "$name.elf"
+
+          if (( $enableNativeExe )); then
+            echo "Running native-image"
+            native-image --no-fallback -jar out/${moduleName}/assembly.dest/out.jar "$name.elf"
+          fi
 
           runHook postBuild
         '';
@@ -77,7 +87,15 @@ let
           runHook preInstall
 
           mkdir -p "$out"/bin
-          cp "$name.elf" "$out"/bin/"${outName}"
+
+          if (( $enableNativeExe )); then
+            cp "$name.elf" "$out"/bin/"${outName}"
+          else
+            mkdir -p $out/share/java
+            mv out/${moduleName}/assembly.dest/out.jar $out/share/java/${moduleName}.jar
+            makeWrapper ${mill.jre}/bin/java $out/bin/${outName} \
+              --add-flags "-jar $out/share/java/${moduleName}.jar"
+          fi
 
           runHook postInstall
         '';
