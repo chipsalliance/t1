@@ -126,10 +126,11 @@ object Main:
   def generateCiMatrix(
     runnersAmount: Int,
     caseDir:       String = "designs",
-    testPlanFile:  String = "default.json"
+    top:           String
   ) = {
     val testPlans =
-      os.walk(os.pwd / ".github" / caseDir).filter(_.last == testPlanFile)
+      os.walk(os.pwd / ".github" / caseDir)
+        .filter(_.last == s"${top}.json")
     println(toMatrixJson(scheduleTasks(testPlans, runnersAmount)))
   }
 
@@ -144,9 +145,9 @@ object Main:
   // @param: dontBail don't throw exception when test fail. Useful for postpr.
   @main
   def runTests(
-    jobs:     String,
-    testIp:   String,
-    testType: String
+    jobs:   String,
+    top:    String,
+    emuLib: String
   ): Unit =
     if jobs == "" then
       Logger.info("No test found, exiting")
@@ -161,17 +162,17 @@ object Main:
         s"${BOLD}[${index + 1}/${allJobs.length}]${RESET} Simulating test case $caseName with config $config"
       )
 
-      val testAttr       = testType.toLowerCase() match
+      val testAttr       = emuLib.toLowerCase() match
         case "verilator" =>
-          s".#t1.$config.$testIp.run.$caseName.verilator-emu"
-        case "vcs"       => s".#t1.$config.$testIp.run.$caseName.vcs-emu"
-        case _           => Logger.fatal(s"Invalid test type ${testType}")
+          s".#t1.$config.$top.run.$caseName.verilator-emu"
+        case "vcs"       => s".#t1.$config.$top.run.$caseName.vcs-emu"
+        case _           => Logger.fatal(s"Invalid test type ${emuLib}")
       val testResultPath =
         try
           os.Path(
             nixResolvePath(
               testAttr,
-              if testType == "vcs" then Seq("--impure") else Seq()
+              if emuLib == "vcs" then Seq("--impure") else Seq()
             )
           )
         catch
@@ -179,7 +180,7 @@ object Main:
             Logger.error(
               s"Online driver for config $config, case $caseName fail, please check manually on local machine"
             )
-            Logger.error(s"nix build $testAttr" ++ (if testType == "vcs" then " --impure" else ""))
+            Logger.error(s"nix build $testAttr" ++ (if emuLib == "vcs" then " --impure" else ""))
             Logger.fatal("Online Drive run fail, exiting CI")
 
       Logger.info("Checking RTL event from event log")
@@ -220,13 +221,13 @@ object Main:
       doc = "specify the urg report markdown file output path"
     ) urgReportFilePath:   Option[String],
     @arg(
-      name = "emu-type",
-      doc = "Specify emulation type"
-    ) emuType:             String = "verilator",
+      name = "emu-lib",
+      doc = "Specify emulator library type, verilator or vcs"
+    ) emuLib:              String = "vcs",
     @arg(
-      name = "case-dir",
-      doc = "Specify case directory"
-    ) caseDir:             String = "cases"
+      name = "top",
+      doc = "Specify emulator ip top, Eg. t1rocketemu/t1emu..."
+    ) top:                 String
   ) =
     val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
     os.write.over(failedTestsFile, "## Failed Tests\n")
@@ -238,8 +239,8 @@ object Main:
 
     if urgReportFilePath.nonEmpty then os.write(os.Path(urgReportFilePath.get, os.pwd), "# Coverage report\n")
 
-    os.walk(os.pwd / ".github" / caseDir)
-      .filter(_.last == "default.json")
+    os.walk(os.pwd / ".github" / "designs")
+      .filter(_.last == s"${top}.json")
       .foreach: file =>
         val config      = file.segments.toSeq.reverse.apply(1)
         var cycleRecord = ujson.read(os.read(file))
@@ -247,8 +248,8 @@ object Main:
         Logger.info("Fetching CI results")
         val emuResultPath = os.Path(
           nixResolvePath(
-            s".#t1.$config.ip.run._${emuType}EmuResult",
-            if emuType.toLowerCase() == "vcs" then Seq("--impure")
+            s".#t1.$config.${top}.run._${emuLib}EmuResult",
+            if emuLib.toLowerCase() == "vcs" then Seq("--impure")
             else Seq()
           )
         )
@@ -261,7 +262,7 @@ object Main:
             val caseName = path.segments.toSeq.reverse.drop(1).head
             os.write.append(
               failedTestsFile,
-              s"* ${config} - ${caseName}: `nix build .#t1.$config.ip.$caseName.$emuType-emu -L --impure`\n"
+              s"* ${config} - ${caseName}: `nix build .#t1.$config.${top}.$caseName.$emuLib-emu -L --impure`\n"
             )
           })
 
@@ -309,10 +310,10 @@ object Main:
   end postCI
 
   @main
-  def generateTestPlan() =
+  def generateTestPlan(top: String) =
     val testPlans = os
       .walk(os.pwd / ".github" / "designs")
-      .filter(_.last == "default.json")
+      .filter(_.last == s"${top}.json")
       .map(path => path.segments.toSeq.reverse.drop(1).head)
 
     println(ujson.write(Map("config" -> testPlans)))
@@ -340,8 +341,6 @@ object Main:
         .filter: path =>
           path.last == "default.json"
         .map: path =>
-          // We have a list of pwd/.github/cases/<config>/default.json string,
-          // but all we need is the <config> name.
           path.segments.toSeq.reverse.drop(1).head
 
     import scala.util.chaining._
