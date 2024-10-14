@@ -1,8 +1,4 @@
+[rookidee]
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --vrfBankSize 2 --vrfRamType p0rp1w --vfuInstantiateParameter small"
 [blastoise]
-cmdopt = "--dLen 256 --extensions zvl512b --extensions zve32f --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter small"
-[machamp]
-cmdopt = "--dLen 512 --extensions zvl1024b --extensions zve32x --vrfBankSize 2 --vrfRamType p0rp1w --vfuInstantiateParameter small"
-[psyduck]
-cmdopt = "--dLen 256 --extensions zvl512b --extensions zve32f --extensions zvbb --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter small"
-[sandslash]
-cmdopt = "--dLen 1024 --extensions zvl4096b --extensions zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 256 --extensions zvl512b --extensions zve32f --vrfBankSize 2 --vrfRamType p0rp1w --vfuInstantiateParameter small"
