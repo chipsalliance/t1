@@ -57,6 +57,7 @@ void _exit(int code) {
   __asm__("li x1, 0x40000000");
   __asm__("li x2, 0xdeadbeef");
   __asm__("sw x2, 0(x1)");
+  __asm__("j .");
   __builtin_unreachable();
 }
 
