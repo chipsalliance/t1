@@ -37,6 +37,10 @@ vfnmsub.vf
 vfnmsub.vv
 vfrdiv.vf
 vfrec7.v
+vfredmax.vs
+vfredmin.vs
+vfredosum.vs
+vfredusum.vs
 vfrsqrt7.v
 vfrsub.vf
 vfsgnj.vf
@@ -45,6 +49,8 @@ vfsgnjn.vf
 vfsgnjn.vv
 vfsgnjx.vf
 vfsgnjx.vv
+vfslide1down.vf
+vfslide1up.vf
 vfsqrt.v
 vfsub.vf
 vfsub.vv
@@ -52,11 +58,9 @@ vmfeq.vf
 vmfeq.vv
 vmfge.vf
 vmfgt.vf
+vmfle.vf
+vmfle.vv
 vmflt.vf
 vmflt.vv
 vmfne.vf
 vmfne.vv
-vfredosum.vs
-vfredusum.vs
-vfredmax.vs
-vfredmin.vs
