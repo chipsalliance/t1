@@ -118,7 +118,7 @@
 #define RVTEST_FP_VECTOR_ENABLE                                                \
   li a0, (MSTATUS_VS & (MSTATUS_VS >> 1)) | (MSTATUS_FS & (MSTATUS_FS >> 1));  \
   csrs mstatus, a0;                                                            \
-  csrwi fcsr, 0;
+  csrwi fcsr, 0;                                                               \
   csrwi vcsr, 0;
 
 #define RVTEST_VECTOR_ENABLE                                                   \
@@ -159,7 +159,8 @@
 #define RVTEST_CODE_END                                                        \
   li x1, 0x40000000;                                                           \
   li x2, 0xdeadbeef;                                                           \
-  sw x2, 0(x1);
+  sw x2, 0(x1);                                                                \
+  j .;
 
 //-----------------------------------------------------------------------
 // Pass/Fail Macro

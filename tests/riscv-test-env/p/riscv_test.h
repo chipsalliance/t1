@@ -242,7 +242,8 @@ reset_vector:                                                           \
 #define RVTEST_CODE_END                                                 \
         li x1, EXIT_POS;                                                \
         li x2, EXIT_CODE;                                               \
-        sw x2, 0(x1);
+        sw x2, 0(x1);                                                   \
+        j .;
 
 //-----------------------------------------------------------------------
 // Pass/Fail Macro
