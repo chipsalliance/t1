@@ -7,6 +7,7 @@
 , vcs-emu-trace
 , cases
 , configName
+, topName
 }:
 let
   runVerilatorEmu = callPackage ./run-verilator-emu.nix { };
@@ -41,7 +42,7 @@ let
   _getAllResult = emuType:
     let
       testPlan = builtins.fromJSON
-        (lib.readFile ../../../.github/${configName}/default.json);
+        (lib.readFile ../../../.github/designs/${configName}/${topName}.json);
       # flattern the attr set to a list of test case derivations
       # AttrSet (AttrSet Derivation) -> List Derivation
       allCasesResult = lib.pipe emuAttrs [
