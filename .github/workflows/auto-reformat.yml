@@ -1,0 +1,50 @@
+name: reformat
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  run:
+    name: "Reformat all codes"
+    # Don't run reformat when:
+    #   - user cancel
+    #   - PR from outside repository ( we don't have permission to push commit into fork repository )
+    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: [self-hosted, linux, nixos]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+      - name: "Reformat all T1 module codes"
+        run: nix develop ".#t1.elaborator.editable" -c mill -i _.reformat
+      - name: "Reformat all Rust codes"
+        run: |
+          cd difftest
+          nix shell ".#cargo" ".#rustfmt" -c cargo fmt
+      - name: "Commit formats"
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          changed_cases=$(git diff --name-only)
+
+          if [ -n "$changed_cases" ]; then
+            echo -e "Reformat codes: $changed_cases"
+            git add .
+            git commit -m "[chore] reformat all T1 modules"
+            git push origin ${{ github.head_ref }}
+          else
+            echo "No format error detected"
+          fi

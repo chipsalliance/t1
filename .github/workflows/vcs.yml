@@ -1,12 +1,10 @@
 name: T1Emu VCS Test
 on:
-  pull_request:
+  workflow_run:
+    workflows: [reformat]
     types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
+      - completed
+
 env:
   USER: runner
   EMU_TOP: t1emu

@@ -1,6 +1,5 @@
 { lib
 , rustPlatform
-, rustfmt
 , libspike
 , libspike_interfaces
 , rtlDesignMetadata
@@ -35,17 +34,6 @@ rustPlatform.buildRustPackage {
       ./.rustfmt.toml
     ];
   };
-
-  nativeBuildInputs = [
-    rustfmt
-  ];
-
-  postConfigure = ''
-    if ! cargo fmt --check; then
-      echo "Please run 'cd difftest && cargo fmt' before building emulator!" >&2
-      exit 1
-    fi
-  '';
 
   buildFeatures = [ ] ++ lib.optionals (lib.hasPrefix "dpi" moduleType) [ "dpi_common/${emuType}" ] ++ lib.optionals enableTrace [ "dpi_common/trace" ];
   buildAndTestSubdir = "./${moduleType}";
