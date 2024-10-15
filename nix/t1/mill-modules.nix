@@ -80,6 +80,18 @@ let
       CIRCT_INSTALL_PATH = circt-full;
       JEXTRACT_INSTALL_PATH = jextract-21;
       JAVA_TOOL_OPTIONS = "--enable-preview";
+      formatHook = ''
+        targets=( $(mill -i resolve _.reformat) )
+        localTargets=()
+        for t in ''${targets[@]}; do
+          if ! mill -i show "''${t//reformat/sources}" | grep -q dependencies; then
+            localTargets+=($t)
+          fi
+        done
+        for t in ''${localTargets[@]}; do
+          mill -i "$t"
+        done
+      '';
     };
 
     outputs = [ "out" "omreader" "elaborator" "t1package" ];
