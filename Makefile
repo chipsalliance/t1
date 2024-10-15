@@ -44,14 +44,6 @@ reformat:
 checkformat:
 	mill -i __.checkFormat
 
-.PHONY: list-testcases
-list-testcases:
-	nix search '.#t1.blastoise.cases' cases --json | jq 'to_entries[].key|split(".")|.[-2:]|join(".")' -r
-
 .PHONY: list-configs
 list-configs:
-	nix run '.#t1.configgen' -- listConfigs
-
-.PHONY: update-configs
-update-configs:
-	nix run '.#t1.configgen' -- listConfigs
+	@nix eval ".#t1.allConfigs" --json | jq -r 'to_entries| map({key: .key, value: .value|keys|map(split(".")[4])}) | map( .key as $$key | reduce .value[] as $$item ([]; ["\($$key).\($$item)"]+. )) | flatten'

@@ -115,16 +115,20 @@ You can build its components with the following commands:
 ```shell
 $ nix build .#t1.elaborator  # the wrapped jar file of the Chisel elaborator
 
-$ nix build .#t1.<config-name>.ip.rtl  # the elaborated IP core .sv files
-$ nix build .#t1.<config-name>.ip.emu-rtl  # the elaborated IP core .sv files with emulation support
-$ nix build .#t1.<config-name>.ip.verilator-emu  # build the IP core emulator using verilator
-$ nix build .#t1.<config-name>.ip.vcs-emu --impure  # build the IP core emulator using VCS w/ VCS environment locally
-$ nix build .#t1.<config-name>.ip.vcs-emu-trace --impure  # build the IP core emulator using VCS w/ trace support
+# Build T1
+$ nix build .#t1.<config-name>.t1.rtl  # the elaborated IP core .sv files
 
-$ nix build .#t1.<config-name>.subsystem.rtl  # the elaborated soc .sv files
-$ nix build .#t1.<config-name>.subsystem.emu-rtl  # the elaborated soc .sv files with emulation support
-$ nix build .#t1.<config-name>.subsystem.emu  # build the soc emulator
-$ nix build .#t1.<config-name>.subsystem.emu-trace  # build the soc emulator with trace support
+# Build T1 Emu
+$ nix build .#t1.<config-name>.t1emu.rtl                    # the elaborated IP core .sv files
+$ nix build .#t1.<config-name>.t1emu.verilator-emu          # build the IP core emulator using verilator
+$ nix build .#t1.<config-name>.t1emu.vcs-emu --impure       # build the IP core emulator using VCS w/ VCS environment locally
+$ nix build .#t1.<config-name>.t1emu.vcs-emu-trace --impure # build the IP core emulator using VCS w/ trace support
+
+# Build T1 Rocket emulator
+$ nix build .#t1.<config-name>.t1rocketemu.rtl            # the elaborated T1 with Rocket core .sv files
+$ nix build .#t1.<config-name>.t1rocketemu.verilator-emu  # build the t1rocket emulator using verilator
+$ nix build .#t1.<config-name>.t1rocketemu.vcs-emu        # build the t1rocket emulator using VCS
+$ nix build .#t1.<config-name>.t1rocketemu.vcs-emu-trace  # build the t1rocket emulator using VCS with trace support
 ```
 
 where `<config-name>` should be replaced with a configuration name, e.g. `blastoise`. The build output will be put in `./result` directory by default.
@@ -137,41 +141,51 @@ Currently under tested configs:
 | **Machamp**   | `DLEN512 VLEN1K ; NOFP; VRF p0r,p1w   bank2; LSU bank8  beatbyte 16` |
 | **Sandslash** | `DLEN1K  VLEN4K ; NOFP; VRF p0rw      bank4; LSU bank16 beatbyte 16` |
 | **Alakazam**  | `DLEN2K  VLEN16K; NOFP; VRF p0rw      bank8; LSU bank8  beatbyte 64` |
+| **t1rocket**  | `Configs that specific to t1rocket`                                  |
 
 The `<config-name>` could also be `t1rocket`,
 this is special configuration name that enable rocket-chip support for scalar instruction.
 
+To see all possible combination of `<config-name>` and `<top-name>`, use:
+
+```bash
+make list-configs
+```
+
 #### Run Testcases
 
 To run testcase on IP emulator, use the following script:
+
 ```shell
-$ nix develop -c t1-helper run -c <config-name> -e <emulator-type> <case-name>
+$ nix develop -c t1-helper run -i <top-name> -c <config-name> -e <emulator-type> <case-name>
 ```
+
 wheres
-- `<config-name>` is the configuration name;
+- `<config-name>` is the configuration name
+- `<top-name>` is one of the `t1emu`, `t1rocketemu`
 - `<emulator-type>` is one of the `verilator-emu`, `verilator-emu-trace`, `vcs-emu`, `vcs-emu-trace`
-- `<case-name>` is the name of a testcase, you can resolve runnable test cases by command: `t1-helper listCases -c <config-name> <regexp>`;
+- `<case-name>` is the name of a testcase, you can resolve runnable test cases by command: `t1-helper listCases -c <config-name> <regexp>`
 
 For example:
 
 ```shell
-$ nix develop -c t1-helper run -c blastoise -e vcs-emu intrinsic.linear_normalization
+$ nix develop -c t1-helper run -i t1emu -c blastoise -e vcs-emu intrinsic.linear_normalization
 ```
 
 To get waveform, use the trace emulator
 
 ```console
-$ nix develop -c t1-helper run -c blastoise -e vcs-emu-trace intrinsic.linear_normalization
+$ nix develop -c t1-helper run -i t1emu -c blastoise -e vcs-emu-trace intrinsic.linear_normalization
 ```
 
-The `<config-name>` and `<emulator-type>` option will be cached under `$XDG_CONFIG_HOME`,
+The `<config-name>`, `<top-name>` and `<emulator-type>` option will be cached under `$XDG_CONFIG_HOME`,
 so if you want to test multiple test case with the same emulator,
-you don't need to add `-c` and `-e` option every time.
+you don't need to add `-c`, `-i` and `-e` option every time.
 
 For example:
 
 ```console
-$ nix develop -c t1-helper run -c blastoise -e vcs-emu-trace intrinsic.linear_normalization
+$ nix develop -c t1-helper run -i t1emu -c blastoise -e vcs-emu-trace intrinsic.linear_normalization
 $ nix develop -c t1-helper run pytorch.llama
 ```
 
@@ -185,7 +199,7 @@ The `t1-helper run` subcommand only run the driver without validating internal s
 To run design verification, use the `t1-helper check` subcommand:
 
 ```console
-$ nix develop -c t1-helper run -c blastoise -e vcs-emu mlir.hello
+$ nix develop -c t1-helper run -i t1emu -c blastoise -e vcs-emu mlir.hello
 $ nix develop -c t1-helper check
 ```
 
@@ -195,15 +209,15 @@ so make sure you `run` a test before `check`.
 #### Export RTL Properties
 
 ```shell
-$ nix run .#t1.<config-name>.ip.omreader <key> # export the contents of the specified key
-$ nix run .#t1.<config-name>.ip.emu-omreader <key> # export the contents of the specified key with emulation support
+$ nix run .#t1.<config-name>.<top-name>.omreader <key> # export the contents of the specified key
+$ nix run .#t1.<config-name>.<top-name>.emu-omreader <key> # export the contents of the specified key with emulation support
 ```
 
 To dump all available keys and preview their contents:
 
 ```shell
-$ nix run .#t1.<config-name>.ip.omreader -- run --dump-methods
-$ nix run .#t1.<config-name>.ip.emu-omreader -- run --dump-methods
+$ nix run .#t1.<config-name>.<top-name>.omreader -- run --dump-methods
+$ nix run .#t1.<config-name>.<top-name>.emu-omreader -- run --dump-methods
 ```
 
 <details>
@@ -245,11 +259,12 @@ $ nix develop .#t1.elaborator.editable  # or if you want submodules editable
 $ mill -i elaborator  # build and run elaborator
 ```
 
-#### Developing DPI
+#### Developing VCS DPI
+
 ```shell
-$ nix develop .#t1.<config-name>.ip.vcs-dpi-lib  # replace <config-name> with your configuration name
-$ cd t1emu/csrc
-$ cargo build --feature dpicommon/vcs
+$ nix develop .#t1.<config-name>.<top-name>.vcs-dpi-lib  # replace <config-name> with your configuration name
+$ cd difftest
+$ cargo build --feature vcs
 ```
 
 #### Developing Testcases
@@ -266,12 +281,12 @@ The `tests/` directory contains all the testcases.
 To view what is available to run, use the `t1-helper listCases` sub command:
 
 ```console
-$ t1-helper listCases -c <config-name> <regexp>
+$ nix develop -c t1-helper listCases -c <config-name> -i <top-name> <regexp>
 ```
 
 For example,
 ```console
-$ t1-helper listCases -c blastoise mlir
+$ t1-helper listCases -c blastoise -i t1emu mlir
 [INFO] Fetching current test cases
 
 * mlir.axpy_masked
@@ -284,7 +299,7 @@ $ t1-helper listCases -c blastoise mlir
 * mlir.stripmining
 * mlir.vectoradd
 
-$ t1-helper listCases -c blastoise '.*vslid.*'
+$ t1-helper listCases -c blastoise -i t1emu '.*vslid.*'
 [INFO] Fetching current test cases
 
 * codegen.vslide1down_vx
@@ -298,18 +313,18 @@ $ t1-helper listCases -c blastoise '.*vslid.*'
 To develop a specific testcases, enter the development shell:
 
 ```shell
-# nix develop .#t1.<config-name>.ip.cases.<type>.<name>
+# nix develop .#t1.<config-name>.<top-name>.cases.<type>.<name>
 #
 # For example:
 
-$ nix develop .#t1.blastoise.ip.cases.pytorch.llama
+$ nix develop .#t1.blastoise.t1emu.cases.pytorch.llama
 ```
 
 Build tests:
 
 ```shell
 # build a single test
-$ nix build .#t1.<config-name>.cases.ip.intrinsic.matmul -L
+$ nix build .#t1.<config-name>.<top-name>.cases.intrinsic.matmul -L
 $ ls -al ./result
 ```
 
