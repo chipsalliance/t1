@@ -38,11 +38,7 @@ clean:
 
 .PHONY: reformat
 reformat:
-	mill -i __.reformat
-
-.PHONY: checkformat
-checkformat:
-	mill -i __.checkFormat
+	nix develop ".#t1.elaborator" -c bash -c 'eval "$$formatHook"'
 
 .PHONY: list-configs
 list-configs:
