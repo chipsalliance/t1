@@ -21,7 +21,7 @@ let
         runHook preBuild
 
         $CC -T${linkerScript} \
-          ${caseName}.S \
+          *.{c,S} \
           ${t1main} \
           -o $pname.elf
 
