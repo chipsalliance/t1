@@ -13,5 +13,6 @@ _start:
     li x1, 0x40000000
     li x2, 0xdeadbeef
     sw x2, 0(x1)
+    j .
 
     .p2align 2
