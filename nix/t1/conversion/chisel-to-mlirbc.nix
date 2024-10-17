@@ -22,23 +22,30 @@ stdenvNoCC.mkDerivation {
 
   nativeBuildInputs = [ espresso circt ];
 
+  configGenPhase = ''
+    mkdir stage1 && pushd stage1
+
+    ${elaborator}/bin/elaborator ${generatorClassName} ${elaboratorArgs}
+
+    popd
+  '';
+
+  elaboratePhase = ''
+    mkdir stage2 && pushd stage2
+
+    echo "[nix] Elaborating with generated config"
+    ${elaborator}/bin/elaborator ${generatorClassName} design --parameter ../stage1/*.json
+  '';
+
   buildCommand = ''
     mkdir -p "$out"
 
-    mkdir stage1 && pushd stage1
+    echo "[nix] Generating config with cmd opt: $configGenPhase"
+    eval "$configGenPhase"
 
-    elaborateProc="${elaborator}/bin/elaborator ${generatorClassName} ${elaboratorArgs}"
-    echo "[nix] Generating config with cmd opt: $elaborateProc"
-    eval "$elaborateProc"
-    popd
+    echo "[nix] Elaborate mlirbc with cmd opt: $elaboratePhase"
+    eval "$elaboratePhase"
 
-    mkdir stage2 && pushd stage2
-    echo "[nix] Elaborating with generated config"
-    ${elaborator}/bin/elaborator ${generatorClassName} design --parameter ../stage1/*.json
-
-    # ---------------------------------------------------------------------------------
-    # Run circt toolchain
-    # ---------------------------------------------------------------------------------
     echo "[nix] elaborate finish, parsing output with firtool"
     firtool *.fir \
       --annotation-file *.json \

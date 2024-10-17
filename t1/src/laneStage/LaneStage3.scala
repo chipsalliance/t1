@@ -15,7 +15,7 @@ class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val data:             UInt         = UInt(parameter.datapathWidth.W)
   val pipeData:         UInt         = UInt(parameter.datapathWidth.W)
   val mask:             UInt         = UInt((parameter.datapathWidth / 8).W)
-  val ffoIndex:         UInt         = UInt(log2Ceil(parameter.vLen / 8).W)
+  val ffoIndex:         UInt         = UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W)
   val crossWriteData:   Vec[UInt]    = Vec(2, UInt(parameter.datapathWidth.W))
   val sSendResponse:    Bool         = Bool()
   val ffoSuccess:       Bool         = Bool()
