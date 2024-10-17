@@ -9,7 +9,7 @@ import org.chipsalliance.t1.rtl.vrf.RamType.{p0rp1w, p0rw, p0rwp1rw}
 import org.chipsalliance.t1.rtl.{T1Parameter, VFUInstantiateParameter}
 import org.chipsalliance.t1.t1emu.TestBench
 
-object Testbench extends SerializableModuleElaborator {
+object TestBench extends SerializableModuleElaborator {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
     def shortName = "path"
     def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
