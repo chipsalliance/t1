@@ -31,7 +31,7 @@ jobs:
         run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
 
   build-emulators:
-    name: "Build VCS Emulators"
+    name: "Build T1Rocket VCS Emulators"
     needs: [gen-test-plan]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
@@ -70,7 +70,7 @@ jobs:
           nix run ".#ci-helper" -- generateCiMatrix --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
-    name: "Run VCS"
+    name: "Run T1Rocket VCS"
     needs: [gen-matrix]
     strategy:
       fail-fast: false
@@ -85,7 +85,7 @@ jobs:
           nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --emuLib "vcs" --top ${{ env.EMU_TOP }}
 
   report:
-    name: "Report VCS CI result"
+    name: "Report T1Rocket VCS CI result"
     # Don't run report when:
     #   - user cancel ( we don't need report at this case )
     #   - PR from outside repository ( we don't have permission to push commit into fork repository )
