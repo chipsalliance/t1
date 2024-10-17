@@ -6,7 +6,7 @@ package org.chipsalliance.t1.omreader.t1rocketemu
 import mainargs._
 import org.chipsalliance.t1.omreaderlib.t1rocketemu.{TestBench => Lib}
 
-object Testbench {
+object TestBench {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
     def shortName = "path"
     def read(strs: Seq[String]): Either[String, os.Path] = Right(os.Path(strs.head, os.pwd))
