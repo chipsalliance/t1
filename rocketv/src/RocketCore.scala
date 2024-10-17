@@ -24,6 +24,7 @@ import chisel3.util.{
   RegEnable,
   Valid
 }
+import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import org.chipsalliance.rocketv.rvdecoderdbcompat.Causes
 import org.chipsalliance.rvdecoderdb.Instruction
 
@@ -372,7 +373,11 @@ class RocketInterface(parameter: RocketParameter) extends Bundle {
   val wfi         = Output(Bool())
   val traceStall  = Input(Bool())
   val rocketProbe = Output(Probe(new RocketProbe(parameter), layers.Verification))
+  val om: Property[ClassType] = Output(Property[AnyClassType]())
 }
+
+@instantiable
+class RocketOM extends Class {}
 
 /** The [[Rocket]] is the next version of the RocketCore, All micro architectures are from the original RocketCore. The
   * development of [[Rocket]] happens in the T1 project. It will be moved to the standalone pacakge until it get
@@ -404,6 +409,8 @@ class Rocket(val parameter: RocketParameter)
   val mul:                              Option[Instance[PipelinedMultiplier]] =
     parameter.mulParameter.map(p => Instantiate(new PipelinedMultiplier(p)))
   val t1RetireQueue:                    Option[Queue[T1RdRetire]]             = io.t1.map(t1 => Module(new Queue(chiselTypeOf(t1.retire.rd.bits), 32)))
+  val omInstance:                       Instance[RocketOM]                    = Instantiate(new RocketOM)
+  io.om := omInstance.getPropertyReference.asAnyClassType
 
   // compatibility mode.
   object rocketParams {

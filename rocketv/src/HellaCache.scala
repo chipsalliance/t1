@@ -5,8 +5,9 @@
 package org.chipsalliance.rocketv
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter, SourceInfo}
+import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.experimental.{BitSet, InlineInstance}
 import chisel3.util.{
   isPow2,
@@ -333,6 +334,16 @@ class HellaCacheInterface(parameter: HellaCacheParameter) extends Bundle {
     org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(parameter.loadStoreParameter)
   val dtimAXI:      Option[AXI4RWIrrevocable] =
     parameter.dtimParameter.map(p => Flipped(org.chipsalliance.amba.axi4.bundle.AXI4RWIrrevocable(p)))
+  val om:           Property[ClassType]       = Output(Property[AnyClassType]())
+}
+
+@instantiable
+class HellaCacheOM extends Class {
+  val srams = IO(Output(Property[Seq[AnyClassType]]()))
+
+  @public
+  val sramsIn = IO(Input(Property[Seq[AnyClassType]]()))
+  srams := sramsIn
 }
 
 @instantiable
@@ -350,6 +361,8 @@ class HellaCache(val parameter: HellaCacheParameter)
   val amoalus:                          Option[Seq[Instance[AMOALU]]] = parameter.amoaluParameter.map(amoaluParameter =>
     Seq.tabulate(parameter.coreDataBits / parameter.xLen)(i => Instantiate(new AMOALU(amoaluParameter)))
   )
+  val omInstance:                       Instance[HellaCacheOM]        = Instantiate(new HellaCacheOM)
+  io.om := omInstance.getPropertyReference.asAnyClassType
 
   tlb.io.clock := io.clock
   tlb.io.reset := io.reset
@@ -515,6 +528,7 @@ class HellaCache(val parameter: HellaCacheParameter)
         numReadwritePorts = 1
       )
     }
+    omInstance.sramsIn := Property((dataArrays ++ Some(tag_array)).map(_.description.get.asAnyClassType))
 
     /** Data Arbiter 0: data from pending store buffer 1: data from TL-D refill 2: release to TL-A 3: hit path to CPU
       */

@@ -153,11 +153,17 @@ let
       mv out/t1package/assembly.dest/out.jar $t1package/share/java/t1package.jar
       mv out/t1package/chiselPluginJar.dest/out.jar $t1package/share/java/chiselPluginJar.jar
 
-      mkdir -p $omreader/bin $elaborator/bin
+      mkdir -p $elaborator/bin
       makeWrapper ${jdk21}/bin/java $elaborator/bin/elaborator \
-        --add-flags "--enable-preview -Djava.library.path=${circt-full}/lib -cp $out/share/java/elaborator.jar"
+        --add-flags "--enable-preview -Djava.library.path=${circt-full}/lib" \
+        --add-flags "-cp $out/share/java/elaborator.jar"
+
+      mkdir -p $omreader/bin
       makeWrapper ${jdk21}/bin/java "$omreader"/bin/omreader \
-        --add-flags "--enable-preview --enable-native-access=ALL-UNNAMED -Djava.library.path=${circt-full}/lib -jar $out/share/java/omreader.jar"
+        --add-flags "--enable-preview" \
+        --add-flags "--enable-native-access=ALL-UNNAMED" \
+        --add-flags "-Djava.library.path=${circt-full}/lib" \
+        --add-flags "-cp $out/share/java/omreader.jar"
     '';
   };
 in

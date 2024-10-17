@@ -54,13 +54,14 @@ lib.mapAttrs
 
         omGet = args: lib.toLower (lib.fileContents (runCommand "get-${args}" { } ''
           ${t1Scope.omreader-unwrapped}/bin/omreader \
+            ${lib.replaceStrings ["elaborator"] ["omreader"] generator.fullClassName} \
             ${args} \
             --mlirbc-file ${innerMostScope.lowered-mlirbc}/${innerMostScope.lowered-mlirbc.name} \
             > $out
         ''));
         rtlDesignMetadata = with innerMostScope; rec {
           march = omGet "march";
-          extensions = builtins.fromJSON (omGet "extensionsJson");
+          extensions = lib.strings.split "_" (omGet "extensions");
           vlen = omGet "vlen";
           dlen = omGet "dlen";
           xlen = if (lib.hasPrefix "rv32" march) then 32 else 64;

@@ -5,13 +5,24 @@ package org.chipsalliance.t1.t1rocketemu
 
 import chisel3._
 import chisel3.experimental.dataview.DataViewable
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.hierarchy.Instance
 import chisel3.experimental.{ExtModule, SerializableModule, SerializableModuleGenerator}
+import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
 import chisel3.util.{HasExtModuleInline, PopCount, UIntToOH, Valid}
 import org.chipsalliance.amba.axi4.bundle._
 import org.chipsalliance.t1.t1rocketemu.dpi._
 import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
+
+@instantiable
+class TestBenchOM extends Class {
+  @public
+  val t1RocketTile   = IO(Output(Property[AnyClassType]()))
+  @public
+  val t1RocketTileIn = IO(Input(Property[AnyClassType]()))
+  t1RocketTile := t1RocketTileIn
+}
 
 class TestBench(val parameter: T1RocketTileParameter)
     extends RawModule
@@ -19,6 +30,13 @@ class TestBench(val parameter: T1RocketTileParameter)
     with ImplicitClock
     with ImplicitReset {
   layer.enable(layers.Verification)
+
+  val omInstance: Instance[TestBenchOM] = Instantiate(new TestBenchOM)
+  val omType:     ClassType             = omInstance.toDefinition.getClassType
+  @public
+  val om:         Property[ClassType]   = IO(Output(Property[omType.Type]()))
+  om := omInstance.getPropertyReference
+
   val clockGen               = Module(new ExtModule with HasExtModuleInline {
     override def desiredName = "ClockGen"
     setInline(
@@ -68,6 +86,7 @@ class TestBench(val parameter: T1RocketTileParameter)
   override def implicitClock = clockGen.clock.asClock
   override def implicitReset = clockGen.reset
   val dut: Instance[T1RocketTile] = SerializableModuleGenerator(classOf[T1RocketTile], parameter).instance()
+  omInstance.t1RocketTileIn := Property(dut.io.om.asAnyClassType)
 
   dut.io.clock := clock
   dut.io.reset := reset
