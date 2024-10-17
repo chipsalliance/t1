@@ -86,7 +86,7 @@ let
     cp -vr $emuOutput $out
     chmod -R u+w $out
 
-    ${vcs-emu.vcs-fhs-env}/bin/vcs-fhs-env -c "urg -dir $emuOutput/*/cm.vdb -format text"
+    ${vcs-emu.vcs-fhs-env}/bin/vcs-fhs-env -c "urg -dir $emuOutput/*/cm.vdb -format text -metric assert -show summary"
     cp -vr urgReport $out/
   '';
 in
