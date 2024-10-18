@@ -7,9 +7,32 @@
 // Begin Macro
 //-----------------------------------------------------------------------
 
+#define RVTEST_RV64U                                                    \
+  .macro init;                                                          \
+  .endm
+
+#define RVTEST_RV64UF                                                   \
+  .macro init;                                                          \
+  RVTEST_FP_ENABLE;                                                     \
+  .endm
+
 #define RVTEST_RV64UV                                                          \
   .macro init;                                                                 \
   RVTEST_VECTOR_ENABLE;                                                        \
+  .endm
+
+#define RVTEST_RV64UFV                                                  \
+  .macro init;                                                          \
+  RVTEST_FP_VECTOR_ENABLE;                                              \
+  .endm
+
+#define RVTEST_RV32U                                                    \
+  .macro init;                                                          \
+  .endm
+
+#define RVTEST_RV32UF                                                   \
+  .macro init;                                                          \
+  RVTEST_FP_ENABLE;                                                     \
   .endm
 
 #define RVTEST_RV32UV                                                          \
@@ -92,10 +115,15 @@
   csrs mstatus, a0;                                                            \
   csrwi fcsr, 0
 
+#define RVTEST_FP_VECTOR_ENABLE                                                \
+  li a0, (MSTATUS_VS & (MSTATUS_VS >> 1)) | (MSTATUS_FS & (MSTATUS_FS >> 1));  \
+  csrs mstatus, a0;                                                            \
+  csrwi fcsr, 0;
+  csrwi vcsr, 0;
+
 #define RVTEST_VECTOR_ENABLE                                                   \
   li a0, (MSTATUS_VS & (MSTATUS_VS >> 1)) | (MSTATUS_FS & (MSTATUS_FS >> 1));  \
   csrs mstatus, a0;                                                            \
-  csrwi fcsr, 0;                                                               \
   csrwi vcsr, 0;
 
 #define RISCV_MULTICORE_DISABLE                                                \
