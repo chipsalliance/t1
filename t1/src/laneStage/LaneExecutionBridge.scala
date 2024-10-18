@@ -40,7 +40,7 @@ class LaneExecuteRequest(parameter: LaneParameter, isLastSlot: Boolean) extends 
 
 class LaneExecuteResponse(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
   val data:           UInt              = UInt(parameter.datapathWidth.W)
-  val ffoIndex:       UInt              = UInt(log2Ceil(parameter.vLen / 8).W)
+  val ffoIndex:       UInt              = UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W)
   val crossWriteData: Option[Vec[UInt]] = Option.when(isLastSlot)(Vec(2, UInt(parameter.datapathWidth.W)))
   val ffoSuccess:     Option[Bool]      = Option.when(isLastSlot)(Bool())
   val fpReduceValid:  Option[Bool]      = Option.when(parameter.fpuEnable && isLastSlot)(Bool())

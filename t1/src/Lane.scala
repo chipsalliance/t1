@@ -1154,9 +1154,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       lastWriteOH
     )
   )
-  val shifterMask: UInt = (((selectMask ## Fill(32, true.B))
+  // 8 register
+  val paddingSize: Int  = elementSizeForOneRegister * 8
+  val shifterMask: UInt = (((selectMask ## Fill(paddingSize, true.B))
     << laneRequest.bits.vd(2, 0) ## 0.U(log2Ceil(elementSizeForOneRegister).W))
-    >> 32).asUInt
+    >> paddingSize).asUInt
 
   vrf.instructionWriteReport.bits.elementMask := shifterMask
 
