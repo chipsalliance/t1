@@ -13,8 +13,8 @@ buildGoModule {
   src = fetchFromGitHub {
     owner = "chipsalliance";
     repo = "riscv-vector-tests";
-    rev = "caae5c8fcf465be73266f9b3bd672f71a362548e";
-    hash = "sha256-388MKOO+g4PjR3BcxiA8vNY7itDcIhz88vZmMZkbsj8=";
+    rev = "6f24d9aab1e64a452e3493c85297e9bde805e30c";
+    hash = "sha256-5Ie5gZMOqxl8L8tuzpYdrqb/7F6o5UzOMGhn4xzPvQo=";
   };
   doCheck = false;
   vendorHash = "sha256-9cQlivpHg6IDYpmgBp34n6BR/I0FIYnmrXCuiGmAhNE=";
