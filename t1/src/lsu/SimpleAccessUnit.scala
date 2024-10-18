@@ -651,6 +651,8 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   /** no need mask, there still exist unsent masked requests, don't need to update mask. */
   val maskCheck: Bool = !isMaskedLoadStore || !noMoreMaskedUnsentMemoryRequests
 
+  val skipAllGroupOffset: Bool = isIndexedLoadStore && offsetValidCheck && alignCheck && !offsetGroupCheck
+
   /** no need index, when use a index, check it is valid or not. */
   val indexCheck: Bool = !isIndexedLoadStore || (offsetValidCheck && offsetGroupCheck && alignCheck)
 
@@ -682,11 +684,15 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   /** signal to request offset in the pipeline, only assert for one cycle. */
   val requestOffset: Bool = stateIsRequest && maskCheck && !indexCheck && fofCheck
 
-  /** latch [[requestOffset]] */
-  val requestOffsetNext: Bool = RegNext(requestOffset)
+  /** lock [[status.offsetGroupEnd]] */
+  val offsetRequestLock: Bool = RegInit(false.B)
+
+  when(status.offsetGroupEnd || offsetReadResult.head.valid) {
+    offsetRequestLock := status.offsetGroupEnd
+  }
 
   // ask Scheduler to change offset group
-  status.offsetGroupEnd := needRequestOffset && requestOffset && !requestOffsetNext
+  status.offsetGroupEnd := needRequestOffset && requestOffset && !offsetRequestLock
 
   val s0DequeueFire: Bool = Wire(Bool())
 

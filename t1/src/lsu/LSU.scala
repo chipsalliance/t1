@@ -283,7 +283,7 @@ class LSU(param: LSUParameter) extends Module {
       probeWire.slots(index).dataMask        := write.io.enq.bits.data.mask
       probeWire.slots(index).dataData        := write.io.enq.bits.data.data
       probeWire.slots(index).dataInstruction := write.io.enq.bits.data.instructionIndex
-      probeWire.slots(index).writeValid      := write.io.enq.valid
+      probeWire.slots(index).writeValid      := write.io.enq.fire
       probeWire.slots(index).targetLane      := OHToUInt(write.io.enq.bits.targetLane)
     }
     probeWire.reqEnq := reqEnq.asUInt
