@@ -1,3 +1,4 @@
+mod disp;
 mod mem;
 
 use mem::*;
