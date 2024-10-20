@@ -1,4 +1,4 @@
-{ lib, allConfigs, t1Scope, runCommand }:
+{ lib, allConfigs, t1Scope, runCommand, runtimeShell, jq }:
 
 # return attribute set with following hierarchy:
 # {
@@ -52,20 +52,41 @@ lib.mapAttrs
           ];
         };
 
-        omGet = args: lib.toLower (lib.fileContents (runCommand "get-${args}" { } ''
-          ${t1Scope.omreader-unwrapped}/bin/omreader \
+        omreader = runCommand "wrap-omreader" { } ''
+          mkdir -p $out/bin
+          tee -a $out/bin/omreader <<EOF
+          #!${runtimeShell}
+          cmd=\$1; shift
+          [[ -z "\$cmd" ]] && echo "missing argument" && exit 1
+
+          exec ${t1Scope.omreader-unwrapped}/bin/omreader \
             ${lib.replaceStrings ["elaborator"] ["omreader"] generator.fullClassName} \
-            ${args} \
+            \$cmd \
             --mlirbc-file ${innerMostScope.lowered-mlirbc}/${innerMostScope.lowered-mlirbc.name} \
+            $@
+          EOF
+
+          chmod +x $out/bin/omreader
+        '';
+        rtlDesignMetadataJson = runCommand "get-rtl-design-metadata-from-om" { nativeBuildInputs = [ jq innerMostScope.omreader ]; } ''
+          march=$(omreader march)
+          extensions=$(omreader extensions)
+          vlen=$(omreader vlen)
+          dlen=$(omreader dlen)
+
+          jq --null-input \
+            --arg march $march \
+            --arg extensions $extensions \
+            --arg vlen $vlen \
+            --arg dlen $dlen \
+            '{ "march": $march,
+               "extensions": $extensions|split("_"),
+               "vlen": $vlen|tonumber,
+               "dlen": $dlen|tonumber,
+               "xlen": (if ($march|startswith("rv32")) then 32 else 64 end) }' \
             > $out
-        ''));
-        rtlDesignMetadata = with innerMostScope; rec {
-          march = omGet "march";
-          extensions = lib.strings.split "_" (omGet "extensions");
-          vlen = omGet "vlen";
-          dlen = omGet "dlen";
-          xlen = if (lib.hasPrefix "rv32" march) then 32 else 64;
-        };
+        '';
+        rtlDesignMetadata = with builtins; fromJSON (readFile innerMostScope.rtlDesignMetadataJson);
 
         # ---------------------------------------------------------------------------------
         # VERILATOR
