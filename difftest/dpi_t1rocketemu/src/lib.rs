@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use dpi_common::plusarg::PlusArgMatcher;
 
+mod bus;
 pub mod dpi;
 pub mod drive;
 
