@@ -3,6 +3,8 @@
 , useMoldLinker
 , newScope
 , runCommand
+, runtimeShell
+, jq
 }:
 
 let
@@ -105,5 +107,5 @@ lib.makeScope newScope
     # Nix specification for t1 (with spike only) emulator
     # We don't expect extra scope for t1 stuff, so here we merge the t1 at t1Scope level.
     # Note: Don't use callPackage here, or t1Scope will fall into recursive search.
-    // ((import ./t1.nix) { inherit lib allConfigs t1Scope runCommand; })
+    // ((import ./t1.nix) { inherit lib allConfigs t1Scope runCommand runtimeShell jq; })
   )
