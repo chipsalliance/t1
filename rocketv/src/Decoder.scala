@@ -934,9 +934,9 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
     case _                                                                                  => false
   }
   def vectorReadFRegFile: Boolean = instruction.name match {
-    case i if Seq("vfadd.vf", "vfdiv.vf", "vfmacc.vf", "vfmadd.vf", "vfmax.vf", "vfmerge.vfm", "vfmin.vf", "vfmsac.vf", "vfmsub.vf", "vfmul.vf", "vfnmacc.vf", "vfnmadd.vf", "vfnmsac.vf", "vfnmsub.vf", "vfrdiv.vf", "vfredusum.vs", "vfrsub.vf", "vfsgnj.vf", "vfsgnjn.vf", "vfsgnjx.vf", "vfsub.vf", "vmfeq.vf", "vmfge.vf", "vmfgt.vf", "vmflt.vf", "vmfne.vf").contains(i) => true
+    case i if Seq("vfadd.vf", "vfdiv.vf", "vfmacc.vf", "vfmadd.vf", "vfmax.vf", "vfmerge.vfm", "vfmin.vf", "vfmsac.vf", "vfmsub.vf", "vfmul.vf", "vfnmacc.vf", "vfnmadd.vf", "vfnmsac.vf", "vfnmsub.vf", "vfrdiv.vf", "vfredusum.vs", "vfrsub.vf", "vfsgnj.vf", "vfsgnjn.vf", "vfsgnjx.vf", "vfsub.vf", "vmfeq.vf", "vmfge.vf", "vmfgt.vf", "vmflt.vf", "vmfne.vf", "vmfle.vf").contains(i) => true
     case i if Seq("vfmv.s.f", "vfmv.v.f").contains(i) => true
-
+    case i if Seq("vfslide1up.vf", "vfslide1down.vf").contains(i) => true
     case _ => false
   }
   // todo: unsure.
