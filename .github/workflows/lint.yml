@@ -1,0 +1,30 @@
+name: Code format check
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check-format:
+    if: '! github.event.pull_request.draft'
+    name: "Check code format"
+    runs-on: [self-hosted, linux, nixos]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Check Scala code format"
+        run: nix run ".#t1.elaborator.format" check
+      - name: "Check difftest code format"
+        run: |
+          nix shell '.#cargo' '.#rustfmt' -c bash -c 'cd difftest && cargo fmt --check'
+
