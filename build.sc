@@ -16,9 +16,6 @@ import $file.dependencies.`berkeley-hardfloat`.common
 import $file.dependencies.rvdecoderdb.common
 import $file.common
 
-// Required for scalafmt to recognize which file to format
-def buildSources = T.sources(os.pwd / "build.sc")
-
 object v {
   val scala    = "2.13.15"
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"

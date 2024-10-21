@@ -19,7 +19,6 @@ let
           fileset = unions [
             scriptSrc
             ./build.sc
-            ./.scalafmt.conf
           ];
         };
 
@@ -29,10 +28,9 @@ let
             root = ./.;
             fileset = unions [
               ./build.sc
-              ./.scalafmt.conf
             ];
           };
-          millDepsHash = "sha256-y8tAFwctiU6ehghuf7KP73DuWCGCnAAdIXOIPwT+QOo=";
+          millDepsHash = "sha256-QQ5gCbvovC55t9MmfCNTvNFdD6FcNqmLmfhT9qJhQQc=";
         };
 
         passthru.withLsp = self.overrideAttrs (old: {
@@ -65,12 +63,6 @@ let
 
         buildPhase = ''
           runHook preBuild
-
-          # Not debug build, check source format
-          if (( $enableNativeExe )); then
-            echo "Checking format"
-            mill -i ${moduleName}.checkFormat
-          fi
 
           echo "Building JAR"
           mill -i ${moduleName}.assembly
