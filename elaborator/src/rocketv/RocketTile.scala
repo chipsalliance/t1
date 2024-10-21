@@ -5,6 +5,7 @@ package org.chipsalliance.t1.elaborator.rocketv
 import chisel3.experimental.util.SerializableModuleElaborator
 import chisel3.util.BitPat
 import chisel3.util.experimental.BitSet
+import chisel3.stage.IncludeUtilMetadata
 import mainargs._
 import org.chipsalliance.rocketv.{BHTParameter, RocketTile, RocketTileParameter}
 
@@ -189,6 +190,8 @@ object RocketTile extends SerializableModuleElaborator {
 
   implicit def RocketTileParameterMainParser: ParserForClass[RocketTileParameterMain] =
     ParserForClass[RocketTileParameterMain]
+
+  override def additionalAnnotations = Seq(IncludeUtilMetadata)
 
   @main
   def config(@arg(name = "parameter") parameter: M) =
