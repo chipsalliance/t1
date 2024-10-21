@@ -3,6 +3,7 @@
 package org.chipsalliance.t1.elaborator.rocketv
 
 import chisel3.experimental.util.SerializableModuleElaborator
+import chisel3.stage.IncludeUtilMetadata
 import mainargs._
 import org.chipsalliance.rocketv.{ICache, ICacheParameter}
 
@@ -40,6 +41,8 @@ object ICache extends SerializableModuleElaborator {
   }
 
   implicit def ICacheParameterMainParser: ParserForClass[ICacheParameterMain] = ParserForClass[ICacheParameterMain]
+
+  override def additionalAnnotations = Seq(IncludeUtilMetadata)
 
   @main
   def config(@arg(name = "parameter") parameter: M) =
