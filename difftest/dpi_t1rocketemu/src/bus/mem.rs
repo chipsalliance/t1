@@ -12,10 +12,10 @@ impl<const SIZE: usize> ShadowDevice for MemDevice<SIZE> {
     Box::new(Self { mem: vec![0u8; SIZE].try_into().unwrap() })
   }
 
-  fn read_mem(&self, addr: usize, size: usize) -> &[u8] {
+  fn read_mem(&self, addr: usize, size: usize) -> Vec<u8> {
     let start = addr;
     let end = addr + size;
-    &self.mem[start..end]
+    self.mem[start..end].to_vec()
   }
 
   fn write_mem(&mut self, addr: usize, data: u8) {
