@@ -8,7 +8,7 @@ trait ShadowDevice: Send + Sync {
   where
     Self: Sized;
   /// addr: offset respect to the base of this device
-  fn read_mem(&self, addr: usize, size: usize) -> &[u8];
+  fn read_mem(&self, addr: usize, size: usize) -> Vec<u8>;
   /// addr: offset respect to the base of this device
   fn write_mem(&mut self, addr: usize, data: u8);
   /// addr: offset respect to the base of this device
