@@ -1,6 +1,7 @@
 mod disp;
 mod mem;
 
+use disp::*;
 use mem::*;
 use tracing::{debug, error, trace};
 
@@ -23,7 +24,7 @@ struct ShadowBusDevice {
   device: Box<dyn ShadowDevice>,
 }
 
-const MAX_DEVICES: usize = 3;
+const MAX_DEVICES: usize = 4;
 
 pub(crate) struct ShadowBus {
   devices: [ShadowBusDevice; MAX_DEVICES],
@@ -39,6 +40,11 @@ impl ShadowBus {
 
     Self {
       devices: [
+        ShadowBusDevice {
+          base: 0x04000000,
+          size: 0x02000000,
+          device: DisplayDevice::new(),
+        },
         ShadowBusDevice {
           base: 0x20000000,
           size: SCALAR_SIZE,
@@ -84,11 +90,11 @@ impl ShadowBus {
           let mut data_padded = vec![0; bus_size as usize];
           let start = (addr % bus_size) as usize;
           let end = start + data.len();
-          data_padded[start..end].copy_from_slice(data);
+          data_padded[start..end].copy_from_slice(&data);
 
           data_padded
         } else {
-          data.to_vec()
+          data
         }
       }
       None => {
