@@ -91,7 +91,7 @@ impl ShadowBus {
         }
       }
       None => {
-        error!("read addr={addr:#x} size={size}B dlen={bus_size}B leads to nowhere!");
+        panic!("read addr={addr:#x} size={size}B dlen={bus_size}B leads to nowhere!");
         vec![0; bus_size as usize]
       }
     }
@@ -132,7 +132,7 @@ impl ShadowBus {
         device.write_mem_chunk(offset, bus_size as usize, Option::from(masks), data);
       }
       None => {
-        error!("write addr={addr:#x} size={size}B dlen={bus_size}B leads to nowhere!");
+        panic!("write addr={addr:#x} size={size}B dlen={bus_size}B leads to nowhere!");
       }
     }
   }
