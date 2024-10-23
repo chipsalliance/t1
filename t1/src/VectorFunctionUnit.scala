@@ -132,6 +132,13 @@ object VFUInstantiateParameter {
         case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
         case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
       }
+    case "huge"   =>
+      (fp, zvbb) match {
+        case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen)
+        case (true, false)  => VFUInstantiateParameter.hugeFP(vLen, dLen)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+      }
   }
 
   // instantiate each module and connect to all scoreboards

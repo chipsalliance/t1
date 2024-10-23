@@ -819,14 +819,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // cross write bus <> write queue
   crossLaneWriteQueue.zipWithIndex.foreach { case (queue, index) =>
-    val port                 = writeBusPort(index)
-    // ((counter << 1) >> parameter.vrfParam.vrfOffsetBits).low(3)
-    val registerIncreaseBase = parameter.vrfParam.vrfOffsetBits - 1
+    val port      = writeBusPort(index)
+    val baseIndex = slotControl.head.laneRequest.vd ## 0.U(parameter.vrfOffsetBits.W)
+    val indexGrowth: UInt = changeUIntSize(port.enq.bits.counter ## index.U(1.W), port.enq.bits.counter.getWidth)
+    val finalIndex:  UInt = baseIndex + indexGrowth
     queue.io.enq.valid                 := port.enq.valid
-    queue.io.enq.bits.vd               :=
-      // 3: 8 reg => log(2, 8)
-      slotControl.head.laneRequest.vd + port.enq.bits.counter(registerIncreaseBase + 3 - 1, registerIncreaseBase)
-    queue.io.enq.bits.offset           := port.enq.bits.counter ## index.U(1.W)
+    queue.io.enq.bits.vd               := finalIndex >> parameter.vrfOffsetBits
+    queue.io.enq.bits.offset           := finalIndex
     queue.io.enq.bits.data             := port.enq.bits.data
     queue.io.enq.bits.last             := DontCare
     queue.io.enq.bits.instructionIndex := port.enq.bits.instructionIndex
