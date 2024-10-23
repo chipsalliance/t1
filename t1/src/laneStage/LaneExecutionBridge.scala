@@ -411,7 +411,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         maskResult(1, 0) <<
           (recordQueue.deq.bits.groupCounter(3, 0) ## false.B),
         // 1 bit per data group, it will had 32 data groups -> executeIndex1H << 1 * groupCounter(4, 0)
-        maskResult(0) << recordQueue.deq.bits.groupCounter(4, 0)
+        maskResult(0) << recordQueue.deq.bits.groupCounter(4.min(parameter.groupNumberBits - 1), 0)
       )
     ).asUInt
 

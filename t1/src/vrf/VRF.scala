@@ -268,8 +268,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val portFireCount: UInt = PopCount(VecInit(readRequests.map(_.fire) :+ write.fire))
   dontTouch(portFireCount)
 
-  val writeBank: UInt =
-    if (parameter.rfBankNum == 1) true.B else UIntToOH(write.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
+  val writeIndex: UInt = write.bits.vd ## write.bits.offset
+  val writeBank:  UInt =
+    if (parameter.rfBankNum == 1) true.B else UIntToOH(writeIndex(log2Ceil(parameter.rfBankNum) - 1, 0))
 
   // Add one more record slot to prevent there is no free slot when the instruction comes in
   // (the slot will die a few cycles later than the instruction)
@@ -350,8 +351,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
           .reduce(_ && _) && portConflictCheck
       }
       val validCorrect: Bool         = if (i == (readRequests.size - 1)) v.valid && checkResult.get else v.valid
+      val address             = v.bits.vs ## v.bits.offset
       // select bank
-      val bank                = if (parameter.rfBankNum == 1) true.B else UIntToOH(v.bits.offset(log2Ceil(parameter.rfBankNum) - 1, 0))
+      val bank                = if (parameter.rfBankNum == 1) true.B else UIntToOH(address(log2Ceil(parameter.rfBankNum) - 1, 0))
       val pipeBank            = Pipe(true.B, bank, parameter.vrfReadLatency).bits
       val bankCorrect         = Mux(validCorrect, bank, 0.U(parameter.rfBankNum.W))
       val readPortCheckSelect = parameter.ramType match {

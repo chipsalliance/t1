@@ -74,6 +74,15 @@ package object rtl {
     })
   }
 
+  def changeUIntSize(data: UInt, size: Int, sign: Boolean = false): UInt = {
+    if (data.getWidth >= size) {
+      data(size - 1, 0)
+    } else {
+      val extend = if (sign) data(data.getWidth - 1) else false.B
+      Fill(size - data.getWidth, extend) ## data
+    }
+  }
+
   def calculateSegmentWriteMask(
     datapath:                  Int,
     laneNumber:                Int,
