@@ -5,7 +5,7 @@ test:
     li a1, 0xc3
     li a2, 0x10
     vsetvl x0, a0, a1
-    lui x30, 1
+    la x30, test_src_start
     auipc x31, 0
 
 add_test:
@@ -31,3 +31,8 @@ loop:
 
 will_not_be_executed:
     vadd.vv v2, v1, v1
+
+.section .vbss, "aw", @nobits
+.balign 64
+test_src_start:
+    .zero 8
