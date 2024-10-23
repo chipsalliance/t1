@@ -513,7 +513,6 @@
   "mlir.stripmining": 10240,
   "mlir.vectoradd": 17183,
   "pytorch.demo": 31505,
-  "pytorch.lenet": 39103483,
   "pytorch.matmul": 69715,
   "rvv_bench.ascii_to_utf16": 702646,
   "rvv_bench.ascii_to_utf32": 233241,
