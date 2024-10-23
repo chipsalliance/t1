@@ -14,10 +14,10 @@
 test:
 
 # a0: uint32_t result, a1: uint32_t *a, a2: uint32_t *b, a3: uint32_t *p
-    lw a0, mmm_result
-    lw a1, mmm_a
-    lw a2, mmm_b
-    lw a3, mmm_p
+    la a0, mmm_result
+    la a1, mmm_a
+    la a2, mmm_b
+    la a3, mmm_p
 
 # for (int i = 0; i < 16; i++) a[i] = b[i] = p[i] = i;
     li      a4, 0
@@ -32,10 +32,10 @@ test:
     addi    a3, a3, 4
     bne     a4, a5, .LBB0_1
 
-    lw a0, mmm_result
-    lw a1, mmm_a
-    lw a2, mmm_b
-    lw a3, mmm_p
+    la a0, mmm_result
+    la a1, mmm_a
+    la a2, mmm_b
+    la a3, mmm_p
 
 # begin mmm main program
 

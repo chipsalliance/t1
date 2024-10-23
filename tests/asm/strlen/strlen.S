@@ -47,13 +47,13 @@ test:
 
     # fill 0x1000000 with 0x55 x 4096 bytes
     # a0: void* dest, a1: int n, a2: size_t len
-    lw a0, test_str_start
+    la a0, test_str_start
     li a1, 0x55
     li a2, 0x1000
     call memset
     # Call strlen to calculate the length of the string starting at memory address 0x1000000
     # a0: const char *str
-    lw a0, test_str_start
+    la a0, test_str_start
     call strlen
 
     lw ra, 0(sp)
