@@ -16,42 +16,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-emit:
+  generate-test-plan:
     if: '! github.event.pull_request.draft'
+    name: "Generate CI target for RTL elaborate"
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      testplan: ${{ steps.get-testplan.outputs.testplan }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: "get-testplan"
+        run: |
+          testFile="./designs/org.chipsalliance.t1.elaborator.t1rocketv.T1RocketTile.toml"
+          jsonData=$(nix shell ".#dasel" -c dasel -r toml -f "$testFile" -w json)
+          echo "testplan=$(echo "$jsonData" | nix shell ".#jq" -c jq -c -r '{ "config": keys }')" \
+            > $GITHUB_OUTPUT
+
+  test-emit:
     name: "Test elaborate"
+    needs: [generate-test-plan]
     runs-on: [self-hosted, linux, nixos]
     strategy:
-      fail-fast: false
+      matrix: ${{ fromJSON(needs.generate-test-plan.outputs.testplan) }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Test elaborate"
         run: |
-          configArray=( $(ls .github/designs) )
-          ipArray=( "t1emu" "t1rocketemu" )
-          for cfg in "${configArray[@]}"; do
-            for ip in "${ipArray[@]}"; do
-              echo "Building .#t1.${cfg}.${ip}.rtl"
-              if ! nix build ".#t1.${cfg}.${ip}.rtl" -L; then
-                failed_rtl_configs+=("${cfg}.${ip}")
-              fi
-              if ! nix run ".#ci-helper" -- runOMTests --config ${cfg}; then
-                failed_om+=("${cfg}")
-              fi
-            done
-          done
-          if [ -n "${failed_rtl_configs[*]}"  ]; then
-            echo -e "## Failed RTL\n" >> "$GITHUB_STEP_SUMMARY"
-            for cfg in "${failed_rtl_configs[@]}"; do
-              echo "* ${cfg}" >> $GITHUB_STEP_SUMMARY
-            done
-            echo -e "## Failed RTL\n" >> "$GITHUB_STEP_SUMMARY"
-            for cfg in "${failed_om[@]}"; do
-              echo "* ${cfg}" >> $GITHUB_STEP_SUMMARY
-            done
-            printf "\n" >> $GITHUB_STEP_SUMMARY
-          fi
+          testAttr="t1rocketv"
+          testConfig=${{ matrix.config }}
+          echo "Building .#t1.${testConfig}.${testAttr}.rtl"
+          nix build ".#t1.${testConfig}.${testAttr}.rtl" -L
 
   physical-design-report:
     name: "Request physical design report"

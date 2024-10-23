@@ -698,3 +698,80 @@ class T1Retire(xLen: Int) extends Bundle {
   val csr: ValidIO[T1CSRRetire] = Valid(new T1CSRRetire)
   val mem: ValidIO[EmptyBundle] = Valid(new EmptyBundle)
 }
+
+class MaskUnitExecuteState(parameter: T1Parameter) extends Bundle {
+  val groupReadState: UInt      = UInt(parameter.laneNumber.W)
+  val needRead:       UInt      = UInt(parameter.laneNumber.W)
+  val elementValid:   UInt      = UInt(parameter.laneNumber.W)
+  val readOffset:     UInt      = UInt((parameter.laneNumber * parameter.laneParam.vrfOffsetBits).W)
+  val accessLane:     Vec[UInt] = Vec(parameter.laneNumber, UInt(log2Ceil(parameter.laneNumber).W))
+  // 3: log2Ceil(8); 8: Use up to 8 registers
+  val vsGrowth:       Vec[UInt] = Vec(parameter.laneNumber, UInt(3.W))
+  val groupCount:     UInt      = UInt(parameter.laneParam.groupNumberBits.W)
+  val executeIndex:   UInt      = UInt(2.W)
+  val readDataOffset: UInt      = UInt((log2Ceil(parameter.datapathWidth / 8) * parameter.laneNumber).W)
+  val last:           Bool      = Bool()
+}
+
+class MaskUnitInstReq(parameter: T1Parameter) extends Bundle {
+  val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
+  val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
+  val readFromScala:    UInt         = UInt(parameter.datapathWidth.W)
+  val sew:              UInt         = UInt(2.W)
+  val vlmul:            UInt         = UInt(3.W)
+  val maskType:         Bool         = Bool()
+  val vxrm:             UInt         = UInt(3.W)
+  val vs2:              UInt         = UInt(5.W)
+  val vd:               UInt         = UInt(5.W)
+  val vl:               UInt         = UInt(parameter.laneParam.vlMaxBits.W)
+}
+
+class MaskUnitExeReq(parameter: LaneParameter) extends Bundle {
+  // source1, read vs
+  val source1:      UInt = UInt(parameter.datapathWidth.W)
+  // source2, read offset
+  val source2:      UInt = UInt(parameter.datapathWidth.W)
+  val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
+  val index:        UInt = UInt(parameter.instructionIndexBits.W)
+}
+
+class MaskUnitExeResponse(parameter: LaneParameter) extends Bundle {
+  val ffoByOther: Bool = Bool()
+  val writeData = new MaskUnitWriteBundle(parameter)
+  val index: UInt = UInt(parameter.instructionIndexBits.W)
+}
+
+class MaskUnitReadReq(parameter: T1Parameter) extends Bundle {
+  val vs:           UInt = UInt(5.W)
+  // source2, read offset
+  val offset:       UInt = UInt(parameter.laneParam.vrfOffsetBits.W)
+  // Read which lane
+  val readLane:     UInt = UInt(log2Ceil(parameter.laneNumber).W)
+  // from which request
+  val requestIndex: UInt = UInt(log2Ceil(parameter.laneNumber).W)
+  // data position in data path
+  val dataOffset:   UInt = UInt(log2Ceil(parameter.datapathWidth / 8).W)
+}
+
+class MaskUnitReadQueue(parameter: T1Parameter) extends Bundle {
+  val vs:         UInt = UInt(5.W)
+  // source2, read offset
+  val offset:     UInt = UInt(parameter.laneParam.vrfOffsetBits.W)
+  // Which channel will this read request be written to?
+  val writeIndex: UInt = UInt(log2Ceil(parameter.laneNumber).W)
+  val dataOffset: UInt = UInt(log2Ceil(parameter.datapathWidth / 8).W)
+}
+
+class MaskUnitWaitReadQueue(parameter: T1Parameter) extends Bundle {
+  val groupCounter: UInt = UInt(parameter.laneParam.groupNumberBits.W)
+  val executeIndex: UInt = UInt(2.W)
+  val sourceValid:  UInt = UInt(parameter.laneNumber.W)
+  val needRead:     UInt = UInt(parameter.laneNumber.W)
+  val last:         Bool = Bool()
+}
+
+class MaskUnitWriteBundle(parameter: LaneParameter) extends Bundle {
+  val data:         UInt = UInt(parameter.datapathWidth.W)
+  val mask:         UInt = UInt((parameter.datapathWidth / 8).W)
+  val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
+}

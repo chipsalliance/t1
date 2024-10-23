@@ -209,27 +209,35 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
   // cross read enqueue
   queueBeforeCheckLSB.foreach { q =>
-    q.io.enq.bits.vs         := Mux(
+    val baseVs    = Mux(
       enqueue.bits.decodeResult(Decoder.vwmacc),
       // cross read vd for vwmacc, since it need dual [[dataPathWidth]], use vs2 port to read LSB part of it.
       enqueue.bits.vd,
       // read vs2 for other instruction
       enqueue.bits.vs2
-    ) + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
+    )
+    val baseIndex = baseVs ## 0.U(parameter.vrfOffsetBits.W)
+    val indexGrowth: UInt = changeUIntSize(groupCounter ## false.B, groupCounter.getWidth)
+    val finalIndex:  UInt = baseIndex + indexGrowth
+    q.io.enq.bits.vs         := finalIndex >> parameter.vrfOffsetBits
     q.io.enq.bits.readSource := Mux(enqueue.bits.decodeResult(Decoder.vwmacc), 2.U, 1.U)
-    q.io.enq.bits.offset     := groupCounter(parameter.vrfOffsetBits - 2, 0) ## false.B
+    q.io.enq.bits.offset     := finalIndex
   }
 
   queueBeforeCheckMSB.foreach { q =>
-    q.io.enq.bits.vs         := Mux(
+    val baseVs    = Mux(
       enqueue.bits.decodeResult(Decoder.vwmacc),
       // cross read vd for vwmacc
       enqueue.bits.vd,
       // cross lane access use vs2
       enqueue.bits.vs2
-    ) + groupCounter(parameter.groupNumberBits - 2, parameter.vrfOffsetBits - 1)
+    )
+    val baseIndex = baseVs ## 0.U(parameter.vrfOffsetBits.W)
+    val indexGrowth: UInt = changeUIntSize(groupCounter ## true.B, groupCounter.getWidth)
+    val finalIndex:  UInt = baseIndex + indexGrowth
+    q.io.enq.bits.vs         := finalIndex >> parameter.vrfOffsetBits
     q.io.enq.bits.readSource := Mux(enqueue.bits.decodeResult(Decoder.vwmacc), 2.U, 1.U)
-    q.io.enq.bits.offset     := groupCounter(parameter.vrfOffsetBits - 2, 0) ## true.B
+    q.io.enq.bits.offset     := finalIndex
   }
 
   // read pipe
