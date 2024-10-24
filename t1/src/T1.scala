@@ -325,23 +325,26 @@ case class T1Parameter(
 }
 
 class T1Probe(parameter: T1Parameter) extends Bundle {
-  val instructionCounter: UInt           = UInt(parameter.instructionIndexBits.W)
-  val instructionIssue:   Bool           = Bool()
-  val issueTag:           UInt           = UInt(parameter.instructionIndexBits.W)
-  val retireValid:        Bool           = Bool()
+  val instructionCounter: UInt                           = UInt(parameter.instructionIndexBits.W)
+  val instructionIssue:   Bool                           = Bool()
+  val issueTag:           UInt                           = UInt(parameter.instructionIndexBits.W)
+  val retireValid:        Bool                           = Bool()
+  // for profiler
+  val requestReg:         ValidIO[InstructionPipeBundle] = ValidIO(new InstructionPipeBundle(parameter))
+  val requestRegReady:    Bool                           = Bool()
   // write queue enq for mask unit
-  val writeQueueEnq:      ValidIO[UInt]  = Valid(UInt(parameter.instructionIndexBits.W))
-  val writeQueueEnqMask:  UInt           = UInt((parameter.datapathWidth / 8).W)
+  val writeQueueEnq:      ValidIO[UInt]                  = Valid(UInt(parameter.instructionIndexBits.W))
+  val writeQueueEnqMask:  UInt                           = UInt((parameter.datapathWidth / 8).W)
   // mask unit instruction valid
-  val instructionValid:   UInt           = UInt((parameter.chainingSize * 2).W)
+  val instructionValid:   UInt                           = UInt((parameter.chainingSize * 2).W)
   // instruction index for check rd
-  val responseCounter:    UInt           = UInt(parameter.instructionIndexBits.W)
+  val responseCounter:    UInt                           = UInt(parameter.instructionIndexBits.W)
   // probes
-  val lsuProbe:           LSUProbe       = new LSUProbe(parameter.lsuParameters)
-  val laneProbes:         Vec[LaneProbe] = Vec(parameter.laneNumber, new LaneProbe(parameter.laneParam))
-  val issue:              ValidIO[UInt]  = Valid(UInt(parameter.instructionIndexBits.W))
-  val retire:             ValidIO[UInt]  = Valid(UInt(parameter.xLen.W))
-  val idle:               Bool           = Bool()
+  val lsuProbe:           LSUProbe                       = new LSUProbe(parameter.lsuParameters)
+  val laneProbes:         Vec[LaneProbe]                 = Vec(parameter.laneNumber, new LaneProbe(parameter.laneParam))
+  val issue:              ValidIO[UInt]                  = Valid(UInt(parameter.instructionIndexBits.W))
+  val retire:             ValidIO[UInt]                  = Valid(UInt(parameter.xLen.W))
+  val idle:               Bool                           = Bool()
 }
 
 class T1Interface(parameter: T1Parameter) extends Record {
@@ -1778,6 +1781,8 @@ class T1(val parameter: T1Parameter)
     probeWire.instructionIssue    := requestRegDequeue.fire
     probeWire.issueTag            := requestReg.bits.instructionIndex
     probeWire.retireValid         := retire
+    probeWire.requestReg          := requestReg
+    probeWire.requestRegReady     := requestRegDequeue.ready
     // maskUnitWrite maskUnitWriteReady
     probeWire.writeQueueEnq.valid := maskUnitWrite.valid && maskUnitWriteReady
     probeWire.writeQueueEnq.bits  := maskUnitWrite.bits.instructionIndex
