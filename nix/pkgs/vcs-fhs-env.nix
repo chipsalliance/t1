@@ -4,28 +4,37 @@
 #
 # For convenience, we still use the nixpkgs defined in flake to "callPackage" this derivation.
 # But the buildFHSEnv, targetPkgs is still from the locked nixpkgs.
-{ vcStaticHome
-, snpslmdLicenseFile
-, fetchFromGitHub
-}:
+{ fetchFromGitHub }:
 let
   nixpkgsSrcs = fetchFromGitHub {
     owner = "NixOS";
     repo = "nixpkgs";
-    "rev" = "574d1eac1c200690e27b8eb4e24887f8df7ac27c";
-    "hash" = "sha256-v3rIhsJBOMLR8e/RNWxr828tB+WywYIoajrZKFM+0Gg=";
+    rev = "574d1eac1c200690e27b8eb4e24887f8df7ac27c";
+    hash = "sha256-v3rIhsJBOMLR8e/RNWxr828tB+WywYIoajrZKFM+0Gg=";
   };
 
   # The vcs we have only support x86-64_linux
   lockedPkgs = import nixpkgsSrcs { system = "x86_64-linux"; };
+
+  getEnv' = key:
+    let
+      val = builtins.getEnv key;
+    in
+    if val == "" then
+      builtins.throw "${key} not set or '--impure' not applied"
+    else val;
+
+  # Using VCS need to set VC_STATIC_HOME and SNPSLMD_LICENSE_FILE to impure env, and add sandbox dir to VC_STATIC_HOME
+  vcStaticHome = getEnv' "VC_STATIC_HOME";
+  snpslmdLicenseFile = getEnv' "SNPSLMD_LICENSE_FILE";
 in
 lockedPkgs.buildFHSEnv {
   name = "vcs-fhs-env";
 
   profile = ''
-    [ ! -e "${vcStaticHome}"  ] && echo "env VC_STATIC_HOME not set" && exit 1
-    [ ! -d "${vcStaticHome}"  ] && echo "VC_STATIC_HOME not accessible" && exit 1
-    [ -z "${snpslmdLicenseFile}"  ] && echo "env SNPS LICENSE not set" && exit 1
+    [ ! -e "${vcStaticHome}"  ] && echo "env VC_STATIC_HOME='${vcStaticHome}' points to unknown location" && exit 1
+    [ ! -d "${vcStaticHome}"  ] && echo "VC_STATIC_HOME='${vcStaticHome}' not accessible" && exit 1
+
     export VC_STATIC_HOME=${vcStaticHome}
 
     export TCL_TZ=UTC
