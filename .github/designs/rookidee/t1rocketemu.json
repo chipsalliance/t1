@@ -1,6 +1,6 @@
 {
-  "asm.mmm": 93740,
-  "asm.smoke": 4851,
+  "asm.mmm": 93692,
+  "asm.smoke": 4861,
   "codegen.vaadd_vv": 118068,
   "codegen.vaadd_vx": 354672,
   "codegen.vaaddu_vv": 118068,
@@ -435,14 +435,14 @@
   "mlir.rvv_vp_intrinsic_add": 456,
   "mlir.rvv_vp_intrinsic_add_scalable": 636,
   "mlir.stripmining": 26776,
-  "rvv_bench.ascii_to_utf16": 701922,
-  "rvv_bench.ascii_to_utf32": 232069,
-  "rvv_bench.byteswap": 493013,
-  "rvv_bench.chacha20": 40015,
-  "rvv_bench.memcpy": 677297,
-  "rvv_bench.memset": 291306,
-  "rvv_bench.mergelines": 630973,
-  "rvv_bench.poly1305": 40015,
-  "rvv_bench.strlen": 231764,
-  "rvv_bench.utf8_count": 2344375
+  "rvv_bench.ascii_to_utf16": 702049,
+  "rvv_bench.ascii_to_utf32": 232147,
+  "rvv_bench.byteswap": 493026,
+  "rvv_bench.chacha20": 39959,
+  "rvv_bench.memcpy": 677751,
+  "rvv_bench.memset": 291431,
+  "rvv_bench.mergelines": 630912,
+  "rvv_bench.poly1305": 39959,
+  "rvv_bench.strlen": 230898,
+  "rvv_bench.utf8_count": 2344345
 }
