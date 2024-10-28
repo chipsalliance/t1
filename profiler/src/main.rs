@@ -1,7 +1,7 @@
 use std::{
     collections::{hash_map, HashMap},
     fs::File,
-    io::{BufRead, BufReader},
+    io::BufReader,
     path::PathBuf,
 };
 
@@ -14,8 +14,8 @@ use vcd_util::{
     Value, FIRST_CYCLE, RESET_DEASSERT_TIME,
 };
 
+mod disasm;
 mod input_hier;
-
 mod vcd_util;
 
 #[derive(Parser)]
