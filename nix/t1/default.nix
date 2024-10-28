@@ -55,6 +55,7 @@ lib.makeScope newScope
     elaborator = t1Scope._t1MillModules.elaborator // { meta.mainProgram = "elaborator"; };
     omreader-unwrapped = t1Scope._t1MillModules.omreader // { meta.mainProgram = "omreader"; };
     t1package = t1Scope._t1MillModules.t1package;
+    profiler = t1Scope.callPackage ../../profiler { };
 
     # ---------------------------------------------------------------------------------
     # Lowering utilities
