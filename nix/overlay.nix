@@ -12,6 +12,15 @@ rec {
 
   inherit rv32_pkgs rv32_buildPkgs; # for easier inspection
 
+  getEnv' = key:
+    let
+      val = builtins.getEnv key;
+    in
+    if val == "" then
+      builtins.throw "${key} not set or '--impure' not applied"
+    else val;
+
+
   # Override "nixpkgs" circt with "nixpkgs-for-circt".
   # To update the "nixpkgs-for-circt" input, run `nix flake lock --update-input nixpkgs-for-circt`.
   circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt;

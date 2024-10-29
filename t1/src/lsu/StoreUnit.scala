@@ -10,6 +10,7 @@ import chisel3.probe._
 import chisel3.ltl._
 import chisel3.ltl.Sequence._
 import org.chipsalliance.t1.rtl.{cutUInt, multiShifter, EmptyBundle, VRFReadRequest}
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
   val data:  UInt = UInt((param.lsuTransposeSize * 8).W)
@@ -59,10 +60,10 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   // stage1, 读vrf
   // todo: need hazardCheck?
-  val hazardCheck:     Bool             = RegEnable(vrfReadyToStore && !lsuRequest.valid, false.B, lsuRequest.valid || vrfReadyToStore)
+  val hazardCheck:     Bool               = RegEnable(vrfReadyToStore && !lsuRequest.valid, false.B, lsuRequest.valid || vrfReadyToStore)
   // read stage dequeue ready need all source valid, Or add a queue to coordinate
-  val vrfReadQueueVec: Seq[Queue[UInt]] =
-    Seq.tabulate(param.laneNumber)(_ => Module(new Queue(UInt(param.datapathWidth.W), 2, flow = true, pipe = true)))
+  val vrfReadQueueVec: Seq[QueueIO[UInt]] =
+    Seq.tabulate(param.laneNumber)(_ => Queue.io(UInt(param.datapathWidth.W), 2, flow = true, pipe = true))
 
   // 从vrf里面读数据
   val readStageValid: Bool = Seq
@@ -72,7 +73,8 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       val readCount: UInt                        = RegInit(0.U(dataGroupBits.W))
       val stageValid = RegInit(false.B)
       // queue for read latency
-      val queue: Queue[UInt] = Module(new Queue(UInt(param.datapathWidth.W), param.vrfReadLatency, flow = true))
+      val queue: QueueIO[UInt] =
+        Queue.io(UInt(param.datapathWidth.W), param.vrfReadLatency, flow = true)
 
       val lastReadPtr: Bool = segPtr === 0.U
 
@@ -103,7 +105,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       }
 
       // vrf read request
-      readPort.valid                 := stageValid && vrfReadQueueVec(laneIndex).io.enq.ready
+      readPort.valid                 := stageValid && vrfReadQueueVec(laneIndex).enq.ready
       readPort.bits.vs               :=
         lsuRequestReg.instructionInformation.vs3 +
           segPtr * segmentInstructionIndexInterval +
@@ -116,10 +118,10 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       val readResultFire = Pipe(readPort.fire, 0.U.asTypeOf(new EmptyBundle), param.vrfReadLatency).valid
 
       // latency queue enq
-      queue.io.enq.valid := readResultFire
-      queue.io.enq.bits  := vrfReadResults(laneIndex)
-      AssertProperty(BoolSequence(!queue.io.enq.valid || queue.io.enq.ready))
-      vrfReadQueueVec(laneIndex).io.enq <> queue.io.deq
+      queue.enq.valid := readResultFire
+      queue.enq.bits  := vrfReadResults(laneIndex)
+      AssertProperty(BoolSequence(!queue.enq.valid || queue.enq.ready))
+      vrfReadQueueVec(laneIndex).enq <> queue.deq
       stageValid || RegNext(readPort.fire)
     }
     .reduce(_ || _)
@@ -128,16 +130,16 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val bufferFull:               Bool      = RegInit(false.B)
   val accessBufferDequeueReady: Bool      = Wire(Bool())
   val accessBufferEnqueueReady: Bool      = !bufferFull || accessBufferDequeueReady
-  val accessBufferEnqueueValid: Bool      = vrfReadQueueVec.map(_.io.deq.valid).reduce(_ && _)
-  val readQueueClear:           Bool      = !vrfReadQueueVec.map(_.io.deq.valid).reduce(_ || _)
+  val accessBufferEnqueueValid: Bool      = vrfReadQueueVec.map(_.deq.valid).reduce(_ && _)
+  val readQueueClear:           Bool      = !vrfReadQueueVec.map(_.deq.valid).reduce(_ || _)
   val accessBufferEnqueueFire:  Bool      = accessBufferEnqueueValid && accessBufferEnqueueReady
   val lastPtr:                  Bool      = accessPtr === 0.U
   val lastPtrEnq:               Bool      = lastPtr && accessBufferEnqueueFire
   val accessBufferDequeueValid: Bool      = bufferFull || lastPtrEnq
   val accessBufferDequeueFire:  Bool      = accessBufferDequeueValid && accessBufferDequeueReady
-  vrfReadQueueVec.foreach(_.io.deq.ready := accessBufferEnqueueFire)
+  vrfReadQueueVec.foreach(_.deq.ready := accessBufferEnqueueFire)
   val accessDataUpdate:         Vec[UInt] =
-    VecInit(VecInit(vrfReadQueueVec.map(_.io.deq.bits)).asUInt +: accessData.init)
+    VecInit(VecInit(vrfReadQueueVec.map(_.deq.bits)).asUInt +: accessData.init)
 
   when(lastPtrEnq ^ accessBufferDequeueFire) {
     bufferFull := lastPtrEnq
@@ -261,19 +263,19 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       0.U(param.cacheLineBits.W)
   memRequest.bits.address := alignedDequeueAddress
 
-  val addressQueueSize: Int         = (param.vLen * 8) / (param.datapathWidth * param.laneNumber) + 1
+  val addressQueueSize: Int           = (param.vLen * 8) / (param.datapathWidth * param.laneNumber) + 1
   // address Wait For Response
-  val addressQueue:     Queue[UInt] = Module(new Queue[UInt](UInt(param.paWidth.W), addressQueueSize))
-  addressQueue.io.enq.valid := memRequest.fire
-  addressQueue.io.enq.bits  := alignedDequeueAddress
-  addressQueue.io.deq.ready := storeResponse
+  val addressQueue:     QueueIO[UInt] = Queue.io(UInt(param.paWidth.W), addressQueueSize)
+  addressQueue.enq.valid := memRequest.fire
+  addressQueue.enq.bits  := alignedDequeueAddress
+  addressQueue.deq.ready := storeResponse
 
-  status.idle := !bufferValid && !readStageValid && readQueueClear && !bufferFull && !addressQueue.io.deq.valid
+  status.idle := !bufferValid && !readStageValid && readQueueClear && !bufferFull && !addressQueue.deq.valid
   val idleNext: Bool = RegNext(status.idle, true.B)
   status.last             := (!idleNext && status.idle) || invalidInstructionNext
   status.changeMaskGroup  := maskSelect.valid && !lsuRequest.valid
   status.instructionIndex := lsuRequestReg.instructionIndex
-  status.startAddress     := Mux(addressQueue.io.deq.valid, addressQueue.io.deq.bits, alignedDequeueAddress)
+  status.startAddress     := Mux(addressQueue.deq.valid, addressQueue.deq.bits, alignedDequeueAddress)
   status.endAddress       := ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineNumberReg) ##
     0.U(param.cacheLineBits.W)
   dontTouch(status)

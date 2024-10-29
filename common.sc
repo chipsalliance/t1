@@ -59,7 +59,8 @@ trait T1Module
   def arithmeticModule: ScalaModule
   def hardfloatModule: ScalaModule
   def axi4Module: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, axi4Module)
+  def stdlibModule: ScalaModule
+  def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, axi4Module, stdlibModule)
 }
 
 trait ConfigGenModule
@@ -86,8 +87,9 @@ trait RocketVModule
     with HasRVDecoderDB {
   def axi4Module: ScalaModule
   def hardfloatModule: ScalaModule
+  def stdlibModule: ScalaModule
 
-  def moduleDeps = super.moduleDeps ++ Seq(axi4Module, hardfloatModule)
+  def moduleDeps = super.moduleDeps ++ Seq(axi4Module, hardfloatModule, stdlibModule)
 }
 
 // Link T1 example: RocketV+T1
@@ -167,4 +169,10 @@ trait RocketEmulatorModule
     with HasChisel {
   def rocketVModule: ScalaModule
   def moduleDeps = super.moduleDeps ++ Seq(rocketVModule)
+}
+
+trait StdlibModule extends ScalaModule with HasChisel {
+  def dwbbModule: ScalaModule
+
+  def moduleDeps = super.moduleDeps ++ Seq(dwbbModule)
 }

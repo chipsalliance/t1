@@ -9,6 +9,7 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.{CSRInterface, LaneExecuteStage, LaneParameter}
 import org.chipsalliance.t1.rtl.decoder.Decoder
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
   val src:                 Vec[UInt]    = Vec(3, UInt(parameter.datapathWidth.W))
@@ -54,8 +55,8 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
 
   val decodeResult: DecodeBundle = enqueue.bits.decodeResult
 
-  val executionQueue: Queue[LaneExecuteStage] =
-    Module(new Queue(new LaneExecuteStage(parameter)(isLastSlot), parameter.executionQueueSize))
+  val executionQueue: QueueIO[LaneExecuteStage] =
+    Queue.io(new LaneExecuteStage(parameter)(isLastSlot), parameter.executionQueueSize)
 
   // ffo success in current data group?
   val ffoSuccess: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
@@ -77,7 +78,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
     0.U
   )
   // executionQueue enqueue
-  executionQueue.io.enq.bits.pipeData.foreach { data =>
+  executionQueue.enq.bits.pipeData.foreach { data =>
     data := Mux(
       // pipe source1 for gather, pipe ~v0 & vd for ffo
       decodeResult(Decoder.gather) || decodeResult(Decoder.ffo),
@@ -85,9 +86,9 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
       enqueue.bits.src(1)
     )
   }
-  executionQueue.io.enq.bits.sSendResponse.foreach { d => d := enqueue.bits.sSendResponse.get }
-  executionQueue.io.enq.bits.groupCounter := enqueue.bits.groupCounter
-  executionQueue.io.enq.bits.mask             := Mux1H(
+  executionQueue.enq.bits.sSendResponse.foreach { d => d := enqueue.bits.sSendResponse.get }
+  executionQueue.enq.bits.groupCounter := enqueue.bits.groupCounter
+  executionQueue.enq.bits.mask             := Mux1H(
     enqueue.bits.vSew1H,
     Seq(
       enqueue.bits.maskForFilter,
@@ -96,22 +97,22 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
       FillInterleaved(4, enqueue.bits.maskForFilter(0))
     )
   )
-  executionQueue.io.enq.bits.decodeResult     := enqueue.bits.decodeResult
-  executionQueue.io.enq.bits.instructionIndex := enqueue.bits.instructionIndex
-  executionQueue.io.enq.bits.loadStore        := enqueue.bits.loadStore
-  executionQueue.io.enq.bits.vd               := enqueue.bits.vd
-  executionQueue.io.enq.valid                 := enqueue.valid
-  enqueue.ready                               := executionQueue.io.enq.ready
-  dequeue.valid                               := executionQueue.io.deq.valid
-  executionQueue.io.deq.ready                 := dequeue.ready
+  executionQueue.enq.bits.decodeResult     := enqueue.bits.decodeResult
+  executionQueue.enq.bits.instructionIndex := enqueue.bits.instructionIndex
+  executionQueue.enq.bits.loadStore        := enqueue.bits.loadStore
+  executionQueue.enq.bits.vd               := enqueue.bits.vd
+  executionQueue.enq.valid                 := enqueue.valid
+  enqueue.ready                            := executionQueue.enq.ready
+  dequeue.valid                            := executionQueue.deq.valid
+  executionQueue.deq.ready                 := dequeue.ready
 
-  dequeue.bits.pipeData.foreach(_ := executionQueue.io.deq.bits.pipeData.get)
-  dequeue.bits.groupCounter     := executionQueue.io.deq.bits.groupCounter
-  dequeue.bits.mask             := executionQueue.io.deq.bits.mask
-  dequeue.bits.decodeResult     := executionQueue.io.deq.bits.decodeResult
-  dequeue.bits.instructionIndex := executionQueue.io.deq.bits.instructionIndex
-  dequeue.bits.loadStore        := executionQueue.io.deq.bits.loadStore
-  dequeue.bits.vd               := executionQueue.io.deq.bits.vd
-  dequeue.bits.sSendResponse.foreach(_ := executionQueue.io.deq.bits.sSendResponse.get)
-  stageValid                    := executionQueue.io.deq.valid
+  dequeue.bits.pipeData.foreach(_ := executionQueue.deq.bits.pipeData.get)
+  dequeue.bits.groupCounter     := executionQueue.deq.bits.groupCounter
+  dequeue.bits.mask             := executionQueue.deq.bits.mask
+  dequeue.bits.decodeResult     := executionQueue.deq.bits.decodeResult
+  dequeue.bits.instructionIndex := executionQueue.deq.bits.instructionIndex
+  dequeue.bits.loadStore        := executionQueue.deq.bits.loadStore
+  dequeue.bits.vd               := executionQueue.deq.bits.vd
+  dequeue.bits.sSendResponse.foreach(_ := executionQueue.deq.bits.sSendResponse.get)
+  stageValid                    := executionQueue.deq.valid
 }

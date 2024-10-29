@@ -82,6 +82,35 @@ trait RVDecoderDB extends millbuild.dependencies.rvdecoderdb.common.RVDecoderDBJ
   override def millSourcePath = os.pwd / "dependencies" / "rvdecoderdb" / "rvdecoderdb"
 }
 
+object dwbb extends DWBB
+
+trait DWBB extends millbuild.dependencies.`chisel-interface`.common.DWBBModule {
+  override def millSourcePath = os.pwd / "dependencies" / "chisel-interface" / "dwbb"
+  def scalaVersion            = v.scala
+
+  def mainargsIvy = v.mainargs
+
+  def chiselModule    = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselIvy       = None
+  def chiselPluginIvy = None
+}
+
+object stdlib extends Stdlib
+
+trait Stdlib extends millbuild.common.StdlibModule with ScalafmtModule {
+  def scalaVersion = v.scala
+
+  def mainargsIvy = v.mainargs
+
+  def dwbbModule: ScalaModule = dwbb
+
+  def chiselModule    = Some(chisel)
+  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
+  def chiselIvy       = None
+  def chiselPluginIvy = None
+}
+
 object t1 extends T1
 
 trait T1 extends millbuild.common.T1Module with ScalafmtModule {
@@ -91,6 +120,7 @@ trait T1 extends millbuild.common.T1Module with ScalafmtModule {
   def axi4Module        = axi4
   def hardfloatModule   = hardfloat
   def rvdecoderdbModule = rvdecoderdb
+  def stdlibModule      = stdlib
   def riscvOpcodesPath  = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
 
   def chiselModule    = Some(chisel)
@@ -117,6 +147,7 @@ trait RocketV extends millbuild.common.RocketVModule with ScalafmtModule {
   def riscvOpcodesPath  = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
   def hardfloatModule   = hardfloat
   def axi4Module        = axi4
+  def stdlibModule      = stdlib
 
   def chiselModule    = Some(chisel)
   def chiselPluginJar = T(Some(chisel.pluginModule.jar()))

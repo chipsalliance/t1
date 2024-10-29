@@ -4,7 +4,9 @@
 #
 # For convenience, we still use the nixpkgs defined in flake to "callPackage" this derivation.
 # But the buildFHSEnv, targetPkgs is still from the locked nixpkgs.
-{ fetchFromGitHub }:
+{ fetchFromGitHub
+, getEnv'
+}:
 let
   nixpkgsSrcs = fetchFromGitHub {
     owner = "NixOS";
@@ -16,17 +18,10 @@ let
   # The vcs we have only support x86-64_linux
   lockedPkgs = import nixpkgsSrcs { system = "x86_64-linux"; };
 
-  getEnv' = key:
-    let
-      val = builtins.getEnv key;
-    in
-    if val == "" then
-      builtins.throw "${key} not set or '--impure' not applied"
-    else val;
-
   # Using VCS need to set VC_STATIC_HOME and SNPSLMD_LICENSE_FILE to impure env, and add sandbox dir to VC_STATIC_HOME
   vcStaticHome = getEnv' "VC_STATIC_HOME";
   snpslmdLicenseFile = getEnv' "SNPSLMD_LICENSE_FILE";
+  dwbb = getEnv' "DWBB_DIR";
 in
 lockedPkgs.buildFHSEnv {
   name = "vcs-fhs-env";
@@ -38,7 +33,6 @@ lockedPkgs.buildFHSEnv {
     export VC_STATIC_HOME=${vcStaticHome}
 
     export TCL_TZ=UTC
-    export VC_STATIC_HOME=$VC_STATIC_HOME
     export VCS_HOME=$VC_STATIC_HOME/vcs-mx
     export VCS_TARGET_ARCH=amd64
     export VCS_ARCH_OVERRIDE=linux
@@ -47,6 +41,7 @@ lockedPkgs.buildFHSEnv {
     export SPYGLASS_HOME=$VC_STATIC_HOME/SG_COMPAT/SPYGLASS_HOME
     export SNPS_VERDI_CBUG_LCA=1
     export SNPSLMD_LICENSE_FILE=${snpslmdLicenseFile}
+    export DWBB_DIR=${dwbb}
 
     export PATH=$VC_STATIC_HOME/bin:$PATH
     export PATH=$VC_STATIC_HOME/verdi/bin:$PATH
