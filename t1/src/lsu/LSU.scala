@@ -9,6 +9,7 @@ import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.util._
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4RWIrrevocable}
 import org.chipsalliance.t1.rtl._
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 /** @param datapathWidth
   *   ELEN
@@ -236,8 +237,8 @@ class LSU(param: LSUParameter) extends Module {
   /** TileLink D Channel write to VRF queue: TL-D -CrossBar-> MSHR -proxy-> write queue -CrossBar-> VRF
     */
   @public
-  val writeQueueVec: Seq[Queue[LSUWriteQueueBundle]] = Seq.fill(param.laneNumber)(
-    Module(new Queue(new LSUWriteQueueBundle(param), param.toVRFWriteQueueSize, flow = true))
+  val writeQueueVec: Seq[QueueIO[LSUWriteQueueBundle]] = Seq.fill(param.laneNumber)(
+    Queue.io(new LSUWriteQueueBundle(param), param.toVRFWriteQueueSize, flow = true)
   )
 
   @public
@@ -262,29 +263,29 @@ class LSU(param: LSUParameter) extends Module {
   // Permission to enter the queue TODO: Investigate why this happens
   val canEnterQueue:   Vec[Bool] = Wire(Vec(param.laneNumber, Bool()))
   // other 优先级更高
-  otherUnit.vrfWritePort.ready := (otherUnit.status.targetLane & VecInit(writeQueueVec.map(_.io.enq.ready)).asUInt).orR
+  otherUnit.vrfWritePort.ready := (otherUnit.status.targetLane & VecInit(writeQueueVec.map(_.enq.ready)).asUInt).orR
   writeQueueVec.zipWithIndex.foreach { case (write, index) =>
-    write.io.enq.valid                 := otherTryToWrite(index) || loadUnit.vrfWritePort(index).valid
-    write.io.enq.bits.data             := Mux(
+    write.enq.valid                    := otherTryToWrite(index) || loadUnit.vrfWritePort(index).valid
+    write.enq.bits.data                := Mux(
       otherTryToWrite(index),
       otherUnit.vrfWritePort.bits,
       loadUnit.vrfWritePort(index).bits
     )
-    write.io.enq.bits.targetLane       := (BigInt(1) << index).U
-    loadUnit.vrfWritePort(index).ready := write.io.enq.ready && !otherTryToWrite(index)
+    write.enq.bits.targetLane          := (BigInt(1) << index).U
+    loadUnit.vrfWritePort(index).ready := write.enq.ready && !otherTryToWrite(index)
   }
 
   layer.block(layers.Verification) {
     val probeWire = Wire(new LSUProbe(param))
     define(lsuProbe, ProbeValue(probeWire))
     writeQueueVec.zipWithIndex.foreach { case (write, index) =>
-      probeWire.slots(index).dataVd          := write.io.enq.bits.data.vd
-      probeWire.slots(index).dataOffset      := write.io.enq.bits.data.offset
-      probeWire.slots(index).dataMask        := write.io.enq.bits.data.mask
-      probeWire.slots(index).dataData        := write.io.enq.bits.data.data
-      probeWire.slots(index).dataInstruction := write.io.enq.bits.data.instructionIndex
-      probeWire.slots(index).writeValid      := write.io.enq.fire
-      probeWire.slots(index).targetLane      := OHToUInt(write.io.enq.bits.targetLane)
+      probeWire.slots(index).dataVd          := write.enq.bits.data.vd
+      probeWire.slots(index).dataOffset      := write.enq.bits.data.offset
+      probeWire.slots(index).dataMask        := write.enq.bits.data.mask
+      probeWire.slots(index).dataData        := write.enq.bits.data.data
+      probeWire.slots(index).dataInstruction := write.enq.bits.data.instructionIndex
+      probeWire.slots(index).writeValid      := write.enq.fire
+      probeWire.slots(index).targetLane      := OHToUInt(write.enq.bits.targetLane)
     }
     probeWire.reqEnq := reqEnq.asUInt
 
@@ -301,9 +302,9 @@ class LSU(param: LSUParameter) extends Module {
   }
 
   vrfWritePort.zip(writeQueueVec).foreach { case (p, q) =>
-    p.valid        := q.io.deq.valid
-    p.bits         := q.io.deq.bits.data
-    q.io.deq.ready := p.ready
+    p.valid     := q.deq.valid
+    p.bits      := q.deq.bits.data
+    q.deq.ready := p.ready
   }
 
   val dataInMSHR: UInt =
@@ -323,9 +324,9 @@ class LSU(param: LSUParameter) extends Module {
     val queueCount: Seq[UInt] = Seq.tabulate(param.chainingSize) { _ =>
       RegInit(0.U(log2Ceil(param.toVRFWriteQueueSize).W))
     }
-    val enqOH:      UInt      = indexToOH(q.io.enq.bits.data.instructionIndex, param.chainingSize)
-    val queueEnq:   UInt      = Mux(q.io.enq.fire, enqOH, 0.U)
-    val queueDeq   = Mux(q.io.deq.fire, indexToOH(q.io.deq.bits.data.instructionIndex, param.chainingSize), 0.U)
+    val enqOH:      UInt      = indexToOH(q.enq.bits.data.instructionIndex, param.chainingSize)
+    val queueEnq:   UInt      = Mux(q.enq.fire, enqOH, 0.U)
+    val queueDeq   = Mux(q.deq.fire, indexToOH(q.deq.bits.data.instructionIndex, param.chainingSize), 0.U)
     queueCount.zipWithIndex.foreach { case (count, index) =>
       val counterUpdate: UInt = Mux(queueEnq(index), 1.U, -1.S(log2Ceil(param.toVRFWriteQueueSize).W).asUInt)
       when(queueEnq(index) ^ queueDeq(index)) {
@@ -336,56 +337,56 @@ class LSU(param: LSUParameter) extends Module {
     val dataTag    = VecInit(Seq.tabulate(param.chainingSize) { _ =>
       RegInit(false.B)
     })
-    val nextTag    = q.io.enq.bits.data.instructionIndex.asBools.last
+    val nextTag    = q.enq.bits.data.instructionIndex.asBools.last
     val currentTag = (dataTag.asUInt & enqOH).orR
     // same tage or nothing in queue
     canEnterQueue(queueIndex) := (nextTag === currentTag) || !p
     dataTag.zipWithIndex.foreach { case (d, i) =>
-      when(q.io.deq.fire && enqOH(i)) {
+      when(q.deq.fire && enqOH(i)) {
         d := nextTag
       }
     }
   }
 
-  val sourceQueue = Module(new Queue(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize))
+  val sourceQueue = Queue.io(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize)
   // load unit connect
-  axi4Port.ar.valid         := loadUnit.memRequest.valid && sourceQueue.io.enq.ready
+  axi4Port.ar.valid         := loadUnit.memRequest.valid && sourceQueue.enq.ready
   axi4Port.ar.bits <> DontCare
   axi4Port.ar.bits.addr     := loadUnit.memRequest.bits.address
   axi4Port.ar.bits.len      := 0.U
   axi4Port.ar.bits.size     := param.mshrParam.cacheLineBits.U
   axi4Port.ar.bits.burst    := 1.U // INCR
-  loadUnit.memRequest.ready := sourceQueue.io.enq.ready && axi4Port.ar.ready
+  loadUnit.memRequest.ready := sourceQueue.enq.ready && axi4Port.ar.ready
 
   loadUnit.memResponse.valid      := axi4Port.r.valid
   loadUnit.memResponse.bits.data  := axi4Port.r.bits.data
-  loadUnit.memResponse.bits.index := sourceQueue.io.deq.bits
+  loadUnit.memResponse.bits.index := sourceQueue.deq.bits
   axi4Port.r.ready                := loadUnit.memResponse.ready
 
-  sourceQueue.io.enq.valid := loadUnit.memRequest.valid && axi4Port.ar.ready
-  sourceQueue.io.enq.bits  := loadUnit.memRequest.bits.src
-  sourceQueue.io.deq.ready := axi4Port.r.fire
+  sourceQueue.enq.valid := loadUnit.memRequest.valid && axi4Port.ar.ready
+  sourceQueue.enq.bits  := loadUnit.memRequest.bits.src
+  sourceQueue.deq.ready := axi4Port.r.fire
 
   // store unit <> axi
-  val dataQueue: Queue[MemWrite] = Module(new Queue(chiselTypeOf(storeUnit.memRequest.bits), 2))
-  axi4Port.aw.valid          := storeUnit.memRequest.valid && dataQueue.io.enq.ready
+  val dataQueue: QueueIO[MemWrite] = Queue.io(chiselTypeOf(storeUnit.memRequest.bits), 2)
+  axi4Port.aw.valid          := storeUnit.memRequest.valid && dataQueue.enq.ready
   axi4Port.aw.bits <> DontCare
   axi4Port.aw.bits.len       := 0.U
   axi4Port.aw.bits.burst     := 1.U // INCR
   axi4Port.aw.bits.size      := param.mshrParam.cacheLineBits.U
   axi4Port.aw.bits.addr      := storeUnit.memRequest.bits.address
   axi4Port.aw.bits.id        := storeUnit.memRequest.bits.index
-  storeUnit.memRequest.ready := axi4Port.aw.ready && dataQueue.io.enq.ready
+  storeUnit.memRequest.ready := axi4Port.aw.ready && dataQueue.enq.ready
 
-  dataQueue.io.enq.valid := storeUnit.memRequest.valid && axi4Port.aw.ready
-  dataQueue.io.enq.bits  := storeUnit.memRequest.bits
+  dataQueue.enq.valid := storeUnit.memRequest.valid && axi4Port.aw.ready
+  dataQueue.enq.bits  := storeUnit.memRequest.bits
 
-  axi4Port.w.valid       := dataQueue.io.deq.valid
+  axi4Port.w.valid     := dataQueue.deq.valid
   axi4Port.w.bits <> DontCare
-  axi4Port.w.bits.data   := dataQueue.io.deq.bits.data
-  axi4Port.w.bits.strb   := dataQueue.io.deq.bits.mask
-  axi4Port.w.bits.last   := true.B
-  dataQueue.io.deq.ready := axi4Port.w.ready
+  axi4Port.w.bits.data := dataQueue.deq.bits.data
+  axi4Port.w.bits.strb := dataQueue.deq.bits.mask
+  axi4Port.w.bits.last := true.B
+  dataQueue.deq.ready  := axi4Port.w.ready
 
   // todo: add write token ?
   axi4Port.b.ready          := true.B
@@ -393,43 +394,45 @@ class LSU(param: LSUParameter) extends Module {
   simpleAccessPorts.b.ready := true.B
 
   // other unit <> axi
-  val simpleSourceQueue: Queue[UInt] = Module(new Queue(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize))
-  simpleAccessPorts.ar.valid      := otherUnit.memReadRequest.valid && simpleSourceQueue.io.enq.ready
+  val simpleSourceQueue: QueueIO[UInt] =
+    Queue.io(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize)
+  simpleAccessPorts.ar.valid      := otherUnit.memReadRequest.valid && simpleSourceQueue.enq.ready
   simpleAccessPorts.ar.bits <> DontCare
   simpleAccessPorts.ar.bits.addr  := otherUnit.memReadRequest.bits.address
   simpleAccessPorts.ar.bits.len   := 0.U
   simpleAccessPorts.ar.bits.size  := otherUnit.memReadRequest.bits.size
   simpleAccessPorts.ar.bits.burst := 1.U // INCR
-  otherUnit.memReadRequest.ready  := simpleSourceQueue.io.enq.ready && simpleAccessPorts.ar.ready
+  otherUnit.memReadRequest.ready  := simpleSourceQueue.enq.ready && simpleAccessPorts.ar.ready
 
   otherUnit.memReadResponse.valid       := simpleAccessPorts.r.valid
   otherUnit.memReadResponse.bits.data   := simpleAccessPorts.r.bits.data
-  otherUnit.memReadResponse.bits.source := simpleSourceQueue.io.deq.bits
+  otherUnit.memReadResponse.bits.source := simpleSourceQueue.deq.bits
   simpleAccessPorts.r.ready             := otherUnit.memReadResponse.ready
 
-  simpleSourceQueue.io.enq.valid := otherUnit.memReadRequest.valid && simpleAccessPorts.ar.ready
-  simpleSourceQueue.io.enq.bits  := otherUnit.memReadRequest.bits.source
-  simpleSourceQueue.io.deq.ready := simpleAccessPorts.r.fire
+  simpleSourceQueue.enq.valid := otherUnit.memReadRequest.valid && simpleAccessPorts.ar.ready
+  simpleSourceQueue.enq.bits  := otherUnit.memReadRequest.bits.source
+  simpleSourceQueue.deq.ready := simpleAccessPorts.r.fire
 
-  val simpleDataQueue: Queue[SimpleMemWrite] = Module(new Queue(chiselTypeOf(otherUnit.memWriteRequest.bits), 2))
-  simpleAccessPorts.aw.valid      := otherUnit.memWriteRequest.valid && dataQueue.io.enq.ready
+  val simpleDataQueue: QueueIO[SimpleMemWrite] =
+    Queue.io(chiselTypeOf(otherUnit.memWriteRequest.bits), 2)
+  simpleAccessPorts.aw.valid      := otherUnit.memWriteRequest.valid && dataQueue.enq.ready
   simpleAccessPorts.aw.bits <> DontCare
   simpleAccessPorts.aw.bits.len   := 0.U
   simpleAccessPorts.aw.bits.burst := 1.U // INCR
   simpleAccessPorts.aw.bits.size  := otherUnit.memWriteRequest.bits.size
   simpleAccessPorts.aw.bits.addr  := otherUnit.memWriteRequest.bits.address
   simpleAccessPorts.aw.bits.id    := otherUnit.memWriteRequest.bits.source
-  otherUnit.memWriteRequest.ready := simpleAccessPorts.aw.ready && simpleDataQueue.io.enq.ready
+  otherUnit.memWriteRequest.ready := simpleAccessPorts.aw.ready && simpleDataQueue.enq.ready
 
-  simpleDataQueue.io.enq.valid := otherUnit.memWriteRequest.valid && simpleAccessPorts.aw.ready
-  simpleDataQueue.io.enq.bits  := otherUnit.memWriteRequest.bits
+  simpleDataQueue.enq.valid := otherUnit.memWriteRequest.valid && simpleAccessPorts.aw.ready
+  simpleDataQueue.enq.bits  := otherUnit.memWriteRequest.bits
 
-  simpleAccessPorts.w.valid     := simpleDataQueue.io.deq.valid
+  simpleAccessPorts.w.valid     := simpleDataQueue.deq.valid
   simpleAccessPorts.w.bits <> DontCare
-  simpleAccessPorts.w.bits.data := simpleDataQueue.io.deq.bits.data
-  simpleAccessPorts.w.bits.strb := simpleDataQueue.io.deq.bits.mask
+  simpleAccessPorts.w.bits.data := simpleDataQueue.deq.bits.data
+  simpleAccessPorts.w.bits.strb := simpleDataQueue.deq.bits.mask
   simpleAccessPorts.w.bits.last := true.B
-  simpleDataQueue.io.deq.ready  := simpleAccessPorts.w.ready
+  simpleDataQueue.deq.ready     := simpleAccessPorts.w.ready
 
   otherUnit.offsetReadResult := offsetReadResult
 

@@ -9,6 +9,7 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.t1.rtl._
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
   val groupCounter:     UInt         = UInt(parameter.groupNumberBits.W)
@@ -85,19 +86,19 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   }
 
   // Used to cut off back pressure forward
-  val vrfWriteQueue: Queue[VRFWriteRequest] =
-    Module(new Queue(vrfWriteBundle, entries = 4, pipe = false, flow = false))
+  val vrfWriteQueue: QueueIO[VRFWriteRequest] =
+    Queue.io(vrfWriteBundle, entries = 4, pipe = false, flow = false)
   // The load of the pointer is a bit large, copy one
-  val vrfPtrReplica: Queue[UInt]            =
-    Module(new Queue(UInt(parameter.vrfParam.vrfOffsetBits.W), entries = 4, pipe = false, flow = false))
-  vrfPtrReplica.io.enq.valid := vrfWriteQueue.io.enq.valid
-  vrfPtrReplica.io.enq.bits  := vrfWriteQueue.io.enq.bits.offset
-  vrfPtrReplica.io.deq.ready := vrfWriteQueue.io.deq.ready
+  val vrfPtrReplica: QueueIO[UInt]            =
+    Queue.io(UInt(parameter.vrfParam.vrfOffsetBits.W), entries = 4, pipe = false, flow = false)
+  vrfPtrReplica.enq.valid := vrfWriteQueue.enq.valid
+  vrfPtrReplica.enq.bits  := vrfWriteQueue.enq.bits.offset
+  vrfPtrReplica.deq.ready := vrfWriteQueue.deq.ready
 
   if (isLastSlot) {
 
     /** Write queue ready or not need to write. */
-    val vrfWriteReady: Bool = vrfWriteQueue.io.enq.ready || pipeEnqueue.get.decodeResult(Decoder.sWrite)
+    val vrfWriteReady: Bool = vrfWriteQueue.enq.ready || pipeEnqueue.get.decodeResult(Decoder.sWrite)
 
     // VRF cross write
     val sendState = (sCrossWriteLSB ++ sCrossWriteMSB).toSeq
@@ -147,19 +148,19 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     )
 
     // enqueue write for last slot
-    vrfWriteQueue.io.enq.valid := stageValidReg.get && schedulerFinish && !pipeEnqueue.get.decodeResult(Decoder.sWrite)
+    vrfWriteQueue.enq.valid := stageValidReg.get && schedulerFinish && !pipeEnqueue.get.decodeResult(Decoder.sWrite)
 
     // UInt(5.W) + UInt(3.W), use `+` here
-    vrfWriteQueue.io.enq.bits.vd := pipeEnqueue.get.vd + pipeEnqueue.get.groupCounter(
+    vrfWriteQueue.enq.bits.vd := pipeEnqueue.get.vd + pipeEnqueue.get.groupCounter(
       parameter.groupNumberBits - 1,
       parameter.vrfOffsetBits
     )
 
-    vrfWriteQueue.io.enq.bits.offset           := pipeEnqueue.get.groupCounter
-    vrfWriteQueue.io.enq.bits.data             := dataSelect.get
-    vrfWriteQueue.io.enq.bits.last             := DontCare
-    vrfWriteQueue.io.enq.bits.instructionIndex := pipeEnqueue.get.instructionIndex
-    vrfWriteQueue.io.enq.bits.mask             := pipeEnqueue.get.mask
+    vrfWriteQueue.enq.bits.offset           := pipeEnqueue.get.groupCounter
+    vrfWriteQueue.enq.bits.data             := dataSelect.get
+    vrfWriteQueue.enq.bits.last             := DontCare
+    vrfWriteQueue.enq.bits.instructionIndex := pipeEnqueue.get.instructionIndex
+    vrfWriteQueue.enq.bits.mask             := pipeEnqueue.get.mask
 
     // Handshake
     /** Cross-lane writing is over */
@@ -172,29 +173,29 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
         data := enqueue.fire
       }
     }
-    stageValid := stageValidReg.get || vrfWriteQueue.io.deq.valid
+    stageValid := stageValidReg.get || vrfWriteQueue.deq.valid
   } else {
     // Normal will be one level less
-    vrfWriteQueue.io.enq.valid := enqueue.valid
+    vrfWriteQueue.enq.valid := enqueue.valid
 
     // UInt(5.W) + UInt(3.W), use `+` here
-    vrfWriteQueue.io.enq.bits.vd := enqueue.bits.vd + enqueue.bits.groupCounter(
+    vrfWriteQueue.enq.bits.vd := enqueue.bits.vd + enqueue.bits.groupCounter(
       parameter.groupNumberBits - 1,
       parameter.vrfOffsetBits
     )
 
-    vrfWriteQueue.io.enq.bits.offset := enqueue.bits.groupCounter
+    vrfWriteQueue.enq.bits.offset := enqueue.bits.groupCounter
 
-    vrfWriteQueue.io.enq.bits.data             := enqueue.bits.data
-    vrfWriteQueue.io.enq.bits.last             := DontCare
-    vrfWriteQueue.io.enq.bits.instructionIndex := enqueue.bits.instructionIndex
-    vrfWriteQueue.io.enq.bits.mask             := enqueue.bits.mask
+    vrfWriteQueue.enq.bits.data             := enqueue.bits.data
+    vrfWriteQueue.enq.bits.last             := DontCare
+    vrfWriteQueue.enq.bits.instructionIndex := enqueue.bits.instructionIndex
+    vrfWriteQueue.enq.bits.mask             := enqueue.bits.mask
 
     // Handshake
-    enqueue.ready := vrfWriteQueue.io.enq.ready
-    stageValid    := vrfWriteQueue.io.deq.valid
+    enqueue.ready := vrfWriteQueue.enq.ready
+    stageValid    := vrfWriteQueue.deq.valid
   }
-  vrfWriteRequest <> vrfWriteQueue.io.deq
-  vrfWriteRequest.bits.offset := vrfPtrReplica.io.deq.bits
-  vrfWriteRequest.valid       := vrfPtrReplica.io.deq.valid
+  vrfWriteRequest <> vrfWriteQueue.deq
+  vrfWriteRequest.bits.offset := vrfPtrReplica.deq.bits
+  vrfWriteRequest.valid       := vrfPtrReplica.deq.valid
 }

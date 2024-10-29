@@ -1,5 +1,4 @@
 { lib
-, callPackage
 , bash
 , stdenv
 , vcs-fhs-env
@@ -29,16 +28,19 @@ stdenv.mkDerivation rec {
     "-sverilog"
     "-full64"
     "-timescale=1ns/1ps"
+    "-y"
+    "$DWBB_DIR/sim_ver"
+    "+libext+.v"
     "-file"
     "filelist.f"
   ]
-  ++ lib.optionals (enableCover) [
+  ++ lib.optionals enableCover [
     "-cm"
     "line+cond+fsm+tgl+branch+assert"
     "-cm_dir"
     "./cm"
   ]
-  ++ lib.optionals (enableTrace) [
+  ++ lib.optionals enableTrace [
     "+define+T1_ENABLE_TRACE"
     "-debug_access+pp+dmptf+thread"
     "-kdb=common_elab,hgldd_all"
@@ -50,8 +52,9 @@ stdenv.mkDerivation rec {
   buildPhase = ''
     runHook preBuild
 
-    vcsArgsStr="${lib.escapeShellArgs vcsArgs}"
     fhsEnv="${vcs-fhs-env}/bin/vcs-fhs-env"
+    DWBB_DIR=$($fhsEnv -c "echo \$DWBB_DIR")
+    vcsArgsStr="${lib.escapeShellArgs vcsArgs}"
 
     echo "[nix] running VCS with args: $fhsEnv vcs $vcsArgsStr"
     "$fhsEnv" -c "vcs $vcsArgsStr -o $mainProgram"

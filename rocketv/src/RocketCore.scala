@@ -20,13 +20,13 @@ import chisel3.util.{
   MuxLookup,
   PriorityEncoder,
   PriorityMux,
-  Queue,
   RegEnable,
   Valid
 }
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import org.chipsalliance.rocketv.rvdecoderdbcompat.Causes
 import org.chipsalliance.rvdecoderdb.Instruction
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 class FPUScoreboardProbe extends Bundle {
   val fpuSetScoreBoard:     Bool = Bool()
@@ -408,7 +408,8 @@ class Rocket(val parameter: RocketParameter)
   val mulDiv:                           Instance[MulDiv]                      = Instantiate(new MulDiv(parameter.mulDivParameter))
   val mul:                              Option[Instance[PipelinedMultiplier]] =
     parameter.mulParameter.map(p => Instantiate(new PipelinedMultiplier(p)))
-  val t1RetireQueue:                    Option[Queue[T1RdRetire]]             = io.t1.map(t1 => Module(new Queue(chiselTypeOf(t1.retire.rd.bits), 32)))
+  val t1RetireQueue:                    Option[QueueIO[T1RdRetire]]           =
+    io.t1.map(t1 => Queue.io(chiselTypeOf(t1.retire.rd.bits), 32))
   val omInstance:                       Instance[RocketOM]                    = Instantiate(new RocketOM)
   io.om := omInstance.getPropertyReference.asAnyClassType
 
@@ -1379,7 +1380,7 @@ class Rocket(val parameter: RocketParameter)
             wbWaddr
           )
           fpScoreboard.clear(dmemResponseReplay && dmemResponseFpu, dmemResponseWaddr)
-          t1RetireQueue.foreach(q => fpScoreboard.clear(q.io.deq.fire && q.io.deq.bits.isFp, q.io.deq.bits.rdAddress))
+          t1RetireQueue.foreach(q => fpScoreboard.clear(q.deq.fire && q.deq.bits.isFp, q.deq.bits.rdAddress))
           fpScoreboard.clear(fpu.sboard_clr, fpu.sboard_clra)
 
           checkHazards(fpHazardTargets, fpScoreboard.read)
@@ -1538,23 +1539,24 @@ class Rocket(val parameter: RocketParameter)
     io.t1.foreach { t1 =>
       // T1 Issue
       val maxCount: Int = 32
-      val t1IssueQueue = Module(new Queue(chiselTypeOf(t1.issue.bits), maxCount))
-      t1IssueQueue.io.enq.valid            :=
+      val t1IssueQueue = Queue.io(chiselTypeOf(t1.issue.bits), maxCount)
+      t1IssueQueue.enq.valid            :=
         wbRegValid && !replayWbCommon && wbRegDecodeOutput(parameter.decoderParameter.vector) &&
           !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
-      t1IssueQueue.io.enq.bits.instruction := wbRegInstruction
-      t1IssueQueue.io.enq.bits.rs1Data     := wbRegWdata
-      t1IssueQueue.io.enq.bits.rs2Data     := wbRegRS2
-      t1IssueQueue.io.enq.bits.vtype       := csr.io.csrToVector.get.vtype
-      t1IssueQueue.io.enq.bits.vl          := csr.io.csrToVector.get.vl
-      t1IssueQueue.io.enq.bits.vstart      := csr.io.csrToVector.get.vstart
-      t1IssueQueue.io.enq.bits.vcsr        := csr.io.csrToVector.get.vcsr
-      t1.issue.valid                       := t1IssueQueue.io.deq.valid
-      t1.issue.bits                        := t1IssueQueue.io.deq.bits
-      t1IssueQueue.io.deq.ready            := t1.issue.ready
+      t1IssueQueue.enq.bits.instruction := wbRegInstruction
+      t1IssueQueue.enq.bits.rs1Data     := wbRegWdata
+      t1IssueQueue.enq.bits.rs2Data     := wbRegRS2
+      t1IssueQueue.enq.bits.vtype       := csr.io.csrToVector.get.vtype
+      t1IssueQueue.enq.bits.vl          := csr.io.csrToVector.get.vl
+      t1IssueQueue.enq.bits.vstart      := csr.io.csrToVector.get.vstart
+      t1IssueQueue.enq.bits.vcsr        := csr.io.csrToVector.get.vcsr
+      t1.issue.valid                    := t1IssueQueue.deq.valid
+      t1.issue.bits                     := t1IssueQueue.deq.bits
+      t1IssueQueue.deq.ready            := t1.issue.ready
       // For each different retirements, it should maintain different scoreboard
-      val t1CSRRetireQueue: Queue[T1CSRRetire] = Module(new Queue(chiselTypeOf(t1.retire.csr.bits), maxCount))
-      val t1XRDRetireQueue: Queue[T1RdRetire]  = t1RetireQueue.get
+      val t1CSRRetireQueue: QueueIO[T1CSRRetire] =
+        Queue.io(chiselTypeOf(t1.retire.csr.bits), maxCount)
+      val t1XRDRetireQueue: QueueIO[T1RdRetire]  = t1RetireQueue.get
 
       val countWidth                                                                                            = log2Up(maxCount)
       def counterManagement(size: Int, margin: Int = 0)(grant: Bool, release: Bool, flush: Option[Bool] = None) = {
@@ -1571,7 +1573,7 @@ class Rocket(val parameter: RocketParameter)
         (empty, full)
       }
       // T1 Memory Scoreboard
-      val t1MemoryGrant: Bool = t1IssueQueue.io.enq.valid && wbRegDecodeOutput(parameter.decoderParameter.vectorLSU)
+      val t1MemoryGrant: Bool = t1IssueQueue.enq.valid && wbRegDecodeOutput(parameter.decoderParameter.vectorLSU)
       val t1MemoryRelease: Bool = t1.retire.mem.fire
       // todo: handle vector lsu in pipe
       // +1: There are instructions that will enter t1
@@ -1579,39 +1581,39 @@ class Rocket(val parameter: RocketParameter)
       // T1 CSR Scoreboard
       // todo: add wbRegDecodeOutput(vectorWriteCsr)
       val t1CSRGrant:   Bool = false.B
-      val t1CSRRelease: Bool = false.B // t1CSRRetireQueue.io.deq.fire
+      val t1CSRRelease: Bool = false.B // t1CSRRetireQueue.deq.fire
       val (t1CSREmpty, _) = counterManagement(countWidth + 1)(t1CSRGrant, t1CSRRelease)
       // T1 XRD Scoreboard?
 
       // Maintain vector counter
       // There may be 4 instructions in the pipe
-      val (vectorEmpty, vectorFull) = counterManagement(countWidth, 4)(t1IssueQueue.io.enq.valid, t1.issue.fire)
+      val (vectorEmpty, vectorFull) = counterManagement(countWidth, 4)(t1IssueQueue.enq.valid, t1.issue.fire)
       vectorLSUEmpty.foreach(_ := lsuEmpty)
       vectorQueueFull.foreach(_ := vectorFull)
 
-      t1XRDRetireQueue.io.enq.valid := t1.retire.rd.valid
-      t1XRDRetireQueue.io.enq.bits  := t1.retire.rd.bits
-      t1CSRRetireQueue.io.enq.valid := t1.retire.csr.valid
-      t1CSRRetireQueue.io.enq.bits  := t1.retire.csr.bits
+      t1XRDRetireQueue.enq.valid := t1.retire.rd.valid
+      t1XRDRetireQueue.enq.bits  := t1.retire.rd.bits
+      t1CSRRetireQueue.enq.valid := t1.retire.csr.valid
+      t1CSRRetireQueue.enq.bits  := t1.retire.csr.bits
       // todo: write csr here
-      t1CSRRetireQueue.io.deq.ready := true.B
+      t1CSRRetireQueue.deq.ready := true.B
 
-      val vectorTryToWriteRd = t1XRDRetireQueue.io.deq.valid && !t1XRDRetireQueue.io.deq.bits.isFp
-      val vectorTryToWriteFP = t1XRDRetireQueue.io.deq.valid && t1XRDRetireQueue.io.deq.bits.isFp
-      t1XRDRetireQueue.io.deq.ready := (!(wbWxd || (dmemResponseReplay && dmemResponseXpu)) || !vectorTryToWriteRd) && (!(dmemResponseReplay && dmemResponseFpu) || !vectorTryToWriteFP)
+      val vectorTryToWriteRd = t1XRDRetireQueue.deq.valid && !t1XRDRetireQueue.deq.bits.isFp
+      val vectorTryToWriteFP = t1XRDRetireQueue.deq.valid && t1XRDRetireQueue.deq.bits.isFp
+      t1XRDRetireQueue.deq.ready := (!(wbWxd || (dmemResponseReplay && dmemResponseXpu)) || !vectorTryToWriteRd) && (!(dmemResponseReplay && dmemResponseFpu) || !vectorTryToWriteFP)
 
-      when(t1XRDRetireQueue.io.deq.fire && vectorTryToWriteRd) {
+      when(t1XRDRetireQueue.deq.fire && vectorTryToWriteRd) {
         longlatencyWdata    := t1.retire.rd.bits.rdData
         longlatencyWaddress := t1.retire.rd.bits.rdAddress
         longLatencyWenable  := true.B
       }
       io.fpu.foreach { fpu =>
         when(!(dmemResponseValid && dmemResponseFpu)) {
-          fpu.dmem_resp_val  := t1XRDRetireQueue.io.deq.valid && vectorTryToWriteFP
-          fpu.dmem_resp_data := t1XRDRetireQueue.io.deq.bits.rdData
+          fpu.dmem_resp_val  := t1XRDRetireQueue.deq.valid && vectorTryToWriteFP
+          fpu.dmem_resp_data := t1XRDRetireQueue.deq.bits.rdData
           // todo: 32 bit only
           fpu.dmem_resp_type := 2.U
-          fpu.dmem_resp_tag  := t1XRDRetireQueue.io.deq.bits.rdAddress
+          fpu.dmem_resp_tag  := t1XRDRetireQueue.deq.bits.rdAddress
         }
       }
 
@@ -1631,7 +1633,7 @@ class Rocket(val parameter: RocketParameter)
           wbRegValid && wbRegDecodeOutput(parameter.decoderParameter.vector) &&
           !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
         }.getOrElse(false.B)
-        probeWire.isVectorWrite  := t1RetireQueue.map(q => q.io.deq.fire).getOrElse(false.B)
+        probeWire.isVectorWrite  := t1RetireQueue.map(q => q.deq.fire).getOrElse(false.B)
         probeWire.idle           := vectorEmpty
 
         probeWire.fpuScoreboard.foreach { case fpProbe =>
@@ -1648,9 +1650,9 @@ class Rocket(val parameter: RocketParameter)
           }
 
           fpProbe.vectorClearScoreBoard.valid := t1RetireQueue
-            .map(q => q.io.deq.fire && q.io.deq.bits.isFp)
+            .map(q => q.deq.fire && q.deq.bits.isFp)
             .getOrElse(false.B)
-          fpProbe.vectorClearScoreBoard.bits  := t1RetireQueue.map(q => q.io.deq.bits.rdAddress).getOrElse(0.U)
+          fpProbe.vectorClearScoreBoard.bits  := t1RetireQueue.map(q => q.deq.bits.rdAddress).getOrElse(0.U)
 
           fpProbe.memClearScoreBoard.valid := dmemResponseReplay && dmemResponseFpu
           fpProbe.memClearScoreBoard.bits  := dmemResponseWaddr

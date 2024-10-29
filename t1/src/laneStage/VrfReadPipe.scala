@@ -10,6 +10,7 @@ import chisel3.ltl._
 import chisel3.ltl.Sequence._
 
 import org.chipsalliance.t1.rtl.{LaneParameter, VRFReadQueueEntry, VRFReadRequest}
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 @instantiable
 class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends Module {
@@ -61,25 +62,25 @@ class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends 
   reqArbitrate.io.out.ready            := vrfReadRequest.ready
 
   val vrfReadLatency = parameter.vrfParam.vrfReadLatency
-  val dataQueue:          Queue[UInt]         = Module(new Queue(UInt(parameter.datapathWidth.W), vrfReadLatency + 2))
-  val contenderDataQueue: Option[Queue[UInt]] = Option.when(arbitrate)(
-    Module(new Queue(UInt(parameter.datapathWidth.W), vrfReadLatency + 2))
+  val dataQueue:          QueueIO[UInt]         = Queue.io(UInt(parameter.datapathWidth.W), vrfReadLatency + 2)
+  val contenderDataQueue: Option[QueueIO[UInt]] = Option.when(arbitrate)(
+    Queue.io(UInt(parameter.datapathWidth.W), vrfReadLatency + 2)
   )
   val enqFirePipe = Pipe(vrfReadRequest.fire, enqueue.fire, vrfReadLatency)
 
-  dataQueue.io.enq.valid := enqFirePipe.valid && enqFirePipe.bits
-  dataQueue.io.enq.bits  := vrfReadResult
-  AssertProperty(BoolSequence(!dataQueue.io.enq.valid || dataQueue.io.enq.ready))
-  dequeue.valid          := dataQueue.io.deq.valid
-  dequeue.bits           := dataQueue.io.deq.bits
-  dataQueue.io.deq.ready := dequeue.ready
+  dataQueue.enq.valid := enqFirePipe.valid && enqFirePipe.bits
+  dataQueue.enq.bits  := vrfReadResult
+  AssertProperty(BoolSequence(!dataQueue.enq.valid || dataQueue.enq.ready))
+  dequeue.valid       := dataQueue.deq.valid
+  dequeue.bits        := dataQueue.deq.bits
+  dataQueue.deq.ready := dequeue.ready
 
   contenderDataQueue.foreach { queue =>
-    queue.io.enq.valid         := enqFirePipe.valid && !enqFirePipe.bits
-    queue.io.enq.bits          := vrfReadResult
-    AssertProperty(BoolSequence(!queue.io.enq.valid || queue.io.enq.ready))
-    contenderDequeue.get.valid := queue.io.deq.valid
-    contenderDequeue.get.bits  := queue.io.deq.bits
-    queue.io.deq.ready         := contenderDequeue.get.ready
+    queue.enq.valid            := enqFirePipe.valid && !enqFirePipe.bits
+    queue.enq.bits             := vrfReadResult
+    AssertProperty(BoolSequence(!queue.enq.valid || queue.enq.ready))
+    contenderDequeue.get.valid := queue.deq.valid
+    contenderDequeue.get.bits  := queue.deq.bits
+    queue.deq.ready            := contenderDequeue.get.ready
   }
 }

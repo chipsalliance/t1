@@ -7,6 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.{ffo, indexToOH, maskAnd, LaneParameter, VRFReadRequest, VRFWriteRequest}
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 import scala.annotation.unused
 
@@ -43,8 +44,8 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   def address(req: VRFWriteRequest): UInt = req.vd ## req.offset
 
   val dequeueWire:  DecoupledIO[VRFWriteRequest] = Wire(chiselTypeOf(dequeue))
-  val dequeueQueue: Queue[VRFWriteRequest]       = Module(new Queue(chiselTypeOf(dequeue.bits), 1, flow = true))
-  dequeueQueue.io.enq <> dequeueWire
+  val dequeueQueue: QueueIO[VRFWriteRequest]     = Queue.io(chiselTypeOf(dequeue.bits), 1, flow = true)
+  dequeueQueue.enq <> dequeueWire
   val s3Valid:      Bool                         = RegInit(false.B)
   val s3Pipe:       VRFWriteRequest              = RegInit(0.U.asTypeOf(enqueue.bits))
   val s3BypassData: UInt                         = RegInit(0.U.asTypeOf(UInt(parameter.datapathWidth.W)))
@@ -80,13 +81,13 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   val enqHitS1: Bool = s1Valid && address(enqueue.bits) === address(s1Pipe)
   val enqHitS2: Bool = s2Valid && address(enqueue.bits) === address(s2Pipe)
   val enqHitS3: Bool = s3Valid && address(enqueue.bits) === address(s3Pipe)
-  val hitQueue: Bool = dequeueQueue.io.count =/= 0.U &&
-    address(enqueue.bits) === address(dequeueQueue.io.deq.bits)
+  val hitQueue: Bool = !dequeueQueue.empty &&
+    address(enqueue.bits) === address(dequeueQueue.deq.bits)
   val fwd:      Bool = enqHitS1 || enqHitS2 || enqHitS3
   s1EnqReady := (s2EnqReady || !s1Valid) && !hitQueue
   val dataInQueue: UInt = maskAnd(
-    dequeueQueue.io.count =/= 0.U,
-    indexToOH(dequeueQueue.io.deq.bits.instructionIndex, parameter.chainingSize)
+    !dequeueQueue.empty,
+    indexToOH(dequeueQueue.deq.bits.instructionIndex, parameter.chainingSize)
   ).asUInt
 
   val enqNeedRead:     Bool = !enqueue.bits.mask.andR && !fwd
@@ -98,9 +99,8 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   vrfReadRequest.bits.offset           := enqueue.bits.offset
   vrfReadRequest.bits.instructionIndex := enqueue.bits.instructionIndex
 
-  val vrfReadPipe: Queue[UInt] = Module(
-    new Queue(UInt(parameter.datapathWidth.W), parameter.vrfParam.vrfReadLatency + 2)
-  )
+  val vrfReadPipe: QueueIO[UInt] =
+    Queue.io(UInt(parameter.datapathWidth.W), parameter.vrfParam.vrfReadLatency + 2)
 
   val readDataValid: Bool = Pipe(
     readBeforeWrite,
@@ -108,18 +108,18 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
     parameter.vrfParam.vrfReadLatency
   ).valid
 
-  vrfReadPipe.io.enq.valid := readDataValid
-  vrfReadPipe.io.enq.bits  := vrfReadResult
+  vrfReadPipe.enq.valid := readDataValid
+  vrfReadPipe.enq.bits  := vrfReadResult
 
   maskedWrite1H := dataInS3 | dataInS2 | dataInS1 | dataInQueue
 
   val maskFill: UInt = FillInterleaved(8, s3Pipe.mask)
-  val readDataSelect = Mux(fwd3, s3BypassData, vrfReadPipe.io.deq.bits)
+  val readDataSelect = Mux(fwd3, s3BypassData, vrfReadPipe.deq.bits)
   val s3ReadFromVrf: Bool = !s3Pipe.mask.andR && !fwd3
-  dequeueWire.valid        := s3Valid
-  dequeueWire.bits         := s3Pipe
-  dequeueWire.bits.data    := s3Pipe.data & maskFill | (readDataSelect & (~maskFill))
-  vrfReadPipe.io.deq.ready := dequeueWire.fire && s3ReadFromVrf
+  dequeueWire.valid     := s3Valid
+  dequeueWire.bits      := s3Pipe
+  dequeueWire.bits.data := s3Pipe.data & maskFill | (readDataSelect & (~maskFill))
+  vrfReadPipe.deq.ready := dequeueWire.fire && s3ReadFromVrf
 
   // update s1 reg
   when(s1Fire) {
@@ -153,5 +153,5 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   when(s3Fire ^ dequeueWire.fire) {
     s3Valid := s3Fire
   }
-  dequeue <> dequeueQueue.io.deq
+  dequeue <> dequeueQueue.deq
 }

@@ -39,15 +39,15 @@
   };
   chisel-interface = {
     pname = "chisel-interface";
-    version = "79703e44fb6010a535e6750249f6be0471fa0046";
+    version = "57081e3e080d09bf811cce7b3936ea9e5dc187f9";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel-interface";
-      rev = "79703e44fb6010a535e6750249f6be0471fa0046";
+      rev = "57081e3e080d09bf811cce7b3936ea9e5dc187f9";
       fetchSubmodules = false;
-      sha256 = "sha256-1VTN2OfsauJvf+JM/j0uhvixD0+aCnyGOoO74YrCFPA=";
+      sha256 = "sha256-Pmeu5dtjPp9WMzmJY2ULWB20DFq5Vh7Y4G0/Hbjyogc=";
     };
-    date = "2024-06-17";
+    date = "2024-10-12";
   };
   riscv-opcodes = {
     pname = "riscv-opcodes";

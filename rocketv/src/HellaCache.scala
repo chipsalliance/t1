@@ -24,7 +24,6 @@ import chisel3.util.{
   PriorityEncoder,
   PriorityEncoderOH,
   PriorityMux,
-  Queue,
   RegEnable,
   SRAM,
   SRAMInterface,
@@ -40,6 +39,7 @@ import org.chipsalliance.amba.axi4.bundle.{
   R,
   W
 }
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 object HellaCacheParameter {
   implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
@@ -537,9 +537,9 @@ class HellaCache(val parameter: HellaCacheParameter)
         with InlineInstance
     )
 
-    val awQueue: Queue[AW] = Module(new Queue(chiselTypeOf(io.loadStoreAXI.aw.bits), 1, flow = true))
+    val awQueue: QueueIO[AW] = Queue.io(chiselTypeOf(io.loadStoreAXI.aw.bits), 1, flow = true)
 
-    val arQueue: Queue[AR] = Module(new Queue(chiselTypeOf(io.loadStoreAXI.ar.bits), 1, flow = true))
+    val arQueue: QueueIO[AR] = Queue.io(chiselTypeOf(io.loadStoreAXI.ar.bits), 1, flow = true)
 
     dataArb.io.in.tail.foreach(_.bits.wdata := dataArb.io.in.head.bits.wdata) // tie off write ports by default
     dataArb.io.out.ready := true.B
@@ -888,7 +888,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     val s2_victim_dirty       = s2_victim_state.state === 3.U
     dontTouch(s2_victim_dirty)
     val s2_update_meta        = s2_hit_state.state =/= s2_new_hit_state.state
-    val s2_dont_nack_uncached = s2_valid_uncached_pending && awQueue.io.enq.ready
+    val s2_dont_nack_uncached = s2_valid_uncached_pending && awQueue.enq.ready
     val s2_dont_nack_misc     = s2_valid_masked && !s2_meta_error &&
       (supports_flush.B && s2_cmd_flush_all && flushed && !flushing ||
         supports_flush.B && s2_cmd_flush_line && !s2_hit ||
@@ -1061,39 +1061,39 @@ class HellaCache(val parameter: HellaCacheParameter)
     val accessWillRead: Bool = !s2_uncached || !s2_write
     // If no managers support atomics, assert fail if processor asks for them
     assert(!(memAccessValid && s2_read && s2_write && s2_uncached))
-    arQueue.io.enq.valid      := memAccessValid && accessWillRead
-    arQueue.io.enq.bits       := DontCare
-    arQueue.io.enq.bits.burst := 1.U
-    arQueue.io.enq.bits.addr  := Mux(
+    arQueue.enq.valid      := memAccessValid && accessWillRead
+    arQueue.enq.bits       := DontCare
+    arQueue.enq.bits.burst := 1.U
+    arQueue.enq.bits.addr  := Mux(
       s2_uncached,
       access_address,
       access_address >> parameter.lgCacheBlockBytes << parameter.lgCacheBlockBytes
     )
-    arQueue.io.enq.bits.len   := Mux(
+    arQueue.enq.bits.len   := Mux(
       s2_uncached,
       0.U,
       (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
     )
-    arQueue.io.enq.bits.size  := Mux(s2_uncached, a_size, parameter.lgCacheBlockBytes.U)
-    arQueue.io.enq.bits.id    := Mux(s2_uncached, a_source, 0.U)
-    io.loadStoreAXI.ar <> arQueue.io.deq
+    arQueue.enq.bits.size  := Mux(s2_uncached, a_size, parameter.lgCacheBlockBytes.U)
+    arQueue.enq.bits.id    := Mux(s2_uncached, a_source, 0.U)
+    io.loadStoreAXI.ar <> arQueue.deq
 
-    awQueue.io.enq.valid      := memAccessValid && !accessWillRead
-    awQueue.io.enq.bits       := DontCare
-    awQueue.io.enq.bits.id    := Mux(s2_uncached, a_source, 0.U)
-    awQueue.io.enq.bits.burst := 1.U
-    awQueue.io.enq.bits.addr  := access_address
-    awQueue.io.enq.bits.len   := 0.U
-    awQueue.io.enq.bits.size  := a_size
-    io.loadStoreAXI.aw <> awQueue.io.deq
+    awQueue.enq.valid      := memAccessValid && !accessWillRead
+    awQueue.enq.bits       := DontCare
+    awQueue.enq.bits.id    := Mux(s2_uncached, a_source, 0.U)
+    awQueue.enq.bits.burst := 1.U
+    awQueue.enq.bits.addr  := access_address
+    awQueue.enq.bits.len   := 0.U
+    awQueue.enq.bits.size  := a_size
+    io.loadStoreAXI.aw <> awQueue.deq
 
-    val dataQueue: Queue[W] = Module(new Queue(chiselTypeOf(io.loadStoreAXI.w.bits), cacheDataBeats))
-    dataQueue.io.enq.valid     := memAccessValid && !accessWillRead
-    dataQueue.io.enq.bits      := DontCare
-    dataQueue.io.enq.bits.data := a_data
-    dataQueue.io.enq.bits.strb := a_mask
-    dataQueue.io.enq.bits.last := true.B
-    io.loadStoreAXI.w <> dataQueue.io.deq
+    val dataQueue: QueueIO[W] = Queue.io(chiselTypeOf(io.loadStoreAXI.w.bits), cacheDataBeats)
+    dataQueue.enq.valid     := memAccessValid && !accessWillRead
+    dataQueue.enq.bits      := DontCare
+    dataQueue.enq.bits.data := a_data
+    dataQueue.enq.bits.strb := a_mask
+    dataQueue.enq.bits.last := true.B
+    io.loadStoreAXI.w <> dataQueue.deq
 
 //    // Drive APROT Bits
 //    tl_out_a.bits.user.lift(AMBAProt).foreach { x =>
@@ -1113,7 +1113,7 @@ class HellaCache(val parameter: HellaCacheParameter)
 
     // Set pending bits for outstanding TileLink transaction
     val a_sel = UIntToOH(a_source, maxUncachedInFlight + mmioOffset) >> mmioOffset
-    when(arQueue.io.enq.fire || awQueue.io.enq.fire) {
+    when(arQueue.enq.fire || awQueue.enq.fire) {
       when(s2_uncached) {
         (a_sel.asBools.zip(uncachedInFlight.zip(uncachedReqs))).foreach { case (s, (f, r)) =>
           when(s) {
@@ -1332,11 +1332,11 @@ class HellaCache(val parameter: HellaCacheParameter)
     val s2_release_last: Bool = RegEnable(s1_release_last, s1_release_data_valid && !releaseRejected)
 
     when(awState) {
-      awQueue.io.enq.valid     := true.B
-      awQueue.io.enq.bits.addr := releaseAddress >> parameter.lgCacheBlockBytes << parameter.lgCacheBlockBytes
-      awQueue.io.enq.bits.len  := (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
-      awQueue.io.enq.bits.size := parameter.lgCacheBlockBytes.U
-      awQueue.io.enq.bits.id   := (mmioOffset - 1).U
+      awQueue.enq.valid     := true.B
+      awQueue.enq.bits.addr := releaseAddress >> parameter.lgCacheBlockBytes << parameter.lgCacheBlockBytes
+      awQueue.enq.bits.len  := (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
+      awQueue.enq.bits.size := parameter.lgCacheBlockBytes.U
+      awQueue.enq.bits.id   := (mmioOffset - 1).U
     }
 
     when(s2_release_data_valid) {
@@ -1364,7 +1364,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       }
 
       when(awState) {
-        when(awQueue.io.enq.ready) {
+        when(awQueue.enq.ready) {
           release_state    := s_voluntary_writeback
           release_ack_wait := true.B
           release_ack_addr := releaseAddress
@@ -1524,7 +1524,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       }
 
       // when(tl_out_a.fire && !s2_uncached) { flushed := false.B }
-      when(awQueue.io.enq.fire && !s2_uncached) { flushed := false.B }
+      when(awQueue.enq.fire && !s2_uncached) { flushed := false.B }
       when(flushing) {
         s1_victim_way := flushCounter >> log2Ceil(nSets)
         when(s2_flush_valid) {

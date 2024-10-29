@@ -7,6 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.{cutUInt, ffo, SlotRequestToVFU, VFUResponseToSlot}
+import org.chipsalliance.dwbb.stdlib.queue.Queue
 
 @instantiable
 class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, dequeue: B)(multiCycle: Boolean = false)
@@ -122,12 +123,12 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   writeIndex      := executeIndex
   isLastResponse  := isLastRequest
   if (multiCycle) {
-    val executeQueue = Module(new Queue(UInt(3.W), 4))
-    executeQueue.io.enq.bits  := isLastRequest ## executeIndex
-    executeQueue.io.enq.valid := requestToVfu.fire
-    executeQueue.io.deq.ready := responseFromVfu.fire
-    writeIndex                := executeQueue.io.deq.bits(1, 0)
-    isLastResponse            := executeQueue.io.deq.bits(2) && responseFromVfu.valid && executeQueue.io.deq.valid
+    val executeQueue = Queue.io(UInt(3.W), 4)
+    executeQueue.enq.bits  := isLastRequest ## executeIndex
+    executeQueue.enq.valid := requestToVfu.fire
+    executeQueue.deq.ready := responseFromVfu.fire
+    writeIndex             := executeQueue.deq.bits(1, 0)
+    isLastResponse         := executeQueue.deq.bits(2) && responseFromVfu.valid && executeQueue.deq.valid
   }
 
   // update result

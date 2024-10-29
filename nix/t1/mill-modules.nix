@@ -34,6 +34,7 @@ let
         ./../../t1rocket/src
         ./../../t1rocketemu/src
         ./../../rocketemu/src
+        ./../../stdlib/src
       ];
     };
 

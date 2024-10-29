@@ -10,6 +10,7 @@ import chisel3.util._
 import chisel3.ltl._
 import chisel3.ltl.Sequence._
 import org.chipsalliance.t1.rtl._
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 /** @param datapathWidth
   *   ELEN
@@ -715,8 +716,10 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   val s0ElementIndex: UInt = groupIndex ## nextElementForMemoryRequestIndex
 
   // Reading vrf may take multiple cycles and requires additional information to be stored
-  val s1EnqQueue:     Queue[SimpleAccessStage1] = Module(new Queue(new SimpleAccessStage1(param), param.vrfReadLatency + 2))
-  val s1EnqDataQueue: Queue[UInt]               = Module(new Queue(UInt(param.datapathWidth.W), param.vrfReadLatency + 2))
+  val s1EnqQueue:     QueueIO[SimpleAccessStage1] =
+    Queue.io(new SimpleAccessStage1(param), param.vrfReadLatency + 2)
+  val s1EnqDataQueue: QueueIO[UInt]               =
+    Queue.io(UInt(param.datapathWidth.W), param.vrfReadLatency + 2)
 
   /** which byte to access in VRF, e.g. VLEN=1024,datapath=32,laneNumber=8 XXXXXXXXXX <- 10 bits for element(32bits)
     * index XX <- 2 bits for SEW XXXXXXXXXX <- strip MSB for the constraint that sew*vlmax <= 8*VLEN <-
@@ -768,7 +771,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   // s1 access VRF
   // TODO: perf `lsuRequestReg.instructionInformation.isStore && vrfReadDataPorts.ready` to check the VRF bandwidth
   //       limitation affecting to LSU store.
-  vrfReadDataPorts.valid                 := s0Valid && lsuRequestReg.instructionInformation.isStore && s1EnqQueue.io.enq.ready
+  vrfReadDataPorts.valid                 := s0Valid && lsuRequestReg.instructionInformation.isStore && s1EnqQueue.enq.ready
   vrfReadDataPorts.bits.offset           := s0Reg.offsetForVSInLane.getOrElse(DontCare)
   vrfReadDataPorts.bits.vs               := s0Reg.readVS
   vrfReadDataPorts.bits.readSource       := 2.U
@@ -794,33 +797,33 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   s1EnqueueReady := s2EnqueueReady || !s1Valid
 
   /** ready signal to enqueue to s0. */
-  val s0EnqueueReady: Bool = (s1EnqQueue.io.enq.ready && readReady) || !s0Valid
+  val s0EnqueueReady: Bool = (s1EnqQueue.enq.ready && readReady) || !s0Valid
   s0Fire := s0EnqueueReady && s0EnqueueValid
 
   /** pipeline is flushed. */
-  val pipelineClear: Bool = !s0Valid && !s1Valid && !s1EnqQueue.io.deq.valid
+  val pipelineClear: Bool = !s0Valid && !s1Valid && !s1EnqQueue.deq.valid
 
-  s0DequeueFire                           := s1EnqQueue.io.enq.fire
-  s1EnqQueue.io.enq.valid                 := s0Valid && readReady
-  s1EnqQueue.io.enq.bits.address          := lsuRequestReg.rs1Data + s0Reg.addressOffset
-  s1EnqQueue.io.enq.bits.indexInMaskGroup := s0Reg.indexInGroup
-  s1EnqQueue.io.enq.bits.segmentIndex     := s0Reg.segmentIndex
-  s1EnqQueue.io.enq.bits.readData         := DontCare
+  s0DequeueFire                        := s1EnqQueue.enq.fire
+  s1EnqQueue.enq.valid                 := s0Valid && readReady
+  s1EnqQueue.enq.bits.address          := lsuRequestReg.rs1Data + s0Reg.addressOffset
+  s1EnqQueue.enq.bits.indexInMaskGroup := s0Reg.indexInGroup
+  s1EnqQueue.enq.bits.segmentIndex     := s0Reg.segmentIndex
+  s1EnqQueue.enq.bits.readData         := DontCare
   // pipe read data
-  s1EnqDataQueue.io.enq.valid             := vrfReadResults.valid
-  AssertProperty(BoolSequence(s1EnqDataQueue.io.enq.ready || !vrfReadResults.valid))
-  s1EnqDataQueue.io.enq.bits              := vrfReadResults.bits
+  s1EnqDataQueue.enq.valid             := vrfReadResults.valid
+  AssertProperty(BoolSequence(s1EnqDataQueue.enq.ready || !vrfReadResults.valid))
+  s1EnqDataQueue.enq.bits              := vrfReadResults.bits
 
-  s1Wire.address          := s1EnqQueue.io.deq.bits.address
-  s1Wire.indexInMaskGroup := s1EnqQueue.io.deq.bits.indexInMaskGroup
-  s1Wire.segmentIndex     := s1EnqQueue.io.deq.bits.segmentIndex
-  s1Wire.readData         := s1EnqDataQueue.io.deq.bits
+  s1Wire.address          := s1EnqQueue.deq.bits.address
+  s1Wire.indexInMaskGroup := s1EnqQueue.deq.bits.indexInMaskGroup
+  s1Wire.segmentIndex     := s1EnqQueue.deq.bits.segmentIndex
+  s1Wire.readData         := s1EnqDataQueue.deq.bits
 
-  val s1DataEnqValid: Bool = s1EnqDataQueue.io.deq.valid || !lsuRequestReg.instructionInformation.isStore
-  val s1EnqValid:     Bool = s1DataEnqValid && s1EnqQueue.io.deq.valid
-  s1Fire                      := s1EnqValid && s1EnqueueReady
-  s1EnqQueue.io.deq.ready     := s1EnqueueReady && s1DataEnqValid
-  s1EnqDataQueue.io.deq.ready := s1EnqueueReady
+  val s1DataEnqValid: Bool = s1EnqDataQueue.deq.valid || !lsuRequestReg.instructionInformation.isStore
+  val s1EnqValid:     Bool = s1DataEnqValid && s1EnqQueue.deq.valid
+  s1Fire                   := s1EnqValid && s1EnqueueReady
+  s1EnqQueue.deq.ready     := s1EnqueueReady && s1DataEnqValid
+  s1EnqDataQueue.deq.ready := s1EnqueueReady
 
   val addressInBeatByte: UInt = s1Reg.address(log2Ceil(param.datapathWidth / 8) - 1, 0)
   // 1 -> 1 2 -> 3 4 -> 15
@@ -1020,7 +1023,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
 
   /** probes for monitoring internal signal
     */
-  val dataOffset = (s1EnqQueue.io.deq.bits.indexInMaskGroup << dataEEW)(1, 0) ## 0.U(3.W)
+  val dataOffset = (s1EnqQueue.deq.bits.indexInMaskGroup << dataEEW)(1, 0) ## 0.U(3.W)
 
   @public
   val lsuRequestValidProbe = IO(Output(Probe(Bool(), layers.Verification)))

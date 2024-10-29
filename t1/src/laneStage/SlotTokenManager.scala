@@ -9,6 +9,7 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl._
 import org.chipsalliance.t1.rtl.decoder.Decoder
+import org.chipsalliance.dwbb.stdlib.queue.Queue
 
 class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
@@ -150,10 +151,10 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
 
       // Feedback is not accurate (index load/store may have already finished the instruction)
       val responseIndexQueue =
-        Module(new Queue(UInt(parameter.instructionIndexBits.W), parameter.chainingSize + 1, flow = true))
-      responseIndexQueue.io.enq.valid := responseReport.valid
-      responseIndexQueue.io.enq.bits  := responseReport.bits
-      responseIndexQueue.io.deq.ready := responseFeedbackReport.valid
+        Queue.io(UInt(parameter.instructionIndexBits.W), parameter.chainingSize + 1, flow = true)
+      responseIndexQueue.enq.valid := responseReport.valid
+      responseIndexQueue.enq.bits  := responseReport.bits
+      responseIndexQueue.deq.ready := responseFeedbackReport.valid
 
       // cross write update
       val crossWriteDoEnq: UInt =
@@ -176,8 +177,8 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
         maskAnd(responseReport.valid, indexToOH(responseReport.bits, parameter.chainingSize)).asUInt
 
       val feedbackIndexSelect = Mux(
-        responseIndexQueue.io.deq.valid,
-        responseIndexQueue.io.deq.bits,
+        responseIndexQueue.deq.valid,
+        responseIndexQueue.deq.bits,
         responseFeedbackReport.bits
       )
       val feedbackDoDeq: UInt =
