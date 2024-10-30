@@ -12,6 +12,7 @@
 let
   runVerilatorEmu = callPackage ./run-verilator-emu.nix { };
   runVCSEmu = callPackage ./run-vcs-emu.nix { };
+  runFsdb2vcd = callPackage ./run-fsdb2vcd.nix { };
 
   # cases is now { mlir = { hello = ...; ...  }; ... }
   emuAttrs = lib.pipe cases [
@@ -32,6 +33,7 @@ let
             verilator-emu-trace = runVerilatorEmu verilator-emu-trace case;
             vcs-emu = runVCSEmu vcs-emu case;
             vcs-emu-trace = runVCSEmu vcs-emu-trace case;
+            vcs-prof-vcd = runFsdb2vcd (runVCSEmu vcs-emu-trace case);
           };
         in
         # Now we have { caseName = "hello", case = <derivation> }
