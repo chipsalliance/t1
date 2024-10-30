@@ -76,6 +76,8 @@ lockedPkgs.buildFHSEnv {
     expat
     sqlite
     nssmdns
+    fontconfig
+    numactl
     (krb5.overrideAttrs rec {
       version = "1.18.2";
       src = fetchurl {
@@ -113,6 +115,8 @@ lockedPkgs.buildFHSEnv {
     xorg.libXrender
     xorg.libXcomposite
     xorg.libXi
+    xorg.libXt
+    xorg.libXmu
     zlib
   ]);
 }
