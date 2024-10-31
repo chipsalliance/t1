@@ -1,9 +1,16 @@
-use std::{cell::OnceCell, collections::HashMap, ops::Range, rc::Rc};
+use std::{
+    cell::OnceCell,
+    collections::HashMap,
+    io::{BufWriter, Write as _},
+    ops::Range,
+    path::Path,
+    rc::Rc,
+};
 
 use itertools::izip;
 use vcd::IdCode;
 
-use crate::disasm::Disasm;
+use crate::disasm::DisasmDefault;
 
 pub enum SignalData {
     Scalar {
@@ -467,7 +474,7 @@ pub struct IssueData {
     inst_data: InstData,
 }
 
-pub fn process(vars: &InputVars, range: Range<u32>) {
+pub fn process(vars: &InputVars, range: Range<u32>, output: &Path) {
     let enq_data = process_issue_enq(&vars.issue_enq, range.clone());
     let deq_data = process_issue_deq(&vars.issue_deq, range.clone());
     let reg_deq_data = process_issue_reg_deq(&vars.issue_req_deq, range.clone());
@@ -490,31 +497,36 @@ pub fn process(vars: &InputVars, range: Range<u32>) {
         })
     }
 
-    let mut dis = Disasm::new();
-    for (
-        idx,
-        &IssueData {
-            cycle_enq,
-            cycle_deq,
-            cycle_reg_deq,
-            inst_idx,
-            pc,
-            inst_data,
-        },
-    ) in issue_data.iter().enumerate()
     {
-        let InstData { inst, rs1, rs2, .. } = inst_data;
-        let diff_reg_deq_enq = cycle_reg_deq - cycle_enq;
-        let disasm = dis.disasm(inst);
-        let vcsr_desc = inst_data.csr_description();
+        // generate inst_map.txt
 
-        let mut q_len = 0;
-        while q_len < idx && issue_data[idx - q_len].cycle_reg_deq > cycle_enq {
-            q_len += 1;
+        let inst_map = std::fs::File::create(output.join("inst_map.txt")).unwrap();
+        let mut dis = DisasmDefault::new();
+        for (
+            idx,
+            &IssueData {
+                cycle_enq,
+                cycle_deq,
+                cycle_reg_deq,
+                inst_idx,
+                pc,
+                inst_data,
+            },
+        ) in issue_data.iter().enumerate()
+        {
+            let InstData { inst, rs1, rs2, .. } = inst_data;
+            let diff_reg_deq_enq = cycle_reg_deq - cycle_enq;
+            let disasm = dis.disasm(inst);
+            let vcsr_desc = inst_data.csr_description();
+
+            let mut q_len = 0;
+            while q_len < idx && issue_data[idx - q_len].cycle_reg_deq > cycle_enq {
+                q_len += 1;
+            }
+            let rs1 = rs1.unwrap_or(0xFFFFFFFF);
+            let rs2 = rs2.unwrap_or(0xFFFFFFFF);
+            writeln!(&inst_map, "[PC=0x{pc:08x}, inst=0x{inst:08x}] {disasm:<24} |({inst_idx}) q_len={q_len:2}, enq={cycle_enq:5}, reg_deq-enq={diff_reg_deq_enq:4}, rs1 = 0x{rs1:08x}, rs2 = 0x{rs2:08x} | {vcsr_desc}").unwrap();
         }
-        let rs1 = rs1.unwrap_or(0xFFFFFFFF);
-        let rs2 = rs2.unwrap_or(0xFFFFFFFF);
-        println!("[PC=0x{pc:08x}, inst=0x{inst:08x}] {disasm:<24} |({inst_idx}) q_len={q_len:2}, enq={cycle_enq:5}, reg_deq-enq={diff_reg_deq_enq:4}, rs1 = 0x{rs1:08x}, rs2 = 0x{rs2:08x} | {vcsr_desc}");
     }
 }
 
@@ -613,15 +625,4 @@ fn process_issue_reg_deq(vars: &IssueRegDeq, range: Range<u32>) -> Vec<IssueRegD
         }
     }
     data
-}
-
-mod op {
-    pub fn and(op1: Option<bool>, op2: Option<bool>) -> Option<bool> {
-        match (op1, op2) {
-            (Some(true), Some(true)) => Some(true),
-            (Some(false), _) => Some(false),
-            (_, Some(false)) => Some(false),
-            _ => None,
-        }
-    }
 }

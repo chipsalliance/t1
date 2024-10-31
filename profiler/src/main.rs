@@ -2,7 +2,7 @@ use std::{
     collections::{hash_map, HashMap},
     fs::File,
     io::BufReader,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{anyhow, ensure};
@@ -21,6 +21,7 @@ mod vcd_util;
 #[derive(Parser)]
 struct Cli {
     input_vcd: PathBuf,
+    output: PathBuf,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -125,7 +126,22 @@ fn main() -> anyhow::Result<()> {
 
     c.set_with_signal_map(&signal_map);
 
-    let _ = input_hier::process(&input_vars, FIRST_CYCLE..max_cycle + 1);
+    create_dir(&cli.output)?;
+
+    let _ = input_hier::process(&input_vars, FIRST_CYCLE..max_cycle + 1, &cli.output);
 
     Ok(())
+}
+
+fn create_dir(path: &Path) -> anyhow::Result<()> {
+    match std::fs::create_dir(path) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::AlreadyExists {
+                Ok(())
+            } else {
+                Err(e.into())
+            }
+        }
+    }
 }
