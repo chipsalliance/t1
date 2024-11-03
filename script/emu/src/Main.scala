@@ -74,9 +74,7 @@ object Main:
     val emuPath = os.Path(emuType, os.pwd)
     if (os.exists(emuPath)) then return emuPath
 
-    val nixStorePath =
-      if emuType.contains("vcs-") then resolveNixPath(s".#t1.${config}.${ip}.${emuType}", Seq("--impure"))
-      else resolveNixPath(s".#t1.${config}.${ip}.${emuType}")
+    val nixStorePath = resolveNixPath(s".#t1.${config}.${ip}.${emuType}", Seq("--impure"))
 
     val elfFilePath = os
       .walk(os.Path(nixStorePath) / "bin")
