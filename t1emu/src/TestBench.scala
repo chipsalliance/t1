@@ -39,42 +39,9 @@ class TestBench(val parameter: T1Parameter)
   val om:         Property[ClassType]   = IO(Output(Property[omType.Type]()))
   om := omInstance.getPropertyReference
 
-  val clockGen = Module(new ExtModule with HasExtModuleInline {
+  val clockGen = Module(new ExtModule {
 
     override def desiredName = "ClockGen"
-    setInline(
-      s"$desiredName.sv",
-      s"""module $desiredName(output reg clock, output reg reset);
-         |`ifdef T1_ENABLE_TRACE
-         |  export "DPI-C" function dump_wave;
-         |  function dump_wave(input string file);
-         |`ifdef VCS
-         |    $$fsdbDumpfile(file);
-         |    $$fsdbDumpvars("+all");
-         |    $$fsdbDumpon;
-         |`endif
-         |`ifdef VERILATOR
-         |    $$dumpfile(file);
-         |    $$dumpvars(0);
-         |`endif
-         |  endfunction;
-         |`endif
-         |
-         |  import "DPI-C" context function void t1_cosim_init();
-         |  import "DPI-C" context function void t1_cosim_final();
-         |  initial begin
-         |    t1_cosim_init();
-         |    clock = 1'b0;
-         |    reset = 1'b1;
-         |  end
-         |  final begin
-         |    t1_cosim_final();
-         |  end
-         |  initial #(11) reset = 1'b0;
-         |  always #10 clock = ~clock;
-         |endmodule
-         |""".stripMargin
-    )
     val clock                = IO(Output(Bool()))
     val reset                = IO(Output(Bool()))
   })
