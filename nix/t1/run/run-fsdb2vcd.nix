@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC, vcs-fhs-env }:
+{ lib, stdenvNoCC, snps-fhs-env }:
 vcs-emu-trace:
 
 let
@@ -14,7 +14,7 @@ stdenvNoCC.mkDerivation (finalAttr: {
   buildCommand = ''
     mkdir -p "$out"
 
-    fhsEnv="${vcs-fhs-env}/bin/vcs-fhs-env"
+    fhsEnv="${snps-fhs-env}/bin/snps-fhs-env"
     "$fhsEnv" -c "fsdb2vcd ${vcs-emu-trace}/*.fsdb -o ${caseName}.prof.vcd -s /TestBench/verification/profData"
 
     cp -t "$out" "${caseName}.prof.vcd"

@@ -37,7 +37,7 @@ rec {
   rvv-codegen = final.callPackage ./pkgs/rvv-codegen.nix { };
   add-determinism = final.callPackage ./pkgs/add-determinism { }; # faster strip-undetereminism
 
-  vcs-fhs-env = final.callPackage ./pkgs/vcs-fhs-env.nix { };
+  snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
 
   mill = let jre = final.jdk21; in
     (prev.mill.override { inherit jre; }).overrideAttrs (_: {
