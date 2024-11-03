@@ -507,7 +507,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     metaArb.io.in(1).valid := false.B
     metaArb.io.in(1).bits  := DontCare
 
-    val tag_array: SRAMInterface[Vec[UInt]] = SRAM.masked(
+    val dcacheTagSRAM: SRAMInterface[Vec[UInt]] = SRAM.masked(
       size = nSets,
       tpe = Vec(nWays, chiselTypeOf(metaArb.io.out.bits.data)),
       numReadPorts = 0,
@@ -519,7 +519,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     //    val data = Module(new DCacheDataArray)
     // no more DCacheDataArray module for better PD experience
     // Vec(nWays, req.bits.wdata)
-    val dataArrays = Seq.tabulate(rowBits / subWordBits) { i =>
+    val dcacheDataSRAM = Seq.tabulate(rowBits / subWordBits) { i =>
       SRAM.masked(
         size = nSets * cacheBlockBytes / rowBytes,
         tpe = Vec(nWays * (subWordBits / eccBits), UInt(encBits.W)),
@@ -528,7 +528,7 @@ class HellaCache(val parameter: HellaCacheParameter)
         numReadwritePorts = 1
       )
     }
-    omInstance.sramsIn := Property((dataArrays ++ Some(tag_array)).map(_.description.get.asAnyClassType))
+    omInstance.sramsIn := Property((dcacheDataSRAM ++ Some(dcacheTagSRAM)).map(_.description.get.asAnyClassType))
 
     /** Data Arbiter 0: data from pending store buffer 1: data from TL-D refill 2: release to TL-A 3: hit path to CPU
       */
@@ -545,8 +545,8 @@ class HellaCache(val parameter: HellaCacheParameter)
     dataArb.io.out.ready := true.B
     metaArb.io.out.ready := clock_en_reg
 
-    val readData: Seq[Seq[UInt]] = dataArrays.zipWithIndex.map { case (array, i) =>
-      val valid       = dataArb.io.out.valid && ((dataArrays.size == 1).B || dataArb.io.out.bits.wordMask(i))
+    val readData: Seq[Seq[UInt]] = dcacheDataSRAM.zipWithIndex.map { case (array, i) =>
+      val valid       = dataArb.io.out.valid && ((dcacheDataSRAM.size == 1).B || dataArb.io.out.bits.wordMask(i))
       val dataEccMask = if (eccBits == subWordBits) Seq(true.B) else dataArb.io.out.bits.eccMask.asBools
       val wMask       =
         if (nWays == 1) dataEccMask
@@ -728,14 +728,14 @@ class HellaCache(val parameter: HellaCacheParameter)
         val metaReq = metaArb.io.out
         val metaIdx = metaReq.bits.idx
         val wmask   = if (nWays == 1) Seq(true.B) else metaReq.bits.way_en.asBools
-        tag_array.readwritePorts.foreach { tagPort =>
+        dcacheTagSRAM.readwritePorts.foreach { tagPort =>
           tagPort.enable    := metaReq.valid
           tagPort.isWrite   := metaReq.bits.write
           tagPort.address   := metaIdx
           tagPort.writeData := VecInit(Seq.fill(nWays)(metaReq.bits.data))
           tagPort.mask.foreach(_ := VecInit(wmask))
         }
-        val s1_meta: Seq[UInt] = tag_array.readwritePorts.head.readData
+        val s1_meta: Seq[UInt] = dcacheTagSRAM.readwritePorts.head.readData
         val s1_meta_uncorrected: Seq[L1Metadata] =
           s1_meta.map(tECC.decode(_).uncorrected.asTypeOf(new L1Metadata(tagBits)))
         val s1_tag:              UInt            = s1_paddr >> tagLSB
