@@ -402,7 +402,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
   // @todo @Clo91eaf VRF write&read singal should be captured here.
   // @todo           in the future, we need to maintain a layer to trace the original requester to each read&write.
-  val rfVec:        Seq[SRAMInterface[UInt]] = Seq.tabulate(parameter.rfBankNum) { bank =>
+  val vrfSRAM:      Seq[SRAMInterface[UInt]] = Seq.tabulate(parameter.rfBankNum) { bank =>
     // rf instant
     val rf:            SRAMInterface[UInt] = SRAM(
       size = parameter.rfDepth,
@@ -496,7 +496,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     rf
   }
 
-  omInstance.sramsIn := Property(rfVec.map(_.description.get.asAnyClassType))
+  omInstance.sramsIn := Property(vrfSRAM.map(_.description.get.asAnyClassType))
 
   val initRecord: ValidIO[VRFWriteReport] = WireDefault(0.U.asTypeOf(Valid(new VRFWriteReport(parameter))))
   initRecord.valid := true.B

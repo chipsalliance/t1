@@ -377,7 +377,7 @@ class ICache(val parameter: ICacheParameter)
 
   /** Tag SRAM, indexed with virtual memory, content with `refillError ## tag[19:0]` after ECC
     */
-  val tag_array: SRAMInterface[Vec[UInt]] = SRAM.masked(
+  val icacheTagSRAM: SRAMInterface[Vec[UInt]] = SRAM.masked(
     size = parameter.nSets,
     tpe = Vec(nWays, UInt(tECC.width(1 + tagBits).W)),
     numReadPorts = 0,
@@ -387,7 +387,7 @@ class ICache(val parameter: ICacheParameter)
 
   //  val tag_rdata = tag_array.read(s0_vaddr(untagBits - 1, blockOffBits), !refill_done && s0_valid)
   // todo: read req
-  val tag_rdata: Vec[UInt] = tag_array.readwritePorts.head.readData
+  val tag_rdata: Vec[UInt] = icacheTagSRAM.readwritePorts.head.readData
 
   /** register indicates the ongoing GetAckData transaction is corrupted. */
   val accruedRefillError = Reg(Bool())
@@ -396,7 +396,7 @@ class ICache(val parameter: ICacheParameter)
   //  todo: tl_out.d.bits.corrupt -> false.B
   val refillError: Bool = false.B || (refill_cnt > 0.U && accruedRefillError)
   val enc_tag = tECC.encode(Cat(refillError, refill_tag))
-  tag_array.readwritePorts.foreach { ramPort =>
+  icacheTagSRAM.readwritePorts.foreach { ramPort =>
     ramPort.enable    := s0_valid || refill_done
     ramPort.isWrite   := refill_done
     ramPort.address   := Mux(refill_done, refill_idx, s0_vaddr(untagBits - 1, blockOffBits))
@@ -439,7 +439,7 @@ class ICache(val parameter: ICacheParameter)
   /** how many bits will be fetched by CPU for each fetch. */
   val wordBits = outer.icacheParams.fetchBytes * 8
 
-  /** a set of raw data read from [[data_arrays]]. */
+  /** a set of raw data read from [[icacheDataSRAM]]. */
   val s1_dout = Wire(Vec(nWays, UInt(dECC.width(wordBits).W)))
   s1_dout := DontCare
 
@@ -467,7 +467,7 @@ class ICache(val parameter: ICacheParameter)
     val s1_idx = index(s1_vaddr, io.s1_paddr)
     val s1_tag = io.s1_paddr >> pgUntagBits
 
-    /** this way is used by scratchpad. [[tag_array]] corrupted.
+    /** this way is used by scratchpad. [[icacheTagSRAM]] corrupted.
       */
     val scratchpadHit = scratchpadWayValid(i.U) &&
       Mux(
@@ -485,7 +485,7 @@ class ICache(val parameter: ICacheParameter)
     val s1_vb         = vb_array(Cat(i.U, s1_idx)) && !s1_slaveValid
     val enc_tag       = tECC.decode(tag_rdata(i))
 
-    /** [[tl_error]] ECC error bit. [[tag]] of [[tag_array]] access.
+    /** [[tl_error]] ECC error bit. [[tag]] of [[icacheTagSRAM]] access.
       */
 
     val (tl_error, tag) = Split(enc_tag.uncorrected, tagBits)
@@ -527,7 +527,7 @@ class ICache(val parameter: ICacheParameter)
     * write: It takes 8 beats to refill 16 instruction in each refilling cycle. Data_array receives data[63:0](2
     * instructions) at once,they will be allocated in deferent bank according to vaddr[2]
     */
-  val data_arrays: Seq[SRAMInterface[Vec[UInt]]] =
+  val icacheDataSRAM: Seq[SRAMInterface[Vec[UInt]]] =
     Seq.tabulate(io.instructionFetchAXI.r.bits.data.getWidth / wordBits) { i =>
       SRAM.masked(
         size = nSets * refillCycles,
@@ -537,9 +537,9 @@ class ICache(val parameter: ICacheParameter)
         numReadwritePorts = 1
       )
     }
-  omInstance.sramsIn := Property((data_arrays ++ Some(tag_array)).map(_.description.get.asAnyClassType))
+  omInstance.sramsIn := Property((icacheDataSRAM ++ Some(icacheTagSRAM)).map(_.description.get.asAnyClassType))
 
-  for ((data_array, i) <- data_arrays.zipWithIndex) {
+  for ((data_array, i) <- icacheDataSRAM.zipWithIndex) {
 
     /** bank match (vaddr[2]) */
     def wordMatch(addr: UInt): Bool =
@@ -605,10 +605,10 @@ class ICache(val parameter: ICacheParameter)
   val s1_clk_en  = s1_valid || s1_slaveValid
   val s2_tag_hit = RegEnable(Mux(s1_dont_read, 0.U.asTypeOf(s1_tag_hit), s1_tag_hit), s1_clk_en)
 
-  /** way index to access [[data_arrays]]. */
+  /** way index to access [[icacheDataSRAM]]. */
   val s2_hit_way = OHToUInt(s2_tag_hit)
 
-  /** ITIM index to access [[data_arrays]]. replace tag with way, word set to 0.
+  /** ITIM index to access [[icacheDataSRAM]]. replace tag with way, word set to 0.
     */
   val s2_scratchpad_word_addr = Cat(
     s2_hit_way,
@@ -620,7 +620,7 @@ class ICache(val parameter: ICacheParameter)
   val s2_tag_disparity        = RegEnable(s1_tag_disparity, s1_clk_en).asUInt.orR
   val s2_tl_error             = RegEnable(s1_tl_error.asUInt.orR, s1_clk_en)
 
-  /** ECC decode result for [[data_arrays]]. */
+  /** ECC decode result for [[icacheDataSRAM]]. */
   val s2_data_decoded = dECC.decode(s2_way_mux)
 
   /** ECC error happened, correctable or uncorrectable, ask CPU to replay. */
@@ -884,7 +884,8 @@ class ICache(val parameter: ICacheParameter)
       .getOrElse(false.B) || // ITIM
       s1_valid || s2_valid || refill_valid || send_hint || hint_outstanding // I$
 
-  /** index to access [[data_arrays]] and [[tag_array]].
+  /** index to access [[icacheDataSRAM]] and [[icacheTagSRAM]].
+    *
     * @note
     *   if [[untagBits]] > [[pgIdxBits]] in
     *   {{{
