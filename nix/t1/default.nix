@@ -97,13 +97,13 @@ lib.makeScope newScope
     # * verilatorTop: Top module of the system verilog, default using "TestBench"
     # * verilatorThreads: Threads for final verilating, default using 8
     # * verilatorArgs: Final arguments that pass to the verilator.
-    sv-to-verilator-emulator = t1Scope.callPackage ./conversion/sv-to-verilator-emulator.nix { stdenv = moldStdenv; };
+    sv-to-verilator-emulator = lib.makeOverridable (t1Scope.callPackage ./conversion/sv-to-verilator-emulator.nix { stdenv = moldStdenv; });
 
     # sv-to-vcs-simulator :: { mainProgram :: String, rtl :: Derivation, enableTrace :: Bool, vcsLinkLibs :: List<String> } -> Derivation
     #
     # sv-to-vcs-simulator will compile the given rtl, link with path specified in vcsLinksLibs to produce a VCS emulator.
     # enableTrace is false by default;
-    sv-to-vcs-simulator = t1Scope.callPackage ./conversion/sv-to-vcs-simulator.nix { };
+    sv-to-vcs-simulator = lib.makeOverridable (t1Scope.callPackage ./conversion/sv-to-vcs-simulator.nix { });
   }
     # Nix specification for t1 (with spike only) emulator
     # We don't expect extra scope for t1 stuff, so here we merge the t1 at t1Scope level.

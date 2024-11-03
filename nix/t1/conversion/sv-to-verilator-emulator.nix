@@ -7,10 +7,14 @@
 
 { mainProgram
 , rtl
+, vsrc
 , enableTrace ? false
 , extraVerilatorArgs ? [ ]
+, topModule ? null
 , ...
 }@overrides:
+
+assert lib.assertMsg (builtins.typeOf vsrc == "list") "vsrc should be a list of file path";
 
 stdenv.mkDerivation (lib.recursiveUpdate
 rec {
@@ -19,15 +23,14 @@ rec {
 
   __noChroot = true;
 
-  src = rtl;
+  dontUnpack = true;
 
   nativeBuildInputs = [ verilator ];
 
   # zlib is required for Rust to link against
   propagatedBuildInputs = [ zlib ];
 
-  verilatorFilelist = "filelist.f";
-  verilatorTop = "TestBench";
+  verilatorFilelist = "${rtl}/filelist.f";
   verilatorThreads = 8;
   verilatorArgs = [
     "--cc"
@@ -44,8 +47,11 @@ rec {
     "-Wno-lint"
     "-F"
     verilatorFilelist
+  ]
+  ++ vsrc
+  ++ lib.optionals (topModule != null) [
     "--top"
-    verilatorTop
+    topModule
   ]
   ++ extraVerilatorArgs
   ++ lib.optionals enableTrace [

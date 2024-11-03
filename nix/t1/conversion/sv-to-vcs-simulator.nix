@@ -6,10 +6,13 @@
 
 { mainProgram
 , rtl
+, vsrc
 , enableTrace ? false
 , vcsLinkLibs ? [ ]
+, topModule ? null
 }:
 
+assert lib.assertMsg (builtins.typeOf vsrc == "list") "vsrc should be a list of file path";
 assert lib.assertMsg (builtins.typeOf vcsLinkLibs == "list") "vcsLinkLibs should be list of strings";
 assert lib.assertMsg (builtins.length vcsLinkLibs > 0) "vcsLinkLibs should contain at least one static library path to link";
 
@@ -22,7 +25,7 @@ stdenv.mkDerivation rec {
   dontPatchELF = true;
   enableCover = true;
 
-  src = rtl;
+  dontUnpack = true;
 
   vcsArgs = [
     "-sverilog"
@@ -31,8 +34,13 @@ stdenv.mkDerivation rec {
     "-y"
     "$DWBB_DIR/sim_ver"
     "+libext+.v"
-    "-file"
-    "filelist.f"
+    "-F"
+    "${rtl}/filelist.f"
+  ]
+  ++ vsrc
+  ++ lib.optionals (topModule != null) [
+    "-top"
+    topModule
   ]
   ++ lib.optionals enableCover [
     "-cm"
@@ -78,7 +86,7 @@ stdenv.mkDerivation rec {
     cp $mainProgram $out/lib
     cp -r $mainProgram.daidir $out/lib
     ${lib.optionalString enableCover ''
-      cp -r ./cm.vdb $out/lib 
+      cp -r ./cm.vdb $out/lib
     ''}
 
     # We need to carefully handle string escape here, so don't use makeWrapper
