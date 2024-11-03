@@ -1,6 +1,7 @@
 { lib
 , stdenv
 , verilator
+, vcs-fhs-env
 , zlib
 }:
 
@@ -15,6 +16,8 @@ stdenv.mkDerivation (lib.recursiveUpdate
 rec {
   name = mainProgram;
   inherit mainProgram;
+
+  __noChroot = true;
 
   src = rtl;
 
@@ -36,19 +39,24 @@ rec {
     "--threads"
     (toString verilatorThreads)
     "-O1"
+    "-y"
+    "$DWBB_DIR/sim_ver"
+    "-Wno-lint"
     "-F"
     verilatorFilelist
     "--top"
     verilatorTop
   ]
   ++ extraVerilatorArgs
-  ++ lib.optionals (enableTrace) [
+  ++ lib.optionals enableTrace [
     "+define+T1_ENABLE_TRACE"
     "--trace-fst"
   ];
 
   buildPhase = ''
     runHook preBuild
+
+    DWBB_DIR=$(${vcs-fhs-env}/bin/vcs-fhs-env -c "echo \$DWBB_DIR")
 
     verilatorPhase="verilator ${lib.escapeShellArgs verilatorArgs}"
     echo "[nix] running verilator: $verilatorPhase"
