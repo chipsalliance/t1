@@ -1,7 +1,7 @@
 { lib
 , bash
 , stdenv
-, vcs-fhs-env
+, snps-fhs-env
 }:
 
 { mainProgram
@@ -52,7 +52,7 @@ stdenv.mkDerivation rec {
   buildPhase = ''
     runHook preBuild
 
-    fhsEnv="${vcs-fhs-env}/bin/vcs-fhs-env"
+    fhsEnv="${snps-fhs-env}/bin/snps-fhs-env"
     DWBB_DIR=$($fhsEnv -c "echo \$DWBB_DIR")
     vcsArgsStr="${lib.escapeShellArgs vcsArgs}"
 
@@ -63,12 +63,12 @@ stdenv.mkDerivation rec {
   '';
 
   passthru = {
-    inherit vcs-fhs-env enableTrace;
+    inherit snps-fhs-env enableTrace;
   };
 
   shellHook = ''
     echo "[nix] entering fhs env"
-    ${vcs-fhs-env}/bin/vcs-fhs-env
+    ${snps-fhs-env}/bin/snps-fhs-env
   '';
 
   installPhase = ''
@@ -91,7 +91,7 @@ stdenv.mkDerivation rec {
       cp -r $out/lib/cm.vdb ./cm.vdb
       chmod +w -R ./cm.vdb
     ''}
-    ${vcs-fhs-env}/bin/vcs-fhs-env -c "$out/lib/$mainProgram ${lib.optionalString enableCover ''-cm_dir ./cm.vdb''} \$_argv"
+    ${snps-fhs-env}/bin/snps-fhs-env -c "$out/lib/$mainProgram ${lib.optionalString enableCover ''-cm_dir ./cm.vdb''} \$_argv"
     EOF
     chmod +x $out/bin/$mainProgram
 

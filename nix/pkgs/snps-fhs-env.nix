@@ -24,7 +24,7 @@ let
   dwbb = getEnv' "DWBB_DIR";
 in
 lockedPkgs.buildFHSEnv {
-  name = "vcs-fhs-env";
+  name = "snps-fhs-env";
 
   profile = ''
     [ ! -e "${vcStaticHome}"  ] && echo "env VC_STATIC_HOME='${vcStaticHome}' points to unknown location" && exit 1

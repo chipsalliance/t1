@@ -1,7 +1,7 @@
 { lib
 , stdenv
 , verilator
-, vcs-fhs-env
+, snps-fhs-env
 , zlib
 }:
 
@@ -56,7 +56,7 @@ rec {
   buildPhase = ''
     runHook preBuild
 
-    DWBB_DIR=$(${vcs-fhs-env}/bin/vcs-fhs-env -c "echo \$DWBB_DIR")
+    DWBB_DIR=$(${snps-fhs-env}/bin/snps-fhs-env -c "echo \$DWBB_DIR")
 
     verilatorPhase="verilator ${lib.escapeShellArgs verilatorArgs}"
     echo "[nix] running verilator: $verilatorPhase"
