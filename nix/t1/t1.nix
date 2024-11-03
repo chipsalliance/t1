@@ -34,10 +34,10 @@ let
             (scopeBuilderFn topName generatorData scope)))
       strippedGeneratorData;
 in
-forEachTop (topName: generator: innerMostScope: {
+forEachTop (topName: generator: self: {
   inherit configName topName;
 
-  cases = innerMostScope.callPackage ../../tests { };
+  cases = self.callPackage ../../tests { };
 
   mlirbc = t1Scope.chisel-to-mlirbc {
     outputName = "${generator.fullClassName}.mlirbc";
@@ -46,13 +46,13 @@ forEachTop (topName: generator: innerMostScope: {
   };
 
   lowered-mlirbc = t1Scope.finalize-mlirbc {
-    outputName = "lowered-" + innerMostScope.mlirbc.name;
-    mlirbc = innerMostScope.mlirbc;
+    outputName = "lowered-" + self.mlirbc.name;
+    mlirbc = self.mlirbc;
   };
 
   rtl = t1Scope.mlirbc-to-sv {
     outputName = "${generator.fullClassName}-rtl";
-    mlirbc = innerMostScope.lowered-mlirbc;
+    mlirbc = self.lowered-mlirbc;
     mfcArgs = [
       "-O=release"
       "--disable-all-randomization"
@@ -75,13 +75,13 @@ forEachTop (topName: generator: innerMostScope: {
     exec ${t1Scope.omreader-unwrapped}/bin/omreader \
       ${lib.replaceStrings ["elaborator"] ["omreader"] generator.fullClassName} \
       \$cmd \
-      --mlirbc-file ${innerMostScope.lowered-mlirbc}/${innerMostScope.lowered-mlirbc.name} \
+      --mlirbc-file ${self.lowered-mlirbc}/${self.lowered-mlirbc.name} \
       $@
     EOF
 
     chmod +x $out/bin/omreader
   '';
-  rtlDesignMetadataJson = runCommand "get-rtl-design-metadata-from-om" { nativeBuildInputs = [ jq innerMostScope.omreader ]; } ''
+  rtlDesignMetadataJson = runCommand "get-rtl-design-metadata-from-om" { nativeBuildInputs = [ jq self.omreader ]; } ''
     jq --null-input \
       --arg march $(omreader march) \
       --arg extensions $(omreader extensions) \
@@ -94,69 +94,77 @@ forEachTop (topName: generator: innerMostScope: {
          "xlen": (if ($march|startswith("rv32")) then 32 else 64 end) }' \
       > $out
   '';
-  rtlDesignMetadata = with builtins; fromJSON (readFile innerMostScope.rtlDesignMetadataJson);
+  rtlDesignMetadata = with builtins; fromJSON (readFile self.rtlDesignMetadataJson);
 
   # ---------------------------------------------------------------------------------
   # VERILATOR
   # ---------------------------------------------------------------------------------
-  makeDifftest = innerMostScope.callPackage ../../difftest { };
+  makeDifftest = lib.makeOverridable (self.callPackage ../../difftest { });
 
-  verilator-dpi-lib = innerMostScope.makeDifftest {
+  # Here we read all files under ../../${topName}/vsrc, and create a new nix
+  # store root with only files under the vsrc directory, then convert it
+  # into a list of file. This is to avoid any source changes in t1 source
+  # root causing the emulator to rebuild. Notes that the `topName`
+  # variable will be like t1emu or t1rocketemu.
+  clean-vsrc = with lib.fileset; toSource {
+    root = ../../${topName}/vsrc;
+    fileset = unions (toList ../../${topName}/vsrc);
+  };
+
+  verilator-dpi-lib = self.makeDifftest {
     outputName = "${topName}-verilator-dpi-lib";
     emuType = "verilator";
     moduleType = "dpi_${topName}";
   };
-  verilator-dpi-lib-trace = innerMostScope.makeDifftest {
+  verilator-dpi-lib-trace = self.verilator-dpi-lib.override {
     outputName = "${topName}-verilator-trace-dpi-lib";
-    emuType = "verilator";
-    moduleType = "dpi_${topName}";
     enableTrace = true;
   };
 
   verilator-emu = t1Scope.sv-to-verilator-emulator {
     mainProgram = "${topName}-verilated-simulator";
-    rtl = innerMostScope.rtl;
-    extraVerilatorArgs = [ "${innerMostScope.verilator-dpi-lib}/lib/libdpi_${topName}.a" ];
+    topModule = "TestBench";
+    rtl = self.rtl;
+    vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
+    extraVerilatorArgs = [ "${self.verilator-dpi-lib}/lib/libdpi_${topName}.a" ];
   };
-  verilator-emu-trace = t1Scope.sv-to-verilator-emulator {
-    mainProgram = "${topName}-verilated-trace-simulator";
-    rtl = innerMostScope.rtl;
+  verilator-emu-trace = self.verilator-emu.override {
     enableTrace = true;
-    extraVerilatorArgs = [ "${innerMostScope.verilator-dpi-lib-trace}/lib/libdpi_${topName}.a" ];
+    mainProgram = "${topName}-verilated-trace-simulator";
+    extraVerilatorArgs = [ "${self.verilator-dpi-lib-trace}/lib/libdpi_${topName}.a" ];
   };
 
   # ---------------------------------------------------------------------------------
   # VCS
   # ---------------------------------------------------------------------------------
-  vcs-dpi-lib = innerMostScope.makeDifftest {
+  vcs-dpi-lib = self.makeDifftest {
     outputName = "${topName}-vcs-dpi-lib";
     emuType = "vcs";
     moduleType = "dpi_${topName}";
   };
-  vcs-dpi-lib-trace = innerMostScope.makeDifftest {
-    outputName = "${topName}-vcs-dpi-trace-lib";
-    emuType = "vcs";
+  vcs-dpi-lib-trace = self.vcs-dpi-lib.override {
     enableTrace = true;
-    moduleType = "dpi_${topName}";
+    outputName = "${topName}-vcs-dpi-trace-lib";
   };
 
-  offline-checker = innerMostScope.makeDifftest {
+  offline-checker = self.makeDifftest {
     outputName = "${topName}-offline-checker";
     moduleType = "offline_${topName}";
   };
 
   vcs-emu = t1Scope.sv-to-vcs-simulator {
     mainProgram = "${topName}-vcs-simulator";
-    rtl = innerMostScope.rtl;
-    vcsLinkLibs = [ "${innerMostScope.vcs-dpi-lib}/lib/libdpi_${topName}.a" ];
+    topModule = "TestBench";
+    rtl = self.rtl;
+    vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
+    vcsLinkLibs = [ "${self.vcs-dpi-lib}/lib/libdpi_${topName}.a" ];
   };
-  vcs-emu-trace = t1Scope.sv-to-vcs-simulator {
-    mainProgram = "${topName}-vcs-trace-simulator";
-    rtl = innerMostScope.rtl;
+  vcs-emu-trace = self.vcs-emu.override {
     enableTrace = true;
-    vcsLinkLibs = [ "${innerMostScope.vcs-dpi-lib-trace}/lib/libdpi_${topName}.a" ];
+    mainProgram = "${topName}-vcs-trace-simulator";
+    vcsLinkLibs = [ "${self.vcs-dpi-lib-trace}/lib/libdpi_${topName}.a" ];
   };
 
-  run = innerMostScope.callPackage ./run { };
+  run = self.callPackage ./run { };
 }) # end of forEachTop
 )
