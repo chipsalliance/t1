@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 #![allow(unused_variables)]
 
-use dpi_common::dump::DumpControl;
 use dpi_common::plusarg::PlusArgMatcher;
 use dpi_common::DpiTarget;
 use std::ffi::{c_char, c_longlong};
@@ -277,9 +276,8 @@ unsafe extern "C" fn t1rocket_cosim_init() {
   dpi_common::setup_logger();
 
   let scope = SvScope::get_current().expect("failed to get scope in t1rocket_cosim_init");
-  let dump_control = DumpControl::from_plusargs(scope, &plusargs);
 
-  TARGET.init(|| Driver::new(scope, dump_control, &args));
+  TARGET.init(|| Driver::new(scope, &args));
 }
 
 #[no_mangle]

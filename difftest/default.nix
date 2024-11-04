@@ -35,7 +35,7 @@ rustPlatform.buildRustPackage {
     ];
   };
 
-  buildFeatures = [ ] ++ lib.optionals (lib.hasPrefix "dpi" moduleType) [ "dpi_common/${emuType}" ] ++ lib.optionals enableTrace [ "dpi_common/trace" ];
+  buildFeatures = [ ] ++ lib.optionals (lib.hasPrefix "dpi" moduleType) [ "dpi_common/${emuType}" ];
   buildAndTestSubdir = "./${moduleType}";
 
   env = {
