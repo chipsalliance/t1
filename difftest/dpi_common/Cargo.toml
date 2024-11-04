@@ -11,4 +11,3 @@ tracing-subscriber = { workspace = true }
 [features]
 vcs = ["svdpi/vpi"]
 verilator = ["svdpi/sv2023"]
-trace = []

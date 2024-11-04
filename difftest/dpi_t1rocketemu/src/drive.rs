@@ -5,7 +5,6 @@ use crate::{get_t, EXIT_CODE, EXIT_POS};
 use svdpi::SvScope;
 
 use anyhow::Context;
-use dpi_common::dump::{DumpControl, DumpEndError};
 use elf::{
   abi::{EM_RISCV, ET_EXEC, PT_LOAD, STT_FUNC},
   endian::LittleEndian,
@@ -30,8 +29,6 @@ pub(crate) struct Driver {
   // SvScope from t1rocket_cosim_init
   scope: SvScope,
 
-  dump_control: DumpControl,
-
   pub(crate) dlen: u32,
   pub(crate) e_entry: u64,
 
@@ -45,14 +42,13 @@ pub(crate) struct Driver {
 }
 
 impl Driver {
-  pub(crate) fn new(scope: SvScope, dump_control: DumpControl, args: &OnlineArgs) -> Self {
+  pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
     // pass e_entry to rocket
     let (e_entry, shadow_bus, _fn_sym_tab) =
       Self::load_elf(&args.elf_file).expect("fail creating simulator");
 
     Self {
       scope,
-      dump_control,
 
       dlen: args.dlen,
       e_entry,
@@ -259,17 +255,6 @@ impl Driver {
       );
       WATCHDOG_TIMEOUT
     } else {
-      match self.dump_control.trigger_watchdog(tick) {
-        Ok(()) => {}
-        Err(DumpEndError) => {
-          info!(
-            "[{tick}] run to dump end, exiting (last_commit_cycle={})",
-            self.last_commit_cycle
-          );
-          return WATCHDOG_TIMEOUT;
-        }
-      }
-
       trace!("[{}] watchdog continue", get_t());
       WATCHDOG_CONTINUE
     }

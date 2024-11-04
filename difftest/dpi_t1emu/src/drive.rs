@@ -1,4 +1,3 @@
-use dpi_common::dump::{DumpControl, DumpEndError};
 use spike_rs::runner::SpikeRunner;
 use spike_rs::runner::{SpikeArgs, MEM_SIZE};
 use spike_rs::spike_event::MemAccessRecord;
@@ -102,7 +101,6 @@ pub(crate) struct Driver {
   // SvScope from t1_cosim_init
   scope: SvScope,
 
-  dump_control: DumpControl,
   pub(crate) success: bool,
 
   pub(crate) dlen: u32,
@@ -118,7 +116,7 @@ pub(crate) struct Driver {
 }
 
 impl Driver {
-  pub(crate) fn new(scope: SvScope, dump_control: DumpControl, args: &OnlineArgs) -> Self {
+  pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
     let mut self_ = Self {
       spike_runner: SpikeRunner::new(
         &SpikeArgs {
@@ -133,7 +131,6 @@ impl Driver {
       ),
 
       scope,
-      dump_control,
       success: false,
 
       dlen: args.dlen,
@@ -216,17 +213,6 @@ impl Driver {
       );
       WATCHDOG_TIMEOUT
     } else {
-      match self.dump_control.trigger_watchdog(tick) {
-        Ok(()) => {}
-        Err(DumpEndError) => {
-          info!(
-            "[{tick}] run to dump end, exiting (last_commit_cycle={})",
-            self.last_commit_cycle
-          );
-          return WATCHDOG_TIMEOUT;
-        }
-      }
-
       trace!("[{}] watchdog continue", get_t());
       WATCHDOG_CONTINUE
     }
