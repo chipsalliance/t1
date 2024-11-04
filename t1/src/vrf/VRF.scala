@@ -402,9 +402,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
   // @todo @Clo91eaf VRF write&read singal should be captured here.
   // @todo           in the future, we need to maintain a layer to trace the original requester to each read&write.
-  val vrfSRAM:      Seq[SRAMInterface[UInt]] = Seq.tabulate(parameter.rfBankNum) { bank =>
-    // rf instant
-    val rf:            SRAMInterface[UInt] = SRAM(
+  val vrfSRAM:      Seq[SRAMInterface[UInt]] = Seq.fill(parameter.rfBankNum)(
+    SRAM(
       size = parameter.rfDepth,
       tpe = UInt(parameter.memoryWidth.W),
       numReadPorts = parameter.ramType match {
@@ -423,8 +422,10 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         case RamType.p0rwp1rw => 2
       }
     )
-    val writeValid = writePipe.valid && writeBankPipe(bank)
-    val ramWriteValid: Bool                = writeValid || resetValid
+  )
+  vrfSRAM.zipWithIndex.foreach { case (rf, bank) =>
+    val writeValid:    Bool = writePipe.valid && writeBankPipe(bank)
+    val ramWriteValid: Bool = writeValid || resetValid
     parameter.ramType match {
       case RamType.p0rw     =>
         firstReadPipe(bank).bits.address :=
@@ -492,8 +493,6 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         rf.readwritePorts.last.writeData  := writeData
         AssertProperty(BoolSequence(!(writeValid && secondReadPipe(bank).valid)))
     }
-
-    rf
   }
 
   omInstance.sramsIn := Property(vrfSRAM.map(_.description.get.asAnyClassType))
