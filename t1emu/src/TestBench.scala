@@ -153,25 +153,24 @@ class TestBench(val parameter: T1Parameter)
       agent.io.gateWrite := false.B
     }
 
-  // Events for difftest and performance modeling
-
-  // Probes
-  val laneProbes = t1Probe.laneProbes.zipWithIndex.map { case (lane, i) =>
-    lane.suggestName(s"lane${i}Probe")
+  // probes
+  val lsuProbe       = t1Probe.lsuProbe.suggestName("lsuProbe")
+  val laneProbes     = t1Probe.laneProbes.zipWithIndex.map { case (p, idx) =>
+    val wire = WireDefault(p).suggestName(s"lane${idx}Probe")
+    wire
   }
-
-  val lsuProbe = t1Probe.lsuProbe.suggestName("lsuProbe")
-
+  val laneVrfProbes  = t1Probe.laneProbes.map(_.vrfProbe).zipWithIndex.map { case (p, idx) =>
+    val wire = WireDefault(p).suggestName(s"lane${idx}VrfProbe")
+    wire
+  }
   val storeUnitProbe = lsuProbe.storeUnitProbe.suggestName("storeUnitProbe")
-
   val otherUnitProbe = lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
 
   // vrf write
-  laneProbes.zipWithIndex.foreach { case (lane, i) =>
-    val vrf = lane.vrfProbe.suggestName(s"lane${i}VrfProbe")
-    when(vrf.valid)(
+  laneVrfProbes.zipWithIndex.foreach { case (lane, i) =>
+    when(lane.valid)(
       printf(
-        cf"""{"event":"VrfWrite","issue_idx":${vrf.requestInstruction},"vd":${vrf.requestVd},"offset":${vrf.requestOffset},"mask":"${vrf.requestMask}%x","data":"${vrf.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
+        cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
       )
     )
   }
@@ -227,7 +226,7 @@ class TestBench(val parameter: T1Parameter)
     scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
     when(scoreboard.valid && !instructionValid(tag)) {
       printf(
-        cf"""{"event":"VrfScoreboardReport","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
+        cf"""{"event":"VrfScoreboard","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
       )
       scoreboard.valid := false.B
     }
