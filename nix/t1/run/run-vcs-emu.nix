@@ -16,6 +16,7 @@ stdenvNoCC.mkDerivation (finalAttr: {
       "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
       ${lib.optionalString emulator.enableTrace "+t1_wave_path=${testCase.pname}.fsdb"}
       "-cm assert"
+      "-assert global_finish_maxfail=10000"
     )
     emuDriverArgs="''${emuDriverArgsArray[@]}"
     emuDriver="${emulator}/bin/${emulator.mainProgram}"
