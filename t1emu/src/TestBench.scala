@@ -57,18 +57,6 @@ class TestBench(val parameter: T1Parameter)
   dut.io.clock    := clockGen.clock.asClock
   dut.io.reset    := clockGen.reset
   omInstance.t1In := Property(dut.io.om.asAnyClassType)
-  // Instruction Drivers
-
-  // TODO: this initial way cannot happen before reset...
-  val initFlag = RegInit(false.B)
-  when(!initFlag) {
-    initFlag := true.B
-    printf(cf"""{"event":"SimulationStart","cycle":${simulationTime}}\n""")
-  }
-  val watchdog = RawUnclockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime(9, 0) === 0.U)
-  when(watchdog =/= 0.U) {
-    stop(cf"""{"event":"SimulationStop","reason": ${watchdog},"cycle":${simulationTime}}\n""")
-  }
 
   // uint32_t -> svBitVecVal -> reference type with 7 length.
   class Issue  extends Bundle {
@@ -121,9 +109,7 @@ class TestBench(val parameter: T1Parameter)
   dut.io.issue.bits.vstart      := issue.vstart
   dut.io.issue.bits.vcsr        := issue.vcsr
   dut.io.issue.valid            := issue.meta === 1.U
-  when(issue.meta =/= 0.U && issue.meta =/= 1.U && issue.meta =/= 2.U) {
-    stop(cf"""{"event":"SimulationStop","reason": ${issue.meta},"cycle":${simulationTime}}\n""")
-  }
+
   val retire = Wire(new Retire)
   retire.rd      := dut.io.retire.rd.bits.rdAddress
   retire.data    := dut.io.retire.rd.bits.rdData

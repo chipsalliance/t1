@@ -23,6 +23,7 @@ module ClockGen(output reg clock, output reg reset);
 
   import "DPI-C" context function void t1_cosim_init();
   import "DPI-C" context function void t1_cosim_final();
+  import "DPI-C" context function byte unsigned t1_cosim_watchdog();
 
   initial begin
     clock = 1'b0;
@@ -50,6 +51,20 @@ module ClockGen(output reg clock, output reg reset);
       #10;
 
       cycle += 1;
+
+      begin
+        automatic byte unsigned st = t1_cosim_watchdog();
+        if (st == 255) begin
+          // quit successfully, only if both DPI and TestBench finish
+          $finish;
+        end else if (st == 0) begin
+          // continue, do nothing here
+        end else begin
+          // error
+          $fatal("watchdog timeout");
+        end
+      end
+
     `ifdef T1_ENALBE_TRACE
       if (cycle == dump_start) begin
         dump_wave();

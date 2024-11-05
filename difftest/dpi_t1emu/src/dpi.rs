@@ -89,6 +89,7 @@ pub static ISSUE_EXIT: u32 = 3;
 
 pub static WATCHDOG_CONTINUE: u8 = 0;
 pub static WATCHDOG_TIMEOUT: u8 = 1;
+pub static WATCHDOG_QUIT: u8 = 255;
 
 #[repr(C, packed)]
 pub(crate) struct Retire {
@@ -234,16 +235,14 @@ unsafe extern "C" fn t1_cosim_final() {
   })
 }
 
-/// evaluate at every 1024 cycles, return reason = 0 to continue simulation,
-/// other value is used as error code.
+/// evaluate at every cycle
+/// return value:
+///   0   : continue
+///   255 : quit successfully
+///   otherwise : error
 #[no_mangle]
-unsafe extern "C" fn cosim_watchdog(reason: *mut c_char) {
-  // watchdog dpi call would be called before initialization, guard on null target
-  TARGET.with_optional(|driver| {
-    if let Some(driver) = driver {
-      *reason = driver.watchdog() as c_char
-    }
-  });
+unsafe extern "C" fn t1_cosim_watchdog() -> u8 {
+  TARGET.with(|driver| driver.watchdog())
 }
 
 /// evaluate at instruction queue is not empty
