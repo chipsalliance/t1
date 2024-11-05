@@ -14,12 +14,10 @@
   "rvv_bench.ascii_to_utf16": 36936,
   "rvv_bench.ascii_to_utf32": 11092,
   "rvv_bench.byteswap": 108514,
-  "rvv_bench.chacha20": 3,
   "rvv_bench.mandelbrot": 257235,
   "rvv_bench.memcpy": 36037,
   "rvv_bench.memset": 11501,
   "rvv_bench.mergelines": 90569,
-  "rvv_bench.poly1305": 3,
   "rvv_bench.strlen": 23191,
   "rvv_bench.utf8_count": 151500
 }

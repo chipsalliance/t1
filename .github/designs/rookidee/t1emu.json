@@ -9,11 +9,9 @@
   "rvv_bench.ascii_to_utf16": 41474,
   "rvv_bench.ascii_to_utf32": 12345,
   "rvv_bench.byteswap": 119778,
-  "rvv_bench.chacha20": 3,
   "rvv_bench.memcpy": 48026,
   "rvv_bench.memset": 19350,
   "rvv_bench.mergelines": 92398,
-  "rvv_bench.poly1305": 3,
   "rvv_bench.strlen": 34125,
   "rvv_bench.utf8_count": 202107
 }
