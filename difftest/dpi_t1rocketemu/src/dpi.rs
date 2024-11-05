@@ -5,7 +5,7 @@ use dpi_common::plusarg::PlusArgMatcher;
 use dpi_common::DpiTarget;
 use std::ffi::{c_char, c_longlong};
 use svdpi::SvScope;
-use tracing::debug;
+use tracing::{debug, trace};
 
 use crate::drive::Driver;
 use crate::OnlineArgs;
@@ -231,6 +231,14 @@ unsafe extern "C" fn axi_read_loadStoreAXI(
   arregion: c_longlong,
   payload: *mut SvBitVecVal,
 ) {
+  // chisel use sync reset, registers are not reset at time=0
+  // to avoid DPI trace (especially in verilator), we filter it here
+  if svdpi::get_time() == 0 {
+    debug!("axi_read_loadStoreAXI (ignored at time zero)");
+    // TODO: better to fill zero to payload, but maintain the correct length for payload is too messy
+    return;
+  }
+
   debug!(
     "axi_read_loadStoreAXI (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
@@ -257,6 +265,14 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
   arregion: c_longlong,
   payload: *mut SvBitVecVal,
 ) {
+  // chisel use sync reset, registers are not reset at time=0
+  // to avoid DPI trace (especially in verilator), we filter it here
+  if svdpi::get_time() == 0 {
+    debug!("axi_read_instructionFetchAXI (ignored at time zero)");
+    // TODO: better to fill zero to payload, but maintain the correct length for payload is too messy
+    return;
+  }
+
   debug!(
     "axi_read_instructionFetchAXI (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
@@ -269,45 +285,32 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
 }
 
 #[no_mangle]
-unsafe extern "C" fn t1rocket_cosim_init() {
+unsafe extern "C" fn t1_cosim_init() {
   let plusargs = PlusArgMatcher::from_args();
   let args = OnlineArgs::from_plusargs(&plusargs);
 
   dpi_common::setup_logger();
 
-  let scope = SvScope::get_current().expect("failed to get scope in t1rocket_cosim_init");
+  let scope = SvScope::get_current().expect("failed to get scope in t1_cosim_init");
 
   TARGET.init(|| Driver::new(scope, &args));
 }
 
 #[no_mangle]
-unsafe extern "C" fn t1rocket_cosim_final() {
+unsafe extern "C" fn t1_cosim_final() {
   TARGET.with(|driver| {
     dpi_common::util::write_perf_json(crate::get_t(), driver.success);
   });
 }
 
-/// evaluate at every 1024 cycles, return reason = 0 to continue simulation,
-/// other value is used as error code.
+/// evaluate at every cycle
+/// return value:
+///   0   : continue
+///   255 : quit successfully
+///   otherwise : error
 #[no_mangle]
-unsafe extern "C" fn cosim_watchdog(reason: *mut c_char) {
-  // watchdog dpi call would be called before initialization, guard on null target
-  TARGET.with_optional(|driver| {
-    if let Some(driver) = driver {
-      *reason = driver.watchdog() as c_char;
-    }
-  });
-}
-
-/// evaluate at every cycle, return quit_flag = false to continue simulation,
-#[no_mangle]
-unsafe extern "C" fn cosim_quit(quit_flag: *mut bool) {
-  // watchdog dpi call would be called before initialization, guard on null target
-  TARGET.with_optional(|driver| {
-    if let Some(driver) = driver {
-      *quit_flag = driver.quit as bool;
-    }
-  });
+unsafe extern "C" fn t1_cosim_watchdog() -> u8 {
+  TARGET.with(|driver| driver.watchdog())
 }
 
 #[no_mangle]

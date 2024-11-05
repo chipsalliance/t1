@@ -43,9 +43,12 @@ class TestBench(val parameter: T1RocketTileParameter)
     override def desiredName = "ClockGen"
     val clock                = IO(Output(Bool()))
     val reset                = IO(Output(Bool()))
+    val initFlag             = IO(Output(Bool()))
+    val idle                 = IO(Input(Bool()))
   })
   def clock                  = clockGen.clock.asClock
   def reset                  = clockGen.reset
+  def initFlag               = clockGen.initFlag
   override def implicitClock = clockGen.clock.asClock
   override def implicitReset = clockGen.reset
   val dut: Instance[T1RocketTile] = SerializableModuleGenerator(classOf[T1RocketTile], parameter).instance()
@@ -58,19 +61,8 @@ class TestBench(val parameter: T1RocketTileParameter)
   val simulationTime: UInt = RegInit(0.U(64.W))
   simulationTime := simulationTime + 1.U
 
-  // this initial way cannot happen before reset
-  val initFlag: Bool = RegInit(false.B)
-  when(!initFlag) {
-    initFlag := true.B
-    printf(cf"""{"event":"SimulationStart","cycle":${simulationTime}}\n""")
-  }
-  val watchdog: UInt = RawUnclockedNonVoidFunctionCall("cosim_watchdog", UInt(8.W))(simulationTime(9, 0) === 0.U)
-  when(watchdog =/= 0.U) {
-    stop(cf"""{"event":"SimulationStop","reason": ${watchdog},"cycle":${simulationTime}}\n""")
-  }
-
   // get resetVector from simulator
-  dut.io.resetVector := RawUnclockedNonVoidFunctionCall("get_resetvector", Const(UInt(64.W)))(simulationTime === 0.U)
+  dut.io.resetVector := RawClockedNonVoidFunctionCall("get_resetvector", Const(UInt(64.W)))(clock, initFlag)
 
   dut.io.hartid   := 0.U
   dut.io.debug    := 0.U
@@ -311,11 +303,7 @@ class TestBench(val parameter: T1RocketTileParameter)
   }
 
   // t1 quit
-  val quitFlag: Bool = RegInit(false.B)
-  quitFlag := RawClockedNonVoidFunctionCall("cosim_quit", Bool())(clock, !quitFlag)
-  when(quitFlag && t1Probe.idle && rocketProbe.idle) {
-    stop(cf"""{"event":"SimulationEnd", "cycle":${simulationTime}}\n""")
-  }
+  clockGen.idle := t1Probe.idle && rocketProbe.idle
 
   // t1rocket ProfData
   layer.block(layers.Verification) {

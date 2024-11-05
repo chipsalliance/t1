@@ -245,18 +245,24 @@ impl Driver {
   pub(crate) fn watchdog(&mut self) -> u8 {
     const WATCHDOG_CONTINUE: u8 = 0;
     const WATCHDOG_TIMEOUT: u8 = 1;
+    const WATCHDOG_QUIT: u8 = 255;
 
     let tick = get_t();
+
+    if self.quit {
+      trace!("[{tick}] watchdog quit");
+      return WATCHDOG_QUIT;
+    }
+
     if tick - self.last_commit_cycle > self.timeout {
       error!(
-        "[{}] watchdog timeout (last_commit_cycle={})",
-        get_t(),
+        "[{tick}] watchdog timeout (last_commit_cycle={})",
         self.last_commit_cycle
       );
-      WATCHDOG_TIMEOUT
-    } else {
-      trace!("[{}] watchdog continue", get_t());
-      WATCHDOG_CONTINUE
+      return WATCHDOG_TIMEOUT;
     }
+
+    trace!("[{tick}] watchdog continue");
+    WATCHDOG_CONTINUE
   }
 }
