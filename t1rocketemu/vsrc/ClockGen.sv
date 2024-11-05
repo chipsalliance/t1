@@ -1,4 +1,9 @@
-module ClockGen(output reg clock, output reg reset);
+module ClockGen(
+  output reg clock,
+  output reg reset,
+  output reg initFlag,
+  input  wire idle
+);
 
   longint unsigned cycle = 0;
 `ifdef T1_ENABLE_TRACE
@@ -21,12 +26,14 @@ module ClockGen(output reg clock, output reg reset);
   endfunction;
 `endif
 
-  import "DPI-C" context function void t1rocket_cosim_init();
-  import "DPI-C" context function void t1rocket_cosim_final();
+  import "DPI-C" context function void t1_cosim_init();
+  import "DPI-C" context function void t1_cosim_final();
+  import "DPI-C" context function byte unsigned t1_cosim_watchdog();
   
   initial begin
     clock = 1'b0;
     reset = 1'b1;
+    initFlag = 1'b1;
 
 `ifdef T1_ENABLE_TRACE
     $value$plusargs("t1_dump_start=%d", dump_start);
@@ -37,7 +44,7 @@ module ClockGen(output reg clock, output reg reset);
     // Args:
     //   +t1_elf_file=... : path of elf file
     //   +t1_timeout=... : (optional) max interval of inst commit, counted in cycle
-    t1rocket_cosim_init();
+    t1_cosim_init();
 
   `ifdef T1_ENABLE_TRACE
     if (dump_start == 0) begin
@@ -53,6 +60,22 @@ module ClockGen(output reg clock, output reg reset);
       #10;
 
       cycle += 1;
+
+      begin
+        automatic byte unsigned st = t1_cosim_watchdog();
+        if (st == 255) begin
+          if (idle) begin
+            // quit successfully, only if both DPI and TestBench finish
+            $finish;
+          end
+        end else if (st == 0) begin
+          // continue, do nothing here
+        end else begin
+          // error
+          $fatal("watchdog timeout");
+        end
+      end
+
     `ifdef T1_ENALBE_TRACE
       if (cycle == dump_start) begin
         dump_wave();
@@ -66,8 +89,9 @@ module ClockGen(output reg clock, output reg reset);
   end
 
   final begin
-    t1rocket_cosim_final();
+    t1_cosim_final();
   end
 
   initial #(100) reset = 1'b0;
+  initial #(20) initFlag = 1'b0;
 endmodule
