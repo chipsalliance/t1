@@ -172,7 +172,7 @@ object Main:
           os.Path(
             nixResolvePath(
               testAttr,
-              if emuLib == "vcs" then Seq("--impure") else Seq()
+              Seq("--impure")
             )
           )
         catch
@@ -180,7 +180,7 @@ object Main:
             Logger.error(
               s"Online driver for config $config, case $caseName fail, please check manually on local machine"
             )
-            Logger.error(s"nix build $testAttr" ++ (if emuLib == "vcs" then " --impure" else ""))
+            Logger.error(s"nix build $testAttr --impure")
             Logger.fatal("Online Drive run fail, exiting CI")
 
       Logger.info("Checking RTL event from event log")
@@ -249,8 +249,7 @@ object Main:
         val emuResultPath = os.Path(
           nixResolvePath(
             s".#t1.$config.${top}.run._${emuLib}EmuResult",
-            if emuLib.toLowerCase() == "vcs" then Seq("--impure")
-            else Seq()
+            Seq("--impure")
           )
         )
 

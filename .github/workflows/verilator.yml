@@ -33,11 +33,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build verilator emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.verilator-emu' -L --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.verilator-emu' --impure -L --no-link --cores 64
       - name: "Build all testcases"
         run: |
           # Build testcases with vlen 1024 and vlen 4096
-          nix build ".#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.cases._all" --max-jobs auto -L --no-link --cores 64
+          nix build ".#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.cases._all" --impure --max-jobs auto -L --no-link --cores 64
 
   # In the future, we may choose Verdi for trace, and left verilator trace only for performance evaluation
   build-verilator-trace-emulators:
@@ -52,7 +52,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build verilator emulator with trace"
-        run: nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.verilator-emu-trace' -L --no-link --cores 64
+        run: nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.verilator-emu-trace' --impure -L --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
