@@ -174,9 +174,9 @@ object Main:
       doc = "Print the final emulator command line and exit"
     ) dryRun:   Flag = Flag(false),
     @arg(
-      name = "timeout",
+      name = "max-commit-interval-coefficient",
       doc = "Specify maximum cycle count limit"
-    ) timeout:  Option[Int] = None,
+    ) maxCommitIntervalCoefficient:  Option[Int] = None,
     leftOver:   Leftover[String]
   ): Unit =
     if leftOver.value.isEmpty then Logger.fatal("No test case name")
@@ -219,7 +219,7 @@ object Main:
       emulator.toString(),
       s"+t1_elf_file=${caseElfPath}"
     )
-      ++ optionals(timeout.isDefined, Seq(s"+t1_timeout=${timeout.getOrElse("unreachable")}"))
+      ++ optionals(maxCommitIntervalCoefficient.isDefined, Seq(s"+t1_max_commit_interval_coefficient=${maxCommitIntervalCoefficient.getOrElse("unreachable")}"))
       ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
       ++ optionals(isCover, Seq(s"-cm assert"))
       ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)

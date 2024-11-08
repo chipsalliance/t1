@@ -32,7 +32,7 @@ pub(crate) struct Driver {
   pub(crate) dlen: u32,
   pub(crate) e_entry: u64,
 
-  timeout: u64,
+  max_commit_interval: u64,
   last_commit_cycle: u64,
 
   shadow_bus: ShadowBus,
@@ -53,7 +53,7 @@ impl Driver {
       dlen: args.dlen,
       e_entry,
 
-      timeout: args.timeout,
+      max_commit_interval: args.max_commit_interval,
       last_commit_cycle: 0,
 
       shadow_bus,
@@ -254,9 +254,9 @@ impl Driver {
       return WATCHDOG_QUIT;
     }
 
-    if tick - self.last_commit_cycle > self.timeout {
+    if tick - self.last_commit_cycle > self.max_commit_interval {
       error!(
-        "[{tick}] watchdog timeout (last_commit_cycle={})",
+        "[{tick}] watchdog timeout since last commit (last_commit_cycle={})",
         self.last_commit_cycle
       );
       return WATCHDOG_TIMEOUT;

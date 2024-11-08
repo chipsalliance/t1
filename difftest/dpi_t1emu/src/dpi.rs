@@ -87,10 +87,6 @@ pub static ISSUE_VALID: u32 = 1;
 pub static ISSUE_FENCE: u32 = 2;
 pub static ISSUE_EXIT: u32 = 3;
 
-pub static WATCHDOG_CONTINUE: u8 = 0;
-pub static WATCHDOG_TIMEOUT: u8 = 1;
-pub static WATCHDOG_QUIT: u8 = 255;
-
 #[repr(C, packed)]
 pub(crate) struct Retire {
   pub vxsat: u32,

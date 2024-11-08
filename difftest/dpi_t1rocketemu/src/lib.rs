@@ -13,21 +13,24 @@ pub(crate) struct OnlineArgs {
   /// dlen config
   pub dlen: u32,
 
-  // default to TIMEOUT_DEFAULT
-  pub timeout: u64,
+  // default to max_commit_interval
+  pub max_commit_interval: u64,
 }
 
-const TIMEOUT_DEFAULT: u64 = 100000000;
+const MAX_COMMIT_INTERVAL_COEFFICIENT: u64 = 10_0000;
 
 impl OnlineArgs {
   pub fn from_plusargs(matcher: &PlusArgMatcher) -> Self {
+    let max_commit_interval_coefficient = matcher
+      .try_match("t1_max_commit_interval_coefficient")
+      .map(|x| x.parse().unwrap())
+      .unwrap_or(MAX_COMMIT_INTERVAL_COEFFICIENT);
+    let max_commit_interval = max_commit_interval_coefficient;
+
     Self {
       elf_file: matcher.match_("t1_elf_file").into(),
       dlen: env!("DESIGN_DLEN").parse().unwrap(),
-      timeout: matcher
-        .try_match("t1_timeout")
-        .map(|x| x.parse().unwrap())
-        .unwrap_or(TIMEOUT_DEFAULT),
+      max_commit_interval,
     }
   }
 }
