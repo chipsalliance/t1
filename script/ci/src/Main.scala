@@ -181,7 +181,10 @@ object Main:
               s"Online driver for config $config, case $caseName fail, please check manually on local machine"
             )
             Logger.error(s"nix build $testAttr --impure")
-            Logger.fatal("Online Drive run fail, exiting CI")
+            // Create fake path for latter assertion to fail
+            val fakedir = os.temp.dir()
+            os.write(fakedir / "offline-check-status", "1")
+            fakedir
 
       Logger.info("Checking RTL event from event log")
       val testSuccess =
