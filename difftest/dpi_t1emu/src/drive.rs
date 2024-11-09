@@ -108,7 +108,7 @@ pub(crate) struct Driver {
   max_commit_interval: u64,
 
   // driver state
-  last_commit_cycle: u64,
+  pub(crate) last_commit_cycle: u64,
   issued: u64,
   vector_lsu_count: u8,
 
@@ -325,6 +325,7 @@ impl Driver {
     self.shadow_mem.apply_writes(&se.mem_access_record);
 
     self.spike_runner.commit_queue.pop_back();
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
   }
 

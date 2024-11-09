@@ -313,6 +313,14 @@ unsafe extern "C" fn t1_cosim_watchdog() -> u8 {
   TARGET.with(|driver| driver.watchdog())
 }
 
+/// update last_commit_cycle to current cycle
+#[no_mangle]
+unsafe extern "C" fn t1_cosim_refresh() {
+  TARGET.with(|driver| {
+    driver.last_commit_cycle = crate::get_t();
+  })
+}
+
 #[no_mangle]
 unsafe extern "C" fn get_resetvector(resetvector: *mut c_longlong) {
   TARGET.with_optional(|driver| {

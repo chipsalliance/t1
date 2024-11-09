@@ -33,7 +33,7 @@ pub(crate) struct Driver {
   pub(crate) e_entry: u64,
 
   max_commit_interval: u64,
-  last_commit_cycle: u64,
+  pub(crate) last_commit_cycle: u64,
 
   shadow_bus: ShadowBus,
 
@@ -134,6 +134,7 @@ impl Driver {
     let size = 1 << arsize;
     let data = self.shadow_bus.read_mem_axi(addr, size, self.dlen / 8);
     let data_hex = hex::encode(&data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_read_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
@@ -152,6 +153,7 @@ impl Driver {
     let size = 1 << awsize;
     self.shadow_bus.write_mem_axi(addr, size, self.dlen / 8, &strobe, data);
     let data_hex = hex::encode(data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_write_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
@@ -164,6 +166,7 @@ impl Driver {
     assert!(size <= 4);
     let data = self.shadow_bus.read_mem_axi(addr, size, 4);
     let data_hex = hex::encode(&data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_read_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
@@ -182,6 +185,7 @@ impl Driver {
     let size = 1 << awsize;
     self.shadow_bus.write_mem_axi(addr, size, 4, strobe, data);
     let data_hex = hex::encode(data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_write_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
@@ -194,6 +198,7 @@ impl Driver {
     let bus_size = if size == 32 { 32 } else { 4 };
     let data = self.shadow_bus.read_mem_axi(addr, size, bus_size);
     let data_hex = hex::encode(&data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_read_load_store (addr={addr:#x}, size={size}, data={data_hex})",
@@ -213,6 +218,7 @@ impl Driver {
     let bus_size = if size == 32 { 32 } else { 4 };
     self.shadow_bus.write_mem_axi(addr, size, bus_size, strobe, data);
     let data_hex = hex::encode(data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
 
     trace!(
