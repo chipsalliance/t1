@@ -116,10 +116,6 @@ forEachTop (topName: generator: self: {
     emuType = "verilator";
     moduleType = "dpi_${topName}";
   };
-  verilator-dpi-lib-trace = self.verilator-dpi-lib.override {
-    outputName = "${topName}-verilator-trace-dpi-lib";
-    enableTrace = true;
-  };
 
   verilator-emu = t1Scope.sv-to-verilator-emulator {
     mainProgram = "${topName}-verilated-simulator";
@@ -131,7 +127,6 @@ forEachTop (topName: generator: self: {
   verilator-emu-trace = self.verilator-emu.override {
     enableTrace = true;
     mainProgram = "${topName}-verilated-trace-simulator";
-    extraVerilatorArgs = [ "${self.verilator-dpi-lib-trace}/lib/libdpi_${topName}.a" ];
   };
 
   # ---------------------------------------------------------------------------------
@@ -141,10 +136,6 @@ forEachTop (topName: generator: self: {
     outputName = "${topName}-vcs-dpi-lib";
     emuType = "vcs";
     moduleType = "dpi_${topName}";
-  };
-  vcs-dpi-lib-trace = self.vcs-dpi-lib.override {
-    enableTrace = true;
-    outputName = "${topName}-vcs-dpi-trace-lib";
   };
 
   offline-checker = self.makeDifftest {
@@ -162,7 +153,6 @@ forEachTop (topName: generator: self: {
   vcs-emu-trace = self.vcs-emu.override {
     enableTrace = true;
     mainProgram = "${topName}-vcs-trace-simulator";
-    vcsLinkLibs = [ "${self.vcs-dpi-lib-trace}/lib/libdpi_${topName}.a" ];
   };
 
   run = self.callPackage ./run { };

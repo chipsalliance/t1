@@ -8,7 +8,6 @@
 { outputName
 , emuType ? ""
 , moduleType
-, enableTrace ? false
 }:
 
 assert let
@@ -57,6 +56,5 @@ rustPlatform.buildRustPackage {
 
   passthru = {
     dpiLibPath = "/lib/libdpi_${moduleType}.a";
-    inherit enableTrace;
   };
 }
