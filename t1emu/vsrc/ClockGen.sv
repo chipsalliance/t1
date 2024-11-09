@@ -6,7 +6,7 @@ module ClockGen(output reg clock, output reg reset);
   longint unsigned dump_end = 0;
   string wave_path;
 
-  function dump_wave(input string file);
+  function void dump_wave(input string file);
 
   `ifdef VCS
     $fsdbDumpfile(file);
@@ -61,7 +61,7 @@ module ClockGen(output reg clock, output reg reset);
           // continue, do nothing here
         end else begin
           // error
-          $fatal("watchdog timeout");
+          $fatal(1, "watchdog timeout");
         end
       end
 
@@ -71,7 +71,7 @@ module ClockGen(output reg clock, output reg reset);
       end
       if (cycle == dump_end) begin
         // TODO: currently dump_end is actually timeout
-        $fatal("dump_end reached");
+        $fatal(1, "dump_end reached");
       end
     `endif
     end  
