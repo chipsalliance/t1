@@ -24,6 +24,7 @@ import chisel3.util.{
   Mux1H,
   OHToUInt,
   Pipe,
+  PriorityEncoder,
   RegEnable,
   UIntToOH,
   Valid,
@@ -992,118 +993,147 @@ class T1(val parameter: T1Parameter)
     probeWire.retire.valid       := io.retire.rd.valid
     probeWire.retire.bits        := io.retire.rd.bits.rdData
     probeWire.idle               := slots.map(_.state.idle).reduce(_ && _)
-  }
 
-  // coverage
-  // unsupported 64-bit instructions for 32-bit xlen
-  val zve32f = Seq(
-    // format: off
-    "vfadd.vf", "vfadd.vv", "vfclass.v", "vfcvt.f.x.v", 
-    "vfcvt.f.xu.v", "vfcvt.rtz.x.f.v", "vfcvt.rtz.xu.f.v", "vfcvt.x.f.v", 
-    "vfcvt.xu.f.v", "vfdiv.vf", "vfdiv.vv", "vfmacc.vf",
-    "vfmacc.vv", "vfmadd.vf", "vfmadd.vv", "vfmax.vf",
-    "vfmax.vv", "vfmerge.vfm", "vfmin.vf", "vfmin.vv",
-    "vfmsac.vf", "vfmsac.vv", "vfmsub.vf", "vfmsub.vv",
-    "vfmul.vf", "vfmul.vv", "vfmv.f.s", "vfmv.s.f",
-    "vfmv.v.f", "vfnmacc.vf", "vfnmacc.vv", "vfnmadd.vf",
-    "vfnmadd.vv", "vfnmsac.vf", "vfnmsac.vv", "vfnmsub.vf",
-    "vfnmsub.vv", "vfrdiv.vf", "vfrec7.v", "vfredmax.vs",
-    "vfredmin.vs", "vfredosum.vs", "vfredusum.vs", "vfrsqrt7.v",
-    "vfrsub.vf", "vfsgnj.vf", "vfsgnj.vv", "vfsgnjn.vf",
-    "vfsgnjn.vv", "vfsgnjx.vf", "vfsgnjx.vv", "vfsqrt.v",
-    "vfsub.vf", "vfsub.vv", "vmfeq.vf", "vmfeq.vv",
-    "vmfge.vf", "vmfgt.vf", "vmfle.vf", "vmfle.vv", 
-    "vmflt.vf", "vmflt.vv", "vmfne.vf", "vmfne.vv"
-    // format: on
-  )
-  val zve64f = Seq(
-    // format: off
-    "vfncvt.f.f.w", "vfncvt.f.x.w", "vfncvt.f.xu.w", "vfncvt.rod.f.f.w", "vfncvt.rtz.x.f.w", "vfncvt.rtz.xu.f.w", "vfncvt.x.f.w", "vfncvt.xu.f.w",
-    "vfslide1down.vf", "vfslide1up.vf",
-    "vfwadd.vf", "vfwadd.vv", "vfwadd.wf", "vfwadd.wv",
-    "vfwcvt.f.f.v", "vfwcvt.f.x.v", "vfwcvt.f.xu.v", "vfwcvt.rtz.x.f.v", "vfwcvt.rtz.xu.f.v", "vfwcvt.x.f.v", "vfwcvt.xu.f.v",
-    "vfwmacc.vf", "vfwmacc.vv", "vfwmsac.vf", "vfwmsac.vv",
-    "vfwmul.vf", "vfwmul.vv", "vfwnmacc.vf", "vfwnmacc.vv",
-    "vfwnmsac.vf", "vfwnmsac.vv", "vfwredosum.vs", "vfwredusum.vs",
-    "vfwsub.vf", "vfwsub.vv", "vfwsub.wf", "vfwsub.wv", 
-    // format: on
-  )
-  val zve64x = Seq(
-    // format: off
-    "vl1re64.v", "vl2re64.v", "vl4re64.v", "vl8re64.v", 
-    "vle64.v", "vle64ff.v", "vloxei64.v", "vlse64.v", "vluxei64.v",
-    "vse64.v", "vsoxei64.v", "vsse64.v", "vsuxei64.v", 
-    "vsext.vf8", "vzext.vf8"
-    // format: on
-  )
-  parameter.decoderParam.allInstructions.filter { instruction: Instruction =>
-    // format: off
-    !(zve64x.contains(instruction.name) && parameter.xLen == 32) &&
-    !(zve64f.contains(instruction.name) && parameter.xLen == 32 && parameter.fpuEnable) &&
-    !((zve32f ++ zve64f).contains(instruction.name) && !parameter.fpuEnable)
-    // format: on
-  }.map { instruction: Instruction =>
-    val issueMatch =
-      Sequence.BoolSequence(requestReg.bits.issue.instruction === BitPat("b" + instruction.encoding.toString))
-    CoverProperty(issueMatch, label = Some(s"t1_cover_issue_${instruction.name}"))
-  }
+    // coverage
+    import Sequence.BoolSequence
+    // unsupported 64-bit instructions for 32-bit xlen
+    val zve32f = Seq(
+      // format: off
+      "vfadd.vf", "vfadd.vv", "vfclass.v", "vfcvt.f.x.v", 
+      "vfcvt.f.xu.v", "vfcvt.rtz.x.f.v", "vfcvt.rtz.xu.f.v", "vfcvt.x.f.v", 
+      "vfcvt.xu.f.v", "vfdiv.vf", "vfdiv.vv", "vfmacc.vf",
+      "vfmacc.vv", "vfmadd.vf", "vfmadd.vv", "vfmax.vf",
+      "vfmax.vv", "vfmerge.vfm", "vfmin.vf", "vfmin.vv",
+      "vfmsac.vf", "vfmsac.vv", "vfmsub.vf", "vfmsub.vv",
+      "vfmul.vf", "vfmul.vv", "vfmv.f.s", "vfmv.s.f",
+      "vfmv.v.f", "vfnmacc.vf", "vfnmacc.vv", "vfnmadd.vf",
+      "vfnmadd.vv", "vfnmsac.vf", "vfnmsac.vv", "vfnmsub.vf",
+      "vfnmsub.vv", "vfrdiv.vf", "vfrec7.v", "vfredmax.vs",
+      "vfredmin.vs", "vfredosum.vs", "vfredusum.vs", "vfrsqrt7.v",
+      "vfrsub.vf", "vfsgnj.vf", "vfsgnj.vv", "vfsgnjn.vf",
+      "vfsgnjn.vv", "vfsgnjx.vf", "vfsgnjx.vv", "vfsqrt.v",
+      "vfsub.vf", "vfsub.vv", "vmfeq.vf", "vmfeq.vv",
+      "vmfge.vf", "vmfgt.vf", "vmfle.vf", "vmfle.vv", 
+      "vmflt.vf", "vmflt.vv", "vmfne.vf", "vmfne.vv"
+      // format: on
+    )
+    val zve64f = Seq(
+      // format: off
+      "vfncvt.f.f.w", "vfncvt.f.x.w", "vfncvt.f.xu.w", "vfncvt.rod.f.f.w", "vfncvt.rtz.x.f.w", "vfncvt.rtz.xu.f.w", "vfncvt.x.f.w", "vfncvt.xu.f.w",
+      "vfslide1down.vf", "vfslide1up.vf",
+      "vfwadd.vf", "vfwadd.vv", "vfwadd.wf", "vfwadd.wv",
+      "vfwcvt.f.f.v", "vfwcvt.f.x.v", "vfwcvt.f.xu.v", "vfwcvt.rtz.x.f.v", "vfwcvt.rtz.xu.f.v", "vfwcvt.x.f.v", "vfwcvt.xu.f.v",
+      "vfwmacc.vf", "vfwmacc.vv", "vfwmsac.vf", "vfwmsac.vv",
+      "vfwmul.vf", "vfwmul.vv", "vfwnmacc.vf", "vfwnmacc.vv",
+      "vfwnmsac.vf", "vfwnmsac.vv", "vfwredosum.vs", "vfwredusum.vs",
+      "vfwsub.vf", "vfwsub.vv", "vfwsub.wf", "vfwsub.wv", 
+      // format: on
+    )
+    val zve64x = Seq(
+      // format: off
+      "vl1re64.v", "vl2re64.v", "vl4re64.v", "vl8re64.v", 
+      "vle64.v", "vle64ff.v", "vloxei64.v", "vlse64.v", "vluxei64.v",
+      "vse64.v", "vsoxei64.v", "vsse64.v", "vsuxei64.v", 
+      "vsext.vf8", "vzext.vf8"
+      // format: on
+    )
+    val instructions: Seq[Instruction] = parameter.decoderParam.allInstructions.filter { instruction: Instruction =>
+      // format: off
+      !(zve64x.contains(instruction.name) && parameter.xLen == 32) &&
+      !(zve64f.contains(instruction.name) && parameter.xLen == 32 && parameter.fpuEnable) &&
+      !((zve32f ++ zve64f).contains(instruction.name) && !parameter.fpuEnable)
+      // format: on
+    }
 
-  // new V Request from core
-  // val requestValidProbe: Bool = IO(Output(Probe(Bool())))
-  // val requestReadyProbe: Bool = IO(Output(Probe(Bool())))
-  // define(requestValidProbe, ProbeValue(request.valid))
-  // define(requestReadyProbe, ProbeValue(request.ready))
+    // coverage for one instruction
+    instructions.map { instruction: Instruction =>
+      val coverMatch = BoolSequence(
+        requestReg.valid && requestReg.bits.issue.instruction === BitPat("b" + instruction.encoding.toString)
+      )
+      CoverProperty(coverMatch, label = Some(s"1_${instruction.name}"))
+    }
 
-  // Store decoded request
-  // val requestRegValidProbe: Bool = IO(Output(Probe(Bool())))
-  // define(requestRegValidProbe, ProbeValue(requestReg.valid))
+    // // coverage for two instructions
+    // instructions.map { case instructionNew: Instruction =>
+    //   instructions.map { case instructionOld: Instruction =>
+    //     val issueInstructionOld = RegEnable(requestReg.bits.issue.instruction, requestReg.valid)
+    //     val coverMatchNew       = BoolSequence(
+    //       requestReg.valid && requestReg.bits.issue.instruction === BitPat("b" + instructionNew.encoding.toString)
+    //     )
+    //     val coverMatchOld       = BoolSequence(issueInstructionOld === BitPat("b" + instructionOld.encoding.toString))
+    //     CoverProperty(
+    //       coverMatchNew.and(coverMatchOld),
+    //       label = Some(s"2_${instructionOld.name}_and_${instructionNew.name}")
+    //     )
+    //   }
+    // }
 
-  /** Dispatch request from requestReg to lane
-    *
-    * There are four cases that might affect the ready status of requestRegDequeue:
-    *   1. executionReady: There are capable slot to load this instruction in top local 2. slotReady: Execution unit
-    *      accept this instrution 3. !gatherNeedRead || gatherReadFinish: This is not a instrution which needs to wait
-    *      for gather 4. instructionRAWReady: This is not instruction which will cause harzard that can not be avoid.
-    */
-  // val requestRegDequeueValidProbe: Bool = IO(Output(Probe(Bool())))
-  // val requestRegDequeueReadyProbe: Bool = IO(Output(Probe(Bool())))
-  // define(requestRegDequeueValidProbe, ProbeValue(requestRegDequeue.valid))
-  // define(requestRegDequeueReadyProbe, ProbeValue(requestRegDequeue.ready))
+    // // coverage for different sew / vlmul / vl
+    // val vsews:  Seq[Int]           = Seq(0, 1, 2)
+    // val sews:   Seq[Int]           = Seq(8, 16, 32)
+    // val vlmuls: Seq[Int]           = Seq(0, 1, 2, 3, 6, 7)
+    // val lmuls:  Seq[Double]        = Seq(1, 2, 4, 8, -1, -1, 0.25, 0.5)
+    // val vls:    Seq[(Double, Int)] =
+    //   Seq((1.0, 0), (1.0, -1), (0.25, -1), (0.25, 0), (0.25, 1), (0.5, -1), (0.5, 0), (0.5, 1))
+    // vsews.map { vsew =>
+    //   vlmuls.map { vlmul =>
+    //     vls.map { case (vla, vlb) =>
+    //       val sew   = sews(vsew)
+    //       val lmul  = lmuls(vlmul)
+    //       val vlmax = parameter.vLen * lmul / sew
+    //       val vl    = (vlmax * vla).toInt + vlb
 
-  // val executionReadyProbe = IO(Output(Probe(Bool())))
-  // define(executionReadyProbe, ProbeValue(executionReady))
+    //       val coverMatch = BoolSequence(
+    //         requestReg.valid && requestReg.bits.issue.vl === vl.U &&
+    //           T1Issue.vlmul(requestReg.bits.issue) === vlmul.U &&
+    //           T1Issue.vsew(requestReg.bits.issue) === vsew.U
+    //       )
 
-  // val slotReadyProbe = IO(Output(Probe(Bool())))
-  // define(slotReadyProbe, ProbeValue(slotReady))
+    //       CoverProperty(coverMatch, label = Some(s"3_sew_${sew}_lmul_${lmul}_vl_${vl}"))
+    //     }
+    //   }
+    // }
 
-  // val gatherNeedReadProbe = IO(Output(Probe(Bool())))
-  // define(gatherNeedReadProbe, ProbeValue(gatherNeedRead))
-  // val gatherReadFinishProbe = IO(Output(Probe(Bool())))
-  // define(gatherReadFinishProbe, ProbeValue(gatherReadFinish))
+    // // coverage for lsu (load / store / other) with slots (contain / intersection / disjoint)
 
-  // val instructionRAWReadyProbe = IO(Output(Probe(Bool())))
-  // define(instructionRAWReadyProbe, ProbeValue(instructionRAWReady))
-  // End of requestRegDequeueProbe
+    // // TODO:load unit probe
 
-  /** Response send back to core.
-    *
-    * There are four cases that might affect response is valid or not:
-    *
-    *   1. slot(n).state.sMaskUnit: The mask unit in slot n has finished its work. 2. slot(n).state.wLast: The execution
-    *      unit in slot n has finished its work. 3. !slot(n).state.sCommit: This instruction doesn't committed. This is
-    *      not an important signal so we don't capture it. 4. slot(n).record.instruction Index == responseCounter:
-    *      current instruction is the oldest insn in V
-    */
-  // val responseValidProbe: Bool = IO(Output(Probe(Bool())))
-  // define(responseValidProbe, ProbeValue(response.valid))
+    // // store unit probe
+    // val storeUnitProbe = probeWire.lsuProbe.storeUnitProbe
 
-  // val slotStateProbe: Seq[(Bool, Bool, Bool)] = slots.map { inst =>
-  //  val sMaskUnitProbe = IO(Output(Probe(Bool())))
-  //  define(sMaskUnitProbe, ProbeValue(inst.state.sMaskUnitExecution))
-  //  val wLastProbe = IO(Output(Probe(Bool())))
-  //  define(wLastProbe, ProbeValue(inst.state.wLast))
-  //  val isLastInstProbe = IO(Output(Probe(Bool())))
-  //  define(isLastInstProbe, ProbeValue(inst.record.instructionIndex === responseCounter))
-  //  (sMaskUnitProbe, wLastProbe, isLastInstProbe)
-  // }
+    // val storeRangeStartNew = storeUnitProbe.address
+    // val storeRangeEndNew   = storeUnitProbe.address + PriorityEncoder(storeUnitProbe.mask)
+    // val storeRangeStartOld = RegEnable(storeUnitProbe.address, storeUnitProbe.valid)
+    // val storeRangeEndOld   =
+    //   RegEnable(storeUnitProbe.address + PriorityEncoder(storeUnitProbe.mask), storeUnitProbe.valid)
+
+    // val storeContain      = storeRangeStartOld <= storeRangeStartNew && storeRangeEndNew <= storeRangeEndOld ||
+    //   storeRangeStartNew <= storeRangeStartOld && storeRangeEndOld <= storeRangeEndNew
+    // val storeIntersection = storeRangeStartNew <= storeRangeStartOld && storeRangeEndNew <= storeRangeEndOld ||
+    //   storeRangeStartOld <= storeRangeStartNew && storeRangeEndOld <= storeRangeEndNew
+    // val storeDisjoint     = storeRangeEndNew <= storeRangeStartOld || storeRangeEndOld <= storeRangeEndNew
+
+    // CoverProperty(BoolSequence(storeUnitProbe.valid && storeContain), label = Some("4_store_contain"))
+    // CoverProperty(BoolSequence(storeUnitProbe.valid && storeIntersection), label = Some("4_store_intersection"))
+    // CoverProperty(BoolSequence(storeUnitProbe.valid && storeDisjoint), label = Some("4_store_disjoint"))
+
+    // // other unit probe
+    // val otherUnitProbe = probeWire.lsuProbe.otherUnitProbe
+
+    // val otherRangeStartNew = otherUnitProbe.address
+    // val otherRangeEndNew   = otherUnitProbe.address + PriorityEncoder(otherUnitProbe.mask)
+    // val otherRangeStartOld = RegEnable(otherUnitProbe.address, otherUnitProbe.valid)
+    // val otherRangeEndOld   =
+    //   RegEnable(otherUnitProbe.address + PriorityEncoder(otherUnitProbe.mask), otherUnitProbe.valid)
+
+    // val otherContain      = otherRangeStartOld <= otherRangeStartNew && otherRangeEndNew <= otherRangeEndOld ||
+    //   otherRangeStartNew <= otherRangeStartOld && otherRangeEndOld <= otherRangeEndNew
+    // val otherIntersection = otherRangeStartNew <= otherRangeStartOld && otherRangeEndNew <= otherRangeEndOld ||
+    //   otherRangeStartOld <= otherRangeStartNew && otherRangeEndOld <= otherRangeEndNew
+    // val otherDisjoint     = otherRangeEndNew <= otherRangeStartOld || otherRangeEndOld <= otherRangeEndNew
+
+    // CoverProperty(BoolSequence(otherUnitProbe.valid && otherContain), label = Some("4_other_contain"))
+    // CoverProperty(BoolSequence(otherUnitProbe.valid && otherIntersection), label = Some("4_other_intersection"))
+    // CoverProperty(BoolSequence(otherUnitProbe.valid && otherDisjoint), label = Some("4_other_disjoint"))
+  } // end of verification layer
 }
