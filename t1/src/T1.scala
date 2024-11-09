@@ -1030,74 +1030,36 @@ class T1(val parameter: T1Parameter)
     "vsext.vf8", "vzext.vf8"
     // format: on
   )
-  parameter.decoderParam.allInstructions.filter { instruction: Instruction =>
+  val instructions: Seq[Instruction] = parameter.decoderParam.allInstructions.filter { instruction: Instruction =>
     // format: off
     !(zve64x.contains(instruction.name) && parameter.xLen == 32) &&
     !(zve64f.contains(instruction.name) && parameter.xLen == 32 && parameter.fpuEnable) &&
     !((zve32f ++ zve64f).contains(instruction.name) && !parameter.fpuEnable)
     // format: on
-  }.map { instruction: Instruction =>
-    val issueMatch =
-      Sequence.BoolSequence(requestReg.bits.issue.instruction === BitPat("b" + instruction.encoding.toString))
-    CoverProperty(issueMatch, label = Some(s"t1_cover_issue_${instruction.name}"))
   }
 
-  // new V Request from core
-  // val requestValidProbe: Bool = IO(Output(Probe(Bool())))
-  // val requestReadyProbe: Bool = IO(Output(Probe(Bool())))
-  // define(requestValidProbe, ProbeValue(request.valid))
-  // define(requestReadyProbe, ProbeValue(request.ready))
+  // coverage for one instruction
+  instructions.map { instruction: Instruction =>
+    val issueMatch =
+      Sequence.BoolSequence(
+        requestReg.valid && requestReg.bits.issue.instruction === BitPat("b" + instruction.encoding.toString)
+      )
+    CoverProperty(issueMatch, label = Some(s"t1_cover_issue_1_${instruction.name}"))
+  }
 
-  // Store decoded request
-  // val requestRegValidProbe: Bool = IO(Output(Probe(Bool())))
-  // define(requestRegValidProbe, ProbeValue(requestReg.valid))
-
-  /** Dispatch request from requestReg to lane
-    *
-    * There are four cases that might affect the ready status of requestRegDequeue:
-    *   1. executionReady: There are capable slot to load this instruction in top local 2. slotReady: Execution unit
-    *      accept this instrution 3. !gatherNeedRead || gatherReadFinish: This is not a instrution which needs to wait
-    *      for gather 4. instructionRAWReady: This is not instruction which will cause harzard that can not be avoid.
-    */
-  // val requestRegDequeueValidProbe: Bool = IO(Output(Probe(Bool())))
-  // val requestRegDequeueReadyProbe: Bool = IO(Output(Probe(Bool())))
-  // define(requestRegDequeueValidProbe, ProbeValue(requestRegDequeue.valid))
-  // define(requestRegDequeueReadyProbe, ProbeValue(requestRegDequeue.ready))
-
-  // val executionReadyProbe = IO(Output(Probe(Bool())))
-  // define(executionReadyProbe, ProbeValue(executionReady))
-
-  // val slotReadyProbe = IO(Output(Probe(Bool())))
-  // define(slotReadyProbe, ProbeValue(slotReady))
-
-  // val gatherNeedReadProbe = IO(Output(Probe(Bool())))
-  // define(gatherNeedReadProbe, ProbeValue(gatherNeedRead))
-  // val gatherReadFinishProbe = IO(Output(Probe(Bool())))
-  // define(gatherReadFinishProbe, ProbeValue(gatherReadFinish))
-
-  // val instructionRAWReadyProbe = IO(Output(Probe(Bool())))
-  // define(instructionRAWReadyProbe, ProbeValue(instructionRAWReady))
-  // End of requestRegDequeueProbe
-
-  /** Response send back to core.
-    *
-    * There are four cases that might affect response is valid or not:
-    *
-    *   1. slot(n).state.sMaskUnit: The mask unit in slot n has finished its work. 2. slot(n).state.wLast: The execution
-    *      unit in slot n has finished its work. 3. !slot(n).state.sCommit: This instruction doesn't committed. This is
-    *      not an important signal so we don't capture it. 4. slot(n).record.instruction Index == responseCounter:
-    *      current instruction is the oldest insn in V
-    */
-  // val responseValidProbe: Bool = IO(Output(Probe(Bool())))
-  // define(responseValidProbe, ProbeValue(response.valid))
-
-  // val slotStateProbe: Seq[(Bool, Bool, Bool)] = slots.map { inst =>
-  //  val sMaskUnitProbe = IO(Output(Probe(Bool())))
-  //  define(sMaskUnitProbe, ProbeValue(inst.state.sMaskUnitExecution))
-  //  val wLastProbe = IO(Output(Probe(Bool())))
-  //  define(wLastProbe, ProbeValue(inst.state.wLast))
-  //  val isLastInstProbe = IO(Output(Probe(Bool())))
-  //  define(isLastInstProbe, ProbeValue(inst.record.instructionIndex === responseCounter))
-  //  (sMaskUnitProbe, wLastProbe, isLastInstProbe)
-  // }
+  // coverage for two instructions
+  instructions.map { case instructionNew: Instruction =>
+    instructions.map { case instructionOld: Instruction =>
+      val issueInstructionOld = RegEnable(requestReg.bits.issue.instruction, requestReg.valid)
+      val issueMatchNew       = Sequence.BoolSequence(
+        requestReg.valid && requestReg.bits.issue.instruction === BitPat("b" + instructionNew.encoding.toString)
+      )
+      val issueMatchOld       =
+        Sequence.BoolSequence(issueInstructionOld === BitPat("b" + instructionOld.encoding.toString))
+      CoverProperty(
+        issueMatchNew.and(issueMatchOld),
+        label = Some(s"t1_cover_issue_2_${instructionOld.name}_with_${instructionNew.name}")
+      )
+    }
+  }
 }
