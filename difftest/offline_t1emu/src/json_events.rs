@@ -87,7 +87,7 @@ pub(crate) enum JsonEvents {
     issue_idx: u8,
     cycle: u64,
   },
-  VrfScoreboardReport {
+  VrfScoreboard {
     count: u32,
     issue_idx: u8,
     cycle: u64,
@@ -122,7 +122,7 @@ pub struct MemoryWriteEvent {
   pub cycle: u64,
 }
 
-pub struct VrfScoreboardReportEvent {
+pub struct VrfScoreboardEvent {
   pub count: u32,
   pub issue_idx: u8,
   pub cycle: u64,
@@ -141,7 +141,7 @@ pub(crate) trait JsonEventRunner {
 
   fn peek_vrf_write(&mut self, vrf_write: &VrfWriteEvent) -> anyhow::Result<()>;
 
-  fn vrf_scoreboard_report(&mut self, report: &VrfScoreboardReportEvent) -> anyhow::Result<()>;
+  fn vrf_scoreboard(&mut self, report: &VrfScoreboardEvent) -> anyhow::Result<()>;
 
   fn peek_memory_write(&mut self, memory_write: &MemoryWriteEvent) -> anyhow::Result<()>;
 
@@ -314,7 +314,7 @@ impl JsonEventRunner for SpikeRunner {
     panic!("[{cycle}] cannot find se with instruction lsu_idx={lsu_idx}")
   }
 
-  fn vrf_scoreboard_report(&mut self, report: &VrfScoreboardReportEvent) -> anyhow::Result<()> {
+  fn vrf_scoreboard(&mut self, report: &VrfScoreboardEvent) -> anyhow::Result<()> {
     let count = report.count;
     let issue_idx = report.issue_idx;
     let cycle = report.cycle;
@@ -336,7 +336,7 @@ impl JsonEventRunner for SpikeRunner {
       se.vrf_access_record.unretired_writes = Some(count - se.vrf_access_record.retired_writes);
 
       info!(
-        "[{cycle}] VrfScoreboardReport: count={count}, issue_idx={issue_idx}, retired={} ({})",
+        "[{cycle}] VrfScoreboard: count={count}, issue_idx={issue_idx}, retired={} ({})",
         se.vrf_access_record.retired_writes,
         se.describe_insn()
       );

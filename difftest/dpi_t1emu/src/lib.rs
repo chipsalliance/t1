@@ -21,25 +21,29 @@ pub(crate) struct OnlineArgs {
   /// ISA config
   pub set: String,
 
-  // default to TIMEOUT_DEFAULT
-  pub timeout: u64,
+  // default to max_commit_interval * vlen / dlen
+  pub max_commit_interval: u64,
 }
 
-const TIMEOUT_DEFAULT: u64 = 100000000;
+const MAX_COMMIT_INTERVAL_COEFFICIENT: u64 = 10_0000;
 
 impl OnlineArgs {
   pub fn from_plusargs(matcher: &PlusArgMatcher) -> Self {
+    let vlen = env!("DESIGN_VLEN").parse().unwrap();
+    let dlen = env!("DESIGN_DLEN").parse().unwrap();
+    let max_commit_interval_coefficient = matcher
+      .try_match("t1_max_commit_interval_coefficient")
+      .map(|x| x.parse().unwrap())
+      .unwrap_or(MAX_COMMIT_INTERVAL_COEFFICIENT);
+    let max_commit_interval = max_commit_interval_coefficient * ((vlen / dlen) as u64);
+
     Self {
       elf_file: matcher.match_("t1_elf_file").into(),
       log_file: matcher.try_match("t1_log_file").map(|x| x.into()),
-
-      vlen: env!("DESIGN_VLEN").parse().unwrap(),
-      dlen: env!("DESIGN_DLEN").parse().unwrap(),
+      vlen,
+      dlen,
       set: env!("SPIKE_ISA_STRING").parse().unwrap(),
-      timeout: matcher
-        .try_match("t1_timeout")
-        .map(|x| x.parse().unwrap())
-        .unwrap_or(TIMEOUT_DEFAULT),
+      max_commit_interval,
     }
   }
 }

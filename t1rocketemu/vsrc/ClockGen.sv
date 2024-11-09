@@ -43,7 +43,7 @@ module ClockGen(
 
     // Args:
     //   +t1_elf_file=... : path of elf file
-    //   +t1_timeout=... : (optional) max interval of inst commit, counted in cycle
+    //   +t1_max_commit_interval_coefficient=... : (optional) max interval of inst commit, counted in cycle
     t1_cosim_init();
 
   `ifdef T1_ENABLE_TRACE

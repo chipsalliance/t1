@@ -105,10 +105,10 @@ pub(crate) struct Driver {
 
   pub(crate) dlen: u32,
 
-  timeout: u64,
+  max_commit_interval: u64,
 
   // driver state
-  last_commit_cycle: u64,
+  pub(crate) last_commit_cycle: u64,
   issued: u64,
   vector_lsu_count: u8,
 
@@ -134,7 +134,7 @@ impl Driver {
       success: false,
 
       dlen: args.dlen,
-      timeout: args.timeout,
+      max_commit_interval: args.max_commit_interval,
       last_commit_cycle: 0,
 
       issued: 0,
@@ -204,6 +204,10 @@ impl Driver {
   }
 
   pub(crate) fn watchdog(&mut self) -> u8 {
+    const WATCHDOG_CONTINUE: u8 = 0;
+    const WATCHDOG_TIMEOUT: u8 = 1;
+    const WATCHDOG_QUIT: u8 = 255;
+
     let tick = get_t();
 
     if self.success {
@@ -211,9 +215,9 @@ impl Driver {
       return WATCHDOG_QUIT;
     }
 
-    if tick - self.last_commit_cycle > self.timeout {
+    if tick - self.last_commit_cycle > self.max_commit_interval {
       error!(
-        "[{tick}] watchdog timeout (last_commit_cycle={})",
+        "[{tick}] watchdog timeout since last commit (last_commit_cycle={})",
         self.last_commit_cycle
       );
       return WATCHDOG_TIMEOUT;
@@ -321,6 +325,7 @@ impl Driver {
     self.shadow_mem.apply_writes(&se.mem_access_record);
 
     self.spike_runner.commit_queue.pop_back();
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
   }
 

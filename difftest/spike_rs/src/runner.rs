@@ -35,12 +35,6 @@ pub struct SpikeRunner {
   pub vlen: u32,
   pub dlen: u32,
 
-  /// implement the get_t() for mcycle csr update
-  pub cycle: u64,
-
-  /// for mcycle csr update
-  pub spike_cycle: u64,
-
   pub do_log_vrf: bool,
 
   // register file scoreboard
@@ -125,8 +119,6 @@ impl SpikeRunner {
       float_queue: VecDeque::new(),
       vlen: args.vlen,
       dlen: args.dlen,
-      cycle: 0,
-      spike_cycle: 0,
       do_log_vrf,
       rf_board: vec![None; 32],
       frf_board: vec![None; 32],
@@ -157,7 +149,6 @@ impl SpikeRunner {
     let proc = self.spike.get_proc();
     let state = proc.get_state();
 
-    let mcycle = (self.cycle + self.spike_cycle) as usize;
     state.set_mcycle(0);
 
     let mut event = SpikeEvent::new(spike, self.do_log_vrf);
@@ -166,7 +157,7 @@ impl SpikeRunner {
     let new_pc = if event.is_v() || event.is_exit() {
       // inst is v / quit
       debug!(
-        "SpikeStep: spike run vector insn ({}), mcycle={mcycle}",
+        "SpikeStep: spike run vector insn ({})",
         event.describe_insn(),
       );
       event.pre_log_arch_changes(spike, self.vlen).unwrap();
@@ -176,7 +167,7 @@ impl SpikeRunner {
     } else {
       // inst is scalar
       debug!(
-        "SpikeStep: spike run scalar insn ({}), mcycle={mcycle}",
+        "SpikeStep: spike run scalar insn ({})",
         event.describe_insn(),
       );
       let new_pc_ = proc.func();
@@ -186,8 +177,6 @@ impl SpikeRunner {
     };
 
     state.handle_pc(new_pc).unwrap();
-
-    self.spike_cycle += 1;
 
     event
   }

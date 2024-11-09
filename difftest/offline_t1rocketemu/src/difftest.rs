@@ -25,10 +25,7 @@ impl Difftest {
     let event = self.dut.step()?;
 
     match event {
-      JsonEvents::SimulationStart { cycle } => {
-        self.runner.cycle = *cycle;
-        Ok(())
-      }
+      JsonEvents::SimulationStart { cycle } => Ok(()),
       JsonEvents::SimulationStop { reason, cycle } => {
         anyhow::bail!("error: simulation stopped at cycle {cycle}, reason {reason}")
       }
@@ -36,27 +33,21 @@ impl Difftest {
         anyhow::bail!("simulation quit successfullly cycle {cycle}");
       }
       JsonEvents::RegWrite { idx, data, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.peek_reg_write(&RegWriteEvent { idx: *idx, data: *data, cycle: *cycle })
       }
       JsonEvents::RegWriteWait { idx, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.peek_reg_write_wait(&RegWriteWaitEvent { idx: *idx, cycle: *cycle })
       }
       JsonEvents::FregWrite { idx, data, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.peek_freg_write(&RegWriteEvent { idx: *idx, data: *data, cycle: *cycle })
       }
       JsonEvents::FregWriteWait { idx, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.peek_freg_write_wait(&RegWriteWaitEvent { idx: *idx, cycle: *cycle })
       }
       JsonEvents::Issue { idx, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.peek_issue(&IssueEvent { idx: *idx, cycle: *cycle })
       }
       JsonEvents::MemoryWrite { mask, data, lsu_idx, address, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.peek_memory_write(&MemoryWriteEvent {
           mask: mask.clone(),
           data: data.clone(),
@@ -66,11 +57,9 @@ impl Difftest {
         })
       }
       JsonEvents::LsuEnq { enq, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.update_lsu_idx(&LsuEnqEvent { enq: *enq, cycle: *cycle })
       }
       JsonEvents::VrfWrite { issue_idx, vd, offset, mask, data, lane, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.peek_vrf_write(&VrfWriteEvent {
           issue_idx: *issue_idx,
           vd: *vd,
@@ -82,11 +71,9 @@ impl Difftest {
         })
       }
       JsonEvents::CheckRd { data, issue_idx, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.check_rd(&CheckRdEvent { data: *data, issue_idx: *issue_idx, cycle: *cycle })
       }
       JsonEvents::VrfScoreboard { count, issue_idx, cycle } => {
-        self.runner.cycle = *cycle;
         self.runner.vrf_scoreboard(&VrfScoreboardEvent {
           count: *count,
           issue_idx: *issue_idx,

@@ -510,7 +510,7 @@ impl JsonEventRunner for SpikeRunner {
       se.vrf_access_record.unretired_writes = Some(count - se.vrf_access_record.retired_writes);
 
       info!(
-        "[{cycle}] VrfScoreboardReport: count={count}, issue_idx={issue_idx}, retired={} ({})",
+        "[{cycle}] VrfScoreboard: count={count}, issue_idx={issue_idx}, retired={} ({})",
         se.vrf_access_record.retired_writes,
         se.describe_insn()
       );

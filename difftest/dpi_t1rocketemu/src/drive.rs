@@ -32,8 +32,8 @@ pub(crate) struct Driver {
   pub(crate) dlen: u32,
   pub(crate) e_entry: u64,
 
-  timeout: u64,
-  last_commit_cycle: u64,
+  max_commit_interval: u64,
+  pub(crate) last_commit_cycle: u64,
 
   shadow_bus: ShadowBus,
 
@@ -53,7 +53,7 @@ impl Driver {
       dlen: args.dlen,
       e_entry,
 
-      timeout: args.timeout,
+      max_commit_interval: args.max_commit_interval,
       last_commit_cycle: 0,
 
       shadow_bus,
@@ -134,6 +134,7 @@ impl Driver {
     let size = 1 << arsize;
     let data = self.shadow_bus.read_mem_axi(addr, size, self.dlen / 8);
     let data_hex = hex::encode(&data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_read_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
@@ -152,6 +153,7 @@ impl Driver {
     let size = 1 << awsize;
     self.shadow_bus.write_mem_axi(addr, size, self.dlen / 8, &strobe, data);
     let data_hex = hex::encode(data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_write_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
@@ -164,6 +166,7 @@ impl Driver {
     assert!(size <= 4);
     let data = self.shadow_bus.read_mem_axi(addr, size, 4);
     let data_hex = hex::encode(&data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_read_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
@@ -182,6 +185,7 @@ impl Driver {
     let size = 1 << awsize;
     self.shadow_bus.write_mem_axi(addr, size, 4, strobe, data);
     let data_hex = hex::encode(data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_write_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
@@ -194,6 +198,7 @@ impl Driver {
     let bus_size = if size == 32 { 32 } else { 4 };
     let data = self.shadow_bus.read_mem_axi(addr, size, bus_size);
     let data_hex = hex::encode(&data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
     trace!(
       "[{}] axi_read_load_store (addr={addr:#x}, size={size}, data={data_hex})",
@@ -213,6 +218,7 @@ impl Driver {
     let bus_size = if size == 32 { 32 } else { 4 };
     self.shadow_bus.write_mem_axi(addr, size, bus_size, strobe, data);
     let data_hex = hex::encode(data);
+    // TODO: use t1_cosim_refresh instead
     self.last_commit_cycle = get_t();
 
     trace!(
@@ -254,9 +260,9 @@ impl Driver {
       return WATCHDOG_QUIT;
     }
 
-    if tick - self.last_commit_cycle > self.timeout {
+    if tick - self.last_commit_cycle > self.max_commit_interval {
       error!(
-        "[{tick}] watchdog timeout (last_commit_cycle={})",
+        "[{tick}] watchdog timeout since last commit (last_commit_cycle={})",
         self.last_commit_cycle
       );
       return WATCHDOG_TIMEOUT;

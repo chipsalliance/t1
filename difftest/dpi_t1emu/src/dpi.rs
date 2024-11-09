@@ -87,10 +87,6 @@ pub static ISSUE_VALID: u32 = 1;
 pub static ISSUE_FENCE: u32 = 2;
 pub static ISSUE_EXIT: u32 = 3;
 
-pub static WATCHDOG_CONTINUE: u8 = 0;
-pub static WATCHDOG_TIMEOUT: u8 = 1;
-pub static WATCHDOG_QUIT: u8 = 255;
-
 #[repr(C, packed)]
 pub(crate) struct Retire {
   pub vxsat: u32,
@@ -243,6 +239,13 @@ unsafe extern "C" fn t1_cosim_final() {
 #[no_mangle]
 unsafe extern "C" fn t1_cosim_watchdog() -> u8 {
   TARGET.with(|driver| driver.watchdog())
+}
+
+#[no_mangle]
+unsafe extern "C" fn t1_cosim_refresh() {
+  TARGET.with(|driver| {
+    driver.last_commit_cycle = crate::get_t();
+  })
 }
 
 /// evaluate at instruction queue is not empty
