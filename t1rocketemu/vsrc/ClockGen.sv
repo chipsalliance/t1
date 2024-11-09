@@ -6,6 +6,8 @@ module ClockGen(
 );
 
   longint unsigned cycle = 0;
+  longint unsigned quit_cycle = 0;
+  longint unsigned timeout_after_quit = 10000;
 `ifdef T1_ENABLE_TRACE
   longint unsigned dump_start = 0;
   longint unsigned dump_end = 0;
@@ -40,6 +42,7 @@ module ClockGen(
     $value$plusargs("t1_dump_end=%d", dump_end);
     $value$plusargs("t1_wave_path=%s", wave_path);
 `endif
+    $value$plusargs("t1_timeout_after_quit=%d", timeout_after_quit);
 
     // Args:
     //   +t1_elf_file=... : path of elf file
@@ -61,9 +64,21 @@ module ClockGen(
 
       cycle += 1;
 
-      begin
+      if (quit_cycle != 0) begin
+        // cosim already quits
+
+        if (idle) begin
+          $finish;
+        end else if (cycle > quit_cycle + timeout_after_quit) begin
+          // cosim already quits, but TestBench does not become idle
+          $fatal(1, "TestBench idle timeout");
+        end
+      end else begin
+        // do not call watchdog if cosim already quit
+
         automatic byte unsigned st = t1_cosim_watchdog();
         if (st == 255) begin
+          quit_cycle = cycle;
           if (idle) begin
             // quit successfully, only if both DPI and TestBench finish
             $finish;
