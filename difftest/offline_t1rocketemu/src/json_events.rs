@@ -45,16 +45,6 @@ fn mask_display(mask: &Vec<bool>) -> String {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "event")]
 pub(crate) enum JsonEvents {
-  SimulationStart {
-    cycle: u64,
-  },
-  SimulationEnd {
-    cycle: u64,
-  },
-  SimulationStop {
-    reason: u8,
-    cycle: u64,
-  },
   RegWrite {
     idx: u8,
     #[serde(deserialize_with = "str_to_u32", default)]
