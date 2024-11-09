@@ -1,13 +1,17 @@
 mod difftest;
-mod dut;
 mod json_events;
 
+use std::{
+  fs::File,
+  io::{BufRead, BufReader},
+};
+
+use anyhow::Context as _;
 use clap::Parser;
+use json_events::JsonEvents;
 use tracing::info;
 
 use spike_rs::runner::{SpikeArgs, SpikeRunner};
-
-use crate::difftest::Difftest;
 
 fn run_spike(args: &SpikeArgs) -> anyhow::Result<()> {
   let mut count: u64 = 0;
@@ -35,22 +39,59 @@ fn main() -> anyhow::Result<()> {
 
   args.setup_logger()?;
 
-  // if there is no log file, just run spike and quit
-  if args.log_file.is_none() {
-    run_spike(&args)?;
-    return Ok(());
+  match &args.log_file {
+    None => {
+      // if there is no log file, just run spike and quit
+      run_spike(&args)
+    }
+
+    Some(log_file) => {
+      // if there is a log file, run difftest
+      let json_file = File::open(log_file)?;
+
+      let mut runner = SpikeRunner::new(&args, true);
+      let mut reader = JsonReader::new(BufReader::new(json_file));
+
+      let mut event_count = 0;
+      while let Some(event) = reader.next_event()? {
+        event_count += 1;
+        difftest::diff(&mut runner, &event)?;
+      }
+
+      eprintln!("Tototally {event_count} events processed");
+
+      Ok(())
+    }
+  }
+}
+
+struct JsonReader<R: BufRead> {
+  row: usize,
+  reader: R,
+}
+
+impl<R: BufRead> JsonReader<R> {
+  pub fn new(reader: R) -> Self {
+    JsonReader { row: 0, reader }
   }
 
-  // if there is a log file, run difftest
-  let mut diff = Difftest::new(args);
-
-  loop {
-    match diff.diff() {
-      Ok(_) => {}
-      Err(e) => {
-        info!("{}", e);
-        return Ok(());
+  pub fn next_event(&mut self) -> anyhow::Result<Option<JsonEvents>> {
+    loop {
+      let mut line = String::new();
+      if self.reader.read_line(&mut line)? == 0 {
+        return Ok(None);
       }
+
+      self.row += 1;
+      if !line.starts_with("{") {
+        // ignore illegal lines
+        continue;
+      }
+
+      let event: JsonEvents = serde_json::from_str(&line)
+        .with_context(|| format!("json parsing error at row {}", self.row))?;
+
+      return Ok(Some(event));
     }
   }
 }
