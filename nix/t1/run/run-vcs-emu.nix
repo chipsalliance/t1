@@ -13,6 +13,7 @@ stdenvNoCC.mkDerivation (finalAttr: {
     mkdir -p "$out"
 
     emuDriverArgsArray=(
+      "-exitstatus"
       "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
       ${lib.optionalString emulator.enableTrace "+t1_wave_path=${testCase.pname}.fsdb"}
       "-cm assert"
