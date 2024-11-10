@@ -1040,26 +1040,52 @@ class T1(val parameter: T1Parameter)
 
   // coverage for one instruction
   instructions.map { instruction: Instruction =>
-    val issueMatch =
+    val coverMatch =
       Sequence.BoolSequence(
         requestReg.valid && requestReg.bits.issue.instruction === BitPat("b" + instruction.encoding.toString)
       )
-    CoverProperty(issueMatch, label = Some(s"t1_cover_issue_1_${instruction.name}"))
+    CoverProperty(coverMatch, label = Some(s"t1_cover_1_${instruction.name}"))
   }
 
   // coverage for two instructions
   instructions.map { case instructionNew: Instruction =>
     instructions.map { case instructionOld: Instruction =>
       val issueInstructionOld = RegEnable(requestReg.bits.issue.instruction, requestReg.valid)
-      val issueMatchNew       = Sequence.BoolSequence(
+      val coverMatchNew       = Sequence.BoolSequence(
         requestReg.valid && requestReg.bits.issue.instruction === BitPat("b" + instructionNew.encoding.toString)
       )
-      val issueMatchOld       =
+      val coverMatchOld       =
         Sequence.BoolSequence(issueInstructionOld === BitPat("b" + instructionOld.encoding.toString))
       CoverProperty(
-        issueMatchNew.and(issueMatchOld),
-        label = Some(s"t1_cover_issue_2_${instructionOld.name}_with_${instructionNew.name}")
+        coverMatchNew.and(coverMatchOld),
+        label = Some(s"t1_cover_2_${instructionOld.name}_with_${instructionNew.name}")
       )
+    }
+  }
+
+  // coverage for different sew / vlmul / vl
+  val vsews:  Seq[Int]           = Seq(0, 1, 2)
+  val sews:   Seq[Int]           = Seq(8, 16, 32)
+  val vlmuls: Seq[Int]           = Seq(0, 1, 2, 3, 6, 7)
+  val lmuls:  Seq[Double]        = Seq(1, 2, 4, 8, -1, -1, 0.25, 0.5)
+  val vls:    Seq[(Double, Int)] =
+    Seq((1.0, 0), (1.0, -1), (0.25, -1), (0.25, 0), (0.25, 1), (0.5, -1), (0.5, 0), (0.5, 1))
+  vsews.map { vsew =>
+    vlmuls.map { vlmul =>
+      vls.map { case (vla, vlb) =>
+        val sew   = sews(vsew)
+        val lmul  = lmuls(vlmul)
+        val vlmax = parameter.vLen * lmul / sew
+        val vl    = (vlmax * vla).toInt + vlb
+
+        val coverMatch = Sequence.BoolSequence(
+          requestReg.valid && requestReg.bits.issue.vl === vl.U &&
+            T1Issue.vlmul(requestReg.bits.issue) === vlmul.U &&
+            T1Issue.vsew(requestReg.bits.issue) === vsew.U
+        )
+
+        CoverProperty(coverMatch, label = Some(s"t1_cover_3_sew_${sew}_lmul_${lmul}_vl_${vl}"))
+      }
     }
   }
 }
