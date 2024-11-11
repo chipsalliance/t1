@@ -104,14 +104,11 @@ jobs:
           nix run ".#ci-helper" -- postCI \
             --urg-report-file-path ./urg-report.md \
             --cycle-update-file-path ./cycle-update.md \
-            --failed-tests-file-path ./failed-tests.md \
             --emu-lib "vcs" \
             --top ${{ env.EMU_TOP }}
           cat ./urg-report.md >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-          cat ./failed-tests.md >> $GITHUB_STEP_SUMMARY
       - name: "Commit cycle updates"
         run: |
           git config user.name github-actions

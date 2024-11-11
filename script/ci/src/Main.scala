@@ -200,6 +200,10 @@ object Main:
     val failedTests = findFailedTests()
     if failedTests.isEmpty then Logger.info(s"All tests passed")
     else
+      os.write.append(
+        os.Path(sys.env("GITHUB_STEP_SUMMARY")),
+        failedTests.map(s => s"* ${s}\n").mkString
+      )
       Logger.fatal(
         s"${BOLD}${failedTests.length} tests failed${RESET}"
       )
@@ -211,10 +215,6 @@ object Main:
   //   * collect and report cycle update
   @main
   def postCI(
-    @arg(
-      name = "failed-tests-file-path",
-      doc = "specify the failed tests markdown file output path"
-    ) failedTestsFilePath: String,
     @arg(
       name = "cycle-update-file-path",
       doc = "specify the cycle update markdown file output path"
@@ -232,9 +232,6 @@ object Main:
       doc = "Specify emulator ip top, Eg. t1rocketemu/t1emu..."
     ) top:                 String
   ) =
-    val failedTestsFile = os.Path(failedTestsFilePath, os.pwd)
-    os.write.over(failedTestsFile, "## Failed Tests\n")
-
     os.write.over(
       os.Path(cycleUpdateFilePath, os.pwd),
       "## Cycle Update\n"
@@ -255,18 +252,6 @@ object Main:
             Seq("--impure")
           )
         )
-
-        Logger.info("Collecting failed tests")
-        os.walk(emuResultPath)
-          .filter(path => path.last == "offline-check-status")
-          .filter(path => os.read(path).trim() != "0")
-          .map(path => {
-            val caseName = path.segments.toSeq.reverse.drop(1).head
-            os.write.append(
-              failedTestsFile,
-              s"* ${config} - ${caseName}: `nix build .#t1.$config.${top}.$caseName.$emuLib-emu -L --impure`\n"
-            )
-          })
 
         if cycleUpdateFilePath.nonEmpty then
           Logger.info("Collecting cycle update info")
@@ -397,5 +382,5 @@ object Main:
       .pipe(println)
   end generateRegressionTestPlan
 
-  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
+  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args.toSeq)
 end Main
