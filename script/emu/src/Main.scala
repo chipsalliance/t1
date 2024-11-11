@@ -431,5 +431,5 @@ object Main:
       .foreach(p => println(s"* ${p}"))
   end listCases
 
-  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
+  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args.toSeq)
 end Main
