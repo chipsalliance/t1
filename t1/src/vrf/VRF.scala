@@ -222,27 +222,25 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   /** similar to [[flush]]. */
   @public
-  val instructionLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  val instructionLastReport: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
 
   @public
-  val lsuLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  val lsuLastReport: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
 
   @public
-  val dataInLane: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  val dataInLane: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
 
   @public
-  val lsuMaskGroupChange: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  val writeReadyForLsu: Bool = IO(Output(Bool()))
   @public
-  val writeReadyForLsu:   Bool = IO(Output(Bool()))
-  @public
-  val vrfReadyToStore:    Bool = IO(Output(Bool()))
+  val vrfReadyToStore:  Bool = IO(Output(Bool()))
 
   @public
   val vrfAllocateIssue: Bool = IO(Output(Bool()))
 
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
   @public
-  val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  val loadDataInLSUWriteQueue: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
 
   @public
   val vrfProbe = IO(Output(Probe(new VRFProbe(parameter), layers.Verification)))

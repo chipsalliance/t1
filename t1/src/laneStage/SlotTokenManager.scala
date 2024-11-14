@@ -103,13 +103,13 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   val maskWriteDeq: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
-  val instructionValid: UInt = IO(Output(UInt(parameter.chainingSize.W)))
+  val instructionValid: UInt = IO(Output(UInt((2 * parameter.chainingSize).W)))
 
   @public
-  val dataInWritePipe: UInt = IO(Output(UInt(parameter.chainingSize.W)))
+  val dataInWritePipe: UInt = IO(Output(UInt((2 * parameter.chainingSize).W)))
 
   @public
-  val maskUnitLastReport: UInt = IO(Input(UInt(parameter.chainingSize.W)))
+  val maskUnitLastReport: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
 
   def tokenUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
     tokenData.zipWithIndex.foreach { case (t, i) =>
@@ -140,7 +140,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   }
 
   val instructionInSlot: UInt = enqReports.zipWithIndex.map { case (enqReport, slotIndex) =>
-    val writeToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+    val writeToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize * 2)(_ => RegInit(0.U(tokenWith.W)))
 
     val enqOH = indexToOH(enqReport.bits.instructionIndex, parameter.chainingSize)
 
@@ -157,22 +157,15 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
         indexToOH(slotWriteReport(slotIndex).bits, parameter.chainingSize)
       ).asUInt
 
-    val writeEnqSelect: UInt = Wire(UInt(parameter.chainingSize.W))
+    val writeEnqSelect: UInt = Wire(UInt((2 * parameter.chainingSize).W))
 
     val pendingSlotWrite = tokenUpdate(writeToken, writeEnqSelect, writeDoDeq)
 
     if (slotIndex == 0) {
-      val responseToken:      Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-      val feedbackToken:      Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-      val crossWriteTokenLSB: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-      val crossWriteTokenMSB: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-
-      // Feedback is not accurate (index load/store may have already finished the instruction)
-      val responseIndexQueue =
-        Queue.io(UInt(parameter.instructionIndexBits.W), parameter.chainingSize + 1, flow = true)
-      responseIndexQueue.enq.valid := responseReport.valid
-      responseIndexQueue.enq.bits  := responseReport.bits
-      responseIndexQueue.deq.ready := responseFeedbackReport.valid
+      val responseToken:      Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val feedbackToken:      Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val crossWriteTokenLSB: Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+      val crossWriteTokenMSB: Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
 
       // cross write update
       val crossWriteDoEnq: UInt =
@@ -210,7 +203,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   }.reduce(_ | _)
 
   // write pipe token
-  val writePipeToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+  val writePipeToken: Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
   val writePipeEnq:   UInt      =
     maskAnd(writePipeEnqReport.valid, indexToOH(writePipeEnqReport.bits, parameter.chainingSize)).asUInt
   val writePipeDeq:   UInt      =
@@ -219,8 +212,11 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   val instructionInWritePipe: UInt = tokenUpdate(writePipeToken, writePipeEnq, writePipeDeq)
 
   // lsu & mask write token
-  val lsuWriteToken:  Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-  val maskWriteToken: Seq[UInt] = Seq.tabulate(parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+  val lsuWriteToken:  Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+  val maskWriteToken: Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+
+  val topWriteDoEnq: UInt =
+    maskAnd(topWriteEnq.valid, indexToOH(topWriteEnq.bits, parameter.chainingSize)).asUInt
 
   val lsuWriteDoEnq: UInt =
     maskAnd(topWriteEnq.valid && !fromMask, indexToOH(topWriteEnq.bits, parameter.chainingSize)).asUInt

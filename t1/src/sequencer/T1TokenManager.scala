@@ -30,10 +30,10 @@ class T1TokenManager(parameter: T1Parameter) extends Module {
   val issueAllow: Bool = IO(Output(Bool()))
 
   @public
-  val instructionFinish: Vec[UInt] = IO(Vec(parameter.laneNumber, Input(UInt(parameter.chainingSize.W))))
+  val instructionFinish: Vec[UInt] = IO(Vec(parameter.laneNumber, Input(UInt((2 * parameter.chainingSize).W))))
 
   @public
-  val v0WriteValid = IO(Output(UInt(parameter.chainingSize.W)))
+  val v0WriteValid = IO(Output(UInt((2 * parameter.chainingSize).W)))
 
   @public
   val maskUnitFree: Bool = IO(Input(Bool()))
@@ -42,7 +42,7 @@ class T1TokenManager(parameter: T1Parameter) extends Module {
 
   // Boolean type token clear & set
   def updateBooleanToken(set: UInt, clear: UInt): UInt = {
-    VecInit(Seq.tabulate(parameter.chainingSize) { chainingIndex =>
+    VecInit(Seq.tabulate(2 * parameter.chainingSize) { chainingIndex =>
       val res = RegInit(false.B)
       when(set(chainingIndex) || clear(chainingIndex)) {
         res := set(chainingIndex)

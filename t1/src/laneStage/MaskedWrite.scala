@@ -33,8 +33,6 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
       new VRFReadRequest(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits)
     )
   )
-  @public
-  val maskedWrite1H:  UInt                         = IO(Output(UInt(parameter.chainingSize.W)))
 
   /** VRF read result for each slot, 3 is for [[source1]] [[source2]] [[source3]]
     */
@@ -111,7 +109,7 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   vrfReadPipe.enq.valid := readDataValid
   vrfReadPipe.enq.bits  := vrfReadResult
 
-  maskedWrite1H := dataInS3 | dataInS2 | dataInS1 | dataInQueue
+  val maskedWrite1H = dataInS3 | dataInS2 | dataInS1 | dataInQueue
 
   val maskFill: UInt = FillInterleaved(8, s3Pipe.mask)
   val readDataSelect = Mux(fwd3, s3BypassData, vrfReadPipe.deq.bits)

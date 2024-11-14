@@ -48,7 +48,7 @@ package object rtl {
   }
 
   def indexToOH(index: UInt, chainingSize: Int): UInt = {
-    UIntToOH(index(log2Ceil(chainingSize) - 1, 0))
+    UIntToOH(index(log2Ceil(chainingSize), 0))
   }
 
   def ohCheck(lastReport: UInt, index: UInt, chainingSize: Int): Bool = {

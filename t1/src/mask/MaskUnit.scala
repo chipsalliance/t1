@@ -90,7 +90,7 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   val writeRD: ValidIO[UInt] = IO(Valid(UInt(parameter.datapathWidth.W)))
 
   @public
-  val lastReport: UInt = IO(Output(UInt(parameter.chainingSize.W)))
+  val lastReport: UInt = IO(Output(UInt((2 * parameter.chainingSize).W)))
 
   // mask
   @public
