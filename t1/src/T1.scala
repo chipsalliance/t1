@@ -526,7 +526,7 @@ class T1(val parameter: T1Parameter)
     *   - vd is v0
     */
   val specialInstruction: Bool      = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
-  val dataInWritePipeVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.chainingSize.W)))
+  val dataInWritePipeVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt((2 * parameter.chainingSize).W)))
   val dataInWritePipe:    UInt      = dataInWritePipeVec.reduce(_ | _)
 
   // todo: instructionRAWReady -> v0 write token
@@ -775,7 +775,7 @@ class T1(val parameter: T1Parameter)
     lsu.offsetReadIndex(index)        := lane.maskUnitRequest.bits.index
 
     instructionFinished(index).zip(slots.map(_.record.instructionIndex)).foreach { case (d, f) =>
-      d := (UIntToOH(f(parameter.instructionIndexBits - 2, 0)) & lane.instructionFinished).orR
+      d := ohCheck(lane.instructionFinished, f, parameter.chainingSize)
     }
     vxsatReportVec(index)             := lane.vxsatReport
     lane.maskInput                    := maskUnit.laneMaskInput(index)
@@ -785,7 +785,6 @@ class T1(val parameter: T1Parameter)
 
     lane.lsuLastReport := lsu.lastReport | maskUnit.lastReport
 
-    lane.lsuMaskGroupChange      := lsu.lsuMaskGroupChange
     lane.loadDataInLSUWriteQueue := lsu.dataInWriteQueue(index)
     // 2 + 3 = 5
     val rowWith: Int = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
@@ -977,7 +976,7 @@ class T1(val parameter: T1Parameter)
     }
     probeWire.instructionValid   := maskAnd(
       !slots.last.state.wMaskUnitLast && !slots.last.state.idle,
-      indexToOH(slots.last.record.instructionIndex, parameter.chainingSize * 2)
+      indexToOH(slots.last.record.instructionIndex, parameter.chainingSize)
     ).asUInt
     probeWire.responseCounter    := responseCounter
     probeWire.laneProbes.zip(laneVec).foreach { case (p, l) => p := probe.read(l.laneProbe) }

@@ -164,7 +164,7 @@ class LSU(param: LSUParameter) extends Module {
   )
 
   @public
-  val dataInWriteQueue: Vec[UInt] = IO(Output(Vec(param.laneNumber, UInt(param.chainingSize.W))))
+  val dataInWriteQueue: Vec[UInt] = IO(Output(Vec(param.laneNumber, UInt((2 * param.chainingSize).W))))
 
   /** the CSR interface from [[V]], CSR will be latched in MSHR. TODO: merge to [[LSURequest]]
     */
@@ -182,10 +182,7 @@ class LSU(param: LSUParameter) extends Module {
 
   /** interface to [[V]], indicate a MSHR slots is finished, and corresponding instruction can commit. */
   @public
-  val lastReport: UInt = IO(Output(UInt(param.chainingSize.W)))
-
-  @public
-  val lsuMaskGroupChange: UInt = IO(Output(UInt(param.chainingSize.W)))
+  val lastReport: UInt = IO(Output(UInt((2 * param.chainingSize).W)))
 
   @public
   val writeReadyForLsu: Bool = IO(Input(Bool()))
@@ -257,9 +254,7 @@ class LSU(param: LSUParameter) extends Module {
   otherUnit.vrfReadResults.valid := pipeOtherRead.valid
 
   // write vrf
-  val otherTryToWrite: UInt      = Mux(otherUnit.vrfWritePort.valid, otherUnit.status.targetLane, 0.U)
-  // Permission to enter the queue TODO: Investigate why this happens
-  val canEnterQueue:   Vec[Bool] = Wire(Vec(param.laneNumber, Bool()))
+  val otherTryToWrite: UInt = Mux(otherUnit.vrfWritePort.valid, otherUnit.status.targetLane, 0.U)
   // other 优先级更高
   otherUnit.vrfWritePort.ready := (otherUnit.status.targetLane & VecInit(writeQueueVec.map(_.enq.ready)).asUInt).orR
   writeQueueVec.zipWithIndex.foreach { case (write, index) =>
@@ -293,10 +288,10 @@ class LSU(param: LSUParameter) extends Module {
       // The load unit becomes idle when it writes vrf for the last time.
       maskAnd(
         !loadUnit.status.idle || VecInit(loadUnit.vrfWritePort.map(_.valid)).asUInt.orR,
-        indexToOH(loadUnit.status.instructionIndex, 2 * param.chainingSize)
+        indexToOH(loadUnit.status.instructionIndex, param.chainingSize)
       ).asUInt |
-        maskAnd(!storeUnit.status.idle, indexToOH(storeUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt |
-        maskAnd(!otherUnit.status.idle, indexToOH(otherUnit.status.instructionIndex, 2 * param.chainingSize)).asUInt
+        maskAnd(!storeUnit.status.idle, indexToOH(storeUnit.status.instructionIndex, param.chainingSize)).asUInt |
+        maskAnd(!otherUnit.status.idle, indexToOH(otherUnit.status.instructionIndex, param.chainingSize)).asUInt
   }
 
   vrfWritePort.zip(writeQueueVec).foreach { case (p, q) =>
@@ -308,23 +303,23 @@ class LSU(param: LSUParameter) extends Module {
   val dataInMSHR: UInt =
     Mux(
       loadUnit.status.idle,
-      0.U(param.chainingSize.W),
+      0.U((2 * param.chainingSize).W),
       indexToOH(loadUnit.status.instructionIndex, param.chainingSize)
     ) |
       Mux(
         otherUnit.status.idle || otherUnit.status.isStore,
-        0.U(param.chainingSize.W),
+        0.U((2 * param.chainingSize).W),
         indexToOH(otherUnit.status.instructionIndex, param.chainingSize)
       )
 
   // Record whether there is data for the corresponding instruction in the queue
-  writeQueueVec.zip(dataInWriteQueue).zipWithIndex.foreach { case ((q, p), queueIndex) =>
-    val queueCount: Seq[UInt] = Seq.tabulate(param.chainingSize) { _ =>
+  writeQueueVec.zip(dataInWriteQueue).foreach { case (q, p) =>
+    val queueCount: Seq[UInt] = Seq.tabulate(2 * param.chainingSize) { _ =>
       RegInit(0.U(log2Ceil(param.toVRFWriteQueueSize).W))
     }
     val enqOH:      UInt      = indexToOH(q.enq.bits.data.instructionIndex, param.chainingSize)
     val queueEnq:   UInt      = Mux(q.enq.fire, enqOH, 0.U)
-    val queueDeq   = Mux(q.deq.fire, indexToOH(q.deq.bits.data.instructionIndex, param.chainingSize), 0.U)
+    val queueDeq = Mux(q.deq.fire, indexToOH(q.deq.bits.data.instructionIndex, param.chainingSize), 0.U)
     queueCount.zipWithIndex.foreach { case (count, index) =>
       val counterUpdate: UInt = Mux(queueEnq(index), 1.U, -1.S(log2Ceil(param.toVRFWriteQueueSize).W).asUInt)
       when(queueEnq(index) ^ queueDeq(index)) {
@@ -332,18 +327,6 @@ class LSU(param: LSUParameter) extends Module {
       }
     }
     p := VecInit(queueCount.map(_ =/= 0.U)).asUInt | dataInMSHR
-    val dataTag    = VecInit(Seq.tabulate(param.chainingSize) { _ =>
-      RegInit(false.B)
-    })
-    val nextTag    = q.enq.bits.data.instructionIndex.asBools.last
-    val currentTag = (dataTag.asUInt & enqOH).orR
-    // same tage or nothing in queue
-    canEnterQueue(queueIndex) := (nextTag === currentTag) || !p
-    dataTag.zipWithIndex.foreach { case (d, i) =>
-      when(q.deq.fire && enqOH(i)) {
-        d := nextTag
-      }
-    }
   }
 
   val sourceQueue = Queue.io(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize)
@@ -437,9 +420,6 @@ class LSU(param: LSUParameter) extends Module {
   // gather last signal from all MSHR to notify LSU
   lastReport                 :=
     unitVec.map(m => Mux(m.status.last, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U)).reduce(_ | _)
-  lsuMaskGroupChange         := unitVec
-    .map(m => Mux(m.status.changeMaskGroup, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U))
-    .reduce(_ | _)
   tokenIO.offsetGroupRelease := otherUnit.offsetRelease.asUInt
   loadUnit.writeReadyForLsu  := writeReadyForLsu
   storeUnit.vrfReadyToStore  := vrfReadyToStore
