@@ -375,8 +375,17 @@ impl JsonEventRunner for SpikeRunner {
   }
 
   fn retire(&mut self, cycle: u64, issue_idx: u8) -> anyhow::Result<()> {
-    if let Some(idx) = self.commit_queue.iter().position(|se| se.issue_idx == issue_idx) {
-      if let Some(se) = self.commit_queue.remove(idx) {
+    self.commit_queue.clone().into_iter().for_each(|se| {
+      debug!(
+        "[{cycle}] Retire: there is se with issue_idx={} ({}) in commit queue now",
+        se.issue_idx,
+        se.describe_insn()
+      );
+    });
+
+    if let Some(idx) = self.commit_queue.iter().rev().position(|se| se.issue_idx == issue_idx) {
+      // use (len - 1 - idx) to get the real idx, a little tricky
+      if let Some(se) = self.commit_queue.remove(self.commit_queue.len() - 1 - idx) {
         info!(
           "[{cycle}] Retire: retire se with issue_idx={issue_idx}, ({})",
           se.describe_insn()
