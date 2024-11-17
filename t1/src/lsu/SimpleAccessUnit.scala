@@ -116,6 +116,10 @@ case class MSHRParam(
   /** The maximum number of cache lines that will be accessed, a counter is needed. +1 Corresponding unaligned case
     */
   val cacheLineIndexBits: Int = log2Ceil(vLen / lsuTransposeSize + 1)
+
+  // outstanding of MaskExchangeUnit.maskReq
+  // todo: param from T1Param
+  val maskRequestQueueSize: Int = 8
 }
 
 /** Miss Status Handler Register this is used to record the outstanding memory access request for each instruction. it
@@ -188,6 +192,26 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   // other unit probe
   @public
   val probe = IO(Output(Probe(new MemoryWriteProbe(param), layers.Verification)))
+
+  @public
+  val offsetRelease: Vec[Bool] = IO(Output(Vec(param.laneNumber, Bool())))
+
+  val requestOffset:  Bool               = Wire(Bool())
+  val stateIdle:      Bool               = Wire(Bool())
+  val waitQueueDeq:   Vec[Bool]          = Wire(Vec(param.laneNumber, Bool()))
+  val offsetQueueVec: Seq[QueueIO[UInt]] = offsetReadResult.zipWithIndex.map { case (req, index) =>
+    val queue:   QueueIO[UInt] = Queue.io(chiselTypeOf(req.bits), param.maskRequestQueueSize)
+    val deqLock: Bool          = RegInit(false.B)
+    waitQueueDeq(index)  := deqLock
+    when(lsuRequest.valid || requestOffset || queue.deq.fire) {
+      deqLock := queue.deq.fire
+    }
+    offsetRelease(index) := queue.deq.fire
+    queue.enq.valid      := req.valid
+    queue.enq.bits       := req.bits
+    queue.deq.ready      := !deqLock || stateIdle
+    queue
+  }
 
   val s0Fire:         Bool = Wire(Bool())
   val s1Fire:         Bool = Wire(Bool())
@@ -317,7 +341,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
     * indexOfIndexedInstructionOffsetsNext: UInt = Wire(UInt(2.W))`
     */
   val indexOfIndexedInstructionOffsets: UInt =
-    RegEnable(indexOfIndexedInstructionOffsetsNext, lsuRequest.valid || offsetReadResult.head.valid)
+    RegEnable(indexOfIndexedInstructionOffsetsNext, lsuRequest.valid || offsetQueueVec.head.deq.fire)
   indexOfIndexedInstructionOffsetsNext := Mux(lsuRequest.valid, 3.U(2.W), indexOfIndexedInstructionOffsets + 1.U)
 
   /** record the used [[indexedInstructionOffsets]] for sending memory transactions. */
@@ -326,10 +350,10 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   indexedInstructionOffsets.zipWithIndex.foreach { case (offset, index) =>
     // offsetReadResult(index).valid: new offset came
     // (offset.valid && !usedIndexedInstructionOffsets(index)): old unused offset
-    offset.valid := offsetReadResult(index).valid ||
+    offset.valid := offsetQueueVec(index).deq.fire ||
       (offset.valid && !usedIndexedInstructionOffsets(index) && !status.last)
     // select from new and old.
-    offset.bits  := Mux(offsetReadResult(index).valid, offsetReadResult(index).bits, offset.bits)
+    offset.bits  := Mux(offsetQueueVec(index).deq.fire, offsetQueueVec(index).deq.bits, offset.bits)
   }
 
   /** register to latch mask */
@@ -584,7 +608,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
           indexedInstructionOffsetExhausted
       ) ||
         // change offset group
-        status.offsetGroupEnd ||
+        (requestOffset && waitQueueDeq.asUInt.andR) ||
         // change mask group
         // TODO: remove [[maskNeedUpdate]]?
         maskGroupEndAndRequestNewMask
@@ -622,40 +646,14 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
     )
   )
 
-  /** signal indicate that the offset group for all lanes are valid. */
-  val allOffsetValid: Bool = VecInit(indexedInstructionOffsets.map(_.valid)).asUInt.andR
-
-  /** signal used for aligning offset groups. eg: vl = 65, eew = 16, only wait for first group of offset
-    */
-  val offsetGroupsAlign: Vec[Bool] = RegInit(VecInit(Seq.fill(param.laneNumber)(false.B)))
-  // to fix the bug that after the first group being used, the second group is not valid,
-  // MSHR will change group by mistake.
-  offsetGroupsAlign.zip(offsetReadResult).foreach { case (a, d) =>
-    when(!a && d.valid) {
-      a := true.B
-    }.elsewhen(status.offsetGroupEnd) {
-      a := false.B
-    }
-  }
-
-  val alignCheck: Bool =
-    (offsetGroupsAlign.asUInt >> (
-      // offsetOfOffsetGroup is in byte level
-      offsetOfOffsetGroup >>
-        // shift it to word level
-        log2Ceil(param.datapathWidth / 8)
-    ).asUInt).asUInt(0)
-
   /** the current element is the last element to execute in the pipeline. */
   val last: Bool = nextElementIndex >= evl
 
   /** no need mask, there still exist unsent masked requests, don't need to update mask. */
   val maskCheck: Bool = !isMaskedLoadStore || !noMoreMaskedUnsentMemoryRequests
 
-  val skipAllGroupOffset: Bool = isIndexedLoadStore && offsetValidCheck && alignCheck && !offsetGroupCheck
-
   /** no need index, when use a index, check it is valid or not. */
-  val indexCheck: Bool = !isIndexedLoadStore || (offsetValidCheck && offsetGroupCheck && alignCheck)
+  val indexCheck: Bool = !isIndexedLoadStore || (offsetValidCheck && offsetGroupCheck)
 
   // handle fault only first
   /** the current TileLink message in A Channel is the first transaction in this instruction. */
@@ -676,24 +674,10 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   /** all check is ready, being able to send request to pipeline. */
   val stateReady: Bool = stateIsRequest && maskCheck && indexCheck && fofCheck
 
-  /** only need to request offset when changing offset group, don't send request for the first offset group for each
-    * instruction.
-    */
-  val needRequestOffset: Bool =
-    RegEnable(offsetReadResult.head.valid, false.B, offsetReadResult.head.valid || lsuRequest.valid)
-
+  // state === idle: All the remaining elements are removed by the mask,
+  // but there is still offset left.
   /** signal to request offset in the pipeline, only assert for one cycle. */
-  val requestOffset: Bool = stateIsRequest && maskCheck && !indexCheck && fofCheck
-
-  /** lock [[status.offsetGroupEnd]] */
-  val offsetRequestLock: Bool = RegInit(false.B)
-
-  when(status.offsetGroupEnd || offsetReadResult.head.valid) {
-    offsetRequestLock := status.offsetGroupEnd
-  }
-
-  // ask Scheduler to change offset group
-  status.offsetGroupEnd := needRequestOffset && requestOffset && !offsetRequestLock
+  requestOffset := stateIsRequest && maskCheck && !indexCheck && fofCheck
 
   val s0DequeueFire: Bool = Wire(Bool())
 
@@ -979,6 +963,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   // handle corner case for vl=0
   val invalidInstruction:     Bool = csrInterface.vl === 0.U && !requestIsWholeRegisterLoadStore && lsuRequest.valid
   val invalidInstructionNext: Bool = RegNext(invalidInstruction)
+  val allElementsMasked:      Bool = state === idle && offsetQueueVec.map(_.deq.fire).reduce(_ || _)
 
   // change state to request
   when(lsuRequest.valid && !invalidInstruction) {
@@ -990,9 +975,9 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   status.instructionIndex := lsuRequestReg.instructionIndex
 
   /** the current state is idle. */
-  val stateIdle = state === idle
+  stateIdle                := state === idle
   status.idle              := stateIdle
-  status.last              := (!RegNext(stateIdle) && stateIdle) || invalidInstructionNext
+  status.last              := (!RegNext(stateIdle) && stateIdle) || invalidInstructionNext || allElementsMasked
   status.changeMaskGroup   := updateOffsetGroupEnable
   // which lane to access
   status.targetLane        := {

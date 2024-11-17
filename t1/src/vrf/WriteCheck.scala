@@ -54,7 +54,8 @@ class WriteCheck(val parameter: VRFParam) extends Module {
   )
   val notHitVs1:    Bool = (checkOH & vs1Mask) === 0.U
   val war1:         Bool = record.bits.vs1.valid && check.vd(4, 3) === record.bits.vs1.bits(4, 3) && notHitVs1
-  val vs2Mask:      UInt = (((-1.S(parameter.elementSize.W)).asUInt ## record.bits.elementMask) <<
+  val maskForVs2:   UInt = record.bits.elementMask & Fill(parameter.elementSize, !record.bits.onlyRead)
+  val vs2Mask:      UInt = (((-1.S(parameter.elementSize.W)).asUInt ## maskForVs2) <<
     ((8.U + record.bits.vs2(2, 0) - record.bits.vd.bits(2, 0)) << parameter.vrfOffsetBits).asUInt).asUInt(
     2 * 8 * parameter.singleGroupSize - 1,
     8 * parameter.singleGroupSize

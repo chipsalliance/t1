@@ -31,7 +31,6 @@ class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
   // vm = 0
   val maskType:                 Bool         = Bool()
   val maskNotMaskedElement:     Bool         = Bool()
-  val ffoByOtherLanes:          Bool         = Bool()
 
   /** vs1 or imm */
   val vs1: UInt = UInt(5.W)

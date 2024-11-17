@@ -10,6 +10,8 @@ import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.{Decoder, TableGenerator}
 import org.chipsalliance.t1.rtl.lane.Distributor
 
+import scala.jdk.CollectionConverters._
+
 package object rtl {
   def csa32(s: UInt, c: UInt, a: UInt): (UInt, UInt) = {
     val xor = s ^ c
@@ -39,6 +41,10 @@ package object rtl {
 
   def maskAnd(mask: Bool, data: Data): Data = {
     Mux(mask, data, 0.U.asTypeOf(data))
+  }
+
+  def maskEnable(enable: Bool, mask: UInt): UInt = {
+    Mux(enable, mask, (-1.S(mask.getWidth.W)).asUInt.asTypeOf(mask))
   }
 
   def indexToOH(index: UInt, chainingSize: Int): UInt = {
@@ -72,6 +78,21 @@ package object rtl {
     VecInit(Seq.tabulate(data.getWidth / width) { groupIndex =>
       data(groupIndex * width + width - 1, groupIndex * width)
     })
+  }
+
+  def cutUIntBySize(data: UInt, size: Int): Vec[UInt] = {
+    require(data.getWidth % size == 0)
+    val width: Int = data.getWidth / size
+    cutUInt(data, width)
+  }
+
+  def changeUIntSize(data: UInt, size: Int, sign: Boolean = false): UInt = {
+    if (data.getWidth >= size) {
+      data(size - 1, 0)
+    } else {
+      val extend = if (sign) data(data.getWidth - 1) else false.B
+      Fill(size - data.getWidth, extend) ## data
+    }
   }
 
   def calculateSegmentWriteMask(
@@ -371,5 +392,16 @@ package object rtl {
       inputDecode(Decoder.other)
     ) ++ Option.when(parameter.fpuEnable)(inputDecode(Decoder.float))
     VecInit(executeList).asUInt
+  }
+
+  def pipeToken(size: Int)(enq: Bool, deq: Bool): Bool = {
+    require(isPow2(size))
+    val counterSize:   Int  = log2Ceil(size) + 1
+    val counter:       UInt = RegInit(0.U(counterSize.W))
+    val counterChange: UInt = Mux(enq, 1.U, (-1.S(counterSize.W)).asUInt)
+    when(enq ^ deq) {
+      counter := counter + counterChange
+    }
+    !counter(log2Ceil(size))
   }
 }

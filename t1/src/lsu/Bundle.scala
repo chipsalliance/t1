@@ -27,10 +27,6 @@ class LSUBaseStatus extends Bundle {
 
 class SimpleAccessStatus(laneNumber: Int) extends LSUBaseStatus {
 
-  /** the MSHR finished the current offset group, need to notify Scheduler for next index group.
-    */
-  val offsetGroupEnd: Bool = Bool()
-
   /** the current lane that this MSHR is accessing. */
   val targetLane: UInt = UInt(laneNumber.W)
 
@@ -103,4 +99,8 @@ class SimpleMemWrite(param: MSHRParam) extends Bundle {
   val source:  UInt = UInt(8.W)
   val address: UInt = UInt(param.paWidth.W)
   val size:    UInt = UInt(2.W)
+}
+
+class LSUToken(parameter: LSUParameter) extends Bundle {
+  val offsetGroupRelease: UInt = Output(UInt(parameter.laneNumber.W))
 }
