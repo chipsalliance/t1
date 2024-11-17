@@ -221,7 +221,7 @@ class TestBench(val parameter: T1Parameter)
         // vrf write from lsu
         lsuProbe.slots.map(slot => slot.dataInstruction === tag.U && slot.writeValid && slot.dataMask.orR) ++
         // vrf write from Sequencer
-        Some(t1Probe.writeQueueEnq.bits === tag.U && t1Probe.writeQueueEnq.valid && t1Probe.writeQueueEnqMask.orR)
+        t1Probe.writeQueueEnqVec.map(maskWrite => maskWrite.valid && maskWrite.bits === tag.U)
     ).asUInt
     // always equal to array index
     scoreboard.bits := scoreboard.bits + PopCount(writeEnq)

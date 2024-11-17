@@ -248,8 +248,9 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   }
 
   // 连接 alignedDequeue
-  val needSendTail: Bool = bufferBaseCacheLineIndex === cacheLineNumberReg
-  memRequest.valid     := bufferValid || (canSendTail && needSendTail)
+  val needSendTail:     Bool = bufferBaseCacheLineIndex === cacheLineNumberReg
+  val addressQueueFree: Bool = Wire(Bool())
+  memRequest.valid     := (bufferValid || (canSendTail && needSendTail)) && addressQueueFree
   // aligned
   memRequest.bits.data :=
     multiShifter(right = false, multiSize = 8)(dataBuffer.head ## cacheLineTemp, initOffset) >> cacheLineTemp.getWidth
@@ -263,12 +264,14 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       0.U(param.cacheLineBits.W)
   memRequest.bits.address := alignedDequeueAddress
 
-  val addressQueueSize: Int           = (param.vLen * 8) / (param.datapathWidth * param.laneNumber) + 1
+  // todo: param outstanding
+  val addressQueueSize: Int           = 32.min((param.vLen * 8) / (param.datapathWidth * param.laneNumber) + 1)
   // address Wait For Response
   val addressQueue:     QueueIO[UInt] = Queue.io(UInt(param.paWidth.W), addressQueueSize)
   addressQueue.enq.valid := memRequest.fire
   addressQueue.enq.bits  := alignedDequeueAddress
   addressQueue.deq.ready := storeResponse
+  addressQueueFree       := addressQueue.enq.ready
 
   status.idle := !bufferValid && !readStageValid && readQueueClear && !bufferFull && !addressQueue.deq.valid
   val idleNext: Bool = RegNext(status.idle, true.B)

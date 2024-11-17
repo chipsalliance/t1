@@ -33,7 +33,7 @@ trait T1UopField extends T1DecodeFiled[UInt] with FieldName {
 }
 
 trait T1TopUopField extends T1DecodeFiled[UInt] with FieldName {
-  def chiselType: UInt = UInt(3.W)
+  def chiselType: UInt = UInt(5.W)
 }
 
 trait T1fpExecutionTypeUopField extends T1DecodeFiled[UInt] with FieldName {
@@ -227,14 +227,39 @@ object Decoder {
 
   object topUop extends T1TopUopField {
     override def genTable(pattern: T1DecodePattern): BitPat = pattern.topUop.value match {
-      case _: TopT0.type => BitPat("b000")
-      case _: TopT1.type => BitPat("b001")
-      case _: TopT2.type => BitPat("b010")
-      case _: TopT3.type => BitPat("b011")
-      case _: TopT5.type => BitPat("b101")
-      case _: TopT6.type => BitPat("b110")
-      case _: TopT7.type => BitPat("b111")
-      case _ => BitPat.dontCare(3)
+      case _: TopT0.type  => BitPat("b00000")
+      case _: TopT1.type  => BitPat("b00001")
+      case _: TopT2.type  => BitPat("b00010")
+      case _: TopT3.type  => BitPat("b00011")
+      case _: TopT4.type  => BitPat("b00100")
+      case _: TopT5.type  => BitPat("b00101")
+      case _: TopT6.type  => BitPat("b00110")
+      case _: TopT7.type  => BitPat("b00111")
+      case _: TopT8.type  => BitPat("b01000")
+      case _: TopT9.type  => BitPat("b01001")
+      case _: TopT10.type => BitPat("b01010")
+      case _: TopT11.type => BitPat("b01011")
+      case _: TopT12.type => BitPat("b01100")
+      case _: TopT13.type => BitPat("b01101")
+      case _: TopT14.type => BitPat("b01110")
+      case _: TopT15.type => BitPat("b01111")
+      case _: TopT16.type => BitPat("b10000")
+      case _: TopT17.type => BitPat("b10001")
+      case _: TopT18.type => BitPat("b10010")
+      case _: TopT19.type => BitPat("b10011")
+      case _: TopT20.type => BitPat("b10100")
+      case _: TopT21.type => BitPat("b10101")
+      case _: TopT22.type => BitPat("b10110")
+      case _: TopT23.type => BitPat("b10111")
+      case _: TopT24.type => BitPat("b11000")
+      case _: TopT25.type => BitPat("b11001")
+      case _: TopT26.type => BitPat("b11010")
+      case _: TopT27.type => BitPat("b11011")
+      case _: TopT28.type => BitPat("b11100")
+      case _: TopT29.type => BitPat("b11101")
+      case _: TopT30.type => BitPat("b11110")
+      case _: TopT31.type => BitPat("b11111")
+      case _ => BitPat.dontCare(5)
     }
   }
 

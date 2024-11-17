@@ -76,11 +76,6 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   val dataResponse: ValidIO[VFUResponseToSlot]       = IO(Flipped(Valid(new VFUResponseToSlot(parameter))))
 
   @public
-  val ffoByOtherLanes: Bool = IO(Input(Bool()))
-  @public
-  val selfCompleted:   Bool = IO(Input(Bool()))
-
-  @public
   val executeDecode:  DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
   @public
   val responseDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
@@ -318,7 +313,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   vfuRequest.bits.popInit      := reduceResult.getOrElse(0.U)
   vfuRequest.bits.groupIndex   := executionRecord.groupCounter
   vfuRequest.bits.laneIndex    := executionRecord.laneIndex
-  vfuRequest.bits.complete     := ffoByOtherLanes || selfCompleted
+  vfuRequest.bits.complete     := false.B
   vfuRequest.bits.maskType     := executionRecord.maskType
   vfuRequest.bits.narrow       := narrowInRecord
   vfuRequest.bits.unitSelet.foreach(_ := executionRecord.decodeResult(Decoder.fpExecutionType))
@@ -411,7 +406,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         maskResult(1, 0) <<
           (recordQueue.deq.bits.groupCounter(3, 0) ## false.B),
         // 1 bit per data group, it will had 32 data groups -> executeIndex1H << 1 * groupCounter(4, 0)
-        maskResult(0) << recordQueue.deq.bits.groupCounter(4, 0)
+        maskResult(0) << recordQueue.deq.bits.groupCounter(4.min(parameter.groupNumberBits - 1), 0)
       )
     ).asUInt
 

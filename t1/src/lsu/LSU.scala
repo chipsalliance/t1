@@ -58,7 +58,7 @@ case class LSUParameter(
     */
   val vLenBits: Int = log2Ceil(vLen) + 1
 
-  val sourceQueueSize: Int = vLen * 8 / (transferSize * 8)
+  val sourceQueueSize: Int = 32.min(vLen * 8 / (transferSize * 8))
 
   def mshrParam: MSHRParam =
     MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, transferSize, vrfReadLatency)
@@ -187,15 +187,13 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val lsuMaskGroupChange: UInt = IO(Output(UInt(param.chainingSize.W)))
 
-  /** interface to [[V]], redirect to [[org.chipsalliance.t1.rtl.Lane]]. this group of offset is finish, request the
-    * next group of offset.
-    */
-  @public
-  val lsuOffsetRequest: Bool = IO(Output(Bool()))
   @public
   val writeReadyForLsu: Bool = IO(Input(Bool()))
   @public
   val vrfReadyToStore:  Bool = IO(Input(Bool()))
+
+  @public
+  val tokenIO: LSUToken = IO(new LSUToken(param))
 
   // TODO: make it D/I
   val loadUnit:  LoadUnit         = Module(new LoadUnit(param.mshrParam))
@@ -437,15 +435,14 @@ class LSU(param: LSUParameter) extends Module {
   otherUnit.offsetReadResult := offsetReadResult
 
   // gather last signal from all MSHR to notify LSU
-  lastReport                :=
+  lastReport                 :=
     unitVec.map(m => Mux(m.status.last, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U)).reduce(_ | _)
-  lsuMaskGroupChange        := unitVec
+  lsuMaskGroupChange         := unitVec
     .map(m => Mux(m.status.changeMaskGroup, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U))
     .reduce(_ | _)
-  lsuOffsetRequest          := (otherUnit.status.offsetGroupEnd | otherUnit.status.last |
-    (otherUnit.status.idle && offsetReadResult.map(_.valid).reduce(_ | _))) && otherUnit.status.isIndexLS
-  loadUnit.writeReadyForLsu := writeReadyForLsu
-  storeUnit.vrfReadyToStore := vrfReadyToStore
+  tokenIO.offsetGroupRelease := otherUnit.offsetRelease.asUInt
+  loadUnit.writeReadyForLsu  := writeReadyForLsu
+  storeUnit.vrfReadyToStore  := vrfReadyToStore
 
   val unitOrder:            Bool = instIndexLE(loadUnit.status.instructionIndex, storeUnit.status.instructionIndex)
   val loadAddressConflict:  Bool = (loadUnit.status.startAddress >= storeUnit.status.startAddress) &&
