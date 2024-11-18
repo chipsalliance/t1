@@ -524,5 +524,9 @@
   "rvv_bench.mergelines": 564457,
   "rvv_bench.poly1305": 40010,
   "rvv_bench.strlen": 219233,
-  "rvv_bench.utf8_count": 2285480
+  "rvv_bench.utf8_count": 2285480,
+  "eval.bitonic": -1,
+  "eval.chaining": -1,
+  "eval.memcpy": -1,
+  "eval.ooo_wb": -1
 }

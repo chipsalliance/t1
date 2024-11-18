@@ -13,5 +13,9 @@
   "rvv_bench.memset": 19350,
   "rvv_bench.mergelines": 38541,
   "rvv_bench.strlen": 34517,
-  "rvv_bench.utf8_count": 206417
+  "rvv_bench.utf8_count": 206417,
+  "eval.bitonic": -1,
+  "eval.chaining": -1,
+  "eval.memcpy": -1,
+  "eval.ooo_wb": -1
 }

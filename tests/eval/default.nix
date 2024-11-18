@@ -4,6 +4,7 @@
 , findAndBuild
 , t1main
 , getTestRequiredFeatures
+, callPackage
 }:
 
 let
@@ -30,6 +31,8 @@ let
 
       meta.description = "test case '${caseName}', written in C assembly";
     };
-in
-findAndBuild ./. build
+  autoCases = findAndBuild ./. build;
 
+  nttCases = callPackage ./_ntt { };
+in
+  autoCases // nttCases
