@@ -109,7 +109,7 @@ class TestBench(val parameter: T1RocketTileParameter)
         name = "instructionFetchAXI",
         axiParameter = instFetchAXI.parameter,
         outstanding = 4,
-        readPayloadSize = 1,
+        readPayloadSize = 8,
         writePayloadSize = 1
       )
     ).suggestName("axi4_channel2_instructionFetchAXI")
