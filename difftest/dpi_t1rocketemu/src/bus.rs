@@ -65,13 +65,21 @@ impl ShadowBus {
   }
 
   // size: 1 << arsize
+  // nr_beat: arlen + 1
   // bus_size: AXI bus width in bytes
   // return: Vec<u8> with len=bus_size
-  // if size < bus_size, the result is padded due to AXI narrow transfer rules
-  pub fn read_mem_axi(&self, addr: u32, size: u32, bus_size: u32) -> Vec<u8> {
+  // if `size < bus_size`, the result is padded due to AXI narrow transfer rules
+  // if `size < bus_size`, then `nr_beat == 1` must hold, narrow burst is not supported
+  pub fn read_mem_axi(&self, addr: u32, size: u32, bus_size: u32, nr_beat: u32) -> Vec<u8> {
     assert!(
       addr % size == 0 && bus_size % size == 0,
       "unaligned access addr={addr:#x} size={size}B dlen={bus_size}B"
+    );
+
+    assert!(nr_beat > 0);
+    assert!(
+      nr_beat == 1 || size == bus_size,
+      "narrow burst is not supported"
     );
 
     let start = addr as usize;
@@ -84,7 +92,7 @@ impl ShadowBus {
     match handler {
       Some(ShadowBusDevice { base, size: _, device }) => {
         let offset = start - *base;
-        let data = device.read_mem(offset, size as usize);
+        let data = device.read_mem(offset, (size * nr_beat) as usize);
 
         if size < bus_size {
           let mut data_padded = vec![0; bus_size as usize];
