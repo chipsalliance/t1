@@ -41,7 +41,7 @@ case class ICacheParameter(
   val hasUncorrekoctable:        Boolean                     = itimBaseAddr.nonEmpty && dataCode.canDetect
   val isDM:                      Boolean                     = nWays == 1
   // axi data with
-  val rowBits:                   Int                         = blockBytes * 8
+  val rowBits:                   Int                         = fetchBytes * 8
   val refillCycles:              Int                         = blockBytes * 8 / rowBits
   val blockOffBits:              Int                         = log2Up(blockBytes)
   val idxBits:                   Int                         = log2Up(nSets)
@@ -542,8 +542,13 @@ class ICache(val parameter: ICacheParameter)
   for ((data_array, i) <- icacheDataSRAM.zipWithIndex) {
 
     /** bank match (vaddr[2]) */
-    def wordMatch(addr: UInt): Bool =
-      addr(log2Ceil(io.instructionFetchAXI.r.bits.data.getWidth / 8) - 1, log2Ceil(wordBits / 8)) === i.U
+    def wordMatch(addr: UInt): Bool = {
+      if (io.instructionFetchAXI.r.bits.data.getWidth == wordBits) { true.B }
+      else {
+        addr(log2Ceil(io.instructionFetchAXI.r.bits.data.getWidth / 8) - 1, log2Ceil(wordBits / 8)) === i.U
+      }
+    }
+
     // TODO: if we have last? do we need refillCycles?
     def row(addr: UInt) = addr(untagBits - 1, blockOffBits - log2Ceil(refillCycles))
 
@@ -791,8 +796,8 @@ class ICache(val parameter: ICacheParameter)
   arQueue.enq.bits       := DontCare
   arQueue.enq.bits.id    := 0.U
   arQueue.enq.bits.addr  := (refill_paddr >> blockOffBits) << blockOffBits
-  arQueue.enq.bits.size  := log2Up(parameter.blockBytes).U
-  arQueue.enq.bits.len   := 0.U
+  arQueue.enq.bits.size  := log2Up(parameter.instructionFetchParameter.dataWidth / 8).U
+  arQueue.enq.bits.len   := (parameter.blockBytes * 8 / parameter.instructionFetchParameter.dataWidth - 1).U
   arQueue.enq.bits.burst := 1.U
   io.instructionFetchAXI.ar <> arQueue.deq
 
