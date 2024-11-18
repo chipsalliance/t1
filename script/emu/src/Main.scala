@@ -105,10 +105,6 @@ object Main:
     userPath
   end prepareOutputDir
 
-  // naive case validation
-  def isValidCaseName(caseName: String): Boolean =
-    caseName.split("\\.").toSeq.length == 2
-
   def tryRestoreFromCache(key: String, value: Option[String]): Option[String] =
     val xdgDir  = sys.env.get("XDG_CACHE_HOME")
     val homeDir = sys.env.get("HOME")
@@ -181,7 +177,6 @@ object Main:
   ): Unit =
     if leftOver.value.isEmpty then Logger.fatal("No test case name")
     val caseName = leftOver.value.head
-    if !isValidCaseName(caseName) then Logger.fatal(s"invalid caseName '$caseName', expect 'A.B'")
 
     val finalIp = tryRestoreFromCache("ip", ip)
     if finalIp.isEmpty then
