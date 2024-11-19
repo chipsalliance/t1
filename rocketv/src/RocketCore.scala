@@ -47,7 +47,8 @@ class RocketProbe(param: RocketParameter) extends Bundle {
   val waitWen:        Bool                       = new Bool()
   val waitWaddr:      UInt                       = UInt(param.lgNXRegs.W)
   val isVectorCommit: Bool                       = Bool()
-  val isVectorWrite:  Bool                       = Bool()
+  val vectorWriteRD:  Bool                       = Bool()
+  val vectorWriteFD:  Bool                       = Bool()
   val idle:           Bool                       = Bool()
   // fpu score board
   val fpuScoreboard:  Option[FPUScoreboardProbe] = Option.when(param.usingFPU)(new FPUScoreboardProbe)
@@ -1637,7 +1638,8 @@ class Rocket(val parameter: RocketParameter)
           wbRegValid && wbRegDecodeOutput(parameter.decoderParameter.vector) &&
           !wbRegDecodeOutput(parameter.decoderParameter.vectorCSR)
         }.getOrElse(false.B)
-        probeWire.isVectorWrite  := t1RetireQueue.map(q => q.deq.fire).getOrElse(false.B)
+        probeWire.vectorWriteRD  := t1RetireQueue.map(q => q.deq.fire && !q.deq.bits.isFp).getOrElse(false.B)
+        probeWire.vectorWriteFD  := t1RetireQueue.map(q => q.deq.fire && q.deq.bits.isFp).getOrElse(false.B)
         probeWire.idle           := vectorEmpty
 
         probeWire.wbRegPc := wbRegPc
