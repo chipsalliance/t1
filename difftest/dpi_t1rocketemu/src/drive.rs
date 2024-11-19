@@ -132,7 +132,7 @@ impl Driver {
 
   pub(crate) fn axi_read_high_bandwidth(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
-    let data = self.shadow_bus.read_mem_axi(addr, size, self.dlen / 8);
+    let data = self.shadow_bus.read_mem_axi(addr, size, self.dlen / 8, 1);
     let data_hex = hex::encode(&data);
     self.last_commit_cycle = get_t();
     trace!(
@@ -162,7 +162,7 @@ impl Driver {
   pub(crate) fn axi_read_high_outstanding(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
     assert!(size <= 4);
-    let data = self.shadow_bus.read_mem_axi(addr, size, 4);
+    let data = self.shadow_bus.read_mem_axi(addr, size, 4, 1);
     let data_hex = hex::encode(&data);
     self.last_commit_cycle = get_t();
     trace!(
@@ -192,7 +192,7 @@ impl Driver {
   pub(crate) fn axi_read_load_store(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
     let size = 1 << arsize;
     let bus_size = if size == 32 { 32 } else { 4 };
-    let data = self.shadow_bus.read_mem_axi(addr, size, bus_size);
+    let data = self.shadow_bus.read_mem_axi(addr, size, bus_size, 1);
     let data_hex = hex::encode(&data);
     self.last_commit_cycle = get_t();
     trace!(
@@ -231,9 +231,14 @@ impl Driver {
     }
   }
 
-  pub(crate) fn axi_read_instruction_fetch(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
+  pub(crate) fn axi_read_instruction_fetch(
+    &mut self,
+    addr: u32,
+    arsize: u32,
+    arlen: u32,
+  ) -> AxiReadPayload {
     let size = 1 << arsize;
-    let data = self.shadow_bus.read_mem_axi(addr, size, 32);
+    let data = self.shadow_bus.read_mem_axi(addr, size, 4, arlen + 1);
     let data_hex = hex::encode(&data);
     trace!(
       "[{}] axi_read_instruction_fetch (addr={addr:#x}, size={size}, data={data_hex})",

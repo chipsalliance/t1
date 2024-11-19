@@ -113,7 +113,7 @@ case class FrontendParameter(
     exec = exec,
     sideEffects = sideEffects
   )
-  val rowBits:                   Int                 = blockBytes * 8
+  val rowBits:                   Int                 = fetchBytes * 8
   val instructionFetchParameter: AXI4BundleParameter = AXI4BundleParameter(
     idWidth = 1,
     dataWidth = rowBits,

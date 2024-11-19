@@ -279,7 +279,7 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
   TARGET.with(|driver| {
-    let response = driver.axi_read_instruction_fetch(araddr as u32, arsize as u64);
+    let response = driver.axi_read_instruction_fetch(araddr as u32, arsize as u32, arlen as u32);
     fill_axi_read_payload(payload, driver.dlen, &response);
   });
 }

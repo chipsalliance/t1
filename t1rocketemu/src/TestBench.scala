@@ -109,7 +109,7 @@ class TestBench(val parameter: T1RocketTileParameter)
         name = "instructionFetchAXI",
         axiParameter = instFetchAXI.parameter,
         outstanding = 4,
-        readPayloadSize = 1,
+        readPayloadSize = 8,
         writePayloadSize = 1
       )
     ).suggestName("axi4_channel2_instructionFetchAXI")
@@ -164,7 +164,7 @@ class TestBench(val parameter: T1RocketTileParameter)
   // output the probes
   // rocket reg write
   when(
-    rocketProbe.rfWen && !rocketProbe.isVectorWrite && rocketProbe.rfWaddr =/= 0.U && !(rocketProbe.waitWen && rocketProbe.waitWaddr =/= 0.U)
+    rocketProbe.rfWen && !rocketProbe.vectorWriteRD && rocketProbe.rfWaddr =/= 0.U && !(rocketProbe.waitWen && rocketProbe.waitWaddr =/= 0.U)
   )(
     printf(
       cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
@@ -190,7 +190,7 @@ class TestBench(val parameter: T1RocketTileParameter)
           )
         )
       )
-      val isVectorForLLWrite = RegNext(rocketProbe.isVectorWrite, false.B)
+      val isVectorForLLWrite = RegNext(rocketProbe.vectorWriteFD, false.B)
 
       fpToIEEE.io.clock           := clock
       fpToIEEE.io.reset           := reset

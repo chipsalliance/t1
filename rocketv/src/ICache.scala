@@ -10,7 +10,14 @@ import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.properties.{AnyClassType, Class, ClassType, Property}
 import chisel3.util.random.LFSR
 import chisel3.util._
-import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
+import org.chipsalliance.amba.axi4.bundle.{
+  AXI4BundleParameter,
+  AXI4ChiselBundle,
+  AXI4ROIrrevocable,
+  AXI4RWIrrevocable,
+  R,
+  W
+}
 import org.chipsalliance.dwbb.stdlib.queue.Queue
 
 case class ICacheParameter(
@@ -41,7 +48,7 @@ case class ICacheParameter(
   val hasUncorrekoctable:        Boolean                     = itimBaseAddr.nonEmpty && dataCode.canDetect
   val isDM:                      Boolean                     = nWays == 1
   // axi data with
-  val rowBits:                   Int                         = blockBytes * 8
+  val rowBits:                   Int                         = fetchBytes * 8
   val refillCycles:              Int                         = blockBytes * 8 / rowBits
   val blockOffBits:              Int                         = log2Up(blockBytes)
   val idxBits:                   Int                         = log2Up(nSets)
@@ -348,10 +355,24 @@ class ICache(val parameter: ICacheParameter)
   io.req.ready := !(refill_one_beat || s0_slaveValid || s3_slaveValid)
   s1_valid     := s0_valid
 
-  //  val (_, _, d_done, refill_cnt) = edge_out.count(tl_out.d)
-  val d_done:     Bool = io.instructionFetchAXI.r.valid && io.instructionFetchAXI.r.bits.last
-  // todo: burst index always == 0?
-  val refill_cnt: UInt = 0.U
+  // tod: package
+  def axiHelper(x: AXI4ChiselBundle, fire: Bool): (Bool, Bool, Bool, UInt) = {
+    // same as len
+    val count = RegInit(0.U(8.W))
+    val first = count === 0.U
+    val last: Bool = x match {
+      case r: R => r.last
+      case w: W => w.last
+      case _ => true.B
+    }
+    val done = last && fire
+    when(fire) {
+      count := Mux(last, 0.U, count + 1.U)
+    }
+    (first, last, done, count)
+  }
+
+  val (_, _, d_done, d_refill_count) = axiHelper(io.instructionFetchAXI.r.bits, io.instructionFetchAXI.r.fire)
 
   /** at last beat of `tl_out.d.fire`, finish refill. */
   val refill_done = refill_one_beat && d_done
@@ -394,7 +415,7 @@ class ICache(val parameter: ICacheParameter)
 
   /** wire indicates the ongoing GetAckData transaction is corrupted. */
   //  todo: tl_out.d.bits.corrupt -> false.B
-  val refillError: Bool = false.B || (refill_cnt > 0.U && accruedRefillError)
+  val refillError: Bool = false.B || (d_refill_count > 0.U && accruedRefillError)
   val enc_tag = tECC.encode(Cat(refillError, refill_tag))
   icacheTagSRAM.readwritePorts.foreach { ramPort =>
     ramPort.enable    := s0_valid || refill_done
@@ -542,8 +563,13 @@ class ICache(val parameter: ICacheParameter)
   for ((data_array, i) <- icacheDataSRAM.zipWithIndex) {
 
     /** bank match (vaddr[2]) */
-    def wordMatch(addr: UInt): Bool =
-      addr(log2Ceil(io.instructionFetchAXI.r.bits.data.getWidth / 8) - 1, log2Ceil(wordBits / 8)) === i.U
+    def wordMatch(addr: UInt): Bool = {
+      if (io.instructionFetchAXI.r.bits.data.getWidth == wordBits) { true.B }
+      else {
+        addr(log2Ceil(io.instructionFetchAXI.r.bits.data.getWidth / 8) - 1, log2Ceil(wordBits / 8)) === i.U
+      }
+    }
+
     // TODO: if we have last? do we need refillCycles?
     def row(addr: UInt) = addr(untagBits - 1, blockOffBits - log2Ceil(refillCycles))
 
@@ -559,7 +585,7 @@ class ICache(val parameter: ICacheParameter)
       // I$ refill. refill_idx[2:0] is the beats
       Mux(
         refill_one_beat,
-        (refill_idx << log2Ceil(refillCycles)) | refill_cnt,
+        (refill_idx << log2Ceil(refillCycles)) | d_refill_count,
         // ITIM write.
         Mux(
           s3_slaveValid,
@@ -791,8 +817,8 @@ class ICache(val parameter: ICacheParameter)
   arQueue.enq.bits       := DontCare
   arQueue.enq.bits.id    := 0.U
   arQueue.enq.bits.addr  := (refill_paddr >> blockOffBits) << blockOffBits
-  arQueue.enq.bits.size  := log2Up(parameter.blockBytes).U
-  arQueue.enq.bits.len   := 0.U
+  arQueue.enq.bits.size  := log2Up(parameter.instructionFetchParameter.dataWidth / 8).U
+  arQueue.enq.bits.len   := (parameter.blockBytes * 8 / parameter.instructionFetchParameter.dataWidth - 1).U
   arQueue.enq.bits.burst := 1.U
   io.instructionFetchAXI.ar <> arQueue.deq
 

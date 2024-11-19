@@ -1074,7 +1074,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       0.U,
       (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
     )
-    arQueue.enq.bits.size  := Mux(s2_uncached, a_size, parameter.lgCacheBlockBytes.U)
+    arQueue.enq.bits.size  := Mux(s2_uncached, a_size, log2Ceil(parameter.loadStoreParameter.dataWidth / 8).U)
     arQueue.enq.bits.id    := Mux(s2_uncached, a_source, 0.U)
     io.loadStoreAXI.ar <> arQueue.deq
 
@@ -1335,7 +1335,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       awQueue.enq.valid     := true.B
       awQueue.enq.bits.addr := releaseAddress >> parameter.lgCacheBlockBytes << parameter.lgCacheBlockBytes
       awQueue.enq.bits.len  := (parameter.cacheBlockBytes * 8 / parameter.loadStoreParameter.dataWidth - 1).U
-      awQueue.enq.bits.size := parameter.lgCacheBlockBytes.U
+      awQueue.enq.bits.size := log2Ceil(parameter.loadStoreParameter.dataWidth / 8).U
       awQueue.enq.bits.id   := (mmioOffset - 1).U
     }
 
