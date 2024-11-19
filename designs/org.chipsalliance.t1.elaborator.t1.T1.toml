@@ -69,38 +69,78 @@ cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --vrfBankSize 1 --
 [physical_design_case_28]
 cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
 
+[benchmark_dlen128_vlen128]
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen128_vlen256]
+cmdopt = "--dLen 128 --extensions zvl256b --extensions zve32x --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen512]
 cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
-[benchmark_dlen256_vlen1024]
-cmdopt = "--dLen 256 --extensions zvl1024b --extensions zve32x --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
-[benchmark_dlen512_vlen2048]
-cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32x --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
-[benchmark_dlen1024_vlen4096]
-cmdopt = "--dLen 1024 --extensions zvl4096b --extensions zve32x --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen1024]
 cmdopt = "--dLen 128 --extensions zvl1024b --extensions zve32x --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen128_vlen2048]
+cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32x --vrfBankSize 16 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen128_vlen4096]
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --vrfBankSize 32 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen256_vlen256]
+cmdopt = "--dLen 256 --extensions zvl256b --extensions zve32x --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen256_vlen512]
+cmdopt = "--dLen 256 --extensions zvl512b --extensions zve32x --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen256_vlen1024]
+cmdopt = "--dLen 256 --extensions zvl1024b --extensions zve32x --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen2048]
 cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32x --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen256_vlen4096]
+cmdopt = "--dLen 256 --extensions zvl4096b --extensions zve32x --vrfBankSize 16 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen512_vlen512]
+cmdopt = "--dLen 512 --extensions zvl512b --extensions zve32x --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen512_vlen1024]
+cmdopt = "--dLen 512 --extensions zvl1024b --extensions zve32x --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen512_vlen2048]
+cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32x --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen4096]
 cmdopt = "--dLen 512 --extensions zvl4096b --extensions zve32x --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
-[benchmark_dlen1024_vlen8192]
-cmdopt = "--dLen 1024 --extensions zvl8192b --extensions zve32x --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen1024_vlen1024]
+cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32x --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen1024_vlen2048]
+cmdopt = "--dLen 1024 --extensions zvl2048b --extensions zve32x --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen1024_vlen4096]
+cmdopt = "--dLen 1024 --extensions zvl4096b --extensions zve32x --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen128_vlen128_fp]
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32f --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen128_vlen256_fp]
+cmdopt = "--dLen 128 --extensions zvl256b --extensions zve32f --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen512_fp]
 cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
-[benchmark_dlen256_vlen1024_fp]
-cmdopt = "--dLen 256 --extensions zvl1024b --extensions zve32f --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
-[benchmark_dlen512_vlen2048_fp]
-cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32f --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
-[benchmark_dlen1024_vlen4096_fp]
-cmdopt = "--dLen 1024 --extensions zvl4096b --extensions zve32f --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen1024_fp]
 cmdopt = "--dLen 128 --extensions zvl1024b --extensions zve32f --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen128_vlen2048_fp]
+cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32f --vrfBankSize 16 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen128_vlen4096_fp]
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32f --vrfBankSize 32 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen256_vlen256_fp]
+cmdopt = "--dLen 256 --extensions zvl256b --extensions zve32f --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen256_vlen512_fp]
+cmdopt = "--dLen 256 --extensions zvl512b --extensions zve32f --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen256_vlen1024_fp]
+cmdopt = "--dLen 256 --extensions zvl1024b --extensions zve32f --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen2048_fp]
 cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32f --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen256_vlen4096_fp]
+cmdopt = "--dLen 256 --extensions zvl4096b --extensions zve32f --vrfBankSize 16 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen512_vlen512_fp]
+cmdopt = "--dLen 512 --extensions zvl512b --extensions zve32f --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen512_vlen1024_fp]
+cmdopt = "--dLen 512 --extensions zvl1024b --extensions zve32f --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen512_vlen2048_fp]
+cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32f --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen4096_fp]
 cmdopt = "--dLen 512 --extensions zvl4096b --extensions zve32f --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
-[benchmark_dlen1024_vlen8192_fp]
-cmdopt = "--dLen 1024 --extensions zvl8192b --extensions zve32f --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen1024_vlen1024_fp]
+cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32f --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen1024_vlen2048_fp]
+cmdopt = "--dLen 1024 --extensions zvl2048b --extensions zve32f --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+[benchmark_dlen1024_vlen4096_fp]
+cmdopt = "--dLen 1024 --extensions zvl4096b --extensions zve32f --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 
 # Experimental(only for elaboration)
 [experimental_0]
