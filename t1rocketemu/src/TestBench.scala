@@ -270,7 +270,7 @@ class TestBench(val parameter: T1RocketTileParameter)
   }
   vrfWriteScoreboard.foreach(scoreboard => dontTouch(scoreboard))
   val instructionValid =
-    (laneProbes.map(laneProbe => laneProbe.instructionValid ## laneProbe.instructionValid) :+
+    (laneProbes.map(laneProbe => laneProbe.instructionValid) :+
       lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
   val scoreboardEnq    =
     Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * parameter.t1Parameter.chainingSize).W))
