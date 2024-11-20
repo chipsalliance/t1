@@ -657,10 +657,8 @@ class T1(val parameter: T1Parameter)
     )
   )
 
-  val freeOR: Bool = VecInit(slots.map(_.state.idle)).asUInt.orR
-
   /** slot is ready to accept new instructions. */
-  val slotReady: Bool = Mux(specialInstruction, slots.map(_.state.idle).last, freeOR)
+  val slotReady: Bool = VecInit(slots.map(_.state.idle)).asUInt.andR
 
   val source1Select: UInt =
     Mux(
