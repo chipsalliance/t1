@@ -152,6 +152,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
           io.clock,
           when.cond && !io.gateWrite,
           io.channelId,
+          parameter.axiParameter.dataWidth.U(64.W),
           // handle AW and W at same beat.
           Mux(awIssued, awid.asTypeOf(UInt(64.W)), channel.AWID),
           Mux(awIssued, awaddr.asTypeOf(UInt(64.W)), channel.AWADDR),
@@ -198,6 +199,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         )(
           when.cond && !io.gateRead,
           io.channelId,
+          parameter.axiParameter.dataWidth.U(64.W),
           channel.ARID.asTypeOf(UInt(64.W)),
           channel.ARADDR.asTypeOf(UInt(64.W)),
           channel.ARLEN.asTypeOf(UInt(64.W)),
