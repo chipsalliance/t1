@@ -518,13 +518,13 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   )
   vrfAllocateIssue             := freeRecord.orR && olderCheck
 
-  val writePort: Seq[ValidIO[VRFWriteRequest]] = Seq(writePipe)
-  val writeOH = writePort.map(p => UIntToOH((p.bits.vd ## p.bits.offset)(parameter.vrfOffsetBits + 3 - 1, 0)))
+  val writePort:         Seq[ValidIO[VRFWriteRequest]]    = Seq(writePipe)
   val loadUnitReadPorts: Seq[DecoupledIO[VRFReadRequest]] = Seq(readRequests.last)
-  val loadReadOH:        Seq[UInt]                        =
-    loadUnitReadPorts.map(p => UIntToOH((p.bits.vs ## p.bits.offset)(parameter.vrfOffsetBits + 3 - 1, 0)))
   Seq(chainingRecord, chainingRecordCopy).foreach { recordVec =>
     recordVec.zipWithIndex.foreach { case (record, i) =>
+      // read write one hot base on base address
+      val writeOH        = writePort.map(p => UIntToOH((p.bits.vd - record.bits.vd.bits)(2, 0) ## p.bits.offset))
+      val loadReadOH     = loadUnitReadPorts.map(p => UIntToOH((p.bits.vs - record.bits.vs2)(2, 0) ## p.bits.offset))
       val dataInLsuQueue = ohCheck(loadDataInLSUWriteQueue, record.bits.instIndex, parameter.chainingSize)
       // elementMask update by write
       val writeUpdateValidVec: Seq[Bool] =

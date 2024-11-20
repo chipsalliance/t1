@@ -1142,7 +1142,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       lastWriteOH
     )
 
-  val selectMask:  UInt = Mux(
+  val selectMask: UInt = Mux(
     segmentLS,
     segmentMask,
     Mux(
@@ -1151,13 +1151,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       lastWriteOH
     )
   )
-  // 8 register
-  val paddingSize: Int  = elementSizeForOneRegister * 8
-  val shifterMask: UInt = (((selectMask ## Fill(paddingSize, true.B))
-    << laneRequest.bits.vd(2, 0) ## 0.U(log2Ceil(elementSizeForOneRegister).W))
-    >> paddingSize).asUInt
 
-  vrf.instructionWriteReport.bits.elementMask := shifterMask
+  vrf.instructionWriteReport.bits.elementMask := selectMask
 
   // clear record by instructionFinished
   vrf.instructionLastReport                 := instructionFinished
