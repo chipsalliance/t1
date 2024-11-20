@@ -142,67 +142,18 @@ impl Driver {
     AxiReadPayload { data }
   }
 
-  pub(crate) fn axi_write_high_bandwidth(
+  // data_width: AXI width (count in bits)
+  pub(crate) fn axi_write(
     &mut self,
     addr: u32,
-    awsize: u64,
+    awsize: u32,
+    data_width: u32,
     strobe: &[bool],
     data: &[u8],
   ) {
+    let bus_size = data_width / 8;
     let size = 1 << awsize;
-    self.shadow_bus.write_mem_axi(addr, size, self.dlen / 8, &strobe, data);
-    let data_hex = hex::encode(data);
-    self.last_commit_cycle = get_t();
-    trace!(
-      "[{}] axi_write_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
-      get_t()
-    );
-  }
-
-  pub(crate) fn axi_write_high_outstanding(
-    &mut self,
-    addr: u32,
-    awsize: u64,
-    strobe: &[bool],
-    data: &[u8],
-  ) {
-    let size = 1 << awsize;
-    self.shadow_bus.write_mem_axi(addr, size, 4, strobe, data);
-    let data_hex = hex::encode(data);
-    self.last_commit_cycle = get_t();
-    trace!(
-      "[{}] axi_write_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
-      get_t()
-    );
-  }
-
-  pub(crate) fn axi_write_load_store(
-    &mut self,
-    addr: u32,
-    awsize: u64,
-    strobe: &[bool],
-    data: &[u8],
-  ) {
-    let size = 1 << awsize;
-    let bus_size = if size == 32 { 32 } else { 4 };
     self.shadow_bus.write_mem_axi(addr, size, bus_size, strobe, data);
-    let data_hex = hex::encode(data);
-    self.last_commit_cycle = get_t();
-
-    trace!(
-      "[{}] axi_write_load_store (addr={addr:#x}, size={size}, data={data_hex})",
-      get_t()
-    );
-
-    // check exit with code
-    if addr == EXIT_POS {
-      let exit_data_slice = data[..4].try_into().expect("slice with incorrect length");
-      if u32::from_le_bytes(exit_data_slice) == EXIT_CODE {
-        info!("driver is ready to quit");
-        self.success = true;
-        self.quit = true;
-      }
-    }
   }
 
   pub(crate) fn watchdog(&mut self) -> u8 {
