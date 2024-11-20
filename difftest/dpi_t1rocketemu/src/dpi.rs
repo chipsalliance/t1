@@ -28,8 +28,7 @@ unsafe fn write_to_pointer(dst: *mut u8, data: &[u8]) {
 }
 
 unsafe fn fill_axi_read_payload(dst: *mut SvBitVecVal, dlen: u32, payload: &AxiReadPayload) {
-  let data_len = 256 * (dlen / 8) as usize;
-  assert!(payload.data.len() <= data_len);
+  assert!(payload.data.len() * 8 <= dlen as usize);
   write_to_pointer(dst as *mut u8, &payload.data);
 }
 
@@ -80,6 +79,7 @@ unsafe fn load_from_payload(
 #[no_mangle]
 unsafe extern "C" fn axi_write_highBandwidthAXI(
   channel_id: c_longlong,
+  data_width: i64,
   awid: c_longlong,
   awaddr: c_longlong,
   awlen: c_longlong,
@@ -99,7 +99,11 @@ unsafe extern "C" fn axi_write_highBandwidthAXI(
   awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
+
   TARGET.with(|driver| {
+    assert_eq!(data_width as u32, driver.dlen);
+    assert_eq!(awlen, 0);
+
     let (strobe, data) = load_from_payload(&payload, driver.dlen as usize, (1 << awsize) as usize);
     driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, &strobe, data);
   });
@@ -109,6 +113,7 @@ unsafe extern "C" fn axi_write_highBandwidthAXI(
 #[no_mangle]
 unsafe extern "C" fn axi_read_highBandwidthAXI(
   channel_id: c_longlong,
+  data_width: i64,
   arid: c_longlong,
   araddr: c_longlong,
   arlen: c_longlong,
@@ -128,6 +133,9 @@ unsafe extern "C" fn axi_read_highBandwidthAXI(
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
   TARGET.with(|driver| {
+    assert_eq!(data_width as u32, driver.dlen);
+    assert_eq!(arlen, 0);
+
     let response = driver.axi_read_high_bandwidth(araddr as u32, arsize as u64);
     fill_axi_read_payload(payload, driver.dlen, &response);
   });
@@ -137,6 +145,7 @@ unsafe extern "C" fn axi_read_highBandwidthAXI(
 #[no_mangle]
 unsafe extern "C" fn axi_write_highOutstandingAXI(
   channel_id: c_longlong,
+  data_width: i64,
   awid: c_longlong,
   awaddr: c_longlong,
   awlen: c_longlong,
@@ -156,6 +165,9 @@ unsafe extern "C" fn axi_write_highOutstandingAXI(
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
   TARGET.with(|driver| {
+    assert_eq!(data_width, 32);
+    assert_eq!(awlen, 0);
+
     let (strobe, data) = load_from_payload(&payload, 32, (1 << awsize) as usize);
     driver.axi_write_high_outstanding(awaddr as u32, awsize as u64, &strobe, data);
   });
@@ -165,6 +177,7 @@ unsafe extern "C" fn axi_write_highOutstandingAXI(
 #[no_mangle]
 unsafe extern "C" fn axi_read_highOutstandingAXI(
   channel_id: c_longlong,
+  data_width: i64,
   arid: c_longlong,
   araddr: c_longlong,
   arlen: c_longlong,
@@ -184,6 +197,9 @@ unsafe extern "C" fn axi_read_highOutstandingAXI(
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
   TARGET.with(|driver| {
+    assert_eq!(data_width, 32);
+    assert_eq!(arlen, 0);
+
     let response = driver.axi_read_high_outstanding(araddr as u32, arsize as u64);
     fill_axi_read_payload(payload, driver.dlen, &response);
   });
@@ -192,6 +208,7 @@ unsafe extern "C" fn axi_read_highOutstandingAXI(
 #[no_mangle]
 unsafe extern "C" fn axi_write_loadStoreAXI(
   channel_id: c_longlong,
+  data_width: i64,
   awid: c_longlong,
   awaddr: c_longlong,
   awlen: c_longlong,
@@ -210,6 +227,9 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
   awprot={awprot}, awqos={awqos}, awregion={awregion})"
   );
   TARGET.with(|driver| {
+    assert_eq!(data_width, 32);
+    assert_eq!(awlen, 0);
+
     let data_width = if awsize <= 2 { 32 } else { 8 * (1 << awsize) } as usize;
     let (strobe, data) = load_from_payload(&payload, data_width, (driver.dlen / 8) as usize);
     driver.axi_write_load_store(awaddr as u32, awsize as u64, &strobe, data);
@@ -219,6 +239,7 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
 #[no_mangle]
 unsafe extern "C" fn axi_read_loadStoreAXI(
   channel_id: c_longlong,
+  data_width: i64,
   arid: c_longlong,
   araddr: c_longlong,
   arlen: c_longlong,
@@ -245,6 +266,9 @@ unsafe extern "C" fn axi_read_loadStoreAXI(
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
   TARGET.with(|driver| {
+    assert_eq!(data_width, 32);
+    assert_eq!(arlen, 0);
+
     let response = driver.axi_read_load_store(araddr as u32, arsize as u64);
     fill_axi_read_payload(payload, driver.dlen, &response);
   });
@@ -253,6 +277,7 @@ unsafe extern "C" fn axi_read_loadStoreAXI(
 #[no_mangle]
 unsafe extern "C" fn axi_read_instructionFetchAXI(
   channel_id: c_longlong,
+  data_width: i64,
   arid: c_longlong,
   araddr: c_longlong,
   arlen: c_longlong,
@@ -279,6 +304,11 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
   TARGET.with(|driver| {
+    assert_eq!(data_width, 256);
+    assert_eq!(arlen, 0);
+
+    assert_eq!(8 * (1 << arsize), data_width);
+
     let response = driver.axi_read_instruction_fetch(araddr as u32, arsize as u64);
     fill_axi_read_payload(payload, driver.dlen, &response);
   });
