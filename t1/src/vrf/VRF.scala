@@ -504,19 +504,22 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val freeRecord: UInt = VecInit(chainingRecord.map(!_.valid)).asUInt
   val recordFFO:  UInt = ffo(freeRecord)
   val recordEnq:  UInt = Wire(UInt((parameter.chainingSize + 1).W))
-  val olderCheck = chainingRecord
-    .map(re => !re.valid || instIndexL(re.bits.instIndex, instructionWriteReport.bits.instIndex))
-    .reduce(_ && _)
+  val olderCheck = chainingRecord.map { re =>
+    // The same lsb will make it difficult to distinguish between the new and the old
+    val notSameLSB: Bool = re.bits.instIndex(parameter.instructionIndexBits - 2, 0) =/=
+      instructionWriteReport.bits.instIndex(parameter.instructionIndexBits - 2, 0)
+    !re.valid || (instIndexL(re.bits.instIndex, instructionWriteReport.bits.instIndex) && notSameLSB)
+  }.reduce(_ && _)
   // handle VRF hazard
   // @todo @Clo91eaf VRF ready signal for performance.
   instructionWriteReport.ready := freeRecord.orR && olderCheck
-  recordEnq                    := Mux(
+  recordEnq        := Mux(
     // 纯粹的lsu指令的记录不需要ready
     instructionWriteReport.valid,
     recordFFO,
     0.U((parameter.chainingSize + 1).W)
   )
-  vrfAllocateIssue             := freeRecord.orR && olderCheck
+  vrfAllocateIssue := freeRecord.orR && olderCheck
 
   val writePort:         Seq[ValidIO[VRFWriteRequest]]    = Seq(writePipe)
   val loadUnitReadPorts: Seq[DecoupledIO[VRFReadRequest]] = Seq(readRequests.last)
