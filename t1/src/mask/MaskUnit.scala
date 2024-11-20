@@ -434,7 +434,7 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   val slideAddressGen: SlideIndexGen = Module(new SlideIndexGen(parameter))
   slideAddressGen.newInstruction := instReq.valid & instReq.bits.vl.orR
   slideAddressGen.instructionReq := instReg
-  slideAddressGen.slideMaskInput := cutUInt(v0.asUInt, 8)(slideAddressGen.slideGroupOut)
+  slideAddressGen.slideMaskInput := cutUInt(v0.asUInt, parameter.laneNumber)(slideAddressGen.slideGroupOut)
 
   val firstRequest:    Bool = RegInit(false.B)
   val viotaCounterAdd: Bool = Wire(Bool())
@@ -519,10 +519,7 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   ) & Fill(parameter.laneNumber, validExecuteGroup)
 
   // handle mask
-  val readMaskSelect:      UInt =
-    (executeGroup >> log2Ceil(parameter.datapathWidth / parameter.laneNumber)).asUInt
-  val readMaskInput:       UInt = cutUInt(v0.asUInt, parameter.maskGroupWidth)(readMaskSelect)
-  val selectReadStageMask: UInt = cutUIntBySize(readMaskInput, 4)(executeGroup(1, 0))
+  val selectReadStageMask: UInt = cutUInt(v0.asUInt, parameter.laneNumber)(executeGroup)
   val readMaskCorrection:  UInt =
     Mux(instReg.maskType, selectReadStageMask, -1.S(parameter.laneNumber.W).asUInt) &
       vlBoundaryCorrection
