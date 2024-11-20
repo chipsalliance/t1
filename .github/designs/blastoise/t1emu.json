@@ -1,11 +1,11 @@
 {
   "pytorch.demo": 77,
-  "pytorch.lenet": 1116581,
+  "pytorch.lenet": 1117417,
   "pytorch.matmul": 14556,
-  "mlir.rvv_vp_intrinsic_add": 448,
+  "mlir.rvv_vp_intrinsic_add": 445,
   "mlir.rvv_vp_intrinsic_add_scalable": 729,
   "mlir.hello": 137,
-  "mlir.stripmining": 8869,
+  "mlir.stripmining": 8871,
   "asm.mmm": 50444,
   "asm.smoke": 7991,
   "intrinsic.conv2d_less_m2": 2647,
@@ -13,11 +13,11 @@
   "intrinsic.softmax": 7032,
   "rvv_bench.ascii_to_utf16": 11282,
   "rvv_bench.ascii_to_utf32": 4694,
-  "rvv_bench.byteswap": 19955,
-  "rvv_bench.mandelbrot": 247231,
+  "rvv_bench.byteswap": 19954,
+  "rvv_bench.mandelbrot": 230851,
   "rvv_bench.memcpy": 34534,
   "rvv_bench.memset": 11501,
-  "rvv_bench.mergelines": 24911,
+  "rvv_bench.mergelines": 24842,
   "rvv_bench.strlen": 22697,
-  "rvv_bench.utf8_count": 151124
+  "rvv_bench.utf8_count": 151155
 }
