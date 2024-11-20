@@ -684,10 +684,8 @@ class T1(val parameter: T1Parameter)
   val completeIndexInstruction: Bool =
     ohCheck(lsu.lastReport, slots.last.record.instructionIndex, parameter.chainingSize) && !slots.last.state.idle
 
-  val freeOR: Bool = VecInit(slots.map(_.state.idle)).asUInt.orR
-
   /** slot is ready to accept new instructions. */
-  val slotReady: Bool = Mux(specialInstruction, slots.map(_.state.idle).last, freeOR)
+  val slotReady: Bool = VecInit(slots.map(_.state.idle)).asUInt.andR
 
   val olderCheck: Bool = slots.map { re =>
     // The same lsb will make it difficult to distinguish between the new and the old
