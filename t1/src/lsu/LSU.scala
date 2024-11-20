@@ -210,8 +210,7 @@ class LSU(param: LSUParameter) extends Module {
   val useStoreUnit: Bool = alwaysMerge && request.bits.instructionInformation.isStore
   val useOtherUnit: Bool = !alwaysMerge
   val addressCheck: Bool = otherUnit.status.idle && (!useOtherUnit || (loadUnit.status.idle && storeUnit.status.idle))
-  val unitReady:    Bool =
-    (useLoadUnit && loadUnit.status.idle) || (useStoreUnit && storeUnit.status.idle) || (useOtherUnit && otherUnit.status.idle)
+  val unitReady:    Bool = loadUnit.status.idle && storeUnit.status.idle && otherUnit.status.idle
   request.ready := unitReady && addressCheck
   val requestFire = request.fire
   val reqEnq: Vec[Bool] = VecInit(
