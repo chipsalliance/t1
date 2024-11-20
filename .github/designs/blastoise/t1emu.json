@@ -13,11 +13,11 @@
   "intrinsic.softmax": 7032,
   "rvv_bench.ascii_to_utf16": 11282,
   "rvv_bench.ascii_to_utf32": 4694,
-  "rvv_bench.byteswap": 19954,
+  "rvv_bench.byteswap": 20017,
   "rvv_bench.mandelbrot": 230851,
-  "rvv_bench.memcpy": 34534,
+  "rvv_bench.memcpy": 34718,
   "rvv_bench.memset": 11501,
   "rvv_bench.mergelines": 24842,
   "rvv_bench.strlen": 22697,
-  "rvv_bench.utf8_count": 151155
+  "rvv_bench.utf8_count": 151165
 }
