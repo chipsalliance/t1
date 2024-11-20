@@ -47,7 +47,7 @@ case class LSUParameter(
   val maskGroupWidth: Int = maxOffsetPerLaneAccess
 
   /** see [[VParameter.maskGroupSize]]. */
-  val maskGroupSize: Int = vLen / datapathWidth
+  val maskGroupSize: Int = vLen / maskGroupWidth
 
   /** hardware width of [[maskGroupSize]] */
   val maskGroupSizeBits: Int = log2Ceil(maskGroupSize)
