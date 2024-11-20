@@ -133,11 +133,14 @@ unsafe extern "C" fn axi_read_highBandwidthAXI(
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
   TARGET.with(|driver| {
-    assert_eq!(data_width as u32, driver.dlen);
+    let dlen = driver.dlen;
+    assert_eq!(data_width as u32, dlen);
     assert_eq!(arlen, 0);
 
-    let response = driver.axi_read_high_bandwidth(araddr as u32, arsize as u64);
-    fill_axi_read_payload(payload, driver.dlen, &response);
+    let response = driver.axi_read(araddr as u32, arsize as u32, dlen);
+    fill_axi_read_payload(payload, dlen, &response);
+
+    driver.update_commit_cycle();
   });
 }
 
@@ -200,8 +203,10 @@ unsafe extern "C" fn axi_read_highOutstandingAXI(
     assert_eq!(data_width, 32);
     assert_eq!(arlen, 0);
 
-    let response = driver.axi_read_high_outstanding(araddr as u32, arsize as u64);
-    fill_axi_read_payload(payload, driver.dlen, &response);
+    let response = driver.axi_read(araddr as u32, arsize as u32, 32);
+    fill_axi_read_payload(payload, 32, &response);
+
+    driver.update_commit_cycle();
   });
 }
 
@@ -269,8 +274,10 @@ unsafe extern "C" fn axi_read_loadStoreAXI(
     assert_eq!(data_width, 32);
     assert_eq!(arlen, 0);
 
-    let response = driver.axi_read_load_store(araddr as u32, arsize as u64);
-    fill_axi_read_payload(payload, driver.dlen, &response);
+    let response = driver.axi_read(araddr as u32, arsize as u32, 32);
+    fill_axi_read_payload(payload, 8 * 32, &response);
+
+    driver.update_commit_cycle();
   });
 }
 
@@ -309,8 +316,8 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
 
     assert_eq!(8 * (1 << arsize), data_width);
 
-    let response = driver.axi_read_instruction_fetch(araddr as u32, arsize as u64);
-    fill_axi_read_payload(payload, driver.dlen, &response);
+    let response = driver.axi_read(araddr as u32, arsize as u32, 256);
+    fill_axi_read_payload(payload, 256, &response);
   });
 }
 

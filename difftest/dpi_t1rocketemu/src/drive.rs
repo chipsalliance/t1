@@ -130,15 +130,15 @@ impl Driver {
     Ok((elf.ehdr.e_entry, mem, fn_sym_tab))
   }
 
-  pub(crate) fn axi_read_high_bandwidth(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
-    let size = 1 << arsize;
-    let data = self.shadow_bus.read_mem_axi(addr, size, self.dlen / 8);
-    let data_hex = hex::encode(&data);
+  pub fn update_commit_cycle(&mut self) {
     self.last_commit_cycle = get_t();
-    trace!(
-      "[{}] axi_read_high_bandwidth (addr={addr:#x}, size={size}, data={data_hex})",
-      get_t()
-    );
+  }
+
+  // data_width: AXI width (count in bits)
+  pub(crate) fn axi_read(&mut self, addr: u32, arsize: u32, data_width: u32) -> AxiReadPayload {
+    let bus_size = data_width / 8;
+    let size = 1 << arsize;
+    let data = self.shadow_bus.read_mem_axi(addr, size, bus_size);
     AxiReadPayload { data }
   }
 
@@ -159,19 +159,6 @@ impl Driver {
     );
   }
 
-  pub(crate) fn axi_read_high_outstanding(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
-    let size = 1 << arsize;
-    assert!(size <= 4);
-    let data = self.shadow_bus.read_mem_axi(addr, size, 4);
-    let data_hex = hex::encode(&data);
-    self.last_commit_cycle = get_t();
-    trace!(
-      "[{}] axi_read_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
-      get_t()
-    );
-    AxiReadPayload { data }
-  }
-
   pub(crate) fn axi_write_high_outstanding(
     &mut self,
     addr: u32,
@@ -187,19 +174,6 @@ impl Driver {
       "[{}] axi_write_high_outstanding (addr={addr:#x}, size={size}, data={data_hex})",
       get_t()
     );
-  }
-
-  pub(crate) fn axi_read_load_store(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
-    let size = 1 << arsize;
-    let bus_size = if size == 32 { 32 } else { 4 };
-    let data = self.shadow_bus.read_mem_axi(addr, size, bus_size);
-    let data_hex = hex::encode(&data);
-    self.last_commit_cycle = get_t();
-    trace!(
-      "[{}] axi_read_load_store (addr={addr:#x}, size={size}, data={data_hex})",
-      get_t()
-    );
-    AxiReadPayload { data }
   }
 
   pub(crate) fn axi_write_load_store(
@@ -229,17 +203,6 @@ impl Driver {
         self.quit = true;
       }
     }
-  }
-
-  pub(crate) fn axi_read_instruction_fetch(&mut self, addr: u32, arsize: u64) -> AxiReadPayload {
-    let size = 1 << arsize;
-    let data = self.shadow_bus.read_mem_axi(addr, size, 32);
-    let data_hex = hex::encode(&data);
-    trace!(
-      "[{}] axi_read_instruction_fetch (addr={addr:#x}, size={size}, data={data_hex})",
-      get_t()
-    );
-    AxiReadPayload { data }
   }
 
   pub(crate) fn watchdog(&mut self) -> u8 {
