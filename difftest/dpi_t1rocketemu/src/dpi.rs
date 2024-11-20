@@ -5,7 +5,7 @@ use dpi_common::plusarg::PlusArgMatcher;
 use dpi_common::DpiTarget;
 use std::ffi::{c_char, c_longlong};
 use svdpi::SvScope;
-use tracing::{debug, trace};
+use tracing::{debug, info, trace};
 
 use crate::drive::Driver;
 use crate::OnlineArgs;
@@ -33,19 +33,21 @@ unsafe fn fill_axi_read_payload(dst: *mut SvBitVecVal, dlen: u32, payload: &AxiR
 }
 
 // Return (strobe in bit, data in byte)
+// data_width: AXI width (count in bits)
+// size: AXI transaction bytes ( data_width * (1 + MAX_AWLEN) / 8 )
 unsafe fn load_from_payload(
   payload: &*const SvBitVecVal,
-  data_width: usize,
-  size: usize,
+  data_width: u32,
+  size: u32,
 ) -> (Vec<bool>, &[u8]) {
   let src = *payload as *mut u8;
-  let data_width_in_byte = std::cmp::max(size, 4);
-  let strb_width_per_byte = if data_width < 64 { 4 } else { 8 };
-  let strb_width_in_byte = size.div_ceil(strb_width_per_byte);
+  let data_width_in_byte = std::cmp::max(size, 4) as usize;
+  let strb_width_per_byte = (data_width / 8).min(8) as usize;
+  let strb_width_in_byte = (size as usize).div_ceil(strb_width_per_byte);
 
   let payload_size_in_byte = strb_width_in_byte + data_width_in_byte; // data width in byte
   let byte_vec = std::slice::from_raw_parts(src, payload_size_in_byte);
-  let strobe = &byte_vec[0..strb_width_in_byte];
+  let strobe = &byte_vec[..strb_width_in_byte];
   let data = &byte_vec[strb_width_in_byte..];
 
   let masks: Vec<bool> = strobe
@@ -55,18 +57,8 @@ unsafe fn load_from_payload(
       mask
     })
     .collect();
-  assert_eq!(
-    masks.len(),
-    data.len(),
-    "strobe bit width is not aligned with data byte width"
-  );
 
-  debug!(
-    "load {payload_size_in_byte} byte from payload: raw_data={} strb={} data={}",
-    hex::encode(byte_vec),
-    hex::encode(strobe),
-    hex::encode(data),
-  );
+  assert_eq!(masks.len(), data.len());
 
   (masks, data)
 }
@@ -104,8 +96,10 @@ unsafe extern "C" fn axi_write_highBandwidthAXI(
     assert_eq!(data_width as u32, driver.dlen);
     assert_eq!(awlen, 0);
 
-    let (strobe, data) = load_from_payload(&payload, driver.dlen as usize, (1 << awsize) as usize);
-    driver.axi_write_high_bandwidth(awaddr as u32, awsize as u64, &strobe, data);
+    let (strobe, data) = load_from_payload(&payload, driver.dlen, driver.dlen / 8);
+    driver.axi_write(awaddr as u32, awsize as u32, driver.dlen, &strobe, data);
+
+    driver.update_commit_cycle();
   });
 }
 
@@ -171,8 +165,10 @@ unsafe extern "C" fn axi_write_highOutstandingAXI(
     assert_eq!(data_width, 32);
     assert_eq!(awlen, 0);
 
-    let (strobe, data) = load_from_payload(&payload, 32, (1 << awsize) as usize);
-    driver.axi_write_high_outstanding(awaddr as u32, awsize as u64, &strobe, data);
+    let (strobe, data) = load_from_payload(&payload, 32, 32 / 8);
+    driver.axi_write(awaddr as u32, awsize as u32, 32, &strobe, data);
+
+    driver.update_commit_cycle();
   });
 }
 
@@ -235,9 +231,22 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
     assert_eq!(data_width, 32);
     assert_eq!(awlen, 0);
 
-    let data_width = if awsize <= 2 { 32 } else { 8 * (1 << awsize) } as usize;
-    let (strobe, data) = load_from_payload(&payload, data_width, (driver.dlen / 8) as usize);
-    driver.axi_write_load_store(awaddr as u32, awsize as u64, &strobe, data);
+    let (strobe, data) = load_from_payload(&payload, 32, 8 * 32 / 8);
+    let strobe = &strobe[..4];
+    let data = &data[..4];
+    driver.axi_write(awaddr as u32, awsize as u32, 32, strobe, data);
+
+    driver.update_commit_cycle();
+
+    // TODO: move it to MMIO device
+    if awaddr as u32 == crate::EXIT_POS {
+      let exit_data = u32::from_le_bytes(data.try_into().expect("slice with incorrect length"));
+      if exit_data == crate::EXIT_CODE {
+        info!("driver is ready to quit");
+        driver.success = true;
+        driver.quit = true;
+      }
+    }
   });
 }
 
