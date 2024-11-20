@@ -30,9 +30,26 @@ class ChainingCheck(val parameter: VRFParam) extends Module {
   val sameInst: Bool = read.instructionIndex === record.bits.instIndex
 
   // 3: 8 register
-  val readOH:     UInt = UIntToOH((read.vs ## read.offset)(parameter.vrfOffsetBits + 3 - 1, 0))
-  val hitElement: Bool = (readOH & record.bits.elementMask) === 0.U
+  val readOH: UInt = UIntToOH((read.vs ## read.offset)(parameter.vrfOffsetBits + 3 - 1, 0))
 
-  val raw: Bool = record.bits.vd.valid && (read.vs(4, 3) === record.bits.vd.bits(4, 3)) && hitElement
+  // todo: def
+  val elementSizeForOneRegister: Int = parameter.vLen / parameter.datapathWidth / parameter.laneNumber
+  val paddingSize:               Int = elementSizeForOneRegister * 8
+
+  // elementMask records the relative position of the relative instruction.
+  // Let's calculate the absolute position.
+  val maskShifter: UInt = (((Fill(paddingSize, true.B) ## record.bits.elementMask ## Fill(paddingSize, true.B))
+    << record.bits.vd.bits(2, 0) ## 0.U(log2Ceil(elementSizeForOneRegister).W))
+    >> paddingSize).asUInt(2 * paddingSize - 1, 0)
+  // mask for vd's group
+  val maskForVD:   UInt = cutUIntBySize(maskShifter, 2)(0)
+  // Due to the existence of segment load, writes may cross register groups
+  // So we need the mask of the previous set of registers
+  val maskForVD1:  UInt = cutUIntBySize(maskShifter, 2)(1)
+
+  val hitVd:  Bool = (readOH & maskForVD) === 0.U && read.vs(4, 3) === record.bits.vd.bits(4, 3)
+  val hitVd1: Bool = (readOH & maskForVD1) === 0.U && read.vs(4, 3) === (record.bits.vd.bits(4, 3) + 1.U)
+
+  val raw: Bool = record.bits.vd.valid && (hitVd || hitVd1)
   checkResult := !(!older && raw && !sameInst && recordValid)
 }
