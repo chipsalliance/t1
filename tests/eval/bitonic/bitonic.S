@@ -6,7 +6,7 @@ bitonic:
   // a0: `*in`
   // a1: `n`
 
-  vsetvli zero, a1, e16, m8, ta, ma
+  vsetvli zero, a1, e32, m8, ta, ma
   vle32.v v8, 0(a0)             // v8-v15[i] = in[i]
 
   // prepare range
