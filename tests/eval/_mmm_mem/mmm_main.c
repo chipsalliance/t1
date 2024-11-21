@@ -18,7 +18,9 @@ void test() {
   uint32_t *p = (uint32_t *) malloc(words * sizeof(uint32_t));
   uint32_t mu = 0xca1b;
   mmm(r, a, b, p, mu);
-  for (int i = 0; i < words; i++) {
-    printf("%04X ", r[i]);
-  }
+  // for (int i = 0; i < words; i++) {
+  //   printf("%04X ", r[i]);
+  // }
 }
+
+void main() { test(); }

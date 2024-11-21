@@ -28,5 +28,6 @@ let
     };
 
 in {
-  mmm_mem_4096_vl4096 = build_ntt "mmm_mem_4096_vl4096" 4096 ./mmm_4096_vl4096.S;
+  mmm_mem_512_vl4096 = build_ntt "mmm_mem_512_vl4096" 4096 ./mmm_512_vl4096.S;
+  mmm_mem_256_vl4096 = build_ntt "mmm_mem_256_vl4096" 4096 ./mmm_256_vl4096.S;
 }
