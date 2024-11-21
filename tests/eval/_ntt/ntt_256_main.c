@@ -39,12 +39,12 @@ void test() {
   int dst[256];
   ntt(arr, l, twindle, p, dst);
 
-  for (int i = 0; i < n; i++) {
-    printf("%d", dst[i]);
-    if ((i + 1) % 8 == 0) {
-      printf("\n");
-    } else {
-      printf(" ");
-    }
-  }
+  // for (int i = 0; i < n; i++) {
+  //   printf("%d", dst[i]);
+  //   if ((i + 1) % 8 == 0) {
+  //     printf("\n");
+  //   } else {
+  //     printf(" ");
+  //   }
+  // }
 }

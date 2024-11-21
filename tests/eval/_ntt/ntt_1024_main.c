@@ -117,15 +117,12 @@ void test() {
   int dst[1024];
   ntt(arr, l, twindle, p, dst);
 
-  for (int i = 0; i < n; i++) {
-    printf("%d", dst[i]);
-    if ((i + 1) % 8 == 0) {
-      printf("\n");
-    } else {
-      printf(" ");
-    }
-  }
+  // for (int i = 0; i < n; i++) {
+  //   printf("%d", dst[i]);
+  //   if ((i + 1) % 8 == 0) {
+  //     printf("\n");
+  //   } else {
+  //     printf(" ");
+  //   }
+  // }
 }
-
-
-int main() { test(); }
