@@ -329,7 +329,7 @@ class LSU(param: LSUParameter) extends Module {
     p := VecInit(queueCount.map(_ =/= 0.U)).asUInt | dataInMSHR
   }
 
-  val sourceQueue = Queue.io(UInt(param.mshrParam.sourceWidth.W), param.sourceQueueSize)
+  val sourceQueue = Queue.io(UInt(param.mshrParam.cacheLineIndexBits.W), param.sourceQueueSize)
   // load unit connect
   axi4Port.ar.valid         := loadUnit.memRequest.valid && sourceQueue.enq.ready
   axi4Port.ar.bits <> DontCare
