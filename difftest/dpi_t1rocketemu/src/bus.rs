@@ -36,7 +36,7 @@ impl ShadowBus {
   pub fn new() -> Self {
     const DDR_SIZE: usize = 0x80000000;
     const SCALAR_SIZE: usize = 0x20000000;
-    const SRAM_SIZE: usize = 0x40000000;
+    const SRAM_SIZE: usize = 0x32000000;
 
     Self {
       devices: [

@@ -5,7 +5,7 @@ MEMORY {
   SCALAR (RWX) : ORIGIN = 0x20000000, LENGTH = 512M /* put first to set it as default */
   MMIO   (RW)  : ORIGIN = 0x00000000, LENGTH = 512M
   DDR    (RW)  : ORIGIN = 0x40000000, LENGTH = 2048M
-  SRAM   (RW)  : ORIGIN = 0xc0000000, LENGTH = 1024M /* TODO: read from config */
+  SRAM   (RW)  : ORIGIN = 0xc0000000, LENGTH = 800M /* TODO: read from config */
 }
 
 SECTIONS {
