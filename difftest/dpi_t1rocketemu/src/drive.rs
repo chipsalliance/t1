@@ -11,6 +11,8 @@ use elf::{
   ElfStream,
 };
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write as _;
 use std::os::unix::fs::FileExt;
 use std::{fs, path::Path};
 use tracing::{debug, error, info, trace};
@@ -37,6 +39,8 @@ pub(crate) struct Driver {
 
   shadow_bus: ShadowBus,
 
+  mmio_hack_file: Option<File>,
+
   pub(crate) quit: bool,
   pub(crate) success: bool,
 }
@@ -46,6 +50,8 @@ impl Driver {
     // pass e_entry to rocket
     let (e_entry, shadow_bus, _fn_sym_tab) =
       Self::load_elf(&args.elf_file).expect("fail creating simulator");
+
+    let mmio_hack_file = File::create("mmio_hack.jsonl").unwrap();
 
     Self {
       scope,
@@ -57,6 +63,8 @@ impl Driver {
       last_commit_cycle: 0,
 
       shadow_bus,
+
+      mmio_hack_file: Some(mmio_hack_file),
 
       quit: false,
       success: false,
@@ -128,6 +136,13 @@ impl Driver {
     };
 
     Ok((elf.ehdr.e_entry, mem, fn_sym_tab))
+  }
+
+  pub fn record_mmio_hack(&mut self, value: u32) {
+    let time = get_t();
+    let mmio_hack = self.mmio_hack_file.as_mut().unwrap();
+    mmio_hack.write(format!("{{\"cycle\": {time}, \"value\": {value}}}\n").as_bytes()).unwrap();
+    mmio_hack.flush().unwrap();
   }
 
   pub fn update_commit_cycle(&mut self) {

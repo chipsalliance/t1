@@ -245,6 +245,9 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
         info!("driver is ready to quit");
         driver.success = true;
         driver.quit = true;
+      } else {
+        // hack
+        driver.record_mmio_hack(exit_data);
       }
     }
   });
