@@ -1,6 +1,6 @@
 {
-  "rvv_bench.ascii_to_utf32": 229558,
-  "rvv_bench.byteswap": 394622,
-  "rvv_bench.memcpy": 672189,
-  "rvv_bench.memset": 286880
+  "rvv_bench.ascii_to_utf32": 227173,
+  "rvv_bench.byteswap": 394703,
+  "rvv_bench.memcpy": 589878,
+  "rvv_bench.memset": 286745
 }
