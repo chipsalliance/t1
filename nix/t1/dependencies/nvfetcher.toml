@@ -9,9 +9,9 @@ src.branch = "master"
 fetch.github = "ucb-bar/berkeley-hardfloat"
 
 [chisel]
-src.git = "https://github.com/chipsalliance/chisel"
-src.branch = "main"
-fetch.github = "chipsalliance/chisel"
+src.git = "https://github.com/unlsycn/chisel"
+src.branch = "fix-reverse"
+fetch.github = "unlsycn/chisel"
 
 [chisel-interface]
 src.git = "https://github.com/chipsalliance/chisel-interface"
