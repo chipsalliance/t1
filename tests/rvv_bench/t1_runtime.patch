@@ -2,7 +2,7 @@ diff --git a/bench/bench.h b/bench/bench.h
 index af1c839..661e8df 100644
 --- a/bench/bench.h
 +++ b/bench/bench.h
-@@ -120,45 +120,11 @@ static void
+@@ -120,45 +120,13 @@ static void
  bench_run(Bench *benches, size_t nBenches)
  {
  	for (Bench *b = benches; b != benches + nBenches; ++b) {
@@ -43,7 +43,9 @@ index af1c839..661e8df 100644
 -				print(f,bench_time(n, *i, *b))(",")(flush,);
 -			}
 -			print("],\n")(flush,);
++           *(int*)0x40000000 = 1;
 +			bench_time(N, *i, *b);
++           *(int*)0x40000000 = 2;
  		}
 -		print("]\n},\n");
  	}

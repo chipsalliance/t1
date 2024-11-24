@@ -81,6 +81,9 @@ stdenvNoCC.mkDerivation (finalAttr: {
       mv perf.json $out/
     fi
 
+    # TODO: remove the hack
+    cp -v mmio_hack.jsonl "$out"
+
     cp -v cm.log "$out"
     cp -vr cm.vdb "$out"
 

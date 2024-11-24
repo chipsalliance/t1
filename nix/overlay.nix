@@ -3,7 +3,7 @@
 final: prev:
 
 let
-  llvmForRVV_attrName = "llvmPackages_17"; # brand new clang with v0.12 rvv intrinsic support
+  llvmForRVV_attrName = "llvmPackages_18"; # brand new clang with v0.12 rvv intrinsic support
   rv32_pkgs = final.pkgsCross.riscv32-embedded;
   rv32_buildPkgs = rv32_pkgs.buildPackages;
 in
