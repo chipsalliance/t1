@@ -5,6 +5,7 @@ use dpi_common::plusarg::PlusArgMatcher;
 mod bus;
 pub mod dpi;
 pub mod drive;
+mod interconnect;
 
 pub(crate) struct OnlineArgs {
   /// Path to the ELF file

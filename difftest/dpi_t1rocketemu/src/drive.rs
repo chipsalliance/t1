@@ -1,5 +1,6 @@
 use crate::bus::ShadowBus;
 use crate::dpi::*;
+use crate::interconnect::{create_emu_addrspace, AddressSpace};
 use crate::OnlineArgs;
 use crate::{get_t, EXIT_CODE, EXIT_POS};
 use svdpi::SvScope;
@@ -11,6 +12,7 @@ use elf::{
   ElfStream,
 };
 use std::collections::HashMap;
+use std::ops::Add;
 use std::os::unix::fs::FileExt;
 use std::{fs, path::Path};
 use tracing::{debug, error, info, trace};
@@ -35,7 +37,7 @@ pub(crate) struct Driver {
   timeout: u64,
   last_commit_cycle: u64,
 
-  shadow_bus: ShadowBus,
+  addr_space: AddressSpace,
 
   pub(crate) quit: bool,
   pub(crate) success: bool,
@@ -43,9 +45,10 @@ pub(crate) struct Driver {
 
 impl Driver {
   pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
+    let mut addr_space = create_emu_addrspace();
     // pass e_entry to rocket
-    let (e_entry, shadow_bus, _fn_sym_tab) =
-      Self::load_elf(&args.elf_file).expect("fail creating simulator");
+    let (e_entry, _fn_sym_tab) =
+      Self::load_elf(&args.elf_file, &mut addr_space).expect("fail creating simulator");
 
     Self {
       scope,
@@ -56,14 +59,15 @@ impl Driver {
       timeout: args.timeout,
       last_commit_cycle: 0,
 
-      shadow_bus,
+      addr_space,
 
       quit: false,
       success: false,
     }
   }
 
-  pub fn load_elf(path: &Path) -> anyhow::Result<(u64, ShadowBus, FunctionSymTab)> {
+  // when error happens, `mem` may be left in an unspecified intermediate state
+  pub fn load_elf(path: &Path, mem: &mut AddressSpace) -> anyhow::Result<(u64, FunctionSymTab)> {
     let file = fs::File::open(path).with_context(|| "reading ELF file")?;
     let mut elf: ElfStream<LittleEndian, _> =
       ElfStream::open_stream(&file).with_context(|| "parsing ELF file")?;
@@ -81,7 +85,6 @@ impl Driver {
     }
 
     debug!("ELF entry: 0x{:x}", elf.ehdr.e_entry);
-    let mut mem = ShadowBus::new();
     let mut load_buffer = Vec::new();
     elf.segments().iter().filter(|phdr| phdr.p_type == PT_LOAD).for_each(|phdr| {
       let vaddr: usize = phdr.p_vaddr.try_into().expect("fail converting vaddr(u64) to usize");
@@ -102,7 +105,7 @@ impl Driver {
           vaddr, filesz, phdr.p_offset, err
         )
       });
-      mem.load_mem_seg(vaddr, load_buffer.as_mut_slice());
+      mem.write_mem(vaddr as u32, load_buffer.len() as u32, &load_buffer);
     });
 
     // FIXME: now the symbol table doesn't contain any function value
@@ -127,7 +130,7 @@ impl Driver {
       debug!("load_elf: symtab not found");
     };
 
-    Ok((elf.ehdr.e_entry, mem, fn_sym_tab))
+    Ok((elf.ehdr.e_entry, fn_sym_tab))
   }
 
   pub fn update_commit_cycle(&mut self) {
@@ -135,11 +138,26 @@ impl Driver {
   }
 
   // data_width: AXI width (count in bits)
-  pub(crate) fn axi_read(&mut self, addr: u32, arsize: u32, data_width: u32) -> AxiReadPayload {
+  // return: Vec<u8> with len=bus_size
+  // if size < bus_size, the result is padded due to AXI narrow transfer rules
+  pub(crate) fn axi_read(&mut self, addr: u32, arsize: u32, data_width: u32) -> Vec<u8> {
     let bus_size = data_width / 8;
     let size = 1 << arsize;
-    let data = self.shadow_bus.read_mem_axi(addr, size, bus_size);
-    AxiReadPayload { data }
+
+    assert!(
+      addr % size == 0 && bus_size % size == 0,
+      "unaligned read addr={addr:#x} size={size}B dlen={bus_size}B"
+    );
+
+    let mut data = vec![0; bus_size as usize];
+    if size < bus_size {
+      let start = (addr % bus_size) as usize;
+      let end = start + (size as usize);
+      self.addr_space.read_mem(addr, size, &mut data[start..end]);
+    } else {
+      self.addr_space.read_mem(addr, size, &mut data);
+    }
+    data
   }
 
   // data_width: AXI width (count in bits)
@@ -153,7 +171,26 @@ impl Driver {
   ) {
     let bus_size = data_width / 8;
     let size = 1 << awsize;
-    self.shadow_bus.write_mem_axi(addr, size, bus_size, strobe, data);
+
+    assert!(
+      addr % size == 0 && bus_size % size == 0,
+      "unaligned write addr={addr:#x} size={size}B dlen={bus_size}B"
+    );
+
+    if size < bus_size {
+      let start = (addr % bus_size) as usize;
+      let end = start + (size as usize);
+
+      // AXI spec says strobe outsize start..end shall be inactive, check it
+      assert!(strobe.iter().copied().enumerate().all(|(idx, x)| !x || (start <= idx && idx < end)),
+        "AXI write ill-formed [T={}] data_width={data_width}, addr=0x{addr:08x}, awsize={awsize}, strobe={strobe:?}",
+        get_t(),
+      );
+
+      self.addr_space.write_mem_masked(addr, size, &data[start..end], &strobe[start..end]);
+    } else {
+      self.addr_space.write_mem_masked(addr, size, data, strobe);
+    }
   }
 
   pub(crate) fn watchdog(&mut self) -> u8 {
