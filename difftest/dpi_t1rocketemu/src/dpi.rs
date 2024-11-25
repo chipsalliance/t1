@@ -18,18 +18,14 @@ pub type SvBitVecVal = u32;
 
 static TARGET: DpiTarget<Driver> = DpiTarget::new();
 
-pub(crate) struct AxiReadPayload {
-  pub(crate) data: Vec<u8>,
-}
-
 unsafe fn write_to_pointer(dst: *mut u8, data: &[u8]) {
   let dst = std::slice::from_raw_parts_mut(dst, data.len());
   dst.copy_from_slice(data);
 }
 
-unsafe fn fill_axi_read_payload(dst: *mut SvBitVecVal, dlen: u32, payload: &AxiReadPayload) {
-  assert!(payload.data.len() * 8 <= dlen as usize);
-  write_to_pointer(dst as *mut u8, &payload.data);
+unsafe fn fill_axi_read_payload(dst: *mut SvBitVecVal, dlen: u32, payload: &[u8]) {
+  assert!(payload.len() * 8 <= dlen as usize);
+  write_to_pointer(dst as *mut u8, payload);
 }
 
 // Return (strobe in bit, data in byte)
