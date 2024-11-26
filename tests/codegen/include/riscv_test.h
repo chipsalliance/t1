@@ -157,7 +157,7 @@
 
 // Write our custom CSR msimend to exit simulation.
 #define RVTEST_CODE_END                                                        \
-  li x1, 0x40000000;                                                           \
+  li x1, 0x10000000;                                                           \
   li x2, 0xdeadbeef;                                                           \
   sw x2, 0(x1);                                                                \
   j .;
