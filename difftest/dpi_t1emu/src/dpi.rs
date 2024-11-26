@@ -3,8 +3,8 @@
 
 use dpi_common::plusarg::PlusArgMatcher;
 use dpi_common::DpiTarget;
-use std::ffi::{c_char, c_longlong};
-use tracing::{debug, error};
+use std::ffi::c_longlong;
+use tracing::debug;
 
 use crate::drive::Driver;
 use crate::OnlineArgs;

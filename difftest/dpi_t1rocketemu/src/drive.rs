@@ -1,8 +1,6 @@
-use crate::bus::ShadowBus;
-use crate::dpi::*;
+use crate::get_t;
 use crate::interconnect::{create_emu_addrspace, AddressSpace};
 use crate::OnlineArgs;
-use crate::{get_t, EXIT_CODE, EXIT_POS};
 use svdpi::SvScope;
 
 use anyhow::Context;
@@ -12,10 +10,9 @@ use elf::{
   ElfStream,
 };
 use std::collections::HashMap;
-use std::ops::Add;
 use std::os::unix::fs::FileExt;
 use std::{fs, path::Path};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, trace};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -29,6 +26,7 @@ pub type FunctionSymTab = HashMap<u64, FunctionSym>;
 
 pub(crate) struct Driver {
   // SvScope from t1rocket_cosim_init
+  #[allow(unused)]
   scope: SvScope,
 
   pub(crate) dlen: u32,

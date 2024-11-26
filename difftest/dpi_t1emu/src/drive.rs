@@ -99,6 +99,7 @@ pub(crate) struct Driver {
   spike_runner: SpikeRunner,
 
   // SvScope from t1_cosim_init
+  #[allow(unused)]
   scope: SvScope,
 
   pub(crate) success: bool,
