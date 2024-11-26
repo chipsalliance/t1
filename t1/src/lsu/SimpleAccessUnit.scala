@@ -843,7 +843,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   memReadRequest.valid        := s1Valid && sourceFree && !lsuRequestReg.instructionInformation.isStore
 
   memWriteRequest.valid        := s1Valid && sourceFree && lsuRequestReg.instructionInformation.isStore
-  memWriteRequest.bits.address := (s1Reg.address >> addressOffSetForDataPath) << addressOffSetForDataPath
+  memWriteRequest.bits.address := s1Reg.address
   memWriteRequest.bits.size    := dataEEW
   memWriteRequest.bits.data    := storeData
   memWriteRequest.bits.mask    := storeMask
