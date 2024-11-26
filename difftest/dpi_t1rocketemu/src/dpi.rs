@@ -3,9 +3,9 @@
 
 use dpi_common::plusarg::PlusArgMatcher;
 use dpi_common::DpiTarget;
-use std::ffi::{c_char, c_longlong};
+use std::ffi::c_longlong;
 use svdpi::SvScope;
-use tracing::{debug, info, trace};
+use tracing::{debug, info};
 
 use crate::drive::Driver;
 use crate::OnlineArgs;

@@ -24,8 +24,6 @@ const DISPLAY_WIDTH: u32 = 960;
 const DISPLAY_HEIGHT: u32 = 720;
 
 const REG_START: u32 = 0x1FF0000;
-const REG_FLUSH: usize = 0x1FF0000;
-const REG_DIM: usize = 0x1FF0020;
 
 impl FrameBuffer {
   pub fn new() -> Self {
