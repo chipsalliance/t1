@@ -282,7 +282,7 @@ impl JsonEventRunner for SpikeRunner {
     let data = memory_write.data.to_owned();
     let mask = memory_write.mask.to_owned();
     let cycle = memory_write.cycle;
-    let base_addr = memory_write.address;
+    let base_addr = memory_write.address & !((32 / 8) - 1); // align to data width
     let lsu_idx = memory_write.lsu_idx;
 
     if let Some(se) = self.commit_queue.iter_mut().find(|se| se.lsu_idx == lsu_idx) {
