@@ -5,7 +5,7 @@ use dpi_common::plusarg::PlusArgMatcher;
 use dpi_common::DpiTarget;
 use std::ffi::c_longlong;
 use svdpi::SvScope;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::drive::Driver;
 use crate::OnlineArgs;
@@ -233,16 +233,6 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
     driver.axi_write(awaddr as u32, awsize as u32, 32, strobe, data);
 
     driver.update_commit_cycle();
-
-    // TODO: move it to MMIO device
-    if awaddr as u32 == crate::EXIT_POS {
-      let exit_data = u32::from_le_bytes(data.try_into().expect("slice with incorrect length"));
-      if exit_data == crate::EXIT_CODE {
-        info!("driver is ready to quit");
-        driver.success = true;
-        driver.quit = true;
-      }
-    }
   });
 }
 
@@ -341,7 +331,8 @@ unsafe extern "C" fn t1_cosim_init() {
 #[no_mangle]
 unsafe extern "C" fn t1_cosim_final() {
   TARGET.with(|driver| {
-    dpi_common::util::write_perf_json(crate::get_t(), driver.success);
+    let success = driver.exit_flag.is_finish();
+    dpi_common::util::write_perf_json(crate::get_t(), success);
   });
 }
 

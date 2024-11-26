@@ -1,4 +1,5 @@
 use crate::get_t;
+use crate::interconnect::simctrl::ExitFlagRef;
 use crate::interconnect::{create_emu_addrspace, AddressSpace};
 use crate::OnlineArgs;
 use svdpi::SvScope;
@@ -37,13 +38,12 @@ pub(crate) struct Driver {
 
   addr_space: AddressSpace,
 
-  pub(crate) quit: bool,
-  pub(crate) success: bool,
+  pub(crate) exit_flag: ExitFlagRef,
 }
 
 impl Driver {
   pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
-    let mut addr_space = create_emu_addrspace();
+    let (mut addr_space, exit_flag) = create_emu_addrspace();
     // pass e_entry to rocket
     let (e_entry, _fn_sym_tab) =
       Self::load_elf(&args.elf_file, &mut addr_space).expect("fail creating simulator");
@@ -59,8 +59,7 @@ impl Driver {
 
       addr_space,
 
-      quit: false,
-      success: false,
+      exit_flag,
     }
   }
 
@@ -198,7 +197,7 @@ impl Driver {
 
     let tick = get_t();
 
-    if self.quit {
+    if self.exit_flag.is_finish() {
       trace!("[{tick}] watchdog quit");
       return WATCHDOG_QUIT;
     }
