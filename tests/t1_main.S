@@ -10,7 +10,7 @@ _start:
     call test
 
     // exit
-    li x1, 0x40000000
+    li x1, 0x10000000
     li x2, 0xdeadbeef
     sw x2, 0(x1)
     j .

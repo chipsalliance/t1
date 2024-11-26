@@ -460,8 +460,8 @@ impl SpikeEvent {
       });
       trace!("SpikeMemWrite: addr={addr:x}, value={value:x}, size={size}");
 
-      if addr == 0x4000_0000 && value == 0xdead_beef {
-        trace!("SpikeExit: exit by writing 0xdeadbeef to 0x40000000");
+      if addr == 0x1000_0000 && value == 0xdead_beef {
+        trace!("SpikeExit: exit by writing 0xdeadbeef to 0x10000000");
         self.is_exit = true;
 
         return;

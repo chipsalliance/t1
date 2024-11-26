@@ -194,17 +194,16 @@ impl AddressSpace {
 
 /// Memory map:
 /// - 0x0400_0000 - 0x0600_0000 : framebuffer
-/// - 0x4000_0000 - 0x4000_1000 : simctrl
+/// - 0x1000_0000 - 0x1000_1000 : simctrl
 /// - 0x2000_0000 - 0xc000_0000 : ddr
 /// - 0xc000_0000 - 0xc040_0000 : sram
-/// TODO: simctrl is inside ddr, move it elsewhere
 pub fn create_emu_addrspace() -> (AddressSpace, ExitFlagRef) {
   const DDR_BASE: u32 = 0x2000_0000;
   const DDR_SIZE: u32 = 0xa000_0000;
   const SRAM_BASE: u32 = 0xc000_0000;
   const SRAM_SIZE: u32 = 0x0040_0000;
 
-  const SIMCTRL_BASE: u32 = 0x4000_0000;
+  const SIMCTRL_BASE: u32 = 0x1000_0000;
   const SIMCTRL_SIZE: u32 = 0x0000_1000; // one page
   const DISPLAY_BASE: u32 = 0x0400_0000;
   const DISPLAY_SIZE: u32 = 0x0200_0000;
@@ -212,10 +211,10 @@ pub fn create_emu_addrspace() -> (AddressSpace, ExitFlagRef) {
   let exit_flag = ExitFlagRef::new();
 
   let devices = vec![
-    SimCtrl::new(exit_flag.clone()).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
     RegularMemory::with_size(DDR_SIZE).with_addr(DDR_BASE, DDR_SIZE),
     RegularMemory::with_size(SRAM_SIZE).with_addr(SRAM_BASE, SRAM_SIZE),
     FrameBuffer::new().with_addr(DISPLAY_BASE, DISPLAY_SIZE),
+    SimCtrl::new(exit_flag.clone()).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
   ];
   (AddressSpace { devices }, exit_flag)
 }
