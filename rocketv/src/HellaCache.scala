@@ -25,7 +25,6 @@ import chisel3.util.{
   PriorityEncoderOH,
   PriorityMux,
   RegEnable,
-  SRAM,
   SRAMInterface,
   UIntToOH
 }
@@ -40,6 +39,7 @@ import org.chipsalliance.amba.axi4.bundle.{
   W
 }
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
+import chisel3.hack.util.SRAM
 
 object HellaCacheParameter {
   implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
