@@ -55,13 +55,13 @@ void ntt(const int *array, int l, const int *twindle, int p, int *dst) {
       "vxor.vv v16, v16, v16\n"
       "vadd.vi v16, v16, 1\n"
       :
-      : "r"(n));
+      : "r"(elements_in_vreg));
 
   // buf is used to store shifted elements
-  int *buf = (int *)malloc(elements_in_vreg * sizeof(int));
+  int *buf = (int *)malloc(n * sizeof(int));
 
   for (int k = 0; k < l; k++) {
-    int offset = 1 << (l - k);
+    int offset = 1 << (l - 1 - k);
     // perform dst[i] = dst[i] + g^(offset * i) * dst[i + offset]
 
     // prepare offseted array, i.e. buf[i] = dst[i + offset]
@@ -89,7 +89,7 @@ void ntt(const int *array, int l, const int *twindle, int p, int *dst) {
             "vse32.v v8, 0(%2)\n"
             :
             : /* %0 */ "r"(elements_in_vreg), /* %1 */ "r"(dst + base),
-              /* %2 */ "r"(buf + ((base + offset) % n))
+              /* %2 */ "r"(buf + ((n + base - offset) % n))
             : "memory");
       }
     }
@@ -103,7 +103,7 @@ void ntt(const int *array, int l, const int *twindle, int p, int *dst) {
         "vmsne.vi v0, v24, 0\n"        // vm0[i] = i & (1 << k) != 0
         "vmul.vx v16, v16, %2, v0.t\n" // v16-23[i] = w^(???)
         :
-        : /* %0 */ "r"(n), /* %1 */ "r"(1 << k), /* %2 */ "r"(multiplier));
+        : /* %0 */ "r"(elements_in_vreg), /* %1 */ "r"(1 << k), /* %2 */ "r"(multiplier));
 
     for (int base = 0; base < n; base += elements_in_vreg) {
       asm("vle32.v v8, 0(%0)\n"

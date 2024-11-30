@@ -2,9 +2,9 @@ import random
 
 def main():
     vlen = 4096
-    l = 10
+    l = 12
     n = 1 << l
-    assert n <= vlen // 4
+    # assert n <= vlen // 4
     p = 12289  # p is prime and n | p - 1
     g = 11  # primitive root of p
     assert (p - 1) % n == 0
