@@ -52,65 +52,66 @@ class SRAMBlackbox(parameter: CIRCTSRAMParameter)
           )
       )).flatten.mkString(",\n")
 
-  private val wLogic = Seq
-    .tabulate(parameter.write)(idx =>
-      Seq(
-        s"reg [${log2Ceil(parameter.depth) - 1}:0] _R${idx}_addr;",
-        s"reg _R${idx}_en;"
-      ) ++
-        Seq(s"always @(posedge R${idx}_clk) begin // RW${idx}") ++
-        (if (parameter.masked)
-           Seq.tabulate(parameter.width / parameter.maskGranularity)(i =>
-             s"if (W${idx}_en & W${idx}_wmask[${i}]) Memory[W${idx}_addr][${i * parameter.maskGranularity}+:${parameter.maskGranularity}] <= RW${idx}_wdata[${(i + 1) * parameter.maskGranularity - 1}:${i * parameter.maskGranularity}];"
-           )
-         else
-           Seq(s"if (W${idx}) Memory[W${idx}_addr] <= W${idx}_data;")) ++
-        Seq(s"end // RW${idx}")
-    )
-    .flatten
-
   private val rLogic = Seq
-    .tabulate(parameter.read)(idx =>
+    .tabulate(parameter.read) { idx =>
+      val prefix = s"R${idx}"
       Seq(
-        s"reg [${log2Ceil(parameter.depth) - 1}:0] _R${idx}_en;",
-        s"reg _R${idx}_addr;"
+        s"reg _${prefix}_en;",
+        s"reg [${log2Ceil(parameter.depth) - 1}:0] _${prefix}_addr;"
       ) ++
         Seq(
-          s"always @(posedge R${idx}_clk) begin // R${idx}",
-          s"_R${idx}_raddr <= R${idx}_addr;",
-          s"_R${idx}_ren <= R${idx}_ren;",
-          s"end // RW${idx}"
+          s"always @(posedge ${prefix}_clk) begin // ${prefix}",
+          s"_${prefix}_en <= ${prefix}_en;",
+          s"_${prefix}_addr <= ${prefix}_addr;",
+          s"end // ${prefix}"
         ) ++
-        Some(s"R${idx}_data = _R${idx}_ren ? Memory[_R${idx}_raddr] : ${parameter.width}'bx;")
-    )
+        Some(s"assign ${prefix}_data = _${prefix}_en ? Memory[_${prefix}_addr] : ${parameter.width}'bx;")
+    }
+    .flatten
+
+  private val wLogic = Seq
+    .tabulate(parameter.write) { idx =>
+      val prefix = s"W${idx}"
+      Seq(s"always @(posedge ${prefix}_clk) begin // ${prefix}") ++
+        (if (parameter.masked)
+           Seq.tabulate(parameter.width / parameter.maskGranularity)(i =>
+             s"if (${prefix}_en & ${prefix}_wmask[${i}]) Memory[${prefix}_addr][${i * parameter.maskGranularity} +: ${parameter.maskGranularity}] <= ${prefix}_wdata[${(i + 1) * parameter.maskGranularity - 1}:${i * parameter.maskGranularity}];"
+           )
+         else
+           Seq(s"if (${prefix}_en) Memory[${prefix}_addr] <= ${prefix}_data;")) ++
+        Seq(s"end // ${prefix}")
+    }
     .flatten
 
   private val rwLogic = Seq
-    .tabulate(parameter.readwrite)(idx =>
+    .tabulate(parameter.readwrite) { idx =>
+      val prefix = s"RW${idx}"
       Seq(
-        s"reg [${log2Ceil(parameter.depth) - 1}:0] _RW${idx}_raddr;",
-        s"reg _RW${idx}_ren;",
-        s"reg _RW${idx}_rmode;"
+        s"reg [${log2Ceil(parameter.depth) - 1}:0] _${prefix}_raddr;",
+        s"reg _${prefix}_ren;",
+        s"reg _${prefix}_rmode;"
       ) ++
-        Seq(s"always @(posedge RW${idx}_clk) begin // RW${idx}") ++
+        Seq(s"always @(posedge ${prefix}_clk) begin // ${prefix}") ++
         Seq(
-          s"_RW${idx}_raddr <= RW${idx}_addr;",
-          s"_RW${idx}_ren <= RW${idx}_ren;",
-          s"_RW${idx}_rmode <= RW${idx}_rmode;"
+          s"_${prefix}_raddr <= ${prefix}_addr;",
+          s"_${prefix}_ren <= ${prefix}_en;",
+          s"_${prefix}_rmode <= ${prefix}_wmode;"
         ) ++
         (if (parameter.masked)
            Seq.tabulate(parameter.width / parameter.maskGranularity)(i =>
-             s"if(RW${idx}_en & RW${idx}_wmask[${i}] & RW${idx}_wmode) Memory[RW${idx}_addr][${parameter.width / parameter.maskGranularity}'${i * parameter.maskGranularity}+:${parameter.maskGranularity}] <= RW${idx}_wdata[${(i + 1) * parameter.maskGranularity - 1}:${i * parameter.maskGranularity}];"
+             s"if(${prefix}_en & ${prefix}_wmask[${i}] & ${prefix}_wmode) Memory[${prefix}_addr][${i * parameter.maskGranularity} +: ${parameter.maskGranularity}] <= ${prefix}_wdata[${(i + 1) * parameter.maskGranularity - 1}:${i * parameter.maskGranularity}];"
            )
          else
-           Seq(s"if (RW${idx}) Memory[RW${idx}_addr] <= RW${idx}_data;")) ++
-        Seq(s"end // RW${idx}") ++
-        Seq(s"RW${idx}_rdata = _RW${idx}_ren ? Memory[_RW${idx}_raddr] : ${parameter.width}'bx;")
-    )
+           Seq(s"if (${prefix}_en & ${prefix}_wmode) Memory[${prefix}_addr] <= ${prefix}_wdata;")) ++
+        Seq(s"end // ${prefix}") ++
+        Seq(
+          s"assign ${prefix}_rdata = _${prefix}_ren & ~_${prefix}_rmode ? Memory[_${prefix}_raddr] : ${parameter.width}'bx;"
+        )
+    }
     .flatten
 
   private val logic =
-    (Seq(s"reg [${parameter.depth - 1}:0] Memory[0:${parameter.width - 1}];") ++ wLogic ++ rLogic ++ rwLogic)
+    (Seq(s"reg [${parameter.width - 1}:0] Memory[0:${parameter.depth - 1}];") ++ wLogic ++ rLogic ++ rwLogic)
       .mkString("\n")
 
   override def desiredName = parameter.moduleName
