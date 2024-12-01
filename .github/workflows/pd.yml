@@ -51,16 +51,28 @@ jobs:
           nix build ".#t1.${testConfig}.${testAttr}.rtl" -L
 
   physical-design-report:
+    timeout-minutes: 1440
     name: "Request physical design report"
     if: ${{ success() && (contains(github.event.pull_request.labels.*.name, 'PD-Lane') || contains(github.event.pull_request.labels.*.name, 'PD-Lane-DBG'))}}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
     needs: [test-emit]
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - blastoise
+          - rookidee
     steps:
       - name: "Request report"
         env:
           # Use env key can help us inspect the data
+          GH_TOKEN: ${{ secrets.T1_PR_PAT }}
           JSON_CTX: ${{ toJson(github.event.pull_request.labels.*.name) }}
+          T1_BRANCH: ${{ github.head_ref || github.ref_name }}
+          T1_CONFIG: ${{ matrix.config }}
+          PD_URL: ${{ secrets.T1_INHOUSE_URL }}
         run: |
+          set -e
           # GitHub `toJson` will pretty print JSON and causing multiple line escape issue
           # So we have to redirect it to file here
           printf "$JSON_CTX" > _ctx.json
@@ -70,18 +82,44 @@ jobs:
             exit 1
           fi
 
-          commitSha="${{ github.event.pull_request.head.sha }}"
-          prId="${{ github.event.pull_request.number }}"
-          jq -n \
-            --arg commit_sha "$commitSha" \
-            --arg pr_id "$prId" \
-            --arg pd_type "$pdType" \
-            '{"event_type":"ci_success","client_payload":{"commit_sha": $commit_sha,"pr_id": $pr_id, "pd_type": $pd_type }}' \
-            > payload.json
-          curl -L \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.T1_INHOUSE_PAT }}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "${{ secrets.T1_INHOUSE_URL }}" \
-            -d '@payload.json'
+          # Use nix provided locked T1 rev to ensure this is commit the backend script is using
+          _T1_INPUT_URL="github:chipsalliance/t1/${T1_BRANCH}"
+          _BACKEND_FLAKE_URL="git+https://${GH_TOKEN}@${PD_URL}"
+
+          T1_COMMIT=$(nix flake metadata --json \
+            --override-input t1 "${_T1_INPUT_URL}" \
+            "${_BACKEND_FLAKE_URL}" \
+            | jq -r .locks.nodes.t1.locked.rev)
+
+          _OUTPUT_DIR="fc_result"
+          nix build --impure --out-link ${_OUTPUT_DIR} \
+            --override-input t1 "${_T1_INPUT_URL}" \
+            "${_BACKEND_FLAKE_URL}#prometheus.${T1_CONFIG}.tsn28-run-fc-rm.T1RocketTile"
+
+          CAPTION=$(cat <<- EOF
+          T1RocketTile PD Reports
+          =======================
+          Generated at $(date)
+
+          Information
+          -----------
+          * commit: $T1_COMMIT
+          * branch: $T1_BRANCH
+          * config: $T1_CONFIG
+          * Artifacts path: $(realpath ${_OUTPUT_DIR})
+          EOF
+          )
+          MEDIA=$(find "${_OUTPUT_DIR}/reports" -type f -name "*.rpt" -exec basename '{}' ';' \
+            | jq -Rn '[inputs | { media: "attach://\(.)", type: "document" }]')
+          # An workaround for pretty print information of a group of files
+          MEDIA=$(echo "$MEDIA" | jq -r --arg caption "$CAPTION" '.[-1] += { caption: $caption }')
+          DOCUMENTS=( $(find "${_OUTPUT_DIR}/reports" -type f -name '*.rpt' -printf '-F\n%f=@%p\n') )
+
+          BOT_TOKEN=$( echo "${{ secrets.T1_BACKEND_REPORT_ENDPOINT_DATA }}" | cut -d';' -f1 )
+          CHAT_ID=$( echo "${{ secrets.T1_BACKEND_REPORT_ENDPOINT_DATA }}" | cut -d';' -f2 )
+          TOPIC_ID=$( echo "${{ secrets.T1_BACKEND_REPORT_ENDPOINT_DATA }}" | cut -d';' -f3 )
+          nix run nixpkgs#curl -- -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMediaGroup" \
+            -F "chat_id=$CHAT_ID" \
+            -F "message_thread_id=$TOPIC_ID" \
+            ${DOCUMENTS[@]} \
+            -F "media=$MEDIA" >/dev/null
