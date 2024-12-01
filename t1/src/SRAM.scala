@@ -116,7 +116,7 @@ class SRAMBlackbox(parameter: CIRCTSRAMParameter)
   override def desiredName = parameter.moduleName
 
   setInline(
-    desiredName,
+    desiredName + ".sv",
     s"""module ${parameter.moduleName}(
        |${verilogInterface}
        |);
@@ -407,13 +407,8 @@ object SRAM {
           })
           .getOrElse(0)
       )
-
-      Module.currentModule.foreach { case m: RawModule =>
-        m.atModuleBodyEnd {
-          descriptionInstance.hierarchyIn := Property(Path(mem.toTarget))
-        }
-      }
-      description := descriptionInstance.getPropertyReference
+      descriptionInstance.hierarchyIn       := Property(Path(mem.toTarget))
+      description                           := descriptionInstance.getPropertyReference
     }
     out
   }

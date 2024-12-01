@@ -11,8 +11,11 @@ import chisel3.util.{log2Ceil, MemoryFile, SRAMDescription, SRAMInterface}
 import firrtl.transforms.BlackBoxInlineAnno
 import chisel3.experimental.ChiselAnnotation
 import chisel3.experimental.hierarchy.core.Hierarchy.HierarchyBaseModuleExtensions
+import chisel3.util.HasExtModuleInline
 
-class SRAMBlackbox(parameter: CIRCTSRAMParameter) extends FixedIOExtModule(new CIRCTSRAMInterface(parameter)) { self =>
+class SRAMBlackbox(parameter: CIRCTSRAMParameter)
+    extends FixedIOExtModule(new CIRCTSRAMInterface(parameter))
+    with HasExtModuleInline { self =>
 
   private val verilogInterface: String =
     (Seq.tabulate(parameter.write)(idx =>
@@ -112,19 +115,14 @@ class SRAMBlackbox(parameter: CIRCTSRAMParameter) extends FixedIOExtModule(new C
 
   override def desiredName = parameter.moduleName
 
-  chisel3.experimental.annotate(
-    new ChiselAnnotation {
-      def toFirrtl = new BlackBoxInlineAnno(
-        self.toNamed,
-        parameter.moduleName,
-        s"""module ${parameter.moduleName}(
-           |${verilogInterface}
-           |);
-           |${logic}
-           |endmodule
-           |""".stripMargin
-      )
-    }
+  setInline(
+    desiredName + ".sv",
+    s"""module ${parameter.moduleName}(
+       |${verilogInterface}
+       |);
+       |${logic}
+       |endmodule
+       |""".stripMargin
   )
 }
 
@@ -409,13 +407,8 @@ object SRAM {
           })
           .getOrElse(0)
       )
-
-      Module.currentModule.foreach { case m: RawModule =>
-        m.atModuleBodyEnd {
-          descriptionInstance.hierarchyIn := Property(Path(mem.toTarget))
-        }
-      }
-      description := descriptionInstance.getPropertyReference
+      descriptionInstance.hierarchyIn       := Property(Path(mem.toTarget))
+      description                           := descriptionInstance.getPropertyReference
     }
     out
   }
