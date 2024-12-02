@@ -54,14 +54,15 @@ class T1RocketTile(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
     .elements()
     .map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject].field("vrf"))
     .flatMap { vrf =>
-      val srams = vrf
+      val srams     = vrf
         .asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
         .field("srams")
         .asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
       srams.elements().map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]).map { sram =>
+        val hierarchy = Path.parse(sram.field("hierarchy").asInstanceOf[PanamaCIRCTOMEvaluatorValuePath].toString)
         SRAM(
-          moduleName =
-            Path.parse(sram.field("hierarchy").asInstanceOf[PanamaCIRCTOMEvaluatorValuePath].toString).module,
+          moduleName = hierarchy.module,
+          instanceName = hierarchy.instanceName,
           depth = sram.field("depth").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
           width = sram.field("width").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
           read = sram.field("read").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
@@ -92,10 +93,11 @@ class T1RocketTile(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
         .asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
         .elements()
         .map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject])
-        .map(sram =>
+        .map(sram => {
+          val hierarchy = Path.parse(sram.field("hierarchy").asInstanceOf[PanamaCIRCTOMEvaluatorValuePath].toString)
           SRAM(
-            moduleName =
-              Path.parse(sram.field("hierarchy").asInstanceOf[PanamaCIRCTOMEvaluatorValuePath].toString).module,
+            moduleName = hierarchy.module,
+            instanceName = hierarchy.instanceName,
             depth = sram.field("depth").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
             width = sram.field("width").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
             read = sram.field("read").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
@@ -107,7 +109,7 @@ class T1RocketTile(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
               .integer
               .toInt
           )
-        )
+        })
     )
     .distinct
 
