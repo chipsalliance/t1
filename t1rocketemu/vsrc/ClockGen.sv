@@ -5,8 +5,18 @@ module ClockGen(
   input  wire idle
 );
 
+  // plusargs: "T" denotes being present only if trace is enabled 
+  //   +t1_elf_file       (required)   path to elf file, parsed in DPI side
+  //   +t1_wave_path      (required T) path to wave dump file
+  //   +t1_timeout        (optional)   max cycle between two AXI DPI call, parsed in DPI side
+  //   +t1_global_timeout (optional)   max cycle for whole simulation, for debug only
+  //   +t1_timeout_after_quit (optional)
+  //   +t1_dump_start     (optional T) cycle when dump starts, by default it's simulation start, for debug only
+  //   +t1_dump_end       (optional T) cycle when dump ends, by default is's simulation end, for debug only
+
   longint unsigned cycle = 0;
   longint unsigned quit_cycle = 0;
+  longint unsigned global_timeout = 0;
   longint unsigned timeout_after_quit = 10000;
 `ifdef T1_ENABLE_TRACE
   longint unsigned dump_start = 0;
@@ -25,7 +35,18 @@ module ClockGen(
     $dumpvars(0);
   `endif
 
-  endfunction;
+  endfunction
+
+  function void dump_finish();
+
+  `ifdef VCS
+    $fsdbDumpFinish();
+  `endif
+  `ifdef VERILATOR
+    $dumpoff();
+  `endif
+
+  endfunction
 `endif
 
   import "DPI-C" context function void t1_cosim_init();
@@ -42,6 +63,7 @@ module ClockGen(
     $value$plusargs("t1_dump_end=%d", dump_end);
     $value$plusargs("t1_wave_path=%s", wave_path);
 `endif
+    $value$plusargs("t1_global_timeout=%d", global_timeout);
     $value$plusargs("t1_timeout_after_quit=%d", timeout_after_quit);
 
     // Args:
@@ -91,13 +113,16 @@ module ClockGen(
         end
       end
 
-    `ifdef T1_ENALBE_TRACE
+      if (cycle == global_timeout) begin
+        $fatal(1, "global timeout reached");
+      end
+
+    `ifdef T1_ENABLE_TRACE
       if (cycle == dump_start) begin
-        dump_wave();
+        dump_wave(wave_path);
       end
       if (cycle == dump_end) begin
-        // TODO: currently dump_end is actually timeout
-        $fatal(1, "dump_end reached");
+        dump_finish();
       end
     `endif
     end  
