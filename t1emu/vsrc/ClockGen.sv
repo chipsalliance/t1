@@ -1,6 +1,15 @@
 module ClockGen(output reg clock, output reg reset);
 
+  // plusargs: "T" denotes being present only if trace is enabled 
+  //   +t1_elf_file       (required)   path to elf file, parsed in DPI side
+  //   +t1_wave_path      (required T) path to wave dump file
+  //   +t1_timeout        (optional)   max cycle between two V inst retire, parsed in DPI side
+  //   +t1_global_timeout (optional)   max cycle for whole simulation, for debug only
+  //   +t1_dump_start     (optional T) cycle when dump starts, by default it's simulation start, for debug only
+  //   +t1_dump_end       (optional T) cycle when dump ends, by default is's simulation end, for debug only
+
   longint unsigned cycle = 0;
+  longint unsigned global_timeout = 0;
 `ifdef T1_ENABLE_TRACE
   longint unsigned dump_start = 0;
   longint unsigned dump_end = 0;
@@ -18,7 +27,18 @@ module ClockGen(output reg clock, output reg reset);
     $dumpvars(0);
   `endif
 
-  endfunction;
+  endfunction
+
+  function void dump_finish();
+
+  `ifdef VCS
+    $fsdbDumpFinish();
+  `endif
+  `ifdef VERILATOR
+    $dumpoff();
+  `endif
+
+  endfunction
 `endif
 
   import "DPI-C" context function void t1_cosim_init();
@@ -34,6 +54,7 @@ module ClockGen(output reg clock, output reg reset);
     $value$plusargs("t1_dump_end=%d", dump_end);
     $value$plusargs("t1_wave_path=%s", wave_path);
   `endif
+    $value$plusargs("t1_global_timeout=%d", global_timeout);
 
     t1_cosim_init();
 
@@ -65,13 +86,16 @@ module ClockGen(output reg clock, output reg reset);
         end
       end
 
-    `ifdef T1_ENALBE_TRACE
+      if (cycle == global_timeout) begin
+        $fatal(1, "global timeout reached");
+      end
+
+    `ifdef T1_ENABLE_TRACE
       if (cycle == dump_start) begin
-        dump_wave();
+        dump_wave(wave_path);
       end
       if (cycle == dump_end) begin
-        // TODO: currently dump_end is actually timeout
-        $fatal(1, "dump_end reached");
+        dump_finish();
       end
     `endif
     end  
