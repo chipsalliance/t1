@@ -44,7 +44,7 @@ impl OnlineArgs {
   }
 }
 
-// keep in sync with TestBench.ClockGen
+// keep in sync with TestBench.verbatimModule
 // the value is measured in simulation time unit
 pub const CYCLE_PERIOD: u64 = 20000;
 

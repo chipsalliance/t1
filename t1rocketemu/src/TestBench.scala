@@ -39,18 +39,18 @@ class TestBench(val parameter: T1RocketTileParameter)
   val om:         Property[ClassType]   = IO(Output(Property[omType.Type]()))
   om := omInstance.getPropertyReference
 
-  val clockGen               = Module(new ExtModule {
-    override def desiredName = "ClockGen"
+  val verbatimModule         = Module(new ExtModule {
+    override def desiredName = "VerbatimModule"
     val clock                = IO(Output(Bool()))
     val reset                = IO(Output(Bool()))
     val initFlag             = IO(Output(Bool()))
     val idle                 = IO(Input(Bool()))
   })
-  def clock                  = clockGen.clock.asClock
-  def reset                  = clockGen.reset
-  def initFlag               = clockGen.initFlag
-  override def implicitClock = clockGen.clock.asClock
-  override def implicitReset = clockGen.reset
+  def clock                  = verbatimModule.clock.asClock
+  def reset                  = verbatimModule.reset
+  def initFlag               = verbatimModule.initFlag
+  override def implicitClock = verbatimModule.clock.asClock
+  override def implicitReset = verbatimModule.reset
   val dut: Instance[T1RocketTile] = SerializableModuleGenerator(classOf[T1RocketTile], parameter).instance()
   omInstance.t1RocketTileIn := Property(dut.io.om.asAnyClassType)
 
@@ -303,7 +303,7 @@ class TestBench(val parameter: T1RocketTileParameter)
   }
 
   // t1 quit
-  clockGen.idle := t1Probe.idle && rocketProbe.idle
+  verbatimModule.idle := t1Probe.idle && rocketProbe.idle
 
   // t1rocket ProfData
   layer.block(layers.Verification) {

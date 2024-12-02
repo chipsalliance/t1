@@ -39,23 +39,23 @@ class TestBench(val parameter: T1Parameter)
   val om:         Property[ClassType]   = IO(Output(Property[omType.Type]()))
   om := omInstance.getPropertyReference
 
-  val clockGen = Module(new ExtModule {
+  val verbatimModule = Module(new ExtModule {
 
-    override def desiredName = "ClockGen"
+    override def desiredName = "VerbatimModule"
     val clock                = IO(Output(Bool()))
     val reset                = IO(Output(Bool()))
   })
-  def clock                  = clockGen.clock.asClock
-  def reset                  = clockGen.reset
-  override def implicitClock = clockGen.clock.asClock
-  override def implicitReset = clockGen.reset
+  def clock                  = verbatimModule.clock.asClock
+  def reset                  = verbatimModule.reset
+  override def implicitClock = verbatimModule.clock.asClock
+  override def implicitReset = verbatimModule.reset
   val dut: Instance[T1] = SerializableModuleGenerator(classOf[T1], parameter).instance()
 
   val simulationTime: UInt = RegInit(0.U(64.W))
   simulationTime := simulationTime + 1.U
 
-  dut.io.clock    := clockGen.clock.asClock
-  dut.io.reset    := clockGen.reset
+  dut.io.clock    := clock
+  dut.io.reset    := reset
   omInstance.t1In := Property(dut.io.om.asAnyClassType)
 
   // uint32_t -> svBitVecVal -> reference type with 7 length.
