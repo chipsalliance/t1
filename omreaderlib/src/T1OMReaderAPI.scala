@@ -52,7 +52,7 @@ object Path {
   implicit val rw:        ReadWriter[Instruction] = macroRW
   def parse(str: String): Path                    =
     str match {
-      case s"OMReferenceTarget:~${top}|${hier}>${local}" =>
+      case s"OMInstanceTarget:~${top}|${hier}>${local}" =>
         Path(
           top,
           hier
@@ -63,7 +63,7 @@ object Path {
             }),
           Some(local)
         )
-      case s"OMReferenceTarget:~${top}|${hier}"          =>
+      case s"OMInstanceTarget:~${top}|${hier}"          =>
         Path(
           top,
           hier
