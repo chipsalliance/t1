@@ -322,8 +322,12 @@ object SRAM {
     val numReadPorts      = readPortClocks.size
     val numWritePorts     = writePortClocks.size
     val numReadwritePorts = readwritePortClocks.size
-    val isVecMem          = evidenceOpt.isDefined
+    val enableMask        = evidenceOpt.isDefined
     val isValidSRAM       = ((numReadPorts + numReadwritePorts) > 0) && ((numWritePorts + numReadwritePorts) > 0)
+    val maskGranularity   = tpe match {
+      case vec: Vec[_] if enableMask => vec.sample_element.getWidth
+      case _ => 0
+    }
 
     if (!isValidSRAM) {
       val badMemory =
@@ -339,16 +343,13 @@ object SRAM {
     val mem = Instantiate(
       new SRAMBlackbox(
         new CIRCTSRAMParameter(
-          s"sram_${size}x${tpe.getWidth}",
+          s"sram_${numReadPorts}R_${numWritePorts}W_${numReadwritePorts}RW_${maskGranularity}M_${size}x${tpe.getWidth}",
           numReadPorts,
           numWritePorts,
           numReadwritePorts,
           size.intValue,
           tpe.getWidth,
-          tpe match {
-            case vec: Vec[_] if isVecMem => vec.sample_element.getWidth
-            case _ => 0
-          }
+          maskGranularity
         )
       )
     )
@@ -360,7 +361,7 @@ object SRAM {
     val includeMetadata = Builder.includeUtilMetadata
 
     val out = Wire(
-      new SRAMInterface(size, tpe, numReadPorts, numWritePorts, numReadwritePorts, isVecMem, includeMetadata)
+      new SRAMInterface(size, tpe, numReadPorts, numWritePorts, numReadwritePorts, enableMask, includeMetadata)
     )
 
     out.readPorts.zip(sramReadPorts).zip(readPortClocks).map { case ((intfReadPort, sramReadPort), readClock) =>
@@ -397,17 +398,11 @@ object SRAM {
       val descriptionInstance: Instance[SRAMDescription] = Instantiate(new SRAMDescription)
       descriptionInstance.depthIn           := Property(size)
       descriptionInstance.widthIn           := Property(tpe.getWidth)
-      descriptionInstance.maskedIn          := Property(isVecMem)
+      descriptionInstance.maskedIn          := Property(enableMask)
       descriptionInstance.readIn            := Property(numReadPorts)
       descriptionInstance.writeIn           := Property(numWritePorts)
       descriptionInstance.readwriteIn       := Property(numReadwritePorts)
-      descriptionInstance.maskGranularityIn := Property(
-        Option
-          .when(isVecMem)(tpe match {
-            case t: Vec[_] => t.sample_element.getWidth
-          })
-          .getOrElse(0)
-      )
+      descriptionInstance.maskGranularityIn := Property(maskGranularity)
       descriptionInstance.hierarchyIn       := Property(Path(mem.toTarget))
       description                           := descriptionInstance.getPropertyReference
     }
