@@ -1,5 +1,8 @@
-module ClockGen(output reg clock, output reg reset);
+module VerbatimModule(output reg clock, output reg reset);
 
+  // This module contains everything we can not represent in Chisel currently,
+  // including clock gen, plusarg parsing, sim control, etc
+  //
   // plusargs: "T" denotes being present only if trace is enabled 
   //   +t1_elf_file       (required)   path to elf file, parsed in DPI side
   //   +t1_wave_path      (required T) path to wave dump file
