@@ -81,7 +81,7 @@ object Path {
 case class Path(top: String, hierarchy: Seq[(String, String)], local: Option[String]) {
   def module:       String = hierarchy.last._2
   def path:         String = hierarchy.map(_._1).mkString(".")
-  def instanceName: String = hierarchy.last._1.split("_").head
+  def instanceName: String = hierarchy.last._1
 }
 
 /** Public Module under T1 should implement Modules below. */

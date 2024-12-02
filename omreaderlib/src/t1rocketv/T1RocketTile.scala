@@ -54,7 +54,7 @@ class T1RocketTile(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
     .elements()
     .map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject].field("vrf"))
     .flatMap { vrf =>
-      val srams     = vrf
+      val srams = vrf
         .asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
         .field("srams")
         .asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
