@@ -8,10 +8,14 @@
   "mlir.stripmining": 27810,
   "rvv_bench.ascii_to_utf16": 16070,
   "rvv_bench.ascii_to_utf32": 6057,
-  "rvv_bench.byteswap": 43274,
+  "rvv_bench.byteswap": 40424,
   "rvv_bench.memcpy": 46320,
   "rvv_bench.memset": 19350,
   "rvv_bench.mergelines": 38541,
   "rvv_bench.strlen": 34517,
-  "rvv_bench.utf8_count": 206417
+  "rvv_bench.utf8_count": 206417,
+  "eval.bitonic": 3552,
+  "eval.chaining": 2855,
+  "eval.memcpy": 1280,
+  "eval.ooo_wb": 1529
 }

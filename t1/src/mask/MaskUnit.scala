@@ -714,6 +714,7 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   val readIssueStageEnq:   Bool =
     (allDataValid || slideAddressGen.indexDeq.valid) &&
       (readTypeRequestDeq || !readIssueStageValid) && instVlValid && readType
+  val changeExecuteIndex:  Bool = Mux(readType, readIssueStageEnq, otherTypeRequestDeq && executeReady)
   slideAddressGen.indexDeq.ready := readTypeRequestDeq || !readIssueStageValid
   when(anyReadFire) {
     readIssueStageState.groupReadState := readStateUpdate
@@ -724,7 +725,7 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   }
 
   val executeIndexGrowth: UInt = (1.U << dataSplitSew).asUInt
-  when(requestStageDeq && anyDataValid) {
+  when(changeExecuteIndex && anyDataValid) {
     executeIndex := executeIndex + executeIndexGrowth
   }
   when(readIssueStageEnq) {
