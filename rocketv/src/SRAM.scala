@@ -346,7 +346,7 @@ object SRAM {
           size.intValue,
           tpe.getWidth,
           tpe match {
-            case vec: Vec[_] => vec.size
+            case vec: Vec[_] if isVecMem => vec.sample_element.getWidth
             case _ => 0
           }
         )
