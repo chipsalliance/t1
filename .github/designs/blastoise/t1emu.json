@@ -13,7 +13,7 @@
   "intrinsic.softmax": 7014,
   "rvv_bench.ascii_to_utf16": 11286,
   "rvv_bench.ascii_to_utf32": 4714,
-  "rvv_bench.byteswap": 20604,
+  "rvv_bench.byteswap": 20202,
   "rvv_bench.mandelbrot": 236313,
   "rvv_bench.memcpy": 34534,
   "rvv_bench.memset": 11501,
