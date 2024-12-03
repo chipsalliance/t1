@@ -436,12 +436,10 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   slideAddressGen.instructionReq := instReg
   slideAddressGen.slideMaskInput := cutUInt(v0.asUInt, parameter.laneNumber)(slideAddressGen.slideGroupOut)
 
-  val firstRequest:    Bool = RegInit(false.B)
-  val viotaCounterAdd: Bool = Wire(Bool())
-  val groupCounterAdd: Bool = Mux(noSource, viotaCounterAdd, exeRequestQueue.head.deq.fire && firstRequest)
-  when(exeRequestQueue.head.deq.fire || instReq.valid) {
-    firstRequest := exeRequestQueue.head.deq.fire
-  }
+  // change data group from lane
+  val lastExecuteGroupDeq: Bool = Wire(Bool())
+  val viotaCounterAdd:     Bool = Wire(Bool())
+  val groupCounterAdd:     Bool = Mux(noSource, viotaCounterAdd, lastExecuteGroupDeq)
   when(instReq.valid || groupCounterAdd) {
     requestCounter := Mux(instReq.valid, 0.U, requestCounter + 1.U)
   }
@@ -626,7 +624,6 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   val readWaitQueue: QueueIO[MaskUnitWaitReadQueue] = Queue.io(new MaskUnitWaitReadQueue(parameter), 64)
 
   // s0 pipe request from lane
-  val lastExecuteGroupDeq: Bool = Wire(Bool())
   exeRequestQueue.zip(exeReqReg).foreach { case (req, reg) =>
     req.deq.ready := !reg.valid || lastExecuteGroupDeq || viota
     when(req.deq.fire) {
@@ -710,10 +707,10 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   val otherTypeRequestDeq: Bool =
     Mux(noSource, noSourceValid, allDataValid) &&
       vs1DataValid && instVlValid && executeDeqReady
-  val requestStageDeq:     Bool = Mux(readType, readTypeRequestDeq, otherTypeRequestDeq && executeReady)
   val readIssueStageEnq:   Bool =
     (allDataValid || slideAddressGen.indexDeq.valid) &&
       (readTypeRequestDeq || !readIssueStageValid) && instVlValid && readType
+  val requestStageDeq:     Bool = Mux(readType, readIssueStageEnq, otherTypeRequestDeq && executeReady)
   slideAddressGen.indexDeq.ready := readTypeRequestDeq || !readIssueStageValid
   when(anyReadFire) {
     readIssueStageState.groupReadState := readStateUpdate
