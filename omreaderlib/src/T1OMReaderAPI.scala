@@ -12,7 +12,7 @@ object SRAM {
 /** The SRAM Module to be replaced. */
 case class SRAM(
   moduleName:      String,
-  instanceName:    String,
+  fullPath:        String,
   depth:           Int,
   width:           Int,
   read:            Int,
@@ -79,9 +79,8 @@ object Path {
 }
 
 case class Path(top: String, hierarchy: Seq[(String, String)], local: Option[String]) {
-  def module:       String = hierarchy.last._2
-  def path:         String = hierarchy.map(_._1).mkString(".")
-  def instanceName: String = hierarchy.last._1
+  def module: String = hierarchy.last._2
+  def path:   String = hierarchy.map(_._1).mkString(".")
 }
 
 /** Public Module under T1 should implement Modules below. */
