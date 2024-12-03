@@ -62,7 +62,7 @@ class T1RocketTile(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
         val hierarchy = Path.parse(sram.field("hierarchy").asInstanceOf[PanamaCIRCTOMEvaluatorValuePath].toString)
         SRAM(
           moduleName = hierarchy.module,
-          instanceName = hierarchy.instanceName,
+          fullPath = hierarchy.path,
           depth = sram.field("depth").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
           width = sram.field("width").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
           read = sram.field("read").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
@@ -97,7 +97,7 @@ class T1RocketTile(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
           val hierarchy = Path.parse(sram.field("hierarchy").asInstanceOf[PanamaCIRCTOMEvaluatorValuePath].toString)
           SRAM(
             moduleName = hierarchy.module,
-            instanceName = hierarchy.instanceName,
+            fullPath = hierarchy.path,
             depth = sram.field("depth").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
             width = sram.field("width").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
             read = sram.field("read").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
