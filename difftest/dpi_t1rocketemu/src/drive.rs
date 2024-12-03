@@ -135,9 +135,16 @@ impl Driver {
   }
 
   // data_width: AXI width (count in bits)
-  // return: Vec<u8> with len=bus_size
+  // return: Vec<u8> with len=bus_size*(arlen+1)
   // if size < bus_size, the result is padded due to AXI narrow transfer rules
-  pub(crate) fn axi_read(&mut self, addr: u32, arsize: u32, data_width: u32) -> Vec<u8> {
+  // if size < bus_size, arlen must be 0 (narrow burst is NOT supported)
+  pub(crate) fn axi_read(
+    &mut self,
+    addr: u32,
+    arsize: u32,
+    arlen: u32,
+    data_width: u32,
+  ) -> Vec<u8> {
     let bus_size = data_width / 8;
     let size = 1 << arsize;
 
@@ -146,13 +153,20 @@ impl Driver {
       "unaligned read addr={addr:#x} size={size}B dlen={bus_size}B"
     );
 
-    let mut data = vec![0; bus_size as usize];
+    assert!(
+      !(size < bus_size && arlen > 0),
+      "narrow burst not supported, axsize={arsize}, axlen={arlen}, data_width={data_width}"
+    );
+    let transaction_size = bus_size * (arlen + 1);
+
+    let mut data = vec![0; transaction_size as usize];
     if size < bus_size {
+      assert_eq!(arlen, 0);
       let start = (addr % bus_size) as usize;
       let end = start + (size as usize);
       self.addr_space.read_mem(addr, size, &mut data[start..end]);
     } else {
-      self.addr_space.read_mem(addr, size, &mut data);
+      self.addr_space.read_mem(addr, transaction_size, &mut data);
     }
     data
   }
