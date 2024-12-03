@@ -127,7 +127,7 @@ unsafe extern "C" fn axi_read_highBandwidthAXI(
     assert_eq!(data_width as u32, dlen);
     assert_eq!(arlen, 0);
 
-    let response = driver.axi_read(araddr as u32, arsize as u32, dlen);
+    let response = driver.axi_read(araddr as u32, arsize as u32, 0, dlen);
     fill_axi_read_payload(payload, dlen, &response);
 
     driver.update_commit_cycle();
@@ -195,7 +195,7 @@ unsafe extern "C" fn axi_read_highOutstandingAXI(
     assert_eq!(data_width, 32);
     assert_eq!(arlen, 0);
 
-    let response = driver.axi_read(araddr as u32, arsize as u32, 32);
+    let response = driver.axi_read(araddr as u32, arsize as u32, 0, 32);
     fill_axi_read_payload(payload, 32, &response);
 
     driver.update_commit_cycle();
@@ -269,7 +269,7 @@ unsafe extern "C" fn axi_read_loadStoreAXI(
     assert_eq!(data_width, 32);
     assert_eq!(arlen, 0);
 
-    let response = driver.axi_read(araddr as u32, arsize as u32, 32);
+    let response = driver.axi_read(araddr as u32, arsize as u32, 0, 32);
     fill_axi_read_payload(payload, 8 * 32, &response);
 
     driver.update_commit_cycle();
@@ -306,12 +306,12 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
   arprot={arprot}, arqos={arqos}, arregion={arregion})"
   );
   TARGET.with(|driver| {
-    assert_eq!(data_width, 256);
-    assert_eq!(arlen, 0);
+    assert_eq!(data_width, 32);
+    assert_eq!(arlen, 7);
 
     assert_eq!(8 * (1 << arsize), data_width);
 
-    let response = driver.axi_read(araddr as u32, arsize as u32, 256);
+    let response = driver.axi_read(araddr as u32, arsize as u32, arlen as u32, 32);
     fill_axi_read_payload(payload, 256, &response);
   });
 }
