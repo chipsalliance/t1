@@ -51,6 +51,8 @@ stdenv.mkDerivation rec {
     "assert"
     "-cm_dir"
     "./cm"
+    "-assert"
+    "enable_hier"
   ]
   ++ lib.optionals (!enableCover) [
     "-assert"
