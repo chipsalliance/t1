@@ -234,11 +234,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(parameter))))
 
-  /** CSR Interface. TODO: merge to [[laneRequest]]
-    */
-  @public
-  val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.vlMaxBits)))
-
   @public
   val maskUnitRequest: ValidIO[MaskUnitExeReq] = IO(Valid(new MaskUnitExeReq(parameter)))
 
@@ -325,6 +320,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // TODO: remove
   dontTouch(writeBusPort)
+  val csrInterface: CSRInterface = laneRequest.bits.csrInterface
 
   /** VRF instantces. */
   val vrf: Instance[VRF] = Instantiate(new VRF(parameter.vrfParam))
@@ -556,7 +552,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       record.laneRequest.decodeResult(Decoder.maskLogic)
 
     /** onehot value of SEW. */
-    val vSew1H: UInt = UIntToOH(record.csr.vSew)(2, 0)
+    val vSew1H: UInt = UIntToOH(record.laneRequest.csrInterface.vSew)(2, 0)
 
     /** if asserted, the element won't be executed. adc: vm = 0; madc: vm = 0 -> s0 + s1 + c, vm = 1 -> s0 + s1
       */
@@ -612,7 +608,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     laneState.lastGroupForInstruction  := record.lastGroupForInstruction
     laneState.isLastLaneForInstruction := record.isLastLaneForInstruction
     laneState.instructionFinished      := record.instructionFinished
-    laneState.csr                      := record.csr
+    laneState.csr                      := record.laneRequest.csrInterface
     laneState.maskType                 := record.laneRequest.mask
     laneState.maskNotMaskedElement     := !record.laneRequest.mask ||
       record.laneRequest.decodeResult(Decoder.maskSource) ||
@@ -944,7 +940,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
     maskSelectSew     := Mux1H(
       maskSelectArbitrator,
-      csrInterface.vSew +: slotControl.map(_.csr.vSew)
+      csrInterface.vSew +: slotControl.map(_.laneRequest.csrInterface.vSew)
     )
   }
 
@@ -955,8 +951,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val maskLogicCompleted: Bool =
     laneRequest.bits.decodeResult(Decoder.maskLogic) &&
       (laneIndex ## 0.U(parameter.datapathWidthBits.W) >= csrInterface.vl)
-  // latch CSR from V
-  entranceControl.csr := csrInterface
 
   entranceControl.laneRequest         := laneRequest.bits
   // TODO: in scalar core, raise illegal instruction exception when vstart is nonzero.
