@@ -47,6 +47,8 @@ stdenv.mkDerivation rec {
     "line+cond+fsm+tgl+branch+assert"
     "-cm_dir"
     "./cm"
+    "-assert"
+    "enable_hier"
   ]
   ++ lib.optionals enableTrace [
     "+define+T1_ENABLE_TRACE"
