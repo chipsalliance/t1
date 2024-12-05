@@ -1050,7 +1050,7 @@ class T1(val parameter: T1Parameter)
       val coverMatch = BoolSequence(
         requestReg.valid && requestReg.bits.issue.instruction === BitPat("b" + instruction.encoding.toString)
       )
-      CoverProperty(coverMatch, label = Some(s"1_${instruction.name}"))
+      CoverProperty(coverMatch, label = Some(s"${instruction.name}"))
     }
 
     // // coverage for two instructions

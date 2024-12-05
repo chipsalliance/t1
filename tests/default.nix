@@ -113,6 +113,7 @@ let
           mkdir -p $out/cases/${caseDrv.pname}
           cp ${caseDrv}/bin/${caseDrv.pname}.elf $out/cases/${caseDrv.pname}/
           cp ${caseDrv}/${caseDrv.pname}.json $out/configs/
+          cp ${caseDrv}/${caseDrv.pname}.cover $out/configs/
         '')
         allCases);
     in
