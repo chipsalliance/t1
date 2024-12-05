@@ -252,6 +252,9 @@ case class T1Parameter(
   // and the values are their respective delays.
   val crossLaneConnectCycles: Seq[Seq[Int]] = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
 
+  val laneRequestTokenSize:   Int      = 4
+  val laneRequestShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
+
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
 
   /** paraemter for AXI4. */
@@ -624,9 +627,21 @@ class T1(val parameter: T1Parameter)
     control
   }
 
-  /** lane is ready to receive new instruction. */
-  val laneReady:    Vec[Bool] = Wire(Vec(parameter.laneNumber, Bool()))
-  val allLaneReady: Bool      = laneReady.asUInt.andR
+  // Close to top
+  val laneRequestSourceWire: Vec[DecoupledIO[LaneRequest]] = Wire(
+    Vec(parameter.laneNumber, Decoupled(new LaneRequest(parameter.laneParam)))
+  )
+  // Close to lane
+  val laneRequestSinkWire:   Vec[DecoupledIO[LaneRequest]] = Wire(
+    Vec(parameter.laneNumber, Decoupled(new LaneRequest(parameter.laneParam)))
+  )
+
+  laneRequestSourceWire.zipWithIndex.foreach { case (source, index) =>
+    val sink = laneRequestSinkWire(index)
+    connectDecoupledWithShifter(parameter.laneRequestShifterSize(index), parameter.laneRequestTokenSize)(source, sink)
+  }
+
+  val allLaneReady: Bool = VecInit(laneRequestSourceWire.map(_.ready)).asUInt.andR
   // TODO: review later
   // todo: 把scheduler的反馈也加上,lsu有更高的优先级
 
@@ -688,48 +703,50 @@ class T1(val parameter: T1Parameter)
     requestReg.bits.issue.vl
   )
 
-  /** instantiate lanes. TODO: move instantiate to top of class.
-    */
-  val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber) { index =>
-    val lane: Instance[Lane] = Instantiate(new Lane(parameter.laneParam))
-    // lane.laneRequest.valid -> requestRegDequeue.ready -> lane.laneRequest.ready -> lane.laneRequest.bits
-    // TODO: this is harmful for PnR design, since it broadcast ready singal to each lanes, which will significantly
-    //       reduce the scalability for large number of lanes.
-    lane.laneRequest.valid                 := requestRegDequeue.fire && !noOffsetReadLoadStore && !maskUnitInstruction
+  laneRequestSourceWire.foreach { request =>
+    request.valid                 := requestRegDequeue.fire && !noOffsetReadLoadStore && !maskUnitInstruction
     // hard wire
-    lane.laneRequest.bits.instructionIndex := requestReg.bits.instructionIndex
-    lane.laneRequest.bits.decodeResult     := decodeResult
-    lane.laneRequest.bits.vs1              := requestRegDequeue.bits.instruction(19, 15)
-    lane.laneRequest.bits.vs2              := requestRegDequeue.bits.instruction(24, 20)
-    lane.laneRequest.bits.vd               := requestRegDequeue.bits.instruction(11, 7)
-    lane.laneRequest.bits.segment          := Mux(
+    request.bits.instructionIndex := requestReg.bits.instructionIndex
+    request.bits.decodeResult     := decodeResult
+    request.bits.vs1              := requestRegDequeue.bits.instruction(19, 15)
+    request.bits.vs2              := requestRegDequeue.bits.instruction(24, 20)
+    request.bits.vd               := requestRegDequeue.bits.instruction(11, 7)
+    request.bits.segment          := Mux(
       decodeResult(Decoder.nr),
       requestRegDequeue.bits.instruction(17, 15),
       requestRegDequeue.bits.instruction(31, 29)
     )
 
-    lane.laneRequest.bits.loadStoreEEW   := requestRegDequeue.bits.instruction(13, 12)
+    request.bits.loadStoreEEW   := requestRegDequeue.bits.instruction(13, 12)
     // if the instruction is vi and vx type of gather, gather from rs2 with mask VRF read channel from one lane,
     // and broadcast to all lanes.
-    lane.laneRequest.bits.readFromScalar := source1Select
+    request.bits.readFromScalar := source1Select
 
-    lane.laneRequest.bits.issueInst  := requestRegDequeue.fire
-    lane.laneRequest.bits.loadStore  := isLoadStoreType
+    request.bits.issueInst  := requestRegDequeue.fire
+    request.bits.loadStore  := isLoadStoreType
     // let record in VRF to know there is a store instruction.
-    lane.laneRequest.bits.store      := isStoreType
+    request.bits.store      := isStoreType
     // let lane know if this is a special instruction, which need group-level synchronization between lane and [[V]]
-    lane.laneRequest.bits.special    := specialInstruction
-    lane.laneRequest.bits.lsWholeReg := lsWholeReg
+    request.bits.special    := specialInstruction
+    request.bits.lsWholeReg := lsWholeReg
     // mask type instruction.
-    lane.laneRequest.bits.mask       := maskType
-    laneReady(index)                 := lane.laneRequest.ready
+    request.bits.mask       := maskType
 
     // connect csrInterface
-    lane.laneRequest.bits.csrInterface := requestRegCSR
+    request.bits.csrInterface      := requestRegCSR
     // index type EEW Decoded in the instruction
-    lane.laneRequest.bits.csrInterface.vSew := vSewSelect
-    lane.laneRequest.bits.csrInterface.vl   := evlForLane
-    lane.laneIndex                          := index.U
+    request.bits.csrInterface.vSew := vSewSelect
+    request.bits.csrInterface.vl   := evlForLane
+  }
+
+  /** instantiate lanes. TODO: move instantiate to top of class.
+    */
+  val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber) { index =>
+    val lane: Instance[Lane] = Instantiate(new Lane(parameter.laneParam))
+    lane.laneRequest.valid           := laneRequestSinkWire(index).valid && lane.vrfAllocateIssue
+    lane.laneRequest.bits            := laneRequestSinkWire(index).bits
+    laneRequestSinkWire(index).ready := lane.laneRequest.ready && lane.vrfAllocateIssue
+    lane.laneIndex                   := index.U
 
     // lsu 优先会有死锁:
     // vmadc, v1, v2, 1 (vl=17) -> 需要先读后写
@@ -899,7 +916,6 @@ class T1(val parameter: T1Parameter)
 
   /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
   val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
-  val vrfAllocate:    Bool = VecInit(laneVec.map(_.vrfAllocateIssue)).asUInt.andR
   // - ready to issue instruction
   // - for vi and vx type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
   //   and convert it to mv instruction.
@@ -908,7 +924,7 @@ class T1(val parameter: T1Parameter)
   //   we detect the hazard and decide should we issue this slide or
   //   issue the instruction after the slide which already in the slot.
   requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || maskUnit.io.gatherData.valid) &&
-    tokenManager.issueAllow && instructionIndexFree && vrfAllocate
+    tokenManager.issueAllow && instructionIndexFree
 
   instructionToSlotOH := Mux(requestRegDequeue.fire, slotToEnqueue, 0.U)
 
