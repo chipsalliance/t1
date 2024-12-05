@@ -724,11 +724,12 @@ class T1(val parameter: T1Parameter)
     lane.laneRequest.bits.mask       := maskType
     laneReady(index)                 := lane.laneRequest.ready
 
-    lane.csrInterface      := requestRegCSR
+    // connect csrInterface
+    lane.laneRequest.bits.csrInterface := requestRegCSR
     // index type EEW Decoded in the instruction
-    lane.csrInterface.vSew := vSewSelect
-    lane.csrInterface.vl   := evlForLane
-    lane.laneIndex         := index.U
+    lane.laneRequest.bits.csrInterface.vSew := vSewSelect
+    lane.laneRequest.bits.csrInterface.vl   := evlForLane
+    lane.laneIndex                          := index.U
 
     // lsu 优先会有死锁:
     // vmadc, v1, v2, 1 (vl=17) -> 需要先读后写
