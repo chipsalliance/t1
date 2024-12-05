@@ -138,6 +138,8 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   /** data of rs1 */
   val readFromScalar: UInt = UInt(param.datapathWidth.W)
 
+  val csrInterface: CSRInterface = new CSRInterface(param.vlMaxBits)
+
   // vmacc 的vd需要跨lane读 TODO: move to [[V]]
   def ma: Bool =
     decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).xorR && !decodeResult(Decoder.vwmacc)
@@ -219,10 +221,6 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
 
   /** Store request from [[T1]]. */
   val laneRequest: LaneRequest = new LaneRequest(param)
-
-  /** csr follows the instruction. TODO: move to [[laneRequest]]
-    */
-  val csr: CSRInterface = new CSRInterface(param.vlMaxBits)
 
   /** which group is the last group for instruction. */
   val lastGroupForInstruction: UInt = UInt(param.groupNumberBits.W)
