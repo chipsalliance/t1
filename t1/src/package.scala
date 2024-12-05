@@ -7,6 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
+import org.chipsalliance.dwbb.stdlib.queue.Queue
 import org.chipsalliance.t1.rtl.decoder.{Decoder, TableGenerator}
 import org.chipsalliance.t1.rtl.lane.Distributor
 
@@ -219,6 +220,35 @@ package object rtl {
     }
     sink := shifterReg.last
     id.map(f => (shifterReg :+ source).map(p => Mux(p.valid, indexToOH(f(p.bits), 4), 0.U)).reduce(_ | _))
+  }
+
+  def connectDecoupledWithShifter[T <: Data](latency: Int, tokenSize: Int)(source: DecoupledIO[T], sink: DecoupledIO[T])
+    : Unit = {
+    val queue       = Queue.io(chiselTypeOf(source.bits), tokenSize, flow = true)
+    // Reverse pipe release
+    val releasePipe = Pipe(
+      sink.fire,
+      0.U.asTypeOf(new EmptyBundle),
+      latency
+    ).valid
+    val tokenCheck: Bool = pipeToken(tokenSize)(source.fire, releasePipe)
+    source.ready := tokenCheck
+
+    // Complete the handshake at the source end and convert the result of the handshake into a data stream
+    val validSource: ValidIO[T] = Wire(Valid(chiselTypeOf(source.bits)))
+    validSource.valid := source.fire
+    validSource.bits  := source.bits
+
+    val validSink: ValidIO[T] = Wire(Valid(chiselTypeOf(source.bits)))
+
+    // Shift Data
+    connectWithShifter(latency)(validSource, validSink)
+    // Throw the moved data into the queue
+    // todo: assert(queue.enq.ready || !queue.enq.valid)
+    queue.enq.valid := validSink.valid
+    queue.enq.bits  := validSink.bits
+    // Finally, send the data to the sink
+    sink <> queue.deq
   }
 
   def instantiateVFU(
