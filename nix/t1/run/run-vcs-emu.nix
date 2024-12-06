@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC, zstd, jq, offline-checker }:
+{ lib, stdenvNoCC, zstd, jq, offline-checker, snps-fhs-env }:
 
 { emulator
 , dpilib ? null
@@ -89,8 +89,10 @@ stdenvNoCC.mkDerivation (finalAttr: {
     fi
 
     ${lib.optionalString emulator.enableCover ''
-      cp -v cm.log "$out"
-      cp -vr cm.vdb "$out"
+      ${snps-fhs-env}/bin/snps-fhs-env -c "urg -dir cm.vdb -format text -metric assert -show summary"
+      # TODO: add a flag to specify 'vdb only generated in ci mode'
+      cp -vr cm.vdb $out/
+      cp -vr urgReport $out/
     ''}
 
     ${lib.optionalString emulator.enableTrace ''

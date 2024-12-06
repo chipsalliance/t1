@@ -274,11 +274,45 @@ object Main:
     Logger.info("Driver finished")
 
     if isCover then
-      if os.exists(os.pwd / "cm.vdb") && os.exists(os.pwd / "cm.log") then
-        os.move(os.pwd / "cm.vdb", outputPath / "cm.vdb", replaceExisting = true)
-        os.move(os.pwd / "cm.log", outputPath / "cm.log", replaceExisting = true)
-        Logger.info(s"Coverage database saved under ${outputPath}/cm.vdb")
-      else if !finalEmuType.get.startsWith("verilator-emu") then Logger.error("No cm.vdb cm.log found")
+      if os.exists(os.pwd / "cm.vdb") then
+        Logger.info(s"Coverage database saved under ${os.pwd}/cm.vdb")
+
+        val snpsArgs = Seq(
+          "nix",
+          "run",
+          ".#snps-fhs-env",
+          "--impure",
+          "--",
+        )
+        val urgArgs = Seq(
+          "urg",
+          "-dir",
+          s"${os.pwd}/cm.vdb",
+          "-format", 
+          "text",
+          "-metric",
+          "assert",
+          "-show",
+          "summary"
+        )
+        Logger.info(s"Starting Urg Report: `${urgArgs.mkString(" ")}`")
+        val urgProc = os.proc(snpsArgs ++ urgArgs)
+          .spawn(
+            stdout = os.Inherit,
+            stderr = os.Inherit
+          )
+        urgProc.join(-1)
+        if urgProc.exitCode() != 0 then Logger.fatal("urg report run failed")
+
+        Logger.info("Urg Report finished")
+
+      else if !finalEmuType.get.startsWith("verilator-emu") then Logger.error("No cm.vdb found")
+
+
+      if os.exists(os.pwd / "urgReport") then
+        os.move(os.pwd / "urgReport", outputPath / "urgReport", replaceExisting = true)
+        Logger.info(s"Coverage database saved under ${outputPath}/urgReport")
+      else if !finalEmuType.get.startsWith("verilator-emu") then Logger.error("No urgReport found")
 
     if os.exists(os.pwd / "perf.json") then
       os.move(os.pwd / "perf.json", outputPath / "perf.json", replaceExisting = true)
