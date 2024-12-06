@@ -4,16 +4,23 @@
 , verilator-emu
 , verilator-emu-trace
 , vcs-emu
+, vcs-emu-rtlink
 , vcs-emu-cover
 , vcs-emu-trace
+, vcs-dpi-lib
 , cases
 , configName
 , topName
 }:
 let
   runVerilatorEmu = callPackage ./run-verilator-emu.nix { };
-  runVCSEmu = callPackage ./run-vcs-emu.nix { };
+  runVCSEmu_ = callPackage ./run-vcs-emu.nix { };
   runFsdb2vcd = callPackage ./run-fsdb2vcd.nix { };
+  runVCSEmu = emulator: runVCSEmu_ { inherit emulator; };
+  runVCSEmuRT = emulator: runVCSEmu_ {
+    inherit emulator;
+    dpilib = vcs-dpi-lib;
+  };
 
   # cases is now { mlir = { hello = ...; ...  }; ... }
   emuAttrs = lib.pipe cases [
@@ -32,7 +39,7 @@ let
           innerMapper = caseName: case: {
             verilator-emu = runVerilatorEmu verilator-emu case;
             verilator-emu-trace = runVerilatorEmu verilator-emu-trace case;
-            vcs-emu = runVCSEmu vcs-emu case;
+            vcs-emu = runVCSEmuRT vcs-emu-rtlink case;
             vcs-emu-cover = runVCSEmu vcs-emu-cover case;
             vcs-emu-trace = runVCSEmu vcs-emu-trace case;
             vcs-prof-vcd = runFsdb2vcd (runVCSEmu vcs-emu-trace case);

@@ -1,6 +1,12 @@
 { lib, stdenvNoCC, zstd, jq, offline-checker }:
-emulator:
+
+{ emulator
+, dpilib ? null
+}:
+
 testCase:
+
+assert lib.assertMsg (!emulator.isRuntimeLoad || (dpilib != null)) "dpilib must be set for rtlink emu";
 
 stdenvNoCC.mkDerivation (finalAttr: {
   name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enableTrace "-trace");
@@ -13,6 +19,7 @@ stdenvNoCC.mkDerivation (finalAttr: {
     mkdir -p "$out"
 
     emuDriverArgsArray=(
+      ${lib.optionalString emulator.isRuntimeLoad "-sv_root ${dpilib}/lib -sv_lib ${dpilib.svLibName}"}
       "-exitstatus"
       "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
       ${lib.optionalString emulator.enableTrace "+t1_wave_path=${testCase.pname}.fsdb"}
