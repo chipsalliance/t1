@@ -150,6 +150,10 @@ forEachTop (topName: generator: self: {
     vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
     vcsLinkLibs = [ "${self.vcs-dpi-lib}/lib/libdpi_${topName}.a" ];
   };
+  vcs-emu-cover = self.vcs-emu.override {
+    enableCover = true;
+    mainProgram = "${topName}-vcs-cover-simulator";
+  };
   vcs-emu-trace = self.vcs-emu.override {
     enableTrace = true;
     mainProgram = "${topName}-vcs-trace-simulator";

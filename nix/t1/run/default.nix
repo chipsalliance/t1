@@ -4,6 +4,7 @@
 , verilator-emu
 , verilator-emu-trace
 , vcs-emu
+, vcs-emu-cover
 , vcs-emu-trace
 , cases
 , configName
@@ -32,6 +33,7 @@ let
             verilator-emu = runVerilatorEmu verilator-emu case;
             verilator-emu-trace = runVerilatorEmu verilator-emu-trace case;
             vcs-emu = runVCSEmu vcs-emu case;
+            vcs-emu-cover = runVCSEmu vcs-emu-cover case;
             vcs-emu-trace = runVCSEmu vcs-emu-trace case;
             vcs-prof-vcd = runFsdb2vcd (runVCSEmu vcs-emu-trace case);
           };
@@ -84,7 +86,7 @@ let
     in
     runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
 
-  _vcsEmuResult = runCommand "get-vcs-emu-result" { __noChroot = true; emuOutput = _getAllResult "vcs-emu"; } ''
+  _vcsEmuResult = runCommand "get-vcs-emu-result" { __noChroot = true; emuOutput = _getAllResult "vcs-emu-cover"; } ''
     cp -vr $emuOutput $out
     chmod -R u+w $out
 

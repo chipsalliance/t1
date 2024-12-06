@@ -7,6 +7,7 @@
 { mainProgram
 , rtl
 , vsrc
+, enableCover ? false
 , enableTrace ? false
 , vcsLinkLibs ? [ ]
 , topModule ? null
@@ -23,7 +24,6 @@ stdenv.mkDerivation rec {
   # require license
   __noChroot = true;
   dontPatchELF = true;
-  enableCover = true;
 
   dontUnpack = true;
 
@@ -48,12 +48,14 @@ stdenv.mkDerivation rec {
     "-cm_dir"
     "./cm"
   ]
+  ++ lib.optionals (!enableCover) [
+    "-assert"
+    "disable_cover"
+  ]
   ++ lib.optionals enableTrace [
     "+define+T1_ENABLE_TRACE"
     "-debug_access+pp+dmptf+thread"
     "-kdb=common_elab,hgldd_all"
-    "-assert"
-    "disable_cover"
   ]
   ++ vcsLinkLibs;
 
@@ -71,7 +73,7 @@ stdenv.mkDerivation rec {
   '';
 
   passthru = {
-    inherit snps-fhs-env enableTrace;
+    inherit snps-fhs-env enableTrace enableCover;
   };
 
   shellHook = ''
