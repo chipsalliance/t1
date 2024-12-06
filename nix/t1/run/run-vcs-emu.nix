@@ -88,7 +88,6 @@ stdenvNoCC.mkDerivation (finalAttr: {
 
     ${lib.optionalString emulator.enableTrace ''
       cp -v ${testCase.pname}.fsdb "$out"
-      cp -vr ${emulator}/lib/${emulator.mainProgram}.daidir "$out"
     ''}
   '';
 })
