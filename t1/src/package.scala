@@ -251,6 +251,60 @@ package object rtl {
     sink <> queue.deq
   }
 
+  def maskUnitReadArbitrate[T <: Data](source: Vec[DecoupledIO[T]]): DecoupledIO[T] = {
+    require(source.size == 2)
+    val maskRead = source.head
+    val lsuRead  = source.last
+    val sinkWire: DecoupledIO[T] = Wire(Decoupled(chiselTypeOf(maskRead.bits)))
+    val maskUnitFirst = RegInit(false.B)
+    val tryToRead     = maskRead.valid || lsuRead.valid
+    when(tryToRead && !sinkWire.fire) {
+      maskUnitFirst := !maskUnitFirst
+    }
+
+    sinkWire.valid := Mux(
+      maskUnitFirst,
+      maskRead.valid,
+      lsuRead.valid
+    )
+    sinkWire.bits  :=
+      Mux(maskUnitFirst, maskRead.bits, lsuRead.bits)
+    lsuRead.ready  := sinkWire.ready && !maskUnitFirst
+    maskRead.ready := sinkWire.ready && maskUnitFirst
+    sinkWire
+  }
+
+  def connectVrfAccess[T <: Data](
+    latencyVec:     Seq[Int],
+    tokenSizeVec:   Seq[Int],
+    vrfReadLatency: Option[Int]
+  )(sourceVec:      Vec[DecoupledIO[T]],
+    sink:           DecoupledIO[T],
+    arb:            Int,
+    dataAck:        Option[UInt] = None,
+    dataToSource:   Option[Seq[ValidIO[UInt]]] = None
+  ): Unit = {
+    val sinkVec: Vec[DecoupledIO[T]] = VecInit(sourceVec.zipWithIndex.map { case (source, index) =>
+      val sinkWire: DecoupledIO[T] = Wire(Decoupled(chiselTypeOf(source.bits)))
+      connectDecoupledWithShifter(latencyVec(index), tokenSizeVec(index))(source, sinkWire)
+      sinkWire
+    })
+    if (arb == 0) {
+      sink <> maskUnitReadArbitrate(sinkVec)
+    }
+    dataToSource.foreach { sourceDataVec =>
+      require(dataAck.isDefined)
+      sourceDataVec.zipWithIndex.foreach { case (sourceData, index) =>
+        val sinkRequest      = sinkVec(index)
+        val accessDataValid  = Pipe(sinkRequest.fire, 0.U.asTypeOf(new EmptyBundle), vrfReadLatency.get).valid
+        val accessDataSource = Wire(Valid(chiselTypeOf(dataAck.get)))
+        accessDataSource.valid := accessDataValid
+        accessDataSource.bits  := accessDataValid
+        connectWithShifter(latencyVec(index))(accessDataSource, sourceData)
+      }
+    }
+  }
+
   def instantiateVFU(
     parameter:          VFUInstantiateParameter
   )(requestVec:         Vec[SlotRequestToVFU],

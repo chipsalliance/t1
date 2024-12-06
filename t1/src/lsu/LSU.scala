@@ -150,7 +150,7 @@ class LSU(param: LSUParameter) extends Module {
   /** hard wire form Top. TODO: merge to [[vrfReadDataPorts]]
     */
   @public
-  val vrfReadResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
+  val vrfReadResults: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]]. */
   @public
@@ -250,7 +250,8 @@ class LSU(param: LSUParameter) extends Module {
   otherUnit.vrfReadDataPorts.ready := (otherTryReadVrf & VecInit(vrfReadDataPorts.map(_.ready)).asUInt).orR
   val pipeOtherRead:   ValidIO[UInt] =
     Pipe(otherUnit.vrfReadDataPorts.fire, otherUnit.status.targetLane, param.vrfReadLatency)
-  otherUnit.vrfReadResults.bits  := Mux1H(pipeOtherRead.bits, vrfReadResults)
+  // todo: read data reorder
+  otherUnit.vrfReadResults.bits  := Mux1H(pipeOtherRead.bits, vrfReadResults.map(_.bits))
   otherUnit.vrfReadResults.valid := pipeOtherRead.valid
 
   // write vrf
