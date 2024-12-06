@@ -39,9 +39,9 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   /** hard wire form Top. see [[LSU.vrfReadResults]]
     */
   @public
-  val vrfReadResults:  Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
+  val vrfReadResults:  Vec[ValidIO[UInt]] = IO(Input(Vec(param.laneNumber, Valid(UInt(param.datapathWidth.W)))))
   @public
-  val vrfReadyToStore: Bool      = IO(Input(Bool()))
+  val vrfReadyToStore: Bool               = IO(Input(Bool()))
   @public
   val storeResponse = IO(Input(Bool()))
 
@@ -73,6 +73,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       val readCount: UInt                        = RegInit(0.U(dataGroupBits.W))
       val stageValid = RegInit(false.B)
       // queue for read latency
+      // todo: param.vrfReadLatency => param.vrfReadLatency + shifterLatency
       val queue: QueueIO[UInt] =
         Queue.io(UInt(param.datapathWidth.W), param.vrfReadLatency, flow = true)
 
@@ -114,12 +115,9 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       readPort.bits.offset           := readCount
       readPort.bits.instructionIndex := lsuRequestReg.instructionIndex
 
-      // pipe read fire
-      val readResultFire = Pipe(readPort.fire, 0.U.asTypeOf(new EmptyBundle), param.vrfReadLatency).valid
-
       // latency queue enq
-      queue.enq.valid := readResultFire
-      queue.enq.bits  := vrfReadResults(laneIndex)
+      queue.enq.valid := vrfReadResults(laneIndex).valid
+      queue.enq.bits  := vrfReadResults(laneIndex).bits
       AssertProperty(BoolSequence(!queue.enq.valid || queue.enq.ready))
       vrfReadQueueVec(laneIndex).enq <> queue.deq
       stageValid || RegNext(readPort.fire)
