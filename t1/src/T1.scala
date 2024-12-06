@@ -255,6 +255,12 @@ case class T1Parameter(
   val laneRequestTokenSize:   Int      = 4
   val laneRequestShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
 
+  val maskUnitReadTokenSize:   Seq[Int] = Seq.tabulate(laneNumber)(_ => 4)
+  val maskUnitReadShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
+
+  val lsuReadTokenSize:   Seq[Int] = Seq.tabulate(laneNumber)(_ => 4)
+  val lsuReadShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
+
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
 
   /** paraemter for AXI4. */
@@ -748,29 +754,17 @@ class T1(val parameter: T1Parameter)
     laneRequestSinkWire(index).ready := lane.laneRequest.ready && lane.vrfAllocateIssue
     lane.laneIndex                   := index.U
 
-    // lsu 优先会有死锁:
-    // vmadc, v1, v2, 1 (vl=17) -> 需要先读后写
-    // vse32.v v1, (a0) -> 依赖上一条,但是会先发出read
-
-    // Mask priority will also be
-    // vse32.v v19, (a0)
-    // vfslide1down.vf v19, v10, x1
-    val maskUnitFirst = RegInit(false.B)
-    val tryToRead     = lsu.vrfReadDataPorts(index).valid || maskUnit.io.readChannel(index).valid
-    when(tryToRead && !lane.vrfReadAddressChannel.fire) {
-      maskUnitFirst := !maskUnitFirst
-    }
-    lane.vrfReadAddressChannel.valid := Mux(
-      maskUnitFirst,
-      maskUnit.io.readChannel(index).valid,
-      lsu.vrfReadDataPorts(index).valid
+    connectVrfAccess(
+      Seq(parameter.maskUnitReadShifterSize(index), parameter.lsuReadShifterSize(index)),
+      Seq(parameter.maskUnitReadTokenSize(index), parameter.lsuReadTokenSize(index)),
+      Some(parameter.vrfReadLatency)
+    )(
+      VecInit(Seq(maskUnit.io.readChannel(index), lsu.vrfReadDataPorts(index))),
+      lane.vrfReadAddressChannel,
+      0,
+      Some(lane.vrfReadDataChannel),
+      Some(Seq(maskUnit.io.readResult(index), lsu.vrfReadResults(index)))
     )
-    lane.vrfReadAddressChannel.bits      :=
-      Mux(maskUnitFirst, maskUnit.io.readChannel(index).bits, lsu.vrfReadDataPorts(index).bits)
-    lsu.vrfReadDataPorts(index).ready    := lane.vrfReadAddressChannel.ready && !maskUnitFirst
-    maskUnit.io.readChannel(index).ready := lane.vrfReadAddressChannel.ready && maskUnitFirst
-    maskUnit.io.readResult(index)        := lane.vrfReadDataChannel
-    lsu.vrfReadResults(index)            := lane.vrfReadDataChannel
 
     val maskTryToWrite = maskUnit.io.exeResp(index)
     // lsu & mask unit write lane

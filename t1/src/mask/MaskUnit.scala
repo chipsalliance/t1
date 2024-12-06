@@ -67,7 +67,7 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
       )
     )
   )
-  val readResult:        Vec[UInt]                        = Flipped(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
+  val readResult:        Vec[ValidIO[UInt]]               = Flipped(Vec(parameter.laneNumber, Valid(UInt(parameter.datapathWidth.W))))
   val writeRD:           ValidIO[UInt]                    = Valid(UInt(parameter.datapathWidth.W))
   val lastReport:        UInt                             = Output(UInt((2 * parameter.chainingSize).W))
   val lsuMaskInput:      Vec[UInt]                        = Output(Vec(parameter.lsuMSHRSize, UInt(parameter.maskGroupWidth.W)))
@@ -795,7 +795,7 @@ class MaskUnit(val parameter: T1Parameter)
     val dataOffset: UInt = Mux1H(readResultSelect, pipeDataOffset)
     readTokenRelease(index) := readDataQueue.deq.fire
     readDataQueue.enq.valid := readResultSelect.orR
-    readDataQueue.enq.bits  := Mux1H(readResultSelect, readResult) >> (dataOffset ## 0.U(3.W))
+    readDataQueue.enq.bits  := Mux1H(readResultSelect, readResult.map(_.bits)) >> (dataOffset ## 0.U(3.W))
     readDataQueue.deq
   }
 
