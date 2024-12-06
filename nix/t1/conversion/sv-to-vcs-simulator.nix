@@ -15,7 +15,6 @@
 
 assert lib.assertMsg (builtins.typeOf vsrc == "list") "vsrc should be a list of file path";
 assert lib.assertMsg (builtins.typeOf vcsLinkLibs == "list") "vcsLinkLibs should be list of strings";
-assert lib.assertMsg (builtins.length vcsLinkLibs > 0) "vcsLinkLibs should contain at least one static library path to link";
 
 stdenv.mkDerivation rec {
   name = mainProgram;
@@ -74,6 +73,9 @@ stdenv.mkDerivation rec {
 
   passthru = {
     inherit snps-fhs-env enableTrace enableCover;
+
+    # DPI library should be loaded at runtime through "-sv_lib"
+    isRuntimeLoad = (builtins.length vcsLinkLibs == 0);
   };
 
   shellHook = ''

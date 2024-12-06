@@ -55,6 +55,9 @@ rustPlatform.buildRustPackage {
   '';
 
   passthru = {
+    # include "lib" prefix, without ".so" suffix, for "-sv_lib" option
+    svLibName = "lib${moduleType}";
+
     dpiLibPath = "/lib/libdpi_${moduleType}.a";
   };
 }
