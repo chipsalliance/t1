@@ -191,7 +191,7 @@ object Main:
       )
 
     val isTrace = finalEmuType.get.contains("-trace")
-    val isCover = true
+    val isCover = finalEmuType.get.contains("-cover")
 
     val finalConfig = tryRestoreFromCache("config", config)
     if finalConfig.isEmpty then
