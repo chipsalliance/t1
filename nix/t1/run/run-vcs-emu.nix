@@ -1,4 +1,11 @@
-{ lib, stdenvNoCC, zstd, jq, offline-checker, snps-fhs-env }:
+{ lib
+, stdenvNoCC
+, zstd
+, jq
+, offline-checker
+, snps-fhs-env
+, writeShellScriptBin
+}:
 
 { emulator
 , dpilib ? null
@@ -8,26 +15,55 @@ testCase:
 
 assert lib.assertMsg (!emulator.isRuntimeLoad || (dpilib != null)) "dpilib must be set for rtlink emu";
 
-stdenvNoCC.mkDerivation (finalAttr: {
+stdenvNoCC.mkDerivation (rec {
   name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enableTrace "-trace");
   nativeBuildInputs = [ zstd jq ];
   __noChroot = true;
 
-  passthru.caseName = testCase.pname;
+  passthru = {
+    caseName = testCase.pname;
+
+    # to open 'profileReport.html' in firefox,
+    # set 'security.fileuri.strict_origin_policy = false' in 'about:config'
+    profile = writeShellScriptBin "runSimProfile" ''
+      ${emuDriver} \
+        ${lib.escapeShellArgs emuDriverArgs} \
+        -simprofile time \
+        2> ${testCase.pname}-rtl-event.jsonl
+    '';
+  };
+
+  emuDriver = "${emulator}/bin/${emulator.mainProgram}";
+  emuDriverArgs = lib.optionals emulator.isRuntimeLoad [
+    "-sv_root"
+    "${dpilib}/lib"
+    "-sv_lib"
+    "${dpilib.svLibName}"
+  ]
+  ++ [
+    "-exitstatus"
+    "-assert"
+    "global_finish_maxfail=10000"
+    "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+  ]
+  ++ lib.optionals emulator.enableCover [
+    "-cm"
+    "assert"
+  ]
+  ++ lib.optionals emulator.enableTrace [
+    "+t1_wave_path=${testCase.pname}.fsdb"
+  ];
 
   buildCommand = ''
+    ${lib.optionalString emulator.enableProfile ''
+      echo "ERROR: 'enableProfile = true' is inherently nondetermistic"
+      echo "  use 'nix run <...>.profile --impure' instead" 
+      exit 1
+    ''}
+
     mkdir -p "$out"
 
-    emuDriverArgsArray=(
-      ${lib.optionalString emulator.isRuntimeLoad "-sv_root ${dpilib}/lib -sv_lib ${dpilib.svLibName}"}
-      "-exitstatus"
-      "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-      ${lib.optionalString emulator.enableTrace "+t1_wave_path=${testCase.pname}.fsdb"}
-      ${lib.optionalString emulator.enableCover "-cm assert"}
-      "-assert global_finish_maxfail=10000"
-    )
-    emuDriverArgs="''${emuDriverArgsArray[@]}"
-    emuDriver="${emulator}/bin/${emulator.mainProgram}"
+    emuDriverArgs="${lib.escapeShellArgs emuDriverArgs}"
 
     rtlEventOutPath="$out/${testCase.pname}-rtl-event.jsonl"
 
