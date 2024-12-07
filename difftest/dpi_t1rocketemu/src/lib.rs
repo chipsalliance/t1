@@ -17,7 +17,7 @@ pub(crate) struct OnlineArgs {
   pub timeout: u64,
 }
 
-const TIMEOUT_DEFAULT: u64 = 100000000;
+const TIMEOUT_DEFAULT: u64 = 1000000;
 
 impl OnlineArgs {
   pub fn from_plusargs(matcher: &PlusArgMatcher) -> Self {
