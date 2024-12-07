@@ -109,4 +109,3 @@ jobs:
           echo "Report Short link URL:" > $GITHUB_STEP_SUMMARY
           echo "$(curl -Fc=@report.md -Fe=1M https://shz.al | jq -r .url)?lang=md" >> $GITHUB_STEP_SUMMARY
           echo -e "\n\n" >> $GITHUB_STEP_SUMMARY
-          cat report.md >> $GITHUB_STEP_SUMMARY
