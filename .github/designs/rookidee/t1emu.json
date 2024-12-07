@@ -1,17 +1,17 @@
 {
   "asm.mmm": 54912,
   "asm.smoke": 7770,
-  "intrinsic.conv2d_less_m2": 2710,
+  "intrinsic.conv2d_less_m2": 2754,
   "mlir.hello": 136,
   "mlir.rvv_vp_intrinsic_add": 442,
   "mlir.rvv_vp_intrinsic_add_scalable": 637,
   "mlir.stripmining": 27810,
-  "rvv_bench.ascii_to_utf16": 16070,
-  "rvv_bench.ascii_to_utf32": 6057,
-  "rvv_bench.byteswap": 42058,
-  "rvv_bench.memcpy": 46320,
+  "rvv_bench.ascii_to_utf16": 16216,
+  "rvv_bench.ascii_to_utf32": 6105,
+  "rvv_bench.byteswap": 42413,
+  "rvv_bench.memcpy": 47572,
   "rvv_bench.memset": 19350,
-  "rvv_bench.mergelines": 38541,
-  "rvv_bench.strlen": 34517,
-  "rvv_bench.utf8_count": 206417
+  "rvv_bench.mergelines": 38597,
+  "rvv_bench.strlen": 35550,
+  "rvv_bench.utf8_count": 206423
 }
