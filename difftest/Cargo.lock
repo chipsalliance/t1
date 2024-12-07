@@ -320,6 +320,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "offline_common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "num-bigint",
+ "serde",
+ "serde_json",
+ "spike_rs",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "offline_t1emu"
 version = "0.1.0"
 dependencies = [
@@ -327,6 +341,7 @@ dependencies = [
  "clap",
  "libloading",
  "num-bigint",
+ "offline_common",
  "serde",
  "serde_json",
  "spike_rs",
@@ -343,6 +358,7 @@ dependencies = [
  "clap",
  "libloading",
  "num-bigint",
+ "offline_common",
  "serde",
  "serde_json",
  "spike_rs",
@@ -507,10 +523,8 @@ name = "spike_rs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
  "libc",
  "tracing",
- "tracing-subscriber",
  "xmas-elf",
 ]
 

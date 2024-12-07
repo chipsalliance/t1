@@ -5,9 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-clap = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 
 libc = "0.2.155"
 xmas-elf = "0.9.1"

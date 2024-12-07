@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use spike_rs::runner::SpikeRunner;
 use spike_rs::runner::{SpikeArgs, MEM_SIZE};
 use spike_rs::spike_event::MemAccessRecord;
@@ -7,7 +9,6 @@ use tracing::{debug, error, info, trace};
 
 use crate::dpi::*;
 use crate::get_t;
-use crate::OnlineArgs;
 use svdpi::SvScope;
 
 struct ShadowMem {
@@ -95,6 +96,23 @@ impl ShadowMem {
   }
 }
 
+pub(crate) struct OnlineArgs {
+  /// Path to the ELF file
+  pub elf_file: String,
+
+  /// Path to the log file
+  pub log_file: Option<String>,
+
+  /// vlen config
+  pub vlen: u32,
+
+  /// dlen config
+  pub dlen: u32,
+
+  /// ISA config
+  pub spike_isa: String,
+}
+
 pub(crate) struct Driver {
   spike_runner: SpikeRunner,
 
@@ -118,15 +136,15 @@ pub(crate) struct Driver {
 
 impl Driver {
   pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
+    let elf_file = Path::new(&args.elf_file);
     let mut self_ = Self {
       spike_runner: SpikeRunner::new(
         &SpikeArgs {
-          elf_file: args.elf_file.clone(),
-          log_file: args.log_file.clone(),
-          log_level: "info".to_string(),
+          elf_file: elf_file.to_owned(),
+          log_file: args.log_file.as_ref().map(From::from),
           vlen: args.vlen,
           dlen: args.dlen,
-          set: args.set.clone(),
+          set: args.spike_isa.clone(),
         },
         false,
       ),
@@ -135,16 +153,16 @@ impl Driver {
       success: false,
 
       dlen: args.dlen,
-      timeout: args.timeout,
+      timeout: 0,
       last_commit_cycle: 0,
 
       issued: 0,
       vector_lsu_count: 0,
       shadow_mem: ShadowMem::new(),
     };
-    self_.spike_runner.load_elf(&args.elf_file).unwrap();
+    self_.spike_runner.load_elf(elf_file).unwrap();
 
-    load_elf_to_buffer(&mut self_.shadow_mem.mem, &args.elf_file).unwrap();
+    load_elf_to_buffer(&mut self_.shadow_mem.mem, elf_file).unwrap();
     self_
   }
 
@@ -204,6 +222,10 @@ impl Driver {
     );
   }
 
+  pub(crate) fn set_timeout(&mut self, timeout: u64) {
+    self.timeout = timeout;
+  }
+
   pub(crate) fn watchdog(&mut self) -> u8 {
     let tick = get_t();
 
@@ -212,7 +234,7 @@ impl Driver {
       return WATCHDOG_QUIT;
     }
 
-    if tick - self.last_commit_cycle > self.timeout {
+    if self.timeout > 0 && tick - self.last_commit_cycle > self.timeout {
       error!(
         "[{tick}] watchdog timeout (last_commit_cycle={})",
         self.last_commit_cycle

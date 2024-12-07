@@ -1,7 +1,6 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
 use crate::interconnect::{create_emu_addrspace, AddressSpace};
-use crate::OnlineArgs;
 use svdpi::SvScope;
 
 use anyhow::Context;
@@ -25,6 +24,14 @@ pub struct FunctionSym {
 }
 pub type FunctionSymTab = HashMap<u64, FunctionSym>;
 
+pub struct OnlineArgs {
+  /// Path to the ELF file
+  pub elf_file: String,
+
+  /// dlen config
+  pub dlen: u32,
+}
+
 pub(crate) struct Driver {
   // SvScope from t1rocket_cosim_init
   #[allow(unused)]
@@ -46,7 +53,7 @@ impl Driver {
     let (mut addr_space, exit_flag) = create_emu_addrspace();
     // pass e_entry to rocket
     let (e_entry, _fn_sym_tab) =
-      Self::load_elf(&args.elf_file, &mut addr_space).expect("fail creating simulator");
+      Self::load_elf(Path::new(&args.elf_file), &mut addr_space).expect("fail creating simulator");
 
     Self {
       scope,
@@ -54,7 +61,7 @@ impl Driver {
       dlen: args.dlen,
       e_entry,
 
-      timeout: args.timeout,
+      timeout: 0,
       last_commit_cycle: 0,
 
       addr_space,
@@ -204,6 +211,10 @@ impl Driver {
     }
   }
 
+  pub(crate) fn set_timeout(&mut self, timeout: u64) {
+    self.timeout = timeout;
+  }
+
   pub(crate) fn watchdog(&mut self) -> u8 {
     const WATCHDOG_CONTINUE: u8 = 0;
     const WATCHDOG_TIMEOUT: u8 = 1;
@@ -216,7 +227,7 @@ impl Driver {
       return WATCHDOG_QUIT;
     }
 
-    if tick - self.last_commit_cycle > self.timeout {
+    if self.timeout > 0 && tick - self.last_commit_cycle > self.timeout {
       error!(
         "[{tick}] watchdog timeout (last_commit_cycle={})",
         self.last_commit_cycle

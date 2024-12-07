@@ -39,13 +39,21 @@ class TestBench(val parameter: T1RocketTileParameter)
   val om:         Property[ClassType]   = IO(Output(Property[omType.Type]()))
   om := omInstance.getPropertyReference
 
-  val verbatimModule         = Module(new ExtModule {
-    override def desiredName = "VerbatimModule"
-    val clock                = IO(Output(Bool()))
-    val reset                = IO(Output(Bool()))
-    val initFlag             = IO(Output(Bool()))
-    val idle                 = IO(Input(Bool()))
-  })
+  val verbatimModule         = Module(
+    new ExtModule(
+      Map(
+        "T1_VLEN"      -> parameter.vLen,
+        "T1_DLEN"      -> parameter.dLen,
+        "T1_SPIKE_ISA" -> parameter.t1Parameter.spikeMarch
+      )
+    ) {
+      override def desiredName = "VerbatimModule"
+      val clock                = IO(Output(Bool()))
+      val reset                = IO(Output(Bool()))
+      val initFlag             = IO(Output(Bool()))
+      val idle                 = IO(Input(Bool()))
+    }
+  )
   def clock                  = verbatimModule.clock.asClock
   def reset                  = verbatimModule.reset
   def initFlag               = verbatimModule.initFlag

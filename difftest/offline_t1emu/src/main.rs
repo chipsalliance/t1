@@ -9,6 +9,7 @@ use std::{
 use anyhow::Context as _;
 use clap::Parser;
 use json_events::JsonEvents;
+use offline_common::OfflineArgs;
 use tracing::info;
 
 use spike_rs::runner::*;
@@ -35,9 +36,11 @@ fn run_spike(args: &SpikeArgs) -> anyhow::Result<()> {
 
 fn main() -> anyhow::Result<()> {
   // parse args
-  let args = SpikeArgs::parse();
+  let args = OfflineArgs::parse();
 
   args.setup_logger()?;
+
+  let args = args.to_spike_args();
 
   match &args.log_file {
     None => {

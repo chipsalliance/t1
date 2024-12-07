@@ -39,12 +39,19 @@ class TestBench(val parameter: T1Parameter)
   val om:         Property[ClassType]   = IO(Output(Property[omType.Type]()))
   om := omInstance.getPropertyReference
 
-  val verbatimModule = Module(new ExtModule {
-
-    override def desiredName = "VerbatimModule"
-    val clock                = IO(Output(Bool()))
-    val reset                = IO(Output(Bool()))
-  })
+  val verbatimModule         = Module(
+    new ExtModule(
+      Map(
+        "T1_VLEN"      -> parameter.vLen,
+        "T1_DLEN"      -> parameter.dLen,
+        "T1_SPIKE_ISA" -> parameter.spikeMarch
+      )
+    ) {
+      override def desiredName = "VerbatimModule"
+      val clock                = IO(Output(Bool()))
+      val reset                = IO(Output(Bool()))
+    }
+  )
   def clock                  = verbatimModule.clock.asClock
   def reset                  = verbatimModule.reset
   override def implicitClock = verbatimModule.clock.asClock
