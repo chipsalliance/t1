@@ -5,7 +5,7 @@ package org.chipsalliance.t1.t1emu.dpi
 
 // TODO: upstream to AMBA as VIP
 import chisel3._
-import chisel3.util.circt.dpi.{RawClockedVoidFunctionCall, RawUnclockedNonVoidFunctionCall}
+import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawClockedVoidFunctionCall}
 import chisel3.util.{isPow2, log2Ceil}
 import org.chipsalliance.amba.axi4.bundle.{
   ARChannel,
@@ -189,29 +189,38 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
 
       // AR
       channel.ARREADY := !cam(arPtr).valid
-      when(channel.ARREADY && channel.ARVALID) {
-        cam(arPtr).arid             := channel.ARID
-        cam(arPtr).arlen            := channel.ARLEN
-        cam(arPtr).readPayload      := RawUnclockedNonVoidFunctionCall(
-          s"axi_read_${parameter.name}",
-          new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth)
-        )(
-          when.cond && !io.gateRead,
-          io.channelId,
-          channel.ARID.asTypeOf(UInt(64.W)),
-          channel.ARADDR.asTypeOf(UInt(64.W)),
-          channel.ARLEN.asTypeOf(UInt(64.W)),
-          channel.ARSIZE.asTypeOf(UInt(64.W)),
-          channel.ARBURST.asTypeOf(UInt(64.W)),
-          channel.ARLOCK.asTypeOf(UInt(64.W)),
-          channel.ARCACHE.asTypeOf(UInt(64.W)),
-          channel.ARPROT.asTypeOf(UInt(64.W)),
-          channel.ARQOS.asTypeOf(UInt(64.W)),
-          channel.ARREGION.asTypeOf(UInt(64.W))
-        )
-        cam(arPtr).readPayloadIndex := 0.U
-        cam(arPtr).valid            := true.B
-        arPtr                       := arPtr + 1.U
+      val arPtrNext: UInt = RegNext(arPtr, 0.U)
+
+      val arFire       = channel.ARREADY && channel.ARVALID
+      val readPlayload = RawClockedNonVoidFunctionCall(
+        s"axi_read_${parameter.name}",
+        new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth)
+      )(
+        io.clock,
+        !io.gateRead && arFire,
+        io.channelId,
+        channel.ARID.asTypeOf(UInt(64.W)),
+        channel.ARADDR.asTypeOf(UInt(64.W)),
+        channel.ARLEN.asTypeOf(UInt(64.W)),
+        channel.ARSIZE.asTypeOf(UInt(64.W)),
+        channel.ARBURST.asTypeOf(UInt(64.W)),
+        channel.ARLOCK.asTypeOf(UInt(64.W)),
+        channel.ARCACHE.asTypeOf(UInt(64.W)),
+        channel.ARPROT.asTypeOf(UInt(64.W)),
+        channel.ARQOS.asTypeOf(UInt(64.W)),
+        channel.ARREGION.asTypeOf(UInt(64.W))
+      )
+
+      when(arFire) {
+        arPtr := arPtr + 1.U
+      }
+
+      when(RegNext(arFire, false.B)) {
+        cam(arPtrNext).arid             := RegNext(channel.ARID, 0.U)
+        cam(arPtrNext).arlen            := RegNext(channel.ARLEN, 0.U)
+        cam(arPtrNext).readPayload      := readPlayload
+        cam(arPtrNext).readPayloadIndex := 0.U
+        cam(arPtrNext).valid            := true.B
       }
 
       // R
