@@ -16,10 +16,9 @@ let
   runVerilatorEmu = callPackage ./run-verilator-emu.nix { };
   runVCSEmu_ = callPackage ./run-vcs-emu.nix { };
   runFsdb2vcd = callPackage ./run-fsdb2vcd.nix { };
-  runVCSEmu = emulator: runVCSEmu_ { inherit emulator; };
-  runVCSEmuRT = emulator: runVCSEmu_ {
+  runVCSEmu = emulator: runVCSEmu_ {
     inherit emulator;
-    dpilib = vcs-dpi-lib;
+    dpilib = if emulator.isRuntimeLoad then vcs-dpi-lib else null;
   };
 
   # cases is now { mlir = { hello = ...; ...  }; ... }
@@ -39,7 +38,7 @@ let
           innerMapper = caseName: case: {
             verilator-emu = runVerilatorEmu verilator-emu case;
             verilator-emu-trace = runVerilatorEmu verilator-emu-trace case;
-            vcs-emu = runVCSEmuRT vcs-emu-rtlink case;
+            vcs-emu = runVCSEmu vcs-emu-rtlink case;
             vcs-emu-cover = runVCSEmu vcs-emu-cover case;
             vcs-emu-trace = runVCSEmu vcs-emu-trace case;
             vcs-prof-vcd = runFsdb2vcd (runVCSEmu vcs-emu-trace case);

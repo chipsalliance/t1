@@ -78,6 +78,7 @@ lockedPkgs.buildFHSEnv {
     nssmdns
     fontconfig
     numactl
+    python3
     (krb5.overrideAttrs rec {
       version = "1.18.2";
       src = fetchurl {
