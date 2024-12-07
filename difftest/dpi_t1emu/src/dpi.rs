@@ -1,13 +1,12 @@
 #![allow(non_snake_case)]
 #![allow(unused_variables)]
 
-use dpi_common::plusarg::PlusArgMatcher;
 use dpi_common::DpiTarget;
 use std::ffi::c_longlong;
+use svdpi::dpi::param::InStr;
 use tracing::debug;
 
-use crate::drive::Driver;
-use crate::OnlineArgs;
+use crate::drive::{Driver, OnlineArgs};
 use svdpi::SvScope;
 
 pub type SvBitVecVal = u32;
@@ -217,15 +216,29 @@ unsafe extern "C" fn axi_write_indexedAccessPort(
 }
 
 #[no_mangle]
-unsafe extern "C" fn t1_cosim_init() {
-  let plusargs = PlusArgMatcher::from_args();
-  let args = OnlineArgs::from_plusargs(&plusargs);
-
+unsafe extern "C" fn t1_cosim_init(
+  elf_file: InStr<'_>,
+  dlen: i32,
+  vlen: i32,
+  spike_isa: InStr<'_>,
+) {
   dpi_common::setup_logger();
 
   let scope = SvScope::get_current().expect("failed to get scope in t1_cosim_init");
 
+  let args = OnlineArgs {
+    elf_file: elf_file.get().to_str().unwrap().into(),
+    log_file: None,
+    dlen: dlen as u32,
+    vlen: vlen as u32,
+    spike_isa: spike_isa.get().to_str().unwrap().into(),
+  };
   TARGET.init(|| Driver::new(scope, &args));
+}
+
+#[no_mangle]
+unsafe extern "C" fn t1_cosim_set_timeout(timeout: u64) {
+  TARGET.with(|driver| driver.set_timeout(timeout));
 }
 
 #[no_mangle]

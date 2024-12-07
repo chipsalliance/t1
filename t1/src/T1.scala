@@ -143,6 +143,8 @@ case class T1Parameter(
     vlen.toInt
   }.get
 
+  def spikeMarch: String = s"rv32gc_${extensions.mkString("_").toLowerCase}"
+
   val allInstructions: Seq[Instruction] = {
     org.chipsalliance.rvdecoderdb
       .instructions(org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader))
@@ -392,7 +394,7 @@ class T1(val parameter: T1Parameter)
   omInstance.vlenIn       := Property(parameter.vLen)
   omInstance.dlenIn       := Property(parameter.dLen)
   omInstance.extensionsIn := Property(parameter.extensions)
-  omInstance.marchIn      := Property(s"rv32gc_${parameter.extensions.mkString("_").toLowerCase}")
+  omInstance.marchIn      := Property(parameter.spikeMarch)
 
   /** the LSU Module */
 

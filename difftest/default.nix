@@ -23,6 +23,7 @@ let
       ./dpi_common
       ./dpi_t1emu
       ./dpi_t1rocketemu
+      ./offline_common
       ./offline_t1emu
       ./offline_t1rocketemu
       ./Cargo.lock
@@ -43,9 +44,6 @@ if (lib.hasPrefix "dpi" moduleType) then
     env = {
       SPIKE_LIB_DIR = "${libspike}/lib";
       SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
-      DESIGN_VLEN = rtlDesignMetadata.vlen;
-      DESIGN_DLEN = rtlDesignMetadata.dlen;
-      SPIKE_ISA_STRING = rtlDesignMetadata.march;
     };
 
     cargoLock = {

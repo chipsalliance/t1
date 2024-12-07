@@ -4,6 +4,7 @@ members = [
     "spike_rs",
     "offline_t1emu",
     "offline_t1rocketemu",
+    "offline_common",
     "dpi_t1emu",
     "dpi_t1rocketemu",
     "dpi_common",

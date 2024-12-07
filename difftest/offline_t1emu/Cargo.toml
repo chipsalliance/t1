@@ -16,3 +16,4 @@ libloading = "0.8.1"
 xmas-elf = "0.9.1"
 
 spike_rs = { path = "../spike_rs" }
+offline_common = { path = "../offline_common" }
