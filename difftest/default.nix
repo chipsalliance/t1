@@ -14,50 +14,74 @@ assert let
   available = [ "dpi_t1emu" "dpi_t1rocketemu" "offline_t1emu" "offline_t1rocketemu" ];
 in
 lib.assertMsg (lib.elem moduleType available) "moduleType is not in ${lib.concatStringsSep ", " available}";
-# if emuType is empty, then moduleType must be offline-*, or user should give valid emuType
-assert lib.assertMsg ((emuType == "" && lib.hasPrefix "offline" moduleType) || (lib.elem emuType [ "verilator" "vcs" ])) "emuType is either 'vcs' nor 'verilator'";
 
-rustPlatform.buildRustPackage {
-  name = outputName;
-  src = with lib.fileset; toSource {
+let
+  rustSrc = with lib.fileset; toSource {
     root = ./.;
     fileset = unions [
       ./spike_rs
-      ./offline_t1emu
-      ./offline_t1rocketemu
       ./dpi_common
       ./dpi_t1emu
       ./dpi_t1rocketemu
+      ./offline_t1emu
+      ./offline_t1rocketemu
       ./Cargo.lock
       ./Cargo.toml
       ./.rustfmt.toml
     ];
   };
+in
+if (lib.hasPrefix "dpi" moduleType) then
+  assert lib.assertMsg (lib.elem emuType [ "verilator" "vcs" ]) "emuType must be 'vcs' or 'verilator' for dpi";
+  rustPlatform.buildRustPackage {
+    name = outputName;
+    src = rustSrc;
 
-  buildFeatures = [ ] ++ lib.optionals (lib.hasPrefix "dpi" moduleType) [ "dpi_common/${emuType}" ];
-  buildAndTestSubdir = "./${moduleType}";
+    buildFeatures = [ ] ++ [ "dpi_common/${emuType}" ];
+    buildAndTestSubdir = "./${moduleType}";
 
-  env = {
-    SPIKE_LIB_DIR = "${libspike}/lib";
-    SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
-    DESIGN_VLEN = rtlDesignMetadata.vlen;
-    DESIGN_DLEN = rtlDesignMetadata.dlen;
-    SPIKE_ISA_STRING = rtlDesignMetadata.march;
-  };
+    env = {
+      SPIKE_LIB_DIR = "${libspike}/lib";
+      SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
+      DESIGN_VLEN = rtlDesignMetadata.vlen;
+      DESIGN_DLEN = rtlDesignMetadata.dlen;
+      SPIKE_ISA_STRING = rtlDesignMetadata.march;
+    };
 
-  cargoLock = {
-    lockFile = ./Cargo.lock;
-  };
+    cargoLock = {
+      lockFile = ./Cargo.lock;
+    };
 
-  postInstall = lib.optionalString (lib.hasPrefix "offline" moduleType) ''
-    exe=$(find $out/bin -type f -name 'offline_*')
-    ln -s "$exe" $out/bin/offline
-  '';
+    passthru = {
+      # include "lib" prefix, without ".so" suffix, for "-sv_lib" option
+      svLibName = "lib${moduleType}";
 
-  passthru = {
-    # include "lib" prefix, without ".so" suffix, for "-sv_lib" option
-    svLibName = "lib${moduleType}";
+      dpiLibPath = "/lib/libdpi_${moduleType}.a";
+    };
+  }
+else
+  assert lib.assertMsg (emuType == "") "emuType shall not be set for offline";
+  rustPlatform.buildRustPackage {
+    name = outputName;
+    src = rustSrc;
 
-    dpiLibPath = "/lib/libdpi_${moduleType}.a";
-  };
-}
+    buildFeatures = [ ];
+    buildAndTestSubdir = "./${moduleType}";
+
+    env = {
+      SPIKE_LIB_DIR = "${libspike}/lib";
+      SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
+      DESIGN_VLEN = rtlDesignMetadata.vlen;
+      DESIGN_DLEN = rtlDesignMetadata.dlen;
+      SPIKE_ISA_STRING = rtlDesignMetadata.march;
+    };
+
+    cargoLock = {
+      lockFile = ./Cargo.lock;
+    };
+
+    postInstall = ''
+      exe=$(find $out/bin -type f -name 'offline_*')
+      ln -s "$exe" $out/bin/offline
+    '';
+  }
