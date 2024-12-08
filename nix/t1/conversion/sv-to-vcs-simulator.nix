@@ -26,6 +26,11 @@ stdenv.mkDerivation rec {
 
   dontUnpack = true;
 
+  # VCS simulation profiling
+  # This is a debug feature, thus intentionally not exposed
+  # Enable it by changing line below to 'true'
+  enableProfile = false;
+
   vcsArgs = [
     "-sverilog"
     "-full64"
@@ -55,6 +60,9 @@ stdenv.mkDerivation rec {
     "+define+T1_ENABLE_TRACE"
     "-debug_access+pp+dmptf+thread"
     "-kdb=common_elab,hgldd_all"
+  ]
+  ++ lib.optionals enableProfile [
+    "-simprofile"
   ]
   ++ vcsLinkLibs;
 
