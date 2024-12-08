@@ -1,4 +1,11 @@
-{ lib, pkgs, stdenvNoCC, zstd, jq, offline-checker, snps-fhs-env }:
+{ lib
+, stdenvNoCC
+, zstd
+, jq
+, offline-checker
+, snps-fhs-env
+, writeShellScriptBin
+}:
 
 { emulator
 , dpilib ? null
@@ -18,7 +25,7 @@ stdenvNoCC.mkDerivation (rec {
 
     # to open 'profileReport.html' in firefox,
     # set 'security.fileuri.strict_origin_policy = false' in 'about:config'
-    profile = pkgs.writeShellScriptBin "runSimProfile" ''
+    profile = writeShellScriptBin "runSimProfile" ''
       ${emuDriver} \
         ${lib.escapeShellArgs emuDriverArgs} \
         -simprofile time \
@@ -56,7 +63,6 @@ stdenvNoCC.mkDerivation (rec {
 
     mkdir -p "$out"
 
-    emuDriver="${emuDriver}"
     emuDriverArgs="${lib.escapeShellArgs emuDriverArgs}"
 
     rtlEventOutPath="$out/${testCase.pname}-rtl-event.jsonl"
