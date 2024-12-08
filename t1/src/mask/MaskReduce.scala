@@ -75,7 +75,8 @@ class MaskReduce(val parameter: MaskReduceParameter)
   val omInstance: Instance[MaskReduceOM] = Instantiate(new MaskReduceOM(parameter))
   io.om := omInstance.getPropertyReference
 
-  val maskSize: Int = parameter.laneNumber * parameter.datapathWidth / 8
+  val floatAdderLatency: Int = 1
+  val maskSize:          Int = parameter.laneNumber * parameter.datapathWidth / 8
 
   // todo: uop decode
   val order:    Bool = in.bits.uop === "b101".U
@@ -89,7 +90,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
   val logicUnit:   Instance[LaneLogic]            = Instantiate(new LaneLogic(LaneLogicParameter(parameter.datapathWidth)))
   // option unit for flot reduce
   val floatAdder:  Option[Instance[FloatAdder]]   =
-    Option.when(parameter.fpuEnable)(Instantiate(new FloatAdder(FloatAdderParameter(8, 24))))
+    Option.when(parameter.fpuEnable)(Instantiate(new FloatAdder(FloatAdderParameter(8, 24, floatAdderLatency))))
   omInstance.floatAdderIn.zip(floatAdder).foreach { case (l, r) => l := r.io.om.asAnyClassType }
   val flotCompare: Option[Instance[FloatCompare]] =
     Option.when(parameter.fpuEnable)(Instantiate(new FloatCompare(FloatCompareParameter(8, 24))))
@@ -114,6 +115,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
   val floatType:  Bool = reqReg.uop(2) || reqReg.uop(1, 0).andR
   val NotAdd:     Bool = reqReg.uop(1)
   val widen:      Bool = reqReg.uop === "b001".U || reqReg.uop(2, 1) === "b11".U
+  val floatAdd:   Bool = floatType && !NotAdd
   // eew1HReg(0) || (eew1HReg(1) && !widen)
   val needFold:   Bool = false.B
   val writeEEW:   UInt = Mux(pop, 2.U, reqReg.eew + widen)
@@ -123,16 +125,21 @@ class MaskReduce(val parameter: MaskReduceParameter)
   // crossFold: reduce between lane
   // lastFold: reduce in data path
   // orderRed: order reduce
-  val idle :: crossFold :: lastFold :: orderRed :: Nil = Enum(4)
+  val idle :: crossFold :: lastFold :: orderRed :: waitRes :: Nil = Enum(5)
   val state: UInt = RegInit(idle)
 
   val stateIdle:  Bool = state === idle
   val stateCross: Bool = state === crossFold
   val stateLast:  Bool = state === lastFold
   val stateOrder: Bool = state === orderRed
+  val stateWait:  Bool = state === waitRes
 
+  // wait float
+  val waitCount: UInt = RegInit(0.U(log2Ceil(floatAdderLatency.max(2)).W))
+  when(stateWait) { waitCount := waitCount + 1.U }
+  val resFire:   Bool = stateWait && waitCount === (floatAdderLatency - 1).U
   updateResult :=
-    stateLast || ((stateCross || stateOrder) && sourceValid)
+    stateLast || ((stateCross || stateOrder) && sourceValid && !floatAdd) || resFire
 
   // state update
   in.ready := stateIdle
@@ -143,9 +150,21 @@ class MaskReduce(val parameter: MaskReduceParameter)
   }
 
   when(stateCross) {
+    when(floatAdd) {
+      state     := waitRes
+      waitCount := 0.U
+    }.elsewhen(groupLastReduce) {
+      state    := Mux(reqReg.lastGroup && needFold, lastFold, idle)
+      outValid := reqReg.lastGroup && !needFold
+    }
+  }
+
+  when(stateWait && resFire) {
     when(groupLastReduce) {
       state    := Mux(reqReg.lastGroup && needFold, lastFold, idle)
       outValid := reqReg.lastGroup && !needFold
+    }.otherwise {
+      state := crossFold
     }
   }
 
