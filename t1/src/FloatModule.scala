@@ -10,7 +10,7 @@ import chisel3.util.experimental.decode.TruthTable
 import hardfloat._
 
 @instantiable
-class FloatAdder(expWidth: Int, sigWidth: Int) extends Module {
+class FloatAdder(expWidth: Int, sigWidth: Int, latency: Int) extends Module {
   @public
   val io       = IO(new Bundle {
     val a              = Input(UInt((expWidth + sigWidth).W))
@@ -26,8 +26,8 @@ class FloatAdder(expWidth: Int, sigWidth: Int) extends Module {
   addRecFN.io.roundingMode   := io.roundingMode
   addRecFN.io.detectTininess := false.B
 
-  io.out            := fNFromRecFN(8, 24, addRecFN.io.out)
-  io.exceptionFlags := addRecFN.io.exceptionFlags
+  io.out            := Pipe(true.B, fNFromRecFN(8, 24, addRecFN.io.out), latency).bits
+  io.exceptionFlags := Pipe(true.B, addRecFN.io.exceptionFlags, latency).bits
 }
 
 /** float compare module
