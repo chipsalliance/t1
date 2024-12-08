@@ -1,47 +1,45 @@
 {
-    "arithmetic": {
-        "cargoLocks": null,
-        "date": "2024-01-23",
-        "extract": null,
-        "name": "arithmetic",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "sequencer",
-            "repo": "arithmetic",
-            "rev": "4a81e23e1794844b36c53385d343475d4d7eca49",
-            "sha256": "sha256-tQwzECNOXhuKzpwRD+iKSEJYl1/wlhMQTJULJSCdTrY=",
-            "type": "github"
-        },
-        "version": "4a81e23e1794844b36c53385d343475d4d7eca49"
+  "arithmetic": {
+    "cargoLocks": null,
+    "date": "2024-01-23",
+    "extract": null,
+    "name": "arithmetic",
+    "passthru": null,
+    "pinned": false,
+    "src": {
+      "deepClone": false,
+      "fetchSubmodules": false,
+      "leaveDotGit": false,
+      "name": null,
+      "owner": "sequencer",
+      "repo": "arithmetic",
+      "rev": "4a81e23e1794844b36c53385d343475d4d7eca49",
+      "sha256": "sha256-tQwzECNOXhuKzpwRD+iKSEJYl1/wlhMQTJULJSCdTrY=",
+      "type": "github"
     },
-    "berkeley-hardfloat": {
-        "cargoLocks": null,
-        "date": "2024-06-05",
-        "extract": null,
-        "name": "berkeley-hardfloat",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "ucb-bar",
-            "repo": "berkeley-hardfloat",
-            "rev": "26f00d00c3f3f57480065e02bfcfde3d3b41ec51",
-            "sha256": "sha256-gA1Ol7xnzC+10lGwK9+ftfJcMhKsC0KhjENQvUg3u88=",
-            "type": "github"
-        },
-        "version": "26f00d00c3f3f57480065e02bfcfde3d3b41ec51"
+    "version": "4a81e23e1794844b36c53385d343475d4d7eca49"
+  },
+  "berkeley-hardfloat": {
+    "cargoLocks": null,
+    "date": "2024-06-05",
+    "extract": null,
+    "name": "berkeley-hardfloat",
+    "passthru": null,
+    "pinned": false,
+    "src": {
+      "deepClone": false,
+      "fetchSubmodules": false,
+      "leaveDotGit": false,
+      "name": null,
+      "owner": "ucb-bar",
+      "repo": "berkeley-hardfloat",
+      "rev": "26f00d00c3f3f57480065e02bfcfde3d3b41ec51",
+      "sha256": "sha256-gA1Ol7xnzC+10lGwK9+ftfJcMhKsC0KhjENQvUg3u88=",
+      "type": "github"
     },
     "chisel": {
         "cargoLocks": null,
-        "date": "2024-12-07",
+        "date": "2024-12-05",
         "extract": null,
         "name": "chisel",
         "passthru": null,
@@ -51,72 +49,74 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "owner": "chipsalliance",
+            "owner": "unlsycn",
             "repo": "chisel",
-            "rev": "5871a65195c7ad96edb9c58dd94cddd942815dfb",
-            "sha256": "sha256-0xh7Xg2vi+GmoTQHNFJPQ5MP7r1UDmiGcJUI45YE16A=",
+            "rev": "429cc7a227ecb6e7d30842d14228c41284c6b4af",
+            "sha256": "sha256-4JzEn7avsA4RUtWpb55OAx6A28jTtdRRNxHe6VEaeNs=",
             "type": "github"
         },
-        "version": "5871a65195c7ad96edb9c58dd94cddd942815dfb"
+        "version": "429cc7a227ecb6e7d30842d14228c41284c6b4af"
     },
-    "chisel-interface": {
-        "cargoLocks": null,
-        "date": "2024-10-12",
-        "extract": null,
-        "name": "chisel-interface",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "chipsalliance",
-            "repo": "chisel-interface",
-            "rev": "57081e3e080d09bf811cce7b3936ea9e5dc187f9",
-            "sha256": "sha256-Pmeu5dtjPp9WMzmJY2ULWB20DFq5Vh7Y4G0/Hbjyogc=",
-            "type": "github"
-        },
-        "version": "57081e3e080d09bf811cce7b3936ea9e5dc187f9"
+    "version": "2e721830f88659df30fe66dfe8a6252670952e96"
+  },
+  "chisel-interface": {
+    "cargoLocks": null,
+    "date": "2024-10-12",
+    "extract": null,
+    "name": "chisel-interface",
+    "passthru": null,
+    "pinned": false,
+    "src": {
+      "deepClone": false,
+      "fetchSubmodules": false,
+      "leaveDotGit": false,
+      "name": null,
+      "owner": "chipsalliance",
+      "repo": "chisel-interface",
+      "rev": "57081e3e080d09bf811cce7b3936ea9e5dc187f9",
+      "sha256": "sha256-Pmeu5dtjPp9WMzmJY2ULWB20DFq5Vh7Y4G0/Hbjyogc=",
+      "type": "github"
     },
-    "riscv-opcodes": {
-        "cargoLocks": null,
-        "date": "2024-07-24",
-        "extract": null,
-        "name": "riscv-opcodes",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "riscv",
-            "repo": "riscv-opcodes",
-            "rev": "07b21cc5143a15959eda12e30aa40cea0971efe0",
-            "sha256": "sha256-B9njfBxZfm7xkSKBD8JOUWIKEzL8ra/X9FKC3CJ2gK8=",
-            "type": "github"
-        },
-        "version": "07b21cc5143a15959eda12e30aa40cea0971efe0"
+    "version": "57081e3e080d09bf811cce7b3936ea9e5dc187f9"
+  },
+  "riscv-opcodes": {
+    "cargoLocks": null,
+    "date": "2024-07-24",
+    "extract": null,
+    "name": "riscv-opcodes",
+    "passthru": null,
+    "pinned": false,
+    "src": {
+      "deepClone": false,
+      "fetchSubmodules": false,
+      "leaveDotGit": false,
+      "name": null,
+      "owner": "riscv",
+      "repo": "riscv-opcodes",
+      "rev": "07b21cc5143a15959eda12e30aa40cea0971efe0",
+      "sha256": "sha256-B9njfBxZfm7xkSKBD8JOUWIKEzL8ra/X9FKC3CJ2gK8=",
+      "type": "github"
     },
-    "rvdecoderdb": {
-        "cargoLocks": null,
-        "date": "2024-07-25",
-        "extract": null,
-        "name": "rvdecoderdb",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "owner": "sequencer",
-            "repo": "rvdecoderdb",
-            "rev": "6f22826d2c8facb6bf0b41f4bea26a2225751220",
-            "sha256": "sha256-4Hwa2Z4mmALy4ZElWzxFgqC+7EsyBhahVYlVUzyYKF4=",
-            "type": "github"
-        },
-        "version": "6f22826d2c8facb6bf0b41f4bea26a2225751220"
-    }
+    "version": "07b21cc5143a15959eda12e30aa40cea0971efe0"
+  },
+  "rvdecoderdb": {
+    "cargoLocks": null,
+    "date": "2024-07-25",
+    "extract": null,
+    "name": "rvdecoderdb",
+    "passthru": null,
+    "pinned": false,
+    "src": {
+      "deepClone": false,
+      "fetchSubmodules": false,
+      "leaveDotGit": false,
+      "name": null,
+      "owner": "sequencer",
+      "repo": "rvdecoderdb",
+      "rev": "6f22826d2c8facb6bf0b41f4bea26a2225751220",
+      "sha256": "sha256-4Hwa2Z4mmALy4ZElWzxFgqC+7EsyBhahVYlVUzyYKF4=",
+      "type": "github"
+    },
+    "version": "6f22826d2c8facb6bf0b41f4bea26a2225751220"
+  }
 }

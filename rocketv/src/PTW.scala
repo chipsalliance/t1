@@ -22,11 +22,11 @@ import chisel3.util.{
   PriorityEncoder,
   PriorityEncoderOH,
   RegEnable,
-  SRAM,
   SRAMInterface,
   UIntToOH,
   Valid
 }
+import chisel3.hack.util.SRAM
 
 object PTWParameter {
   implicit def rwP: upickle.default.ReadWriter[PTWParameter] = upickle.default.macroRW[PTWParameter]

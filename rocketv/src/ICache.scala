@@ -19,6 +19,7 @@ import org.chipsalliance.amba.axi4.bundle.{
   W
 }
 import org.chipsalliance.dwbb.stdlib.queue.Queue
+import chisel3.hack.util.SRAM
 
 case class ICacheParameter(
   useAsyncReset: Boolean,

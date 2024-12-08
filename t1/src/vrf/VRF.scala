@@ -23,6 +23,7 @@ import org.chipsalliance.t1.rtl.{
   VRFWriteReport,
   VRFWriteRequest
 }
+import chisel3.hack.util.SRAM
 
 sealed trait RamType
 object RamType  {

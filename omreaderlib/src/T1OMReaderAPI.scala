@@ -12,6 +12,7 @@ object SRAM {
 /** The SRAM Module to be replaced. */
 case class SRAM(
   moduleName:      String,
+  fullPath:        String,
   depth:           Int,
   width:           Int,
   read:            Int,
@@ -52,7 +53,7 @@ object Path {
   implicit val rw:        ReadWriter[Instruction] = macroRW
   def parse(str: String): Path                    =
     str match {
-      case s"OMReferenceTarget:~${top}|${hier}>${local}" =>
+      case s"OMInstanceTarget:~${top}|${hier}>${local}" =>
         Path(
           top,
           hier
@@ -63,7 +64,7 @@ object Path {
             }),
           Some(local)
         )
-      case s"OMReferenceTarget:~${top}|${hier}"          =>
+      case s"OMInstanceTarget:~${top}|${hier}"          =>
         Path(
           top,
           hier
@@ -78,8 +79,8 @@ object Path {
 }
 
 case class Path(top: String, hierarchy: Seq[(String, String)], local: Option[String]) {
-  def module: String = hierarchy.last._2
-  def path:   String = hierarchy.map(_._1).mkString(".")
+  def module:       String = hierarchy.last._2
+  def path:         String = hierarchy.map(_._1).mkString(".")
 }
 
 /** Public Module under T1 should implement Modules below. */
