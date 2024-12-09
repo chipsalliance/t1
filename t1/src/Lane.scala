@@ -349,9 +349,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val maskIndexVec: Vec[UInt] =
     RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(log2Ceil(parameter.maskGroupWidth).W))))
 
-  /** the find first one index register in this lane. */
-  val ffoIndexReg: UInt = RegInit(0.U(log2Ceil(parameter.vLen / 8).W))
-
   /** result of reduce instruction. */
   val reduceResult: UInt = RegInit(0.U(parameter.datapathWidth.W))
 
@@ -359,7 +356,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val vrfWriteArbiter: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
     Vec(
-      parameter.chainingSize + 2,
+      parameter.chainingSize + 1,
       Decoupled(
         new VRFWriteRequest(
           parameter.vrfParam.regNumBits,
@@ -371,30 +368,15 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   )
 
-  val lsuWriteQueue: QueueIO[VRFWriteRequest] = Queue.io(vrfWriteType, 1, flow = true)
-  // connect lsuWriteQueue.enq
-  lsuWriteQueue.enq.valid := vrfWriteChannel.valid && !writeFromMask
-  lsuWriteQueue.enq.bits  := vrfWriteChannel.bits
-  vrfWriteChannel.ready   := writeFromMask || lsuWriteQueue.enq.ready
+  vrfWriteArbiter(parameter.chainingSize).valid := vrfWriteChannel.valid
+  vrfWriteArbiter(parameter.chainingSize).bits  := vrfWriteChannel.bits
+  vrfWriteChannel.ready                         := vrfWriteArbiter(parameter.chainingSize).ready
 
-  val maskWriteQueue: QueueIO[VRFWriteRequest] = Queue.io(vrfWriteType, parameter.maskUnitVefWriteQueueSize)
-  // connect maskWriteQueue.enq
-  maskWriteQueue.enq.valid := vrfWriteChannel.valid && writeFromMask
-  maskWriteQueue.enq.bits  := vrfWriteChannel.bits
-
-  vrfWriteArbiter(parameter.chainingSize).valid := lsuWriteQueue.deq.valid
-  vrfWriteArbiter(parameter.chainingSize).bits  := lsuWriteQueue.deq.bits
-  lsuWriteQueue.deq.ready                       := vrfWriteArbiter(parameter.chainingSize).ready
-
-  vrfWriteArbiter(parameter.chainingSize + 1).valid := maskWriteQueue.deq.valid
-  vrfWriteArbiter(parameter.chainingSize + 1).bits  := maskWriteQueue.deq.bits
-  maskWriteQueue.deq.ready                          := vrfWriteArbiter(parameter.chainingSize + 1).ready
-
-  val allVrfWriteAfterCheck:  Seq[VRFWriteRequest] = Seq.tabulate(parameter.chainingSize + 4) { i =>
+  val allVrfWriteAfterCheck:  Seq[VRFWriteRequest] = Seq.tabulate(parameter.chainingSize + 3) { i =>
     RegInit(0.U.asTypeOf(vrfWriteArbiter.head.bits))
   }
-  val afterCheckValid:        Seq[Bool]            = Seq.tabulate(parameter.chainingSize + 4) { _ => RegInit(false.B) }
-  val afterCheckDequeueReady: Vec[Bool]            = Wire(Vec(parameter.chainingSize + 4, Bool()))
+  val afterCheckValid:        Seq[Bool]            = Seq.tabulate(parameter.chainingSize + 3) { _ => RegInit(false.B) }
+  val afterCheckDequeueReady: Vec[Bool]            = Wire(Vec(parameter.chainingSize + 3, Bool()))
   val afterCheckDequeueFire:  Seq[Bool]            = afterCheckValid.zip(afterCheckDequeueReady).map { case (v, r) => v && r }
 
   /** for each slot, assert when it is asking [[T1]] to change mask */
@@ -594,7 +576,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       maskUnitRequest <> mask.maskReq
       maskRequestToLSU <> mask.maskRequestToLSU
       tokenIO <> mask.tokenIO
-      tokenIO.maskResponseRelease := maskWriteQueue.deq.fire
       mask.dequeue
     }.getOrElse(stage3EnqWire)
     stage3.enqueue <> stage3EnqSelect
@@ -849,7 +830,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // It’s been a long time since I selected it. Need pipe
   val queueBeforeMaskWrite: QueueIO[VRFWriteRequest] =
     Queue.io(chiselTypeOf(maskedWriteUnit.enqueue.bits), entries = 1, pipe = true)
-  val writeSelect:          UInt                     = Wire(UInt((parameter.chainingSize + 4).W))
+  val writeSelect:          UInt                     = Wire(UInt((parameter.chainingSize + 3).W))
   val writeCavitation:      UInt                     = VecInit(allVrfWriteAfterCheck.map(_.mask === 0.U)).asUInt
 
   // 处理 rf
@@ -1156,8 +1137,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   writeReadyForLsu                          := vrf.writeReadyForLsu
   vrfReadyToStore                           := vrf.vrfReadyToStore
   tokenManager.crossWriteReports.zipWithIndex.foreach { case (rpt, rptIndex) =>
-    rpt.valid := afterCheckDequeueFire(parameter.chainingSize + 2 + rptIndex)
-    rpt.bits  := allVrfWriteAfterCheck(parameter.chainingSize + 2 + rptIndex).instructionIndex
+    rpt.valid := afterCheckDequeueFire(parameter.chainingSize + 1 + rptIndex)
+    rpt.bits  := allVrfWriteAfterCheck(parameter.chainingSize + 1 + rptIndex).instructionIndex
   }
   // todo: add mask unit write token
   tokenManager.responseReport.valid         := maskUnitRequest.valid
@@ -1193,13 +1174,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   tokenManager.topWriteEnq.valid := vrfWriteChannel.fire
   tokenManager.topWriteEnq.bits  := vrfWriteChannel.bits.instructionIndex
-  tokenManager.fromMask          := writeFromMask
 
-  tokenManager.lsuWriteDeq.valid := afterCheckDequeueFire(parameter.chainingSize)
-  tokenManager.lsuWriteDeq.bits  := allVrfWriteAfterCheck(parameter.chainingSize).instructionIndex
-
-  tokenManager.maskWriteDeq.valid := afterCheckDequeueFire(parameter.chainingSize + 1)
-  tokenManager.maskWriteDeq.bits  := allVrfWriteAfterCheck(parameter.chainingSize + 1).instructionIndex
+  tokenManager.topWriteDeq.valid := afterCheckDequeueFire(parameter.chainingSize)
+  tokenManager.topWriteDeq.bits  := allVrfWriteAfterCheck(parameter.chainingSize).instructionIndex
 
   tokenManager.maskUnitLastReport := lsuLastReport
 

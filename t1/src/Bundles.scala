@@ -792,6 +792,5 @@ class MaskUnitReadVs1(parameter: T1Parameter) extends Bundle {
 }
 
 class LaneTokenBundle extends Bundle {
-  val maskResponseRelease: Bool = Output(Bool())
-  val maskRequestRelease:  Bool = Input(Bool())
+  val maskRequestRelease: Bool = Input(Bool())
 }
