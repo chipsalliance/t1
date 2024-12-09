@@ -43,8 +43,8 @@ class BitLevelMaskWrite(parameter: T1Parameter) extends Module {
     )
   }
 
-  val readResult: Seq[UInt] = Seq.tabulate(parameter.laneNumber) { _ =>
-    IO(Input(UInt(parameter.datapathWidth.W)))
+  val readResult: Seq[ValidIO[UInt]] = Seq.tabulate(parameter.laneNumber) { _ =>
+    IO(Flipped(Valid(UInt(parameter.datapathWidth.W))))
   }
 
   val stageClear: Bool = IO(Output(Bool()))
@@ -52,7 +52,7 @@ class BitLevelMaskWrite(parameter: T1Parameter) extends Module {
   val stageClearVec: Seq[Bool] = in.zipWithIndex.map { case (req, index) =>
     val reqQueue: QueueIO[BitLevelWriteRequest] = Queue.io(chiselTypeOf(req.bits), 4)
     val readPort = readChannel(index)
-    val readData = readResult(index)
+    val readData = readResult(index).bits
     val res      = out(index)
 
     val WaitReadQueue: QueueIO[BitLevelWriteRequest] = Queue.io(chiselTypeOf(req.bits), readVRFLatency)
@@ -68,7 +68,7 @@ class BitLevelMaskWrite(parameter: T1Parameter) extends Module {
     readPort.bits.vs     := vd + (reqQueue.deq.bits.groupCounter >> readPort.bits.offset.getWidth).asUInt
     readPort.bits.offset := changeUIntSize(reqQueue.deq.bits.groupCounter, readPort.bits.offset.getWidth)
 
-    val readValidPipe   = Pipe(readPort.fire, false.B, readVRFLatency).valid
+    val readValidPipe   = Pipe(readPort.fire, false.B, readVRFLatency).valid && readResult(index).valid
     val readResultValid = !needWAR || readValidPipe
 
     val WARData = (WaitReadQueue.deq.bits.data & WaitReadQueue.deq.bits.bitMask) |
