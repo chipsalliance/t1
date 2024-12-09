@@ -6,7 +6,9 @@ package org.chipsalliance.t1.rtl
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
-import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
+import chisel3.util.BitPat
+import chisel3.util.experimental.decode.TruthTable
+import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder, TableGenerator}
 
 object LogicParam {
   implicit def rw: upickle.default.ReadWriter[LogicParam] = upickle.default.macroRW
@@ -40,9 +42,14 @@ class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) with S
   val request:  MaskedLogicRequest  = connectIO(response).asTypeOf(parameter.inputBundle)
 
   response.data := VecInit(request.src.map(_.asBools).transpose.map { case Seq(sr0, sr1, sr2, sr3) =>
-    val bitCalculate: Instance[LaneBitLogic] = Instantiate(new LaneBitLogic)
-    bitCalculate.src    := (request.opcode(2) ^ sr0) ## sr1
-    bitCalculate.opcode := request.opcode
-    Mux(sr3, bitCalculate.resp ^ request.opcode(3), sr2)
+    Mux(
+      sr3,
+      chisel3.util.experimental.decode.decoder
+        .qmc(
+          request.opcode ## ((request.opcode(2) ^ sr0) ## sr1),
+          TruthTable(TableGenerator.LogicTable.table, BitPat.dontCare(1))
+        ) ^ request.opcode(3),
+      sr2
+    )
   }).asUInt
 }

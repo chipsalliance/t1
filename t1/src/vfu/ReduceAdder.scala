@@ -4,9 +4,11 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
-import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
-import org.chipsalliance.t1.rtl.vfu.VectorAdder32
+import chisel3.experimental.hierarchy.{Instance, Instantiate}
+import org.chipsalliance.t1.rtl.vfu.{VectorAdder, VectorAdderParameter}
+import chisel3.properties.{AnyClassType, Class, Property}
 
 class ReduceAdderReq(datapathWidth: Int) extends Bundle {
   val src:    Vec[UInt] = Vec(2, UInt(datapathWidth.W))
@@ -19,12 +21,24 @@ class ReduceAdderResponse(datapathWidth: Int) extends Bundle {
   val data: UInt = UInt(datapathWidth.W)
 }
 
-@instantiable
-class ReduceAdder(datapathWidth: Int) extends Module {
-  @public
-  val request  = IO(Input(new ReduceAdderReq(datapathWidth)))
-  @public
-  val response = IO(Output(new ReduceAdderResponse(datapathWidth)))
+case class ReduceAdderParameter(datapathWidth: Int) extends SerializableModuleParameter
+
+class ReduceAdderInterface(parameter: ReduceAdderParameter) extends Bundle {
+  val request  = Input(new ReduceAdderReq(parameter.datapathWidth))
+  val response = Output(new ReduceAdderResponse(parameter.datapathWidth))
+  val om       = Output(Property[AnyClassType]())
+}
+
+class ReduceAdderOM extends Class {}
+
+class ReduceAdder(val parameter: ReduceAdderParameter)
+    extends FixedIORawModule(new ReduceAdderInterface(parameter))
+    with SerializableModule[ReduceAdderParameter] {
+  val omInstance: Instance[ReduceAdderOM] = Instantiate(new ReduceAdderOM)
+  io.om := omInstance.getPropertyReference
+
+  val request  = io.request
+  val response = io.response
 
   // ["add", "sub", "slt", "sle", "sgt", "sge", "max", "min", "seq", "sne", "adc", "sbc"]
   val uopOH:         UInt = UIntToOH(request.opcode)(11, 0)
@@ -36,11 +50,11 @@ class ReduceAdder(datapathWidth: Int) extends Module {
   val operation2 = Fill(4, isSub)
   val vSew1H     = UIntToOH(request.vSew)(2, 0)
 
-  val adder: Instance[VectorAdder32] = Instantiate(new VectorAdder32)
+  val adder: Instance[VectorAdder] = Instantiate(new VectorAdder(VectorAdderParameter(parameter.datapathWidth)))
 
-  adder.a   := subOperation0
-  adder.b   := subOperation1
-  adder.cin := Mux1H(
+  adder.io.a   := subOperation0
+  adder.io.b   := subOperation1
+  adder.io.cin := Mux1H(
     vSew1H,
     Seq(
       operation2,
@@ -48,15 +62,15 @@ class ReduceAdder(datapathWidth: Int) extends Module {
       Fill(4, operation2(0))
     )
   )
-  adder.sew := UIntToOH(request.vSew)
+  adder.io.sew := UIntToOH(request.vSew)
 
-  val adderResult = adder.z
+  val adderResult = adder.io.z
   // sew = 0 -> 3210
   // sew = 1 -> 1?0?
   // sew = 2 -> 0???
   val adderCarryOut: UInt =
-    Mux1H(vSew1H, Seq(adder.cout(3), adder.cout(1), adder.cout(0))) ## adder.cout(2) ##
-      Mux(vSew1H(0), adder.cout(1), adder.cout(0)) ## adder.cout(0)
+    Mux1H(vSew1H, Seq(adder.io.cout(3), adder.io.cout(1), adder.io.cout(0))) ## adder.io.cout(2) ##
+      Mux(vSew1H(0), adder.io.cout(1), adder.io.cout(0)) ## adder.io.cout(0)
 
   // 8 bit / element
   val adderResultVec: Vec[UInt] = cutUInt(adderResult, 8)

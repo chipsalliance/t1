@@ -3,7 +3,7 @@
 
 package org.chipsalliance.t1.rtl
 
-import chisel3.experimental.hierarchy.instantiable
+import chisel3.experimental.hierarchy.{instantiable, Instantiate, Instance}
 import chisel3.{UInt, _}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
@@ -248,14 +248,14 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
   val rec7En   = (uop === "b0110".U) && otherEn
   val rsqrt7En = uop === "b0111".U && otherEn
 
-  val rec7Module = Module(new Rec7Fn)
-  rec7Module.in.data         := request.src(1)
-  rec7Module.in.classifyIn   := in1classify
-  rec7Module.in.roundingMode := request.roundingMode
+  val rec7Module: Instance[Rec7Fn] = Instantiate(new Rec7Fn(Rec7FnParameter()))
+  rec7Module.io.in.data         := request.src(1)
+  rec7Module.io.in.classifyIn   := in1classify
+  rec7Module.io.in.roundingMode := request.roundingMode
 
-  val rsqrt7Module = Module(new Rsqrt7Fn)
-  rsqrt7Module.in.data       := request.src(1)
-  rsqrt7Module.in.classifyIn := in1classify
+  val rsqrt7Module: Instance[Rsqrt7Fn] = Instantiate(new Rsqrt7Fn(Rsqrt7FnParameter()))
+  rsqrt7Module.io.in.data       := request.src(1)
+  rsqrt7Module.io.in.classifyIn := in1classify
 
   val otherResult = Wire(UInt(32.W))
   val otherFlags  = Wire(UInt(5.W))
@@ -268,12 +268,12 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with
       Mux(
         uop === "b0100".U,
         in1classify,
-        Mux(uop === "b0110".U, rec7Module.out.data, Mux(uop === "b0111".U, rsqrt7Module.out.data, 0.U))
+        Mux(uop === "b0110".U, rec7Module.io.out.data, Mux(uop === "b0111".U, rsqrt7Module.io.out.data, 0.U))
       )
     )
   )
 
-  otherFlags := Mux(rec7En, rec7Module.out.exceptionFlags, Mux(rsqrt7En, rsqrt7Module.out.exceptionFlags, convertFlags))
+  otherFlags := Mux(rec7En, rec7Module.io.out.exceptionFlags, Mux(rsqrt7En, rsqrt7Module.io.out.exceptionFlags, convertFlags))
 
   /** collect results */
   result := Mux1H(
