@@ -5,7 +5,7 @@ package org.chipsalliance.t1.elaborator.t1rocketemu
 import chisel3.experimental.util.SerializableModuleElaborator
 import chisel3.util.BitPat
 import chisel3.util.experimental.BitSet
-import chisel3.stage.IncludeUtilMetadata
+import chisel3.stage.{IncludeUtilMetadata, UseSRAMBlackbox}
 import mainargs._
 import org.chipsalliance.t1.rtl.VFUInstantiateParameter
 import org.chipsalliance.t1.rtl.vrf.RamType
@@ -113,7 +113,7 @@ object TestBench extends SerializableModuleElaborator {
   implicit def T1RocketTileParameterMainParser: ParserForClass[T1RocketTileParameterMain] =
     ParserForClass[T1RocketTileParameterMain]
 
-  override def additionalAnnotations = Seq(IncludeUtilMetadata)
+  override def additionalAnnotations = Seq(IncludeUtilMetadata, UseSRAMBlackbox)
 
   @main
   def config(@arg(name = "parameter") parameter: M) =

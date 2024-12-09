@@ -3,7 +3,7 @@
 package org.chipsalliance.t1.elaborator.t1emu
 
 import chisel3.experimental.util.SerializableModuleElaborator
-import chisel3.stage.IncludeUtilMetadata
+import chisel3.stage.{IncludeUtilMetadata, UseSRAMBlackbox}
 import mainargs._
 import org.chipsalliance.t1.rtl.vrf.RamType
 import org.chipsalliance.t1.rtl.vrf.RamType.{p0rp1w, p0rw, p0rwp1rw}
@@ -60,7 +60,7 @@ object TestBench extends SerializableModuleElaborator {
 
   implicit def T1ParameterMainParser: ParserForClass[M] = ParserForClass[M]
 
-  override def additionalAnnotations = Seq(IncludeUtilMetadata)
+  override def additionalAnnotations = Seq(IncludeUtilMetadata, UseSRAMBlackbox)
 
   @main
   def config(@arg(name = "parameter") parameter: M) =

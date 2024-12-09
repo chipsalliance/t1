@@ -5,7 +5,7 @@ package org.chipsalliance.t1.elaborator.rocketv
 import chisel3.experimental.util.SerializableModuleElaborator
 import chisel3.util.BitPat
 import chisel3.util.experimental.BitSet
-import chisel3.stage.IncludeUtilMetadata
+import chisel3.stage.{IncludeUtilMetadata, UseSRAMBlackbox}
 import mainargs._
 import org.chipsalliance.rocketv.{BHTParameter, Frontend, FrontendParameter}
 
@@ -137,7 +137,7 @@ object Frontend extends SerializableModuleElaborator {
   implicit def FrontendParameterMainParser: ParserForClass[FrontendParameterMain] =
     ParserForClass[FrontendParameterMain]
 
-  override def additionalAnnotations = Seq(IncludeUtilMetadata)
+  override def additionalAnnotations = Seq(IncludeUtilMetadata, UseSRAMBlackbox)
 
   @main
   def config(@arg(name = "parameter") parameter: M) =
