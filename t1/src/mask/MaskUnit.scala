@@ -50,9 +50,9 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   }
 
   @public
-  val exeResp: Seq[ValidIO[VRFWriteRequest]] = Seq.tabulate(parameter.laneNumber) { _ =>
+  val exeResp: Seq[DecoupledIO[VRFWriteRequest]] = Seq.tabulate(parameter.laneNumber) { _ =>
     IO(
-      Valid(
+      Decoupled(
         new VRFWriteRequest(
           parameter.vrfParam.regNumBits,
           parameter.laneParam.vrfOffsetBits,
@@ -1078,17 +1078,10 @@ class MaskUnit(parameter: T1Parameter) extends Module {
     }
     queue.enq.bits.index         := instReg.instructionIndex
 
-    // write token
-    val tokenCounter = RegInit(0.U(log2Ceil(parameter.maskUnitVefWriteQueueSize + 1).W))
-    val tokenAllow:    Bool = queue.deq.fire
-    val counterChange: UInt = Mux(tokenAllow, 1.U, -1.S(tokenCounter.getWidth.W).asUInt)
-    when(tokenAllow ^ tokenIO(index).maskResponseRelease) {
-      tokenCounter := tokenCounter + counterChange
-    }
     // write vrf
     val writePort = exeResp(index)
-    queue.deq.ready                 := !tokenCounter.asBools.last
-    writePort.valid                 := tokenAllow
+    queue.deq.ready                 := writePort.ready
+    writePort.valid                 := queue.deq.valid
     writePort.bits.last             := DontCare
     writePort.bits.instructionIndex := instReg.instructionIndex
     writePort.bits.data             := Mux(queue.deq.bits.ffoByOther, queue.deq.bits.pipeData, queue.deq.bits.writeData.data)
