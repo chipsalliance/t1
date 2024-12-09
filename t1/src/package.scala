@@ -277,7 +277,7 @@ package object rtl {
   def connectVrfAccess[T <: Data](
     latencyVec:     Seq[Int],
     tokenSizeVec:   Seq[Int],
-    vrfReadLatency: Option[Int]
+    vrfReadLatency: Option[Int] = None
   )(sourceVec:      Vec[DecoupledIO[T]],
     sink:           DecoupledIO[T],
     arb:            Int,

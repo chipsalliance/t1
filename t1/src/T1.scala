@@ -656,20 +656,6 @@ class T1(val parameter: T1Parameter)
   val completeIndexInstruction: Bool =
     ohCheck(lsu.lastReport, slots.last.record.instructionIndex, parameter.chainingSize) && !slots.last.state.idle
 
-  val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
-    Vec(
-      parameter.laneNumber,
-      Decoupled(
-        new VRFWriteRequest(
-          parameter.vrfParam.regNumBits,
-          parameter.vrfParam.vrfOffsetBits,
-          parameter.instructionIndexBits,
-          parameter.datapathWidth
-        )
-      )
-    )
-  )
-
   val freeOR: Bool = VecInit(slots.map(_.state.idle)).asUInt.orR
 
   /** slot is ready to accept new instructions. */
@@ -766,13 +752,15 @@ class T1(val parameter: T1Parameter)
       Some(Seq(maskUnit.io.readResult(index), lsu.vrfReadResults(index)))
     )
 
-    val maskTryToWrite = maskUnit.io.exeResp(index)
-    // lsu & mask unit write lane
-    // Mask write has absolute priority because it has a token
-    lane.vrfWriteChannel.valid := vrfWrite(index).valid || maskTryToWrite.valid
-    lane.vrfWriteChannel.bits  := Mux(maskTryToWrite.valid, maskTryToWrite.bits, vrfWrite(index).bits)
-    vrfWrite(index).ready      := lane.vrfWriteChannel.ready && !maskTryToWrite.valid
-    lane.writeFromMask         := maskTryToWrite.valid
+    connectVrfAccess(
+      Seq(parameter.maskUnitReadShifterSize(index), parameter.lsuReadShifterSize(index)),
+      Seq(parameter.maskUnitReadTokenSize(index), parameter.lsuReadTokenSize(index))
+    )(
+      VecInit(Seq(maskUnit.io.exeResp(index), lsu.vrfWritePort(index))),
+      lane.vrfWriteChannel,
+      0
+    )
+    lane.writeFromMask := maskUnit.exeResp(index).fire
 
     lsu.offsetReadResult(index).valid := lane.maskUnitRequest.valid && lane.maskRequestToLSU
     lsu.offsetReadResult(index).bits  := lane.maskUnitRequest.bits.source2
@@ -850,7 +838,6 @@ class T1(val parameter: T1Parameter)
   }
 
   maskUnit.io.tokenIO.zip(laneVec).zipWithIndex.foreach { case ((token, lane), index) =>
-    token.maskResponseRelease       := lane.tokenIO.maskResponseRelease
     lane.tokenIO.maskRequestRelease := token.maskRequestRelease || lsu.tokenIO.offsetGroupRelease(index)
   }
 
@@ -887,8 +874,6 @@ class T1(val parameter: T1Parameter)
 
   io.highBandwidthLoadStorePort <> lsu.axi4Port
   io.indexedLoadStorePort <> lsu.simpleAccessPorts
-  // 暂时直接连lsu的写,后续需要处理scheduler的写
-  vrfWrite.zip(lsu.vrfWritePort).foreach { case (sink, source) => sink <> source }
 
   /** Slot has free entries. */
   val free = VecInit(slots.map(_.state.idle)).asUInt
@@ -974,7 +959,7 @@ class T1(val parameter: T1Parameter)
     probeWire.requestRegReady    := requestRegDequeue.ready
     // maskUnitWrite maskUnitWriteReady
     probeWire.writeQueueEnqVec.zip(maskUnit.io.exeResp).foreach { case (probe, write) =>
-      probe.valid := write.valid && write.bits.mask.orR
+      probe.valid := write.fire && write.bits.mask.orR
       probe.bits  := write.bits.instructionIndex
     }
     probeWire.instructionValid   := maskAnd(
