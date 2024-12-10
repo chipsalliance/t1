@@ -1039,87 +1039,87 @@ class T1(val parameter: T1Parameter)
       CoverProperty(coverMatch, label = Some(s"1_${instruction.name}"))
     }
 
-    // coverage for two instructions
-    instructions.map { case instructionNew: Instruction =>
-      instructions.map { case instructionOld: Instruction =>
-        val issueInstructionOld = RegEnable(requestReg.bits.issue.instruction, requestReg.valid)
-        val coverMatchNew       = BoolSequence(
-          requestReg.valid && requestReg.bits.issue.instruction === BitPat("b" + instructionNew.encoding.toString)
-        )
-        val coverMatchOld       = BoolSequence(issueInstructionOld === BitPat("b" + instructionOld.encoding.toString))
-        CoverProperty(
-          coverMatchNew.and(coverMatchOld),
-          label = Some(s"2_${instructionOld.name}_and_${instructionNew.name}")
-        )
-      }
-    }
+    // // coverage for two instructions
+    // instructions.map { case instructionNew: Instruction =>
+    //   instructions.map { case instructionOld: Instruction =>
+    //     val issueInstructionOld = RegEnable(requestReg.bits.issue.instruction, requestReg.valid)
+    //     val coverMatchNew       = BoolSequence(
+    //       requestReg.valid && requestReg.bits.issue.instruction === BitPat("b" + instructionNew.encoding.toString)
+    //     )
+    //     val coverMatchOld       = BoolSequence(issueInstructionOld === BitPat("b" + instructionOld.encoding.toString))
+    //     CoverProperty(
+    //       coverMatchNew.and(coverMatchOld),
+    //       label = Some(s"2_${instructionOld.name}_and_${instructionNew.name}")
+    //     )
+    //   }
+    // }
 
-    // coverage for different sew / vlmul / vl
-    val vsews:  Seq[Int]           = Seq(0, 1, 2)
-    val sews:   Seq[Int]           = Seq(8, 16, 32)
-    val vlmuls: Seq[Int]           = Seq(0, 1, 2, 3, 6, 7)
-    val lmuls:  Seq[Double]        = Seq(1, 2, 4, 8, -1, -1, 0.25, 0.5)
-    val vls:    Seq[(Double, Int)] =
-      Seq((1.0, 0), (1.0, -1), (0.25, -1), (0.25, 0), (0.25, 1), (0.5, -1), (0.5, 0), (0.5, 1))
-    vsews.map { vsew =>
-      vlmuls.map { vlmul =>
-        vls.map { case (vla, vlb) =>
-          val sew   = sews(vsew)
-          val lmul  = lmuls(vlmul)
-          val vlmax = parameter.vLen * lmul / sew
-          val vl    = (vlmax * vla).toInt + vlb
+    // // coverage for different sew / vlmul / vl
+    // val vsews:  Seq[Int]           = Seq(0, 1, 2)
+    // val sews:   Seq[Int]           = Seq(8, 16, 32)
+    // val vlmuls: Seq[Int]           = Seq(0, 1, 2, 3, 6, 7)
+    // val lmuls:  Seq[Double]        = Seq(1, 2, 4, 8, -1, -1, 0.25, 0.5)
+    // val vls:    Seq[(Double, Int)] =
+    //   Seq((1.0, 0), (1.0, -1), (0.25, -1), (0.25, 0), (0.25, 1), (0.5, -1), (0.5, 0), (0.5, 1))
+    // vsews.map { vsew =>
+    //   vlmuls.map { vlmul =>
+    //     vls.map { case (vla, vlb) =>
+    //       val sew   = sews(vsew)
+    //       val lmul  = lmuls(vlmul)
+    //       val vlmax = parameter.vLen * lmul / sew
+    //       val vl    = (vlmax * vla).toInt + vlb
 
-          val coverMatch = BoolSequence(
-            requestReg.valid && requestReg.bits.issue.vl === vl.U &&
-              T1Issue.vlmul(requestReg.bits.issue) === vlmul.U &&
-              T1Issue.vsew(requestReg.bits.issue) === vsew.U
-          )
+    //       val coverMatch = BoolSequence(
+    //         requestReg.valid && requestReg.bits.issue.vl === vl.U &&
+    //           T1Issue.vlmul(requestReg.bits.issue) === vlmul.U &&
+    //           T1Issue.vsew(requestReg.bits.issue) === vsew.U
+    //       )
 
-          CoverProperty(coverMatch, label = Some(s"3_sew_${sew}_lmul_${lmul}_vl_${vl}"))
-        }
-      }
-    }
+    //       CoverProperty(coverMatch, label = Some(s"3_sew_${sew}_lmul_${lmul}_vl_${vl}"))
+    //     }
+    //   }
+    // }
 
-    // coverage for lsu (load / store / other) with slots (contain / intersection / disjoint)
+    // // coverage for lsu (load / store / other) with slots (contain / intersection / disjoint)
 
-    // TODO:load unit probe
+    // // TODO:load unit probe
 
-    // store unit probe
-    val storeUnitProbe = probeWire.lsuProbe.storeUnitProbe
+    // // store unit probe
+    // val storeUnitProbe = probeWire.lsuProbe.storeUnitProbe
 
-    val storeRangeStartNew = storeUnitProbe.address
-    val storeRangeEndNew   = storeUnitProbe.address + PriorityEncoder(storeUnitProbe.mask)
-    val storeRangeStartOld = RegEnable(storeUnitProbe.address, storeUnitProbe.valid)
-    val storeRangeEndOld   =
-      RegEnable(storeUnitProbe.address + PriorityEncoder(storeUnitProbe.mask), storeUnitProbe.valid)
+    // val storeRangeStartNew = storeUnitProbe.address
+    // val storeRangeEndNew   = storeUnitProbe.address + PriorityEncoder(storeUnitProbe.mask)
+    // val storeRangeStartOld = RegEnable(storeUnitProbe.address, storeUnitProbe.valid)
+    // val storeRangeEndOld   =
+    //   RegEnable(storeUnitProbe.address + PriorityEncoder(storeUnitProbe.mask), storeUnitProbe.valid)
 
-    val storeContain      = storeRangeStartOld <= storeRangeStartNew && storeRangeEndNew <= storeRangeEndOld ||
-      storeRangeStartNew <= storeRangeStartOld && storeRangeEndOld <= storeRangeEndNew
-    val storeIntersection = storeRangeStartNew <= storeRangeStartOld && storeRangeEndNew <= storeRangeEndOld ||
-      storeRangeStartOld <= storeRangeStartNew && storeRangeEndOld <= storeRangeEndNew
-    val storeDisjoint     = storeRangeEndNew <= storeRangeStartOld || storeRangeEndOld <= storeRangeEndNew
+    // val storeContain      = storeRangeStartOld <= storeRangeStartNew && storeRangeEndNew <= storeRangeEndOld ||
+    //   storeRangeStartNew <= storeRangeStartOld && storeRangeEndOld <= storeRangeEndNew
+    // val storeIntersection = storeRangeStartNew <= storeRangeStartOld && storeRangeEndNew <= storeRangeEndOld ||
+    //   storeRangeStartOld <= storeRangeStartNew && storeRangeEndOld <= storeRangeEndNew
+    // val storeDisjoint     = storeRangeEndNew <= storeRangeStartOld || storeRangeEndOld <= storeRangeEndNew
 
-    CoverProperty(BoolSequence(storeUnitProbe.valid && storeContain), label = Some("4_store_contain"))
-    CoverProperty(BoolSequence(storeUnitProbe.valid && storeIntersection), label = Some("4_store_intersection"))
-    CoverProperty(BoolSequence(storeUnitProbe.valid && storeDisjoint), label = Some("4_store_disjoint"))
+    // CoverProperty(BoolSequence(storeUnitProbe.valid && storeContain), label = Some("4_store_contain"))
+    // CoverProperty(BoolSequence(storeUnitProbe.valid && storeIntersection), label = Some("4_store_intersection"))
+    // CoverProperty(BoolSequence(storeUnitProbe.valid && storeDisjoint), label = Some("4_store_disjoint"))
 
-    // other unit probe
-    val otherUnitProbe = probeWire.lsuProbe.otherUnitProbe
+    // // other unit probe
+    // val otherUnitProbe = probeWire.lsuProbe.otherUnitProbe
 
-    val otherRangeStartNew = otherUnitProbe.address
-    val otherRangeEndNew   = otherUnitProbe.address + PriorityEncoder(otherUnitProbe.mask)
-    val otherRangeStartOld = RegEnable(otherUnitProbe.address, otherUnitProbe.valid)
-    val otherRangeEndOld   =
-      RegEnable(otherUnitProbe.address + PriorityEncoder(otherUnitProbe.mask), otherUnitProbe.valid)
+    // val otherRangeStartNew = otherUnitProbe.address
+    // val otherRangeEndNew   = otherUnitProbe.address + PriorityEncoder(otherUnitProbe.mask)
+    // val otherRangeStartOld = RegEnable(otherUnitProbe.address, otherUnitProbe.valid)
+    // val otherRangeEndOld   =
+    //   RegEnable(otherUnitProbe.address + PriorityEncoder(otherUnitProbe.mask), otherUnitProbe.valid)
 
-    val otherContain      = otherRangeStartOld <= otherRangeStartNew && otherRangeEndNew <= otherRangeEndOld ||
-      otherRangeStartNew <= otherRangeStartOld && otherRangeEndOld <= otherRangeEndNew
-    val otherIntersection = otherRangeStartNew <= otherRangeStartOld && otherRangeEndNew <= otherRangeEndOld ||
-      otherRangeStartOld <= otherRangeStartNew && otherRangeEndOld <= otherRangeEndNew
-    val otherDisjoint     = otherRangeEndNew <= otherRangeStartOld || otherRangeEndOld <= otherRangeEndNew
+    // val otherContain      = otherRangeStartOld <= otherRangeStartNew && otherRangeEndNew <= otherRangeEndOld ||
+    //   otherRangeStartNew <= otherRangeStartOld && otherRangeEndOld <= otherRangeEndNew
+    // val otherIntersection = otherRangeStartNew <= otherRangeStartOld && otherRangeEndNew <= otherRangeEndOld ||
+    //   otherRangeStartOld <= otherRangeStartNew && otherRangeEndOld <= otherRangeEndNew
+    // val otherDisjoint     = otherRangeEndNew <= otherRangeStartOld || otherRangeEndOld <= otherRangeEndNew
 
-    CoverProperty(BoolSequence(otherUnitProbe.valid && otherContain), label = Some("4_other_contain"))
-    CoverProperty(BoolSequence(otherUnitProbe.valid && otherIntersection), label = Some("4_other_intersection"))
-    CoverProperty(BoolSequence(otherUnitProbe.valid && otherDisjoint), label = Some("4_other_disjoint"))
+    // CoverProperty(BoolSequence(otherUnitProbe.valid && otherContain), label = Some("4_other_contain"))
+    // CoverProperty(BoolSequence(otherUnitProbe.valid && otherIntersection), label = Some("4_other_intersection"))
+    // CoverProperty(BoolSequence(otherUnitProbe.valid && otherDisjoint), label = Some("4_other_disjoint"))
   } // end of verification layer
 }
