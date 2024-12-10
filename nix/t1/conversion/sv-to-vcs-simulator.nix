@@ -48,7 +48,7 @@ stdenv.mkDerivation rec {
   ]
   ++ lib.optionals enableCover [
     "-cm"
-    "line+cond+fsm+tgl+branch+assert"
+    "assert"
     "-cm_dir"
     "./cm"
   ]
