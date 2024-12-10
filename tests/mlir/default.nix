@@ -4,6 +4,7 @@
 , findAndBuild
 , getTestRequiredFeatures
 , t1main
+, jq
 }:
 
 let
@@ -53,6 +54,13 @@ let
         $CC -T${linkerScript} \
           ${caseName}.c $pname.S ${t1main} \
           -o $pname.elf
+
+        if [ ! -f ${sourcePath}/${caseName}.json ]; then
+          echo "Error: ${sourcePath}/${caseName}.json not found" >&2
+        else
+          ${jq}/bin/jq -r '[.assert[] | "+assert " + .name] + [.tree[] | "+tree " + .name] + [.module[] | "+module " + .name] | .[]' \
+              ${sourcePath}/${caseName}.json > $pname.cover
+        fi
 
         runHook postBuild
       '';

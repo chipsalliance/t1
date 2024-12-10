@@ -87,9 +87,10 @@ jobs:
   report:
     name: "Report VCS CI result"
     # Don't run report when:
+    #   - marked draft ( we don't need to run report for draft PR )
     #   - user cancel ( we don't need report at this case )
     #   - PR from outside repository ( we don't have permission to push commit into fork repository )
-    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft }}
     needs: [run-testcases]
     runs-on: [self-hosted, linux, nixos]
     permissions:
