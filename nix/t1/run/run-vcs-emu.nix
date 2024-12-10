@@ -28,8 +28,7 @@ stdenvNoCC.mkDerivation (rec {
     profile = writeShellScriptBin "runSimProfile" ''
       ${emuDriver} \
         ${lib.escapeShellArgs emuDriverArgs} \
-        -simprofile time \
-        2> ${testCase.pname}-rtl-event.jsonl
+        -simprofile time
     '';
   };
 
@@ -65,20 +64,19 @@ stdenvNoCC.mkDerivation (rec {
 
     emuDriverArgs="${lib.escapeShellArgs emuDriverArgs}"
 
-    rtlEventOutPath="$out/${testCase.pname}-rtl-event.jsonl"
+    rtlEventOutPath="rtl-event.jsonl"
 
     echo "[nix] Running VCS ${testCase.pname} with args $emuDriverArgs"
 
     printError() {
       echo -e "\033[0;31m[nix]\033[0m: online driver run failed"
-      cat $rtlEventOutPath
       echo -e "\033[0;31m[nix]\033[0m: Try rerun with '\033[0;34m$emuDriver $emuDriverArgs\033[0m'"
       exit 1
     }
 
     export RUST_BACKTRACE=full
 
-    "$emuDriver" $emuDriverArgs 1> >(tee $out/online-drive-emu-journal) 2>$rtlEventOutPath || printError
+    "$emuDriver" $emuDriverArgs 1> >(tee $out/online-drive-emu-journal) || printError
 
     echo "[nix] VCS run done"
 
@@ -117,7 +115,7 @@ stdenvNoCC.mkDerivation (rec {
     set -e
 
     echo "[nix] compressing event log"
-    zstd $rtlEventOutPath -o $rtlEventOutPath.zstd
+    zstd $rtlEventOutPath -o "$out/rtl-event.jsonl.zstd"
     rm $rtlEventOutPath
 
     if [ -r perf.json ]; then
