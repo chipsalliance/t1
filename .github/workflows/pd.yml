@@ -68,6 +68,7 @@ jobs:
           JSON_CTX: ${{ toJson(github.event.pull_request.labels.*.name) }}
           T1_BRANCH: ${{ github.head_ref || github.ref_name }}
           T1_CONFIG: ${{ matrix.config }}
+          T1_COMMIT: ${{ github.event.pull_request.head.sha }}
           PD_URL: ${{ secrets.T1_INHOUSE_URL }}
         run: |
           # GitHub `toJson` will pretty print JSON and causing multiple line escape issue
@@ -83,35 +84,44 @@ jobs:
             --override-input t1 "github:chipsalliance/t1/${T1_BRANCH}" \
             "git+https://${GH_TOKEN}@${PD_URL}#prometheus.${T1_CONFIG}.tsn28-run-fc-rm.T1RocketTile"
 
-          echo "* Artifacts path: $(realpath fc-result)\n" >> "$GITHUB_STEP_SUMMARY"
+          _CODE_BLOCK='```'
 
-          cd fc-result
-          echo -e "# Reports\n" > report.md
-          echo -e "$(date)\n" >> report.md
-          echo -e "Generated on T1RocketTile:\n" >> report.md
-          echo "* commit ${{ github.event.pull_request.head.sha }}" >> report.md
-          echo "* branch $T1_BRANCH" >> report.md
-          echo "* config $T1_CONFIG" >> report.md
-          echo -e '## Timing\n' >> report.md
-          echo -e '```text\n' >> report.md
-          cat timing_*.rpt >> report.md
-          echo -e '```\n' >> report.md
+          echo "* Artifacts path: $(realpath fc-result)" >> "$GITHUB_STEP_SUMMARY"
+          tee report.md <<-EOF
+          T1RocketTile PD Reports
+          =======================
+          Generated at $(date)
 
-          echo -e '## Area\n' >> report.md
-          echo -e '```text\n' >> report.md
-          cat area.rpt >> report.md
-          echo -e '```\n' >> report.md
+          Information
+          -----------
+          * commit: $T1_COMMIT
+          * branch: $T1_BRANCH
+          * config: $T1_CONFIG
 
-          echo -e '## Power\n' >> report.md
-          echo -e '```text\n' >> report.md
-          cat power.rpt >> report.md
-          echo -e '```\n' >> report.md
+          Timing
+          ------
+          ${_CODE_BLOCK}text
+          $(cat fc-result/timing_*.rpt)
+          ${_CODE_BLOCK}
 
-          echo -e '## Logic Level\n' >> report.md
-          echo -e '```text\n' >> report.md
-          cat logic_levels.rpt >> report.md
-          echo -e '```\n' >> report.md
+          Area
+          ----
+          ${_CODE_BLOCK}text
+          $(cat fc-result/area.rpt)
+          ${_CODE_BLOCK}
+
+          Power
+          -----
+          ${_CODE_BLOCK}text
+          $(cat fc-result/power.rpt)
+          ${_CODE_BLOCK}
+
+          Logic Level
+          -----------
+          ${_CODE_BLOCK}text
+          $(cat fc-result/logic_levels.rpt)
+          ${_CODE_BLOCK}
+          EOF
 
           echo "* Report Short link URL:" >> $GITHUB_STEP_SUMMARY
-          echo "$(curl -Fc=@report.md -Fe=1M https://shz.al | jq -r .url)?lang=md" >> $GITHUB_STEP_SUMMARY
-          echo -e "\n\n" >> $GITHUB_STEP_SUMMARY
+          echo "<$(curl -Fc=@report.md -Fe=1M https://shz.al | jq -r .url)?lang=md>" >> $GITHUB_STEP_SUMMARY
