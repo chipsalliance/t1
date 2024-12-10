@@ -28,8 +28,7 @@ stdenvNoCC.mkDerivation (rec {
     profile = writeShellScriptBin "runSimProfile" ''
       ${emuDriver} \
         ${lib.escapeShellArgs emuDriverArgs} \
-        -simprofile time \
-        2> ${testCase.pname}-rtl-event.jsonl
+        -simprofile time
     '';
   };
 
