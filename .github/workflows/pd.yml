@@ -51,11 +51,13 @@ jobs:
           nix build ".#t1.${testConfig}.${testAttr}.rtl" -L
 
   physical-design-report:
+    timeout-minutes: 1440
     name: "Request physical design report"
     if: ${{ success() && (contains(github.event.pull_request.labels.*.name, 'PD-Lane') || contains(github.event.pull_request.labels.*.name, 'PD-Lane-DBG'))}}
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     needs: [test-emit]
     strategy:
+      fail-fast: false
       matrix:
         config:
           - blastoise
