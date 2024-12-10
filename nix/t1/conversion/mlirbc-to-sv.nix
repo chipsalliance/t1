@@ -21,6 +21,12 @@ stdenvNoCC.mkDerivation {
     echo "[nix] converting mlirbc to system verilog with args: $firtoolArgs"
     $builder -c "$firtoolArgs"
 
+    # TODO: remove it after circt PRINTF_FD lands
+    if [ -f "$out/TestBench.sv" ]; then
+      # replace "$fwrite(32'h80000002" -> "fwrite(`PRINTF_FD"
+      sed -i -e "s/\\\$fwrite[(]32'h80000002/\\\$fwrite(\`PRINTF_FD/g" "$out/TestBench.sv"
+    fi
+
     # https://github.com/llvm/circt/pull/7543
     echo "[nix] fixing generated filelist.f"
     pushd $out >/dev/null
