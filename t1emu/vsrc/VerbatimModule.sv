@@ -1,3 +1,22 @@
+package t1_log_pkg;
+  bit log_cond;
+  int log_fd;
+
+  function automatic void log_open(string log_path);
+    log_fd = $fopen(log_path, "w");
+    if (log_fd == 0) $fatal(1, "failed to open rtl event file for write");
+    log_cond = 1'b1;
+  endfunction
+
+  function automatic void log_close();
+    if (log_cond) begin
+      $fclose(log_fd);
+      log_cond = 1'b0;
+      log_fd = 0;
+    end
+  endfunction
+endpackage
+
 module VerbatimModule #(
   parameter integer T1_DLEN,
   parameter integer T1_VLEN,
@@ -67,6 +86,8 @@ module VerbatimModule #(
     clock = 1'b0;
     reset = 1'b1;
 
+    t1_log_pkg::log_open("rtl-event.jsonl");
+
   `ifdef T1_ENABLE_TRACE
     $value$plusargs("t1_dump_start=%d", dump_start);
     $value$plusargs("t1_dump_end=%d", dump_end);
@@ -125,6 +146,7 @@ module VerbatimModule #(
   end
 
   final begin
+    t1_log_pkg::log_close();
     t1_cosim_final();
   end
 
