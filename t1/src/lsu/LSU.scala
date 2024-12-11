@@ -118,15 +118,10 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val request: DecoupledIO[LSURequest] = IO(Flipped(Decoupled(new LSURequest(param.datapathWidth))))
 
-  /** mask from [[V]] TODO: since mask is one-cycle information for a mask group, we should latch it in the LSU, and
-    * reduce the IO width. this needs PnR information.
-    */
   @public
-  val maskInput: Vec[UInt] = IO(Input(Vec(param.lsuMSHRSize, UInt(param.maskGroupWidth.W))))
-
-  /** the address of the mask group in the [[V]]. */
-  @public
-  val maskSelect: Vec[UInt] = IO(Output(Vec(param.lsuMSHRSize, UInt(param.maskGroupSizeBits.W))))
+  val v0UpdateVec: Vec[ValidIO[V0Update]] = IO(
+    Flipped(Vec(param.laneNumber, Valid(new V0Update(param.datapathWidth, param.vrfOffsetBits))))
+  )
 
   @public
   val axi4Port: AXI4RWIrrevocable = IO(new AXI4RWIrrevocable(param.axi4BundleParameter))
@@ -197,6 +192,25 @@ class LSU(param: LSUParameter) extends Module {
   val storeUnit: StoreUnit        = Module(new StoreUnit(param.mshrParam))
   val otherUnit: SimpleAccessUnit = Module(new SimpleAccessUnit(param.mshrParam))
 
+  /** duplicate v0 in lsu */
+  val v0: Vec[UInt] = RegInit(
+    VecInit(Seq.fill(param.vLen / param.datapathWidth)(0.U(param.datapathWidth.W)))
+  )
+
+  // write v0(mask)
+  v0.zipWithIndex.foreach { case (data, index) =>
+    // 属于哪个lane
+    val laneIndex: Int = index % param.laneNumber
+    // 取出写的端口
+    val v0Write = v0UpdateVec(laneIndex)
+    // offset
+    val offset: Int = index / param.laneNumber
+    val maskExt = FillInterleaved(8, v0Write.bits.mask)
+    when(v0Write.valid && v0Write.bits.offset === offset.U) {
+      data := (data & (~maskExt).asUInt) | (maskExt & v0Write.bits.data)
+    }
+  }
+
   val unitVec = Seq(loadUnit, storeUnit, otherUnit)
 
   /** Always merge into cache line */
@@ -222,8 +236,8 @@ class LSU(param: LSUParameter) extends Module {
     mshr.lsuRequest.valid := reqEnq(index)
     mshr.lsuRequest.bits  := request.bits
 
-    maskSelect(index) := Mux(mshr.maskSelect.valid, mshr.maskSelect.bits, 0.U)
-    mshr.maskInput    := maskInput(index)
+    val maskSelect = Mux(mshr.maskSelect.valid, mshr.maskSelect.bits, 0.U)
+    mshr.maskInput := cutUInt(v0.asUInt, param.maskGroupWidth)(maskSelect)
 
     // broadcast CSR
     mshr.csrInterface := csrInterface
