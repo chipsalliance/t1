@@ -4,8 +4,21 @@
 package org.chipsalliance.t1.rtl.vfu
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, public, Instantiate}
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.experimental.hierarchy.instantiable
 import chisel3.util._
+
+case class VectorAdderParameter(width: Int) extends SerializableModuleParameter
+
+class VectorAdderInterface(parameter: VectorAdderParameter) extends Bundle {
+  val a: UInt = Input(UInt(parameter.width.W))
+  val b: UInt = Input(UInt(parameter.width.W))
+  val z: UInt = Output(UInt(parameter.width.W))
+  // TODO: 64 -> 4?
+  val sew  = Input(UInt(3.W))
+  val cin  = Input(UInt(4.W))
+  val cout = Output(UInt(4.W))
+}
 
 /** IO formula
   * {{{
@@ -30,29 +43,16 @@ import chisel3.util._
   * }}}
   */
 @instantiable
-class VectorAdder32 extends Module {
-  val width = 32
-  @public
-  val a: UInt = IO(Input(UInt(width.W)))
-  @public
-  val b: UInt = IO(Input(UInt(width.W)))
-  @public
-  val z: UInt = IO(Output(UInt(width.W)))
-  @public
-  val sew = IO(Input(UInt(3.W)))
-
+class VectorAdder(val parameter: VectorAdderParameter)
+    extends FixedIORawModule(new VectorAdderInterface(parameter))
+    with SerializableModule[VectorAdderParameter] {
   val indexSeq = Seq(0, 1, 2, 3)
   val e        = indexSeq.map(i => i * 8)
   val s        = Seq(7, 15, 23, 31)
 
-  @public
-  val cin  = IO(Input(UInt(4.W)))
-  @public
-  val cout = IO(Output(UInt(4.W)))
-
   // Split up bit vectors into individual bits and reverse it
-  val as: Seq[Bool] = a.asBools
-  val bs: Seq[Bool] = b.asBools
+  val as: Seq[Bool] = io.a.asBools
+  val bs: Seq[Bool] = io.b.asBools
 
   def zeroLayer(a: Seq[Bool], b: Seq[Bool]): Seq[(Bool, Bool)] = a.zip(b).map { case (a, b) => (a ^ b, a & b) }
 
@@ -103,17 +103,17 @@ class VectorAdder32 extends Module {
 
   val treeP = Mux1H(
     Seq(
-      sew(0) -> tree8P,
-      sew(1) -> tree16P,
-      sew(2) -> tree32P
+      io.sew(0) -> tree8P,
+      io.sew(1) -> tree16P,
+      io.sew(2) -> tree32P
     )
   )
 
   val treeG = Mux1H(
     Seq(
-      sew(0) -> tree8G,
-      sew(1) -> tree16G,
-      sew(2) -> tree32G
+      io.sew(0) -> tree8G,
+      io.sew(1) -> tree16G,
+      io.sew(2) -> tree32G
     )
   )
   val tree  = treeP.asBools.zip(treeG.asBools)
@@ -130,7 +130,7 @@ class VectorAdder32 extends Module {
   }
 
   /** if carry generated in each bit , in order */
-  val carryResult = buildCarry(tree, cin)
+  val carryResult = buildCarry(tree, io.cin)
   val cout8       = carryResult(s(3)) ## carryResult(s(2)) ## carryResult(s(1)) ## carryResult(s(0))
   val cout16      = carryResult(s(3)) ## carryResult(s(1))
   val cout32      = carryResult(s(3))
@@ -155,9 +155,9 @@ class VectorAdder32 extends Module {
     */
   val carryInSele = Mux1H(
     Seq(
-      sew(0) -> cin,
-      sew(1) -> carryResult(s(2)) ## cin(2) ## carryResult(s(0)) ## cin(0),
-      sew(2) -> carryResult(s(2)) ## carryResult(s(1)) ## carryResult(s(0)) ## cin(0)
+      io.sew(0) -> io.cin,
+      io.sew(1) -> carryResult(s(2)) ## io.cin(2) ## carryResult(s(0)) ## io.cin(0),
+      io.sew(2) -> carryResult(s(2)) ## carryResult(s(1)) ## carryResult(s(0)) ## io.cin(0)
     )
   )
   val cs          = Cat(
@@ -171,25 +171,14 @@ class VectorAdder32 extends Module {
     carryInSele(0)
   )
 
-  cout := Mux1H(
+  io.cout := Mux1H(
     Seq(
-      sew(0) -> cout8,
-      sew(1) -> cout16,
-      sew(2) -> cout32
+      io.sew(0) -> cout8,
+      io.sew(1) -> cout16,
+      io.sew(2) -> cout32
     )
   )
 
   val ps = VecInit(pairs.map(_._1)).asUInt
-  z := ps ^ cs
-}
-
-object VectorAdder32 {
-  def apply(a: UInt, b: UInt, sew: UInt) = {
-    val adder64 = Instantiate(new VectorAdder32)
-    adder64.a   := a
-    adder64.b   := b
-    adder64.cin := 0.U
-    adder64.sew := sew
-    adder64.z
-  }
+  io.z := ps ^ cs
 }

@@ -8,7 +8,7 @@ import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder._
-import org.chipsalliance.t1.rtl.vfu.VectorAdder32
+import org.chipsalliance.t1.rtl.vfu.{VectorAdder, VectorAdderParameter}
 object LaneAdderParam {
   implicit def rw: upickle.default.ReadWriter[LaneAdderParam] = upickle.default.macroRW
 }
@@ -97,11 +97,11 @@ class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) with
       (vSew1H(2) && averageSum(15)) ## averageSum(14, 8) ##
       (!vSew1H(0) && averageSum(7)) ## averageSum(6, 0)
 
-  val adder: Instance[VectorAdder32] = Instantiate(new VectorAdder32)
+  val adder: Instance[VectorAdder] = Instantiate(new VectorAdder(VectorAdderParameter(parameter.datapathWidth)))
 
-  adder.a   := Mux(request.average, operation0ForAverage, subOperation0)
-  adder.b   := Mux(request.average, operation1ForAverage, subOperation1)
-  adder.cin := Mux(
+  adder.io.a   := Mux(request.average, operation0ForAverage, subOperation0)
+  adder.io.b   := Mux(request.average, operation1ForAverage, subOperation1)
+  adder.io.cin := Mux(
     request.average,
     0.U(4.W),
     Mux1H(
@@ -113,15 +113,15 @@ class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) with
       )
     )
   )
-  adder.sew := UIntToOH(request.vSew)
+  adder.io.sew := UIntToOH(request.vSew)
 
-  val adderResult = adder.z
+  val adderResult = adder.io.z
   // sew = 0 -> 3210
   // sew = 1 -> 1?0?
   // sew = 2 -> 0???
   val adderCarryOut: UInt =
-    Mux1H(vSew1H, Seq(adder.cout(3), adder.cout(1), adder.cout(0))) ## adder.cout(2) ##
-      Mux(vSew1H(0), adder.cout(1), adder.cout(0)) ## adder.cout(0)
+    Mux1H(vSew1H, Seq(adder.io.cout(3), adder.io.cout(1), adder.io.cout(0))) ## adder.io.cout(2) ##
+      Mux(vSew1H(0), adder.io.cout(1), adder.io.cout(0)) ## adder.io.cout(0)
 
   // is first block
   // sew = 0 -> 1H: 001 -> 1111
