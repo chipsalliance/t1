@@ -261,6 +261,8 @@ case class T1Parameter(
   val lsuReadTokenSize:   Seq[Int] = Seq.tabulate(laneNumber)(_ => 4)
   val lsuReadShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
 
+  val maskRequestLatency = 2
+
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
 
   /** paraemter for AXI4. */
@@ -299,6 +301,7 @@ case class T1Parameter(
       crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize,
       fpuEnable = fpuEnable,
       portFactor = vrfBankSize,
+      maskRequestLatency = 2 * maskRequestLatency,
       vrfRamType = vrfRamType,
       decoderParam = decoderParam,
       vfuInstantiateParameter = vfuInstantiateParameter
@@ -760,7 +763,7 @@ class T1(val parameter: T1Parameter)
       lane.vrfWriteChannel,
       0
     )
-    lane.writeFromMask := maskUnit.exeResp(index).fire
+    lane.writeFromMask := maskUnit.io.exeResp(index).fire
 
     lsu.offsetReadResult(index).valid := lane.maskUnitRequest.valid && lane.maskRequestToLSU
     lsu.offsetReadResult(index).bits  := lane.maskUnitRequest.bits.source2
@@ -770,9 +773,9 @@ class T1(val parameter: T1Parameter)
       d := ohCheck(lane.instructionFinished, f, parameter.chainingSize)
     }
     vxsatReportVec(index)                := lane.vxsatReport
-    lane.maskInput                       := maskUnit.io.laneMaskInput(index)
-    maskUnit.io.laneMaskSelect(index)    := lane.maskSelect
-    maskUnit.io.laneMaskSewSelect(index) := lane.maskSelectSew
+    lane.maskInput                       := Pipe(true.B, maskUnit.io.laneMaskInput(index), parameter.maskRequestLatency).bits
+    maskUnit.io.laneMaskSelect(index)    := Pipe(true.B, lane.maskSelect, parameter.maskRequestLatency).bits
+    maskUnit.io.laneMaskSewSelect(index) := Pipe(true.B, lane.maskSelectSew, parameter.maskRequestLatency).bits
     maskUnit.io.v0UpdateVec(index) <> lane.v0Update
 
     lane.lsuLastReport := lsu.lastReport | maskUnit.io.lastReport
