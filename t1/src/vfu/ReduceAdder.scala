@@ -5,8 +5,8 @@ package org.chipsalliance.t1.rtl
 
 import chisel3._
 import chisel3.util._
-import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
-import org.chipsalliance.t1.rtl.vfu.VectorAdder32
+import chisel3.experimental.hierarchy.{Instance, Instantiate}
+import org.chipsalliance.t1.rtl.vfu.{VectorAdder, VectorAdderParameter}
 
 class ReduceAdderReq(datapathWidth: Int) extends Bundle {
   val src:    Vec[UInt] = Vec(2, UInt(datapathWidth.W))
@@ -36,11 +36,11 @@ class ReduceAdder(datapathWidth: Int) extends Module {
   val operation2 = Fill(4, isSub)
   val vSew1H     = UIntToOH(request.vSew)(2, 0)
 
-  val adder: Instance[VectorAdder32] = Instantiate(new VectorAdder32)
+  val adder: Instance[VectorAdder] = Instantiate(new VectorAdder(VectorAdderParameter(parameter.datapathWidth)))
 
-  adder.a   := subOperation0
-  adder.b   := subOperation1
-  adder.cin := Mux1H(
+  adder.io.a   := subOperation0
+  adder.io.b   := subOperation1
+  adder.io.cin := Mux1H(
     vSew1H,
     Seq(
       operation2,
@@ -48,15 +48,15 @@ class ReduceAdder(datapathWidth: Int) extends Module {
       Fill(4, operation2(0))
     )
   )
-  adder.sew := UIntToOH(request.vSew)
+  adder.io.sew := UIntToOH(request.vSew)
 
-  val adderResult = adder.z
+  val adderResult = adder.io.z
   // sew = 0 -> 3210
   // sew = 1 -> 1?0?
   // sew = 2 -> 0???
   val adderCarryOut: UInt =
-    Mux1H(vSew1H, Seq(adder.cout(3), adder.cout(1), adder.cout(0))) ## adder.cout(2) ##
-      Mux(vSew1H(0), adder.cout(1), adder.cout(0)) ## adder.cout(0)
+    Mux1H(vSew1H, Seq(adder.io.cout(3), adder.io.cout(1), adder.io.cout(0))) ## adder.io.cout(2) ##
+      Mux(vSew1H(0), adder.io.cout(1), adder.io.cout(0)) ## adder.io.cout(0)
 
   // 8 bit / element
   val adderResultVec: Vec[UInt] = cutUInt(adderResult, 8)
