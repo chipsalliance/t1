@@ -777,6 +777,7 @@ class T1(val parameter: T1Parameter)
     maskUnit.io.laneMaskSelect(index)    := Pipe(true.B, lane.maskSelect, parameter.maskRequestLatency).bits
     maskUnit.io.laneMaskSewSelect(index) := Pipe(true.B, lane.maskSelectSew, parameter.maskRequestLatency).bits
     maskUnit.io.v0UpdateVec(index) <> lane.v0Update
+    lsu.v0UpdateVec(index) <> lane.v0Update
 
     lane.lsuLastReport := lsu.lastReport | maskUnit.io.lastReport
 
@@ -811,12 +812,10 @@ class T1(val parameter: T1Parameter)
   lsu.request.bits.instructionInformation.isStore         := isStoreType
   lsu.request.bits.instructionInformation.maskedLoadStore := maskType
 
-  maskUnit.io.lsuMaskSelect := lsu.maskSelect
-  lsu.maskInput             := maskUnit.io.lsuMaskInput
-  lsu.csrInterface          := requestRegCSR
-  lsu.csrInterface.vl       := evlForLsu
-  lsu.writeReadyForLsu      := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
-  lsu.vrfReadyToStore       := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
+  lsu.csrInterface     := requestRegCSR
+  lsu.csrInterface.vl  := evlForLsu
+  lsu.writeReadyForLsu := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
+  lsu.vrfReadyToStore  := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
 
   // connect mask unit
   maskUnit.io.instReq.valid                 := requestRegDequeue.fire && requestReg.bits.decodeResult(Decoder.maskUnit)

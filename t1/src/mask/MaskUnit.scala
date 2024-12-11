@@ -70,12 +70,12 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
   val readResult:        Vec[ValidIO[UInt]]                = Flipped(Vec(parameter.laneNumber, Valid(UInt(parameter.datapathWidth.W))))
   val writeRD:           ValidIO[UInt]                     = Valid(UInt(parameter.datapathWidth.W))
   val lastReport:        UInt                              = Output(UInt((2 * parameter.chainingSize).W))
-  val lsuMaskInput:      Vec[UInt]                         = Output(Vec(parameter.lsuMSHRSize, UInt(parameter.maskGroupWidth.W)))
-  val lsuMaskSelect:     Vec[UInt]                         = Input(Vec(parameter.lsuMSHRSize, UInt(parameter.lsuParameters.maskGroupSizeBits.W)))
   val laneMaskInput:     Vec[UInt]                         = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
   val laneMaskSelect:    Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W)))
   val laneMaskSewSelect: Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(2.W)))
-  val v0UpdateVec:       Vec[ValidIO[V0Update]]            = Flipped(Vec(parameter.laneNumber, Valid(new V0Update(parameter.laneParam))))
+  val v0UpdateVec:       Vec[ValidIO[V0Update]]            = Flipped(
+    Vec(parameter.laneNumber, Valid(new V0Update(parameter.laneParam.datapathWidth, parameter.laneParam.vrfOffsetBits)))
+  )
   val writeRDData:       UInt                              = Output(UInt(parameter.xLen.W))
   val gatherData:        DecoupledIO[UInt]                 = Decoupled(UInt(parameter.xLen.W))
   val gatherRead:        Bool                              = Input(Bool())
@@ -116,8 +116,6 @@ class MaskUnit(val parameter: T1Parameter)
   val readResult        = io.readResult
   val writeRD           = io.writeRD
   val lastReport        = io.lastReport
-  val lsuMaskInput      = io.lsuMaskInput
-  val lsuMaskSelect     = io.lsuMaskSelect
   val laneMaskInput     = io.laneMaskInput
   val laneMaskSelect    = io.laneMaskSelect
   val laneMaskSewSelect = io.laneMaskSewSelect
@@ -166,11 +164,6 @@ class MaskUnit(val parameter: T1Parameter)
     val v0ForThisLane: Seq[UInt] = regroupV0.map(rv => cutUInt(rv, parameter.vLen / parameter.laneNumber)(index))
     val v0SelectBySew = Mux1H(UIntToOH(laneMaskSewSelect(index))(2, 0), v0ForThisLane)
     input := cutUInt(v0SelectBySew, parameter.datapathWidth)(laneMaskSelect(index))
-  }
-
-  // lsu
-  lsuMaskInput.zip(lsuMaskSelect).foreach { case (data, index) =>
-    data := cutUInt(v0.asUInt, parameter.maskGroupWidth)(index)
   }
 
   val maskedWrite: BitLevelMaskWrite = Module(new BitLevelMaskWrite(parameter))

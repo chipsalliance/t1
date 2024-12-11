@@ -360,9 +360,9 @@ class LaneResponseFeedback(param: LaneParameter) extends Bundle {
   val complete: Bool = Bool()
 }
 
-class V0Update(param: LaneParameter) extends Bundle {
-  val data:   UInt = UInt(param.datapathWidth.W)
-  val offset: UInt = UInt(param.vrfOffsetBits.W)
+class V0Update(datapathWidth: Int, vrfOffsetBits: Int) extends Bundle {
+  val data:   UInt = UInt(datapathWidth.W)
+  val offset: UInt = UInt(vrfOffsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
   val mask:   UInt = UInt(4.W)
 }
