@@ -17,11 +17,7 @@ package object attribute {
     val description: String
     // Property of this attribute
     def om: Property[ClassType] = {
-      val obj = Instantiate(new T1DecodeAttributeOM)
-      obj.identifierIn  := Property(identifier)
-      obj.descriptionIn := Property(description)
-      // Use toString to avoid type issues...
-      obj.valueIn       := Property(value.toString)
+      val obj = Instantiate(new T1DecodeAttributeOM(identifier, description, value.toString))
       obj.getPropertyReference
     }
   }

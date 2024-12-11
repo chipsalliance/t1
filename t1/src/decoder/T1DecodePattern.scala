@@ -14,33 +14,35 @@ import org.chipsalliance.t1.rtl.T1Parameter
 import org.chipsalliance.t1.rtl.decoder.attribute._
 
 @instantiable
-class T1DecodeAttributeOM extends Class {
-  val identifier            = IO(Output(Property[String]()))
-  val description           = IO(Output(Property[String]()))
-  val value                 = IO(Output(Property[String]()))
-  @public val identifierIn  = IO(Input(Property[String]()))
-  @public val descriptionIn = IO(Input(Property[String]()))
-  @public val valueIn       = IO(Input(Property[String]()))
-  identifier  := identifierIn
-  description := descriptionIn
-  value       := valueIn
+class T1DecodeAttributeOM(
+  _identifier:  String,
+  _description: String,
+  _value:       String)
+    extends Class {
+  val identifier  = IO(Output(Property[String]()))
+  val description = IO(Output(Property[String]()))
+  val value       = IO(Output(Property[String]()))
+  identifier  := Property(_identifier)
+  description := Property(_description)
+  value       := Property(_value)
 }
 
 @instantiable
-class T1InstructionOM extends Class {
+class T1InstructionOM(
+  _instructionName: String,
+  _documentation:   String,
+  _bitPat:          String)
+    extends Class {
   val instructionName = IO(Output(Property[String]()))
   val documentation   = IO(Output(Property[String]()))
   val bitPat          = IO(Output(Property[String]()))
   val attributes      = IO(Output(Property[Seq[AnyClassType]]))
+  @public
+  val attributesIn    = IO(Input(Property[Seq[AnyClassType]]))
 
-  @public val instructionNameIn = IO(Input(Property[String]()))
-  @public val documentationIn   = IO(Input(Property[String]()))
-  @public val bitPatIn          = IO(Input(Property[String]()))
-  @public val attributesIn      = IO(Input(Property[Seq[AnyClassType]]))
-
-  instructionName := instructionNameIn
-  documentation   := documentationIn
-  bitPat          := bitPatIn
+  instructionName := Property(_instructionName)
+  documentation   := Property(_documentation)
+  bitPat          := Property(_bitPat)
   attributes      := attributesIn
 }
 
@@ -115,10 +117,13 @@ case class T1DecodePattern(instruction: Instruction, param: DecoderParam) extend
 
   // This is the OM for this instruction
   def om: Property[ClassType] = {
-    val obj = Instantiate(new T1InstructionOM)
-    obj.instructionNameIn := Property(instruction.name)
-    obj.bitPatIn          := Property(bitPat.rawString)
-    obj.documentationIn   := Property(documentation)
+    val obj = Instantiate(
+      new T1InstructionOM(
+        instruction.name,
+        bitPat.rawString,
+        documentation
+      )
+    )
     // convert in-memory attributes to Chisel Property
     // get type of [[T1DecodeAttributeOM]]
     obj.attributesIn :#= Property(

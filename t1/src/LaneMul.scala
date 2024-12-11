@@ -4,9 +4,11 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
+import chisel3.experimental.hierarchy.{Instance, instantiable, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{Property, Path}
 import chisel3.util._
+import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
 import org.chipsalliance.t1.rtl.vfu.{Abs32, VectorAdder64, VectorMultiplier32Unsigned}
 
@@ -40,8 +42,15 @@ class LaneMulResponse(parameter: LaneMulParam) extends VFUPipeBundle {
   val vxsat: Bool = Bool()
 }
 
+class LaneMulOM(parameter: LaneMulParam) extends GeneralOM[LaneMulParam, LaneMul](parameter){
+  override def hasRetime: Boolean = true
+}
+
 @instantiable
-class LaneMul(val parameter: LaneMulParam) extends VFUModule(parameter) with SerializableModule[LaneMulParam] {
+class LaneMul(val parameter: LaneMulParam) extends VFUModule with SerializableModule[LaneMulParam] {
+  val omInstance: Instance[LaneMulOM] = Instantiate(new LaneMulOM(parameter))
+  omInstance.retimeIn.foreach(_ := Property(Path(clock)))
+
   val response: LaneMulResponse = Wire(new LaneMulResponse(parameter))
   val request:  LaneMulReq      = connectIO(response).asTypeOf(parameter.inputBundle)
 

@@ -4,12 +4,13 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
+import chisel3.experimental.hierarchy.{public, Instance, instantiable, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import float._
 import sqrt._
 import division.srt.srt16._
+import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
 
 object LaneDivFPParam {
@@ -41,7 +42,11 @@ class LaneDivFPResponse(datapathWidth: Int) extends VFUPipeBundle {
   val busy:         Bool = Bool()
 }
 
-class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule(parameter) with SerializableModule[LaneDivFPParam] {
+class LaneDivFPOM(parameter: LaneDivFPParam) extends GeneralOM[LaneDivFPParam, LaneDivFP](parameter)
+
+@instantiable
+class LaneDivFP(val parameter: LaneDivFPParam) extends VFUModule with SerializableModule[LaneDivFPParam] {
+  val omInstance: Instance[LaneDivFPOM] = Instantiate(new LaneDivFPOM(parameter))
   val response:      LaneDivFPResponse = Wire(new LaneDivFPResponse(parameter.datapathWidth))
   val responseValid: Bool              = Wire(Bool())
   val request:       LaneDivFPRequest  = connectIO(response, responseValid).asTypeOf(parameter.inputBundle)

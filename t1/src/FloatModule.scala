@@ -4,12 +4,18 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter, SerializableModuleGenerator}
 import chisel3.experimental.hierarchy.{public, Instance, instantiable, Instantiate}
 import chisel3.util._
 import chisel3.util.experimental.decode.TruthTable
-import chisel3.properties.{ClassType, Class, Property, Path, AnyClassType}
+import chisel3.properties.{Path, AnyClassType, Property}
 import hardfloat._
+import org.chipsalliance.stdlib.GeneralOM
+import upickle.default
+
+object FloatAdderParameter {
+  implicit def rwP = upickle.default.macroRW[FloatAdderParameter]
+}
 
 case class FloatAdderParameter(expWidth: Int, sigWidth: Int, latency: Int) extends SerializableModuleParameter
 
@@ -28,17 +34,8 @@ class FloatAdderInterface(val parameter: FloatAdderParameter) extends Bundle {
 }
 
 @instantiable
-class FloatAdderOM extends Class {
-  @public
-  val cycles   = IO(Output(Property[Int]()))
-  @public
-  val cyclesIn = IO(Input(Property[Int]()))
-  cycles := cyclesIn
-  @public
-  val clock   = IO(Output(Property[Path]))
-  @public
-  val clockIn = IO(Input(Property[Path]))
-  clock := clockIn
+class FloatAdderOM(parameter: FloatAdderParameter) extends GeneralOM[FloatAdderParameter, FloatAdder](parameter) {
+  override def hasRetime: Boolean = true
 }
 
 @instantiable
@@ -54,10 +51,9 @@ class FloatAdder(val parameter: FloatAdderParameter)
   val sigWidth = parameter.sigWidth
   val latency  = parameter.latency
 
-  val omInstance: Instance[FloatAdderOM] = Instantiate(new FloatAdderOM)
-  io.om               := omInstance.getPropertyReference
-  omInstance.clockIn  := Property(Path(io.clock))
-  omInstance.cyclesIn := Property(parameter.latency)
+  val omInstance: Instance[FloatAdderOM] = Instantiate(new FloatAdderOM(parameter))
+  io.om                   := omInstance.getPropertyReference
+  omInstance.retimeIn.foreach(_ := Property(Path(io.clock)))
 
   val addRecFN = Module(new AddRecFN(expWidth, sigWidth))
   addRecFN.io.subOp          := false.B
@@ -71,17 +67,16 @@ class FloatAdder(val parameter: FloatAdderParameter)
   io.exceptionFlags := Pipe(true.B, addRecFN.io.exceptionFlags, latency).bits
 }
 
-case class FloatCompareParameter(expWidth: Int, sigWidth: Int) extends SerializableModuleParameter
+object FloatCompareParameter {
+  implicit def rw: upickle.default.ReadWriter[FloatCompareParameter] = upickle.default.macroRW
+}
 
-@public
-class FloatCompareOM extends Class {}
+case class FloatCompareParameter(expWidth: Int, sigWidth: Int) extends SerializableModuleParameter
 
 class FloatCompareInterface(val parameter: FloatCompareParameter) extends Bundle {
   val expWidth = parameter.expWidth
   val sigWidth = parameter.sigWidth
 
-  val clock          = Input(Clock())
-  val reset          = Input(Reset())
   val a              = Input(UInt((expWidth + sigWidth).W))
   val b              = Input(UInt((expWidth + sigWidth).W))
   val isMax          = Input(Bool())
@@ -89,6 +84,9 @@ class FloatCompareInterface(val parameter: FloatCompareParameter) extends Bundle
   val exceptionFlags = Output(UInt(5.W))
   val om             = Output(Property[AnyClassType]())
 }
+
+@public
+class FloatCompareOM(parameter: FloatCompareParameter) extends GeneralOM[FloatCompareParameter, FloatCompare](parameter)
 
 /** float compare module
   *
@@ -99,15 +97,11 @@ class FloatCompareInterface(val parameter: FloatCompareParameter) extends Bundle
 @instantiable
 class FloatCompare(val parameter: FloatCompareParameter)
     extends FixedIORawModule(new FloatCompareInterface(parameter))
-    with SerializableModule[FloatCompareParameter]
-    with ImplicitClock
-    with ImplicitReset {
-  protected def implicitClock = io.clock
-  protected def implicitReset = io.reset
+    with SerializableModule[FloatCompareParameter] {
 
   val expWidth = parameter.expWidth
   val sigWidth = parameter.sigWidth
-  val omInstance: Instance[FloatCompareOM] = Instantiate(new FloatCompareOM)
+  val omInstance: Instance[FloatCompareOM] = Instantiate(new FloatCompareOM(parameter))
   io.om := omInstance.getPropertyReference
 
   val rec0 = recFNFromFN(expWidth, sigWidth, io.a)
@@ -137,38 +131,35 @@ class FloatCompare(val parameter: FloatCompareParameter)
   io.exceptionFlags := compareModule.io.exceptionFlags
 }
 
+object Rec7FnParameter {
+  implicit def rwP = upickle.default.macroRW[Rec7FnParameter]
+}
+
 case class Rec7FnParameter() extends SerializableModuleParameter
 
 class Rec7FnInterface(parameter: Rec7FnParameter) extends Bundle {
-  val clock = Input(Clock())
-  val reset = Input(Reset())
-  val in    = Input(new Bundle {
+  val in  = Input(new Bundle {
     val data         = UInt(32.W)
     val classifyIn   = UInt(10.W)
     val roundingMode = UInt(3.W)
   })
-  val out   = Output(new Bundle {
+  val out = Output(new Bundle {
     val data           = UInt(32.W)
     val exceptionFlags = UInt(5.W)
   })
-  val om    = Output(Property[AnyClassType]())
+  val om  = Output(Property[AnyClassType]())
 }
 
 @instantiable
-class Rec7FnOM extends Class {}
+class Rec7FnOM(parameter: Rec7FnParameter) extends GeneralOM[Rec7FnParameter, Rec7Fn](parameter)
 
 class Rec7Fn(val parameter: Rec7FnParameter)
     extends FixedIORawModule(new Rec7FnInterface(parameter))
-    with SerializableModule[Rec7FnParameter]
-    with ImplicitClock
-    with ImplicitReset {
+    with SerializableModule[Rec7FnParameter] {
+  val in  = io.in
+  val out = io.out
 
-  protected def implicitClock = io.clock
-  protected def implicitReset = io.reset
-  val in                      = io.in
-  val out                     = io.out
-
-  val omInstance: Instance[Rec7FnOM] = Instantiate(new Rec7FnOM)
+  val omInstance: Instance[Rec7FnOM] = Instantiate(new Rec7FnOM(parameter))
   io.om := omInstance.getPropertyReference
 
   val sign    = in.data(31)
@@ -266,6 +257,10 @@ class Rec7Fn(val parameter: Rec7FnParameter)
   out.exceptionFlags := Mux(inIsSNaN, 16.U, Mux(inIsPositveZero || inIsNegativeZero, 8.U, Mux(roundAbnormal, 5.U, 0.U)))
 }
 
+object Rsqrt7FnParameter {
+  implicit def rwP: default.ReadWriter[Rsqrt7FnParameter] = upickle.default.macroRW
+}
+
 case class Rsqrt7FnParameter() extends SerializableModuleParameter
 
 class Rsqrt7FnInterface(parameter: Rsqrt7FnParameter) extends Bundle {
@@ -280,7 +275,7 @@ class Rsqrt7FnInterface(parameter: Rsqrt7FnParameter) extends Bundle {
   val om  = Output(Property[AnyClassType]())
 }
 
-class Rsqrt7FnOM extends Class {}
+class Rsqrt7FnOM(parameter: Rsqrt7FnParameter) extends GeneralOM[Rsqrt7FnParameter, Rsqrt7Fn](parameter)
 
 class Rsqrt7Fn(val parameter: Rsqrt7FnParameter)
     extends FixedIORawModule(new Rsqrt7FnInterface(parameter))
@@ -289,7 +284,7 @@ class Rsqrt7Fn(val parameter: Rsqrt7FnParameter)
   val in  = io.in
   val out = io.out
 
-  val omInstance: Instance[Rsqrt7FnOM] = Instantiate(new Rsqrt7FnOM)
+  val omInstance: Instance[Rsqrt7FnOM] = Instantiate(new Rsqrt7FnOM(parameter))
   io.om := omInstance.getPropertyReference
 
   val sign    = in.data(31)

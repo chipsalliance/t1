@@ -9,26 +9,25 @@ import chisel3.experimental._
 import chisel3.ltl._
 import chisel3.ltl.Sequence._
 import chisel3.probe.{define, Probe, ProbeValue}
-import chisel3.properties.{AnyClassType, Class, ClassType, Path, Property}
+import chisel3.properties.{AnyClassType, ClassType, Path, Property}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
 import org.chipsalliance.t1.rtl.lane._
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRF, VRFParam, VRFProbe}
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
+import org.chipsalliance.stdlib.GeneralOM
 
 // 1. Coverage
 // 2. Performance signal via XMR
 // 3. Arch Review.
 
 @instantiable
-class LaneOM extends Class {
-  @public
+class LaneOM(parameter: LaneParameter) extends GeneralOM[LaneParameter, Lane](parameter) {
   val vfus   = IO(Output(Property[Seq[AnyClassType]]()))
   @public
   val vfusIn = IO(Input(Property[Seq[AnyClassType]]()))
   vfus := vfusIn
-  @public
   val vrf   = IO(Output(Property[AnyClassType]()))
   @public
   val vrfIn = IO(Input(Property[AnyClassType]()))
@@ -199,7 +198,7 @@ case class LaneParameter(
   */
 @instantiable
 class Lane(val parameter: LaneParameter) extends Module with SerializableModule[LaneParameter] {
-  val omInstance: Instance[LaneOM]    = Instantiate(new LaneOM)
+  val omInstance: Instance[LaneOM]    = Instantiate(new LaneOM(parameter))
   val omType:     ClassType           = omInstance.toDefinition.getClassType
   @public
   val om:         Property[ClassType] = IO(Output(Property[omType.Type]()))
@@ -835,7 +834,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     port.enqRelease                 := queue.deq.fire
   }
 
-  val vfus: Seq[Instance[VFUModule]] = instantiateVFU(parameter.vfuInstantiateParameter)(
+  val vfus = instantiateVFU(parameter.vfuInstantiateParameter)(
     requestVec,
     executeEnqueueValid,
     executeDecodeVec,

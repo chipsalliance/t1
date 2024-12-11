@@ -315,7 +315,7 @@ package object rtl {
     responseVec:        Vec[ValidIO[VFUResponseToSlot]],
     executeOccupied:    Vec[Bool],
     VFUNotClear:        Bool
-  ): Seq[Instance[VFUModule]] = {
+  ) = {
 
     // 声明 vfu 的入口
     val requestVecFromSlot: Seq[SlotExecuteRequest[SlotRequestToVFU]] = Seq.tabulate(parameter.slotCount) { index =>

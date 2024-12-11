@@ -9,13 +9,18 @@ import chisel3.experimental.hierarchy.{Instance, instantiable, Instantiate}
 import chisel3.util.BitPat
 import chisel3.util.experimental.decode.TruthTable
 import org.chipsalliance.t1.rtl.decoder.TableGenerator
-import chisel3.properties.{Class, ClassType, Property, AnyClassType}
+import chisel3.properties.{AnyClassType, ClassType, Property}
+import org.chipsalliance.stdlib.GeneralOM
 
 class LaneLogicRequest(datapathWidth: Int) extends Bundle {
   val src: Vec[UInt] = Vec(2, UInt(datapathWidth.W))
 
   /** n_op ## op_n ## op */
   val opcode: UInt = UInt(4.W)
+}
+
+object LaneLogicParameter {
+  implicit def rwP: upickle.default.ReadWriter[LaneLogicParameter] = upickle.default.macroRW
 }
 
 case class LaneLogicParameter(datapathWidth: Int) extends SerializableModuleParameter
@@ -26,13 +31,13 @@ class LaneLogicInterface(parameter: LaneLogicParameter) extends Bundle {
   val om:   Property[ClassType] = Output(Property[AnyClassType]())
 }
 
-class LaneLogicOM extends Class
+class LaneLogicOM(parameter: LaneLogicParameter) extends GeneralOM[LaneLogicParameter, LaneLogic](parameter)
 
 @instantiable
 class LaneLogic(val parameter: LaneLogicParameter)
     extends FixedIORawModule(new LaneLogicInterface(parameter))
     with SerializableModule[LaneLogicParameter] {
-  val omInstance: Instance[ReduceAdderOM] = Instantiate(new ReduceAdderOM)
+  val omInstance: Instance[LaneLogicOM] = Instantiate(new LaneLogicOM(parameter))
   io.om := omInstance.getPropertyReference
 
   val req  = io.req

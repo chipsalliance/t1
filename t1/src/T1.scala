@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.probe.{define, Probe, ProbeValue}
-import chisel3.properties.{AnyClassType, Class, ClassType, Property}
+import chisel3.properties.{AnyClassType, ClassType, Property}
 import chisel3.ltl.{CoverProperty, Sequence}
 import chisel3.util.experimental.BitSet
 import chisel3.util.experimental.decode.DecodeBundle
@@ -34,6 +34,7 @@ import org.chipsalliance.rvdecoderdb.Instruction
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam, T1CustomInstruction}
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam}
+import org.chipsalliance.stdlib.GeneralOM
 
 import scala.collection.immutable.SeqMap
 
@@ -42,45 +43,30 @@ import scala.collection.immutable.SeqMap
 //       2. T1(Lane(OM), VLEN, DLEN, uarch parameters, customer IDs(for floorplan);)
 //       3. Lane(Retime, VRF memory type, id, multiple instances(does it affect dedup? not for sure))
 @instantiable
-class T1OM extends Class {
-  @public
-  val vlen   = IO(Output(Property[Int]()))
-  @public
-  val vlenIn = IO(Input(Property[Int]()))
-  vlen := vlenIn
+class T1OM(parameter: T1Parameter) extends GeneralOM[T1Parameter, T1](parameter) {
+  val vlen = IO(Output(Property[Int]()))
+  vlen := Property(parameter.vLen)
 
-  @public
-  val dlen   = IO(Output(Property[Int]()))
-  @public
-  val dlenIn = IO(Input(Property[Int]()))
-  dlen := dlenIn
+  val dlen = IO(Output(Property[Int]()))
+  dlen := Property(parameter.dLen)
 
-  @public
-  val extensions   = IO(Output(Property[Seq[String]]()))
-  @public
-  val extensionsIn = IO(Input(Property[Seq[String]]()))
-  extensions := extensionsIn
+  val extensions = IO(Output(Property[Seq[String]]()))
+  extensions := Property(parameter.extensions)
 
-  @public
-  val march   = IO(Output(Property[String]()))
-  @public
-  val marchIn = IO(Input(Property[String]()))
-  march := marchIn
+  val march = IO(Output(Property[String]()))
+  march := Property(parameter.spikeMarch)
 
-  @public
   val lanes   = IO(Output(Property[Seq[AnyClassType]]()))
   @public
   val lanesIn = IO(Input(Property[Seq[AnyClassType]]()))
   lanes := lanesIn
 
-  @public
   val decoder   = IO(Output(Property[AnyClassType]()))
   @public
   val decoderIn = IO(Input(Property[AnyClassType]()))
   decoder := decoderIn
 
-  @public
-  val permutatuon = IO(Output(Property[AnyClassType]()))
+  val permutatuon   = IO(Output(Property[AnyClassType]()))
   @public
   val permutatuonIn = IO(Input(Property[AnyClassType]()))
   permutatuon := permutatuonIn
@@ -402,21 +388,18 @@ class T1(val parameter: T1Parameter)
   def implicitClock: Clock = io.clock
   def implicitReset: Reset = io.reset
 
-  val omInstance: Instance[T1OM] = Instantiate(new T1OM)
+  val omInstance: Instance[T1OM] = Instantiate(new T1OM(parameter))
   val omType:     ClassType      = omInstance.toDefinition.getClassType
   io.om := omInstance.getPropertyReference.asAnyClassType
 
-  omInstance.vlenIn       := Property(parameter.vLen)
-  omInstance.dlenIn       := Property(parameter.dLen)
-  omInstance.extensionsIn := Property(parameter.extensions)
-  omInstance.marchIn      := Property(parameter.spikeMarch)
-
   /** the LSU Module */
 
-  val lsu:      Instance[LSU]           = Instantiate(new LSU(parameter.lsuParameters))
-  val decode:   Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.decoderParam))
+  val lsu:    Instance[LSU]           = Instantiate(new LSU(parameter.lsuParameters))
+  val decode: Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.decoderParam))
   omInstance.decoderIn := Property(decode.om.asAnyClassType)
-  val maskUnit: Instance[MaskUnit]      = Instantiate(new MaskUnit(parameter))
+  val maskUnit: Instance[MaskUnit] = Instantiate(new MaskUnit(parameter))
+  maskUnit.io.clock        := implicitClock
+  maskUnit.io.reset        := implicitReset
   omInstance.permutatuonIn := Property(maskUnit.io.om.asAnyClassType)
 
   val tokenManager: Instance[T1TokenManager] = Instantiate(new T1TokenManager(parameter))
@@ -798,8 +781,8 @@ class T1(val parameter: T1Parameter)
     instructionFinished(index).zip(slots.map(_.record.instructionIndex)).foreach { case (d, f) =>
       d := ohCheck(lane.instructionFinished, f, parameter.chainingSize)
     }
-    vxsatReportVec(index)             := lane.vxsatReport
-    lane.maskInput                    := maskUnit.io.laneMaskInput(index)
+    vxsatReportVec(index)                := lane.vxsatReport
+    lane.maskInput                       := maskUnit.io.laneMaskInput(index)
     maskUnit.io.laneMaskSelect(index)    := lane.maskSelect
     maskUnit.io.laneMaskSewSelect(index) := lane.maskSelectSew
     maskUnit.io.v0UpdateVec(index) <> lane.v0Update
@@ -838,11 +821,11 @@ class T1(val parameter: T1Parameter)
   lsu.request.bits.instructionInformation.maskedLoadStore := maskType
 
   maskUnit.io.lsuMaskSelect := lsu.maskSelect
-  lsu.maskInput          := maskUnit.io.lsuMaskInput
-  lsu.csrInterface       := requestRegCSR
-  lsu.csrInterface.vl    := evlForLsu
-  lsu.writeReadyForLsu   := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
-  lsu.vrfReadyToStore    := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
+  lsu.maskInput             := maskUnit.io.lsuMaskInput
+  lsu.csrInterface          := requestRegCSR
+  lsu.csrInterface.vl       := evlForLsu
+  lsu.writeReadyForLsu      := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
+  lsu.vrfReadyToStore       := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
 
   // connect mask unit
   maskUnit.io.instReq.valid                 := requestRegDequeue.fire && requestReg.bits.decodeResult(Decoder.maskUnit)

@@ -3,13 +3,15 @@
 
 package org.chipsalliance.t1.rtl
 
-import chisel3.experimental.hierarchy.{instantiable, Instantiate, Instance}
+import chisel3.experimental.hierarchy.{Instance, instantiable, Instantiate}
 import chisel3.{UInt, _}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
 import chisel3.ltl._
 import chisel3.ltl.Sequence._
+import chisel3.properties.{Path, Property}
 import hardfloat._
+import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
 
 object LaneFloatParam {
@@ -55,8 +57,15 @@ class LaneFloatResponse(datapathWidth: Int) extends VFUPipeBundle {
   val executeIndex: UInt = UInt(2.W)
 }
 
+class LaneFloatOM(parameter: LaneFloatParam) extends GeneralOM[LaneFloatParam, LaneFloat](parameter){
+  override def hasRetime: Boolean = true
+}
+
 @instantiable
-class LaneFloat(val parameter: LaneFloatParam) extends VFUModule(parameter) with SerializableModule[LaneFloatParam] {
+class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with SerializableModule[LaneFloatParam] {
+  val omInstance: Instance[LaneFloatOM] = Instantiate(new LaneFloatOM(parameter))
+  omInstance.retimeIn.foreach(_ := Property(Path(clock)))
+
   val response: LaneFloatResponse = Wire(new LaneFloatResponse(parameter.datapathWidth))
   val request:  LaneFloatRequest  = connectIO(response, true.B).asTypeOf(parameter.inputBundle)
 

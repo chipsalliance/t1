@@ -9,6 +9,7 @@ import chisel3.util._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import org.chipsalliance.t1.rtl.vfu.{VectorAdder, VectorAdderParameter}
 import chisel3.properties.{AnyClassType, Class, Property}
+import org.chipsalliance.stdlib.GeneralOM
 
 class ReduceAdderReq(datapathWidth: Int) extends Bundle {
   val src:    Vec[UInt] = Vec(2, UInt(datapathWidth.W))
@@ -21,6 +22,10 @@ class ReduceAdderResponse(datapathWidth: Int) extends Bundle {
   val data: UInt = UInt(datapathWidth.W)
 }
 
+object ReduceAdderParameter {
+  implicit def rw: upickle.default.ReadWriter[ReduceAdderParameter] = upickle.default.macroRW
+}
+
 case class ReduceAdderParameter(datapathWidth: Int) extends SerializableModuleParameter
 
 class ReduceAdderInterface(parameter: ReduceAdderParameter) extends Bundle {
@@ -29,12 +34,12 @@ class ReduceAdderInterface(parameter: ReduceAdderParameter) extends Bundle {
   val om       = Output(Property[AnyClassType]())
 }
 
-class ReduceAdderOM extends Class {}
+class ReduceAdderOM(parameter: ReduceAdderParameter) extends GeneralOM[ReduceAdderParameter, ReduceAdder](parameter)
 
 class ReduceAdder(val parameter: ReduceAdderParameter)
     extends FixedIORawModule(new ReduceAdderInterface(parameter))
     with SerializableModule[ReduceAdderParameter] {
-  val omInstance: Instance[ReduceAdderOM] = Instantiate(new ReduceAdderOM)
+  val omInstance: Instance[ReduceAdderOM] = Instantiate(new ReduceAdderOM(parameter))
   io.om := omInstance.getPropertyReference
 
   val request  = io.request

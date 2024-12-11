@@ -7,7 +7,7 @@ package org.chipsalliance.rocketv
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
-import chisel3.properties.{AnyClassType, Class, ClassType, Property}
+import chisel3.properties.{AnyClassType, ClassType, Property}
 import chisel3.util.random.LFSR
 import chisel3.util._
 import org.chipsalliance.amba.axi4.bundle.{
@@ -19,6 +19,7 @@ import org.chipsalliance.amba.axi4.bundle.{
   W
 }
 import org.chipsalliance.dwbb.stdlib.queue.Queue
+import org.chipsalliance.stdlib.GeneralOM
 
 case class ICacheParameter(
   useAsyncReset: Boolean,
@@ -144,12 +145,8 @@ class ICacheInterface(parameter: ICacheParameter) extends Bundle {
 }
 
 @instantiable
-class ICacheOM extends Class {
-  val srams = IO(Output(Property[Seq[AnyClassType]]()))
-
-  @public
-  val sramsIn = IO(Input(Property[Seq[AnyClassType]]()))
-  srams := sramsIn
+class ICacheOM(parameter: ICacheParameter) extends GeneralOM[ICacheParameter, ICache](parameter) {
+  override def hasSram: Boolean = true
 }
 @instantiable
 class ICache(val parameter: ICacheParameter)
@@ -160,7 +157,7 @@ class ICache(val parameter: ICacheParameter)
     with ImplicitReset {
   override protected def implicitClock: Clock              = io.clock
   override protected def implicitReset: Reset              = io.reset
-  val omInstance:                       Instance[ICacheOM] = Instantiate(new ICacheOM)
+  val omInstance:                       Instance[ICacheOM] = Instantiate(new ICacheOM(parameter))
   io.om := omInstance.getPropertyReference.asAnyClassType
 
   // compatiblity mode
@@ -558,7 +555,7 @@ class ICache(val parameter: ICacheParameter)
         numReadwritePorts = 1
       )
     }
-  omInstance.sramsIn := Property((icacheDataSRAM ++ Some(icacheTagSRAM)).map(_.description.get.asAnyClassType))
+  omInstance.sramsIn.foreach(_ := Property((icacheDataSRAM ++ Some(icacheTagSRAM)).map(_.description.get.asAnyClassType)))
 
   for ((data_array, i) <- icacheDataSRAM.zipWithIndex) {
 

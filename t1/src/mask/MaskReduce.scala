@@ -6,8 +6,9 @@ package org.chipsalliance.t1.rtl
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.properties.{AnyClassType, Class, Property}
-import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
+import chisel3.experimental.hierarchy.{public, Instance, instantiable, Instantiate}
 import chisel3.util._
+import org.chipsalliance.stdlib.GeneralOM
 
 class ReduceInput(datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean) extends Bundle {
   val maskType:      Bool         = Bool()
@@ -29,6 +30,10 @@ class ReduceOutput(datapathWidth: Int) extends Bundle {
   val mask: UInt = UInt((datapathWidth / 8).W)
 }
 
+object MaskReduceParameter {
+  implicit def rw: upickle.default.ReadWriter[MaskReduceParameter] = upickle.default.macroRW
+}
+
 case class MaskReduceParameter(datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean)
     extends SerializableModuleParameter
 
@@ -45,7 +50,7 @@ class MaskReduceInterface(parameter: MaskReduceParameter) extends Bundle {
 }
 
 @instantiable
-class MaskReduceOM(parameter: MaskReduceParameter) extends Class {
+class MaskReduceOM(parameter: MaskReduceParameter) extends GeneralOM[MaskReduceParameter, MaskReduce](parameter) {
   @public
   val floatAdder   = Option.when(parameter.fpuEnable)(IO(Output(Property[AnyClassType]())))
   @public

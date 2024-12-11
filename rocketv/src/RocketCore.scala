@@ -23,10 +23,11 @@ import chisel3.util.{
   RegEnable,
   Valid
 }
-import chisel3.properties.{AnyClassType, Class, ClassType, Property}
+import chisel3.properties.{AnyClassType, ClassType, Property}
 import org.chipsalliance.rocketv.rvdecoderdbcompat.Causes
 import org.chipsalliance.rvdecoderdb.Instruction
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
+import org.chipsalliance.stdlib.GeneralOM
 
 class FPUScoreboardProbe extends Bundle {
   val fpuSetScoreBoard:     Bool = Bool()
@@ -382,7 +383,7 @@ class RocketInterface(parameter: RocketParameter) extends Bundle {
 }
 
 @instantiable
-class RocketOM extends Class {}
+class RocketOM(parameter: RocketParameter) extends GeneralOM[RocketParameter, Rocket](parameter)
 
 /** The [[Rocket]] is the next version of the RocketCore, All micro architectures are from the original RocketCore. The
   * development of [[Rocket]] happens in the T1 project. It will be moved to the standalone pacakge until it get
@@ -415,7 +416,7 @@ class Rocket(val parameter: RocketParameter)
     parameter.mulParameter.map(p => Instantiate(new PipelinedMultiplier(p)))
   val t1RetireQueue:                    Option[QueueIO[T1RdRetire]]           =
     io.t1.map(t1 => Queue.io(chiselTypeOf(t1.retire.rd.bits), 32))
-  val omInstance:                       Instance[RocketOM]                    = Instantiate(new RocketOM)
+  val omInstance:                       Instance[RocketOM]                    = Instantiate(new RocketOM(parameter))
   io.om := omInstance.getPropertyReference.asAnyClassType
 
   // compatibility mode.

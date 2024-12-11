@@ -10,6 +10,7 @@ import chisel3.properties.{AnyClassType, Class, Property}
 import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
+import org.chipsalliance.stdlib.GeneralOM
 
 // top uop decode
 // uu ii x -> uu: unit index; ii: Internal encoding, x: additional encode
@@ -80,7 +81,7 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
 }
 
 @instantiable
-class MaskUnitOM extends Class {
+class MaskUnitOM(parameter: T1Parameter) extends GeneralOM[T1Parameter, MaskUnit](parameter) {
   @public
   val reduceUnit   = IO(Output(Property[AnyClassType]()))
   @public
@@ -88,6 +89,7 @@ class MaskUnitOM extends Class {
   reduceUnit := reduceUnitIn
 }
 
+// TODO: no T1Parameter here.
 @instantiable
 class MaskUnit(val parameter: T1Parameter)
     extends FixedIORawModule(new MaskUnitInterface(parameter))
@@ -95,7 +97,7 @@ class MaskUnit(val parameter: T1Parameter)
     with ImplicitClock
     with ImplicitReset {
 
-  val omInstance: Instance[MaskUnitOM] = Instantiate(new MaskUnitOM)
+  val omInstance: Instance[MaskUnitOM] = Instantiate(new MaskUnitOM(parameter))
   io.om := omInstance.getPropertyReference
 
   /** Method that should point to the user-defined Clock */
@@ -961,6 +963,8 @@ class MaskUnit(val parameter: T1Parameter)
   compressUnit.newInstruction         := instReq.valid
   compressUnit.ffoInstruction         := instReq.bits.decodeResult(Decoder.topUop)(2, 0) === BitPat("b11?")
 
+  reduceUnit.io.clock               := implicitClock
+  reduceUnit.io.reset               := implicitReset
   reduceUnit.io.in.valid            := executeEnqValid && unitType(2)
   reduceUnit.io.in.bits.maskType    := instReg.maskType
   reduceUnit.io.in.bits.eew         := instReg.sew

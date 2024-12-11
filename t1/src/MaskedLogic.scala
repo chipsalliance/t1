@@ -4,11 +4,13 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
+import chisel3.experimental.hierarchy.{Instance, instantiable, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{Property, Path}
 import chisel3.util.BitPat
 import chisel3.util.experimental.decode.TruthTable
-import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder, TableGenerator}
+import org.chipsalliance.stdlib.GeneralOM
+import org.chipsalliance.t1.rtl.decoder.{BoolField, TableGenerator, Decoder}
 
 object LogicParam {
   implicit def rw: upickle.default.ReadWriter[LogicParam] = upickle.default.macroRW
@@ -36,8 +38,15 @@ class MaskedLogicResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data: UInt = UInt(datapathWidth.W)
 }
 
+class MaskedLogicOM(parameter: LogicParam) extends GeneralOM[LogicParam, MaskedLogic](parameter) {
+  override def hasRetime: Boolean = true
+}
+
 @instantiable
-class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) with SerializableModule[LogicParam] {
+class MaskedLogic(val parameter: LogicParam) extends VFUModule with SerializableModule[LogicParam] {
+  val omInstance: Instance[MaskedLogicOM] = Instantiate(new MaskedLogicOM(parameter))
+  omInstance.retimeIn.foreach(_ := Property(Path(clock)))
+
   val response: MaskedLogicResponse = Wire(new MaskedLogicResponse(parameter.datapathWidth))
   val request:  MaskedLogicRequest  = connectIO(response).asTypeOf(parameter.inputBundle)
 
