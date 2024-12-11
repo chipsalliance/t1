@@ -12,6 +12,7 @@ import chisel3.util._
 import chisel3.ltl._
 import chisel3.ltl.Sequence._
 import chisel3.properties.{AnyClassType, Class, ClassType, Path, Property}
+import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.{
   ffo,
   instIndexL,
@@ -120,12 +121,8 @@ case class VRFParam(
 }
 
 @instantiable
-class VRFOM extends Class {
-  val srams = IO(Output(Property[Seq[AnyClassType]]()))
-
-  @public
-  val sramsIn = IO(Input(Property[Seq[AnyClassType]]()))
-  srams := sramsIn
+class VRFOM(parameter: VRFParam) extends GeneralOM[VRFParam, VRF](parameter) {
+  override def hasSram: Boolean = true
 }
 
 class VRFProbe(parameter: VRFParam) extends Bundle {
@@ -245,7 +242,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   @public
   val vrfProbe = IO(Output(Probe(new VRFProbe(parameter), layers.Verification)))
 
-  val omInstance: Instance[VRFOM]     = Instantiate(new VRFOM)
+  val omInstance: Instance[VRFOM]     = Instantiate(new VRFOM(parameter))
   val omType:     ClassType           = omInstance.toDefinition.getClassType
   @public
   val om:         Property[ClassType] = IO(Output(Property[AnyClassType]()))
@@ -495,7 +492,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     }
   }
 
-  omInstance.sramsIn := Property(vrfSRAM.map(_.description.get.asAnyClassType))
+  omInstance.sramsIn.foreach(_ := Property(vrfSRAM.map(_.description.get.asAnyClassType)))
 
   val initRecord: ValidIO[VRFWriteReport] = WireDefault(0.U.asTypeOf(Valid(new VRFWriteReport(parameter))))
   initRecord.valid := true.B
