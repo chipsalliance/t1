@@ -7,11 +7,12 @@ package org.chipsalliance.rocketv
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
-import chisel3.properties.{AnyClassType, Class, ClassType, Property}
+import chisel3.properties.{AnyClassType, ClassType, Property}
 import chisel3.util._
 import chisel3.util.circt.ClockGate
 import chisel3.util.experimental.BitSet
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
+import org.chipsalliance.stdlib.GeneralOM
 
 object FrontendParameter {
   implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
@@ -234,8 +235,7 @@ class FrontendInterface(parameter: FrontendParameter) extends Bundle {
 }
 
 @instantiable
-class FrontendOM extends Class {
-  @public
+class FrontendOM(parameter: FrontendParameter) extends GeneralOM[FrontendParameter, Frontend](parameter) {
   val icache   = IO(Output(Property[AnyClassType]()))
   @public
   val icacheIn = IO(Input(Property[AnyClassType]()))
@@ -250,7 +250,7 @@ class Frontend(val parameter: FrontendParameter)
     with ImplicitReset {
   override protected def implicitClock: Clock                = io.clock
   override protected def implicitReset: Reset                = io.reset
-  val omInstance:                       Instance[FrontendOM] = Instantiate(new FrontendOM)
+  val omInstance:                       Instance[FrontendOM] = Instantiate(new FrontendOM(parameter))
   io.om := omInstance.getPropertyReference.asAnyClassType
 
   def xLen              = parameter.xLen
