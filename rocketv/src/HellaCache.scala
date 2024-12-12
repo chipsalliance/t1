@@ -7,7 +7,7 @@ package org.chipsalliance.rocketv
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter, SourceInfo}
-import chisel3.properties.{AnyClassType, Class, ClassType, Property}
+import chisel3.properties.{AnyClassType, ClassType, Property}
 import chisel3.util.experimental.{BitSet, InlineInstance}
 import chisel3.util.{
   isPow2,
@@ -40,6 +40,7 @@ import org.chipsalliance.amba.axi4.bundle.{
   W
 }
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
+import org.chipsalliance.stdlib.GeneralOM
 
 object HellaCacheParameter {
   implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
@@ -338,12 +339,8 @@ class HellaCacheInterface(parameter: HellaCacheParameter) extends Bundle {
 }
 
 @instantiable
-class HellaCacheOM extends Class {
-  val srams = IO(Output(Property[Seq[AnyClassType]]()))
-
-  @public
-  val sramsIn = IO(Input(Property[Seq[AnyClassType]]()))
-  srams := sramsIn
+class HellaCacheOM(parameter: HellaCacheParameter) extends GeneralOM[HellaCacheParameter, HellaCache](parameter) {
+  override def hasSram: Boolean = true
 }
 
 @instantiable
@@ -361,7 +358,7 @@ class HellaCache(val parameter: HellaCacheParameter)
   val amoalus:                          Option[Seq[Instance[AMOALU]]] = parameter.amoaluParameter.map(amoaluParameter =>
     Seq.tabulate(parameter.coreDataBits / parameter.xLen)(i => Instantiate(new AMOALU(amoaluParameter)))
   )
-  val omInstance:                       Instance[HellaCacheOM]        = Instantiate(new HellaCacheOM)
+  val omInstance:                       Instance[HellaCacheOM]        = Instantiate(new HellaCacheOM(parameter))
   io.om := omInstance.getPropertyReference.asAnyClassType
 
   tlb.io.clock := io.clock
@@ -528,7 +525,9 @@ class HellaCache(val parameter: HellaCacheParameter)
         numReadwritePorts = 1
       )
     }
-    omInstance.sramsIn := Property((dcacheDataSRAM ++ Some(dcacheTagSRAM)).map(_.description.get.asAnyClassType))
+    omInstance.sramsIn.foreach(
+      _ := Property((dcacheDataSRAM ++ Some(dcacheTagSRAM)).map(_.description.get.asAnyClassType))
+    )
 
     /** Data Arbiter 0: data from pending store buffer 1: data from TL-D refill 2: release to TL-A 3: hit path to CPU
       */
