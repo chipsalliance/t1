@@ -8,84 +8,16 @@ import org.chipsalliance.t1.omreaderlib.{Instruction, InstructionAttributes, Pat
 
 /** OM API for [[org.chipsalliance.t1.rtl.T1OM]] */
 class T1(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
-  val top:          String                            = "T1_Class"
-  private val t1:   PanamaCIRCTOMEvaluatorValueObject = entry.field("om").asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
-  def vlen:         Int                               = t1.field("vlen").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt
-  def dlen:         Int                               = t1.field("dlen").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt
-  def instructions: Seq[Instruction]                  = {
-    val decoder      = t1.field("decoder").asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
-    val instructions = decoder.field("instructions").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
-    instructions
-      .elements()
-      .map(instruction => {
-        val instr      = instruction.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
-        val attributes = instr.field("attributes").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
-        instr.field("attributes").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
-        Instruction(
-          instr.field("instructionName").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString,
-          instr.field("documentation").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString,
-          instr.field("bitPat").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString,
-          attributes
-            .elements()
-            .map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject])
-            .map { attr =>
-              InstructionAttributes(
-                attr.field("identifier").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString,
-                attr.field("description").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString,
-                attr.field("value").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString
-              )
-            }
-        )
-      })
-  }
-  def extensions:   Seq[String]                       = {
-    val extensions = t1.field("extensions").asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
-    extensions.elements().map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString)
-  }
-  def march:        String                            = t1.field("march").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveString].toString
-  def sram:         Seq[SRAM]                         = t1
-    .field("lanes")
-    .asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
-    .elements()
-    .map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject].field("vrf"))
-    .flatMap { vrf =>
-      val srams = vrf
-        .asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]
-        .field("srams")
-        .asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
-      srams.elements().map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject]).map { sram =>
-        val hierarchy = Path.parse(sram.field("hierarchy").asInstanceOf[PanamaCIRCTOMEvaluatorValuePath].toString)
-        SRAM(
-          moduleName = hierarchy.module,
-          fullPath = hierarchy.path,
-          depth = sram.field("depth").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
-          width = sram.field("width").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
-          read = sram.field("read").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
-          write = sram.field("write").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
-          readwrite = sram.field("readwrite").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer.toInt,
-          maskGranularity = sram
-            .field("maskGranularity")
-            .asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger]
-            .integer
-            .toInt
-        )
-      }
-    }
-    .distinct
-  def retime:       Seq[Retime]                       = {
-    t1
-      .field("lanes")
-      .asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
-      .elements()
-      .map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject].field("vfus"))
-      .flatMap(
-        _.asInstanceOf[PanamaCIRCTOMEvaluatorValueList]
-          .elements()
-          .map(_.asInstanceOf[PanamaCIRCTOMEvaluatorValueObject])
-          .filter(_.field("cycles").asInstanceOf[PanamaCIRCTOMEvaluatorValuePrimitiveInteger].integer != 0)
-      )
-      .map(_.field("clock").asInstanceOf[PanamaCIRCTOMEvaluatorValuePath])
-      .map(p => Retime(Path.parse(p.toString).module))
-      .distinct
-  }
+  val top: String = "T1_Class"
+
+  private val t1:   PanamaCIRCTOMEvaluatorValueObject = entry("om").obj
+  def vlen:         Int                               = t1("vlen").int.integer.toInt
+  def dlen:         Int                               = t1("dlen").int.integer.toInt
+  def extensions:   Seq[String]                       = t1("extensions").list.elements().map(_.string.toString)
+  def march:        String                            = t1("march").string.toString
+  def instructions: Seq[Instruction]                  = t1("decoder").obj("instructions").list.elements().map(_.obj).map(getInstruction)
+  def sram:         Seq[SRAM]                         =
+    t1("lanes").list.elements().map(_.obj("vrf").obj).flatMap(getSRAM)
+  def retime:       Seq[Retime]                       =
+    t1("lanes").list.elements().map(_.obj("vfus")).flatMap(_.list.elements().map(_.obj)).flatMap(getRetime)
 }

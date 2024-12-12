@@ -3,6 +3,7 @@
 
 package org.chipsalliance.t1.omreaderlib
 
+import chisel3.panamaom.PanamaCIRCTOMEvaluatorValueObject
 import upickle.default.{macroRW, ReadWriter}
 
 object SRAM {
@@ -104,4 +105,43 @@ trait T1OMReaderAPI extends OMReader {
 
   /** All Instructions with all metadata */
   def instructions: Seq[Instruction]
+
+  /** API to get SRAM from an object */
+  def getInstruction(obj: PanamaCIRCTOMEvaluatorValueObject) = {
+    Instruction(
+      obj("instructionName").string.toString,
+      obj("documentation").string.toString,
+      obj("bitPat").string.toString,
+      obj("attributes").list
+        .elements()
+        .map(_.obj)
+        .map { attr =>
+          InstructionAttributes(
+            attr("identifier").string.toString,
+            attr("description").string.toString,
+            attr("value").string.toString
+          )
+        }
+    )
+  }
+
+  /** API to get SRAM from an object */
+  def getSRAM(obj: PanamaCIRCTOMEvaluatorValueObject): Seq[SRAM] =
+    obj("srams").list.elements().map(_.obj).map { sram =>
+      val path = Path.parse(sram("hierarchy").path.toString)
+      SRAM(
+        moduleName = path.module,
+        fullPath = path.path,
+        depth = sram("depth").int.integer.toInt,
+        width = sram("width").int.integer.toInt,
+        read = sram("read").int.integer.toInt,
+        write = sram("write").int.integer.toInt,
+        readwrite = sram("readwrite").int.integer.toInt,
+        maskGranularity = sram("maskGranularity").int.integer.toInt
+      )
+    }
+
+  /** API to return [[Retime]] if the module can retime. */
+  def getRetime(obj: PanamaCIRCTOMEvaluatorValueObject) =
+    Option.when(obj.fieldNames().contains("retime"))(Retime(Path.parse(obj("retime").path.toString).module))
 }
