@@ -4,16 +4,18 @@
 package org.chipsalliance.t1.rtl.decoder
 
 import chisel3._
+import chisel3.experimental.SerializableModuleParameter
 import chisel3.util.BitPat
 import chisel3.util.experimental.decode._
 import org.chipsalliance.rvdecoderdb.Instruction
-import org.chipsalliance.t1.rtl.T1Parameter
 import org.chipsalliance.t1.rtl.decoder.attribute._
 
 object DecoderParam {
   implicit def rwP: upickle.default.ReadWriter[DecoderParam] = upickle.default.macroRW
 }
+
 case class DecoderParam(fpuEnable: Boolean, zvbbEnable: Boolean, allInstructions: Seq[Instruction])
+    extends SerializableModuleParameter
 
 trait T1DecodeFiled[D <: Data] extends DecodeField[T1DecodePattern, D] with FieldName
 
