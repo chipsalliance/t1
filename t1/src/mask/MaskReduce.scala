@@ -4,36 +4,76 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{Instance, Instantiate}
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{AnyClassType, Property}
 import chisel3.util._
+import org.chipsalliance.stdlib.GeneralOM
 
-class ReduceInput(parameter: T1Parameter) extends Bundle {
+class ReduceInput(datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean) extends Bundle {
   val maskType:      Bool         = Bool()
   val eew:           UInt         = UInt(2.W)
   val uop:           UInt         = UInt(3.W)
-  val readVS1:       UInt         = UInt(parameter.datapathWidth.W)
-  val source2:       UInt         = UInt((parameter.laneNumber * parameter.datapathWidth).W)
-  val sourceValid:   UInt         = UInt(parameter.laneNumber.W)
+  val readVS1:       UInt         = UInt(datapathWidth.W)
+  val source2:       UInt         = UInt((laneNumber * datapathWidth).W)
+  val sourceValid:   UInt         = UInt(laneNumber.W)
   val lastGroup:     Bool         = Bool()
   val vxrm:          UInt         = UInt(3.W)
   val aluUop:        UInt         = UInt(4.W)
   val sign:          Bool         = Bool()
   // for fpu
-  val fpSourceValid: Option[UInt] = Option.when(parameter.fpuEnable)(UInt(parameter.laneNumber.W))
+  val fpSourceValid: Option[UInt] = Option.when(fpuEnable)(UInt(laneNumber.W))
 }
 
-class ReduceOutput(parameter: T1Parameter) extends Bundle {
-  val data: UInt = UInt(parameter.datapathWidth.W)
-  val mask: UInt = UInt((parameter.datapathWidth / 8).W)
+class ReduceOutput(datapathWidth: Int) extends Bundle {
+  val data: UInt = UInt(datapathWidth.W)
+  val mask: UInt = UInt((datapathWidth / 8).W)
 }
 
-class MaskReduce(parameter: T1Parameter) extends Module {
-  val in:             DecoupledIO[ReduceInput] = IO(Flipped(Decoupled(new ReduceInput(parameter))))
-  val out:            ValidIO[ReduceOutput]    = IO(Valid(new ReduceOutput(parameter)))
-  val firstGroup:     Bool                     = IO(Input(Bool()))
-  val newInstruction: Bool                     = IO(Input(Bool()))
-  val validInst:      Bool                     = IO(Input(Bool()))
-  val pop:            Bool                     = IO(Input(Bool()))
+object MaskReduceParameter {
+  implicit def rw: upickle.default.ReadWriter[MaskReduceParameter] = upickle.default.macroRW
+}
+
+case class MaskReduceParameter(datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean)
+    extends SerializableModuleParameter
+
+class MaskReduceInterface(parameter: MaskReduceParameter) extends Bundle {
+  val clock          = Input(Clock())
+  val reset          = Input(Reset())
+  val in             = Flipped(Decoupled(new ReduceInput(parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)))
+  val out            = Valid(new ReduceOutput(parameter.datapathWidth))
+  val firstGroup     = Input(Bool())
+  val newInstruction = Input(Bool())
+  val validInst      = Input(Bool())
+  val pop            = Input(Bool())
+  val om             = Output(Property[AnyClassType]())
+}
+
+@instantiable
+class MaskReduceOM(parameter: MaskReduceParameter) extends GeneralOM[MaskReduceParameter, MaskReduce](parameter) {
+  @public
+  val floatAdder   = Option.when(parameter.fpuEnable)(IO(Output(Property[AnyClassType]())))
+  @public
+  val floatAdderIn = Option.when(parameter.fpuEnable)(IO(Input(Property[AnyClassType]())))
+  floatAdder.zip(floatAdderIn).foreach { case (l, r) => l := r }
+}
+
+class MaskReduce(val parameter: MaskReduceParameter)
+    extends FixedIORawModule(new MaskReduceInterface(parameter))
+    with SerializableModule[MaskReduceParameter]
+    with ImplicitClock
+    with ImplicitReset {
+  protected def implicitClock = io.clock
+  protected def implicitReset = io.reset
+  val in                      = io.in
+  val out                     = io.out
+  val firstGroup              = io.firstGroup
+  val newInstruction          = io.newInstruction
+  val validInst               = io.validInst
+  val pop                     = io.pop
+
+  val omInstance: Instance[MaskReduceOM] = Instantiate(new MaskReduceOM(parameter))
+  io.om := omInstance.getPropertyReference
 
   val maskSize: Int = parameter.laneNumber * parameter.datapathWidth / 8
 
@@ -45,14 +85,14 @@ class MaskReduce(parameter: T1Parameter) extends Module {
   val nextFoldCount: Bool = eew1H(0) && !reqWiden
 
   // reduce function unit
-  val adder:       Instance[ReduceAdder]          = Instantiate(new ReduceAdder(parameter.datapathWidth))
-  val logicUnit:   Instance[LaneLogic]            = Instantiate(new LaneLogic(parameter.datapathWidth))
+  val adder:       Instance[ReduceAdder]          = Instantiate(new ReduceAdder(ReduceAdderParameter(parameter.datapathWidth)))
   val logicUnit:   Instance[LaneLogic]            = Instantiate(new LaneLogic(LaneLogicParameter(parameter.datapathWidth)))
   // option unit for flot reduce
   val floatAdder:  Option[Instance[FloatAdder]]   =
-    Option.when(parameter.fpuEnable)(Instantiate(new FloatAdder(8, 24)))
+    Option.when(parameter.fpuEnable)(Instantiate(new FloatAdder(FloatAdderParameter(8, 24))))
+  omInstance.floatAdderIn.zip(floatAdder).foreach { case (l, r) => l := r.io.om.asAnyClassType }
   val flotCompare: Option[Instance[FloatCompare]] =
-    Option.when(parameter.fpuEnable)(Instantiate(new FloatCompare(8, 24)))
+    Option.when(parameter.fpuEnable)(Instantiate(new FloatCompare(FloatCompareParameter(8, 24))))
 
   // init reg
   val reduceInit:     UInt = RegInit(0.U(parameter.datapathWidth.W))
@@ -172,12 +212,14 @@ class MaskReduce(parameter: T1Parameter) extends Module {
   val source2Select:   UInt = Mux(stateCross || stateOrder, selectLaneResult, lastFoldSource1)
 
   // popCount 在top视为reduce add
-  adder.request.src    := VecInit(Seq(reduceInit, source2Select))
-  adder.request.opcode := Mux(pop, 0.U, reqReg.aluUop)
-  adder.request.sign   := reqReg.sign
-  adder.request.vSew   := writeEEW
+  adder.io.request.src    := VecInit(Seq(reduceInit, source2Select))
+  adder.io.request.opcode := Mux(pop, 0.U, reqReg.aluUop)
+  adder.io.request.sign   := reqReg.sign
+  adder.io.request.vSew   := writeEEW
 
   floatAdder.foreach { fAdder =>
+    fAdder.io.clock        := implicitClock
+    fAdder.io.reset        := implicitReset
     fAdder.io.a            := reduceInit
     fAdder.io.b            := source2Select
     fAdder.io.roundingMode := reqReg.vxrm
@@ -203,8 +245,8 @@ class MaskReduce(parameter: T1Parameter) extends Module {
   // select result
   reduceResult := Mux(
     floatType,
-    flotReduceResult.getOrElse(adder.response.data),
-    Mux(NotAdd, logicUnit.io.resp, adder.response.data)
+    flotReduceResult.getOrElse(adder.io.response.data),
+    Mux(NotAdd, logicUnit.io.resp, adder.io.response.data)
   )
 
   out.valid     := outValid && !pop
