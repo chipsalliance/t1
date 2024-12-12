@@ -22,15 +22,6 @@ stdenvNoCC.mkDerivation (rec {
 
   passthru = {
     caseName = testCase.pname;
-
-    # to open 'profileReport.html' in firefox,
-    # set 'security.fileuri.strict_origin_policy = false' in 'about:config'
-    profile = writeShellScriptBin "runSimProfile" ''
-      ${emuDriver} \
-        ${lib.escapeShellArgs emuDriverArgs} \
-        -simprofile time \
-        2> ${testCase.pname}-rtl-event.jsonl
-    '';
   };
 
   emuDriver = "${emulator}/bin/${emulator.mainProgram}";
@@ -55,12 +46,6 @@ stdenvNoCC.mkDerivation (rec {
   ];
 
   buildCommand = ''
-    ${lib.optionalString emulator.enableProfile ''
-      echo "ERROR: 'enableProfile = true' is inherently nondetermistic"
-      echo "  use 'nix run <...>.profile --impure' instead" 
-      exit 1
-    ''}
-
     mkdir -p "$out"
 
     emuDriverArgs="${lib.escapeShellArgs emuDriverArgs}"
@@ -81,6 +66,13 @@ stdenvNoCC.mkDerivation (rec {
     "$emuDriver" $emuDriverArgs 1> >(tee $out/online-drive-emu-journal) 2>$rtlEventOutPath || printError
 
     echo "[nix] VCS run done"
+
+    ${lib.optionalString emulator.enableProfile ''
+      # we do not want to cache profile results, it's nondetermistic intentionally
+      echo "ERROR: 'enableProfile = true' fails intentionally"
+      echo "  use 'nix run <...> --impure --keep-failed' to see results" 
+      exit 1
+    ''}
 
     if [ ! -r "$rtlEventOutPath" ]; then
       echo -e "[nix] \033[0;31mInternal Error\033[0m: no $rtlEventOutPath found in output"
@@ -111,6 +103,7 @@ stdenvNoCC.mkDerivation (rec {
     printf "$?" > $out/offline-check-status
     if [ "$(cat $out/offline-check-status)" != "0" ]; then
       echo "[nix] Offline check FAIL"
+      exit 1
     else
       echo "[nix] Offline check PASS"
     fi
