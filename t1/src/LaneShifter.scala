@@ -4,9 +4,11 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.instantiable
+import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{Path, Property}
 import chisel3.util._
+import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
 object LaneShifterParameter          {
   implicit def rw: upickle.default.ReadWriter[LaneShifterParameter] = upickle.default.macroRW
@@ -33,10 +35,15 @@ class LaneShifterResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data = UInt(datapathWidth.W)
 }
 
+class LaneShifterOM(parameter: LaneShifterParameter) extends GeneralOM[LaneShifterParameter, LaneShifter](parameter) {
+  override def hasRetime: Boolean = true
+}
+
 @instantiable
-class LaneShifter(val parameter: LaneShifterParameter)
-    extends VFUModule(parameter)
-    with SerializableModule[LaneShifterParameter] {
+class LaneShifter(val parameter: LaneShifterParameter) extends VFUModule with SerializableModule[LaneShifterParameter] {
+  val omInstance: Instance[LaneShifterOM] = Instantiate(new LaneShifterOM(parameter))
+  omInstance.retimeIn.foreach(_ := Property(Path(clock)))
+
   val response: LaneShifterResponse = Wire(new LaneShifterResponse(parameter.datapathWidth))
   val request:  LaneShifterReq      = connectIO(response).asTypeOf(parameter.inputBundle)
 

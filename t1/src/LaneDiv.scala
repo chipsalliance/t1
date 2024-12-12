@@ -7,7 +7,8 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util._
-import division.srt.{SRT, SRTOutput}
+import division.srt.SRT
+import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.decoder._
 
 object LaneDivParam {
@@ -37,11 +38,14 @@ class LaneDivResponse(datapathWidth: Int) extends VFUPipeBundle {
   val busy:         Bool = Bool()
 }
 
+class LaneDivOM(parameter: LaneDivParam) extends GeneralOM[LaneDivParam, LaneDiv](parameter)
+
 @instantiable
-class LaneDiv(val parameter: LaneDivParam) extends VFUModule(parameter) with SerializableModule[LaneDivParam] {
-  val response:      LaneDivResponse = Wire(new LaneDivResponse(parameter.datapathWidth))
-  val responseValid: Bool            = Wire(Bool())
-  val request:       LaneDivRequest  = connectIO(response, responseValid).asTypeOf(parameter.inputBundle)
+class LaneDiv(val parameter: LaneDivParam) extends VFUModule with SerializableModule[LaneDivParam] {
+  val omInstance:    Instance[LaneDivOM] = Instantiate(new LaneDivOM(parameter))
+  val response:      LaneDivResponse     = Wire(new LaneDivResponse(parameter.datapathWidth))
+  val responseValid: Bool                = Wire(Bool())
+  val request:       LaneDivRequest      = connectIO(response, responseValid).asTypeOf(parameter.inputBundle)
 
   val wrapper = Instantiate(new SRTWrapper)
   wrapper.input.bits.dividend := request.src.last.asSInt

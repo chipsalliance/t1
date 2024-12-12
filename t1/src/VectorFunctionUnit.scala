@@ -4,15 +4,16 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.SerializableModuleGenerator
-import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
-import chisel3.properties.{Class, ClassType, Path, Property}
-import org.chipsalliance.t1.rtl.decoder.BoolField
+import chisel3.experimental.hierarchy.{instantiable, public, Instance}
+import chisel3.experimental.{SerializableModuleGenerator, SerializableModuleParameter}
+import chisel3.properties.{AnyClassType, ClassType, Property}
 import chisel3.util._
+import org.chipsalliance.stdlib.GeneralOM
+import org.chipsalliance.t1.rtl.decoder.BoolField
 
 import scala.collection.immutable.SeqMap
 
-trait VFUParameter {
+trait VFUParameter extends SerializableModuleParameter {
   val decodeField:  BoolField
   val inputBundle:  VFUPipeBundle
   val outputBundle: VFUPipeBundle
@@ -27,51 +28,34 @@ class VFUPipeBundle extends Bundle {
 }
 
 @instantiable
-// TODO: expose more metadatas to VFU OM, this is important for documentation generator.
-class VFUOM extends Class {
+abstract class VFUModule extends Module {
+  val parameter:  VFUParameter
+  val omInstance: Instance[GeneralOM[_, _]]
   @public
-  val cycles   = IO(Output(Property[Int]()))
+  val om:         Property[ClassType]        = IO(Output(Property[AnyClassType]()))
   @public
-  val cyclesIn = IO(Input(Property[Int]()))
-  cycles := cyclesIn
+  val requestIO:  DecoupledIO[VFUPipeBundle] = IO(Flipped(Decoupled(parameter.inputBundle)))
   @public
-  val clock   = IO(Output(Property[Path]))
-  @public
-  val clockIn = IO(Input(Property[Path]))
-  clock := clockIn
-}
+  val responseIO: DecoupledIO[VFUPipeBundle] = IO(Decoupled(parameter.outputBundle))
+  atModuleBodyEnd {
+    om := omInstance.getPropertyReference.asAnyClassType
+  }
 
-@instantiable
-abstract class VFUModule(p: VFUParameter) extends Module {
-  val omInstance: Instance[VFUOM] = Instantiate(new VFUOM)
-  val omType:     ClassType       = omInstance.toDefinition.getClassType
-
-  @public
-  val om:         Property[ClassType]        = IO(Output(Property[omType.Type]()))
-  @public
-  val requestIO:  DecoupledIO[VFUPipeBundle] = IO(Flipped(Decoupled(p.inputBundle)))
-  @public
-  val responseIO: DecoupledIO[VFUPipeBundle] = IO(Decoupled(p.outputBundle))
-  om                  := omInstance.getPropertyReference
-  // I don't under the parameter of VFU, dirty hack
-  omInstance.cyclesIn := Property(if (p.singleCycle) 1 else 0)
-  omInstance.clockIn  := Property(Path(clock))
-
-  val vfuRequestReady: Option[Bool]  = Option.when(!p.singleCycle)(Wire(Bool()))
+  val vfuRequestReady: Option[Bool]  = Option.when(!parameter.singleCycle)(Wire(Bool()))
   val requestReg:      VFUPipeBundle = RegEnable(requestIO.bits, 0.U.asTypeOf(requestIO.bits), requestIO.fire)
   val requestRegValid: Bool          = RegInit(false.B)
   val vfuRequestFire:  Bool          = vfuRequestReady.getOrElse(true.B) && requestRegValid
 
   def connectIO(response: VFUPipeBundle, responseValid: Bool = true.B): Data = {
     response.tag := DontCare
-    if (p.singleCycle && p.latency == 0) {
+    if (parameter.singleCycle && parameter.latency == 0) {
       responseIO.bits  := response.asTypeOf(responseIO.bits)
       responseIO.valid := requestRegValid
     } else {
       val responseWire = WireDefault(response.asTypeOf(responseIO.bits))
       val responseValidWire: Bool            = Wire(Bool())
       // connect tag
-      if (p.singleCycle) {
+      if (parameter.singleCycle) {
         responseWire.tag  := requestReg.tag
         responseValidWire := requestRegValid
       } else {
@@ -80,7 +64,7 @@ abstract class VFUModule(p: VFUParameter) extends Module {
         responseValidWire := responseValid
       }
       // todo: Confirm the function of 'Pipe'
-      val pipeResponse:      ValidIO[Bundle] = Pipe(responseValidWire, responseWire, p.latency)
+      val pipeResponse:      ValidIO[Bundle] = Pipe(responseValidWire, responseWire, parameter.latency)
       responseIO.valid := pipeResponse.valid
       responseIO.bits  := pipeResponse.bits
     }
@@ -88,7 +72,7 @@ abstract class VFUModule(p: VFUParameter) extends Module {
   }
 
   // update requestRegValid
-  if (p.singleCycle) {
+  if (parameter.singleCycle) {
     requestIO.ready := true.B
     requestRegValid := requestIO.fire
   } else {
@@ -548,7 +532,7 @@ case class VFUInstantiateParameter(
   otherModuleParameters:   Seq[(SerializableModuleGenerator[OtherUnit, OtherUnitParam], Seq[Int])],
   floatModuleParameters:   Seq[(SerializableModuleGenerator[LaneFloat, LaneFloatParam], Seq[Int])],
   zvbbModuleParameters: Seq[(SerializableModuleGenerator[LaneZvbb, LaneZvbbParam], Seq[Int])]) {
-  val genVec:     Seq[(SerializableModuleGenerator[_ <: VFUModule, _ <: VFUParameter], Seq[Int])] =
+  val genVec =
     logicModuleParameters ++
       aluModuleParameters ++
       shifterModuleParameters ++
@@ -561,7 +545,7 @@ case class VFUInstantiateParameter(
   genVec.foreach { case (_, connect) =>
     connect.foreach(connectIndex => require(connectIndex < slotCount))
   }
-  val maxLatency: Int                                                                             = genVec.map(_._1.parameter.latency).max
+  val maxLatency: Int = genVec.map(_._1.parameter.latency).max
 }
 
 class SlotExecuteRequest[T <: SlotRequestToVFU](requestFromSlot: T)(slotIndex: Int, parameter: VFUInstantiateParameter)

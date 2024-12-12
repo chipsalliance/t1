@@ -3,10 +3,12 @@
 
 package org.chipsalliance.t1.rtl
 
-import chisel3.experimental.hierarchy.instantiable
+import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
 import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{Path, Property}
 import chisel3.util._
+import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
 
 object LaneZvbbParam {
@@ -31,8 +33,15 @@ class LaneZvbbResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data = UInt(datapathWidth.W)
 }
 
+class LaneZvbbOM(parameter: LaneZvbbParam) extends GeneralOM[LaneZvbbParam, LaneZvbb](parameter) {
+  override def hasRetime: Boolean = true
+}
+
 @instantiable
-class LaneZvbb(val parameter: LaneZvbbParam) extends VFUModule(parameter) with SerializableModule[LaneZvbbParam] {
+class LaneZvbb(val parameter: LaneZvbbParam) extends VFUModule with SerializableModule[LaneZvbbParam] {
+  val omInstance: Instance[LaneZvbbOM] = Instantiate(new LaneZvbbOM(parameter))
+  omInstance.retimeIn.foreach(_ := Property(Path(clock)))
+
   val response: LaneZvbbResponse = Wire(new LaneZvbbResponse(parameter.datapathWidth))
   val request:  LaneZvbbRequest  = connectIO(response).asTypeOf(parameter.inputBundle)
 

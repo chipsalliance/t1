@@ -6,7 +6,11 @@ package org.chipsalliance.t1.rtl
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
-import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
+import chisel3.properties.{Path, Property}
+import chisel3.util.BitPat
+import chisel3.util.experimental.decode.TruthTable
+import org.chipsalliance.stdlib.GeneralOM
+import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder, TableGenerator}
 
 object LogicParam {
   implicit def rw: upickle.default.ReadWriter[LogicParam] = upickle.default.macroRW
@@ -34,15 +38,27 @@ class MaskedLogicResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data: UInt = UInt(datapathWidth.W)
 }
 
+class MaskedLogicOM(parameter: LogicParam) extends GeneralOM[LogicParam, MaskedLogic](parameter) {
+  override def hasRetime: Boolean = true
+}
+
 @instantiable
-class MaskedLogic(val parameter: LogicParam) extends VFUModule(parameter) with SerializableModule[LogicParam] {
+class MaskedLogic(val parameter: LogicParam) extends VFUModule with SerializableModule[LogicParam] {
+  val omInstance: Instance[MaskedLogicOM] = Instantiate(new MaskedLogicOM(parameter))
+  omInstance.retimeIn.foreach(_ := Property(Path(clock)))
+
   val response: MaskedLogicResponse = Wire(new MaskedLogicResponse(parameter.datapathWidth))
   val request:  MaskedLogicRequest  = connectIO(response).asTypeOf(parameter.inputBundle)
 
   response.data := VecInit(request.src.map(_.asBools).transpose.map { case Seq(sr0, sr1, sr2, sr3) =>
-    val bitCalculate: Instance[LaneBitLogic] = Instantiate(new LaneBitLogic)
-    bitCalculate.src    := (request.opcode(2) ^ sr0) ## sr1
-    bitCalculate.opcode := request.opcode
-    Mux(sr3, bitCalculate.resp ^ request.opcode(3), sr2)
+    Mux(
+      sr3,
+      chisel3.util.experimental.decode.decoder
+        .qmc(
+          request.opcode(1, 0) ## ((request.opcode(2) ^ sr0) ## sr1),
+          TruthTable(TableGenerator.LogicTable.table, BitPat.dontCare(1))
+        ) ^ request.opcode(3),
+      sr2
+    )
   }).asUInt
 }
