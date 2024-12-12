@@ -4,21 +4,56 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, public}
+import chisel3.experimental.{SerializableModule, SerializableModuleGenerator, SerializableModuleParameter}
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
 import chisel3.util._
 import chisel3.util.experimental.decode.TruthTable
+import chisel3.properties.{AnyClassType, Path, Property}
 import hardfloat._
+import org.chipsalliance.stdlib.GeneralOM
+import upickle.default
+
+object FloatAdderParameter {
+  implicit def rwP = upickle.default.macroRW[FloatAdderParameter]
+}
+
+case class FloatAdderParameter(expWidth: Int, sigWidth: Int) extends SerializableModuleParameter
+
+class FloatAdderInterface(val parameter: FloatAdderParameter) extends Bundle {
+  val expWidth = parameter.expWidth
+  val sigWidth = parameter.sigWidth
+
+  val clock          = Input(Clock())
+  val reset          = Input(Reset())
+  val a              = Input(UInt((expWidth + sigWidth).W))
+  val b              = Input(UInt((expWidth + sigWidth).W))
+  val roundingMode   = Input(UInt(3.W))
+  val out            = Output(UInt((expWidth + sigWidth).W))
+  val exceptionFlags = Output(UInt(5.W))
+  val om             = Output(Property[AnyClassType]())
+}
 
 @instantiable
-class FloatAdder(expWidth: Int, sigWidth: Int) extends Module {
-  @public
-  val io       = IO(new Bundle {
-    val a              = Input(UInt((expWidth + sigWidth).W))
-    val b              = Input(UInt((expWidth + sigWidth).W))
-    val roundingMode   = Input(UInt(3.W))
-    val out            = Output(UInt((expWidth + sigWidth).W))
-    val exceptionFlags = Output(UInt(5.W))
-  })
+class FloatAdderOM(parameter: FloatAdderParameter) extends GeneralOM[FloatAdderParameter, FloatAdder](parameter) {
+  override def hasRetime: Boolean = true
+}
+
+@instantiable
+class FloatAdder(val parameter: FloatAdderParameter)
+    extends FixedIORawModule(new FloatAdderInterface(parameter))
+    with SerializableModule[FloatAdderParameter]
+    with ImplicitClock
+    with ImplicitReset {
+  protected def implicitClock = io.clock
+  protected def implicitReset = io.reset
+
+  val expWidth = parameter.expWidth
+  val sigWidth = parameter.sigWidth
+
+  val omInstance: Instance[FloatAdderOM] = Instantiate(new FloatAdderOM(parameter))
+  io.om := omInstance.getPropertyReference
+  omInstance.retimeIn.foreach(_ := Property(Path(io.clock)))
+
   val addRecFN = Module(new AddRecFN(expWidth, sigWidth))
   addRecFN.io.subOp          := false.B
   addRecFN.io.a              := recFNFromFN(expWidth, sigWidth, io.a)
@@ -30,6 +65,27 @@ class FloatAdder(expWidth: Int, sigWidth: Int) extends Module {
   io.exceptionFlags := addRecFN.io.exceptionFlags
 }
 
+object FloatCompareParameter {
+  implicit def rw: upickle.default.ReadWriter[FloatCompareParameter] = upickle.default.macroRW
+}
+
+case class FloatCompareParameter(expWidth: Int, sigWidth: Int) extends SerializableModuleParameter
+
+class FloatCompareInterface(val parameter: FloatCompareParameter) extends Bundle {
+  val expWidth = parameter.expWidth
+  val sigWidth = parameter.sigWidth
+
+  val a              = Input(UInt((expWidth + sigWidth).W))
+  val b              = Input(UInt((expWidth + sigWidth).W))
+  val isMax          = Input(Bool())
+  val out            = Output(UInt((expWidth + sigWidth).W))
+  val exceptionFlags = Output(UInt(5.W))
+  val om             = Output(Property[AnyClassType]())
+}
+
+@public
+class FloatCompareOM(parameter: FloatCompareParameter) extends GeneralOM[FloatCompareParameter, FloatCompare](parameter)
+
 /** float compare module
   *
   * isMax = true => max isMax = false => min
@@ -37,15 +93,14 @@ class FloatAdder(expWidth: Int, sigWidth: Int) extends Module {
   * perform a quiet comparing in IEEE-754
   */
 @instantiable
-class FloatCompare(expWidth: Int, sigWidth: Int) extends Module {
-  @public
-  val io = IO(new Bundle {
-    val a              = Input(UInt((expWidth + sigWidth).W))
-    val b              = Input(UInt((expWidth + sigWidth).W))
-    val isMax          = Input(Bool())
-    val out            = Output(UInt((expWidth + sigWidth).W))
-    val exceptionFlags = Output(UInt(5.W))
-  })
+class FloatCompare(val parameter: FloatCompareParameter)
+    extends FixedIORawModule(new FloatCompareInterface(parameter))
+    with SerializableModule[FloatCompareParameter] {
+
+  val expWidth = parameter.expWidth
+  val sigWidth = parameter.sigWidth
+  val omInstance: Instance[FloatCompareOM] = Instantiate(new FloatCompareOM(parameter))
+  io.om := omInstance.getPropertyReference
 
   val rec0 = recFNFromFN(expWidth, sigWidth, io.a)
   val rec1 = recFNFromFN(expWidth, sigWidth, io.b)
@@ -89,7 +144,6 @@ class Rec7FnInterface(parameter: Rec7FnParameter) extends Bundle {
   val out = Output(new Bundle {
     val data           = UInt(32.W)
     val exceptionFlags = UInt(5.W)
-  }))
   })
   val om  = Output(Property[AnyClassType]())
 }

@@ -402,6 +402,10 @@ class T1(val parameter: T1Parameter)
   val decode:   Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.decoderParam))
   val maskUnit: Instance[MaskUnit]      = Instantiate(new MaskUnit(parameter))
   omInstance.decoderIn := Property(decode.om.asAnyClassType)
+  val maskUnit: Instance[MaskUnit] = Instantiate(new MaskUnit(parameter))
+  maskUnit.io.clock        := implicitClock
+  maskUnit.io.reset        := implicitReset
+  omInstance.permutatuonIn := Property(maskUnit.io.om.asAnyClassType)
 
   val tokenManager: Instance[T1TokenManager] = Instantiate(new T1TokenManager(parameter))
 
@@ -748,23 +752,23 @@ class T1(val parameter: T1Parameter)
     // vse32.v v19, (a0)
     // vfslide1down.vf v19, v10, x1
     val maskUnitFirst = RegInit(false.B)
-    val tryToRead     = lsu.vrfReadDataPorts(index).valid || maskUnit.readChannel(index).valid
+    val tryToRead     = lsu.vrfReadDataPorts(index).valid || maskUnit.io.readChannel(index).valid
     when(tryToRead && !lane.vrfReadAddressChannel.fire) {
       maskUnitFirst := !maskUnitFirst
     }
     lane.vrfReadAddressChannel.valid := Mux(
       maskUnitFirst,
-      maskUnit.readChannel(index).valid,
+      maskUnit.io.readChannel(index).valid,
       lsu.vrfReadDataPorts(index).valid
     )
-    lane.vrfReadAddressChannel.bits   :=
-      Mux(maskUnitFirst, maskUnit.readChannel(index).bits, lsu.vrfReadDataPorts(index).bits)
-    lsu.vrfReadDataPorts(index).ready := lane.vrfReadAddressChannel.ready && !maskUnitFirst
-    maskUnit.readChannel(index).ready := lane.vrfReadAddressChannel.ready && maskUnitFirst
-    maskUnit.readResult(index)        := lane.vrfReadDataChannel
-    lsu.vrfReadResults(index)         := lane.vrfReadDataChannel
+    lane.vrfReadAddressChannel.bits      :=
+      Mux(maskUnitFirst, maskUnit.io.readChannel(index).bits, lsu.vrfReadDataPorts(index).bits)
+    lsu.vrfReadDataPorts(index).ready    := lane.vrfReadAddressChannel.ready && !maskUnitFirst
+    maskUnit.io.readChannel(index).ready := lane.vrfReadAddressChannel.ready && maskUnitFirst
+    maskUnit.io.readResult(index)        := lane.vrfReadDataChannel
+    lsu.vrfReadResults(index)            := lane.vrfReadDataChannel
 
-    val maskTryToWrite = maskUnit.exeResp(index)
+    val maskTryToWrite = maskUnit.io.exeResp(index)
     // lsu & mask unit write lane
     // Mask write has absolute priority because it has a token
     lane.vrfWriteChannel.valid := vrfWrite(index).valid || maskTryToWrite.valid
@@ -779,13 +783,13 @@ class T1(val parameter: T1Parameter)
     instructionFinished(index).zip(slots.map(_.record.instructionIndex)).foreach { case (d, f) =>
       d := ohCheck(lane.instructionFinished, f, parameter.chainingSize)
     }
-    vxsatReportVec(index)             := lane.vxsatReport
-    lane.maskInput                    := maskUnit.laneMaskInput(index)
-    maskUnit.laneMaskSelect(index)    := lane.maskSelect
-    maskUnit.laneMaskSewSelect(index) := lane.maskSelectSew
-    maskUnit.v0UpdateVec(index) <> lane.v0Update
+    vxsatReportVec(index)                := lane.vxsatReport
+    lane.maskInput                       := maskUnit.io.laneMaskInput(index)
+    maskUnit.io.laneMaskSelect(index)    := lane.maskSelect
+    maskUnit.io.laneMaskSewSelect(index) := lane.maskSelectSew
+    maskUnit.io.v0UpdateVec(index) <> lane.v0Update
 
-    lane.lsuLastReport := lsu.lastReport | maskUnit.lastReport
+    lane.lsuLastReport := lsu.lastReport | maskUnit.io.lastReport
 
     lane.loadDataInLSUWriteQueue := lsu.dataInWriteQueue(index)
     // 2 + 3 = 5
@@ -818,36 +822,36 @@ class T1(val parameter: T1Parameter)
   lsu.request.bits.instructionInformation.isStore         := isStoreType
   lsu.request.bits.instructionInformation.maskedLoadStore := maskType
 
-  maskUnit.lsuMaskSelect := lsu.maskSelect
-  lsu.maskInput          := maskUnit.lsuMaskInput
-  lsu.csrInterface       := requestRegCSR
-  lsu.csrInterface.vl    := evlForLsu
-  lsu.writeReadyForLsu   := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
-  lsu.vrfReadyToStore    := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
+  maskUnit.io.lsuMaskSelect := lsu.maskSelect
+  lsu.maskInput             := maskUnit.io.lsuMaskInput
+  lsu.csrInterface          := requestRegCSR
+  lsu.csrInterface.vl       := evlForLsu
+  lsu.writeReadyForLsu      := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
+  lsu.vrfReadyToStore       := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
 
   // connect mask unit
-  maskUnit.instReq.valid                 := requestRegDequeue.fire && requestReg.bits.decodeResult(Decoder.maskUnit)
-  maskUnit.instReq.bits.instructionIndex := requestReg.bits.instructionIndex
-  maskUnit.instReq.bits.decodeResult     := decodeResult
-  maskUnit.instReq.bits.readFromScala    := Mux(decodeResult(Decoder.itype), imm, requestRegDequeue.bits.rs1Data)
-  maskUnit.instReq.bits.sew              := T1Issue.vsew(requestReg.bits.issue)
-  maskUnit.instReq.bits.maskType         := maskType
-  maskUnit.instReq.bits.vxrm             := requestReg.bits.issue.vcsr(2, 1)
-  maskUnit.instReq.bits.vlmul            := requestReg.bits.issue.vtype(2, 0)
-  maskUnit.instReq.bits.vs1              := requestRegDequeue.bits.instruction(19, 15)
-  maskUnit.instReq.bits.vs2              := requestRegDequeue.bits.instruction(24, 20)
-  maskUnit.instReq.bits.vd               := requestRegDequeue.bits.instruction(11, 7)
-  maskUnit.instReq.bits.vl               := requestReg.bits.issue.vl
+  maskUnit.io.instReq.valid                 := requestRegDequeue.fire && requestReg.bits.decodeResult(Decoder.maskUnit)
+  maskUnit.io.instReq.bits.instructionIndex := requestReg.bits.instructionIndex
+  maskUnit.io.instReq.bits.decodeResult     := decodeResult
+  maskUnit.io.instReq.bits.readFromScala    := Mux(decodeResult(Decoder.itype), imm, requestRegDequeue.bits.rs1Data)
+  maskUnit.io.instReq.bits.sew              := T1Issue.vsew(requestReg.bits.issue)
+  maskUnit.io.instReq.bits.maskType         := maskType
+  maskUnit.io.instReq.bits.vxrm             := requestReg.bits.issue.vcsr(2, 1)
+  maskUnit.io.instReq.bits.vlmul            := requestReg.bits.issue.vtype(2, 0)
+  maskUnit.io.instReq.bits.vs1              := requestRegDequeue.bits.instruction(19, 15)
+  maskUnit.io.instReq.bits.vs2              := requestRegDequeue.bits.instruction(24, 20)
+  maskUnit.io.instReq.bits.vd               := requestRegDequeue.bits.instruction(11, 7)
+  maskUnit.io.instReq.bits.vl               := requestReg.bits.issue.vl
   // gather read
-  maskUnit.gatherRead                    := gatherNeedRead
-  maskUnit.gatherData.ready              := requestRegDequeue.fire
+  maskUnit.io.gatherRead                    := gatherNeedRead
+  maskUnit.io.gatherData.ready              := requestRegDequeue.fire
 
-  maskUnit.exeReq.zip(laneVec).foreach { case (maskInput, lane) =>
+  maskUnit.io.exeReq.zip(laneVec).foreach { case (maskInput, lane) =>
     maskInput.valid := lane.maskUnitRequest.valid && !lane.maskRequestToLSU
     maskInput.bits  := lane.maskUnitRequest.bits
   }
 
-  maskUnit.tokenIO.zip(laneVec).zipWithIndex.foreach { case ((token, lane), index) =>
+  maskUnit.io.tokenIO.zip(laneVec).zipWithIndex.foreach { case ((token, lane), index) =>
     token.maskResponseRelease       := lane.tokenIO.maskResponseRelease
     lane.tokenIO.maskRequestRelease := token.maskRequestRelease || lsu.tokenIO.offsetGroupRelease(index)
   }
@@ -916,7 +920,7 @@ class T1(val parameter: T1Parameter)
   // - for slide instruction, it is unordered, and may have RAW hazard,
   //   we detect the hazard and decide should we issue this slide or
   //   issue the instruction after the slide which already in the slot.
-  requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || maskUnit.gatherData.valid) &&
+  requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || maskUnit.io.gatherData.valid) &&
     tokenManager.issueAllow && instructionIndexFree && vrfAllocate
 
   instructionToSlotOH := Mux(requestRegDequeue.fire, slotToEnqueue, 0.U)
@@ -950,7 +954,7 @@ class T1(val parameter: T1Parameter)
       inst.record.instructionIndex === responseCounter
     })
     retire                   := slotCommit.asUInt.orR
-    io.retire.rd.bits.rdData := maskUnit.writeRDData
+    io.retire.rd.bits.rdData := maskUnit.io.writeRDData
     // TODO: csr retire.
     io.retire.csr.bits.vxsat := (slotCommit.asUInt & VecInit(slots.map(_.vxsat)).asUInt).orR
     io.retire.csr.bits.fflag := DontCare
@@ -972,7 +976,7 @@ class T1(val parameter: T1Parameter)
     probeWire.requestReg         := requestReg
     probeWire.requestRegReady    := requestRegDequeue.ready
     // maskUnitWrite maskUnitWriteReady
-    probeWire.writeQueueEnqVec.zip(maskUnit.exeResp).foreach { case (probe, write) =>
+    probeWire.writeQueueEnqVec.zip(maskUnit.io.exeResp).foreach { case (probe, write) =>
       probe.valid := write.valid && write.bits.mask.orR
       probe.bits  := write.bits.instructionIndex
     }

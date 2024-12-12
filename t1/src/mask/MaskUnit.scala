@@ -4,10 +4,13 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, public}
+import chisel3.experimental.SerializableModule
+import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
+import chisel3.properties.{AnyClassType, ClassType, Property}
 import chisel3.util._
-import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
+import org.chipsalliance.stdlib.GeneralOM
+import org.chipsalliance.t1.rtl.decoder.Decoder
 
 // top uop decode
 // uu ii x -> uu: unit index; ii: Internal encoding, x: additional encode
@@ -34,96 +37,99 @@ import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 // These instructions write an entire data path each time they are executed.
 // 11 mm x -> s(z)ext; mm: multiple(00, 01, 10); x ? sign : zero
 // 11 11 1 -> maskdestination
+
+class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
+  val clock:             Clock                            = Input(Clock())
+  val reset:             Reset                            = Input(Reset())
+  val instReq:           ValidIO[MaskUnitInstReq]         = Flipped(Valid(new MaskUnitInstReq(parameter)))
+  val exeReq:            Vec[ValidIO[MaskUnitExeReq]]     = Flipped(
+    Vec(parameter.laneNumber, Valid(new MaskUnitExeReq(parameter.laneParam)))
+  )
+  val exeResp:           Vec[ValidIO[VRFWriteRequest]]    = Vec(
+    parameter.laneNumber,
+    Valid(
+      new VRFWriteRequest(
+        parameter.vrfParam.regNumBits,
+        parameter.laneParam.vrfOffsetBits,
+        parameter.instructionIndexBits,
+        parameter.datapathWidth
+      )
+    )
+  )
+  val tokenIO:           Vec[LaneTokenBundle]             = Flipped(Vec(parameter.laneNumber, new LaneTokenBundle))
+  val readChannel:       Vec[DecoupledIO[VRFReadRequest]] = Vec(
+    parameter.laneNumber,
+    Decoupled(
+      new VRFReadRequest(
+        parameter.vrfParam.regNumBits,
+        parameter.laneParam.vrfOffsetBits,
+        parameter.instructionIndexBits
+      )
+    )
+  )
+  val readResult:        Vec[UInt]                        = Flipped(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
+  val writeRD:           ValidIO[UInt]                    = Valid(UInt(parameter.datapathWidth.W))
+  val lastReport:        UInt                             = Output(UInt((2 * parameter.chainingSize).W))
+  val lsuMaskInput:      Vec[UInt]                        = Output(Vec(parameter.lsuMSHRSize, UInt(parameter.maskGroupWidth.W)))
+  val lsuMaskSelect:     Vec[UInt]                        = Input(Vec(parameter.lsuMSHRSize, UInt(parameter.lsuParameters.maskGroupSizeBits.W)))
+  val laneMaskInput:     Vec[UInt]                        = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
+  val laneMaskSelect:    Vec[UInt]                        = Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W)))
+  val laneMaskSewSelect: Vec[UInt]                        = Input(Vec(parameter.laneNumber, UInt(2.W)))
+  val v0UpdateVec:       Vec[ValidIO[V0Update]]           = Flipped(Vec(parameter.laneNumber, Valid(new V0Update(parameter.laneParam))))
+  val writeRDData:       UInt                             = Output(UInt(parameter.xLen.W))
+  val gatherData:        DecoupledIO[UInt]                = Decoupled(UInt(parameter.xLen.W))
+  val gatherRead:        Bool                             = Input(Bool())
+  val om:                Property[ClassType]              = Output(Property[AnyClassType]())
+}
+
 @instantiable
-class MaskUnit(parameter: T1Parameter) extends Module {
+class MaskUnitOM(parameter: T1Parameter) extends GeneralOM[T1Parameter, MaskUnit](parameter) {
+  @public
+  val reduceUnit   = IO(Output(Property[AnyClassType]()))
+  @public
+  val reduceUnitIn = IO(Input(Property[AnyClassType]()))
+  reduceUnit := reduceUnitIn
+}
+
+// TODO: no T1Parameter here.
+@instantiable
+class MaskUnit(val parameter: T1Parameter)
+    extends FixedIORawModule(new MaskUnitInterface(parameter))
+    with SerializableModule[T1Parameter]
+    with ImplicitClock
+    with ImplicitReset {
+
+  val omInstance: Instance[MaskUnitOM] = Instantiate(new MaskUnitOM(parameter))
+  io.om := omInstance.getPropertyReference
+
+  /** Method that should point to the user-defined Clock */
+  override protected def implicitClock: Clock = io.clock
+
+  /** Method that should point to the user-defined Reset */
+  override protected def implicitReset: Reset = io.reset
+
+  val instReq           = io.instReq
+  val exeReq            = io.exeReq
+  val exeResp           = io.exeResp
+  val tokenIO           = io.tokenIO
+  val readChannel       = io.readChannel
+  val readResult        = io.readResult
+  val writeRD           = io.writeRD
+  val lastReport        = io.lastReport
+  val lsuMaskInput      = io.lsuMaskInput
+  val lsuMaskSelect     = io.lsuMaskSelect
+  val laneMaskInput     = io.laneMaskInput
+  val laneMaskSelect    = io.laneMaskSelect
+  val laneMaskSewSelect = io.laneMaskSewSelect
+  val v0UpdateVec       = io.v0UpdateVec
+  val writeRDData       = io.writeRDData
+  val gatherData        = io.gatherData
+  val gatherRead        = io.gatherRead
+
   // todo: param
   val readQueueSize:          Int = 4
   val readVRFLatency:         Int = 2
   val maskUnitWriteQueueSize: Int = 8
-
-  @public
-  val instReq: ValidIO[MaskUnitInstReq] = IO(Flipped(Valid(new MaskUnitInstReq(parameter))))
-
-  @public
-  val exeReq: Seq[ValidIO[MaskUnitExeReq]] = Seq.tabulate(parameter.laneNumber) { _ =>
-    IO(Flipped(Valid(new MaskUnitExeReq(parameter.laneParam))))
-  }
-
-  @public
-  val exeResp: Seq[ValidIO[VRFWriteRequest]] = Seq.tabulate(parameter.laneNumber) { _ =>
-    IO(
-      Valid(
-        new VRFWriteRequest(
-          parameter.vrfParam.regNumBits,
-          parameter.laneParam.vrfOffsetBits,
-          parameter.instructionIndexBits,
-          parameter.datapathWidth
-        )
-      )
-    )
-  }
-
-  @public
-  val tokenIO: Seq[LaneTokenBundle] = Seq.tabulate(parameter.laneNumber) { _ =>
-    IO(Flipped(new LaneTokenBundle))
-  }
-
-  @public
-  val readChannel: Seq[DecoupledIO[VRFReadRequest]] = Seq.tabulate(parameter.laneNumber) { _ =>
-    IO(
-      Decoupled(
-        new VRFReadRequest(
-          parameter.vrfParam.regNumBits,
-          parameter.laneParam.vrfOffsetBits,
-          parameter.instructionIndexBits
-        )
-      )
-    )
-  }
-
-  @public
-  val readResult: Seq[UInt] = Seq.tabulate(parameter.laneNumber) { _ =>
-    IO(Input(UInt(parameter.datapathWidth.W)))
-  }
-
-  @public
-  val writeRD: ValidIO[UInt] = IO(Valid(UInt(parameter.datapathWidth.W)))
-
-  @public
-  val lastReport: UInt = IO(Output(UInt((2 * parameter.chainingSize).W)))
-
-  // mask
-  @public
-  val lsuMaskInput: Vec[UInt] = IO(Output(Vec(parameter.lsuMSHRSize, UInt(parameter.maskGroupWidth.W))))
-
-  @public
-  val lsuMaskSelect: Vec[UInt] =
-    IO(Input(Vec(parameter.lsuMSHRSize, UInt(parameter.lsuParameters.maskGroupSizeBits.W))))
-
-  // mask
-  @public
-  val laneMaskInput: Vec[UInt] = IO(Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W))))
-
-  @public
-  val laneMaskSelect: Vec[UInt] =
-    IO(Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W))))
-
-  @public
-  val laneMaskSewSelect: Vec[UInt] = IO(Input(Vec(parameter.laneNumber, UInt(2.W))))
-
-  @public
-  val v0UpdateVec = Seq.tabulate(parameter.laneNumber) { _ =>
-    IO(Flipped(Valid(new V0Update(parameter.laneParam))))
-  }
-
-  @public
-  val writeRDData: UInt = IO(Output(UInt(parameter.xLen.W)))
-
-  @public
-  val gatherData: DecoupledIO[UInt] = IO(Decoupled(UInt(parameter.xLen.W)))
-
-  @public
-  val gatherRead: Bool = IO(Input(Bool()))
 
   /** duplicate v0 for mask */
   val v0: Vec[UInt] = RegInit(
@@ -901,8 +907,13 @@ class MaskUnit(parameter: T1Parameter) extends Module {
 
   // start execute
   val compressUnit: MaskCompress = Module(new MaskCompress(parameter))
-  val reduceUnit:   MaskReduce   = Module(new MaskReduce(parameter))
-  val extendUnit:   MaskExtend   = Module(new MaskExtend(parameter))
+  val reduceUnit = Instantiate(
+    new MaskReduce(
+      MaskReduceParameter(parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
+    )
+  )
+  omInstance.reduceUnitIn := reduceUnit.io.om.asAnyClassType
+  val extendUnit: MaskExtend = Module(new MaskExtend(parameter))
 
   // todo
   val source2: UInt = VecInit(exeReqReg.map(_.bits.source2)).asUInt
@@ -954,27 +965,29 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   compressUnit.newInstruction         := instReq.valid
   compressUnit.ffoInstruction         := instReq.bits.decodeResult(Decoder.topUop)(2, 0) === BitPat("b11?")
 
-  reduceUnit.in.valid            := executeEnqValid && unitType(2)
-  reduceUnit.in.bits.maskType    := instReg.maskType
-  reduceUnit.in.bits.eew         := instReg.sew
-  reduceUnit.in.bits.uop         := instReg.decodeResult(Decoder.topUop)
-  reduceUnit.in.bits.readVS1     := readVS1Reg.data
-  reduceUnit.in.bits.source2     := source2
-  reduceUnit.in.bits.sourceValid := VecInit(exeReqReg.map(_.valid)).asUInt
-  reduceUnit.in.bits.lastGroup   := lastGroup
-  reduceUnit.in.bits.vxrm        := instReg.vxrm
-  reduceUnit.in.bits.aluUop      := instReg.decodeResult(Decoder.uop)
-  reduceUnit.in.bits.sign        := !instReg.decodeResult(Decoder.unsigned1)
-  reduceUnit.firstGroup          := !readVS1Reg.sendToExecution && reduceUnit.in.fire
-  reduceUnit.newInstruction      := instReq.fire
-  reduceUnit.validInst           := instReg.vl.orR
-  reduceUnit.pop                 := pop
+  reduceUnit.io.clock               := implicitClock
+  reduceUnit.io.reset               := implicitReset
+  reduceUnit.io.in.valid            := executeEnqValid && unitType(2)
+  reduceUnit.io.in.bits.maskType    := instReg.maskType
+  reduceUnit.io.in.bits.eew         := instReg.sew
+  reduceUnit.io.in.bits.uop         := instReg.decodeResult(Decoder.topUop)
+  reduceUnit.io.in.bits.readVS1     := readVS1Reg.data
+  reduceUnit.io.in.bits.source2     := source2
+  reduceUnit.io.in.bits.sourceValid := VecInit(exeReqReg.map(_.valid)).asUInt
+  reduceUnit.io.in.bits.lastGroup   := lastGroup
+  reduceUnit.io.in.bits.vxrm        := instReg.vxrm
+  reduceUnit.io.in.bits.aluUop      := instReg.decodeResult(Decoder.uop)
+  reduceUnit.io.in.bits.sign        := !instReg.decodeResult(Decoder.unsigned1)
+  reduceUnit.io.firstGroup          := !readVS1Reg.sendToExecution && reduceUnit.io.in.fire
+  reduceUnit.io.newInstruction      := instReq.fire
+  reduceUnit.io.validInst           := instReg.vl.orR
+  reduceUnit.io.pop                 := pop
 
-  reduceUnit.in.bits.fpSourceValid.foreach { sink =>
+  reduceUnit.io.in.bits.fpSourceValid.foreach { sink =>
     sink := VecInit(exeReqReg.map(_.bits.fpReduceValid.get)).asUInt
   }
 
-  when(reduceUnit.in.fire || compressUnit.in.fire) {
+  when(reduceUnit.io.in.fire || compressUnit.in.fire) {
     readVS1Reg.sendToExecution := true.B
   }
 
@@ -996,7 +1009,7 @@ class MaskUnit(parameter: T1Parameter) extends Module {
     unitType(3, 1),
     Seq(
       compressUnit.out.data,
-      reduceUnit.out.bits.data,
+      reduceUnit.io.out.bits.data,
       extendUnit.out
     )
   )
@@ -1005,10 +1018,10 @@ class MaskUnit(parameter: T1Parameter) extends Module {
   executeReady := Mux1H(
     unitType,
     Seq(
-      true.B,                                      // read type
-      true.B,                                      // compress
-      reduceUnit.in.ready && readVS1Reg.dataValid, // reduce
-      executeEnqValid                              // extend unit
+      true.B,                                         // read type
+      true.B,                                         // compress
+      reduceUnit.io.in.ready && readVS1Reg.dataValid, // reduce
+      executeEnqValid                                 // extend unit
     )
   )
 
@@ -1055,9 +1068,9 @@ class MaskUnit(parameter: T1Parameter) extends Module {
     if (index == 0) {
       // reduce result
       when(unitType(2)) {
-        req.valid             := reduceUnit.out.valid
-        req.bits.mask         := reduceUnit.out.bits.mask
-        req.bits.data         := reduceUnit.out.bits.data
+        req.valid             := reduceUnit.io.out.valid
+        req.bits.mask         := reduceUnit.io.out.bits.mask
+        req.bits.data         := reduceUnit.io.out.bits.data
         req.bits.groupCounter := 0.U
       }
     }
@@ -1119,7 +1132,7 @@ class MaskUnit(parameter: T1Parameter) extends Module {
     unitType(3, 1),
     Seq(
       !compressUnit.out.compressValid,
-      reduceUnit.in.ready,
+      reduceUnit.io.in.ready,
       true.B
     )
   )
@@ -1137,7 +1150,7 @@ class MaskUnit(parameter: T1Parameter) extends Module {
     lastReportValid,
     indexToOH(instReg.instructionIndex, parameter.chainingSize)
   )
-  writeRDData := Mux(pop, reduceUnit.out.bits.data, compressUnit.writeData)
+  writeRDData := Mux(pop, reduceUnit.io.out.bits.data, compressUnit.writeData)
 
   // gather read state
   when(gatherRequestFire) {
