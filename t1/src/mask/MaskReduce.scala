@@ -47,6 +47,7 @@ class MaskReduce(parameter: T1Parameter) extends Module {
   // reduce function unit
   val adder:       Instance[ReduceAdder]          = Instantiate(new ReduceAdder(parameter.datapathWidth))
   val logicUnit:   Instance[LaneLogic]            = Instantiate(new LaneLogic(parameter.datapathWidth))
+  val logicUnit:   Instance[LaneLogic]            = Instantiate(new LaneLogic(LaneLogicParameter(parameter.datapathWidth)))
   // option unit for flot reduce
   val floatAdder:  Option[Instance[FloatAdder]]   =
     Option.when(parameter.fpuEnable)(Instantiate(new FloatAdder(8, 24)))
@@ -189,8 +190,8 @@ class MaskReduce(parameter: T1Parameter) extends Module {
     fCompare.io.isMax := reqReg.aluUop(2)
   }
 
-  logicUnit.req.src    := VecInit(Seq(reduceInit, source2Select))
-  logicUnit.req.opcode := reqReg.aluUop
+  logicUnit.io.req.src    := VecInit(Seq(reduceInit, source2Select))
+  logicUnit.io.req.opcode := reqReg.aluUop
 
   val flotReduceResult: Option[UInt] = Option.when(parameter.fpuEnable)(
     Mux(
@@ -203,7 +204,7 @@ class MaskReduce(parameter: T1Parameter) extends Module {
   reduceResult := Mux(
     floatType,
     flotReduceResult.getOrElse(adder.response.data),
-    Mux(NotAdd, logicUnit.resp, adder.response.data)
+    Mux(NotAdd, logicUnit.io.resp, adder.response.data)
   )
 
   out.valid     := outValid && !pop

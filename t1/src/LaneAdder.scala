@@ -6,7 +6,9 @@ package org.chipsalliance.t1.rtl
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{Path, Property}
 import chisel3.util._
+import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.decoder._
 import org.chipsalliance.t1.rtl.vfu.{VectorAdder, VectorAdderParameter}
 object LaneAdderParam {
@@ -39,6 +41,10 @@ class LaneAdderResp(datapathWidth: Int) extends VFUPipeBundle {
   val executeIndex:  UInt = UInt(2.W)
 }
 
+class LaneAdderOM(parameter: LaneAdderParam) extends GeneralOM[LaneAdderParam, LaneAdder](parameter) {
+  override def hasRetime: Boolean = true
+}
+
 /** 加法器的输出有两个大类： 输出一整个结果：
   *   1. 上下溢出的最近值
   *   1. 比大小的两个元操作数中的一个
@@ -48,7 +54,10 @@ class LaneAdderResp(datapathWidth: Int) extends VFUPipeBundle {
   *   1. 判断大小的结果
   */
 @instantiable
-class LaneAdder(val parameter: LaneAdderParam) extends VFUModule(parameter) with SerializableModule[LaneAdderParam] {
+class LaneAdder(val parameter: LaneAdderParam) extends VFUModule with SerializableModule[LaneAdderParam] {
+  override val omInstance: Instance[LaneAdderOM] = Instantiate(new LaneAdderOM(parameter))
+  omInstance.retimeIn.foreach(_ := Property(Path(clock)))
+
   val response:      LaneAdderResp = Wire(new LaneAdderResp(parameter.datapathWidth))
   val request:       LaneAdderReq  = connectIO(response).asTypeOf(parameter.inputBundle)
   // todo: decode

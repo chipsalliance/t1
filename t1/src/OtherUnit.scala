@@ -6,7 +6,9 @@ package org.chipsalliance.t1.rtl
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{Path, Property}
 import chisel3.util._
+import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder}
 object OtherUnitParam {
   implicit def rw: upickle.default.ReadWriter[OtherUnitParam] = upickle.default.macroRW
@@ -52,8 +54,15 @@ class OtherUnitResp(datapathWidth: Int) extends VFUPipeBundle {
   val ffoSuccess: Bool = Bool()
 }
 
+class OtherUnitOM(parameter: OtherUnitParam) extends GeneralOM[OtherUnitParam, OtherUnit](parameter) {
+  override def hasRetime: Boolean = true
+}
+
 @instantiable
-class OtherUnit(val parameter: OtherUnitParam) extends VFUModule(parameter) with SerializableModule[OtherUnitParam] {
+class OtherUnit(val parameter: OtherUnitParam) extends VFUModule with SerializableModule[OtherUnitParam] {
+  val omInstance: Instance[OtherUnitOM] = Instantiate(new OtherUnitOM(parameter))
+  omInstance.retimeIn.foreach(_ := Property(Path(clock)))
+
   val response: OtherUnitResp = Wire(new OtherUnitResp(parameter.datapathWidth))
   val request:  OtherUnitReq  = connectIO(response).asTypeOf(parameter.inputBundle)
 

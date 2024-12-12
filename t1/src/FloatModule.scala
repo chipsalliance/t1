@@ -74,16 +74,37 @@ class FloatCompare(expWidth: Int, sigWidth: Int) extends Module {
   io.exceptionFlags := compareModule.io.exceptionFlags
 }
 
-class Rec7Fn extends Module {
-  val in  = IO(Input(new Bundle {
+object Rec7FnParameter {
+  implicit def rwP = upickle.default.macroRW[Rec7FnParameter]
+}
+
+case class Rec7FnParameter() extends SerializableModuleParameter
+
+class Rec7FnInterface(parameter: Rec7FnParameter) extends Bundle {
+  val in  = Input(new Bundle {
     val data         = UInt(32.W)
     val classifyIn   = UInt(10.W)
     val roundingMode = UInt(3.W)
-  }))
-  val out = IO(Output(new Bundle {
+  })
+  val out = Output(new Bundle {
     val data           = UInt(32.W)
     val exceptionFlags = UInt(5.W)
   }))
+  })
+  val om  = Output(Property[AnyClassType]())
+}
+
+@instantiable
+class Rec7FnOM(parameter: Rec7FnParameter) extends GeneralOM[Rec7FnParameter, Rec7Fn](parameter)
+
+class Rec7Fn(val parameter: Rec7FnParameter)
+    extends FixedIORawModule(new Rec7FnInterface(parameter))
+    with SerializableModule[Rec7FnParameter] {
+  val in  = io.in
+  val out = io.out
+
+  val omInstance: Instance[Rec7FnOM] = Instantiate(new Rec7FnOM(parameter))
+  io.om := omInstance.getPropertyReference
 
   val sign    = in.data(31)
   val expIn   = in.data(30, 23)
@@ -127,15 +148,28 @@ class Rec7Fn extends Module {
   // todo timing issue
   normSigIn := Mux(inIsSub, fractIn << 1.U << normDist, fractIn)
 
-  val rec7Decoder = Module(new Rec7LUT)
-  rec7Decoder.in := normSigIn(22, 16)
-
   /** rec7 algorithm
     *
     * @note
     *   see riscv-v-spec p66
     */
-  normSigOut := Cat(rec7Decoder.out, 0.U(16.W))
+  normSigOut := Cat(
+    chisel3.util.experimental.decode.decoder.espresso(
+      normSigIn(22, 16),
+      TruthTable(
+        Seq(127, 125, 123, 121, 119, 117, 116, 114, 112, 110, 109, 107, 105, 104, 102, 100, 99, 97, 96, 94, 93, 91, 90,
+          88, 87, 85, 84, 83, 81, 80, 79, 77, 76, 75, 74, 72, 71, 70, 69, 68, 66, 65, 64, 63, 62, 61, 60, 59, 58, 57,
+          56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 40, 39, 38, 37, 36, 35, 35, 34, 33, 32,
+          31, 31, 30, 29, 28, 28, 27, 26, 25, 25, 24, 23, 23, 22, 21, 21, 20, 19, 19, 18, 17, 17, 16, 15, 15, 14, 14,
+          13, 12, 12, 11, 11, 10, 9, 9, 8, 8, 7, 7, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0).zipWithIndex.map {
+          case (data, addr) =>
+            (BitPat(addr.U(7.W)), BitPat(data.U(7.W)))
+        },
+        BitPat.N(7)
+      )
+    ),
+    0.U(16.W)
+  )
   normExpOut := 253.U - normExpIn
 
   val outIsSub = normExpOut === 0.U || normExpOut.andR
@@ -167,15 +201,35 @@ class Rec7Fn extends Module {
   out.exceptionFlags := Mux(inIsSNaN, 16.U, Mux(inIsPositveZero || inIsNegativeZero, 8.U, Mux(roundAbnormal, 5.U, 0.U)))
 }
 
-class Rsqrt7Fn extends Module {
-  val in  = IO(Input(new Bundle {
+object Rsqrt7FnParameter {
+  implicit def rwP: default.ReadWriter[Rsqrt7FnParameter] = upickle.default.macroRW
+}
+
+case class Rsqrt7FnParameter() extends SerializableModuleParameter
+
+class Rsqrt7FnInterface(parameter: Rsqrt7FnParameter) extends Bundle {
+  val in  = Input(new Bundle {
     val data       = UInt(32.W)
     val classifyIn = UInt(10.W)
-  }))
-  val out = IO(Output(new Bundle {
+  })
+  val out = Output(new Bundle {
     val data           = UInt(32.W)
     val exceptionFlags = UInt(5.W)
-  }))
+  })
+  val om  = Output(Property[AnyClassType]())
+}
+
+class Rsqrt7FnOM(parameter: Rsqrt7FnParameter) extends GeneralOM[Rsqrt7FnParameter, Rsqrt7Fn](parameter)
+
+class Rsqrt7Fn(val parameter: Rsqrt7FnParameter)
+    extends FixedIORawModule(new Rsqrt7FnInterface(parameter))
+    with SerializableModule[Rsqrt7FnParameter] {
+
+  val in  = io.in
+  val out = io.out
+
+  val omInstance: Instance[Rsqrt7FnOM] = Instantiate(new Rsqrt7FnOM(parameter))
+  io.om := omInstance.getPropertyReference
 
   val sign    = in.data(31)
   val expIn   = in.data(30, 23)
@@ -196,54 +250,29 @@ class Rsqrt7Fn extends Module {
   // todo timing issue
   normSigIn := Mux(inIsSub, (fractIn << 1.U << normDist), fractIn)
 
-  val rsqrt7Decoder = Module(new Rsqrt7LUT)
-  rsqrt7Decoder.in := Cat(normExpIn(0), normSigIn(22, 17))
-
   /** rsqrt7 algorithm
     * @note
     *   see riscv-v-spec p62
     */
-  sigOut := Cat(rsqrt7Decoder.out, 0.U(16.W))
+  sigOut := Cat(
+    chisel3.util.experimental.decode.decoder.espresso(
+      Cat(normExpIn(0), normSigIn(22, 17)),
+      TruthTable(
+        Seq(52, 51, 50, 48, 47, 46, 44, 43, 42, 41, 40, 39, 38, 36, 35, 34, 33, 32, 31, 30, 30, 29, 28, 27, 26, 25, 24,
+          23, 23, 22, 21, 20, 19, 19, 18, 17, 16, 16, 15, 14, 14, 13, 12, 12, 11, 10, 10, 9, 9, 8, 7, 7, 6, 6, 5, 4, 4,
+          3, 3, 2, 2, 1, 1, 0, 127, 125, 123, 121, 119, 118, 116, 114, 113, 111, 109, 108, 106, 105, 103, 102, 100, 99,
+          97, 96, 95, 93, 92, 91, 90, 88, 87, 86, 85, 84, 83, 82, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 70, 69,
+          68, 67, 66, 65, 64, 63, 63, 62, 61, 60, 59, 59, 58, 57, 56, 56, 55, 54, 53).zipWithIndex.map {
+          case (data, addr) =>
+            (BitPat(addr.U(7.W)), BitPat(data.U(7.W)))
+        },
+        BitPat.N(7)
+      )
+    ),
+    0.U(16.W)
+  )
   expOut := Mux(inIsSub, 380.U + normDist, 380.U(10.W) - expIn) >> 1
 
   out.data           := Mux(outNaN, "x7FC00000".U, Mux(outInf, Cat(sign, "x7f800000".U(31.W)), Cat(sign, expOut, sigOut)))
   out.exceptionFlags := Mux(outNaN, 16.U, Mux(outInf, 8.U, 0.U))
 }
-
-class LUT(table: Seq[Int], inputWidth: Int, outputWidth: Int) extends Module {
-  val in  = IO(Input(UInt(inputWidth.W)))
-  val out = IO(Output(UInt(outputWidth.W)))
-  out := chisel3.util.experimental.decode.decoder.espresso(
-    in,
-    TruthTable(
-      table.zipWithIndex.map { case (data, addr) =>
-        (BitPat(addr.U(inputWidth.W)), BitPat(data.U(outputWidth.W)))
-      },
-      BitPat.N(outputWidth)
-    )
-  )
-}
-
-/** @note see riscv-v-spec v1.0 p65 */
-class Rec7LUT
-    extends LUT(
-      Seq(127, 125, 123, 121, 119, 117, 116, 114, 112, 110, 109, 107, 105, 104, 102, 100, 99, 97, 96, 94, 93, 91, 90,
-        88, 87, 85, 84, 83, 81, 80, 79, 77, 76, 75, 74, 72, 71, 70, 69, 68, 66, 65, 64, 63, 62, 61, 60, 59, 58, 57, 56,
-        55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 40, 39, 38, 37, 36, 35, 35, 34, 33, 32, 31, 31,
-        30, 29, 28, 28, 27, 26, 25, 25, 24, 23, 23, 22, 21, 21, 20, 19, 19, 18, 17, 17, 16, 15, 15, 14, 14, 13, 12, 12,
-        11, 11, 10, 9, 9, 8, 8, 7, 7, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0),
-      7,
-      7
-    )
-
-/** @note see riscv-v-spec v1.0 p61 */
-class Rsqrt7LUT
-    extends LUT(
-      Seq(52, 51, 50, 48, 47, 46, 44, 43, 42, 41, 40, 39, 38, 36, 35, 34, 33, 32, 31, 30, 30, 29, 28, 27, 26, 25, 24,
-        23, 23, 22, 21, 20, 19, 19, 18, 17, 16, 16, 15, 14, 14, 13, 12, 12, 11, 10, 10, 9, 9, 8, 7, 7, 6, 6, 5, 4, 4, 3,
-        3, 2, 2, 1, 1, 0, 127, 125, 123, 121, 119, 118, 116, 114, 113, 111, 109, 108, 106, 105, 103, 102, 100, 99, 97,
-        96, 95, 93, 92, 91, 90, 88, 87, 86, 85, 84, 83, 82, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 70, 69, 68, 67,
-        66, 65, 64, 63, 63, 62, 61, 60, 59, 59, 58, 57, 56, 56, 55, 54, 53),
-      7,
-      7
-    )

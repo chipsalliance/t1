@@ -4,7 +4,13 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
+import chisel3.util.BitPat
+import chisel3.util.experimental.decode.TruthTable
+import org.chipsalliance.t1.rtl.decoder.TableGenerator
+import chisel3.properties.{AnyClassType, ClassType, Property}
+import org.chipsalliance.stdlib.GeneralOM
 
 class LaneLogicRequest(datapathWidth: Int) extends Bundle {
   val src: Vec[UInt] = Vec(2, UInt(datapathWidth.W))
@@ -13,17 +19,36 @@ class LaneLogicRequest(datapathWidth: Int) extends Bundle {
   val opcode: UInt = UInt(4.W)
 }
 
+object LaneLogicParameter {
+  implicit def rwP: upickle.default.ReadWriter[LaneLogicParameter] = upickle.default.macroRW
+}
+
+case class LaneLogicParameter(datapathWidth: Int) extends SerializableModuleParameter
+
+class LaneLogicInterface(parameter: LaneLogicParameter) extends Bundle {
+  val req:  LaneLogicRequest    = Input(new LaneLogicRequest(parameter.datapathWidth))
+  val resp: UInt                = Output(UInt(parameter.datapathWidth.W))
+  val om:   Property[ClassType] = Output(Property[AnyClassType]())
+}
+
+class LaneLogicOM(parameter: LaneLogicParameter) extends GeneralOM[LaneLogicParameter, LaneLogic](parameter)
+
 @instantiable
-class LaneLogic(datapathWidth: Int) extends Module {
-  @public
-  val req:  LaneLogicRequest = IO(Input(new LaneLogicRequest(datapathWidth)))
-  @public
-  val resp: UInt             = IO(Output(UInt(datapathWidth.W)))
+class LaneLogic(val parameter: LaneLogicParameter)
+    extends FixedIORawModule(new LaneLogicInterface(parameter))
+    with SerializableModule[LaneLogicParameter] {
+  val omInstance: Instance[LaneLogicOM] = Instantiate(new LaneLogicOM(parameter))
+  io.om := omInstance.getPropertyReference
+
+  val req  = io.req
+  val resp = io.resp
 
   resp := VecInit(req.src.map(_.asBools).transpose.map { case Seq(sr0, sr1) =>
-    val bitCalculate: Instance[LaneBitLogic] = Instantiate(new LaneBitLogic)
-    bitCalculate.src    := sr0 ## (req.opcode(2) ^ sr1)
-    bitCalculate.opcode := req.opcode
-    bitCalculate.resp ^ req.opcode(3)
+    chisel3.util.experimental.decode.decoder
+      .qmc(
+        req.opcode(1, 0) ## (sr0 ## (req.opcode(2) ^ sr1)),
+        TruthTable(TableGenerator.LogicTable.table, BitPat.dontCare(1))
+      ) ^
+      req.opcode(3)
   }).asUInt
 }
