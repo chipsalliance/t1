@@ -66,10 +66,10 @@ class T1OM(parameter: T1Parameter) extends GeneralOM[T1Parameter, T1](parameter)
   val decoderIn = IO(Input(Property[AnyClassType]()))
   decoder := decoderIn
 
-  val permutatuon   = IO(Output(Property[AnyClassType]()))
+  val permutation   = IO(Output(Property[AnyClassType]()))
   @public
-  val permutatuonIn = IO(Input(Property[AnyClassType]()))
-  permutatuon := permutatuonIn
+  val permutationIn = IO(Input(Property[AnyClassType]()))
+  permutation := permutationIn
 }
 
 object T1Parameter {
@@ -391,7 +391,7 @@ class T1(val parameter: T1Parameter)
   val maskUnit: Instance[MaskUnit] = Instantiate(new MaskUnit(parameter))
   maskUnit.io.clock        := implicitClock
   maskUnit.io.reset        := implicitReset
-  omInstance.permutatuonIn := Property(maskUnit.io.om.asAnyClassType)
+  omInstance.permutationIn := Property(maskUnit.io.om.asAnyClassType)
 
   val tokenManager: Instance[T1TokenManager] = Instantiate(new T1TokenManager(parameter))
 

@@ -138,6 +138,8 @@ class LaneRequest(param: LaneParameter) extends Bundle {
   /** data of rs1 */
   val readFromScalar: UInt = UInt(param.datapathWidth.W)
 
+  val csrInterface: CSRInterface = new CSRInterface(param.vlMaxBits)
+
   // vmacc 的vd需要跨lane读 TODO: move to [[V]]
   def ma: Bool =
     decodeResult(Decoder.multiplier) && decodeResult(Decoder.uop)(1, 0).xorR && !decodeResult(Decoder.vwmacc)
@@ -219,10 +221,6 @@ class InstructionControlRecord(param: LaneParameter) extends Bundle {
 
   /** Store request from [[T1]]. */
   val laneRequest: LaneRequest = new LaneRequest(param)
-
-  /** csr follows the instruction. TODO: move to [[laneRequest]]
-    */
-  val csr: CSRInterface = new CSRInterface(param.vlMaxBits)
 
   /** which group is the last group for instruction. */
   val lastGroupForInstruction: UInt = UInt(param.groupNumberBits.W)
@@ -362,9 +360,9 @@ class LaneResponseFeedback(param: LaneParameter) extends Bundle {
   val complete: Bool = Bool()
 }
 
-class V0Update(param: LaneParameter) extends Bundle {
-  val data:   UInt = UInt(param.datapathWidth.W)
-  val offset: UInt = UInt(param.vrfOffsetBits.W)
+class V0Update(datapathWidth: Int, vrfOffsetBits: Int) extends Bundle {
+  val data:   UInt = UInt(datapathWidth.W)
+  val offset: UInt = UInt(vrfOffsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
   val mask:   UInt = UInt(4.W)
 }
@@ -715,6 +713,11 @@ class MaskUnitReadState(parameter: T1Parameter) extends Bundle {
   val last:           Bool      = Bool()
 }
 
+class MaskReadReorderQueue(parameter: T1Parameter) extends Bundle {
+  val data:    UInt = UInt(parameter.datapathWidth.W)
+  val write1H: UInt = UInt(parameter.laneNumber.W)
+}
+
 class MaskUnitInstReq(parameter: T1Parameter) extends Bundle {
   val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
   val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
@@ -794,6 +797,10 @@ class MaskUnitReadVs1(parameter: T1Parameter) extends Bundle {
 }
 
 class LaneTokenBundle extends Bundle {
-  val maskResponseRelease: Bool = Output(Bool())
-  val maskRequestRelease:  Bool = Input(Bool())
+  val maskRequestRelease: Bool = Input(Bool())
+}
+
+class MaskUnitReadPipe(parameter: T1Parameter) extends Bundle {
+  val readSource: UInt = UInt(parameter.laneNumber.W)
+  val dataOffset: UInt = UInt(log2Ceil(parameter.datapathWidth / 8).W)
 }
