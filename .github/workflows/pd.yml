@@ -7,6 +7,7 @@ on:
       - reopened
       - ready_for_review
       - labeled
+      - unlabeled
 env:
   USER: runner
 
@@ -17,7 +18,6 @@ concurrency:
 
 jobs:
   generate-test-plan:
-    if: '! github.event.pull_request.draft'
     name: "Generate CI target for RTL elaborate"
     runs-on: [self-hosted, linux, nixos]
     outputs:
