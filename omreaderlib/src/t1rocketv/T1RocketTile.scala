@@ -22,6 +22,12 @@ class T1RocketTile(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
     Seq(tile("frontend").obj("icache").obj, tile("hellaCache").obj).flatMap(getSRAM)
   def vfu:          Seq[Retime]                       =
     t1("lanes").list.elements().map(_.obj("vfus")).flatMap(_.list.elements().map(_.obj)).flatMap(getRetime)
-  def retime = vfu
+  def floatAdder = {
+    val reduceUnit = t1("permutatuon").obj("reduceUnit").obj
+    // TODO: need fieldOpt(name: String)
+    Option.when(reduceUnit.fieldNames().contains("floatAdder"))(reduceUnit("floatAdder").obj).flatMap(getRetime)
+  }
+
+  def retime = (vfu ++ floatAdder).distinct
   def sram   = vrf ++ cache
 }
