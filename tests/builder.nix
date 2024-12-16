@@ -51,7 +51,11 @@ let
 
         mkdir -p $out/bin
         cp ${pname}.elf $out/bin
-        cp ${pname}.cover $out
+        if [ -f ${pname}.cover ]; then
+          cp ${pname}.cover $out/
+        else
+          echo "-assert *" > $out/${pname}.cover
+        fi
 
         ${jqBin} --null-input \
           --arg name ${pname} \
