@@ -964,10 +964,9 @@ class T1(val parameter: T1Parameter)
       probe.valid := write.fire && write.bits.mask.orR
       probe.bits  := write.bits.instructionIndex
     }
-    probeWire.instructionValid   := maskAnd(
-      !slots.last.state.wMaskUnitLast && !slots.last.state.idle,
-      indexToOH(slots.last.record.instructionIndex, parameter.chainingSize)
-    ).asUInt
+    probeWire.instructionValid   := slots
+      .map(s => maskAnd(!s.state.idle, indexToOH(s.record.instructionIndex, parameter.chainingSize)).asUInt)
+      .reduce(_ | _)
     probeWire.responseCounter    := responseCounter
     probeWire.laneProbes.zip(laneVec).foreach { case (p, l) => p := probe.read(l.laneProbe) }
     probeWire.lsuProbe           := probe.read(lsu.lsuProbe)
