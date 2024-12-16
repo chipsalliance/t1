@@ -686,7 +686,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val maskFailure:    Bool = stage0.updateLaneState.maskExhausted && stage0.enqueue.fire
     // update mask register
     when(maskUpdateFire) {
-      record.mask.bits := DontCare
+      record.mask.bits := maskDataVec(index)
     }
     when(maskUpdateFire ^ maskFailure) {
       record.mask.valid := maskUpdateFire
