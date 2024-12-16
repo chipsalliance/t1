@@ -13,11 +13,11 @@ buildGoModule {
   src = fetchFromGitHub {
     owner = "chipsalliance";
     repo = "riscv-vector-tests";
-    rev = "6f24d9aab1e64a452e3493c85297e9bde805e30c";
-    hash = "sha256-5Ie5gZMOqxl8L8tuzpYdrqb/7F6o5UzOMGhn4xzPvQo=";
+    rev = "1e8ba1593aa5b459ad32135b6bff5d5e2040e81e";
+    hash = "sha256-tC0cAHHasap/wJbY7QehrQcqWv9B2pMcmzyjaSnOCQI=";
   };
   doCheck = false;
-  vendorHash = "sha256-9cQlivpHg6IDYpmgBp34n6BR/I0FIYnmrXCuiGmAhNE=";
+  vendorHash = "sha256-1A5yCj9AJHp9tcUIpLKamXn4Tl3KPFEtzke5X7h6V+4=";
   # Get rid of copying the whole source
   postInstall = ''
     cp -r $src/configs $out/configs
