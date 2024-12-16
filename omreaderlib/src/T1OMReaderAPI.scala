@@ -65,7 +65,7 @@ object Path {
             }),
           Some(local)
         )
-      case s"OMInstanceTarget:~${top}|${hier}"          =>
+      case s"OMInstanceTarget:~${top}|${hier}"           =>
         Path(
           top,
           hier
