@@ -1,7 +1,7 @@
 { fetchFromGitHub, buildGoModule }:
 buildGoModule {
   pname = "riscv-vector-test";
-  version = "unstable-2023-04-12";
+  version = "unstable-2024-12-16";
   src = fetchFromGitHub {
     owner = "chipsalliance";
     repo = "riscv-vector-tests";
