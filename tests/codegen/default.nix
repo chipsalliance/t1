@@ -26,9 +26,11 @@ let
         buildPhase = ''
           runHook preBuild
 
+          # Golang only accept "-flag=value" pattern to set value for flag, don't mess around with other cmd line option.
           ${riscv-vector-test}/bin/single \
             -VLEN "${builtins.toString rtlDesignMetadata.vlen}" \
             -XLEN "${builtins.toString rtlDesignMetadata.xlen}" \
+            -float16=false \
             -repeat 16 \
             -testfloat3level 2 \
             -configfile ${riscv-vector-test}/configs/${rawCaseName}.toml \
