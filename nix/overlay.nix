@@ -34,7 +34,7 @@ rec {
 
   fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
-  rvv-codegen = final.callPackage ./pkgs/rvv-codegen.nix { };
+  riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
   add-determinism = final.callPackage ./pkgs/add-determinism { }; # faster strip-undetereminism
 
   snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
