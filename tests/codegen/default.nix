@@ -1,6 +1,6 @@
 { lib
 , linkerScript
-, rvv-codegen
+, riscv-vector-test
 , makeBuilder
   # Instead of testing feature is supported on TOP level,
   # codegen case are always generated with supported code.
@@ -18,7 +18,7 @@ let
 
         includeArgs = [
           "-I${./include}"
-          "-I${rvv-codegen}/include"
+          "-I${riscv-vector-test}/include"
         ];
 
         dontUnpack = true;
@@ -26,12 +26,12 @@ let
         buildPhase = ''
           runHook preBuild
 
-          ${rvv-codegen}/bin/single \
+          ${riscv-vector-test}/bin/single \
             -VLEN "${builtins.toString rtlDesignMetadata.vlen}" \
             -XLEN "${builtins.toString rtlDesignMetadata.xlen}" \
             -repeat 16 \
             -testfloat3level 2 \
-            -configfile ${rvv-codegen}/configs/${rawCaseName}.toml \
+            -configfile ${riscv-vector-test}/configs/${rawCaseName}.toml \
             -outputfile $pname.S
 
           # temporary fix, to be extended later
