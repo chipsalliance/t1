@@ -299,7 +299,7 @@ package object rtl {
         val accessDataValid  = Pipe(sinkRequest.fire, 0.U.asTypeOf(new EmptyBundle), vrfReadLatency.get).valid
         val accessDataSource = Wire(Valid(chiselTypeOf(dataAck.get)))
         accessDataSource.valid := accessDataValid
-        accessDataSource.bits  := accessDataValid
+        accessDataSource.bits  := dataAck.get
         connectWithShifter(latencyVec(index))(accessDataSource, sourceData)
       }
     }
