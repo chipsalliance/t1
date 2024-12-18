@@ -180,7 +180,7 @@ impl AddressSpace {
     for (idx, dev) in self.devices.iter().enumerate() {
       let (base, size) = dev.base_and_size;
       if base <= addr && addr - base < size {
-        return if addr - base + len < size {
+        return if addr - base + len <= size {
           Some(idx)
         } else {
           None
