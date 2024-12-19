@@ -77,12 +77,15 @@ module VerbatimModule #(
   endfunction
 `endif
 
-  import "DPI-C" context function void t1_cosim_init(
-    string elf_file,
+  // this function captures the scope
+  // DO NOT move it outside the module
+  import "DPI-C" context function void t1_cosim_preinit(
     int dlen,
     int vlen,
     string spike_isa
   );
+
+  import "DPI-C" context function void t1_cosim_init(string elf_file);
   import "DPI-C" context function void t1_cosim_set_timeout(longint unsigned timeout);
   import "DPI-C" context function void t1_cosim_final();
   import "DPI-C" context function byte unsigned t1_cosim_watchdog();
@@ -91,6 +94,9 @@ module VerbatimModule #(
     clock = 1'b0;
     reset = 1'b1;
     initFlag = 1'b1;
+
+    // it also init rust's logger, make it the first
+    t1_cosim_preinit(T1_DLEN, T1_VLEN, T1_SPIKE_ISA);
 
     t1_log_pkg::log_open("rtl-event.jsonl");
 
@@ -106,7 +112,7 @@ module VerbatimModule #(
 
     if (elf_file.len() == 0) $fatal(1, "+t1_elf_file must be set");
 
-    t1_cosim_init(elf_file, T1_DLEN, T1_VLEN, T1_SPIKE_ISA);
+    t1_cosim_init(elf_file);
     t1_cosim_set_timeout(dpi_timeout);
 
   `ifdef T1_ENABLE_TRACE

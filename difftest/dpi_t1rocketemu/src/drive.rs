@@ -33,10 +33,6 @@ pub struct OnlineArgs {
 }
 
 pub(crate) struct Driver {
-  // SvScope from t1rocket_cosim_init
-  #[allow(unused)]
-  scope: SvScope,
-
   pub(crate) dlen: u32,
   pub(crate) e_entry: u64,
 
@@ -49,15 +45,13 @@ pub(crate) struct Driver {
 }
 
 impl Driver {
-  pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
+  pub(crate) fn new(args: &OnlineArgs) -> Self {
     let (mut addr_space, exit_flag) = create_emu_addrspace();
     // pass e_entry to rocket
     let (e_entry, _fn_sym_tab) =
       Self::load_elf(Path::new(&args.elf_file), &mut addr_space).expect("fail creating simulator");
 
     Self {
-      scope,
-
       dlen: args.dlen,
       e_entry,
 
