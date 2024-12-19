@@ -120,6 +120,10 @@ case class MSHRParam(
   // outstanding of MaskExchangeUnit.maskReq
   // todo: param from T1Param
   val maskRequestQueueSize: Int = 8
+
+  // outstanding of StoreUnit.vrfReadDataPorts
+  // todo: param from T1Param
+  val storeUnitReadOutStanding: Int = 8
 }
 
 /** Miss Status Handler Register this is used to record the outstanding memory access request for each instruction. it
