@@ -45,6 +45,8 @@ let
             $CC $pname.S -T t1-ddr.ld $includeArgs -o $pname.elf
           fi
 
+          echo "+assert ${caseName}" > $pname.cover
+
           runHook postBuild
         '';
 
