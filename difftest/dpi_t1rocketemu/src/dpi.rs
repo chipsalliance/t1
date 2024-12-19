@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use dpi_common::DpiTarget;
-use std::ffi::c_longlong;
+use std::{ffi::c_longlong, sync::OnceLock};
 use svdpi::dpi::param::InStr;
 use svdpi::SvScope;
 use tracing::debug;
@@ -16,6 +16,40 @@ pub type SvBitVecVal = u32;
 // --------------------------
 
 static TARGET: DpiTarget<Driver> = DpiTarget::new();
+
+static DESIGN_PARAM: OnceLock<DesignParam> = OnceLock::new();
+
+pub struct DesignParam {
+  // time unit of Verbatim Module
+  pub cg_timescale: i32,
+  // simulation time unit, -12 -> 1ps, -9 -> 1ns, etc
+  pub sim_timescale: i32,
+  // measured in sim time unit
+  pub clock_period: u64,
+
+  // scope of VerbatimModule (ClockGen)
+  pub cg_scope: SvScope,
+
+  pub dlen: u32,
+  pub vlen: u32,
+  pub spike_isa: String,
+}
+
+impl DesignParam {
+  #[track_caller]
+  pub fn get() -> &'static DesignParam {
+    // it should be init by t1_cosim_preinit
+    DESIGN_PARAM.get().expect("DESIGN_PARAM is not set")
+  }
+
+  pub fn get_cycle(&self) -> u64 {
+    svdpi::get_time() / self.clock_period
+  }
+}
+
+pub fn get_t() -> u64 {
+  DesignParam::get().get_cycle()
+}
 
 unsafe fn write_to_pointer(dst: *mut u8, data: &[u8]) {
   let dst = std::slice::from_raw_parts_mut(dst, data.len());
@@ -316,22 +350,45 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
 }
 
 #[no_mangle]
-unsafe extern "C" fn t1_cosim_init(
-  elf_file: InStr<'_>,
-  dlen: i32,
-  vlen: i32,
-  spike_isa: InStr<'_>,
-) {
+unsafe extern "C" fn t1_cosim_preinit(dlen: i32, vlen: i32, spike_isa: InStr<'_>) {
   dpi_common::setup_logger();
 
-  let scope = SvScope::get_current().expect("failed to get scope in t1_cosim_init");
+  let cg_scope = SvScope::get_current().expect("failed to get SvScope");
 
+  // TODO: when sv2023 is pervasive, we could use svTimeUnit/Precision
+  // 1ns/1ps, keep in sync with TestBench.verbatimModule
+  let cg_timescale = -9;
+  let sim_timescale = -12;
+
+  // keep in sync with TestBench.verbatimModule
+  const CLOCK_PERIOD_IN_VERBATIM_TIME_UNIT: u64 = 20;
+
+  assert!(cg_timescale >= sim_timescale);
+
+  let clock_period =
+    10u64.pow((cg_timescale - sim_timescale) as u32) * CLOCK_PERIOD_IN_VERBATIM_TIME_UNIT;
+
+  DESIGN_PARAM
+    .set(DesignParam {
+      cg_timescale,
+      sim_timescale,
+      clock_period,
+      cg_scope,
+      dlen: dlen as u32,
+      vlen: vlen as u32,
+      spike_isa: spike_isa.get().to_str().unwrap().into(),
+    })
+    .unwrap_or_else(|_| panic!("DESIGN_PARAM is already set"));
+}
+
+#[no_mangle]
+unsafe extern "C" fn t1_cosim_init(elf_file: InStr<'_>) {
   let args = OnlineArgs {
     elf_file: elf_file.get().to_str().unwrap().into(),
-    dlen: dlen as u32,
+    dlen: DesignParam::get().dlen,
   };
 
-  TARGET.init(|| Driver::new(scope, &args));
+  TARGET.init(|| Driver::new(&args));
 }
 
 #[no_mangle]
