@@ -106,8 +106,6 @@ class TestBench(val parameter: T1RocketTileParameter)
       agent.io.clock := clock
       agent.io.reset     := reset
       agent.io.channelId := index.U
-      agent.io.gateRead  := false.B
-      agent.io.gateWrite := false.B
     }
 
   val instFetchAXI   = dut.io.instructionFetchAXI.viewAs[AXI4ROIrrevocableVerilog]
@@ -128,8 +126,6 @@ class TestBench(val parameter: T1RocketTileParameter)
   instFetchAgent.io.clock := clock
   instFetchAgent.io.reset     := reset
   instFetchAgent.io.channelId := 0.U
-  instFetchAgent.io.gateRead  := false.B
-  instFetchAgent.io.gateWrite := false.B
 
   val loadStoreAXI   = dut.io.loadStoreAXI.viewAs[AXI4RWIrrevocableVerilog]
   val loadStoreAgent = Module(
@@ -150,8 +146,6 @@ class TestBench(val parameter: T1RocketTileParameter)
   loadStoreAgent.io.clock := clock
   loadStoreAgent.io.reset     := reset
   loadStoreAgent.io.channelId := 3.U
-  loadStoreAgent.io.gateRead  := false.B
-  loadStoreAgent.io.gateWrite := false.B
 
   // probes
   val t1RocketProbe  = probe.read(dut.io.t1RocketProbe)

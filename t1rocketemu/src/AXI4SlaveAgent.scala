@@ -35,10 +35,6 @@ class AXI4SlaveAgentInterface(parameter: AXI4SlaveAgentParameter) extends Bundle
   val clock:     Clock = Input(Clock())
   val reset:     Reset = Input(Reset())
   val channelId: UInt  = Input(Const(UInt(64.W)))
-  // don't issue read DPI
-  val gateRead:  Bool  = Input(Bool())
-  // don't issue write DPI
-  val gateWrite: Bool  = Input(Bool())
   val channel = Flipped(
     org.chipsalliance.amba.axi4.bundle.verilog.irrevocable(parameter.axiParameter)
   )
@@ -150,7 +146,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       when(channel.BVALID && channel.BREADY) {
         RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(
           io.clock,
-          when.cond && !io.gateWrite,
+          !io.reset.asBool && when.cond,
           io.channelId,
           parameter.axiParameter.dataWidth.U(64.W),
           // handle AW and W at same beat.
@@ -197,7 +193,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth)
       )(
         io.clock,
-        !io.gateRead && arFire,
+        !io.reset.asBool && arFire,
         io.channelId,
         parameter.axiParameter.dataWidth.U(64.W),
         channel.ARID.asTypeOf(UInt(64.W)),
