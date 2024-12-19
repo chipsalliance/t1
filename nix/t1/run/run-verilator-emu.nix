@@ -18,7 +18,7 @@ stdenvNoCC.mkDerivation (finalAttr: {
     emuDriverArgs="''${emuDriverArgsArray[@]}"
     emuDriver="${emulator}/bin/${emulator.mainProgram}"
 
-    rtlEventOutPath="$out/${testCase.pname}-rtl-event.jsonl"
+    rtlEventOutPath="rtl-event.jsonl"
 
     echo "[nix] Running test case ${testCase.pname} with args $emuDriverArgs"
 
@@ -29,7 +29,7 @@ stdenvNoCC.mkDerivation (finalAttr: {
       exit 1
     }
 
-    "$emuDriver" $emuDriverArgs 1>$out/online-drive-journal 2> "$rtlEventOutPath" || printError
+    "$emuDriver" $emuDriverArgs &> >(tee $out/online-drive-journal) || printError
 
     echo "[nix] t1rocket run done"
 
@@ -53,11 +53,11 @@ stdenvNoCC.mkDerivation (finalAttr: {
       "--log-file"
       "$rtlEventOutPath"
       "--log-level"
-      "info"
+      "ERROR"
     )
     offlineCheckArgs="''${offlineCheckArgsArray[@]}"
     echo -e "[nix] running offline check: \033[0;34m${offline-checker}/bin/offline $offlineCheckArgs\033[0m"
-    "${offline-checker}/bin/offline" $offlineCheckArgs &> $out/offline-check-journal
+    "${offline-checker}/bin/offline" $offlineCheckArgs &> >(tee $out/offline-check-journal)
 
     printf "$?" > $out/offline-check-status
     if [ "$(cat $out/offline-check-status)" != "0" ]; then
