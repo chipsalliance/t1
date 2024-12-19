@@ -664,6 +664,13 @@ class T1(val parameter: T1Parameter)
   /** slot is ready to accept new instructions. */
   val slotReady: Bool = Mux(specialInstruction, slots.map(_.state.idle).last, freeOR)
 
+  val olderCheck: Bool = slots.map { re =>
+    // The same lsb will make it difficult to distinguish between the new and the old
+    val notSameLSB: Bool = re.record.instructionIndex(parameter.instructionIndexBits - 2, 0) =/=
+      requestReg.bits.instructionIndex(parameter.instructionIndexBits - 2, 0)
+    re.state.idle || (instIndexL(re.record.instructionIndex, requestReg.bits.instructionIndex) && notSameLSB)
+  }.reduce(_ && _)
+
   val source1Select: UInt =
     Mux(
       decodeResult(Decoder.gather),
@@ -699,7 +706,7 @@ class T1(val parameter: T1Parameter)
   )
 
   laneRequestSourceWire.foreach { request =>
-    request.valid                 := requestRegDequeue.fire && !noOffsetReadLoadStore && !maskUnitInstruction
+    request.valid                 := requestRegDequeue.fire
     // hard wire
     request.bits.instructionIndex := requestReg.bits.instructionIndex
     request.bits.decodeResult     := decodeResult
@@ -717,7 +724,7 @@ class T1(val parameter: T1Parameter)
     // and broadcast to all lanes.
     request.bits.readFromScalar := source1Select
 
-    request.bits.issueInst  := requestRegDequeue.fire
+    request.bits.issueInst  := !noOffsetReadLoadStore && !maskUnitInstruction
     request.bits.loadStore  := isLoadStoreType
     // let record in VRF to know there is a store instruction.
     request.bits.store      := isStoreType
@@ -738,10 +745,12 @@ class T1(val parameter: T1Parameter)
     */
   val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber) { index =>
     val lane: Instance[Lane] = Instantiate(new Lane(parameter.laneParam))
-    lane.laneRequest.valid           := laneRequestSinkWire(index).valid && lane.vrfAllocateIssue
+    lane.laneRequest.valid           := laneRequestSinkWire(index).valid && laneRequestSinkWire(index).bits.issueInst
     lane.laneRequest.bits            := laneRequestSinkWire(index).bits
-    laneRequestSinkWire(index).ready := lane.laneRequest.ready && lane.vrfAllocateIssue
-    lane.laneIndex                   := index.U
+    lane.laneRequest.bits.issueInst  := laneRequestSinkWire(index).fire
+    laneRequestSinkWire(index).ready := !laneRequestSinkWire(index).bits.issueInst || lane.laneRequest.ready
+
+    lane.laneIndex := index.U
 
     connectVrfAccess(
       Seq(parameter.maskUnitReadShifterSize(index), parameter.lsuReadShifterSize(index)),
@@ -905,7 +914,7 @@ class T1(val parameter: T1Parameter)
   //   we detect the hazard and decide should we issue this slide or
   //   issue the instruction after the slide which already in the slot.
   requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || maskUnit.io.gatherData.valid) &&
-    tokenManager.issueAllow && instructionIndexFree
+    tokenManager.issueAllow && instructionIndexFree && olderCheck
 
   instructionToSlotOH := Mux(requestRegDequeue.fire, slotToEnqueue, 0.U)
 
