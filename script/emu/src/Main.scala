@@ -44,13 +44,13 @@ object Main:
       attr
     ) ++ extraArgs
     os.proc(args).call().out.trim()
-
-  def resolveTestElfPath(
+  
+  def resolveTestPath(
     ip:       String,
     config:   String,
     caseName: String,
     forceX86: Boolean = false
-  ): os.Path =
+  ): os.Path = 
     val casePath = os.Path(caseName, os.pwd)
     if (os.exists(casePath)) then return casePath
 
@@ -61,10 +61,34 @@ object Main:
     val nixStorePath = resolveNixPath(
       s"${caseAttrRoot}t1.${config}.${ip}.cases.${caseName}"
     )
-    val elfFilePath  = os.Path(nixStorePath) / "bin" / s"${caseName}.elf"
+    val filePath  = os.Path(nixStorePath)
+
+    filePath
+  end resolveTestPath
+
+  def resolveTestElfPath(
+    ip:       String,
+    config:   String,
+    caseName: String,
+    forceX86: Boolean = false
+  ): os.Path =
+    val testPath = resolveTestPath(ip, config, caseName, forceX86)
+    val elfFilePath  = testPath / "bin" / s"${caseName}.elf"
 
     elfFilePath
   end resolveTestElfPath
+
+  def resolveTestCoverPath(
+    ip:       String,
+    config:   String,
+    caseName: String,
+    forceX86: Boolean = false
+  ): os.Path =
+    val testPath = resolveTestPath(ip, config, caseName, forceX86)
+    val coverFilePath  = testPath / s"${caseName}.cover"
+
+    coverFilePath
+  end resolveTestCoverPath
 
   def resolveTestBenchPath(
     ip:      String,
@@ -203,8 +227,8 @@ object Main:
       s"Using config=${BOLD}${finalConfig.get}${RESET} emulator=${BOLD}${finalEmuType.get}${RESET} case=${BOLD}$caseName${RESET}"
     )
 
-    val caseElfPath =
-      resolveTestElfPath(finalIp.get, finalConfig.get, caseName, forceX86)
+    val caseElfPath = resolveTestElfPath(finalIp.get, finalConfig.get, caseName, forceX86)
+    val caseCoverPath = resolveTestCoverPath(finalIp.get, finalConfig.get, caseName, forceX86)
     val outputPath  = prepareOutputDir(outDir.getOrElse("t1-sim-result"))
     val emulator    = resolveTestBenchPath(finalIp.get, finalConfig.get, finalEmuType.get)
 
@@ -216,7 +240,7 @@ object Main:
     )
       ++ optionals(timeout.isDefined, Seq(s"+t1_timeout=${timeout.getOrElse("unreachable")}"))
       ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
-      ++ optionals(isCover, Seq(s"-cm assert"))
+      ++ optionals(isCover, Seq("-cm", "assert", "-assert", s"hier=${caseCoverPath}"))
       ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)
 
     if dryRun.value then return

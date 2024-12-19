@@ -49,6 +49,8 @@ stdenvNoCC.mkDerivation (rec {
   ++ lib.optionals emulator.enableCover [
     "-cm"
     "assert"
+    "-assert"
+    "hier=${testCase}/${testCase.pname}.cover"
   ]
   ++ lib.optionals emulator.enableTrace [
     "+t1_wave_path=${testCase.pname}.fsdb"

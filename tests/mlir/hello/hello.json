@@ -1,0 +1,11 @@
+{
+  "case": "mlir.hello",
+  "assert": [
+    {
+      "description": "vmv.v.i instruction covered",
+      "name": "vmv_v_i"
+    }
+  ],
+  "tree": [],
+  "module": []
+}
