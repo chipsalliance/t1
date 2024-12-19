@@ -15,6 +15,7 @@ import chisel3.properties.{AnyClassType, Class, ClassType, Path, Property}
 import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.{
   ffo,
+  indexToOH,
   instIndexL,
   instIndexLE,
   ohCheck,
@@ -199,7 +200,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   @public
   val writeCheck: Vec[LSUWriteCheck] = IO(
     Vec(
-      parameter.chainingSize + 4,
+      parameter.chainingSize + 3,
       Input(
         new LSUWriteCheck(
           parameter.regNumBits,
@@ -211,11 +212,11 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   )
 
   @public
-  val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 4, Output(Bool())))
+  val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 3, Output(Bool())))
 
   /** when instruction is fired, record it in the VRF for chaining. */
   @public
-  val instructionWriteReport: DecoupledIO[VRFWriteReport] = IO(Flipped(Decoupled(new VRFWriteReport(parameter))))
+  val instructionWriteReport: ValidIO[VRFWriteReport] = IO(Flipped(Valid(new VRFWriteReport(parameter))))
 
   /** similar to [[flush]]. */
   @public
@@ -225,15 +226,15 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val lsuLastReport: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
 
   @public
+  val vrfSlotRelease: UInt = IO(Output(UInt((2 * parameter.chainingSize).W)))
+
+  @public
   val dataInLane: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
 
   @public
   val writeReadyForLsu: Bool = IO(Output(Bool()))
   @public
   val vrfReadyToStore:  Bool = IO(Output(Bool()))
-
-  @public
-  val vrfAllocateIssue: Bool = IO(Output(Bool()))
 
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
   @public
@@ -274,6 +275,13 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   )
   val chainingRecordCopy: Vec[ValidIO[VRFWriteReport]] = RegInit(
     VecInit(Seq.fill(parameter.chainingSize + 1)(0.U.asTypeOf(Valid(new VRFWriteReport(parameter)))))
+  )
+  val recordRelease:      Vec[UInt]                    = WireDefault(
+    VecInit(
+      Seq.fill(parameter.chainingSize + 1)(
+        0.U.asTypeOf(UInt((parameter.chainingSize * 2).W))
+      )
+    )
   )
   val recordValidVec:     Seq[Bool]                    = chainingRecord.map(r => !r.bits.elementMask.andR && r.valid)
 
@@ -500,23 +508,12 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   // @todo @Clo91eaf VRF ready signal for performance.
   val freeRecord: UInt = VecInit(chainingRecord.map(!_.valid)).asUInt
   val recordFFO:  UInt = ffo(freeRecord)
-  val recordEnq:  UInt = Wire(UInt((parameter.chainingSize + 1).W))
-  val olderCheck = chainingRecord.map { re =>
-    // The same lsb will make it difficult to distinguish between the new and the old
-    val notSameLSB: Bool = re.bits.instIndex(parameter.instructionIndexBits - 2, 0) =/=
-      instructionWriteReport.bits.instIndex(parameter.instructionIndexBits - 2, 0)
-    !re.valid || (instIndexL(re.bits.instIndex, instructionWriteReport.bits.instIndex) && notSameLSB)
-  }.reduce(_ && _)
-  // handle VRF hazard
-  // @todo @Clo91eaf VRF ready signal for performance.
-  instructionWriteReport.ready := freeRecord.orR && olderCheck
-  recordEnq        := Mux(
+  val recordEnq:  UInt = Mux(
     // 纯粹的lsu指令的记录不需要ready
     instructionWriteReport.valid,
     recordFFO,
     0.U((parameter.chainingSize + 1).W)
   )
-  vrfAllocateIssue := freeRecord.orR && olderCheck
 
   val writePort:         Seq[ValidIO[VRFWriteRequest]]    = Seq(writePipe)
   val loadUnitReadPorts: Seq[DecoupledIO[VRFReadRequest]] = Seq(readRequests.last)
@@ -570,6 +567,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
       when(stateClear) {
         record.valid := false.B
+        when(record.valid) {
+          recordRelease(i) := indexToOH(record.bits.instIndex, parameter.chainingSize)
+        }
       }
 
       when(recordEnq(i)) {
@@ -617,6 +617,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   }
   writeReadyForLsu := !hazardVec.map(_.map(_._1).reduce(_ || _)).reduce(_ || _)
   vrfReadyToStore := !hazardVec.map(_.map(_._2).reduce(_ || _)).reduce(_ || _)
+  vrfSlotRelease  := recordRelease.reduce(_ | _)
 
   writeCheck.zip(writeAllow).foreach { case (check, allow) =>
     allow := chainingRecordCopy

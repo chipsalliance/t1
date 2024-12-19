@@ -54,8 +54,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
 
   val maskRequestEnqReady: Bool = !enqIsMaskRequest || maskRequestAllow
 
-  dequeue.valid               := enqueue.valid && enqSendToDeq
-  dequeue.bits                := enqueue.bits
-  enqueue.ready               := Mux(enqSendToDeq, dequeue.ready, maskRequestEnqReady)
-  tokenIO.maskResponseRelease := DontCare
+  dequeue.valid := enqueue.valid && enqSendToDeq
+  dequeue.bits  := enqueue.bits
+  enqueue.ready := Mux(enqSendToDeq, dequeue.ready, maskRequestEnqReady)
 }

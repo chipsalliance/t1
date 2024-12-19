@@ -17,7 +17,7 @@ object FloatAdderParameter {
   implicit def rwP = upickle.default.macroRW[FloatAdderParameter]
 }
 
-case class FloatAdderParameter(expWidth: Int, sigWidth: Int) extends SerializableModuleParameter
+case class FloatAdderParameter(expWidth: Int, sigWidth: Int, latency: Int) extends SerializableModuleParameter
 
 class FloatAdderInterface(val parameter: FloatAdderParameter) extends Bundle {
   val expWidth = parameter.expWidth
@@ -61,8 +61,8 @@ class FloatAdder(val parameter: FloatAdderParameter)
   addRecFN.io.roundingMode   := io.roundingMode
   addRecFN.io.detectTininess := false.B
 
-  io.out            := fNFromRecFN(8, 24, addRecFN.io.out)
-  io.exceptionFlags := addRecFN.io.exceptionFlags
+  io.out            := Pipe(true.B, fNFromRecFN(8, 24, addRecFN.io.out), parameter.latency).bits
+  io.exceptionFlags := Pipe(true.B, addRecFN.io.exceptionFlags, parameter.latency).bits
 }
 
 object FloatCompareParameter {

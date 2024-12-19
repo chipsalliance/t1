@@ -39,15 +39,15 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 // 11 11 1 -> maskdestination
 
 class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
-  val clock:             Clock                            = Input(Clock())
-  val reset:             Reset                            = Input(Reset())
-  val instReq:           ValidIO[MaskUnitInstReq]         = Flipped(Valid(new MaskUnitInstReq(parameter)))
-  val exeReq:            Vec[ValidIO[MaskUnitExeReq]]     = Flipped(
+  val clock:             Clock                             = Input(Clock())
+  val reset:             Reset                             = Input(Reset())
+  val instReq:           ValidIO[MaskUnitInstReq]          = Flipped(Valid(new MaskUnitInstReq(parameter)))
+  val exeReq:            Vec[ValidIO[MaskUnitExeReq]]      = Flipped(
     Vec(parameter.laneNumber, Valid(new MaskUnitExeReq(parameter.laneParam)))
   )
-  val exeResp:           Vec[ValidIO[VRFWriteRequest]]    = Vec(
+  val exeResp:           Vec[DecoupledIO[VRFWriteRequest]] = Vec(
     parameter.laneNumber,
-    Valid(
+    Decoupled(
       new VRFWriteRequest(
         parameter.vrfParam.regNumBits,
         parameter.laneParam.vrfOffsetBits,
@@ -56,8 +56,8 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
       )
     )
   )
-  val tokenIO:           Vec[LaneTokenBundle]             = Flipped(Vec(parameter.laneNumber, new LaneTokenBundle))
-  val readChannel:       Vec[DecoupledIO[VRFReadRequest]] = Vec(
+  val tokenIO:           Vec[LaneTokenBundle]              = Flipped(Vec(parameter.laneNumber, new LaneTokenBundle))
+  val readChannel:       Vec[DecoupledIO[VRFReadRequest]]  = Vec(
     parameter.laneNumber,
     Decoupled(
       new VRFReadRequest(
@@ -67,19 +67,19 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
       )
     )
   )
-  val readResult:        Vec[UInt]                        = Flipped(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
-  val writeRD:           ValidIO[UInt]                    = Valid(UInt(parameter.datapathWidth.W))
-  val lastReport:        UInt                             = Output(UInt((2 * parameter.chainingSize).W))
-  val lsuMaskInput:      Vec[UInt]                        = Output(Vec(parameter.lsuMSHRSize, UInt(parameter.maskGroupWidth.W)))
-  val lsuMaskSelect:     Vec[UInt]                        = Input(Vec(parameter.lsuMSHRSize, UInt(parameter.lsuParameters.maskGroupSizeBits.W)))
-  val laneMaskInput:     Vec[UInt]                        = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
-  val laneMaskSelect:    Vec[UInt]                        = Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W)))
-  val laneMaskSewSelect: Vec[UInt]                        = Input(Vec(parameter.laneNumber, UInt(2.W)))
-  val v0UpdateVec:       Vec[ValidIO[V0Update]]           = Flipped(Vec(parameter.laneNumber, Valid(new V0Update(parameter.laneParam))))
-  val writeRDData:       UInt                             = Output(UInt(parameter.xLen.W))
-  val gatherData:        DecoupledIO[UInt]                = Decoupled(UInt(parameter.xLen.W))
-  val gatherRead:        Bool                             = Input(Bool())
-  val om:                Property[ClassType]              = Output(Property[AnyClassType]())
+  val readResult:        Vec[ValidIO[UInt]]                = Flipped(Vec(parameter.laneNumber, Valid(UInt(parameter.datapathWidth.W))))
+  val writeRD:           ValidIO[UInt]                     = Valid(UInt(parameter.datapathWidth.W))
+  val lastReport:        UInt                              = Output(UInt((2 * parameter.chainingSize).W))
+  val laneMaskInput:     Vec[UInt]                         = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
+  val laneMaskSelect:    Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W)))
+  val laneMaskSewSelect: Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(2.W)))
+  val v0UpdateVec:       Vec[ValidIO[V0Update]]            = Flipped(
+    Vec(parameter.laneNumber, Valid(new V0Update(parameter.laneParam.datapathWidth, parameter.laneParam.vrfOffsetBits)))
+  )
+  val writeRDData:       UInt                              = Output(UInt(parameter.xLen.W))
+  val gatherData:        DecoupledIO[UInt]                 = Decoupled(UInt(parameter.xLen.W))
+  val gatherRead:        Bool                              = Input(Bool())
+  val om:                Property[ClassType]               = Output(Property[AnyClassType]())
 }
 
 @instantiable
@@ -116,8 +116,6 @@ class MaskUnit(val parameter: T1Parameter)
   val readResult        = io.readResult
   val writeRD           = io.writeRD
   val lastReport        = io.lastReport
-  val lsuMaskInput      = io.lsuMaskInput
-  val lsuMaskSelect     = io.lsuMaskSelect
   val laneMaskInput     = io.laneMaskInput
   val laneMaskSelect    = io.laneMaskSelect
   val laneMaskSewSelect = io.laneMaskSewSelect
@@ -166,11 +164,6 @@ class MaskUnit(val parameter: T1Parameter)
     val v0ForThisLane: Seq[UInt] = regroupV0.map(rv => cutUInt(rv, parameter.vLen / parameter.laneNumber)(index))
     val v0SelectBySew = Mux1H(UIntToOH(laneMaskSewSelect(index))(2, 0), v0ForThisLane)
     input := cutUInt(v0SelectBySew, parameter.datapathWidth)(laneMaskSelect(index))
-  }
-
-  // lsu
-  lsuMaskInput.zip(lsuMaskSelect).foreach { case (data, index) =>
-    data := cutUInt(v0.asUInt, parameter.maskGroupWidth)(index)
   }
 
   val maskedWrite: BitLevelMaskWrite = Module(new BitLevelMaskWrite(parameter))
@@ -795,7 +788,7 @@ class MaskUnit(val parameter: T1Parameter)
     val dataOffset: UInt = Mux1H(readResultSelect, pipeDataOffset)
     readTokenRelease(index) := readDataQueue.deq.fire
     readDataQueue.enq.valid := readResultSelect.orR
-    readDataQueue.enq.bits  := Mux1H(readResultSelect, readResult) >> (dataOffset ## 0.U(3.W))
+    readDataQueue.enq.bits  := Mux1H(readResultSelect, readResult.map(_.bits)) >> (dataOffset ## 0.U(3.W))
     readDataQueue.deq
   }
 
@@ -1091,17 +1084,10 @@ class MaskUnit(val parameter: T1Parameter)
     }
     queue.enq.bits.index         := instReg.instructionIndex
 
-    // write token
-    val tokenCounter = RegInit(0.U(log2Ceil(parameter.maskUnitVefWriteQueueSize + 1).W))
-    val tokenAllow:    Bool = queue.deq.fire
-    val counterChange: UInt = Mux(tokenAllow, 1.U, -1.S(tokenCounter.getWidth.W).asUInt)
-    when(tokenAllow ^ tokenIO(index).maskResponseRelease) {
-      tokenCounter := tokenCounter + counterChange
-    }
     // write vrf
     val writePort = exeResp(index)
-    queue.deq.ready                 := !tokenCounter.asBools.last
-    writePort.valid                 := tokenAllow
+    queue.deq.ready                 := writePort.ready
+    writePort.valid                 := queue.deq.valid
     writePort.bits.last             := DontCare
     writePort.bits.instructionIndex := instReg.instructionIndex
     writePort.bits.data             := Mux(queue.deq.bits.ffoByOther, queue.deq.bits.pipeData, queue.deq.bits.writeData.data)
