@@ -44,6 +44,8 @@ class MaskCompress(parameter: T1Parameter) extends Module {
   val writeRD  = in.bits.uop === BitPat("b?11")
   val ffoType  = in.bits.uop === BitPat("b11?")
 
+  val outWire: CompressOutput = Wire(new CompressOutput(parameter))
+
   val eew1H:           UInt      = UIntToOH(in.bits.eew)(2, 0)
   val compressInit:    UInt      = RegInit(0.U(log2Ceil(parameter.vLen).W))
   val compressVec:     Vec[UInt] = Wire(Vec(maskSize, UInt(compressInit.getWidth.W)))
@@ -142,11 +144,11 @@ class MaskCompress(parameter: T1Parameter) extends Module {
   }
   val compressResult: UInt = Mux1H(eew1H, compressDataVec)
   val lastCompressEnq: Bool = in.fire && in.bits.lastCompress
-  when(newInstruction || lastCompressEnq || out.compressValid) {
+  when(newInstruction || lastCompressEnq || outWire.compressValid) {
     compressTailValid := lastCompressEnq && compress
   }
 
-  when(newInstruction || out.compressValid) {
+  when(newInstruction || outWire.compressValid) {
     compressWriteGroupCount := Mux(newInstruction, 0.U, compressWriteGroupCount + 1.U)
   }
 
@@ -177,7 +179,7 @@ class MaskCompress(parameter: T1Parameter) extends Module {
 
   val ffoMask: UInt = FillInterleaved(parameter.datapathWidth / 8, in.bits.validInput)
 
-  out.data := Mux1H(
+  outWire.data := Mux1H(
     Seq(
       compress -> compressResult,
       viota    -> viotaResult,
@@ -187,7 +189,7 @@ class MaskCompress(parameter: T1Parameter) extends Module {
   )
 
   // todo: compressMask
-  out.mask := Mux1H(
+  outWire.mask := Mux1H(
     Seq(
       compress -> compressMask,
       viota    -> viotaMask,
@@ -197,8 +199,8 @@ class MaskCompress(parameter: T1Parameter) extends Module {
   )
 
   // todo
-  out.compressValid := (compressTailValid || (compressDeqValid && in.fire)) && !writeRD
-  out.groupCounter  := Mux(compress, compressWriteGroupCount, in.bits.groupCounter)
+  outWire.compressValid := (compressTailValid || (compressDeqValid && in.fire)) && !writeRD
+  outWire.groupCounter  := Mux(compress, compressWriteGroupCount, in.bits.groupCounter)
 
   when(newInstruction && ffoInstruction) {
     ffoIndex := -1.S(parameter.datapathWidth.W).asUInt
@@ -235,5 +237,6 @@ class MaskCompress(parameter: T1Parameter) extends Module {
   }.elsewhen(mvRd) {
     ffoIndex := source1SigExtend
   }
-  out.ffoOutput := completedLeftOr | Fill(parameter.laneNumber, ffoValid)
+  outWire.ffoOutput := completedLeftOr | Fill(parameter.laneNumber, ffoValid)
+  out := RegNext(outWire, 0.U.asTypeOf(out))
 }
