@@ -62,8 +62,9 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // todo: need hazardCheck?
   val hazardCheck:     Bool               = RegEnable(vrfReadyToStore && !lsuRequest.valid, false.B, lsuRequest.valid || vrfReadyToStore)
   // read stage dequeue ready need all source valid, Or add a queue to coordinate
-  val vrfReadQueueVec: Seq[QueueIO[UInt]] =
-    Seq.tabulate(param.laneNumber)(_ => Queue.io(UInt(param.datapathWidth.W), 2, flow = true, pipe = true))
+  val vrfReadQueueVec: Seq[QueueIO[UInt]] = Seq.tabulate(param.laneNumber)(_ =>
+    Queue.io(UInt(param.datapathWidth.W), param.storeUnitReadOutStanding, flow = true, pipe = true)
+  )
 
   // 从vrf里面读数据
   val readStageValid: Bool = Seq
@@ -72,10 +73,6 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       val segPtr:    UInt                        = RegInit(0.U(3.W))
       val readCount: UInt                        = RegInit(0.U(dataGroupBits.W))
       val stageValid = RegInit(false.B)
-      // queue for read latency
-      // todo: param.vrfReadLatency => param.vrfReadLatency + shifterLatency
-      val queue: QueueIO[UInt] =
-        Queue.io(UInt(param.datapathWidth.W), param.vrfReadLatency, flow = true)
 
       val lastReadPtr: Bool = segPtr === 0.U
 
@@ -105,8 +102,14 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
         readCount := nextReadCount
       }
 
+      val readCounter = RegInit(0.U(log2Ceil(param.storeUnitReadOutStanding + 1).W))
+      val counterChange: UInt = Mux(readPort.fire, 1.U, -1.S(readCounter.getWidth.W).asUInt)
+      when(readPort.fire ^ vrfReadQueueVec(laneIndex).deq.fire) {
+        readCounter := readCounter + counterChange
+      }
+
       // vrf read request
-      readPort.valid                 := stageValid && vrfReadQueueVec(laneIndex).enq.ready
+      readPort.valid                 := stageValid && !readCounter.asBools.last
       readPort.bits.vs               :=
         lsuRequestReg.instructionInformation.vs3 +
           segPtr * segmentInstructionIndexInterval +
@@ -116,11 +119,10 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       readPort.bits.instructionIndex := lsuRequestReg.instructionIndex
 
       // latency queue enq
-      queue.enq.valid := vrfReadResults(laneIndex).valid
-      queue.enq.bits  := vrfReadResults(laneIndex).bits
-      AssertProperty(BoolSequence(!queue.enq.valid || queue.enq.ready))
-      vrfReadQueueVec(laneIndex).enq <> queue.deq
-      stageValid || RegNext(readPort.fire)
+      AssertProperty(BoolSequence(!vrfReadQueueVec(laneIndex).enq.valid || vrfReadQueueVec(laneIndex).enq.ready))
+      vrfReadQueueVec(laneIndex).enq.valid := vrfReadResults(laneIndex).valid
+      vrfReadQueueVec(laneIndex).enq.bits  := vrfReadResults(laneIndex).bits
+      stageValid || readCounter.orR
     }
     .reduce(_ || _)
 
