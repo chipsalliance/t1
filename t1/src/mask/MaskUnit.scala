@@ -908,7 +908,7 @@ class MaskUnit(val parameter: T1Parameter)
     parameter.vLen,
     parameter.laneNumber,
     parameter.laneParam.groupNumberBits,
-    1
+    2
   )
   // start execute
   val compressUnit = Instantiate(new MaskCompress(compressParam))
