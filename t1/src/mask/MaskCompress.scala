@@ -4,9 +4,26 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
+import chisel3.experimental.hierarchy.{instantiable, Instance, Instantiate}
+import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
+import chisel3.properties.{AnyClassType, Path, Property}
 import chisel3.util._
+import org.chipsalliance.stdlib.GeneralOM
 
-class CompressInput(parameter: T1Parameter) extends Bundle {
+case class CompressParam(
+  datapathWidth:   Int,
+  xLen:            Int,
+  vLen:            Int,
+  laneNumber:      Int,
+  groupNumberBits: Int,
+  latency:         Int)
+    extends SerializableModuleParameter
+
+object CompressParam {
+  implicit def rwP = upickle.default.macroRW[CompressParam]
+}
+
+class CompressInput(parameter: CompressParam) extends Bundle {
   val maskType:       Bool = Bool()
   val eew:            UInt = UInt(2.W)
   val uop:            UInt = UInt(3.W)
@@ -14,26 +31,55 @@ class CompressInput(parameter: T1Parameter) extends Bundle {
   val source1:        UInt = UInt(parameter.datapathWidth.W)
   val mask:           UInt = UInt(parameter.datapathWidth.W)
   val source2:        UInt = UInt((parameter.laneNumber * parameter.datapathWidth).W)
-  val groupCounter:   UInt = UInt(parameter.laneParam.groupNumberBits.W)
+  val groupCounter:   UInt = UInt(parameter.groupNumberBits.W)
   val ffoInput:       UInt = UInt(parameter.laneNumber.W)
   val validInput:     UInt = UInt(parameter.laneNumber.W)
   val lastCompress:   Bool = Bool()
 }
 
-class CompressOutput(parameter: T1Parameter) extends Bundle {
+class CompressOutput(parameter: CompressParam) extends Bundle {
   val data:          UInt = UInt((parameter.laneNumber * parameter.datapathWidth).W)
   val mask:          UInt = UInt((parameter.laneNumber * parameter.datapathWidth / 8).W)
-  val groupCounter:  UInt = UInt(parameter.laneParam.groupNumberBits.W)
+  val groupCounter:  UInt = UInt(parameter.groupNumberBits.W)
   val ffoOutput:     UInt = UInt(parameter.laneNumber.W)
   val compressValid: Bool = Bool()
 }
 
-class MaskCompress(parameter: T1Parameter) extends Module {
-  val in:             ValidIO[CompressInput] = IO(Flipped(Valid(new CompressInput(parameter))))
-  val out:            CompressOutput         = IO(Output(new CompressOutput(parameter)))
-  val newInstruction: Bool                   = IO(Input(Bool()))
-  val ffoInstruction: Bool                   = IO(Input(Bool()))
-  val writeData:      UInt                   = IO(Output(UInt(parameter.xLen.W)))
+class MaskCompressInterFace(parameter: CompressParam) extends Bundle {
+  val clock = Input(Clock())
+  val reset = Input(Reset())
+
+  val in:             ValidIO[CompressInput] = Flipped(Valid(new CompressInput(parameter)))
+  val out:            CompressOutput         = Output(new CompressOutput(parameter))
+  val newInstruction: Bool                   = Input(Bool())
+  val ffoInstruction: Bool                   = Input(Bool())
+  val writeData:      UInt                   = Output(UInt(parameter.xLen.W))
+  val om = Output(Property[AnyClassType]())
+}
+
+@instantiable
+class MaskCompressOM(parameter: CompressParam) extends GeneralOM[CompressParam, MaskCompress](parameter) {
+  override def hasRetime: Boolean = true
+}
+
+class MaskCompress(val parameter: CompressParam)
+    extends FixedIORawModule(new MaskCompressInterFace(parameter))
+    with SerializableModule[CompressParam]
+    with ImplicitClock
+    with ImplicitReset {
+
+  protected def implicitClock = io.clock
+  protected def implicitReset = io.reset
+
+  val omInstance: Instance[MaskCompressOM] = Instantiate(new MaskCompressOM(parameter))
+  io.om := omInstance.getPropertyReference
+  omInstance.retimeIn.foreach(_ := Property(Path(io.clock)))
+
+  val in             = io.in
+  val out            = io.out
+  val newInstruction = io.newInstruction
+  val ffoInstruction = io.ffoInstruction
+  val writeData      = io.writeData
 
   val maskSize: Int = parameter.laneNumber * parameter.datapathWidth / 8
 
@@ -122,7 +168,7 @@ class MaskCompress(parameter: T1Parameter) extends Module {
 
   val compressDataReg = RegInit(0.U((parameter.laneNumber * parameter.datapathWidth).W))
   val compressTailValid:       Bool = RegInit(false.B)
-  val compressWriteGroupCount: UInt = RegInit(0.U(parameter.laneParam.groupNumberBits.W))
+  val compressWriteGroupCount: UInt = RegInit(0.U(parameter.groupNumberBits.W))
   val compressDataVec = Seq(1, 2, 4).map { dataByte =>
     val dataBit           = dataByte * 8
     val elementSizePerSet = parameter.laneNumber * parameter.datapathWidth / 8 / dataByte
@@ -238,5 +284,5 @@ class MaskCompress(parameter: T1Parameter) extends Module {
     ffoIndex := source1SigExtend
   }
   outWire.ffoOutput := completedLeftOr | Fill(parameter.laneNumber, ffoValid)
-  out := RegNext(outWire, 0.U.asTypeOf(out))
+  out := Pipe(true.B, outWire, parameter.latency).bits
 }

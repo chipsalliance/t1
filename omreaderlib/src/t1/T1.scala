@@ -19,14 +19,19 @@ class T1(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
   def sram:         Seq[SRAM]                         =
     t1("lanes").list.elements().map(_.obj("vrf").obj).flatMap(getSRAM)
 
-  def floatAdder = {
-    val reduceUnit = t1("permutatuon").obj("reduceUnit").obj
+  def permutation: Seq[Retime] = {
+    val permutation = t1("permutation")
+    val reduceUnit = permutation.obj("reduceUnit").obj
+    val compressUnit = permutation.obj("compress").obj
     // TODO: need fieldOpt(name: String)
-    Option.when(reduceUnit.fieldNames().contains("floatAdder"))(reduceUnit("floatAdder").obj).flatMap(getRetime)
+    val floatAdder =
+      Option.when(reduceUnit.fieldNames().contains("floatAdder"))(reduceUnit("floatAdder").obj)
+
+    (Seq(compressUnit) ++ floatAdder).flatMap(getRetime)
   }
 
   def vfus: Seq[Retime] =
     t1("lanes").list.elements().map(_.obj("vfus")).flatMap(_.list.elements().map(_.obj)).flatMap(getRetime)
 
-  def retime = (vfus ++ floatAdder).distinct
+  def retime = (vfus ++ permutation).distinct
 }

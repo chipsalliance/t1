@@ -84,11 +84,15 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
 
 @instantiable
 class MaskUnitOM(parameter: T1Parameter) extends GeneralOM[T1Parameter, MaskUnit](parameter) {
-  @public
   val reduceUnit   = IO(Output(Property[AnyClassType]()))
   @public
   val reduceUnitIn = IO(Input(Property[AnyClassType]()))
   reduceUnit := reduceUnitIn
+
+  val compress   = IO(Output(Property[AnyClassType]()))
+  @public
+  val compressIn = IO(Input(Property[AnyClassType]()))
+  compress := compressIn
 }
 
 // TODO: no T1Parameter here.
@@ -898,14 +902,24 @@ class MaskUnit(val parameter: T1Parameter)
   // Determine whether the data is ready
   val executeEnqValid: Bool = otherTypeRequestDeq && !readType
 
+  val compressParam: CompressParam = CompressParam(
+    parameter.datapathWidth,
+    parameter.xLen,
+    parameter.vLen,
+    parameter.laneNumber,
+    parameter.laneParam.groupNumberBits,
+    1
+  )
   // start execute
-  val compressUnit: MaskCompress = Module(new MaskCompress(parameter))
-  val reduceUnit = Instantiate(
+  val compressUnit = Instantiate(new MaskCompress(compressParam))
+  val reduceUnit   = Instantiate(
     new MaskReduce(
       MaskReduceParameter(parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
     )
   )
   omInstance.reduceUnitIn := reduceUnit.io.om.asAnyClassType
+  omInstance.compressIn   := compressUnit.io.om.asAnyClassType
+
   val extendUnit: MaskExtend = Module(new MaskExtend(parameter))
 
   // todo
@@ -935,28 +949,30 @@ class MaskUnit(val parameter: T1Parameter)
   val compressSource1: UInt = Mux1H(sew1H, vs1Split.map(_._1))
   val source1Select:   UInt = Mux(mv, readVS1Reg.data, compressSource1)
   val source1Change:   Bool = Mux1H(sew1H, vs1Split.map(_._2))
-  when(source1Change && compressUnit.in.fire) {
+  when(source1Change && compressUnit.io.in.fire) {
     readVS1Reg.dataValid   := false.B
     readVS1Reg.requestSend := false.B
     readVS1Reg.readIndex   := readVS1Reg.readIndex + 1.U
 
   }
-  viotaCounterAdd := compressUnit.in.fire
+  viotaCounterAdd := compressUnit.io.in.fire
 
-  compressUnit.in.valid               := executeEnqValid && unitType(1)
-  compressUnit.in.bits.maskType       := instReg.maskType
-  compressUnit.in.bits.eew            := instReg.sew
-  compressUnit.in.bits.uop            := instReg.decodeResult(Decoder.topUop)
-  compressUnit.in.bits.readFromScalar := instReg.readFromScala
-  compressUnit.in.bits.source1        := source1Select
-  compressUnit.in.bits.mask           := executeElementMask
-  compressUnit.in.bits.source2        := source2
-  compressUnit.in.bits.groupCounter   := requestCounter
-  compressUnit.in.bits.lastCompress   := lastGroup
-  compressUnit.in.bits.ffoInput       := VecInit(exeReqReg.map(_.bits.ffo)).asUInt
-  compressUnit.in.bits.validInput     := VecInit(exeReqReg.map(_.valid)).asUInt
-  compressUnit.newInstruction         := instReq.valid
-  compressUnit.ffoInstruction         := instReq.bits.decodeResult(Decoder.topUop)(2, 0) === BitPat("b11?")
+  compressUnit.io.clock                  := implicitClock
+  compressUnit.io.reset                  := implicitReset
+  compressUnit.io.in.valid               := executeEnqValid && unitType(1)
+  compressUnit.io.in.bits.maskType       := instReg.maskType
+  compressUnit.io.in.bits.eew            := instReg.sew
+  compressUnit.io.in.bits.uop            := instReg.decodeResult(Decoder.topUop)
+  compressUnit.io.in.bits.readFromScalar := instReg.readFromScala
+  compressUnit.io.in.bits.source1        := source1Select
+  compressUnit.io.in.bits.mask           := executeElementMask
+  compressUnit.io.in.bits.source2        := source2
+  compressUnit.io.in.bits.groupCounter   := requestCounter
+  compressUnit.io.in.bits.lastCompress   := lastGroup
+  compressUnit.io.in.bits.ffoInput       := VecInit(exeReqReg.map(_.bits.ffo)).asUInt
+  compressUnit.io.in.bits.validInput     := VecInit(exeReqReg.map(_.valid)).asUInt
+  compressUnit.io.newInstruction         := instReq.valid
+  compressUnit.io.ffoInstruction         := instReq.bits.decodeResult(Decoder.topUop)(2, 0) === BitPat("b11?")
 
   reduceUnit.io.clock               := implicitClock
   reduceUnit.io.reset               := implicitReset
@@ -980,7 +996,7 @@ class MaskUnit(val parameter: T1Parameter)
     sink := VecInit(exeReqReg.map(_.bits.fpReduceValid.get)).asUInt
   }
 
-  when(reduceUnit.io.in.fire || compressUnit.in.fire) {
+  when(reduceUnit.io.in.fire || compressUnit.io.in.fire) {
     readVS1Reg.sendToExecution := true.B
   }
 
@@ -1001,7 +1017,7 @@ class MaskUnit(val parameter: T1Parameter)
   val executeResult: UInt = Mux1H(
     unitType(3, 1),
     Seq(
-      compressUnit.out.data,
+      compressUnit.io.out.data,
       reduceUnit.io.out.bits.data,
       extendUnit.out
     )
@@ -1021,7 +1037,7 @@ class MaskUnit(val parameter: T1Parameter)
   val executeValid: Bool = Mux1H(
     unitType(3, 1),
     Seq(
-      compressUnit.out.compressValid,
+      compressUnit.io.out.compressValid,
       false.B,
       executeEnqValid
     )
@@ -1039,13 +1055,13 @@ class MaskUnit(val parameter: T1Parameter)
   val executeDeqGroupCounter: UInt = Mux1H(
     unitType(3, 1),
     Seq(
-      compressUnit.out.groupCounter,
+      compressUnit.io.out.groupCounter,
       requestCounter,
       extendGroupCount
     )
   )
 
-  val executeWriteByteMask: UInt = Mux(compress || ffo || mvVd, compressUnit.out.mask, executeByteMask)
+  val executeWriteByteMask: UInt = Mux(compress || ffo || mvVd, compressUnit.io.out.mask, executeByteMask)
   maskedWrite.needWAR := maskDestinationType
   maskedWrite.vd      := instReg.vd
   maskedWrite.in.zipWithIndex.foreach { case (req, index) =>
@@ -1057,7 +1073,7 @@ class MaskUnit(val parameter: T1Parameter)
     req.bits.pipeData     := exeReqReg(index).bits.source1
     req.bits.bitMask      := bitMask
     req.bits.groupCounter := executeDeqGroupCounter
-    req.bits.ffoByOther   := compressUnit.out.ffoOutput(index) && ffo
+    req.bits.ffoByOther   := compressUnit.io.out.ffoOutput(index) && ffo
     if (index == 0) {
       // reduce result
       when(unitType(2)) {
@@ -1117,7 +1133,7 @@ class MaskUnit(val parameter: T1Parameter)
   val executeStageInvalid: Bool = Mux1H(
     unitType(3, 1),
     Seq(
-      !compressUnit.out.compressValid,
+      !compressUnit.io.out.compressValid,
       reduceUnit.io.in.ready,
       true.B
     )
@@ -1136,7 +1152,7 @@ class MaskUnit(val parameter: T1Parameter)
     lastReportValid,
     indexToOH(instReg.instructionIndex, parameter.chainingSize)
   )
-  writeRDData := Mux(pop, reduceUnit.io.out.bits.data, compressUnit.writeData)
+  writeRDData := Mux(pop, reduceUnit.io.out.bits.data, compressUnit.io.writeData)
 
   // gather read state
   when(gatherRequestFire) {
