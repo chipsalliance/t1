@@ -66,10 +66,10 @@ class T1OM(parameter: T1Parameter) extends GeneralOM[T1Parameter, T1](parameter)
   val decoderIn = IO(Input(Property[AnyClassType]()))
   decoder := decoderIn
 
-  val permutatuon   = IO(Output(Property[AnyClassType]()))
+  val permutation   = IO(Output(Property[AnyClassType]()))
   @public
-  val permutatuonIn = IO(Input(Property[AnyClassType]()))
-  permutatuon := permutatuonIn
+  val permutationIn = IO(Input(Property[AnyClassType]()))
+  permutation := permutationIn
 }
 
 object T1Parameter {
@@ -252,6 +252,17 @@ case class T1Parameter(
   // and the values are their respective delays.
   val crossLaneConnectCycles: Seq[Seq[Int]] = Seq.tabulate(laneNumber)(_ => Seq(1, 1))
 
+  val laneRequestTokenSize:   Int      = 4
+  val laneRequestShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
+
+  val maskUnitReadTokenSize:   Seq[Int] = Seq.tabulate(laneNumber)(_ => 4)
+  val maskUnitReadShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
+
+  val lsuReadTokenSize:   Seq[Int] = Seq.tabulate(laneNumber)(_ => 4)
+  val lsuReadShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
+
+  val maskRequestLatency = 2
+
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
 
   /** paraemter for AXI4. */
@@ -290,6 +301,7 @@ case class T1Parameter(
       crossLaneVRFWriteEscapeQueueSize = vrfWriteQueueSize,
       fpuEnable = fpuEnable,
       portFactor = vrfBankSize,
+      maskRequestLatency = 2 * maskRequestLatency,
       vrfRamType = vrfRamType,
       decoderParam = decoderParam,
       vfuInstantiateParameter = vfuInstantiateParameter
@@ -391,7 +403,7 @@ class T1(val parameter: T1Parameter)
   val maskUnit: Instance[MaskUnit] = Instantiate(new MaskUnit(parameter))
   maskUnit.io.clock        := implicitClock
   maskUnit.io.reset        := implicitReset
-  omInstance.permutatuonIn := Property(maskUnit.io.om.asAnyClassType)
+  omInstance.permutationIn := Property(maskUnit.io.om.asAnyClassType)
 
   val tokenManager: Instance[T1TokenManager] = Instantiate(new T1TokenManager(parameter))
 
@@ -624,9 +636,21 @@ class T1(val parameter: T1Parameter)
     control
   }
 
-  /** lane is ready to receive new instruction. */
-  val laneReady:    Vec[Bool] = Wire(Vec(parameter.laneNumber, Bool()))
-  val allLaneReady: Bool      = laneReady.asUInt.andR
+  // Close to top
+  val laneRequestSourceWire: Vec[DecoupledIO[LaneRequest]] = Wire(
+    Vec(parameter.laneNumber, Decoupled(new LaneRequest(parameter.laneParam)))
+  )
+  // Close to lane
+  val laneRequestSinkWire:   Vec[DecoupledIO[LaneRequest]] = Wire(
+    Vec(parameter.laneNumber, Decoupled(new LaneRequest(parameter.laneParam)))
+  )
+
+  laneRequestSourceWire.zipWithIndex.foreach { case (source, index) =>
+    val sink = laneRequestSinkWire(index)
+    connectDecoupledWithShifter(parameter.laneRequestShifterSize(index), parameter.laneRequestTokenSize)(source, sink)
+  }
+
+  val allLaneReady: Bool = VecInit(laneRequestSourceWire.map(_.ready)).asUInt.andR
   // TODO: review later
   // todo: 把scheduler的反馈也加上,lsu有更高的优先级
 
@@ -635,24 +659,17 @@ class T1(val parameter: T1Parameter)
   val completeIndexInstruction: Bool =
     ohCheck(lsu.lastReport, slots.last.record.instructionIndex, parameter.chainingSize) && !slots.last.state.idle
 
-  val vrfWrite: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
-    Vec(
-      parameter.laneNumber,
-      Decoupled(
-        new VRFWriteRequest(
-          parameter.vrfParam.regNumBits,
-          parameter.vrfParam.vrfOffsetBits,
-          parameter.instructionIndexBits,
-          parameter.datapathWidth
-        )
-      )
-    )
-  )
-
   val freeOR: Bool = VecInit(slots.map(_.state.idle)).asUInt.orR
 
   /** slot is ready to accept new instructions. */
   val slotReady: Bool = Mux(specialInstruction, slots.map(_.state.idle).last, freeOR)
+
+  val olderCheck: Bool = slots.map { re =>
+    // The same lsb will make it difficult to distinguish between the new and the old
+    val notSameLSB: Bool = re.record.instructionIndex(parameter.instructionIndexBits - 2, 0) =/=
+      requestReg.bits.instructionIndex(parameter.instructionIndexBits - 2, 0)
+    re.state.idle || (instIndexL(re.record.instructionIndex, requestReg.bits.instructionIndex) && notSameLSB)
+  }.reduce(_ && _)
 
   val source1Select: UInt =
     Mux(
@@ -688,79 +705,74 @@ class T1(val parameter: T1Parameter)
     requestReg.bits.issue.vl
   )
 
-  /** instantiate lanes. TODO: move instantiate to top of class.
-    */
-  val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber) { index =>
-    val lane: Instance[Lane] = Instantiate(new Lane(parameter.laneParam))
-    // lane.laneRequest.valid -> requestRegDequeue.ready -> lane.laneRequest.ready -> lane.laneRequest.bits
-    // TODO: this is harmful for PnR design, since it broadcast ready singal to each lanes, which will significantly
-    //       reduce the scalability for large number of lanes.
-    lane.laneRequest.valid                 := requestRegDequeue.fire && !noOffsetReadLoadStore && !maskUnitInstruction
+  laneRequestSourceWire.foreach { request =>
+    request.valid                 := requestRegDequeue.fire
     // hard wire
-    lane.laneRequest.bits.instructionIndex := requestReg.bits.instructionIndex
-    lane.laneRequest.bits.decodeResult     := decodeResult
-    lane.laneRequest.bits.vs1              := requestRegDequeue.bits.instruction(19, 15)
-    lane.laneRequest.bits.vs2              := requestRegDequeue.bits.instruction(24, 20)
-    lane.laneRequest.bits.vd               := requestRegDequeue.bits.instruction(11, 7)
-    lane.laneRequest.bits.segment          := Mux(
+    request.bits.instructionIndex := requestReg.bits.instructionIndex
+    request.bits.decodeResult     := decodeResult
+    request.bits.vs1              := requestRegDequeue.bits.instruction(19, 15)
+    request.bits.vs2              := requestRegDequeue.bits.instruction(24, 20)
+    request.bits.vd               := requestRegDequeue.bits.instruction(11, 7)
+    request.bits.segment          := Mux(
       decodeResult(Decoder.nr),
       requestRegDequeue.bits.instruction(17, 15),
       requestRegDequeue.bits.instruction(31, 29)
     )
 
-    lane.laneRequest.bits.loadStoreEEW   := requestRegDequeue.bits.instruction(13, 12)
+    request.bits.loadStoreEEW   := requestRegDequeue.bits.instruction(13, 12)
     // if the instruction is vi and vx type of gather, gather from rs2 with mask VRF read channel from one lane,
     // and broadcast to all lanes.
-    lane.laneRequest.bits.readFromScalar := source1Select
+    request.bits.readFromScalar := source1Select
 
-    lane.laneRequest.bits.issueInst  := requestRegDequeue.fire
-    lane.laneRequest.bits.loadStore  := isLoadStoreType
+    request.bits.issueInst  := !noOffsetReadLoadStore && !maskUnitInstruction
+    request.bits.loadStore  := isLoadStoreType
     // let record in VRF to know there is a store instruction.
-    lane.laneRequest.bits.store      := isStoreType
+    request.bits.store      := isStoreType
     // let lane know if this is a special instruction, which need group-level synchronization between lane and [[V]]
-    lane.laneRequest.bits.special    := specialInstruction
-    lane.laneRequest.bits.lsWholeReg := lsWholeReg
+    request.bits.special    := specialInstruction
+    request.bits.lsWholeReg := lsWholeReg
     // mask type instruction.
-    lane.laneRequest.bits.mask       := maskType
-    laneReady(index)                 := lane.laneRequest.ready
+    request.bits.mask       := maskType
 
-    lane.csrInterface      := requestRegCSR
+    // connect csrInterface
+    request.bits.csrInterface      := requestRegCSR
     // index type EEW Decoded in the instruction
-    lane.csrInterface.vSew := vSewSelect
-    lane.csrInterface.vl   := evlForLane
-    lane.laneIndex         := index.U
+    request.bits.csrInterface.vSew := vSewSelect
+    request.bits.csrInterface.vl   := evlForLane
+  }
 
-    // lsu 优先会有死锁:
-    // vmadc, v1, v2, 1 (vl=17) -> 需要先读后写
-    // vse32.v v1, (a0) -> 依赖上一条,但是会先发出read
+  /** instantiate lanes. TODO: move instantiate to top of class.
+    */
+  val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber) { index =>
+    val lane: Instance[Lane] = Instantiate(new Lane(parameter.laneParam))
+    lane.laneRequest.valid           := laneRequestSinkWire(index).valid && laneRequestSinkWire(index).bits.issueInst
+    lane.laneRequest.bits            := laneRequestSinkWire(index).bits
+    lane.laneRequest.bits.issueInst  := laneRequestSinkWire(index).fire
+    laneRequestSinkWire(index).ready := !laneRequestSinkWire(index).bits.issueInst || lane.laneRequest.ready
 
-    // Mask priority will also be
-    // vse32.v v19, (a0)
-    // vfslide1down.vf v19, v10, x1
-    val maskUnitFirst = RegInit(false.B)
-    val tryToRead     = lsu.vrfReadDataPorts(index).valid || maskUnit.io.readChannel(index).valid
-    when(tryToRead && !lane.vrfReadAddressChannel.fire) {
-      maskUnitFirst := !maskUnitFirst
-    }
-    lane.vrfReadAddressChannel.valid := Mux(
-      maskUnitFirst,
-      maskUnit.io.readChannel(index).valid,
-      lsu.vrfReadDataPorts(index).valid
+    lane.laneIndex := index.U
+
+    connectVrfAccess(
+      Seq(parameter.maskUnitReadShifterSize(index), parameter.lsuReadShifterSize(index)),
+      Seq(parameter.maskUnitReadTokenSize(index), parameter.lsuReadTokenSize(index)),
+      Some(parameter.vrfReadLatency)
+    )(
+      VecInit(Seq(maskUnit.io.readChannel(index), lsu.vrfReadDataPorts(index))),
+      lane.vrfReadAddressChannel,
+      0,
+      Some(lane.vrfReadDataChannel),
+      Some(Seq(maskUnit.io.readResult(index), lsu.vrfReadResults(index)))
     )
-    lane.vrfReadAddressChannel.bits      :=
-      Mux(maskUnitFirst, maskUnit.io.readChannel(index).bits, lsu.vrfReadDataPorts(index).bits)
-    lsu.vrfReadDataPorts(index).ready    := lane.vrfReadAddressChannel.ready && !maskUnitFirst
-    maskUnit.io.readChannel(index).ready := lane.vrfReadAddressChannel.ready && maskUnitFirst
-    maskUnit.io.readResult(index)        := lane.vrfReadDataChannel
-    lsu.vrfReadResults(index)            := lane.vrfReadDataChannel
 
-    val maskTryToWrite = maskUnit.io.exeResp(index)
-    // lsu & mask unit write lane
-    // Mask write has absolute priority because it has a token
-    lane.vrfWriteChannel.valid := vrfWrite(index).valid || maskTryToWrite.valid
-    lane.vrfWriteChannel.bits  := Mux(maskTryToWrite.valid, maskTryToWrite.bits, vrfWrite(index).bits)
-    vrfWrite(index).ready      := lane.vrfWriteChannel.ready && !maskTryToWrite.valid
-    lane.writeFromMask         := maskTryToWrite.valid
+    connectVrfAccess(
+      Seq(parameter.maskUnitReadShifterSize(index), parameter.lsuReadShifterSize(index)),
+      Seq(parameter.maskUnitReadTokenSize(index), parameter.lsuReadTokenSize(index))
+    )(
+      VecInit(Seq(maskUnit.io.exeResp(index), lsu.vrfWritePort(index))),
+      lane.vrfWriteChannel,
+      0
+    )
+    lane.writeFromMask := maskUnit.io.exeResp(index).fire
 
     lsu.offsetReadResult(index).valid := lane.maskUnitRequest.valid && lane.maskRequestToLSU
     lsu.offsetReadResult(index).bits  := lane.maskUnitRequest.bits.source2
@@ -770,10 +782,11 @@ class T1(val parameter: T1Parameter)
       d := ohCheck(lane.instructionFinished, f, parameter.chainingSize)
     }
     vxsatReportVec(index)                := lane.vxsatReport
-    lane.maskInput                       := maskUnit.io.laneMaskInput(index)
-    maskUnit.io.laneMaskSelect(index)    := lane.maskSelect
-    maskUnit.io.laneMaskSewSelect(index) := lane.maskSelectSew
+    lane.maskInput                       := Pipe(true.B, maskUnit.io.laneMaskInput(index), parameter.maskRequestLatency).bits
+    maskUnit.io.laneMaskSelect(index)    := Pipe(true.B, lane.maskSelect, parameter.maskRequestLatency).bits
+    maskUnit.io.laneMaskSewSelect(index) := Pipe(true.B, lane.maskSelectSew, parameter.maskRequestLatency).bits
     maskUnit.io.v0UpdateVec(index) <> lane.v0Update
+    lsu.v0UpdateVec(index) <> lane.v0Update
 
     lane.lsuLastReport := lsu.lastReport | maskUnit.io.lastReport
 
@@ -808,12 +821,10 @@ class T1(val parameter: T1Parameter)
   lsu.request.bits.instructionInformation.isStore         := isStoreType
   lsu.request.bits.instructionInformation.maskedLoadStore := maskType
 
-  maskUnit.io.lsuMaskSelect := lsu.maskSelect
-  lsu.maskInput             := maskUnit.io.lsuMaskInput
-  lsu.csrInterface          := requestRegCSR
-  lsu.csrInterface.vl       := evlForLsu
-  lsu.writeReadyForLsu      := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
-  lsu.vrfReadyToStore       := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
+  lsu.csrInterface     := requestRegCSR
+  lsu.csrInterface.vl  := evlForLsu
+  lsu.writeReadyForLsu := VecInit(laneVec.map(_.writeReadyForLsu)).asUInt.andR
+  lsu.vrfReadyToStore  := VecInit(laneVec.map(_.vrfReadyToStore)).asUInt.andR
 
   // connect mask unit
   maskUnit.io.instReq.valid                 := requestRegDequeue.fire && requestReg.bits.decodeResult(Decoder.maskUnit)
@@ -838,7 +849,6 @@ class T1(val parameter: T1Parameter)
   }
 
   maskUnit.io.tokenIO.zip(laneVec).zipWithIndex.foreach { case ((token, lane), index) =>
-    token.maskResponseRelease       := lane.tokenIO.maskResponseRelease
     lane.tokenIO.maskRequestRelease := token.maskRequestRelease || lsu.tokenIO.offsetGroupRelease(index)
   }
 
@@ -875,8 +885,6 @@ class T1(val parameter: T1Parameter)
 
   io.highBandwidthLoadStorePort <> lsu.axi4Port
   io.indexedLoadStorePort <> lsu.simpleAccessPorts
-  // 暂时直接连lsu的写,后续需要处理scheduler的写
-  vrfWrite.zip(lsu.vrfWritePort).foreach { case (sink, source) => sink <> source }
 
   /** Slot has free entries. */
   val free = VecInit(slots.map(_.state.idle)).asUInt
@@ -898,7 +906,6 @@ class T1(val parameter: T1Parameter)
 
   /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
   val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
-  val vrfAllocate:    Bool = VecInit(laneVec.map(_.vrfAllocateIssue)).asUInt.andR
   // - ready to issue instruction
   // - for vi and vx type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
   //   and convert it to mv instruction.
@@ -907,7 +914,7 @@ class T1(val parameter: T1Parameter)
   //   we detect the hazard and decide should we issue this slide or
   //   issue the instruction after the slide which already in the slot.
   requestRegDequeue.ready := executionReady && slotReady && (!gatherNeedRead || maskUnit.io.gatherData.valid) &&
-    tokenManager.issueAllow && instructionIndexFree && vrfAllocate
+    tokenManager.issueAllow && instructionIndexFree && olderCheck
 
   instructionToSlotOH := Mux(requestRegDequeue.fire, slotToEnqueue, 0.U)
 
@@ -963,13 +970,12 @@ class T1(val parameter: T1Parameter)
     probeWire.requestRegReady    := requestRegDequeue.ready
     // maskUnitWrite maskUnitWriteReady
     probeWire.writeQueueEnqVec.zip(maskUnit.io.exeResp).foreach { case (probe, write) =>
-      probe.valid := write.valid && write.bits.mask.orR
+      probe.valid := write.fire && write.bits.mask.orR
       probe.bits  := write.bits.instructionIndex
     }
-    probeWire.instructionValid   := maskAnd(
-      !slots.last.state.wMaskUnitLast && !slots.last.state.idle,
-      indexToOH(slots.last.record.instructionIndex, parameter.chainingSize)
-    ).asUInt
+    probeWire.instructionValid   := slots
+      .map(s => maskAnd(!s.state.idle, indexToOH(s.record.instructionIndex, parameter.chainingSize)).asUInt)
+      .reduce(_ | _)
     probeWire.responseCounter    := responseCounter
     probeWire.laneProbes.zip(laneVec).foreach { case (p, l) => p := probe.read(l.laneProbe) }
     probeWire.lsuProbe           := probe.read(lsu.lsuProbe)
