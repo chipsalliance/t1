@@ -58,9 +58,7 @@ class MaskCompressInterFace(parameter: CompressParam) extends Bundle {
 }
 
 @instantiable
-class MaskCompressOM(parameter: CompressParam) extends GeneralOM[CompressParam, MaskCompress](parameter) {
-  override def hasRetime: Boolean = true
-}
+class MaskCompressOM(parameter: CompressParam) extends GeneralOM[CompressParam, MaskCompress](parameter) {}
 
 class MaskCompress(val parameter: CompressParam)
     extends FixedIORawModule(new MaskCompressInterFace(parameter))
@@ -95,7 +93,7 @@ class MaskCompress(val parameter: CompressParam)
   val eew1H:           UInt      = UIntToOH(in.bits.eew)(2, 0)
   val compressInit:    UInt      = RegInit(0.U(log2Ceil(parameter.vLen).W))
   val compressVec:     Vec[UInt] = Wire(Vec(maskSize, UInt(compressInit.getWidth.W)))
-  val compressMaskVec: Seq[Bool] = changeUIntSize(in.bits.source1 & in.bits.mask, maskSize).asBools
+  val compressMaskVec: Vec[Bool] = VecInit(changeUIntSize(in.bits.source1 & in.bits.mask, maskSize).asBools)
   val compressCount:   UInt      = compressMaskVec.zipWithIndex.foldLeft(compressInit) { case (pre, (mask, index)) =>
     compressVec(index) := pre
     pre + mask
@@ -106,6 +104,7 @@ class MaskCompress(val parameter: CompressParam)
   val ffoValid: Bool = RegInit(false.B)
   writeData := ffoIndex
 
+  // compress & viota stage 1: update compressInit
   when(newInstruction) {
     compressInit := 0.U
   }
@@ -131,28 +130,43 @@ class MaskCompress(val parameter: CompressParam)
     }
   }
 
-  val viotaResult: UInt = Mux1H(
+  // compress & viota stage 2: get result
+  // pipe stage1 result
+  def initRegEnable[T <: Data](data: T, enable: Bool) = {
+    RegEnable(data, 0.U.asTypeOf(data), enable)
+  }
+  val compressVecPipe:      Vec[UInt] = initRegEnable(compressVec, in.fire)
+  val compressMaskVecPipe:  Vec[Bool] = initRegEnable(compressMaskVec, in.fire)
+  val maskPipe:             UInt      = initRegEnable(in.bits.mask, in.fire)
+  val source2Pipe:          UInt      = initRegEnable(in.bits.source2, in.fire)
+  val lastCompressPipe:     Bool      = initRegEnable(in.bits.lastCompress, in.fire)
+  val stage2Valid:          Bool      = RegNext(in.fire, false.B)
+  val newInstructionPipe:   Bool      = RegNext(newInstruction, false.B)
+  val compressInitPipe:     UInt      = initRegEnable(compressInit, in.fire)
+  val compressDeqValidPipe: Bool      = initRegEnable(compressDeqValid, in.fire)
+  val groupCounterPipe:     UInt      = initRegEnable(in.bits.groupCounter, in.fire)
+  val viotaResult:          UInt      = Mux1H(
     eew1H,
     Seq(1, 2, 4).map { eew =>
       VecInit(Seq.tabulate(parameter.laneNumber) { index =>
         // data width: eew * 8, data path 32, need [4 / eew] element
         val dataSize = 4 / eew
         val res: Seq[UInt] = Seq.tabulate(dataSize) { i =>
-          changeUIntSize(compressVec(dataSize * index + i), eew * 8)
+          changeUIntSize(compressVecPipe(dataSize * index + i), eew * 8)
         }
         // each data path
         VecInit(res).asUInt
       }).asUInt
     }
   )
-  val viotaMask:   UInt = Mux1H(
+  val viotaMask:            UInt      = Mux1H(
     eew1H,
     Seq(1, 2, 4).map { eew =>
       VecInit(Seq.tabulate(parameter.laneNumber) { index =>
         val dataSize = 4 / eew
         val res: Seq[UInt] = Seq.tabulate(dataSize) { i =>
           val maskIndex: Int = (parameter.datapathWidth - 1).min(dataSize * index + i)
-          Fill(eew, in.bits.mask(maskIndex))
+          Fill(eew, maskPipe(maskIndex))
         }
         // 4 bit mask
         VecInit(res).asUInt
@@ -163,7 +177,7 @@ class MaskCompress(val parameter: CompressParam)
   val tailCount: UInt = {
     val minElementSizePerSet = parameter.laneNumber * parameter.datapathWidth / 8
     val maxCountWidth        = log2Ceil(minElementSizePerSet)
-    changeUIntSize(compressInit, maxCountWidth)
+    changeUIntSize(compressInitPipe, maxCountWidth)
   }
 
   val compressDataReg = RegInit(0.U((parameter.laneNumber * parameter.datapathWidth).W))
@@ -174,10 +188,12 @@ class MaskCompress(val parameter: CompressParam)
     val elementSizePerSet = parameter.laneNumber * parameter.datapathWidth / 8 / dataByte
     VecInit(Seq.tabulate(elementSizePerSet * 2) { index =>
       val hitReq        =
-        Seq.tabulate(elementSizePerSet)(maskIndex => compressMaskVec(maskIndex) && compressVec(maskIndex) === index.U)
+        Seq.tabulate(elementSizePerSet)(maskIndex =>
+          compressMaskVecPipe(maskIndex) && compressVecPipe(maskIndex) === index.U
+        )
       val selectReqData = Mux1H(
         hitReq,
-        cutUInt(in.bits.source2, dataBit)
+        cutUInt(source2Pipe, dataBit)
       )
       if (index < elementSizePerSet) {
         val useTail  = index.U < tailCount
@@ -189,18 +205,18 @@ class MaskCompress(val parameter: CompressParam)
     }).asUInt
   }
   val compressResult: UInt = Mux1H(eew1H, compressDataVec)
-  val lastCompressEnq: Bool = in.fire && in.bits.lastCompress
-  when(newInstruction || lastCompressEnq || outWire.compressValid) {
+  val lastCompressEnq: Bool = stage2Valid && lastCompressPipe
+  when(newInstructionPipe || lastCompressEnq || outWire.compressValid) {
     compressTailValid := lastCompressEnq && compress
   }
 
-  when(newInstruction || outWire.compressValid) {
-    compressWriteGroupCount := Mux(newInstruction, 0.U, compressWriteGroupCount + 1.U)
+  when(newInstructionPipe || outWire.compressValid) {
+    compressWriteGroupCount := Mux(newInstructionPipe, 0.U, compressWriteGroupCount + 1.U)
   }
 
   val splitCompressResult: Vec[UInt] = cutUIntBySize(compressResult, 2)
-  when(in.fire) {
-    compressDataReg := Mux(compressDeqValid, splitCompressResult(1), splitCompressResult(0))
+  when(stage2Valid) {
+    compressDataReg := Mux(compressDeqValidPipe, splitCompressResult(1), splitCompressResult(0))
   }
 
   // todo: connect & update compressInit
@@ -245,9 +261,10 @@ class MaskCompress(val parameter: CompressParam)
   )
 
   // todo
-  outWire.compressValid := (compressTailValid || (compressDeqValid && in.fire)) && !writeRD
-  outWire.groupCounter  := Mux(compress, compressWriteGroupCount, in.bits.groupCounter)
+  outWire.compressValid := (compressTailValid || (compressDeqValidPipe && stage2Valid)) && !writeRD
+  outWire.groupCounter  := Mux(compress, compressWriteGroupCount, groupCounterPipe)
 
+  // ffo type execute
   when(newInstruction && ffoInstruction) {
     ffoIndex := -1.S(parameter.datapathWidth.W).asUInt
     ffoValid := false.B
@@ -284,5 +301,5 @@ class MaskCompress(val parameter: CompressParam)
     ffoIndex := source1SigExtend
   }
   outWire.ffoOutput := completedLeftOr | Fill(parameter.laneNumber, ffoValid)
-  out := Pipe(true.B, outWire, parameter.latency).bits
+  out := RegNext(outWire, 0.U.asTypeOf(outWire))
 }
