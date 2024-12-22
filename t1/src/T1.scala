@@ -263,6 +263,8 @@ case class T1Parameter(
 
   val maskRequestLatency = 2
 
+  val releaseShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
+
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
 
   /** paraemter for AXI4. */
@@ -778,10 +780,11 @@ class T1(val parameter: T1Parameter)
     lsu.offsetReadResult(index).bits  := lane.maskUnitRequest.bits.source2
     lsu.offsetReadIndex(index)        := lane.maskUnitRequest.bits.index
 
+    val instructionFinishedPipe = Pipe(true.B, lane.instructionFinished, parameter.releaseShifterSize(index)).bits
     instructionFinished(index).zip(slots.map(_.record.instructionIndex)).foreach { case (d, f) =>
-      d := ohCheck(lane.instructionFinished, f, parameter.chainingSize)
+      d := ohCheck(instructionFinishedPipe, f, parameter.chainingSize)
     }
-    vxsatReportVec(index)                := lane.vxsatReport
+    vxsatReportVec(index) := lane.vxsatReport
     lane.maskInput                       := Pipe(true.B, maskUnit.io.laneMaskInput(index), parameter.maskRequestLatency).bits
     maskUnit.io.laneMaskSelect(index)    := Pipe(true.B, lane.maskSelect, parameter.maskRequestLatency).bits
     maskUnit.io.laneMaskSewSelect(index) := Pipe(true.B, lane.maskSelectSew, parameter.maskRequestLatency).bits
@@ -798,7 +801,7 @@ class T1(val parameter: T1Parameter)
         (requestReg.bits.writeByte(rowWith - 1, 0) > ((parameter.datapathWidth / 8) * index).U)
 
     // token manager
-    tokenManager.instructionFinish(index) := lane.instructionFinished
+    tokenManager.instructionFinish(index) := instructionFinishedPipe
 
     lane
   }
