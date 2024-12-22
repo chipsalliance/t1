@@ -163,7 +163,7 @@ $ nix develop -c t1-helper run -i <top-name> -c <config-name> -e <emulator-type>
 wheres
 - `<config-name>` is the configuration name
 - `<top-name>` is one of the `t1emu`, `t1rocketemu`
-- `<emulator-type>` is one of the `verilator-emu`, `verilator-emu-trace`, `vcs-emu`, `vcs-emu-trace`
+- `<emulator-type>` is one of the `verilator-emu`, `verilator-emu-trace`, `vcs-emu`, `vcs-emu-trace`, `vcs-emu-cover`
 - `<case-name>` is the name of a testcase, you can resolve runnable test cases by command: `t1-helper listCases -c <config-name> <regexp>`
 
 For example:
@@ -205,6 +205,12 @@ $ nix develop -c t1-helper check
 
 The `t1-helper check` subcommand will read RTL event produced in `run` stage,
 so make sure you `run` a test before `check`.
+
+To get the coverage report, use the `vcs-emu-cover` emulator type:
+
+```console
+$ nix develop -c t1-helper run -i t1emu -c blastoise -e vcs-emu-cover mlir.hello
+```
 
 #### Export RTL Properties
 
