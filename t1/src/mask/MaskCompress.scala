@@ -73,7 +73,7 @@ class MaskCompress(val parameter: CompressParam)
   io.om := omInstance.getPropertyReference
   omInstance.retimeIn.foreach(_ := Property(Path(io.clock)))
 
-  val in             = io.in
+  val in             = RegNext(io.in, 0.U.asTypeOf(io.in))
   val out            = io.out
   val newInstruction = io.newInstruction
   val ffoInstruction = io.ffoInstruction
