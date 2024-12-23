@@ -93,8 +93,11 @@ class MaskCompress(val parameter: CompressParam)
   val eew1H:           UInt      = UIntToOH(in.bits.eew)(2, 0)
   val compressInit:    UInt      = RegInit(0.U(log2Ceil(parameter.vLen).W))
   val compressVec:     Vec[UInt] = Wire(Vec(maskSize, UInt(compressInit.getWidth.W)))
-  val compressMaskVec: Vec[Bool] = VecInit(changeUIntSize(in.bits.source1 & in.bits.mask, maskSize).asBools)
-  val compressCount:   UInt      = compressMaskVec.zipWithIndex.foldLeft(compressInit) { case (pre, (mask, index)) =>
+  val maskInput:       UInt      = changeUIntSize(in.bits.source1 & in.bits.mask, maskSize)
+  val compressMaskVec: Vec[Bool] = VecInit(maskInput.asBools)
+  val compressCount:   UInt      = compressInit + PopCount(maskInput)
+
+  compressMaskVec.zipWithIndex.foldLeft(compressInit) { case (pre, (mask, index)) =>
     compressVec(index) := pre
     pre + mask
   }
@@ -113,7 +116,7 @@ class MaskCompress(val parameter: CompressParam)
     val dataByte          = 1 << sewInt
     val elementSizePerSet = parameter.laneNumber * parameter.datapathWidth / 8 / dataByte
     val countWidth        = log2Ceil(elementSizePerSet)
-    val compressDeqValid  = (compressCount >> countWidth).asUInt.orR
+    val compressDeqValid  = (compressCount >> countWidth).asUInt(0)
     val compressUpdate    = changeUIntSize(compressCount, countWidth)
     (compressDeqValid, compressUpdate)
   }
