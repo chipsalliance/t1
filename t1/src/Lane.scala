@@ -1183,12 +1183,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   instructionFinishInSlot := (~instructionValid).asUInt & instructionValidNext
 
+  val emptyInstValid: Bool = RegNext(laneRequest.bits.issueInst && !vrf.instructionWriteReport.valid, false.B)
+  val emptyInstCount: UInt = RegNext(indexToOH(laneRequest.bits.instructionIndex, parameter.chainingSize))
+  val emptyReport:    UInt = maskAnd(emptyInstValid, emptyInstCount).asUInt
+
   // clear record by instructionFinished
   vrf.instructionLastReport                 := instructionFinishInSlot
   vrf.lsuLastReport                         := lsuLastReport
   vrf.loadDataInLSUWriteQueue               := loadDataInLSUWriteQueue
   vrf.dataInLane                            := instructionValid
-  instructionFinished                       := vrf.vrfSlotRelease
+  instructionFinished                       := vrf.vrfSlotRelease | emptyReport
   writeReadyForLsu                          := vrf.writeReadyForLsu
   vrfReadyToStore                           := vrf.vrfReadyToStore
   tokenManager.crossWriteReports.zipWithIndex.foreach { case (rpt, rptIndex) =>
