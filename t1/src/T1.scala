@@ -791,7 +791,10 @@ class T1(val parameter: T1Parameter)
     maskUnit.io.v0UpdateVec(index) <> lane.v0Update
     lsu.v0UpdateVec(index) <> lane.v0Update
 
-    lane.lsuLastReport := lsu.lastReport | maskUnit.io.lastReport
+    // Must arrive after the instruction request
+    val lsuLastPipe:  UInt = Pipe(true.B, lsu.lastReport, parameter.laneRequestShifterSize(index)).bits
+    val maskLastPipe: UInt = Pipe(true.B, maskUnit.io.lastReport, parameter.laneRequestShifterSize(index)).bits
+    lane.lsuLastReport := lsuLastPipe | maskLastPipe
 
     lane.loadDataInLSUWriteQueue := lsu.dataInWriteQueue(index)
     // 2 + 3 = 5
