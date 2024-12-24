@@ -327,6 +327,7 @@ case class T1Parameter(
     transferSize = lsuTransposeSize,
     vrfReadLatency = vrfReadLatency,
     axi4BundleParameter = axi4BundleParameter,
+    lsuReadShifterSize = lsuReadShifterSize,
     name = "main"
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)

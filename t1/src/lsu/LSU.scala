@@ -37,6 +37,7 @@ case class LSUParameter(
   // TODO: refactor to per lane parameter.
   vrfReadLatency:      Int,
   axi4BundleParameter: AXI4BundleParameter,
+  lsuReadShifterSize:  Seq[Int],
   name: String) {
   val sewMin: Int = 8
 
@@ -61,7 +62,16 @@ case class LSUParameter(
   val sourceQueueSize: Int = 32.min(vLen * 8 / (transferSize * 8))
 
   def mshrParam: MSHRParam =
-    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, transferSize, vrfReadLatency)
+    MSHRParam(
+      chainingSize,
+      datapathWidth,
+      vLen,
+      laneNumber,
+      paWidth,
+      transferSize,
+      lsuReadShifterSize.head,
+      vrfReadLatency
+    )
 
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)
@@ -245,7 +255,6 @@ class LSU(param: LSUParameter) extends Module {
 
   /** TileLink D Channel write to VRF queue: TL-D -CrossBar-> MSHR -proxy-> write queue -CrossBar-> VRF
     */
-  @public
   val writeQueueVec: Seq[QueueIO[LSUWriteQueueBundle]] = Seq.fill(param.laneNumber)(
     Queue.io(new LSUWriteQueueBundle(param), param.toVRFWriteQueueSize, flow = true)
   )
@@ -253,20 +262,38 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val lsuProbe = IO(Output(Probe(new LSUProbe(param), layers.Verification)))
 
+  // todo: require all shifter same as head
+  val readLatency:           Int                = param.vrfReadLatency + param.lsuReadShifterSize.head * 2
+  val otherUnitTargetQueue:  QueueIO[UInt]      = Queue.io(UInt(param.laneNumber.W), 2 * readLatency, pipe = true)
+  val otherUnitDataQueueVec: Seq[QueueIO[UInt]] = Seq.fill(param.laneNumber)(
+    Queue.io(UInt(param.datapathWidth.W), readLatency, flow = true)
+  )
+  val dataDeqFire:           UInt               = Wire(UInt(param.laneNumber.W))
   // read vrf
-  val otherTryReadVrf: UInt          = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
+  val otherTryReadVrf:       UInt               = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
   vrfReadDataPorts.zipWithIndex.foreach { case (read, index) =>
     read.valid                              := otherTryReadVrf(index) || storeUnit.vrfReadDataPorts(index).valid
     read.bits                               := Mux(otherTryReadVrf(index), otherUnit.vrfReadDataPorts.bits, storeUnit.vrfReadDataPorts(index).bits)
     storeUnit.vrfReadDataPorts(index).ready := read.ready && !otherTryReadVrf(index)
     storeUnit.vrfReadResults(index)         := vrfReadResults(index)
+    storeUnit.vrfReadResults(index).valid   := vrfReadResults(index).valid && otherUnitTargetQueue.empty
+
+    val otherUnitQueue: QueueIO[UInt] = otherUnitDataQueueVec(index)
+    otherUnitQueue.enq.valid := vrfReadResults(index).valid && !otherUnitTargetQueue.empty
+    otherUnitQueue.enq.bits  := vrfReadResults(index).bits
+    otherUnitQueue.deq.ready := dataDeqFire(index)
   }
-  otherUnit.vrfReadDataPorts.ready := (otherTryReadVrf & VecInit(vrfReadDataPorts.map(_.ready)).asUInt).orR
-  val pipeOtherRead:   ValidIO[UInt] =
-    Pipe(otherUnit.vrfReadDataPorts.fire, otherUnit.status.targetLane, param.vrfReadLatency)
-  // todo: read data reorder
-  otherUnit.vrfReadResults.bits  := Mux1H(pipeOtherRead.bits, vrfReadResults.map(_.bits))
-  otherUnit.vrfReadResults.valid := pipeOtherRead.valid
+  otherUnit.vrfReadDataPorts.ready := (otherTryReadVrf & VecInit(vrfReadDataPorts.map(_.ready)).asUInt).orR &&
+    otherUnitTargetQueue.enq.ready
+  otherUnitTargetQueue.enq.bits  := otherUnit.status.targetLane
+  otherUnitTargetQueue.enq.valid := otherUnit.vrfReadDataPorts.fire
+
+  // read data reorder
+  otherUnit.vrfReadResults.bits  := Mux1H(otherUnitTargetQueue.deq.bits, otherUnitDataQueueVec.map(_.deq.bits))
+  otherUnit.vrfReadResults.valid := otherUnitTargetQueue.deq.valid &&
+    (otherUnitTargetQueue.deq.bits & VecInit(otherUnitDataQueueVec.map(_.deq.valid)).asUInt).orR
+  dataDeqFire                    := maskAnd(otherUnit.vrfReadResults.valid, otherUnitTargetQueue.deq.bits)
+  otherUnitTargetQueue.deq.ready := otherUnit.vrfReadResults.valid
 
   // write vrf
   val otherTryToWrite: UInt = Mux(otherUnit.vrfWritePort.valid, otherUnit.status.targetLane, 0.U)
