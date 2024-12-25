@@ -201,7 +201,7 @@ pub fn create_emu_addrspace() -> (AddressSpace, ExitFlagRef) {
   const DDR_BASE: u32 = 0x2000_0000;
   const DDR_SIZE: u32 = 0xa000_0000;
   const SRAM_BASE: u32 = 0xc000_0000;
-  const SRAM_SIZE: u32 = 0x0040_0000;
+  const SRAM_SIZE: u32 = 0x0100_0000;
 
   const SIMCTRL_BASE: u32 = 0x1000_0000;
   const SIMCTRL_SIZE: u32 = 0x0000_1000; // one page
