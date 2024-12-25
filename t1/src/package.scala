@@ -282,7 +282,8 @@ package object rtl {
     sink:           DecoupledIO[T],
     arb:            Int,
     dataAck:        Option[UInt] = None,
-    dataToSource:   Option[Seq[ValidIO[UInt]]] = None
+    dataToSource:   Option[Seq[ValidIO[UInt]]] = None,
+    releaseSource:  Option[Seq[Bool]] = None
   ): Unit = {
     val sinkVec: Vec[DecoupledIO[T]] = VecInit(sourceVec.zipWithIndex.map { case (source, index) =>
       val sinkWire: DecoupledIO[T] = Wire(Decoupled(chiselTypeOf(source.bits)))
@@ -301,6 +302,12 @@ package object rtl {
         accessDataSource.valid := accessDataValid
         accessDataSource.bits  := dataAck.get
         connectWithShifter(latencyVec(index))(accessDataSource, sourceData)
+      }
+    }
+    releaseSource.foreach { sourceVec =>
+      sourceVec.zipWithIndex.foreach { case (release, index) =>
+        val sinkRequest = sinkVec(index)
+        release := Pipe(sinkRequest.fire, 0.U.asTypeOf(new EmptyBundle), latencyVec(index)).valid
       }
     }
   }

@@ -56,6 +56,7 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
       )
     )
   )
+  val writeRelease:      Vec[Bool]                         = Vec(parameter.laneNumber, Input(Bool()))
   val tokenIO:           Vec[LaneTokenBundle]              = Flipped(Vec(parameter.laneNumber, new LaneTokenBundle))
   val readChannel:       Vec[DecoupledIO[VRFReadRequest]]  = Vec(
     parameter.laneNumber,
@@ -1094,7 +1095,7 @@ class MaskUnit(val parameter: T1Parameter)
     Queue.io(new MaskUnitExeResponse(parameter.laneParam), maskUnitWriteQueueSize)
   }
 
-  writeQueue.zipWithIndex.foreach { case (queue, index) =>
+  val dataNotInShifter: Bool = writeQueue.zipWithIndex.map { case (queue, index) =>
     val readTypeWriteVrf: Bool = waiteStageDeqFire && WillWriteLane(index)
     queue.enq.valid              := maskedWrite.out(index).valid || readTypeWriteVrf
     maskedWrite.out(index).ready := queue.enq.ready
@@ -1117,7 +1118,17 @@ class MaskUnit(val parameter: T1Parameter)
       parameter.laneParam.vrfOffsetBits
     )
     writePort.bits.offset           := queue.deq.bits.writeData.groupCounter
-  }
+
+    val writeTokenSize    = 8
+    val writeTokenWidth   = log2Ceil(writeTokenSize)
+    val writeTokenCounter = RegInit(0.U(writeTokenWidth.W))
+
+    val writeTokenChange = Mux(writePort.fire, 1.U(writeTokenWidth.W), -1.S(writeTokenWidth.W).asUInt)
+    when(writePort.fire ^ io.writeRelease(index)) {
+      writeTokenCounter := writeTokenCounter + writeTokenChange
+    }
+    writeTokenCounter === 0.U
+  }.reduce(_ && _)
   waiteStageDeqReady := writeQueue.zipWithIndex.map { case (queue, index) =>
     !WillWriteLane(index) || queue.enq.ready
   }.reduce(_ && _)
@@ -1126,7 +1137,7 @@ class MaskUnit(val parameter: T1Parameter)
   // todo: token
   val waiteLastRequest: Bool = RegInit(false.B)
   val waitQueueClear:   Bool = RegInit(false.B)
-  val lastReportValid = waitQueueClear && !writeQueue.map(_.deq.valid).reduce(_ || _)
+  val lastReportValid = waitQueueClear && !writeQueue.map(_.deq.valid).reduce(_ || _) && dataNotInShifter
   when(lastReportValid) {
     waitQueueClear   := false.B
     waiteLastRequest := false.B

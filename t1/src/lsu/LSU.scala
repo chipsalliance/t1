@@ -169,6 +169,9 @@ class LSU(param: LSUParameter) extends Module {
   )
 
   @public
+  val writeRelease: Vec[Bool] = IO(Vec(param.laneNumber, Input(Bool())))
+
+  @public
   val dataInWriteQueue: Vec[UInt] = IO(Output(Vec(param.laneNumber, UInt((2 * param.chainingSize).W))))
 
   /** the CSR interface from [[V]], CSR will be latched in MSHR. TODO: merge to [[LSURequest]]

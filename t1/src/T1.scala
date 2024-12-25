@@ -773,7 +773,8 @@ class T1(val parameter: T1Parameter)
     )(
       VecInit(Seq(maskUnit.io.exeResp(index), lsu.vrfWritePort(index))),
       lane.vrfWriteChannel,
-      0
+      0,
+      releaseSource = Some(Seq(maskUnit.io.writeRelease(index), lsu.writeRelease(index)))
     )
     lane.writeFromMask := maskUnit.io.exeResp(index).fire
 
