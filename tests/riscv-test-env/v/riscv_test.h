@@ -17,6 +17,10 @@
   csrwi fcsr, 0;                                                        \
   csrwi vcsr, 0;
 
+#undef RVTEST_ZVE32X_ENABLE
+#define RVTEST_ZVE32X_ENABLE                                            \
+  csrwi vcsr, 0;
+
 #undef RVTEST_CODE_BEGIN
 #define RVTEST_CODE_BEGIN                                               \
         .text;                                                          \
