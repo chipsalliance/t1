@@ -358,13 +358,20 @@ class LSU(param: LSUParameter) extends Module {
       )
 
   // Record whether there is data for the corresponding instruction in the queue
-  writeQueueVec.zip(dataInWriteQueue).foreach { case (q, p) =>
+  writeQueueVec.zip(dataInWriteQueue).zipWithIndex.foreach { case ((q, p), i) =>
     val queueCount: Seq[UInt] = Seq.tabulate(2 * param.chainingSize) { _ =>
       RegInit(0.U(log2Ceil(param.toVRFWriteQueueSize).W))
     }
     val enqOH:      UInt      = indexToOH(q.enq.bits.data.instructionIndex, param.chainingSize)
     val queueEnq:   UInt      = Mux(q.enq.fire, enqOH, 0.U)
-    val queueDeq = Mux(q.deq.fire, indexToOH(q.deq.bits.data.instructionIndex, param.chainingSize), 0.U)
+
+    val writeTokenSize  = 8
+    val writeIndexQueue = Queue.io(UInt(param.instructionIndexBits.W), writeTokenSize)
+    writeIndexQueue.enq.valid := q.deq.fire
+    writeIndexQueue.enq.bits  := q.deq.bits.data.instructionIndex
+    writeIndexQueue.deq.ready := writeRelease(i)
+
+    val queueDeq = Mux(writeIndexQueue.deq.fire, indexToOH(writeIndexQueue.deq.bits, param.chainingSize), 0.U)
     queueCount.zipWithIndex.foreach { case (count, index) =>
       val counterUpdate: UInt = Mux(queueEnq(index), 1.U, -1.S(log2Ceil(param.toVRFWriteQueueSize).W).asUInt)
       when(queueEnq(index) ^ queueDeq(index)) {
