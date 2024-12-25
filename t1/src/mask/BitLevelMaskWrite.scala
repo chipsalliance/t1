@@ -18,7 +18,7 @@ class BitLevelWriteRequest(parameter: T1Parameter) extends Bundle {
 
 class BitLevelMaskWrite(parameter: T1Parameter) extends Module {
   // todo
-  val readVRFLatency: Int = 2
+  val readVRFLatency: Int = 4
 
   val needWAR: Bool = IO(Input(Bool()))
   val vd:      UInt = IO(Input(UInt(5.W)))
@@ -68,7 +68,7 @@ class BitLevelMaskWrite(parameter: T1Parameter) extends Module {
     readPort.bits.vs     := vd + (reqQueue.deq.bits.groupCounter >> readPort.bits.offset.getWidth).asUInt
     readPort.bits.offset := changeUIntSize(reqQueue.deq.bits.groupCounter, readPort.bits.offset.getWidth)
 
-    val readValidPipe   = Pipe(readPort.fire, false.B, readVRFLatency).valid && readResult(index).valid
+    val readValidPipe   = readResult(index).valid
     val readResultValid = !needWAR || readValidPipe
 
     val WARData = (WaitReadQueue.deq.bits.data & WaitReadQueue.deq.bits.bitMask) |

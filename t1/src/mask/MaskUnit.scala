@@ -130,7 +130,7 @@ class MaskUnit(val parameter: T1Parameter)
 
   // todo: param
   val readQueueSize:          Int = 4
-  val readVRFLatency:         Int = 2
+  val readVRFLatency:         Int = 3
   val maskUnitWriteQueueSize: Int = 8
 
   /** duplicate v0 for mask */
@@ -758,13 +758,15 @@ class MaskUnit(val parameter: T1Parameter)
   val pipeDataOffset: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(log2Ceil(parameter.datapathWidth / 8).W)))
 
   readCrossBar.output.zipWithIndex.foreach { case (request, index) =>
+    val readMessageQueue: QueueIO[MaskUnitReadPipe] =
+      Queue.io(new MaskUnitReadPipe(parameter), readVRFLatency + 4)
     val sourceLane = UIntToOH(request.bits.writeIndex)
-    readChannel(index).valid                 := request.valid
+    readChannel(index).valid                 := request.valid && readMessageQueue.enq.ready
     readChannel(index).bits.readSource       := 2.U
     readChannel(index).bits.vs               := request.bits.vs
     readChannel(index).bits.offset           := request.bits.offset
     readChannel(index).bits.instructionIndex := instReg.instructionIndex
-    request.ready                            := readChannel(index).ready
+    request.ready                            := readChannel(index).ready && readMessageQueue.enq.ready
 
     maskedWrite.readChannel(index).ready := readChannel(index).ready
     maskedWrite.readResult(index)        := readResult(index)
@@ -774,15 +776,17 @@ class MaskUnit(val parameter: T1Parameter)
       readChannel(index).bits.offset := maskedWrite.readChannel(index).bits.offset
     }
 
-    // pipe read fire
-    val pipeRead   = Pipe(
-      readChannel(index).fire && !maskDestinationType,
-      sourceLane,
-      readVRFLatency
+    readMessageQueue.enq.valid           := readChannel(index).fire && !maskDestinationType
+    readMessageQueue.enq.bits.readSource := sourceLane
+    readMessageQueue.enq.bits.dataOffset := request.bits.dataOffset
+    readMessageQueue.deq.ready           := readResult(index).valid
+
+    write1HPipe(index)    := Mux(
+      readMessageQueue.deq.valid && readResult(index).valid,
+      readMessageQueue.deq.bits.readSource,
+      0.U(parameter.laneNumber.W)
     )
-    val pipeOffset = Pipe(readChannel(index).fire, request.bits.dataOffset, readVRFLatency)
-    write1HPipe(index)    := Mux(pipeRead.valid, pipeRead.bits, 0.U(parameter.laneNumber.W))
-    pipeDataOffset(index) := pipeOffset.bits
+    pipeDataOffset(index) := readMessageQueue.deq.bits.dataOffset
   }
 
   // Processing read results

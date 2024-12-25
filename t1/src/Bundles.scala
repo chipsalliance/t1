@@ -794,3 +794,8 @@ class MaskUnitReadVs1(parameter: T1Parameter) extends Bundle {
 class LaneTokenBundle extends Bundle {
   val maskRequestRelease: Bool = Input(Bool())
 }
+
+class MaskUnitReadPipe(parameter: T1Parameter) extends Bundle {
+  val readSource: UInt = UInt(parameter.laneNumber.W)
+  val dataOffset: UInt = UInt(log2Ceil(parameter.datapathWidth / 8).W)
+}
