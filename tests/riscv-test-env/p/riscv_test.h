@@ -23,6 +23,11 @@
   RVTEST_VECTOR_ENABLE;                                                 \
   .endm
 
+#define RVTEST_RV64UVX                                                  \
+  .macro init;                                                          \
+  RVTEST_ZVE32X_ENABLE;                                                 \
+  .endm
+
 #define RVTEST_RV32U                                                    \
   .macro init;                                                          \
   .endm
@@ -35,6 +40,11 @@
 #define RVTEST_RV32UV                                                   \
   .macro init;                                                          \
   RVTEST_VECTOR_ENABLE;                                                 \
+  .endm
+
+#define RVTEST_RV32UVX                                                  \
+  .macro init;                                                          \
+  RVTEST_ZVE32X_ENABLE;                                                 \
   .endm
 
 #define RVTEST_RV64M                                                    \
