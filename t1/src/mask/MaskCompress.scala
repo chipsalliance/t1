@@ -54,6 +54,7 @@ class MaskCompressInterFace(parameter: CompressParam) extends Bundle {
   val newInstruction: Bool                   = Input(Bool())
   val ffoInstruction: Bool                   = Input(Bool())
   val writeData:      UInt                   = Output(UInt(parameter.xLen.W))
+  val stageValid:     Bool                   = Bool()
   val om = Output(Property[AnyClassType]())
 }
 
@@ -239,10 +240,13 @@ class MaskCompress(val parameter: CompressParam)
   )
   compressMask := Mux(compressTailValid, compressTailMask, (-1.S(out.mask.getWidth.W)).asUInt)
 
-  val mvMask = Mux1H(eew1H, Seq(1.U, 3.U, 15.U))
-  val mvData = in.bits.readFromScalar
+  val validInputPipe     = initRegEnable(in.bits.validInput, in.fire)
+  val readFromScalarPipe = initRegEnable(in.bits.readFromScalar, in.fire)
 
-  val ffoMask: UInt = FillInterleaved(parameter.datapathWidth / 8, in.bits.validInput)
+  val mvMask = Mux1H(eew1H, Seq(1.U, 3.U, 15.U))
+  val mvData = readFromScalarPipe
+
+  val ffoMask: UInt = FillInterleaved(parameter.datapathWidth / 8, validInputPipe)
 
   outWire.data := Mux1H(
     Seq(
@@ -303,6 +307,8 @@ class MaskCompress(val parameter: CompressParam)
   }.elsewhen(mvRd) {
     ffoIndex := source1SigExtend
   }
-  outWire.ffoOutput := completedLeftOr | Fill(parameter.laneNumber, ffoValid)
-  out := RegNext(outWire, 0.U.asTypeOf(outWire))
+  val ffoOutPipe:      UInt = initRegEnable(completedLeftOr | Fill(parameter.laneNumber, ffoValid), in.fire)
+  outWire.ffoOutput := ffoOutPipe
+  out               := RegNext(outWire, 0.U.asTypeOf(outWire))
+  io.stageValid     := stage2Valid || in.valid
 }

@@ -1148,7 +1148,7 @@ class MaskUnit(val parameter: T1Parameter)
   val executeStageInvalid: Bool = Mux1H(
     unitType(3, 1),
     Seq(
-      !compressUnit.io.out.compressValid,
+      !compressUnit.io.out.compressValid && !compressUnit.io.stageValid,
       reduceUnit.io.in.ready,
       true.B
     )
