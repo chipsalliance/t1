@@ -486,7 +486,7 @@ class T1(val parameter: T1Parameter)
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
   val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv))
-  val skipLastFromLane:    Bool = isLoadStoreType || maskUnitInstruction || readOnlyInstruction
+  val skipLastFromLane:    Bool = isStoreType || maskUnitInstruction || readOnlyInstruction
   val instructionValid:    Bool = requestReg.bits.issue.vl > requestReg.bits.issue.vstart
 
   // TODO: these should be decoding results
