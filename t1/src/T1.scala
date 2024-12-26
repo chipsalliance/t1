@@ -800,10 +800,10 @@ class T1(val parameter: T1Parameter)
 
     lane.loadDataInLSUWriteQueue := lsu.dataInWriteQueue(index)
     // 2 + 3 = 5
-    val rowWith: Int = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
-    lane.writeCount :=
-      (requestReg.bits.writeByte >> rowWith).asUInt +
-        (requestReg.bits.writeByte(rowWith - 1, 0) > ((parameter.datapathWidth / 8) * index).U)
+    val rowWith:      Int  = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
+    val writeCounter: UInt = (requestReg.bits.writeByte >> rowWith).asUInt +
+      (requestReg.bits.writeByte(rowWith - 1, 0) > ((parameter.datapathWidth / 8) * index).U)
+    lane.writeCount := Pipe(true.B, writeCounter, parameter.laneRequestShifterSize(index)).bits
 
     // token manager
     tokenManager.instructionFinish(index) := instructionFinishedPipe
