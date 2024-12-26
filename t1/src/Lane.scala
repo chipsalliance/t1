@@ -676,7 +676,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
     // update mask todo: handle maskRequestFireOH
     slotMaskRequestVec(index).valid :=
-      record.laneRequest.mask &&
+      record.laneRequest.mask && slotOccupied(index) &&
         ((stage0.enqueue.fire && stage0.updateLaneState.maskExhausted) || !record.mask.valid)
     slotMaskRequestVec(index).bits  := stage0.updateLaneState.maskGroupCount
     // There are new masks
@@ -885,6 +885,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     Queue.io(chiselTypeOf(maskedWriteUnit.enqueue.bits), entries = 1, pipe = true)
   val writeSelect:          UInt                     = Wire(UInt((parameter.chainingSize + 3).W))
   val writeCavitation:      UInt                     = VecInit(allVrfWriteAfterCheck.map(_.mask === 0.U)).asUInt
+  val slotEnqueueFire:      Seq[Bool]                = Seq.tabulate(parameter.chainingSize)(_ => Wire(Bool()))
 
   // 处理 rf
   {
@@ -964,14 +965,15 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     maskSelect         := Mux1H(maskControlReqSelect, maskControlVec.map(_.group))
     maskSelectSew      := Mux1H(maskControlReqSelect, maskControlVec.map(_.sew))
     maskControlDataDeq := slotMaskRequestVec.zipWithIndex.map { case (req, index) =>
-      val slotIndex       = slotControl(index).laneRequest.instructionIndex
-      val hitMaskControl  = VecInit(maskControlVec.map(_.index === slotIndex)).asUInt
-      val dataValid       = Mux1H(hitMaskControl, maskControlVec.map(_.dataValid))
-      val data            = Mux1H(hitMaskControl, maskControlVec.map(_.maskData))
-      val group           = Mux1H(hitMaskControl, maskControlVec.map(_.group))
-      val sameGroup       = group === req.bits
+      val slotIndex      = slotControl(index).laneRequest.instructionIndex
+      val hitMaskControl = VecInit(maskControlVec.map(c => c.index === slotIndex && c.controlValid)).asUInt
+      val dataValid      = Mux1H(hitMaskControl, maskControlVec.map(_.dataValid))
+      val data           = Mux1H(hitMaskControl, maskControlVec.map(_.maskData))
+      val group          = Mux1H(hitMaskControl, maskControlVec.map(_.group))
+      val sameGroup      = group === req.bits
       dontTouch(sameGroup)
-      val maskRequestFire = req.valid && dataValid
+      val hitShifter: Bool = if (index == 0) false.B else slotEnqueueFire(index - 1)
+      val maskRequestFire = req.valid && dataValid && !hitShifter
       maskRequestFireOH(index) := maskRequestFire
       maskDataVec(index)       := data
       maskAnd(maskRequestFire, hitMaskControl).asUInt
@@ -1079,7 +1081,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     pre || !current
   }
 
-  val slotEnqueueFire: Seq[Bool] = Seq.tabulate(parameter.chainingSize) { slotIndex =>
+  Seq.tabulate(parameter.chainingSize) { slotIndex =>
     val enqueueReady: Bool = Wire(Bool())
     val enqueueValid: Bool = Wire(Bool())
     val enqueueFire:  Bool = enqueueReady && enqueueValid
@@ -1092,7 +1094,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         maskGroupCountVec(slotIndex) := 0.U(parameter.maskGroupSizeBits.W)
         maskIndexVec(slotIndex)      := 0.U(log2Ceil(parameter.maskGroupWidth).W)
       }
-      enqueueFire
     } else {
       // shifter for slot
       enqueueValid := slotCanShift(slotIndex + 1) && slotOccupied(slotIndex + 1)
@@ -1102,8 +1103,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         maskGroupCountVec(slotIndex) := maskGroupCountVec(slotIndex + 1)
         maskIndexVec(slotIndex)      := maskIndexVec(slotIndex + 1)
       }
-      enqueueFire
     }
+    slotEnqueueFire(slotIndex) := enqueueFire
   }
 
   val slotDequeueFire: Seq[Bool] = (slotCanShift.head && slotOccupied.head) +: slotEnqueueFire
