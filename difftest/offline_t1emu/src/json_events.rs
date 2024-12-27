@@ -333,8 +333,8 @@ impl JsonEventRunner for SpikeRunner {
         se.vrf_access_record.retired_writes,
         se.describe_insn()
       );
-    } else {
-      panic!("[{cycle}] VrfScoreboard: cannot find se with instruction issue_idx={issue_idx}");
+    } else if count != 0 {
+      panic!("[{cycle}] VrfScoreboard: cannot find se with instruction issue_idx={issue_idx}, count={count}");
     }
 
     if let Some(issue_idx) = should_retire {
