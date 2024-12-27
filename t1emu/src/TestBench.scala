@@ -234,7 +234,7 @@ class TestBench(val parameter: T1Parameter)
     scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
     when(scoreboard.valid && !instructionValid(tag)) {
       printf(
-        cf"""{"event":"VrfScoreboardReport","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
+        cf"""{"event":"VrfScoreboard","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
       )
       scoreboard.valid := false.B
     }

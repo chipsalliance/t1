@@ -4,7 +4,7 @@ use spike_rs::runner::SpikeRunner;
 use spike_rs::spike_event::LSU_IDX_DEFAULT;
 use tracing::{debug, info};
 
-fn bigint_to_vec_u8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+fn str_to_vec_u8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
   D: Deserializer<'de>,
 {
@@ -14,7 +14,7 @@ where
   Ok(bigint.to_bytes_le())
 }
 
-fn bigint_to_vec_bool<'de, D>(deserializer: D) -> Result<Vec<bool>, D::Error>
+fn str_to_vec_bool<'de, D>(deserializer: D) -> Result<Vec<bool>, D::Error>
 where
   D: Deserializer<'de>,
 {
@@ -27,7 +27,7 @@ where
   Ok(bools)
 }
 
-fn hex_to_u32<'de, D>(deserializer: D) -> Result<u32, D::Error>
+fn str_to_u32<'de, D>(deserializer: D) -> Result<u32, D::Error>
 where
   D: Deserializer<'de>,
 {
@@ -57,30 +57,30 @@ pub(crate) enum JsonEvents {
     issue_idx: u8,
     vd: u32,
     offset: u32,
-    #[serde(deserialize_with = "bigint_to_vec_bool", default)]
+    #[serde(deserialize_with = "str_to_vec_bool", default)]
     mask: Vec<bool>,
-    #[serde(deserialize_with = "bigint_to_vec_u8", default)]
+    #[serde(deserialize_with = "str_to_vec_u8", default)]
     data: Vec<u8>,
     lane: u32,
     cycle: u64,
   },
   MemoryWrite {
-    #[serde(deserialize_with = "bigint_to_vec_bool", default)]
+    #[serde(deserialize_with = "str_to_vec_bool", default)]
     mask: Vec<bool>,
-    #[serde(deserialize_with = "bigint_to_vec_u8", default)]
+    #[serde(deserialize_with = "str_to_vec_u8", default)]
     data: Vec<u8>,
     lsu_idx: u8,
-    #[serde(deserialize_with = "hex_to_u32", default)]
+    #[serde(deserialize_with = "str_to_u32", default)]
     address: u32,
     cycle: u64,
   },
   CheckRd {
-    #[serde(deserialize_with = "hex_to_u32", default)]
+    #[serde(deserialize_with = "str_to_u32", default)]
     data: u32,
     issue_idx: u8,
     cycle: u64,
   },
-  VrfScoreboardReport {
+  VrfScoreboard {
     count: u32,
     issue_idx: u8,
     cycle: u64,
@@ -115,7 +115,7 @@ pub struct MemoryWriteEvent {
   pub cycle: u64,
 }
 
-pub struct VrfScoreboardReportEvent {
+pub struct VrfScoreboardEvent {
   pub count: u32,
   pub issue_idx: u8,
   pub cycle: u64,
@@ -134,7 +134,7 @@ pub(crate) trait JsonEventRunner {
 
   fn peek_vrf_write(&mut self, vrf_write: &VrfWriteEvent) -> anyhow::Result<()>;
 
-  fn vrf_scoreboard_report(&mut self, report: &VrfScoreboardReportEvent) -> anyhow::Result<()>;
+  fn vrf_scoreboard(&mut self, vrf_scoreboard: &VrfScoreboardEvent) -> anyhow::Result<()>;
 
   fn peek_memory_write(&mut self, memory_write: &MemoryWriteEvent) -> anyhow::Result<()>;
 
@@ -212,7 +212,7 @@ impl JsonEventRunner for SpikeRunner {
       if let Some(unretired_writes) = se.vrf_access_record.unretired_writes {
         assert!(
           unretired_writes > 0,
-          "[{}] unretired_writes should be greater than 0, issue_idx={} ({})",
+          "[{}] VrfWrite: unretired_writes should be greater than 0, issue_idx={} ({})",
           vrf_write.cycle,
           vrf_write.issue_idx,
           se.describe_insn()
@@ -232,8 +232,8 @@ impl JsonEventRunner for SpikeRunner {
           assert_eq!(
             record.byte,
             written_byte,
-            "[{}] {offset}th byte incorrect ({:02x} record != {written_byte:02x} written) \
-              for vrf write (lane={}, vd={}, offset={}, mask={}, data={:x?}) \
+            "[{}] VrfWrite: {offset}th byte incorrect ({:#02x} record != {written_byte:#02x} written) \
+              (lane={}, vd={}, offset={}, mask={}, data={:x?}) \
               issue_idx={} [vrf_idx={}] (disasm: {}, pc: {:#x}, bits: {:#x})",
             vrf_write.cycle,
             record.byte,
@@ -251,7 +251,7 @@ impl JsonEventRunner for SpikeRunner {
           record.executed = true;
         } else {
           debug!(
-            "[{}] cannot find vrf write record, maybe not changed (lane={}, vd={}, idx={}, offset={}, mask={}, data={:x?})",
+            "[{}] VrfWrite: cannot find vrf write record, maybe not changed (lane={}, vd={}, idx={}, offset={}, mask={}, data={:x?})",
             vrf_write.cycle,
             vrf_write.lane,
             vrf_write.vd,
@@ -264,7 +264,7 @@ impl JsonEventRunner for SpikeRunner {
       })
     } else {
       info!(
-        "[{cycle}] RecordRFAccess: rtl detect vrf write on lane={}, vd={} \
+        "[{cycle}] VrfWrite: rtl detect vrf write on lane={}, vd={} \
         with no matched se (issue_idx={}), \
         maybe from committed load insn",
         vrf_write.lane, vrf_write.vd, vrf_write.issue_idx
@@ -286,7 +286,7 @@ impl JsonEventRunner for SpikeRunner {
     let lsu_idx = memory_write.lsu_idx;
 
     if let Some(se) = self.commit_queue.iter_mut().find(|se| se.lsu_idx == lsu_idx) {
-      info!("[{cycle}] MemoryWrite: address={base_addr:08x}, size={}, data={data:x?}, mask={}, pc = {:#x}, disasm = {}", data.len(), mask_display(&mask), se.pc, se.disasm);
+      info!("[{cycle}] MemoryWrite: address={base_addr:#x}, size={}, data={data:x?}, mask={}, pc = {:#x}, disasm = {}", data.len(), mask_display(&mask), se.pc, se.disasm);
       // compare with spike event record
       mask.iter().enumerate()
         .filter(|(_, &mask)| mask)
@@ -295,29 +295,29 @@ impl JsonEventRunner for SpikeRunner {
           let data_byte = *data.get(offset).unwrap_or(&0);
           let mem_write =
             se.mem_access_record.all_writes.get_mut(&byte_addr).unwrap_or_else(|| {
-              panic!("[{cycle}] cannot find mem write of byte_addr {byte_addr:08x}")
+              panic!("[{cycle}] MemoryWrite: cannot find mem write of byte_addr {byte_addr:#x}")
             });
           let single_mem_write_val = mem_write.writes[mem_write.num_completed_writes].val;
           mem_write.num_completed_writes += 1;
-          assert_eq!(single_mem_write_val, data_byte, "[{cycle}] expect mem write of byte {single_mem_write_val:02X}, actual byte {data_byte:02X} (byte_addr={byte_addr:08X}, pc = {:#x}, disasm = {})", se.pc, se.disasm);
+          assert_eq!(single_mem_write_val, data_byte, "[{cycle}] expect mem write of byte {single_mem_write_val:#02x}, actual byte {data_byte:#02x} (byte_addr={byte_addr:#x}, pc = {:#x}, disasm = {})", se.pc, se.disasm);
         });
       return Ok(());
     }
 
-    panic!("[{cycle}] cannot find se with instruction lsu_idx={lsu_idx}")
+    panic!("[{cycle}] MemoryWrite: cannot find se with instruction lsu_idx={lsu_idx}")
   }
 
-  fn vrf_scoreboard_report(&mut self, report: &VrfScoreboardReportEvent) -> anyhow::Result<()> {
-    let count = report.count;
-    let issue_idx = report.issue_idx;
-    let cycle = report.cycle;
+  fn vrf_scoreboard(&mut self, vrf_scoreboard: &VrfScoreboardEvent) -> anyhow::Result<()> {
+    let count = vrf_scoreboard.count;
+    let issue_idx = vrf_scoreboard.issue_idx;
+    let cycle = vrf_scoreboard.cycle;
 
     let mut should_retire: Option<u8> = None;
 
     if let Some(se) = self.commit_queue.iter_mut().rev().find(|se| se.issue_idx == issue_idx) {
       assert!(
         se.vrf_access_record.retired_writes <= count,
-        "[{cycle}] retired_writes({}) should be less than count({count}), issue_idx={issue_idx} ({})",
+        "[{cycle}] VrfScoreboard: retired_writes({}) should be less than count({count}), issue_idx={issue_idx} ({})",
         se.vrf_access_record.retired_writes, se.describe_insn()
       );
 
@@ -329,12 +329,12 @@ impl JsonEventRunner for SpikeRunner {
       se.vrf_access_record.unretired_writes = Some(count - se.vrf_access_record.retired_writes);
 
       info!(
-        "[{cycle}] VrfScoreboardReport: count={count}, issue_idx={issue_idx}, retired={} ({})",
+        "[{cycle}] VrfScoreboard: count={count}, issue_idx={issue_idx}, retired={} ({})",
         se.vrf_access_record.retired_writes,
         se.describe_insn()
       );
     } else {
-      panic!("[{cycle}] cannot find se with instruction issue_idx={issue_idx}");
+      panic!("[{cycle}] VrfScoreboard: cannot find se with instruction issue_idx={issue_idx}");
     }
 
     if let Some(issue_idx) = should_retire {
@@ -362,7 +362,7 @@ impl JsonEventRunner for SpikeRunner {
 
     let se =
       self.commit_queue.iter_mut().find(|se| se.issue_idx == issue_idx).unwrap_or_else(|| {
-        panic!("[{cycle}] cannot find se with instruction issue_idx={issue_idx}")
+        panic!("[{cycle}] CheckRd: cannot find se with instruction issue_idx={issue_idx}")
       });
 
     info!("[{cycle}] CheckRd: issue_idx={issue_idx}, data={data:x?}");
