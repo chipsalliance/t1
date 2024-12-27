@@ -40,9 +40,9 @@ pub fn diff(runner: &mut SpikeRunner, event: &JsonEvents) -> anyhow::Result<()> 
       runner.cycle = *cycle;
       runner.check_rd(&CheckRdEvent { data: *data, issue_idx: *issue_idx, cycle: *cycle })
     }
-    JsonEvents::VrfScoreboardReport { count, issue_idx, cycle } => {
+    JsonEvents::VrfScoreboard { count, issue_idx, cycle } => {
       runner.cycle = *cycle;
-      runner.vrf_scoreboard_report(&VrfScoreboardReportEvent {
+      runner.vrf_scoreboard(&VrfScoreboardEvent {
         count: *count,
         issue_idx: *issue_idx,
         cycle: *cycle,
