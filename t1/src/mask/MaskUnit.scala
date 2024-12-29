@@ -628,7 +628,7 @@ class MaskUnit(val parameter: T1Parameter)
   // todo: param
   val readDataQueueSize: Int = 8
   // todo: param
-  val reorderQueueSize:  Int = 16
+  val reorderQueueSize:  Int = 2 * parameter.laneNumber
 
   // The queue waiting to read data. This queue contains other information about this group.
   // 64: todo: max or token?
