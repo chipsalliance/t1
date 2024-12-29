@@ -713,6 +713,11 @@ class MaskUnitReadState(parameter: T1Parameter) extends Bundle {
   val last:           Bool      = Bool()
 }
 
+class MaskReadReorderQueue(parameter: T1Parameter) extends Bundle {
+  val data:    UInt = UInt(parameter.datapathWidth.W)
+  val write1H: UInt = UInt(parameter.laneNumber.W)
+}
+
 class MaskUnitInstReq(parameter: T1Parameter) extends Bundle {
   val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
   val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)

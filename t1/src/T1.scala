@@ -547,7 +547,7 @@ class T1(val parameter: T1Parameter)
     parameter.instructionIndexBits
   )
 
-  val gatherNeedRead: Bool = requestRegDequeue.valid && decodeResult(Decoder.gather)
+  val gatherNeedRead: Bool = requestRegDequeue.valid && decodeResult(Decoder.gather) && !decodeResult(Decoder.vtype)
 
   /** state machine register for each instruction. */
   val slots: Seq[InstructionControl] = Seq.tabulate(parameter.chainingSize) { index =>
