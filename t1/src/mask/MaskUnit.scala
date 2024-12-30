@@ -724,7 +724,8 @@ class MaskUnit(val parameter: T1Parameter)
       (readTypeRequestDeq || !readIssueStageValid) && instVlValid && readType &&
       accessCountQueue.enq.ready && reorderQueueAllocate
   val requestStageDeq:      Bool = Mux(readType, readIssueStageEnq, otherTypeRequestDeq && executeReady)
-  slideAddressGen.indexDeq.ready := readTypeRequestDeq || !readIssueStageValid
+  slideAddressGen.indexDeq.ready := (readTypeRequestDeq || !readIssueStageValid) &&
+    accessCountQueue.enq.ready && reorderQueueAllocate
   when(anyReadFire) {
     readIssueStageState.groupReadState := readStateUpdate
   }
