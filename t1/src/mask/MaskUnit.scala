@@ -786,13 +786,15 @@ class MaskUnit(val parameter: T1Parameter)
     .tabulate(parameter.laneNumber) { i =>
       val tokenSize         = log2Ceil(reorderQueueSize + 1)
       val counter           = RegInit(0.U(tokenSize.W))
+      val counterWillUpdate = RegInit(0.U(tokenSize.W))
       val release           = reorderQueueVec(i).deq.fire
       val allocate          = Mux(readIssueStageEnq, accessCountEnq(i), 0.U)
+      val counterUpdate     = counter + allocate - release
       when(release || readIssueStageEnq) {
-        counter := counter + allocate - release
+        counter           := counterUpdate
+        // counter if allocate all
+        counterWillUpdate := counterUpdate + parameter.laneNumber.U(tokenSize.W)
       }
-      // counter if allocate all
-      val counterWillUpdate = counter + parameter.laneNumber.U(tokenSize.W)
       !counterWillUpdate(tokenSize - 1)
     }
     .reduce(_ && _)
