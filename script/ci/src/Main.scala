@@ -203,10 +203,27 @@ object Main:
         os.Path(sys.env("GITHUB_STEP_SUMMARY")),
         failedTests.map(s => s"* ${s}\n").mkString
       )
+      os.write.append(os.Path(sys.env("GITHUB_STEP_SUMMARY")), s"Job URL: ${findCurrentJobURL()}")
       Logger.fatal(
         s"${BOLD}${failedTests.length} tests failed${RESET}"
       )
   end runTests
+
+  // Search job HTML page by github run id
+  @main
+  def findCurrentJobURL() =
+    val runID    = sys.env("GITHUB_RUN_ID")
+    val jobName  = sys.env("GITHUB_JOB_NAME")
+    Logger.info(s"Getting URL for Run ID: ${runID}, job ${jobName}")
+    val response = requests.get.stream(s"https://api.github.com/repos/chipsalliance/t1/actions/runs/${runID}/jobs")
+    val ciData = ujson.read(response)
+    ciData
+      .obj("jobs")
+      .arr
+      .filter(job => job.obj("name").str == jobName)
+      .map(job => job.obj("html_url").str)
+      .head
+  end findCurrentJobURL
 
   // PostCI do the below four things:
   //   * read default.json at .github/cases/$config/default.json

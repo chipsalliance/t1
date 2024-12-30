@@ -12,10 +12,11 @@ trait ScriptModule extends ScalaModule with ScalafmtModule {
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val oslib    = ivy"com.lihaoyi::os-lib:0.10.0"
   val upickle  = ivy"com.lihaoyi::upickle:3.3.1"
+  val requests = ivy"com.lihaoyi::requests:0.9.0"
 
   def scalaVersion     = scala3
   def scalacOptions    = Seq("-new-syntax", "-deprecation")
-  override def ivyDeps = Agg(mainargs, oslib, upickle)
+  override def ivyDeps = Agg(mainargs, oslib, upickle, requests)
 }
 
 object emu extends ScriptModule {}
