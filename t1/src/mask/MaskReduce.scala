@@ -139,7 +139,8 @@ class MaskReduce(val parameter: MaskReduceParameter)
   when(stateWait) { waitCount := waitCount + 1.U }
   val resFire:   Bool = stateWait && waitCount === (floatAdderLatency - 1).U
   updateResult :=
-    stateLast || ((stateCross || stateOrder) && sourceValid && !floatAdd) || resFire
+    stateLast || (stateCross && sourceValid && !floatAdd) || (resFire && sourceValid)
+  val waiteDeq: Bool = stateWait && resFire
 
   // state update
   in.ready := stateIdle
@@ -159,20 +160,18 @@ class MaskReduce(val parameter: MaskReduceParameter)
     }
   }
 
-  when(stateWait && resFire) {
+  when(waiteDeq) {
     when(groupLastReduce) {
       state    := Mux(reqReg.lastGroup && needFold, lastFold, idle)
       outValid := reqReg.lastGroup && !needFold
     }.otherwise {
-      state := crossFold
+      state := Mux(order, orderRed, crossFold)
     }
   }
 
   when(stateOrder) {
-    when(groupLastReduce) {
-      state    := idle
-      outValid := reqReg.lastGroup
-    }
+    state     := waitRes
+    waitCount := 0.U
   }
 
   when(stateLast) {
@@ -195,7 +194,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
 
   // count update
   // todo: stateCross <=> stateOrder ??
-  when(stateCross || stateOrder || in.fire) {
+  when((stateCross && !floatType) || waiteDeq || in.fire) {
     crossFoldCount := Mux(in.fire, 0.U, crossFoldCount + 1.U)
   }
 
