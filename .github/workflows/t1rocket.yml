@@ -70,7 +70,10 @@ jobs:
           nix run ".#ci-helper" -- generateCiMatrix --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
-    name: "Run T1Rocket VCS"
+    name: "Run T1Rocket VCS (${{ matrix.id }})"
+    # This env is here to help script to find current job URL
+    env:
+      GITHUB_JOB_NAME: "Run T1Rocket VCS (${{ matrix.id }})"
     needs: [gen-matrix]
     strategy:
       fail-fast: false

@@ -70,7 +70,9 @@ jobs:
           nix run ".#ci-helper" -- generateCiMatrix --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
-    name: "Run VCS"
+    name: "Run VCS (${{ matrix.id }})"
+    env:
+      GITHUB_JOB_NAME: "Run VCS (${{ matrix.id }})"
     needs: [gen-matrix]
     strategy:
       fail-fast: false
