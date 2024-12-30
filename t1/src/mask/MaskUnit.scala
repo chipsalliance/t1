@@ -256,6 +256,7 @@ class MaskUnit(val parameter: T1Parameter)
   val ffo:                 Bool = instReg.decodeResult(Decoder.topUop) === BitPat("b0111?")
   val extendType:          Bool = unitType(3) && (subType(2) || subType(1))
   val pop:                 Bool = instReg.decodeResult(Decoder.popCount)
+  val readValid:           Bool = readType && instVlValid
 
   // Instructions for writing vd without source
   val noSource: Bool = mv || viota
@@ -458,7 +459,7 @@ class MaskUnit(val parameter: T1Parameter)
   val readIssueStageState: MaskUnitReadState = RegInit(0.U.asTypeOf(new MaskUnitReadState(parameter)))
   val readIssueStageValid: Bool              = RegInit(false.B)
 
-  val accessCountType: Vec[UInt] = Vec(parameter.laneNumber, UInt(log2Ceil(parameter.laneNumber).W))
+  val accessCountType: Vec[UInt] = Vec(parameter.laneNumber, UInt(log2Ceil(parameter.laneNumber + 1).W))
   val accessCountEnq   = Wire(accessCountType)
   // todo: param 16
   val accessCountQueue = Queue.io(accessCountType, 8)
@@ -788,7 +789,7 @@ class MaskUnit(val parameter: T1Parameter)
       val tokenSize         = log2Ceil(reorderQueueSize + 1)
       val counter           = RegInit(0.U(tokenSize.W))
       val counterWillUpdate = RegInit(0.U(tokenSize.W))
-      val release           = reorderQueueVec(i).deq.fire && readType
+      val release           = reorderQueueVec(i).deq.fire && readValid
       val allocate          = Mux(readIssueStageEnq, accessCountEnq(i), 0.U)
       val counterUpdate     = counter + allocate - release
       when(release || readIssueStageEnq) {
@@ -823,7 +824,7 @@ class MaskUnit(val parameter: T1Parameter)
     val readMessageQueue: QueueIO[MaskUnitReadPipe] =
       Queue.io(new MaskUnitReadPipe(parameter), readVRFLatency + 4)
     val reorderQueue = reorderQueueVec(index)
-    val deqAllocate  = !readType || reorderStageValid && (reorderStageState(index) =/= reorderStageNeed(index))
+    val deqAllocate  = !readValid || reorderStageValid && (reorderStageState(index) =/= reorderStageNeed(index))
     val sourceLane   = UIntToOH(request.bits.writeIndex)
     readChannel(index).valid                 := request.valid && readMessageQueue.enq.ready
     readChannel(index).bits.readSource       := 2.U
