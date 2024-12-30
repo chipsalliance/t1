@@ -788,7 +788,7 @@ class MaskUnit(val parameter: T1Parameter)
       val tokenSize         = log2Ceil(reorderQueueSize + 1)
       val counter           = RegInit(0.U(tokenSize.W))
       val counterWillUpdate = RegInit(0.U(tokenSize.W))
-      val release           = reorderQueueVec(i).deq.fire
+      val release           = reorderQueueVec(i).deq.fire && readType
       val allocate          = Mux(readIssueStageEnq, accessCountEnq(i), 0.U)
       val counterUpdate     = counter + allocate - release
       when(release || readIssueStageEnq) {
