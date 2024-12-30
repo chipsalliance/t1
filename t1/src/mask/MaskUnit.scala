@@ -848,7 +848,7 @@ class MaskUnit(val parameter: T1Parameter)
 
     reorderQueue.deq.ready       := deqAllocate
     write1HPipe(index)           := Mux(
-      reorderQueue.deq.fire,
+      reorderQueue.deq.fire && !maskDestinationType,
       reorderQueue.deq.bits.write1H,
       0.U(parameter.laneNumber.W)
     )
