@@ -194,7 +194,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
 
   // count update
   // todo: stateCross <=> stateOrder ??
-  when((stateCross && !floatType) || waiteDeq || in.fire) {
+  when((stateCross && !floatAdd) || waiteDeq || in.fire) {
     crossFoldCount := Mux(in.fire, 0.U, crossFoldCount + 1.U)
   }
 
