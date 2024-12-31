@@ -98,6 +98,7 @@ case class LaneParameter(
   crossLaneVRFWriteEscapeQueueSize: Int,
   fpuEnable:                        Boolean,
   portFactor:                       Int,
+  maskRequestLatency:               Int,
   vrfRamType:                       RamType,
   decoderParam:                     DecoderParam,
   vfuInstantiateParameter:          VFUInstantiateParameter)
@@ -233,11 +234,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(parameter))))
 
-  /** CSR Interface. TODO: merge to [[laneRequest]]
-    */
-  @public
-  val csrInterface: CSRInterface = IO(Input(new CSRInterface(parameter.vlMaxBits)))
-
   @public
   val maskUnitRequest: ValidIO[MaskUnitExeReq] = IO(Valid(new MaskUnitExeReq(parameter)))
 
@@ -280,7 +276,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** V0 update in the lane should also update [[T1.v0]] */
   @public
-  val v0Update: ValidIO[V0Update] = IO(Valid(new V0Update(parameter)))
+  val v0Update: ValidIO[V0Update] = IO(Valid(new V0Update(parameter.datapathWidth, parameter.vrfOffsetBits)))
 
   /** input of mask data */
   @public
@@ -319,26 +315,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val laneProbe = IO(Output(Probe(new LaneProbe(parameter), layers.Verification)))
 
-  @public
-  val vrfAllocateIssue: Bool = IO(Output(Bool()))
-
   // TODO: remove
   dontTouch(writeBusPort)
+  val csrInterface: CSRInterface = laneRequest.bits.csrInterface
 
   /** VRF instantces. */
   val vrf: Instance[VRF] = Instantiate(new VRF(parameter.vrfParam))
   omInstance.vrfIn := Property(vrf.om.asAnyClassType)
-
-  /** TODO: review later
-    */
-  val maskGroupedOrR: UInt = VecInit(
-    maskInput.asBools
-      .grouped(parameter.dataPathByteWidth)
-      .toSeq
-      .map(
-        VecInit(_).asUInt.orR
-      )
-  ).asUInt
 
   val fullMask: UInt = (-1.S(parameter.datapathWidth.W)).asUInt
 
@@ -353,9 +336,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val maskIndexVec: Vec[UInt] =
     RegInit(VecInit(Seq.fill(parameter.chainingSize)(0.U(log2Ceil(parameter.maskGroupWidth).W))))
 
-  /** the find first one index register in this lane. */
-  val ffoIndexReg: UInt = RegInit(0.U(log2Ceil(parameter.vLen / 8).W))
-
   /** result of reduce instruction. */
   val reduceResult: UInt = RegInit(0.U(parameter.datapathWidth.W))
 
@@ -363,7 +343,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     */
   val vrfWriteArbiter: Vec[DecoupledIO[VRFWriteRequest]] = Wire(
     Vec(
-      parameter.chainingSize + 2,
+      parameter.chainingSize + 1,
       Decoupled(
         new VRFWriteRequest(
           parameter.vrfParam.regNumBits,
@@ -375,31 +355,76 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     )
   )
 
-  val lsuWriteQueue: QueueIO[VRFWriteRequest] = Queue.io(vrfWriteType, 1, flow = true)
-  // connect lsuWriteQueue.enq
-  lsuWriteQueue.enq.valid := vrfWriteChannel.valid && !writeFromMask
-  lsuWriteQueue.enq.bits  := vrfWriteChannel.bits
-  vrfWriteChannel.ready   := writeFromMask || lsuWriteQueue.enq.ready
+  vrfWriteArbiter(parameter.chainingSize).valid := vrfWriteChannel.valid
+  vrfWriteArbiter(parameter.chainingSize).bits  := vrfWriteChannel.bits
+  vrfWriteChannel.ready                         := vrfWriteArbiter(parameter.chainingSize).ready
 
-  val maskWriteQueue: QueueIO[VRFWriteRequest] = Queue.io(vrfWriteType, parameter.maskUnitVefWriteQueueSize)
-  // connect maskWriteQueue.enq
-  maskWriteQueue.enq.valid := vrfWriteChannel.valid && writeFromMask
-  maskWriteQueue.enq.bits  := vrfWriteChannel.bits
-
-  vrfWriteArbiter(parameter.chainingSize).valid := lsuWriteQueue.deq.valid
-  vrfWriteArbiter(parameter.chainingSize).bits  := lsuWriteQueue.deq.bits
-  lsuWriteQueue.deq.ready                       := vrfWriteArbiter(parameter.chainingSize).ready
-
-  vrfWriteArbiter(parameter.chainingSize + 1).valid := maskWriteQueue.deq.valid
-  vrfWriteArbiter(parameter.chainingSize + 1).bits  := maskWriteQueue.deq.bits
-  maskWriteQueue.deq.ready                          := vrfWriteArbiter(parameter.chainingSize + 1).ready
-
-  val allVrfWriteAfterCheck:  Seq[VRFWriteRequest] = Seq.tabulate(parameter.chainingSize + 4) { i =>
+  val allVrfWriteAfterCheck:  Seq[VRFWriteRequest] = Seq.tabulate(parameter.chainingSize + 3) { i =>
     RegInit(0.U.asTypeOf(vrfWriteArbiter.head.bits))
   }
-  val afterCheckValid:        Seq[Bool]            = Seq.tabulate(parameter.chainingSize + 4) { _ => RegInit(false.B) }
-  val afterCheckDequeueReady: Vec[Bool]            = Wire(Vec(parameter.chainingSize + 4, Bool()))
+  val afterCheckValid:        Seq[Bool]            = Seq.tabulate(parameter.chainingSize + 3) { _ => RegInit(false.B) }
+  val afterCheckDequeueReady: Vec[Bool]            = Wire(Vec(parameter.chainingSize + 3, Bool()))
   val afterCheckDequeueFire:  Seq[Bool]            = afterCheckValid.zip(afterCheckDequeueReady).map { case (v, r) => v && r }
+
+  // todo: mv to bundle.scala
+  class MaskControl(parameter: LaneParameter) extends Bundle {
+    val index:         UInt = UInt(parameter.instructionIndexBits.W)
+    val sew:           UInt = UInt(2.W)
+    val maskData:      UInt = UInt(parameter.datapathWidth.W)
+    val group:         UInt = UInt(parameter.maskGroupSizeBits.W)
+    val dataValid:     Bool = Bool()
+    val waiteResponse: Bool = Bool()
+    val controlValid:  Bool = Bool()
+  }
+
+  val maskControlRelease: Vec[ValidIO[UInt]] =
+    Wire(Vec(parameter.chainingSize, Valid(UInt(parameter.instructionIndexBits.W))))
+
+  val maskControlEnq:       UInt             = Wire(UInt(parameter.chainingSize.W))
+  val maskControlDataDeq:   UInt             = Wire(UInt(parameter.chainingSize.W))
+  val maskControlReq:       Vec[Bool]        = Wire(Vec(parameter.chainingSize, Bool()))
+  val maskControlReqSelect: UInt             = ffo(maskControlReq.asUInt)
+  // mask request & response handle
+  val maskControlVec:       Seq[MaskControl] = Seq.tabulate(parameter.chainingSize) { index =>
+    val state = RegInit(0.U.asTypeOf(new MaskControl(parameter)))
+    val releaseHit: Bool = maskControlRelease.map(r => r.valid && (r.bits === state.index)).reduce(_ || _)
+    val responseFire =
+      Pipe(maskControlReqSelect(index), 0.U.asTypeOf(new EmptyBundle), parameter.maskRequestLatency).valid
+
+    when(maskControlEnq(index)) {
+      state              := 0.U.asTypeOf(state)
+      state.index        := laneRequest.bits.instructionIndex
+      state.sew          := laneRequest.bits.csrInterface.vSew
+      state.controlValid := true.B
+    }
+
+    when(state.controlValid) {
+      when(releaseHit) {
+        state.controlValid := false.B
+      }
+    }
+
+    maskControlReq(index) := state.controlValid && !state.dataValid && !state.waiteResponse
+    when(maskControlReqSelect(index)) {
+      state.waiteResponse := true.B
+      state.group         := state.group + 1.U
+    }
+
+    when(responseFire) {
+      state.dataValid     := true.B
+      state.waiteResponse := false.B
+      state.maskData      := maskInput
+    }
+
+    when(maskControlDataDeq(index)) {
+      state.dataValid := false.B
+    }
+
+    state
+  }
+  val maskControlFree:      Seq[Bool]        = maskControlVec.map(s => !s.controlValid && !s.waiteResponse)
+  val freeSelect:           UInt             = ffo(VecInit(maskControlFree).asUInt)
+  maskControlEnq := maskAnd(laneRequest.fire && laneRequest.bits.mask, freeSelect)
 
   /** for each slot, assert when it is asking [[T1]] to change mask */
   val slotMaskRequestVec: Vec[ValidIO[UInt]] = Wire(
@@ -410,7 +435,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   )
 
   /** which slot wins the arbitration for requesting mask. */
-  val maskRequestFireOH: UInt = Wire(UInt(parameter.chainingSize.W))
+  val maskRequestFireOH: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
+  val maskDataVec:       Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.maskGroupWidth.W)))
 
   /** FSM control for each slot. if index == 0,
     *   - slot can support write v0 in mask type, see [[Decoder.maskDestination]] [[Decoder.maskSource]]
@@ -515,8 +541,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // Overflow occurs
   val vxsatEnq: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt((2 * parameter.chainingSize).W)))
+
+  val instructionFinishInSlot: UInt = Wire(UInt((2 * parameter.chainingSize).W))
   // vxsatEnq and instructionFinished cannot happen at the same time
-  vxsatResult := (vxsatEnq.reduce(_ | _) | vxsatResult) & (~instructionFinished).asUInt
+  vxsatResult := (vxsatEnq.reduce(_ | _) | vxsatResult) & (~instructionFinishInSlot).asUInt
 
   /** assert when a instruction will not use mask unit */
   val instructionUnrelatedMaskUnitVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chainingSize.W)))
@@ -555,7 +583,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       record.laneRequest.decodeResult(Decoder.maskLogic)
 
     /** onehot value of SEW. */
-    val vSew1H: UInt = UIntToOH(record.csr.vSew)(2, 0)
+    val vSew1H: UInt = UIntToOH(record.laneRequest.csrInterface.vSew)(2, 0)
 
     /** if asserted, the element won't be executed. adc: vm = 0; madc: vm = 0 -> s0 + s1 + c, vm = 1 -> s0 + s1
       */
@@ -598,7 +626,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       maskUnitRequest <> mask.maskReq
       maskRequestToLSU <> mask.maskRequestToLSU
       tokenIO <> mask.tokenIO
-      tokenIO.maskResponseRelease := maskWriteQueue.deq.fire
       mask.dequeue
     }.getOrElse(stage3EnqWire)
     stage3.enqueue <> stage3EnqSelect
@@ -611,7 +638,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     laneState.lastGroupForInstruction  := record.lastGroupForInstruction
     laneState.isLastLaneForInstruction := record.isLastLaneForInstruction
     laneState.instructionFinished      := record.instructionFinished
-    laneState.csr                      := record.csr
+    laneState.csr                      := record.laneRequest.csrInterface
     laneState.maskType                 := record.laneRequest.mask
     laneState.maskNotMaskedElement     := !record.laneRequest.mask ||
       record.laneRequest.decodeResult(Decoder.maskSource) ||
@@ -634,19 +661,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       laneState.elements.get(k).foreach(stateData => d := stateData)
     }
 
+    maskControlRelease(index).valid := false.B
+    maskControlRelease(index).bits  := record.laneRequest.instructionIndex
     // update lane state
     when(stage0.enqueue.fire) {
       maskGroupCountVec(index) := stage0.updateLaneState.maskGroupCount
       // todo: handle all elements in first group are masked
       maskIndexVec(index)      := stage0.updateLaneState.maskIndex
       when(stage0.updateLaneState.outOfExecutionRange) {
-        slotOccupied(index) := false.B
+        slotOccupied(index)             := false.B
+        maskControlRelease(index).valid := true.B
       }
     }
 
     // update mask todo: handle maskRequestFireOH
     slotMaskRequestVec(index).valid :=
-      record.laneRequest.mask &&
+      record.laneRequest.mask && slotOccupied(index) &&
         ((stage0.enqueue.fire && stage0.updateLaneState.maskExhausted) || !record.mask.valid)
     slotMaskRequestVec(index).bits  := stage0.updateLaneState.maskGroupCount
     // There are new masks
@@ -655,7 +685,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val maskFailure:    Bool = stage0.updateLaneState.maskExhausted && stage0.enqueue.fire
     // update mask register
     when(maskUpdateFire) {
-      record.mask.bits := maskInput
+      record.mask.bits := maskDataVec(index)
     }
     when(maskUpdateFire ^ maskFailure) {
       record.mask.valid := maskUpdateFire
@@ -853,8 +883,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // It’s been a long time since I selected it. Need pipe
   val queueBeforeMaskWrite: QueueIO[VRFWriteRequest] =
     Queue.io(chiselTypeOf(maskedWriteUnit.enqueue.bits), entries = 1, pipe = true)
-  val writeSelect:          UInt                     = Wire(UInt((parameter.chainingSize + 4).W))
+  val writeSelect:          UInt                     = Wire(UInt((parameter.chainingSize + 3).W))
   val writeCavitation:      UInt                     = VecInit(allVrfWriteAfterCheck.map(_.mask === 0.U)).asUInt
+  val slotEnqueueFire:      Seq[Bool]                = Seq.tabulate(parameter.chainingSize)(_ => Wire(Bool()))
 
   // 处理 rf
   {
@@ -931,20 +962,22 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   }
 
   {
-    // 处理mask的请求
-    val maskSelectArbitrator = ffo(
-      VecInit(slotMaskRequestVec.map(_.valid)).asUInt ##
-        (laneRequest.valid && (laneRequest.bits.mask || laneRequest.bits.decodeResult(Decoder.maskSource)))
-    )
-    maskRequestFireOH := maskSelectArbitrator(parameter.chainingSize, 1)
-    maskSelect        := Mux1H(
-      maskSelectArbitrator,
-      0.U.asTypeOf(slotMaskRequestVec.head.bits) +: slotMaskRequestVec.map(_.bits)
-    )
-    maskSelectSew     := Mux1H(
-      maskSelectArbitrator,
-      csrInterface.vSew +: slotControl.map(_.csr.vSew)
-    )
+    maskSelect         := Mux1H(maskControlReqSelect, maskControlVec.map(_.group))
+    maskSelectSew      := Mux1H(maskControlReqSelect, maskControlVec.map(_.sew))
+    maskControlDataDeq := slotMaskRequestVec.zipWithIndex.map { case (req, index) =>
+      val slotIndex      = slotControl(index).laneRequest.instructionIndex
+      val hitMaskControl = VecInit(maskControlVec.map(c => c.index === slotIndex && c.controlValid)).asUInt
+      val dataValid      = Mux1H(hitMaskControl, maskControlVec.map(_.dataValid))
+      val data           = Mux1H(hitMaskControl, maskControlVec.map(_.maskData))
+      val group          = Mux1H(hitMaskControl, maskControlVec.map(_.group))
+      val sameGroup      = group === req.bits
+      dontTouch(sameGroup)
+      val hitShifter: Bool = if (index == 0) false.B else slotEnqueueFire(index - 1)
+      val maskRequestFire = req.valid && dataValid && !hitShifter
+      maskRequestFireOH(index) := maskRequestFire
+      maskDataVec(index)       := data
+      maskAnd(maskRequestFire, hitMaskControl).asUInt
+    }.reduce(_ | _)
   }
 
   // package a control logic for incoming instruction.
@@ -954,8 +987,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val maskLogicCompleted: Bool =
     laneRequest.bits.decodeResult(Decoder.maskLogic) &&
       (laneIndex ## 0.U(parameter.datapathWidthBits.W) >= csrInterface.vl)
-  // latch CSR from V
-  entranceControl.csr := csrInterface
 
   entranceControl.laneRequest         := laneRequest.bits
   // TODO: in scalar core, raise illegal instruction exception when vstart is nonzero.
@@ -969,9 +1000,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       // for 'nr' type instructions, they will need another complete signal.
       !(laneRequest.bits.decodeResult(Decoder.nr) || laneRequest.bits.lsWholeReg)
   // indicate if this is the mask type.
-  entranceControl.mask.valid          := laneRequest.bits.mask
+  entranceControl.mask.valid          := false.B
   // assign mask from [[V]]
-  entranceControl.mask.bits           := maskInput
+  entranceControl.mask.bits           := DontCare
   // mask used for VRF write in this group.
   entranceControl.vrfWriteMask        := 0.U
 
@@ -1050,20 +1081,19 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     pre || !current
   }
 
-  val slotEnqueueFire: Seq[Bool] = Seq.tabulate(parameter.chainingSize) { slotIndex =>
+  Seq.tabulate(parameter.chainingSize) { slotIndex =>
     val enqueueReady: Bool = Wire(Bool())
     val enqueueValid: Bool = Wire(Bool())
     val enqueueFire:  Bool = enqueueReady && enqueueValid
     // enqueue from lane request
     if (slotIndex == parameter.chainingSize - 1) {
       enqueueValid := laneRequest.valid
-      enqueueReady := slotShiftValid(slotIndex) && vrf.instructionWriteReport.ready
+      enqueueReady := slotShiftValid(slotIndex)
       when(enqueueFire) {
         slotControl(slotIndex)       := entranceControl
         maskGroupCountVec(slotIndex) := 0.U(parameter.maskGroupSizeBits.W)
         maskIndexVec(slotIndex)      := 0.U(log2Ceil(parameter.maskGroupWidth).W)
       }
-      enqueueFire
     } else {
       // shifter for slot
       enqueueValid := slotCanShift(slotIndex + 1) && slotOccupied(slotIndex + 1)
@@ -1073,8 +1103,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         maskGroupCountVec(slotIndex) := maskGroupCountVec(slotIndex + 1)
         maskIndexVec(slotIndex)      := maskIndexVec(slotIndex + 1)
       }
-      enqueueFire
     }
+    slotEnqueueFire(slotIndex) := enqueueFire
   }
 
   val slotDequeueFire: Seq[Bool] = (slotCanShift.head && slotOccupied.head) +: slotEnqueueFire
@@ -1087,7 +1117,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // handshake
   // @todo @Clo91eaf lane can take request from Sequencer
-  laneRequest.ready := slotFree && vrf.instructionWriteReport.ready
+  laneRequest.ready := slotFree
 
   val instructionFinishAndNotReportByTop: Bool =
     entranceControl.instructionFinished && !laneRequest.bits.decodeResult(Decoder.readOnly) && (writeCount === 0.U)
@@ -1119,7 +1149,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.state.wLaneLastReport  := !laneRequest.valid
   vrf.instructionWriteReport.bits.state.wTopLastReport   := !laneRequest.bits.decodeResult(Decoder.maskUnit)
   vrf.instructionWriteReport.bits.state.wLaneClear       := false.B
-  vrfAllocateIssue                                       := vrf.vrfAllocateIssue
 
   val elementSizeForOneRegister: Int  = parameter.vLen / parameter.datapathWidth / parameter.laneNumber
   val nrMask:                    UInt = VecInit(Seq.tabulate(8) { i =>
@@ -1153,17 +1182,23 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   vrf.instructionWriteReport.bits.elementMask := selectMask
 
+  instructionFinishInSlot := (~instructionValid).asUInt & instructionValidNext
+
+  val emptyInstValid: Bool = RegNext(laneRequest.bits.issueInst && !vrf.instructionWriteReport.valid, false.B)
+  val emptyInstCount: UInt = RegNext(indexToOH(laneRequest.bits.instructionIndex, parameter.chainingSize))
+  val emptyReport:    UInt = maskAnd(emptyInstValid, emptyInstCount).asUInt
+
   // clear record by instructionFinished
-  vrf.instructionLastReport                 := instructionFinished
+  vrf.instructionLastReport                 := instructionFinishInSlot
   vrf.lsuLastReport                         := lsuLastReport
   vrf.loadDataInLSUWriteQueue               := loadDataInLSUWriteQueue
   vrf.dataInLane                            := instructionValid
-  instructionFinished                       := (~instructionValid).asUInt & instructionValidNext
+  instructionFinished                       := vrf.vrfSlotRelease | emptyReport
   writeReadyForLsu                          := vrf.writeReadyForLsu
   vrfReadyToStore                           := vrf.vrfReadyToStore
   tokenManager.crossWriteReports.zipWithIndex.foreach { case (rpt, rptIndex) =>
-    rpt.valid := afterCheckDequeueFire(parameter.chainingSize + 2 + rptIndex)
-    rpt.bits  := allVrfWriteAfterCheck(parameter.chainingSize + 2 + rptIndex).instructionIndex
+    rpt.valid := afterCheckDequeueFire(parameter.chainingSize + 1 + rptIndex)
+    rpt.bits  := allVrfWriteAfterCheck(parameter.chainingSize + 1 + rptIndex).instructionIndex
   }
   // todo: add mask unit write token
   tokenManager.responseReport.valid         := maskUnitRequest.valid
@@ -1199,13 +1234,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   tokenManager.topWriteEnq.valid := vrfWriteChannel.fire
   tokenManager.topWriteEnq.bits  := vrfWriteChannel.bits.instructionIndex
-  tokenManager.fromMask          := writeFromMask
 
-  tokenManager.lsuWriteDeq.valid := afterCheckDequeueFire(parameter.chainingSize)
-  tokenManager.lsuWriteDeq.bits  := allVrfWriteAfterCheck(parameter.chainingSize).instructionIndex
-
-  tokenManager.maskWriteDeq.valid := afterCheckDequeueFire(parameter.chainingSize + 1)
-  tokenManager.maskWriteDeq.bits  := allVrfWriteAfterCheck(parameter.chainingSize + 1).instructionIndex
+  tokenManager.topWriteDeq.valid := afterCheckDequeueFire(parameter.chainingSize)
+  tokenManager.topWriteDeq.bits  := allVrfWriteAfterCheck(parameter.chainingSize).instructionIndex
 
   tokenManager.maskUnitLastReport := lsuLastReport
 

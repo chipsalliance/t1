@@ -94,13 +94,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   val topWriteEnq: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
-  val fromMask: Bool = IO(Input(Bool()))
-
-  @public
-  val lsuWriteDeq: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
-
-  @public
-  val maskWriteDeq: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+  val topWriteDeq: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
   val instructionValid: UInt = IO(Output(UInt((2 * parameter.chainingSize).W)))
@@ -212,27 +206,16 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   val instructionInWritePipe: UInt = tokenUpdate(writePipeToken, writePipeEnq, writePipeDeq)
 
   // lsu & mask write token
-  val lsuWriteToken:  Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
-  val maskWriteToken: Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
+  val topWriteToken: Seq[UInt] = Seq.tabulate(2 * parameter.chainingSize)(_ => RegInit(0.U(tokenWith.W)))
 
   val topWriteDoEnq: UInt =
     maskAnd(topWriteEnq.valid, indexToOH(topWriteEnq.bits, parameter.chainingSize)).asUInt
 
-  val lsuWriteDoEnq: UInt =
-    maskAnd(topWriteEnq.valid && !fromMask, indexToOH(topWriteEnq.bits, parameter.chainingSize)).asUInt
+  val topWriteDoDeq: UInt =
+    maskAnd(topWriteDeq.valid, indexToOH(topWriteDeq.bits, parameter.chainingSize)).asUInt
 
-  val maskWriteDoEnq: UInt =
-    maskAnd(topWriteEnq.valid && fromMask, indexToOH(topWriteEnq.bits, parameter.chainingSize)).asUInt
+  val topWrite: UInt = tokenUpdate(topWriteToken, topWriteDoEnq, topWriteDoDeq)
 
-  val lsuWriteDoDeq: UInt =
-    maskAnd(lsuWriteDeq.valid, indexToOH(lsuWriteDeq.bits, parameter.chainingSize)).asUInt
-
-  val maskWriteDoDeq: UInt =
-    maskAnd(maskWriteDeq.valid, indexToOH(maskWriteDeq.bits, parameter.chainingSize)).asUInt
-
-  val lsuInTopWrite  = tokenUpdate(lsuWriteToken, lsuWriteDoEnq, lsuWriteDoDeq)
-  val maskInTopWrite = tokenUpdate(maskWriteToken, maskWriteDoEnq, maskWriteDoDeq)
-
-  dataInWritePipe  := instructionInWritePipe | lsuInTopWrite | maskInTopWrite
+  dataInWritePipe  := instructionInWritePipe | topWrite
   instructionValid := dataInWritePipe | instructionInSlot
 }
