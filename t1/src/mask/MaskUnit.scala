@@ -39,15 +39,15 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 // 11 11 1 -> maskdestination
 
 class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
-  val clock:             Clock                            = Input(Clock())
-  val reset:             Reset                            = Input(Reset())
-  val instReq:           ValidIO[MaskUnitInstReq]         = Flipped(Valid(new MaskUnitInstReq(parameter)))
-  val exeReq:            Vec[ValidIO[MaskUnitExeReq]]     = Flipped(
+  val clock:             Clock                             = Input(Clock())
+  val reset:             Reset                             = Input(Reset())
+  val instReq:           ValidIO[MaskUnitInstReq]          = Flipped(Valid(new MaskUnitInstReq(parameter)))
+  val exeReq:            Vec[ValidIO[MaskUnitExeReq]]      = Flipped(
     Vec(parameter.laneNumber, Valid(new MaskUnitExeReq(parameter.laneParam)))
   )
-  val exeResp:           Vec[ValidIO[VRFWriteRequest]]    = Vec(
+  val exeResp:           Vec[DecoupledIO[VRFWriteRequest]] = Vec(
     parameter.laneNumber,
-    Valid(
+    Decoupled(
       new VRFWriteRequest(
         parameter.vrfParam.regNumBits,
         parameter.laneParam.vrfOffsetBits,
@@ -56,8 +56,9 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
       )
     )
   )
-  val tokenIO:           Vec[LaneTokenBundle]             = Flipped(Vec(parameter.laneNumber, new LaneTokenBundle))
-  val readChannel:       Vec[DecoupledIO[VRFReadRequest]] = Vec(
+  val writeRelease:      Vec[Bool]                         = Vec(parameter.laneNumber, Input(Bool()))
+  val tokenIO:           Vec[LaneTokenBundle]              = Flipped(Vec(parameter.laneNumber, new LaneTokenBundle))
+  val readChannel:       Vec[DecoupledIO[VRFReadRequest]]  = Vec(
     parameter.laneNumber,
     Decoupled(
       new VRFReadRequest(
@@ -67,28 +68,32 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
       )
     )
   )
-  val readResult:        Vec[UInt]                        = Flipped(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
-  val writeRD:           ValidIO[UInt]                    = Valid(UInt(parameter.datapathWidth.W))
-  val lastReport:        UInt                             = Output(UInt((2 * parameter.chainingSize).W))
-  val lsuMaskInput:      Vec[UInt]                        = Output(Vec(parameter.lsuMSHRSize, UInt(parameter.maskGroupWidth.W)))
-  val lsuMaskSelect:     Vec[UInt]                        = Input(Vec(parameter.lsuMSHRSize, UInt(parameter.lsuParameters.maskGroupSizeBits.W)))
-  val laneMaskInput:     Vec[UInt]                        = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
-  val laneMaskSelect:    Vec[UInt]                        = Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W)))
-  val laneMaskSewSelect: Vec[UInt]                        = Input(Vec(parameter.laneNumber, UInt(2.W)))
-  val v0UpdateVec:       Vec[ValidIO[V0Update]]           = Flipped(Vec(parameter.laneNumber, Valid(new V0Update(parameter.laneParam))))
-  val writeRDData:       UInt                             = Output(UInt(parameter.xLen.W))
-  val gatherData:        DecoupledIO[UInt]                = Decoupled(UInt(parameter.xLen.W))
-  val gatherRead:        Bool                             = Input(Bool())
-  val om:                Property[ClassType]              = Output(Property[AnyClassType]())
+  val readResult:        Vec[ValidIO[UInt]]                = Flipped(Vec(parameter.laneNumber, Valid(UInt(parameter.datapathWidth.W))))
+  val writeRD:           ValidIO[UInt]                     = Valid(UInt(parameter.datapathWidth.W))
+  val lastReport:        UInt                              = Output(UInt((2 * parameter.chainingSize).W))
+  val laneMaskInput:     Vec[UInt]                         = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
+  val laneMaskSelect:    Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W)))
+  val laneMaskSewSelect: Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(2.W)))
+  val v0UpdateVec:       Vec[ValidIO[V0Update]]            = Flipped(
+    Vec(parameter.laneNumber, Valid(new V0Update(parameter.laneParam.datapathWidth, parameter.laneParam.vrfOffsetBits)))
+  )
+  val writeRDData:       UInt                              = Output(UInt(parameter.xLen.W))
+  val gatherData:        DecoupledIO[UInt]                 = Decoupled(UInt(parameter.xLen.W))
+  val gatherRead:        Bool                              = Input(Bool())
+  val om:                Property[ClassType]               = Output(Property[AnyClassType]())
 }
 
 @instantiable
 class MaskUnitOM(parameter: T1Parameter) extends GeneralOM[T1Parameter, MaskUnit](parameter) {
-  @public
   val reduceUnit   = IO(Output(Property[AnyClassType]()))
   @public
   val reduceUnitIn = IO(Input(Property[AnyClassType]()))
   reduceUnit := reduceUnitIn
+
+  val compress   = IO(Output(Property[AnyClassType]()))
+  @public
+  val compressIn = IO(Input(Property[AnyClassType]()))
+  compress := compressIn
 }
 
 // TODO: no T1Parameter here.
@@ -116,8 +121,6 @@ class MaskUnit(val parameter: T1Parameter)
   val readResult        = io.readResult
   val writeRD           = io.writeRD
   val lastReport        = io.lastReport
-  val lsuMaskInput      = io.lsuMaskInput
-  val lsuMaskSelect     = io.lsuMaskSelect
   val laneMaskInput     = io.laneMaskInput
   val laneMaskSelect    = io.laneMaskSelect
   val laneMaskSewSelect = io.laneMaskSewSelect
@@ -128,7 +131,7 @@ class MaskUnit(val parameter: T1Parameter)
 
   // todo: param
   val readQueueSize:          Int = 4
-  val readVRFLatency:         Int = 2
+  val readVRFLatency:         Int = 3
   val maskUnitWriteQueueSize: Int = 8
 
   /** duplicate v0 for mask */
@@ -166,11 +169,6 @@ class MaskUnit(val parameter: T1Parameter)
     val v0ForThisLane: Seq[UInt] = regroupV0.map(rv => cutUInt(rv, parameter.vLen / parameter.laneNumber)(index))
     val v0SelectBySew = Mux1H(UIntToOH(laneMaskSewSelect(index))(2, 0), v0ForThisLane)
     input := cutUInt(v0SelectBySew, parameter.datapathWidth)(laneMaskSelect(index))
-  }
-
-  // lsu
-  lsuMaskInput.zip(lsuMaskSelect).foreach { case (data, index) =>
-    data := cutUInt(v0.asUInt, parameter.maskGroupWidth)(index)
   }
 
   val maskedWrite: BitLevelMaskWrite = Module(new BitLevelMaskWrite(parameter))
@@ -258,6 +256,7 @@ class MaskUnit(val parameter: T1Parameter)
   val ffo:                 Bool = instReg.decodeResult(Decoder.topUop) === BitPat("b0111?")
   val extendType:          Bool = unitType(3) && (subType(2) || subType(1))
   val pop:                 Bool = instReg.decodeResult(Decoder.popCount)
+  val readValid:           Bool = readType && instVlValid
 
   // Instructions for writing vd without source
   val noSource: Bool = mv || viota
@@ -460,6 +459,11 @@ class MaskUnit(val parameter: T1Parameter)
   val readIssueStageState: MaskUnitReadState = RegInit(0.U.asTypeOf(new MaskUnitReadState(parameter)))
   val readIssueStageValid: Bool              = RegInit(false.B)
 
+  val accessCountType: Vec[UInt] = Vec(parameter.laneNumber, UInt(log2Ceil(parameter.laneNumber + 1).W))
+  val accessCountEnq   = Wire(accessCountType)
+  // todo: param 16
+  val accessCountQueue = Queue.io(accessCountType, 8)
+
   def indexAnalysis(sewInt: Int)(elementIndex: UInt, vlmul: UInt, valid: Option[Bool] = None): Seq[UInt] = {
     val intLMULInput: UInt = (1.U << vlmul(1, 0)).asUInt
     val positionSize = parameter.laneParam.vlMaxBits - 1
@@ -624,6 +628,8 @@ class MaskUnit(val parameter: T1Parameter)
 
   // todo: param
   val readDataQueueSize: Int = 8
+  // todo: param
+  val reorderQueueSize:  Int = 2 * parameter.laneNumber
 
   // The queue waiting to read data. This queue contains other information about this group.
   // 64: todo: max or token?
@@ -705,19 +711,22 @@ class MaskUnit(val parameter: T1Parameter)
   val readTypeRequestDeq: Bool =
     (anyReadFire && groupReadFinish) || (readIssueStageValid && readIssueStageState.needRead === 0.U)
 
-  val noSourceValid:       Bool = noSource && counterValid &&
+  val noSourceValid:        Bool = noSource && counterValid &&
     (instReg.vl.orR || (mvRd && !readVS1Reg.sendToExecution))
-  val vs1DataValid:        Bool = readVS1Reg.dataValid || !(unitType(2) || compress || mvRd)
-  val executeReady:        Bool = Wire(Bool())
-  val executeDeqReady:     Bool = VecInit(maskedWrite.in.map(_.ready)).asUInt.andR
-  val otherTypeRequestDeq: Bool =
+  val vs1DataValid:         Bool = readVS1Reg.dataValid || !(unitType(2) || compress || mvRd)
+  val executeReady:         Bool = Wire(Bool())
+  val executeDeqReady:      Bool = VecInit(maskedWrite.in.map(_.ready)).asUInt.andR
+  val otherTypeRequestDeq:  Bool =
     Mux(noSource, noSourceValid, allDataValid) &&
       vs1DataValid && instVlValid && executeDeqReady
-  val readIssueStageEnq:   Bool =
+  val reorderQueueAllocate: Bool = Wire(Bool())
+  val readIssueStageEnq:    Bool =
     (allDataValid || slideAddressGen.indexDeq.valid) &&
-      (readTypeRequestDeq || !readIssueStageValid) && instVlValid && readType
-  val requestStageDeq:     Bool = Mux(readType, readIssueStageEnq, otherTypeRequestDeq && executeReady)
-  slideAddressGen.indexDeq.ready := readTypeRequestDeq || !readIssueStageValid
+      (readTypeRequestDeq || !readIssueStageValid) && instVlValid && readType &&
+      accessCountQueue.enq.ready && reorderQueueAllocate
+  val requestStageDeq:      Bool = Mux(readType, readIssueStageEnq, otherTypeRequestDeq && executeReady)
+  slideAddressGen.indexDeq.ready := (readTypeRequestDeq || !readIssueStageValid) &&
+    accessCountQueue.enq.ready && reorderQueueAllocate
   when(anyReadFire) {
     readIssueStageState.groupReadState := readStateUpdate
   }
@@ -729,6 +738,12 @@ class MaskUnit(val parameter: T1Parameter)
   val executeIndexGrowth: UInt = (1.U << dataSplitSew).asUInt
   when(requestStageDeq && anyDataValid) {
     executeIndex := executeIndex + executeIndexGrowth
+  }
+  accessCountEnq.zipWithIndex.foreach { case (d, i) =>
+    d := PopCount(cutUIntBySize(accessLaneSelect, parameter.laneNumber).zipWithIndex.map {
+      case (accessIndex, sourceIndex) =>
+        (accessIndex === i.U) && !notReadSelect(sourceIndex)
+    })
   }
   when(readIssueStageEnq) {
     readIssueStageState.groupReadState := 0.U
@@ -743,8 +758,15 @@ class MaskUnit(val parameter: T1Parameter)
     readIssueStageState.last           := isVlBoundary
     when(slideAddressGen.indexDeq.fire) {
       readIssueStageState := slideAddressGen.indexDeq.bits
+      accessCountEnq.zipWithIndex.foreach { case (d, i) =>
+        d := PopCount(slideAddressGen.indexDeq.bits.accessLane.zipWithIndex.map { case (accessIndex, sourceIndex) =>
+          (accessIndex === i.U) && slideAddressGen.indexDeq.bits.needRead(sourceIndex)
+        })
+      }
     }
   }
+  accessCountQueue.enq.valid := readIssueStageEnq
+  accessCountQueue.enq.bits := accessCountEnq
 
   readWaitQueue.enq.valid             := readTypeRequestDeq
   readWaitQueue.enq.bits.executeGroup := readIssueStageState.executeGroup
@@ -756,18 +778,60 @@ class MaskUnit(val parameter: T1Parameter)
   // last execute group in this request group dequeue
   lastExecuteGroupDeq := requestStageDeq && isLastExecuteGroup
 
+  // handle reorder
+  val reorderQueueVec: Seq[QueueIO[MaskReadReorderQueue]] = Seq.tabulate(parameter.laneNumber) { _ =>
+    Queue.io(new MaskReadReorderQueue(parameter), reorderQueueSize)
+  }
+
+  // reorderQueue token
+  reorderQueueAllocate := Seq
+    .tabulate(parameter.laneNumber) { i =>
+      val tokenSize         = log2Ceil(reorderQueueSize + 1)
+      val counter           = RegInit(0.U(tokenSize.W))
+      val counterWillUpdate = RegInit(0.U(tokenSize.W))
+      val release           = reorderQueueVec(i).deq.fire && readValid
+      val allocate          = Mux(readIssueStageEnq, accessCountEnq(i), 0.U)
+      val counterUpdate     = counter + allocate - release
+      when(release || readIssueStageEnq) {
+        counter           := counterUpdate
+        // counter if allocate all
+        counterWillUpdate := counterUpdate + parameter.laneNumber.U(tokenSize.W)
+      }
+      !counterWillUpdate(tokenSize - 1)
+    }
+    .reduce(_ && _)
+
+  val reorderStageValid: Bool      = RegInit(false.B)
+  val reorderStageState: Vec[UInt] = RegInit(0.U.asTypeOf(accessCountType))
+  val reorderStageNeed:  Vec[UInt] = RegInit(0.U.asTypeOf(accessCountType))
+
+  val stateCheck: Bool = reorderStageState === reorderStageNeed
+
+  accessCountQueue.deq.ready := !reorderStageValid || stateCheck
+  val reorderStageEnqFire: Bool = accessCountQueue.deq.fire
+  val reorderStageDeqFire: Bool = stateCheck && reorderStageValid
+  when(reorderStageEnqFire ^ reorderStageDeqFire) { reorderStageValid := reorderStageEnqFire }
+  when(reorderStageEnqFire) {
+    reorderStageState := 0.U.asTypeOf(reorderStageState)
+    reorderStageNeed  := accessCountQueue.deq.bits
+  }
+
   // s1 read vrf
-  val write1HPipe:    Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.laneNumber.W)))
-  val pipeDataOffset: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(log2Ceil(parameter.datapathWidth / 8).W)))
+  val write1HPipe:           Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.laneNumber.W)))
+  val dataAfterReorderCheck: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
 
   readCrossBar.output.zipWithIndex.foreach { case (request, index) =>
-    val sourceLane = UIntToOH(request.bits.writeIndex)
-    readChannel(index).valid                 := request.valid
+    val readMessageQueue: QueueIO[MaskUnitReadPipe] =
+      Queue.io(new MaskUnitReadPipe(parameter), readVRFLatency + 4)
+    val reorderQueue = reorderQueueVec(index)
+    val deqAllocate  = !readValid || reorderStageValid && (reorderStageState(index) =/= reorderStageNeed(index))
+    val sourceLane   = UIntToOH(request.bits.writeIndex)
+    readChannel(index).valid                 := request.valid && readMessageQueue.enq.ready
     readChannel(index).bits.readSource       := 2.U
     readChannel(index).bits.vs               := request.bits.vs
     readChannel(index).bits.offset           := request.bits.offset
     readChannel(index).bits.instructionIndex := instReg.instructionIndex
-    request.ready                            := readChannel(index).ready
+    request.ready                            := readChannel(index).ready && readMessageQueue.enq.ready
 
     maskedWrite.readChannel(index).ready := readChannel(index).ready
     maskedWrite.readResult(index)        := readResult(index)
@@ -777,25 +841,35 @@ class MaskUnit(val parameter: T1Parameter)
       readChannel(index).bits.offset := maskedWrite.readChannel(index).bits.offset
     }
 
-    // pipe read fire
-    val pipeRead   = Pipe(
-      readChannel(index).fire && !maskDestinationType,
-      sourceLane,
-      readVRFLatency
+    readMessageQueue.enq.valid           := readChannel(index).fire && !maskDestinationType
+    readMessageQueue.enq.bits.readSource := sourceLane
+    readMessageQueue.enq.bits.dataOffset := request.bits.dataOffset
+    readMessageQueue.deq.ready           := readResult(index).valid
+
+    reorderQueue.enq.valid        := readResult(index).valid
+    reorderQueue.enq.bits.data    := readResult(index).bits >> (readMessageQueue.deq.bits.dataOffset ## 0.U(3.W))
+    reorderQueue.enq.bits.write1H := readMessageQueue.deq.bits.readSource
+
+    reorderQueue.deq.ready       := deqAllocate
+    write1HPipe(index)           := Mux(
+      reorderQueue.deq.fire && !maskDestinationType,
+      reorderQueue.deq.bits.write1H,
+      0.U(parameter.laneNumber.W)
     )
-    val pipeOffset = Pipe(readChannel(index).fire, request.bits.dataOffset, readVRFLatency)
-    write1HPipe(index)    := Mux(pipeRead.valid, pipeRead.bits, 0.U(parameter.laneNumber.W))
-    pipeDataOffset(index) := pipeOffset.bits
+    dataAfterReorderCheck(index) := reorderQueue.deq.bits.data
+    when(reorderQueue.deq.fire && readType) {
+      reorderStageState(index) := reorderStageState(index) + 1.U
+    }
   }
 
   // Processing read results
   val readData: Seq[DecoupledIO[UInt]] = Seq.tabulate(parameter.laneNumber) { index =>
     val readDataQueue    = Queue.io(UInt(parameter.datapathWidth.W), readDataQueueSize, flow = true)
     val readResultSelect = VecInit(write1HPipe.map(_(index))).asUInt
-    val dataOffset: UInt = Mux1H(readResultSelect, pipeDataOffset)
+    val data: UInt = Mux1H(readResultSelect, dataAfterReorderCheck)
     readTokenRelease(index) := readDataQueue.deq.fire
     readDataQueue.enq.valid := readResultSelect.orR
-    readDataQueue.enq.bits  := Mux1H(readResultSelect, readResult) >> (dataOffset ## 0.U(3.W))
+    readDataQueue.enq.bits  := data
     readDataQueue.deq
   }
 
@@ -905,14 +979,24 @@ class MaskUnit(val parameter: T1Parameter)
   // Determine whether the data is ready
   val executeEnqValid: Bool = otherTypeRequestDeq && !readType
 
+  val compressParam: CompressParam = CompressParam(
+    parameter.datapathWidth,
+    parameter.xLen,
+    parameter.vLen,
+    parameter.laneNumber,
+    parameter.laneParam.groupNumberBits,
+    2
+  )
   // start execute
-  val compressUnit: MaskCompress = Module(new MaskCompress(parameter))
-  val reduceUnit = Instantiate(
+  val compressUnit = Instantiate(new MaskCompress(compressParam))
+  val reduceUnit   = Instantiate(
     new MaskReduce(
       MaskReduceParameter(parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
     )
   )
   omInstance.reduceUnitIn := reduceUnit.io.om.asAnyClassType
+  omInstance.compressIn   := compressUnit.io.om.asAnyClassType
+
   val extendUnit: MaskExtend = Module(new MaskExtend(parameter))
 
   // todo
@@ -942,28 +1026,30 @@ class MaskUnit(val parameter: T1Parameter)
   val compressSource1: UInt = Mux1H(sew1H, vs1Split.map(_._1))
   val source1Select:   UInt = Mux(mv, readVS1Reg.data, compressSource1)
   val source1Change:   Bool = Mux1H(sew1H, vs1Split.map(_._2))
-  when(source1Change && compressUnit.in.fire) {
+  when(source1Change && compressUnit.io.in.fire) {
     readVS1Reg.dataValid   := false.B
     readVS1Reg.requestSend := false.B
     readVS1Reg.readIndex   := readVS1Reg.readIndex + 1.U
 
   }
-  viotaCounterAdd := compressUnit.in.fire
+  viotaCounterAdd := compressUnit.io.in.fire
 
-  compressUnit.in.valid               := executeEnqValid && unitType(1)
-  compressUnit.in.bits.maskType       := instReg.maskType
-  compressUnit.in.bits.eew            := instReg.sew
-  compressUnit.in.bits.uop            := instReg.decodeResult(Decoder.topUop)
-  compressUnit.in.bits.readFromScalar := instReg.readFromScala
-  compressUnit.in.bits.source1        := source1Select
-  compressUnit.in.bits.mask           := executeElementMask
-  compressUnit.in.bits.source2        := source2
-  compressUnit.in.bits.groupCounter   := requestCounter
-  compressUnit.in.bits.lastCompress   := lastGroup
-  compressUnit.in.bits.ffoInput       := VecInit(exeReqReg.map(_.bits.ffo)).asUInt
-  compressUnit.in.bits.validInput     := VecInit(exeReqReg.map(_.valid)).asUInt
-  compressUnit.newInstruction         := instReq.valid
-  compressUnit.ffoInstruction         := instReq.bits.decodeResult(Decoder.topUop)(2, 0) === BitPat("b11?")
+  compressUnit.io.clock                  := implicitClock
+  compressUnit.io.reset                  := implicitReset
+  compressUnit.io.in.valid               := executeEnqValid && unitType(1)
+  compressUnit.io.in.bits.maskType       := instReg.maskType
+  compressUnit.io.in.bits.eew            := instReg.sew
+  compressUnit.io.in.bits.uop            := instReg.decodeResult(Decoder.topUop)
+  compressUnit.io.in.bits.readFromScalar := instReg.readFromScala
+  compressUnit.io.in.bits.source1        := source1Select
+  compressUnit.io.in.bits.mask           := executeElementMask
+  compressUnit.io.in.bits.source2        := source2
+  compressUnit.io.in.bits.groupCounter   := requestCounter
+  compressUnit.io.in.bits.lastCompress   := lastGroup
+  compressUnit.io.in.bits.ffoInput       := VecInit(exeReqReg.map(_.bits.ffo)).asUInt
+  compressUnit.io.in.bits.validInput     := VecInit(exeReqReg.map(_.valid)).asUInt
+  compressUnit.io.newInstruction         := instReq.valid
+  compressUnit.io.ffoInstruction         := instReq.bits.decodeResult(Decoder.topUop)(2, 0) === BitPat("b11?")
 
   reduceUnit.io.clock               := implicitClock
   reduceUnit.io.reset               := implicitReset
@@ -987,7 +1073,7 @@ class MaskUnit(val parameter: T1Parameter)
     sink := VecInit(exeReqReg.map(_.bits.fpReduceValid.get)).asUInt
   }
 
-  when(reduceUnit.io.in.fire || compressUnit.in.fire) {
+  when(reduceUnit.io.in.fire || compressUnit.io.in.fire) {
     readVS1Reg.sendToExecution := true.B
   }
 
@@ -1008,7 +1094,7 @@ class MaskUnit(val parameter: T1Parameter)
   val executeResult: UInt = Mux1H(
     unitType(3, 1),
     Seq(
-      compressUnit.out.data,
+      compressUnit.io.out.data,
       reduceUnit.io.out.bits.data,
       extendUnit.out
     )
@@ -1028,7 +1114,7 @@ class MaskUnit(val parameter: T1Parameter)
   val executeValid: Bool = Mux1H(
     unitType(3, 1),
     Seq(
-      compressUnit.out.compressValid,
+      compressUnit.io.out.compressValid,
       false.B,
       executeEnqValid
     )
@@ -1046,13 +1132,13 @@ class MaskUnit(val parameter: T1Parameter)
   val executeDeqGroupCounter: UInt = Mux1H(
     unitType(3, 1),
     Seq(
-      compressUnit.out.groupCounter,
+      compressUnit.io.out.groupCounter,
       requestCounter,
       extendGroupCount
     )
   )
 
-  val executeWriteByteMask: UInt = Mux(compress || ffo || mvVd, compressUnit.out.mask, executeByteMask)
+  val executeWriteByteMask: UInt = Mux(compress || ffo || mvVd, compressUnit.io.out.mask, executeByteMask)
   maskedWrite.needWAR := maskDestinationType
   maskedWrite.vd      := instReg.vd
   maskedWrite.in.zipWithIndex.foreach { case (req, index) =>
@@ -1064,7 +1150,7 @@ class MaskUnit(val parameter: T1Parameter)
     req.bits.pipeData     := exeReqReg(index).bits.source1
     req.bits.bitMask      := bitMask
     req.bits.groupCounter := executeDeqGroupCounter
-    req.bits.ffoByOther   := compressUnit.out.ffoOutput(index) && ffo
+    req.bits.ffoByOther   := compressUnit.io.out.ffoOutput(index) && ffo
     if (index == 0) {
       // reduce result
       when(unitType(2)) {
@@ -1081,7 +1167,7 @@ class MaskUnit(val parameter: T1Parameter)
     Queue.io(new MaskUnitExeResponse(parameter.laneParam), maskUnitWriteQueueSize)
   }
 
-  writeQueue.zipWithIndex.foreach { case (queue, index) =>
+  val dataNotInShifter: Bool = writeQueue.zipWithIndex.map { case (queue, index) =>
     val readTypeWriteVrf: Bool = waiteStageDeqFire && WillWriteLane(index)
     queue.enq.valid              := maskedWrite.out(index).valid || readTypeWriteVrf
     maskedWrite.out(index).ready := queue.enq.ready
@@ -1091,17 +1177,10 @@ class MaskUnit(val parameter: T1Parameter)
     }
     queue.enq.bits.index         := instReg.instructionIndex
 
-    // write token
-    val tokenCounter = RegInit(0.U(log2Ceil(parameter.maskUnitVefWriteQueueSize + 1).W))
-    val tokenAllow:    Bool = queue.deq.fire
-    val counterChange: UInt = Mux(tokenAllow, 1.U, -1.S(tokenCounter.getWidth.W).asUInt)
-    when(tokenAllow ^ tokenIO(index).maskResponseRelease) {
-      tokenCounter := tokenCounter + counterChange
-    }
     // write vrf
     val writePort = exeResp(index)
-    queue.deq.ready                 := !tokenCounter.asBools.last
-    writePort.valid                 := tokenAllow
+    queue.deq.ready                 := writePort.ready
+    writePort.valid                 := queue.deq.valid
     writePort.bits.last             := DontCare
     writePort.bits.instructionIndex := instReg.instructionIndex
     writePort.bits.data             := Mux(queue.deq.bits.ffoByOther, queue.deq.bits.pipeData, queue.deq.bits.writeData.data)
@@ -1111,7 +1190,17 @@ class MaskUnit(val parameter: T1Parameter)
       parameter.laneParam.vrfOffsetBits
     )
     writePort.bits.offset           := queue.deq.bits.writeData.groupCounter
-  }
+
+    val writeTokenSize    = 8
+    val writeTokenWidth   = log2Ceil(writeTokenSize)
+    val writeTokenCounter = RegInit(0.U(writeTokenWidth.W))
+
+    val writeTokenChange = Mux(writePort.fire, 1.U(writeTokenWidth.W), -1.S(writeTokenWidth.W).asUInt)
+    when(writePort.fire ^ io.writeRelease(index)) {
+      writeTokenCounter := writeTokenCounter + writeTokenChange
+    }
+    writeTokenCounter === 0.U
+  }.reduce(_ && _)
   waiteStageDeqReady := writeQueue.zipWithIndex.map { case (queue, index) =>
     !WillWriteLane(index) || queue.enq.ready
   }.reduce(_ && _)
@@ -1120,7 +1209,7 @@ class MaskUnit(val parameter: T1Parameter)
   // todo: token
   val waiteLastRequest: Bool = RegInit(false.B)
   val waitQueueClear:   Bool = RegInit(false.B)
-  val lastReportValid = waitQueueClear && !writeQueue.map(_.deq.valid).reduce(_ || _)
+  val lastReportValid = waitQueueClear && !writeQueue.map(_.deq.valid).reduce(_ || _) && dataNotInShifter
   when(lastReportValid) {
     waitQueueClear   := false.B
     waiteLastRequest := false.B
@@ -1131,7 +1220,7 @@ class MaskUnit(val parameter: T1Parameter)
   val executeStageInvalid: Bool = Mux1H(
     unitType(3, 1),
     Seq(
-      !compressUnit.out.compressValid,
+      !compressUnit.io.out.compressValid && !compressUnit.io.stageValid,
       reduceUnit.io.in.ready,
       true.B
     )
@@ -1150,7 +1239,7 @@ class MaskUnit(val parameter: T1Parameter)
     lastReportValid,
     indexToOH(instReg.instructionIndex, parameter.chainingSize)
   )
-  writeRDData := Mux(pop, reduceUnit.io.out.bits.data, compressUnit.writeData)
+  writeRDData := Mux(pop, reduceUnit.io.out.bits.data, compressUnit.io.writeData)
 
   // gather read state
   when(gatherRequestFire) {

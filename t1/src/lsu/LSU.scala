@@ -37,6 +37,7 @@ case class LSUParameter(
   // TODO: refactor to per lane parameter.
   vrfReadLatency:      Int,
   axi4BundleParameter: AXI4BundleParameter,
+  lsuReadShifterSize:  Seq[Int],
   name: String) {
   val sewMin: Int = 8
 
@@ -61,7 +62,16 @@ case class LSUParameter(
   val sourceQueueSize: Int = 32.min(vLen * 8 / (transferSize * 8))
 
   def mshrParam: MSHRParam =
-    MSHRParam(chainingSize, datapathWidth, vLen, laneNumber, paWidth, transferSize, vrfReadLatency)
+    MSHRParam(
+      chainingSize,
+      datapathWidth,
+      vLen,
+      laneNumber,
+      paWidth,
+      transferSize,
+      lsuReadShifterSize.head,
+      vrfReadLatency
+    )
 
   /** see [[VRFParam.regNumBits]] */
   val regNumBits: Int = log2Ceil(32)
@@ -118,15 +128,10 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val request: DecoupledIO[LSURequest] = IO(Flipped(Decoupled(new LSURequest(param.datapathWidth))))
 
-  /** mask from [[V]] TODO: since mask is one-cycle information for a mask group, we should latch it in the LSU, and
-    * reduce the IO width. this needs PnR information.
-    */
   @public
-  val maskInput: Vec[UInt] = IO(Input(Vec(param.lsuMSHRSize, UInt(param.maskGroupWidth.W))))
-
-  /** the address of the mask group in the [[V]]. */
-  @public
-  val maskSelect: Vec[UInt] = IO(Output(Vec(param.lsuMSHRSize, UInt(param.maskGroupSizeBits.W))))
+  val v0UpdateVec: Vec[ValidIO[V0Update]] = IO(
+    Flipped(Vec(param.laneNumber, Valid(new V0Update(param.datapathWidth, param.vrfOffsetBits))))
+  )
 
   @public
   val axi4Port: AXI4RWIrrevocable = IO(new AXI4RWIrrevocable(param.axi4BundleParameter))
@@ -150,7 +155,7 @@ class LSU(param: LSUParameter) extends Module {
   /** hard wire form Top. TODO: merge to [[vrfReadDataPorts]]
     */
   @public
-  val vrfReadResults: Vec[UInt] = IO(Input(Vec(param.laneNumber, UInt(param.datapathWidth.W))))
+  val vrfReadResults: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]]. */
   @public
@@ -162,6 +167,9 @@ class LSU(param: LSUParameter) extends Module {
       )
     )
   )
+
+  @public
+  val writeRelease: Vec[Bool] = IO(Vec(param.laneNumber, Input(Bool())))
 
   @public
   val dataInWriteQueue: Vec[UInt] = IO(Output(Vec(param.laneNumber, UInt((2 * param.chainingSize).W))))
@@ -197,6 +205,25 @@ class LSU(param: LSUParameter) extends Module {
   val storeUnit: StoreUnit        = Module(new StoreUnit(param.mshrParam))
   val otherUnit: SimpleAccessUnit = Module(new SimpleAccessUnit(param.mshrParam))
 
+  /** duplicate v0 in lsu */
+  val v0: Vec[UInt] = RegInit(
+    VecInit(Seq.fill(param.vLen / param.datapathWidth)(0.U(param.datapathWidth.W)))
+  )
+
+  // write v0(mask)
+  v0.zipWithIndex.foreach { case (data, index) =>
+    // 属于哪个lane
+    val laneIndex: Int = index % param.laneNumber
+    // 取出写的端口
+    val v0Write = v0UpdateVec(laneIndex)
+    // offset
+    val offset: Int = index / param.laneNumber
+    val maskExt = FillInterleaved(8, v0Write.bits.mask)
+    when(v0Write.valid && v0Write.bits.offset === offset.U) {
+      data := (data & (~maskExt).asUInt) | (maskExt & v0Write.bits.data)
+    }
+  }
+
   val unitVec = Seq(loadUnit, storeUnit, otherUnit)
 
   /** Always merge into cache line */
@@ -222,8 +249,8 @@ class LSU(param: LSUParameter) extends Module {
     mshr.lsuRequest.valid := reqEnq(index)
     mshr.lsuRequest.bits  := request.bits
 
-    maskSelect(index) := Mux(mshr.maskSelect.valid, mshr.maskSelect.bits, 0.U)
-    mshr.maskInput    := maskInput(index)
+    val maskSelect = Mux(mshr.maskSelect.valid, mshr.maskSelect.bits, 0.U)
+    mshr.maskInput := cutUInt(v0.asUInt, param.maskGroupWidth)(maskSelect)
 
     // broadcast CSR
     mshr.csrInterface := csrInterface
@@ -231,7 +258,6 @@ class LSU(param: LSUParameter) extends Module {
 
   /** TileLink D Channel write to VRF queue: TL-D -CrossBar-> MSHR -proxy-> write queue -CrossBar-> VRF
     */
-  @public
   val writeQueueVec: Seq[QueueIO[LSUWriteQueueBundle]] = Seq.fill(param.laneNumber)(
     Queue.io(new LSUWriteQueueBundle(param), param.toVRFWriteQueueSize, flow = true)
   )
@@ -239,19 +265,38 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val lsuProbe = IO(Output(Probe(new LSUProbe(param), layers.Verification)))
 
+  // todo: require all shifter same as head
+  val readLatency:           Int                = param.vrfReadLatency + param.lsuReadShifterSize.head * 2
+  val otherUnitTargetQueue:  QueueIO[UInt]      = Queue.io(UInt(param.laneNumber.W), 2 * readLatency, pipe = true)
+  val otherUnitDataQueueVec: Seq[QueueIO[UInt]] = Seq.fill(param.laneNumber)(
+    Queue.io(UInt(param.datapathWidth.W), readLatency, flow = true)
+  )
+  val dataDeqFire:           UInt               = Wire(UInt(param.laneNumber.W))
   // read vrf
-  val otherTryReadVrf: UInt          = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
+  val otherTryReadVrf:       UInt               = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
   vrfReadDataPorts.zipWithIndex.foreach { case (read, index) =>
     read.valid                              := otherTryReadVrf(index) || storeUnit.vrfReadDataPorts(index).valid
     read.bits                               := Mux(otherTryReadVrf(index), otherUnit.vrfReadDataPorts.bits, storeUnit.vrfReadDataPorts(index).bits)
     storeUnit.vrfReadDataPorts(index).ready := read.ready && !otherTryReadVrf(index)
     storeUnit.vrfReadResults(index)         := vrfReadResults(index)
+    storeUnit.vrfReadResults(index).valid   := vrfReadResults(index).valid && otherUnitTargetQueue.empty
+
+    val otherUnitQueue: QueueIO[UInt] = otherUnitDataQueueVec(index)
+    otherUnitQueue.enq.valid := vrfReadResults(index).valid && !otherUnitTargetQueue.empty
+    otherUnitQueue.enq.bits  := vrfReadResults(index).bits
+    otherUnitQueue.deq.ready := dataDeqFire(index)
   }
-  otherUnit.vrfReadDataPorts.ready := (otherTryReadVrf & VecInit(vrfReadDataPorts.map(_.ready)).asUInt).orR
-  val pipeOtherRead:   ValidIO[UInt] =
-    Pipe(otherUnit.vrfReadDataPorts.fire, otherUnit.status.targetLane, param.vrfReadLatency)
-  otherUnit.vrfReadResults.bits  := Mux1H(pipeOtherRead.bits, vrfReadResults)
-  otherUnit.vrfReadResults.valid := pipeOtherRead.valid
+  otherUnit.vrfReadDataPorts.ready := (otherTryReadVrf & VecInit(vrfReadDataPorts.map(_.ready)).asUInt).orR &&
+    otherUnitTargetQueue.enq.ready
+  otherUnitTargetQueue.enq.bits  := otherUnit.status.targetLane
+  otherUnitTargetQueue.enq.valid := otherUnit.vrfReadDataPorts.fire
+
+  // read data reorder
+  otherUnit.vrfReadResults.bits  := Mux1H(otherUnitTargetQueue.deq.bits, otherUnitDataQueueVec.map(_.deq.bits))
+  otherUnit.vrfReadResults.valid := otherUnitTargetQueue.deq.valid &&
+    (otherUnitTargetQueue.deq.bits & VecInit(otherUnitDataQueueVec.map(_.deq.valid)).asUInt).orR
+  dataDeqFire                    := maskAnd(otherUnit.vrfReadResults.valid, otherUnitTargetQueue.deq.bits)
+  otherUnitTargetQueue.deq.ready := otherUnit.vrfReadResults.valid
 
   // write vrf
   val otherTryToWrite: UInt = Mux(otherUnit.vrfWritePort.valid, otherUnit.status.targetLane, 0.U)
@@ -313,13 +358,20 @@ class LSU(param: LSUParameter) extends Module {
       )
 
   // Record whether there is data for the corresponding instruction in the queue
-  writeQueueVec.zip(dataInWriteQueue).foreach { case (q, p) =>
+  writeQueueVec.zip(dataInWriteQueue).zipWithIndex.foreach { case ((q, p), i) =>
     val queueCount: Seq[UInt] = Seq.tabulate(2 * param.chainingSize) { _ =>
       RegInit(0.U(log2Ceil(param.toVRFWriteQueueSize).W))
     }
     val enqOH:      UInt      = indexToOH(q.enq.bits.data.instructionIndex, param.chainingSize)
     val queueEnq:   UInt      = Mux(q.enq.fire, enqOH, 0.U)
-    val queueDeq = Mux(q.deq.fire, indexToOH(q.deq.bits.data.instructionIndex, param.chainingSize), 0.U)
+
+    val writeTokenSize  = 8
+    val writeIndexQueue = Queue.io(UInt(param.instructionIndexBits.W), writeTokenSize)
+    writeIndexQueue.enq.valid := q.deq.fire
+    writeIndexQueue.enq.bits  := q.deq.bits.data.instructionIndex
+    writeIndexQueue.deq.ready := writeRelease(i)
+
+    val queueDeq = Mux(writeIndexQueue.deq.fire, indexToOH(writeIndexQueue.deq.bits, param.chainingSize), 0.U)
     queueCount.zipWithIndex.foreach { case (count, index) =>
       val counterUpdate: UInt = Mux(queueEnq(index), 1.U, -1.S(log2Ceil(param.toVRFWriteQueueSize).W).asUInt)
       when(queueEnq(index) ^ queueDeq(index)) {
