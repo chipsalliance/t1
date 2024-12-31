@@ -50,6 +50,7 @@ case class MSHRParam(
   laneNumber:       Int,
   paWidth:          Int,
   lsuTransposeSize: Int,
+  lsuReadShifter:   Int,
   vrfReadLatency: Int) {
 
   /** see [[LaneParameter.lmulMax]] */
@@ -120,6 +121,13 @@ case class MSHRParam(
   // outstanding of MaskExchangeUnit.maskReq
   // todo: param from T1Param
   val maskRequestQueueSize: Int = 8
+
+  // outstanding of StoreUnit.vrfReadDataPorts
+  // todo: param from T1Param
+  val storeUnitReadOutStanding: Int = 8
+
+  // One round trip is required
+  val lsuReadShifterLatency: Int = 2 * lsuReadShifter
 }
 
 /** Miss Status Handler Register this is used to record the outstanding memory access request for each instruction. it
@@ -701,9 +709,9 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
 
   // Reading vrf may take multiple cycles and requires additional information to be stored
   val s1EnqQueue:     QueueIO[SimpleAccessStage1] =
-    Queue.io(new SimpleAccessStage1(param), param.vrfReadLatency + 2)
+    Queue.io(new SimpleAccessStage1(param), param.vrfReadLatency + param.lsuReadShifterLatency + 2)
   val s1EnqDataQueue: QueueIO[UInt]               =
-    Queue.io(UInt(param.datapathWidth.W), param.vrfReadLatency + 2)
+    Queue.io(UInt(param.datapathWidth.W), param.vrfReadLatency + param.lsuReadShifterLatency + 2)
 
   /** which byte to access in VRF, e.g. VLEN=1024,datapath=32,laneNumber=8 XXXXXXXXXX <- 10 bits for element(32bits)
     * index XX <- 2 bits for SEW XXXXXXXXXX <- strip MSB for the constraint that sew*vlmax <= 8*VLEN <-
