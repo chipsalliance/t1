@@ -7,6 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
+import org.chipsalliance.dwbb.stdlib.queue.Queue
 import org.chipsalliance.t1.rtl.decoder.{Decoder, TableGenerator}
 import org.chipsalliance.t1.rtl.lane.Distributor
 
@@ -219,6 +220,96 @@ package object rtl {
     }
     sink := shifterReg.last
     id.map(f => (shifterReg :+ source).map(p => Mux(p.valid, indexToOH(f(p.bits), 4), 0.U)).reduce(_ | _))
+  }
+
+  def connectDecoupledWithShifter[T <: Data](latency: Int, tokenSize: Int)(source: DecoupledIO[T], sink: DecoupledIO[T])
+    : Unit = {
+    val queue       = Queue.io(chiselTypeOf(source.bits), tokenSize, flow = true)
+    // Reverse pipe release
+    val releasePipe = Pipe(
+      sink.fire,
+      0.U.asTypeOf(new EmptyBundle),
+      latency
+    ).valid
+    val tokenCheck: Bool = pipeToken(tokenSize)(source.fire, releasePipe)
+    source.ready := tokenCheck
+
+    // Complete the handshake at the source end and convert the result of the handshake into a data stream
+    val validSource: ValidIO[T] = Wire(Valid(chiselTypeOf(source.bits)))
+    validSource.valid := source.fire
+    validSource.bits  := source.bits
+
+    val validSink: ValidIO[T] = Wire(Valid(chiselTypeOf(source.bits)))
+
+    // Shift Data
+    connectWithShifter(latency)(validSource, validSink)
+    // Throw the moved data into the queue
+    // todo: assert(queue.enq.ready || !queue.enq.valid)
+    queue.enq.valid := validSink.valid
+    queue.enq.bits  := validSink.bits
+    // Finally, send the data to the sink
+    sink <> queue.deq
+  }
+
+  def maskUnitReadArbitrate[T <: Data](source: Vec[DecoupledIO[T]]): DecoupledIO[T] = {
+    require(source.size == 2)
+    val maskRead = source.head
+    val lsuRead  = source.last
+    val sinkWire: DecoupledIO[T] = Wire(Decoupled(chiselTypeOf(maskRead.bits)))
+    val maskUnitFirst = RegInit(false.B)
+    val tryToRead     = maskRead.valid || lsuRead.valid
+    when(tryToRead && !sinkWire.fire) {
+      maskUnitFirst := !maskUnitFirst
+    }
+
+    sinkWire.valid := Mux(
+      maskUnitFirst,
+      maskRead.valid,
+      lsuRead.valid
+    )
+    sinkWire.bits  :=
+      Mux(maskUnitFirst, maskRead.bits, lsuRead.bits)
+    lsuRead.ready  := sinkWire.ready && !maskUnitFirst
+    maskRead.ready := sinkWire.ready && maskUnitFirst
+    sinkWire
+  }
+
+  def connectVrfAccess[T <: Data](
+    latencyVec:     Seq[Int],
+    tokenSizeVec:   Seq[Int],
+    vrfReadLatency: Option[Int] = None
+  )(sourceVec:      Vec[DecoupledIO[T]],
+    sink:           DecoupledIO[T],
+    arb:            Int,
+    dataAck:        Option[UInt] = None,
+    dataToSource:   Option[Seq[ValidIO[UInt]]] = None,
+    releaseSource:  Option[Seq[Bool]] = None
+  ): Unit = {
+    val sinkVec: Vec[DecoupledIO[T]] = VecInit(sourceVec.zipWithIndex.map { case (source, index) =>
+      val sinkWire: DecoupledIO[T] = Wire(Decoupled(chiselTypeOf(source.bits)))
+      connectDecoupledWithShifter(latencyVec(index), tokenSizeVec(index))(source, sinkWire)
+      sinkWire
+    })
+    if (arb == 0) {
+      sink <> maskUnitReadArbitrate(sinkVec)
+    }
+    dataToSource.foreach { sourceDataVec =>
+      require(dataAck.isDefined)
+      sourceDataVec.zipWithIndex.foreach { case (sourceData, index) =>
+        val sinkRequest      = sinkVec(index)
+        val accessDataValid  = Pipe(sinkRequest.fire, 0.U.asTypeOf(new EmptyBundle), vrfReadLatency.get).valid
+        val accessDataSource = Wire(Valid(chiselTypeOf(dataAck.get)))
+        accessDataSource.valid := accessDataValid
+        accessDataSource.bits  := dataAck.get
+        connectWithShifter(latencyVec(index))(accessDataSource, sourceData)
+      }
+    }
+    releaseSource.foreach { sourceVec =>
+      sourceVec.zipWithIndex.foreach { case (release, index) =>
+        val sinkRequest = sinkVec(index)
+        release := Pipe(sinkRequest.fire, 0.U.asTypeOf(new EmptyBundle), latencyVec(index)).valid
+      }
+    }
   }
 
   def instantiateVFU(
