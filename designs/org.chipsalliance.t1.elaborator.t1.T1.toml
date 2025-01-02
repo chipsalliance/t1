@@ -1,6 +1,6 @@
 # TestChips
 [rookidee]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32x --vrfBankSize 8 --vrfRamType p0rp1w --vfuInstantiateParameter small"
 [blastoise]
 cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32f --vrfBankSize 4 --vrfRamType p0rp1w --vfuInstantiateParameter small"
 
