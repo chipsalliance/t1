@@ -31,6 +31,7 @@ class CompressInput(parameter: CompressParam) extends Bundle {
   val source1:        UInt = UInt(parameter.datapathWidth.W)
   val mask:           UInt = UInt(parameter.datapathWidth.W)
   val source2:        UInt = UInt((parameter.laneNumber * parameter.datapathWidth).W)
+  val pipeData:       UInt = UInt((parameter.laneNumber * parameter.datapathWidth).W)
   val groupCounter:   UInt = UInt(parameter.groupNumberBits.W)
   val ffoInput:       UInt = UInt(parameter.laneNumber.W)
   val validInput:     UInt = UInt(parameter.laneNumber.W)
@@ -254,12 +255,18 @@ class MaskCompress(val parameter: CompressParam)
 
   val ffoMask: UInt = FillInterleaved(parameter.datapathWidth / 8, validInputPipe)
 
+  val ffoData = VecInit(outWire.ffoOutput.asBools.zipWithIndex.map { case (fbo, i) =>
+    val pipeData  = cutUIntBySize(in.bits.pipeData, parameter.laneNumber)(i)
+    val writeData = cutUIntBySize(in.bits.source2, parameter.laneNumber)(i)
+    Mux(fbo, pipeData, writeData)
+  }).asUInt
+
   outWire.data := Mux1H(
     Seq(
       compress -> compressResult,
       viota    -> viotaResult,
       mv       -> mvData,
-      ffoType  -> in.bits.source2
+      ffoType  -> ffoData
     )
   )
 
