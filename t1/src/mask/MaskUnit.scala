@@ -919,7 +919,6 @@ class MaskUnit(val parameter: T1Parameter)
   val writeRequest:  Seq[MaskUnitExeResponse] = Seq.tabulate(parameter.laneNumber) { laneIndex =>
     val res: MaskUnitExeResponse = Wire(new MaskUnitExeResponse(parameter.laneParam))
     res.ffoByOther             := DontCare
-    res.pipeData               := DontCare
     res.index                  := instReg.instructionIndex
     res.writeData.groupCounter := (waiteReadDataPipeReg.executeGroup << instReg.sew >> 2).asUInt
     res.writeData.vd           := instReg.vd
@@ -1044,6 +1043,7 @@ class MaskUnit(val parameter: T1Parameter)
   compressUnit.io.in.bits.source1        := source1Select
   compressUnit.io.in.bits.mask           := executeElementMask
   compressUnit.io.in.bits.source2        := source2
+  compressUnit.io.in.bits.pipeData       := source1
   compressUnit.io.in.bits.groupCounter   := requestCounter
   compressUnit.io.in.bits.lastCompress   := lastGroup
   compressUnit.io.in.bits.ffoInput       := VecInit(exeReqReg.map(_.bits.ffo)).asUInt
@@ -1147,7 +1147,6 @@ class MaskUnit(val parameter: T1Parameter)
     req.valid             := executeValid && maskFilter
     req.bits.mask         := cutUIntBySize(executeWriteByteMask, parameter.laneNumber)(index)
     req.bits.data         := cutUInt(executeResult, parameter.datapathWidth)(index)
-    req.bits.pipeData     := exeReqReg(index).bits.source1
     req.bits.bitMask      := bitMask
     req.bits.groupCounter := executeDeqGroupCounter
     req.bits.ffoByOther   := compressUnit.io.out.ffoOutput(index) && ffo
@@ -1183,7 +1182,7 @@ class MaskUnit(val parameter: T1Parameter)
     writePort.valid                 := queue.deq.valid
     writePort.bits.last             := DontCare
     writePort.bits.instructionIndex := instReg.instructionIndex
-    writePort.bits.data             := Mux(queue.deq.bits.ffoByOther, queue.deq.bits.pipeData, queue.deq.bits.writeData.data)
+    writePort.bits.data             := queue.deq.bits.writeData.data
     writePort.bits.mask             := queue.deq.bits.writeData.mask
     writePort.bits.vd               := instReg.vd + queue.deq.bits.writeData.groupCounter(
       parameter.laneParam.groupNumberBits - 1,

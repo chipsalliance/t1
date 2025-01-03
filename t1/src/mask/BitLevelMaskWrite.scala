@@ -9,7 +9,6 @@ import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 class BitLevelWriteRequest(parameter: T1Parameter) extends Bundle {
   val data:         UInt = UInt(parameter.datapathWidth.W)
-  val pipeData:     UInt = UInt(parameter.datapathWidth.W)
   val bitMask:      UInt = UInt(parameter.datapathWidth.W)
   val mask:         UInt = UInt((parameter.datapathWidth / 8).W)
   val groupCounter: UInt = UInt(parameter.laneParam.groupNumberBits.W)
@@ -77,7 +76,6 @@ class BitLevelMaskWrite(parameter: T1Parameter) extends Module {
     res.valid                       := WaitReadQueue.deq.valid && readResultValid
     WaitReadQueue.deq.ready         := res.ready && readResultValid
     res.bits                        := DontCare
-    res.bits.pipeData               := WaitReadQueue.deq.bits.pipeData
     res.bits.ffoByOther             := WaitReadQueue.deq.bits.ffoByOther
     res.bits.writeData.data         := Mux(needWAR, WARData, WaitReadQueue.deq.bits.data)
     res.bits.writeData.groupCounter := WaitReadQueue.deq.bits.groupCounter
