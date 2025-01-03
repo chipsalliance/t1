@@ -51,10 +51,14 @@ let
 
         mkdir -p $out/bin
         cp ${pname}.elf $out/bin
+        if [ -f ${pname}.cover ]; then
+          cp ${pname}.cover $out/
+        else
+          echo "-assert *" > $out/${pname}.cover
+        fi
 
         ${jqBin} --null-input \
           --arg name ${pname} \
-          --arg type ${casePrefix} \
           --arg elfPath "$out/bin/${pname}.elf" \
           '{ "name": $name, "elf": { "path": $elfPath } }' \
           > $out/${pname}.json
