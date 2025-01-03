@@ -20,7 +20,7 @@ class T1(val mlirbc: Array[Byte]) extends T1OMReaderAPI {
     t1("lanes").list.elements().map(_.obj("vrf").obj).flatMap(getSRAM)
 
   def floatAdder = {
-    val reduceUnit = t1("permutatuon").obj("reduceUnit").obj
+    val reduceUnit = t1("permutation").obj("reduceUnit").obj
     // TODO: need fieldOpt(name: String)
     Option.when(reduceUnit.fieldNames().contains("floatAdder"))(reduceUnit("floatAdder").obj).flatMap(getRetime)
   }

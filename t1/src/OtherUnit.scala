@@ -133,7 +133,7 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule with Serializab
       selectSource2
     )
   ).asUInt
-  val popCountResult: UInt = popCount.resp + request.popInit(7, 0)
+  val popCountResult: UInt = popCount.resp + request.popInit
   val result:         UInt = Mux1H(
     resultSelect,
     Seq(ffo.resp.bits, popCountResult, indexRes, clipResult, request.src.head, request.src(1))
