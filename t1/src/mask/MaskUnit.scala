@@ -134,6 +134,15 @@ class MaskUnit(val parameter: T1Parameter)
   val readVRFLatency:         Int = 3
   val maskUnitWriteQueueSize: Int = 8
 
+  val compressParam: CompressParam = CompressParam(
+    parameter.datapathWidth,
+    parameter.xLen,
+    parameter.vLen,
+    parameter.laneNumber,
+    parameter.laneParam.groupNumberBits,
+    2
+  )
+
   /** duplicate v0 for mask */
   val v0: Vec[UInt] = RegInit(
     VecInit(Seq.fill(parameter.vLen / parameter.datapathWidth)(0.U(parameter.datapathWidth.W)))
@@ -711,11 +720,13 @@ class MaskUnit(val parameter: T1Parameter)
   val readTypeRequestDeq: Bool =
     (anyReadFire && groupReadFinish) || (readIssueStageValid && readIssueStageState.needRead === 0.U)
 
+  val compressUnitResultQueue: QueueIO[CompressOutput] = Queue.io(new CompressOutput(compressParam), 2, flow = true)
+
   val noSourceValid:        Bool = noSource && counterValid &&
     (instReg.vl.orR || (mvRd && !readVS1Reg.sendToExecution))
   val vs1DataValid:         Bool = readVS1Reg.dataValid || !(unitType(2) || compress || mvRd)
   val executeReady:         Bool = Wire(Bool())
-  val executeDeqReady:      Bool = VecInit(maskedWrite.in.map(_.ready)).asUInt.andR
+  val executeDeqReady:      Bool = VecInit(maskedWrite.in.map(_.ready)).asUInt.andR && compressUnitResultQueue.empty
   val otherTypeRequestDeq:  Bool =
     Mux(noSource, noSourceValid, allDataValid) &&
       vs1DataValid && instVlValid && executeDeqReady
@@ -978,14 +989,6 @@ class MaskUnit(val parameter: T1Parameter)
   // Determine whether the data is ready
   val executeEnqValid: Bool = otherTypeRequestDeq && !readType
 
-  val compressParam: CompressParam = CompressParam(
-    parameter.datapathWidth,
-    parameter.xLen,
-    parameter.vLen,
-    parameter.laneNumber,
-    parameter.laneParam.groupNumberBits,
-    2
-  )
   // start execute
   val compressUnit = Instantiate(new MaskCompress(compressParam))
   val reduceUnit   = Instantiate(
@@ -1051,6 +1054,9 @@ class MaskUnit(val parameter: T1Parameter)
   compressUnit.io.newInstruction         := instReq.valid
   compressUnit.io.ffoInstruction         := instReq.bits.decodeResult(Decoder.topUop)(2, 0) === BitPat("b11?")
 
+  compressUnitResultQueue.enq.valid := compressUnit.io.out.compressValid
+  compressUnitResultQueue.enq.bits  := compressUnit.io.out
+
   reduceUnit.io.clock               := implicitClock
   reduceUnit.io.reset               := implicitReset
   reduceUnit.io.in.valid            := executeEnqValid && unitType(2)
@@ -1094,7 +1100,7 @@ class MaskUnit(val parameter: T1Parameter)
   val executeResult: UInt = Mux1H(
     unitType(3, 1),
     Seq(
-      compressUnit.io.out.data,
+      compressUnitResultQueue.deq.bits.data,
       reduceUnit.io.out.bits.data,
       extendUnit.out
     )
@@ -1111,10 +1117,12 @@ class MaskUnit(val parameter: T1Parameter)
     )
   )
 
+  compressUnitResultQueue.deq.ready := VecInit(maskedWrite.in.map(_.ready)).asUInt.andR
+  val compressDeq:  Bool = compressUnitResultQueue.deq.fire
   val executeValid: Bool = Mux1H(
     unitType(3, 1),
     Seq(
-      compressUnit.io.out.compressValid,
+      compressDeq,
       false.B,
       executeEnqValid
     )
@@ -1132,13 +1140,13 @@ class MaskUnit(val parameter: T1Parameter)
   val executeDeqGroupCounter: UInt = Mux1H(
     unitType(3, 1),
     Seq(
-      compressUnit.io.out.groupCounter,
+      compressUnitResultQueue.deq.bits.groupCounter,
       requestCounter,
       extendGroupCount
     )
   )
 
-  val executeWriteByteMask: UInt = Mux(compress || ffo || mvVd, compressUnit.io.out.mask, executeByteMask)
+  val executeWriteByteMask: UInt = Mux(compress || ffo || mvVd, compressUnitResultQueue.deq.bits.mask, executeByteMask)
   maskedWrite.needWAR := maskDestinationType
   maskedWrite.vd      := instReg.vd
   maskedWrite.in.zipWithIndex.foreach { case (req, index) =>
@@ -1149,7 +1157,7 @@ class MaskUnit(val parameter: T1Parameter)
     req.bits.data         := cutUInt(executeResult, parameter.datapathWidth)(index)
     req.bits.bitMask      := bitMask
     req.bits.groupCounter := executeDeqGroupCounter
-    req.bits.ffoByOther   := compressUnit.io.out.ffoOutput(index) && ffo
+    req.bits.ffoByOther   := compressUnitResultQueue.deq.bits.ffoOutput(index) && ffo
     if (index == 0) {
       // reduce result
       when(unitType(2)) {
@@ -1219,7 +1227,7 @@ class MaskUnit(val parameter: T1Parameter)
   val executeStageInvalid: Bool = Mux1H(
     unitType(3, 1),
     Seq(
-      !compressUnit.io.out.compressValid && !compressUnit.io.stageValid,
+      !compressUnitResultQueue.deq.valid && !compressUnit.io.stageValid,
       reduceUnit.io.in.ready,
       true.B
     )
