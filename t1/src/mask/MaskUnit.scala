@@ -720,7 +720,7 @@ class MaskUnit(val parameter: T1Parameter)
   val readTypeRequestDeq: Bool =
     (anyReadFire && groupReadFinish) || (readIssueStageValid && readIssueStageState.needRead === 0.U)
 
-  val compressUnitResultQueue: QueueIO[CompressOutput] = Queue.io(new CompressOutput(compressParam), 2, flow = true)
+  val compressUnitResultQueue: QueueIO[CompressOutput] = Queue.io(new CompressOutput(compressParam), 4, flow = true)
 
   val noSourceValid:        Bool = noSource && counterValid &&
     (instReg.vl.orR || (mvRd && !readVS1Reg.sendToExecution))
