@@ -746,8 +746,7 @@ class MaskUnitExeReq(parameter: LaneParameter) extends Bundle {
 class MaskUnitExeResponse(parameter: LaneParameter) extends Bundle {
   val ffoByOther: Bool = Bool()
   val writeData = new MaskUnitWriteBundle(parameter)
-  val pipeData: UInt = UInt(parameter.datapathWidth.W)
-  val index:    UInt = UInt(parameter.instructionIndexBits.W)
+  val index: UInt = UInt(parameter.instructionIndexBits.W)
 }
 
 class MaskUnitReadReq(parameter: T1Parameter) extends Bundle {
