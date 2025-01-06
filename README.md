@@ -334,6 +334,51 @@ $ nix build .#t1.<config-name>.<top-name>.cases.intrinsic.matmul -L
 $ ls -al ./result
 ```
 
+#### Developing Coverage
+
+To develop coverage, use the following steps:
+
+1. Write the coverpoint description file at the same level as the test case source code.
+2. Update the `default.nix` file to parse the coverpoint description file.
+
+For example, to develop coverage for the `mlir.hello` test case:
+
+tests/mlir/hello/hello.json:
+```json
+{
+  "assert": [
+    {
+      "name": "vmv_v_i",
+      "description": "single instruction vmv.v.i"
+    }
+  ],
+  "tree": [],
+  "module": []
+}
+```
+
+tests/mlir/default.nix:
+```shell
+if [ -f ${caseName}.json ]; then
+  ${jq}/bin/jq -r '[.assert[] | "+assert " + .name] + [.tree[] | "+tree " + .name] + [.module[] | "+module " + .name] | .[]' \
+      ${caseName}.json > $pname.cover
+else 
+  echo "-assert *" > $pname.cover
+fi
+```
+
+Then, you can run the test building script to check if the coverage is generated correctly:
+
+```shell
+nix build .#t1.blastoise.t1emu.cases.mlir.hello -L
+```
+
+Use the `vcs-emu-cover` emulator type to run the test case and generate the coverage report:
+
+```shell
+nix develop -c t1-helper run -i t1emu -c blastoise -e vcs-emu-cover mlir.hello
+```
+
 ### Bump Dependencies
 Bump nixpkgs:
 ```shell
