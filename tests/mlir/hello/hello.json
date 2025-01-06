@@ -1,0 +1,10 @@
+{
+  "assert": [
+    {
+      "name": "vmv_v_i",
+      "description": "single instruction vmv.v.i"
+    }
+  ],
+  "tree": [],
+  "module": []
+}
