@@ -4,6 +4,7 @@
 , findAndBuild
 , getTestRequiredFeatures
 , t1main
+, jq
 }:
 
 let
@@ -53,6 +54,13 @@ let
         $CC -T${linkerScript} \
           ${caseName}.c $pname.S ${t1main} \
           -o $pname.elf
+
+        if [ -f ${caseName}.json ]; then
+          ${jq}/bin/jq -r '[.assert[] | "+assert " + .name] + [.tree[] | "+tree " + .name] + [.module[] | "+module " + .name] | .[]' \
+              ${caseName}.json > $pname.cover
+        else 
+          echo "-assert *" > $pname.cover
+        fi
 
         runHook postBuild
       '';
