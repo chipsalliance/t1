@@ -36,14 +36,8 @@ let
             -configfile ${riscv-vector-test}/configs/${rawCaseName}.toml \
             -outputfile $pname.S
 
-          # temporary fix, to be extended later
-          if $CC $pname.S -T ${linkerScript} $includeArgs -o $pname.elf ; then
-            echo "link with 4M SRAM succeded"
-          else
-            echo "link with 4M SRAM failed, use DDR instead"
-            sed 's/>SRAM/>DDR/' ${linkerScript} > t1-ddr.ld
-            $CC $pname.S -T t1-ddr.ld $includeArgs -o $pname.elf
-          fi
+          $CC $pname.S -T ${linkerScript} $includeArgs -o $pname.elf
+          echo "Complilation done"
 
           runHook postBuild
         '';
