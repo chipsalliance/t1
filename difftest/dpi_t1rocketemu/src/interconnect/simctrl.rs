@@ -1,9 +1,15 @@
-use std::sync::{
-  atomic::{AtomicU32, Ordering},
-  Arc,
+use std::{
+  fs::File,
+  io::Write as _,
+  sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc,
+  },
 };
 
 use tracing::{info, warn};
+
+use crate::get_t;
 
 use super::RegDevice;
 
@@ -28,20 +34,36 @@ pub const EXIT_CODE: u32 = 0xdead_beef;
 
 /// Reg map:
 /// - 0x0000 : WO, write EXIT_CODE to mark simulation finish
+/// - 0x0010 : WO, uart write register
+/// - 0x0014 : WO, profile write register
+///
+/// Event file:
+/// all writes to uart/profile write register are recorded blindly
+/// to "mmio-event.jsonl"
 pub struct SimCtrl {
   exit_flag: ExitFlagRef,
+  event_file: File,
 }
 
 impl SimCtrl {
   pub fn new(exit_flag: ExitFlagRef) -> Self {
-    SimCtrl { exit_flag }
+    let event_file = File::create("mmio-event.jsonl").unwrap();
+    SimCtrl { exit_flag, event_file }
+  }
+
+  fn append_event(&mut self, event: &str, value: u32) {
+    let cycle = get_t();
+    let buf = format!("{{\"cycle\": {cycle}, \"event\": \"{event}\", \"value\": {value}}}\n");
+
+    self.event_file.write_all(buf.as_bytes()).unwrap();
+    self.event_file.flush().unwrap();
   }
 }
 
 impl RegDevice for SimCtrl {
   fn reg_read(&mut self, offset: u32) -> u32 {
     let _ = offset;
-    unimplemented!()
+    unimplemented!("simctrl does not support mmio read")
   }
 
   fn reg_write(&mut self, reg_offset: u32, value: u32) {
@@ -54,7 +76,13 @@ impl RegDevice for SimCtrl {
           warn!("simctrl: write EXIT_POS with value 0x{value:08x}, ignored");
         }
       }
-      _ => panic!(),
+      0x10 => {
+        self.append_event("uart-write", value);
+      }
+      0x14 => {
+        self.append_event("profile", value);
+      }
+      _ => panic!("simctrl: invalid write addr: base + 0x{reg_offset:02x}"),
     }
   }
 }
