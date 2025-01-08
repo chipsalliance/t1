@@ -20,6 +20,7 @@ stdenvNoCC.mkDerivation (rec {
   name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enableTrace "-trace");
   nativeBuildInputs = [ zstd jq python3 ];
   __noChroot = true;
+  coverType = "line+tgl+assert";
 
   passthru = {
     caseName = testCase.pname;
@@ -49,7 +50,7 @@ stdenvNoCC.mkDerivation (rec {
   ]
   ++ lib.optionals emulator.enableCover [
     "-cm"
-    "assert"
+    "${coverType}"
     "-assert"
     "hier=${testCase}/${testCase.pname}.cover"
   ]
@@ -134,7 +135,7 @@ stdenvNoCC.mkDerivation (rec {
     fi
 
     ${lib.optionalString emulator.enableCover ''
-      ${snps-fhs-env}/bin/snps-fhs-env -c "urg -dir cm.vdb -format text -metric assert -show summary"
+      ${snps-fhs-env}/bin/snps-fhs-env -c "urg -dir cm.vdb -format text -metric ${coverType} -show summary"
       # TODO: add a flag to specify 'vdb only generated in ci mode'
       cp -vr cm.vdb $out/
       cp -vr urgReport $out/
