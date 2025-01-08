@@ -126,6 +126,10 @@ stdenvNoCC.mkDerivation (rec {
       mv perf.json $out/
     fi
 
+    if [ -r mmio-event.jsonl ]; then
+      cp -v mmio-event.jsonl $out/
+    fi
+
     ${lib.optionalString emulator.enableCover ''
       ${snps-fhs-env}/bin/snps-fhs-env -c "urg -dir cm.vdb -format text -metric assert -show summary"
       # TODO: add a flag to specify 'vdb only generated in ci mode'
