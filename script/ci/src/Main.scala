@@ -164,7 +164,6 @@ object Main:
 
       val testAttr       = emuLib.toLowerCase() match
         case "verilator" => s".#t1.$config.$top.run.$caseName.verilator-emu"
-        // TODO: should not be cover for every test case
         case "vcs"       => s".#t1.$config.$top.run.$caseName.vcs-emu-cover"
         case _           => Logger.fatal(s"Invalid test type ${emuLib}")
       val testResultPath =
