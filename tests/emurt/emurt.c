@@ -4,8 +4,8 @@
 #define UART_W_REG 0x10000010
 #define PERF_REG 0x10000014
 
-void t1_put_char(char c) { *(uint32_t *)(UART_W_REG) = (uint32_t)c; }
-void place_counter(int i) { *(int *)(PERF_REG) = i; }
+void t1_put_char(char c) { *(uint8_t volatile *)(UART_W_REG) = (uint8_t)c; }
+void place_counter(int i) { *(int volatile *)(PERF_REG) = i; }
 
 ///////////////////////
 // uart
