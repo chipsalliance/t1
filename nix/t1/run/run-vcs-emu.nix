@@ -5,6 +5,7 @@
 , offline-checker
 , snps-fhs-env
 , writeShellScriptBin
+, python3
 }:
 
 { emulator
@@ -17,7 +18,7 @@ assert lib.assertMsg (!emulator.isRuntimeLoad || (dpilib != null)) "dpilib must 
 
 stdenvNoCC.mkDerivation (rec {
   name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enableTrace "-trace");
-  nativeBuildInputs = [ zstd jq ];
+  nativeBuildInputs = [ zstd jq python3 ];
   __noChroot = true;
 
   passthru = {
@@ -123,11 +124,13 @@ stdenvNoCC.mkDerivation (rec {
     rm $rtlEventOutPath
 
     if [ -r perf.json ]; then
-      mv perf.json $out/
+      cp -v perf.json $out/
     fi
 
+    # If we find the mmio-event.jsonl file, try to replace the perf total cycle with program instrument.
     if [ -r mmio-event.jsonl ]; then
       cp -v mmio-event.jsonl $out/
+      jq ".profile_total_cycles=$(python3 ${./calculate-cycle.py})" perf.json > "$out/perf.json"
     fi
 
     ${lib.optionalString emulator.enableCover ''
