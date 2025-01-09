@@ -6,6 +6,7 @@
 , vcs-emu
 , vcs-emu-rtlink
 , vcs-emu-cover
+, vcs-emu-cover-full
 , vcs-emu-trace
 , vcs-dpi-lib
 , cases
@@ -40,6 +41,7 @@ let
             verilator-emu-trace = runVerilatorEmu verilator-emu-trace case;
             vcs-emu = runVCSEmu vcs-emu-rtlink case;
             vcs-emu-cover = runVCSEmu vcs-emu-cover case;
+            vcs-emu-cover-full = runVCSEmu vcs-emu-cover-full case;
             vcs-emu-trace = runVCSEmu vcs-emu-trace case;
             vcs-prof-vcd = runFsdb2vcd (runVCSEmu vcs-emu-trace case);
           };
@@ -92,11 +94,11 @@ let
     in
     runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
 
-  _vcsEmuResult = runCommand "get-vcs-emu-result" { __noChroot = true; emuOutput = _getAllResult "vcs-emu-cover"; } ''
+  _vcsEmuResult = runCommand "get-vcs-emu-result" { __noChroot = true; emuOutput = _getAllResult "vcs-emu-cover-full"; } ''
     cp -vr $emuOutput $out
     chmod -R u+w $out
 
-    ${vcs-emu.snps-fhs-env}/bin/snps-fhs-env -c "urg -dir $emuOutput/*/cm.vdb -format text -metric assert -show summary"
+    ${vcs-emu.snps-fhs-env}/bin/snps-fhs-env -c "urg -dir $emuOutput/*/cm.vdb -format text -metric line+tgl+assert -show summary"
     cp -vr urgReport $out/
   '';
 in

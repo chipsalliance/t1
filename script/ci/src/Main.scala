@@ -164,7 +164,8 @@ object Main:
 
       val testAttr       = emuLib.toLowerCase() match
         case "verilator" => s".#t1.$config.$top.run.$caseName.verilator-emu"
-        case "vcs"       => s".#t1.$config.$top.run.$caseName.vcs-emu-cover"
+        // TODO: should not be cover for every test case
+        case "vcs"       => s".#t1.$config.$top.run.$caseName.vcs-emu-cover-full"
         case _           => Logger.fatal(s"Invalid test type ${emuLib}")
       val testResultPath =
         try
@@ -305,25 +306,40 @@ object Main:
           Logger.info("Filtering urg report")
           val finalMdPath     = os.Path(urgReportFilePath.get, os.pwd)
           val urgAssertFile   = emuResultPath / "urgReport" / "asserts.txt"
-          val summaryHeading  = "^Summary for Cover Properties$".r
+          val urgSummaryFile  = emuResultPath / "urgReport" / "tests.txt"
+
+          val summaryHeading   = "^Total Coverage Summary $".r
+          val summaryStr =
+            os.read(urgSummaryFile)
+              .lines()
+              .dropWhile(!summaryHeading.matches(_))
+              .takeWhile(!_.trim.isEmpty)
+              .toArray
+              .mkString("\n")
+
+          val coverSummaryHeading  = "^Summary for Cover Properties$".r
           val coverSummaryStr =
             os.read(urgAssertFile)
               .lines()
-              .dropWhile(!summaryHeading.matches(_))
-              .takeWhile(_.distinct != "-")
+              .dropWhile(!coverSummaryHeading.matches(_))
+              .takeWhile(!_.trim.isEmpty)
               .toArray
               .mkString("\n")
-          val detailHeading   = "^Detail Report for Cover Properties$".r
+
+          val coverDetailHeading   = "^Detail Report for Cover Properties$".r
           val coverDetailStr  =
             os.read(urgAssertFile)
               .lines()
-              .dropWhile(!detailHeading.matches(_))
+              .dropWhile(!coverDetailHeading.matches(_))
               .toArray
               .mkString("\n")
+
           os.write.append(finalMdPath, s"### Coverage for $config \n")
           os.write.append(finalMdPath, "```text\n")
+          os.write.append(finalMdPath, summaryStr)
+          os.write.append(finalMdPath, "\n----------------------\n")
           os.write.append(finalMdPath, coverSummaryStr)
-          os.write.append(finalMdPath, "----------------------\n")
+          os.write.append(finalMdPath, "\n----------------------\n")
           os.write.append(finalMdPath, coverDetailStr)
           os.write.append(finalMdPath, "\n```\n")
 
