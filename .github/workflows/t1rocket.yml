@@ -43,7 +43,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build vcs emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.vcs-emu' --impure --no-link
+          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.vcs-emu-cover' --impure --no-link
       - name: "Build all testcases"
         run: |
           nix build ".#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.cases._all" --max-jobs auto --no-link --cores 64
