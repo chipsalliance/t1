@@ -9,10 +9,11 @@ in
     dontUnpack = true;
     csrc = writeText "simple-emurt-test.c" ''
       #include <emurt.h>
+      #include <stdio.h>
 
       void test() {
         place_counter(1);
-        print_s("Hello, World\n");
+        printf("Hello, %s", "World\n");
         place_counter(2);
       }
     '';

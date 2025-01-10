@@ -26,13 +26,6 @@ void _exit(int code) {
   __builtin_unreachable();
 }
 
-void print_s(const char *c) {
-  while (*c) {
-    t1_put_char(*c);
-    c++;
-  }
-}
-
 ///////////////////////
 // allocation
 ///////////////////////
