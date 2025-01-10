@@ -27,13 +27,13 @@
   };
   chisel = {
     pname = "chisel";
-    version = "5d68beab176dcd1fb52e09aa6a07f6d01d8a9ac5";
+    version = "e12935edb735714279f30d1def9e10b662650d85";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "5d68beab176dcd1fb52e09aa6a07f6d01d8a9ac5";
+      rev = "e12935edb735714279f30d1def9e10b662650d85";
       fetchSubmodules = false;
-      sha256 = "sha256-0vj9cWRZ9emxvVxfHBAN0N9hGHNucZQ0ub17b4j0Dmk=";
+      sha256 = "sha256-Cbvq1p1ByyfNLbfKPYJx5GT7xvbxGS7oswnEqcwbbzQ=";
     };
     date = "2025-01-09";
   };
