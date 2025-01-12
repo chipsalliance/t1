@@ -214,7 +214,8 @@ object Main:
   def findCurrentJobURL() =
     val runID    = sys.env("GITHUB_RUN_ID")
     val jobName  = sys.env("GITHUB_JOB_NAME")
-    Logger.info(s"Getting URL for Run ID: ${runID}, job ${jobName}")
+    Logger.info(s"Getting URL for Run ID: ${runID}, job '${jobName}'")
+
     val response = requests.get.stream(s"https://api.github.com/repos/chipsalliance/t1/actions/runs/${runID}/jobs")
     val ciData = ujson.read(response)
     ciData

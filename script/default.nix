@@ -3,13 +3,14 @@
 , fetchMillDeps
 , makeWrapper
 
+, add-determinism
 , metals
 , mill
 , graalvm-ce
 }:
 
 let
-  mkHelper = { moduleName, scriptSrc, outName }:
+  mkHelper = { moduleName, scriptSrc, outName, enableNativeExe ? true }:
     let
       self = stdenv.mkDerivation rec {
         name = "t1-${moduleName}-script";
@@ -54,12 +55,13 @@ let
         nativeBuildInputs = [
           mill
           graalvm-ce
+          add-determinism
 
           makeWrapper
           passthru.millDeps.setupHook
         ];
 
-        enableNativeExe = true;
+        inherit enableNativeExe;
 
         buildPhase = ''
           runHook preBuild
@@ -85,6 +87,7 @@ let
           else
             mkdir -p $out/share/java
             mv out/${moduleName}/assembly.dest/out.jar $out/share/java/${moduleName}.jar
+            add-determinism $out/share/java/${moduleName}.jar
             makeWrapper ${mill.jre}/bin/java $out/bin/${outName} \
               --add-flags "-jar $out/share/java/${moduleName}.jar"
           fi
@@ -99,5 +102,5 @@ let
 in
 {
   t1-helper = mkHelper { moduleName = "emu"; scriptSrc = ./emu; outName = "t1-helper"; };
-  ci-helper = mkHelper { moduleName = "ci"; scriptSrc = ./ci; outName = "ci-helper"; };
+  ci-helper = mkHelper { moduleName = "ci"; scriptSrc = ./ci; outName = "ci-helper"; enableNativeExe = false; };
 }
