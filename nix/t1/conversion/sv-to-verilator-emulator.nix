@@ -45,15 +45,21 @@ rec {
     "-y"
     "$DWBB_DIR/sim_ver"
     "-Wno-lint"
+  ]
+  ++ vsrc
+  ++ [
     "-F"
     verilatorFilelist
   ]
-  ++ vsrc
   ++ lib.optionals (topModule != null) [
     "--top"
     topModule
   ]
   ++ extraVerilatorArgs
+  ++ [
+    "+define+PRINTF_FD=t1_log_pkg::log_fd"
+    "+define+PRINTF_COND=t1_log_pkg::log_cond"
+  ]
   ++ lib.optionals enableTrace [
     "+define+T1_ENABLE_TRACE"
     "--trace-fst"
