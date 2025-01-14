@@ -275,25 +275,35 @@ object Main:
 
     Logger.info(s"Starting IP emulator: `${processArgs.mkString(" ")}`")
 
-    val driverProc = os
-      .proc(processArgs)
-      .spawn(
-        stdout = journalPath,
-        stderr = os.Pipe,
-        env = optionalMap(verbose.value, Map("RUST_LOG" -> "TRACE"))
-      )
-    val zstdProc   = os
-      .proc(Seq("zstd", "-o", s"${rtlEventPath}"))
-      .spawn(
-        stdin = driverProc.stderr,
-        stdout = os.Inherit,
-        stderr = os.Inherit
-      )
+    if verbose.value then
+      os.proc(processArgs)
+        .call(
+          stdout = os.Inherit,
+          stderr = os.Inherit,
+          env = optionalMap(verbose.value, Map("RUST_LOG" -> "TRACE")),
+          check = false
+        )
+    else
+      val driverProc = os
+        .proc(processArgs)
+        .spawn(
+          stdout = journalPath,
+          stderr = os.Pipe,
+          env = optionalMap(verbose.value, Map("RUST_LOG" -> "TRACE"))
+        )
+      val zstdProc   = os
+        .proc(Seq("zstd", "-o", s"${rtlEventPath}"))
+        .spawn(
+          stdin = driverProc.stderr,
+          stdout = os.Inherit,
+          stderr = os.Inherit
+        )
 
-    zstdProc.join(-1)
-    driverProc.join(-1)
-    if zstdProc.exitCode() != 0 then Logger.fatal("fail to compress data")
-    if driverProc.exitCode() != 0 then Logger.fatal("online driver run failed")
+      zstdProc.join(-1)
+      driverProc.join(-1)
+      if zstdProc.exitCode() != 0 then Logger.fatal("fail to compress data")
+      if driverProc.exitCode() != 0 then Logger.fatal("online driver run failed")
+
 
     Logger.info("Driver finished")
 
