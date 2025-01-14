@@ -10,52 +10,69 @@
 , which
 , stdenv
 , jq
+, coreutils
+, findutils
+, diffutils
+, gnused
+, gnugrep
+, gnutar
+, gawk
+, gzip
+, bzip2
+, gnumake
+, patch
+, xz
+, file
 
   # T1 Stuff
 , rv32-stdenv
-, emulator-wrapped
-, testCases
+, verilator-emu
+, cases
 , configName
 }:
 
 let
-  # dockerTools.buildImage relies on KVM feature, don't run it inside VMs
-  self = dockerTools.buildImage rec {
+  self = dockerTools.streamLayeredImage {
     name = "chipsalliance/t1-${configName}";
     tag = "latest";
 
-    copyToRoot = buildEnv {
-      name = "${name}.imageroot";
-      paths = with dockerTools; [
-        usrBinEnv
-        binSh
+    contents = with dockerTools; [
+      usrBinEnv
+      binSh
+      bashInteractive
+      which
+      rv32-stdenv.cc
+      coreutils
+      findutils
+      diffutils
+      gnused
+      gnugrep
+      gawk
+      gnutar
+      gzip
+      bzip2
+      gnumake
+      patch
+      xz
+      file
+      verilator-emu
+    ];
 
-        bashInteractive
-        which
-
-        emulator-wrapped
-      ] ++ rv32-stdenv.initialPath;
-      pathsToLink = [ "/bin" ];
-    };
-
-    runAsRoot = ''
-      #!${runtimeShell}
+    enableFakechroot = true;
+    fakeRootCommands = ''
       echo "Start finalizing rootfs"
+      mkdir -p /tmp
 
       echo "Creating testcase directory"
-      mkdir -p /workspace/cases/
-      caseArray=( ${lib.escapeShellArgs testCases} )
-      for caseDir in "''${caseArray[@]}"; do
-        dirName=$(${jq}/bin/jq -r '.name|split(".")|join("-")' "$caseDir"/*.json)
-        cp -r "$caseDir" /workspace/cases/"$dirName"
-      done
-      chmod u+w -R /workspace/cases
-
-      mkdir -p /tmp
+      mkdir -p /workspace/examples
+      pushd /workspace/examples
+      cp -r ${cases.intrinsic.matmul.src} .
+      cp -r ${cases.intrinsic.linear_normalization.src} .
+      cp -r ${cases.asm.strlen.src} .
+      popd
     '';
 
     config = {
-      # Cmd = [ ];
       WorkingDir = "/workspace";
     };
   };
