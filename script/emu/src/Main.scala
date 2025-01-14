@@ -341,6 +341,9 @@ object Main:
     if os.exists(os.pwd / "perf.json") then
       os.move(os.pwd / "perf.json", outputPath / "perf.json", replaceExisting = true)
 
+    if os.exists(os.pwd / "mmio-event.jsonl") then
+      os.move(os.pwd / "mmio-event.jsonl", outputPath / "mmio-event.jsonl", replaceExisting = true)
+
     Logger.info(s"Output saved under ${outputPath}")
   end run
 
