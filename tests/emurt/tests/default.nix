@@ -14,7 +14,7 @@ in
       void test() {
         place_counter(1);
         printf("Hello, %s", "World\n");
-        place_counter(2);
+        place_counter(0);
       }
     '';
 
