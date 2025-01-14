@@ -1,5 +1,10 @@
 name: Build Docker Image
 
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 # Release on any git tag
 on:
   push:
@@ -8,67 +13,36 @@ on:
 jobs:
   build:
     runs-on: [self-hosted, linux, nixos]
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
     strategy:
+      fail-fast: false
       matrix:
         config:
           - blastoise
-          - machamp
-          - sandslash
-    outputs:
-      # I hate copy-paste too, but this is GitHub Action, blame them.
-      cache-key-blastoise: ${{ steps.build.outputs.cache-key-blastoise }}
-      cache-key-machamp: ${{ steps.build.outputs.cache-key-machamp }}
-      cache-key-sandslash: ${{ steps.build.outputs.cache-key-sandslash }}
     steps:
       - uses: actions/checkout@v4
         with:
           # Checkout the triggered tag name
           ref: ${{ github.ref_name }}
       - name: Build docker image file
-        id: build
-        run: |
-          closure="$(nix build -L '.#t1.${{ matrix.config }}.release.docker-image' --no-link --print-out-paths)"
-          echo "path: $closure"
-          _dest=/tmp/t1-${{ matrix.config }}-image.tar.gz
-          cp "$closure" "$_dest"
-          echo "cache-key-${{ matrix.config }}=$(nix hash file --base32 "$_dest")" > $GITHUB_OUTPUT
-          nix build -L '.#t1.${{ matrix.config }}.release.doc' --out-link docs
-      - name: Upload to cache
-        uses: actions/cache/save@v4
-        with:
-          path: /tmp/t1-${{ matrix.config }}-image.tar.gz
-          key: ${{ steps.build.outputs[format('cache-key-{0}', matrix.config)] }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: docs-${{ matrix.config }}.pdf
-          path: |
-            docs/*.pdf
-
-  upload:
-    runs-on: ubuntu-latest
-    needs: [build]
-    strategy:
-      matrix:
-        config:
-          - blastoise
-          - machamp
-          - sandslash
-    steps:
-      - name: Restore ${{ matrix.config }} from cache
-        uses: actions/cache/restore@v4
-        id: cache
-        with:
-          path: /tmp/t1-${{ matrix.config }}-image.tar.gz
-          fail-on-cache-miss: true
-          key: ${{ needs.build.outputs[format('cache-key-{0}', matrix.config)] }}
-      - name: Login to GHCR dot IO
-        uses: docker/login-action@v2
-        with:
+        env:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Load and push
         run: |
-          docker load < /tmp/t1-${{ matrix.config }}-image.tar.gz
-          docker tag chipsalliance/t1-${{ matrix.config }}:latest ghcr.io/chipsalliance/t1-${{ matrix.config }}:latest
-          docker push ghcr.io/chipsalliance/t1-${{ matrix.config }}:latest
+          set -o pipefail
+          set -o errexit
+          export PATH="$(nix build '.#skopeo.out' --print-out-paths --no-link)/bin:$PATH"
+          export PATH="$(nix build '.#gzip.out' --print-out-paths --no-link)/bin:$PATH"
+          # skopeo need /run/containers to write auth.json file, lets workaround this behavior.
+          export REGISTRY_AUTH_FILE=$(mktemp -d)/auth.json
+          closure="$(nix build -L '.#t1.${{ matrix.config }}.t1emu.docker-image' --no-link --print-out-paths --impure)"
+          skopeo --insecure-policy login --username "$username" --password "$password" "$registry"
+          "$closure" \
+            | gzip --fast \
+            | skopeo --insecure-policy copy docker-archive:/dev/stdin \
+                docker://"$registry"/chipsalliance/t1-${{ matrix.config }}:latest

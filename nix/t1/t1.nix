@@ -164,5 +164,7 @@ forEachTop (topName: generator: self: {
   };
 
   run = self.callPackage ./run { };
+
+  docker-image = self.callPackage ./release/docker-image.nix { };
 }) # end of forEachTop
 )
