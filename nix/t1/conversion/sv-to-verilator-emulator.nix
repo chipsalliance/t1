@@ -31,7 +31,7 @@ rec {
   propagatedBuildInputs = [ zlib ];
 
   verilatorFilelist = "${rtl}/filelist.f";
-  verilatorThreads = 8;
+  verilatorThreads = 4;
   verilatorArgs = [
     "--cc"
     "--main"
