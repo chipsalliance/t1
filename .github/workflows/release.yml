@@ -57,6 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build]
     strategy:
+      fail-fast: false
       matrix:
         config:
           - blastoise
@@ -76,4 +77,4 @@ jobs:
             docker exec t1 /bin/bash -c "$@"
           }
           dexec 'cd examples/intrinsic.matmul && t1-cc -T /workspace/share/t1.ld matmul.c /workspace/share/main.S -o matmul.elf'
-          dexec 't1emu-verilated-simulator +t1_elf_file=/workspace/examples/intrinsic.matmul/matmul.elf'
+          dexec '${{ matrix.top }}-verilated-simulator +t1_elf_file=/workspace/examples/intrinsic.matmul/matmul.elf'
