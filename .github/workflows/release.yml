@@ -9,6 +9,9 @@ concurrency:
 on:
   push:
     tags: ['*']
+    paths:
+      - .github/workflows/release.yml
+      - nix/t1/release/docker-image.nix
 
 jobs:
   build:
@@ -23,6 +26,9 @@ jobs:
       matrix:
         config:
           - blastoise
+        top:
+          - t1emu
+          - t1rocketemu
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,9 +46,34 @@ jobs:
           export PATH="$(nix build '.#gzip.out' --print-out-paths --no-link)/bin:$PATH"
           # skopeo need /run/containers to write auth.json file, lets workaround this behavior.
           export REGISTRY_AUTH_FILE=$(mktemp -d)/auth.json
-          closure="$(nix build -L '.#t1.${{ matrix.config }}.t1emu.docker-image' --no-link --print-out-paths --impure)"
+          closure="$(nix build -L '.#t1.${{ matrix.config }}.${{ matrix.top }}.docker-image' --no-link --print-out-paths --impure)"
           skopeo --insecure-policy login --username "$username" --password "$password" "$registry"
           "$closure" \
             | gzip --fast \
             | skopeo --insecure-policy copy docker-archive:/dev/stdin \
-                docker://"$registry"/chipsalliance/t1-${{ matrix.config }}:latest
+                docker://"$registry"/chipsalliance/t1-${{ matrix.config }}-${{ matrix.top }}:latest
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [build]
+    strategy:
+      matrix:
+        config:
+          - blastoise
+        top:
+          - t1emu
+          - t1rocketemu
+    steps:
+      - name: Pull and Run tests
+        env:
+          registry: ghcr.io
+        run: |
+          set -o pipefail
+          set -o errexit
+          docker pull "$registry"/chipsalliance/t1-${{ matrix.config }}-${{ matrix.top }}:latest
+          docker run -d --name t1 --rm "$registry"/chipsalliance/t1-${{ matrix.config }}-${{ matrix.top }}:latest /bin/bash -c "sleep inf"
+          dexec() {
+            docker exec t1 /bin/bash -c "$@"
+          }
+          dexec 'cd examples/intrinsic.matmul && t1-cc -T /workspace/share/t1.ld matmul.c /workspace/share/main.S -o matmul.elf'
+          dexec 't1emu-verilated-simulator +t1_elf_file=/workspace/examples/intrinsic.matmul/matmul.elf'
