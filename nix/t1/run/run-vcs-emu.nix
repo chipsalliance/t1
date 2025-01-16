@@ -20,7 +20,7 @@ stdenvNoCC.mkDerivation (rec {
   name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enableTrace "-trace");
   nativeBuildInputs = [ zstd jq python3 ];
   __noChroot = true;
-  coverType = "line+tgl+assert";
+  coverType = "line+cond+fsm+tgl+branch+assert";
 
   passthru = {
     caseName = testCase.pname;
