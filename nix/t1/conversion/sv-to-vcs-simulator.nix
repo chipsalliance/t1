@@ -8,6 +8,7 @@
 , rtl
 , vsrc
 , enableCover ? false
+, coverType ? null
 , enableTrace ? false
 , vcsLinkLibs ? [ ]
 , topModule ? null
@@ -48,7 +49,7 @@ stdenv.mkDerivation rec {
   ]
   ++ lib.optionals enableCover [
     "-cm"
-    "assert"
+    coverType
     "-cm_dir"
     "./cm"
     "-assert"

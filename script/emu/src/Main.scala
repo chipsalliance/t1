@@ -178,6 +178,10 @@ object Main:
       doc = "configuration name"
     ) config:   Option[String],
     @arg(
+      name = "cover-type",
+      doc = "Type for coverage, only avaliable in vcs-emu-cover-full, Eg. assert+line+tgl"
+    ) coverType:  Option[String] = Some("assert"),
+    @arg(
       name = "verbose",
       short = 'v',
       doc = "set loglevel to debug"
@@ -214,8 +218,9 @@ object Main:
         s"No cached emulator selection nor --emu argument was provided"
       )
 
-    val isTrace = finalEmuType.get.contains("-trace")
-    val isCover = finalEmuType.get.contains("-cover")
+    val isTrace = finalEmuType.get.endsWith("-trace")
+    val isCover = finalEmuType.get.endsWith("-cover")
+    val isCoverFull = finalEmuType.get.endsWith("-cover-full")
 
     val finalConfig = tryRestoreFromCache("config", config)
     if finalConfig.isEmpty then
@@ -226,6 +231,16 @@ object Main:
     Logger.info(
       s"Using config=${BOLD}${finalConfig.get}${RESET} emulator=${BOLD}${finalEmuType.get}${RESET} case=${BOLD}$caseName${RESET}"
     )
+
+    // check the arguments of coverage
+    if isCover && !(coverType.isDefined && coverType.get.equals("assert")) then
+      Logger.fatal(s"coverType should be defined in assert")
+    if isCoverFull && !coverType.isDefined then
+      Logger.fatal(s"coverType should be defined")
+    if isCover || isCoverFull then
+      Logger.info(
+        s"Coverage type is ${BOLD}${coverType.get}${RESET}"
+      )
 
     val caseElfPath = resolveTestElfPath(finalIp.get, finalConfig.get, caseName, forceX86)
     val caseCoverPath = resolveTestCoverPath(finalIp.get, finalConfig.get, caseName, forceX86)
@@ -240,7 +255,7 @@ object Main:
     )
       ++ optionals(timeout.isDefined, Seq(s"+t1_timeout=${timeout.getOrElse("unreachable")}"))
       ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
-      ++ optionals(isCover, Seq("-cm", "assert", "-assert", s"hier=${caseCoverPath}"))
+      ++ optionals(isCover || isCoverFull, Seq("-cm", s"${coverType.get}", "-assert", s"hier=${caseCoverPath}"))
       ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)
 
     if dryRun.value then return
@@ -307,7 +322,8 @@ object Main:
 
     Logger.info("Driver finished")
 
-    if isCover then
+    // check the output of coverage
+    if isCover || isCoverFull then
       if os.exists(os.pwd / "cm.vdb") then
         Logger.info(s"Coverage database saved under ${os.pwd}/cm.vdb")
 
@@ -325,7 +341,7 @@ object Main:
           "-format", 
           "text",
           "-metric",
-          "assert",
+          s"${coverType.get}",
           "-show",
           "summary"
         )

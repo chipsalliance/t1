@@ -156,7 +156,13 @@ forEachTop (topName: generator: self: {
   };
   vcs-emu-cover = self.vcs-emu.override {
     enableCover = true;
+    coverType = "assert";
     mainProgram = "${topName}-vcs-cover-simulator";
+  };
+  vcs-emu-cover-full = self.vcs-emu.override {
+    enableCover = true;
+    coverType = "line+cond+fsm+tgl+branch+assert";
+    mainProgram = "${topName}-vcs-cover-full-simulator";
   };
   vcs-emu-trace = self.vcs-emu.override {
     enableTrace = true;
