@@ -22,6 +22,11 @@ unsafe fn write_to_pointer(dst: *mut u8, data: &[u8]) {
   dst.copy_from_slice(data);
 }
 
+unsafe fn fill_axi_read_payload_zero(dst: *mut SvBitVecVal, dlen: u32) {
+  let dst = std::slice::from_raw_parts_mut(dst, dlen as usize / 8);
+  dst.fill(0);
+}
+
 unsafe fn fill_axi_read_payload(dst: *mut SvBitVecVal, dlen: u32, payload: &[u8]) {
   assert!(payload.len() * 8 <= dlen as usize);
   write_to_pointer(dst as *mut u8, payload);
@@ -65,6 +70,7 @@ unsafe fn load_from_payload(
 /// evaluate after AW and W is finished at corresponding channel_id.
 #[no_mangle]
 unsafe extern "C" fn axi_write_highBandwidthAXI(
+  reset: i64,
   channel_id: c_longlong,
   data_width: i64,
   awid: c_longlong,
@@ -81,6 +87,10 @@ unsafe extern "C" fn axi_write_highBandwidthAXI(
   // bit [255:0][DLEN/8:0] strb; } payload
   payload: *const SvBitVecVal,
 ) {
+  if reset != 0 {
+    return;
+  }
+
   debug!(
     "axi_write_highBandwidth (channel_id={channel_id}, awid={awid}, awaddr={awaddr:#x}, \
   awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
@@ -101,6 +111,7 @@ unsafe extern "C" fn axi_write_highBandwidthAXI(
 /// evaluate at AR fire at corresponding channel_id.
 #[no_mangle]
 unsafe extern "C" fn axi_read_highBandwidthAXI(
+  reset: i64,
   channel_id: c_longlong,
   data_width: i64,
   arid: c_longlong,
@@ -116,6 +127,12 @@ unsafe extern "C" fn axi_read_highBandwidthAXI(
   // struct packed {bit [255:0][DLEN:0] data; byte beats; } payload
   payload: *mut SvBitVecVal,
 ) {
+  if reset != 0 {
+    // TODO: zero payload.
+    // Since payload contains no control signal, safe to omit the clear.
+    return;
+  }
+
   debug!(
     "axi_read_highBandwidth (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
@@ -136,6 +153,7 @@ unsafe extern "C" fn axi_read_highBandwidthAXI(
 /// evaluate after AW and W is finished at corresponding channel_id.
 #[no_mangle]
 unsafe extern "C" fn axi_write_highOutstandingAXI(
+  reset: i64,
   channel_id: c_longlong,
   data_width: i64,
   awid: c_longlong,
@@ -151,6 +169,10 @@ unsafe extern "C" fn axi_write_highOutstandingAXI(
   // struct packed {bit [255:0][31:0] data; bit [255:0][3:0] strb; } payload
   payload: *const SvBitVecVal,
 ) {
+  if reset != 0 {
+    return;
+  }
+
   debug!(
     "axi_write_high_outstanding (channel_id={channel_id}, awid={awid}, awaddr={awaddr:#x}, \
   awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
@@ -170,6 +192,7 @@ unsafe extern "C" fn axi_write_highOutstandingAXI(
 /// evaluate at AR fire at corresponding channel_id.
 #[no_mangle]
 unsafe extern "C" fn axi_read_highOutstandingAXI(
+  reset: i64,
   channel_id: c_longlong,
   data_width: i64,
   arid: c_longlong,
@@ -185,6 +208,12 @@ unsafe extern "C" fn axi_read_highOutstandingAXI(
   // struct packed {bit [255:0][DLEN:0] data; byte beats; } payload
   payload: *mut SvBitVecVal,
 ) {
+  if reset != 0 {
+    // TODO: zero payload.
+    // Since payload contains no control signal, safe to omit the clear.
+    return;
+  }
+
   debug!(
     "axi_read_high_outstanding (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
@@ -203,6 +232,7 @@ unsafe extern "C" fn axi_read_highOutstandingAXI(
 
 #[no_mangle]
 unsafe extern "C" fn axi_write_loadStoreAXI(
+  reset: i64,
   channel_id: c_longlong,
   data_width: i64,
   awid: c_longlong,
@@ -217,6 +247,10 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
   awregion: c_longlong,
   payload: *const SvBitVecVal,
 ) {
+  if reset != 0 {
+    return;
+  }
+
   debug!(
     "axi_write_loadStore (channel_id={channel_id}, awid={awid}, awaddr={awaddr:#x}, \
   awlen={awlen}, awsize={awsize}, awburst={awburst}, awlock={awlock}, awcache={awcache}, \
@@ -237,6 +271,7 @@ unsafe extern "C" fn axi_write_loadStoreAXI(
 
 #[no_mangle]
 unsafe extern "C" fn axi_read_loadStoreAXI(
+  reset: i64,
   channel_id: c_longlong,
   data_width: i64,
   arid: c_longlong,
@@ -259,6 +294,12 @@ unsafe extern "C" fn axi_read_loadStoreAXI(
     return;
   }
 
+  if reset != 0 {
+    // TODO: zero payload.
+    // Since payload contains no control signal, safe to omit the clear.
+    return;
+  }
+
   debug!(
     "axi_read_loadStoreAXI (channel_id={channel_id}, arid={arid}, araddr={araddr:#x}, \
   arlen={arlen}, arsize={arsize}, arburst={arburst}, arlock={arlock}, arcache={arcache}, \
@@ -277,6 +318,7 @@ unsafe extern "C" fn axi_read_loadStoreAXI(
 
 #[no_mangle]
 unsafe extern "C" fn axi_read_instructionFetchAXI(
+  reset: i64,
   channel_id: c_longlong,
   data_width: i64,
   arid: c_longlong,
@@ -296,6 +338,12 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
   if svdpi::get_time() == 0 {
     debug!("axi_read_instructionFetchAXI (ignored at time zero)");
     // TODO: better to fill zero to payload, but maintain the correct length for payload is too messy
+    return;
+  }
+
+  if reset != 0 {
+    // TODO: zero payload.
+    // Since payload contains no control signal, safe to omit the clear.
     return;
   }
 

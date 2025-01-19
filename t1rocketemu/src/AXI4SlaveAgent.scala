@@ -151,6 +151,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(
           io.clock,
           when.cond && !io.gateWrite,
+          io.reset.asTypeOf(UInt(64.W)),
           io.channelId,
           parameter.axiParameter.dataWidth.U(64.W),
           // handle AW and W at same beat.
@@ -198,6 +199,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       )(
         io.clock,
         !io.gateRead && arFire,
+        io.reset.asTypeOf(UInt(64.W)),
         io.channelId,
         parameter.axiParameter.dataWidth.U(64.W),
         channel.ARID.asTypeOf(UInt(64.W)),
