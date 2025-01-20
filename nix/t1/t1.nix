@@ -117,16 +117,25 @@ forEachTop (topName: generator: self: {
     moduleType = "dpi_${topName}";
   };
 
-  verilator-emu = t1Scope.sv-to-verilator-emulator {
-    mainProgram = "${topName}-verilated-simulator";
+  verilator-emu-lib = t1Scope.sv-to-verilator-emulator {
+    mainProgram = "${topName}-verilated-lib";
     topModule = "TestBench";
     rtl = self.rtl;
     vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
-    extraVerilatorArgs = [ "${self.verilator-dpi-lib}/lib/libdpi_${topName}.a" ];
+  };
+  verilator-emu-trace-lib = self.verilator-emu-lib.override {
+    enableTrace = true;
+    mainProgram = "${topName}-verilated-trace-lib";
+  };
+
+  verilator-emu = t1Scope.link-verilator-with-dpi {
+    mainProgram = "${topName}-verilated-simulator";
+    verilatorLib = self.verilator-emu-lib;
+    dpiLibs = [ "${self.verilator-dpi-lib}/lib/libdpi_${topName}.a" ];
   };
   verilator-emu-trace = self.verilator-emu.override {
-    enableTrace = true;
     mainProgram = "${topName}-verilated-trace-simulator";
+    verilatorLib = self.verilator-emu-trace-lib;
   };
 
   # ---------------------------------------------------------------------------------

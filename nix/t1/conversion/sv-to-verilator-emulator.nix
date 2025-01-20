@@ -6,18 +6,16 @@
 }:
 
 { mainProgram
+, topModule
 , rtl
 , vsrc
 , enableTrace ? false
 , extraVerilatorArgs ? [ ]
-, topModule ? null
-, ...
-}@overrides:
+}:
 
 assert lib.assertMsg (builtins.typeOf vsrc == "list") "vsrc should be a list of file path";
 
-stdenv.mkDerivation (lib.recursiveUpdate
-rec {
+stdenv.mkDerivation (rec {
   name = mainProgram;
   inherit mainProgram;
 
@@ -35,7 +33,6 @@ rec {
   verilatorArgs = [
     "--cc"
     "--main"
-    "--exe"
     "--timescale"
     "1ns/1ps"
     "--timing"
@@ -73,24 +70,22 @@ rec {
     mkdir -p $out/share
     cp -r obj_dir $out/share/verilated_src
 
-    # We can't use -C here because VTestBench.mk is generated with relative path
-    cd obj_dir
-    make -j "$NIX_BUILD_CORES" -f VTestBench.mk VTestBench
+    make -j "$NIX_BUILD_CORES" -f V${topModule}.mk -C obj_dir
 
     runHook postBuild
   '';
 
   passthru = {
+    inherit topModule;
     inherit enableTrace;
   };
 
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/{include,lib,bin}
-    cp *.h $out/include
-    cp *.a $out/lib
-    cp VTestBench $out/bin/$mainProgram
+    mkdir -p $out/{include,lib}
+    cp obj_dir/*.h $out/include
+    cp obj_dir/*.a $out/lib
 
     runHook postInstall
   '';
@@ -103,5 +98,4 @@ rec {
   # we'd like verilator to controll optimization flags, so disable it.
   # `-O2` will make gcc build time in verilating extremely long
   hardeningDisable = [ "fortify" ];
-}
-  overrides)
+})
