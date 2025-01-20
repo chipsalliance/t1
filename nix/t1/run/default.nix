@@ -1,6 +1,7 @@
 { lib
 , callPackage
 , runCommand
+, snps-fhs-env
 , verilator-emu
 , verilator-emu-trace
 , vcs-emu
@@ -13,13 +14,8 @@
 , topName
 }:
 let
-  runVerilatorEmu = callPackage ./run-verilator-emu.nix { };
-  runVCSEmu_ = callPackage ./run-vcs-emu.nix { };
+  runEmu = callPackage ./run-emulator.nix { };
   runFsdb2vcd = callPackage ./run-fsdb2vcd.nix { };
-  runVCSEmu = emulator: runVCSEmu_ {
-    inherit emulator;
-    dpilib = if emulator.isRuntimeLoad then vcs-dpi-lib else null;
-  };
 
   # cases is now { mlir = { hello = ...; ...  }; ... }
   emuAttrs = lib.pipe cases [
@@ -35,13 +31,82 @@ let
               && (builtins.length (lib.splitString "." drv.pname) == 2)
             )
             caseSet;
-          innerMapper = caseName: case: {
-            verilator-emu = runVerilatorEmu verilator-emu case;
-            verilator-emu-trace = runVerilatorEmu verilator-emu-trace case;
-            vcs-emu = runVCSEmu vcs-emu-rtlink case;
-            vcs-emu-cover = runVCSEmu vcs-emu-cover case;
-            vcs-emu-trace = runVCSEmu vcs-emu-trace case;
-            vcs-prof-vcd = runFsdb2vcd (runVCSEmu vcs-emu-trace case);
+          innerMapper = caseName: testCase: {
+            verilator-emu = runEmu {
+              emulator = verilator-emu;
+              emuDriverArgs = [ "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf" ];
+              inherit testCase;
+            };
+            verilator-emu-trace = runEmu {
+              emulator = verilator-emu-trace;
+              emuDriverArgs = [
+                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+                "+t1_wave_path=$out/wave.fst"
+              ];
+              inherit testCase;
+            };
+
+            vcs-emu = runEmu {
+              emulator = vcs-emu-rtlink;
+              dpilib = vcs-dpi-lib;
+              emuDriverArgs = [
+                "-exitstatus"
+                "-assert"
+                "global_finish_maxfail=10000"
+                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+                "-sv_root"
+                "${vcs-dpi-lib}/lib"
+                "-sv_lib"
+                "${vcs-dpi-lib.svLibName}"
+              ];
+              inherit testCase;
+            };
+
+            vcs-emu-cover = runEmu {
+              emulator = vcs-emu-cover;
+              emuDriverArgs = [
+                "-exitstatus"
+                "-assert"
+                "global_finish_maxfail=10000"
+                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+                "-cm"
+                "assert"
+                "-assert"
+                "hier=${testCase}/${testCase.pname}.cover"
+              ];
+              inherit testCase;
+
+              postInstall = ''
+                ${snps-fhs-env}/bin/snps-fhs-env -c "urg -dir cm.vdb -format text -metric assert -show summary"
+                # TODO: add a flag to specify 'vdb only generated in ci mode'
+                cp -vr cm.vdb $out/
+                cp -vr urgReport $out/
+              '';
+            };
+
+            vcs-emu-trace = runEmu {
+              emulator = vcs-emu-trace;
+              emuDriverArgs = [
+                "-exitstatus"
+                "-assert"
+                "global_finish_maxfail=10000"
+                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+                "+t1_wave_path=$out/${testCase.pname}.fsdb"
+              ];
+              inherit testCase;
+            };
+
+            vcs-prof-vcd = runFsdb2vcd (runEmu {
+              emulator = vcs-emu-trace;
+              emuDriverArgs = [
+                "-exitstatus"
+                "-assert"
+                "global_finish_maxfail=10000"
+                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+                "+t1_wave_path=$out/${testCase.pname}.fsdb"
+              ];
+              inherit testCase;
+            });
           };
         in
         # Now we have { caseName = "hello", case = <derivation> }

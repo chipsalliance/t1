@@ -3,78 +3,59 @@
 , zstd
 , jq
 , offline-checker
-, snps-fhs-env
 , writeShellScriptBin
 , python3
-, runCoverHook
 }:
 
 { emulator
+, emuDriverArgs
 , dpilib ? null
-}:
+, testCase
+, ...
+}@args:
 
-testCase:
+# if emulator doesn't have `isRuntimeLoad` attribute, then we don't need to worry about linking, quit the assertion.
+assert lib.assertMsg ((!(emulator ? isRuntimeLoad)) || (!emulator.isRuntimeLoad || (dpilib != null))) "dpilib must be set for rtlink emu";
 
-assert lib.assertMsg (!emulator.isRuntimeLoad || (dpilib != null)) "dpilib must be set for rtlink emu";
-
-stdenvNoCC.mkDerivation (rec {
+let
+  overrides = builtins.removeAttrs args [ "emulator" "emuDriver" "dpilib" "testCase" ];
+in
+stdenvNoCC.mkDerivation (lib.recursiveUpdate
+{
   name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enableTrace "-trace");
   nativeBuildInputs = [
     zstd
     jq
     python3
-  ] ++ lib.optionals (emulator.enableCover) [
-    runCoverHook
-    snps-fhs-env
   ];
+
   __noChroot = true;
+  dontUnpack = true;
+
+  emuDriverArgs = assert lib.assertMsg (!(emulator ? enableProfile && emulator.enableProfile)) "The provided emulator has `profile` feature enable, which is inherently nondetermistic, use '.<...attr path...>.profile --impure' instead";
+    lib.escapeShellArgs emuDriverArgs;
 
   passthru = {
     # to open 'profileReport.html' in firefox,
     # set 'security.fileuri.strict_origin_policy = false' in 'about:config'
     profile = writeShellScriptBin "runSimProfile" ''
       ${lib.getExe emulator} \
-        ${lib.escapeShellArgs emuDriverArgs} \
+      ${lib.escapeShellArgs emuDriverArgs} \
         -simprofile time \
         2> ${testCase.pname}-rtl-event.jsonl
     '';
   };
 
   caseName = testCase.pname;
-  emuDriverArgs =
-    assert lib.assertMsg (emulator ? enableProfile && emulator.enableProfile)
-      "ERROR: emulator provided has `profile` feature enable, \
-        which is inherently nondetermistic, use '${name}.profile --impure' instead";
-    lib.escapeShellArgs (lib.optionals emulator.isRuntimeLoad [
-      "-sv_root"
-      "${dpilib}/lib"
-      "-sv_lib"
-      "${dpilib.svLibName}"
-    ]
-    ++ [
-      "-exitstatus"
-      "-assert"
-      "global_finish_maxfail=10000"
-      "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-    ]
-    ++ lib.optionals emulator.enableCover [
-      "-cm"
-      "assert"
-      "-assert"
-      "hier=${testCase}/${testCase.pname}.cover"
-    ]
-    ++ lib.optionals emulator.enableTrace [
-      "+t1_wave_path=${testCase.pname}.fsdb"
-    ]);
 
-  offlineCheckArgs = lib.escapeShellArgs ([
+  offlineCheckArgs = toString [
     "--elf-file"
     "${testCase}/bin/${testCase.pname}.elf"
     "--log-file"
     "$rtlEventOutPath"
     "--log-level"
     "ERROR"
-  ]);
+  ];
 
   buildPhase = ''
     runHook preBuild
@@ -110,8 +91,9 @@ stdenvNoCC.mkDerivation (rec {
       fatal "invalid JSON file $rtlEventOutPath"
     fi
 
-    echo -e "[nix] running offline check"
-    if "${lib.getExe offline-checker}" $offlineCheckArgs &> >(tee $out/offline-check-journal); then
+    offlineCheckPhase="${lib.getExe offline-checker} $offlineCheckArgs"
+    echo -e "[nix] running offline check '$offlineCheckPhase'"
+    if eval "$offlineCheckPhase" &> >(tee $out/offline-check-journal); then
       printf '0' > $out/offline-check-status
       echo "[nix] Offline check PASS"
     else
@@ -130,21 +112,16 @@ stdenvNoCC.mkDerivation (rec {
     runHook preInstall
 
     if [ -r perf.json ]; then
-      cp -v perf.json $out/
+    cp -v perf.json $out/
     fi
 
     # If we find the mmio-event.jsonl file, try to replace the perf total cycle with program instrument.
     if [ -r mmio-event.jsonl ]; then
-      cp -v mmio-event.jsonl $out/
-      jq ".profile_total_cycles=$(python3 ${./calculate-cycle.py})" perf.json > "$out/perf.json"
+    cp -v mmio-event.jsonl $out/
+    jq ".profile_total_cycles=$(python3 ${./calculate-cycle.py})" perf.json > "$out/perf.json"
     fi
-
-    ${lib.optionalString emulator.enableTrace ''
-      if [ -r "${testCase.pname}.fsdb" ]; then
-        cp -v "${testCase.pname}.fsdb" "$out"
-      fi
-    ''}
 
     runHook postInstall
   '';
-})
+}
+  overrides)

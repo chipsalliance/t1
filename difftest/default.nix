@@ -82,4 +82,6 @@ else
       exe=$(find $out/bin -type f -name 'offline_*')
       ln -s "$exe" $out/bin/offline
     '';
+
+    meta.mainProgram = "offline";
   }
