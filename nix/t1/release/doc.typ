@@ -1,71 +1,70 @@
-#import "@preview/codly:0.2.0": *
-#show: codly-init.with()
-#codly(languages: (
-  bash: (name: "Bash", icon: none, color: rgb("#CE412B")),
-))
+#import "template.typ": project
 
-#let config = json("./config.json")
-
-= T1 Docker Image Manual
-
-== Released IP configs
-
-#{
-  let name = config.name
-  let param = config.parameter
-  let floatSupport = if param.extensions.first() == "Zve32f" [ True ] else [ False ]
-  let VRFRamType = param.vrfRamType.split(".").last()
-  let VRF = [#param.vrfBankSize Bank, #VRFRamType]
-  let lsuBankCnt = param.lsuBankParameters.len()
-  let beatByteCnt = param.lsuBankParameters.first().beatbyte
-  table(
-    columns: 6,
-    [*Config Name*], [*DLEN*],      [*VLEN*],      [*Float support*], [*VRF*], [*LSU*],
-    [*#name*],       [#param.dLen], [#param.vLen], [#floatSupport],   [#VRF],  [#lsuBankCnt bank, #beatByteCnt beatbyte],
-  )
-}
-
-== Address Range
-
-#table(
-  columns: 3,
-  [*Range*],  [*Usage*],                      [*Address Range*],
-  [0-1G],     [Scalar Bank],                  [0x20000000],
-  [1-3G],     [DDR Bank (512M/bank)],         [0x40000000],
-  [3G-3G+2M], [SRAM Bank (256K/bank 8Banks)], [0xc0000000]
+#show: project.with(
+  title: "T1 docker manual",
 )
 
-Scalar core cannot access Vector DDR/SRAM, for, users need to access corresponding memory banks via vector load store instructions.
+= Using the Emulator with Docker
+The emulator environment provides a set of tools and examples to help users get
+started. Below are detailed instructions and explanations for compiling and
+running test cases.
 
-== How to use the Docker image
+== Examples
+There are four sample source code files located in the /workspace/examples
+directory. The T1 runtime stubs are placed under /workspace/share.
 
-#show raw.where(lang: "t1-docker"): it => {
-  raw(lang: "bash", it.text.replace("${config}", config.name))
-}
-```t1-docker
-# Load the image into docker registry
-docker pull ghcr.io/chipsalliance/t1-${config}:latest
-# Start the bash shell in t1/release:latest image, and bind the current path to /workspace
-docker run --name t1 -it -v $PWD:/workspace --rm ghcr.io/chipsalliance/t1-${config}:latest /bin/bash
-```
-
-> It is recommended to build ELF outside of the docker image and bind mount the ELF location into the image.
-
-== What is inside
-
-+ IP emulator: `/bin/ip-emulator`
-+ IP emulator with trace functionality: `/bin/ip-emulator-trace`
-+ Softmax & Linear Normalization & Matmul test cases: `/workspace/cases`
-
-== How to run some workload using IP emulator
+This Docker container includes a Clang wrapper that simplifies the compilation
+process by handling most compiler options. Users can easily compile the example
+source code using the following commands:
 
 ```bash
-# There are three cases under the /workspace/cases directory
-ls /workspace/cases
-
-# Choose one of the case to run
-ip-emulator --case cases/intrinsic-matmul/bin/intrinsic.matmul.elf
-
-# Get waveform trace file
-ip-emulator-trace --case cases/intrinsic-linear_normalization/bin/intrinsic.linear_normalization.elf
+cd /workspace/intrinsic.linear_normalization
+t1-cc -T /workspace/share/t1.ld /workspace/share/main.S linear_normalization.c -o linear_normalization.elf
+t1emu-verilated-simulator +t1_elf_file=linear_normalization.elf
 ```
+
+== Marking Memory Regions
+The t1.ld file specifies how the linker organizes the memory layout. We use the following memory configurations:
+
+- *Scalar memory*: Starts at 0x20000000 with a size of 512MB.
+- *Vector memory*: Starts at 0x60000000 with a size of 1024MB.
+
+Developers can use the `__attribute((section(".vbss")))` attribute to mark
+regions of memory that need to be copied to SRAM. For example, in
+linear_normalization.c:
+
+```c
+#define ARRAY_ZIZE 1024
+__attribute((section(".vbss"))) float actual[ARRAY_ZIZE];
+```
+
+== Main Function
+The main.S file acts as the main function. It initializes all registers before
+running a test case and then jumps to the test symbol. Developers writing new
+test cases should use the following structure for their entry point:
+
+```c
+int test() {
+    // Test implementation
+}
+```
+
+== Clang Wrapper
+The `t1-cc` command wraps several Clang options for convenience:
+
+```bash
+riscv32-none-elf-clang \
+    -I/path/to/t1-runtime/include -L/path/to/t1-runtime/lib \
+    -mabi=ilp32f -march=rv32gc_zvl2048b_zve32f -mno-relax -static -mcmodel=medany \
+    -fvisibility=hidden -fno-PIC -g -O3 -frandom-seed=<random string>
+```
+
+== Simulator Variants
+The simulator binary may differ based on the container used:
+
+- Containers with the suffix *t1rocketemu* include the t1rocketemu-verilated-simulator, which uses the Rocket core.
+- Containers with the suffix *t1emu* include the t1emu-verilated-simulator, which handles scalar instructions using Spike.
+
+*Note*: MMIO (Memory-Mapped I/O) support is currently unavailable in containers
+suffixed with -t1emu. Consequently, features like printf or framebuffer will
+not work in these containers.
