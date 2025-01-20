@@ -212,20 +212,24 @@ object Main:
   // Search job HTML page by github run id
   @main
   def findCurrentJobURL() =
-    val runID    = sys.env("GITHUB_RUN_ID")
-    val jobName  = sys.env("GITHUB_JOB_NAME")
-    val proxy: (String, Int) = sys.env.get("https_proxy")
+    val runID   = sys.env("GITHUB_RUN_ID")
+    val jobName = sys.env("GITHUB_JOB_NAME")
+    val proxy: (String, Int) = sys.env
+      .get("https_proxy")
       .map(proxy => new java.net.URI(proxy))
       .map(uri => (uri.getHost, uri.getPort))
       .getOrElse(null)
 
     Logger.info(s"Getting URL for Run ID: ${runID}, job '${jobName}'")
-    val session = requests.Session(
-      headers = Map("User-Agent" -> "Mozilla/5.0 (X11; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0"),
-      proxy = proxy,
+    val session  = requests.Session(
+      headers = Map(
+        "User-Agent" -> "Mozilla/5.0 (X11; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0"
+      )
+        ++ sys.env.get("GITHUB_TOKEN").map(token => ("authorization", s"Bearer ${token}")),
+      proxy = proxy
     )
     val response = session.get.stream(s"https://api.github.com/repos/chipsalliance/t1/actions/runs/${runID}/jobs")
-    val ciData = ujson.read(response)
+    val ciData   = ujson.read(response)
     ciData
       .obj("jobs")
       .arr
