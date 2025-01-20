@@ -23,8 +23,9 @@ jobs:
       fail-fast: false
       matrix:
         config: ["blastoise"]
-        # No t1emu for now
+        # t1emu doesn't support MMIO right now
         ip: ["t1rocketemu"]
+        emu: ["vcs-emu", "verilator-emu"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,7 +50,7 @@ jobs:
             exit 1
           }
 
-          nix build '.#t1.${{matrix.config}}.${{matrix.ip}}.run.emurt-test.simple.vcs-emu' --impure
+          nix build '.#t1.${{matrix.config}}.${{matrix.ip}}.run.emurt-test.simple.${{matrix.emu}}' --impure
 
           # Test 1: Test mmio-event.jsonl file exists
           mmioResultFile="$(realpath ./result/mmio-event.jsonl)"
