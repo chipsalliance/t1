@@ -1,0 +1,6 @@
+{
+  "mlir.matmul": 85,
+  "intrinsic.conv2d_less_m2": 2825,
+  "emurt-test.simple": 0,
+  "disp.simple": 0
+}
