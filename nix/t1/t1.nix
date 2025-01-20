@@ -133,10 +133,9 @@ forEachTop (topName: generator: self: {
     verilatorLib = self.verilator-emu-lib;
     dpiLibs = [ "${self.verilator-dpi-lib}/lib/libdpi_${topName}.a" ];
   };
-  verilator-emu-trace = t1Scope.link-verilator-with-dpi {
+  verilator-emu-trace = self.verilator-emu.override {
     mainProgram = "${topName}-verilated-trace-simulator";
     verilatorLib = self.verilator-emu-trace-lib;
-    dpiLibs = [ "${self.verilator-dpi-lib}/lib/libdpi_${topName}.a" ];
   };
 
   # ---------------------------------------------------------------------------------

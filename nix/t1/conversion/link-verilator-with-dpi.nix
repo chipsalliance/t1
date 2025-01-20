@@ -34,6 +34,6 @@ stdenv.mkDerivation (rec {
   '';
 
   passthru = {
-    enableTrace = verilatorLib.enableTrace;
+    inherit (verilatorLib) enableTrace;
   };
 })
