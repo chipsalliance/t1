@@ -1,10 +1,10 @@
-{ lib, stdenvNoCC, zstd, jq, offline-checker }:
+{ lib, stdenvNoCC, zstd, python3, jq, offline-checker }:
 emulator:
 testCase:
 
 stdenvNoCC.mkDerivation (finalAttr: {
   name = "${emulator.name}-${testCase.pname}-emu-result" + lib.optionalString emulator.enableTrace "-trace";
-  nativeBuildInputs = [ zstd jq ];
+  nativeBuildInputs = [ zstd jq python3 ];
 
   passthru.caseName = testCase.pname;
 
@@ -72,7 +72,13 @@ stdenvNoCC.mkDerivation (finalAttr: {
     rm $rtlEventOutPath
 
     if [ -r perf.json ]; then
-      mv perf.json $out/
+      cp -v perf.json $out/
+    fi
+
+    # If we find the mmio-event.jsonl file, try to replace the perf total cycle with program instrument.
+    if [ -r mmio-event.jsonl ]; then
+      cp -v mmio-event.jsonl $out/
+      jq ".profile_total_cycles=$(python3 ${./calculate-cycle.py})" perf.json > "$out/perf.json"
     fi
 
     ${lib.optionalString emulator.enableTrace ''
