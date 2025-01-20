@@ -1,8 +1,12 @@
 name: T1Emu Verilator Daily Regression
 on:
-  schedule:
-    # Run this job everyday at 6:30 AM UTC+8
-    - cron:  '30 22 * * *'
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
 
 env:
   EMU_TOP: t1emu
@@ -73,7 +77,7 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix run ".#ci-helper" -- generateCiMatrix --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix --caseDir "verilator" --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
     name: "Run testcases (${{matrix.id}})"
