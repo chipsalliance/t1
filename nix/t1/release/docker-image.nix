@@ -22,6 +22,11 @@
 , xz
 , file
 
+  # Doc deps
+, stdenvNoCC
+, typst
+, pandoc
+
   # T1 Stuff
 , rv32-stdenv
 , emurt
@@ -74,6 +79,10 @@ let
         makeWrapper ${rv32-stdenv.cc}/bin/${rv32-stdenv.targetPlatform.config}-c++ $out/bin/t1-c++ \
           --set "NIX_CFLAGS_COMPILE_${cc-prefix-safe}" "$NIX_CFLAGS_COMPILE"
       '';
+
+  manual = (import ./doc.nix) {
+    inherit lib typst pandoc stdenvNoCC;
+  };
 in
 
 dockerTools.streamLayeredImage {
@@ -122,6 +131,8 @@ dockerTools.streamLayeredImage {
     mkdir -p /workspace/share
     cp ${../../../tests/t1.ld} /workspace/share/t1.ld
     cp ${../../../tests/t1_main.S} /workspace/share/main.S
+
+    cp ${manual}/manual.md /workspace/readme.md
   '';
 
   config = {
@@ -129,6 +140,6 @@ dockerTools.streamLayeredImage {
   };
 
   passthru = {
-    inherit t1-cc;
+    inherit t1-cc manual;
   };
 }
