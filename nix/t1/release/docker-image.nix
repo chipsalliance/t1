@@ -21,6 +21,7 @@
 , patch
 , xz
 , file
+, cmake
 
   # Doc deps
 , stdenvNoCC
@@ -111,6 +112,7 @@ dockerTools.streamLayeredImage {
     file
     verilator-emu
     jq
+    cmake
   ];
 
   enableFakechroot = true;
