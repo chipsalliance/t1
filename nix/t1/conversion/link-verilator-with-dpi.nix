@@ -33,6 +33,10 @@ stdenv.mkDerivation (rec {
     $CXX -o $out/bin/$mainProgram ${lib.escapeShellArgs ccArgs}
   '';
 
+  meta = {
+    inherit mainProgram;
+  };
+
   passthru = {
     inherit (verilatorLib) enableTrace;
   };
