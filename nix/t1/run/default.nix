@@ -91,8 +91,11 @@ let
                 "-assert"
                 "global_finish_maxfail=10000"
                 "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-                "+t1_wave_path=$out/${testCase.pname}.fsdb"
+                "+t1_wave_path=${testCase.pname}.fsdb"
               ];
+              postInstall = ''
+                cp -v ${testCase.pname}.fsdb $out/
+              '';
               inherit testCase;
             };
 
