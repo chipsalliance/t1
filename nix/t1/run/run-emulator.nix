@@ -112,13 +112,13 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
     runHook preInstall
 
     if [ -r perf.json ]; then
-    cp -v perf.json $out/
+      cp -v perf.json $out/
     fi
 
     # If we find the mmio-event.jsonl file, try to replace the perf total cycle with program instrument.
     if [ -r mmio-event.jsonl ]; then
-    cp -v mmio-event.jsonl $out/
-    jq ".profile_total_cycles=$(python3 ${./calculate-cycle.py})" perf.json > "$out/perf.json"
+      cp -v mmio-event.jsonl $out/
+      jq ".profile_total_cycles=$(python3 ${./calculate-cycle.py})" perf.json > "$out/perf.json"
     fi
 
     runHook postInstall
