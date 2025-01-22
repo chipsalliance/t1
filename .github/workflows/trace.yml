@@ -43,6 +43,11 @@ jobs:
       - name: "Build T1Emu vcs emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.t1emu.vcs-emu-trace' --impure --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.t1emu.run.mlir.hello.vcs-emu-trace' --impure
+          if [[ ! -r ./result/mlir.hello.fsdb ]]; then
+            echo "FAIL: fsdb not found" >&2
+            exit 1
+          fi
 
   gen-test-plan-for-t1rocketemu:
     if: '! github.event.pull_request.draft'
@@ -71,3 +76,8 @@ jobs:
       - name: "Build T1RocketEmu vcs emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.t1rocketemu.vcs-emu-trace' --impure --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.t1rocketemu.run.mlir.hello.vcs-emu-trace' --impure
+          if [[ ! -r ./result/mlir.hello.fsdb ]]; then
+            echo "FAIL: fsdb not found" >&2
+            exit 1
+          fi
