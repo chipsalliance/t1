@@ -114,10 +114,10 @@ let
   ];
   # cases is now { mlir = { hello = <verilator-emu-result>, ... = <verilator-emu-result> }; ... }
 
-  _getAllResult = filterDir: emuType:
+  _getAllResult = { testPlanDir, emuType, postCopied ? "", ... }@args:
     let
       testPlan = builtins.fromJSON
-        (lib.readFile ../../../.github/${filterDir}/${configName}/${topName}.json);
+        (lib.readFile ../../../.github/${testPlanDir}/${configName}/${topName}.json);
       # flattern the attr set to a list of test case derivations
       # AttrSet (AttrSet Derivation) -> List Derivation
       allCasesResult = lib.pipe emuAttrs [
@@ -153,18 +153,25 @@ let
             cp -vr ${caseDrv}/cm.vdb "$_caseOutDir"/
           fi
         '')
-        allCasesResult);
+        allCasesResult)
+      + postCopied;
+      runCommandArgs = builtins.removeAttrs args [ "testPlanDir" "emuType" "postCopied" ];
     in
-    runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
+    runCommand "catch-${configName}-all-emu-result-for-ci" runCommandArgs script;
 
-  _vcsEmuResult = runCommand "get-vcs-emu-result" { __noChroot = true; emuOutput = _getAllResult "designs" "vcs-emu-cover"; } ''
-    cp -vr $emuOutput $out
-    chmod -R u+w $out
+  _vcsEmuResult = _getAllResult {
+    testPlanDir = "designs";
+    emuType = "vcs-emu-cover";
+    postCopied = ''
+      ${vcs-emu.snps-fhs-env}/bin/snps-fhs-env -c "urg -dir $out/*/cm.vdb -format text -metric assert -show summary"
+      cp -vr urgReport $out/
+    '';
+    __noChroot = true;
+  };
 
-    ${vcs-emu.snps-fhs-env}/bin/snps-fhs-env -c "urg -dir $emuOutput/*/cm.vdb -format text -metric assert -show summary"
-    cp -vr urgReport $out/
-  '';
-
-  _verilatorEmuResult = _getAllResult "verilator" "verilator-emu";
+  _verilatorEmuResult = _getAllResult {
+    testPlanDir = "verilator";
+    emuType = "verilator-emu";
+  };
 in
 emuAttrs // { inherit _vcsEmuResult _verilatorEmuResult; }
