@@ -114,10 +114,10 @@ let
   ];
   # cases is now { mlir = { hello = <verilator-emu-result>, ... = <verilator-emu-result> }; ... }
 
-  _getAllResult = emuType:
+  _getAllResult = filterDir: emuType:
     let
       testPlan = builtins.fromJSON
-        (lib.readFile ../../../.github/designs/${configName}/${topName}.json);
+        (lib.readFile ../../../.github/${filterDir}/${configName}/${topName}.json);
       # flattern the attr set to a list of test case derivations
       # AttrSet (AttrSet Derivation) -> List Derivation
       allCasesResult = lib.pipe emuAttrs [
@@ -157,12 +157,14 @@ let
     in
     runCommand "catch-${configName}-all-emu-result-for-ci" { } script;
 
-  _vcsEmuResult = runCommand "get-vcs-emu-result" { __noChroot = true; emuOutput = _getAllResult "vcs-emu-cover"; } ''
+  _vcsEmuResult = runCommand "get-vcs-emu-result" { __noChroot = true; emuOutput = _getAllResult "designs" "vcs-emu-cover"; } ''
     cp -vr $emuOutput $out
     chmod -R u+w $out
 
     ${vcs-emu.snps-fhs-env}/bin/snps-fhs-env -c "urg -dir $emuOutput/*/cm.vdb -format text -metric assert -show summary"
     cp -vr urgReport $out/
   '';
+
+  _verilatorEmuResult = _getAllResult "verilator" "verilator-emu";
 in
-emuAttrs // { inherit _vcsEmuResult; }
+emuAttrs // { inherit _vcsEmuResult _verilatorEmuResult; }
