@@ -33,7 +33,7 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
   dontUnpack = true;
 
   emuDriverArgs = assert lib.assertMsg (!(emulator ? enableProfile && emulator.enableProfile)) "The provided emulator has `profile` feature enable, which is inherently nondetermistic, use '.<...attr path...>.profile --impure' instead";
-    lib.escapeShellArgs emuDriverArgs;
+    toString emuDriverArgs;
 
   passthru = {
     # to open 'profileReport.html' in firefox,
@@ -68,11 +68,12 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
       exit 1
     }
 
-    echo "[nix] Running VCS for $caseName with args $emuDriverArgs"
+    driverPhase="${lib.getExe emulator} $emuDriverArgs"
+    echo "[nix] Running '$driverPhase'"
     export RUST_BACKTRACE=full
     rtlEventOutPath="$out/$caseName-rtl-event.jsonl"
 
-    if ! "${lib.getExe emulator}" $emuDriverArgs \
+    if ! eval "$driverPhase"  \
       1> >(tee $out/online-drive-emu-journal) \
       2>$rtlEventOutPath
     then
