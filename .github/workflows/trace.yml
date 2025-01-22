@@ -63,7 +63,7 @@ jobs:
         run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top t1rocketemu)" > $GITHUB_OUTPUT
 
   build-t1rocketemu-vcs-emulators:
-    name: "[T1EMU] Build VCS trace emulators"
+    name: "[T1RocketEMU] Build VCS trace emulators"
     needs: [gen-test-plan-for-t1rocketemu]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
@@ -144,6 +144,6 @@ jobs:
           nix build '.#t1.${{ matrix.config }}.t1rocketemu.verilator-emu-trace' --impure --no-link --cores 64
           nix build '.#t1.${{ matrix.config }}.t1rocketemu.run.mlir.hello.verilator-emu-trace' --impure
           if [[ ! -r ./result/wave.fst ]]; then
-            echo "FAIL: wavefor not found" >&2
+            echo "FAIL: waveform not found" >&2
             exit 1
           fi
