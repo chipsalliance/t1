@@ -1,0 +1,3 @@
+[submodule "rvdecoderdbtest/jvm/riscv-opcodes"]
+	path = rvdecoderdbtest/jvm/riscv-opcodes
+	url = git@github.com:riscv/riscv-opcodes.git

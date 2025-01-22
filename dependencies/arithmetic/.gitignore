@@ -1,0 +1,26 @@
+# mill
+out/
+# sbt
+diplomacy/target/
+diplomacy/macros/target/
+project/build.properties
+project/project
+project/target
+target/
+# test
+verdiLog
+
+.bsp/
+.idea/
+.metals/
+.vscode/
+
+*.sv
+*.in
+*.dot
+*.fir
+*.key
+*.out
+*.cmd
+*.log
+*.json
