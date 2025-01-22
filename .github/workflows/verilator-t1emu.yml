@@ -1,4 +1,4 @@
-name: T1Emu Verilator Daily Regression
+name: Verilator Test (t1emu w/ spike)
 on:
   pull_request:
     types:
@@ -114,7 +114,7 @@ jobs:
       - name: "Print step summary"
         run: |
           nix run ".#ci-helper" -- postCI \
-            --cycle-update-file-path ./cycle-update.md
+            --cycle-update-file-path ./cycle-update.md \
             --emu-lib "verilator" \
             --top ${{ env.EMU_TOP }}
           echo >> $GITHUB_STEP_SUMMARY
