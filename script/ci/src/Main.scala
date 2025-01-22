@@ -259,7 +259,11 @@ object Main:
     @arg(
       name = "top",
       doc = "Specify emulator ip top, Eg. t1rocketemu/t1emu..."
-    ) top:                 String
+    ) top:                 String,
+    @arg(
+      name = "case-dir",
+      doc = "Specify cases directory, listed under .github/"
+    ) caseDir:              String = "designs",
   ) =
     os.write.over(
       os.Path(cycleUpdateFilePath, os.pwd),
@@ -268,7 +272,7 @@ object Main:
 
     if urgReportFilePath.nonEmpty then os.write(os.Path(urgReportFilePath.get, os.pwd), "# Coverage report\n")
 
-    os.walk(os.pwd / ".github" / "designs")
+      os.walk(os.pwd / ".github" / caseDir)
       .filter(_.last == s"${top}.json")
       .foreach: file =>
         val config      = file.segments.toSeq.reverse.apply(1)
@@ -335,9 +339,9 @@ object Main:
   end postCI
 
   @main
-  def generateTestPlan(top: String) =
+  def generateTestPlan(top: String, caseDir: String = "designs") =
     val testPlans = os
-      .walk(os.pwd / ".github" / "designs")
+      .walk(os.pwd / ".github" / caseDir)
       .filter(_.last == s"${top}.json")
       .map(path => path.segments.toSeq.reverse.drop(1).head)
 

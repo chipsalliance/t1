@@ -22,7 +22,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - id: "get-all-configs"
-        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --caseDir verilator --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
 
   build-verilator-emulators:
     name: "Build Verilator Emulators"
@@ -116,6 +116,7 @@ jobs:
           nix run ".#ci-helper" -- postCI \
             --cycle-update-file-path ./cycle-update.md \
             --emu-lib "verilator" \
+            --case-dir "verilator" \
             --top ${{ env.EMU_TOP }}
           echo >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
