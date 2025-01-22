@@ -81,3 +81,69 @@ jobs:
             echo "FAIL: fsdb not found" >&2
             exit 1
           fi
+
+  gen-test-plan-for-verilator-t1emu:
+    if: '! github.event.pull_request.draft'
+    name: "[T1EMU] Generate test plan"
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      testplan: ${{ steps.get-all-configs.outputs.out }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: "get-all-configs"
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --caseDir verilator --top t1emu)" > $GITHUB_OUTPUT
+
+  build-t1emu-verilator-emulators:
+    name: "[T1EMU] Build verilator trace emulators"
+    needs: [gen-test-plan-for-verilator-t1emu]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan-for-verilator-t1emu.outputs.testplan) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build T1Emu verilator emulator"
+        run: |
+          nix build '.#t1.${{ matrix.config }}.t1emu.verilator-emu-trace' --impure --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.t1emu.run.mlir.hello.verilator-emu-trace' --impure
+          if [[ ! -r ./result/wave.fst ]]; then
+            echo "FAIL: waveform not found" >&2
+            exit 1
+          fi
+
+  gen-test-plan-for-verilator-t1rocketemu:
+    if: '! github.event.pull_request.draft'
+    name: "[T1ROCKETEMU] Generate test plan"
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      testplan: ${{ steps.get-all-configs.outputs.out }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: "get-all-configs"
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --caseDir verilator --top t1rocketemu)" > $GITHUB_OUTPUT
+
+  build-t1rocketemu-verilator-emulators:
+    name: "[T1RocketEmu] Build verilator trace emulators"
+    needs: [gen-test-plan-for-verilator-t1rocketemu]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan-for-verilator-t1rocketemu.outputs.testplan) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build T1RocketEmu verilator emulator"
+        run: |
+          nix build '.#t1.${{ matrix.config }}.t1rocketemu.verilator-emu-trace' --impure --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.t1rocketemu.run.mlir.hello.verilator-emu-trace' --impure
+          if [[ ! -r ./result/wave.fst ]]; then
+            echo "FAIL: wavefor not found" >&2
+            exit 1
+          fi
