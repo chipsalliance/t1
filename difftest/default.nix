@@ -26,6 +26,7 @@ let
       ./offline_common
       ./offline_t1emu
       ./offline_t1rocketemu
+      ./t1devices
       ./Cargo.lock
       ./Cargo.toml
       ./.rustfmt.toml

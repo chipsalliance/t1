@@ -1,7 +1,7 @@
 use std::any::Any;
 
 use framebuffer::FrameBuffer;
-use simctrl::{ExitFlagRef, SimCtrl};
+use simctrl::{ExitFlagRef, PfnGetCycle, SimCtrl};
 
 pub mod framebuffer;
 pub mod simctrl;
@@ -196,7 +196,7 @@ impl AddressSpace {
 /// - 0x0400_0000 - 0x0600_0000 : framebuffer
 /// - 0x1000_0000 - 0x1000_1000 : simctrl
 /// - 0x2000_0000 - 0xc000_0000 : sram
-pub fn create_emu_addrspace() -> (AddressSpace, ExitFlagRef) {
+pub fn create_emu_addrspace(get_cycle: PfnGetCycle) -> (AddressSpace, ExitFlagRef) {
   const SRAM_BASE: u32 = 0x2000_0000;
   const SRAM_SIZE: u32 = 0xa000_0000;
 
@@ -210,7 +210,7 @@ pub fn create_emu_addrspace() -> (AddressSpace, ExitFlagRef) {
   let devices = vec![
     RegularMemory::with_size(SRAM_SIZE).with_addr(SRAM_BASE, SRAM_SIZE),
     FrameBuffer::new().with_addr(DISPLAY_BASE, DISPLAY_SIZE),
-    SimCtrl::new(exit_flag.clone()).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
+    SimCtrl::new(exit_flag.clone(), get_cycle).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
   ];
   (AddressSpace { devices }, exit_flag)
 }
