@@ -110,7 +110,7 @@ jobs:
         run: |
           nix build '.#t1.${{ matrix.config }}.t1emu.verilator-emu-trace' --impure --no-link --cores 64
           nix build '.#t1.${{ matrix.config }}.t1emu.run.mlir.hello.verilator-emu-trace' --impure
-          if [[ ! -r ./result/wave.fst ]]; then
+          if [[ ! -r ./result/mlir.hello.fst ]]; then
             echo "FAIL: waveform not found" >&2
             exit 1
           fi
@@ -143,7 +143,7 @@ jobs:
         run: |
           nix build '.#t1.${{ matrix.config }}.t1rocketemu.verilator-emu-trace' --impure --no-link --cores 64
           nix build '.#t1.${{ matrix.config }}.t1rocketemu.run.mlir.hello.verilator-emu-trace' --impure
-          if [[ ! -r ./result/wave.fst ]]; then
+          if [[ ! -r ./result/mlir.hello.fst ]]; then
             echo "FAIL: waveform not found" >&2
             exit 1
           fi
