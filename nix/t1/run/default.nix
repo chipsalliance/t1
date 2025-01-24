@@ -33,48 +33,40 @@ let
             caseSet;
           innerMapper = caseName: testCase: {
             verilator-emu = runEmu {
-              emulator = verilator-emu;
-              emuDriverArgs = [ "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf" ];
               inherit testCase;
+              emulator = verilator-emu;
             };
             verilator-emu-trace = runEmu {
-              emulator = verilator-emu-trace;
-              emuDriverArgs = [
-                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-                "+t1_wave_path=$out/wave.fst"
-              ];
               inherit testCase;
+              emulator = verilator-emu-trace;
+              waveFileName = "${testCase.pname}.fst";
             };
 
             vcs-emu = runEmu {
-              emulator = vcs-emu-rtlink;
-              dpilib = vcs-dpi-lib;
-              emuDriverArgs = [
-                "-exitstatus"
-                "-assert"
-                "global_finish_maxfail=10000"
-                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-                "-sv_root"
-                "${vcs-dpi-lib}/lib"
-                "-sv_lib"
-                "${vcs-dpi-lib.svLibName}"
-              ];
               inherit testCase;
+              emulator = vcs-emu-rtlink;
+              emuExtraArgs = {
+                vcsDpiLib = vcs-dpi-lib;
+              };
+            };
+
+            vcs-emu-trace = runEmu {
+              inherit testCase;
+              emulator = vcs-emu-trace;
+              waveFileName = "${testCase.pname}.fsdb";
             };
 
             vcs-emu-cover = runEmu {
-              emulator = vcs-emu-cover;
-              emuDriverArgs = [
-                "-exitstatus"
-                "-assert"
-                "global_finish_maxfail=10000"
-                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-                "-cm"
-                "assert"
-                "-assert"
-                "hier=${testCase}/${testCase.pname}.cover"
-              ];
               inherit testCase;
+              emulator = vcs-emu-cover;
+              emuExtraArgs = {
+                vcsExtraArgs = [
+                  "-cm"
+                  "assert"
+                  "-assert"
+                  "hier=${testCase}/${testCase.pname}.cover"
+                ];
+              };
 
               postInstall = ''
                 ${snps-fhs-env}/bin/snps-fhs-env -c "urg -dir cm.vdb -format text -metric assert -show summary"
@@ -84,31 +76,12 @@ let
               '';
             };
 
-            vcs-emu-trace = runEmu {
-              emulator = vcs-emu-trace;
-              emuDriverArgs = [
-                "-exitstatus"
-                "-assert"
-                "global_finish_maxfail=10000"
-                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-                "+t1_wave_path=${testCase.pname}.fsdb"
-              ];
-              postInstall = ''
-                cp -v ${testCase.pname}.fsdb $out/
-              '';
-              inherit testCase;
-            };
-
             vcs-prof-vcd = runFsdb2vcd (runEmu {
-              emulator = vcs-emu-trace;
-              emuDriverArgs = [
-                "-exitstatus"
-                "-assert"
-                "global_finish_maxfail=10000"
-                "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-                "+t1_wave_path=$out/${testCase.pname}.fsdb"
-              ];
               inherit testCase;
+              emulator = vcs-emu-rtlink;
+              emuExtraArgs = {
+                vcsDpiLib = vcs-dpi-lib;
+              };
             });
           };
         in

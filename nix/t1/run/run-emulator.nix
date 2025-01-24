@@ -7,22 +7,29 @@
 , python3
 }:
 
-{ emulator
-, emuDriverArgs
-, dpilib ? null
-, testCase
+{ testCase
+, emulator
+, emuExtraArgs ? { }
+, waveFileName ? null
 , ...
 }@args:
 
-# if emulator doesn't have `isRuntimeLoad` attribute, then we don't need to worry about linking, quit the assertion.
-assert lib.assertMsg ((!(emulator ? isRuntimeLoad)) || (!emulator.isRuntimeLoad || (dpilib != null))) "dpilib must be set for rtlink emu";
-
+assert if emulator.enableTrace
+then (lib.assertMsg (waveFileName != null) "waveFileName shall be set for trace build")
+else (lib.assertMsg (waveFileName == null) "waveFileName must not be set for non-trace build");
 let
-  overrides = builtins.removeAttrs args [ "emulator" "emuDriver" "dpilib" "testCase" ];
+  overrides = builtins.removeAttrs args [ "emulator" "emuExtraArgs" "testCase" "waveFileName" ];
+  plusargs = [
+    "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+  ]
+  ++ lib.optionals (waveFileName != null) [
+    "+t1_wave_path=${waveFileName}"
+  ];
+  emuDriverArgs = emulator.buildCmdArgs (emuExtraArgs // { inherit plusargs; });
 in
 stdenvNoCC.mkDerivation (lib.recursiveUpdate
 {
-  name = "${testCase.pname}-vcs-result" + (lib.optionalString emulator.enableTrace "-trace");
+  name = "${testCase.pname}-${emulator.emuKind}-result" + (lib.optionalString emulator.enableTrace "-trace");
   nativeBuildInputs = [
     zstd
     jq
@@ -32,7 +39,7 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
   __noChroot = true;
   dontUnpack = true;
 
-  emuDriverArgs = assert lib.assertMsg (!(emulator ? enableProfile && emulator.enableProfile)) "The provided emulator has `profile` feature enable, which is inherently nondetermistic, use '.<...attr path...>.profile --impure' instead";
+  emuDriverArgs = assert lib.assertMsg (!(emulator.enableProfile or false)) "The provided emulator has `profile` feature enable, which is inherently nondetermistic, use '.<...attr path...>.profile --impure' instead";
     toString emuDriverArgs;
 
   passthru = {
@@ -115,6 +122,10 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
     if [ -r perf.json ]; then
       cp -v perf.json $out/
     fi
+
+    ${lib.optionalString (waveFileName != null) ''
+      cp -v ${waveFileName} $out/
+    ''}
 
     # If we find the mmio-event.jsonl file, try to replace the perf total cycle with program instrument.
     if [ -r mmio-event.jsonl ]; then

@@ -38,6 +38,7 @@ stdenv.mkDerivation (rec {
   };
 
   passthru = {
-    inherit (verilatorLib) enableTrace;
+    inherit (verilatorLib) enableTrace buildCmdArgs;
+    emuKind = "verilator";
   };
 })
