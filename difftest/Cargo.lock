@@ -173,9 +173,9 @@ dependencies = [
  "dpi_common",
  "elf",
  "hex",
- "png",
  "spike_rs",
  "svdpi",
+ "t1devices",
  "tracing",
 ]
 
@@ -506,6 +506,15 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "xmas-elf",
+]
+
+[[package]]
+name = "t1devices"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "png",
+ "tracing",
 ]
 
 [[package]]

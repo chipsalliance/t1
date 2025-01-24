@@ -23,6 +23,7 @@ let
       ./dpi_t1emu
       ./dpi_t1rocketemu
       ./t1-sim-checker
+      ./t1devices
       ./Cargo.lock
       ./Cargo.toml
       ./.rustfmt.toml

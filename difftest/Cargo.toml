@@ -6,6 +6,7 @@ members = [
     "dpi_t1emu",
     "dpi_t1rocketemu",
     "dpi_common",
+    "t1devices",
 ]
 exclude = [
     "spike_interfaces"
