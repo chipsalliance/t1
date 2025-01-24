@@ -81,11 +81,34 @@ stdenv.mkDerivation rec {
     runHook postBuild
   '';
 
-  passthru = {
+  passthru = rec {
     inherit snps-fhs-env enableTrace enableCover;
 
     # DPI library should be loaded at runtime through "-sv_lib"
     isRuntimeLoad = (builtins.length vcsLinkLibs == 0);
+
+    emuKind = "vcs";
+    buildCmdArgs =
+      { plusargs
+      , vcsExtraArgs ? [ ]
+      , vcsDpiLib ? null
+      }:
+        assert if isRuntimeLoad
+        then lib.assertMsg (vcsDpiLib != null) "vcsDpiLib must be set for rtlink emu"
+        else lib.assertMsg (vcsDpiLib == null) "vcsDpiLib must not be set for static-link emu";
+        [
+          "-exitstatus"
+          "-assert"
+          "global_finish_maxfail=10000"
+        ]
+        ++ lib.optionals (vcsDpiLib != null) [
+          "-sv_root"
+          "${vcsDpiLib}/lib"
+          "-sv_lib"
+          "${vcsDpiLib.svLibName}"
+        ]
+        ++ plusargs
+        ++ vcsExtraArgs;
   };
 
   shellHook = ''

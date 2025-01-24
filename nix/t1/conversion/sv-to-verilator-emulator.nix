@@ -78,6 +78,11 @@ stdenv.mkDerivation (rec {
   passthru = {
     inherit topModule;
     inherit enableTrace;
+
+    buildCmdArgs =
+      { plusargs
+      , verilatorExtraArgs ? [ ]
+      }: plusargs ++ verilatorExtraArgs;
   };
 
   installPhase = ''
