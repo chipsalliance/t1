@@ -38,10 +38,14 @@ stdenv.mkDerivation rec {
     "-y"
     "$DWBB_DIR/sim_ver"
     "+libext+.v"
+    "+define+PRINTF_FD=t1_common_pkg::log_fd"
+  ]
+  # vsrc may define sv packages, put it at the first
+  ++ vsrc
+  ++ [
     "-F"
     "${rtl}/filelist.f"
   ]
-  ++ vsrc
   ++ lib.optionals (topModule != null) [
     "-top"
     topModule
