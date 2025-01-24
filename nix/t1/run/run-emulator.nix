@@ -21,6 +21,7 @@ let
   overrides = builtins.removeAttrs args [ "emulator" "emuExtraArgs" "testCase" "waveFileName" ];
   plusargs = [
     "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+    "+t1_rtl_event_path=rtl-event.jsonl"
   ]
   ++ lib.optionals (waveFileName != null) [
     "+t1_wave_path=${waveFileName}"
@@ -78,11 +79,10 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
     driverPhase="${lib.getExe emulator} $emuDriverArgs"
     echo "[nix] Running '$driverPhase'"
     export RUST_BACKTRACE=full
-    rtlEventOutPath="$out/$caseName-rtl-event.jsonl"
+    rtlEventOutPath="rtl-event.jsonl"
 
     if ! eval "$driverPhase"  \
-      1> >(tee $out/online-drive-emu-journal) \
-      2>$rtlEventOutPath
+      1> >(tee $out/online-drive-emu-journal)
     then
       fatal "online driver run failed: %s\n\n%s" \
         "$(cat "$rtlEventOutPath")" \
@@ -110,7 +110,7 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
     fi
 
     echo "[nix] compressing event log"
-    zstd $rtlEventOutPath -o $rtlEventOutPath.zstd
+    zstd $rtlEventOutPath -o $out/$caseName-rtl-event.zstd
     rm $rtlEventOutPath
 
     runHook postBuild

@@ -1,3 +1,35 @@
+package t1_common_pkg;
+  // plusargs:
+  //   +t1_rtl_event_off  (optional) set to 1 to disable rtl event recording
+  //   +t1_rtl_event_path            path to rtl event jsonl file
+
+  bit    log_cond;
+  int    log_fd;
+  string log_path;
+
+  int rtl_event_off = 0;
+
+  function automatic void log_open();
+    $value$plusargs("t1_rtl_event_off=%d", rtl_event_off);
+    if (rtl_event_off == 0) begin
+      $value$plusargs("t1_rtl_event_path=%s", log_path);
+      if (log_path.len() == 0) $fatal(1, "+t1_rtl_event_path must be set");
+
+      log_fd = $fopen(log_path, "w");
+      if (log_fd == 0) $fatal(1, "failed to open rtl event file for write");
+      log_cond = 1'b1;
+    end
+  endfunction
+
+  function automatic void log_close();
+    if (log_cond) begin
+      $fclose(log_fd);
+      log_cond = 1'b0;
+      log_fd = 0;
+    end
+  endfunction
+endpackage
+
 module VerbatimModule #(
   parameter integer T1_DLEN,
   parameter integer T1_VLEN,
@@ -81,6 +113,8 @@ module VerbatimModule #(
     t1_cosim_init(elf_file, T1_DLEN, T1_VLEN, T1_SPIKE_ISA);
     t1_cosim_set_timeout(dpi_timeout);
 
+    t1_common_pkg::log_open();
+
   `ifdef T1_ENABLE_TRACE
     if (dump_start == 0) begin
       dump_wave(wave_path);
@@ -125,6 +159,7 @@ module VerbatimModule #(
   end
 
   final begin
+    t1_common_pkg::log_close();
     t1_cosim_final();
   end
 
