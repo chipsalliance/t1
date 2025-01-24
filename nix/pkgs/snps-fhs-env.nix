@@ -48,10 +48,6 @@ lockedPkgs.buildFHSEnv {
     export PATH=$VC_STATIC_HOME/vcs-mx/bin:$PATH
     export PATH=$VC_STATIC_HOME/SG_COMPAT/SPYGLASS_HOME/bin:$PATH
 
-    export LD_LIBRARY_PATH=/usr/lib64/
-    export LD_LIBRARY_PATH=$VC_STATIC_HOME/verdi/share/PLI/lib/LINUX64:$LD_LIBRARY_PATH
-    export LD_LIBRARY_PATH=$VC_STATIC_HOME/verdi/share/NPI/lib/LINUX64:$LD_LIBRARY_PATH
-
     export _oldVcsEnvPath="$PATH"
     preHook() {
       PATH="$PATH:$_oldVcsEnvPath"

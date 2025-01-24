@@ -106,7 +106,6 @@ stdenv.mkDerivation rec {
     # We need to carefully handle string escape here, so don't use makeWrapper
     tee $out/bin/$mainProgram <<EOF
     #!${bash}/bin/bash
-    export LD_LIBRARY_PATH="$out/lib/$mainProgram.daidir:\$LD_LIBRARY_PATH"
     _argv="\$@"
 
     ${lib.optionalString enableCover ''
