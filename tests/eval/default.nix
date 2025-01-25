@@ -30,5 +30,8 @@ let
 
       meta.description = "test case '${caseName}', written in C assembly";
     };
+  autoCases = findAndBuild ./. build;
+
+  mmmCases = callPackage ./_mmm_mem { };
 in
-  findAndBuild ./. build
+  autoCases // mmmCases
