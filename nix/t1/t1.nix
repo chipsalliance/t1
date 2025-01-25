@@ -117,25 +117,16 @@ forEachTop (topName: generator: self: {
     moduleType = "dpi_${topName}";
   };
 
-  verilator-emu-lib = t1Scope.sv-to-verilator-emulator {
-    mainProgram = "${topName}-verilated-lib";
+  verilator-emu = t1Scope.sv-to-verilator-emulator {
+    mainProgram = "${topName}-verilated";
     topModule = "TestBench";
     rtl = self.rtl;
     vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
-  };
-  verilator-emu-trace-lib = self.verilator-emu-lib.override {
-    enableTrace = true;
-    mainProgram = "${topName}-verilated-trace-lib";
-  };
-
-  verilator-emu = t1Scope.link-verilator-with-dpi {
-    mainProgram = "${topName}-verilated-simulator";
-    verilatorLib = self.verilator-emu-lib;
     dpiLibs = [ "${self.verilator-dpi-lib}/lib/libdpi_${topName}.a" ];
   };
   verilator-emu-trace = self.verilator-emu.override {
-    mainProgram = "${topName}-verilated-trace-simulator";
-    verilatorLib = self.verilator-emu-trace-lib;
+    enableTrace = true;
+    mainProgram = "${topName}-verilated-trace";
   };
 
   # ---------------------------------------------------------------------------------
@@ -158,10 +149,12 @@ forEachTop (topName: generator: self: {
     rtl = self.rtl;
     vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
     vcsLinkLibs = [ "${self.vcs-dpi-lib}/lib/libdpi_${topName}.a" ];
+    rtLinkDpiLib = self.vcs-dpi-lib;
   };
   vcs-emu-rtlink = self.vcs-emu.override {
-    vcsLinkLibs = [ ];
     mainProgram = "${topName}-vcs-simulator-rtlink";
+    vcsLinkLibs = [ ];
+    rtLinkDpiLib = self.vcs-dpi-lib;
   };
   vcs-emu-cover = self.vcs-emu.override {
     enableCover = true;

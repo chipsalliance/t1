@@ -9,7 +9,7 @@
 
 { testCase
 , emulator
-, emuExtraArgs ? { }
+, emuExtraArgs ? [ ]
 , waveFileName ? null
 , ...
 }@args:
@@ -26,7 +26,7 @@ let
   ++ lib.optionals (waveFileName != null) [
     "+t1_wave_path=${waveFileName}"
   ];
-  emuDriverArgs = emulator.buildCmdArgs (emuExtraArgs // { inherit plusargs; });
+  emuDriverWithArgs = emulator.driverWithArgs ++ plusargs ++ emuExtraArgs;
 in
 stdenvNoCC.mkDerivation (lib.recursiveUpdate
 {
@@ -40,17 +40,15 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
   __noChroot = true;
   dontUnpack = true;
 
-  emuDriverArgs = assert lib.assertMsg (!(emulator.enableProfile or false)) "The provided emulator has `profile` feature enable, which is inherently nondetermistic, use '.<...attr path...>.profile --impure' instead";
-    toString emuDriverArgs;
+  emuDriverWithArgs = assert lib.assertMsg (!(emulator.enableProfile or false)) "The provided emulator has `profile` feature enable, which is inherently nondetermistic, use '.<...attr path...>.profile --impure' instead";
+    toString emuDriverWithArgs;
 
   passthru = {
     # to open 'profileReport.html' in firefox,
     # set 'security.fileuri.strict_origin_policy = false' in 'about:config'
     profile = writeShellScriptBin "runSimProfile" ''
-      ${lib.getExe emulator} \
-      ${lib.escapeShellArgs emuDriverArgs} \
-        -simprofile time \
-        2> ${testCase.pname}-rtl-event.jsonl
+      ${lib.escapeShellArgs emuDriverWithArgs} \
+        -simprofile time
     '';
   };
 
@@ -76,7 +74,7 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
       exit 1
     }
 
-    driverPhase="${lib.getExe emulator} $emuDriverArgs"
+    driverPhase="$emuDriverWithArgs"
     echo "[nix] Running '$driverPhase'"
     export RUST_BACKTRACE=full
     rtlEventOutPath="rtl-event.jsonl"
@@ -86,7 +84,7 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
     then
       fatal "online driver run failed: %s\n\n%s" \
         "$(cat "$rtlEventOutPath")" \
-        "Try rerun with '$emuDriver $emuDriverArgs'"
+        "Try rerun with '$emuDriverWithArg'"
     fi
 
     echo "[nix] $name run done"
