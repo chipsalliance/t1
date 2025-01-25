@@ -118,7 +118,7 @@ forEachTop (topName: generator: self: {
   };
 
   verilator-emu = t1Scope.sv-to-verilator-emulator {
-    mainProgram = "${topName}-verilated";
+    mainProgram = "${topName}-verilated-simulator";
     topModule = "TestBench";
     rtl = self.rtl;
     vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
@@ -126,7 +126,7 @@ forEachTop (topName: generator: self: {
   };
   verilator-emu-trace = self.verilator-emu.override {
     enableTrace = true;
-    mainProgram = "${topName}-verilated-trace";
+    mainProgram = "${topName}-verilated-trace-simulator";
   };
 
   # ---------------------------------------------------------------------------------
