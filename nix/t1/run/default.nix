@@ -45,9 +45,6 @@ let
             vcs-emu = runEmu {
               inherit testCase;
               emulator = vcs-emu-rtlink;
-              emuExtraArgs = {
-                vcsDpiLib = vcs-dpi-lib;
-              };
             };
 
             vcs-emu-trace = runEmu {
@@ -59,14 +56,12 @@ let
             vcs-emu-cover = runEmu {
               inherit testCase;
               emulator = vcs-emu-cover;
-              emuExtraArgs = {
-                vcsExtraArgs = [
-                  "-cm"
-                  "assert"
-                  "-assert"
-                  "hier=${testCase}/${testCase.pname}.cover"
-                ];
-              };
+              emuExtraArgs = [
+                "-cm"
+                "assert"
+                "-assert"
+                "hier=${testCase}/${testCase.pname}.cover"
+              ];
 
               postInstall = ''
                 ${snps-fhs-env}/bin/snps-fhs-env -c "urg -dir cm.vdb -format text -metric assert -show summary"

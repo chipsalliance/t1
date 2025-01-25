@@ -99,8 +99,6 @@ lib.makeScope newScope
     # * verilatorArgs: Final arguments that pass to the verilator.
     sv-to-verilator-emulator = lib.makeOverridable (t1Scope.callPackage ./conversion/sv-to-verilator-emulator.nix { stdenv = moldStdenv; });
 
-    link-verilator-with-dpi = lib.makeOverridable (t1Scope.callPackage ./conversion/link-verilator-with-dpi.nix { stdenv = moldStdenv; });
-
     # sv-to-vcs-simulator :: { mainProgram :: String, rtl :: Derivation, enableTrace :: Bool, vcsLinkLibs :: List<String> } -> Derivation
     #
     # sv-to-vcs-simulator will compile the given rtl, link with path specified in vcsLinksLibs to produce a VCS emulator.
