@@ -4,6 +4,7 @@
 , findAndBuild
 , t1main
 , getTestRequiredFeatures
+, callPackage
 }:
 
 let
@@ -33,5 +34,6 @@ let
   autoCases = findAndBuild ./. build;
 
   mmmCases = callPackage ./_mmm_mem { };
+  nttCases = callPackage ./_ntt { };
 in
-  autoCases // mmmCases
+  autoCases // mmmCases // nttCases
