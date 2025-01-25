@@ -38,6 +38,12 @@ pub trait Device: Any + Send + Sync {
   // NOTE: even if the device does not support partial write,
   //   it shall check mask and behave as a full write when mask is all active
   fn mem_write_masked(&mut self, addr: AddrInfo, data: &[u8], mask: &[bool]);
+
+  // TODO: add more comments
+  // spike simif_t::addr_to_mem. Should only be implemented by RegularMemory
+  fn addr_to_mem(&mut self, offset: u32) -> Option<&mut u8> {
+    None
+  }
 }
 
 impl<T: Device> DeviceExt for T {}
@@ -119,6 +125,10 @@ impl Device for RegularMemory {
     let mem_data = &mut self.data[addr.as_range()];
     memcpy_mask(mem_data, data, mask);
   }
+
+  fn addr_to_mem(&mut self, offset: u32) -> Option<&mut u8> {
+    self.data.get_mut(offset as usize)
+  }
 }
 
 fn memcpy_mask(dst: &mut [u8], src: &[u8], mask: &[bool]) {
@@ -139,6 +149,12 @@ pub struct AddressSpace {
 }
 
 impl AddressSpace {
+  pub fn addr_to_mem(&mut self, addr: u32) -> Option<&mut u8> {
+    let device_idx = self.find_device_idx(addr, 1)?;
+    let dev_entry = &mut self.devices[device_idx];
+    dev_entry.device.addr_to_mem(addr - dev_entry.base_and_size.0)
+  }
+
   pub fn read_mem(&mut self, addr: u32, len: u32, data: &mut [u8]) {
     assert_eq!(len as usize, data.len());
     let Some(device_idx) = self.find_device_idx(addr, len) else {
