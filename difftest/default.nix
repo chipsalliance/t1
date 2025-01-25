@@ -11,7 +11,7 @@
 }:
 
 assert let
-  available = [ "dpi_t1emu" "dpi_t1rocketemu" "offline_t1emu" "offline_t1rocketemu" ];
+  available = [ "dpi_t1emu" "dpi_t1rocketemu" "offline_t1emu" "offline_t1rocketemu" "t1emu" ];
 in
 lib.assertMsg (lib.elem moduleType available) "moduleType is not in ${lib.concatStringsSep ", " available}";
 
@@ -27,6 +27,7 @@ let
       ./offline_t1emu
       ./offline_t1rocketemu
       ./t1devices
+      ./t1emu
       ./Cargo.lock
       ./Cargo.toml
       ./.rustfmt.toml
@@ -58,7 +59,7 @@ if (lib.hasPrefix "dpi" moduleType) then
       dpiLibPath = "/lib/libdpi_${moduleType}.a";
     };
   }
-else
+else if (lib.hasPrefix "offline" moduleType) then
   assert lib.assertMsg (emuType == "") "emuType shall not be set for offline";
   rustPlatform.buildRustPackage {
     name = outputName;
@@ -85,4 +86,21 @@ else
     '';
 
     meta.mainProgram = "offline";
+  }
+else
+  rustPlatform.buildRustPackage {
+    name = outputName;
+    src = rustSrc;
+
+    buildFeatures = [ ];
+    buildAndTestSubdir = "./${moduleType}";
+
+    env = {
+      SPIKE_LIB_DIR = "${libspike}/lib";
+      SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
+    };
+
+    cargoLock = {
+      lockFile = ./Cargo.lock;
+    };
   }
