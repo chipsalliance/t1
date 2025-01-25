@@ -77,4 +77,4 @@ jobs:
             docker exec t1 /bin/bash -c "$@"
           }
           dexec 'cd examples/intrinsic.matmul && t1-cc -T /workspace/share/t1.ld matmul.c /workspace/share/main.S -o matmul.elf'
-          dexec '${{ matrix.top }}-verilated-simulator +t1_elf_file=/workspace/examples/intrinsic.matmul/matmul.elf'
+          dexec '${{ matrix.top }}-verilated-simulator +t1_elf_file=/workspace/examples/intrinsic.matmul/matmul.elf +t1_rtl_event_path=./simulator-regs-event.jsonl'
