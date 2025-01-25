@@ -10,7 +10,7 @@
 }:
 
 assert let
-  available = [ "dpi_t1emu" "dpi_t1rocketemu" "t1-sim-checker" ];
+  available = [ "dpi_t1emu" "dpi_t1rocketemu" "t1-sim-checker" "t1emu" ];
 in
 lib.assertMsg (lib.elem moduleType available) "moduleType is not in ${lib.concatStringsSep ", " available}";
 
@@ -24,6 +24,7 @@ let
       ./dpi_t1rocketemu
       ./t1-sim-checker
       ./t1devices
+      ./t1emu
       ./Cargo.lock
       ./Cargo.toml
       ./.rustfmt.toml

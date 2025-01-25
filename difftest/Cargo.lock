@@ -518,6 +518,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "t1emu"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "elf",
+ "t1devices",
+]
+
+[[package]]
 name = "thread_local"
 version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
