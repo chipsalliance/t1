@@ -27,8 +27,12 @@ impl<T> DpiTarget<T> {
 
   #[track_caller]
   pub fn with_optional<R>(&self, f: impl FnOnce(Option<&mut T>) -> R) -> R {
-    let mut target = self.target.lock().unwrap();
-    f(target.as_mut())
+    match self.target.lock() {
+      Ok(mut target) => f(target.as_mut()),
+
+      // treat poisoned mutex as non-initialized
+      Err(_) => f(None),
+    }
   }
 
   #[track_caller]
