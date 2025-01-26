@@ -1,9 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-// #define USERN 32
-// #define DEBUG
-
 // array is of length n=2^l, p is a prime number
 // roots is of length l, where g = roots[0] satisfies that
 //   g^(2^l) == 1 mod p  and g^(2^(l-1)) == -1 mod p
@@ -26,12 +23,11 @@ void ntt(const int *array, int l, const int *twiddle, int p, int *dst) {
   int elements_in_vreg = vlenb * 2;
   assert(elements_in_vreg >= n);
 
+  // prepare the bit-reversal permutation list
   asm("vsetvli zero, %0, e16, m4, tu, mu\n"
       "vid.v v4\n"
       :
       : "r"(n));
-
-  // prepare the bit-reversal permutation list
   for (int k = 0; 2 * k < l; k++) {
     asm("vand.vx v8, v4, %0\n"
         "vsub.vv v4, v4, v8\n"
@@ -94,15 +90,15 @@ void ntt(const int *array, int l, const int *twiddle, int p, int *dst) {
         "vle32.v v12, 0(%5)\n"
 
     #ifdef DEBUG
-        "vse32.v v8, 0(%6)\n"// c
-        "vse32.v v12, 0(%7)\n"// c
-        "vse32.v v16, 0(%8)\n"// c
+        "vse32.v v8, 0(%6)\n"
+        "vse32.v v12, 0(%7)\n"
+        "vse32.v v16, 0(%8)\n"
     #endif
 
         // butterfly operation
         "vmul.vv v12, v12, v16\n"
         "vrem.vx v12, v12, %3\n"
-        "vadd.vv v16, v8, v12\n" // TODO: will it overflow?
+        "vadd.vv v16, v8, v12\n" // NOTE: use lazy reduction here
         "vsub.vv v20, v8, v12\n"
         // save half coefficients
         "vse32.v v16, 0(%4)\n"
