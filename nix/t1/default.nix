@@ -56,6 +56,10 @@ lib.makeScope newScope
     omreader-unwrapped = t1Scope._t1MillModules.omreader // { meta.mainProgram = "omreader"; };
     t1package = t1Scope._t1MillModules.t1package;
     profiler = t1Scope.callPackage ../../profiler { };
+    femu = t1Scope.callPackage ../../difftest { rtlDesignMetadata = null; } {
+      outputName = "t1emu";
+      moduleType = "t1emu";
+    };
 
     # ---------------------------------------------------------------------------------
     # Lowering utilities
