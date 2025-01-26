@@ -1,6 +1,7 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
 use crate::interconnect::{create_emu_addrspace, AddressSpace};
+use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
 
 use anyhow::Context;
@@ -30,12 +31,20 @@ pub struct OnlineArgs {
 
   /// dlen config
   pub dlen: u32,
+
+  /// vlen config
+  pub vlen: u32,
+
+  /// ISA config
+  pub spike_isa: String,
 }
 
 pub(crate) struct Driver {
   // SvScope from t1rocket_cosim_init
   #[allow(unused)]
   scope: SvScope,
+
+  pub(crate) meta: MetaConfig,
 
   pub(crate) dlen: u32,
   pub(crate) e_entry: u64,
@@ -57,6 +66,13 @@ impl Driver {
 
     Self {
       scope,
+
+      meta: MetaConfig {
+        vlen: args.vlen,
+        dlen: args.dlen,
+        isa: args.spike_isa.clone(),
+        elf_file: Some(args.elf_file.clone()),
+      },
 
       dlen: args.dlen,
       e_entry,

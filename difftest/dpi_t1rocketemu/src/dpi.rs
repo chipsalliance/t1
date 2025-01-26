@@ -377,6 +377,8 @@ unsafe extern "C" fn t1_cosim_init(
   let args = OnlineArgs {
     elf_file: elf_file.get().to_str().unwrap().into(),
     dlen: dlen as u32,
+    vlen: vlen as u32,
+    spike_isa: spike_isa.get().to_str().unwrap().into(),
   };
 
   TARGET.init(|| Driver::new(scope, &args));
@@ -387,7 +389,7 @@ unsafe extern "C" fn t1_cosim_final() {
   TARGET.with_optional(|driver| {
     if let Some(driver) = driver {
       let success = driver.exit_flag.is_finish();
-      dpi_common::util::write_perf_json(crate::get_t(), success);
+      dpi_common::util::write_perf_json("t1rocketemu", crate::get_t(), success, &driver.meta);
     } else {
       error!("'perf.json' generation skipped due to panic in DPI side");
     }

@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use dpi_common::util::MetaConfig;
 use spike_rs::runner::SpikeRunner;
 use spike_rs::runner::{SpikeArgs, MEM_SIZE};
 use spike_rs::spike_event::MemAccessRecord;
@@ -120,6 +121,8 @@ pub(crate) struct Driver {
   #[allow(unused)]
   scope: SvScope,
 
+  pub(crate) meta: MetaConfig,
+
   pub(crate) success: bool,
 
   pub(crate) dlen: u32,
@@ -151,6 +154,13 @@ impl Driver {
 
       scope,
       success: false,
+
+      meta: MetaConfig {
+        vlen: args.vlen,
+        dlen: args.dlen,
+        isa: args.spike_isa.clone(),
+        elf_file: Some(args.elf_file.clone()),
+      },
 
       dlen: args.dlen,
       timeout: 0,
