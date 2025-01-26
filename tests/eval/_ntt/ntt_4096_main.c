@@ -459,12 +459,14 @@ void test() {
   int dst[4096];
   ntt(arr, l, twiddle, p, dst);
 
-  // for (int i = 0; i < n; i++) {
-  //   printf("%d", dst[i]);
-  //   if ((i + 1) % 8 == 0) {
-  //     printf("\n");
-  //   } else {
-  //     printf(" ");
-  //   }
-  // }
+#ifdef DEBUG
+  for (int i = 0; i < n; i++) {
+    printf("%d", dst[i]);
+    if ((i + 1) % 8 == 0) {
+      printf("\n");
+    } else {
+      printf(" ");
+    }
+  }
+#endif
 }

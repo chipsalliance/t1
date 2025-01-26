@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <assert.h>
-// #define DEBUG
 
 void ntt(const int *array, int l, const int *twiddle, int p, int *dst);
 
