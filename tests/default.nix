@@ -91,11 +91,12 @@ let
     pytorch = casesSelf.callPackage ./pytorch { };
     disp = casesSelf.callPackage ./disp { };
     emurt-test = casesSelf.callPackage ./emurt/tests { };
+    eval = casesSelf.callPackage ./eval { };
   }));
 
   # remove non-case attributes in scope
   scopeStripped = {
-    inherit (scope) mlir intrinsic asm perf codegen rvv_bench pytorch disp emurt-test;
+    inherit (scope) mlir intrinsic asm perf codegen rvv_bench pytorch disp emurt-test eval;
   };
 
   # This derivation is for internal CI use only.
