@@ -2,9 +2,7 @@
 resolver = "2"
 members = [
     "spike_rs",
-    "offline_t1emu",
-    "offline_t1rocketemu",
-    "offline_common",
+    "t1-sim-checker",
     "dpi_t1emu",
     "dpi_t1rocketemu",
     "dpi_common",
