@@ -4,7 +4,7 @@
 use dpi_common::DpiTarget;
 use std::ffi::c_longlong;
 use svdpi::dpi::param::InStr;
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::drive::{Driver, OnlineArgs};
 use svdpi::SvScope;
@@ -243,8 +243,12 @@ unsafe extern "C" fn t1_cosim_set_timeout(timeout: u64) {
 
 #[no_mangle]
 unsafe extern "C" fn t1_cosim_final() {
-  TARGET.with(|driver| {
-    dpi_common::util::write_perf_json(crate::get_t(), driver.success);
+  TARGET.with_optional(|driver| {
+    if let Some(driver) = driver {
+      dpi_common::util::write_perf_json(crate::get_t(), driver.success);
+    } else {
+      error!("'perf.json' generation skipped due to panic in DPI side");
+    }
   })
 }
 
