@@ -1,5 +1,49 @@
 #!/usr/bin/env -S wolframscript -file
 
+genRandomPoly[l_, p_] := Module[
+  {n = 2^l, a},
+  (* Generate random list a *)
+  a = RandomInteger[{0, p - 1}, n];
+  Print[a];
+]
+
+genScalarTW[l_, p_, g_] := Module[
+  {w = g, twiddleList},
+
+  (* Assert conditions *)
+  If[Mod[p - 1, n] != 0, Return["Assertion failed: (p - 1) mod n != 0"]];
+
+  (* Generate twiddle list *)
+  twiddleList = {};
+  Do[
+    AppendTo[twiddleList, w];
+    w = Mod[w^2, p],
+    {l}
+  ];
+  Print[twiddleList];
+]
+
+genVectorTW[l_, p_, w_] := Module[
+  {n = 2^l, m = 2, layerIndex = 0},
+
+  While[m <= n,
+    Print["// layer #", layerIndex];
+    layerIndex++;
+    
+    Module[{wPower = 0, currentW},
+      For[j = 0, j < m/2, j++,
+        For[k = 0, k < n, k += m,
+          currentW = PowerMod[w, wPower, p];
+          Print[currentW, ", "];
+        ];
+        wPower += n/m;
+      ];
+    ];
+    m *= 2;
+    Print["\n"];
+  ];
+]
+
 On[Assert];
 x = {
    9997, 6362, 7134, 11711, 5849, 9491, 5972, 4164, 5894, 11069, 7697,
@@ -10,7 +54,8 @@ x = {
    10148, 10363, 11388, 9122, 10758, 2642, 4171, 10586, 1194, 5280, 
    3055, 9220
    };  (* the input array *)
-n = 64;  (* the array length *)
+l = 6;
+n = 2 ^ l;  (* the array length *)
 p = 12289;  (* a prime number s.t. n | p - 1 *)
 g = 7311;  (* an n-th root of p *)
 
@@ -25,3 +70,7 @@ Table[Mod[
       {j, 0, n - 1}
    ], p
 ], {i, 0, n - 1}] // Print
+
+genRandomPoly[l, p]
+genScalarTW[l, p, g]
+genVectorTW[l, p, g]
