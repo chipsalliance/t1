@@ -13,17 +13,17 @@ pub(crate) mod util;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-pub struct OfflineArgs {
-  /// Path to perf json
+pub struct SimCheckerArgs {
+  /// Path to sim result json
   #[arg(long)]
-  pub perf_json: PathBuf,
+  pub sim_result: PathBuf,
 
   /// Path to the rtl event log file
   #[arg(long)]
   pub log_file: PathBuf,
 
   /// Path to the ELF file
-  /// (override that in perf.json)
+  /// (override that in sim result json)
   #[arg(long)]
   pub elf_file: Option<PathBuf>,
 
@@ -44,9 +44,9 @@ pub struct OfflineArgs {
   pub log_level: String,
 }
 
-// contains only fields used by offline
+// contains only fields used by t1-sim-checker
 #[derive(Deserialize, Debug)]
-struct PerfJsonData {
+struct SimResult {
   flavor: String,
   meta_vlen: u32,
   meta_dlen: u32,
@@ -56,27 +56,27 @@ struct PerfJsonData {
 }
 
 fn main() -> anyhow::Result<()> {
-  let args = OfflineArgs::parse();
+  let args = SimCheckerArgs::parse();
 
   init_logger(&args.log_level);
 
-  let perf_json = read_to_string(&args.perf_json).context("in open perf json file")?;
-  let perf_json: PerfJsonData =
-    serde_json::from_str(&perf_json).context("in parsing perf json file")?;
+  let sim_result = read_to_string(&args.sim_result).context("in open sim result json file")?;
+  let sim_result: SimResult =
+    serde_json::from_str(&sim_result).context("in parsing sim result file")?;
 
-  if !perf_json.success {
+  if !sim_result.success {
     bail!("online run is unsuccessful");
   }
 
-  let vlen = args.vlen_override.unwrap_or(perf_json.meta_vlen);
-  let dlen = args.dlen_override.unwrap_or(perf_json.meta_dlen);
-  let isa = args.isa_override.as_ref().unwrap_or(&perf_json.meta_isa);
+  let vlen = args.vlen_override.unwrap_or(sim_result.meta_vlen);
+  let dlen = args.dlen_override.unwrap_or(sim_result.meta_dlen);
+  let isa = args.isa_override.as_ref().unwrap_or(&sim_result.meta_isa);
   let elf_file = if let Some(elf_file) = &args.elf_file {
     elf_file
-  } else if let Some(elf_file) = &perf_json.meta_elf_file {
+  } else if let Some(elf_file) = &sim_result.meta_elf_file {
     elf_file
   } else {
-    bail!("neither cmd args nor perf.json contains elf path");
+    bail!("neither cmd args nor sim_result.json contains elf path");
   };
 
   let spike_args = SpikeArgs {
@@ -87,7 +87,7 @@ fn main() -> anyhow::Result<()> {
     set: isa.clone(),
   };
 
-  match perf_json.flavor.as_str() {
+  match sim_result.flavor.as_str() {
     "t1emu" => {
       t1emu::run_diff(&spike_args)?;
     }
@@ -96,7 +96,7 @@ fn main() -> anyhow::Result<()> {
     }
     _ => bail!(
       "unknown flavor '{}', expected 't1emu' or 't1rocketemu'",
-      perf_json.flavor
+      sim_result.flavor
     ),
   }
 

@@ -247,7 +247,7 @@ unsafe extern "C" fn t1_cosim_final() {
     if let Some(driver) = driver {
       dpi_common::util::write_perf_json("t1emu", crate::get_t(), driver.success, &driver.meta);
     } else {
-      error!("'perf.json' generation skipped due to panic in DPI side");
+      error!("'sim_result.json' generation skipped due to panic in DPI side");
     }
   })
 }
