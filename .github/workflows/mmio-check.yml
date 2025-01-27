@@ -72,7 +72,7 @@ jobs:
           calculator=$(realpath ./nix/t1/run/calculate-cycle.py)
           cd $(dirname "$mmioResultFile")
           cycles=$(python3 "$calculator")
-          total_cycles=$(jq .total_cycles perf.json)
+          total_cycles=$(jq .total_cycles sim_result.json)
           if (( $cycles < 0 || $cycles > $total_cycles )); then
             failWith "invalid program instrument $cycles found"
           fi

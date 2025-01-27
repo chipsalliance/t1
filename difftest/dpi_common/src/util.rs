@@ -39,10 +39,10 @@ pub fn write_perf_json(flavor: &str, cycle: u64, success: bool, meta: &MetaConfi
   content += &format!("    \"success\": {success}\n");
   content += "}\n";
 
-  match std::fs::write("perf.json", &content) {
+  match std::fs::write("sim_result.json", &content) {
     Ok(()) => {}
     Err(e) => {
-      tracing::error!("failed to write 'perf.json': {e}");
+      tracing::error!("failed to write 'sim_result.json': {e}");
     }
   }
 }

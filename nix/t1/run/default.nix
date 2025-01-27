@@ -114,11 +114,11 @@ let
           _caseOutDir=$out/${caseDrv.caseName}
           mkdir -p "$_caseOutDir"
 
-          if [ -r ${caseDrv}/perf.json ]; then
-            cp -v ${caseDrv}/perf.json "$_caseOutDir"/
+          if [ -r ${caseDrv}/sim_result.json ]; then
+            cp -v ${caseDrv}/sim_result.json "$_caseOutDir"/
           fi
 
-          cp -v ${caseDrv}/offline-check-* "$_caseOutDir"/
+          cp -v ${caseDrv}/sim-check-* "$_caseOutDir"/
 
           if [ -d ${caseDrv}/cm.vdb ]; then
             cp -vr ${caseDrv}/cm.vdb "$_caseOutDir"/

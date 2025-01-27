@@ -55,8 +55,8 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
   caseName = testCase.pname;
 
   simCheckArgs = toString [
-    "--perf-json"
-    "perf.json"
+    "--sim-result"
+    "sim_result.json"
     "--log-file"
     "$rtlEventOutPath"
     "--log-level"
@@ -80,7 +80,7 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
     rtlEventOutPath="rtl-event.jsonl"
 
     if ! eval "$driverPhase"  \
-      1> >(tee $out/online-drive-emu-journal)
+      &> >(tee $out/online-drive-emu-journal)
     then
       fatal "online driver run failed: %s\n\n%s" \
         "$(cat "$rtlEventOutPath")" \
@@ -117,8 +117,8 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
   installPhase = ''
     runHook preInstall
 
-    if [ -r perf.json ]; then
-      cp -v perf.json $out/
+    if [ -r sim_result.json ]; then
+      cp -v sim_result.json $out/
     fi
 
     ${lib.optionalString (waveFileName != null) ''
@@ -128,7 +128,7 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
     # If we find the mmio-event.jsonl file, try to replace the perf total cycle with program instrument.
     if [ -r mmio-event.jsonl ]; then
       cp -v mmio-event.jsonl $out/
-      jq ".profile_total_cycles=$(python3 ${./calculate-cycle.py})" perf.json > "$out/perf.json"
+      jq ".profile_total_cycles=$(python3 ${./calculate-cycle.py})" sim_result.json > "$out/sim_result.json"
     fi
 
     runHook postInstall
