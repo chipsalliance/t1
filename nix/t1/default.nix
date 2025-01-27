@@ -56,7 +56,10 @@ lib.makeScope newScope
     omreader-unwrapped = t1Scope._t1MillModules.omreader // { meta.mainProgram = "omreader"; };
     t1package = t1Scope._t1MillModules.t1package;
     profiler = t1Scope.callPackage ../../profiler { };
-
+    sim-checker = t1Scope.callPackage ../../difftest { } {
+      outputName = "t1-sim-checker";
+      moduleType = "t1-sim-checker";
+    };
     # ---------------------------------------------------------------------------------
     # Lowering utilities
     # ---------------------------------------------------------------------------------
