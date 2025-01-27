@@ -2,7 +2,7 @@
 , stdenvNoCC
 , zstd
 , jq
-, offline-checker
+, sim-checker
 , writeShellScriptBin
 , python3
 }:
@@ -54,9 +54,9 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
 
   caseName = testCase.pname;
 
-  offlineCheckArgs = toString [
-    "--elf-file"
-    "${testCase}/bin/${testCase.pname}.elf"
+  simCheckArgs = toString [
+    "--perf-json"
+    "perf.json"
     "--log-file"
     "$rtlEventOutPath"
     "--log-level"
@@ -97,14 +97,14 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
       fatal "invalid JSON file $rtlEventOutPath"
     fi
 
-    offlineCheckPhase="${lib.getExe offline-checker} $offlineCheckArgs"
-    echo -e "[nix] running offline check '$offlineCheckPhase'"
-    if eval "$offlineCheckPhase" &> >(tee $out/offline-check-journal); then
-      printf '0' > $out/offline-check-status
-      echo "[nix] Offline check PASS"
+    simCheckPhase="${lib.getExe sim-checker} $simCheckArgs"
+    echo -e "[nix] running simulation check '$simCheckPhase'"
+    if eval "$simCheckPhase" &> >(tee $out/sim-check-journal); then
+      printf '0' > $out/sim-check-status
+      echo "[nix] Simulation check PASS"
     else
-      printf '1' > $out/offline-check-status
-      echo "[nix] Offline check FAIL"
+      printf '1' > $out/sim-check-status
+      echo "[nix] Simulation check FAIL"
     fi
 
     echo "[nix] compressing event log"

@@ -138,10 +138,7 @@ forEachTop (topName: generator: self: {
     moduleType = "dpi_${topName}";
   };
 
-  offline-checker = self.makeDifftest {
-    outputName = "${topName}-offline-checker";
-    moduleType = "offline_${topName}";
-  };
+  inherit (t1Scope) sim-checker;
 
   vcs-emu = t1Scope.sv-to-vcs-simulator {
     mainProgram = "${topName}-vcs-simulator";

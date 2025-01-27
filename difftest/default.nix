@@ -2,7 +2,6 @@
 , rustPlatform
 , libspike
 , libspike_interfaces
-, rtlDesignMetadata
 }:
 
 { outputName
@@ -11,7 +10,7 @@
 }:
 
 assert let
-  available = [ "dpi_t1emu" "dpi_t1rocketemu" "offline_t1emu" "offline_t1rocketemu" ];
+  available = [ "dpi_t1emu" "dpi_t1rocketemu" "t1-sim-checker" ];
 in
 lib.assertMsg (lib.elem moduleType available) "moduleType is not in ${lib.concatStringsSep ", " available}";
 
@@ -23,9 +22,7 @@ let
       ./dpi_common
       ./dpi_t1emu
       ./dpi_t1rocketemu
-      ./offline_common
-      ./offline_t1emu
-      ./offline_t1rocketemu
+      ./t1-sim-checker
       ./Cargo.lock
       ./Cargo.toml
       ./.rustfmt.toml
@@ -69,19 +66,11 @@ else
     env = {
       SPIKE_LIB_DIR = "${libspike}/lib";
       SPIKE_INTERFACES_LIB_DIR = "${libspike_interfaces}/lib";
-      DESIGN_VLEN = rtlDesignMetadata.vlen;
-      DESIGN_DLEN = rtlDesignMetadata.dlen;
-      SPIKE_ISA_STRING = rtlDesignMetadata.march;
     };
 
     cargoLock = {
       lockFile = ./Cargo.lock;
     };
 
-    postInstall = ''
-      exe=$(find $out/bin -type f -name 'offline_*')
-      ln -s "$exe" $out/bin/offline
-    '';
-
-    meta.mainProgram = "offline";
+    meta.mainProgram = outputName;
   }
