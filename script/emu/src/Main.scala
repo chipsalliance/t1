@@ -234,9 +234,14 @@ object Main:
 
     val leftOverArguments = leftOver.value.dropWhile(arg => arg != "--")
 
+    val rtlEventPath = outputPath / "rtl-event.jsonl"
+    val journalPath  = outputPath / "online-drive-emu-journal"
+    val statePath    = outputPath / "driver-state.json"
+
     val processArgs = Seq(
       emulator.toString(),
-      s"+t1_elf_file=${caseElfPath}"
+      s"+t1_elf_file=${caseElfPath}",
+      s"+t1_rtl_event_path=${rtlEventPath}"
     )
       ++ optionals(timeout.isDefined, Seq(s"+t1_timeout=${timeout.getOrElse("unreachable")}"))
       ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
@@ -244,10 +249,6 @@ object Main:
       ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)
 
     if dryRun.value then return
-
-    val rtlEventPath = outputPath / "rtl-event.jsonl.zst"
-    val journalPath  = outputPath / "online-drive-emu-journal"
-    val statePath    = outputPath / "driver-state.json"
 
     // Save information of this run, so that user can start offline check without arguments
     os.write(
@@ -281,29 +282,24 @@ object Main:
           stdout = os.Inherit,
           stderr = os.Inherit,
           env = optionalMap(verbose.value, Map("RUST_LOG" -> "TRACE")),
-          check = false
+          check = true,
         )
     else
       val driverProc = os
         .proc(processArgs)
-        .spawn(
+        .call(
+          check = true,
           stdout = journalPath,
-          stderr = os.Pipe,
+          stderr = os.Inherit,
           env = optionalMap(verbose.value, Map("RUST_LOG" -> "TRACE"))
         )
       val zstdProc   = os
-        .proc(Seq("zstd", "-o", s"${rtlEventPath}"))
-        .spawn(
-          stdin = driverProc.stderr,
+        .proc(Seq("zstd", rtlEventPath.toString, "-o", s"${rtlEventPath}.zstd"))
+        .call(
+          check = true,
           stdout = os.Inherit,
           stderr = os.Inherit
         )
-
-      zstdProc.join(-1)
-      driverProc.join(-1)
-      if zstdProc.exitCode() != 0 then Logger.fatal("fail to compress data")
-      if driverProc.exitCode() != 0 then Logger.fatal("online driver run failed")
-
 
     Logger.info("Driver finished")
 
