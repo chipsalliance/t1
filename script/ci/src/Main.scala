@@ -182,12 +182,12 @@ object Main:
             Logger.error(s"nix build $testAttr --impure")
             // Create fake path for latter assertion to fail
             val fakedir = os.temp.dir()
-            os.write(fakedir / "offline-check-status", "1")
+            os.write(fakedir / "sim-check-status", "1")
             fakedir
 
       Logger.info("Checking RTL event from event log")
       val testSuccess =
-        os.read(testResultPath / "offline-check-status").trim() == "0"
+        os.read(testResultPath / "sim-check-status").trim() == "0"
       if !testSuccess then
         Logger.error(s"Offline check FAILED for $caseName ($config)")
         allFailedTest :+ testAttr
@@ -290,7 +290,7 @@ object Main:
           Logger.info("Collecting cycle update info")
           val allCycleUpdates = os
             .walk(emuResultPath)
-            .filter(path => path.last == "perf.json")
+            .filter(path => path.last == "sim_result.json")
             .map(path => {
               val cycle    = ujson.read(os.read(path)).obj("total_cycles").num.toInt
               val caseName = path.segments.toSeq.reverse.drop(1).head
@@ -395,7 +395,7 @@ object Main:
             .pipe(json => json.obj.keys.map(testName => s"$config,$testName"))
 
     val currentTestPlan = getTestPlan("default.json")
-    val perfCases       = getTestPlan("perf.json")
+    val perfCases       = getTestPlan("sim_result.json")
 
     // We don't have much information for this tests, so randomly split them into same size buckets
     // Merge Seq( "A", "B", "C", "D" ) into Seq( "A;B", "C;D" )
