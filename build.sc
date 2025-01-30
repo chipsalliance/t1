@@ -181,19 +181,6 @@ trait T1Emulator extends millbuild.common.T1EmulatorModule with ScalafmtModule {
   def chiselIvy       = None
 }
 
-object rocketemu extends RocketEmulator
-
-trait RocketEmulator extends millbuild.common.RocketEmulatorModule with ScalafmtModule {
-  def scalaVersion = T(v.scala)
-
-  def rocketVModule = rocketv
-
-  def chiselModule    = Some(chisel)
-  def chiselPluginJar = T(Some(chisel.pluginModule.jar()))
-  def chiselPluginIvy = None
-  def chiselIvy       = None
-}
-
 object t1rocketemu extends T1RocketEmulator
 
 trait T1RocketEmulator extends millbuild.common.T1RocketEmulatorModule with ScalafmtModule {
@@ -231,7 +218,6 @@ trait Elaborator extends millbuild.common.ElaboratorModule with ScalafmtModule {
     t1,
     t1emu,
     rocketv,
-    rocketemu,
     t1rocket,
     t1rocketemu
   )

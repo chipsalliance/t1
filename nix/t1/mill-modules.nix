@@ -33,7 +33,6 @@ let
         ./../../rocketv
         ./../../t1rocket/src
         ./../../t1rocketemu/src
-        ./../../rocketemu/src
         ./../../stdlib/src
       ];
     };
@@ -145,7 +144,6 @@ let
           "elaborator"
           "omreader"
           "omreaderlib"
-          "rocketemu"
           "rocketv"
           "t1"
           "t1emu"

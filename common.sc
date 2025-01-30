@@ -157,11 +157,6 @@ trait OMReaderModule extends ScalaModule with HasChisel {
   )
 }
 
-trait RocketEmulatorModule extends ScalaModule with HasChisel {
-  def rocketVModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(rocketVModule)
-}
-
 trait StdlibModule extends ScalaModule with HasChisel {
   def dwbbModule: ScalaModule
 
