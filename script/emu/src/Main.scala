@@ -399,7 +399,7 @@ object Main:
         simResult.toString,
         "--log-level",
         logLevel,
-        "--log-file",
+        "--rtl-event-file",
         eventFile.toString
       )
     Logger.info(s"Running offline checker: ${driverArgs.mkString(" ")}")

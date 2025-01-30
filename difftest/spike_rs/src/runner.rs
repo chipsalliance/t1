@@ -52,7 +52,7 @@ pub struct SpikeArgs {
   pub elf_file: PathBuf,
 
   /// Path to the log file
-  pub log_file: Option<PathBuf>,
+  pub rtl_event_file: Option<PathBuf>,
 
   /// vlen config
   pub vlen: u32,

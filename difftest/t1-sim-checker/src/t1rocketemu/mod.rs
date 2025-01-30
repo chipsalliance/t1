@@ -31,7 +31,7 @@ fn run_spike(args: &SpikeArgs) -> anyhow::Result<()> {
 }
 
 pub fn run_diff(spike_args: &SpikeArgs) -> anyhow::Result<()> {
-  let rtl_event_path = spike_args.log_file.as_ref().unwrap();
+  let rtl_event_path = spike_args.rtl_event_file.as_ref().unwrap();
   let json_file = File::open(rtl_event_path).context("in open rtl event file")?;
 
   let mut runner = SpikeRunner::new(&spike_args, true);
