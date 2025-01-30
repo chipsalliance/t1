@@ -44,13 +44,13 @@ object Main:
       attr
     ) ++ extraArgs
     os.proc(args).call().out.trim()
-  
+
   def resolveTestPath(
     ip:       String,
     config:   String,
     caseName: String,
     forceX86: Boolean = false
-  ): os.Path = 
+  ): os.Path =
     val casePath = os.Path(caseName, os.pwd)
     if (os.exists(casePath)) then return casePath
 
@@ -61,7 +61,7 @@ object Main:
     val nixStorePath = resolveNixPath(
       s"${caseAttrRoot}t1.${config}.${ip}.cases.${caseName}"
     )
-    val filePath  = os.Path(nixStorePath)
+    val filePath     = os.Path(nixStorePath)
 
     filePath
   end resolveTestPath
@@ -72,8 +72,8 @@ object Main:
     caseName: String,
     forceX86: Boolean = false
   ): os.Path =
-    val testPath = resolveTestPath(ip, config, caseName, forceX86)
-    val elfFilePath  = testPath / "bin" / s"${caseName}.elf"
+    val testPath    = resolveTestPath(ip, config, caseName, forceX86)
+    val elfFilePath = testPath / "bin" / s"${caseName}.elf"
 
     elfFilePath
   end resolveTestElfPath
@@ -84,8 +84,8 @@ object Main:
     caseName: String,
     forceX86: Boolean = false
   ): os.Path =
-    val testPath = resolveTestPath(ip, config, caseName, forceX86)
-    val coverFilePath  = testPath / s"${caseName}.cover"
+    val testPath      = resolveTestPath(ip, config, caseName, forceX86)
+    val coverFilePath = testPath / s"${caseName}.cover"
 
     coverFilePath
   end resolveTestCoverPath
@@ -227,10 +227,10 @@ object Main:
       s"Using config=${BOLD}${finalConfig.get}${RESET} emulator=${BOLD}${finalEmuType.get}${RESET} case=${BOLD}$caseName${RESET}"
     )
 
-    val caseElfPath = resolveTestElfPath(finalIp.get, finalConfig.get, caseName, forceX86)
+    val caseElfPath   = resolveTestElfPath(finalIp.get, finalConfig.get, caseName, forceX86)
     val caseCoverPath = resolveTestCoverPath(finalIp.get, finalConfig.get, caseName, forceX86)
-    val outputPath  = prepareOutputDir(outDir.getOrElse("t1-sim-result"))
-    val emulator    = resolveTestBenchPath(finalIp.get, finalConfig.get, finalEmuType.get)
+    val outputPath    = prepareOutputDir(outDir.getOrElse("t1-sim-result"))
+    val emulator      = resolveTestBenchPath(finalIp.get, finalConfig.get, finalEmuType.get)
 
     val leftOverArguments = leftOver.value.dropWhile(arg => arg != "--")
 
@@ -282,7 +282,7 @@ object Main:
           stdout = os.Inherit,
           stderr = os.Inherit,
           env = optionalMap(verbose.value, Map("RUST_LOG" -> "TRACE")),
-          check = true,
+          check = true
         )
     else
       val driverProc = os
@@ -312,13 +312,13 @@ object Main:
           "run",
           ".#snps-fhs-env",
           "--impure",
-          "--",
+          "--"
         )
-        val urgArgs = Seq(
+        val urgArgs  = Seq(
           "urg",
           "-dir",
           s"${os.pwd}/cm.vdb",
-          "-format", 
+          "-format",
           "text",
           "-metric",
           "assert",
@@ -326,7 +326,8 @@ object Main:
           "summary"
         )
         Logger.info(s"Starting Urg Report: `${urgArgs.mkString(" ")}`")
-        val urgProc = os.proc(snpsArgs ++ urgArgs)
+        val urgProc  = os
+          .proc(snpsArgs ++ urgArgs)
           .spawn(
             stdout = os.Inherit,
             stderr = os.Inherit
@@ -335,9 +336,7 @@ object Main:
         if urgProc.exitCode() != 0 then Logger.fatal("urg report run failed")
 
         Logger.info("Urg Report finished")
-
       else if !finalEmuType.get.startsWith("verilator-emu") then Logger.error("No cm.vdb found")
-
 
       if os.exists(os.pwd / "urgReport") then
         os.move(os.pwd / "urgReport", outputPath / "urgReport", replaceExisting = true)
