@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
+
+package build
+
+import mill._
+import mill.scalalib._
+import mill.define.{Command, TaskModule}
+import mill.scalalib.publish._
+import mill.scalalib.scalafmt._
+import mill.scalalib.TestModule.Utest
+import mill.util.Jvm
+import coursier.maven.MavenRepository
+
+object v {
+  val scala    = "2.13.15"
+  val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
+  val oslib    = ivy"com.lihaoyi::os-lib:0.9.1"
+  val upickle  = ivy"com.lihaoyi::upickle:3.3.1"
+  val spire    = ivy"org.typelevel::spire:latest.integration"
+  val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
+  val chisel   = ivy"org.chipsalliance::chisel:0.0.0+0-no-vcs-SNAPSHOT"
+  val chiselPlugin = ivy"org.chipsalliance:::chisel-plugin:0.0.0+0-no-vcs-SNAPSHOT"
+  val arithmetic = ivy"me.jiuyang:::arithmetic:0.0.0+0-no-vcs-SNAPSHOT"
+  val rvdecoderdb = ivy"me.jiuyang:::rvdecoderdb-jvm:0.0.0+0-no-vcs-SNAPSHOT"
+  val axi4 = ivy"org.chipsalliance:::axi4:0.0.0+0-no-vcs-SNAPSHOT"
+  val dwbb = ivy"org.chipsalliance:::dwbb:0.0.0+0-no-vcs-SNAPSHOT"
+  val jtag = ivy"org.chipsalliance:::jtag:0.0.0+0-no-vcs-SNAPSHOT"
+  val hardfloat = ivy"edu.berkeley.cs:::hardfloat:0.0.0+0-no-vcs-SNAPSHOT"
+}
+
+object stdlib extends Stdlib
+
+trait Stdlib extends common.StdlibModule with ScalafmtModule {
+  def scalaVersion = v.scala
+
+  def mainargsIvy = v.mainargs
+
+  def dwbbIvy: Dep = v.dwbb
+
+  def chiselModule    = None
+  def chiselPluginJar = None
+  def chiselIvy       = Some(v.chisel)
+  def chiselPluginIvy = Some(v.chiselPlugin)
+}
+
+object t1 extends T1
+
+trait T1 extends common.T1Module with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+
+  def arithmeticIvy  = v.arithmetic
+  def axi4Ivy        = v.axi4
+  def hardfloatModule   = v.hardfloat
+  def rvdecoderdbModule = v.rvdecoderdb
+  def stdlibModule      = stdlib
+  def riscvOpcodesPath  = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
+
+  def chiselModule    = None
+  def chiselPluginJar = None
+  def chiselIvy       = Some(v.chisel)
+  def chiselPluginIvy = Some(v.chiselPlugin)
+}
+
+object configgen extends ConfigGen
+
+trait ConfigGen extends common.ConfigGenModule with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+
+  def t1Module = t1
+
+  def mainargsIvy = v.mainargs
+}
+
+object rocketv extends RocketV
+
+trait RocketV extends common.RocketVModule with ScalafmtModule {
+  def scalaVersion      = T(v.scala)
+  def rvdecoderdbIvy = v.rvdecoderdb
+  def riscvOpcodesPath  = T.input(PathRef(os.pwd / "dependencies" / "riscv-opcodes"))
+  def hardfloatModule   = v.hardfloat
+  def axi4Ivy        = v.axi4
+  def stdlibModule      = stdlib
+
+  def chiselModule    = None
+  def chiselPluginJar = None
+  def chiselIvy       = Some(v.chisel)
+  def chiselPluginIvy = Some(v.chiselPlugin)
+}
+
+object t1rocket extends T1Rocket
+
+trait T1Rocket extends common.T1RocketModule with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+  def rocketModule = rocketv
+  def t1Module     = t1
+
+  def chiselModule    = None
+  def chiselPluginJar = None
+  def chiselIvy       = Some(v.chisel)
+  def chiselPluginIvy = Some(v.chiselPlugin)
+}
+
+object t1emu extends T1Emulator
+
+trait T1Emulator extends common.T1EmulatorModule with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+
+  def t1Module = t1
+
+  def chiselModule    = None
+  def chiselPluginJar = None
+  def chiselIvy       = Some(v.chisel)
+  def chiselPluginIvy = Some(v.chiselPlugin)
+}
+
+object t1rocketemu extends T1RocketEmulator
+
+trait T1RocketEmulator extends common.T1RocketEmulatorModule with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+
+  def t1rocketModule = t1rocket
+
+  def chiselModule    = None
+  def chiselPluginJar = None
+  def chiselIvy       = Some(v.chisel)
+  def chiselPluginIvy = Some(v.chiselPlugin)
+}
+
+object panamaconverter extends PanamaConverter
+
+trait PanamaConverter extends dependencies.chisel.build.PanamaConverter {
+  def crossValue = v.scala
+
+  override def millSourcePath = os.pwd / "dependencies" / "chisel" / "panamaconverter"
+
+  def scalaVersion = T(v.scala)
+}
+
+// Module to generate RTL from json config
+object elaborator extends Elaborator
+
+trait Elaborator extends common.ElaboratorModule with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+
+  def panamaconverterModule = panamaconverter
+
+  def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
+
+  def generators = Seq(
+    t1,
+    t1emu,
+    rocketv,
+    t1rocket,
+    t1rocketemu
+  )
+
+  def mainargsIvy = v.mainargs
+
+  def chiselModule    = None
+  def chiselPluginJar = None
+  def chiselIvy       = Some(v.chisel)
+  def chiselPluginIvy = Some(v.chiselPlugin)
+}
+
+object omreaderlib extends OMReaderLib
+
+trait OMReaderLib extends common.OMReaderLibModule with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+
+  def panamaconverterModule = panamaconverter
+
+  def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
+
+  def mainargsIvy = v.mainargs
+
+  def chiselModule    = None
+  def chiselPluginJar = None
+  def chiselIvy       = Some(v.chisel)
+  def chiselPluginIvy = Some(v.chiselPlugin)
+}
+
+object omreader extends OMReader
+
+trait OMReader extends common.OMReaderModule with ScalafmtModule {
+  def scalaVersion = T(v.scala)
+
+  def panamaconverterModule = panamaconverter
+  def omreaderlibModule     = omreaderlib
+
+  def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
+
+  def mainargsIvy = v.mainargs
+
+  def chiselModule    = None
+  def chiselPluginJar = None
+  def chiselIvy       = Some(v.chisel)
+  def chiselPluginIvy = Some(v.chiselPlugin)
+}
+
+/** A simple release flow for T1 generator: package required dependency to flat jar. usage: mill
+  * t1package.{sourceJar,jar} out/t1package/sourceJar.dest/out.jar -> t1package-sources.jar
+  * out/t1package/jar.dest/out.jar -> t1package.jar out/t1package/chiselPluginJar.dest/out.jar -> chiselPlugin.jar these
+  * two jar is enough for this usages: object somepackagethatdependsont1 extends ScalaModule { def unmanagedClasspath =
+  * T(Seq(PathRef(os.pwd / "t1package.jar"), PathRef(os.pwd / "t1package-sources.jar"))) } For Jiuyang's Team, this is
+  * used for link T1 to NDA Blackboxes that cannot be open-sourced
+  */
+object t1package extends ScalaModule {
+  def scalaVersion = T(v.scala)
+  def moduleDeps   = super.moduleDeps ++ Seq(t1, t1emu, panamaconverter, omreaderlib)
+  override def sourceJar: T[PathRef] = T(
+    Jvm.createJar(
+      T.traverse(transitiveModuleDeps)(dep => T.sequence(Seq(dep.allSources, dep.resources, dep.compileResources)))()
+        .flatten
+        .flatten
+        .map(_.path)
+        .filter(os.exists),
+      manifest()
+    )
+  )
+}

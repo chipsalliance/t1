@@ -1,7 +1,7 @@
 {
     "arithmetic": {
         "cargoLocks": null,
-        "date": "2024-01-23",
+        "date": "2025-01-26",
         "extract": null,
         "name": "arithmetic",
         "passthru": null,
@@ -13,11 +13,12 @@
             "name": null,
             "owner": "sequencer",
             "repo": "arithmetic",
-            "rev": "4a81e23e1794844b36c53385d343475d4d7eca49",
-            "sha256": "sha256-tQwzECNOXhuKzpwRD+iKSEJYl1/wlhMQTJULJSCdTrY=",
+            "rev": "1a606166317d7cfd5fda8ec5816a7d5374f002bc",
+            "sha256": "sha256-Z0Rm81L79qlleIy/wRb3hkaab/RG9HKANeksZj2mRzQ=",
+            "sparseCheckout": [],
             "type": "github"
         },
-        "version": "4a81e23e1794844b36c53385d343475d4d7eca49"
+        "version": "1a606166317d7cfd5fda8ec5816a7d5374f002bc"
     },
     "berkeley-hardfloat": {
         "cargoLocks": null,
@@ -35,13 +36,14 @@
             "repo": "berkeley-hardfloat",
             "rev": "26f00d00c3f3f57480065e02bfcfde3d3b41ec51",
             "sha256": "sha256-gA1Ol7xnzC+10lGwK9+ftfJcMhKsC0KhjENQvUg3u88=",
+            "sparseCheckout": [],
             "type": "github"
         },
         "version": "26f00d00c3f3f57480065e02bfcfde3d3b41ec51"
     },
     "chisel": {
         "cargoLocks": null,
-        "date": "2025-01-15",
+        "date": "2025-01-29",
         "extract": null,
         "name": "chisel",
         "passthru": null,
@@ -53,15 +55,16 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "chisel",
-            "rev": "751971afee8196cbc7018ec448b48fd5ccf86652",
-            "sha256": "sha256-D0BWvxoGdI4AR/j6OcDwRdOQ0tHmV9AVxcT0podkh1I=",
+            "rev": "1ac76764f2cfd2d37f5f25e4f9b42da665ffd5f0",
+            "sha256": "sha256-1ZM4IOL7mWqA5/EP/WLQJi8teqLyqU4f8E8ZTh0wzVQ=",
+            "sparseCheckout": [],
             "type": "github"
         },
-        "version": "751971afee8196cbc7018ec448b48fd5ccf86652"
+        "version": "1ac76764f2cfd2d37f5f25e4f9b42da665ffd5f0"
     },
     "chisel-interface": {
         "cargoLocks": null,
-        "date": "2024-10-12",
+        "date": "2025-01-30",
         "extract": null,
         "name": "chisel-interface",
         "passthru": null,
@@ -73,15 +76,16 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "chisel-interface",
-            "rev": "57081e3e080d09bf811cce7b3936ea9e5dc187f9",
-            "sha256": "sha256-Pmeu5dtjPp9WMzmJY2ULWB20DFq5Vh7Y4G0/Hbjyogc=",
+            "rev": "e228636d406a948e5e56d841e877591485bfcb22",
+            "sha256": "sha256-CTi9AaVEIagN8HahvihAEtFzc76deKRzBZqX/4V9u8Y=",
+            "sparseCheckout": [],
             "type": "github"
         },
-        "version": "57081e3e080d09bf811cce7b3936ea9e5dc187f9"
+        "version": "e228636d406a948e5e56d841e877591485bfcb22"
     },
     "riscv-opcodes": {
         "cargoLocks": null,
-        "date": "2024-07-24",
+        "date": "2025-01-29",
         "extract": null,
         "name": "riscv-opcodes",
         "passthru": null,
@@ -93,15 +97,16 @@
             "name": null,
             "owner": "riscv",
             "repo": "riscv-opcodes",
-            "rev": "07b21cc5143a15959eda12e30aa40cea0971efe0",
-            "sha256": "sha256-B9njfBxZfm7xkSKBD8JOUWIKEzL8ra/X9FKC3CJ2gK8=",
+            "rev": "9f70bcd37db27fddd34b4aa0524b8f19d31e9bb8",
+            "sha256": "sha256-1X8D2BVMbKnr2qhrKPh1Uubmuezg9nK3ih3QqRKHlCA=",
+            "sparseCheckout": [],
             "type": "github"
         },
-        "version": "07b21cc5143a15959eda12e30aa40cea0971efe0"
+        "version": "9f70bcd37db27fddd34b4aa0524b8f19d31e9bb8"
     },
     "rvdecoderdb": {
         "cargoLocks": null,
-        "date": "2024-07-25",
+        "date": "2025-01-26",
         "extract": null,
         "name": "rvdecoderdb",
         "passthru": null,
@@ -113,10 +118,11 @@
             "name": null,
             "owner": "sequencer",
             "repo": "rvdecoderdb",
-            "rev": "6f22826d2c8facb6bf0b41f4bea26a2225751220",
-            "sha256": "sha256-4Hwa2Z4mmALy4ZElWzxFgqC+7EsyBhahVYlVUzyYKF4=",
+            "rev": "1d8d107314291d1d7864549fc04e2155ba22d845",
+            "sha256": "sha256-SonFZpmlH26YZ8kpLJoamxQgPX4u+Ch1eaHe48uXczs=",
+            "sparseCheckout": [],
             "type": "github"
         },
-        "version": "6f22826d2c8facb6bf0b41f4bea26a2225751220"
+        "version": "1d8d107314291d1d7864549fc04e2155ba22d845"
     }
 }

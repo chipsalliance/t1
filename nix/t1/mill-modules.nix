@@ -23,8 +23,8 @@ let
     src = with lib.fileset; toSource {
       root = ./../..;
       fileset = unions [
-        ./../../build.sc
-        ./../../common.sc
+        ./../../build.mill
+        ./../../common.mill
         ./../../t1
         ./../../omreader
         ./../../omreaderlib
@@ -42,12 +42,18 @@ let
       src = with lib.fileset; toSource {
         root = ./../..;
         fileset = unions [
-          ./../../build.sc
-          ./../../common.sc
+          ./../../build.mill
+          ./../../common.mill
         ];
       };
-      millDepsHash = "sha256-XvGLNLOC7OEwfC7SB5zBdB64VjROBkwgIcHx+9FHmSs=";
-      nativeBuildInputs = [ dependencies.setupHook ];
+      millDepsHash = "";
+      nativeBuildInputs = with dependencies; [
+        ivy-arithmetic.setupHook
+        ivy-chisel.setupHook
+        ivy-chisel-interface.setupHook
+        ivy-rvdecoderdb.setupHook
+        ivy-hardfloat.setupHook
+      ];
     };
 
     passthru.editable = self.overrideAttrs (_: {
