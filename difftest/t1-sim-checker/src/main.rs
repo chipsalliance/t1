@@ -20,7 +20,7 @@ pub struct SimCheckerArgs {
 
   /// Path to the rtl event log file
   #[arg(long)]
-  pub log_file: PathBuf,
+  pub rtl_event_file: PathBuf,
 
   /// Path to the ELF file
   /// (override that in sim result json)
@@ -81,7 +81,7 @@ fn main() -> anyhow::Result<()> {
 
   let spike_args = SpikeArgs {
     elf_file: elf_file.clone(),
-    log_file: Some(args.log_file.clone()),
+    rtl_event_file: Some(args.rtl_event_file.clone()),
     vlen,
     dlen,
     set: isa.clone(),

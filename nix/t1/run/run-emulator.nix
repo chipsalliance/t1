@@ -57,7 +57,7 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
   simCheckArgs = toString [
     "--sim-result"
     "sim_result.json"
-    "--log-file"
+    "--rtl-event-file"
     "$rtlEventOutPath"
     "--log-level"
     "ERROR"

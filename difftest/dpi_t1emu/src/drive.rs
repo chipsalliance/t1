@@ -102,7 +102,7 @@ pub(crate) struct OnlineArgs {
   pub elf_file: String,
 
   /// Path to the log file
-  pub log_file: Option<String>,
+  pub rtl_event_file: Option<String>,
 
   /// vlen config
   pub vlen: u32,
@@ -144,7 +144,7 @@ impl Driver {
       spike_runner: SpikeRunner::new(
         &SpikeArgs {
           elf_file: elf_file.to_owned(),
-          log_file: args.log_file.as_ref().map(From::from),
+          rtl_event_file: args.rtl_event_file.as_ref().map(From::from),
           vlen: args.vlen,
           dlen: args.dlen,
           set: args.spike_isa.clone(),

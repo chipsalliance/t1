@@ -228,7 +228,7 @@ unsafe extern "C" fn t1_cosim_init(
 
   let args = OnlineArgs {
     elf_file: elf_file.get().to_str().unwrap().into(),
-    log_file: None,
+    rtl_event_file: None,
     dlen: dlen as u32,
     vlen: vlen as u32,
     spike_isa: spike_isa.get().to_str().unwrap().into(),
