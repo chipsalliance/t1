@@ -1,5 +1,20 @@
 {
   "nodes": {
+    "chisel-nix": {
+      "locked": {
+        "lastModified": 1737972651,
+        "narHash": "sha256-3smolLtW78B1eJLcy5uxkVCbRuTS86VAumsqk5pMxsw=",
+        "owner": "chipsalliance",
+        "repo": "chisel-nix",
+        "rev": "a84d425903df9e64fd33580eec57debfe2a9f84a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "chipsalliance",
+        "repo": "chisel-nix",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -52,6 +67,7 @@
     },
     "root": {
       "inputs": {
+        "chisel-nix": "chisel-nix",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
         "nixpkgs-for-circt": "nixpkgs-for-circt"
