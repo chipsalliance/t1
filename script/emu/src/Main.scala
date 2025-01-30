@@ -236,7 +236,6 @@ object Main:
 
     val rtlEventPath = outputPath / "rtl-event.jsonl"
     val journalPath  = outputPath / "online-drive-emu-journal"
-    val statePath    = outputPath / "driver-state.json"
 
     val processArgs = Seq(
       emulator.toString(),
@@ -249,19 +248,6 @@ object Main:
       ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)
 
     if dryRun.value then return
-
-    // Save information of this run, so that user can start offline check without arguments
-    os.write(
-      statePath,
-      ujson.write(
-        ujson.Obj(
-          "config" -> finalConfig.get,
-          "elf"    -> caseElfPath.toString,
-          "event"  -> rtlEventPath.toString,
-          "ip"     -> finalIp.get
-        )
-      )
-    )
 
     // For vcs trace simulator, we need daidir keep at same directory as the wave.fsdb file
     if finalEmuType.get == "vcs-emu-trace" then
@@ -343,8 +329,9 @@ object Main:
         Logger.info(s"Coverage database saved under ${outputPath}/urgReport")
       else if !finalEmuType.get.startsWith("verilator-emu") then Logger.error("No urgReport found")
 
-    if os.exists(os.pwd / "perf.json") then
-      os.move(os.pwd / "perf.json", outputPath / "perf.json", replaceExisting = true)
+    val simResultFile = "sim_result.json"
+    if os.exists(os.pwd / simResultFile) then
+      os.move(os.pwd / simResultFile, outputPath / simResultFile, replaceExisting = true)
 
     if os.exists(os.pwd / "mmio-event.jsonl") then
       os.move(os.pwd / "mmio-event.jsonl", outputPath / "mmio-event.jsonl", replaceExisting = true)
@@ -390,55 +377,30 @@ object Main:
 
     val resultPath =
       os.Path(outDir.getOrElse("t1-sim-result"), os.pwd) / "result"
-    val lastState  =
-      if os.exists(resultPath) then ujson.read(os.read(resultPath / "driver-state.json"))
-      else ujson.Obj()
-
-    val finalIp =
-      if ip.isDefined then ip.get
+    val simResult  =
+      if os.exists(resultPath) then resultPath / "sim_result.json"
       else
-        lastState.obj
-          .get("ip")
-          .getOrElse(Logger.fatal("No driver-state.json nor --ip"))
-          .str
-
-    val finalConfig =
-      if config.isDefined then config.get
-      else
-        lastState.obj
-          .get("config")
-          .getOrElse(Logger.fatal("No driver-state.json nor --config"))
-          .str
+        Logger.fatal(
+          "Fail to find simulation result directory, seems like you never run `t1-helper run ...` before, please run simulation before check"
+        )
 
     val offlineChecker = os.Path(
-      resolveNixPath(s".#t1.${finalConfig}.${finalIp}.offline-checker")
-    ) / "bin" / "offline"
+      resolveNixPath(s".#t1.sim-checker")
+    ) / "bin" / "t1-sim-checker"
 
-    val elfFile =
-      if caseAttr.isDefined then resolveTestElfPath(finalIp, finalConfig, caseAttr.get).toString
-      else
-        lastState.obj
-          .get("elf")
-          .getOrElse(Logger.fatal("No driver-state.json nor --case-attr"))
-          .str
-
-    val eventFile    =
+    val eventFile =
       if eventPath.isDefined then os.Path(eventPath.get, os.pwd)
-      else os.Path(lastState.obj.get("event").getOrElse(Logger.fatal("")).str)
-    val decEventFile = resultPath / "rtl-event.jsonl"
-    Logger.info(s"Decompressing ${eventFile}")
-    os.proc("zstd", s"${eventFile}", "-d", "-f", "-o", s"${decEventFile}")
-      .call()
+      else resultPath / "rtl-event.jsonl"
 
     val driverArgs: Seq[String] =
       Seq(
         offlineChecker.toString,
-        "--elf-file",
-        elfFile,
+        "--sim-result",
+        simResult.toString,
         "--log-level",
         logLevel,
         "--log-file",
-        decEventFile.toString
+        eventFile.toString
       )
     Logger.info(s"Running offline checker: ${driverArgs.mkString(" ")}")
 
