@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
 
+package build
+
 import mill._
 import mill.scalalib._
 
@@ -31,9 +33,9 @@ trait HasChisel extends ScalaModule {
 }
 
 trait HasRVDecoderDB extends ScalaModule {
-  def rvdecoderdbModule: ScalaModule
+  def rvdecoderdbIvy: Dep
   def riscvOpcodesPath:  T[PathRef]
-  def moduleDeps = super.moduleDeps ++ Seq(rvdecoderdbModule)
+  def ivyDeps = T(super.ivyDeps() ++ Seq(rvdecoderdbIvy))
   def riscvOpcodesTar:    T[PathRef]      = T {
     val tmpDir = os.temp.dir()
     os.makeDir(tmpDir / "unratified")
@@ -58,11 +60,12 @@ trait HasRVDecoderDB extends ScalaModule {
 
 // Local definitions
 trait T1Module extends ScalaModule with HasChisel with HasRVDecoderDB {
-  def arithmeticModule: ScalaModule
-  def hardfloatModule:  ScalaModule
-  def axi4Module:       ScalaModule
+  def arithmeticIvy: Dep
+  def hardfloatIvy:  Dep
+  def axi4Ivy:       Dep
   def stdlibModule:     ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(arithmeticModule, hardfloatModule, axi4Module, stdlibModule)
+  def moduleDeps = super.moduleDeps ++ Seq(stdlibModule)
+  override def ivyDeps = T(super.ivyDeps() ++ Seq(arithmeticIvy, hardfloatIvy, axi4Ivy))
 }
 
 trait ConfigGenModule extends ScalaModule {
@@ -80,11 +83,12 @@ trait RocketModule extends ScalaModule with HasChisel with HasRVDecoderDB {
 
 // The next generation of purely standalone Rocket Core w/ AXI/CHI.
 trait RocketVModule extends ScalaModule with HasChisel with HasRVDecoderDB {
-  def axi4Module:      ScalaModule
-  def hardfloatModule: ScalaModule
+  def axi4Ivy:      Dep
+  def hardfloatIvy: Dep
   def stdlibModule:    ScalaModule
 
-  def moduleDeps = super.moduleDeps ++ Seq(axi4Module, hardfloatModule, stdlibModule)
+  def moduleDeps = super.moduleDeps ++ Seq(stdlibModule)
+  override def ivyDeps = T(super.ivyDeps() ++ Seq(hardfloatIvy, axi4Ivy))
 }
 
 // Link T1 example: RocketV+T1

@@ -32,19 +32,20 @@ rec {
   # DynamoCompiler doesn't support python 3.12+ yet
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { python3 = final.python311; };
 
-  fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
   add-determinism = final.callPackage ./pkgs/add-determinism { }; # faster strip-undetereminism
 
   snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
 
-  mill = let jre = final.jdk21; in
-    (prev.mill.override { inherit jre; }).overrideAttrs (_: {
-      passthru = { inherit jre; };
-      # --interactive implies --no-server
-      postInstall = ''wrapProgram $out/bin/mill --add-flags "--interactive"'';
-    });
+  mill = prev.mill.overrideAttrs {
+    # Fixed the buggy sorting issue in target resolve
+    version = "unstable-0.12.5-173-15dded";
+    src = final.fetchurl {
+      url = "https://github.com/com-lihaoyi/mill/releases/download/0.12.5/0.12.5-173-15dded-assembly";
+      hash = "sha256-xP59tONOu0CG5Gce4ru+st5KUH7Wcd10d/pQdELjSJM=";
+    };
+  };
 
   # some symbols in newlib libgloss uses ecall, which does not work in emulator
   # emurt provides hand-written implementations for these symbols
