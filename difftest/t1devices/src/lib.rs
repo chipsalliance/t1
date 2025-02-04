@@ -1,7 +1,7 @@
 use std::any::Any;
 
 use framebuffer::FrameBuffer;
-use simctrl::{ExitFlagRef, SimCtrl};
+use simctrl::{ExitFlagRef, PfnGetCycle, SimCtrl};
 
 pub mod framebuffer;
 pub mod simctrl;
@@ -38,6 +38,12 @@ pub trait Device: Any + Send + Sync {
   // NOTE: even if the device does not support partial write,
   //   it shall check mask and behave as a full write when mask is all active
   fn mem_write_masked(&mut self, addr: AddrInfo, data: &[u8], mask: &[bool]);
+
+  // TODO: add more comments
+  // spike simif_t::addr_to_mem. Should only be implemented by RegularMemory
+  fn addr_to_mem(&mut self, offset: u32) -> Option<&mut u8> {
+    None
+  }
 }
 
 impl<T: Device> DeviceExt for T {}
@@ -119,6 +125,10 @@ impl Device for RegularMemory {
     let mem_data = &mut self.data[addr.as_range()];
     memcpy_mask(mem_data, data, mask);
   }
+
+  fn addr_to_mem(&mut self, offset: u32) -> Option<&mut u8> {
+    self.data.get_mut(offset as usize)
+  }
 }
 
 fn memcpy_mask(dst: &mut [u8], src: &[u8], mask: &[bool]) {
@@ -139,6 +149,12 @@ pub struct AddressSpace {
 }
 
 impl AddressSpace {
+  pub fn addr_to_mem(&mut self, addr: u32) -> Option<&mut u8> {
+    let device_idx = self.find_device_idx(addr, 1)?;
+    let dev_entry = &mut self.devices[device_idx];
+    dev_entry.device.addr_to_mem(addr - dev_entry.base_and_size.0)
+  }
+
   pub fn read_mem(&mut self, addr: u32, len: u32, data: &mut [u8]) {
     assert_eq!(len as usize, data.len());
     let Some(device_idx) = self.find_device_idx(addr, len) else {
@@ -196,7 +212,7 @@ impl AddressSpace {
 /// - 0x0400_0000 - 0x0600_0000 : framebuffer
 /// - 0x1000_0000 - 0x1000_1000 : simctrl
 /// - 0x2000_0000 - 0xc000_0000 : sram
-pub fn create_emu_addrspace() -> (AddressSpace, ExitFlagRef) {
+pub fn create_emu_addrspace(get_cycle: PfnGetCycle) -> (AddressSpace, ExitFlagRef) {
   const SRAM_BASE: u32 = 0x2000_0000;
   const SRAM_SIZE: u32 = 0xa000_0000;
 
@@ -210,7 +226,7 @@ pub fn create_emu_addrspace() -> (AddressSpace, ExitFlagRef) {
   let devices = vec![
     RegularMemory::with_size(SRAM_SIZE).with_addr(SRAM_BASE, SRAM_SIZE),
     FrameBuffer::new().with_addr(DISPLAY_BASE, DISPLAY_SIZE),
-    SimCtrl::new(exit_flag.clone()).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
+    SimCtrl::new(exit_flag.clone(), get_cycle).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
   ];
   (AddressSpace { devices }, exit_flag)
 }

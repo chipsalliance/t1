@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 find_package(libspike REQUIRED)
 
-add_library(${CMAKE_PROJECT_NAME} STATIC spike_interfaces.cc)
+add_library(${CMAKE_PROJECT_NAME} STATIC spike_interfaces.cc t1emu.cc)
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC libspike)
 
