@@ -18,6 +18,30 @@
         "type": "github"
       }
     },
+    "nix-bundle": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "utils": [
+          "flake-utils"
+        ]
+      },
+      "locked": {
+        "lastModified": 1738732643,
+        "narHash": "sha256-tC+W41SxDmjggPW6PEByFCv0uRLPjxRI8YMSO4q2/Ks=",
+        "owner": "Avimitin",
+        "repo": "nix-bundle",
+        "rev": "bbeec7617e8a6ccc0908197ee0ca177c5d424315",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Avimitin",
+        "ref": "pname-fix",
+        "repo": "nix-bundle",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1725634671,
@@ -53,6 +77,7 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
+        "nix-bundle": "nix-bundle",
         "nixpkgs": "nixpkgs",
         "nixpkgs-for-circt": "nixpkgs-for-circt"
       }

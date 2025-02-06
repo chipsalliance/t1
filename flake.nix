@@ -5,9 +5,14 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-for-circt.url = "github:NixOS/nixpkgs/nixos-unstable-small";
     flake-utils.url = "github:numtide/flake-utils";
+    nix-bundle = {
+      url = "github:Avimitin/nix-bundle/pname-fix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.utils.follows = "flake-utils";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, nixpkgs-for-circt }@inputs:
+  outputs = { self, nixpkgs, flake-utils, nixpkgs-for-circt, nix-bundle }@inputs:
     let
       overlay = import ./nix/overlay.nix { inherit self; };
     in
@@ -29,6 +34,10 @@
             };
           };
           formatter = pkgs.nixpkgs-fmt;
+          bundlers = rec {
+            default = toArx;
+            toArx = nix-bundle.bundlers.${system}.nix-bundle;
+          };
         }
       )
     // { inherit inputs; overlays.default = overlay; };
