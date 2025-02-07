@@ -12,6 +12,7 @@
 , jextract-21
 , add-determinism
 , writeShellApplication
+, glibcLocales
 
 , dependencies
 }:
@@ -23,8 +24,8 @@ let
     src = with lib.fileset; toSource {
       root = ./../..;
       fileset = unions [
-        ./../../build.sc
-        ./../../common.sc
+        ./../../build.mill
+        ./../../common.mill
         ./../../t1
         ./../../omreader
         ./../../omreaderlib
@@ -42,12 +43,19 @@ let
       src = with lib.fileset; toSource {
         root = ./../..;
         fileset = unions [
-          ./../../build.sc
-          ./../../common.sc
+          ./../../build.mill
+          ./../../common.mill
         ];
       };
-      millDepsHash = "sha256-XvGLNLOC7OEwfC7SB5zBdB64VjROBkwgIcHx+9FHmSs=";
-      nativeBuildInputs = [ dependencies.setupHook ];
+      millDepsHash = "sha256-TU6o7ldRVwcDv7cY02Av8QI9yFH8npV/a30baJtfT/U=";
+      buildInputs = with dependencies; [
+        ivy-arithmetic.setupHook
+        ivy-chisel.setupHook
+        ivy-chisel-panama.setupHook
+        ivy-chisel-interface.setupHook
+        ivy-rvdecoderdb.setupHook
+        ivy-hardfloat.setupHook
+      ];
     };
 
     passthru.editable = self.overrideAttrs (_: {
@@ -61,7 +69,7 @@ let
       setupSubmodules
     '';
 
-    nativeBuildInputs = [
+    nativeBuildInputs = with dependencies; [
       mill
       circt-full
       jextract-21
@@ -72,25 +80,32 @@ let
       makeWrapper
       passthru.millDeps.setupHook
 
-      dependencies.setupHook
+      ivy-arithmetic.setupHook
+      ivy-chisel.setupHook
+      ivy-chisel-panama.setupHook
+      ivy-chisel-interface.setupHook
+      ivy-rvdecoderdb.setupHook
+      ivy-hardfloat.setupHook
+      riscv-opcodes
     ];
 
     env = {
       CIRCT_INSTALL_PATH = circt-full;
       JEXTRACT_INSTALL_PATH = jextract-21;
-      JAVA_TOOL_OPTIONS = "--enable-preview";
     };
 
-
-    outputs = [ "out" "omreader" "elaborator" "t1package" ];
+    outputs = [ "out" "omreader" "elaborator" ];
 
     buildPhase = ''
       runHook preBuild
 
-      mill -i '__.assembly'
+      # Mill assume path string is always encoded in UTF-8. However in Nix
+      # build environment, locale type is set to "C", and breaks the assembly
+      # JAR class path. Here is the workaround for the Scala build environment.
+      export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
+      export LANG="en_US.UTF-8";
 
-      mill -i t1package.sourceJar
-      mill -i t1package.chiselPluginJar
+      mill -i '__.assembly'
 
       runHook postBuild
     '';
@@ -103,17 +118,9 @@ let
       }
       add-determinism-q out/elaborator/assembly.dest/out.jar
       add-determinism-q out/omreader/assembly.dest/out.jar
-      add-determinism-q out/t1package/assembly.dest/out.jar
-      add-determinism-q out/t1package/sourceJar.dest/out.jar
-      add-determinism-q out/t1package/chiselPluginJar.dest/out.jar
 
       mv out/elaborator/assembly.dest/out.jar $out/share/java/elaborator.jar
       mv out/omreader/assembly.dest/out.jar "$out"/share/java/omreader.jar
-
-      mkdir -p $t1package/share/java
-      mv out/t1package/sourceJar.dest/out.jar $t1package/share/java/t1package-sources.jar
-      mv out/t1package/assembly.dest/out.jar $t1package/share/java/t1package.jar
-      mv out/t1package/chiselPluginJar.dest/out.jar $t1package/share/java/chiselPluginJar.jar
 
       mkdir -p $elaborator/bin
       makeWrapper ${jdk21}/bin/java $elaborator/bin/elaborator \
@@ -132,10 +139,6 @@ let
       name = "mill-format-for-t1";
       runtimeInputs = [ mill ];
       text = ''
-        # shellcheck disable=SC1091
-        source ${dependencies.setupHook}/nix-support/setup-hook
-        setupSubmodules
-
         subcmd="''${1:-}"
         [[ -z "$subcmd" ]] && \
           echo "no subcmd specify, available: (check, run)" >&2 && exit 1
