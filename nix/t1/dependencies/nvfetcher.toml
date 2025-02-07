@@ -3,11 +3,6 @@ src.git = "https://github.com/sequencer/arithmetic"
 src.branch = "master"
 fetch.github = "sequencer/arithmetic"
 
-[berkeley-hardfloat]
-src.git = "https://github.com/ucb-bar/berkeley-hardfloat"
-src.branch = "master"
-fetch.github = "ucb-bar/berkeley-hardfloat"
-
 [chisel]
 src.git = "https://github.com/chipsalliance/chisel"
 src.branch = "main"
