@@ -32,7 +32,6 @@ rec {
   # DynamoCompiler doesn't support python 3.12+ yet
   buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { python3 = final.python311; };
 
-  fetchMillDeps = final.callPackage ./pkgs/mill-builder.nix { };
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
   add-determinism = final.callPackage ./pkgs/add-determinism { }; # faster strip-undetereminism
