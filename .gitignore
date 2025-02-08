@@ -15,7 +15,6 @@ coverage.dat
 build
 /result*
 */result*
-/dependencies
 __pycache__
 /testrun
 .direnv

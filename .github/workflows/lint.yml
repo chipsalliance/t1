@@ -22,7 +22,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Check Scala code format"
-        run: nix run ".#t1.elaborator.format" check
+        run: |
+          echo "$JAVA_OPTS" | tr ' ' '\n' > "$HOME/.mill-java-opts"
+          export MILL_JVM_OPTS_PATH="$HOME/.mill-java-opts"
+          nix run ".#t1.elaborator.format" check
       - name: "Check difftest code format"
         run: |
           nix shell '.#cargo' '.#rustfmt' -c bash -c 'cd difftest && cargo fmt --check'
