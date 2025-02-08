@@ -13,29 +13,17 @@
     };
     date = "2025-02-07";
   };
-  berkeley-hardfloat = {
-    pname = "berkeley-hardfloat";
-    version = "26f00d00c3f3f57480065e02bfcfde3d3b41ec51";
-    src = fetchFromGitHub {
-      owner = "ucb-bar";
-      repo = "berkeley-hardfloat";
-      rev = "26f00d00c3f3f57480065e02bfcfde3d3b41ec51";
-      fetchSubmodules = false;
-      sha256 = "sha256-gA1Ol7xnzC+10lGwK9+ftfJcMhKsC0KhjENQvUg3u88=";
-    };
-    date = "2024-06-05";
-  };
   chisel = {
     pname = "chisel";
-    version = "f4dc077ac710ca0b4580ffaa8ca68bc8a19aa6ad";
+    version = "a2b40360e3dd4e2faedad52989865ffc3a1abbdd";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "f4dc077ac710ca0b4580ffaa8ca68bc8a19aa6ad";
+      rev = "a2b40360e3dd4e2faedad52989865ffc3a1abbdd";
       fetchSubmodules = false;
-      sha256 = "sha256-B2NFV0rDC0sSIdG9KH2pgV+72dPN22Sf3JyrzXCbUFc=";
+      sha256 = "sha256-w0e2GONv0wk0lGGosDfQfuKv2olRIj+FvaqwVVLXQCE=";
     };
-    date = "2025-02-07";
+    date = "2025-02-08";
   };
   chisel-interface = {
     pname = "chisel-interface";
