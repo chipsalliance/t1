@@ -1,0 +1,9 @@
+[package]
+name = "t1devices"
+edition = "2021"
+version.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+tracing = { workspace = true }
+png = "0.17.14"
