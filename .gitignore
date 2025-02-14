@@ -24,3 +24,4 @@ target
 .ccls-cache
 t1-sim-result/
 .worktree/
+dependencies/submodules
