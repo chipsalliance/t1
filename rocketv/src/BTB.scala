@@ -131,7 +131,7 @@ class BTB(val parameter: BTBParameter)
   }
 
   val r_btb_update  = Pipe(io.btb_update)
-  val update_target = io.req.bits.addr
+  val update_target = r_btb_update.bits.target
 
   val pageHit = pageMatch(io.req.bits.addr)
   val idxHit  = idxMatch(io.req.bits.addr)
