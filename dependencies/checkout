@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+export PATH="$(nix build '.#jq.bin' --no-warn-dirty --no-link --print-out-paths)/bin:$PATH"
+export PATH="$(nix build '.#git' --no-warn-dirty --no-link --print-out-paths)/bin:$PATH"
+
+nvfetcherSourceJson=${NVFETCHER_SOURCE_JSON:-../nix/t1/dependencies/_sources/generated.json}
+if [[ ! -f "$nvfetcherSourceJson" ]]; then
+  echo "\$NVFETCHER_SOURCE_JSON file $nvfetcherSourceJson not found" >&2
+  exit 1
+fi
+
+rootDir=${CHECKOUT_ROOT_DIR:-./submodules}
+mkdir -p "$rootDir"
+
+vendorInfos=( $(jq -r \
+  'to_entries[] | "\(.key),https://github.com/\(.value.src.owner)/\(.value.src.repo).git,\(.value.src.rev)"' \
+  "$nvfetcherSourceJson") )
+
+for info in "${vendorInfos[@]}"; do
+  echo
+  IFS=',' read -r name url rev <<< "$info"
+  echo "Handling repo: $name"
+  [[ ! -d "$rootDir/$name" ]] && git clone "$url" "$rootDir/$name"
+  git -C "$rootDir/$name" -c advice.detachedHead=false checkout "$rev"
+  echo
+
+  unset name url rev
+done
+
+# vim: ft=bash
