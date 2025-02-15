@@ -1,6 +1,6 @@
-{ stdenv, dtc, fetchFromGitHub }:
+{ gcc13Stdenv, dtc, fetchFromGitHub }:
 
-stdenv.mkDerivation {
+gcc13Stdenv.mkDerivation {
   version = "unstable-2024-07-03";
   pname = "libspike";
 
