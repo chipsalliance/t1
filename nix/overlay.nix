@@ -30,7 +30,17 @@ rec {
   libspike_interfaces = final.callPackage ../difftest/spike_interfaces { };
 
   # DynamoCompiler doesn't support python 3.12+ yet
-  buddy-mlir = final.callPackage ./pkgs/buddy-mlir.nix { python3 = final.python311; };
+  buddy-mlir =
+    let
+      pkgSrc = final.fetchFromGitHub {
+        owner = "NixOS";
+        repo = "nixpkgs";
+        rev = "574d1eac1c200690e27b8eb4e24887f8df7ac27c";
+        hash = "sha256-v3rIhsJBOMLR8e/RNWxr828tB+WywYIoajrZKFM+0Gg=";
+      };
+      lockedNixpkgs = import pkgSrc { system = final.system; };
+    in
+    lockedNixpkgs.callPackage ./pkgs/buddy-mlir.nix { python3 = lockedNixpkgs.python311; };
 
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
