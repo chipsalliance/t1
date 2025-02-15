@@ -34,7 +34,6 @@ rec {
 
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
-  add-determinism = final.callPackage ./pkgs/add-determinism { }; # faster strip-undetereminism
 
   snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
 
