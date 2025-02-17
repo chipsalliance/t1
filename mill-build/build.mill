@@ -5,12 +5,11 @@ import mill.{Module, T, _}
 import upickle.default.{ReadWriter => RW, macroRW}
 
 object `package` extends MillBuildRootModule {
+  // NOTE: Don't use '.mill' here, or mill will automatically import
+  def localDepsDefine = Task.Source { "local.scala" }
+  def ivyDepsDefine = Task.Source { "ivy.scala"  }
+
   def generatedSources = Task {
-
-    // NOTE: Don't use '.mill' here, or mill will automatically import
-    def localDepsDefine = Task.Source { "local.scala" }
-    def ivyDepsDefine = Task.Source { "ivy.scala"  }
-
     val template = millbuildtop.buildKind.str match {
       case "debug" => localDepsDefine()
       case "release" => ivyDepsDefine()
