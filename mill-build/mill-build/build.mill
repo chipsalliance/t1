@@ -9,7 +9,7 @@ object `package` extends MillBuildRootModule {
   }
 
   def nvfetcherFile = Task.Source {
-    millSourcePath / os.up / "nix/t1/dependencies/_sources/generated.json"
+    millSourcePath / os.up / os.up / "nix/t1/dependencies/_sources/generated.json"
   }
 
   case class MetaData(name: String, url: String, rev: String)
@@ -68,7 +68,7 @@ object `package` extends MillBuildRootModule {
     .mkString(".")
 
   def patchMillScript(repo: os.Path) = {
-    val pkgDec = "package millbuild." + pathToPackage(repo.relativeTo(millSourcePath))
+    val pkgDec = "package millbuild." + pathToPackage(repo.relativeTo(millSourcePath / os.up))
 
     if (os.exists(repo / "build.mill")) {
       os.write.over(repo / "package.mill", os.read(repo / "build.mill").replace("package build", pkgDec))
@@ -95,7 +95,7 @@ object `package` extends MillBuildRootModule {
   }
 
   def prepareLocalDeps = Task.Source {
-    val cloneRoot = millSourcePath / "submodules"
+    val cloneRoot = millSourcePath / os.up / "submodules"
     os.makeDir.all(cloneRoot)
     //os.write.over(cloneRoot / "package.mill", "package millbuild.submodules")
     reposMetaData().map {
@@ -117,6 +117,8 @@ object `package` extends MillBuildRootModule {
   }
 
   def generatedSources = Task {
+    def repoRoot = prepareLocalDeps()
+
     os.write(
       Task.dest / "BuildKind.scala",
       s"""
@@ -126,6 +128,7 @@ object `package` extends MillBuildRootModule {
         |}
       """.stripMargin
     )
+
     super.generatedSources() ++ Seq(PathRef(Task.dest))
   }
 }
