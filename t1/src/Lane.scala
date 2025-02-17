@@ -1142,6 +1142,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.st                     := laneRequest.bits.store
   vrf.instructionWriteReport.bits.crossWrite             := laneRequest.bits.decodeResult(Decoder.crossWrite)
   vrf.instructionWriteReport.bits.crossRead              := laneRequest.bits.decodeResult(Decoder.crossRead)
+  vrf.instructionWriteReport.bits.gather16               := laneRequest.bits.decodeResult(Decoder.gather16)
   vrf.instructionWriteReport.bits.gather                 := laneRequest.bits.decodeResult(Decoder.gather) &&
     laneRequest.bits.decodeResult(Decoder.vtype)
   // init state
