@@ -71,14 +71,14 @@ object `package` extends MillBuildRootModule {
     val pkgDec = "package millbuild." + pathToPackage(repo.relativeTo(millSourcePath / os.up))
 
     if (os.exists(repo / "build.mill")) {
-      os.write.over(repo / "package.mill", os.read(repo / "build.mill").replace("package build", pkgDec))
+      os.write.over(repo / "package.scala", os.read(repo / "build.mill").replace("package build", pkgDec))
       os.remove(repo / "build.mill")
     }
 
     if (os.exists(repo / "common.mill")) {
       val tmp = os.temp()
       os.write.over(tmp, os.read(repo / "common.mill").replace("package build", pkgDec))
-      os.move.over(tmp, repo / "common.mill")
+      os.move.over(tmp, repo / "common.scala")
     }
 
     if (os.exists(repo / ".github")) {

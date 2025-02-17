@@ -20,6 +20,6 @@ object `package` extends MillBuildRootModule {
 
     os.copy.over(template.path, millSourcePath / "T1Deps.scala")
 
-    super.generatedSources() ++ Seq(PathRef(millSourcePath / "T1Deps.scala"))
+    super.generatedSources() ++ Seq(PathRef(millSourcePath / "T1Deps.scala"), PathRef(millSourcePath / "submodules" / "package.scala"), PathRef(millSourcePath / "submodules" / "rvdecoderdb" / "package.scala"))
   }
  }
