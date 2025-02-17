@@ -62,10 +62,12 @@ class WriteCheck(val parameter: VRFParam) extends Module {
     << record.bits.vs2(2, 0) ## 0.U(log2Ceil(elementSizeForOneRegister).W))
     >> paddingSize).asUInt(2 * paddingSize - 1, 0)
 
+  // check WAR, record.bits.gather -> Gather reads are not ordered
   val maskForVs2:  UInt = cutUIntBySize(maskShifterForVs2, 2)(0) & Fill(parameter.elementSize, !record.bits.onlyRead)
   val maskForVs21: UInt = cutUIntBySize(maskShifterForVs2, 2)(1)
-  val hitVs2:      Bool = (checkOH & maskForVs2) === 0.U && check.vd(4, 3) === record.bits.vs2(4, 3)
-  val hitVs21:     Bool = (checkOH & maskForVs21) === 0.U && check.vd(4, 3) === (record.bits.vs2(4, 3) + 1.U)
+  val hitVs2:      Bool = ((checkOH & maskForVs2) === 0.U || record.bits.gather) && check.vd(4, 3) === record.bits.vs2(4, 3)
+  val hitVs21:     Bool =
+    ((checkOH & maskForVs21) === 0.U || record.bits.gather) && check.vd(4, 3) === (record.bits.vs2(4, 3) + 1.U)
   val war2:        Bool = hitVs2 || hitVs21
 
   checkResult := !((!older && (waw || war1 || war2)) && !sameInst && record.valid)
