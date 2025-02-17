@@ -2,15 +2,16 @@
   "nodes": {
     "chisel-nix": {
       "locked": {
-        "lastModified": 1738921361,
-        "narHash": "sha256-o89N2zNX9rdAAOYggKR1V1QJxDeWMLiUIN1srWJOmpQ=",
+        "lastModified": 1739514947,
+        "narHash": "sha256-FQz5OLlPNrvhSjC9A2Cegn1VnnsGtWMcFVvByV827BQ=",
         "owner": "chipsalliance",
         "repo": "chisel-nix",
-        "rev": "92ed3025ebf792c8b258c3650d7f66fcf6d526a2",
+        "rev": "6180c9a8a1e8c4b927c986a43288a47418c25129",
         "type": "github"
       },
       "original": {
         "owner": "chipsalliance",
+        "ref": "ivy-fetcher",
         "repo": "chisel-nix",
         "type": "github"
       }

@@ -24,4 +24,5 @@ target
 .ccls-cache
 t1-sim-result/
 .worktree/
-dependencies/submodules
+mill-build/submodules
+mill-build/T1Deps.scala

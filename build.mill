@@ -4,8 +4,6 @@
 package build
 import $meta._
 
-import $packages._
-
 import mill._
 import mill.scalalib._
 import mill.define.{Command, TaskModule}
@@ -33,9 +31,7 @@ object v {
   val hardfloat = ivy"edu.berkeley.cs::hardfloat-snapshot:0.0.0-SNAPSHOT"
 }
 
-object foo extends Module {
-  def bar = Task.Input { deps.snapshots.chisel }
-}
+object deps extends millbuild.T1Deps {}
 
 object stdlib extends Stdlib
 

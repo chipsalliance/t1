@@ -72,7 +72,7 @@ object `package` extends MillBuildRootModule {
     .mkString(".")
 
   def patchMillScript(repo: os.Path) = {
-    val pkgDec = "package build." + pathToPackage(repo.relativeTo(millSourcePath))
+    val pkgDec = "package millbuild." + pathToPackage(repo.relativeTo(millSourcePath))
 
     if (os.exists(repo / "build.mill")) {
       os.write.over(repo / "package.mill", os.read(repo / "build.mill").replace("package build", pkgDec))
@@ -85,6 +85,10 @@ object `package` extends MillBuildRootModule {
       os.move.over(tmp, repo / "common.mill")
     }
 
+    if (os.exists(repo / ".github")) {
+      os.remove.all(repo / ".github")
+    }
+
     os.walk(repo)
       .filter(p => p.ext == "mill")
       .filter(p => p != repo / "package.mill" && p != repo / "common.mill")
@@ -95,9 +99,9 @@ object `package` extends MillBuildRootModule {
   }
 
   def prepareLocalDeps = Task.Source {
-    val cloneRoot = millSourcePath / os.up / "dependencies" / "submodules"
+    val cloneRoot = millSourcePath / "submodules"
     os.makeDir.all(cloneRoot)
-    os.write.over(cloneRoot / "package.mill", "package build.dependencies.submodules")
+    //os.write.over(cloneRoot / "package.mill", "package millbuild.submodules")
     reposMetaData().map {
       case MetaData(name, url, rev) => {
         val repoPath = cloneRoot / name
@@ -116,10 +120,8 @@ object `package` extends MillBuildRootModule {
     cloneRoot
   }
 
-  // generatedSources will always be evaluate, but we don't produce new sources, we just use it as a hook.
   def generatedSources = Task {
     val repos = prepareLocalDeps()
-    val depsRoot = "build." + pathToPackage(repos.path.relativeTo(millSourcePath))
 
     val template = millBuildType() match {
       case "debug" => localDepsDefine()
@@ -129,12 +131,8 @@ object `package` extends MillBuildRootModule {
       }
     }
 
-    // NOTE: Don't use '.sc' extension here, or mill will throw a bunch of confusing error
-    os.write.over(
-      millSourcePath / os.up / "deps.mill",
-      os.read(template.path).replaceAll("@DEPS_ROOT@", depsRoot)
-    )
+    os.copy.over(template.path, millSourcePath / "T1Deps.scala")
 
-    super.generatedSources()
+    super.generatedSources() ++ Seq(PathRef(millSourcePath / "T1Deps.scala"))
   }
  }
