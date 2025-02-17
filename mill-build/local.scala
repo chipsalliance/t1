@@ -1,5 +1,6 @@
 package millbuild
 
+import $packages._
 import mill._
 
 trait T1Deps extends Module {
