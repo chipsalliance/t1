@@ -1,0 +1,140 @@
+package build
+
+import mill.{Module, T, _}
+import upickle.default.{ReadWriter => RW, macroRW}
+
+object `package` extends MillBuildRootModule {
+  def millBuildType = Task.Input {
+    sys.env.getOrElse("MILL_BUILD_TYPE", "debug").toLowerCase()
+  }
+
+  // NOTE: Don't use '.mill' here, or mill will automatically import
+  def localDepsDefine = Task.Source { "local.scala" }
+  def ivyDepsDefine = Task.Source { "ivy.scala"  }
+
+  def nvfetcherFile = Task.Source {
+    millSourcePath / os.up / "nix/t1/dependencies/_sources/generated.json"
+  }
+
+  case class MetaData(name: String, url: String, rev: String)
+  object MetaData{
+    implicit val rw: RW[MetaData] = macroRW
+  }
+  // Use Task.Input to ensure re-evaluation
+  def reposMetaData = Task.Input {
+    val file = nvfetcherFile().path
+    ujson.read(os.read(file)).obj.map {
+      case (name, value) => {
+        val owner = value.obj("src").obj("owner").str
+        val repo = value.obj("src").obj("repo").str
+        val rev = value.obj("src").obj("rev").str
+        MetaData(name, s"https://github.com/${owner}/${repo}.git", rev)
+      }
+    }
+  }
+
+  def gitClone(repo: String, dest: os.Path) = {
+    os.call(
+      cmd = Seq("git", "clone", repo, s"${dest}"),
+      stdout = os.Inherit,
+      stderr = os.Inherit,
+      check = true
+    )
+  }
+
+  def gitCheckout(repo: os.Path, rev: String) = {
+    os.call(
+      cmd = Seq("git", "reset", "--hard"),
+      stdout = os.Inherit,
+      stderr = os.Inherit,
+      check = true,
+      cwd = repo,
+    )
+    os.call(
+      cmd = Seq("git", "clean", "-fdx"),
+      stdout = os.Inherit,
+      stderr = os.Inherit,
+      check = true,
+      cwd = repo,
+    )
+    os.call(
+      cmd = Seq("git", "-c", "advice.detachedHead=false", "checkout", rev),
+      stdout = os.Inherit,
+      stderr = os.Inherit,
+      check = true,
+      cwd = repo,
+    )
+  }
+
+  def pathToPackage(p: os.RelPath) = p
+    .segments
+    .map(s => if (s.contains("-")) { s"`${s}`" } else s)
+    .mkString(".")
+
+  def patchMillScript(repo: os.Path) = {
+    val pkgDec = "package build." + pathToPackage(repo.relativeTo(millSourcePath))
+
+    if (os.exists(repo / "build.mill")) {
+      os.write.over(repo / "package.mill", os.read(repo / "build.mill").replace("package build", pkgDec))
+      os.remove(repo / "build.mill")
+    }
+
+    if (os.exists(repo / "common.mill")) {
+      val tmp = os.temp()
+      os.write.over(tmp, os.read(repo / "common.mill").replace("package build", pkgDec))
+      os.move.over(tmp, repo / "common.mill")
+    }
+
+    os.walk(repo)
+      .filter(p => p.ext == "mill")
+      .filter(p => p != repo / "package.mill" && p != repo / "common.mill")
+      .foreach(p => {
+        val tmp = os.temp(os.read(p).replaceAll("package build", pkgDec))
+        os.move.over(tmp, p)
+      })
+  }
+
+  def prepareLocalDeps = Task.Source {
+    val cloneRoot = millSourcePath / os.up / "dependencies" / "submodules"
+    os.makeDir.all(cloneRoot)
+    os.write.over(cloneRoot / "package.mill", "package build.dependencies.submodules")
+    reposMetaData().map {
+      case MetaData(name, url, rev) => {
+        val repoPath = cloneRoot / name
+        if (!os.exists(repoPath)) {
+          println(s"Cloning repository $name")
+          gitClone(url, repoPath)
+        }
+
+        println(s"Checkout repository $name to $rev")
+        gitCheckout(repoPath, rev)
+
+        println(s"Patching repository $name")
+        patchMillScript(repoPath)
+      }
+    }
+    cloneRoot
+  }
+
+  // generatedSources will always be evaluate, but we don't produce new sources, we just use it as a hook.
+  def generatedSources = Task {
+    val repos = prepareLocalDeps()
+    val depsRoot = "build." + pathToPackage(repos.path.relativeTo(millSourcePath))
+
+    val template = millBuildType() match {
+      case "debug" => localDepsDefine()
+      case "release" => ivyDepsDefine()
+      case bt => {
+        throw new Exception(s"Invalid MILL_BUILD_TYPE: '${bt}'")
+      }
+    }
+
+    // NOTE: Don't use '.sc' extension here, or mill will throw a bunch of confusing error
+    os.write.over(
+      millSourcePath / os.up / "deps.mill",
+      os.read(template.path).replaceAll("@DEPS_ROOT@", depsRoot)
+    )
+
+    super.generatedSources()
+  }
+ }
