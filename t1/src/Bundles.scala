@@ -446,6 +446,7 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val ls:          Bool          = Bool()
   val st:          Bool          = Bool()
   val gather:      Bool          = Bool()
+  val gather16:    Bool          = Bool()
   // instruction will cross write
   val crossWrite:  Bool          = Bool()
   // instruction will cross read

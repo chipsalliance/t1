@@ -54,7 +54,8 @@ class WriteCheck(val parameter: VRFParam) extends Module {
   val vs1Mask:   UInt = (((record.bits.elementMask ## Fill(paddingSize, true.B))
     << record.bits.vs1.bits(2, 0) ## 0.U(log2Ceil(elementSizeForOneRegister).W))
     >> paddingSize).asUInt
-  val notHitVs1: Bool = (checkOH & vs1Mask) === 0.U
+  // Gather16 will read and write lengths mismatch
+  val notHitVs1: Bool = (checkOH & vs1Mask) === 0.U || record.bits.gather16
   val war1:      Bool = record.bits.vs1.valid && check.vd(4, 3) === record.bits.vs1.bits(4, 3) && notHitVs1
 
   // calculate the absolute position for vs2
