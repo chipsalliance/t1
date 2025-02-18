@@ -1,6 +1,6 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
-use crate::interconnect::{create_emu_addrspace_with_initmem, AddressSpace, SRAM_BASE, SRAM_SIZE};
+use crate::interconnect::{create_emu_addrspace_with_initmem, AddressSpace, MemReqPayload, SRAM_BASE, SRAM_SIZE};
 use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
 
@@ -10,7 +10,7 @@ use elf::{
   endian::LittleEndian,
   ElfStream,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
 use std::{fs, path::Path};
@@ -43,27 +43,84 @@ pub struct OnlineArgs {
   pub dramsim3_cfg: Option<PathBuf>,
 }
 
-struct IncompleteWrite {
+pub struct IncompleteWrite {
   addr: u64,
-  len: u64,
-  size: u64,
+  bursts: usize,
+  width: usize, // In bytes
   user: u64,
 
+  sent: bool, // Sent to memory system
   done: bool, // Address Space has finished this write
 
   data: Vec<u8>,
-  filled: usize, // In bytes
+  strb: Vec<bool>,
+
+  // Used for transfers
+  bus_size: usize,
 }
 
-struct IncompleteRead {
-  len: u64,
-  size: u64,
+impl IncompleteWrite {
+  pub fn new(awaddr: u64, awlen: u64, awsize: u64, awuser: u64, data_width: u64) -> IncompleteWrite {
+    let bus_size = data_width / 8;
+    let size = 1 << awsize;
+
+    assert!(
+      awaddr % size == 0 && bus_size % size == 0,
+      "unaligned read addr={awaddr:#x} size={size}B dlen={bus_size}B"
+    );
+
+    assert!(
+      !(size < bus_size && awlen > 0),
+      "narrow burst not supported, axsize={awsize}, axlen={awlen}, data_width={data_width}"
+    );
+    let tsize = (size * (awlen + 1)) as usize;
+    let data = Vec::with_capacity(tsize);
+    let strb = Vec::with_capacity(tsize);
+
+    IncompleteWrite {
+      addr: awaddr,
+      bursts: awlen as usize + 1,
+      width: size as usize,
+      user: awuser,
+
+      sent: false,
+      done: false,
+      data, strb,
+      bus_size: bus_size as usize,
+    }
+  }
+
+  pub fn push(&mut self, wdata: &[u8], wstrb: impl Iterator<Item = bool>, wlast: bool, data_width: u64) {
+    let next_addr = self.addr as usize + self.data.len();
+    let wire_offset = next_addr % self.bus_size;
+    assert!(wire_offset as usize + self.width <= self.bus_size, "Sanity check for data width: IncompleteWrite::push");
+    assert!(data_width as usize == self.bus_size * 8, "Mismatch data width across DPI calls");
+    self.data.extend(&wdata[wire_offset as usize .. (wire_offset as usize + self.width)]);
+    self.strb.extend(wstrb.skip(wire_offset).take(self.width));
+    assert_eq!(self.data.len(), self.strb.len());
+    assert!(self.data.len() <= (self.bursts * self.width) as usize);
+    if self.ready() {
+      assert!(wlast);
+    }
+  }
+
+  /// Ready to send to mem
+  pub fn ready(&self) -> bool {
+    self.data.len() == (self.bursts * self.width) as usize
+  }
+}
+
+pub struct IncompleteRead {
+  addr: u64,
+  bursts: usize,
+  width: usize,
   user: u64,
 
-  done: bool, // Address space has finished this read
+  sent: bool, // Sent to memory
+  data: Option<VecDeque<u8>>,
 
-  data: Vec<u8>,
-  drained: usize, // In bytes
+  // Used for transfers
+  bus_size: u64,
 }
 
 pub(crate) struct Driver {
@@ -83,9 +140,9 @@ pub(crate) struct Driver {
 
   pub(crate) exit_flag: ExitFlagRef,
 
-  // AXI doesn't allow interleaving writes / reads
-  pub(crate) incomplete_writes: HashMap<u64, IncompleteWrite>,
-  pub(crate) incomplete_reads: HashMap<u64, IncompleteRead>,
+  /// (channel_id, id) -> data
+  pub(crate) incomplete_writes: HashMap<(u64, u64), VecDeque<IncompleteWrite>>,
+  pub(crate) incomplete_reads: HashMap<(u64, u64), VecDeque<IncompleteRead>>,
 }
 
 impl Driver {
@@ -194,6 +251,67 @@ impl Driver {
     self.last_commit_cycle = get_t();
   }
 
+  pub fn tick(&mut self) {
+    // Allow sending multiple
+    for ((cid, id), fifo) in self.incomplete_writes.iter_mut() {
+      // Always handled in-order, find first pending
+      let w = fifo.iter_mut().find(|w| !w.sent);
+      if w.as_ref().is_none_or(|w| !w.ready()) { continue; }
+      let w = w.unwrap();
+
+      // [16 bit W = 0][ 16 bit cid ][ 32 bit id ]
+      let mapped_id = cid << 32 | id;
+      let payload = MemReqPayload::Write(w.data.as_slice(), Some(w.strb.as_slice()));
+      if self.addr_space.req(*id, w.addr as u32, (w.bursts * w.width) as u32, payload) {
+        w.sent = true;
+      }
+    };
+
+    for ((cid, id), fifo) in self.incomplete_reads.iter_mut() {
+      let r = fifo.iter_mut().find(|w| !w.sent);
+      if r.is_none() { continue; }
+      let r = r.unwrap();
+
+      // [16 bit W = 0][ 16 bit cid ][ 32 bit id ]
+      let mapped_id = 1 << 48 | cid << 32 | id;
+      let payload = MemReqPayload::Read;
+      if self.addr_space.req(*id, r.addr as u32, (r.bursts * r.width) as u32, payload) {
+        r.sent = true;
+      }
+    };
+
+    self.addr_space.tick();
+    
+    while let Some((mapped_id, payload)) = self.addr_space.resp() {
+      let is_write = mapped_id >> 48 == 0;
+      let cid = mapped_id >> 32 & 0xFFFF;
+      let id = mapped_id & 0xFFFFFFFF;
+      match payload {
+        crate::interconnect::MemRespPayload::ReadBuffered(buf) => {
+          assert!(!is_write);
+          let fifo = self.incomplete_reads.get_mut(&(cid, id)).expect("Returned read has no corresponding pending data");
+          let r = fifo.iter_mut().find(|r| r.data.is_none());
+          if r.as_ref().is_none_or(|r| !r.sent) { continue; }
+          r.unwrap().data = Some(VecDeque::from(buf.to_owned()));
+        }
+        crate::interconnect::MemRespPayload::ReadRegister(buf) => {
+          assert!(!is_write);
+          let fifo  = self.incomplete_reads.get_mut(&(cid, id)).expect("Returned read has no corresponding pending data");
+          let r = fifo.iter_mut().find(|r| r.data.is_none());
+          if r.as_ref().is_none_or(|r| !r.sent) { continue; }
+          r.unwrap().data = Some(VecDeque::from(buf));
+        }
+        crate::interconnect::MemRespPayload::WriteAck => {
+          assert!(is_write);
+          let fifo  = self.incomplete_writes.get_mut(&(cid, id)).expect("Returned write has no corresponding pending data");
+          let w = fifo.iter_mut().find(|w| !w.done);
+          if w.as_ref().is_none_or(|w| !w.sent) { continue; }
+          w.unwrap().done = true;
+        }
+      }
+    }
+  }
+
   /*/
   // data_width: AXI width (count in bits)
   // return: Vec<u8> with len=bus_size*(arlen+1)
@@ -206,20 +324,6 @@ impl Driver {
     arlen: u32,
     data_width: u32,
   ) -> Vec<u8> {
-    let bus_size = data_width / 8;
-    let size = 1 << arsize;
-
-    assert!(
-      addr % size == 0 && bus_size % size == 0,
-      "unaligned read addr={addr:#x} size={size}B dlen={bus_size}B"
-    );
-
-    assert!(
-      !(size < bus_size && arlen > 0),
-      "narrow burst not supported, axsize={arsize}, axlen={arlen}, data_width={data_width}"
-    );
-    let transaction_size = bus_size * (arlen + 1);
-
     let mut data = vec![0; transaction_size as usize];
     if size < bus_size {
       assert_eq!(arlen, 0);
