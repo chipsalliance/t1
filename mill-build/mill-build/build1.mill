@@ -1,4 +1,4 @@
-package build
+package build1
 
 import mill.{Module, T, _}
 import upickle.default.{ReadWriter => RW, macroRW}

@@ -1,4 +1,4 @@
-package build
+package build2
 
 import $meta._
 import mill.{Module, T, _}
@@ -18,8 +18,11 @@ object `package` extends MillBuildRootModule {
       }
     }
 
-    os.copy.over(template.path, millSourcePath / "T1Deps.scala")
+    os.copy.over(template.path, millSourcePath / "package.scala")
 
-    super.generatedSources() ++ Seq(PathRef(millSourcePath / "T1Deps.scala"), PathRef(millSourcePath / "submodules" / "package.scala"), PathRef(millSourcePath / "submodules" / "rvdecoderdb" / "package.scala"))
+    super.generatedSources() ++ os.walk(path = millSourcePath, maxDepth = 3)
+      .filter(p => !p.segments.contains("chisel"))
+      .filter(p => p.last == "package.scala" || p.last == "common.scala")
+      .map(PathRef(_))
   }
  }
