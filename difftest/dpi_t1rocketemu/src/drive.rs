@@ -1,6 +1,6 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
-use crate::interconnect::{create_emu_addrspace, AddressSpace};
+use crate::interconnect::{create_emu_addrspace_with_initmem, AddressSpace, SRAM_BASE, SRAM_SIZE};
 use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
 
@@ -12,6 +12,7 @@ use elf::{
 };
 use std::collections::HashMap;
 use std::os::unix::fs::FileExt;
+use std::path::PathBuf;
 use std::{fs, path::Path};
 use tracing::{debug, error, trace};
 
@@ -37,6 +38,32 @@ pub struct OnlineArgs {
 
   /// ISA config
   pub spike_isa: String,
+
+  /// DRAMsim3 configuartion (if any)
+  pub dramsim3_cfg: Option<PathBuf>,
+}
+
+struct IncompleteWrite {
+  addr: u64,
+  len: u64,
+  size: u64,
+  user: u64,
+
+  done: bool, // Address Space has finished this write
+
+  data: Vec<u8>,
+  filled: usize, // In bytes
+}
+
+struct IncompleteRead {
+  len: u64,
+  size: u64,
+  user: u64,
+
+  done: bool, // Address space has finished this read
+
+  data: Vec<u8>,
+  drained: usize, // In bytes
 }
 
 pub(crate) struct Driver {
@@ -55,14 +82,20 @@ pub(crate) struct Driver {
   addr_space: AddressSpace,
 
   pub(crate) exit_flag: ExitFlagRef,
+
+  // AXI doesn't allow interleaving writes / reads
+  pub(crate) incomplete_writes: HashMap<u64, IncompleteWrite>,
+  pub(crate) incomplete_reads: HashMap<u64, IncompleteRead>,
 }
 
 impl Driver {
   pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
-    let (mut addr_space, exit_flag) = create_emu_addrspace();
-    // pass e_entry to rocket
+    let mut initmem = vec![0; SRAM_SIZE as usize];
     let (e_entry, _fn_sym_tab) =
-      Self::load_elf(Path::new(&args.elf_file), &mut addr_space).expect("fail creating simulator");
+      Self::load_elf(Path::new(&args.elf_file), &mut initmem).expect("fail creating simulator");
+
+    let (mut addr_space, exit_flag) = create_emu_addrspace_with_initmem(initmem);
+    // pass e_entry to rocket
 
     Self {
       scope,
@@ -83,11 +116,14 @@ impl Driver {
       addr_space,
 
       exit_flag,
+
+      incomplete_reads: HashMap::new(),
+      incomplete_writes: HashMap::new(),
     }
   }
 
   // when error happens, `mem` may be left in an unspecified intermediate state
-  pub fn load_elf(path: &Path, mem: &mut AddressSpace) -> anyhow::Result<(u64, FunctionSymTab)> {
+  pub fn load_elf(path: &Path, mem: &mut [u8]) -> anyhow::Result<(u64, FunctionSymTab)> {
     let file = fs::File::open(path).with_context(|| "reading ELF file")?;
     let mut elf: ElfStream<LittleEndian, _> =
       ElfStream::open_stream(&file).with_context(|| "parsing ELF file")?;
@@ -125,7 +161,8 @@ impl Driver {
           vaddr, filesz, phdr.p_offset, err
         )
       });
-      mem.write_mem(vaddr as u32, load_buffer.len() as u32, &load_buffer);
+      let dest = &mut mem[(vaddr - SRAM_BASE as usize)..(vaddr - SRAM_BASE as usize + load_buffer.len())];
+      dest.copy_from_slice(&load_buffer);
     });
 
     // FIXME: now the symbol table doesn't contain any function value
@@ -157,6 +194,7 @@ impl Driver {
     self.last_commit_cycle = get_t();
   }
 
+  /*/
   // data_width: AXI width (count in bits)
   // return: Vec<u8> with len=bus_size*(arlen+1)
   // if size < bus_size, the result is padded due to AXI narrow transfer rules
@@ -226,6 +264,7 @@ impl Driver {
       self.addr_space.write_mem_masked(addr, size, data, strobe);
     }
   }
+  */
 
   pub(crate) fn set_timeout(&mut self, timeout: u64) {
     self.timeout = timeout;

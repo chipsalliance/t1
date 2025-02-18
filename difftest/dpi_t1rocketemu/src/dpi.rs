@@ -67,6 +67,54 @@ unsafe fn load_from_payload(
 // dpi functions
 //----------------------
 
+#[no_mangle]
+unsafe extern "C" fn axi_tick() {
+  TARGET.with(|driver| {
+  })
+}
+
+#[no_mangle]
+unsafe extern "C" fn axi_push_AW(
+  reset: i64,
+  channel_id: c_longlong,
+  data_width: i64,
+  awid: c_longlong,
+  awaddr: c_longlong,
+  awsize: c_longlong,
+  awlen: c_longlong,
+
+  ready: *mut i8,
+) {
+}
+
+#[no_mangle]
+unsafe extern "C" fn axi_push_AR(
+  reset: i64,
+  channel_id: c_longlong,
+  data_width: i64,
+  arid: c_longlong,
+  araddr: c_longlong,
+  arsize: c_longlong,
+  arlen: c_longlong,
+
+  ready: *mut i8,
+) {
+}
+
+#[no_mangle]
+unsafe extern "C" fn axi_push_W(
+  reset: i64,
+  channel_id: c_longlong,
+  data_width: i64,
+  wid: c_longlong,
+  wdata: *const SvBitVecVal,
+  wstrb: *const SvBitVecVal,
+
+  ready: *mut i8,
+) {
+}
+
+/*
 /// evaluate after AW and W is finished at corresponding channel_id.
 #[no_mangle]
 unsafe extern "C" fn axi_write_highBandwidthAXI(
@@ -362,6 +410,7 @@ unsafe extern "C" fn axi_read_instructionFetchAXI(
     fill_axi_read_payload(payload, 256, &response);
   });
 }
+*/
 
 #[no_mangle]
 unsafe extern "C" fn t1_cosim_init(
@@ -374,11 +423,18 @@ unsafe extern "C" fn t1_cosim_init(
 
   let scope = SvScope::get_current().expect("failed to get scope in t1_cosim_init");
 
+  use std::io::Write;
+  let ds3_cfg = include_bytes!("dramsim3-config.ini");
+  let mut ds3_cfg_file = tempfile::NamedTempFile::new().expect("Unable to create DRAMsim3 configuration temp file");
+  ds3_cfg_file.write(ds3_cfg).expect("Unable to write DRAMsim3 configuration temp file");
+  let (_, ds3_cfg_path) = ds3_cfg_file.keep().expect("Unable to persist DRAMsim3 configuration temp file");
+
   let args = OnlineArgs {
     elf_file: elf_file.get().to_str().unwrap().into(),
     dlen: dlen as u32,
     vlen: vlen as u32,
     spike_isa: spike_isa.get().to_str().unwrap().into(),
+    dramsim3_cfg : Some(ds3_cfg_path),
   };
 
   TARGET.init(|| Driver::new(scope, &args));
