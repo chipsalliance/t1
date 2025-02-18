@@ -393,7 +393,6 @@ pub struct DeviceEntry {
 
 pub struct AddressSpace {
   devices: Vec<DeviceEntry>,
-  next_tick: u64,
 }
 
 impl AddressSpace {
@@ -422,12 +421,6 @@ impl AddressSpace {
   }
 
   pub fn tick(&mut self) {
-    let desired_tick = get_t();
-    if self.next_tick != 0 && desired_tick != self.next_tick {
-      panic!("Skipped a tick!");
-    }
-
-    self.next_tick = desired_tick + 1;
     for dev in self.devices.iter_mut() {
       dev.device.tick();
     }
@@ -469,5 +462,5 @@ pub fn create_emu_addrspace_with_mem<M: MemoryModel + Send + Sync + 'static>(mem
     FrameBuffer::new().with_addr(DISPLAY_BASE, DISPLAY_SIZE),
     WrappedRegDevice::new(SimCtrl::new(exit_flag.clone())).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
   ];
-  (AddressSpace { devices, next_tick: 0 }, exit_flag)
+  (AddressSpace { devices }, exit_flag)
 }

@@ -45,6 +45,7 @@ pub struct OnlineArgs {
 }
 
 pub struct IncompleteWrite {
+  id: u64,
   addr: u64,
   bursts: usize,
   width: usize, // In bytes
@@ -61,7 +62,7 @@ pub struct IncompleteWrite {
 }
 
 impl IncompleteWrite {
-  pub fn new(awaddr: u64, awlen: u64, awsize: u64, awuser: u64, data_width: u64) -> IncompleteWrite {
+  pub fn new(awid: u64, awaddr: u64, awlen: u64, awsize: u64, awuser: u64, data_width: u64) -> IncompleteWrite {
     let bus_size = data_width / 8;
     let size = 1 << awsize;
 
@@ -79,6 +80,7 @@ impl IncompleteWrite {
     let strb = Vec::with_capacity(tsize);
 
     IncompleteWrite {
+      id: awid,
       addr: awaddr,
       bursts: awlen as usize + 1,
       width: size as usize,
@@ -112,6 +114,10 @@ impl IncompleteWrite {
 
   pub fn done(&self) -> bool {
     self.done
+  }
+
+  pub fn id(&self) -> u64 {
+    self.id
   }
 
   pub fn user(&self) -> u64 {
@@ -203,6 +209,7 @@ pub(crate) struct Driver {
   pub(crate) dlen: u32,
   pub(crate) e_entry: u64,
 
+  next_tick: u64,
   timeout: u64,
   last_commit_cycle: u64,
 
@@ -211,7 +218,7 @@ pub(crate) struct Driver {
   pub(crate) exit_flag: ExitFlagRef,
 
   /// (channel_id, id) -> data
-  pub(crate) incomplete_writes: HashMap<(u64, u64), VecDeque<IncompleteWrite>>,
+  pub(crate) incomplete_writes: HashMap<u64, VecDeque<IncompleteWrite>>,
   pub(crate) incomplete_reads: HashMap<(u64, u64), VecDeque<IncompleteRead>>,
 }
 
@@ -248,6 +255,7 @@ impl Driver {
       dlen: args.dlen,
       e_entry,
 
+      next_tick: 0,
       timeout: 0,
       last_commit_cycle: 0,
 
@@ -333,15 +341,26 @@ impl Driver {
   }
 
   pub fn tick(&mut self) {
+    let desired_tick = get_t();
+    if self.next_tick != 0 && desired_tick != self.next_tick {
+      panic!("Skipped a tick!");
+    }
+
+    if self.next_tick > desired_tick {
+      assert!(self.next_tick == desired_tick + 1);
+      return;
+    }
+    self.next_tick = desired_tick + 1;
+
     // Allow sending multiple
-    for ((cid, id), fifo) in self.incomplete_writes.iter_mut() {
+    for (cid, fifo) in self.incomplete_writes.iter_mut() {
       // Always handled in-order, find first pending
       let w = fifo.iter_mut().find(|w| !w.sent);
       if w.as_ref().is_none_or(|w| !w.ready()) { continue; }
       let w = w.unwrap();
 
       // [16 bit W = 0][ 16 bit cid ][ 32 bit id ]
-      let mapped_id = cid << 32 | id;
+      let mapped_id = cid << 32 | w.id;
       let payload = MemReqPayload::Write(w.data.as_slice(), Some(w.strb.as_slice()));
       if self.addr_space.req(mapped_id, w.addr as u32, (w.bursts * w.width) as u32, payload) {
         w.sent = true;
@@ -370,24 +389,27 @@ impl Driver {
       match payload {
         crate::interconnect::MemRespPayload::ReadBuffered(buf) => {
           assert!(!is_write);
-          let fifo = self.incomplete_reads.get_mut(&(cid, id)).expect("Returned read has no corresponding pending data");
-          let r = fifo.iter_mut().find(|r| r.data.is_none());
-          if r.as_ref().is_none_or(|r| !r.sent) { continue; }
-          r.unwrap().data = Some(buf.to_owned());
+          let r = self.incomplete_reads.get_mut(&(cid, id))
+            .and_then(|f| f.iter_mut().find(|r| r.data.is_none()))
+            .expect("Returned read has no corresponding pending data");
+          assert!(r.sent);
+          r.data = Some(buf.to_owned());
         }
         crate::interconnect::MemRespPayload::ReadRegister(buf) => {
           assert!(!is_write);
-          let fifo  = self.incomplete_reads.get_mut(&(cid, id)).expect("Returned read has no corresponding pending data");
-          let r = fifo.iter_mut().find(|r| r.data.is_none());
-          if r.as_ref().is_none_or(|r| !r.sent) { continue; }
-          r.unwrap().data = Some(Vec::from(buf));
+          let r = self.incomplete_reads.get_mut(&(cid, id))
+            .and_then(|f| f.iter_mut().find(|r| r.data.is_none()))
+            .expect("Returned read has no corresponding pending data");
+          assert!(r.sent);
+          r.data = Some(Vec::from(buf));
         }
         crate::interconnect::MemRespPayload::WriteAck => {
           assert!(is_write);
-          let fifo  = self.incomplete_writes.get_mut(&(cid, id)).expect("Returned write has no corresponding pending data");
-          let w = fifo.iter_mut().find(|w| !w.done);
-          if w.as_ref().is_none_or(|w| !w.sent) { continue; }
-          w.unwrap().done = true;
+          let w = self.incomplete_writes.get_mut(&cid)
+            .and_then(|f| f.iter_mut().find(|w| w.id == id && !w.done))
+            .expect("Returned write has no corresponding pending data");
+          assert!(w.sent);
+          w.done = true;
         }
       }
     }

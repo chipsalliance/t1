@@ -45,7 +45,9 @@ impl Iterator for StrbIterator {
 //----------------------
 
 #[no_mangle]
-unsafe extern "C" fn axi_tick() {
+unsafe extern "C" fn axi_tick(
+  reset: u8,
+) {
   TARGET.with(|driver| {
     driver.tick();
   })
@@ -67,8 +69,8 @@ unsafe extern "C" fn axi_push_AW(
   if reset != 0 { return; }
   TARGET.with(move |target| {
     target.update_commit_cycle();
-    let w = IncompleteWrite::new(awaddr, awlen, awsize, awuser, data_width);
-    let fifo = target.incomplete_writes.entry((channel_id, awid)).or_default();
+    let w = IncompleteWrite::new(awid, awaddr, awlen, awsize, awuser, data_width);
+    let fifo = target.incomplete_writes.entry(channel_id).or_default();
     fifo.push_back(w);
   });
   unsafe { ready.write(true as u8) };
@@ -102,7 +104,6 @@ unsafe extern "C" fn axi_push_W(
   reset: u8,
   channel_id: c_ulonglong,
   data_width: u64,
-  wid: c_ulonglong,
   wdata: *const SvBitVecVal,
   wstrb: *const SvBitVecVal,
   wlast: c_char,
@@ -113,7 +114,7 @@ unsafe extern "C" fn axi_push_W(
   TARGET.with(|target| {
     target.update_commit_cycle();
     // TODO: maybe we don't assert this, to allow same-cycle AW/W (when W is sequenced before AW)
-    let channel = target.incomplete_writes.get_mut(&(channel_id, wid)).expect("No inflight write with this ID found!");
+    let channel = target.incomplete_writes.get_mut(&(channel_id)).expect("No inflight write with this ID found!");
     let w = channel.iter_mut().find(|w| !w.ready()).expect("No inflight write with this ID found!");
     let wslice = unsafe { std::slice::from_raw_parts(wdata as *const u8, data_width as usize / 8) };
     let wstrbit = StrbIterator {
@@ -142,21 +143,16 @@ unsafe extern "C" fn axi_pop_B(
   TARGET.with(|target| {
     unsafe { ret.write(0); }
     target.update_commit_cycle();
-    for ((cid, id), fifo) in target.incomplete_writes.iter_mut() {
-      if *cid != channel_id { continue }; // TODO: we actually wants two levels of HashMap
-      if let Some(w) = fifo.front() {
-        if w.done() {
-          unsafe {
-            ret.write(1);
-            (ret.offset(2) as *mut u16).write(*id as u16);
-            (ret.offset(4) as *mut u32).write(w.user() as u32);
-          }
-
-          fifo.pop_front();
-          return;
-        }
-      }
+    let fifo = target.incomplete_writes.get_mut(&channel_id).expect("No inflight write with this ID found!");
+    // TODO: find later writes with different IDs
+    if fifo.front().as_ref().is_none_or(|w| !w.done()) { return; }
+    let w = fifo.pop_front().unwrap();
+    unsafe {
+      ret.write(1);
+      (ret.offset(2) as *mut u16).write(w.id() as u16);
+      (ret.offset(4) as *mut u32).write(w.user() as u32);
     }
+    return;
   })
 }
 

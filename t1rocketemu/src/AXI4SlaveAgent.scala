@@ -6,8 +6,16 @@ package org.chipsalliance.t1.t1rocketemu.dpi
 // TODO: upstream to AMBA as VIP
 import chisel3._
 import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawClockedVoidFunctionCall}
-import chisel3.util.{isPow2, log2Ceil}
+import chisel3.util.{isPow2, log2Ceil, Queue}
+import chisel3.experimental.dataview._
 import org.chipsalliance.amba.axi4.bundle.{
+  AR, AW, R, W, B,
+  HasAR, HasAW, HasR, HasW, HasB,
+  AXI4ChiselBundle,
+  AXI4ROIrrevocable,
+  AXI4RWIrrevocable,
+  AXI4WOIrrevocable,
+
   ARChannel,
   ARFlowControl,
   AWChannel,
@@ -59,188 +67,141 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
     extends FixedIORawModule[AXI4SlaveAgentInterface](new AXI4SlaveAgentInterface(parameter)) {
   dontTouch(io)
   io.channel match {
-    case channel: AXI4RWIrrevocableVerilog =>
-      new WriteManager(channel)
-      new ReadManager(channel)
-    case channel: AXI4ROIrrevocableVerilog =>
-      new ReadManager(channel)
-    case channel: AXI4WOIrrevocableVerilog =>
-      new WriteManager(channel)
-  }
-
-  private class WriteManager(
-    channel: AWChannel with AWFlowControl with WChannel with WFlowControl with BChannel with BFlowControl) {
-    withClockAndReset(io.clock, io.reset) {
-
-      /** There is an aw in the register. */
-      val awIssued = RegInit(false.B)
-
-      /** There is a w in the register. */
-      val last = RegInit(false.B)
-
-      /** memory to store the write payload
-        * @todo
-        *   limit the payload size based on the RTL configuration.
-        */
-      val writePayload =
-        RegInit(0.U.asTypeOf(new WritePayload(parameter.writePayloadSize, parameter.axiParameter.dataWidth)))
-
-      /** AWID, latch at AW fire, used at B fire. */
-      val awid     = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWID)))
-      val awaddr   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWADDR)))
-      val awlen    = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWLEN)))
-      val awsize   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWSIZE)))
-      val awburst  = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWBURST)))
-      val awlock   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWLOCK)))
-      val awcache  = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWCACHE)))
-      val awprot   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWPROT)))
-      val awqos    = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWQOS)))
-      val awregion = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWREGION)))
-      val awuser   = RegInit(0.U.asTypeOf(chiselTypeOf(channel.AWUSER)))
-
-      /** index the payload, used to write [[writePayload]] */
-      val writeIdx  = RegInit(0.U.asTypeOf(UInt(8.W)))
-      val bFire     = channel.BREADY && channel.BVALID
-      val awFire    = channel.AWREADY && channel.AWVALID
-      val wLastFire = channel.WVALID && channel.WREADY && channel.WLAST
-      val awExist   = channel.AWVALID || awIssued
-      val wExist    = channel.WVALID && channel.WLAST || last
-
-      // AW
-      channel.AWREADY := !awIssued || (wExist && channel.BREADY)
-      when(channel.AWREADY && channel.AWVALID) {
-        awid     := channel.AWID
-        awaddr   := channel.AWADDR
-        awlen    := channel.AWLEN
-        awsize   := channel.AWSIZE
-        awburst  := channel.AWBURST
-        awlock   := channel.AWLOCK
-        awcache  := channel.AWCACHE
-        awprot   := channel.AWPROT
-        awqos    := channel.AWQOS
-        awregion := channel.AWREGION
-        awuser   := channel.AWUSER
-      }
-      when(awFire ^ bFire) {
-        awIssued := awFire
-      }
-
-      // W
-      val writePayloadUpdate = WireDefault(writePayload)
-      channel.WREADY := !last || (awExist && channel.BREADY)
-      when(channel.WVALID && channel.WREADY) {
-        writePayload.data(writeIdx)       := channel.WDATA
-        writePayloadUpdate.data(writeIdx) := channel.WDATA
-        writePayload.strb(writeIdx)       := channel.WSTRB.pad(writePayload.strb.getWidth)
-        writePayloadUpdate.strb(writeIdx) := channel.WSTRB.pad(writePayload.strb.getWidth)
-        writeIdx                          := writeIdx + 1.U
-        when(channel.WLAST) {
-          writeIdx := 0.U
-        }
-      }
-      when(wLastFire ^ bFire) {
-        last := wLastFire
-      }
-
-      // B
-      channel.BVALID := awExist && wExist
-      channel.BID    := Mux(awIssued, awid, channel.AWID)
-      channel.BRESP  := 0.U(2.W) // OK
-      channel.BUSER  := Mux(awIssued, awuser, channel.AWUSER)
-      when(channel.BVALID && channel.BREADY) {
-        RawClockedVoidFunctionCall(s"axi_write_${parameter.name}")(
-          io.clock,
-          when.cond && !io.gateWrite,
-          io.reset.asTypeOf(UInt(64.W)),
-          io.channelId,
-          parameter.axiParameter.dataWidth.U(64.W),
-          // handle AW and W at same beat.
-          Mux(awIssued, awid.asTypeOf(UInt(64.W)), channel.AWID),
-          Mux(awIssued, awaddr.asTypeOf(UInt(64.W)), channel.AWADDR),
-          Mux(awIssued, awlen.asTypeOf(UInt(64.W)), channel.AWLEN),
-          Mux(awIssued, awsize.asTypeOf(UInt(64.W)), channel.AWSIZE),
-          Mux(awIssued, awburst.asTypeOf(UInt(64.W)), channel.AWBURST),
-          Mux(awIssued, awlock.asTypeOf(UInt(64.W)), channel.AWLOCK),
-          Mux(awIssued, awcache.asTypeOf(UInt(64.W)), channel.AWCACHE),
-          Mux(awIssued, awprot.asTypeOf(UInt(64.W)), channel.AWPROT),
-          Mux(awIssued, awqos.asTypeOf(UInt(64.W)), channel.AWQOS),
-          Mux(awIssued, awregion.asTypeOf(UInt(64.W)), channel.AWREGION),
-          writePayloadUpdate
-        )
-      }
+    case channel : AXI4RWIrrevocableVerilog => {
+      val view = channel.viewAs[AXI4RWIrrevocable](
+        implicitly,
+        AXI4RWIrrevocableVerilog.viewChisel,
+        implicitly,
+      )
+      new ReadManager(view)
+      new WriteManager(view)
+    }
+    case channel : AXI4ROIrrevocableVerilog => {
+      // TODO: wait for https://github.com/chipsalliance/chisel-interface/pull/194
+      /*
+      val view = channel.viewAs[AXI4ROIrrevocable]
+      new ReadManager(view)
+      */
+    }
+    case channel : AXI4WOIrrevocableVerilog => {
+      // TODO: wait for https://github.com/chipsalliance/chisel-interface/pull/194
+      /*
+      val view = channel.viewAs[AXI4WOIrrevocable]
+      new WriteManager(view)
+      */
     }
   }
 
-  private class ReadManager(channel: ARChannel with ARFlowControl with RChannel with RFlowControl) {
-    withClockAndReset(io.clock, io.reset) {
-      class CAMValue extends Bundle {
-        val arid             = UInt(16.W)
-        val arlen            = UInt(8.W)
-        val readPayload      = new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth)
-        val readPayloadIndex = UInt(8.W)
-        val valid            = Bool()
-        val user: UInt = UInt(channel.ARUSER.getWidth.W)
+  RawClockedVoidFunctionCall(s"axi_tick")(
+    io.clock,
+    true.B,
+    io.reset.asTypeOf(UInt(8.W)),
+  )
+
+  private class WriteManager(channel: HasAW with HasW with HasB) {
+    val awqueue = Module(new Queue(new AW(parameter.axiParameter), 2))
+    val wqueue = Module(new Queue(new W(parameter.axiParameter), 2))
+    val bqueue = Module(new Queue(new B(parameter.axiParameter), 2))
+
+    awqueue.io.enq <> channel.aw
+    wqueue.io.enq <> channel.w
+    bqueue.io.deq <> channel.b
+
+    // Invoke DPI at negedge
+    // NOTICE: this block CANNOT directly write any outside reg. Only write wires (e.g. here, only writes queue IO)
+    withClock((~io.clock.asBool).asClock) {
+      // AW
+      val awRet = RawClockedNonVoidFunctionCall(s"axi_push_AW", Bool())(
+        io.clock,
+        awqueue.io.deq.valid,
+        io.reset.asTypeOf(UInt(8.W)),
+        io.channelId,
+        parameter.axiParameter.dataWidth.U(64.W),
+        awqueue.io.deq.bits.id.asTypeOf(UInt(64.W)),
+        awqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
+        awqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
+        awqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
+        awqueue.io.deq.bits.user.asTypeOf(UInt(64.W)),
+      )
+      awqueue.io.deq.ready := awRet
+
+      // W
+      val wRet = RawClockedNonVoidFunctionCall(s"axi_push_W", Bool())(
+        io.clock,
+        wqueue.io.deq.valid,
+        io.reset.asTypeOf(UInt(8.W)),
+        io.channelId,
+        parameter.axiParameter.dataWidth.U(64.W),
+        wqueue.io.deq.bits.data,
+        wqueue.io.deq.bits.strb,
+        wqueue.io.deq.bits.last.asTypeOf(UInt(8.W)),
+      )
+      wqueue.io.deq.ready := wRet
+
+      class BBUndle extends Bundle {
+        val valid = UInt(8.W)
+        val _padding = UInt(8.W)
+        val id = UInt(16.W)
+        val user  = UInt(32.W)
       }
 
-      /** CAM to maintain order of read requests. This is maintained as FIFO. */
-      val cam: Vec[CAMValue] = RegInit(0.U.asTypeOf(Vec(parameter.outstanding, new CAMValue)))
-      require(isPow2(parameter.outstanding), "Need to handle pointers")
-      val arPtr = RegInit(0.U.asTypeOf(UInt(log2Ceil(parameter.outstanding).W)))
-      val rPtr  = RegInit(0.U.asTypeOf(UInt(log2Ceil(parameter.outstanding).W)))
-
-      // AR
-      channel.ARREADY := !cam(arPtr).valid
-      val arPtrNext: UInt = RegNext(arPtr, 0.U)
-
-      val arFire       = channel.ARREADY && channel.ARVALID
-      val readPlayload = RawClockedNonVoidFunctionCall(
-        s"axi_read_${parameter.name}",
-        new ReadPayload(parameter.readPayloadSize, parameter.axiParameter.dataWidth)
-      )(
+      val bRet = RawClockedNonVoidFunctionCall(s"axi_pop_B", new BBUndle())(
         io.clock,
-        !io.gateRead && arFire,
+        bqueue.io.enq.ready,
         io.reset.asTypeOf(UInt(64.W)),
         io.channelId,
         parameter.axiParameter.dataWidth.U(64.W),
-        channel.ARID.asTypeOf(UInt(64.W)),
-        channel.ARADDR.asTypeOf(UInt(64.W)),
-        channel.ARLEN.asTypeOf(UInt(64.W)),
-        channel.ARSIZE.asTypeOf(UInt(64.W)),
-        channel.ARBURST.asTypeOf(UInt(64.W)),
-        channel.ARLOCK.asTypeOf(UInt(64.W)),
-        channel.ARCACHE.asTypeOf(UInt(64.W)),
-        channel.ARPROT.asTypeOf(UInt(64.W)),
-        channel.ARQOS.asTypeOf(UInt(64.W)),
-        channel.ARREGION.asTypeOf(UInt(64.W))
       )
+      bqueue.io.enq.valid := bRet.valid
+      bqueue.io.enq.bits.id := bRet.id
+      bqueue.io.enq.bits.resp := 0.U(2.W)
+      bqueue.io.enq.bits.user := bRet.user
+    }
+  }
 
-      when(arFire) {
-        arPtr := arPtr + 1.U
-      }
+  private class ReadManager(channel: HasAR with HasR) {
+    withClockAndReset(io.clock, io.reset) {
+      val arqueue = Module(new Queue(new AR(parameter.axiParameter), 2))
+      val rqueue = Module(new Queue(new R(parameter.axiParameter), 2))
 
-      when(RegNext(arFire, false.B)) {
-        cam(arPtrNext).arid             := RegNext(channel.ARID, 0.U)
-        cam(arPtrNext).arlen            := RegNext(channel.ARLEN, 0.U)
-        cam(arPtrNext).user             := RegNext(channel.ARUSER, 0.U)
-        cam(arPtrNext).readPayload      := readPlayload
-        cam(arPtrNext).readPayloadIndex := 0.U
-        cam(arPtrNext).valid            := true.B
-      }
+      arqueue.io.enq <> channel.ar
+      rqueue.io.deq <> channel.r
+      withClock((~io.clock.asBool).asClock) {
+        // AR
+        val arRet = RawClockedNonVoidFunctionCall(s"axi_push_AR", Bool())(
+          io.clock,
+          arqueue.io.deq.valid,
+          io.reset.asTypeOf(UInt(8.W)),
+          io.channelId,
+          parameter.axiParameter.dataWidth.U(64.W),
+          arqueue.io.deq.bits.id.asTypeOf(UInt(64.W)),
+          arqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
+          arqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
+          arqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
+          arqueue.io.deq.bits.user.asTypeOf(UInt(64.W)),
+        )
+        arqueue.io.deq.ready := arRet
 
-      // R
-      channel.RVALID := cam(rPtr).valid
-      channel.RID    := cam(rPtr).arid
-      channel.RDATA  := cam(rPtr).readPayload.data(cam(rPtr).readPayloadIndex)
-      channel.RRESP  := 0.U // OK
-      channel.RLAST  := (cam(rPtr).arlen === cam(rPtr).readPayloadIndex) && cam(rPtr).valid
-      channel.RUSER  := cam(rPtr).user
-      when(channel.RREADY && channel.RVALID) {
-        // increase index
-        cam(rPtr).readPayloadIndex := cam(rPtr).readPayloadIndex + 1.U
-        when(channel.RLAST) {
-          cam(rPtr).valid := false.B
-          rPtr            := rPtr + 1.U
+        class RBundle extends Bundle {
+          val valid = UInt(8.W)
+          val last = UInt(8.W)
+          val id = UInt(16.W)
+          val user  = UInt(32.W)
+          val data = UInt(parameter.axiParameter.dataWidth.W)
         }
+        val rRet = RawClockedNonVoidFunctionCall(s"axi_pop_R", new RBundle())(
+          io.clock,
+          rqueue.io.enq.ready,
+          io.reset.asTypeOf(UInt(64.W)),
+          io.channelId,
+          parameter.axiParameter.dataWidth.U(64.W),
+        )
+        rqueue.io.enq.valid := rRet.valid
+        rqueue.io.enq.bits.id := rRet.id
+        rqueue.io.enq.bits.last := rRet.last
+        rqueue.io.enq.bits.user := rRet.user
+        rqueue.io.enq.bits.data := rRet.data
+        rqueue.io.enq.bits.resp := 0.U
       }
     }
   }
