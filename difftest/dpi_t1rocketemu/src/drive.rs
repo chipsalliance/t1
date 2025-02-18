@@ -1,6 +1,6 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
-use crate::interconnect::{create_emu_addrspace_with_initmem, AddressSpace, MemReqPayload, SRAM_BASE, SRAM_SIZE};
+use crate::interconnect::{create_emu_addrspace_with_mem, AddressSpace, MemReqPayload, RegularMemory, SRAM_BASE, SRAM_SIZE};
 use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
 
@@ -10,6 +10,7 @@ use elf::{
   endian::LittleEndian,
   ElfStream,
 };
+use tempfile::TempDir;
 use std::collections::{HashMap, VecDeque};
 use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
@@ -66,7 +67,7 @@ impl IncompleteWrite {
 
     assert!(
       awaddr % size == 0 && bus_size % size == 0,
-      "unaligned read addr={awaddr:#x} size={size}B dlen={bus_size}B"
+      "unaligned write addr={awaddr:#x} size={size}B dlen={bus_size}B"
     );
 
     assert!(
@@ -108,6 +109,14 @@ impl IncompleteWrite {
   pub fn ready(&self) -> bool {
     self.data.len() == (self.bursts * self.width) as usize
   }
+
+  pub fn done(&self) -> bool {
+    self.done
+  }
+
+  pub fn user(&self) -> u64 {
+    self.user
+  }
 }
 
 pub struct IncompleteRead {
@@ -117,10 +126,71 @@ pub struct IncompleteRead {
   user: u64,
 
   sent: bool, // Sent to memory
-  data: Option<VecDeque<u8>>,
+  returned: usize,
+  data: Option<Vec<u8>>,
 
   // Used for transfers
-  bus_size: u64,
+  bus_size: usize,
+}
+
+impl IncompleteRead {
+  pub fn new(araddr: u64, arlen: u64, arsize: u64, aruser: u64, data_width: u64) -> IncompleteRead {
+    let bus_size = data_width / 8;
+    let size = 1 << arsize;
+
+    assert!(
+      araddr % size == 0 && bus_size % size == 0,
+      "unaligned read addr={araddr:#x} size={size}B dlen={bus_size}B"
+    );
+
+    assert!(
+      !(size < bus_size && arlen > 0),
+      "narrow burst not supported, axsize={arsize}, axlen={arlen}, data_width={data_width}"
+    );
+
+    IncompleteRead {
+      addr: araddr,
+      bursts: arlen as usize + 1,
+      width: size as usize,
+      user: aruser,
+
+      sent: false,
+      returned: 0,
+      data: None,
+
+      bus_size: bus_size as usize,
+    }
+  }
+
+  /// Returns rlast
+  pub fn pop(&mut self, rdata_buf: &mut [u8], data_width: u64) -> bool {
+    assert!(self.data.is_some(), "IncompleteRead::pop called on request that hasn't gotten its data!");
+    let data = self.data.as_ref().unwrap();
+    assert!(self.returned + self.width <= data.len(), "Sanity check for data width: IncompleteRead::pop");
+    assert!(data_width as usize == self.bus_size * 8, "Mismatch data width across DPI calls");
+
+    // Find in-line offset
+    let result_offset = (self.addr as usize + self.returned) % self.bus_size;
+    assert!(self.bus_size + result_offset <= rdata_buf.len(), "Sanity check for data width: Incomplete::pop");
+    let dst = &mut rdata_buf[result_offset..(result_offset + self.width)];
+    let src = &data[self.returned .. (self.returned + self.width)];
+    dst.copy_from_slice(src);
+    self.returned += self.width;
+    if self.returned >= data.len() {
+      assert!(self.returned == data.len());
+      true
+    } else {
+      false
+    }
+  }
+
+  pub fn has_data(&self) -> bool {
+    self.data.is_some()
+  }
+
+  pub fn user(&self) -> u64 {
+    self.user
+  }
 }
 
 pub(crate) struct Driver {
@@ -151,7 +221,18 @@ impl Driver {
     let (e_entry, _fn_sym_tab) =
       Self::load_elf(Path::new(&args.elf_file), &mut initmem).expect("fail creating simulator");
 
-    let (mut addr_space, exit_flag) = create_emu_addrspace_with_initmem(initmem);
+    let (addr_space, exit_flag) = match args.dramsim3_cfg {
+      Some(ref ds3cfg) => {
+        let ds3rundir = TempDir::new().expect("Failed to create dramsim3 runtime dir");
+        let mem = RegularMemory::with_content_and_model(initmem, ds3cfg, &ds3rundir);
+        std::mem::forget(ds3rundir);
+        create_emu_addrspace_with_mem(mem)
+      }
+      None => {
+        let mem = RegularMemory::with_content(initmem);
+        create_emu_addrspace_with_mem(mem)
+      }
+    };
     // pass e_entry to rocket
 
     Self {
@@ -262,7 +343,7 @@ impl Driver {
       // [16 bit W = 0][ 16 bit cid ][ 32 bit id ]
       let mapped_id = cid << 32 | id;
       let payload = MemReqPayload::Write(w.data.as_slice(), Some(w.strb.as_slice()));
-      if self.addr_space.req(*id, w.addr as u32, (w.bursts * w.width) as u32, payload) {
+      if self.addr_space.req(mapped_id, w.addr as u32, (w.bursts * w.width) as u32, payload) {
         w.sent = true;
       }
     };
@@ -275,7 +356,7 @@ impl Driver {
       // [16 bit W = 0][ 16 bit cid ][ 32 bit id ]
       let mapped_id = 1 << 48 | cid << 32 | id;
       let payload = MemReqPayload::Read;
-      if self.addr_space.req(*id, r.addr as u32, (r.bursts * r.width) as u32, payload) {
+      if self.addr_space.req(mapped_id, r.addr as u32, (r.bursts * r.width) as u32, payload) {
         r.sent = true;
       }
     };
@@ -292,14 +373,14 @@ impl Driver {
           let fifo = self.incomplete_reads.get_mut(&(cid, id)).expect("Returned read has no corresponding pending data");
           let r = fifo.iter_mut().find(|r| r.data.is_none());
           if r.as_ref().is_none_or(|r| !r.sent) { continue; }
-          r.unwrap().data = Some(VecDeque::from(buf.to_owned()));
+          r.unwrap().data = Some(buf.to_owned());
         }
         crate::interconnect::MemRespPayload::ReadRegister(buf) => {
           assert!(!is_write);
           let fifo  = self.incomplete_reads.get_mut(&(cid, id)).expect("Returned read has no corresponding pending data");
           let r = fifo.iter_mut().find(|r| r.data.is_none());
           if r.as_ref().is_none_or(|r| !r.sent) { continue; }
-          r.unwrap().data = Some(VecDeque::from(buf));
+          r.unwrap().data = Some(Vec::from(buf));
         }
         crate::interconnect::MemRespPayload::WriteAck => {
           assert!(is_write);
@@ -311,64 +392,6 @@ impl Driver {
       }
     }
   }
-
-  /*/
-  // data_width: AXI width (count in bits)
-  // return: Vec<u8> with len=bus_size*(arlen+1)
-  // if size < bus_size, the result is padded due to AXI narrow transfer rules
-  // if size < bus_size, arlen must be 0 (narrow burst is NOT supported)
-  pub(crate) fn axi_read(
-    &mut self,
-    addr: u32,
-    arsize: u32,
-    arlen: u32,
-    data_width: u32,
-  ) -> Vec<u8> {
-    let mut data = vec![0; transaction_size as usize];
-    if size < bus_size {
-      assert_eq!(arlen, 0);
-      let start = (addr % bus_size) as usize;
-      let end = start + (size as usize);
-      self.addr_space.read_mem(addr, size, &mut data[start..end]);
-    } else {
-      self.addr_space.read_mem(addr, transaction_size, &mut data);
-    }
-    data
-  }
-
-  // data_width: AXI width (count in bits)
-  pub(crate) fn axi_write(
-    &mut self,
-    addr: u32,
-    awsize: u32,
-    data_width: u32,
-    strobe: &[bool],
-    data: &[u8],
-  ) {
-    let bus_size = data_width / 8;
-    let size = 1 << awsize;
-
-    assert!(
-      addr % size == 0 && bus_size % size == 0,
-      "unaligned write addr={addr:#x} size={size}B dlen={bus_size}B"
-    );
-
-    if size < bus_size {
-      let start = (addr % bus_size) as usize;
-      let end = start + (size as usize);
-
-      // AXI spec says strobe outsize start..end shall be inactive, check it
-      assert!(strobe.iter().copied().enumerate().all(|(idx, x)| !x || (start <= idx && idx < end)),
-        "AXI write ill-formed [T={}] data_width={data_width}, addr=0x{addr:08x}, awsize={awsize}, strobe={strobe:?}",
-        get_t(),
-      );
-
-      self.addr_space.write_mem_masked(addr, size, &data[start..end], &strobe[start..end]);
-    } else {
-      self.addr_space.write_mem_masked(addr, size, data, strobe);
-    }
-  }
-  */
 
   pub(crate) fn set_timeout(&mut self, timeout: u64) {
     self.timeout = timeout;

@@ -139,6 +139,8 @@ impl Device for FrameBuffer {
       }
     };
 
+    self.holding = Some(holding);
+
     true
   }
 

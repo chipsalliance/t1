@@ -1,5 +1,5 @@
 use std::{
-  any::Any, cell::{Cell, RefCell}, collections::{BinaryHeap, HashSet, VecDeque}, ffi::CString, os::unix::ffi::OsStrExt, path::Path, rc::Rc
+  any::Any, cell::Cell, collections::{BinaryHeap, HashSet, VecDeque}, ffi::CString, os::unix::ffi::OsStrExt, path::Path, rc::Rc, sync::{Arc, Mutex}
 };
 
 use framebuffer::FrameBuffer;
@@ -140,7 +140,7 @@ impl<T: RegDevice + Send + Sync + 'static> Device for WrappedRegDevice<T> {
   fn tick(&mut self) {} // This is a no-op for Reg devices
 }
 
-struct MemIdent {
+pub struct MemIdent {
   id: u64,
   req: AddrInfo,
   is_write: bool,
@@ -156,7 +156,7 @@ impl Into<MemIdent> for InflightMem {
   }
 }
 
-trait MemoryModel {
+pub trait MemoryModel {
   fn push(&mut self, req: MemIdent);
   fn pop(&mut self) -> Option<MemIdent>;
   fn tick(&mut self);
@@ -196,13 +196,16 @@ impl InflightMem {
 
 pub struct DRAMModel {
   sys: dramsim3::MemorySystem,
-  inflights: Rc<RefCell<Vec<InflightMem>>>,
+  inflights: Arc<Mutex<Vec<InflightMem>>>,
   cached: BinaryHeap<u32>,
 }
 
+// FIXME: impl Send in upstream MemorySystem
+unsafe impl Send for DRAMModel {}
+
 impl DRAMModel {
   fn new(ds_cfg: impl AsRef<Path>, ds_path: impl AsRef<Path>) -> Self {
-    let inflights: Rc<RefCell<Vec<InflightMem>>> = Rc::new(RefCell::new(Vec::new()));
+    let inflights: Arc<Mutex<Vec<InflightMem>>> = Arc::new(Mutex::new(Vec::new()));
     let inflights_clone = inflights.clone();
     let chunk_size: Rc<Cell<u32>> = Rc::new(Cell::new(0));
     let chunk_size_clone = chunk_size.clone();
@@ -210,7 +213,7 @@ impl DRAMModel {
     let ds_path_cstr = CString::new(ds_path.as_ref().as_os_str().as_bytes()).expect("Incorrect path format");
     let sys =
       dramsim3::MemorySystem::new(&ds_cfg_cstr, &ds_path_cstr, move |addr, is_write| {
-        for req in inflights_clone.borrow_mut().iter_mut() {
+        for req in inflights_clone.lock().unwrap().iter_mut() {
           if req.done_ptr as u64 == addr && req.is_write == is_write {
             // TODO: pass chunk_size from dramsim3
             req.done_ptr += chunk_size.get();
@@ -239,14 +242,14 @@ impl DRAMModel {
 impl MemoryModel for DRAMModel {
   fn push(&mut self, req: MemIdent) {
     // TODO: done if in cache
-    self.inflights.borrow_mut().push(InflightMem::from_ident(req, self.req_size()));
+    self.inflights.lock().unwrap().push(InflightMem::from_ident(req, self.req_size()));
   }
 
   fn pop(&mut self) -> Option<MemIdent> {
     // Take exact one of the inflight request that are fully done
     // Also ensure no preceding requests that has conflicting ID
     let mut blocked = HashSet::with_capacity(32);
-    let mut inf = self.inflights.borrow_mut();
+    let mut inf = self.inflights.lock().unwrap();
     for i in 0..inf.len() {
       if inf[i].done() && blocked.contains(&inf[i].id) {
         return Some(inf.remove(i).into())
@@ -260,7 +263,7 @@ impl MemoryModel for DRAMModel {
   fn tick(&mut self) {
     // FIXME: tick by faster clock
 
-    let mut inflights = self.inflights.borrow_mut();
+    let mut inflights = self.inflights.lock().unwrap();
     for inflight in inflights.iter_mut() {
       if inflight.sent() {
         continue;
@@ -275,8 +278,22 @@ impl MemoryModel for DRAMModel {
   }
 }
 
+impl MemoryModel for Arc<Mutex<DRAMModel>> {
+  fn push(&mut self, req: MemIdent) {
+    self.lock().unwrap().push(req);
+  }
+
+  fn pop(&mut self) -> Option<MemIdent> {
+    self.lock().unwrap().pop()
+  }
+
+  fn tick(&mut self) {
+    self.lock().unwrap().tick()
+  }
+}
+
 #[derive(Default)]
-struct TrivialModel {
+pub struct TrivialModel {
   holding: VecDeque<MemIdent>,
 }
 
@@ -302,21 +319,17 @@ impl RegularMemory<TrivialModel> {
       model: TrivialModel::default(),
     }
   }
-
-  pub fn with_size(size: u32) -> Self {
-    Self::with_content(vec![0; size as usize])
-  }
 }
 
-impl RegularMemory<DRAMModel> {
-  pub fn with_size_and_model(
-    size: u32,
+impl RegularMemory<Arc<Mutex<DRAMModel>>> {
+  pub fn with_content_and_model(
+    data: Vec<u8>,
     ds_cfg: impl AsRef<Path>,
     ds_path: impl AsRef<Path>,
   ) -> Self {
     RegularMemory {
-      data: vec![0; size as usize],
-      model: DRAMModel::new(ds_cfg, ds_path),
+      data,
+      model: Arc::new(Mutex::new(DRAMModel::new(ds_cfg, ds_path))),
     }
   }
 }
@@ -443,7 +456,7 @@ pub const SRAM_SIZE: u32 = 0xa000_0000;
 /// - 0x0400_0000 - 0x0600_0000 : framebuffer
 /// - 0x1000_0000 - 0x1000_1000 : simctrl
 /// - 0x2000_0000 - 0xc000_0000 : sram
-pub fn create_emu_addrspace_with_initmem(initmem: Vec<u8>) -> (AddressSpace, ExitFlagRef) {
+pub fn create_emu_addrspace_with_mem<M: MemoryModel + Send + Sync + 'static>(mem: RegularMemory<M>) -> (AddressSpace, ExitFlagRef) {
   const SIMCTRL_BASE: u32 = 0x1000_0000;
   const SIMCTRL_SIZE: u32 = 0x0000_1000; // one page
   const DISPLAY_BASE: u32 = 0x0400_0000;
@@ -452,7 +465,7 @@ pub fn create_emu_addrspace_with_initmem(initmem: Vec<u8>) -> (AddressSpace, Exi
   let exit_flag = ExitFlagRef::new();
 
   let devices = vec![
-    RegularMemory::with_content(initmem).with_addr(SRAM_BASE, SRAM_SIZE),
+    mem.with_addr(SRAM_BASE, SRAM_SIZE),
     FrameBuffer::new().with_addr(DISPLAY_BASE, DISPLAY_SIZE),
     WrappedRegDevice::new(SimCtrl::new(exit_flag.clone())).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
   ];
