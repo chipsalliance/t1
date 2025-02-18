@@ -327,9 +327,6 @@ impl<M: MemoryModel + Send + Sync + 'static> RegularMemory<M> {
     let mem_data = &mut self.data[addr.as_range()];
     memcpy_mask(mem_data, data, mask);
   }
-
-  fn directly_write(&mut self, addr: AddrInfo) {
-  }
 }
 
 impl<M: MemoryModel + Send + Sync + 'static> Device for RegularMemory<M> {
