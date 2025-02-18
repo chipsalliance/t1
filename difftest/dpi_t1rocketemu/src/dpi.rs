@@ -2,12 +2,12 @@
 #![allow(unused_variables)]
 
 use dpi_common::DpiTarget;
-use std::ffi::c_longlong;
+use std::ffi::{c_char, c_longlong, c_ulonglong};
 use svdpi::dpi::param::InStr;
 use svdpi::SvScope;
 use tracing::{debug, error};
 
-use crate::drive::{Driver, OnlineArgs};
+use crate::drive::{Driver, IncompleteWrite, OnlineArgs};
 
 pub type SvBitVecVal = u32;
 
@@ -63,6 +63,29 @@ unsafe fn load_from_payload(
   (masks, data)
 }
 
+struct StrbIterator {
+  strb: *const u8,
+  total_width: usize,
+  current: usize,
+}
+
+impl Iterator for StrbIterator {
+  type Item = bool;
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.total_width == self.current {
+      return None;
+    }
+    assert!(self.total_width > self.current);
+
+    let slot = self.current / 8;
+    let bit = self.current % 8;
+    // TODO: is small endian correct??
+    let extracted = unsafe { self.strb.offset(slot as isize).read() >> bit != 0 };
+    self.current += 1;
+    Some(extracted)
+  }
+}
+
 //----------------------
 // dpi functions
 //----------------------
@@ -70,47 +93,102 @@ unsafe fn load_from_payload(
 #[no_mangle]
 unsafe extern "C" fn axi_tick() {
   TARGET.with(|driver| {
+    driver.tick();
   })
 }
 
 #[no_mangle]
 unsafe extern "C" fn axi_push_AW(
-  reset: i64,
-  channel_id: c_longlong,
-  data_width: i64,
-  awid: c_longlong,
-  awaddr: c_longlong,
-  awsize: c_longlong,
-  awlen: c_longlong,
+  reset: u8,
+  channel_id: c_ulonglong,
+  data_width: u64,
+  awid: c_ulonglong,
+  awaddr: c_ulonglong,
+  awsize: c_ulonglong,
+  awlen: c_ulonglong,
+  awuser: c_ulonglong,
 
-  ready: *mut i8,
+  ready: *mut u8,
 ) {
+  if reset != 0 { return; }
+  TARGET.with(move |target| {
+    let w = IncompleteWrite::new(awaddr, awlen, awsize, awuser, data_width);
+    let idfifo = target.incomplete_writes.entry((channel_id, awid)).or_default();
+    idfifo.push_back(w);
+  });
+  unsafe { ready.write(true as u8) };
 }
 
 #[no_mangle]
 unsafe extern "C" fn axi_push_AR(
-  reset: i64,
-  channel_id: c_longlong,
-  data_width: i64,
-  arid: c_longlong,
-  araddr: c_longlong,
-  arsize: c_longlong,
-  arlen: c_longlong,
+  reset: u8,
+  channel_id: c_ulonglong,
+  data_width: u64,
+  arid: c_ulonglong,
+  araddr: c_ulonglong,
+  arsize: c_ulonglong,
+  arlen: c_ulonglong,
 
-  ready: *mut i8,
+  ready: *mut u8,
 ) {
+  if reset != 0 { return; }
 }
 
 #[no_mangle]
 unsafe extern "C" fn axi_push_W(
-  reset: i64,
-  channel_id: c_longlong,
-  data_width: i64,
-  wid: c_longlong,
+  reset: u8,
+  channel_id: c_ulonglong,
+  data_width: u64,
+  wid: c_ulonglong,
   wdata: *const SvBitVecVal,
   wstrb: *const SvBitVecVal,
+  wlast: c_char,
 
-  ready: *mut i8,
+  ready: *mut u8,
+) {
+  if reset != 0 { return; }
+  TARGET.with(|target| {
+    // TODO: maybe we don't assert this, to allow same-cycle AW/W (when W is sequenced before AW)
+    let channel = target.incomplete_writes.get_mut(&(channel_id, wid)).expect("No inflight write with this ID found!");
+    let w = channel.iter_mut().find(|w| !w.ready()).expect("No inflight write with this ID found!");
+    let wslice = unsafe { std::slice::from_raw_parts(wdata as *const u8, data_width as usize / 8) };
+    let wstrbit = StrbIterator {
+      strb: wstrb as *const u8,
+      total_width: data_width as usize / 8,
+      current: 0,
+    };
+    w.push(wslice, wstrbit, wlast != 0, data_width);
+    unsafe { ready.write(true as u8) };
+  })
+}
+
+#[no_mangle]
+unsafe extern "C" fn axi_pop_B(
+  reset: u8,
+  channel_id: c_ulonglong,
+  data_width: u64,
+  
+  // Packed result buffer:
+  // ret[0]: valid
+  // ret[1..]: BID
+  ret: *mut u8,
+) {
+  TARGET.with(|target| {
+  })
+}
+
+#[no_mangle]
+unsafe extern "C" fn axi_pop_R(
+  reset: u8,
+  channel_id: c_ulonglong,
+  data_width: u64,
+  
+  // Packed result buffer:
+  // ret[0]: valid
+  // ret[1]: rlast
+  // ret[2..6]: ruser (in 64 bit)
+  // ret[6..]: rdata
+  ret: *mut u8,
 ) {
 }
 
