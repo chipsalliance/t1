@@ -1,5 +1,5 @@
 use std::{
-  any::Any, cell::{Cell, RefCell}, collections::{BinaryHeap, VecDeque}, ffi::CString, os::unix::ffi::OsStrExt, path::Path, rc::Rc
+  any::Any, cell::{Cell, RefCell}, collections::{BinaryHeap, HashSet, VecDeque}, ffi::CString, os::unix::ffi::OsStrExt, path::Path, rc::Rc
 };
 
 use framebuffer::FrameBuffer;
@@ -240,22 +240,25 @@ impl MemoryModel for DRAMModel {
   fn push(&mut self, req: MemIdent) {
     // TODO: done if in cache
     self.inflights.borrow_mut().push(InflightMem::from_ident(req, self.req_size()));
-    // TODO: look for conflighting ID
   }
 
   fn pop(&mut self) -> Option<MemIdent> {
     // Take exact one of the inflight request that are fully done
+    // Also ensure no preceding requests that has conflicting ID
+    let mut blocked = HashSet::with_capacity(32);
     let mut inf = self.inflights.borrow_mut();
     for i in 0..inf.len() {
-      if inf[i].done() {
+      if inf[i].done() && blocked.contains(&inf[i].id) {
         return Some(inf.remove(i).into())
+      } else {
+        blocked.insert(inf[i].id);
       }
     }
     None
   }
 
   fn tick(&mut self) {
-    // TODO: tick by faster clock
+    // FIXME: tick by faster clock
 
     let mut inflights = self.inflights.borrow_mut();
     for inflight in inflights.iter_mut() {
