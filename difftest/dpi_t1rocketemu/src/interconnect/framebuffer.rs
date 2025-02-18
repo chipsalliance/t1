@@ -2,7 +2,7 @@ use std::{env, fs::File, io::BufWriter, path::PathBuf};
 
 use crate::interconnect::memcpy_mask;
 
-use super::{AddrInfo, Device};
+use super::{AddrInfo, Device, MemResp, MemRespPayload};
 
 /// Device memory layout:
 /// `0x000_0000 - 0x1FF_0000` addressable frame buffer memory
@@ -15,9 +15,16 @@ use super::{AddrInfo, Device};
 ///     0x06-08 16bits: DISPLAY_HEIGHT (currently hardcoded)
 /// TODO: configurable dimension and color depth support?
 /// TODO: behavior emulation closer to actual LCD display?
+
+enum Holding {
+  WriteDone(u64),
+  Reading(u64, AddrInfo),
+}
+
 pub struct FrameBuffer {
   vram: Vec<u8>,
   frame_counter: u32,
+  holding: Option<Holding>,
 }
 
 const DISPLAY_WIDTH: u32 = 960;
@@ -30,6 +37,7 @@ impl FrameBuffer {
     FrameBuffer {
       vram: vec![0u8; (DISPLAY_WIDTH * DISPLAY_HEIGHT * 3) as usize],
       frame_counter: 0,
+      holding: None,
     }
   }
 
@@ -75,16 +83,12 @@ impl FrameBuffer {
       _ => panic!(),
     }
   }
-}
 
-impl Device for FrameBuffer {
-  fn mem_read(&mut self, addr: AddrInfo, data: &mut [u8]) {
+  fn mem_read(&mut self, addr: AddrInfo) -> MemRespPayload<'_> {
     if addr.offset < REG_START {
       // vram access
       assert!(addr.offset + addr.len <= REG_START);
-
-      data.copy_from_slice(&self.vram[addr.as_range()]);
-      return;
+      return MemRespPayload::ReadBuffered(&self.vram[addr.as_range()]);
     }
 
     // register access
@@ -93,31 +97,11 @@ impl Device for FrameBuffer {
     assert_eq!(4, addr.len);
     assert!(addr.offset % 4 == 0);
 
-    let data: &mut [u8; 4] = data.try_into().unwrap();
     let value = self.reg_read(addr.offset - REG_START);
-    *data = u32::to_le_bytes(value);
+    MemRespPayload::ReadRegister(u32::to_le_bytes(value))
   }
 
-  fn mem_write(&mut self, addr: AddrInfo, data: &[u8]) {
-    if addr.offset < REG_START {
-      // vram access
-      assert!(addr.offset + addr.len <= REG_START);
-
-      self.vram[addr.as_range()].copy_from_slice(data);
-      return;
-    }
-
-    // register access
-
-    // allows only 4-byte aligned access
-    assert_eq!(4, addr.len);
-    assert!(addr.offset % 4 == 0);
-
-    let value = u32::from_le_bytes(data.try_into().unwrap());
-    self.reg_write(addr.offset - REG_START, value);
-  }
-
-  fn mem_write_masked(&mut self, addr: AddrInfo, data: &[u8], mask: &[bool]) {
+  fn mem_write(&mut self, addr: AddrInfo, data: &[u8], mask: Option<&[bool]>) {
     if addr.offset < REG_START {
       // vram access
       assert!(addr.offset + addr.len <= REG_START);
@@ -131,10 +115,44 @@ impl Device for FrameBuffer {
     // allows only 4-byte aligned access
     assert_eq!(4, addr.len);
     assert!(addr.offset % 4 == 0);
-    assert!(mask.iter().all(|&x| x));
+    if let Some(m) = mask {
+      assert!(m.iter().all(|&x| x));
+    }
 
     let data: &[u8; 4] = data.try_into().unwrap();
     let value = u32::from_le_bytes(*data);
     self.reg_write(addr.offset - REG_START, value);
   }
+}
+
+impl Device for FrameBuffer {
+  fn req(&mut self, req: super::MemReq<'_>) -> bool {
+    if self.holding.is_some() {
+      return false;
+    }
+
+    let holding = match req.payload {
+      super::MemReqPayload::Read => Holding::Reading(req.id, req.addr),
+      super::MemReqPayload::Write(data, mask) => {
+        self.mem_write(req.addr, data, mask);
+        Holding::WriteDone(req.id)
+      }
+    };
+
+    true
+  }
+
+  fn resp(&mut self) -> Option<super::MemResp<'_>> {
+    let held = self.holding.take()?;
+    let (id, payload) = match held {
+      Holding::WriteDone(id) => (id, MemRespPayload::WriteAck),
+      Holding::Reading(id, addr) => (id, self.mem_read(addr)),
+    };
+    Some(MemResp {
+      id,
+      payload,
+    })
+  }
+
+  fn tick(&mut self) {}
 }
