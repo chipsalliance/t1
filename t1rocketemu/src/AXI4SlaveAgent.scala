@@ -77,18 +77,20 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       new WriteManager(view)
     }
     case channel : AXI4ROIrrevocableVerilog => {
-      // TODO: wait for https://github.com/chipsalliance/chisel-interface/pull/194
-      /*
-      val view = channel.viewAs[AXI4ROIrrevocable]
+      val view = channel.viewAs[AXI4ROIrrevocable](
+        implicitly,
+        AXI4ROIrrevocableVerilog.viewChisel,
+        implicitly,
+      )
       new ReadManager(view)
-      */
     }
     case channel : AXI4WOIrrevocableVerilog => {
-      // TODO: wait for https://github.com/chipsalliance/chisel-interface/pull/194
-      /*
-      val view = channel.viewAs[AXI4WOIrrevocable]
+      val view = channel.viewAs[AXI4WOIrrevocable](
+        implicitly,
+        AXI4WOIrrevocableVerilog.viewChisel,
+        implicitly,
+      )
       new WriteManager(view)
-      */
     }
   }
 
@@ -98,64 +100,73 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
     io.reset.asTypeOf(UInt(8.W)),
   )
 
+  /// Widen a wire to make all DPI calls' types uniform
+  def widen(wire: UInt, target: Int): UInt = {
+    require(wire.isWidthKnown)
+    require(wire.getWidth <= target)
+    wire.asTypeOf(UInt(target.W))
+  }
+
   private class WriteManager(channel: HasAW with HasW with HasB) {
-    val awqueue = Module(new Queue(new AW(parameter.axiParameter), 2))
-    val wqueue = Module(new Queue(new W(parameter.axiParameter), 2))
-    val bqueue = Module(new Queue(new B(parameter.axiParameter), 2))
+    withClockAndReset(io.clock, io.reset) {
+      val awqueue = Module(new Queue(new AW(parameter.axiParameter), 2))
+      val wqueue = Module(new Queue(new W(parameter.axiParameter), 2))
+      val bqueue = Module(new Queue(new B(parameter.axiParameter), 2))
 
-    awqueue.io.enq <> channel.aw
-    wqueue.io.enq <> channel.w
-    bqueue.io.deq <> channel.b
+      awqueue.io.enq <> channel.aw
+      wqueue.io.enq <> channel.w
+      bqueue.io.deq <> channel.b
 
-    // Invoke DPI at negedge
-    // NOTICE: this block CANNOT directly write any outside reg. Only write wires (e.g. here, only writes queue IO)
-    withClock((~io.clock.asBool).asClock) {
-      // AW
-      val awRet = RawClockedNonVoidFunctionCall(s"axi_push_AW", Bool())(
-        io.clock,
-        awqueue.io.deq.valid,
-        io.reset.asTypeOf(UInt(8.W)),
-        io.channelId,
-        parameter.axiParameter.dataWidth.U(64.W),
-        awqueue.io.deq.bits.id.asTypeOf(UInt(64.W)),
-        awqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
-        awqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
-        awqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
-        awqueue.io.deq.bits.user.asTypeOf(UInt(64.W)),
-      )
-      awqueue.io.deq.ready := awRet
+      // Invoke DPI at negedge
+      // NOTICE: this block CANNOT directly write any outside reg. Only write wires (e.g. here, only writes queue IO)
+      withClock((~io.clock.asBool).asClock) {
+        // AW
+        val awRet = RawClockedNonVoidFunctionCall(s"axi_push_AW", Bool())(
+          io.clock,
+          awqueue.io.deq.valid,
+          io.reset.asTypeOf(UInt(8.W)),
+          io.channelId,
+          parameter.axiParameter.dataWidth.U(64.W),
+          awqueue.io.deq.bits.id.asTypeOf(UInt(64.W)),
+          awqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
+          awqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
+          awqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
+          awqueue.io.deq.bits.user.asTypeOf(UInt(64.W)),
+        )
+        awqueue.io.deq.ready := awRet
 
-      // W
-      val wRet = RawClockedNonVoidFunctionCall(s"axi_push_W", Bool())(
-        io.clock,
-        wqueue.io.deq.valid,
-        io.reset.asTypeOf(UInt(8.W)),
-        io.channelId,
-        parameter.axiParameter.dataWidth.U(64.W),
-        wqueue.io.deq.bits.data,
-        wqueue.io.deq.bits.strb,
-        wqueue.io.deq.bits.last.asTypeOf(UInt(8.W)),
-      )
-      wqueue.io.deq.ready := wRet
+        // W
+        val wRet = RawClockedNonVoidFunctionCall(s"axi_push_W", Bool())(
+          io.clock,
+          wqueue.io.deq.valid,
+          io.reset.asTypeOf(UInt(8.W)),
+          io.channelId,
+          parameter.axiParameter.dataWidth.U(64.W),
+          widen(wqueue.io.deq.bits.data, 1024),
+          widen(wqueue.io.deq.bits.strb, 128),
+          wqueue.io.deq.bits.last.asTypeOf(UInt(8.W)),
+        )
+        wqueue.io.deq.ready := wRet
 
-      class BBUndle extends Bundle {
-        val valid = UInt(8.W)
-        val _padding = UInt(8.W)
-        val id = UInt(16.W)
-        val user  = UInt(32.W)
+        class BBUndle extends Bundle {
+          val valid = UInt(8.W)
+          val _padding = UInt(8.W)
+          val id = UInt(16.W)
+          val user  = UInt(32.W)
+        }
+
+        val bRet = RawClockedNonVoidFunctionCall(s"axi_pop_B", new BBUndle())(
+          io.clock,
+          bqueue.io.enq.ready,
+          io.reset.asTypeOf(UInt(64.W)),
+          io.channelId,
+          parameter.axiParameter.dataWidth.U(64.W),
+        )
+        bqueue.io.enq.valid := bRet.valid
+        bqueue.io.enq.bits.id := bRet.id
+        bqueue.io.enq.bits.resp := 0.U(2.W)
+        bqueue.io.enq.bits.user := bRet.user
       }
-
-      val bRet = RawClockedNonVoidFunctionCall(s"axi_pop_B", new BBUndle())(
-        io.clock,
-        bqueue.io.enq.ready,
-        io.reset.asTypeOf(UInt(64.W)),
-        io.channelId,
-        parameter.axiParameter.dataWidth.U(64.W),
-      )
-      bqueue.io.enq.valid := bRet.valid
-      bqueue.io.enq.bits.id := bRet.id
-      bqueue.io.enq.bits.resp := 0.U(2.W)
-      bqueue.io.enq.bits.user := bRet.user
     }
   }
 
@@ -182,17 +193,18 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         )
         arqueue.io.deq.ready := arRet
 
+        require(parameter.axiParameter.dataWidth <= 1024)
         class RBundle extends Bundle {
           val valid = UInt(8.W)
           val last = UInt(8.W)
           val id = UInt(16.W)
           val user  = UInt(32.W)
-          val data = UInt(parameter.axiParameter.dataWidth.W)
+          val data = UInt(1024.W)
         }
         val rRet = RawClockedNonVoidFunctionCall(s"axi_pop_R", new RBundle())(
           io.clock,
           rqueue.io.enq.ready,
-          io.reset.asTypeOf(UInt(64.W)),
+          io.reset.asTypeOf(UInt(8.W)),
           io.channelId,
           parameter.axiParameter.dataWidth.U(64.W),
         )
