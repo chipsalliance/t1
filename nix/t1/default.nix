@@ -46,7 +46,7 @@ lib.makeScope newScope
     inherit allConfigs;
     recurseForDerivations = true;
 
-    dependencies = t1Scope.callPackage ./dependencies { };
+    submodules = t1Scope.callPackage ../../dependencies/submodules { };
 
     # ---------------------------------------------------------------------------------
     # Compile the T1 mill modules into one big derivation and split them to different derivation
