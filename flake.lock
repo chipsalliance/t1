@@ -2,11 +2,11 @@
   "nodes": {
     "chisel-nix": {
       "locked": {
-        "lastModified": 1739593958,
-        "narHash": "sha256-P8sSvtbC/WquPo1Xk/uLyPnQzFolaYmAQn6CtaYHDJw=",
+        "lastModified": 1739980647,
+        "narHash": "sha256-lnEQ8azmnaBnXNDuWhcNpHf1JDaWAycUxRBMguB7ERs=",
         "owner": "chipsalliance",
         "repo": "chisel-nix",
-        "rev": "b6cde3530bb38ab03643164e3fbd49ae3cc84b6f",
+        "rev": "f62495e913897c10d07abbf75ccb2762caf9ed90",
         "type": "github"
       },
       "original": {

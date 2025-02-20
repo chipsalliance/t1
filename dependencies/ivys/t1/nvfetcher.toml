@@ -1,0 +1,1516 @@
+["algebra_2.13-2.8.0-pom"]
+src.manual = "2.8.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/algebra_2.13/2.8.0/algebra_2.13-2.8.0.pom"
+fetch.force = true
+passthru.pkgname = "algebra_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/algebra_2.13/2.8.0"
+["algebra_2.13-2.8.0-bundle"]
+src.manual = "2.8.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/algebra_2.13/2.8.0/algebra_2.13-2.8.0.jar"
+fetch.force = true
+passthru.pkgname = "algebra_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/algebra_2.13/2.8.0"
+
+
+["apache-30-pom"]
+src.manual = "30"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/apache/30/apache-30.pom"
+fetch.force = true
+passthru.pkgname = "apache"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/apache/30"
+
+
+["apache-31-pom"]
+src.manual = "31"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/apache/31/apache-31.pom"
+fetch.force = true
+passthru.pkgname = "apache"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/apache/31"
+
+
+["apache-33-pom"]
+src.manual = "33"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/apache/33/apache-33.pom"
+fetch.force = true
+passthru.pkgname = "apache"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/apache/33"
+
+
+["cats-kernel_2.13-2.8.0-pom"]
+src.manual = "2.8.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0/cats-kernel_2.13-2.8.0.pom"
+fetch.force = true
+passthru.pkgname = "cats-kernel_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0"
+["cats-kernel_2.13-2.8.0-bundle"]
+src.manual = "2.8.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0/cats-kernel_2.13-2.8.0.jar"
+fetch.force = true
+passthru.pkgname = "cats-kernel_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0"
+
+
+["collections_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/collections_2.13/1.10.7/collections_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "collections_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/collections_2.13/1.10.7"
+["collections_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/collections_2.13/1.10.7/collections_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "collections_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/collections_2.13/1.10.7"
+
+
+["commons-lang3-3.14.0-pom"]
+src.manual = "3.14.0"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.14.0/commons-lang3-3.14.0.pom"
+fetch.force = true
+passthru.pkgname = "commons-lang3"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.14.0"
+["commons-lang3-3.14.0-bundle"]
+src.manual = "3.14.0"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.14.0/commons-lang3-3.14.0.jar"
+fetch.force = true
+passthru.pkgname = "commons-lang3"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.14.0"
+
+
+["commons-parent-64-pom"]
+src.manual = "64"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/commons/commons-parent/64/commons-parent-64.pom"
+fetch.force = true
+passthru.pkgname = "commons-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-parent/64"
+
+
+["commons-parent-69-pom"]
+src.manual = "69"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/commons/commons-parent/69/commons-parent-69.pom"
+fetch.force = true
+passthru.pkgname = "commons-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-parent/69"
+
+
+["commons-text-1.12.0-pom"]
+src.manual = "1.12.0"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/commons/commons-text/1.12.0/commons-text-1.12.0.pom"
+fetch.force = true
+passthru.pkgname = "commons-text"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-text/1.12.0"
+["commons-text-1.12.0-bundle"]
+src.manual = "1.12.0"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/commons/commons-text/1.12.0/commons-text-1.12.0.jar"
+fetch.force = true
+passthru.pkgname = "commons-text"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-text/1.12.0"
+
+
+["compiler-bridge_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/compiler-bridge_2.13/1.10.7/compiler-bridge_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "compiler-bridge_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/compiler-bridge_2.13/1.10.7"
+["compiler-bridge_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/compiler-bridge_2.13/1.10.7/compiler-bridge_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "compiler-bridge_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/compiler-bridge_2.13/1.10.7"
+
+
+["compiler-interface-1.10.3-pom"]
+src.manual = "1.10.3"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.3/compiler-interface-1.10.3.pom"
+fetch.force = true
+passthru.pkgname = "compiler-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.3"
+["compiler-interface-1.10.3-bundle"]
+src.manual = "1.10.3"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.3/compiler-interface-1.10.3.jar"
+fetch.force = true
+passthru.pkgname = "compiler-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.3"
+
+
+["compiler-interface-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.7/compiler-interface-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "compiler-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.7"
+["compiler-interface-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.7/compiler-interface-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "compiler-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.7"
+
+
+["core-macros_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/core-macros_2.13/1.10.7/core-macros_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "core-macros_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/core-macros_2.13/1.10.7"
+["core-macros_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/core-macros_2.13/1.10.7/core-macros_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "core-macros_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/core-macros_2.13/1.10.7"
+
+
+["data-class_2.13-0.2.6-pom"]
+src.manual = "0.2.6"
+fetch.url = "https://repo1.maven.org/maven2/io/github/alexarchambault/data-class_2.13/0.2.6/data-class_2.13-0.2.6.pom"
+fetch.force = true
+passthru.pkgname = "data-class_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/github/alexarchambault/data-class_2.13/0.2.6"
+["data-class_2.13-0.2.6-bundle"]
+src.manual = "0.2.6"
+fetch.url = "https://repo1.maven.org/maven2/io/github/alexarchambault/data-class_2.13/0.2.6/data-class_2.13-0.2.6.jar"
+fetch.force = true
+passthru.pkgname = "data-class_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/github/alexarchambault/data-class_2.13/0.2.6"
+
+
+["disruptor-3.4.2-pom"]
+src.manual = "3.4.2"
+fetch.url = "https://repo1.maven.org/maven2/com/lmax/disruptor/3.4.2/disruptor-3.4.2.pom"
+fetch.force = true
+passthru.pkgname = "disruptor"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lmax/disruptor/3.4.2"
+["disruptor-3.4.2-bundle"]
+src.manual = "3.4.2"
+fetch.url = "https://repo1.maven.org/maven2/com/lmax/disruptor/3.4.2/disruptor-3.4.2.jar"
+fetch.force = true
+passthru.pkgname = "disruptor"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lmax/disruptor/3.4.2"
+
+
+["fansi_2.13-0.5.0-pom"]
+src.manual = "0.5.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/fansi_2.13/0.5.0/fansi_2.13-0.5.0.pom"
+fetch.force = true
+passthru.pkgname = "fansi_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/fansi_2.13/0.5.0"
+["fansi_2.13-0.5.0-bundle"]
+src.manual = "0.5.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/fansi_2.13/0.5.0/fansi_2.13-0.5.0.jar"
+fetch.force = true
+passthru.pkgname = "fansi_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/fansi_2.13/0.5.0"
+
+
+["file-tree-views-2.1.12-pom"]
+src.manual = "2.1.12"
+fetch.url = "https://repo1.maven.org/maven2/com/swoval/file-tree-views/2.1.12/file-tree-views-2.1.12.pom"
+fetch.force = true
+passthru.pkgname = "file-tree-views"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/swoval/file-tree-views/2.1.12"
+["file-tree-views-2.1.12-bundle"]
+src.manual = "2.1.12"
+fetch.url = "https://repo1.maven.org/maven2/com/swoval/file-tree-views/2.1.12/file-tree-views-2.1.12.jar"
+fetch.force = true
+passthru.pkgname = "file-tree-views"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/swoval/file-tree-views/2.1.12"
+
+
+["firtool-resolver_2.13-2.0.1-pom"]
+src.manual = "2.0.1"
+fetch.url = "https://repo1.maven.org/maven2/org/chipsalliance/firtool-resolver_2.13/2.0.1/firtool-resolver_2.13-2.0.1.pom"
+fetch.force = true
+passthru.pkgname = "firtool-resolver_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/chipsalliance/firtool-resolver_2.13/2.0.1"
+["firtool-resolver_2.13-2.0.1-bundle"]
+src.manual = "2.0.1"
+fetch.url = "https://repo1.maven.org/maven2/org/chipsalliance/firtool-resolver_2.13/2.0.1/firtool-resolver_2.13-2.0.1.jar"
+fetch.force = true
+passthru.pkgname = "firtool-resolver_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/chipsalliance/firtool-resolver_2.13/2.0.1"
+
+
+["fusesource-pom-1.12-pom"]
+src.manual = "1.12"
+fetch.url = "https://repo1.maven.org/maven2/org/fusesource/fusesource-pom/1.12/fusesource-pom-1.12.pom"
+fetch.force = true
+passthru.pkgname = "fusesource-pom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/fusesource/fusesource-pom/1.12"
+
+
+["geny_2.13-1.1.0-pom"]
+src.manual = "1.1.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/geny_2.13/1.1.0/geny_2.13-1.1.0.pom"
+fetch.force = true
+passthru.pkgname = "geny_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/geny_2.13/1.1.0"
+["geny_2.13-1.1.0-bundle"]
+src.manual = "1.1.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/geny_2.13/1.1.0/geny_2.13-1.1.0.jar"
+fetch.force = true
+passthru.pkgname = "geny_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/geny_2.13/1.1.0"
+
+
+["geny_2.13-1.1.1-pom"]
+src.manual = "1.1.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/geny_2.13/1.1.1/geny_2.13-1.1.1.pom"
+fetch.force = true
+passthru.pkgname = "geny_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/geny_2.13/1.1.1"
+["geny_2.13-1.1.1-bundle"]
+src.manual = "1.1.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/geny_2.13/1.1.1/geny_2.13-1.1.1.jar"
+fetch.force = true
+passthru.pkgname = "geny_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/geny_2.13/1.1.1"
+
+
+["groovy-bom-4.0.22-pom"]
+src.manual = "4.0.22"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/groovy/groovy-bom/4.0.22/groovy-bom-4.0.22.pom"
+fetch.force = true
+passthru.pkgname = "groovy-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/groovy/groovy-bom/4.0.22"
+
+
+["io_2.13-1.10.3-pom"]
+src.manual = "1.10.3"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/io_2.13/1.10.3/io_2.13-1.10.3.pom"
+fetch.force = true
+passthru.pkgname = "io_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/io_2.13/1.10.3"
+["io_2.13-1.10.3-bundle"]
+src.manual = "1.10.3"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/io_2.13/1.10.3/io_2.13-1.10.3.jar"
+fetch.force = true
+passthru.pkgname = "io_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/io_2.13/1.10.3"
+
+
+["jackson-bom-2.17.2-pom"]
+src.manual = "2.17.2"
+fetch.url = "https://repo1.maven.org/maven2/com/fasterxml/jackson/jackson-bom/2.17.2/jackson-bom-2.17.2.pom"
+fetch.force = true
+passthru.pkgname = "jackson-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/fasterxml/jackson/jackson-bom/2.17.2"
+
+
+["jackson-parent-2.17-pom"]
+src.manual = "2.17"
+fetch.url = "https://repo1.maven.org/maven2/com/fasterxml/jackson/jackson-parent/2.17/jackson-parent-2.17.pom"
+fetch.force = true
+passthru.pkgname = "jackson-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/fasterxml/jackson/jackson-parent/2.17"
+
+
+["jakarta.jakartaee-bom-9.1.0-pom"]
+src.manual = "9.1.0"
+fetch.url = "https://repo1.maven.org/maven2/jakarta/platform/jakarta.jakartaee-bom/9.1.0/jakarta.jakartaee-bom-9.1.0.pom"
+fetch.force = true
+passthru.pkgname = "jakarta.jakartaee-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/jakarta/platform/jakarta.jakartaee-bom/9.1.0"
+
+
+["jakartaee-api-parent-9.1.0-pom"]
+src.manual = "9.1.0"
+fetch.url = "https://repo1.maven.org/maven2/jakarta/platform/jakartaee-api-parent/9.1.0/jakartaee-api-parent-9.1.0.pom"
+fetch.force = true
+passthru.pkgname = "jakartaee-api-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/jakarta/platform/jakartaee-api-parent/9.1.0"
+
+
+["jansi-2.4.1-pom"]
+src.manual = "2.4.1"
+fetch.url = "https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/2.4.1/jansi-2.4.1.pom"
+fetch.force = true
+passthru.pkgname = "jansi"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/fusesource/jansi/jansi/2.4.1"
+["jansi-2.4.1-bundle"]
+src.manual = "2.4.1"
+fetch.url = "https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/2.4.1/jansi-2.4.1.jar"
+fetch.force = true
+passthru.pkgname = "jansi"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/fusesource/jansi/jansi/2.4.1"
+
+
+["java-diff-utils-4.12-pom"]
+src.manual = "4.12"
+fetch.url = "https://repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils/4.12/java-diff-utils-4.12.pom"
+fetch.force = true
+passthru.pkgname = "java-diff-utils"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils/4.12"
+["java-diff-utils-4.12-bundle"]
+src.manual = "4.12"
+fetch.url = "https://repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils/4.12/java-diff-utils-4.12.jar"
+fetch.force = true
+passthru.pkgname = "java-diff-utils"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils/4.12"
+
+
+["java-diff-utils-parent-4.12-pom"]
+src.manual = "4.12"
+fetch.url = "https://repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils-parent/4.12/java-diff-utils-parent-4.12.pom"
+fetch.force = true
+passthru.pkgname = "java-diff-utils-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils-parent/4.12"
+
+
+["java-parent-pom-1.1.28-pom"]
+src.manual = "1.1.28"
+fetch.url = "https://repo1.maven.org/maven2/net/openhft/java-parent-pom/1.1.28/java-parent-pom-1.1.28.pom"
+fetch.force = true
+passthru.pkgname = "java-parent-pom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/net/openhft/java-parent-pom/1.1.28"
+
+
+["jline-2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18-pom"]
+src.manual = "2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/jline/jline/2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18/jline-2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18.pom"
+fetch.force = true
+passthru.pkgname = "jline"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/jline/jline/2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18"
+["jline-2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18-bundle"]
+src.manual = "2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/jline/jline/2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18/jline-2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18.jar"
+fetch.force = true
+passthru.pkgname = "jline"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/jline/jline/2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18"
+
+
+["jline-3.26.3-pom"]
+src.manual = "3.26.3"
+fetch.url = "https://repo1.maven.org/maven2/org/jline/jline/3.26.3/jline-3.26.3.pom"
+fetch.force = true
+passthru.pkgname = "jline"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jline/jline/3.26.3"
+["jline-3.26.3-bundle"]
+src.manual = "3.26.3"
+fetch.url = "https://repo1.maven.org/maven2/org/jline/jline/3.26.3/jline-3.26.3.jar"
+fetch.force = true
+passthru.pkgname = "jline"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jline/jline/3.26.3"
+
+
+["jline-native-3.27.1-pom"]
+src.manual = "3.27.1"
+fetch.url = "https://repo1.maven.org/maven2/org/jline/jline-native/3.27.1/jline-native-3.27.1.pom"
+fetch.force = true
+passthru.pkgname = "jline-native"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jline/jline-native/3.27.1"
+["jline-native-3.27.1-bundle"]
+src.manual = "3.27.1"
+fetch.url = "https://repo1.maven.org/maven2/org/jline/jline-native/3.27.1/jline-native-3.27.1.jar"
+fetch.force = true
+passthru.pkgname = "jline-native"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jline/jline-native/3.27.1"
+
+
+["jline-parent-3.27.1-pom"]
+src.manual = "3.27.1"
+fetch.url = "https://repo1.maven.org/maven2/org/jline/jline-parent/3.27.1/jline-parent-3.27.1.pom"
+fetch.force = true
+passthru.pkgname = "jline-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jline/jline-parent/3.27.1"
+
+
+["jline-terminal-3.27.1-pom"]
+src.manual = "3.27.1"
+fetch.url = "https://repo1.maven.org/maven2/org/jline/jline-terminal/3.27.1/jline-terminal-3.27.1.pom"
+fetch.force = true
+passthru.pkgname = "jline-terminal"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jline/jline-terminal/3.27.1"
+["jline-terminal-3.27.1-bundle"]
+src.manual = "3.27.1"
+fetch.url = "https://repo1.maven.org/maven2/org/jline/jline-terminal/3.27.1/jline-terminal-3.27.1.jar"
+fetch.force = true
+passthru.pkgname = "jline-terminal"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jline/jline-terminal/3.27.1"
+
+
+["jline-terminal-jni-3.27.1-pom"]
+src.manual = "3.27.1"
+fetch.url = "https://repo1.maven.org/maven2/org/jline/jline-terminal-jni/3.27.1/jline-terminal-jni-3.27.1.pom"
+fetch.force = true
+passthru.pkgname = "jline-terminal-jni"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jline/jline-terminal-jni/3.27.1"
+["jline-terminal-jni-3.27.1-bundle"]
+src.manual = "3.27.1"
+fetch.url = "https://repo1.maven.org/maven2/org/jline/jline-terminal-jni/3.27.1/jline-terminal-jni-3.27.1.jar"
+fetch.force = true
+passthru.pkgname = "jline-terminal-jni"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jline/jline-terminal-jni/3.27.1"
+
+
+["jna-5.14.0-pom"]
+src.manual = "5.14.0"
+fetch.url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.pom"
+fetch.force = true
+passthru.pkgname = "jna"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0"
+["jna-5.14.0-bundle"]
+src.manual = "5.14.0"
+fetch.url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.jar"
+fetch.force = true
+passthru.pkgname = "jna"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0"
+
+
+["json4s-ast_2.13-4.0.7-pom"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-ast_2.13/4.0.7/json4s-ast_2.13-4.0.7.pom"
+fetch.force = true
+passthru.pkgname = "json4s-ast_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-ast_2.13/4.0.7"
+["json4s-ast_2.13-4.0.7-bundle"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-ast_2.13/4.0.7/json4s-ast_2.13-4.0.7.jar"
+fetch.force = true
+passthru.pkgname = "json4s-ast_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-ast_2.13/4.0.7"
+
+
+["json4s-core_2.13-4.0.7-pom"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-core_2.13/4.0.7/json4s-core_2.13-4.0.7.pom"
+fetch.force = true
+passthru.pkgname = "json4s-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-core_2.13/4.0.7"
+["json4s-core_2.13-4.0.7-bundle"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-core_2.13/4.0.7/json4s-core_2.13-4.0.7.jar"
+fetch.force = true
+passthru.pkgname = "json4s-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-core_2.13/4.0.7"
+
+
+["json4s-native-core_2.13-4.0.7-pom"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-native-core_2.13/4.0.7/json4s-native-core_2.13-4.0.7.pom"
+fetch.force = true
+passthru.pkgname = "json4s-native-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-native-core_2.13/4.0.7"
+["json4s-native-core_2.13-4.0.7-bundle"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-native-core_2.13/4.0.7/json4s-native-core_2.13-4.0.7.jar"
+fetch.force = true
+passthru.pkgname = "json4s-native-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-native-core_2.13/4.0.7"
+
+
+["json4s-native_2.13-4.0.7-pom"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-native_2.13/4.0.7/json4s-native_2.13-4.0.7.pom"
+fetch.force = true
+passthru.pkgname = "json4s-native_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-native_2.13/4.0.7"
+["json4s-native_2.13-4.0.7-bundle"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-native_2.13/4.0.7/json4s-native_2.13-4.0.7.jar"
+fetch.force = true
+passthru.pkgname = "json4s-native_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-native_2.13/4.0.7"
+
+
+["json4s-scalap_2.13-4.0.7-pom"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-scalap_2.13/4.0.7/json4s-scalap_2.13-4.0.7.pom"
+fetch.force = true
+passthru.pkgname = "json4s-scalap_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-scalap_2.13/4.0.7"
+["json4s-scalap_2.13-4.0.7-bundle"]
+src.manual = "4.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/json4s/json4s-scalap_2.13/4.0.7/json4s-scalap_2.13-4.0.7.jar"
+fetch.force = true
+passthru.pkgname = "json4s-scalap_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-scalap_2.13/4.0.7"
+
+
+["junit-bom-5.10.0-pom"]
+src.manual = "5.10.0"
+fetch.url = "https://repo1.maven.org/maven2/org/junit/junit-bom/5.10.0/junit-bom-5.10.0.pom"
+fetch.force = true
+passthru.pkgname = "junit-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/junit/junit-bom/5.10.0"
+
+
+["junit-bom-5.10.2-pom"]
+src.manual = "5.10.2"
+fetch.url = "https://repo1.maven.org/maven2/org/junit/junit-bom/5.10.2/junit-bom-5.10.2.pom"
+fetch.force = true
+passthru.pkgname = "junit-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/junit/junit-bom/5.10.2"
+
+
+["junit-bom-5.10.3-pom"]
+src.manual = "5.10.3"
+fetch.url = "https://repo1.maven.org/maven2/org/junit/junit-bom/5.10.3/junit-bom-5.10.3.pom"
+fetch.force = true
+passthru.pkgname = "junit-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/junit/junit-bom/5.10.3"
+
+
+["launcher-interface-1.4.4-pom"]
+src.manual = "1.4.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/launcher-interface/1.4.4/launcher-interface-1.4.4.pom"
+fetch.force = true
+passthru.pkgname = "launcher-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/launcher-interface/1.4.4"
+["launcher-interface-1.4.4-bundle"]
+src.manual = "1.4.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/launcher-interface/1.4.4/launcher-interface-1.4.4.jar"
+fetch.force = true
+passthru.pkgname = "launcher-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/launcher-interface/1.4.4"
+
+
+["log4j-2.24.3-pom"]
+src.manual = "2.24.3"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j/2.24.3/log4j-2.24.3.pom"
+fetch.force = true
+passthru.pkgname = "log4j"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/logging/log4j/log4j/2.24.3"
+
+
+["log4j-api-2.24.3-pom"]
+src.manual = "2.24.3"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-api/2.24.3/log4j-api-2.24.3.pom"
+fetch.force = true
+passthru.pkgname = "log4j-api"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/logging/log4j/log4j-api/2.24.3"
+["log4j-api-2.24.3-bundle"]
+src.manual = "2.24.3"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-api/2.24.3/log4j-api-2.24.3.jar"
+fetch.force = true
+passthru.pkgname = "log4j-api"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/logging/log4j/log4j-api/2.24.3"
+
+
+["log4j-bom-2.24.3-pom"]
+src.manual = "2.24.3"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-bom/2.24.3/log4j-bom-2.24.3.pom"
+fetch.force = true
+passthru.pkgname = "log4j-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/logging/log4j/log4j-bom/2.24.3"
+
+
+["log4j-core-2.24.3-pom"]
+src.manual = "2.24.3"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.24.3/log4j-core-2.24.3.pom"
+fetch.force = true
+passthru.pkgname = "log4j-core"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.24.3"
+["log4j-core-2.24.3-bundle"]
+src.manual = "2.24.3"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.24.3/log4j-core-2.24.3.jar"
+fetch.force = true
+passthru.pkgname = "log4j-core"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.24.3"
+
+
+["logging-parent-11.3.0-pom"]
+src.manual = "11.3.0"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/logging/logging-parent/11.3.0/logging-parent-11.3.0.pom"
+fetch.force = true
+passthru.pkgname = "logging-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/logging/logging-parent/11.3.0"
+
+
+["mainargs_2.13-0.5.0-pom"]
+src.manual = "0.5.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.5.0/mainargs_2.13-0.5.0.pom"
+fetch.force = true
+passthru.pkgname = "mainargs_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.5.0"
+["mainargs_2.13-0.5.0-bundle"]
+src.manual = "0.5.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.5.0/mainargs_2.13-0.5.0.jar"
+fetch.force = true
+passthru.pkgname = "mainargs_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.5.0"
+
+
+["mainargs_2.13-0.7.0-pom"]
+src.manual = "0.7.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.0/mainargs_2.13-0.7.0.pom"
+fetch.force = true
+passthru.pkgname = "mainargs_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.0"
+["mainargs_2.13-0.7.0-bundle"]
+src.manual = "0.7.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.0/mainargs_2.13-0.7.0.jar"
+fetch.force = true
+passthru.pkgname = "mainargs_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.0"
+
+
+["mainargs_2.13-0.7.6-pom"]
+src.manual = "0.7.6"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.6/mainargs_2.13-0.7.6.pom"
+fetch.force = true
+passthru.pkgname = "mainargs_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.6"
+["mainargs_2.13-0.7.6-bundle"]
+src.manual = "0.7.6"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.6/mainargs_2.13-0.7.6.jar"
+fetch.force = true
+passthru.pkgname = "mainargs_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.6"
+
+
+["mill-main-api_2.13-0.12.8-1-46e216-pom"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.8-1-46e216/mill-main-api_2.13-0.12.8-1-46e216.pom"
+fetch.force = true
+passthru.pkgname = "mill-main-api_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.8-1-46e216"
+["mill-main-api_2.13-0.12.8-1-46e216-bundle"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.8-1-46e216/mill-main-api_2.13-0.12.8-1-46e216.jar"
+fetch.force = true
+passthru.pkgname = "mill-main-api_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.8-1-46e216"
+
+
+["mill-main-client-0.12.8-1-46e216-pom"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.8-1-46e216/mill-main-client-0.12.8-1-46e216.pom"
+fetch.force = true
+passthru.pkgname = "mill-main-client"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.8-1-46e216"
+["mill-main-client-0.12.8-1-46e216-bundle"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.8-1-46e216/mill-main-client-0.12.8-1-46e216.jar"
+fetch.force = true
+passthru.pkgname = "mill-main-client"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.8-1-46e216"
+
+
+["mill-moduledefs_2.13-0.11.2-pom"]
+src.manual = "0.11.2"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-moduledefs_2.13/0.11.2/mill-moduledefs_2.13-0.11.2.pom"
+fetch.force = true
+passthru.pkgname = "mill-moduledefs_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-moduledefs_2.13/0.11.2"
+["mill-moduledefs_2.13-0.11.2-bundle"]
+src.manual = "0.11.2"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-moduledefs_2.13/0.11.2/mill-moduledefs_2.13-0.11.2.jar"
+fetch.force = true
+passthru.pkgname = "mill-moduledefs_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-moduledefs_2.13/0.11.2"
+
+
+["mill-runner-linenumbers_2.13-0.12.8-1-46e216-pom"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.8-1-46e216/mill-runner-linenumbers_2.13-0.12.8-1-46e216.pom"
+fetch.force = true
+passthru.pkgname = "mill-runner-linenumbers_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.8-1-46e216"
+["mill-runner-linenumbers_2.13-0.12.8-1-46e216-bundle"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.8-1-46e216/mill-runner-linenumbers_2.13-0.12.8-1-46e216.jar"
+fetch.force = true
+passthru.pkgname = "mill-runner-linenumbers_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.8-1-46e216"
+
+
+["mill-scala-compiler-bridge_2.13.15-0.0.1-pom"]
+src.manual = "0.0.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-scala-compiler-bridge_2.13.15/0.0.1/mill-scala-compiler-bridge_2.13.15-0.0.1.pom"
+fetch.force = true
+passthru.pkgname = "mill-scala-compiler-bridge_2.13.15"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-scala-compiler-bridge_2.13.15/0.0.1"
+["mill-scala-compiler-bridge_2.13.15-0.0.1-bundle"]
+src.manual = "0.0.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-scala-compiler-bridge_2.13.15/0.0.1/mill-scala-compiler-bridge_2.13.15-0.0.1.jar"
+fetch.force = true
+passthru.pkgname = "mill-scala-compiler-bridge_2.13.15"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-scala-compiler-bridge_2.13.15/0.0.1"
+
+
+["mill-scalalib-api_2.13-0.12.8-1-46e216-pom"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.8-1-46e216/mill-scalalib-api_2.13-0.12.8-1-46e216.pom"
+fetch.force = true
+passthru.pkgname = "mill-scalalib-api_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.8-1-46e216"
+["mill-scalalib-api_2.13-0.12.8-1-46e216-bundle"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.8-1-46e216/mill-scalalib-api_2.13-0.12.8-1-46e216.jar"
+fetch.force = true
+passthru.pkgname = "mill-scalalib-api_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.8-1-46e216"
+
+
+["mill-scalalib-worker_2.13-0.12.8-1-46e216-pom"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.8-1-46e216/mill-scalalib-worker_2.13-0.12.8-1-46e216.pom"
+fetch.force = true
+passthru.pkgname = "mill-scalalib-worker_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.8-1-46e216"
+["mill-scalalib-worker_2.13-0.12.8-1-46e216-bundle"]
+src.manual = "0.12.8-1-46e216"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.8-1-46e216/mill-scalalib-worker_2.13-0.12.8-1-46e216.jar"
+fetch.force = true
+passthru.pkgname = "mill-scalalib-worker_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.8-1-46e216"
+
+
+["mockito-bom-4.11.0-pom"]
+src.manual = "4.11.0"
+fetch.url = "https://repo1.maven.org/maven2/org/mockito/mockito-bom/4.11.0/mockito-bom-4.11.0.pom"
+fetch.force = true
+passthru.pkgname = "mockito-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/mockito/mockito-bom/4.11.0"
+
+
+["os-lib_2.13-0.10.0-pom"]
+src.manual = "0.10.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/os-lib_2.13/0.10.0/os-lib_2.13-0.10.0.pom"
+fetch.force = true
+passthru.pkgname = "os-lib_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/os-lib_2.13/0.10.0"
+["os-lib_2.13-0.10.0-bundle"]
+src.manual = "0.10.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/os-lib_2.13/0.10.0/os-lib_2.13-0.10.0.jar"
+fetch.force = true
+passthru.pkgname = "os-lib_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/os-lib_2.13/0.10.0"
+
+
+["os-lib_2.13-0.11.4-M6-pom"]
+src.manual = "0.11.4-M6"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/os-lib_2.13/0.11.4-M6/os-lib_2.13-0.11.4-M6.pom"
+fetch.force = true
+passthru.pkgname = "os-lib_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/os-lib_2.13/0.11.4-M6"
+["os-lib_2.13-0.11.4-M6-bundle"]
+src.manual = "0.11.4-M6"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/os-lib_2.13/0.11.4-M6/os-lib_2.13-0.11.4-M6.jar"
+fetch.force = true
+passthru.pkgname = "os-lib_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/os-lib_2.13/0.11.4-M6"
+
+
+["oss-parent-58-pom"]
+src.manual = "58"
+fetch.url = "https://repo1.maven.org/maven2/com/fasterxml/oss-parent/58/oss-parent-58.pom"
+fetch.force = true
+passthru.pkgname = "oss-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/fasterxml/oss-parent/58"
+
+
+["oss-parent-9-pom"]
+src.manual = "9"
+fetch.url = "https://repo1.maven.org/maven2/org/sonatype/oss/oss-parent/9/oss-parent-9.pom"
+fetch.force = true
+passthru.pkgname = "oss-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/sonatype/oss/oss-parent/9"
+
+
+["paranamer-2.8-pom"]
+src.manual = "2.8"
+fetch.url = "https://repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer/2.8/paranamer-2.8.pom"
+fetch.force = true
+passthru.pkgname = "paranamer"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer/2.8"
+["paranamer-2.8-bundle"]
+src.manual = "2.8"
+fetch.url = "https://repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer/2.8/paranamer-2.8.jar"
+fetch.force = true
+passthru.pkgname = "paranamer"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer/2.8"
+
+
+["paranamer-parent-2.8-pom"]
+src.manual = "2.8"
+fetch.url = "https://repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer-parent/2.8/paranamer-parent-2.8.pom"
+fetch.force = true
+passthru.pkgname = "paranamer-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer-parent/2.8"
+
+
+["pprint_2.13-0.9.0-pom"]
+src.manual = "0.9.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/pprint_2.13/0.9.0/pprint_2.13-0.9.0.pom"
+fetch.force = true
+passthru.pkgname = "pprint_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/pprint_2.13/0.9.0"
+["pprint_2.13-0.9.0-bundle"]
+src.manual = "0.9.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/pprint_2.13/0.9.0/pprint_2.13-0.9.0.jar"
+fetch.force = true
+passthru.pkgname = "pprint_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/pprint_2.13/0.9.0"
+
+
+["project-1.0.7-pom"]
+src.manual = "1.0.7"
+fetch.url = "https://repo1.maven.org/maven2/org/eclipse/ee4j/project/1.0.7/project-1.0.7.pom"
+fetch.force = true
+passthru.pkgname = "project"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/eclipse/ee4j/project/1.0.7"
+
+
+["root-parent-pom-1.2.12-pom"]
+src.manual = "1.2.12"
+fetch.url = "https://repo1.maven.org/maven2/net/openhft/root-parent-pom/1.2.12/root-parent-pom-1.2.12.pom"
+fetch.force = true
+passthru.pkgname = "root-parent-pom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/net/openhft/root-parent-pom/1.2.12"
+
+
+["sbinary_2.13-0.5.1-pom"]
+src.manual = "0.5.1"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/sbinary_2.13/0.5.1/sbinary_2.13-0.5.1.pom"
+fetch.force = true
+passthru.pkgname = "sbinary_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/sbinary_2.13/0.5.1"
+["sbinary_2.13-0.5.1-bundle"]
+src.manual = "0.5.1"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/sbinary_2.13/0.5.1/sbinary_2.13-0.5.1.jar"
+fetch.force = true
+passthru.pkgname = "sbinary_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/sbinary_2.13/0.5.1"
+
+
+["scala-collection-compat_2.13-2.11.0-pom"]
+src.manual = "2.11.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.11.0/scala-collection-compat_2.13-2.11.0.pom"
+fetch.force = true
+passthru.pkgname = "scala-collection-compat_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.11.0"
+["scala-collection-compat_2.13-2.11.0-bundle"]
+src.manual = "2.11.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.11.0/scala-collection-compat_2.13-2.11.0.jar"
+fetch.force = true
+passthru.pkgname = "scala-collection-compat_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.11.0"
+
+
+["scala-collection-compat_2.13-2.12.0-pom"]
+src.manual = "2.12.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.12.0/scala-collection-compat_2.13-2.12.0.pom"
+fetch.force = true
+passthru.pkgname = "scala-collection-compat_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.12.0"
+["scala-collection-compat_2.13-2.12.0-bundle"]
+src.manual = "2.12.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.12.0/scala-collection-compat_2.13-2.12.0.jar"
+fetch.force = true
+passthru.pkgname = "scala-collection-compat_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.12.0"
+
+
+["scala-collection-compat_2.13-2.8.1-pom"]
+src.manual = "2.8.1"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.8.1/scala-collection-compat_2.13-2.8.1.pom"
+fetch.force = true
+passthru.pkgname = "scala-collection-compat_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.8.1"
+["scala-collection-compat_2.13-2.8.1-bundle"]
+src.manual = "2.8.1"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.8.1/scala-collection-compat_2.13-2.8.1.jar"
+fetch.force = true
+passthru.pkgname = "scala-collection-compat_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.8.1"
+
+
+["scala-compiler-2.13.15-pom"]
+src.manual = "2.13.15"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.13.15/scala-compiler-2.13.15.pom"
+fetch.force = true
+passthru.pkgname = "scala-compiler"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.13.15"
+["scala-compiler-2.13.15-bundle"]
+src.manual = "2.13.15"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.13.15/scala-compiler-2.13.15.jar"
+fetch.force = true
+passthru.pkgname = "scala-compiler"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.13.15"
+
+
+["scala-library-2.13.15-pom"]
+src.manual = "2.13.15"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.15/scala-library-2.13.15.pom"
+fetch.force = true
+passthru.pkgname = "scala-library"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.15"
+["scala-library-2.13.15-bundle"]
+src.manual = "2.13.15"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.15/scala-library-2.13.15.jar"
+fetch.force = true
+passthru.pkgname = "scala-library"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.15"
+
+
+["scala-parallel-collections_2.13-0.2.0-pom"]
+src.manual = "0.2.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parallel-collections_2.13/0.2.0/scala-parallel-collections_2.13-0.2.0.pom"
+fetch.force = true
+passthru.pkgname = "scala-parallel-collections_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-parallel-collections_2.13/0.2.0"
+["scala-parallel-collections_2.13-0.2.0-bundle"]
+src.manual = "0.2.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parallel-collections_2.13/0.2.0/scala-parallel-collections_2.13-0.2.0.jar"
+fetch.force = true
+passthru.pkgname = "scala-parallel-collections_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-parallel-collections_2.13/0.2.0"
+
+
+["scala-parser-combinators_2.13-1.1.2-pom"]
+src.manual = "1.1.2"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.13/1.1.2/scala-parser-combinators_2.13-1.1.2.pom"
+fetch.force = true
+passthru.pkgname = "scala-parser-combinators_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.13/1.1.2"
+["scala-parser-combinators_2.13-1.1.2-bundle"]
+src.manual = "1.1.2"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.13/1.1.2/scala-parser-combinators_2.13-1.1.2.jar"
+fetch.force = true
+passthru.pkgname = "scala-parser-combinators_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.13/1.1.2"
+
+
+["scala-reflect-2.13.15-pom"]
+src.manual = "2.13.15"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.15/scala-reflect-2.13.15.pom"
+fetch.force = true
+passthru.pkgname = "scala-reflect"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.15"
+["scala-reflect-2.13.15-bundle"]
+src.manual = "2.13.15"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.15/scala-reflect-2.13.15.jar"
+fetch.force = true
+passthru.pkgname = "scala-reflect"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.15"
+
+
+["scala-xml_2.13-2.2.0-pom"]
+src.manual = "2.2.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.13/2.2.0/scala-xml_2.13-2.2.0.pom"
+fetch.force = true
+passthru.pkgname = "scala-xml_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.13/2.2.0"
+["scala-xml_2.13-2.2.0-bundle"]
+src.manual = "2.2.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.13/2.2.0/scala-xml_2.13-2.2.0.jar"
+fetch.force = true
+passthru.pkgname = "scala-xml_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.13/2.2.0"
+
+
+["scala-xml_2.13-2.3.0-pom"]
+src.manual = "2.3.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.13/2.3.0/scala-xml_2.13-2.3.0.pom"
+fetch.force = true
+passthru.pkgname = "scala-xml_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.13/2.3.0"
+["scala-xml_2.13-2.3.0-bundle"]
+src.manual = "2.3.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.13/2.3.0/scala-xml_2.13-2.3.0.jar"
+fetch.force = true
+passthru.pkgname = "scala-xml_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.13/2.3.0"
+
+
+["scalac-mill-moduledefs-plugin_2.13.15-0.11.2-pom"]
+src.manual = "0.11.2"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/scalac-mill-moduledefs-plugin_2.13.15/0.11.2/scalac-mill-moduledefs-plugin_2.13.15-0.11.2.pom"
+fetch.force = true
+passthru.pkgname = "scalac-mill-moduledefs-plugin_2.13.15"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/scalac-mill-moduledefs-plugin_2.13.15/0.11.2"
+["scalac-mill-moduledefs-plugin_2.13.15-0.11.2-bundle"]
+src.manual = "0.11.2"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/scalac-mill-moduledefs-plugin_2.13.15/0.11.2/scalac-mill-moduledefs-plugin_2.13.15-0.11.2.jar"
+fetch.force = true
+passthru.pkgname = "scalac-mill-moduledefs-plugin_2.13.15"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/scalac-mill-moduledefs-plugin_2.13.15/0.11.2"
+
+
+["scalap-2.13.15-pom"]
+src.manual = "2.13.15"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/scalap/2.13.15/scalap-2.13.15.pom"
+fetch.force = true
+passthru.pkgname = "scalap"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/scalap/2.13.15"
+["scalap-2.13.15-bundle"]
+src.manual = "2.13.15"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/scalap/2.13.15/scalap-2.13.15.jar"
+fetch.force = true
+passthru.pkgname = "scalap"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/scalap/2.13.15"
+
+
+["scopt_2.13-4.1.0-pom"]
+src.manual = "4.1.0"
+fetch.url = "https://repo1.maven.org/maven2/com/github/scopt/scopt_2.13/4.1.0/scopt_2.13-4.1.0.pom"
+fetch.force = true
+passthru.pkgname = "scopt_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/github/scopt/scopt_2.13/4.1.0"
+["scopt_2.13-4.1.0-bundle"]
+src.manual = "4.1.0"
+fetch.url = "https://repo1.maven.org/maven2/com/github/scopt/scopt_2.13/4.1.0/scopt_2.13-4.1.0.jar"
+fetch.force = true
+passthru.pkgname = "scopt_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/github/scopt/scopt_2.13/4.1.0"
+
+
+["shaded-jawn-parser_2.13-1.3.2-pom"]
+src.manual = "1.3.2"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/shaded-jawn-parser_2.13/1.3.2/shaded-jawn-parser_2.13-1.3.2.pom"
+fetch.force = true
+passthru.pkgname = "shaded-jawn-parser_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/shaded-jawn-parser_2.13/1.3.2"
+["shaded-jawn-parser_2.13-1.3.2-bundle"]
+src.manual = "1.3.2"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/shaded-jawn-parser_2.13/1.3.2/shaded-jawn-parser_2.13-1.3.2.jar"
+fetch.force = true
+passthru.pkgname = "shaded-jawn-parser_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/shaded-jawn-parser_2.13/1.3.2"
+
+
+["shaded-scalajson_2.13-1.0.0-M4-pom"]
+src.manual = "1.0.0-M4"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/shaded-scalajson_2.13/1.0.0-M4/shaded-scalajson_2.13-1.0.0-M4.pom"
+fetch.force = true
+passthru.pkgname = "shaded-scalajson_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/shaded-scalajson_2.13/1.0.0-M4"
+["shaded-scalajson_2.13-1.0.0-M4-bundle"]
+src.manual = "1.0.0-M4"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/shaded-scalajson_2.13/1.0.0-M4/shaded-scalajson_2.13-1.0.0-M4.jar"
+fetch.force = true
+passthru.pkgname = "shaded-scalajson_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/shaded-scalajson_2.13/1.0.0-M4"
+
+
+["sjson-new-core_2.13-0.10.1-pom"]
+src.manual = "0.10.1"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/sjson-new-core_2.13/0.10.1/sjson-new-core_2.13-0.10.1.pom"
+fetch.force = true
+passthru.pkgname = "sjson-new-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/sjson-new-core_2.13/0.10.1"
+["sjson-new-core_2.13-0.10.1-bundle"]
+src.manual = "0.10.1"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/sjson-new-core_2.13/0.10.1/sjson-new-core_2.13-0.10.1.jar"
+fetch.force = true
+passthru.pkgname = "sjson-new-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/sjson-new-core_2.13/0.10.1"
+
+
+["sjson-new-core_2.13-0.9.0-pom"]
+src.manual = "0.9.0"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/sjson-new-core_2.13/0.9.0/sjson-new-core_2.13-0.9.0.pom"
+fetch.force = true
+passthru.pkgname = "sjson-new-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/sjson-new-core_2.13/0.9.0"
+["sjson-new-core_2.13-0.9.0-bundle"]
+src.manual = "0.9.0"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/sjson-new-core_2.13/0.9.0/sjson-new-core_2.13-0.9.0.jar"
+fetch.force = true
+passthru.pkgname = "sjson-new-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/sjson-new-core_2.13/0.9.0"
+
+
+["sjson-new-scalajson_2.13-0.10.1-pom"]
+src.manual = "0.10.1"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/sjson-new-scalajson_2.13/0.10.1/sjson-new-scalajson_2.13-0.10.1.pom"
+fetch.force = true
+passthru.pkgname = "sjson-new-scalajson_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/sjson-new-scalajson_2.13/0.10.1"
+["sjson-new-scalajson_2.13-0.10.1-bundle"]
+src.manual = "0.10.1"
+fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/sjson-new-scalajson_2.13/0.10.1/sjson-new-scalajson_2.13-0.10.1.jar"
+fetch.force = true
+passthru.pkgname = "sjson-new-scalajson_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/sjson-new-scalajson_2.13/0.10.1"
+
+
+["sourcecode_2.13-0.3.0-pom"]
+src.manual = "0.3.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/sourcecode_2.13/0.3.0/sourcecode_2.13-0.3.0.pom"
+fetch.force = true
+passthru.pkgname = "sourcecode_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/sourcecode_2.13/0.3.0"
+["sourcecode_2.13-0.3.0-bundle"]
+src.manual = "0.3.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/sourcecode_2.13/0.3.0/sourcecode_2.13-0.3.0.jar"
+fetch.force = true
+passthru.pkgname = "sourcecode_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/sourcecode_2.13/0.3.0"
+
+
+["sourcecode_2.13-0.4.0-pom"]
+src.manual = "0.4.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/sourcecode_2.13/0.4.0/sourcecode_2.13-0.4.0.pom"
+fetch.force = true
+passthru.pkgname = "sourcecode_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/sourcecode_2.13/0.4.0"
+["sourcecode_2.13-0.4.0-bundle"]
+src.manual = "0.4.0"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/sourcecode_2.13/0.4.0/sourcecode_2.13-0.4.0.jar"
+fetch.force = true
+passthru.pkgname = "sourcecode_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/sourcecode_2.13/0.4.0"
+
+
+["spire-macros_2.13-0.18.0-pom"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/spire-macros_2.13/0.18.0/spire-macros_2.13-0.18.0.pom"
+fetch.force = true
+passthru.pkgname = "spire-macros_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/spire-macros_2.13/0.18.0"
+["spire-macros_2.13-0.18.0-bundle"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/spire-macros_2.13/0.18.0/spire-macros_2.13-0.18.0.jar"
+fetch.force = true
+passthru.pkgname = "spire-macros_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/spire-macros_2.13/0.18.0"
+
+
+["spire-platform_2.13-0.18.0-pom"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/spire-platform_2.13/0.18.0/spire-platform_2.13-0.18.0.pom"
+fetch.force = true
+passthru.pkgname = "spire-platform_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/spire-platform_2.13/0.18.0"
+["spire-platform_2.13-0.18.0-bundle"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/spire-platform_2.13/0.18.0/spire-platform_2.13-0.18.0.jar"
+fetch.force = true
+passthru.pkgname = "spire-platform_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/spire-platform_2.13/0.18.0"
+
+
+["spire-util_2.13-0.18.0-pom"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/spire-util_2.13/0.18.0/spire-util_2.13-0.18.0.pom"
+fetch.force = true
+passthru.pkgname = "spire-util_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/spire-util_2.13/0.18.0"
+["spire-util_2.13-0.18.0-bundle"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/spire-util_2.13/0.18.0/spire-util_2.13-0.18.0.jar"
+fetch.force = true
+passthru.pkgname = "spire-util_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/spire-util_2.13/0.18.0"
+
+
+["spire_2.13-0.18.0-pom"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/spire_2.13/0.18.0/spire_2.13-0.18.0.pom"
+fetch.force = true
+passthru.pkgname = "spire_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/spire_2.13/0.18.0"
+["spire_2.13-0.18.0-bundle"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/spire_2.13/0.18.0/spire_2.13-0.18.0.jar"
+fetch.force = true
+passthru.pkgname = "spire_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/spire_2.13/0.18.0"
+
+
+["spring-framework-bom-5.3.39-pom"]
+src.manual = "5.3.39"
+fetch.url = "https://repo1.maven.org/maven2/org/springframework/spring-framework-bom/5.3.39/spring-framework-bom-5.3.39.pom"
+fetch.force = true
+passthru.pkgname = "spring-framework-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/springframework/spring-framework-bom/5.3.39"
+
+
+["test-interface-1.0-pom"]
+src.manual = "1.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/test-interface/1.0/test-interface-1.0.pom"
+fetch.force = true
+passthru.pkgname = "test-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/test-interface/1.0"
+["test-interface-1.0-bundle"]
+src.manual = "1.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/test-interface/1.0/test-interface-1.0.jar"
+fetch.force = true
+passthru.pkgname = "test-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/test-interface/1.0"
+
+
+["ujson_2.13-3.3.1-pom"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/ujson_2.13/3.3.1/ujson_2.13-3.3.1.pom"
+fetch.force = true
+passthru.pkgname = "ujson_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/ujson_2.13/3.3.1"
+["ujson_2.13-3.3.1-bundle"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/ujson_2.13/3.3.1/ujson_2.13-3.3.1.jar"
+fetch.force = true
+passthru.pkgname = "ujson_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/ujson_2.13/3.3.1"
+
+
+["upack_2.13-3.3.1-pom"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/upack_2.13/3.3.1/upack_2.13-3.3.1.pom"
+fetch.force = true
+passthru.pkgname = "upack_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/upack_2.13/3.3.1"
+["upack_2.13-3.3.1-bundle"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/upack_2.13/3.3.1/upack_2.13-3.3.1.jar"
+fetch.force = true
+passthru.pkgname = "upack_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/upack_2.13/3.3.1"
+
+
+["upickle-core_2.13-3.3.1-pom"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/upickle-core_2.13/3.3.1/upickle-core_2.13-3.3.1.pom"
+fetch.force = true
+passthru.pkgname = "upickle-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/upickle-core_2.13/3.3.1"
+["upickle-core_2.13-3.3.1-bundle"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/upickle-core_2.13/3.3.1/upickle-core_2.13-3.3.1.jar"
+fetch.force = true
+passthru.pkgname = "upickle-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/upickle-core_2.13/3.3.1"
+
+
+["upickle-implicits_2.13-3.3.1-pom"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/upickle-implicits_2.13/3.3.1/upickle-implicits_2.13-3.3.1.pom"
+fetch.force = true
+passthru.pkgname = "upickle-implicits_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/upickle-implicits_2.13/3.3.1"
+["upickle-implicits_2.13-3.3.1-bundle"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/upickle-implicits_2.13/3.3.1/upickle-implicits_2.13-3.3.1.jar"
+fetch.force = true
+passthru.pkgname = "upickle-implicits_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/upickle-implicits_2.13/3.3.1"
+
+
+["upickle_2.13-3.3.1-pom"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/upickle_2.13/3.3.1/upickle_2.13-3.3.1.pom"
+fetch.force = true
+passthru.pkgname = "upickle_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/upickle_2.13/3.3.1"
+["upickle_2.13-3.3.1-bundle"]
+src.manual = "3.3.1"
+fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/upickle_2.13/3.3.1/upickle_2.13-3.3.1.jar"
+fetch.force = true
+passthru.pkgname = "upickle_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/upickle_2.13/3.3.1"
+
+
+["util-control_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-control_2.13/1.10.7/util-control_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "util-control_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-control_2.13/1.10.7"
+["util-control_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-control_2.13/1.10.7/util-control_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "util-control_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-control_2.13/1.10.7"
+
+
+["util-interface-1.10.3-pom"]
+src.manual = "1.10.3"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.3/util-interface-1.10.3.pom"
+fetch.force = true
+passthru.pkgname = "util-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.3"
+["util-interface-1.10.3-bundle"]
+src.manual = "1.10.3"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.3/util-interface-1.10.3.jar"
+fetch.force = true
+passthru.pkgname = "util-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.3"
+
+
+["util-interface-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.7/util-interface-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "util-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.7"
+["util-interface-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.7/util-interface-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "util-interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.7"
+
+
+["util-logging_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-logging_2.13/1.10.7/util-logging_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "util-logging_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-logging_2.13/1.10.7"
+["util-logging_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-logging_2.13/1.10.7/util-logging_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "util-logging_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-logging_2.13/1.10.7"
+
+
+["util-position_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-position_2.13/1.10.7/util-position_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "util-position_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-position_2.13/1.10.7"
+["util-position_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-position_2.13/1.10.7/util-position_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "util-position_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-position_2.13/1.10.7"
+
+
+["util-relation_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-relation_2.13/1.10.7/util-relation_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "util-relation_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-relation_2.13/1.10.7"
+["util-relation_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-relation_2.13/1.10.7/util-relation_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "util-relation_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-relation_2.13/1.10.7"
+
+
+["zero-allocation-hashing-0.16-pom"]
+src.manual = "0.16"
+fetch.url = "https://repo1.maven.org/maven2/net/openhft/zero-allocation-hashing/0.16/zero-allocation-hashing-0.16.pom"
+fetch.force = true
+passthru.pkgname = "zero-allocation-hashing"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/net/openhft/zero-allocation-hashing/0.16"
+["zero-allocation-hashing-0.16-bundle"]
+src.manual = "0.16"
+fetch.url = "https://repo1.maven.org/maven2/net/openhft/zero-allocation-hashing/0.16/zero-allocation-hashing-0.16.jar"
+fetch.force = true
+passthru.pkgname = "zero-allocation-hashing"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/net/openhft/zero-allocation-hashing/0.16"
+
+
+["zinc-apiinfo_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-apiinfo_2.13/1.10.7/zinc-apiinfo_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "zinc-apiinfo_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-apiinfo_2.13/1.10.7"
+["zinc-apiinfo_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-apiinfo_2.13/1.10.7/zinc-apiinfo_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "zinc-apiinfo_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-apiinfo_2.13/1.10.7"
+
+
+["zinc-classfile_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-classfile_2.13/1.10.7/zinc-classfile_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "zinc-classfile_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-classfile_2.13/1.10.7"
+["zinc-classfile_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-classfile_2.13/1.10.7/zinc-classfile_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "zinc-classfile_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-classfile_2.13/1.10.7"
+
+
+["zinc-classpath_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-classpath_2.13/1.10.7/zinc-classpath_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "zinc-classpath_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-classpath_2.13/1.10.7"
+["zinc-classpath_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-classpath_2.13/1.10.7/zinc-classpath_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "zinc-classpath_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-classpath_2.13/1.10.7"
+
+
+["zinc-compile-core_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-compile-core_2.13/1.10.7/zinc-compile-core_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "zinc-compile-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-compile-core_2.13/1.10.7"
+["zinc-compile-core_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-compile-core_2.13/1.10.7/zinc-compile-core_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "zinc-compile-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-compile-core_2.13/1.10.7"
+
+
+["zinc-core_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-core_2.13/1.10.7/zinc-core_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "zinc-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-core_2.13/1.10.7"
+["zinc-core_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-core_2.13/1.10.7/zinc-core_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "zinc-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-core_2.13/1.10.7"
+
+
+["zinc-persist-core-assembly-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-persist-core-assembly/1.10.7/zinc-persist-core-assembly-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "zinc-persist-core-assembly"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-persist-core-assembly/1.10.7"
+["zinc-persist-core-assembly-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-persist-core-assembly/1.10.7/zinc-persist-core-assembly-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "zinc-persist-core-assembly"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-persist-core-assembly/1.10.7"
+
+
+["zinc-persist_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-persist_2.13/1.10.7/zinc-persist_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "zinc-persist_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-persist_2.13/1.10.7"
+["zinc-persist_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc-persist_2.13/1.10.7/zinc-persist_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "zinc-persist_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc-persist_2.13/1.10.7"
+
+
+["zinc_2.13-1.10.7-pom"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc_2.13/1.10.7/zinc_2.13-1.10.7.pom"
+fetch.force = true
+passthru.pkgname = "zinc_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc_2.13/1.10.7"
+["zinc_2.13-1.10.7-bundle"]
+src.manual = "1.10.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/zinc_2.13/1.10.7/zinc_2.13-1.10.7.jar"
+fetch.force = true
+passthru.pkgname = "zinc_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/zinc_2.13/1.10.7"

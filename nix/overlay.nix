@@ -20,6 +20,16 @@ rec {
       builtins.throw "${key} not set or '--impure' not applied"
     else val;
 
+  mill-ivy-fetcher =
+    let
+      src = final.fetchFromGitHub {
+        owner = "Avimitin";
+        repo = "mill-ivy-fetcher";
+        rev = "61b8bcad40b533726b116d30ced42695850926f6";
+        hash = "sha256-8WjhLYUL5a8Giwl0IgcySdzfKxFmFrbKbIRsxnMWb4E=";
+      };
+    in
+    final.callPackage "${src}/package.nix" { inherit (final) callPackage; };
 
   # Override "nixpkgs" circt with "nixpkgs-for-circt".
   # To update the "nixpkgs-for-circt" input, run `nix flake lock --update-input nixpkgs-for-circt`.
@@ -48,12 +58,12 @@ rec {
   snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
 
   mill = let jre = final.jdk21; in
-    (prev.mill.override { inherit jre; }).overrideAttrs {
+    (prev.mill.override { inherit jre; }).overrideAttrs rec {
       # Fixed the buggy sorting issue in target resolve
-      version = "unstable-0.12.5-173-15dded";
+      version = "0.12.8-1-46e216";
       src = final.fetchurl {
-        url = "https://github.com/com-lihaoyi/mill/releases/download/0.12.5/0.12.5-173-15dded-assembly";
-        hash = "sha256-xP59tONOu0CG5Gce4ru+st5KUH7Wcd10d/pQdELjSJM=";
+        url = "https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/${version}/mill-dist-${version}-assembly.jar";
+        hash = "sha256-XNtl9NBQPlkYu/odrR/Z7hk3F01B6Rk4+r/8tMWzMm8=";
       };
       passthru = { inherit jre; };
     };
