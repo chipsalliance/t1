@@ -66,12 +66,15 @@ unsafe extern "C" fn axi_push_AW(
 
   ready: *mut u8,
 ) {
+  unsafe { ready.write(false as u8) };
   if reset != 0 { return; }
+  // dbg!((awid, awaddr, awlen, awsize, awuser, data_width));
   TARGET.with(move |target| {
     target.update_commit_cycle();
     let w = IncompleteWrite::new(awid, awaddr, awlen, awsize, awuser, data_width);
     let fifo = target.incomplete_writes.entry(channel_id).or_default();
     fifo.push_back(w);
+    // println!("[{}] Write initialized: channel_id={} id={} at=0x{:x}", crate::get_t(), channel_id, awid, awaddr);
   });
   unsafe { ready.write(true as u8) };
 }
@@ -89,12 +92,15 @@ unsafe extern "C" fn axi_push_AR(
 
   ready: *mut u8,
 ) {
+  unsafe { ready.write(false as u8) };
   if reset != 0 { return; }
+  // dbg!((arid, araddr, arlen, arsize, aruser, data_width));
   TARGET.with(move |target| {
     target.update_commit_cycle();
     let r = IncompleteRead::new(araddr, arlen, arsize, aruser, data_width);
     let fifo = target.incomplete_reads.entry((channel_id, arid)).or_default();
     fifo.push_back(r);
+    // println!("[{}] Read initialized: channel_id={} id={} at=0x{:x}", crate::get_t(), channel_id, arid, araddr);
   });
   unsafe { ready.write(true as u8) };
 }
@@ -110,6 +116,7 @@ unsafe extern "C" fn axi_push_W(
 
   ready: *mut u8,
 ) {
+  unsafe { ready.write(false as u8) };
   if reset != 0 { return; }
   TARGET.with(|target| {
     target.update_commit_cycle();
@@ -123,6 +130,9 @@ unsafe extern "C" fn axi_push_W(
       current: 0,
     };
     w.push(wslice, wstrbit, wlast != 0, data_width);
+    if wlast != 0 {
+      // println!("[{}] Write fully sequenced: channel_id={} id={}", crate::get_t(), channel_id, w.id());
+    }
     unsafe { ready.write(true as u8) };
   })
 }
@@ -139,14 +149,25 @@ unsafe extern "C" fn axi_pop_B(
   // ret[4..8]: BUSER
   ret: *mut u8,
 ) {
+  unsafe { ret.write(false as u8) };
   if reset != 0 { return; }
   TARGET.with(|target| {
     unsafe { ret.write(0); }
-    target.update_commit_cycle();
-    let fifo = target.incomplete_writes.get_mut(&channel_id).expect("No inflight write with this ID found!");
+    let fifo = match target.incomplete_writes.get_mut(&channel_id) {
+      Some(f) => f,
+      None => return,
+    };
     // TODO: find later writes with different IDs
+    /*
+    if let Some(w) = fifo.front() {
+        if !w.done() {
+            println!("[{}] Write queue head not completed: channel_id={} id={}", crate::get_t(), channel_id, w.id());
+        }
+    }
+    */
     if fifo.front().as_ref().is_none_or(|w| !w.done()) { return; }
     let w = fifo.pop_front().unwrap();
+    // println!("[{}] Write finalized: channel_id={} id={}", crate::get_t(), channel_id, w.id());
     unsafe {
       ret.write(1);
       (ret.offset(2) as *mut u16).write(w.id() as u16);
@@ -170,14 +191,15 @@ unsafe extern "C" fn axi_pop_R(
   // ret[8..]: rdata
   ret: *mut u8,
 ) {
+  unsafe { ret.write(false as u8) };
   if reset != 0 { return; }
   TARGET.with(|target| {
     unsafe { ret.write(0); }
-    target.update_commit_cycle();
     for ((cid, id), fifo) in target.incomplete_reads.iter_mut() {
       if *cid != channel_id { continue }; // TODO: we actually wants two levels of HashMap
       if let Some(r) = fifo.front_mut() {
         if r.has_data() {
+          // dbg!(&r);
           let rdata_buf = std::slice::from_raw_parts_mut(ret.offset(8), data_width as usize / 8);
           let last = r.pop(rdata_buf, data_width);
           unsafe {
@@ -188,6 +210,7 @@ unsafe extern "C" fn axi_pop_R(
           }
 
           if last {
+            // println!("[{}] Read finalized: channel_id={} id={}", crate::get_t(), channel_id, *id);
             fifo.pop_front();
           }
           return;
