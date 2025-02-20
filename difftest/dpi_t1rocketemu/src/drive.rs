@@ -1,6 +1,8 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
-use crate::interconnect::{create_emu_addrspace_with_mem, AddressSpace, MemReqPayload, RegularMemory, SRAM_BASE, SRAM_SIZE};
+use crate::interconnect::{
+  create_emu_addrspace_with_mem, AddressSpace, MemReqPayload, RegularMemory, SRAM_BASE, SRAM_SIZE,
+};
 use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
 
@@ -10,11 +12,11 @@ use elf::{
   endian::LittleEndian,
   ElfStream,
 };
-use tempfile::TempDir;
 use std::collections::{HashMap, VecDeque};
 use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
 use std::{fs, path::Path};
+use tempfile::TempDir;
 use tracing::{debug, error, trace};
 
 #[derive(Debug)]
@@ -63,7 +65,14 @@ pub struct IncompleteWrite {
 }
 
 impl IncompleteWrite {
-  pub fn new(awid: u64, awaddr: u64, awlen: u64, awsize: u64, awuser: u64, data_width: u64) -> IncompleteWrite {
+  pub fn new(
+    awid: u64,
+    awaddr: u64,
+    awlen: u64,
+    awsize: u64,
+    awuser: u64,
+    data_width: u64,
+  ) -> IncompleteWrite {
     let bus_size = data_width / 8;
     let size = 1 << awsize;
 
@@ -89,17 +98,30 @@ impl IncompleteWrite {
 
       sent: false,
       done: false,
-      data, strb,
+      data,
+      strb,
       bus_size: bus_size as usize,
     }
   }
 
-  pub fn push(&mut self, wdata: &[u8], wstrb: impl Iterator<Item = bool>, wlast: bool, data_width: u64) {
+  pub fn push(
+    &mut self,
+    wdata: &[u8],
+    wstrb: impl Iterator<Item = bool>,
+    wlast: bool,
+    data_width: u64,
+  ) {
     let next_addr = self.addr as usize + self.data.len();
     let wire_offset = next_addr % self.bus_size;
-    assert!(wire_offset as usize + self.width <= self.bus_size, "Sanity check for data width: IncompleteWrite::push");
-    assert!(data_width as usize == self.bus_size * 8, "Mismatch data width across DPI calls");
-    self.data.extend(&wdata[wire_offset as usize .. (wire_offset as usize + self.width)]);
+    assert!(
+      wire_offset as usize + self.width <= self.bus_size,
+      "Sanity check for data width: IncompleteWrite::push"
+    );
+    assert!(
+      data_width as usize == self.bus_size * 8,
+      "Mismatch data width across DPI calls"
+    );
+    self.data.extend(&wdata[wire_offset as usize..(wire_offset as usize + self.width)]);
     self.strb.extend(wstrb.skip(wire_offset).take(self.width));
     assert_eq!(self.data.len(), self.strb.len());
     assert!(self.data.len() <= (self.bursts * self.width) as usize);
@@ -172,16 +194,30 @@ impl IncompleteRead {
 
   /// Returns rlast
   pub fn pop(&mut self, rdata_buf: &mut [u8], data_width: u64) -> bool {
-    assert!(self.data.is_some(), "IncompleteRead::pop called on request that hasn't gotten its data!");
+    assert!(
+      self.data.is_some(),
+      "IncompleteRead::pop called on request that hasn't gotten its data!"
+    );
     let data = self.data.as_ref().unwrap();
-    assert!(self.returned + self.width <= data.len(), "Sanity check for data width: IncompleteRead::pop");
-    assert!(data_width as usize == self.bus_size * 8, "Mismatch data width across DPI calls: {} vs {}", data_width, self.bus_size * 8);
+    assert!(
+      self.returned + self.width <= data.len(),
+      "Sanity check for data width: IncompleteRead::pop"
+    );
+    assert!(
+      data_width as usize == self.bus_size * 8,
+      "Mismatch data width across DPI calls: {} vs {}",
+      data_width,
+      self.bus_size * 8
+    );
 
     // Find in-line offset
     let result_offset = (self.addr as usize + self.returned) % self.bus_size;
-    assert!(self.bus_size + result_offset <= rdata_buf.len(), "Sanity check for data width: Incomplete::pop");
+    assert!(
+      self.bus_size + result_offset <= rdata_buf.len(),
+      "Sanity check for data width: Incomplete::pop"
+    );
     let dst = &mut rdata_buf[result_offset..(result_offset + self.width)];
-    let src = &data[self.returned .. (self.returned + self.width)];
+    let src = &data[self.returned..(self.returned + self.width)];
     dst.copy_from_slice(src);
     self.returned += self.width;
     if self.returned >= data.len() {
@@ -309,7 +345,8 @@ impl Driver {
           vaddr, filesz, phdr.p_offset, err
         )
       });
-      let dest = &mut mem[(vaddr - SRAM_BASE as usize)..(vaddr - SRAM_BASE as usize + load_buffer.len())];
+      let dest =
+        &mut mem[(vaddr - SRAM_BASE as usize)..(vaddr - SRAM_BASE as usize + load_buffer.len())];
       dest.copy_from_slice(&load_buffer);
     });
 
@@ -358,32 +395,46 @@ impl Driver {
     for (cid, fifo) in self.incomplete_writes.iter_mut() {
       // Always handled in-order, find first pending
       let w = fifo.iter_mut().find(|w| !w.sent);
-      if w.as_ref().is_none_or(|w| !w.ready()) { continue; }
+      if w.as_ref().is_none_or(|w| !w.ready()) {
+        continue;
+      }
       let w = w.unwrap();
 
       // [16 bit W = 0][ 16 bit cid ][ 32 bit id ]
       let mapped_id = cid << 32 | w.id;
       let payload = MemReqPayload::Write(w.data.as_slice(), Some(w.strb.as_slice()));
-      if self.addr_space.req(mapped_id, w.addr as u32, (w.bursts * w.width) as u32, payload) {
+      if self.addr_space.req(
+        mapped_id,
+        w.addr as u32,
+        (w.bursts * w.width) as u32,
+        payload,
+      ) {
         w.sent = true;
       }
-    };
+    }
 
     for ((cid, id), fifo) in self.incomplete_reads.iter_mut() {
       let r = fifo.iter_mut().find(|w| !w.sent);
-      if r.is_none() { continue; }
+      if r.is_none() {
+        continue;
+      }
       let r = r.unwrap();
 
       // [16 bit W = 0][ 16 bit cid ][ 32 bit id ]
       let mapped_id = 1 << 48 | cid << 32 | id;
       let payload = MemReqPayload::Read;
-      if self.addr_space.req(mapped_id, r.addr as u32, (r.bursts * r.width) as u32, payload) {
+      if self.addr_space.req(
+        mapped_id,
+        r.addr as u32,
+        (r.bursts * r.width) as u32,
+        payload,
+      ) {
         r.sent = true;
       }
-    };
+    }
 
     self.addr_space.tick();
-    
+
     while let Some((mapped_id, payload)) = self.addr_space.resp() {
       let is_write = mapped_id >> 48 == 0;
       let cid = mapped_id >> 32 & 0xFFFF;
@@ -391,7 +442,9 @@ impl Driver {
       match payload {
         crate::interconnect::MemRespPayload::ReadBuffered(buf) => {
           assert!(!is_write);
-          let r = self.incomplete_reads.get_mut(&(cid, id))
+          let r = self
+            .incomplete_reads
+            .get_mut(&(cid, id))
             .and_then(|f| f.iter_mut().find(|r| r.data.is_none()))
             .expect("Returned read has no corresponding pending data");
           assert!(r.sent);
@@ -399,7 +452,9 @@ impl Driver {
         }
         crate::interconnect::MemRespPayload::ReadRegister(buf) => {
           assert!(!is_write);
-          let r = self.incomplete_reads.get_mut(&(cid, id))
+          let r = self
+            .incomplete_reads
+            .get_mut(&(cid, id))
             .and_then(|f| f.iter_mut().find(|r| r.data.is_none()))
             .expect("Returned read has no corresponding pending data");
           assert!(r.sent);
@@ -407,7 +462,9 @@ impl Driver {
         }
         crate::interconnect::MemRespPayload::WriteAck => {
           assert!(is_write);
-          let w = self.incomplete_writes.get_mut(&cid)
+          let w = self
+            .incomplete_writes
+            .get_mut(&cid)
             .and_then(|f| f.iter_mut().find(|w| w.id == id && !w.done))
             .expect("Returned write has no corresponding pending data");
           assert!(w.sent);
