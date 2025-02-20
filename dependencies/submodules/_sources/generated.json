@@ -1,7 +1,7 @@
 {
     "arithmetic": {
         "cargoLocks": null,
-        "date": "2025-02-19",
+        "date": "2025-02-07",
         "extract": null,
         "name": "arithmetic",
         "passthru": null,
@@ -13,12 +13,12 @@
             "name": null,
             "owner": "sequencer",
             "repo": "arithmetic",
-            "rev": "f9aa8449d9c3905fe5083bcd2f2f2f7fbcefd240",
-            "sha256": "sha256-aAyxDlA5mvZMxpaswAWg2gO58OPxI7ES0OaowaXZQ70=",
+            "rev": "7f167dd90874afa5717fcfb1b8bbfb15ba6317a7",
+            "sha256": "sha256-gCduOy1xKPH3sP6pU4IegF0270h+UNoP1cErgBQzuCs=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "f9aa8449d9c3905fe5083bcd2f2f2f7fbcefd240"
+        "version": "7f167dd90874afa5717fcfb1b8bbfb15ba6317a7"
     },
     "chisel": {
         "cargoLocks": null,
