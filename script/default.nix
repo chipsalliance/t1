@@ -6,12 +6,13 @@
 , add-determinism
 , metals
 , mill
-, graalvm-ce
+, mill-ivy-fetcher
 }:
 
 let
-  mkHelper = { moduleName, scriptSrc, outName, enableNativeExe ? true }:
+  mkHelper = { moduleName, scriptSrc, outName }:
     let
+      scriptDeps = mill-ivy-fetcher.deps-builder ./ivys/_sources/generated.nix;
       self = stdenv.mkDerivation rec {
         name = "t1-${moduleName}-script";
 
@@ -21,17 +22,6 @@ let
             scriptSrc
             ./build.sc
           ];
-        };
-
-        passthru.millDeps = fetchMillDeps {
-          inherit name;
-          src = with lib.fileset; toSource {
-            root = ./.;
-            fileset = unions [
-              ./build.sc
-            ];
-          };
-          millDepsHash = "sha256-sEOrIm7kTlpM9K6t0zma71FHFQgTHVhj5WmFwJ8UQmo=";
         };
 
         passthru.withLsp = self.overrideAttrs (old: {
@@ -50,29 +40,20 @@ let
           '';
         });
 
-        passthru.debug = self.overrideAttrs { enableNativeExe = false; };
+        buildInputs = scriptDeps.ivyDepsList;
 
         nativeBuildInputs = [
           mill
-          graalvm-ce
           add-determinism
 
           makeWrapper
-          passthru.millDeps.setupHook
         ];
-
-        inherit enableNativeExe;
 
         buildPhase = ''
           runHook preBuild
 
           echo "Building JAR"
           mill -i ${moduleName}.assembly
-
-          if (( $enableNativeExe )); then
-            echo "Running native-image"
-            native-image --no-fallback -jar out/${moduleName}/assembly.dest/out.jar "$name.elf"
-          fi
 
           runHook postBuild
         '';
@@ -82,15 +63,13 @@ let
 
           mkdir -p "$out"/bin
 
-          if (( $enableNativeExe )); then
-            cp "$name.elf" "$out"/bin/"${outName}"
-          else
-            mkdir -p $out/share/java
-            mv out/${moduleName}/assembly.dest/out.jar $out/share/java/${moduleName}.jar
-            add-determinism $out/share/java/${moduleName}.jar
-            makeWrapper ${mill.jre}/bin/java $out/bin/${outName} \
-              --add-flags "-jar $out/share/java/${moduleName}.jar"
-          fi
+          mkdir -p $out/share/java
+          mv out/${moduleName}/assembly.dest/out.jar $out/share/java/${moduleName}.jar
+          # Align datetime
+          export SOURCE_DATE_EPOCH=1669810380
+          add-determinism $out/share/java/${moduleName}.jar
+          makeWrapper ${mill.jre}/bin/java $out/bin/${outName} \
+            --add-flags "-jar $out/share/java/${moduleName}.jar"
 
           runHook postInstall
         '';
@@ -102,5 +81,5 @@ let
 in
 {
   t1-helper = mkHelper { moduleName = "emu"; scriptSrc = ./emu; outName = "t1-helper"; };
-  ci-helper = mkHelper { moduleName = "ci"; scriptSrc = ./ci; outName = "ci-helper"; enableNativeExe = false; };
+  ci-helper = mkHelper { moduleName = "ci"; scriptSrc = ./ci; outName = "ci-helper"; };
 }
