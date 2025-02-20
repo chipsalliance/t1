@@ -14,11 +14,13 @@
 , writeShellApplication
 , glibcLocales
 
-, dependencies
+, submodules
+, mill-ivy-fetcher
 }:
 
 let
-  self = stdenv.mkDerivation rec {
+  t1MillDeps = mill-ivy-fetcher.deps-builder ../../dependencies/ivys/t1/_sources/generated.nix;
+  self = stdenv.mkDerivation {
     name = "t1-all-mill-modules";
 
     src = with lib.fileset; toSource {
@@ -38,38 +40,17 @@ let
       ];
     };
 
-    passthru.millDeps = fetchMillDeps {
-      inherit name;
-      src = with lib.fileset; toSource {
-        root = ./../..;
-        fileset = unions [
-          ./../../build.mill
-          ./../../common.mill
-        ];
-      };
-      millDepsHash = "sha256-TU6o7ldRVwcDv7cY02Av8QI9yFH8npV/a30baJtfT/U=";
-      buildInputs = with dependencies; [
-        ivy-arithmetic.setupHook
-        ivy-chisel.setupHook
-        ivy-chisel-panama.setupHook
-        ivy-chisel-interface.setupHook
-        ivy-rvdecoderdb.setupHook
-        ivy-hardfloat.setupHook
-      ];
-    };
+    buildInputs = with submodules; [
+      ivy-arithmetic.setupHook
+      ivy-chisel.setupHook
+      ivy-chisel-panama.setupHook
+      ivy-chisel-interface.setupHook
+      ivy-rvdecoderdb.setupHook
+      ivy-hardfloat.setupHook
+      riscv-opcodes
+    ] ++ t1MillDeps.ivyDepsList;
 
-    passthru.editable = self.overrideAttrs (_: {
-      shellHook = ''
-        setupSubmodulesEditable
-        mill mill.bsp.BSP/install 0
-      '';
-    });
-
-    shellHook = ''
-      setupSubmodules
-    '';
-
-    nativeBuildInputs = with dependencies; [
+    nativeBuildInputs = [
       mill
       circt-full
       jextract-21
@@ -78,21 +59,26 @@ let
       git
 
       makeWrapper
-      passthru.millDeps.setupHook
-
-      ivy-arithmetic.setupHook
-      ivy-chisel.setupHook
-      ivy-chisel-panama.setupHook
-      ivy-chisel-interface.setupHook
-      ivy-rvdecoderdb.setupHook
-      ivy-hardfloat.setupHook
-      riscv-opcodes
     ];
 
     env = {
       CIRCT_INSTALL_PATH = circt-full;
       JEXTRACT_INSTALL_PATH = jextract-21;
     };
+
+    shellHook = ''
+      export NIX_COURSIER_HOME="$(mktemp -d -t 'coursier_repo_XXX')"
+      mkdir -p "$NIX_COURSIER_HOME/local"
+      export COURSIER_REPOSITORIES="ivy2Local|central"
+      export JAVA_TOOL_OPTIONS="-Dcoursier.ivy.home=$NIX_COURSIER_HOME $JAVA_TOOL_OPTIONS"
+
+      lndir ${submodules.ivy-arithmetic}/.ivy2/local "$NIX_COURSIER_HOME/local"
+      lndir ${submodules.ivy-chisel}/.ivy2/local "$NIX_COURSIER_HOME/local"
+      lndir ${submodules.ivy-chisel-panama}/.ivy2/local "$NIX_COURSIER_HOME/local"
+      lndir ${submodules.ivy-chisel-interface}/.ivy2/local "$NIX_COURSIER_HOME/local"
+      lndir ${submodules.ivy-rvdecoderdb}/.ivy2/local "$NIX_COURSIER_HOME/local"
+      lndir ${submodules.ivy-hardfloat}/.ivy2/local "$NIX_COURSIER_HOME/local"
+    '';
 
     outputs = [ "out" "omreader" "elaborator" ];
 
@@ -113,6 +99,8 @@ let
     installPhase = ''
       mkdir -p $out/share/java
 
+      # Align datetime
+      export SOURCE_DATE_EPOCH=1669810380
       add-determinism-q() {
         add-determinism $@ >/dev/null
       }
