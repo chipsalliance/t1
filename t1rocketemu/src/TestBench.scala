@@ -127,7 +127,7 @@ class TestBench(val parameter: T1RocketTileParameter)
   }
   instFetchAgent.io.clock := clock
   instFetchAgent.io.reset     := reset
-  instFetchAgent.io.channelId := 0.U
+  instFetchAgent.io.channelId := 2.U
   instFetchAgent.io.gateRead  := false.B
   instFetchAgent.io.gateWrite := false.B
 
