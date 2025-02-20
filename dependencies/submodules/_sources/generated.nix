@@ -3,51 +3,51 @@
 {
   arithmetic = {
     pname = "arithmetic";
-    version = "7f167dd90874afa5717fcfb1b8bbfb15ba6317a7";
+    version = "f9aa8449d9c3905fe5083bcd2f2f2f7fbcefd240";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "arithmetic";
-      rev = "7f167dd90874afa5717fcfb1b8bbfb15ba6317a7";
+      rev = "f9aa8449d9c3905fe5083bcd2f2f2f7fbcefd240";
       fetchSubmodules = false;
-      sha256 = "sha256-gCduOy1xKPH3sP6pU4IegF0270h+UNoP1cErgBQzuCs=";
+      sha256 = "sha256-aAyxDlA5mvZMxpaswAWg2gO58OPxI7ES0OaowaXZQ70=";
     };
-    date = "2025-02-07";
+    date = "2025-02-19";
   };
   chisel = {
     pname = "chisel";
-    version = "840c95e2bb8321346da4d832c8d9dd43bf997be7";
+    version = "36e49577cfd46041cf70a82dbddfe7ccd10da1ae";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "840c95e2bb8321346da4d832c8d9dd43bf997be7";
+      rev = "36e49577cfd46041cf70a82dbddfe7ccd10da1ae";
       fetchSubmodules = false;
-      sha256 = "sha256-YWmqj7YxqyiLjijFVZ28PrAuaOac9j/XRhF01zGQKBk=";
+      sha256 = "sha256-zGZC8mVDpwmMBss1jUQ+nkqWUdcPymSjekgSCGtRmZE=";
     };
-    date = "2025-02-10";
+    date = "2025-02-19";
   };
   chisel-interface = {
     pname = "chisel-interface";
-    version = "e228636d406a948e5e56d841e877591485bfcb22";
+    version = "04886c9a028a043866a008c9409996e1d8075d9a";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel-interface";
-      rev = "e228636d406a948e5e56d841e877591485bfcb22";
+      rev = "04886c9a028a043866a008c9409996e1d8075d9a";
       fetchSubmodules = false;
-      sha256 = "sha256-CTi9AaVEIagN8HahvihAEtFzc76deKRzBZqX/4V9u8Y=";
+      sha256 = "sha256-1JWXA2rtuAFN4B4lys3VDYPVdfS29AEQvKKHLWzZK7U=";
     };
-    date = "2025-01-30";
+    date = "2025-02-19";
   };
   riscv-opcodes = {
     pname = "riscv-opcodes";
-    version = "21dab92c834bf782e67034deab87b6bd1952c8ef";
+    version = "8899b32f218c85bf2559fa95f226bc2533316802";
     src = fetchFromGitHub {
       owner = "riscv";
       repo = "riscv-opcodes";
-      rev = "21dab92c834bf782e67034deab87b6bd1952c8ef";
+      rev = "8899b32f218c85bf2559fa95f226bc2533316802";
       fetchSubmodules = false;
-      sha256 = "sha256-8jkSaSnKKYVLhbautY7IC1SqWXDjd+mvgzkH7Yp6vYg=";
+      sha256 = "sha256-7CV/T8gnE7+ZPfYbn38Zx8fYUosTc8bt93wk5nmxu2c=";
     };
-    date = "2025-02-07";
+    date = "2025-02-14";
   };
   rvdecoderdb = {
     pname = "rvdecoderdb";
