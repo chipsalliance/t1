@@ -45,9 +45,7 @@ impl Iterator for StrbIterator {
 //----------------------
 
 #[no_mangle]
-unsafe extern "C" fn axi_tick(
-  reset: u8,
-) {
+unsafe extern "C" fn axi_tick(reset: u8) {
   TARGET.with(|driver| {
     driver.tick();
   })
@@ -67,7 +65,9 @@ unsafe extern "C" fn axi_push_AW(
   ready: *mut u8,
 ) {
   unsafe { ready.write(false as u8) };
-  if reset != 0 { return; }
+  if reset != 0 {
+    return;
+  }
   // dbg!((awid, awaddr, awlen, awsize, awuser, data_width));
   TARGET.with(move |target| {
     target.update_commit_cycle();
@@ -93,7 +93,9 @@ unsafe extern "C" fn axi_push_AR(
   ready: *mut u8,
 ) {
   unsafe { ready.write(false as u8) };
-  if reset != 0 { return; }
+  if reset != 0 {
+    return;
+  }
   // dbg!((arid, araddr, arlen, arsize, aruser, data_width));
   TARGET.with(move |target| {
     target.update_commit_cycle();
@@ -117,11 +119,16 @@ unsafe extern "C" fn axi_push_W(
   ready: *mut u8,
 ) {
   unsafe { ready.write(false as u8) };
-  if reset != 0 { return; }
+  if reset != 0 {
+    return;
+  }
   TARGET.with(|target| {
     target.update_commit_cycle();
     // TODO: maybe we don't assert this, to allow same-cycle AW/W (when W is sequenced before AW)
-    let channel = target.incomplete_writes.get_mut(&(channel_id)).expect("No inflight write with this ID found!");
+    let channel = target
+      .incomplete_writes
+      .get_mut(&(channel_id))
+      .expect("No inflight write with this ID found!");
     let w = channel.iter_mut().find(|w| !w.ready()).expect("No inflight write with this ID found!");
     let wslice = unsafe { std::slice::from_raw_parts(wdata as *const u8, data_width as usize / 8) };
     let wstrbit = StrbIterator {
@@ -142,7 +149,7 @@ unsafe extern "C" fn axi_pop_B(
   reset: u8,
   channel_id: c_ulonglong,
   data_width: u64,
-  
+
   // Packed result buffer:
   // ret[0]: valid
   // ret[2..3]: BID
@@ -150,9 +157,13 @@ unsafe extern "C" fn axi_pop_B(
   ret: *mut u8,
 ) {
   unsafe { ret.write(false as u8) };
-  if reset != 0 { return; }
+  if reset != 0 {
+    return;
+  }
   TARGET.with(|target| {
-    unsafe { ret.write(0); }
+    unsafe {
+      ret.write(0);
+    }
     let fifo = match target.incomplete_writes.get_mut(&channel_id) {
       Some(f) => f,
       None => return,
@@ -165,7 +176,9 @@ unsafe extern "C" fn axi_pop_B(
         }
     }
     */
-    if fifo.front().as_ref().is_none_or(|w| !w.done()) { return; }
+    if fifo.front().as_ref().is_none_or(|w| !w.done()) {
+      return;
+    }
     let w = fifo.pop_front().unwrap();
     // println!("[{}] Write finalized: channel_id={} id={}", crate::get_t(), channel_id, w.id());
     unsafe {
@@ -182,7 +195,7 @@ unsafe extern "C" fn axi_pop_R(
   reset: u8,
   channel_id: c_ulonglong,
   data_width: u64,
-  
+
   // Packed result buffer:
   // ret[0]: valid
   // ret[1]: rlast
@@ -192,11 +205,17 @@ unsafe extern "C" fn axi_pop_R(
   ret: *mut u8,
 ) {
   unsafe { ret.write(false as u8) };
-  if reset != 0 { return; }
+  if reset != 0 {
+    return;
+  }
   TARGET.with(|target| {
-    unsafe { ret.write(0); }
+    unsafe {
+      ret.write(0);
+    }
     for ((cid, id), fifo) in target.incomplete_reads.iter_mut() {
-      if *cid != channel_id { continue }; // TODO: we actually wants two levels of HashMap
+      if *cid != channel_id {
+        continue;
+      }; // TODO: we actually wants two levels of HashMap
       if let Some(r) = fifo.front_mut() {
         if r.has_data() {
           // dbg!(&r);
@@ -233,16 +252,18 @@ unsafe extern "C" fn t1_cosim_init(
 
   use std::io::Write;
   let ds3_cfg = include_bytes!("dramsim3-config.ini");
-  let mut ds3_cfg_file = tempfile::NamedTempFile::new().expect("Unable to create DRAMsim3 configuration temp file");
+  let mut ds3_cfg_file =
+    tempfile::NamedTempFile::new().expect("Unable to create DRAMsim3 configuration temp file");
   ds3_cfg_file.write(ds3_cfg).expect("Unable to write DRAMsim3 configuration temp file");
-  let (_, ds3_cfg_path) = ds3_cfg_file.keep().expect("Unable to persist DRAMsim3 configuration temp file");
+  let (_, ds3_cfg_path) =
+    ds3_cfg_file.keep().expect("Unable to persist DRAMsim3 configuration temp file");
 
   let args = OnlineArgs {
     elf_file: elf_file.get().to_str().unwrap().into(),
     dlen: dlen as u32,
     vlen: vlen as u32,
     spike_isa: spike_isa.get().to_str().unwrap().into(),
-    dramsim3_cfg : Some(ds3_cfg_path),
+    dramsim3_cfg: Some(ds3_cfg_path),
   };
 
   TARGET.init(|| Driver::new(scope, &args));
