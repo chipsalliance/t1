@@ -44,6 +44,7 @@ pub struct OnlineArgs {
   pub dramsim3_cfg: Option<PathBuf>,
 }
 
+#[derive(Debug)]
 pub struct IncompleteWrite {
   id: u64,
   addr: u64,
@@ -125,6 +126,7 @@ impl IncompleteWrite {
   }
 }
 
+#[derive(Debug)]
 pub struct IncompleteRead {
   addr: u64,
   bursts: usize,
@@ -173,7 +175,7 @@ impl IncompleteRead {
     assert!(self.data.is_some(), "IncompleteRead::pop called on request that hasn't gotten its data!");
     let data = self.data.as_ref().unwrap();
     assert!(self.returned + self.width <= data.len(), "Sanity check for data width: IncompleteRead::pop");
-    assert!(data_width as usize == self.bus_size * 8, "Mismatch data width across DPI calls");
+    assert!(data_width as usize == self.bus_size * 8, "Mismatch data width across DPI calls: {} vs {}", data_width, self.bus_size * 8);
 
     // Find in-line offset
     let result_offset = (self.addr as usize + self.returned) % self.bus_size;
@@ -342,8 +344,8 @@ impl Driver {
 
   pub fn tick(&mut self) {
     let desired_tick = get_t();
-    if self.next_tick != 0 && desired_tick != self.next_tick {
-      panic!("Skipped a tick!");
+    if self.next_tick != 0 && desired_tick > self.next_tick {
+      panic!("Skipped a tick: {} -> {}", self.next_tick, desired_tick);
     }
 
     if self.next_tick > desired_tick {

@@ -1,5 +1,6 @@
 { lib
 , rustPlatform
+, cmake
 , libspike
 , libspike_interfaces
 }:
@@ -37,6 +38,8 @@ if (lib.hasPrefix "dpi" moduleType) then
 
     buildFeatures = [ ] ++ [ "dpi_common/${emuType}" ];
     buildAndTestSubdir = "./${moduleType}";
+
+    nativeBuildInputs = [ cmake ];
 
     env = {
       SPIKE_LIB_DIR = "${libspike}/lib";
