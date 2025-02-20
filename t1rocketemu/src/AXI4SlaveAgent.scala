@@ -148,14 +148,14 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         )
         wqueue.io.deq.ready := wRet
 
-        class BBUndle extends Bundle {
-          val valid = UInt(8.W)
-          val _padding = UInt(8.W)
-          val id = UInt(16.W)
+        class BBundle extends Bundle {
           val user  = UInt(32.W)
+          val id = UInt(16.W)
+          val _padding = UInt(8.W)
+          val valid = UInt(8.W)
         }
 
-        val bRet = RawClockedNonVoidFunctionCall(s"axi_pop_B", new BBUndle())(
+        val bRet = RawClockedNonVoidFunctionCall(s"axi_pop_B", new BBundle())(
           io.clock,
           bqueue.io.enq.ready,
           io.reset.asTypeOf(UInt(64.W)),
@@ -195,11 +195,11 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
 
         require(parameter.axiParameter.dataWidth <= 1024)
         class RBundle extends Bundle {
-          val valid = UInt(8.W)
-          val last = UInt(8.W)
-          val id = UInt(16.W)
-          val user  = UInt(32.W)
           val data = UInt(1024.W)
+          val user  = UInt(32.W)
+          val id = UInt(16.W)
+          val last = UInt(8.W)
+          val valid = UInt(8.W)
         }
         val rRet = RawClockedNonVoidFunctionCall(s"axi_pop_R", new RBundle())(
           io.clock,

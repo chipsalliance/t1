@@ -22,11 +22,13 @@ impl AddrInfo {
   }
 }
 
+#[derive(Debug)]
 pub enum MemReqPayload<'a> {
   Read,
   Write(&'a [u8], Option<&'a [bool]>),
 }
 
+#[derive(Debug)]
 pub struct MemReq<'a> {
   pub id: u64,
   pub payload: MemReqPayload<'a>,
@@ -42,12 +44,14 @@ impl<'a> MemReqPayload<'a> {
   }
 }
 
+#[derive(Debug)]
 pub enum MemRespPayload<'a> {
   ReadBuffered(&'a [u8]),
   ReadRegister([u8; 4]),
   WriteAck,
 }
 
+#[derive(Debug)]
 pub struct MemResp<'a> {
   pub id: u64,
   pub payload: MemRespPayload<'a>,
@@ -140,6 +144,7 @@ impl<T: RegDevice + Send + Sync + 'static> Device for WrappedRegDevice<T> {
   fn tick(&mut self) {} // This is a no-op for Reg devices
 }
 
+#[derive(Debug)]
 pub struct MemIdent {
   id: u64,
   req: AddrInfo,
@@ -162,6 +167,7 @@ pub trait MemoryModel {
   fn tick(&mut self);
 }
 
+#[derive(Debug)]
 struct InflightMem {
   id: u64,
   req: AddrInfo,
@@ -198,6 +204,8 @@ pub struct DRAMModel {
   sys: dramsim3::MemorySystem,
   inflights: Arc<Mutex<Vec<InflightMem>>>,
   cached: BinaryHeap<u32>,
+  dram_tick: usize,
+  sys_tick: usize,
 }
 
 // FIXME: impl Send in upstream MemorySystem
@@ -213,20 +221,24 @@ impl DRAMModel {
     let ds_path_cstr = CString::new(ds_path.as_ref().as_os_str().as_bytes()).expect("Incorrect path format");
     let sys =
       dramsim3::MemorySystem::new(&ds_cfg_cstr, &ds_path_cstr, move |addr, is_write| {
+        // println!("DRAM Memory response: {:x}, write={}", addr, is_write);
         for req in inflights_clone.lock().unwrap().iter_mut() {
-          if req.done_ptr as u64 == addr && req.is_write == is_write {
+          if !req.done() && req.done_ptr as u64 == addr && req.is_write == is_write {
             // TODO: pass chunk_size from dramsim3
+            // println!("Found req: id={:x}", req.id);
             req.done_ptr += chunk_size.get();
             return;
           }
         }
         // TODO: log and immediately exit
-        println!("Unexpected memory response!");
+        panic!("Unexpected memory response!");
       });
     let ret = DRAMModel {
       sys,
       inflights: inflights,
       cached: BinaryHeap::new(),
+      dram_tick: 0,
+      sys_tick: 0,
     };
 
     chunk_size_clone.set(ret.req_size());
@@ -242,6 +254,7 @@ impl DRAMModel {
 impl MemoryModel for DRAMModel {
   fn push(&mut self, req: MemIdent) {
     // TODO: done if in cache
+    // println!("DRAM Pushing: {:x}, size = {}", req.req.offset, req.req.len);
     self.inflights.lock().unwrap().push(InflightMem::from_ident(req, self.req_size()));
   }
 
@@ -251,7 +264,7 @@ impl MemoryModel for DRAMModel {
     let mut blocked = HashSet::with_capacity(32);
     let mut inf = self.inflights.lock().unwrap();
     for i in 0..inf.len() {
-      if inf[i].done() && blocked.contains(&inf[i].id) {
+      if inf[i].done() && !blocked.contains(&inf[i].id) {
         return Some(inf.remove(i).into())
       } else {
         blocked.insert(inf[i].id);
@@ -261,8 +274,6 @@ impl MemoryModel for DRAMModel {
   }
 
   fn tick(&mut self) {
-    // FIXME: tick by faster clock
-
     let mut inflights = self.inflights.lock().unwrap();
     for inflight in inflights.iter_mut() {
       if inflight.sent() {
@@ -272,8 +283,19 @@ impl MemoryModel for DRAMModel {
       if !self.sys.can_add(next_addr as u64, inflight.is_write) {
         continue;
       }
+      // dbg!(&inflight);
       self.sys.add(next_addr as u64, inflight.is_write);
       inflight.send_ptr += self.req_size();
+    }
+    // Manually unlock
+    drop(inflights);
+
+    self.sys_tick += 1;
+    let dram_tck = self.sys.tck(); // In ns
+    let sys_tck = crate::get_sys_tck();
+    while self.sys_tick as f64 * sys_tck > self.dram_tick as f64 * dram_tck {
+      self.sys.tick();
+      self.dram_tick += 1;
     }
   }
 }
@@ -347,6 +369,7 @@ impl<M: MemoryModel + Send + Sync + 'static> RegularMemory<M> {
 
 impl<M: MemoryModel + Send + Sync + 'static> Device for RegularMemory<M> {
   fn req(&mut self, req: MemReq<'_>) -> bool {
+    // dbg!(&req);
     let ident = MemIdent {
       id: req.id,
       req: req.addr,
@@ -362,6 +385,7 @@ impl<M: MemoryModel + Send + Sync + 'static> Device for RegularMemory<M> {
 
   fn resp(&mut self) -> Option<MemResp<'_>> {
     let popped = self.model.pop()?;
+    // dbg!(&popped);
 
     // Construct MemResp
     let payload = if popped.is_write {
@@ -369,6 +393,7 @@ impl<M: MemoryModel + Send + Sync + 'static> Device for RegularMemory<M> {
     } else {
       MemRespPayload::ReadBuffered(self.execute_read(popped.req))
     };
+    // dbg!(&payload);
 
     Some(MemResp { id: popped.id, payload })
   }
