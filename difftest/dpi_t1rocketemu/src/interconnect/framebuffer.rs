@@ -150,10 +150,7 @@ impl Device for FrameBuffer {
       Holding::WriteDone(id) => (id, MemRespPayload::WriteAck),
       Holding::Reading(id, addr) => (id, self.mem_read(addr)),
     };
-    Some(MemResp {
-      id,
-      payload,
-    })
+    Some(MemResp { id, payload })
   }
 
   fn tick(&mut self) {}
