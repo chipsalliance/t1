@@ -9,8 +9,6 @@ use std::{
 
 use tracing::{info, warn};
 
-use crate::get_t;
-
 use super::RegDevice;
 
 #[derive(Default, Debug, Clone)]
@@ -32,6 +30,8 @@ impl ExitFlagRef {
 
 pub const EXIT_CODE: u32 = 0xdead_beef;
 
+pub type PfnGetCycle = fn() -> u64;
+
 /// Reg map:
 /// - 0x0000 : WO, write EXIT_CODE to mark simulation finish
 /// - 0x0010 : WO, uart write register
@@ -43,16 +43,17 @@ pub const EXIT_CODE: u32 = 0xdead_beef;
 pub struct SimCtrl {
   exit_flag: ExitFlagRef,
   event_file: File,
+  get_cycle: PfnGetCycle,
 }
 
 impl SimCtrl {
-  pub fn new(exit_flag: ExitFlagRef) -> Self {
+  pub fn new(exit_flag: ExitFlagRef, get_cycle: PfnGetCycle) -> Self {
     let event_file = File::create("mmio-event.jsonl").unwrap();
-    SimCtrl { exit_flag, event_file }
+    SimCtrl { exit_flag, event_file, get_cycle }
   }
 
   fn append_event(&mut self, event: &str, value: u32) {
-    let cycle = get_t();
+    let cycle = (self.get_cycle)();
     let buf = format!("{{\"cycle\": {cycle}, \"event\": \"{event}\", \"value\": {value}}}\n");
 
     self.event_file.write_all(buf.as_bytes()).unwrap();

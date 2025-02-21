@@ -1,6 +1,5 @@
 mod dpi;
 mod drive;
-mod interconnect;
 
 // keep in sync with TestBench.verbatimModule
 // the value is measured in simulation time unit

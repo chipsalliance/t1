@@ -1,0 +1,10 @@
+[package]
+name = "t1emu"
+edition = "2021"
+version.workspace = true
+
+[dependencies]
+t1devices = { path = "../t1devices" }
+anyhow.workspace = true
+clap.workspace = true
+elf = "0.7.4"

@@ -1,8 +1,8 @@
 use crate::get_t;
-use crate::interconnect::simctrl::ExitFlagRef;
-use crate::interconnect::{create_emu_addrspace, AddressSpace};
 use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
+use t1devices::simctrl::ExitFlagRef;
+use t1devices::{create_emu_addrspace, AddressSpace};
 
 use anyhow::Context;
 use elf::{
@@ -59,7 +59,7 @@ pub(crate) struct Driver {
 
 impl Driver {
   pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
-    let (mut addr_space, exit_flag) = create_emu_addrspace();
+    let (mut addr_space, exit_flag) = create_emu_addrspace(get_t);
     // pass e_entry to rocket
     let (e_entry, _fn_sym_tab) =
       Self::load_elf(Path::new(&args.elf_file), &mut addr_space).expect("fail creating simulator");

@@ -60,6 +60,11 @@ lib.makeScope newScope
       outputName = "t1-sim-checker";
       moduleType = "t1-sim-checker";
     };
+    femu = t1Scope.callPackage ../../difftest { } {
+      outputName = "t1emu";
+      moduleType = "t1emu";
+    };
+
     # ---------------------------------------------------------------------------------
     # Lowering utilities
     # ---------------------------------------------------------------------------------

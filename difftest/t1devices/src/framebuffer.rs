@@ -1,6 +1,6 @@
 use std::{env, fs::File, io::BufWriter, path::PathBuf};
 
-use crate::interconnect::memcpy_mask;
+use crate::memcpy_mask;
 
 use super::{AddrInfo, Device};
 
