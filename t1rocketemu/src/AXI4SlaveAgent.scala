@@ -9,25 +9,32 @@ import chisel3.util.circt.dpi.{RawClockedNonVoidFunctionCall, RawClockedVoidFunc
 import chisel3.util.{isPow2, log2Ceil, Queue}
 import chisel3.experimental.dataview._
 import org.chipsalliance.amba.axi4.bundle.{
-  AR, AW, R, W, B,
-  HasAR, HasAW, HasR, HasW, HasB,
-  AXI4ChiselBundle,
-  AXI4ROIrrevocable,
-  AXI4RWIrrevocable,
-  AXI4WOIrrevocable,
-
+  AR,
   ARChannel,
   ARFlowControl,
+  AW,
   AWChannel,
   AWFlowControl,
   AXI4BundleParameter,
+  AXI4ChiselBundle,
+  AXI4ROIrrevocable,
   AXI4ROIrrevocableVerilog,
+  AXI4RWIrrevocable,
   AXI4RWIrrevocableVerilog,
+  AXI4WOIrrevocable,
   AXI4WOIrrevocableVerilog,
+  B,
   BChannel,
   BFlowControl,
+  HasAR,
+  HasAW,
+  HasB,
+  HasR,
+  HasW,
+  R,
   RChannel,
   RFlowControl,
+  W,
   WChannel,
   WFlowControl
 }
@@ -69,28 +76,28 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
   val invClock = (~io.clock.asBool).asClock;
 
   io.channel match {
-    case channel : AXI4RWIrrevocableVerilog => {
+    case channel: AXI4RWIrrevocableVerilog => {
       val view = channel.viewAs[AXI4RWIrrevocable](
         implicitly,
         AXI4RWIrrevocableVerilog.viewChisel,
-        implicitly,
+        implicitly
       )
       new ReadManager(view)
       new WriteManager(view)
     }
-    case channel : AXI4ROIrrevocableVerilog => {
+    case channel: AXI4ROIrrevocableVerilog => {
       val view = channel.viewAs[AXI4ROIrrevocable](
         implicitly,
         AXI4ROIrrevocableVerilog.viewChisel,
-        implicitly,
+        implicitly
       )
       new ReadManager(view)
     }
-    case channel : AXI4WOIrrevocableVerilog => {
+    case channel: AXI4WOIrrevocableVerilog => {
       val view = channel.viewAs[AXI4WOIrrevocable](
         implicitly,
         AXI4WOIrrevocableVerilog.viewChisel,
-        implicitly,
+        implicitly
       )
       new WriteManager(view)
     }
@@ -99,7 +106,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
   RawClockedVoidFunctionCall(s"axi_tick")(
     io.clock,
     true.B,
-    io.reset.asTypeOf(UInt(8.W)),
+    io.reset.asTypeOf(UInt(8.W))
   )
 
   /// Widen a wire to make all DPI calls' types uniform
@@ -112,8 +119,8 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
   private class WriteManager(channel: HasAW with HasW with HasB) {
     withClockAndReset(io.clock, io.reset) {
       val awqueue = Module(new Queue(new AW(parameter.axiParameter), 2))
-      val wqueue = Module(new Queue(new W(parameter.axiParameter), 2))
-      val bqueue = Module(new Queue(new B(parameter.axiParameter), 2))
+      val wqueue  = Module(new Queue(new W(parameter.axiParameter), 2))
+      val bqueue  = Module(new Queue(new B(parameter.axiParameter), 2))
 
       awqueue.io.enq <> channel.aw
       wqueue.io.enq <> channel.w
@@ -133,7 +140,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
           awqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
           awqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
           awqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
-          awqueue.io.deq.bits.user.asTypeOf(UInt(64.W)),
+          awqueue.io.deq.bits.user.asTypeOf(UInt(64.W))
         )
         awqueue.io.deq.ready := awRet
 
@@ -146,15 +153,15 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
           parameter.axiParameter.dataWidth.U(64.W),
           widen(wqueue.io.deq.bits.data, 1024),
           widen(wqueue.io.deq.bits.strb, 128),
-          wqueue.io.deq.bits.last.asTypeOf(UInt(8.W)),
+          wqueue.io.deq.bits.last.asTypeOf(UInt(8.W))
         )
         wqueue.io.deq.ready := wRet
 
         class BBundle extends Bundle {
-          val user  = UInt(32.W)
-          val id = UInt(16.W)
+          val user     = UInt(32.W)
+          val id       = UInt(16.W)
           val _padding = UInt(8.W)
-          val valid = UInt(8.W)
+          val valid    = UInt(8.W)
         }
 
         val bRet = RawClockedNonVoidFunctionCall(s"axi_pop_B", new BBundle())(
@@ -162,10 +169,10 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
           bqueue.io.enq.ready,
           io.reset.asTypeOf(UInt(64.W)),
           io.channelId,
-          parameter.axiParameter.dataWidth.U(64.W),
+          parameter.axiParameter.dataWidth.U(64.W)
         )
-        bqueue.io.enq.valid := bRet.valid
-        bqueue.io.enq.bits.id := bRet.id
+        bqueue.io.enq.valid     := bRet.valid
+        bqueue.io.enq.bits.id   := bRet.id
         bqueue.io.enq.bits.resp := 0.U(2.W)
         bqueue.io.enq.bits.user := bRet.user
       }
@@ -175,7 +182,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
   private class ReadManager(channel: HasAR with HasR) {
     withClockAndReset(io.clock, io.reset) {
       val arqueue = Module(new Queue(new AR(parameter.axiParameter), 2))
-      val rqueue = Module(new Queue(new R(parameter.axiParameter), 2))
+      val rqueue  = Module(new Queue(new R(parameter.axiParameter), 2))
 
       arqueue.io.enq <> channel.ar
       rqueue.io.deq <> channel.r
@@ -191,16 +198,16 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
           arqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
           arqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
           arqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
-          arqueue.io.deq.bits.user.asTypeOf(UInt(64.W)),
+          arqueue.io.deq.bits.user.asTypeOf(UInt(64.W))
         )
         arqueue.io.deq.ready := arRet
 
         require(parameter.axiParameter.dataWidth <= 1024)
         class RBundle extends Bundle {
-          val data = UInt(1024.W)
+          val data  = UInt(1024.W)
           val user  = UInt(32.W)
-          val id = UInt(16.W)
-          val last = UInt(8.W)
+          val id    = UInt(16.W)
+          val last  = UInt(8.W)
           val valid = UInt(8.W)
         }
         val rRet = RawClockedNonVoidFunctionCall(s"axi_pop_R", new RBundle())(
@@ -208,10 +215,10 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
           rqueue.io.enq.ready,
           io.reset.asTypeOf(UInt(8.W)),
           io.channelId,
-          parameter.axiParameter.dataWidth.U(64.W),
+          parameter.axiParameter.dataWidth.U(64.W)
         )
-        rqueue.io.enq.valid := rRet.valid
-        rqueue.io.enq.bits.id := rRet.id
+        rqueue.io.enq.valid     := rRet.valid
+        rqueue.io.enq.bits.id   := rRet.id
         rqueue.io.enq.bits.last := rRet.last
         rqueue.io.enq.bits.user := rRet.user
         rqueue.io.enq.bits.data := rRet.data

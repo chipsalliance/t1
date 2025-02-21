@@ -8,6 +8,7 @@ use std::{
   rc::Rc,
   sync::{Arc, Mutex},
 };
+use tracing::debug;
 
 use framebuffer::FrameBuffer;
 use simctrl::{ExitFlagRef, SimCtrl};
@@ -226,11 +227,11 @@ impl DRAMModel {
     let ds_path_cstr =
       CString::new(ds_path.as_ref().as_os_str().as_bytes()).expect("Incorrect path format");
     let sys = dramsim3::MemorySystem::new(&ds_cfg_cstr, &ds_path_cstr, move |addr, is_write| {
-      // println!("DRAM Memory response: {:x}, write={}", addr, is_write);
+      debug!("DRAM Memory response: {:x}, write={}", addr, is_write);
       for req in inflights_clone.lock().unwrap().iter_mut() {
         if !req.done() && req.done_ptr as u64 == addr && req.is_write == is_write {
           // TODO: pass chunk_size from dramsim3
-          // println!("Found req: id={:x}", req.id);
+          debug!("Found req: id={:x}", req.id);
           req.done_ptr += chunk_size.get();
           return;
         }
@@ -259,7 +260,7 @@ impl DRAMModel {
 impl MemoryModel for DRAMModel {
   fn push(&mut self, req: MemIdent) {
     // TODO: done if in cache
-    // println!("DRAM Pushing: {:x}, size = {}", req.req.offset, req.req.len);
+    debug!("DRAM Pushing: {:x}, size = {}", req.req.offset, req.req.len);
     self.inflights.lock().unwrap().push(InflightMem::from_ident(req, self.req_size()));
   }
 
