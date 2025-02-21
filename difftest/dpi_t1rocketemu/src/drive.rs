@@ -213,8 +213,12 @@ impl IncompleteRead {
     // Find in-line offset
     let result_offset = (self.addr as usize + self.returned) % self.bus_size;
     assert!(
-      self.bus_size + result_offset <= rdata_buf.len(),
-      "Sanity check for data width: Incomplete::pop"
+      self.width + result_offset <= rdata_buf.len(),
+      "Sanity check for data width: Incomplete::pop, returned = {}, width={}, offset={}, total={}",
+      self.returned,
+      self.width,
+      result_offset,
+      rdata_buf.len(),
     );
     let dst = &mut rdata_buf[result_offset..(result_offset + self.width)];
     let src = &data[self.returned..(self.returned + self.width)];
