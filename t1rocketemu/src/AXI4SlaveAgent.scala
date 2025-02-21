@@ -66,6 +66,8 @@ class ReadPayload(length: Int, dataWidth: Int) extends Bundle {
 class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
     extends FixedIORawModule[AXI4SlaveAgentInterface](new AXI4SlaveAgentInterface(parameter)) {
   dontTouch(io)
+  val invClock = (~io.clock.asBool).asClock;
+
   io.channel match {
     case channel : AXI4RWIrrevocableVerilog => {
       val view = channel.viewAs[AXI4RWIrrevocable](
@@ -119,10 +121,10 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
 
       // Invoke DPI at negedge
       // NOTICE: this block CANNOT directly write any outside reg. Only write wires (e.g. here, only writes queue IO)
-      withClock((~io.clock.asBool).asClock) {
+      withClock(invClock) {
         // AW
         val awRet = RawClockedNonVoidFunctionCall(s"axi_push_AW", Bool())(
-          io.clock,
+          invClock,
           awqueue.io.deq.valid,
           io.reset.asTypeOf(UInt(8.W)),
           io.channelId,
@@ -137,7 +139,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
 
         // W
         val wRet = RawClockedNonVoidFunctionCall(s"axi_push_W", Bool())(
-          io.clock,
+          invClock,
           wqueue.io.deq.valid,
           io.reset.asTypeOf(UInt(8.W)),
           io.channelId,
@@ -156,7 +158,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         }
 
         val bRet = RawClockedNonVoidFunctionCall(s"axi_pop_B", new BBundle())(
-          io.clock,
+          invClock,
           bqueue.io.enq.ready,
           io.reset.asTypeOf(UInt(64.W)),
           io.channelId,
@@ -177,10 +179,10 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
 
       arqueue.io.enq <> channel.ar
       rqueue.io.deq <> channel.r
-      withClock((~io.clock.asBool).asClock) {
+      withClock(invClock) {
         // AR
         val arRet = RawClockedNonVoidFunctionCall(s"axi_push_AR", Bool())(
-          io.clock,
+          invClock,
           arqueue.io.deq.valid,
           io.reset.asTypeOf(UInt(8.W)),
           io.channelId,
@@ -202,7 +204,7 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
           val valid = UInt(8.W)
         }
         val rRet = RawClockedNonVoidFunctionCall(s"axi_pop_R", new RBundle())(
-          io.clock,
+          invClock,
           rqueue.io.enq.ready,
           io.reset.asTypeOf(UInt(8.W)),
           io.channelId,
