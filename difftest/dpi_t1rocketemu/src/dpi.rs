@@ -5,7 +5,7 @@ use dpi_common::DpiTarget;
 use std::ffi::{c_char, c_longlong, c_ulonglong};
 use svdpi::dpi::param::InStr;
 use svdpi::SvScope;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::drive::{Driver, IncompleteRead, IncompleteWrite, OnlineArgs};
 
@@ -74,7 +74,13 @@ unsafe extern "C" fn axi_push_AW(
     let w = IncompleteWrite::new(awid, awaddr, awlen, awsize, awuser, data_width);
     let fifo = target.incomplete_writes.entry(channel_id).or_default();
     fifo.push_back(w);
-    // println!("[{}] Write initialized: channel_id={} id={} at=0x{:x}", crate::get_t(), channel_id, awid, awaddr);
+    debug!(
+      "[{}] Write initialized: channel_id={} id={} at=0x{:x}",
+      crate::get_t(),
+      channel_id,
+      awid,
+      awaddr
+    );
   });
   unsafe { ready.write(true as u8) };
 }
@@ -102,7 +108,13 @@ unsafe extern "C" fn axi_push_AR(
     let r = IncompleteRead::new(araddr, arlen, arsize, aruser, data_width);
     let fifo = target.incomplete_reads.entry((channel_id, arid)).or_default();
     fifo.push_back(r);
-    // println!("[{}] Read initialized: channel_id={} id={} at=0x{:x}", crate::get_t(), channel_id, arid, araddr);
+    debug!(
+      "[{}] Read initialized: channel_id={} id={} at=0x{:x}",
+      crate::get_t(),
+      channel_id,
+      arid,
+      araddr
+    );
   });
   unsafe { ready.write(true as u8) };
 }
@@ -138,7 +150,12 @@ unsafe extern "C" fn axi_push_W(
     };
     w.push(wslice, wstrbit, wlast != 0, data_width);
     if wlast != 0 {
-      // println!("[{}] Write fully sequenced: channel_id={} id={}", crate::get_t(), channel_id, w.id());
+      debug!(
+        "[{}] Write fully sequenced: channel_id={} id={}",
+        crate::get_t(),
+        channel_id,
+        w.id()
+      );
     }
     unsafe { ready.write(true as u8) };
   })
@@ -169,18 +186,16 @@ unsafe extern "C" fn axi_pop_B(
       None => return,
     };
     // TODO: find later writes with different IDs
-    /*
-    if let Some(w) = fifo.front() {
-        if !w.done() {
-            println!("[{}] Write queue head not completed: channel_id={} id={}", crate::get_t(), channel_id, w.id());
-        }
-    }
-    */
     if fifo.front().as_ref().is_none_or(|w| !w.done()) {
       return;
     }
     let w = fifo.pop_front().unwrap();
-    // println!("[{}] Write finalized: channel_id={} id={}", crate::get_t(), channel_id, w.id());
+    debug!(
+      "[{}] Write finalized: channel_id={} id={}",
+      crate::get_t(),
+      channel_id,
+      w.id()
+    );
     unsafe {
       ret.write(1);
       (ret.offset(2) as *mut u16).write(w.id() as u16);
@@ -229,7 +244,12 @@ unsafe extern "C" fn axi_pop_R(
           }
 
           if last {
-            // println!("[{}] Read finalized: channel_id={} id={}", crate::get_t(), channel_id, *id);
+            debug!(
+              "[{}] Read finalized: channel_id={} id={}",
+              crate::get_t(),
+              channel_id,
+              *id
+            );
             fifo.pop_front();
           }
           return;
