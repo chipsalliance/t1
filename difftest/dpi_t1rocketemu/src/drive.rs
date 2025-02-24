@@ -407,6 +407,13 @@ impl Driver {
       // [16 bit W = 0][ 16 bit cid ][ 32 bit id ]
       let mapped_id = cid << 32 | w.id;
       let payload = MemReqPayload::Write(w.data.as_slice(), Some(w.strb.as_slice()));
+
+      debug!(
+        "[{}] Committing write: {:?} -> 0x{:x}",
+        get_t(),
+        payload,
+        w.addr
+      );
       if self.addr_space.req(
         mapped_id,
         w.addr as u32,
