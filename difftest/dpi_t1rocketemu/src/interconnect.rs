@@ -172,36 +172,103 @@ pub trait MemoryModel {
   fn tick(&mut self);
 }
 
+#[derive(Clone, Debug)]
+pub struct AddrSet {
+  pub base: u32,
+  pub line_size: u16,
+  pub set: u16,
+}
+
+impl AddrSet {
+  pub fn new(unaligned_base: u32, len: u32, line_size: u32) -> AddrSet {
+    let base = (unaligned_base / line_size) * line_size;
+    let prepend = unaligned_base - base;
+    let line_num = ((len + prepend) + line_size - 1) / line_size;
+    assert!(
+      line_num <= 16,
+      "line number {} > 16 not supported!",
+      line_num
+    );
+    let set = if line_num == 16 {
+      u16::MAX
+    } else {
+      ((1 << line_num) - 1) as u16
+    };
+
+    AddrSet { base, line_size: line_size as u16, set }
+  }
+
+  pub fn empty(&self) -> bool {
+    self.set == 0
+  }
+
+  pub fn remove(&mut self, idx: u32) -> bool {
+    if idx >= 16 {
+      return false;
+    }
+    let currently_set = self.set & (1u16 << idx) != 0;
+    self.set &= !(1u16 << idx);
+    currently_set
+  }
+
+  pub fn remove_addr(&mut self, addr: u32) -> bool {
+    if addr < self.base {
+      return false;
+    }
+    let diff = addr - self.base;
+    if diff % self.line_size as u32 != 0 {
+      return false;
+    }
+    let idx = diff / self.line_size as u32;
+    self.remove(idx)
+  }
+}
+
+impl Iterator for AddrSet {
+  type Item = (u32, u32); // (addr, offset)
+
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.set == 0 {
+      return None;
+    }
+    let last_one = self.set.trailing_zeros();
+    let addr = self.base + self.line_size as u32 * last_one;
+    self.remove(last_one);
+    return Some((addr, last_one));
+  }
+}
+
 #[derive(Debug)]
 struct InflightMem {
   id: u64,
   req: AddrInfo,
   is_write: bool,
 
-  /// Addr of first byte of next request (addr)
-  send_ptr: u32,
-  /// Addr of first byte of next response
-  done_ptr: u32,
+  /// Un-sent requests
+  req_wait: AddrSet,
+  /// Un-acked responses
+  resp_wait: AddrSet,
 }
 
 impl InflightMem {
-  fn from_ident(ident: MemIdent, alignment: u32) -> Self {
-    let aligned = (ident.req.offset / alignment) * alignment;
+  fn from_ident(ident: MemIdent, line_size: u32) -> Self {
+    let set = AddrSet::new(ident.req.offset, ident.req.len, line_size);
     Self {
       id: ident.id,
       req: ident.req,
       is_write: ident.is_write,
 
-      send_ptr: aligned,
-      done_ptr: aligned,
+      req_wait: set.clone(),
+      resp_wait: set,
     }
   }
 
   fn sent(&self) -> bool {
-    self.send_ptr >= self.req.offset + self.req.len
+    self.req_wait.empty()
   }
+
   fn done(&self) -> bool {
-    self.done_ptr >= self.req.offset + self.req.len
+    self.resp_wait.empty()
   }
 }
 
@@ -229,14 +296,12 @@ impl DRAMModel {
     let sys = dramsim3::MemorySystem::new(&ds_cfg_cstr, &ds_path_cstr, move |addr, is_write| {
       debug!("DRAM Memory response: {:x}, write={}", addr, is_write);
       for req in inflights_clone.lock().unwrap().iter_mut() {
-        if !req.done() && req.done_ptr as u64 == addr && req.is_write == is_write {
-          // TODO: pass chunk_size from dramsim3
+        if req.is_write == is_write && req.resp_wait.remove_addr(addr as u32) {
           debug!("Found req: id={:x}", req.id);
-          req.done_ptr += chunk_size.get();
           return;
         }
       }
-      // TODO: log and immediately exit
+      debug!("All requests: {:#?}", *inflights_clone.lock().unwrap());
       panic!("Unexpected memory response!");
     });
     let ret = DRAMModel {
@@ -285,13 +350,17 @@ impl MemoryModel for DRAMModel {
       if inflight.sent() {
         continue;
       }
-      let next_addr = inflight.send_ptr;
-      if !self.sys.can_add(next_addr as u64, inflight.is_write) {
-        continue;
+      for (addr, idx) in inflight.req_wait.clone() {
+        if !self.sys.can_add(addr as u64, inflight.is_write) {
+          continue;
+        }
+        debug!(
+          "DRAM Memory request: {:x}, write={}, id=0x{:x}",
+          addr, inflight.is_write, inflight.id
+        );
+        self.sys.add(addr as u64, inflight.is_write);
+        inflight.req_wait.remove(idx);
       }
-      // dbg!(&inflight);
-      self.sys.add(next_addr as u64, inflight.is_write);
-      inflight.send_ptr += self.req_size();
     }
     // Manually unlock
     drop(inflights);
