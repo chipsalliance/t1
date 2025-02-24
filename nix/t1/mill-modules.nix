@@ -2,6 +2,7 @@
 , stdenv
 , fetchMillDeps
 , makeWrapper
+, runCommand
 , jdk21
 
   # chisel deps
@@ -20,6 +21,29 @@
 
 let
   t1MillDeps = mill-ivy-fetcher.deps-builder ../../dependencies/ivys/t1/_sources/generated.nix;
+
+  coursierEnvInputs = with submodules; [
+    ivy-arithmetic.setupHook
+    ivy-chisel.setupHook
+    ivy-chisel-panama.setupHook
+    ivy-chisel-interface.setupHook
+    ivy-rvdecoderdb.setupHook
+    ivy-hardfloat.setupHook
+  ] ++ t1MillDeps.ivyDepsList;
+
+  coursierEnv = runCommand "build-coursier-env"
+    {
+      buildInputs = coursierEnvInputs;
+      passthru = {
+        inherit coursierEnvInputs;
+      };
+    } ''
+    runHook preUnpack
+    runHook postUnpack
+    runHook prePatch
+    cp -r "$NIX_MILL_HOME" "$out"
+  '';
+
   self = stdenv.mkDerivation {
     name = "t1-all-mill-modules";
 
@@ -40,15 +64,9 @@ let
       ];
     };
 
-    buildInputs = with submodules; [
-      ivy-arithmetic.setupHook
-      ivy-chisel.setupHook
-      ivy-chisel-panama.setupHook
-      ivy-chisel-interface.setupHook
-      ivy-rvdecoderdb.setupHook
-      ivy-hardfloat.setupHook
-      riscv-opcodes
-    ] ++ t1MillDeps.ivyDepsList;
+    buildInputs = [
+      submodules.riscv-opcodes
+    ] ++ coursierEnvInputs;
 
     nativeBuildInputs = [
       mill
@@ -67,17 +85,22 @@ let
     };
 
     shellHook = ''
-      export NIX_COURSIER_HOME="$(mktemp -d -t 'coursier_repo_XXX')"
-      mkdir -p "$NIX_COURSIER_HOME/local"
-      export COURSIER_REPOSITORIES="ivy2Local|central"
-      export JAVA_TOOL_OPTIONS="-Dcoursier.ivy.home=$NIX_COURSIER_HOME $JAVA_TOOL_OPTIONS"
+      if [[ ! -d ".git" || ! -f "build.mill" ]]; then
+        echo "Not in project root, exit" >&2
+        exit 1
+      fi
 
-      lndir ${submodules.ivy-arithmetic}/.ivy2/local "$NIX_COURSIER_HOME/local"
-      lndir ${submodules.ivy-chisel}/.ivy2/local "$NIX_COURSIER_HOME/local"
-      lndir ${submodules.ivy-chisel-panama}/.ivy2/local "$NIX_COURSIER_HOME/local"
-      lndir ${submodules.ivy-chisel-interface}/.ivy2/local "$NIX_COURSIER_HOME/local"
-      lndir ${submodules.ivy-rvdecoderdb}/.ivy2/local "$NIX_COURSIER_HOME/local"
-      lndir ${submodules.ivy-hardfloat}/.ivy2/local "$NIX_COURSIER_HOME/local"
+      export NIX_COURSIER_HOME="$PWD/out/.nixCoursierHome"
+      export COURSIER_REPOSITORIES="ivy2Local|central"
+      export COURSIER_CACHE="$NIX_COURSIER_HOME/cache"
+      export JAVA_TOOL_OPTIONS="-Dcoursier.ivy.home=$NIX_COURSIER_HOME $JAVA_TOOL_OPTIONS"
+      mkdir -p "$NIX_COURSIER_HOME" "$COURSIER_CACHE"
+
+      cp -rT "${coursierEnv}/.ivy2/local" "$NIX_COURSIER_HOME/local"
+      cp -r ${coursierEnv}/.cache/coursier/v1/* "$COURSIER_CACHE/"
+
+      chown -R $USER:nobody "$NIX_COURSIER_HOME"
+      chmod -R u+w "$NIX_COURSIER_HOME"
     '';
 
     outputs = [ "out" "omreader" "elaborator" ];
@@ -123,45 +146,8 @@ let
         --add-flags "-cp $out/share/java/omreader.jar"
     '';
 
-    passthru.format = writeShellApplication {
-      name = "mill-format-for-t1";
-      runtimeInputs = [ mill ];
-      text = ''
-        subcmd="''${1:-}"
-        [[ -z "$subcmd" ]] && \
-          echo "no subcmd specify, available: (check, run)" >&2 && exit 1
-
-        _targetsToCheck=(
-          "elaborator"
-          "omreader"
-          "omreaderlib"
-          "rocketv"
-          "t1"
-          "t1emu"
-          "t1rocket"
-          "t1rocketemu"
-        )
-
-        case "$subcmd" in
-          check)
-            for _t in "''${_targetsToCheck[@]}"; do
-              if ! mill -i "$_t".checkFormat; then
-                echo "[ERROR] Please run 'mill -i $_t.reformat' before elaborate!" >&2
-                exit 1
-              fi
-            done
-            ;;
-          run)
-            for _t in "''${_targetsToCheck[@]}"; do
-              mill -i "$_t".reformat || true
-            done
-            ;;
-          *)
-            echo "Invalid subcmd $subcmd, available: (check, run)" >&2
-            exit 1
-            ;;
-        esac
-      '';
+    passthru = {
+      inherit coursierEnv;
     };
   };
 in
