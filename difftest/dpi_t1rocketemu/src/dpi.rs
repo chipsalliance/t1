@@ -34,7 +34,7 @@ impl Iterator for StrbIterator {
     let slot = self.current / 8;
     let bit = self.current % 8;
     // TODO: is small endian correct??
-    let extracted = unsafe { self.strb.offset(slot as isize).read() >> bit != 0 };
+    let extracted = unsafe { (self.strb.offset(slot as isize).read() >> bit & 1) != 0 };
     self.current += 1;
     Some(extracted)
   }
@@ -233,9 +233,15 @@ unsafe extern "C" fn axi_pop_R(
       }; // TODO: we actually wants two levels of HashMap
       if let Some(r) = fifo.front_mut() {
         if r.has_data() {
-          // dbg!(&r);
           let rdata_buf = std::slice::from_raw_parts_mut(ret.offset(8), data_width as usize / 8);
           let last = r.pop(rdata_buf, data_width);
+          debug!(
+            "[{}] Read data: channel_id={} id={} content={:?}",
+            crate::get_t(),
+            channel_id,
+            *id,
+            rdata_buf,
+          );
           unsafe {
             ret.write(1);
             ret.offset(1).write(last as u8);
