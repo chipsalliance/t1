@@ -12,7 +12,7 @@ use elf::{
   endian::LittleEndian,
   ElfStream,
 };
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
 use std::{fs, path::Path};
@@ -260,8 +260,8 @@ pub(crate) struct Driver {
   pub(crate) exit_flag: ExitFlagRef,
 
   /// (channel_id, id) -> data
-  pub(crate) incomplete_writes: HashMap<u64, VecDeque<IncompleteWrite>>,
-  pub(crate) incomplete_reads: HashMap<(u64, u64), VecDeque<IncompleteRead>>,
+  pub(crate) incomplete_writes: BTreeMap<u64, VecDeque<IncompleteWrite>>,
+  pub(crate) incomplete_reads: BTreeMap<(u64, u64), VecDeque<IncompleteRead>>,
 }
 
 impl Driver {
@@ -305,8 +305,8 @@ impl Driver {
 
       exit_flag,
 
-      incomplete_reads: HashMap::new(),
-      incomplete_writes: HashMap::new(),
+      incomplete_reads: BTreeMap::new(),
+      incomplete_writes: BTreeMap::new(),
     }
   }
 
