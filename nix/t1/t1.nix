@@ -140,17 +140,19 @@ forEachTop (topName: generator: self: {
 
   inherit (t1Scope) sim-checker;
 
+  # We do not use vcs-emu-static every day,
+  # but we may switch back to static once rtLink breaks
+  vcs-emu-static = self.vcs-emu.override {
+    mainProgram = "${topName}-vcs-simulator-static";
+    vcsLinkLibs = [ "${self.vcs-dpi-lib}/lib/libdpi_${topName}.a" ];
+    rtLinkDpiLib = null;
+  };
+
   vcs-emu = t1Scope.sv-to-vcs-simulator {
     mainProgram = "${topName}-vcs-simulator";
     topModule = "TestBench";
     rtl = self.rtl;
     vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
-    vcsLinkLibs = [ "${self.vcs-dpi-lib}/lib/libdpi_${topName}.a" ];
-    rtLinkDpiLib = self.vcs-dpi-lib;
-  };
-  vcs-emu-rtlink = self.vcs-emu.override {
-    mainProgram = "${topName}-vcs-simulator-rtlink";
-    vcsLinkLibs = [ ];
     rtLinkDpiLib = self.vcs-dpi-lib;
   };
   vcs-emu-cover = self.vcs-emu.override {

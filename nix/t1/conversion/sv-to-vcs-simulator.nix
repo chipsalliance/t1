@@ -17,6 +17,10 @@
 assert lib.assertMsg (builtins.typeOf vsrc == "list") "vsrc should be a list of file path";
 assert lib.assertMsg (builtins.typeOf vcsLinkLibs == "list") "vcsLinkLibs should be list of strings";
 
+# Technically we could static link some libs and rtlink others,
+# but currently we don't use it in such a way, so just assert it to catch error
+assert lib.assertMsg (vcsLinkLibs != [] -> rtLinkDpiLib) "vcsLinkLibs and rtLinkDpiLib are both set";
+
 let
   # VCS simulation profiling
   # This is a debug feature, thus intentionally not exposed

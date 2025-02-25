@@ -5,7 +5,6 @@
 , verilator-emu
 , verilator-emu-trace
 , vcs-emu
-, vcs-emu-rtlink
 , vcs-emu-cover
 , vcs-emu-trace
 , vcs-dpi-lib
@@ -44,7 +43,7 @@ let
 
             vcs-emu = runEmu {
               inherit testCase;
-              emulator = vcs-emu-rtlink;
+              emulator = vcs-emu;
             };
 
             vcs-emu-trace = runEmu {
@@ -73,7 +72,7 @@ let
 
             vcs-prof-vcd = runFsdb2vcd (runEmu {
               inherit testCase;
-              emulator = vcs-emu-rtlink;
+              emulator = vcs-emu;
               emuExtraArgs = {
                 vcsDpiLib = vcs-dpi-lib;
               };
