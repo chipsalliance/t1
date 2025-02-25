@@ -74,12 +74,12 @@ class MemDataBundle(param: MSHRParam) extends Bundle {
   val index: UInt = UInt(param.cacheLineIndexBits.W)
 }
 
-class MemWrite(param: MSHRParam) extends Bundle {
+class MemWrite(transposeSize: Int, indexBit: Int, paWidth: Int) extends Bundle {
   // todo: DLEN?
-  val data:    UInt = UInt((param.lsuTransposeSize * 8).W)
-  val mask:    UInt = UInt(param.lsuTransposeSize.W)
-  val index:   UInt = UInt(param.cacheLineIndexBits.W)
-  val address: UInt = UInt(param.paWidth.W)
+  val data:    UInt = UInt((transposeSize * 8).W)
+  val mask:    UInt = UInt(transposeSize.W)
+  val index:   UInt = UInt(indexBit.W)
+  val address: UInt = UInt(paWidth.W)
 }
 
 class SimpleMemRequest(param: MSHRParam) extends Bundle {

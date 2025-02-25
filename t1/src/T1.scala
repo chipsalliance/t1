@@ -436,6 +436,10 @@ class T1(val parameter: T1Parameter)
   requestRegCSR.vStart := requestReg.bits.issue.vstart
   requestRegCSR.vxrm   := requestReg.bits.issue.vcsr(2, 1)
 
+  requestRegCSR.tk   := requestReg.bits.issue.vtype(13, 11)
+  requestRegCSR.tm   := requestReg.bits.issue.vtype(29, 16)
+  requestRegCSR.tew  := requestReg.bits.issue.vtype(5, 3) << requestReg.bits.issue.vtype(10, 9)
+
   /** maintain a [[DecoupleIO]] for [[requestReg]]. */
   val requestRegDequeue = Wire(Decoupled(new T1Issue(parameter.xLen, parameter.vLen)))
   // latch instruction, csr, decode result and instruction index to requestReg.

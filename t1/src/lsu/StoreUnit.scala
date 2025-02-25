@@ -21,7 +21,7 @@ class cacheLineEnqueueBundle(param: MSHRParam) extends Bundle {
 @instantiable
 class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   @public
-  val memRequest: DecoupledIO[MemWrite] = IO(Decoupled(new MemWrite(param)))
+  val memRequest: DecoupledIO[MemWrite] = IO(Decoupled(new MemWrite(param.lsuTransposeSize, param.cacheLineIndexBits, param.paWidth)))
 
   @public
   val status: LSUBaseStatus = IO(Output(new LSUBaseStatus))

@@ -288,6 +288,11 @@ class CSRInterface(vlWidth: Int) extends Bundle {
     * we always keep the undisturbed behavior, since there is no rename here.
     */
   val vma: Bool = Bool()
+
+  // csr for zvm
+  val tk: UInt = UInt(4.W)
+  val tm: UInt = UInt(14.W)
+  val tew: UInt = UInt(2.W)
 }
 
 /** [[Lane]] -> [[T1]], response for [[LaneRequest]] */
