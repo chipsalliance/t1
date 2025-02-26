@@ -167,7 +167,8 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val canSendTail:               Bool      = RegInit(false.B)
   val isLastCacheLineInBuffer:   Bool      = cacheLineIndexInBuffer === lsuRequestReg.instructionInformation.nf
   val bufferWillClear:           Bool      = alignedDequeueFire && isLastCacheLineInBuffer
-  accessBufferDequeueReady := !bufferValid || (memRequest.ready && isLastCacheLineInBuffer)
+  val addressQueueFree:          Bool      = Wire(Bool())
+  accessBufferDequeueReady := !bufferValid || (memRequest.ready && isLastCacheLineInBuffer && addressQueueFree)
   val bufferStageEnqueueData: Vec[UInt] = Mux(bufferFull, accessData, accessDataUpdate)
   // 处理mask, 对于 segment type 来说 一个mask 管 nf 个element
   val fillBySeg:              UInt      = Mux1H(
@@ -248,8 +249,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   }
 
   // 连接 alignedDequeue
-  val needSendTail:     Bool = bufferBaseCacheLineIndex === cacheLineNumberReg
-  val addressQueueFree: Bool = Wire(Bool())
+  val needSendTail: Bool = bufferBaseCacheLineIndex === cacheLineNumberReg
   memRequest.valid     := (bufferValid || (canSendTail && needSendTail)) && addressQueueFree
   // aligned
   memRequest.bits.data :=
