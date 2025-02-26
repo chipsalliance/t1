@@ -46,6 +46,9 @@ pub struct OnlineArgs {
   pub dramsim3_cfg: Option<PathBuf>,
 }
 
+/// An incomplete memory write
+/// Keeps track of both the data filling and the request into
+/// AddressSpace itself
 #[derive(Debug)]
 pub struct IncompleteWrite {
   id: u64,
@@ -54,8 +57,10 @@ pub struct IncompleteWrite {
   width: usize, // In bytes
   user: u64,
 
-  sent: bool, // Sent to memory system
-  done: bool, // Address Space has finished this write
+  /// Is this request already sent to the memory?
+  sent: bool,
+  /// Is this request processed by the memory?
+  done: bool,
 
   data: Vec<u8>,
   strb: Vec<bool>,
@@ -104,6 +109,7 @@ impl IncompleteWrite {
     }
   }
 
+  /// Add an AXI W channel beat
   pub fn push(
     &mut self,
     wdata: &[u8],
@@ -148,6 +154,9 @@ impl IncompleteWrite {
   }
 }
 
+/// An incomplete memory read
+/// Keeps track of both the data draining and the request into
+/// AddressSpace itself
 #[derive(Debug)]
 pub struct IncompleteRead {
   addr: u64,
@@ -155,8 +164,11 @@ pub struct IncompleteRead {
   width: usize,
   user: u64,
 
-  sent: bool, // Sent to memory
+  /// Is this request sent to memory?
+  sent: bool,
+  /// The number of bytes already returned to the RTL
   returned: usize,
+  /// The fetched data. None if the response has not arrived yet
   data: Option<Vec<u8>>,
 
   // Used for transfers
@@ -192,7 +204,9 @@ impl IncompleteRead {
     }
   }
 
-  /// Returns rlast
+  /// Drain one beat into the AXI R channel
+  ///
+  /// Returns true if this is the last beat in the response (rlast)
   pub fn pop(&mut self, rdata_buf: &mut [u8], data_width: u64) -> bool {
     assert!(
       self.data.is_some(),
@@ -383,7 +397,11 @@ impl Driver {
     self.last_commit_cycle = get_t();
   }
 
+  /// Ticking the peripherals
   pub fn tick(&mut self) {
+    // This tick happens on the posedge of each clock
+    // Also it may be called multiple time because of multiple slaves
+    // so here we check if we have already ticked this cycle.
     let desired_tick = get_t();
     if self.next_tick != 0 && desired_tick > self.next_tick {
       panic!("Skipped a tick: {} -> {}", self.next_tick, desired_tick);
@@ -394,6 +412,12 @@ impl Driver {
       return;
     }
     self.next_tick = desired_tick + 1;
+
+    // Then this function handles the real ticking, which contains three steps:
+    // 1. Send all requests
+    // 2. Ticking the AddressSpace
+    // 3. Poll the responses
+    // This way, memory accesses can be returned in the next cycle for peripherals with no latency
 
     // Allow sending multiple
     for (cid, fifo) in self.incomplete_writes.iter_mut() {
