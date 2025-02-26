@@ -30,12 +30,16 @@ impl AddrInfo {
   }
 }
 
+/// Payload of a memory request
 #[derive(Debug)]
 pub enum MemReqPayload<'a> {
   Read,
   Write(&'a [u8], Option<&'a [bool]>),
 }
 
+/// A memory request
+///
+/// The device should keep the ordering of requests of the same ID
 #[derive(Debug)]
 pub struct MemReq<'a> {
   pub id: u64,
@@ -52,6 +56,12 @@ impl<'a> MemReqPayload<'a> {
   }
 }
 
+/// Payload of memory response
+///
+/// Here we distinguish a fixed-sized MMIO register response
+/// from a arbitrarily-sized bulk memory response to simplify
+/// the implementation of RegDevice, since fixed-sized arrays
+/// are not borrowed
 #[derive(Debug)]
 pub enum MemRespPayload<'a> {
   ReadBuffered(&'a [u8]),
@@ -59,6 +69,9 @@ pub enum MemRespPayload<'a> {
   WriteAck,
 }
 
+/// A memory response
+///
+/// IDs correlates the response with the request
 #[derive(Debug)]
 pub struct MemResp<'a> {
   pub id: u64,
@@ -100,6 +113,10 @@ pub trait RegDevice {
 }
 
 /// Wrapping a reg device to implement the device trait
+///
+/// We need a wrapper because we have to keep track of pending
+/// MemResps. This is in turn due to the separation of request pushing
+/// and response polling.
 struct WrappedRegDevice<RD: RegDevice> {
   device: RD,
   pending: Option<MemResp<'static>>,
@@ -149,6 +166,7 @@ impl<T: RegDevice + Send + Sync + 'static> Device for WrappedRegDevice<T> {
   fn tick(&mut self) {} // This is a no-op for Reg devices
 }
 
+/// An abstract memory request (identifier) for memory models
 #[derive(Debug)]
 pub struct MemIdent {
   id: u64,
@@ -166,12 +184,22 @@ impl Into<MemIdent> for InflightMem {
   }
 }
 
+/// The memory model interface
+///
+/// A memory model simulates the latency of a memory device,
+/// but don't keep track of its content.
 pub trait MemoryModel {
   fn push(&mut self, req: MemIdent);
   fn pop(&mut self) -> Option<MemIdent>;
   fn tick(&mut self);
 }
 
+/// AddrSet repersents a subset of a specific memory slice, where
+/// each element (line) have uniform width
+///
+/// A memory request with arbitrary length may need to be segmented
+/// into multiple smaller memory requests. AddrSets are used to individually
+/// keep track of these requests' progress.
 #[derive(Clone, Debug)]
 pub struct AddrSet {
   pub base: u32,
@@ -180,6 +208,9 @@ pub struct AddrSet {
 }
 
 impl AddrSet {
+  /// Create an addr set based on the unaligned base, unaligned length, and the line size
+  ///
+  /// the returned set contains all elements initially.
   pub fn new(unaligned_base: u32, len: u32, line_size: u32) -> AddrSet {
     let base = (unaligned_base / line_size) * line_size;
     let prepend = unaligned_base - base;
@@ -198,10 +229,14 @@ impl AddrSet {
     AddrSet { base, line_size: line_size as u16, set }
   }
 
+  /// Returns if this set is empty
   pub fn empty(&self) -> bool {
     self.set == 0
   }
 
+  /// Remove a element based on its index
+  ///
+  /// Returns if the element is previously in the set
   pub fn remove(&mut self, idx: u32) -> bool {
     if idx >= 16 {
       return false;
@@ -211,6 +246,11 @@ impl AddrSet {
     currently_set
   }
 
+  /// Remove a element based on its address
+  /// The address has to reside within the range, and is aligned
+  /// to the line size.
+  ///
+  /// Returns if the element is previously in the set
   pub fn remove_addr(&mut self, addr: u32) -> bool {
     if addr < self.base {
       return false;
@@ -238,6 +278,7 @@ impl Iterator for AddrSet {
   }
 }
 
+/// Book-keeping structure for DRAMsim models
 #[derive(Debug)]
 struct InflightMem {
   id: u64,
@@ -263,19 +304,27 @@ impl InflightMem {
     }
   }
 
+  /// Returns if all sub-requests are sent to the memory model
   fn sent(&self) -> bool {
     self.req_wait.empty()
   }
 
+  /// Returns if all sub-responses are received
   fn done(&self) -> bool {
     self.resp_wait.empty()
   }
 }
 
+/// The DRAM memory model based on DRAMsim3
+///
+/// The ticking speed of this model should be the system clock speed,
+/// as it keeps track of the DRAM clock tick internally and compensates
+/// for the clock speed difference.
 pub struct DRAMModel {
   sys: dramsim3::MemorySystem,
   inflights: Arc<Mutex<Vec<InflightMem>>>,
-  cached: BinaryHeap<u32>,
+  // TODO: implement cache
+  _cached: BinaryHeap<u32>,
   dram_tick: usize,
   sys_tick: usize,
 }
@@ -307,7 +356,7 @@ impl DRAMModel {
     let ret = DRAMModel {
       sys,
       inflights: inflights,
-      cached: BinaryHeap::new(),
+      _cached: BinaryHeap::new(),
       dram_tick: 0,
       sys_tick: 0,
     };
@@ -316,7 +365,7 @@ impl DRAMModel {
     ret
   }
 
-  // Size of each request to DRAM, in bytes
+  /// Size of each request to DRAM, in bytes
   fn req_size(&self) -> u32 {
     (self.sys.burst_length() * self.sys.bus_bits() / 8) as u32
   }
@@ -389,6 +438,8 @@ impl MemoryModel for Arc<Mutex<DRAMModel>> {
   }
 }
 
+/// A trivial memory model, where all requests are immediately resolved
+/// and served in the FIFO order
 #[derive(Default)]
 pub struct TrivialModel {
   holding: VecDeque<MemIdent>,
@@ -404,6 +455,7 @@ impl MemoryModel for TrivialModel {
   fn tick(&mut self) {}
 }
 
+/// Repersents a bulk memory device, with its memory model
 pub struct RegularMemory<M: MemoryModel> {
   data: Vec<u8>,
   model: M,

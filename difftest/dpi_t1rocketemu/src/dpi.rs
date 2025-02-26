@@ -17,6 +17,7 @@ pub type SvBitVecVal = u32;
 
 static TARGET: DpiTarget<Driver> = DpiTarget::new();
 
+/// Wstrb iterator
 struct StrbIterator {
   strb: *const u8,
   total_width: usize,
@@ -33,7 +34,7 @@ impl Iterator for StrbIterator {
 
     let slot = self.current / 8;
     let bit = self.current % 8;
-    // TODO: is small endian correct??
+    // The wstrb are transfered in small endian
     let extracted = unsafe { (self.strb.offset(slot as isize).read() >> bit & 1) != 0 };
     self.current += 1;
     Some(extracted)
