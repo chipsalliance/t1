@@ -14,17 +14,17 @@ function main() {
   local workdir=$(mktemp -t -d "t1_bootstrap_XXX")
   echo "Using workdir: $workdir"
 
-  local allSubmodulesNameJson=$(nix eval --json '.#t1.dependencies.sources' --apply 'srcs: builtins.attrNames srcs')
-  local allSubmodules=( $( echo "$allSubmodulesNameJson" | jq -r '.[]' ) )
+  local allSubmodulesNameJson=$(nix eval --json '.#t1.submodules.sources' --apply 'srcs: builtins.attrNames srcs')
+  local allSubmodules=($(echo "$allSubmodulesNameJson" | jq -r '.[]'))
   mkdir -p "$workdir/submodules"
   for name in "${allSubmodules[@]}"; do
     mkdir -p "$workdir/submodules/$name"
-    p=$(nix build ".#t1.dependencies.sources.$name.src" --print-out-paths --no-link)
+    p=$(nix build ".#t1.submodules.sources.$name.src" --print-out-paths --no-link)
     cp -rT "$p" "$workdir/submodules/$name"
     unset p
   done
 
-  local extraSources=( "./berkeley-hardfloat" )
+  local extraSources=("./berkeley-hardfloat")
   for src in "${extraSources[@]}"; do
     cp -r "$src" "$workdir/submodules/"
   done
@@ -34,10 +34,10 @@ function main() {
 
   mkdir -p "$workdir/millUserHome"
   CHECKOUT_ROOT_DIR="$workdir/submodules" \
-  MILL_HOME="$millUserHome" \
+    MILL_HOME="$millUserHome" \
     ./gennix
 }
 
-if (( $_IS_EXEC )); then
+if (($_IS_EXEC)); then
   main
 fi

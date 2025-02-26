@@ -15,13 +15,13 @@ NVFETCHER_CFG_DIR=${NVFETCHER_CFG_DIR:-./dependencies/ivys}
 mkdir -p "$NVFETCHER_CFG_DIR"
 
 function main() {
-  local ivyDepsRaw=$(nix eval --json '.#t1.dependencies' \
+  local ivyDepsRaw=$(nix eval --json '.#t1.submodules' \
     --apply 'srcs: with builtins; filter (x: (substring 0 (stringLength "ivy-") x == "ivy-")) (attrNames srcs)')
-  local ivyDeps=( $(echo "$ivyDepsRaw" | jq -r '.[]') )
+  local ivyDeps=($(echo "$ivyDepsRaw" | jq -r '.[]'))
 
   local ivyDepPaths=()
   for dep in "${ivyDeps[@]}"; do
-    path=$(nix build --max-jobs $(nproc) --print-out-paths --no-warn-dirty --no-link ".#t1.dependencies.$dep")
+    path=$(nix build --max-jobs $(nproc) --print-out-paths --no-warn-dirty --no-link ".#t1.submodules.$dep")
     ivyDepPaths+=("$path")
   done
 
@@ -47,6 +47,6 @@ function main() {
   popd
 }
 
-if (( $_IS_EXEC )); then
+if (($_IS_EXEC)); then
   main
 fi

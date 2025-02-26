@@ -1,9 +1,39 @@
+["annotations-24.0.1-pom"]
+src.manual = "24.0.1"
+fetch.url = "https://repo1.maven.org/maven2/org/jetbrains/annotations/24.0.1/annotations-24.0.1.pom"
+fetch.force = true
+passthru.pkgname = "annotations"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jetbrains/annotations/24.0.1"
+["annotations-24.0.1-bundle"]
+src.manual = "24.0.1"
+fetch.url = "https://repo1.maven.org/maven2/org/jetbrains/annotations/24.0.1/annotations-24.0.1.jar"
+fetch.force = true
+passthru.pkgname = "annotations"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jetbrains/annotations/24.0.1"
+
+
+["apache-13-pom"]
+src.manual = "13"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/apache/13/apache-13.pom"
+fetch.force = true
+passthru.pkgname = "apache"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/apache/13"
+
+
 ["apache-16-pom"]
 src.manual = "16"
 fetch.url = "https://repo1.maven.org/maven2/org/apache/apache/16/apache-16.pom"
 fetch.force = true
 passthru.pkgname = "apache"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/apache/16"
+
+
+["apache-19-pom"]
+src.manual = "19"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/apache/19/apache-19.pom"
+fetch.force = true
+passthru.pkgname = "apache"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/apache/19"
 
 
 ["apache-30-pom"]
@@ -30,6 +60,174 @@ passthru.pkgname = "apache"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/apache/33"
 
 
+["autolink-0.6.0-pom"]
+src.manual = "0.6.0"
+fetch.url = "https://repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0/autolink-0.6.0.pom"
+fetch.force = true
+passthru.pkgname = "autolink"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0"
+["autolink-0.6.0-bundle"]
+src.manual = "0.6.0"
+fetch.url = "https://repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0/autolink-0.6.0.jar"
+fetch.force = true
+passthru.pkgname = "autolink"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0"
+
+
+["case-insensitive_2.13-1.2.0-pom"]
+src.manual = "1.2.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/case-insensitive_2.13/1.2.0/case-insensitive_2.13-1.2.0.pom"
+fetch.force = true
+passthru.pkgname = "case-insensitive_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/case-insensitive_2.13/1.2.0"
+["case-insensitive_2.13-1.2.0-bundle"]
+src.manual = "1.2.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/case-insensitive_2.13/1.2.0/case-insensitive_2.13-1.2.0.jar"
+fetch.force = true
+passthru.pkgname = "case-insensitive_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/case-insensitive_2.13/1.2.0"
+
+
+["cats-core_2.13-2.8.0-pom"]
+src.manual = "2.8.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-core_2.13/2.8.0/cats-core_2.13-2.8.0.pom"
+fetch.force = true
+passthru.pkgname = "cats-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-core_2.13/2.8.0"
+["cats-core_2.13-2.8.0-bundle"]
+src.manual = "2.8.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-core_2.13/2.8.0/cats-core_2.13-2.8.0.jar"
+fetch.force = true
+passthru.pkgname = "cats-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-core_2.13/2.8.0"
+
+
+["cats-effect-kernel_2.13-3.3.12-pom"]
+src.manual = "3.3.12"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-effect-kernel_2.13/3.3.12/cats-effect-kernel_2.13-3.3.12.pom"
+fetch.force = true
+passthru.pkgname = "cats-effect-kernel_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect-kernel_2.13/3.3.12"
+["cats-effect-kernel_2.13-3.3.12-bundle"]
+src.manual = "3.3.12"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-effect-kernel_2.13/3.3.12/cats-effect-kernel_2.13-3.3.12.jar"
+fetch.force = true
+passthru.pkgname = "cats-effect-kernel_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect-kernel_2.13/3.3.12"
+
+
+["cats-effect-std_2.13-3.3.12-pom"]
+src.manual = "3.3.12"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-effect-std_2.13/3.3.12/cats-effect-std_2.13-3.3.12.pom"
+fetch.force = true
+passthru.pkgname = "cats-effect-std_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect-std_2.13/3.3.12"
+["cats-effect-std_2.13-3.3.12-bundle"]
+src.manual = "3.3.12"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-effect-std_2.13/3.3.12/cats-effect-std_2.13-3.3.12.jar"
+fetch.force = true
+passthru.pkgname = "cats-effect-std_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect-std_2.13/3.3.12"
+
+
+["cats-effect_2.13-3.3.12-pom"]
+src.manual = "3.3.12"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-effect_2.13/3.3.12/cats-effect_2.13-3.3.12.pom"
+fetch.force = true
+passthru.pkgname = "cats-effect_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect_2.13/3.3.12"
+["cats-effect_2.13-3.3.12-bundle"]
+src.manual = "3.3.12"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-effect_2.13/3.3.12/cats-effect_2.13-3.3.12.jar"
+fetch.force = true
+passthru.pkgname = "cats-effect_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect_2.13/3.3.12"
+
+
+["cats-kernel_2.13-2.8.0-pom"]
+src.manual = "2.8.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0/cats-kernel_2.13-2.8.0.pom"
+fetch.force = true
+passthru.pkgname = "cats-kernel_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0"
+["cats-kernel_2.13-2.8.0-bundle"]
+src.manual = "2.8.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0/cats-kernel_2.13-2.8.0.jar"
+fetch.force = true
+passthru.pkgname = "cats-kernel_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0"
+
+
+["cats-parse_2.13-0.3.7-pom"]
+src.manual = "0.3.7"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-parse_2.13/0.3.7/cats-parse_2.13-0.3.7.pom"
+fetch.force = true
+passthru.pkgname = "cats-parse_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-parse_2.13/0.3.7"
+["cats-parse_2.13-0.3.7-bundle"]
+src.manual = "0.3.7"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/cats-parse_2.13/0.3.7/cats-parse_2.13-0.3.7.jar"
+fetch.force = true
+passthru.pkgname = "cats-parse_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/cats-parse_2.13/0.3.7"
+
+
+["circe-core_2.13-0.14.2-pom"]
+src.manual = "0.14.2"
+fetch.url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.13/0.14.2/circe-core_2.13-0.14.2.pom"
+fetch.force = true
+passthru.pkgname = "circe-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/circe/circe-core_2.13/0.14.2"
+["circe-core_2.13-0.14.2-bundle"]
+src.manual = "0.14.2"
+fetch.url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.13/0.14.2/circe-core_2.13-0.14.2.jar"
+fetch.force = true
+passthru.pkgname = "circe-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/circe/circe-core_2.13/0.14.2"
+
+
+["circe-generic_2.13-0.14.2-pom"]
+src.manual = "0.14.2"
+fetch.url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.14.2/circe-generic_2.13-0.14.2.pom"
+fetch.force = true
+passthru.pkgname = "circe-generic_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.14.2"
+["circe-generic_2.13-0.14.2-bundle"]
+src.manual = "0.14.2"
+fetch.url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.14.2/circe-generic_2.13-0.14.2.jar"
+fetch.force = true
+passthru.pkgname = "circe-generic_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.14.2"
+
+
+["circe-jawn_2.13-0.14.2-pom"]
+src.manual = "0.14.2"
+fetch.url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.13/0.14.2/circe-jawn_2.13-0.14.2.pom"
+fetch.force = true
+passthru.pkgname = "circe-jawn_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/circe/circe-jawn_2.13/0.14.2"
+["circe-jawn_2.13-0.14.2-bundle"]
+src.manual = "0.14.2"
+fetch.url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.13/0.14.2/circe-jawn_2.13-0.14.2.jar"
+fetch.force = true
+passthru.pkgname = "circe-jawn_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/circe/circe-jawn_2.13/0.14.2"
+
+
+["circe-numbers_2.13-0.14.2-pom"]
+src.manual = "0.14.2"
+fetch.url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.13/0.14.2/circe-numbers_2.13-0.14.2.pom"
+fetch.force = true
+passthru.pkgname = "circe-numbers_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/circe/circe-numbers_2.13/0.14.2"
+["circe-numbers_2.13-0.14.2-bundle"]
+src.manual = "0.14.2"
+fetch.url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.13/0.14.2/circe-numbers_2.13-0.14.2.jar"
+fetch.force = true
+passthru.pkgname = "circe-numbers_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/circe/circe-numbers_2.13/0.14.2"
+
+
 ["collections_2.13-1.10.7-pom"]
 src.manual = "1.10.7"
 fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/collections_2.13/1.10.7/collections_2.13-1.10.7.pom"
@@ -42,6 +240,20 @@ fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/collections_2.13/1.10.
 fetch.force = true
 passthru.pkgname = "collections_2.13"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/collections_2.13/1.10.7"
+
+
+["common_2.13-4.12.7-pom"]
+src.manual = "4.12.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/common_2.13/4.12.7/common_2.13-4.12.7.pom"
+fetch.force = true
+passthru.pkgname = "common_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/common_2.13/4.12.7"
+["common_2.13-4.12.7-bundle"]
+src.manual = "4.12.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/common_2.13/4.12.7/common_2.13-4.12.7.jar"
+fetch.force = true
+passthru.pkgname = "common_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/common_2.13/4.12.7"
 
 
 ["commons-lang3-3.14.0-pom"]
@@ -58,6 +270,20 @@ passthru.pkgname = "commons-lang3"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.14.0"
 
 
+["commons-logging-1.2-pom"]
+src.manual = "1.2"
+fetch.url = "https://repo1.maven.org/maven2/commons-logging/commons-logging/1.2/commons-logging-1.2.pom"
+fetch.force = true
+passthru.pkgname = "commons-logging"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/commons-logging/commons-logging/1.2"
+["commons-logging-1.2-bundle"]
+src.manual = "1.2"
+fetch.url = "https://repo1.maven.org/maven2/commons-logging/commons-logging/1.2/commons-logging-1.2.jar"
+fetch.force = true
+passthru.pkgname = "commons-logging"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/commons-logging/commons-logging/1.2"
+
+
 ["commons-math3-3.6.1-pom"]
 src.manual = "3.6.1"
 fetch.url = "https://repo1.maven.org/maven2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.pom"
@@ -70,6 +296,14 @@ fetch.url = "https://repo1.maven.org/maven2/org/apache/commons/commons-math3/3.6
 fetch.force = true
 passthru.pkgname = "commons-math3"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-math3/3.6.1"
+
+
+["commons-parent-34-pom"]
+src.manual = "34"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/commons/commons-parent/34/commons-parent-34.pom"
+fetch.force = true
+passthru.pkgname = "commons-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-parent/34"
 
 
 ["commons-parent-39-pom"]
@@ -208,6 +442,20 @@ passthru.pkgname = "compiler-interface"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.9.6"
 
 
+["config-1.4.3-pom"]
+src.manual = "1.4.3"
+fetch.url = "https://repo1.maven.org/maven2/com/typesafe/config/1.4.3/config-1.4.3.pom"
+fetch.force = true
+passthru.pkgname = "config"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/typesafe/config/1.4.3"
+["config-1.4.3-bundle"]
+src.manual = "1.4.3"
+fetch.url = "https://repo1.maven.org/maven2/com/typesafe/config/1.4.3/config-1.4.3.jar"
+fetch.force = true
+passthru.pkgname = "config"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/typesafe/config/1.4.3"
+
+
 ["core-macros_2.13-1.10.7-pom"]
 src.manual = "1.10.7"
 fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/core-macros_2.13/1.10.7/core-macros_2.13-1.10.7.pom"
@@ -248,6 +496,34 @@ fetch.url = "https://repo1.maven.org/maven2/de/tototec/de.tobiasroeser.mill.vcs.
 fetch.force = true
 passthru.pkgname = "de.tobiasroeser.mill.vcs.version_mill0.11_2.13"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/de/tototec/de.tobiasroeser.mill.vcs.version_mill0.11_2.13/0.4.0"
+
+
+["diffutils-1.3.0-pom"]
+src.manual = "1.3.0"
+fetch.url = "https://repo1.maven.org/maven2/com/googlecode/java-diff-utils/diffutils/1.3.0/diffutils-1.3.0.pom"
+fetch.force = true
+passthru.pkgname = "diffutils"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/googlecode/java-diff-utils/diffutils/1.3.0"
+["diffutils-1.3.0-bundle"]
+src.manual = "1.3.0"
+fetch.url = "https://repo1.maven.org/maven2/com/googlecode/java-diff-utils/diffutils/1.3.0/diffutils-1.3.0.jar"
+fetch.force = true
+passthru.pkgname = "diffutils"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/googlecode/java-diff-utils/diffutils/1.3.0"
+
+
+["directory-watcher-0.18.0-pom"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/io/methvin/directory-watcher/0.18.0/directory-watcher-0.18.0.pom"
+fetch.force = true
+passthru.pkgname = "directory-watcher"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/methvin/directory-watcher/0.18.0"
+["directory-watcher-0.18.0-bundle"]
+src.manual = "0.18.0"
+fetch.url = "https://repo1.maven.org/maven2/io/methvin/directory-watcher/0.18.0/directory-watcher-0.18.0.jar"
+fetch.force = true
+passthru.pkgname = "directory-watcher"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/methvin/directory-watcher/0.18.0"
 
 
 ["disruptor-3.4.2-pom"]
@@ -306,6 +582,742 @@ passthru.pkgname = "firtool-resolver_2.13"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/chipsalliance/firtool-resolver_2.13/2.0.1"
 
 
+["flexmark-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.64.8/flexmark-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.64.8"
+["flexmark-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.64.8/flexmark-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.64.8"
+
+
+["flexmark-all-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-all/0.64.8/flexmark-all-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-all"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-all/0.64.8"
+["flexmark-all-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-all/0.64.8/flexmark-all-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-all"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-all/0.64.8"
+
+
+["flexmark-ext-abbreviation-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-abbreviation/0.64.8/flexmark-ext-abbreviation-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-abbreviation"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-abbreviation/0.64.8"
+["flexmark-ext-abbreviation-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-abbreviation/0.64.8/flexmark-ext-abbreviation-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-abbreviation"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-abbreviation/0.64.8"
+
+
+["flexmark-ext-admonition-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-admonition/0.64.8/flexmark-ext-admonition-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-admonition"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-admonition/0.64.8"
+["flexmark-ext-admonition-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-admonition/0.64.8/flexmark-ext-admonition-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-admonition"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-admonition/0.64.8"
+
+
+["flexmark-ext-anchorlink-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.64.8/flexmark-ext-anchorlink-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-anchorlink"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.64.8"
+["flexmark-ext-anchorlink-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.64.8/flexmark-ext-anchorlink-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-anchorlink"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.64.8"
+
+
+["flexmark-ext-aside-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-aside/0.64.8/flexmark-ext-aside-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-aside"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-aside/0.64.8"
+["flexmark-ext-aside-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-aside/0.64.8/flexmark-ext-aside-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-aside"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-aside/0.64.8"
+
+
+["flexmark-ext-attributes-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-attributes/0.64.8/flexmark-ext-attributes-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-attributes"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-attributes/0.64.8"
+["flexmark-ext-attributes-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-attributes/0.64.8/flexmark-ext-attributes-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-attributes"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-attributes/0.64.8"
+
+
+["flexmark-ext-autolink-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.64.8/flexmark-ext-autolink-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-autolink"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.64.8"
+["flexmark-ext-autolink-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.64.8/flexmark-ext-autolink-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-autolink"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.64.8"
+
+
+["flexmark-ext-definition-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-definition/0.64.8/flexmark-ext-definition-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-definition"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-definition/0.64.8"
+["flexmark-ext-definition-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-definition/0.64.8/flexmark-ext-definition-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-definition"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-definition/0.64.8"
+
+
+["flexmark-ext-emoji-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.64.8/flexmark-ext-emoji-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-emoji"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.64.8"
+["flexmark-ext-emoji-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.64.8/flexmark-ext-emoji-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-emoji"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.64.8"
+
+
+["flexmark-ext-enumerated-reference-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-enumerated-reference/0.64.8/flexmark-ext-enumerated-reference-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-enumerated-reference"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-enumerated-reference/0.64.8"
+["flexmark-ext-enumerated-reference-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-enumerated-reference/0.64.8/flexmark-ext-enumerated-reference-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-enumerated-reference"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-enumerated-reference/0.64.8"
+
+
+["flexmark-ext-escaped-character-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-escaped-character/0.64.8/flexmark-ext-escaped-character-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-escaped-character"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-escaped-character/0.64.8"
+["flexmark-ext-escaped-character-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-escaped-character/0.64.8/flexmark-ext-escaped-character-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-escaped-character"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-escaped-character/0.64.8"
+
+
+["flexmark-ext-footnotes-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-footnotes/0.64.8/flexmark-ext-footnotes-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-footnotes"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-footnotes/0.64.8"
+["flexmark-ext-footnotes-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-footnotes/0.64.8/flexmark-ext-footnotes-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-footnotes"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-footnotes/0.64.8"
+
+
+["flexmark-ext-gfm-issues-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-issues/0.64.8/flexmark-ext-gfm-issues-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gfm-issues"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-issues/0.64.8"
+["flexmark-ext-gfm-issues-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-issues/0.64.8/flexmark-ext-gfm-issues-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gfm-issues"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-issues/0.64.8"
+
+
+["flexmark-ext-gfm-strikethrough-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.64.8/flexmark-ext-gfm-strikethrough-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gfm-strikethrough"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.64.8"
+["flexmark-ext-gfm-strikethrough-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.64.8/flexmark-ext-gfm-strikethrough-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gfm-strikethrough"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.64.8"
+
+
+["flexmark-ext-gfm-tasklist-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.64.8/flexmark-ext-gfm-tasklist-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gfm-tasklist"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.64.8"
+["flexmark-ext-gfm-tasklist-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.64.8/flexmark-ext-gfm-tasklist-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gfm-tasklist"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.64.8"
+
+
+["flexmark-ext-gfm-users-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-users/0.64.8/flexmark-ext-gfm-users-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gfm-users"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-users/0.64.8"
+["flexmark-ext-gfm-users-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-users/0.64.8/flexmark-ext-gfm-users-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gfm-users"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-users/0.64.8"
+
+
+["flexmark-ext-gitlab-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gitlab/0.64.8/flexmark-ext-gitlab-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gitlab"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gitlab/0.64.8"
+["flexmark-ext-gitlab-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gitlab/0.64.8/flexmark-ext-gitlab-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-gitlab"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gitlab/0.64.8"
+
+
+["flexmark-ext-ins-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.64.8/flexmark-ext-ins-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-ins"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.64.8"
+["flexmark-ext-ins-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.64.8/flexmark-ext-ins-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-ins"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.64.8"
+
+
+["flexmark-ext-jekyll-front-matter-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-front-matter/0.64.8/flexmark-ext-jekyll-front-matter-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-jekyll-front-matter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-front-matter/0.64.8"
+["flexmark-ext-jekyll-front-matter-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-front-matter/0.64.8/flexmark-ext-jekyll-front-matter-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-jekyll-front-matter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-front-matter/0.64.8"
+
+
+["flexmark-ext-jekyll-tag-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-tag/0.64.8/flexmark-ext-jekyll-tag-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-jekyll-tag"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-tag/0.64.8"
+["flexmark-ext-jekyll-tag-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-tag/0.64.8/flexmark-ext-jekyll-tag-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-jekyll-tag"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-tag/0.64.8"
+
+
+["flexmark-ext-macros-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-macros/0.64.8/flexmark-ext-macros-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-macros"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-macros/0.64.8"
+["flexmark-ext-macros-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-macros/0.64.8/flexmark-ext-macros-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-macros"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-macros/0.64.8"
+
+
+["flexmark-ext-media-tags-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-media-tags/0.64.8/flexmark-ext-media-tags-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-media-tags"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-media-tags/0.64.8"
+["flexmark-ext-media-tags-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-media-tags/0.64.8/flexmark-ext-media-tags-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-media-tags"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-media-tags/0.64.8"
+
+
+["flexmark-ext-resizable-image-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-resizable-image/0.64.8/flexmark-ext-resizable-image-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-resizable-image"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-resizable-image/0.64.8"
+["flexmark-ext-resizable-image-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-resizable-image/0.64.8/flexmark-ext-resizable-image-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-resizable-image"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-resizable-image/0.64.8"
+
+
+["flexmark-ext-superscript-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.64.8/flexmark-ext-superscript-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-superscript"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.64.8"
+["flexmark-ext-superscript-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.64.8/flexmark-ext-superscript-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-superscript"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.64.8"
+
+
+["flexmark-ext-tables-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.64.8/flexmark-ext-tables-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-tables"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.64.8"
+["flexmark-ext-tables-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.64.8/flexmark-ext-tables-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-tables"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.64.8"
+
+
+["flexmark-ext-toc-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-toc/0.64.8/flexmark-ext-toc-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-toc"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-toc/0.64.8"
+["flexmark-ext-toc-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-toc/0.64.8/flexmark-ext-toc-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-toc"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-toc/0.64.8"
+
+
+["flexmark-ext-typographic-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-typographic/0.64.8/flexmark-ext-typographic-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-typographic"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-typographic/0.64.8"
+["flexmark-ext-typographic-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-typographic/0.64.8/flexmark-ext-typographic-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-typographic"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-typographic/0.64.8"
+
+
+["flexmark-ext-wikilink-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.64.8/flexmark-ext-wikilink-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-wikilink"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.64.8"
+["flexmark-ext-wikilink-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.64.8/flexmark-ext-wikilink-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-wikilink"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.64.8"
+
+
+["flexmark-ext-xwiki-macros-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-xwiki-macros/0.64.8/flexmark-ext-xwiki-macros-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-xwiki-macros"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-xwiki-macros/0.64.8"
+["flexmark-ext-xwiki-macros-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-xwiki-macros/0.64.8/flexmark-ext-xwiki-macros-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-xwiki-macros"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-xwiki-macros/0.64.8"
+
+
+["flexmark-ext-yaml-front-matter-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.64.8/flexmark-ext-yaml-front-matter-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-yaml-front-matter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.64.8"
+["flexmark-ext-yaml-front-matter-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.64.8/flexmark-ext-yaml-front-matter-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-yaml-front-matter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.64.8"
+
+
+["flexmark-ext-youtube-embedded-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-youtube-embedded/0.64.8/flexmark-ext-youtube-embedded-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-youtube-embedded"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-youtube-embedded/0.64.8"
+["flexmark-ext-youtube-embedded-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-youtube-embedded/0.64.8/flexmark-ext-youtube-embedded-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-ext-youtube-embedded"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-youtube-embedded/0.64.8"
+
+
+["flexmark-html2md-converter-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-html2md-converter/0.64.8/flexmark-html2md-converter-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-html2md-converter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-html2md-converter/0.64.8"
+["flexmark-html2md-converter-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-html2md-converter/0.64.8/flexmark-html2md-converter-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-html2md-converter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-html2md-converter/0.64.8"
+
+
+["flexmark-java-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-java/0.64.8/flexmark-java-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-java"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-java/0.64.8"
+
+
+["flexmark-jira-converter-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.64.8/flexmark-jira-converter-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-jira-converter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.64.8"
+["flexmark-jira-converter-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.64.8/flexmark-jira-converter-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-jira-converter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.64.8"
+
+
+["flexmark-pdf-converter-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-pdf-converter/0.64.8/flexmark-pdf-converter-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-pdf-converter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-pdf-converter/0.64.8"
+["flexmark-pdf-converter-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-pdf-converter/0.64.8/flexmark-pdf-converter-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-pdf-converter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-pdf-converter/0.64.8"
+
+
+["flexmark-profile-pegdown-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-profile-pegdown/0.64.8/flexmark-profile-pegdown-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-profile-pegdown"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-profile-pegdown/0.64.8"
+["flexmark-profile-pegdown-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-profile-pegdown/0.64.8/flexmark-profile-pegdown-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-profile-pegdown"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-profile-pegdown/0.64.8"
+
+
+["flexmark-util-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.64.8/flexmark-util-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.64.8"
+["flexmark-util-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.64.8/flexmark-util-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.64.8"
+
+
+["flexmark-util-ast-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.64.8/flexmark-util-ast-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-ast"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.64.8"
+["flexmark-util-ast-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.64.8/flexmark-util-ast-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-ast"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.64.8"
+
+
+["flexmark-util-builder-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.64.8/flexmark-util-builder-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-builder"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.64.8"
+["flexmark-util-builder-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.64.8/flexmark-util-builder-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-builder"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.64.8"
+
+
+["flexmark-util-collection-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.64.8/flexmark-util-collection-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-collection"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.64.8"
+["flexmark-util-collection-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.64.8/flexmark-util-collection-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-collection"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.64.8"
+
+
+["flexmark-util-data-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.64.8/flexmark-util-data-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-data"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.64.8"
+["flexmark-util-data-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.64.8/flexmark-util-data-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-data"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.64.8"
+
+
+["flexmark-util-dependency-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.64.8/flexmark-util-dependency-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-dependency"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.64.8"
+["flexmark-util-dependency-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.64.8/flexmark-util-dependency-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-dependency"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.64.8"
+
+
+["flexmark-util-format-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.64.8/flexmark-util-format-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-format"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.64.8"
+["flexmark-util-format-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.64.8/flexmark-util-format-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-format"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.64.8"
+
+
+["flexmark-util-html-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.64.8/flexmark-util-html-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-html"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.64.8"
+["flexmark-util-html-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.64.8/flexmark-util-html-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-html"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.64.8"
+
+
+["flexmark-util-misc-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.64.8/flexmark-util-misc-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-misc"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.64.8"
+["flexmark-util-misc-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.64.8/flexmark-util-misc-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-misc"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.64.8"
+
+
+["flexmark-util-options-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.64.8/flexmark-util-options-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-options"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.64.8"
+["flexmark-util-options-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.64.8/flexmark-util-options-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-options"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.64.8"
+
+
+["flexmark-util-sequence-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.64.8/flexmark-util-sequence-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-sequence"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.64.8"
+["flexmark-util-sequence-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.64.8/flexmark-util-sequence-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-sequence"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.64.8"
+
+
+["flexmark-util-visitor-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.64.8/flexmark-util-visitor-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-util-visitor"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.64.8"
+["flexmark-util-visitor-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.64.8/flexmark-util-visitor-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-util-visitor"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.64.8"
+
+
+["flexmark-youtrack-converter-0.64.8-pom"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-youtrack-converter/0.64.8/flexmark-youtrack-converter-0.64.8.pom"
+fetch.force = true
+passthru.pkgname = "flexmark-youtrack-converter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-youtrack-converter/0.64.8"
+["flexmark-youtrack-converter-0.64.8-bundle"]
+src.manual = "0.64.8"
+fetch.url = "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-youtrack-converter/0.64.8/flexmark-youtrack-converter-0.64.8.jar"
+fetch.force = true
+passthru.pkgname = "flexmark-youtrack-converter"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-youtrack-converter/0.64.8"
+
+
+["fontbox-2.0.24-pom"]
+src.manual = "2.0.24"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/pdfbox/fontbox/2.0.24/fontbox-2.0.24.pom"
+fetch.force = true
+passthru.pkgname = "fontbox"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/fontbox/2.0.24"
+["fontbox-2.0.24-bundle"]
+src.manual = "2.0.24"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/pdfbox/fontbox/2.0.24/fontbox-2.0.24.jar"
+fetch.force = true
+passthru.pkgname = "fontbox"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/fontbox/2.0.24"
+
+
+["fs2-core_2.13-3.2.8-pom"]
+src.manual = "3.2.8"
+fetch.url = "https://repo1.maven.org/maven2/co/fs2/fs2-core_2.13/3.2.8/fs2-core_2.13-3.2.8.pom"
+fetch.force = true
+passthru.pkgname = "fs2-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/co/fs2/fs2-core_2.13/3.2.8"
+["fs2-core_2.13-3.2.8-bundle"]
+src.manual = "3.2.8"
+fetch.url = "https://repo1.maven.org/maven2/co/fs2/fs2-core_2.13/3.2.8/fs2-core_2.13-3.2.8.jar"
+fetch.force = true
+passthru.pkgname = "fs2-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/co/fs2/fs2-core_2.13/3.2.8"
+
+
+["fs2-io_2.13-3.2.8-pom"]
+src.manual = "3.2.8"
+fetch.url = "https://repo1.maven.org/maven2/co/fs2/fs2-io_2.13/3.2.8/fs2-io_2.13-3.2.8.pom"
+fetch.force = true
+passthru.pkgname = "fs2-io_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/co/fs2/fs2-io_2.13/3.2.8"
+["fs2-io_2.13-3.2.8-bundle"]
+src.manual = "3.2.8"
+fetch.url = "https://repo1.maven.org/maven2/co/fs2/fs2-io_2.13/3.2.8/fs2-io_2.13-3.2.8.jar"
+fetch.force = true
+passthru.pkgname = "fs2-io_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/co/fs2/fs2-io_2.13/3.2.8"
+
+
 ["fusesource-pom-1.12-pom"]
 src.manual = "1.12"
 fetch.url = "https://repo1.maven.org/maven2/org/fusesource/fusesource-pom/1.12/fusesource-pom-1.12.pom"
@@ -356,12 +1368,138 @@ passthru.pkgname = "geny_3"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/geny_3/1.1.0"
 
 
+["github4s_2.13-0.31.1-pom"]
+src.manual = "0.31.1"
+fetch.url = "https://repo1.maven.org/maven2/com/47deg/github4s_2.13/0.31.1/github4s_2.13-0.31.1.pom"
+fetch.force = true
+passthru.pkgname = "github4s_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/47deg/github4s_2.13/0.31.1"
+["github4s_2.13-0.31.1-bundle"]
+src.manual = "0.31.1"
+fetch.url = "https://repo1.maven.org/maven2/com/47deg/github4s_2.13/0.31.1/github4s_2.13-0.31.1.jar"
+fetch.force = true
+passthru.pkgname = "github4s_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/47deg/github4s_2.13/0.31.1"
+
+
+["graphics2d-0.32-pom"]
+src.manual = "0.32"
+fetch.url = "https://repo1.maven.org/maven2/de/rototor/pdfbox/graphics2d/0.32/graphics2d-0.32.pom"
+fetch.force = true
+passthru.pkgname = "graphics2d"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/de/rototor/pdfbox/graphics2d/0.32"
+["graphics2d-0.32-bundle"]
+src.manual = "0.32"
+fetch.url = "https://repo1.maven.org/maven2/de/rototor/pdfbox/graphics2d/0.32/graphics2d-0.32.jar"
+fetch.force = true
+passthru.pkgname = "graphics2d"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/de/rototor/pdfbox/graphics2d/0.32"
+
+
 ["groovy-bom-4.0.22-pom"]
 src.manual = "4.0.22"
 fetch.url = "https://repo1.maven.org/maven2/org/apache/groovy/groovy-bom/4.0.22/groovy-bom-4.0.22.pom"
 fetch.force = true
 passthru.pkgname = "groovy-bom"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/groovy/groovy-bom/4.0.22"
+
+
+["http4s-circe_2.13-0.23.13-pom"]
+src.manual = "0.23.13"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.23.13/http4s-circe_2.13-0.23.13.pom"
+fetch.force = true
+passthru.pkgname = "http4s-circe_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.23.13"
+["http4s-circe_2.13-0.23.13-bundle"]
+src.manual = "0.23.13"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.23.13/http4s-circe_2.13-0.23.13.jar"
+fetch.force = true
+passthru.pkgname = "http4s-circe_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.23.13"
+
+
+["http4s-client_2.13-0.23.13-pom"]
+src.manual = "0.23.13"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-client_2.13/0.23.13/http4s-client_2.13-0.23.13.pom"
+fetch.force = true
+passthru.pkgname = "http4s-client_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-client_2.13/0.23.13"
+["http4s-client_2.13-0.23.13-bundle"]
+src.manual = "0.23.13"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-client_2.13/0.23.13/http4s-client_2.13-0.23.13.jar"
+fetch.force = true
+passthru.pkgname = "http4s-client_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-client_2.13/0.23.13"
+
+
+["http4s-core_2.13-0.23.13-pom"]
+src.manual = "0.23.13"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-core_2.13/0.23.13/http4s-core_2.13-0.23.13.pom"
+fetch.force = true
+passthru.pkgname = "http4s-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-core_2.13/0.23.13"
+["http4s-core_2.13-0.23.13-bundle"]
+src.manual = "0.23.13"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-core_2.13/0.23.13/http4s-core_2.13-0.23.13.jar"
+fetch.force = true
+passthru.pkgname = "http4s-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-core_2.13/0.23.13"
+
+
+["http4s-crypto_2.13-0.2.3-pom"]
+src.manual = "0.2.3"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-crypto_2.13/0.2.3/http4s-crypto_2.13-0.2.3.pom"
+fetch.force = true
+passthru.pkgname = "http4s-crypto_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-crypto_2.13/0.2.3"
+["http4s-crypto_2.13-0.2.3-bundle"]
+src.manual = "0.2.3"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-crypto_2.13/0.2.3/http4s-crypto_2.13-0.2.3.jar"
+fetch.force = true
+passthru.pkgname = "http4s-crypto_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-crypto_2.13/0.2.3"
+
+
+["http4s-jawn_2.13-0.23.13-pom"]
+src.manual = "0.23.13"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-jawn_2.13/0.23.13/http4s-jawn_2.13-0.23.13.pom"
+fetch.force = true
+passthru.pkgname = "http4s-jawn_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-jawn_2.13/0.23.13"
+["http4s-jawn_2.13-0.23.13-bundle"]
+src.manual = "0.23.13"
+fetch.url = "https://repo1.maven.org/maven2/org/http4s/http4s-jawn_2.13/0.23.13/http4s-jawn_2.13-0.23.13.jar"
+fetch.force = true
+passthru.pkgname = "http4s-jawn_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/http4s/http4s-jawn_2.13/0.23.13"
+
+
+["icu4j-72.1-pom"]
+src.manual = "72.1"
+fetch.url = "https://repo1.maven.org/maven2/com/ibm/icu/icu4j/72.1/icu4j-72.1.pom"
+fetch.force = true
+passthru.pkgname = "icu4j"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/ibm/icu/icu4j/72.1"
+["icu4j-72.1-bundle"]
+src.manual = "72.1"
+fetch.url = "https://repo1.maven.org/maven2/com/ibm/icu/icu4j/72.1/icu4j-72.1.jar"
+fetch.force = true
+passthru.pkgname = "icu4j"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/ibm/icu/icu4j/72.1"
+
+
+["interface-1.0.28-pom"]
+src.manual = "1.0.28"
+fetch.url = "https://repo1.maven.org/maven2/io/get-coursier/interface/1.0.28/interface-1.0.28.pom"
+fetch.force = true
+passthru.pkgname = "interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/get-coursier/interface/1.0.28"
+["interface-1.0.28-bundle"]
+src.manual = "1.0.28"
+fetch.url = "https://repo1.maven.org/maven2/io/get-coursier/interface/1.0.28/interface-1.0.28.jar"
+fetch.force = true
+passthru.pkgname = "interface"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/get-coursier/interface/1.0.28"
 
 
 ["io_2.13-1.10.3-pom"]
@@ -376,6 +1514,20 @@ fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/io_2.13/1.10.3/io_2.13
 fetch.force = true
 passthru.pkgname = "io_2.13"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/io_2.13/1.10.3"
+
+
+["ip4s-core_2.13-3.1.3-pom"]
+src.manual = "3.1.3"
+fetch.url = "https://repo1.maven.org/maven2/com/comcast/ip4s-core_2.13/3.1.3/ip4s-core_2.13-3.1.3.pom"
+fetch.force = true
+passthru.pkgname = "ip4s-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/comcast/ip4s-core_2.13/3.1.3"
+["ip4s-core_2.13-3.1.3-bundle"]
+src.manual = "3.1.3"
+fetch.url = "https://repo1.maven.org/maven2/com/comcast/ip4s-core_2.13/3.1.3/ip4s-core_2.13-3.1.3.jar"
+fetch.force = true
+passthru.pkgname = "ip4s-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/comcast/ip4s-core_2.13/3.1.3"
 
 
 ["jackson-bom-2.17.2-pom"]
@@ -452,6 +1604,124 @@ fetch.url = "https://repo1.maven.org/maven2/net/openhft/java-parent-pom/1.1.28/j
 fetch.force = true
 passthru.pkgname = "java-parent-pom"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/net/openhft/java-parent-pom/1.1.28"
+
+
+["jawn-fs2_2.13-2.2.0-pom"]
+src.manual = "2.2.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/jawn-fs2_2.13/2.2.0/jawn-fs2_2.13-2.2.0.pom"
+fetch.force = true
+passthru.pkgname = "jawn-fs2_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/jawn-fs2_2.13/2.2.0"
+["jawn-fs2_2.13-2.2.0-bundle"]
+src.manual = "2.2.0"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/jawn-fs2_2.13/2.2.0/jawn-fs2_2.13-2.2.0.jar"
+fetch.force = true
+passthru.pkgname = "jawn-fs2_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/jawn-fs2_2.13/2.2.0"
+
+
+["jawn-parser_2.13-1.3.2-pom"]
+src.manual = "1.3.2"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/jawn-parser_2.13/1.3.2/jawn-parser_2.13-1.3.2.pom"
+fetch.force = true
+passthru.pkgname = "jawn-parser_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/jawn-parser_2.13/1.3.2"
+["jawn-parser_2.13-1.3.2-bundle"]
+src.manual = "1.3.2"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/jawn-parser_2.13/1.3.2/jawn-parser_2.13-1.3.2.jar"
+fetch.force = true
+passthru.pkgname = "jawn-parser_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/jawn-parser_2.13/1.3.2"
+
+
+["jboss-logging-3.4.1.Final-pom"]
+src.manual = "3.4.1.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.1.Final/jboss-logging-3.4.1.Final.pom"
+fetch.force = true
+passthru.pkgname = "jboss-logging"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.1.Final"
+["jboss-logging-3.4.1.Final-bundle"]
+src.manual = "3.4.1.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.1.Final/jboss-logging-3.4.1.Final.jar"
+fetch.force = true
+passthru.pkgname = "jboss-logging"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.1.Final"
+
+
+["jboss-logging-3.4.3.Final-pom"]
+src.manual = "3.4.3.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.3.Final/jboss-logging-3.4.3.Final.pom"
+fetch.force = true
+passthru.pkgname = "jboss-logging"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.3.Final"
+["jboss-logging-3.4.3.Final-bundle"]
+src.manual = "3.4.3.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.3.Final/jboss-logging-3.4.3.Final.jar"
+fetch.force = true
+passthru.pkgname = "jboss-logging"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.3.Final"
+
+
+["jboss-parent-23-pom"]
+src.manual = "23"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/jboss-parent/23/jboss-parent-23.pom"
+fetch.force = true
+passthru.pkgname = "jboss-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/23"
+
+
+["jboss-parent-34-pom"]
+src.manual = "34"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/jboss-parent/34/jboss-parent-34.pom"
+fetch.force = true
+passthru.pkgname = "jboss-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/34"
+
+
+["jboss-parent-35-pom"]
+src.manual = "35"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/jboss-parent/35/jboss-parent-35.pom"
+fetch.force = true
+passthru.pkgname = "jboss-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/35"
+
+
+["jboss-parent-36-pom"]
+src.manual = "36"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/jboss-parent/36/jboss-parent-36.pom"
+fetch.force = true
+passthru.pkgname = "jboss-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/36"
+
+
+["jboss-parent-39-pom"]
+src.manual = "39"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/jboss-parent/39/jboss-parent-39.pom"
+fetch.force = true
+passthru.pkgname = "jboss-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/39"
+
+
+["jboss-parent-43-pom"]
+src.manual = "43"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/jboss-parent/43/jboss-parent-43.pom"
+fetch.force = true
+passthru.pkgname = "jboss-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/43"
+
+
+["jboss-threads-3.1.0.Final-pom"]
+src.manual = "3.1.0.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/threads/jboss-threads/3.1.0.Final/jboss-threads-3.1.0.Final.pom"
+fetch.force = true
+passthru.pkgname = "jboss-threads"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/threads/jboss-threads/3.1.0.Final"
+["jboss-threads-3.1.0.Final-bundle"]
+src.manual = "3.1.0.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/threads/jboss-threads/3.1.0.Final/jboss-threads-3.1.0.Final.jar"
+fetch.force = true
+passthru.pkgname = "jboss-threads"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/threads/jboss-threads/3.1.0.Final"
 
 
 ["jline-2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18-pom"]
@@ -858,6 +2128,48 @@ passthru.pkgname = "json4s-scalap_3"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/json4s/json4s-scalap_3/4.0.7"
 
 
+["jsoniter-scala-core_2.13-2.33.0-pom"]
+src.manual = "2.33.0"
+fetch.url = "https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-core_2.13/2.33.0/jsoniter-scala-core_2.13-2.33.0.pom"
+fetch.force = true
+passthru.pkgname = "jsoniter-scala-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-core_2.13/2.33.0"
+["jsoniter-scala-core_2.13-2.33.0-bundle"]
+src.manual = "2.33.0"
+fetch.url = "https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-core_2.13/2.33.0/jsoniter-scala-core_2.13-2.33.0.jar"
+fetch.force = true
+passthru.pkgname = "jsoniter-scala-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-core_2.13/2.33.0"
+
+
+["jsoniter-scala-macros_2.13-2.33.0-pom"]
+src.manual = "2.33.0"
+fetch.url = "https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-macros_2.13/2.33.0/jsoniter-scala-macros_2.13-2.33.0.pom"
+fetch.force = true
+passthru.pkgname = "jsoniter-scala-macros_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-macros_2.13/2.33.0"
+["jsoniter-scala-macros_2.13-2.33.0-bundle"]
+src.manual = "2.33.0"
+fetch.url = "https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-macros_2.13/2.33.0/jsoniter-scala-macros_2.13-2.33.0.jar"
+fetch.force = true
+passthru.pkgname = "jsoniter-scala-macros_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-macros_2.13/2.33.0"
+
+
+["jsoup-1.15.4-pom"]
+src.manual = "1.15.4"
+fetch.url = "https://repo1.maven.org/maven2/org/jsoup/jsoup/1.15.4/jsoup-1.15.4.pom"
+fetch.force = true
+passthru.pkgname = "jsoup"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jsoup/jsoup/1.15.4"
+["jsoup-1.15.4-bundle"]
+src.manual = "1.15.4"
+fetch.url = "https://repo1.maven.org/maven2/org/jsoup/jsoup/1.15.4/jsoup-1.15.4.jar"
+fetch.force = true
+passthru.pkgname = "jsoup"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jsoup/jsoup/1.15.4"
+
+
 ["junit-bom-5.10.0-pom"]
 src.manual = "5.10.0"
 fetch.url = "https://repo1.maven.org/maven2/org/junit/junit-bom/5.10.0/junit-bom-5.10.0.pom"
@@ -882,6 +2194,14 @@ passthru.pkgname = "junit-bom"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/junit/junit-bom/5.10.3"
 
 
+["junit-bom-5.8.2-pom"]
+src.manual = "5.8.2"
+fetch.url = "https://repo1.maven.org/maven2/org/junit/junit-bom/5.8.2/junit-bom-5.8.2.pom"
+fetch.force = true
+passthru.pkgname = "junit-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/junit/junit-bom/5.8.2"
+
+
 ["launcher-interface-1.4.4-pom"]
 src.manual = "1.4.4"
 fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/launcher-interface/1.4.4/launcher-interface-1.4.4.pom"
@@ -894,6 +2214,20 @@ fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/launcher-interface/1.4
 fetch.force = true
 passthru.pkgname = "launcher-interface"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/launcher-interface/1.4.4"
+
+
+["literally_2.13-1.0.2-pom"]
+src.manual = "1.0.2"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/literally_2.13/1.0.2/literally_2.13-1.0.2.pom"
+fetch.force = true
+passthru.pkgname = "literally_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/literally_2.13/1.0.2"
+["literally_2.13-1.0.2-bundle"]
+src.manual = "1.0.2"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/literally_2.13/1.0.2/literally_2.13-1.0.2.jar"
+fetch.force = true
+passthru.pkgname = "literally_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/literally_2.13/1.0.2"
 
 
 ["log4j-2.24.3-pom"]
@@ -940,6 +2274,20 @@ passthru.pkgname = "log4j-core"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.24.3"
 
 
+["log4s_2.13-1.10.0-pom"]
+src.manual = "1.10.0"
+fetch.url = "https://repo1.maven.org/maven2/org/log4s/log4s_2.13/1.10.0/log4s_2.13-1.10.0.pom"
+fetch.force = true
+passthru.pkgname = "log4s_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/log4s/log4s_2.13/1.10.0"
+["log4s_2.13-1.10.0-bundle"]
+src.manual = "1.10.0"
+fetch.url = "https://repo1.maven.org/maven2/org/log4s/log4s_2.13/1.10.0/log4s_2.13-1.10.0.jar"
+fetch.force = true
+passthru.pkgname = "log4s_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/log4s/log4s_2.13/1.10.0"
+
+
 ["logging-parent-11.3.0-pom"]
 src.manual = "11.3.0"
 fetch.url = "https://repo1.maven.org/maven2/org/apache/logging/logging-parent/11.3.0/logging-parent-11.3.0.pom"
@@ -960,6 +2308,118 @@ fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.6/main
 fetch.force = true
 passthru.pkgname = "mainargs_2.13"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.6"
+
+
+["mdoc-cli_2.13-2.6.4-pom"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc-cli_2.13/2.6.4/mdoc-cli_2.13-2.6.4.pom"
+fetch.force = true
+passthru.pkgname = "mdoc-cli_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-cli_2.13/2.6.4"
+["mdoc-cli_2.13-2.6.4-bundle"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc-cli_2.13/2.6.4/mdoc-cli_2.13-2.6.4.jar"
+fetch.force = true
+passthru.pkgname = "mdoc-cli_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-cli_2.13/2.6.4"
+
+
+["mdoc-interfaces-2.6.4-pom"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc-interfaces/2.6.4/mdoc-interfaces-2.6.4.pom"
+fetch.force = true
+passthru.pkgname = "mdoc-interfaces"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-interfaces/2.6.4"
+["mdoc-interfaces-2.6.4-bundle"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc-interfaces/2.6.4/mdoc-interfaces-2.6.4.jar"
+fetch.force = true
+passthru.pkgname = "mdoc-interfaces"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-interfaces/2.6.4"
+
+
+["mdoc-parser_2.13-2.6.4-pom"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc-parser_2.13/2.6.4/mdoc-parser_2.13-2.6.4.pom"
+fetch.force = true
+passthru.pkgname = "mdoc-parser_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-parser_2.13/2.6.4"
+["mdoc-parser_2.13-2.6.4-bundle"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc-parser_2.13/2.6.4/mdoc-parser_2.13-2.6.4.jar"
+fetch.force = true
+passthru.pkgname = "mdoc-parser_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-parser_2.13/2.6.4"
+
+
+["mdoc-runtime_2.13-2.6.4-pom"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc-runtime_2.13/2.6.4/mdoc-runtime_2.13-2.6.4.pom"
+fetch.force = true
+passthru.pkgname = "mdoc-runtime_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-runtime_2.13/2.6.4"
+["mdoc-runtime_2.13-2.6.4-bundle"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc-runtime_2.13/2.6.4/mdoc-runtime_2.13-2.6.4.jar"
+fetch.force = true
+passthru.pkgname = "mdoc-runtime_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-runtime_2.13/2.6.4"
+
+
+["mdoc_2.13-2.6.4-pom"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc_2.13/2.6.4/mdoc_2.13-2.6.4.pom"
+fetch.force = true
+passthru.pkgname = "mdoc_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc_2.13/2.6.4"
+["mdoc_2.13-2.6.4-bundle"]
+src.manual = "2.6.4"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/mdoc_2.13/2.6.4/mdoc_2.13-2.6.4.jar"
+fetch.force = true
+passthru.pkgname = "mdoc_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc_2.13/2.6.4"
+
+
+["metaconfig-core_2.13-0.15.0-pom"]
+src.manual = "0.15.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/metaconfig-core_2.13/0.15.0/metaconfig-core_2.13-0.15.0.pom"
+fetch.force = true
+passthru.pkgname = "metaconfig-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-core_2.13/0.15.0"
+["metaconfig-core_2.13-0.15.0-bundle"]
+src.manual = "0.15.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/metaconfig-core_2.13/0.15.0/metaconfig-core_2.13-0.15.0.jar"
+fetch.force = true
+passthru.pkgname = "metaconfig-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-core_2.13/0.15.0"
+
+
+["metaconfig-pprint_2.13-0.15.0-pom"]
+src.manual = "0.15.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/metaconfig-pprint_2.13/0.15.0/metaconfig-pprint_2.13-0.15.0.pom"
+fetch.force = true
+passthru.pkgname = "metaconfig-pprint_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-pprint_2.13/0.15.0"
+["metaconfig-pprint_2.13-0.15.0-bundle"]
+src.manual = "0.15.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/metaconfig-pprint_2.13/0.15.0/metaconfig-pprint_2.13-0.15.0.jar"
+fetch.force = true
+passthru.pkgname = "metaconfig-pprint_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-pprint_2.13/0.15.0"
+
+
+["metaconfig-typesafe-config_2.13-0.15.0-pom"]
+src.manual = "0.15.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/metaconfig-typesafe-config_2.13/0.15.0/metaconfig-typesafe-config_2.13-0.15.0.pom"
+fetch.force = true
+passthru.pkgname = "metaconfig-typesafe-config_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-typesafe-config_2.13/0.15.0"
+["metaconfig-typesafe-config_2.13-0.15.0-bundle"]
+src.manual = "0.15.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/metaconfig-typesafe-config_2.13/0.15.0/metaconfig-typesafe-config_2.13-0.15.0.jar"
+fetch.force = true
+passthru.pkgname = "metaconfig-typesafe-config_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-typesafe-config_2.13/0.15.0"
 
 
 ["mill-ci-release_mill0.12_2.13-0.2.1-pom"]
@@ -1152,6 +2612,56 @@ passthru.pkgname = "mockito-bom"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/mockito/mockito-bom/4.11.0"
 
 
+["openhtmltopdf-core-1.0.10-pom"]
+src.manual = "1.0.10"
+fetch.url = "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-core/1.0.10/openhtmltopdf-core-1.0.10.pom"
+fetch.force = true
+passthru.pkgname = "openhtmltopdf-core"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-core/1.0.10"
+["openhtmltopdf-core-1.0.10-bundle"]
+src.manual = "1.0.10"
+fetch.url = "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-core/1.0.10/openhtmltopdf-core-1.0.10.jar"
+fetch.force = true
+passthru.pkgname = "openhtmltopdf-core"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-core/1.0.10"
+
+
+["openhtmltopdf-parent-1.0.10-pom"]
+src.manual = "1.0.10"
+fetch.url = "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-parent/1.0.10/openhtmltopdf-parent-1.0.10.pom"
+fetch.force = true
+passthru.pkgname = "openhtmltopdf-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-parent/1.0.10"
+
+
+["openhtmltopdf-pdfbox-1.0.10-pom"]
+src.manual = "1.0.10"
+fetch.url = "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-pdfbox/1.0.10/openhtmltopdf-pdfbox-1.0.10.pom"
+fetch.force = true
+passthru.pkgname = "openhtmltopdf-pdfbox"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-pdfbox/1.0.10"
+["openhtmltopdf-pdfbox-1.0.10-bundle"]
+src.manual = "1.0.10"
+fetch.url = "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-pdfbox/1.0.10/openhtmltopdf-pdfbox-1.0.10.jar"
+fetch.force = true
+passthru.pkgname = "openhtmltopdf-pdfbox"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-pdfbox/1.0.10"
+
+
+["openhtmltopdf-rtl-support-1.0.10-pom"]
+src.manual = "1.0.10"
+fetch.url = "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-rtl-support/1.0.10/openhtmltopdf-rtl-support-1.0.10.pom"
+fetch.force = true
+passthru.pkgname = "openhtmltopdf-rtl-support"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-rtl-support/1.0.10"
+["openhtmltopdf-rtl-support-1.0.10-bundle"]
+src.manual = "1.0.10"
+fetch.url = "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-rtl-support/1.0.10/openhtmltopdf-rtl-support-1.0.10.jar"
+fetch.force = true
+passthru.pkgname = "openhtmltopdf-rtl-support"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-rtl-support/1.0.10"
+
+
 ["os-lib_2.13-0.10.0-pom"]
 src.manual = "0.10.0"
 fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/os-lib_2.13/0.10.0/os-lib_2.13-0.10.0.pom"
@@ -1218,6 +2728,20 @@ passthru.pkgname = "oss-parent"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/sonatype/oss/oss-parent/9"
 
 
+["paiges-core_2.13-0.4.4-pom"]
+src.manual = "0.4.4"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/paiges-core_2.13/0.4.4/paiges-core_2.13-0.4.4.pom"
+fetch.force = true
+passthru.pkgname = "paiges-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/paiges-core_2.13/0.4.4"
+["paiges-core_2.13-0.4.4-bundle"]
+src.manual = "0.4.4"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/paiges-core_2.13/0.4.4/paiges-core_2.13-0.4.4.jar"
+fetch.force = true
+passthru.pkgname = "paiges-core_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/paiges-core_2.13/0.4.4"
+
+
 ["paranamer-2.8-pom"]
 src.manual = "2.8"
 fetch.url = "https://repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer/2.8/paranamer-2.8.pom"
@@ -1238,6 +2762,50 @@ fetch.url = "https://repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer
 fetch.force = true
 passthru.pkgname = "paranamer-parent"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer-parent/2.8"
+
+
+["parsers_2.13-4.12.7-pom"]
+src.manual = "4.12.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/parsers_2.13/4.12.7/parsers_2.13-4.12.7.pom"
+fetch.force = true
+passthru.pkgname = "parsers_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/parsers_2.13/4.12.7"
+["parsers_2.13-4.12.7-bundle"]
+src.manual = "4.12.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/parsers_2.13/4.12.7/parsers_2.13-4.12.7.jar"
+fetch.force = true
+passthru.pkgname = "parsers_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/parsers_2.13/4.12.7"
+
+
+["pdfbox-2.0.24-pom"]
+src.manual = "2.0.24"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/pdfbox/pdfbox/2.0.24/pdfbox-2.0.24.pom"
+fetch.force = true
+passthru.pkgname = "pdfbox"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/pdfbox/2.0.24"
+["pdfbox-2.0.24-bundle"]
+src.manual = "2.0.24"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/pdfbox/pdfbox/2.0.24/pdfbox-2.0.24.jar"
+fetch.force = true
+passthru.pkgname = "pdfbox"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/pdfbox/2.0.24"
+
+
+["pdfbox-parent-2.0.24-pom"]
+src.manual = "2.0.24"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/pdfbox/pdfbox-parent/2.0.24/pdfbox-parent-2.0.24.pom"
+fetch.force = true
+passthru.pkgname = "pdfbox-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/pdfbox-parent/2.0.24"
+
+
+["pdfboxgraphics2d-parent-0.32-pom"]
+src.manual = "0.32"
+fetch.url = "https://repo1.maven.org/maven2/de/rototor/pdfbox/pdfboxgraphics2d-parent/0.32/pdfboxgraphics2d-parent-0.32.pom"
+fetch.force = true
+passthru.pkgname = "pdfboxgraphics2d-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/de/rototor/pdfbox/pdfboxgraphics2d-parent/0.32"
 
 
 ["pprint_2.13-0.9.0-pom"]
@@ -1324,6 +2892,20 @@ fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collect
 fetch.force = true
 passthru.pkgname = "scala-collection-compat_2.13"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.12.0"
+
+
+["scala-collection-compat_2.13-2.13.0-pom"]
+src.manual = "2.13.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.13.0/scala-collection-compat_2.13-2.13.0.pom"
+fetch.force = true
+passthru.pkgname = "scala-collection-compat_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.13.0"
+["scala-collection-compat_2.13-2.13.0-bundle"]
+src.manual = "2.13.0"
+fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.13.0/scala-collection-compat_2.13-2.13.0.jar"
+fetch.force = true
+passthru.pkgname = "scala-collection-compat_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.13.0"
 
 
 ["scala-compiler-2.13.11-pom"]
@@ -1774,6 +3356,20 @@ passthru.pkgname = "scalactic_3"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalactic/scalactic_3/3.2.19"
 
 
+["scalameta_2.13-4.12.7-pom"]
+src.manual = "4.12.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/scalameta_2.13/4.12.7/scalameta_2.13-4.12.7.pom"
+fetch.force = true
+passthru.pkgname = "scalameta_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/scalameta_2.13/4.12.7"
+["scalameta_2.13-4.12.7-bundle"]
+src.manual = "4.12.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/scalameta_2.13/4.12.7/scalameta_2.13-4.12.7.jar"
+fetch.force = true
+passthru.pkgname = "scalameta_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/scalameta_2.13/4.12.7"
+
+
 ["scalap-2.13.15-pom"]
 src.manual = "2.13.15"
 fetch.url = "https://repo1.maven.org/maven2/org/scala-lang/scalap/2.13.15/scalap-2.13.15.pom"
@@ -2194,6 +3790,20 @@ passthru.pkgname = "scalatest_3"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalatest/scalatest_3/3.2.19"
 
 
+["scodec-bits_2.13-1.1.34-pom"]
+src.manual = "1.1.34"
+fetch.url = "https://repo1.maven.org/maven2/org/scodec/scodec-bits_2.13/1.1.34/scodec-bits_2.13-1.1.34.pom"
+fetch.force = true
+passthru.pkgname = "scodec-bits_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scodec/scodec-bits_2.13/1.1.34"
+["scodec-bits_2.13-1.1.34-bundle"]
+src.manual = "1.1.34"
+fetch.url = "https://repo1.maven.org/maven2/org/scodec/scodec-bits_2.13/1.1.34/scodec-bits_2.13-1.1.34.jar"
+fetch.force = true
+passthru.pkgname = "scodec-bits_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scodec/scodec-bits_2.13/1.1.34"
+
+
 ["scopt_2.13-4.1.0-pom"]
 src.manual = "4.1.0"
 fetch.url = "https://repo1.maven.org/maven2/com/github/scopt/scopt_2.13/4.1.0/scopt_2.13-4.1.0.pom"
@@ -2250,6 +3860,20 @@ passthru.pkgname = "shaded-scalajson_2.13"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/shaded-scalajson_2.13/1.0.0-M4"
 
 
+["shapeless_2.13-2.3.9-pom"]
+src.manual = "2.3.9"
+fetch.url = "https://repo1.maven.org/maven2/com/chuusai/shapeless_2.13/2.3.9/shapeless_2.13-2.3.9.pom"
+fetch.force = true
+passthru.pkgname = "shapeless_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/chuusai/shapeless_2.13/2.3.9"
+["shapeless_2.13-2.3.9-bundle"]
+src.manual = "2.3.9"
+fetch.url = "https://repo1.maven.org/maven2/com/chuusai/shapeless_2.13/2.3.9/shapeless_2.13-2.3.9.jar"
+fetch.force = true
+passthru.pkgname = "shapeless_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/com/chuusai/shapeless_2.13/2.3.9"
+
+
 ["sjson-new-core_2.13-0.10.1-pom"]
 src.manual = "0.10.1"
 fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/sjson-new-core_2.13/0.10.1/sjson-new-core_2.13-0.10.1.pom"
@@ -2290,6 +3914,36 @@ fetch.url = "https://repo1.maven.org/maven2/com/eed3si9n/sjson-new-scalajson_2.1
 fetch.force = true
 passthru.pkgname = "sjson-new-scalajson_2.13"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/com/eed3si9n/sjson-new-scalajson_2.13/0.10.1"
+
+
+["slf4j-api-2.0.16-pom"]
+src.manual = "2.0.16"
+fetch.url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.16/slf4j-api-2.0.16.pom"
+fetch.force = true
+passthru.pkgname = "slf4j-api"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.16"
+["slf4j-api-2.0.16-bundle"]
+src.manual = "2.0.16"
+fetch.url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.16/slf4j-api-2.0.16.jar"
+fetch.force = true
+passthru.pkgname = "slf4j-api"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.16"
+
+
+["slf4j-bom-2.0.16-pom"]
+src.manual = "2.0.16"
+fetch.url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-bom/2.0.16/slf4j-bom-2.0.16.pom"
+fetch.force = true
+passthru.pkgname = "slf4j-bom"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/slf4j/slf4j-bom/2.0.16"
+
+
+["slf4j-parent-2.0.16-pom"]
+src.manual = "2.0.16"
+fetch.url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-parent/2.0.16/slf4j-parent-2.0.16.pom"
+fetch.force = true
+passthru.pkgname = "slf4j-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/slf4j/slf4j-parent/2.0.16"
 
 
 ["sourcecode_2.13-0.3.0-pom"]
@@ -2356,6 +4010,20 @@ passthru.pkgname = "test-interface"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/test-interface/1.0"
 
 
+["trees_2.13-4.12.7-pom"]
+src.manual = "4.12.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/trees_2.13/4.12.7/trees_2.13-4.12.7.pom"
+fetch.force = true
+passthru.pkgname = "trees_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/trees_2.13/4.12.7"
+["trees_2.13-4.12.7-bundle"]
+src.manual = "4.12.7"
+fetch.url = "https://repo1.maven.org/maven2/org/scalameta/trees_2.13/4.12.7/trees_2.13-4.12.7.jar"
+fetch.force = true
+passthru.pkgname = "trees_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scalameta/trees_2.13/4.12.7"
+
+
 ["ujson_2.13-3.3.1-pom"]
 src.manual = "3.3.1"
 fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/ujson_2.13/3.3.1/ujson_2.13-3.3.1.pom"
@@ -2382,6 +4050,28 @@ fetch.url = "https://repo1.maven.org/maven2/com/lihaoyi/ujson_3/3.3.1/ujson_3-3.
 fetch.force = true
 passthru.pkgname = "ujson_3"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/com/lihaoyi/ujson_3/3.3.1"
+
+
+["undertow-core-2.2.30.Final-pom"]
+src.manual = "2.2.30.Final"
+fetch.url = "https://repo1.maven.org/maven2/io/undertow/undertow-core/2.2.30.Final/undertow-core-2.2.30.Final.pom"
+fetch.force = true
+passthru.pkgname = "undertow-core"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/undertow/undertow-core/2.2.30.Final"
+["undertow-core-2.2.30.Final-bundle"]
+src.manual = "2.2.30.Final"
+fetch.url = "https://repo1.maven.org/maven2/io/undertow/undertow-core/2.2.30.Final/undertow-core-2.2.30.Final.jar"
+fetch.force = true
+passthru.pkgname = "undertow-core"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/undertow/undertow-core/2.2.30.Final"
+
+
+["undertow-parent-2.2.30.Final-pom"]
+src.manual = "2.2.30.Final"
+fetch.url = "https://repo1.maven.org/maven2/io/undertow/undertow-parent/2.2.30.Final/undertow-parent-2.2.30.Final.pom"
+fetch.force = true
+passthru.pkgname = "undertow-parent"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/io/undertow/undertow-parent/2.2.30.Final"
 
 
 ["upack_2.13-3.3.1-pom"]
@@ -2634,6 +4324,98 @@ fetch.url = "https://repo1.maven.org/maven2/org/scala-sbt/util-relation_2.13/1.1
 fetch.force = true
 passthru.pkgname = "util-relation_2.13"
 passthru.install_path = "v1/https/repo1.maven.org/maven2/org/scala-sbt/util-relation_2.13/1.10.7"
+
+
+["vault_2.13-3.2.1-pom"]
+src.manual = "3.2.1"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/vault_2.13/3.2.1/vault_2.13-3.2.1.pom"
+fetch.force = true
+passthru.pkgname = "vault_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/vault_2.13/3.2.1"
+["vault_2.13-3.2.1-bundle"]
+src.manual = "3.2.1"
+fetch.url = "https://repo1.maven.org/maven2/org/typelevel/vault_2.13/3.2.1/vault_2.13-3.2.1.jar"
+fetch.force = true
+passthru.pkgname = "vault_2.13"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/typelevel/vault_2.13/3.2.1"
+
+
+["wildfly-client-config-1.0.1.Final-pom"]
+src.manual = "1.0.1.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/wildfly/client/wildfly-client-config/1.0.1.Final/wildfly-client-config-1.0.1.Final.pom"
+fetch.force = true
+passthru.pkgname = "wildfly-client-config"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/wildfly/client/wildfly-client-config/1.0.1.Final"
+["wildfly-client-config-1.0.1.Final-bundle"]
+src.manual = "1.0.1.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/wildfly/client/wildfly-client-config/1.0.1.Final/wildfly-client-config-1.0.1.Final.jar"
+fetch.force = true
+passthru.pkgname = "wildfly-client-config"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/wildfly/client/wildfly-client-config/1.0.1.Final"
+
+
+["wildfly-common-1.5.4.Final-pom"]
+src.manual = "1.5.4.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/wildfly/common/wildfly-common/1.5.4.Final/wildfly-common-1.5.4.Final.pom"
+fetch.force = true
+passthru.pkgname = "wildfly-common"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/wildfly/common/wildfly-common/1.5.4.Final"
+["wildfly-common-1.5.4.Final-bundle"]
+src.manual = "1.5.4.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/wildfly/common/wildfly-common/1.5.4.Final/wildfly-common-1.5.4.Final.jar"
+fetch.force = true
+passthru.pkgname = "wildfly-common"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/wildfly/common/wildfly-common/1.5.4.Final"
+
+
+["xmpbox-2.0.24-pom"]
+src.manual = "2.0.24"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/pdfbox/xmpbox/2.0.24/xmpbox-2.0.24.pom"
+fetch.force = true
+passthru.pkgname = "xmpbox"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/xmpbox/2.0.24"
+["xmpbox-2.0.24-bundle"]
+src.manual = "2.0.24"
+fetch.url = "https://repo1.maven.org/maven2/org/apache/pdfbox/xmpbox/2.0.24/xmpbox-2.0.24.jar"
+fetch.force = true
+passthru.pkgname = "xmpbox"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/xmpbox/2.0.24"
+
+
+["xnio-all-3.8.16.Final-pom"]
+src.manual = "3.8.16.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-all/3.8.16.Final/xnio-all-3.8.16.Final.pom"
+fetch.force = true
+passthru.pkgname = "xnio-all"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-all/3.8.16.Final"
+
+
+["xnio-api-3.8.16.Final-pom"]
+src.manual = "3.8.16.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-api/3.8.16.Final/xnio-api-3.8.16.Final.pom"
+fetch.force = true
+passthru.pkgname = "xnio-api"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-api/3.8.16.Final"
+["xnio-api-3.8.16.Final-bundle"]
+src.manual = "3.8.16.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-api/3.8.16.Final/xnio-api-3.8.16.Final.jar"
+fetch.force = true
+passthru.pkgname = "xnio-api"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-api/3.8.16.Final"
+
+
+["xnio-nio-3.8.16.Final-pom"]
+src.manual = "3.8.16.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-nio/3.8.16.Final/xnio-nio-3.8.16.Final.pom"
+fetch.force = true
+passthru.pkgname = "xnio-nio"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-nio/3.8.16.Final"
+["xnio-nio-3.8.16.Final-bundle"]
+src.manual = "3.8.16.Final"
+fetch.url = "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-nio/3.8.16.Final/xnio-nio-3.8.16.Final.jar"
+fetch.force = true
+passthru.pkgname = "xnio-nio"
+passthru.install_path = "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-nio/3.8.16.Final"
 
 
 ["zero-allocation-hashing-0.16-pom"]

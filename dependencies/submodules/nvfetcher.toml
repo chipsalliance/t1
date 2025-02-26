@@ -5,7 +5,7 @@ fetch.github = "sequencer/arithmetic"
 
 [chisel]
 src.git = "https://github.com/chipsalliance/chisel"
-src.branch = "main"
+src.branch = "jackkoenig/mill-mdoc"
 fetch.github = "chipsalliance/chisel"
 
 [chisel-interface]

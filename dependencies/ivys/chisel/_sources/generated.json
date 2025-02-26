@@ -1,4 +1,58 @@
 {
+    "annotations-24.0.1-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "annotations-24.0.1-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jetbrains/annotations/24.0.1",
+            "pkgname": "annotations"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-YWZtvOfkLmyFtDwE/PuCk6Idy1WzyA6GknDOQsAaazU=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jetbrains/annotations/24.0.1/annotations-24.0.1.jar"
+        },
+        "version": "24.0.1"
+    },
+    "annotations-24.0.1-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "annotations-24.0.1-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jetbrains/annotations/24.0.1",
+            "pkgname": "annotations"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-mb7eKcAzHBlS7uBL+ZeN5TWpDJfi3v/6XgCTNRcZJbA=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jetbrains/annotations/24.0.1/annotations-24.0.1.pom"
+        },
+        "version": "24.0.1"
+    },
+    "apache-13-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "apache-13-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/apache/13",
+            "pkgname": "apache"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-/1E9sDYf1BI3vvR4SWi8FarkeNTsCpSW+BEHLMrzhB0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/apache/13/apache-13.pom"
+        },
+        "version": "13"
+    },
     "apache-16-pom": {
         "cargoLocks": null,
         "date": null,
@@ -16,6 +70,24 @@
             "url": "https://repo1.maven.org/maven2/org/apache/apache/16/apache-16.pom"
         },
         "version": "16"
+    },
+    "apache-19-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "apache-19-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/apache/19",
+            "pkgname": "apache"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-kfejMJbqabrCy69tAf65NMrAAsSNjIz6nCQLQPHsId8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/apache/19/apache-19.pom"
+        },
+        "version": "19"
     },
     "apache-30-pom": {
         "cargoLocks": null,
@@ -71,6 +143,438 @@
         },
         "version": "33"
     },
+    "autolink-0.6.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "autolink-0.6.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0",
+            "pkgname": "autolink"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-qAvgMPY4bxgRHK2RYcC2mDFXNSobWaWeYAIXLw0yHAQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0/autolink-0.6.0.jar"
+        },
+        "version": "0.6.0"
+    },
+    "autolink-0.6.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "autolink-0.6.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0",
+            "pkgname": "autolink"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-kWdVZHo0zLNn4Rg00oOAGYyDSt/PZg4NmD43W49cKPI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0/autolink-0.6.0.pom"
+        },
+        "version": "0.6.0"
+    },
+    "case-insensitive_2.13-1.2.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "case-insensitive_2.13-1.2.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/case-insensitive_2.13/1.2.0",
+            "pkgname": "case-insensitive_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-dr5f4Dux9rr7+ZzPtqOlXvfH6h3JethFIKzXwQNfIk0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/case-insensitive_2.13/1.2.0/case-insensitive_2.13-1.2.0.jar"
+        },
+        "version": "1.2.0"
+    },
+    "case-insensitive_2.13-1.2.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "case-insensitive_2.13-1.2.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/case-insensitive_2.13/1.2.0",
+            "pkgname": "case-insensitive_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-WG7dVMmj33wuuHIgrRa9L1WF+FcVrjVxxHnV9Mr1UVQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/case-insensitive_2.13/1.2.0/case-insensitive_2.13-1.2.0.pom"
+        },
+        "version": "1.2.0"
+    },
+    "cats-core_2.13-2.8.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-core_2.13-2.8.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-core_2.13/2.8.0",
+            "pkgname": "cats-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-M5eyQnccgPAvvl5oQ4HF2hUy2ZFuD95YNZn7uBQaFGo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-core_2.13/2.8.0/cats-core_2.13-2.8.0.jar"
+        },
+        "version": "2.8.0"
+    },
+    "cats-core_2.13-2.8.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-core_2.13-2.8.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-core_2.13/2.8.0",
+            "pkgname": "cats-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-J1poG95fsiztKVJDeduicz3SdYMl0siZfiZ9ZYcZ54I=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-core_2.13/2.8.0/cats-core_2.13-2.8.0.pom"
+        },
+        "version": "2.8.0"
+    },
+    "cats-effect-kernel_2.13-3.3.12-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-effect-kernel_2.13-3.3.12-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect-kernel_2.13/3.3.12",
+            "pkgname": "cats-effect-kernel_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-kB8Oo7pfmzr7zQ4lBnREpXj2b3JARgKKudSLhVuac1Q=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-effect-kernel_2.13/3.3.12/cats-effect-kernel_2.13-3.3.12.jar"
+        },
+        "version": "3.3.12"
+    },
+    "cats-effect-kernel_2.13-3.3.12-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-effect-kernel_2.13-3.3.12-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect-kernel_2.13/3.3.12",
+            "pkgname": "cats-effect-kernel_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-2GefMdbQuZd9+u0ZzWu0pxBjOXNiS1VnjM5Yvf7dDb4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-effect-kernel_2.13/3.3.12/cats-effect-kernel_2.13-3.3.12.pom"
+        },
+        "version": "3.3.12"
+    },
+    "cats-effect-std_2.13-3.3.12-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-effect-std_2.13-3.3.12-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect-std_2.13/3.3.12",
+            "pkgname": "cats-effect-std_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-dMOqostu3Iji5WLlZVX6hIOu3zhAY7IhUatYG1nunq0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-effect-std_2.13/3.3.12/cats-effect-std_2.13-3.3.12.jar"
+        },
+        "version": "3.3.12"
+    },
+    "cats-effect-std_2.13-3.3.12-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-effect-std_2.13-3.3.12-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect-std_2.13/3.3.12",
+            "pkgname": "cats-effect-std_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-5Au7J/FA3ozuYsdN5o9vInJFDHTs45l21h4kem59h/s=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-effect-std_2.13/3.3.12/cats-effect-std_2.13-3.3.12.pom"
+        },
+        "version": "3.3.12"
+    },
+    "cats-effect_2.13-3.3.12-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-effect_2.13-3.3.12-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect_2.13/3.3.12",
+            "pkgname": "cats-effect_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-xCMvCfVknT1vErvgZ0XLkJxMldLpZ2xzDMlA6wtoNJg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-effect_2.13/3.3.12/cats-effect_2.13-3.3.12.jar"
+        },
+        "version": "3.3.12"
+    },
+    "cats-effect_2.13-3.3.12-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-effect_2.13-3.3.12-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-effect_2.13/3.3.12",
+            "pkgname": "cats-effect_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-rPEMOOqFnK5nXspdIgaTHdl4Lw1CzICBx7bmp4rjXoY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-effect_2.13/3.3.12/cats-effect_2.13-3.3.12.pom"
+        },
+        "version": "3.3.12"
+    },
+    "cats-kernel_2.13-2.8.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-kernel_2.13-2.8.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0",
+            "pkgname": "cats-kernel_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-vjgIDGr2ZGURfbdIBPt9/M46fqwmXAUzMqom9OMhddI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0/cats-kernel_2.13-2.8.0.jar"
+        },
+        "version": "2.8.0"
+    },
+    "cats-kernel_2.13-2.8.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-kernel_2.13-2.8.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0",
+            "pkgname": "cats-kernel_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-yJ6zcF3eWAyWDLmOejMbOFeaU2Jbu0IHwKKon7Ax0YQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0/cats-kernel_2.13-2.8.0.pom"
+        },
+        "version": "2.8.0"
+    },
+    "cats-parse_2.13-0.3.7-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-parse_2.13-0.3.7-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-parse_2.13/0.3.7",
+            "pkgname": "cats-parse_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-/g7ewaSi5z+MYgW3HNKjbhy+ZDCUndSttZTp4GuoTtk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-parse_2.13/0.3.7/cats-parse_2.13-0.3.7.jar"
+        },
+        "version": "0.3.7"
+    },
+    "cats-parse_2.13-0.3.7-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "cats-parse_2.13-0.3.7-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/cats-parse_2.13/0.3.7",
+            "pkgname": "cats-parse_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-DaeNa9gA0VxQKqCCXOUHAgmUw6DG+dDy4VwnUI5mXwU=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/cats-parse_2.13/0.3.7/cats-parse_2.13-0.3.7.pom"
+        },
+        "version": "0.3.7"
+    },
+    "circe-core_2.13-0.14.2-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "circe-core_2.13-0.14.2-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/circe/circe-core_2.13/0.14.2",
+            "pkgname": "circe-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-pMSrg+U5WfR4A97PY3fLDb3shqYIjEMcdfnNnadkJUY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/circe/circe-core_2.13/0.14.2/circe-core_2.13-0.14.2.jar"
+        },
+        "version": "0.14.2"
+    },
+    "circe-core_2.13-0.14.2-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "circe-core_2.13-0.14.2-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/circe/circe-core_2.13/0.14.2",
+            "pkgname": "circe-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-VnhtacBirAoqDrzJ0wk7fSZ+6MBaQEN5IZOdDnNH+qE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/circe/circe-core_2.13/0.14.2/circe-core_2.13-0.14.2.pom"
+        },
+        "version": "0.14.2"
+    },
+    "circe-generic_2.13-0.14.2-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "circe-generic_2.13-0.14.2-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.14.2",
+            "pkgname": "circe-generic_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-tnhEfP5oX7JqGatt540RQ/rPVmYWkgFhiAPFyN4GHEM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.14.2/circe-generic_2.13-0.14.2.jar"
+        },
+        "version": "0.14.2"
+    },
+    "circe-generic_2.13-0.14.2-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "circe-generic_2.13-0.14.2-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.14.2",
+            "pkgname": "circe-generic_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-WHVVcAoFWSFaXASjrzpvPesKZyzJXgFMM5ZfjCeZVJM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.14.2/circe-generic_2.13-0.14.2.pom"
+        },
+        "version": "0.14.2"
+    },
+    "circe-jawn_2.13-0.14.2-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "circe-jawn_2.13-0.14.2-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/circe/circe-jawn_2.13/0.14.2",
+            "pkgname": "circe-jawn_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-NAkCK+dJMLYAeHE8teXAEfdMKFk7Mkaqphp8xIYs8Y0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.13/0.14.2/circe-jawn_2.13-0.14.2.jar"
+        },
+        "version": "0.14.2"
+    },
+    "circe-jawn_2.13-0.14.2-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "circe-jawn_2.13-0.14.2-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/circe/circe-jawn_2.13/0.14.2",
+            "pkgname": "circe-jawn_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-oLXAoPcxWBhej5jaGfV1u6ICU+DgFqyRJRSJG1woSYo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.13/0.14.2/circe-jawn_2.13-0.14.2.pom"
+        },
+        "version": "0.14.2"
+    },
+    "circe-numbers_2.13-0.14.2-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "circe-numbers_2.13-0.14.2-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/circe/circe-numbers_2.13/0.14.2",
+            "pkgname": "circe-numbers_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-9Ahc4TvjvNg7V2pEJD3wz8ESNsLOI/f0aeMLOc+y9Hc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.13/0.14.2/circe-numbers_2.13-0.14.2.jar"
+        },
+        "version": "0.14.2"
+    },
+    "circe-numbers_2.13-0.14.2-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "circe-numbers_2.13-0.14.2-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/circe/circe-numbers_2.13/0.14.2",
+            "pkgname": "circe-numbers_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-5CID+34IDjsi4hSlyLNr70MCp1F5bVMPT44W7GG9mEI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.13/0.14.2/circe-numbers_2.13-0.14.2.pom"
+        },
+        "version": "0.14.2"
+    },
     "collections_2.13-1.10.7-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -106,6 +610,42 @@
             "url": "https://repo1.maven.org/maven2/org/scala-sbt/collections_2.13/1.10.7/collections_2.13-1.10.7.pom"
         },
         "version": "1.10.7"
+    },
+    "common_2.13-4.12.7-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "common_2.13-4.12.7-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/common_2.13/4.12.7",
+            "pkgname": "common_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-8WxWidkfYIbwP25402gVNSHF/ztJQb2oXGm05UCeFII=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/common_2.13/4.12.7/common_2.13-4.12.7.jar"
+        },
+        "version": "4.12.7"
+    },
+    "common_2.13-4.12.7-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "common_2.13-4.12.7-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/common_2.13/4.12.7",
+            "pkgname": "common_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-VPVzL0EwyJKQ2oBm1UXQlzIKQgt28Wts/l0LvtX5AXw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/common_2.13/4.12.7/common_2.13-4.12.7.pom"
+        },
+        "version": "4.12.7"
     },
     "commons-lang3-3.14.0-bundle": {
         "cargoLocks": null,
@@ -143,6 +683,42 @@
         },
         "version": "3.14.0"
     },
+    "commons-logging-1.2-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "commons-logging-1.2-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/commons-logging/commons-logging/1.2",
+            "pkgname": "commons-logging"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-2t3qHqC+D1aXirMAa4rJKDSv7vvZt+TmMW/KV98PpjY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/commons-logging/commons-logging/1.2/commons-logging-1.2.jar"
+        },
+        "version": "1.2"
+    },
+    "commons-logging-1.2-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "commons-logging-1.2-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/commons-logging/commons-logging/1.2",
+            "pkgname": "commons-logging"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-yRq1qlcNhvb9B8wVjsa8LFAIBAKXLukXn+JBAHOfuyA=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/commons-logging/commons-logging/1.2/commons-logging-1.2.pom"
+        },
+        "version": "1.2"
+    },
     "commons-math3-3.6.1-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -178,6 +754,24 @@
             "url": "https://repo1.maven.org/maven2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.pom"
         },
         "version": "3.6.1"
+    },
+    "commons-parent-34-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "commons-parent-34-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/commons/commons-parent/34",
+            "pkgname": "commons-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Oi5p0G1kHR87KTEm3J4uTqZWO/jDbIfgq2+kKS0Et5w=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/commons/commons-parent/34/commons-parent-34.pom"
+        },
+        "version": "34"
     },
     "commons-parent-39-pom": {
         "cargoLocks": null,
@@ -521,6 +1115,42 @@
         },
         "version": "1.9.6"
     },
+    "config-1.4.3-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "config-1.4.3-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/typesafe/config/1.4.3",
+            "pkgname": "config"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-itpMGFznJBZxLWPgta/cXwCcDN9AXl8m7+zfFWql37Y=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/typesafe/config/1.4.3/config-1.4.3.jar"
+        },
+        "version": "1.4.3"
+    },
+    "config-1.4.3-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "config-1.4.3-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/typesafe/config/1.4.3",
+            "pkgname": "config"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-tn6vqd0iD/h9ANumiACDpSlqXgxsAxA/XUuOHaEDD/M=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/typesafe/config/1.4.3/config-1.4.3.pom"
+        },
+        "version": "1.4.3"
+    },
     "core-macros_2.13-1.10.7-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -628,6 +1258,78 @@
             "url": "https://repo1.maven.org/maven2/de/tototec/de.tobiasroeser.mill.vcs.version_mill0.11_2.13/0.4.0/de.tobiasroeser.mill.vcs.version_mill0.11_2.13-0.4.0.pom"
         },
         "version": "0.4.0"
+    },
+    "diffutils-1.3.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "diffutils-1.3.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/googlecode/java-diff-utils/diffutils/1.3.0",
+            "pkgname": "diffutils"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-YbpNxJrcqVJDvqoFaa3CojrttSkq54qgEYb6eC69xcI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/googlecode/java-diff-utils/diffutils/1.3.0/diffutils-1.3.0.jar"
+        },
+        "version": "1.3.0"
+    },
+    "diffutils-1.3.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "diffutils-1.3.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/googlecode/java-diff-utils/diffutils/1.3.0",
+            "pkgname": "diffutils"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-L+Md1jCbD18ZW73EdJz8CvBl1h8Gz+GD39LyCSq4R7Y=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/googlecode/java-diff-utils/diffutils/1.3.0/diffutils-1.3.0.pom"
+        },
+        "version": "1.3.0"
+    },
+    "directory-watcher-0.18.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "directory-watcher-0.18.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/methvin/directory-watcher/0.18.0",
+            "pkgname": "directory-watcher"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-GPZ4abDTHTlRJiMiYiCr7t1r3khtVZnmJW6reXURB1Q=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/methvin/directory-watcher/0.18.0/directory-watcher-0.18.0.jar"
+        },
+        "version": "0.18.0"
+    },
+    "directory-watcher-0.18.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "directory-watcher-0.18.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/methvin/directory-watcher/0.18.0",
+            "pkgname": "directory-watcher"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-F1/TGh8OGLMS/bALjC2zZNztibyDQTZTz2l5WoE8+Xw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/methvin/directory-watcher/0.18.0/directory-watcher-0.18.0.pom"
+        },
+        "version": "0.18.0"
     },
     "disruptor-3.4.2-bundle": {
         "cargoLocks": null,
@@ -773,6 +1475,1896 @@
         },
         "version": "2.0.1"
     },
+    "flexmark-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.64.8",
+            "pkgname": "flexmark"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-MTOHjRCPDhlk19Qn83mnQz4bcaRfnzwfq37QrAMB07A=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.64.8/flexmark-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.64.8",
+            "pkgname": "flexmark"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-wwO7cco5tSiAann47wLaSpTxklt11Bh3ojRNsbwiWpI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.64.8/flexmark-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-all-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-all-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-all/0.64.8",
+            "pkgname": "flexmark-all"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-S4nYmvElHLQE5fAlcUs9UvYPsJD+VGBX5GQMfzDAVyY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-all/0.64.8/flexmark-all-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-all-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-all-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-all/0.64.8",
+            "pkgname": "flexmark-all"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Aw6ZLT/ZbH6Z0giYgyjhFXuMYFSGPwMGfilEXPC3Mtw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-all/0.64.8/flexmark-all-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-abbreviation-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-abbreviation-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-abbreviation/0.64.8",
+            "pkgname": "flexmark-ext-abbreviation"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-T10tusV3Xc0ywaYyRhhoeIPwsoez4kO4NsfoVgvgu+o=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-abbreviation/0.64.8/flexmark-ext-abbreviation-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-abbreviation-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-abbreviation-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-abbreviation/0.64.8",
+            "pkgname": "flexmark-ext-abbreviation"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-f62FR4Il4nH7a5uJuSiOCPRQpuFhRha4G09AN/iQQ9g=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-abbreviation/0.64.8/flexmark-ext-abbreviation-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-admonition-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-admonition-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-admonition/0.64.8",
+            "pkgname": "flexmark-ext-admonition"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-poI+pFpYEKwel/VFveyDcQeX5vz2yk7u++kw5XqaBD0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-admonition/0.64.8/flexmark-ext-admonition-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-admonition-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-admonition-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-admonition/0.64.8",
+            "pkgname": "flexmark-ext-admonition"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-+uVH1mFlob/WgbY+whIi67xIqAh0z2L5EqBvw4BdIac=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-admonition/0.64.8/flexmark-ext-admonition-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-anchorlink-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-anchorlink-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.64.8",
+            "pkgname": "flexmark-ext-anchorlink"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-NtaEnfhUinGw+H65fTaQhkuWCo5Jef7fhlQYyJA0U6Y=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.64.8/flexmark-ext-anchorlink-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-anchorlink-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-anchorlink-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.64.8",
+            "pkgname": "flexmark-ext-anchorlink"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-oLPeBOQ2IL6yL42eG5zyRNPGi9Z54ao/gK5jMtNtqLs=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.64.8/flexmark-ext-anchorlink-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-aside-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-aside-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-aside/0.64.8",
+            "pkgname": "flexmark-ext-aside"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-/rqYn8ggez1n31F/6u2tsklsNdRYJ7Pwq2tJ2Id0OIQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-aside/0.64.8/flexmark-ext-aside-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-aside-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-aside-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-aside/0.64.8",
+            "pkgname": "flexmark-ext-aside"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-j5sCS44D/YBCRGtYoFk+RF9MOmnz3+XzM72dWokEZQU=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-aside/0.64.8/flexmark-ext-aside-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-attributes-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-attributes-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-attributes/0.64.8",
+            "pkgname": "flexmark-ext-attributes"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-TbQvMA7FSQ/3nn1ORAAAiOCNg9FAluezqf1jEZWJ7Xc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-attributes/0.64.8/flexmark-ext-attributes-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-attributes-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-attributes-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-attributes/0.64.8",
+            "pkgname": "flexmark-ext-attributes"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-FWyMhRN4MRyjd4+nyAEs9JQKgoU2LUe0GBiGMtuF8l8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-attributes/0.64.8/flexmark-ext-attributes-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-autolink-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-autolink-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.64.8",
+            "pkgname": "flexmark-ext-autolink"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-SFDW+JXsPykyY1gp10/5ovsAkYllu5HAAKtJfWA+Ebg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.64.8/flexmark-ext-autolink-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-autolink-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-autolink-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.64.8",
+            "pkgname": "flexmark-ext-autolink"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-pAhM18Nw8ttWbRgsWDndkQdnARBi7MxRzb0HtRKb1ko=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.64.8/flexmark-ext-autolink-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-definition-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-definition-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-definition/0.64.8",
+            "pkgname": "flexmark-ext-definition"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-2NrF4HMsQFcCyTKzxJWg/EEyJDNTM85gCdgwc04x4OY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-definition/0.64.8/flexmark-ext-definition-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-definition-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-definition-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-definition/0.64.8",
+            "pkgname": "flexmark-ext-definition"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-OLjMz8siF4j+ojBrVMcfHP393tpFlUUIhfZPp1xOTAA=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-definition/0.64.8/flexmark-ext-definition-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-emoji-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-emoji-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.64.8",
+            "pkgname": "flexmark-ext-emoji"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-AS0ttRRjr9hHAmJ+ST/tzkLrfesbrjCd3O/RgasoPL4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.64.8/flexmark-ext-emoji-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-emoji-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-emoji-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.64.8",
+            "pkgname": "flexmark-ext-emoji"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-N1dSYA7KUGOae9HyFnK282sDFbYCoOcKDzoGRZZxQKk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.64.8/flexmark-ext-emoji-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-enumerated-reference-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-enumerated-reference-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-enumerated-reference/0.64.8",
+            "pkgname": "flexmark-ext-enumerated-reference"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-4vhYvt81biTbnTHBXMV6KxQHEHSoUPi7/djGMqzwWUI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-enumerated-reference/0.64.8/flexmark-ext-enumerated-reference-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-enumerated-reference-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-enumerated-reference-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-enumerated-reference/0.64.8",
+            "pkgname": "flexmark-ext-enumerated-reference"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Tz19W9sI6zEWKlxWDINebZzi8AXKwnV1hoEHFVf4No8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-enumerated-reference/0.64.8/flexmark-ext-enumerated-reference-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-escaped-character-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-escaped-character-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-escaped-character/0.64.8",
+            "pkgname": "flexmark-ext-escaped-character"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-AQCaNHPAB73ez+PNOXkoIRe4LUmBLc80fOv87kcCNxI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-escaped-character/0.64.8/flexmark-ext-escaped-character-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-escaped-character-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-escaped-character-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-escaped-character/0.64.8",
+            "pkgname": "flexmark-ext-escaped-character"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-MfLTty+N1AZ+BqIJzxu2B3lQb/cu3rEv/NQsJy2RUvA=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-escaped-character/0.64.8/flexmark-ext-escaped-character-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-footnotes-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-footnotes-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-footnotes/0.64.8",
+            "pkgname": "flexmark-ext-footnotes"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-rlJEJU4nCuZHmAOHD6eR/grhK+JC9y5Hl5QSqK4W3wY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-footnotes/0.64.8/flexmark-ext-footnotes-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-footnotes-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-footnotes-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-footnotes/0.64.8",
+            "pkgname": "flexmark-ext-footnotes"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-vRhX/y2tHZJ+CrunG+SwoGOvY2yarqWGGcP+Y5DfWaI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-footnotes/0.64.8/flexmark-ext-footnotes-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gfm-issues-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gfm-issues-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-issues/0.64.8",
+            "pkgname": "flexmark-ext-gfm-issues"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-DDMty+twMXnciN82jNtxs6X0hs62JIjPioFve+vnFVg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-issues/0.64.8/flexmark-ext-gfm-issues-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gfm-issues-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gfm-issues-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-issues/0.64.8",
+            "pkgname": "flexmark-ext-gfm-issues"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-B708iF6GPhhrihV3dQwmuyeGLzdb6sJuyDWfHOlYeyc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-issues/0.64.8/flexmark-ext-gfm-issues-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gfm-strikethrough-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gfm-strikethrough-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.64.8",
+            "pkgname": "flexmark-ext-gfm-strikethrough"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-/GytAm+9A2s//QRIJkNgpfG1cnVu80J/8CJxW3/F8cM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.64.8/flexmark-ext-gfm-strikethrough-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gfm-strikethrough-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gfm-strikethrough-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.64.8",
+            "pkgname": "flexmark-ext-gfm-strikethrough"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-29iSNA0WNyOaf2bF5SGSELfNQX0f13HOk6llsD9xgog=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.64.8/flexmark-ext-gfm-strikethrough-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gfm-tasklist-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gfm-tasklist-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.64.8",
+            "pkgname": "flexmark-ext-gfm-tasklist"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-yGdUuo8P/pl/pEjaKmqyz9vqmzgYhM/tb3S/UTt39ak=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.64.8/flexmark-ext-gfm-tasklist-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gfm-tasklist-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gfm-tasklist-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.64.8",
+            "pkgname": "flexmark-ext-gfm-tasklist"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-grSuGU68cqCDfFhZ9lqbqDmxhv36xW2omLQIjnrDyLg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.64.8/flexmark-ext-gfm-tasklist-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gfm-users-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gfm-users-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-users/0.64.8",
+            "pkgname": "flexmark-ext-gfm-users"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-mW8uNhxZGKVySmZ2b+gDoUw5eqn30PdSIOwbnK4LDAY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-users/0.64.8/flexmark-ext-gfm-users-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gfm-users-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gfm-users-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-users/0.64.8",
+            "pkgname": "flexmark-ext-gfm-users"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-twZpFGGpG+nZlQOJqU/zPvsnjZLrtInkapF/lPUrxas=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-users/0.64.8/flexmark-ext-gfm-users-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gitlab-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gitlab-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gitlab/0.64.8",
+            "pkgname": "flexmark-ext-gitlab"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-NtvT4yU7wW8JyXc7tMm040dnacD1NDA4CxKsGkfVmYM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gitlab/0.64.8/flexmark-ext-gitlab-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-gitlab-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-gitlab-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gitlab/0.64.8",
+            "pkgname": "flexmark-ext-gitlab"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-1XNf0QVxhlQaAr6/oXb2z8hGWVdVud1McGhcXU475zM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gitlab/0.64.8/flexmark-ext-gitlab-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-ins-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-ins-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.64.8",
+            "pkgname": "flexmark-ext-ins"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-W2G4PDHLC9MnPL8SrtOIe2O4vcbfoXsD7PR5zxzhdr0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.64.8/flexmark-ext-ins-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-ins-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-ins-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.64.8",
+            "pkgname": "flexmark-ext-ins"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-TPZAzDnlBtzCvF7Sk0ZOiet9u3X8chhlgre2M8ziWyE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.64.8/flexmark-ext-ins-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-jekyll-front-matter-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-jekyll-front-matter-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-front-matter/0.64.8",
+            "pkgname": "flexmark-ext-jekyll-front-matter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-sR5OYdvUyz43rjJbL5zRbb94+Gv9Yj2VK/Df1taFxGo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-front-matter/0.64.8/flexmark-ext-jekyll-front-matter-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-jekyll-front-matter-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-jekyll-front-matter-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-front-matter/0.64.8",
+            "pkgname": "flexmark-ext-jekyll-front-matter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-LPgBTCFX9AgDUUz+iGXBRr1OADZFlBS4CKKUXYVMdUc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-front-matter/0.64.8/flexmark-ext-jekyll-front-matter-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-jekyll-tag-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-jekyll-tag-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-tag/0.64.8",
+            "pkgname": "flexmark-ext-jekyll-tag"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-I03oRd7N3yU/e+vVQA4MbBMOpfiYh8D3GVjgM7zcIz4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-tag/0.64.8/flexmark-ext-jekyll-tag-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-jekyll-tag-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-jekyll-tag-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-tag/0.64.8",
+            "pkgname": "flexmark-ext-jekyll-tag"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-uAeGhqARHG+S9dTAhhm4m9aZc63ZmrwDWErZM9KXYtE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-jekyll-tag/0.64.8/flexmark-ext-jekyll-tag-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-macros-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-macros-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-macros/0.64.8",
+            "pkgname": "flexmark-ext-macros"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-vIRgWNiivWbnxBk/3o4ZTbCJdh4lNM4BeumawnH8jT4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-macros/0.64.8/flexmark-ext-macros-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-macros-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-macros-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-macros/0.64.8",
+            "pkgname": "flexmark-ext-macros"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-W6/NlDd6R5OxCPxAFovWfwNcs73Q4WpPsmTiyUTXdyg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-macros/0.64.8/flexmark-ext-macros-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-media-tags-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-media-tags-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-media-tags/0.64.8",
+            "pkgname": "flexmark-ext-media-tags"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-jy5BvlL5Yzrq82zo0O0iLmzDetng5slDoNMEstBx9gA=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-media-tags/0.64.8/flexmark-ext-media-tags-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-media-tags-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-media-tags-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-media-tags/0.64.8",
+            "pkgname": "flexmark-ext-media-tags"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-R8ogpXiaC/B96t01ONYeXTS4UqJmqRl3WfAPqshHAmk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-media-tags/0.64.8/flexmark-ext-media-tags-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-resizable-image-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-resizable-image-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-resizable-image/0.64.8",
+            "pkgname": "flexmark-ext-resizable-image"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-468v1tguTNWt9mobXNaK4MLO98e8yy8gEMLqvojq++4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-resizable-image/0.64.8/flexmark-ext-resizable-image-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-resizable-image-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-resizable-image-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-resizable-image/0.64.8",
+            "pkgname": "flexmark-ext-resizable-image"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-nYextKtfnvSGZI2EENtpR6VuI4qHAUVnQlB7eMg5fbc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-resizable-image/0.64.8/flexmark-ext-resizable-image-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-superscript-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-superscript-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.64.8",
+            "pkgname": "flexmark-ext-superscript"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-RXkzMk0cqfKDvBWhhCd3xt8DhfMY/M6t5N5BYhOV5AI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.64.8/flexmark-ext-superscript-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-superscript-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-superscript-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.64.8",
+            "pkgname": "flexmark-ext-superscript"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-+JfvOutkMsN/uIgBcgUxFtEa84rkcJyQiqcBVM0mGh4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.64.8/flexmark-ext-superscript-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-tables-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-tables-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.64.8",
+            "pkgname": "flexmark-ext-tables"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-zfgtJuES6WrefjcBOK6xaSC34tQR0gxsFcsaz6zR7x8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.64.8/flexmark-ext-tables-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-tables-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-tables-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.64.8",
+            "pkgname": "flexmark-ext-tables"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-+Lnuh0FZExL8I1PkfMjMbZIud2RInYOrrX0V8zU33PU=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.64.8/flexmark-ext-tables-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-toc-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-toc-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-toc/0.64.8",
+            "pkgname": "flexmark-ext-toc"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-v1Txu3vKcgNB2w4yJpFyWrjgIrLKJprR5PNwXBbTeRE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-toc/0.64.8/flexmark-ext-toc-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-toc-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-toc-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-toc/0.64.8",
+            "pkgname": "flexmark-ext-toc"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-f5ZISpzvpc9J7xREBSQJl4Ml1KmLkT7EehHYxM1G+HM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-toc/0.64.8/flexmark-ext-toc-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-typographic-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-typographic-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-typographic/0.64.8",
+            "pkgname": "flexmark-ext-typographic"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-YVYagRxxaEP+48t/GPAHg8OgHDCmzmU0RnOLzJAK6xM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-typographic/0.64.8/flexmark-ext-typographic-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-typographic-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-typographic-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-typographic/0.64.8",
+            "pkgname": "flexmark-ext-typographic"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-3iS9zHP7iOrtxNX9LsqT8AgwKXqHDnmfoQMZLhNDfJw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-typographic/0.64.8/flexmark-ext-typographic-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-wikilink-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-wikilink-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.64.8",
+            "pkgname": "flexmark-ext-wikilink"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-8y73ee77TDuA1b6/PEt61yBvxG4IOlkBz1Hbe0U1/3k=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.64.8/flexmark-ext-wikilink-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-wikilink-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-wikilink-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.64.8",
+            "pkgname": "flexmark-ext-wikilink"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Vr+s6mEz9k+F30Ir6iY/9USKNWCxfSIXw8LSvJRPtbo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.64.8/flexmark-ext-wikilink-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-xwiki-macros-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-xwiki-macros-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-xwiki-macros/0.64.8",
+            "pkgname": "flexmark-ext-xwiki-macros"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-+YbOWu1T+o2yD98qmONqpcr++0llFsjAMbhL+wgaVnI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-xwiki-macros/0.64.8/flexmark-ext-xwiki-macros-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-xwiki-macros-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-xwiki-macros-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-xwiki-macros/0.64.8",
+            "pkgname": "flexmark-ext-xwiki-macros"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-wPF/ocoAPad7bJRYv0xwlhj2Tux8oG6yFk6zp0FFSgc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-xwiki-macros/0.64.8/flexmark-ext-xwiki-macros-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-yaml-front-matter-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-yaml-front-matter-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.64.8",
+            "pkgname": "flexmark-ext-yaml-front-matter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-bGC4XbTMhRMBwaUtcS3AkJxdLam9F+uuTZejoDr+Iu4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.64.8/flexmark-ext-yaml-front-matter-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-yaml-front-matter-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-yaml-front-matter-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.64.8",
+            "pkgname": "flexmark-ext-yaml-front-matter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-8RKR/LfbgiIQHvipAJ4DiwR6XS/PlWdKUc/cNREaa5g=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.64.8/flexmark-ext-yaml-front-matter-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-youtube-embedded-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-youtube-embedded-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-youtube-embedded/0.64.8",
+            "pkgname": "flexmark-ext-youtube-embedded"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-b+GVr+51LfUCrUKVqwxOyO159bD9xf+FuYyLxRLw8Ro=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-youtube-embedded/0.64.8/flexmark-ext-youtube-embedded-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-ext-youtube-embedded-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-ext-youtube-embedded-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-youtube-embedded/0.64.8",
+            "pkgname": "flexmark-ext-youtube-embedded"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-hNEIGWu0X4SgLkKd28M/2BAcZlNGhDwzPmUIot4lJ5A=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-youtube-embedded/0.64.8/flexmark-ext-youtube-embedded-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-html2md-converter-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-html2md-converter-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-html2md-converter/0.64.8",
+            "pkgname": "flexmark-html2md-converter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-PySpCo/t1nCPBr5yu8n19SEavEnDXulZGM57C0FlHmI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-html2md-converter/0.64.8/flexmark-html2md-converter-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-html2md-converter-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-html2md-converter-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-html2md-converter/0.64.8",
+            "pkgname": "flexmark-html2md-converter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-UrrKRFXJePTvC0NK2oOfmHQy9JaQFS7yDkxvHmYb7TA=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-html2md-converter/0.64.8/flexmark-html2md-converter-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-java-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-java-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-java/0.64.8",
+            "pkgname": "flexmark-java"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-QHv3UvN2KqkIxfxNZkuJOZTRt4OqIKKWakP4bBVetDM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-java/0.64.8/flexmark-java-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-jira-converter-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-jira-converter-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.64.8",
+            "pkgname": "flexmark-jira-converter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-zMHDqWWaEEt1pTojIenB1M7bBazYZ9Q2bYuOFke9N90=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.64.8/flexmark-jira-converter-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-jira-converter-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-jira-converter-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.64.8",
+            "pkgname": "flexmark-jira-converter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-aO668VQ27ex78DMIQgcN0iOqcXQcaX17yQKVEdlG4II=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.64.8/flexmark-jira-converter-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-pdf-converter-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-pdf-converter-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-pdf-converter/0.64.8",
+            "pkgname": "flexmark-pdf-converter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-LvrLpMN9RzbwD8Nc1WhfjwC4PbmzyAylYC7aL7nSURw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-pdf-converter/0.64.8/flexmark-pdf-converter-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-pdf-converter-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-pdf-converter-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-pdf-converter/0.64.8",
+            "pkgname": "flexmark-pdf-converter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-r09ILAiifamGRSKIBup1huVFcyLHLqitcGmTT1H+QME=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-pdf-converter/0.64.8/flexmark-pdf-converter-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-profile-pegdown-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-profile-pegdown-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-profile-pegdown/0.64.8",
+            "pkgname": "flexmark-profile-pegdown"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-HvIeU2KZwlwEDyb/myKf3u8kw2YcbDcbwrlGIidlJCY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-profile-pegdown/0.64.8/flexmark-profile-pegdown-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-profile-pegdown-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-profile-pegdown-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-profile-pegdown/0.64.8",
+            "pkgname": "flexmark-profile-pegdown"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-ftM4dpTJH18TwQe++SRr8bGnkelsFasx+kPH6vHFC5E=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-profile-pegdown/0.64.8/flexmark-profile-pegdown-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.64.8",
+            "pkgname": "flexmark-util"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-HiTIkdrJUyu3Ir5xIscCb7R4aMPeNsAkAO7Y6a1TVyc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.64.8/flexmark-util-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.64.8",
+            "pkgname": "flexmark-util"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-g4Eg9qTozQub7BiGcCnXjxFNV3zcvOppRr65fsmM5/g=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.64.8/flexmark-util-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-ast-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-ast-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.64.8",
+            "pkgname": "flexmark-util-ast"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-pTQvZExqXzfVAvIlw6DLaZwmNiHILnINnAjrpanzuNM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.64.8/flexmark-util-ast-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-ast-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-ast-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.64.8",
+            "pkgname": "flexmark-util-ast"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-M5IPcD8naQ/qq7CKQ07O8g073bpMbcF9m1EYACUHITM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.64.8/flexmark-util-ast-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-builder-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-builder-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.64.8",
+            "pkgname": "flexmark-util-builder"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-r7nIjZ9lJFHnXxqwaa193XkdcS6yEcUdjSqDSUJAh10=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.64.8/flexmark-util-builder-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-builder-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-builder-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.64.8",
+            "pkgname": "flexmark-util-builder"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-ERKthdmLh0tJeVT6eySR9AXb4B2kso0x9XVMzFtqL6E=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.64.8/flexmark-util-builder-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-collection-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-collection-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.64.8",
+            "pkgname": "flexmark-util-collection"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Ax/wFAjQ9UxiNdsY1FHcbmsVuFmw7B5A/zQpqCN1CCo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.64.8/flexmark-util-collection-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-collection-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-collection-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.64.8",
+            "pkgname": "flexmark-util-collection"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-xHLCQN7mFbkqISQcG0Lzm/44ZYlcMChulWI82UBecms=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.64.8/flexmark-util-collection-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-data-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-data-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.64.8",
+            "pkgname": "flexmark-util-data"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-g861mJqwIFBUvxtCRG9Vy22hTBCqfCvaBdaiUEZw81M=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.64.8/flexmark-util-data-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-data-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-data-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.64.8",
+            "pkgname": "flexmark-util-data"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-26l1Ca96vWwSBNwLP2K0hpzxqON8np1mNW4QqyTkhfE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.64.8/flexmark-util-data-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-dependency-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-dependency-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.64.8",
+            "pkgname": "flexmark-util-dependency"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-5BrbXoFEaZtht41Q6wBO633oT5DExjYmYJ5s7l6ii0I=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.64.8/flexmark-util-dependency-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-dependency-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-dependency-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.64.8",
+            "pkgname": "flexmark-util-dependency"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-0EkP+0Tt80pQprn6nrXD3XPT9weOH03oruUhmyIURVY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.64.8/flexmark-util-dependency-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-format-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-format-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.64.8",
+            "pkgname": "flexmark-util-format"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-bJrIdoZHTt8BF7P4ONncs7ll+nK+SZjSF3tZgBNnn3M=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.64.8/flexmark-util-format-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-format-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-format-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.64.8",
+            "pkgname": "flexmark-util-format"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-q+B6AP/rbr+L6DoCzOTSdpHnRUlRvnatteV9qmJiSOE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.64.8/flexmark-util-format-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-html-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-html-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.64.8",
+            "pkgname": "flexmark-util-html"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-WxnmUGr/eRPHStclr3wrip8jlY5jJL8HEMWmRaRmMBc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.64.8/flexmark-util-html-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-html-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-html-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.64.8",
+            "pkgname": "flexmark-util-html"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-QSOT8DUt+GmWg4KaaRDOIX7RtSyaucYZIg1OM9W0n7o=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.64.8/flexmark-util-html-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-misc-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-misc-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.64.8",
+            "pkgname": "flexmark-util-misc"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-dEcsqBqQgOUeoaTxHCcImOPWwkLJInX6tH65k4Bsjys=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.64.8/flexmark-util-misc-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-misc-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-misc-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.64.8",
+            "pkgname": "flexmark-util-misc"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-7kzBaZZgo0M+YJAy20ar+0yTTlGmP3pYOewfi2qVwOE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.64.8/flexmark-util-misc-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-options-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-options-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.64.8",
+            "pkgname": "flexmark-util-options"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-JIn0HpyvHZ+AYYM7MRslQDkly7Yx//K4wGkZKATW/Ig=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.64.8/flexmark-util-options-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-options-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-options-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.64.8",
+            "pkgname": "flexmark-util-options"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-GA5DN4dxzcVhlDhgQ8XX9Dsq7EW9N9CJwmYV0As5i2A=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.64.8/flexmark-util-options-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-sequence-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-sequence-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.64.8",
+            "pkgname": "flexmark-util-sequence"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-biKXb+TpuN6U/VKZkeyy15zEgqrZSYU2dHCpO+HYJjE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.64.8/flexmark-util-sequence-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-sequence-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-sequence-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.64.8",
+            "pkgname": "flexmark-util-sequence"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-bOq0Eg9oVbt9IeVyDhVuogqWkeURN9ZGj0uQZzUvg+8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.64.8/flexmark-util-sequence-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-visitor-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-visitor-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.64.8",
+            "pkgname": "flexmark-util-visitor"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-2bMAKoM6B4xF4TlWizBtqwrBF/+QRsah+eGAwBVFY/w=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.64.8/flexmark-util-visitor-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-util-visitor-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-util-visitor-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.64.8",
+            "pkgname": "flexmark-util-visitor"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-+kWiyg+uR7+nw6GXwiuhe2QiNZhZTDimzlknPlOQwXY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.64.8/flexmark-util-visitor-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-youtrack-converter-0.64.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-youtrack-converter-0.64.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-youtrack-converter/0.64.8",
+            "pkgname": "flexmark-youtrack-converter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-BuVWSR02h2wdfrZrEwAmOk53TBVBuc/8aUb1Qd84qbY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-youtrack-converter/0.64.8/flexmark-youtrack-converter-0.64.8.jar"
+        },
+        "version": "0.64.8"
+    },
+    "flexmark-youtrack-converter-0.64.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "flexmark-youtrack-converter-0.64.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-youtrack-converter/0.64.8",
+            "pkgname": "flexmark-youtrack-converter"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-0s6mlGWaai+4Yj+hEjM8ypt8tdv5XAc1xVZAh60xN7k=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-youtrack-converter/0.64.8/flexmark-youtrack-converter-0.64.8.pom"
+        },
+        "version": "0.64.8"
+    },
+    "fontbox-2.0.24-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "fontbox-2.0.24-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/fontbox/2.0.24",
+            "pkgname": "fontbox"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-LowKVpqQsEc0+8DIBdd/TsA/mMEfVwUFXM13GMGVPWg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/pdfbox/fontbox/2.0.24/fontbox-2.0.24.jar"
+        },
+        "version": "2.0.24"
+    },
+    "fontbox-2.0.24-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "fontbox-2.0.24-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/fontbox/2.0.24",
+            "pkgname": "fontbox"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-+lX3XamiHT8osnOq5N0BlvgZWJeXbwaJBrtL8TOkOy8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/pdfbox/fontbox/2.0.24/fontbox-2.0.24.pom"
+        },
+        "version": "2.0.24"
+    },
+    "fs2-core_2.13-3.2.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "fs2-core_2.13-3.2.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/co/fs2/fs2-core_2.13/3.2.8",
+            "pkgname": "fs2-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-r2nTJ/VUR5C/5oOFHykLIKcnRpBIadav+2L3B5+fbTk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/co/fs2/fs2-core_2.13/3.2.8/fs2-core_2.13-3.2.8.jar"
+        },
+        "version": "3.2.8"
+    },
+    "fs2-core_2.13-3.2.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "fs2-core_2.13-3.2.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/co/fs2/fs2-core_2.13/3.2.8",
+            "pkgname": "fs2-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-i4W0vlrBL5UoAYG87lZwkXYXnAUiCx+2VoS3Gx/4SQo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/co/fs2/fs2-core_2.13/3.2.8/fs2-core_2.13-3.2.8.pom"
+        },
+        "version": "3.2.8"
+    },
+    "fs2-io_2.13-3.2.8-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "fs2-io_2.13-3.2.8-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/co/fs2/fs2-io_2.13/3.2.8",
+            "pkgname": "fs2-io_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-aAHaTtwh0y26eaHM9T3fcHLuZrxrPzEJgtgdUuqoMas=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/co/fs2/fs2-io_2.13/3.2.8/fs2-io_2.13-3.2.8.jar"
+        },
+        "version": "3.2.8"
+    },
+    "fs2-io_2.13-3.2.8-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "fs2-io_2.13-3.2.8-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/co/fs2/fs2-io_2.13/3.2.8",
+            "pkgname": "fs2-io_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-JESmQxAJLcz7/MSRVat2uldkvcuK1/BctNaIvmmihk8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/co/fs2/fs2-io_2.13/3.2.8/fs2-io_2.13-3.2.8.pom"
+        },
+        "version": "3.2.8"
+    },
     "fusesource-pom-1.12-pom": {
         "cargoLocks": null,
         "date": null,
@@ -899,6 +3491,78 @@
         },
         "version": "1.1.0"
     },
+    "github4s_2.13-0.31.1-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "github4s_2.13-0.31.1-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/47deg/github4s_2.13/0.31.1",
+            "pkgname": "github4s_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-R4CTn6tNgwCsjCzor5HuzhWiF39VF7zaGv8PWXwJUfY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/47deg/github4s_2.13/0.31.1/github4s_2.13-0.31.1.jar"
+        },
+        "version": "0.31.1"
+    },
+    "github4s_2.13-0.31.1-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "github4s_2.13-0.31.1-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/47deg/github4s_2.13/0.31.1",
+            "pkgname": "github4s_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-orudNIGiqGRSGUG4k1xEn6nXRU76woM4G8PPO6aFzlY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/47deg/github4s_2.13/0.31.1/github4s_2.13-0.31.1.pom"
+        },
+        "version": "0.31.1"
+    },
+    "graphics2d-0.32-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "graphics2d-0.32-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/de/rototor/pdfbox/graphics2d/0.32",
+            "pkgname": "graphics2d"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-N/jzhzlflsIUrET3R1x6Lh+DLfwd4omjYQ4P+/co9nk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/de/rototor/pdfbox/graphics2d/0.32/graphics2d-0.32.jar"
+        },
+        "version": "0.32"
+    },
+    "graphics2d-0.32-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "graphics2d-0.32-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/de/rototor/pdfbox/graphics2d/0.32",
+            "pkgname": "graphics2d"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-c1kfzPP1PAFJ1TitQ4490Qy9u5el+Tib/rwtImNBBxQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/de/rototor/pdfbox/graphics2d/0.32/graphics2d-0.32.pom"
+        },
+        "version": "0.32"
+    },
     "groovy-bom-4.0.22-pom": {
         "cargoLocks": null,
         "date": null,
@@ -916,6 +3580,258 @@
             "url": "https://repo1.maven.org/maven2/org/apache/groovy/groovy-bom/4.0.22/groovy-bom-4.0.22.pom"
         },
         "version": "4.0.22"
+    },
+    "http4s-circe_2.13-0.23.13-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-circe_2.13-0.23.13-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.23.13",
+            "pkgname": "http4s-circe_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-YkVF7BFT9jQ4vjVIhw//k4dYunxCQ1WiS7YZofnidzo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.23.13/http4s-circe_2.13-0.23.13.jar"
+        },
+        "version": "0.23.13"
+    },
+    "http4s-circe_2.13-0.23.13-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-circe_2.13-0.23.13-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.23.13",
+            "pkgname": "http4s-circe_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-KvtG9kHgT+1jNaB5R0jRU/0bGv9IWHfCZyAmxxRk3wU=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.23.13/http4s-circe_2.13-0.23.13.pom"
+        },
+        "version": "0.23.13"
+    },
+    "http4s-client_2.13-0.23.13-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-client_2.13-0.23.13-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-client_2.13/0.23.13",
+            "pkgname": "http4s-client_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-9bY6biVzVCPz7Lti6j6OBN9pLfpmIgTCoH/PTkjXCKw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-client_2.13/0.23.13/http4s-client_2.13-0.23.13.jar"
+        },
+        "version": "0.23.13"
+    },
+    "http4s-client_2.13-0.23.13-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-client_2.13-0.23.13-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-client_2.13/0.23.13",
+            "pkgname": "http4s-client_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-m9tP3qnEGWlRDzruGTTJJrwFhJ8f26uTj32T503kFFg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-client_2.13/0.23.13/http4s-client_2.13-0.23.13.pom"
+        },
+        "version": "0.23.13"
+    },
+    "http4s-core_2.13-0.23.13-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-core_2.13-0.23.13-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-core_2.13/0.23.13",
+            "pkgname": "http4s-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-duwrGT7UREdOPyO1thDSKh55JNXdTBSMJjolddz6cPg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-core_2.13/0.23.13/http4s-core_2.13-0.23.13.jar"
+        },
+        "version": "0.23.13"
+    },
+    "http4s-core_2.13-0.23.13-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-core_2.13-0.23.13-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-core_2.13/0.23.13",
+            "pkgname": "http4s-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-27xNlpsyFfDc0PDPZRMn8amupMDM8IU3idoGB7xsIBk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-core_2.13/0.23.13/http4s-core_2.13-0.23.13.pom"
+        },
+        "version": "0.23.13"
+    },
+    "http4s-crypto_2.13-0.2.3-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-crypto_2.13-0.2.3-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-crypto_2.13/0.2.3",
+            "pkgname": "http4s-crypto_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-laW07hdEYkrGb8H17sT7oEHq71Ee5V7Azo8ke6KslLo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-crypto_2.13/0.2.3/http4s-crypto_2.13-0.2.3.jar"
+        },
+        "version": "0.2.3"
+    },
+    "http4s-crypto_2.13-0.2.3-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-crypto_2.13-0.2.3-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-crypto_2.13/0.2.3",
+            "pkgname": "http4s-crypto_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-vnWsA6sdgH/+mzOIUeTfMT/4CTNjYS9BuTxXMXLSmxE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-crypto_2.13/0.2.3/http4s-crypto_2.13-0.2.3.pom"
+        },
+        "version": "0.2.3"
+    },
+    "http4s-jawn_2.13-0.23.13-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-jawn_2.13-0.23.13-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-jawn_2.13/0.23.13",
+            "pkgname": "http4s-jawn_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-T9myx9OzYft5PopZMC3tEcZ6MB5vTzRqG2AIjOgIIp4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-jawn_2.13/0.23.13/http4s-jawn_2.13-0.23.13.jar"
+        },
+        "version": "0.23.13"
+    },
+    "http4s-jawn_2.13-0.23.13-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "http4s-jawn_2.13-0.23.13-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/http4s/http4s-jawn_2.13/0.23.13",
+            "pkgname": "http4s-jawn_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-WeGRdOGJRueomub9E/Az8h1DeZFJ6fqngEMPox3lik4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/http4s/http4s-jawn_2.13/0.23.13/http4s-jawn_2.13-0.23.13.pom"
+        },
+        "version": "0.23.13"
+    },
+    "icu4j-72.1-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "icu4j-72.1-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/ibm/icu/icu4j/72.1",
+            "pkgname": "icu4j"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-PfVyskCmjRO1zXeK0jk+iF0mQRQ0zY8JisWYfqLmTOM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/ibm/icu/icu4j/72.1/icu4j-72.1.jar"
+        },
+        "version": "72.1"
+    },
+    "icu4j-72.1-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "icu4j-72.1-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/ibm/icu/icu4j/72.1",
+            "pkgname": "icu4j"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Pe8rKa9KGa2AXLFTBWklqJqQP5L77hre4S7S/BTETug=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/ibm/icu/icu4j/72.1/icu4j-72.1.pom"
+        },
+        "version": "72.1"
+    },
+    "interface-1.0.28-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "interface-1.0.28-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/get-coursier/interface/1.0.28",
+            "pkgname": "interface"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-dZL+SceJtVQpSDGFrCKsbaQ2gKOcU7gYxQvKD7fdang=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/get-coursier/interface/1.0.28/interface-1.0.28.jar"
+        },
+        "version": "1.0.28"
+    },
+    "interface-1.0.28-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "interface-1.0.28-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/get-coursier/interface/1.0.28",
+            "pkgname": "interface"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-HToQ+bwXKLgi0zGXVUUSBJHiaEDerq6Dfallak4SvN0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/get-coursier/interface/1.0.28/interface-1.0.28.pom"
+        },
+        "version": "1.0.28"
     },
     "io_2.13-1.10.3-bundle": {
         "cargoLocks": null,
@@ -952,6 +3868,42 @@
             "url": "https://repo1.maven.org/maven2/org/scala-sbt/io_2.13/1.10.3/io_2.13-1.10.3.pom"
         },
         "version": "1.10.3"
+    },
+    "ip4s-core_2.13-3.1.3-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "ip4s-core_2.13-3.1.3-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/comcast/ip4s-core_2.13/3.1.3",
+            "pkgname": "ip4s-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-w6XuzfcLrT7inpjdeMOS7GkDpMNoUNhXDFV7UzMTZ+s=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/comcast/ip4s-core_2.13/3.1.3/ip4s-core_2.13-3.1.3.jar"
+        },
+        "version": "3.1.3"
+    },
+    "ip4s-core_2.13-3.1.3-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "ip4s-core_2.13-3.1.3-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/comcast/ip4s-core_2.13/3.1.3",
+            "pkgname": "ip4s-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-H/ItmCIksvNrh70nJps0+PwxnQIqYXbXfcGJNeffiO8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/comcast/ip4s-core_2.13/3.1.3/ip4s-core_2.13-3.1.3.pom"
+        },
+        "version": "3.1.3"
     },
     "jackson-bom-2.17.2-pom": {
         "cargoLocks": null,
@@ -1132,6 +4084,294 @@
             "url": "https://repo1.maven.org/maven2/net/openhft/java-parent-pom/1.1.28/java-parent-pom-1.1.28.pom"
         },
         "version": "1.1.28"
+    },
+    "jawn-fs2_2.13-2.2.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jawn-fs2_2.13-2.2.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/jawn-fs2_2.13/2.2.0",
+            "pkgname": "jawn-fs2_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-un7uTHDEMWeypeSEIaLFP9YxMZbLkcyJz6eH9Pl9DRI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/jawn-fs2_2.13/2.2.0/jawn-fs2_2.13-2.2.0.jar"
+        },
+        "version": "2.2.0"
+    },
+    "jawn-fs2_2.13-2.2.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jawn-fs2_2.13-2.2.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/jawn-fs2_2.13/2.2.0",
+            "pkgname": "jawn-fs2_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Ss9a6+LU4kiiiRbPjrl8dZHwVOv7HOn9FXe+9+GTn5U=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/jawn-fs2_2.13/2.2.0/jawn-fs2_2.13-2.2.0.pom"
+        },
+        "version": "2.2.0"
+    },
+    "jawn-parser_2.13-1.3.2-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jawn-parser_2.13-1.3.2-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/jawn-parser_2.13/1.3.2",
+            "pkgname": "jawn-parser_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-FO0TaoBUNseWWzacbA03SZWZ9ppk/Pl69VKRwT7Y1lw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/jawn-parser_2.13/1.3.2/jawn-parser_2.13-1.3.2.jar"
+        },
+        "version": "1.3.2"
+    },
+    "jawn-parser_2.13-1.3.2-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jawn-parser_2.13-1.3.2-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/jawn-parser_2.13/1.3.2",
+            "pkgname": "jawn-parser_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-4wUuPeH+nm5hws2gjUmHq71v2uQbjYqKyfyQJRP9pCw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/jawn-parser_2.13/1.3.2/jawn-parser_2.13-1.3.2.pom"
+        },
+        "version": "1.3.2"
+    },
+    "jboss-logging-3.4.1.Final-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-logging-3.4.1.Final-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.1.Final",
+            "pkgname": "jboss-logging"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-jv6HfZPl4QV6E4iylQUDuIsMKERzZP3gitvsYeUk7rg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.1.Final/jboss-logging-3.4.1.Final.jar"
+        },
+        "version": "3.4.1.Final"
+    },
+    "jboss-logging-3.4.1.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-logging-3.4.1.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.1.Final",
+            "pkgname": "jboss-logging"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-9xH0DhasPqSAejNFYSLJuxEtJ4RefcxohVjTSDHKkrk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.1.Final/jboss-logging-3.4.1.Final.pom"
+        },
+        "version": "3.4.1.Final"
+    },
+    "jboss-logging-3.4.3.Final-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-logging-3.4.3.Final-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.3.Final",
+            "pkgname": "jboss-logging"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-CzJMyk1VAGDlHnDMAEWmzOYvJkJ47B9Qgqr+tnD8rEk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.3.Final/jboss-logging-3.4.3.Final.jar"
+        },
+        "version": "3.4.3.Final"
+    },
+    "jboss-logging-3.4.3.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-logging-3.4.3.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.3.Final",
+            "pkgname": "jboss-logging"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-92OUM0Iui/Hzl9t1dfKrlUzCD30VgbM/bZeNswlDr+w=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/logging/jboss-logging/3.4.3.Final/jboss-logging-3.4.3.Final.pom"
+        },
+        "version": "3.4.3.Final"
+    },
+    "jboss-parent-23-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-parent-23-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/23",
+            "pkgname": "jboss-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-bPr6FVv0aJ5KySbQDxDwWBbpqyVXOUNt/kLZk1KpVhM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/jboss-parent/23/jboss-parent-23.pom"
+        },
+        "version": "23"
+    },
+    "jboss-parent-34-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-parent-34-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/34",
+            "pkgname": "jboss-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-SnwiYk4BxsRbAh/EYJ6INagHxaai2WFeiq5j6iCtSFk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/jboss-parent/34/jboss-parent-34.pom"
+        },
+        "version": "34"
+    },
+    "jboss-parent-35-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-parent-35-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/35",
+            "pkgname": "jboss-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-/DtXqjJGe4eFvm1avQBPIKM5ryerENYMWPx86XLt3sc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/jboss-parent/35/jboss-parent-35.pom"
+        },
+        "version": "35"
+    },
+    "jboss-parent-36-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-parent-36-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/36",
+            "pkgname": "jboss-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-AA3WFimK69IanVcxh03wg9cphCS5HgN7c8vdB+vIPg4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/jboss-parent/36/jboss-parent-36.pom"
+        },
+        "version": "36"
+    },
+    "jboss-parent-39-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-parent-39-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/39",
+            "pkgname": "jboss-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-BN/wdaAAlLYwYa9AfSgW2c3mZ5WsrjdqBUvf6Lox5mQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/jboss-parent/39/jboss-parent-39.pom"
+        },
+        "version": "39"
+    },
+    "jboss-parent-43-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-parent-43-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/jboss-parent/43",
+            "pkgname": "jboss-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-PDredvuIOs25qKAzVdHfQGb/ucjHjwmyGenA/Co/Qxc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/jboss-parent/43/jboss-parent-43.pom"
+        },
+        "version": "43"
+    },
+    "jboss-threads-3.1.0.Final-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-threads-3.1.0.Final-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/threads/jboss-threads/3.1.0.Final",
+            "pkgname": "jboss-threads"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-yTlq87R93dvOFDNaqtW4W0n6cE8R4z2hxFD648O5gHk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/threads/jboss-threads/3.1.0.Final/jboss-threads-3.1.0.Final.jar"
+        },
+        "version": "3.1.0.Final"
+    },
+    "jboss-threads-3.1.0.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jboss-threads-3.1.0.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/threads/jboss-threads/3.1.0.Final",
+            "pkgname": "jboss-threads"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-i2HXxJhwd43iEV9V1k97HdsQdvpX5ytJTqkqJF/lIz8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/threads/jboss-threads/3.1.0.Final/jboss-threads-3.1.0.Final.pom"
+        },
+        "version": "3.1.0.Final"
     },
     "jline-2.14.7-sbt-9a88bc413e2b34a4580c001c654d1a7f4f65bf18-bundle": {
         "cargoLocks": null,
@@ -2159,6 +5399,114 @@
         },
         "version": "4.0.7"
     },
+    "jsoniter-scala-core_2.13-2.33.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jsoniter-scala-core_2.13-2.33.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-core_2.13/2.33.0",
+            "pkgname": "jsoniter-scala-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-0PdRcnBuWPo7hmXkz+HkwASPERlSiSykZteAJO4k3hc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-core_2.13/2.33.0/jsoniter-scala-core_2.13-2.33.0.jar"
+        },
+        "version": "2.33.0"
+    },
+    "jsoniter-scala-core_2.13-2.33.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jsoniter-scala-core_2.13-2.33.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-core_2.13/2.33.0",
+            "pkgname": "jsoniter-scala-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-IqL+rWadb/n6QaKLy3tppa4opxq2zCoO0DRjxv/Lpo8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-core_2.13/2.33.0/jsoniter-scala-core_2.13-2.33.0.pom"
+        },
+        "version": "2.33.0"
+    },
+    "jsoniter-scala-macros_2.13-2.33.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jsoniter-scala-macros_2.13-2.33.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-macros_2.13/2.33.0",
+            "pkgname": "jsoniter-scala-macros_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-DuomYTEpsbZw+QtmAf7nVT2E843p94NL9/sAeLoe+SY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-macros_2.13/2.33.0/jsoniter-scala-macros_2.13-2.33.0.jar"
+        },
+        "version": "2.33.0"
+    },
+    "jsoniter-scala-macros_2.13-2.33.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jsoniter-scala-macros_2.13-2.33.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-macros_2.13/2.33.0",
+            "pkgname": "jsoniter-scala-macros_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-USo+JCKsXUD6DITovDzaIjAiOYWpJst5waykY/iI/Bo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/jsoniter-scala-macros_2.13/2.33.0/jsoniter-scala-macros_2.13-2.33.0.pom"
+        },
+        "version": "2.33.0"
+    },
+    "jsoup-1.15.4-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jsoup-1.15.4-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jsoup/jsoup/1.15.4",
+            "pkgname": "jsoup"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-AGgw0Hl3EECN5VicGNhkNDwO8aOgxgPJyxOMlDtn2aQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jsoup/jsoup/1.15.4/jsoup-1.15.4.jar"
+        },
+        "version": "1.15.4"
+    },
+    "jsoup-1.15.4-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "jsoup-1.15.4-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jsoup/jsoup/1.15.4",
+            "pkgname": "jsoup"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-chKJC3LAuGDgIlhWvnQT5469Ps0+y4Vn3eaqxic9+4k=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jsoup/jsoup/1.15.4/jsoup-1.15.4.pom"
+        },
+        "version": "1.15.4"
+    },
     "junit-bom-5.10.0-pom": {
         "cargoLocks": null,
         "date": null,
@@ -2213,6 +5561,24 @@
         },
         "version": "5.10.3"
     },
+    "junit-bom-5.8.2-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "junit-bom-5.8.2-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/junit/junit-bom/5.8.2",
+            "pkgname": "junit-bom"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-g2Bpyp6O48VuSDdiItopEmPxN70/0W2E/dR+/MPyhuI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/junit/junit-bom/5.8.2/junit-bom-5.8.2.pom"
+        },
+        "version": "5.8.2"
+    },
     "launcher-interface-1.4.4-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -2248,6 +5614,42 @@
             "url": "https://repo1.maven.org/maven2/org/scala-sbt/launcher-interface/1.4.4/launcher-interface-1.4.4.pom"
         },
         "version": "1.4.4"
+    },
+    "literally_2.13-1.0.2-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "literally_2.13-1.0.2-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/literally_2.13/1.0.2",
+            "pkgname": "literally_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-F63UuKuqhN2xPi5oLENfwWY+iZo52c7jGVH1AOCIEcc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/literally_2.13/1.0.2/literally_2.13-1.0.2.jar"
+        },
+        "version": "1.0.2"
+    },
+    "literally_2.13-1.0.2-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "literally_2.13-1.0.2-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/literally_2.13/1.0.2",
+            "pkgname": "literally_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-bO82ZOnVGSXmExf0lUnBNx+js89ov2Wea5MN02wDqx8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/literally_2.13/1.0.2/literally_2.13-1.0.2.pom"
+        },
+        "version": "1.0.2"
     },
     "log4j-2.24.3-pom": {
         "cargoLocks": null,
@@ -2357,6 +5759,42 @@
         },
         "version": "2.24.3"
     },
+    "log4s_2.13-1.10.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "log4s_2.13-1.10.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/log4s/log4s_2.13/1.10.0",
+            "pkgname": "log4s_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-n4n6b4EzCKmsj7LC3K7EKPOfPZw3hj5tVkX4FOoPIbU=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/log4s/log4s_2.13/1.10.0/log4s_2.13-1.10.0.jar"
+        },
+        "version": "1.10.0"
+    },
+    "log4s_2.13-1.10.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "log4s_2.13-1.10.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/log4s/log4s_2.13/1.10.0",
+            "pkgname": "log4s_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-9Wuw3lgHUByuPfwA81wxpQEa4phCPpeZsaN85tGWXEA=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/log4s/log4s_2.13/1.10.0/log4s_2.13-1.10.0.pom"
+        },
+        "version": "1.10.0"
+    },
     "logging-parent-11.3.0-pom": {
         "cargoLocks": null,
         "date": null,
@@ -2410,6 +5848,294 @@
             "url": "https://repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.6/mainargs_2.13-0.7.6.pom"
         },
         "version": "0.7.6"
+    },
+    "mdoc-cli_2.13-2.6.4-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc-cli_2.13-2.6.4-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-cli_2.13/2.6.4",
+            "pkgname": "mdoc-cli_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-ZIg9IyF4bz5/HQVcMaSFyT7F02maBRQqwG/65JyOb7Q=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc-cli_2.13/2.6.4/mdoc-cli_2.13-2.6.4.jar"
+        },
+        "version": "2.6.4"
+    },
+    "mdoc-cli_2.13-2.6.4-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc-cli_2.13-2.6.4-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-cli_2.13/2.6.4",
+            "pkgname": "mdoc-cli_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-rYGf0OYCfoiCHFYmvjO4CNrda3xUlj/COBuCnmJZVIE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc-cli_2.13/2.6.4/mdoc-cli_2.13-2.6.4.pom"
+        },
+        "version": "2.6.4"
+    },
+    "mdoc-interfaces-2.6.4-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc-interfaces-2.6.4-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-interfaces/2.6.4",
+            "pkgname": "mdoc-interfaces"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-jVz2rwGO6mXK2wsJbF85cEG39uxSwfCwN7vXjzrwmD8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc-interfaces/2.6.4/mdoc-interfaces-2.6.4.jar"
+        },
+        "version": "2.6.4"
+    },
+    "mdoc-interfaces-2.6.4-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc-interfaces-2.6.4-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-interfaces/2.6.4",
+            "pkgname": "mdoc-interfaces"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-TUl+VLvGnMAaXSqs/umixLUzoUFXMaiEc0FJYVkIKgQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc-interfaces/2.6.4/mdoc-interfaces-2.6.4.pom"
+        },
+        "version": "2.6.4"
+    },
+    "mdoc-parser_2.13-2.6.4-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc-parser_2.13-2.6.4-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-parser_2.13/2.6.4",
+            "pkgname": "mdoc-parser_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-0UYs93fCJ6mnUa6arjy3q3w/wfcGifNer+WHRuM1Zsw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc-parser_2.13/2.6.4/mdoc-parser_2.13-2.6.4.jar"
+        },
+        "version": "2.6.4"
+    },
+    "mdoc-parser_2.13-2.6.4-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc-parser_2.13-2.6.4-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-parser_2.13/2.6.4",
+            "pkgname": "mdoc-parser_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-ylMfxOSLzZxeWQ2XJUW8pYDQoTUgEgdUM2nAldJlk+o=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc-parser_2.13/2.6.4/mdoc-parser_2.13-2.6.4.pom"
+        },
+        "version": "2.6.4"
+    },
+    "mdoc-runtime_2.13-2.6.4-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc-runtime_2.13-2.6.4-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-runtime_2.13/2.6.4",
+            "pkgname": "mdoc-runtime_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-x5ZfABd6+O5XfeJA5veke108GRbLjW7FHAYMUF1PWi4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc-runtime_2.13/2.6.4/mdoc-runtime_2.13-2.6.4.jar"
+        },
+        "version": "2.6.4"
+    },
+    "mdoc-runtime_2.13-2.6.4-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc-runtime_2.13-2.6.4-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc-runtime_2.13/2.6.4",
+            "pkgname": "mdoc-runtime_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-MQ/vpu0CPl0jN5lzXbmXWbLkvr7jM5Rg64ikzhtl+2U=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc-runtime_2.13/2.6.4/mdoc-runtime_2.13-2.6.4.pom"
+        },
+        "version": "2.6.4"
+    },
+    "mdoc_2.13-2.6.4-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc_2.13-2.6.4-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc_2.13/2.6.4",
+            "pkgname": "mdoc_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-fxSDaqERNnMHDFCYbjY6guV93JkNEyEBNyXbVR/uR98=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc_2.13/2.6.4/mdoc_2.13-2.6.4.jar"
+        },
+        "version": "2.6.4"
+    },
+    "mdoc_2.13-2.6.4-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "mdoc_2.13-2.6.4-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/mdoc_2.13/2.6.4",
+            "pkgname": "mdoc_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-qoPYwu2Solko81DPNDZeezMldUKXjX9t7BwAUioXzxk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/mdoc_2.13/2.6.4/mdoc_2.13-2.6.4.pom"
+        },
+        "version": "2.6.4"
+    },
+    "metaconfig-core_2.13-0.15.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "metaconfig-core_2.13-0.15.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-core_2.13/0.15.0",
+            "pkgname": "metaconfig-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-wLeJwtRGgjj8Ml7woX8aAps2Nf8StRC94D3Vd6EoEng=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/metaconfig-core_2.13/0.15.0/metaconfig-core_2.13-0.15.0.jar"
+        },
+        "version": "0.15.0"
+    },
+    "metaconfig-core_2.13-0.15.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "metaconfig-core_2.13-0.15.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-core_2.13/0.15.0",
+            "pkgname": "metaconfig-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-pMmxqrLtl9dc8tGAwTWs2ME01Om9TsyeX7PQyyf1gus=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/metaconfig-core_2.13/0.15.0/metaconfig-core_2.13-0.15.0.pom"
+        },
+        "version": "0.15.0"
+    },
+    "metaconfig-pprint_2.13-0.15.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "metaconfig-pprint_2.13-0.15.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-pprint_2.13/0.15.0",
+            "pkgname": "metaconfig-pprint_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-NX5laCwA22KXjw3SH+oB8TpfD7MbRTCK10sTax7E8CE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/metaconfig-pprint_2.13/0.15.0/metaconfig-pprint_2.13-0.15.0.jar"
+        },
+        "version": "0.15.0"
+    },
+    "metaconfig-pprint_2.13-0.15.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "metaconfig-pprint_2.13-0.15.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-pprint_2.13/0.15.0",
+            "pkgname": "metaconfig-pprint_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Q/C9dQamT90n4RtZ0qQ6nD5Yi7moBPmjU7XlBHFo5Ig=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/metaconfig-pprint_2.13/0.15.0/metaconfig-pprint_2.13-0.15.0.pom"
+        },
+        "version": "0.15.0"
+    },
+    "metaconfig-typesafe-config_2.13-0.15.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "metaconfig-typesafe-config_2.13-0.15.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-typesafe-config_2.13/0.15.0",
+            "pkgname": "metaconfig-typesafe-config_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-KuWo7LpD+4CWluQZ8fmHOeQZU0zCWRji2JSaLScnMn4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/metaconfig-typesafe-config_2.13/0.15.0/metaconfig-typesafe-config_2.13-0.15.0.jar"
+        },
+        "version": "0.15.0"
+    },
+    "metaconfig-typesafe-config_2.13-0.15.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "metaconfig-typesafe-config_2.13-0.15.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/metaconfig-typesafe-config_2.13/0.15.0",
+            "pkgname": "metaconfig-typesafe-config_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-ddeJvd5LeEc3ZFEeb43xtxUfkKB6WvGO6+gxx8oNYP8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/metaconfig-typesafe-config_2.13/0.15.0/metaconfig-typesafe-config_2.13-0.15.0.pom"
+        },
+        "version": "0.15.0"
     },
     "mill-ci-release_mill0.12_2.13-0.2.1-bundle": {
         "cargoLocks": null,
@@ -2897,6 +6623,132 @@
         },
         "version": "4.11.0"
     },
+    "openhtmltopdf-core-1.0.10-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "openhtmltopdf-core-1.0.10-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-core/1.0.10",
+            "pkgname": "openhtmltopdf-core"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Pm/SJQ2DPVALfNSLeolnANDDO9n3eiGeggSTsBVm7aM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-core/1.0.10/openhtmltopdf-core-1.0.10.jar"
+        },
+        "version": "1.0.10"
+    },
+    "openhtmltopdf-core-1.0.10-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "openhtmltopdf-core-1.0.10-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-core/1.0.10",
+            "pkgname": "openhtmltopdf-core"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-fEK4zFhNkS5ZpEXz6217vuM4EVYRn2iwT8+jzQYh8uk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-core/1.0.10/openhtmltopdf-core-1.0.10.pom"
+        },
+        "version": "1.0.10"
+    },
+    "openhtmltopdf-parent-1.0.10-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "openhtmltopdf-parent-1.0.10-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-parent/1.0.10",
+            "pkgname": "openhtmltopdf-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-d4ItapCYU0Pkx5CvlcEumrVKMCOKVFlOC3ncgRlk72k=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-parent/1.0.10/openhtmltopdf-parent-1.0.10.pom"
+        },
+        "version": "1.0.10"
+    },
+    "openhtmltopdf-pdfbox-1.0.10-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "openhtmltopdf-pdfbox-1.0.10-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-pdfbox/1.0.10",
+            "pkgname": "openhtmltopdf-pdfbox"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-fekN8bPs+E5vDa+AjXJMERQgB6LyK/8ZNkeb8XJR0xo=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-pdfbox/1.0.10/openhtmltopdf-pdfbox-1.0.10.jar"
+        },
+        "version": "1.0.10"
+    },
+    "openhtmltopdf-pdfbox-1.0.10-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "openhtmltopdf-pdfbox-1.0.10-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-pdfbox/1.0.10",
+            "pkgname": "openhtmltopdf-pdfbox"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-s1Ec1lzqF2iM8T/zHsVw10CLgb/d1S+uzK7tRVDMFxU=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-pdfbox/1.0.10/openhtmltopdf-pdfbox-1.0.10.pom"
+        },
+        "version": "1.0.10"
+    },
+    "openhtmltopdf-rtl-support-1.0.10-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "openhtmltopdf-rtl-support-1.0.10-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-rtl-support/1.0.10",
+            "pkgname": "openhtmltopdf-rtl-support"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-VnXAtW1hOxVEb50JItiXga9I8FMxMmqHvbPRd1xwMhU=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-rtl-support/1.0.10/openhtmltopdf-rtl-support-1.0.10.jar"
+        },
+        "version": "1.0.10"
+    },
+    "openhtmltopdf-rtl-support-1.0.10-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "openhtmltopdf-rtl-support-1.0.10-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-rtl-support/1.0.10",
+            "pkgname": "openhtmltopdf-rtl-support"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-w6P5q1EzekCkCG6v1NI/xaUZNZrpXv9pauUqu+T3HNI=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/openhtmltopdf/openhtmltopdf-rtl-support/1.0.10/openhtmltopdf-rtl-support-1.0.10.pom"
+        },
+        "version": "1.0.10"
+    },
     "os-lib_2.13-0.10.0-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -3059,6 +6911,42 @@
         },
         "version": "9"
     },
+    "paiges-core_2.13-0.4.4-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "paiges-core_2.13-0.4.4-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/paiges-core_2.13/0.4.4",
+            "pkgname": "paiges-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-/71Z02SOccW49EdKVBIfs1EnB+eQEkWDFmmqnoXzu/A=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/paiges-core_2.13/0.4.4/paiges-core_2.13-0.4.4.jar"
+        },
+        "version": "0.4.4"
+    },
+    "paiges-core_2.13-0.4.4-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "paiges-core_2.13-0.4.4-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/paiges-core_2.13/0.4.4",
+            "pkgname": "paiges-core_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-BL4fx9E7iLJ8oSfpRAHMCZSxeEJJBvz6ntCZ1/ZY8CM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/paiges-core_2.13/0.4.4/paiges-core_2.13-0.4.4.pom"
+        },
+        "version": "0.4.4"
+    },
     "paranamer-2.8-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -3112,6 +7000,114 @@
             "url": "https://repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer-parent/2.8/paranamer-parent-2.8.pom"
         },
         "version": "2.8"
+    },
+    "parsers_2.13-4.12.7-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "parsers_2.13-4.12.7-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/parsers_2.13/4.12.7",
+            "pkgname": "parsers_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-6Izof3ODpXmbtqDROpDD1jP00NdPBV5W+Bq2teP8JKc=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/parsers_2.13/4.12.7/parsers_2.13-4.12.7.jar"
+        },
+        "version": "4.12.7"
+    },
+    "parsers_2.13-4.12.7-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "parsers_2.13-4.12.7-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/parsers_2.13/4.12.7",
+            "pkgname": "parsers_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-7Sr04Q3sIn+ok+vEVUgFrr6c/r/U+JAinreG6dM5yOw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/parsers_2.13/4.12.7/parsers_2.13-4.12.7.pom"
+        },
+        "version": "4.12.7"
+    },
+    "pdfbox-2.0.24-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "pdfbox-2.0.24-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/pdfbox/2.0.24",
+            "pkgname": "pdfbox"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-PCwFU+wOdTPEkLTJUuGvETYh3lJ1r244DhHQ2aCk89Y=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/pdfbox/pdfbox/2.0.24/pdfbox-2.0.24.jar"
+        },
+        "version": "2.0.24"
+    },
+    "pdfbox-2.0.24-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "pdfbox-2.0.24-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/pdfbox/2.0.24",
+            "pkgname": "pdfbox"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-K/bZPEyekiATK9qB9gPkactDWCk0nCh+zzpyTDEJLD4=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/pdfbox/pdfbox/2.0.24/pdfbox-2.0.24.pom"
+        },
+        "version": "2.0.24"
+    },
+    "pdfbox-parent-2.0.24-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "pdfbox-parent-2.0.24-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/pdfbox-parent/2.0.24",
+            "pkgname": "pdfbox-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-2UnC4D8CN2P/UxJx+XK8wPtLjpBn95+VUE4wGniROFg=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/pdfbox/pdfbox-parent/2.0.24/pdfbox-parent-2.0.24.pom"
+        },
+        "version": "2.0.24"
+    },
+    "pdfboxgraphics2d-parent-0.32-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "pdfboxgraphics2d-parent-0.32-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/de/rototor/pdfbox/pdfboxgraphics2d-parent/0.32",
+            "pkgname": "pdfboxgraphics2d-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Hoe4voyix97tOswUxMl7Y0iD+xNwztwMGan6Z3ExaGQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/de/rototor/pdfbox/pdfboxgraphics2d-parent/0.32/pdfboxgraphics2d-parent-0.32.pom"
+        },
+        "version": "0.32"
     },
     "pprint_2.13-0.9.0-bundle": {
         "cargoLocks": null,
@@ -3328,6 +7324,42 @@
             "url": "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.12.0/scala-collection-compat_2.13-2.12.0.pom"
         },
         "version": "2.12.0"
+    },
+    "scala-collection-compat_2.13-2.13.0-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "scala-collection-compat_2.13-2.13.0-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.13.0",
+            "pkgname": "scala-collection-compat_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-QPFBV1tXeWvwweS18JdNkeOm3ubs6kfO7WLA76EpgjQ=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.13.0/scala-collection-compat_2.13-2.13.0.jar"
+        },
+        "version": "2.13.0"
+    },
+    "scala-collection-compat_2.13-2.13.0-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "scala-collection-compat_2.13-2.13.0-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.13.0",
+            "pkgname": "scala-collection-compat_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-SOR1cdS4TdEMu82NPRHCELNESbyJevdlHe9URmEIm8o=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.13.0/scala-collection-compat_2.13-2.13.0.pom"
+        },
+        "version": "2.13.0"
     },
     "scala-compiler-2.13.11-bundle": {
         "cargoLocks": null,
@@ -4481,6 +8513,42 @@
         },
         "version": "3.2.19"
     },
+    "scalameta_2.13-4.12.7-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "scalameta_2.13-4.12.7-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/scalameta_2.13/4.12.7",
+            "pkgname": "scalameta_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-45z7yMOf/sWlpK2kVhCI8mWxTD971vIguTd20GqyGg0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/scalameta_2.13/4.12.7/scalameta_2.13-4.12.7.jar"
+        },
+        "version": "4.12.7"
+    },
+    "scalameta_2.13-4.12.7-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "scalameta_2.13-4.12.7-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/scalameta_2.13/4.12.7",
+            "pkgname": "scalameta_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-LKNe0riXG5XnXLpBKJdjS8x93HnFHWd2kGG6b8Ckgh8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/scalameta_2.13/4.12.7/scalameta_2.13-4.12.7.pom"
+        },
+        "version": "4.12.7"
+    },
     "scalap-2.13.15-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -5561,6 +9629,42 @@
         },
         "version": "3.2.19"
     },
+    "scodec-bits_2.13-1.1.34-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "scodec-bits_2.13-1.1.34-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scodec/scodec-bits_2.13/1.1.34",
+            "pkgname": "scodec-bits_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Mr3RKfC/CxN6UGEHW8dv9bQq8j+/yOt/FtJ7rLJrIn8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scodec/scodec-bits_2.13/1.1.34/scodec-bits_2.13-1.1.34.jar"
+        },
+        "version": "1.1.34"
+    },
+    "scodec-bits_2.13-1.1.34-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "scodec-bits_2.13-1.1.34-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scodec/scodec-bits_2.13/1.1.34",
+            "pkgname": "scodec-bits_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-N/AQ3jv1pU73KBRgJg5rPwlxUQ1hWJfqwezn6whM1s0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scodec/scodec-bits_2.13/1.1.34/scodec-bits_2.13-1.1.34.pom"
+        },
+        "version": "1.1.34"
+    },
     "scopt_2.13-4.1.0-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -5705,6 +9809,42 @@
         },
         "version": "1.0.0-M4"
     },
+    "shapeless_2.13-2.3.9-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "shapeless_2.13-2.3.9-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/chuusai/shapeless_2.13/2.3.9",
+            "pkgname": "shapeless_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-H1AxzDOhVYRGjjtR/Rg9phke5ckUSdx1SXCVJOoXXlk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/chuusai/shapeless_2.13/2.3.9/shapeless_2.13-2.3.9.jar"
+        },
+        "version": "2.3.9"
+    },
+    "shapeless_2.13-2.3.9-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "shapeless_2.13-2.3.9-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/com/chuusai/shapeless_2.13/2.3.9",
+            "pkgname": "shapeless_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-8t8SLXU+uo6YDyOEM0ZtumLeu8KGYbfUI+56mQmKuZs=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/com/chuusai/shapeless_2.13/2.3.9/shapeless_2.13-2.3.9.pom"
+        },
+        "version": "2.3.9"
+    },
     "sjson-new-core_2.13-0.10.1-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -5812,6 +9952,78 @@
             "url": "https://repo1.maven.org/maven2/com/eed3si9n/sjson-new-scalajson_2.13/0.10.1/sjson-new-scalajson_2.13-0.10.1.pom"
         },
         "version": "0.10.1"
+    },
+    "slf4j-api-2.0.16-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "slf4j-api-2.0.16-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.16",
+            "pkgname": "slf4j-api"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-oSV43eG6AL2bgW04iguHmSjQC6s8g8JA9wE79BlsV5o=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.16/slf4j-api-2.0.16.jar"
+        },
+        "version": "2.0.16"
+    },
+    "slf4j-api-2.0.16-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "slf4j-api-2.0.16-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.16",
+            "pkgname": "slf4j-api"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-saAPWxxNvmK4BdZdI5Eab3cGOInXyx6G/oOJ1hkEc/c=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.16/slf4j-api-2.0.16.pom"
+        },
+        "version": "2.0.16"
+    },
+    "slf4j-bom-2.0.16-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "slf4j-bom-2.0.16-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/slf4j/slf4j-bom/2.0.16",
+            "pkgname": "slf4j-bom"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-BWYEjsglzfKHWGIK9k2eFK44qc2HSN1vr6bfSkGUwnk=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/slf4j/slf4j-bom/2.0.16/slf4j-bom-2.0.16.pom"
+        },
+        "version": "2.0.16"
+    },
+    "slf4j-parent-2.0.16-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "slf4j-parent-2.0.16-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/slf4j/slf4j-parent/2.0.16",
+            "pkgname": "slf4j-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-CaC0zIFNcnRhbJsW1MD9mq8ezIEzNN5RMeVHJxsZguU=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/slf4j/slf4j-parent/2.0.16/slf4j-parent-2.0.16.pom"
+        },
+        "version": "2.0.16"
     },
     "sourcecode_2.13-0.3.0-bundle": {
         "cargoLocks": null,
@@ -5975,6 +10187,42 @@
         },
         "version": "1.0"
     },
+    "trees_2.13-4.12.7-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "trees_2.13-4.12.7-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/trees_2.13/4.12.7",
+            "pkgname": "trees_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-LoEAvnqn5qFlOERLAOjJUkfrK3QwNac2PPpnW3FC7ao=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/trees_2.13/4.12.7/trees_2.13-4.12.7.jar"
+        },
+        "version": "4.12.7"
+    },
+    "trees_2.13-4.12.7-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "trees_2.13-4.12.7-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/scalameta/trees_2.13/4.12.7",
+            "pkgname": "trees_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-edkm+A/s718XpglXLj7UiOCb5URb33l65lNLdAnS6Y8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/scalameta/trees_2.13/4.12.7/trees_2.13-4.12.7.pom"
+        },
+        "version": "4.12.7"
+    },
     "ujson_2.13-3.3.1-bundle": {
         "cargoLocks": null,
         "date": null,
@@ -6046,6 +10294,60 @@
             "url": "https://repo1.maven.org/maven2/com/lihaoyi/ujson_3/3.3.1/ujson_3-3.3.1.pom"
         },
         "version": "3.3.1"
+    },
+    "undertow-core-2.2.30.Final-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "undertow-core-2.2.30.Final-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/undertow/undertow-core/2.2.30.Final",
+            "pkgname": "undertow-core"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-upmTbcje9IgepJfMNTWBfU5IJHy4BCQybSdHOsHqckE=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/undertow/undertow-core/2.2.30.Final/undertow-core-2.2.30.Final.jar"
+        },
+        "version": "2.2.30.Final"
+    },
+    "undertow-core-2.2.30.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "undertow-core-2.2.30.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/undertow/undertow-core/2.2.30.Final",
+            "pkgname": "undertow-core"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-1q8nZfzrCgkmUX6nEMIC6hOH984I9MN5wJTrwFDtj6M=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/undertow/undertow-core/2.2.30.Final/undertow-core-2.2.30.Final.pom"
+        },
+        "version": "2.2.30.Final"
+    },
+    "undertow-parent-2.2.30.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "undertow-parent-2.2.30.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/io/undertow/undertow-parent/2.2.30.Final",
+            "pkgname": "undertow-parent"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-OmrQrZz3/9JTGx17uVKHN8h2U0ADscCDpi8iGYCeKXs=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/io/undertow/undertow-parent/2.2.30.Final/undertow-parent-2.2.30.Final.pom"
+        },
+        "version": "2.2.30.Final"
     },
     "upack_2.13-3.3.1-bundle": {
         "cargoLocks": null,
@@ -6694,6 +10996,240 @@
             "url": "https://repo1.maven.org/maven2/org/scala-sbt/util-relation_2.13/1.10.7/util-relation_2.13-1.10.7.pom"
         },
         "version": "1.10.7"
+    },
+    "vault_2.13-3.2.1-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "vault_2.13-3.2.1-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/vault_2.13/3.2.1",
+            "pkgname": "vault_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-WXruAjY2E1n1L3FWEkNpobAV7sz1C5jIoSRNygYaA/w=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/vault_2.13/3.2.1/vault_2.13-3.2.1.jar"
+        },
+        "version": "3.2.1"
+    },
+    "vault_2.13-3.2.1-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "vault_2.13-3.2.1-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/typelevel/vault_2.13/3.2.1",
+            "pkgname": "vault_2.13"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-HbIOCcqe2i+jGpYuDBE62FJG/U6eCiPs1soauzCBtg8=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/typelevel/vault_2.13/3.2.1/vault_2.13-3.2.1.pom"
+        },
+        "version": "3.2.1"
+    },
+    "wildfly-client-config-1.0.1.Final-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "wildfly-client-config-1.0.1.Final-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/wildfly/client/wildfly-client-config/1.0.1.Final",
+            "pkgname": "wildfly-client-config"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-gKTpY86U67BD7LDywOd9Mn8j3IfYE1C4Y3Uu7fosO7M=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/wildfly/client/wildfly-client-config/1.0.1.Final/wildfly-client-config-1.0.1.Final.jar"
+        },
+        "version": "1.0.1.Final"
+    },
+    "wildfly-client-config-1.0.1.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "wildfly-client-config-1.0.1.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/wildfly/client/wildfly-client-config/1.0.1.Final",
+            "pkgname": "wildfly-client-config"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-6HXRTGUNTWchLybTP8xbsrhqAoOfGFVjCcN8XFULvKY=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/wildfly/client/wildfly-client-config/1.0.1.Final/wildfly-client-config-1.0.1.Final.pom"
+        },
+        "version": "1.0.1.Final"
+    },
+    "wildfly-common-1.5.4.Final-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "wildfly-common-1.5.4.Final-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/wildfly/common/wildfly-common/1.5.4.Final",
+            "pkgname": "wildfly-common"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-n9o8r4vVKN7Fbrxw2vePWp/10L/OqLPkGreug4dH5Go=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/wildfly/common/wildfly-common/1.5.4.Final/wildfly-common-1.5.4.Final.jar"
+        },
+        "version": "1.5.4.Final"
+    },
+    "wildfly-common-1.5.4.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "wildfly-common-1.5.4.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/wildfly/common/wildfly-common/1.5.4.Final",
+            "pkgname": "wildfly-common"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-5uGiImN0fokpANH1Aj4dDf6LFtZe/shy8gV3oGl+01c=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/wildfly/common/wildfly-common/1.5.4.Final/wildfly-common-1.5.4.Final.pom"
+        },
+        "version": "1.5.4.Final"
+    },
+    "xmpbox-2.0.24-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "xmpbox-2.0.24-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/xmpbox/2.0.24",
+            "pkgname": "xmpbox"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-Jzg98ihbniKMOfLHVa3uu+93R5PTPE8g8NyZ6euq9nM=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/pdfbox/xmpbox/2.0.24/xmpbox-2.0.24.jar"
+        },
+        "version": "2.0.24"
+    },
+    "xmpbox-2.0.24-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "xmpbox-2.0.24-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/apache/pdfbox/xmpbox/2.0.24",
+            "pkgname": "xmpbox"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-9zR7V9mny0VGvY5PqJVuYW/ezUak0lkNGovrhHpUVkw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/apache/pdfbox/xmpbox/2.0.24/xmpbox-2.0.24.pom"
+        },
+        "version": "2.0.24"
+    },
+    "xnio-all-3.8.16.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "xnio-all-3.8.16.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-all/3.8.16.Final",
+            "pkgname": "xnio-all"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-N4WVxwPU7C3gsx6r8srQhxSfNHK8RsqDpvAnmxd3RRw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-all/3.8.16.Final/xnio-all-3.8.16.Final.pom"
+        },
+        "version": "3.8.16.Final"
+    },
+    "xnio-api-3.8.16.Final-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "xnio-api-3.8.16.Final-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-api/3.8.16.Final",
+            "pkgname": "xnio-api"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-NXIJj+FofavZDwIiCA+xWPY8p3HELvHTmXRDSEn3i8Q=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-api/3.8.16.Final/xnio-api-3.8.16.Final.jar"
+        },
+        "version": "3.8.16.Final"
+    },
+    "xnio-api-3.8.16.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "xnio-api-3.8.16.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-api/3.8.16.Final",
+            "pkgname": "xnio-api"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-rTWKhTspPiUCRfkr2qnn9Rokv20VjR0SuYybQWr1J60=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-api/3.8.16.Final/xnio-api-3.8.16.Final.pom"
+        },
+        "version": "3.8.16.Final"
+    },
+    "xnio-nio-3.8.16.Final-bundle": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "xnio-nio-3.8.16.Final-bundle",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-nio/3.8.16.Final",
+            "pkgname": "xnio-nio"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-zuGtlnT/RhX0kqMUqYbHe3wiOuAyVcd6rMYMbOpi1Zw=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-nio/3.8.16.Final/xnio-nio-3.8.16.Final.jar"
+        },
+        "version": "3.8.16.Final"
+    },
+    "xnio-nio-3.8.16.Final-pom": {
+        "cargoLocks": null,
+        "date": null,
+        "extract": null,
+        "name": "xnio-nio-3.8.16.Final-pom",
+        "passthru": {
+            "install_path": "v1/https/repo1.maven.org/maven2/org/jboss/xnio/xnio-nio/3.8.16.Final",
+            "pkgname": "xnio-nio"
+        },
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-k+JZm2FdarytEYxCDdUj2nFPCq9whZLwMI0NQ/e38i0=",
+            "type": "url",
+            "url": "https://repo1.maven.org/maven2/org/jboss/xnio/xnio-nio/3.8.16.Final/xnio-nio-3.8.16.Final.pom"
+        },
+        "version": "3.8.16.Final"
     },
     "zero-allocation-hashing-0.16-bundle": {
         "cargoLocks": null,

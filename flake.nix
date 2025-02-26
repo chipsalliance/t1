@@ -26,7 +26,9 @@
                 mill
                 t1-helper
                 zstd
+                xorg.lndir
               ];
+              shellHook = pkgs.t1._t1MillModules.shellHook;
             };
           };
           formatter = pkgs.nixpkgs-fmt;

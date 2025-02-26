@@ -21,16 +21,18 @@ MILL_HOME=${MILL_HOME:-$(mktemp -d -t 'mill_ivy_home_XXX')}
 mkdir -p "$NVFETCHER_CFG_DIR"
 
 function fetchDeps() {
-  local repo="$1"; shift
+  local repo="$1"
+  shift
   pushd "$repo" >/dev/null
 
-  mill_ivy_fetcher fetch --home "$MILL_HOME"
+  mill_ivy_fetcher fetch --home "$MILL_HOME" --java-opts "$JAVA_OPTS"
 
   popd >/dev/null
 }
 
 function dumpDeps() {
-  local cfgDir="$1"; shift
+  local cfgDir="$1"
+  shift
   mill_ivy_fetcher dump \
     --coursier-dir "$MILL_HOME/.cache/coursier" \
     --dump-path "$cfgDir/nvfetcher.toml"
@@ -38,17 +40,19 @@ function dumpDeps() {
 }
 
 function publish_chisel() {
-  local chiselDir="$1"; shift
+  local chiselDir="$1"
+  shift
 
   pushd "$chiselDir" >/dev/null
-  _JAVA_TOOL_OPTIONS="-Duser.home=$MILL_HOME $JAVA_TOOL_OPTIONS"
-  _JAVA_OPTS="$_JAVA_TOOL_OPTIONS"
   _MILL_JVM_OPTS_PATH=$(mktemp)
-  echo -n "$_JAVA_OPTS" | tr ' ' '\n' > "$_MILL_JVM_OPTS_PATH"
+  _JAVA_TOOL_OPTIONS="-Duser.home=$MILL_HOME $JAVA_TOOL_OPTIONS"
+  _JAVA_OPTS="$_JAVA_TOOL_OPTIONS $JAVA_OPTS"
+
+  echo -n "$_JAVA_OPTS" | tr ' ' '\n' >"$_MILL_JVM_OPTS_PATH"
 
   JAVA_TOOL_OPTIONS="$_JAVA_TOOL_OPTIONS" \
-  JAVA_OPT="$_JAVA_OPT" \
-  MILL_JVM_OPTS_PATH="$_MILL_JVM_OPTS_PATH" \
+    JAVA_OPT="$_JAVA_OPT" \
+    MILL_JVM_OPTS_PATH="$_MILL_JVM_OPTS_PATH" \
     mill -i unipublish.publishLocal
 
   unset _JAVA_TOOL_OPTIONS _JAVA_OPTS _MILL_JVM_OPTS_PATH
@@ -70,7 +74,7 @@ function main() {
   # Then other dependencies
   submodulesSources+=(
     $(find "$ROOT_DIR" -maxdepth 2 -name 'build.mill' \
-        -not -wholename '*/chisel/build.mill' -printf '%h\n')
+      -not -wholename '*/chisel/build.mill' -printf '%h\n')
   )
 
   for dir in "${submodulesSources[@]}"; do
@@ -92,6 +96,6 @@ function main() {
   done
 }
 
-if (( $_IS_EXEC )); then
+if (($_IS_EXEC)); then
   main
 fi
