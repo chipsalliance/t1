@@ -322,7 +322,7 @@ class MaskUnit(val parameter: T1Parameter)
     val lastRowIndex = (lastByteIndex >> rowWidthLog).asUInt
 
     // for last group remainder lastGroupRemaining
-    val laneDatalog       = log2Ceil(parameter.datapathWidth)
+    val laneDatalog       = log2Ceil(parameter.datapathWidth / 8)
     val lastLaneIndex     = (lastGroupRemaining >> laneDatalog).asUInt
     val lastGroupDataNeed = scanRightOr(UIntToOH(lastLaneIndex))
     (lastRowIndex, lastGroupDataNeed)
@@ -408,9 +408,11 @@ class MaskUnit(val parameter: T1Parameter)
   )
 
   val popDataNeed:       UInt = {
-    val dataPathBit   = log2Ceil(parameter.datapathWidth)
-    val lastLaneIndex = (lastElementIndex >> dataPathBit).asUInt
-    scanRightOr(UIntToOH(lastLaneIndex))
+    val dataPathBit    = log2Ceil(parameter.datapathWidth)
+    val dataPathGroups = (lastElementIndex >> dataPathBit).asUInt
+    val lastLaneIndex  = dataPathGroups(log2Ceil(parameter.laneNumber) - 1, 0)
+    val lagerThanDLen  = (dataPathGroups >> log2Ceil(parameter.laneNumber)).asUInt.orR
+    scanRightOr(UIntToOH(lastLaneIndex)) | Fill(parameter.laneNumber, lagerThanDLen)
   }
   val lastGroupDataNeed: UInt = Mux1H(
     Seq(
