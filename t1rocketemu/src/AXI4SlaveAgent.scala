@@ -127,55 +127,54 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       bqueue.io.deq <> channel.b
 
       // Invoke DPI at negedge
-      // NOTICE: this block CANNOT directly write any outside reg. Only write wires (e.g. here, only writes queue IO)
-      withClock(invClock) {
-        // AW
-        val awRet = RawClockedNonVoidFunctionCall(s"axi_push_AW", Bool())(
-          invClock,
-          awqueue.io.deq.valid,
-          io.reset.asTypeOf(UInt(8.W)),
-          io.channelId,
-          parameter.axiParameter.dataWidth.U(64.W),
-          awqueue.io.deq.bits.id.asTypeOf(UInt(64.W)),
-          awqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
-          awqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
-          awqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
-          awqueue.io.deq.bits.user.asTypeOf(UInt(64.W))
-        )
-        awqueue.io.deq.ready := awRet
+      // NOTICE: results from these AXI calls CANNOT directly write any outside reg. Only write wires (e.g. here, only writes queue IO)
 
-        // W
-        val wRet = RawClockedNonVoidFunctionCall(s"axi_push_W", Bool())(
-          invClock,
-          wqueue.io.deq.valid,
-          io.reset.asTypeOf(UInt(8.W)),
-          io.channelId,
-          parameter.axiParameter.dataWidth.U(64.W),
-          widen(wqueue.io.deq.bits.data, 1024),
-          widen(wqueue.io.deq.bits.strb, 128),
-          wqueue.io.deq.bits.last.asTypeOf(UInt(8.W))
-        )
-        wqueue.io.deq.ready := wRet
+      // AW
+      val awRet = RawClockedNonVoidFunctionCall(s"axi_push_AW", Bool())(
+        invClock,
+        awqueue.io.deq.valid,
+        io.reset.asTypeOf(UInt(8.W)),
+        io.channelId,
+        parameter.axiParameter.dataWidth.U(64.W),
+        awqueue.io.deq.bits.id.asTypeOf(UInt(64.W)),
+        awqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
+        awqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
+        awqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
+        awqueue.io.deq.bits.user.asTypeOf(UInt(64.W))
+      )
+      awqueue.io.deq.ready := awRet
 
-        class BBundle extends Bundle {
-          val user     = UInt(32.W)
-          val id       = UInt(16.W)
-          val _padding = UInt(8.W)
-          val valid    = UInt(8.W)
-        }
+      // W
+      val wRet = RawClockedNonVoidFunctionCall(s"axi_push_W", Bool())(
+        invClock,
+        wqueue.io.deq.valid,
+        io.reset.asTypeOf(UInt(8.W)),
+        io.channelId,
+        parameter.axiParameter.dataWidth.U(64.W),
+        widen(wqueue.io.deq.bits.data, 1024),
+        widen(wqueue.io.deq.bits.strb, 128),
+        wqueue.io.deq.bits.last.asTypeOf(UInt(8.W))
+      )
+      wqueue.io.deq.ready := wRet
 
-        val bRet = RawClockedNonVoidFunctionCall(s"axi_pop_B", new BBundle())(
-          invClock,
-          bqueue.io.enq.ready,
-          io.reset.asTypeOf(UInt(64.W)),
-          io.channelId,
-          parameter.axiParameter.dataWidth.U(64.W)
-        )
-        bqueue.io.enq.valid     := bRet.valid
-        bqueue.io.enq.bits.id   := bRet.id
-        bqueue.io.enq.bits.resp := 0.U(2.W)
-        bqueue.io.enq.bits.user := bRet.user
+      class BBundle extends Bundle {
+        val user     = UInt(32.W)
+        val id       = UInt(16.W)
+        val _padding = UInt(8.W)
+        val valid    = UInt(8.W)
       }
+
+      val bRet = RawClockedNonVoidFunctionCall(s"axi_pop_B", new BBundle())(
+        invClock,
+        bqueue.io.enq.ready,
+        io.reset.asTypeOf(UInt(64.W)),
+        io.channelId,
+        parameter.axiParameter.dataWidth.U(64.W)
+      )
+      bqueue.io.enq.valid     := bRet.valid
+      bqueue.io.enq.bits.id   := bRet.id
+      bqueue.io.enq.bits.resp := 0.U(2.W)
+      bqueue.io.enq.bits.user := bRet.user
     }
   }
 
@@ -186,44 +185,46 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
 
       arqueue.io.enq <> channel.ar
       rqueue.io.deq <> channel.r
-      withClock(invClock) {
-        // AR
-        val arRet = RawClockedNonVoidFunctionCall(s"axi_push_AR", Bool())(
-          invClock,
-          arqueue.io.deq.valid,
-          io.reset.asTypeOf(UInt(8.W)),
-          io.channelId,
-          parameter.axiParameter.dataWidth.U(64.W),
-          arqueue.io.deq.bits.id.asTypeOf(UInt(64.W)),
-          arqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
-          arqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
-          arqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
-          arqueue.io.deq.bits.user.asTypeOf(UInt(64.W))
-        )
-        arqueue.io.deq.ready := arRet
 
-        require(parameter.axiParameter.dataWidth <= 1024)
-        class RBundle extends Bundle {
-          val data  = UInt(1024.W)
-          val user  = UInt(32.W)
-          val id    = UInt(16.W)
-          val last  = UInt(8.W)
-          val valid = UInt(8.W)
-        }
-        val rRet = RawClockedNonVoidFunctionCall(s"axi_pop_R", new RBundle())(
-          invClock,
-          rqueue.io.enq.ready,
-          io.reset.asTypeOf(UInt(8.W)),
-          io.channelId,
-          parameter.axiParameter.dataWidth.U(64.W)
-        )
-        rqueue.io.enq.valid     := rRet.valid
-        rqueue.io.enq.bits.id   := rRet.id
-        rqueue.io.enq.bits.last := rRet.last
-        rqueue.io.enq.bits.user := rRet.user
-        rqueue.io.enq.bits.data := rRet.data
-        rqueue.io.enq.bits.resp := 0.U
+      // Invoke DPI at negedge
+      // See the notice in WriteManager
+
+      // AR
+      val arRet = RawClockedNonVoidFunctionCall(s"axi_push_AR", Bool())(
+        invClock,
+        arqueue.io.deq.valid,
+        io.reset.asTypeOf(UInt(8.W)),
+        io.channelId,
+        parameter.axiParameter.dataWidth.U(64.W),
+        arqueue.io.deq.bits.id.asTypeOf(UInt(64.W)),
+        arqueue.io.deq.bits.addr.asTypeOf(UInt(64.W)),
+        arqueue.io.deq.bits.size.asTypeOf(UInt(64.W)),
+        arqueue.io.deq.bits.len.asTypeOf(UInt(64.W)),
+        arqueue.io.deq.bits.user.asTypeOf(UInt(64.W))
+      )
+      arqueue.io.deq.ready := arRet
+
+      require(parameter.axiParameter.dataWidth <= 1024)
+      class RBundle extends Bundle {
+        val data  = UInt(1024.W)
+        val user  = UInt(32.W)
+        val id    = UInt(16.W)
+        val last  = UInt(8.W)
+        val valid = UInt(8.W)
       }
+      val rRet = RawClockedNonVoidFunctionCall(s"axi_pop_R", new RBundle())(
+        invClock,
+        rqueue.io.enq.ready,
+        io.reset.asTypeOf(UInt(8.W)),
+        io.channelId,
+        parameter.axiParameter.dataWidth.U(64.W)
+      )
+      rqueue.io.enq.valid     := rRet.valid
+      rqueue.io.enq.bits.id   := rRet.id
+      rqueue.io.enq.bits.last := rRet.last
+      rqueue.io.enq.bits.user := rRet.user
+      rqueue.io.enq.bits.data := rRet.data
+      rqueue.io.enq.bits.resp := 0.U
     }
   }
 }
