@@ -2,9 +2,13 @@
 #![allow(unused_variables)]
 
 use dpi_common::DpiTarget;
-use std::ffi::{c_char, c_longlong, c_ulonglong};
+use std::{
+  ffi::{c_char, c_longlong, c_ulonglong, CString},
+  os::unix::ffi::OsStrExt,
+};
 use svdpi::dpi::param::InStr;
 use svdpi::SvScope;
+use tempfile::TempDir;
 use tracing::{debug, error};
 
 use crate::drive::{Driver, IncompleteRead, IncompleteWrite, OnlineArgs};
@@ -272,25 +276,69 @@ unsafe extern "C" fn t1_cosim_init(
   dlen: i32,
   vlen: i32,
   spike_isa: InStr<'_>,
+  dramsim3_cfg: InStr<'_>,
+  dramsim3_path: InStr<'_>,
 ) {
   dpi_common::setup_logger();
 
   let scope = SvScope::get_current().expect("failed to get scope in t1_cosim_init");
+  let embedded_cfg_path: CString;
 
-  use std::io::Write;
-  let ds3_cfg = include_bytes!("dramsim3-config.ini");
-  let mut ds3_cfg_file =
-    tempfile::NamedTempFile::new().expect("Unable to create DRAMsim3 configuration temp file");
-  ds3_cfg_file.write(ds3_cfg).expect("Unable to write DRAMsim3 configuration temp file");
-  let (_, ds3_cfg_path) =
-    ds3_cfg_file.keep().expect("Unable to persist DRAMsim3 configuration temp file");
+  let dramsim3_cfg_str = dramsim3_cfg.get();
+  let dramsim3_cfg_opt = if dramsim3_cfg_str == c"no" {
+    None
+  } else if dramsim3_cfg_str == c"" {
+    use std::io::Write;
+    let embedded_cfg = include_bytes!("dramsim3-config.ini");
+    let mut embedded_cfg_file: tempfile::NamedTempFile =
+      tempfile::NamedTempFile::new().expect("Unable to create DRAMsim3 configuration temp file");
+    embedded_cfg_file
+      .write(embedded_cfg)
+      .expect("Unable to write DRAMsim3 configuration temp file");
+    let (_, p) =
+      embedded_cfg_file.keep().expect("Unable to persist DRAMsim3 configuration temp file");
+    embedded_cfg_path =
+      CString::new(p.as_os_str().as_bytes()).expect("Unexpected NULL byte in path");
+    Some(embedded_cfg_path.as_ref())
+  } else {
+    Some(dramsim3_cfg_str)
+  };
+
+  let temp_dramsim3_path: CString;
+
+  let dramsim3_path_str = dramsim3_path.get();
+  let dramsim3_cfg_full = match dramsim3_cfg_opt {
+    None => None,
+    Some(cfg_path) => {
+      let run_path = if dramsim3_path_str == c"" {
+        let ds3_path = TempDir::new().expect("Failed to create dramsim3 runtime dir");
+        temp_dramsim3_path = CString::new(ds3_path.path().as_os_str().as_bytes())
+          .expect("Unexpected NULL byte in path");
+        std::mem::forget(ds3_path);
+        temp_dramsim3_path.as_ref()
+      } else {
+        dramsim3_path_str
+      };
+      Some((cfg_path, run_path))
+    }
+  };
+
+  match dramsim3_cfg_full {
+    None => debug!("DRAMsim3 disabled"),
+    Some((cfg_path, run_path)) => {
+      debug!(
+        "DRAMsim3 enabled with config: {:?}, result: {:?}",
+        cfg_path, run_path
+      );
+    }
+  }
 
   let args = OnlineArgs {
     elf_file: elf_file.get().to_str().unwrap().into(),
     dlen: dlen as u32,
     vlen: vlen as u32,
     spike_isa: spike_isa.get().to_str().unwrap().into(),
-    dramsim3_cfg: Some(ds3_cfg_path),
+    dramsim3: dramsim3_cfg_full,
   };
 
   TARGET.init(|| Driver::new(scope, &args));

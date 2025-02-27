@@ -52,6 +52,9 @@ module VerbatimModule #(
   //   +t1_timeout_after_quit (optional)
   //   +t1_dump_start     (optional T) cycle when dump starts, by default it's simulation start, for debug only
   //   +t1_dump_end       (optional T) cycle when dump ends, by default is's simulation end, for debug only
+  //   +t1_dramsim3_cfg   (optional T) path to the dramsim3 configuration. If absent, use embedded version.
+  //                                   use "off" to turn off memory latency
+  //   +t1_dramsim3_path  (optional T) path of the output of dramsim3. If absent, one path under temp is created
 
   longint unsigned cycle = 0;
   longint unsigned quit_cycle = 0;
@@ -59,6 +62,8 @@ module VerbatimModule #(
   longint unsigned timeout_after_quit = 10000;
   longint unsigned dpi_timeout = 1000000;
   string elf_file;
+  string dramsim3_cfg;
+  string dramsim3_path;
 `ifdef T1_ENABLE_TRACE
   longint unsigned dump_start = 0;
   longint unsigned dump_end = 0;
@@ -94,7 +99,9 @@ module VerbatimModule #(
     string elf_file,
     int dlen,
     int vlen,
-    string spike_isa
+    string spike_isa,
+    string ds3_cfg,
+    string ds3_path
   );
   import "DPI-C" context function void t1_cosim_set_timeout(longint unsigned timeout);
   import "DPI-C" context function void t1_cosim_final();
@@ -114,10 +121,12 @@ module VerbatimModule #(
     $value$plusargs("t1_timeout=%d", dpi_timeout);
     $value$plusargs("t1_global_timeout=%d", global_timeout);
     $value$plusargs("t1_timeout_after_quit=%d", timeout_after_quit);
+    $value$plusargs("t1_dramsim3_cfg=%s", dramsim3_cfg);
+    $value$plusargs("t1_dramsim3_path=%s", dramsim3_path);
 
     if (elf_file.len() == 0) $fatal(1, "+t1_elf_file must be set");
 
-    t1_cosim_init(elf_file, T1_DLEN, T1_VLEN, T1_SPIKE_ISA);
+    t1_cosim_init(elf_file, T1_DLEN, T1_VLEN, T1_SPIKE_ISA, dramsim3_cfg, dramsim3_path);
     t1_cosim_set_timeout(dpi_timeout);
 
     t1_common_pkg::log_open();

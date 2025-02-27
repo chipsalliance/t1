@@ -13,10 +13,9 @@ use elf::{
   ElfStream,
 };
 use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::ffi::CStr;
 use std::os::unix::fs::FileExt;
-use std::path::PathBuf;
 use std::{fs, path::Path};
-use tempfile::TempDir;
 use tracing::{debug, error, trace};
 
 #[derive(Debug)]
@@ -29,7 +28,7 @@ pub struct FunctionSym {
 }
 pub type FunctionSymTab = HashMap<u64, FunctionSym>;
 
-pub struct OnlineArgs {
+pub struct OnlineArgs<'a> {
   /// Path to the ELF file
   pub elf_file: String,
 
@@ -42,8 +41,8 @@ pub struct OnlineArgs {
   /// ISA config
   pub spike_isa: String,
 
-  /// DRAMsim3 configuartion (if any)
-  pub dramsim3_cfg: Option<PathBuf>,
+  /// DRAMsim3 configuartion and run-path (if any)
+  pub dramsim3: Option<(&'a CStr, &'a CStr)>,
 }
 
 /// An incomplete memory write
@@ -279,16 +278,14 @@ pub(crate) struct Driver {
 }
 
 impl Driver {
-  pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
+  pub(crate) fn new(scope: SvScope, args: &OnlineArgs<'_>) -> Self {
     let mut initmem = vec![0; RAM_SIZE as usize];
     let (e_entry, _fn_sym_tab) =
       Self::load_elf(Path::new(&args.elf_file), &mut initmem).expect("fail creating simulator");
 
-    let (addr_space, exit_flag) = match args.dramsim3_cfg {
-      Some(ref ds3cfg) => {
-        let ds3rundir = TempDir::new().expect("Failed to create dramsim3 runtime dir");
-        let mem = RegularMemory::with_content_and_model(initmem, ds3cfg, &ds3rundir);
-        std::mem::forget(ds3rundir);
+    let (addr_space, exit_flag) = match args.dramsim3 {
+      Some((cfg_path, run_path)) => {
+        let mem = RegularMemory::with_content_and_model(initmem, cfg_path, run_path);
         create_emu_addrspace_with_mem(mem)
       }
       None => {
