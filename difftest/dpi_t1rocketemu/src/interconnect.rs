@@ -2,9 +2,7 @@ use std::{
   any::Any,
   cell::Cell,
   collections::{BinaryHeap, HashSet, VecDeque},
-  ffi::CString,
-  os::unix::ffi::OsStrExt,
-  path::Path,
+  ffi::CStr,
   rc::Rc,
   sync::{Arc, Mutex},
 };
@@ -333,16 +331,12 @@ pub struct DRAMModel {
 unsafe impl Send for DRAMModel {}
 
 impl DRAMModel {
-  fn new(ds_cfg: impl AsRef<Path>, ds_path: impl AsRef<Path>) -> Self {
+  fn new(ds_cfg: &CStr, ds_path: &CStr) -> Self {
     let inflights: Arc<Mutex<Vec<InflightMem>>> = Arc::new(Mutex::new(Vec::new()));
     let inflights_clone = inflights.clone();
     let chunk_size: Rc<Cell<u32>> = Rc::new(Cell::new(0));
     let chunk_size_clone = chunk_size.clone();
-    let ds_cfg_cstr =
-      CString::new(ds_cfg.as_ref().as_os_str().as_bytes()).expect("Incorrect path format");
-    let ds_path_cstr =
-      CString::new(ds_path.as_ref().as_os_str().as_bytes()).expect("Incorrect path format");
-    let sys = dramsim3::MemorySystem::new(&ds_cfg_cstr, &ds_path_cstr, move |addr, is_write| {
+    let sys = dramsim3::MemorySystem::new(ds_cfg, ds_path, move |addr, is_write| {
       debug!("DRAM Memory response: {:x}, write={}", addr, is_write);
       for req in inflights_clone.lock().unwrap().iter_mut() {
         if req.is_write == is_write && req.resp_wait.remove_addr(addr as u32) {
@@ -468,11 +462,7 @@ impl RegularMemory<TrivialModel> {
 }
 
 impl RegularMemory<Arc<Mutex<DRAMModel>>> {
-  pub fn with_content_and_model(
-    data: Vec<u8>,
-    ds_cfg: impl AsRef<Path>,
-    ds_path: impl AsRef<Path>,
-  ) -> Self {
+  pub fn with_content_and_model(data: Vec<u8>, ds_cfg: &CStr, ds_path: &CStr) -> Self {
     RegularMemory {
       data,
       model: Arc::new(Mutex::new(DRAMModel::new(ds_cfg, ds_path))),
