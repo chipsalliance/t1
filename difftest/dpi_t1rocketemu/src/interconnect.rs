@@ -40,6 +40,12 @@ pub enum MemReqPayload<'a> {
 /// A memory request
 ///
 /// The device should keep the ordering of requests of the same ID
+/// Caller is reponsible to ensure the following conditions hold:
+///   addr.len > 0
+///   addr.len == data.len()
+///   addr.len == mask.len() (if mask present)
+/// However, since all use sites (Device impls) of this struct are safe,
+/// even if contracts violate, implementions must not break memory safety,
 #[derive(Debug)]
 pub struct MemReq<'a> {
   pub id: u64,
@@ -78,12 +84,6 @@ pub struct MemResp<'a> {
   pub payload: MemRespPayload<'a>,
 }
 
-// Caller is reponsible to ensure the following conditions hold:
-//   addr.len > 0
-//   addr.len == data.len()
-//   addr.len == mask.len() (if mask present)
-// However, since the functions are safe,
-// even if contracts violate, implementions must not break memory safety,
 pub trait Device: Any + Send + Sync {
   fn req(&mut self, req: MemReq<'_>) -> bool;
   fn resp(&mut self) -> Option<MemResp<'_>>;
