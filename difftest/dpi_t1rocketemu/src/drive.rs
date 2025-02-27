@@ -1,7 +1,7 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
 use crate::interconnect::{
-  create_emu_addrspace_with_mem, AddressSpace, MemReqPayload, RegularMemory, SRAM_BASE, SRAM_SIZE,
+  create_emu_addrspace_with_mem, AddressSpace, MemReqPayload, RegularMemory, RAM_BASE, RAM_SIZE,
 };
 use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
@@ -280,7 +280,7 @@ pub(crate) struct Driver {
 
 impl Driver {
   pub(crate) fn new(scope: SvScope, args: &OnlineArgs) -> Self {
-    let mut initmem = vec![0; SRAM_SIZE as usize];
+    let mut initmem = vec![0; RAM_SIZE as usize];
     let (e_entry, _fn_sym_tab) =
       Self::load_elf(Path::new(&args.elf_file), &mut initmem).expect("fail creating simulator");
 
@@ -364,7 +364,7 @@ impl Driver {
         )
       });
       let dest =
-        &mut mem[(vaddr - SRAM_BASE as usize)..(vaddr - SRAM_BASE as usize + load_buffer.len())];
+        &mut mem[(vaddr - RAM_BASE as usize)..(vaddr - RAM_BASE as usize + load_buffer.len())];
       dest.copy_from_slice(&load_buffer);
     });
 

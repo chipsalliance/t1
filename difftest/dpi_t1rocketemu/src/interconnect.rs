@@ -591,8 +591,8 @@ impl AddressSpace {
   }
 }
 
-pub const SRAM_BASE: u32 = 0x2000_0000;
-pub const SRAM_SIZE: u32 = 0xa000_0000;
+pub const RAM_BASE: u32 = 0x2000_0000;
+pub const RAM_SIZE: u32 = 0xa000_0000;
 
 /// Memory map:
 /// - 0x0400_0000 - 0x0600_0000 : framebuffer
@@ -609,7 +609,7 @@ pub fn create_emu_addrspace_with_mem<M: MemoryModel + Send + Sync + 'static>(
   let exit_flag = ExitFlagRef::new();
 
   let devices = vec![
-    mem.with_addr(SRAM_BASE, SRAM_SIZE),
+    mem.with_addr(RAM_BASE, RAM_SIZE),
     FrameBuffer::new().with_addr(DISPLAY_BASE, DISPLAY_SIZE),
     WrappedRegDevice::new(SimCtrl::new(exit_flag.clone())).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
   ];
