@@ -46,6 +46,11 @@ let
               emulator = vcs-emu;
             };
 
+            vcs-emu-static = runEmu {
+              inherit testCase topName;
+              emulator = vcs-emu;
+            };
+
             vcs-emu-trace = runEmu {
               inherit testCase topName;
               emulator = vcs-emu-trace;

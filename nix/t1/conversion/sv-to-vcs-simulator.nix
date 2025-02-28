@@ -19,7 +19,7 @@ assert lib.assertMsg (builtins.typeOf vcsLinkLibs == "list") "vcsLinkLibs should
 
 # Technically we could static link some libs and rtlink others,
 # but currently we don't use it in such a way, so just assert it to catch error
-assert lib.assertMsg (vcsLinkLibs != [] -> rtLinkDpiLib) "vcsLinkLibs and rtLinkDpiLib are both set";
+assert lib.assertMsg (vcsLinkLibs != [] -> rtLinkDpiLib == null) "vcsLinkLibs and rtLinkDpiLib are both set";
 
 let
   # VCS simulation profiling
