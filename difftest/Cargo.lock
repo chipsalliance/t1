@@ -207,9 +207,9 @@ dependencies = [
 
 [[package]]
 name = "dramsim3"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1044ff311a09d2949cecd2c54b046d26359bcd12ed5d30be43ab68f57f01a4e0"
+checksum = "61816ba5ed7efb50991511dda88f5a98fc3dd5ddbc5a0cbe028bbff745e686da"
 dependencies = [
  "cmake",
  "libc",

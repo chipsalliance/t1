@@ -13,7 +13,6 @@ use elf::{
   ElfStream,
 };
 use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::ffi::CStr;
 use std::os::unix::fs::FileExt;
 use std::{fs, path::Path};
 use tracing::{debug, error, trace};
@@ -42,7 +41,7 @@ pub struct OnlineArgs<'a> {
   pub spike_isa: String,
 
   /// DRAMsim3 configuartion and run-path (if any)
-  pub dramsim3: Option<(&'a CStr, &'a CStr)>,
+  pub dramsim3: Option<(&'a Path, &'a Path)>,
 }
 
 /// An incomplete memory write

@@ -4,7 +4,7 @@
 use dpi_common::DpiTarget;
 use std::{
   ffi::{c_char, c_longlong, c_ulonglong, CString},
-  os::unix::ffi::OsStrExt,
+  path::{Path, PathBuf},
 };
 use svdpi::dpi::param::InStr;
 use svdpi::SvScope;
@@ -284,29 +284,28 @@ unsafe extern "C" fn t1_cosim_init(
   let scope = SvScope::get_current().expect("failed to get scope in t1_cosim_init");
   let embedded_cfg_path: CString;
 
-  let dramsim3_cfg_str = dramsim3_cfg.get();
-  let dramsim3_cfg_opt = if dramsim3_cfg_str == c"no" {
+  let dramsim3_cfg_str = dramsim3_cfg.get().to_str().unwrap();
+  let dramsim3_cfg_opt = if dramsim3_cfg_str == "no" {
     None
   } else {
     Some(dramsim3_cfg_str)
   };
 
-  let temp_dramsim3_path: CString;
+  let temp_dramsim3_path: PathBuf;
 
-  let dramsim3_path_str = dramsim3_path.get();
+  let dramsim3_path_str = dramsim3_path.get().to_str().unwrap();
   let dramsim3_cfg_full = match dramsim3_cfg_opt {
     None => None,
     Some(cfg_path) => {
-      let run_path = if dramsim3_path_str == c"" {
+      let run_path = if dramsim3_path_str.is_empty() {
         let ds3_path = TempDir::new().expect("Failed to create dramsim3 runtime dir");
-        temp_dramsim3_path = CString::new(ds3_path.path().as_os_str().as_bytes())
-          .expect("Unexpected NULL byte in path");
+        temp_dramsim3_path = ds3_path.path().into();
         std::mem::forget(ds3_path);
-        temp_dramsim3_path.as_ref()
+        &temp_dramsim3_path
       } else {
-        dramsim3_path_str
+        Path::new(dramsim3_path_str)
       };
-      Some((cfg_path, run_path))
+      Some((Path::new(cfg_path), run_path))
     }
   };
 

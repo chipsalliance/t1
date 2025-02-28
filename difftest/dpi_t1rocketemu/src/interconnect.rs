@@ -2,9 +2,8 @@ use std::{
   any::Any,
   cell::Cell,
   collections::{BinaryHeap, HashSet, VecDeque},
-  ffi::CStr,
+  path::Path,
   rc::Rc,
-  sync::{Arc, Mutex},
 };
 use tracing::debug;
 
@@ -320,7 +319,7 @@ impl InflightMem {
 /// for the clock speed difference.
 pub struct DRAMModel {
   sys: dramsim3::MemorySystem,
-  inflights: Arc<Mutex<Vec<InflightMem>>>,
+  inflights: Vec<InflightMem>,
   // TODO: implement cache
   _cached: BinaryHeap<u32>,
   dram_tick: usize,
@@ -331,25 +330,14 @@ pub struct DRAMModel {
 unsafe impl Send for DRAMModel {}
 
 impl DRAMModel {
-  fn new(ds_cfg: &CStr, ds_path: &CStr) -> Self {
-    let inflights: Arc<Mutex<Vec<InflightMem>>> = Arc::new(Mutex::new(Vec::new()));
-    let inflights_clone = inflights.clone();
+  fn new(ds_cfg: &Path, ds_path: &Path) -> Self {
     let chunk_size: Rc<Cell<u32>> = Rc::new(Cell::new(0));
     let chunk_size_clone = chunk_size.clone();
-    let sys = dramsim3::MemorySystem::new(ds_cfg, ds_path, move |addr, is_write| {
-      debug!("DRAM Memory response: {:x}, write={}", addr, is_write);
-      for req in inflights_clone.lock().unwrap().iter_mut() {
-        if req.is_write == is_write && req.resp_wait.remove_addr(addr as u32) {
-          debug!("Found req: id={:x}", req.id);
-          return;
-        }
-      }
-      debug!("All requests: {:#?}", *inflights_clone.lock().unwrap());
-      panic!("Unexpected memory response!");
-    });
+    let sys =
+      dramsim3::MemorySystem::new(ds_cfg, ds_path).expect("dramsim3 MemorySystem creation failed");
     let ret = DRAMModel {
       sys,
-      inflights: inflights,
+      inflights: vec![],
       _cached: BinaryHeap::new(),
       dram_tick: 0,
       sys_tick: 0,
@@ -369,14 +357,14 @@ impl MemoryModel for DRAMModel {
   fn push(&mut self, req: MemIdent) {
     // TODO: done if in cache
     debug!("DRAM Pushing: {:x}, size = {}", req.req.offset, req.req.len);
-    self.inflights.lock().unwrap().push(InflightMem::from_ident(req, self.req_size()));
+    self.inflights.push(InflightMem::from_ident(req, self.req_size()));
   }
 
   fn pop(&mut self) -> Option<MemIdent> {
     // Take exact one of the inflight request that are fully done
     // Also ensure no preceding requests that has conflicting ID
     let mut blocked = HashSet::with_capacity(32);
-    let mut inf = self.inflights.lock().unwrap();
+    let inf = &mut self.inflights;
     for i in 0..inf.len() {
       if inf[i].done() && !blocked.contains(&inf[i].id) {
         return Some(inf.remove(i).into());
@@ -388,8 +376,7 @@ impl MemoryModel for DRAMModel {
   }
 
   fn tick(&mut self) {
-    let mut inflights = self.inflights.lock().unwrap();
-    for inflight in inflights.iter_mut() {
+    for inflight in &mut self.inflights {
       if inflight.sent() {
         continue;
       }
@@ -405,14 +392,23 @@ impl MemoryModel for DRAMModel {
         inflight.req_wait.remove(idx);
       }
     }
-    // Manually unlock
-    drop(inflights);
 
     self.sys_tick += 1;
     let dram_tck = self.sys.tck(); // In ns
     let sys_tck = crate::get_sys_tck();
     while self.sys_tick as f64 * sys_tck > self.dram_tick as f64 * dram_tck {
-      self.sys.tick();
+      let inflights = &mut self.inflights;
+      self.sys.tick(|addr, is_write| {
+        debug!("DRAM Memory response: {:x}, write={}", addr, is_write);
+        for req in &mut *inflights {
+          if req.is_write == is_write && req.resp_wait.remove_addr(addr as u32) {
+            debug!("Found req: id={:x}", req.id);
+            return;
+          }
+        }
+        debug!("All requests: {:#?}", inflights);
+        panic!("Unexpected memory response!");
+      });
       self.dram_tick += 1;
     }
   }
@@ -448,7 +444,7 @@ impl RegularMemory<TrivialModel> {
 }
 
 impl RegularMemory<DRAMModel> {
-  pub fn with_content_and_model(data: Vec<u8>, ds_cfg: &CStr, ds_path: &CStr) -> Self {
+  pub fn with_content_and_model(data: Vec<u8>, ds_cfg: &Path, ds_path: &Path) -> Self {
     RegularMemory { data, model: DRAMModel::new(ds_cfg, ds_path) }
   }
 }
