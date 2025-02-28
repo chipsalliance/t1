@@ -25,8 +25,8 @@ rec {
       src = final.fetchFromGitHub {
         owner = "Avimitin";
         repo = "mill-ivy-fetcher";
-        rev = "61b8bcad40b533726b116d30ced42695850926f6";
-        hash = "sha256-8WjhLYUL5a8Giwl0IgcySdzfKxFmFrbKbIRsxnMWb4E=";
+        rev = "6533dfcfe9a05baef244274b4694ba3ac2ad18af";
+        hash = "sha256-BfZ2f84HfVGFT36seN9xza2DEsOloREa6AnC12rbZ6g=";
       };
     in
     final.callPackage "${src}/package.nix" { inherit (final) callPackage; };
