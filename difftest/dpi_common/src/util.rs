@@ -7,6 +7,8 @@ pub struct MetaConfig {
   pub dlen: u32,
   pub isa: String,
   pub elf_file: Option<String>,
+
+  pub dramsim3_enabled: bool,
 }
 
 pub fn write_perf_json(flavor: &str, cycle: u64, success: bool, meta: &MetaConfig) {
@@ -18,6 +20,12 @@ pub fn write_perf_json(flavor: &str, cycle: u64, success: bool, meta: &MetaConfi
 
   // we construct json manually,
   // to avoid pull extra dependencies
+
+  let memory_model = if meta.dramsim3_enabled {
+    "dramsim3"
+  } else {
+    "trivial"
+  };
 
   let mut content = String::new();
   content += "{\n";
@@ -35,6 +43,7 @@ pub fn write_perf_json(flavor: &str, cycle: u64, success: bool, meta: &MetaConfi
       );
     }
   }
+  content += &format!("    \"meta_memory_model\": \"{}\",\n", memory_model);
   content += &format!("    \"total_cycles\": {cycle},\n");
   content += &format!("    \"success\": {success}\n");
   content += "}\n";
