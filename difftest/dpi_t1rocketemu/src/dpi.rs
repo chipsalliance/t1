@@ -287,19 +287,6 @@ unsafe extern "C" fn t1_cosim_init(
   let dramsim3_cfg_str = dramsim3_cfg.get();
   let dramsim3_cfg_opt = if dramsim3_cfg_str == c"no" {
     None
-  } else if dramsim3_cfg_str == c"" {
-    use std::io::Write;
-    let embedded_cfg = include_bytes!("dramsim3-config.ini");
-    let mut embedded_cfg_file: tempfile::NamedTempFile =
-      tempfile::NamedTempFile::new().expect("Unable to create DRAMsim3 configuration temp file");
-    embedded_cfg_file
-      .write(embedded_cfg)
-      .expect("Unable to write DRAMsim3 configuration temp file");
-    let (_, p) =
-      embedded_cfg_file.keep().expect("Unable to persist DRAMsim3 configuration temp file");
-    embedded_cfg_path =
-      CString::new(p.as_os_str().as_bytes()).expect("Unexpected NULL byte in path");
-    Some(embedded_cfg_path.as_ref())
   } else {
     Some(dramsim3_cfg_str)
   };
