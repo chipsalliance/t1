@@ -82,7 +82,7 @@ pub struct MemResp<'a> {
   pub payload: MemRespPayload<'a>,
 }
 
-pub trait Device: Any + Send + Sync {
+pub trait Device: Any + Send {
   fn req(&mut self, req: MemReq<'_>) -> bool;
   fn resp(&mut self) -> Option<MemResp<'_>>;
   fn tick(&mut self);
@@ -126,7 +126,7 @@ impl<RD: RegDevice> WrappedRegDevice<RD> {
   }
 }
 
-impl<T: RegDevice + Send + Sync + 'static> Device for WrappedRegDevice<T> {
+impl<T: RegDevice + Send + 'static> Device for WrappedRegDevice<T> {
   fn req(&mut self, req: MemReq<'_>) -> bool {
     // allows only 4-byte aligned access
     assert_eq!(4, req.addr.len);
@@ -418,20 +418,6 @@ impl MemoryModel for DRAMModel {
   }
 }
 
-impl MemoryModel for Arc<Mutex<DRAMModel>> {
-  fn push(&mut self, req: MemIdent) {
-    self.lock().unwrap().push(req);
-  }
-
-  fn pop(&mut self) -> Option<MemIdent> {
-    self.lock().unwrap().pop()
-  }
-
-  fn tick(&mut self) {
-    self.lock().unwrap().tick()
-  }
-}
-
 /// A trivial memory model, where all requests are immediately resolved
 /// and served in the FIFO order
 #[derive(Default)]
@@ -461,16 +447,13 @@ impl RegularMemory<TrivialModel> {
   }
 }
 
-impl RegularMemory<Arc<Mutex<DRAMModel>>> {
+impl RegularMemory<DRAMModel> {
   pub fn with_content_and_model(data: Vec<u8>, ds_cfg: &CStr, ds_path: &CStr) -> Self {
-    RegularMemory {
-      data,
-      model: Arc::new(Mutex::new(DRAMModel::new(ds_cfg, ds_path))),
-    }
+    RegularMemory { data, model: DRAMModel::new(ds_cfg, ds_path) }
   }
 }
 
-impl<M: MemoryModel + Send + Sync + 'static> RegularMemory<M> {
+impl<M: MemoryModel + Send + 'static> RegularMemory<M> {
   fn execute_read(&mut self, addr: AddrInfo) -> &[u8] {
     &self.data[addr.as_range()]
   }
@@ -481,7 +464,7 @@ impl<M: MemoryModel + Send + Sync + 'static> RegularMemory<M> {
   }
 }
 
-impl<M: MemoryModel + Send + Sync + 'static> Device for RegularMemory<M> {
+impl<M: MemoryModel + Send + 'static> Device for RegularMemory<M> {
   fn req(&mut self, req: MemReq<'_>) -> bool {
     // dbg!(&req);
     let ident = MemIdent {
@@ -588,7 +571,7 @@ pub const RAM_SIZE: u32 = 0xa000_0000;
 /// - 0x0400_0000 - 0x0600_0000 : framebuffer
 /// - 0x1000_0000 - 0x1000_1000 : simctrl
 /// - 0x2000_0000 - 0xc000_0000 : sram
-pub fn create_emu_addrspace_with_mem<M: MemoryModel + Send + Sync + 'static>(
+pub fn create_emu_addrspace_with_mem<M: MemoryModel + Send + 'static>(
   mem: RegularMemory<M>,
 ) -> (AddressSpace, ExitFlagRef) {
   const SIMCTRL_BASE: u32 = 0x1000_0000;
