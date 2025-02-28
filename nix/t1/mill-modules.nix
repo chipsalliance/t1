@@ -84,11 +84,10 @@ let
       fi
 
       mkdir -p out
-      NIX_BUILD_TOP=out
+      NIX_BUILD_TOP="$(realpath out)"
 
-      runHook prePatch
-      runHook postPatch
       runHook preUnpack
+      runHook postUnpack
     '';
 
     outputs = [ "out" "omreader" "elaborator" ];
