@@ -32,28 +32,28 @@ let
             caseSet;
           innerMapper = caseName: testCase: {
             verilator-emu = runEmu {
-              inherit testCase;
+              inherit testCase topName;
               emulator = verilator-emu;
             };
             verilator-emu-trace = runEmu {
-              inherit testCase;
+              inherit testCase topName;
               emulator = verilator-emu-trace;
               waveFileName = "${testCase.pname}.fst";
             };
 
             vcs-emu = runEmu {
-              inherit testCase;
+              inherit testCase topName;
               emulator = vcs-emu;
             };
 
             vcs-emu-trace = runEmu {
-              inherit testCase;
+              inherit testCase topName;
               emulator = vcs-emu-trace;
               waveFileName = "${testCase.pname}.fsdb";
             };
 
             vcs-emu-cover = runEmu {
-              inherit testCase;
+              inherit testCase topName;
               emulator = vcs-emu-cover;
               emuExtraArgs = [
                 "-cm"
@@ -71,7 +71,7 @@ let
             };
 
             vcs-prof-vcd = runFsdb2vcd (runEmu {
-              inherit testCase;
+              inherit testCase topName;
               emulator = vcs-emu;
               emuExtraArgs = {
                 vcsDpiLib = vcs-dpi-lib;

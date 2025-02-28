@@ -8,6 +8,7 @@
 }:
 
 { testCase
+, topName
 , emulator
 , emuExtraArgs ? [ ]
 , waveFileName ? null
@@ -19,12 +20,17 @@ then (lib.assertMsg (waveFileName != null) "waveFileName shall be set for trace 
 else (lib.assertMsg (waveFileName == null) "waveFileName must not be set for non-trace build");
 let
   overrides = builtins.removeAttrs args [ "emulator" "emuExtraArgs" "testCase" "waveFileName" ];
+  dramsim3_config = ../../../difftest/config/dramsim3-config.ini;
   plusargs = [
     "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
     "+t1_rtl_event_path=rtl-event.jsonl"
   ]
   ++ lib.optionals (waveFileName != null) [
     "+t1_wave_path=${waveFileName}"
+  ]
+  ++ lib.optionals (topName == "t1rocketemu") [
+    "+t1_dramsim3_cfg=${dramsim3_config}"
+    "+t1_dramsim3_path=dramsim3_out"
   ];
   emuDriverWithArgs = emulator.driverWithArgs ++ plusargs ++ emuExtraArgs;
 in
@@ -129,6 +135,10 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
     if [ -r mmio-event.jsonl ]; then
       cp -v mmio-event.jsonl $out/
       jq ".profile_total_cycles=$(python3 ${./calculate-cycle.py})" sim_result.json > "$out/sim_result.json"
+    fi
+
+    if [ -d dramsim3_out ]; then
+      cp -vr dramsim3_out $out/
     fi
 
     runHook postInstall
