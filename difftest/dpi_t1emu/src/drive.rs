@@ -160,6 +160,7 @@ impl Driver {
         dlen: args.dlen,
         isa: args.spike_isa.clone(),
         elf_file: Some(args.elf_file.clone()),
+        dramsim3_enabled: false,
       },
 
       dlen: args.dlen,

@@ -9,7 +9,7 @@ use std::{
 use svdpi::dpi::param::InStr;
 use svdpi::SvScope;
 use tempfile::TempDir;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use crate::drive::{Driver, IncompleteRead, IncompleteWrite, OnlineArgs};
 
@@ -311,9 +311,9 @@ unsafe extern "C" fn t1_cosim_init(
   };
 
   match dramsim3_cfg_full {
-    None => debug!("DRAMsim3 disabled"),
+    None => info!("DRAMsim3 disabled"),
     Some((cfg_path, run_path)) => {
-      debug!(
+      info!(
         "DRAMsim3 enabled with config: {:?}, result: {:?}",
         cfg_path, run_path
       );
