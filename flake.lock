@@ -2,15 +2,16 @@
   "nodes": {
     "chisel-nix": {
       "locked": {
-        "lastModified": 1739980647,
-        "narHash": "sha256-lnEQ8azmnaBnXNDuWhcNpHf1JDaWAycUxRBMguB7ERs=",
+        "lastModified": 1740760303,
+        "narHash": "sha256-krA5rGVnAGM1xVsuF+VHaKO0qzMRb0xsrVaAF8rKHhU=",
         "owner": "chipsalliance",
         "repo": "chisel-nix",
-        "rev": "f62495e913897c10d07abbf75ccb2762caf9ed90",
+        "rev": "640c2ab7db8355521fbe5c03db7c68e08d9a8864",
         "type": "github"
       },
       "original": {
         "owner": "chipsalliance",
+        "ref": "new-mill-flow",
         "repo": "chisel-nix",
         "type": "github"
       }

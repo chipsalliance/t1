@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [[ ! -d ".git" || ! -f "build.mill"  ]]; then
+  echo "Not running in project root" >&2
+  exit 1
+fi
+
+pushd dependencies/submodules >/dev/null
+nix run --no-warn-dirty '.#nvfetcher'
+popd >/dev/null
+
+# submoduleNames=($(nix eval --no-warn-dirty --json '.#t1.submodules' \
+#     --apply 'srcs: with builtins;
+#     filter (x: (substring 0 (stringLength "ivy-") x == "ivy-")) (attrNames srcs)' \
+#   | jq -r '.[]'))
+# Always build chisel before all other modules
+submoduleNames=(
+  "ivy-chisel"
+  "ivy-arithmetic"
+  "ivy-chisel-interface"
+  "ivy-hardfloat"
+  "ivy-rvdecoderdb"
+)
+for name in "${submoduleNames[@]}"; do
+  echo "Rebuilding $name"
+  oldHash=$(nix eval --no-warn-dirty --raw ".#t1.submodules.$name.ivyCache.codegenFiles.outputHash")
+  nix build --rebuild \
+    --no-warn-dirty --no-link \
+    ".#t1.submodules.$name.ivyCache.codegenFiles" &> rebuild.log || true
+  newHash=$(cat rebuild.log \
+    | grep -P '^\s+got:\s+sha256-.*$' \
+    | cut -d':' -f2 \
+    | xargs)
+  if [[ -n "$newHash" && "$newHash" != "$oldHash" ]]; then
+    echo "Hash change for $name"
+    sed -i "s|$oldHash|$newHash|" dependencies/submodules/default.nix
+  fi
+  rm -f rebuild.log
+
+  nix build --no-warn-dirty --out-link result \
+    ".#t1.submodules.$name.ivyCache.codegenFiles"
+  cp result/*-ivys.nix dependencies/locks/
+  chmod -R u+w dependencies/locks/
+
+  rm -f result
+done

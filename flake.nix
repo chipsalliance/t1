@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-for-circt.url = "github:NixOS/nixpkgs/nixos-unstable-small";
-    chisel-nix.url = "github:chipsalliance/chisel-nix";
+    chisel-nix.url = "github:chipsalliance/chisel-nix/new-mill-flow";
     flake-utils.url = "github:numtide/flake-utils";
   };
 

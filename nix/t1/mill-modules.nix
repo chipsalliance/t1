@@ -1,6 +1,5 @@
 { lib
 , stdenv
-, fetchMillDeps
 , makeWrapper
 , runCommand
 , jdk21
@@ -20,29 +19,21 @@
 }:
 
 let
-  t1MillDeps = mill-ivy-fetcher.deps-builder ../../dependencies/ivys/t1/_sources/generated.nix;
-
-  coursierEnvInputs = with submodules; [
+  ivyLocalDeps = with submodules; [
     ivy-arithmetic.setupHook
     ivy-chisel.setupHook
     ivy-chisel-panama.setupHook
     ivy-chisel-interface.setupHook
     ivy-rvdecoderdb.setupHook
     ivy-hardfloat.setupHook
-  ] ++ t1MillDeps.ivyDepsList;
+  ];
 
-  coursierEnv = runCommand "build-coursier-env"
-    {
-      buildInputs = coursierEnvInputs;
-      passthru = {
-        inherit coursierEnvInputs;
-      };
-    } ''
-    runHook preUnpack
-    runHook postUnpack
-    runHook prePatch
-    cp -r "$NIX_MILL_HOME" "$out"
-  '';
+  t1MillDeps = mill-ivy-fetcher.generateIvyCache {
+    name = "t1";
+    src = self.src;
+    hash = "sha256-dhBLySWC4TJJ0eMdibyAu99Efah22nO/pD2T6Qj+n98=";
+    extraBuildInputs = ivyLocalDeps;
+  };
 
   self = stdenv.mkDerivation {
     name = "t1-all-mill-modules";
@@ -66,7 +57,9 @@ let
 
     buildInputs = [
       submodules.riscv-opcodes
-    ] ++ coursierEnvInputs;
+    ]
+    ++ ivyLocalDeps
+    ++ t1MillDeps.cache.ivyDepsList;
 
     nativeBuildInputs = [
       mill
@@ -90,17 +83,11 @@ let
         exit 1
       fi
 
-      export NIX_COURSIER_HOME="$PWD/out/.nixCoursierHome"
-      export COURSIER_REPOSITORIES="ivy2Local|central"
-      export COURSIER_CACHE="$NIX_COURSIER_HOME/cache"
-      export JAVA_TOOL_OPTIONS="-Dcoursier.ivy.home=$NIX_COURSIER_HOME $JAVA_TOOL_OPTIONS"
-      mkdir -p "$NIX_COURSIER_HOME" "$COURSIER_CACHE"
+      mkdir -p out
+      NIX_BUILD_TOP="$(realpath out)"
 
-      cp -rT "${coursierEnv}/.ivy2/local" "$NIX_COURSIER_HOME/local"
-      cp -r ${coursierEnv}/.cache/coursier/v1/* "$COURSIER_CACHE/"
-
-      chown -R $USER:nobody "$NIX_COURSIER_HOME"
-      chmod -R u+w "$NIX_COURSIER_HOME"
+      runHook preUnpack
+      runHook postUnpack
     '';
 
     outputs = [ "out" "omreader" "elaborator" ];
@@ -147,7 +134,7 @@ let
     '';
 
     passthru = {
-      inherit coursierEnv;
+      inherit t1MillDeps;
     };
   };
 in
