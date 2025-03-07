@@ -14,12 +14,12 @@ function main() {
   local workdir=$(mktemp -t -d "t1_bootstrap_XXX")
   echo "Using workdir: $workdir"
 
-  local allSubmodulesNameJson=$(nix eval --json '.#t1.dependencies.sources' --apply 'srcs: builtins.attrNames srcs')
+  local allSubmodulesNameJson=$(nix eval --json '.#t1.submodules.sources' --apply 'srcs: builtins.attrNames srcs')
   local allSubmodules=( $( echo "$allSubmodulesNameJson" | jq -r '.[]' ) )
   mkdir -p "$workdir/submodules"
   for name in "${allSubmodules[@]}"; do
     mkdir -p "$workdir/submodules/$name"
-    p=$(nix build ".#t1.dependencies.sources.$name.src" --print-out-paths --no-link)
+    p=$(nix build ".#t1.submodules.sources.$name.src" --print-out-paths --no-link)
     cp -rT "$p" "$workdir/submodules/$name"
     unset p
   done
