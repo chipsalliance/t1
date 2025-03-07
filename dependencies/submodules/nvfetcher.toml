@@ -21,7 +21,7 @@ fetch.github = "sequencer/rvdecoderdb"
 [riscv-opcodes]
 src.git = "https://github.com/riscv/riscv-opcodes"
 src.branch = "master"
-fetch.github = "riscv/riscv-opcodes"
+fetch.github = "unlsycn/riscv-opcodes"
 
 [zaozi]
 src.git = "https://github.com/sequencer/zaozi"
