@@ -64,7 +64,7 @@
     },
     "riscv-opcodes": {
         "cargoLocks": null,
-        "date": "2025-02-14",
+        "date": "2025-03-03",
         "extract": null,
         "name": "riscv-opcodes",
         "passthru": null,
@@ -74,14 +74,14 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "owner": "riscv",
+            "owner": "unlsycn",
             "repo": "riscv-opcodes",
-            "rev": "8899b32f218c85bf2559fa95f226bc2533316802",
-            "sha256": "sha256-7CV/T8gnE7+ZPfYbn38Zx8fYUosTc8bt93wk5nmxu2c=",
+            "rev": "11d830713a073787fb5d3ee893487e112abbfafe",
+            "sha256": "sha256-5G4kZVuLjdZCX7lcRhRhUgLCcnXKTU2SDLQXRiVpeD8=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "8899b32f218c85bf2559fa95f226bc2533316802"
+        "version": "11d830713a073787fb5d3ee893487e112abbfafe"
     },
     "rvdecoderdb": {
         "cargoLocks": null,
