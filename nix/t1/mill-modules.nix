@@ -1,6 +1,5 @@
 { lib
 , stdenv
-, fetchMillDeps
 , makeWrapper
 , runCommand
 , jdk21
@@ -16,33 +15,26 @@
 , glibcLocales
 
 , submodules
-, mill-ivy-fetcher
+, generateIvyCache
+, mill-ivy-env-shell-hook
 }:
 
 let
-  t1MillDeps = mill-ivy-fetcher.deps-builder ../../dependencies/ivys/t1/_sources/generated.nix;
-
-  coursierEnvInputs = with submodules; [
+  ivyLocalDeps = with submodules; [
     ivy-arithmetic.setupHook
     ivy-chisel.setupHook
     ivy-chisel-panama.setupHook
     ivy-chisel-interface.setupHook
     ivy-rvdecoderdb.setupHook
     ivy-hardfloat.setupHook
-  ] ++ t1MillDeps.ivyDepsList;
+  ];
 
-  coursierEnv = runCommand "build-coursier-env"
-    {
-      buildInputs = coursierEnvInputs;
-      passthru = {
-        inherit coursierEnvInputs;
-      };
-    } ''
-    runHook preUnpack
-    runHook postUnpack
-    runHook prePatch
-    cp -r "$NIX_MILL_HOME" "$out"
-  '';
+  t1MillDeps = generateIvyCache {
+    name = "t1";
+    src = self.src;
+    hash = "sha256-dhBLySWC4TJJ0eMdibyAu99Efah22nO/pD2T6Qj+n98=";
+    extraBuildInputs = ivyLocalDeps;
+  };
 
   self = stdenv.mkDerivation {
     name = "t1-all-mill-modules";
@@ -66,7 +58,9 @@ let
 
     buildInputs = [
       submodules.riscv-opcodes
-    ] ++ coursierEnvInputs;
+    ]
+    ++ ivyLocalDeps
+    ++ t1MillDeps.cache.ivyDepsList;
 
     nativeBuildInputs = [
       mill
@@ -85,22 +79,9 @@ let
     };
 
     shellHook = ''
-      if [[ ! -d ".git" || ! -f "build.mill" ]]; then
-        echo "Not in project root, exit" >&2
-        exit 1
-      fi
+      ${mill-ivy-env-shell-hook}
 
-      export NIX_COURSIER_HOME="$PWD/out/.nixCoursierHome"
-      export COURSIER_REPOSITORIES="ivy2Local|central"
-      export COURSIER_CACHE="$NIX_COURSIER_HOME/cache"
-      export JAVA_TOOL_OPTIONS="-Dcoursier.ivy.home=$NIX_COURSIER_HOME $JAVA_TOOL_OPTIONS"
-      mkdir -p "$NIX_COURSIER_HOME" "$COURSIER_CACHE"
-
-      cp -rT "${coursierEnv}/.ivy2/local" "$NIX_COURSIER_HOME/local"
-      cp -r ${coursierEnv}/.cache/coursier/v1/* "$COURSIER_CACHE/"
-
-      chown -R $USER:nobody "$NIX_COURSIER_HOME"
-      chmod -R u+w "$NIX_COURSIER_HOME"
+      mill -i mill.bsp.BSP/install
     '';
 
     outputs = [ "out" "omreader" "elaborator" ];
@@ -147,7 +128,7 @@ let
     '';
 
     passthru = {
-      inherit coursierEnv;
+      inherit t1MillDeps;
     };
   };
 in

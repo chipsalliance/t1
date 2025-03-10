@@ -1,19 +1,21 @@
 { lib
 , stdenv
-, fetchMillDeps
 , makeWrapper
 
 , add-determinism
 , metals
 , mill
-, mill-ivy-fetcher
+, generateIvyCache
 }:
 
 let
   mkHelper = { moduleName, scriptSrc, outName }:
     let
-      scriptDeps = mill-ivy-fetcher.deps-builder ./ivys/_sources/generated.nix;
-      self = stdenv.mkDerivation rec {
+      scriptDeps = generateIvyCache {
+        inherit (self) name src;
+        hash = "sha256-Ba5W/mnJePyvBVs9mimIIX6GLAww7Awx3b5e4x9nLjk=";
+      };
+      self = stdenv.mkDerivation {
         name = "t1-${moduleName}-script";
 
         src = with lib.fileset; toSource {
@@ -40,7 +42,7 @@ let
           '';
         });
 
-        buildInputs = scriptDeps.ivyDepsList;
+        buildInputs = scriptDeps.cache.ivyDepsList;
 
         nativeBuildInputs = [
           mill
