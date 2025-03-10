@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [[ ! -f "build.mill"  ]]; then
+  echo "Not running in project root" >&2
+  exit 1
+fi
+
+depsNames=(
+  "t1.submodules.ivy-chisel.ivyCache::dependencies/submodules/default.nix"
+  "t1.submodules.ivy-arithmetic.ivyCache::dependencies/submodules/default.nix"
+  "t1.submodules.ivy-chisel-interface.ivyCache::dependencies/submodules/default.nix"
+  "t1.submodules.ivy-hardfloat.ivyCache::dependencies/submodules/default.nix"
+  "t1.submodules.ivy-rvdecoderdb.ivyCache::dependencies/submodules/default.nix"
+  "t1.elaborator.t1MillDeps::nix/t1/mill-modules.nix"
+)
+
+for module in "${depsNames[@]}"; do
+  IFS='::' read -r -a moduleMeta <<< "$module"
+  name="${moduleMeta[0]}"
+  path="${moduleMeta[1]}"
+
+  echo "Rebuilding $name"
+  oldHash=$(nix eval --no-warn-dirty --raw ".#$name.codegenFiles.outputHash")
+  nix build --rebuild \
+    --no-warn-dirty --no-link \
+    ".#$name.codegenFiles" &> rebuild.log || true
+  newHash=$(cat rebuild.log \
+    | grep -P '^\s+got:\s+sha256-.*$' \
+    | cut -d':' -f2 \
+    | xargs)
+  if [[ -n "$newHash" && "$newHash" != "$oldHash" ]]; then
+    echo "Hash change for $name"
+    sed -i "s|$oldHash|$newHash|" "$path"
+  fi
+  rm -f rebuild.log
+
+  nix build --no-warn-dirty --out-link result ".#$name.codegenFiles"
+  cp -vf result/*-ivys.nix dependencies/locks/
+
+  rm -f result
+done
