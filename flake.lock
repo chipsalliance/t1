@@ -5,11 +5,11 @@
         "mill-ivy-fetcher": "mill-ivy-fetcher"
       },
       "locked": {
-        "lastModified": 1741602478,
-        "narHash": "sha256-IaPeWaCNnDWIenyaFgN4pKlUQMrtH5mlHjiMMN8ugD0=",
+        "lastModified": 1741628211,
+        "narHash": "sha256-DBPgfIDXfKk+TjtVjvkV/N2pVWSah38xjJp6M71EPC0=",
         "owner": "chipsalliance",
         "repo": "chisel-nix",
-        "rev": "1fbcdd1b8b604836f4d8b92ea4368f51a29574c2",
+        "rev": "6119fe6835dbf3d39796c5e0809ac94509bf4c93",
         "type": "github"
       },
       "original": {
@@ -61,11 +61,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1741598824,
-        "narHash": "sha256-BL7pVEVfkLMc8Q5nIeuzP0Ryez1lxsj4cw4FPl/EVNw=",
+        "lastModified": 1741628130,
+        "narHash": "sha256-82/zYZC8jL5dTdCJPgHEbDZyQBV1AOuhkgB6dICEzm8=",
         "owner": "Avimitin",
         "repo": "mill-ivy-fetcher",
-        "rev": "d483bd087d0ff47a7f2983e9beb54fc17de56acf",
+        "rev": "84d171be31d478527740c926c00dbdd84af32416",
         "type": "github"
       },
       "original": {
