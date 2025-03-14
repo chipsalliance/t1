@@ -5,6 +5,7 @@ import chisel3.util._
 import chisel3._
 import org.chipsalliance.t1.rtl._
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
+import org.chipsalliance.t1.rtl.lsu.DataToZVMA
 
 object ZVMAParameter {
   implicit def rw: upickle.default.ReadWriter[ZVMAParameter] = upickle.default.macroRW
@@ -59,13 +60,6 @@ class ZVMADecodeResult extends Bundle {
   val accessTile: UInt = UInt(4.W)
 }
 
-class ZVMADataChannel(parameter: ZVMAParameter) extends Bundle {
-  // The data will be converted into segment format in lsu
-  val data: UInt = UInt(parameter.dlen.W)
-
-  val index: UInt = UInt(parameter.dataIndexBit.W)
-}
-
 class ZVMAExecute(parameter: ZVMAParameter) extends Bundle {
   val colData = Vec(2, Vec(4, UInt(parameter.elen.W)))
   val rowData = Vec(2, Vec(4, UInt(parameter.elen.W)))
@@ -79,8 +73,8 @@ class ZVMAInterface(parameter: ZVMAParameter) extends Bundle {
   val clock          = Input(Clock())
   val reset          = Input(Reset())
   val request: ValidIO[ZVMAInstRequest] = Flipped(Valid(new ZVMAInstRequest(parameter)))
-  val dataFromLSU: DecoupledIO[ZVMADataChannel] = Flipped(Decoupled(new ZVMADataChannel(parameter)))
-  val dataToLSU: DecoupledIO[ZVMADataChannel] = Decoupled(new ZVMADataChannel(parameter))
+  val dataFromLSU: DecoupledIO[DataToZVMA] = Flipped(Decoupled(new DataToZVMA(parameter.dlen)))
+  val dataToLSU: DecoupledIO[UInt] = Decoupled(UInt(parameter.dlen.W))
   val idle: Bool = Output(Bool())
 }
 

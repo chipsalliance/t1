@@ -15,7 +15,6 @@ case class ZVMADataExchangeParam(chainingSize:     Int,
                                  laneNumber:       Int,
                                  paWidth:          Int,
                                  lsuTransposeSize: Int,
-                                 lsuReadShifter:   Int,
                                  vrfReadLatency:   Int,
                                  TE:               Int) extends SerializableModuleParameter {
   val vlMax: Int = vLen
@@ -42,8 +41,8 @@ class ZVMAInstRequest(dataPathWidth: Int) extends Bundle {
   val address: UInt = UInt(dataPathWidth.W)
 }
 
-class DataToZVMA(parameter: ZVMADataExchangeParam) extends Bundle {
-  val data = UInt((parameter.datapathWidth * parameter.laneNumber).W)
+class DataToZVMA(dlen: Int) extends Bundle {
+  val data = UInt(dlen.W)
   val vs1 = Bool()
 }
 
@@ -68,7 +67,7 @@ class ZVMADataExchangeInterface(param: ZVMADataExchangeParam) extends Bundle {
   val memResponse: DecoupledIO[UInt] = Flipped(Decoupled(UInt(param.dlen.W)))
 
   val dataFromZVMA: DecoupledIO[UInt] = Flipped(Decoupled(UInt(param.dlen.W)))
-  val datatoZVMA: DecoupledIO[DataToZVMA] = Decoupled(new DataToZVMA(param))
+  val datatoZVMA: DecoupledIO[DataToZVMA] = Decoupled(new DataToZVMA(param.dlen))
 
   val status: LSUBaseStatus = Output(new LSUBaseStatus)
 
