@@ -53,16 +53,7 @@ forEachTop (topName: generator: self: {
   rtl = t1Scope.mlirbc-to-sv {
     outputName = "${generator.fullClassName}-rtl";
     mlirbc = self.lowered-mlirbc;
-    mfcArgs = [
-      "-O=release"
-      "--disable-all-randomization"
-      "--split-verilog"
-      "--preserve-values=all"
-      "--strip-debug-info"
-      "--strip-fir-debug-info"
-      "--verification-flavor=sva"
-      "--lowering-options=verifLabels,omitVersionComment,emittedLineLength=240,locationInfoStyle=none"
-    ];
+    mfcArgs = import ./mfc-args.nix;
   };
 
   omreader = runCommand "wrap-omreader" { } ''
