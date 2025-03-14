@@ -266,7 +266,10 @@ case class T1Parameter(
 
   val releaseShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
 
-  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
+  // todo
+  val zvmaEnable: Boolean = true
+  val TE: Int = vLen/4
+  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, zvmaEnable, allInstructions)
 
   /** paraemter for AXI4. */
   val axi4BundleParameter: AXI4BundleParameter = AXI4BundleParameter(
@@ -329,7 +332,9 @@ case class T1Parameter(
     vrfReadLatency = vrfReadLatency,
     axi4BundleParameter = axi4BundleParameter,
     lsuReadShifterSize = lsuReadShifterSize,
-    name = "main"
+    name = "main",
+    zvmaEnable = zvmaEnable,
+    TE = TE
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
   require(xLen == datapathWidth)
