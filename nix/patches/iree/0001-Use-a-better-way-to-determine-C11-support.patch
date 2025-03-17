@@ -1,0 +1,26 @@
+From 3066b054d6c0e71d5749d8cdda4fa69580c5378e Mon Sep 17 00:00:00 2001
+From: Letu Ren <fantasquex@gmail.com>
+Date: Thu, 27 Mar 2025 02:36:17 +0800
+Subject: [PATCH] Use a better way to determine C11 support
+
+Signed-off-by: Letu Ren <fantasquex@gmail.com>
+---
+ runtime/src/iree/base/status.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/runtime/src/iree/base/status.c b/runtime/src/iree/base/status.c
+index e871f27eb3..d9f2936cbb 100644
+--- a/runtime/src/iree/base/status.c
++++ b/runtime/src/iree/base/status.c
+@@ -30,7 +30,7 @@
+ // https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/aligned-malloc
+ #define iree_aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
+ #define iree_aligned_free(p) _aligned_free(p)
+-#elif defined(_ISOC11_SOURCE)
++#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+ // https://en.cppreference.com/w/c/memory/aligned_alloc
+ #define iree_aligned_alloc(alignment, size) aligned_alloc(alignment, size)
+ #define iree_aligned_free(p) free(p)
+-- 
+2.49.0
+
