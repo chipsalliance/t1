@@ -236,7 +236,7 @@ class ZVMA(val parameter: ZVMAParameter)
       val aluResult = Wire(Vec(4, UInt(parameter.elen.W)))
       dataPipe1.rowData.zipWithIndex.foreach { case (rd, ri) =>
         dataPipe1.colData.zipWithIndex.foreach { case (cd, ci) =>
-          val di: Int = ri << 1 + ci
+          val di: Int = (ri << 1) + ci
           val base = readDataVec(di)
           // TODO: Temporarily there is int8
           val rdVec = cutUInt(rd, 8)
@@ -273,6 +273,7 @@ class ZVMA(val parameter: ZVMAParameter)
         result := resultC + resultS
       }
 
+      requestRelease := pipeValid3
       // rf read write
       stateVec.zipWithIndex.foreach {case (ram, index) =>
         val write = pipeValid3 && (index3(0) === index.U)
@@ -288,4 +289,8 @@ class ZVMA(val parameter: ZVMAParameter)
       }
     }
   }
+
+  // todo: add store
+  io.dataToLSU := DontCare
+  io.idle := issueIdle
 }

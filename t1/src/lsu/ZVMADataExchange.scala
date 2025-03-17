@@ -69,7 +69,7 @@ class ZVMADataExchangeInterface(param: ZVMADataExchangeParam) extends Bundle {
   val dataFromZVMA: DecoupledIO[UInt] = Flipped(Decoupled(UInt(param.dlen.W)))
   val datatoZVMA: DecoupledIO[DataToZVMA] = Decoupled(new DataToZVMA(param.dlen))
 
-  val status: LSUBaseStatus = Output(new LSUBaseStatus)
+  val idle: Bool = Output(Bool())
 
   val vrfReadDataPorts: Vec[DecoupledIO[VRFReadRequest]] = Vec(
     param.laneNumber,
@@ -78,12 +78,10 @@ class ZVMADataExchangeInterface(param: ZVMADataExchangeParam) extends Bundle {
 
   val vrfReadResults:  Vec[ValidIO[UInt]] = Input(Vec(param.laneNumber, Valid(UInt(param.datapathWidth.W))))
 
-  val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = IO(
-    Vec(
-      param.laneNumber,
-      Decoupled(
-        new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
-      )
+  val vrfWritePort: Vec[DecoupledIO[VRFWriteRequest]] = Vec(
+    param.laneNumber,
+    Decoupled(
+      new VRFWriteRequest(param.regNumBits, param.vrfOffsetBits, param.instructionIndexBits, param.datapathWidth)
     )
   )
 
@@ -137,6 +135,15 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   val instructionReg: ZVMAInstructionPipe = RegInit(0.U.asTypeOf(new ZVMAInstructionPipe))
   val csrReg: CSRInterface = RegEnable(io.csrInterface, 0.U.asTypeOf(io.csrInterface), io.instRequest.valid)
   val state: ZVMAState = RegInit(0.U.asTypeOf(new ZVMAState(parameter)))
+
+  val messageQueue: QueueIO[ZVMAReadMessage] =  Queue.io(new ZVMAReadMessage(parameter), parameter.vrfReadOutStanding)
+  // todo: move to channel
+  val readRequestQueue = Queue.io(
+    new VRFReadRequest(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits),
+    parameter.vrfReadOutStanding,
+    pipe = true,
+    flow = true
+  )
 
   val opcode: UInt = io.instRequest.bits.inst(6, 0)
   val fun6: UInt = io.instRequest.bits.inst(31, 26)
@@ -208,15 +215,6 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
 
   val vrfReadQueueVec: Seq[QueueIO[UInt]] = Seq.tabulate(parameter.laneNumber)(_ =>
     Queue.io(UInt(parameter.datapathWidth.W), parameter.vrfReadOutStanding, flow = true, pipe = true)
-  )
-
-  val messageQueue: QueueIO[ZVMAReadMessage] =  Queue.io(new ZVMAReadMessage(parameter), parameter.vrfReadOutStanding)
-  // todo: move to channel
-  val readRequestQueue = Queue.io(
-    new VRFReadRequest(parameter.regNumBits, parameter.vrfOffsetBits, parameter.instructionIndexBits),
-    parameter.vrfReadOutStanding,
-    pipe = true,
-    flow = true
   )
 
   val needReadForVRF = instructionReg.decode.arithmetic || (instructionReg.decode.mv && !instructionReg.decode.mv)
@@ -377,6 +375,8 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   io.memRequest.bits.mask := -1.S.asTypeOf(io.memRequest.bits.mask)
   io.memRequest.bits.write := instructionReg.decode.fromTile
 
+  loadIssue := loadValid && io.memRequest.ready
+
   // zvma write to lane
   val writeVrfState = RegInit(0.U(parameter.laneNumber.W))
   val tryToWriteVrf = zvmaDataQueue.deq.valid && instructionReg.decode.mv
@@ -385,7 +385,7 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
     write.bits.vd := instructionReg.vd + (state.mvIndex >> parameter.vrfOffsetBits).asUInt
     write.bits.offset := state.mvIndex
     // todo: tail mask
-    write.bits.mask := -1.S((parameter.datapathWidth/8).W)
+    write.bits.mask := (-1.S((parameter.datapathWidth/8).W)).asUInt
     write.bits.data := cutUInt(zvmaDataQueue.deq.bits, parameter.datapathWidth)(i)
     write.bits.last := false.B
     write.bits.instructionIndex := instructionReg.instructionIndex
@@ -410,4 +410,6 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   memDataQueue.deq.ready := io.datatoZVMA.ready
   deqDataReady.head := io.datatoZVMA.ready
   deqDataReady.last := io.datatoZVMA.ready && !deqDataValid.head
+
+  io.idle := state.idle
 }

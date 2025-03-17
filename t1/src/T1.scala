@@ -838,6 +838,10 @@ class T1(val parameter: T1Parameter)
   lsu.request.bits.instructionInformation.eew             := vSewForLsu
   lsu.request.bits.instructionInformation.isStore         := isStoreType
   lsu.request.bits.instructionInformation.maskedLoadStore := maskType
+  lsu.zvmaInterface.foreach{i =>
+    i.inst := requestRegDequeue.bits.instruction
+    i.isZVMA := requestReg.bits.decodeResult(Decoder.zvma)
+  }
 
   lsu.csrInterface     := requestRegCSR
   lsu.csrInterface.vl  := evlForLsu
