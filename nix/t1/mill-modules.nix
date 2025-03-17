@@ -1,6 +1,5 @@
 { lib
 , stdenv
-, fetchMillDeps
 , makeWrapper
 , runCommand
 , jdk21
@@ -16,33 +15,12 @@
 , glibcLocales
 
 , submodules
-, mill-ivy-fetcher
+, ivy-gather
+, mill-ivy-env-shell-hook
 }:
 
 let
-  t1MillDeps = mill-ivy-fetcher.deps-builder ../../dependencies/ivys/t1/_sources/generated.nix;
-
-  coursierEnvInputs = with submodules; [
-    ivy-arithmetic.setupHook
-    ivy-chisel.setupHook
-    ivy-chisel-panama.setupHook
-    ivy-chisel-interface.setupHook
-    ivy-rvdecoderdb.setupHook
-    ivy-hardfloat.setupHook
-  ] ++ t1MillDeps.ivyDepsList;
-
-  coursierEnv = runCommand "build-coursier-env"
-    {
-      buildInputs = coursierEnvInputs;
-      passthru = {
-        inherit coursierEnvInputs;
-      };
-    } ''
-    runHook preUnpack
-    runHook postUnpack
-    runHook prePatch
-    cp -r "$NIX_MILL_HOME" "$out"
-  '';
+  t1MillDeps = ivy-gather ../../dependencies/locks/t1-lock.nix;
 
   self = stdenv.mkDerivation {
     name = "t1-all-mill-modules";
@@ -64,9 +42,16 @@ let
       ];
     };
 
-    buildInputs = [
-      submodules.riscv-opcodes
-    ] ++ coursierEnvInputs;
+    buildInputs = with submodules; [
+      riscv-opcodes
+      ivy-arithmetic.setupHook
+      ivy-chisel.setupHook
+      ivy-chisel-panama.setupHook
+      ivy-chisel-interface.setupHook
+      ivy-rvdecoderdb.setupHook
+      ivy-hardfloat.setupHook
+      t1MillDeps
+    ];
 
     nativeBuildInputs = [
       mill
@@ -85,22 +70,9 @@ let
     };
 
     shellHook = ''
-      if [[ ! -d ".git" || ! -f "build.mill" ]]; then
-        echo "Not in project root, exit" >&2
-        exit 1
-      fi
+      ${mill-ivy-env-shell-hook}
 
-      export NIX_COURSIER_HOME="$PWD/out/.nixCoursierHome"
-      export COURSIER_REPOSITORIES="ivy2Local|central"
-      export COURSIER_CACHE="$NIX_COURSIER_HOME/cache"
-      export JAVA_TOOL_OPTIONS="-Dcoursier.ivy.home=$NIX_COURSIER_HOME $JAVA_TOOL_OPTIONS"
-      mkdir -p "$NIX_COURSIER_HOME" "$COURSIER_CACHE"
-
-      cp -rT "${coursierEnv}/.ivy2/local" "$NIX_COURSIER_HOME/local"
-      cp -r ${coursierEnv}/.cache/coursier/v1/* "$COURSIER_CACHE/"
-
-      chown -R $USER:nobody "$NIX_COURSIER_HOME"
-      chmod -R u+w "$NIX_COURSIER_HOME"
+      mill -i mill.bsp.BSP/install
     '';
 
     outputs = [ "out" "omreader" "elaborator" ];
@@ -145,10 +117,6 @@ let
         --add-flags "-Djava.library.path=${circt-full}/lib" \
         --add-flags "-cp $out/share/java/omreader.jar"
     '';
-
-    passthru = {
-      inherit coursierEnv;
-    };
   };
 in
 self
