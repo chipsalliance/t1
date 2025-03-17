@@ -41,6 +41,8 @@ rec {
     in
     lockedNixpkgs.callPackage ./pkgs/buddy-mlir.nix { python3 = lockedNixpkgs.python311; };
 
+  iree = final.callPackage ./pkgs/iree.nix { };
+
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
 
