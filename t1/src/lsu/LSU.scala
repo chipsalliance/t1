@@ -223,7 +223,7 @@ class LSU(param: LSUParameter) extends Module {
 
   @public
   val zvmaInterface: Option[ZVMInterfaceInLSU] = Option.when(param.zvmaEnable){
-    IO(new ZVMInterfaceInLSU(param))
+    IO(Input(new ZVMInterfaceInLSU(param)))
   }
 
   // TODO: make it D/I
@@ -272,9 +272,9 @@ class LSU(param: LSUParameter) extends Module {
     (useLoadUnit && loadUnit.status.idle) || (useStoreUnit && storeUnit.status.idle) || (useOtherUnit && otherUnit.status.idle)
   val zvmaReady = zvmaInterface.map(i =>
     loadUnit.status.idle && storeUnit.status.idle &&
-      otherUnit.status.idle && zvmaExchange.get.io.status.idle && i.isZVMA
+      otherUnit.status.idle && zvmaExchange.get.io.idle && i.isZVMA
   )
-  val zvmaFree = zvmaExchange.map(z => z.io.status.idle && zvma.get.io.idle)
+  val zvmaFree = zvmaExchange.map(z => z.io.idle && zvma.get.io.idle)
   request.ready := unitReady && addressCheck && zvmaFree.getOrElse(true.B) || zvmaReady.getOrElse(false.B)
   val requestFire = request.fire
   val reqEnq: Vec[Bool] = VecInit(
@@ -284,6 +284,13 @@ class LSU(param: LSUParameter) extends Module {
   zvmaExchange.foreach{z =>
     val interface = zvmaInterface.get
     val zModule = zvma.get
+
+    z.io.clock := clock
+    z.io.reset := reset
+
+    zModule.io.clock := clock
+    zModule.io.reset := reset
+
     z.io.instRequest.valid := requestFire && interface.isZVMA
     z.io.instRequest.bits.inst := interface.inst
     z.io.instRequest.bits.instructionIndex := request.bits.instructionIndex
@@ -291,10 +298,15 @@ class LSU(param: LSUParameter) extends Module {
     z.io.csrInterface := csrInterface
 
     zModule.io.request.valid := requestFire && interface.isZVMA
-    zModule.io.request.bits.csr := csrInterface
     zModule.io.request.bits.instruction := interface.inst
     zModule.io.dataFromLSU <> z.io.datatoZVMA
     z.io.dataFromZVMA <> zModule.io.dataToLSU
+
+    zModule.io.request.bits.csr.sew := csrInterface.vSew
+    zModule.io.request.bits.csr.tew := csrInterface.tew
+    zModule.io.request.bits.csr.tk := csrInterface.tk
+    zModule.io.request.bits.csr.tm := csrInterface.tm
+    zModule.io.request.bits.csr.tn := csrInterface.vl
   }
 
   unitVec.zipWithIndex.foreach { case (mshr, index) =>
@@ -373,7 +385,7 @@ class LSU(param: LSUParameter) extends Module {
       val vrfReadCount = RegInit(0.U(8.W))
       val waitReadResult = vrfReadCount.orR
       when(zrp.fire ^ vrfReadResult.fire && (zrp.fire || waitReadResult)) {
-        waitReadResult := waitReadResult + Mux(zrp.fire, 1.U, -1.S(8.W).asUInt)
+        vrfReadCount := vrfReadCount + Mux(zrp.fire, 1.U, -1.S(8.W).asUInt)
       }
       when(zrp.valid) {
         vrfReadPort.valid := true.B
