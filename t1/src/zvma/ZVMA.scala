@@ -61,8 +61,8 @@ class ZVMADecodeResult extends Bundle {
 }
 
 class ZVMAExecute(parameter: ZVMAParameter) extends Bundle {
-  val colData = Vec(2, Vec(4, UInt(parameter.elen.W)))
-  val rowData = Vec(2, Vec(4, UInt(parameter.elen.W)))
+  val colData = Vec(2, UInt(parameter.elen.W))
+  val rowData = Vec(2, UInt(parameter.elen.W))
   val index: UInt = UInt((
     log2Ceil(parameter.TE / parameter.aluColSize / 2) +
       log2Ceil(parameter.TE / parameter.aluRowSize / 2)
@@ -95,63 +95,34 @@ class ZVMA(val parameter: ZVMAParameter)
   // [tk]*[sewB] => [1, 2, 3, 4] * [1, 2, 4] = [1, 2, 3, 4, 6, 8, 12, 16]
   val groupWidth = (instReg.csr.tk << instReg.csr.sew)(4, 0)
 
-  // Data alignment
-  val ptrSize: Int = log2Ceil(parameter.dlen / 8)
-  val dataReg: UInt = RegInit(0.U(parameter.dlen.W))
-  val dataValid: Bool = RegInit(false.B)
-  val dataPtr: UInt = RegInit(0.U(ptrSize.W))
-
-  val ptrUpdate: UInt = dataPtr +& (groupWidth ## false.B)
-  // The data in the register is enough for the next distribution
-  val dataEnough: Bool = !ptrUpdate(ptrSize) || !ptrUpdate(ptrSize - 1, 0).orR
-  val dataDeqValid: Bool = io.dataFromLSU.valid || dataEnough
-  val dataEnqReady: Bool = !dataValid || ptrUpdate(ptrSize)
-  val dataEnqFire: Bool = dataEnqReady && io.dataFromLSU.valid
-  val dataDeqFire: Bool = dataDeqValid && ptrUpdate(ptrSize)
-
-  val deqData0: UInt = ((io.dataFromLSU.bits.data ## dataReg) >> (dataPtr ## 0.U(3.W))).asUInt
-  val deqData1: UInt = (deqData0 >> (groupWidth ## 0.U(3.W))).asUInt
-  val deqDataVec: Seq[UInt] = Seq(deqData0, deqData1)
-
-  when(dataDeqFire ^ dataEnqFire) {
-    dataValid := dataEnqFire
-  }
-  when(dataDeqFire || dataEnqFire) {
-    dataPtr := ptrUpdate
-  }
-  when(dataEnqFire) {
-    dataReg := io.dataFromLSU.bits.data
-  }
-
+  val updateSize = parameter.dlen / parameter.elen
+  val update1 = WireDefault(true.B)
+  io.dataFromLSU.ready := true.B
+  val updateFire: Bool = io.dataFromLSU.fire
 
   // source buffer
   val sourceSew1H: UInt = UIntToOH(instReg.csr.sew)(2, 0)
   val Seq(rowBuffer, colBuffer) = parameter.aluSizeVec.zipWithIndex.map { case (_, index) =>
-    val buffer: Seq[ValidIO[Vec[UInt]]] = Seq.tabulate(parameter.TE) { _ =>
-      RegInit(0.U.asTypeOf(Valid(Vec(4, UInt(parameter.elen.W)))))
+    val buffer: Seq[ValidIO[UInt]] = Seq.tabulate(parameter.TE) { _ =>
+      RegInit(0.U.asTypeOf(Valid(UInt(parameter.elen.W))))
     }
+
+    val enqFire = updateFire && (update1 === index.U)
 
     // update entry index
-    val updateIndex = RegInit(0.U(log2Ceil(parameter.TE).W))
-    when(dataDeqFire || io.request.valid) {
-      updateIndex := Mux(dataDeqFire, updateIndex + 1.U, 0.U)
+    val updateIndex = RegInit(0.U(log2Ceil(parameter.TE / updateSize).W))
+    when(enqFire || io.request.valid) {
+      updateIndex := Mux(enqFire, updateIndex + 1.U, 0.U)
     }
 
-    val deqData = deqDataVec(index)
-    val dataSplitVec = Seq.tabulate(4) {dataIndex =>
-      Mux1H(sourceSew1H, Seq(8, 16, 32).map{ w =>
-        0.U((parameter.elen - w).W) ## deqData(w * (dataIndex + 1) - 1, 16 * dataIndex)
-      })
-    }
+    val dataVec = cutUInt(io.dataFromLSU.bits.data, parameter.elen)
 
     buffer.zipWithIndex.foreach {case (data, i) =>
-      when(dataDeqFire && updateIndex === i.U){
+      val groupIndex = i / updateSize
+      val dataIndex = i % updateSize
+      when(enqFire && updateIndex === groupIndex.U){
         data.valid := true.B
-        data.bits.zipWithIndex.foreach {case (de, di) =>
-          when(di.U < instReg.csr.tk) {
-            de := dataSplitVec(di)
-          }
-        }
+        data.bits := dataVec(dataIndex)
       }
       when(io.request.valid) { data.valid := false.B }
     }
@@ -174,12 +145,12 @@ class ZVMA(val parameter: ZVMAParameter)
     VecInit(rowBuffer.map(_.valid)).asUInt(accessIndex)
   }.reduce(_ && _)
 
-  val colDataVec: Seq[Vec[UInt]] = Seq.tabulate(colElementSize) { ei =>
+  val colDataVec: Seq[UInt] = Seq.tabulate(colElementSize) { ei =>
     val accessIndex: UInt = colExecuteIndex ## ei.U(log2Ceil(colElementSize).W)
     VecInit(colBuffer.map(_.bits))(accessIndex)
   }
 
-  val rowDataVec: Seq[Vec[UInt]] = Seq.tabulate(rowElementSize) { ei =>
+  val rowDataVec: Seq[UInt] = Seq.tabulate(rowElementSize) { ei =>
     val accessIndex: UInt = rowExecuteIndex ## ei.U(log2Ceil(rowElementSize).W)
     VecInit(rowBuffer.map(_.bits))(accessIndex)
   }
@@ -261,19 +232,17 @@ class ZVMA(val parameter: ZVMAParameter)
       val result: UInt = RegInit(0.U((4 * parameter.elen).W))
 
       // alu
-      val sourceByteMask: UInt = Mux1H(
-        UIntToOH(instReg.csr.sew),
-        Seq(1.U(4.W), 3.U(4.W), 15.U(4.W))
-      )
-      val sourceBitMask = FillInterleaved(8, sourceByteMask)
       val readDataVec = cutUInt(readData, parameter.elen)
       val aluResult = Wire(Vec(4, UInt(parameter.elen.W)))
       dataPipe1.rowData.zipWithIndex.foreach { case (rd, ri) =>
         dataPipe1.colData.zipWithIndex.foreach { case (cd, ci) =>
           val di: Int = ri << 1 + ci
           val base = readDataVec(di)
-          aluResult(di) := base + rd.zipWithIndex.map {case (d, i) =>
-            Mux(instReg.csr.tk > i.U, (d & sourceBitMask) * (cd(i) & sourceBitMask), 0.U)
+          // TODO: Temporarily there is int8
+          val rdVec = cutUInt(rd, 8)
+          val cdVec = cutUInt(cd, 8)
+          aluResult(di) := base + rdVec.zipWithIndex.map {case (d, i) =>
+            Mux(instReg.csr.tk > i.U, d * cdVec(i), 0.U)
           }.reduce(_ + _)
         }
       }
