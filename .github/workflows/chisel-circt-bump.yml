@@ -33,20 +33,7 @@ jobs:
           fi
       - name: Bump all mill deps
         run: |
-          oldHash=$(nix derivation show .#t1.elaborator.millDeps | jq -r 'to_entries[0].value.env.outputHash')
-          nix build '.#t1.elaborator.millDeps' --rebuild > t1-milldeps-log.txt 2>&1 || true
-          newHash=$(cat t1-milldeps-log.txt \
-            | grep -P '^\s+got:\s+sha256-.*$' \
-            | cut -d':' -f2 \
-            | xargs)
-          if [ -z "$newHash" ] || [ "$newHash" = "$oldHash" ]; then
-            echo "Original build logs for debug: "
-            cat t1-milldeps-log.txt
-            echo "Hash unchanged, exit"
-            exit 0
-          fi
-          echo "Updating hash $oldHash to $newHash"
-          sed -i "s|$oldHash|$newHash|" nix/t1/t1.nix
+          ./dependencies/bump.sh
       - name: Commit changes
         env:
           GITHUB_TOKEN: ${{ secrets.T1_PR_PAT }}
@@ -60,9 +47,7 @@ jobs:
 
           git add 'nix/t1'
           git add 'flake.lock'
-          fileUnchanged() {
-            git diff --quiet --exit-code "$@"
-          }
+          git add 'dependencies'
 
           if ! git diff --quiet --cached --exit-code; then
             updatedFiles=$(git diff --cached --name-only)
