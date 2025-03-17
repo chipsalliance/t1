@@ -1,20 +1,5 @@
 {
   "nodes": {
-    "chisel-nix": {
-      "locked": {
-        "lastModified": 1739980647,
-        "narHash": "sha256-lnEQ8azmnaBnXNDuWhcNpHf1JDaWAycUxRBMguB7ERs=",
-        "owner": "chipsalliance",
-        "repo": "chisel-nix",
-        "rev": "f62495e913897c10d07abbf75ccb2762caf9ed90",
-        "type": "github"
-      },
-      "original": {
-        "owner": "chipsalliance",
-        "repo": "chisel-nix",
-        "type": "github"
-      }
-    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -30,6 +15,29 @@
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "mill-ivy-fetcher": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1742229321,
+        "narHash": "sha256-GRve8xqfB5ojmwBzwJFXYUU3iof1xmc/qlGLF0STHW0=",
+        "owner": "Avimitin",
+        "repo": "mill-ivy-fetcher",
+        "rev": "889358474abc6bd7fa015fd5c9295f1d3e432b6a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Avimitin",
+        "repo": "mill-ivy-fetcher",
         "type": "github"
       }
     },
@@ -67,8 +75,8 @@
     },
     "root": {
       "inputs": {
-        "chisel-nix": "chisel-nix",
         "flake-utils": "flake-utils",
+        "mill-ivy-fetcher": "mill-ivy-fetcher",
         "nixpkgs": "nixpkgs",
         "nixpkgs-for-circt": "nixpkgs-for-circt"
       }
