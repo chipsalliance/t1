@@ -1,19 +1,19 @@
 { lib
 , stdenv
-, fetchMillDeps
 , makeWrapper
 
 , add-determinism
 , metals
 , mill
-, mill-ivy-fetcher
+, ivy-gather
+, mill-ivy-env-shell-hook
 }:
 
 let
   mkHelper = { moduleName, scriptSrc, outName }:
     let
-      scriptDeps = mill-ivy-fetcher.deps-builder ./ivys/_sources/generated.nix;
-      self = stdenv.mkDerivation rec {
+      scriptDeps = ivy-gather ./script-lock.nix;
+      self = stdenv.mkDerivation {
         name = "t1-${moduleName}-script";
 
         src = with lib.fileset; toSource {
@@ -32,6 +32,8 @@ let
           ];
 
           shellHook = ''
+            ${mill-ivy-env-shell-hook}
+
             grep -q 'hardfloat' build.sc \
               && echo "Please run nix develop in ./script directory instead of project root" \
               && exit 1
@@ -40,7 +42,7 @@ let
           '';
         });
 
-        buildInputs = scriptDeps.ivyDepsList;
+        buildInputs = [ scriptDeps ];
 
         nativeBuildInputs = [
           mill

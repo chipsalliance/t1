@@ -4,12 +4,7 @@ set -e
 
 PATH="$(nix build '.#mill-ivy-fetcher' --print-out-paths --no-link)/bin:$PATH"
 PATH="$(nix build '.#mill' --print-out-paths --no-link)/bin:$PATH"
-PATH="$(nix build '.#nvfetcher' --print-out-paths --no-link)/bin:$PATH"
 
 millHome=$(mktemp -d)
-rm -rf out
-mill_ivy_fetcher fetch --home "$millHome"
-mill_ivy_fetcher dump --coursier-dir "$millHome/.cache/coursier" --dump-path ./ivys/nvfetcher.toml
-
-cd ivys
-nvfetcher
+mif fetch --cache "$millHome"
+mif codegen --cache "$millHome" -o ./script-lock.nix
