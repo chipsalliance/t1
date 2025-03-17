@@ -4,18 +4,22 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-for-circt.url = "github:NixOS/nixpkgs/nixos-unstable-small";
-    chisel-nix.url = "github:chipsalliance/chisel-nix";
     flake-utils.url = "github:numtide/flake-utils";
+    mill-ivy-fetcher = {
+      url = "github:Avimitin/mill-ivy-fetcher";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
   };
 
-  outputs = { self, nixpkgs, chisel-nix, flake-utils, nixpkgs-for-circt }@inputs:
+  outputs = { self, nixpkgs, mill-ivy-fetcher, flake-utils, nixpkgs-for-circt }@inputs:
     let
       overlay = import ./nix/overlay.nix { inherit self; };
     in
     flake-utils.lib.eachDefaultSystem
       (system:
         let
-          pkgs = import nixpkgs { inherit system; overlays = [ chisel-nix.overlays.mill-flows overlay ]; };
+          pkgs = import nixpkgs { inherit system; overlays = [ mill-ivy-fetcher.overlays.default overlay ]; };
         in
         {
           legacyPackages = pkgs;
