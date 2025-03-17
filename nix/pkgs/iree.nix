@@ -2,11 +2,16 @@
 , ninja
 , llvmPackages
 , python3
+, python3Packages
 , fetchFromGitHub
 }:
 let
   stdenv = llvmPackages.stdenv;
-  version = "v3.2.0";
+  version = "3.2.0";
+  pythonEnv = python3.withPackages (ps: [
+    ps.nanobind
+    ps.numpy
+  ]);
   iree-llvm-version = "8cb4b3e21e03d3e029ade27139eab1a25720c773";
   iree-llvm-src = fetchFromGitHub {
     owner = "iree-org";
@@ -64,7 +69,7 @@ stdenv.mkDerivation {
   src = fetchFromGitHub {
     owner = "iree-org";
     repo = "iree";
-    tag = version;
+    tag = "v${version}";
     hash = "sha256-gS65v/iVCmR5yr4SYZIPnUCndRPvdqa83ShoEKywXeo=";
   };
 
@@ -79,7 +84,9 @@ stdenv.mkDerivation {
     chmod -R u+w $sourceRoot/third_party/
   '';
 
-  buildInputs = [ cmake ninja python3 ];
+  env.CMAKE_PREFIX_PATH = "${python3Packages.nanobind}/${python3.sitePackages}/nanobind";
+
+  buildInputs = [ cmake ninja pythonEnv ];
 
   doCheck = false;
 
@@ -93,6 +100,7 @@ stdenv.mkDerivation {
     "-DIREE_HAL_DRIVER_HIP=OFF"
     "-DIREE_HAL_DRIVER_METAL=OFF"
     "-DIREE_HAL_DRIVER_VULKAN=OFF"
+    "-DIREE_BUILD_PYTHON_BINDINGS=ON"
   ];
 
   patches = [
