@@ -20,17 +20,6 @@ rec {
       builtins.throw "${key} not set or '--impure' not applied"
     else val;
 
-  mill-ivy-fetcher =
-    let
-      src = final.fetchFromGitHub {
-        owner = "Avimitin";
-        repo = "mill-ivy-fetcher";
-        rev = "61b8bcad40b533726b116d30ced42695850926f6";
-        hash = "sha256-8WjhLYUL5a8Giwl0IgcySdzfKxFmFrbKbIRsxnMWb4E=";
-      };
-    in
-    final.callPackage "${src}/package.nix" { inherit (final) callPackage; };
-
   # Override "nixpkgs" circt with "nixpkgs-for-circt".
   # To update the "nixpkgs-for-circt" input, run `nix flake lock --update-input nixpkgs-for-circt`.
   circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt;

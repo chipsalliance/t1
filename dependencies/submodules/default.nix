@@ -1,5 +1,4 @@
 { pkgs
-, mill-ivy-fetcher
 , publishMillJar
 , git
 , makeSetupHook
@@ -17,29 +16,21 @@ in
 lib.makeScope newScope (scope: {
   sources = submodules;
 
-  ivy-chisel =
-    let
-      chiselDeps = mill-ivy-fetcher.deps-builder ../ivys/chisel/_sources/generated.nix;
-    in
-    publishMillJar {
-      name = "chisel-snapshot";
-      src = submodules.chisel.src;
+  ivy-chisel = publishMillJar {
+    name = "chisel-snapshot";
+    src = submodules.chisel.src;
 
-      publishTargets = [
-        "unipublish"
-      ];
+    lockFile = ../locks/chisel-lock.nix;
 
-      buildInputs = chiselDeps.ivyDepsList;
+    publishTargets = [
+      "unipublish"
+    ];
 
-      nativeBuildInputs = [
-        # chisel requires git to generate version
-        git
-      ];
-
-      passthru = {
-        inherit chiselDeps;
-      };
-    };
+    nativeBuildInputs = [
+      # chisel requires git to generate version
+      git
+    ];
+  };
 
   ivy-chisel-panama =
     publishMillJar {
@@ -55,7 +46,9 @@ lib.makeScope newScope (scope: {
 
       buildInputs = [
         scope.ivy-chisel.setupHook
-      ] ++ scope.ivy-chisel.chiselDeps.ivyDepsList;
+      ];
+
+      lockFile = ../locks/chisel-lock.nix;
 
       env = {
         CIRCT_INSTALL_PATH = circt-full;
@@ -71,102 +64,75 @@ lib.makeScope newScope (scope: {
       ];
     };
 
-  ivy-arithmetic =
-    let
-      arithmeticDeps = mill-ivy-fetcher.deps-builder ../ivys/arithmetic/_sources/generated.nix;
-    in
-    publishMillJar {
-      name = "arithmetic-snapshot";
-      src = submodules.arithmetic.src;
+  ivy-arithmetic = publishMillJar {
+    name = "arithmetic-snapshot";
+    src = submodules.arithmetic.src;
 
-      publishTargets = [
-        "arithmetic[snapshot]"
-      ];
+    publishTargets = [
+      "arithmetic[snapshot]"
+    ];
 
-      buildInputs = [
-        scope.ivy-chisel.setupHook
-      ] ++ arithmeticDeps.ivyDepsList;
+    buildInputs = [
+      scope.ivy-chisel.setupHook
+    ];
 
-      passthru = {
-        inherit arithmeticDeps;
-      };
-    };
+    lockFile = ../locks/arithmetic-lock.nix;
+  };
 
-  ivy-chisel-interface =
-    let
-      chiselInterfaceDeps = mill-ivy-fetcher.deps-builder ../ivys/chisel-interface/_sources/generated.nix;
-    in
-    publishMillJar {
-      name = "chiselInterface-snapshot";
-      src = submodules.chisel-interface.src;
+  ivy-chisel-interface = publishMillJar {
+    name = "chiselInterface-snapshot";
+    src = submodules.chisel-interface.src;
 
-      publishTargets = [
-        "jtag[snapshot]"
-        "axi4[snapshot]"
-        "dwbb[snapshot]"
-      ];
+    publishTargets = [
+      "jtag[snapshot]"
+      "axi4[snapshot]"
+      "dwbb[snapshot]"
+    ];
 
-      nativeBuildInputs = [ git ];
+    nativeBuildInputs = [ git ];
 
-      buildInputs = [
-        scope.ivy-chisel.setupHook
-      ] ++ chiselInterfaceDeps.ivyDepsList;
+    lockFile = ../locks/chisel-interface-lock.nix;
 
-      passthru = {
-        inherit chiselInterfaceDeps;
-      };
-    };
+    buildInputs = [
+      scope.ivy-chisel.setupHook
+    ];
+  };
 
-  ivy-rvdecoderdb =
-    let
-      rvdecoderdbDeps = mill-ivy-fetcher.deps-builder ../ivys/rvdecoderdb/_sources/generated.nix;
-    in
-    publishMillJar {
-      name = "rvdecoderdb-snapshot";
-      src = submodules.rvdecoderdb.src;
+  ivy-rvdecoderdb = publishMillJar {
+    name = "rvdecoderdb-snapshot";
+    src = submodules.rvdecoderdb.src;
 
-      publishTargets = [
-        "rvdecoderdb.jvm"
-      ];
+    publishTargets = [
+      "rvdecoderdb.jvm"
+    ];
 
-      buildInputs = rvdecoderdbDeps.ivyDepsList;
+    lockFile = ../locks/rvdecoderdb-lock.nix;
 
-      nativeBuildInputs = [
-        # rvdecoderdb requires git to generate version
-        git
-      ];
+    nativeBuildInputs = [
+      # rvdecoderdb requires git to generate version
+      git
+    ];
+  };
 
-      passthru = {
-        inherit rvdecoderdbDeps;
-      };
-    };
+  ivy-hardfloat = publishMillJar {
+    name = "hardfloat-snapshot";
+    src = ../berkeley-hardfloat;
 
-  ivy-hardfloat =
-    let
-      hardfloatSrc = ../berkeley-hardfloat;
-      hardfloatDeps = mill-ivy-fetcher.deps-builder ../ivys/berkeley-hardfloat/_sources/generated.nix;
-    in
-    publishMillJar {
-      name = "hardfloat-snapshot";
-      src = hardfloatSrc;
+    publishTargets = [
+      "hardfloat[snapshot]"
+    ];
 
-      publishTargets = [
-        "hardfloat[snapshot]"
-      ];
+    buildInputs = [
+      scope.ivy-chisel.setupHook
+    ];
 
-      buildInputs = [
-        scope.ivy-chisel.setupHook
-      ] ++ hardfloatDeps.ivyDepsList;
+    lockFile = ../locks/hardfloat-lock.nix;
 
-      nativeBuildInputs = [
-        # hardfloat requires git to generate version
-        git
-      ];
-
-      passthru = {
-        inherit hardfloatDeps;
-      };
-    };
+    nativeBuildInputs = [
+      # hardfloat requires git to generate version
+      git
+    ];
+  };
 
   riscv-opcodes = makeSetupHook { name = "setup-riscv-opcodes-src"; } (writeText "setup-riscv-opcodes-src.sh" ''
     setupRiscvOpcodes() {
