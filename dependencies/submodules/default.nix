@@ -7,6 +7,7 @@
 , newScope
 , circt-full
 , jextract-21
+, runCommand
 }:
 
 
@@ -126,7 +127,7 @@ lib.makeScope newScope (scope: {
       scope.ivy-chisel.setupHook
     ];
 
-    lockFile = ../locks/hardfloat-lock.nix;
+    lockFile = ../locks/berkeley-hardfloat-lock.nix;
 
     nativeBuildInputs = [
       # hardfloat requires git to generate version
@@ -141,4 +142,20 @@ lib.makeScope newScope (scope: {
     }
     prePatchHooks+=(setupRiscvOpcodes)
   '');
+
+  ivyLocalRepo = runCommand "build-coursier-env"
+    {
+      buildInputs = with scope; [
+        ivy-arithmetic.setupHook
+        ivy-chisel.setupHook
+        ivy-chisel-panama.setupHook
+        ivy-chisel-interface.setupHook
+        ivy-rvdecoderdb.setupHook
+        ivy-hardfloat.setupHook
+      ];
+    } ''
+    runHook preUnpack
+    runHook postUnpack
+    cp -r "$NIX_COURSIER_DIR" "$out"
+  '';
 })
