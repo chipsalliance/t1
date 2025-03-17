@@ -234,7 +234,7 @@ class LSU(param: LSUParameter) extends Module {
   val zvmaExchange: Option[ZVMADataExchange] =
     Option.when(param.zvmaEnable)(Module(new ZVMADataExchange(param.zvmaExchangeParam)))
 
-  val zvma = Option.when(param.zvmaEnable)(new ZVMA(param.zvmaParam))
+  val zvma = Option.when(param.zvmaEnable)(Module(new ZVMA(param.zvmaParam)))
 
   /** duplicate v0 in lsu */
   val v0: Vec[UInt] = RegInit(
