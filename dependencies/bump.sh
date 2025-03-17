@@ -7,6 +7,10 @@ if [[ ! -f "build.mill"  ]]; then
   exit 1
 fi
 
+pushd ./dependencies/submodules
+nix run '.#nvfetcher'
+popd
+
 mkdir -p ./dependencies/locks
 submodules=(
   chisel
@@ -15,13 +19,15 @@ submodules=(
   rvdecoderdb
 )
 
+usersOpt="$JAVA_TOOL_OPTIONS"
+
 for module in "${submodules[@]}"; do
   echo "Running $module"
   projectDir=$(nix build --no-link --print-out-paths ".#t1.submodules.sources.$module.src")
   ./dependencies/genlock.sh "$projectDir" "$module"
   if [[ "$module" == "chisel" ]]; then
     ivyLocal="$(nix build '.#t1.submodules.ivy-chisel' --no-link --print-out-paths)"
-    export JAVA_TOOL_OPTIONS="-Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal"
+    export JAVA_TOOL_OPTIONS="-Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal $usersOpt"
   fi
   echo "Done"
 done
@@ -32,3 +38,7 @@ extraSubmodules=(
 for module in "${extraSubmodules[@]}"; do
   ./dependencies/genlock.sh "$module" "$(basename $module)"
 done
+
+unset JAVA_TOOL_OPTIONS
+export JAVA_TOOL_OPTIONS="$userOpts"
+./prepare-t1.sh
