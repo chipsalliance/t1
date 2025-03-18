@@ -1,3 +1,5 @@
+package build
+
 import mill._
 import mill.scalalib._
 import mill.define.{Command, TaskModule}
