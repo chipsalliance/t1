@@ -56,6 +56,10 @@ stdenvNoCC.mkDerivation (lib.recursiveUpdate
       ${lib.escapeShellArgs emuDriverWithArgs} \
         -simprofile time
     '';
+
+    debug-run = writeShellScriptBin "runOnline" ''
+      ${lib.escapeShellArgs emuDriverWithArgs} "$@"
+    '';
   };
 
   caseName = testCase.pname;
