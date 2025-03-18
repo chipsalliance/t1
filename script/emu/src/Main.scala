@@ -237,15 +237,37 @@ object Main:
     val rtlEventPath = outputPath / "rtl-event.jsonl"
     val journalPath  = outputPath / "online-drive-emu-journal"
 
+    val vcsDpiLibPath = resolveNixPath(s".#t1.${finalConfig.get}.${finalIp.get}.vcs-dpi-lib")
+
+    val dramSim3Config = os.pwd / "difftest" / "config" / "dramsim3-config.ini"
+    val dramSim3Output = outputPath / "dramsim3"
+    os.makeDir.all(dramSim3Output)
+
+    val svLibName   = os
+      .proc(
+        "nix",
+        "eval",
+        "--raw",
+        s".#t1.${finalConfig.get}.${finalIp.get}.vcs-dpi-lib.svLibName"
+      )
+      .call()
+      .out
+      .trim()
     val processArgs = Seq(
       emulator.toString(),
       s"+t1_elf_file=${caseElfPath}",
-      s"+t1_rtl_event_path=${rtlEventPath}"
+      s"+t1_rtl_event_path=${rtlEventPath}",
+      s"+t1_dramsim3_cfg=${dramSim3Config}",
+      s"+t1_dramsim3_path=${dramSim3Output}"
     )
       ++ optionals(timeout.isDefined, Seq(s"+t1_timeout=${timeout.getOrElse("unreachable")}"))
       ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
       ++ optionals(isCover, Seq("-cm", "assert", "-assert", s"hier=${caseCoverPath}"))
       ++ optionals(!leftOverArguments.isEmpty, leftOverArguments)
+      ++ optionals(
+        !finalEmuType.get.endsWith("-static"),
+        Seq("-sv_root", s"${vcsDpiLibPath}/lib", "-sv_lib", svLibName)
+      )
 
     if dryRun.value then return
 
@@ -335,6 +357,11 @@ object Main:
 
     if os.exists(os.pwd / "mmio-event.jsonl") then
       os.move(os.pwd / "mmio-event.jsonl", outputPath / "mmio-event.jsonl", replaceExisting = true)
+
+    if os.exists(os.pwd / "novas_dump.log") then
+      os.move(os.pwd / "novas_dump.log", outputPath / "novas_dump.log", replaceExisting = true)
+
+    if os.exists(os.pwd / "ucli.key") then os.move(os.pwd / "ucli.key", outputPath / "ucli.key", replaceExisting = true)
 
     Logger.info(s"Output saved under ${outputPath}")
   end run

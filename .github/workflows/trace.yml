@@ -147,3 +147,22 @@ jobs:
             echo "FAIL: waveform not found" >&2
             exit 1
           fi
+
+  test-wrapper-works:
+    name: "Test T1 helper"
+    needs: [gen-test-plan-for-verilator-t1rocketemu]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan-for-verilator-t1rocketemu.outputs.testplan) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build T1RocketEmu verilator emulator"
+        run: |
+          nix develop -c t1-helper run -c blastoise -e verilator-emu-trace -i t1rocketemu mlir.hello
+          if [[ ! -r ./t1-sim-result/result/wave.fsdb ]]; then
+            echo "FAIL: fsdb not found" >&2
+            exit 1
+          fi

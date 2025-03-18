@@ -20,7 +20,7 @@ let
           root = ./.;
           fileset = unions [
             scriptSrc
-            ./build.sc
+            ./build.mill
           ];
         };
 
