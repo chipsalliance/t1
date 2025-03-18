@@ -28,11 +28,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1742232200,
-        "narHash": "sha256-0LCibnYNed6lODgoyQBe8GOgkLw+8OCewxrCKq/jGic=",
+        "lastModified": 1742284906,
+        "narHash": "sha256-GyrTRwYoiI7FSbyed5sP7rmx/zGQtU5XSoKh9uDz5+c=",
         "owner": "Avimitin",
         "repo": "mill-ivy-fetcher",
-        "rev": "af0f44c36840cc04d732739102d557d19e6e410e",
+        "rev": "598d16ff5823401e55ff41ff31a92f1b4120fd09",
         "type": "github"
       },
       "original": {
