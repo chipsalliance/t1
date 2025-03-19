@@ -144,6 +144,7 @@ case class T1Parameter(
       .filter { instruction =>
         instruction.instructionSet.name match {
           case "rv_v"    => true
+          case "rv_zvma" => zvmaEnable
           case "rv_zvbb" => if (zvbbEnable) true else false
           case _         => false
         }
@@ -267,7 +268,7 @@ case class T1Parameter(
   val releaseShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
 
   // todo
-  val zvmaEnable: Boolean = true
+  def zvmaEnable: Boolean = true
   val TE: Int = vLen/4
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, zvmaEnable, allInstructions)
 

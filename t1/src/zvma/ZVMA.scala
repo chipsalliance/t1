@@ -164,7 +164,7 @@ class ZVMA(val parameter: ZVMAParameter)
   val isLastCol = (nextColIndex ## 0.U(log2Ceil(colElementSize).W)) > instReg.csr.tm
   val isLastRow = (nextRowIndex ## 0.U(log2Ceil(rowElementSize).W)) > instReg.csr.tn
 
-  val issueIdle = RegInit(false.B)
+  val issueIdle = RegInit(true.B)
   val dataIssue = aluReady && colBufferValid && rowBufferValid && !issueIdle
 
   when(dataIssue) {

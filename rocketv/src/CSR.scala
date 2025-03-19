@@ -89,7 +89,8 @@ case class CSRParameter(
   usingAtomics:    Boolean,
   usingDebug:      Boolean,
   usingMulDiv:     Boolean,
-  usingVector:     Boolean)
+  usingVector:     Boolean,
+  usingZVMA:       Boolean)
     extends SerializableModuleParameter {
 
   def pgLevels: Int = xLen match {
@@ -278,6 +279,11 @@ class CSRInterface(parameter: CSRParameter) extends Bundle {
   val scontext       = Output(UInt(parameter.scontextWidth.W))
   val fiom           = Output(Bool())
   val vectorCsr      = Option.when(parameter.usingVector)(Input(Bool()))
+  val setVlType      = Option.when(parameter.usingZVMA)(new Bundle {
+    val tm: Bool = Input(Bool())
+    val tn: Bool = Input(Bool())
+    val tk: Bool = Input(Bool())
+  })
   val wbRegRS2       = Option.when(parameter.usingVector)(Input(UInt(parameter.xLen.W)))
   val csrToVector    = Option.when(parameter.usingVector)(Output(new VCSR))
   // @todo custom CSR
@@ -1704,7 +1710,9 @@ class CSR(val parameter: CSRParameter)
         vsetvl                -> io.wbRegRS2.get
       )
     )
-    val newTypMSBValid: Bool = (newVType >> 8).asUInt.orR
+    val vectorMSBValid: Bool = (newVType >> 8).asUInt.orR
+    val zvmaMSBReserved = io.setVlType.map {_ => (newVType(30) ## newVType(15, 14)).orR}
+    val newTypMSBValid = zvmaMSBReserved.getOrElse(vectorMSBValid)
     // todo: xLen -> vector.elen
     val vlmulIllList = Seq(0.U, 1.U, 2.U, 3.U) ++ Option.when(xLen >= 16)(7.U) ++
       Option.when(xLen >= 32)(6.U) ++ Option.when(xLen >= 64)(5.U)
@@ -1725,13 +1733,28 @@ class CSR(val parameter: CSRParameter)
       )
     )
     setVlReadData := Mux(io.retire(0) && io.vectorCsr.getOrElse(false.B) && vsetIll, setVL, 0.U)
-    when(io.retire(0) && io.vectorCsr.get) {
+    val setVlEn = io.setVlType.map(t => !t.asUInt.orR && io.vectorCsr.get).getOrElse(io.vectorCsr.get)
+    io.setVlType.foreach {t =>
+      when(io.retire(0) && t.tk) {
+        vector.get.states("tk") := io.rw.wdata
+      }
+      when(io.retire(0) && t.tn) {
+        vector.get.states("vl") := io.rw.wdata
+      }
+      when(io.retire(0) && t.tm) {
+        vector.get.states("tm") := io.rw.wdata
+      }
+    }
+    when(io.retire(0) && setVlEn) {
       when(vsetIll) {
         vector.get.states("vl")    := setVL
         vector.get.states("vlmul") := newVType(2, 0)
         vector.get.states("vsew")  := newVType(5, 3)
         vector.get.states("vta")   := newVType(6)
         vector.get.states("vma")   := newVType(7)
+        vector.get.states("tm")   := newVType(29, 16)
+        vector.get.states("tk")   := newVType(13, 11)
+        vector.get.states("vtwiden")   := newVType(10, 9)
         vector.get.states("vill")  := false.B
       }.otherwise {
         vector.get.states("vl")    := 0.U
@@ -1739,6 +1762,9 @@ class CSR(val parameter: CSRParameter)
         vector.get.states("vsew")  := 0.U
         vector.get.states("vta")   := 0.U
         vector.get.states("vma")   := 0.U
+        vector.get.states("tm")   := 0.U
+        vector.get.states("tk")   := 0.U
+        vector.get.states("vtwiden")   := 0.U
         vector.get.states("vill")  := true.B
       }
     }

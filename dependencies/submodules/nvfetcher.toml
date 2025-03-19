@@ -19,6 +19,6 @@ src.branch = "master"
 fetch.github = "sequencer/rvdecoderdb"
 
 [riscv-opcodes]
-src.git = "https://github.com/riscv/riscv-opcodes"
+src.git = "https://github.com/unlsycn/riscv-opcodes"
 src.branch = "master"
 fetch.github = "unlsycn/riscv-opcodes"
