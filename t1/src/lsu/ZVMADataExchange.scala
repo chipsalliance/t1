@@ -134,7 +134,10 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
 
   val instructionReg: ZVMAInstructionPipe = RegInit(0.U.asTypeOf(new ZVMAInstructionPipe))
   val csrReg: CSRInterface = RegEnable(io.csrInterface, 0.U.asTypeOf(io.csrInterface), io.instRequest.valid)
-  val state: ZVMAState = RegInit(0.U.asTypeOf(new ZVMAState(parameter)))
+
+  val stateInit: ZVMAState = WireDefault(0.U.asTypeOf(new ZVMAState(parameter)))
+  stateInit.idle := true.B
+  val state: ZVMAState = RegInit(stateInit)
 
   val messageQueue: QueueIO[ZVMAReadMessage] =  Queue.io(new ZVMAReadMessage(parameter), parameter.vrfReadOutStanding)
   // todo: move to channel

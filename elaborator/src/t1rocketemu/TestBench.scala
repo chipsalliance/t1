@@ -89,6 +89,8 @@ object TestBench extends SerializableModuleElaborator {
       }.get
       val fp   = instructionSets.contains("zve32f")
       val zvbb = instructionSets.contains("zvbb")
+      val zvma = instructionSets.contains("rv_zvma")
+      require(zvma, "zvma not defined")
 
       T1RocketTileParameter(
         instructionSets: Seq[String],

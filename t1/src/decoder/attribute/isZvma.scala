@@ -6,18 +6,18 @@ package org.chipsalliance.t1.rtl.decoder.attribute
 import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 
 object isZvma {
-  def apply(t1DecodePattern: T1DecodePattern): isZvbb =
+  def apply(t1DecodePattern: T1DecodePattern): isZvma =
     Seq(
       y _  -> Y,
       n _  -> N,
       dc _ -> DC
     ).collectFirst {
-      case (fn, tri) if fn(t1DecodePattern) => isZvbb(tri)
+      case (fn, tri) if fn(t1DecodePattern) => isZvma(tri)
     }.get
 
   def y(t1DecodePattern: T1DecodePattern): Boolean = {
     val allMatched =
-      if (t1DecodePattern.param.zvbbEnable)
+      if (t1DecodePattern.param.zvmaEnable)
         Seq(
           "vlte8",
           "vlte16",
@@ -31,7 +31,12 @@ object isZvma {
           "mm.u.s",
           "mm.s.u",
           "mm.s.s",
+          "mm.e5m2.e4m3",
+          "mm.e5m2.e5m2",
+          "mm.e4m3.e4m3",
+          "mm.e4m3.e5m2",
           "vtzero.t",
+          "p2mm.f.f",
           "vtdiscard",
         )
       else Seq()
