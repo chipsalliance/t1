@@ -54,6 +54,7 @@ class V(vlen: Int, hypervisor: Boolean) {
     case "tm"          => UInt(14.W)
     case "tk"          => UInt(3.W)
     case "vtwiden"     => UInt(2.W)
+    case "altfmt"     => Bool()
   }
   // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#311-state-of-vector-extension-at-reset
   def reset(content: String):      Option[UInt] = content match {
@@ -94,14 +95,15 @@ class V(vlen: Int, hypervisor: Boolean) {
       "vxsat",
       "tm", // todo: option?
       "tk",
-      "vtwiden"
+      "vtwiden",
+      "altfmt"
     ) ++ Option.when(hypervisor)(
       // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#33-vector-context-status-in-vsstatus
       "vsstatus.VS"
     )).map { content: String =>
       content ->
         reset(content)
-          .map(resetValue => RegInit(resetValue))
+          .map(resetValue => RegInit(resetValue.asTypeOf(chiselType(content))))
           .getOrElse(Reg(chiselType(content)))
           .suggestName(content)
           .asUInt

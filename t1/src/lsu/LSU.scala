@@ -299,6 +299,7 @@ class LSU(param: LSUParameter) extends Module {
 
     zModule.io.request.valid := requestFire && interface.isZVMA
     zModule.io.request.bits.instruction := interface.inst
+    zModule.io.request.bits.scalaSource := Mux(interface.inst(6), request.bits.rs1Data, request.bits.rs2Data)
     zModule.io.dataFromLSU <> z.io.datatoZVMA
     z.io.dataFromZVMA <> zModule.io.dataToLSU
 

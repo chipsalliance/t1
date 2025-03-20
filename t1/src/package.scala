@@ -495,4 +495,15 @@ package object rtl {
     }
     !counter(log2Ceil(size))
   }
+
+  def pipeTokenCount(size: Int)(enq: Bool, deq: Bool): UInt = {
+    require(isPow2(size))
+    val counterSize:   Int  = log2Ceil(size) + 1
+    val counter:       UInt = RegInit(0.U(counterSize.W))
+    val counterChange: UInt = Mux(enq, 1.U, (-1.S(counterSize.W)).asUInt)
+    when(enq ^ deq) {
+      counter := counter + counterChange
+    }
+    counter
+  }
 }
