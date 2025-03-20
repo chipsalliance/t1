@@ -39,9 +39,9 @@ lib.makeScope newScope (scope: {
       src = submodules.chisel.src;
 
       publishTargets = [
-        "panamaconverter.cross[2.13.15]"
-        "panamaom.cross[2.13.15]"
-        "panamalib.cross[2.13.15]"
+        "panamaconverter.cross[2.13.16]"
+        "panamaom.cross[2.13.16]"
+        "panamalib.cross[2.13.16]"
         "circtpanamabinding"
       ];
 
