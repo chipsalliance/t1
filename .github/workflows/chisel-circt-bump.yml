@@ -19,7 +19,7 @@ jobs:
           ref: master
       - name: Bump Chisel
         run: |
-          cd nix/t1/dependencies
+          cd dependencies/submodules/
           nix run '.#nvfetcher' -- -f '^chisel$'
       - name: Bump circt
         run: |
