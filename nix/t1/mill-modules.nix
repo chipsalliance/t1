@@ -17,12 +17,13 @@
 , submodules
 , ivy-gather
 , mill-ivy-env-shell-hook
+, mill-ivy-fetcher
 }:
 
 let
   t1MillDeps = ivy-gather ../../dependencies/locks/t1-lock.nix;
 
-  self = stdenv.mkDerivation {
+  self = stdenv.mkDerivation rec {
     name = "t1-all-mill-modules";
 
     src = with lib.fileset; toSource {
@@ -67,6 +68,24 @@ let
     env = {
       CIRCT_INSTALL_PATH = circt-full;
       JEXTRACT_INSTALL_PATH = jextract-21;
+    };
+
+    passthru.bump = writeShellApplication {
+      name = "bump-t1-mill-lock";
+      runtimeInputs = [
+        mill
+        mill-ivy-fetcher
+      ];
+      text = ''
+        sourceDir=$(mktemp -d -t 't1_src_XXX')
+        cp -rT ${src} "$sourceDir"/t1
+        chmod -R u+w "$sourceDir"
+
+        ivyLocal="${submodules.ivyLocalRepo}"
+        export JAVA_TOOL_OPTIONS="''${JAVA_TOOL_OPTIONS:-} -Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal"
+
+        mif run -p "$sourceDir"/t1 -o ./dependencies/locks/t1-lock.nix
+      '';
     };
 
     shellHook = ''

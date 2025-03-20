@@ -8,6 +8,11 @@
 , circt-full
 , jextract-21
 , runCommand
+, writeShellApplication
+, stdenv
+, mill
+, mill-ivy-fetcher
+, mill-ivy-env-shell-hook
 }:
 
 
@@ -31,6 +36,23 @@ lib.makeScope newScope (scope: {
       # chisel requires git to generate version
       git
     ];
+
+    passthru.bump = writeShellApplication {
+      name = "bump-chisel-mill-lock";
+
+      runtimeInputs = [
+        mill
+        mill-ivy-fetcher
+      ];
+
+      text = ''
+        sourceDir=$(mktemp -d -t 'chisel_src_XXX')
+        cp -rT ${submodules.chisel.src} "$sourceDir"/chisel
+        chmod -R u+w "$sourceDir"
+
+        mif run -p "$sourceDir"/chisel -o ./dependencies/locks/chisel-lock.nix
+      '';
+    };
   };
 
   ivy-chisel-panama =
@@ -77,7 +99,7 @@ lib.makeScope newScope (scope: {
       scope.ivy-chisel.setupHook
     ];
 
-    lockFile = ../locks/arithmetic-lock.nix;
+    lockFile = "${submodules.arithmetic.src}/nix/arithmetic-mill-lock.nix";
   };
 
   ivy-chisel-interface = publishMillJar {
@@ -92,7 +114,7 @@ lib.makeScope newScope (scope: {
 
     nativeBuildInputs = [ git ];
 
-    lockFile = ../locks/chisel-interface-lock.nix;
+    lockFile = "${submodules.chisel-interface.src}/nix/chisel-interface-mill-lock.nix";
 
     buildInputs = [
       scope.ivy-chisel.setupHook
@@ -107,7 +129,7 @@ lib.makeScope newScope (scope: {
       "rvdecoderdb.jvm"
     ];
 
-    lockFile = ../locks/rvdecoderdb-lock.nix;
+    lockFile = "${submodules.rvdecoderdb.src}/nix/chisel-mill-lock.nix";
 
     nativeBuildInputs = [
       # rvdecoderdb requires git to generate version
@@ -115,7 +137,7 @@ lib.makeScope newScope (scope: {
     ];
   };
 
-  ivy-hardfloat = publishMillJar {
+  ivy-hardfloat = publishMillJar rec {
     name = "hardfloat-snapshot";
     src = ../berkeley-hardfloat;
 
@@ -133,6 +155,26 @@ lib.makeScope newScope (scope: {
       # hardfloat requires git to generate version
       git
     ];
+
+    passthru.bump = writeShellApplication {
+      name = "bump-hardfloat-mill-lock";
+      runtimeInputs = [
+        mill
+        mill-ivy-fetcher
+      ];
+      text = ''
+        sourceDir=$(mktemp -d -t 'hardfloat_src_XXX')
+        cp -rT ${src} "$sourceDir"/hardfloat
+        chmod -R u+w "$sourceDir"
+
+        ivyLocal="${scope.ivy-chisel}"
+        export JAVA_TOOL_OPTIONS="''${JAVA_TOOL_OPTIONS:-} -Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal"
+
+        mif run \
+          --targets 'hardfloat[snapshot]' \
+          -p "$sourceDir"/hardfloat -o ./dependencies/locks/berkeley-hardfloat-lock.nix
+      '';
+    };
   };
 
   riscv-opcodes = makeSetupHook { name = "setup-riscv-opcodes-src"; } (writeText "setup-riscv-opcodes-src.sh" ''

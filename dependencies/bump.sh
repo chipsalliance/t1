@@ -7,34 +7,14 @@ if [[ ! -f "build.mill"  ]]; then
   exit 1
 fi
 
+# Bump remote source
 mkdir -p ./dependencies/locks
-submodules=(
-  chisel
-  arithmetic
-  chisel-interface
-  rvdecoderdb
+bumpScript=(
+  "t1.submodules.ivy-chisel.bump"
+  "t1.submodules.ivy-hardfloat.bump"
+  "t1.elaborator.bump"
 )
 
-usersOpt="$JAVA_TOOL_OPTIONS"
-
-for module in "${submodules[@]}"; do
-  echo "Running $module"
-  projectDir=$(nix build --no-link --print-out-paths ".#t1.submodules.sources.$module.src")
-  ./dependencies/genlock.sh "$projectDir" "$module"
-  if [[ "$module" == "chisel" ]]; then
-    ivyLocal="$(nix build '.#t1.submodules.ivy-chisel' --no-link --print-out-paths)"
-    export JAVA_TOOL_OPTIONS="-Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal $usersOpt"
-  fi
-  echo "Done"
+for script in "${bumpScript[@]}"; do
+  nix run ".#$script" -j auto
 done
-
-extraSubmodules=(
-  "./dependencies/berkeley-hardfloat"
-)
-for module in "${extraSubmodules[@]}"; do
-  ./dependencies/genlock.sh "$module" "$(basename $module)"
-done
-
-unset JAVA_TOOL_OPTIONS
-export JAVA_TOOL_OPTIONS="$userOpts"
-./prepare-t1.sh
