@@ -50,14 +50,22 @@ class ZVMCsrInterface(parameter: ZVMAParameter) extends Bundle {
 
 class ZVMAInstRequest(parameter: ZVMAParameter) extends Bundle {
   val instruction: UInt = UInt(32.W)
+  // mv use rs1, load/store use rs2
+  val scalaSource: UInt = UInt(32.W)
   val csr = new ZVMCsrInterface(parameter)
 }
 
 class ZVMADecodeResult extends Bundle {
-  val loadType: Bool = Bool()
-  val storeType: Bool = Bool()
+  // todo: form decode
+  val writeTile: Bool = Bool()
+  val readTile: Bool = Bool()
   val aluType: Bool = Bool()
+
+  // from inst
+  val eew: UInt = UInt(2.W)
+  val col: Bool = Bool()
   val accessTile: UInt = UInt(4.W)
+  val accessIndex: UInt = UInt(24.W)
 }
 
 class ZVMAExecute(parameter: ZVMAParameter) extends Bundle {
@@ -86,23 +94,35 @@ class ZVMA(val parameter: ZVMAParameter)
   protected def implicitClock = io.clock
   protected def implicitReset = io.reset
 
-  val instReg: ZVMAInstRequest = RegEnable(io.request.bits, 0.U.asTypeOf(io.request.bits), io.request.fire)
+  val csrReg: ZVMCsrInterface = RegEnable(io.request.bits.csr, 0.U.asTypeOf(io.request.bits.csr), io.request.fire)
 
-  // todo: decode
   val decodeResult: ZVMADecodeResult = WireDefault(0.U.asTypeOf(new ZVMADecodeResult))
-  val decodeReg: ZVMADecodeResult = RegEnable(decodeResult, 0.U.asTypeOf(decodeResult), io.request.fire)
+  val opcode: UInt = io.request.bits.instruction(6, 0)
+  val fun6: UInt = io.request.bits.instruction(31, 26)
+  val ls: Bool = opcode === BitPat("b0?00111")
+  decodeResult.writeTile := opcode === BitPat("b0000111") || (opcode === BitPat("b1010111") && fun6 === BitPat("b010111"))
+  decodeResult.readTile := opcode === BitPat("b0100111") || (opcode === BitPat("b1010111") && fun6 === BitPat("b010000"))
+  decodeResult.aluType := opcode === BitPat("b1110111")
+  decodeResult.eew := Mux(ls, io.request.bits.instruction(30, 29), io.request.bits.csr.sew)
+  decodeResult.col := io.request.bits.scalaSource(24)
+  decodeResult.accessIndex := io.request.bits.scalaSource
+  decodeResult.accessTile := Mux(decodeResult.aluType, io.request.bits.instruction(11, 10), io.request.bits.scalaSource(30, 27))
+  val contorlReg: ZVMADecodeResult = RegEnable(decodeResult, 0.U.asTypeOf(decodeResult), io.request.fire)
 
   // [tk]*[sewB] => [1, 2, 3, 4] * [1, 2, 4] = [1, 2, 3, 4, 6, 8, 12, 16]
-  val groupWidth = (instReg.csr.tk << instReg.csr.sew)(4, 0)
+  val groupWidth = (csrReg.tk << csrReg.sew)(4, 0)
 
   val updateSize = parameter.dlen / parameter.elen
-  val update1 = WireDefault(true.B)
+  // col buffer 0
+  // col always update buffer 0
+  // rs1 update buffer 0
+  val update1 = !Mux(contorlReg.aluType, io.dataFromLSU.bits.vs1, contorlReg.col)
   io.dataFromLSU.ready := true.B
   val updateFire: Bool = io.dataFromLSU.fire
 
   // source buffer
-  val sourceSew1H: UInt = UIntToOH(instReg.csr.sew)(2, 0)
-  val Seq(rowBuffer, colBuffer) = parameter.aluSizeVec.zipWithIndex.map { case (_, index) =>
+  val sourceSew1H: UInt = UIntToOH(csrReg.sew)(2, 0)
+  val Seq(colBuffer, rowBuffer) = parameter.aluSizeVec.zipWithIndex.map { case (_, index) =>
     val buffer: Seq[ValidIO[UInt]] = Seq.tabulate(parameter.TE) { _ =>
       RegInit(0.U.asTypeOf(Valid(UInt(parameter.elen.W))))
     }
@@ -161,14 +181,24 @@ class ZVMA(val parameter: ZVMAParameter)
   val nextColIndex: UInt = colExecuteIndex + 1.U
   val nextRowIndex: UInt = rowExecuteIndex + 1.U
 
-  val isLastCol = (nextColIndex ## 0.U(log2Ceil(colElementSize).W)) > instReg.csr.tm
-  val isLastRow = (nextRowIndex ## 0.U(log2Ceil(rowElementSize).W)) > instReg.csr.tn
+  // Fixed column
+  val fixedCol = !decodeResult.aluType && decodeResult.col
+  val fixedRow = !decodeResult.aluType && !decodeResult.col
 
+  val isLastCol = ((nextColIndex ## 0.U(log2Ceil(colElementSize).W)) > csrReg.tm) || fixedCol
+  val isLastRow = ((nextRowIndex ## 0.U(log2Ceil(rowElementSize).W)) > csrReg.tn) || fixedRow
+
+  val noSource = contorlReg.readTile
+  val onlyColData = contorlReg.writeTile && contorlReg.col
+  val onlyRowData = contorlReg.writeTile && !contorlReg.col
+  val dataValid = ((colBufferValid || onlyRowData) && (rowBufferValid || onlyColData)) || noSource
   val issueIdle = RegInit(true.B)
-  val dataIssue = aluReady && colBufferValid && rowBufferValid && !issueIdle
+  val dataIssue = aluReady && dataValid && !issueIdle
 
+  val initAccessIndex: UInt = io.request.bits.scalaSource(23, log2Ceil(colElementSize))
+  val initCol = Mux(fixedCol, initAccessIndex,  0.U)
   when(dataIssue) {
-    colExecuteIndex := Mux(isLastCol, 0.U, nextColIndex)
+    colExecuteIndex := Mux(isLastCol, initCol, nextColIndex)
     when(isLastCol) {
       rowExecuteIndex := nextRowIndex
     }
@@ -179,8 +209,8 @@ class ZVMA(val parameter: ZVMAParameter)
 
   when(io.request.valid) {
     issueIdle := false.B
-    colExecuteIndex := 0.U
-    rowExecuteIndex := 0.U
+    colExecuteIndex := initCol
+    rowExecuteIndex := Mux(fixedRow, initAccessIndex,  0.U)
   }
 
   //  execute Unit & Storage
@@ -242,7 +272,7 @@ class ZVMA(val parameter: ZVMAParameter)
           val rdVec = cutUInt(rd, 8)
           val cdVec = cutUInt(cd, 8)
           aluResult(di) := base + rdVec.zipWithIndex.map {case (d, i) =>
-            Mux(instReg.csr.tk > i.U, d * cdVec(i), 0.U)
+            Mux(csrReg.tk > i.U, d * cdVec(i), 0.U)
           }.reduce(_ + _)
         }
       }
@@ -279,7 +309,7 @@ class ZVMA(val parameter: ZVMAParameter)
         val write = pipeValid3 && (index3(0) === index.U)
         val tryToRead = reqQueue.deq.valid && (reqQueue.deq.bits.index(0) === index.U)
         ram.readwritePorts.head.enable := write || tryToRead
-        ram.readwritePorts.head.address := decodeReg.accessTile ## Mux(
+        ram.readwritePorts.head.address := contorlReg.accessTile ## Mux(
           write,
           index3,
           reqQueue.deq.bits.index

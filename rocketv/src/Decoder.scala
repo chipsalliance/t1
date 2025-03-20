@@ -979,6 +979,8 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
     case s"vsetvl" => true
     // stride
     case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
+    // zvma load/store
+    case s"v${t}te${sz}" if (t == "l") || (t == "s") => true
     case _ => false
   }
 }

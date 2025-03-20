@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
 import chisel3.util.{BitPat, Decoupled, DecoupledIO, Mux1H, RegEnable, UIntToOH, Valid, ValidIO, log2Ceil}
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
-import org.chipsalliance.t1.rtl.{CSRInterface, LSURequest, LaneParameter, UIntToOH1, VRFReadRequest, VRFWriteRequest, changeUIntSize, cutUInt, cutUIntBySize, pipeToken}
+import org.chipsalliance.t1.rtl.{CSRInterface, LSURequest, LaneParameter, UIntToOH1, VRFReadRequest, VRFWriteRequest, changeUIntSize, cutUInt, cutUIntBySize, pipeToken, pipeTokenCount}
 
 case class ZVMADataExchangeParam(chainingSize:     Int,
                                  datapathWidth:    Int,
@@ -347,7 +347,9 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
 
   // load token
   val loadIssue = Wire(Bool())
-  val loadToken: Bool = pipeToken(parameter.loadDataQueueSize)(loadIssue, memDataQueue.deq.fire)
+  val loadCount: UInt = pipeTokenCount(parameter.loadDataQueueSize)(loadIssue, memDataQueue.deq.fire)
+  val loadToken: Bool = !loadCount.asBools.last
+  val loadIdle:  Bool = !loadCount.orR
 
 
   val addressInit = instructionReg.address(parameter.cacheLineBits - 1, 0)
@@ -370,7 +372,7 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
 
 
   // mem access
-  io.memRequest.valid := storeValid || loadValid
+  io.memRequest.valid := (storeValid || loadValid) && !state.idle
   io.memRequest.bits.src := state.memAccessIndex
   io.memRequest.bits.address := accessAddress
   io.memRequest.bits.data := storeDataAfterAlign
@@ -378,7 +380,7 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   io.memRequest.bits.mask := -1.S.asTypeOf(io.memRequest.bits.mask)
   io.memRequest.bits.write := instructionReg.decode.fromTile
 
-  loadIssue := loadValid && io.memRequest.ready
+  loadIssue := loadValid && io.memRequest.ready && !state.idle
 
   // zvma write to lane
   val writeVrfState = RegInit(0.U(parameter.laneNumber.W))
@@ -414,5 +416,5 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   deqDataReady.head := io.datatoZVMA.ready
   deqDataReady.last := io.datatoZVMA.ready && !deqDataValid.head
 
-  io.idle := state.idle
+  io.idle := state.idle && loadIdle
 }
