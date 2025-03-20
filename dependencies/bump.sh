@@ -7,10 +7,6 @@ if [[ ! -f "build.mill"  ]]; then
   exit 1
 fi
 
-pushd ./dependencies/submodules
-nix run '.#nvfetcher'
-popd
-
 mkdir -p ./dependencies/locks
 submodules=(
   chisel
