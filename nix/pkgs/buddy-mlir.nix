@@ -10,59 +10,6 @@ let
   stdenv = llvmPackages_17.stdenv;
   bintools = llvmPackages_17.bintools;
 
-  downgradedPyPkgs = python3.override {
-    packageOverrides = final: prev: {
-      tokenizers = (final.callPackage ./tokenizer-013.nix { });
-
-      transformers = (prev.transformers.overridePythonAttrs (old: rec {
-        version = "4.33.1";
-
-        src = fetchFromGitHub {
-          owner = "huggingface";
-          repo = "transformers";
-          rev = "refs/tags/v${version}";
-          hash = "sha256-Z78I9S8g9WexoX6HhxwbOD0K0awCTzsqW1ZiWObQNw0=";
-        };
-      }));
-
-      accelerate = (prev.accelerate.overridePythonAttrs (old: rec {
-        pname = "accelerate";
-        version = "0.32.0";
-
-        src = fetchFromGitHub {
-          owner = "huggingface";
-          repo = "accelerate";
-          rev = "refs/tags/v${version}";
-          hash = "sha256-/Is5aKTYHxvgUJSkF7HxMbEA6dgn/y5F1B3D6qSCSaE=";
-        };
-      }));
-
-      torch = (prev.torch.overridePythonAttrs (old: rec {
-        version = "2.3.1";
-        src = fetchFromGitHub {
-          owner = "pytorch";
-          repo = "pytorch";
-          rev = "refs/tags/v${version}";
-          fetchSubmodules = true;
-          hash = "sha256-vpgtOqzIDKgRuqdT8lB/g6j+oMIH1RPxdbjtlzZFjV8=";
-        };
-        PYTORCH_BUILD_VERSION = version;
-        PYTORCH_BUILD_NUMBER = 0;
-      }));
-
-      torchvision = prev.torchvision.overridePythonAttrs rec {
-        version = "0.18.1";
-
-        src = fetchFromGitHub {
-          owner = "pytorch";
-          repo = "vision";
-          rev = "refs/tags/v${version}";
-          hash = "sha256-aFm6CyoMA8HtpOAVF5Q35n3JRaOXYswWEqfooORUKsw=";
-        };
-      };
-    };
-  };
-
   buddy-llvm = callPackage ./buddy-llvm.nix { inherit stdenv python3; };
   self = stdenv.mkDerivation {
     pname = "buddy-mlir";
@@ -102,12 +49,12 @@ let
       llvm = buddy-llvm;
 
       # Below three fields are black magic that allow site-packages automatically imported with nixpkgs hooks
-      pythonModule = downgradedPyPkgs;
+      pythonModule = python3;
       pythonPath = [ ];
       requiredPythonModules = [ ];
 
       # nix run buddy-mlir.pyenv to start a python with PyTorch/LLVM MLIR/Buddy Frontend support
-      pyenv = downgradedPyPkgs.withPackages (ps: [
+      pyenv = python3.withPackages (ps: [
         self
         ps.torch
 

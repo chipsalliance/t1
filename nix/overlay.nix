@@ -34,12 +34,12 @@ rec {
       pkgSrc = final.fetchFromGitHub {
         owner = "NixOS";
         repo = "nixpkgs";
-        rev = "574d1eac1c200690e27b8eb4e24887f8df7ac27c";
-        hash = "sha256-v3rIhsJBOMLR8e/RNWxr828tB+WywYIoajrZKFM+0Gg=";
+        rev = "2a725d40de138714db4872dc7405d86457aa17ad";
+        hash = "sha256-WWNNjCSzQCtATpCFEijm81NNG1xqlLMVbIzXAiZysbs=";
       };
       lockedNixpkgs = import pkgSrc { system = final.system; };
     in
-    lockedNixpkgs.callPackage ./pkgs/buddy-mlir.nix { python3 = lockedNixpkgs.python311; };
+    lockedNixpkgs.callPackage ./pkgs/buddy-mlir.nix { python3 = lockedNixpkgs.python312; };
 
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
