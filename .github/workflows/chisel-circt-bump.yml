@@ -4,6 +4,9 @@ on:
     # Run this job everyday at 5:30 AM UTC+8
     - cron:  '30 21 * * *'
   workflow_dispatch:
+  pull_request:
+    types:
+      - synchronize
 
 jobs:
   bump-deps:
@@ -14,9 +17,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: master
+        # with:
+        #   fetch-depth: 0
+        #   ref: master
       - name: Bump Chisel
         run: |
           cd dependencies/submodules/
