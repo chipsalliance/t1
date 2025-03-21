@@ -493,6 +493,7 @@ class T1(val parameter: T1Parameter)
   val maskType:            Bool = !requestRegDequeue.bits.instruction(25)
   val lsWholeReg:          Bool = isLoadStoreType && requestRegDequeue.bits.instruction(27, 26) === 0.U &&
     requestRegDequeue.bits.instruction(24, 20) === 8.U
+  val isZvma: Bool = Option.when(parameter.zvmaEnable)(requestReg.bits.decodeResult(Decoder.zvma)).getOrElse(false.B)
   // lane 只读不执行的指令
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
@@ -825,8 +826,9 @@ class T1(val parameter: T1Parameter)
   omInstance.lanesIn := Property(laneVec.map(_.om.asAnyClassType))
   dataInWritePipeVec := VecInit(laneVec.map(_.writeQueueValid))
 
+  val issueToLSU: Bool = Option.when(parameter.zvmaEnable)(isLoadStoreType || requestReg.bits.decodeResult(Decoder.zvma)).getOrElse(isLoadStoreType)
   // 连lsu
-  lsu.request.valid                                       := requestRegDequeue.fire && isLoadStoreType
+  lsu.request.valid                                       := requestRegDequeue.fire && issueToLSU
   lsu.request.bits.instructionIndex                       := requestReg.bits.instructionIndex
   lsu.request.bits.rs1Data                                := requestRegDequeue.bits.rs1Data
   lsu.request.bits.rs2Data                                := requestRegDequeue.bits.rs2Data
@@ -944,7 +946,7 @@ class T1(val parameter: T1Parameter)
   tokenManager.instructionIssue.valid                 := requestRegDequeue.fire
   tokenManager.instructionIssue.bits.instructionIndex := requestReg.bits.instructionIndex
   tokenManager.instructionIssue.bits.writeV0          :=
-    (!requestReg.bits.decodeResult(Decoder.targetRd) && !isStoreType) && requestReg.bits.vdIsV0
+    (!requestReg.bits.decodeResult(Decoder.targetRd) && !isStoreType && !isZvma) && requestReg.bits.vdIsV0
   tokenManager.instructionIssue.bits.useV0AsMask      := maskType
   tokenManager.instructionIssue.bits.isLoadStore      := !requestRegDequeue.bits.instruction(6)
   tokenManager.instructionIssue.bits.toLane           := !noOffsetReadLoadStore && !maskUnitInstruction

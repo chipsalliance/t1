@@ -70,6 +70,7 @@ class ZVMADataExchangeInterface(param: ZVMADataExchangeParam) extends Bundle {
   val datatoZVMA: DecoupledIO[DataToZVMA] = Decoupled(new DataToZVMA(param.dlen))
 
   val idle: Bool = Output(Bool())
+  val instructionIndex: UInt = Output(UInt(3.W))
 
   val vrfReadDataPorts: Vec[DecoupledIO[VRFReadRequest]] = Vec(
     param.laneNumber,
@@ -122,6 +123,8 @@ class ZVMAState(parameter: ZVMADataExchangeParam) extends Bundle {
 
   val memAccessIndex: UInt = UInt(parameter.memIndexBit.W)
   val mvIndex: UInt = UInt(parameter.memIndexBit.W)
+  val lastVs1 = Bool()
+  val lastVs2 = Bool()
 }
 
 class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
@@ -164,7 +167,7 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
 
   // mem access
   /** How many byte will be accessed by this instruction(write vrf) */
-  val bytePerInstruction = (io.csrInterface.vl << io.csrInterface.vSew).asUInt
+  val bytePerInstruction: UInt = (io.csrInterface.vl << io.instRequest.bits.inst(30, 29)).asUInt
 
   /** access byte + address offset(access memory) */
   val accessMemSize: UInt = bytePerInstruction + io.instRequest.bits.address(parameter.cacheLineBits - 1, 0)
@@ -192,17 +195,23 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
       (opcode === BitPat("b1010111") && fun6 === BitPat("b010111"))
 
     state := 0.U.asTypeOf(state)
-  }.elsewhen(messageQueue.enq.ready && instructionReg.decode.readVrf) {
+  }.elsewhen(messageQueue.enq.ready && instructionReg.decode.readVrf && !state.idle) {
     when(lastTk) {
       state.readVs1 := Mux(
         state.readVs1,
-        isLastVs2Group,
-        !isLastVs1Group
+        state.lastVs2,
+        !state.lastVs1
       )
       state.vs1Index := state.vs1Index + state.readVs1
       state.vs2Index := state.vs2Index + !state.readVs1
       state.readTkIndex := 0.U
-      when(isLastVs2Group && isLastVs1Group) {
+      when(isLastVs2Group && !state.readVs1) {
+        state.lastVs2 := true.B
+      }
+      when(isLastVs1Group && state.readVs1) {
+        state.lastVs1 := true.B
+      }
+      when(isLastVs2Group && state.lastVs1 || isLastVs1Group && state.lastVs2) {
         state.idle := true.B
       }
     }.otherwise {
@@ -239,7 +248,7 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   readRequestQueue.enq.bits.instructionIndex := instructionReg.instructionIndex
 
   // enq messageQueue
-  messageQueue.enq.valid := !state.idle
+  messageQueue.enq.valid := !state.idle && instructionReg.decode.readVrf
   messageQueue.enq.bits.vs1 := state.readVs1
   messageQueue.enq.bits.tk := state.readTkIndex
   messageQueue.enq.bits.index := Mux(state.readVs1, state.vs1Index, state.vs2Index)
@@ -284,7 +293,7 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
       0.U(2.W),
     )
   )
-  val bufferEnqFire = Seq(dataFire && state.readVs1, dataFire && !state.readVs1)
+  val bufferEnqFire = Seq(dataFire && messageQueue.deq.bits.vs1, dataFire && !messageQueue.deq.bits.vs1)
 
   // buffer deq
   val deqDataValid: Vec[Bool] = Wire(Vec(2, Bool()))
@@ -417,4 +426,5 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   deqDataReady.last := io.datatoZVMA.ready && !deqDataValid.head
 
   io.idle := state.idle && loadIdle
+  io.instructionIndex := instructionReg.instructionIndex
 }
