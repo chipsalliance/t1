@@ -39,15 +39,15 @@
   };
   riscv-opcodes = {
     pname = "riscv-opcodes";
-    version = "8899b32f218c85bf2559fa95f226bc2533316802";
+    version = "c9e74bbbb829079b765ba6e421d3b0ff9c49776c";
     src = fetchFromGitHub {
-      owner = "riscv";
+      owner = "unlsycn";
       repo = "riscv-opcodes";
-      rev = "8899b32f218c85bf2559fa95f226bc2533316802";
+      rev = "c9e74bbbb829079b765ba6e421d3b0ff9c49776c";
       fetchSubmodules = false;
-      sha256 = "sha256-7CV/T8gnE7+ZPfYbn38Zx8fYUosTc8bt93wk5nmxu2c=";
+      sha256 = "sha256-e9Mb/KWfDqfKDgPmcy6fpnssN1l5/0ORrUxJttmscx4=";
     };
-    date = "2025-02-14";
+    date = "2025-03-07";
   };
   rvdecoderdb = {
     pname = "rvdecoderdb";
