@@ -71,6 +71,11 @@ class ZVMADecodeResult extends Bundle {
 class ZVMAExecute(parameter: ZVMAParameter) extends Bundle {
   val colData = Vec(2, UInt(parameter.elen.W))
   val rowData = Vec(2, UInt(parameter.elen.W))
+  val execute = Bool()
+  val writeTile = Bool()
+  val readTile = Bool()
+  val accessIndex = Bool()
+  val col = Bool()
   val index: UInt = UInt((
     log2Ceil(parameter.TE / parameter.aluColSize / 2) +
       log2Ceil(parameter.TE / parameter.aluRowSize / 2)
@@ -181,12 +186,12 @@ class ZVMA(val parameter: ZVMAParameter)
   val nextColIndex: UInt = colExecuteIndex + 1.U
   val nextRowIndex: UInt = rowExecuteIndex + 1.U
 
-  // Fixed column
-  val fixedCol = !decodeResult.aluType && decodeResult.col
-  val fixedRow = !decodeResult.aluType && !decodeResult.col
+  // Fixed Row index if always access same col
+  val fixedCol = !decodeResult.aluType && !contorlReg.col
+  val fixedRow = !decodeResult.aluType && contorlReg.col
 
-  val isLastCol = ((nextColIndex ## 0.U(log2Ceil(colElementSize).W)) > csrReg.tm) || fixedCol
-  val isLastRow = ((nextRowIndex ## 0.U(log2Ceil(rowElementSize).W)) > csrReg.tn) || fixedRow
+  val isLastCol = ((nextColIndex ## 0.U(log2Ceil(colElementSize).W)) >= csrReg.tm) || fixedCol
+  val isLastRow = ((nextRowIndex ## 0.U(log2Ceil(rowElementSize).W)) >= csrReg.tn) || fixedRow
 
   val noSource = contorlReg.readTile
   val onlyColData = contorlReg.writeTile && contorlReg.col
@@ -213,6 +218,15 @@ class ZVMA(val parameter: ZVMAParameter)
     rowExecuteIndex := Mux(fixedRow, initAccessIndex,  0.U)
   }
 
+  val queueDeq: Bool = Wire(Bool())
+  val subArrReadDataQueue: Seq[Seq[QueueIO[UInt]]] = Seq.tabulate(parameter.aluColSize) { colIndex =>
+    Seq.tabulate(parameter.aluRowSize) { rowIndex =>
+      val queue = Queue.io(UInt((parameter.elen * 2).W), 8)
+      queue.deq.ready := queueDeq
+      queue
+    }
+  }
+
   //  execute Unit & Storage
   val subArrayVec = Seq.tabulate(parameter.aluColSize) { colIndex =>
     Seq.tabulate(parameter.aluRowSize) { rowIndex =>
@@ -221,12 +235,22 @@ class ZVMA(val parameter: ZVMAParameter)
       val reqToken = pipeToken(parameter.subArrayBufferDepth)(reqQueue.enq.fire, requestRelease)
       aluReadyVec(colIndex)(rowIndex) := reqToken
 
+      // for access single col
+      val accessSubIndex = contorlReg.accessIndex(1)
+      val indexMath = Mux(contorlReg.col, rowIndex.asUInt === accessSubIndex, colIndex.asUInt === accessSubIndex)
+      // todo: alu boundary correction
+      val issueCorrect = (indexMath || contorlReg.aluType) && dataIssue
       // data enq queue
-      reqQueue.enq.valid := dataIssue
+      reqQueue.enq.valid := issueCorrect
       reqQueue.enq.bits.colData(0) := colDataVec(2 * colIndex)
       reqQueue.enq.bits.colData(1) := colDataVec(2 * colIndex + 1)
       reqQueue.enq.bits.rowData(0) := rowDataVec(2 * rowIndex)
       reqQueue.enq.bits.rowData(1) := rowDataVec(2 * rowIndex + 1)
+      reqQueue.enq.bits.execute := contorlReg.aluType
+      reqQueue.enq.bits.writeTile := contorlReg.writeTile
+      reqQueue.enq.bits.readTile := contorlReg.readTile
+      reqQueue.enq.bits.accessIndex := contorlReg.accessIndex(0)
+      reqQueue.enq.bits.col := contorlReg.col
       reqQueue.enq.bits.index := rowExecuteIndex ## colExecuteIndex
 
       // state ram
@@ -255,11 +279,15 @@ class ZVMA(val parameter: ZVMAParameter)
       val index: UInt = RegInit(0.U.asTypeOf(dataPipe0.index))
       val resultC: UInt = RegInit(0.U((4 * parameter.elen).W))
       val resultS: UInt = RegInit(0.U((4 * parameter.elen).W))
+      val resultR2: UInt = RegInit(0.U((2 * parameter.elen).W))
+      val writeState2 = RegInit(false.B)
 
       // execute stage 3
       val pipeValid3: Bool = RegNext(pipeValid2, false.B)
       val index3: UInt = RegInit(0.U.asTypeOf(dataPipe0.index))
       val result: UInt = RegInit(0.U((4 * parameter.elen).W))
+      val resultR3: UInt = RegInit(0.U((2 * parameter.elen).W))
+      val writeState3 = RegInit(false.B)
 
       // alu
       val readDataVec = cutUInt(readData, parameter.elen)
@@ -271,14 +299,22 @@ class ZVMA(val parameter: ZVMAParameter)
           // TODO: Temporarily there is int8
           val rdVec = cutUInt(rd, 8)
           val cdVec = cutUInt(cd, 8)
-          aluResult(di) := base + rdVec.zipWithIndex.map {case (d, i) =>
+          val adderRes = base + rdVec.zipWithIndex.map {case (d, i) =>
             Mux(csrReg.tk > i.U, d * cdVec(i), 0.U)
           }.reduce(_ + _)
+          val loadDataSelect = Mux(dataPipe1.col, cd, rd)
+          val useLoadData = Mux(dataPipe1.col, ri.asUInt === dataPipe1.accessIndex, ci.asUInt === dataPipe1.accessIndex)
+          aluResult(di) := Mux(dataPipe1.execute, adderRes, Mux(useLoadData, loadDataSelect, base))
         }
       }
+      val mvData = Mux(
+        dataPipe1.col,
+        Mux(dataPipe1.accessIndex, readDataVec(3) ## readDataVec(2), readDataVec(1) ## readDataVec(0)),
+        Mux(dataPipe1.accessIndex, readDataVec(3) ## readDataVec(1), readDataVec(2) ## readDataVec(0))
+      )
 
       // control
-      val readReady = !pipeValid3 || (index3(0) ^ reqQueue.deq.bits.index(0))
+      val readReady = !(pipeValid3 && writeState3) || (index3(0) ^ reqQueue.deq.bits.index(0))
       reqQueue.deq.ready := readReady
 
       when(pipeValid0) {
@@ -295,18 +331,22 @@ class ZVMA(val parameter: ZVMAParameter)
         // todo
         resultC := 0.U
         resultS := aluResult.asUInt
+        writeState2 := !dataPipe1.readTile
+        resultR2 := mvData
       }
 
       when(pipeValid2) {
         index3 := index
         // todo
         result := resultC + resultS
+        writeState3 := writeState2
+        resultR3 := resultR2
       }
 
       requestRelease := pipeValid3
       // rf read write
       stateVec.zipWithIndex.foreach {case (ram, index) =>
-        val write = pipeValid3 && (index3(0) === index.U)
+        val write = pipeValid3 && (index3(0) === index.U) && writeState3
         val tryToRead = reqQueue.deq.valid && (reqQueue.deq.bits.index(0) === index.U)
         ram.readwritePorts.head.enable := write || tryToRead
         ram.readwritePorts.head.address := contorlReg.accessTile ## Mux(
@@ -317,10 +357,51 @@ class ZVMA(val parameter: ZVMAParameter)
         ram.readwritePorts.head.isWrite := write
         ram.readwritePorts.head.writeData := result
       }
+      subArrReadDataQueue(colIndex)(rowIndex).enq.valid := pipeValid3 && !writeState3
+      subArrReadDataQueue(colIndex)(rowIndex).enq.bits := resultR3
     }
   }
 
-  // todo: add store
-  io.dataToLSU := DontCare
+  val mvSubIndex = contorlReg.accessIndex(1)
+  val mvData = Mux(
+    contorlReg.col,
+    Mux(
+      mvSubIndex,
+      subArrReadDataQueue(1)(1).deq.bits ## subArrReadDataQueue(0)(1).deq.bits,
+      subArrReadDataQueue(1)(0).deq.bits ## subArrReadDataQueue(0)(0).deq.bits
+    ),
+    Mux(
+      mvSubIndex,
+      subArrReadDataQueue(1)(1).deq.bits ## subArrReadDataQueue(1)(0).deq.bits,
+      subArrReadDataQueue(0)(1).deq.bits ## subArrReadDataQueue(0)(0).deq.bits
+    )
+  )
+  val mvValid = Mux(
+    contorlReg.col,
+    Mux(
+      mvSubIndex,
+      subArrReadDataQueue(1)(1).deq.valid ## subArrReadDataQueue(0)(1).deq.valid,
+      subArrReadDataQueue(1)(0).deq.valid ## subArrReadDataQueue(0)(0).deq.bits
+    ),
+    Mux(
+      mvSubIndex,
+      subArrReadDataQueue(1)(1).deq.valid ## subArrReadDataQueue(1)(0).deq.valid,
+      subArrReadDataQueue(0)(1).deq.valid ## subArrReadDataQueue(0)(0).deq.valid
+    )
+  )
+
+  // data buffer to LSU Pipe
+  val dataBufferValid: Bool = RegInit(false.B)
+  val dataBuffer: Bool = RegInit(0.U(parameter.dlen))
+  val queueDeqReady: Bool = !dataBufferValid || io.dataToLSU.ready
+  val queueDeqFire: Bool = queueDeqReady && mvValid.andR
+  queueDeq := queueDeqFire
+  when(queueDeqFire) {
+    dataBufferValid := !dataBufferValid
+    dataBuffer := mvData
+  }
+
+  io.dataToLSU.valid := dataBufferValid && mvValid.andR
+  io.dataToLSU.bits := mvData ## dataBuffer
   io.idle := issueIdle
 }
