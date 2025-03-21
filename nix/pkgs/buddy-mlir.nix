@@ -71,8 +71,8 @@ let
     src = fetchFromGitHub {
       owner = "buddy-compiler";
       repo = "buddy-mlir";
-      rev = "802cefe91199c0935122546d463e400bee8635a6";
-      hash = "sha256-d8e/VM5LrsEwsC7NyNy/kdBp0fpY/CWeItrk4adOK0A=";
+      rev = "c57584a0e3c38e938a3902320f62b202ced84996";
+      hash = "sha256-IBsShnkaA0qPkEMbkkSjUMWXnDGW/CrTeiSSLLttlXk=";
     };
 
     nativeBuildInputs = [ cmake ninja bintools ];
