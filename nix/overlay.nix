@@ -41,7 +41,7 @@ rec {
     in
     lockedNixpkgs.callPackage ./pkgs/buddy-mlir.nix { python3 = lockedNixpkgs.python311; };
 
-  iree = final.callPackage ./pkgs/iree.nix { };
+  iree-compiler = final.callPackage ./pkgs/iree-compiler.nix { };
 
   circt-full = final.callPackage ./pkgs/circt-full.nix { };
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
@@ -114,6 +114,8 @@ rec {
         nixSupport.cc-cflags = [ "-lemurt" ];
       };
   };
+
+  iree-runtime = final.callPackage ./pkgs/iree-runtime.nix { inherit rv32-stdenv; };
 
   riscv-tests = final.pkgsCross.riscv32-embedded.stdenv.mkDerivation rec {
     pname = "riscv-tests";
