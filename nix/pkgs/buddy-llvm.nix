@@ -62,6 +62,7 @@ stdenv.mkDerivation rec {
     # move all lib files to $lib except lib/cmake
     moveToOutput "lib" "$lib"
     moveToOutput "lib/cmake" "$dev"
+    moveToOutput "src" "$dev"
 
     # patch configuration files so each path points to the new $lib or $dev paths
     substituteInPlace "$dev/lib/cmake/llvm/LLVMConfig.cmake" \
