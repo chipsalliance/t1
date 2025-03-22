@@ -1,6 +1,5 @@
 import os
 import sys
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -13,17 +12,18 @@ from buddy.compiler.graph.transform import simply_fuse
 from buddy.compiler.ops import tosa
 from model import LeNet
 
+
 def main():
     model_path = os.environ.get("LENET_MODEL_PATH")
     if model_path is None:
         sys.exit("Error: No model path was provided. Please set $LENET_MODEL_PATH")
+    model = LeNet()
     model = torch.load(model_path)
     model = model.eval()
 
     # Initialize Dynamo Compiler with specific configurations as an importer.
     dynamo_compiler = DynamoCompiler(
         primary_registry=tosa.ops_registry,
-        aot_autograd_decomposition=inductor_decomp,
     )
 
     data = torch.randn([1, 1, 28, 28])
@@ -43,6 +43,7 @@ def main():
         print(driver.subgraphs[0]._imported_module, file=module_file)
     with open("forward.mlir", "w") as module_file:
         print(driver.construct_main_graph(True), file=module_file)
+
 
 if __name__ == "__main__":
     main()
