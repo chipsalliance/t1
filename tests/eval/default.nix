@@ -35,4 +35,4 @@ let
 
   nttCases = callPackage ./_ntt { };
 in
-  autoCases // nttCases
+autoCases // nttCases
