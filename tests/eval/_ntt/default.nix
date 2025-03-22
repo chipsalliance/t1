@@ -6,7 +6,7 @@
 
 let
   builder = makeBuilder { casePrefix = "eval"; };
-  build_ntt = caseName /* must be consistent with attr name */ : main_src: kernel_src: caseArgs: extra_flag:
+  build_ntt = caseName /* must be consistent with attr name */: main_src: kernel_src: caseArgs: extra_flag:
     builder {
       caseName = caseName;
 
@@ -33,7 +33,8 @@ let
       meta.description = "test case 'ntt'";
     };
 
-in {
+in
+{
   ntt_64 = build_ntt "ntt_64" ./ntt.c ./ntt_main.c "ntt_64" "";
   ntt_128 = build_ntt "ntt_128" ./ntt.c ./ntt_main.c "ntt_128" "";
   ntt_256 = build_ntt "ntt_256" ./ntt.c ./ntt_main.c "ntt_256" "";
