@@ -1,0 +1,44 @@
+From 0a9b8ed87471269b0da2c428e0096c022fdba031 Mon Sep 17 00:00:00 2001
+From: Letu Ren <fantasquex@gmail.com>
+Date: Sat, 22 Mar 2025 19:41:27 +0800
+Subject: [PATCH] Remove elf_module_test
+
+---
+ runtime/src/iree/hal/local/elf/CMakeLists.txt | 21 -------------------
+ 1 file changed, 21 deletions(-)
+
+diff --git a/runtime/src/iree/hal/local/elf/CMakeLists.txt b/runtime/src/iree/hal/local/elf/CMakeLists.txt
+index 05d6f16092..fdebca17ef 100644
+--- a/runtime/src/iree/hal/local/elf/CMakeLists.txt
++++ b/runtime/src/iree/hal/local/elf/CMakeLists.txt
+@@ -32,27 +32,6 @@ iree_cc_library(
+   PUBLIC
+ )
+ 
+-iree_cc_binary(
+-  NAME
+-    elf_module_test_binary
+-  SRCS
+-    "elf_module_test_main.c"
+-  DEPS
+-    ::elf_module
+-    iree::base
+-    iree::base::internal::cpu
+-    iree::hal::local::elf::testdata::elementwise_mul
+-    iree::hal::local::executable_environment
+-    iree::hal::local::executable_library
+-)
+-
+-iree_native_test(
+-  NAME
+-    "elf_module_test"
+-  SRC
+-    ::elf_module_test_binary
+-)
+-
+ iree_cc_library(
+   NAME
+     arch
+-- 
+2.49.0
+

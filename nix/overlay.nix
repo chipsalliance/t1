@@ -115,7 +115,10 @@ rec {
       };
   };
 
-  iree-runtime = final.callPackage ./pkgs/iree-runtime.nix { inherit rv32-stdenv; };
+  iree-runtime = final.callPackage ./pkgs/iree-runtime.nix {
+    inherit rv32-stdenv;
+    inherit iree-compiler;
+  };
 
   riscv-tests = final.pkgsCross.riscv32-embedded.stdenv.mkDerivation rec {
     pname = "riscv-tests";

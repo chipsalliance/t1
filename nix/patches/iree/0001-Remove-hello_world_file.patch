@@ -1,0 +1,34 @@
+From 514951ba8083fa9e84fcded720f953b36e932aa8 Mon Sep 17 00:00:00 2001
+From: Letu Ren <fantasquex@gmail.com>
+Date: Sat, 22 Mar 2025 19:46:21 +0800
+Subject: [PATCH] Remove hello_world_file
+
+---
+ runtime/src/iree/runtime/demo/CMakeLists.txt | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+diff --git a/runtime/src/iree/runtime/demo/CMakeLists.txt b/runtime/src/iree/runtime/demo/CMakeLists.txt
+index 74fc7257fb..918c4fb987 100644
+--- a/runtime/src/iree/runtime/demo/CMakeLists.txt
++++ b/runtime/src/iree/runtime/demo/CMakeLists.txt
+@@ -1,17 +1,6 @@
+ # NOTE: not using bazel-to-cmake here because of the runtime unified rule.
+ # We should figure out how to make bazel/cmake consistent with that.
+ 
+-iree_cc_binary(
+-  NAME
+-    hello_world_file
+-  SRCS
+-    "hello_world_explained.c"
+-  DEFINES
+-    "IREE_RUNTIME_DEMO_LOAD_FILE_FROM_COMMAND_LINE_ARG"
+-  DEPS
+-    iree::runtime::unified
+-)
+-
+ if(NOT IREE_HAL_EXECUTABLE_LOADER_VMVX_MODULE OR NOT IREE_TARGET_BACKEND_VMVX)
+   return()
+ endif()
+-- 
+2.49.0
+

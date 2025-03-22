@@ -1,5 +1,5 @@
 { linkerScript
-, iree
+, iree-compiler
 , makeBuilder
 , findAndBuild
 , getTestRequiredFeatures
@@ -17,7 +17,7 @@ let
 
       passthru.featuresRequired = getTestRequiredFeatures sourcePath;
 
-      nativeBuildInputs = [ iree ];
+      nativeBuildInputs = [ iree-compiler ];
 
       ireeCompileArgs = [
         "--iree-stream-partitioning-favor=min-peak-memory"
