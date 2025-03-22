@@ -24,6 +24,7 @@ buildBuddyE2ETest {
         --eliminate-empty-tensors \
         --empty-tensor-to-alloc-tensor \
         --one-shot-bufferize \
+        --matmul-parallel-vectorization-optimize \
         --batchmatmul-optimize \
         --convert-linalg-to-affine-loops \
         --affine-loop-fusion \
@@ -42,7 +43,6 @@ buildBuddyE2ETest {
         --finalize-memref-to-llvm \
         --convert-scf-to-cf \
         --llvm-request-c-wrappers \
-        --convert-openmp-to-llvm \
         --convert-arith-to-llvm \
         --convert-math-to-llvm \
         --convert-math-to-libm  \
@@ -54,19 +54,21 @@ buildBuddyE2ETest {
     buddy-opt subgraphs0.mlir -pass-pipeline \
         "builtin.module(func.func(tosa-to-linalg-named, tosa-to-arith, tosa-to-linalg, tosa-to-tensor))" \
       | buddy-opt \
+          --convert-elementwise-to-linalg \
           --arith-expand \
           --eliminate-empty-tensors \
           --empty-tensor-to-alloc-tensor \
           --one-shot-bufferize \
-          --batchmatmul-optimize \
-          --convert-linalg-to-affine-loops \
-          --affine-loop-fusion \
-          --lower-affine \
           --func-bufferize-dynamic-offset \
           --tensor-bufferize \
           --arith-bufferize \
           --buffer-deallocation \
           --finalizing-bufferize \
+          --matmul-parallel-vectorization-optimize \
+          --batchmatmul-optimize \
+          --convert-linalg-to-affine-loops \
+          --affine-loop-fusion \
+          --lower-affine \
           --convert-vector-to-scf \
           --expand-strided-metadata \
           --cse \
@@ -79,7 +81,6 @@ buildBuddyE2ETest {
           --finalize-memref-to-llvm \
           --convert-scf-to-cf \
           --llvm-request-c-wrappers \
-          --convert-openmp-to-llvm \
           --convert-arith-to-llvm \
           --convert-math-to-llvm \
           --convert-math-to-libm  \
