@@ -498,12 +498,12 @@ class T1(val parameter: T1Parameter)
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
   val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv))
-  val skipLastFromLane:    Bool = isStoreType || maskUnitInstruction || readOnlyInstruction
+  val skipLastFromLane:    Bool = isStoreType || maskUnitInstruction || readOnlyInstruction || isZvma
   val instructionValid:    Bool = requestReg.bits.issue.vl > requestReg.bits.issue.vstart
 
   // TODO: these should be decoding results
   /** load store that don't read offset. */
-  val noOffsetReadLoadStore: Bool = isLoadStoreType && (!requestRegDequeue.bits.instruction(26))
+  val noOffsetReadLoadStore: Bool = (isLoadStoreType && (!requestRegDequeue.bits.instruction(26))) || isZvma
 
   val vSew1H:        UInt = UIntToOH(T1Issue.vsew(requestReg.bits.issue))
   val source1Extend: UInt = Mux1H(
@@ -739,7 +739,7 @@ class T1(val parameter: T1Parameter)
     // and broadcast to all lanes.
     request.bits.readFromScalar := source1Select
 
-    request.bits.issueInst  := !noOffsetReadLoadStore && !maskUnitInstruction
+    request.bits.issueInst  := !noOffsetReadLoadStore && !maskUnitInstruction && !isZvma
     request.bits.loadStore  := isLoadStoreType
     // let record in VRF to know there is a store instruction.
     request.bits.store      := isStoreType
@@ -930,7 +930,7 @@ class T1(val parameter: T1Parameter)
     .reduce(_ && _)
 
   /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
-  val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
+  val executionReady: Bool = (!(isLoadStoreType || isZvma) || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
   // - ready to issue instruction
   // - for vi and vx type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
   //   and convert it to mv instruction.

@@ -187,8 +187,8 @@ class ZVMA(val parameter: ZVMAParameter)
   val nextRowIndex: UInt = rowExecuteIndex + 1.U
 
   // Fixed Row index if always access same col
-  val fixedCol = !decodeResult.aluType && !contorlReg.col
-  val fixedRow = !decodeResult.aluType && contorlReg.col
+  val fixedCol = !contorlReg.aluType && !contorlReg.col
+  val fixedRow = !contorlReg.aluType && contorlReg.col
 
   val isLastCol = ((nextColIndex ## 0.U(log2Ceil(colElementSize).W)) >= csrReg.tm) || fixedCol
   val isLastRow = ((nextRowIndex ## 0.U(log2Ceil(rowElementSize).W)) >= csrReg.tn) || fixedRow
@@ -381,7 +381,7 @@ class ZVMA(val parameter: ZVMAParameter)
     Mux(
       mvSubIndex,
       subArrReadDataQueue(1)(1).deq.valid ## subArrReadDataQueue(0)(1).deq.valid,
-      subArrReadDataQueue(1)(0).deq.valid ## subArrReadDataQueue(0)(0).deq.bits
+      subArrReadDataQueue(1)(0).deq.valid ## subArrReadDataQueue(0)(0).deq.valid
     ),
     Mux(
       mvSubIndex,
@@ -392,7 +392,7 @@ class ZVMA(val parameter: ZVMAParameter)
 
   // data buffer to LSU Pipe
   val dataBufferValid: Bool = RegInit(false.B)
-  val dataBuffer: Bool = RegInit(0.U(parameter.dlen))
+  val dataBuffer: UInt = RegInit(0.U(parameter.dlen.W))
   val queueDeqReady: Bool = !dataBufferValid || io.dataToLSU.ready
   val queueDeqFire: Bool = queueDeqReady && mvValid.andR
   queueDeq := queueDeqFire

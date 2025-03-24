@@ -159,8 +159,8 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   val groupByteBit = log2Ceil((parameter.datapathWidth / 8) * parameter.laneNumber)
   val lastVs1Byte: UInt = (Mux(instructionReg.decode.arithmetic, csrReg.vl, 0.U) << csrReg.vSew).asUInt
   val lastVs2Byte: UInt = (Mux(instructionReg.decode.arithmetic, csrReg.tm, csrReg.vl) << csrReg.vSew).asUInt
-  val lastVs1Group = (lastVs1Byte >> groupByteBit).asUInt - !changeUIntSize(lastVs1Byte, groupByteBit).orR
-  val lastVs2Group = (lastVs2Byte >> groupByteBit).asUInt - !changeUIntSize(lastVs2Byte, groupByteBit).orR
+  val lastVs1Group = (lastVs1Byte >> groupByteBit).asUInt - (!changeUIntSize(lastVs1Byte, groupByteBit).orR && lastVs1Byte.orR)
+  val lastVs2Group = (lastVs2Byte >> groupByteBit).asUInt - (!changeUIntSize(lastVs2Byte, groupByteBit).orR && lastVs2Byte.orR)
   val isLastVs1Group = lastVs1Group === state.vs1Index
   val isLastVs2Group = lastVs2Group === state.vs2Index
   val lastTk: Bool = state.readTkIndex === lastTkIndex || !instructionReg.decode.arithmetic
@@ -180,6 +180,12 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   val lastCacheLineReg: UInt = RegEnable(lastCacheLineIndex, 0.U, io.instRequest.valid)
   val lastAccess = state.memAccessIndex === lastCacheLineReg
 
+  val mvSizeBits = log2Ceil(parameter.dlen / 8)
+  val mvByteSize = io.csrInterface.vl << io.csrInterface.vSew
+  val lastMvIndex = (mvByteSize >> mvSizeBits).asUInt - !mvByteSize(mvSizeBits - 1, 0).orR
+  val lastMvIndexReg: UInt = RegEnable(lastMvIndex, 0.U, io.instRequest.valid)
+  val lastMV: Bool = state.mvIndex === lastMvIndexReg
+
   when(io.instRequest.valid) {
     instructionReg.vs1 := io.instRequest.bits.inst(19, 15)
     instructionReg.vs2 := io.instRequest.bits.inst(24, 20)
@@ -195,6 +201,7 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
       (opcode === BitPat("b1010111") && fun6 === BitPat("b010111"))
 
     state := 0.U.asTypeOf(state)
+    state.lastVs1 := opcode === BitPat("b1010111")
   }.elsewhen(messageQueue.enq.ready && instructionReg.decode.readVrf && !state.idle) {
     when(lastTk) {
       state.readVs1 := Mux(
@@ -315,7 +322,7 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
       }
     }
 
-    val bufferEnq = bufferEnqFire(i) && messageQueue.deq.bits.tk === lastTkIndex
+    val bufferEnq = bufferEnqFire(i) && (messageQueue.deq.bits.tk === lastTkIndex || instructionReg.decode.mv)
     deqDataValid(i) := valid
     deqDataLast(i) := deqIndex === sendLastIndex
     deqData(i) := Mux1H(
@@ -352,6 +359,9 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
 
   when(!io.instRequest.valid && zvmaDataQueue.deq.fire && instructionReg.decode.mv) {
     state.mvIndex := state.mvIndex + 1.U
+  }
+  when(lastMV && zvmaDataQueue.deq.fire && instructionReg.decode.mv) {
+    state.idle := true.B
   }
 
   // load token

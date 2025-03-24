@@ -272,7 +272,7 @@ class LSU(param: LSUParameter) extends Module {
     (useLoadUnit && loadUnit.status.idle) || (useStoreUnit && storeUnit.status.idle) || (useOtherUnit && otherUnit.status.idle)
   val zvmaReady = zvmaInterface.map(i =>
     loadUnit.status.idle && storeUnit.status.idle &&
-      otherUnit.status.idle && zvmaExchange.get.io.idle && i.isZVMA
+      otherUnit.status.idle && zvmaExchange.get.io.idle && i.isZVMA && zvma.get.io.idle
   )
   val zvmaFree = zvmaExchange.map(z => z.io.idle && zvma.get.io.idle)
   request.ready := unitReady && addressCheck && zvmaFree.getOrElse(true.B) || zvmaReady.getOrElse(false.B)
