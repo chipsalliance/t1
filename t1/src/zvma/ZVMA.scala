@@ -276,18 +276,10 @@ class ZVMA(val parameter: ZVMAParameter)
 
       // execute stage 2
       val pipeValid2: Bool = RegNext(pipeValid1, false.B)
-      val index: UInt = RegInit(0.U.asTypeOf(dataPipe0.index))
-      val resultC: UInt = RegInit(0.U((4 * parameter.elen).W))
-      val resultS: UInt = RegInit(0.U((4 * parameter.elen).W))
+      val index2: UInt = RegInit(0.U.asTypeOf(dataPipe0.index))
+      val result: UInt = RegInit(0.U((4 * parameter.elen).W))
       val resultR2: UInt = RegInit(0.U((2 * parameter.elen).W))
       val writeState2 = RegInit(false.B)
-
-      // execute stage 3
-      val pipeValid3: Bool = RegNext(pipeValid2, false.B)
-      val index3: UInt = RegInit(0.U.asTypeOf(dataPipe0.index))
-      val result: UInt = RegInit(0.U((4 * parameter.elen).W))
-      val resultR3: UInt = RegInit(0.U((2 * parameter.elen).W))
-      val writeState3 = RegInit(false.B)
 
       // alu
       val readDataVec = cutUInt(readData, parameter.elen)
@@ -314,7 +306,7 @@ class ZVMA(val parameter: ZVMAParameter)
       )
 
       // control
-      val readReady = !(pipeValid3 && writeState3) || (index3(0) ^ reqQueue.deq.bits.index(0))
+      val readReady = !(pipeValid2 && writeState2) || (index2(0) ^ reqQueue.deq.bits.index(0))
       reqQueue.deq.ready := readReady
 
       when(pipeValid0) {
@@ -327,38 +319,28 @@ class ZVMA(val parameter: ZVMAParameter)
       }
 
       when(pipeValid1) {
-        index := dataPipe1.index
-        // todo
-        resultC := 0.U
-        resultS := aluResult.asUInt
+        index2 := dataPipe1.index
+        result := aluResult.asUInt
         writeState2 := !dataPipe1.readTile
         resultR2 := mvData
       }
 
-      when(pipeValid2) {
-        index3 := index
-        // todo
-        result := resultC + resultS
-        writeState3 := writeState2
-        resultR3 := resultR2
-      }
-
-      requestRelease := pipeValid3
+      requestRelease := pipeValid2
       // rf read write
       stateVec.zipWithIndex.foreach {case (ram, index) =>
-        val write = pipeValid3 && (index3(0) === index.U) && writeState3
+        val write = pipeValid2 && (index2(0) === index.U) && writeState2
         val tryToRead = reqQueue.deq.valid && (reqQueue.deq.bits.index(0) === index.U)
         ram.readwritePorts.head.enable := write || tryToRead
         ram.readwritePorts.head.address := contorlReg.accessTile ## Mux(
           write,
-          index3,
+          index2,
           reqQueue.deq.bits.index
         ) >> 1
         ram.readwritePorts.head.isWrite := write
         ram.readwritePorts.head.writeData := result
       }
-      subArrReadDataQueue(colIndex)(rowIndex).enq.valid := pipeValid3 && !writeState3
-      subArrReadDataQueue(colIndex)(rowIndex).enq.bits := resultR3
+      subArrReadDataQueue(colIndex)(rowIndex).enq.valid := pipeValid2 && !writeState2
+      subArrReadDataQueue(colIndex)(rowIndex).enq.bits := resultR2
     }
   }
 
