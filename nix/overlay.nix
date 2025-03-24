@@ -22,7 +22,25 @@ rec {
 
   # Override "nixpkgs" circt with "nixpkgs-for-circt".
   # To update the "nixpkgs-for-circt" input, run `nix flake lock --update-input nixpkgs-for-circt`.
-  circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt;
+  circt = self.inputs.nixpkgs-for-circt.legacyPackages."${final.system}".circt.overrideAttrs (prevAttrs: {
+    patches = (prevAttrs.patches or [ ]) ++ [
+      # [OM] Add missing CAPI omTypeIsAMapType
+      (prev.fetchpatch {
+        url = "https://github.com/llvm/circt/commit/7728eb3cd836958fe1a3f4b81da8a4d981228f71.patch";
+        sha256 = "sha256-aVGnTVuZYlz8HuXVLfeYCtgC1YnVwcVpiQKn1bJFsaA=";
+      })
+      # [OM] Fix tuple_get operation in OMEvaluator
+      (prev.fetchpatch {
+        url = "https://github.com/llvm/circt/commit/62dd6304b046527b8472d6f446b28be975624b6c.patch";
+        sha256 = "sha256-ranoZulCy+PDStJ13hWWE2I1CagTEVIsYCMnJlJq25A=";
+      })
+      # [OM] Fix finalization of nested ReferenceValue
+      (prev.fetchpatch {
+        url = "https://github.com/llvm/circt/commit/df2484d447eefe06b3c244f2786a93081c9032ef.patch";
+        sha256 = "sha256-h03X8IMUlwBG884QGoeieWq07kmqCkoHFQp+IplxbB8=";
+      })
+    ];
+  });
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };

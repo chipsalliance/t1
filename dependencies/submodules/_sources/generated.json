@@ -103,5 +103,26 @@
             "type": "github"
         },
         "version": "c7acc990037e6b984ab6defb65fdc82f9151c656"
+    },
+    "zaozi": {
+        "cargoLocks": null,
+        "date": "2025-03-21",
+        "extract": null,
+        "name": "zaozi",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "sequencer",
+            "repo": "zaozi",
+            "rev": "753d70b9dcb6ecaffd7ee90fe307f0a481ab0dc6",
+            "sha256": "sha256-+KyY8DZ7TPv4/3MIk0QpxXHb2v3If7+atbzoc7Xm4sU=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "753d70b9dcb6ecaffd7ee90fe307f0a481ab0dc6"
     }
 }

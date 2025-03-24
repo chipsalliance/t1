@@ -33,8 +33,8 @@ trait HasChisel extends ScalaModule {
 }
 
 trait HasRVDecoderDB extends ScalaModule {
-  def rvdecoderdbIvy: Dep
-  def riscvOpcodesPath:  T[PathRef]
+  def rvdecoderdbIvy:   Dep
+  def riscvOpcodesPath: T[PathRef]
   def ivyDeps = T(super.ivyDeps() ++ Seq(rvdecoderdbIvy))
   def riscvOpcodesTar:    T[PathRef]      = T {
     val tmpDir = os.temp.dir()
@@ -63,8 +63,8 @@ trait T1Module extends ScalaModule with HasChisel with HasRVDecoderDB {
   def arithmeticIvy: Dep
   def hardfloatIvy:  Dep
   def axi4Ivy:       Dep
-  def stdlibModule:     ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(stdlibModule)
+  def stdlibModule:  ScalaModule
+  def moduleDeps       = super.moduleDeps ++ Seq(stdlibModule)
   override def ivyDeps = T(super.ivyDeps() ++ Seq(arithmeticIvy, hardfloatIvy, axi4Ivy))
 }
 
@@ -85,9 +85,9 @@ trait RocketModule extends ScalaModule with HasChisel with HasRVDecoderDB {
 trait RocketVModule extends ScalaModule with HasChisel with HasRVDecoderDB {
   def axi4Ivy:      Dep
   def hardfloatIvy: Dep
-  def stdlibModule:    ScalaModule
+  def stdlibModule: ScalaModule
 
-  def moduleDeps = super.moduleDeps ++ Seq(stdlibModule)
+  def moduleDeps       = super.moduleDeps ++ Seq(stdlibModule)
   override def ivyDeps = T(super.ivyDeps() ++ Seq(hardfloatIvy, axi4Ivy))
 }
 
@@ -112,12 +112,11 @@ trait T1RocketEmulatorModule extends ScalaModule with HasChisel {
 }
 
 trait ElaboratorModule extends ScalaModule with HasChisel {
-  def generators:            Seq[ScalaModule]
-  def panamaconverterIvy: Dep
-  def circtInstallPath:      T[PathRef]
+  def generators:       Seq[ScalaModule]
+  def circtInstallPath: T[PathRef]
   override def moduleDeps = super.moduleDeps ++ generators
   def mainargsIvy: Dep
-  override def ivyDeps      = T(super.ivyDeps() ++ Seq(panamaconverterIvy) ++ Seq(mainargsIvy))
+  override def ivyDeps      = T(super.ivyDeps() ++ Seq(mainargsIvy))
   override def javacOptions = T(super.javacOptions() ++ Seq("--enable-preview", "--release", "21"))
   override def forkArgs: T[Seq[String]] = T(
     super.forkArgs() ++ Seq(
@@ -128,28 +127,14 @@ trait ElaboratorModule extends ScalaModule with HasChisel {
   )
 }
 
-trait OMReaderLibModule extends ScalaModule with HasChisel {
-  def panamaconverterIvy: Dep
-  def circtInstallPath:      T[PathRef]
-  def mainargsIvy: Dep
-  override def ivyDeps      = T(super.ivyDeps() ++ Seq(mainargsIvy, panamaconverterIvy))
-  override def javacOptions = T(super.javacOptions() ++ Seq("--enable-preview", "--release", "21"))
-  override def forkArgs: T[Seq[String]] = T(
-    super.forkArgs() ++ Seq(
-      "--enable-native-access=ALL-UNNAMED",
-      "--enable-preview",
-      s"-Djava.library.path=${circtInstallPath().path / "lib"}"
-    )
-  )
-}
+trait OMReaderModule extends ScalaModule {
+  def circtInstallPath: T[PathRef]
 
-trait OMReaderModule extends ScalaModule with HasChisel {
-  def panamaconverterIvy: Dep
-  def omreaderlibModule:     ScalaModule
-  def circtInstallPath:      T[PathRef]
-  override def moduleDeps = super.moduleDeps ++ Seq(omreaderlibModule)
+  def omlibIvy:    Dep
+  def oslibIvy:    Dep
   def mainargsIvy: Dep
-  override def ivyDeps      = T(super.ivyDeps() ++ Seq(mainargsIvy, panamaconverterIvy))
+
+  override def ivyDeps      = T(super.ivyDeps() ++ Seq(mainargsIvy, oslibIvy, omlibIvy))
   override def javacOptions = T(super.javacOptions() ++ Seq("--enable-preview", "--release", "21"))
   override def forkArgs: T[Seq[String]] = T(
     super.forkArgs() ++ Seq(

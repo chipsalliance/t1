@@ -33,7 +33,6 @@ let
         ./../../common.mill
         ./../../t1
         ./../../omreader
-        ./../../omreaderlib
         ./../../t1emu/src
         ./../../elaborator
         ./../../rocketv
@@ -47,7 +46,7 @@ let
       riscv-opcodes
       ivy-arithmetic.setupHook
       ivy-chisel.setupHook
-      ivy-chisel-panama.setupHook
+      ivy-omlib.setupHook
       ivy-chisel-interface.setupHook
       ivy-rvdecoderdb.setupHook
       ivy-hardfloat.setupHook
