@@ -13,21 +13,22 @@ import mill.util.Jvm
 import coursier.maven.MavenRepository
 
 object v {
-  val scala    = "2.13.16"
-  val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
-  val oslib    = ivy"com.lihaoyi::os-lib:0.9.1"
-  val upickle  = ivy"com.lihaoyi::upickle:3.3.1"
-  val spire    = ivy"org.typelevel::spire:latest.integration"
-  val evilplot = ivy"io.github.cibotech::evilplot:latest.integration"
-  val chisel   = ivy"org.chipsalliance::chisel:0.0.0+0-no-vcs-SNAPSHOT"
-  val panamaconverter = ivy"org.chipsalliance::panamaconverter-cross:0.0.0+0-no-vcs-SNAPSHOT"
+  val scala        = "2.13.16"
+  val scala3       = "3.6.2"
+  val mainargs     = ivy"com.lihaoyi::mainargs:0.5.0"
+  val oslib        = ivy"com.lihaoyi::os-lib:0.9.1"
+  val upickle      = ivy"com.lihaoyi::upickle:3.3.1"
+  val spire        = ivy"org.typelevel::spire:latest.integration"
+  val evilplot     = ivy"io.github.cibotech::evilplot:latest.integration"
+  val omlib        = ivy"me.jiuyang::omlib::0.0.0+0-no-vcs-SNAPSHOT"
+  val chisel       = ivy"org.chipsalliance::chisel:0.0.0+0-no-vcs-SNAPSHOT"
   val chiselPlugin = ivy"org.chipsalliance:::chisel-plugin:0.0.0+0-no-vcs-SNAPSHOT"
-  val axi4 = ivy"org.chipsalliance::axi4-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
-  val dwbb = ivy"org.chipsalliance::dwbb-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
-  val jtag = ivy"org.chipsalliance::jtag-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
-  val arithmetic = ivy"me.jiuyang::arithmetic-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
-  val rvdecoderdb = ivy"me.jiuyang::rvdecoderdb-jvm:0.0.0+0-no-vcs-SNAPSHOT"
-  val hardfloat = ivy"edu.berkeley.cs::hardfloat-snapshot:0.0.0-SNAPSHOT"
+  val axi4         = ivy"org.chipsalliance::axi4-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
+  val dwbb         = ivy"org.chipsalliance::dwbb-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
+  val jtag         = ivy"org.chipsalliance::jtag-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
+  val arithmetic   = ivy"me.jiuyang::arithmetic-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
+  val rvdecoderdb  = ivy"me.jiuyang::rvdecoderdb-jvm:0.0.0+0-no-vcs-SNAPSHOT"
+  val hardfloat    = ivy"edu.berkeley.cs::hardfloat-snapshot:0.0.0-SNAPSHOT"
 }
 
 object stdlib extends Stdlib
@@ -50,12 +51,12 @@ object t1 extends T1
 trait T1 extends common.T1Module with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
-  def arithmeticIvy  = v.arithmetic
-  def axi4Ivy        = v.axi4
-  def hardfloatIvy   = v.hardfloat
-  def rvdecoderdbIvy = v.rvdecoderdb
-  def stdlibModule      = stdlib
-  def riscvOpcodesPath  = T.input(PathRef(millSourcePath / os.up / "dependencies" / "riscv-opcodes"))
+  def arithmeticIvy    = v.arithmetic
+  def axi4Ivy          = v.axi4
+  def hardfloatIvy     = v.hardfloat
+  def rvdecoderdbIvy   = v.rvdecoderdb
+  def stdlibModule     = stdlib
+  def riscvOpcodesPath = T.input(PathRef(millSourcePath / os.up / "dependencies" / "riscv-opcodes"))
 
   def chiselModule    = None
   def chiselPluginJar = None
@@ -76,12 +77,12 @@ trait ConfigGen extends common.ConfigGenModule with ScalafmtModule {
 object rocketv extends RocketV
 
 trait RocketV extends common.RocketVModule with ScalafmtModule {
-  def scalaVersion      = T(v.scala)
-  def rvdecoderdbIvy = v.rvdecoderdb
-  def riscvOpcodesPath  = T.input(PathRef(millSourcePath / os.up / "dependencies" / "riscv-opcodes"))
-  def hardfloatIvy   = v.hardfloat
-  def axi4Ivy        = v.axi4
-  def stdlibModule      = stdlib
+  def scalaVersion     = T(v.scala)
+  def rvdecoderdbIvy   = v.rvdecoderdb
+  def riscvOpcodesPath = T.input(PathRef(millSourcePath / os.up / "dependencies" / "riscv-opcodes"))
+  def hardfloatIvy     = v.hardfloat
+  def axi4Ivy          = v.axi4
+  def stdlibModule     = stdlib
 
   def chiselModule    = None
   def chiselPluginJar = None
@@ -134,8 +135,6 @@ object elaborator extends Elaborator
 trait Elaborator extends common.ElaboratorModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
-  def panamaconverterIvy = v.panamaconverter
-
   def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
 
   def generators = Seq(
@@ -154,37 +153,14 @@ trait Elaborator extends common.ElaboratorModule with ScalafmtModule {
   def chiselPluginIvy = Some(v.chiselPlugin)
 }
 
-object omreaderlib extends OMReaderLib
-
-trait OMReaderLib extends common.OMReaderLibModule with ScalafmtModule {
-  def scalaVersion = T(v.scala)
-
-  def panamaconverterIvy = v.panamaconverter
-
-  def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
-
-  def mainargsIvy = v.mainargs
-
-  def chiselModule    = None
-  def chiselPluginJar = None
-  def chiselIvy       = Some(v.chisel)
-  def chiselPluginIvy = Some(v.chiselPlugin)
-}
-
 object omreader extends OMReader
 
 trait OMReader extends common.OMReaderModule with ScalafmtModule {
-  def scalaVersion = T(v.scala)
-
-  def panamaconverterIvy = v.panamaconverter
-  def omreaderlibModule     = omreaderlib
+  def scalaVersion = T(v.scala3)
 
   def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
 
   def mainargsIvy = v.mainargs
-
-  def chiselModule    = None
-  def chiselPluginJar = None
-  def chiselIvy       = Some(v.chisel)
-  def chiselPluginIvy = Some(v.chiselPlugin)
+  def oslibIvy    = v.oslib
+  def omlibIvy    = v.omlib
 }

@@ -9,10 +9,8 @@
 , jextract-21
 , runCommand
 , writeShellApplication
-, stdenv
 , mill
 , mill-ivy-fetcher
-, mill-ivy-env-shell-hook
 }:
 
 
@@ -55,36 +53,26 @@ lib.makeScope newScope (scope: {
     };
   };
 
-  ivy-chisel-panama =
+  ivy-omlib =
     publishMillJar {
-      name = "chisel-panama-snapshot";
-      src = submodules.chisel.src;
+      name = "omlib-snapshot";
+      src = submodules.zaozi.src;
 
       publishTargets = [
-        "panamaconverter.cross[2.13.16]"
-        "panamaom.cross[2.13.16]"
-        "panamalib.cross[2.13.16]"
-        "circtpanamabinding"
+        "mlirlib"
+        "circtlib"
+        "omlib"
       ];
-
-      buildInputs = [
-        scope.ivy-chisel.setupHook
-      ];
-
-      lockFile = ../locks/chisel-lock.nix;
 
       env = {
         CIRCT_INSTALL_PATH = circt-full;
+        MLIR_INSTALL_PATH = circt-full;
         JEXTRACT_INSTALL_PATH = jextract-21;
       };
 
-      nativeBuildInputs = [
-        # chisel requires git to generate version
-        git
+      lockFile = ../locks/zaozi-lock.nix;
 
-        circt-full
-        jextract-21
-      ];
+      nativeBuildInputs = [ git ];
     };
 
   ivy-arithmetic = publishMillJar {
@@ -190,7 +178,7 @@ lib.makeScope newScope (scope: {
       buildInputs = with scope; [
         ivy-arithmetic.setupHook
         ivy-chisel.setupHook
-        ivy-chisel-panama.setupHook
+        ivy-omlib.setupHook
         ivy-chisel-interface.setupHook
         ivy-rvdecoderdb.setupHook
         ivy-hardfloat.setupHook
