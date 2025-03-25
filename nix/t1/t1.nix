@@ -69,12 +69,8 @@ forEachTop (topName: generator: self: {
     mkdir -p $out/bin
     tee -a $out/bin/omreader <<EOF
     #!${runtimeShell}
-    cmd=\$1; shift
-    [[ -z "\$cmd" ]] && echo "missing argument" && exit 1
-
     exec ${t1Scope.omreader-unwrapped}/bin/omreader \
       ${lib.replaceStrings ["elaborator"] ["omreader"] generator.fullClassName} \
-      \$cmd \
       --mlirbc-file ${self.lowered-mlirbc}/${self.lowered-mlirbc.name} \
       $@
     EOF
@@ -82,17 +78,7 @@ forEachTop (topName: generator: self: {
     chmod +x $out/bin/omreader
   '';
   rtlDesignMetadataJson = runCommand "get-rtl-design-metadata-from-om" { nativeBuildInputs = [ jq self.omreader ]; } ''
-    jq --null-input \
-      --arg march $(omreader march) \
-      --arg extensions $(omreader extensions) \
-      --arg vlen $(omreader vlen) \
-      --arg dlen $(omreader dlen) \
-      '{ "march": $march,
-         "extensions": $extensions|split("_"),
-         "vlen": $vlen|tonumber,
-         "dlen": $dlen|tonumber,
-         "xlen": (if ($march|startswith("rv32")) then 32 else 64 end) }' \
-      > $out
+    omreader | jq '{march, extensions, vlen, dlen, xlen: (if (.march | startswith("rv32")) then 32 else 64 end)}' >$out
   '';
   rtlDesignMetadata = with builtins; fromJSON (readFile self.rtlDesignMetadataJson);
 
