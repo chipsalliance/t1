@@ -32,9 +32,10 @@ case class ZVMAParameter(
 
   val subArrayBufferDepth = 8
   // Should be a constant
+  // If an instruction col index is fixed (such as mv), a higher bank may be required.
   val subArrayRamBank = 2
-  // todo: calculate
-  val ramDepth = 1024
+
+  val ramDepth: Int = TE * TE * 32 * 4 / (elen * 4 * aluRowSize * aluColSize * subArrayRamBank)
 }
 
 class ZVMCsrInterface(parameter: ZVMAParameter) extends Bundle {
@@ -374,7 +375,7 @@ class ZVMA(val parameter: ZVMAParameter)
 
   // data buffer to LSU Pipe
   val dataBufferValid: Bool = RegInit(false.B)
-  val dataBuffer: UInt = RegInit(0.U(parameter.dlen.W))
+  val dataBuffer: UInt = RegInit(0.U((parameter.dlen / 2).W))
   val queueDeqReady: Bool = !dataBufferValid || io.dataToLSU.ready
   val queueDeqFire: Bool = queueDeqReady && mvValid.andR
   queueDeq := queueDeqFire
