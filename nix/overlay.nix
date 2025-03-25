@@ -149,4 +149,6 @@ rec {
   };
 
   t1 = final.callPackage ./t1 { };
+
+  buddy-codegen = final.callPackage ./pkgs/buddy-codegen { };
 }
