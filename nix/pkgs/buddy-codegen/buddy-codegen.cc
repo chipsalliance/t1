@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
         {1, 3, 224, 224} /*{image_cols, image_rows}*/);
     auto sizes = inputResize.getSizes();
     outPath << "#include <cstdint>" << std::endl;
-    outPath << generate_c_array_code(sizes, 4, "extern const int32_t",
+    outPath << generate_c_array_code(sizes, 4, "static const int32_t",
                                      "IMAGE_SIZES")
             << std::endl;
     outPath << generate_c_array_code(
@@ -111,11 +111,11 @@ int main(int argc, char *argv[]) {
 
     outPath << "#include <cstdint>" << std::endl;
     outPath << generate_c_array_code(params.getSizes(), 1,
-                                     "extern const int32_t", "PARAMS_SIZES")
+                                     "static const int32_t", "PARAMS_SIZES")
             << std::endl;
-    outPath << generate_c_array_code(
-                   params.getData(), params.getSize(),
-                   "extern __attribute((section(\".vdata\"))) float", "PARAMS")
+    outPath << generate_c_array_code(params.getData(), params.getSize(),
+                                     "__attribute((section(\".vdata\"))) float",
+                                     "PARAMS")
             << std::endl;
     outPath.close();
 
@@ -123,7 +123,6 @@ int main(int argc, char *argv[]) {
     const std::chrono::duration<double, std::milli> loadTime =
         loadEnd - loadStart;
     std::cout << "[buddy-codegen] Params load time: "
-              << (double)(loadTime.count()) / 1000 << "s\n"
-              << std::endl;
+              << (double)(loadTime.count()) / 1000 << "s" << std::endl;
   }
 }

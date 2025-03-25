@@ -4,6 +4,7 @@
 , makeBuilder
 , findAndBuild
 , getTestRequiredFeatures
+, buddy-codegen
 , t1main
 , callPackage
 }:
@@ -19,7 +20,7 @@ let
 
             passthru.featuresRequired = getTestRequiredFeatures sourcePath;
 
-            nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
+            nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir buddy-codegen ];
 
             src = sourcePath;
 
