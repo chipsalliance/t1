@@ -7,6 +7,7 @@
   getTestRequiredFeatures,
   t1main,
   callPackage,
+  buddy-codegen,
 }:
 
 let
@@ -25,6 +26,7 @@ let
             nativeBuildInputs = [
               buddy-mlir.pyenv
               buddy-mlir
+              buddy-codegen
             ];
 
             src = sourcePath;

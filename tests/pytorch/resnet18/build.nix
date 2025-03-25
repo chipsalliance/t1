@@ -9,7 +9,7 @@ let
   };
 in
 buildBuddyE2ETest {
-  caseName = "mobilenet";
+  caseName = "resnet18";
 
   optPhase = ''
     mkdir -p pytorchCache/hub/checkpoints/
@@ -57,6 +57,10 @@ buildBuddyE2ETest {
 
     echo "Compiling memrefCopy library"
     $CXX -nostdlib -c ${../lib/MemrefCopy.cc} -o memrefCopy.o
+
+    buddy-codegen arg -i arg0.data -o arg0.inc -s 11699112
+    buddy-codegen img -i ${./dog-224_224.png} -o generated-img.inc
+
     llcArtifacts+=(
       memrefCopy.o
     )
