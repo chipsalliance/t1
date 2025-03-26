@@ -241,7 +241,7 @@ class ZVMADataExchange (val parameter: ZVMADataExchangeParam)
   val tkIndexMax: UInt = Mux(instructionReg.decode.arithmetic, csrReg.tk - 1.U, 0.U)
 
   val readIndex = Mux(state.readVs1, state.vs1Index, state.vs2Index)
-  val readOffset = readIndex(parameter.vrfOffsetBits - 1, 0)
+  val readOffset = changeUIntSize(readIndex, parameter.vrfOffsetBits)
 
   val regGroupSize = Mux1H(UIntToOH(csrReg.vSew)(1, 0), Seq(2.U, 4.U))
   val readRegIndex: UInt = Mux(state.readVs1, instructionReg.vs1, instructionReg.vs2) +

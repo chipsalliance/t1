@@ -269,7 +269,7 @@ case class T1Parameter(
 
   // todo
   def zvmaEnable: Boolean = true
-  val TE: Int = vLen/4
+  val TE: Int = 32
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, zvmaEnable, allInstructions)
 
   /** paraemter for AXI4. */
