@@ -1687,6 +1687,8 @@ class CSR(val parameter: CSRParameter)
 
   // update csr for vector
   if (usingVector) {
+    // todo: param
+    val TE = 32
     // connect csr for vector
     val vtype        = vector.get.states("vill") ## false.B ## vector.get.states("tm") ## 0.U(2.W) ##
       vector.get.states("tk") ## vector.get.states("vtwiden") ## vector.get.states("altfmt") ##
@@ -1707,7 +1709,8 @@ class CSR(val parameter: CSRParameter)
     // v type set
     val newVType     = Mux1H(
       Seq(
-        (vsetvli || vsetivli) -> io.inst(0)(27, 20),
+        vsetvli               -> io.inst(0)(30, 20),
+        vsetivli              -> io.inst(0)(29, 20),
         vsetvl                -> io.wbRegRS2.get
       )
     )
@@ -1723,7 +1726,10 @@ class CSR(val parameter: CSRParameter)
     val vsewIll     = vSewIllList.map(_ === newVType(5, 3)).reduce(_ || _)
     val vsetIll     = vlmulIll && !newTypMSBValid && vsewIll
     // vlmax = vlen * lmul / sew
-    val vlmax: UInt = (true.B << (log2Ceil(vLen) - 6) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
+    val vlmaxForNormal: UInt = (true.B << (log2Ceil(vLen) - 6) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
+    val vlmax = io.setVlType.map {_ =>
+      Mux(vlmaxForNormal < TE.U || !newVType(10, 9).orR, vlmaxForNormal, TE.U)
+    }.getOrElse(vlmaxForNormal)
     // set vl
     val setVL = Mux1H(
       Seq(
@@ -1740,10 +1746,10 @@ class CSR(val parameter: CSRParameter)
         vector.get.states("tk") := io.rw.wdata
       }
       when(io.retire(0) && t.tn) {
-        vector.get.states("vl") := io.rw.wdata
+        vector.get.states("vl") := Mux(io.rw.wdata > TE.U && vector.get.states("vtwiden").orR, TE.U, io.rw.wdata)
       }
       when(io.retire(0) && t.tm) {
-        vector.get.states("tm") := io.rw.wdata
+        vector.get.states("tm") := Mux(io.rw.wdata > TE.U, TE.U, io.rw.wdata)
       }
     }
     when(io.retire(0) && setVlEn) {

@@ -53,14 +53,14 @@ test_1:
     .insn r STORE_FP, 7, 0x29, x0, a1, a0 # vste32  a0, a1
 
     # move test
-    li a1, 0xd3
+    li a1, 0x6d3
     li a2, 0x100
     vsetvl x0, a2, a1
     .insn r 0x57, 6, 0x2f, x0, a0, s0 # vtmv.t.v, a0, v8
     .insn r 0x57, 6, 0x21, s0, a0, t6 # vtmv.t.v, v8, a0
 
 wait_z:
-    li a2, 0x40000
+    li a2, 0x400
     addi    a2, a2, -1
     bnez a2, wait_z
 

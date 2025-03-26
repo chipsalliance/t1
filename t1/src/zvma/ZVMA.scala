@@ -187,8 +187,8 @@ class ZVMA(val parameter: ZVMAParameter)
   val aluReadyVec: Vec[Vec[Bool]] = Wire(Vec(parameter.aluColSize, Vec(parameter.aluRowSize, Bool())))
   val aluReady: Bool = aluReadyVec.asUInt.andR
 
-  val nextColIndex: UInt = colExecuteIndex + 1.U
-  val nextRowIndex: UInt = rowExecuteIndex + 1.U
+  val nextColIndex: UInt = colExecuteIndex +& 1.U
+  val nextRowIndex: UInt = rowExecuteIndex +& 1.U
 
   // Fixed Row index if always access same col
   val fixedCol = !contorlReg.aluType && !contorlReg.col
