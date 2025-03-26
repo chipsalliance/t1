@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-for-circt.url = "github:NixOS/nixpkgs/nixos-unstable-small";
+    nixpkgs-for-llvm.url = "github:NixOS/nixpkgs/nixos-unstable-small";
     flake-utils.url = "github:numtide/flake-utils";
     mill-ivy-fetcher = {
       url = "github:Avimitin/mill-ivy-fetcher";
@@ -12,7 +13,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, mill-ivy-fetcher, flake-utils, nixpkgs-for-circt }@inputs:
+  outputs = { self, nixpkgs, mill-ivy-fetcher, flake-utils, nixpkgs-for-circt, nixpkgs-for-llvm }@inputs:
     let
       overlay = import ./nix/overlay.nix { inherit self; };
     in

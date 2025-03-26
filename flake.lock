@@ -73,12 +73,29 @@
         "type": "github"
       }
     },
+    "nixpkgs-for-llvm": {
+      "locked": {
+        "lastModified": 1742960832,
+        "narHash": "sha256-xdp71QH76Q0esAJi4+5xDzpgBQNFpq8xn6UNfyT/s9w=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "24693557f72603e8f2c514ee26854d5c2aad9090",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable-small",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
         "mill-ivy-fetcher": "mill-ivy-fetcher",
         "nixpkgs": "nixpkgs",
-        "nixpkgs-for-circt": "nixpkgs-for-circt"
+        "nixpkgs-for-circt": "nixpkgs-for-circt",
+        "nixpkgs-for-llvm": "nixpkgs-for-llvm"
       }
     },
     "systems": {
