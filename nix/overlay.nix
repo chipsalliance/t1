@@ -3,8 +3,8 @@
 final: prev:
 
 let
-  llvmForRVV_attrName = "llvmPackages_17"; # brand new clang with v0.12 rvv intrinsic support
-  rv32_pkgs = final.pkgsCross.riscv32-embedded;
+  llvmForRVV_attrName = "llvmPackages_git";
+  rv32_pkgs = self.inputs.nixpkgs-for-llvm.legacyPackages."${final.system}".pkgsCross.riscv32-embedded;
   rv32_buildPkgs = rv32_pkgs.buildPackages;
 in
 rec {
@@ -88,9 +88,24 @@ rec {
         newlib = rv32_pkgs.stdenv.cc.libc.overrideAttrs (oldAttrs: {
           CFLAGS_FOR_TARGET = "-march=rv32gcv -mabi=ilp32f";
         });
+
+        llvmPackages = rv32_buildPkgs.${llvmForRVV_attrName};
+        patchedCC =
+          let
+            llvmSrc = prev.fetchFromGitHub {
+              owner = "llvm";
+              repo = "llvm-project";
+              rev = "bff94d774cda03e43aff1cdf6e4945136bbab3d7";
+              hash = "sha256-+bG2A1sLUoQyCPLiOzPIQgvyiGBFXQ6rPXSIsNLaVy4=";
+            };
+          in
+          llvmPackages.clang-unwrapped.override {
+            monorepoSrc = llvmSrc;
+            libllvm = llvmPackages.libllvm.override { monorepoSrc = llvmSrc; };
+          };
       in
       rv32_buildPkgs.wrapCCWith rec {
-        cc = rv32_buildPkgs.${llvmForRVV_attrName}.clang-unwrapped;
+        cc = patchedCC;
         libc = newlib;
         bintools = rv32_pkgs.stdenv.cc.bintools.override {
           inherit libc; # we must keep consistency of bintools libc and compiler libc
