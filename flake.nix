@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    nixpkgs-for-llvm.url = "github:NixOS/nixpkgs/nixos-unstable-small";
     mill-ivy-fetcher.url = "github:Avimitin/mill-ivy-fetcher";
     circt-follow.url = "github:sequencer/zaozi";
     treefmt-nix.url = "github:numtide/treefmt-nix";
