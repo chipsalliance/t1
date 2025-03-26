@@ -42,10 +42,14 @@ buildBuddyE2ETest {
           -tensor-bufferize \
           -linalg-bufferize \
           -finalizing-bufferize \
+          -batchmatmul-optimize \
           -convert-linalg-to-loops \
           -lower-affine \
           -convert-scf-to-cf \
           -llvm-request-c-wrappers \
+          -lower-vector-exp \
+          -lower-rvv=rv32 \
+          -convert-vector-to-llvm \
           -convert-math-to-llvm \
           -convert-math-to-libm \
           -convert-arith-to-llvm \
