@@ -136,7 +136,6 @@ void test() {{
   uint32_t Z[LEN];
 
   mmm(X, Y, M, LEN, 0x{minus_M_inverse_mod_r:04x}, Z);
-  print_array(Z, LEN);
 }}
 """)
 

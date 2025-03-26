@@ -5,8 +5,8 @@
   "eval.ntt_512": 8099,
   "eval.ntt_1024": 57728,
   "eval.ntt_4096": 56564,
-  "eval.mmm_1024": -1,
-  "eval.mmm_2048": -1,
-  "eval.mmm_4096": -1,
-  "eval.mmm_8192": -1
+  "eval.mmm_1024": 941302,
+  "eval.mmm_2048": 1743731,
+  "eval.mmm_4096": 3486520,
+  "eval.mmm_8192": 6999800
 }
