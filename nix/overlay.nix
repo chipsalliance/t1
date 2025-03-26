@@ -1,13 +1,11 @@
 final: prev:
 
 let
-  llvmForRVV_attrName = "llvmPackages_19";
+  llvmForRVV_attrName = "llvmPackages_rv_xsfmm";
   rv32_pkgs = final.pkgsCross.riscv32-embedded;
   rv32_buildPkgs = rv32_pkgs.buildPackages;
 in
 rec {
-  inherit rv32_pkgs rv32_buildPkgs; # for easier inspection
-
   getEnv' =
     key:
     let
@@ -68,6 +66,17 @@ rec {
 
   t1-script = final.callPackage ../script { };
   inherit (t1-script) t1-helper ci-helper;
+
+  llvmPackages_rv_xsfmm =
+    (final.mkLLVMPackages {
+      name = "rv_xsfmm";
+      version = "21.0.0-git-2025-05-22";
+      gitRelease = {
+        rev = "95ba5508e5dca4c9a3dd50c80b89e3f56016a4f3";
+        rev-version = "rv-xsfmm-git-2025-05-22";
+        sha256 = "sha256-CavRVIc7wEUFqISe4OQcRWJ4fxeDNiBsPpXnZypW3q8=";
+      };
+    }).value;
 
   # stdenv for compiling rvv programs, with ilp32f newlib and clang
   rv32-stdenv = rv32_pkgs.stdenv.override {
