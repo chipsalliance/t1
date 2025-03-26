@@ -5,7 +5,8 @@
 , writeText
 , lib
 , newScope
-, circt-full
+, circt-install
+, mlir-install
 , jextract-21
 , runCommand
 , writeShellApplication
@@ -65,8 +66,8 @@ lib.makeScope newScope (scope: {
       ];
 
       env = {
-        CIRCT_INSTALL_PATH = circt-full;
-        MLIR_INSTALL_PATH = circt-full;
+        CIRCT_INSTALL_PATH = circt-install;
+        MLIR_INSTALL_PATH = mlir-install;
         JEXTRACT_INSTALL_PATH = jextract-21;
       };
 
