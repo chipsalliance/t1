@@ -135,7 +135,8 @@ object elaborator extends Elaborator
 trait Elaborator extends common.ElaboratorModule with ScalafmtModule {
   def scalaVersion = T(v.scala)
 
-  def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
+  def circtInstallPath = Task(    os.Path(Task.env.getOrElse("CIRCT_INSTALL_PATH", "CIRCT_INSTALL_PATH not found")))
+  def mlirInstallPath = Task.Input( os.Path(Task.env.getOrElse("MLIR_INSTALL_PATH", "MLIR_INSTALL_PATH not found")))
 
   def generators = Seq(
     t1,
@@ -158,7 +159,8 @@ object omreader extends OMReader
 trait OMReader extends common.OMReaderModule with ScalafmtModule {
   def scalaVersion = T(v.scala3)
 
-  def circtInstallPath = T.input(PathRef(os.Path(T.ctx().env("CIRCT_INSTALL_PATH"))))
+  def circtInstallPath = Task(os.Path(Task.env.getOrElse("CIRCT_INSTALL_PATH", "CIRCT_INSTALL_PATH not found")))
+  def mlirInstallPath = Task.Input( os.Path(Task.env.getOrElse("MLIR_INSTALL_PATH", "MLIR_INSTALL_PATH not found")))
 
   def mainargsIvy = v.mainargs
   def oslibIvy    = v.oslib

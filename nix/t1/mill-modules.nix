@@ -8,7 +8,8 @@
 , mill
 , git
 , espresso
-, circt-full
+, circt-install
+, mlir-install
 , jextract-21
 , add-determinism
 , writeShellApplication
@@ -55,7 +56,8 @@ let
 
     nativeBuildInputs = [
       mill
-      circt-full
+      circt-install
+      mlir-install
       jextract-21
       add-determinism
       espresso
@@ -65,7 +67,8 @@ let
     ];
 
     env = {
-      CIRCT_INSTALL_PATH = circt-full;
+      CIRCT_INSTALL_PATH = circt-install;
+      MLIR_INSTALL_PATH = mlir-install;
       JEXTRACT_INSTALL_PATH = jextract-21;
     };
 
@@ -125,14 +128,14 @@ let
 
       mkdir -p $elaborator/bin
       makeWrapper ${jdk21}/bin/java $elaborator/bin/elaborator \
-        --add-flags "--enable-preview -Djava.library.path=${circt-full}/lib" \
+        --add-flags "--enable-preview -Djava.library.path=${mlir-install}/lib:${circt-install}/lib" \
         --add-flags "-cp $out/share/java/elaborator.jar"
 
       mkdir -p $omreader/bin
       makeWrapper ${jdk21}/bin/java "$omreader"/bin/omreader \
         --add-flags "--enable-preview" \
         --add-flags "--enable-native-access=ALL-UNNAMED" \
-        --add-flags "-Djava.library.path=${circt-full}/lib" \
+        --add-flags "-Djava.library.path=${mlir-install}/lib:${circt-install}/lib" \
         --add-flags "-cp $out/share/java/omreader.jar"
     '';
   };
