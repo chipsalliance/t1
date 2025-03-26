@@ -4,5 +4,8 @@
   "eval.ntt_256": 8777,
   "eval.ntt_512": 58013,
   "eval.ntt_1024": 57728,
-  "eval.ntt_4096": 56564
+  "eval.ntt_4096": 56564,
+  "eval.mmm_1024": -1,
+  "eval.mmm_2048": -1,
+  "eval.mmm_4096": -1
 }
