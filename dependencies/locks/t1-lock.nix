@@ -1640,14 +1640,14 @@
       mkdir -p "$out"
       cp -v "$downloadedFile" "$out/compiler-bridge_2.13-1.10.7.pom"
             
-      downloadedFile=$TMPDIR/compiler-bridge_2.13-1.10.7-sources.jar
-      tryDownload "https://repo1.maven.org/maven2/org/scala-sbt/compiler-bridge_2.13/1.10.7/compiler-bridge_2.13-1.10.7-sources.jar"
-      cp -v "$TMPDIR/compiler-bridge_2.13-1.10.7-sources.jar" "$out/"
-
-      
       downloadedFile=$TMPDIR/compiler-bridge_2.13-1.10.7.jar
       tryDownload "https://repo1.maven.org/maven2/org/scala-sbt/compiler-bridge_2.13/1.10.7/compiler-bridge_2.13-1.10.7.jar"
       cp -v "$TMPDIR/compiler-bridge_2.13-1.10.7.jar" "$out/"
+
+      
+      downloadedFile=$TMPDIR/compiler-bridge_2.13-1.10.7-sources.jar
+      tryDownload "https://repo1.maven.org/maven2/org/scala-sbt/compiler-bridge_2.13/1.10.7/compiler-bridge_2.13-1.10.7-sources.jar"
+      cp -v "$TMPDIR/compiler-bridge_2.13-1.10.7-sources.jar" "$out/"
 
     '';
     passthru.installPath = "https/repo1.maven.org/maven2/org/scala-sbt/compiler-bridge_2.13/1.10.7";
@@ -1681,14 +1681,14 @@
       mkdir -p "$out"
       cp -v "$downloadedFile" "$out/compiler-interface-1.10.7.pom"
             
-      downloadedFile=$TMPDIR/compiler-interface-1.10.7-sources.jar
-      tryDownload "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.7/compiler-interface-1.10.7-sources.jar"
-      cp -v "$TMPDIR/compiler-interface-1.10.7-sources.jar" "$out/"
-
-      
       downloadedFile=$TMPDIR/compiler-interface-1.10.7.jar
       tryDownload "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.7/compiler-interface-1.10.7.jar"
       cp -v "$TMPDIR/compiler-interface-1.10.7.jar" "$out/"
+
+      
+      downloadedFile=$TMPDIR/compiler-interface-1.10.7-sources.jar
+      tryDownload "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.7/compiler-interface-1.10.7-sources.jar"
+      cp -v "$TMPDIR/compiler-interface-1.10.7-sources.jar" "$out/"
 
     '';
     passthru.installPath = "https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.10.7";
@@ -1848,14 +1848,14 @@
       mkdir -p "$out"
       cp -v "$downloadedFile" "$out/util-interface-1.10.7.pom"
             
-      downloadedFile=$TMPDIR/util-interface-1.10.7-sources.jar
-      tryDownload "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.7/util-interface-1.10.7-sources.jar"
-      cp -v "$TMPDIR/util-interface-1.10.7-sources.jar" "$out/"
-
-      
       downloadedFile=$TMPDIR/util-interface-1.10.7.jar
       tryDownload "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.7/util-interface-1.10.7.jar"
       cp -v "$TMPDIR/util-interface-1.10.7.jar" "$out/"
+
+      
+      downloadedFile=$TMPDIR/util-interface-1.10.7-sources.jar
+      tryDownload "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.7/util-interface-1.10.7-sources.jar"
+      cp -v "$TMPDIR/util-interface-1.10.7-sources.jar" "$out/"
 
     '';
     passthru.installPath = "https/repo1.maven.org/maven2/org/scala-sbt/util-interface/1.10.7";
@@ -3486,4 +3486,4 @@
   };
 
 }
-# Project Source Hash:sha256-1g+ddVx3X+MSaXZjTrBLIFCTorkaLS9wRP4g85MKLtA=
+# Project Source Hash:sha256-lNJQ6VF/+g2m0UlgU5Uspqmx/Rs0WIhUxj0hNB2tUcc=
