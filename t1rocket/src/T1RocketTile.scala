@@ -359,6 +359,7 @@ case class T1RocketTileParameter(
     extensions = instructionSets.filter {
       case i if i.startsWith("zve") => true
       case i if i.startsWith("zvl") => true
+      case i if i == "zvma" => true
       case i if i == "zvbb"         => true
       case _                        => false
     },
