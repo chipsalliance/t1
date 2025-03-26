@@ -1,13 +1,11 @@
 final: prev:
 
 let
-  llvmForRVV_attrName = "llvmPackages_19";
-  rv32_pkgs = final.pkgsCross.riscv32-embedded;
-  rv32_buildPkgs = rv32_pkgs.buildPackages;
+  llvmForRVV_attrName = "llvmPackages_git";
+  rv32_pkgs = final.rv32_nixpkgs;
+  rv32_buildPkgs = final.rv32_nixpkgs.buildPackages;
 in
 rec {
-  inherit rv32_pkgs rv32_buildPkgs; # for easier inspection
-
   getEnv' =
     key:
     let
@@ -92,9 +90,24 @@ rec {
         newlib = rv32_pkgs.stdenv.cc.libc.overrideAttrs (oldAttrs: {
           CFLAGS_FOR_TARGET = "-march=rv32imacf_zvl128b_zve32f -mabi=ilp32f";
         });
+
+        llvmPackages = rv32_buildPkgs.${llvmForRVV_attrName};
+        patchedCC =
+          let
+            llvmSrc = prev.fetchFromGitHub {
+              owner = "llvm";
+              repo = "llvm-project";
+              rev = "569b6f6dade6a1a1b758d982bcd9d91abafb787f";
+              hash = "sha256-5IbLc5imJNy/AphTeP8jgC34c2WgLgwwssR2fqCB380=";
+            };
+          in
+          llvmPackages.clang-unwrapped.override {
+            monorepoSrc = llvmSrc;
+            libllvm = llvmPackages.libllvm.override { monorepoSrc = llvmSrc; };
+          };
       in
       rv32_buildPkgs.wrapCCWith rec {
-        cc = rv32_buildPkgs.${llvmForRVV_attrName}.clang-unwrapped;
+        cc = patchedCC;
         libc = newlib;
         bintools = rv32_pkgs.stdenv.cc.bintools.override {
           inherit libc; # we must keep consistency of bintools libc and compiler libc
