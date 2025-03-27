@@ -23,12 +23,17 @@ buildBuddyE2ETest {
         "builtin.module(func.func(tosa-to-linalg-named, tosa-to-linalg, tosa-to-tensor, tosa-to-arith), \
             empty-tensor-to-alloc-tensor, convert-elementwise-to-linalg, arith-bufferize, \
             func.func(linalg-bufferize, tensor-bufferize), func-bufferize)" \
+      | buddy-opt \
+          -lower-vector-exp \
+          -lower-rvv=rv32 \
+          -convert-vector-to-llvm \
       | buddy-opt -pass-pipeline \
         "builtin.module(func.func(buffer-deallocation-simplification, convert-linalg-to-loops), \
             eliminate-empty-tensors, func.func(llvm-request-c-wrappers), \
             convert-math-to-llvm, convert-math-to-libm, convert-scf-to-cf, \
             convert-arith-to-llvm, expand-strided-metadata, finalize-memref-to-llvm, \
             convert-func-to-llvm, reconcile-unrealized-casts)" \
+      | sed 's|i64|i32|g' \
       > forward-lowered.mlir
 
     echo "Lowering subgraph0.mlir"
@@ -45,11 +50,11 @@ buildBuddyE2ETest {
           -batchmatmul-optimize \
           -convert-linalg-to-loops \
           -lower-affine \
-          -convert-scf-to-cf \
-          -llvm-request-c-wrappers \
           -lower-vector-exp \
           -lower-rvv=rv32 \
           -convert-vector-to-llvm \
+          -convert-scf-to-cf \
+          -llvm-request-c-wrappers \
           -convert-math-to-llvm \
           -convert-math-to-libm \
           -convert-arith-to-llvm \
@@ -57,6 +62,7 @@ buildBuddyE2ETest {
           -expand-strided-metadata \
           -finalize-memref-to-llvm \
           -reconcile-unrealized-casts \
+      | sed 's|i64|i32|g' \
       > subgraph0-lowered.mlir
 
     echo "Compiling memrefCopy library"
@@ -73,5 +79,8 @@ buildBuddyE2ETest {
       "forward-lowered.mlir"
       "subgraph0-lowered.mlir"
     )
+
+    mkdir -p "$out"/share
+    cp -v ''${optArtifacts[*]} "$out"/share/
   '';
 }
