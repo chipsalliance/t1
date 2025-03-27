@@ -52,7 +52,7 @@ build {
   buildPhase = ''
     runHook preBuild
 
-    $CC -T${linkerScript} $csrcs ${t1main} -o $pname.elf
+    $CC -lm -T${linkerScript} $csrcs ${t1main} -o $pname.elf
 
     runHook postBuild
   '';

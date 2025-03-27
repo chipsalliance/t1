@@ -76,6 +76,7 @@ let
               $CXX -nostdlib -I${./include} -c ${caseName}.cc -o host.o
               $CC -T${linkerScript} \
                 host.o ''${llcArtifacts[@]} ${t1main} \
+                -lm \
                 -o $pname.elf
             '';
 
