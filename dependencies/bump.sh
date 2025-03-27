@@ -12,9 +12,11 @@ mkdir -p ./dependencies/locks
 bumpScript=(
   "t1.submodules.ivy-chisel.bump"
   "t1.submodules.ivy-hardfloat.bump"
+  "t1.submodules.ivy-omlib.bump"
   "t1.elaborator.bump"
 )
 
 for script in "${bumpScript[@]}"; do
-  nix run ".#$script" -j auto
+  # Open a new shell to avoid environment pollution
+  ( nix run ".#$script" -j auto )
 done
