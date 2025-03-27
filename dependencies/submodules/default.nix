@@ -45,11 +45,7 @@ lib.makeScope newScope (scope: {
       ];
 
       text = ''
-        sourceDir=$(mktemp -d -t 'chisel_src_XXX')
-        cp -rT ${submodules.chisel.src} "$sourceDir"/chisel
-        chmod -R u+w "$sourceDir"
-
-        mif run -p "$sourceDir"/chisel -o ./dependencies/locks/chisel-lock.nix
+        mif run -p "${submodules.chisel.src}" -o ./dependencies/locks/chisel-lock.nix "$@"
       '';
     };
   };
@@ -72,6 +68,19 @@ lib.makeScope newScope (scope: {
       };
 
       lockFile = ../locks/zaozi-lock.nix;
+
+      passthru.bump = writeShellApplication {
+        name = "bump-zaozi-mill-lock";
+
+        runtimeInputs = [
+          mill
+          mill-ivy-fetcher
+        ];
+
+        text = ''
+          mif run -p "${submodules.zaozi.src}" -o ./dependencies/locks/zaozi-lock.nix
+        '';
+      };
 
       nativeBuildInputs = [ git ];
     };
@@ -152,16 +161,12 @@ lib.makeScope newScope (scope: {
         mill-ivy-fetcher
       ];
       text = ''
-        sourceDir=$(mktemp -d -t 'hardfloat_src_XXX')
-        cp -rT ${src} "$sourceDir"/hardfloat
-        chmod -R u+w "$sourceDir"
-
         ivyLocal="${scope.ivy-chisel}"
         export JAVA_TOOL_OPTIONS="''${JAVA_TOOL_OPTIONS:-} -Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal"
 
         mif run \
           --targets 'hardfloat[snapshot]' \
-          -p "$sourceDir"/hardfloat -o ./dependencies/locks/berkeley-hardfloat-lock.nix
+          -p "${src}" -o ./dependencies/locks/berkeley-hardfloat-lock.nix
       '';
     };
   };

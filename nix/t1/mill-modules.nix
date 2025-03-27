@@ -79,14 +79,10 @@ let
         mill-ivy-fetcher
       ];
       text = ''
-        sourceDir=$(mktemp -d -t 't1_src_XXX')
-        cp -rT ${src} "$sourceDir"/t1
-        chmod -R u+w "$sourceDir"
-
         ivyLocal="${submodules.ivyLocalRepo}"
         export JAVA_TOOL_OPTIONS="''${JAVA_TOOL_OPTIONS:-} -Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal"
 
-        mif run -p "$sourceDir"/t1 -o ./dependencies/locks/t1-lock.nix
+        mif run -p "${src}" -o ./dependencies/locks/t1-lock.nix
       '';
     };
 
