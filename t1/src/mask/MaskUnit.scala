@@ -995,7 +995,7 @@ class MaskUnit(val parameter: T1Parameter)
   val compressUnit = Instantiate(new MaskCompress(compressParam))
   val reduceUnit   = Instantiate(
     new MaskReduce(
-      MaskReduceParameter(parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
+      MaskReduceParameter(parameter.eLen, parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
     )
   )
   omInstance.reduceUnitIn := reduceUnit.io.om.asAnyClassType

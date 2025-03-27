@@ -316,6 +316,7 @@ case class T1Parameter(
   def laneParam: LaneParameter =
     LaneParameter(
       vLen = vLen,
+      eLen = eLen,
       datapathWidth = datapathWidth,
       laneNumber = laneNumber,
       chainingSize = chainingSize,
