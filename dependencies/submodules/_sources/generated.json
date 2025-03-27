@@ -106,7 +106,7 @@
     },
     "zaozi": {
         "cargoLocks": null,
-        "date": "2025-03-21",
+        "date": "2025-03-28",
         "extract": null,
         "name": "zaozi",
         "passthru": null,
@@ -118,11 +118,11 @@
             "name": null,
             "owner": "sequencer",
             "repo": "zaozi",
-            "rev": "753d70b9dcb6ecaffd7ee90fe307f0a481ab0dc6",
-            "sha256": "sha256-+KyY8DZ7TPv4/3MIk0QpxXHb2v3If7+atbzoc7Xm4sU=",
+            "rev": "3ae12385263fe30f5f0a26163a3fa44216553281",
+            "sha256": "sha256-wDL7q1GVYJi5K2a3sKn1th7s6QxoHFTBMrAehAzbcuU=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "753d70b9dcb6ecaffd7ee90fe307f0a481ab0dc6"
+        "version": "3ae12385263fe30f5f0a26163a3fa44216553281"
     }
 }
