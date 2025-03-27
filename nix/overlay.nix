@@ -151,4 +151,28 @@ rec {
   t1 = final.callPackage ./t1 { };
 
   buddy-codegen = final.callPackage ./pkgs/buddy-codegen { };
+
+  spike-t1 = final.writeShellApplication {
+    name = "spike-t1";
+
+    runtimeInputs = with final; [
+      pkgsCross.riscv32-embedded.buildPackages.gcc
+      spike
+      dtc
+    ];
+
+    text = ''
+      elf=''${1:-}
+      if [[ -z "$elf" ]]; then
+        echo "Require argument to find elf" >&2
+        exit 1
+      fi
+
+      spike -d --isa=rv32gcv_zvl2048b_zve32f \
+        --priv=m \
+        -m0x20000000:0x20000000,0x00000000:0x20000000,0x40000000:0x80000000,0xc0000000:0x40000000 \
+        --pc=0x"$(grep '<_start>' <(riscv32-none-elf-objdump -d "$elf") | cut -d' ' -f1)" \
+        "$elf"
+    '';
+  };
 }
