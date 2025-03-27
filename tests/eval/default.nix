@@ -34,5 +34,6 @@ let
   autoCases = findAndBuild ./. build;
 
   nttCases = callPackage ./_ntt { };
+  mmmCases = callPackage ./_mmm { };
 in
-  autoCases // nttCases
+  autoCases // nttCases // mmmCases
