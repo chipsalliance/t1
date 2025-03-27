@@ -33,9 +33,9 @@ class T1RocketTile(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1RocketTile_C
 
   val march = t1.obj("march")
 
-  val sram = tile.flatten.flatMap(_.objOpt.flatMap(_.get("srams")))
+  val sram = tile.flatten.flatMap(_.objOpt).flatMap(_.get("srams")).flatMap(_.list)
 
-  val retime = tile.flatten.flatMap(_.objOpt.flatMap(_.get("retime")))
+  val retime = tile.flatten.flatMap(_.objOpt).flatMap(_.get("retime"))
 
   override def json = write(T1RocketTileOM(vlen, dlen, instructions, extensions, march, sram, retime))
   

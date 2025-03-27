@@ -32,9 +32,9 @@ class T1(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1_Class") with T1OMRead
 
   val march = t1.obj("march")
 
-  val sram = t1.flatten.flatMap(_.objOpt.flatMap(_.get("srams")))
-
-  val retime = t1.flatten.flatMap(_.objOpt.flatMap(_.get("retime")))
+  val sram = t1.flatten.flatMap(_.objOpt).flatMap(_.get("srams")).flatMap(_.list)
+  
+  val retime = t1.flatten.flatMap(_.objOpt).flatMap(_.get("retime"))
 
   override def json = write(T1OM(vlen, dlen, instructions, extensions, march, sram, retime))
   
