@@ -75,6 +75,7 @@ public:
   }
 };
 
+// TODO: can we vectorize this
 extern "C" void memrefCopy(int32_t elemSize, UnrankedMemRefType<char> *srcArg,
                            UnrankedMemRefType<char> *dstArg) {
   DynamicMemRefType<char> src(*srcArg);
