@@ -52,6 +52,7 @@ let
           "-march=${march}"
           "-mno-relax"
           "-static"
+          "-nostartfiles"
           "-mcmodel=medany"
           "-fvisibility=hidden"
           "-fno-PIC"
