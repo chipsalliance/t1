@@ -92,6 +92,7 @@ object LaneParameter {
   */
 case class LaneParameter(
   vLen:                             Int,
+  eLen:                             Int,
   datapathWidth:                    Int,
   laneNumber:                       Int,
   chainingSize:                     Int,

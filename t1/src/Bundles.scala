@@ -612,9 +612,9 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val src:          Vec[UInt]    = Vec(4, UInt((parameter.datapathWidth + 1).W))
   val opcode:       UInt         = UInt(4.W)
   // mask for carry or borrow
-  val mask:         UInt         = UInt(4.W)
+  val mask:         UInt         = UInt((parameter.datapathWidth / 8).W)
   // mask for execute
-  val executeMask:  UInt         = UInt(4.W)
+  val executeMask:  UInt         = UInt((parameter.datapathWidth / 8).W)
   // eg: vwmaccus, vwmulsu
   val sign0:        Bool         = Bool()
   val sign:         Bool         = Bool()
@@ -623,7 +623,7 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val saturate:     Bool         = Bool()
   val vxrm:         UInt         = UInt(2.W)
   val vSew:         UInt         = UInt(2.W)
-  val shifterSize:  UInt         = UInt((log2Ceil(parameter.datapathWidth) * 4).W)
+  val shifterSize:  UInt         = UInt((log2Ceil(parameter.eLen) * (parameter.datapathWidth / 8)).W)
   val rem:          Bool         = Bool()
   val executeIndex: UInt         = UInt(2.W)
   val popInit:      UInt         = UInt(parameter.vlMaxBits.W)
