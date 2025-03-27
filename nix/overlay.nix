@@ -20,6 +20,9 @@ rec {
       builtins.throw "${key} not set or '--impure' not applied"
     else val;
 
+  # follow circt version from zaozi
+  circt = self.inputs.zaozi.legacyPackages."${final.system}".circt;
+
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
