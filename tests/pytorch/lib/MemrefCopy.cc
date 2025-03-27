@@ -24,38 +24,38 @@ template <typename T> struct UnrankedMemRefType {
 template <typename T, int N> struct StridedMemRefType {
   T *basePtr;
   T *data;
-  int64_t offset;
-  int64_t sizes[N];
-  int64_t strides[N];
+  int32_t offset;
+  int32_t sizes[N];
+  int32_t strides[N];
 };
 
 /// StridedMemRef descriptor type specialized for rank 1.
 template <typename T> struct StridedMemRefType<T, 1> {
   T *basePtr;
   T *data;
-  int64_t offset;
-  int64_t sizes[1];
-  int64_t strides[1];
+  int32_t offset;
+  int32_t sizes[1];
+  int32_t strides[1];
 
-  T &operator[](int64_t idx) { return *(data + offset + idx * strides[0]); }
+  T &operator[](int32_t idx) { return *(data + offset + idx * strides[0]); }
 };
 
 /// StridedMemRef descriptor type specialized for rank 0.
 template <typename T> struct StridedMemRefType<T, 0> {
   T *basePtr;
   T *data;
-  int64_t offset;
+  int32_t offset;
 };
 
 // A reference to one of the StridedMemRef types.
 template <typename T> class DynamicMemRefType {
 public:
-  int64_t rank;
+  int32_t rank;
   T *basePtr;
   T *data;
-  int64_t offset;
-  const int64_t *sizes;
-  const int64_t *strides;
+  int32_t offset;
+  const int32_t *sizes;
+  const int32_t *strides;
 
   explicit DynamicMemRefType(const StridedMemRefType<T, 0> &memRef)
       : rank(0), basePtr(memRef.basePtr), data(memRef.data),
@@ -75,6 +75,7 @@ public:
   }
 };
 
+// TODO: can we vectorize this
 extern "C" void memrefCopy(int32_t elemSize, UnrankedMemRefType<char> *srcArg,
                            UnrankedMemRefType<char> *dstArg) {
   DynamicMemRefType<char> src(*srcArg);
