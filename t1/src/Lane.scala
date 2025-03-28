@@ -120,6 +120,8 @@ case class LaneParameter(
     */
   val dataPathByteWidth: Int = datapathWidth / sewMin
 
+  val dataPathByteBits: Int = log2Ceil(dataPathByteWidth)
+
   /** maximum of vl. */
   val vlMax: Int = vLen * lmulMax / sewMin
 
