@@ -82,7 +82,7 @@ let
         ivyLocal="${submodules.ivyLocalRepo}"
         export JAVA_TOOL_OPTIONS="''${JAVA_TOOL_OPTIONS:-} -Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal"
 
-        mif run -p "${src}" -o ./dependencies/locks/t1-lock.nix
+        mif run -p "${src}" -o ./dependencies/locks/t1-lock.nix "$@"
       '';
     };
 

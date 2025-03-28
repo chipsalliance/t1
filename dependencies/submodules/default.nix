@@ -78,7 +78,7 @@ lib.makeScope newScope (scope: {
         ];
 
         text = ''
-          mif run -p "${submodules.zaozi.src}" -o ./dependencies/locks/zaozi-lock.nix
+          mif run -p "${submodules.zaozi.src}" -o ./dependencies/locks/zaozi-lock.nix "$@"
         '';
       };
 
@@ -166,7 +166,7 @@ lib.makeScope newScope (scope: {
 
         mif run \
           --targets 'hardfloat[snapshot]' \
-          -p "${src}" -o ./dependencies/locks/berkeley-hardfloat-lock.nix
+          -p "${src}" -o ./dependencies/locks/berkeley-hardfloat-lock.nix "$@"
       '';
     };
   };
