@@ -18,5 +18,5 @@ bumpScript=(
 
 for script in "${bumpScript[@]}"; do
   # Open a new shell to avoid environment pollution
-  ( nix run ".#$script" -j auto )
+  ( nix run ".#$script" -j auto -- --force)
 done
