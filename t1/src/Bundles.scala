@@ -568,7 +568,7 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
 
   // mask for this execute group
-  val mask: UInt = UInt(4.W)
+  val mask: UInt = UInt((parameter.datapathWidth / 8).W)
 
   /** Store some data that will be used later. e.g: ffo Write VRF By OtherLanes: What should be written into vrf if ffo
     * end by other lanes. pipe from s0 read result of vs2, for instructions that are not executed, pipe from s1

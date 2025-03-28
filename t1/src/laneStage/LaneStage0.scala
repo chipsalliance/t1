@@ -156,8 +156,8 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     elementLengthOH,
     Seq(
       enqueue.bits.maskGroupCount,
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(4, 2),
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(4, 1),
+      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, 2),
+      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, 1),
       enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex
     )
   )
@@ -169,25 +169,30 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
 
   // Correct the mask on the boundary line
   val vlNeedCorrect:     Bool = Mux1H(
-    enqueue.bits.vSew1H(1, 0),
+    enqueue.bits.vSew1H(2, 0),
     Seq(
-      enqueue.bits.csr.vl(1, 0).orR,
-      enqueue.bits.csr.vl(0)
+      enqueue.bits.csr.vl(parameter.dataPathByteBits - 1, 0).orR,
+      enqueue.bits.csr.vl(parameter.dataPathByteBits - 2, 0).orR,
+      if (parameter.dataPathByteBits - 3 >= 0) enqueue.bits.csr.vl(parameter.dataPathByteBits - 3, 0).orR else false.B
     )
   )
   val correctMask:       UInt = Mux1H(
-    enqueue.bits.vSew1H(1, 0),
+    enqueue.bits.vSew1H(2, 0),
     Seq(
-      (scanRightOr(UIntToOH(enqueue.bits.csr.vl(1, 0))) >> 1).asUInt,
-      1.U(4.W)
+      (scanRightOr(UIntToOH(enqueue.bits.csr.vl(parameter.dataPathByteBits - 1, 0))) >> 1).asUInt,
+      (scanRightOr(UIntToOH(enqueue.bits.csr.vl(parameter.dataPathByteBits - 2, 0))) >> 1).asUInt,
+      if (parameter.dataPathByteBits - 3 >= 0)
+        (scanRightOr(UIntToOH(enqueue.bits.csr.vl(parameter.dataPathByteBits - 3, 0))) >> 1).asUInt
+      else
+        0.U(parameter.dataPathByteWidth.W)
     )
   )
   val needCorrect:       Bool =
     isTheLastGroup &&
       enqueue.bits.isLastLaneForInstruction &&
       vlNeedCorrect
-  val maskCorrect:       UInt = Mux(needCorrect, correctMask, 15.U(4.W))
-  val crossReadOnlyMask: UInt = Fill(4, !updateLaneState.outOfExecutionRange)
+  val maskCorrect:       UInt = Mux(needCorrect, correctMask, -1.S(parameter.dataPathByteWidth.W).asUInt)
+  val crossReadOnlyMask: UInt = Fill(parameter.dataPathByteWidth, !updateLaneState.outOfExecutionRange)
 
   stageWire.maskForMaskInput       :=
     Mux(
@@ -230,12 +235,15 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       )
   }
 
-  stageWire.readFromScalar := Mux1H(
-    enqueue.bits.vSew1H,
-    Seq(
-      Fill(4, enqueue.bits.readFromScalar(7, 0)),
-      Fill(2, enqueue.bits.readFromScalar(15, 0)),
-      enqueue.bits.readFromScalar
+  stageWire.readFromScalar := Fill(
+    parameter.datapathWidth / parameter.eLen,
+    Mux1H(
+      enqueue.bits.vSew1H,
+      Seq(
+        Fill(4, enqueue.bits.readFromScalar(7, 0)),
+        Fill(2, enqueue.bits.readFromScalar(15, 0)),
+        enqueue.bits.readFromScalar(31, 0)
+      )
     )
   )
 
