@@ -185,9 +185,12 @@ case class T1Parameter(
   /** how many chaining does T1 support, this is not a parameter yet. */
   val chainingSize: Int = 4
 
+  /** max element size */
+  val eLen: Int = xLen
+
   /** datapath width of each lane should be aligned to xLen T1 only support 32 for now.
     */
-  val datapathWidth: Int = xLen
+  val datapathWidth: Int = 2 * xLen
 
   /** How many lanes does T1 have. */
   val laneNumber: Int = dLen / datapathWidth
@@ -298,6 +301,7 @@ case class T1Parameter(
   def laneParam: LaneParameter =
     LaneParameter(
       vLen = vLen,
+      eLen = eLen,
       datapathWidth = datapathWidth,
       laneNumber = laneNumber,
       chainingSize = chainingSize,
@@ -332,7 +336,6 @@ case class T1Parameter(
     name = "main"
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
-  require(xLen == datapathWidth)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 }
 

@@ -34,7 +34,7 @@ object MaskReduceParameter {
   implicit def rw: upickle.default.ReadWriter[MaskReduceParameter] = upickle.default.macroRW
 }
 
-case class MaskReduceParameter(datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean)
+case class MaskReduceParameter(eLen: Int, datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean)
     extends SerializableModuleParameter
 
 class MaskReduceInterface(parameter: MaskReduceParameter) extends Bundle {
@@ -86,7 +86,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
   val nextFoldCount: Bool = eew1H(0) && !reqWiden
 
   // reduce function unit
-  val adder:       Instance[ReduceAdder]          = Instantiate(new ReduceAdder(ReduceAdderParameter(parameter.datapathWidth)))
+  val adder:       Instance[ReduceAdder]          = Instantiate(new ReduceAdder(ReduceAdderParameter(parameter.eLen)))
   val logicUnit:   Instance[LaneLogic]            = Instantiate(new LaneLogic(LaneLogicParameter(parameter.datapathWidth)))
   // option unit for flot reduce
   val floatAdder:  Option[Instance[FloatAdder]]   =

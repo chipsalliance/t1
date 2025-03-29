@@ -568,7 +568,7 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
 
   // mask for this execute group
-  val mask: UInt = UInt(4.W)
+  val mask: UInt = UInt((parameter.datapathWidth / 8).W)
 
   /** Store some data that will be used later. e.g: ffo Write VRF By OtherLanes: What should be written into vrf if ffo
     * end by other lanes. pipe from s0 read result of vs2, for instructions that are not executed, pipe from s1
@@ -612,9 +612,9 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val src:          Vec[UInt]    = Vec(4, UInt((parameter.datapathWidth + 1).W))
   val opcode:       UInt         = UInt(4.W)
   // mask for carry or borrow
-  val mask:         UInt         = UInt(4.W)
+  val mask:         UInt         = UInt((parameter.datapathWidth / 8).W)
   // mask for execute
-  val executeMask:  UInt         = UInt(4.W)
+  val executeMask:  UInt         = UInt((parameter.datapathWidth / 8).W)
   // eg: vwmaccus, vwmulsu
   val sign0:        Bool         = Bool()
   val sign:         Bool         = Bool()
@@ -623,7 +623,7 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val saturate:     Bool         = Bool()
   val vxrm:         UInt         = UInt(2.W)
   val vSew:         UInt         = UInt(2.W)
-  val shifterSize:  UInt         = UInt((log2Ceil(parameter.datapathWidth) * 4).W)
+  val shifterSize:  UInt         = UInt((log2Ceil(parameter.eLen) * (parameter.datapathWidth / 8)).W)
   val rem:          Bool         = Bool()
   val executeIndex: UInt         = UInt(2.W)
   val popInit:      UInt         = UInt(parameter.vlMaxBits.W)

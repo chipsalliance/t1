@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.t1.rtl.{CSRInterface, LaneExecuteStage, LaneParameter}
+import org.chipsalliance.t1.rtl.{CSRInterface, LaneExecuteStage, LaneParameter, cutUIntBySize}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
@@ -92,9 +92,9 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
     enqueue.bits.vSew1H,
     Seq(
       enqueue.bits.maskForFilter,
-      FillInterleaved(2, enqueue.bits.maskForFilter(1, 0)),
+      FillInterleaved(2, cutUIntBySize(enqueue.bits.maskForFilter, 2).head),
       // todo: handle first masked
-      FillInterleaved(4, enqueue.bits.maskForFilter(0))
+      FillInterleaved(4, cutUIntBySize(enqueue.bits.maskForFilter, 4).head)
     )
   )
   executionQueue.enq.bits.decodeResult     := enqueue.bits.decodeResult

@@ -379,7 +379,7 @@ package object rtl {
         requestArbiter.io.in.zip(slotVec).foreach { case (arbiterInput, slotIndex) =>
           arbiterInput <> requestVecFromSlot(slotIndex).elements(gen.parameter.decodeField.name)
         }
-        val vfuInput: DecoupledIO[SlotRequestToVFU] = if (gen.parameter.NeedSplit) {
+          val vfuInput: DecoupledIO[SlotRequestToVFU] = if (gen.parameter.NeedSplit) {
           distributor.get.requestFromSlot <> requestArbiter.io.out
           distributor.get.requestToVfu
         } else {

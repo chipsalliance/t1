@@ -156,8 +156,8 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     elementLengthOH,
     Seq(
       enqueue.bits.maskGroupCount,
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(4, 2),
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(4, 1),
+      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, 2),
+      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, 1),
       enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex
     )
   )
@@ -230,12 +230,15 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       )
   }
 
-  stageWire.readFromScalar := Mux1H(
-    enqueue.bits.vSew1H,
-    Seq(
-      Fill(4, enqueue.bits.readFromScalar(7, 0)),
-      Fill(2, enqueue.bits.readFromScalar(15, 0)),
-      enqueue.bits.readFromScalar
+  stageWire.readFromScalar := Fill(
+    parameter.datapathWidth / parameter.eLen,
+    Mux1H(
+      enqueue.bits.vSew1H,
+      Seq(
+        Fill(4, enqueue.bits.readFromScalar(7, 0)),
+        Fill(2, enqueue.bits.readFromScalar(15, 0)),
+        enqueue.bits.readFromScalar(31, 0)
+      )
     )
   )
 

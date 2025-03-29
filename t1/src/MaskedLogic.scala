@@ -15,7 +15,8 @@ import org.chipsalliance.t1.rtl.decoder.{BoolField, Decoder, TableGenerator}
 object LogicParam {
   implicit def rw: upickle.default.ReadWriter[LogicParam] = upickle.default.macroRW
 }
-case class LogicParam(datapathWidth: Int, latency: Int) extends VFUParameter with SerializableModuleParameter {
+case class LogicParam(eLen: Int, latency: Int, laneScale: Int = 2) extends VFUParameter with SerializableModuleParameter {
+  val datapathWidth: Int = eLen * laneScale
   val decodeField: BoolField = Decoder.logic
   val inputBundle  = new MaskedLogicRequest(datapathWidth)
   val outputBundle = new MaskedLogicResponse(datapathWidth)
