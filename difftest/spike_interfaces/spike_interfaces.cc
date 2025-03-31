@@ -22,26 +22,25 @@ cfg_t make_spike_cfg() {
   return cfg;
 }
 
-Spike::Spike(const char *set, const char *lvl,
-             size_t lane_number)
-    : sim(), isa(set, lvl), cfg(make_spike_cfg()),
-      proc(
-          /*isa*/ &isa,
-          /*cfg*/ &cfg,
-          /*sim*/ &sim,
-          /*id*/ 0,
-          /*halt on reset*/ true,
-          /*log_file_t*/ nullptr,
-          /*sout*/ std::cerr) {
+Spike::Spike(const char *set, const char *lvl, size_t lane_number,
+             size_t datapath_width)
+    : sim(), isa(set, lvl), cfg(make_spike_cfg()), proc(
+                                                       /*isa*/ &isa,
+                                                       /*cfg*/ &cfg,
+                                                       /*sim*/ &sim,
+                                                       /*id*/ 0,
+                                                       /*halt on reset*/ true,
+                                                       /*log_file_t*/ nullptr,
+                                                       /*sout*/ std::cerr) {
   proc.VU.lane_num = lane_number;
-  proc.VU.lane_granularity = 32;
+  proc.VU.lane_granularity = datapath_width;
 
   proc.enable_log_commits();
 }
 
-spike_t *spike_new(const char *set, const char *lvl,
-                   size_t lane_number) {
-  return new spike_t{new Spike(set, lvl, lane_number)};
+spike_t *spike_new(const char *set, const char *lvl, size_t lane_number,
+                   size_t datapath_width) {
+  return new spike_t{new Spike(set, lvl, lane_number, datapath_width)};
 }
 
 const char *proc_disassemble(spike_processor_t *proc) {
