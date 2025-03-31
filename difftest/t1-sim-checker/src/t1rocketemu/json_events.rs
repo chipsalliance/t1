@@ -75,13 +75,11 @@ pub(crate) enum JsonEvents {
   },
   VrfWrite {
     issue_idx: u8,
-    vd: u32,
-    offset: u32,
+    vrf_idx: usize,
     #[serde(deserialize_with = "str_to_vec_bool", default)]
     mask: Vec<bool>,
     #[serde(deserialize_with = "str_to_vec_u8", default)]
     data: Vec<u8>,
-    lane: u32,
     cycle: u64,
   },
   MemoryWrite {
@@ -129,12 +127,10 @@ pub struct LsuEnqEvent {
 }
 
 pub struct VrfWriteEvent {
-  pub lane: u32,
-  pub vd: u32,
-  pub offset: u32,
+  pub issue_idx: u8,
+  pub vrf_idx: usize,
   pub mask: Vec<bool>,
   pub data: Vec<u8>,
-  pub issue_idx: u8,
   pub cycle: u64,
 }
 
@@ -357,10 +353,6 @@ impl JsonEventRunner for SpikeRunner {
 
   fn peek_vrf_write(&mut self, vrf_write: &VrfWriteEvent) -> anyhow::Result<()> {
     let cycle = vrf_write.cycle;
-    let vlen_in_bytes = self.vlen / 8;
-    let lane_number = self.dlen / 32;
-    let record_idx_base = (vrf_write.vd * vlen_in_bytes
-      + (vrf_write.lane + lane_number * vrf_write.offset) * 4) as usize;
 
     let mut retire_issue: Option<u8> = None;
 
@@ -368,13 +360,10 @@ impl JsonEventRunner for SpikeRunner {
       self.commit_queue.iter_mut().rev().find(|se| se.issue_idx == vrf_write.issue_idx)
     {
       debug!(
-        "[{}] VrfWrite: lane={}, vd={}, idx_base={}, issue_idx={}, offset={}, mask={}, data={:x?} ({})",
+        "[{}] VrfWrite: issue_idx={}, idx_base={},  mask={}, data={:x?} ({})",
         vrf_write.cycle,
-        vrf_write.lane,
-        record_idx_base,
-        vrf_write.vd,
         vrf_write.issue_idx,
-        vrf_write.offset,
+        vrf_write.vrf_idx,
         mask_display(&vrf_write.mask),
         vrf_write.data,
         se.describe_insn()
@@ -399,22 +388,19 @@ impl JsonEventRunner for SpikeRunner {
       vrf_write.mask.iter().enumerate().filter(|(_, &mask)| mask).for_each(|(offset, _)| {
         let written_byte = *vrf_write.data.get(offset).unwrap_or(&0);
 
-        if let Some(record) = se.vrf_access_record.all_writes.get_mut(&(record_idx_base + offset)) {
+        if let Some(record) = se.vrf_access_record.all_writes.get_mut(&(vrf_write.vrf_idx + offset)) {
           assert_eq!(
             record.byte,
             written_byte,
             "[{}] VrfWrite: {offset}th byte incorrect ({:#02x} record != {written_byte:#02x} written) \
-              (lane={}, vd={}, offset={}, mask={}, data={:x?}) \
+              (mask={}, data={:x?}) \
               issue_idx={} [vrf_idx={}] (disasm: {}, pc: {:#x}, bits: {:#x})",
             vrf_write.cycle,
             record.byte,
-            vrf_write.lane,
-            vrf_write.vd,
-            vrf_write.offset,
             mask_display(&vrf_write.mask),
             vrf_write.data,
             se.issue_idx,
-            record_idx_base + offset,
+            vrf_write.vrf_idx + offset,
             se.disasm,
             se.pc,
             se.inst_bits
@@ -422,12 +408,9 @@ impl JsonEventRunner for SpikeRunner {
           record.executed = true;
         } else {
           debug!(
-            "[{}] VrfWrite: cannot find vrf write record, maybe not changed (lane={}, vd={}, idx={}, offset={}, mask={}, data={:x?})",
+            "[{}] VrfWrite: cannot find vrf write record, maybe not changed (idx={}, mask={}, data={:x?})",
             vrf_write.cycle,
-            vrf_write.lane,
-            vrf_write.vd,
-            record_idx_base + offset,
-            vrf_write.offset,
+            vrf_write.vrf_idx + offset,
             mask_display(&vrf_write.mask),
             vrf_write.data
           );
@@ -435,10 +418,10 @@ impl JsonEventRunner for SpikeRunner {
       })
     } else {
       info!(
-        "[{cycle}] VrfWrite: rtl detect vrf write on lane={}, vd={} \
+        "[{cycle}] VrfWrite: rtl detect vrf write on idx={} \
         with no matched se (issue_idx={}), \
         maybe from committed load insn",
-        vrf_write.lane, vrf_write.vd, vrf_write.issue_idx
+        vrf_write.vrf_idx, vrf_write.issue_idx
       );
     }
 
