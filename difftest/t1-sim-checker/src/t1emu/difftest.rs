@@ -24,15 +24,13 @@ pub fn diff(runner: &mut SpikeRunner, event: &JsonEvents) -> anyhow::Result<()> 
       runner.cycle = *cycle;
       runner.update_lsu_idx(&LsuEnqEvent { enq: *enq, cycle: *cycle })
     }
-    JsonEvents::VrfWrite { issue_idx, vd, offset, mask, data, lane, cycle } => {
+    JsonEvents::VrfWrite { issue_idx, vrf_idx, mask, data, cycle } => {
       runner.cycle = *cycle;
       runner.peek_vrf_write(&VrfWriteEvent {
         issue_idx: *issue_idx,
-        vd: *vd,
-        offset: *offset,
+        vrf_idx: *vrf_idx,
         mask: mask.clone(),
         data: data.clone(),
-        lane: *lane,
         cycle: *cycle,
       })
     }
