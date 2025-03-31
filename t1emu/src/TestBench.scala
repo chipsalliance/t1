@@ -176,9 +176,17 @@ class TestBench(val parameter: T1Parameter)
   // vrf write
   laneProbes.zipWithIndex.foreach { case (lane, i) =>
     val vrf = lane.vrfProbe.suggestName(s"lane${i}VrfProbe")
+
+    val datapathWidth = parameter.datapathWidth.U(32.W)
+
+    val vrfOffsetInBytes  = vrf.requestVd * (parameter.vLen.U(32.W) / 8.U(32.W))
+    val laneOffset        = parameter.dLen.U(32.W) / datapathWidth * vrf.requestOffset + i.U(32.W)
+    val laneOffsetInBytes = laneOffset * (datapathWidth / 8.U(32.W))
+
+    val vrfIdx = vrfOffsetInBytes + laneOffsetInBytes
     when(vrf.valid)(
       printf(
-        cf"""{"event":"VrfWrite","issue_idx":${vrf.requestInstruction},"vd":${vrf.requestVd},"offset":${vrf.requestOffset},"mask":"${vrf.requestMask}%x","data":"${vrf.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
+        cf"""{"event":"VrfWrite","issue_idx":${vrf.requestInstruction},"vrf_idx":${vrfIdx},"mask":"${vrf.requestMask}%x","data":"${vrf.requestData}%x","cycle":${simulationTime}}\n"""
       )
     )
   }
