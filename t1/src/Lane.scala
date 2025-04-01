@@ -34,7 +34,7 @@ class LaneOM(parameter: LaneParameter) extends GeneralOM[LaneParameter, Lane](pa
   vrf := vrfIn
 }
 
-class LaneSlotProbe(instructionIndexBits: Int) extends Bundle {
+class LaneSlotProbe(instructionIndexBits: Int, datapathWidth: Int) extends Bundle {
   val stage0EnqueueReady:             Bool = Bool()
   val stage0EnqueueValid:             Bool = Bool()
   val changingMaskSet:                Bool = Bool()
@@ -52,23 +52,23 @@ class LaneSlotProbe(instructionIndexBits: Int) extends Bundle {
   // write queue enq for lane
   val writeQueueEnq: Bool = Bool()
   val writeTag:      UInt = UInt(instructionIndexBits.W)
-  val writeMask:     UInt = UInt(4.W)
+  val writeMask:     UInt = UInt((datapathWidth/8).W)
 }
 
-class LaneWriteProbe(instructionIndexBits: Int) extends Bundle {
+class LaneWriteProbe(instructionIndexBits: Int, datapathWidth: Int) extends Bundle {
   val writeTag:  UInt = UInt(instructionIndexBits.W)
-  val writeMask: UInt = UInt(4.W)
+  val writeMask: UInt = UInt((datapathWidth/8).W)
 }
 
 class LaneProbe(parameter: LaneParameter) extends Bundle {
-  val slots = Vec(parameter.chainingSize, new LaneSlotProbe(parameter.instructionIndexBits))
+  val slots = Vec(parameter.chainingSize, new LaneSlotProbe(parameter.instructionIndexBits, parameter.datapathWidth))
   val laneRequestStall:    Bool = Bool()
   // @todo @Clo91eaf change to occupied for each slot.
   val lastSlotOccupied:    Bool = Bool()
   val instructionFinished: UInt = UInt(parameter.chainingSize.W)
   val instructionValid:    UInt = UInt((2 * parameter.chainingSize).W)
 
-  val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] = Vec(2, Valid(new LaneWriteProbe(parameter.instructionIndexBits)))
+  val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] = Vec(2, Valid(new LaneWriteProbe(parameter.instructionIndexBits, parameter.datapathWidth)))
 
   val vrfProbe: VRFProbe = new VRFProbe(parameter.vrfParam)
 }
