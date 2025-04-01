@@ -115,7 +115,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   val stageDataReg:        Data                     = RegEnable(stageWire, 0.U.asTypeOf(stageWire), enqFire)
   val filterVec:           Seq[(Bool, UInt)]        = Seq(0, 1, 2).map { filterSew =>
     // The lower 'dataGroupIndexSize' bits represent the offsets in the data group
-    val dataGroupIndexSize: Int = 2 - filterSew
+    val dataGroupIndexSize: Int = log2Ceil(parameter.datapathWidth / 8) - filterSew
     // each group has '2 ** dataGroupIndexSize' elements
     val dataGroupSize = 1 << dataGroupIndexSize
     // The data group index of last data group
@@ -156,9 +156,9 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     elementLengthOH,
     Seq(
       enqueue.bits.maskGroupCount,
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, 2),
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, 1),
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex
+      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, log2Ceil(parameter.datapathWidth / 8)),
+      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, log2Ceil(parameter.datapathWidth / 8) - 1),
+      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, log2Ceil(parameter.datapathWidth / 8) - 2)
     )
   )
 

@@ -260,8 +260,8 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   vfuRequest.bits.opcode      := executionRecord.decodeResult(Decoder.uop)
   vfuRequest.bits.mask        := Mux(
     executionRecord.decodeResult(Decoder.adder),
-    Mux(executionRecord.decodeResult(Decoder.maskSource), executionRecord.maskForMaskInput, 0.U(4.W)),
-    maskExtend | Fill(4, !executionRecord.maskType)
+    Mux(executionRecord.decodeResult(Decoder.maskSource), executionRecord.maskForMaskInput, 0.U(((parameter.datapathWidth / 8)).W)),
+    maskExtend | Fill(parameter.datapathWidth / 8, !executionRecord.maskType)
   )
   vfuRequest.bits.executeMask := Mux(
     executionRecord.executeIndex,
