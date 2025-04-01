@@ -197,8 +197,8 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   stageWire.maskForMaskInput       :=
     Mux(
       enqueue.bits.maskType,
-      (enqueue.bits.maskForMaskGroup >> enqueue.bits.maskIndex).asUInt(3, 0),
-      0.U(4.W)
+      (enqueue.bits.maskForMaskGroup >> enqueue.bits.maskIndex).asUInt(parameter.dataPathByteWidth - 1, 0),
+      0.U(parameter.dataPathByteWidth.W)
     )
   stageWire.boundaryMaskCorrection := maskCorrect & crossReadOnlyMask
 
