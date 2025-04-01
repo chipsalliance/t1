@@ -79,6 +79,8 @@ object T1RocketTile extends SerializableModuleElaborator {
     @arg(name = "iCacheNWays") iCacheNWays:         Int,
     @arg(name = "iCachePrefetch") iCachePrefetch:   Boolean,
     @arg(name = "dLen") dLen:                       Int,
+    @arg(name = "laneScale") laneScale:             Int,
+    @arg(name = "chainingSize") chainingSize:       Int,
     @arg(name = "vrfBankSize") vrfBankSize:         Int,
     @arg(name = "vrfRamType") vrfRamType:           RamType,
     @arg(name = "vfuInstantiateParameter") vfuInstantiateParameter: String) {
@@ -102,6 +104,8 @@ object T1RocketTile extends SerializableModuleElaborator {
         iCacheNWays:     Int,
         iCachePrefetch:  Boolean,
         dLen:            Int,
+        laneScale:       Int,
+        chainingSize:    Int,
         vrfBankSize:     Int,
         vrfRamType:      RamType,
         VFUInstantiateParameter.parse(vLen = vLen, dLen = dLen, preset = vfuInstantiateParameter, fp = fp, zvbb = zvbb)
