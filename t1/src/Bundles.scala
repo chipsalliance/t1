@@ -589,8 +589,8 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
 class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends Bundle {
   val crossReadVS2:        Bool         = Bool()
   val bordersForMaskLogic: Bool         = Bool()
-  val maskForMaskInput:    UInt         = UInt(4.W)
-  val maskForFilter:       UInt         = UInt(4.W)
+  val maskForMaskInput:    UInt         = UInt((parameter.datapathWidth / 8).W)
+  val maskForFilter:       UInt         = UInt((parameter.datapathWidth / 8).W)
   // false -> lsb of cross read group
   val executeIndex:        Bool         = Bool()
   val source:              Vec[UInt]    = Vec(3, UInt(parameter.datapathWidth.W))

@@ -112,7 +112,15 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   // 5: log2ceil(elen)
   requestToVfu.bits.shifterSize  := Mux1H(currentOHForExecuteGroup, cutUInt(requestReg.bits.shifterSize, 5))
 
-  val isLastRequest:  Bool = Mux1H(vSew1H, Seq(!remainder.orR, !remainder(1, 0).orR, true.B))
+  val eSize: Int = requestReg.bits.mask.getWidth
+  val isLastRequest:  Bool = Mux1H(
+    vSew1H,
+    Seq(
+      !remainder(eSize - 1, 0).orR,
+      !remainder((eSize / 2) - 1, 0).orR,
+      if (eSize <= 4) true.B else !remainder((eSize / 4) - 1, 0).orR
+    )
+  )
   val writeIndex:     UInt = Wire(UInt(executeSizeBit.W))
   val isLastResponse: Bool = Wire(Bool())
   lastRequestFire := isLastRequest && requestToVfu.fire
