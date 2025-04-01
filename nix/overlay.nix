@@ -38,7 +38,7 @@ rec {
 
   iree-turbine = final.callPackage ./pkgs/iree-turbine.nix { };
 
-  riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
+  riscv-vector-tests = final.callPackage ./pkgs/riscv-vector-tests.nix { };
 
   snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
 

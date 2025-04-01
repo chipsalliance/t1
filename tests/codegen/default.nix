@@ -1,12 +1,12 @@
 {
   lib,
   linkerScript,
-  riscv-vector-test,
-  runCommand,
+  riscv-vector-tests,
   makeBuilder,
   # Instead of testing feature is supported on TOP level,
   # codegen case are always generated with supported code.
   rtlDesignMetadata,
+  runCommand,
 }:
 
 let
@@ -20,20 +20,19 @@ let
 
       includeArgs = [
         "-I${./include}"
-        "-I${riscv-vector-test}/include"
+        "-I${../riscv-test-env}"
       ];
 
       src = runCommand "rvv-codegen-${caseName}" { } ''
         mkdir -p "$out"
-
         # Golang only accept "-flag=value" pattern to set value for flag, don't mess around with other cmd line option.
-        ${riscv-vector-test}/bin/single \
+        ${riscv-vector-tests}/bin/single \
           -VLEN "${toString rtlDesignMetadata.vlen}" \
           -XLEN "${toString rtlDesignMetadata.xlen}" \
           -float16=false \
           -repeat 16 \
           -testfloat3level 2 \
-          -configfile ${riscv-vector-test}/configs/${rawCaseName}.toml \
+          -configfile ${riscv-vector-tests}/configs/v/${rawCaseName}.toml \
           -outputfile $out/${caseName}.S
       '';
 
