@@ -12,6 +12,7 @@ import chisel3.ltl.{CoverProperty, Sequence}
 import chisel3.util.experimental.BitSet
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{
+  isPow2,
   log2Ceil,
   scanLeftOr,
   scanRightOr,
@@ -51,8 +52,17 @@ class T1OM(parameter: T1Parameter) extends GeneralOM[T1Parameter, T1](parameter)
   val dlen = IO(Output(Property[Int]()))
   dlen := Property(parameter.dLen)
 
+  val elen = IO(Output(Property[Int]()))
+  elen := Property(parameter.eLen)
+
   val extensions = IO(Output(Property[Seq[String]]()))
   extensions := Property(parameter.extensions)
+
+  val laneScale = IO(Output(Property[Int]()))
+  laneScale := Property(parameter.laneScale)
+
+  val chainingSize = IO(Output(Property[Int]()))
+  chainingSize := Property(parameter.chainingSize)
 
   val march = IO(Output(Property[String]()))
   march := Property(parameter.spikeMarch)
@@ -90,18 +100,22 @@ object T1Parameter {
   *   VLEN
   * @param dLen
   *   DLEN
+  * @param eLen
+  *   ELEN
   * @param extensions
   *   what extensions does T1 support. currently Zve32x or Zve32f, TODO: we may add
   *   - Zvfhmin, Zvfh for ML workloads
   *   - Zvbb, Zvbc, Zvkb for Crypto, and other Crypto accelerators in the future.
   * @param datapathWidth
-  *   width of data path, can be 32 or 64, decides the memory bandwidth.
+  *   width of data path which decides the memory bandwidth.
   * @param laneNumber
   *   how many lanes in the vector processor
   * @param physicalAddressWidth
   *   width of memory bus address width
   * @param chainingSize
-  *   how many instructions can be chained TODO: make it a val, not parameter.
+  *   how many instructions can be chained
+  * @param laneScale
+  *   factor of the data path width relative to ELEN.
   *
   * @note
   *   Chaining:
@@ -113,6 +127,8 @@ case class T1Parameter(
   dLen:                    Int,
   extensions:              Seq[String],
   // Lane
+  laneScale:               Int,
+  chainingSize:            Int,
   vrfBankSize:             Int,
   vrfRamType:              RamType,
   // TODO: simplify it. this is user-level API.
@@ -134,6 +150,11 @@ case class T1Parameter(
 
   def vLen: Int = extensions.collectFirst { case s"zvl${vlen}b" =>
     vlen.toInt
+  }.get
+
+  def eLen: Int = extensions.collectFirst {
+    case pattern if pattern.matches("zve\\d+x") || pattern.matches("zve\\d+f") || pattern.matches("zve\\d+d") =>
+      "\\d+".r.findFirstIn(pattern).get.toInt
   }.get
 
   def spikeMarch: String = s"rv32gc_${extensions.mkString("_").toLowerCase}"
@@ -182,12 +203,9 @@ case class T1Parameter(
   /** support of zvbb */
   lazy val zvbbEnable: Boolean = extensions.contains("zvbb")
 
-  /** how many chaining does T1 support, this is not a parameter yet. */
-  val chainingSize: Int = 4
-
   /** datapath width of each lane should be aligned to xLen T1 only support 32 for now.
     */
-  val datapathWidth: Int = xLen
+  val datapathWidth: Int = laneScale * eLen
 
   /** How many lanes does T1 have. */
   val laneNumber: Int = dLen / datapathWidth
@@ -332,8 +350,11 @@ case class T1Parameter(
     name = "main"
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
-  require(xLen == datapathWidth)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
+
+  require(xLen == datapathWidth)
+  require(isPow2(laneNumber))
+  require(isPow2(chainingSize))
 }
 
 class T1Probe(parameter: T1Parameter) extends Bundle {

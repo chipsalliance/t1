@@ -36,10 +36,12 @@ object TestBench extends SerializableModuleElaborator {
 
   @main
   case class T1ParameterMain(
-    @arg(name = "dLen") dLen:               Int,
-    @arg(name = "extensions") extensions:   Seq[String],
-    @arg(name = "vrfBankSize") vrfBankSize: Int,
-    @arg(name = "vrfRamType") vrfRamType:   RamType,
+    @arg(name = "dLen") dLen:                 Int,
+    @arg(name = "extensions") extensions:     Seq[String],
+    @arg(name = "laneScale") laneScale:       Int,
+    @arg(name = "chainingSize") chainingSize: Int,
+    @arg(name = "vrfBankSize") vrfBankSize:   Int,
+    @arg(name = "vrfRamType") vrfRamType:     RamType,
     @arg(name = "vfuInstantiateParameter") vfuInstantiateParameter: String) {
     def convert: P = {
       val fp   = extensions.contains("zve32f")
@@ -51,6 +53,8 @@ object TestBench extends SerializableModuleElaborator {
       T1Parameter(
         dLen,
         extensions,
+        laneScale,
+        chainingSize,
         vrfBankSize,
         vrfRamType,
         VFUInstantiateParameter.parse(vLen = vLen, dLen = dLen, preset = vfuInstantiateParameter, fp = fp, zvbb = zvbb)

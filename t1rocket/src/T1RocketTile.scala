@@ -65,6 +65,8 @@ case class T1RocketTileParameter(
   iCacheNWays:             Int,
   iCachePrefetch:          Boolean,
   dLen:                    Int,
+  laneScale:               Int,
+  chainingSize:            Int,
   vrfBankSize:             Int,
   vrfRamType:              RamType,
   vfuInstantiateParameter: VFUInstantiateParameter)
@@ -356,6 +358,8 @@ case class T1RocketTileParameter(
 
   def t1Parameter: T1Parameter = T1Parameter(
     dLen = dLen,
+    laneScale = laneScale,
+    chainingSize = chainingSize,
     extensions = instructionSets.filter {
       case i if i.startsWith("zve") => true
       case i if i.startsWith("zvl") => true
