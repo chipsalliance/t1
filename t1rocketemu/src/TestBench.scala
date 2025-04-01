@@ -236,9 +236,8 @@ class TestBench(val parameter: T1RocketTileParameter)
   laneVrfProbes.zipWithIndex.foreach { case (lane, i) =>
     val datapathWidth = parameter.t1Parameter.datapathWidth.U(32.W)
 
-    val vrfOffsetInBytes  = lane.requestVd * (parameter.vLen.U(32.W) / 8.U(32.W))
-    val laneOffset        = parameter.dLen.U(32.W) / datapathWidth * lane.requestOffset + i.U(32.W)
-    val laneOffsetInBytes = laneOffset * (datapathWidth / 8.U(32.W))
+    val vrfOffsetInBytes  = parameter.vLen.U(32.W) / 8.U(32.W) * lane.requestVd
+    val laneOffsetInBytes = parameter.dLen.U(32.W) / 8.U(32.W) * lane.requestOffset + datapathWidth / 8.U(32.W) * i.U(32.W)
 
     val vrfIdx = vrfOffsetInBytes + laneOffsetInBytes
     when(lane.valid)(

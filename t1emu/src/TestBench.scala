@@ -179,9 +179,8 @@ class TestBench(val parameter: T1Parameter)
 
     val datapathWidth = parameter.datapathWidth.U(32.W)
 
-    val vrfOffsetInBytes  = vrf.requestVd * (parameter.vLen.U(32.W) / 8.U(32.W))
-    val laneOffset        = parameter.dLen.U(32.W) / datapathWidth * vrf.requestOffset + i.U(32.W)
-    val laneOffsetInBytes = laneOffset * (datapathWidth / 8.U(32.W))
+    val vrfOffsetInBytes  = parameter.vLen.U(32.W) / 8.U(32.W) * vrf.requestVd
+    val laneOffsetInBytes = parameter.dLen.U(32.W) / 8.U(32.W) * vrf.requestOffset + datapathWidth / 8.U(32.W) * i.U(32.W)
 
     val vrfIdx = vrfOffsetInBytes + laneOffsetInBytes
     when(vrf.valid)(
