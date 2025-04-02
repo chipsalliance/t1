@@ -11,12 +11,14 @@ import chisel3.util._
 import org.chipsalliance.stdlib.GeneralOM
 import org.chipsalliance.t1.rtl.decoder._
 import org.chipsalliance.t1.rtl.vfu.{VectorAdder, VectorAdderParameter}
-object LaneAdderParam {
+object LaneAdderParam                {
   implicit def rw: upickle.default.ReadWriter[LaneAdderParam] = upickle.default.macroRW
 }
-case class LaneAdderParam(eLen: Int, latency: Int, laneScale: Int = 2) extends VFUParameter with SerializableModuleParameter {
-  val datapathWidth: Int = eLen * laneScale
-  val decodeField: BoolField = Decoder.adder
+case class LaneAdderParam(eLen: Int, latency: Int, laneScale: Int = 2)
+    extends VFUParameter
+    with SerializableModuleParameter {
+  val datapathWidth: Int       = eLen * laneScale
+  val decodeField:   BoolField = Decoder.adder
   val inputBundle  = new LaneAdderReq(datapathWidth)
   val outputBundle = new LaneAdderResp(datapathWidth)
 }
@@ -59,24 +61,24 @@ class LaneAdder(val parameter: LaneAdderParam) extends VFUModule with Serializab
   override val omInstance: Instance[LaneAdderOM] = Instantiate(new LaneAdderOM(parameter))
   omInstance.retimeIn.foreach(_ := Property(Path(clock)))
 
-  val response:      LaneAdderResp = Wire(new LaneAdderResp(parameter.datapathWidth))
-  val request:       LaneAdderReq  = connectIO(response).asTypeOf(parameter.inputBundle)
+  val response: LaneAdderResp = Wire(new LaneAdderResp(parameter.datapathWidth))
+  val request:  LaneAdderReq  = connectIO(response).asTypeOf(parameter.inputBundle)
 
   val responseVec: Seq[(UInt, UInt, UInt)] = Seq.tabulate(parameter.laneScale) { index =>
     val subRequest = Wire(new LaneAdderReq(parameter.eLen))
-    subRequest.elements.foreach {case (k, v) => v := request.elements(k)}
-    subRequest.src.zip(request.src).foreach {case (sink, source) =>
+    subRequest.elements.foreach { case (k, v) => v := request.elements(k) }
+    subRequest.src.zip(request.src).foreach { case (sink, source) =>
       sink := cutUIntBySize(source, parameter.laneScale)(index)
     }
     subRequest.mask := cutUIntBySize(request.mask, parameter.laneScale)(index)
 
     // todo: decode
     // ["add", "sub", "slt", "sle", "sgt", "sge", "max", "min", "seq", "sne", "adc", "sbc"]
-    val uopOH:         UInt          = UIntToOH(subRequest.opcode)(11, 0)
-    val isSub:         Bool          = !(uopOH(0) || uopOH(10))
+    val uopOH:         UInt = UIntToOH(subRequest.opcode)(11, 0)
+    val isSub:         Bool = !(uopOH(0) || uopOH(10))
     // sub -> src(1) - src(0)
-    val subOperation0: UInt          = Mux(isSub && !subRequest.reverse, (~subRequest.src.head).asUInt, subRequest.src.head)
-    val subOperation1: UInt          = Mux(isSub && subRequest.reverse, (~subRequest.src.last).asUInt, subRequest.src.last)
+    val subOperation0: UInt = Mux(isSub && !subRequest.reverse, (~subRequest.src.head).asUInt, subRequest.src.head)
+    val subOperation1: UInt = Mux(isSub && subRequest.reverse, (~subRequest.src.last).asUInt, subRequest.src.last)
     // sub + 1 || carry || borrow
     val operation2 = Fill(4, isSub) ^ subRequest.mask
     val vSewOrR: Bool = subRequest.vSew.orR
@@ -172,18 +174,18 @@ class LaneAdder(val parameter: LaneAdderParam) extends VFUModule with Serializab
       val uIntLess       = Mux(sourceSign0 ^ sourceSign1, sourceSign0, resultSign)
 
       /** 下溢条件:
-       *   1. 两操作数都是负的,结果符号位变成0了 eg: 0x80000000 + 0xffffffff(+ -1 or - 1)
-       *   1. isSub & U, 结果符号位是1 eg: 1 - 3
-       */
+        *   1. 两操作数都是负的,结果符号位变成0了 eg: 0x80000000 + 0xffffffff(+ -1 or - 1)
+        *   1. isSub & U, 结果符号位是1 eg: 1 - 3
+        */
       val lowerOverflow: Bool =
         (operation0Sign && operation1Sign && !resultSign) ||
           // todo
           (isSub && !subRequest.sign && uIntLess)
 
       /** 上溢条件：
-       *   1. S: 两正的加出了符号位
-       *   1. U: + && 溢出位有值
-       */
+        *   1. S: 两正的加出了符号位
+        *   1. U: + && 溢出位有值
+        */
       val upperOverflow: Bool = Mux(
         subRequest.sign,
         !operation0Sign && !operation1Sign && resultSign,
@@ -225,11 +227,11 @@ class LaneAdder(val parameter: LaneAdderParam) extends VFUModule with Serializab
     )
 
     /** 往下溢出的值 vSew = 0: U: 0x0 S: 0x80 vSew = 1: U: 0x0 S: 0x8000 vSew = 2: U: 0x0 S：0x80000000
-     */
+      */
     val lowerOverflowVec: Seq[Bool] = attributeSelect.map(_.head)
 
     /** 往上溢出的值 vSew = 0: U: 0xff S: 0x7f vSew = 1: U: 0xffff S: 0x7fff vSew = 2: U: 0xffffffff S：0x7fffffff
-     */
+      */
     val upperOverflowVec: Seq[Bool] = attributeSelect.map(_(1))
 
     val overflowVec:    Vec[Bool] = VecInit(attributeSelect.map(_(2)))

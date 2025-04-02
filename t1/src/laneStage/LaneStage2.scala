@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.t1.rtl.{CSRInterface, LaneExecuteStage, LaneParameter, cutUIntBySize}
+import org.chipsalliance.t1.rtl.{cutUIntBySize, CSRInterface, LaneExecuteStage, LaneParameter}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 

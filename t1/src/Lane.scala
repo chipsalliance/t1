@@ -52,12 +52,12 @@ class LaneSlotProbe(instructionIndexBits: Int, datapathWidth: Int) extends Bundl
   // write queue enq for lane
   val writeQueueEnq: Bool = Bool()
   val writeTag:      UInt = UInt(instructionIndexBits.W)
-  val writeMask:     UInt = UInt((datapathWidth/8).W)
+  val writeMask:     UInt = UInt((datapathWidth / 8).W)
 }
 
 class LaneWriteProbe(instructionIndexBits: Int, datapathWidth: Int) extends Bundle {
   val writeTag:  UInt = UInt(instructionIndexBits.W)
-  val writeMask: UInt = UInt((datapathWidth/8).W)
+  val writeMask: UInt = UInt((datapathWidth / 8).W)
 }
 
 class LaneProbe(parameter: LaneParameter) extends Bundle {
@@ -68,7 +68,8 @@ class LaneProbe(parameter: LaneParameter) extends Bundle {
   val instructionFinished: UInt = UInt(parameter.chainingSize.W)
   val instructionValid:    UInt = UInt((2 * parameter.chainingSize).W)
 
-  val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] = Vec(2, Valid(new LaneWriteProbe(parameter.instructionIndexBits, parameter.datapathWidth)))
+  val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] =
+    Vec(2, Valid(new LaneWriteProbe(parameter.instructionIndexBits, parameter.datapathWidth)))
 
   val vrfProbe: VRFProbe = new VRFProbe(parameter.vrfParam)
 }

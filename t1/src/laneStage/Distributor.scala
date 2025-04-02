@@ -32,7 +32,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   val vxsatResult = RegInit(false.B)
   val responseData: UInt = RegInit(0.U(enqueue.src.head.getWidth.W))
 
-  val executeSize: Int = enqueue.src.head.getWidth / 8
+  val executeSize:    Int = enqueue.src.head.getWidth / 8
   val executeSizeBit: Int = log2Ceil(executeSize)
   val executeIndex = RegInit(0.U(executeSizeBit.W))
 
@@ -62,7 +62,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   // Remaining to be requested
   val remainder:                UInt = requestReg.bits.executeMask & (~scanRightOr(currentOHForExecuteGroup)).asUInt
   // Finds the first unfiltered execution.
-  val nextIndex:              UInt = OHToUInt(ffo(remainder))
+  val nextIndex:                UInt = OHToUInt(ffo(remainder))
   val nextExecuteIndex:         UInt = (nextIndex << requestReg.bits.vSew).asUInt
 
   when(requestToVfu.fire || requestFromSlot.fire) {
@@ -85,7 +85,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
 
   def CollapseOperand(data: UInt, sign: Bool = false.B): UInt      = {
     val dataMasked: UInt = data & bitMaskForExecution
-    val dw = data.getWidth - (data.getWidth % 32)
+    val dw        = data.getWidth - (data.getWidth % 32)
     // when sew = 0
     val collapse0 = Seq.tabulate(dw / 8)(i => dataMasked(8 * i + 7, 8 * i)).reduce(_ | _)
     // when sew = 1
@@ -112,7 +112,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   // 5: log2ceil(elen)
   requestToVfu.bits.shifterSize  := Mux1H(currentOHForExecuteGroup, cutUInt(requestReg.bits.shifterSize, 5))
 
-  val eSize: Int = requestReg.bits.mask.getWidth
+  val eSize:          Int  = requestReg.bits.mask.getWidth
   val isLastRequest:  Bool = Mux1H(
     vSew1H,
     Seq(
@@ -142,9 +142,9 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   val writeMaskInByte: UInt = Mux1H(
     vSew1H(2, 0),
     Seq(
-      true.B          << writeIndex,
-      "b11".U(2.W)    << writeIndex,
-      "b1111".U(4.W)  << writeIndex
+      true.B << writeIndex,
+      "b11".U(2.W) << writeIndex,
+      "b1111".U(4.W) << writeIndex
     )
   ).asUInt
 
