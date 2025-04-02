@@ -353,9 +353,7 @@ case class T1Parameter(
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
 
-  require(xLen == datapathWidth)
   require(isPow2(laneNumber))
-  require(isPow2(chainingSize))
 }
 
 class T1Probe(parameter: T1Parameter) extends Bundle {

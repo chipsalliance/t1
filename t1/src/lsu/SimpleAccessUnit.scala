@@ -195,7 +195,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
 
   /** notify [[LSU]] the status of [[MSHR]] */
   @public
-  val status: SimpleAccessStatus = IO(Output(new SimpleAccessStatus(param.laneNumber)))
+  val status: SimpleAccessStatus = IO(Output(new SimpleAccessStatus(param.laneNumber, param.instructionIndexBits)))
 
   // other unit probe
   @public
