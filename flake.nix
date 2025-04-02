@@ -10,9 +10,10 @@
       inputs.flake-utils.follows = "flake-utils";
     };
     zaozi.url = "github:sequencer/zaozi";
+    treefmt-nix.url = "github:numtide/treefmt-nix";
   };
 
-  outputs = { self, nixpkgs, mill-ivy-fetcher, flake-utils, zaozi }@inputs:
+  outputs = { self, nixpkgs, mill-ivy-fetcher, flake-utils, zaozi, treefmt-nix }@inputs:
     let
       overlay = import ./nix/overlay.nix { inherit self; };
     in
@@ -20,6 +21,11 @@
       (system:
         let
           pkgs = import nixpkgs { inherit system; overlays = [ mill-ivy-fetcher.overlays.default zaozi.overlays.default overlay ]; };
+          treefmtEval = treefmt-nix.lib.evalModule pkgs {
+            projectRootFile = "flake.nix";
+            settings.on-unmatched = "debug";
+            programs.nixfmt.enable = true;
+          };
         in
         {
           legacyPackages = pkgs;
@@ -33,7 +39,10 @@
               ];
             };
           };
-          formatter = pkgs.nixpkgs-fmt;
+          formatter = treefmtEval.config.build.wrapper;
+          checks = {
+            formatting = treefmtEval.config.build.check self;
+          };
         }
       )
     // { inherit inputs; overlays.default = overlay; };
