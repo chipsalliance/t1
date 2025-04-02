@@ -18,9 +18,11 @@ object LaneFloatParam {
   implicit def rw: upickle.default.ReadWriter[LaneFloatParam] = upickle.default.macroRW
 }
 
-case class LaneFloatParam(eLen: Int, latency: Int, laneScale: Int = 2) extends VFUParameter with SerializableModuleParameter {
-  val datapathWidth: Int = eLen * laneScale
-  val decodeField: BoolField = Decoder.float
+case class LaneFloatParam(eLen: Int, latency: Int, laneScale: Int = 2)
+    extends VFUParameter
+    with SerializableModuleParameter {
+  val datapathWidth: Int       = eLen * laneScale
+  val decodeField:   BoolField = Decoder.float
   val inputBundle  = new LaneFloatRequest(datapathWidth)
   val outputBundle = new LaneFloatResponse(datapathWidth, laneScale)
   override val NeedSplit: Boolean = false
@@ -52,8 +54,8 @@ class LaneFloatRequest(datapathWidth: Int) extends VFUPipeBundle {
 }
 
 class LaneFloatResponse(datapathWidth: Int, laneScale: Int) extends VFUPipeBundle {
-  val data = UInt(datapathWidth.W)
-  val adderMaskResp = UInt(laneScale.W)
+  val data           = UInt(datapathWidth.W)
+  val adderMaskResp  = UInt(laneScale.W)
   val exceptionFlags = UInt(5.W)
   val executeIndex: UInt = UInt(2.W)
 }
@@ -72,8 +74,8 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with Serializab
 
   val responseVec: Seq[(UInt, UInt)] = Seq.tabulate(parameter.laneScale) { index =>
     val subRequest = Wire(new LaneFloatRequest(parameter.eLen))
-    subRequest.elements.foreach {case (k, v) => v := request.elements(k)}
-    subRequest.src.zip(request.src).foreach {case (sink, source) =>
+    subRequest.elements.foreach { case (k, v) => v := request.elements(k) }
+    subRequest.src.zip(request.src).foreach { case (sink, source) =>
       sink := cutUIntBySize(source, parameter.laneScale)(index)
     }
 
@@ -94,15 +96,15 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with Serializab
     val flags  = Wire(UInt(5.W))
 
     /** Vector Single-Width Floating-Point Add/Subtract/Multiply/Floating-Point Fused Multiply-Add Instructions
-     *
-     * encoding
-     * {{{
-     *   addsub      sub          mul     maf     rmaf
-     * a  src(0)     src(1)      src(0)  src(0)  src(0)
-     * b  1               1      src(1)  src(1)  src(2)
-     * c  src(1)     src(0)      0       src(2)  src(1)
-     * }}}
-     */
+      *
+      * encoding
+      * {{{
+      *   addsub      sub          mul     maf     rmaf
+      * a  src(0)     src(1)      src(0)  src(0)  src(0)
+      * b  1               1      src(1)  src(1)  src(2)
+      * c  src(1)     src(0)      0       src(2)  src(1)
+      * }}}
+      */
 
     /** MAF logic */
     val sub    = fmaEn && uop === 9.U
@@ -137,22 +139,22 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with Serializab
     val fmaResult = fNFromRecFN(8, 24, mulAddRecFN.io.out)
 
     /** CompareModule
-     *
-     * perform a signaling comparing in IEEE-754 for LE,LT,GT,GE
-     *
-     * UOP
-     * {{{
-     * 0001 EQ
-     * 0000 NQ
-     * 0010 LT
-     * 0011 LE
-     * 0100 GT
-     * 0101 GE
-     *
-     * 1000 min
-     * 1100 max
-     * }}}
-     */
+      *
+      * perform a signaling comparing in IEEE-754 for LE,LT,GT,GE
+      *
+      * UOP
+      * {{{
+      * 0001 EQ
+      * 0000 NQ
+      * 0010 LT
+      * 0011 LE
+      * 0100 GT
+      * 0101 GE
+      *
+      * 1000 min
+      * 1100 max
+      * }}}
+      */
     val compareModule = Module(new CompareRecFN(8, 24))
     compareModule.io.a         := recIn1
     compareModule.io.b         := recIn0
@@ -204,28 +206,28 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with Serializab
     compareFlags  := compareModule.io.exceptionFlags
 
     /** Other Unit
-     * {{{
-     * uop(3,2) =
-     * 1x => convert
-     * 00 => sgnj
-     * 01 => clasify,merge,rec7,sqrt7
-     *
-     * 0001 SGNJ
-     * 0010 SGNJN
-     * 0011 SGNJX
-     *
-     * 0100 classify
-     * 0101 merge
-     * 0110 rec7
-     * 0111 sqrt7
-     *
-     * 1000 to float
-     * 1010 to sint
-     * 1001 to uint
-     * 1110 to sint tr
-     * 1101 to uint tr
-     * }}}
-     */
+      * {{{
+      * uop(3,2) =
+      * 1x => convert
+      * 00 => sgnj
+      * 01 => clasify,merge,rec7,sqrt7
+      *
+      * 0001 SGNJ
+      * 0010 SGNJN
+      * 0011 SGNJX
+      *
+      * 0100 classify
+      * 0101 merge
+      * 0110 rec7
+      * 0111 sqrt7
+      *
+      * 1000 to float
+      * 1010 to sint
+      * 1001 to uint
+      * 1110 to sint tr
+      * 1101 to uint tr
+      * }}}
+      */
     val intToFn = Module(new INToRecFN(32, 8, 24))
     intToFn.io.in             := subRequest.src(1)
     intToFn.io.signedIn       := subRequest.sign
@@ -233,9 +235,9 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with Serializab
     intToFn.io.detectTininess := false.B
 
     /** io.signedOut define output sign
-     *
-     * false for toUInt true for toInt
-     */
+      *
+      * false for toUInt true for toInt
+      */
     val fnToInt    = Module(new RecFNToIN(8, 24, 32))
     val convertRtz = uop(3, 2) === 3.U
     fnToInt.io.in           := recIn1

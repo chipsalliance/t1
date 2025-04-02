@@ -17,11 +17,13 @@ object LaneMulParam {
 }
 
 /** @param dataPathWidth width of data path, can be 32 or 64, decides the memory bandwidth. */
-case class LaneMulParam(eLen: Int, latency: Int, laneScale: Int = 2) extends VFUParameter with SerializableModuleParameter {
-  val datapathWidth: Int = eLen * laneScale
-  val respWidth:   Int       = datapathWidth
-  val sourceWidth: Int       = datapathWidth
-  val decodeField: BoolField = Decoder.multiplier
+case class LaneMulParam(eLen: Int, latency: Int, laneScale: Int = 2)
+    extends VFUParameter
+    with SerializableModuleParameter {
+  val datapathWidth: Int       = eLen * laneScale
+  val respWidth:     Int       = datapathWidth
+  val sourceWidth:   Int       = datapathWidth
+  val decodeField:   BoolField = Decoder.multiplier
   val inputBundle  = new LaneMulReq(datapathWidth)
   val outputBundle = new LaneMulResponse(this)
 }
@@ -66,8 +68,8 @@ class LaneMul(val parameter: LaneMulParam) extends VFUModule with SerializableMo
 
   val responseVec: Seq[(UInt, Bool)] = Seq.tabulate(parameter.laneScale) { index =>
     val subRequest = Wire(new LaneMulReq(parameter.eLen))
-    subRequest.elements.foreach {case (k, v) => v := request.elements(k)}
-    subRequest.src.zip(request.src).foreach {case (sink, source) =>
+    subRequest.elements.foreach { case (k, v) => v := request.elements(k) }
+    subRequest.src.zip(request.src).foreach { case (sink, source) =>
       sink := cutUIntBySize(source, parameter.laneScale)(index)
     }
 
@@ -282,18 +284,21 @@ class LaneMul(val parameter: LaneMulParam) extends VFUModule with SerializableMo
 
     val overflowData: Seq[UInt] = attributeVec.map(_._2)
 
-    (VecInit(Seq.tabulate(4) { index =>
-      val overflow = overflowSelect(index)
-      Mux1H(
-        Seq(
-          (opcode1H(0) && !subRequest.saturate) || ma,
-          opcode1H(3),
-          subRequest.saturate && !overflow,
-          subRequest.saturate && overflow
-        ),
-        Seq(lsbVec(index), msbVec(index), roundingResultVec(index), overflowData(index))
-      )
-    }).asUInt, overflowSelect.asUInt.orR && subRequest.saturate)
+    (
+      VecInit(Seq.tabulate(4) { index =>
+        val overflow = overflowSelect(index)
+        Mux1H(
+          Seq(
+            (opcode1H(0) && !subRequest.saturate) || ma,
+            opcode1H(3),
+            subRequest.saturate && !overflow,
+            subRequest.saturate && overflow
+          ),
+          Seq(lsbVec(index), msbVec(index), roundingResultVec(index), overflowData(index))
+        )
+      }).asUInt,
+      overflowSelect.asUInt.orR && subRequest.saturate
+    )
   }
   response.data := VecInit(responseVec.map(_._1)).asUInt
 

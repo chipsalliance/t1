@@ -9,7 +9,16 @@ import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.ltl._
 import chisel3.ltl.Sequence._
-import org.chipsalliance.t1.rtl.{CSRInterface, ExecutionUnitRecord, LaneParameter, SlotRequestToVFU, VFUResponseToSlot, cutUInt, cutUIntBySize, getExecuteUnitTag}
+import org.chipsalliance.t1.rtl.{
+  cutUInt,
+  cutUIntBySize,
+  getExecuteUnitTag,
+  CSRInterface,
+  ExecutionUnitRecord,
+  LaneParameter,
+  SlotRequestToVFU,
+  VFUResponseToSlot
+}
 import org.chipsalliance.t1.rtl.decoder.Decoder
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
@@ -113,7 +122,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       executionRecord.decodeResult(Decoder.widenReduce)
 
   // data in executionRecord is narrow type
-  val narrowInRecord: Bool         = !executionRecord.decodeResult(Decoder.crossWrite) &&
+  val narrowInRecord: Bool = !executionRecord.decodeResult(Decoder.crossWrite) &&
     executionRecord.decodeResult(Decoder.crossRead)
   val recordQueueReadyForNoExecute = Wire(Bool())
   val recordDequeueReady: Bool = (if (isLastSlot) {
@@ -260,7 +269,11 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   vfuRequest.bits.opcode      := executionRecord.decodeResult(Decoder.uop)
   vfuRequest.bits.mask        := Mux(
     executionRecord.decodeResult(Decoder.adder),
-    Mux(executionRecord.decodeResult(Decoder.maskSource), executionRecord.maskForMaskInput, 0.U(((parameter.datapathWidth / 8)).W)),
+    Mux(
+      executionRecord.decodeResult(Decoder.maskSource),
+      executionRecord.maskForMaskInput,
+      0.U(((parameter.datapathWidth / 8)).W)
+    ),
     maskExtend | Fill(parameter.datapathWidth / 8, !executionRecord.maskType)
   )
   vfuRequest.bits.executeMask := Mux(
@@ -384,12 +397,19 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       recordQueue.deq.bits.vSew1H(2, 0),
       Seq(
         // 32bit, 4 bit per data group, it will had 8 data groups -> executeIndex1H << 4 * groupCounter(2, 0)
-        maskResult << (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits - 1, 0) ## 0.U(maxMaskResultBits.W)),
+        maskResult << (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits - 1, 0) ## 0.U(
+          maxMaskResultBits.W
+        )),
         // 2 bit per data group, it will had 16 data groups -> executeIndex1H << 2 * groupCounter(3, 0)
         maskResult(1, 0) <<
-          (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits, 0) ## 0.U((maxMaskResultBits - 1).W)),
+          (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits, 0) ## 0.U(
+            (maxMaskResultBits - 1).W
+          )),
         // 1 bit per data group, it will had 32 data groups -> executeIndex1H << 1 * groupCounter(4, 0)
-        maskResult(0) << (recordQueue.deq.bits.groupCounter((parameter.datapathWidthBits - maxMaskResultBits + 1).min(parameter.groupNumberBits - 1), 0) ## 0.U((maxMaskResultBits - 2).W))
+        maskResult(0) << (recordQueue.deq.bits.groupCounter(
+          (parameter.datapathWidthBits - maxMaskResultBits + 1).min(parameter.groupNumberBits - 1),
+          0
+        ) ## 0.U((maxMaskResultBits - 2).W))
       )
     ).asUInt
 
@@ -434,7 +454,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     updateReduceResult.get := {
       val dataVec   = cutUInt(dataDequeue, 8)
       val ResultVec = cutUInt(reduceResult.get, 8)
-      VecInit(dataVec.zipWithIndex.map { case (d, i) => Mux(reduceUpdateByteMask(i), d, ResultVec(i))}).asUInt
+      VecInit(dataVec.zipWithIndex.map { case (d, i) => Mux(reduceUpdateByteMask(i), d, ResultVec(i)) }).asUInt
     }
     // update `reduceResult`
     when((dataResponse.valid && recordQueue.deq.bits.decodeResult(Decoder.red)) || updateMaskResult.get) {
@@ -455,7 +475,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
 
     // reduce state machine
     val idle :: wLastResponse :: Nil = Enum(2)
-    val redState = RegInit(idle)
+    val redState                     = RegInit(idle)
     when(
       // vfu  request fire
       vfuRequest.fire &&
@@ -468,14 +488,14 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         (redState === idle)
     ) {
       when(responseFinish && dataResponse.valid) {
-        redState := idle
+        redState           := idle
         reduceLastResponse := true.B
       }.otherwise {
         redState := wLastResponse
       }
     }
     when(redState === wLastResponse && dataResponse.valid) {
-      redState := idle
+      redState           := idle
       reduceLastResponse := true.B
     }
   }

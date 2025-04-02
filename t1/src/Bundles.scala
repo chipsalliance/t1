@@ -364,7 +364,7 @@ class V0Update(datapathWidth: Int, vrfOffsetBits: Int) extends Bundle {
   val data:   UInt = UInt(datapathWidth.W)
   val offset: UInt = UInt(vrfOffsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
-  val mask:   UInt = UInt((datapathWidth/8).W)
+  val mask:   UInt = UInt((datapathWidth / 8).W)
 }
 
 /** Request to access VRF in each lanes. */

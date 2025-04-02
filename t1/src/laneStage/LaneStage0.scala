@@ -156,9 +156,12 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     elementLengthOH,
     Seq(
       enqueue.bits.maskGroupCount,
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, log2Ceil(parameter.datapathWidth / 8)),
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, log2Ceil(parameter.datapathWidth / 8) - 1),
-      enqueue.bits.maskGroupCount ## enqueue.bits.maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, log2Ceil(parameter.datapathWidth / 8) - 2)
+      enqueue.bits.maskGroupCount ## enqueue.bits
+        .maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, log2Ceil(parameter.datapathWidth / 8)),
+      enqueue.bits.maskGroupCount ## enqueue.bits
+        .maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, log2Ceil(parameter.datapathWidth / 8) - 1),
+      enqueue.bits.maskGroupCount ## enqueue.bits
+        .maskIndex(log2Ceil(parameter.maskGroupWidth) - 1, log2Ceil(parameter.datapathWidth / 8) - 2)
     )
   )
 
