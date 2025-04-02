@@ -24,7 +24,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val memRequest: DecoupledIO[MemWrite] = IO(Decoupled(new MemWrite(param)))
 
   @public
-  val status: LSUBaseStatus = IO(Output(new LSUBaseStatus))
+  val status: LSUBaseStatus = IO(Output(new LSUBaseStatus(param.instructionIndexBits)))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]]. see [[LSU.vrfWritePort]]
     */
