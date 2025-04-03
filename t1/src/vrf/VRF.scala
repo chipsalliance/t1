@@ -72,6 +72,8 @@ case class VRFParam(
   ramType:       RamType)
     extends SerializableModuleParameter {
 
+  val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
+
   /** See documentation for VRF. chainingSize * 3 + 1 + 1: 3 read /slot + maskedWrite + lsu read 0: maskedWrite last:
     * lsu read Each element represents a read port of vrf, The number inside is which of the above requests will share
     * this port.
@@ -220,16 +222,16 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   /** similar to [[flush]]. */
   @public
-  val instructionLastReport: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
+  val instructionLastReport: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
   @public
-  val lsuLastReport: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
+  val lsuLastReport: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
   @public
-  val vrfSlotRelease: UInt = IO(Output(UInt((2 * parameter.chainingSize).W)))
+  val vrfSlotRelease: UInt = IO(Output(UInt(parameter.chaining1HBits.W)))
 
   @public
-  val dataInLane: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
+  val dataInLane: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
   @public
   val writeReadyForLsu: Bool = IO(Output(Bool()))
@@ -238,7 +240,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   /** we can only chain LSU instructions, after [[LSU.writeQueueVec]] is cleared. */
   @public
-  val loadDataInLSUWriteQueue: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
+  val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
   @public
   val vrfProbe = IO(Output(Probe(new VRFProbe(parameter), layers.Verification)))
@@ -279,7 +281,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val recordRelease:      Vec[UInt]                    = WireDefault(
     VecInit(
       Seq.fill(parameter.chainingSize + 1)(
-        0.U.asTypeOf(UInt((parameter.chainingSize * 2).W))
+        0.U.asTypeOf(UInt(parameter.chaining1HBits.W))
       )
     )
   )
