@@ -165,7 +165,8 @@ class MaskUnit(val parameter: T1Parameter)
   // mask update & select
   // lane
   // TODO: uarch doc for the regroup
-  val regroupV0: Seq[UInt] = Seq(4, 2, 1).map { groupSize =>
+  val regroupV0: Seq[UInt] = Seq(4, 2, 1).map { singleSize =>
+    val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
     VecInit(
       cutUInt(v0.asUInt, groupSize)
         .grouped(parameter.laneNumber)
@@ -995,7 +996,7 @@ class MaskUnit(val parameter: T1Parameter)
   val compressUnit = Instantiate(new MaskCompress(compressParam))
   val reduceUnit   = Instantiate(
     new MaskReduce(
-      MaskReduceParameter(parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
+      MaskReduceParameter(parameter.eLen, parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
     )
   )
   omInstance.reduceUnitIn := reduceUnit.io.om.asAnyClassType

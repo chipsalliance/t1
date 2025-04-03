@@ -67,7 +67,17 @@ pub struct SpikeArgs {
 impl SpikeArgs {
   fn to_spike_c_handler(&self) -> Box<Spike> {
     let lvl = "M";
-    Spike::new(&self.set, lvl, (self.dlen / 32) as usize, MEM_SIZE)
+
+    let data_width = 64;
+
+    // Create and return a new Spike instance
+    Spike::new(
+      &self.set,
+      lvl,
+      (self.dlen / data_width) as usize,
+      data_width as usize,
+      MEM_SIZE,
+    )
   }
 }
 

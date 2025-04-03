@@ -6,7 +6,7 @@ package org.chipsalliance.t1.rtl.lsu
 import chisel3._
 import chisel3.util._
 
-class LSUBaseStatus extends Bundle {
+class LSUBaseStatus(instIndexWidth: Int) extends Bundle {
 
   /** indicate this MSHR is idle. */
   val idle: Bool = Bool()
@@ -15,9 +15,7 @@ class LSUBaseStatus extends Bundle {
   val last: Bool = Bool()
 
   /** the current instruction in this MSHR. */
-
-  /** the current instruction in this MSHR. */
-  val instructionIndex: UInt = UInt(3.W)
+  val instructionIndex: UInt = UInt(instIndexWidth.W)
 
   val changeMaskGroup: Bool = Bool()
 
@@ -25,7 +23,7 @@ class LSUBaseStatus extends Bundle {
   val endAddress:   UInt = UInt(32.W)
 }
 
-class SimpleAccessStatus(laneNumber: Int) extends LSUBaseStatus {
+class SimpleAccessStatus(laneNumber: Int, instIndexWidth: Int) extends LSUBaseStatus(instIndexWidth) {
 
   /** the current lane that this MSHR is accessing. */
   val targetLane: UInt = UInt(laneNumber.W)

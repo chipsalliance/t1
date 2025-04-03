@@ -41,6 +41,8 @@ case class LSUParameter(
   name: String) {
   val sewMin: Int = 8
 
+  val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
+
   /** the maximum address offsets number can be accessed from lanes for one time. */
   val maxOffsetPerLaneAccess: Int = datapathWidth * laneNumber / sewMin
 
@@ -110,7 +112,7 @@ class LSUProbe(param: LSUParameter) extends Bundle {
   val storeUnitProbe = new MemoryWriteProbe(param.mshrParam)
   val otherUnitProbe = new MemoryWriteProbe(param.mshrParam)
   val reqEnq:              UInt = UInt(param.lsuMSHRSize.W)
-  val lsuInstructionValid: UInt = UInt((param.chainingSize * 2).W)
+  val lsuInstructionValid: UInt = UInt(param.chaining1HBits.W)
 }
 
 /** Load Store Unit it is instantiated in [[V]], it contains
@@ -126,7 +128,7 @@ class LSU(param: LSUParameter) extends Module {
     *   - memory conflict is detected.
     */
   @public
-  val request: DecoupledIO[LSURequest] = IO(Flipped(Decoupled(new LSURequest(param.datapathWidth))))
+  val request: DecoupledIO[LSURequest] = IO(Flipped(Decoupled(new LSURequest(param.datapathWidth, param.chainingSize))))
 
   @public
   val v0UpdateVec: Vec[ValidIO[V0Update]] = IO(
@@ -172,7 +174,7 @@ class LSU(param: LSUParameter) extends Module {
   val writeRelease: Vec[Bool] = IO(Vec(param.laneNumber, Input(Bool())))
 
   @public
-  val dataInWriteQueue: Vec[UInt] = IO(Output(Vec(param.laneNumber, UInt((2 * param.chainingSize).W))))
+  val dataInWriteQueue: Vec[UInt] = IO(Output(Vec(param.laneNumber, UInt(param.chaining1HBits.W))))
 
   /** the CSR interface from [[V]], CSR will be latched in MSHR. TODO: merge to [[LSURequest]]
     */
@@ -190,7 +192,7 @@ class LSU(param: LSUParameter) extends Module {
 
   /** interface to [[V]], indicate a MSHR slots is finished, and corresponding instruction can commit. */
   @public
-  val lastReport: UInt = IO(Output(UInt((2 * param.chainingSize).W)))
+  val lastReport: UInt = IO(Output(UInt(param.chaining1HBits.W)))
 
   @public
   val writeReadyForLsu: Bool = IO(Input(Bool()))
@@ -348,18 +350,18 @@ class LSU(param: LSUParameter) extends Module {
   val dataInMSHR: UInt =
     Mux(
       loadUnit.status.idle,
-      0.U((2 * param.chainingSize).W),
+      0.U(param.chaining1HBits.W),
       indexToOH(loadUnit.status.instructionIndex, param.chainingSize)
     ) |
       Mux(
         otherUnit.status.idle || otherUnit.status.isStore,
-        0.U((2 * param.chainingSize).W),
+        0.U(param.chaining1HBits.W),
         indexToOH(otherUnit.status.instructionIndex, param.chainingSize)
       )
 
   // Record whether there is data for the corresponding instruction in the queue
   writeQueueVec.zip(dataInWriteQueue).zipWithIndex.foreach { case ((q, p), i) =>
-    val queueCount: Seq[UInt] = Seq.tabulate(2 * param.chainingSize) { _ =>
+    val queueCount: Seq[UInt] = Seq.tabulate(param.chaining1HBits) { _ =>
       RegInit(0.U(log2Ceil(param.toVRFWriteQueueSize).W))
     }
     val enqOH:      UInt      = indexToOH(q.enq.bits.data.instructionIndex, param.chainingSize)

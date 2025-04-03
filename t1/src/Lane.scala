@@ -34,7 +34,7 @@ class LaneOM(parameter: LaneParameter) extends GeneralOM[LaneParameter, Lane](pa
   vrf := vrfIn
 }
 
-class LaneSlotProbe(instructionIndexBits: Int) extends Bundle {
+class LaneSlotProbe(instructionIndexBits: Int, datapathWidth: Int) extends Bundle {
   val stage0EnqueueReady:             Bool = Bool()
   val stage0EnqueueValid:             Bool = Bool()
   val changingMaskSet:                Bool = Bool()
@@ -52,23 +52,24 @@ class LaneSlotProbe(instructionIndexBits: Int) extends Bundle {
   // write queue enq for lane
   val writeQueueEnq: Bool = Bool()
   val writeTag:      UInt = UInt(instructionIndexBits.W)
-  val writeMask:     UInt = UInt(4.W)
+  val writeMask:     UInt = UInt((datapathWidth / 8).W)
 }
 
-class LaneWriteProbe(instructionIndexBits: Int) extends Bundle {
+class LaneWriteProbe(instructionIndexBits: Int, datapathWidth: Int) extends Bundle {
   val writeTag:  UInt = UInt(instructionIndexBits.W)
-  val writeMask: UInt = UInt(4.W)
+  val writeMask: UInt = UInt((datapathWidth / 8).W)
 }
 
 class LaneProbe(parameter: LaneParameter) extends Bundle {
-  val slots = Vec(parameter.chainingSize, new LaneSlotProbe(parameter.instructionIndexBits))
+  val slots = Vec(parameter.chainingSize, new LaneSlotProbe(parameter.instructionIndexBits, parameter.datapathWidth))
   val laneRequestStall:    Bool = Bool()
   // @todo @Clo91eaf change to occupied for each slot.
   val lastSlotOccupied:    Bool = Bool()
   val instructionFinished: UInt = UInt(parameter.chainingSize.W)
-  val instructionValid:    UInt = UInt((2 * parameter.chainingSize).W)
+  val instructionValid:    UInt = UInt(parameter.chaining1HBits.W)
 
-  val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] = Vec(2, Valid(new LaneWriteProbe(parameter.instructionIndexBits)))
+  val crossWriteProbe: Vec[ValidIO[LaneWriteProbe]] =
+    Vec(2, Valid(new LaneWriteProbe(parameter.instructionIndexBits, parameter.datapathWidth)))
 
   val vrfProbe: VRFProbe = new VRFProbe(parameter.vrfParam)
 }
@@ -92,6 +93,7 @@ object LaneParameter {
   */
 case class LaneParameter(
   vLen:                             Int,
+  eLen:                             Int,
   datapathWidth:                    Int,
   laneNumber:                       Int,
   chainingSize:                     Int,
@@ -104,6 +106,8 @@ case class LaneParameter(
   vfuInstantiateParameter:          VFUInstantiateParameter)
     extends SerializableModuleParameter {
   val maskUnitVefWriteQueueSize: Int = 8
+
+  val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
 
   /** 1 in MSB for instruction order. */
   val instructionIndexBits: Int = log2Ceil(chainingSize) + 1
@@ -118,6 +122,8 @@ case class LaneParameter(
     * TODO: we must parallelize it as much as possible since it highly affects the computation bandwidth.
     */
   val dataPathByteWidth: Int = datapathWidth / sewMin
+
+  val dataPathByteBits: Int = log2Ceil(dataPathByteWidth)
 
   /** maximum of vl. */
   val vlMax: Int = vLen * lmulMax / sewMin
@@ -270,9 +276,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   /** for each instruction in the slot, response to top when instruction is finished in this lane. */
   @public
-  val instructionFinished: UInt = IO(Output(UInt((2 * parameter.chainingSize).W)))
+  val instructionFinished: UInt = IO(Output(UInt(parameter.chaining1HBits.W)))
   @public
-  val vxsatReport:         UInt = IO(Output(UInt((2 * parameter.chainingSize).W)))
+  val vxsatReport:         UInt = IO(Output(UInt(parameter.chaining1HBits.W)))
 
   /** V0 update in the lane should also update [[T1.v0]] */
   @public
@@ -295,18 +301,18 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * is finished.
     */
   @public
-  val lsuLastReport: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
+  val lsuLastReport: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
   /** for RaW, VRF should wait for buffer to be empty. */
   @public
-  val loadDataInLSUWriteQueue: UInt = IO(Input(UInt((2 * parameter.chainingSize).W)))
+  val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
   /** How many dataPath will writ by instruction in this lane */
   @public
   val writeCount:       UInt =
     IO(Input(UInt((parameter.vlMaxBits - log2Ceil(parameter.laneNumber) - log2Ceil(parameter.dataPathByteWidth)).W)))
   @public
-  val writeQueueValid:  UInt = IO(UInt((2 * parameter.chainingSize).W))
+  val writeQueueValid:  UInt = IO(UInt(parameter.chaining1HBits.W))
   @public
   val writeReadyForLsu: Bool = IO(Output(Bool()))
   @public
@@ -533,16 +539,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val slot0EnqueueFire: Bool = Wire(Bool())
 
   /** assert when a instruction is valid in the slot. */
-  val instructionValid:     UInt = Wire(UInt((2 * parameter.chainingSize).W))
+  val instructionValid:     UInt = Wire(UInt(parameter.chaining1HBits.W))
   val instructionValidNext: UInt = RegNext(instructionValid, 0.U)
 
-  val vxsatResult: UInt = RegInit(0.U((2 * parameter.chainingSize).W))
+  val vxsatResult: UInt = RegInit(0.U(parameter.chaining1HBits.W))
   vxsatReport := vxsatResult
 
   // Overflow occurs
-  val vxsatEnq: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt((2 * parameter.chainingSize).W)))
+  val vxsatEnq: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chaining1HBits.W)))
 
-  val instructionFinishInSlot: UInt = Wire(UInt((2 * parameter.chainingSize).W))
+  val instructionFinishInSlot: UInt = Wire(UInt(parameter.chaining1HBits.W))
   // vxsatEnq and instructionFinished cannot happen at the same time
   vxsatResult := (vxsatEnq.reduce(_ | _) | vxsatResult) & (~instructionFinishInSlot).asUInt
 
