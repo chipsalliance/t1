@@ -57,7 +57,7 @@ object TestBench extends SerializableModuleElaborator {
         chainingSize,
         vrfBankSize,
         vrfRamType,
-        VFUInstantiateParameter.parse(vLen = vLen, dLen = dLen, preset = vfuInstantiateParameter, fp = fp, zvbb = zvbb)
+        VFUInstantiateParameter.parse(vLen = vLen, dLen = dLen, preset = vfuInstantiateParameter, fp = fp, zvbb = zvbb, chainingSize = chainingSize)
       )
     }
   }

@@ -126,7 +126,7 @@ class LSU(param: LSUParameter) extends Module {
     *   - memory conflict is detected.
     */
   @public
-  val request: DecoupledIO[LSURequest] = IO(Flipped(Decoupled(new LSURequest(param.datapathWidth))))
+  val request: DecoupledIO[LSURequest] = IO(Flipped(Decoupled(new LSURequest(param.datapathWidth, param.chainingSize))))
 
   @public
   val v0UpdateVec: Vec[ValidIO[V0Update]] = IO(

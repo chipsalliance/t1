@@ -384,14 +384,14 @@ class VRFReadRequest(regNumBits: Int, offsetBits: Int, instructionIndexBits: Int
   val instructionIndex: UInt = UInt(instructionIndexBits.W)
 }
 
-class VRFReadQueueEntry(regNumBits: Int, offsetBits: Int) extends Bundle {
+class VRFReadQueueEntry(regNumBits: Int, offsetBits: Int, chainingSize: Int) extends Bundle {
   val vs:               UInt = UInt(regNumBits.W)
   val offset:           UInt = UInt(offsetBits.W)
   // for debug
   val groupIndex:       UInt = UInt(4.W)
   val readSource:       UInt = UInt(4.W)
   // Pipe due to fan-out
-  val instructionIndex: UInt = UInt(3.W)
+  val instructionIndex: UInt = UInt((log2Ceil(chainingSize) + 1).W)
 }
 
 class VRFWriteRequest(regNumBits: Int, offsetBits: Int, instructionIndexSize: Int, dataPathWidth: Int) extends Bundle {
@@ -546,7 +546,7 @@ class LSUInstructionInformation extends Bundle {
 }
 
 /** request interface from [[T1]] to [[LSU]] and [[MSHR]] */
-class LSURequest(dataWidth: Int) extends Bundle {
+class LSURequest(dataWidth: Int, chainingSize: Int) extends Bundle {
 
   /** from instruction. */
   val instructionInformation: LSUInstructionInformation = new LSUInstructionInformation
@@ -557,9 +557,9 @@ class LSURequest(dataWidth: Int) extends Bundle {
   /** data from rs2 in scalar core, if necessary. */
   val rs2Data: UInt = UInt(dataWidth.W)
 
-  /** tag from [[T1]] to record instruction. TODO: parameterize it.
+  /** tag from [[T1]] to record instruction.
     */
-  val instructionIndex: UInt = UInt(3.W)
+  val instructionIndex: UInt = UInt((log2Ceil(chainingSize) + 1).W)
 }
 
 // queue bundle for execute stage

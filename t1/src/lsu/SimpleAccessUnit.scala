@@ -144,7 +144,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   /** [[LSURequest]] from LSU see [[LSU.request]]
     */
   @public
-  val lsuRequest: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth))))
+  val lsuRequest: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth, param.chainingSize))))
 
   /** read channel to [[V]], which will redirect it to [[Lane.vrf]]. see [[LSU.vrfReadDataPorts]]
     */
