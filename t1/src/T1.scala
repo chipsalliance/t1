@@ -286,6 +286,8 @@ case class T1Parameter(
 
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
 
+  val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
+
   /** paraemter for AXI4. */
   val axi4BundleParameter: AXI4BundleParameter = AXI4BundleParameter(
     idWidth = sourceWidth,
@@ -554,7 +556,7 @@ class T1(val parameter: T1Parameter)
     *   - vd is v0
     */
   val specialInstruction: Bool      = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
-  val dataInWritePipeVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt((2 * parameter.chainingSize).W)))
+  val dataInWritePipeVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.chaining1HBits.W)))
   val dataInWritePipe:    UInt      = dataInWritePipeVec.reduce(_ | _)
 
   // todo: instructionRAWReady -> v0 write token
