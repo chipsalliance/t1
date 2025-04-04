@@ -83,6 +83,8 @@ let
     stdenv = rv32-stdenv;
 
     mlir = casesSelf.callPackage ./mlir { };
+    iree-mlir = casesSelf.callPackage ./iree-mlir { };
+    iree-pytorch = casesSelf.callPackage ./iree-pytorch { };
     intrinsic = casesSelf.callPackage ./intrinsic { };
     asm = casesSelf.callPackage ./asm { };
     perf = casesSelf.callPackage ./perf { };
@@ -96,7 +98,7 @@ let
 
   # remove non-case attributes in scope
   scopeStripped = {
-    inherit (scope) mlir intrinsic asm perf codegen rvv_bench pytorch disp emurt-test eval;
+    inherit (scope) mlir iree-mlir iree-pytorch intrinsic asm perf codegen rvv_bench pytorch disp emurt-test eval;
   };
 
   # This derivation is for internal CI use only.

@@ -38,6 +38,12 @@ rec {
     in
     lockedNixpkgs.callPackage ./pkgs/buddy-mlir.nix { python3 = lockedNixpkgs.python312; };
 
+  iree = final.callPackage ./pkgs/iree.nix { };
+
+  python-iree = final.python3Packages.toPythonModule iree;
+
+  iree-turbine = final.callPackage ./pkgs/iree-turbine.nix { };
+
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
 
   snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
@@ -107,6 +113,11 @@ rec {
         extraPackages = [ final.emurt ];
         nixSupport.cc-cflags = [ "-lemurt" ];
       };
+  };
+
+  iree-runtime = final.callPackage ./pkgs/iree-runtime.nix {
+    inherit rv32-stdenv;
+    inherit iree;
   };
 
   riscv-tests = final.pkgsCross.riscv32-embedded.stdenv.mkDerivation rec {
