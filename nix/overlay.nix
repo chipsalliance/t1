@@ -37,6 +37,10 @@ rec {
     in
     lockedNixpkgs.callPackage ./pkgs/buddy-mlir.nix { python3 = lockedNixpkgs.python312; };
 
+  iree = final.callPackage ./pkgs/iree.nix { };
+
+  python-iree = final.python3Packages.toPythonModule iree;
+
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
 
   snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
