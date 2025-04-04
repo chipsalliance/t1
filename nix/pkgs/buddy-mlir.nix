@@ -43,6 +43,12 @@ let
     # No need to do check, and it also takes too much time to finish.
     doCheck = false;
 
+    # TODO: Upstream this to Buddy-MLIR cmake install
+    postInstall = ''
+      mkdir -p "$out/include"
+      cp -vr "$NIX_BUILD_TOP/$sourceRoot/frontend/Interfaces/buddy" "$out/include"
+    '';
+
     # Here we concatenate the LLVM and Buddy python module into one directory for easier import
     postFixup = ''
       mkdir -p $out/lib/python${python3.pythonVersion}/site-packages
