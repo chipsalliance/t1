@@ -41,6 +41,8 @@ rec {
 
   python-iree = final.python3Packages.toPythonModule iree;
 
+  iree-turbine = final.callPackage ./pkgs/iree-turbine.nix { };
+
   riscv-vector-test = final.callPackage ./pkgs/riscv-vector-test.nix { };
 
   snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
