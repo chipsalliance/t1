@@ -1,9 +1,10 @@
-{ lib
-, linkerScript
-, emurt
-, fetchurl
-, makeBuilder
-, t1main
+{
+  lib,
+  linkerScript,
+  emurt,
+  fetchurl,
+  makeBuilder,
+  t1main,
 }:
 
 let
@@ -29,10 +30,12 @@ build {
 
   buildInputs = [ emurt ];
 
-  src = with lib.fileset; toSource {
-    root = ./.;
-    fileset = fileFilter (file: file.name != "default.nix") ./.;
-  };
+  src =
+    with lib.fileset;
+    toSource {
+      root = ./.;
+      fileset = fileFilter (file: file.name != "default.nix") ./.;
+    };
 
   postPatch = ''
     substituteInPlace extern_data.S \

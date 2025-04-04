@@ -1,25 +1,31 @@
-{ lib
-, linkerScript
-, buddy-mlir
-, makeBuilder
-, findAndBuild
-, getTestRequiredFeatures
-, t1main
-, callPackage
+{
+  lib,
+  linkerScript,
+  buddy-mlir,
+  makeBuilder,
+  findAndBuild,
+  getTestRequiredFeatures,
+  t1main,
+  callPackage,
 }:
 
 let
   builder = makeBuilder { casePrefix = "pytorch"; };
-  build = { caseName, sourcePath }:
+  build =
+    { caseName, sourcePath }:
     callPackage (sourcePath + "/build.nix") {
-      buildBuddyE2ETest = { optPhase, ... }@overrides: builder
-        (lib.recursiveUpdate
-          {
+      buildBuddyE2ETest =
+        { optPhase, ... }@overrides:
+        builder (
+          lib.recursiveUpdate {
             inherit caseName;
 
             passthru.featuresRequired = getTestRequiredFeatures sourcePath;
 
-            nativeBuildInputs = [ buddy-mlir.pyenv buddy-mlir ];
+            nativeBuildInputs = [
+              buddy-mlir.pyenv
+              buddy-mlir
+            ];
 
             src = sourcePath;
 
@@ -83,8 +89,8 @@ let
 
               runHook postBuild
             '';
-          }
-          overrides);
+          } overrides
+        );
     };
 in
 findAndBuild ./. build

@@ -1,40 +1,41 @@
-{ lib
+{
+  lib,
   # build deps
-, dockerTools
-, makeWrapper
-, runCommand
+  dockerTools,
+  makeWrapper,
+  runCommand,
 
   # Runtime deps
-, bashInteractive
-, which
-, jq
-, coreutils
-, findutils
-, diffutils
-, gnused
-, gnugrep
-, gnutar
-, gawk
-, gzip
-, bzip2
-, gnumake
-, patch
-, xz
-, file
-, cmake
+  bashInteractive,
+  which,
+  jq,
+  coreutils,
+  findutils,
+  diffutils,
+  gnused,
+  gnugrep,
+  gnutar,
+  gawk,
+  gzip,
+  bzip2,
+  gnumake,
+  patch,
+  xz,
+  file,
+  cmake,
 
   # Doc deps
-, stdenvNoCC
-, typst
-, pandoc
+  stdenvNoCC,
+  typst,
+  pandoc,
 
   # T1 Stuff
-, rv32-stdenv
-, emurt
-, rtlDesignMetadata
-, verilator-emu
-, cases
-, configName
+  rv32-stdenv,
+  emurt,
+  rtlDesignMetadata,
+  verilator-emu,
+  cases,
+  configName,
 }:
 
 let
@@ -53,26 +54,34 @@ let
         (lib.concatStringsSep "_")
       ];
     in
-    toString ([
-      "-I${emurt}/include"
-      "-L${emurt}/lib"
-      "-mabi=ilp32f"
-      "-march=${march}"
-      "-mno-relax"
-      "-static"
-      "-mcmodel=medany"
-      "-fvisibility=hidden"
-      "-fno-PIC"
-      "-g"
-      "-O3"
-    ] ++ lib.optionals (lib.elem "zvbb" (lib.splitString "_" rtlDesignMetadata.march)) [ "-menable-experimental-extensions" ]);
+    toString (
+      [
+        "-I${emurt}/include"
+        "-L${emurt}/lib"
+        "-mabi=ilp32f"
+        "-march=${march}"
+        "-mno-relax"
+        "-static"
+        "-mcmodel=medany"
+        "-fvisibility=hidden"
+        "-fno-PIC"
+        "-g"
+        "-O3"
+      ]
+      ++ lib.optionals (lib.elem "zvbb" (lib.splitString "_" rtlDesignMetadata.march)) [
+        "-menable-experimental-extensions"
+      ]
+    );
 
   t1-cc =
     let
       cc-prefix-safe = lib.replaceStrings [ "-" ] [ "_" ] rv32-stdenv.targetPlatform.config;
     in
     runCommand "${rv32-stdenv.cc.pname}-${rv32-stdenv.cc.version}-t1-wrapped"
-      { nativeBuildInputs = [ makeWrapper ]; env = { inherit NIX_CFLAGS_COMPILE; }; }
+      {
+        nativeBuildInputs = [ makeWrapper ];
+        env = { inherit NIX_CFLAGS_COMPILE; };
+      }
       ''
         mkdir -p $out/bin
         makeWrapper ${rv32-stdenv.cc}/bin/${rv32-stdenv.targetPlatform.config}-cc $out/bin/t1-cc \
@@ -82,7 +91,12 @@ let
       '';
 
   manual = (import ./doc.nix) {
-    inherit lib typst pandoc stdenvNoCC;
+    inherit
+      lib
+      typst
+      pandoc
+      stdenvNoCC
+      ;
   };
 in
 

@@ -1,37 +1,49 @@
-{ lib
-, rustPlatform
-, cmake
-, libspike
-, libspike_interfaces
+{
+  lib,
+  rustPlatform,
+  cmake,
+  libspike,
+  libspike_interfaces,
 }:
 
-{ outputName
-, emuType ? ""
-, moduleType
+{
+  outputName,
+  emuType ? "",
+  moduleType,
 }:
 
-assert let
-  available = [ "dpi_t1emu" "dpi_t1rocketemu" "t1-sim-checker" ];
-in
-lib.assertMsg (lib.elem moduleType available) "moduleType is not in ${lib.concatStringsSep ", " available}";
+assert
+  let
+    available = [
+      "dpi_t1emu"
+      "dpi_t1rocketemu"
+      "t1-sim-checker"
+    ];
+  in
+  lib.assertMsg (lib.elem moduleType available) "moduleType is not in ${lib.concatStringsSep ", " available}";
 
 let
-  rustSrc = with lib.fileset; toSource {
-    root = ./.;
-    fileset = unions [
-      ./spike_rs
-      ./dpi_common
-      ./dpi_t1emu
-      ./dpi_t1rocketemu
-      ./t1-sim-checker
-      ./Cargo.lock
-      ./Cargo.toml
-      ./.rustfmt.toml
-    ];
-  };
+  rustSrc =
+    with lib.fileset;
+    toSource {
+      root = ./.;
+      fileset = unions [
+        ./spike_rs
+        ./dpi_common
+        ./dpi_t1emu
+        ./dpi_t1rocketemu
+        ./t1-sim-checker
+        ./Cargo.lock
+        ./Cargo.toml
+        ./.rustfmt.toml
+      ];
+    };
 in
 if (lib.hasPrefix "dpi" moduleType) then
-  assert lib.assertMsg (lib.elem emuType [ "verilator" "vcs" ]) "emuType must be 'vcs' or 'verilator' for dpi";
+  assert lib.assertMsg (lib.elem emuType [
+    "verilator"
+    "vcs"
+  ]) "emuType must be 'vcs' or 'verilator' for dpi";
   rustPlatform.buildRustPackage {
     name = outputName;
     src = rustSrc;

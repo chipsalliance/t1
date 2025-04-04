@@ -1,26 +1,36 @@
-{ lib
-, stdenvNoCC
+{
+  lib,
+  stdenvNoCC,
 
-, espresso
-, circt
+  espresso,
+  circt,
 
-, elaborator
+  elaborator,
 }:
 
-{ outputName
-, generatorClassName
-, elaboratorArgs
+{
+  outputName,
+  generatorClassName,
+  elaboratorArgs,
 }:
 
 assert lib.assertMsg (builtins.typeOf elaboratorArgs == "string") "elaborateArgs should be string";
-assert lib.assertMsg (builtins.typeOf generatorClassName == "string") "arg `generator` should be string";
-assert lib.assertMsg (lib.hasPrefix "org.chipsalliance.t1" generatorClassName) "Wrong generator name ${generatorClassName}";
-assert lib.assertMsg (!(lib.hasInfix generatorClassName elaboratorArgs)) "Duplicated generator name in elaboratorArgs";
+assert lib.assertMsg (
+  builtins.typeOf generatorClassName == "string"
+) "arg `generator` should be string";
+assert lib.assertMsg (lib.hasPrefix "org.chipsalliance.t1" generatorClassName)
+  "Wrong generator name ${generatorClassName}";
+assert lib.assertMsg (
+  !(lib.hasInfix generatorClassName elaboratorArgs)
+) "Duplicated generator name in elaboratorArgs";
 
 stdenvNoCC.mkDerivation {
   name = outputName;
 
-  nativeBuildInputs = [ espresso circt ];
+  nativeBuildInputs = [
+    espresso
+    circt
+  ];
 
   configGenPhase = ''
     mkdir stage1 && pushd stage1

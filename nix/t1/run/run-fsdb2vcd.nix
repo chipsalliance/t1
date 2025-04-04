@@ -1,4 +1,8 @@
-{ lib, stdenvNoCC, snps-fhs-env }:
+{
+  lib,
+  stdenvNoCC,
+  snps-fhs-env,
+}:
 vcs-emu-trace:
 
 let

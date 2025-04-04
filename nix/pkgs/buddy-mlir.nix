@@ -1,10 +1,11 @@
-{ cmake
-, ninja
-, llvmPackages_17
-, fetchFromGitHub
-, fetchurl
-, python3
-, callPackage
+{
+  cmake,
+  ninja,
+  llvmPackages_17,
+  fetchFromGitHub,
+  fetchurl,
+  python3,
+  callPackage,
 }:
 let
   stdenv = llvmPackages_17.stdenv;
@@ -22,7 +23,11 @@ let
       hash = "sha256-IBsShnkaA0qPkEMbkkSjUMWXnDGW/CrTeiSSLLttlXk=";
     };
 
-    nativeBuildInputs = [ cmake ninja bintools ];
+    nativeBuildInputs = [
+      cmake
+      ninja
+      bintools
+    ];
     buildInputs = [
       buddy-llvm
     ];

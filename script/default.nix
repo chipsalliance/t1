@@ -1,28 +1,36 @@
-{ lib
-, stdenv
-, makeWrapper
+{
+  lib,
+  stdenv,
+  makeWrapper,
 
-, add-determinism
-, metals
-, mill
-, ivy-gather
-, mill-ivy-env-shell-hook
+  add-determinism,
+  metals,
+  mill,
+  ivy-gather,
+  mill-ivy-env-shell-hook,
 }:
 
 let
-  mkHelper = { moduleName, scriptSrc, outName }:
+  mkHelper =
+    {
+      moduleName,
+      scriptSrc,
+      outName,
+    }:
     let
       scriptDeps = ivy-gather ./script-lock.nix;
       self = stdenv.mkDerivation {
         name = "t1-${moduleName}-script";
 
-        src = with lib.fileset; toSource {
-          root = ./.;
-          fileset = unions [
-            scriptSrc
-            ./build.mill
-          ];
-        };
+        src =
+          with lib.fileset;
+          toSource {
+            root = ./.;
+            fileset = unions [
+              scriptSrc
+              ./build.mill
+            ];
+          };
 
         passthru.withLsp = self.overrideAttrs (old: {
           nativeBuildInputs = old.nativeBuildInputs ++ [
@@ -82,6 +90,14 @@ let
     self;
 in
 {
-  t1-helper = mkHelper { moduleName = "emu"; scriptSrc = ./emu; outName = "t1-helper"; };
-  ci-helper = mkHelper { moduleName = "ci"; scriptSrc = ./ci; outName = "ci-helper"; };
+  t1-helper = mkHelper {
+    moduleName = "emu";
+    scriptSrc = ./emu;
+    outName = "t1-helper";
+  };
+  ci-helper = mkHelper {
+    moduleName = "ci";
+    scriptSrc = ./ci;
+    outName = "ci-helper";
+  };
 }

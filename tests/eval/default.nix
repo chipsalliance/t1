@@ -1,15 +1,17 @@
-{ lib
-, linkerScript
-, makeBuilder
-, findAndBuild
-, t1main
-, getTestRequiredFeatures
-, callPackage
+{
+  lib,
+  linkerScript,
+  makeBuilder,
+  findAndBuild,
+  t1main,
+  getTestRequiredFeatures,
+  callPackage,
 }:
 
 let
   builder = makeBuilder { casePrefix = "eval"; };
-  build = { caseName, sourcePath }:
+  build =
+    { caseName, sourcePath }:
     builder {
       inherit caseName;
 

@@ -1,15 +1,17 @@
-{ linkerScript
-, buddy-mlir
-, makeBuilder
-, findAndBuild
-, getTestRequiredFeatures
-, t1main
-, jq
+{
+  linkerScript,
+  buddy-mlir,
+  makeBuilder,
+  findAndBuild,
+  getTestRequiredFeatures,
+  t1main,
+  jq,
 }:
 
 let
   builder = makeBuilder { casePrefix = "mlir"; };
-  build = { caseName, sourcePath }:
+  build =
+    { caseName, sourcePath }:
     builder {
       inherit caseName;
 

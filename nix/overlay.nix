@@ -12,13 +12,12 @@ rec {
 
   inherit rv32_pkgs rv32_buildPkgs; # for easier inspection
 
-  getEnv' = key:
+  getEnv' =
+    key:
     let
       val = builtins.getEnv key;
     in
-    if val == "" then
-      builtins.throw "${key} not set or '--impure' not applied"
-    else val;
+    if val == "" then builtins.throw "${key} not set or '--impure' not applied" else val;
 
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
@@ -42,7 +41,10 @@ rec {
 
   snps-fhs-env = final.callPackage ./pkgs/snps-fhs-env.nix { };
 
-  mill = let jre = final.jdk21; in
+  mill =
+    let
+      jre = final.jdk21;
+    in
     (prev.mill.override { inherit jre; }).overrideAttrs rec {
       # Fixed the buggy sorting issue in target resolve
       version = "0.12.8-1-46e216";
@@ -73,13 +75,15 @@ rec {
         # We need to override it with `-mabi=ilp32f`
 
         # compiler-rt requires the compilation flag -fforce-enable-int128, only clang provides that
-        compilerrt = (rv32_pkgs.${llvmForRVV_attrName}.compiler-rt.override {
-          stdenv = rv32_pkgs.overrideCC
-            rv32_pkgs.stdenv
-            rv32_buildPkgs.${llvmForRVV_attrName}.clangNoCompilerRt;
-        }).overrideAttrs (oldAttrs: {
-          env.NIX_CFLAGS_COMPILE = "-march=rv32gcv -mabi=ilp32f";
-        });
+        compilerrt =
+          (rv32_pkgs.${llvmForRVV_attrName}.compiler-rt.override {
+            stdenv =
+              rv32_pkgs.overrideCC rv32_pkgs.stdenv
+                rv32_buildPkgs.${llvmForRVV_attrName}.clangNoCompilerRt;
+          }).overrideAttrs
+            (oldAttrs: {
+              env.NIX_CFLAGS_COMPILE = "-march=rv32gcv -mabi=ilp32f";
+            });
 
         newlib = rv32_pkgs.stdenv.cc.libc.overrideAttrs (oldAttrs: {
           CFLAGS_FOR_TARGET = "-march=rv32gcv -mabi=ilp32f";
