@@ -1,10 +1,11 @@
-{ lib
-, stdenv
-, useMoldLinker
-, newScope
-, runCommand
-, runtimeShell
-, jq
+{
+  lib,
+  stdenv,
+  useMoldLinker,
+  newScope,
+  runCommand,
+  runtimeShell,
+  jq,
 }:
 
 let
@@ -15,33 +16,29 @@ let
   allConfigs = lib.pipe t1DesignsConfigsDir [
     builtins.readDir
     # => { "filename" -> "filetype" }
-    (lib.mapAttrs'
-      (fileName: fileType:
-        assert fileType == "regular" && lib.hasSuffix ".toml" fileName;
-        lib.nameValuePair
-          (lib.removeSuffix ".toml" fileName)
-          (lib.path.append t1DesignsConfigsDir fileName)))
+    (lib.mapAttrs' (
+      fileName: fileType:
+      assert fileType == "regular" && lib.hasSuffix ".toml" fileName;
+      lib.nameValuePair (lib.removeSuffix ".toml" fileName) (lib.path.append t1DesignsConfigsDir fileName)
+    ))
     # => { "filename without .toml suffix, use as generator className" -> "realpath to config" }
-    (lib.mapAttrs
-      (_: filePath: with builtins; fromTOML (readFile filePath)))
+    (lib.mapAttrs (_: filePath: with builtins; fromTOML (readFile filePath)))
     # => { "generator className" -> { "elaborator configName" -> "elaborator cmd opt" } }
     lib.attrsToList
     # => [ { name: "generator className", value: { "configName": { "cmd opt": <string> } } }, ... ]
-    (map
-      (kv: lib.mapAttrs'
-        (configName: configData:
-          lib.nameValuePair configName { "${kv.name}" = configData; })
-        kv.value))
+    (map (
+      kv:
+      lib.mapAttrs' (
+        configName: configData: lib.nameValuePair configName { "${kv.name}" = configData; }
+      ) kv.value
+    ))
     # => [ { "configName": { "generator className" = { cmdopt: <string>; }; } }, ... ]
-    (lib.foldl
-      (accum: item:
-        lib.recursiveUpdate accum item)
-      { })
+    (lib.foldl (accum: item: lib.recursiveUpdate accum item) { })
     # => { "configName A": { "generator A" = { cmdopt }, "generator B" = { cmdopt } }; "configName B" = ...; ... }
   ];
 in
-lib.makeScope newScope
-  (t1Scope:
+lib.makeScope newScope (
+  t1Scope:
   {
     inherit allConfigs;
     recurseForDerivations = true;
@@ -52,8 +49,12 @@ lib.makeScope newScope
     # Compile the T1 mill modules into one big derivation and split them to different derivation
     # ---------------------------------------------------------------------------------
     _t1MillModules = t1Scope.callPackage ./mill-modules.nix { };
-    elaborator = t1Scope._t1MillModules.elaborator // { meta.mainProgram = "elaborator"; };
-    omreader-unwrapped = t1Scope._t1MillModules.omreader // { meta.mainProgram = "omreader"; };
+    elaborator = t1Scope._t1MillModules.elaborator // {
+      meta.mainProgram = "elaborator";
+    };
+    omreader-unwrapped = t1Scope._t1MillModules.omreader // {
+      meta.mainProgram = "omreader";
+    };
     t1package = t1Scope._t1MillModules.t1package;
     profiler = t1Scope.callPackage ../../profiler { };
     sim-checker = t1Scope.callPackage ../../difftest { } {
@@ -100,16 +101,29 @@ lib.makeScope newScope
     # * verilatorTop: Top module of the system verilog, default using "TestBench"
     # * verilatorThreads: Threads for final verilating, default using 8
     # * verilatorArgs: Final arguments that pass to the verilator.
-    sv-to-verilator-emulator = lib.makeOverridable (t1Scope.callPackage ./conversion/sv-to-verilator-emulator.nix { stdenv = moldStdenv; });
+    sv-to-verilator-emulator = lib.makeOverridable (
+      t1Scope.callPackage ./conversion/sv-to-verilator-emulator.nix { stdenv = moldStdenv; }
+    );
 
     # sv-to-vcs-simulator :: { mainProgram :: String, rtl :: Derivation, enableTrace :: Bool, vcsLinkLibs :: List<String> } -> Derivation
     #
     # sv-to-vcs-simulator will compile the given rtl, link with path specified in vcsLinksLibs to produce a VCS emulator.
     # enableTrace is false by default;
-    sv-to-vcs-simulator = lib.makeOverridable (t1Scope.callPackage ./conversion/sv-to-vcs-simulator.nix { });
+    sv-to-vcs-simulator = lib.makeOverridable (
+      t1Scope.callPackage ./conversion/sv-to-vcs-simulator.nix { }
+    );
   }
-    # Nix specification for t1 (with spike only) emulator
-    # We don't expect extra scope for t1 stuff, so here we merge the t1 at t1Scope level.
-    # Note: Don't use callPackage here, or t1Scope will fall into recursive search.
-    // ((import ./t1.nix) { inherit lib allConfigs t1Scope runCommand runtimeShell jq; })
-  )
+  # Nix specification for t1 (with spike only) emulator
+  # We don't expect extra scope for t1 stuff, so here we merge the t1 at t1Scope level.
+  # Note: Don't use callPackage here, or t1Scope will fall into recursive search.
+  // ((import ./t1.nix) {
+    inherit
+      lib
+      allConfigs
+      t1Scope
+      runCommand
+      runtimeShell
+      jq
+      ;
+  })
+)

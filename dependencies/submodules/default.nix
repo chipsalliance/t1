@@ -1,19 +1,19 @@
-{ pkgs
-, publishMillJar
-, git
-, makeSetupHook
-, writeText
-, lib
-, newScope
-, circt-install
-, mlir-install
-, jextract-21
-, runCommand
-, writeShellApplication
-, mill
-, mill-ivy-fetcher
+{
+  pkgs,
+  publishMillJar,
+  git,
+  makeSetupHook,
+  writeText,
+  lib,
+  newScope,
+  circt-install,
+  mlir-install,
+  jextract-21,
+  runCommand,
+  writeShellApplication,
+  mill,
+  mill-ivy-fetcher,
 }:
-
 
 let
   submodules = lib.filterAttrs (_: v: v ? src) (pkgs.callPackage ./_sources/generated.nix { });
@@ -50,40 +50,39 @@ lib.makeScope newScope (scope: {
     };
   };
 
-  ivy-omlib =
-    publishMillJar {
-      name = "omlib-snapshot";
-      src = submodules.zaozi.src;
+  ivy-omlib = publishMillJar {
+    name = "omlib-snapshot";
+    src = submodules.zaozi.src;
 
-      publishTargets = [
-        "mlirlib"
-        "circtlib"
-        "omlib"
+    publishTargets = [
+      "mlirlib"
+      "circtlib"
+      "omlib"
+    ];
+
+    env = {
+      CIRCT_INSTALL_PATH = circt-install;
+      MLIR_INSTALL_PATH = mlir-install;
+      JEXTRACT_INSTALL_PATH = jextract-21;
+    };
+
+    lockFile = ../locks/zaozi-lock.nix;
+
+    passthru.bump = writeShellApplication {
+      name = "bump-zaozi-mill-lock";
+
+      runtimeInputs = [
+        mill
+        mill-ivy-fetcher
       ];
 
-      env = {
-        CIRCT_INSTALL_PATH = circt-install;
-        MLIR_INSTALL_PATH = mlir-install;
-        JEXTRACT_INSTALL_PATH = jextract-21;
-      };
-
-      lockFile = ../locks/zaozi-lock.nix;
-
-      passthru.bump = writeShellApplication {
-        name = "bump-zaozi-mill-lock";
-
-        runtimeInputs = [
-          mill
-          mill-ivy-fetcher
-        ];
-
-        text = ''
-          mif run -p "${submodules.zaozi.src}" -o ./dependencies/locks/zaozi-lock.nix "$@"
-        '';
-      };
-
-      nativeBuildInputs = [ git ];
+      text = ''
+        mif run -p "${submodules.zaozi.src}" -o ./dependencies/locks/zaozi-lock.nix "$@"
+      '';
     };
+
+    nativeBuildInputs = [ git ];
+  };
 
   ivy-arithmetic = publishMillJar {
     name = "arithmetic-snapshot";
@@ -171,27 +170,31 @@ lib.makeScope newScope (scope: {
     };
   };
 
-  riscv-opcodes = makeSetupHook { name = "setup-riscv-opcodes-src"; } (writeText "setup-riscv-opcodes-src.sh" ''
-    setupRiscvOpcodes() {
-      mkdir -p dependencies
-      ln -sfT "${submodules.riscv-opcodes.src}" "dependencies/riscv-opcodes"
-    }
-    prePatchHooks+=(setupRiscvOpcodes)
-  '');
+  riscv-opcodes = makeSetupHook { name = "setup-riscv-opcodes-src"; } (
+    writeText "setup-riscv-opcodes-src.sh" ''
+      setupRiscvOpcodes() {
+        mkdir -p dependencies
+        ln -sfT "${submodules.riscv-opcodes.src}" "dependencies/riscv-opcodes"
+      }
+      prePatchHooks+=(setupRiscvOpcodes)
+    ''
+  );
 
-  ivyLocalRepo = runCommand "build-coursier-env"
-    {
-      buildInputs = with scope; [
-        ivy-arithmetic.setupHook
-        ivy-chisel.setupHook
-        ivy-omlib.setupHook
-        ivy-chisel-interface.setupHook
-        ivy-rvdecoderdb.setupHook
-        ivy-hardfloat.setupHook
-      ];
-    } ''
-    runHook preUnpack
-    runHook postUnpack
-    cp -r "$NIX_COURSIER_DIR" "$out"
-  '';
+  ivyLocalRepo =
+    runCommand "build-coursier-env"
+      {
+        buildInputs = with scope; [
+          ivy-arithmetic.setupHook
+          ivy-chisel.setupHook
+          ivy-omlib.setupHook
+          ivy-chisel-interface.setupHook
+          ivy-rvdecoderdb.setupHook
+          ivy-hardfloat.setupHook
+        ];
+      }
+      ''
+        runHook preUnpack
+        runHook postUnpack
+        cp -r "$NIX_COURSIER_DIR" "$out"
+      '';
 })

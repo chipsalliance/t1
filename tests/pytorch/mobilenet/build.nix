@@ -1,5 +1,6 @@
-{ fetchurl
-, buildBuddyE2ETest
+{
+  fetchurl,
+  buildBuddyE2ETest,
 }:
 let
   checkpointFile = "mobilenet_v3_small-047dcff4.pth";

@@ -1,11 +1,13 @@
-{ stdenvNoCC
-, lib
-, circt
+{
+  stdenvNoCC,
+  lib,
+  circt,
 }:
 
-{ outputName
-, mlirbc
-, mfcArgs
+{
+  outputName,
+  mlirbc,
+  mfcArgs,
 }:
 
 assert lib.assertMsg (builtins.typeOf mfcArgs == "list") "mfcArgs is not a list";

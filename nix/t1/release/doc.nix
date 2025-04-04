@@ -1,20 +1,26 @@
-{ lib
-, stdenvNoCC
-, typst
-, pandoc
+{
+  lib,
+  stdenvNoCC,
+  typst,
+  pandoc,
 }:
 stdenvNoCC.mkDerivation {
   name = "t1-docker-manual";
 
-  nativeBuildInputs = [ typst pandoc ];
+  nativeBuildInputs = [
+    typst
+    pandoc
+  ];
 
-  src = with lib.fileset; toSource {
-    root = ./.;
-    fileset = unions [
-      ./doc.typ
-      ./template.typ
-    ];
-  };
+  src =
+    with lib.fileset;
+    toSource {
+      root = ./.;
+      fileset = unions [
+        ./doc.typ
+        ./template.typ
+      ];
+    };
 
   buildPhase = ''
     runHook preBuild

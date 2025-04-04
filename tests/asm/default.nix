@@ -1,14 +1,16 @@
-{ lib
-, linkerScript
-, makeBuilder
-, findAndBuild
-, t1main
-, getTestRequiredFeatures
+{
+  lib,
+  linkerScript,
+  makeBuilder,
+  findAndBuild,
+  t1main,
+  getTestRequiredFeatures,
 }:
 
 let
   builder = makeBuilder { casePrefix = "asm"; };
-  build = { caseName, sourcePath }:
+  build =
+    { caseName, sourcePath }:
     builder {
       inherit caseName;
 
@@ -32,4 +34,3 @@ let
     };
 in
 findAndBuild ./. build
-

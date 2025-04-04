@@ -1,4 +1,8 @@
-{ gcc13Stdenv, dtc, fetchFromGitHub }:
+{
+  gcc13Stdenv,
+  dtc,
+  fetchFromGitHub,
+}:
 
 gcc13Stdenv.mkDerivation {
   version = "unstable-2024-07-03";

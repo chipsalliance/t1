@@ -1,9 +1,10 @@
-{ lib
-, fetchFromGitHub
-, linkerScript
-, makeBuilder
-, t1main
-, filterByFeatures
+{
+  lib,
+  fetchFromGitHub,
+  linkerScript,
+  makeBuilder,
+  t1main,
+  filterByFeatures,
 }:
 
 let
@@ -35,33 +36,32 @@ let
   cases = nonFpCases ++ fpCases;
 
   builder = makeBuilder { casePrefix = "rvv_bench"; };
-  build = caseName:
+  build =
+    caseName:
     let
-      drv = builder
-        {
-          inherit caseName src;
+      drv = builder {
+        inherit caseName src;
 
-          patches = [ ./t1_runtime.patch ];
+        patches = [ ./t1_runtime.patch ];
 
-          passthru.featuresRequired = lib.optionalAttrs (lib.elem caseName fpCases) { extensions = [ "zve32f" ]; };
-
-          buildPhase = ''
-            runHook preBuild
-            pushd bench >/dev/null
-
-            $CC -E -DINC=$PWD/${caseName}.S template.S -E -o functions.S
-            $CC ${caseName}.c -T${linkerScript} ${t1main} functions.S -o ../$pname.elf
-
-            popd >/dev/null
-            runHook postBuild
-          '';
-
-          meta.description = "test case '${caseName}' from rvv-bench";
+        passthru.featuresRequired = lib.optionalAttrs (lib.elem caseName fpCases) {
+          extensions = [ "zve32f" ];
         };
+
+        buildPhase = ''
+          runHook preBuild
+          pushd bench >/dev/null
+
+          $CC -E -DINC=$PWD/${caseName}.S template.S -E -o functions.S
+          $CC ${caseName}.c -T${linkerScript} ${t1main} functions.S -o ../$pname.elf
+
+          popd >/dev/null
+          runHook postBuild
+        '';
+
+        meta.description = "test case '${caseName}' from rvv-bench";
+      };
     in
     drv;
 in
-lib.filterAttrs
-  filterByFeatures
-  (lib.genAttrs cases build)
-
+lib.filterAttrs filterByFeatures (lib.genAttrs cases build)
