@@ -1,4 +1,9 @@
-{ linkerScript, t1main, makeBuilder, writeText }:
+{
+  linkerScript,
+  t1main,
+  makeBuilder,
+  writeText,
+}:
 let
   builder = makeBuilder { casePrefix = "emurt-test"; };
 in

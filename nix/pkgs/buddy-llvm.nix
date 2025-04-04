@@ -1,8 +1,9 @@
-{ stdenv
-, cmake
-, ninja
-, python3
-, fetchFromGitHub
+{
+  stdenv,
+  cmake,
+  ninja,
+  python3,
+  fetchFromGitHub,
 }:
 
 let
@@ -46,7 +47,11 @@ stdenv.mkDerivation rec {
     "-DLLVM_INSTALL_UTILS=ON"
   ];
 
-  outputs = [ "out" "lib" "dev" ];
+  outputs = [
+    "out"
+    "lib"
+    "dev"
+  ];
 
   postInstall = ''
     # buddy-mlir have custom RVV backend that required LLVM backend,

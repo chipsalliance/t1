@@ -1,24 +1,25 @@
-{ lib
-, stdenv
-, makeWrapper
-, runCommand
-, jdk21
+{
+  lib,
+  stdenv,
+  makeWrapper,
+  runCommand,
+  jdk21,
 
   # chisel deps
-, mill
-, git
-, espresso
-, circt-install
-, mlir-install
-, jextract-21
-, add-determinism
-, writeShellApplication
-, glibcLocales
+  mill,
+  git,
+  espresso,
+  circt-install,
+  mlir-install,
+  jextract-21,
+  add-determinism,
+  writeShellApplication,
+  glibcLocales,
 
-, submodules
-, ivy-gather
-, mill-ivy-env-shell-hook
-, mill-ivy-fetcher
+  submodules,
+  ivy-gather,
+  mill-ivy-env-shell-hook,
+  mill-ivy-fetcher,
 }:
 
 let
@@ -27,21 +28,23 @@ let
   self = stdenv.mkDerivation rec {
     name = "t1-all-mill-modules";
 
-    src = with lib.fileset; toSource {
-      root = ./../..;
-      fileset = unions [
-        ./../../build.mill
-        ./../../common.mill
-        ./../../t1
-        ./../../omreader
-        ./../../t1emu/src
-        ./../../elaborator
-        ./../../rocketv
-        ./../../t1rocket/src
-        ./../../t1rocketemu/src
-        ./../../stdlib/src
-      ];
-    };
+    src =
+      with lib.fileset;
+      toSource {
+        root = ./../..;
+        fileset = unions [
+          ./../../build.mill
+          ./../../common.mill
+          ./../../t1
+          ./../../omreader
+          ./../../t1emu/src
+          ./../../elaborator
+          ./../../rocketv
+          ./../../t1rocket/src
+          ./../../t1rocketemu/src
+          ./../../stdlib/src
+        ];
+      };
 
     buildInputs = with submodules; [
       riscv-opcodes
@@ -92,7 +95,11 @@ let
       mill -i mill.bsp.BSP/install
     '';
 
-    outputs = [ "out" "omreader" "elaborator" ];
+    outputs = [
+      "out"
+      "omreader"
+      "elaborator"
+    ];
 
     buildPhase = ''
       runHook preBuild

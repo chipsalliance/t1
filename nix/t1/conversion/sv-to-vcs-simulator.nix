@@ -1,25 +1,31 @@
-{ lib
-, bash
-, stdenv
-, snps-fhs-env
+{
+  lib,
+  bash,
+  stdenv,
+  snps-fhs-env,
 }:
 
-{ mainProgram
-, rtl
-, vsrc
-, enableCover ? false
-, enableTrace ? false
-, vcsLinkLibs ? [ ]
-, rtLinkDpiLib ? null
-, topModule ? null
+{
+  mainProgram,
+  rtl,
+  vsrc,
+  enableCover ? false,
+  enableTrace ? false,
+  vcsLinkLibs ? [ ],
+  rtLinkDpiLib ? null,
+  topModule ? null,
 }:
 
 assert lib.assertMsg (builtins.typeOf vsrc == "list") "vsrc should be a list of file path";
-assert lib.assertMsg (builtins.typeOf vcsLinkLibs == "list") "vcsLinkLibs should be list of strings";
+assert lib.assertMsg (
+  builtins.typeOf vcsLinkLibs == "list"
+) "vcsLinkLibs should be list of strings";
 
 # Technically we could static link some libs and rtlink others,
 # but currently we don't use it in such a way, so just assert it to catch error
-assert lib.assertMsg (vcsLinkLibs != [ ] -> rtLinkDpiLib == null) "vcsLinkLibs and rtLinkDpiLib are both set";
+assert lib.assertMsg (
+  vcsLinkLibs != [ ] -> rtLinkDpiLib == null
+) "vcsLinkLibs and rtLinkDpiLib are both set";
 
 let
   # VCS simulation profiling
@@ -27,46 +33,47 @@ let
   # Enable it by changing line below to 'true'
   enableProfile = false;
 
-  vcsCompileArgs = [
-    "-sverilog"
-    "-full64"
-    "-timescale=1ns/1ps"
-    "-y"
-    "$DWBB_DIR/sim_ver"
-    "+libext+.v"
-    "+define+PRINTF_FD=t1_common_pkg::log_fd"
-  ]
-  # vsrc may define sv packages, put it at the first
-  ++ vsrc
-  ++ [
-    "-F"
-    "${rtl}/filelist.f"
-  ]
-  ++ lib.optionals (topModule != null) [
-    "-top"
-    topModule
-  ]
-  ++ lib.optionals enableCover [
-    "-cm"
-    "assert"
-    "-cm_dir"
-    "./cm"
-    "-assert"
-    "enable_hier"
-  ]
-  ++ lib.optionals (!enableCover) [
-    "-assert"
-    "disable_cover"
-  ]
-  ++ lib.optionals enableTrace [
-    "+define+T1_ENABLE_TRACE"
-    "-debug_access+pp+dmptf+thread"
-    "-kdb=common_elab,hgldd_all"
-  ]
-  ++ lib.optionals enableProfile [
-    "-simprofile"
-  ]
-  ++ vcsLinkLibs;
+  vcsCompileArgs =
+    [
+      "-sverilog"
+      "-full64"
+      "-timescale=1ns/1ps"
+      "-y"
+      "$DWBB_DIR/sim_ver"
+      "+libext+.v"
+      "+define+PRINTF_FD=t1_common_pkg::log_fd"
+    ]
+    # vsrc may define sv packages, put it at the first
+    ++ vsrc
+    ++ [
+      "-F"
+      "${rtl}/filelist.f"
+    ]
+    ++ lib.optionals (topModule != null) [
+      "-top"
+      topModule
+    ]
+    ++ lib.optionals enableCover [
+      "-cm"
+      "assert"
+      "-cm_dir"
+      "./cm"
+      "-assert"
+      "enable_hier"
+    ]
+    ++ lib.optionals (!enableCover) [
+      "-assert"
+      "disable_cover"
+    ]
+    ++ lib.optionals enableTrace [
+      "+define+T1_ENABLE_TRACE"
+      "-debug_access+pp+dmptf+thread"
+      "-kdb=common_elab,hgldd_all"
+    ]
+    ++ lib.optionals enableProfile [
+      "-simprofile"
+    ]
+    ++ vcsLinkLibs;
 
   vcsRtLinkArgs = lib.optionals (rtLinkDpiLib != null) [
     "-sv_root"

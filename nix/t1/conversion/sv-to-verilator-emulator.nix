@@ -1,17 +1,19 @@
-{ lib
-, stdenv
-, verilator
-, snps-fhs-env
-, zlib
+{
+  lib,
+  stdenv,
+  verilator,
+  snps-fhs-env,
+  zlib,
 }:
 
-{ mainProgram
-, topModule
-, rtl
-, vsrc
-, enableTrace ? false
-, extraVerilatorArgs ? [ ]
-, dpiLibs ? [ ]
+{
+  mainProgram,
+  topModule,
+  rtl,
+  vsrc,
+  enableTrace ? false,
+  extraVerilatorArgs ? [ ],
+  dpiLibs ? [ ],
 }:
 
 assert lib.assertMsg (builtins.typeOf vsrc == "list") "vsrc should be a list of file path";
@@ -19,35 +21,36 @@ assert lib.assertMsg (builtins.typeOf vsrc == "list") "vsrc should be a list of 
 let
   verilatorFilelist = "${rtl}/filelist.f";
   verilatorThreads = 4;
-  verilatorArgs = [
-    "--cc"
-    "--main"
-    "--timescale"
-    "1ns/1ps"
-    "--timing"
-    "--threads"
-    (toString verilatorThreads)
-    "-O1"
-    "-y"
-    "$DWBB_DIR/sim_ver"
-    "-Wno-lint"
-    "+define+PRINTF_FD=t1_common_pkg::log_fd"
-  ]
-  # vsrc may define sv packages, put it at the first
-  ++ vsrc
-  ++ [
-    "-F"
-    verilatorFilelist
-  ]
-  ++ lib.optionals (topModule != null) [
-    "--top"
-    topModule
-  ]
-  ++ lib.optionals enableTrace [
-    "+define+T1_ENABLE_TRACE"
-    "--trace-fst"
-  ]
-  ++ extraVerilatorArgs;
+  verilatorArgs =
+    [
+      "--cc"
+      "--main"
+      "--timescale"
+      "1ns/1ps"
+      "--timing"
+      "--threads"
+      (toString verilatorThreads)
+      "-O1"
+      "-y"
+      "$DWBB_DIR/sim_ver"
+      "-Wno-lint"
+      "+define+PRINTF_FD=t1_common_pkg::log_fd"
+    ]
+    # vsrc may define sv packages, put it at the first
+    ++ vsrc
+    ++ [
+      "-F"
+      verilatorFilelist
+    ]
+    ++ lib.optionals (topModule != null) [
+      "--top"
+      topModule
+    ]
+    ++ lib.optionals enableTrace [
+      "+define+T1_ENABLE_TRACE"
+      "--trace-fst"
+    ]
+    ++ extraVerilatorArgs;
 
   # verilatedLib should NOT depend on dpiLibs
   # to enable better caching
@@ -103,14 +106,15 @@ let
     hardeningDisable = [ "fortify" ];
   });
 
-  verilatorLinkArgs = [
-    "${verilatedLib}/lib/libV${verilatedLib.topModule}.a"
-  ]
-  ++ dpiLibs
-  ++ [
-    "${verilatedLib}/lib/libverilated.a"
-    "-lz"
-  ];
+  verilatorLinkArgs =
+    [
+      "${verilatedLib}/lib/libV${verilatedLib.topModule}.a"
+    ]
+    ++ dpiLibs
+    ++ [
+      "${verilatedLib}/lib/libverilated.a"
+      "-lz"
+    ];
 
   self = stdenv.mkDerivation {
     name = mainProgram;

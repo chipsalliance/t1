@@ -1,16 +1,17 @@
-{ lib
-, callPackage
-, runCommand
-, snps-fhs-env
-, verilator-emu
-, verilator-emu-trace
-, vcs-emu
-, vcs-emu-cover
-, vcs-emu-trace
-, vcs-dpi-lib
-, cases
-, configName
-, topName
+{
+  lib,
+  callPackage,
+  runCommand,
+  snps-fhs-env,
+  verilator-emu,
+  verilator-emu-trace,
+  vcs-emu,
+  vcs-emu-cover,
+  vcs-emu-trace,
+  vcs-dpi-lib,
+  cases,
+  configName,
+  topName,
 }:
 let
   runEmu = callPackage ./run-emulator.nix { };
@@ -21,15 +22,13 @@ let
     (lib.filterAttrs (_: category: builtins.typeOf category == "set"))
     (lib.mapAttrs
       # Now we have { category = "mlir", caseSet = { hello = ... } }
-      (category: caseSet:
+      (
+        category: caseSet:
         let
-          cleanCaseSet = lib.filterAttrs
-            (_: drv:
-              lib.isDerivation drv
-              && drv ? pname
-              && (builtins.length (lib.splitString "." drv.pname) == 2)
-            )
-            caseSet;
+          cleanCaseSet = lib.filterAttrs (
+            _: drv:
+            lib.isDerivation drv && drv ? pname && (builtins.length (lib.splitString "." drv.pname) == 2)
+          ) caseSet;
           innerMapper = caseName: testCase: {
             verilator-emu = runEmu {
               inherit testCase topName;
@@ -85,14 +84,23 @@ let
           };
         in
         # Now we have { caseName = "hello", case = <derivation> }
-        (lib.mapAttrs innerMapper cleanCaseSet)))
+        (lib.mapAttrs innerMapper cleanCaseSet)
+      )
+    )
   ];
   # cases is now { mlir = { hello = <verilator-emu-result>, ... = <verilator-emu-result> }; ... }
 
-  _getAllResult = { testPlanDir, emuType, postCopied ? "", ... }@args:
+  _getAllResult =
+    {
+      testPlanDir,
+      emuType,
+      postCopied ? "",
+      ...
+    }@args:
     let
-      testPlan = builtins.fromJSON
-        (lib.readFile ../../../.github/${testPlanDir}/${configName}/${topName}.json);
+      testPlan = builtins.fromJSON (
+        lib.readFile ../../../.github/${testPlanDir}/${configName}/${topName}.json
+      );
       # flattern the attr set to a list of test case derivations
       # AttrSet (AttrSet Derivation) -> List Derivation
       allCasesResult = lib.pipe emuAttrs [
@@ -111,10 +119,11 @@ let
         # Filter lists, get only CI specify tests run result
         (lib.filter (val: lib.isDerivation val && lib.hasAttr val.caseName testPlan))
       ];
-      script = ''
-        mkdir -p $out
-      '' + (lib.concatMapStringsSep "\n"
-        (caseDrv: ''
+      script =
+        ''
+          mkdir -p $out
+        ''
+        + (lib.concatMapStringsSep "\n" (caseDrv: ''
           _caseOutDir=$out/${caseDrv.caseName}
           mkdir -p "$_caseOutDir"
 
@@ -127,10 +136,13 @@ let
           if [ -d ${caseDrv}/cm.vdb ]; then
             cp -vr ${caseDrv}/cm.vdb "$_caseOutDir"/
           fi
-        '')
-        allCasesResult)
-      + postCopied;
-      runCommandArgs = builtins.removeAttrs args [ "testPlanDir" "emuType" "postCopied" ];
+        '') allCasesResult)
+        + postCopied;
+      runCommandArgs = builtins.removeAttrs args [
+        "testPlanDir"
+        "emuType"
+        "postCopied"
+      ];
     in
     runCommand "catch-${configName}-all-emu-result-for-ci" runCommandArgs script;
 

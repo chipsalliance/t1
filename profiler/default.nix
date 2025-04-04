@@ -1,6 +1,7 @@
-{ lib
-, rustPlatform
-, rustfmt
+{
+  lib,
+  rustPlatform,
+  rustfmt,
 }:
 
 rustPlatform.buildRustPackage {

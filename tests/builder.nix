@@ -1,24 +1,27 @@
 # args from scope `casesSelf`
-{ stdenv
-, lib
-, jq
-, rtlDesignMetadata
+{
+  stdenv,
+  lib,
+  jq,
+  rtlDesignMetadata,
 }:
 
 # args from makeBuilder
 { casePrefix }:
 
 # args from builder
-{ caseName
-, ...
-} @ overrides:
+{
+  caseName,
+  ...
+}@overrides:
 
 let
   # avoid adding jq to buildInputs, since it will make overriding buildInputs more error prone
   jqBin = "${jq}/bin/jq";
 
-  caseDrv = stdenv.mkDerivation (self: lib.recursiveUpdate
-    rec {
+  caseDrv = stdenv.mkDerivation (
+    self:
+    lib.recursiveUpdate rec {
       # don't set name directory, since it will be suffixed with target triple
       pname = "${casePrefix}.${caseName}";
       name = pname;
@@ -44,7 +47,10 @@ let
           "-fno-PIC"
           "-g"
           "-O3"
-        ] ++ lib.optionals (lib.elem "zvbb" (lib.splitString "_" rtlDesignMetadata.march)) [ "-menable-experimental-extensions" ];
+        ]
+        ++ lib.optionals (lib.elem "zvbb" (lib.splitString "_" rtlDesignMetadata.march)) [
+          "-menable-experimental-extensions"
+        ];
 
       installPhase = ''
         runHook preInstall
@@ -71,7 +77,7 @@ let
       passthru = {
         inherit rtlDesignMetadata;
       };
-    }
-    overrides); # end of recursiveUpdate
+    } overrides
+  ); # end of recursiveUpdate
 in
 caseDrv

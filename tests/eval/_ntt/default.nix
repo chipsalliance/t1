@@ -1,12 +1,15 @@
-{ linkerScript
-, makeBuilder
-, python3
-, t1main
+{
+  linkerScript,
+  makeBuilder,
+  python3,
+  t1main,
 }:
 
 let
   builder = makeBuilder { casePrefix = "eval"; };
-  build_ntt = caseName /* must be consistent with attr name */: main_src: kernel_src: caseArgs: extra_flag:
+  build_ntt =
+    caseName # must be consistent with attr name
+    : main_src: kernel_src: caseArgs: extra_flag:
     builder {
       caseName = caseName;
 

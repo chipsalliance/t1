@@ -1,4 +1,8 @@
-{ lib, stdenv, bintools }:
+{
+  lib,
+  stdenv,
+  bintools,
+}:
 
 stdenv.mkDerivation {
   name = "emurt";
@@ -6,10 +10,12 @@ stdenv.mkDerivation {
 
   NIX_CFLAGS_COMPILE = "-mabi=ilp32f -march=rv32gcv -fno-PIC";
 
-  src = with lib.fileset; toSource {
-    root = ./.;
-    fileset = fileFilter (file: file.name != "default.nix") ./.;
-  };
+  src =
+    with lib.fileset;
+    toSource {
+      root = ./.;
+      fileset = fileFilter (file: file.name != "default.nix") ./.;
+    };
 
   buildPhase = ''
     runHook preBuild

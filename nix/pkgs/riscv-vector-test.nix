@@ -19,4 +19,3 @@ buildGoModule {
     cp env/riscv-test-env/encoding.h $out/include
   '';
 }
-
