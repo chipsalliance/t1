@@ -1,0 +1,13 @@
+diff --git a/generator/insn_util.go b/generator/insn_util.go
+index 3a0680a..5e3f727 100644
+--- a/generator/insn_util.go
++++ b/generator/insn_util.go
+@@ -105,7 +105,7 @@ func (l LMUL) String() string {
+ type VLEN int
+ 
+ func (v VLEN) Valid() bool {
+-	return 64 <= v && v <= 4096 && v&(v-1) == 0
++	return 64 <= v && v&(v-1) == 0
+ }
+ 
+ type XLEN int
