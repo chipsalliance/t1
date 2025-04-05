@@ -9,6 +9,9 @@ buildGoModule {
     hash = "sha256-vfr7iMkqy3QUjkfM1by4RYUMpPHIsOk0XZSW8Big39s=";
     fetchSubmodules = true;
   };
+  patches = [
+    ../patches/riscv-vector-tests/00-remove-vlen-check.patch
+  ];
   doCheck = false;
   vendorHash = "sha256-1A5yCj9AJHp9tcUIpLKamXn4Tl3KPFEtzke5X7h6V+4=";
   # Get rid of copying the whole source
