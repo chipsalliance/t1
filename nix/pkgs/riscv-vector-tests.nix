@@ -9,6 +9,10 @@ buildGoModule rec {
     hash = "sha256-mjFPGgaceZtqPVkHQ2/1Brv6LS6UxWEi5uTyHMq3WS8=";
   };
 
+  patches = [
+    ../patches/riscv-vector-tests/00-remove-vlen-check.patch
+  ];
+
   doCheck = false;
 
   vendorHash = "sha256-1A5yCj9AJHp9tcUIpLKamXn4Tl3KPFEtzke5X7h6V+4=";
