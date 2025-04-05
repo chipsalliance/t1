@@ -21,6 +21,7 @@ jobs:
         run: |
           cd dependencies/submodules/
           nix run '.#nvfetcher' -- -f '^chisel$'
+          nix fmt
       - name: Bump circt
         run: |
           oldFirtool="$(nix build '.#circt' --no-link --print-out-paths)/bin/firtool"
