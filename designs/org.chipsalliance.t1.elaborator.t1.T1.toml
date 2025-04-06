@@ -68,6 +68,30 @@ cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --ch
 cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter large"
 [physical_design_case_28]
 cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+## 2...8 Chaining Size
+[physical_design_case_29]
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 2 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_30]
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 3 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_31]
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_32]
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 5 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_33]
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 6 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_34]
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 7 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_35]
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 8 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+## Lane Scale
+[physical_design_case_36]
+cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+[physical_design_case_37]
+cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32x --laneScale 2 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+[physical_design_case_38]
+cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32x --laneScale 4 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+[physical_design_case_39]
+cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32x --laneScale 8 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
 
 [benchmark_dlen128_vlen128]
 cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
