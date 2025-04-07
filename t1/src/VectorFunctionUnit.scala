@@ -91,70 +91,70 @@ object VFUInstantiateParameter {
   def parse(vLen: Int, dLen: Int, preset: String, fp: Boolean, zvbb: Boolean, chainingSize: Int) = preset match {
     case "minimal" =>
       (fp, zvbb) match {
-        case (false, false) => VFUInstantiateParameter.minimalInt(vLen, dLen)
-        case (true, false)  => VFUInstantiateParameter.minimalFP(vLen, dLen)
-        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
-        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+        case (false, false) => VFUInstantiateParameter.minimalInt(vLen, dLen, chainingSize)
+        case (true, false)  => VFUInstantiateParameter.minimalFP(vLen, dLen, chainingSize)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen, chainingSize)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen, chainingSize)
       }
     case "small"   =>
       (fp, zvbb) match {
-        case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen)
+        case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen, chainingSize)
         case (true, false)  => VFUInstantiateParameter.smallFP(vLen, dLen, chainingSize)
-        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
-        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen, chainingSize)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen, chainingSize)
       }
     case "medium"  =>
       (fp, zvbb) match {
-        case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen)
-        case (true, false)  => VFUInstantiateParameter.mediumFP(vLen, dLen)
-        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
-        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+        case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen, chainingSize)
+        case (true, false)  => VFUInstantiateParameter.mediumFP(vLen, dLen, chainingSize)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen, chainingSize)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen, chainingSize)
       }
     case "large"   =>
       (fp, zvbb) match {
-        case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen)
-        case (true, false)  => VFUInstantiateParameter.largeFP(vLen, dLen)
-        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
-        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+        case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen, chainingSize)
+        case (true, false)  => VFUInstantiateParameter.largeFP(vLen, dLen, chainingSize)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen, chainingSize)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen, chainingSize)
       }
     case "huge"    =>
       (fp, zvbb) match {
-        case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen)
-        case (true, false)  => VFUInstantiateParameter.hugeFP(vLen, dLen)
-        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen)
-        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen)
+        case (false, false) => VFUInstantiateParameter.smallInt(vLen, dLen, chainingSize)
+        case (true, false)  => VFUInstantiateParameter.hugeFP(vLen, dLen, chainingSize)
+        case (false, true)  => VFUInstantiateParameter.zvbb(vLen, dLen, chainingSize)
+        case (true, true)   => VFUInstantiateParameter.zvbbFP(vLen, dLen, chainingSize)
       }
   }
 
   // instantiate each module and connect to all scoreboards
-  def minimalFP(vLen: Int, dLen: Int) = VFUInstantiateParameter(
-    slotCount = 4,
+  def minimalFP(vLen: Int, dLen: Int, chainingSize: Int=4) = VFUInstantiateParameter(
+    slotCount = chainingSize,
     logicModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     aluModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     shifterModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     mulModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq.tabulate(chainingSize){i => i})
     ),
     divModuleParameters = Seq(),
     divfpModuleParameters =
-      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq(0, 1, 2, 3))),
+      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq.tabulate(chainingSize){i => i})),
     otherModuleParameters = Seq(
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
           OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
         ),
-        Seq(0, 1, 2, 3)
+        Seq.tabulate(chainingSize){i => i}
       )
     ),
     floatModuleParameters =
-      Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
+      Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq.tabulate(chainingSize){i => i})),
     zvbbModuleParameters = Seq()
   )
 
@@ -191,215 +191,119 @@ object VFUInstantiateParameter {
   )
 
   // standalone VFU(except MUL and DIV) for all scoreboards
-  def mediumFP(vLen: Int, dLen: Int) = VFUInstantiateParameter(
-    slotCount = 4,
-    logicModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(3))
-    ),
-    aluModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(3))
-    ),
-    shifterModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(3))
-    ),
+  def mediumFP(vLen: Int, dLen: Int, chainingSize: Int=4) = VFUInstantiateParameter(
+    slotCount = chainingSize,
+    logicModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(i))
+    },
+    aluModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(i))
+    },
+    shifterModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(i))
+    },
     mulModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq.tabulate(chainingSize){i => i})
     ),
     divModuleParameters = Seq(),
     divfpModuleParameters =
-      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq(0, 1, 2, 3))),
-    otherModuleParameters = Seq(
+      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq.tabulate(chainingSize){i => i})),
+    otherModuleParameters = Seq.tabulate(chainingSize){i =>
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
           OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
         ),
-        Seq(0)
-      ),
-      (
-        SerializableModuleGenerator(
-          classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-        ),
-        Seq(1)
-      ),
-      (
-        SerializableModuleGenerator(
-          classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-        ),
-        Seq(2)
-      ),
-      (
-        SerializableModuleGenerator(
-          classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-        ),
-        Seq(3)
+        Seq(i)
       )
-    ),
+    },
     floatModuleParameters =
-      Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
+      Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq.tabulate(chainingSize){i => i})),
     zvbbModuleParameters = Seq()
   )
 
   // standalone VFU(except DIV) for all scoreboards
-  def largeFP(vLen: Int, dLen: Int) = VFUInstantiateParameter(
-    slotCount = 4,
-    logicModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(3))
-    ),
-    aluModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(3))
-    ),
-    shifterModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(3))
-    ),
+  def largeFP(vLen: Int, dLen: Int, chainingSize: Int=4) = VFUInstantiateParameter(
+    slotCount = chainingSize,
+    logicModuleParameters = Seq.tabulate(chainingSize) {i =>
+      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(i))
+    },
+    aluModuleParameters = Seq.tabulate(chainingSize) {i =>
+      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(i))
+    },
+    shifterModuleParameters = Seq.tabulate(chainingSize) {i =>
+      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(i))
+    },
     mulModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq.tabulate(chainingSize){i => i})
     ),
     divModuleParameters = Seq(),
     divfpModuleParameters =
-      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq(0, 1, 2, 3))),
-    otherModuleParameters = Seq(
+      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq.tabulate(chainingSize){i => i})),
+    otherModuleParameters = Seq.tabulate(chainingSize) {i =>
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
           OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
         ),
-        Seq(0)
-      ),
-      (
-        SerializableModuleGenerator(
-          classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-        ),
-        Seq(1)
-      ),
-      (
-        SerializableModuleGenerator(
-          classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-        ),
-        Seq(2)
-      ),
-      (
-        SerializableModuleGenerator(
-          classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-        ),
-        Seq(3)
+        Seq(i)
       )
-    ),
-    floatModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(3))
-    ),
+    },
+    floatModuleParameters = Seq.tabulate(chainingSize) {i =>
+      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(i))
+    },
     zvbbModuleParameters = Seq()
   )
 
   // standalone VFU for all scoreboards
-  def hugeFP(vLen: Int, dLen: Int) = VFUInstantiateParameter(
-    slotCount = 4,
-    logicModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(3))
-    ),
-    aluModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(3))
-    ),
-    shifterModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(3))
-    ),
+  def hugeFP(vLen: Int, dLen: Int, chainingSize: Int=4) = VFUInstantiateParameter(
+    slotCount = chainingSize,
+    logicModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(i))
+    },
+    aluModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(i))
+    },
+    shifterModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0))
+    },
     mulModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq.tabulate(chainingSize){i => i})
     ),
     divModuleParameters = Seq(),
     divfpModuleParameters =
-      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq(0, 1, 2, 3))),
-    otherModuleParameters = Seq(
+      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq.tabulate(chainingSize){i => i})),
+    otherModuleParameters = Seq.tabulate(chainingSize){i =>
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
           OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
         ),
-        Seq(0)
-      ),
-      (
-        SerializableModuleGenerator(
-          classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-        ),
-        Seq(1)
-      ),
-      (
-        SerializableModuleGenerator(
-          classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-        ),
-        Seq(2)
-      ),
-      (
-        SerializableModuleGenerator(
-          classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
-        ),
-        Seq(3)
+        Seq(i)
       )
-    ),
-    floatModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(3))
-    ),
+    },
+    floatModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(i))
+    },
     zvbbModuleParameters = Seq()
   )
 
-  def minimalInt(vLen: Int, dLen: Int) = VFUInstantiateParameter(
-    slotCount = 4,
+  def minimalInt(vLen: Int, dLen: Int, chainingSize: Int=4) = VFUInstantiateParameter(
+    slotCount = chainingSize,
     logicModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     aluModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     shifterModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     mulModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq.tabulate(chainingSize){i => i})
     ),
     divModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     divfpModuleParameters = Seq(),
     otherModuleParameters = Seq(
@@ -408,32 +312,29 @@ object VFUInstantiateParameter {
           classOf[OtherUnit],
           OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
         ),
-        Seq(0, 1, 2, 3)
+        Seq.tabulate(chainingSize){i => i}
       )
     ),
     floatModuleParameters = Seq(),
     zvbbModuleParameters = Seq() // TODO
   )
 
-  def smallInt(vLen: Int, dLen: Int) = VFUInstantiateParameter(
-    slotCount = 4,
+  def smallInt(vLen: Int, dLen: Int, chainingSize: Int=4) = VFUInstantiateParameter(
+    slotCount = chainingSize,
     logicModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
-    aluModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(3))
-    ),
+    aluModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(i))
+    },
     shifterModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     mulModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq.tabulate(chainingSize){i => i})
     ),
     divModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     divfpModuleParameters = Seq(),
     otherModuleParameters = Seq(
@@ -442,7 +343,7 @@ object VFUInstantiateParameter {
           classOf[OtherUnit],
           OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
         ),
-        Seq(0, 1, 2, 3)
+        Seq.tabulate(chainingSize){i => i}
       )
     ),
     floatModuleParameters = Seq(),
@@ -450,25 +351,22 @@ object VFUInstantiateParameter {
   )
 
   // experimental
-  def zvbb(vLen: Int, dLen: Int) = VFUInstantiateParameter(
-    slotCount = 4,
+  def zvbb(vLen: Int, dLen: Int, chainingSize: Int=4) = VFUInstantiateParameter(
+    slotCount = chainingSize,
     logicModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
-    aluModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(3))
-    ),
+    aluModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(i))
+    },
     shifterModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     mulModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq.tabulate(chainingSize){i => i})
     ),
     divModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneDiv], LaneDivParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     divfpModuleParameters = Seq(),
     otherModuleParameters = Seq(
@@ -477,45 +375,42 @@ object VFUInstantiateParameter {
           classOf[OtherUnit],
           OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
         ),
-        Seq(0, 1, 2, 3)
+        Seq.tabulate(chainingSize){i => i}
       )
     ),
     floatModuleParameters = Seq(),
-    zvbbModuleParameters = Seq((SerializableModuleGenerator(classOf[LaneZvbb], LaneZvbbParam(32, 3)), Seq(0, 1, 2, 3)))
+    zvbbModuleParameters = Seq((SerializableModuleGenerator(classOf[LaneZvbb], LaneZvbbParam(32, 3)), Seq.tabulate(chainingSize){i => i}))
   )
 
-  def zvbbFP(vLen: Int, dLen: Int) = VFUInstantiateParameter(
-    slotCount = 4,
+  def zvbbFP(vLen: Int, dLen: Int, chainingSize: Int=4) = VFUInstantiateParameter(
+    slotCount = chainingSize,
     logicModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[MaskedLogic], LogicParam(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
-    aluModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(0)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(1)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(2)),
-      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(3))
-    ),
+    aluModuleParameters = Seq.tabulate(chainingSize){i =>
+      (SerializableModuleGenerator(classOf[LaneAdder], LaneAdderParam(32, 1)), Seq(i))
+    },
     shifterModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneShifter], LaneShifterParameter(32, 1)), Seq.tabulate(chainingSize){i => i})
     ),
     mulModuleParameters = Seq(
-      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq(0, 1, 2, 3))
+      (SerializableModuleGenerator(classOf[LaneMul], LaneMulParam(32, 2)), Seq.tabulate(chainingSize){i => i})
     ),
     divModuleParameters = Seq(),
     divfpModuleParameters =
-      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq(0, 1, 2, 3))),
+      Seq((SerializableModuleGenerator(classOf[LaneDivFP], LaneDivFPParam(32, 1)), Seq.tabulate(chainingSize){i => i})),
     otherModuleParameters = Seq(
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
           OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
         ),
-        Seq(0, 1, 2, 3)
+        Seq.tabulate(chainingSize){i => i}
       )
     ),
     floatModuleParameters =
-      Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq(0, 1, 2, 3))),
-    zvbbModuleParameters = Seq((SerializableModuleGenerator(classOf[LaneZvbb], LaneZvbbParam(32, 3)), Seq(0, 1, 2, 3)))
+      Seq((SerializableModuleGenerator(classOf[LaneFloat], LaneFloatParam(32, 3)), Seq.tabulate(chainingSize){i => i})),
+    zvbbModuleParameters = Seq((SerializableModuleGenerator(classOf[LaneZvbb], LaneZvbbParam(32, 3)), Seq.tabulate(chainingSize){i => i}))
   )
 }
 
