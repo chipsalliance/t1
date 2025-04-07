@@ -3,26 +3,22 @@ cmdopt = "--instructionSets rv32_i --instructionSets rv_m --instructionSets rv_a
 [blastoise]
 cmdopt = "--instructionSets rv32_i --instructionSets rv_m --instructionSets rv_a --instructionSets rv_c --instructionSets rv_f --instructionSets rv_v --instructionSets zve32f --instructionSets zvl2048b --cacheBlockBytes 32 --nPMPs 8 --cacheable 11111111111111111111111111111111 --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 256 --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rp1w --vfuInstantiateParameter small"
 
-[physical_design_case_0]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl128b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
-[physical_design_case_1]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl256b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
-[physical_design_case_2]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl512b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+# Physcial Design Benchmark
+## VLEN from 128 to 64K
 [physical_design_case_3]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl1024b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl1024b --instructionSets zve32x --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter minimal"
 [physical_design_case_4]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl2048b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl2048b --instructionSets zve32x --vrfBankSize 2 --vrfRamType p0rw --vfuInstantiateParameter minimal"
 [physical_design_case_5]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl4096b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl4096b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
 [physical_design_case_6]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl8192b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl8192b --instructionSets zve32x --vrfBankSize 8 --vrfRamType p0rw --vfuInstantiateParameter minimal"
 [physical_design_case_7]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl16384b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl16384b --instructionSets zve32x --vrfBankSize 16 --vrfRamType p0rw --vfuInstantiateParameter minimal"
 [physical_design_case_8]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl32768b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl32768b --instructionSets zve32x --vrfBankSize 32 --vrfRamType p0rw --vfuInstantiateParameter minimal"
 [physical_design_case_9]
-cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl65536b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl65536b --instructionSets zve32x --vrfBankSize 64 --vrfRamType p0rw --vfuInstantiateParameter minimal"
 ## 4 8 16 32 Lanes floorplan and extra size by Permutation Unit
 [physical_design_case_10]
 cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl2048b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
@@ -65,6 +61,30 @@ cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c
 cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl512b --instructionSets zve32f --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter large"
 [physical_design_case_28]
 cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl512b --instructionSets zve32f --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+## 2...8 Chaining Size
+[physical_design_case_29]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl128b --instructionSets zve32x --vrfBankSize 2 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_30]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl128b --instructionSets zve32x --vrfBankSize 3 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_31]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl128b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_32]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl128b --instructionSets zve32x --vrfBankSize 5 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_33]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl128b --instructionSets zve32x --vrfBankSize 6 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_34]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl128b --instructionSets zve32x --vrfBankSize 7 --vrfRamType p0rw --vfuInstantiateParameter huge"
+[physical_design_case_35]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl128b --instructionSets zve32x --vrfBankSize 8 --vrfRamType p0rw --vfuInstantiateParameter huge"
+## Lane Scale
+[physical_design_case_36]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl1024b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+[physical_design_case_37]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 2 --chainingSize 4 --instructionSets zvl1024b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+[physical_design_case_38]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 4 --chainingSize 4 --instructionSets zvl1024b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+[physical_design_case_39]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --laneScale 8 --chainingSize 4 --instructionSets zvl1024b --instructionSets zve32x --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
 
 [benchmark_dlen128_vlen128]
 cmdopt = "--instructionSets rv32_i --instructionSets rv_m --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 11111111111111111111111111111111 --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --laneScale 1 --chainingSize 4 --instructionSets zvl128b --instructionSets zve32x --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
@@ -138,3 +158,89 @@ cmdopt = "--instructionSets rv32_i --instructionSets rv_m --instructionSets rv_a
 cmdopt = "--instructionSets rv32_i --instructionSets rv_m --instructionSets rv_a --instructionSets rv_c --instructionSets rv_f --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 11111111111111111111111111111111 --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false  --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl2048b --instructionSets zve32f --instructionSets rv_f --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
 [benchmark_dlen1024_vlen4096_fp]
 cmdopt = "--instructionSets rv32_i --instructionSets rv_m --instructionSets rv_a --instructionSets rv_c --instructionSets rv_f --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 11111111111111111111111111111111 --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false  --dLen 1024 --laneScale 1 --chainingSize 4 --instructionSets zvl4096b --instructionSets zve32f --instructionSets rv_f --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+
+# VLEN
+[physical_design_case_51]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl1024b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_52]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl2048b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_53]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl4096b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_54]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl8192b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_55]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl16384b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+# DLEN
+[physical_design_case_61]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_62]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 256 --instructionSets zvl256b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_63]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 512 --instructionSets zvl512b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_64]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --instructionSets zvl1024b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+# Lane Scale
+[physical_design_case_71]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --instructionSets zvl1024b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_72]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --instructionSets zvl1024b --instructionSets zve32x --laneScale 2 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_73]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --instructionSets zvl1024b --instructionSets zve32x --laneScale 4 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_74]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 1024 --instructionSets zvl1024b --instructionSets zve32x --laneScale 8 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+# Chaining Size
+[physical_design_case_82]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 2 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_83]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 3 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_84]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_85]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 5 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_86]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 6 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_87]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 7 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+[physical_design_case_88]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 8 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+
+# Chaining Size Huge
+[physical_design_case_92]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 2 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+
+[physical_design_case_93]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 3 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+
+[physical_design_case_94]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+
+[physical_design_case_95]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 5 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+
+[physical_design_case_96]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 6 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+
+[physical_design_case_97]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 7 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+
+[physical_design_case_98]
+cmdopt = "--instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 128 --instructionSets zvl128b --instructionSets zve32x --laneScale 1 --chainingSize 8 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
