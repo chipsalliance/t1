@@ -23,6 +23,9 @@ stdenv.mkDerivation rec {
     rev = version;
     hash = "sha256-bMJJ2q1hSh7m0ewclHOmIe7lOHv110rz/P7D3pw8Uiw=";
   };
+  patches = [
+    ../patches/llvm/03-buddy-llvm-fix-malloc-type.patch
+  ];
 
   requiredSystemFeatures = [ "big-parallel" ];
 
