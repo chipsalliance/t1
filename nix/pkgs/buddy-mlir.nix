@@ -76,6 +76,7 @@ let
         # tinyllama
         ps.transformers
         ps.accelerate
+        ps.sentencepiece
       ]);
     };
   };
