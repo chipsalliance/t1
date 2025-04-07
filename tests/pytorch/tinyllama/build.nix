@@ -14,45 +14,21 @@ buildBuddyE2ETest {
 
   env.LLAMA_MODEL_PATH = "${model}";
   optPhase = ''
-    python ./tinyllama.py
+    python3 ./tinyllama.py --output-dir $PWD
 
     echo "Lowering forward.mlir"
-    buddy-opt forward.mlir -pass-pipeline \
-      "builtin.module(func.func(tosa-to-linalg-named),func.func(tosa-to-linalg),\
-      func.func(tosa-to-tensor),func.func(tosa-to-arith))" \
-      | buddy-opt --arith-expand \
-        --eliminate-empty-tensors \
-        --empty-tensor-to-alloc-tensor \
-        --one-shot-bufferize \
-        --matmul-parallel-vectorization-optimize \
-        --batchmatmul-optimize \
-        --convert-linalg-to-affine-loops \
-        --affine-loop-fusion \
-        --lower-affine \
-        --func-bufferize \
-        --arith-bufferize \
-        --tensor-bufferize \
-        --buffer-deallocation \
-        --finalizing-bufferize \
-        --convert-vector-to-scf \
-        --expand-strided-metadata \
-        --convert-vector-to-llvm \
-        --memref-expand \
-        --arith-expand \
-        --convert-arith-to-llvm \
-        --finalize-memref-to-llvm \
-        --convert-scf-to-cf \
-        --llvm-request-c-wrappers \
-        --convert-arith-to-llvm \
-        --convert-math-to-llvm \
-        --convert-math-to-libm  \
-        --convert-func-to-llvm \
-        --reconcile-unrealized-casts \
+      cat forward.mlir \
+      | buddy-opt \
+          --expand-strided-metadata \
+          --finalize-memref-to-llvm=index-bitwidth=32 \
+          --llvm-request-c-wrappers \
+          --convert-func-to-llvm=index-bitwidth=32 \
+          --reconcile-unrealized-casts \
       > forward-lowered.mlir
 
     echo "Lowering subgraphs[0]"
-    buddy-opt subgraphs0.mlir -pass-pipeline \
-        "builtin.module(func.func(tosa-to-linalg-named, tosa-to-arith, tosa-to-linalg, tosa-to-tensor))" \
+    buddy-opt subgraph0.mlir -pass-pipeline \
+        "builtin.module(func.func(tosa-to-linalg-named, tosa-to-arith{use-32-bit}, tosa-to-linalg, tosa-to-tensor))" \
       | buddy-opt \
           --convert-elementwise-to-linalg \
           --arith-expand \
@@ -64,29 +40,26 @@ buildBuddyE2ETest {
           --arith-bufferize \
           --buffer-deallocation \
           --finalizing-bufferize \
-          --matmul-parallel-vectorization-optimize \
-          --batchmatmul-optimize \
           --convert-linalg-to-affine-loops \
           --affine-loop-fusion \
           --lower-affine \
           --convert-vector-to-scf \
           --expand-strided-metadata \
+          --llvm-request-c-wrappers \
           --cse \
           --lower-vector-exp \
           --lower-rvv=rv32 \
           --convert-vector-to-llvm \
           --memref-expand \
           --arith-expand \
-          --convert-arith-to-llvm \
-          --finalize-memref-to-llvm \
+          --convert-arith-to-llvm=index-bitwidth=32 \
+          --finalize-memref-to-llvm=index-bitwidth=32 \
           --convert-scf-to-cf \
-          --llvm-request-c-wrappers \
-          --convert-arith-to-llvm \
+          --convert-arith-to-llvm=index-bitwidth=32 \
           --convert-math-to-llvm \
-          --convert-math-to-libm  \
-          --convert-func-to-llvm \
+          --convert-func-to-llvm=index-bitwidth=32 \
           --reconcile-unrealized-casts \
-      > subgraphs0-lowered.mlir
+      > subgraph0-lowered.mlir
 
     echo "Compiling memrefCopy library"
     $CXX -nostdlib -c ${../lib/MemrefCopy.cc} -o memrefCopy.o
@@ -96,7 +69,10 @@ buildBuddyE2ETest {
 
     optArtifacts+=(
       "forward-lowered.mlir"
-      "subgraphs0-lowered.mlir"
+      "subgraph0-lowered.mlir"
     )
+
+    mkdir -p "$out/resources"
+    cp -v ''${optArtifacts[*]} "$out/resources"
   '';
 }
