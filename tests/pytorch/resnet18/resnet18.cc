@@ -5,9 +5,9 @@ extern "C" void _mlir_ciface_forward(MemRef<float, 2> *output,
                                      MemRef<float, 1> *arg0,
                                      MemRef<float, 4> *input);
 
-__attribute((section(".vdata"))) float output_float_1[1000] = {0};
-__attribute((section(".vdata"))) float IMAGE[300] = {0};
-__attribute((section(".vdata"))) float PARAMS[100] = {0};
+__attribute((section(".vdata"))) float output_float_1[1000];
+__attribute((section(".vdata"))) float IMAGE[300];
+__attribute((section(".vdata"))) float PARAMS[100];
 
 extern "C" int test() {
   static int32_t sizes[2] = {1, 1000};
