@@ -35,8 +35,8 @@
 template <typename T, size_t N> class MemRef {
 public:
   // Construct using init to allocated area
-  MemRef(T *allocated, T init, intptr_t sizes[N]);
-  MemRef(T *allocated, intptr_t sizes[N], intptr_t offset = 0);
+  constexpr MemRef(T *allocated, T init, intptr_t sizes[N]);
+  constexpr MemRef(T *allocated, intptr_t sizes[N], intptr_t offset = 0);
   // Get the data pointer.
   T *getData();
   // Get the sizes (shape).
@@ -54,9 +54,9 @@ public:
 protected:
   // Set the strides.
   // Computes the strides of the transposed tensor for transpose=true.
-  void setStrides();
+  inline void setStrides();
   // Compute the product of array elements.
-  size_t product(const intptr_t sizes[N]) const;
+  inline size_t product(const intptr_t sizes[N]) const;
 
   // Data.
   // The `aligned` and `allocated` members point to the same address, `aligned`
@@ -73,7 +73,7 @@ protected:
 };
 
 template <typename T, std::size_t N>
-MemRef<T, N>::MemRef(T *allocated, T init, intptr_t sizes[N])
+constexpr MemRef<T, N>::MemRef(T *allocated, T init, intptr_t sizes[N])
     : MemRef(allocated, sizes) {
   size_t size = product(sizes);
   std::fill(aligned, aligned + size, init);
@@ -83,7 +83,7 @@ MemRef<T, N>::MemRef(T *allocated, T init, intptr_t sizes[N])
 // Construct a MemRef object from the data pointer, sizes, and offset.
 // The default offset is 0.
 template <typename T, std::size_t N>
-MemRef<T, N>::MemRef(T *data, intptr_t sizes[N], intptr_t offset) {
+constexpr MemRef<T, N>::MemRef(T *data, intptr_t sizes[N], intptr_t offset) {
   this->offset = offset;
   for (size_t i = 0; i < N; i++) {
     this->sizes[i] = sizes[i];
@@ -124,7 +124,7 @@ template <typename T, std::size_t N> T &MemRef<T, N>::operator[](size_t index) {
 }
 
 // Calculate the stride values for each dimension based on the sizes.
-template <typename T, std::size_t N> void MemRef<T, N>::setStrides() {
+template <typename T, std::size_t N> inline void MemRef<T, N>::setStrides() {
   strides[N - 1] = 1;
   if (N < 2)
     return;
@@ -136,7 +136,7 @@ template <typename T, std::size_t N> void MemRef<T, N>::setStrides() {
 
 // Calculate the total number of elements in the MemRef container.
 template <typename T, std::size_t N>
-size_t MemRef<T, N>::product(const intptr_t sizes[N]) const {
+inline size_t MemRef<T, N>::product(const intptr_t sizes[N]) const {
   size_t size = 1;
   for (size_t i = 0; i < N; i++)
     size *= sizes[i];
