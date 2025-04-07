@@ -16,9 +16,14 @@ in
       #include <emurt.h>
       #include <stdio.h>
 
+      float array_b[100];
+
       void test() {
         place_counter(1);
         printf("Hello, %s", "World\n");
+        for (int i = 1; i < 100; i++) {
+          array_b[i] += 1 + array_b[i - 1];
+        }
         place_counter(0);
       }
     '';
