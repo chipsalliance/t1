@@ -119,6 +119,8 @@ rec {
       };
   };
 
+  iree-runtime = final.callPackage ./pkgs/iree-runtime.nix { };
+
   riscv-tests = final.pkgsCross.riscv32-embedded.stdenv.mkDerivation rec {
     pname = "riscv-tests";
     version = "7878085d2546af0eb7af72a1df00996d5d8c43fb";
