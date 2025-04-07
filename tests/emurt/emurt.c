@@ -44,6 +44,27 @@ char *_sbrk(int nbytes) {
   return base;
 }
 
+// Magic symbols that should be provided by linker
+extern void (*__preinit_array_start []) (void) __attribute__((weak));
+extern void (*__preinit_array_end []) (void) __attribute__((weak));
+extern void (*__init_array_start []) (void) __attribute__((weak));
+extern void (*__init_array_end []) (void) __attribute__((weak));
+
+void __t1_init_array(void) {
+  int32_t count;
+  int32_t i;
+
+  count = __preinit_array_end - __preinit_array_start;
+  for (i = 0; i < count; i++) {
+    __preinit_array_start[i] ();
+  }
+
+  count = __init_array_end - __init_array_start;
+  for (i = 0; i < count; i++) {
+    __init_array_start[i] ();
+  }
+}
+
 ///////////////////////
 // unimplemented
 ///////////////////////
