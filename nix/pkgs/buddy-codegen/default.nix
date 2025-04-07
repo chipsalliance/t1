@@ -1,21 +1,28 @@
-{ lib
-, stdenv
-, argparse
-, buddy-mlir
-, libpng
+{
+  lib,
+  stdenv,
+  argparse,
+  buddy-mlir,
+  libpng,
 }:
 stdenv.mkDerivation {
   name = "buddy-codegen";
 
-  src = with lib.fileset; toSource {
-    fileset = unions [
-      ./dip.mlir
-      ./buddy-codegen.cc
-    ];
-    root = ./.;
-  };
+  src =
+    with lib.fileset;
+    toSource {
+      fileset = unions [
+        ./dip.mlir
+        ./buddy-codegen.cc
+      ];
+      root = ./.;
+    };
 
-  buildInputs = [ libpng argparse buddy-mlir ];
+  buildInputs = [
+    libpng
+    argparse
+    buddy-mlir
+  ];
 
   env.NIX_CFLAGS_COMPILE = toString [
     # TODO: BMP is now broken
