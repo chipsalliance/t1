@@ -6,12 +6,13 @@
   fetchurl,
   python3,
   callPackage,
+  enableI32MallocFix ? true,
 }:
 let
   stdenv = llvmPackages_17.stdenv;
   bintools = llvmPackages_17.bintools;
 
-  buddy-llvm = callPackage ./buddy-llvm.nix { inherit stdenv python3; };
+  buddy-llvm = callPackage ./buddy-llvm.nix { inherit stdenv python3 enableI32MallocFix; };
   self = stdenv.mkDerivation {
     pname = "buddy-mlir";
     version = "unstable-2024-07-18";
