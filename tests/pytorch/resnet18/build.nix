@@ -42,19 +42,20 @@ buildBuddyE2ETest {
           --conv-nhwc-fhwc-optimize \
           --batchmatmul-optimize \
           --convert-linalg-to-loops \
-          --convert-vector-to-llvm \
-          --convert-scf-to-cf \
-          --convert-cf-to-llvm \
           --expand-strided-metadata \
-          --lower-affine \
           --llvm-request-c-wrappers \
-          --lower-vector-exp \
-          --lower-rvv=rv32 \
+          --lower-affine \
+          --convert-vector-to-llvm=force-32bit-vector-indices \
+          --convert-scf-to-cf \
+          --convert-cf-to-llvm=index-bitwidth=32 \
           --convert-arith-to-llvm=index-bitwidth=32 \
           --convert-math-to-llvm \
           --convert-func-to-llvm=index-bitwidth=32 \
           --finalize-memref-to-llvm=index-bitwidth=32 \
+          --convert-index-to-llvm=index-bitwidth=32 \
           --reconcile-unrealized-casts \
+          --mlir-print-ir-after-change \
+          --verify-each \
       > subgraph0-lowered.mlir
 
     echo "Compiling memrefCopy library"
