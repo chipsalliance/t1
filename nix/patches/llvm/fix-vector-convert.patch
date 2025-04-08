@@ -1,0 +1,100 @@
+--- a/llvm/lib/Target/RISCV/RISCVISelLowering.cpp	1970-01-01 00:00:01.000000000 +0000
++++ b/llvm/lib/Target/RISCV/RISCVISelLowering.cpp	2025-04-08 19:56:05.027381997 +0000
+@@ -4512,7 +4512,8 @@
+ 
+   // Src needs to have twice the number of elements.
+   unsigned NumElts = VT.getVectorNumElements();
+-  if (Src.getValueType().getVectorNumElements() != (NumElts * 2))
++  if (!Src.getValueType().isFixedLengthVector() ||
++      Src.getValueType().getVectorNumElements() != (NumElts * 2))
+     return SDValue();
+ 
+   // The extracts must extract the two halves of the source.
+--- a/mlir/include/mlir/Conversion/Passes.td	1970-01-01 00:00:01.000000000 +0000
++++ b/mlir/include/mlir/Conversion/Passes.td	2025-04-08 18:58:09.826017766 +0000
+@@ -1444,6 +1444,9 @@
+            "vector::VectorTransformsOptions",
+            /*default=*/"vector::VectorTransformsOptions()",
+            "Options to lower some operations like contractions and transposes.">,
++    Option<"indexBitwidth", "index-bitwidth", "unsigned",
++           /*default=kDeriveIndexBitwidthFromDataLayout*/"0",
++           "Bitwidth of the index type, 0 to use size of machine word">,
+   ];
+ }
+ 
+--- a/mlir/lib/Conversion/VectorToLLVM/ConvertVectorToLLVM.cpp	1970-01-01 00:00:01.000000000 +0000
++++ b/mlir/lib/Conversion/VectorToLLVM/ConvertVectorToLLVM.cpp	2025-04-08 18:59:47.622433399 +0000
+@@ -1438,8 +1438,6 @@
+     if (llvm::any_of(*targetStrides, ShapedType::isDynamic))
+       return failure();
+ 
+-    auto int64Ty = IntegerType::get(rewriter.getContext(), 64);
+-
+     // Create descriptor.
+     auto desc = MemRefDescriptor::undef(rewriter, loc, llvmTargetDescriptorTy);
+     // Set allocated ptr.
+@@ -1450,21 +1448,23 @@
+     Value ptr = sourceMemRef.alignedPtr(rewriter, loc);
+     desc.setAlignedPtr(rewriter, loc, ptr);
+     // Fill offset 0.
+-    auto attr = rewriter.getIntegerAttr(rewriter.getIndexType(), 0);
+-    auto zero = rewriter.create<LLVM::ConstantOp>(loc, int64Ty, attr);
++    auto idxType = rewriter.getIndexType();
++    auto zero = rewriter.create<LLVM::ConstantOp>(
++        loc, typeConverter->convertType(idxType),
++        rewriter.getIntegerAttr(idxType, 0));
+     desc.setOffset(rewriter, loc, zero);
+ 
+     // Fill size and stride descriptors in memref.
+     for (const auto &indexedSize :
+          llvm::enumerate(targetMemRefType.getShape())) {
+       int64_t index = indexedSize.index();
+-      auto sizeAttr =
+-          rewriter.getIntegerAttr(rewriter.getIndexType(), indexedSize.value());
+-      auto size = rewriter.create<LLVM::ConstantOp>(loc, int64Ty, sizeAttr);
++      auto size = rewriter.create<LLVM::ConstantOp>(
++          loc, typeConverter->convertType(idxType),
++          rewriter.getIntegerAttr(idxType, indexedSize.value()));
+       desc.setSize(rewriter, loc, index, size);
+-      auto strideAttr = rewriter.getIntegerAttr(rewriter.getIndexType(),
+-                                                (*targetStrides)[index]);
+-      auto stride = rewriter.create<LLVM::ConstantOp>(loc, int64Ty, strideAttr);
++      auto stride = rewriter.create<LLVM::ConstantOp>(
++          loc, typeConverter->convertType(idxType),
++          rewriter.getIntegerAttr(idxType, (*targetStrides)[index]));
+       desc.setStride(rewriter, loc, index, stride);
+     }
+ 
+--- a/mlir/lib/Conversion/VectorToLLVM/ConvertVectorToLLVMPass.cpp	1970-01-01 00:00:01.000000000 +0000
++++ b/mlir/lib/Conversion/VectorToLLVM/ConvertVectorToLLVMPass.cpp	2025-04-08 19:00:55.000728446 +0000
+@@ -8,6 +8,7 @@
+ 
+ #include "mlir/Conversion/VectorToLLVM/ConvertVectorToLLVMPass.h"
+ 
++#include "mlir/Analysis/DataLayoutAnalysis.h"
+ #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
+ #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
+ #include "mlir/Dialect/AMX/AMXDialect.h"
+@@ -64,6 +65,8 @@
+   // Perform progressive lowering of operations on slices and all contraction
+   // operations. Also materializes masks, lowers vector.step, rank-reduces FMA,
+   // applies folding and DCE.
++  Operation *op = getOperation();
++  const auto &dataLayoutAnalysis = getAnalysis<DataLayoutAnalysis>();
+   {
+     RewritePatternSet patterns(&getContext());
+     populateVectorToVectorCanonicalizationPatterns(patterns);
+@@ -85,8 +88,11 @@
+   }
+ 
+   // Convert to the LLVM IR dialect.
+-  LowerToLLVMOptions options(&getContext());
+-  LLVMTypeConverter converter(&getContext(), options);
++  LowerToLLVMOptions options(&getContext(),
++                             dataLayoutAnalysis.getAtOrAbove(op));
++  if (indexBitwidth != kDeriveIndexBitwidthFromDataLayout)
++    options.overrideIndexBitwidth(indexBitwidth);
++  LLVMTypeConverter converter(&getContext(), options, &dataLayoutAnalysis);
+   RewritePatternSet patterns(&getContext());
+   populateVectorTransferLoweringPatterns(patterns);
+   populateVectorToLLVMMatrixConversionPatterns(converter, patterns);

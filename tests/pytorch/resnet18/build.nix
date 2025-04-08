@@ -22,7 +22,7 @@ buildBuddyE2ETest {
     echo "Lowering forward.mlir"
     buddy-opt forward.mlir -pass-pipeline \
         "builtin.module(func.func(tosa-to-linalg-named, tosa-to-linalg, tosa-to-tensor, tosa-to-arith{use-32-bit}), \
-            empty-tensor-to-alloc-tensor, convert-elementwise-to-linalg, convert-vector-to-llvm)" \
+            empty-tensor-to-alloc-tensor, convert-elementwise-to-linalg, convert-vector-to-llvm{force-32bit-vector-indices index-bitwidth=32})" \
       | buddy-opt -pass-pipeline \
         "builtin.module(func.func(buffer-deallocation-simplification, convert-linalg-to-loops), \
             eliminate-empty-tensors, func.func(llvm-request-c-wrappers), \
@@ -45,7 +45,7 @@ buildBuddyE2ETest {
           --expand-strided-metadata \
           --llvm-request-c-wrappers \
           --lower-affine \
-          --convert-vector-to-llvm=force-32bit-vector-indices \
+          --convert-vector-to-llvm="force-32bit-vector-indices index-bitwidth=32" \
           --convert-scf-to-cf \
           --convert-cf-to-llvm=index-bitwidth=32 \
           --convert-arith-to-llvm=index-bitwidth=32 \

@@ -27,6 +27,10 @@ stdenv.mkDerivation rec {
 
   requiredSystemFeatures = [ "big-parallel" ];
 
+  patches = [
+    ../patches/llvm/fix-vector-convert.patch
+  ];
+
   propagatedBuildInputs = [
     pythonEnv
   ];
