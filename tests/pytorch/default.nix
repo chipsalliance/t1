@@ -59,7 +59,7 @@ let
                 llc "$llvmir" \
                   -mtriple=riscv32 \
                   -target-abi=ilp32f \
-                  -mattr=+m,+f,+zve32f \
+                  -mattr=+m,+f,+zvl4096b,+zve32f \
                   --filetype=obj \
                   -o "$llvmir.o"
 
