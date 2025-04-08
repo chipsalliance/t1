@@ -15,18 +15,17 @@ __attribute((section(".vdata"))) float output_0[OUTPUT_N];
 __attribute((section(".vdata"))) float param_0[PARAM_N0];
 __attribute((section(".vdata"))) int64_t param_1[PARAM_N1];
 
-// Define the sizes of the input and output tensors.
-static const int32_t sizesInput[4] = {INPUT_N, INPUT_C, INPUT_H, INPUT_W};
-static const int32_t sizesOutput[2] = {1, OUTPUT_N};
-static const int32_t sizesParam0[1] = {PARAM_N0};
-static const int32_t sizesParam1[1] = {PARAM_N1};
-
 extern "C" {
 void _mlir_ciface_forward(MemRef<float, 2> *output, MemRef<float, 1> *arg0,
                           MemRef<int64_t, 1> *arg1, Image<float, 4> *input);
 }
 
 extern "C" int test() {
+  // Define the sizes of the input and output tensors.
+  static int32_t sizesInput[4] = {INPUT_N, INPUT_C, INPUT_H, INPUT_W};
+  static int32_t sizesOutput[2] = {1, OUTPUT_N};
+  static int32_t sizesParam0[1] = {PARAM_N0};
+  static int32_t sizesParam1[1] = {PARAM_N1};
 
   // Generate input memref container with random numbers.
   const int inputSize = INPUT_N * INPUT_C * INPUT_H * INPUT_W;

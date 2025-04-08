@@ -7,7 +7,6 @@
   getTestRequiredFeatures,
   t1main,
   callPackage,
-  buddy-codegen,
 }:
 
 let
@@ -26,7 +25,7 @@ let
             nativeBuildInputs = [
               buddy-mlir.pyenv
               buddy-mlir
-              buddy-codegen
+              buddy-mlir.llvm
             ];
 
             src = sourcePath;
@@ -43,7 +42,7 @@ let
 
               for mlir in ''${optArtifacts[@]}; do
                 echo "Translating $mlir"
-                buddy-translate --buddy-to-llvmir "$mlir" -o "$mlir.ll"
+                mlir-translate --mlir-to-llvmir "$mlir" -o "$mlir.ll"
 
                 translateArtifacts+=("$mlir.ll")
               done

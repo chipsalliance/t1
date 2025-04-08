@@ -22,12 +22,11 @@ buildBuddyE2ETest {
     echo "Lowering forward.mlir"
     buddy-opt forward.mlir -pass-pipeline \
         "builtin.module(func.func(tosa-to-linalg-named, tosa-to-linalg, tosa-to-tensor, tosa-to-arith{use-32-bit}), \
-            empty-tensor-to-alloc-tensor, convert-elementwise-to-linalg, arith-bufferize, \
-            func.func(linalg-bufferize, tensor-bufferize), func-bufferize, convert-vector-to-llvm)" \
+            empty-tensor-to-alloc-tensor, convert-elementwise-to-linalg, convert-vector-to-llvm)" \
       | buddy-opt -pass-pipeline \
         "builtin.module(func.func(buffer-deallocation-simplification, convert-linalg-to-loops), \
             eliminate-empty-tensors, func.func(llvm-request-c-wrappers), \
-            convert-math-to-llvm, convert-math-to-libm, convert-scf-to-cf, \
+            convert-math-to-llvm, convert-scf-to-cf, \
             convert-arith-to-llvm{index-bitwidth=32}, convert-func-to-llvm{index-bitwidth=32}, \
             expand-strided-metadata, finalize-memref-to-llvm{index-bitwidth=32}, \
             convert-func-to-llvm{index-bitwidth=32}, reconcile-unrealized-casts)" \
@@ -38,28 +37,21 @@ buildBuddyE2ETest {
         "builtin.module(func.func(tosa-to-linalg-named, tosa-to-arith{use-32-bit}, tosa-to-linalg, tosa-to-tensor))" \
       | buddy-opt \
           --convert-elementwise-to-linalg \
-          --eliminate-empty-tensors \
-          --empty-tensor-to-alloc-tensor \
-          --one-shot-bufferize \
+          --one-shot-bufferize="bufferize-function-boundaries" \
           --func-bufferize-dynamic-offset \
-          --tensor-bufferize \
-          --arith-bufferize \
-          --buffer-deallocation \
-          --finalizing-bufferize \
-          --convert-linalg-to-affine-loops \
-          --affine-loop-fusion \
-          --lower-affine \
-          --expand-strided-metadata \
-          --convert-vector-to-scf \
+          --conv-nhwc-fhwc-optimize \
+          --batchmatmul-optimize \
+          --convert-linalg-to-loops \
+          --convert-vector-to-llvm \
           --convert-scf-to-cf \
-          --memref-expand \
+          --convert-cf-to-llvm \
+          --expand-strided-metadata \
+          --lower-affine \
           --llvm-request-c-wrappers \
           --lower-vector-exp \
           --lower-rvv=rv32 \
-          --convert-vector-to-llvm \
-          --convert-math-to-llvm \
           --convert-arith-to-llvm=index-bitwidth=32 \
-          --convert-index-to-llvm=index-bitwidth=32 \
+          --convert-math-to-llvm \
           --convert-func-to-llvm=index-bitwidth=32 \
           --finalize-memref-to-llvm=index-bitwidth=32 \
           --reconcile-unrealized-casts \
